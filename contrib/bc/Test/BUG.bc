@@ -1,0 +1,40 @@
+/* <--- bug.bc ---><--- bug.bc ---><--- bug.bc ---><--- bug.bc ---> */
+
+/*
+ *  See the file "signum" for a description and reference for this
+ *  program.  
+ *
+ *  THIS BUG IS *NOT* IN GNU BC!!!
+ *
+ */
+
+obase=16
+ibase=16
+x=1A8F5C99605AE52	/* dividend			*/
+y=BB0B404		/* divisor			*/
+q=245A07AD		/* (correct) quotient		*/
+r=147EB9E		/* (correct) remainder		*/
+"Base 16
+"
+"x    = "; x		/* output numbers just to be sure... */
+"y    = "; y
+"quo  = "; q
+"rem  = "; r
+"x/y  = "; x/y		/* watch this result! */
+"x%y  = "; x%y		/* watch this result! */
+"y*q+r= "; y*q+r	/* check quotient & remainder	*/
+/*
+ * Do the same thing in base 10:
+ */
+"
+Base 10
+"
+ibase=A
+obase=10
+"x    = "; x		/* output numbers just to be sure... */
+"y    = "; y
+"q    = "; q
+"r    = "; r
+"x/y  = "; x/y		/* watch this result! */
+"x%y  = "; x%y		/* watch this result! */
+"y*q+r= "; y*q+r	/* check quotient & remainder	*/

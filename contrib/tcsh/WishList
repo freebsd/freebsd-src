@@ -1,0 +1,65 @@
+
+                                [Home] WishList
+
+   Home | RecentChanges | Preferences
+     _________________________________________________________________
+
+   Fix  memory  leak  related  to  aliasrun().  Precmd,  Cwdcmd etc. leak
+   memory.
+     _________________________________________________________________
+
+   Fix migrate -site $$... Seems to hang... (aix370)
+     _________________________________________________________________
+
+   Fix history in loops.
+     _________________________________________________________________
+
+   New idea: sed operations on variables.
+
+   Lots  of  people  seem  to  like  the  idea  to be able to do sed type
+   operations  on  shell variables. Maybe we can extend the syntax of the
+   variable  editing  to understand string operations. So I would like to
+   be able to use:
+
+    > set a="this is a STRING"
+    > echo $a:[3-]
+    is is a STRING
+    > echo $a:[#]
+    16
+    > echo $a:[6-7]
+    is
+    > echo $a:[-2]
+    ng
+    > echo $a:[-20]
+    Subscript out of bounds.
+    > echo $a:[2-20]
+    Subscript out of bounds.
+    > echo $a:[1-1]:u$a:[2-].
+    This is a string.
+     _________________________________________________________________
+
+   Fix pipelines that contain builtins so that they behave correctly.
+
+   I  tried  to  fix  that (most of the code is in sh.sem.c, but it works
+   only  for  non  POSIX  machines  cause otherwise the setpgid() I added
+   fails).
+     _________________________________________________________________
+
+   Fix the correct code... How to do that involves A.I....
+     _________________________________________________________________
+
+   Rewrite  the  whole  thing.  It  has  taken  to  much beating over the
+   years...
+     _________________________________________________________________
+
+   Add  another  hook  like  precmd  to  be executed after the prompt but
+   before the command.
+     _________________________________________________________________
+
+   Add instructions for using configure in the README file.
+     _________________________________________________________________
+
+   Home | RecentChanges | Preferences
+   Edit text of this page | View other revisions
+   Last edited April 28, 2001 2:04 (diff)
+   Search: ____________________

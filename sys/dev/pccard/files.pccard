@@ -1,0 +1,71 @@
+#	$NetBSD: files.pcmcia,v 1.14 1999/01/01 19:30:03 christos Exp $
+# $FreeBSD$
+#
+# Config.new file and device description for machine-independent PCMCIA code.
+# Included by ports that need it.
+
+defopt	PCMCIAVERBOSE
+
+device	pcmcia {[function = -1], [irq = -1]}
+file	dev/pcmcia/pcmcia.c			pcmcia
+file	dev/pcmcia/pcmcia_cis.c			pcmcia
+file	dev/pcmcia/pcmcia_cis_quirks.c		pcmcia
+
+# device declaration in sys/conf/files
+attach	pcmcia at pcmciabus
+
+# 3Com 3c589 Ethernet, 3c562 multifunction Ethernet, and 3CXEM556
+#   multifunction Ethernet controllers
+# device declaration in sys/conf/files
+attach	ep at pcmcia with ep_pcmcia: elink
+file	dev/pcmcia/if_ep_pcmcia.c		ep_pcmcia
+
+# National Semiconductor DS8390/WD83C690-based boards
+# (NE[12]000, and clones)
+attach	ne at pcmcia with ne_pcmcia: rtl80x9
+file	dev/pcmcia/if_ne_pcmcia.c		ne_pcmcia
+
+# Adaptec APA-1460 SCSI Host Adapter
+#attach	aic at pcmcia with aic_pcmcia
+#file	dev/pcmcia/aic_pcmcia.c			aic_pcmcia
+
+#attach	com at pcmcia with com_pcmcia
+#file	dev/pcmcia/com_pcmcia.c			com_pcmcia
+
+# Digital RoamAbout / Lucent WaveLAN PCMCIA card
+#device	wl: arp, ether, ifnet
+#attach	wl at pcmcia with wl_pcmcia
+#file	dev/pcmcia/if_wl_pcmcia.c		wl_pcmcia
+#defopt	opt_wl_pcmcia.h		WL_TIMER WLP_CC_DEBUG WL_DEBUG MMC_STATUS WL_IFCNTRS WL_TIMING
+
+# PCMCIA IDE controller
+#attach	wdc at pcmcia with wdc_pcmcia
+#file	dev/pcmcia/wdc_pcmcia.c			wdc_pcmcia
+
+# SMC91Cxx Ethernet Controllers (i.e. Megahertz X-Jack)
+attach	sn at pcmcia with sm_pcmcia
+file	dev/pcmcia/if_sm_pcmcia.c		sm_pcmcia
+
+# MB8696x Ethernet Controllers (i.e. TDK LAK CD021BX)
+attach	fe at pcmcia with mbe_pcmcia
+file	dev/pcmcia/if_mbe_pcmcia.c		mbe_pcmcia
+
+# PCMCIA Floppy controller
+#attach	fdc at pcmcia with fdc_pcmcia
+#file	dev/pcmcia/fdc_pcmcia.c			fdc_pcmcia
+
+# PCMCIA multi-port serial cards
+#device	pcmcom {[slave = -1]}
+#attach	pcmcom at pcmcia
+#attach	com at pcmcom with com_pcmcom
+#file	dev/pcmcia/pcmcom.c			pcmcom | com_pcmcom needs-flag
+
+# Xircom Netwave
+#device	cnw: arp, ether, ifnet
+#attach	cnw at pcmcia
+#file	dev/pcmcia/if_cnw.c			cnw
+
+# Xircom CreditCard
+device	xe: ether, ifnet
+attach	xe at pcmcia	with xe_pcmcia
+file	dev/pcmcia/if_xe.c			xe

@@ -1,0 +1,100 @@
+.nr _0 \n(c.
+.\" Copyright (c) 1988, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)letterhead.me	8.1 (Berkeley) 6/5/93
+.\"
+.\"	%beginstrip%
+.\"
+.\" This file defines the local letterhead.  It should be changed as
+.\" necessary for your organization.
+.\" This version prints the U.C. letterhead, complete with seal.
+.\" Unfortunately, it assumes that you have ditroff and the seal font.
+.\"
+.nr xx \n(.d
+.nr xy \n(.u
+.nr xz \n(.f
+.lp
+.rs
+.nr xw \n(.s
+.nf
+.\" .ie "\*(.T"psc" \{\
+.ie \n(.g \{\
+.	po 0.85i
+.	sp |0.7i
+.	ft R \}
+.el \{\
+.	po 0.4i
+.	sp |0.5i
+.	ie "\*(.T"ip" \
+.		ft R
+.	el \
+.		ft cr
+.\}
+.ps 12
+.vs 0.14i
+.in 0
+UNIVERSITY OF CALIFORNIA, BERKELEY
+.sp 0.3i-1v
+.ie "\*(.T"psc" \{\
+\l'11.3c' \h'|13.5c'\l'4.2c'
+.br
+\s6\|BERKELEY    \(bu    DAVIS    \(bu    IRVINE    \(bu    LOS  ANGELES    \(bu    RIVERSIDE    \(bu    SAN  DIEGO    \(bu    SAN  FRANCISCO \h'|11.35c' \z\(uc \h'|13.85c' SANTA  BARBARA    \(bu    SANTA  CRUZ\s10
+.sp -0.2c
+\l'11.3c' \h'|13.5c'\l'4.2c'\s7 \}
+.el \{\
+.ps 7
+\D't 0.013i'\D'l 4.5i 0'\h'0.83i'\D'l 1.85i 0'
+.sp 0.13i-1v
+\!s5
+\D't 0.024i'\|BERKELEY \v'-0.035i'\D'l 0 0'\v'0.035i' DAVIS \v'-0.035i'\D'l 0 0'\v'0.035i' IRVINE \v'-0.035i'\D'l 0 0'\v'0.035i' LOS ANGELES \v'-0.035i'\D'l 0 0'\v'0.035i' RIVERSIDE \v'-0.035i'\D'l 0 0'\v'0.035i' SAN DIEGO \v'-0.035i'\D'l 0 0'\v'0.035i' SAN FRANCISCO\h'|4.9i'\u\f(slseal\fP\h'|5.475i'\dSANTA BARBARA \v'-0.035i'\D'l 0 0'\v'0.035i' SANTA CRUZ
+.sp 0.07i-1v
+\D't 0.013i'\D'l 4.5i 0'\h'0.83i'\D'l 1.85i 0' \}
+.sp 0.5i-1v
+\|COLLEGE OF ENGINEERING\h'|4.1i'BERKELEY, CALIFORNIA  94720
+\|DEPARTMENT OF ELECTRICAL ENGINEERING
+\0\0AND COMPUTER SCIENCES\D't 3u'
+\|COMPUTER SCIENCE DIVISION
+.ft \n(xz
+.ps \n(xw
+.if "\$1"d" \
+\{\
+.	sp 4p
+\h'|4.1i'\*(td
+.\}
+.if \n(xy .fi
+.ie \n(xx>\n(.d \
+.	sp |\n(xxu
+.el .sp 0.3i
+.vs
+.in
+.po
+.nr c. \n(_0

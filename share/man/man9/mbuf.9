@@ -1,0 +1,518 @@
+.\" Copyright (c) 2000 FreeBSD Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2000
+.Dt MBUF 9
+.Os
+.\"
+.Sh NAME
+.Nm mbuf
+.Nd "memory management in the kernel IPC subsystem"
+.\"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/systm.h
+.In sys/mbuf.h
+.\"
+.Ss Mbuf allocation macros
+.Fn MGET "struct mbuf *mbuf" "int how" "short type"
+.Fn MGETHDR "struct mbuf *mbuf" "int how" "short type"
+.Fn MCLGET "struct mbuf *mbuf" "int how"
+.Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
+.\"
+.Ss Mbuf utility macros
+.Ft void *
+.Fn mtod "struct mbuf *mbuf" "type"
+.Ft int
+.Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
+.Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
+.Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
+.Ft int
+.Fn M_LEADINGSPACE "struct mbuf *mbuf"
+.Ft int
+.Fn M_TRAILINGSPACE "struct mbuf *mbuf"
+.Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
+.Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.\"
+.Ss Mbuf allocation functions
+.Ft struct mbuf *
+.Fn m_get "int how" "int type"
+.Ft struct mbuf *
+.Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
+.Ft struct mbuf *
+.Fn m_getclr "int how" "int type"
+.Ft struct mbuf *
+.Fn m_gethdr "int how" "int type"
+.Ft struct mbuf *
+.Fn m_free "struct mbuf *mbuf"
+.Ft void
+.Fn m_freem "struct mbuf *mbuf"
+.\"
+.Ss Mbuf utility functions
+.Ft void
+.Fn m_adj "struct mbuf *mbuf" "int len"
+.Ft struct mbuf *
+.Fn m_prepend "struct mbuf *mbuf" "int len" "int how"
+.Ft struct mbuf *
+.Fn m_pullup "struct mbuf *mbuf" "int len"
+.Ft struct mbuf *
+.Fn m_copym "struct mbuf *mbuf" "int offset" "int len" "int how"
+.Ft struct mbuf *
+.Fn m_copypacket "struct mbuf *mbuf" "int how"
+.Ft struct mbuf *
+.Fn m_dup "struct mbuf *mbuf" "int how"
+.Ft void
+.Fn m_copydata "const struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
+.Ft void
+.Fn m_copyback "struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
+.Ft struct mbuf *
+.Fo m_devget
+.Fa "char *buf"
+.Fa "int len"
+.Fa "int offset"
+.Fa "struct ifnet *ifp"
+.Fa "void (*copy)(char *from, caddr_t to, u_int len)"
+.Fc
+.Ft void
+.Fn m_cat "struct mbuf *m" "struct mbuf *n"
+.Ft struct mbuf *
+.Fn m_split "struct mbuf *mbuf" "int len" "int how"
+.Ft int
+.Fn m_apply "struct mbuf *mbuf" "int off" "int len" "int (*f)(void *arg, void *data, u_int len)" "void *arg"
+.Ft struct mbuf *
+.Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
+.\"
+.Sh DESCRIPTION
+An mbuf is a basic unit of memory management in the kernel IPC subsystem.
+Network packets and socket buffers are stored in mbufs.
+A network packet may span multiple mbufs arranged into a chain
+(linked list),
+which allows adding or trimming
+network headers with little overhead.
+.Pp
+While a developer should not bother with mbuf internals without serious
+reason in order to avoid incompatibilities with future changes, it
+is useful to understand the mbuf's general structure.
+.Pp
+An mbuf consists of a variable-sized header and a small internal
+buffer for data.
+The mbuf's total size,
+.Dv MSIZE ,
+is a machine-dependent constant defined in
+.Pa machine/param.h .
+The mbuf header includes:
+.Pp
+.Bl -tag -width "m_nextpkt" -compact -offset indent
+.It Fa m_next
+a pointer to the next buffer in the chain
+.It Fa m_nextpkt
+a pointer to the next chain in the queue
+.It Fa m_data
+a pointer to the data
+.It Fa m_len
+the length of the data
+.It Fa m_type
+the type of data
+.It Fa m_flags
+the mbuf flags
+.El
+.Pp
+The mbuf flag bits are defined as follows:
+.Bd -literal
+/* mbuf flags */
+#define	M_EXT		0x0001	/* has associated external storage */
+#define	M_PKTHDR	0x0002	/* start of record */
+#define	M_EOR		0x0004	/* end of record */
+#define	M_PROTO1	0x0010	/* protocol-specific */
+#define	M_PROTO2	0x0020 	/* protocol-specific */
+#define	M_PROTO3	0x0040	/* protocol-specific */
+#define	M_PROTO4	0x0080	/* protocol-specific */
+#define	M_PROTO5	0x0100	/* protocol-specific */
+
+/* mbuf pkthdr flags, also in m_flags */
+#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
+#define	M_MCAST		0x0400	/* send/received as link-level multicast */
+#define	M_FRAG		0x0800	/* packet is fragment of larger packet */
+#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
+#define	M_LASTFRAG	0x2000	/* packet is last fragment */
+.Ed
+.Pp
+The available mbuf types are defined as follows:
+.Bd -literal
+/* mbuf types */
+#define	MT_FREE		0	/* should be on free list */
+#define	MT_DATA		1	/* dynamic (data) allocation */
+#define	MT_HEADER	2	/* packet header */
+#define	MT_SONAME	8	/* socket name */
+#define	MT_FTABLE	11	/* fragment reassembly header */
+#define	MT_CONTROL	14	/* extra-data protocol message */
+#define	MT_OOBDATA	15	/* expedited data  */
+.Ed
+.Pp
+If the
+.Dv M_PKTHDR
+flag is set, a
+.Li struct pkthdr m_pkthdr
+is added to the mbuf header.
+It contains a pointer to the interface
+the packet has been received from
+.Pq Fa struct ifnet *rcvif ,
+and the total packet length
+.Pq Fa int len .
+.Pp
+If small enough, data is stored in the mbuf's internal data buffer.
+If the data is sufficiently large, another mbuf may be added to the chain,
+or external storage may be associated with the mbuf.
+.Dv MHLEN
+bytes of data can fit into an mbuf with the
+.Dv M_PKTHDR
+flag set,
+.Dv MLEN
+bytes can otherwise.
+.Pp
+If external storage is being associated with an mbuf, the
+.Dv m_ext
+header is added at the cost of losing the internal data buffer.
+It includes a pointer to external storage, the size of the storage,
+a pointer to a function used for freeing the storage,
+a pointer to an optional argument that can be passed to the function,
+and a pointer to a reference counter.
+An mbuf using external storage has the
+.Dv M_EXT
+flag set.
+.Pp
+The system supplies a default type of external storage buffer called an
+.Dq mbuf cluster .
+Mbuf clusters can be allocated and configured with the use of the
+.Dv MCLGET
+macro.
+Each cluster is
+.Dv MCLBYTES
+in size, where MCLBYTES is a machine-dependent constant.
+The system defines an advisory macro
+.Dv MINCLSIZE ,
+which is the smallest amount of data to put into a cluster.
+It's equal to the sum of
+.Dv MLEN
+and
+.Dv MHLEN .
+It is typically preferable to store data into an mbuf's data region, if size
+permits, as opposed to allocating a separate mbuf cluster to hold the same
+data.
+.\"
+.Ss Macros and Functions
+There are numerous predefined macros and functions that provide the
+developer with common utilities.
+.\"
+.Bl -ohang -offset indent
+.It Fn mtod mbuf type
+Convert an mbuf pointer to a data pointer.
+The macro expands to the data pointer cast to the pointer of the specified type.
+.Sy Note :
+It is advisable to ensure that there is enough contiguous data in the mbuf.
+See
+.Fn m_pullup
+for details.
+.It Fn MGET mbuf how type
+Allocate an mbuf and initialize it to contain internal data.
+.Fa mbuf
+will point to the allocated mbuf on success, or be set to
+.Dv NULL
+on failure.
+The
+.Fa how
+argument is to be set to
+.Dv M_WAIT
+or
+.Dv M_DONTWAIT .
+It specifies whether the caller is willing to block if necessary.
+If
+.Fa how
+is set to
+.Dv M_WAIT ,
+a failed allocation will result in the caller being put
+to sleep for a designated
+kern.ipc.mbuf_wait
+.Xr ( sysctl 8
+tunable)
+number of ticks.
+A number of other mbuf-related
+functions and macros have the same argument because they may
+at some point need to allocate new mbufs.
+.Pp
+Programmers should be careful not to confuse the mbuf allocation flag
+.Dv M_DONTWAIT
+with the
+.Xr malloc 9
+allocation flag,
+.Dv M_NOWAIT .
+They are not the same.
+.It Fn MGETHDR mbuf how type
+Allocate an mbuf and initialize it to contain a packet header
+and internal data.
+See
+.Fn MGET
+for details.
+.It Fn MCLGET mbuf how
+Allocate and attach an mbuf cluster to an mbuf.
+If the macro fails, the
+.Dv M_EXT
+flag won't be set in the mbuf.
+.It Fn M_PREPEND mbuf len how
+This macro operates on an mbuf chain.
+It is an optimized wrapper for
+.Fn m_prepend
+that can make use of possible empty space before data
+(e.g. left after trimming of a link-layer header).
+The new chain pointer or
+.Dv NULL
+is in
+.Fa mbuf
+after the call.
+.El
+.Pp
+The functions are:
+.Bl -ohang -offset indent
+.It Fn m_get how type
+A function version of
+.Fn MGET
+for non-critical paths.
+.It Fn m_getm orig len how type
+Allocate
+.Fa len
+bytes worth of mbufs and mbuf clusters if necessary and append the resulting
+allocated chain to the
+.Fa orig
+mbuf chain, if it is
+.No non- Ns Dv NULL .
+If the allocation fails at any point,
+free whatever was allocated and return
+.Dv NULL .
+If
+.Fa orig
+is
+.No non- Ns Dv NULL ,
+it will not be freed.
+It is possible to use
+.Fn m_getm
+to either append
+.Fa len
+bytes to an existing mbuf or mbuf chain
+(for example, one which may be sitting in a pre-allocated ring)
+or to simply perform an all-or-nothing mbuf and mbuf cluster allocation.
+.It Fn m_gethdr how type
+A function version of
+.Fn MGETHDR
+for non-critical paths.
+.It Fn m_getclr how type
+Allocate an mbuf and zero out the data region.
+.El
+.Pp
+The functions below operate on mbuf chains.
+.Bl -ohang -offset indent
+.It Fn m_freem mbuf
+Free an entire mbuf chain, including any external
+storage.
+.\"
+.It Fn m_adj mbuf len
+Trim
+.Fa len
+bytes from the head of an mbuf chain if
+.Fa len
+is positive, from the tail otherwise.
+.\"
+.It Fn m_prepend mbuf len how
+Allocate a new mbuf and prepend it to the chain, handle
+.Dv M_PKTHDR
+properly.
+.Sy Note :
+It doesn't allocate any clusters, so
+.Fa len
+must be less than
+.Dv MLEN
+or
+.Dv MHLEN ,
+depending on the
+.Dv M_PKTHDR
+flag setting.
+.\"
+.It Fn m_pullup mbuf len
+Arrange that the first
+.Fa len
+bytes of an mbuf chain are contiguous and lay in the data area of
+.Fa mbuf ,
+so they are accessible with
+.Fn mtod mbuf type .
+Return the new chain on success,
+.Dv NULL
+on failure
+(the chain is freed in this case).
+.Sy Note :
+It doesn't allocate any clusters, so
+.Fa len
+must be less than
+.Dv MHLEN .
+.\"
+.It Fn m_copym mbuf offset len how
+Make a copy of an mbuf chain starting
+.Fa offset
+bytes from the beginning, continuing for
+.Fa len
+bytes.
+If
+.Fa len
+is
+.Dv M_COPYALL ,
+copy to the end of the mbuf chain.
+.Sy Note :
+The copy is read-only, because clusters are not
+copied, only their reference counts are incremented.
+.\"
+.It Fn m_copypacket mbuf how
+Copy an entire packet including header, which must be present.
+This is an optimized version of the common case
+.Fn m_copym mbuf 0 M_COPYALL how .
+.Sy Note :
+the copy is read-only, because clusters are not
+copied, only their reference counts are incremented.
+.\"
+.It Fn m_dup mbuf how
+Copy a packet header mbuf chain into a completely new chain, including
+copying any mbuf clusters.
+Use this instead of
+.Fn m_copypacket
+when you need a writable copy of an mbuf chain.
+.\"
+.It Fn m_copydata mbuf offset len buf
+Copy data from an mbuf chain starting
+.Fa off
+bytes from the beginning, continuing for
+.Fa len
+bytes, into the indicated buffer
+.Fa buf .
+.\"
+.It Fn m_copyback mbuf offset len buf
+Copy
+.Fa len
+bytes from the buffer
+.Fa buf
+back into the indicated mbuf chain,
+starting at
+.Fa offset
+bytes from the beginning of the chain, extending the mbuf chain if necessary.
+.Sy Note :
+It doesn't allocate any clusters, just adds mbufs to the chain.
+It's safe to set
+.Fa offset
+beyond the current chain end: zeroed mbufs will be allocated to fill the
+space.
+.\"
+.It Fn m_devget buf len offset ifp copy
+Copy data from a device local memory pointed to by
+.Fa buf
+to an mbuf chain.
+The copy is done using a specified copy routine
+.Fa copy ,
+or
+.Fn bcopy
+if
+.Fa copy
+is
+.Dv NULL .
+.\"
+.It Fn m_cat m n
+Concatenate
+.Fa n
+to
+.Fa m .
+Both chains must be of the same type.
+.Fa N
+is still valid after the function returned.
+.Sy Note :
+It does not handle
+.Dv M_PKTHDR
+and friends.
+.\"
+.It Fn m_split mbuf len how
+Partition an mbuf chain in two pieces, returning the tail:
+all but the first
+.Fa len
+bytes.
+In case of failure, it returns
+.Dv NULL
+and attempts to restore the chain to its original state.
+.\"
+.It Fn m_apply mbuf off len f arg
+Apply a function to an
+.Vt mbuf chain ,
+at offset
+.Fa off ,
+for length
+.Fa len bytes .
+Typically used to avoid calls to
+.Fn m_pullup
+which would otherwise be unnecessary or undesirable.
+.Fa arg
+is a convenience argument which is passed to the callback function
+.Fa f .
+.Pp
+Each time
+.Fn f
+is called, it will be passed
+.Fa arg ,
+a pointer to the
+.Fa data
+in the current mbuf, and the length
+.Fa len
+of the data in this mbuf to which the function should be applied.
+.Pp
+The function should return zero to indicate success;
+otherwise, if an error is indicated, then
+.Fn m_apply
+will return the error and stop iterating through the
+.Vt mbuf chain .
+.\"
+.It Fn m_getptr mbuf loc off
+Return a pointer to the mbuf containing the data located at
+.Fa loc
+bytes from the beginning of the
+.Vt mbuf chain .
+The corresponding offset into the mbuf will be stored in
+.Fa *off .
+.El
+.Sh RETURN VALUES
+See above.
+.Sh HISTORY
+.\" Please correct me if I'm wrong
+Mbufs appeared in an early version of
+.Bx .
+Besides for being used for network packets, they were used
+to store various dynamic structures, such as routing table
+entries, interface addresses, protocol control blocks, etc.
+.Sh AUTHORS
+The original
+.Nm
+man page was written by Yar Tikhiy.

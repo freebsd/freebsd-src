@@ -1,0 +1,259 @@
+#!/bin/sh
+
+#sysname=$1
+
+while [ $# != 0 ]; do
+  if [ x$1 = x--with-nsupdate ]; then
+    echo "nsupdate is always built now."
+  elif [ x$1 = x--print-sysname ]; then
+    print_sysname=yes
+  elif [ x$1 = x--work-dir ]; then
+    workname=$2
+    shift
+  elif [ x$1 = x--dirs ]; then
+    dirs=$2
+    shift
+  elif [ x$1 = x--no-links ]; then
+    nolinks=YES
+  elif [ x$1 = x--copts ]; then
+    copts=$2
+    shift
+  elif [ x$sysname = x ]; then
+    sysname=$1
+  else
+    echo "Unexpected argument: $1"
+  fi
+  shift
+done
+
+uname=`uname -s`
+machine=`uname -m`
+
+if [ "$sysname" = "" ]; then
+  case $uname in
+    SCO_SV)
+      IFS=":"
+      for foo in $PATH; do
+	if [ x$gcc_path = x ] && [ -x $foo/gcc ]; then
+	  gcc_path=$foo/gcc
+	fi 
+      done
+      IFS=" "
+      if [ x$gcc_path = x ]; then
+        sysname=sco-cc
+        sysname_print=sco
+      else
+        sysname=sco-gcc
+        sysname_print=sco
+      fi
+    ;;
+    AIX)
+      sysname=aix;;
+    Darwin)
+      sysname=darwin;;
+    Rhapsody)
+      sysname=rhapsody;;
+    ULTRIX)
+      sysname=ultrix;;
+    BSD/OS)
+      release=`uname -r`
+      minor=`echo $release |sed -e 's/[0-9]*\.\([0-9][0-9]*\)\(\..*\)*$/\1/'`
+      major=`echo $release |sed -e 's/\([0-9][0-9]*\)\..*$/\1/'`
+      
+      case $major in
+	[123]) sysname=bsdos ;;
+	*) case $minor in
+	     0) sysname=bsdos ;;
+	     *) sysname=bsdos-4.1 ;;
+	   esac;;
+      esac;;
+    OSF1)
+      if [ $machine = 'alpha' ]; then
+        sysname=alphaosf
+      fi;;
+    Linux)
+      release=`uname -r`
+      minor=`echo $release |sed -e 's/[0-9]*\.\([0-9][0-9]*\)\(\..*\)*$/\1/'`
+      major=`echo $release |sed -e 's/\([0-9][0-9]*\)\..*$/\1/'`
+      
+      case $major in
+	1) sysname=linux-1 ;;
+	2) case $minor in
+	     0) sysname=linux-2.0 ;;
+	     1) sysname=linux-2.1 ;;
+	     2) sysname=linux-2.2 ;;
+	     *) sysname=linux-2.2 ;;
+	   esac;;
+      esac;;
+    SunOS)
+      release=`uname -r`
+      minor=`echo $release |sed -e 's/.*[0-9]*\.\([0-9][0-9]*\).*$/\1/'`
+      major=`echo $release |sed -e 's/\([0-9][0-9]*\)\..*$/\1/'`
+      IFS=":"
+      for foo in $PATH; do
+        if [ x$gcc_path = x ] && [ -x $foo/gcc ]; then
+	  gcc_path=$foo/gcc
+        fi
+      done
+      IFS=" "
+
+      case $major in
+        4) 
+	  if [ x$gcc_path = x ]; then
+	    echo SunOS 4 build will not work without the GNU C Compiler.
+	    exit 1
+	  fi
+	  sysname=sunos4;;
+        5)
+	  if [ x$gcc_path = x ]; then
+	    sysname=sunos5-cc
+	    sysname_print=sunos5
+	  else
+	    sysname=sunos5-gcc
+	    sysname_print=sunos5
+	  fi;;
+      esac;;
+    NetBSD)
+      hw=`uname -m`
+      case $hw in
+	arm32) sysname=netbsd-nocast;;
+	alpha) sysname=netbsd-nocast;;
+	sparc) sysname=netbsd-nocast;;
+	sparc64) sysname=netbsd-nocast;;
+	*) sysname=netbsd;;
+      esac;;
+    OpenBSD)
+      sysname=openbsd;;
+    FreeBSD)
+      sysname=freebsd;;
+    hpux)
+      IFS=":"
+      for foo in $PATH; do
+        if [ x$gcc_path = x ] && [ -x $foo/gcc ]; then
+	  gcc_path=$foo/gcc
+        fi
+      done
+      IFS=" "
+
+      if [ x$gcc_path = x ]; then
+	  sysname=hpux-cc
+	  sysname_print=hpux
+	else
+	  sysname=hpux-gcc
+	  sysname_print=hpux
+	fi;;
+    HP-UX)
+      IFS=":"
+      for foo in $PATH; do
+        if [ x$gcc_path = x ] && [ -x $foo/gcc ]; then
+	  gcc_path=$foo/gcc
+        fi
+      done
+      IFS=" "
+
+      if [ x$gcc_path = x ]; then
+	  sysname=hpux-cc
+	  sysname_print=hpux
+	else
+	  sysname=hpux-gcc
+	  sysname_print=hpux
+	fi;;
+    QNX)
+      release=`uname -r`
+      major=`echo $release |sed -e 's/\([0-9][0-9]*\)\..*$/\1/'`
+      case $major in
+        6)
+          sysname=qnxnto;;
+        *)
+          sysname=qnx;;
+      esac;;      
+    NEXTSTEP)
+      sysname=nextstep;;
+    UnixWare)
+      sysname=uw7;;
+  esac
+fi
+
+if [ "$sysname" = "" ]; then
+  if [ x$print_sysname = xyes ]; then
+    echo "unknown"
+  else
+    echo "UNIX name: $uname    machine: $machine"
+    echo
+    echo "Unknown system.   If this is an SCO system running ODT 3.0 or"
+    echo "higher, type \`\`./configure sco''.   Otherwise, this is a"
+    echo "configuration that isn't supported or hasn't been tested."
+    echo
+    echo "Supported configurations are:"
+    echo "   aix		AIX 4.1.5.0"
+    echo "   ultrix	ULTRIX 4.2A or higher"
+    echo "   bsdos	BSDI BSD/OS 2.1"
+    echo "   alphaosf	DEC Alpha OSF/1"
+    echo "   linux	Linux"
+    echo "   sunos4	Sunos 4.1.4 (earlier releases may work)"
+    echo "   sunos5-cc	Solaris 2.4 or higher with Sun cc"
+    echo "   sunos5-gcc	Solaris 2.4 or higher with gcc"
+    echo "   netbsd	NetBSD 1.1 or higher"
+    echo "   freebsd	FreeBSD"
+    echo "   openbsd      OpenBSD (i386/alpha)"
+    echo "   hpux		HP-UX"
+    echo "   qnx		QNX 4.2 or higher"
+    echo "   NEXTSTEP     NeXTSTEP"
+    echo "   sco	SCO Open Server"
+    exit 1;
+  fi
+fi
+
+if [ x$print_sysname = xyes ]; then
+  if [ x$sysname_print != x ]; then
+    echo $sysname_print
+  else
+    echo $sysname
+  fi
+  exit 0
+fi
+
+if [ x$workname = x ]; then
+  if [ x$sysname_print != x ]; then
+    workname=work.${sysname_print}
+  else
+    workname=work.${sysname}
+  fi
+fi
+
+echo "System Type: $sysname"
+
+if [ x$major != x ] && [ x$minor != x ]; then
+  majversubst="-e /^##--majver--/,/^##--majver--/s/MajorVersion/$major/"
+  minversubst="-e /^##--minver--/,/^##--minver--/s/MinorVersion/$minor/"
+fi
+
+if [ ! -d $workname ]; then
+  mkdir $workname
+fi
+
+if [ x"$dirs" = x ]; then
+  dirs=". client server relay common omapip dhcpctl minires dst"
+fi
+
+for foo in $dirs; do
+	bar=`basename $foo`
+	if [ ! -d ${workname}/$bar ]; then
+	  mkdir ${workname}/$bar
+	fi
+	(sed $majversubst $minversubst \
+	      -e "/^##--${sysname}--/,/^##--${sysname}--/s/^#//" \
+				<Makefile.conf; \
+		cat site.conf; \
+		echo "TOP = `pwd`"; \
+		echo CC_OPTIONS = $copts; \
+		cat $foo/Makefile.dist)	\
+				>${workname}/$bar/Makefile
+done
+
+# Make the link tree in which to actually build.
+if [ x$nolinks = x ]; then
+  make links
+fi
+
+exit 0

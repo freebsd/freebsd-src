@@ -1,0 +1,38 @@
+/*
+ *    *************
+ *    * XC-CONF.H *
+ *    *************
+ *
+ * Configuration file for xchat 1.1. Edit this file prior to make-ing
+ * xchat.
+ *
+ * History:
+ *  Bob Denny - Tue Sep  1 11:42:54 1992
+ */
+
+/*
+ * Edit this to reflect the relative location of xchat sources to
+ * the main Taylor UUCP source directory. As distributed, xchat
+ * is in the ./contrib sub-directory under the main Taylor UUCP
+ * directory. Therefore, Taylor's conf.h is in our parent directory.
+ */
+#include "../conf.h"
+
+/*
+ * The following definition establishes the default path to the
+ * scripts used by xchat. You may lleave this blank (""), but
+ * the command line given to xchat (e.g., in the 'sys' file entry)
+ * must specify a full (absolute) path name to the script to be
+ * executed. Normally, this is the same place you put your config
+ * and system files for UUCP.
+ */
+#define SCRIPT_DIR "/usr/local/conf/uucp/" /* MUST HAVE TRAILING "/" */
+
+/*
+ * The following definition establishes the default path to the
+ * log files that are produced by the 'dbgfile' statement. Normally
+ * this is the same location you configured Taylor UUCP to put its
+ * log files.
+ */
+#define LOG_DIR "/usr/spool/uucp/" 	   /* MUST HAVE TRAILING "/" */
+

@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND Configuration File Guide</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide</H2>
+
+<HR>
+
+<H3>Overview</H3>
+
+<P>BIND 8 is much more configurable than previous releases of BIND.
+There are entirely new areas of configuration, such as access control lists
+and categorized logging.  Many options that previously applied to all zones
+can now be used selectively.  These features, plus a consideration of future
+configuration needs led to the creation of a new configuration file format.
+
+<H3>The Configuration File</H3>
+
+<H4><A HREF="example.html">Example Configuration</A></H4>
+
+<H4>Statements</H4>
+
+<P>A BIND 8 configuration consists of statements and comments.
+Statements end with a semicolon.  Many statements contain a block of
+substatements, which are also terminated with a semicolon.</P>
+
+<P>The following statements are supported:
+<DL>
+<DT><CODE><A HREF="acl.html">acl</A></CODE>
+<DD>
+defines a named IP address matching list, for access control and other uses
+
+<DT><CODE><A HREF="include.html">include</A></CODE>
+<DD>
+includes a file
+
+<DT><CODE><A HREF="key.html">key</A></CODE>
+<DD>
+specifies key information for use in authentication and authorization
+
+<DT><CODE><A HREF="logging.html">logging</A></CODE>
+<DD>
+specifies what the server logs, and where the log messages are sent
+
+<DT><CODE><A HREF="options.html">options</A></CODE>
+<DD>
+controls global server configuration options and sets defaults for other
+statements
+
+<DT><CODE><A HREF="controls.html">controls</A></CODE>
+<DD>
+declares control channels to be used by the <VAR>ndc</VAR> utility
+
+<DT><CODE><A HREF="server.html">server</A></CODE>
+<DD>
+sets certain configuration options on a per-server basis
+
+<DT><CODE><A HREF="trusted-keys.html">trusted-keys</A></CODE>
+<DD>
+defines DNSSEC keys that are preconfigured into the server and implicitly
+trusted
+
+<DT><CODE><A HREF="zone.html">zone</A></CODE>
+<DD>
+defines a zone
+</DL>
+
+<P>The <CODE>logging</CODE> and <CODE>options</CODE> statements may only
+occur once per configuration.
+
+<H4>Comments</H4>
+
+The BIND 8 <A HREF="comments.html">comment syntax</A> allows for
+comments to appear anywhere that whitespace may appear in a BIND
+configuration file.  To appeal to programmers of all kinds, they can
+be written in C, C++, or shell/perl constructs.
+
+<H3>Converting from BIND 4.9.x</H3>
+
+<p>BIND 4.9.x configuration files can be converted to the new format by
+using <code>src/bin/named/named-bootconf</code>, a shell script that is part of
+the BIND 8.2.x source kits.
+
+<HR>
+
+<CENTER><P>[ <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: config.html,v 1.11 2000/11/28 20:03:48 cyarnell Exp $
+</ADDRESS>
+</BODY>
+</HTML>

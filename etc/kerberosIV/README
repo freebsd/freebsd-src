@@ -1,0 +1,36 @@
+# $FreeBSD$
+#	@(#)README	5.1 (Berkeley) 6/30/90
+
+Notes about the contents of the /etc/kerberosIV directory:
+
+The file master_key contains a copy of the master key under which the
+entire Kerberos database is encrypted.  Disclosing this key would be bad
+news.  The reason it is stored in the filesystem is because the following
+programs need to inspect or modify the kerberos database, and so the key
+must be available for them, (or else it would have to be typed in by
+hand):
+		- kerberos (the server itself)
+		- registerd (for new user registration)
+		- kpasswdd (for changing passwords)
+
+The srvtab file contains the encryption keys for each service on the local
+host.  Any host offering network services would have a key here, although
+many such files can be used.
+
+The principal.* files comprise the Kerberos database itself, and contain
+keys for all principles, and should not be world-readable.
+
+The kerberos.conf file contains the configuration for this machine:
+	- which realm I'm in
+	- which servers I should talk to for this realm
+
+The kerberos.realms file contains the name of Kerberos servers for
+various (sub)domains.
+
+Kerberos log information it placed in /var/log/kerberos.log
+(see rc.local to change it)
+
+The register_keys directory contains a set of files (all of which begin
+with "."), each of which contains a des key used for registering new users
+with the system.  It is used only by the "registerd" program, and only on
+a Kerberos server host.

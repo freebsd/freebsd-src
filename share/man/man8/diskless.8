@@ -1,0 +1,329 @@
+.\" Copyright (c) 1994 Gordon W. Ross, Theo de Raadt
+.\" Updated by Luigi Rizzo
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 18, 2001
+.Dt DISKLESS 8
+.Os
+.Sh NAME
+.Nm diskless
+.Nd booting a system over the network
+.Sh DESCRIPTION
+The ability to boot a machine over the network is useful for
+.Em diskless
+or
+.Em dataless
+machines, or as a temporary measure while repairing or
+re-installing filesystems on a local disk.
+This file provides a general description of the interactions between
+a client and its server when a client is booting over the network.
+.Sh OPERATION
+When booting a system over the network, there are three
+phases of interaction between client and server:
+.Pp
+.Bl -enum -compact
+.It
+The stage-1 bootstrap loads a boot program, from
+.It
+The boot program loads a kernel.
+.It
+The kernel does NFS mounts for root.
+.El
+.Pp
+Each of these phases are described in further detail below.
+.Pp
+In phase 1, the stage-1 bootstrap code loads a boot program,
+which is typically able to control the network card.
+The boot program can be stored in the BIOS, in a BOOT ROM
+located on the network card (PXE, etherboot, netboot),
+or come from a disk unit (e.g. etherboot or netboot).
+.Pp
+In phase 2, the boot program loads a kernel.
+Operation in
+this phase depends on the design of the boot program.
+Typically, the boot program uses the
+.Tn BOOTP
+or
+.Tn DHCP
+protocol to get the client's IP address and other boot
+information, including but not limited to
+the IP addresses of the NFS server, router and nameserver,
+and the name of the kernel to load.
+Then the kernel is loaded, either directly using NFS
+(as it is the case for etherboot and netboot),
+or through an intermediate loader called pxeboot and
+loaded using TFTP or NFS.
+.Pp
+In phase 3, the kernel again uses DHCP or BOOTP to acquire
+configuration information, and proceeds to mount the
+root filesystem and start operation.  The boot
+scripts recognize a diskless startup and peform 
+the actions found in
+.Pa /etc/rc.d/initdiskless
+and
+.Pa /etc/rc.d/diskless .
+In older systems the scripts are located in
+.Pa /etc/rc.diskless1
+and
+.Pa /etc/rc.diskless2 .
+.Sh CONFIGURATION
+In order to run a diskless client, you need the following:
+.Bl -bullet
+.It
+An NFS server which exports a root and /usr partition with
+appropriate permissions.
+The diskless
+scripts work with readonly partitions, as long as root is exported with
+.Fl maproot Ns =0
+so that some system files can be accessed.
+As an example,
+.Pa /etc/exports
+can contain the following lines:
+.Bd -literal -offset indent
+<ROOT> -ro -maproot=0 -alldirs <list of diskless clients>
+/usr -ro -alldirs <list of diskless clients>
+.Ed
+.Pp
+where
+.Aq ROOT
+is the mountpoint on the server of the root partition.
+The script
+.Pa /usr/share/examples/diskless/clone_root
+can be used to create a shared readonly root partition,
+but in many cases you may decide to export
+(again as readonly) the root directory used by
+the server itself.
+.It
+a
+.Tn BOOTP
+or
+.Tn DHCP
+server.
+.Xr bootpd 8
+can be enabled by
+uncommenting the
+.Em bootps
+line in
+.Pa /etc/inetd.conf .
+A sample
+.Pa /etc/bootptab
+can be the following:
+.Bd -literal -offset indent
+ .default:\\
+    hn:ht=1:vm=rfc1048:\\
+    :sm=255.255.255.0:\\
+    :sa=<SERVER>:\\
+    :gw=<GATEWAY>:\\
+    :rp="<SERVER>:<ROOT>":
+
+<CLIENT>:ha=0123456789ab:tc=.default
+.Ed
+.Pp
+where
+.Aq SERVER ,
+.Aq GATEWAY
+and
+.Aq ROOT
+have the obvious meanings.
+.It
+A properly initialized root partition.
+The script
+.Pa /usr/share/examples/diskless/clone_root
+can help in creating it, using the server's root partition
+as a reference.  If you are just starting out you should 
+simply use the server's own root directory,
+.Pa / ,
+and not try to clone it.
+.Pp
+You often do not want to use the same
+.Pa rc.conf
+or
+.Pa rc.local
+files for the diskless boot as you do on the server.  The diskless boot
+scripts provide a mechanism through which you can override various files
+in
+.Pa /etc
+(as well as other subdirectories of root).  The scripts provide four
+overriding directories situated in
+.Pa /conf/base ,
+.Pa /conf/default ,
+.Pa /conf/(broadcast-ip) ,
+and
+.Pa /conf/(machine-ip) .
+You should always create
+.Pa /conf/base/etc ,
+which will entirely replace the server's
+.Pa /etc
+on the diskless machine.
+You can clone the server's
+.Pa /etc
+here or you can create a special file which tells the diskless boot scripts
+to remount the server's
+.Pa /etc
+onto
+.Pa /conf/base/etc .
+You do this by creating the file
+.Pa /conf/base/etc/diskless_remount
+containing the mount point to use as a basis of the diskless machine's
+.Pa /etc .
+For example, the file might contain:
+.Bd -literal -offset 4n
+10.0.0.1:/etc
+.Ed
+.Pp
+Alternativly, if the server contains several independent roots, the file
+might contain:
+.Pp
+.Dl 10.0.0.1:/usr/diskless/4.7-RELEASE/etc
+.Pp
+This would work, but if you copied
+.Pa /usr/diskless/4.7-RELEASE
+to
+.Pa /usr/diskless/4.8-RELEASE
+and upgraded the installation, you would need to modify the
+.Pa diskless_remount
+files to reflect that move.
+To avoid that, paths in
+.Pa diskless_remount
+files begining with
+.Pa /
+have the actual path of the client's root prepended to them so the file
+could instead contain:
+.Pp
+.Dl /etc
+.Pp
+The diskless scripts create memory filesystems to hold the overriden
+directories.  Only a 2MB partition is created by default, which may not
+be sufficient for your purposes.  To override this you can create the
+file
+.Pa /conf/base/etc/md_size
+containing the size, in 512 byte sectors, of the memory disk to create
+for that directory.
+.Pp
+You then typically provide file-by-file overrides in the
+.Pa /conf/default/etc
+directory.  At a minimum you must provides overrides for
+.Pa /etc/fstab ,
+.Pa /etc/rc.conf ,
+and
+.Pa /etc/rc.local
+via
+.Pa /conf/default/etc/fstab ,
+.Pa /conf/default/etc/rc.conf ,
+and
+.Pa /conf/default/etc/rc.local .
+.Pp
+Overrides are hierarchical.  You can supply network-specific defaults
+in the
+.Pa /conf/<BROADCASTIP>/etc
+directory, where <BROADCASTIP> represents the broadcast IP address of
+the diskless system as given to it via
+.Tn BOOTP .
+The
+.Pa diskless_remount
+and
+.Pa md_size
+features work in any of these directories.
+The configuration feature works on directories other then
+.Pa /etc ,
+you simply create the directory you wish to replace or override in
+.Pa /conf/{base,default,<broadcast>,<ip>}/*
+and work it in the same way that you work
+.Pa /etc .
+.Pp
+As a minimum, you normally need to have the following in
+.Pa /conf/default/etc/fstab
+.Bd -literal -offset indent
+<SERVER>:<ROOT> /     nfs    ro 0 0
+<SERVER>:/usr   /usr  nfs    ro 0 0
+proc            /proc procfs rw 0 0
+.Ed
+.Pp
+You also need to create a customized version of
+.Pa /conf/default/etc/rc.conf
+which should contain
+the startup options for the diskless client, and
+.Pa /conf/default/etc/rc.local
+which could be empty but prevents the server's own
+.Pa /etc/rc.local
+from leaking onto the diskless system.
+.Pp
+In
+.Pa rc.conf ,
+most likely
+you will not need to set
+.Va hostname
+and
+.Va ifconfig_*
+because these will be already set by the startup code.
+Finally, it might be convenient to use a
+.Ic case
+statement using
+.Li `hostname`
+as the switch variable to do machine-specific configuration
+in case a number of diskless clients share the same configuration
+files.
+.It
+The kernel for the diskless clients, which will be loaded using
+NFS or TFTP, should be built with at least the following options:
+.Bd -literal -offset indent
+options MFS
+options BOOTP
+options BOOTP_NFSROOT
+options BOOTP_COMPAT
+.Ed
+.Pp
+If you use the firewall, remember to default to open or your kernel
+will not be able to send/receive the bootp packets.
+.El
+.Sh SECURITY ISSUES
+Be warned that using unencrypted NFS to mount root and user
+partitions may expose information such as
+encryption keys.
+.Sh BUGS
+This manpage is probably incomplete.
+.Pp
+.Fx
+sometimes requires to write onto
+the root partition, so the startup scripts mount MFS
+filesystems on some locations (e.g.\&
+.Pa /etc
+and
+.Pa /var ) ,
+while
+trying to preserve the original content.
+The process might not handle all cases.
+.Sh SEE ALSO
+.Xr ethers 5 ,
+.Xr exports 5 ,
+.Xr bootpd 8 ,
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
+.Xr pxeboot 8 ,
+.Xr reboot 8 ,
+.Xr tftpd 8 ,
+.Xr ports/net/etherboot

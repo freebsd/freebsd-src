@@ -1,0 +1,67 @@
+# $Id: kadm_err.et,v 1.5 1998/01/16 23:11:27 joda Exp $
+#
+# Copyright 1988 by the Massachusetts Institute of Technology.
+#
+# For copying and distribution information, please see the file
+# <mit-copyright.h>.
+#
+# Kerberos administration server error table
+#
+# $FreeBSD$
+#
+	et	kadm
+
+# KADM_SUCCESS, as all success codes should be, is zero
+
+ec KADM_RCSID,		"$Id: kadm_err.et,v 1.5 1998/01/16 23:11:27 joda Exp $"
+# /* Building and unbuilding the packet errors */
+ec KADM_NO_REALM,	"Cannot fetch local realm"
+ec KADM_NO_CRED,	"Unable to fetch credentials"
+ec KADM_BAD_KEY,	"Bad key supplied"
+ec KADM_NO_ENCRYPT,	"Can't encrypt data"
+ec KADM_NO_AUTH,	"Cannot encode/decode authentication info"
+ec KADM_WRONG_REALM,	"Principal attemping change is in wrong realm"
+ec KADM_NO_ROOM,	"Packet is too large"
+ec KADM_BAD_VER,	"Version number is incorrect"
+ec KADM_BAD_CHK,	"Checksum does not match"
+ec KADM_NO_READ,	"Unsealing private data failed"
+ec KADM_NO_OPCODE,	"Unsupported operation"
+ec KADM_NO_HOST,	"Could not find administrating host"
+ec KADM_UNK_HOST,	"Administrating host name is unknown"
+ec KADM_NO_SERV,	"Could not find service name in services database"
+ec KADM_NO_SOCK,	"Could not create socket"
+ec KADM_NO_CONN,	"Could not connect to server"
+ec KADM_NO_HERE,	"Could not fetch local socket address"
+ec KADM_NO_MAST,	"Could not fetch master key"
+ec KADM_NO_VERI,	"Could not verify master key"
+
+# /* From the server side routines */
+ec KADM_INUSE,		"Entry already exists in database"
+ec KADM_UK_SERROR,	"Database store error"
+ec KADM_UK_RERROR,	"Database read error"
+ec KADM_UNAUTH,		"Insufficient access to perform requested operation"
+# KADM_DATA isn't really an error, but...
+ec KADM_DATA,		"Data is available for return to client"
+ec KADM_NOENTRY,	"No such entry in the database"
+
+ec KADM_NOMEM,		"Memory exhausted"
+ec KADM_NO_HOSTNAME,	"Could not fetch system hostname"
+ec KADM_NO_BIND,	"Could not bind port"
+ec KADM_LENGTH_ERROR,	"Length mismatch problem"
+ec KADM_ILL_WILDCARD,	"Illegal use of wildcard"
+
+ec KADM_DB_INUSE,	"Database is locked or in use--try again later"
+
+ec KADM_INSECURE_PW,    "Insecure password rejected"
+ec KADM_PW_MISMATCH,    "Cleartext password and DES key did not match"
+
+ec KADM_NOT_SERV_PRINC, "Invalid principal for change srvtab request"
+ec KADM_IMMUTABLE,	"Attempt do delete immutable principal"
+# password quality basically stolen from OV libkadm5
+index 64
+prefix KADM_PASS_Q
+ec NULL,		"Null passwords are not allowed"
+ec TOOSHORT,		"Password is too short"
+ec CLASS,		"Too few character classes in password"
+ec DICT,		"Password is in the password dictionary"
+end

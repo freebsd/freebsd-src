@@ -1,0 +1,65 @@
+#	Copyright 1987,1988 Massachusetts Institute of Technology
+#
+#	For copying and distribution information, see the file
+#	"mit-copyright.h".
+# 
+# This might look like a com_err file, but is not
+#
+id "$Id: krb_err.et,v 1.7 1998/03/29 14:19:52 bg Exp $"
+
+error_table krb
+
+prefix KRBET
+ec KSUCCESS,		"Kerberos successful"
+ec KDC_NAME_EXP,	"Kerberos principal expired"
+ec KDC_SERVICE_EXP,	"Kerberos service expired"
+ec KDC_AUTH_EXP,	"Kerberos auth expired"
+ec KDC_PKT_VER,		"Incorrect kerberos master key version"
+ec KDC_P_MKEY_VER,	"Incorrect kerberos master key version"
+ec KDC_S_MKEY_VER,	"Incorrect kerberos master key version"
+ec KDC_BYTE_ORDER,	"Kerberos error: byte order unknown"
+ec KDC_PR_UNKNOWN,	"Kerberos principal unknown"
+ec KDC_PR_N_UNIQUE,	"Kerberos principal not unique"
+ec KDC_NULL_KEY,	"Kerberos principal has null key"
+index 20
+ec KDC_GEN_ERR,		"Generic error from Kerberos KDC"
+ec GC_TKFIL,		"Can't read Kerberos ticket file"
+ec GC_NOTKT,		"Can't find Kerberos ticket or TGT"
+index 26
+ec MK_AP_TGTEXP,	"Kerberos TGT Expired"
+index 31
+ec RD_AP_UNDEC,		"Kerberos error: Can't decode authenticator"
+ec RD_AP_EXP,		"Kerberos ticket expired"
+ec RD_AP_NYV,		"Kerberos ticket not yet valid"
+ec RD_AP_REPEAT,	"Kerberos error: Repeated request"
+ec RD_AP_NOT_US,	"The kerberos ticket isn't for us"
+ec RD_AP_INCON,		"Kerberos request inconsistent"
+ec RD_AP_TIME,		"Kerberos error: delta_t too big"
+ec RD_AP_BADD,		"Kerberos error: incorrect net address"
+ec RD_AP_VERSION,	"Kerberos protocol version mismatch"
+ec RD_AP_MSG_TYPE,	"Kerberos error: invalid msg type"
+ec RD_AP_MODIFIED,	"Kerberos error: message stream modified"
+ec RD_AP_ORDER,		"Kerberos error: message out of order"
+ec RD_AP_UNAUTHOR,	"Kerberos error: unauthorized request"
+index 51
+ec GT_PW_NULL,		"Kerberos error: current PW is null"
+ec GT_PW_BADPW,		"Kerberos error: Incorrect current password"
+ec GT_PW_PROT,		"Kerberos protocol error"
+ec GT_PW_KDCERR,	"Error returned by Kerberos KDC"
+ec GT_PW_NULLTKT,	"Null Kerberos ticket returned by KDC"
+ec SKDC_RETRY,		"Kerberos error: Retry count exceeded"
+ec SKDC_CANT,		"Kerberos error: Can't send request"
+index 61
+ec INTK_W_NOTALL,	"Kerberos error: not all tickets returned"
+ec INTK_BADPW,		"Kerberos error: incorrect password"
+ec INTK_PROT,		"Kerberos error: Protocol Error"
+index 70
+ec INTK_ERR,		"Other error"
+ec AD_NOTGT,		"Don't have Kerberos ticket-granting ticket"
+index 76
+ec NO_TKT_FIL,		"No ticket file found"
+ec TKT_FIL_ACC,		"Couldn't access ticket file"
+ec TKT_FIL_LCK,		"Couldn't lock ticket file"
+ec TKT_FIL_FMT,		"Bad ticket file format"
+ec TKT_FIL_INI,		"tf_init not called first"
+ec KNAME_FMT,		"Bad Kerberos name format"

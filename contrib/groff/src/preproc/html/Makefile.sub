@@ -1,0 +1,6 @@
+PROG=pre-grohtml$(EXEEXT)
+# MAN1=pre-grohtml.n
+MAN1=
+XLIBS=$(LIBGROFF)
+OBJS=pre-html.$(OBJEXT) pushback.$(OBJEXT)
+CCSRCS=$(srcdir)/pre-html.cpp $(srcdir)/pushback.cpp

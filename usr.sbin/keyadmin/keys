@@ -1,0 +1,18 @@
+# This is an example key file.
+
+# The format of entries in this file is as follows:
+# <type> <spi> <src> <dst> <transform> <key> [iv]
+#
+# where:
+#
+# <type>       is currently one of { ah | esp }
+# <spi>        is a decimal number
+# <src>        is an IP address for the source this association applies to
+# <dst>        is an IP address for the destination this assoc. applies to
+# <transform>  is currently one of { md5 } for ah, { des-cbc } for esp
+# <key>        is a hexadecimal key value (key length is derived from hex len)
+# [iv]         is a hexadecimal initial value (length is derived from hex len)
+#                  [this field is required for des-cbc, ignored for others]
+
+ah 	1142 ::0 ::0 md5 	0123456789abcdef0123456789abcdef
+esp	1984 ::0 ::0 des-cbc 	0123456789abcdef 11223344

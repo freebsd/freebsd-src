@@ -1,0 +1,208 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd September 29, 1994
+.Dt GETGRENT 3
+.Os
+.Sh NAME
+.Nm getgrent ,
+.Nm getgrnam ,
+.Nm getgrgid ,
+.Nm setgroupent ,
+.\" .Nm setgrfile ,
+.Nm setgrent ,
+.Nm endgrent
+.Nd group database operations
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In grp.h
+.Ft struct group *
+.Fn getgrent void
+.Ft struct group *
+.Fn getgrnam "const char *name"
+.Ft struct group *
+.Fn getgrgid "gid_t gid"
+.Ft int
+.Fn setgroupent "int stayopen"
+.\" .Ft void
+.\" .Fn setgrfile "const char *name"
+.Ft int
+.Fn setgrent void
+.Ft void
+.Fn endgrent void
+.Sh DESCRIPTION
+These functions operate on the group database file
+.Pa /etc/group
+which is described
+in
+.Xr group 5 .
+Each line of the database is defined by the structure
+.Vt group
+found in the include
+file
+.Aq Pa grp.h :
+.Bd -literal -offset indent
+struct group {
+	char	*gr_name;	/* group name */
+	char	*gr_passwd;	/* group password */
+	int	gr_gid;		/* group id */
+	char	**gr_mem;	/* group members */
+};
+.Ed
+.Pp
+The functions
+.Fn getgrnam
+and
+.Fn getgrgid
+search the group database for the given group name pointed to by
+.Fa name
+or the group id pointed to by
+.Fa gid ,
+respectively, returning the first one encountered.  Identical group
+names or group gids may result in undefined behavior.
+.Pp
+The
+.Fn getgrent
+function
+sequentially reads the group database and is intended for programs
+that wish to step through the complete list of groups.
+.Pp
+All three routines will open the group file for reading, if necessary.
+.Pp
+The
+.Fn setgroupent
+function
+opens the file, or rewinds it if it is already open.  If
+.Fa stayopen
+is non-zero, file descriptors are left open, significantly speeding
+functions subsequent calls.  This functionality is unnecessary for
+.Fn getgrent
+as it doesn't close its file descriptors by default.  It should also
+be noted that it is dangerous for long-running programs to use this
+functionality as the group file may be updated.
+.Pp
+The
+.Fn setgrent
+function
+is identical to
+.Fn setgroupent
+with an argument of zero.
+.Pp
+The
+.Fn endgrent
+function
+closes any open files.
+.Sh YP/NIS INTERACTION
+When the
+.Xr yp 8
+group database is enabled, the
+.Fn getgrnam
+and
+.Fn getgrgid
+functions use the YP maps
+.Dq Li group.byname
+and
+.Dq Li group.bygid ,
+respectively, if the requested group is not found in the local
+.Pa /etc/group
+file.  The
+.Fn getgrent
+function will step through the YP map
+.Dq Li group.byname
+if the entire map is enabled as described in
+.Xr group 5 .
+.Sh RETURN VALUES
+The functions
+.Fn getgrent ,
+.Fn getgrnam ,
+and
+.Fn getgrgid ,
+return a pointer to the group entry if successful; if end-of-file
+is reached or an error occurs a null pointer is returned.
+The functions
+.Fn setgroupent
+and
+.Fn setgrent
+return the value 1 if successful, otherwise the value
+0 is returned.
+The functions
+.Fn endgrent
+and
+.Fn setgrfile
+have no return value.
+.Sh FILES
+.Bl -tag -width /etc/group -compact
+.It Pa /etc/group
+group database file
+.El
+.Sh SEE ALSO
+.Xr getpwent 3 ,
+.Xr group 5 ,
+.Xr yp 8
+.Sh HISTORY
+The functions
+.Fn endgrent ,
+.Fn getgrent ,
+.Fn getgrnam ,
+.Fn getgrgid ,
+and
+.Fn setgrent
+appeared in
+.At v7 .
+The functions
+.Fn setgrfile
+and
+.Fn setgroupent
+appeared in
+.Bx 4.3 Reno .
+.Sh COMPATIBILITY
+The historic function
+.Fn setgrfile ,
+which allowed the specification of alternate password databases, has
+been deprecated and is no longer available.
+.Sh BUGS
+The functions
+.Fn getgrent ,
+.Fn getgrnam ,
+.Fn getgrgid ,
+.Fn setgroupent
+and
+.Fn setgrent
+leave their results in an internal static object and return
+a pointer to that object.
+Subsequent calls to
+the same function
+will modify the same object.

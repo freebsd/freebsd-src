@@ -1,0 +1,62 @@
+
+List of known Bugs                    Last Edit-Date: [Sun Mar  5 13:03:51 1995]
+================================================================================
+
+
+Description:                                    Fixed/done by/date
+-------------------------------------------	--------------------------------
+Util/keycap/man5/keycap.5 does STILL not
+build correctly when doing a make obj.
+Will there ever be a solution ... :-)
+-------------------------------------------	--------------------------------
+NetBSD PR #404: Meta-Control-Space broken 
+with PCVT_META_ESC and PCVT_NULLCHARS set
+Meta-Control-Space should (theoretically)
+send ESC NUL if PCVT_NULLCHARS and 
+PCVT_META_ESC are defined; in reality, it
+just sends ESC. Because of the grody 
+encoding hack used by sgets() to implement
+PCVT_NULLCHARS (if the first character is
+a null, send it), there isn't a trivial 
+one-line fix. 
+How-To-Repeat: in a kernel with
+PCVT_NULLCHARS and PCVT_META_ESC, type a
+M-C-SPC to emacs.
+-------------------------------------------	--------------------------------
+when auto switching to vt0 is enabled by
+PCVT_SW0CNOUTP and the screen is switched
+from an X-vt to screen 0, the video mem
+is irrecoverably destroyed - no data loss
+-------------------------------------------	--------------------------------
+Altgr+Shift+key is not separately		They way the keyboard mapping
+mappable.					is done is subject to a sub-
+						stantial rewrite in a future
+						release
+-------------------------------------------	--------------------------------
+132 column mode not working with #9 GXE
+(S3-based) (sorry, i don't have one -hm)
+(see discussion of 132 column mode in the
+ NotesAndHints file!)
+-------------------------------------------	--------------------------------
+WD90Cxx chip detection fails to detect
+chips other than C00,C10 and C11. C30
+chips are detected as C11s ....
+-------------------------------------------	--------------------------------
+Xfree86 2.0 locks the console when started
+under NetBSD 0.9. SuperProbe and X both
+show process status "DE+" in ps. Work-
+around is to disable PCVT_USL_VT_COMPAT.
+-------------------------------------------	--------------------------------
+On one keyboard, if a "Lock" key is pressed
+the leds do not get updated and the key-
+board hangs.
+-------------------------------------------	--------------------------------
+HP function key labels code needs to set
+the user defined fkey string somehow!
+-------------------------------------------	--------------------------------
+Video 7 1024i not fully supported yet, has
+sometimes problems with some chars to displ
+-------------------------------------------	--------------------------------
+The HP-Escape sequences need to be FULLY	28.12.93, -hm did a bit to supp-
+implemented					port elm. Needs MORE work !
+-------------------------------------------	--------------------------------

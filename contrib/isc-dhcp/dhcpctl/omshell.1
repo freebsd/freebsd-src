@@ -1,0 +1,341 @@
+.\"	omshell.1
+.\"
+.\" Copyright (c) 2001-2002 Internet Software Consortium.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+.\" To learn more about the Internet Software Consortium, see
+.\" ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+.\" see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+.\" ``http://www.nominum.com''.
+.TH omshell 1
+.SH NAME
+omshell - OMAPI Command Shell
+.SH SYNOPSIS
+.B omshell
+.SH DESCRIPTION
+The OMAPI Command Shell, omshell, provides an interactive way to connect to,
+query, and possibly change, the ISC DHCP Server's state via OMAPI, the Object
+Management API.  By using OMAPI and omshell, you do not have to stop, make
+changes, and then restart the DHCP server, but can make the changes
+while the server is running.   Omshell provides a way of accessing
+OMAPI.
+.PP
+OMAPI is simply a communications mechanism that allows you to
+manipulate objects.   In order to actually \fIuse\fR omshell, you
+.I must
+understand what objects are available and how to use them.
+Documentation for OMAPI objects can be found in the documentation for
+the server that provides them - for example, in the \fBdhcpd(1)\fR
+manual page and the \fBdhclient(1)\fR manual page.
+.SH CONTRIBUTIONS
+.PP
+This software is free software.  At various times its development has
+been underwritten by various organizations, including the ISC and
+Vixie Enterprises.  The development of 3.0 has been funded almost
+entirely by Nominum, Inc.
+.PP
+At this point development is being shepherded by Ted Lemon, and hosted
+by the ISC, but the future of this project depends on you.  If you
+have features you want, please consider implementing them.
+.SH LOCAL AND REMOTE OBJECTS
+.PP
+Throughout this document, there are references to local and remote objects.
+Local objects are ones created in omshell with the \fBnew\fR command.  Remote
+objects are ones on the server: leases, hosts, and groups that the DHCP
+server knows about.  Local and remote objects are associated together to
+enable viewing and modification of object attributes.  Also, new remote
+objects can be created to match local objects.
+.SH OPENING A CONNECTION
+.PP
+omshell is started from the command line.  Once omshell is started, there are
+several commands that can be issued:
+.PP
+.B server \fIaddress\fR
+.RS 0.5i
+where address is the IP address of the DHCP server to connect to.  If this is
+not specified, the default server is 127.0.0.1 (localhost).
+.RE
+.PP
+.B port \fInumber\fR
+.RS 0.5i
+where number is the port that OMAPI listens on.  By default, this is 7911.
+.RE
+.PP
+.B key \fIname secret\fR
+.RS 0.5i
+This specifies the TSIG key to use to authenticate the OMAPI transactions.
+\fIname\fR is the name of a key defined in \fIdhcpd.conf\fR with the
+\fBomapi-key\fR statement.  The \fIsecret\fR is the secret generated from
+\fBdnssec-keygen\fR or another key generation program.
+.RE
+.PP
+.B connect
+.RS 0.5i
+This starts the OMAPI connection to the server as specified by the \fIserver\fR
+statement.
+.SH CREATING LOCAL OBJECTS
+.PP
+Any object defined in OMAPI can be created, queried, and/or modified.  The
+object types available to OMAPI are defined in \fBdhcpd(8)\fR and
+\fBdhclient\fR.  When using omshell, objects are first defined locally,
+manipulated as desired, and then associated with an object on the server.
+Only one object can be manipulated at a time.  To create a local object, use
+.PP
+.B new \fIobject-type\fR
+.RS 0.5i
+\fIobject-type\fR is one of group, host, or lease.
+.RE
+.PP
+At this point, you now have an object that you can set properties on.  For
+example, if a new lease object was created with \fInew lease\fR, any of a
+lease's attributes can be set as follows:
+.PP
+.B set \fIattribute-name = value\fR
+.RS 0.5i
+\fBAttribute names are defined in \fBdhcpd(8)\fR and \fBdhclient(8)\fR.
+Values should be quoted if they are strings.  So, to set a lease's IP address,
+you would do the following:
+\fB set ip-address = 192.168.4.50\fR
+.SH ASSOCIATING LOCAL AND REMOTE OBJECTS
+.PP
+At this point, you can query the server for information about this lease, by
+.PP
+.B open
+.PP
+Now, the local lease object you created and set the IP address for is associated
+with the corresponding lease object on the DHCP server.  All of the lease
+attributes from the DHCP server are now also the attributes on the local
+object, and will be shown in omshell.
+.SH VIEWING A REMOTE OBJECT
+.PP
+To query a lease of address 192.168.4.50, and find out its attributes, after
+connecting to the server, take the following steps:
+.PP
+.B new "lease"
+.PP
+This creates a new local lease object.
+.PP
+.B set ip-address = 192.168.4.50
+.PP
+This sets the \fIlocal\fR object's IP address to be 192.168.4.50
+.PP
+.B open
+.PP
+Now, if a lease with that IP address exists, you will see all the information
+the DHCP server has about that particular lease.  Any data that isn't readily
+printable text will show up in colon-separated hexadecimal values.  In this
+example, output back from the server for the entire transaction might look
+like this:
+.nf
+.sp 1
+> new "lease"
+obj: lease
+> set ip-address = 192.168.4.50
+obj: lease
+ip-address = c0:a8:04:32
+> open
+obj: lease
+ip-address = c0:a8:04:32
+state = 00:00:00:02
+dhcp-client-identifier = 01:00:10:a4:b2:36:2c
+client-hostname = "wendelina"
+subnet = 00:00:00:06
+pool = 00:00:00:07
+hardware-address = 00:10:a4:b2:36:2c
+hardware-type = 00:00:00:01
+ends = dc:d9:0d:3b
+starts = 5c:9f:04:3b
+tstp = 00:00:00:00
+tsfp = 00:00:00:00
+cltt = 00:00:00:00
+.fi
+.PP
+As you can see here, the IP address is represented in hexadecimal, as are the
+starting and ending times of the lease.
+.SH MODIFYING A REMOTE OBJECT
+.PP
+Attributes of remote objects are updated by using the \fBset\fR command as
+before, and then issuing an \fBupdate\fR command.  The \fBset\fR command sets
+the attributes on the current local object, and the \fBupdate\fR command
+pushes those changes out to the server.
+.PP
+Continuing with the previous example, if a \fBset client-hostname =
+"something-else"\fR was issued, followed by an \fBupdate\fR command, the
+output would look about like this:
+.nf
+.sp 1
+> set client-hostname = "something-else"
+obj: lease
+ip-address = c0:a8:04:32
+state = 00:00:00:02
+dhcp-client-identifier = 01:00:10:a4:b2:36:2c
+client-hostname = "something-else"
+subnet = 00:00:00:06
+pool = 00:00:00:07
+hardware-address = 00:10:a4:b2:36:2c
+hardware-type = 00:00:00:01
+ends = dc:d9:0d:3b
+starts = 5c:9f:04:3b
+tstp = 00:00:00:00
+tsfp = 00:00:00:00
+cltt = 00:00:00:00
+> update
+obj: lease
+ip-address = c0:a8:04:32
+state = 00:00:00:02
+dhcp-client-identifier = 01:00:10:a4:b2:36:2c
+client-hostname = "something-else"
+subnet = 00:00:00:06
+pool = 00:00:00:07
+hardware-address = 00:10:a4:b2:36:2c
+hardware-type = 00:00:00:01
+ends = dc:d9:0d:3b
+starts = 5c:9f:04:3b
+tstp = 00:00:00:00
+tsfp = 00:00:00:00
+cltt = 00:00:00:00
+.fi
+.SH NEW REMOTE OBJECTS
+.PP
+New remote objects are created much in the same way that existing server
+objects are modified.  Create a local object using \fBnew\fR, set the
+attributes as you'd wish them to be, and then create the remote object with
+the same properties by using
+.PP
+.B create
+.PP
+Now a new object exists on the DHCP server which matches the properties that
+you gave your local object.  Objects created via OMAPI are saved into the
+dhcpd.leases file.
+.PP
+For example, if a new host with the IP address of 192.168.4.40 needs to be
+created it would be done as follows:
+.nf
+.sp 1
+> new host
+obj: host
+> set name = "some-host"
+obj: host
+name = "some-host"
+> set hardware-address = 00:80:c7:84:b1:94
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+> set hardware-type = 1
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 1
+> set ip-address = 192.168.4.40
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 1
+ip-address = c0:a8:04:28
+> create
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 00:00:00:01
+ip-address = c0:a8:04:28
+> 
+.fi
+.PP
+Your dhcpd.leases file would then have an entry like this in it:
+.nf
+.sp 1
+host some-host {
+  dynamic;
+  hardware ethernet 00:80:c7:84:b1:94;
+  fixed-address 192.168.4.40;
+}
+.fi
+.PP
+The \fIdynamic;\fR line is to denote that this host entry did not come from
+dhcpd.conf, but was created dynamically via OMAPI.  
+.SH RESETTING ATTRIBUTES
+.PP
+If you want to remove an attribute from an object, you can do this with the
+\fBunset\fR command.   Once you have unset an attribute, you must use the
+\fBupdate\fR command to update the remote object.  So, if the host "some-host"
+from the previous example will not have a static IP address anymore, the
+commands in omshell would look like this:
+.nf
+.sp 1
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 00:00:00:01
+ip-address = c0:a8:04:28
+> unset ip-address
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 00:00:00:01
+ip-address = <null>
+> 
+.fi
+.SH REFRESHING OBJECTS
+.PP
+A local object may be refreshed with the current remote object properties
+using the \fBrefresh\fR command.  This is useful for object that change
+periodically, like leases, to see if they have been updated.  This isn't
+particularly useful for hosts.
+.SH DELETING OBJECTS
+.PP
+Any remote object that can be created can also be destroyed.  This is done by
+creating a new local object, setting attributes, associating the local and
+remote object using \fBopen\fI, and then using the \fBremove\fR command. 
+If the host "some-host" from before was created in error, this could be
+corrected as follows:
+.nf
+.sp 1
+obj: host
+name = "some-host"
+hardware-address = 00:80:c7:84:b1:94
+hardware-type = 00:00:00:01
+ip-address = c0:a8:04:28
+> remove
+obj: <null>
+> 
+.fi
+.SH HELP
+.PP
+The \fBhelp\fR command will print out all of the commands available in
+omshell, with some syntax pointers.
+.SH SEE ALSO
+dhcpctl(3), omapi(3), dhcpd(8), dhclient(8), dhcpd.conf(5), dhclient.conf(5).
+.SH AUTHOR
+.B omshell
+was written by Ted Lemon of Nominum, Inc.  Information about Nominum
+and support contracts for DHCP and BIND can be found at
+.B http://www.nominum.com.   This preliminary documentation was
+written by Wendy Verschoor of Nominum, Inc., while she was testing
+omshell.

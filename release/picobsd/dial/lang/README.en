@@ -1,0 +1,106 @@
+1999.04.22, Warsaw, Poland
+
+			PicoBSD @VER@ (DIALUP flavor)
+			---------------------------
+
+
+What is PicoBSD?
+----------------
+
+It's a one floppy version of FreeBSD (please see http://www.freebsd.org),
+configured mainly for dialup access. It can be used as a means to read your
+mail remotely, or to log in somewhere and do the work there.
+
+What are minimal requirements?
+------------------------------
+
+* 386SX CPU or better (this release contains also FPU emulator)
+* 8MB RAM - the more the better.
+* Modem sitting on COM1-COM4 (default is to use COM2), if you want to have
+  a PPP connection.
+* Network card: compatible with NE2000, or PCI cards with DEC chipsets
+  or 3C509 series (ed, ep and de drivers). There is also driver for Intel
+  EtherExpress PCI card (fxp), and Lance/PCnet (lnc).
+
+How to make a dialup connection?
+--------------------------------
+
+I recommend running /stand/dialup script, which will additionally configure
+the PPP to allow you to automatically connect to your provider, and
+will make the ppp to run in background. However, if you like to do it
+yourself, or the script doesn't work properly in your case (let me know
+this!), here are the steps you should take:
+
+1.	Go to /etc/ppp directory and edit file ppp.conf (using ee editor). You
+	should check at least the port number of your modem (it's configured
+	on cuaa1==COM2 by default).
+2.	After you're happy with it, start 'ppp' program. Enter the terminal
+	mode ('term') - you are now directly connected to your modem, so you
+	can normally dial the number using AT commands (e.g. atdt555666777),
+	and log in to communictaion server. You should see something like
+	this:
+
+		(comm server prompt) login: abial
+		(comm server prompt) Password: ********
+
+	Then either the comm server automatically switches to PPP, or you
+	should issue a command to tell it to do so (e.g. 'go ppp', 'PPP' or
+	other). When PPP is started, you should see something like:
+
+		ppp on pico> Packet mode
+		PPP on pico>
+
+	Notice the uppercase PPP - it means that the protocol is up, and now
+	you're connected. Congratulations. :-)
+3.	Your console is blocked now, but you can use other virtual consoles
+	available under Alt-Fn.
+
+How to configure my Ethernet card?
+----------------------------------
+
+Hopefully your ethernet card is supported by PicoBSD kernel, and in case of
+ISA cards you have already set up correctly its parameters in UserConfig
+editor. You can check if PicoBSD found your card by looking into startup
+messages ('dmesg | more').
+
+The easiest way to do it is to edit /etc/rc.conf file ('ee /etc/rc.conf').
+Find the line which says 'network_interfaces' and add the name of your
+card to the list. Then add yet another line 'ifconfig_<if_name>' which
+actually sets up your IP address and netmask. E.g:
+
+	network_interfaces="lo0 ed0"
+	ifconfig_lo0="inet 127.0.0.1"
+	ifconfig_ed0="inet 192.168.0.1 netmask 255.255.255.0"
+
+Then you have to set up your default gateway, which is usually the router
+nearest to you (on the same LAN). E.g:
+
+	defaultrouter="192.168.0.100"
+
+Then you save this information on the floppy with 'update' command, and
+reboot.
+
+Of course, you can also issue the proper commands by hand:
+
+	ifconfig ed0 inet 192.168.0.1 netmask 255.255.255.0
+	route add default 192.168.0.100
+
+Once you do this, you should be able to 'ping' some remote IP address.
+
+Where to get additional info?
+-----------------------------
+
+There is official page of this project at:
+
+	http://www.freebsd.org/~picobsd/
+
+You can find some informations there - not too much yet, to be sure... ;-)
+I'll put there also new versions of PicoBSD and bugfixes.
+
+I'll be glad hearing from you about your experiences with PicoBSD. Thanks.
+
+Have fun!
+
+Andrzej Bialecki <abial@freebsd.org>
+
+$FreeBSD$

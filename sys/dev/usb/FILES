@@ -1,0 +1,62 @@
+$FreeBSD$
+
+A small roadmap of the USB files:
+
+FILES			this file
+Makefile		to install .h files
+Makefile.usbdevs	to run devlist2h.awk
+TODO			just a list of things to do
+devlist2h.awk		script to generate usbdevs*.h
+dsbr100io.h		API for ufm.c
+ehci.c			Host controller driver for EHCI
+ehcireg.h		Hardware definitions for EHCI
+ehcivar.h		API for ehci.c
+files.usb		config include file
+hid.c			subroutines to parse and access HID data
+hid.h			API for hid.c
+if_aue.c		USB Pegasus Ethernet driver
+if_auereg.h		  and definitions for it
+if_cue.c		USB CATC Ethernet driver
+if_cuereg.h		  and definitions for it
+if_kue.c		USB Kawasaki Ethernet driver
+if_kuereg.h		  and definitions for it
+if_upl.c		USB Prolofic host-to-host driver
+ohci.c			Host controller driver for OHCI
+ohcireg.h		Hardware definitions for OHCI
+ohcivar.h		API for ohci.c
+uaudio.c		USB audio class driver
+uaudioreg.h		  and definitions for it
+ufm.c			USB fm radio driver
+[Merged] ugen.c		generic driver that can handle access to any USB device
+uhci.c			Host controller driver for UHCI
+uhcireg.h		Hardware definitions for UHCI
+uhcivar.h		API for uhci.c
+uhid.c			USB HID class driver
+uhub.c			USB hub driver
+ukbd.c			USB keyboard driver
+ukbdmap.c		wscons key mapping for ukbd
+ukbdvar.h		API for ukbd.c
+ulpt.c			USB printer class driver
+umass.c			USB mass storage driver
+umodem.c		USB modem (CDC ACM) driver
+ums.c			USB mouse driver
+urio.c			USB Diamond Rio500 driver
+usb.c			usb (bus) device driver
+usb.h			general USB defines
+usb_mem.c		memory allocation for DMAable memory
+usb_mem.h		API for usb_mem.c
+usb_port.h		compatibility defines for different OSs
+usb_quirks.c		table of non-conforming USB devices and their problems
+usb_quirks.h		API for usb_quirks.c
+usb_subr.c		various subroutines used by USB code
+usbcdc.h		USB CDC class definitions
+usbdevs			data base of known device
+usbdevs.h		generated from usbdevs
+usbdevs_data.h		generated from usbdevs
+usbdi.c			implementation of the USBDI API, which all drivers use
+usbdi.h			API for usbdi.c
+usbdi_util.c		utilities built on top of usbdi.h
+usbdi_util.h		API for usbdi_util.c
+usbdivar.h		internal defines and structures for usbdi.c
+uscanner.c		minimal USB scanner driver
+usbhid.h		USB HID class definitions

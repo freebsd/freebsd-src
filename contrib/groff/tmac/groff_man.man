@@ -1,0 +1,658 @@
+.ig
+Copyright (C) 1999-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.
+.de TQ
+.  br
+.  ns
+.  TP \\$1
+..
+.
+.
+.TH GROFF_MAN @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH NAME
+.
+groff_man \- groff `man' macros to support generation of man pages
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH SYNOPSIS
+.
+.B groff
+.B \-man
+[
+.IR options .\|.\|.\&
+]
+[
+.IR files .\|.\|.\&
+]
+.br
+.B groff
+.B \-m\ man
+[
+.IR options .\|.\|.\&
+]
+[
+.IR files .\|.\|.\&
+]
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH DESCRIPTION
+.
+The
+.B man
+macros used to generate man pages with
+.I groff
+were written by James Clark.
+This document provides a brief summary of the use of each macro in that
+package.
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH OPTIONS
+.
+The
+.B man
+macros understand the following command line options (which define various
+registers).
+.
+.TP
+.B \-rcR=1
+This option (the default if in nroff mode) will create a single, very long
+page instead of multiple pages.
+Say
+.B \-rcR=0
+to disable it.
+.
+.TP
+.B \-rC1
+If more than one manual page is given on the command line, number the
+pages continuously, rather than starting each at\ 1.
+.
+.TP
+.B \-rD1
+Double-sided printing.
+Footers for even and odd pages are formatted differently.
+.
+.TP
+.BI \-rFT= dist
+Set distance of the footer relative to the bottom of the page if negative
+or relative to the top if positive.
+The default is -0.5i.
+.
+.TP
+.BI \-rHY= flags
+Set hyphenation flags.
+.
+Possible values are 1\ to hyphenate without restrictions, 2\ to not
+hyphenate the last word on a page, 4\ to not hyphenate the last two
+characters of a word, and 8\ to not hyphenate the first two characters
+of a word.
+.
+These values are additive; the default is\ 14.
+.
+.TP
+.BI \-rIN= width
+Set body text indentation to
+.IR width .
+The default is 7n for
+.IR nroff ,
+7.2n for
+.IR troff .
+For
+.IR nroff ,
+this value should always be an integer multiple of unit `n' to get
+consistent indentation.
+.
+.TP
+.BI \-rLL= line-length
+Set line length.
+If this option is not given, the line length defaults to 78n in nroff mode
+and 6.5i in troff mode.
+.
+.TP
+.BI \-rLT= title-length
+Set title length.
+If this option is not given, the title length defaults to the line length.
+.
+.TP
+.BI \-rP nnn
+Enumeration of pages will start with
+.I nnn
+rather than with\ 1.
+.
+.TP
+.BI \-rS xx
+Base document font size is
+.I xx
+points
+.RI ( xx
+can be 10, 11, or\ 12) rather than 10\ points.
+.
+.TP
+.BI \-rSN= width
+Set sub-subheading indentation to
+.IR width .
+The default is 3n.
+.
+.TP
+.BI \-rX nnn
+After page\ \c
+.IR nnn ,
+number pages as
+.IR nnn a,
+.IR nnn b,
+.IR nnn c,
+etc.
+For example, the option `\-rX2' will produce the following page numbers:
+1, 2, 2a, 2b, 2c, etc.
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH USAGE
+.
+This section describes the available macros for manual pages.
+For further customization, put additional macros and requests into the file
+.B man.local
+which will be loaded immediately after the
+.B man
+package.
+.
+.TP
+.BI .TH " title section " [ extra1 "] [" extra2 "] [" extra3 ]
+Set the title of the man page to
+.I title
+and the section to
+.IR section ,
+which must take on a value between 1 and\ 8.
+The value
+.I section
+may also have a string appended, e.g. `.pm', to indicate a specific
+subsection of the man pages.
+Both
+.I title
+and
+.I section
+are positioned at the left and right in the header line (with
+.I section
+in parentheses immediately appended to
+.IR title .
+.I extra1
+will be positioned in the middle of the footer line.
+.I extra2
+will be positioned at the left in the footer line (or at the left on
+even pages and at the right on odd pages if double-sided printing is
+active).
+.I extra3
+is centered in the header line.
+.
+.IP
+For HTML output, headers and footers are completely supressed.
+.
+.IP
+Additionally, this macro starts a new page; the new line number is\ 1 again
+(except if the `-rC1' option is given on the command line) -- this feature
+is intended only for formatting multiple man pages; a single man page should
+contain exactly one
+.B TH
+macro at the beginning of the file.
+.
+.TP
+.BI ".SH [" "text for a heading" ]
+Set up an unnumbered section heading sticking out to the left.
+Prints out all the text following
+.B SH
+up to the end of the line (or the text in the next input line if there is
+no argument to
+.BR SH )
+in bold face
+(or the font specified by the string
+.BR HF ),
+one size larger than the base document size.
+Additionally, the left margin and the indentation for the following text
+is reset to the default values.
+.
+.TP
+.BI ".SS [" "text for a heading" ]
+Set up a secondary, unnumbered section heading.
+Prints out all the text following
+.B SS
+up to the end of the line (or the text in the next input line if there is
+no argument to
+.BR SS )
+in bold face
+(or the font specified by the string
+.BR HF ),
+at the same size as the base document size.
+Additionally, the left margin and the indentation for the following text
+is reset to the default values.
+.
+.TP
+.BI ".TP [" nnn ]
+Set up an indented paragraph with label.
+The indentation is set to
+.I nnn
+if that argument is supplied (the default unit is `n' if omitted), otherwise
+it is set to the previous indentation value specified with
+.BR TP ,
+.BR IP ,
+or
+.B HP
+(or to the default value if none of them have been used yet).
+.
+.IP
+The first input line of text following this macro is interpreted as a string
+to be printed flush-left, as it is appropriate for a label.
+It is not interpreted as part of a paragraph, so there is no attempt to fill
+the first line with text from the following input lines.
+Nevertheless, if the label is not as wide as the indentation the
+paragraph starts at the same line (but indented), continuing on the
+following lines.
+If the label is wider than the indentation the descriptive part of the
+paragraph begins on the line following the label, entirely indented.
+Note that neither font shape nor font size of the label is set to a default
+value; on the other hand, the rest of the text will have default font
+settings.
+.
+.IP
+The
+.B TP
+macro is the macro used for the explanations you are just reading.
+.
+.TP
+.B .LP
+.TQ
+.B .PP
+.TQ
+.B .P
+These macros are mutual aliases.
+Any of them causes a line break at the current position, followed by a
+vertical space downwards by the amount specified by the
+.B PD
+macro.
+The font size and shape are reset to the default value (10pt resp. Roman).
+Finally, the current left margin and the indentation are restored.
+.
+.TP
+.BI ".IP [" designator "] [" nnn ]
+Set up an indented paragraph, using
+.I designator
+as a tag to mark its beginning.
+The indentation is set to
+.I nnn
+if that argument is supplied (the default unit is `n' if omitted), otherwise
+it is set to the previous indentation value specified with
+.BR TP ,
+.BR IP ,
+or
+.B HP
+(or to the default value if none of them have been used yet).
+Font size and face of the paragraph (but not the designator) are reset to
+its default values.
+.
+.IP
+To start an indented paragraph with a particular indentation but without a
+designator, use `""' (two doublequotes) as the second argument.
+.
+.IP
+For example, the following paragraphs were all set up with bullets as the
+designator, using `.IP\ \\(bu\ 4'.
+The whole block has been enclosed with `.RS' and `.RE' to set the left
+margin temporarily to the current indentation value.
+.
+.RS
+.IP \(bu 4
+.B IP
+is one of the three macros used in the
+.B man
+package to format lists.
+.IP \(bu 4
+.B HP
+is another.
+This macro produces a paragraph with a left hanging indentation.
+.IP \(bu 4
+.B TP
+is another.
+This macro produces an unindented label followed by an indented paragraph.
+.RE
+.
+.TP
+.BI ".HP [" nnn ]
+Set up a paragraph with hanging left indentation.
+The indentation is set to
+.I nnn
+if that argument is supplied (the default unit is `n' if omitted), otherwise
+it is set to the previous indentation value specified with
+.BR TP ,
+.BR IP ,
+or
+.B HP
+(or to the default value if none of them have been used yet).
+Font size and face are reset to its default values.
+The following paragraph illustrates the effect of this macro with hanging
+indentation set to\ 4 (enclosed by `.RS' and `.RE' to set the left margin temporarily to
+the current indentation):
+.
+.RS
+.HP 4
+This is a paragraph following an invocation of the
+.B HP
+macro.
+As you can see, it produces a paragraph where all lines but the first are
+indented.
+.RE
+.
+.TP
+.BI ".RS [" nnn ]
+This macro moves the left margin to the right by the value
+.I nnn
+if specified (default unit is `n'); otherwise it is set to the previous
+indentation value specified with
+.BR TP ,
+.BR IP ,
+or
+.B HP
+(or to the default value if none of them have been used yet).
+The indentation value is then set to the default.
+.
+.IP
+Calls to the
+.B RS
+macro can be nested.
+.
+.TP
+.BI ".RE [" nnn ]
+This macro moves the left margin back to level
+.IR nnn ,
+restoring the previous left margin.
+If no argument is given, it moves one level back.
+The first level (i.e., no call to
+.B RS
+yet) has number\ 1, and each call to
+.B RS
+increases the level by\ 1.
+.
+.PP
+To summarize, the following macros cause a line break with the insertion of
+vertical space (which amount can be changed with the
+.B PD
+macro):
+.BR SH ,
+.BR SS ,
+.BR TP ,
+.B LP
+.RB ( PP ,
+.BR P ),
+.BR IP ,
+and
+.BR HP .
+The macros
+.B RS
+and
+.B RE
+also cause a break but no insertion of vertical space.
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH "MACROS TO SET FONTS"
+.
+The standard font is Roman; the default text size is 10\ point.
+.
+.TP
+.BI ".SM [" text ]
+Causes the text on the same line or the text on the next input line to
+appear in a font that is one point size smaller than the default font.
+.
+.TP
+.BI ".SB [" text ]
+Causes the text on the same line or the text on the next input line to
+appear in boldface font, one point size smaller than the default font.
+.
+.TP
+.BI ".BI " text
+Causes text on the same line to appear alternately in bold face and italic.
+The text must be on the same line as the macro call.
+Thus
+.RS
+.IP
+\&.BI this "word and" that
+.PP
+would cause `this' and `that' to appear in bold face, while `word and'
+appears in italics.
+.RE
+.
+.TP
+.BI ".IB " text
+Causes text to appear alternately in italic and bold face.
+The text must be on the same line as the macro call.
+.
+.TP
+.BI ".RI " text
+Causes text on the same line to appear alternately in roman and italic.
+The text must be on the same line as the macro call.
+.
+.TP
+.BI ".IR " text
+Causes text on the same line to appear alternately in italic and roman.
+The text must be on the same line as the macro call.
+.
+.TP
+.BI ".BR " text
+Causes text on the same line to appear alternately in bold face and roman.
+The text must be on the same line as the macro call.
+.
+.TP
+.BI ".RB " text
+Causes text on the same line to appear alternately in roman and bold face.
+The text must be on the same line as the macro call.
+.
+.TP
+.BI ".B [" text ]
+Causes
+.I text
+to appear in bold face.
+If no text is present on the line where the macro is called the text
+of the next input line appears in bold face.
+.
+.TP
+.BI ".I [" text ]
+Causes
+.I text
+to appear in italic.
+If no text is present on the line where the macro is called the text
+of the next input line appears in italic.
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH "MISCELLANEOUS"
+.
+The default indentation is 7.2n in troff mode and 7n in nroff mode except for
+.B grohtml
+which ignores indentation.
+.
+.TP
+.B .DT
+Set tabs every 0.5 inches.
+Since this macro is always called during a
+.B TH
+request, it makes sense to call it only if the tab positions have been
+changed.
+.
+.TP
+.BI ".PD [" nnn ]
+Adjust the empty space before a new paragraph or section.
+The optional argument gives the amount of space (default unit is `v');
+without parameter, the value is reset to its default value (1\ line in
+nroff mode, 0.4v\ otherwise).
+This affects the macros
+.BR SH ,
+.BR SS ,
+.BR TP ,
+.B LP
+(resp.\&
+.B PP
+and
+.BR P ),
+.BR IP ,
+and
+.BR HP .
+.
+.TP
+.BI ".AT [" system " [" release ]]
+Alter the footer for use with AT&T manpages.
+This command exists only for compatibility; don't use it.
+See the groff info manual for more.
+.
+.TP
+.BI ".UC [" version ]
+Alter the footer for use with BSD manpages.
+This command exists only for compatibility; don't use it.
+See the groff info manual for more.
+.
+.TP
+.B ".PT"
+Print the header string.
+Redefine this macro to get control of the header.
+.
+.TP
+.B ".BT"
+Print the footer string.
+Redefine this macro to get control of the footer.
+.
+.PP
+The following strings are defined:
+.TP
+.B \e*S
+Switch back to the default font size.
+.
+.TP
+.B \e*R
+The `registered' sign.
+.
+.TP
+.B \e*(Tm
+The `trademark' sign.
+.
+.TP
+.B \e*(lq
+.TQ
+.B \e*(rq
+Left and right quote.
+This is equal to `\e(lq' and `\e(rq', respectively.
+.
+.TP
+.B \e*(HF
+The typeface used to print headings and subheadings.
+The default is `B'.
+.
+.PP
+If a preprocessor like
+.B @g@tbl
+or
+.B @g@eqn
+is needed, it has become usage to make the first line of the man page look
+like this:
+.PP
+.RS
+.BI .\e"\  word
+.RE
+.PP
+Note the single space character after the double quote.
+.I word
+consists of letters for the needed preprocessors: `e' for
+.BR @g@eqn ,
+`r' for
+.BR @g@refer ,
+and `t' for
+.BR @g@tbl .
+Modern implementations of the
+.B man
+program read this first line and automatically call the right
+preprocessor(s).
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH FILES
+.TP
+.B man.tmac
+.TQ
+.B an.tmac
+These are wrapper files to call
+.BR andoc.tmac .
+.TP
+.B andoc.tmac
+This file checks whether the
+.B man
+macros or the
+.B mdoc
+package should be used.
+.TP
+.B an-old.tmac
+All
+.B man
+macros are contained in this file.
+.TP
+.B man.local
+Local changes and customizations should be put into this file.
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH "SEE ALSO"
+.
+Since the
+.B man
+macros consist of groups of
+.I groff
+requests, one can, in principle, supplement the functionality of the
+.B man
+macros with individual
+.I groff
+requests where necessary.
+See the groff info pages for a complete reference of all requests.
+.
+.PP
+.BR @g@tbl (@MAN1EXT@),
+.BR @g@eqn (@MAN1EXT@),
+.BR @g@refer (@MAN1EXT@),
+.BR man (1)
+.
+.
+.\" -----------------------------------------------------------------
+.
+.SH AUTHOR
+.
+This manual page was originally written for the Debian GNU/Linux system by
+Susan G. Kleinmann <sgk@debian.org>, corrected and updated by Werner Lemberg
+<wl@gnu.org>, and is now part of the GNU troff distribution.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

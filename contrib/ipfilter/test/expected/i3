@@ -1,0 +1,10 @@
+log in from any to any
+pass in from 128.0.0.0/24 to 128.0.0.0/16
+pass in from 128.0.0.0/24 to 128.0.0.0/16
+pass in from 128.0.0.0/24 to 128.0.0.0/16
+pass in from 128.0.0.0/24 to 128.0.0.0/16
+pass in from 128.0.0.0/24 to 128.0.0.0/16
+pass in from 127.0.0.1/32 to 127.0.0.1/32
+block in log from any to any
+block in log level auth.info on hme0(!) from any to any
+log level local5.warn out from any to any

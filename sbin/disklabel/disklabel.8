@@ -1,0 +1,990 @@
+.\" Copyright (c) 1987, 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Symmetric Computer Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
+.\"
+.Dd July 30, 1999
+.Dt DISKLABEL 8
+.Os
+.Sh NAME
+.Nm disklabel
+.Nd read and write disk pack label
+.Sh SYNOPSIS
+.Nm
+.Op Fl r
+.Op Fl f
+.Ar disk
+.Nm
+.Fl w
+.Op Fl r
+.Op Fl n
+.Op Fl f
+.Ar disk Ar disktype/auto
+.Oo Ar packid Oc
+.Nm
+.Fl e
+.Op Fl r
+.Op Fl n
+.Op Fl f
+.Ar disk
+.Nm
+.Fl R
+.Op Fl r
+.Op Fl n
+.Op Fl f
+.Ar disk Ar protofile
+.Nm
+.Op Fl NW
+.Op Fl f
+.Ar disk
+.Pp
+.Nm
+.Fl B
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Op Fl f
+.Ar disk
+.Oo Ar disktype/auto Oc
+.Nm
+.Fl w
+.Fl B
+.Op Fl n
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Op Fl f
+.Ar disk Ar disktype/auto
+.Oo Ar packid Oc
+.Nm
+.Fl R
+.Fl B
+.Op Fl n
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Op Fl f
+.Ar disk Ar protofile
+.Oo Ar disktype/auto Oc
+.Sh DESCRIPTION
+The
+.Nm
+utility
+installs, examines or modifies the label on a disk drive or pack,
+or a regular file representing a disk image.  When writing
+the label, it can be used to change the drive identification, the disk
+partitions on the drive, or to replace a damaged label.  There are several forms
+of the command that read (display), install or edit the label on a disk.  In
+addition,
+.Nm
+can install bootstrap code.
+.Ss Raw or in-core label
+.Pp
+The disk label resides close to or at the beginning of each disk slice.
+For faster access, the kernel maintains a copy in core at all times.  By
+default, most
+.Nm
+access the in-core copy of the label.  To access the raw (on-disk) copy, use the
+.Fl r
+option.  This option allows a label to be installed on a disk without kernel
+support for a label, such as when labels are first installed on a system; it
+must be used when first installing a label on a disk.  The specific effect of
+.Fl r
+is described under each command.
+.Br
+Note that
+.Fl r
+is implicit when
+.Nm
+operates on a regular file (
+.Fl f )
+option.
+.Pp
+.Ss Disk device name 
+.Pp
+Unless the
+.Fl f
+option is used,
+all
+.Nm
+forms require a
+.Em disk
+device name, which should always be the raw
+device name representing the disk or slice.  For example
+.Pa da0
+represents the entire disk regardless of any DOS partitioning,
+and
+.Pa da0s1
+represents a slice.  Some devices, most notably
+.Ar ccd ,
+require that the
+.Dq whole-disk
+(or
+.Dq c )
+partition be specified.  For example
+.Pa ccd0c .
+You do not have to include the
+.Pa /dev/
+path prefix when specifying the device.
+The
+.Nm
+utility will automatically prepend it.
+.Br
+If the
+.Fl f
+option is used,
+.Nm
+will interpret the
+.Em disk
+name (which must be an absolute pathname)
+as the name of a regular file representing a disk image, and will work on
+it instead of a device.
+Note that when it operates on a regular file, the
+.Fl r
+option becomes implicit as the kernel will not cache disklabel
+info.
+.Ss Reading the disk label
+.Pp
+To examine the label on a disk drive, use
+.Nm
+without options:
+.Pp
+.Nm
+.Op Fl r
+.Ar disk
+.Pp
+.Ar disk
+represents the raw disk in question, and may be in the form
+.Pa da0
+or
+.Pa /dev/da0c .
+It will display all of the parameters associated with the drive and its
+partition layout.  Unless the
+.Fl r
+flag is given,
+the kernel's in-core copy of the label is displayed;
+if the disk has no label, or the partition types on the disk are incorrect,
+the kernel may have constructed or modified the label.
+If the
+.Fl r
+flag is given,
+.Nm
+reads the label from the raw disk and displays it.  Both versions are usually
+identical except in the case where a label has not yet been initialized or
+is corrupt.
+.Ss Writing a standard label
+.Pp
+To write a standard label, use the form
+.Pp
+.Nm
+.Fl w
+.Op Fl r
+.Op Fl n
+.Ar disk Ar disktype/auto
+.Oo Ar packid Oc
+.Pp
+.Nm
+.Fl w
+.Op Fl r
+.Op Fl n
+.Ar disk
+auto
+.Pp
+The required arguments to
+.Nm
+are the drive to be labeled and the drive type as described in the
+.Xr disktab 5
+file.  The drive parameters and partitions are taken from that file.  If
+different disks of the same physical type are to have different partitions, it
+will be necessary to have separate disktab entries describing each, or to edit
+the label after installation as described below.  The optional argument is a
+pack identification string, up to 16 characters long.  The pack id must be
+quoted if it contains blanks.
+.Pp
+If the
+.Fl n
+flag is given, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
+.Pp
+If the
+.Fl r
+flag is given, the disk sectors containing the label and bootstrap
+will be written directly.
+A side-effect of this is that any existing bootstrap code will be overwritten
+and the disk rendered unbootable.  See the boot options below for a method of
+writing the label and the bootstrap at the same time.
+If
+.Fl r
+is not specified,
+the existing label will be updated via the in-core copy and any bootstrap
+code will be unaffected.
+If the disk does not already have a label, the
+.Fl r
+flag must be used.
+In either case, the kernel's in-core label is replaced.
+.Pp
+For a virgin disk that is not known to
+.Xr disktab 5 ,
+.Ar disktype
+can be specified as
+.Dq auto .
+In this case, the driver is requested to produce a virgin label for the
+disk.  This might or might not be successful, depending on whether the
+driver for the disk is able to get the required data without reading
+anything from the disk at all.  It will likely succeed for all SCSI
+disks, most IDE disks, vnode devices, and regular files.  Writing a label to the
+disk is the only supported operation, and the
+.Ar disk
+itself must be provided as the canonical name, i.e. not as a full
+path name (full pathnames are still required when operating with
+regular files and the
+.Fl f
+option).
+.Pp
+For most harddisks, a label based on percentages for most partitions (and
+one partition with a size of
+.Ql * )
+will produce a reasonable configuration.
+.Pp
+PC-based systems have special requirements in order for the BIOS to properly
+recognize a
+.Fx
+disklabel.  Older systems may require what is known as a
+.Dq dangerously dedicated
+disklabel, which creates a fake DOS partition to work around problems older
+BIOSes have with modern disk geometries.
+On newer systems you generally want
+to create a normal DOS partition using
+.Ar fdisk
+and then create a
+.Fx
+disklabel within that slice.  This is described
+later on in this page.
+.Pp
+Installing a new disklabel does not in of itself allow your system to boot
+a kernel using that label.  You must also install boot blocks, which is
+described later on in this manual page.
+.Ss Editing an existing disk label
+.Pp
+To edit an existing disk label, use the form
+.Pp
+.Nm
+.Fl e
+.Op Fl r
+.Op Fl n
+.Ar disk
+.Pp
+This command reads the label from the in-core kernel copy, or directly from the
+disk if the
+.Fl r
+flag is also specified.  The label is written to a file in ASCII and then
+supplied to an editor for changes.  If no editor is specified in an
+.Ev EDITOR
+environment variable,
+.Xr vi 1
+is used.  When the editor terminates, the label file is used to rewrite the disk
+label.  Existing bootstrap code is unchanged regardless of whether
+.Fl r
+was specified.  If
+.Fl n
+is specified, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.  This is
+useful to see how a partitioning scheme will work out for a specific disk.
+.Ss Restoring a disk label from a file
+.Pp
+To restore a disk label from a file, use the form
+.Pp
+.Nm
+.Fl R
+.Op Fl r
+.Op Fl n
+.Ar disk Ar protofile
+.Pp
+.Nm
+is capable of restoring a disk label that was previously saved in a file in ASCII format.
+The prototype file used to create the label should be in the same format as that
+produced when reading or editing a label.  Comments are delimited by
+.Ar \&#
+and newline.  As when writing a new label, any existing bootstrap code will be
+clobbered if
+.Fl r
+is specified and will be unaffected otherwise.  See the boot options below for a
+method of restoring the label and writing the bootstrap at the same time.
+If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.  This is
+useful to see how a partitioning scheme will work out for a specific disk.
+.Ss Enabling and disabling writing to the disk label area
+.Pp
+By default, it is not possible to write to the disk label area at the beginning
+of a disk.  The disk driver arranges for
+.Xr write 2
+and similar system calls
+to return
+.Er EROFS
+on any attempt to do so.  If you need
+to write to this area (for example, to obliterate the label), use the form
+.Pp
+.Nm
+.Fl W
+.Ar disk
+.Pp
+To disallow writing to the label area after previously allowing it, use the
+command
+.Pp
+.Nm
+.Fl N
+.Ar disk
+.Ss Installing bootstraps
+.Pp
+The final three forms of
+.Nm
+are used to install bootstrap code.  If you are creating a
+.Dq dangerously-dedicated
+slice for compatibility with older PC systems,
+you generally want to specify the raw disk name such as
+.Pa da0 .
+If you are creating a label within an existing DOS slice,
+you should specify
+the partition name such as
+.Pa da0s1a .
+Making a slice bootable can be tricky.  If you are using a normal DOS
+slice you typically install (or leave) a standard MBR on the base disk and
+then install the
+.Fx
+bootblocks in the slice.
+.Pp
+.Nm
+.Fl B
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Ar disk
+.Oo Ar disktype Oc
+.Pp
+This form installs the bootstrap only.  It does not change the disk label.
+You should never use this command on a base disk unless you intend to create a
+.Dq dangerously-dedicated
+disk, such as
+.Ar da0 .
+This command is typically run on a slice such as
+.Ar da0s1 .
+.Pp
+.Nm
+.Fl w
+.Fl B
+.Op Fl n
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Ar disk Ar disktype
+.Oo Ar packid Oc
+.Pp
+This form corresponds to the
+.Dq write label
+command described above.
+In addition to writing a new volume label, it also installs the bootstrap.
+If run on a base disk this command will create a
+.Dq dangerously-dedicated
+label.  This command is normally run on a slice rather than a base disk.
+If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
+.Pp
+.Nm
+.Fl R
+.Fl B
+.Op Fl n
+.Oo
+.Fl b Ar boot1
+.Fl s Ar boot2
+.Oc
+.Ar disk Ar protofile
+.Oo Ar disktype Oc
+.Pp
+This form corresponds to the
+.Dq restore label
+command described above.
+In addition to restoring the volume label, it also installs the bootstrap.
+If run on a base disk this command will create a
+.Dq dangerously-dedicated
+label.  This command is normally run on a slice rather than a base disk.
+.Pp
+The bootstrap commands always access the disk directly, so it is not necessary
+to specify the
+.Fl r
+flag.  If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
+.Pp
+The bootstrap code is comprised of two boot programs.  Specify the name of the
+boot programs to be installed in one of these ways:
+.Bl -enum
+.It
+Specify the names explicitly with the
+.Fl b
+and
+.Fl s
+flags.
+.Fl b
+indicates the primary boot program and
+.Fl s
+the secondary boot program.  The boot programs are located in
+.Pa /boot .
+.It
+If the
+.Fl b
+and
+.Fl s
+flags are not specified, but
+.Ar disktype
+was specified, the names of the programs are taken from the
+.Dq b0
+and
+.Dq b1
+parameters of the
+.Xr disktab 5
+entry for the disk if the disktab entry exists and includes those parameters.
+.It
+Otherwise, the default boot image names are used:
+.Pa /boot/boot1
+and
+.Pa /boot/boot2
+for the standard stage1 and stage2 boot images (details may vary
+on architectures like the Alpha, where only a single-stage boot is used).
+.El
+.Ss Initializing/Formatting a bootable disk from scratch
+.Pp
+To initialize a disk from scratch the following sequence is recommended.
+Please note that this will wipe everything that was previously on the disk,
+including any
+.No non- Ns Fx
+slices.
+.Bl -enum
+.It
+Use
+.Xr fdisk 8
+to initialize the hard disk, and create a slice table, referred to
+as the
+.Dq "partition table"
+in
+.Tn DOS .
+.It
+Use
+.Nm
+to define partitions on
+.Fx
+slices created in the previous step.
+.It
+Finally use
+.Xr newfs 8
+to create file systems on new partitions.
+.El
+.Pp
+A typical partitioning scheme would be to have an
+.Ql a
+partition
+of approximately 128MB to hold the root file system, a
+.Ql b
+partition for
+swap, a
+.Ql d
+partition for
+.Pa /var
+(usually 128MB), an
+.Ql e
+partition
+for
+.Pa /var/tmp
+(usually 128MB), an
+.Ql f
+partition for
+.Pa /usr
+(usually around 2GB),
+and finally a
+.Ql g
+partition for
+.Pa /home
+(usually all remaining space).
+Your mileage may vary.
+.Pp
+.Nm fdisk Fl BI Pa da0
+.Pp
+.Nm
+.Fl w B
+.Pa da0s1
+.Cm auto
+.Pp
+.Nm
+.Fl e
+.Pa da0s1
+.Sh FILES
+.Bl -tag -width ".Pa /etc/disktab" -compact
+.It Pa /boot/boot
+Default boot image.
+.It Pa /etc/disktab
+Disk description file.
+.El
+.Sh SAVED FILE FORMAT
+The
+.Nm
+utility
+uses an
+.Tn ASCII
+version of the label when examining, editing, or restoring a disk
+label.
+The format is:
+.Bd -literal -offset 4n
+# /dev/da1c:
+type: SCSI
+disk: da0s1
+label:
+flags:
+bytes/sector: 512
+sectors/track: 51
+tracks/cylinder: 19
+sectors/cylinder: 969
+cylinders: 1211
+sectors/unit: 1173930
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0           # milliseconds
+track-to-track seek: 0  # milliseconds
+drivedata: 0
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:    81920        0    4.2BSD     1024  8192    16   # (Cyl.    0 - 84*)
+  b:   160000    81920      swap                        # (Cyl.   84* - 218*)
+  c:  1173930        0    unused        0     0         # (Cyl.    0 - 1211*)
+  h:   962010   211920     vinum                        # (Cyl.  218*- 1211*)
+.Ed
+.Pp
+Lines starting with a
+.Ql #
+mark are comments.
+Most of the other specifications are no longer used.
+The ones which must still be set correctly are:
+.Pp
+.Bl -inset
+.It Ar label
+is an optional label, set by the
+.Ar packid
+option when writing a label.
+.It Ar flags
+may be
+.Cm removable , ecc
+or
+.Cm badsect .
+.Cm removable
+is set for removable media drives, but no current
+.Fx
+driver evaluates this
+flag.
+.Cm ecc
+is no longer supported;
+.Cm badsect
+specifies that the drive can perform bad sector remapping.
+.It Ar sectors/unit
+describes the total size of the disk.
+This value must be correct.
+.It Ar "the partition table"
+is the
+.Ux
+partition table, not the
+.Tn DOS
+partition table described in
+.Xr fdisk 8 .
+.El
+.Pp
+The partition table can have up to 8 entries.
+It contains the following information:
+.Bl -tag -width indent
+.It Ar #
+The partition identifier is a single letter in the range
+.Ql a
+to
+.Ql h .
+By convention, partition
+.Ql c
+is reserved to describe the entire disk.
+.It Ar size
+The size of the partition in sectors,
+.Cm K
+(kilobytes - 1024),
+.Cm M
+(megabytes - 1024*1024),
+.Cm G
+(gigabytes - 1024*1024*1024),
+.Cm %
+(percentage of free space
+.Em after
+removing any fixed-size partitions other than partition
+.Ql c ) ,
+or
+.Cm *
+(all remaining free space
+.Em after
+fixed-size and percentage partitions).
+For partition
+.Ql c ,
+a size of
+.Cm *
+indicates the entire disk.
+Lowercase versions of
+.Cm K , M ,
+and
+.Cm G
+are allowed.
+Size and type should be specifed without any spaces between them.
+.Pp
+Example: 2097152, 1G, 1024M and 1048576K are all the same size
+(assuming 512-byte sectors).
+.It Ar offset
+The offset of the start of the partition from the beginning of the
+drive in sectors, or
+.Cm *
+to have
+.Nm
+calculate the correct offset to use (the end of the previous partition plus
+one, ignoring partition
+.Ql c .
+For partition
+.Ql c ,
+.Cm *
+will be interpreted as an offset of 0.
+.It Ar fstype
+Describes the purpose of the partition.
+The example shows all currently used partition types.
+For
+.Tn UFS
+file systems and
+.Xr ccd 4
+partitions, use type
+.Cm 4.2BSD .
+For Vinum drives, use type
+.Cm vinum .
+Other common types are
+.Cm swap
+and
+.Cm unused .
+By convention, partition
+.Ql c
+represents the entire slice and should be of type
+.Cm unused ,
+though
+.Nm
+does not enforce this convention.
+The
+.Nm
+utility
+also knows about a number of other partition types,
+none of which are in current use.
+(See the definitions starting with
+.Dv FS_UNUSED
+in
+.Aq Pa sys/disklabel.h
+for more details).
+.It Ar fsize
+For
+.Cm 4.2BSD
+and
+.Tn LFS
+file systems only, the fragment size.
+Defaults to 1024 for partitions smaller than 1GB,
+4096 for partitions 1GB or larger.
+.It Ar bsize
+For
+.Cm 4.2BSD
+and
+.Tn LFS
+file systems only, the block size.
+Defaults to 8192 for partitions smaller than 1GB,
+16384 for partitions 1GB or larger.
+.It Ar bps/cpg
+For
+.Cm 4.2BSD
+file systems, the number of cylinders in a cylinder group.
+For
+.Tn LFS
+file systems, the segment shift value.
+Defaults to 16 for partitions smaller than 1GB,
+64 for partitions 1GB or larger.
+.El
+.Pp
+The remainder of the line is a comment and shows the cylinder allocations based
+on the obsolete (but possibly correct) geometry information about the drive.
+The asterisk
+.Pq Ql *
+indicates that the partition does not begin or end exactly on a
+cylinder boundary.
+.Sh EXAMPLES
+.Dl "disklabel da0s1"
+.Pp
+Display the in-core label for the first slice of the
+.Pa da0
+disk, as obtained via
+.Pa /dev/da0s1 .
+(If the disk is
+.Dq dangerously-dedicated ,
+the base disk name should be specified, such as
+.Pa da0 . )
+.Pp
+.Dl "disklabel da0s1 > savedlabel"
+.Pp
+Save the in-core label for
+.Pa da0s1
+into the file
+.Pa savedlabel .
+This file can be used with the
+.Fl R
+option to restore the label at a later date.
+.Pp
+.Dl "disklabel -w -r /dev/da0s1 da2212 foo"
+.Pp
+Create a label for
+.Pa da0s1
+based on information for
+.Dq da2212
+found in
+.Pa /etc/disktab .
+Any existing bootstrap code will be clobbered
+and the disk rendered unbootable.
+.Pp
+.Dl "disklabel -e -r da0s1"
+.Pp
+Read the on-disk label for
+.Pa da0s1 ,
+edit it, and reinstall in-core as well as on-disk.
+Existing bootstrap code is unaffected.
+.Pp
+.Dl "disklabel -e -r -n da0s1"
+.Pp
+Read the on-disk label for
+.Pa da0s1 ,
+edit it, and display what the new label would be (in sectors).
+It does
+.Em not
+install the new label either in-core or on-disk.
+.Pp
+.Dl "disklabel -r -w da0s1 auto"
+.Pp
+Try to auto-detect the required information from
+.Pa da0s1 ,
+and write a new label to the disk.
+Use another
+.Nm Fl e
+command to edit the
+partitioning and file system information.
+.Pp
+.Dl "disklabel -R da0s1 savedlabel"
+.Pp
+Restore the on-disk and in-core label for
+.Pa da0s1
+from information in
+.Pa savedlabel .
+Existing bootstrap code is unaffected.
+.Pp
+.Dl "disklabel -R -n da0s1 label_layout"
+.Pp
+Display what the label would be for
+.Pa da0s1
+using the partition layout in
+.Pa label_layout .
+This is useful for determining how much space would be alloted for various
+partitions with a labelling scheme using
+.Cm % Ns -based
+or
+.Cm *
+partition sizes.
+.Pp
+.Dl disklabel -B da0s1
+.Pp
+Install a new bootstrap on
+.Pa da0s1 .
+The boot code comes from
+.Pa /boot/boot1
+and possibly
+.Pa /boot/boot2 .
+On-disk and in-core labels are unchanged.
+.Pp
+.Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot2 da2212
+.Pp
+Install a new label and bootstrap.
+The label is derived from disktab information for
+.Dq da2212
+and installed both in-core and on-disk.
+The bootstrap code comes from the files
+.Pa /boot/newboot1
+and
+.Pa /boot/newboot2 .
+.Pp
+.Dl dd if=/dev/zero of=/dev/da0 bs=512 count=32
+.Dl fdisk -BI da0
+.Dl dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
+.Dl disklabel -w -B da0s1 auto
+.Dl disklabel -e da0s1
+.Pp
+Completely wipe any prior information on the disk, creating a new bootable
+disk with a DOS partition table containing one
+.Dq whole-disk
+slice.  Then
+initialize the slice, then edit it to your needs.  The
+.Pa dd
+commands are optional, but may be necessary for some BIOSes to properly
+recognize the disk.
+.Pp
+This is an example disklabel that uses some of the new partition size types
+such as
+.Cm % , M , G ,
+and
+.Cm * ,
+which could be used as a source file for
+.Pp
+.Dl disklabel -R ad0s1c new_label_file
+.Bd -literal -offset 4n
+# /dev/ad0s1c:
+type: ESDI
+disk: ad0s1
+label:
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 16
+sectors/cylinder: 1008
+cylinders: 40633
+sectors/unit: 40959009
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0		# milliseconds
+track-to-track seek: 0	# milliseconds
+drivedata: 0
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:   400M        0    4.2BSD     4096 16384    75 	# (Cyl.    0 - 812*)
+  b:     1G        *      swap
+  c:      *        *    unused
+  e: 204800        *    4.2BSD
+  f:     5g        *    4.2BSD
+  g:      *        *    4.2BSD
+.Ed
+.Sh SEE ALSO
+.Xr ccd 4 ,
+.Xr disklabel 5 ,
+.Xr disktab 5 ,
+.Xr boot0cfg 8 ,
+.Xr fdisk 8 ,
+.Xr vinum 8
+.Sh DIAGNOSTICS
+The kernel device drivers will not allow the size of a disk partition
+to be decreased or the offset of a partition to be changed while it is open.
+Some device drivers create a label containing only a single large partition
+if a disk is unlabeled; thus, the label must be written to the
+.Dq a
+partition of the disk while it is open.  This sometimes requires the desired
+label to be set in two steps, the first one creating at least one other
+partition, and the second setting the label on the new partition while shrinking
+the
+.Dq a
+partition.
+.Pp
+On some machines the bootstrap code may not fit entirely in the area
+allocated for it by some file systems.
+As a result, it may not be possible to have file systems on some partitions
+of a
+.Dq bootable
+disk.
+When installing bootstrap code,
+.Nm
+checks for these cases.
+If the installed boot code would overlap a partition of type FS_UNUSED
+it is marked as type FS_BOOT.
+The
+.Xr newfs 8
+utility will disallow creation of file systems on FS_BOOT partitions.
+Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
+.Nm
+will not install bootstrap code that overlaps it.
+.Sh BUGS
+When a disk name is given without a full pathname,
+the constructed device name uses the
+.Dq c
+partition.
+.Pp
+For the i386 architecture, the primary bootstrap sector contains
+an embedded
+.Em fdisk
+table.
+The
+.Nm
+utility takes care to not clobber it when installing a bootstrap only
+.Pq Fl B ,
+or when editing an existing label
+.Pq Fl e ,
+but it unconditionally writes the primary bootstrap program onto
+the disk for
+.Fl w
+or
+.Fl R ,
+thus replacing the
+.Em fdisk
+table by the dummy one in the bootstrap program.  This is only of
+concern if the disk is fully dedicated, so that the
+.Bx
+disklabel
+starts at absolute block 0 on the disk.
+.Pp
+The
+.Nm
+utility
+does not perform all possible error checking.  Warning *is* given if partitions
+overlap; if an absolute offset does not match the expected offset; if the
+.Dq c
+partition does not start at 0 or does not cover the entire slice; if a
+partition runs past the end of the device; and a number of other errors; but
+no warning is given if space remains unused.

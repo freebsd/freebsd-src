@@ -1,0 +1,69 @@
+# Makefile.dist
+#
+# Copyright (c) 1996-2000 Internet Software Consortium.
+# Use is subject to license terms which appear in the file named
+# ISC-LICENSE that should have accompanied this file when you
+# received it.   If a file named ISC-LICENSE did not accompany this
+# file, or you are not sure the one you have is correct, you may
+# obtain an applicable copy of the license at:
+#
+#             http://www.isc.org/isc-license-1.0.html. 
+#
+# This file is part of the ISC DHCP distribution.   The documentation
+# associated with this file is listed in the file DOCUMENTATION,
+# included in the top-level directory of this release.
+#
+# Support and other services are available for ISC products - see
+# http://www.isc.org for more information.
+#
+
+CATMANPAGES = dhcpctl.cat3
+SEDMANPAGES = dhcpctl.man3
+MAN    = dhcpctl.3
+SRC    = res_mkupdate.c res_init.c res_update.c res_send.c res_comp.c \
+	 res_sendsigned.c res_findzonecut.c res_query.c res_mkquery.c \
+	 ns_date.c ns_parse.c ns_sign.c ns_name.c ns_samedomain.c ns_verify.c
+OBJ    = res_mkupdate.o res_init.o res_update.o res_send.o res_comp.o \
+	 res_sendsigned.o res_findzonecut.o res_query.o res_mkquery.o \
+	 ns_date.o ns_parse.o ns_sign.o ns_name.o ns_samedomain.o ns_verify.o
+
+INCLUDES = $(BINDINC) -I$(TOP)/includes
+CFLAGS = $(DEBUG) $(PREDEFINES) $(INCLUDES) $(COPTS) -DHMAC_MD5 -DMINIRES_LIB
+
+all:	libres.a
+
+install:
+
+libres.a:	$(OBJ)
+	rm -f res.a
+	ar cruv libres.a $(OBJ)
+	$(RANLIB) libres.a
+
+depend:
+	$(MKDEP) $(INCLUDES) $(PREDEFINES) $(SRC)
+
+clean:
+	-rm -f $(OBJ) libres.a
+
+realclean: clean
+	-rm -f *~ $(CATMANPAGES) $(SEDMANPAGES)
+
+distclean: realclean
+	-rm -f Makefile
+
+links:
+	@for foo in $(SRC) $(MAN) $(HDRS); do \
+	  if [ ! -b $$foo ]; then \
+	    rm -f $$foo; \
+	  fi; \
+	  ln -s $(TOP)/minires/$$foo $$foo; \
+	done
+
+dhcpctl.cat3:	dhcpctl.man3
+	nroff -man dhcpctl.man3 >dhcpctl.cat3
+
+dhcpctl.man3:	dhcpctl.3
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhcpctl.3 >dhcpctl.man3
+
+# Dependencies (semi-automatically-generated)

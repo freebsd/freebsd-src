@@ -1,0 +1,220 @@
+.\" Copyright (c) 1992, 2000 Hellmuth Michaelis
+.\" Copyright (c) 1992, 1994 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Last Edit-Date: [Mon Mar 27 17:17:50 2000]
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2000
+.Dt SCON 1
+.Os
+.Sh NAME
+.Nm scon
+.Nd controls screen modes for pcvt video driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl c Ar screenno
+.Op Fl d Ar device
+.Op Fl f Ar on|off
+.Op Fl h
+.Op Fl H
+.Op Fl l
+.Op Fl m
+.Op Fl v
+.Op Fl V
+.Op Fl s Ar lines
+.Nm
+.Op Fl v
+.Op Fl d Ar device
+.Fl p Ar entry,red,green,blue
+.Nm
+.Op Fl v
+.Op Fl d Ar device
+.Fl p Ar default
+.Nm
+.Op Fl v
+.Op Fl d Ar device
+.Fl p Ar list
+.Nm
+.Op Fl v
+.Fl t Ar timeout
+.Nm
+.Op Fl v
+.Fl 1 | Fl 8
+.Sh DESCRIPTION
+The
+.Nm
+utility controls several aspects of the runtime behaviour of the pcvt vt220
+driver.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Returns a string describing the video adaptor found by pcvt, the string
+returned could be MDA, HGC, CGA, EGA, VGA or UNKNOWN.
+.It Fl c
+Specify the screen number the current (displayed) screen should be switched
+to.
+.It Fl d
+Specify the device filename (i.e. /dev/ttyv2) further operations specified on
+the command line should be applied to.
+.It Fl f
+Some programs which silently assume 24 lines when they run on a VT220 show
+incorrect behaviour when the terminal has really 25 lines.
+To support full
+VT220 behaviour, it is possible to force pcvt to select only 24 lines when
+it is running in 25-lines pure VT mode and/or in 28-lines HP-mode.
+The
+.Fl f
+option requires one additional parameter, the string 'on' or 'off' to switch
+this mode for a virtual screen on or off respectively.
+This mode has no effect
+if any other vertical resolutions are selected than the two above mentioned.
+.It Fl h
+Prints a usage/help text.
+.It Fl l
+Lists the current configuration of runtime changeable options and fixed
+parameters (such as the type of the adaptor, and in case of a VGA adaptor,
+the Manufacturer, Chipset and 132 column support) of the output portion
+of the pcvt driver.
+.It Fl m
+Returns a string describing the connected display monitor type found by pcvt,
+the string returned can be MONO, COLOR or UNKNOWN.
+.It Fl v
+Specify verbose operation of the program.
+.It Fl V
+Switch the specified/current screen into a pure VT220 mode without recognizing
+any HP escape sequences and without displaying function key labels.
+.It Fl H
+Switch the specified/current screen into a mixed HP/VT220 mode.
+That is, that
+in addition to the full VT220 emulation, the HP function key labels and the
+escape sequences for handling the labels are available to the user.
+.It Fl s
+Specify the number of character lines on the screen.
+Possible parameters are
+25, 28, 35, 40, 43 or 50. To use all this screen sizes, the fonts required
+for proper operation of a desired size have to be downloaded to the EGA/VGA
+font ram.
+This option is available only for EGA and VGA boards.
+.It Fl p
+Modify VGA palette
+(DAC).
+The
+.Fl p
+is mutually exclusive with
+.Fl s ,
+.Fl H ,
+and
+.Fl V .
+Naturally, option
+.Fl p
+is available only for VGA boards.
+Three flavors are available.
+.Pp
+If used with argument
+.Dq Ar default ,
+this flag will restore the default palette
+(as installed by VGA ROM BIOS after hardware reset).
+.Pp
+If used with argument
+.Dq Ar list ,
+the current VGA DAC palette entries are listed.
+Each entry contains
+the table index, values for red, green, and blue, and if there's a
+known name for this entry, the color name.
+Trailing empty table
+slots (RGB values all zero) are omitted.
+.Pp
+Otherwise, four comma-separated arguments are expected.
+The first
+denotes the number of palette entry to be modified.
+This may be either
+a number between 0 and 255, or the usual name of an associated color
+(case-insensitive).
+The following values for red, green and blue are restricted to 0 through 63
+due to VGA DAC conventions.
+Note that the first delimiter within such an argument may be a colon
+.Dq \&:
+instead of a comma
+.Dq \&,
+for better readability, but this violates common command argument
+conventions.
+Multiple
+.Fl p
+options may be specified if unambiguous.
+.It Fl t
+Specifying
+.Fl t
+will activate the screen saver.
+The behaviour depends on
+.Ar timeout :
+if
+.Ar timeout
+is given as 0, the screen saver is turned off.
+Otherwise,
+.Ar timeout
+is taken as a number of seconds to wait until activating the
+screen saver.
+NOTE: the
+.Fl t
+option is only available if screen saver support has been compiled into
+the driver!
+.It Fl 1
+Sets 132 columns mode
+(only available on VGA adaptors).
+.It Fl 8
+Sets 80 columns mode.
+.El
+.Pp
+When switching between HP and VT mode, when switching the force 24 lines
+mode on and off, or when switching between 80 and 132 columns operation,
+the screen is cleared, the scrolling
+region is reset and the cursor is placed in the home position.
+.Sh EXAMPLES
+The command
+.Dq Li scon Fl H s Ar 28
+places the current screen into HP mode and sets the screen size to 28x80.
+.Pp
+Invoking
+.Do
+.Li scon Fl p
+.Ar lightgray,0,15,0
+.Fl p
+.Ar 0:45,45,45
+.Dc
+will result in green on gray output for normal text.
+Note that normal text color is light gray, and not white as one might expect.
+.Sh BUGS
+the
+.Fl c
+and
+.Fl d
+options collide somehow, this will change in a future release.
+.Sh SEE ALSO
+.Xr cursor 1 ,
+.Xr loadfont 1 ,
+.Xr pcvt 4

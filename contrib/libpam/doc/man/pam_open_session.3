@@ -1,0 +1,100 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" $Id: pam_open_session.3,v 1.2 1997/02/15 18:49:02 morgan Exp $
+.\" $FreeBSD$
+.\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
+.TH PAM_OPEN_SESSION 3 "1997 Jan 4" "PAM 0.55" "App. Programmers' Manual"
+.SH NAME
+
+pam_open/close_session \- PAM session management
+
+.SH SYNOPSIS
+.B #include <security/pam_appl.h>
+.sp
+.BI "int pam_open_session(pam_handle_t " *pamh ", int  " flags ");"
+.sp
+.BI "int pam_close_session(pam_handle_t " *pamh ", int  " flags ");"
+.sp 2
+.SH DESCRIPTION
+
+PAM provides management-hooks for the initialization and termination
+of a session. 
+
+.TP
+.B pam_open_session
+.br
+Use this function to signal that an authenticated user session has
+begun. It should be called only after the user is properly identified
+and (where necessary) has been granted their credentials with
+.BR pam_authenticate "(3)"
+and
+.BR pam_setcred "(3)"
+respectively.
+
+.br
+Some types of functions associated with session
+initialization are logging for the purposes of system-audit and
+mounting directories (the user's home directory for example). These
+should not concern the application. It should be noted that the
+.I effective
+uid,
+.BR geteuid "(2),"
+of the application should be of sufficient privilege to perform such
+tasks.
+
+.TP
+.B pam_close_session
+.br
+Use this function to signal that a user session has
+terminated. In general this function may not need to be located in the
+same application as the initialization function,
+.BR pam_open_session "."
+
+.br
+Typically, this function will undo the actions of
+.BR pam_open_session "."
+That is, log audit information concerning the end of the user session
+or unmount the user's home directory. Apart from having sufficient
+privilege the details of the session termination should not concern
+the calling application. It is good programming practice, however, to
+cease acting on behalf of the user on returning from this call.
+
+.SH RETURN VALUE
+A successful return from the session management functions will be
+indicated with
+.BR PAM_SUCCESS "."
+
+.br
+The specific error indicating a failure to open or close a session is
+.BR PAM_SESSION_ERR "."
+In general other return values may be returned. They should be treated
+as indicating failure.
+
+.SH ERRORS
+May be translated to text with
+.BR pam_strerror "(3). "
+
+.SH "CONFORMING TO"
+OSF-RFC 86.0, October 1995.
+
+.SH BUGS
+.sp 2
+none known.
+
+.SH "SEE ALSO"
+
+.BR pam_start "(3), "
+.BR pam_authenticate "(3), "
+.BR pam_setcred "(3), "
+.BR pam_get_item "(3), "
+.BR pam_strerror "(3) "
+and
+.BR pam "(3)."
+
+.br
+Also, see the three
+.BR Linux-PAM
+Guides, for
+.BR "System administrators" ", "
+.BR "module developers" ", "
+and
+.BR "application developers" ". "

@@ -1,0 +1,230 @@
+# Copyright (c) 1999-2002  Matt Dillon.  Terms and conditions based on
+# the FreeBSD copyright as found at the base of the source distribution.
+#
+# $FreeBSD$
+#
+# /etc/rc.diskless1 - general BOOTP startup
+#
+# On entry to this script the entire system consists of a read-only root
+# mounted via NFS.  We use the contents of /conf to create and populate
+# memory filesystems.  The kernel has run BOOTP and configured an interface
+# (otherwise it would not have been able to mount the NFS root!)
+#
+# The following directories are scanned.  Each sucessive directory overrides
+# (is merged into) the previous one.
+#
+#	/conf/base		universal base
+#	/conf/default		modified by a secondary universal base
+#	/conf/${ipba}		modified based on the assigned broadcast IP
+#	/conf/${ip}		modified based on the machine's assigned IP
+#
+# Each of these directories may contain any number of subdirectories which
+# represent directories in / on the diskless machine.  The existance of
+# these subdirectories causes this script to create a MEMORY FILESYSTEM for
+# /<sub_directory_name>.  For example, if /conf/base/etc exists then a
+# memory filesystem will be created for /etc.
+#
+# If a subdirectory contains the file 'diskless_remount' the contents of
+# the file is used to remount the subdirectory prior to it being copied to
+# the memory filesystem.  For example, if /conf/base/etc/diskless_remount
+# contains the string 'my.server.com:/etc' then my.server.com:/etc will be
+# mounted in place of the subdirectory.  This allows you to avoid making
+# duplicates of system directories in /conf.
+#
+# If a subdirectory contains the file 'md_size', the contents of the
+# file is used to determine the size of the memory filesystem, in 512
+# byte sectors.  The default is 8192 (4MB).  You only have to specify an
+# md_size if the default doesn't work for you (i.e. if it is too big or
+# too small).  Note that in -current the default is 4096 (2MB).  For
+# example, /conf/base/etc/md_size might contain '16384'.
+#
+# If /conf/<special_dir>/SUBDIR.cpio.gz exists, the file is cpio'd into
+# the specified /SUBDIR (and a memory filesystem is created for /SUBDIR
+# if necessary).
+#
+# If /conf/<special_dir>/SUBDIR.remove exists, the file contains a list
+# of paths which are rm -rf'd relative to /SUBDIR.
+#
+# You will almost universally want to create a /conf/base/etc containing
+# a diskless_remount and possibly an md_size file.  You will then almost
+# universally want to override rc.conf, rc.local, and fstab by creating
+# /conf/default/etc/{rc.conf,rc.local,fstab}.  Your fstab should be sure
+# to mount a /usr... typically an NFS readonly /usr.
+#
+# NOTE!  rc.diskless2 will create /var, /tmp, and /dev.  Those filesystems
+# should not be specified in /conf.  At least not yet.
+
+# chkerr:
+#
+# Routine to check for error
+#
+#	checks error code and drops into shell on failure.
+#	if shell exits, terminates script as well as /etc/rc.
+#
+chkerr() {
+    case $1 in
+    0)
+	;;
+    *)
+	echo "$2 failed: dropping into /bin/sh"
+	/bin/sh
+	# RESUME
+	;;
+    esac
+}
+
+# Create a generic memory disk
+#
+mount_md() {
+    /sbin/mount_mfs -s $1 -T qp120at -b 8192 -f 1024 dummy $2
+}
+
+# Create the memory filesystem if it has not already been created
+#
+create_md() {
+    if [ "x`eval echo \\$md_created_$1`" = "x" ]; then
+	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
+	    md_size=8192
+	else
+	    md_size=`eval echo \\$md_size_$1`
+	fi
+	mount_md $md_size /$1
+	/bin/chmod 755 /$1
+	eval md_created_$1=created
+    fi
+}
+
+# DEBUGGING
+#
+# set -v
+
+# Figure out our interface and IP.
+#
+bootp_ifc=""
+bootp_ipa=""
+bootp_ipbca=""
+iflist=`ifconfig -l`
+for i in ${iflist} ; do
+    set `ifconfig ${i}`
+    while [ $# -ge 1 ] ; do
+        if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
+            bootp_ifc=${i} ; bootp_ipa=${2} ; shift
+        fi
+        if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ] ; then
+            bootp_ipbca=$2; shift
+        fi
+        shift
+    done
+    if [ "${bootp_ifc}" != "" ] ; then
+        break
+    fi
+done
+# Insert the directories passed with the T134 bootp cookie
+# in the list of paths used for templates.
+#
+bootp_cookie="`/sbin/sysctl -n kern.bootp_cookie`"
+if [ "${bootp_cookie}" != "" ] ; then
+    bootp_ipbca="${bootp_ipbca} ${bootp_cookie}"
+fi
+
+echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
+
+# Figure out our NFS root path
+# 
+set `mount -t nfs`
+while [ $# -ge 1 ] ; do
+    if [ "$2" = "on" -a "$3" = "/" ]; then
+	nfsroot="$1"
+	break
+    fi
+    shift
+done
+
+# Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
+# and /conf/${bootp_ipa}.  For each subdirectory found within these 
+# directories:
+#
+# - calculate memory filesystem sizes.  If the subdirectory (prior to
+#   NFS remounting) contains the file 'md_size', the contents specified
+#   in 512 byte sectors will be used to size the memory filesystem.  Otherwise
+#   8192 sectors (4MB) is used.
+#
+# - handle NFS remounts.  If the subdirectory contains the file
+#   diskless_remount, the contents of the file is NFS mounted over
+#   the directory.  For example /conf/base/etc/diskless_remount
+#   might contain 'myserver:/etc'.  NFS remounts allow you to avoid
+#   having to dup your system directories in /conf.  Your server must
+#   be sure to export those filesystems -alldirs, however.
+#   If the diskless_remount file contains a string beginning with a
+#   '/' it is assumed that the local nfsroot should be prepended to
+#   it before attemping to the remount.  This allows the root to be
+#   relocated without needing to change the remount files.
+#
+for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
+    for j in /conf/$i/* ; do
+	# memory filesystem size specification
+	#
+	subdir=${j##*/}
+	if [ -d $j -a -f $j/md_size ]; then
+	    eval md_size_$subdir=`cat $j/md_size`
+	fi
+
+	# NFS remount
+	#
+	if [ -d $j -a -f $j/diskless_remount ]; then
+	    nfspt=`/bin/cat $j/diskless_remount`
+	    if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
+		nfspt="${nfsroot}${nfspt}"
+	    fi
+	    mount_nfs $nfspt $j
+	    chkerr $? "mount_nfs $nfspt $j"
+	fi
+    done
+done
+
+# - Create all required MFS filesystems and populate them from
+#   our templates.  Support both a direct template and a dir.cpio.gz
+#   archive.  Support dir.remove files containing a list of relative
+#   paths to remove.
+#
+# The dir.cpio.gz form is there to make the copy process more efficient,
+# so if the cpio archive is present, it prevents the files from dir/
+# from being copied.
+
+for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
+    for j in /conf/$i/* ; do
+	subdir=${j##*/}
+	if [ -d $j -a ! -f $j.cpio.gz  ]; then
+	    create_md $subdir
+	    cp -Rp $j/* /$subdir
+	fi
+    done
+    for j in /conf/$i/*.cpio.gz ; do
+	subdir=${j%*.cpio.gz}
+	subdir=${subdir##*/}
+	if [ -f $j ]; then
+	    create_md $subdir
+	    echo "Loading /$subdir from cpio archive $j"
+	    (cd / ; /stand/gzip -d < $j | /stand/cpio --extract -d )
+	fi
+    done
+    for j in /conf/$i/*.remove ; do
+	subdir=${j%*.remove}
+	subdir=${subdir##*/}
+	if [ -f $j ]; then
+	    # doubly sure it is a memory disk before rm -rf'ing
+	    create_md $subdir
+	    (cd /$subdir; rm -rf `/bin/cat $j`)
+	fi
+    done
+done
+
+# Tell /etc/rc to run the specified script after
+# it does its mounts but before it does anything
+# else.
+#
+# This script is responsible for setting up the
+# diskless mount environment.
+
+diskless_mount="/etc/rc.diskless2"
+

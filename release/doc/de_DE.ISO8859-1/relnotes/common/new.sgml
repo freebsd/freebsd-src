@@ -1,0 +1,590 @@
+<!--
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.139 2003/03/28 13:37:04 ue Exp $
+  basiert auf: 1.22.2.346
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; Release Notes</title>
+
+  <corpauthor>The FreeBSD Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+
+    <year>2001</year>
+
+    <year>2002</year>
+
+    <year>2003</year>
+
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
+      Project</holder>
+  </copyright>
+
+  <copyright>
+    <year>2002</year>
+
+    <year>2003</year>
+
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD German
+      Documentation Project</holder>
+  </copyright>
+
+  <abstract>
+    <para>Die Release Notes f&uuml;r &os; &release.current; enthalten
+      eine &Uuml;bersicht &uuml;ber alle &Auml;nderungen in &os; seit
+      der Version &release.prev;.  Die Liste umfa&szlig;t sowohl die
+      &Auml;nderungen des Kernels als auch &Auml;nderungen der
+      Benutzerprogramme; dazu kommen alle Sicherheitshinweise, die
+      seit der letzten Version herausgegeben wurden.  Einige kurze
+      Anmerkungen zum Thema Aktualisierung wurden ebenfalls
+      aufgenommen.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Einf&uuml;hrung</title>
+
+  <para>Dieses Dokument enth&auml;lt die Release Notes f&uuml;r &os;
+    &release.current; auf &arch.print; Systemen.  Es beschreibt die
+    Komponenten von &os;, die seit &release.prev; hinzugef&uuml;gt
+    (oder ge&auml;ndert) wurden.  Au&szlig;erdem erhalten Sie Hinweise
+    f&uuml;r die Aktualisierung Ihres &os;-Systems.</para>
+
+<![ %release.type.snapshot [
+
+  <para>Die &release.type; Distribution, f&uuml;r die diese Release
+    Notes g&uuml;ltig sind, markiert einen Punkt im Entwicklungszweig
+    &release.branch; zwischen &release.prev; und der zuk&uuml;nftigen
+    Version &release.next;.  Sie k&ouml;nnen einige fertige
+    &release.type; Distributionen, die in diesem Entwicklungszweig
+    entstanden sind, auf <ulink url="&release.url;"></ulink>
+    finden.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>Diese Distribution von &os; &release.current; ist eine
+    &release.type; Distribution.  Sie k&ouml;nnen Sie von <ulink
+    url="&release.url;"></ulink> und allen seinen Mirrors erhalten.
+    Weitere Informationen, wie Sie diese (oder andere) &release.type;
+    Distributionen von &os; erhalten k&ouml;nnen, finden Sie im Anhang
+    <ulink
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+    FreeBSD</quote></ulink> des <ulink
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
+    Handbuchs</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+	The "What's New" section of the release notes.
+
+	Guidelines for new entries:
+
+	1.  If there is some obvious "keyword" associated with an
+	entry (such as a manpage entry or an application name), try to
+	put it at the start of the sentence.
+
+	2.  Within each subsection (i.e.  kernel, security, userland),
+	list items in alphabetical order by these keywords.
+
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
+-->
+
+<sect1>
+  <title>Neuerungen</title>
+
+  <para>Dieser Abschnitt beschreibt die f&uuml;r den Anwender
+    offensichtlichsten Neuerungen und &Auml;nderungen in &os; seit
+    &release.prev;.  Die Eintr&auml;ge dokumentieren neue Treiber bzw.
+    Unterst&uuml;tzung f&uuml;r neue Hardware, neue Befehle oder
+    Optionen, die Behebung wichtiger Fehler, und Aktualisierungen von
+    Dritt-Software.  Sicherheitshinweise, die nach dem Erscheinen von
+    &release.prev; herausgegeben wurden, sind ebenfalls
+    aufgef&uuml;hrt.</para>
+
+  <sect2 id="kernel">
+    <title>&Auml;nderungen im Kernel</title>
+
+    <para>Der Kernel wurde um eine von OpenBSD stammende
+      Crypto-Infrastruktur erg&auml;nzt (siehe &man.crypto.4; und
+      &man.crypto.9;).  Sie stellt dem Kernel eine konsistente
+      Schnittstelle zu Hardware- und Software-Varianten von
+      Verschl&uuml;sselungsalgorithmen zur Verf&uuml;gung,
+      Benutzerprogramme erhalten Zugriff auf
+      Verschl&uuml;sselungs-Hardware.  Treiber f&uuml;r Karten auf
+      Basis von hifn (&man.hifn.4;) und Braodcom (&man.ubsec.4;)
+      stehen zur Verf&uuml;gung.</para>
+
+    <para arch="i386,pc98,powerpc">Es gibt jetzt minimale
+      Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
+      FireWire-Schnittstellen (siehe &man.firewire.4;).</para>
+
+    <para arch="pc98">Der Power Management Controller CanBe wird jetzt
+      unterst&uuml;tzt.</para>
+
+    <para arch="i386,pc98">Der neue Treiber ubsa unterst&uuml;tzt den
+      Belkin F5U103 USB-nach-seriell Konverter und kompatible
+      Ger&auml;te.</para>
+
+    <para>Der neue Treiber &man.uftdi.4; unterst&uuml;tzt USB nach
+      Seriell Konverter von FTDI.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <sect3>
+      <title>Unterst&uuml;tzung f&uuml;r Prozessoren und
+	Mainboards</title>
+
+      <para>&os; hat jetzt minimale Unterst&uuml;tzung f&uuml;r
+	HyperThreading (HTT).  SMP Kernel, die mit der Option
+	<literal>HTT</literal> erzeugt wurden, erkennen und aktivieren
+	die logischen Prozessoren auf HTT-Systemen.  Die logischen
+	Prozessoren werden vom Scheduler wie zus&auml;tzliche
+	physikalische Prozessoren behandelt.</para>
+
+      <para arch="alpha">Wenn Sie &os; auf einer AlphaServer 8200 oder
+	8400 <quote>TurboLaser</quote> benutzen, m&uuml;ssen Sie nach
+	der Installation den getty f&uuml;r die serielle Konsole
+	manuell aktiviert.  Wenn Sie das nicht tun, sieht es so aus,
+	als h&auml;tte sich Ihre Maschine aufgeh&auml;ngt, weil Sie
+	keine Login-Aufforderung erhalten.  Den notwendigen Eintrag
+	finden Sie in <filename>/etc/ttys</filename> bei
+	<literal>zs0</literal>.</para>
+    </sect3>
+
+    <sect3>
+      <title>&Auml;nderungen im Bootloader</title>
+
+      <para arch="pc98">Der PC98 Bootloader ist jetzt auch in der
+	Lage, von SCSI MO Medien zu booten.</para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Netzwerke und Netzwerkkarten</title>
+
+      <para>Der Treiber cm unterst&uuml;tzt jetzt IPX.</para>
+
+      <para>Der Treiber &man.nge.4; unterst&uuml;tzt jetzt auch
+	&man.polling.4;.</para>
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Netzwerk-Protokolle</title>
+
+      <para>Wird in der Konfigurationsdatei f&uuml;r den
+	angepa&szlig;ten die Option <literal>FAST_IPSEC</literal>
+	verwendet, nutzt IPsec die &man.crypto.4;-Infrastruktur des
+	Kernels, inklusive der Unterst&uuml;tzung f&uuml;r
+	Hardware-Verschl&uuml;sselung.  Weitere Informationen finden
+	Sie in der Onlinehilfe zu &man.fast.ipsec.4;.
+	<note>
+	  <para>Die gleichzeitige Verwendung von
+	    <literal>FAST_IPSEC</literal> und <literal>IPSEC</literal>
+	    ist nicht m&ouml;glich.</para>
+	</note>
+
+	<note>
+	  <para>Zur Zeit kann <literal>FAST_IPSEC</literal> nicht
+	    zusammen mit IPv6 oder der Option <literal>INET6</literal>
+	    verwendet werden.</para>
+	</note>
+      </para>
+
+      <para>Der neue Treiber &man.gre.4; unterst&uuml;tzt die
+	Encapsulation von IP Paketen mt GRE (RFC 1701) und die
+	minimale IP Encapsulation f&uuml;r Mobile IP (RFC
+	2004).</para>
+
+      <para>In TCP NewReno wurde ein Fehler behoben, durch den der
+	<quote>Fast Recovery</quote> Modus zu fr&uuml;h beendet wurde,
+	falls NewReno aktiviert war.</para>
+
+      <para>Die Routinen zum Zusammensetzen von fragmentierten
+	IP-Paketen arbeiten jetzt besser, wenn eine gro&szlig;e Anzahl
+	Fragmente empfangen wird.  Ziel der &Auml;nderung war, eine
+	bessere Resistenz gegen Denial-of-Service Angriffe mit
+	Paket-Fragmenten zu erreichen.</para>
+    </sect3>
+
+    <sect3>
+      <title>Festplatten und Massenspeicher</title>
+
+      <para>Der Treiber &man.ata.4; erlaubt es jetzt, &uuml;ber die
+	CAM-Schicht und -Treiber (&man.cd.4;, &man.da.4;, &man.st.4;
+	und &man.pass.4;) auf ATA Ger&auml;te zuzugreifen, und
+	emuliert so SCSI-Ger&auml;te.  Um diese M&ouml;glichkeit
+	nutzen zu k&ouml;nnen, mu&szlig; in der Konfigurationsdatei
+	f&uuml;r den Kernel die Anweisung <literal>device
+	atapicam</literal> stehen.  Weitergehende Informationen finden
+	Sie in &man.atapicam.4;.</para>
+
+      <para>Der Treiber &man.matcd.4; wurde entfernt, weil es
+	rechtliche Bedenken wegen der Lizenzbestimmungen gab.  Dieses
+	Problem wird zur Zeit diskutiert und es ist denkbar, da&szlig;
+	der Treiber in einer sp&auml;ter erscheinenden &os;-Version
+	wieder vef&uuml;gbar sein wird.  Der Treiber wurde schon in
+	&release.prev; entfernt, diese Information wurde aber
+	versehentlich nicht in den Release Notes erw&auml;hnt.</para>
+
+      <para>Der Treiber &man.targ.4; wurde komplett neu geschrieben.
+	In <filename>/usr/share/examples/scsi_target</filename> steht
+	jetzt ein neuer Benutzer-Modus zur Verf&uuml;gung, der ein
+	Ger&auml;t mit direkten Zugriff emuliert.</para>
+
+      <para>Der neue Treiber trm unterst&uuml;tzt SCSI-Controller auf
+        Basis des Tekram TRM-S1040 SCSI Chipsatzes.</para>
+    </sect3>
+
+    <sect3>
+      <title>Dateisystem</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Unterst&uuml;tzung f&uuml;r PCCARD</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Multimedia</title>
+
+      <para></para>
+
+    </sect3>
+
+    <sect3>
+      <title>Zus&auml;tzliche Software</title>
+
+      <para><application>IPFilter</application> steht jetzt in der
+	Version 3.4.31 zur Verf&uuml;gung.</para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="security">
+    <title>Sicherheit</title>
+
+    <para>In kadmind(8) und k5admin wurden Puffer-&Uuml;berl&auml;ufe
+      beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.</para>
+
+    <para>Diverse kritische Fehler in <application>BIND</application>
+      wurden korrigiert, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.</para>
+
+    <para>In der Systemfunktion &man.fpathconf.2; wurde ein Fehler
+      (Verlust von Datei-Handles) beseitigt, durch den ein lokaler
+      Benutzer das System zum Absturz bringen oder h&ouml;here
+      Privilegien erhalten konnte.  Weitere Informationen finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
+
+    <para>Ein &uuml;ber das Netzwerk ausnutzbarer Fehler in
+      <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
+      da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
+      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+
+    <para>Durch Auswertung der Antwortzeiten von
+      <application>OpenSSL</application> w&auml;re es einem Angreifer
+      mit sehr viel Rechenleistung m&ouml;glich gewesen, unter
+      bestimmten Umst&auml;nden den Klartext der &uuml;bermittelten
+      Daten zu erhalten.  Dieser Fehler durch die neue
+      <application>OpenSSL</application> Version 0.9.7 behoben.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>.</para>
+
+    <para>Die Sicherheit und Leistung der Erweiterung
+      <quote>syncookies</quote> wurde verbessert, damit Angreifer es
+      schwerer haben, eine Verbindung zu f&auml;lschen.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+
+    <para>Ein &uuml;ber das Netzwerk ausnutzbaren Puffer-&Uuml;berlauf
+      in <application>sendmail</application> wurde durch die
+      Aktualisierung von <application>sendmail</application> auf
+      Version 8.12.8 behoben.  Weitere Information finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.</para>
+
+    <para>In der XDR-Implementation wurde ein Fehler behoben, der es
+      einem Angreifer m&ouml;glich machte, den Dienst abst&uuml;rzen
+      zu lassen.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+
+    <para>In <application>OpenSSL</application> wurden zwei vor kurzem
+      ver&ouml;ffentlichte Schwachstellen repariert.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>Benutzerprogramme</title>
+
+    <para>Bei &man.burncd.8; kann bei <option>-s</option> jetzt der
+      Wert <literal>max</literal> angegeben werden, um die maximal
+      m&ouml;gliche Geschwindigkeit zu nutzen.</para>
+
+    <para>Bei &man.cdcontrol.1; kann jetzt die Geschwindigkeit des
+      CD-ROM-Zugriffs mit dem Kommando <literal>speed</literal>
+      eingestellt werden.  Wird der Wert <literal>max</literal>
+      angegeben, wird die h&ouml;chste m&ouml;gliche Geschwindigkeit
+      verwendet.</para>
+
+    <para arch="alpha,i386">Die Distribution
+      <filename>compat4x</filename> enth&auml;lt jetzt die in &os;
+      4.7-RELEASE enthaltenen Versionen der Bibliotheken
+      <filename>libcrypto.so.2</filename>,
+      <filename>libgmp.so.3</filename> und
+      <filename>libssl.so.2</filename>.</para>
+
+    <para>Wird &man.ftpd.8; mit der neuen Option <option>-h</option>
+      aufgerufen, werden in den Server-Meldungen keine Informationen
+      &uuml;ber das System (wie die &man.ftpd.8; Versionsnummer oder
+      der Systemname) angegeben.</para>
+
+    <para>Bei &man.ftpd.8; kann jetzt mit der neuen Option
+      <option>-P</option> angegeben werden, auf welchem Port
+      eingehende Verbindungen erwartet werden sollen.  Die Portnummer
+      f&uuml;r den Daten-Port ist nicht mehr hart verdraht, sondern
+      immer eins kleiner als die des Ports f&uuml;r die
+      Kommandos.</para>
+
+    <para>&man.ftpd.8; unterst&uuml;tzt jetzt eine erweiterte Version
+      der Datei <filename>/etc/ftpchroot</filename>.  Weitere
+      Informationen finden Sie in der ebenfalls neuen Online-Hilfe zu
+      &man.ftpchroot.5;.</para>
+
+    <para>&man.ftpd.8; unterst&uuml;tzt jetzt ein erweitertes Format
+      f&uuml;r die Namen der Home-Verzeichnis, das gleichzeitig ein
+      Startverzeichnis f&uuml;r &man.chroot.2; definiert;  dieses
+      Verzeichnis wird dann als Startpunkt f&uuml;r eine
+      &man.chroot.2;-Umgebung genutzt.  Zu diesem Zweck wird die
+      Sequenz <literal>/./</literal> genutzt, die auch von anderen
+      FTP-Servern f&uuml;r diesen Zweck genutzt wird.  Diese Sequenz
+      kann sowohl in &man.ftpchroot.5; als auch in &man.passwd.5;
+      genutzt werden.</para>
+
+    <para>Das neue Programm &man.fwcontrol.8; ist ein Hilfsmittel zum
+      Zugriff auf und die Kontrolle des FireWire-Subsystems.</para>
+
+    <para>Mit dem neuen Hilfsprogramm &man.getconf.1; k&ouml;nnen die
+      Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die
+      Pfad- und Systemkonfiguration ausgegeben werden.</para>
+
+    <para>Die neuen &man.ipfw.8;-Befehle <literal>enable</literal> und
+      <literal>disable</literal> k&ouml;nnen zur Kontrolle
+      verschiedener Aspekte der &man.ipfw.4;-Funktionalit&auml;t
+      genutzt werden, bis hin zur Aktivierung und Deaktivierung der
+      gesamten Firewall.  Im Vergleich mit den bereits existierenden
+      sysctl-Variablen ist dieses Interface einfacher zu bedienen und
+      besser zug&auml;nglich.</para>
+
+    <para>Wird &man.make.1; mit der neuen Option <option>-C</option>
+      aufgerufen, wechselt es in das angegebene Verzeichnis, bevor es
+      mit der Arbeit beginnt.</para>
+
+    <para>Wird &man.mount.nfs.8; mit der neuen Option
+      <option>-c</option> aufgerufen, ruft es f&uuml;r UDP Mount
+      Points nicht mehr &man.connect.2; auf.  Diese Option mu&szlig;
+      gesetzt sein, wenn ein Server die Antworten nicht vom
+      Standardport 2049 verschickt oder die Antworten von einer
+      anderen IP-Adresse verschickt (dies kann bei Systemen mit
+      mehreren Netzwerkkarten auftreten).  Wird die Sysctl-Variable
+      <varname>vfs.nfs.nfs_ip_paranoia</varname> auf
+      <literal>0</literal> gesetzt, ist diese Option
+      standardm&auml;&szlig;ig aktiv.</para>
+
+    <para>Wird bei &man.newsyslog.8; bei einem Eintrag (bzw. einer
+      Gruppe von Eintr&auml;gen, bei denen die Option
+      <literal>G</literal> gesetzt ist) die neue Option
+      <literal>W</literal> angeben, wird das Programm zur Kompression
+      des Logfiles erst gestartet, wenn er die vorher gestarteten
+      Packprogramme durchgelaufen sind.  Dadurch soll verhindert
+      werden, da&szlig; Systeme durch die gleichzeitige Kompression
+      mehrerer gro&szlig;er Logfiles &uuml;berlastet werden.</para>
+
+    <para>Mit dem neuen Programm &man.pathchk.1; k&ouml;nnen
+      Pfadangaben auf ihre G&uuml;ltigkeit und Portabilit&auml;t
+      zwischen POSIX-Systemen gepr&uuml;ft werden.</para>
+
+    <para>&man.pw.8; kann jetzt auch User anlegen, deren Namen mit dem
+      Zeichen <literal>$</literal> endet, diese &Auml;nderung dient
+      zur Vereinfachung der Administration von
+      <application>Samba</application> Servern.</para>
+
+    <para>Bei &man.rarpd.8; kann jetzt mit <option>-t</option> ein
+      Verzeichnis angegeben werden, das statt
+      <filename>/tftpboot</filename> genutzt wird.</para>
+
+    <para>Die Base64-Unterst&uuml;tzung von &man.uuencode.1; und
+      &man.uudecode.1; wird jetzt automatisch aktiviert, wenn die
+      Programme als &man.b64encode.1; bzw. &man.b64decode.1;
+      aufgerufen werden.</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <para>Die Definitionen von <varname>stdin</varname>,
+      <varname>stdout</varname> und <varname>stderr</varname> wurden
+      ge&auml;ndert, um die bisher f&uuml;r die Compilierung
+      notwendigen Konstanten &uuml;berfl&uuml;ssig zu machen.  Einige
+      &auml;ltere Programme brauchen deswegen evtl. neuere Versionen
+      3.X-Kompatibilit&auml;tsbibliotheken.  Um diese erzeugen,
+      m&uuml;ssen Sie bei einem buildword/installword
+      <literal>COMPAT3X=yes</literal> setzen.</para>
+
+    <sect3>
+      <title>Zus&auml;tzliche Software</title>
+
+      <para><application>BIND</application> steht jetzt in der Version
+	8.3.4 zur Verf&uuml;gung.</para>
+
+      <para>Alle Anwendungen aus dem <application>bzip2</application>
+	Paket sind jetzt im Basissystem verf&uuml;gbar (dies betrifft
+	speziell <command>bzip2recover</command>, das jetzt erzeugt
+	und installiert wird).</para>
+
+      <para><application>CVS</application> ist jetzt in der Version
+	1.11.5 verf&uuml;gbar.</para>
+
+      <para><application>FILE</application> steht jetzt in der Version
+	3.41 zur Verf&uuml;gung.</para>
+
+      <para><application>groff</application> und die dazu
+	geh&ouml;renden Programme sind jetzt in der FSF Version 1.18.1
+	verf&uuml;gbar.</para>
+
+      <para><application>Heimdahl Kerberos</application> ist jetzt in
+	der Version 0.5.1 verf&uuml;gbar.</para>
+
+      <para>Der <application>ISC DHCP</application> Client steht jetzt
+	in der Version 3.0.1RC11 zur Verf&uuml;gung.</para>
+
+      <para><application>libz</application> steht jetzt in der Version
+	1.1.4 zur Verf&uuml;gung.</para>
+
+      <para><application>OpenSSH</application> steht jetzt in der
+	Version 3.5p1 zur Verf&uuml;gung.</para>
+
+      <para><application>OpenSSL</application> steht jetzt in der
+	Version 0.9.7a zur Verf&uuml;gung.  Die wichtigsten Neuerungen
+	sind die Unterst&uuml;tzung f&uuml;r AES und &man.crypto.4;
+	Ger&auml;te.</para>
+
+      <para><application>sendmail</application> steht jetzt in der
+	Version 8.12.8 zur Verf&uuml;gung.</para>
+
+      <para><application>tcpdump</application> steht jetzt in der
+	Version 3.7.2 zur Verf&uuml;gung.</para>
+
+      <para>Die Datenbank mit den Zeitzonen steht jetzt in der Version
+	<filename>tzdata2002d</filename> zur Verf&uuml;gung.</para>
+    </sect3>
+
+    <sect3>
+      <title>Infrastruktur f&uuml;r Ports und Packages</title>
+
+      <para>Die nur eine Zeile langen <filename>pkg-comment</filename>
+	Dateien wurden aus allen Ports entfernt und in das
+	<filename>Makefile</filename> des jeweiligen Ports integriert.
+	Dadurch sinken die Plattenbelegung und der Inode-Verbrauch der
+	Ports-Sammlung erheblich.</para>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Erzeugung von Releases und Integration</title>
+
+    <para><application>GNOME</application> steht jetzt in der Version
+      2.2 zur Verf&uuml;gung.</para>
+
+    <para><application>KDE</application> steht jetzt in der Version
+      3.1 zur Verf&uuml;gung.</para>
+
+    <para><application>XFree86</application> steht jetzt in der
+      Version 4.3.0 zur Verf&uuml;gung.</para>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>Aktualisierung einer &auml;lteren Version von &os;</title>
+
+  <para>Wenn Sie eine &auml;ltere Version von &os; aktualisieren
+    wollen, haben Sie drei M&ouml;glichkeiten:</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>Die bin&auml;re Aktualisierung mit &man.sysinstall.8;.
+	Diese Variante ben&ouml;tigt die wenigste Zeit, allerdings
+	geht sie davon aus, da&szlig; Sie keine Optionen zur
+	Kompilierung von &os; genutzt haben.</para>
+    </listitem>
+
+    <listitem>
+      <para>Die komplette Neuinstallation von &os;.  Dadurch
+	f&uuml;hren Sie nat&uuml;rlich keine echte Aktualisierung
+	durch und es ist auf jeden Fall nicht so bequem wie die
+	bin&auml;re Aktualisierung, da Sie ihre Konfigurationsdaten in
+	<filename>/etc</filename> selbst sichern und wiederherstellen
+	m&uuml;ssen.  Dennoch kann diese Option sinnvoll sein, wenn
+	Sie die Aufteilung der Partitionen &auml;ndern wollen oder
+	m&uuml;ssen.</para>
+    </listitem>
+
+    <listitem>
+      <para>Mit dem Sourcecode in <filename>/usr/src</filename>.
+	Diese Variante ist flexibler, ben&ouml;tigt aber mehr
+	Plattenplatz, Zeit, und Erfahrung.  Weitere Informationen zu
+	diesem Thema finden Sie im Kapitel <ulink
+	url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/makeworld.html"><quote>Using
+	<command>make world</command></quote></ulink> des <ulink
+	url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
+	Handbuchs</ulink>.  Eine Aktualisierung einer sehr alten
+	Version von &os; kann mit Problemen verbunden sein; in diesen
+	F&auml;llen ist es effektiver, eine bin&auml;re Aktualisierung
+	oder eine komplette Neuinstallation
+	durchzuf&uuml;hren.</para>
+    </listitem>
+  </itemizedlist>
+
+  <para>Bitte lesen Sie den Inhalt der Datei
+    <filename>INSTALL.TXT</filename>, um weitere Informationen zu
+    erhalten, und zwar <emphasis>bevor</emphasis> Sie mit der
+    Aktualisierung beginnen.  Wenn Sie den Sourcecode zur
+    Aktualisierung nutzen, sollten Sie auf jeden Fall auch
+    <filename>/usr/src/UPDATING</filename> lesen.</para>
+
+  <para>Zum guten Schlu&szlig;:  Wenn Sie auf eine der m&ouml;glichen
+    Arten die &os;-Entwicklungszweige -STABLE oder -CURRENT nutzen,
+    sollten Sie auf jeden Fall das Kapitel <ulink
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
+    vs. -STABLE</quote></ulink> im <ulink
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD Handbuch</ulink>
+    lesen.</para>
+
+  <important>
+    <para>Sie sollten vor der Aktualisierung von &os; auf jeden Fall
+      Sicherheitskopien <emphasis>aller</emphasis> Daten und
+      Konfigurationsdateien anlegen.</para>
+  </important>
+</sect1>

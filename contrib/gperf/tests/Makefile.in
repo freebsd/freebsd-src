@@ -1,0 +1,232 @@
+# Makefile for gperf/tests
+
+# Copyright (C) 1989, 1992, 1993, 1995, 1998 Free Software Foundation, Inc.
+# written by Douglas C. Schmidt (schmidt@ics.uci.edu)
+#
+# This file is part of GNU GPERF.
+#
+# GNU GPERF is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 1, or (at your option)
+# any later version.
+#
+# GNU GPERF is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU GPERF; see the file COPYING.  If not, write to the Free
+# Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.
+
+#### Start of system configuration section. ####
+
+# Directories used by "make":
+srcdir = @srcdir@
+
+# Programs used by "make":
+# C compiler
+CC = @CC@
+CFLAGS = @CFLAGS@
+CPP = @CPP@
+# C++ compiler
+CXX = @CXX@
+CXXFLAGS = @CXXFLAGS@
+CXXCPP = @CXXCPP@
+# Other
+MV = mv
+LN = ln
+RM = rm -f
+@SET_MAKE@
+
+#### End of system configuration section. ####
+
+SHELL = /bin/sh
+
+VPATH = $(srcdir)
+
+GPERF = ../src/gperf
+
+all :
+
+install : all
+
+installdirs :
+
+uninstall :
+
+check : check-link-c check-link-c++ check-c check-ada check-modula3 check-pascal check-test
+	@true
+
+extracheck : @CHECK_LANG_SYNTAX@
+	@true
+
+check-link-c: force
+	@echo "performing some tests of the perfect hash generator"
+	$(CC) -c $(CFLAGS) $(srcdir)/test.c
+	$(GPERF) -p -c -l -S1 -o $(srcdir)/c.gperf > cinset.c
+	$(CC) $(CFLAGS) -o cout cinset.c test.o
+
+check-link-c++: force
+
+check-c:
+	@echo "testing ANSI C reserved words, all items should be found in the set"
+	./cout -v < $(srcdir)/c.gperf > c.out
+	diff $(srcdir)/c.exp c.out
+
+check-ada:
+	$(GPERF) -k1,4,'$$' $(srcdir)/ada.gperf > adainset.c
+# double '$$' is only there since make gets confused; program wants only 1 '$'
+	$(CC) $(CFLAGS) -o aout adainset.c test.o
+	@echo "testing Ada reserved words, all items should be found in the set"
+	./aout -v < $(srcdir)/ada.gperf > ada-res.out
+	diff $(srcdir)/ada-res.exp ada-res.out
+	$(GPERF) -p -D -k1,'$$' -s 2 -o $(srcdir)/adadefs.gperf > preinset.c
+	$(CC) $(CFLAGS) -o preout preinset.c test.o
+	@echo "testing Ada predefined words, all items should be found in the set"
+	./preout -v < $(srcdir)/adadefs.gperf > ada-pred.out
+	diff $(srcdir)/ada-pred.exp ada-pred.out
+
+check-modula3:
+	$(GPERF) -k1,2,'$$' -o $(srcdir)/modula3.gperf > m3inset.c
+	$(CC) $(CFLAGS) -o m3out m3inset.c test.o
+	@echo "testing Modula3 reserved words, all items should be found in the set"
+	./m3out -v < $(srcdir)/modula3.gperf > modula.out
+	diff $(srcdir)/modula.exp modula.out
+
+check-pascal:
+	$(GPERF) -o -S2 -p < $(srcdir)/pascal.gperf > pinset.c
+	$(CC) $(CFLAGS) -o pout pinset.c test.o
+	@echo "testing Pascal reserved words, all items should be found in the set"
+	./pout -v < $(srcdir)/pascal.gperf > pascal.out
+	diff $(srcdir)/pascal.exp pascal.out
+
+# these next 5 are demos that show off the generated code
+check-test:
+	$(GPERF) -p -j1 -g -o -t -N is_reserved_word -k1,3,'$$' < $(srcdir)/c-parse.gperf > test-1.out
+	diff $(srcdir)/test-1.exp test-1.out
+	$(GPERF) -n -k1-8 -l < $(srcdir)/modula2.gperf > test-2.out
+	diff $(srcdir)/test-2.exp test-2.out
+	$(GPERF) -p -j 1 -o -a -C -g -t -k1,4,$$ < $(srcdir)/gplus.gperf > test-3.out
+	diff $(srcdir)/test-3.exp test-3.out
+	$(GPERF) -D -p -t < $(srcdir)/c-parse.gperf > test-4.out
+	diff $(srcdir)/test-4.exp test-4.out
+	$(GPERF) -g -o -j1 -t -p -N is_reserved_word < $(srcdir)/gpc.gperf > test-5.out
+	diff $(srcdir)/test-5.exp test-5.out
+# prints out the help message
+	-$(GPERF) -h > test-6.out 2>&1
+	diff $(srcdir)/test-6.exp test-6.out
+	@echo "only if, do, for, case, goto, else, while, and return should be found "
+	./aout -v < $(srcdir)/c.gperf > test-7.out
+	diff $(srcdir)/test-7.exp test-7.out
+
+# The following validates valid language syntax with different parameters.
+# Works only with gcc and g++, and only on platforms where "gcc -ansi" is
+# usable. (There are still platforms where gcc-2.8.0's fixincludes does not
+# work well enough.)
+
+VALIDATE = CC='$(CC)' CFLAGS='$(CFLAGS)' CXX='$(CXX)' CXXFLAGS='$(CXXFLAGS)' GPERF='$(GPERF)' ./validate
+
+check-lang-syntax : force
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -c
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -G
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -G -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -G -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -c
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -G
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 10 -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -S 1000
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 10
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 10 -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 10 -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 10 -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 10 -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -p -S 1000
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -K key_name
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -H hash_function_name
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest1.gperf -W word_list_name
+	sed -e 's,in_word_set,lookup_function_name,g' < jstest1.gperf > tmp-jstest1.gperf && \
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 tmp-jstest1.gperf -N lookup_function_name
+	sed -e 's,Perfect_Hash,class_name,g' < jstest1.gperf > tmp-jstest1.gperf && \
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 tmp-jstest1.gperf -Z class_name
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -c
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -G
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -G -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -G -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -c
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -C
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -E
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -G
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -D
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 10 -D -l
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -S 1000
+	sed -e 's,name,key_name,g' < jstest2.gperf > tmp-jstest2.gperf && \
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 tmp-jstest2.gperf -t -p -K key_name
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 jstest2.gperf -t -p -H hash_function_name
+	sed -e 's,in_word_set,lookup_function_name,g' < jstest2.gperf > tmp-jstest2.gperf && \
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 tmp-jstest2.gperf -t -p -N lookup_function_name
+	sed -e 's,Perfect_Hash,class_name,g' < jstest2.gperf > tmp-jstest2.gperf && \
+	$(VALIDATE) KR-C,C,ANSI-C,C++ -k1,2 tmp-jstest2.gperf -t -p -Z class_name
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -c
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -C
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -E
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -G
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -G -C
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -G -E
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -l
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -D
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -D -l
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -c
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -C
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -E
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -G
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -l
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -D
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 10 -D -l
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -S 1000
+	sed -e 's,name,key_name,g' < jstest3.gperf > tmp-jstest3.gperf && \
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 tmp-jstest3.gperf -t -p -K key_name
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 jstest3.gperf -t -p -H hash_function_name
+	sed -e 's,in_word_set,lookup_function_name,g' < jstest3.gperf > tmp-jstest3.gperf && \
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 tmp-jstest3.gperf -t -p -N lookup_function_name
+	sed -e 's,Perfect_Hash,class_name,g' < jstest3.gperf > tmp-jstest3.gperf && \
+	$(VALIDATE) C,ANSI-C,C++ -k1,2 tmp-jstest3.gperf -t -p -Z class_name
+
+mostlyclean : clean
+
+clean : force
+	$(RM) *.o core *inset.c output.* *.out aout cout m3out pout preout tmp-* valitest*
+
+distclean : clean
+	$(RM) config.status config.log config.cache Makefile
+
+maintainer-clean : distclean
+
+force :
+

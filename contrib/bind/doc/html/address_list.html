@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND Address Match Lists</TITLE>
+</HEAD>
+<BODY>
+
+<H2>BIND Configuration File Guide--Address Match Lists</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+<VAR>address_match_list</VAR>    = <VAR>address_match_element</VAR> [ <VAR>address_match_element</VAR> ... ]
+
+<VAR>address_match_element</VAR> = [ "!" ] ( <VAR><A HREF="docdef.html">ip_address</A></VAR> / <VAR><A HREF="docdef.html">ip_prefix</A></VAR> / <VAR><A HREF="acl.html">acl_name</A></VAR> / <VAR><A HREF="docdef.html">"key" key_id</A></VAR> / { <VAR>address_match_list</VAR> } ) ;
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>Address match lists are primarily used to determine access control for
+various server operations.  They are also used to define priorities
+for querying other nameservers and to set the addresses on which
+<CODE>named</CODE> will listen for queries.
+The elements which constitute an address match list can be any
+of the following:</P>
+
+<UL>
+<LI>an IP address (in dotted-decimal notation),</LI>
+
+<LI>an IP prefix (in the '/'-notation),</LI>
+
+<LI>a key ID, as defined by the
+<A HREF="key.html"><CODE>key</CODE></A> statement, or
+
+<LI>the name of an address match list previously defined with 
+the <A HREF="acl.html"><CODE>acl</CODE></A> statment, or</LI>
+
+<LI>another <VAR>address_match_list</VAR></LI>
+</UL>
+
+<P>Elements can be negated with a leading exclamation mark ("!"), and
+the match list names "any", "none", "localhost" and "localnets" are
+predefined.  More information on those names can be found in the
+description of the <A HREF="acl.html"><CODE>acl</CODE></A> statement.
+
+<P>The addition of the <CODE>key</CODE>
+clause made the name of this syntactic element something of a
+misnomer, since security keys can be used to validate access without
+regard to a host or network address.  Nonetheless, the term "address
+match list" is still used throughout the documentation.</P>
+
+<P>When a given IP address or prefix is compared to an address match
+list, the list is traversed in order until an element matches.  The
+interpretation of a match depends on whether the list is being used
+for access control, defining <CODE>listen-on</CODE> ports, or as a
+topology, and whether the element was negated.</P>
+
+<P>When used as an access control list, a non-negated match allows
+access and a negated match denies access.  If there is no match,
+access is denied.  The clauses <CODE>allow-query</CODE>,
+<CODE>allow-transfer</CODE>, <CODE>allow-update</CODE> and
+<CODE>blackhole</CODE> all use address match lists like this.
+Similarly, the <CODE>listen-on</CODE> 
+option will cause the server to not accept queries on any of the
+machine's addresses which do not match the list.
+
+<P>When used with the <CODE>topology</CODE> clause, a non-negated
+match returns a distance based on its position on the list (the closer
+the match is to the start of the list, the shorter the distance is
+between it and the server).  A negated match will be assigned the
+maximum distance from the server.  If there is no match, the address
+will get a distance which is further than any non-negated list
+element, and closer than any negated element.</P>
+
+<P>Because of the first-match aspect of the algorithm, an element that
+defines a subset of another element in the list should come before the
+broader element, regardless of whether either is negated.  For
+example, in <CODE>1.2.3/24;&nbsp;!&nbsp;1.2.3.13;</CODE> the 1.2.3.13
+element is completely useless, because the algorithm will match
+any lookup for 1.2.3.13 to the 1.2.3/24 element.  Using
+<CODE>!&nbsp;1.2.3.13;&nbsp;1.2.3/24</CODE> fixes that problem by
+having 1.2.3.13 blocked by the negation but all other 1.2.3.* hosts
+fall through.
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: address_list.html,v 1.9 1999/12/03 02:20:42 gson Exp $
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,259 @@
+This is the source portion of BIND version 8.  Its companions are "doc" and
+"contrib" so you are probably not missing anything.
+
+See the CHANGES file for a detailed listing of all changes.  See the INSTALL
+file for information on building and installing BIND.
+
+See the SUPPORT file for information on obtaining commercial support for ISC
+artifacts including BIND, INN, and DHCP.
+
+Note that BIND 8 is in "end-of-life", having been replaced by BIND 9.  See
+http://www.isc.org/ for more details.
+
+BIND 8.3.7 Highlights
+	Security release.
+
+BIND 8.3.6 Highlights
+	Maintenance release.
+
+BIND 8.3.5 Highlights
+	Maintenance release.
+
+BIND 8.3.4 Highlights
+	Security Fix DoS and buffer overrun.
+
+BIND 8.3.3 Highlights
+	Security Fix libbind. All applications linked against libbind
+	need to relinked.
+	'rndc restart' now preserves named's arguements
+
+BIND 8.3.2 Highlights
+	dig, nslookup, host and nsupdate have improved IPv6 support.
+
+BIND 8.3.1 Highlights
+	Critical bug fix to prevent DNS storms. If you have BIND 8.3.0 you
+	need to upgrade.
+
+BIND 8.3.0 Highlights
+	IPv6 transport support in resolver (from KAME).
+	Opaque rdata support.
+	EDNS0 support.
+	Glue ordering to help non-ENDS0 aware clients (servers) cope with
+	larger responses as a result of IPv6 by allowing A records to be added
+	first to the additional section.  IPv6 capable clients are expected to
+	use EDNS0 to allow larger responses to be sent.
+	Bug Fixes, includes BIND 8.2.5 changes.
+
+BIND 8.2.4 Highlights
+	NSAP processing was not RFC 1706 compliant. NOTE: OLD MASTER FILES
+	NEED TO BE CORRECTED AND CACHE FILES REMOVED.
+	Fixes long-standing protocol incompatibility in DNSSEC support.
+	Avoids fwd'ing to root name servers if response will be rejected.
+	new port/cygwin contributed by s_c_biggs@bigfoot.com.
+	new contrib/mdnkit (V1.3) from author.
+	new contrib/adm from official ftp site.
+	new contrib/host from author.
+	new contrib/dnsp from author.
+	fixed file descriptor leak in resolver.
+	fixed a major memory leak in the processing of dynamic updates.
+	numerous portability improvements.
+	numerous bug fixes.
+
+BIND 8.2.3 Highlights
+
+	Improved support for Windows NT and Windows 2000.
+	Host stats are no longer required to track the source of a record.
+	IXFR improvements.
+	Forwarders track and use RTT to select fastest.
+	Unix domain sockets implementions that require the directory
+	to be secure, are now secured.
+	Many minor problems fixed.
+	Linux DoS removed.
+
+BIND 8.2.2 patchlevel 5 Highlights
+
+	Bug in named-xfer (from patchlevel 4).
+	Portability to IPv6 versions of FreeBSD, OpenBSD, NetBSD.
+	Portability improvements (A/UX, AIX, IRIX, NetBSD, SCO, MPE/IX, NT).
+	"also-notify" option could cause memory allocation errors.
+	IXFR improvements (though client-side is still disabled).
+	Contributed software upgraded (including TIS's "dns_signer").
+	Several latent denial-of-service bugs fixed (from audits, not abuse).
+	New "make noesw" top-level target for removing encumbered components.
+
+BIND 8.2.2 Highlights
+
+	Interoperability with MS-Win2K has been improved.                     
+	Server-side IXFR is now known to work even under high load.                 
+	Support for Windows/NT (thanks to BayNetworks).
+	More fixes, especially to DNSSEC, TSIG, IXFR, and selective forwarding.
+	More portability improvements and lint removal (A/UX 3.1.1, SCO 5.0).
+	Better NOTIFY behaviour, especially with large update volume.
+	Better UPDATE handling, including SRV RR support and RFC compliance.
+	Fix for "ndc reload ZONENAME" (specific zone reload) problems.
+	Fix for round robin when multiple CNAMEs are in use.
+	New "min-roots" (MINROOTS) and "serial-queries" (MAXQSERIAL) options.
+	Log files are no longer auto-rotated every time the server starts up.
+	New "ndc reconfig" command only finds new/deleted zones, no stat()ing.
+	New global options for "transfer-source" and "also-notify".
+	$GENERATE now supports more record types, and options.
+
+BIND 8.2.1 Highlights
+
+	Bug fixes, especially to DNSSEC, TSIG, IXFR, and selective forwarding.
+	Portability improvements and lint removal.
+	Use best SOA rather than first-better when selecting an AXFR master.
+	$TTL now accepts symbolic time values (such as "$TTL 1h30m").
+	"ndc reload" now accepts a zone argument, for single-zone reloads.
+	ndc is better behaved; is verbose or quiet when appropriate.
+	event and error reporting improvements.
+
+BIND 8.2 Highlights
+
+	RFC 2308 (Negative Caching)
+	RFC 2181 (DNS Clarifications)
+	RFC 2065 (DNS Security)
+	TSIG (Transaction SIGnatures)
+	support for multiple virtual name servers
+	NDC uses a "control channel" now (no more signals)
+	"Split DNS" via zone type "forward".
+
+	Many bug fixes
+	Documentation improvements
+	Performance enhancements
+
+BIND 8.1.2 Highlights
+
+	Security fixes for a number of problems including:
+
+		An attacker could overwrite the stack if inverse query support
+		was enabled.
+
+		A number of denial of service attacks where malformed packets
+		could cause the server to crash.
+
+		The server was willing to answer queries on its forwarding
+		sockets.
+
+	Several memory leaks have been plugged.
+
+	The server no longer panics if a periodic interface scan fails due
+	to no file descriptors being available.
+
+	Updates to a number of ports.  New ports for QNX, LynxOS, HP-UX 9.x,
+	and HP MPE.
+
+	"files unlimited" now works as expected on systems where setting
+	an infinite rlim_max for RLIMIT_NOFILE works.
+
+	Adding and deleting the same record in the same dynamic update no
+	longer crashes the server.
+
+	If a dynamic update fails, rollback is now done in LIFO order instead
+	of FIFO order.
+
+	Better behavior when priming of the root servers fails.
+
+	purge_zone() didn't work correctly for the root zone, allowing
+	old data to persist after loading the zone.
+
+	Improved handling of oversized UDP packets.
+
+	All hosts on the also-notify list are now notified.
+
+	The meaning of the count returned by select() varies somewhat by
+	operating system, and this could cause previous releases of the
+	server to spin.
+
+	Per-host statistics may be disabled by specifying 'host-statistics no'
+	in named.conf.
+
+	The maximum number of zones has been increased from 32768 to 65536.
+
+	query-source may specify an address and port that the server is
+	already listening on.  BIND 8.1.1 required that either the address
+	or port be wild.  E.g., you can now say:
+
+		listen-on port 53 { 10.0.0.1; };
+		query-source address 10.0.0.1 port 53;
+
+	The value of FD_SETSIZE to use may be specified.
+
+	Experimental -u (set user id), -g (set group id), and -t (chroot)
+	command line options.  See the INSTALL file for details.
+
+BIND 8 Features
+
+	-> DNS Dynamic Updates (RFC 2136)
+
+	-> DNS Change Notification (RFC 1996)
+
+	-> Completely new configuration syntax
+
+	-> Flexible, categorized logging system
+
+	-> IP-address-based access control for queries, zone transfers, and
+	   updates that may be specified on a zone-by-zone basis
+
+	-> More efficient zone transfers
+
+	-> Improved performance for servers with thousands of zones
+
+	-> The server no longer forks for outbound zone transfers
+
+	-> Many bug fixes
+
+File and Directory Overview
+
+	CHANGES				history of added features and
+					fixed bugs
+
+	INSTALL				how to build and install
+
+	README				this file
+						
+	TODO				features planned but not yet written
+
+	Version				the version number of this release
+
+	bin/*				source for executables, including
+					the nameserver
+
+	include/*			public .h files
+
+	lib/*				the resolver and various BIND
+					support libraries
+
+	port/*				ports to various operating systems
+	
+
+Kits, Questions, Comments, and Bug Reports
+
+    <URL:ftp://ftp.isc.org/isc/bind/src/cur>        current non-test release
+    <URL:ftp://ftp.isc.org/isc/bind/src/testing>    latest public test kit
+
+    <URL:usenet:comp.protocols.dns.bind>            using BIND
+    <URL:usenet:comp.protocols.dns.ops>             DNS operations in general
+    <URL:usenet:comp.protocols.dns.std>             DNS standards in general
+
+    <URL:mailto:bind-users-request@vix.com>         gw'd to u:c.p.d.bind
+    <URL:mailto:namedroppers-request@internic.net>  gw'd to u:c.p.d.std
+    <URL:mailto:bind-workers-request@vix.com>       code warriors only please
+
+    <URL:http://www.isc.org/bind.html>		    the BIND home page
+    <URL:mailto:bind-bugs@isc.org>		    bug reports
+
+To Support the Effort
+
+	Note that BIND is supported by the Internet Software Consortium, and
+	although it is free for use and redistribution and incorporation into
+	vendor products and export and anything else you can think of, it
+	costs money to produce.  That money comes from ISPs, hardware and
+	software vendors, companies who make extensive use of the software,
+	and generally kind hearted folk such as yourself.
+
+	The Internet Software Consortium has also commissioned a DHCP server
+	implementation, has taken over official support/release of the INN
+	system, and has supported the Kerberos Version 5 effort at MIT.  You
+	can learn more about the ISC's goals and accomplishments from the web
+	page at <URL:http://www.isc.org/>.

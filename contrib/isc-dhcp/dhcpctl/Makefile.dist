@@ -1,0 +1,106 @@
+# Makefile.dist
+#
+# Copyright (c) 1996-2002 Internet Software Consortium.
+# Use is subject to license terms which appear in the file named
+# ISC-LICENSE that should have accompanied this file when you
+# received it.   If a file named ISC-LICENSE did not accompany this
+# file, or you are not sure the one you have is correct, you may
+# obtain an applicable copy of the license at:
+#
+#             http://www.isc.org/isc-license-1.0.html. 
+#
+# This file is part of the ISC DHCP distribution.   The documentation
+# associated with this file is listed in the file DOCUMENTATION,
+# included in the top-level directory of this release.
+#
+# Support and other services are available for ISC products - see
+# http://www.isc.org for more information.
+#
+
+CATMANPAGES = dhcpctl.cat3 omshell.cat1
+SEDMANPAGES = dhcpctl.man3 omshell.man1
+SRC    = dhcpctl.c callback.c remote.c
+OBJ    = dhcpctl.o callback.o remote.o
+MAN    = dhcpctl.3 omshell.1
+HDRS   = dhcpctl.h
+
+INCLUDES = $(BINDINC) -I$(TOP)/includes
+CFLAGS = $(DEBUG) $(PREDEFINES) $(INCLUDES) $(COPTS)
+DHCPCTLLIBS = libdhcpctl.a ../common/libdhcp.a $(BINDLIB) \
+		../omapip/libomapi.a ../dst/libdst.a
+
+all:	libdhcpctl.a omshell cltest $(CATMANPAGES)
+
+omshell:	omshell.o $(DHCPCTLLIBS)
+	$(CC) $(DEBUG) $(LFLAGS) -o omshell omshell.o $(DHCPCTLLIBS) $(LIBS)
+
+cltest:	cltest.o $(DHCPCTLLIBS)
+	$(CC) $(DEBUG) $(LFLAGS) -o cltest cltest.o $(DHCPCTLLIBS) $(LIBS)
+
+libdhcpctl.a:	$(OBJ)
+	rm -f libdhcpctl.a
+	ar cruv libdhcpctl.a $(OBJ)
+	$(RANLIB) libdhcpctl.a
+
+install: all $(CATMANPAGES)
+	for dir in $(LIBDIR) $(LIBMANDIR) $(INCDIR) $(USRMANDIR) \
+		$(USERBINDIR); do \
+	  foo=""; \
+	  for bar in `echo $(DESTDIR)$${dir} |tr / ' '`; do \
+	    foo=$${foo}/$$bar; \
+	    if [ ! -d $$foo ]; then \
+	      mkdir $$foo; \
+	      chmod 755 $$foo; \
+	    fi; \
+	  done; \
+	done
+	$(INSTALL) libdhcpctl.a $(DESTDIR)$(LIBDIR)
+	$(CHMOD) 644 $(DESTDIR)$(LIBDIR)/libdhcpctl.a
+	$(INSTALL) dhcpctl.h $(DESTDIR)$(INCDIR)
+	$(CHMOD) 644 $(DESTDIR)$(INCDIR)/dhcpctl.h
+	for man in $(MAN); do \
+	  prefix=`echo $$man |sed -e 's/\.[0-9]$$//'`; \
+	  suffix=`echo $$man |sed -e 's/.*\.\([0-9]\)$$/\1/'`; \
+	  $(MANINSTALL) $(MANFROM) $${prefix}.$(MANCAT)$${suffix} $(MANTO) \
+			$(DESTDIR)$(LIBMANDIR)/$${prefix}$(LIBMANEXT); \
+	done
+	$(INSTALL) omshell $(DESTDIR)$(USERBINDIR)
+	$(CHMOD) 755 $(DESTDIR)$(USERBINDIR)/omshell
+	$(MANINSTALL) $(MANFROM) omshell.$(MANCAT)1 $(MANTO) \
+				$(DESTDIR)$(USRMANDIR)/omshell$(USRMANEXT)
+
+depend:
+	$(MKDEP) $(INCLUDES) $(PREDEFINES) $(SRC)
+
+clean:
+	-rm -f $(OBJ) test.o svtest cltest.o cltest
+
+realclean: clean
+	-rm -f libdhcpctl.a *~ $(CATMANPAGES) $(SEDMANPAGES)
+
+distclean: realclean
+	-rm -f Makefile
+
+links:
+	@for foo in $(SRC) $(MAN) omshell.c cltest.c $(HDRS); do \
+	  if [ ! -b $$foo ]; then \
+	    rm -f $$foo; \
+	  fi; \
+	  ln -s $(TOP)/dhcpctl/$$foo $$foo; \
+	done
+
+dhcpctl.cat3:	dhcpctl.man3
+	nroff -man dhcpctl.man3 >dhcpctl.cat3
+
+dhcpctl.man3:	dhcpctl.3
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhcpctl.3 >dhcpctl.man3
+
+omshell.cat1:	omshell.man1
+	nroff -man omshell.man1 >omshell.cat1
+
+omshell.man1:	omshell.1
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < omshell.1 >omshell.man1
+
+# Dependencies (semi-automatically-generated)

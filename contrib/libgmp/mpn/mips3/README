@@ -1,0 +1,23 @@
+This directory contains mpn functions optimized for MIPS3.  Example of
+processors that implement MIPS3 are R4000, R4400, R4600, R4700, and R8000.
+
+RELEVANT OPTIMIZATION ISSUES
+
+1. On the R4000 and R4400, branches, both the plain and the "likely" ones,
+   take 3 cycles to execute.  (The fastest possible loop will take 4 cycles,
+   because of the delay insn.)
+
+   On the R4600, branches takes a single cycle
+
+   On the R8000, branches often take no noticable cycles, as they are
+   executed in a separate function unit..
+
+2. The R4000 and R4400 have a load latency of 4 cycles.
+
+3. On the R4000 and R4400, multiplies take a data-dependent number of
+   cycles, contrary to the SGI documentation.  There seem to be 3 or 4
+   possible latencies.
+
+STATUS
+
+Good...

@@ -1,0 +1,95 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
+.\" $FreeBSD$
+.\"
+.Dd September 22, 1994
+.Dt NFSIOD 8
+.Os
+.Sh NAME
+.Nm nfsiod
+.Nd local
+.Tn NFS
+asynchronous I/O server
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar num_servers
+.Sh DESCRIPTION
+The
+.Nm
+utility is a kernel process which runs on an
+.Tn NFS
+client machine to service asynchronous I/O requests to its server.
+It improves performance but is not required for correct operation.
+.Pp
+This program controls the maximum number of processes that the kernel runs.
+Unless otherwise specified, a single server is started.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl n
+Specify how many servers are to be started.
+.El
+.Pp
+A client should run enough daemons to handle its maximum
+level of concurrency, typically four to six.
+.Pp
+If
+.Nm
+detects that the running kernel does not include
+.Tn NFS
+support, it will attempt to load a loadable kernel module containing
+.Tn NFS
+code, using
+.Xr kldload 2
+by way of
+.Xr vfsload 3 .
+If this fails, or no
+.Tn NFS
+KLD was available,
+.Nm
+exits with an error.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr kldload 2 ,
+.Xr nfssvc 2 ,
+.Xr vfsload 3 ,
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
+.Xr portmap 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

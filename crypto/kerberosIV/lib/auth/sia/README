@@ -1,0 +1,87 @@
+
+Digital SIA
+-----------
+
+To install the SIA module you will have to do the following:
+
+   * Make sure `libsia_krb4.so' is available in `/usr/athena/lib'. If
+     `/usr/athena' is not on local disk, you might want to put it in
+     `/usr/shlib' or someplace else. If you do, you'll have to edit
+     `krb4_matrix.conf' to reflect the new location (you will also have
+     to do this if you installed in some other directory than
+     `/usr/athena'). If you built with shared libraries, you will have
+     to copy the shared `libkrb.so', `libdes.so', `libkadm.so', and
+     `libkafs.so' to a place where the loader can find them (such as
+     `/usr/shlib').
+
+   * Copy (your possibly edited) `krb4_matrix.conf' to `/etc/sia'.
+
+   * Apply `security.patch' to `/sbin/init.d/security'.
+
+   * Turn on KRB4 security by issuing `rcmgr set SECURITY KRB4' and
+     `rcmgr set KRB4_MATRIX_CONF krb4_matrix.conf'.
+
+   * Digital thinks you should reboot your machine, but that really
+     shouldn't be necessary.  It's usually sufficient just to run
+     `/sbin/init.d/security start' (and restart any applications that
+     use SIA, like `xdm'.)
+
+Users with local passwords (like `root') should be able to login safely.
+
+When using Digital's xdm the `KRBTKFILE' environment variable isn't
+passed along as it should (since xdm zaps the environment). Instead you
+have to set `KRBTKFILE' to the correct value in
+`/usr/lib/X11/xdm/Xsession'. Add a line similar to
+     KRBTKFILE=/tmp/tkt`id -u`_`ps -o ppid= -p $$`; export KRBTKFILE
+If you use CDE, `dtlogin' allows you to specify which additional
+environment variables it should export. To add `KRBTKFILE' to this
+list, edit `/usr/dt/config/Xconfig', and look for the definition of
+`exportList'. You want to add something like:
+     Dtlogin.exportList:     KRBTKFILE
+
+Notes to users with Enhanced security
+.....................................
+
+Digital's `ENHANCED' (C2) security, and Kerberos solves two different
+problems. C2 deals with local security, adds better control of who can
+do what, auditing, and similar things. Kerberos deals with network
+security.
+
+To make C2 security work with Kerberos you will have to do the
+following.
+
+   * Replace all occurencies of `krb4_matrix.conf' with
+     `krb4+c2_matrix.conf' in the directions above.
+
+   * You must enable "vouching" in the `default' database.  This will
+     make the OSFC2 module trust other SIA modules, so you can login
+     without giving your C2 password. To do this use `edauth' to edit
+     the default entry `/usr/tcb/bin/edauth -dd default', and add a
+     `d_accept_alternate_vouching' capability, if not already present.
+
+   * For each user that does _not_ have a local C2 password, you should
+     set the password expiration field to zero. You can do this for each
+     user, or in the `default' table. To do this use `edauth' to set
+     (or change) the `u_exp' capability to `u_exp#0'.
+
+   * You also need to be aware that the shipped `login', `rcp', and
+     `rshd', doesn't do any particular C2 magic (such as checking to
+     various forms of disabled accounts), so if you rely on those
+     features, you shouldn't use those programs. If you configure with
+     `--enable-osfc2', these programs will, however, set the login UID.
+     Still: use at your own risk.
+
+At present `su' does not accept the vouching flag, so it will not work
+as expected.
+
+Also, kerberised ftp will not work with C2 passwords. You can solve this
+by using both Digital's ftpd and our on different ports.
+
+*Remember*, if you do these changes you will get a system that most
+certainly does _not_ fulfill the requirements of a C2 system. If C2 is
+what you want, for instance if someone else is forcing you to use it,
+you're out of luck.  If you use enhanced security because you want a
+system that is more secure than it would otherwise be, you probably got
+an even more secure system. Passwords will not be sent in the clear,
+for instance.
+

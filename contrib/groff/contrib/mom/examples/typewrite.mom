@@ -1,0 +1,233 @@
+\# A sample of PRINTSTYLE TYPEWRITE.  The file contains the sample
+\# outline and sample draft chapter found in the docprocessing_tyeset.mom
+\# file.  Only two changes have been made: the printstyle (here,
+\# TYPEWRITE instead of the default TYPESET), and the header size
+\# in the sample chapter, reduced by 1 point in order to accomodate
+\# all three parts of the header.  Other than that, the samples have
+\# been left alone so you can assess and get a feel for how PRINTSTYLE
+\# TYPEWRITE behaves.
+\#
+\# ====================================================================
+\#
+\# Sample outline using PRINTSTYLE TYPEWRITE
+\#
+\# Reference macros
+\#
+.TITLE    "Lake Attica's Shores"
+.SUBTITLE "A Romance Novel"
+.AUTHOR   "Rosemary Winspeare"
+.DRAFT     1  \" Ignored because COPYSTYLE is FINAL (the default)
+.REVISION  2  \" Ignored because COPYSTYLE is FINAL (the default)
+\#
+\# Docstyle macros
+\#
+.DOCTYPE    NAMED "Outline"
+.PRINTSTYLE TYPEWRITE
+\#
+\# Additional style macros
+\#
+.NUMBER_PARAHEADS
+\#
+.START
+.PP
+.PARAHEAD "A note on the setting"
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua. Stet clita kasd gubergren, no sea takimata sanctus est.
+At vero eos et accusam et justo duo do\%lo\%re et ea rebum.
+.PP
+Stet clita kasd gubergren, no sea takimata sanctus est.  Lorem ipsum
+dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
+tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat, sed diam
+voluptua.
+.PP
+Consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt
+ut labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.  At
+vero, eos et accusam et justo duo do\%lo\%res et ea rebum.  Consetetur
+sadipscing elitr, sed diam nonumy.
+.LINEBREAK
+.PP
+.PARAHEAD "About historical personnages"
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est.  Tempor invidunt ut
+labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.  Consetetur sadipscing elitr, sed diam nonumy
+eirmod tempor invidunt ut labore et do\%lo\%re magna.  Tempor invidunt
+ut labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+.NUMBER_HEADS
+.NUMBER_SUBHEADS
+.HEAD "Part One"
+.SUBHEAD "Chapter 1"
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+sed diam nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna
+ali\%quyam erat, sed diam voluptua.  At vero eos et accusam et
+justo duo do\%lo\%res et ea rebum.
+.PP
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est.  Lorem ipsum dolor sit
+amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor
+invidunt ut labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+Stet clita kasd gubergren, no sea takimata sanctus est.
+.SUBHEAD "Chapter 2"
+.PP
+Stet clita kasd gubergren, no sea takimata sanctus est.  Lorem ipsum
+dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
+tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat, sed diam
+voluptua.  At vero eos et accusam et justo duo do\%lo\%res et ea rebum.
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+sed diam nonumy eirmod tempor invidunt.  Ut labore et do\%lo\%re magna
+ali\%quyam erat, sed diam voluptua at vero.
+.SUBHEAD "Chapter 3"
+.PP
+Eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita kasd
+gubergren, no sea takimata sanctus est lorem ipsum dolor sit amet.
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.  At vero eos et accusam et justo duo do\%lo\%res et
+ea rebum.
+.HEAD "Part Two"
+.SUBHEAD "Chapter 4"
+.PP
+Stet clita kasd gubergren, no sea takimata sanctus est
+lorem ipsum dolor sit amet.  Lorem ipsum dolor sit amet, consetetur
+sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore
+et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+.PP
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est lorem ipsum dolor sit amet.
+.PP
+Nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.  At vero eos et accusam et justo duo do\%lo\%res et
+ea rebum.  Lorem ipsum dolor sit amet, consetetur sadipscing elitr,
+sed diam nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna
+ali\%quyam erat, sed diam voluptua.  At vero eos et accusam et justo
+duo do\%lo\%res et ea rebum.  Stet clita kasd gubergren, no sea takimata
+sanctus est lorem ipsum dolor sit amet.  Consetetur sadipscing elitr,
+sed diam nonumy eirmod tempor invidunt. 
+.SUBHEAD "Chapter 5"
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed
+diam nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna
+ali\%quyam erat, sed diam voluptua.  At vero eos et accusam et
+justo duo do\%lo\%res et ea rebum.  Stet clita kasd gubergren,
+no sea takimata sanctus est lorem ipsum dolor sit amet.
+.PP
+Consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt
+ut labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.  At vero
+eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita kasd
+gubergren, no sea takimata sanctus.
+.PP
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren.  Sea takimata sanctus est lorem ipsum dolor
+sit amet.  Accusam et justo duo do\%lo\%res et ea rebum
+.BR
+.RIGHT
+\*[BD]\&...end of sample outline  \" Notice that TYPEWRITE ignores the \*[BD]
+.COLLATE
+\#
+\# =====================================================================
+\#
+\# Sample chapter in COPYSTYLE DRAFT using PRINTSTYLE TYPEWRITE
+\#
+\# Reference macros
+\#
+.TITLE    "Lake Attica's Shores"
+.SUBTITLE "A Romance Novel"
+.AUTHOR   "Rosemary Winspeare"
+.CHAPTER   1
+.DRAFT     1  \" Appears in the header because copystyle is DRAFT
+.REVISION  2  \" Appears in the header because copystyle is DRAFT
+\#
+\# Docstyle macros
+\#
+.DOCTYPE    CHAPTER
+.COPYSTYLE  DRAFT
+\#
+\# Additional style macros
+\#
+.EPIGRAPH_FONT I  \" TYPEWRITE underlines italics
+.HEADER_SIZE -1
+\#
+.START
+.EPIGRAPH BLOCK
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.
+.RIGHT
+\*[ROM]\(emJoseph E. Blough
+.EPIGRAPH OFF
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.  At vero eos et accusam et justo duo do\%lo\%res et
+ea rebum.  Stet clita kasd gubergren, no sea takimata sanctus est.
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Lorem ipsum
+dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
+tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat, sed diam
+voluptua.  At vero eos et accusam et justo duo do\%lo\%res et ea rebum.
+Stet clita kasd gubergren, no sea takimata sanctus est.  At vero eos
+et accusam et justo duo do\%lo\%res et ea rebum.
+.PP
+Stet clita kasd gubergren, no sea takimata sanctus est.  Lorem ipsum
+dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
+tempor invidunt.
+.PP
+"Consetetur sadipscing elitr," dixit ea.
+.PP
+"Sed diam nonumy eirmod tempor invidunt ut labore," dixit eum.
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua.  Consetetur sadipscing elitr, sed diam nonumy
+eirmod tempor invidunt ut labore et do\%lo\%re magna.
+.PP
+"Lorem ipsum dolor sit amet," dixit ea.
+.PP
+"At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est," dixit eum.  "Sed diam
+nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna ali\%quyam erat,
+sed diam voluptua."
+.PP
+Consetetur sadipscing elitr, sed diam nonumy eirmod tempor:
+.QUOTE
+Invidunt ut labore et do\%lo\%re
+Magna ali\%quyam erat sed diam
+Voluptua stet clita kasd gubergren
+No sea takimata sanctus est.
+.QUOTE OFF
+.PP
+Justo duo do\%lo\%res et ea rebum.  Stet clita kasd gubergren, no
+sea takimata sanctus est.  Lorem ipsum dolor sit amet, consetetur
+sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore
+et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+.PP
+"Stet clita kasd gubergren," dixit ea.
+.PP
+"No sea takimata sanctus est," dixit eum.
+.PP
+Nonumy eirmod tempor invidunt ut labore et do\%lo\%re magna.  Aliquyam erat
+sed diam voluptua.  At vero eos et accusam et justo, duo do\%lo\%res et
+ea rebum.
+.PP
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt.  Ut labore et do\%lo\%re magna ali\%quyam
+erat, sed diam voluptua at vero.  Stet clita kasd gubergren, no sea
+takimata sanctus est.  Consetetur sadipscing elitr, sed diam nonumy
+eirmod tempor invidunt ut labore et do\%lo\%re magna.
+.PP
+Invidunt ut labore et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.
+At vero eos et accusam et justo duo do\%lo\%res et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est.  At vero eos et accusam et
+justo duo do\%lo\%res et ea rebum.  Lorem ipsum dolor sit amet, consetetur
+sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore
+et do\%lo\%re magna ali\%quyam erat, sed diam voluptua.  At vero eos et
+accusam et justo duo do\%lo\%res et ea rebum.  Stet clita kasd gubergren,
+no sea takimata sanctus est.  At vero eos et accusam et justo duo
+do\%lo\%res et ea rebum.
+.RIGHT
+\*[BD]\&...end of sample chapter  \" Notice that TYPEWRITE ignores the \*[BD]

@@ -1,0 +1,379 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
+.\"
+.Dd May 2, 2002
+.Dt WI 4
+.Os
+.Sh NAME
+.Nm wi
+.Nd "WaveLAN/IEEE, PRISM-II and Spectrum24 802.11DS wireless network driver"
+.Sh SYNOPSIS
+.Cd "device wi"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for wireless network adapters based around
+the Lucent Hermes, Intersil PRISM-II, Intersil PRISM-2.5, and Symbol
+Spectrum24 chipsets.
+All four chipsets provide a similar interface to the driver.
+.Pp
+All host/device interaction is via programmed I/O.
+Supported features include 802.11 and 802.3 frames, power management, BSS,
+IBSS, WDS and old-style Lucent ad-hoc operation modes.
+Cards based on the Intersil PRISM-II and PRISM-2.5 chips also support a
+host-based access point mode which allows a card to act as a normal access
+point (with some assistance from the
+.Nm
+driver).
+The Lucent Hermes and Symbol Spectrum24 chipsets do not contain this
+functionality.
+PRISM-II and PRISM-2.5 chips do not support the WDS functionality.
+.Pp
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames, however
+it can receive either 802.11 or 802.3 frames.
+Transmit speed is selectable between 1Mbps fixed, 2Mbps fixed, 2Mbps
+with auto fallback, 5.5Mbps, 8Mbps, or 11Mbps depending on your hardware.
+The Lucent WaveLAN/IEEE Silver and Gold cards as well as the Intersil
+and Symbol cards have support for WEP encryption.
+The WaveLAN Gold as well as newer Intersil and Symbol cards support
+104bit keys, the others only accept 40bit keys.
+The Lucent WaveLAN/IEEE Bronze cards do not support WEP at all.
+To enable encryption, use the
+.Xr wicontrol 8
+utility to set your keys, or use
+.Xr ifconfig 8
+as shown below.
+.Pp
+By default, the
+.Nm
+driver configures the card for BSS operation (aka infrastructure
+mode).
+This mode requires the use of an access point (base station).
+.Pp
+The
+.Nm
+driver also supports a point-to-point mode where the ssid is
+ignored and stations can communicate amongst themselves without the
+aid of an access point.
+Note that there are two possible point-to-point modes.
+One mode, referred to as
+.Dq "ad-hoc demo mode" ,
+or
+.Dq "legacy Lucent ad-hoc mode" ,
+predates the IEEE 802.11 specification and so may not interoperate
+with cards from different vendors.
+The standardized point-to-point mode is called IBSS (or confusingly
+just ad-hoc mode), but is not supported by cards with very old
+firmware revisions.
+If your cards supports IBSS mode, it is recommended that you use it in
+preference to the
+.Dq "ad-hoc demo mode"
+in new installations.
+.Pp
+Cards based on the Intersil PRISM-II and PRISM-2.5 chips also
+have a host-based access point mode which allows the card to
+act as an access point (base station).
+Access points are different than operating in IBSS mode.
+They operate in BSS mode.
+They allow for easier roaming and bridge all ethernet traffic such
+that machines connected via an access point appear to be on the local
+ethernet segment.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+Cards supported by the
+.Nm
+driver come in a variety of packages, though the most common
+are of the PCMCIA type.
+In many cases, the PCI version of a wireless card is simply
+a PCMCIA card bundled with a PCI adapter.
+The PCI adapters come in two flavors: true PCMCIA bridges and
+dumb PCMCIA bridges.
+A true PCMCIA bridge (such as those sold by Lucent) will attach
+as a real PCMCIA controller.
+The wireless card will then attach to the PCMCIA bus.
+Wireless cards in PCMCIA slots may be inserted and ejected on the fly.
+.Pp
+A dumb bridge, on the other hand, does not show up as a true PCMCIA bus.
+The wireless card will simply appear to the host as a normal PCI
+device and will not require any PCMCIA support.
+Cards in this type of adapter should only be removed when the
+machine is powered down.
+.Pp
+The following cards are among those supported by the
+.Nm
+driver:
+.Pp
+.Bl -column -compact "Linksys Instant Wireless WPC11 2.5" "Spectrum24" "PCI or PCMCIA"
+.Em "Card	Chip	Bus"
+3Com AirConnect 3CRWE737A	Spectrum24	PCMCIA
+3Com AirConnect 3CRWE777A	Prism-II	PCI
+ACTIONTEC HWC01170	Prism-2.5	PCMCIA
+Addtron AWP-100	Prism-II	PCMCIA
+Adtec Adlink/340C	Prism-II	PCMCIA
+Agere Orinoco	Hermes	PCMCIA
+Avaya Wireless	Prism-II	PCMCIA
+Blue Concentric Circle WL-379F	PRISM-II	CF
+BreezeNet Wireless	Prism-II	PCMCIA
+Buffalo WLI-PCM-S11	Prism-II	PCMCIA
+Buffalo WLI-PCM-L11G	Hermes	PCMCIA
+Buffalo WLI-CF-S11G	Prism-II	CF
+Cabletron RoamAbout	Hermes	PCMCIA
+Compaq Agency NC5004	Prism-II	PCMCIA
+Compaq WL100	Prism-II	PCMCIA
+Compaq WL110	Prism-II	PCMCIA
+Compaq WL200	Prism-II	PCMCIA
+Contec FLEXLAN/FX-DS110-PCC	Prism-II	PCMCIA
+Corega PCC-11	Prism-II	PCMCIA
+Corega PCCA-11	Prism-II	PCMCIA
+Corega PCCB-11	Prism-II	PCMCIA
+Corega CGWLPCIA11	Prism-II	PCI
+Dell TrueMobile 1150	Hermes	PCMCIA
+Dlink DWL520	Prism-2.5	PCI
+Dlink DWL650	Prism-2.5	PCMCIA
+ELSA XI300	Prism-II	PCMCIA
+ELSA XI800	Prism-II	CF
+EMTAC A2424i	Prism-II	PCMCIA
+Ericsson Wireless LAN CARD C11	Spectrum24	PCMCIA
+Farallon Skyline	Prism-II	PCMCIA
+Gemtek WL-311	Prism-2.5	PCMCIA
+Hawking Technology WE110P	Prism-2.5	PCMCIA
+Home Wireless Networks	Prism-II	PCMCIA
+IBM High Rate Wireless	Hermes	PCMCIA
+ICOM SL-1100	Prism-II	PCMCIA
+I-O DATA WN-B11/PCM	Prism-II	PCMCIA
+Intel PRO/Wireless 2011	Spectrum24	PCMCIA
+Intersil Prism II	Prism-II	PCMCIA
+Intersil Mini-PCI	Prism-2.5	PCI
+Linksys Instant Wireless WPC11	Prism-II	PCMCIA
+Linksys Instant Wireless WPC11 2.5	Prism-2.5	PCMCIA
+Linksys Instant Wireless WPC11 3.0	Prism-3	PCMCIA
+Lucent WaveLAN	Hermes	PCMCIA
+Melco Airconnect	Prism-II	PCMCIA
+NANOSPEED ROOT-RZ2000	Prism-II	PCMCIA
+NDC/Sohoware NCP130	Prism-II	PCI
+NEC CMZ-RT-WP	Prism-II	PCMCIA
+NEC PK-WL001	Prism-II	PCMCIA
+NEC PC-WL/11C	PRISM-II	PCMCIA
+Netgear MA401	Prism-II/2.5	PCMCIA
+NTT-ME 11Mbps Wireless LAN	Prism-II	PCMCIA
+Planex GeoWave/GW-NS110	Prism-II	PCMCIA
+Planex GW-NS11H	Prism-II	PCMCIA
+Proxim Harmony	Prism-II	PCMCIA
+Proxim RangeLAN-DS	Prism-II	PCMCIA
+Samsung MagicLAN SWL-2000N	Prism-II	PCMCIA
+SMC 2602 EZ Connect (3.3V)	Prism-II	PCI or PCMCIA
+SMC 2632 EZ Connect	Prism-II	PCMCIA
+Socket Low Power WLAN-CF	Prism-II	CF
+Sony PCWA-C100	Lucent	PCMCIA
+Symbol Spectrum24	Spectrum24	PCMCIA
+Symbol LA-4100	Spectrum24	CF
+TDK LAK-CD011WL	Prism-II	PCMCIA
+Toshiba Wireless LAN Card	Prism-II	PCMCIA
+U.S. Robotics Wireless Card 2410	Prism-II	PCMCIA
+.El
+.Pp
+Several vendors sell PCI adapters built around the PLX Technology 9050
+or 9052 chip.
+The following such adapters are supported or expected to work:
+.Pp
+.Bl -tag -compact
+.It 3Com AirConnect 3CRWE777A (3.3V)
+.It Belkin F5D6000 (a rebadged WL11000P)
+.It Eumitcom WL11000P
+.It Global Sun Technology GL24110P (untested)
+.It Global Sun Technology GL24110P02
+.It LinkSys WDT11 (a rebadged GL24110P02)
+.It Netgear MA301
+.It US Robotics 2415 (rebadged WL11000P)
+.El
+.Sh EXAMPLES
+The following examples utilize
+.Xr ifconfig 8
+for simplicity, however,
+.Xr wicontrol 8
+can also be used to set wireless parameters.
+.Pp
+Join an existing BSS network (ie: connect to an access point):
+.Pp
+.Dl "ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00"
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net"
+.Pp
+Join a specific BSS network with WEP encryption:
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	wepmode on wepkey 0x8736639624
+.Ed
+.Pp
+Join a Lucent legacy demo ad-hoc network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	mediaopt adhoc
+.Ed
+.Pp
+Create an IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	mediaopt ibss-master
+.Ed
+.Pp
+.Em Note :
+The infrastructure for
+.Cm mediaopt ibss-master
+has not been committed yet.
+.Pp
+Join an IBSS network with network name
+.Dq Li my_net :
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
+	mediaopt ibss
+.Ed
+.Pp
+.Em Note :
+The infrastructure for
+.Cm mediaopt ibss
+has not been committed yet.
+.Pp
+Create a host-based access point (Prism only):
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	mediaopt hostap
+.Ed
+.Pp
+Create a host-based access point with WEP enabled (Prism only):
+.Bd -literal -offset indent
+ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
+	wepmode on wepkey 0x1234567890 mediaopt hostap
+.Ed
+.Pp
+Create a host-based wireless bridge to fxp0 (Prism only):
+.Bd -literal -offset indent
+Add BRIDGE to the kernel config.
+ifconfig wi0 inet up ssid my_ap mediaopt hostap
+sysctl net.link.ether.bridge=1
+sysctl net.link.ether.bridge_cfg="wi0 fxp0"
+sysctl net.inet.ip.check_interface=0
+.Ed
+.Pp
+This will give you approximately the same functionality as an access
+point.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "wi%d: init failed"
+The WaveLAN card failed to become ready after an initialization command
+was issued.
+.It "wi%d: failed to allocate %d bytes on NIC"
+The driver was unable to allocate memory for transmit frames in the
+NIC's on-board RAM.
+.It "wi%d: device timeout"
+The WaveLAN card failed to generate an interrupt to acknowledge a transmit
+command.
+.El
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr wicontrol 8
+.Rs
+.%T HCF Light programming specification
+.%O http://www.wavelan.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Bill Paul Aq wpaul@ctr.columbia.edu .
+This man page comes from
+.Ox .
+.Sh CAVEATS
+Different regulatory domains have different default channels for adhoc
+mode.
+See
+.Xr ifconfig 8
+for information on how to change the channel.
+See
+.Xr wicontrol 8
+for information on different regulatory domains.
+.Pp
+The Intersil Prism family of chips' host-based access point mode has
+bugs for station firmware versions prior to 0.8.3.
+The driver currently precludes hostap functionality older station
+firmware.
+The best version of the station firmware for the Prism family of chips
+seems to be 1.4.9.
+Some users of Prism-II and 2.5 based cards report that station firmware
+version 1.3.4 works better for them in hostap than 1.4.9.
+Older versions of the Prism station firmware have a number of issues
+with hostap mode.
+The IBSS/adhoc mode appears to work well on station firmware 1.3.1 and
+later.
+The IBSS/adhoc mode appears to have problems for some people with
+older versions of station firmware.
+.Pp
+Lucent cards prior to firmware version 6.0.4 do not support IBSS
+mode.
+These cards support only the pre-802.11 mode known as
+.Dq "demo ad-hoc mode"
+which does not interoperate with stations in IBSS mode.
+.Pp
+.Sh BUGS
+Not all the new messages are documented here, and many of them are
+indications of transient errors that are not indications of serious
+problems.
+.Pp
+WL200 PCI wireless cards are based on a Cirrus Logic CL-PD6729 bridge
+chips glued to an intersil prism-II pcmcia chipset w/o the PC Card
+form factor being present.
+These chips are special and require special care to use properly.
+One must set
+.Va hw.pcic.pd6729_intr_path Ns = Ns Qq Li 2
+in
+.Pa /boot/loader.conf .
+This tells the pccard system to use PCI interrupts for this odd beast.
+It is not possible to know automatically which kind of interrupts to use.
+OLDCARD devices (pcic and card) support this device.

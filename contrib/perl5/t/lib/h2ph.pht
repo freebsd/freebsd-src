@@ -1,0 +1,71 @@
+require '_h2ph_pre.ph';
+
+unless(defined(&SQUARE)) {
+    sub SQUARE {
+	local($x) = @_;
+	eval q((($x)*($x)));
+    }
+}
+unless(defined(&ERROR)) {
+    eval 'sub ERROR {
+        local($x) = @_;
+	    eval q( &fprintf( &stderr, \\"%s\\\\n\\", $x->[2][3][0]));
+    }' unless defined(&ERROR);
+}
+unless(defined(&_H2PH_H_)) {
+    eval 'sub _H2PH_H_ () {1;}' unless defined(&_H2PH_H_);
+    # "$Revision h2ph.h,v 1.0 98/05/04 20:42:14 billy $"
+    undef(&MAX) if defined(&MAX);
+    eval 'sub MAX {
+        local($a,$b) = @_;
+	    eval q((($a) > ($b) ? ($a) : ($b)));
+    }' unless defined(&MAX);
+    if(defined(&__SOME_UNIMPORTANT_PROPERTY)) {
+	eval 'sub MIN {
+	    local($a,$b) = @_;
+    	    eval q((($a) < ($b) ? ($a) : ($b)));
+	}' unless defined(&MIN);
+    }
+    if(!(defined (defined(&__SOMETHING_MORE_IMPORTANT) ? &__SOMETHING_MORE_IMPORTANT : 0))) {
+    }
+ elsif(!(defined (defined(&__SOMETHING_REALLY_REALLY_IMPORTANT) ? &__SOMETHING_REALLY_REALLY_IMPORTANT : 0))) {
+	die("Nup\,\ can\'t\ go\ on\ ");
+    } else {
+	eval 'sub EVERYTHING_IS_OK () {1;}' unless defined(&EVERYTHING_IS_OK);
+    }
+    undef(&WHATEVER) if defined(&WHATEVER);
+    if((!((defined (defined(&__SOMETHING_TRIVIAL) ? &__SOMETHING_TRIVIAL : 0)  && defined (defined(&__SOMETHING_LESS_SO) ? &__SOMETHING_LESS_SO : 0))) || defined (defined(&__SOMETHING_OVERPOWERING) ? &__SOMETHING_OVERPOWERING : 0))) {
+	eval 'sub WHATEVER () {6;}' unless defined(&WHATEVER);
+    }
+ elsif(!(defined (defined(&__SOMETHING_TRIVIAL) ? &__SOMETHING_TRIVIAL : 0)) ) {
+	eval 'sub WHATEVER () {7;}' unless defined(&WHATEVER);
+    }
+ elsif(!(defined (defined(&__SOMETHING_LESS_SO) ? &__SOMETHING_LESS_SO : 0)) ) {
+	eval 'sub WHATEVER () {8;}' unless defined(&WHATEVER);
+    } else {
+	eval 'sub WHATEVER () {1000;}' unless defined(&WHATEVER);
+    }
+    require 'sys/socket.ph';
+    require 'sys/ioctl.ph';
+    eval {
+	my(%INCD) = map { $INC{$_} => 1 } (grep { $_ eq "sys/fcntl.ph" } keys(%INC));
+	my(@REM) = map { "$_/sys/fcntl.ph" } (grep { not exists($INCD{"$_/sys/fcntl.ph"})and -f "$_/sys/fcntl.ph" } @INC);
+	require "$REM[0]" if @REM;
+    };
+    warn($@) if $@;
+    eval("sub sun () { 0; }") unless defined(&sun);
+    eval("sub mon () { 1; }") unless defined(&mon);
+    eval("sub tue () { 2; }") unless defined(&tue);
+    eval("sub wed () { 3; }") unless defined(&wed);
+    eval("sub thu () { 4; }") unless defined(&thu);
+    eval("sub fri () { 5; }") unless defined(&fri);
+    eval("sub sat () { 6; }") unless defined(&sat);
+    eval("sub Sun () { 0; }") unless defined(&Sun);
+    eval("sub Mon () { 1; }") unless defined(&Mon);
+    eval("sub Tue () { 2; }") unless defined(&Tue);
+    eval("sub Wed () { 3; }") unless defined(&Wed);
+    eval("sub Thu () { 4; }") unless defined(&Thu);
+    eval("sub Fri () { 5; }") unless defined(&Fri);
+    eval("sub Sat () { 6; }") unless defined(&Sat);
+}
+1;

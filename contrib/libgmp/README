@@ -1,0 +1,137 @@
+			THE GNU MP LIBRARY
+
+
+GNU MP is a library for arbitrary precision arithmetic, operating on signed
+integers, rational numbers, and floating point numbers.  It has a rich set
+of functions, and the functions have a regular interface.
+
+GNU MP is designed to be as fast as possible, both for small operands and for
+huge operands.  The speed is achieved by using fullwords as the basic
+arithmetic type, by using fast algorithms, by carefully optimized assembly
+code for the most common inner loops for a lots of CPUs, and by a general
+emphasis on speed (instead of simplicity or elegance).
+
+The speed of GNU MP is believed to be faster than any other similar library.
+The advantage for GNU MP increases with the operand sizes for certain
+operations, since GNU MP in many cases has asymptotically faster algorithms.
+
+
+			GETTING STARTED
+
+First, you have to configure and compiler GNU MP.  Simply typing
+
+	./configure; make
+
+will normally do a reasonable job, but will not give optimal library
+execution speed.  So unless you're very unpatient, please read the detailed
+instructions in the file INSTALL or in gmp.texi.
+
+Once you have compiled the library, you should write some small example, and
+make sure you can compile them.  A typical compilation command is this:
+
+	gcc -g your-file.c -I<gmp-source-dir> <gmp-bin-dir>libgmp.a -lm
+
+If you have installed the library, you can simply do:
+
+	gcc -g your-file.c -lgmp -lm
+
+The -lm is normally not needed, since only a few functions in GNU MP use the
+math library.
+
+Here is a sample program that declares 2 variables, initializes them as
+required, and sets one of them from a signed integer, and the other from a
+string of digits.  It then prints the product of the two numbers in base 10.
+
+  #include <stdio.h>
+  #include "gmp.h"
+
+  main ()
+  {
+    mpz_t a, b, p;
+
+    mpz_init (a);			/* initialize variables */
+    mpz_init (b);
+    mpz_init (p);
+
+    mpz_set_si (a, 756839);		/* assign variables */
+    mpz_set_str (b, "314159265358979323846", 0);
+    mpz_mul (p, a, b);			/* generate product */
+    mpz_out_str (stdout, 10, p);	/* print number without newline */
+    puts ("");				/* print newline */
+
+    mpz_clear (a);			/* clear out variables */
+    mpz_clear (b);
+    mpz_clear (p);
+
+    exit (0);
+  }
+
+This might look tedious, with all initializing and clearing.  Fortunately
+some of these operations can be combined, and other operations can often be
+avoided.  The example above would be written differently by an experienced
+GNU MP user:
+
+  #include <stdio.h>
+  #include "gmp.h"
+
+  main ()
+  {
+    mpz_t b, p;
+
+    mpz_init (p);
+
+    mpz_init_set_str (b, "314159265358979323846", 0);
+    mpz_mul_ui (p, b, 756839);		/* generate product */
+    mpz_out_str (stdout, 10, p);	/* print number without newline */
+    puts ("");				/* print newline */
+
+    exit (0);
+  }
+
+
+			OVERVIEW OF GNU MP
+
+There are five classes of functions in GNU MP.
+
+ 1. Signed integer arithmetic functions, mpz_*.  These functions are intended
+    to be easy to use, with their regular interface.  The associated type is
+    `mpz_t'.
+
+ 2. Rational arithmetic functions, mpq_*.  For now, just a small set of
+    functions necessary for basic rational arithmetics.  The associated type
+    is `mpq_t'.
+
+ 3. Floating-point arithmetic functions, mpf_*.  If the C type `double'
+    doesn't give enough precision for your application, declare your
+    variables as `mpf_t' instead, set the precision to any number desired,
+    and call the functions in the mpf class for the arithmetic operations.
+
+ 4. Positive-integer, hard-to-use, very low overhead functions are in the
+    mpn_* class.  No memory management is performed.  The caller must ensure
+    enough space is available for the results.  The set of functions is not
+    regular, nor is the calling interface.  These functions accept input
+    arguments in the form of pairs consisting of a pointer to the least
+    significant word, and a integral size telling how many limbs (= words)
+    the pointer points to.
+
+    Almost all calculations, in the entire package, are made by calling these
+    low-level functions.
+
+ 5. Berkeley MP compatible functions.
+
+    To use these functions, include the file "mp.h".  You can test if you are
+    using the GNU version by testing if the symbol __GNU_MP__ is defined.
+
+For more information on how to use GNU MP, please refer to the documentation.
+It is composed from the file gmp.texi, and can be displayed on the screen or
+printed.  How to do that, as well how to build the library, is described in
+the INSTALL file in this directory.
+
+
+			REPORTING BUGS
+
+If you find a bug in the library, please make sure to tell us about it!
+
+Report bugs and propose modifications and enhancements to
+bug-gmp@prep.ai.mit.edu.  What information is needed in a good bug report is
+described in the manual.

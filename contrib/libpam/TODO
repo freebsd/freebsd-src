@@ -1,0 +1,59 @@
+$Id: TODO,v 1.10 1997/02/15 19:30:51 morgan Exp morgan $
+
+Here are some things to think about if you are interested in
+contributing to the Linux-PAM effort.
+
+1. If you have a suggestion mail the pam-list!
+
+2. TODO:		Comments
+   -----		--------
+
+ [modules]
+
+pam_time		should log an error if it denies access.
+
+pam_smartcard??  	It has already started to happen. (Alex Yuriev has a
+			smart-card module...)
+
+pam_floppy??		A alternative login mechanism might involve
+			authenticating with a personal specially
+			formatted floppy!? (got to make some use of
+			all those strange Linux incompatible floppies
+			I keep getting from ISPs ;^)
+
+pam_???			If you are interested in another type of
+			authentication method--just make a module!
+			If you want it registered/some help, email the
+			list.
+
+ [misc]
+
+SVGA & X-conv		Currently, libpam-misc contains a text-only
+			conversation function. A graphical one,
+			for X or SVGA would be very welcome,
+			[Ben Buxton is working on an X one (as of
+			1996/12/1)] applications like xlock
+			etc.. would benefit from this.
+
+
+Issues that need to be resolved:
+--------------------------------
+
+- can we support the use_mapped_pass flag without running into problems
+  with ITAR rules? [this problem is likely to mutate. The DCE-RFC
+  people are considering the addition of a mapping module type - one
+  that other modules can use to safely store passwords...]
+
+  - anyone know where someone to email for FREE legal advice/support?
+
+----------- 
+Comments to <pam-list@redhat.com>
+(administrative requests to <pam-list-request@redhat.com> use
+
+   Subject: help
+   <empty_message>
+
+)
+----------- 
+Andrew Morgan <morgan@linux.kernel.org>.
+http://linux.kernel.org/pub/linux/libs/pam/index.html
