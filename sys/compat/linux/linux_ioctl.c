@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.36 1999/07/17 08:24:57 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.37 1999/08/13 14:44:13 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -64,10 +64,10 @@ struct linux_termio {
 
 
 struct linux_termios {
-    unsigned long   c_iflag;
-    unsigned long   c_oflag;
-    unsigned long   c_cflag;
-    unsigned long   c_lflag;
+    unsigned int    c_iflag;
+    unsigned int    c_oflag;
+    unsigned int    c_cflag;
+    unsigned int    c_lflag;
     unsigned char   c_line;
     unsigned char   c_cc[LINUX_NCCS];
 };
@@ -78,12 +78,16 @@ struct linux_winsize {
 };
 
 static struct speedtab sptab[] = {
-    { 0, 0 }, { 50, 1 }, { 75, 2 }, { 110, 3 },
-    { 134, 4 }, { 135, 4 }, { 150, 5 }, { 200, 6 },
-    { 300, 7 }, { 600, 8 }, { 1200, 9 }, { 1800, 10 },
-    { 2400, 11 }, { 4800, 12 }, { 9600, 13 },
-    { 19200, 14 }, { 38400, 15 }, 
-    { 57600, 4097 }, { 115200, 4098 }, {-1, -1 }
+    { B0, LINUX_B0 }, { B50, LINUX_B50 },
+    { B75, LINUX_B75 }, { B110, LINUX_B110 },
+    { B134, LINUX_B134 }, { B150, LINUX_B150 },
+    { B200, LINUX_B200 }, { B300, LINUX_B300 },
+    { B600, LINUX_B600 }, { B1200, LINUX_B1200 },
+    { B1800, LINUX_B1800 }, { B2400, LINUX_B2400 },
+    { B4800, LINUX_B4800 }, { B9600, LINUX_B9600 },
+    { B19200, LINUX_B19200 }, { B38400, LINUX_B38400 },
+    { B57600, LINUX_B57600 }, { B115200, LINUX_B115200 },
+    {-1, -1 }
 };
 
 struct linux_serial_struct {
@@ -159,9 +163,9 @@ bsd_to_linux_termios(struct termios *bsd_termios,
     if (bsd_termios->c_iflag & ICRNL)
 	linux_termios->c_iflag |= LINUX_ICRNL;
     if (bsd_termios->c_iflag & IXON)
-	linux_termios->c_iflag |= LINUX_IXANY;
-    if (bsd_termios->c_iflag & IXON)
 	linux_termios->c_iflag |= LINUX_IXON;
+    if (bsd_termios->c_iflag & IXANY)
+	linux_termios->c_iflag |= LINUX_IXANY;
     if (bsd_termios->c_iflag & IXOFF)
 	linux_termios->c_iflag |= LINUX_IXOFF;
     if (bsd_termios->c_iflag & IMAXBEL)
@@ -234,7 +238,6 @@ bsd_to_linux_termios(struct termios *bsd_termios,
     linux_termios->c_cc[LINUX_VMIN] = bsd_termios->c_cc[VMIN];
     linux_termios->c_cc[LINUX_VTIME] = bsd_termios->c_cc[VTIME];
     linux_termios->c_cc[LINUX_VEOL2] = bsd_termios->c_cc[VEOL2];
-    linux_termios->c_cc[LINUX_VSWTC] = _POSIX_VDISABLE;
     linux_termios->c_cc[LINUX_VSUSP] = bsd_termios->c_cc[VSUSP];
     linux_termios->c_cc[LINUX_VSTART] = bsd_termios->c_cc[VSTART];
     linux_termios->c_cc[LINUX_VSTOP] = bsd_termios->c_cc[VSTOP];
@@ -297,9 +300,9 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
     if (linux_termios->c_iflag & LINUX_ICRNL)
 	bsd_termios->c_iflag |= ICRNL;
     if (linux_termios->c_iflag & LINUX_IXON)
-	bsd_termios->c_iflag |= IXANY;
-    if (linux_termios->c_iflag & LINUX_IXON)
 	bsd_termios->c_iflag |= IXON;
+    if (linux_termios->c_iflag & LINUX_IXANY)
+	bsd_termios->c_iflag |= IXANY;
     if (linux_termios->c_iflag & LINUX_IXOFF)
 	bsd_termios->c_iflag |= IXOFF;
     if (linux_termios->c_iflag & LINUX_IMAXBEL)
@@ -316,6 +319,8 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
     bsd_termios->c_cflag = (linux_termios->c_cflag & LINUX_CSIZE) << 4;
     if (linux_termios->c_cflag & LINUX_CSTOPB)
 	bsd_termios->c_cflag |= CSTOPB;
+    if (linux_termios->c_cflag & LINUX_CREAD)
+	bsd_termios->c_cflag |= CREAD;
     if (linux_termios->c_cflag & LINUX_PARENB)
 	bsd_termios->c_cflag |= PARENB;
     if (linux_termios->c_cflag & LINUX_PARODD)
@@ -354,7 +359,7 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
 	bsd_termios->c_lflag |= FLUSHO;
     if (linux_termios->c_lflag & LINUX_PENDIN)
 	bsd_termios->c_lflag |= PENDIN;
-    if (linux_termios->c_lflag & IEXTEN)
+    if (linux_termios->c_lflag & LINUX_IEXTEN)
 	bsd_termios->c_lflag |= IEXTEN;
 
     for (i=0; i<NCCS; i++)
@@ -424,7 +429,7 @@ linux_to_bsd_termio(struct linux_termio *linux_termio,
   tmios.c_cflag = linux_termio->c_cflag;
   tmios.c_lflag = linux_termio->c_lflag;
 
-  for (i=0; i<LINUX_NCCS; i++)
+  for (i=LINUX_NCC; i<LINUX_NCCS; i++)
     tmios.c_cc[i] = LINUX_POSIX_VDISABLE;
   memcpy(tmios.c_cc, linux_termio->c_cc, LINUX_NCC);
 
