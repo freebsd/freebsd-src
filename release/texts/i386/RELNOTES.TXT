@@ -57,6 +57,10 @@ The twe(4) driver for 3Ware Escalade controllers has been updated.
 The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
 Privacy (WEP) encryption, settable via ancontrol(8).
 
+The ray(4) driver, which supports the Webgear Aviator wireless network
+cards, has been committed.  The operation of ray(4) interfaces can be
+modified by raycontrol(8).
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -630,6 +634,8 @@ Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
 Cisco Systems Aironet 340 Series (includes 340, 341, and 342 models)
 11Mbps 802.11 wireless NIC
+
+Webgear Aviator 2.4GHz wireless adapters.
 
 Toshiba Mobile HDD MEHDD20A (Type II)
 

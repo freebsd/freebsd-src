@@ -58,6 +58,10 @@ AS1000A to work.
 The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
 Privacy (WEP) encryption, settable via ancontrol(8).
 
+The ray(4) driver, which supports the Webgear Aviator wireless network
+cards, has been committed.  The operation of ray(4) interfaces can be
+modified by raycontrol(8).
+
 
 1.2. SECURITY FIXES
 -------------------
