@@ -81,9 +81,7 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <machine/clock.h>
-#ifndef SMP
 #include <machine/lock.h>
-#endif
 #include <machine/psl.h>
 
 #include <i386/isa/isa_device.h>
