@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 	default:
 		serverargc = argc - NUMARG;
 		if (serverargc > MAXARGV)
-			exit_error("too many augments");
+			exit_error("too many arguments");
 
 		serverpath = malloc(strlen(argv[NUMPRG]));
 		strcpy(serverpath, argv[NUMPRG]);
@@ -201,7 +201,7 @@ main(int argc, char *argv[])
 			strcpy(serverarg[i], argv[i + NUMARG]);
 		}
 		serverarg[i] = NULL;
-		/* fall throuth */
+		/* FALLTHROUGH */
 	case 1:	/* no local service */
 		service = argv[NUMPRT];
 		break;
@@ -278,10 +278,10 @@ main(int argc, char *argv[])
 	snprintf(logname, sizeof(logname), "faithd %s", service);
 	snprintf(procname, sizeof(procname), "accepting port %s", service);
 	openlog(logname, LOG_PID | LOG_NOWAIT, LOG_DAEMON);
-	syslog(LOG_INFO, "Staring faith daemon for %s port", service);
+	syslog(LOG_INFO, "starting faith daemon for %s port", service);
 
 	play_service(s_wld);
-	/*NOTRECHED*/
+	/*NOTREACHED*/
 	exit(1);	/*pacify gcc*/
 }
 
@@ -625,7 +625,7 @@ sig_child(int sig)
 void
 sig_terminate(int sig)
 {
-	syslog(LOG_INFO, "Terminating faith daemon");	
+	syslog(LOG_INFO, "terminating faith daemon");	
 	exit(EXIT_SUCCESS);
 }
 
