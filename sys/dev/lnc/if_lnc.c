@@ -62,7 +62,6 @@
 
 #include "pci.h"
 #include "lnc.h"
-#if NLNC > 0
 
 #include "opt_inet.h"
 
@@ -2020,6 +2019,4 @@ mbuf_dump_chain(struct mbuf * m)
 		}
 	} while ((m = m->m_next) != NULL);
 }
-#endif
-
 #endif

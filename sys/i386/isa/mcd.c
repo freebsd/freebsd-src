@@ -45,7 +45,6 @@
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include "mcd.h"
-#if NMCD > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -1832,5 +1831,3 @@ mcd_resume(int unit)
 		return EINVAL;
 	return mcd_play(unit, &cd->lastpb);
 }
-
-#endif /* NMCD > 0 */

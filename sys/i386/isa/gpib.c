@@ -21,10 +21,6 @@
  */
 /*Please read the README file for usage information*/
 
-#include "gp.h"
-
-#if NGP > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -1160,5 +1156,3 @@ outb(CDOR,95); /*untalk*/
 
 
 }
-
-#endif /* NGPIB > 0 */
