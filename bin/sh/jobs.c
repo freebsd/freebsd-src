@@ -83,7 +83,7 @@ int njobs;			/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 #if JOBS
 struct job *jobmru;		/* most recently used job list */
-int initialpgrp;		/* pgrp of shell on invocation */
+pid_t initialpgrp;		/* pgrp of shell on invocation */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
@@ -95,11 +95,11 @@ STATIC void restartjob(struct job *);
 #endif
 STATIC void freejob(struct job *);
 STATIC struct job *getjob(char *);
-STATIC int dowait(int, struct job *);
+STATIC pid_t dowait(int, struct job *);
 #if SYSV
 STATIC int onsigchild(void);
 #endif
-STATIC int waitproc(int, int *);
+STATIC pid_t waitproc(int, int *);
 STATIC void cmdtxt(union node *);
 STATIC void cmdputs(char *);
 #if JOBS
@@ -196,7 +196,7 @@ int
 fgcmd(int argc __unused, char **argv)
 {
 	struct job *jp;
-	int pgrp;
+	pid_t pgrp;
 	int status;
 
 	jp = getjob(argv[1]);
@@ -315,7 +315,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 #endif
 	for (ps = jp->ps ; ; ps++) {	/* for each process */
 		if (sformat) {
-			out1fmt("%d\n", ps->pid);
+			out1fmt("%d\n", (int)ps->pid);
 			goto skip;
 		}
 		if (!lformat && ps != jp->ps && pid == 0)
@@ -335,7 +335,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 		out1str(s);
 		col = strlen(s);
 		if (lformat) {
-			fmtstr(s, 64, "%d ", ps->pid);
+			fmtstr(s, 64, "%d ", (int)ps->pid);
 			out1str(s);
 			col += strlen(s);
 		}
@@ -500,7 +500,7 @@ jobidcmd(int argc __unused, char **argv)
 
 	jp = getjob(argv[1]);
 	for (i = 0 ; i < jp->nprocs ; ) {
-		out1fmt("%d", jp->ps[i].pid);
+		out1fmt("%d", (int)jp->ps[i].pid);
 		out1c(++i < jp->nprocs? ' ' : '\n');
 	}
 	return 0;
@@ -517,7 +517,7 @@ getjob(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
-	int pid;
+	pid_t pid;
 	int i;
 
 	if (name == NULL) {
@@ -571,7 +571,7 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return found;
 		}
 	} else if (is_number(name)) {
-		pid = number(name);
+		pid = (pid_t)number(name);
 		for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 			if (jp->used && jp->nprocs > 0
 			 && jp->ps[jp->nprocs - 1].pid == pid)
@@ -726,11 +726,11 @@ getcurjob(struct job *nj)
  * in a pipeline).
  */
 
-int
+pid_t
 forkshell(struct job *jp, union node *n, int mode)
 {
-	int pid;
-	int pgrp;
+	pid_t pid;
+	pid_t pgrp;
 
 	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
 	    mode));
@@ -746,7 +746,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		int wasroot;
 		int i;
 
-		TRACE(("Child shell %d\n", getpid()));
+		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
 		rootshell = 0;
 		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
@@ -822,7 +822,7 @@ forkshell(struct job *jp, union node *n, int mode)
 #endif
 	}
 	INTON;
-	TRACE(("In parent shell:  child = %d\n", pid));
+	TRACE(("In parent shell:  child = %d\n", (int)pid));
 	return pid;
 }
 
@@ -851,7 +851,7 @@ int
 waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
-	int mypgrp = getpgrp();
+	pid_t mypgrp = getpgrp();
 #endif
 	int status;
 	int st;
@@ -899,10 +899,10 @@ waitforjob(struct job *jp, int *origstatus)
  * Wait for a process to terminate.
  */
 
-STATIC int
+STATIC pid_t
 dowait(int block, struct job *job)
 {
-	int pid;
+	pid_t pid;
 	int status;
 	struct procstat *sp;
 	struct job *jp;
@@ -916,7 +916,7 @@ dowait(int block, struct job *job)
 	TRACE(("dowait(%d) called\n", block));
 	do {
 		pid = waitproc(block, &status);
-		TRACE(("wait returns %d, status=%d\n", pid, status));
+		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
 	    (WIFSTOPPED(status) && !iflag));
 	in_dowait--;
@@ -937,7 +937,8 @@ dowait(int block, struct job *job)
 					continue;
 				if (sp->pid == pid) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
-						   pid, sp->status, status));
+						   (int)pid, sp->status,
+						   status));
 					sp->status = status;
 					thisjob = jp;
 				}
@@ -1038,7 +1039,7 @@ STATIC int onsigchild() {
 #endif
 
 
-STATIC int
+STATIC pid_t
 waitproc(int block, int *status)
 {
 #ifdef BSD
