@@ -119,6 +119,7 @@ SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL)
 
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
+MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
 #define CDEV_MAJOR	165
 
@@ -580,7 +581,7 @@ if_clone_create(name, len)
 {
 	struct if_clone *ifc;
 	char *dp;
-	int wildcard;
+	int wildcard, bytoff, bitoff;
 	int unit;
 	int err;
 
@@ -591,11 +592,40 @@ if_clone_create(name, len)
 	if (ifunit(name) != NULL)
 		return (EEXIST);
 
+	bytoff = bitoff = 0;
 	wildcard = (unit < 0);
+	/*
+	 * Find a free unit if none was given.
+	 */ 
+	if (wildcard) {
+		while ((bytoff < ifc->ifc_bmlen)
+		    && (ifc->ifc_units[bytoff] == 0xff))
+			bytoff++;
+		if (bytoff >= ifc->ifc_bmlen)
+			return (ENOSPC);
+		while ((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0)
+			bitoff++;
+		unit = (bytoff << 3) + bitoff;
+	}
 
-	err = (*ifc->ifc_create)(ifc, &unit);
+	if (unit > ifc->ifc_maxunit)
+		return (ENXIO);
+
+	err = (*ifc->ifc_create)(ifc, unit);
 	if (err != 0)
 		return (err);
+
+	if (!wildcard) {
+		bytoff = unit >> 3;
+		bitoff = unit - (bytoff << 3);
+	}
+
+	/*
+	 * Allocate the unit in the bitmap.
+	 */
+	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) == 0,
+	    ("%s: bit is already set", __func__));
+	ifc->ifc_units[bytoff] |= (1 << bitoff);
 
 	/* In the wildcard case, we need to update the name. */
 	if (wildcard) {
@@ -624,8 +654,10 @@ if_clone_destroy(name)
 {
 	struct if_clone *ifc;
 	struct ifnet *ifp;
+	int bytoff, bitoff;
+	int err, unit;
 
-	ifc = if_clone_lookup(name, NULL);
+	ifc = if_clone_lookup(name, &unit);
 	if (ifc == NULL)
 		return (EINVAL);
 
@@ -636,7 +668,19 @@ if_clone_destroy(name)
 	if (ifc->ifc_destroy == NULL)
 		return (EOPNOTSUPP);
 
-	return ((*ifc->ifc_destroy)(ifp));
+	err = (*ifc->ifc_destroy)(ifp);
+	if (err != 0)
+		return (err);
+
+	/*
+	 * Compute offset in the bitmap and deallocate the unit.
+	 */
+	bytoff = unit >> 3;
+	bitoff = unit - (bytoff << 3);
+	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0,
+	    ("%s: bit is already cleared", __func__));
+	ifc->ifc_units[bytoff] &= ~(1 << bitoff);
+	return (0);
 }
 
 /*
@@ -689,7 +733,17 @@ void
 if_clone_attach(ifc)
 	struct if_clone *ifc;
 {
+	int len, maxclone;
 
+	/*
+	 * Compute bitmap size and allocate it.
+	 */
+	maxclone = ifc->ifc_maxunit + 1;
+	len = maxclone >> 3;
+	if ((len << 3) < maxclone)
+		len++;
+	ifc->ifc_units = malloc(len, M_CLONE, M_WAITOK | M_ZERO);
+	ifc->ifc_bmlen = len;
 	LIST_INSERT_HEAD(&if_cloners, ifc, ifc_list);
 	if_cloners_count++;
 }
@@ -703,6 +757,7 @@ if_clone_detach(ifc)
 {
 
 	LIST_REMOVE(ifc, ifc_list);
+	free(ifc->ifc_units, M_CLONE);
 	if_cloners_count--;
 }
 
