@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.4 1994/10/02 17:48:45 phk Exp $
+ * $Id: udp_usrreq.c,v 1.5 1995/02/16 00:27:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -265,7 +265,6 @@ udp_input(m, iphlen)
 			goto bad;
 		}
 		*ip = save_ip;
-		ip->ip_len += iphlen;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
