@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.74 1997/06/27 19:38:42 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.75 1997/08/13 17:02:28 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -88,8 +88,7 @@ poll_for_work:
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting;
 test_queue:
 	/* Has the driver posted any work for us? */
-	mov	A, QCNTMASK;
-	test	QINCNT,A	jz poll_for_work;
+	test	QINCNT,QCNTMASK	jz poll_for_work;
 
 /*
  * We have at least one queued SCB now and we don't have any 
@@ -567,7 +566,6 @@ p_mesgout_done:
  */
 p_mesgin:
 	mvi	ACCUM		call inb_first;	/* read the 1st message byte */
-	mov	REJBYTE,A;			/* save it for the driver */
 
 	test	A,MSG_IDENTIFYFLAG	jnz mesgin_identify;
 	cmp	A,MSG_DISCONNECT	je mesgin_disconnect;
@@ -648,8 +646,7 @@ complete:
 	 * Spin loop until there is space
 	 * in the QOUTFIFO.
 	 */
-	mov	A, FIFODEPTH;
-	cmp	CMDOUTCNT, A	je .;
+	cmp	CMDOUTCNT, FIFODEPTH	je .;
 	inc	CMDOUTCNT;
 .endif
 	mov	QOUTFIFO,SCB_TAG;
@@ -802,8 +799,7 @@ get_tag:
  * the complement of SCBCOUNT to the incomming tag and there is
  * no carry.
  */
-	mov	A,COMP_SCBCOUNT;
-	add	SINDEX,A,ARG_1;
+	add	SINDEX,COMP_SCBCOUNT,ARG_1;
 	jc	not_found;
 
 .if ! ( SCB_PAGING )
@@ -976,8 +972,7 @@ findSCB:
 	test	SCB_CONTROL,DISCONNECTED jnz foundSCB;/*should be disconnected*/
 findSCB_loop:
 	inc	SINDEX;
-	mov	A,SCBCOUNT;
-	cmp	SINDEX,A	jne findSCB;
+	cmp	SINDEX,SCBCOUNT	jne findSCB;
 /*
  * We didn't find it.  If we're paging, pull an SCB and DMA down the
  * one we want.  If we aren't paging or the SCB we dma down has the
