@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.202 1996/01/11 20:28:40 phk Exp $
+#	$Id: Makefile,v 1.203 1996/01/13 23:31:44 phk Exp $
 #
 # How to roll a release:
 #
@@ -12,7 +12,7 @@
 #
 # SET THIS !!!
 BUILDNAME=2.2-current
-# CHROOTDIR=/a/r2
+# CHROOTDIR=/a/r1
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_1_0
 
@@ -113,7 +113,6 @@ rerelease release:
 	echo "rm -f obj/release.4"		>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
-	cp ${.CURDIR}/Makefile ${CHROOTDIR}/usr/src/release
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
@@ -349,22 +348,22 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 	# make the small bootfd
-	sh ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.4
 	mv fs-image.size fs-image.4.size
 	# add more stuff for the complete bootfd
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	sh ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
-	rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
+	#rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
-	rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
+	#rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	touch release.8
 
 #
@@ -406,8 +405,8 @@ release.10:
 		sh MAKEDEV all )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	sh ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
-		1024 ${FDLABEL}
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
+		10000 ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 	touch release.10
 
@@ -558,8 +557,8 @@ doMFSKERN:
 	mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	ls -l ${RD}/boot.${FSIMAGE}/kernel
 	rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	sh ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
-		${FDINODE} ${FDLABEL}
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
+		100000 ${FDLABEL}
 	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
