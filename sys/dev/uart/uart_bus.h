@@ -80,6 +80,7 @@
 #define	UART_IOCTL_BREAK	1
 #define	UART_IOCTL_IFLOW	2
 #define	UART_IOCTL_OFLOW	3
+#define	UART_IOCTL_BAUD		4
 
 /*
  * UART class & instance (=softc)
