@@ -493,7 +493,7 @@ playstring(cp, slen)
 static int spkr_active = FALSE; /* exclusion flag */
 static char *spkr_inbuf;  /* incoming buf */
 
-int
+static int
 spkropen(dev, flags, fmt, td)
 	dev_t		dev;
 	int		flags;
@@ -520,7 +520,7 @@ spkropen(dev, flags, fmt, td)
     }
 }
 
-int
+static int
 spkrwrite(dev, uio, ioflag)
 	dev_t		dev;
 	struct uio	*uio;
@@ -552,7 +552,7 @@ spkrwrite(dev, uio, ioflag)
     }
 }
 
-int
+static int
 spkrclose(dev, flags, fmt, td)
 	dev_t		dev;
 	int		flags;
@@ -575,7 +575,7 @@ spkrclose(dev, flags, fmt, td)
     }
 }
 
-int
+static int
 spkrioctl(dev, cmd, cmdarg, flags, td)
 	dev_t		dev;
 	unsigned long	cmd;
