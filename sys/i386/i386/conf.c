@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.109 1995/12/05 19:36:47 bde Exp $
+ *	$Id: conf.c,v 1.110 1995/12/05 20:33:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <sys/vnode.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
+
+#include <vm/vm.h>
 
 #ifdef JREMOD
 
