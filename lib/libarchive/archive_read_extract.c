@@ -74,6 +74,14 @@ struct extract {
 	struct fixup_entry	*fixup_list;
 };
 
+/* Default mode for dirs created automatically. */
+#define DEFAULT_DIR_MODE 0755
+/*
+ * Mode to use for newly-created dirs during extraction; the correct
+ * mode will be set at the end of the extraction.
+ */
+#define SECURE_DIR_MODE 0700
+
 static void	archive_extract_cleanup(struct archive *);
 static int	archive_read_extract_block_device(struct archive *,
 		    struct archive_entry *, int);
@@ -83,23 +91,19 @@ static int	archive_read_extract_device(struct archive *,
 		    struct archive_entry *, int flags, mode_t mode);
 static int	archive_read_extract_dir(struct archive *,
 		    struct archive_entry *, int);
-static int	archive_read_extract_dir_create(struct archive *,
-		    const char *name, int mode, int flags);
 static int	archive_read_extract_fifo(struct archive *,
 		    struct archive_entry *, int);
 static int	archive_read_extract_hard_link(struct archive *,
 		    struct archive_entry *, int);
 static int	archive_read_extract_regular(struct archive *,
 		    struct archive_entry *, int);
-static int	archive_read_extract_regular_open(struct archive *,
-		    const char *name, int mode, int flags);
 static int	archive_read_extract_symbolic_link(struct archive *,
 		    struct archive_entry *, int);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
 static int	mkdirpath(struct archive *, const char *);
-static int	mkdirpath_recursive(char *path);
-static int	mksubdir(char *path);
+static int	mkdirpath_recursive(struct archive *, char *,
+		    const struct stat *, mode_t, int);
 #ifdef HAVE_POSIX_ACL
 static int	set_acl(struct archive *, struct archive_entry *,
 		    acl_type_t, int archive_entry_acl_type, const char *tn);
@@ -318,34 +322,13 @@ static int
 archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
     int flags)
 {
+	const char *name;
+	mode_t mode;
 	int fd, r;
 
+	name = archive_entry_pathname(entry);
+	mode = archive_entry_mode(entry);
 	r = ARCHIVE_OK;
-	fd = archive_read_extract_regular_open(a,
-	    archive_entry_pathname(entry), archive_entry_mode(entry), flags);
-	if (fd < 0) {
-		archive_set_error(a, errno, "Can't open");
-		return (ARCHIVE_WARN);
-	}
-	r = archive_read_data_into_fd(a, fd);
-	set_ownership(a, entry, flags);
-	set_time(a, entry, flags);
-	/* Always restore permissions for regular files. */
-	set_perm(a, entry, archive_entry_mode(entry),
-	    flags | ARCHIVE_EXTRACT_PERM);
-	set_extended_perm(a, entry, flags);
-	close(fd);
-	return (r);
-}
-
-/*
- * Keep trying until we either open the file or run out of tricks.
- */
-static int
-archive_read_extract_regular_open(struct archive *a,
-    const char *name, int mode, int flags)
-{
-	int fd;
 
 	/*
 	 * If we're not supposed to overwrite pre-existing files,
@@ -355,24 +338,31 @@ archive_read_extract_regular_open(struct archive *a,
 		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
 	else
 		fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, mode);
-	if (fd >= 0)
-		return (fd);
 
 	/* Try removing a pre-existing file. */
-	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
+	if (fd < 0 && !(flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		unlink(name);
 		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
-		if (fd >= 0)
-			return (fd);
 	}
 
 	/* Might be a non-existent parent dir; try fixing that. */
-	mkdirpath(a, name);
-	fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
-	if (fd >= 0)
-		return (fd);
-
-	return (-1);
+	if (fd < 0) {
+		mkdirpath(a, name);
+		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
+	}
+	if (fd < 0) {
+		archive_set_error(a, errno, "Can't open '%s'", name);
+		return (ARCHIVE_WARN);
+	}
+	r = archive_read_data_into_fd(a, fd);
+	set_ownership(a, entry, flags);
+	set_time(a, entry, flags);
+	/* Always reset permissions for regular files. */
+	set_perm(a, entry, archive_entry_mode(entry),
+	    flags | ARCHIVE_EXTRACT_PERM);
+	set_extended_perm(a, entry, flags);
+	close(fd);
+	return (r);
 }
 
 static int
@@ -380,33 +370,90 @@ archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
     int flags)
 {
 	struct extract *extract;
-	struct fixup_entry *le;
 	const struct stat *st;
-	mode_t mode, writable_mode;
+	char *p;
 	int ret, ret2;
+	size_t len;
 
 	extract = a->extract;
 	st = archive_entry_stat(entry);
-	mode = st->st_mode;
 
-	/*
-	 * Use conservative permissions when creating directories
-	 * to close a few security races.
-	 */
-	writable_mode = 0700;
+	/* Copy path to mutable storage. */
+	archive_strcpy(&(extract->mkdirpath), archive_entry_pathname(entry));
+	p = extract->mkdirpath.s;
+	len = strlen(p);
+	if (len > 2 && p[len - 1] == '.' && p[len - 2] == '/')
+		p[--len] = '\0'; /* Remove trailing "/." */
+	if (len > 2 && p[len - 1] == '/')
+		p[--len] = '\0'; /* Remove trailing "/" */
+	/* Recursively try to build the path. */
+	if (mkdirpath_recursive(a, p, st, st->st_mode, flags))
+		return (ARCHIVE_WARN);
+	set_ownership(a, entry, flags);
+	ret = set_perm(a, entry, 0700, flags);
+	ret2 = set_extended_perm(a, entry, flags);
+	return (err_combine(ret, ret2));
+}
 
-	if (mode != writable_mode || flags & ARCHIVE_EXTRACT_TIME) {
+
+/*
+ * Convenience form.
+ */
+static int
+mkdirpath(struct archive *a, const char *path)
+{
+	struct extract *extract;
+	char *p;
+
+	extract = a->extract;
+
+	/* Copy path to mutable storage. */
+	archive_strcpy(&(extract->mkdirpath), path);
+	p = extract->mkdirpath.s;
+	p = strrchr(extract->mkdirpath.s, '/');
+	if (p == NULL)
+		return (ARCHIVE_OK);
+	*p = '\0';
+
+	/* Recursively try to build the path. */
+	if (mkdirpath_recursive(a, p, NULL, DEFAULT_DIR_MODE, 0))
+		return (ARCHIVE_WARN);
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Returns 0 if it successfully created necessary directories.
+ * Otherwise, returns ARCHIVE_WARN.
+ */
+static int
+mkdirpath_recursive(struct archive *a, char *path, const struct stat *st,
+    mode_t mode, int flags)
+{
+	struct stat sb;
+	struct extract *extract;
+	struct fixup_entry *le;
+	char *p;
+	mode_t writable_mode = SECURE_DIR_MODE;
+	int r;
+
+	extract = a->extract;
+
+	if (path[0] == '.' && path[1] == 0)
+		return (ARCHIVE_OK);
+
+	if (mode != writable_mode ||
+	    (st != NULL && (flags & ARCHIVE_EXTRACT_TIME))) {
 		/* Add this dir to the fixup list. */
 		le = malloc(sizeof(struct fixup_entry));
 		le->fixup = 0;
 		le->next = extract->fixup_list;
 		extract->fixup_list = le;
-		le->name = strdup(archive_entry_pathname(entry));
+		le->name = strdup(path);
 
 		if (mode != writable_mode) {
 			le->mode = mode;
 			le->fixup |= FIXUP_MODE;
-			archive_entry_set_mode(entry, writable_mode);
+			mode = writable_mode;
 		}
 		if (flags & ARCHIVE_EXTRACT_TIME) {
 			le->mtime = st->st_mtime;
@@ -417,54 +464,8 @@ archive_read_extract_dir(struct archive *a, struct archive_entry *entry,
 		}
 	}
 
-	if (archive_read_extract_dir_create(a, archive_entry_pathname(entry),
-		writable_mode, flags)) {
-		/* Unable to create directory; just use the existing dir. */
-		return (ARCHIVE_WARN);
-	}
-
-	set_ownership(a, entry, flags);
-	/*
-	 * There is no point in setting the time here.
-	 *
-	 * Note that future extracts into this directory will reset
-	 * the times, so to get correct results, the client has to
-	 * track timestamps for directories and update them at the end
-	 * of the run anyway.
-	 */
-	/* set_time(t, flags); */
-
-	/*
-	 * This next line may appear redundant, but it's not.  If the
-	 * directory already exists, it won't get re-created by
-	 * mkdir(), so we have to manually set permissions to get
-	 * everything right.
-	 */
-	ret = set_perm(a, entry, mode, flags);
-	ret2 = set_extended_perm(a, entry, flags);
-
-	/* XXXX TODO: Fix this to work the right way. XXXX */
-	if (ret == ARCHIVE_OK)
-		return (ret2);
-	else
-		return (ret);
-}
-
-/*
- * Create the directory: try until something works or we run out of magic.
- */
-static int
-archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
-    int flags)
-{
-	struct stat st;
-
-	/* Don't try to create '.' */
-	if (name[0] == '.' && name[1] == 0)
+	if (mkdir(path, mode) == 0)
 		return (ARCHIVE_OK);
-	if (mkdir(name, mode) == 0)
-		return (ARCHIVE_OK);
-
 	/*
 	 * Do "unlink first" after.  The preceding syscall will always
 	 * fail if something already exists, so we save a little time
@@ -472,50 +473,44 @@ archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
 	 * something is there.
 	 */
 	if ((flags & ARCHIVE_EXTRACT_UNLINK))
-		unlink(name);
-
+		unlink(path);
 	/*
-	 * Note stat() and not lstat() here.  This is deliberate, and
-	 * yes, it does permit trojan archives.  Clients who don't
-	 * want this should specify ARCHIVE_EXTRACT_UNLINK so that
-	 * existing symlinks will be removed.
+	 * Yes, this should be stat() and not lstat().  Using lstat()
+	 * here loses the ability to extract through symlinks.  If
+	 * clients don't want to extract through symlinks, they should
+	 * specify ARCHIVE_EXTRACT_UNLINK.
 	 */
-	if (stat(name, &st) == 0) {
+	if (stat(path, &sb) == 0) {
 		/* Already exists! */
-		if (S_ISDIR(st.st_mode))
+		if (S_ISDIR(sb.st_mode))
 			return (ARCHIVE_OK);
 		if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
-			archive_set_error(a, EEXIST, "Can't create directory");
+			archive_set_error(a, EEXIST,
+			    "Can't create directory '%s'", path);
 			return (ARCHIVE_WARN);
 		}
 		/* Not a dir: remove it and create a directory. */
-		if (unlink(name) == 0 &&
-		    mkdir(name, mode) == 0)
+		if (unlink(path) == 0 &&
+		    mkdir(path, mode) == 0)
 			return (ARCHIVE_OK);
-	} else if (errno == ENOENT) {
-		/* Doesn't exist: missing parent dir? */
-		mkdirpath(a, name);
-		if (mkdir(name, mode) == 0)
-			return (ARCHIVE_OK);
-		/*
-		 * Yes, people really do type "tar -cf - foo/." for
-		 * reasons that I cannot fathom.  When they do, the
-		 * dir "foo" gets created in mkdirpath() and the
-		 * mkdir("foo/.") just above still fails.  So, I've
-		 * added yet another check here to catch this
-		 * particular case.
-		 *
-		 * There must be a better way ...
-		 */
-		if (stat(name, &st) == 0  &&  S_ISDIR(st.st_mode))
-			return (ARCHIVE_OK);
-	} else {
+	} else if (errno != ENOENT) {
 		/* Stat failed? */
-		archive_set_error(a, errno, "Can't test directory");
+		archive_set_error(a, errno, "Can't test directory '%s'", path);
 		return (ARCHIVE_WARN);
 	}
 
-	archive_set_error(a, errno, "Failed to create dir");
+	/* Doesn't exist: try creating parent dir. */
+	p = strrchr(path, '/');
+	if (p != NULL) {
+		*p = '\0';	/* Terminate path name. */
+		r = mkdirpath_recursive(a, path, NULL, DEFAULT_DIR_MODE, 0);
+		*p = '/';	/* Restore the '/' we just overwrote. */
+		if (r != ARCHIVE_OK)
+			return (r);
+		if (mkdir(path, mode) == 0)
+			return (ARCHIVE_OK);
+	}
+	archive_set_error(a, errno, "Failed to create dir '%s'", path);
 	return (ARCHIVE_WARN);
 }
 
@@ -687,81 +682,6 @@ archive_read_extract_fifo(struct archive *a,
 }
 
 /*
- * Returns 0 if it successfully created necessary directories.
- * Otherwise, returns ARCHIVE_WARN.
- *
- * XXX TODO: Merge this with archive_extract_dir() above; that will
- * allow us to deal with all directory-related security and
- * permissions issues in one place. XXX
- */
-static int
-mkdirpath(struct archive *a, const char *path)
-{
-	char *p;
-	struct extract *extract;
-	size_t len;
-
-	extract = a->extract;
-
-	/* Copy path to mutable storage, then call mkdirpath_recursive. */
-	archive_strcpy(&(extract->mkdirpath), path);
-	p = extract->mkdirpath.s;
-	len = strlen(p);
-	/* Prune trailing "/." sequence. */
-	if (len > 2 && p[len - 1] == '.' && p[len - 2] == '/') {
-		p[len - 1] = 0;
-		len--;
-	}
-	/* Prune a trailing '/' character. */
-	if (p[len - 1] == '/') {
-		p[len - 1] = 0;
-		len--;
-	}
-	/* Recursively try to build the path. */
-	return (mkdirpath_recursive(p));
-}
-
-/*
- * For efficiency, just try creating longest path first (usually,
- * archives walk through directories in a reasonable order).  If that
- * fails, prune the last element and recursively try again.
- */
-static int
-mkdirpath_recursive(char *path)
-{
-	char * p;
-	int r;
-
-	p = strrchr(path, '/');
-	if (!p) return (0);
-
-	*p = 0;			/* Terminate path name. */
-	r = mksubdir(path);	/* Try building path. */
-	*p = '/';		/* Restore the '/' we just overwrote. */
-	return (r);
-}
-
-static int
-mksubdir(char *path)
-{
-	/*
-	 * TODO: Change mode here to 0700 and add a fixup entry
-	 * to change the mode to 0755 after the extract is finished.
-	 */
-	int mode = 0755;
-
-	if (mkdir(path, mode) == 0) return (0);
-
-	if (errno == EEXIST) /* TODO: stat() here to verify it is dir */
-		return (0);
-	if (mkdirpath_recursive(path))
-		return (ARCHIVE_WARN);
-	if (mkdir(path, mode) == 0)
-		return (0);
-	return (ARCHIVE_WARN); /* Still failed.  Harumph. */
-}
-
-/*
  * Returns 0 if UID/GID successfully restored; ARCHIVE_WARN otherwise.
  */
 static int
@@ -769,15 +689,6 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 {
 	uid_t uid;
 	gid_t gid;
-
-	/* If UID/GID are already correct, return 0. */
-	/* XXX TODO: Fix this; as written, this fails to set GID a lot.
-	 * Generally, we'll need to stat() to find on-disk GID <sigh> before
-	 * deciding this. */
-/*
-	if (a->user_uid == archive_entry_stat(entry)->st_uid)
-		return (0);
-*/
 
 	/* Not changed. */
 	if ((flags & ARCHIVE_EXTRACT_OWNER) == 0)
