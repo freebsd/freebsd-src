@@ -305,6 +305,7 @@ stage1()
 			dialog_msgbox(TITLE, "This is an experimental disklabel configuration\nmenu. It doesn't perform any validation of the entries\nas yet so BE SURE YOU TYPE THINGS CORRECTLY.\n\n    Hit escape to quit the editor.\n\nThere may be some delay exiting because of a dialog bug", 20,70,1);
 			dialog_clear();
 			edit_disklabel(&avail_disklabels[inst_disk]);
+
 			build_disklabel(&avail_disklabels[inst_disk]);
 			if (build_bootblocks(&avail_disklabels[inst_disk]) == -1)
 				Fatal(errmsg);

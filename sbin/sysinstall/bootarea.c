@@ -54,11 +54,11 @@ disable_label(int fd)
 int
 write_bootblocks(int fd, off_t offset, int bbsize)
 {
-	if (ioctl(fd, DIOCSDINFO, &avail_disklabels[inst_disk]) < 0 &&
-	    errno != ENODEV && errno != ENOTTY) {
-		sprintf(errmsg, "Failed to change in-core disklabel\n");
+	if (ioctl(fd, DIOCWDINFO, &avail_disklabels[inst_disk]) < 0) {
+		Fatal("Failed to write disklabel: %s\n", strerror(errno));
 		return(-1);
 	}
+	return(0);
 
 	if (lseek(fd, (offset * avail_disklabels[inst_disk].d_secsize), SEEK_SET) < 0) {
 		sprintf(errmsg, "Couldn't seek to start of partition\n");
@@ -69,7 +69,10 @@ write_bootblocks(int fd, off_t offset, int bbsize)
 		return(-1);
 
 	if (write(fd, bootblocks, bbsize) != bbsize) {
-		sprintf(errmsg, "Failed to write bootblocks\n");
+		sprintf(errmsg, "Failed to write bootblocks (%p) %d %s\n",
+			bootblocks,
+			errno, strerror(errno)
+			);
 		return(-1);
 	}
 

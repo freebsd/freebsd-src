@@ -17,9 +17,6 @@
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
 
-#define BOOT1 "/stand/sdboot"
-#define BOOT2 "/stand/bootsd"
-
 #define MAXFS	25
 
 #define MAX_NO_DISKS 10
@@ -45,6 +42,7 @@ EXTERN char *devicename[MAXFS+1];
 EXTERN char *mountpoint[MAXFS+1];
 EXTERN int dialog_active;
 EXTERN char selection[];
+EXTERN int debug_fd;
 
 extern unsigned char **avail_disknames;
 extern int no_disks;
@@ -57,9 +55,10 @@ extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
-void Abort __P((void));
-void ExitSysinstall __P((void));
+void	Abort __P((void));
+void	ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
+void	Debug __P((char *fmt, ...));
 void	stage0	__P((void));
 void	*Malloc __P((size_t size));
 char	*StrAlloc __P((char *str));

@@ -418,13 +418,22 @@ build_disklabel(struct disklabel *lbl)
 			nsects = Mbtosects(atoi(label_fields[i][UPARTSIZES].field),
 								 lbl->d_secsize);
 			nsects = rndtocylbdry(nsects, lbl->d_secpercyl);
-			offset = rndtocylbdry(offset, lbl->d_secpercyl);
-			lbl->d_partitions[i].p_size = nsects;
-			lbl->d_partitions[i].p_offset = offset;
-			offset += nsects;
-			total_sects += nsects;
-			lbl->d_partitions[i].p_fstype = 
-				getfstype(label_fields[i][FSTYPE].field);
+			if(nsects) {
+				offset = rndtocylbdry(offset, lbl->d_secpercyl);
+				lbl->d_partitions[i].p_size = nsects;
+				lbl->d_partitions[i].p_offset = offset;
+				Debug("Part%d: %d sects, %d offset, %d end",
+					i,nsects,offset,nsects+offset);
+				offset += nsects;
+				total_sects += nsects;
+				lbl->d_partitions[i].p_fstype = 
+					getfstype(label_fields[i][FSTYPE].field);
+				lbl->d_npartitions = i+1;
+			} else {
+				lbl->d_partitions[i].p_size = 0;
+				lbl->d_partitions[i].p_offset = 0;
+				lbl->d_partitions[i].p_fstype = 0;
+			}
 		}
 	}
 }

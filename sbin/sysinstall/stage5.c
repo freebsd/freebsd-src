@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.4 1994/10/21 02:14:52 phk Exp $
+ * $Id: stage5.c,v 1.2 1994/10/26 05:41:02 phk Exp $
  *
  */
 
@@ -29,6 +29,7 @@ stage5()
 {
 	end_dialog();
 	dialog_active=0;
+	setenv("PATH","/stand",1);
 	for(;;)
 		exec (2,"/stand/sh","/stand/-sh", 0);
 }

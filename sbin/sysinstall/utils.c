@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.11 1994/10/24 03:55:25 ache Exp $
+ * $Id: utils.c,v 1.12 1994/10/26 02:53:15 phk Exp $
  *
  */
 
@@ -29,6 +29,21 @@
 #include "sysinstall.h"
 
 void
+Debug(char *fmt, ...)
+{
+	char *p;
+	va_list ap;
+	p = Malloc(2048);
+	va_start(ap,fmt);
+	vsnprintf(p, 2048, fmt, ap);
+	va_end(ap);
+	write(debug_fd,"Debug <",7);
+	write(debug_fd,p,strlen(p));
+	write(debug_fd,">\n\r",3);
+	free(p);
+}
+
+void
 TellEm(char *fmt, ...)
 {
 	char *p;
@@ -37,8 +52,10 @@ TellEm(char *fmt, ...)
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
+	write(debug_fd,"Progress <",10);
+	write(debug_fd,p,strlen(p));
+	write(debug_fd,">\n\r",3);
 	dialog_msgbox("Progress", p, 3, 75, 0);
-	dialog_clear();
 	free(p);
 }
 
