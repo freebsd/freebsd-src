@@ -1531,8 +1531,10 @@ ovhiwat:
 		uio->uio_resid += cc;
 		return (uio->uio_resid == cnt ? EWOULDBLOCK : 0);
 	}
-	SET(tp->t_state, TS_ASLEEP);
-	error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
+	if (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) {
+		SET(tp->t_state, TS_ASLEEP);
+		error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
+	}
 	splx(s);
 	if (error)
 		goto out;
