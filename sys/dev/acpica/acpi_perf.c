@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Support for ACPI processor performance states (Px) according to
- * section x of the ACPI specification.
+ * section 8.3.3 of the ACPI 2.0c specification.
  */
 
 struct acpi_px {
@@ -78,6 +78,7 @@ struct acpi_perf_softc {
 	uint32_t	 px_max_avail;	/* Lowest index state available. */
 	int		 px_curr_state;	/* Active state index. */
 	int		 px_rid;
+	int		 info_only;	/* Can we set new states? */
 };
 
 #define PX_GET_REG(reg) 				\
@@ -160,8 +161,8 @@ acpi_perf_probe(device_t dev)
 
 	/*
 	 * Check the performance state registers.  If they are of type
-	 * functional fixed hardware, we don't attach to allow a more
-	 * specific hardware driver to manage this CPU.
+	 * "functional fixed hardware", we attach quietly since we will
+	 * only be providing information on settings to other drivers.
 	 */
 	error = ENXIO;
 	handle = acpi_get_handle(dev);
@@ -170,13 +171,19 @@ acpi_perf_probe(device_t dev)
 	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PCT", NULL, &buf)))
 		return (error);
 	pkg = (ACPI_OBJECT *)buf.Pointer;
-
-	rid = 0;
-	if (ACPI_PKG_VALID(pkg, 2) &&
-	    acpi_PkgGas(dev, pkg, 0, &type, &rid, &res) == 0) {
-		bus_release_resource(dev, type, rid, res);
-		device_set_desc(dev, "ACPI CPU Frequency Control");
-		error = -10;
+	if (ACPI_PKG_VALID(pkg, 2)) {
+		rid = 0;
+		error = acpi_PkgGas(dev, pkg, 0, &type, &rid, &res);
+		switch (error) {
+		case 0:
+			bus_release_resource(dev, type, rid, res);
+			device_set_desc(dev, "ACPI CPU Frequency Control");
+			break;
+		case EOPNOTSUPP:
+			device_quiet(dev);
+			error = 0;
+			break;
+		}
 	}
 	AcpiOsFree(buf.Pointer);
 
@@ -274,7 +281,14 @@ acpi_perf_evaluate(device_t dev)
 	error = acpi_PkgGas(sc->dev, pkg, 0, &sc->perf_ctrl_type, &sc->px_rid,
 	    &sc->perf_ctrl);
 	if (error) {
-		if (error != EOPNOTSUPP)
+		/*
+		 * If the register is of type FFixedHW, we can only return
+		 * info, we can't get or set new settings.
+		 */
+		if (error == EOPNOTSUPP) {
+			sc->info_only = TRUE;
+			error = 0;
+		} else
 			device_printf(dev, "failed in PERF_CTL attach\n");
 		goto out;
 	}
@@ -283,7 +297,10 @@ acpi_perf_evaluate(device_t dev)
 	error = acpi_PkgGas(sc->dev, pkg, 1, &sc->perf_sts_type, &sc->px_rid,
 	    &sc->perf_status);
 	if (error) {
-		if (error != EOPNOTSUPP)
+		if (error == EOPNOTSUPP) {
+			sc->info_only = TRUE;
+			error = 0;
+		} else
 			device_printf(dev, "failed in PERF_STATUS attach\n");
 		goto out;
 	}
@@ -392,6 +409,8 @@ acpi_px_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 		acpi_px_to_set(dev, &sc->px_states[x], &sets[y]);
 	*count = sc->px_count - sc->px_max_avail;
 	*type = CPUFREQ_TYPE_ABSOLUTE;
+	if (sc->info_only)
+		*type |= CPUFREQ_FLAG_INFO_ONLY;
 
 	return (0);
 }
@@ -405,6 +424,10 @@ acpi_px_set(device_t dev, const struct cf_setting *set)
 	if (set == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
+
+	/* If we can't set new states, return immediately. */
+	if (sc->info_only)
+		return (ENXIO);
 
 	/* Look up appropriate state, based on frequency. */
 	for (i = sc->px_max_avail; i < sc->px_count; i++) {
@@ -446,6 +469,10 @@ acpi_px_get(device_t dev, struct cf_setting *set)
 	if (set == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
+
+	/* If we can't get new states, return immediately. */
+	if (sc->info_only)
+		return (ENXIO);
 
 	/* If we've set the rate before, use the cached value. */
 	if (sc->px_curr_state != CPUFREQ_VAL_UNKNOWN) {

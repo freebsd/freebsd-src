@@ -348,13 +348,20 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 
 	/* Get settings from all cpufreq drivers. */
 	for (i = 0; i < numdevs; i++) {
+		/* Skip devices that aren't ready. */
 		if (!device_is_attached(devs[i]))
 			continue;
+
+		/*
+		 * Get settings, skipping drivers that offer no settings or
+		 * provide settings for informational purposes only.
+		 */
 		set_count = MAX_SETTINGS;
 		error = CPUFREQ_DRV_SETTINGS(devs[i], sets, &set_count, &type);
-		if (error || set_count == 0)
+		if (error || set_count == 0 || (type & CPUFREQ_FLAG_INFO_ONLY))
 			continue;
 
+		/* Add the settings to our absolute/relative lists. */
 		switch (type & CPUFREQ_TYPE_MASK) {
 		case CPUFREQ_TYPE_ABSOLUTE:
 			error = cpufreq_insert_abs(sc, sets, set_count);
