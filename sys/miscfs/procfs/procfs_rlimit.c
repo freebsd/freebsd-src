@@ -64,7 +64,6 @@ procfs_dorlimit(curp, p, pfs, uio)
 {
 	char *ps;
 	int i;
-	int xlen;
 	int error;
 	char psbuf[512];		/* XXX - conservative */
 
@@ -109,20 +108,7 @@ procfs_dorlimit(curp, p, pfs, uio)
 		}
 	}
 
-	/*
-	 * This logic is rather tasty - but its from procfs_status.c, so
-	 * I guess I'll use it here.
-	 */
-
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-
+	error = uiomove_frombuf(psbuf, ps - psbuf, uio);
 	return (error);
 }
 
