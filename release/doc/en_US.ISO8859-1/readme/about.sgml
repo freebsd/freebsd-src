@@ -43,13 +43,12 @@ come from the old ABOUT.TXT.
 
   <para>Pointers to more documentation on &os; can be found in the
   <ulink
-  url="http://www.FreeBSD.org/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
-  &amp; Magazines Specific to FreeBSD</ulink> section of the <ulink
-  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.
-  Because of &os;'s strong UNIX heritage, many other documents written
-  for UNIX systems are applicable as well.  A selection of these books
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
+  &amp; Magazines Specific to FreeBSD</ulink> section of the &os; Handbook.
+  Because of &os;'s strong UNIX heritage, many other articles and books written
+  for UNIX systems are applicable as well.  A selection of these documents
   can be found in the Handbook's <ulink
-  url="http://www.FreeBSD.org/handbook/bibliography.html">Bibliography</ulink>.
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">Bibliography</ulink>.
   </para>
 
   <para>If you're new to &os; then you should also read
@@ -64,12 +63,12 @@ come from the old ABOUT.TXT.
 
   <para>On-line
   versions of the <ulink
-  url="http://www.FreeBSD.org/faq/">FAQ (Frequently Asked
-  Questions)</ulink> document and <ulink
-  url="http://www.FreeBSD.org/handbook/">Handbook</ulink> are always
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
+  (Frequently Asked Questions document) and <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> are always
   available from the <ulink
-  url="http://www.FreeBSD.org/">FreeBSD Project Web
-  site</ulink> or its mirrors.
+  url="http://www.FreeBSD.org/docs.html">FreeBSD Documentation
+  page</ulink> or its mirrors.
   If you install the
   <filename>doc</filename> distribution set, you can use a
   Web browser to read the FAQ and Handbook locally.</para>
@@ -89,15 +88,4 @@ come from the old ABOUT.TXT.
     (as well as any sites which keep up-to-date mirrors of this
     location).</para>
   </note>
-
-  <warning>
-
-    <para>While &os; does its best to safeguard against accidental
-    loss of data, it is still more than possible to accidentally <emphasis>erase
-    entire disks</emphasis>
-    with this installation.  Please remember to back up any important
-    data <emphasis>before</emphasis> beginning the &os;
-    installation process.</para>
-
-  </warning>
 </sect1>
