@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.1.2.1 1994/04/10 20:20:25 rgrimes Exp $
+#	$Id: cdinst1.install,v 1.2 1994/04/18 04:25:21 rgrimes Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -966,14 +966,19 @@ case "$resp" in
 n*)
 	;;
 *)
-	echo -n "What is the hostname for this machine? [$hname] "
+	intf=
+	while [ "$intf" = "" ]; do
+		echo -n "What is the primary interface name (i.e. ed0, etc.)? "
+		read intf
+	done
+	echo -n "What is the hostname for this interface? [$hname] "
 	read ifname
 	if [ "$ifname" = "" ]; then
 		ifname=$hname
 	fi
 	ifaddr=
 	while [ "$ifaddr" = "" ]; do
-		echo -n "What is the IP address associated for this machine? "
+		echo -n "What is the IP address associated with this interface? "
 		read ifaddr
 	done
 	echo "$ifaddr    $ifname `echo $ifname | sed -e s/\.$dname//`" \
@@ -984,9 +989,11 @@ n*)
 	case "$resp" in
 	y*)
 		echo -n "What is the netmask? [0xffffff00] "
-		read ifnetmask
-		if [ "$ifnetmask" = "" ]; then
-			ifnetmask=0xffffff00
+		read resp
+		if [ "$resp" = "" ]; then
+			ifnetmask="netmask 0xffffff00
+		else
+			ifnetmask="netmask $resp"
 		fi
 		;;
 	*)
@@ -1008,6 +1015,8 @@ n*)
 		ifflags=
 		;;
 	esac
+
+	echo "inet $ifname $ifnetmask $ifflags" > /mnt/etc/hostname.$intf
 		
 	echo	""
 	echo	"WARNING: you will need to finish the configuration of your"
