@@ -15,6 +15,13 @@ load_rc_config $name
 
 # Setup DEVFS, ie permissions, links etc.
 #
+if [ -c /dev/ttyv0 -a ! -e /dev/vga ];then
+	ln -fs /dev/ttyv0 /dev/vga
+fi
+
+# XXX - in case the user has a customized /etc/rc.devfs we need to keep
+#	pulling it in until we have a better way of doing this in rc.d.
+#
 if [ -r /etc/rc.devfs ]; then
 	sh /etc/rc.devfs
 fi
