@@ -168,6 +168,40 @@ _fetch_info(char *fmt, ...)
 /*** Network-related utility functions ***************************************/
 
 /*
+ * Return the default port for a scheme
+ */
+int
+_fetch_default_port(char *scheme)
+{
+    struct servent *se;
+
+    if ((se = getservbyname(scheme, "tcp")) != NULL)
+	return ntohs(se->s_port);
+    if (strcasecmp(scheme, SCHEME_FTP) == 0)
+	return FTP_DEFAULT_PORT;
+    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+	return HTTP_DEFAULT_PORT;
+    return 0;
+}
+
+/*
+ * Return the default proxy port for a scheme
+ */
+int
+_fetch_default_proxy_port(char *scheme)
+{
+    struct servent *se;
+
+    if ((se = getservbyname(scheme, "tcp")) != NULL)
+	return ntohs(se->s_port);
+    if (strcasecmp(scheme, SCHEME_FTP) == 0)
+	return FTP_DEFAULT_PROXY_PORT;
+    if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+	return HTTP_DEFAULT_PROXY_PORT;
+    return 0;
+}
+
+/*
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
