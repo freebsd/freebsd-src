@@ -90,7 +90,7 @@
 
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.117 2002/04/25 05:27:07 marka Exp $
+ * $Id: ns_func.h,v 8.120.8.1 2003/06/02 05:19:56 marka Exp $
  */
 
 /* ++from ns_glue.c++ */
@@ -122,7 +122,6 @@ char *			__newstr_record(size_t, int, const char *, int);
 char *			__savestr_record(const char *, int, const char *, int);
 u_char *		ina_put(struct in_addr ina, u_char *data);
 u_char *		savebuf(const u_char *, size_t, int);
-void			dprintf(int level, const char *format, ...) ISC_FORMAT_PRINTF(2, 3);
 #ifdef DEBUG_STRINGS
 char *			debug_newstr(size_t, int, const char *, int);
 char *			debug_savestr(const char *, int, const char *, int);
@@ -167,7 +166,7 @@ int			send_msg(u_char *, int, struct qinfo *);
 int			findns(struct namebuf **, int,
 			       struct databuf **, int *, int);
 int			finddata(struct namebuf *, int, int, HEADER *,
-				 char **, int *, int *);
+				 char **, int *, int *, int, int);
 int			add_data(struct namebuf *,
 				 struct databuf **,
 				 u_char *, int, int *);
@@ -304,7 +303,7 @@ void			ns_cleancache(evContext ctx, void *uap,
 				      struct timespec inter);
 void			clean_cache_from(char *dname, struct hashbuf *htp);
 void			remove_zone(struct zoneinfo *, const char *);
-void			purge_zone(const char *, struct hashbuf *, int);
+void			purge_zone(struct zoneinfo *, struct hashbuf *);
 void			loadxfer(void);
 void			qserial_retrytime(struct zoneinfo *, time_t);
 void			qserial_query(struct zoneinfo *);
@@ -334,8 +333,8 @@ void			ns_heartbeat(evContext ctx, void *uap,
 void			make_new_zones(void);
 void			free_zone(struct zoneinfo *);
 struct zoneinfo *	find_auth_zone(const char *, ns_class);
-int			purge_nonglue(const char *dname, struct hashbuf *htp,
-				      int class, int log);
+int			purge_nonglue(struct zoneinfo *, struct hashbuf *htp,
+				      int log);
 /* --from ns_maint.c-- */
 
 /* ++from ns_sort.c++ */
@@ -347,7 +346,6 @@ void			sort_response(u_char *, u_char *, int,
 void			ns_refreshtime(struct zoneinfo *, time_t);
 void			ns_retrytime(struct zoneinfo *, time_t);
 time_t			ns_init(const char *);
-void			purgeandload(struct zoneinfo *zp);
 enum context		ns_ptrcontext(const char *owner);
 enum context		ns_ownercontext(int type, enum transport);
 int			ns_nameok(const struct qinfo *qry, const char *name,
@@ -357,7 +355,7 @@ int			ns_nameok(const struct qinfo *qry, const char *name,
 				  struct in_addr source);
 int			ns_wildcard(const char *name);
 void			zoneinit(struct zoneinfo *);
-void			do_reload(const char *, int, int, int);
+void			do_reload(struct zoneinfo *, int);
 void			ns_shutdown(void);
 /* --from ns_init.c-- */
 

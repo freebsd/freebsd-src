@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: db_load.c,v 8.121 2001/11/12 21:22:22 marka Exp $";
+static const char rcsid[] = "$Id: db_load.c,v 8.123 2002/08/20 04:27:23 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -1097,8 +1097,9 @@ db_load(const char *filename, const char *in_origin,
                                 if (!getword(buf, sizeof buf, fp, 0) ||
 				     !isdigit((unsigned char)buf[0]))
 					ERRTO("opaque length");
+				errno = 0;
 				n = strtoul(buf, &cp, 10);
-				if (n > 0xffff || *cp != '\0')
+				if (errno != 0 || n > 0xffff || *cp != '\0')
 					ERRTO("opaque length");
 				multiline = 0;
 				i = isc_gethexstring(data, sizeof(data), n, fp,
@@ -1190,10 +1191,8 @@ db_load(const char *filename, const char *in_origin,
 					   zp->z_origin, filename, msg);
 			}
 		}
-		errs += purge_nonglue(zp->z_origin, 
-				      (dataflags & DB_F_HINT) ? fcachetab :
-				      hashtab, zp->z_class,
-				      zp->z_type == z_master);
+		errs += purge_nonglue(zp, (dataflags & DB_F_HINT) ? fcachetab :
+				      hashtab, zp->z_type == z_master);
  cleanup:
 		while (filenames) {
 			fn = filenames;
@@ -1210,8 +1209,7 @@ db_load(const char *filename, const char *in_origin,
 					 p_class(zp->z_class), zp->z_serial);
 			if ((zp->z_flags & Z_NOTIFY) != 0)
 				ns_stopnotify(zp->z_origin, zp->z_class);
-			do_reload(zp->z_origin, zp->z_type, zp->z_class,
-				  loading);
+			do_reload(zp, loading);
 		} else
 			ns_info(ns_log_load,
 				"%s zone \"%s\" (%s) loaded (serial %u)",

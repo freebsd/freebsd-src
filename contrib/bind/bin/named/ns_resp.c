@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.178.2.2 2002/11/14 13:39:13 marka Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.186.6.4 2003/06/02 09:56:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -270,7 +270,6 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	int i, c, n, qdcount, ancount, aucount, nscount, arcount, arfirst;
 	int soacount;
 	u_int qtype, qclass;
-	int restart;	/* flag for processing cname response */
 	int validanswer, dbflags;
 	int cname, lastwascname, externalcname;
 	int count, founddata, foundname;
@@ -281,7 +280,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	char *dname, tmpdomain[MAXDNAME];
 	const char *fname;
 	const char *formerrmsg = "brain damage";
-	u_char newmsg[EDNS_MESSAGE_SZ];
+	u_char newmsg[NS_MAXMSG];
 	u_char **dpp, *tp;
 	time_t rtrip;
 	struct hashbuf *htp;
@@ -298,6 +297,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	time_t tsig_time;
 	DST_KEY *key;
 	int expect_cname;
+	int pass = 0;
 
 	nameserIncr(from.sin_addr, nssRcvdR);
 	nsp[0] = NULL;
@@ -905,7 +905,6 @@ tcp_retry:
 
 	tp = cp;
 
-	restart = 0;
 	validanswer = -1;
 	nscount = 0;
 	soacount = 0;
@@ -1001,6 +1000,10 @@ tcp_retry:
 				tname = NULL;
 			}
 
+			/* Cache for current tick. */
+			if (type == T_SOA)
+				dp->d_ttl = tt.tv_sec;
+
 			dp->d_cred = (hp->aa && ns_samename(name, qname) == 1)
 				? DB_C_AUTH
 				: DB_C_ANSWER;
@@ -1048,6 +1051,9 @@ tcp_retry:
 					}
 					if (type == T_SOA) {
 						soacount++;
+						/* -ve caching only. */
+						db_detach(&dp);
+						continue;
 					}
 					break;
 				case T_NXT:
@@ -1182,38 +1188,6 @@ tcp_retry:
 		return;
 	}
 
-	if (ancount && count && validanswer != 1) {
-		/*
-		 * Everything passed validation but we didn't get the
-		 * final answer.  The response must have contained
-		 * a dangling CNAME.  Force a restart of the query.
-		 *
-		 * Don't set restart if count==0, since this means
-		 * the response was truncated in the answer section,
-	         * causing us to set count to 0 which will cause
-		 * validanswer to be 0 as well even though the answer
-		 * section probably contained valid RRs (just not
-		 * a complete set).
-		 * XXX - this works right if we can just forward this
-		 * response to the client, but not if we found a CNAME
-		 * in a prior response and restarted the query.
-		 */
-		restart = 1;
-	}
-
-	if (!restart && !qp->q_cmsglen && ancount > 1 && qtype == T_A)
-		sort_response(tp, eom, ancount, &qp->q_from);
-
-	/*
-	 * An answer to a T_ANY query or a successful answer to a
-	 * regular query with no indirection, then just return answer.
-	 */
-	if (!restart && ancount && (qtype == T_ANY || !qp->q_cmsglen)) {
-		ns_debug(ns_log_default, 3,
-			 "resp: got as much answer as there is");
-		goto return_msg;
-	}
-
 	/*
 	 * We might want to cache this negative answer.
 	 *
@@ -1289,11 +1263,20 @@ tcp_retry:
 		goto servfail;
 	}
 	cp += n + QFIXEDSZ;
-	buflen = sizeof(newmsg) - (cp - newmsg);
-
+	buflen = (qp->q_stream != NULL) ? NS_MAXMSG : 
+					  MIN(EDNS_MESSAGE_SZ, qp->q_udpsize);
+	buflen -= (cp - newmsg);
+	/*
+	 * Reserve space for TSIG / EDNS
+	 */
+        if (qp->q_tsig != NULL)
+                buflen -=  qp->q_tsig->tsig_size;
+        if ((qp->q_flags & Q_EDNS) != 0)
+                buflen -= 11;
 	cname = 0;
 
  try_again:
+	pass++;
 	ns_debug(ns_log_default, 1, "resp: nlookup(%s) qtype=%d", dname,
 		 qtype);
 	foundname = 0;
@@ -1316,7 +1299,7 @@ tcp_retry:
 		    (dp->d_class == (int)qclass)) {
 #ifdef RETURNSOA
 			n = finddata(np, qclass, T_SOA, hp, &dname,
-				     &buflen, &count);
+				     &buflen, &count, pass, 1);
 			if ( n != 0) {
 				if (count) {
 					cp += n;
@@ -1348,7 +1331,7 @@ tcp_retry:
 			goto fetch_ns;
 		}
 	}
-	n = finddata(np, qclass, qtype, hp, &dname, &buflen, &count);
+	n = finddata(np, qclass, qtype, hp, &dname, &buflen, &count, pass, 1);
 	if (n == 0)
 		goto fetch_ns;		/* NO data available */
 	if (hp->rcode) {
@@ -1399,7 +1382,8 @@ tcp_retry:
 		if (!foundname)
 			hp->rcode = NXDOMAIN;
 		if (qclass != C_ANY) {
-			hp->aa = 1;
+			if (!cname)
+				hp->aa = 1;
 			if (np && (!foundname || !founddata)) {
 				n = doaddauth(hp, cp, buflen, np, nsp[0]);
 				cp += n;
@@ -1553,7 +1537,8 @@ tcp_retry:
 
 	if (!qp->q_addr[0].noedns)
                 smsglen += ns_add_opt(smsg, smsg + smsglen, smsgsize, 0, 0,
-                                      EDNS_MESSAGE_SZ, 0, NULL, 0);
+                                      server_options->edns_udp_size,
+				      0, NULL, 0);
 	if (key != NULL) {
 		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,
 			    sig, &siglen, 0);
@@ -2239,7 +2224,7 @@ send_msg(u_char *msg, int msglen, struct qinfo *qp) {
 	if (qp->q_flags & Q_SYSTEM)
 		return (1);
 
-	trunc = (qp->q_stream != NULL) ? 65535 : qp->q_udpsize;
+	trunc = (qp->q_stream != NULL) ? NS_MAXMSG : qp->q_udpsize;
 	if (qp->q_tsig != NULL) 
 		adjust +=  qp->q_tsig->tsig_size;
 	if ((qp->q_flags & Q_EDNS) != 0)
@@ -2283,8 +2268,9 @@ send_msg(u_char *msg, int msglen, struct qinfo *qp) {
 		msgsize = msglen;	/* silence compiler */
 
 	if ((qp->q_flags & Q_EDNS) != 0)
-		msglen += ns_add_opt(msg, msg + msglen, msgsize, 0,
-				     hp->rcode, EDNS_MESSAGE_SZ, 0, NULL, 0);
+		msglen += ns_add_opt(msg, msg + msglen, msgsize, 0, hp->rcode,
+				     server_options->edns_udp_size,
+				     0, NULL, 0);
 	
 	if (qp->q_tsig != NULL) {
 		u_char sig[TSIG_SIG_SIZE];
@@ -2492,6 +2478,7 @@ sysquery(const char *dname, int class, int type,
 			qs->stime = tt;
 			qs->forwarder = 0;
 			qs->noedns = 1;		/* XXXMPA */
+			qs->lame = 0;
 			qs->nretry = 0;
 		}
 		qp->q_naddr = nsc;
@@ -2581,7 +2568,8 @@ sysquery(const char *dname, int class, int type,
 	
 	if (!qp->q_addr[0].noedns)
                 smsglen += ns_add_opt(smsg, smsg + smsglen, smsgsize, 0, 0,
-                                      EDNS_MESSAGE_SZ, 0, NULL, 0);
+                                      server_options->edns_udp_size,
+				      0, NULL, 0);
 
 	if (key != NULL) {
 		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,
@@ -2908,7 +2896,8 @@ findns(struct namebuf **npp, int class,
 	}
 	ns_debug(ns_log_default, 1,
 		 "findns: No root nameservers for class %s?", p_class(class));
-	if ((unsigned)class < MAXCLASS && norootlogged[class] == 0) {
+	if (!NS_OPTION_P(OPTION_FORWARD_ONLY) &&
+	    (unsigned)class < MAXCLASS && norootlogged[class] == 0) {
 		norootlogged[class] = 1;
 		ns_info(ns_log_default, "No root nameservers for class %s",
 			p_class(class));
@@ -2924,7 +2913,8 @@ findns(struct namebuf **npp, int class,
  */
 int
 finddata(struct namebuf *np, int class, int type,
-	 HEADER *hp, char **dnamep, int *lenp, int *countp)
+	 HEADER *hp, char **dnamep, int *lenp, int *countp, int pass,
+	 int glueok)
 {
 	struct databuf *dp;
 	char *cp;
@@ -2962,18 +2952,8 @@ finddata(struct namebuf *np, int class, int type,
 	cp = ((char *)hp) + *countp;
 	foundcname = 0;
 	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
-		if (!wanted(dp, class, type)) {
-			if (type == T_CNAME && class == dp->d_class) {
-				/* any data means no CNAME exists */
-				if (dp->d_type != T_NXT &&
-				    dp->d_type != T_KEY &&
-				    dp->d_type != T_SIG) {
-					ret = 0;
-					goto done;
-				}
-			}
+		if (!wanted(dp, class, type))
 			continue;
-		}
 		if (dp->d_cred == DB_C_ADDITIONAL) {
 #ifdef NOADDITIONAL
 			continue;
@@ -3003,7 +2983,7 @@ finddata(struct namebuf *np, int class, int type,
 					*dnamep, type, class);
 				continue;
 			}
-			if (type == T_ANY)
+			if (type == T_ANY && dp->d_type != T_ANY)
 				continue;
 			hp->rcode = NOERROR_NODATA;
 			if (dp->d_size == 0) { /* !RETURNSOA */
@@ -3038,6 +3018,10 @@ finddata(struct namebuf *np, int class, int type,
 		    (!((dp->d_type == T_SIG) || (dp->d_type == T_KEY))) )
 			continue;
 
+		/* Don't return glue (NS/A/AAAA) */
+		if (!glueok && findMyZone(np, class) == DB_Z_CACHE)
+			continue;
+
 		if (!defer) {
 			if (foundcname != 0 && dp->d_type == T_CNAME)
 				continue;
@@ -3056,6 +3040,16 @@ finddata(struct namebuf *np, int class, int type,
 		
 			if (dp->d_type == T_CNAME) {
 				foundcname = 1;
+
+#define SETAA(pass, class, dp) \
+	(pass == 1 && class != C_ANY && dp->d_zone != DB_Z_CACHE && \
+	(zones[dp->d_zone].z_type == z_master || \
+	 zones[dp->d_zone].z_type == z_slave) && \
+	(zones[dp->d_zone].z_flags & Z_AUTH) != 0)
+
+				if (SETAA(pass, class, dp))
+					hp->aa = 1;
+
 #define FOLLOWCNAME(type) \
 	(type != T_KEY) && (type != T_SIG) && (type != T_NXT) && (type != T_ANY)
 			/* don't alias if querying for key, sig, nxt, or any */
@@ -3064,8 +3058,13 @@ finddata(struct namebuf *np, int class, int type,
 					new_dnamep = (char *)dp->d_data;
 			}
 		} else {
-			if (dp->d_type == T_CNAME)
+			if (dp->d_type == T_CNAME) {
 				foundcname = 1;
+				
+				if (SETAA(pass, class, dp))
+					hp->aa = 1;
+
+			}
 			found[found_count++] = dp;
 		}
 	}
