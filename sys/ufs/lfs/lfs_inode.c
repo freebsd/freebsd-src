@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.11 1995/12/07 12:47:55 davidg Exp $
+ * $Id: lfs_inode.c,v 1.12 1996/01/05 18:31:52 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -114,13 +114,13 @@ lfs_update(ap)
 		return(0);
 
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime.ts_sec = ap->a_access->tv_sec;
+		ip->i_atime.tv_sec = ap->a_access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime.ts_sec = ap->a_modify->tv_sec;
+		ip->i_mtime.tv_sec = ap->a_modify->tv_sec;
 		(ip)->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
-		ip->i_ctime.ts_sec = time.tv_sec;
+		ip->i_ctime.tv_sec = time.tv_sec;
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
 
 	if (!(ip->i_flag & IN_MODIFIED))
