@@ -347,6 +347,7 @@ kmem_malloc(map, size, flags)
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	for (i = 0; i < size; i += PAGE_SIZE) {
+		int pflags;
 		/*
 		 * Note: if M_NOWAIT specified alone, allocate from 
 		 * interrupt-safe queues only (just the free list).  If 
@@ -356,10 +357,15 @@ kmem_malloc(map, size, flags)
 		 * are not allowed to mess with the cache queue.
 		 */
 retry:
-		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i),
-		    ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT) ?
-			VM_ALLOC_INTERRUPT : 
-			VM_ALLOC_SYSTEM);
+		if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+			pflags = VM_ALLOC_INTERRUPT;
+		else
+			pflags = VM_ALLOC_SYSTEM;
+
+		if (flags & M_ZERO)
+			pflags |= VM_ALLOC_ZERO;
+
+		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i), pflags);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
