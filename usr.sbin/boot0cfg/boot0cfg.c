@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #define MBRSIZE         512     /* master boot record size */
 
+#define OFF_VERSION	0x1b0	/* offset: version number */
 #define OFF_DRIVE	0x1ba	/* offset: setdrv drive */
 #define OFF_FLAGS       0x1bb   /* offset: option flags */
 #define OFF_TICKS       0x1bc   /* offset: clock ticks */
@@ -72,6 +73,7 @@ static const char fmt0[] = "#   flag     start chs   type"
 static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
     "   %4u:%3u:%2u   %10u   %10u\n";
 
+static int boot0version(const u_int8_t *);
 static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
 static char *mkrdev(const char *);
@@ -85,7 +87,11 @@ int
 main(int argc, char *argv[])
 {
     u_int8_t buf[MBRSIZE];
+    u_int8_t *boot0 = buf;
+    int version;
+    int boot0_size = sizeof(buf);
     struct dos_partition part[4];
+    struct stat sb;
     const char *bpath, *fpath, *disk;
     ssize_t n;
     int B_flag, v_flag, o_flag;
@@ -155,32 +161,36 @@ main(int argc, char *argv[])
     }
     memcpy(part, buf + OFF_PTBL, sizeof(part));
     if (B_flag) {
-        if ((fd1 = open(bpath, O_RDONLY)) == -1 ||
-            (n = read(fd1, buf, MBRSIZE)) == -1 || close(fd1))
+	if ((fd1 = open(bpath, O_RDONLY)) == -1 ||
+	     fstat(fd1, &sb) == -1)
             err(1, "%s", bpath);
-        if (n != MBRSIZE)
+	if ((boot0 = malloc(boot0_size = sb.st_size)) == NULL)
+	    errx(1, "%s: unable to allocate read buffer", bpath);
+	if ((n = read(fd1, boot0, boot0_size)) == -1 || close(fd1))
+	    err(1, "%s", bpath);
+        if (n != boot0_size)
             errx(1, "%s: short read", bpath);
-        if (!boot0bs(buf))
+        if (!boot0bs(boot0))
             errx(1, "%s: unknown or incompatible boot code", bpath);
-        memcpy(buf + OFF_PTBL, part, sizeof(part));
+        memcpy(boot0 + OFF_PTBL, part, sizeof(part));
     }
     if (d_arg != -1)
-	buf[OFF_DRIVE] = d_arg;
+	boot0[OFF_DRIVE] = d_arg;
     if (m_arg != -1) {
-	buf[OFF_FLAGS] &= 0xf0;
-	buf[OFF_FLAGS] |= m_arg;
+	boot0[OFF_FLAGS] &= 0xf0;
+	boot0[OFF_FLAGS] |= m_arg;
     }
     if (o_flag) {
-        buf[OFF_FLAGS] &= o_and;
-        buf[OFF_FLAGS] |= o_or;
+        boot0[OFF_FLAGS] &= o_and;
+        boot0[OFF_FLAGS] |= o_or;
     }
     if (t_arg != -1)
-        mk2(buf + OFF_TICKS, t_arg);
+        mk2(boot0 + OFF_TICKS, t_arg);
     if (up) {
         if (lseek(fd, 0, SEEK_SET) == -1 ||
-            (n = write(fd, buf, MBRSIZE)) == -1 || close(fd))
+            (n = write(fd, boot0, boot0_size)) == -1 || close(fd))
             err(1, "%s", disk);
-        if (n != MBRSIZE)
+        if (n != boot0_size)
             errx(1, "%s: short write", disk);
     }
     if (v_flag) {
@@ -201,18 +211,37 @@ main(int argc, char *argv[])
                        part[i].dp_size);
             }
         printf("\n");
-        printf("drive=0x%x  mask=0x%x  options=", buf[OFF_DRIVE],
-	       buf[OFF_FLAGS] & 0xf);
+	version = boot0version(boot0);
+        printf("version=%d.%d  drive=0x%x  mask=0x%x  ticks=%u\noptions=",
+	       version >> 8, version & 0xff, boot0[OFF_DRIVE], 
+	       boot0[OFF_FLAGS] & 0xf, cv2(boot0 + OFF_TICKS));
         for (i = 0; i < nopt; i++) {
             if (i)
                 printf(",");
-            if (!(buf[OFF_FLAGS] & 1 << (7 - i)) ^ opttbl[i].def)
+            if (!(boot0[OFF_FLAGS] & 1 << (7 - i)) ^ opttbl[i].def)
                 printf("no");
             printf("%s", opttbl[i].tok);
         }
-        printf("  ticks=%u\n", cv2(buf + OFF_TICKS));
+	printf("\n");
     }
     return 0;
+}
+
+/*
+ * Return the boot0 version with the minor revision in the low byte, and
+ * the major revision in the next higher byte.
+ */
+static int
+boot0version(const u_int8_t *bs)
+{
+    static u_int8_t idold[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+
+    /* Check for old version, and return 0x100 if found. */
+    if (memcmp(bs + 0x1c, idold, sizeof(idold)) == 0)
+        return 0x100;
+
+    /* We have a newer boot0, so extract the version number and return it. */
+    return *(int *)(bs + OFF_VERSION) & 0xffff;
 }
 
 /*
@@ -222,21 +251,24 @@ main(int argc, char *argv[])
 static int
 boot0bs(const u_int8_t *bs)
 {
-    static u_int8_t id0[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+    static u_int8_t id0[] = {0xfc, 0x31, 0xc0, 0x8e, 0xc0, 0x8e, 0xd8,
+			     0x8e, 0xd0, 0xbc, 0x00, 0x7c };
     static u_int8_t id1[] = {'D', 'r', 'i', 'v', 'e', ' '};
     static struct {
 	unsigned off;
 	unsigned len;
 	u_int8_t *key;
     } ident[2] = {
-        {0x1c,  sizeof(id0), id0},
+        {0x0,   sizeof(id0), id0},
         {0x1b2, sizeof(id1), id1}
     };
     int i;
 
     for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
-	if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
+        if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len)) {
+	  printf("bah, failed id%d\n", i);
 	    return 0;
+	}
     return 1;
 };
 
