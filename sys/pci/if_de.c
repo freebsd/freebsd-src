@@ -82,6 +82,7 @@
 #include <net/if_var.h>
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
+#include <pci/pcireg.h>
 #include <pci/dc21040reg.h>
 
 #include "opt_bdg.h"
