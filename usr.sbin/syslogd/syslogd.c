@@ -667,6 +667,8 @@ printsys(p)
 			pri = 10 * pri + (*p - '0');
 		if (*p == '>')
 			++p;
+		if (LOG_FAC(pri) == LOG_CONSOLE)
+			flags |= IGN_CONS;
 	} else {
 		/* kernel printf's come out on console */
 		flags |= IGN_CONS;
