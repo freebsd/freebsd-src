@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.26 1998/02/21 15:49:45 kato Exp $
+$Id: majors.pc98,v 1.27 1998/02/26 03:22:05 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -119,7 +119,7 @@ chrdev	name		comments
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
 77	cyy		Cyclades Ye/PCI serial card
-78	gd		Geometry disk
+78	pci		PCI bus
 79	ipl		IP Filter
 80	xdcp		Assigned to Chris Ficklin <chris@serengeti.com>
 81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
@@ -136,3 +136,4 @@ chrdev	name		comments
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
 93	coda		CODA filesystem.
 94	loran		Loran-C Receiver
+95	gd		Geometry disk
