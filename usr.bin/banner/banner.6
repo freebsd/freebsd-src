@@ -40,23 +40,34 @@
 .Nd print large banner on printer
 .Sh SYNOPSIS
 .Nm banner
-.Op Fl w Ar n
+.Op Fl d
+.Op Fl t
+.Op Fl w Ar width
 .Ar message ...
 .Sh DESCRIPTION
 .Nm Banner
 prints a large, high quality banner on the standard output.
 If the message is omitted, it prompts for and reads one line of its
 standard input.
-If
-.Fl w
-is given, the output is changed from a width of 132 to
-.Ar n ,
-suitable for a narrow terminal.
 .Pp
 The output should be printed on paper of the appropriate width,
 with no breaks between the pages.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Enable debug.
+.It Fl t
+Enable trace.
+.It Fl w Ar width
+Change the output from a width of 132 to
+.Ar width ,
+suitable for a narrow terminal.
+.El
 .Sh BUGS
-Several ASCII characters are not defined, notably <, >, [, ], \\,
+Several
+.Tn ASCII
+characters are not defined, notably <, >, [, ], \\,
 ^, _, {, }, |, and ~.
 Also, the characters ", ', and & are funny looking (but in a useful way.)
 .Pp
