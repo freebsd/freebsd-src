@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.27 1997/06/29 18:37:42 brian Exp $
+ * $Id: command.c,v 1.24.2.28 1997/06/30 03:05:06 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -856,8 +856,20 @@ char **argv;
           mask = m;
       }
       res = ServerLocalOpen(argv[0], mask);
-    } else if (strspn(argv[0], "0123456789") == strlen(argv[0]))
-      res = ServerTcpOpen(atoi(argv[0]));
+    } else {
+      int port;
+      if (strspn(argv[0], "0123456789") != strlen(argv[0])) {
+        struct servent *s;
+        if ((s = getservbyname(argv[0], "tcp")) == NULL) {
+          port = 0;
+          LogPrintf(LogWARN, "%s: Invalid port or service\n", argv[0]);
+        } else
+          port = ntohs(s->s_port);
+      } else
+        port = atoi(argv[0]);
+      if (port)
+        res = ServerTcpOpen(port);
+    }
 
   return res;
 }
@@ -1131,6 +1143,7 @@ char **argv;
 #define	VAR_DEVICE	4
 #define	VAR_ACCMAP	5
 #define	VAR_PHONE	6
+#define	VAR_HANGUP	7
 
 static int
 SetVariable(list, argc, argv, param)
@@ -1180,6 +1193,10 @@ int param;
       VarPhoneList[sizeof(VarPhoneList)-1] = '\0';
       strcpy(VarPhoneCopy, VarPhoneList);
       VarNextPhone = VarPhoneCopy;
+      break;
+    case VAR_HANGUP:
+      strncpy(VarHangupScript, arg, sizeof(VarHangupScript)-1);
+      VarHangupScript[sizeof(VarHangupScript)-1] = '\0';
       break;
   }
   return 0;
@@ -1241,6 +1258,8 @@ struct cmdtab const SetCommands[] = {
 	"Set dialing script", "set dial chat-script", (void *)VAR_DIAL},
   { "escape",   NULL,	  SetEscape, 		LOCAL_AUTH,
 	"Set escape characters", "set escape hex-digit ..."},
+  { "hangup",   NULL,     SetVariable,                LOCAL_AUTH,
+        "Set hangup script", "set hangup chat-script", (void *)VAR_HANGUP},
   { "ifaddr",   NULL,   SetInterfaceAddr,	LOCAL_AUTH,
 	"Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
