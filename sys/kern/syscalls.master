@@ -24,9 +24,7 @@
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/mount.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
@@ -98,6 +96,9 @@
 			    struct sigaction *osa); }
 47	STD	POSIX	{ gid_t getgid(void); }
 48	STD	POSIX	{ int sigprocmask(int how, sigset_t mask); }
+; XXX note nonstandard (bogus) calling convention - the libc stub passes
+; us the mask, not a pointer to it, and we return the old mask as the
+; (int) return value.
 49	STD	BSD	{ int getlogin(char *namebuf, u_int namelen); }
 50	STD	BSD	{ int setlogin(char *namebuf); }
 51	STD	BSD	{ int acct(char *path); }
@@ -174,7 +175,9 @@
 			    struct sigvec *osv); }
 109	COMPAT	BSD	{ int sigblock(int mask); }
 110	COMPAT	BSD	{ int sigsetmask(int mask); }
-111	STD	POSIX	{ int sigsuspend(int mask); }
+111	STD	POSIX	{ int sigsuspend(sigset_t mask); }
+; XXX note nonstandard (bogus) calling convention - the libc stub passes
+; us the mask, not a pointer to it.
 112	COMPAT	BSD	{ int sigstack(struct sigstack *nss, \
 			    struct sigstack *oss); }
 113	COMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
@@ -247,7 +250,7 @@
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
 #if defined(NFS) && !defined (NFS_NOSERVER)
-161	STD	BSD	{ int getfh(char *fname, fhandle_t *fhp); }
+161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
 #else
 161	UNIMPL	BSD	nosys
 #endif
@@ -282,12 +285,14 @@
 182	STD	BSD	{ int setegid(gid_t egid); }
 183	STD	BSD	{ int seteuid(uid_t euid); }
 #ifdef LFS
-184	STD	BSD	{ int lfs_bmapv(fsid_t *fsidp, \
+184	STD	BSD	{ int lfs_bmapv(struct fsid **fsidp, \
 			    struct block_info *blkiov, int blkcnt); }
-185	STD	BSD	{ int lfs_markv(fsid_t *fsidp, \
+185	STD	BSD	{ int lfs_markv(struct fsid **fsidp, \
 			    struct block_info *blkiov, int blkcnt); }
-186	STD	BSD	{ int lfs_segclean(fsid_t *fsidp, u_long segment); }
-187	STD	BSD	{ int lfs_segwait(fsid_t *fsidp, struct timeval *tv); }
+186	STD	BSD	{ int lfs_segclean(struct fsid **fsidp, \
+			    u_long segment); }
+187	STD	BSD	{ int lfs_segwait(struct fsid **fsidp, \
+			    struct timeval *tv); }
 #else
 184	UNIMPL	BSD	nosys
 185	UNIMPL	BSD	nosys

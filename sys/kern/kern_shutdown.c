@@ -52,6 +52,7 @@
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
