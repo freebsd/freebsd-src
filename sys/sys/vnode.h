@@ -351,7 +351,6 @@ extern int		vttoif_tab[];
 
 #define	VREF(vp)	vref(vp)
 
-
 #ifdef DIAGNOSTIC
 #define	VATTR_NULL(vap)	vattr_null(vap)
 #else
@@ -380,22 +379,21 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 #define	LEASE_READ	0x1		/* Check lease for readers */
 #define	LEASE_WRITE	0x2		/* Check lease for modifiers */
 
-
 extern void	(*lease_updatetime)(int deltat);
 
-/* Requires interlock */
+/* Requires interlock. */
 #define	VSHOULDFREE(vp)	\
 	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_DOINGINACT)) && \
 	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
 	 (!(vp)->v_object || \
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
-/* Requires interlock */
-#define VMIGHTFREE(vp) \
+/* Requires interlock. */
+#define	VMIGHTFREE(vp) \
 	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_XLOCK|VI_DOINGINACT)) && \
 	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
 
-/* Requires interlock */
+/* Requires interlock. */
 #define	VSHOULDBUSY(vp)	\
 	(((vp)->v_iflag & VI_FREE) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
@@ -406,7 +404,6 @@ extern void	(*lease_updatetime)(int deltat);
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
 #endif /* _KERNEL */
-
 
 /*
  * Mods for extensibility.
