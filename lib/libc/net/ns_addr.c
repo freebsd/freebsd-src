@@ -62,7 +62,7 @@ ns_addr(name)
 
 	/*
 	 * First, figure out what he intends as a field separtor.
-	 * Despite the way this routine is written, the prefered
+	 * Despite the way this routine is written, the preferred
 	 * form  2-272.AA001234H.01777, i.e. XDE standard.
 	 * Great efforts are made to insure backward compatibility.
 	 */
