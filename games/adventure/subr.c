@@ -47,6 +47,7 @@ static const char rcsid[] =
 /*      Re-coding of advent in C: subroutines from main                 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "hdr.h"
 
