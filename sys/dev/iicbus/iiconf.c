@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
+ *	$Id: iiconf.c,v 1.4 1999/01/09 18:08:24 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -251,6 +251,33 @@ iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
 		return (EINVAL);
 
 	return (IICBUS_READ(device_get_parent(bus), buf, len, read, last, delay));
+}
+
+/*
+ * iicbus_write_byte()
+ *
+ * Write a byte to the slave previously started by iicbus_start() call
+ */
+int
+iicbus_write_byte(device_t bus, char byte, int timeout)
+{
+	char data = byte;
+	int sent;
+
+	return (iicbus_write(bus, &data, 1, &sent, timeout));
+}
+
+/*
+ * iicbus_read_byte()
+ *
+ * Read a byte from the slave previously started by iicbus_start() call
+ */
+int
+iicbus_read_byte(device_t bus, char *byte, int timeout)
+{
+	int read;
+
+	return (iicbus_read(bus, byte, 1, &read, IIC_LAST_READ, timeout));
 }
 
 /*
