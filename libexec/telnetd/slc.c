@@ -204,7 +204,7 @@ end_slc(bufp)
 			(void) sprintf((char *)slcptr, "%c%c", IAC, SE);
 			slcptr += 2;
 			len = slcptr - slcbuf;
-			writenet(slcbuf, len);
+			output_datalen(slcbuf, len);
 			netflush();  /* force it out immediately */
 			DIAG(TD_OPTIONS, printsub('>', slcbuf+2, len-2););
 		}
