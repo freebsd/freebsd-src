@@ -93,8 +93,6 @@ SC_TWOBUTTON_MOUSE	opt_syscons.h
 
 GDC			opt_gdc.h
 
-PUC_FASTINTR		opt_puc.h
-
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
