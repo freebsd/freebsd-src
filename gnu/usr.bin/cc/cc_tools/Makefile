@@ -142,6 +142,9 @@ tconfig.h:
 	echo 'union tree_node;'				>> ${.TARGET}
 	echo 'typedef union tree_node *tree;'		>> ${.TARGET}
 	echo ''						>> ${.TARGET}
+.if ${TARGET_ARCH} == "ia64"
+	echo '#define TARGET_CPU_DEFAULT (MASK_GNU_AS|MASK_GNU_LD)' >>${.TARGET}
+.endif
 	echo '#include "ansidecl.h"'			>> ${.TARGET}
 	echo '#include "${GCC_CPU}/${GCC_CPU}.h"'	>> ${.TARGET}
 .if ${TARGET_ARCH} == "i386"
