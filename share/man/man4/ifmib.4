@@ -51,14 +51,16 @@ to client applications such as
 .Xr slstat 8 ,
 and
 .Tn SNMP
-management agents.  This information is structured as a table, where
+management agents.
+This information is structured as a table, where
 each row in the table represents a logical network interface (either a
 hardware device or a software pseudo-device like
 .Xr lo 4 ) .
 There are two columns in the table, each containing a single
 structure: one column contains generic information relevant to all
 interfaces, and the other contains information specific to the
-particular class of interface.  (Generally the latter will implement
+particular class of interface.
+(Generally the latter will implement
 the
 .Tn SNMP
 .Tn MIB
@@ -71,7 +73,8 @@ facility is accessed via the
 .Dq Li net.link.generic
 branch of the
 .Xr sysctl 3
-MIB.  The manifest constants for each level in the
+MIB.
+The manifest constants for each level in the
 .Xr sysctl 3
 .Ar name
 are defined in
@@ -147,8 +150,10 @@ more information from a structure defined in
 .Pp
 Class-specific information can be retrieved by examining the
 .Dv IFDATA_LINKSPECIFIC
-column instead.  Note that the form and length of the structure will
-depend on the class of interface.  For
+column instead.
+Note that the form and length of the structure will
+depend on the class of interface.
+For
 .Dv IFT_ETHER ,
 .Dv IFT_ISO88023 ,
 and

@@ -20,8 +20,9 @@ driver provides support for PCI
 .Em video
 capture and
 .Em VBI
-capture on low cost, high performance boards.  The driver is based on
-the Matrox Meteor driver and uses the same API.  The bktr driver should support most video cards
+capture on low cost, high performance boards.
+The driver is based on the Matrox Meteor driver and uses the same API.
+The bktr driver should support most video cards
 based on the
 .Em "Brooktree Bt848/849/878/879 Video Capture Chip" .
 The driver also supports
@@ -62,7 +63,8 @@ The following kernel parameters may be used to further configure the driver:
 .Pp
 .Em options "BROOKTREE_ALLOC_PAGES=xxx"
 specifies the number of contiguous pages to allocate when successfully
-probed.  The default number of pages allocated by the kernel is 216.
+probed.
+The default number of pages allocated by the kernel is 216.
 This means that there are (216*4096) bytes available for use.
 .Bd -unfilled
 .Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL

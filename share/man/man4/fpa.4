@@ -24,7 +24,8 @@ The
 and
 .Nm fea
 device driver provides support for the DEC DEFPA PCI FDDI Controller and
-the DEC DEFEA EISA FDDI Controller, respectively.  All variants of either
+the DEC DEFEA EISA FDDI Controller, respectively.
+All variants of either
 controller are supported including the DAS and SAS configurations.
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -33,8 +34,10 @@ The device probe detected that the DEFEA board is configured for a different
 interrupt than the one specified in the kernel configuration file.
 .It "fea%d: error: memory not enabled! ECU reconfiguration required"
 The device probe found that no device memory had been configured on the
-DEFEA.  Also the DEFEA can be configured with no device memory, this driver
-requires a minimum of 1K device memory be setup.  The ECU (EISA Configuration
+DEFEA.
+Also the DEFEA can be configured with no device memory, this driver
+requires a minimum of 1K device memory be setup.
+The ECU (EISA Configuration
 Utility) will need to be run to change the settings.
 .El
 .Sh CAVEATS

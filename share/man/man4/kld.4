@@ -39,13 +39,15 @@ and above in favor of the
 interface.
 This interface, like its
 predecessor, allows the system administrator to dynamically add and remove
-functionality from a running system.  This ability also helps software
+functionality from a running system.
+This ability also helps software
 developers to develop new parts of the kernel without constantly rebooting
 to test their changes.
 .Pp
 Various types of modules can be loaded into the system.
 There are several defined module types, listed below, which can
-be added to the system in a predefined way.  In addition, there
+be added to the system in a predefined way.
+In addition, there
 is a generic type, for which the module itself handles loading and
 unloading.
 .Pp
@@ -150,11 +152,6 @@ for any error encountered while loading a module.
 When system internal interfaces change, old modules often cannot
 detect this, and such modules when loaded will often cause crashes or
 mysterious failures.
-.Sh AUTHORS
-The
-.Nm
-facility was originally implemented by
-.An Doug Rabson Aq dfr@FreeBSD.org .
 .Sh HISTORY
 The
 .Nm
@@ -166,3 +163,8 @@ facility, which was similar in functionality to the loadable kernel modules
 facility provided by
 .Tn SunOS
 4.1.3.
+.Sh AUTHORS
+The
+.Nm
+facility was originally implemented by
+.An Doug Rabson Aq dfr@FreeBSD.org .

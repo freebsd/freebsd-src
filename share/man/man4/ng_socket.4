@@ -55,7 +55,8 @@ node type allows user-mode processes to participate in the kernel
 .Xr netgraph 4
 networking subsystem using the
 .Bx
-socket interface. The process must have
+socket interface.
+The process must have
 root privileges to be able to create netgraph sockets however once created,
 any process that has one may use it.
 .Pp
@@ -75,8 +76,8 @@ are received  by the process, using
 .Xr recvfrom 2 ;
 the socket address argument is a
 .Dv "struct sockaddr_ng"
-containing the sender's netgraph address. Conversely, control messages
-can be sent to any node by calling
+containing the sender's netgraph address.
+Conversely, control messages can be sent to any node by calling
 .Xr sendto 2 ,
 supplying the recipient's address in a
 .Dv "struct sockaddr_ng" .
@@ -94,9 +95,11 @@ node.
 .Dv NG_DATA sockets do not automatically
 have nodes associated with them; they are bound to a specific node via the
 .Xr connect 2
-system call. The address argument is the netgraph address of the
+system call.
+The address argument is the netgraph address of the
 .Nm
-node already created. Once a data socket is associated with a node,
+node already created.
+Once a data socket is associated with a node,
 any data packets received by the node are read using
 .Xr recvfrom 2
 and any packets to be sent out from the node are written using
@@ -132,7 +135,8 @@ if it had received a
 message. Attempts to access the sockets associated will return
 .Er ENOTCONN .
 .It Dv NGM_SOCK_CMD_LINGER
-This is the default mode. When the last hook is removed, the node will
+This is the default mode.
+When the last hook is removed, the node will
 continue to exist, ready to accept new hooks until it
 is explicitly shut down.
 .El
@@ -152,7 +156,8 @@ and
 .Dv NG_DATA
 sockets have been closed, or a
 .Dv NGM_SHUTDOWN
-control message is received. In the latter case, attempts to write
+control message is received.
+In the latter case, attempts to write
 to the still-open sockets will return
 .Er ENOTCONN .
 If the
@@ -164,9 +169,9 @@ It is not possible to reject the connection of a hook, though any
 data received on that hook can certainly be ignored.
 .Pp
 The controlling process is not notified of all events that an in-kernel node
-would be notified of, e.g. a new hook, or hook removal. We should define
-some node-initiated messages for this purpose (to be sent up the control
-socket).
+would be notified of, e.g. a new hook, or hook removal.
+Some node-initiated messages should be defined for this purpose (to be
+sent up the control socket).
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr netgraph 3 ,

@@ -61,7 +61,8 @@ host adapters through host adapter drivers.
 When the system probes the
 .Tn SCSI
 busses, it attaches any devices it finds to the appropriate
-drivers.  The
+drivers.
+The
 .Xr pass 4
 driver, if it is configured in the kernel, will attach to all
 .Tn SCSI
@@ -73,27 +74,34 @@ CAM
 subsystem:
 .Bl -tag -width SCSI_NO_SENSE_STRINGS
 .It Dv CAMDEBUG
-This option enables the CAM debugging printf code.  This won't actually
+This option enables the CAM debugging printf code.
+This won't actually
 cause any debugging information to be printed out when included by itself.
-Enabling printouts requires additional configuration.  See below for
-details.
+Enabling printouts requires additional configuration.
+See below for details.
 .It Dv "CAM_MAX_HIGHPOWER=4"
 This sets the maximum allowable number of concurrent "high power" commands.
 A "high power" command is a command that takes more electrical power than
-most to complete.  An example of this (and the only command currently
+most to complete.
+An example of this (and the only command currently
 tagged as "high power") is the
 .Tn SCSI
-START UNIT command.  Starting a SCSI disk often takes significantly more
-electrical power than normal operation of the disk.  This option allows the
+START UNIT command.
+Starting a SCSI disk often takes significantly more
+electrical power than normal operation of the disk.
+This option allows the
 user to specify how many concurrent high power commands may be outstanding
 without overloading the power supply on his computer.
 .It Dv SCSI_NO_SENSE_STRINGS
 This eliminates text descriptions of each
 .Tn SCSI
-Additional Sense Code and Additional Sense Code Qualifier pair.  Since this
+Additional Sense Code and Additional Sense Code Qualifier pair.
+Since this
 is a fairly large text database, eliminating it reduces the size of the
-kernel somewhat.  This is primarily necessary for boot floppies and other
-low disk space or low memory space environments.  In most cases, though,
+kernel somewhat.
+This is primarily necessary for boot floppies and other
+low disk space or low memory space environments.
+In most cases, though,
 this should be enabled, since it speeds the interpretation of
 .Tn SCSI
 error messages.  Don't let the "kernel bloat" zealots get to you -- leave
@@ -101,7 +109,8 @@ the sense descriptions in your kernel!
 .It Dv SCSI_NO_OP_STRINGS
 This disables text descriptions of each
 .Tn SCSI
-opcode.  This option, like the sense string option above, is primarily
+opcode.
+This option, like the sense string option above, is primarily
 useful for environments like a boot floppy where kernel size is critical.
 Enabling this option for normal use isn't recommended, since it slows
 debugging of
@@ -110,25 +119,31 @@ problems.
 .It Dv SCSI_DELAY=8000
 This is the
 .Tn SCSI
-"bus settle delay."  In CAM, it is specified in
+"bus settle delay."
+In CAM, it is specified in
 .Em milliseconds ,
 not seconds like the old
 .Tn SCSI
-layer used to do.  When the kernel boots, it sends a bus reset to each
+layer used to do.
+When the kernel boots, it sends a bus reset to each
 .Tn SCSI
 bus to tell each device to reset itself to a default set of transfer
-negotiations and other settings.  Most
+negotiations and other settings.
+Most
 .Tn SCSI
-devices need some amount of time to recover from a bus reset.  Newer disks
+devices need some amount of time to recover from a bus reset.
+Newer disks
 may need as little as 100ms, while old, slow devices may need much longer.
 If the
 .Dv SCSI_DELAY
-isn't specified, it defaults to 2 seconds.  The minimum allowable value for
+isn't specified, it defaults to 2 seconds.
+The minimum allowable value for
 .Dv SCSI_DELAY
-is "100", or 100ms.  One special case is that if the
+is "100", or 100ms.
+One special case is that if the
 .Dv SCSI_DELAY
-is set to 0, that will be taken to mean the "lowest possible value."  In
-that case, the
+is set to 0, that will be taken to mean the "lowest possible value."
+In that case, the
 .Dv SCSI_DELAY
 will be reset to 100ms.
 .El
@@ -164,7 +179,8 @@ which assigns scbus 1 to the second bus probed on the ahc1 device.
 .Pp
 When you have a mixture of wired down and counted devices then the
 counting begins with the first non-wired down unit for a particular
-type.  That is, if you have a disk wired down as
+type.
+That is, if you have a disk wired down as
 .Em "device da1" ,
 then the first non-wired disk shall come on line as
 .Em da2 .
@@ -215,34 +231,41 @@ Some of these flags, most notably
 .Dv CAM_DEBUG_TRACE
 and
 .Dv CAM_DEBUG_SUBTRACE
-will produce kernel printfs in EXTREME numbers.  Because of that, they
-aren't especially useful.  There aren't many things logged at the
+will produce kernel printfs in EXTREME numbers,
+and because of that, they aren't especially useful.
+There aren't many things logged at the
 .Dv CAM_DEBUG_INFO
-level, so it isn't especially useful.  The most useful debugging flag is
-the
+level, so it isn't especially useful.
+The most useful debugging flag is the
 .Dv CAM_DEBUG_CDB
 flag.  Users can enable debugging from their kernel config file, by using
 the following kernel config options:
 .Bl -tag -width CAM_DEBUG_TARGET
 .It Dv CAMDEBUG
-This enables CAM debugging.  Without this option, users will not even be able
+This enables CAM debugging.
+Without this option, users will not even be able
 to turn on debugging from userland via
 .Xr camcontrol 8 .
 .It Dv CAM_DEBUG_FLAGS
 This allows the user to set the various debugging flags described above
-in a kernel config file.  Flags may be ORed together if the user wishes to
+in a kernel config file.
+Flags may be ORed together if the user wishes to
 see printfs for multiple debugging levels.
 .It Dv CAM_DEBUG_BUS
-Specify a bus to debug.  To debug all busses, set this to -1.
+Specify a bus to debug.
+To debug all busses, set this to -1.
 .It Dv CAM_DEBUG_TARGET
-Specify a target to debug.  To debug all targets, set this to -1.
+Specify a target to debug.
+To debug all targets, set this to -1.
 .It Dv CAM_DEBUG_LUN
-Specify a lun to debug.  To debug all luns, set this to -1.
+Specify a lun to debug.
+To debug all luns, set this to -1.
 .El
 .Pp
 When specifying a bus, target or lun to debug, you
 .Em MUST
-specify all three bus/target/lun options above.  Using wildcards, you
+specify all three bus/target/lun options above.
+Using wildcards, you
 should be able to enable debugging on most anything.
 .Pp
 Users may also enable debugging printfs on the fly, if the

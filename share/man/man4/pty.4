@@ -49,8 +49,8 @@ A pseudo terminal is a pair of character devices, a
 .Em master
 device and a
 .Em slave
-device.  The slave device provides to a process
-an interface identical
+device.
+The slave device provides to a process an interface identical
 to that described in
 .Xr tty 4 .
 However, whereas all other devices which provide the
@@ -82,10 +82,11 @@ Takes no parameter.
 .It Dv TIOCPKT
 Enable/disable
 .Em packet
-mode.  Packet mode is enabled by specifying (by reference)
+mode.
+Packet mode is enabled by specifying (by reference)
 a nonzero parameter and disabled by specifying (by reference)
-a zero parameter.  When applied to the master side of a pseudo
-terminal, each subsequent
+a zero parameter.
+When applied to the master side of a pseudo terminal, each subsequent
 .Xr read 2
 from the terminal will return data written on the slave part of
 the pseudo terminal preceded by a zero byte (symbolically
@@ -180,9 +181,10 @@ of
 .Dv TIOCPKT .
 This mode causes input to the pseudo terminal
 to be flow controlled and not input edited (regardless of the
-terminal mode).  Each write to the control terminal produces
-a record boundary for the process reading the terminal.  In
-normal usage, a write of data is like the data typed as a line
+terminal mode).
+Each write to the control terminal produces
+a record boundary for the process reading the terminal.
+In normal usage, a write of data is like the data typed as a line
 on the terminal; a write of 0 bytes is like typing an end-of-file
 character.
 .Dv TIOCREMOTE

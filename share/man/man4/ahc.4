@@ -124,7 +124,8 @@ with this option enabled.
 Individual controllers may be configured to operate in the target role
 through the
 .Dq Dv AHC_TMODE_ENABLE
-configuration option.  The value assigned to this option should be a bitmap
+configuration option.
+The value assigned to this option should be a bitmap
 of all units where target mode is desired.
 For example, a value of 0x25, would enable target mode on units 0, 2, and 5.
 A value of 0x8a enables it for units 1, 3, and 7.
@@ -165,7 +166,8 @@ but care should be taken when using a 284x
 .Pq Tn VESA No local bus controller
 in an
 .Tn EISA
-system.  The jumpers setting the I/O area for the 284x should match the
+system.
+The jumpers setting the I/O area for the 284x should match the
 .Tn EISA
 slot into which the card is inserted to prevent conflicts with other
 .Tn EISA
@@ -175,7 +177,8 @@ Performance and feature sets vary throughout the aic7xxx product line.
 The following table provides a comparison of the different chips supported
 by the
 .Nm
-driver.  Note that wide and twin channel features, although always supported
+driver.
+Note that wide and twin channel features, although always supported
 by a particular chip, may be disabled in a particular motherboard or card
 design.
 .Pp
@@ -224,9 +227,12 @@ target on multiple SCSI IDs.
 .Sh SCSI CONTROL BLOCKS (SCBs)
 Every transaction sent to a device on the SCSI bus is assigned a
 .Sq SCSI Control Block
-(SCB).  The SCB contains all of the information required by the
-controller to process a transaction.  The chip feature table lists
-the number of SCBs that can be stored in on-chip memory.  All chips
+(SCB).
+The SCB contains all of the information required by the
+controller to process a transaction.
+The chip feature table lists
+the number of SCBs that can be stored in on-chip memory.
+All chips
 with model numbers greater than or equal to 7870 allow for the on chip
 SCB space to be augmented with external SRAM up to a maximum of 255 SCBs.
 Very few Adaptec controller configurations have external SRAM.
@@ -238,40 +244,47 @@ To fully utilize the SCSI bus and the devices on it,
 requires much more concurrency.
 The solution to this problem is
 .Em SCB Paging ,
-a concept similar to memory paging.  SCB paging takes advantage of
+a concept similar to memory paging.
+SCB paging takes advantage of
 the fact that devices usually disconnect from the SCSI bus for long
-periods of time without talking to the controller.  The SCBs
-for disconnected transactions are only of use to the controller
-when the transfer is resumed.  When the host queues another transaction
+periods of time without talking to the controller.
+The SCBs for disconnected transactions are only of use to the controller
+when the transfer is resumed.
+When the host queues another transaction
 for the controller to execute, the controller firmware will use a
-free SCB if one is available.  Otherwise, the state of the most recently
+free SCB if one is available.
+Otherwise, the state of the most recently
 disconnected (and therefore most likely to stay disconnected) SCB is
 saved, via dma, to host memory, and the local SCB reused to start
-the new transaction.  This allows the controller to queue up to
-255 transactions regardless of the amount of SCB space.  Since the
+the new transaction.
+This allows the controller to queue up to
+255 transactions regardless of the amount of SCB space.
+Since the
 local SCB space serves as a cache for disconnected transactions, the
 more SCB space available, the less host bus traffic consumed saving
 and restoring SCB data.
 .Sh BUGS
 Some Quantum drives (at least the Empire 2100 and 1080s) will not run on an
 .Tn AIC7870
-Rev B in synchronous mode at 10MHz.  Controllers with this problem have a
-42 MHz clock crystal on them and run slightly above 10MHz.  This confuses
-the drive and hangs the bus.  Setting a maximum synchronous negotiation rate
-of 8MHz in the
+Rev B in synchronous mode at 10MHz.
+Controllers with this problem have a
+42 MHz clock crystal on them and run slightly above 10MHz.
+This confuses the drive and hangs the bus.
+Setting a maximum synchronous negotiation rate of 8MHz in the
 .Tn SCSI-Select
 utility will allow normal operation.
 .Pp
 Although the Ultra2 and Ultra160 products have sufficient instruction
 ram space to support both the initiator and target roles concurrently,
 this configuration is disabled in favor of allowing the target role
-to respond on multiple target ids.  A method for configuring dual
-role mode should be provided.
+to respond on multiple target ids.
+A method for configuring dual role mode should be provided.
 .Pp
 Tagged Queuing is not supported in target mode.
 .Pp
 Reselection in target mode fails to function correctly on all high
-voltage differential boards as shipped by Adaptec.  Information on
+voltage differential boards as shipped by Adaptec.
+Information on
 how to modify HVD board to work correctly in target mode is available
 from Adaptec.
 .Sh SEE ALSO

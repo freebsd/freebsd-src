@@ -37,8 +37,8 @@ The
 .Nm
 driver provides a way for userland programs to read and write
 .Tn PCI
-configuration registers.  It also provides a way for userland programs to
-get a list of all
+configuration registers.
+It also provides a way for userland programs to get a list of all
 .Tn PCI
 devices, or all
 .Tn PCI
@@ -51,12 +51,14 @@ driver provides a write interface for
 configuration registers, system administrators should exercise caution when
 granting access to the
 .Nm
-device.  If used improperly, this driver can allow userland applications to
+device.
+If used improperly, this driver can allow userland applications to
 crash a machine or cause data loss.
 .Sh KERNEL CONFIGURATION
 It is only necessary to specify one
 .Nm
-controller in the kernel.  Additional
+controller in the kernel.
+Additional
 .Tn PCI
 busses are handled automatically as they are encountered.
 .Sh IOCTLS
@@ -64,7 +66,8 @@ The following
 .Xr ioctl 2
 calls are supported by the
 .Nm
-driver.  They are defined in the header file
+driver.
+They are defined in the header file
 .Aq Pa sys/pciio.h .
 .Bl -tag -width 012345678901234
 .Pp
@@ -73,7 +76,8 @@ This
 .Xr ioctl 2
 takes a
 .Va pci_conf_io
-structure.  It allows the user to retrieve information on all
+structure.
+It allows the user to retrieve information on all
 .Tn PCI
 devices in the system, or on
 .Tn PCI
@@ -121,8 +125,8 @@ device ID.
 device class.
 .It flags
 The flags describe which of the fields the kernel should match against.
-A device must match all specified fields in order to be returned.  The
-match flags are enumerated in the
+A device must match all specified fields in order to be returned.
+The match flags are enumerated in the
 .Va pci_getconf_flags
 structure.
 Hopefully the flag values are obvious enough that they don't need to
@@ -137,8 +141,8 @@ query.
 .It num_matches
 Number of matches returned by the kernel.
 .It matches
-Buffer containing matching devices returned by the kernel.  The items in
-this buffer are of type
+Buffer containing matching devices returned by the kernel.
+The items in this buffer are of type
 .Va pci_conf ,
 which consists of the following items:
 .Bl -tag -width pc_subvendor
@@ -179,20 +183,24 @@ Driver unit number.
 .El
 .It offset
 The offset is passed in by the user to tell the kernel where it should
-start traversing the device list.  The value passed out by the kernel
-points to the record immediately after the last one returned.  The user may
+start traversing the device list.
+The value passed out by the kernel
+points to the record immediately after the last one returned.
+The user may
 pass the value returned by the kernel in subsequent calls to the
 .Dv PCIOCGETCONF
-ioctl.  If the user does not intend to use the offset, it must be set to
-zero.
+ioctl.
+If the user does not intend to use the offset, it must be set to zero.
 .It generation
 .Tn PCI
-configuration generation.  This value only needs to be set if the offset is
-set.  The kernel will compare the current generation number of its internal
+configuration generation.
+This value only needs to be set if the offset is set.
+The kernel will compare the current generation number of its internal
 device list to the generation passed in by the user to determine whether
 its device list has changed since the user last called the
 .Dv PCIOCGETCONF
-ioctl.  If the device list has changed, a status of
+ioctl.
+If the device list has changed, a status of
 .Va PCI_GETCONF_LIST_CHANGED
 will be passed back.
 .It status
@@ -216,17 +224,20 @@ and
 to zero to start over at the beginning of the list.
 .It PCI_GETCONF_MORE_DEVS
 This tells the user that his buffer was not large enough to hold all of the
-remaining devices in the device list that possibly match his criteria.  It
-is possible for this status to be returned, even when none of the remaining
+remaining devices in the device list that possibly match his criteria.
+It is possible for this status to be returned, even when none of the remaining
 devices in the list would match the user's criteria.
 .It PCI_GETCONF_ERROR
-This indicates a general error while servicing the user's request.  If the
+This indicates a general error while servicing the user's request.
+If the
 .Va pat_buf_len
 is not equal to
 .Va num_patterns
 times
-.Va sizeof(struct pci_match_conf) , errno
-will be set to EINVAL.
+.Fn sizeof "struct pci_match_conf" ,
+.Va errno
+will be set to
+.Er EINVAL .
 .El
 .El
 .It PCIOCREAD
@@ -250,7 +261,8 @@ The
 .Tn PCI
 configuration register the user would like to access.
 .It pi_width
-The width, in bytes, of the data the user would like to read.  This value
+The width, in bytes, of the data the user would like to read.
+This value
 may be either 1, 2, or 4.  3-byte reads and reads larger than 4 bytes are
 not supported.  If an invalid width is passed, errno will be set to EINVAL.
 .It pi_data
@@ -265,7 +277,8 @@ specified in the passed-in
 .Va pci_io
 structure.  The
 .Va pci_io
-structure is described above.  The limitations on data width described for
+structure is described above.
+The limitations on data width described for
 reading registers, above, also apply to writing
 .Tn PCI
 configuration registers.
@@ -299,6 +312,7 @@ It isn't possible for users to specify an accurate offset into the device
 list without calling the
 .Dv PCIOCGETCONF
 at least once, since they have no way of knowing the current generation
-number otherwise.  This probably isn't a serious problem, though, since
+number otherwise.
+This probably isn't a serious problem, though, since
 users can easily narrow their search by specifying a pattern or patterns
 for the kernel to match against.

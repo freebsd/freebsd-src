@@ -59,15 +59,18 @@ All network protocols are associated with a specific
 .Em protocol family .
 A protocol family provides basic services to the protocol
 implementation to allow it to function within a specific
-network environment.  These services may include
+network environment.
+These services may include
 packet fragmentation and reassembly, routing, addressing, and
-basic transport.  A protocol family may support multiple
+basic transport.
+A protocol family may support multiple
 methods of addressing, though the current protocol implementations
-do not.  A protocol family is normally comprised of a number
-of protocols, one per
+do not.
+A protocol family is normally comprised of a number of protocols, one per
 .Xr socket 2
-type.  It is not required that a protocol family support
-all socket types.  A protocol family may contain multiple
+type.
+It is not required that a protocol family support all socket types.
+A protocol family may contain multiple
 protocols supporting the same socket abstraction.
 .Pp
 A protocol supports one of the socket abstractions detailed in
@@ -79,10 +82,12 @@ Protocols normally accept only one type of address format,
 usually determined by the addressing structure inherent in
 the design of the protocol family/network architecture.
 Certain semantics of the basic socket abstractions are
-protocol specific.  All protocols are expected to support
+protocol specific.
+All protocols are expected to support
 the basic model for their particular socket type, but may,
 in addition, provide non-standard facilities or extensions
-to a mechanism.  For example, a protocol supporting the
+to a mechanism.
+For example, a protocol supporting the
 .Dv SOCK_STREAM
 abstraction may allow more than one byte of out-of-band
 data to be transmitted per out-of-band message.
@@ -90,8 +95,8 @@ data to be transmitted per out-of-band message.
 A network interface is similar to a device interface.
 Network interfaces comprise the lowest layer of the
 networking subsystem, interacting with the actual transport
-hardware.  An interface may support one or more protocol
-families and/or address formats.
+hardware.
+An interface may support one or more protocol families and/or address formats.
 The SYNOPSIS section of each network interface
 entry gives a sample specification
 of the related drivers for use in providing
@@ -123,7 +128,8 @@ Consult the appropriate manual pages in this section for more
 information regarding the support for each protocol family.
 .Sh ADDRESSING
 Associated with each protocol family is an address
-format.  All network addresses adhere to a general structure,
+format.
+All network addresses adhere to a general structure,
 called a sockaddr, described below.
 However, each protocol
 imposes finer and more specific structure, generally renaming
@@ -171,8 +177,8 @@ This facility is described in
 .Xr route 4 .
 .Sh INTERFACES
 Each network interface in a system corresponds to a
-path through which messages may be sent and received.  A network
-interface usually has a hardware device associated with it, though
+path through which messages may be sent and received.
+A network interface usually has a hardware device associated with it, though
 certain interfaces such as the loopback interface,
 .Xr lo 4 ,
 do not.
@@ -188,7 +194,8 @@ in the desired domain.
 Most of the requests supported in earlier releases
 take an
 .Vt ifreq
-structure as its parameter.  This structure has the form
+structure as its parameter.
+This structure has the form
 .Bd -literal
 struct	ifreq {
 #define    IFNAMSIZ    16
@@ -218,9 +225,10 @@ struct	ifreq {
 Calls which are now deprecated are:
 .Bl -tag -width SIOCGIFBRDADDR
 .It Dv SIOCSIFADDR
-Set interface address for protocol family.  Following the address
-assignment, the ``initialization'' routine for
-the interface is called.
+Set interface address for protocol family.
+Following the address assignment, the
+.Dq initialization
+routine for the interface is called.
 .It Dv SIOCSIFDSTADDR
 Set point to point address for protocol family and interface.
 .It Dv SIOCSIFBRDADDR
@@ -241,7 +249,8 @@ Get point to point address for protocol family and interface.
 .It Dv SIOCGIFBRDADDR
 Get broadcast address for protocol family and interface.
 .It Dv SIOCSIFFLAGS
-Set interface flags field.  If the interface is marked down,
+Set interface flags field.
+If the interface is marked down,
 any processes currently routing packets through the interface
 are notified;
 some interfaces may be reset so that incoming packets are no longer received.
@@ -268,10 +277,12 @@ There are two requests that make use of a new structure:
 .Bl -tag -width SIOCGIFBRDADDR
 .It Dv SIOCAIFADDR
 An interface may have more than one address associated with it
-in some protocols.  This request provides a means to
+in some protocols.
+This request provides a means to
 add additional addresses (or modify characteristics of the
 primary address if the default address for the address family
-is specified).  Rather than making separate calls to
+is specified).
+Rather than making separate calls to
 set destination or broadcast addresses, or network masks
 (now an integral feature of multiple protocols)
 a separate structure is used to specify all three facets simultaneously
@@ -286,7 +297,8 @@ identifier itself to include the total size, as described in
 .Fn ioctl .
 .It Dv SIOCDIFADDR
 This requests deletes the specified address from the list
-associated with an interface.  It also uses the
+associated with an interface.
+It also uses the
 .Vt ifaliasreq
 structure to allow for the possibility of protocols allowing
 multiple masks or destination addresses, and also adopts the
@@ -294,9 +306,11 @@ convention that specification of the default address means
 to delete the first address for the interface belonging to
 the address family in which the original socket was opened.
 .It Dv SIOCGIFCONF
-Get interface configuration list.  This request takes an
+Get interface configuration list.
+This request takes an
 .Vt ifconf
-structure (see below) as a value-result parameter.  The
+structure (see below) as a value-result parameter.
+The
 .Va ifc_len
 field should be initially set to the size of the buffer
 pointed to by
@@ -366,7 +380,8 @@ struct if_clonereq {
 .Xr socket 2 ,
 .Xr intro 4 ,
 .Xr config 8 ,
-.Xr routed 8
+.Xr routed 8 ,
+.Xr ifnet 9
 .Sh HISTORY
 The
 .Nm netintro

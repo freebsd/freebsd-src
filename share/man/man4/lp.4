@@ -79,14 +79,17 @@ flag:
 .It Fl link0
 (default) Use
 .Fx
-mode (LPIP).  This is the simpler of the two modes
+mode (LPIP).
+This is the simpler of the two modes
 and therefore slightly more efficient.
 .It Cm link0
-Use Crynwr/Linux compatible mode (CLPIP).  This mode has a simulated ethernet
+Use Crynwr/Linux compatible mode (CLPIP).
+This mode has a simulated ethernet
 packet header, and is easier to interface to other types of equipment.
 .El
 .Pp
-The interface MTU defaults to 1500, but may be set to any value.  Both ends
+The interface MTU defaults to 1500, but may be set to any value.
+Both ends
 of the link must be configured with the same MTU.
 .Ss Cable Connections
 The cable connecting the two parallel ports should be wired as follows:
@@ -109,7 +112,8 @@ Cables with this wiring are widely available as 'Laplink' cables, and
 are often coloured yellow.
 .Pp
 The connections are symmetric, and provide 5 lines in each direction (four
-data plus one handshake).  The two modes use the same wiring, but make a
+data plus one handshake).
+The two modes use the same wiring, but make a
 different choice of which line to use as handshake.
 .Ss FreeBSD LPIP mode
 The signal lines are used as follows:
@@ -136,7 +140,8 @@ Data in, bit 3.
 Handshake in.
 .El
 .Pp
-When idle, all data lines are at zero.  Each byte is signalled in four steps:
+When idle, all data lines are at zero.
+Each byte is signalled in four steps:
 sender writes the 4 most significant bits and raises the handshake line;
 receiver reads the 4 bits and raises its handshake to acknowledge;
 sender places the 4 least significant bits on the data lines and lowers
@@ -146,14 +151,16 @@ The packet format has a two-byte header, comprising the fixed values 0x08,
 0x00, immediately followed by the IP header and data.
 .Pp
 The start of a packet is indicated by simply signalling the first byte
-of the header.  The end of the packet is indicated by inverting
+of the header.
+The end of the packet is indicated by inverting
 the data lines (ie. writing the ones-complement of the previous nibble
 to be transmitted) without changing the state of the handshake.
 .Pp
 Note that the end-of-packet marker assumes that the handshake signal and
 the data-out bits can be written in a single instruction - otherwise
 certain byte values in the packet data would falsely be interpreted
-as end-of-packet.  This is not a problem for the PC printer port,
+as end-of-packet.
+This is not a problem for the PC printer port,
 but requires care when implementing this protocol on other equipment.
 .Ss Crynwr/Linux CLPIP mode
 The signal lines are used as follows:
@@ -180,7 +187,8 @@ Data in, bit 3.
 Handshake in.
 .El
 .Pp
-When idle, all data lines are at zero.  Each byte is signalled in four steps:
+When idle, all data lines are at zero.
+Each byte is signalled in four steps:
 sender writes the 4 least significant bits and raises the handshake line;
 receiver reads the 4 bits and raises its handshake to acknowledge;
 sender places the 4 most significant bits on the data lines and lowers
@@ -208,9 +216,10 @@ calculates
 outgoing checksums, but does not validate incoming ones.
 .Pp
 The start of packet has to be signalled specially, since the line chosen
-for handshake-in cannot be used to generate an interrupt.  The sender
-writes the value 0x08 to the data lines, and waits for the receiver
-to respond by writing 0x01 to its data lines.  The sender then starts
+for handshake-in cannot be used to generate an interrupt.
+The sender writes the value 0x08 to the data lines, and waits for the receiver
+to respond by writing 0x01 to its data lines.
+The sender then starts
 signalling the first byte of the packet (the length byte).
 .Pp
 End of packet is deduced from the packet length and is not signalled
@@ -223,11 +232,14 @@ state to avoid spuriously indicating the start of the next packet).
 .Sh BUGS
 Busy-waiting loops are used while handshaking bytes, (and worse still when
 waiting for the receiving system to respond to an interrupt for the start
-of a packet).  Hence a fast system talking to a slow one will consume
-excessive amounts of CPU.  This is unavoidable in the case of CLPIP mode
+of a packet).
+Hence a fast system talking to a slow one will consume
+excessive amounts of CPU.
+This is unavoidable in the case of CLPIP mode
 due to the choice of handshake lines; it could theoretically be improved
 in the case of LPIP mode.
 .Pp
 Polling timeouts are controlled by counting loop iterations rather than
-timers, and so are dependent on CPU speed.  This is somewhat stabilised
+timers, and so are dependent on CPU speed.
+This is somewhat stabilised
 by the need to perform (slow) ISA bus cycles to actually read the port.

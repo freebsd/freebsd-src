@@ -56,10 +56,11 @@ hook represents the uncompressed side of the node, while the
 .Dv vjuncomp ,
 and
 .Dv vjip
-hooks represent the compressed side of the node.  Packets received on the
+hooks represent the compressed side of the node.
+Packets received on the
 .Dv ip
-will be compressed or passed through as appropriate.  Packets received
-on the other three hooks will be uncompressed as appropriate.
+will be compressed or passed through as appropriate.
+Packets received on the other three hooks will be uncompressed as appropriate.
 This node also supports
 .Dq always pass through
 mode in either direction.
@@ -70,7 +71,8 @@ Only
 (i.e., common case) TCP packets are actually compressed.
 These are output on the
 .Dv vjcomp
-hook.  Other TCP packets are run through the state machine but not
+hook.
+Other TCP packets are run through the state machine but not
 compressed; these appear on the
 .Dv vjuncomp
 hook.
@@ -150,10 +152,12 @@ mode.
 When enabling compression,
 .Dv maxChannel
 should be set to the number of outgoing compression channels minus one,
-and is a value between 3 and 15, inclusive.  The
+and is a value between 3 and 15, inclusive.
+The
 .Dv compressCID
 field indicates whether it is OK to compress the CID header field for
-outgoing compressed TCP packets.  This value should be zero unless
+outgoing compressed TCP packets.
+This value should be zero unless
 either (a) it is not possible for an outgoing frame to be lost, or
 (b) lost frames can be reliably detected and immediately
 reported to the peer's decompression engine (see
@@ -165,7 +169,8 @@ This command returns the node's current state described by the
 structure, which is defined in
 .Pa net/slcompress.h .
 .It Dv NGM_VJC_CLR_STATS
-Clears the node statistics counters.  Statistics are also cleared whenever the
+Clears the node statistics counters.
+Statistics are also cleared whenever the
 .Dv enableComp
 or
 .Dv enableDecomp
@@ -178,21 +183,23 @@ this message must be sent to the local
 .Nm vjc
 node immediately
 after detecting that a received frame has been lost, due to a bad
-checksum or for any other reason.  Failing to do this can result
-in corrupted TCP stream data.
+checksum or for any other reason.
+Failing to do this can result in corrupted TCP stream data.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
 .Sh BUGS
-Because the initialization routine in the kernel implementation of
+As the initialization routine in the kernel implementation of
 Van Jacobson compression initializes both compression and decompression
 at once, this node does not allow compression and decompression to
-be enabled in separate operations.  In order to enable one when
+be enabled in separate operations.
+In order to enable one when
 the other is already enabled, first both must be disabled, then
-both enabled.  This of course resets the node state.  This restriction
-may be lifted in a later version.
+both enabled.
+This of course resets the node state.
+This restriction may be lifted in a later version.
 .Pp
 When built as a loadable kernel module, this module includes the file
 .Pa net/slcompress.c .
