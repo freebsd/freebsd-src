@@ -54,6 +54,8 @@
 
 #include "pcib_if.h"
 
+int      badaddr(void *, size_t);  /* XXX */
+
 /*
  * Device interface.
  */
@@ -72,8 +74,8 @@ static int		grackle_release_resource(device_t bus, device_t child,
     			    int type, int rid, struct resource *res);
 static int		grackle_activate_resource(device_t bus, device_t child,
 			    int type, int rid, struct resource *res);
-static int		grackle_deactivate_resource(device_t bus, 
-    			    device_t child, int type, int rid, 
+static int		grackle_deactivate_resource(device_t bus,
+    			    device_t child, int type, int rid,
     			    struct resource *res);
 
 
@@ -241,7 +243,7 @@ grackle_attach(device_t dev)
 	}
 
 	/*
-	 * Write out the correct PIC interrupt values to config space 
+	 * Write out the correct PIC interrupt values to config space
 	 * of all devices on the bus.
 	 */
 	ofw_pci_fixup(dev, sc->sc_bus, sc->sc_node);
@@ -276,11 +278,11 @@ grackle_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		 * to catch these.
 		 */
 		if (bus > 0) {
-		  if (badaddr(sc->sc_data, 4)) {
+		  if (badaddr((void *)sc->sc_data, 4)) {
 			  return (retval);
 		  }
 		}
-			
+
 		switch (width) {
 		case 1:
 			retval = (in8rb(caoff));
@@ -381,7 +383,7 @@ grackle_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
 		    flags));
 		break;
-		
+
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
 		    device_get_nameunit(child));
@@ -431,7 +433,7 @@ grackle_activate_resource(device_t bus, device_t child, int type, int rid,
 	struct grackle_softc *sc;
 	void	*p;
 
-	sc = device_get_softc(bus);	
+	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ) {
 		return (bus_activate_resource(bus, type, rid, res));
@@ -447,10 +449,10 @@ grackle_activate_resource(device_t bus, device_t child, int type, int rid,
 		if (type == SYS_RES_IOPORT)
 			start += sc->sc_iostart;
 
-		if (bootverbose) 
-			printf("grackle mapdev: start %x, len %x\n", start,
+		if (bootverbose)
+			printf("grackle mapdev: start %x, len %ld\n", start,
 			    rman_get_size(res));
-	
+
 		p = pmap_mapdev(start, (vm_size_t)rman_get_size(res));
 		if (p == NULL)
 			return (ENOMEM);
@@ -492,7 +494,7 @@ grackle_enable_config(struct grackle_softc *sc, u_int bus, u_int slot,
 	 */
 	cfgval = (bus << 16) | (slot << 11) | (func << 8) | (reg & 0xFC)
 	    | GRACKLE_CFG_ENABLE;
-	
+
 	out32rb(sc->sc_addr, cfgval);
 	(void) in32rb(sc->sc_addr);
 
