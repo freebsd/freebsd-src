@@ -133,7 +133,7 @@ sscopen(dev_t dev, int flag, int fmt, struct thread *td)
 	sc = dev->si_drv1;
 
 	sc->disk.d_sectorsize = DEV_BSIZE;
-	sc->disk.d_mediasize = (off_t)sc-nsect * DEV_BSIZE;
+	sc->disk.d_mediasize = (off_t)sc->nsect * DEV_BSIZE;
 	sc->disk.d_fwsectors = 0;
 	sc->disk.d_fwheads = 0;
 	return (0);
@@ -162,7 +162,7 @@ sscstrategy(struct bio *bp)
 	u_long len, va, off;
 
 	if (ssc_debug > 1)
-		printf("sscstrategy(%p) %s %x, %d, %ld, %p)\n",
+		printf("sscstrategy(%p) %s %x, %ld, %ld, %p)\n",
 		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
 		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
