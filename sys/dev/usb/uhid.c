@@ -175,7 +175,7 @@ USB_MATCH(uhid)
 	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id == NULL || id->bInterfaceClass != UCLASS_HID)
+	if (id == NULL || id->bInterfaceClass != UICLASS_HID)
 		return (UMATCH_NONE);
 	return (UMATCH_IFACECLASS_GENERIC);
 }

@@ -1345,8 +1345,8 @@ probe_keyboard(struct usb_attach_arg *uaa, int flags)
 	/* Check that this is a keyboard that speaks the boot protocol. */
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id
-	    && id->bInterfaceClass == UCLASS_HID
-	    && id->bInterfaceSubClass == USUBCLASS_BOOT
+	    && id->bInterfaceClass == UICLASS_HID
+	    && id->bInterfaceSubClass == UISUBCLASS_BOOT
 	    && id->bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)
 		return 0;	/* found it */
 

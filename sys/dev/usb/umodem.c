@@ -211,9 +211,9 @@ USB_MATCH(umodem)
 
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == 0 ||
-	    id->bInterfaceClass != UCLASS_CDC ||
-	    id->bInterfaceSubClass != USUBCLASS_ABSTRACT_CONTROL_MODEL ||
-	    id->bInterfaceProtocol != UPROTO_CDC_AT)
+	    id->bInterfaceClass != UICLASS_CDC ||
+	    id->bInterfaceSubClass != UISUBCLASS_ABSTRACT_CONTROL_MODEL ||
+	    id->bInterfaceProtocol != UIPROTO_CDC_AT)
 		return (UMATCH_NONE);
 	
 	umodem_get_caps(uaa->device, &cm, &acm);

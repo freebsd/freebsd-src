@@ -173,7 +173,7 @@ USB_MATCH(ums)
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (!id || id->bInterfaceClass != UCLASS_HID)
+	if (!id || id->bInterfaceClass != UICLASS_HID)
 		return (UMATCH_NONE);
 
 	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);

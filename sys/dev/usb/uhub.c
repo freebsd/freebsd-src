@@ -141,7 +141,7 @@ USB_MATCH(uhub)
 	 * The subclass for hubs seems to be 0 for some and 1 for others,
 	 * so we just ignore the subclass.
 	 */
-	if (uaa->iface == NULL && dd->bDeviceClass == UCLASS_HUB)
+	if (uaa->iface == NULL && dd->bDeviceClass == UDCLASS_HUB)
 		return (UMATCH_DEVCLASS_DEVSUBCLASS);
 	return (UMATCH_NONE);
 }
