@@ -255,7 +255,7 @@ draw:
 	
 	/* Check if key pressed matches first character of any item tag in list */
 	for (i = 0; i < max_choice; i++)
-	    if (isprint(key) && key < 0x100 && toupper(key) == toupper(items[(scroll+i)*3][0]))
+	    if (key != ' ' && key < 0x100 && toupper(key) == toupper(items[(scroll+i)*3][0]))
 		break;
 
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
