@@ -340,6 +340,10 @@ this host as a network address translating router.
 .It Ar ppp_profile
 (str) The name of the profile to use from
 .Pa /etc/ppp/ppp.conf .
+.It Ar ppp_user
+(str) The name of the user under which ppp should be started. By
+default, ppp is started as
+.Ar root .
 .It Ar rc_conf_files
 (str) This option is used to specify a list of files that will override
 the settings in
