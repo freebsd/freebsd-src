@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.2 1995/10/22 21:38:04 jkh Exp $
+ * $Id: apache.c,v 1.3 1995/10/22 23:20:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -54,7 +54,7 @@
 #include "sysinstall.h"
 
 #define APACHE_BASE     "/usr/local/www"
-#define APACHE_HELPFILE "apache.html"
+#define APACHE_HELPFILE "apache.hlp"
 #define APACHE_PACKAGE  "apache-0.8.14"
 
 typedef struct
@@ -393,12 +393,19 @@ installApache(char *unused)
     char *tptr;
     FILE *fptr;
 
+    msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
+	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
     if (i == RET_SUCCESS)
 	i = apacheOpenDialog();
 
-    if (i != RET_SUCCESS)
+    if (i != RET_SUCCESS) {
+	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
+		   "package.  You may wish to fetch and configure it by hand by looking\n"
+		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
+		   "precompiled apache package in packages/networking/%s.", APACHE_PACKAGE);
         return (i);
+    }
     
     /*** Fix defaults for invalid value ***/
     maxcon = atoi(tconf.maxcon);
