@@ -66,6 +66,10 @@
 #ifndef	_NETINET6_IN6_H_
 #define	_NETINET6_IN6_H_
 
+#if !defined(_KERNEL) && !defined(__KAME_NETINET_IN_H_INCLUDED_)
+#error "do not include netinet6/in6.h directly, include netinet/in.h"
+#endif
+
 #if !defined(_XOPEN_SOURCE)
 #include <sys/queue.h>
 #endif
