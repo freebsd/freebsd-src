@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.119
+        Original revision: 1.122
 -->
 
 <sect1>
@@ -130,7 +130,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Adaptec SCSI コントローラ
+    <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI コントローラ
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Adaptec 1535 ISA SCSI コントローラ</para>
@@ -157,7 +157,7 @@
 	  <para>Adaptec 284x シリーズ VLB SCSI コントローラ。
             narrow 型、wide 型に対応。(&man.ahc.4; ドライバ)</para>
 	</listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Adaptec 19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
             シリーズ PCI SCSI コントローラ。
             Narrow/Wide/Twin/Ultra/Ultra2 型に対応。
@@ -192,7 +192,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Adaptec AIC7901, AIC7901A, AIC7902 Ultra320
+    <para arch="i386,sparc64">Adaptec AIC7901, AIC7901A, AIC7902 Ultra320
       コントローラチップをベースにした Ultra-320 SCSI コントローラ
       (&man.ahd.4; ドライバ)
       <itemizedlist>
@@ -696,41 +696,41 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64">Qlogic コントローラ。すべての変種に対応。
+    <para arch="i386,pc98,alpha,ia64,sparc64">Qlogic コントローラ。すべての変種に対応。
       (&man.isp.4; ドライバ)
       <itemizedlist>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1020, 1040 SCSI および Ultra SCSI
             ホストアダプタ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1240 dual Ultra SCSI コントローラ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 1080 Ultra2 LVD および 1280 Dual Ultra2 LVD
             コントローラ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 12160 Ultra3 LVD コントローラ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 2100 および Qlogic 2200 Fibre Channel SCSI
             コントローラ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Qlogic 2300 および Qlogic 2312 2-Gigabit Fibre Channel SCSI
             コントローラ</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS440 ISP1000 および、その変種</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS450 ISP1040 および、その変種</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Performance Technology SBS470 ISP2100 および、その変種</para>
 	</listitem>
-	<listitem arch="i386,alpha,ia64">
+	<listitem arch="i386,alpha,ia64,sparc64">
 	  <para>Antares Microsystems P-0033 ISP2100 および、その変種</para>
 	</listitem>
         <listitem arch="pc98">
@@ -1286,43 +1286,43 @@
     <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
       ドライバ)</para>
 
-    <para arch="i386,pc98,alpha">RealTek 8129/8139 Fast Ethernet NIC (&man.rl.4; ドライバ)
+    <para arch="i386,pc98,alpha,sparc64">RealTek 8129/8139 Fast Ethernet NIC (&man.rl.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Accton <quote>Cheetah</quote> EN1207D (MPX 5030/5038;
             RealTek 8139 互換品)</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Allied Telesyn AT2550</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Allied Telesyn AT2500TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>D-Link DFE-530TX+, DFE-538TX</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Farallon NetLINE 10/100 PCI</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>KTX-9130TX 10/100 Fast Ethernet</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>NDC Communications NE100TX-E</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Netronix Inc. EA-1210 NetEther 10/100</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>OvisLink LEF-8129TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>OvisLink LEF-8139TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>SMC EZ Card 10/100 PCI 1211-TX</para>
         </listitem>
 	<listitem arch="pc98">
@@ -2114,7 +2114,7 @@
       </note>
     </para>
 
-    <para arch="sparc64">Sun HME Ethernet および Fast Ethernet NIC
+    <para arch="sparc64">Sun HME Ethernet および QFE Ethernet NIC
       (hme ドライバ)</para>
     
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) および ERI (Fast
@@ -2502,11 +2502,14 @@
 
   <sect2>
     <title>シリアルインターフェイス</title>
-    <para arch="i386,alpha,ia64,sparc64"><quote>PC に標準で搭載されている</quote>
+    <para arch="i386,alpha,ia64"><quote>PC に標準で搭載されている</quote>
       8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
 
-    <para arch="sparc64">SAB82532 シリアルチップベースのシリアルポート
-      (sab ドライバ)</para>
+    <para arch="sparc64">SAB82532 シリアルチップベースのシリアルポート。
+      コンソールのみ対応 (sab ドライバ)。</para>
+
+    <para arch="sparc64">Zilog 8530 dual uart ベースのシリアルポート。
+      コンソールのみ対応 (zs ドライバ)</para>
 
     <para arch="i386,alpha">AST IRQ 共有機能付き 4 ポートシリアルカード</para>
 
@@ -3306,6 +3309,8 @@
       (xrpu ドライバ).</para>
 
     <para arch="pc98">NEC PC-98 Note の電源管理コントローラ (pmc ドライバ)</para>
+
+    <para arch="sparc64">OpenFirmware コンソール (ofwcons ドライバ)</para>
 
   </sect2>
 </sect1>
