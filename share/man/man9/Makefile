@@ -42,6 +42,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	device_probe_and_attach.9 device_quiet.9 device_set_desc.9 \
 	device_set_driver.9 device_set_flags.9 \
 	devstat.9 devsw.9 devtoname.9 driver.9 \
+	disk.9 \
 	domain.9 \
 	extattr.9 \
 	fetch.9 \
@@ -178,6 +179,8 @@ MLINKS+=device_ids.9 umajor.9 device_ids.9 uminor.9
 MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9
 MLINKS+=devstat.9 devstat_remove_entry.9 devstat.9 devstat_start_transaction.9
 MLINKS+=devstat.9 devstat_end_transaction.9
+MLINKS+=disk.9 disk_create.9
+MLINKS+=disk.9 disk_destroy.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=ithread.9 ithread_add_handler.9 ithread.9 ithread_create.9
