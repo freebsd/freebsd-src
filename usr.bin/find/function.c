@@ -783,7 +783,7 @@ f_print(plan, entry)
 	PLAN *plan;
 	FTSENT *entry;
 {
-	(void)printf("%s\n", entry->fts_path);
+	(void)puts(entry->fts_path);
 	return (1);
 }
 
