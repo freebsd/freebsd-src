@@ -230,6 +230,7 @@ extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_wake_sleep_prep(device_t dev, int sstate);
+int		acpi_wake_run_prep(device_t dev);
 extern ACPI_STATUS	acpi_Startup(void);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
