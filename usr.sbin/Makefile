@@ -139,7 +139,6 @@ SUBDIR+=elf2exe
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=apm \
-	apmconf \
 	apmd \
 	boot0cfg \
 	btxld \
