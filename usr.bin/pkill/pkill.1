@@ -171,6 +171,22 @@ This option is valid only when given as the first argument to
 .Nm pkill .
 .El
 .Pp
+If any
+.Ar pattern
+operands are specified, they are used as regular expressions to match
+the command name or full argument list of each process.
+If the
+.Fl f
+option is not specified, then the
+.Ar pattern
+will attempt to match the command name.
+However, presently
+.Fx
+will only keep track of the first 19 characters of the command
+name for each process.
+Attempts to match any characters after the first 19 of a command name
+will quietly fail.
+.Pp
 Note that a running
 .Nm pgrep
 or
