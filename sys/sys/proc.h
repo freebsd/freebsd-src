@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.24 1996/05/01 02:52:05 bde Exp $
+ * $Id: proc.h,v 1.25 1996/06/09 15:00:11 alex Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -83,8 +83,7 @@ struct	pgrp {
  * is running.
  */
 struct	proc {
-	struct	proc *p_forw;		/* Doubly-linked run/sleep queue. */
-	struct	proc *p_back;
+	TAILQ_ENTRY(proc) p_procq;	/* run/sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* List of all processes. */
 
 	/* substructures: */
@@ -295,11 +294,13 @@ void	roundrobin __P((void *));
 void	schedcpu __P((void *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
+void	sleepinit __P((void));
 void	remrq __P((struct proc *));
 void	cpu_switch __P((struct proc *));
 int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
+void	wakeup_one __P((void *chan));
 
 __dead void cpu_exit __P((struct proc *)) __dead2;
 __dead void exit1 __P((struct proc *, int)) __dead2;

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.36 1996/06/25 19:25:25 bde Exp $
+ *	$Id: swtch.s,v 1.37 1996/06/25 20:01:59 bde Exp $
  */
 
 #include "apm.h"
@@ -82,11 +82,13 @@ _want_resched:	.long	0			/* we need to re-run the scheduler */
  */
 ENTRY(setrunqueue)
 	movl	4(%esp),%eax
-	cmpl	$0,P_BACK(%eax)			/* should not be on q already */
+#ifdef DIAGNOSTIC
+	cmpb	$SRUN,P_STAT(%eax)
 	je	set1
 	pushl	$set2
 	call	_panic
 set1:
+#endif
 	cmpw	$RTP_PRIO_NORMAL,P_RTPRIO_TYPE(%eax) /* normal priority process? */
 	je	set_nort
 
@@ -168,7 +170,6 @@ rem1rt:
 	shrl	$3,%edx				/* yes, set bit as still full */
 	btsl	%edx,_whichrtqs
 rem2rt:
-	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
 rem_id:
 	btrl	%edx,_whichidqs			/* clear full bit, panic if clear already */
@@ -192,7 +193,6 @@ rem1id:
 	shrl	$3,%edx				/* yes, set bit as still full */
 	btsl	%edx,_whichidqs
 rem2id:
-	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
 
 rem_nort:     
@@ -219,7 +219,6 @@ rem1:
 	shrl	$3,%edx				/* yes, set bit as still full */
 	btsl	%edx,_whichqs
 rem2:
-	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
 
 rem3:	.asciz	"remrq"
@@ -334,11 +333,6 @@ sw1a:
 	leal	_rtqs(,%ebx,8),%eax		/* select q */
 	movl	%eax,%esi
 
-#ifdef        DIAGNOSTIC
-	cmpl	P_FORW(%eax),%eax		/* linked to self? (e.g. not on list) */
-	je	badsw				/* not possible */
-#endif
-
 	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
 	movl	P_FORW(%ecx),%edx
 	movl	%edx,P_FORW(%eax)
@@ -366,11 +360,6 @@ nortqr:
 	leal	_qs(,%ebx,8),%eax		/* select q */
 	movl	%eax,%esi
 
-#ifdef	DIAGNOSTIC
-	cmpl	P_FORW(%eax),%eax 		/* linked to self? (e.g. not on list) */
-	je	badsw				/* not possible */
-#endif
-
 	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
 	movl	P_FORW(%ecx),%edx
 	movl	%edx,P_FORW(%eax)
@@ -395,11 +384,6 @@ idqr: /* was sw1a */
 	btrl	%ebx,%edi			/* clear q full status */
 	leal	_idqs(,%ebx,8),%eax		/* select q */
 	movl	%eax,%esi
-
-#ifdef        DIAGNOSTIC
-	cmpl	P_FORW(%eax),%eax		/* linked to self? (e.g. not on list) */
-	je	badsw				/* not possible */
-#endif
 
 	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
 	movl	P_FORW(%ecx),%edx

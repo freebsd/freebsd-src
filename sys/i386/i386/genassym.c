@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.35 1996/05/02 14:19:40 phk Exp $
+ *	$Id: genassym.c,v 1.36 1996/05/02 22:24:53 phk Exp $
  */
 
 #include <stdio.h>
@@ -85,8 +85,8 @@ main()
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo *bootinfo = (struct bootinfo *)0;
 
-	printf("#define\tP_FORW %p\n", &p->p_forw);
-	printf("#define\tP_BACK %p\n", &p->p_back);
+	printf("#define\tP_FORW %p\n", &p->p_procq.tqe_next);
+	printf("#define\tP_BACK %p\n", &p->p_procq.tqe_prev);
 	printf("#define\tP_VMSPACE %p\n", &p->p_vmspace);
 	printf("#define\tVM_PMAP %p\n", &vms->vm_pmap);
 	printf("#define\tP_ADDR %p\n", &p->p_addr);
