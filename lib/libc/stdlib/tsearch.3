@@ -36,11 +36,11 @@
 .Sh SYNOPSIS
 .Fd #include <search.h>
 .Ft void *
-.Fn tdelete "const void *key" "void **rootp", "int (*compar) (const void *, const void *)"
+.Fn tdelete "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
-.Fn tfind "const void *key" "const void **rootp", "int (*compar) (const void *, const void *)"
+.Fn tfind "const void *key" "const void **rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
-.Fn tsearch "const void *key", "void **rootp", "int (*compar) (const void *, const void *)"
+.Fn tsearch "const void *key", "void **rootp" "int (*compar) (const void *, const void *)"
 .Ft void
 .Fn twalk "const void *root" "void (*compar) (const void *, VISIT, int)"
 .Sh DESCRIPTION
@@ -85,7 +85,7 @@ will be adjusted.
 .Pp
 .Fn Twalk
 walks the binary search tree rooted in
-.fa root
+.Fa root
 and calls the function
 .Fa action
 on each node.
