@@ -294,10 +294,15 @@ aac_biodone(struct bio *bp)
 
     devstat_end_transaction_bio(&sc->ad_stats, bp);
     if (bp->bio_flags & BIO_ERROR) {
+	/*
+	 * XXX For some reason, the disklabel seems to get zero'd out.  This
+	 * will cause diskerr to panic unless we pass in -1 as the blkno.
+	 */
+	int blkno = (sc->ad_label.d_nsectors) ? 0 : -1;
 #if __FreeBSD_version > 500005
-	diskerr(bp, (char *)bp->bio_driver1, 0, &sc->ad_label);
+	diskerr(bp, (char *)bp->bio_driver1, blkno, &sc->ad_label);
 #else
-	diskerr(bp, (char *)bp->bio_driver1, 0, -1, &sc->ad_label);
+	diskerr(bp, (char *)bp->bio_driver1, 0, blkno, &sc->ad_label);
 #endif
     }
     biodone(bp);
