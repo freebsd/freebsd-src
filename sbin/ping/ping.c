@@ -959,9 +959,10 @@ pr_addr(l)
 
 	if ((options & F_NUMERIC) ||
 	    !(hp = gethostbyaddr((char *)&l, 4, AF_INET)))
-		(void)sprintf(buf, "%s", inet_ntoa(*(struct in_addr *)&l));
+		(void)snprintf(buf, sizeof(buf), "%s",
+		    inet_ntoa(*(struct in_addr *)&l));
 	else
-		(void)sprintf(buf, "%s (%s)", hp->h_name,
+		(void)snprintf(buf, sizeof(buf), "%s (%s)", hp->h_name,
 		    inet_ntoa(*(struct in_addr *)&l));
 	return(buf);
 }
