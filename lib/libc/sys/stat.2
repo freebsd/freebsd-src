@@ -60,8 +60,9 @@ Read, write or execute
 permission of the named file is not required, but all directories
 listed in the path name leading to the file must be searchable.
 .Pp
-.Fn Lstat
-is like
+The
+.Fn lstat
+function is like
 .Fn stat
 except in the case where the named file is a symbolic link,
 in which case
@@ -213,10 +214,11 @@ and
 .Li st_blocks
 fields.
 .Sh ERRORS
-.Fn Stat
+The
+.Fn stat
 and
 .Fn lstat
-will fail if:
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EACCES
 Search permission is denied for a component of the path prefix.
@@ -243,8 +245,9 @@ represented correctly in the structure pointed to by
 .El
 .Pp
 .Bl -tag -width Er
-.Fn Fstat
-will fail if:
+The
+.Fn fstat
+function will fail if:
 .It Bq Er EBADF
 .Fa fd
 is not a valid open file descriptor.
