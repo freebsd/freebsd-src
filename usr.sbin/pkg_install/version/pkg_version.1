@@ -36,6 +36,8 @@
 .Op Fl l Ar limchar
 .Op Fl L Ar limchar
 .Op Ar index
+.Nm pkg_version
+.Op Fl t Ar version1 version2
 .Sh DESCRIPTION
 The
 .Nm
@@ -144,6 +146,16 @@ Note that because some of the status flag characters are also special
 to the shell, it is best to quote
 .Ar limchar
 with single quotes.
+.It Fl t
+Test a pair of version number strings and exit.
+The output consists of one of the single characters
+.Li =
+(equal),
+.Li \&<
+(right-hand number greater), or
+.Li \&>
+(left-hand number greater) on standard output.
+This flag is mostly useful for scripts or for testing.
 .It Fl v
 Enable verbose output.  Verbose output includes some English-text
 interpretations of the version number comparisons, as well as the
@@ -198,17 +210,19 @@ Blindly running the output of this command may leave a system in an
 unusable state.
 .Pp
 .Dl % pkg_version -c > do_update
+.Pp
+The following command compares two package version strings:
+.Pp
+.Dl % pkg_version -t 1.5 1.5.1
 .Sh AUTHORS
 .An Bruce A. Mah Aq bmah@FreeBSD.org
 .Sh CONTRIBUTORS
 .An Nik Clayton Aq nik@FreeBSD.org ,
 .An Dominic Mitchell Aq dom@palmerharvey.co.uk ,
 .An Mark Ovens Aq marko@FreeBSD.org ,
-.An Doug Barton Aq DougB@gorean.org
+.An Doug Barton Aq DougB@gorean.org ,
+.An Akinori MUSHA Aq knu@FreeBSD.org
 .Sh BUGS
-.Pp
-Patch levels aren't handled
-very well (i.e. version numbers of the form 1.2p3 or 1.2pl3).
 .Pp
 The commands output feature is 
 .Bf Em 
