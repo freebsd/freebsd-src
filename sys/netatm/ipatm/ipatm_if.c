@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netatm/port.h>
@@ -57,6 +59,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
+
+static MALLOC_DEFINE(M_IPATM_NIF, "ipatm nif", "IP/ATM network interfaces");
 
 /*
  * Local functions
@@ -117,11 +121,7 @@ ipatm_nifstat(cmd, nip, arg)
 		/*
 		 * Get a new interface block
 		 */
-		inp = uma_zalloc(ipatm_nif_zone, M_WAITOK);
-		if (inp == NULL) {
-			err = ENOMEM;
-			break;
-		}
+		inp = malloc(sizeof(*inp), M_IPATM_NIF, M_WAITOK | M_ZERO);
 		inp->inf_nif = nip;
 		inp->inf_state = IPNIF_ADDR;
 		inp->inf_arpnotify = ipatm_arpnotify;
@@ -161,7 +161,7 @@ ipatm_nifstat(cmd, nip, arg)
 		 * Clean up and free block
 		 */
 		UNLINK(inp, struct ip_nif, ipatm_nif_head, inf_next);
-		uma_zfree(ipatm_nif_zone, inp);
+		free(inp, M_IPATM_NIF);
 		break;
 
 	case NCM_SETADDR:
