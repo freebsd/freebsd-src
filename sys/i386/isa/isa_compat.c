@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.2 1999/04/17 09:56:35 bde Exp $
+ *	$Id: isa_compat.c,v 1.3 1999/04/19 08:42:39 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -131,12 +131,14 @@ isa_compat_release_resources(device_t dev, struct isa_compat_resources *res)
 	}
 }
 
+#define	irqmask(x)	((x) < 0 ? 0 : (1 << (x)))
+
 static int
 isa_compat_probe(device_t dev)
 {
 	struct isa_device *dvp = device_get_softc(dev);
 	struct isa_compat_resources res;
-	
+
 	bzero(&res, sizeof(res));
 	/*
 	 * Fill in the isa_device fields.
@@ -144,7 +146,7 @@ isa_compat_probe(device_t dev)
 	dvp->id_id = isa_compat_nextid();
 	dvp->id_driver = device_get_driver(dev)->priv;
 	dvp->id_iobase = isa_get_port(dev);
-	dvp->id_irq = (1 << isa_get_irq(dev));
+	dvp->id_irq = irqmask(isa_get_irq(dev));
 	dvp->id_drq = isa_get_drq(dev);
 	dvp->id_maddr = (void *)isa_get_maddr(dev);
 	dvp->id_msize = isa_get_msize(dev);
@@ -171,7 +173,7 @@ isa_compat_probe(device_t dev)
 				isa_set_portsize(dev, portsize);
 			if (dvp->id_iobase != isa_get_port(dev))
 				isa_set_port(dev, dvp->id_iobase);
-			if (dvp->id_irq != (1 << isa_get_irq(dev)))
+			if (dvp->id_irq != irqmask(isa_get_irq(dev)))
 				isa_set_irq(dev, ffs(dvp->id_irq) - 1);
 			if (dvp->id_drq != isa_get_drq(dev))
 				isa_set_drq(dev, dvp->id_drq);
