@@ -536,6 +536,7 @@ decl_attributes (node, attributes, prefix_attributes)
 	    int format_num;
 	    int first_arg_num;
 	    int is_scan;
+	    int null_format_ok;
 	    tree argument;
 	    int arg_num;
 	
@@ -550,15 +551,30 @@ decl_attributes (node, attributes, prefix_attributes)
 		&& (!strcmp (IDENTIFIER_POINTER (format_type), "printf")
 		    || !strcmp (IDENTIFIER_POINTER (format_type),
 				"__printf__")))
-	      is_scan = 0;
+	      {
+		is_scan = 0;
+		null_format_ok = 0;
+	      }
+	    else if (TREE_CODE (format_type) == IDENTIFIER_NODE
+		     && (!strcmp (IDENTIFIER_POINTER (format_type), "printf0")
+			 || !strcmp (IDENTIFIER_POINTER (format_type),
+				     "__printf0__")))
+	      {
+		is_scan = 0;
+		null_format_ok = 1;
+	      }
 	    else if (TREE_CODE (format_type) == IDENTIFIER_NODE
 		     && (!strcmp (IDENTIFIER_POINTER (format_type), "scanf")
 			 || !strcmp (IDENTIFIER_POINTER (format_type),
 				     "__scanf__")))
-	      is_scan = 1;
+	      {
+		is_scan = 1;
+		null_format_ok = 0;
+	      }
 	    else
 	      {
-		error ("unrecognized format specifier for `%s'");
+		error_with_decl (decl,
+		         "unrecognized format specifier for `%s'");
 		continue;
 	      }
 
@@ -625,7 +641,8 @@ decl_attributes (node, attributes, prefix_attributes)
 
 	    record_function_format (DECL_NAME (decl),
 				    DECL_ASSEMBLER_NAME (decl),
-				    is_scan, format_num, first_arg_num);
+				    is_scan, null_format_ok, format_num,
+				    first_arg_num);
 	    break;
 	  }
 
@@ -730,6 +747,7 @@ typedef struct function_format_info {
   tree name;			/* identifier such as "printf" */
   tree assembler_name;		/* optional mangled identifier (for C++) */
   int is_scan;			/* TRUE if *scanf */
+  int null_format_ok;		/* TRUE if the format string may be NULL */
   int format_num;		/* number of format argument */
   int first_arg_num;		/* number of first arg (zero for varargs) */
 } function_format_info;
@@ -748,15 +766,15 @@ static void check_format_info PROTO((function_format_info *, tree));
 void
 init_function_format_info ()
 {
-  record_function_format (get_identifier ("printf"), NULL_TREE, 0, 1, 2);
-  record_function_format (get_identifier ("fprintf"), NULL_TREE, 0, 2, 3);
-  record_function_format (get_identifier ("sprintf"), NULL_TREE, 0, 2, 3);
-  record_function_format (get_identifier ("scanf"), NULL_TREE, 1, 1, 2);
-  record_function_format (get_identifier ("fscanf"), NULL_TREE, 1, 2, 3);
-  record_function_format (get_identifier ("sscanf"), NULL_TREE, 1, 2, 3);
-  record_function_format (get_identifier ("vprintf"), NULL_TREE, 0, 1, 0);
-  record_function_format (get_identifier ("vfprintf"), NULL_TREE, 0, 2, 0);
-  record_function_format (get_identifier ("vsprintf"), NULL_TREE, 0, 2, 0);
+  record_function_format (get_identifier ("printf"), NULL_TREE, 0, 0, 1, 2);
+  record_function_format (get_identifier ("fprintf"), NULL_TREE, 0, 0, 2, 3);
+  record_function_format (get_identifier ("sprintf"), NULL_TREE, 0, 0, 2, 3);
+  record_function_format (get_identifier ("scanf"), NULL_TREE, 1, 0, 1, 2);
+  record_function_format (get_identifier ("fscanf"), NULL_TREE, 1, 0, 2, 3);
+  record_function_format (get_identifier ("sscanf"), NULL_TREE, 1, 0, 2, 3);
+  record_function_format (get_identifier ("vprintf"), NULL_TREE, 0, 0, 1, 0);
+  record_function_format (get_identifier ("vfprintf"), NULL_TREE, 0, 0, 2, 0);
+  record_function_format (get_identifier ("vsprintf"), NULL_TREE, 0, 0, 2, 0);
 }
 
 /* Record information for argument format checking.  FUNCTION_IDENT is
@@ -769,11 +787,12 @@ init_function_format_info ()
    (e.g. for varargs such as vfprintf).  */
 
 void
-record_function_format (name, assembler_name, is_scan,
+record_function_format (name, assembler_name, is_scan, null_format_ok,
 			format_num, first_arg_num)
       tree name;
       tree assembler_name;
       int is_scan;
+      int null_format_ok;
       int format_num;
       int first_arg_num;
 {
@@ -797,6 +816,7 @@ record_function_format (name, assembler_name, is_scan,
     }
 
   info->is_scan = is_scan;
+  info->null_format_ok = null_format_ok;
   info->format_num = format_num;
   info->first_arg_num = first_arg_num;
 }
@@ -876,7 +896,8 @@ check_format_info (info, params)
     format_tree = TREE_OPERAND (format_tree, 0); /* strip coercion */
   if (integer_zerop (format_tree))
     {
-      warning ("null format string");
+      if (!info->null_format_ok)
+	warning ("null format string");
       return;
     }
   if (TREE_CODE (format_tree) != ADDR_EXPR)
