@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: interrupt.c,v 1.1 1998/08/13 06:12:27 grog Exp grog $
+ * $Id: interrupt.c,v 1.2 1998/10/30 06:39:36 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -82,6 +82,10 @@ complete_rqe(struct buf *bp)
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	if (rq->error == EIO)				    /* I/O error, */
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force | setstate_noupdate); /* take the subdisk down */
+	else if (rq->error = ENXIO)			    /* or "not configured" (drive down) */
+	    set_drive_state(rqe->driveno,		    /* take the drive down */
+		drive_down,
+		setstate_force | setstate_noupdate);
     }
     /* Now update the statistics */
     if (bp->b_flags & B_READ) {				    /* read operation */
