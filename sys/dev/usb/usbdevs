@@ -103,6 +103,7 @@ vendor ATI		0x0528	ATI Technologies, Inc.
 vendor AKS		0x0529	Aladdin Knowledge Systems
 vendor UNIACCESS	0x0540	Universal Access
 vendor ANCHOR		0x0547	Anchor Chips, Inc.
+vendor SONY		0x054c  Sony Corp.
 vendor VISION		0x0553	VLSI Vision Ltd.
 vendor ASAHIKASEI	0x0556	Asahi Kasei Microsystems Co., Ltd
 vendor ATEN		0x0557	ATEN International Co. Ltd.
@@ -614,6 +615,9 @@ product SMC 2202USB		0x0200	10/100 ethernet adapter
 
 /* SOLID YEAR products */
 product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
+
+/* SONY products */
+product SONY DSC	0x0010	Sony DSC cameras
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
