@@ -33,7 +33,7 @@
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
  *
- *	$Id: less.h,v 1.4 1999/06/01 20:02:33 hoek Exp $
+ *	$Id: less.h,v 1.2.10.1 1999/07/28 06:09:50 hoek Exp $
  */
 
 #define	NULL_POSITION	((off_t)(-1))
