@@ -1,9 +1,9 @@
 /*
  * $FreeBSD$
  */
- 
-#include "dev/drm/drm.h"
-#include "dev/drm/drmP.h"
+
+#ifdef __FreeBSD__
+
 #include <sys/sysctl.h>
 
 static int	   DRM(name_info)DRM_SYSCTL_HANDLER_ARGS;
@@ -125,7 +125,7 @@ static int DRM(name_info)DRM_SYSCTL_HANDLER_ARGS
 static int DRM(_vm_info)DRM_SYSCTL_HANDLER_ARGS
 {
 	drm_device_t *dev = arg1;
-	drm_map_t    *map;
+	drm_local_map_t    *map;
 	drm_map_list_entry_t    *listentry;
 	const char   *types[] = { "FB", "REG", "SHM" };
 	const char   *type;
@@ -168,9 +168,9 @@ static int DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = DRM(_vm_info)(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 
 	return ret;
 }
@@ -191,8 +191,8 @@ static int DRM(_queues_info)DRM_SYSCTL_HANDLER_ARGS
 		q = dev->queuelist[i];
 		atomic_inc(&q->use_count);
 		DRM_SYSCTL_PRINT_RET(atomic_dec(&q->use_count),
-				     "%5d/0x%03x %5ld %5ld"
-				     " %5ld/%c%c/%c%c%c %5d %10ld %10ld %10ld\n",
+				     "%5d/0x%03x %5d %5d"
+				     " %5d/%c%c/%c%c%c %5d %10d %10d %10d\n",
 				     i,
 				     q->flags,
 				     atomic_read(&q->use_count),
@@ -203,7 +203,7 @@ static int DRM(_queues_info)DRM_SYSCTL_HANDLER_ARGS
 				     q->read_queue ? 'r':'-',
 				     q->write_queue ? 'w':'-',
 				     q->flush_queue ? 'f':'-',
-				     DRM_BUFCOUNT(&q->waitlist),
+				     (int)DRM_BUFCOUNT(&q->waitlist),
 				     atomic_read(&q->total_flushed),
 				     atomic_read(&q->total_queued),
 				     atomic_read(&q->total_locks));
@@ -219,9 +219,9 @@ static int DRM(queues_info) DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = DRM(_queues_info)(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 	return ret;
 }
 
@@ -240,7 +240,7 @@ static int DRM(_bufs_info) DRM_SYSCTL_HANDLER_ARGS
 	DRM_SYSCTL_PRINT(" o     size count  free	 segs pages    kB\n\n");
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
 		if (dma->bufs[i].buf_count)
-			DRM_SYSCTL_PRINT("%2d %8d %5d %5ld %5d %5d %5d\n",
+			DRM_SYSCTL_PRINT("%2d %8d %5d %5d %5d %5d %5d\n",
 				       i,
 				       dma->bufs[i].buf_size,
 				       dma->bufs[i].buf_count,
@@ -269,9 +269,9 @@ static int DRM(bufs_info) DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = DRM(_bufs_info)(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 	return ret;
 }
 
@@ -303,9 +303,9 @@ static int DRM(clients_info)DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = DRM(_clients_info)(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 	return ret;
 }
 
@@ -388,9 +388,9 @@ static int DRM(vma_info)DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = DRM(_vma_info)(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 	return ret;
 }
 #endif
@@ -517,9 +517,22 @@ static int DRM(histo_info)DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	int	     ret;
 
-	DRM_OS_LOCK;
+	DRM_LOCK;
 	ret = _drm_histo_info(oidp, arg1, arg2, req);
-	DRM_OS_UNLOCK;
+	DRM_UNLOCK;
 	return ret;
+}
+#endif
+
+#elif defined(__NetBSD__)
+/* stub it out for now, sysctl is only for debugging */
+int DRM(sysctl_init)(drm_device_t *dev)
+{
+	return 0;
+}
+
+int DRM(sysctl_cleanup)(drm_device_t *dev)
+{
+	return 0;
 }
 #endif
