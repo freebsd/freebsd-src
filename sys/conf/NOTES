@@ -917,6 +917,8 @@ device		pass		#CAM passthrough driver
 #                   CAM_DEBUG_SUBTRACE, and CAM_DEBUG_CDB
 #
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
+# CAM_NEW_TRAN_CODE: this is the new transport layer code that will be switched
+#			to soon
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
 # SCSI_NO_OP_STRINGS: When defined disables opcode descriptions
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
@@ -947,10 +949,12 @@ options 	CHANGER_MIN_BUSY_SECONDS=2
 options 	CHANGER_MAX_BUSY_SECONDS=10
 
 # Options for the CAM sequential access driver:
+# SA_IO_TIMEOUT: Timeout for read/write/wfm  operations, in minutes
 # SA_SPACE_TIMEOUT: Timeout for space operations, in minutes
 # SA_REWIND_TIMEOUT: Timeout for rewind operations, in minutes
 # SA_ERASE_TIMEOUT: Timeout for erase operations, in minutes
 # SA_1FM_AT_EOD: Default to model which only has a default one filemark at EOT.
+options 	SA_IO_TIMEOUT="(4)"
 options 	SA_SPACE_TIMEOUT="(60)"
 options 	SA_REWIND_TIMEOUT="(2*60)"
 options 	SA_ERASE_TIMEOUT="(4*60)"
