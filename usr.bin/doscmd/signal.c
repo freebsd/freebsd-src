@@ -29,7 +29,7 @@
  *
  *	BSDI signal.c,v 2.2 1996/04/08 19:33:06 bostic Exp
  *
- * $Id: signal.c,v 1.5 1997/03/18 02:36:56 msmith Exp $
+ * $Id: signal.c,v 1.1 1997/08/09 01:42:55 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -104,7 +104,9 @@ setsignal(int s, void (*h)(struct sigframe *))
 	handler[s] = h;
 
 	sa.sa_handler = (__sighandler_t *)generichandler;
-	sa.sa_mask = sigmask(SIGIO) | sigmask(SIGALRM);
+	sigemptyset(&sa.sa_mask);
+	sigaddset(&sa.sa_mask, SIGIO);
+	sigaddset(&sa.sa_mask, SIGALRM);
 	sa.sa_flags = SA_ONSTACK;
 	sigaction(s, &sa, NULL);
 
