@@ -1,5 +1,4 @@
 /*	$NetBSD: setjmp.S,v 1.3 1997/12/05 02:06:27 thorpej Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
