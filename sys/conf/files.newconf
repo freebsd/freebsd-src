@@ -161,6 +161,11 @@ file	netinet/ip_icmp.c	inet
 file	netinet/ip_input.c	inet
 file	netinet/ip_mroute.c	inet
 file	netinet/ip_output.c	inet
+file	netinet/ip_fil.c	ipfilter
+file	netinet/fil.c		ipfilter
+file	netinet/ip_nat.c	ipfilter
+file	netinet/ip_frag.c	ipfilter
+file	netinet/ip_state.c	ipfilter
 file	netinet/raw_ip.c	inet
 file	netinet/tcp_debug.c	inet
 file	netinet/tcp_input.c	inet
