@@ -92,6 +92,8 @@ dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
 dev/aic7xxx/93cx6.c	optional ahc device-driver
 dev/buslogic/bt.c	optional bt  device-driver
 dev/ccd/ccd.c		optional ccd device-driver
+dev/ida/ida.c		optional ida device-driver
+dev/ida/ida_disk.c	optional id
 dev/isp/isp_freebsd.c	optional isp device-driver
 dev/isp/isp.c		optional isp device-driver
 #dev/dpt/dpt_control.c	optional dpt device-driver
@@ -589,6 +591,7 @@ pci/bt848_i2c.c		optional bktr device-driver
 pci/bt_pci.c		optional bt device-driver
 pci/dpt_pci.c		optional pci dpt device-driver
 pci/cy_pci.c		optional cy device-driver
+pci/ida_pci.c		optional ida device-driver
 pci/if_al.c		optional al device-driver
 pci/if_ax.c		optional ax device-driver
 pci/if_de.c		optional de device-driver
