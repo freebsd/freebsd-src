@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: chkgrp.8,v 1.1 1998/05/24 15:09:22 des Exp $
+.\"	$Id: chkgrp.8,v 1.2 1998/05/27 14:04:37 des Exp $
 .\"
 .Dd May 5, 1998
 .Dt CHKGRP 8
@@ -42,6 +42,8 @@ errors. Specifically, it checks that every non-blank, non-comment
 entry is composed of four colon-separated fields, that none of them
 contains whitespace, and that the third field (the group ID) is
 numeric.
+.Sh FILES
+.It Pa /etc/group
 .Sh SEE ALSO
 .Xr getgrent 3 ,
 .Xr group 5
