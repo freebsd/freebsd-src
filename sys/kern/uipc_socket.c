@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.15 1996/02/13 18:16:20 wollman Exp $
+ * $Id: uipc_socket.c,v 1.16 1996/03/11 15:37:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -177,12 +177,16 @@ soclose(so)
 	int error = 0;
 
 	if (so->so_options & SO_ACCEPTCONN) {
-		struct socket *sp;
+		struct socket *sp, *sonext;
 
-		for (sp = so->so_incomp.tqh_first; sp != NULL; sp = sp->so_list.tqe_next)
+		for (sp = so->so_incomp.tqh_first; sp != NULL; sp = sonext) {
+			sonext = sp->so_list.tqe_next;
 			(void) soabort(sp);
-		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sp->so_list.tqe_next)
+		}
+		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sonext) {
+			sonext = sp->so_list.tqe_next;
 			(void) soabort(sp);
+		}
 	}
 	if (so->so_pcb == 0)
 		goto discard;
