@@ -42,6 +42,7 @@
 #include "ether.h"
 #include "npx.h"
 #include "opt_atalk.h"
+#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
