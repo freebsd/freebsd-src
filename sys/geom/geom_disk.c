@@ -180,6 +180,8 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	di.priv = dp;
 	di.blocksize = dp->d_sectorsize;
 	di.mediaoffset = gkd->offset;
+	if ((gkd->offset + gkd->length) > dp->d_mediasize)
+		gkd->length = dp->d_mediasize - gkd->offset;
 	di.mediasize = gkd->length;
 	error = set_dumper(&di);
 	g_io_deliver(bp, error);
