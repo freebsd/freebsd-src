@@ -33,6 +33,10 @@
 #include "ecoff.h"
 #endif
 
+#ifdef TC_ALPHA
+#include "elf/alpha.h"
+#endif
+
 #ifdef TC_MIPS
 #include "elf/mips.h"
 #endif
@@ -65,6 +69,7 @@ static void obj_elf_common PARAMS ((int));
 static void obj_elf_symver PARAMS ((int));
 static void obj_elf_data PARAMS ((int));
 static void obj_elf_text PARAMS ((int));
+static void obj_elf_subsection PARAMS ((int));
 
 static const pseudo_typeS elf_pseudo_table[] =
 {
@@ -86,6 +91,9 @@ static const pseudo_typeS elf_pseudo_table[] =
 
   /* This is a GNU extension to handle symbol versions.  */
   {"symver", obj_elf_symver, 0},
+
+  /* A GNU extension to change subsection only.  */
+  {"subsection", obj_elf_subsection, 0},
 
   /* These are used for dwarf. */
   {"2byte", cons, 2},
@@ -155,11 +163,11 @@ elf_begin ()
 {
   /* Add symbols for the known sections to the symbol table.  */
   symbol_table_insert (section_symbol (bfd_get_section_by_name (stdoutput,
-								".text")));
+								TEXT_SECTION_NAME)));
   symbol_table_insert (section_symbol (bfd_get_section_by_name (stdoutput,
-								".data")));
+								DATA_SECTION_NAME)));
   symbol_table_insert (section_symbol (bfd_get_section_by_name (stdoutput,
-								".bss")));
+								BSS_SECTION_NAME)));
 }
 
 void
@@ -617,6 +625,7 @@ obj_elf_section (xxx)
       ++input_line_pointer;
 
       SKIP_WHITESPACE ();
+
       if (*input_line_pointer == '"')
 	{
 	  /* Pick up a string with a combination of a, w, x.  */
@@ -699,7 +708,7 @@ obj_elf_section (xxx)
 	      SKIP_WHITESPACE ();
 	      if (*input_line_pointer != '#')
 		{
-		  as_warn ("Bad .section directive");
+		  as_warn ("Bad .section directive - character following name is not '#'");
 		  ignore_rest_of_line ();
 		  return;
 		}
@@ -791,6 +800,10 @@ obj_elf_section (xxx)
 #endif
     }
 
+  /* Prevent SEC_HAS_CONTENTS from being inadvertently set.  */
+  if (type == SHT_NOBITS)
+    seg_info (sec)->bss = 1;
+
   bfd_set_section_flags (stdoutput, sec, flags);
 
   /* Add a symbol for this section to the symbol table.  */
@@ -839,6 +852,28 @@ obj_elf_text (i)
   previous_section = now_seg;
   previous_subsection = now_subseg;
   s_text (i);
+
+#ifdef md_elf_section_change_hook
+  md_elf_section_change_hook ();
+#endif
+}
+
+static void
+obj_elf_subsection (ignore)
+     int ignore;
+{
+  register int temp;
+
+#ifdef md_flush_pending_output
+  md_flush_pending_output ();
+#endif
+
+  previous_section = now_seg;
+  previous_subsection = now_subseg;
+
+  temp = get_absolute_expression ();
+  subseg_set (now_seg, (subsegT) temp);
+  demand_empty_rest_of_line ();
 
 #ifdef md_elf_section_change_hook
   md_elf_section_change_hook ();
@@ -1373,10 +1408,17 @@ elf_frob_symbol (symp, puntp)
 
 #ifdef TC_MIPS
   /* The Irix 5 and 6 assemblers set the type of any common symbol and
-     any undefined non-function symbol to STT_OBJECT.  We try to be compatible,
-     since newer Irix 5 and 6 linkers care.  */
-  if (S_IS_COMMON (symp)
-      || (! S_IS_DEFINED (symp) && ((symp->bsym->flags & BSF_FUNCTION) == 0)))
+     any undefined non-function symbol to STT_OBJECT.  We try to be
+     compatible, since newer Irix 5 and 6 linkers care.  However, we
+     only set undefined symbols to be STT_OBJECT if we are on Irix,
+     because that is the only time gcc will generate the necessary
+     .global directives to mark functions.  */
+
+  if (S_IS_COMMON (symp))
+    symp->bsym->flags |= BSF_OBJECT;
+
+  if (strstr (TARGET_OS, "irix") != NULL
+      && (! S_IS_DEFINED (symp) && ((symp->bsym->flags & BSF_FUNCTION) == 0)))
     symp->bsym->flags |= BSF_OBJECT;
 #endif
 

@@ -1,8 +1,8 @@
-This is a beta release of a completely rewritten binutils distribution.
-(Rewritten since binutils 1.x, that is.)
+These are the GNU binutils.  These are utilities of use when dealing
+with object files.
 
-The linker (ld) has been moved into a separate directory, which should be
-../ld.  Linker-specific notes are in ../ld/README.
+The linker (ld) is in a separate directory, which should be ../ld.
+Linker-specific notes are in ../ld/README.
 
 As of version 2.5, the assembler (as) is also included in this package, in
 ../gas.  Assembler-specific notes can be found in ../gas/README.
@@ -12,16 +12,16 @@ Recent changes are in ./NEWS, ../ld/NEWS, and ../gas/NEWS.
 Unpacking and Installation -- quick overview
 ============================================
 
-When you unpack the binutils-2.8.tar.gz file, you'll get a directory
-called something like `binutils-2.8', which contains various files and
+When you unpack the binutils-2.9.tar.gz file, you'll get a directory
+called something like `binutils-2.9', which contains various files and
 directories.  Most of the files in the top directory are for
 information and for configuration.  The actual source code is in
 subdirectories.
 
 To build binutils, you can just do:
 
-	cd binutils-2.8
-	./configure [ --enable-targets='target1,target2...' ]
+	cd binutils-2.9
+	./configure [options]
 	make
 	make install # copies the programs files into /usr/local/bin
 		     # by default.
@@ -29,11 +29,23 @@ To build binutils, you can just do:
 This will configure and build all the libraries as well as the
 assembler, the binutils, and the linker.
 
-The --enable-targets option adds support for more binary file
-formats besides the default.  By default, support for only the
-selected target file format is compiled in.  To add support for more
-formats, list them as the argument to --enable-targets, separated by
-commas.  For example:
+If you have GNU make, we recommend building in a different directory:
+
+	mkdir objdir
+	cd objdir
+	../binutils-2.9/configure [options]
+	make
+	make install
+
+This relies on the VPATH feature of GNU make.
+
+By default, the binutils will be configured to support the system on
+which they are built.  When doing cross development, use the --target
+configure option to specify a different target.
+
+The --enable-targets option adds support for more binary file formats
+besides the default.  List them as the argument to --enable-targets,
+separated by commas.  For example:
 
 	./configure --enable-targets=sun3,rs6000-aix,decstation
 
@@ -42,16 +54,12 @@ the default in releases before 2.3):
 
 	./configure --enable-targets=all
 
-The binutils can be used in a cross-development environment.
-The file etc/configure.texi contains more information.
-
 You can also specify the --enable-shared option when you run
 configure.  This will build the BFD and opcodes libraries as shared
-libraries.  This will only work on certain systems, and currently will
-only work when compiling with gcc.  You can use arguments with the
---enable-shared option to indicate that only certain libraries should
-be built shared; for example, --enable-shared=bfd.  The only potential
-shared libraries in a binutils release are bfd and opcodes.
+libraries.  You can use arguments with the --enable-shared option to
+indicate that only certain libraries should be built shared; for
+example, --enable-shared=bfd.  The only potential shared libraries in
+a binutils release are bfd and opcodes.
 
 The binutils will be linked against the shared libraries.  The build
 step will attempt to place the correct library in the runtime search
@@ -59,11 +67,6 @@ path for the binaries.  However, in some cases, after you install the
 binaries, you may have to set an environment variable, normally
 LD_LIBRARY_PATH, so that the system can find the installed libbfd
 shared library.
-
-If you specify --enable-commonbfdlib as well as --enable-shared, then
-a single shared library will be built containing the bfd, opcodes, and
-libiberty libraries.  It will be installed as libbfd.  This option
-will make the binutils programs as small as possible.
 
 To build under openVMS/AXP, see the file makefile.vms in the top level
 directory.
@@ -89,7 +92,8 @@ the ranlib program in order to build the distribution.
 
 Porting
 =======
-Binutils-2.8 supports many different architectures, but there
+
+Binutils-2.9 supports many different architectures, but there
 are many more not supported, including some that were supported
 by earlier versions.  We are hoping for volunteers to
 improve this situation.
@@ -101,7 +105,30 @@ with gdb-4.x) may also be of help.
 
 Reporting bugs
 ==============
-Send bug reports and patches to bug-gnu-utils@prep.ai.mit.edu.  Always
-mention the version number you are running; this is printed by running
-any of the binutils with the --version option.  We appreciate reports
-about bugs, but we do not promise to fix them.
+
+Send bug reports and patches to bug-gnu-utils@gnu.org.  Always mention
+the version number you are running; this is printed by running any of
+the binutils with the --version option.  We appreciate reports about
+bugs, but we do not promise to fix them.
+
+Testing
+=======
+
+Testing this release of the binutils requires an unreleased version of
+dejagnu.  There is a dejagnu snapshot available at
+    ftp://ftp.cygnus.com/pub/binutils
+which may be used for testing.
+
+Maintenance
+===========
+
+The configure and Makefile.in files in the subdirectories are
+generated by autoconf and automake, respectively.  The libtool package
+is also required.  In order to make the generation rules fire
+automatically, you must configure with the --enable-maintainer-mode
+option.  This option is not the default in order to avoid problems on
+systems which have out of date versions of autoconf or automake
+installed.  The generated files in this release were built with
+unreleased versions of autoconf, automake, and libtool.  You can find
+snapshots of the appropriate sources at
+    ftp://ftp.cygnus.com/pub/binutils

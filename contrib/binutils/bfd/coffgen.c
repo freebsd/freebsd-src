@@ -1,5 +1,6 @@
 /* Support for the generic parts of COFF, for BFD.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -62,7 +63,7 @@ static const bfd_target *coff_real_object_p
   PARAMS ((bfd *, unsigned, struct internal_filehdr *, 
 	   struct internal_aouthdr *));
 static void fixup_symbol_value
-  PARAMS ((coff_symbol_type *, struct internal_syment *));
+  PARAMS ((bfd *, coff_symbol_type *, struct internal_syment *));
 static char *build_debug_section
   PARAMS ((bfd *));
 static char *copy_name
@@ -283,17 +284,13 @@ coff_object_p (abfd)
       opthdr = bfd_alloc (abfd, aoutsz);
       if (opthdr == NULL)
 	return 0;;
-      if (bfd_read (opthdr, 1, aoutsz, abfd) != aoutsz)
+      if (bfd_read (opthdr, 1, internal_f.f_opthdr, abfd)
+	  != internal_f.f_opthdr)
 	{
 	  return 0;
 	}
-      bfd_coff_swap_aouthdr_in (abfd, opthdr, (PTR) & internal_a);
+      bfd_coff_swap_aouthdr_in (abfd, opthdr, (PTR) &internal_a);
     }
-
-  /* Seek past the opt hdr stuff */
-  if (bfd_seek (abfd, (file_ptr) (internal_f.f_opthdr + filhsz), SEEK_SET)
-      != 0)
-    return NULL;
 
   return coff_real_object_p (abfd, nscns, &internal_f,
 			     (internal_f.f_opthdr != 0
@@ -575,7 +572,8 @@ coff_symbol_from (ignore_abfd, symbol)
 }
 
 static void
-fixup_symbol_value (coff_symbol_ptr, syment)
+fixup_symbol_value (abfd, coff_symbol_ptr, syment)
+     bfd *abfd;
      coff_symbol_type *coff_symbol_ptr;
      struct internal_syment *syment;
 {
@@ -603,10 +601,11 @@ fixup_symbol_value (coff_symbol_ptr, syment)
 	  syment->n_scnum =
 	    coff_symbol_ptr->symbol.section->output_section->target_index;
 
-	  syment->n_value =
-	    coff_symbol_ptr->symbol.value +
-	    coff_symbol_ptr->symbol.section->output_offset +
-	    coff_symbol_ptr->symbol.section->output_section->vma;
+	  syment->n_value = (coff_symbol_ptr->symbol.value
+			     + coff_symbol_ptr->symbol.section->output_offset);
+	  if (! obj_pe (abfd))
+	    syment->n_value +=
+	      coff_symbol_ptr->symbol.section->output_section->vma;
 	}
       else
 	{
@@ -702,7 +701,7 @@ coff_renumber_symbols (bfd_ptr, first_undef)
 	      /* Modify the symbol values according to their section and
 	         type */
 
-	      fixup_symbol_value (coff_symbol_ptr, &(s->u.syment));
+	      fixup_symbol_value (bfd_ptr, coff_symbol_ptr, &(s->u.syment));
 	    }
 	  for (i = 0; i < s->u.syment.n_numaux + 1; i++)
 	    s[i].offset = native_index++;
@@ -1017,8 +1016,9 @@ coff_write_alien_symbol (abfd, symbol, written, string_size_p,
       native->u.syment.n_scnum =
 	symbol->section->output_section->target_index;
       native->u.syment.n_value = (symbol->value
-				  + symbol->section->output_section->vma
 				  + symbol->section->output_offset);
+      if (! obj_pe (abfd))
+	native->u.syment.n_value += symbol->section->output_section->vma;
 
       /* Copy the any flags from the the file header into the symbol.
          FIXME: Why?  */
@@ -1417,8 +1417,8 @@ coff_pointerize_aux (abfd, table_base, symbol, indaux, auxent)
      unsigned int indaux;
      combined_entry_type *auxent;
 {
-  int type = symbol->u.syment.n_type;
-  int class = symbol->u.syment.n_sclass;
+  unsigned int type = symbol->u.syment.n_type;
+  unsigned int class = symbol->u.syment.n_sclass;
 
   if (coff_backend_info (abfd)->_bfd_coff_pointerize_aux_hook)
     {
@@ -2146,6 +2146,9 @@ coff_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
 
   /* Find the first C_FILE symbol.  */
   p = cof->raw_syments;
+  if (!p)
+    return false;
+
   pend = p + cof->raw_syment_count;
   while (p < pend)
     {
@@ -2156,9 +2159,11 @@ coff_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
 
   if (p < pend)
     {
+      bfd_vma sec_vma;
       bfd_vma maxdiff;
 
       /* Look through the C_FILE symbols to find the best one.  */
+      sec_vma = bfd_get_section_vma (abfd, section);
       *filename_ptr = (char *) p->u.syment._n._n_n._n_offset;
       maxdiff = (bfd_vma) 0 - (bfd_vma) 1;
       while (1)
@@ -2182,11 +2187,11 @@ coff_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
 	    }
 
 	  if (p2 < pend
-	      && offset >= (bfd_vma) p2->u.syment.n_value
-	      && offset - (bfd_vma) p2->u.syment.n_value < maxdiff)
+	      && offset + sec_vma >= (bfd_vma) p2->u.syment.n_value
+	      && offset + sec_vma - (bfd_vma) p2->u.syment.n_value < maxdiff)
 	    {
 	      *filename_ptr = (char *) p->u.syment._n._n_n._n_offset;
-	      maxdiff = offset - p2->u.syment.n_value;
+	      maxdiff = offset + sec_vma - p2->u.syment.n_value;
 	    }
 
 	  /* Avoid endless loops on erroneous files by ensuring that
@@ -2253,7 +2258,7 @@ coff_find_nearest_line (abfd, section, symbols, offset, filename_ptr,
 	    }
 	  else
 	    {
-	      if (l->u.offset + bfd_get_section_vma (abfd, section) > offset)
+	      if (l->u.offset > offset)
 		break;
 	      *line_ptr = l->line_number + line_base - 1;
 	    }

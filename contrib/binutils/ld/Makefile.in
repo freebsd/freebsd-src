@@ -1,76 +1,93 @@
-# Makefile for the GNU linker ld (version 2)
-# Copyright (C) 1989, 90, 91, 92, 93, 94, 95, 96, 1997
-# Free Software Foundation, Inc.
+# Makefile.in generated automatically by automake 1.2e from Makefile.am
 
-# This file is part of GNU ld.
+# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
 # This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
 
-VPATH = @srcdir@
+SHELL = @SHELL@
+
 srcdir = @srcdir@
-objdir = .
-
-target_alias = @target_alias@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
 prefix = @prefix@
-
-program_transform_name = @program_transform_name@
 exec_prefix = @exec_prefix@
+
 bindir = @bindir@
-libdir = @libdir@
-tooldir = $(exec_prefix)/$(target_alias)
+sbindir = @sbindir@
+libexecdir = @libexecdir@
 datadir = @datadir@
-mandir = @mandir@
-man1dir = $(mandir)/man1
-man2dir = $(mandir)/man2
-man3dir = $(mandir)/man3
-man4dir = $(mandir)/man4
-man5dir = $(mandir)/man5
-man6dir = $(mandir)/man6
-man7dir = $(mandir)/man7
-man8dir = $(mandir)/man8
-man9dir = $(mandir)/man9
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
 infodir = @infodir@
+mandir = @mandir@
 includedir = @includedir@
+oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = .
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+build_alias = @build_alias@
+build_triplet = @build@
+host_alias = @host_alias@
+host_triplet = @host@
+target_alias = @target_alias@
+target_triplet = @target@
+CC = @CC@
+EXEEXT = @EXEEXT@
+HDEFINES = @HDEFINES@
+LD = @LD@
+LIBTOOL = @LIBTOOL@
+LN_S = @LN_S@
+MAINT = @MAINT@
+MAKEINFO = @MAKEINFO@
+NATIVE_LIB_DIRS = @NATIVE_LIB_DIRS@
+NM = @NM@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+TDIRS = @TDIRS@
+VERSION = @VERSION@
+
+AUTOMAKE_OPTIONS = cygnus dejagnu
+
+tooldir = $(exec_prefix)/$(target_alias)
+
+YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L../bison/bison ; else echo bison -y ; fi`
+YFLAGS = -d
+LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo flex ; fi`
 
 # We put the scripts in the directory $(scriptdir)/ldscripts.
 # We can't put the scripts in $(datadir) because the SEARCH_DIR
 # directives need to be different for native and cross linkers.
 scriptdir = $(tooldir)/lib
-
-SHELL = /bin/sh
-
-INSTALL = `cd $(srcdir); pwd`/../install.sh -c
-INSTALL_PROGRAM = @INSTALL_PROGRAM@
-INSTALL_DATA = @INSTALL_DATA@
-INSTALL_XFORM = $(INSTALL) -t='$(program_transform_name)'
-INSTALL_XFORM1 = $(INSTALL_XFORM) -b=.1
-
-AR = ar
-AR_FLAGS = qv
-CC = @CC@
-CFLAGS = @CFLAGS@
-LDFLAGS = @LDFLAGS@
-HLDFLAGS = @HLDFLAGS@
-HLDENV = @HLDENV@
-RPATH_ENVVAR = @RPATH_ENVVAR@
-MAKEINFO = makeinfo
-TEXI2DVI = texi2dvi
-RANLIB = ranlib
-BISON = bison -y
-LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ;  else echo flex ; fi`
 
 EMUL = @EMUL@
 EMULATION_OFILES = @EMULATION_OFILES@
@@ -86,43 +103,15 @@ LIB_PATH =
 BASEDIR = $(srcdir)/..
 BFDDIR = $(BASEDIR)/bfd
 INCDIR	= $(BASEDIR)/include
-INCLUDES = -I. -I$(srcdir) -I../bfd -I$(BFDDIR) -I$(INCDIR)
 DEP = mkdep
 
 # What version of the manual to build
 DOCVER = gen
 
-# Where to find texinfo.tex to format docn with TeX
-TEXIDIR = $(srcdir)/../texinfo
-
-# Where to find other docs needed to format with TeX
-TEXINPUTS = $(TEXIDIR):$(BFDDIR)/doc:$(srcdir)
-
-# Whether to get roff to put indexing entries on stderr
-TEXI2OPT =
-# You neeed this to generate ld-index.ms (or .mm or .me)
-# TEXI2OPT = -i
-
-TEXI2ROFF=texi2roff
-
-# Which roff program to use to generate index for texi2roff'd doc
-ROFF = groff
-
 #stuff for self hosting (can be overridden in config file).
 HOSTING_CRT0 = @HOSTING_CRT0@
 HOSTING_LIBS = @HOSTING_LIBS@
 HOSTING_EMU = -m $(EMUL)
-
-# These were used by `make check-cdtest'
-#
-#CXX = `if [ -f ../gcc/xgcc ] ; then \
-#	        echo ../gcc/xgcc -B../gcc/; \
-#	    else echo gcc; \
-#	    fi`
-#CXXFLAGS = -fgnu-linker
-#
-# FIX_ME: using ../gcc/xgcc breaks the cdtest. 
-#CXX = g++
 
 # Setup the testing framework, if you have one
 EXPECT = `if [ -f $$r/../expect/expect ] ; \
@@ -146,7 +135,7 @@ CC_FOR_TARGET = ` \
     if [ "@host@" = "@target@" ] ; then \
       echo $(CC); \
     else \
-      echo gcc | sed '$(program_transform_name)'; \
+      echo gcc | sed '$(transform)'; \
     fi; \
   fi`
 
@@ -162,37 +151,18 @@ CXX_FOR_TARGET = ` \
     if [ "@host@" = "@target@" ] ; then \
       echo $(CXX); \
     else \
-      echo gcc | sed '$(program_transform_name)'; \
+      echo gcc | sed '$(transform)'; \
     fi; \
   fi`
 
-# go directly to ld.new in case this ld isn't capable of
-# linking native object on this host.  It can be renamed on
-# install.
-LD_PROG	= ld.new
+noinst_PROGRAMS = ld-new
+info_TEXINFOS = ld.texinfo
+noinst_TEXINFOS = ldint.texinfo
+man_MANS = ld.1
 
-all: $(LD_PROG)
-.PHONY: all
+INCLUDES = -D_GNU_SOURCE -I. -I$(srcdir) -I../bfd -I$(BFDDIR) -I$(INCDIR) $(HDEFINES) $(CFLAGS)
 
-LINTFLAGS = $(INCLUDES) $(EXTRA_DEF) 
-
-# The .cc suffix was used by `make check-cdtest'.
-
-.SUFFIXES: .y $(SUFFIXES) .cc
-
-# Suppress smart makes who think they know how to automake Yacc files
-.y.c:
-
-# This rule was used for the check-cdtest target.
-#.cc.o:
-#	$(CXX) -c -I$(srcdir) $(CXXFLAGS) $(CFLAGS) $<
-
-ALL_CFLAGS = -D_GNU_SOURCE $(INCLUDES) @HDEFINES@ $(CFLAGS)
-.c.o:
-	$(CC) -c $(ALL_CFLAGS) $<
-
-BFDDEP = ../bfd/libbfd.a
-BFDLIB = @BFDLIB@
+BFDLIB = ../bfd/libbfd.la
 LIBIBERTY = ../libiberty/libiberty.a
 
 ALL_EMULATIONS = \
@@ -200,11 +170,13 @@ ALL_EMULATIONS = \
 	eaixppc.o \
 	eaixrs6.o \
 	ealpha.o \
+	earcelf.o \
 	earmaoutb.o \
 	earmaoutl.o \
 	earmcoff.o \
 	earmpe.o \
 	ecoff_sparc.o \
+	ed10velf.o \
 	edelta68.o \
 	eebmon29k.o \
 	eelf32_sparc.o \
@@ -216,7 +188,6 @@ ALL_EMULATIONS = \
 	eelf32lmip.o \
 	eelf32lppc.o \
 	eelf32ppc.o \
-	eelf64_sparc.o \
 	eelf_i386.o \
 	egld960.o \
 	egld960coff.o \
@@ -280,6 +251,8 @@ ALL_EMULATIONS = \
 	est2000.o \
 	esun3.o \
 	esun4.o \
+	etic30aout.o \
+	etic30coff.o \
 	evanilla.o \
 	evax.o \
 	evsta.o \
@@ -288,6 +261,7 @@ ALL_EMULATIONS = \
 	ez8002.o
 
 ALL_64_EMULATIONS = \
+	eelf64_sparc.o \
 	eelf64alpha.o
 
 CFILES = ldctor.c ldemul.c ldexp.c ldfile.c ldlang.c \
@@ -305,24 +279,449 @@ OFILES = ldgram.o ldlex.o lexsup.o ldlang.o mri.o ldctor.o ldmain.o \
 	ldwrite.o ldexp.o  ldemul.o ldver.o ldmisc.o \
 	ldfile.o ldcref.o ${EMULATION_OFILES}
 
-LINTSOURCES = $(CFILES) $(GENERATED_CFILES) e*.c
-
 STAGESTUFF = *.o ldscripts/* e*.c
 
-info: ld.info
-.PHONY: info
+# These all start with e so 'make clean' can find them.
 
-ldgram.c: ldgram.y
-	$(BISON) $(BISONFLAGS) -d $(srcdir)/ldgram.y
-	mv -f y.tab.c ldgram.c
-	mv -f y.tab.h ldgram.h
+GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh ${srcdir} ${libdir} @host@ @target@ @target_alias@ ${EMUL} "@NATIVE_LIB_DIRS@"
+GEN_DEPENDS = $(srcdir)/genscripts.sh $(srcdir)/emultempl/stringify.sed
 
-# Separate from ldgram.c so that a parallel make doesn't try to build
-# both ldgram.c and ldgram.h simultaneously.
+ld_new_SOURCES = ldgram.y ldlex.l lexsup.c ldlang.c mri.c ldctor.c ldmain.c \
+	ldwrite.c ldexp.c ldemul.c ldver.c ldmisc.c ldfile.c ldcref.c
+ld_new_DEPENDENCIES = $(EMULATION_OFILES) $(BFDLIB) $(LIBIBERTY)
+ld_new_LDADD = $(EMULATION_OFILES) $(BFDLIB) $(LIBIBERTY)
+
+# This is the real libbfd.a created by libtool.
+TESTBFDLIB = @TESTBFDLIB@
+
+MOSTLYCLEANFILES = $(STAGESTUFF) ld1$(EXEEXT) ld2$(EXEEXT) ld3$(EXEEXT) \
+	ldemul-list.h crtbegin.o crtend.o ld.log ld.sum
+CLEANFILES = dep.sed .dep .dep1
+
+# Stuff that should be included in a distribution.  The diststuff
+# target is run by the taz target in ../Makefile.in.
+LDDISTSTUFF = ldgram.c ldgram.h ldlex.c
+
+DISTCLEANFILES = site.exp site.bak
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES = 
+noinst_PROGRAMS =  ld-new$(EXEEXT)
+PROGRAMS =  $(noinst_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I.
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+ld_new_OBJECTS =  ldgram.o ldlex.o lexsup.o ldlang.o mri.o ldctor.o \
+ldmain.o ldwrite.o ldexp.o ldemul.o ldver.o ldmisc.o ldfile.o ldcref.o
+ld_new_LDFLAGS = 
+LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
+LEXLIB = @LEXLIB@
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LINK = $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+TEXI2DVI = `if test -f $(top_srcdir)/../texinfo/util/texi2dvi; then echo $(top_srcdir)/../texinfo/util/texi2dvi; else echo texi2dvi; fi`
+TEXINFO_TEX = $(top_srcdir)/../texinfo/texinfo.tex
+INFO_DEPS = ld.info
+DVIS = ld.dvi
+TEXINFOS = ld.texinfo
+MANS = ld.1
+
+NROFF = nroff
+DIST_COMMON =  README ChangeLog Makefile.am Makefile.in NEWS TODO \
+acconfig.h acinclude.m4 aclocal.m4 config.in configure configure.in \
+ldgram.c ldlex.c stamp-h.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP = --best
+SOURCES = $(ld_new_SOURCES)
+OBJECTS = $(ld_new_OBJECTS)
+
+default: all
+
+.SUFFIXES:
+.SUFFIXES: .S .c .dvi .info .l .lo .o .ps .s .texi .texinfo .y
+$(srcdir)/Makefile.in: @MAINT@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --cygnus Makefile
+
+Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+$(ACLOCAL_M4): @MAINT@ configure.in  acinclude.m4
+	cd $(srcdir) && $(ACLOCAL)
+
+config.status: $(srcdir)/configure
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: @MAINT@$(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
+
+config.h: stamp-h
+	@:
+stamp-h: $(srcdir)/config.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h:config.in \
+	     $(SHELL) ./config.status
+	@echo timestamp > stamp-h
+$(srcdir)/config.in: @MAINT@$(srcdir)/stamp-h.in
+$(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) acconfig.h
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@echo timestamp > $(srcdir)/stamp-h.in
+
+mostlyclean-hdr:
+
+clean-hdr:
+
+distclean-hdr:
+	-rm -f config.h
+
+maintainer-clean-hdr:
+
+mostlyclean-noinstPROGRAMS:
+
+clean-noinstPROGRAMS:
+	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+
+distclean-noinstPROGRAMS:
+
+maintainer-clean-noinstPROGRAMS:
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+.c.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.s.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+.S.lo:
+	$(LIBTOOL) --mode=compile $(COMPILE) -c $<
+
+mostlyclean-libtool:
+	-rm -f *.lo
+
+clean-libtool:
+	-rm -rf .libs _libs
+
+distclean-libtool:
+
+maintainer-clean-libtool:
+
+ld-new$(EXEEXT): $(ld_new_OBJECTS) $(ld_new_DEPENDENCIES)
+	@rm -f ld-new$(EXEEXT)
+	$(LINK) $(ld_new_LDFLAGS) $(ld_new_OBJECTS) $(ld_new_LDADD) $(LIBS)
+.y.c:
+	$(YACC) $(YFLAGS) $< && mv y.tab.c $*.c
+	if test -f y.tab.h; then \
+	if cmp -s y.tab.h $*.h; then rm -f y.tab.h; else mv y.tab.h $*.h; fi; \
+	else :; fi
 ldgram.h: ldgram.c
 
+.l.c:
+	$(LEX) $(LFLAGS) $< && mv $(LEX_OUTPUT_ROOT).c $@
+
+ld.info: ld.texinfo
+ld.dvi: ld.texinfo
+
+
+DVIPS = dvips
+
+.texi.info:
+	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	$(MAKEINFO) -I $(srcdir) $<
+
+.texi.dvi:
+	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.texi:
+	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	$(MAKEINFO) -I $(srcdir) $<
+
+.texinfo.info:
+	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	$(MAKEINFO) -I $(srcdir) $<
+
+.texinfo:
+	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	$(MAKEINFO) -I $(srcdir) $<
+
+.texinfo.dvi:
+	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+.dvi.ps:
+	$(DVIPS) $< -o $@
+
+install-info-am: $(INFO_DEPS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(infodir)
+	@for file in $(INFO_DEPS); do \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  for ifile in `cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
+	    if test -f $$d/$$ifile; then \
+	      echo " $(INSTALL_DATA) $$d/$$ifile $(infodir)/$$ifile"; \
+	      $(INSTALL_DATA) $$d/$$ifile $(infodir)/$$ifile; \
+	    else : ; fi; \
+	  done; \
+	done
+	@$(POST_INSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  for file in $(INFO_DEPS); do \
+	    echo " install-info --info-dir=$(infodir) $(infodir)/$$file";\
+	    install-info --info-dir=$(infodir) $(infodir)/$$file || :;\
+	  done; \
+	else : ; fi
+
+uninstall-info:
+	$(PRE_UNINSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  ii=yes; \
+	else ii=; fi; \
+	for file in $(INFO_DEPS); do \
+	  test -z "$ii" \
+	    || install-info --info-dir=$(infodir) --remove $$file; \
+	done
+	$(NORMAL_UNINSTALL)
+	for file in $(INFO_DEPS); do \
+	  (cd $(infodir) && rm -f $$file $$file-[0-9] $$file-[0-9][0-9]); \
+	done
+
+dist-info: $(INFO_DEPS)
+	for base in $(INFO_DEPS); do \
+	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
+	  for file in `cd $$d && eval echo $$base*`; do \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file; \
+	  done; \
+	done
+
+mostlyclean-aminfo:
+	-rm -f ld.aux ld.cp ld.cps ld.dvi ld.fn ld.fns ld.ky ld.kys ld.ps \
+	  ld.log ld.pg ld.toc ld.tp ld.tps ld.vr ld.vrs ld.op ld.tr \
+	  ld.cv ld.cn
+
+clean-aminfo:
+
+distclean-aminfo:
+
+maintainer-clean-aminfo:
+	for i in $(INFO_DEPS); do \
+	  rm -f $$i; \
+	  if test "`echo $$i-[0-9]*`" != "$$i-[0-9]*"; then \
+	    rm -f $$i-[0-9]*; \
+	  fi; \
+	done
+clean-info: mostlyclean-aminfo
+install-man: $(MANS)
+	$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(mandir)/man1
+	@sect=1;				\
+	inst=`echo "ld" | sed '$(transform)'`.1; \
+	if test -f $(srcdir)/ld.1; then file=$(srcdir)/ld.1; \
+	else file=ld.1; fi; \
+	echo " $(INSTALL_DATA) $$file $(mandir)/man$$sect/$$inst"; \
+	$(INSTALL_DATA) $$file $(mandir)/man$$sect/$$inst
+
+uninstall-man:
+	$(NORMAL_UNINSTALL)
+	-inst=`echo "ld" | sed '$(transform)'`.1; \
+	rm -f $(mandir)/man1/$$inst
+
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES) config.in $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)config.in$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.in $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
+
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-rm -rf $(distdir)
+	GZIP=$(GZIP) $(TAR) zxf $(distdir).tar.gz
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+	cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	  && $(MAKE) \
+	  && $(MAKE) dvi \
+	  && $(MAKE) check \
+	  && $(MAKE) install \
+	  && $(MAKE) installcheck \
+	  && $(MAKE) dist
+	-rm -rf $(distdir)
+	@echo "========================"; \
+	echo "$(distdir).tar.gz is ready for distribution"; \
+	echo "========================"
+dist: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+dist-all: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	@for file in $(DISTFILES); do \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  test -f $(distdir)/$$file \
+	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	  || cp -p $$d/$$file $(distdir)/$$file; \
+	done
+	$(MAKE) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-info
+
+DEJATOOL = $(PACKAGE)
+
+RUNTESTDEFAULTFLAGS = --tool $(DEJATOOL) --srcdir $$srcdir
+site.exp: Makefile
+	@echo 'Making a new site.exp file...'
+	-@rm -f site.bak
+	@echo '## these variables are automatically generated by make ##' > $@-t
+	@echo '# Do not edit here.  If you wish to override these values' >> $@-t
+	@echo '# edit the last section' >> $@-t
+	@echo 'set tool $(DEJATOOL)' >> $@-t
+	@echo 'set srcdir $(srcdir)' >> $@-t
+	@echo 'set objdir' `pwd` >> $@-t
+	@echo 'set host_alias $(host_alias)' >> $@-t
+	@echo 'set host_triplet $(host_triplet)' >> $@-t
+	@echo 'set target_alias $(target_alias)' >> $@-t
+	@echo 'set target_triplet $(target_triplet)' >> $@-t
+	@echo 'set build_alias $(build_alias)' >> $@-t
+	@echo 'set build_triplet $(build_triplet)' >> $@-t
+	@echo '## All variables above are generated by configure. Do Not Edit ##' >> $@-t
+	-@sed '1,/^## All variables above are.*##/ d' site.bak >> $@-t
+	-@mv site.exp site.bak
+	@mv $@-t site.exp
+info: $(INFO_DEPS)
+dvi: $(DVIS)
+check:
+	$(MAKE) check-DEJAGNU
+installcheck:
+install-info: install-info-am
+install-exec: install-exec-local
+	@$(NORMAL_INSTALL)
+
+install-data: install-man install-data-local
+	@$(NORMAL_INSTALL)
+
+install: install-exec install-data all
+	@:
+
+uninstall: uninstall-man
+
+all: Makefile $(PROGRAMS) $(MANS) config.h
+
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+installdirs:
+	$(mkinstalldirs)  $(mandir)/man1
+
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean:  mostlyclean-hdr mostlyclean-noinstPROGRAMS \
+		mostlyclean-compile mostlyclean-libtool \
+		mostlyclean-aminfo mostlyclean-tags mostlyclean-generic \
+		mostlyclean-local
+
+clean:  clean-hdr clean-noinstPROGRAMS clean-compile clean-libtool \
+		clean-aminfo clean-tags clean-generic mostlyclean
+
+distclean:  distclean-hdr distclean-noinstPROGRAMS distclean-compile \
+		distclean-libtool distclean-aminfo distclean-tags \
+		distclean-generic clean distclean-local
+	-rm -f config.status
+	-rm -f libtool
+
+maintainer-clean:  maintainer-clean-hdr maintainer-clean-noinstPROGRAMS \
+		maintainer-clean-compile maintainer-clean-libtool \
+		maintainer-clean-aminfo maintainer-clean-tags \
+		maintainer-clean-generic distclean
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f config.status
+
+.PHONY: default mostlyclean-hdr distclean-hdr clean-hdr \
+maintainer-clean-hdr mostlyclean-noinstPROGRAMS \
+distclean-noinstPROGRAMS clean-noinstPROGRAMS \
+maintainer-clean-noinstPROGRAMS mostlyclean-compile distclean-compile \
+clean-compile maintainer-clean-compile mostlyclean-libtool \
+distclean-libtool clean-libtool maintainer-clean-libtool \
+install-info-am uninstall-info mostlyclean-aminfo distclean-aminfo \
+clean-aminfo maintainer-clean-aminfo install-man uninstall-man tags \
+mostlyclean-tags distclean-tags clean-tags maintainer-clean-tags \
+distdir check-DEJAGNU info dvi installcheck install-info install-exec \
+install-data install uninstall all installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
+
+
 ldmain.o: ldmain.c config.status
-	$(CC) -c -DDEFAULT_EMULATION='"$(EMUL)"' -DSCRIPTDIR='"$(scriptdir)"' -DTARGET='"@target@"' $(ALL_CFLAGS) $<
+	$(COMPILE) -c -DDEFAULT_EMULATION='"$(EMUL)"' -DSCRIPTDIR='"$(scriptdir)"' -DTARGET='"@target@"' $(srcdir)/ldmain.c
 
 ldemul-list.h: Makefile
 	(echo "/* This file is automatically generated.  DO NOT EDIT! */";\
@@ -338,20 +737,6 @@ ldemul-list.h: Makefile
 	done;\
 	echo "  0") >ldemul-tmp.h
 	mv ldemul-tmp.h ldemul-list.h
-
-ldlex.c: ldlex.l
-	$(LEX) $(srcdir)/ldlex.l
-	-sed -e '/^int.*free();/d' \
-	     -e '/^char.*malloc();/d' \
-	     -e 's/malloc/xmalloc/g' \
-	  < lex.yy.c > ldlex.c.new
-	-rm lex.yy.c
-	mv ldlex.c.new ./ldlex.c
-
-# These all start with e so 'make clean' can find them.
-
-GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh ${srcdir} ${libdir} @host@ @target@ @target_alias@ ${EMUL} "@NATIVE_LIB_DIRS@"
-GEN_DEPENDS = $(srcdir)/genscripts.sh $(srcdir)/emultempl/stringify.sed
 @TDIRS@
 
 ea29k.c: $(srcdir)/emulparams/a29k.sh \
@@ -366,6 +751,9 @@ eaixrs6.c: $(srcdir)/emulparams/aixrs6.sh \
 ealpha.c: $(srcdir)/emulparams/alpha.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/alpha.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} alpha "$(tdir_alpha)"
+earcelf.c: $(srcdir)/emulparams/arcelf.sh \
+  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} arcelf "$(tdir_arcelf)"
 earmaoutb.c:	$(srcdir)/emulparams/armaoutb.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/armaout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} armaoutb "$(tdir_armaoutb)"
@@ -400,23 +788,29 @@ eelf32b4300.c: $(srcdir)/emulparams/elf32b4300.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32b4300 "$(tdir_elf32b4300)"
 eelf32bmip.c: $(srcdir)/emulparams/elf32bmip.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfmips.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32bmip "$(tdir_elf32bmip)"
+eelf32bsmip.c: $(srcdir)/emulparams/elf32bsmip.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} elf32bsmip "$(tdir_elf32bsmip)"
 eelf32ebmip.c: $(srcdir)/emulparams/elf32ebmip.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfmips.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32ebmip "$(tdir_elf32ebmip)"
 eelf32elmip.c: $(srcdir)/emulparams/elf32elmip.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfmips.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32elmip "$(tdir_elf32elmip)"
 eelf32l4300.c: $(srcdir)/emulparams/elf32l4300.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32l4300 "$(tdir_elf32l4300)"
 eelf32lmip.c: $(srcdir)/emulparams/elf32lmip.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfmips.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32lmip "$(tdir_elf32lmip)"
 eelf32lppc.c: $(srcdir)/emulparams/elf32lppc.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfppc.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32lppc "$(tdir_elf32lppc)"
+eelf32lsmip.c: $(srcdir)/emulparams/elf32lsmip.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} elf32lsmip "$(tdir_elf32lsmip)"
 eelf32ppc.c: $(srcdir)/emulparams/elf32ppc.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elfppc.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32ppc "$(tdir_elf32ppc)"
@@ -424,7 +818,7 @@ eelf64alpha.c: $(srcdir)/emulparams/elf64alpha.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf64alpha "$(tdir_elf64alpha)"
 eelf64_sparc.c: $(srcdir)/emulparams/elf64_sparc.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf64_sparc "$(tdir_elf64_sparc)"
 eelf_i386.c: $(srcdir)/emulparams/elf_i386.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
@@ -621,6 +1015,12 @@ esun3.c: $(srcdir)/emulparams/sun3.sh \
 esun4.c: $(srcdir)/emulparams/sun4.sh \
   $(srcdir)/emultempl/sunos.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} sun4 "$(tdir_sun4)"
+etic30aout.c: $(srcdir)/emulparams/tic30aout.sh \
+  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/tic30aout.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} tic30aout "$(tdir_tic30aout)"
+etic30coff.c: $(srcdir)/emulparams/tic30coff.sh \
+  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/tic30coff.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} tic30coff "$(tdir_tic30coff)"
 evanilla.c: $(srcdir)/emulparams/vanilla.sh \
   $(srcdir)/emultempl/vanilla.em $(srcdir)/scripttempl/vanilla.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} vanilla "$(tdir_vanilla)"
@@ -630,6 +1030,9 @@ evax.c: $(srcdir)/emulparams/vax.sh \
 evsta.c: $(srcdir)/emulparams/vsta.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} vsta "$(tdir_vsta)"
+ev850.c: $(srcdir)/emulparams/v850.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/v850.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} v850 "$(tdir_v850)"
 ew65.c: $(srcdir)/emulparams/w65.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/w65.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} w65 "$(tdir_w65)"
@@ -640,91 +1043,52 @@ ez8002.c: $(srcdir)/emulparams/z8002.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/z8000.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} z8002 "$(tdir_z8002)"
 
-$(LD_PROG): $(OFILES) $(BFDDEP) $(LIBIBERTY)
-	$(HLDENV) $(CC) $(HLDFLAGS) $(CFLAGS) $(LDFLAGS) -o $(LD_PROG) $(OFILES) $(BFDLIB) $(LIBIBERTY) $(EXTRALIBS)
-
 # The generated emulation files mostly have the same dependencies.
 $(EMULATION_OFILES): ../bfd/bfd.h sysdep.h config.h $(INCDIR)/bfdlink.h \
   ld.h ldmain.h ldemul.h ldfile.h ldmisc.h ldexp.h ldlang.h \
   ldctor.h ldexp.h ldlang.h ldgram.h
 
-# These targets are for the dejagnu testsuites. The file site.exp 
-# contains global variables that all the testsuites will use.
-
-site.exp: ./config.status Makefile
-	@echo "Making a new config file..."
-	@rm -f ./tmp?
-	@touch site.exp
-	@mv site.exp site.bak
-	@echo "## variables are automatically generated by make ##" > ./tmp0
-	@echo "# Do not edit here. If you wish to override these" >> ./tmp0
-	@echo "# values, add them to the last section" >> ./tmp0
-	@echo "# HOST AND TARGET INFO" >> ./tmp0
-	@echo "set host_os @host_os@" >> ./tmp0
-	@echo "set host_alias @host_alias@" >> ./tmp0
-	@echo "set host_cpu @host_cpu@" >> ./tmp0
-	@echo "set host_vendor @host_vendor@" >> ./tmp0
-	@echo "set target_os @target_os@" >> ./tmp0
-	@echo "set target_alias @target_alias@" >> ./tmp0
-	@echo "set target_cpu @target_cpu@" >> ./tmp0
-	@echo "set target_vendor @target_vendor@" >> ./tmp0
-	@echo "set host_triplet @host@" >> ./tmp0
-	@echo "set target_triplet @target@" >> ./tmp0
-	@echo "# DIRECTORY INFO" >> ./tmp0
-	@echo "set objdir `pwd`" >> ./tmp0
-	@echo "" >> ./tmp0	
-	@echo "# LD DEPENDENCIES" >> ./tmp0	
-	@echo "set OFILES \"$(OFILES)\"" >> ./tmp0
-	@echo "set BFDLIB \"$(BFDLIB)\"" >> ./tmp0
-	@echo "set LIBIBERTY \"$(LIBIBERTY)\"" >> ./tmp0
-	@echo "set HOSTING_EMU \"$(HOSTING_EMU)\"" >> ./tmp0
-	@echo "set HOSTING_CRT0 \"$(HOSTING_CRT0)\"" >> ./tmp0
-	@echo "set HOSTING_LIBS \"$(HOSTING_LIBS)\"" >> ./tmp0
-	@echo "" >> ./tmp0	
-	@echo "## Variables generated by configure. Do Not Edit ##" >> ./tmp0
-	@cat ./tmp0 > site.exp
-	@cat site.bak | sed \
-			-e '1,/^## Variables generated by.*##/ d' >> site.exp
-	-@rm -f ./tmp?
-
-check: site.exp
+check-DEJAGNU: site.exp
+	srcroot=`cd $(srcdir) && pwd`; export srcroot; \
 	r=`pwd`; export r; \
-	srcroot=`cd ${srcdir}; pwd` ; export srcroot ; \
-	EXPECT=${EXPECT} ; export EXPECT ; \
-	$(RPATH_ENVVAR)=$$r/../bfd:$$r/../opcodes:$$$(RPATH_ENVVAR); \
-	export $(RPATH_ENVVAR); \
-	if [ -f $$r/../expect/expect ] ; then  \
-	   TCL_LIBRARY=$${srcroot}/../tcl/library ; \
-	   export TCL_LIBRARY ; \
-	else true ; fi ; \
-	$(RUNTEST) --tool ld --srcdir $(srcdir)/testsuite $(RUNTESTFLAGS) \
-	  CC="$(CC_FOR_TARGET)" CFLAGS="$(CFLAGS)" \
-	  CXX="$(CXX_FOR_TARGET)" CXXFLAGS="$(CXXFLAGS)" \
-	  CC_FOR_HOST="$(CC)" CFLAGS_FOR_HOST="$(CFLAGS)"
-
-installcheck:
-.PHONY: check installcheck
+	EXPECT=$(EXPECT); export EXPECT; \
+	if [ -f $(top_builddir)/../expect/expect ]; then \
+	  TCL_LIBRARY=`cd $(top_srcdir)/../tcl/library && pwd`; \
+	  export TCL_LIBRARY; \
+	fi; \
+	runtest=$(RUNTEST); \
+	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
+	  $$runtest --tool $(DEJATOOL) --srcdir $${srcroot}/testsuite \
+		CC="$(CC_FOR_TARGET)" CFLAGS="$(CFLAGS)" \
+		CXX="$(CXX_FOR_TARGET)" CXXFLAGS="$(CXXFLAGS)" \
+		CC_FOR_HOST="$(CC)" CFLAGS_FOR_HOST="$(CFLAGS)" \
+		OFILES="$(OFILES)" BFDLIB="$(TESTBFDLIB)" \
+		LIBIBERTY="$(LIBIBERTY)" HOSTING_EMU="$(HOSTING_EMU)" \
+		HOSTING_CRT0="$(HOSTING_CRT0)" HOSTING_LIBS="$(HOSTING_LIBS)" \
+		$(RUNTESTFLAGS); \
+	else echo "WARNING: could not find \`runtest'" 1>&2; :;\
+	fi
 
 # Rules for testing by relinking ld itself.
 # A similar test is in the testsuite.  This target is for ease of use
 # when porting ld.
 
-ld-partial.o: ld.new
-	./ld.new $(HOSTING_EMU) -o ld-partial.o -r $(OFILES)
-ld1: ld-partial.o
-	./ld.new $(HOSTING_EMU) -o ld1 $(HOSTING_CRT0) ld-partial.o $(BFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
+ld-partial.o: ld-new$(EXEEXT)
+	./ld-new$(EXEEXT) $(HOSTING_EMU) -o ld-partial.o -r $(OFILES)
+ld1$(EXEEXT): ld-partial.o
+	./ld-new$(EXEEXT) $(HOSTING_EMU) -o ld1$(EXEEXT) $(HOSTING_CRT0) ld-partial.o $(TESTBFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
 
-ld1-full: ld.new
-	./ld.new $(HOSTING_EMU) -o ld1-full $(HOSTING_CRT0) $(OFILES) $(BFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
+ld1-full$(EXEEXT): ld-new
+	./ld-new$(EXEEXT) $(HOSTING_EMU) -o ld1-full$(EXEEXT) $(HOSTING_CRT0) $(OFILES) $(TESTBFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
 
-ld2: ld1
-	./ld1 $(HOSTING_EMU) -o ld2 $(HOSTING_CRT0) $(OFILES) $(BFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
+ld2$(EXEEXT): ld1$(EXEEXT)
+	./ld1$(EXEEXT) $(HOSTING_EMU) -o ld2$(EXEEXT) $(HOSTING_CRT0) $(OFILES) $(TESTBFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
 
-ld3: ld2
-	./ld2 $(HOSTING_EMU) -o ld3 $(HOSTING_CRT0) $(OFILES) $(BFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
+ld3$(EXEEXT): ld2$(EXEEXT)
+	./ld2$(EXEEXT) $(HOSTING_EMU) -o ld3$(EXEEXT) $(HOSTING_CRT0) $(OFILES) $(TESTBFDLIB) $(LIBIBERTY) $(HOSTING_LIBS)
 
-bootstrap: ld3
-	cmp ld2 ld3
+bootstrap: ld3$(EXEEXT)
+	cmp ld2$(EXEEXT) ld3$(EXEEXT)
 
 .PHONY: bootstrap
 
@@ -764,206 +1128,49 @@ bootstrap: ld3
 # because almost all configs use "gen" version of manual.
 #  Set DOCVER above to change.
 configdoc.texi:	${DOCVER}-doc.texi
-	ln -s ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi || \
-	ln ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi || \
-	cp ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi
+	ln -s ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi >/dev/null 2>&1 \
+	  || ln ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi >/dev/null 2>&1 \
+	  || cp ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi
 
-# TeX output
-dvi: ld.dvi
-ld.dvi: $(srcdir)/ld.texinfo configdoc.texi $(BFDDIR)/doc/bfdsumm.texi
-	TEXINPUTS=$(BFDDIR)/doc:$$TEXINPUTS MAKEINFO='$(MAKEINFO) -I$(BFDDIR)/doc -I$(srcdir)' \
-	$(TEXI2DVI) $(srcdir)/ld.texinfo
+ld.info: $(srcdir)/ld.texinfo configdoc.texi
+	@rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	$(MAKEINFO) -I $(srcdir) -I $(BFDDIR)/doc $(srcdir)/ld.texinfo
 
-ldint.dvi: $(srcdir)/ldint.texinfo
-	$(TEXI2DVI) $(srcdir)/ldint.texinfo
+ld.dvi: $(srcdir)/ld.texinfo configdoc.texi
+	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir) -I $(BFDDIR)/doc' $(TEXI2DVI) $(srcdir)/ld.texinfo
 
-# info file for online browsing
-ld.info: $(srcdir)/ld.texinfo configdoc.texi $(BFDDIR)/doc/bfdsumm.texi
-	$(MAKEINFO) -I$(BFDDIR)/doc -I$(srcdir) -o ld.info $(srcdir)/ld.texinfo
+# We want to reconfigure if configure.host or configure.tgt changes.
+Makefile: configure.host configure.tgt
+mostlyclean-local:
+	-rm -rf tmpdir
 
-ldint.info: $(srcdir)/ldint.texinfo
-	$(MAKEINFO) -o ldint.info $(srcdir)/ldint.texinfo
+.PHONY: install-exec-local install-data-local
 
-.PHONY: dvi
+install-exec-local: ld-new$(EXEEXT)
+	$(mkinstalldirs) $(bindir) $(tooldir)/bin
+	@list='$(noinst_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $$p $(bindir)/`echo $$p|sed -e 's/-new//'|sed '$(transform)'`"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $$p $(bindir)/`echo $$p|sed -e 's/-new//'|sed '$(transform)'`; \
+	  else :; fi; \
+	done
+	rm -f $(tooldir)/bin/ld$(EXEEXT)
+	n=`echo ld | sed '$(transform)'`; \
+	if [ "$(bindir)/$$n$(EXEEXT)" != "$(tooldir)/bin/ld$(EXEEXT)" ]; then \
+	  ln $(bindir)/$$n$(EXEEXT) $(tooldir)/bin/ld$(EXEEXT) >/dev/null 2>/dev/null \
+	  || $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(tooldir)/bin/ld$(EXEEXT); \
+	fi
 
-#separate targets for "ms", "me", and "mm" forms of roff doc
-# Try to use a recent texi2roff.  v2 was put on prep in jan91.
-# If you want an index, see texi2roff doc for postprocessing 
-# and add -i to texi2roff invocations below.
-# Workarounds for texi2roff-2 (probably fixed in later texi2roff's, delete
-#    correspondint -e lines when later texi2roff's are current)
-# + @ifinfo's deleted explicitly due to texi2roff-2 bug w nested constructs.
-# + @c's deleted explicitly because texi2roff sees texinfo commands in them
-# + @   (that's at-BLANK) not recognized by texi2roff, turned into blank
-# + @alphaenumerate is ridiculously new, turned into @enumerate
-
-ld.ms: $(srcdir)/ld.texinfo
-	sed -e '/\\input texinfo/d' \
-		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
-		-e '/^@ifinfo/,/^@end ifinfo/d' \
-		-e '/^@c/d' \
-		-e 's/{.*,,/{/' \
-		-e 's/@ / /g' \
-		-e 's/^@alphaenumerate/@enumerate/g' \
-		-e 's/^@end alphaenumerate/@end enumerate/g' \
-		$(srcdir)/ld.texinfo | \
-	$(TEXI2ROFF) $(TEXI2OPT) -ms | \
-	sed -e 's/---/\\(em/g' \
-		>>ld.ms 
-
-# index for roff output
-ld-index.ms: ld.ms
-	$(ROFF) -ms ld.ms 2>&1 1>/dev/null | \
-		sed -e '/: warning:/d' | \
-		texi2index >ld-index.ms
-
-# roff output (-mm)
-ld.mm: $(srcdir)/ld.texinfo
-	sed -e '/\\input texinfo/d' \
-		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
-		-e '/^@ifinfo/,/^@end ifinfo/d' \
-		-e '/^@c/d' \
-		-e 's/{.*,,/{/' \
-		-e '/@noindent/d' \
-		-e 's/@ / /g' \
-		-e 's/^@alphaenumerate/@enumerate/g' \
-		-e 's/^@end alphaenumerate/@end enumerate/g' \
-		$(srcdir)/ld.texinfo | \
-	$(TEXI2ROFF) $(TEXI2OPT) -mm | \
-	sed -e 's/---/\\(em/g' \
-	>ld.mm 
-
-# index for roff output
-ld-index.mm: ld.mm
-	$(ROFF) -mm ld.mm 2>&1 1>/dev/null | \
-		sed -e '/: warning:/d' | \
-		texi2index >ld-index.mm
-
-# roff output (-me)
-ld.me: $(srcdir)/ld.texinfo
-	sed -e '/\\input texinfo/d' \
-		-e '/@c TEXI2ROFF-KILL/,/@c END TEXI2ROFF-KILL/d' \
-		-e '/^@ifinfo/,/^@end ifinfo/d' \
-		-e '/^@c/d' \
-		-e 's/{.*,,/{/' \
-		-e 's/@ / /g' \
-		-e 's/^@alphaenumerate/@enumerate/g' \
-		-e 's/^@end alphaenumerate/@end enumerate/g' \
-		$(srcdir)/ld.texinfo | \
-	$(TEXI2ROFF) $(TEXI2OPT) -me | \
-	sed -e 's/---/\\(em/g' \
-		>>ld.me 
-
-# index for roff output
-ld-index.me: ld.me
-	$(ROFF) -me ld.me 2>&1 1>/dev/null | \
-		sed -e '/: warning:/d' | \
-		texi2index >ld-index.me
-
-stage1:	force
-	-mkdir stage1
-	-mv -f $(STAGESTUFF) $(LD_PROG) stage1
-	-(cd stage1 ; ln -s $(LD_PROG) ld)
-
-stage2:	force
-	-mkdir stage2
-	-mv -f $(STAGESTUFF) $(LD_PROG) stage2
-	-(cd stage2 ; ln -s $(LD_PROG) ld)
-
-stage3:	force
-	-mkdir stage3
-	-mv -f $(STAGESTUFF) $(LD_PROG) stage3
-	-(cd stage3 ; ln -s $(LD_PROG) ld)
-
-against = stage2
-
-comparison: force
-	for i in $(STAGESTUFF) $(LD_PROG) ; do cmp $$i $(against)/$$i ; done
-
-de-stage1: force
-	-(cd stage1 ; mv -f * ..)
-	-rm ld
-	-rmdir stage1
-
-de-stage2: force
-	-(cd stage2 ; mv -f * ..)
-	-rm ld
-	-rmdir stage2
-
-de-stage3: force
-	-(cd stage3 ; mv -f * ..)
-	-rm ld
-	-rmdir stage3
-
-.PHONY: stage1 stage2 stage3 comparison de-stage1 de-stage2 de-stage3
-
-# Stuff that should be included in a distribution:
-LDDISTSTUFF = ldgram.c ldgram.h ldlex.c
-diststuff: $(LDDISTSTUFF) info
-
-mostlyclean:
-	-rm -f $(STAGESTUFF) ld.?? ld.??? ldlex.[qp]
-	-rm -f ld ld1 ld2 ld3 *.o y.output cdtest cdtest.out cdtest.tmp
-	-rm -f cdtest-ur cdtest-ur.out cdtest-ur.tmp crtbegin.o crtend.o
-	-rm -f ldemul-list.h
-	-rm -fr tmpdir
-clean: mostlyclean
-	-rm -f $(LD_PROG)
-distclean: clean
-	-rm -f Makefile config.status TAGS site.exp site.bak config.cache
-	-rm -f config.h stamp-h config.log
-	-rm -rf ldscripts
-maintainer-clean realclean: clean distclean
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f $(GENERATED_CFILES) $(GENERATED_HFILES)
-	-rm -f $(LDDISTSTUFF) *.info* configdoc.texi
-
-.PHONY: diststuff mostlyclean clean distclean realclean
-
-lintlog:$(LINTSOURCES) Makefile
-	$(LINT) -abhxzn  $(LINTFLAGS)  $(LINTSOURCES) \
-| grep -v "pointer casts may be troublesome" \
-| grep -v "possible pointer alignment problem" \
-| grep -v "ignore" \
-| grep -v "conversion from long may lose accuracy" \
-| grep -v "warning: constant argument to NOT" \
-| grep -v "enumeration type clash, operator CAST" \
-| grep -v "warning: constant in conditional context"\
-| grep -v "archive\.c"
-
-
-TAGS:
-	etags -t $(srcdir)/*.[chly] *.[chly]
-
-
-install: 
-	$(INSTALL_XFORM) ld.new $(bindir)/ld
-	$(INSTALL_XFORM1) $(srcdir)/ld.1 $(man1dir)/ld.1
+install-data-local:
+	$(mkinstalldirs) $(scriptdir)
 	for f in ldscripts/*; do \
 	  $(INSTALL_DATA) $$f $(scriptdir)/$$f ; \
 	done
-	test -d $(tooldir) || mkdir $(tooldir)
-	test -d $(tooldir)/bin || mkdir $(tooldir)/bin
-	-n=`echo ld | sed '$(program_transform_name)'`; \
-	  rm -f $(tooldir)/bin/ld; \
-	  ln $(bindir)/$$n $(tooldir)/bin/ld >/dev/null 2>/dev/null \
-	   || $(INSTALL_PROGRAM) ld.new $(tooldir)/bin/ld
+diststuff: $(LDDISTSTUFF) info
 
-install-info: ld.info
-	if [ -r ld.info ]; then \
-	  dir=. ; \
-	else \
-	  dir=$(srcdir) ; \
-	fi ; \
-	for i in `cd $$dir ; echo ld.info*` ; do \
-		$(INSTALL_DATA) $$dir/$$i $(infodir)/$$i ; \
-	done
-
-clean-info:
-	-rm -rf *.info*
-
-.PHONY: install install-info clean-info
+distclean-local:
+	rm -rf ldscripts
 
 # Targets to rebuild dependencies in this Makefile.
 # Have to get rid of .dep1 here so that "$?" later includes all of $(CFILES).
@@ -976,7 +1183,7 @@ clean-info:
 .dep1: $(CFILES) $(GENERATED_CFILES)
 	rm -f .dep2
 	echo '# DO NOT DELETE THIS LINE -- mkdep uses it.' > .dep2
-	$(DEP) -f .dep2 $(ALL_CFLAGS) $?
+	$(DEP) -f .dep2 $(INCLUDES) $?
 	$(srcdir)/../move-if-change .dep2 .dep1
 
 dep.sed: dep-in.sed config.status
@@ -994,23 +1201,12 @@ dep-in: .dep
 	cat .dep >> tmp-Makefile.in
 	$(srcdir)/../move-if-change tmp-Makefile.in $(srcdir)/Makefile.in
 
-.PHONY: dep dep-in
+dep-am: .dep
+	sed -e '/^..DO NOT DELETE THIS LINE/,$$d' < $(srcdir)/Makefile.am > tmp-Makefile.am
+	cat .dep >> tmp-Makefile.am
+	$(srcdir)/../move-if-change tmp-Makefile.am $(srcdir)/Makefile.am
 
-# Dummy target to force execution of dependent targets.
-#
-force:
-
-.PHONY: force
-
-Makefile: Makefile.in config.status
-	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
-
-config.h: stamp-h ; @true
-stamp-h: config.in config.status
-	CONFIG_FILES= CONFIG_HEADERS=config.h:config.in $(SHELL) ./config.status
-
-config.status: configure configure.host configure.tgt
-	$(SHELL) ./config.status --recheck
+.PHONY: dep dep-in dep-am
 
 # What appears below is generated by a hacked mkdep using gcc -MM.
 
@@ -1072,3 +1268,7 @@ ldlex.o: ldlex.c ../bfd/bfd.h sysdep.h config.h $(INCDIR)/fopen-same.h \
   ldmain.h
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

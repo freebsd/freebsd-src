@@ -1,5 +1,6 @@
 /* 8 and 16 bit COFF relocation functions, for BFD.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -147,7 +148,7 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
   /* Get enough memory to hold the stuff */
   bfd *input_bfd = i->owner;
   asection *input_section = i;
-  unsigned *shrinks;
+  int *shrinks;
   int shrink = 0;
   long reloc_size = bfd_get_reloc_upper_bound (input_bfd, input_section);
   arelent **reloc_vector = NULL;
@@ -194,13 +195,14 @@ bfd_coff_reloc16_relax_section (abfd, i, link_info, again)
       int another_pass = 0;
 
       /* Allocate and initialize the shrinks array for this section.  */
-      shrinks = (unsigned *)bfd_malloc (reloc_count * sizeof (unsigned));
-      memset (shrinks, 0, reloc_count * sizeof (unsigned));
+      shrinks = (int *) bfd_malloc (reloc_count * sizeof (int));
+      memset (shrinks, 0, reloc_count * sizeof (int));
 
       /* Loop until nothing changes in this section.  */
       do {
 	arelent **parent;
-	unsigned int i, j;
+	unsigned int i;
+	long j;
 
 	another_pass = 0;
 

@@ -1,5 +1,5 @@
 /* srconv.c -- Sysroff conversion program
-   Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 1998 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -15,7 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 /* Written by Steve Chamberlain (sac@cygnus.com)
 
@@ -37,8 +38,10 @@
 #define PROGRAM_VERSION "1.5"
 /*#define FOOP1 1 */
 
-static int sh;
-static int h8300;
+static int addrsize;
+static char *toolname;
+static char **rnames;
+
 static void wr_cs ();
 static void walk_tree_scope ();
 static void wr_globals ();
@@ -171,12 +174,7 @@ writeINT (n, ptr, idx, size, file)
   int byte = *idx / 8;
 
   if (size == -2)
-    {
-      if (sh)	
-	size = 4;
-      else if (h8300)
-	size = 2;
-    }
+    size = addrsize;
   else if (size == -1)
     size = 0;
 
@@ -319,7 +317,7 @@ wr_un (ptr, sfile, first, nsecs)
 
   un.spare1 = 0;
 
-  if (abfd->flags & EXEC_P)
+  if (bfd_get_file_flags (abfd) & EXEC_P)
     un.format = FORMAT_LM;
   else
     un.format = FORMAT_OM;
@@ -349,10 +347,7 @@ wr_un (ptr, sfile, first, nsecs)
 	    un.nextrefs++;
 	}
     }
-  if (sh)
-    un.tool = "C_SH";
-  else if (h8300)
-    un.tool = "C_H8/300H";
+  un.tool = toolname;
   un.tcd = DATE;
   un.linker = "L_GX00";
   un.lcd = DATE;
@@ -368,7 +363,7 @@ wr_hd (p)
   struct IT_hd hd;
 
   hd.spare1 = 0;
-  if (abfd->flags & EXEC_P)
+  if (bfd_get_file_flags (abfd) & EXEC_P)
     {
       hd.mt = MTYPE_ABS_LM;
     }
@@ -381,17 +376,38 @@ wr_hd (p)
   hd.nu = p->nsources;		/* Always one unit */
   hd.code = 0;			/* Always ASCII */
   hd.ver = "0200";		/* Version 2.00 */
-  switch (abfd->arch_info->arch)
+  switch (bfd_get_arch (abfd))
     {
     case bfd_arch_h8300:
       hd.au = 8;
       hd.si = 0;
-      hd.afl = 2;
       hd.spcsz = 32;
       hd.segsz = 0;
       hd.segsh = 0;
-      hd.cpu = "H8300H";
-      h8300 = 1;
+      switch (bfd_get_mach (abfd))
+	{
+	case bfd_mach_h8300:
+	  hd.cpu = "H8300";
+	  hd.afl = 2;
+	  addrsize = 2;
+	  toolname = "C_H8/300";
+	  break;
+	case bfd_mach_h8300h:
+	  hd.cpu = "H8300H";
+	  hd.afl = 4;
+	  addrsize = 4;
+	  toolname = "C_H8/300H";
+	  break;
+	case bfd_mach_h8300s:
+	  hd.cpu = "H8300S";
+	  hd.afl = 4;
+	  addrsize = 4;
+	  toolname = "C_H8/300S";
+	  break;
+	default:
+	  abort();
+	}
+      rnames = rname_h8300;
       break;
     case bfd_arch_sh:
       hd.au = 8;
@@ -401,13 +417,15 @@ wr_hd (p)
       hd.segsz = 0;
       hd.segsh = 0;
       hd.cpu = "SH";
-      sh = 1;
+      addrsize = 4;
+      toolname = "C_SH";
+      rnames = rname_sh;
       break;
     default:
       abort ();
     }
 
-  if (!abfd->flags & EXEC_P)
+  if (! bfd_get_file_flags(abfd) & EXEC_P)
     {
       hd.ep = 0;
     }
@@ -422,8 +440,7 @@ wr_hd (p)
 
   hd.os = "";
   hd.sys = "";
-  hd.mn = strip_suffix (abfd->filename);
-
+  hd.mn = strip_suffix (bfd_get_filename (abfd));
 
   sysroff_swap_hd_out (file, &hd);
 }
@@ -449,7 +466,7 @@ wr_ob (p, section)
      struct coff_ofile *p;
      struct coff_section *section;
 {
-  int i;
+  bfd_size_type i;
   int first = 1;
   unsigned char stuff[200];
 
@@ -465,7 +482,7 @@ wr_ob (p, section)
       if (first)
 	{
 	  ob.saf = 1;
-	  if (abfd->flags & EXEC_P)
+	  if (bfd_get_file_flags (abfd) & EXEC_P)
 	    ob.address = section->address;
 	  else
 	    ob.address = 0;
@@ -485,12 +502,12 @@ wr_ob (p, section)
       i += todo;
     }
   /* Now fill the rest with blanks */
-  while (i < section->size)
+  while (i < (bfd_size_type) section->size)
     {
       struct IT_ob ob;
       int todo = 200;		/* Copy in 200 byte lumps */
       ob.spare = 0;
-      if (i + todo > section->size)
+      if (i + todo > (bfd_size_type) section->size)
 	todo = section->size - i;
       ob.saf = 0;
 
@@ -959,7 +976,7 @@ walk_tree_symbol (sfile, section, symbol, nest)
 {
   struct IT_dsy dsy;
 
-  dsy.spare2 = 0;
+  memset(&dsy, 0, sizeof(dsy));
   dsy.nesting = nest;
 
   switch (symbol->type->type)
@@ -1116,12 +1133,7 @@ walk_tree_symbol (sfile, section, symbol, nest)
     }
 
   if (symbol->where->where == coff_where_register)
-    {
-      if (sh)
-	dsy.reg = rname_sh[symbol->where->offset];
-      else if (h8300)
-	dsy.reg = rname_h8300[symbol->where->offset];
-    }
+    dsy.reg = rnames[symbol->where->offset];
 
   switch (symbol->visible->type)
     {
@@ -1230,7 +1242,7 @@ wr_du (p, sfile, n)
   int j;
   unsigned int *lowest = (unsigned *) nints (p->nsections);
   unsigned int *highest = (unsigned *) nints (p->nsections);
-  du.format = abfd->flags & EXEC_P ? 0 : 1;
+  du.format = bfd_get_file_flags (abfd) & EXEC_P ? 0 : 1;
   du.optimized = 0;
   du.stackfrmt = 0;
   du.spare = 0;
@@ -1276,7 +1288,7 @@ wr_du (p, sfile, n)
 	}
       du.san[used] = i;
       du.length[used] = highest[i] - lowest[i];
-      du.address[used] = abfd->flags & EXEC_P ? lowest[i] : 0;
+      du.address[used] = bfd_get_file_flags (abfd) & EXEC_P ? lowest[i] : 0;
       if (debug)
 	{
 	  printf (" section %6s 0x%08x..0x%08x\n",
@@ -1665,14 +1677,14 @@ int scount = 0;
 	{
 	  /* Don't have a symbol set aside for this section, which means that nothing
 	     in this file does anything for the section. */
-	  sc.format = !(abfd->flags & EXEC_P);
+	  sc.format = !(bfd_get_file_flags (abfd) & EXEC_P);
 	  sc.addr = 0;
 	  sc.length = 0;
 	  name = info[i].sec->name;
 	}
       else
 	{
-	  if (abfd->flags & EXEC_P)
+	  if (bfd_get_file_flags (abfd) & EXEC_P)
 	    {
 	      sc.format = 0;
 	      sc.addr = symbol->where->offset;

@@ -1,5 +1,5 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright (C) 1989, 92, 93, 94, 95, 96, 1997 Free Software Foundation.
+   Copyright (C) 1989, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -297,6 +297,7 @@ typedef struct
 #define Data16 0x20000		/* needs data prefix if in 32-bit mode */
 #define Data32 0x40000		/* needs data prefix if in 16-bit mode */
 #define iclrKludge 0x80000	/* used to convert clr to xor */
+#define FWait 0x100000		/* instruction needs FWAIT */
 
   /* (opcode_modifier & COMES_IN_ALL_SIZES) is true if the
      instuction comes in byte, word, and dword sizes and is encoded into
@@ -398,10 +399,18 @@ extern const struct relax_type md_relax_table[];
 
 extern int flag_16bit_code;
 
+#ifdef BFD_ASSEMBLER
+#define md_maybe_text() \
+  ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+#else
+#define md_maybe_text() \
+  (now_seg != data_section && now_seg != bss_section)
+#endif
+
 #define md_do_align(n, fill, len, max, around)				\
 if ((n) && !need_pass_2							\
     && (!(fill) || ((char)*(fill) == (char)0x90 && (len) == 1))		\
-    && now_seg != data_section && now_seg != bss_section)		\
+    && md_maybe_text ())						\
   {									\
     char *p;								\
     p = frag_var (rs_align_code, 15, 1, (relax_substateT) max,		\
@@ -430,5 +439,7 @@ void i386_print_statistics PARAMS ((FILE *));
 #define tc_init_after_args() sco_id ()
 extern void sco_id PARAMS ((void));
 #endif
+
+#define DIFF_EXPR_OK    /* foo-. gets turned into PC relative relocs */
 
 /* end of tc-i386.h */

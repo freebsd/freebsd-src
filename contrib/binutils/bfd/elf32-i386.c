@@ -1,5 +1,5 @@
 /* Intel 80386/80486-specific support for 32-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1993-1997, 1998 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -968,7 +968,8 @@ elf_i386_size_dynamic_sections (output_bfd, info)
 						  s->output_section);
 		  target = bfd_get_section_by_name (output_bfd, outname + 4);
 		  if (target != NULL
-		      && (target->flags & SEC_READONLY) != 0)
+		      && (target->flags & SEC_READONLY) != 0
+		      && (target->flags & SEC_ALLOC) != 0)
 		    reltext = true;
 		}
 
@@ -1179,15 +1180,16 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 		  || (r_type == R_386_GOT32
 		      && elf_hash_table (info)->dynamic_sections_created
 		      && (! info->shared
-			  || ! info->symbolic
+			  || (! info->symbolic && h->dynindx != -1)
 			  || (h->elf_link_hash_flags
 			      & ELF_LINK_HASH_DEF_REGULAR) == 0))
 		  || (info->shared
-		      && (! info->symbolic
+		      && ((! info->symbolic && h->dynindx != -1)
 			  || (h->elf_link_hash_flags
 			      & ELF_LINK_HASH_DEF_REGULAR) == 0)
 		      && (r_type == R_386_32
-			  || r_type == R_386_PC32)))
+			  || r_type == R_386_PC32)
+		      && (input_section->flags & SEC_ALLOC) != 0))
 		{
 		  /* In these cases, we don't need the relocation
                      value.  We check specially because in some
@@ -1241,15 +1243,16 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	      if (! elf_hash_table (info)->dynamic_sections_created
 		  || (info->shared
-		      && info->symbolic
+		      && (info->symbolic || h->dynindx == -1)
 		      && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR)))
 		{
 		  /* This is actually a static link, or it is a
 		     -Bsymbolic link and the symbol is defined
-		     locally.  We must initialize this entry in the
-		     global offset table.  Since the offset must
-		     always be a multiple of 4, we use the least
-		     significant bit to record whether we have
+		     locally, or the symbol was forced to be local
+		     because of a version file.  We must initialize
+		     this entry in the global offset table.  Since the
+		     offset must always be a multiple of 4, we use the
+		     least significant bit to record whether we have
 		     initialized it already.
 
 		     When doing a dynamic link, we create a .rel.got
@@ -1378,6 +1381,7 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 	  if (info->shared
 	      && (r_type != R_386_PC32
 		  || (h != NULL
+		      && h->dynindx != -1
 		      && (! info->symbolic
 			  || (h->elf_link_hash_flags
 			      & ELF_LINK_HASH_DEF_REGULAR) == 0))))
@@ -1438,7 +1442,10 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 	      else if (r_type == R_386_PC32)
 		{
 		  BFD_ASSERT (h != NULL && h->dynindx != -1);
-		  relocate = false;
+		  if ((input_section->flags & SEC_ALLOC) != 0)
+		    relocate = false;
+		  else
+		    relocate = true;
 		  outrel.r_info = ELF32_R_INFO (h->dynindx, R_386_PC32);
 		}
 	      else
@@ -1456,7 +1463,10 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 		  else
 		    {
 		      BFD_ASSERT (h->dynindx != -1);
-		      relocate = false;
+		      if ((input_section->flags & SEC_ALLOC) != 0)
+			relocate = false;
+		      else
+			relocate = true;
 		      outrel.r_info = ELF32_R_INFO (h->dynindx, R_386_32);
 		    }
 		}
@@ -1623,8 +1633,6 @@ elf_i386_finish_dynamic_symbol (output_bfd, info, h, sym)
       /* This symbol has an entry in the global offset table.  Set it
 	 up.  */
 
-      BFD_ASSERT (h->dynindx != -1);
-
       sgot = bfd_get_section_by_name (dynobj, ".got");
       srel = bfd_get_section_by_name (dynobj, ".rel.got");
       BFD_ASSERT (sgot != NULL && srel != NULL);
@@ -1634,11 +1642,12 @@ elf_i386_finish_dynamic_symbol (output_bfd, info, h, sym)
 		      + (h->got_offset &~ 1));
 
       /* If this is a -Bsymbolic link, and the symbol is defined
-	 locally, we just want to emit a RELATIVE reloc.  The entry in
-	 the global offset table will already have been initialized in
-	 the relocate_section function.  */
+	 locally, we just want to emit a RELATIVE reloc.  Likewise if
+	 the symbol was forced to be local because of a version file.
+	 The entry in the global offset table will already have been
+	 initialized in the relocate_section function.  */
       if (info->shared
-	  && info->symbolic
+	  && (info->symbolic || h->dynindx == -1)
 	  && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_REGULAR))
 	rel.r_info = ELF32_R_INFO (0, R_386_RELATIVE);
       else

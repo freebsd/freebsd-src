@@ -220,16 +220,17 @@ bfd_fdopenr (filename, target, fd)
       return NULL;
     }
 
-#if defined(VMS) || defined(__GO32__)
-  nbfd->iostream = (PTR)fopen(filename, FOPEN_RB);
+#ifndef HAVE_FDOPEN
+  nbfd->iostream = (PTR) fopen (filename, FOPEN_RB);
 #else
   /* (O_ACCMODE) parens are to avoid Ultrix header file bug */
-  switch (fdflags & (O_ACCMODE)) {
-  case O_RDONLY: nbfd->iostream = (PTR) fdopen (fd, FOPEN_RB);   break;
-  case O_WRONLY: nbfd->iostream = (PTR) fdopen (fd, FOPEN_RUB);  break;
-  case O_RDWR:   nbfd->iostream = (PTR) fdopen (fd, FOPEN_RUB);  break;
-  default: abort ();
-  }
+  switch (fdflags & (O_ACCMODE))
+    {
+    case O_RDONLY: nbfd->iostream = (PTR) fdopen (fd, FOPEN_RB);   break;
+    case O_WRONLY: nbfd->iostream = (PTR) fdopen (fd, FOPEN_RUB);  break;
+    case O_RDWR:   nbfd->iostream = (PTR) fdopen (fd, FOPEN_RUB);  break;
+    default: abort ();
+    }
 #endif
 
   if (nbfd->iostream == NULL)

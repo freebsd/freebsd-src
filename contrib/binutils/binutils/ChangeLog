@@ -1,6 +1,566 @@
-Tue May 13 10:42:58 1997  Ian Lance Taylor  <ian@cygnus.com>
+Mon Apr 27 13:45:26 1998  Ian Lance Taylor  <ian@cygnus.com>
 
-	* Makefile.in (VERSION): Set to 2.8.1.
+	* configure.in: Set version number to 2.9.1.
+	* configure: Rebuild.
+
+Tue Apr  7 15:41:15 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (DISTSTUFF): Add defparse.h, defparse.c, rclex.c,
+	rcparse.h, and rcparse.c
+	* Makefile.in: Rebuild.
+
+Mon Apr  6 16:24:35 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (PROGS): Move $(ADDR2LINE_PROG) to end, so that
+	Makefile.in doesn't have an empty continuation line.
+	(bin_PROGRAMS): Likewise.
+	* Makefile.in: Rebuild.
+
+Fri Apr  3 13:41:05 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (mostlyclean-local): New target.
+	(MOSTLYCLEANFILES): Add binutils.log, binutils.sum, and abcdefg*.
+	(DISTCLEANFILES): Add site.exp and site.bak
+	* Makefile.in: Rebuild.
+
+Wed Apr  1 15:54:16 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Zack Weinberg <zack@rabi.phys.columbia.edu> and H.J. Lu
+	<hjl@gnu.org>:
+	* ar.c (usage): Mention S modifier.
+	(main): Add S modifier.
+	* ar.1, binutils.texi: Document S modifier.
+
+Wed Apr  1 13:11:23 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* binutils.texi: Use @itemx for a secondary item in a table.
+
+Tue Mar 31 18:44:13 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* dep-in.sed: Add rule to remove @OBJDIR@.
+	* Makefile.am (dep.sed): Substitute for @OBJDIR@.
+	* Makefile.in: Rebuild.
+
+Mon Mar 30 16:13:07 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (DISTCLEANFILES): Remove defparse.h, arparse.h,
+	rcparse.h, and nlmheader.h.
+	* Makefile.in: Rebuild.
+
+	* configure.in: Set version number to 2.9.
+	* configure: Rebuild.
+
+Sat Mar 28 17:39:27 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (MOSTLYCLEANFILES): Define.
+	* Makefile.in: Rebuild.
+
+	Fix some gcc -Wall warnings:
+	* nlmconv.c (main): Add casts to avoid warnings.
+	(alpha_mangle_relocs): Likewise.
+	* objdump.c (dump_section_stabs): Likewise.
+	* size.c (print_sysv_format): Likewise.
+	* srcconv.c (wr_ob): Likewise.
+	* wrstabs.c (stab_modify_type): Likewise.
+	(stab_variable): Likewise.
+	* nlmconv.c (main): Initialize variables to avoid warnings.
+	* nm.c (sort_symbols_by_size): Likewise.
+	* objdump.c (disassemble_bytes): Likewise.
+	* wrstabs.c (stab_end_class_type): Likewise.
+	* coffgrok.c (do_sections_p2): Change j to unsigned int.
+	(do_lines): Change l to unsigned int.
+	* nlmheader.y (yylex): Change i to unsigned int.
+	* nm.c (print_symbol): Change j to long.
+	* size.c (lprint_number): Comment out.
+	* srconv.c (wr_ob): Change i to bfd_size_type.
+	* sysdump.c (unit_info_list): Comment out.
+	(object_body_list, program_structure, debug_list): Likewise.
+	* sysinfo.y (yyerror): Return value.
+
+Thu Mar 26 17:06:51 1998  Richard Henderson  <rth@cygnus.com>
+
+	* defparse.y (explist): Allow epsilon.
+	Suggestion from Jonathan-Harris@psion.com.
+
+Thu Mar 26 16:59:09 1998  Richard Henderson  <rth@cygnus.com>
+
+	* coffgrok.c (do_sections_p1): Use the section's lma instead of vma
+	for the benefit of prom loaders.
+
+Wed Mar 25 13:05:39 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Based on patch from H.J. Lu  <hjl@gnu.org>:
+	* Makefile.am (DISTSTUFF): New variable.
+	(diststuff): New target.
+	(DISTCLEANFILES): New variable.
+	* Makefile.in: Rebuild.
+
+Tue Mar 24 19:33:08 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rclex.l: Accept { and } as synonyms for BEGIN and END.
+
+Fri Mar 20 19:18:08 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4, configure: Rebuild with libtool 1.2.
+
+Tue Feb 24 13:07:50 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* objdump.c (disassemble_data): Delete "++place" after call to
+	find_symbol_for_address.  Set disasm_info.symbols to array of
+	symbols at the current address.
+
+Wed Feb 18 23:39:46 1998  Richard Henderson  <rth@cygnus.com>
+
+	* Makefile.am (install-exec-local): Install properly when ln
+	fails or tooldir == prefix.
+
+Tue Feb 17 18:40:55 1998  Richard Henderson  <rth@cygnus.com>
+
+	* objcopy.c (compare_section_lma): Rename from _vma.
+        (copy_object): Gap fill based on LMA not VMA.
+	* binutils.texi: Update and clarify.
+	* objcopy.1: Likewise.
+
+Tue Feb 17 20:34:11 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* dlltool.c (make_one_lib_file): Don't add 1 to hint.
+
+Fri Feb 13 16:37:44 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Define.
+	* configure, Makefile.in, aclocal.m4: Rebuild with automake 1.2e.
+
+Thu Feb 12 14:13:46 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* deflex.l: Accept '?' in symbol names, for VC++ mangled names.
+	From Mikey <jeffdb@netzone.com>.
+
+	* addr2line.c (usage): Update bug-gnu-utils address.
+	* ar.c (usage): Likewise.
+	* nlmconv.c (show_usage): Likewise.
+	* nm.c (usage): Likewise.
+	* objcopy.c (copy_usage): Likewise.
+	(strip_usage): Likewise.
+	* objdump.c (usage): Likewise.
+	* size.c (usage): Likewise.
+	* strings.c (usage): Likewise.
+	* windres.c (usage): Likewise.
+	* binutils.texi (Bug Reporting): Likewise.
+
+Sat Feb  7 15:36:24 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure, aclocal.m4: Rebuild with new libtool.
+
+Thu Feb  5 12:21:13 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure, Makefile.in, aclocal.m4: Rebuild with new libtool.
+
+Fri Jan 30 19:16:28 1998  Doug Evans  <devans@canuck.cygnus.com>
+
+	* Makefile.am (CC_FOR_TARGET,nlmcomv.o): Change program_transform_name
+	to transform.
+	* Makefile.in: Regenerate.
+
+Thu Jan 29 16:24:04 1998  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* dlltool.c: Define exit status macros for _WIN32 but not
+	__CYGWIN32__.
+	(gen_lib_file): Check for exit status of unlink.
+	* resrc.c: Define popen and pclose if _WIN32 but not
+	__CYGWIN32__.
+
+Wed Jan 28 17:45:46 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Remove vfork check.
+	* nlmconv.c: Never include vfork.h.
+	* aclocal.m4, configure, Makefile.in, config.in: Rebuild.
+
+Wed Jan 28 17:43:02 1998  J.J. van der Heijden <J.J.vanderHeijden@student.utwente.nl>
+
+	* objcopy.c (copy_archive): Only pass one argument to mkdir if
+	_WIN32 but not __CYGWIN32__.
+	(smart_rename): Add code for _WIN32 (not __CYGWIN32__), to cope
+	with different rename behaviour and lack of chown.
+
+	* configure.in: Check for mingw32 when deciding whether to build
+	dlltool.
+	* dlltool.c: Never include vfork.h.
+	(run): Use pexecute rather than vfork.
+	(gen_lib_file): Check for errors from bfd_set_archive_head and
+	bfd_close.  Close all the BFDs in the archive before deleting the
+	temporary files.
+
+Thu Jan 22 16:22:55 1998  Fred Fish  <fnf@cygnus.com>
+
+	* objdump.c (disassemble_bytes): Add flag INSN_HAS_RELOC to tell
+	disassembly function there is a reloc on this line.
+
+Wed Jan 14 15:29:43 1998  Richard Henderson  <rth@cygnus.com>
+
+	* srconv.c (sh, h8300): Delete variables.
+	(addrsize, toolname, rnames): New variables.
+	(writeINT): Use addrsize.
+	(wr_un): Use toolname.
+	(wr_hd): Set up addrsize et al properly for h8300[hs].
+	(walk_tree_symbol): Zero dsy.  Use rnames.
+	(wr_un, wr_hd, wr_ob, wr_du): Use proper bfd access macros.
+	* sysdump.c (sh, h8300): Delete variables.
+	(addrsize): New variable.
+	(getINT): Use it.
+	(getone): Initialize it.
+	(getBITS): Range check on MAX.
+
+Mon Dec 29 16:58:05 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Matthew Bellantoni <matthew@chrysalis.com>:
+	* ar.c (get_pos_bfd): Add default_posname parameter.  Change all
+	callers.
+	(replace_members): Default to replacing in the same position.
+
+Mon Dec 22 11:27:22 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rclex.l: Don't permit a comma in a STRING.
+	* rcparse.y (acc_entry): Warn if an inappropriate modifier is used
+	with a non VIRTKEY.
+	(acc_event): For a control character, set VIRTKEY, and force the
+	character to uppercase.
+	(acc_options): Don't require a comma separator.
+
+Tue Dec  9 13:25:42 1997  Michael Meissner  <meissner@cygnus.com>
+
+	* size.c (size_number): New function to provide size of field.
+	({l,r}print_number): For octal and hex fields, print field using
+	'0' and '0x' suffixes.  Do not include following tab.
+	(sysv_internal_sizer): Size section name, section size, and vma
+	address fields.
+	(sysv_internal_printer): Use calculated sizes for the columns.
+	(print_sysv_format): Size columns before printing.
+	(print_berkeley_format): Print tabs between numbers now that
+	{l,r}print_number doesn't.  Print fields right justified.
+
+Mon Dec  8 11:22:04 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* objdump.c (objdump_print_addr_with_sym): Remove call to
+	disasm_symaddr() as this function no longer exists.
+
+Tue Dec  2 10:23:50 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* objdump.c (objdump_print_addr_with_sym): Call disasm_symaddr()
+	to allow backend to know which symbol has just been displayed.
+
+Tue Dec  2 13:06:46 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* windres.h (ESCAPE_*): Define standard escape sequences.
+	* rclex.l (handle_quotes): Handle standard escape sequences.  Warn
+	about an unrecognized escape character.
+	* windres.c (unicode_print): Print standard escape sequences.
+	* rcparse.y (acc_event): Initialize $$.next.
+	* resbin.c (bin_to_res_menuitems): Don't set MENUITEM_POPUP or
+	MENUITEM_ENDMENU in the menu item flags.
+	(bin_to_res_accelerators): Allocate a structure (the old code
+	never worked).
+	(res_to_bin_accelerator): Correct the test for setting ACC_LAST.
+	(res_to_bin_dialog): Save the extended style rather than saving
+	the style twice.  Remove useless shadowing length variable.  Set
+	the length of control data correctly.
+	* resrc.c (write_rc_dialog): Don't print the class or menu if the
+	string length is zero.
+
+Mon Nov 24 18:52:43 1997  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* stabs.c (parse_stab_argtypes): Don't try to parse the name of a
+	destructor as mangled argument types.
+
+Mon Nov 10 17:51:41 1997  Gavin Koch  <gavin@cygnus.com>
+
+	* addr2line.c (translate_addresses): Use bfd_scan_vma rather
+	than strtol to scan addresses.
+
+Sun Nov  9 11:01:31 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.am (bin_PROGRAMS): Don't use line continuations here.
+
+Tue Nov  4 11:56:14 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* objcopy.c (copy_section): Don't crash if there is no particular
+	information for a section.
+
+Mon Nov  3 12:36:19 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* objcopy.c (parse_flags): Make flag check case insensitive.
+	Check for `contents' flag.  Give an error for unrecognized flags.
+	(copy_section): If the contents flag was set for a section that
+	had no contents, zero out the new contents.
+	* binutils.texi (objcopy): Document contents section flag.
+
+Sun Nov  2 14:49:56 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* objcopy.c: Move new struct and variable definitions to top of
+	file.  Remove obsolete add_strip_symbol and is_strip_symbol
+	declarations.  Add prototype declarations for add_specific_symbol
+	and is_specified_symbol.
+
+Mon Oct 20 15:31:43 1997  Klaus K"ampf  <kkaempf@progis.de>
+
+	* configure.com (HAVE_SBRK): Undefine.
+
+Tue Oct 14 16:14:35 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* objdump.c (objdump_symbol_at_address): New function.  Returns
+	true if a symbol can be found at the address passed in.
+	(disassemble_data): Set the symbol_at_address_func field to point
+	to objdump_symbol_at_address.
+
+Fri Oct 10 14:13:09 1997  Richard Henderson  <rth@cygnus.com>
+
+	* objcopy.c, objcopy.1, binutils.texi: "localize" is a better name
+	than "privatize".  Update all references.
+
+Thu Oct  9 15:57:29 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* binutils.texi (strip): Remove duplicate --target.  From Marty
+	Leisner <leisner@sdsp.mc.xerox.com>.
+
+	* nm.c (lineno_cache_bfd): New file static variable.
+	(lineno_cache_rel_bfd): New file static variable.
+	(display_archive): Clear lineno_cache_bfd and lineno_cache_rel_bfd
+	when closing a BFD.
+	(display_file): Likewise.
+	(print_symbol): Use lineno_cache_bfd and lineno_cache_rel_bfd
+	instead of cache_bfd and cache_rel_bfd.  Make seccount static, and
+	only set it when setting relocs.
+
+Wed Oct  8 21:19:11 1997  Richard Henderson  <rth@cygnus.com>
+
+	* objcopy.c (keep_specific_list, privatize_specific_list,
+	weaken_specific_list): New variables.
+	(keep_symbols): Removed.
+	(add_specific_symbol): New function from the carcas of
+	add_strip_symbol.  Takes a list as an argument.
+	(is_specified_symbol): Likewise from is_strip_symbol.
+	(filter_symbols): Honor the new privatize and weaken lists.
+	Optimize bfd_asymbol_name handling.
+	(copy_object, copy_options, copy_usage): Add privatize-symbol &
+	weaken-symbol options.
+
+	* objcopy.1, binutils.texi: Update docs.
+
+Sun Oct  5 09:05:44 1997  Frank Ch. Eigler  <fche@cygnus.com>
+
+	* objdump.c (disassemble_data): Make "--prefix-addresses"
+ 	disassembly adjust to mixed-length instructions.
+	(objdump_print_addr_with_sym): Add "0x" prefix for hexadecimal
+ 	symbol-offsets in disassembly.
+
+Fri Oct  3 12:04:25 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* objcopy.c (set_times): New static function, replacing
+	make_same_dates.
+	(strip_main): If preserve_dates, stat the input file before
+	copying it, and call set_times afterward.
+	(copy_main): Likewise.
+
+	* wrstabs.c (write_stabs_in_sections_debugging_info): Cast p to
+	char * when calling strcpy and strlen.
+
+Wed Sep 24 11:34:05 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* binutils.texi	(ar cmdline): Document that q now works like r.
+	From Marty Leisner <leisner@sdsp.mc.xerox.com>.
+
+	* binutils.texi (size): The object file argument is optional.
+	From Marty Leisner <leisner@sdsp.mc.xerox.com>.
+
+	* aclocal.m4: Rebuild with new libtool.
+	* configure: Rebuild.
+
+Tue Aug 26 17:48:34 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (EXEEXT_FOR_BUILD): New variable.  Use it in all
+	references to the sysinfo program.
+	* configure.in: Rebuild with new bfd/acinclude.m4.
+	* Makefile.in: Rebuild.
+
+Fri Aug  8 15:32:49 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* windres.c: Include <time.h>.
+	(define_resource): Set a timestamp for the resource.
+
+Wed Aug  6 13:37:58 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Define TARGET in header file.
+	* acconfig.h (TARGET): Add #undef.
+	* Makefile.am (version.o, bucomm.o): Remove special targets.
+	* bucomm.c (target): Remove.
+	* nm.c (program_name): Don't declare.
+	(target): Make static.
+	* size.c (target): Make static.
+	* configure, config.in, Makefile.in: Rebuild.
+
+Tue Aug  5 00:01:41 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (check-DEJAGNU): Export r.
+	(.dep1): Use $(INCLUDES) rather than $(ALL_CFLAGS).
+	* Makefile.in: Rebuild.
+
+	* nlmheader.y: Use VERSIONK rather than VERSION.
+
+	* Makefile.am (STRIP_PROG): Change from strip.new to strip-new.
+	(NM_PROG): Change from nm.new to nm-new.
+	(TOOL_PROGS, install-exec-local): Adjust accordingly.
+	* Makefile.in: Rebuild.
+
+Mon Aug  4 11:47:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Remove AC_ARG_PROGRAM; it's invoked by
+	AM_INIT_AUTOMAKE.
+	* configure: Rebuild.
+
+	* Makefile.am (install-exec-local): Create $(tooldir)/bin before
+	trying to install anything into it.
+	* Makefile.in: Rebuild.
+
+	* Makefile.am (TOOL_PROGS): Use an explicit $(EXEEXT).
+	(install-exec-local): When handling $(noinst_PROGRAMS), only use
+	$(EXEEXT) on the installed file.  When handling $(TOOL_PROGS),
+	handle $(EXEEXT) correctly.
+	* configure.in: Add an explicit $(EXEEXT) when substituting for
+	the name of a program to build.
+	* Makefile.in, configure: Rebuild.
+
+	* aclocal.m4, configure, Makefile.in: Rebuild with new automake
+	patches.
+
+	* deflex.l, defparse.y: Use VERSIONK rather than VERSION.
+	* rclex.l, rcparse.y: Likewise.
+	* Makefile.am (windres_SOURCES): Add $(BULIBS).
+	* Makefile.in: Rebuild.
+
+Fri Aug  1 13:08:39 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* acinclude.m4: Include bfd/acinclude.m4, not bfd/acmacros.m4.
+	* aclocal.m4, configure: Rebuild with new libtool.
+
+Thu Jul 31 11:51:35 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am: New file, based on old Makefile.in.
+	* acinclude.m4: New file, from old aclocal.m4.
+	* configure.in: Call AM_INIT_AUTOMAKE and AM_PROG_LIBTOOL.  Remove
+	shared library handling; now handled by libtool.  Replace
+	AC_CONFIG_HEADER with AM_CONFIG_HEADER.  Call AC_PROG_YACC,
+	AC_PROG_LEX, AC_DECL_YYTEST, AM_MAINTAINER_MODE, AM_CYGWIN32, and
+	AM_EXEEXT.  Replace AC_PROG_INSTALL with AM_PROG_INSTALL.  Remove
+	stamp-h handling in AC_OUTPUT.
+	* acconfig.h: Mention PACKAGE and VERSION.
+	* stamp-h.in: New file.
+	* Makefile.in: Now built with automake.
+	* aclocal.m4: Now built with aclocal.
+	* config.in, configure: Rebuild.
+
+	From Ton van Overbeek <tvoverbe@wk.estec.esa.nl>:
+	* rcparse.y (dialog): Default menu and class to be named.
+	(styles): If FONT is seen, set DS_SETFONT in dialog style.
+	* resbin.c (res_to_bin_dialog): Correct computation of font
+	information length.
+
+Wed Jul 30 11:21:06 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	From Ton van Overbeek <tvoverbe@wk.estec.esa.nl>:
+	* resbin.c (res_to_bin_menu): Correct computation of menu
+	vs. menuex length.
+	* resrc.c (define_stringtable): Add 1 to resource ID.
+
+Tue Jul 29 11:06:03 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* resbin.c (bin_to_res_string): Correct adjustment of data and
+	length.  From Ton van Overbeek <tvoverbe@wk.estec.esa.nl>.
+
+Tue Jul 22 18:01:23 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* nlmconv.c (link_inputs): Call libiberty pexecute function.
+	(pexecute) [multiple versions]: Remove.
+
+Tue Jul 22 16:19:34 1997  Robert Hoehne <robert.hoehne@Mathematik.TU-Chemnitz.DE>
+
+	* bucomm.c (make_tempname): If we might be using a DOS filesystem,
+	check for a backslash as well as a slash.
+
+Thu Jun 26 13:53:17 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* windres.c (main): Quit if we didn't get any resources.
+	(usage): Fix --yydebug usage message.
+	* rescoff.c (write_coff_file): Don't free the relocation array
+	until after we've closed the BFD.
+	(read_coff_rsrc): Quit rather than try to read standard input.
+	(write_coff_file): Quit rather than try to write to standard
+	output.
+	* rcparse.y: Add a couple of missing semicolons (accepted by bison
+	but not byacc).
+	* binutils.texi: Document windres.
+
+Wed Jun 25 20:57:06 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* resbin.c: New file.
+	* rclex.l, rcparse.y, rescoff.c, resrc.c, windres.c, windres.h:
+	Numerous fixes and improvements.
+	* Makefile.in: Rebuild dependencies.
+ 	(CFILES): Add resbin.c.
+	(WINDRES_OBJS): Add resbin.o.
+
+Sun Jun 22 17:29:41 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	First stab at Windows resource compiler:
+	* windres.h: New file.
+	* windres.c: New file.
+	* resrc.c: New file.
+	* rcparse.y: New file.
+	* rclex.l: New file.
+	* rescoff.c: New file.
+	* configure.in: Define and substitute BUILD_WINDRES.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild dependencies.
+ 	(WINDRES_PROG): New variable.
+	(PROGS): Add @BUILD_WINDRES@.
+	(HFILES): Add dlltool.h and windres.h.
+	(CFILES): Add windres.c and resrc.c.
+	(GENERATED_CFILES): Add rcparse.c and rclex.c.
+	(WINDRES_OBJS): New variable.
+	$(WINDRES_PROG): New target.
+	(rcparse.c, rcparse.h, rclex.c): New targets.
+
+Thu Jun 12 12:27:51 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* dlltool.c (export_type): Add data field.
+	(def_exports): Add data parameter.  Change all callers.
+	(dump_def_info): Print data field.
+	(gen_def_file): Likewise.
+	(make_one_lib_file): Handle data field by not emitting simple
+	label and not emitting anything in SEC_TEXT.
+	(dtab): Print data field.
+	(process_duplicates): Merge data field.
+	* dlltool.h (def_exports): Update declaration.
+	* defparse.y (expline): Accept opt_DATA.  Pass it to def_exports.
+	(opt_DATA): New non-terminal.
+
+Wed Jun 11 17:15:47 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* dlltool.h: New file.
+	* deflex.l: Include dlltool.h and libiberty.h.  Don't declare
+	strdup.  Use xstrdup rather than strdup.
+	* defparse.y: Include bfd.h, bucomm.h, and dlltool.h.
+	* dlltool.c: Include dlltool.h and time.h.  Make a lot of
+	variables and functions static.  Make a lot of char * variables
+	and parameters const.  Add declarations for static functions.  Do
+	some reindenting.  Hide more PowerPC stuff inside DLLTOOL_PPC.
+
+Wed Jun 11 12:05:52 1997  H.J. Lu  <hjl@gnu.ai.mit.edu>
+
+	* ar.c (bfd_special_undocumented_glue): Add const.
+
+Mon May 12 22:09:35 1997  Bob Manson  <manson@charmed.cygnus.com>
+
+	* Makefile.in (check): Pass CC_FOR_TARGET and CFLAGS_FOR_TARGET
+	to runtest.
 
 Mon May 12 13:14:22 1997  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -13,7 +573,19 @@ Fri Apr 25 14:22:08 1997  H.J. Lu  <hjl@gnu.ai.mit.edu>
 	* Makefile.in (maintainer-clean realclean): Change *.info*
 	to binutils.info* to save sysroff.info.
 
+Tue Apr 15 13:42:22 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (INSTALL): Set to @INSTALL@.
+	(INSTALL_XFORM, INSTALL_XFORM1): Remove.
+	(install): Depend upon installdirs.  Use $(program_transform_name)
+	directly, rather than using $(INSTALL_XFORM) and
+	$(INSTALL_XFORM1).
+	(installdirs): New target.
+	(install-info): Run mkinstalldirs.
+
 Mon Apr 14 11:52:39 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (INSTALL): Change install.sh to install-sh.
 
 	From Thomas Graichen <graichen@rzpd.de>:
 	* Makefile.in: Always use $(SHELL) when running move-if-change.
@@ -31,9 +603,11 @@ Fri Apr  4 13:28:02 1997  Ian Lance Taylor  <ian@cygnus.com>
 	* Makefile.in (distclean): Remove site.exp and site.bak.  Remove
 	everything that clean removes.
 
-Thu Apr  3 18:53:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+Thu Apr  3 13:18:39 1997  Ian Lance Taylor  <ian@cygnus.com>
 
-	* Makefile.in (VERSION): Set to 2.8.
+	* Makefile.in (VERSION): Set to 2.8.1.
+
+	* Branched binutils 2.8.
 
 Tue Apr  1 16:21:44 1997  Klaus Kaempf  <kkaempf@progis.de>
 

@@ -30,8 +30,15 @@ extern int shl;
 /* Whether -relax was used.  */
 extern int sh_relax;
 
+/* Whether -small was used.  */
+extern int sh_small;
+
 /* Don't try to break words.  */
 #define WORKING_DOT_WORD
+
+/* We require .long, et. al., to be aligned correctly.  */
+#define md_cons_align(nbytes) sh_cons_align (nbytes)
+extern void sh_cons_align PARAMS ((int));
 
 /* When relaxing, we need to generate relocations for alignment
    directives.  */
@@ -117,7 +124,7 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *));
        || strcmp (obj_segment_name (SEG), ".ctors") == 0	\
        || strcmp (obj_segment_name (SEG), ".dtors") == 0)	\
       ? 2							\
-      : 4))
+      : (sh_small ? 2 : 4)))
 
 #endif /* OBJ_COFF */
 

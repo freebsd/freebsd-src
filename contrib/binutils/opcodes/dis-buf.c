@@ -68,3 +68,13 @@ generic_print_address (addr, info)
 {
   (*info->fprintf_func) (info->stream, "0x%x", addr);
 }
+
+/* Just return the given address.  */
+
+int
+generic_symbol_at_address (addr, info)
+     bfd_vma addr;
+     struct disassemble_info * info;
+{
+  return 1;
+}

@@ -18,7 +18,7 @@ The Intel i960 processor version of coff is implemented in
 @file{coff-i960.c}. This file has the same structure as
 @file{coff-m88k.c}, except that it includes @file{coff/i960.h}
 rather than @file{coff-m88k.h}.
-@*
+
 @subsection Porting to a new version of coff
 The recommended method is to select from the existing
 implementations the version of coff which is most like the one
@@ -41,10 +41,10 @@ dump utility, usually called @code{att-dump} or just
 @code{dump}) are the same.  Then clean up your code, and send
 what you've done to Cygnus. Then your stuff will be in the
 next release, and you won't have to keep integrating it.
-@*
+
 @subsection How the coff backend works
 
-@*
+
 @subsubsection File layout
 The Coff backend is split into generic routines that are
 applicable to any Coff target and routines that are specific
@@ -75,7 +75,7 @@ types, @file{coff-i960.c} also includes some code to
 manipulate the i960 relocs.  This code is not in
 @file{coffcode.h} because it would not be used by any other
 target.
-@*
+
 @subsubsection Bit twiddling
 Each flavour of coff supported in BFD has its own header file
 describing the external layout of the structures. There is also
@@ -108,7 +108,7 @@ saving the internal BFD overhead, but uses BFD to swap things
 on the way out, making cross ports much safer.  Doing so also
 allows BFD (and thus the linker) to use the same header files
 as @code{gas}, which makes one avenue to disaster disappear.
-@*
+
 @subsubsection Symbol reading
 The simple canonical form for symbols used by BFD is not rich
 enough to keep all the information available in a coff symbol
@@ -135,7 +135,7 @@ rather than the normal text associated with the symbol
 At this time the symbol names are moved around. Coff stores
 all symbols less than nine characters long physically
 within the symbol table; longer strings are kept at the end of
-the file in the string 	table. This pass moves all strings
+the file in the string  table. This pass moves all strings
 into memory and replaces them with pointers to the strings.
 
 The symbol table is massaged once again, this time to create
@@ -147,7 +147,7 @@ shares strings with the hidden internal symbol table.
 
 Any linenumbers are read from the coff file too, and attached
 to the symbols which own the functions the linenumbers belong to.
-@*
+
 @subsubsection Symbol writing
 Writing a symbol to a coff file which didn't come from a coff
 file will lose any debugging information. The @code{asymbol}
@@ -199,15 +199,16 @@ to a symbol into the index into the symbol table of the asymbol.
 This routine runs through the symbol table and patches up the
 symbols from their internal form into the coff way, calls the
 bit twiddlers, and writes out the table to the file.
-@*
+
 @findex coff_symbol_type
 @subsubsection @code{coff_symbol_type}
 @strong{Description}@*
 The hidden information for an @code{asymbol} is described in a
 @code{combined_entry_type}:
-@*
-.
+
+
 @example
+
 typedef struct coff_ptr_struct
 @{
 
@@ -292,43 +293,43 @@ typedef struct
 Special entry points for gas to swap out coff parts:
 @example
  unsigned int (*_bfd_coff_swap_aux_out) PARAMS ((
-       bfd   	*abfd,
-       PTR	in,
-       int    	type,
-       int    	class,
+       bfd     *abfd,
+       PTR     in,
+       int     type,
+       int     class,
        int     indaux,
        int     numaux,
-       PTR    	ext));
+       PTR     ext));
 
  unsigned int (*_bfd_coff_swap_sym_out) PARAMS ((
       bfd      *abfd,
-      PTR	in,
-      PTR	ext));
+      PTR      in,
+      PTR      ext));
 
  unsigned int (*_bfd_coff_swap_lineno_out) PARAMS ((
-      	bfd   	*abfd,
-      	PTR	in,
-	PTR	ext));
+       bfd     *abfd,
+       PTR     in,
+       PTR     ext));
 
  unsigned int (*_bfd_coff_swap_reloc_out) PARAMS ((
-      	bfd     *abfd,
-     	PTR	src,
-	PTR	dst));
+       bfd     *abfd,
+       PTR     src,
+       PTR     dst));
 
  unsigned int (*_bfd_coff_swap_filehdr_out) PARAMS ((
-      	bfd  	*abfd,
-	PTR 	in,
-	PTR 	out));
+       bfd     *abfd,
+       PTR     in,
+       PTR     out));
 
  unsigned int (*_bfd_coff_swap_aouthdr_out) PARAMS ((
-      	bfd 	*abfd,
-	PTR 	in,
-	PTR	out));
+       bfd     *abfd,
+       PTR     in,
+       PTR     out));
 
  unsigned int (*_bfd_coff_swap_scnhdr_out) PARAMS ((
-      	bfd  	*abfd,
-      	PTR	in,
-	PTR	out));
+       bfd     *abfd,
+       PTR     in,
+       PTR     out));
 
 @end example
 Special entry points for generic COFF routines to call target
@@ -453,6 +454,12 @@ dependent COFF routines:
        boolean collect, 
        struct bfd_link_hash_entry **hashp));
 
+ boolean (*_bfd_coff_link_output_has_begun) PARAMS ((
+       bfd * abfd ));
+ boolean (*_bfd_coff_final_link_postscript) PARAMS ((
+       bfd * abfd,
+       struct coff_final_link_info * pfinfo));
+
 @} bfd_coff_backend_data;
 
 #define coff_backend_info(abfd) ((bfd_coff_backend_data *) (abfd)->xvec->backend_data)
@@ -498,7 +505,7 @@ dependent COFF routines:
 #define bfd_coff_long_section_names(abfd) \
         (coff_backend_info (abfd)->_bfd_coff_long_section_names)
 #define bfd_coff_default_section_alignment_power(abfd) \
-	 (coff_backend_info (abfd)->_bfd_coff_default_section_alignment_power)
+        (coff_backend_info (abfd)->_bfd_coff_default_section_alignment_power)
 #define bfd_coff_swap_filehdr_in(abfd, i,o) \
         ((coff_backend_info (abfd)->_bfd_coff_swap_filehdr_in) (abfd, i, o))
 
@@ -567,6 +574,11 @@ dependent COFF routines:
         ((coff_backend_info (abfd)->_bfd_coff_link_add_one_symbol)\
          (info, abfd, name, flags, section, value, string, cp, coll, hashp))
 
+#define bfd_coff_link_output_has_begun(a) \
+        ((coff_backend_info (a)->_bfd_coff_link_output_has_begun) (a))
+#define bfd_coff_final_link_postscript(a,p) \
+        ((coff_backend_info (a)->_bfd_coff_final_link_postscript) (a,p))
+
 @end example
 @subsubsection Writing relocations
 To write relocations, the back end steps though the
@@ -578,7 +590,7 @@ address and the relocation offset; the type is dug directly
 from the howto field.  Then the @code{internal_reloc} is
 swapped into the shape of an @code{external_reloc} and written
 out to disk.
-@*
+
 @subsubsection Reading linenumbers
 Creating the linenumber table is done by reading in the entire
 coff linenumber table, and creating another table for internal use.
@@ -594,7 +606,7 @@ table, and each symbol which marks a function is marked by
 pointing its...
 
 How does this work ?
-@*
+
 @subsubsection Reading relocations
 Coff relocations are easily transformed into the internal BFD form
 (@code{arelent}).
@@ -624,4 +636,4 @@ and 960 use the @code{r_type} to directly produce an index
 into a howto table vector; the 88k subtracts a number from the
 @code{r_type} field and creates an addend field.
 @end itemize
-@*
+

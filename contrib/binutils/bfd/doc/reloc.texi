@@ -16,14 +16,15 @@ in a particular section, and fill in the right bits of the structures.
 * typedef arelent::
 * howto manager::
 @end menu
-@*
+
 
 @node typedef arelent, howto manager, Relocations, Relocations
 @subsection typedef arelent
 This is the structure of a relocation entry:
-@*
-.
+
+
 @example
+
 typedef enum bfd_reloc_status
 @{
        /* No errors detected */
@@ -219,37 +220,39 @@ information in the reloc record and data section. A back end
 would normally have a relocation instruction set and turn
 relocations into pointers to the correct structure on input -
 but it would be possible to create each howto field on demand.
-@*
+
 @subsubsection @code{enum complain_overflow}
 Indicates what sort of overflow checking should be done when
 performing a relocation.
-@*
-.
+
+
 @example
+
 enum complain_overflow
 @{
-	/* Do not complain on overflow. */
+       /* Do not complain on overflow. */
   complain_overflow_dont,
 
-	/* Complain if the bitfield overflows, whether it is considered
-	   as signed or unsigned. */
+       /* Complain if the bitfield overflows, whether it is considered
+          as signed or unsigned. */
   complain_overflow_bitfield,
 
-	/* Complain if the value overflows when considered as signed
-	   number. */
+       /* Complain if the value overflows when considered as signed
+          number. */
   complain_overflow_signed,
 
-	/* Complain if the value overflows when considered as an
-	   unsigned number. */
+       /* Complain if the value overflows when considered as an
+          unsigned number. */
   complain_overflow_unsigned
 @};
 @end example
 @subsubsection @code{reloc_howto_type}
 The @code{reloc_howto_type} is a structure which contains all the
 information that libbfd needs to know to tie up a back end's data.
-@*
-.struct symbol_cache_entry;		/* Forward declaration */
+
+
 @example
+struct symbol_cache_entry;             /* Forward declaration */
 
 struct reloc_howto_struct
 @{
@@ -265,13 +268,13 @@ struct reloc_howto_struct
            unwanted data from the relocation.  */
   unsigned int rightshift;
 
-	/*  The size of the item to be relocated.  This is *not* a
-	    power-of-two measure.  To get the number of bytes operated
-	    on by a type of relocation, use bfd_get_reloc_size.  */
+       /*  The size of the item to be relocated.  This is *not* a
+           power-of-two measure.  To get the number of bytes operated
+           on by a type of relocation, use bfd_get_reloc_size.  */
   int size;
 
        /*  The number of bits in the item to be relocated.  This is used
-	    when doing overflow checking.  */
+           when doing overflow checking.  */
   unsigned int bitsize;
 
        /*  Notes that the relocation is relative to the location in the
@@ -280,12 +283,12 @@ struct reloc_howto_struct
            being relocated. */
   boolean pc_relative;
 
-	/*  The bit position of the reloc value in the destination.
-	    The relocated value is left shifted by this amount. */
+       /*  The bit position of the reloc value in the destination.
+           The relocated value is left shifted by this amount. */
   unsigned int bitpos;
 
-	/* What type of overflow error should be checked for when
-	   relocating. */
+       /* What type of overflow error should be checked for when
+          relocating. */
   enum complain_overflow complain_on_overflow;
 
        /* If this field is non null, then the supplied function is
@@ -293,8 +296,8 @@ struct reloc_howto_struct
           strange relocation methods to be accomodated (e.g., i960 callj
           instructions). */
   bfd_reloc_status_type (*special_function)
-				    PARAMS ((bfd *abfd,
-					     arelent *reloc_entry,
+                                   PARAMS ((bfd *abfd,
+                                            arelent *reloc_entry,
                                             struct symbol_cache_entry *symbol,
                                             PTR data,
                                             asection *input_section,
@@ -341,7 +344,7 @@ The HOWTO define is horrible and will go away.
 #define HOWTO(C, R,S,B, P, BI, O, SF, NAME, INPLACE, MASKSRC, MASKDST, PC) \
   @{(unsigned)C,R,S,B, P, BI, O,SF,NAME,INPLACE,MASKSRC,MASKDST,PC@}
 @end example
-@*
+
 @strong{Description}@*
 And will be replaced with the totally magic way. But for the
 moment, we are compatible, so do it this way.
@@ -349,7 +352,7 @@ moment, we are compatible, so do it this way.
 #define NEWHOWTO( FUNCTION, NAME,SIZE,REL,IN) HOWTO(0,0,SIZE,0,REL,0,complain_overflow_dont,FUNCTION, NAME,false,0,0,IN)
 
 @end example
-@*
+
 @strong{Description}@*
 Helper routine to turn a symbol into a relocation value.
 @example
@@ -365,17 +368,17 @@ Helper routine to turn a symbol into a relocation value.
   @}                                            \
 @}
 @end example
-@*
+
 @findex bfd_get_reloc_size
 @subsubsection @code{bfd_get_reloc_size}
 @strong{Synopsis}
 @example
-int bfd_get_reloc_size (reloc_howto_type *);
+unsigned int bfd_get_reloc_size (reloc_howto_type *);
 @end example
 @strong{Description}@*
 For a reloc_howto_type that operates on a fixed number of bytes,
 this returns the number of bytes operated on.
-@*
+
 @findex arelent_chain
 @subsubsection @code{arelent_chain}
 @strong{Description}@*
@@ -386,7 +389,24 @@ typedef struct relent_chain @{
   struct   relent_chain *next;
 @} arelent_chain;
 @end example
-@*
+
+@findex bfd_check_overflow
+@subsubsection @code{bfd_check_overflow}
+@strong{Synopsis}
+@example
+bfd_reloc_status_type
+bfd_check_overflow
+   (enum complain_overflow how,
+    unsigned int bitsize,
+    unsigned int rightshift,
+    bfd_vma relocation);
+@end example
+@strong{Description}@*
+Perform overflow checking on @var{relocation} which has @var{bitsize}
+significant bits and will be shifted right by @var{rightshift} bits.
+The result is either of @code{bfd_reloc_ok} or
+@code{bfd_reloc_overflow}.
+
 @findex bfd_perform_relocation
 @subsubsection @code{bfd_perform_relocation}
 @strong{Synopsis}
@@ -415,7 +435,7 @@ slot will always be big enough for the addend. Complex reloc
 types with addends were invented to solve just this problem.
 The @var{error_message} argument is set to an error message if
 this return @code{bfd_reloc_dangerous}.
-@*
+
 @findex bfd_install_relocation
 @subsubsection @code{bfd_install_relocation}
 @strong{Synopsis}
@@ -436,14 +456,14 @@ a relocation.
 
 For now, this function should be considered reserved for the
 assembler.
-@*
+
 
 @node howto manager,  , typedef arelent, Relocations
 @section The howto manager
 When an application wants to create a relocation, but doesn't
 know what the target machine might call it, it can find out by
 using this bit of code.
-@*
+
 @findex bfd_reloc_code_type
 @subsubsection @code{bfd_reloc_code_type}
 @strong{Description}@*
@@ -455,7 +475,7 @@ return a howto pointer.
 This does mean that the application must determine the correct
 enumerator value; you can't get a howto pointer from a random set
 of attributes.
-@*
+
 Here are the possible values for @code{enum bfd_reloc_code_real}:
 
 @deffn {} BFD_RELOC_64
@@ -576,11 +596,18 @@ I think these are specific to SPARC a.out (e.g., Sun 4).
 @deffnx {} BFD_RELOC_SPARC_PC_LM22
 @deffnx {} BFD_RELOC_SPARC_WDISP16
 @deffnx {} BFD_RELOC_SPARC_WDISP19
-@deffnx {} BFD_RELOC_SPARC_GLOB_JMP
 @deffnx {} BFD_RELOC_SPARC_7
 @deffnx {} BFD_RELOC_SPARC_6
 @deffnx {} BFD_RELOC_SPARC_5
-Some relocations we're using for SPARC V9 -- subject to change.
+@deffnx {} BFD_RELOC_SPARC_DISP64
+@deffnx {} BFD_RELOC_SPARC_PLT64
+@deffnx {} BFD_RELOC_SPARC_HIX22
+@deffnx {} BFD_RELOC_SPARC_LOX10
+@deffnx {} BFD_RELOC_SPARC_H44
+@deffnx {} BFD_RELOC_SPARC_M44
+@deffnx {} BFD_RELOC_SPARC_L44
+@deffnx {} BFD_RELOC_SPARC_REGISTER
+SPARC64 relocations
 @end deffn
 @deffn {} BFD_RELOC_ALPHA_GPDISP_HI16
 Alpha ECOFF and ELF relocations.  Some of these treat the symbol or
@@ -790,6 +817,23 @@ These relocs are only used within the ARM assembler.  They are not
 @deffnx {} BFD_RELOC_SH_LABEL
 Hitachi SH relocs.  Not all of these appear in object files.
 @end deffn
+@deffn {} BFD_RELOC_THUMB_PCREL_BRANCH9
+@deffnx {} BFD_RELOC_THUMB_PCREL_BRANCH12
+@deffnx {} BFD_RELOC_THUMB_PCREL_BRANCH23
+Thumb 23-, 12- and 9-bit pc-relative branches.  The lowest bit must
+be zero and is not stored in the instruction.
+@end deffn
+@deffn {} BFD_RELOC_ARC_B22_PCREL
+Argonaut RISC Core (ARC) relocs.
+ARC 22 bit pc-relative branch.  The lowest two bits must be zero and are
+not stored in the instruction.  The high 20 bits are installed in bits 26
+through 7 of the instruction.
+@end deffn
+@deffn {} BFD_RELOC_ARC_B26
+ARC 26 bit absolute branch.  The lowest two bits must be zero and are not
+stored in the instruction.  The high 24 bits are installed in bits 23
+through 0.
+@end deffn
 @deffn {} BFD_RELOC_D10V_10_PCREL_R
 Mitsubishi D10V relocs.
 This is a 10-bit reloc with the right 2 bits
@@ -838,6 +882,40 @@ This is a 16-bit reloc containing the lower 16 bits of an address.
 This is a 16-bit reloc containing the small data area offset for use in
 add3, load, and store instructions.
 @end deffn
+@deffn {} BFD_RELOC_V850_9_PCREL
+This is a 9-bit reloc
+@end deffn
+@deffn {} BFD_RELOC_V850_22_PCREL
+This is a 22-bit reloc
+@end deffn
+@deffn {} BFD_RELOC_V850_SDA_16_16_OFFSET
+This is a 16 bit offset from the short data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_SDA_15_16_OFFSET
+This is a 16 bit offset (of which only 15 bits are used) from the
+short data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_ZDA_16_16_OFFSET
+This is a 16 bit offset from the zero data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_ZDA_15_16_OFFSET
+This is a 16 bit offset (of which only 15 bits are used) from the
+zero data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_TDA_6_8_OFFSET
+This is an 8 bit offset (of which only 6 bits are used) from the
+tiny data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_TDA_7_8_OFFSET
+This is an 8bit offset (of which only 7 bits are used) from the tiny
+data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_TDA_7_7_OFFSET
+This is a 7 bit offset from the tiny data area pointer.
+@end deffn
+@deffn {} BFD_RELOC_V850_TDA_16_16_OFFSET
+This is a 16 bit offset from the tiny data area pointer.
+@end deffn
 @deffn {} BFD_RELOC_MN10300_32_PCREL
 This is a 32bit pcrel reloc for the mn10300, offset by two bytes in the
 instruction.
@@ -846,8 +924,14 @@ instruction.
 This is a 16bit pcrel reloc for the mn10300, offset by two bytes in the
 instruction.
 @end deffn
-.
+@deffn {} BFD_RELOC_TIC30_LDP
+This is a 8bit DP reloc for the tms320c30, where the most
+significant 8 bits of a 24 bit word are placed into the least
+significant 8 bits of the opcode.
+@end deffn
+
 @example
+
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 @end example
 @findex bfd_reloc_type_lookup
@@ -861,7 +945,7 @@ bfd_reloc_type_lookup (bfd *abfd, bfd_reloc_code_real_type code);
 Return a pointer to a howto structure which, when
 invoked, will perform the relocation @var{code} on data from the
 architecture noted.
-@*
+
 @findex bfd_default_reloc_type_lookup
 @subsubsection @code{bfd_default_reloc_type_lookup}
 @strong{Synopsis}
@@ -871,7 +955,7 @@ reloc_howto_type *bfd_default_reloc_type_lookup
 @end example
 @strong{Description}@*
 Provides a default relocation lookup routine for any architecture.
-@*
+
 @findex bfd_get_reloc_code_name
 @subsubsection @code{bfd_get_reloc_code_name}
 @strong{Synopsis}
@@ -881,7 +965,7 @@ const char *bfd_get_reloc_code_name (bfd_reloc_code_real_type code);
 @strong{Description}@*
 Provides a printable name for the supplied relocation code.
 Useful mainly for printing error messages.
-@*
+
 @findex bfd_generic_relax_section
 @subsubsection @code{bfd_generic_relax_section}
 @strong{Synopsis}
@@ -895,7 +979,7 @@ boolean bfd_generic_relax_section
 @strong{Description}@*
 Provides default handling for relaxing for back ends which
 don't do relaxing -- i.e., does nothing.
-@*
+
 @findex bfd_generic_get_relocated_section_contents
 @subsubsection @code{bfd_generic_get_relocated_section_contents}
 @strong{Synopsis}
@@ -911,4 +995,4 @@ bfd_generic_get_relocated_section_contents (bfd *abfd,
 @strong{Description}@*
 Provides default handling of relocation effort for back ends
 which can't be bothered to do it efficiently.
-@*
+

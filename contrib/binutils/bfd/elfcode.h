@@ -1,5 +1,5 @@
 /* ELF executable support for BFD.
-   Copyright 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -176,11 +176,15 @@ static char *elf_symbol_flags PARAMS ((flagword));
    can be handled by explicitly specifying 32 bits or "the long type".  */
 #if ARCH_SIZE == 64
 #define put_word	bfd_h_put_64
+#define put_signed_word	bfd_h_put_signed_64
 #define get_word	bfd_h_get_64
+#define get_signed_word	bfd_h_get_signed_64
 #endif
 #if ARCH_SIZE == 32
 #define put_word	bfd_h_put_32
+#define put_signed_word	bfd_h_put_signed_32
 #define get_word	bfd_h_get_32
+#define get_signed_word	bfd_h_get_signed_32
 #endif
 
 /* Translate an ELF symbol in external format into an ELF symbol in internal
@@ -372,7 +376,7 @@ elf_swap_reloca_in (abfd, src, dst)
 {
   dst->r_offset = get_word (abfd, (bfd_byte *) src->r_offset);
   dst->r_info = get_word (abfd, (bfd_byte *) src->r_info);
-  dst->r_addend = get_word (abfd, (bfd_byte *) src->r_addend);
+  dst->r_addend = get_signed_word (abfd, (bfd_byte *) src->r_addend);
 }
 
 /* Translate an ELF reloc from internal format to external format. */
@@ -394,7 +398,7 @@ elf_swap_reloca_out (abfd, src, dst)
 {
   put_word (abfd, src->r_offset, dst->r_offset);
   put_word (abfd, src->r_info, dst->r_info);
-  put_word (abfd, src->r_addend, dst->r_addend);
+  put_signed_word (abfd, src->r_addend, dst->r_addend);
 }
 
 INLINE void
@@ -926,7 +930,7 @@ elf_slurp_symbol_table (abfd, symptrs, dynamic)
 {
   Elf_Internal_Shdr *hdr;
   Elf_Internal_Shdr *verhdr;
-  long symcount;		/* Number of external ELF symbols */
+  unsigned long symcount;	/* Number of external ELF symbols */
   elf_symbol_type *sym;		/* Pointer to current bfd symbol */
   elf_symbol_type *symbase;	/* Buffer for generated bfd symbols */
   Elf_Internal_Sym i_sym;
@@ -974,7 +978,7 @@ elf_slurp_symbol_table (abfd, symptrs, dynamic)
     sym = symbase = NULL;
   else
     {
-      long i;
+      unsigned long i;
 
       if (bfd_seek (abfd, hdr->sh_offset, SEEK_SET) == -1)
 	return -1;

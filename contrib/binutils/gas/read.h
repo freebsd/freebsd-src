@@ -1,5 +1,6 @@
 /* read.h - of read.c
-   Copyright (C) 1986, 90, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1986, 90, 92, 93, 94, 95, 96, 1997
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -58,8 +59,10 @@ extern const char comment_chars[];
 extern const char line_comment_chars[];
 extern const char line_separator_chars[];
 
-/* This flag whether to generate line info for asm file */
-extern int generate_asm_lineno;
+/* Table of -I directories.  */
+extern char **include_dirs;
+extern int include_dir_count;
+extern int include_dir_maxlen;
 
 /* The offset in the absolute section.  */
 extern addressT abs_section_offset;
@@ -95,12 +98,18 @@ extern void add_include_dir PARAMS ((char *path));
 extern void cons PARAMS ((int nbytes));
 extern void demand_empty_rest_of_line PARAMS ((void));
 extern void emit_expr PARAMS ((expressionS *exp, unsigned int nbytes));
+extern void emit_leb128_expr PARAMS ((expressionS *, int));
 extern void equals PARAMS ((char *sym_name, int reassign));
 extern void float_cons PARAMS ((int float_type));
 extern void ignore_rest_of_line PARAMS ((void));
+extern int output_leb128 PARAMS ((char *, valueT, int sign));
 extern void pseudo_set PARAMS ((symbolS * symbolP));
 extern void read_a_source_file PARAMS ((char *name));
 extern void read_begin PARAMS ((void));
+extern void read_print_statistics PARAMS ((FILE *));
+extern int sizeof_leb128 PARAMS ((valueT, int sign));
+extern void stabs_generate_asm_lineno PARAMS ((void));
+
 extern void s_abort PARAMS ((int));
 extern void s_align_bytes PARAMS ((int arg));
 extern void s_align_ptwo PARAMS ((int));
@@ -125,6 +134,8 @@ extern void s_ignore PARAMS ((int arg));
 extern void s_include PARAMS ((int arg));
 extern void s_irp PARAMS ((int arg));
 extern void s_lcomm PARAMS ((int needs_align));
+extern void s_lcomm_bytes PARAMS ((int needs_align));
+extern void s_leb128 PARAMS ((int sign));
 extern void s_linkonce PARAMS ((int));
 extern void s_lsym PARAMS ((int));
 extern void s_macro PARAMS ((int));
@@ -143,6 +154,5 @@ extern void s_text PARAMS ((int));
 extern void stringer PARAMS ((int append_zero));
 extern void s_xstab PARAMS ((int what));
 extern void s_rva PARAMS ((int));
-extern void read_print_statistics PARAMS ((FILE *));
 
 /* end of read.h */

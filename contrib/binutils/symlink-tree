@@ -34,10 +34,12 @@ for f in `ls -a ${srcdir}`; do
       fi
     done
     if [ -z "${found}" ]; then
+      echo "$f		..working in"
       if [ -d $f ]; then true; else mkdir $f; fi
       (cd $f; ${prog} ${newsrcdir}/$f "${ignore}")
     fi
   else
+    echo "$f		..linked"
     rm -f $f
     ln -s ${srcdir}/$f .
   fi

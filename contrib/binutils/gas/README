@@ -171,6 +171,7 @@ Native assembling should work on:
 	sco 3.2v4.2
 	sco openserver 5.0 (a.k.a. 3.2v5.0 )
 	sparc solaris
+	ns32k (netbsd, lites)
 
 I believe that gas as a cross-assembler can currently be targetted for
 most of the above hosts, plus
@@ -199,7 +200,7 @@ run gcc on it.  Or run "gcc -xassembler-with-cpp foo.s".
 Support for ELF should work now for sparc, hppa, i386, alpha, m68k,
 MIPS, powerpc.
 
-Support for ns32k, tahoe, i860, m88k may be suffering from bitrot.
+Support for sequent (ns32k), tahoe, i860, m88k may be suffering from bitrot.
 
 If you try out gas on some host or target not listed above, please let me know
 the results, so I can update the list.
@@ -226,10 +227,10 @@ warning message when this happens.
 REPORTING BUGS IN GAS
 =====================
 
-Bugs in gas should be reported to bug-gnu-utils@prep.ai.mit.edu.  They may be
-cross-posted to bug-gcc if they affect the use of gas with gcc.  They should
-not be reported just to bug-gcc, since I don't read that list, and therefore
-wouldn't see them.
+Bugs in gas should be reported to bug-gnu-utils@gnu.org.  They may be
+cross-posted to bug-gcc if they affect the use of gas with gcc.  They
+should not be reported just to bug-gcc, since I don't read that list,
+and therefore wouldn't see them.
 
 If you report a bug in GAS, please remember to include:
 

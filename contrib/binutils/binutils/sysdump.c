@@ -1,21 +1,22 @@
 /* Sysroff object format dumper.
- Copyright (C) 1994 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 1998 Free Software Foundation, Inc.
 
-This file is part of GNU Binutils.
+   This file is part of GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 
 /* Written by Steve Chamberlain <sac@cygnus.com>.
@@ -33,11 +34,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysroff.h"
 
 #define PROGRAM_VERSION "1.0"
-static int h8300;
-static int sh;
+
 static int dump = 1;
 static int segmented_p;
 static int code;
+static int addrsize = 4;
 static FILE *file;
 
 static char *
@@ -171,7 +172,7 @@ getINT (ptr, idx, size, max)
       return 0;
     }
   if (size == -2)
-    size = 4;
+    size = addrsize;
   if (size == -1)
     size = 0;
   switch (size)
@@ -195,13 +196,16 @@ getINT (ptr, idx, size, max)
 }
 
 int
-getBITS (ptr, idx, size)
+getBITS (ptr, idx, size, max)
      char *ptr;
      int *idx;
-     int size;
+     int size, max;
 {
   int byte = *idx / 8;
   int bit = *idx % 8;
+
+  if (byte >= max)
+    return 0;
 
   *idx += size;
 
@@ -308,6 +312,7 @@ getone (type)
       {
 	struct IT_hd dummy;
 	sysroff_swap_hd_in (&dummy);
+	addrsize = dummy.afl;
 	sysroff_print_hd_out (&dummy);
       }
       break;
@@ -487,6 +492,10 @@ opt (x)
   return getone (x);
 }
 
+#if 0
+
+/* This is no longer used.  */
+
 static void
 unit_info_list ()
 {
@@ -505,6 +514,12 @@ unit_info_list ()
     }
 }
 
+#endif
+
+#if 0
+
+/* This is no longer used.  */
+
 static void
 object_body_list ()
 {
@@ -516,6 +531,8 @@ object_body_list ()
 	;
     }
 }
+
+#endif
 
 static void
 must (x)
@@ -612,6 +629,10 @@ derived_type ()
   tab (-1, "");
 }
 
+#if 0
+
+/* This is no longer used.  */
+
 static void
 program_structure ()
 {
@@ -626,6 +647,12 @@ program_structure ()
   tab (-1, "");
 }
 
+#endif
+
+#if 0
+
+/* This is no longer used.  */
+
 static void
 debug_list ()
 {
@@ -638,6 +665,8 @@ debug_list ()
 
   tab (-1, "");
 }
+
+#endif
 
 static void
 module ()

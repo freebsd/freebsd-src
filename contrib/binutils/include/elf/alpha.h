@@ -26,6 +26,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef _ELF_ALPHA_H
 #define _ELF_ALPHA_H
 
+/* Processor specific flags for the ELF header e_flags field.  */
+
+/* All addresses must be below 2GB.  */
+#define EF_ALPHA_32BIT		0x00000001
+
+/* All relocations needed for relaxation with code movement are present.  */
+#define EF_ALPHA_CANRELAX	0x00000002
+
 /* Processor specific section flags.  */
 
 /* This section must be in the global data area.  */

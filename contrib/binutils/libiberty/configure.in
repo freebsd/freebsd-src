@@ -54,25 +54,13 @@ fi
 
 # We need multilib support, but only if configuring for the target.
 if [ -n "${with_target_subdir}" ] ; then
-  case ${srcdir} in
-  .)
+  if [ "${srcdir}" = "." ] ; then
     if [ "${with_target_subdir}" != "." ] ; then
-
-      # Set MULTISRCTOP to the value we need if we are not doing
-      # multilib.  This will be overridden if --enable-multilib was
-      # used.
-      sed -e "s:^MULTISRCTOP[ 	]*=.*$:MULTISRCTOP = ../:" \
-	${Makefile} > Makefile.tem
-      rm -f ${Makefile}
-      mv Makefile.tem ${Makefile}
-
-      . ${srcdir}/${with_multisrctop}../../config-ml.in
+      . ${with_multisrctop}../../config-ml.in
     else
-      . ${srcdir}/${with_multisrctop}../config-ml.in
+      . ${with_multisrctop}../config-ml.in
     fi
-    ;;
-  *)
+  else
     . ${srcdir}/../config-ml.in
-    ;;
-  esac
+  fi
 fi

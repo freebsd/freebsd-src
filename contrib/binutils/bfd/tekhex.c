@@ -817,6 +817,8 @@ tekhex_write_object_contents (abfd)
   asection *s;
   struct data_struct *d;
 
+  tekhex_init ();
+
   bytes_written = 0;
 
   /* And the raw data */
@@ -868,50 +870,53 @@ tekhex_write_object_contents (abfd)
     }
 
   /* And the symbols */
-  for (p = abfd->outsymbols; *p; p++)
+  if (abfd->outsymbols)
     {
-      int section_code = bfd_decode_symclass (*p);
+      for (p = abfd->outsymbols; *p; p++)
+	{
+	  int section_code = bfd_decode_symclass (*p);
 
-      if (section_code != '?')
-	{			/* do not include debug symbols */
-	  asymbol *s = *p;
-	  char *dst = buffer;
+	  if (section_code != '?')
+	    {			/* do not include debug symbols */
+	      asymbol *s = *p;
+	      char *dst = buffer;
 
-	  writesym (&dst, s->section->name);
+	      writesym (&dst, s->section->name);
 
-	  switch (section_code)
-	    {
-	    case 'A':
-	      *dst++ = '2';
-	      break;
-	    case 'a':
-	      *dst++ = '6';
-	      break;
-	    case 'D':
-	    case 'B':
-	    case 'O':
-	      *dst++ = '4';
-	      break;
-	    case 'd':
-	    case 'b':
-	    case 'o':
-	      *dst++ = '8';
-	      break;
-	    case 'T':
-	      *dst++ = '3';
-	      break;
-	    case 't':
-	      *dst++ = '7';
-	      break;
-	    case 'C':
-	    case 'U':
-	      bfd_set_error (bfd_error_wrong_format);
-	      return false;
+	      switch (section_code)
+		{
+		case 'A':
+		  *dst++ = '2';
+		  break;
+		case 'a':
+		  *dst++ = '6';
+		  break;
+		case 'D':
+		case 'B':
+		case 'O':
+		  *dst++ = '4';
+		  break;
+		case 'd':
+		case 'b':
+		case 'o':
+		  *dst++ = '8';
+		  break;
+		case 'T':
+		  *dst++ = '3';
+		  break;
+		case 't':
+		  *dst++ = '7';
+		  break;
+		case 'C':
+		case 'U':
+		  bfd_set_error (bfd_error_wrong_format);
+		  return false;
+		}
+
+	      writesym (&dst, s->name);
+	      writevalue (&dst, s->value + s->section->vma);
+	      out (abfd, '3', buffer, dst);
 	    }
-
-	  writesym (&dst, s->name);
-	  writevalue (&dst, s->value + s->section->vma);
-	  out (abfd, '3', buffer, dst);
 	}
     }
 

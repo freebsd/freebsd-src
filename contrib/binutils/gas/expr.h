@@ -1,5 +1,5 @@
 /* expr.h -> header file for expr.c
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 92-97, 1998 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -151,5 +151,10 @@ extern unsigned int get_single_number PARAMS ((void));
 extern struct symbol *make_expr_symbol PARAMS ((expressionS * expressionP));
 extern int expr_symbol_where
   PARAMS ((struct symbol *, char **, unsigned int *));
+
+extern struct symbol * expr_build_uconstant PARAMS ((offsetT));
+extern struct symbol * expr_build_unary PARAMS ((operatorT, struct symbol *));
+extern struct symbol * expr_build_binary
+  PARAMS ((operatorT, struct symbol *, struct symbol *));
 
 /* end of expr.h */
