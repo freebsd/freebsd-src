@@ -73,9 +73,9 @@ reorganize_buffers (int dev)
 	  sz = 8;
 	}
 
-      sz /= 8;			/* #bits -> #bytes */
-
       sz = sr * nc * sz;
+
+      sz /= 8;			/* #bits -> #bytes */
 
       /*
          * Compute a buffer size for time not exeeding 1 second.
@@ -92,11 +92,11 @@ reorganize_buffers (int dev)
 
       if (dmap->subdivision == 0)	/* Not already set */
 	dmap->subdivision = 1;	/* Init to default value */
+      else
+	bsz /= dmap->subdivision;
 
-      bsz /= dmap->subdivision;
-
-      if (bsz < 64)
-	bsz = 4096;		/* Just a sanity check */
+      if (bsz < 16)
+	bsz = 16;		/* Just a sanity check */
 
       while ((dsp_dev->buffsize * dsp_dev->buffcount) / bsz > MAX_SUB_BUFFERS)
 	bsz *= 2;
@@ -109,10 +109,12 @@ reorganize_buffers (int dev)
          * The process has specified the buffer sice with SNDCTL_DSP_SETFRAGMENT or
          * the buffer sice computation has already been done.
        */
-      if (dmap->fragment_size > audio_devs[dev]->buffsize)
-	dmap->fragment_size = audio_devs[dev]->buffsize;
+      if (dmap->fragment_size > (audio_devs[dev]->buffsize / 2))
+	dmap->fragment_size = (audio_devs[dev]->buffsize / 2);
       bsz = dmap->fragment_size;
     }
+
+  bsz &= ~0x03;			/* Force size which is multiple of 4 bytes */
 
   /*
    * Now computing addresses for the logical buffers
@@ -156,6 +158,8 @@ dma_init_buffers (int dev)
 
   dmap->flags = DMA_BUSY;	/* Other flags off */
   dmap->qlen = dmap->qhead = dmap->qtail = 0;
+  dmap->nbufs = 1;
+  dmap->bytes_in_use = audio_devs[dev]->buffsize;
 
   dmap->dma_mode = DMODE_NONE;
 }
@@ -587,20 +591,19 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size, int dontblock)
 	return err;
     }
 
-
-  if (dontblock && !space_in_queue (dev))	/* XXX */
-#if defined(__FreeBSD__)
-    return RET_ERROR (EWOULDBLOCK);
-#else
-    return RET_ERROR (EAGAIN);
-#endif
-
   DISABLE_INTR (flags);
 
   abort = 0;
   while (!space_in_queue (dev) &&
 	 !abort)
     {
+
+      if (dontblock)
+	{
+	  RESTORE_INTR (flags);
+	  return RET_ERROR (EAGAIN);
+	}
+
       /*
        * Wait for free space
        */

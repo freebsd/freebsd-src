@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.39 1995/12/10 02:53:07 bde Exp $
+ * $Id: soundcard.c,v 1.40 1995/12/11 09:26:16 phk Exp $
  */
 
 #include "sound_config.h"
@@ -478,6 +478,8 @@ sound_mem_init (void)
 	  if (audio_devs[dev]->flags & DMA_AUTOMODE)
 	    audio_devs[dev]->buffcount = 1;
 
+	  audio_devs[dev]->buffsize &= ~0xfff;	/* Truncate to n*4k */
+
 	  if (audio_devs[dev]->dmachan > 3 && audio_devs[dev]->buffsize > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
@@ -487,7 +489,6 @@ sound_mem_init (void)
 
 	  if (audio_devs[dev]->buffsize > dma_pagesize)
 	    audio_devs[dev]->buffsize = dma_pagesize;
-	  audio_devs[dev]->buffsize &= ~0xfff;	/* Truncate to n*4k */
 	  if (audio_devs[dev]->buffsize < 4096)
 	    audio_devs[dev]->buffsize = 4096;
 

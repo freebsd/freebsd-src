@@ -1191,7 +1191,9 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
       {
 	audio_devs[my_dev = num_audiodevs++] = &sb_dsp_operations;
 	audio_devs[my_dev]->buffcount = DSP_BUFFCOUNT;
-	audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
+	audio_devs[my_dev]->buffsize = (
+		(sbc_major > 2 || sbc_major == 2 && sbc_minor > 0) ?
+		16 : 8) * 1024;
 	audio_devs[my_dev]->dmachan = hw_config->dma;
       }
     else

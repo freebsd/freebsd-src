@@ -409,7 +409,7 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
       audio_devs[my_devnum = num_audiodevs++] = &pas_pcm_operations;
       audio_devs[my_devnum]->dmachan = hw_config->dma;
       audio_devs[my_devnum]->buffcount = 1;
-      audio_devs[my_devnum]->buffsize = 2 * DSP_BUFFSIZE;
+      audio_devs[my_devnum]->buffsize = DSP_BUFFSIZE;
     }
   else
     printk ("PAS2: Too many PCM devices available\n");
