@@ -1355,17 +1355,30 @@ linux_ioctl_console(struct proc *p, struct linux_ioctl_args *args)
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
 
 /*
- * Construct the Linux name for an interface
+ * Interface function used by linprocfs (at the time of writing). It's not
+ * used by the Linuxulator itself.
  */
-
 int
-linux_ifname(struct ifnet *ifp, char *name, size_t size)
+linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 {
-	if (IFP_IS_ETH(ifp))
-		return snprintf(name, LINUX_IFNAMSIZ,
-		    "eth%d", ifp->if_index);
-	return snprintf(name, LINUX_IFNAMSIZ,
-	    "%s%d", ifp->if_name, ifp->if_unit);
+	struct ifnet *ifscan;
+	int ethno;
+
+	/* Short-circuit non ethernet interfaces */
+	if (!IFP_IS_ETH(ifp))
+		return (snprintf(buffer, buflen, "%s%d", ifp->if_name,
+		    ifp->if_unit));
+
+	/* Determine the (relative) unit number for ethernet interfaces */
+	ethno = 0;
+	TAILQ_FOREACH(ifscan, &ifnet, if_link) {
+		if (ifscan == ifp)
+			return (snprintf(buffer, buflen, "eth%d", ethno));
+		if (IFP_IS_ETH(ifscan))
+			ethno++;
+	}
+
+	return (0);
 }
 
 /*
@@ -1420,6 +1433,7 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 	struct ifconf ifc;
 	struct l_ifreq ifr;
 	struct ifnet *ifp;
+	struct ifaddr *ifa;
 	struct iovec iov;
 	struct uio uio;
 	int error, ethno;
@@ -1442,10 +1456,11 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 	/* Keep track of eth interfaces */
 	ethno = 0;
 
-	/* return interface names but no addresses. */
+	/* Return all AF_INET addresses of all interfaces */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (uio.uio_resid <= 0)
 			break;
+
 		bzero(&ifr, sizeof ifr);
 		if (IFP_IS_ETH(ifp))
 			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
@@ -1453,9 +1468,25 @@ linux_ifconf(struct proc *p, struct ifconf *uifc)
 		else
 			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "%s%d",
 			    ifp->if_name, ifp->if_unit);
-		error = uiomove((caddr_t)&ifr, sizeof ifr, &uio);
-		if (error != 0)
-			return (error);
+
+		/* Walk the address list */
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa = ifa->ifa_addr;
+
+			if (uio.uio_resid <= 0)
+				break;
+
+			if (sa->sa_family == AF_INET) {
+				ifr.ifr_addr.sa_family = LINUX_AF_INET;
+				memcpy(ifr.ifr_addr.sa_data, sa->sa_data,
+				    sizeof(ifr.ifr_addr.sa_data));
+
+				error = uiomove((caddr_t)&ifr, sizeof ifr,
+				    &uio);
+				if (error != 0)
+					return (error);
+			}
+		}
 	}
 
 	ifc.ifc_len -= uio.uio_resid;
