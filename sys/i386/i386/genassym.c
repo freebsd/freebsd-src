@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.8 1994/05/25 08:53:32 rgrimes Exp $
+ *	$Id: genassym.c,v 1.9 1994/09/01 05:12:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -68,8 +68,8 @@ main()
 
 	printf("#define\tI386_CR3PAT %d\n", I386_CR3PAT);
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
-	printf("#define\tP_LINK %d\n", &p->p_forw);
-	printf("#define\tP_RLINK %d\n", &p->p_back);
+	printf("#define\tP_FORW %d\n", &p->p_forw);
+	printf("#define\tP_BACK %d\n", &p->p_back);
 	printf("#define\tP_VMSPACE %d\n", &p->p_vmspace);
 	printf("#define\tVM_PMAP %d\n", &vms->vm_pmap);
 	printf("#define\tP_ADDR %d\n", &p->p_addr);

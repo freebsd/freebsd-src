@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.11 1994/08/30 17:19:10 bde Exp $
+ *	$Id: swtch.s,v 1.12 1994/09/01 05:12:18 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -79,7 +79,7 @@ _want_resched:	.long	0			/* we need to re-run the scheduler */
  */
 ENTRY(setrunqueue)
 	movl	4(%esp),%eax
-	cmpl	$0,P_RLINK(%eax)		/* should not be on q already */
+	cmpl	$0,P_BACK(%eax)			/* should not be on q already */
 	je	set1
 	pushl	$set2
 	call	_panic
@@ -91,11 +91,11 @@ set1:
 	btsl	%edx,_whichrtqs			/* set q full bit */
 	shll	$3,%edx
 	addl	$_rtqs,%edx			/* locate q hdr */
-	movl	%edx,P_LINK(%eax)		/* link process on tail of q */
-	movl	P_RLINK(%edx),%ecx
-	movl	%ecx,P_RLINK(%eax)
-	movl	%eax,P_RLINK(%edx)
-	movl	%eax,P_LINK(%ecx)
+	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
+	movl	P_BACK(%edx),%ecx
+	movl	%ecx,P_BACK(%eax)
+	movl	%eax,P_BACK(%edx)
+	movl	%eax,P_FORW(%ecx)
 	ret
 set1_nort:                    
 	movzbl	P_PRI(%eax),%edx
@@ -103,11 +103,11 @@ set1_nort:
 	btsl	%edx,_whichqs			/* set q full bit */
 	shll	$3,%edx
 	addl	$_qs,%edx			/* locate q hdr */
-	movl	%edx,P_LINK(%eax)		/* link process on tail of q */
-	movl	P_RLINK(%edx),%ecx
-	movl	%ecx,P_RLINK(%eax)
-	movl	%eax,P_RLINK(%edx)
-	movl	%eax,P_LINK(%ecx)
+	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
+	movl	P_BACK(%edx),%ecx
+	movl	%ecx,P_BACK(%eax)
+	movl	%eax,P_BACK(%edx)
+	movl	%eax,P_FORW(%ecx)
 	ret
 
 set2:	.asciz	"setrunqueue"
@@ -129,22 +129,22 @@ ENTRY(remrq)
 	call	_panic
 rem1rt:
 	pushl	%edx
-	movl	P_LINK(%eax),%ecx		/* unlink process */
-	movl	P_RLINK(%eax),%edx
-	movl	%edx,P_RLINK(%ecx)
-	movl	P_RLINK(%eax),%ecx
-	movl	P_LINK(%eax),%edx
-	movl	%edx,P_LINK(%ecx)
+	movl	P_FORW(%eax),%ecx		/* unlink process */
+	movl	P_BACK(%eax),%edx
+	movl	%edx,P_BACK(%ecx)
+	movl	P_BACK(%eax),%ecx
+	movl	P_FORW(%eax),%edx
+	movl	%edx,P_FORW(%ecx)
 	popl	%edx
 	movl	$_rtqs,%ecx
 	shll	$3,%edx
 	addl	%edx,%ecx
-	cmpl	P_LINK(%ecx),%ecx		/* q still has something? */
+	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
 	je	rem2rt
 	shrl	$3,%edx				/* yes, set bit as still full */
 	btsl	%edx,_whichrtqs
 rem2rt:
-	movl	$0,P_RLINK(%eax)		/* zap reverse link to indicate off list */
+	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
 rem_nort:     
 	movzbl	P_PRI(%eax),%edx
@@ -155,22 +155,22 @@ rem_nort:
 	call	_panic
 rem1:
 	pushl	%edx
-	movl	P_LINK(%eax),%ecx		/* unlink process */
-	movl	P_RLINK(%eax),%edx
-	movl	%edx,P_RLINK(%ecx)
-	movl	P_RLINK(%eax),%ecx
-	movl	P_LINK(%eax),%edx
-	movl	%edx,P_LINK(%ecx)
+	movl	P_FORW(%eax),%ecx		/* unlink process */
+	movl	P_BACK(%eax),%edx
+	movl	%edx,P_BACK(%ecx)
+	movl	P_BACK(%eax),%ecx
+	movl	P_FORW(%eax),%edx
+	movl	%edx,P_FORW(%ecx)
 	popl	%edx
 	movl	$_qs,%ecx
 	shll	$3,%edx
 	addl	%edx,%ecx
-	cmpl	P_LINK(%ecx),%ecx		/* q still has something? */
+	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
 	je	rem2
 	shrl	$3,%edx				/* yes, set bit as still full */
 	btsl	%edx,_whichqs
 rem2:
-	movl	$0,P_RLINK(%eax)		/* zap reverse link to indicate off list */
+	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
 
 rem3:	.asciz	"remrq"
@@ -260,35 +260,34 @@ ENTRY(cpu_switch)
 sw1:
 	cli
 sw1a:
-	movl    _whichrtqs,%edi /* pick next p. from rtqs */
+	movl    _whichrtqs,%edi			/* pick next p. from rtqs */
+	testl	%edi,%edi
+	jz	nortqr				/* no realtime procs */
 
 rt2:
 	/* XXX - bsf is sloow */
-	bsfl	%edi,%eax			/* find a full q */
-	je	nortqr		/* no proc on rt q - try normal ... */
+	bsfl	%edi,%ebx			/* find a full q */
+	jz	nortqr				/* no proc on rt q - try normal ... */
 
 	/* XX update whichqs? */
-	btrl	%eax,%edi			/* clear q full status */
-	jnb	rt2				/* if it was clear, look for another */
-	movl	%eax,%ebx			/* save which one we are using */
-	shll	$3,%eax
-	addl	$_rtqs,%eax			/* select q */
+	btrl	%ebx,%edi			/* clear q full status */
+	leal	_rtqs(,%ebx,8),%eax		/* select q */
 	movl	%eax,%esi
 
 #ifdef        DIAGNOSTIC
-	cmpl	P_LINK(%eax),%eax		/* linked to self? (e.g. not on list) */
+	cmpl	P_FORW(%eax),%eax		/* linked to self? (e.g. not on list) */
 	je	badsw				/* not possible */
 #endif
 
-	movl	P_LINK(%eax),%ecx		/* unlink from front of process q */
-	movl	P_LINK(%ecx),%edx
-	movl	%edx,P_LINK(%eax)
-	movl	P_RLINK(%ecx),%eax
-	movl	%eax,P_RLINK(%edx)
+	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
+	movl	P_FORW(%ecx),%edx
+	movl	%edx,P_FORW(%eax)
+	movl	P_BACK(%ecx),%eax
+	movl	%eax,P_BACK(%edx)
 
-	cmpl	P_LINK(%ecx),%esi		/* q empty */
+	cmpl	P_FORW(%ecx),%esi		/* q empty */
 	je	rt3
-	btsl	%ebx,%edi			/* nope, set to indicate full */
+	btsl	%ebx,%edi			/* nope, set to indicate not empty */
 rt3:
 	movl	%edi,_whichrtqs			/* update q status */
 	jmp	swtch_com
@@ -298,32 +297,28 @@ nortqr:
 	movl	_whichqs,%edi
 2:
 	/* XXX - bsf is sloow */
-	bsfl	%edi,%eax			/* find a full q */
-	je	_idle				/* if none, idle */
+	bsfl	%edi,%ebx			/* find a full q */
+	jz	_idle				/* if none, idle */
 
 	/* XX update whichqs? */
-	btrl	%eax,%edi			/* clear q full status */
-	jnb	2b				/* if it was clear, look for another */
-	movl	%eax,%ebx			/* save which one we are using */
-
-	shll	$3,%eax
-	addl	$_qs,%eax			/* select q */
+	btrl	%ebx,%edi			/* clear q full status */
+	leal	_qs(,%ebx,8),%eax		/* select q */
 	movl	%eax,%esi
 
 #ifdef	DIAGNOSTIC
-	cmpl	P_LINK(%eax),%eax 		/* linked to self? (e.g. not on list) */
+	cmpl	P_FORW(%eax),%eax 		/* linked to self? (e.g. not on list) */
 	je	badsw				/* not possible */
 #endif
 
-	movl	P_LINK(%eax),%ecx		/* unlink from front of process q */
-	movl	P_LINK(%ecx),%edx
-	movl	%edx,P_LINK(%eax)
-	movl	P_RLINK(%ecx),%eax
-	movl	%eax,P_RLINK(%edx)
+	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
+	movl	P_FORW(%ecx),%edx
+	movl	%edx,P_FORW(%eax)
+	movl	P_BACK(%ecx),%eax
+	movl	%eax,P_BACK(%edx)
 
-	cmpl	P_LINK(%ecx),%esi		/* q empty */
+	cmpl	P_FORW(%ecx),%esi		/* q empty */
 	je	3f
-	btsl	%ebx,%edi			/* nope, set to indicate full */
+	btsl	%ebx,%edi			/* nope, set to indicate not empty */
 3:
 	movl	%edi,_whichqs			/* update q status */
 
@@ -338,7 +333,7 @@ swtch_com:
 	jne	badsw
 #endif
 
-	movl	%eax,P_RLINK(%ecx) 		/* isolate process to run */
+	movl	%eax,P_BACK(%ecx) 		/* isolate process to run */
 	movl	P_ADDR(%ecx),%edx
 	movl	PCB_CR3(%edx),%ebx
 
