@@ -52,9 +52,6 @@ extern struct rqinfo *rqip;
 int setjmp(jmp_buf);
 void longjmp(jmp_buf, int);
 
-void freedatabuf(struct mc *me);
-caddr_t allocdatabuf(struct mc *me);
-
 void 
 expand_table(void **table, int oldsize, int newsize)
 {
@@ -78,16 +75,19 @@ int malloccount = 0;
 int highwater = 0;					    /* highest index ever allocated */
 static struct mc malloced[MALLOCENTRIES];
 
+#define FREECOUNT 64
+int lastfree = 0;
+struct mc freeinfo[FREECOUNT];
+
 static total_malloced;
+static int mallocseq = 0;
 
 caddr_t 
 MMalloc(int size, char *file, int line)
 {
     caddr_t result;
     int i;
-    static int seq = 0;
     int s;
-    struct mc me;					    /* information to pass to allocdatabuf */
 
     if (malloccount >= MALLOCENTRIES) {			    /* too many */
 	log(LOG_ERR, "vinum: can't allocate table space to trace memory allocation");
@@ -97,7 +97,6 @@ MMalloc(int size, char *file, int line)
     if (result == NULL)
 	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
-	me.flags = 0;					    /* allocation via malloc */
 	s = splhigh();
 	for (i = 0; i < malloccount; i++) {
 	    if (((result + size) > malloced[i].address)
@@ -113,12 +112,11 @@ MMalloc(int size, char *file, int line)
 		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
-	    malloced[i].address = result;
+	    getmicrotime(&malloced[i].time);
+	    malloced[i].seq = mallocseq++;
 	    malloced[i].size = size;
 	    malloced[i].line = line;
-	    malloced[i].seq = seq++;
-	    malloced[i].flags = me.flags;
-	    malloced[i].databuf = me.databuf;		    /* only used with kva alloc */
+	    malloced[i].address = result;
 	    bcopy(f, malloced[i].file, min(strlen(f) + 1, 16));
 	}
 	if (malloccount > highwater)
@@ -141,6 +139,23 @@ FFree(void *mem, char *file, int line)
 	    free(mem, M_DEVBUF);
 	    malloccount--;
 	    total_malloced -= malloced[i].size;
+	    if (debug & DEBUG_MEMFREE) {		    /* keep track of recent frees */
+		char *f = rindex(file, '/');		    /* chop off dirname if present */
+
+		if (f == NULL)
+		    f = file;
+		else
+		    f++;				    /* skip the / */
+
+		getmicrotime(&freeinfo[lastfree].time);
+		freeinfo[lastfree].seq = malloced[i].seq;
+		freeinfo[lastfree].size = malloced[i].size;
+		freeinfo[lastfree].line = line;
+		freeinfo[lastfree].address = mem;
+		bcopy(f, freeinfo[lastfree].file, min(strlen(f) + 1, 16));
+		if (++lastfree == FREECOUNT)
+		    lastfree = 0;
+	    }
 	    if (i < malloccount)			    /* more coming after */
 		bcopy(&malloced[i + 1], &malloced[i], (malloccount - i) * sizeof(struct mc));
 	    splx(s);
