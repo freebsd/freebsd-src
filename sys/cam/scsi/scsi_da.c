@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.13 1998/12/02 17:35:28 ken Exp $
+ *      $Id: scsi_da.c,v 1.14 1998/12/04 22:54:43 archie Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -598,18 +598,18 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 static int
 dadump(dev_t dev)
 {
-	struct	cam_periph *periph;
-	struct	da_softc *softc;
-	struct	disklabel *lp;
-	u_int	unit;
-	u_int	part;
-	long	num;		/* number of sectors to write */
-	long	blkoff;
-	long	blknum;
-	long	blkcnt;
-	char	*addr;	
+	struct	    cam_periph *periph;
+	struct	    da_softc *softc;
+	struct	    disklabel *lp;
+	u_int	    unit;
+	u_int	    part;
+	long	    num;	/* number of sectors to write */
+	long	    blkoff;
+	long	    blknum;
+	long	    blkcnt;
+	vm_offset_t addr;	
 	static	int dadoingadump = 0;
-	struct	ccb_scsiio csio;
+	struct	    ccb_scsiio csio;
 
 	/* toss any characters present prior to dump */
 	while (cncheckc() != -1)
@@ -647,13 +647,13 @@ dadump(dev_t dev)
 	blknum = dumplo + blkoff;
 	blkcnt = PAGE_SIZE / softc->params.secsize;
 
-	addr = (char *)0;	/* starting address */
+	addr = 0;	/* starting address */
 
 	while (num > 0) {
 
-		if (is_physical_memory((vm_offset_t)addr)) {
+		if (is_physical_memory(addr)) {
 			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-				   trunc_page((vm_offset_t)addr), VM_PROT_READ, TRUE);
+				   trunc_page(addr), VM_PROT_READ, TRUE);
 		} else {
 			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
 				   trunc_page(0), VM_PROT_READ, TRUE);
@@ -687,7 +687,7 @@ dadump(dev_t dev)
 			return(EIO);
 		}
 		
-		if ((intptr_t)addr % (1024 * 1024) == 0) {
+		if (addr % (1024 * 1024) == 0) {
 #ifdef	HW_WDOG
 			if (wdog_tickler)
 				(*wdog_tickler)();
@@ -700,7 +700,7 @@ dadump(dev_t dev)
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		(long)addr += blkcnt * softc->params.secsize;
+		addr += blkcnt * softc->params.secsize;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)
