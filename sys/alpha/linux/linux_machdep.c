@@ -75,6 +75,9 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	return (execve(td, &bsd));
 }
 
+/*
+ * MPSAFE
+ */
 int
 linux_fork(struct thread *td, struct linux_fork_args *args)
 {
@@ -93,6 +96,9 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	return (0);
 }
 
+/*
+ * MPSAFE
+ */
 int
 linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
