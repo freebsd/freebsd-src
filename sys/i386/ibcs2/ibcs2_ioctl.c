@@ -54,8 +54,6 @@ static void stios2btios __P((struct ibcs2_termios *, struct termios *));
 static void btios2stios __P((struct termios *, struct ibcs2_termios *));
 static void stios2stio  __P((struct ibcs2_termios *, struct ibcs2_termio *));
 static void stio2stios  __P((struct ibcs2_termio *, struct ibcs2_termios *));
-static int ibcs2_do_ioctl __P((struct proc *, struct ibcs2_ioctl_args *,
-			       struct file *));
 
 
 int
