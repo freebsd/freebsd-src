@@ -132,6 +132,8 @@ mediaInitCDROM(Device *dev)
 	    if (variable_cmp(VAR_RELNAME, cp) &&
 		variable_cmp(VAR_RELNAME, "any") &&
 		variable_cmp(cp, "any") &&
+		    (variable_cmp(VAR_RELNAME, "5.2.1-RELEASE") ||
+		    (strcmp(cp, "5.2-RELEASE"))) &&
 		!bogusCDOK) {
 		msgConfirm("Warning: The version of the FreeBSD disc currently in the drive\n"
 			   "(%s) does not match the version of the boot floppy\n"
