@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.15 1997/08/09 00:03:12 dyson Exp $
+ *	$Id: frame.h,v 1.16 1999/04/28 01:03:59 luoqi Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -171,5 +171,7 @@ struct sigframe {
 
 int	kdb_trap __P((int, int, struct trapframe *));
 extern  int (*pmath_emulate) __P((struct trapframe *));
+
+#define	INTR_TO_TRAPFRAME(frame) ((struct trapframe *)&(frame)->if_fs)
 
 #endif /* _MACHINE_FRAME_H_ */
