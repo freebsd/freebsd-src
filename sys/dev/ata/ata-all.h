@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@
 #define ATA_CYL_LSB			0x04	/* cylinder# LSB */
 #define ATA_CYL_MSB			0x05	/* cylinder# MSB */
 #define ATA_DRIVE			0x06	/* Sector/Drive/Head register */
-#define		ATA_D_LBA		0x40	/* use LBA adressing */
+#define		ATA_D_LBA		0x40	/* use LBA addressing */
 #define		ATA_D_IBM		0xa0	/* 512 byte sectors, ECC */
 
 #define ATA_CMD				0x07	/* command register */
