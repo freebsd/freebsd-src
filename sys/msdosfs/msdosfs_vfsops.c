@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.6 1994/12/12 12:35:47 bde Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.7 1995/05/30 08:07:43 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -373,7 +373,7 @@ mountmsdosfs(devvp, mp, p)
 
 
 	if ((pmp->pm_rootdirsize % pmp->pm_SectPerClust) != 0)
-		printf("mountmsdosfs(): root directory is not a multiple of the clustersize in length\n");
+		printf("mountmsdosfs(): Warning: root directory is not a multiple of the clustersize in length\n");
 
 	/*
 	 * Compute mask and shift value for isolating cluster relative byte
