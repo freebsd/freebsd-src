@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
+char copyright[] =
 "@(#) Copyright (c) 1982, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
 
-#ifndef lint
+#if !defined(lint) && !defined(sgi)
 static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
@@ -71,24 +69,33 @@ int	s;
 
 char	*pgmname;
 
-union pkt_buf {
-	char	packet[MAXPACKETSIZE+4096];
+union {
+	struct rip rip;
+	char	packet[MAXPACKETSIZE+MAXPATHLEN];
+} omsg_buf;
+#define OMSG omsg_buf.rip
+int omsg_len = sizeof(struct rip);
+
+union {
 	struct	rip rip;
-} msg_buf;
-#define MSG msg_buf.rip
-#define MSG_LIM ((struct rip*)(&msg_buf.packet[MAXPACKETSIZE	\
-					       - sizeof(struct netinfo)]))
+	char	packet[MAXPACKETSIZE+1024];
+	} imsg_buf;
+#define IMSG imsg_buf.rip
 
 int	nflag;				/* numbers, no names */
 int	pflag;				/* play the `gated` game */
 int	ripv2 = 1;			/* use RIP version 2 */
 int	wtime = WTIME;
 int	rflag;				/* 1=ask about a particular route */
+int	trace;
+int	not_trace;
 
-struct timeval start;			/* when query sent */
+struct timeval sent;			/* when query sent */
 
 static void rip_input(struct sockaddr_in*, int);
-static int query(char *, struct netinfo *);
+static int out(char *);
+static void trace_loop(char *argv[]);
+static void query_loop(char *argv[], int);
 static int getnet(char *, struct netinfo *);
 static u_int std_mask(u_int);
 
@@ -97,60 +104,111 @@ int
 main(int argc,
      char *argv[])
 {
-	char *p;
-	struct seen {
-		struct seen *next;
-		struct in_addr addr;
-	} *seen, *sp;
-	int answered = 0;
-	int ch, cc, bsize;
-	fd_set bits;
-	struct timeval now, delay;
-	struct sockaddr_in from;
-	int fromlen;
-	struct netinfo rt;
+	int ch, bsize;
+	char *p, *options, *value;
 
-
-	bzero(&rt, sizeof(rt));
+	OMSG.rip_nets[0].n_dst = RIP_DEFAULT;
+	OMSG.rip_nets[0].n_family = RIP_AF_UNSPEC;
+	OMSG.rip_nets[0].n_metric = htonl(HOPCNT_INFINITY);
 
 	pgmname = argv[0];
-	while ((ch = getopt(argc, argv, "np1w:r:")) != EOF)
+	while ((ch = getopt(argc, argv, "np1w:r:t:")) != EOF)
 		switch (ch) {
 		case 'n':
+			not_trace = 1;
 			nflag = 1;
 			break;
+
 		case 'p':
+			not_trace = 1;
 			pflag = 1;
 			break;
+
 		case '1':
 			ripv2 = 0;
 			break;
+
 		case 'w':
+			not_trace = 1;
 			wtime = (int)strtoul(optarg, &p, 0);
 			if (*p != '\0'
 			    || wtime <= 0)
 				goto usage;
 			break;
+
 		case 'r':
+			not_trace = 1;
 			if (rflag)
 				goto usage;
-			rflag = getnet(optarg, &rt);
+			rflag = getnet(optarg, &OMSG.rip_nets[0]);
+			if (!rflag) {
+				struct hostent *hp = gethostbyname(optarg);
+				if (hp == 0) {
+					fprintf(stderr, "%s: %s:",
+						pgmname, optarg);
+					herror(0);
+					exit(1);
+				}
+				bcopy(hp->h_addr, &OMSG.rip_nets[0].n_dst,
+				      sizeof(OMSG.rip_nets[0].n_dst));
+				OMSG.rip_nets[0].n_family = AF_INET;
+				OMSG.rip_nets[0].n_mask = -1;
+				rflag = 1;
+			}
 			break;
-		case '?':
+
+		case 't':
+			trace = 1;
+			options = optarg;
+			while (*options != '\0') {
+				char *traceopts[] = {
+#				    define TRACE_ON	0
+					"on",
+#				    define TRACE_MORE	1
+					"more",
+#				    define TRACE_OFF	2
+					"off",
+					0
+				};
+				switch (getsubopt(&options,traceopts,&value)) {
+				case TRACE_ON:
+					OMSG.rip_cmd = RIPCMD_TRACEON;
+					if (!value
+					    || strlen(value) > MAXPATHLEN)
+						goto usage;
+					strcpy(OMSG.rip_tracefile, value);
+					omsg_len += (strlen(value)
+						     - sizeof(OMSG.ripun));
+					break;
+				case TRACE_MORE:
+					if (value)
+						goto usage;
+					OMSG.rip_cmd = RIPCMD_TRACEON;
+					OMSG.rip_tracefile[0] = '\0';
+					break;
+				case TRACE_OFF:
+					if (value)
+						goto usage;
+					OMSG.rip_cmd = RIPCMD_TRACEOFF;
+					OMSG.rip_tracefile[0] = '\0';
+					break;
+				default:
+					goto usage;
+				}
+			}
+			break;
+
 		default:
 			goto usage;
 	}
 	argv += optind;
 	argc -= optind;
-	if (argc == 0) {
-usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
+	if ((not_trace && trace) || argc == 0) {
+usage:		fprintf(stderr, "%s: [-np1v] [-r tgt_rt] [-w wtime]"
+			" host1 [host2 ...]\n"
+			"or\t-t {on=filename|more|off} host1 host2 ...\n",
+			pgmname);
 		exit(1);
-	}
-
-	if (!rflag) {
-		rt.n_dst = RIP_DEFAULT;
-		rt.n_family = RIP_AF_UNSPEC;
-		rt.n_metric = htonl(HOPCNT_INFINITY);
 	}
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -158,6 +216,8 @@ usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
 		perror("socket");
 		exit(2);
 	}
+
+	/* be prepared to receive a lot of routes */
 	for (bsize = 127*1024; ; bsize -= 1024) {
 		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,
 			       &bsize, sizeof(bsize)) == 0)
@@ -168,10 +228,89 @@ usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
 		}
 	}
 
-	/* ask the first host */
+	if (trace)
+		trace_loop(argv);
+	else
+		query_loop(argv, argc);
+	/* NOTREACHED */
+}
+
+
+/* tell the target hosts about tracing
+ */
+static void
+trace_loop(char *argv[])
+{
+	struct sockaddr_in myaddr;
+	int res;
+
+	if (geteuid() != 0) {
+		(void)fprintf(stderr, "-t requires UID 0\n");
+		exit(1);
+	}
+
+	if (ripv2) {
+		OMSG.rip_vers = RIPv2;
+	} else {
+		OMSG.rip_vers = RIPv1;
+	}
+
+	bzero(&myaddr, sizeof(myaddr));
+	myaddr.sin_family = AF_INET;
+#ifdef _HAVE_SIN_LEN
+	myaddr.sin_len = sizeof(myaddr);
+#endif
+	myaddr.sin_port = htons(IPPORT_RESERVED-1);
+	while (bind(s, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
+		if (errno != EADDRINUSE
+		    || myaddr.sin_port == 0) {
+			perror("bind");
+			exit(2);
+		}
+		myaddr.sin_port = htons(ntohs(myaddr.sin_port)-1);
+	}
+
+	res = 1;
+	while (*argv != 0) {
+		if (out(*argv++) <= 0)
+			res = 0;
+	}
+	exit(res);
+}
+
+
+/* query all of the listed hosts
+ */
+static void
+query_loop(char *argv[], int argc)
+{
+	struct seen {
+		struct seen *next;
+		struct in_addr addr;
+	} *seen, *sp;
+	int answered = 0;
+	int cc;
+	fd_set bits;
+	struct timeval now, delay;
+	struct sockaddr_in from;
+	int fromlen;
+
+
+	OMSG.rip_cmd = (pflag) ? RIPCMD_POLL : RIPCMD_REQUEST;
+	if (ripv2) {
+		OMSG.rip_vers = RIPv2;
+	} else {
+		OMSG.rip_vers = RIPv1;
+		OMSG.rip_nets[0].n_mask = 0;
+	}
+
+	/* ask the first (valid) host */
 	seen = 0;
-	while (0 > query(*argv++, &rt) && *argv != 0)
+	while (0 > out(*argv++)) {
+		if (*argv == 0)
+			exit(-1);
 		answered++;
+	}
 
 	FD_ZERO(&bits);
 	for (;;) {
@@ -181,8 +320,8 @@ usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
 		cc = select(s+1, &bits, 0,0, &delay);
 		if (cc > 0) {
 			fromlen = sizeof(from);
-			cc = recvfrom(s, msg_buf.packet,
-				      sizeof(msg_buf.packet), 0,
+			cc = recvfrom(s, imsg_buf.packet,
+				      sizeof(imsg_buf.packet), 0,
 				      (struct sockaddr *)&from, &fromlen);
 			if (cc < 0) {
 				perror("recvfrom");
@@ -220,7 +359,7 @@ usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
 		/* After a pause in responses, probe another host.
 		 * This reduces the intermingling of answers.
 		 */
-		while (*argv != 0 && 0 > query(*argv++, &rt))
+		while (*argv != 0 && 0 > out(*argv++))
 			answered++;
 
 		/* continue until no more packets arrive
@@ -235,28 +374,25 @@ usage:		printf("usage: query [-np1v] [-w wtime] host1 [host2 ...]\n");
 			perror("gettimeofday(now)");
 			exit(1);
 		}
-		if (start.tv_sec + wtime <= now.tv_sec)
+		if (sent.tv_sec + wtime <= now.tv_sec)
 			break;
 	}
 
 	/* fail if there was no answer */
 	exit (answered >= argc ? 0 : 1);
-	/* NOTREACHED */
 }
 
 
-/*
- * Poll one host.
+/* sent do one host
  */
 static int
-query(char *host,
-      struct netinfo *rt)
+out(char *host)
 {
 	struct sockaddr_in router;
 	struct hostent *hp;
 
-	if (gettimeofday(&start, 0) < 0) {
-		perror("gettimeofday(start)");
+	if (gettimeofday(&sent, 0) < 0) {
+		perror("gettimeofday(sent)");
 		return -1;
 	}
 
@@ -265,29 +401,17 @@ query(char *host,
 #ifdef _HAVE_SIN_LEN
 	router.sin_len = sizeof(router);
 #endif
-	router.sin_addr.s_addr = inet_addr(host);
-	if (router.sin_addr.s_addr == -1) {
+	if (!inet_aton(host, &router.sin_addr)) {
 		hp = gethostbyname(host);
 		if (hp == 0) {
-			fprintf(stderr,"%s: %s:", pgmname, host);
-			herror(0);
+			herror(host);
 			return -1;
 		}
-		bcopy(hp->h_addr, &router.sin_addr, hp->h_length);
+		bcopy(hp->h_addr, &router.sin_addr, sizeof(router.sin_addr));
 	}
-
 	router.sin_port = htons(RIP_PORT);
 
-	MSG.rip_cmd = (pflag)? RIPCMD_POLL : RIPCMD_REQUEST;
-	MSG.rip_nets[0] = *rt;
-	if (ripv2) {
-		MSG.rip_vers = RIPv2;
-	} else {
-		MSG.rip_vers = RIPv1;
-		MSG.rip_nets[0].n_mask = 0;
-	}
-
-	if (sendto(s, msg_buf.packet, sizeof(struct rip), 0,
+	if (sendto(s, &omsg_buf, omsg_len, 0,
 		   (struct sockaddr *)&router, sizeof(router)) < 0) {
 		perror(host);
 		return -1;
@@ -329,18 +453,18 @@ rip_input(struct sockaddr_in *from,
 			       inet_ntoa(from->sin_addr));
 		}
 	}
-	if (MSG.rip_cmd != RIPCMD_RESPONSE) {
-		printf("\n    unexpected response type %d\n", MSG.rip_cmd);
+	if (IMSG.rip_cmd != RIPCMD_RESPONSE) {
+		printf("\n    unexpected response type %d\n", IMSG.rip_cmd);
 		return;
 	}
-	printf(" RIPv%d%s %d bytes\n", MSG.rip_vers,
-	       (MSG.rip_vers != RIPv1 && MSG.rip_vers != RIPv2) ? " ?" : "",
+	printf(" RIPv%d%s %d bytes\n", IMSG.rip_vers,
+	       (IMSG.rip_vers != RIPv1 && IMSG.rip_vers != RIPv2) ? " ?" : "",
 	       size);
 	if (size > MAXPACKETSIZE) {
-		if (size > sizeof(msg_buf) - sizeof(*n)) {
+		if (size > sizeof(imsg_buf) - sizeof(*n)) {
 			printf("       at least %d bytes too long\n",
 			       size-MAXPACKETSIZE);
-			size = sizeof(msg_buf) - sizeof(*n);
+			size = sizeof(imsg_buf) - sizeof(*n);
 		} else {
 			printf("       %d bytes too long\n",
 			       size-MAXPACKETSIZE);
@@ -349,7 +473,7 @@ rip_input(struct sockaddr_in *from,
 		printf("    response of bad length=%d\n", size);
 	}
 
-	n = MSG.rip_nets;
+	n = IMSG.rip_nets;
 	lim = (struct netinfo *)((char*)n + size) - 1;
 	for (; n <= lim; n++) {
 		name = "";
@@ -361,7 +485,7 @@ rip_input(struct sockaddr_in *from,
 			dmask = mask & -mask;
 			if (mask != 0) {
 				sp = &net_buf[strlen(net_buf)];
-				if (MSG.rip_vers == RIPv1) {
+				if (IMSG.rip_vers == RIPv1) {
 					(void)sprintf(sp," mask=%#x ? ",mask);
 					mask = 0;
 				} else if (mask + dmask == 0) {
@@ -391,14 +515,16 @@ rip_input(struct sockaddr_in *from,
 				 * good guess.
 				 */
 				if ((in.s_addr & ~mask) == 0) {
-					np = getnetbyaddr(in.s_addr, AF_INET);
+					np = getnetbyaddr((long)in.s_addr,
+							  AF_INET);
 					if (np != 0)
 						name = np->n_name;
 					else if (in.s_addr == 0)
 						name = "default";
 				}
 				if (name[0] == '\0'
-				    && (in.s_addr & ~mask) != 0) {
+				    && ((in.s_addr & ~mask) != 0
+					|| mask == 0xffffffff)) {
 					hp = gethostbyaddr((char*)&in,
 							   sizeof(in),
 							   AF_INET);
@@ -425,7 +551,7 @@ rip_input(struct sockaddr_in *from,
 				      (char)n->n_dst);
 		}
 
-		(void)printf("    %-18s metric %2d   %8s",
+		(void)printf("  %-18s metric %2d %-10s",
 			     net_buf, ntohl(n->n_metric), name);
 
 		if (n->n_nhop != 0) {
@@ -435,13 +561,13 @@ rip_input(struct sockaddr_in *from,
 			else
 				hp = gethostbyaddr((char*)&in, sizeof(in),
 						   AF_INET);
-			(void)printf("  nhop=%-15s%s",
+			(void)printf(" nhop=%-15s%s",
 				     (hp != 0) ? hp->h_name : inet_ntoa(in),
-				     (MSG.rip_vers == RIPv1) ? " ?" : "");
+				     (IMSG.rip_vers == RIPv1) ? " ?" : "");
 		}
 		if (n->n_tag != 0)
 			(void)printf(" tag=%#x%s", n->n_tag,
-				     (MSG.rip_vers == RIPv1) ? " ?" : "");
+				     (IMSG.rip_vers == RIPv1) ? " ?" : "");
 		putc('\n', stdout);
 	}
 }

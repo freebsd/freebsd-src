@@ -1,4 +1,4 @@
-.Dd April 9, 1996
+.Dd June 1, 1996
 .Dt RTQUERY 8
 .Os BSD 4.4
 .Sh NAME
@@ -7,7 +7,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl np1
-.Op Fl 1 Ar timeout
+.Op Fl w Ar timeout
 .Op Fl r Ar addr
 .Ar host ...
 .Sh DESCRIPTION
@@ -29,22 +29,26 @@ by default uses the
 .Em request
 command.
 When the
-.B \-p
+.Ar -p
 option is specified,
 .Nm rtquery
 uses the
 .Em poll
-command, which is an
-undocumented extension to the RIP specification supported by
-.IR gated (1M).
-When querying
-.IR gated (1M),
-the
-.I poll
+command, an
+undocumented extension to the RIP protocol supported by
+.Xr gated 8 .
+When querying gated, the
+.Em poll
 command is preferred over the
-.I request
+.I Request
 command because the response is not subject to Split Horizon and/or
-Poisioned Reverse.
+Poisoned Reverse, and because some versions of gated do not answer
+the Request command.  Routed does not answer the Poll command, but
+recognizes Requests coming from rtquery and so answers completely.
+.Pp
+.Em Rtquery
+is also used to turn tracing on or off in
+.Em routed .
 .Pp
 Options supported by
 .Nm rtquery :
@@ -57,10 +61,10 @@ The
 option displays only the numeric network and host numbers.
 .It Fl p
 Uses the
-.Em poll
+.Em Poll
 command to request full routing information from
 .Xr gated 8 ,
-This is an undocumented extension supported only by
+This is an undocumented extension RIP protocol supported only by
 .Xr gated 8 .
 .It Fl 1
 query using RIP version 1 instead of RIP version 2.
@@ -69,10 +73,28 @@ changes the delay for an answer from each host.
 By default, each host is given 15 seconds to respond.
 .It Fl r Ar addr
 ask about the route to destination
-.Em parms
+.Em addr .
+.It Fl t Ar op
+change tracing, where
+.Em op
+is one of the following.
+Requests from processes not running with UID 0 or on distant networks
+are generally ignored.
+.El
+.Bl -tag -width Ds -offset indent-two
+.It Em on=filename
+turn tracing on into the specified file.  That file must usually
+have been specified when the daemon was started or be the same
+as a fixed name, often
+.Pa /tmp/routed.log .
+.It Em more
+increases the debugging level.
+.It Em off
+turns off tracing.
+.El
 .Sh SEE ALSO
-.Xr routed 8,
-.Xr gated 8,
+.Xr routed 8 ,
+.Xr gated 8 .
 .br
 RFC\ 1058 - Routing Information Protocol, RIPv1
 .br

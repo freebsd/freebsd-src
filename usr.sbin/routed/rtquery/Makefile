@@ -3,4 +3,5 @@
 PROG=	rtquery
 MAN8=	rtquery.8
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>

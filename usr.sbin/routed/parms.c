@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#if !defined(lint) && !defined(sgi)
 static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
-#ident "$Revision: 1.1 $"
+#ident "$Revision: 1.7 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -45,177 +45,6 @@ struct parm *parms;
 struct intnet *intnets;
 
 
-/* parse a set of parameters for an interface
- */
-char *					/* error message */
-parse_parms(char *line)
-{
-#define PARS(str) (0 == (tgt = str, strcasecmp(tok, tgt)))
-#define PARSE(str) (0 == (tgt = str, strncasecmp(tok, str "=", sizeof(str))))
-#define CKF(g,b) {if (0 != (parm.parm_int_state & ((g) & ~(b)))) break;	\
-	parm.parm_int_state |= (b);}
-#define DELIMS " ,\t\n"
-	struct parm parm, *parmp;
-	struct intnet *intnetp;
-	char *tok, *tgt, *p;
-
-
-	/* "subnet=x.y.z.u/mask" must be alone on the line */
-	if (!strncasecmp("subnet=",line,7)) {
-		intnetp = (struct intnet*)malloc(sizeof(*intnetp));
-		if (!getnet(&line[7], &intnetp->intnet_addr,
-			    &intnetp->intnet_mask)) {
-			free(intnetp);
-			return line;
-		}
-		HTONL(intnetp->intnet_addr);
-		intnetp->intnet_next = intnets;
-		intnets = intnetp;
-		return 0;
-	}
-
-	bzero(&parm, sizeof(parm));
-
-	tgt = "null";
-	for (tok = strtok(line, DELIMS);
-	     tok != 0 && tok[0] != '\0';
-	     tgt = 0, tok = strtok(0,DELIMS)) {
-		if (PARSE("if")) {
-			if (parm.parm_name[0] != '\0'
-			    || tok[3] == '\0'
-			    || strlen(tok) > IFNAMSIZ+3)
-				break;
-			strcpy(parm.parm_name, tok+3);
-
-		} else if (PARSE("passwd")) {
-			if (tok[7] == '\0'
-			    || strlen(tok) > RIP_AUTH_PW_LEN+7)
-				break;
-			strcpy(parm.parm_passwd, tok+7);
-
-		} else if (PARS("no_ag")) {
-			parm.parm_int_state |= IS_NO_AG;
-
-		} else if (PARS("no_super_ag")) {
-			parm.parm_int_state |= IS_NO_SUPER_AG;
-
-		} else if (PARS("no_rip")) {
-			parm.parm_int_state |= (IS_NO_RIPV1_IN
-						| IS_NO_RIPV2_IN
-						| IS_NO_RIPV1_OUT
-						| IS_NO_RIPV2_OUT);
-
-		} else if (PARS("no_ripv1_in")) {
-			parm.parm_int_state |= IS_NO_RIPV1_IN;
-
-		} else if (PARS("no_ripv2_in")) {
-			parm.parm_int_state |= IS_NO_RIPV2_IN;
-
-		} else if (PARS("no_ripv2_out")) {
-			parm.parm_int_state |= IS_NO_RIPV2_OUT;
-
-		} else if (PARS("ripv2_out")) {
-			if (parm.parm_int_state & IS_NO_RIPV2_OUT)
-				break;
-			parm.parm_int_state |= IS_NO_RIPV1_OUT;
-
-		} else if (PARS("no_rdisc")) {
-			CKF((GROUP_IS_SOL|GROUP_IS_ADV),
-			    IS_NO_ADV_IN | IS_NO_SOL_OUT | IS_NO_ADV_OUT);
-
-		} else if (PARS("no_solicit")) {
-			CKF(GROUP_IS_SOL, IS_NO_SOL_OUT);
-
-		} else if (PARS("send_solicit")) {
-			CKF(GROUP_IS_SOL, IS_SOL_OUT);
-
-		} else if (PARS("no_rdisc_adv")) {
-			CKF(GROUP_IS_ADV, IS_NO_ADV_OUT);
-
-		} else if (PARS("rdisc_adv")) {
-			CKF(GROUP_IS_ADV, IS_ADV_OUT);
-
-		} else if (PARS("bcast_rdisc")) {
-			parm.parm_int_state |= IS_BCAST_RDISC;
-
-		} else if (PARSE("rdisc_pref")) {
-			if (parm.parm_rdisc_pref != 0
-			    || tok[11] == '\0'
-			    || (parm.parm_rdisc_pref = (int)strtol(&tok[11],
-								   &p,0),
-				*p != '\0'))
-				break;
-
-		} else if (PARSE("rdisc_interval")) {
-			if (parm.parm_rdisc_int != 0
-			    || tok[15] == '\0'
-			    || (parm.parm_rdisc_int = (int)strtol(&tok[15],
-								  &p,0),
-				*p != '\0')
-			    || parm.parm_rdisc_int < MinMaxAdvertiseInterval
-			    || parm.parm_rdisc_int > MaxMaxAdvertiseInterval)
-				break;
-
-		} else if (PARSE("fake_default")) {
-			if (parm.parm_d_metric != 0
-			    || tok[13] == '\0'
-			    || (parm.parm_d_metric=(int)strtol(&tok[13],&p,0),
-				*p != '\0')
-			    || parm.parm_d_metric >= HOPCNT_INFINITY-2)
-				break;
-
-		} else {
-			tgt = tok;
-			break;
-		}
-	}
-	if (tgt != 0)
-		return tgt;
-
-	if (parm.parm_int_state & IS_NO_ADV_IN)
-		parm.parm_int_state |= IS_NO_SOL_OUT;
-
-	/* check for duplicate specification */
-	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
-		if (strcmp(parm.parm_name, parmp->parm_name))
-			continue;
-		if (parmp->parm_a_h != (parm.parm_a_h & parmp->parm_m)
-		    && parm.parm_a_h != (parmp->parm_a_h & parm.parm_m))
-			continue;
-
-		if (strcmp(parmp->parm_passwd, parm.parm_passwd)
-		    || (0 != (parm.parm_int_state & GROUP_IS_SOL)
-			&& 0 != (parmp->parm_int_state & GROUP_IS_SOL)
-			&& 0 != ((parm.parm_int_state ^ parmp->parm_int_state)
-				 && GROUP_IS_SOL))
-		    || (0 != (parm.parm_int_state & GROUP_IS_ADV)
-			&& 0 != (parmp->parm_int_state & GROUP_IS_ADV)
-			&& 0 != ((parm.parm_int_state ^ parmp->parm_int_state)
-				 && GROUP_IS_ADV))
-		    || (parm.parm_rdisc_pref != 0
-			&& parmp->parm_rdisc_pref != 0
-			&& parm.parm_rdisc_pref != parmp->parm_rdisc_pref)
-		    || (parm.parm_rdisc_int != 0
-			&& parmp->parm_rdisc_int != 0
-			&& parm.parm_rdisc_int != parmp->parm_rdisc_int)
-		    || (parm.parm_d_metric != 0
-			&& parmp->parm_d_metric != 0
-			&& parm.parm_d_metric != parmp->parm_d_metric))
-			return "duplicate";
-	}
-
-	parmp = (struct parm*)malloc(sizeof(*parmp));
-	bcopy(&parm, parmp, sizeof(*parmp));
-	parmp->parm_next = parms;
-	parms = parmp;
-
-	return 0;
-#undef DELIMS
-#undef PARS
-#undef PARSE
-}
-
-
 /* use configured parameters
  */
 void
@@ -223,51 +52,66 @@ get_parms(struct interface *ifp)
 {
 	struct parm *parmp;
 
+	/* get all relevant parameters
+	 */
 	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
-		if ((parmp->parm_a_h == (ntohl(ifp->int_addr)
-					 & parmp->parm_m)
-		     && parmp->parm_name[0] == '\0')
+		if ((parmp->parm_name[0] == '\0'
+		     && on_net(ifp->int_addr,
+			       parmp->parm_addr_h, parmp->parm_mask))
 		    || (parmp->parm_name[0] != '\0'
 			&& !strcmp(ifp->int_name, parmp->parm_name))) {
+			/* this group of parameters is relevant,
+			 * so get its settings
+			 */
 			ifp->int_state |= parmp->parm_int_state;
-			bcopy(parmp->parm_passwd, ifp->int_passwd,
-			      sizeof(ifp->int_passwd));
-			ifp->int_rdisc_pref = parmp->parm_rdisc_pref;
-			ifp->int_rdisc_int = parmp->parm_rdisc_int;
-			ifp->int_d_metric = parmp->parm_d_metric;
-		}
+			if (parmp->parm_passwd[0] != '\0')
+				bcopy(parmp->parm_passwd, ifp->int_passwd,
+				      sizeof(ifp->int_passwd));
+			if (parmp->parm_rdisc_pref != 0)
+				ifp->int_rdisc_pref = parmp->parm_rdisc_pref;
+			if (parmp->parm_rdisc_int != 0)
+				ifp->int_rdisc_int = parmp->parm_rdisc_int;
+			if (parmp->parm_d_metric != 0)
+				ifp->int_d_metric = parmp->parm_d_metric;
+			}
 	}
+	/* default poor-man's router discovery to a metric that will
+	 * be heard by old versions of routed.
+	 */
+	if ((ifp->int_state & IS_PM_RDISC)
+	    && ifp->int_d_metric == 0)
+		ifp->int_d_metric = HOPCNT_INFINITY-2;
 
-	if ((ifp->int_state & IS_NO_RIP_IN) == IS_NO_RIP_IN)
+	if (IS_RIP_IN_OFF(ifp->int_state))
 		ifp->int_state |= IS_NO_RIP_OUT;
 
 	if (ifp->int_rdisc_int == 0)
 		ifp->int_rdisc_int = DefMaxAdvertiseInterval;
 
-	if ((ifp->int_state & IS_PASSIVE)
-	    || (ifp->int_state & IS_REMOTE))
-		ifp->int_state |= IS_NO_ADV_IN|IS_NO_SOL_OUT|IS_NO_ADV_OUT;
-
-
-	if (!(ifp->int_state & IS_PASSIVE)) {
-		if (!(ifp->int_if_flags & IFF_MULTICAST)
-		    && !(ifp->int_if_flags & IFF_POINTOPOINT))
-			ifp->int_state |= IS_NO_RIPV2_OUT;
-	}
+	if (!(ifp->int_if_flags & IFF_MULTICAST)
+	    && !(ifp->int_if_flags & IFF_POINTOPOINT))
+		ifp->int_state |= IS_NO_RIPV2_OUT;
 
 	if (!(ifp->int_if_flags & IFF_MULTICAST))
 		ifp->int_state |= IS_BCAST_RDISC;
 
 	if (ifp->int_if_flags & IFF_POINTOPOINT) {
 		ifp->int_state |= IS_BCAST_RDISC;
-		/* point-to-point links should be passive for the sake
-		 * of demand-dialing
+		/* By default, point-to-point links should be passive
+		 * about router-discovery for the sake of demand-dialing.
 		 */
 		if (0 == (ifp->int_state & GROUP_IS_SOL))
 			ifp->int_state |= IS_NO_SOL_OUT;
 		if (0 == (ifp->int_state & GROUP_IS_ADV))
 			ifp->int_state |= IS_NO_ADV_OUT;
 	}
+
+	if (0 != (ifp->int_state & (IS_PASSIVE | IS_REMOTE)))
+		ifp->int_state |= IS_NO_RDISC;
+	if (ifp->int_state & IS_PASSIVE)
+		ifp->int_state |= (IS_NO_RIP | IS_NO_RDISC);
+	if (ifp->int_state&(IS_NO_RIP|IS_NO_RDISC) == (IS_NO_RIP|IS_NO_RDISC))
+		ifp->int_state |= IS_PASSIVE;
 }
 
 
@@ -314,53 +158,62 @@ gwkludge(void)
 		if (*lptr == '\n'	/* ignore null and comment lines */
 		    || *lptr == '#')
 			continue;
+		p = lptr+strlen(lptr)-1;
+		while (*p == '\n'
+		       || *p == ' ')
+			*p-- = '\0';
 
-		/* notice parameter lines */
+		/* notice newfangled parameter lines
+		 */
 		if (strncasecmp("net", lptr, 3)
 		    && strncasecmp("host", lptr, 4)) {
 			p = parse_parms(lptr);
-			if (p != 0)
-				msglog("bad \"%s\" in "_PATH_GATEWAYS
-				       " entry %s", lptr, p);
+			if (p != 0) {
+				if (strcmp(p,lptr))
+					msglog("bad \"%s\" in "_PATH_GATEWAYS
+					       " entry \"%s\"", lptr, p);
+				else
+					msglog("bad \"%s\" in "_PATH_GATEWAYS,
+					       lptr);
+			}
 			continue;
 		}
 
 /*  {net | host} XX[/M] XX gateway XX metric DD [passive | external]\n */
-		n = sscanf(lptr, "%4s %129[^	] gateway"
-			   " %64[^ /	] metric %d %8s\n",
+		n = sscanf(lptr, "%4s %129[^ \t] gateway"
+			   " %64[^ / \t] metric %d %8s\n",
 			   net_host, dname, gname, &metric, qual);
 		if (n != 5) {
-			msglog("bad "_PATH_GATEWAYS" entry %s", lptr);
+			msglog("bad "_PATH_GATEWAYS" entry \"%s\"", lptr);
 			continue;
 		}
 		if (metric < 0 || metric >= HOPCNT_INFINITY) {
-			msglog("bad metric in "_PATH_GATEWAYS" entry %s",
+			msglog("bad metric in "_PATH_GATEWAYS" entry \"%s\"",
 			       lptr);
 			continue;
 		}
 		if (!strcmp(net_host, "host")) {
 			if (!gethost(dname, &dst)) {
-				msglog("bad host %s in "_PATH_GATEWAYS
-				       " entry %s", dname, lptr);
+				msglog("bad host \"%s\" in "_PATH_GATEWAYS
+				       " entry \"%s\"", dname, lptr);
 				continue;
 			}
 			netmask = HOST_MASK;
 		} else if (!strcmp(net_host, "net")) {
 			if (!getnet(dname, &dst, &netmask)) {
-				msglog("bad net %s in "_PATH_GATEWAYS
-				       " entry %s", dname, lptr);
+				msglog("bad net \"%s\" in "_PATH_GATEWAYS
+				       " entry \"%s\"", dname, lptr);
 				continue;
 			}
-			HTONL(dst);
 		} else {
 			msglog("bad \"%s\" in "_PATH_GATEWAYS
-			       " entry %s", lptr);
+			       " entry \"%s\"", lptr);
 			continue;
 		}
 
 		if (!gethost(gname, &gate)) {
-			msglog("bad gateway %s in "_PATH_GATEWAYS
-			       " entry %s", gname, lptr);
+			msglog("bad gateway \"%s\" in "_PATH_GATEWAYS
+			       " entry \"%s\"", gname, lptr);
 			continue;
 		}
 
@@ -403,34 +256,29 @@ gwkludge(void)
 			}
 
 		} else {
-			msglog("bad "_PATH_GATEWAYS" entry %s", lptr);
+			msglog("bad "_PATH_GATEWAYS" entry \"%s\"", lptr);
 			continue;
 		}
 
-		if (!(state & IS_EXTERNAL)) {
-			/* If we are going to send packets to the gateway,
-			 * it must be reachable using our physical interfaces
-			 */
-			if (!rtfind(gate)) {
-				msglog("unreachable gateway %s in "
-				       _PATH_GATEWAYS" entry %s",
-				       gname, lptr);
-				continue;
-			}
+		/* Remember to advertise the corresponding logical network.
+		 */
+		if (!(state & IS_EXTERNAL)
+		    && netmask != std_mask(dst))
+			state |= IS_SUBNET;
 
-			/* Remember to advertise the corresponding logical
-			 * network.
-			 */
-			if (netmask != std_mask(dst))
-				state |= IS_SUBNET;
-		}
+		if (0 != (state & (IS_PASSIVE | IS_REMOTE)))
+			state |= IS_NO_RDISC;
+		if (state & IS_PASSIVE)
+			state |= (IS_NO_RIP | IS_NO_RDISC);
+		if (state & (IS_NO_RIP|IS_NO_RDISC) == (IS_NO_RIP|IS_NO_RDISC))
+			state |= IS_PASSIVE;
 
 		parmp = (struct parm*)malloc(sizeof(*parmp));
 		bzero(parmp, sizeof(*parmp));
 		parmp->parm_next = parms;
 		parms = parmp;
-		parmp->parm_a_h = ntohl(dst);
-		parmp->parm_m = -1;
+		parmp->parm_addr_h = ntohl(dst);
+		parmp->parm_mask = -1;
 		parmp->parm_d_metric = 0;
 		parmp->parm_int_state = state;
 
@@ -438,8 +286,11 @@ gwkludge(void)
 		 * interface.
 		 */
 		for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
-			if (ifp->int_addr == dst
-			    && ifp->int_mask == netmask)
+			if (ifp->int_mask == netmask
+			    && ((ifp->int_addr == dst
+				 && netmask != HOST_MASK)
+				|| (ifp->int_dstaddr == dst
+				    && netmask == HOST_MASK)))
 				break;
 		}
 		if (ifp != 0) {
@@ -478,9 +329,205 @@ gwkludge(void)
 
 		get_parms(ifp);
 
-		if (TRACEACTIONS)
-			trace_if("Add", ifp);
+		trace_if("Add", ifp);
 	}
+}
+
+
+/* parse a set of parameters for an interface
+ */
+char *					/* 0 or error message */
+parse_parms(char *line)
+{
+#define PARS(str) (0 == (tgt = str, strcasecmp(tok, tgt)))
+#define PARSE(str) (0 == (tgt = str, strncasecmp(tok, str "=", sizeof(str))))
+#define CKF(g,b) {if (0 != (parm.parm_int_state & ((g) & ~(b)))) break;	\
+	parm.parm_int_state |= (b);}
+#define DELIMS " ,\t\n"
+	struct parm parm;
+	struct intnet *intnetp;
+	char *tok, *tgt, *p;
+
+
+	/* "subnet=x.y.z.u/mask" must be alone on the line */
+	if (!strncasecmp("subnet=",line,7)) {
+		intnetp = (struct intnet*)malloc(sizeof(*intnetp));
+		intnetp->intnet_metric = 1;
+		if (p = strrchr(line,',')) {
+			*p++ = '\0';
+			intnetp->intnet_metric = (int)strtol(p,&p,0);
+			if (*p != '\0'
+			    || intnetp->intnet_metric <= 0
+			    || intnetp->intnet_metric >= HOPCNT_INFINITY)
+				return line;
+		}
+		if (!getnet(&line[7], &intnetp->intnet_addr,
+			    &intnetp->intnet_mask)
+		    || intnetp->intnet_mask == HOST_MASK
+		    || intnetp->intnet_addr == RIP_DEFAULT) {
+			free(intnetp);
+			return line;
+		}
+		intnetp->intnet_next = intnets;
+		intnets = intnetp;
+		return 0;
+	}
+
+	bzero(&parm, sizeof(parm));
+
+	tgt = "null";
+	for (tok = strtok(line, DELIMS);
+	     tok != 0 && tok[0] != '\0';
+	     tgt = 0, tok = strtok(0,DELIMS)) {
+		if (PARSE("if")) {
+			if (parm.parm_name[0] != '\0'
+			    || tok[3] == '\0'
+			    || strlen(tok) > IFNAMSIZ+3)
+				break;
+			strcpy(parm.parm_name, tok+3);
+
+		} else if (PARSE("passwd")) {
+			if (tok[7] == '\0'
+			    || strlen(tok) > RIP_AUTH_PW_LEN+7)
+				break;
+			strcpy(parm.parm_passwd, tok+7);
+
+		} else if (PARS("no_ag")) {
+			parm.parm_int_state |= (IS_NO_AG | IS_NO_SUPER_AG);
+
+		} else if (PARS("no_super_ag")) {
+			parm.parm_int_state |= IS_NO_SUPER_AG;
+
+		} else if (PARS("no_ripv1_in")) {
+			parm.parm_int_state |= IS_NO_RIPV1_IN;
+
+		} else if (PARS("no_ripv2_in")) {
+			parm.parm_int_state |= IS_NO_RIPV2_IN;
+
+		} else if (PARS("ripv2_out")) {
+			if (parm.parm_int_state & IS_NO_RIPV2_OUT)
+				break;
+			parm.parm_int_state |= IS_NO_RIPV1_OUT;
+
+		} else if (PARS("no_rip")) {
+			parm.parm_int_state |= IS_NO_RIP;
+
+		} else if (PARS("no_rdisc")) {
+			CKF((GROUP_IS_SOL|GROUP_IS_ADV), IS_NO_RDISC);
+
+		} else if (PARS("no_solicit")) {
+			CKF(GROUP_IS_SOL, IS_NO_SOL_OUT);
+
+		} else if (PARS("send_solicit")) {
+			CKF(GROUP_IS_SOL, IS_SOL_OUT);
+
+		} else if (PARS("no_rdisc_adv")) {
+			CKF(GROUP_IS_ADV, IS_NO_ADV_OUT);
+
+		} else if (PARS("rdisc_adv")) {
+			CKF(GROUP_IS_ADV, IS_ADV_OUT);
+
+		} else if (PARS("bcast_rdisc")) {
+			parm.parm_int_state |= IS_BCAST_RDISC;
+
+		} else if (PARS("passive")) {
+			CKF((GROUP_IS_SOL|GROUP_IS_ADV), IS_NO_RDISC);
+			parm.parm_int_state |= IS_NO_RIP;
+
+		} else if (PARSE("rdisc_pref")) {
+			if (parm.parm_rdisc_pref != 0
+			    || tok[11] == '\0'
+			    || (parm.parm_rdisc_pref = (int)strtol(&tok[11],
+								   &p,0),
+				*p != '\0'))
+				break;
+
+		} else if (PARS("pm_rdisc")) {
+			parm.parm_int_state |= IS_PM_RDISC;
+
+		} else if (PARSE("rdisc_interval")) {
+			if (parm.parm_rdisc_int != 0
+			    || tok[15] == '\0'
+			    || (parm.parm_rdisc_int = (int)strtol(&tok[15],
+								  &p,0),
+				*p != '\0')
+			    || parm.parm_rdisc_int < MinMaxAdvertiseInterval
+			    || parm.parm_rdisc_int > MaxMaxAdvertiseInterval)
+				break;
+
+		} else if (PARSE("fake_default")) {
+			if (parm.parm_d_metric != 0
+			    || tok[13] == '\0'
+			    || (parm.parm_d_metric=(int)strtol(&tok[13],&p,0),
+				*p != '\0')
+			    || parm.parm_d_metric > HOPCNT_INFINITY-1)
+				break;
+
+		} else {
+			tgt = tok;
+			break;
+		}
+	}
+	if (tgt != 0)
+		return tgt;
+
+	if (parm.parm_int_state & IS_NO_ADV_IN)
+		parm.parm_int_state |= IS_NO_SOL_OUT;
+
+	if ((parm.parm_int_state & (IS_NO_RIP | IS_NO_RDISC))
+	    == (IS_NO_RIP | IS_NO_RDISC))
+		parm.parm_int_state |= IS_PASSIVE;
+
+	return check_parms(&parm);
+#undef DELIMS
+#undef PARS
+#undef PARSE
+}
+
+
+/* check for duplicate parameter specifications */
+char *					/* 0 or error message */
+check_parms(struct parm *new)
+{
+	struct parm *parmp;
+
+
+	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
+		if (strcmp(new->parm_name, parmp->parm_name))
+			continue;
+		if (!on_net(htonl(parmp->parm_addr_h),
+			    new->parm_addr_h, new->parm_mask)
+		    && !on_net(htonl(new->parm_addr_h),
+			       parmp->parm_addr_h, parmp->parm_mask))
+			continue;
+
+		if (strcmp(parmp->parm_passwd, new->parm_passwd)
+		    || (0 != (new->parm_int_state & GROUP_IS_SOL)
+			&& 0 != (parmp->parm_int_state & GROUP_IS_SOL)
+			&& 0 != ((new->parm_int_state ^ parmp->parm_int_state)
+				 && GROUP_IS_SOL))
+		    || (0 != (new->parm_int_state & GROUP_IS_ADV)
+			&& 0 != (parmp->parm_int_state & GROUP_IS_ADV)
+			&& 0 != ((new->parm_int_state ^ parmp->parm_int_state)
+				 && GROUP_IS_ADV))
+		    || (new->parm_rdisc_pref != 0
+			&& parmp->parm_rdisc_pref != 0
+			&& new->parm_rdisc_pref != parmp->parm_rdisc_pref)
+		    || (new->parm_rdisc_int != 0
+			&& parmp->parm_rdisc_int != 0
+			&& new->parm_rdisc_int != parmp->parm_rdisc_int)
+		    || (new->parm_d_metric != 0
+			&& parmp->parm_d_metric != 0
+			&& new->parm_d_metric != parmp->parm_d_metric))
+			return "duplicate";
+	}
+
+	parmp = (struct parm*)malloc(sizeof(*parmp));
+	bcopy(new, parmp, sizeof(*parmp));
+	parmp->parm_next = parms;
+	parms = parmp;
+
+	return 0;
 }
 
 
@@ -489,11 +536,11 @@ gwkludge(void)
  */
 int					/* 0=bad */
 getnet(char *name,
-       naddr *addr_hp,
+       naddr *addrp,			/* host byte order */
        naddr *maskp)
 {
 	int i;
-	struct netent *nentp;
+	struct netent *np;
 	naddr mask;
 	struct in_addr in;
 	char hname[MAXHOSTNAMELEN+1];
@@ -512,25 +559,34 @@ getnet(char *name,
 		name = hname;
 	}
 
-	nentp = getnetbyname(name);
-	if (nentp != 0) {
-		in.s_addr = (naddr)nentp->n_net;
+	np = getnetbyname(name);
+	if (np != 0) {
+		in.s_addr = (naddr)np->n_net;
 	} else if (inet_aton(name, &in) == 1) {
-		NTOHL(in.s_addr);
+		HTONL(in.s_addr);
 	} else {
 		return 0;
 	}
 
 	if (mname == 0) {
+		/* we cannot use the interfaces here because we have not
+		 * looked at them yet.
+		 */
 		mask = std_mask(in.s_addr);
+		if ((~mask & ntohl(in.s_addr)) != 0)
+			mask = HOST_MASK;
 	} else {
 		mask = (naddr)strtoul(mname, &p, 0);
 		if (*p != '\0' || mask > 32)
 			return 0;
 		mask = HOST_MASK << (32-mask);
 	}
+	if (mask != 0 && in.s_addr == RIP_DEFAULT)
+		return 0;
+	if ((~mask & ntohl(in.s_addr)) != 0)
+		return 0;
 
-	*addr_hp = in.s_addr;
+	*addrp = in.s_addr;
 	*maskp = mask;
 	return 1;
 }
