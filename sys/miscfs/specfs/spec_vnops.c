@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.6 1994/10/06 21:06:46 davidg Exp $
+ * $Id: spec_vnops.c,v 1.7 1994/10/10 07:55:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <miscfs/specfs/specdev.h>
 

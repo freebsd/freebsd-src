@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.9 1994/10/10 01:04:39 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.10 1994/10/22 02:27:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/file.h>
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
