@@ -289,6 +289,7 @@ vendor BOCASYSTEMS	0x0a43	Boca Systems, Inc.
 vendor BROADCOM		0x0a5c	Broadcom Corp.
 vendor GREENHOUSE	0x0a6b	GREENHOUSE Co., Ltd.
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor AGATE		0x0c08	Agate Technologies
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor BELKIN2		0x1293	Belkin Components (2nd)
@@ -334,6 +335,9 @@ product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
+
+/* Agate Technologies products */
+product AGATE QDRIVE		0x0378	Q-Drive
 
 /* Agiler products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
