@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.13.2.71
+     Original revision: 1.13.2.73
 -->
 <!--
 
@@ -841,6 +841,18 @@
       </itemizedlist>
     <para>
 
+    <para arch="i386">Les cartes adaptateurs PCI SCSI utilisant les
+    puces Tekram TRM-S1040 SCSI (gestionnaire trm)
+      <itemizedlist>
+	<listitem>
+	  <para>Tekram DC395U/UW/F</para>
+	</listitem>
+	<listitem>
+	  <para>Tekram DC315U</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para>Sur toutes les cartes SCSI support&eacute;es, le support total
     des p&eacute;riph&eacute;riques SCSI-I, SCSI-II et SCSI-III est fourni,
     incluant les disques durs, disques optiques, lecteurs de bandes
@@ -875,7 +887,7 @@
 
     <para arch="i386">Les gestionnaire suivants &eacute;taient
     support&eacute;s par l'ancien sou-syst&egrave;mes SCSI, mais ne le sont
-    plus sous le nouveau sous-syst&egrave;me CAM SCSI:
+    plus sous le sous-syst&egrave;me SCSI &man.cam.4; :
       <itemizedlist>
         <listitem arch="i386">
 	  <para>cartes SCSI NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
@@ -2000,7 +2012,7 @@
     </para>
 
     <para arch="i386">PC-Card Megahertz X-Jack Ethernet CC-10BT
-    (gestionnaire sn)</para>
+    (gestionnaire &man.sn.4;)</para>
 
     <para arch="i386">Cartes bas&eacute;es sur Xircom X3201 (Cardbus),
     incluant les cartes suivantes:
@@ -2401,7 +2413,7 @@
     </para>
 
     <para arch="i386,pc98">Carte AMD Am79C930 et Harris (Intersil)
-    802.11 (gestionnaire awi)
+    802.11 (gestionnaire &man.awi.4;)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 et 660</para>
@@ -3112,9 +3124,18 @@
     </para>
     <para arch="i386,pc98">P&eacute;riph&eacute;riques s&eacute;ries
       <itemizedlist>
+         <listitem>
+	  <para>Adaptateur HP USB série (gestionnaire &man.uftdi.4;)</para>
+        </listitem>
+        <listitem>
+	  <para>Inland UAS111 (gestionnaire &man.uftdi.4;)</para>
+        </listitem>
         <listitem>
 	  <para>Adaptateur s&eacute;rie Prolific PL-2303 (gestionnaire
           &man.uplcom.4;)</para>
+        </listitem>
+        <listitem>
+	  <para>QVS USC-1000 (gestionnaire &man.uftdi.4;)</para>
         </listitem>
         <listitem>
 	  <para>SUNTAC Slipper U VS-10U (gestionnaire &man.uvscom.4;)</para>
@@ -3203,6 +3224,41 @@
 	</listitem>
       </itemizedlist>
       </para>
+  </sect2>
+
+ <sect2>
+ <title>Acc&eacute;l&eacute;rateurs de chiffrement</title>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Hifn 7751, 7811, or 7951 chipsets
+    (gestionnaire &man.hifn.4;)
+      <itemizedlist>
+        <listitem>
+         <para>Invertex AEON</para>
+       </listitem>
+        <listitem>
+         <para>carte de r&eacute;f&eacute;rence Hifn 7751</para>
+       </listitem>
+        <listitem>
+         <para>Global Technologies Group PowerCrypt et XL-Crypt</para>
+       </listitem>
+        <listitem>
+         <para>NetSec 7751</para>
+       </listitem>
+        <listitem>
+         <para>Soekris Engineering vpn1201 et vpn1211</para>
+       </listitem>
+      </itemizedlist>
+     </para>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Bluesteel 5501 ou 5601 chipsets
+    (gestionnaire &man.ubsec.4;)</para>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Broadcom BCM5801, BCM5802, BCM5805,
+    BCM5820, BCM 5821, BCM5822 (gestionnaire &man.ubsec.4;)</para>
+
   </sect2>
 
 

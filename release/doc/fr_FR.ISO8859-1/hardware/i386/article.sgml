@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.1.2.3
+     Original revision: 1.1.2.4
 -->
 
 
@@ -22,7 +22,7 @@
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "i386">
-<!ENTITY arch.print "IA-32">
+<!ENTITY arch.print "i386">
 
 ]>
 
