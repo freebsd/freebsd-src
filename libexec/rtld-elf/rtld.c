@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.4 1998/09/02 01:09:34 jdp Exp $
+ *      $Id: rtld.c,v 1.5 1998/09/02 02:00:20 jdp Exp $
  */
 
 /*
@@ -1388,17 +1388,16 @@ trace_loaded_objects(Obj_Entry *obj)
 	bool			is_lib;
 
 	for (needed = obj->needed; needed; needed = needed->next) {
-	    name = (char *)obj->strtab + needed->name;
-	    if (!strncmp(name, "lib", 3)) {
-		is_lib = true;	/* XXX bogus */
-	    } else {
-		is_lib = false;
-	    }
-
-	    if (needed->obj == NULL)
-		path = "not found";
-	    else
+	    if (needed->obj != NULL) {
+		if (needed->obj->traced)
+		    continue;
+		needed->obj->traced = true;
 		path = needed->obj->path;
+	    } else
+		path = "not found";
+
+	    name = (char *)obj->strtab + needed->name;
+	    is_lib = strncmp(name, "lib", 3) == 0;	/* XXX - bogus */
 
 	    fmt = is_lib ? fmt1 : fmt2;
 	    while ((c = *fmt++) != '\0') {
