@@ -103,6 +103,21 @@ extern struct mtx	acpi_mutex;
 #endif
 
 /*
+ * ACPI CA does not define layers for non-ACPI CA drivers.
+ * We define some here within the range provided.
+ */
+#define	ACPI_BUS		0x00010000
+#define	ACPI_SYSTEM		0x00020000
+#define	ACPI_POWER		0x00040000
+#define	ACPI_EC			0x00080000
+#define	ACPI_AC_ADAPTER		0x00100000
+#define	ACPI_BATTERY		0x00110000
+#define	ACPI_BUTTON		0x00120000
+#define	ACPI_PROCESSOR		0x00140000
+#define	ACPI_THERMAL		0x00180000
+#define	ACPI_FAN		0x00200000
+
+/*
  * This is a cheap and nasty way to get around the horrid counted list
  * argument format that AcpiEvalateObject uses.
  */
@@ -231,16 +246,12 @@ extern void		acpi_EnterDebugger(void);
 		device_printf(dev, x);					\
 } while (0)
 
+#define ACPI_DEVINFO_PRESENT(x)	(((x) & 0x9) == 9)
 extern BOOLEAN		acpi_DeviceIsPresent(device_t dev);
+extern BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
 extern ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result);
 extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
-extern ACPI_STATUS	acpi_GetIntoBuffer(ACPI_HANDLE handle, 
-					   ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUFFER *), 
-					   ACPI_BUFFER *buf);
-extern ACPI_STATUS	acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instance, ACPI_BUFFER *buf);
-extern ACPI_STATUS	acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname,
-						ACPI_OBJECT_LIST *params, ACPI_BUFFER *buf);
 extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);
 extern ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, int *number);
 extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
@@ -328,7 +339,7 @@ extern void	acpi_install_wakeup_handler(struct acpi_softc *sc);
 extern int	acpi_sleep_machdep(struct acpi_softc *sc, int state);
 
 /*
- * Battery Abstruction.
+ * Battery Abstraction.
  */
 struct acpi_battinfo;
 struct acpi_battdesc;
