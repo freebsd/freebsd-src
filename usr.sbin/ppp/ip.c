@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.62 1999/05/31 23:57:39 brian Exp $
+ * $Id: ip.c,v 1.63 1999/06/02 15:59:00 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -139,8 +139,12 @@ FilterCheck(struct ip *pip, struct filter *filter)
                 if (log_IsKept(LogDEBUG))
 		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
 		break;
-	      case IPPROTO_UDP:
 	      case IPPROTO_IGMP:
+		cproto = P_IGMP;
+		estab = syn = finrst = -1;
+		sport = ntohs(0);
+		break;
+	      case IPPROTO_UDP:
 	      case IPPROTO_IPIP:
 		cproto = P_UDP;
 		uh = (struct udphdr *) ptop;

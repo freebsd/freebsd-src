@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.175 1999/06/11 11:27:18 brian Exp $
+.\" $Id: ppp.8,v 1.176 1999/06/14 10:12:41 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -1466,6 +1466,7 @@ command below.
 .Ar Proto
 must be one of
 .Sq icmp ,
+.Sq igmp ,
 .Sq udp
 or
 .Sq tcp .
@@ -3831,7 +3832,7 @@ as they travel across the link.
 .No permit|deny
 .Oo Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
-.Oc Oo tcp|udp|icmp Op src lt|eq|gt Ar port
+.Oc Oo tcp|udp|igmp|icmp Op src lt|eq|gt Ar port
 .Op dst lt|eq|gt Ar port
 .Op estab
 .Op syn
