@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.13 1995/10/29 15:31:08 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.14 1995/12/02 17:10:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -626,7 +626,7 @@ m_devget(buf, totlen, off0, ifp, copy)
 	char *buf;
 	int totlen, off0;
 	struct ifnet *ifp;
-	void (*copy)();
+	void (*copy) __P((char *from, caddr_t to, u_int len));
 {
 	register struct mbuf *m;
 	struct mbuf *top = 0, **mp = &top;
