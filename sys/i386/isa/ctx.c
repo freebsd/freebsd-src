@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.25 1997/07/20 14:09:52 bde Exp $
+ *	$Id: ctx.c,v 1.26 1998/01/24 02:54:17 eivind Exp $
  */
 
 /*
@@ -360,7 +360,7 @@ ctxread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-ctxioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+ctxioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	int     error;
 	int     unit, i;

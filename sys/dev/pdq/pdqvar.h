@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqvar.h,v 1.19 1996/07/31 21:38:44 thomas Exp $
+ * $Id: pdqvar.h,v 1.1.1.1 1997/01/17 23:19:49 joerg Exp $
  *
  */
 
@@ -105,7 +105,7 @@ enum _pdq_type_t {
 #include <machine/cpufunc.h>
 #include <machine/clock.h>
 typedef void ifnet_ret_t;
-typedef int ioctl_cmd_t;
+typedef u_long ioctl_cmd_t;
 typedef enum { PDQ_BUS_EISA, PDQ_BUS_PCI } pdq_bus_t;
 typedef	u_int16_t pdq_bus_ioport_t;
 typedef volatile pdq_uint32_t *pdq_bus_memaddr_t;

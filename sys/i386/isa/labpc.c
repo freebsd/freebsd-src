@@ -1018,7 +1018,7 @@ labpcstrategy(struct buf *bp)
 }
 
 static	int
-labpcioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p)
+labpcioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 {
 	struct ctlr *ctlr = labpcs[UNIT(dev)];
 

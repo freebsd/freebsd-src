@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.16 1998/05/19 11:02:24 phk Exp $
+ *	$Id: ddb.h,v 1.17 1998/05/19 18:42:09 phk Exp $
  */
 
 /*
@@ -66,14 +66,14 @@ func_name(addr, have_addr, count, modif)			\
 	char *modif;
 
 extern char *esym;
-extern unsigned int db_maxoff;
+extern unsigned long db_maxoff;
 extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
 extern int db_store_count;
-extern int db_radix;
-extern int db_max_width;
-extern int db_tab_stop_width;
+extern long db_radix;
+extern long db_max_width;
+extern long db_tab_stop_width;
 
 struct vm_map;
 
@@ -91,7 +91,7 @@ boolean_t	db_map_current __P((struct vm_map *));
 boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
 void		db_print_loc_and_inst __P((db_addr_t loc));
 void		db_printf __P((const char *fmt, ...));
-void		db_read_bytes __P((vm_offset_t addr, int size, char *data));
+void		db_read_bytes __P((vm_offset_t addr, size_t size, char *data));
 				/* machine-dependent */
 int		db_readline __P((char *lstart, int lsize));
 void		db_restart_at_pc __P((boolean_t watchpt));
@@ -101,7 +101,7 @@ boolean_t	db_stop_at_pc __P((boolean_t *is_breakpoint));
 #define		db_strcpy	strcpy
 void		db_trap __P((int type, int code));
 int		db_value_of_name __P((char *name, db_expr_t *valuep));
-void		db_write_bytes __P((vm_offset_t addr, int size, char *data));
+void		db_write_bytes __P((vm_offset_t addr, size_t size, char *data));
 				/* machine-dependent */
 void		kdb_init __P((void));
 void		kdbprintf __P((const char *fmt, ...));

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.12 1997/02/22 09:28:29 peter Exp $
+ *	$Id: db_run.c,v 1.13 1997/06/14 11:52:37 bde Exp $
  */
 
 /*
@@ -60,7 +60,7 @@ int		db_load_count;
 int		db_store_count;
 
 #ifndef db_set_single_step
-extern void	db_set_single_step __P((db_regs_t *regs);
+extern void	db_set_single_step __P((db_regs_t *regs));
 #endif
 #ifndef db_clear_single_step
 extern void	db_clear_single_step __P((db_regs_t *regs));
@@ -104,7 +104,9 @@ db_stop_at_pc(is_breakpoint)
 		return (TRUE);	/* stop here */
 	    }
 	} else if (*is_breakpoint) {
+#ifdef __i386__			/* XXx */
 		ddb_regs.tf_eip += 1;
+#endif
 	}
 
 	*is_breakpoint = FALSE;
@@ -270,9 +272,7 @@ db_set_single_step(regs)
 	 */
 	inst = db_get_value(pc, sizeof(int), FALSE);
 	if (inst_branch(inst) || inst_call(inst)) {
-	    extern unsigned getreg_val();
-
-	    brpc = branch_taken(inst, pc, getreg_val, regs);
+	    brpc = branch_taken(inst, pc, regs);
 	    if (brpc != pc) {	/* self-branches are hopeless */
 		db_taken_bkpt = db_set_temp_breakpoint(brpc);
 	    }

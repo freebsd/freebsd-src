@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.5 1997/09/01 00:51:49 bde Exp $
+ *	$Id: ppi.c,v 1.6 1998/01/02 09:30:39 msmith Exp $
  *
  */
 #include "ppi.h"
@@ -164,7 +164,7 @@ ppiclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-ppiioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	u_int unit = minor(dev);
 	struct ppi_data *ppi = ppidata[unit];

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.47 1998/02/11 20:47:55 dima Exp $
+ * $Id: kern_lkm.c,v 1.48 1998/02/12 18:02:07 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -190,7 +190,7 @@ lkmcclose(dev, flag, mode, p)
 static	int
 lkmcioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;
@@ -315,7 +315,7 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 		/* XXX gack */
 		curp->entry = (int (*) __P((struct lkm_table *, int, int)))
-			      (*((int *)data));
+			      (*((long *)data));
 
 		/* call entry(load)... (assigns "private" portion) */
 		err = (*(curp->entry))(curp, LKM_E_LOAD, LKM_VERSION);

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.128 1998/05/07 02:05:21 julian Exp $
+ *      $Id: sd.c,v 1.129 1998/05/07 12:13:47 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -118,7 +118,7 @@ static int sdunit(dev_t dev) { return SDUNIT(dev); }
 static dev_t sdsetunit(dev_t dev, int unit) { return SDSETUNIT(dev, unit); }
 static errval sd_open __P((dev_t dev, int mode, int fmt, struct proc *p,
 			struct scsi_link *sc_link));
-static errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag,
 			struct proc *p, struct scsi_link *sc_link);
 static errval sd_close __P((dev_t dev, int flag, int fmt, struct proc *p,
 			struct scsi_link *sc_link));
@@ -778,10 +778,10 @@ bad:
  */
 #ifdef	SLICE
 static int
-sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+sdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
 #else	/* SLICE */
 static errval
-sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
+sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 #endif	/* !SLICE */
 {
@@ -1244,7 +1244,7 @@ sdsdump(void *private, int32_t start, int32_t num)
 		 * If we are dumping core, it may take a while.
 		 * So reassure the user and hold off any watchdogs.
 		 */
-		if ((unsigned)addr % (1024 * 1024) == 0) {
+		if ((u_long)addr % (1024 * 1024) == 0) {
 #ifdef	HW_WDOG
 			if (wdog_tickler)
 				(*wdog_tickler)();
@@ -1254,7 +1254,7 @@ sdsdump(void *private, int32_t start, int32_t num)
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		(int) addr += blkcnt * sd->params.secsiz;
+		(long) addr += blkcnt * sd->params.secsiz;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.8 1997/08/16 19:15:46 wollman Exp $
+ * $Id: ipx_var.h,v 1.9 1998/02/01 20:08:34 bde Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
@@ -82,7 +82,7 @@ struct socket;
 
 void	ipx_abort __P((struct ipxpcb *ipxp));
 u_short	ipx_cksum __P((struct mbuf *m, int len));
-int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
+int	ipx_control __P((struct socket *so, u_long cmd, caddr_t data,
 			 struct ifnet *ifp, struct proc *p));
 void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.8 1997/02/22 09:39:18 peter Exp $
+ * $Id: subr_xxx.c,v 1.9 1997/09/14 02:50:28 peter Exp $
  */
 
 /*
@@ -124,7 +124,7 @@ nowrite(dev, uio, ioflag)
 int
 noioctl(dev, cmd, data, flags, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flags;
 	struct proc *p;
@@ -267,7 +267,7 @@ nxwrite(dev, uio, ioflag)
 int
 nxioctl(dev, cmd, data, flags, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flags;
 	struct proc *p;

@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.6 1997/12/02 21:06:09 phk Exp $
+ *	$Id: nlpt.c,v 1.7 1998/01/24 02:54:05 eivind Exp $
  */
 
 /*
@@ -760,7 +760,7 @@ nlptintr(int unit)
 }
 
 static	int
-nlptioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+nlptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
         struct	lpt_data *sc;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.29 1998/02/01 18:09:46 wollman Exp $
+ * $Id: scsi_ioctl.c,v 1.30 1998/03/28 10:33:21 bde Exp $
  *
  *
  */
@@ -249,7 +249,7 @@ scsistrategy(struct buf *bp)
  * If user-level type command, we must still be running
  * in the context of the calling process
  */
-errval	scsi_do_ioctl(dev_t dev, int cmd, caddr_t addr, int flags,
+errval	scsi_do_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags,
 struct proc *p, struct scsi_link *sc_link)
 {
 	errval ret = 0;

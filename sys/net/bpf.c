@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.37 1998/01/24 02:54:37 eivind Exp $
+ * $Id: bpf.c,v 1.38 1998/02/20 13:46:57 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -623,7 +623,7 @@ reset_d(d)
 static	int
 bpfioctl(dev, cmd, addr, flags, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t addr;
 	int flags;
 	struct proc *p;

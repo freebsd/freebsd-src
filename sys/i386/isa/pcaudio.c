@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.39 1998/01/24 02:54:22 eivind Exp $
+ *	$Id: pcaudio.c,v 1.40 1998/04/15 17:45:40 bde Exp $
  */
 
 #include "pca.h"
@@ -390,7 +390,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 
 
 static int
-pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+pcaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	audio_info_t *auptr;
 

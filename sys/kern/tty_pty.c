@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.50 1998/01/24 02:54:35 eivind Exp $
+ * $Id: tty_pty.c,v 1.51 1998/02/25 06:19:15 bde Exp $
  */
 
 /*
@@ -635,7 +635,7 @@ ptydevtotty(dev)
 static	int
 ptyioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;

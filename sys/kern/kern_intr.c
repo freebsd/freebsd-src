@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.13 1998/02/10 17:10:23 eivind Exp $
+ * $Id: kern_intr.c,v 1.14 1998/04/17 04:53:39 bde Exp $
  *
  */
 
@@ -78,7 +78,7 @@ intr_mux(void *arg)
 	while (p != NULL) {
 		int oldspl = splq(p->mask);
 		/* inthand2_t should take (void*) argument */
-		p->handler((int)p->argument);
+		p->handler((long)p->argument);
 		splx(oldspl);
 		p = p->next;
 	}
@@ -189,7 +189,7 @@ add_intrdesc(intrec *idesc)
 			      idesc->maskptr, idesc->flags) != 0)
 			return (-1);
 
-		update_intrname(irq, (int)idesc->devdata);
+		update_intrname(irq, (long)idesc->devdata);
 		/* keep reference */
 		intreclist_head[irq] = idesc;
 	} else {
@@ -318,7 +318,7 @@ intr_disconnect(intrec *idesc)
 						    head->argument,
 						    head->maskptr, head->flags);
 				if (errcode == 0)
-					update_intrname(irq, (int)head->devdata);
+					update_intrname(irq, (long)head->devdata);
 			}
 		}
 		splx(oldspl);
@@ -410,8 +410,8 @@ register_intr(int intr, int device_id, u_int flags,
 	intrec *idesc;
 
 	flags |= INTR_EXCL;
-	idesc = intr_create((void *)device_id, intr, handler, 
-			    (void*)unit, maskptr, flags);
+	idesc = intr_create((void *)(long)device_id, intr, handler, 
+			    (void*)(long)unit, maskptr, flags);
 	return (intr_connect(idesc));
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.26 1998/01/25 17:25:34 steve Exp $
+ * $Id: tty_compat.c,v 1.27 1998/02/25 06:16:37 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -99,7 +99,7 @@ ttcompatspeedtab(speed, table)
 int
 ttsetcompat(tp, com, data, term)
 	register struct tty *tp;
-	int *com;
+	u_long *com;
 	caddr_t data;
 	struct termios *term;
 {
@@ -182,7 +182,7 @@ ttsetcompat(tp, com, data, term)
 int
 ttcompat(tp, com, data, flag)
 	register struct tty *tp;
-	int com;
+	u_long com;
 	caddr_t data;
 	int flag;
 {

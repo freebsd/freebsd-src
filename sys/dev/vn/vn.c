@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.58 1998/04/24 07:53:59 julian Exp $
+ *	$Id: vn.c,v 1.59 1998/05/06 22:14:38 julian Exp $
  */
 
 /*
@@ -605,7 +605,7 @@ vniodone( struct buf *bp) {
 
 /* ARGSUSED */
 static	int
-vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct vn_softc *vn = vn_softc[vnunit(dev)];
 	struct vn_ioctl *vio;

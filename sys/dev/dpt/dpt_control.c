@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.4 1998/04/17 22:36:20 des Exp $"
+#ident "$Id: dpt_control.c,v 1.5 1998/06/02 00:32:38 eivind Exp $"
 
 #include "opt_dpt.h"
 
@@ -74,7 +74,7 @@ static int      dpt_open(dev_t dev, int flags, int fmt, struct proc * p);
 static int      dpt_close(dev_t dev, int flags, int fmt, struct proc * p);
 static int      dpt_write(dev_t dev, struct uio * uio, int ioflag);
 static int      dpt_read(dev_t dev, struct uio * uio, int ioflag);
-static int      dpt_ioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc * p);
+static int      dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p);
 
 
 /* This has to be modified as the processor and CPU are not known yet */
@@ -666,7 +666,7 @@ dpt_read(dev_t dev, struct uio * uio, int ioflag)
  */
 
 static int
-dpt_ioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc * p)
+dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 {
 	int             minor_no;
 	dpt_softc_t    *dpt;

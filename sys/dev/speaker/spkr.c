@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.32 1998/02/09 06:08:41 eivind Exp $
+ *    $Id: spkr.c,v 1.33 1998/02/20 13:46:55 bde Exp $
  */
 
 #include "speaker.h"
@@ -540,7 +540,7 @@ spkrclose(dev, flags, fmt, p)
 int
 spkrioctl(dev, cmd, cmdarg, flags, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		cmdarg;
 	int		flags;
 	struct proc	*p;

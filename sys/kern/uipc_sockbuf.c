@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.35 1998/05/17 11:52:56 phk Exp $
+ *	$Id: uipc_socket2.c,v 1.36 1998/05/31 18:38:43 peter Exp $
  */
 
 #include <sys/param.h>
@@ -839,7 +839,7 @@ pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 }
 
 int
-pru_control_notsupp(struct socket *so, int cmd, caddr_t data,
+pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 		    struct ifnet *ifp, struct proc *p)
 {
 	return EOPNOTSUPP;

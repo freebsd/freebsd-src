@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.51 1998/03/28 13:24:13 bde Exp $
+ *	$Id: if_ie.c,v 1.52 1998/04/15 17:45:20 bde Exp $
  */
 
 /*
@@ -184,7 +184,7 @@ static int	ee16_probe(struct isa_device * dvp);
 static int	check_ie_present(int unit, caddr_t where, unsigned size);
 static void	ieinit(int unit);
 static void	ie_stop(int unit);
-static int	ieioctl(struct ifnet * ifp, int command, caddr_t data);
+static int	ieioctl(struct ifnet * ifp, u_long command, caddr_t data);
 static void	iestart(struct ifnet * ifp);
 
 static void	el_reset_586(int unit);
@@ -2251,7 +2251,7 @@ ie_stop(int unit)
 }
 
 static int
-ieioctl(struct ifnet *ifp, int command, caddr_t data)
+ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ie_softc *ie = ifp->if_softc;

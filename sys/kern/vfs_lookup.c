@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.26 1998/02/15 04:17:07 dyson Exp $
+ * $Id: vfs_lookup.c,v 1.27 1998/04/08 18:31:57 wosch Exp $
  */
 
 #include "opt_ktrace.h"
@@ -107,10 +107,10 @@ namei(ndp)
 		cnp->cn_pnbuf = zalloc(namei_zone);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf,
-			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
+			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 	else
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
-			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
+			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 
 	/*
 	 * Don't allow empty pathnames.

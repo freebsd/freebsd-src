@@ -1586,7 +1586,7 @@ rpdtrwakeup(void *chan)
 int
 rpioctl(dev, cmd, data, flag, p)
 	dev_t	dev;
-	int	cmd;
+	u_long	cmd;
 	caddr_t data;
 	int	flag;
 	struct	proc	*p;

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_vx.c,v 1.16 1998/02/21 05:35:02 gpalmer Exp $
  *
  */
 
@@ -118,7 +118,7 @@ static struct connector_entry {
 static void vxtxstat __P((struct vx_softc *));
 static int vxstatus __P((struct vx_softc *));
 static void vxinit __P((void *));
-static int vxioctl __P((struct ifnet *, int, caddr_t)); 
+static int vxioctl __P((struct ifnet *, u_long, caddr_t)); 
 static void vxstart __P((struct ifnet *ifp));
 static void vxwatchdog __P((struct ifnet *));
 static void vxreset __P((struct vx_softc *));
@@ -896,7 +896,7 @@ vxget(sc, totlen)
 static int
 vxioctl(ifp, cmd, data)
     register struct ifnet *ifp;
-    int cmd;
+    u_long cmd;
     caddr_t data;
 {
     struct vx_softc *sc = vx_softc[ifp->if_unit];

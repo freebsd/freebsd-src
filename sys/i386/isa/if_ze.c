@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.51 1998/03/28 13:24:24 bde Exp $
+ * $Id: if_ze.c,v 1.52 1998/04/15 17:45:26 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -167,7 +167,7 @@ static void ze_init __P((int unit));
 static __inline void ze_xmit __P((struct ifnet *ifp));
 static void ze_start __P((struct ifnet *ifp));
 static __inline void ze_rint __P((int unit));
-static int ze_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
+static int ze_ioctl __P((struct ifnet *ifp, u_long command, caddr_t data));
 static void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
 static __inline char *ze_ring_copy __P((struct ze_softc *sc, char *src,
 					char *dst, int amount));
@@ -1322,7 +1322,7 @@ zeintr(unit)
 static int
 ze_ioctl(ifp, command, data)
 	register struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;

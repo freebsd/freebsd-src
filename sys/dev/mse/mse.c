@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.36 1997/12/07 08:09:16 yokota Exp $
+ * $Id: mse.c,v 1.37 1998/01/24 02:54:22 eivind Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -401,7 +401,7 @@ mseread(dev, uio, ioflag)
 static int
 mseioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t addr;
 	int flag;
 	struct proc *p;

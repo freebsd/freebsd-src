@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.69 1998/03/23 16:27:37 peter Exp $
+ *	$Id: si.c,v 1.70 1998/03/28 13:24:39 bde Exp $
  */
 
 #ifndef lint
@@ -1481,7 +1481,7 @@ sidevtotty(dev_t dev)
 static	int
 siioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;

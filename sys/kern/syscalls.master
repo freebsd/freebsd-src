@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.50 1998/05/11 03:55:27 dyson Exp $
+	$Id: syscalls.master,v 1.51 1998/05/14 11:28:11 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -150,7 +150,7 @@
 89	STD	BSD	{ int getdtablesize(void); }
 90	STD	POSIX	{ int dup2(u_int from, u_int to); }
 91	UNIMPL	BSD	getdopt
-92	STD	POSIX	{ int fcntl(int fd, int cmd, int arg); }
+92	STD	POSIX	{ int fcntl(int fd, int cmd, long arg); }
 ; XXX should be		{ int fcntl(int fd, int cmd, ...); }
 ; but we're not ready for varargs.
 ; XXX man page says `int arg' too.

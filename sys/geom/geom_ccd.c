@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.31 1998/02/22 10:01:23 jkh Exp $ */
+/* $Id: ccd.c,v 1.32 1998/03/09 20:39:26 julian Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -1027,7 +1027,7 @@ ccdiodone(cbp)
 static int
 ccdioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;

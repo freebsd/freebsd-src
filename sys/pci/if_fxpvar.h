@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.3 1997/09/29 11:27:43 davidg Exp $
+ *	$Id: if_fxpvar.h,v 1.4 1997/11/29 08:11:01 davidg Exp $
  */
 
 /*
@@ -107,6 +107,6 @@ struct fxp_softc {
 #define	FXP_FORMAT		"fxp%d"
 #define	FXP_ARGS(sc)		(sc)->arpcom.ac_if.if_unit
 #define	FXP_INTR_TYPE		void
-#define	FXP_IOCTLCMD_TYPE	int
+#define	FXP_IOCTLCMD_TYPE	u_long
 #define	FXP_BPFTAP_ARG(ifp)	ifp
 #endif /* __NetBSD__ */

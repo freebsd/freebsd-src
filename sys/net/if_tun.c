@@ -78,7 +78,7 @@ static struct tun_softc tunctl[NTUN];
 
 static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
-static int tunifioctl __P((struct ifnet *, int, caddr_t));
+static int tunifioctl __P((struct ifnet *, u_long, caddr_t));
 static int tuninit __P((int));
 
 static	d_open_t	tunopen;
@@ -260,7 +260,7 @@ tuninit(unit)
 int
 tunifioctl(ifp, cmd, data)
 	struct ifnet *ifp;
-	int	cmd;
+	u_long	cmd;
 	caddr_t	data;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
@@ -388,7 +388,7 @@ tunoutput(ifp, m0, dst, rt)
 static	int
 tunioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		data;
 	int		flag;
 	struct proc	*p;

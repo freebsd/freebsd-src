@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.31 1998/04/17 22:36:55 des Exp $
+ *	$Id: procfs_mem.c,v 1.32 1998/05/19 00:00:14 tegge Exp $
  */
 
 /*
@@ -159,7 +159,7 @@ procfs_rwmem(curp, p, uio)
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
 
 			/* locate the in-core address */
-			tkva = (u_int)p->p_addr + uva - VM_MAXUSER_ADDRESS;
+			tkva = (u_long)p->p_addr + uva - VM_MAXUSER_ADDRESS;
 
 			/* transfer it */
 			error = uiomove((caddr_t)tkva, len, uio);

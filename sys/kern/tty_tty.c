@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.22 1998/01/24 02:54:35 eivind Exp $
+ * $Id: tty_tty.c,v 1.23 1998/02/20 13:46:56 bde Exp $
  */
 
 /*
@@ -141,7 +141,7 @@ cttywrite(dev, uio, flag)
 static	int
 cttyioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t addr;
 	int flag;
 	struct proc *p;

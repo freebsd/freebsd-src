@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.17 1997/09/02 20:06:40 bde Exp $
+ *      $Id: su.c,v 1.18 1997/09/14 03:19:40 peter Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -243,7 +243,7 @@ sustrategy(struct buf *bp)
 }
 
 int
-suioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
+suioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
 	struct cdevsw *cdev;
 	dev_t base;

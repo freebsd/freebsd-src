@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.67 1998/05/31 19:43:34 peter Exp $
+ * $Id: nfs_serv.c,v 1.68 1998/05/31 20:08:52 peter Exp $
  */
 
 /*
@@ -3311,8 +3311,8 @@ nfsrv_pathconf(nfsd, slp, procp, mrq)
 	register struct nfsv3_pathconf *pc;
 	register int32_t t1;
 	caddr_t bpos;
-	int error = 0, rdonly, cache, getret = 1, linkmax, namemax;
-	int chownres, notrunc;
+	int error = 0, rdonly, cache, getret = 1;
+	register_t linkmax, namemax, chownres, notrunc;
 	char *cp2;
 	struct mbuf *mb, *mb2, *mreq;
 	struct vnode *vp;

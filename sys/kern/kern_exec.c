@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.81 1998/03/08 06:21:33 dyson Exp $
+ *	$Id: kern_exec.c,v 1.82 1998/04/17 22:36:50 des Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@
 
 #include <machine/reg.h>
 
-static int *exec_copyout_strings __P((struct image_params *));
+static long *exec_copyout_strings __P((struct image_params *));
 
 /*
  * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
@@ -99,7 +99,7 @@ execve(p, uap)
 	register struct execve_args *uap;
 {
 	struct nameidata nd, *ndp;
-	int *stack_base;
+	long *stack_base;
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
@@ -388,8 +388,10 @@ exec_map_first_page(imgp)
 		ma[0] = vm_page_lookup(object, 0);
 
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) || (ma[0]->valid == 0)) {
-			vm_page_protect(ma[0], VM_PROT_NONE);
-			vm_page_free(ma[0]);
+			if (ma[0]) {
+				vm_page_protect(ma[0], VM_PROT_NONE);
+				vm_page_free(ma[0]);
+			}
 			splx(s);
 			return EIO;
 		}
@@ -473,7 +475,8 @@ exec_extract_strings(imgp)
 {
 	char	**argv, **envv;
 	char	*argp, *envp;
-	int	error, length;
+	int	error;
+	size_t	length;
 
 	/*
 	 * extract arguments first
@@ -536,14 +539,14 @@ exec_extract_strings(imgp)
  *	new arg and env vector tables. Return a pointer to the base
  *	so that it can be used as the initial stack pointer.
  */
-int *
+long *
 exec_copyout_strings(imgp)
 	struct image_params *imgp;
 {
 	int argc, envc;
 	char **vectp;
 	char *stringp, *destp;
-	int *stack_base;
+	long *stack_base;
 	struct ps_strings *arginfo;
 	int szsigcode;
 
@@ -586,7 +589,7 @@ exec_copyout_strings(imgp)
 	/*
 	 * vectp also becomes our initial stack base
 	 */
-	stack_base = (int *)vectp;
+	stack_base = (long *)vectp;
 
 	stringp = imgp->stringbase;
 	argc = imgp->argc;
@@ -600,14 +603,14 @@ exec_copyout_strings(imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	suword(&arginfo->ps_argvstr, (int)vectp);
+	suword(&arginfo->ps_argvstr, (long)vectp);
 	suword(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		suword(vectp++, (int)destp);
+		suword(vectp++, (long)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
@@ -616,14 +619,14 @@ exec_copyout_strings(imgp)
 	/* a null vector table pointer seperates the argp's from the envp's */
 	suword(vectp++, 0);
 
-	suword(&arginfo->ps_envstr, (int)vectp);
+	suword(&arginfo->ps_envstr, (long)vectp);
 	suword(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		suword(vectp++, (int)destp);
+		suword(vectp++, (long)destp);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
- * $Id$
+ * $Id: ioccom.h,v 1.6 1997/02/22 09:45:21 peter Exp $
  */
 
 #ifndef	_SYS_IOCCOM_H_
@@ -55,7 +55,7 @@
 #define	IOC_DIRMASK	0xe0000000	/* mask for IN/OUT/VOID */
 
 #define	_IOC(inout,group,num,len) \
-	(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num))
+	((unsigned long)(inout | ((len & IOCPARM_MASK) << 16) | ((group) << 8) | (num)))
 #define	_IO(g,n)	_IOC(IOC_VOID,	(g), (n), 0)
 #define	_IOR(g,n,t)	_IOC(IOC_OUT,	(g), (n), sizeof(t))
 #define	_IOW(g,n,t)	_IOC(IOC_IN,	(g), (n), sizeof(t))

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.13 1997/02/22 09:28:20 peter Exp $
+ *	$Id: db_break.c,v 1.14 1997/06/14 11:52:36 bde Exp $
  */
 
 /*
@@ -208,13 +208,13 @@ db_clear_breakpoints()
 	}
 }
 
-#ifdef notused
+#ifdef SOFTWARE_SSTEP
 /*
  * Set a temporary breakpoint.
  * The instruction is changed immediately,
  * so the breakpoint does not have to be on the breakpoint list.
  */
-static db_breakpoint_t
+db_breakpoint_t
 db_set_temp_breakpoint(addr)
 	db_addr_t	addr;
 {
@@ -237,13 +237,14 @@ db_set_temp_breakpoint(addr)
 	return bkpt;
 }
 
-static void
+void
 db_delete_temp_breakpoint(bkpt)
 	db_breakpoint_t	bkpt;
 {
 	db_put_value(bkpt->address, BKPT_SIZE, bkpt->bkpt_inst);
 	db_breakpoint_free(bkpt);
 }
+
 #endif
 
 /*

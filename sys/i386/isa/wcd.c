@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.51 1998/02/09 06:08:43 eivind Exp $
+ * $Id: wcd.c,v 1.52 1998/04/15 17:45:53 bde Exp $
  */
 
 #include "wdc.h"
@@ -742,7 +742,7 @@ static __inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+int wcdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	int lun = dkunit(dev);
 	struct wcd *t = wcdtab[lun];

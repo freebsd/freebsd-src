@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.39 1998/02/06 12:13:24 eivind Exp $
+ * $Id: kern_sig.c,v 1.40 1998/03/03 20:55:26 tegge Exp $
  */
 
 #include "opt_compat.h"
@@ -1028,7 +1028,7 @@ issignal(p)
 		 * Return the signal's number, or fall through
 		 * to clear it from the pending mask.
 		 */
-		switch ((int)p->p_sigacts->ps_sigact[signum]) {
+		switch ((int)(long)p->p_sigacts->ps_sigact[signum]) {
 
 		case (int)SIG_DFL:
 			/*

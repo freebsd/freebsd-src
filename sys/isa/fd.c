@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.111 1998/05/06 22:14:41 julian Exp $
+ *	$Id: fd.c,v 1.112 1998/05/06 23:35:36 julian Exp $
  *
  */
 
@@ -2040,7 +2040,7 @@ fdformat(dev, finfo, p)
 static int
 fdioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t addr;
 	int flag;
 	struct proc *p;
