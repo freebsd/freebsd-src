@@ -3,9 +3,41 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+20000129:
+	{set,get}flags have been added to the tree for rather dubious
+	reasons.  An unintended side effect of this is that you must
+	rebuild install before the rest of the world.
+
+		cd src/usr.bin/xinstall
+		make depend all install clean
+
+	before make world or buildworld.  This issue may be resolved
+	before 4.0 goes out.
+
+20000124:
+	The default way that virtual tables in our default C++
+	compiler has changed.  We used to use THUNKS for virtual
+	inheritance.  Unfortunately there are bugs that The GCC
+	developers thought would be fixed in GCC 2.95.  However it
+	isn't.
+
+	After this change existing applications written in C++ may
+	give errors like below when you try to run them:
+
+/usr/libexec/ld-elf.so.1: /usr/lib/libstdc++.so.3: Undefined symbol "__vt_7filebuf"
+
+	The only fix is to rebuild the application and any C++
+	libraries used.
+
+20000124:
+	The management of next_writeable has been move from the
+	kernel to userspace. This means that the burncd command
+	must be in sync with the kernel. So make world is your
+	friend.
+
 20000117:
 	GNU texinfo upgraded to 4.0.  It is recommended that you use
-	make buidlworld to update.
+	make buildworld to update.
 
 20000117:
 	CAM_VERSION has been increased.  Recompile all programs that
