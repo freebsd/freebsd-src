@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.52 1996/07/02 02:07:56 dyson Exp $
+ * $Id: vm_glue.c,v 1.53 1996/09/15 11:24:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -205,55 +205,9 @@ vm_fork(p1, p2)
 	if (p1->p_vmspace->vm_shm)
 		shmfork(p1, p2);
 
-	/*
-	 * Allocate a wired-down (for now) pcb and kernel stack for the
-	 * process
-	 */
+	pmap_new_proc(p2);
 
-	pvp = &p2->p_vmspace->vm_pmap;
-
-	/*
-	 * allocate object for the upages
-	 */
-	p2->p_vmspace->vm_upages_obj = upobj = vm_object_allocate( OBJT_DEFAULT,
-		UPAGES);
-
-	/* get a kernel virtual address for the UPAGES for this proc */
-	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
-	if (up == NULL)
-		panic("vm_fork: u_map allocation failed");
-
-	for(i=0;i<UPAGES;i++) {
-		vm_page_t m;
-
-		/*
-		 * Get a kernel stack page
-		 */
-		while ((m = vm_page_alloc(upobj,
-			i, VM_ALLOC_NORMAL)) == NULL) {
-			VM_WAIT;
-		}
-
-		/*
-		 * Wire the page
-		 */
-		vm_page_wire(m);
-		PAGE_WAKEUP(m);
-
-		/*
-		 * Enter the page into both the kernel and the process
-		 * address space.
-		 */
-		pmap_enter( pvp, (vm_offset_t) kstack + i * PAGE_SIZE,
-			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, TRUE);
-		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
-			VM_PAGE_TO_PHYS(m));
-		m->flags &= ~PG_ZERO;
-		m->flags |= PG_MAPPED|PG_WRITEABLE;
-		m->valid = VM_PAGE_BITS_ALL;
-	}
-
-	p2->p_addr = up;
+	up = p2->p_addr;
 
 	/*
 	 * p_stats and p_sigacts currently point at fields in the user struct
@@ -318,51 +272,11 @@ faultin(p)
 	int s;
 
 	if ((p->p_flag & P_INMEM) == 0) {
-		pmap_t pmap = &p->p_vmspace->vm_pmap;
-		vm_page_t m;
-		vm_object_t upobj = p->p_vmspace->vm_upages_obj;
 
 		++p->p_lock;
-#if defined(SWAP_DEBUG)
-		printf("swapping in %d\n", p->p_pid);
-#endif
 
-		for(i=0;i<UPAGES;i++) {
-			int s;
-			s = splvm();
-retry:
-			if ((m = vm_page_lookup(upobj, i)) == NULL) {
-				if ((m = vm_page_alloc(upobj, i, VM_ALLOC_NORMAL)) == NULL) {
-					VM_WAIT;
-					goto retry;
-				}
-			} else {
-				if ((m->flags & PG_BUSY) || m->busy) {
-					m->flags |= PG_WANTED;
-					tsleep(m, PVM, "swinuw",0);
-					goto retry;
-				}
-				m->flags |= PG_BUSY;
-			}
-			vm_page_wire(m);
-			splx(s);
+		pmap_swapin_proc(p);
 
-			pmap_enter( pmap, (vm_offset_t) kstack + i * PAGE_SIZE,
-				VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, TRUE);
-			pmap_kenter(((vm_offset_t) p->p_addr) + i * PAGE_SIZE,
-				VM_PAGE_TO_PHYS(m));
-			if (m->valid != VM_PAGE_BITS_ALL) {
-				int rv;
-				rv = vm_pager_get_pages(upobj,
-					&m, 1, 0);
-				if (rv != VM_PAGER_OK)
-					panic("faultin: cannot get upages for proc: %d\n", p->p_pid);
-				m->valid = VM_PAGE_BITS_ALL;
-			}
-			PAGE_WAKEUP(m);
-			m->flags |= PG_MAPPED|PG_WRITEABLE;
-		}
-		
 		s = splhigh();
 
 		if (p->p_stat == SRUN)
@@ -541,20 +455,7 @@ swapout(p)
 		remrq(p);
 	(void) spl0();
 
-	/*
-	 * let the upages be paged
-	 */
-	for(i=0;i<UPAGES;i++) {
-		vm_page_t m;
-		if ((m = vm_page_lookup(p->p_vmspace->vm_upages_obj, i)) == NULL)
-			panic("swapout: upage already missing???");
-		m->dirty = VM_PAGE_BITS_ALL;
-		vm_page_unwire(m);
-		vm_page_deactivate(m);
-		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
-	}
-	pmap_remove(pmap, (vm_offset_t) kstack,
-		(vm_offset_t) kstack + PAGE_SIZE * UPAGES);
+	pmap_swapout_proc(p);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.67 1996/10/06 18:27:39 dyson Exp $
+ *	$Id: vm_page.c,v 1.68 1996/10/12 20:09:48 bde Exp $
  */
 
 /*
@@ -684,9 +684,6 @@ vm_page_select_free(object, pindex, prefqueue)
 #if PQ_L2_SIZE > 1
 
 	index = pindex + object->pg_color;
-	/*
-	 * These are special cased because of clock-arithemetic
-	 */
 	for(j = 0; j < PQ_L1_SIZE; j++) {
 		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
 			(i + j) >= 0;
