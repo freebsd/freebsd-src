@@ -456,13 +456,7 @@ vm_page_zero_idle()
 			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
 			splx(s);
-#if 0
-			rel_mplock();
-#endif
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-#if 0
-			get_mplock();
-#endif
 			(void)splvm();
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
