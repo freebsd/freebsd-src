@@ -253,6 +253,19 @@ int10(REGISTERS)
 	    break;
 
 	case 0x1b:	/* Functionality state information */
+	    break;
+
+	case 0x6f:
+	    switch (R_AL) {
+	    case 0x00:	/* HP-Vectra or Video7 installation check */
+		R_BX = 0;		/* nope, none of that */
+		break;
+	    default:
+		unknown_int3(0x10, 0x6f, R_AL, REGS);
+		break;
+	    }
+	    break;
+	    
 	case 0xef:
 	case 0xfe:	/* Get video buffer */
 		break;
@@ -271,7 +284,7 @@ int10(REGISTERS)
 			R_AH, R_AL);
     	unknown:
 	default:
-		unknown_int2(0x10, R_AH, REGS);
+		unknown_int3(0x10, R_AH, R_AL, REGS);
 		break;
 	}
 }
