@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha w/ELF.
-   Copyright (C) 1996 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Richard Henderson (rth@tamu.edu).
 
 This file is part of GNU CC.
@@ -19,52 +19,50 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.    */
 
-/* This is used on Alpha platforms that use the ELF format.
-Currently only Linux uses this. */
-
-#if 0
-#include "alpha/linux.h"
-#endif
-
-#undef TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (Alpha Linux/ELF)");
+/* $FreeBSD$ */
 
 #undef OBJECT_FORMAT_COFF
 #undef EXTENDED_COFF
 #define OBJECT_FORMAT_ELF
 
-#define SDB_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO
+
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
 #undef ASM_FINAL_SPEC
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "\
--D__alpha -D__alpha__ -D__linux__ -D__linux -D_LONGLONG -Dlinux -Dunix \
--Asystem(linux) -Acpu(alpha) -Amachine(alpha) -D__ELF__"
+#undef CC1_SPEC
+#define CC1_SPEC  "%{G*}"
+
+#undef ASM_SPEC
+#define ASM_SPEC  "%{G*} %{relax:-relax}"
 
 #undef LINK_SPEC
-#define LINK_SPEC "-m elf64alpha -G 8 %{O*:-O3} %{!O*:-O1}	\
+#define LINK_SPEC "-m elf64alpha %{G*} %{relax:-relax}		\
+  %{O*:-O3} %{!O*:-O1}						\
   %{shared:-shared}						\
   %{!shared:							\
     %{!static:							\
       %{rdynamic:-export-dynamic}				\
-      %{!dynamic-linker:-dynamic-linker /lib/ld.so.1}}		\
+      %{!dynamic-linker:-dynamic-linker %(elf_dynamic_linker)}}	\
     %{static:-static}}"
 
 /* Output at beginning of assembler file.  */
-
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE)					\
 {								\
   alpha_write_verstamp (FILE);					\
   output_file_directive (FILE, main_input_filename);		\
-  fprintf (FILE, "\t.version\t\"01.01\"\n");			\
   fprintf (FILE, "\t.set noat\n");				\
+  fprintf (FILE, "\t.set noreorder\n");                         \
+  if (TARGET_BWX | TARGET_MAX | TARGET_CIX)			\
+    {								\
+      fprintf (FILE, "\t.arch %s\n",				\
+               (alpha_cpu == PROCESSOR_EV6 ? "ev6"		\
+                : TARGET_MAX ? "pca56" : "ev56"));		\
+    }								\
 }
-
-#define ASM_OUTPUT_SOURCE_LINE(STREAM, LINE)			\
-  alpha_output_lineno (STREAM, LINE)
-extern void alpha_output_lineno ();
 
 extern void output_file_directive ();
 
@@ -77,8 +75,8 @@ extern void output_file_directive ();
 
 #ifdef IDENTIFY_WITH_IDENT
 #define ASM_IDENTIFY_GCC(FILE) /* nothing */
-#define ASM_IDENTIFY_LANGUAGE(FILE)				\
- fprintf(FILE, "\t%s \"GCC (%s) %s\"\n", IDENT_ASM_OP,		\
+#define ASM_IDENTIFY_LANGUAGE(FILE)			\
+ fprintf(FILE, "\t%s \"GCC (%s) %s\"\n", IDENT_ASM_OP,	\
 	 lang_identify(), version_string)
 #else
 #define ASM_FILE_END(FILE)					\
@@ -89,11 +87,9 @@ do {				 				\
 #endif
 
 /* Allow #sccs in preprocessor.  */
-
 #define SCCS_DIRECTIVE
 
 /* Output #ident as a .ident.  */
-
 #define ASM_OUTPUT_IDENT(FILE, NAME) \
   fprintf (FILE, "\t%s\t\"%s\"\n", IDENT_ASM_OP, NAME);
 
@@ -155,21 +151,45 @@ do {									\
    the linker seems to want the alignment of data objects
    to depend on their types.  We do exactly that here.  */
 
-#define LOCAL_ASM_OP	".local"
-
 #undef ASM_OUTPUT_ALIGNED_LOCAL
 #define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
 do {									\
-  fprintf ((FILE), "\t%s\t", LOCAL_ASM_OP);				\
-  assemble_name ((FILE), (NAME));					\
-  fprintf ((FILE), "\n");						\
-  ASM_OUTPUT_ALIGNED_COMMON (FILE, NAME, SIZE, ALIGN);			\
+  if ((SIZE) <= g_switch_value)						\
+    sbss_section();							\
+  else									\
+    bss_section();							\
+  fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
+  assemble_name (FILE, NAME);						\
+  putc (',', FILE);							\
+  fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
+  putc ('\n', FILE);							\
+  if (!flag_inhibit_size_directive)					\
+    {									\
+      fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+      assemble_name (FILE, NAME);					\
+      fprintf (FILE, ",%d\n", (SIZE));					\
+    }									\
+  ASM_OUTPUT_ALIGN ((FILE), exact_log2((ALIGN) / BITS_PER_UNIT));	\
+  ASM_OUTPUT_LABEL(FILE, NAME);						\
+  ASM_OUTPUT_SKIP((FILE), (SIZE));					\
 } while (0)
 
 /* This is the pseudo-op used to generate a 64-bit word of data with a
-   specific value in some section.    */
+   specific value in some section.  */
 
 #define INT_ASM_OP		".quad"
+
+/* Biggest alignment supported by the object file format of this
+   machine.  Use this macro to limit the alignment which can be
+   specified using the `__attribute__ ((aligned (N)))' construct.  If
+   not defined, the default value is `BIGGEST_ALIGNMENT'. 
+
+   This value is really 2^63.  Since gcc figures the alignment in bits,
+   we could only potentially get to 2^60 on suitible hosts.  Due to other
+   considerations in varasm, we must restrict this to what fits in an int.  */
+
+#define MAX_OFILE_ALIGNMENT \
+  (1 << (HOST_BITS_PER_INT < 64 ? HOST_BITS_PER_INT - 2 : 62))
 
 /* This is the pseudo-op used to generate a contiguous sequence of byte
    values from a double-quoted string WITHOUT HAVING A TERMINATING NUL
@@ -208,6 +228,11 @@ do {									\
 #define CTORS_SECTION_ASM_OP	".section\t.ctors,\"aw\""
 #define DTORS_SECTION_ASM_OP	".section\t.dtors,\"aw\""
 
+/* Handle the small data sections.  */
+#define BSS_SECTION_ASM_OP	".section\t.bss"
+#define SBSS_SECTION_ASM_OP	".section\t.sbss,\"aw\""
+#define SDATA_SECTION_ASM_OP	".section\t.sdata,\"aw\""
+
 /* On svr4, we *do* have support for the .init and .fini sections, and we
    can put stuff in there to be executed before and after `main'.  We let
    crtstuff.c and other files know this by defining the following symbols.
@@ -217,17 +242,13 @@ do {									\
 #define INIT_SECTION_ASM_OP	".section\t.init"
 #define FINI_SECTION_ASM_OP	".section\t.fini"
 
-/* Support non-common, uninitialized data in the .bss section.  */
-
-#define BSS_SECTION_ASM_OP	".section\t.bss"
-
 /* A default list of other sections which we might be "in" at any given
    time.  For targets that use additional sections (e.g. .tdesc) you
    should override this definition in the target-specific file which
    includes this file.  */
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_ctors, in_dtors, in_bss
+#define EXTRA_SECTIONS in_const, in_ctors, in_dtors, in_sbss, in_sdata
 
 /* A default list of extra section function definitions.  For targets
    that use additional sections (e.g. .tdesc) you should override this
@@ -236,9 +257,10 @@ do {									\
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS						\
   CONST_SECTION_FUNCTION						\
-  CTORS_SECTION_FUNCTION						\
-  DTORS_SECTION_FUNCTION						\
-  BSS_SECTION_FUNCTION
+  SECTION_FUNCTION_TEMPLATE(ctors_section, in_ctors, CTORS_SECTION_ASM_OP) \
+  SECTION_FUNCTION_TEMPLATE(dtors_section, in_dtors, DTORS_SECTION_ASM_OP) \
+  SECTION_FUNCTION_TEMPLATE(sbss_section, in_sbss, SBSS_SECTION_ASM_OP)	\
+  SECTION_FUNCTION_TEMPLATE(sdata_section, in_sdata, SDATA_SECTION_ASM_OP)
 
 #undef READONLY_DATA_SECTION
 #define READONLY_DATA_SECTION() const_section ()
@@ -258,36 +280,13 @@ const_section ()							\
     }									\
 }
 
-#define CTORS_SECTION_FUNCTION						\
-void									\
-ctors_section ()							\
+#define SECTION_FUNCTION_TEMPLATE(FN, ENUM, OP)				\
+void FN ()								\
 {									\
-  if (in_section != in_ctors)						\
+  if (in_section != ENUM)						\
     {									\
-      fprintf (asm_out_file, "%s\n", CTORS_SECTION_ASM_OP);		\
-      in_section = in_ctors;						\
-    }									\
-}
-
-#define DTORS_SECTION_FUNCTION						\
-void									\
-dtors_section ()							\
-{									\
-  if (in_section != in_dtors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", DTORS_SECTION_ASM_OP);		\
-      in_section = in_dtors;						\
-    }									\
-}
-
-#define BSS_SECTION_FUNCTION						\
-void									\
-bss_section ()								\
-{									\
-  if (in_section != in_bss)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", BSS_SECTION_ASM_OP);		\
-      in_section = in_bss;						\
+      fprintf (asm_out_file, "%s\n", OP);				\
+      in_section = ENUM;						\
     }									\
 }
 
@@ -297,10 +296,10 @@ bss_section ()								\
 
    We make the section read-only and executable for a function decl,
    read-only for a const data decl, and writable for a non-const data decl.  */
-#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME) \
+#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC) \
   fprintf (FILE, ".section\t%s,\"%s\",@progbits\n", NAME, \
 	   (DECL) && TREE_CODE (DECL) == FUNCTION_DECL ? "ax" : \
-	   (DECL) && TREE_READONLY (DECL) ? "a" : "aw")
+	   (DECL) && DECL_READONLY_SECTION (DECL, RELOC) ? "a" : "aw")
 
 
 /* A C statement (sans semicolon) to output an element in the table of
@@ -344,11 +343,10 @@ bss_section ()								\
 	  || !DECL_INITIAL (DECL)					\
 	  || (DECL_INITIAL (DECL) != error_mark_node			\
 	      && !TREE_CONSTANT (DECL_INITIAL (DECL))))			\
-        {								\
-          if (DECL_COMMON (DECL)					\
-	      && !DECL_INITIAL (DECL))					\
-	          /* || DECL_INITIAL (DECL) == error_mark_node)) */	\
-	    bss_section();						\
+	{								\
+	  int size = int_size_in_bytes (TREE_TYPE (DECL));		\
+	  if (size >= 0 && size <= g_switch_value)			\
+	    sdata_section ();						\
 	  else								\
 	    data_section ();						\
 	}								\
@@ -486,39 +484,39 @@ do {									 \
    escape sequence like \377 would count as four bytes.
 
    If your target assembler doesn't support the .string directive, you
-   should define this to zero.
-*/
+   should define this to zero.  */
 
 #define STRING_LIMIT	((unsigned) 256)
-
 #define STRING_ASM_OP	".string"
 
-/*
- * We always use gas here, so we don't worry about ECOFF assembler problems.
- */
+/* GAS is the only Alpha/ELF assembler.  */
 #undef TARGET_GAS
 #define TARGET_GAS	(1)
 
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+/* Provide a STARTFILE_SPEC appropriate for ELF.  Here we add the
+   (even more) magical crtbegin.o file which provides part of the
+   support for getting C++ file-scope static object constructed before
+   entering `main'. 
 
-/* Provide a STARTFILE_SPEC appropriate for Linux.  Here we add
-   the Linux magical crtbegin.o file (see crtstuff.c) which
-   provides part of the support for getting C++ file-scope static
-   object constructed before entering `main'. */
+   Don't bother seeing crtstuff.c -- there is absolutely no hope of
+   getting that file to understand multiple GPs.  GNU Libc provides a
+   hand-coded version that is used on Linux; it could be copied here
+   if there is ever a need. */
    
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC \
   "%{!shared: \
      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+   crti.o%s crtbegin.o%s"
 
-/* Provide a ENDFILE_SPEC appropriate for Linux.  Here we tack on
-   the Linux magical crtend.o file (see crtstuff.c) which
-   provides part of the support for getting C++ file-scope static
-   object constructed before entering `main', followed by a normal
-   Linux "finalizer" file, `crtn.o'.  */
+/* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
+   magical crtend.o file which provides part of the support for
+   getting C++ file-scope static object constructed before entering
+   `main', followed by a normal ELF "finalizer" file, `crtn.o'.  */
 
 #undef	ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
+  "crtend.o%s crtn.o%s"
+
+/* We support #pragma.  */
+#define HANDLE_SYSV_PRAGMA
