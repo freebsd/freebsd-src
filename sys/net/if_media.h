@@ -200,6 +200,23 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_IEEE80211_11G	3	/* 2Ghz, CCK mode */
 
 /*
+ * ATM
+ */
+#define IFM_ATM	0x000000a0
+#define IFM_ATM_UNKNOWN		3
+#define IFM_ATM_UTP_25		4
+#define IFM_ATM_TAXI_100	5
+#define IFM_ATM_TAXI_140	6
+#define IFM_ATM_MM_155		7
+#define IFM_ATM_SM_155		8
+#define IFM_ATM_UTP_155		9
+#define IFM_ATM_MM_622		10
+#define IFM_ATM_SM_622		11
+#define IFM_ATM_SDH		0x00000100	/* SDH instead of SONET */
+#define IFM_ATM_NOSCRAMB	0x00000200	/* no scrambling */
+#define IFM_ATM_UNASSIGNED	0x00000400	/* unassigned cells */
+
+/*
  * Shared media sub-types
  */
 #define	IFM_AUTO	0		/* Autoselect best media */
@@ -271,6 +288,7 @@ struct ifmedia_description {
 	{ IFM_TOKEN,		"Token ring" },				\
 	{ IFM_FDDI,		"FDDI" },				\
 	{ IFM_IEEE80211,	"IEEE 802.11 Wireless Ethernet" },	\
+	{ IFM_ATM,		"ATM" },				\
 	{ 0, NULL },							\
 }
 
@@ -434,6 +452,40 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_11G, "11g" },					\
 	{ 0, NULL },							\
 }
+
+# define IFM_SUBTYPE_ATM_DESCRIPTIONS {					\
+	{ IFM_ATM_UNKNOWN,	"Unknown" },				\
+	{ IFM_ATM_UTP_25,	"UTP/25.6MBit" },			\
+	{ IFM_ATM_TAXI_100,	"Taxi/100MBit" },			\
+	{ IFM_ATM_TAXI_140,	"Taxi/140MBit" },			\
+	{ IFM_ATM_MM_155,	"Multi-mode/155MBit" },			\
+	{ IFM_ATM_SM_155,	"Single-mode/155MBit" },		\
+	{ IFM_ATM_UTP_155,	"UTP/155MBit" },			\
+	{ IFM_ATM_MM_622,	"Mult-imode/622MBit" },			\
+	{ IFM_ATM_SM_622,	"Single-mode/622MBit" },		\
+	{ 0, NULL },							\
+}
+
+# define IFM_SUBTYPE_ATM_ALIASES {					\
+	{ IFM_ATM_UNKNOWN,	"UNKNOWN" },				\
+	{ IFM_ATM_UTP_25,	"UTP-25" },				\
+	{ IFM_ATM_TAXI_100,	"TAXI-100" },				\
+	{ IFM_ATM_TAXI_140,	"TAXI-140" },				\
+	{ IFM_ATM_MM_155,	"MM-155" },				\
+	{ IFM_ATM_SM_155,	"SM-155" },				\
+	{ IFM_ATM_UTP_155,	"UTP-155" },				\
+	{ IFM_ATM_MM_622,	"MM-622" },				\
+	{ IFM_ATM_SM_622,	"SM-622" },				\
+	{ 0, NULL },							\
+}
+
+#define	IFM_SUBTYPE_ATM_OPTION_DESCRIPTIONS {				\
+	{ IFM_ATM_SDH, "SDH" },						\
+	{ IFM_ATM_NOSCRAMB, "Noscramb" },				\
+	{ IFM_ATM_UNASSIGNED, "Unassigned" },				\
+	{ 0, NULL },							\
+}
+
 
 #define	IFM_SUBTYPE_SHARED_DESCRIPTIONS {				\
 	{ IFM_AUTO,	"autoselect" },					\
