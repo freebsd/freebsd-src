@@ -20,6 +20,8 @@ maxusers	10
 
 options 	DEC_KN8AE
 options 	SIMOS
+
+options         SCHED_4BSD              #4BSD scheduler
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	NFSCLIENT		#Network Filesystem Client

@@ -46,6 +46,7 @@ options 	DEC_KN8AE		# AlphaServer 8200/8400 (Turbolaser)
 options 	DEC_KN300		# AlphaServer 4100 (Rawhide),
 					# AlphaServer 1200 (Tincup)
 
+options		SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
