@@ -110,10 +110,12 @@ data socket
 .Xr ng_socket 4 )
 when started.
 .Pp
-The environment variable
+The environment variables
 .Ev HISMACADDR
-is made available to the child process and is set to the MAC address of
-the peer.
+and
+.Ev ACNAME
+are made available to the child process and are set to the MAC address of
+the peer and the name of the AC respectively.
 .Pp
 Upon invocation,
 .Nm
