@@ -67,7 +67,7 @@
 %type	<str>	device_name
 %type	<val>	major_minor
 %type	<val>	arg_device_spec
-%type	<val>	root_device_spec
+%type	<val>	root_device_spec root_device_specs
 %type	<val>	dump_device_spec
 %type	<file>	swap_device_spec
 %type	<file>	comp_device_spec
@@ -112,6 +112,7 @@
 #include "config.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <err.h>
 
 struct	device cur;
 struct	device *curp = 0;
@@ -285,7 +286,7 @@ swap_device_spec:
 	;
 
 root_spec:
-	  ROOT optional_on root_device_spec
+	  ROOT optional_on root_device_specs
 		= {
 			struct file_list *fl = *confp;
 
@@ -294,6 +295,15 @@ root_spec:
 			else
 				fl->f_rootdev = $3;
 		}
+	;
+
+root_device_specs:
+	  root_device_spec AND root_device_specs
+		= {
+			warnx("extraneous root devices ignored");
+			$$ = $1;
+		  }
+	| root_device_spec
 	;
 
 root_device_spec:
