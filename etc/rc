@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.16 1994/02/02 08:02:37 chmr Exp $
+#	$Id: rc,v 1.17 1994/02/21 02:47:47 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -79,17 +79,6 @@ rm -f /var/spool/uucp/LCK.*
 rm -f /var/spool/uucp/STST/*
 # don't add .[a-z]* to rm, because of .adjkerntz file
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
-
-# Make shared lib searching a little faster.  Leave /usr/lib first if you
-# add your own entries or you may come to grief.
-if [ -x /sbin/ldconfig ]; then
-	_LDC=/usr/lib
-	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
-	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
-	echo 'setting ldconfig path:' ${_LDC}
-	ldconfig ${_LDC}
-fi
 
 echo -n 'starting system logger'
 rm -f /dev/log
@@ -211,6 +200,17 @@ echo -n ' inetd';		inetd
 echo '.'
 
 mount -a -t nfs >/dev/null 2>&1 &	# XXX shouldn't need background
+
+# Make shared lib searching a little faster.  Leave /usr/lib first if you
+# add your own entries or you may come to grief.
+if [ -x /sbin/ldconfig ]; then
+	_LDC=/usr/lib
+	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
+	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
+	echo 'setting ldconfig path:' ${_LDC}
+	ldconfig ${_LDC}
+fi
 
 sh /etc/rc.local
 
