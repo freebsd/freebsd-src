@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.38 1999/05/28 14:08:57 bde Exp $
+ *	$Id: apic_vector.s,v 1.39 1999/06/01 18:20:11 jlemon Exp $
  */
 
 
@@ -264,7 +264,7 @@ log_intr_event:
 	pushf
 	cli
 	pushl	$CNAME(apic_itrace_debuglock)
-	call	_s_lock_np
+	call	CNAME(s_lock_np)
 	addl	$4, %esp
 	movl	CNAME(apic_itrace_debugbuffer_idx), %ecx
 	andl	$32767, %ecx
@@ -276,7 +276,7 @@ log_intr_event:
 	andl	$32767, %ecx
 	movl	%ecx,	CNAME(apic_itrace_debugbuffer_idx)
 	pushl	$CNAME(apic_itrace_debuglock)
-	call	_s_unlock_np
+	call	CNAME(s_unlock_np)
 	addl	$4, %esp
 	popf
 	ret
