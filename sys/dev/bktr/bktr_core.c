@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.78 1999/05/19 22:04:21 roger Exp $ */
+/* $Id: brooktree848.c,v 1.79 1999/05/22 04:34:59 bde Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -396,6 +396,11 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 1.66    19 May 1999 Ivan Brawley <brawley@internode.com.au> added better
                     Australian channel frequencies.
                     
+1.67    23 May 1999 Roger Hardiman <roger@freebsd.org>
+                    Added rgb_vbi_prog() to capture VBI data and video at the
+                    same time. To capture VBI data, /dev/vbi must be opened
+                    before starting video capture.
+
 */
 
 #define DDB(x) x
@@ -1292,6 +1297,8 @@ static void	yuv422_prog( bktr_ptr_t bktr, char i_flag, int cols,
 static void	yuv12_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			     int rows, int interlace );
 static void	rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
+			  int rows, int interlace );
+static void	rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols,
 			  int rows, int interlace );
 static void	build_dma_prog( bktr_ptr_t bktr, char i_flag );
 
@@ -3606,6 +3613,26 @@ dump_bt848( bt848_ptr_t bt848 )
 
 #define BKTR_RESYNC   (1 << 15)
 #define BKTR_GEN_IRQ  (1 << 24)
+
+/*
+ * The RISC status bits can be set/cleared in the RISC programs
+ * and tested in the Interrupt Handler
+ */
+#define BKTR_SET_RISC_STATUS_BIT0 (1 << 16)
+#define BKTR_SET_RISC_STATUS_BIT1 (1 << 17)
+#define BKTR_SET_RISC_STATUS_BIT2 (1 << 18)
+#define BKTR_SET_RISC_STATUS_BIT3 (1 << 19)
+
+#define BKTR_CLEAR_RISC_STATUS_BIT0 (1 << 20)
+#define BKTR_CLEAR_RISC_STATUS_BIT1 (1 << 21)
+#define BKTR_CLEAR_RISC_STATUS_BIT2 (1 << 22)
+#define BKTR_CLEAR_RISC_STATUS_BIT3 (1 << 23)
+
+#define BKTR_TEST_RISC_STATUS_BIT0 (1 << 28)
+#define BKTR_TEST_RISC_STATUS_BIT1 (1 << 29)
+#define BKTR_TEST_RISC_STATUS_BIT2 (1 << 30)
+#define BKTR_TEST_RISC_STATUS_BIT3 (1 << 31)
+
 bool_t notclipped (bktr_reg_t * bktr, int x, int width) {
     int i;
     bktr_clip_t * clip_node;
@@ -3757,6 +3784,214 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 
     }
  return TRUE;
+}
+
+
+/*
+ * Generate the RISC instructions to capture both VBI and video images
+ */
+static void
+rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
+{
+	int			i;
+	bt848_ptr_t		bt848;
+	volatile u_long		target_buffer, buffer, target,width;
+	volatile u_long		pitch;
+	volatile  u_long	*dma_prog;
+        struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
+	u_int                   Bpp = pf_int->public.Bpp;
+	unsigned int            vbisamples;     /* VBI samples per line */
+	unsigned int            vbilines;       /* VBI lines per field */
+	unsigned int            num_dwords;     /* DWORDS per line */
+
+	vbisamples = format_params[bktr->format_params].vbi_num_samples;
+	vbilines   = format_params[bktr->format_params].vbi_num_lines;
+	num_dwords = vbisamples/4;
+
+	bt848 = bktr->base;
+
+	bt848->color_fmt         = pf_int->color_fmt;
+	bt848->adc               = SYNC_LEVEL;
+	bt848->vbi_pack_size     = ((num_dwords))     & 0xff;
+	bt848->vbi_pack_del      = ((num_dwords)>> 8) & 0x01; /* no hdelay    */
+							      /* no ext frame */
+
+	bt848->oform = 0x00;
+
+ 	bt848->e_vscale_hi |= 0x40; /* set chroma comb */
+ 	bt848->o_vscale_hi |= 0x40;
+	bt848->e_vscale_hi &= ~0x80; /* clear Ycomb */
+	bt848->o_vscale_hi &= ~0x80;
+
+ 	/* disable gamma correction removal */
+ 	bt848->color_ctl_gamma = 1;
+
+
+	if (cols > 385 ) {
+	    bt848->e_vtc = 0;
+	    bt848->o_vtc = 0;
+	} else {
+	    bt848->e_vtc = 1;
+	    bt848->o_vtc = 1;
+	}
+	bktr->capcontrol = 3 << 2 |  3;
+
+	dma_prog = (u_long *) bktr->dma_prog;
+
+	/* Construct Write */
+
+	if (bktr->video.addr) {
+		target_buffer = (u_long) bktr->video.addr;
+		pitch = bktr->video.width;
+	}
+	else {
+		target_buffer = (u_long) vtophys(bktr->bigbuf);
+		pitch = cols*Bpp;
+	}
+
+	buffer = target_buffer;
+
+
+	/* store the VBI data */
+	/* look for sync with packed data */
+	*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+	*dma_prog++ = 0;
+	for(i = 0; i < vbilines; i++) {
+		*dma_prog++ = OP_WRITE | OP_SOL | OP_EOL | vbisamples;
+		*dma_prog++ = (u_long) vtophys(bktr->vbidata +
+					(i * VBI_LINE_SIZE));
+	}
+
+	/* store the video image */
+	/* look for sync with packed data */
+	*dma_prog++ = OP_SYNC  | BKTR_RESYNC | BKTR_FM1;
+	*dma_prog++ = 0;  /* NULL WORD */
+	width = cols;
+	for (i = 0; i < (rows/interlace); i++) {
+	    target = target_buffer;
+	    if ( notclipped(bktr, i, width)) {
+		split(bktr, (volatile u_long **) &dma_prog,
+		      bktr->y2 - bktr->y, OP_WRITE,
+		      Bpp, (volatile u_char **) &target,  cols);
+
+	    } else {
+		while(getline(bktr, i)) {
+		    if (bktr->y != bktr->y2 ) {
+			split(bktr, (volatile u_long **) &dma_prog,
+			      bktr->y2 - bktr->y, OP_WRITE,
+			      Bpp, (volatile u_char **) &target, cols);
+		    }
+		    if (bktr->yclip != bktr->yclip2 ) {
+			split(bktr,(volatile u_long **) &dma_prog,
+			      bktr->yclip2 - bktr->yclip,
+			      OP_SKIP,
+			      Bpp, (volatile u_char **) &target,  cols);
+		    }
+		}
+
+	    }
+
+	    target_buffer += interlace * pitch;
+
+	}
+
+	switch (i_flag) {
+	case 1:
+		/* EVEN field grabs. Look for end of 'Even Field' Marker
+		 * We cannot look for VRO, because we have not enabled ODD
+		 * field capture
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRE;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 2:
+		/* ODD field grabs. Look for end of 'Odd Field' Marker
+		 * We cannot look for VRE, because we have not enabled EVEN
+		 * field capture
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
+		return;
+
+	case 3:
+		/* INTERLACED grabs (ODD then EVEN). We have read the old field
+		 * so look for the end of 'Odd Field' Marker.
+		 * Then jump to the 'odd_dma_prog' which actually captures
+		 * the EVEN field!
+		 */
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
+		*dma_prog++ = 0;  /* NULL WORD */
+
+		*dma_prog++ = OP_JUMP;
+		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
+		break;
+	}
+
+	if (interlace == 2) {
+
+	        target_buffer = buffer + pitch; 
+
+		dma_prog = (u_long *) bktr->odd_dma_prog;
+
+		/* store the VBI data */
+		/* look for sync with packed data */
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+		*dma_prog++ = 0;
+		for(i = 0; i < vbilines; i++) {
+			*dma_prog++ = OP_WRITE | OP_SOL | OP_EOL | vbisamples;
+			*dma_prog++ = (u_long) vtophys(bktr->vbidata +
+					((i+MAX_VBI_LINES) * VBI_LINE_SIZE));
+		}
+
+		/* store the video image */
+		/* look for sync with packed data */
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
+		*dma_prog++ = 0;  /* NULL WORD */
+		width = cols;
+		for (i = 0; i < (rows/interlace); i++) {
+		    target = target_buffer;
+		    if ( notclipped(bktr, i, width)) {
+			split(bktr, (volatile u_long **) &dma_prog,
+			      bktr->y2 - bktr->y, OP_WRITE,
+			      Bpp, (volatile u_char **) &target,  cols);
+		    } else {
+			while(getline(bktr, i)) {
+			    if (bktr->y != bktr->y2 ) {
+				split(bktr, (volatile u_long **) &dma_prog,
+				      bktr->y2 - bktr->y, OP_WRITE,
+				      Bpp, (volatile u_char **) &target,
+				      cols);
+			    }	
+			    if (bktr->yclip != bktr->yclip2 ) {
+				split(bktr, (volatile u_long **) &dma_prog,
+				      bktr->yclip2 - bktr->yclip, OP_SKIP,
+				      Bpp, (volatile u_char **)  &target,  cols);
+			    }	
+
+			}	
+
+		    }
+
+		    target_buffer += interlace * pitch;
+
+		}
+	}
+
+	/* Look for end of 'Even Field' */
+	*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRE;
+	*dma_prog++ = 0;  /* NULL WORD */
+
+	*dma_prog++ = OP_JUMP ;
+	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
+	*dma_prog++ = 0;  /* NULL WORD */
+
 }
 
 
@@ -4436,6 +4671,18 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	cols = bktr->cols;
 
 	bktr->vbiflags &= ~VBI_CAPTURE;	/* default - no vbi capture */
+
+	/* If /dev/vbi is already open, then use the rgb_vbi RISC program */
+	if ( (pf_int->public.type == METEOR_PIXTYPE_RGB)
+           &&(bktr->vbiflags & VBI_OPEN) ) {
+		if (i_flag==1) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_EVEN;
+		if (i_flag==2) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_ODD;
+		if (i_flag==3) bktr->bktr_cap_ctl |=
+		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
+		bktr->vbiflags |= VBI_CAPTURE;
+		rgb_vbi_prog(bktr, i_flag, cols, rows, interlace);
+		return;
+	}
 
 	if ( pf_int->public.type == METEOR_PIXTYPE_RGB ) {
 		rgb_prog(bktr, i_flag, cols, rows, interlace);
