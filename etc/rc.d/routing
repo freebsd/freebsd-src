@@ -45,7 +45,7 @@ static_start()
 	if [ -n "${static_routes}" ]; then
 		for i in ${static_routes}; do
 			eval route_args=\$route_${i}
-			echo route add ${route_args}
+			route add ${route_args}
 		done
 	fi
 }
