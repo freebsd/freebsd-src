@@ -40,7 +40,13 @@ CFLAGS+=	-I${SRCDIR}/include
 .PATH: ${.CURDIR}/${BINUTIL_ARCH}
 .endif
 
-ARCHS=		${BINUTIL_ARCH} ${CROSS_TOOLS}
+ARCHS=		${BINUTIL_ARCH}
+
+.for _arch in ${CROSS_ARCH}
+.if (${ARCHS:R:M${_arch:R}} == "")
+ARCHS+=$(_arch)
+.endif
+.endfor
 
 .for _arch in ${ARCHS}
 .if exists(${.CURDIR}/Makefile.${_arch})
