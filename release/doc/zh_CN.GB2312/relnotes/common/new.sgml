@@ -189,22 +189,21 @@
       <sect4 id="net-if">
 	<title>网络接口设备支持</title>
 
-	<para>&man.cp.4; 驱动现在 MPSAFE 了。</para>
+	<para>&man.cp.4; 驱动现在是 MPSAFE 的了。</para>
 
-	<para>&man.ctau.4; 驱动现在 MPSAFE 了。</para>
+	<para>&man.ctau.4; 驱动现在是 MPSAFE 的了。</para>
 
-	<para>&man.cx.4; 驱动现在 MPSAFE 了。</para>
+	<para>&man.cx.4; 驱动现在是 MPSAFE 的了。</para>
 
 	<para>&man.ed.4; 驱动现在支持 &man.altq.4; 框架了。</para>
 
-	<para>在 &man.em.4; 驱动程序中， 对于 VLAN 标记 (tagging)
-	  的硬件支持， 由于其和混杂模式之间的一些冲突被默认地禁用。
-	  </para>
+	<para>在 &man.em.4; 驱动程序中， 默认禁用了对 VLAN 标记 (tagging)
+	  的硬件支持， 因为这个功能与混杂模式之间存在一些冲突。</para>
 
 	<para>默认地禁用了 &man.fxp.4; 驱动的以太网流控制功能，
 	  以避免系统崩溃或进入内核调试器。</para>
 
-	<para>The &man.hme.4; 驱动现在 MPSAFE 了。</para>
+	<para>The &man.hme.4; 驱动现在是 MPSAFE 的了。</para>
 
 	<para arch="amd64">现在 &man.ndis.4; 设备驱动 wrapper
 	  在 amd64 系统上能够支持 &windows;/x86-64 的二进制驱动了。
@@ -221,9 +220,6 @@
 	  更多细节， 可以在勘误公告
 	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>
 	  上找到。</para>
-
-	<para>The &man.sf.4; driver now has support for device polling
-	  and &man.altq.4;.</para>
 
 	<para>现在， &man.sk.4; 驱动支持 &man.altq.4; 了。
 	  同时， 此驱动支持基于 Yukon 的网卡的巨型帧能力了。
