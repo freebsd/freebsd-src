@@ -2,10 +2,15 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: 3cbc_enc.c,v 1.2 1994/07/19 19:21:37 g89r4222 Exp $
+ *	$Id: 3cbc_enc.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
  */
 
 #include "des_locl.h"
+
+void
+xp(a)
+unsigned char *a;
+{ int i; for(i=0; i<8; i++) printf("%02X",a[i]);printf("\n");}
 
 int des_3cbc_encrypt(input,output,length,ks1,ks2,iv1,iv2,encrypt)
 des_cblock *input;
@@ -53,6 +58,3 @@ xp(output);
 	return(0);
 	}
 
-xp(a)
-unsigned char *a;
-{ int i; for(i=0; i<8; i++) printf("%02X",a[i]);printf("\n");}
