@@ -25,8 +25,40 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
+ *	$Id: http.c,v 1.3 1998/07/11 21:29:08 des Exp $
  */
+
+/*
+ * The base64 code in this file is based on code from MIT fetch, which
+ * has the following copyright and license:
+ *
+ *-
+ * Copyright 1997 Massachusetts Institute of Technology
+ *
+ * Permission to use, copy, modify, and distribute this software and
+ * its documentation for any purpose and without fee is hereby
+ * granted, provided that both the above copyright notice and this
+ * permission notice appear in all copies, that both the above
+ * copyright notice and this permission notice appear in all
+ * supporting documentation, and that the name of M.I.T. not be used
+ * in advertising or publicity pertaining to distribution of the
+ * software without specific, written prior permission.  M.I.T. makes
+ * no representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied
+ * warranty.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+ * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+ * SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE. */
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -38,6 +70,7 @@
 #include <err.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,8 +87,6 @@
 
 extern char *__progname;
 
-extern int fprint64(FILE *f, const unsigned char *buf);
-
 #define ENDL "\r\n"
 
 struct cookie
@@ -71,6 +102,9 @@ struct cookie
     unsigned b_len, chunksize;
 };
 
+/*
+ * Look up error code
+ */
 static const char *
 _http_errstring(int e)
 {
@@ -82,6 +116,29 @@ _http_errstring(int e)
     return p->string;
 }
 
+/*
+ * Send a formatted line; optionally echo to terminal
+ */
+static int
+_http_cmd(FILE *f, char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+#ifndef NDEBUG
+    fprintf(stderr, "\033[1m>>> ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\033[m");
+#endif
+    va_end(ap);
+    
+    return 0; /* XXX */
+}
+
+/*
+ * Fill the input buffer, do chunk decoding on the fly
+ */
 static char *
 _http_fillbuf(struct cookie *c)
 {
@@ -119,6 +176,9 @@ _http_fillbuf(struct cookie *c)
     return c->buf;
 }
 
+/*
+ * Read function
+ */
 static int
 _http_readfn(struct cookie *c, char *buf, int len)
 {
@@ -142,6 +202,9 @@ _http_readfn(struct cookie *c, char *buf, int len)
     else return pos;
 }
 
+/*
+ * Write function
+ */
 static int
 _http_writefn(struct cookie *c, const char *buf, int len)
 {
@@ -149,6 +212,9 @@ _http_writefn(struct cookie *c, const char *buf, int len)
     return r ? r : -1;
 }
 
+/*
+ * Close function
+ */
 static int
 _http_closefn(struct cookie *c)
 {
@@ -157,6 +223,9 @@ _http_closefn(struct cookie *c)
     return (r == EOF) ? -1 : 0;
 }
 
+/*
+ * Extract content type from cookie
+ */
 char *
 fetchContentType(FILE *f)
 {
@@ -167,6 +236,85 @@ fetchContentType(FILE *f)
     return f->_cookie ? (((struct cookie *)f->_cookie)->content_type) : NULL;
 }
 
+/*
+ * Base64 encoding
+ */
+int
+_http_base64(char *dst, char *src, int l)
+{
+    static const char base64[] =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	"abcdefghijklmnopqrstuvwxyz"
+	"0123456789+/";
+    int t, r = 0;
+    
+    while (l >= 3) {
+	t = (src[0] << 16) | (src[1] << 8) | src[2];
+	dst[0] = base64[(t >> 18) & 0x3f];
+	dst[1] = base64[(t >> 12) & 0x3f];
+	dst[2] = base64[(t >> 6) & 0x3f];
+	dst[3] = base64[(t >> 0) & 0x3f];
+	src += 3; l -= 3;
+	dst += 4; r += 4;
+    }
+
+    switch (l) {
+    case 2:
+	t = (src[0] << 16) | (src[1] << 8);
+	dst[0] = base64[(t >> 18) & 0x3f];
+	dst[1] = base64[(t >> 12) & 0x3f];
+	dst[2] = base64[(t >> 6) & 0x3f];
+	dst[3] = '=';
+	dst += 4;
+	r += 4;
+	break;
+    case 1:
+	t = src[0] << 16;
+	dst[0] = base64[(t >> 18) & 0x3f];
+	dst[1] = base64[(t >> 12) & 0x3f];
+	dst[2] = dst[3] = '=';
+	dst += 4;
+	r += 4;
+	break;
+    case 0:
+	break;
+    }
+
+    *dst = 0;
+    return r;
+}
+
+/*
+ * Encode username and password
+ */
+char *
+_http_auth(char *usr, char *pwd)
+{
+    int len, lu, lp;
+    char *str, *s;
+
+    lu = strlen(usr);
+    lp = strlen(pwd);
+		
+    len = (lu * 4 + 2) / 3	/* user name, round up */
+	+ 1			/* colon */
+	+ (lp * 4 + 2) / 3	/* password, round up */
+	+ 1;			/* null */
+    
+    if ((s = str = (char *)malloc(len)) == NULL)
+	return NULL;
+
+    s += _http_base64(s, usr, lu);
+    *s++ = ':';
+    s += _http_base64(s, pwd, lp);
+    *s = 0;
+
+    return str;
+}
+
+/*
+ * retrieve a file by HTTP
+ */
 FILE *
 fetchGetHTTP(url_t *URL, char *flags)
 {
@@ -220,20 +368,20 @@ fetchGetHTTP(url_t *URL, char *flags)
     c->real_f = f;
 
     /* send request (proxies require absolute form, so use that) */
-    fprintf(f, "GET http://%s:%d/%s HTTP/1.1" ENDL,
-	    URL->host, URL->port, URL->doc);
+    _http_cmd(f, "GET http://%s:%d%s HTTP/1.1" ENDL,
+	      URL->host, URL->port, URL->doc);
 
     /* start sending headers away */
     if (URL->user[0] || URL->pwd[0]) {
-	fprintf(f, "Authorization: Basic ");
-	fprint64(f, (const unsigned char *)URL->user);
-	fputc(':', f);
-	fprint64(f, (const unsigned char *)URL->pwd);
-	fputs(ENDL, f);
+	char *auth_str = _http_auth(URL->user, URL->pwd);
+	if (!auth_str)
+	    goto fouch;
+	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
+	free(auth_str);
     }
-    fprintf(f, "Host: %s:%d" ENDL, URL->host, URL->port);
-    fprintf(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
-    fprintf(f, "Connection: close" ENDL ENDL);
+    _http_cmd(f, "Host: %s:%d" ENDL, URL->host, URL->port);
+    _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
+    _http_cmd(f, "Connection: close" ENDL ENDL);
 
     /* get response */
     if ((ln = fgetln(f, &len)) == NULL)
