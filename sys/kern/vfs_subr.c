@@ -90,7 +90,6 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
 static void	vdropl(struct vnode *vp);
-static void	vholdl(struct vnode *);
 static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *, int);
 
@@ -1992,7 +1991,7 @@ vhold(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
-static void
+void
 vholdl(struct vnode *vp)
 {
 
