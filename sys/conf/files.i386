@@ -50,7 +50,6 @@ i386/isa/if_ed.c		optional	ed	device-driver
 i386/isa/if_is.c		optional	is	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
 i386/isa/if_ne.c		optional	ne	device-driver
-i386/isa/if_we.c		optional	we	device-driver
 i386/isa/isa.c			optional	isa	device-driver
 i386/isa/lpa.c			optional	lpa	device-driver
 i386/isa/lpt.c			optional	lpt	device-driver
