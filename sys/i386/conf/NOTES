@@ -1832,6 +1832,8 @@ controller	isp0
 #	ISP_COMPILE_2100_FW	-	compile in 2100 firmware
 #	ISP_COMPILE_2200_FW	-	compile in 2200 firmware
 #
+#	ISP_TARGET_MODE		-	enable target mode operation
+#
 options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
 options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
 options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
@@ -1845,6 +1847,7 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_COMPILE_1080_FW=1
 #options 	ISP_COMPILE_2100_FW=1
 #options 	ISP_COMPILE_2200_FW=1
+#options 	ISP_TARGET_MODE=1
 
 device		dc0
 device		de0
