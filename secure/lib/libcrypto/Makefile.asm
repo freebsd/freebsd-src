@@ -2,7 +2,7 @@
 # Use this to help generate the asm *.s files after an import.  It is not
 # perfect by any means, but does what is needed.
 # Do a 'make -f Makefile.asm all' and it will generate *.s.  Move them
-# to the i386 subdir, and correct any exposed paths and $FreeBSD$ tags.
+# to the i386 subdir, and correct any exposed paths and $ FreeBSD $ tags.
 
 .if ${MACHINE_ARCH} == "i386"
 
@@ -51,7 +51,8 @@ CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 .SUFFIXES:	.pl .cmt
 
 .pl.cmt:
-	perl -I${PERLPATH} ${.IMPSRC} elf ${CPUTYPE:Mi386:S/i//} > ${.TARGET}
+	( echo '	# $$'FreeBSD'$$' ;\
+	perl -I${PERLPATH} ${.IMPSRC} elf ${CPUTYPE:Mi386:S/i//} ) > ${.TARGET}
 
 .cmt.s:
 	tr -d "'" < ${.IMPSRC} > ${.TARGET}

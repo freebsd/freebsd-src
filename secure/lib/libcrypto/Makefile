@@ -42,7 +42,16 @@ SRCS+=	a_bitstr.c a_bool.c a_bytes.c a_d2i_fp.c a_digest.c \
 INCS+=	asn1.h asn1_mac.h asn1t.h
 
 # bf
-SRCS+=	bf_cfb64.c bf_ecb.c bf_enc.c bf_ofb64.c bf_skey.c
+SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
+.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPU:Mi686}
+SRCS+=	bf-686.s
+.else
+SRCS+=	bf-586.s
+.endif
+.else
+SRCS+=	bf_enc.c
+.endif
 INCS+=	blowfish.h
 
 # bio
@@ -53,10 +62,16 @@ SRCS+=	b_dump.c b_print.c b_sock.c bf_buff.c bf_lbuf.c bf_nbio.c \
 INCS+=	bio.h
 
 # bn
-SRCS+=	bn_add.c bn_asm.c bn_blind.c bn_ctx.c bn_div.c bn_err.c bn_exp.c \
+SRCS+=	bn_add.c bn_blind.c bn_ctx.c bn_div.c bn_err.c bn_exp.c \
 	bn_exp2.c bn_gcd.c bn_kron.c bn_lib.c bn_mod.c bn_mont.c \
 	bn_mpi.c bn_mul.c bn_prime.c bn_print.c bn_rand.c bn_recp.c \
 	bn_shift.c bn_sqr.c bn_sqrt.c bn_word.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	bn-586.s co-586.s
+.else
+SRCS+=	bn_asm.c
+.endif
+
 INCS+=	bn.h
 
 # buffer
@@ -64,7 +79,12 @@ SRCS+=	buf_err.c buffer.c
 INCS+=	buffer.h
 
 # cast
-SRCS+=	c_cfb64.c c_ecb.c c_enc.c c_ofb64.c c_skey.c
+SRCS+=	c_cfb64.c c_ecb.c c_ofb64.c c_skey.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	cast-586.s
+.else
+SRCS+=	c_enc.c
+.endif
 INCS+=	cast.h
 
 # comp
@@ -77,10 +97,15 @@ INCS+=	conf.h conf_api.h
 
 # des
 SRCS+=	cbc3_enc.c cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c \
-	des_enc.c des_old.c des_old2.c ecb3_enc.c ecb_enc.c ede_cbcm_enc.c \
-	enc_read.c enc_writ.c fcrypt.c fcrypt_b.c ofb64ede.c ofb64enc.c \
+	des_old.c des_old2.c ecb3_enc.c ecb_enc.c ede_cbcm_enc.c \
+	enc_read.c enc_writ.c fcrypt.c ofb64ede.c ofb64enc.c \
 	ofb_enc.c pcbc_enc.c qud_cksm.c rand_key.c read2pwd.c \
 	rpc_enc.c set_key.c str2key.c xcbc_enc.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	des-586.s crypt586.s
+.else
+SRCS+=	des_enc.c fcrypt_b.c
+.endif
 INCS+=	des.h des_old.h
 
 # dh
@@ -126,6 +151,7 @@ SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 	m_ripemd.c m_sha.c m_sha1.c names.c openbsd_hw.c p5_crpt.c \
 	p5_crpt2.c p_dec.c p_enc.c p_lib.c p_open.c p_seal.c p_sign.c \
 	p_verify.c
+INCS+=	evp.h
 
 # hmac
 SRCS+=	hmac.c
@@ -155,6 +181,9 @@ INCS+=	md4.h
 
 # md5
 SRCS+=	md5_dgst.c md5_one.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	md5-586.s
+.endif
 INCS+=	md5.h
 
 # mdc2
@@ -194,11 +223,21 @@ SRCS+=	rc2_cbc.c rc2_ecb.c rc2_skey.c rc2cfb64.c rc2ofb64.c
 INCS+=	rc2.h
 
 # rc4
-SRCS+=	rc4_enc.c rc4_skey.c
+SRCS+=	rc4_skey.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	rc4-586.s
+.else
+SRCS+=	rc4_enc.c
+.endif
 INCS+=	rc4.h
 
 # rc5
-SRCS+=	rc5_ecb.c rc5_enc.c rc5_skey.c rc5cfb64.c rc5ofb64.c
+SRCS+=	rc5_ecb.c rc5_skey.c rc5cfb64.c rc5ofb64.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	rc5-586.s
+.else
+SRCS+=	rc5_enc.c
+.endif
 INCS+=	rc5.h
 
 # ripemd
@@ -213,6 +252,9 @@ INCS+=	rsa.h
 
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha_dgst.c sha_one.c
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=	sha1-586.s
+.endif
 INCS+=	sha.h
 
 # stack
@@ -280,6 +322,10 @@ afterinstall:
 .endfor
 
 .include <bsd.lib.mk>
+
+.if ${MACHINE_ARCH} == "i386"
+.PATH: ${.CURDIR}/i386
+.endif
 
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 _ideapath=	${LCRYPTO_SRC}/crypto/idea
