@@ -138,7 +138,6 @@
 141	pcdmx		PCDMX theatre lighting controller
 142	skip		SKIP port (security/skip) control device
 143	*urio		USB Rio 500 <n_hibma>
-144	nsmb		SMB/CIFS protocol interface <bp>
 145	*dri		DRI Graphics for OpenGL <dfr>
 146	*twe		3ware Escalade ATA RAID (controller)
 148	*agp		AGP <dfr>
