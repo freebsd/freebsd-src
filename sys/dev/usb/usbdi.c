@@ -241,7 +241,7 @@ usbd_open_pipe_intr(usbd_interface_handle iface, u_int8_t address,
 	ipipe->repeat = 1;
 	err = usbd_transfer(xfer);
 	*pipe = ipipe;
-	if (err != USBD_IN_PROGRESS)
+	if (err != USBD_IN_PROGRESS && err)
 		goto bad2;
 	return (USBD_NORMAL_COMPLETION);
 
@@ -1052,7 +1052,7 @@ usbd_do_request_async(usbd_device_handle dev, usb_device_request_t *req,
 	usbd_setup_default_xfer(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
 	    data, UGETW(req->wLength), 0, usbd_do_request_async_cb);
 	err = usbd_transfer(xfer);
-	if (err != USBD_IN_PROGRESS) {
+	if (err != USBD_IN_PROGRESS && err) {
 		usbd_free_xfer(xfer);
 		return (err);
 	}
