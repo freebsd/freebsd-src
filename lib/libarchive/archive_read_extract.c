@@ -72,7 +72,7 @@ struct fixup_entry {
 struct extract {
 	mode_t			 umask;
 	mode_t			 default_dir_mode;
-	struct archive_string	 mkdirpath;
+	struct archive_string	 create_parent_dir;
 	struct fixup_entry	*fixup_list;
 	struct fixup_entry	*current_fixup;
 
@@ -110,9 +110,11 @@ static int	extract_hard_link(struct archive *, struct archive_entry *, int);
 static int	extract_symlink(struct archive *, struct archive_entry *, int);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
-static int	mkdirpath(struct archive *, const char *, int flags);
-static int	mkdirpath_internal(struct archive *, char *, int flags);
-static int	mkdirpath_recursive(struct archive *, char *, int flags);
+static int	create_parent_dir(struct archive *, const char *, int flags);
+static int	create_parent_dir_internal(struct archive *, char *,
+		    int flags);
+static int	create_parent_dir_recursive(struct archive *, char *,
+		    int flags);
 static int	restore_metadata(struct archive *, struct archive_entry *,
 		    int flags);
 #ifdef HAVE_POSIX_ACL
@@ -275,7 +277,7 @@ archive_extract_cleanup(struct archive *a)
 		p = next;
 	}
 	extract->fixup_list = NULL;
-	archive_string_free(&extract->mkdirpath);
+	archive_string_free(&extract->create_parent_dir);
 	free(a->extract);
 	a->extract = NULL;
 }
@@ -409,7 +411,7 @@ extract_file(struct archive *a, struct archive_entry *entry, int flags)
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (fd < 0) {
-		mkdirpath(a, name, flags);
+		create_parent_dir(a, name, flags);
 		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
 	}
 	if (fd < 0) {
@@ -434,8 +436,9 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 	extract->pst = NULL; /* Invalidate cached stat data. */
 
 	/* Copy path to mutable storage. */
-	archive_strcpy(&(extract->mkdirpath), archive_entry_pathname(entry));
-	path = extract->mkdirpath.s;
+	archive_strcpy(&(extract->create_parent_dir),
+	    archive_entry_pathname(entry));
+	path = extract->create_parent_dir.s;
 
 	/* Deal with any troublesome trailing path elements. */
 	for (;;) {
@@ -477,7 +480,7 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 			unlink(path);
 	} else {
 		/* Doesn't already exist; try building the parent path. */
-		if (mkdirpath_internal(a, path, flags) != ARCHIVE_OK)
+		if (create_parent_dir_internal(a, path, flags) != ARCHIVE_OK)
 			return (ARCHIVE_WARN);
 	}
 
@@ -512,24 +515,26 @@ success:
  * path into mutable storage first.
  */
 static int
-mkdirpath(struct archive *a, const char *path, int flags)
+create_parent_dir(struct archive *a, const char *path, int flags)
 {
 	struct extract *extract;
+	int r;
 
 	extract = a->extract;
 
 	/* Copy path to mutable storage. */
-	archive_strcpy(&(extract->mkdirpath), path);
+	archive_strcpy(&(extract->create_parent_dir), path);
 
-	return (mkdirpath_internal(a, extract->mkdirpath.s, flags));
+	r = create_parent_dir_internal(a, extract->create_parent_dir.s, flags);
+	return (r);
 }
 
 /*
- * Handle remaining setup for mkdirpath_recursive(), assuming
+ * Handle remaining setup for create_parent_dir_recursive(), assuming
  * path is already in mutable storage.
  */
 static int
-mkdirpath_internal(struct archive *a, char *path, int flags)
+create_parent_dir_internal(struct archive *a, char *path, int flags)
 {
 	char *slash;
 	mode_t old_umask;
@@ -541,7 +546,7 @@ mkdirpath_internal(struct archive *a, char *path, int flags)
 		return (ARCHIVE_OK);
 	*slash = '\0';
 	old_umask = umask(~SECURE_DIR_MODE);
-	r = mkdirpath_recursive(a, path, flags);
+	r = create_parent_dir_recursive(a, path, flags);
 	umask(old_umask);
 	*slash = '/';
 	return (r);
@@ -554,7 +559,7 @@ mkdirpath_internal(struct archive *a, char *path, int flags)
  * Otherwise, returns ARCHIVE_WARN.
  */
 static int
-mkdirpath_recursive(struct archive *a, char *path, int flags)
+create_parent_dir_recursive(struct archive *a, char *path, int flags)
 {
 	struct stat st;
 	struct extract *extract;
@@ -579,7 +584,7 @@ mkdirpath_recursive(struct archive *a, char *path, int flags)
 		/* Don't bother trying to create null path, '.', or '..'. */
 		if (slash != NULL) {
 			*slash = '\0';
-			r = mkdirpath_recursive(a, path, flags);
+			r = create_parent_dir_recursive(a, path, flags);
 			*slash = '/';
 			return (r);
 		}
@@ -611,7 +616,7 @@ mkdirpath_recursive(struct archive *a, char *path, int flags)
 		return (ARCHIVE_WARN);
 	} else if (slash != NULL) {
 		*slash = '\0';
-		r = mkdirpath_recursive(a, path, flags);
+		r = create_parent_dir_recursive(a, path, flags);
 		*slash = '/';
 		if (r != ARCHIVE_OK)
 			return (r);
@@ -658,7 +663,7 @@ extract_hard_link(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
-		mkdirpath(a, pathname, flags);
+		create_parent_dir(a, pathname, flags);
 		r = link(linkname, pathname);
 	}
 
@@ -695,7 +700,7 @@ extract_symlink(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (r != 0) {
 		/* Might be a non-existent parent dir; try fixing that. */
-		mkdirpath(a, pathname, flags);
+		create_parent_dir(a, pathname, flags);
 		r = symlink(linkname, pathname);
 	}
 
@@ -728,7 +733,7 @@ extract_device(struct archive *a, struct archive_entry *entry,
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
-		mkdirpath(a, archive_entry_pathname(entry), flags);
+		create_parent_dir(a, archive_entry_pathname(entry), flags);
 		r = mknod(archive_entry_pathname(entry), mode,
 		    archive_entry_rdev(entry));
 	}
@@ -777,7 +782,7 @@ extract_fifo(struct archive *a, struct archive_entry *entry, int flags)
 
 	/* Might be a non-existent parent dir; try fixing that. */
 	if (r != 0 && errno == ENOENT) {
-		mkdirpath(a, archive_entry_pathname(entry), flags);
+		create_parent_dir(a, archive_entry_pathname(entry), flags);
 		r = mkfifo(archive_entry_pathname(entry),
 		    archive_entry_mode(entry));
 	}
