@@ -145,8 +145,6 @@ vm_offset_t kernel_vm_end;
 
 vm_offset_t vm_max_kernel_address;
 
-static vm_offset_t crashdumpmap;
-
 /*
  * Kernel pmap.
  */
@@ -328,9 +326,10 @@ pmap_bootstrap(vm_offset_t ekva)
 	bzero(tsb_kernel, tsb_kernel_size);
 
 	/*
-	 * Allocate the message buffer.
+	 * Allocate and map the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
+	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(msgbuf_phys);
 
 	/*
 	 * Patch the virtual address and the tsb mask into the trap table.
@@ -395,18 +394,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
 	pmap_temp_map_2 = virtual_avail;
 	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
-
-	/*
-	 * Allocate virtual address space for the message buffer.
-	 */
-	msgbufp = (struct msgbuf *)virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
-
-	/*
-	 * Allocate virtual address space to map pages during a kernel dump.
-	 */
-	crashdumpmap = virtual_avail;
-	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it into
@@ -838,25 +825,6 @@ pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 }
 
 /*
- * Make a temporary mapping for a physical address.  This is only intended
- * to be used for panic dumps. Caching issues can be ignored completely here,
- * because pages mapped this way are only read.
- */
-void *
-pmap_kenter_temporary(vm_offset_t pa, int i)
-{
-	struct tte *tp;
-	vm_offset_t va;
-
-	va = crashdumpmap + i * PAGE_SIZE;
-	tlb_page_demap(kernel_pmap, va);
-	tp = tsb_kvtotte(va);
-	tp->tte_vpn = TV_VPN(va, TS_8K);
-	tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_CP | TD_CV | TD_P;
-	return ((void *)crashdumpmap);
-}
-
-/*
  * Remove a wired page from kernel virtual address space.
  */
 void
@@ -897,25 +865,10 @@ pmap_kremove_flags(vm_offset_t va)
  * unchanged.
  */
 vm_offset_t
-pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
+pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
-	struct tte *tp;
-	vm_offset_t sva;
-	vm_offset_t va;
-	vm_offset_t pa;
 
-	pa = pa_start;
-	sva = *virt;
-	va = sva;
-	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		tp = tsb_kvtotte(va);
-		tp->tte_vpn = TV_VPN(va, TS_8K);
-		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
-		    TD_CP | TD_CV | TD_P | TD_W;
-	}
-	tlb_range_demap(kernel_pmap, sva, sva + (pa_end - pa_start) - 1);
-	*virt = va;
-	return (sva);
+	return (TLB_PHYS_TO_DIRECT(start));
 }
 
 /*

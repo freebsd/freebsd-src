@@ -35,12 +35,14 @@
 #include <sys/kerneldump.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <machine/metadata.h>
 #include <machine/kerneldump.h>
 #include <machine/ofw_mem.h>
 #include <machine/tsb.h>
+#include <machine/tlb.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == DEV_BSIZE);
 
@@ -132,9 +134,9 @@ reg_write(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
 static int
 blk_dump(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
 {
-	vm_size_t pos, npg, rsz;
-	void *va;
-	int c, counter, error, i, twiddle;
+	vm_size_t pos, rsz;
+	vm_offset_t va;
+	int c, counter, error, twiddle;
 
 	printf("  chunk at %#lx: %ld bytes ", (u_long)pa, (long)size);
 
@@ -145,10 +147,8 @@ blk_dump(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
 			printf("%c\b", "|/-\\"[twiddle++ & 3]);
 		rsz = size - pos;
 		rsz = (rsz > MAXDUMPSZ) ? MAXDUMPSZ : rsz;
-		npg = rsz >> PAGE_SHIFT;
-		for (i = 0; i < npg; i++)
-			va = pmap_kenter_temporary(pa + pos + i * PAGE_SIZE, i);
-		error = di->dumper(di->priv, va, 0, dumplo, rsz);
+		va = TLB_PHYS_TO_DIRECT(pa + pos);
+		error = di->dumper(di->priv, (void *)va, 0, dumplo, rsz);
 		if (error)
 			break;
 		dumplo += rsz;
