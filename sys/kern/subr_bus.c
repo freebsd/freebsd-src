@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.25 1999/05/22 09:52:21 peter Exp $
+ *	$Id: subr_bus.c,v 1.26 1999/05/22 14:57:15 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -663,9 +663,9 @@ device_add_child_after(device_t dev, device_t place, const char *name,
 	return child;
 
     if (place) {
-	TAILQ_INSERT_AFTER(&dev->children, place, dev, link);
+	TAILQ_INSERT_AFTER(&dev->children, place, child, link);
     } else {
-	TAILQ_INSERT_HEAD(&dev->children, dev, link);
+	TAILQ_INSERT_HEAD(&dev->children, child, link);
     }
 
     return child;
