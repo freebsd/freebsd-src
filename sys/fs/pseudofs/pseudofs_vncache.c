@@ -80,8 +80,7 @@ extern vop_t **pfs_vnodeop_p;
 void
 pfs_vncache_load(void)
 {
-	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", NULL,
-	    MTX_DEF | MTX_RECURSE);
+	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", NULL, MTX_DEF);
 	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -220,24 +219,35 @@ pfs_vncache_free(struct vnode *vp)
 static void
 pfs_exit(void *arg, struct proc *p)
 {
-	struct pfs_vdata *pvd, *prev;
+	struct pfs_vdata *pvd;
+	struct vnode *vnp;
 
 	mtx_lock(&Giant);
-	mtx_lock(&pfs_vncache_mutex);
 	/*
-	 * The double loop is necessary because vgone() indirectly
-	 * calls pfs_vncache_free() which frees pvd, so we have to
-	 * backtrace one step every time we free a vnode.
+	 * This is extremely inefficient due to the fact that vgone() not
+	 * only indirectly modifies the vnode cache, but may also sleep.
+	 * We can neither hold pfs_vncache_mutex across a vgone() call,
+	 * nor make any assumptions about the state of the cache after
+	 * vgone() returns.  In consequence, we must start over after
+	 * every vgone() call, and keep trying until we manage to traverse
+	 * the entire cache.
+	 *
+	 * The only way to improve this situation is to change the data
+	 * structure used to implement the cache.  An obvious choice in
+	 * this particular case would be a BST sorted by PID.
 	 */
-	/* XXX linear search... not very efficient */
-	for (pvd = pfs_vncache; pvd != NULL; pvd = pvd->pvd_next) {
-		while (pvd != NULL && pvd->pvd_pid == p->p_pid) {
-			prev = pvd->pvd_prev;
-			vgone(pvd->pvd_vnode);
-			pvd = prev ? prev->pvd_next : pfs_vncache;
+	mtx_lock(&pfs_vncache_mutex);
+	pvd = pfs_vncache;
+	while (pvd != NULL) {
+		if (pvd->pvd_pid == p->p_pid) {
+			vnp = pvd->pvd_vnode;
+			mtx_unlock(&pfs_vncache_mutex);
+			vgone(vnp);
+			mtx_lock(&pfs_vncache_mutex);
+			pvd = pfs_vncache;
+		} else {
+			pvd = pvd->pvd_next;
 		}
-		if (pvd == NULL)
-			break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
 	mtx_unlock(&Giant);
@@ -249,22 +259,25 @@ pfs_exit(void *arg, struct proc *p)
 int
 pfs_disable(struct pfs_node *pn)
 {
-	struct pfs_vdata *pvd, *prev;
+	struct pfs_vdata *pvd;
+	struct vnode *vnp;
 
 	if (pn->pn_flags & PFS_DISABLED)
 		return (0);
-	mtx_lock(&pfs_vncache_mutex);
 	pn->pn_flags |= PFS_DISABLED;
-	/* see the comment about the double loop in pfs_exit() */
-	/* XXX linear search... not very efficient */
-	for (pvd = pfs_vncache; pvd != NULL; pvd = pvd->pvd_next) {
-		while (pvd != NULL && pvd->pvd_pn == pn) {
-			prev = pvd->pvd_prev;
-			vgone(pvd->pvd_vnode);
-			pvd = prev ? prev->pvd_next : pfs_vncache;
+	/* XXX see comment above nearly identical code in pfs_exit() */
+	mtx_lock(&pfs_vncache_mutex);
+	pvd = pfs_vncache;
+	while (pvd != NULL) {
+		if (pvd->pvd_pn == pn) {
+			vnp = pvd->pvd_vnode;
+			mtx_unlock(&pfs_vncache_mutex);
+			vgone(vnp);
+			mtx_lock(&pfs_vncache_mutex);
+			pvd = pfs_vncache;
+		} else {
+			pvd = pvd->pvd_next;
 		}
-		if (pvd == NULL)
-			break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
 	return (0);
