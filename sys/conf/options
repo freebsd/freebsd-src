@@ -249,6 +249,8 @@ NETGRAPH_FRAME_RELAY	opt_netgraph.h
 NETGRAPH_HOLE		opt_netgraph.h
 NETGRAPH_IFACE		opt_netgraph.h
 NETGRAPH_LMI		opt_netgraph.h
+NETGRAPH_PPP		opt_netgraph.h
+NETGRAPH_PPPOE		opt_netgraph.h
 NETGRAPH_RFC1490	opt_netgraph.h
 NETGRAPH_SOCKET		opt_netgraph.h
 NETGRAPH_TEE		opt_netgraph.h
