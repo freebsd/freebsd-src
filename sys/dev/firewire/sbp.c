@@ -305,21 +305,6 @@ static void sbp_mgm_orb __P((struct sbp_dev *, int));
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/Firewire");
 
-#define SBPPRI ((PZERO+8)|PCATCH)
-
-#define FOREACH_SDEV(tsdev, targets) \
-	tsdev = NULL; \
-	for (i = 0; i < SBP_NUM_TARGETS; i++) { \
-		if (targets[i].fwdev == NULL) \
-			continue; \
-		for (j = 0; j < targets[i].num_lun; j++) { \
-			tsdev = &targets[i].luns[j]; \
-			if (tsdev->status == SBP_DEV_DEAD) \
-				continue;
-#define FOREACH_SDEV_END \
-		} \
-	}
-
 /* cam related functions */
 static void	sbp_action(struct cam_sim *sim, union ccb *ccb);
 static void	sbp_poll(struct cam_sim *sim);
