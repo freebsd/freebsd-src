@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.82 1997/04/12 07:09:18 peter Exp $
+#	$Id: Makefile,v 1.83 1997/04/15 12:31:09 jkh Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -8,14 +8,14 @@
 #
 SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colldef colrm \
-	column comm compile_et compress cpp ctags cut dig \
+	column comm compile_et compress chkey cpp ctags cut dig \
 	dirname dnsquery du ee env error expand f2c false fetch file file2c \
 	find finger fmt fold fpr from fsplit fstat ftp gcore gencat getopt \
 	global gprof head hexdump host id indent ipcrm ipcs \
-	join jot kdump ktrace key keyinfo keyinit killall lam last \
-	lastcomm leave lex limits locate lock lockf logger login logname \
-	lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr mk_cmds \
-	modstat more msgs mt netstat nfsstat nice \
+	join jot kdump ktrace key keyinfo keyinit keylogin keylogout killall \
+	lam last lastcomm leave lex limits locate lock lockf logger login \
+	logmane lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
+	mk_cmds modstat more msgs mt netstat newkey nfsstat nice \
 	nm nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
 	printf quota ranlib rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
