@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/setjmp.h>
 
 void
-libc_r_md_getgregs(jmp_buf jb, prgregset_t *r)
+libc_r_md_getgregs(jmp_buf jb, prgregset_t r)
 {
 	r->r_regs[R_V0] = jb->_jb[4];
 	r->r_regs[R_T0] = jb->_jb[5];
