@@ -37,6 +37,7 @@
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 
 #include <i386/ibcs2/ibcs2_syscall.h>
 #include <i386/ibcs2/ibcs2_signal.h>
