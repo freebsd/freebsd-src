@@ -1,5 +1,5 @@
 # Makefile for libobjc
-# $Id$
+# $Id: Makefile,v 1.3 1997/02/22 15:43:02 peter Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
@@ -7,7 +7,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 LIB=    objc
 NOMAN=	sorry
-NOPIC=	does not work
+NOPIC=	works but method lookup slowdown is significant
 
 SRCS=   archive.c class.c encoding.c hash.c init.c misc.c \
 	my_objects.c sarray.c selector.c my_sendmsg.c \
