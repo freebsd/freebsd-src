@@ -1,12 +1,12 @@
 .\" -*- nroff -*-
 .\" manual page [] for chat 1.8
-.\" $Id: chat.8,v 1.7 1994/03/04 20:19:30 callahan Exp $
+.\" $Id: chat.8,v 1.2 1995/06/12 11:24:14 paulus Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
 .\" IP indented paragraph
 .\" TP hanging label
-.TH CHAT 8 "17 April 1994" "Chat Version 1.8"
+.TH CHAT 8 "5 May 1995" "Chat Version 1.9"
 .SH NAME
 chat \- Automated conversational script with a modem
 .SH SYNOPSIS
@@ -30,31 +30,18 @@ have read access to the file. Multiple lines are permitted in the
 file. Space or horizontal tab characters should be used to separate
 the strings.
 .TP
-.B -l \fI<lock file>
-Perform the UUCP style locking using the indicated lock file.
-.IP
-If the file could not be created then the \fIchat\fR program will
-fail. The lock file will be deleted only if the \fIchat\fR program
-fails to perform the script for any reason. If the script is
-successful the lock file will be left on the disk. It is expected that
-the lock file will be deleted when the \fIpppd\fR process no longer
-wishes to use the serial device.
-.IP
-The use of a lock file with 
-.I chat
-and 
-\fIpppd\fR\'s
-.I lock
-option should not be used at the same time. They are mutually
-exclusive options and will cause one or the other program to fail to
-achieve the required lock if you use both.
-.TP
 .B -t \fI<timeout>
 Set the timeout for the expected string to be received. If the string
 is not received within the time limit then the reply string is not
 sent. An alternate reply may be sent or the script will fail if there
 is no alternate reply string. A failed script will cause the
 \fIchat\fR program to terminate with a non-zero error code.
+.TP
+.B -r \fI<report file>
+Set the file for output of the report strings. If you use the keyword
+\fIREPORT\fR, the resulting strings are written to this file. If this
+option is not used and you still use \fIREPORT\fR keywords, the
+\fIstderr\fR file is used for the report strings.
 .TP
 .B -v
 Request that the \fIchat\fR script be executed in a verbose mode. The
@@ -80,9 +67,9 @@ allotted, it is to send a break sequence to the remote and then expect the
 string "ogin:". If the first "ogin:" is received then the break sequence is
 not generated.
 .LP
-Once it received the login prompt the \fIchat\fR program will send the string ppp
-and then expect the prompt "ssword:". When it receives the prompt for the
-password, it will send the password hello2u2.
+Once it received the login prompt the \fIchat\fR program will send the
+string ppp and then expect the prompt "ssword:". When it receives the
+prompt for the password, it will send the password hello2u2.
 .LP
 A carriage return is normally sent following the reply string. It is not
 expected in the "expect" string unless it is specifically requested by using
@@ -141,6 +128,32 @@ character sequence. The script will then fail because it found a match to
 the abort string. If it received the string \fINO CARRIER\fR, it will abort
 for the same reason. Either string may be received. Either string will
 terminate the \fIchat\fR script.
+
+.SH REPORT STRINGS
+A \fBreport\fR string is similar to the ABORT string. The difference
+is that the strings, and all characters to the next control character
+such as a carriage return, are written to the report file.
+.LP
+The report strings may be used to isolate the transmission rate of the
+modem's connect string and return the value to the chat user. The
+analysis of the report string logic occurs in conjunction with the
+other string processing such as looking for the expect string. The use
+of the same string for a report and abort sequence is probably not
+very useful, however, it is possible.
+.LP
+The report strings to no change the completion code of the program.
+.LP
+These "report" strings may be specified in the script using the \fIREPORT\fR
+sequence. It is written in the script as in the following example:
+.IP
+REPORT CONNECT ABORT BUSY '' ATDT5551212 CONNECT '' ogin: account
+.LP
+This sequence will expect nothing; and then send the string
+ATDT5551212 to dial the telephone. The expected string is
+\fICONNECT\fR. If the string \fICONNECT\fR is received the remainder
+of the script is executed. In addition the program will write to the
+expect-file the string "CONNECT" plus any characters which follow it
+such as the connection rate.
 .SH TIMEOUT
 The initial timeout value is 45 seconds. This may be changed using the \fB-t\fR
 parameter.
@@ -240,10 +253,55 @@ character.
 Substitute the sequence with the control character represented by C.
 For example, the character DC1 (17) is shown as \^^Q.
 .I (some characters are not valid in expect.)
+.SH TERMINATION CODES
+The \fIchat\fR program will terminate with the following completion
+codes.
+.TP
+.B 0
+The normal termination of the program. This indicates that the script
+was executed without error to the normal conclusion.
+.TP
+.B 1
+One or more of the parameters are invalid or an expect string was too
+large for the internal buffers. This indicates that the program as not
+properly executed.
+.TP
+.B 2
+An error occurred during the execution of the program. This may be due
+to a read or write operation failing for some reason or chat receiving
+a signal such as SIGINT.
+.TP
+.B 3
+A timeout event occurred when there was an \fIexpect\fR string without
+having a "-subsend" string. This may mean that you did not program the
+script correctly for the condition or that some unexpected event has
+occurred and the expected string could not be found.
+.TP
+.B 4
+The first string marked as an \fIABORT\fR condition occurred.
+.TP
+.B 5
+The second string marked as an \fIABORT\fR condition occurred.
+.TP
+.B 6
+The third string marked as an \fIABORT\fR condition occurred.
+.TP
+.B 7
+The fourth string marked as an \fIABORT\fR condition occurred.
+.TP
+.B ...
+The other termination codes are also strings marked as an \fIABORT\fR
+condition.
+.LP
+Using the termination code, it is possible to determine which event
+terminated the script. It is possible to decide if the string "BUSY"
+was received from the modem as opposed to "NO DIAL TONE". While the
+first event may be retried, the second will probably have little
+chance of succeeding during a retry.
 .SH SEE ALSO
 Additional information about \fIchat\fR scripts may be found with UUCP
-documentation. The \fIchat\fR script was taken from the ideas proposed by the
-scripts used by the \fIuucico\fR program.
+documentation. The \fIchat\fR script was taken from the ideas proposed
+by the scripts used by the \fIuucico\fR program.
 .LP
 uucico(1), uucp(1)
 .SH COPYRIGHT
