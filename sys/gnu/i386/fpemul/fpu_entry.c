@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.16 1998/10/18 04:36:58 peter Exp $
+ *  $Id: fpu_entry.c,v 1.17 1998/10/18 07:44:33 peter Exp $
  *
  */
 
@@ -516,7 +516,7 @@ gnufpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
 #else /* !LKM */
 
 static int
-gnufpu_modevent(module_t mod, modeventtype_t type, void *unused) 
+gnufpu_modevent(module_t mod, int type, void *unused) 
 {
 	switch (type) {
 	case MOD_LOAD:

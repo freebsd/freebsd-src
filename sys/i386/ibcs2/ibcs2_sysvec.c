@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.9 1998/11/06 16:00:47 peter Exp $
+ * $Id: ibcs2_sysvec.c,v 1.10 1998/11/07 04:34:02 peter Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ struct sysentvec ibcs2_svr3_sysvec = {
  * the presence of the subsystem.
  */
 static int
-ibcs2_modevent(module_t mod, modeventtype_t type, void *unused)
+ibcs2_modevent(module_t mod, int type, void *unused)
 {
 	/* Do not care */
 	return 0;
