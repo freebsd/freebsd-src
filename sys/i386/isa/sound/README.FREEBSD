@@ -90,7 +90,7 @@ Lugi also has  Sujal's PnP driver .
 This is my kernel configuration for my SB16 PnP:
 
 controller      snd0
-device sb0      at isa? port 0x220 irq 10 conflicts drq 3 vector sbintr
+device sb0      at isa? port 0x220 irq 10 conflicts drq 3
 device sbxvi0   at isa? port? irq? drq 5 conflicts
 device opl0     at isa? port 0x388 conflicts
 device sbmidi0  at isa? port 0x300 irq? conflicts
@@ -123,13 +123,13 @@ To configure your guspnp PRO if you have a motherboard which supports
 PnP:
 
 	controller snd0
-	device gus0 at isa?  vector gusintr
+	device gus0 at isa?
 
 NONPNP CONFIGURATION
 To configure your guspnp PRO if your motherboard does NOT support
 PnP:
 
-device gus0 at isa? port  0x220 irq 11 drq 1 flags 0x3 vector gusintr
+device gus0 at isa? port  0x220 irq 11 drq 1 flags 0x3
 
 
 the gus pnp is fully software configurable and the above configuration
