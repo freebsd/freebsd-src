@@ -349,6 +349,14 @@ main(argc, argv)
 		nflag = 1;
 		fprintf(stderr, "No kernel update is allowed\n");
 	}
+
+	if (dflag == 0) {
+		if (daemon(0, 0) < 0) {
+			fatal("daemon");
+			/*NOTREACHED*/
+		}
+	}
+
 	openlog(progname, LOG_NDELAY|LOG_PID, LOG_DAEMON);
 	logopened++;
 
@@ -389,21 +397,6 @@ main(argc, argv)
 	if (dflag)
 		ifrtdump(0);
 
-	if (dflag == 0) {
-#if 1
-		if (daemon(0, 0) < 0) {
-			fatal("daemon");
-			/*NOTREACHED*/
-		}
-#else
-		if (fork())
-			exit(0);
-		if (setsid() < 0) {
-			fatal("setid");
-			/*NOTREACHED*/
-		}
-#endif
-	}
 	pid = getpid();
 	if ((pidfile = fopen(ROUTE6D_PID, "w")) != NULL) {
 		fprintf(pidfile, "%d\n", pid);
