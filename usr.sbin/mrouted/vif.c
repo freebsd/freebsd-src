@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 3.6 1995/06/25 19:53:01 fenner Exp $
+ * $Id: vif.c,v 1.6 1995/06/28 17:58:48 wollman Exp $
  */
 
 
@@ -1334,7 +1334,7 @@ cbk_t *cbk;
 
 	send_igmp(v->uv_lcl_addr, cbk->g->al_addr,
 		  IGMP_HOST_MEMBERSHIP_QUERY,
-		  cbk->q_time, 0, 0);
+		  cbk->q_time, cbk->g->al_addr, 0);
 	cbk->g->al_query = 0;
 	free(cbk);
 }
