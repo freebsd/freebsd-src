@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.3 1997/05/15 04:20:17 archie Exp $
+ *	$Id: ip_fw.c,v 1.58 1997/06/02 05:02:36 julian Exp $
  */
 
 /*
@@ -258,7 +258,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct tcphdr *const tcp = (struct tcphdr *) ((u_long *) ip+ ip->ip_hl);
 	struct udphdr *const udp = (struct udphdr *) ((u_long *) ip+ ip->ip_hl);
 	struct icmp *const icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
-	char *cmd;
 	int count;
 
 	/* Print command name */
@@ -362,10 +361,11 @@ ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *oif, int ignport, struct mbuf **m)
 {
 	struct ip_fw_chain *chain;
-	struct ip_fw *rule;
+	struct ip_fw *rule = NULL;
 	struct ip *ip = *pip;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
-	u_short src_port, dst_port, offset;
+	u_short offset = (ip->ip_off & IP_OFFMASK);
+	u_short src_port, dst_port;
 
 	/*
 	 * Go down the chain, looking for enlightment
@@ -386,13 +386,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
-		if ((f->fw_flg & IP_FW_F_INVSRC) != 0
-		  ^ (ip->ip_src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
+		if (((f->fw_flg & IP_FW_F_INVSRC) != 0) ^ ((ip->ip_src.s_addr
+		    & f->fw_smsk.s_addr) != f->fw_src.s_addr))
 			continue;
 
 		/* If dest-addr doesn't match, not this rule. */
-		if ((f->fw_flg & IP_FW_F_INVDST) != 0
-		  ^ (ip->ip_dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
+		if (((f->fw_flg & IP_FW_F_INVDST) != 0) ^ ((ip->ip_dst.s_addr
+		    & f->fw_dmsk.s_addr) != f->fw_dst.s_addr))
 			continue;
 
 		/* Interface check */
@@ -419,7 +419,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 		/* Check IP options */
 		if (f->fw_ipopt != f->fw_ipnopt && !ipopts_match(ip, f))
 			continue;
-			
+
 		/* Check protocol; if wildcard, match */
 		if (f->fw_prot == IPPROTO_IP)
 			goto got_match;
@@ -428,15 +428,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 		if (ip->ip_p != f->fw_prot) 
 			continue;
 
-		/* Get fragment offset (if any) */
-		offset = (ip->ip_off & IP_OFFMASK);
-
 #define PULLUP_TO(len)	do {						\
 			    if ((*m)->m_len < (len)			\
 				&& (*m = m_pullup(*m, (len))) == 0) {	\
 				    goto bogusfrag;			\
 			    }						\
 			    *pip = ip = mtod(*m, struct ip *);		\
+			    offset = (ip->ip_off & IP_OFFMASK);		\
 			} while (0)
 
 		/* Protocol specific checks */
@@ -492,6 +490,7 @@ check_ports:
 				continue;
 			break;
 		    }
+#undef PULLUP_TO
 
 bogusfrag:
 			if (fw_verbose)
