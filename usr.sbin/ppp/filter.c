@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.10 1997/06/09 03:27:19 brian Exp $
+ * $Id: filter.c,v 1.6.2.2 1997/06/10 09:43:21 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -37,6 +37,7 @@
 #include "filter.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "ipcp.h"
 
 static struct filterent filterdata;
 
@@ -60,7 +61,6 @@ struct in_addr *paddr;
 struct in_addr *pmask;
 int *pwidth;
 {
-  u_long addr;
   int bits;
   char *cp, *wp;
 
@@ -72,8 +72,12 @@ int *pwidth;
   pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
   cp = index(*argv, '/');
   if (cp) *cp++ = '\0';
-  addr = inet_addr(*argv);
-  paddr->s_addr = addr;
+  if (strcasecmp(*argv, "HISADDR") == 0)
+    *paddr = IpcpInfo.his_ipaddr;
+  else if (strcasecmp(*argv, "MYADDR") == 0)
+    *paddr = IpcpInfo.want_ipaddr;
+  else
+    paddr->s_addr = inet_addr(*argv);
   if (cp && *cp) {
     bits = strtol(cp, &wp, 0);
     if (cp == wp || bits < 0 || bits > 32) {
