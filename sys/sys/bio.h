@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.31 1996/05/01 02:15:29 bde Exp $
+ * $Id: buf.h,v 1.32 1996/05/03 20:56:09 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -69,8 +69,8 @@ struct buf {
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
-	long	b_flags;	/* B_* flags. */
-	unsigned short b_qindex;		/* buffer queue index */
+	long	b_flags;		/* B_* flags. */
+	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_usecount;	/* buffer use count */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
@@ -134,7 +134,7 @@ struct buf {
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
-#define	B_CLUSTEROK		0x00020000	/* Pagein op, so swap() can count it. */
+#define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
 #define	B_READ		0x00100000	/* Read buffer. */
@@ -145,6 +145,7 @@ struct buf {
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
+#define	B_ORDERED	0x08000000	/* Must guarantee I/O ordering */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
@@ -205,6 +206,7 @@ int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
 int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
+int	bowrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	bqrelse __P((struct buf *));
 int	vfs_bio_awrite __P((struct buf *));
