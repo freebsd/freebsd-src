@@ -38,7 +38,7 @@
 
 enum mode { display_RATE, display_DELTA, display_SINCE, display_ABS };
 
-extern	int		cmdmode(char *cmd, char *args);
+extern	int		cmdmode(const char *cmd, const char *args);
 extern	enum mode	currentmode;
 
 #endif /* MODE_H */

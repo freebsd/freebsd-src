@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-/*
-static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 #include "systat.h"
 #include "extern.h"
@@ -71,6 +71,6 @@ struct	cmdtab cmdtab[] = {
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
 	  resettcp,	0 },
-        { 0 }
+        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];

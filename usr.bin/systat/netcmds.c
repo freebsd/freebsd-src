@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-/*
-static char sccsid[] = "@(#)netcmds.c	8.1 (Berkeley) 6/6/93";
-*/
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)netcmds.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 /*
  * Common network command support routines.
@@ -55,10 +55,11 @@ static const char rcsid[] =
 #include <netinet/in_pcb.h>
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+
 #include "systat.h"
 #include "extern.h"
 
@@ -71,8 +72,8 @@ static	struct hitem {
 
 int nports, nhosts, protos;
 
-static void changeitems __P((char *, int));
-static int selectproto __P((char *));
+static void changeitems __P((const char *, int));
+static int selectproto __P((const char *));
 static void showprotos __P((void));
 static int selectport __P((long, int));
 static void showports __P((void));
@@ -81,7 +82,7 @@ static void showhosts __P((void));
 
 int
 netcmd(cmd, args)
-	char *cmd, *args;
+	const char *cmd, *args;
 {
 
 	if (prefix(cmd, "proto")) {
@@ -128,50 +129,51 @@ netcmd(cmd, args)
 
 static void
 changeitems(args, onoff)
-	char *args;
+	const char *args;
 	int onoff;
 {
-	register char *cp;
+	char *cp, *tmpstr, *tmpstr1;
 	struct servent *sp;
 	struct hostent *hp;
 	struct in_addr in;
-	char *index();
 
-	cp = index(args, '\n');
+	tmpstr = tmpstr1 = strdup(args);
+	cp = index(tmpstr1, '\n');
 	if (cp)
 		*cp = '\0';
-	for (;;args = cp) {
-		for (cp = args; *cp && isspace(*cp); cp++)
+	for (;;tmpstr1 = cp) {
+		for (cp = tmpstr1; *cp && isspace(*cp); cp++)
 			;
-		args = cp;
+		tmpstr1 = cp;
 		for (; *cp && !isspace(*cp); cp++)
 			;
 		if (*cp)
 			*cp++ = '\0';
-		if (cp - args == 0)
+		if (cp - tmpstr1 == 0)
 			break;
-		sp = getservbyname(args,
+		sp = getservbyname(tmpstr1,
 		    protos == TCP ? "tcp" : protos == UDP ? "udp" : 0);
 		if (sp) {
 			selectport(sp->s_port, onoff);
 			continue;
 		}
-		hp = gethostbyname(args);
+		hp = gethostbyname(tmpstr1);
 		if (hp == 0) {
-			in.s_addr = inet_addr(args);
-			if (in.s_addr == -1) {
-				error("%s: unknown host or port", args);
+			in.s_addr = inet_addr(tmpstr1);
+			if ((int)in.s_addr == -1) {
+				error("%s: unknown host or port", tmpstr1);
 				continue;
 			}
 		} else
 			in = *(struct in_addr *)hp->h_addr;
 		selecthost(&in, onoff);
 	}
+	free(tmpstr);
 }
 
 static int
 selectproto(proto)
-	char *proto;
+	const char *proto;
 {
 
 	if (proto == 0 || streq(proto, "all"))

@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1980, 1992, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+static const char copyright[] =
+"@(#) Copyright (c) 1980, 1992, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include "systat.h"
 #include "extern.h"
 
@@ -87,7 +88,6 @@ main(argc, argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
-	int	err;
 
 	(void) setlocale(LC_TIME, "");
 
@@ -159,8 +159,8 @@ main(argc, argv)
 	}
 	gethostname(hostname, sizeof (hostname));
 	size = sizeof(clkinfo);
-	err = sysctlbyname("kern.clockrate", &clkinfo, &size, NULL, 0);
-	if (err != 0 || size != sizeof(clkinfo)) {
+	if (sysctlbyname("kern.clockrate", &clkinfo, &size, NULL, 0)
+	    || size != sizeof(clkinfo)) {
 		error("kern.clockrate");
 		die(0);
 	}
@@ -198,9 +198,9 @@ labels()
 
 void
 display(signo)
-	int signo;
+	int signo __unused;
 {
-	register int i, j;
+	int i, j;
 
 	/* Get the load average over the last minute. */
 	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
@@ -244,7 +244,7 @@ load()
 
 void
 die(signo)
-	int signo;
+	int signo __unused;
 {
 	move(CMDLINE, 0);
 	clrtoeol();
@@ -295,8 +295,8 @@ error(fmt, va_alist)
 }
 
 void
-nlisterr(namelist)
-	struct nlist namelist[];
+nlisterr(n_list)
+	struct nlist n_list[];
 {
 	int i, n;
 
@@ -304,9 +304,9 @@ nlisterr(namelist)
 	clear();
 	mvprintw(2, 10, "systat: nlist: can't find following symbols:");
 	for (i = 0;
-	    namelist[i].n_name != NULL && *namelist[i].n_name != '\0'; i++)
-		if (namelist[i].n_value == 0)
-			mvprintw(2 + ++n, 10, "%s", namelist[i].n_name);
+	    n_list[i].n_name != NULL && *n_list[i].n_name != '\0'; i++)
+		if (n_list[i].n_value == 0)
+			mvprintw(2 + ++n, 10, "%s", n_list[i].n_name);
 	move(CMDLINE, 0);
 	clrtoeol();
 	refresh();
