@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.1 1995/09/03 19:52:55 jkh Exp $
+ *  dgreg.h $Id: dgreg.h,v 1.2 1995/10/04 21:51:26 jkh Exp $
  *
  *  Digiboard driver.
  *
@@ -16,7 +16,7 @@
  *      babkin@hq.icb.chel.su
  */
 
-#define DEBUG  
+#define	DEBUG	1
 
 #define MAX_DGB_PORTS	32
 
