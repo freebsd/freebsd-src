@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.15 1996/06/29 10:25:31 peter Exp $
+ *	$Id: print.c,v 1.16 1996/10/21 07:30:24 peter Exp $
  */
 
 #ifndef lint
@@ -103,7 +103,10 @@ command(k, ve)
 	v = ve->var;
 
 	if (cflag) {
-		(void)printf("%-*s", v->width, KI_PROC(k)->p_comm);
+		if (ve->next == NULL)	/* last field, don't pad */
+			(void)printf("%s", KI_PROC(k)->p_comm);
+		else
+			(void)printf("%-*s", v->width, KI_PROC(k)->p_comm);
 		return;
 	}
 
