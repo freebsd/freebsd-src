@@ -29,7 +29,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd JANUARY 8, 2003
+.\"
+.Dd January 8, 2003
 .Os
 .Dt MAC 4
 .Sh NAME
@@ -44,12 +45,13 @@ finely control system security by providing for a loadable security policy
 architecture.
 It is important to note that due to its nature, MAC security policies may
 only restrict access relative to one another and the base system policy;
-they cannot override traditional UNIX
+they cannot override traditional
+.Ux
 security provisions such as file permissions and superuser checks.
 .Pp
 Currently, the following MAC policy modules are shipped with
 .Fx :
-.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy " ".Em Labeling" "boot only"
+.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy" ".Em Labeling" "boot only"
 .It Sy Name Ta Sy Description Ta Sy Labeling Ta Sy "Load time"
 .It Xr mac_biba 4 Ta "Biba integrity policy" Ta yes Ta boot only
 .It Xr mac_bsdextended 4 Ta "File system firewall" Ta no Ta any time
@@ -95,10 +97,10 @@ To set the
 flag, drop to single-user mode and unmount the file system,
 then execute the following command:
 .Pp
-.Dl "tunefs -l enable" Sy filesystem
+.Dl "tunefs -l enable" Ar filesystem
 .Pp
 where
-.Sy filesystem
+.Ar filesystem
 is either the mount point
 (in
 .Xr fstab 5 )
@@ -113,7 +115,7 @@ policies
 .Sx "Runtime Configuration" ) .
 Policy enforcement is divided into the following areas of the system:
 .Bl -ohang
-.It Sy File System
+.It Sy "File System"
 File system mounts, modifying directories, modifying files, etc.
 .It Sy KLD
 Loading, unloading, and retrieving statistics on loaded kernel modules
@@ -130,38 +132,32 @@ Creation of and operation on
 objects
 .It Sy Processes
 Debugging
-(e.g.
+(e.g.\&
 .Xr ktrace 2 ) ,
 process visibility
-.Xr ( ps 1 ) ,
+.Pq Xr ps 1 ,
 process execution
-.Xr ( execve 2 ) ,
+.Pq Xr execve 2 ,
 signalling
-.Xr ( kill 2 )
+.Pq Xr kill 2
 .It Sy Sockets
 Creation of and operation on
 .Xr socket 2
 objects
 .It Sy System
 Kernel environment
-.Xr ( kenv 1 ) ,
+.Pq Xr kenv 1 ,
 system accounting
-.Xr ( acct 2 ) ,
+.Pq Xr acct 2 ,
 .Xr reboot 2 ,
 .Xr settimeofday 2 ,
 .Xr swapon 2 ,
 .Xr sysctl 3 ,
-.Sm off
-.Xr nfsd 8 -
-related
-.Sm on
-operations
+.Xr nfsd 8 Ns
+-related operations
 .It Sy VM
-.Sm off
-.Xr mmap 2 -
-ed
-.Sm on
-files
+.Xr mmap 2 Ns
+-ed files
 .El
 .Ss Setting MAC Labels
 From the command line, each type of system object has its own means for setting
@@ -195,51 +191,50 @@ man page.
 The following
 .Xr sysctl 8
 MIBs are available for fine-tuning the enforcement of MAC policies.
-Unless specifically noted, all MIBs default to
-.Li 1
+Unless specifically noted, all MIBs default to 1
 (that is, all areas are enforced by default):
-.Bl -tag -width "security.mac.enforce_network"
+.Bl -tag -width ".Va security.mac.enforce_network"
 .It Va security.mac.enforce_fs
-Enforce MAC policies for file system accesses
+Enforce MAC policies for file system accesses.
 .It Va security.mac.enforce_kld
 Enforce MAC policies on
-.Xr kld 4
+.Xr kld 4 .
 .It Va security.mac.enforce_network
-Enforce MAC policies on network interfaces
+Enforce MAC policies on network interfaces.
 .It Va security.mac.enforce_pipe
-Enforce MAC policies on pipes
+Enforce MAC policies on pipes.
 .It Va security.mac.enforce_process
 Enforce MAC policies between system processes
-(e.g.
+(e.g.\&
 .Xr ps 1 ,
-.Xr ktrace 2 )
+.Xr ktrace 2 ) .
 .It Va security.mac.enforce_socket
-Enforce MAC policies on sockets
+Enforce MAC policies on sockets.
 .It Va security.mac.enforce_system
 Enforce MAC policies on system-related items
-(e.g.
+(e.g.\&
 .Xr kenv 1 ,
 .Xr acct 2 ,
-.Xr reboot 2 )
+.Xr reboot 2 ) .
 .It Va security.mac.enforce_vm
 Enforce MAC policies on
 .Xr mmap 2
 and
-.Xr mprotect 2
+.Xr mprotect 2 .
 .\" *** XXX ***
 .\" Support for this feature is poor and should not be encouraged.
 .\"
 .\" .It Va security.mac.mmap_revocation
 .\" Revoke
 .\" .Xr mmap 2
-.\" access to files on subject relabel
+.\" access to files on subject relabel.
 .\" .It Va security.mac.mmap_revocation_via_cow
 .\" Revoke
 .\" .Xr mmap 2
 .\" access to files via copy-on-write semantics;
 .\" mapped regions will still appear writable, but will no longer
-.\" effect a change on the underlying vnode
-.\" (Default: 0)
+.\" effect a change on the underlying vnode.
+.\" (Default: 0).
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
@@ -253,36 +248,41 @@ and
 .Xr mac_portacl 4 ,
 .Xr mac_seeotheruids 4 ,
 .Xr mac_test 4 ,
-.Xr login.5 ,
+.Xr login.conf 5 ,
 .Xr maclabel 7 ,
 .Xr getfmac 8 ,
-.Xr setfmac 8 ,
 .Xr getpmac 8 ,
+.Xr setfmac 8 ,
 .Xr setpmac 8 ,
 .Xr mac 9
 .Rs
 .%B "The FreeBSD Handbook"
 .%T "Mandatory Access Control"
-.%O http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/mac.html
+.%O http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mac.html
 .Re
 .Sh HISTORY
 The
 .Nm
 implementation first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
 See
 .Xr mac 9
 concerning appropriateness for production use.
-The TrustedBSD MAC Framework is considered experimental in
+The
+.Tn TrustedBSD
+MAC Framework is considered experimental in
 .Fx .
 .Pp
 While the MAC Framework design is intended to support the containment of

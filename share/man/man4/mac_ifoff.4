@@ -29,26 +29,33 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd DECEMBER 10, 2002
+.\"
+.Dd December 10, 2002
 .Os
 .Dt MAC_IFOFF 4
 .Sh NAME
 .Nm mac_ifoff
-.Nd interface silencing policy
+.Nd "interface silencing policy"
 .Sh SYNOPSIS
 To compile the interface silencing policy into your kernel,
 place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_IFOFF"
+.Ed
 .Pp
 Alternately, to load the interface silencing policy module at boot time,
 place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf 5 :
-.Cd mac_ifoff_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_ifoff_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,25 +66,19 @@ via the
 interface.
 .Pp
 To disable network traffic over the loopback
-.Xr ( lo 4 )
+.Pq Xr lo 4
 interface, set the
 .Xr sysctl 8
 OID
 .Va security.mac.ifoff.lo_enabled
-to
-.Li 0
-(default
-.Li 1 ) .
+to 0 (default 1).
 .Pp
 To enable network traffic over other interfaces,
 set the
 .Xr sysctl 8
 OID
 .Va security.mac.ifoff.other_enabled
-to
-.Li 1
-(default
-.Li 0 ) .
+to 1 (default 0).
 .Pp
 To allow BPF traffic to be received,
 even while other traffic is disabled,
@@ -85,10 +86,7 @@ set the
 .Xr sysctl 8
 OID
 .Va security.mac.ifoff.bpfrecv_enabled
-to
-.Li 1
-(default
-.Li 0 ) .
+to 1 (default 0).
 .Ss Label Format
 No labels are defined.
 .Sh SEE ALSO
@@ -108,19 +106,24 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
 See
 .Xr mac 9
 concerning appropriateness for production use.
-The TrustedBSD MAC Framework is considered experimental in
+The
+.Tn TrustedBSD
+MAC Framework is considered experimental in
 .Fx .
 .Pp
 While the MAC Framework design is intended to support the containment of
