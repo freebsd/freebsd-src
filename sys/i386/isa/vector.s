@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.26 1997/04/26 11:46:07 peter Exp $
+ *	$Id: vector.s,v 1.27 1997/04/27 21:18:59 fsmp Exp $
  */
 
 /*
@@ -12,7 +12,6 @@
 
 #if defined(SMP)
 #include <machine/smpasm.h>	/* this includes <machine/apic.h> */
-#include <machine/smptests.h>	/** TEST_CPUHITS */
 #endif /* SMP */
 
 #include <i386/isa/icu.h>
@@ -43,16 +42,6 @@
 
 
 #if defined(APIC_IO)
-
-#if defined(SMP) && defined(TEST_CPUHITS)
-
-#undef GET_MPLOCK
-#define GET_MPLOCK		\
-	call	_get_mplock ; 	\
-	GETCPUID(%eax) ; 	\
-	incl	_cpuhits(,%eax,4)
-
-#endif /* SMP && TEST_CPUHITS */
 
 #define REDTBL_IDX(irq_num)	(0x10 + ((irq_num) * 2))
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
@@ -351,23 +340,10 @@ _Xinvltlb:
 	pushl	%eax
 	movl	%cr3, %eax
 	movl	%eax, %cr3
-#if 0
-/** XXX FIXME: convert to Bruces suggested 'ss' style, eliminating %ds */
-	ss
-	incl	_ipihits
 	ss
 	movl	_apic_base, %eax
 	ss
 	movl	$0, APIC_EOI(%eax)
-#else
-	pushl	%ds
-	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	incl	_ipihits
-	movl	_apic_base, %eax
-	movl	$0, APIC_EOI(%eax)
-	popl	%ds
-#endif
 	popl	%eax
 	iret
 #endif /* APIC_IO */
@@ -473,23 +449,6 @@ _ivectors:
 /* active flag for lazy masking */
 iactive:
 	.long	0
-
-	.globl _ipihits
-_ipihits:
-	.long	0
-
-#if defined(TEST_CPUHITS)
-	.globl _cpuhits
-_cpuhits:
-#if !defined(NCPU)
-/**
- * FIXME: need a way to pass NCPU to .s files.
- *        NCPU currently defined in smp.h IF NOT defined in opt_smp.h.
- */
-#define NCPU	4
-#endif /* NCPU */
-	.space	NCPU*4
-#endif /* TEST_CPUHITS */
 
 #endif /* APIC_IO */
 
