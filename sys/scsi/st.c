@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.84 1997/12/02 21:07:05 phk Exp $
+ * $Id: st.c,v 1.85 1998/01/24 02:54:53 eivind Exp $
  */
 
 /*
@@ -1911,7 +1911,11 @@ st_touch_tape(unit)
 	u_int32_t readsiz;
 	errval  errno;
 
+#ifdef BOUNCE_BUFFERS
+	buf = (caddr_t) vm_bounce_kva_alloc(btoc(1024));
+#else
 	buf = malloc(1024, M_TEMP, M_NOWAIT);
+#endif
 	if (!buf)
 		return (ENOMEM);
 
@@ -1938,7 +1942,11 @@ bad:			free(buf, M_TEMP);
 			return (errno);
 		}
 	} while (readsiz != 1 && readsiz > st->blksiz);
+#ifdef BOUNCE_BUFFERS
+	vm_bounce_kva_alloc_free((vm_offset_t) buf, btoc(1024));
+#else
 	free(buf, M_TEMP);
+#endif
 	return 0;
 }
 
