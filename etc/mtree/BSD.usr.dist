@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.36 1995/04/01 04:47:43 ache Exp $
+#	$Id: BSD.usr.dist,v 1.37 1995/04/08 17:48:00 nate Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -119,6 +119,8 @@
 		no_NO.ISO8859-1	type=link link=lt_LN.ISO8859-1
 		pt_PT.ISO8859-1	type=link link=lt_LN.ISO8859-1
 		sv_SE.ISO8859-1	type=link link=lt_LN.ISO8859-1
+		ru_SU.CP866
+		..
 		ru_SU.KOI8-R
 		..
 	..
