@@ -9,7 +9,7 @@ CFLAGS+=-DPERMIT_CONSOLE -I${.CURDIR}
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s skey.h ${DESTDIR}/usr/include/skey.h || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 skey.h \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 skey.h \
 	  ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

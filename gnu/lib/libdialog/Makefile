@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.11 1995/05/03 18:53:19 ache Exp $
+# $Id: Makefile,v 1.12 1995/05/04 09:45:29 ache Exp $
 
 LIB=    dialog
 SHLIB_MAJOR= 3
@@ -15,7 +15,7 @@ DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s dialog.h ${DESTDIR}/usr/include/dialog.h || \
-	      install -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
+	      ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
 	      ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

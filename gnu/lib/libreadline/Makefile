@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.19 1995/02/15 20:59:13 ache Exp $
+#       $Id: Makefile,v 1.20 1995/05/08 08:43:06 ache Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
@@ -20,7 +20,7 @@ beforeinstall:
 	cd ${.CURDIR}; \
 	for m in ${HEADERS} ; do \
 	  cmp -s $$m ${DESTDIR}/usr/include/readline/$$m || \
-	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		$$m ${DESTDIR}/usr/include/readline ; \
 	done
 

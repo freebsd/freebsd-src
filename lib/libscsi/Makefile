@@ -12,7 +12,7 @@ MAN3=	scsi.3
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s scsi.h ${DESTDIR}/usr/include/scsi.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 scsi.h \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 scsi.h \
 	    ${DESTDIR}/usr/include
 
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.27 1995/07/13 10:04:11 rgrimes Exp $
+#	$Id: Makefile,v 1.28 1995/08/05 20:24:32 wollman Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -43,7 +43,7 @@ beforeinstall: ${SHARED}
 	@cd ${.CURDIR}; \
 	for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
-		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
+		    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
@@ -72,7 +72,7 @@ beforeinstall: ${SHARED}
 		chmod 755 ${DESTDIR}/usr/include/$$i; \
 		(cd ${.CURDIR}/$$i; for j in *.[ih]; do \
 			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j || \
-			    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
+			    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
 			    ${DESTDIR}/usr/include/$$i/$$j; \
 		done); \
 	done
