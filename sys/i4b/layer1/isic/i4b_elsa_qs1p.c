@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 16:00:24 2000]
+ *      last edit-date: [Sun Dec  3 17:18:59 2000]
  *
  *	Note: ELSA Quickstep 1000pro PCI = ELSA MicroLink ISDN/PCI
  *
@@ -289,7 +289,7 @@ eqs1p_pci_attach(device_t dev)
 	if(!(sc->sc_resources.irq =
 			bus_alloc_resource(dev, SYS_RES_IRQ,
 					   &sc->sc_resources.irq_rid,
-					   0UL, ~0UL, 1, RF_ACTIVE)))
+					   0UL, ~0UL, 1, RF_ACTIVE | RF_SHAREABLE)))
 	{
 		printf("isic%d: Could not get irq for ELSA MicroLink ISDN/PCI!\n",unit);
 		isic_detach_common(dev);
