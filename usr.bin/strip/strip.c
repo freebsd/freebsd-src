@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id$";
+static char RCSid[] = "$Id: strip.c,v 1.2 1994/09/03 12:58:05 csgr Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -95,7 +95,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	while ((fn = *argv++)) {
+	while ((fn = *argv++) != NULL) {
 		if ((fd = open(fn, O_RDWR)) < 0 ||
 		    (nb = read(fd, &head, sizeof(EXEC))) == -1) {
 			err(0, "%s: %s", fn, strerror(errno));
@@ -187,8 +187,11 @@ s_stab(fn, fd, ep)
 	 * of the string table.
 	 */
 	strbase = (char *)ep + N_STROFF(*ep);
-	if ((nstrbase = malloc((u_int)*(u_long *)strbase)) == NULL)
-		err(1, "%s", strerror(errno));
+	if ((nstrbase = malloc((size_t)*(u_long *)strbase)) == NULL) {
+		err(0, "%s", strerror(errno));
+		munmap((caddr_t)ep, sb.st_size);
+		return;
+	}
 	nstr = nstrbase + sizeof(u_long);
 
 	/*
@@ -201,14 +204,13 @@ s_stab(fn, fd, ep)
 			*nsym = *sym;
 			nsym->strx = nstr - nstrbase;
 			p = strbase + sym->strx;
-			if(xflag && 
+			if (xflag && 
 			    (!(sym->n_type & N_EXT) ||
-			    (sym->n_type & ~N_EXT) == N_FN ||
-			    strcmp(p, "gcc_compiled.") == 0 ||
-			    strcmp(p, "gcc2_compiled.") == 0 ||
-			    strcmp(p, "___gnu_compiled_c") == 0)) {
+			     (sym->n_type & ~N_EXT) == N_FN ||
+			     strcmp(p, "gcc_compiled.") == 0 ||
+			     strcmp(p, "gcc2_compiled.") == 0 ||
+			     strcmp(p, "___gnu_compiled_c") == 0))
 				continue;
-			}
 			len = strlen(p) + 1;
 			bcopy(p, nstr, len);
 			nstr += len;
