@@ -1,4 +1,4 @@
-.\" 
+.\"
 .\" Copyright (c) 2002 Poul-Henning Kamp
 .\" Copyright (c) 2002 Networks Associates Technology, Inc.
 .\" All rights reserved.
@@ -30,17 +30,16 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" 
+.\"
 .Dd October 19, 2002
 .Os
-.Dt gbde 4
+.Dt GBDE 4
 .Sh NAME
 .Nm gbde
-.Nd Geom Based Disk Encryption.
+.Nd Geom Based Disk Encryption
 .Sh SYNOPSIS
-.Cd options GEOM_BDE
+.Cd "options GEOM_BDE"
 .Sh NOTICE
-.Pp
 Please be aware that this code has not yet received much review
 and analysis by qualified cryptographers and therefore should be considered
 a slightly suspect experimental facility.
@@ -52,7 +51,6 @@ be prepared that
 .Xr restore 8
 based migrations may be called for in the future.
 .Sh DESCRIPTION
-.Pp
 The objective of this facility is to provide a high degree of
 denial of access to the contents of a
 .Dq cold
@@ -64,8 +62,8 @@ the storage device is actively attached and opened with a valid
 pass-phrase, this facility offers no protection or denial of access
 to the contents of the storage device.
 .Pp
-If on the other hand, the device is
-.Dq cold
+If, on the other hand, the device is
+.Dq cold ,
 it should present an formidable
 challenge for an attacker to gain access to the contents in the absence of
 a valid pass-phrase.
@@ -76,10 +74,11 @@ and only a valid pass-phrase will yield this access.
 When the pass-phrase is entered, it is hashed with SHA2 into a 512 bit
 .Dq key-material .
 This is a way of producing cryptographic usable keys from a typically
-all-ASCII pass-phrase of an unpredictable user-selected length.
+.No all- Ns Tn ASCII
+pass-phrase of an unpredictable user-selected length.
 .Ss First barrier: the location of the \&"lock-sector".
 During initialization, up to four independent but mutually aware
-.Dq lock-sectors
+.Dq lock
 sectors are written to the device in randomly chosen
 locations.
 These lock-sectors contain the 2048 random bit master-key and a number
@@ -104,7 +103,7 @@ The encoded bytestream is encrypted with 256bit AES in CBC mode.
 .Ss Third barrier: decryption of the sector key.
 For each sector, an MD5 hash over a
 .Dq salt
-from the lock-sector and the sector number is used to 
+from the lock-sector and the sector number is used to
 .Dq cherry-pick
 a subset of the master key,
 which hashed together with the sector offset through MD5 produces the
@@ -152,7 +151,9 @@ attacker,
 and a number of scenarios can be imagined where undue pressure will be
 applied to an individual to divulge the pass-phrase.
 .Pp
-A "Blackening" feature provides a way for the user, given a moment of
+A
+.Dq Blackening
+feature provides a way for the user, given a moment of
 opportunity, to destroy the master-key in such a way that the pass-phrase
 will be acknowledged as good but access to the data will still be
 denied.
@@ -162,12 +163,13 @@ watching silicon sublimate the author humbly offers this analogy to the
 keying scheme for a protected device:
 .Pp
 Imagine an installation with a vault with walls of several hundred meters
-thick solid steel.  This vault can only be feasibly accessed using the
+thick solid steel.
+This vault can only be feasibly accessed using the
 single key, which has a complexity comparable to a number with 600 digits.
 .Pp
-This key exists in four copies, each of which is stored in one of 
+This key exists in four copies, each of which is stored in one of
 four small safes, each of which can be opened
-with unique key which has a complexity comparable to a 80 digit
+with unique key which has a complexity comparable to an 80 digit
 number.
 .Pp
 In addition to the masterkey, each of the four safes also contains
@@ -178,7 +180,7 @@ are practically impossible to detect when they are closed.
 Finally, each safe contains four switches which are wired to a bar
 of dynamite inside each of the four safes.
 .Pp
-In addition to this, a keyholder after opening his key-safe is 
+In addition to this, a keyholder after opening his key-safe is
 also able to install a copy of the master-key and re-key any of
 key-safes (including his own).
 .Pp
@@ -222,7 +224,7 @@ some kind of structure or identifying byte sequences.
 Certain file formats like ELF contain multiple distinct sections, and it
 would be possible to locate things just right in such a way that a device
 contains a partition with a filesystem with a large executable,
-.Dq ( "a backup copy of my kernel" )
+.Pq Dq "a backup copy of my kernel"
 where a non-loaded ELF section is laid out
 consecutively on the device and thereby could be used to contain a
 .Nm
@@ -231,7 +233,6 @@ encrypted device.
 Apart from the ability to instruct
 .Nm
 which those sectors are, no support is provided for creating such a setup.
-.Pp
 .Ss Deployment suggestions
 For personal use, it may be wise to make a backup copy of the masterkey
 or use one of the four keys as a backup.
@@ -242,18 +243,18 @@ For company or institutional use, it is strongly advised to make a copy
 of the master-key and put it under whatever protection you have at your
 means.
 If you fail to do this, a disgruntled employee can deny you access to
-the data 
-.Dq by accident.
+the data
+.Dq "by accident" .
 (The employee can still intentionally deny access by applying another
-encryption scheme to the data, but that problem has no technical solution).
+encryption scheme to the data, but that problem has no technical solution.)
 .Ss Cryptographic strength
 This section lists the specific components which contribute to the cryptographic
 strength of
 .Nm .
 .Pp
-The payload is encrypted with AES in CBC mode using a 128 bit random 
+The payload is encrypted with AES in CBC mode using a 128 bit random
 single-use key
-.Dq ( "the skey" ) .
+.Pq Dq "the skey" .
 AES is well documented.
 .Pp
 No IV is used in the encryption of the sectors, the assumption being
@@ -267,12 +268,12 @@ which is believed to do a respectable job at producing unpredictable bytes.
 The skey is stored on the device in a location which can be derived from
 the location of the encrypted payload data.
 The stored copy is encrypted with AES in CBC mode using a 128 bit key
-.Dq ( "the kkey" )
+.Pq Dq "the kkey"
 derived
 from a subset of the master key chosen by the output of an MD5 hash
 over a 16 byte random bit static salt and the sector offset.
 Up to 6.25% of the masterkey (16 bytes out of 2048 bits) will be selected
-and hashed though MD5 with the sector offset to generate the kkey.
+and hashed through MD5 with the sector offset to generate the kkey.
 .Pp
 Up to four copies of the master-key and associated geometry information
 is stored on the device in static randomly chosen sectors.
@@ -286,16 +287,21 @@ The key-material is derived from the user-entered pass-phrase using
 .Pp
 No chain is stronger than its weakest link, which usually is poor pass-phrases.
 .Sh SEE ALSO
-.Xr gbde 8 .
+.Xr gbde 8
 .Rs
 .%A Poul-Henning Kamp
 .%T "Making sure data is lost: Spook-strength encryption of on-disk data"
 .%R "Refereed paper, NORDU2003 conference"
 .Re
 .Sh HISTORY
-This software was developed for the FreeBSD Project by Poul-Henning Kamp
-and NAI Labs, the Security Research Division of Network Associates, Inc.
-under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+This software was developed for the
+.Fx
+Project by
+.An Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.\&
+under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the
 DARPA CHATS research program.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org
