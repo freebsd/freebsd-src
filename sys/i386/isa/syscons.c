@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.11 1996/06/25 20:19:48 markm Exp $
+ *  $Id: syscons.c,v 1.117.4.12 1996/06/27 21:39:55 joerg Exp $
  */
 
 #include "sc.h"
@@ -190,13 +190,23 @@ gotack:
 	if (val != KB_RESET_DONE)
 	    printf("scprobe: keyboard RESET failed (result = 0x%02x)\n", val);
     }
+    /*
+     * Allow us to set the XT_KEYBD flag in UserConfig so that keyboards
+     * such as those on the IBM ThinkPad laptop computers can be used
+     * with the standard console driver.
+     */
+    if ( dev->id_flags & XT_KEYBD )
+        xt_keyboard = 1;
 #ifdef XT_KEYBOARD
-    kbd_wait();
-    outb(KB_DATA, 0xF0);
-    kbd_wait();
-    outb(KB_DATA, 1);
-    kbd_wait();
-#endif /* XT_KEYBOARD */
+    xt_keyboard = 1;
+#endif
+    if ( xt_keyboard ) {
+        kbd_wait();
+        outb(KB_DATA, 0xF0);
+        kbd_wait();
+        outb(KB_DATA, 1);
+        kbd_wait();
+    }
     return (IO_KBDSIZE);
 }
 
