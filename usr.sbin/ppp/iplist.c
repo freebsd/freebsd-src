@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iplist.c,v 1.2 1997/12/21 12:11:06 brian Exp $
  */
 
 #include <sys/types.h>
@@ -149,7 +149,7 @@ iplist_next(struct iplist *list)
 int
 iplist_setsrc(struct iplist *list, const char *src)
 {
-  strncpy(list->src, src, sizeof(list->src));
+  strncpy(list->src, src, sizeof(list->src)-1);
   list->src[sizeof(list->src)-1] = '\0';
   list->cur.srcptr = list->src;
   do {
