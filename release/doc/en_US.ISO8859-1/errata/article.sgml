@@ -168,6 +168,13 @@
       information can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>.</para>
 
+    <para><application>OpenSSH</application> contains a bug in its
+      buffer management code that could potentially cause it to crash.
+      This bug has been fixed via a vendor-supplied patch on the
+      &release.branch; development branch and the &release.prev;
+      security fix branch.  For more details, refer to security
+      advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
   </sect1>
 
   <sect1>

@@ -124,6 +124,12 @@
       Note that this feature is not used by the default configuration
       files shipped with &os;.</para>
 
+    <para>A buffer management bug in
+      <application>OpenSSH</application>, which could potentially cause
+      a crash, has been fixed.  More information can be found in
+      security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
