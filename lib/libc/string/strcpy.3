@@ -36,11 +36,11 @@
 .\"     @(#)strcpy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 9, 2001
 .Dt STRCPY 3
-.Os BSD 4
+.Os
 .Sh NAME
-.Nm strcpy
+.Nm strcpy , strncpy
 .Nd copy strings
 .Sh LIBRARY
 .Lb libc
@@ -80,11 +80,7 @@ characters long, and
 .Em not
 terminating
 .Fa dst
-if
-.Fa src
-is more than
-.Fa len
-characters long.
+otherwise.
 .Sh RETURN VALUES
 The
 .Fn strcpy
@@ -95,20 +91,64 @@ return
 .Fa dst .
 .Sh EXAMPLES
 The following sets
-.Dq Li chararray
+.Va chararray
 to
 .Dq Li abc\e0\e0\e0 :
 .Bd -literal -offset indent
-(void)strncpy(chararray, "abc", 6).
+char chararray[6];
+
+(void)strncpy(chararray, "abc", sizeof(chararray));
 .Ed
 .Pp
 The following sets
-.Dq Li chararray
+.Va chararray
 to
 .Dq Li abcdef :
 .Bd -literal -offset indent
-(void)strncpy(chararray, "abcdefgh", 6);
+char chararray[6];
+
+(void)strncpy(chararray, "abcdefgh", sizeof(chararray));
 .Ed
+.Pp
+Note that it does
+.Em not
+.Tn NUL
+terminate
+.Va chararray
+because the length of the source string is greater than or equal
+to the length parameter.
+.Pp
+The following copies as many characters from
+.Va input
+to
+.Va buf
+as will fit and
+.Tn NUL
+terminates the result.
+Because
+.Fn strncpy
+does
+.Em not
+guarantee to
+.Tn NUL
+terminate the string itself, this must be done explicitly.
+.Bd -literal -offset indent
+char buf[1024];
+
+(void)strncpy(buf, input, sizeof(buf) - 1);
+buf[sizeof(buf) - 1] = '\e0';
+.Ed
+.Pp
+This could be better achieved using
+.Xr strlcpy 3 ,
+as shown in the following example:
+.Pp
+.Dl "(void)strlcpy(buf, input, sizeof(buf));"
+.Pp
+Note that because
+.Xr strlcpy 3
+is not defined in any standards, it should
+only be used when portability is not a concern.
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memccpy 3 ,
