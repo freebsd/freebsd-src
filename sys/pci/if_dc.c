@@ -1564,38 +1564,30 @@ static int dc_probe(dev)
 static void dc_acpi(dev)
 	device_t		dev;
 {
-	u_int32_t		r, cptr;
 	int			unit;
 
 	unit = device_get_unit(dev);
 
-	/* Find the location of the capabilities block */
-	cptr = pci_read_config(dev, DC_PCI_CCAP, 4) & 0xFF;
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		u_int32_t		iobase, membase, irq;
 
-	r = pci_read_config(dev, cptr, 4) & 0xFF;
-	if (r == 0x01) {
+		/* Save important PCI config data. */
+		iobase = pci_read_config(dev, DC_PCI_CFBIO, 4);
+		membase = pci_read_config(dev, DC_PCI_CFBMA, 4);
+		irq = pci_read_config(dev, DC_PCI_CFIT, 4);
 
-		r = pci_read_config(dev, cptr + 4, 4);
-		if (r & DC_PSTATE_D3) {
-			u_int32_t		iobase, membase, irq;
+		/* Reset the power state. */
+		printf("dc%d: chip is in D%d power mode "
+		    "-- setting to D0\n", unit,
+		    pci_get_powerstate(dev));
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 
-			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, DC_PCI_CFBIO, 4);
-			membase = pci_read_config(dev, DC_PCI_CFBMA, 4);
-			irq = pci_read_config(dev, DC_PCI_CFIT, 4);
-
-			/* Reset the power state. */
-			printf("dc%d: chip is in D%d power mode "
-			    "-- setting to D0\n", unit, r & DC_PSTATE_D3);
-			r &= 0xFFFFFFFC;
-			pci_write_config(dev, cptr + 4, r, 4);
-
-			/* Restore PCI config data. */
-			pci_write_config(dev, DC_PCI_CFBIO, iobase, 4);
-			pci_write_config(dev, DC_PCI_CFBMA, membase, 4);
-			pci_write_config(dev, DC_PCI_CFIT, irq, 4);
-		}
+		/* Restore PCI config data. */
+		pci_write_config(dev, DC_PCI_CFBIO, iobase, 4);
+		pci_write_config(dev, DC_PCI_CFBMA, membase, 4);
+		pci_write_config(dev, DC_PCI_CFIT, irq, 4);
 	}
+
 	return;
 }
 
