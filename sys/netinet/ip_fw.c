@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.21 1995/07/23 05:36:29 davidg Exp $
+ *	$Id: ip_fw.c,v 1.22 1995/07/31 13:58:35 gpalmer Exp $
  */
 
 /*
@@ -100,6 +100,77 @@ port_match(portptr, nports, port, range_flag)
 }
 
 
+int
+ipopts_match(ip, f)
+	struct ip 	*ip;
+	struct ip_fw	*f;
+{
+	register u_char *cp;
+	int opt, optlen, cnt;
+	u_char	opts, nopts, nopts_sve;
+
+printf("Here\n");
+
+	cp = (u_char *)(ip + 1);
+	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	opts = f->fw_ipopt;
+	nopts = nopts_sve = f->fw_ipnopt;
+printf("opts = %x, nopts = %x\n", opts, nopts);
+printf("Cnt = %d\n", cnt);
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
+		opt = cp[IPOPT_OPTVAL];
+		if (opt == IPOPT_EOL)
+			break;
+		if (opt == IPOPT_NOP)
+			optlen = 1;
+		else {
+			optlen = cp[IPOPT_OLEN];
+			if (optlen <= 0 || optlen > cnt) {
+				goto bad;
+			}
+		}
+		switch (opt) {
+
+		default:
+			break;
+
+		case IPOPT_LSRR:
+printf("Has LSRR\n");
+			opts &= ~IP_FW_IPOPT_LSRR;
+			nopts &= ~IP_FW_IPOPT_LSRR;
+			break;
+
+		case IPOPT_SSRR:
+			opts &= ~IP_FW_IPOPT_SSRR;
+			nopts &= ~IP_FW_IPOPT_SSRR;
+			break;
+
+		case IPOPT_RR:
+			opts &= ~IP_FW_IPOPT_RR;
+			nopts &= ~IP_FW_IPOPT_RR;
+			break;
+		case IPOPT_TS:
+			opts &= ~IP_FW_IPOPT_TS;
+			nopts &= ~IP_FW_IPOPT_TS;
+			break;
+		}
+		if (opts == nopts)
+			break;
+	}
+printf("opts = %x, nopts = %x\n", opts, nopts);
+	if (opts == 0 && nopts == nopts_sve)
+		return 1;
+	else
+		return 0;
+bad:
+	if (ip_fw_policy & IP_FW_P_MBIPO)
+		return 1;
+	else
+		return 0;
+
+}
+
+
 /*
  * Returns TRUE if it should be accepted, FALSE otherwise.
  */
@@ -120,7 +191,6 @@ ip_fw_chk(m, ip, rif, chain)
 	struct in_addr src, dst, ia_i;
 	u_short src_port = 0, dst_port = 0;
 	u_short f_prt = 0, prt;
-	char notcpsyn = 1;
 
 	/*
 	 * If the chain is empty allow any packet-this is equal to disabling
@@ -153,8 +223,6 @@ ip_fw_chk(m, ip, rif, chain)
 		dprintf1("TCP ");
 		src_port = ntohs(tcp->th_sport);
 		dst_port = ntohs(tcp->th_dport);
-		if ((tcp->th_flags & TH_SYN) && !(tcp->th_flags & TH_ACK))
-			notcpsyn = 0;	/* We *DO* have SYN ,value FALSE */
 		prt = IP_FW_F_TCP;
 		break;
 	case IPPROTO_UDP:
@@ -174,11 +242,12 @@ ip_fw_chk(m, ip, rif, chain)
 	}
 	dprint_ip(ip->ip_src);
 	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP) {
-		dprintf2(":%d ", src_port);
-	}
+		dprintf2(":%d", src_port);
+	} 
+	dprintf1(" ");
 	dprint_ip(ip->ip_dst);
 	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP) {
-		dprintf2(":%d ", dst_port);
+		dprintf2(":%d", dst_port);
 	}
 	dprintf1("\n");
 
@@ -225,20 +294,22 @@ ip_fw_chk(m, ip, rif, chain)
 			 */
 			continue;
 	via_match:
+			/* 
+			 * If we get matching IP options, we may continue
+			 * checking ,else we have nothing to do here.
+			 * We DO check options only if some are set in
+			 * the entry definition. If both set and unset
+ 			 * options equal - nothing to check.
+			 */
+			if (f->fw_ipopt != f->fw_ipnopt)
+				if (!ipopts_match(ip, f))
+					continue;
+				
 			f_prt = f->fw_flg & IP_FW_F_KIND;
 			if (f_prt == IP_FW_F_ALL) {
 				/* Universal frwl - we've got a match! */
 				goto got_match;
 			} else {
-				/*
-				 * This is actually buggy as if you set SYN
-				 * flag on UDp or ICMP firewall it will never
-				 * work,but actually it is a concern of
-				 * software which sets firewall entries.
-				 */
-				if (f->fw_flg & IP_FW_F_TCPSYN && notcpsyn)
-					continue;
-
 				/*
 				 * Specific firewall - packet's protocol must
 				 * match firewall's
@@ -650,6 +721,10 @@ add_entry(chainptr, frwl)
 
 			skip_check:
 				}
+				if (ftmp->fw_ipopt != 0 && chtmp->fw_ipopt == 0)
+					addb4++;
+				if (ftmp->fw_ipnopt != 0 && chtmp->fw_ipnopt == 0)
+					addb4++;
 			}
 			if (addb4 > 0) {
 				if (chtmp_prev != NULL) {
