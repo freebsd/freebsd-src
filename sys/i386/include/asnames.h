@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.12 1997/12/18 02:09:29 peter Exp $
+ * $Id: asnames.h,v 1.13 1997/12/26 20:41:59 phk Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -234,9 +234,6 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
-#define _tsc_bias			tsc_bias
-#define _tsc_freq			tsc_freq
-#define _tsc_multiplier		tsc_multiplier
 #define _idqs				idqs
 #define _imen				imen
 #define _imen_lock			imen_lock
@@ -346,6 +343,9 @@
 #define _trap				trap
 #define _trap_by_wrmsr			trap_by_wrmsr
 #define _trapwrite			trapwrite
+#define _tsc_bias			tsc_bias
+#define _tsc_freq			tsc_freq
+#define _tsc_multiplier			tsc_multiplier
 #define _tty_imask			tty_imask
 #define _userconfig_from_boot		userconfig_from_boot
 #define _vec				vec
