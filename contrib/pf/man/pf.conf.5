@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 14, 2004
+.Dd October 3, 2004
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1316,6 +1316,17 @@ This is equivalent to "from any to any".
 Similar to
 .Ar user ,
 this rule only applies to packets of sockets owned by the specified group.
+.Pp
+The use of
+.Ar group
+or
+.Ar user
+in
+.Va debug.mpsafenet Ns = Ns 1
+environments may result in a deadlock.
+Please see the
+.Sx BUGS
+section for details.
 .It Ar user <user>
 This rule only applies to packets of sockets owned by the specified user.
 For outgoing connections initiated from the firewall, this is the user
@@ -2610,6 +2621,26 @@ Service name database.
 .It Pa /usr/share/examples/pf
 Example rulesets.
 .El
+.Sh BUGS
+Due to a lock order reversal (LOR) with the socket layer, the use of the
+.Ar group
+and
+.Ar user
+filter parameter in conjuction with a Giant-free netstack
+can result in a deadlock.
+If you have to use
+.Ar group
+or
+.Ar user
+you must set
+.Va debug.mpsafenet
+to
+.Dq 0
+from the
+.Xr loader 8 ,
+for the moment.
+This workaround will still produce the LOR, but Giant will protect from the
+deadlock.
 .Sh SEE ALSO
 .Xr icmp 4 ,
 .Xr icmp6 4 ,
