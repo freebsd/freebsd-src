@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.79 1998/06/30 08:24:01 jmg Exp $
+#	$Id: options.i386,v 1.80 1998/06/30 08:32:51 jmg Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -10,6 +10,9 @@ VM86			opt_vm86.h
 
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
+LINUX			opt_dontuse.h
+
+DEBUG_LINUX		opt_linux.h
 
 SHOW_BUSYBUFS
 TUNE_1542
@@ -74,7 +77,6 @@ I386_CPU		opt_global.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
-LINUX			opt_global.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h

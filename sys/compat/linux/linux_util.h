@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $Id$
+ * $Id: linux_util.h,v 1.5 1997/02/22 09:38:30 peter Exp $
  */
 
 /*
@@ -38,6 +38,8 @@
 
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
+
+#include "opt_linux.h"
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
