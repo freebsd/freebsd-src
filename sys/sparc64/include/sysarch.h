@@ -69,6 +69,7 @@ int __sparc_utrap_install(utrap_entry_t type, utrap_handler_t new_precise,
 			  utrap_handler_t new_deferred,
 			  utrap_handler_t *old_precise,
 			  utrap_handler_t *old_deferred);
+int sysarch(int, void *);
 __END_DECLS
 #endif
 
