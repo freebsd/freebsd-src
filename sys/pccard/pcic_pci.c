@@ -430,7 +430,7 @@ pcic_pci_attach(device_t dev)
 	sp->sc = sc;
 	sockbase = pci_read_config(dev, 0x10, 4);
 	if (sockbase & 0x1) {
-		device_printf(dev, "I/O mapped device!\n");
+		device_printf(dev, "I/O mapped device, might not work.\n");
 		sc->iorid = CB_PCI_SOCKET_BASE;
 		sc->iores = bus_alloc_resource(dev, SYS_RES_IOPORT,
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
@@ -446,6 +446,7 @@ pcic_pci_attach(device_t dev)
 		sc->flags = PCIC_PD_POWER;
 		num6729++;
 	} else {
+		device_printf(dev, "Memory mapped device, will work.\n");
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &sc->memrid, 0, ~0, 1, RF_ACTIVE);
@@ -523,6 +524,7 @@ pcic_pci_attach(device_t dev)
 	}
 	sc->irqrid = rid;
 	sc->irqres = r;
+	sc->irq = rman_get_start(r);
 	error = bus_setup_intr(dev, r, INTR_TYPE_MISC, pcic_pci_intr,
 	    (void *) sc, &sc->ih);
 	if (error) {

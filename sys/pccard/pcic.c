@@ -817,8 +817,12 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	/*
 	 * If we're routing via pci, we can share.
 	 */
-	if (sc->func_route == pci_parallel && type == SYS_RES_IRQ)
+	if (sc->func_route == pci_parallel && type == SYS_RES_IRQ) {
+		if (bootverbose)
+			device_printf(child, "Forcing IRQ to %d\n", sc->irq);
+		start = end = sc->irq;
 		flags |= RF_SHAREABLE;
+	}
 
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
