@@ -713,18 +713,18 @@ foo(const char *arbitrary_string, const char *and_another)
 {
 	char onstack[8];
 
-#if defined(BAD)
+#ifdef BAD
 	/*
 	 * This first sprintf is bad behavior.  Do not use sprintf!
 	 */
-	(void)sprintf(onstack, "%s, %s", arbitrary_string, and_another);
-#elif defined(BETTER)
+	sprintf(onstack, "%s, %s", arbitrary_string, and_another);
+#else
 	/*
 	 * The following two lines demonstrate better use of
 	 * snprintf().
 	 */
-	(void)snprintf(onstack, sizeof(onstack) - 1, "%s, %s",
-	    arbitrary_string, and_another);
+	snprintf(onstack, sizeof(onstack), "%s, %s", arbitrary_string,
+	    and_another);
 #endif
 }
 .Ed
@@ -742,15 +742,13 @@ or causing it to generate a memory fault or bus error
 by dereferencing an invalid pointer.
 .Pp
 .Cm %n
-can be used to write arbitrary data to the stack.
+can be used to write arbitrary data to potentially carefully-selected
+addresses.
 Programmers are therefore strongly advised to never pass untrusted strings
 as the
 .Fa format
-argument.
-.Pp
-Never pass a string with user-supplied data as a format without using
-.Ql %s .
-An attacker can put format specifiers in the string to mangle your stack,
+argument, as an attacker can put format specifiers in the string
+to mangle your stack,
 leading to a possible security hole.
 This holds true even if the string was built using a function like
 .Fn snprintf ,
