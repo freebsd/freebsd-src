@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.25 1996/09/09 20:17:24 wollman Exp $
+ *	$Id: in.c,v 1.26 1996/12/13 21:28:52 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -192,7 +192,7 @@ in_control(so, cmd, data, ifp)
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
 		if (ifra->ifra_addr.sin_family == AF_INET) {
-			for (oia = ia; ia; ia = ia->ia_next) {
+			for (oia = ia; ia; ia = ia->ia_link.tqe_next) {
 				if (ia->ia_ifp == ifp  &&
 				    ia->ia_addr.sin_addr.s_addr ==
 				    ifra->ifra_addr.sin_addr.s_addr)
