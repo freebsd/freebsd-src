@@ -1,0 +1,123 @@
+.\"	$NetBSD: fsck.8,v 1.19 1999/03/10 00:08:33 erh Exp $
+.\"	$FreeBSD$
+.\"
+.\" Copyright (c) 1996 Christos Zoulas.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Christos Zoulas.
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 23, 1996
+.Dt FSCK 8
+.Os NetBSD 1
+.Sh NAME
+.Nm fsck
+.Nd file system consistency check and interactive repair
+.Sh SYNOPSIS
+.Nm ""
+.Op Fl dvplfyn
+.Op Fl l Ar maxparallel
+.Op Fl t Ar fstype 
+.Op Fl T Ar fstype:fsoptions 
+.Op special | node ...
+.Sh DESCRIPTION
+The
+.Nm
+command invokes filesystem-specific programs to check
+the special devices listed in the 
+.Xr fstab 5
+file or in the command line for consistency.
+.Pp
+It is normally used in the script
+.Pa /etc/rc
+during automatic reboot.
+If no filesystems are specified, and ``preen'' mode is enabled (
+.Fl p
+option)
+.Nm
+reads the table
+.Pa /etc/fstab
+to determine which filesystems to check.
+Only partitions in fstab that are mounted ``rw,'' ``rq'' or ``ro''
+and that have non-zero pass number are checked.
+Filesystems with pass number 1 (normally just the root filesystem)
+are checked one at a time.
+When pass 1 completes, all remaining filesystems are checked,
+running one process per disk drive.
+The disk drive containing each filesystem is inferred from the longest prefix
+of the device name that ends in a digit; the remaining characters are assumed
+to be the partition designator.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d
+Debugging mode. Just print the commands without executing them. Available
+only if
+.Nm
+is compiled to support it.
+.It Fl f
+Force checking of filesystems, even when they are marked clean (for filesystems
+that support this).
+.It Fl l Ar maxparallel
+Limit the number of parallel checks to the number specified in
+the following argument. By default, the limit is the number of
+disks, running one process per disk. If a smaller limit is giv-
+en, the disks are checked round-robin, one filesystem at a time.
+.It Fl n
+Causes
+.Nm
+to assume no as the answer to all operator questions, except "CONTINUE?".
+.It Fl p
+Enter preen mode.
+.It Fl t Ar fstype
+Invoke
+.Nm
+only for the comma separated list of filesystem types. If the
+list starts with
+.Dq no
+then invoke
+.Nm
+for the filesystem types that are not specified in the list.
+.It Fl v
+Print the commands before executing them.
+.It Fl y
+Causes
+.Nm
+to assume yes
+as the answer to all operator questions.
+.It Fl T Ar fstype:fsoptions
+List of comma separated file system specific options for the specified
+file system type, in the same format as
+.Xr mount 8 .
+.El
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+file system table
+.El
+.Sh SEE ALSO
+.Xr mount 8 ,
+.Xr fstab 5 ,
+.Xr fsck_msdos 8 ,
+.Xr fsck_ffs 8
