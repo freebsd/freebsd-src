@@ -33,34 +33,10 @@
 #include <sys/malloc.h>
 
 #include <machine/clockvar.h>
-
-struct ssc_time {
-	int	year;
-	int	month;
-	int	day;
-	int	hour;
-	int	minute;
-	int	second;
-	int	msec;
-	int	wday;
-};
-
-#define SSC_GET_RTC			65
-
-static u_int64_t
-ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
-{
-	register u_int64_t ret0 __asm("r8");
-
-	__asm __volatile("mov r15=%1\n\t"
-			 "break 0x80001"
-			 : "=r"(ret0)
-			 : "r"(which), "r"(in0), "r"(in1), "r"(in2), "r"(in3));
-	return ret0;
-}
+#include <machine/efi.h>
 
 static void
-sscclock_init(device_t dev)
+eficlock_init(kobj_t dev)
 {
 }
 
@@ -68,54 +44,55 @@ sscclock_init(device_t dev)
  * Get the time of day, based on the clock's value and/or the base value.
  */
 static void
-sscclock_get(device_t dev, time_t base, struct clocktime *ct)
+eficlock_get(kobj_t dev, time_t base, struct clocktime *ct)
 {
-	struct ssc_time time;
+	EFI_TIME time;
 
-	ssc(ia64_tpa((vm_offset_t) &time), 0, 0, 0, SSC_GET_RTC);
+	ia64_efi_runtime->GetTime(&time, 0);
 
-	ct->sec = time.second;
-	ct->min = time.minute;
-	ct->hour = time.hour;
-	ct->dow = time.wday;
-	ct->day = time.day;
-	ct->mon = time.month + 1;
-	ct->year = time.year;
+	ct->sec = time.Second;
+	ct->min = time.Minute;
+	ct->hour = time.Hour;
+	ct->dow = 0;		/* XXX not used */
+	ct->day = time.Day;
+	ct->mon = time.Month;
+	ct->year = time.Year - 1900;
 }
 
 /*
  * Reset the TODR based on the time value.
  */
 static void
-sscclock_set(device_t dev, struct clocktime *ct)
+eficlock_set(kobj_t dev, struct clocktime *ct)
 {
-	printf("sscclock: TODR not set\n");
+	printf("eficlock: TODR not set\n");
 }
 
 static int
-sscclock_getsecs(device_t dev, int *secp)
+eficlock_getsecs(kobj_t dev, int *secp)
 {
 	return ETIMEDOUT;
 }
 
-static device_method_t sscclock_methods[] = {
+static device_method_t eficlock_methods[] = {
 	/* clock interface */
-	DEVMETHOD(clock_init,		sscclock_init),
-	DEVMETHOD(clock_get,		sscclock_get),
-	DEVMETHOD(clock_set,		sscclock_set),
-	DEVMETHOD(clock_getsecs,	sscclock_getsecs),
+	DEVMETHOD(clock_init,		eficlock_init),
+	DEVMETHOD(clock_get,		eficlock_get),
+	DEVMETHOD(clock_set,		eficlock_set),
+	DEVMETHOD(clock_getsecs,	eficlock_getsecs),
 
 	{ 0, 0 }
 };
 
-DEFINE_CLASS(sscclock, sscclock_methods, sizeof(struct kobj));
+DEFINE_CLASS(eficlock, eficlock_methods, sizeof(struct kobj));
 
 static void
-sscclock_create(void *arg)
+eficlock_create(void *arg)
 {
-	device_t clock = (device_t)
-		kobj_create(&sscclock_class, M_TEMP, M_NOWAIT);
+	kobj_t clock;
+	clock = (kobj_t)
+		kobj_create(&eficlock_class, M_TEMP, M_NOWAIT);
 	clockattach(clock);
 }
 
-SYSINIT(sscdev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE, sscclock_create, NULL);
+SYSINIT(eficlock, SI_SUB_DRIVERS,SI_ORDER_MIDDLE, eficlock_create, NULL);
