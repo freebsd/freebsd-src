@@ -51,6 +51,8 @@ FR_LINKS=	fr_CA fr_CH
 DE_LINKS=	de_AT de_CH
 IT_LINKS=	it_CH
 
+BE_LINKS=	nl_BE
+
 .SUFFIXES: .src .out
 
 .src.out:
@@ -99,6 +101,12 @@ afterinstall:
 	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
 	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
+.for link in ${BE_LINKS}
+	ln -sf ../fr_BE.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../fr_BE.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
 .endfor
 .for link in ${ASCIILINKS}
