@@ -23,8 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
-/*
- * $Id: devfsext.h,v 1.17 1998/04/19 23:32:40 julian Exp $
+ * $Id: devfsext.h,v 1.18 1998/04/20 03:57:38 julian Exp $
  */
 
 #ifndef _SYS_DEVFSEXT_H_
