@@ -1288,6 +1288,8 @@
     receive segment size is no larger than allowed by the interface
     MTU. &merged;</para>
 
+    <para>&man.ppp.8; now supports IPv6.</para>
+
     <para><filename>libcrypt</filename> and
     <filename>libdescrypt</filename> have been unified to provide a
     configurable password authentication hash library.  Both the md5
