@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.51 1997/06/22 16:03:54 peter Exp $
+ * 	$Id: pmap.h,v 1.52 1997/07/17 04:33:48 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -223,9 +223,7 @@ typedef struct pv_entry {
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)	pv_list;
-#if PMAP_PVLIST
 	TAILQ_ENTRY(pv_entry)	pv_plist;
-#endif
 	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 

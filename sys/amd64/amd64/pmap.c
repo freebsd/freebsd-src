@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.150 1997/07/20 08:37:22 bde Exp $
+ *	$Id: pmap.c,v 1.151 1997/07/21 01:21:25 dyson Exp $
  */
 
 /*
@@ -69,9 +69,6 @@
  */
 
 #include "opt_cpu.h"
-
-#define PMAP_LOCK 1
-#define PMAP_PVLIST 1
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -307,9 +304,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
 
 	kernel_pmap->pm_count = 1;
-#if PMAP_PVLIST
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-#endif
 	nkpt = NKPT;
 
 	/*
@@ -1139,9 +1134,7 @@ retry:
 	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
-#if PMAP_PVLIST
 	TAILQ_INIT(&pmap->pm_pvlist);
-#endif
 }
 
 static int
@@ -1625,16 +1618,13 @@ pmap_remove_entry(pmap, ppv, va)
 	int s;
 
 	s = splvm();
-#if PMAP_PVLIST
 	if (ppv->pv_list_count < pmap->pm_stats.resident_count) {
-#endif
 		for (pv = TAILQ_FIRST(&ppv->pv_list);
 			pv;
 			pv = TAILQ_NEXT(pv, pv_list)) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
 				break;
 		}
-#if PMAP_PVLIST
 	} else {
 		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
 			pv;
@@ -1643,7 +1633,6 @@ pmap_remove_entry(pmap, ppv, va)
 				break;
 		}
 	}
-#endif
 
 	rtval = 0;
 	if (pv) {
@@ -1654,9 +1643,7 @@ pmap_remove_entry(pmap, ppv, va)
 			ppv->pv_vm_page->flags &= ~(PG_MAPPED|PG_WRITEABLE);
 		}
 
-#if PMAP_PVLIST
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
-#endif
 		free_pv_entry(pv);
 	}
 			
@@ -1686,9 +1673,7 @@ pmap_insert_entry(pmap, va, mpte, pa)
 	pv->pv_pmap = pmap;
 	pv->pv_ptem = mpte;
 
-#if PMAP_PVLIST
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
-#endif
 
 	ppv = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
@@ -1931,9 +1916,7 @@ pmap_remove_all(pa)
 			update_needed = 1;
 		}
 
-#if PMAP_PVLIST
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
-#endif
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		--ppv->pv_list_count;
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
@@ -2804,8 +2787,6 @@ pmap_remove_pages(pmap, sva, eva)
 	pv_entry_t pv, npv;
 	int s;
 
-#if PMAP_PVLIST
-
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
@@ -2865,7 +2846,6 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 	splx(s);
 	invltlb();
-#endif
 }
 
 /*
