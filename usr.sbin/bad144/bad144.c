@@ -160,7 +160,7 @@ usage:
 		exit(1);
 	}
 	if (argv[0][0] != '/')
-		(void)sprintf(name, "%s/r%s%c", _PATH_DEV, argv[0],
+		(void)sprintf(name, "%sr%s%c", _PATH_DEV, argv[0],
 			      'a' + RAW_PART);
 	else
 		strcpy(name, argv[0]);
@@ -274,6 +274,7 @@ usage:
 				continue;
 			}
 		}
+		printf(stderr, "\n");
 	}
 
 	argc--;
