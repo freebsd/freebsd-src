@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -125,7 +125,7 @@
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $
+ # $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -156,10 +156,10 @@
 	  <heading>COMMENT</heading>
 
 	  <p>This is the one-line description of the port.  It is
-	    recommended to have the name of the package at the
+	    recommended to not have the name of the package at the
 	    beginning, as in:
 <tscreen><verb>
-oneko-1.1b, a cat chasing a mouse all over the screen
+A cat chasing a mouse all over the screen
 </verb></tscreen>
 
 	<sect3>
@@ -882,7 +882,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.6 1995/10/03 07:11:51 asami Exp $
+ # $Id: porting.sgml,v 1.7 1995/10/07 04:31:35 jfieber Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
