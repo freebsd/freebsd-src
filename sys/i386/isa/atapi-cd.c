@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.1 1998/09/08 20:57:47 sos Exp $
+ *	$Id: atapi-cd.c,v 1.2 1998/10/08 06:41:44 sos Exp $
  */
 
 #include "wdc.h"
@@ -83,7 +83,6 @@ static struct cdevsw acd_cdevsw = {
 
 static struct acd *acdtab[NUNIT];
 static int acdnlun = 0;     	/* Number of configured drives */
-static u_int next_writeable_lba = 0;
 
 #ifndef ATAPI_STATIC
 static
@@ -405,7 +404,7 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
             }
         } else {
             /* read only */
-            if (acd_read_toc(cdp) < 0) {
+            if (acd_read_toc(cdp) != 0) {
                 printf("acd%d: read_toc failed\n", lun);
                 /* return EIO; */
             }
@@ -536,7 +535,7 @@ acd_start(struct acd *cdp)
     	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
 #endif
     else 
-	lba = next_writeable_lba + (bp->b_offset / cdp->block_size);
+	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
     blocks = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
 
     if ((bp->b_flags & B_READ) == B_WRITE) {
@@ -1004,7 +1003,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		break;
 	    if (!track_info.nwa_valid)
 		return EINVAL;
-	    next_writeable_lba = track_info.next_writeable_addr;
+	    cdp->next_writeable_lba = track_info.next_writeable_addr;
 	    *(int*)addr = track_info.next_writeable_addr;
 	}
 	break;
@@ -1274,7 +1273,7 @@ acd_rezero_unit(struct acd *cdp)
 static int
 acd_open_disk(struct acd *cdp, int test)
 {
-    next_writeable_lba = 0;
+    cdp->next_writeable_lba = 0;
     return 0;
 }
 

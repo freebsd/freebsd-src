@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.h,v 1.2 1998/09/02 08:47:31 sos Exp sos $
+ *	$Id: atapi-cd.h,v 1.1 1998/09/08 20:57:47 sos Exp $
  */
 
 /*
@@ -343,8 +343,8 @@ struct acd {
 	u_int block_size;		/* Blocksize currently used */
 	u_char dummy;			/* Use dummy writes */
 	u_char speed;			/* Select drive speed */
+	u_int next_writeable_lba;	/* Next writable position */
 	struct wormio_prepare_track preptrack;	/* Scratch region */
-
 #ifdef	DEVFS
 	void *ra_devfs_token;
 	void *rc_devfs_token;
