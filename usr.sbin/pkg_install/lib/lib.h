@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.5 1993/09/04 05:06:49 jkh Exp $ */
+/* $Id: lib.h,v 1.3 1993/09/05 04:54:21 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -66,10 +66,11 @@
 
 #define CMD_CHAR	'@'	/* prefix for extended PLIST cmd */
 
+
 enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT,
-    PLIST_IGNORE, PLIST_NAME
+    PLIST_IGNORE, PLIST_NAME, PLIST_UNEXEC
 };
 typedef enum _plist_t plist_t;
 
@@ -114,6 +115,7 @@ void		copy_file(char *, char *, char *);
 void		copy_hierarchy(char *, char *, Boolean);
 int		delete_hierarchy(char *, Boolean);
 int		unpack(char *, char *);
+void		format_cmd(char *, char *, char *, char *);
 
 /* Msg */
 void		upchuck(const char *);

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.6 1993/09/04 05:06:48 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.4 1993/09/06 23:28:42 jkh Exp $";
 #endif
 
 /*
@@ -170,4 +170,63 @@ unpack(char *pkg, char *flist)
 	return 1;
     }
     return 0;
+}
+
+/* Using fmt, replace all instances of:
+ * 
+ * %F	With the parameter "name"
+ * %D	With the parameter "dir"
+ * %B	Return the directory part ("base") of %D/%F
+ * %f	Return the filename part of %D/%F
+ *
+ * Does not check for overflow - caution!
+ *
+ */
+void
+format_cmd(char *buf, char *fmt, char *dir, char *name)
+{
+    char *cp, scratch[FILENAME_MAX * 2];
+
+    while (*fmt) {
+	if (*fmt == '%') {
+	    switch (*++fmt) {
+	    case 'F':
+		strcpy(buf, name);
+		buf += strlen(name);
+		break;
+
+	    case 'D':
+		strcpy(buf, dir);
+		buf += strlen(dir);
+		break;
+
+	    case 'B':
+		sprintf(scratch, "%s/%s", dir, name);
+		cp = &scratch[strlen(scratch) - 1];
+		while (cp != scratch && *cp != '/')
+		    --cp;
+		*cp = '\0';
+		strcpy(buf, scratch);
+		buf += strlen(scratch);
+		break;
+
+	    case 'f':
+		sprintf(scratch, "%s/%s", dir, name);
+		cp = &scratch[strlen(scratch) - 1];
+		while (cp != scratch && *(cp - 1) != '/')
+		    --cp;
+		strcpy(buf, cp);
+		buf += strlen(cp);
+		break;
+
+	    default:
+		*buf++ = *fmt;
+		break;
+	    }
+	    ++fmt;
+	}
+	else
+	    *buf++ = *fmt++;
+    }
+    *buf = '\0';
 }
