@@ -825,10 +825,6 @@ to the file generation set named rawstats:
 .Li 50928
 .Li 2132.543
 .Li 128.4.1.1
-.\"
-.\" XXX The next field is unaccounted for in the descriptive text
-.\"	that follows.
-.\"
 .Li 128.4.1.20
 .Li 3102453281.584327000
 .Li 3102453281.58622800031
@@ -838,7 +834,9 @@ to the file generation set named rawstats:
 .Pp
 The first two fields show the date (Modified Julian Day)
 and time (seconds and fraction past UTC midnight).
-The next field shows the peer or clock address
+The next two fields show
+the remote peer or clock address
+followed by the local address
 in dotted-quad notation.
 The final four fields show the originate,
 receive, transmit and final NTP timestamps in order.
@@ -886,7 +884,9 @@ as shown in the
 command.
 .It file Ar filename
 This is the file name for the statistics records.
-Filenames of set members are built from three elements:
+Filenames of set members are built
+from three concatenated elements
+prefix, filename and suffix:
 .Bl -tag -width indent
 .It prefix
 This is a constant filename path.
@@ -950,10 +950,10 @@ One file generation set element is created per day.
 A day is defined as the period between 00:00 and 24:00 UTC.
 The file set member suffix consists of a
 .Qq \&.
-(dot) and a day specification in the form YYYYMMDD.
+(dot) and a day specification in the form YYYYMMdd.
 YYYY is a 4-digit year number (e.g. 1992).
 MM is a two digit month number.
-DD is a two digit day number.
+dd is a two digit day number.
 Thus, all information written at 10 December 1992
 would end up in a file named
 .Pa <prefix><filename>.19921210 .
@@ -985,7 +985,8 @@ This number is taken to be the number of seconds
 the server has been running
 at the start of the corresponding 24-hour period.
 Information is only written to a file generation
-by specifying enable; output is prevented by specifying disable.
+by specifying enable;
+output is prevented by specifying disable.
 .It link | nolink
 It is convenient to be able to access the current element
 of a file generation set by a fixed name.

@@ -9,7 +9,7 @@
 .Nd Network Time Protocol (NTP) daemon
 .Sh SYNOPSIS
 .Nm ntpd
-.Op Fl aAbdm
+.Op Fl aAbdgmx
 .Op Fl c Ar conffile
 .Op Fl f Ar driftfile
 .Op Fl k Ar keyfile
@@ -118,7 +118,10 @@ Specify the name and path of the drift file.
 Normally, the daemon exits
 if the offset exceeds a 1000 s sanity limit.
 This option overrides this limit
-and allows the time to be set to any value without restriction.
+and allows the time to be set to any value without restriction;
+however, this can happen only once.
+After that,
+the daemon will exit if the limit is exceeded.
 .It Fl k Ar keyfile
 Specify the name and path of the file
 containing the NTP authentication keys.
