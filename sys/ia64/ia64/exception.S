@@ -49,8 +49,8 @@
 #define TRAP(_n_)				\
 1:	mov	r17=ip;;			\
 	add	r17=2f-1b,r17;			\
-	mov	r16=b0;;			\
-	mov	b0=r17;				\
+	mov	r16=b6;;			\
+	mov	b6=r17;				\
 	br.sptk.few exception_save;		\
 2: (p3)	ssm	psr.i;				\
 	alloc	r15=ar.pfs,0,0,3,0;		\
@@ -537,10 +537,10 @@ IVT_ENTRY(Break_Instruction, 0x2c00)
 IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
-	mov	r16=b0			// save user's b0
+	mov	r16=b6			// save user's b6
 1:	mov	r17=ip;;		// construct return address
 	add	r17=2f-1b,r17;;		// for exception_save
-	mov	b0=r17
+	mov	b6=r17
 	br.sptk.few exception_save	// 'call' exception_save
 
 2:	alloc	r14=ar.pfs,0,0,2,0	// make a frame for calling with
@@ -799,22 +799,6 @@ ia64_vhpt:
 
 	.text
 
-#define rIIP	r31
-#define rIPSR	r30
-#define rISR	r29
-#define rIFA	r28
-#define rPR	r27
-#define rSP	r26
-#define rIFS	r25
-#define rR1	r24
-#define rR2	r23
-#define rBSPSTORE r22
-#define rRNAT	r21
-#define rNDIRTY	r27		/* overlay rPR */
-#define rRSC	r20
-#define rPFS	r19
-#define rB0	r31		/* overlay rIIP */
-
 /*
  * exception_restore:	restore interrupted state
  *
@@ -831,10 +815,10 @@ ENTRY(exception_restore, 0)
 	;;
 }
 {	.mmi
-	ld8	rIPSR=[r3]
+	ld8	r30=[r3]		// ipsr
 	;;
 	nop	2
-	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
+	extr.u	r16=r30,32,2		// extract ipsr.cpl
 	;;
 }
 {	.mfb
@@ -1027,12 +1011,12 @@ ENTRY(exception_restore, 0)
 }
 {	.mmb
 	ld8.fill r3=[r1],-16		// r1=&tf_r[FRAME_R1]
-	ld8.fill rR2=[r2],-16		// r2=&tf_b[7]
+	ld8.fill r23=[r2],-16		// r2=&tf_b[7]
 	nop	26
 	;;
 }
 {	.mmi
-	ld8.fill rR1=[r1],-16		// r1=&tf_b[6]
+	ld8.fill r24=[r1],-16		// r1=&tf_b[6]
 	ld8	r16=[r2],-16		// r16=b7, r2=&tf_b[5]
 	nop	27
 	;;
@@ -1086,18 +1070,18 @@ ENTRY(exception_restore, 0)
 	;;
 }
 {	.mmb
-	ld8	rNDIRTY=[r1],-16	// r1=&tf_ar_bspstore
-	ld8	rRNAT=[r2],-16		// r2=&tf_cr_ifs
+	ld8	r27=[r1],-16	// r1=&tf_ar_bspstore
+	ld8	r21=[r2],-16		// r2=&tf_cr_ifs
 	nop	28
 	;;
 }
 {	.mmi
 	mov	ar.unat=r18
-	ld8	rBSPSTORE=[r1],-16	// r1=&tf_ar_pfs
+	ld8	r22=[r1],-16	// r1=&tf_ar_pfs
 	nop	29
 }
 {	.mfb
-	ld8	rIFS=[r2],-16		// r2=&tf_ar_rsc
+	ld8	r25=[r2],-16		// r2=&tf_ar_rsc
 	nop	30
 (p1)	br.cond.dpnt.few 1f		// don't switch bs if kernel
 	;;
@@ -1106,7 +1090,7 @@ ENTRY(exception_restore, 0)
 	alloc	r16=ar.pfs,0,0,0,0	// discard current frame
 	;;
 	nop	31
-	shl	r16=rNDIRTY,16		// value for ar.rsc
+	shl	r16=r27,16		// value for ar.rsc
 	;;
 }
 {	.mmi
@@ -1117,46 +1101,46 @@ ENTRY(exception_restore, 0)
 	;;
 }
 {	.mmi
-	mov	ar.bspstore=rBSPSTORE
+	mov	ar.bspstore=r22
 	;;
-	mov	ar.rnat=rRNAT
+	mov	ar.rnat=r21
 	nop	33
 	;;
 }
 1:
 {	.mmb
-	ld8	rPFS=[r1],-16		// r1=&tf_pr
-	ld8	rRSC=[r2],-16		// r2=&tf_cr_ifa
+	ld8	r19=[r1],-16		// r1=&tf_pr
+	ld8	r20=[r2],-16		// r2=&tf_cr_ifa
 	nop	34
 	;;
 }
 {	.mmi
-	ld8	rPR=[r1],-16		// r1=&tf_cr_isr
-	ld8	rIFA=[r2],-16		// r2=&tf_cr_ipsr
-	mov	ar.pfs=rPFS
+	ld8	r27=[r1],-16		// r1=&tf_cr_isr
+	ld8	r28=[r2],-16		// r2=&tf_cr_ipsr
+	mov	ar.pfs=r19
 	;;
 }
 {	.mmi
-	ld8	rISR=[r1],-16		// r1=&tf_cr_iip
-	ld8	rIPSR=[r2]
-	mov	pr=rPR,0x1ffff
+	ld8	r29=[r1],-16		// r1=&tf_cr_iip
+	ld8	r30=[r2]
+	mov	pr=r27,0x1ffff
 	;;
 }
 {	.mmi
-	ld8	rIIP=[r1]
-	mov	cr.ifs=rIFS
-	mov	r2=rR2
+	ld8	r31=[r1]
+	mov	cr.ifs=r25
+	mov	r2=r23
 	;;
 }
 {	.mmi
-	mov	cr.ifa=rIFA
-	mov	cr.iip=rIIP
-	mov	r1=rR1
+	mov	cr.ifa=r28
+	mov	cr.iip=r31
+	mov	r1=r24
 	;;
 }
 {	.mmi
-	mov	cr.ipsr=rIPSR
-	mov	ar.rsc=rRSC
+	mov	cr.ipsr=r30
+	mov	ar.rsc=r20
 	nop	35
 	;;
 }
@@ -1173,8 +1157,8 @@ END(exception_restore)
  * exception_save: save interrupted state
  *
  * Arguments:
- *	b0	return address
- *	r16	saved b0
+ *	b6	return address
+ *	r16	saved b6
  *
  * Return:
  *	r14	cr.iim value for break traps
@@ -1188,30 +1172,30 @@ ENTRY(exception_save, 0)
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
-	mov	rPR=pr
+	mov	r27=pr
 }
 {	.mmi
-	mov	rIPSR=cr.ipsr
+	mov	r30=cr.ipsr
 	;;
-	mov	rIIP=cr.iip
-	tbit.nz	p3,p0=rIPSR,14		// check for interrupt enable state
+	mov	r31=cr.iip
+	tbit.nz	p3,p0=r30,14		// check for interrupt enable state
 }
 {	.mmi
-	mov	rISR=cr.isr
+	mov	r29=cr.isr
 	;; 
-	mov	rSP=sp			// save sp
-	extr.u	r17=rIPSR,32,2		// extract ipsr.cpl
+	mov	r26=sp			// save sp
+	extr.u	r17=r30,32,2		// extract ipsr.cpl
 	;;
 }
 {	.mmi
 	cmp.eq	p1,p2=r0,r17		// test for kernel mode
 	;;
 (p2)	mov	sp=ar.k6		// and switch to kernel stack
-	mov	rR1=r1
+	mov	r24=r1
 	;;
 }
 {	.mii
-	mov	rIFA=cr.ifa
+	mov	r28=cr.ifa
 	add	sp=-SIZEOF_TRAPFRAME,sp	// reserve trapframe
 	;;
 	dep	r1=0,sp,61,3		// r1=&tf_flags
@@ -1220,64 +1204,63 @@ ENTRY(exception_save, 0)
 {	.mmi
 	st8	[r1]=r0,8		// zero flags, r1=&tf_cr_iip
 	;;
-	mov	rR2=r2
+	mov	r23=r2
 	add	r2=8,r1			// r2=&tf_cr_ipsr
 	;;
 }
 {	.mmb
-	st8	[r1]=rIIP,16		// r1=&tf_cr_isr
-	st8	[r2]=rIPSR,16		// r2=&tf_cr_ifa
+	st8	[r1]=r31,16		// r1=&tf_cr_isr
+	st8	[r2]=r30,16		// r2=&tf_cr_ifa
 	nop	1
 	;;
 }
 {	.mmb
-	st8	[r1]=rISR,16		// r1=&tf_pr
-	st8	[r2]=rIFA,16		// r2=&tf_ar_rsc
+	st8	[r1]=r29,16		// r1=&tf_pr
+	st8	[r2]=r28,16		// r2=&tf_ar_rsc
 	nop	2
 	;;
 }
 {	.mmi
-	st8	[r1]=rPR,16		// r1=&tf_cr_pfs
-	mov	rRSC=ar.rsc
-	mov	rPFS=ar.pfs
+	st8	[r1]=r27,16		// r1=&tf_cr_pfs
+	mov	r20=ar.rsc
+	mov	r19=ar.pfs
 	;;
 }
 {	.mmb
-	st8	[r2]=rRSC,16		// r2=&tf_cr_ifs
-	st8	[r1]=rPFS,16		// r1=&tf_ar_bspstore
+	st8	[r2]=r20,16		// r2=&tf_cr_ifs
+	st8	[r1]=r19,16		// r1=&tf_ar_bspstore
 	cover
 	;;
 }
 {	.mmi
 	mov	ar.rsc=0
 	;;
-	mov	rBSPSTORE=ar.bspstore
-	mov	rB0=r16
+	mov	r22=ar.bspstore
 	;;
 }
 {	.mmi
-	mov	rIFS=cr.ifs
-	mov	rRNAT=ar.rnat
-(p1)	mov	r16=rBSPSTORE		// so we can figure out ndirty
+	mov	r25=cr.ifs
+	mov	r21=ar.rnat
+(p1)	mov	r31=r22		// so we can figure out ndirty
 	;;
 }
 {	.mmb
-(p2)	mov	r16=ar.k5		// kernel backing store
-	st8	[r2]=rIFS,16		// r2=&tf_ar_rnat
+(p2)	mov	r31=ar.k5		// kernel backing store
+	st8	[r2]=r25,16		// r2=&tf_ar_rnat
 	nop	3
 	;;
 }
 {	.mmi
-	st8	[r1]=rBSPSTORE,16	// r1=&tf_ndirty
-(p2)	mov	ar.bspstore=r16		// switch bspstore
+	st8	[r1]=r22,16	// r1=&tf_ndirty
+(p2)	mov	ar.bspstore=r31		// switch bspstore
 	nop	4
 	;;
 }
 {	.mmi
 	mov	r17=ar.bsp
 	;;
-	st8	[r2]=rRNAT,16		// r2=&tf_ar_unat
-	sub	r17=r17,r16		// ndirty (in bytes)
+	st8	[r2]=r21,16		// r2=&tf_ar_unat
+	sub	r17=r17,r31		// ndirty (in bytes)
 	;;
 }
 {	.mmi
@@ -1286,9 +1269,9 @@ ENTRY(exception_save, 0)
 	mov	r18=ar.lc
 }
 {	.mmi
-	mov	r16=ar.unat
+	mov	r31=ar.unat
 	;;
-	st8	[r2]=r16,16		// r2=&tf_ar_fpsr
+	st8	[r2]=r31,16		// r2=&tf_ar_fpsr
 	mov	r19=ar.ec
 }
 {	.mmi
@@ -1299,27 +1282,27 @@ ENTRY(exception_save, 0)
 	;;
 }
 {	.mmi
-	mov	r16=ar.fpsr
+	mov	r31=ar.fpsr
 	;;
-	st8	[r2]=r16,16		// r2=&tf_ar_ec
-	nop	6
+	st8	[r2]=r31,16		// r2=&tf_ar_ec
+	mov	r30=b0
 	;;
 }
 {	.mmi
 	st8	[r1]=r18,16		// r1=&tf_b[0]
 	;;
 	st8	[r2]=r19,16		// r2=&tf_b[1]
-	mov	r16=b1
+	mov	r31=b1
 }
 {	.mmi
-	st8	[r1]=rB0,16		// r1=&tf_b[2]
+	st8	[r1]=r30,16		// r1=&tf_b[2]
 	;;
-	st8	[r2]=r16,16		// r2=&tf_b[3]
-	mov	r16=b2
+	st8	[r2]=r31,16		// r2=&tf_b[3]
+	mov	r31=b2
 	;;
 }
 {	.mii
-	st8	[r1]=r16,16		// r1=&tf_b[4]
+	st8	[r1]=r31,16		// r1=&tf_b[4]
 	mov	r17=b3
 	;;
 	mov	r18=b4
@@ -1328,17 +1311,15 @@ ENTRY(exception_save, 0)
 	st8	[r2]=r17,16		// r2=&tf_b[5]
 	;; 
 	st8	[r1]=r18,16		// r1=&tf_b[6]
-	mov	r16=b5
+	mov	r31=b5
 	;;
 }
 {	.mii
-	st8	[r2]=r16,16		// r2=&tf_b[7]
-	mov	r17=b6
-	;;
+	st8	[r2]=r31,16		// r2=&tf_b[7]
 	mov	r18=b7
 }
 {	.mmi
-	st8	[r1]=r17,16		// r1=&tf_r[FRAME_R1]
+	st8	[r1]=r16,16		// r1=&tf_r[FRAME_R1]
 	;; 
 	st8	[r2]=r18,16		// r2=&tf_r[FRAME_R2]
 	nop	7
@@ -1346,9 +1327,9 @@ ENTRY(exception_save, 0)
 }
 {	.mmb
 	.mem.offset 0,0
-	st8.spill [r1]=rR1,16		// r1=&tf_r[FRAME_R3]
+	st8.spill [r1]=r24,16		// r1=&tf_r[FRAME_R3]
 	.mem.offset 8,0
-	st8.spill [r2]=rR2,16		// r2=&tf_r[FRAME_R4]
+	st8.spill [r2]=r23,16		// r2=&tf_r[FRAME_R4]
 	nop	8
 	;;
 }
@@ -1388,7 +1369,7 @@ ENTRY(exception_save, 0)
 	.mem.offset 144,0
 	st8.spill [r1]=r11,16		// r1=&tf_r[FRAME_R13]
 	.mem.offset 160,0
-	st8.spill [r2]=rSP,16		// r2=&tf_r[FRAME_R14]
+	st8.spill [r2]=r26,16		// r2=&tf_r[FRAME_R14]
 	nop	13
 	;;
 }
@@ -1515,7 +1496,7 @@ ENTRY(exception_save, 0)
 {	.mfb
 	mov	r13=ar.k4		// processor globals
 	nop	30
-	br.sptk.few b0			// not br.ret - we were not br.call'ed
+	br.sptk.few b6			// not br.ret - we were not br.call'ed
 	;;
 }
 END(exception_save)
