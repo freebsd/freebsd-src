@@ -44,7 +44,6 @@ extern regmatch_t *match;
 extern size_t maxnsub;
 extern u_long linenum;
 extern int appendnum;
-extern int lastline;
 extern int aflag, eflag, nflag;
 extern const char *fname;
 extern int rflags;	/* regex flags to use */
@@ -54,5 +53,6 @@ void	 compile(void);
 void	 cspace(SPACE *, char *, size_t, enum e_spflag);
 char	*cu_fgets(char *, int, int *);
 int	 mf_fgets(SPACE *, enum e_spflag);
+int	 lastline(void);
 void	 process(void);
 char	*strregerror(int, regex_t *);
