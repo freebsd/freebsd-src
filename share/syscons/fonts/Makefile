@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1996/02/18 02:25:32 wosch Exp $
+# $Id: Makefile,v 1.9 1996/08/19 22:13:05 wosch Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
@@ -18,12 +18,9 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 FONTDIR = /usr/share/syscons/fonts
 
 NOMAN = noman
-
-all clean:
-	@echo -n
+NOOBJ = noobj
 
 install:
-	cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
