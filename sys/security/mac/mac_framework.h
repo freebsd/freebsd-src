@@ -319,6 +319,8 @@ int	mac_check_socket_connect(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sockaddr);
 int	mac_check_socket_deliver(struct socket *so, struct mbuf *m);
 int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
+int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
+int	mac_check_socket_send(struct ucred *cred, struct socket *so);
 int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
 int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
 	    int flags);

@@ -271,9 +271,13 @@ struct mac_policy_ops {
 		    struct label *mbuflabel);
 	int	(*mpo_check_socket_listen)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_socket_receive)(struct ucred *cred,
+		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_relabel)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel,
 		    struct label *newlabel);
+	int	(*mpo_check_socket_send)(struct ucred *cred,
+		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_visible)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
@@ -454,7 +458,9 @@ enum mac_op_constant {
 	MAC_CHECK_SOCKET_CONNECT,
 	MAC_CHECK_SOCKET_DELIVER,
 	MAC_CHECK_SOCKET_LISTEN,
+	MAC_CHECK_SOCKET_RECEIVE,
 	MAC_CHECK_SOCKET_RELABEL,
+	MAC_CHECK_SOCKET_SEND,
 	MAC_CHECK_SOCKET_VISIBLE,
 	MAC_CHECK_VNODE_ACCESS,
 	MAC_CHECK_VNODE_CHDIR,
