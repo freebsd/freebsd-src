@@ -302,7 +302,7 @@ ng_bridge_constructor(node_p *nodep)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
-	callout_init(&priv->timer);
+	callout_init(&priv->timer, 0);
 
 	/* Allocate and initialize hash table, etc. */
 	MALLOC(priv->tab, struct ng_bridge_bucket *,
