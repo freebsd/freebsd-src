@@ -1,5 +1,5 @@
-#!/bin/sh
-#	$Id: rc,v 1.157 1998/09/16 22:42:56 brian Exp $
+'#!/bin/sh
+#	$Id: rc,v 1.158 1998/09/30 14:44:57 cracauer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -190,10 +190,6 @@ if [ "X${syslogd_enable}" = X"YES" ]; then
 
 	rm -f /var/run/log
 	echo -n ' syslogd';		syslogd ${syslogd_flags}
-fi
-
-if [ "X${tickadj_enable}" = X"YES" ]; then
-	echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
 echo '.'
 
