@@ -118,7 +118,7 @@ the listing will be of the relevant subdirectory.)
 .Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
 .Sm on
 .Ar filename
-.Op Fl aCcDdghmPprsv
+.Op Fl aCcDdghmnPprsv
 .Xc
 Specify boot file and flags.
 .Bl -tag -width indent
@@ -174,7 +174,7 @@ The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
 .Pa /kernel .
 Symbolic links are not supported (hard links are).
-.It Fl aCcDdghmPprsv
+.It Fl aCcDdghmnPprsv
 Boot flags:
 .Pp
 .Bl -tag -width "-CXX" -compact
