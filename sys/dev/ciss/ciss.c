@@ -314,7 +314,7 @@ ciss_probe(device_t dev)
     i = ciss_lookup(dev);
     if (i != -1) {
 	device_set_desc(dev, ciss_vendor_data[i].desc);
-	return(-10);
+	return(BUS_PROBE_DEFAULT);
     }
     return(ENOENT);
 }

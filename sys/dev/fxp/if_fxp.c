@@ -342,7 +342,7 @@ fxp_probe(device_t dev)
 			if (ident->devid == devid &&
 			    (ident->revid == revid || ident->revid == -1)) {
 				device_set_desc(dev, ident->name);
-				return (0);
+				return (BUS_PROBE_DEFAULT);
 			}
 		}
 	}

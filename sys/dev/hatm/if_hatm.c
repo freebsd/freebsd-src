@@ -175,7 +175,7 @@ hatm_probe(device_t dev)
 		if (pci_get_vendor(dev) == hatm_devs[i].vid &&
 		    pci_get_device(dev) == hatm_devs[i].did) {
 			device_set_desc(dev, hatm_devs[i].name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	return (ENXIO);
 }
