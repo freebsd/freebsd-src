@@ -111,6 +111,7 @@ struct pro {
     {"eei", PRO_BOOL, false, ON, &extra_expression_indent},
     {"ei", PRO_BOOL, true, ON, &ps.else_if},
     {"fbc", PRO_FONT, 0, 0, (int *) &blkcomf},
+    {"fbs", PRO_BOOL, true, ON, &function_brace_split},
     {"fbx", PRO_FONT, 0, 0, (int *) &boxcomf},
     {"fb", PRO_FONT, 0, 0, (int *) &bodyf},
     {"fc1", PRO_BOOL, true, ON, &format_col1_comments},
@@ -136,6 +137,7 @@ struct pro {
     {"ndj", PRO_BOOL, false, OFF, &ps.ljust_decl},
     {"neei", PRO_BOOL, false, OFF, &extra_expression_indent},
     {"nei", PRO_BOOL, true, OFF, &ps.else_if},
+    {"nfbs", PRO_BOOL, true, OFF, &function_brace_split},
     {"nfc1", PRO_BOOL, true, OFF, &format_col1_comments},
     {"nfcb", PRO_BOOL, true, OFF, &format_block_comments},
     {"nip", PRO_BOOL, true, OFF, &ps.indent_parameters},
@@ -146,6 +148,7 @@ struct pro {
     {"nps", PRO_BOOL, false, OFF, &pointer_as_binop},
     {"nsc", PRO_BOOL, true, OFF, &star_comment_cont},
     {"nsob", PRO_BOOL, false, OFF, &swallow_optional_blanklines},
+    {"nut", PRO_BOOL, true, OFF, &use_tabs},
     {"nv", PRO_BOOL, false, OFF, &verbose},
     {"pcs", PRO_BOOL, false, ON, &proc_calls_space},
     {"psl", PRO_BOOL, true, ON, &procnames_start_line},
@@ -154,6 +157,7 @@ struct pro {
     {"sob", PRO_BOOL, false, ON, &swallow_optional_blanklines},
     {"st", PRO_SPECIAL, 0, STDIN, 0},
     {"troff", PRO_BOOL, false, ON, &troff},
+    {"ut", PRO_BOOL, true, ON, &use_tabs},
     {"v", PRO_BOOL, false, ON, &verbose},
     /* whew! */
     {0, 0, 0, 0, 0}
