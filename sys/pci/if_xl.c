@@ -1939,15 +1939,9 @@ xl_newbuf(sc, c)
 	int			error;
 	u_int32_t		baddr;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return(ENOBUFS);
-
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
 
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 
@@ -2441,23 +2435,15 @@ xl_encap(sc, c, m_head)
 	 * and would waste cycles.
 	 */
 	if (error) {
-		struct mbuf		*m_new = NULL;
+		struct mbuf		*m_new;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		m_new = m_head->m_pkthdr.len > MHLEN ?
+		    m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR) :
+		    m_get(M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			m_freem(m_head);
 			printf("xl%d: no memory for tx list\n", sc->xl_unit);
 			return(1);
-		}
-		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
-				m_freem(m_new);
-				m_freem(m_head);
-				printf("xl%d: no memory for tx list\n",
-						sc->xl_unit);
-				return(1);
-			}
 		}
 		m_copydata(m_head, 0, m_head->m_pkthdr.len,	
 					mtod(m_new, caddr_t));
