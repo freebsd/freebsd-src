@@ -42,6 +42,7 @@
 #define	NMODIFIED		0x0004	/* bogus, until async IO implemented */
 /*efine	NNEW			0x0008*//* smb/vnode has been allocated */
 #define	NREFPARENT		0x0010	/* node holds parent from recycling */
+#define	NFLUSHWIRE		0x1000	/* pending flush request */
 
 struct smbfs_fctx;
 

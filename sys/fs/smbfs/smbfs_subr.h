@@ -140,6 +140,8 @@ int  smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred);
 int  smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred);
 
+int  smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
+	struct smbfattr *fap, struct smb_cred *scred);
 int  smbfs_smb_setpattr(struct smbnode *np, u_int16_t attr,
 	struct timespec *mtime, struct smb_cred *scred);
 int  smbfs_smb_setptime2(struct smbnode *np, struct timespec *mtime,
@@ -158,6 +160,7 @@ int  smbfs_smb_close(struct smb_share *ssp, u_int16_t fid,
 int  smbfs_smb_create(struct smbnode *dnp, const char *name, int len,
 	struct smb_cred *scred);
 int  smbfs_smb_delete(struct smbnode *np, struct smb_cred *scred);
+int  smbfs_smb_flush(struct smbnode *np, struct smb_cred *scred);
 int  smbfs_smb_rename(struct smbnode *src, struct smbnode *tdnp,
 	const char *tname, int tnmlen, struct smb_cred *scred);
 int  smbfs_smb_move(struct smbnode *src, struct smbnode *tdnp,

@@ -104,13 +104,13 @@ smbfs_smb_lockandx(struct smbnode *np, int op, u_int32_t pid, off_t start, off_t
 		return error;
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
-	mb_put_uint8(mbp, 0xff);		/* secondary command */
+	mb_put_uint8(mbp, 0xff);	/* secondary command */
 	mb_put_uint8(mbp, 0);		/* MBZ */
 	mb_put_uint16le(mbp, 0);
 	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
 	mb_put_uint8(mbp, ltype);	/* locktype */
 	mb_put_uint8(mbp, 0);		/* oplocklevel - 0 seems is NO_OPLOCK */
-	mb_put_uint32le(mbp, 0);		/* timeout - break immediately */
+	mb_put_uint32le(mbp, 0);	/* timeout - break immediately */
 	mb_put_uint16le(mbp, op == SMB_LOCK_RELEASE ? 1 : 0);
 	mb_put_uint16le(mbp, op == SMB_LOCK_RELEASE ? 0 : 1);
 	smb_rq_wend(rqp);
@@ -137,6 +137,116 @@ smbfs_smb_lock(struct smbnode *np, int op, caddr_t id,
 		return EINVAL;
 	else
 		return smbfs_smb_lockandx(np, op, (u_int32_t)id, start, end, scred);
+}
+
+static int
+smbfs_smb_qpathinfo(struct smbnode *np, struct smbfattr *fap,
+		    struct smb_cred *scred, short infolevel)
+{
+	struct smb_share *ssp = np->n_mount->sm_share;
+	struct smb_vc *vcp = SSTOVC(ssp);
+	struct smb_t2rq *t2p;
+	int error, svtz, timesok = 1;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
+	u_int16_t date, time, wattr;
+	int64_t lint;
+	u_int32_t size, dattr;
+
+	error = smb_t2_alloc(SSTOCP(ssp), SMB_TRANS2_QUERY_PATH_INFORMATION,
+			     scred, &t2p);
+	if (error)
+		return error;
+	mbp = &t2p->t2_tparam;
+	mb_init(mbp);
+	if (!infolevel) {
+		if (SMB_DIALECT(vcp) < SMB_DIALECT_NTLM0_12)
+			infolevel = SMB_QUERY_FILE_STANDARD;
+		else
+			infolevel = SMB_QUERY_FILE_BASIC_INFO;
+	}
+	mb_put_uint16le(mbp, infolevel);
+	mb_put_uint32le(mbp, 0);
+	/* mb_put_uint8(mbp, SMB_DT_ASCII); specs are wrong */
+	error = smbfs_fullpath(mbp, vcp, np, NULL, 0);
+	if (error) {
+		smb_t2_done(t2p);
+		return error;
+	}
+	t2p->t2_maxpcount = 2;
+	t2p->t2_maxdcount = vcp->vc_txmax;
+	error = smb_t2_request(t2p);
+	if (error) {
+		smb_t2_done(t2p);
+		if (infolevel == SMB_QUERY_FILE_STANDARD || error != EINVAL)
+			return error;
+		return smbfs_smb_qpathinfo(np, fap, scred,
+					   SMB_QUERY_FILE_STANDARD);
+	}
+	mdp = &t2p->t2_rdata;
+	svtz = vcp->vc_sopt.sv_tz;
+	switch (infolevel) {
+	    case SMB_QUERY_FILE_STANDARD:
+		timesok = 0;
+		md_get_uint16le(mdp, NULL);
+		md_get_uint16le(mdp, NULL);	/* creation time */
+		md_get_uint16le(mdp, &date);
+		md_get_uint16le(mdp, &time);	/* access time */
+		if (date || time) {
+			timesok++;
+			smb_dos2unixtime(date, time, 0, svtz, &fap->fa_atime);
+		}
+		md_get_uint16le(mdp, &date);
+		md_get_uint16le(mdp, &time);	/* modify time */
+		if (date || time) {
+			timesok++;
+			smb_dos2unixtime(date, time, 0, svtz, &fap->fa_mtime);
+		}
+		md_get_uint32le(mdp, &size);
+		fap->fa_size = size;
+		md_get_uint32(mdp, NULL);	/* allocation size */
+		md_get_uint16le(mdp, &wattr);
+		fap->fa_attr = wattr;
+		break;
+	    case SMB_QUERY_FILE_BASIC_INFO:
+		timesok = 0;
+		md_get_int64(mdp, NULL);	/* creation time */
+		md_get_int64le(mdp, &lint);
+		if (lint) {
+			timesok++;
+			smb_time_NT2local(lint, svtz, &fap->fa_atime);
+		}
+		md_get_int64le(mdp, &lint);
+		if (lint) {
+			timesok++;
+			smb_time_NT2local(lint, svtz, &fap->fa_mtime);
+		}
+		md_get_int64le(mdp, &lint);
+		if (lint) {
+			timesok++;
+			smb_time_NT2local(lint, svtz, &fap->fa_ctime);
+		}
+		md_get_uint32le(mdp, &dattr);
+		fap->fa_attr = dattr;
+		md_get_uint32(mdp, NULL);
+		/* XXX could use ALL_INFO to get size */
+		break;
+	    default:
+		SMBERROR("unexpected info level %d\n", infolevel);
+		error = EINVAL;
+	}
+	smb_t2_done(t2p);
+	/*
+	 * if all times are zero (observed with FAT on NT4SP6)
+	 * then fall back to older info level
+	 */
+	if (!timesok) {
+		if (infolevel != SMB_QUERY_FILE_STANDARD)
+			return smbfs_smb_qpathinfo(np, fap, scred,
+						   SMB_QUERY_FILE_STANDARD);
+		error = EINVAL;
+	}
+	return error;
 }
 
 int
@@ -216,6 +326,69 @@ smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	return 0;
 }
 
+static int
+smbfs_smb_seteof(struct smbnode *np, int64_t newsize, struct smb_cred *scred)
+{
+	struct smb_t2rq *t2p;
+	struct smb_share *ssp = np->n_mount->sm_share;
+	struct mbchain *mbp;
+	int error;
+
+	error = smb_t2_alloc(SSTOCP(ssp), SMB_TRANS2_SET_FILE_INFORMATION,
+	    scred, &t2p);
+	if (error)
+		return error;
+	mbp = &t2p->t2_tparam;
+	mb_init(mbp);
+	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
+	mb_put_uint16le(mbp, SMB_SET_FILE_END_OF_FILE_INFO);
+	mb_put_uint32le(mbp, 0);
+	mbp = &t2p->t2_tdata;
+	mb_init(mbp);
+	mb_put_int64le(mbp, newsize);
+	mb_put_uint32le(mbp, 0);			/* padding */
+	mb_put_uint16le(mbp, 0);
+	t2p->t2_maxpcount = 2;
+	t2p->t2_maxdcount = 0;
+	error = smb_t2_request(t2p);
+	smb_t2_done(t2p);
+	return error;
+}
+
+static int
+smb_smb_flush(struct smbnode *np, struct smb_cred *scred)
+{
+	struct smb_share *ssp = np->n_mount->sm_share;
+	struct smb_rq rq, *rqp = &rq;
+	struct mbchain *mbp;
+	int error;
+
+	if (np->n_opencount <= 0 || !SMBTOV(np) || SMBTOV(np)->v_type != VREG)
+		return 0; /* not an regular open file */
+	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_FLUSH, scred);
+	if (error)
+		return (error);
+	smb_rq_getrequest(rqp, &mbp);
+	smb_rq_wstart(rqp);
+	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
+	smb_rq_wend(rqp);
+	smb_rq_bstart(rqp);
+	smb_rq_bend(rqp);
+	error = smb_rq_simple(rqp);
+	smb_rq_done(rqp);
+	if (!error)
+		np->n_flag &= ~NFLUSHWIRE;
+	return (error);
+}
+
+int
+smbfs_smb_flush(struct smbnode *np, struct smb_cred *scred)
+{
+	if (np->n_flag & NFLUSHWIRE)
+		return (smb_smb_flush(np, scred));
+	return (0);
+}
+
 int
 smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 {
@@ -223,6 +396,11 @@ smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 	struct smb_rq rq, *rqp = &rq;
 	struct mbchain *mbp;
 	int error;
+
+	if (!smbfs_smb_seteof(np, (int64_t) newsize, scred)) {
+		np->n_flag |= NFLUSHWIRE;
+		return (0);
+	}
 
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_WRITE, scred);
 	if (error)
@@ -243,6 +421,58 @@ smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 	return error;
 }
 
+int
+smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
+		     struct smbfattr *fap, struct smb_cred *scred)
+{
+	struct smb_rq rq, *rqp = &rq;
+	struct smb_share *ssp = np->n_mount->sm_share;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
+	u_int8_t wc;
+	int error;
+	u_int16_t wattr;
+	u_int32_t lint;
+
+	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_QUERY_INFORMATION, scred);
+	if (error)
+		return error;
+	smb_rq_getrequest(rqp, &mbp);
+	smb_rq_wstart(rqp);
+	smb_rq_wend(rqp);
+	smb_rq_bstart(rqp);
+	mb_put_uint8(mbp, SMB_DT_ASCII);
+	do {
+		error = smbfs_fullpath(mbp, SSTOVC(ssp), np, name, len);
+		if (error)
+			break;
+		smb_rq_bend(rqp);
+		error = smb_rq_simple(rqp);
+		if (error)
+			break;
+		smb_rq_getreply(rqp, &mdp);
+		if (md_get_uint8(mdp, &wc) != 0 || wc != 10) {
+			error = EBADRPC;
+			break;
+		}
+		md_get_uint16le(mdp, &wattr);
+		fap->fa_attr = wattr;
+		/*
+		 * Be careful using the time returned here, as
+		 * with FAT on NT4SP6, at least, the time returned is low
+		 * 32 bits of 100s of nanoseconds (since 1601) so it rolls
+		 * over about every seven minutes!
+		 */
+		md_get_uint32le(mdp, &lint); /* specs: secs since 1970 */
+		if (lint)	/* avoid bogus zero returns */
+			smb_time_server2local(lint, SSTOVC(ssp)->vc_sopt.sv_tz,
+					      &fap->fa_mtime);
+		md_get_uint32le(mdp, &lint);
+		fap->fa_size = lint;
+	} while(0);
+	smb_rq_done(rqp);
+	return error;
+}
 
 /*
  * Set DOS file attributes. mtime should be NULL for dialects above lm10
@@ -311,6 +541,7 @@ smbfs_smb_setptime2(struct smbnode *np, struct timespec *mtime,
 	mb_init(mbp);
 	mb_put_uint16le(mbp, SMB_INFO_STANDARD);
 	mb_put_uint32le(mbp, 0);		/* MBZ */
+	/* mb_put_uint8(mbp, SMB_DT_ASCII); specs incorrect */
 	error = smbfs_fullpath(mbp, vcp, np, NULL, 0);
 	if (error) {
 		smb_t2_done(t2p);
@@ -365,6 +596,7 @@ smbfs_smb_setpattrNT(struct smbnode *np, u_short attr, struct timespec *mtime,
 	mb_init(mbp);
 	mb_put_uint16le(mbp, SMB_SET_FILE_BASIC_INFO);
 	mb_put_uint32le(mbp, 0);		/* MBZ */
+	/* mb_put_uint8(mbp, SMB_DT_ASCII); specs incorrect */
 	error = smbfs_fullpath(mbp, vcp, np, NULL, 0);
 	if (error) {
 		smb_t2_done(t2p);
