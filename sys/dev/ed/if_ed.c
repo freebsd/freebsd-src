@@ -911,6 +911,120 @@ ed_probe_3Com(dev, port_rid, flags)
 }
 
 /*
+ * Probe and vendor-specific initialization routine for SIC boards
+ */
+int
+ed_probe_SIC(dev, port_rid, flags)
+	device_t dev;
+	int port_rid;
+	int flags;
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	int	error;
+	int	i;
+	u_int	memsize;
+	u_long	conf_maddr, conf_msize;
+	u_char	sum;
+
+	error = ed_alloc_port(dev, 0, ED_SIC_IO_PORTS);
+	if (error)
+		return (error);
+
+	sc->asic_offset = ED_SIC_ASIC_OFFSET;
+	sc->nic_offset  = ED_SIC_NIC_OFFSET;
+
+	error = bus_get_resource(dev, SYS_RES_MEMORY, 0,
+				 &conf_maddr, &conf_msize);
+	if (error)
+		return (error);
+
+	memsize = 16384;
+	if (conf_msize > 1)
+		memsize = conf_msize;
+
+	error = ed_alloc_memory(dev, 0, memsize);
+	if (error)
+		return (error);
+
+	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
+	sc->mem_size  = memsize;
+
+	/* Reset card to force it into a known state. */
+	ed_asic_outb(sc, 0, 0x00);
+	DELAY(100);
+
+	/*
+	 * Here we check the card ROM, if the checksum passes, and the
+	 * type code and ethernet address check out, then we know we have
+	 * an SIC card.
+	 */
+	ed_asic_outb(sc, 0, 0x81);
+	DELAY(100);
+
+	sum = sc->mem_start[6];
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sum ^= (sc->arpcom.ac_enaddr[i] = sc->mem_start[i]);
+	}
+#ifdef ED_DEBUG
+	device_printf(dev, "ed_probe_sic: got address %6D\n",
+		      sc->arpcom.ac_enaddr, ":");
+#endif
+	if (sum != 0) {
+		return (ENXIO);
+	}
+	if ((sc->arpcom.ac_enaddr[0] | sc->arpcom.ac_enaddr[1] |
+	     sc->arpcom.ac_enaddr[2]) == 0) {
+		return (ENXIO);
+	}
+
+	sc->vendor   = ED_VENDOR_SIC;
+	sc->type_str = "SIC";
+	sc->isa16bit = 0;
+	sc->cr_proto = 0;
+
+	/*
+	 * SIC RAM page 0x0000-0x3fff(or 0x7fff)
+	 */
+	ed_asic_outb(sc, 0, 0x80);
+	DELAY(100);
+
+	/*
+	 * Now zero memory and verify that it is clear
+	 */
+	bzero(sc->mem_start, sc->mem_size);
+
+	for (i = 0; i < sc->mem_size; i++) {
+		if (sc->mem_start[i]) {
+			device_printf(dev, "failed to clear shared memory "
+				"at %jx - check configuration\n",
+				(uintmax_t)kvtop(sc->mem_start + i));
+
+			return (ENXIO);
+		}
+	}
+
+	sc->mem_shared = 1;
+	sc->mem_end = sc->mem_start + sc->mem_size;
+
+	/*
+	 * allocate one xmit buffer if < 16k, two buffers otherwise
+	 */
+	if ((sc->mem_size < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
+		sc->txb_cnt = 1;
+	} else {
+		sc->txb_cnt = 2;
+	}
+	sc->tx_page_start = 0;
+
+	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
+	sc->rec_page_stop = sc->tx_page_start + sc->mem_size / ED_PAGE_SIZE;
+
+	sc->mem_ring = sc->mem_start + sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	return (0);
+}
+
+/*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
 int

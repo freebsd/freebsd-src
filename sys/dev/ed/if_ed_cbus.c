@@ -869,8 +869,8 @@ ed_probe_SIC98(dev, port_rid, flags)
 		return (error);
 	}
 
-	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
-	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
+	sc->asic_offset = ED_SIC_ASIC_OFFSET;
+	sc->nic_offset  = ED_SIC_NIC_OFFSET;
 
 	error = ed98_alloc_memory(dev, 0);
 	if (error) {
@@ -916,7 +916,7 @@ ed_probe_SIC98(dev, port_rid, flags)
 		return (ENXIO);
 	}
 
-	sc->vendor   = ED_VENDOR_MISC;
+	sc->vendor   = ED_VENDOR_SIC;
 	sc->type_str = "SIC98";
 	sc->isa16bit = 1;
 	sc->cr_proto = 0;
