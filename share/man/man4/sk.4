@@ -36,15 +36,20 @@
 .Sh NAME
 .Nm sk
 .Nd
-SysKonnect SK-984x PCI gigabit ethernet adapter driver
+SysKonnect SK-984x and SK-982x PCI gigabit ethernet adapter driver
 .Sh SYNOPSIS
 .Cd "device sk"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the SysKonnect SK-984x series PCI
+driver provides support for the SysKonnect SK-984x and SK-982x series PCI
 gigabit ethernet adapters, including the following:
-.Bl -bullet -offset indent
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+SK-9821 SK-NET GE-T single port, 1000baseT adapter
+.It
+SK-9822 SK-NET GE-T dual port, 1000baseT adapter
 .It
 SK-9841 SK-NET GE-LX single port, single mode fiber adapter
 .It
@@ -63,6 +68,10 @@ provides an interface to the PCI bus, DMA support, packet buffering
 and arbitration.
 The GEnesis can control up to two XMACs simultaneously,
 allowing dual-port NIC configurations.
+.Pp
+The SK-982x 1000baseT adapters also include a Broadcom BCM5400 1000baseTX
+PHY which is used in place of the XMAC's internal PHY. The Broadcom PHY
+is connected to the XMAC via its GMII port.
 .Pp
 The
 .Nm
@@ -97,6 +106,14 @@ The user can manually override
 the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
+.It 1000baseTX
+Set 1000baseTX operation over twisted pair. This is only available
+for SK-982x series adapters with 1000baseT ports.
+Both
+.Ar full-duplex
+and
+.Ar half-duplex
+modes are supported.
 .It 1000baseSX
 Set 1000Mbps (gigabit ethernet) operation.
 Both
@@ -115,6 +132,25 @@ driver supports the following media options:
 Force full duplex operation
 .It half-duplex
 Force half duplex operation.
+.El
+.Pp
+The
+.Nm
+driver also supports one special link option for 1000baseTX cards:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
+.It link0
+With 1000baseTX cards, establishing a link between two ports requires
+that one port be configured as a master and the other a slave. With
+autonegotiation, the master/slave settings will be chosen automatically.
+However when manually selecting the link state, it is necessary to
+force one side of the link to be a master and the other a slave. The
+.Nm
+driver configures the ports as slaves by default. Setting the
+.Ar link0
+flag with
+.Xr ifconfig 8
+will set a port as a master instead.
 .El
 .Pp
 For more information on configuring this device, see
