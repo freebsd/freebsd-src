@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.16 1997/11/18 03:37:45 jdp Exp $";
+	"$Id: sysctl.c,v 1.17 1998/06/29 17:54:29 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -285,7 +285,8 @@ static int
 name2oid(char *name, int *oidp)
 {
 	int oid[2];
-	int i, j;
+	int i;
+	size_t j;
 
 	oid[0] = 0;
 	oid[1] = 3;
@@ -303,7 +304,8 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 {
 	int qoid[CTL_MAXNAME+2];
 	u_char buf[BUFSIZ];
-	int i, j;
+	int i;
+	size_t j;
 
 	qoid[0] = 0;
 	qoid[1] = 4;
@@ -336,7 +338,8 @@ show_var(int *oid, int nlen)
 	u_char buf[BUFSIZ], *val, *p;
 	char name[BUFSIZ], *fmt;
 	int qoid[CTL_MAXNAME+2];
-	int i, j, len;
+	int i;
+	size_t j, len;
 	u_int kind;
 	int (*func)(int, void *) = 0;
 
@@ -389,6 +392,18 @@ show_var(int *oid, int nlen)
 		printf("%d", *(int *)p);
 		return (0);
 
+	case 'L':
+		if (!nflag)
+			printf("%s: ", name);
+		printf("%ld", *(long *)p);
+		return (0);
+
+	case 'P':
+		if (!nflag)
+			printf("%s: ", name);
+		printf("%p", *(void **)p);
+		return (0);
+
 	case 'T':
 	case 'S':
 		i = 0;
@@ -424,7 +439,8 @@ static int
 sysctl_all (int *oid, int len)
 {
 	int name1[22], name2[22];
-	int i, j, l1, l2;
+	int i, j;
+	size_t l1, l2;
 
 	name1[0] = 0;
 	name1[1] = 2;
