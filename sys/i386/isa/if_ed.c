@@ -20,11 +20,18 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.23 1993/11/22 11:08:14 davidg Exp $
+ * $Id: if_ed.c,v 2.16 1993/11/29 16:55:56 davidg Exp davidg $
  */
 
 /*
  * Modification history
+ *
+ * Revision 2.16  1993/11/29  16:55:56  davidg
+ * merged in Garrett Wollman's strict prototype changes
+ *
+ * Revision 2.15  1993/11/29  16:32:58  davidg
+ * From Thomas Sandford <t.d.g.sandford@comp.brad.ac.uk>
+ * Add support for the 8013W board type
  *
  * Revision 2.14  1993/11/22  10:55:30  davidg
  * change all splnet's to splimp's
@@ -185,14 +192,15 @@ struct	ed_softc {
 	u_char	next_packet;	/* pointer to next unread RX packet */
 } ed_softc[NED];
 
-int ed_attach(struct isa_device *);
-void ed_init(int);
-void edintr(int);
-int ed_ioctl(struct ifnet *, int, caddr_t);
-int ed_probe(struct isa_device *);
-void ed_start(struct ifnet *);
-void ed_reset(int, int);
-void ed_watchdog(int);
+int	ed_attach(struct isa_device *);
+void	ed_init(int);
+void	edintr(int);
+int	ed_ioctl(struct ifnet *, int, caddr_t);
+int	ed_probe(struct isa_device *);
+void	ed_start(struct ifnet *);
+void	ed_reset(int, int);
+void	ed_watchdog(int);
+
 static void ed_get_packet(struct ed_softc *, char *, int /*u_short*/);
 static void ed_stop(int);
 
@@ -375,6 +383,11 @@ ed_probe_WD80x3(isa_dev)
 		break;
 	case ED_TYPE_WD8013EBT:
 		sc->type_str = "WD8013EBT";
+		memsize = 16384;
+		isa16bit = 1;
+		break;
+	case ED_TYPE_WD8013W:
+		sc->type_str = "WD8013W";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
