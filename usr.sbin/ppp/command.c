@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.182 1999/02/18 00:52:12 brian Exp $
+ * $Id: command.c,v 1.183 1999/02/25 20:05:54 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -141,7 +141,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/02/18 00:52:12 $";
+const char VersionDate[] = "$Date: 1999/02/25 20:05:54 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1319,6 +1319,47 @@ SetInterfaceAddr(struct cmdargs const *arg)
 }
 
 static int
+SetRetry(int argc, char const *const *argv, u_int *timeout, u_int *maxreq,
+          u_int *maxtrm, int def)
+{
+  if (argc == 0) {
+    *timeout = DEF_FSMRETRY;
+    *maxreq = def;
+    if (maxtrm != NULL)
+      *maxtrm = def;
+  } else {
+    long l = atol(argv[0]);
+
+    if (l < MIN_FSMRETRY) {
+      log_Printf(LogWARN, "%ld: Invalid FSM retry period - min %d\n",
+                 l, MIN_FSMRETRY);
+      return 1;
+    } else
+      *timeout = l;
+
+    if (argc > 1) {
+      l = atol(argv[1]);
+      if (l < 1) {
+        log_Printf(LogWARN, "%ld: Invalid FSM REQ tries - changed to 1\n", l);
+        l = 1;
+      }
+      *maxreq = l;
+
+      if (argc > 2 && maxtrm != NULL) {
+        l = atol(argv[2]);
+        if (l < 1) {
+          log_Printf(LogWARN, "%ld: Invalid FSM TRM tries - changed to 1\n", l);
+          l = 1;
+        }
+        *maxtrm = l;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static int
 SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
@@ -1548,53 +1589,35 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_LCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid LCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->physical->link.lcp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->physical->link.lcp.cfg.fsm.timeout,
+                    &cx->physical->link.lcp.cfg.fsm.maxreq,
+                    &cx->physical->link.lcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_CHAPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid CHAP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->chap.auth.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->chap.auth.cfg.fsm.timeout,
+                    &cx->chap.auth.cfg.fsm.maxreq, NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_PAPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid PAP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      cx->pap.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &cx->pap.cfg.fsm.timeout, &cx->pap.cfg.fsm.maxreq,
+                    NULL, DEF_FSMAUTHTRIES);
     break;
 
   case VAR_CCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid CCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      l->ccp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &l->ccp.cfg.fsm.timeout, &l->ccp.cfg.fsm.maxreq,
+                    &l->ccp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_IPCPRETRY:
-    long_val = atol(argp);
-    if (long_val < MIN_FSMRETRY) {
-      log_Printf(LogWARN, "%ld: Invalid IPCP FSM retry period - min %d\n",
-                 long_val, MIN_FSMRETRY);
-      return 1;
-    } else
-      arg->bundle->ncp.ipcp.cfg.fsmretry = long_val;
+    return SetRetry(arg->argc - arg->argn, arg->argv + arg->argn,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.timeout,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.maxreq,
+                    &arg->bundle->ncp.ipcp.cfg.fsm.maxtrm, DEF_FSMTRIES);
     break;
 
   case VAR_NBNS:
@@ -1747,12 +1770,13 @@ static struct cmdtab const SetCommands[] = {
   {"cbcp", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "CBCP control", "set cbcp [*|phone[,phone...] [delay [timeout]]]", 
   (const void *)VAR_CBCP},
-  {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
+  {"ccpretry", "ccpretries", SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+   "CCP retries", "set ccpretry value [attempts]", (const void *)VAR_CCPRETRY},
   {"cd", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Carrier delay requirement",
    "set cd value[!]", (const void *)VAR_CD},
-  {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  {"chapretry", "chapretries", SetVariable, LOCAL_AUTH | LOCAL_CX,
+   "CHAP retries", "set chapretry value [attempts]",
+   (const void *)VAR_CHAPRETRY},
   {"choked", NULL, SetVariable, LOCAL_AUTH,
   "choked timeout", "set choked [secs]", (const void *)VAR_CHOKED},
   {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
@@ -1779,10 +1803,10 @@ static struct cmdtab const SetCommands[] = {
   "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
-  {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
-  "FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
-  {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
+  {"ipcpretry", "ipcpretries", SetVariable, LOCAL_AUTH, "IPCP retries",
+   "set ipcpretry value [attempts]", (const void *)VAR_IPCPRETRY},
+  {"lcpretry", "lcpretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "LCP retries",
+   "set lcpretry value [attempts]", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH, "log level",
   "set log [local] [+|-]async|cbcp|ccp|chat|command|connect|debug|hdlc|id0|"
   "ipcp|lcp|lqm|phase|tcp/ip|timer|tun..."},
@@ -1802,8 +1826,8 @@ static struct cmdtab const SetCommands[] = {
   "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
   {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "open mode",
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
-  {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
+  {"papretry", "papretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "PAP retries",
+   "set papretry value [attempts]", (const void *)VAR_PAPRETRY},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",

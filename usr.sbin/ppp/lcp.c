@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.67 1999/01/28 01:56:32 brian Exp $
+ * $Id: lcp.c,v 1.68 1999/02/18 00:52:14 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -81,7 +81,7 @@ static int LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
-static void LcpInitRestartCounter(struct fsm *);
+static void LcpInitRestartCounter(struct fsm *, int);
 static void LcpSendConfigReq(struct fsm *);
 static void LcpSentTerminateReq(struct fsm *);
 static void LcpSendTerminateAck(struct fsm *, u_char);
@@ -171,8 +171,10 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 lcp->cfg.openmode == OPEN_PASSIVE ? "passive" : "active");
   if (lcp->cfg.openmode > 0)
     prompt_Printf(arg->prompt, " (delay %ds)", lcp->cfg.openmode);
-  prompt_Printf(arg->prompt, "\n           FSM retry = %us\n",
-                lcp->cfg.fsmretry);
+  prompt_Printf(arg->prompt, "\n           FSM retry = %us, max %u Config"
+                " REQ%s, %u Term REQ%s\n", lcp->cfg.fsm.timeout,
+                lcp->cfg.fsm.maxreq, lcp->cfg.fsm.maxreq == 1 ? "" : "s",
+                lcp->cfg.fsm.maxtrm, lcp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, "\n Negotiation:\n");
   prompt_Printf(arg->prompt, "           ACFCOMP =   %s\n",
                 command_ShowNegval(lcp->cfg.acfcomp));
@@ -218,14 +220,16 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
   /* Initialise ourselves */
   int mincode = parent ? 1 : LCP_MINMPCODE;
 
-  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
+  fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, LogLCP,
            bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
 
   lcp->cfg.mru = DEF_MRU;
   lcp->cfg.accmap = 0;
   lcp->cfg.openmode = 1;
   lcp->cfg.lqrperiod = DEF_LQRPERIOD;
-  lcp->cfg.fsmretry = DEF_FSMRETRY;
+  lcp->cfg.fsm.timeout = DEF_FSMRETRY;
+  lcp->cfg.fsm.maxreq = DEF_FSMTRIES;
+  lcp->cfg.fsm.maxtrm = DEF_FSMTRIES;
 
   lcp->cfg.acfcomp = NEG_ENABLED|NEG_ACCEPTED;
   lcp->cfg.chap05 = NEG_ACCEPTED;
@@ -244,7 +248,6 @@ void
 lcp_Setup(struct lcp *lcp, int openmode)
 {
   lcp->fsm.open_mode = openmode;
-  lcp->fsm.maxconfig = 10;
 
   lcp->his_mru = lcp->fsm.bundle->cfg.mtu;
   if (!lcp->his_mru || lcp->his_mru > DEF_MRU)
@@ -311,13 +314,23 @@ lcp_Setup(struct lcp *lcp, int openmode)
 }
 
 static void
-LcpInitRestartCounter(struct fsm * fp)
+LcpInitRestartCounter(struct fsm *fp, int what)
 {
   /* Set fsm timer load */
   struct lcp *lcp = fsm2lcp(fp);
 
-  fp->FsmTimer.load = lcp->cfg.fsmretry * SECTICKS;
-  fp->restart = DEF_REQs;
+  fp->FsmTimer.load = lcp->cfg.fsm.timeout * SECTICKS;
+  switch (what) {
+    case FSM_REQ_TIMER:
+      fp->restart = lcp->cfg.fsm.maxreq;
+      break;
+    case FSM_TRM_TIMER:
+      fp->restart = lcp->cfg.fsm.maxtrm;
+      break;
+    default:
+      fp->restart = 1;
+      break;
+  }
 }
 
 static void
@@ -429,7 +442,7 @@ lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 }
 
 static void
-LcpSentTerminateReq(struct fsm * fp)
+LcpSentTerminateReq(struct fsm *fp)
 {
   /* Term REQ just sent by FSM */
 }
@@ -454,6 +467,7 @@ LcpLayerStart(struct fsm *fp)
 
   log_Printf(LogLCP, "%s: LayerStart\n", fp->link->name);
   lcp->LcpFailedMagic = 0;
+  fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
 }
 
 static void
@@ -474,6 +488,8 @@ LcpLayerUp(struct fsm *fp)
   async_SetLinkParams(&p->async, lcp);
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
+  fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
+
   return 1;
 }
 
@@ -764,8 +780,12 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                          " without DES)\n");
             else
 #endif
-            log_Printf(LogLCP, "Peer will only send %s (not supported)\n",
-                       Auth2Nam(PROTO_CHAP, cp[4]));
+            log_Printf(LogLCP, "Peer will only send %s (not %s)\n",
+                       Auth2Nam(PROTO_CHAP, cp[4]),
+#ifdef HAVE_DES
+                       cp[4] == 0x80 ? "configured" :
+#endif
+                       "supported");
 	    lcp->his_reject |= (1 << type);
           }
           break;
@@ -1062,7 +1082,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
 	break;
 
-      case MODE_NAK:	/* Treat this as a REJ, we don't vary or disc */
+      case MODE_NAK:	/* Treat this as a REJ, we don't vary our disc */
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
 	break;
@@ -1130,7 +1150,7 @@ reqreject:
 }
 
 void
-lcp_Input(struct lcp *lcp, struct mbuf * bp)
+lcp_Input(struct lcp *lcp, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
   fsm_Input(&lcp->fsm, bp);

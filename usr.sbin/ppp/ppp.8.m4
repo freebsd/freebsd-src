@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.150 1999/02/18 00:52:15 brian Exp $
+.\" $Id: ppp.8,v 1.151 1999/02/25 12:00:04 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3588,17 +3588,41 @@ In all cases, if the interface is already configured,
 .Nm
 will try to maintain the interface IP numbers so that any existing
 bound sockets will remain valid.
-.It set ccpretry Ar period
-.It set chapretry Ar period
-.It set ipcpretry Ar period
-.It set lcpretry Ar period
-.It set papretry Ar period
+.It "set ccpretry|ccpretries" Ar "[timeout [reqtries [trmtries]]]"
+.It "set chapretry|chapretries" Ar "[timeout [reqtries]]"
+.It "set ipcpretry|ipcpretries" Ar "[timeout [reqtries [trmtries]]]"
+.It "set lcpretry|lcpretries" Ar "[timeout [reqtries [trmtries]]]"
+.It "set papretry|papretries" Ar "[timeout [reqtries]]"
 These commands set the number of seconds that
 .Nm
 will wait before resending Finite State Machine (FSM) Request packets.
 The default
-.Ar period
+.Ar timeout
 for all FSMs is 3 seconds (which should suffice in most cases).
+.Pp
+If
+.Ar reqtries
+is specified, it tells
+.Nm
+how many configuration request attempts it should make while receiving
+no reply from the peer before giving up.  The default is 5 attempts for
+CCP, LCP and IPCP and 3 attempts for PAP and CHAP.
+.Pp
+If
+.Ar trmtries
+is specified, it tells
+.Nm
+how many terminate requests should be sent before giving up waiting for the
+peers response.  The default is 3 attempts.  Authentication protocols are
+not terminated and it is therefore invalid to specify
+.Ar trmtries
+for PAP or CHAP.
+.Pp
+In order to avoid netogiations with the peer that will never converge,
+.Nm
+will only send at most 3 times the configured number of
+.Ar reqtries
+in any given negotiation session before giving up and closing that layer.
 .It set log [local] [+|-] Ns Ar value...
 This command allows the adjustment of the current log level.  Refer
 to the Logging Facility section for further details.

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.102 1999/02/16 00:16:56 brian Exp $
+ * $Id: modem.c,v 1.103 1999/02/25 20:05:55 brian Exp $
  *
  *  TODO:
  */
@@ -810,6 +810,8 @@ modem_Close(struct physical *modem)
 
   if (!modem->isatty) {
     modem_PhysicalClose(modem);
+    if (*modem->name.full == '/')
+      modem_Unlock(modem);
     *modem->name.full = '\0';
     modem->name.base = modem->name.full;
     return;
