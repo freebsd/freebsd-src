@@ -36,7 +36,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 
 int
 rdattr_main(argc, argv)
