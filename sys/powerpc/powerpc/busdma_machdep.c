@@ -75,6 +75,7 @@ struct bus_dmamap {
         bus_size_t             buflen;          /* unmapped buffer length */
         bus_dmamap_callback_t *callback;
         void                  *callback_arg;
+	struct mtx	      *callback_mtx;
 };
 
 /*

@@ -90,6 +90,7 @@ struct bus_dmamap {
 	vm_offset_t	       busaddress;	/* address in bus space */
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	struct mtx	      *callback_mtx;
 	void		      *sgmaphandle;	/* handle into sgmap */
 	STAILQ_ENTRY(bus_dmamap) links;
 };
@@ -920,8 +921,12 @@ busdma_swi(void)
 	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
 		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
 		splx(s);
+		if (map->callback_mtx != NULL)
+			mtx_lock(map->callback_mtx);
 		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
 				map->callback, map->callback_arg, /*flags*/0);
+		if (map->callback_mtx != NULL)
+			mtx_unlock(map->callback_mtx);
 		s = splhigh();
 	}
 	splx(s);
