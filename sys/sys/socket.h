@@ -370,6 +370,8 @@ struct cmsgcred {
 
 #define	CMSG_FIRSTHDR(mhdr)	((struct cmsghdr *)(mhdr)->msg_control)
 
+/* RFC 2292 additions */
+
 #define	CMSG_SPACE(l)		(ALIGN(sizeof(struct cmsghdr)) + ALIGN(l))
 #define	CMSG_LEN(l)		(ALIGN(sizeof(struct cmsghdr)) + (l))
 
