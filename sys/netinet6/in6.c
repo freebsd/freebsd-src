@@ -560,6 +560,8 @@ in6_control(so, cmd, data, ifp, td)
 		break;
 
 	case SIOCGIFSTAT_IN6:
+		if (ifp == NULL)
+			return EINVAL;
 		bzero(&ifr->ifr_ifru.ifru_stat,
 		    sizeof(ifr->ifr_ifru.ifru_stat));
 		ifr->ifr_ifru.ifru_stat =
