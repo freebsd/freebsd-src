@@ -313,7 +313,7 @@ void ata_reset(struct ata_softc *, int32_t *);
 int32_t ata_reinit(struct ata_softc *);
 int32_t ata_wait(struct ata_softc *, int32_t, u_int8_t);
 int32_t ata_command(struct ata_softc *, int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, int32_t);
-int32_t ata_dmainit(struct ata_softc *, int32_t, int32_t, int32_t, int32_t);
+void ata_dmainit(struct ata_softc *, int32_t, int32_t, int32_t, int32_t);
 int32_t ata_dmasetup(struct ata_softc *, int32_t, int8_t *, int32_t, int32_t);
 void ata_dmastart(struct ata_softc *);
 int32_t ata_dmastatus(struct ata_softc *);
