@@ -43,11 +43,14 @@ afterinstall:
 	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 		${.CURDIR}/instbsdi.exe ${DESTDIR}/usr/dos/
 
-doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o
+doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o instbsdi.exe
 # for FreeBSD
 	ld -e start -dc -dp -o doscmd ${LDFLAGS} /usr/lib/crt0.o doscmd_loader.o ${LDADD}
 # for NetBSD
 #	ld -N -Bstatic -o doscmd ${LDFLAGS} ${LIBCRT0} doscmd_loader.o ${LDADD}
+
+instbsdi.exe:	instbsdi.exe.uu
+	uudecode	instbsdi.exe.uu
 
 .include <bsd.prog.mk>
 
