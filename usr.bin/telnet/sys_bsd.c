@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)sys_bsd.c	8.2 (Berkeley) 12/15/93";
 #include <signal.h>
 #include <errno.h>
 #include <arpa/telnet.h>
+#include <unistd.h>
 
 #include "ring.h"
 
@@ -1150,17 +1151,24 @@ process_rings(netin, netout, netex, ttyin, ttyout, poll)
     if (FD_ISSET(tin, &ibits)) {
 	FD_CLR(tin, &ibits);
 	c = TerminalRead(ttyiring.supply, ring_empty_consecutive(&ttyiring));
+	if (c < 0 && errno == EIO)
+	    c = 0;
 	if (c < 0 && errno == EWOULDBLOCK) {
 	    c = 0;
 	} else {
-	    /* EOF detection for line mode!!!! */
-	    if ((c == 0) && MODE_LOCAL_CHARS(globalmode) && isatty(tin)) {
+	    if (c < 0) {
+		return -1;
+	    }
+	    if (c == 0) {
 			/* must be an EOF... */
+		if (MODE_LOCAL_CHARS(globalmode) && isatty(tin)) {
 		*ttyiring.supply = termEofChar;
 		c = 1;
+		} else {
+		    clienteof = 1;
+		    shutdown(net, 1);
+		    return 0;
 	    }
-	    if (c <= 0) {
-		return -1;
 	    }
 	    if (termdata) {
 		Dump('<', ttyiring.supply, c);
