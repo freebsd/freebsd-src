@@ -97,11 +97,6 @@
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
 
-/* PREEMPTION exposes scheduler bugs that need to be fixed. */
-#if 0
-#define	PREEMPTION
-#endif
-
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
