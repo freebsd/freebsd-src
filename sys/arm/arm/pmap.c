@@ -2219,7 +2219,8 @@ pmap_init2()
 
 	for (loop = 0; loop < needed; loop++, l1++) {
 		/* Allocate a L1 page table */
-		va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE, NULL, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
+		va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE, M_VMPMAP, 0, 0x0,
+		    0xffffffff, L1_TABLE_SIZE, 0);
 
 		if (va == 0)
 			panic("Cannot allocate L1 KVM");
