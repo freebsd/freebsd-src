@@ -26,7 +26,7 @@ MENU:de:Wählen Sie Ihre Tastaturbelegung
 MENU:fr:Choisissez la nationalité de votre clavier
 MENU:pl:Wybierz uk³ad klawiatury
 MENU:pt:Escolha o layout do teclado
-MENU:es:Seleccione el tipo de su teclado
+MENU:es:Seleccione el idioma de su teclado
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv,pt,es:iso-8x16.fnt
@@ -39,7 +39,8 @@ be.iso.kbd:pt,es:Belga ISO-8859-1
 
 be.iso.acc.kbd:en:Belgian ISO-8859-1 (accent keys)
 be.iso.acc.kbd:de:Belgisch ISO-8859-1 (mit Akzenten)
-be.iso.acc.kbd:pt,es:Belga ISO-8859-1 (com acentos)
+be.iso.acc.kbd:pt:Belga ISO-8859-1 (com acentos)
+be.iso.acc.kbd:es:Belga ISO-8859-1 (con acentos)
 
 br275.iso.kbd:en:Brazilian 275 ISO-8859-1
 br275.iso.kbd:de:Brasilianisch 275 ISO-8859-1
@@ -64,7 +65,8 @@ cz.iso2.kbd:en:Czech ISO-8859-2
 cz.iso2.kbd:de:Tschechisch ISO-8859-2
 cz.iso2.kbd:es:Checo ISO-8859-2
 
-cs.latin2.qwertz.kbd:Czech ISO-8859-2 (QWERTZ, accent keys)
+cs.latin2.qwertz.kbd:en:Czech ISO-8859-2 (QWERTZ, accent keys)
+cs.latin2.qwertz.kbd:es:Checo ISO-8859-2 (QWERTZ, con acentos)
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
@@ -169,6 +171,7 @@ lat-amer.kbd:de:Latein Amerikanisch
 lat-amer.kbd:pt,es:América Latina
 
 lt.iso4.kbd:en:Lithuanian ISO-8859-4
+lt.iso4.kbd:es:Lituano ISO-8859-4
 
 norwegian.iso.kbd:en:Norwegian ISO-8859-1
 norwegian.iso.kbd:no:Norsk ISO-8859-1
@@ -222,6 +225,11 @@ spanish.iso.acc.kbd:en:Spanish ISO-8859-1 (accent keys)
 spanish.iso.acc.kbd:de:Spanisch ISO-8859-1 (accent keys)
 spanish.iso.acc.kbd:pt:Espanhol ISO-8859-1 (com acentos)
 spanish.iso.acc.kbd:es:Español ISO-8859-1 (con acentos)
+
+spanish.iso15.acc.kbd:en:Spanish ISO-8859-15 (accent keys)
+spanish.iso15.acc.kbd:de:Spanisch ISO-8859-15 (accent keys)
+spanish.iso15.acc.kbd:pt:Espanhol ISO-8859-15 (com acentos)
+spanish.iso15.acc.kbd:es:Español ISO-8859-15 (con acentos)
 
 si.iso.kbd:en:Slovenian ISO-8859-2
 si.iso.kbd:de:Slovenisch ISO-8859-2
