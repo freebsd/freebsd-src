@@ -1,14 +1,13 @@
 # This is the Makefile for the libuucp subdirectory of Taylor UUCP
 # $FreeBSD$
 
-LIB=		uucp
-SRCS = buffer.c crc.c debug.c escape.c getopt.c getop1.c parse.c spool.c \
-	status.c xfree.c xmall.c xreall.c \
-	 getlin.c
-CFLAGS+=	-I$(.CURDIR)/../common_sources
+LIB=	uucp
+SRCS= 	buffer.c crc.c debug.c escape.c getlin.c getopt.c getop1.c \
+	parse.c spool.c status.c xfree.c xmall.c xreall.c
+CFLAGS+=-I$(.CURDIR)/../common_sources
 
-NOMAN=		noman
-NOPROFILE=	noprofile
+NOMAN=	noman
+NOPROFILE=noprofile
 
 install:
 
