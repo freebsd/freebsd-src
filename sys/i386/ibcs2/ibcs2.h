@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.h,v 1.11 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2.h,v 1.2 1994/10/14 08:53:16 sos Exp $
  */
 
 /* trace all iBCS2 system calls */
@@ -69,7 +69,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_RETVAL_SIZE	(3 * sizeof(int))
 #define IBCS2_MAGIC_IN		0xe215
 #define IBCS2_MAGIC_OUT		0x8e11
-#define	IBCS2_MAGIC_RETURN	*(((int *)arg) - 3) = IBCS2_MAGIC_OUT; \
+#define	IBCS2_MAGIC_RETURN(arg)	*(((int *)arg) - 3) = IBCS2_MAGIC_OUT; \
 				*(((int *)arg) - 2) = retval[0]; \
 				*(((int *)arg) - 1) = retval[1]; \
 				return(0);

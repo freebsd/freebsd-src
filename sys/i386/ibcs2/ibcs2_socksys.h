@@ -28,10 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_socksys.h,v 1.2 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_socksys.h,v 1.1 1994/10/14 08:53:16 sos Exp $
  */
-
-#define	SS_DEBUG
 
 struct ss_call {
 	int	arg[7];
