@@ -40,8 +40,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-char *_PathLocale;
+#include "setlocale.h"
 
 extern int		_none_init __P((_RuneLocale *));
 #ifdef XPG4
@@ -72,7 +71,7 @@ _xpg4_setrunelocale(encoding)
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 
-	if (!encoding)
+	if (!encoding || strlen(encoding) > ENCODING_LEN)
 	    return(EFAULT);
 
 	/*
@@ -85,7 +84,7 @@ _xpg4_setrunelocale(encoding)
 
 	if (!_PathLocale)
 		_PathLocale = _PATH_LOCALE;
-	/* Range checking not needed, encoding has fixed size */
+	/* Range checking not needed, encoding length already checked above */
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");
 	(void) strcat(name, encoding);

@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.3 1997/02/05 23:20:51 joerg Exp $
+ * $Id: setlocale.c,v 1.8.2.4 1997/02/06 08:32:55 pst Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.3 1997/02/05 23:20:51 joerg Exp $";
+	"$Id: setlocale.c,v 1.8.2.4 1997/02/06 08:32:55 pst Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include <string.h>
 #include <unistd.h>
 #include "collate.h"
+#include "setlocale.h"
 
 /*
  * Category names for getenv()
@@ -70,7 +71,7 @@ static char *categories[_LC_LAST] = {
 /*
  * Current locales for each category
  */
-static char current_categories[_LC_LAST][32] = {
+static char current_categories[_LC_LAST][ENCODING_LEN + 1] = {
     "C",
     "C",
     "C",
@@ -82,11 +83,10 @@ static char current_categories[_LC_LAST][32] = {
 /*
  * The locales we are going to try and load
  */
-static char new_categories[_LC_LAST][32];
-static char saved_categories[_LC_LAST][32];
+static char new_categories[_LC_LAST][ENCODING_LEN + 1];
+static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
 
-static char current_locale_string[_LC_LAST * 33];
-char *_PathLocale;
+static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale __P((void));
 static char	*loadlocale __P((int));
@@ -97,6 +97,8 @@ extern int __time_load_locale __P((const char *)); /* strftime.c */
 #ifdef XPG4
 extern int _xpg4_setrunelocale __P((char *));
 #endif
+
+char	*_PathLocale;
 
 char *
 setlocale(category, locale)
@@ -134,33 +136,34 @@ setlocale(category, locale)
 		if (!env || !*env)
 			env = "C";
 
-		(void) strncpy(new_categories[category], env, 31);
-		new_categories[category][31] = 0;
+		(void) strncpy(new_categories[category], env, ENCODING_LEN);
+		new_categories[category][ENCODING_LEN] = '\0';
 		if (category == LC_ALL) {
 			for (i = 1; i < _LC_LAST; ++i) {
 				if (!(env = getenv(categories[i])) || !*env)
 					env = new_categories[LC_ALL];
-				(void)strncpy(new_categories[i], env, 31);
-				new_categories[i][31] = 0;
+				(void)strncpy(new_categories[i], env, ENCODING_LEN);
+				new_categories[i][ENCODING_LEN] = '\0';
 			}
 		}
 	} else if (category != LC_ALL)  {
-		(void)strncpy(new_categories[category], locale, 31);
-		new_categories[category][31] = 0;
+		(void)strncpy(new_categories[category], locale, ENCODING_LEN);
+		new_categories[category][ENCODING_LEN] = '\0';
 	} else {
-		if ((r = strchr(locale, '/')) == 0) {
+		if ((r = strchr(locale, '/')) == NULL) {
 			for (i = 1; i < _LC_LAST; ++i) {
-				(void)strncpy(new_categories[i], locale, 31);
-				new_categories[i][31] = 0;
+				(void)strncpy(new_categories[i], locale, ENCODING_LEN);
+				new_categories[i][ENCODING_LEN] = '\0';
 			}
 		} else {
 			for (i = 1; r[1] == '/'; ++r);
 			if (!r[1])
 				return (NULL);	/* Hmm, just slashes... */
 			do {
-				len = r - locale > 31 ? 31 : r - locale;
+				len = r - locale > ENCODING_LEN ? ENCODING_LEN : r - locale;
 				(void)strncpy(new_categories[i], locale, len);
-				new_categories[i++][len] = 0;
+				new_categories[i][len] = '\0';
+				i++;
 				locale = r;
 				while (*locale == '/')
 				    ++locale;
@@ -188,17 +191,6 @@ setlocale(category, locale)
 		}
 	}
 	return (currentlocale());
-}
-
-/* To be compatible with crt0 hack */
-void
-_startup_setlocale(category, locale)
-	int category;
-	const char *locale;
-{
-#ifndef XPG4
-	(void) setlocale(category, locale);
-#endif
 }
 
 static char *
