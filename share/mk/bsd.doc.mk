@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.26 1996/09/03 15:14:44 bde Exp $
+#	$Id: bsd.doc.mk,v 1.27 1996/12/19 22:40:43 mpp Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -64,9 +64,9 @@ all:	${DFILE}
 .if !target(print)
 print: ${DFILE}
 .if defined(NODOCCOMPRESS)
-	lpr -P${PRINTERDEVICE} ${DFILE}
+	lpr ${DFILE}
 .else
-	${GZIPCMD} -d ${DFILE} | lpr -P${PRINTERDEVICE}
+	${GZIPCMD} -d ${DFILE} | lpr
 .endif
 .endif
 
