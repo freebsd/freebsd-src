@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.2 1995/04/05 03:23:38 wpaul Exp $
+ *	$Id: yp_svc.c,v 1.3 1995/05/30 05:05:37 rgrimes Exp $
  */
 
 #include "system.h"
@@ -23,9 +23,12 @@
 #include <syslog.h>
 #include <errno.h>
 #include <paths.h>
+#include <signal.h>
 
 extern int errno;
-extern void Perror();
+extern void Perror __P((char *, ...));
+extern void my_svc_run __P((void));
+extern void reapchild __P((int));
 
 #ifdef __STDC__
 #define SIG_PF void(*)(int)
@@ -262,6 +265,7 @@ int main(int argc, char **argv)
     struct sockaddr_in	socket_address;
     int			result;
     int			sunos_4_kludge = 0;
+    struct sigaction	sa;
 
     progname = strrchr (argv[0], '/');
     if (progname == (char *) NULL)
@@ -313,6 +317,21 @@ int main(int argc, char **argv)
 	Perror("%s: chdir: %", argv[0], strerror(errno));
 	exit(1);
     }
+
+    /*
+     * Ignore SIGPIPEs. They can hurt us if someone does a ypcat
+     * and then hits CTRL-C before it terminates.
+     */
+    sigaction(SIGPIPE, NULL, &sa);
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags |= SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, NULL);
+    sigaction(SIGCHLD, NULL, &sa);
+    sa.sa_flags |= SA_RESTART;
+    sa.sa_handler = reapchild;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGCHLD, &sa, NULL);
 
     (void) pmap_unset(YPPROG, YPVERS);
     if (sunos_4_kludge)
@@ -404,7 +423,7 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    svc_run();
+    my_svc_run();
     Perror("svc_run returned");
     exit(1);
     /* NOTREACHED */
