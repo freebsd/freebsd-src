@@ -504,7 +504,7 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
 	
-	if (dsw->d_flags & D_NOGIANT) {
+	if ((dsw->d_flags & D_NOGIANT) && !(bp->b_flags & B_KEEPGIANT)) {
 		DROP_GIANT();
 		DEV_STRATEGY(bp);
 		PICKUP_GIANT();
