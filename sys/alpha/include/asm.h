@@ -226,6 +226,12 @@
  *
  */
 
+ /*
+  * for `.loc' uses
+  */
+
+	.file	1 __FILE__
+
 /*
  * MCOUNT
  */
