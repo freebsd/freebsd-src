@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 David Schultz <das@FreeBSD.org>
+ * Copyright (c) 2002, 2005 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <err.h>
+#include <fenv.h>
 #include <float.h>
-#include <ieeefp.h>
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
@@ -52,9 +52,12 @@ int
 main(int argc, char *argv[])
 {
 
-	printf("1..1\n");
+	printf("1..11\n");
 	assert(setlocale(LC_NUMERIC, ""));
 
+	/*
+	 * Basic tests of decimal output functionality.
+	 */
 	testfmt(" 1.000000E+00", "%13E", 1.0);
 	testfmt("     1.000000", "%13f", 1.0);
 	testfmt("            1", "%13G", 1.0);
@@ -79,6 +82,11 @@ main(int argc, char *argv[])
 	    3.14159265358979323846e-4000L);
 #endif
 
+	printf("ok 1 - printfloat\n");
+
+	/*
+	 * Infinities and NaNs
+	 */
 	testfmt("nan", "%e", NAN);
 	testfmt("NAN", "%F", NAN);
 	testfmt("nan", "%g", NAN);
@@ -90,20 +98,32 @@ main(int argc, char *argv[])
 	testfmt(" inf", "%4.2Le", HUGE_VALL);
 	testfmt("-inf", "%Lf", -HUGE_VALL);
 
+	printf("ok 2 - printfloat\n");
+
+	/*
+	 * Padding
+	 */
 	testfmt("0.000000e+00", "%e", 0.0);
 	testfmt("0.000000", "%F", (double)0.0);
 	testfmt("0", "%G", 0.0);
 	testfmt("  0", "%3.0Lg", 0.0L);
-
 	testfmt("    0", "%5.0f", 0.001);
+	printf("ok 3 - printfloat\n");
 
+	/*
+	 * Precision specifiers
+	 */
 	testfmt("1.0123e+00", "%.4e", 1.0123456789);
 	testfmt("1.0123", "%.4f", 1.0123456789);
 	testfmt("1.012", "%.4g", 1.0123456789);
 	testfmt("1.2346e-02", "%.4e", 0.0123456789);
 	testfmt("0.0123", "%.4f", 0.0123456789);
 	testfmt("0.01235", "%.4g", 0.0123456789);
+	printf("ok 4 - printfloat\n");
 
+	/*
+	 * Thousands' separators and other locale fun
+	 */
 	testfmt("12345678.0625", "%'.04f", 12345678.0625);
 	testfmt("0012345678.0625", "%'015.4F", 12345678.0625);
 
@@ -125,6 +145,11 @@ main(int argc, char *argv[])
 	testfmt("12345678.062500", "%'f", 12345678.0625);
 	testfmt("9000.000000", "%'f", 9000.0);
 
+	printf("ok 5 - printfloat\n");
+
+	/*
+	 * Signed conversions
+	 */
 	testfmt("+2.500000e-01", "%+e", 0.25);
 	testfmt("+0.000000", "%+F", 0.0);
 	testfmt("-1", "%+g", -1.0);
@@ -134,12 +159,21 @@ main(int argc, char *argv[])
 	testfmt(" 1", "% g", 1.0);
 	testfmt(" 0", "% g", 0.0);
 
+	printf("ok 6 - printfloat\n");
+
+	/*
+	 * ``Alternate form''
+	 */
 	testfmt("1.250e+00", "%#.3e", 1.25);
 	testfmt("123.000000", "%#f", 123.0);
 	testfmt(" 12345.", "%#7.5g", 12345.0);
 	testfmt(" 1.00000", "%#8g", 1.0);
 	testfmt("0.0", "%#.2g", 0.0);
+	printf("ok 7 - printfloat\n");
 
+	/*
+	 * Padding and decimal point placement
+	 */
 	testfmt("03.2E+00", "%08.1E", 3.25);
 	testfmt("003.25", "%06.2F", 3.25);
 	testfmt("0003.25", "%07.4G", 3.25);
@@ -168,12 +202,34 @@ main(int argc, char *argv[])
 	testfmt("9.0e+01", "%4.1e", 90.0);
 	testfmt("1e+02", "%4.0e", 100.0);
 
+	printf("ok 8 - printfloat\n");
+
+	/*
+	 * Decimal rounding
+	 */
+	fesetround(FE_DOWNWARD);
+	testfmt("4.437", "%.3f", 4.4375);
+	testfmt("-4.438", "%.3f", -4.4375);
+
+	fesetround(FE_UPWARD);
+	testfmt("4.438", "%.3f", 4.4375);
+	testfmt("-4.437", "%.3f", -4.4375);
+
+	fesetround(FE_TOWARDZERO);
+	testfmt("4.437", "%.3f", 4.4375);
+	testfmt("-4.437", "%.3f", -4.4375);
+
+	fesetround(FE_TONEAREST);
+	testfmt("4.438", "%.3f", 4.4375);
+	testfmt("-4.438", "%.3f", -4.4375);
+
+	printf("ok 9 - printfloat\n");
+
 	/*
 	 * Hexadecimal floating point (%a, %A) tests.  Some of these
 	 * are only valid if the implementation converts to hex digits
 	 * on nibble boundaries.
 	 */
-
 	testfmt("0x0p+0", "%a", 0x0.0p0);
 	testfmt("0X0.P+0", "%#LA", 0x0.0p0L);
 	testfmt("inf", "%La", (long double)INFINITY);
@@ -185,26 +241,61 @@ main(int argc, char *argv[])
 	testfmt(" 0x1.23p-500", "%12a", 0x1.23p-500);
 	testfmt(" 0x1.2p+40", "%10.1a", 0x1.23p40);
 	testfmt(" 0X1.230000000000000000000000P-4", "%32.24A", 0x1.23p-4);
+	testfmt("0x1p-1074", "%a", 0x1p-1074);
+	testfmt("0x1.2345p-1024", "%a", 0x1.2345p-1024);
 
 #if (LDBL_MANT_DIG == 64) && !defined(__i386__)
 	testfmt("0xc.90fdaa22168c234p-2", "%La", 0x3.243f6a8885a308dp0L);
+	testfmt("0x8p-16448", "%La", 0x1p-16445L);
+	testfmt("0x9.8765p-16384", "%La", 0x9.8765p-16384L);
 #elif (LDBL_MANT_DIG == 113)
 	testfmt("0x1.921fb54442d18469898cc51701b8p+1", "%La",
 	    0x3.243f6a8885a308d313198a2e037p0L);
+	testfmt("0x1p-16494", "%La", 0x1p-16494L);
+	testfmt("0x1.2345p-16384", "%La", 0x1.2345p-16384L);
 #else
 	testfmt("0xc.90fdaa22168cp-2", "%La", 0x3.243f6a8885a31p0L);
+	testfmt("0x8p-1077", "%La", 0x1p-1074L);
+	testfmt("0x9.8765p-1024", "%La", 0x9.8765p-1024L);
 #endif
 
-	fpsetround(FP_RN);
+	printf("ok 10 - printfloat\n");
+
+	/*
+	 * Hexadecimal rounding
+	 */
+	fesetround(FE_TOWARDZERO);
+	testfmt("0X1.23456789ABCP+0", "%.11A", 0x1.23456789abcdep0);
+	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
+	testfmt("0x1.23456p+0", "%.5a", 0x1.23456789abcdep0);
+	testfmt("0x1.234567p+0", "%.6a", 0x1.23456789abcdep0);
+	testfmt("-0x1.234566p+0", "%.6a", -0x1.23456689abcdep0);
+
+	fesetround(FE_DOWNWARD);
+	testfmt("0X1.23456789ABCP+0", "%.11A", 0x1.23456789abcdep0);
+	testfmt("-0x1.23457p+0", "%.5a", -0x1.23456789abcdep0);
+	testfmt("0x1.23456p+0", "%.5a", 0x1.23456789abcdep0);
+	testfmt("0x1.234567p+0", "%.6a", 0x1.23456789abcdep0);
+	testfmt("-0x1.234567p+0", "%.6a", -0x1.23456689abcdep0);
+
+	fesetround(FE_UPWARD);
+	testfmt("0X1.23456789ABDP+0", "%.11A", 0x1.23456789abcdep0);
+	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
+	testfmt("0x1.23457p+0", "%.5a", 0x1.23456789abcdep0);
+	testfmt("0x1.234568p+0", "%.6a", 0x1.23456789abcdep0);
+	testfmt("-0x1.234566p+0", "%.6a", -0x1.23456689abcdep0);
+
+	fesetround(FE_TONEAREST);
 	testfmt("0x1.23456789abcdep+4", "%a", 0x1.23456789abcdep4);
 	testfmt("0X1.23456789ABDP+0", "%.11A", 0x1.23456789abcdep0);
 	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
+	testfmt("0x1.23456p+0", "%.5a", 0x1.23456789abcdep0);
 	testfmt("0x1.234568p+0", "%.6a", 0x1.23456789abcdep0);
 	testfmt("-0x1.234566p+0", "%.6a", -0x1.23456689abcdep0);
 	testfmt("0x2.00p-1030", "%.2a", 0x1.fffp-1030);
-	testfmt("0x1.00p-1026", "%.2a", 0xf.fffp-1030);
+	testfmt("0x2.00p-1027", "%.2a", 0xf.fffp-1030);
 
-	printf("ok 1 - printfloat\n");
+	printf("ok 11 - printfloat\n");
 
 	return (0);
 }
