@@ -161,11 +161,11 @@ Static ng_rcvdata_t	ng_udbp_rcvdata;
 Static ng_disconnect_t	ng_udbp_disconnect;
 
 /* Parse type for struct ngudbpstat */
-Static const struct ng_parse_struct_info
-	ng_udbp_stat_type_info = NG_UDBP_STATS_TYPE_INFO;
+Static const struct ng_parse_struct_field
+	ng_udbp_stat_type_fields[] = NG_UDBP_STATS_TYPE_INFO;
 Static const struct ng_parse_type ng_udbp_stat_type = {
 	&ng_parse_struct_type,
-	&ng_udbp_stat_type_info
+	&ng_udbp_stat_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
