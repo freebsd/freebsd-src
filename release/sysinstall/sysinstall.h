@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.17 1995/10/16 07:31:11 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.18 1995/10/16 09:25:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -580,6 +580,7 @@ extern int	mediaGetUFS(Device *dev, char *file, Attribs *dist_attrs);
 extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
+extern void	variable_unset(char *var);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

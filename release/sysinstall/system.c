@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.4 1995/10/04 07:55:01 jkh Exp $
+ * $Id: system.c,v 1.44.2.5 1995/10/15 12:41:09 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -271,6 +271,7 @@ int
 docBrowser(char *junk)
 {
     /* Make sure we were started at a reasonable time */
+    
     /* First, make sure we have Lynx */
     /* We don't have lynx, try to add it */
     /* Now try to figure out if there is doc here - if so, offer choice between local and net else just net */

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.14 1995/10/15 15:45:17 jkh Exp $
+ * $Id: disks.c,v 1.31.2.15 1995/10/16 07:30:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -123,17 +123,15 @@ print_command_summary()
     move(0, 0);
 }
 
-static Disk *
-diskPartition(Disk *d)
+void
+diskPartition(Device *dev, Disk *d)
 {
     char *p;
     int key = 0;
     Boolean chunking;
     char *msg = NULL;
-    char name[40];
 
     chunking = TRUE;
-    strncpy(name, d->name, 40);
     keypad(stdscr, TRUE);
 
     clear();
@@ -204,6 +202,7 @@ diskPartition(Disk *d)
 	    if (rv)
 		msgInfo("Well OK, but you can't say you haven't been warned!");
 	    All_FreeBSD(d, rv);
+	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	}
 	    break;
@@ -211,7 +210,7 @@ diskPartition(Disk *d)
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
 		msg = "Can only scan for bad blocks in FreeBSD partition.";
-	    else if (strncmp(name, "sd", 2) ||
+	    else if (strncmp(d->name, "sd", 2) ||
 		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\n"
 			       "Are you sure you want to do this on a SCSI disk?")) {
 		if (chunk_info[current_chunk]->flags & CHUNK_BAD144)
@@ -236,6 +235,7 @@ diskPartition(Disk *d)
 			size *= 2048;
 		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, freebsd, 3,
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
+		    variable_set2(DISK_PARTITIONED, "yes");
 		    record_chunks(d);
 		}
 	    }
@@ -246,6 +246,7 @@ diskPartition(Disk *d)
 		msg = "Partition is already unused!";
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
+		variable_set2(DISK_PARTITIONED, "yes");
 		record_chunks(d);
 	    }
 	    break;
@@ -271,10 +272,17 @@ diskPartition(Disk *d)
 	break;
 	
     case 'U':
-	    Free_Disk(d);
-	    d = Open_Disk(name);
-	    if (!d)
-		msgFatal("Can't reopen disk %s!", name);
+	    clear();
+	    if (msgYesNo("Are you SURE you want to Undo everything?"))
+		break;
+	    d = Open_Disk(d->name);
+	    if (!d) {
+		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
+		return;
+	    }
+	    Free_Disk(dev->private);
+	    dev->private = d;
+	    variable_unset(DISK_PARTITIONED);
 	    record_chunks(d);
 	    break;
 
@@ -300,6 +308,7 @@ diskPartition(Disk *d)
 		end_dialog();
 		DialogActive = FALSE;
 		slice_wizard(d);
+		variable_set2(DISK_PARTITIONED, "yes");
 		dialog_clear();
 		DialogActive = TRUE;
 		record_chunks(d);
@@ -324,8 +333,6 @@ diskPartition(Disk *d)
 	free(p);
     }
     dialog_clear();
-    variable_set2(DISK_PARTITIONED, "yes");
-    return d;
 }
 
 static int
@@ -355,7 +362,7 @@ partitionHook(char *str)
 	else if (devs[1])
 	    msgConfirm("Bizarre multiple match for %s!", str);
 	devs[0]->enabled = TRUE;
-	devs[0]->private = diskPartition((Disk *)devs[0]->private);
+	diskPartition(devs[0], (Disk *)devs[0]->private);
 	str = cp;
     }
     return devs ? 1 : 0;
@@ -377,8 +384,8 @@ diskPartitionEditor(char *str)
 	i = RET_FAIL;
     }
     else if (cnt == 1) {
-	devs[0]->private = diskPartition((Disk *)devs[0]->private);
 	devs[0]->enabled = TRUE;
+	diskPartition(devs[0], (Disk *)devs[0]->private);
 	i = RET_SUCCESS;
     }
     else {
