@@ -25,7 +25,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c setproctitle.c \
 	shmat.c shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c stringlist.c strtofflags.c \
-	sysconf.c sysctl.c sysctlbyname.c \
+	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
 	ttyslot.c ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c \
 	wait.c wait3.c waitpid.c
@@ -115,7 +115,7 @@ MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigismember.3
 MLINKS+=stringlist.3 sl_add.3 stringlist.3 sl_find.3 \
 	stringlist.3 sl_free.3 stringlist.3 sl_init.3
-MLINKS+=sysctl.3 sysctlbyname.3
+MLINKS+=sysctl.3 sysctlbyname.3 sysctl.3 sysctlnametomib.3
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflow.3 tcsendbreak.3 tcflush.3
