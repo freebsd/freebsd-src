@@ -43,22 +43,10 @@ CPUTYPE = athlon
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp"
-_CPUCFLAGS = -march=athlon-mp
-.  elif ${CPUTYPE} == "athlon-xp"
-_CPUCFLAGS = -march=athlon-xp
-.  elif ${CPUTYPE} == "athlon-4"
-_CPUCFLAGS = -march=athlon-4
-.  elif ${CPUTYPE} == "athlon-tbird"
-_CPUCFLAGS = -march=athlon-tbird
-.  elif ${CPUTYPE} == "athlon"
-_CPUCFLAGS = -march=athlon
-.  elif ${CPUTYPE} == "k6-3"
-_CPUCFLAGS = -march=k6-3
-.  elif ${CPUTYPE} == "k6-2"
-_CPUCFLAGS = -march=k6-2
-.  elif ${CPUTYPE} == "k6"
-_CPUCFLAGS = -march=k6
+.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon"
+_CPUCFLAGS = -march=${CPUTYPE}
+.  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2" || ${CPUTYPE} == "k6"
+_CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "k5"
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "p4"
@@ -98,20 +86,12 @@ _CPUCFLAGS = -mcpu=ev4
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
-. if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp"
-MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "athlon-xp"
-MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "athlon-4"
-MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "athlon-tbird"
-MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "athlon"
-MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "k6-3"
-MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "k6-2"
+.if ${MACHINE_ARCH} == "i386"
+. if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4"
+MACHINE_CPU = athlon-xp k7 3dnow sse mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
+MACHINE_CPU = athlon k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "k6"
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
