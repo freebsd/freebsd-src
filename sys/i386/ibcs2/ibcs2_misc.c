@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.23 1997/08/25 21:56:23 bde Exp $
+ * $Id: ibcs2_misc.c,v 1.24 1997/11/06 19:28:33 phk Exp $
  */
 
 /*
@@ -60,6 +60,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>

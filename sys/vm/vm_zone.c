@@ -18,12 +18,13 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.9 1997/10/11 18:31:40 phk Exp $
+ * $Id: vm_zone.c,v 1.10 1997/10/12 20:26:33 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 

@@ -34,11 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.15 1997/10/11 18:31:23 phk Exp $
+ * $Id: kern_lockf.c,v 1.16 1997/10/12 20:23:49 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>

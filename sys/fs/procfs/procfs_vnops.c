@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.41 1997/10/27 15:39:01 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.42 1997/11/07 08:53:15 phk Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>

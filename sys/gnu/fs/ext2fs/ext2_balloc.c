@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/lock.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/quota.h>

@@ -26,6 +26,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 

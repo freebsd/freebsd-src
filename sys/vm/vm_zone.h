@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.6 1997/09/21 04:24:27 dyson Exp $
+ * $Id: vm_zone.h,v 1.7 1997/09/21 11:41:12 peter Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -28,8 +28,7 @@
 #define ZONE_INTERRUPT 1 /* Use this if you need to allocate at int time */
 #define ZONE_BOOT 16	 /* This is an internal flag used by zbootinit */
 
-#include	<machine/param.h>
-#include	<sys/lock.h>
+#include	<machine/lock.h>
 
 typedef struct vm_zone {
 	struct simplelock zlock;	/* lock for data structure */

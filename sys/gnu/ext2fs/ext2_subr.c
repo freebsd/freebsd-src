@@ -43,6 +43,7 @@
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
 
+#include <sys/lock.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <gnu/ext2fs/ext2_extern.h>
