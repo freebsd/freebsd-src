@@ -47,14 +47,10 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.46 1998/12/14 09:06:23 kato Exp $
+ *	$Id: fd.c,v 1.47 1998/12/17 08:40:36 kato Exp $
  *
  */
 
-#include "ft.h"
-#if NFT < 1
-#undef NFDC
-#endif
 #include "fd.h"
 #include "opt_devfs.h"
 #include "opt_fdc.h"
@@ -88,10 +84,6 @@
 #endif
 #include <i386/isa/fdc.h>
 #include <machine/stdarg.h>
-#if NFT > 0
-#include <sys/ftape.h>
-#include <i386/isa/ftreg.h>
-#endif
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif	/* DEVFS */
@@ -292,17 +284,6 @@ nrd_info(addr)
 * fdcu is the floppy controller unit number				*
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
-
-#if NFT > 0
-int ftopen(dev_t, int);
-int ftintr(ftu_t ftu);
-int ftclose(dev_t, int);
-void ftstrategy(struct buf *);
-int ftioctl(dev_t, unsigned long, caddr_t, int, struct proc *);
-int ftdump(dev_t);
-int ftsize(dev_t);
-int ftattach(struct isa_device *, struct isa_device *, int);
-#endif
 
 #ifdef FDC_YE
 #include "card.h"
@@ -833,9 +814,6 @@ fdattach(struct isa_device *dev)
 	fdc_p	fdc = fdc_data + fdcu;
 	fd_p	fd;
 	int	fdsu, st0, st3, i;
-#if NFT > 0
-	int	unithasfd;
-#endif
 	struct isa_device *fdup;
 	int ic_type = 0;
 #ifdef DEVFS
@@ -875,7 +853,7 @@ fdattach(struct isa_device *dev)
 			continue;
 		fdu = fdup->id_unit;
 		fd = &fd_data[fdu];
-		if (fdu >= (NFD+NFT))
+		if (fdu >= (NFD))
 			continue;
 		fdsu = fdup->id_physid;
 		/* look up what bios thinks we have */
@@ -931,29 +909,11 @@ fdattach(struct isa_device *dev)
 #else
 		if ((fdt == RTCFDT_NONE)
 #endif
-#if NFT > 0
-		    || (fdsu >= DRVS_PER_CTLR)) {
-#else
 		) {
 #ifdef PC98
 			fd->fdc = fdc;
 #endif
 			fd->type = NO_TYPE;
-#endif
-#if NFT > 0
-			/* If BIOS says no floppy, or > 2nd device */
-			/* Probe for and attach a floppy tape.     */
-			/* Tell FT if there was already a disk     */
-			/* with this unit number found.            */
-
-			unithasfd = 0;
-			if (fdu < NFD && fd->type != NO_TYPE)
-				unithasfd = 1;
-			if (ftattach(dev, fdup, unithasfd))
-				continue;
-			if (fdsu < DRVS_PER_CTLR)
-				fd->type = NO_TYPE;
-#endif
 			continue;
 		}
 
@@ -1580,11 +1540,6 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	int type = FDTYPE(minor(dev));
 	fdc_p	fdc;
 
-#if NFT > 0
-	/* check for a tape open */
-	if (type & F_TAPE_TYPE)
-		return(ftopen(dev, flags));
-#endif
 	/* check bounds */
 	if (fdu >= NFD)
 		return(ENXIO);
@@ -1664,12 +1619,6 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 
-#if NFT > 0
-	int type = FDTYPE(minor(dev));
-
-	if (type & F_TAPE_TYPE)
-		return ftclose(dev, flags);
-#endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	fd_data[fdu].options &= ~FDOPT_NORETRY;
 
@@ -1719,20 +1668,6 @@ fdstrategy(struct buf *bp)
 	};
 #endif
 
-#if NFT > 0
-	if (FDTYPE(minor(bp->b_dev)) & F_TAPE_TYPE) {
-		/* ft tapes do not (yet) support strategy i/o */
-		bp->b_error = ENODEV;
-		bp->b_flags |= B_ERROR;
-		goto bad;
-	}
-	/* check for controller already busy with tape */
-	if (fdc->flags & FDC_TAPE_BUSY) {
-		bp->b_error = EBUSY;
-		bp->b_flags |= B_ERROR;
-		goto bad;
-	}
-#endif
 	fdblk = 128 << (fd->ft->secsize);
 	if (!(bp->b_flags & B_FORMAT)) {
 		if ((fdu >= NFD) || (bp->b_blkno < 0)) {
@@ -1874,13 +1809,6 @@ static void
 fdintr(fdcu_t fdcu)
 {
 	fdc_p fdc = fdc_data + fdcu;
-#if NFT > 0
-	fdu_t fdu = fdc->fdu;
-
-	if (fdc->flags & FDC_TAPE_BUSY)
-		(ftintr(fdu));
-	else
-#endif
 		while(fdstate(fdcu, fdc))
 			;
 }
@@ -2679,14 +2607,6 @@ fdioctl(dev, cmd, addr, flag, p)
 	struct disklabel *dl;
 	char buffer[DEV_BSIZE];
 	int error = 0;
-
-#if NFT > 0
-	int type = FDTYPE(minor(dev));
-
-	/* check for a tape ioctl */
-	if (type & F_TAPE_TYPE)
-		return ftioctl(dev, cmd, addr, flag, p);
-#endif
 
 	fdblk = 128 << fd->ft->secsize;
 
