@@ -60,7 +60,7 @@ int nnames;
 
 void prbits(int bits, char **strs, int n);
 void usage(void);
-void dumpitem(char *label, struct hid_item *h);
+void dumpitem(const char *label, struct hid_item *h);
 void dumpitems(report_desc_t r);
 void rev(struct hid_item **p);
 void prdata(u_char *buf, struct hid_item *h);
@@ -99,7 +99,7 @@ usage(void)
 }
 
 void
-dumpitem(char *label, struct hid_item *h)
+dumpitem(const char *label, struct hid_item *h)
 {
 	if ((h->flags & HIO_CONST) && !verbose)
 		return;
@@ -259,7 +259,7 @@ main(int argc, char **argv)
 {
 	int f;
 	report_desc_t r;
-	char devname[100], *dev = 0;
+	char devnam[100], *dev = 0;
 	int ch;
 	int repdump = 0;
 	int loop = 0;
@@ -305,10 +305,10 @@ main(int argc, char **argv)
 
 	if (dev[0] != '/') {
 		if (isdigit(dev[0]))
-			snprintf(devname, sizeof(devname), "/dev/uhid%s", dev);
+			snprintf(devnam, sizeof(devnam), "/dev/uhid%s", dev);
 		else
-			snprintf(devname, sizeof(devname), "/dev/%s", dev);
-		dev = devname;
+			snprintf(devnam, sizeof(devnam), "/dev/%s", dev);
+		dev = devnam;
 	}
 
 	hid_init(table);
