@@ -194,13 +194,14 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/proc.h>
+#include <sys/bus.h>
 
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/ethernet.h>
@@ -226,6 +227,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define DELAYCONST	1000
 #include <i386/isa/if_wl.h>
 #include <machine/if_wl_wavelan.h>
+
+#ifndef COMPAT_OLDISA
+#error "The wl device requires the old isa compatibility shims"
+#endif
 
 static char	t_packet[ETHERMTU + sizeof(struct ether_header) + sizeof(long)];
 
@@ -263,8 +268,13 @@ static int	wlprobe(struct isa_device *);
 static int	wlattach(struct isa_device *);
 
 struct isa_driver wldriver = {
-    wlprobe, wlattach, "wl", 0
+	INTR_TYPE_NET,
+	wlprobe,
+	wlattach,
+	"wl",
+	0
 };
+COMPAT_ISA_DRIVER(wl, wldriver);
 
 /*
  * XXX  The Wavelan appears to be prone to dropping stuff if you talk to

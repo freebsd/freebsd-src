@@ -27,6 +27,7 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/timetc.h>
 
@@ -619,8 +620,12 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, loran_timecounter, CTLFLAG_RD,
 /**********************************************************************/
 
 struct	isa_driver lorandriver = {
-	loranprobe, loranattach, "loran"
+	INTR_TYPE_TTY | INTR_TYPE_FAST,
+	loranprobe,
+	loranattach,
+	"loran"
 };
+COMPAT_ISA_DRIVER(loran, lorandriver);
 
 #define CDEV_MAJOR 94
 static struct cdevsw loran_cdevsw = {

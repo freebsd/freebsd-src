@@ -47,12 +47,17 @@
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/uio.h>
+#include <sys/bus.h>
 
 #include <machine/asc_ioctl.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ascreg.h>
+
+#ifndef COMPAT_OLDISA
+#error "The asc device requires the old isa compatibility shims"
+#endif
 
 /***
  *** CONSTANTS & DEFINES
@@ -173,7 +178,14 @@ static struct asc_unit unittab[NASC];
  ***/
 static int ascprobe (struct isa_device *isdp);
 static int ascattach(struct isa_device *isdp);
-struct isa_driver ascdriver = { ascprobe, ascattach, "asc" };
+
+struct isa_driver ascdriver = {
+	INTR_TYPE_TTY,
+	ascprobe,
+	ascattach,
+	"asc"
+};
+COMPAT_ISA_DRIVER(asc, ascdriver);
 
 static ointhand2_t	ascintr;
 

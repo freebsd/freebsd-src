@@ -68,11 +68,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -89,6 +91,10 @@
 #include <i386/isa/isa_device.h>
 #include <dev/lnc/if_lncvar.h>
 #include <dev/lnc/if_lncreg.h>
+
+#ifndef COMPAT_OLDISA
+#error "The lnc device requires the old isa compatibility shims"
+#endif
 
 lnc_softc_t lnc_softc[NLNC];
 
@@ -145,7 +151,13 @@ void mbuf_dump_chain __P((struct mbuf *m));
 
 void lncintr_sc __P((lnc_softc_t *sc));
 
-struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
+struct isa_driver lncdriver = {
+	INTR_TYPE_NET,
+	lnc_probe,
+	lnc_attach,
+	"lnc"
+};
+COMPAT_ISA_DRIVER(lnc, lncdriver);
 
 static __inline void
 write_bcr(lnc_softc_t *sc, u_short port, u_short val)

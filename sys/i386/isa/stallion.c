@@ -50,6 +50,7 @@
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/bus.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ic/scd1400.h>
 #include <machine/comstats.h>
@@ -494,8 +495,12 @@ static void	stlpciintr(void * arg);
  *	Declare the driver isa structure.
  */
 struct isa_driver	stldriver = {
-	stlprobe, stlattach, "stl"
+	INTR_TYPE_TTY,
+	stlprobe,
+	stlattach,
+	"stl"
 };
+COMPAT_ISA_DRIVER(stl, stldriver);
 
 /*****************************************************************************/
 

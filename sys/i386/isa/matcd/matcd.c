@@ -360,8 +360,13 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 
 #include	<sys/conf.h>
 #include	<sys/kernel.h>
+#include	<sys/bus.h>
 
 #include	<i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The matcd device requires the old isa compatibility shims"
+#endif
 
 /*---------------------------------------------------------------------------
 	Defines and structures
@@ -495,8 +500,13 @@ struct matcd_read2 {
 
 static	int	matcd_probe(struct isa_device *dev);
 static	int	matcd_attach(struct isa_device *dev);
-struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
-				     "matcdc"};
+struct	isa_driver	matcddriver={
+	INTR_TYPE_BIO,
+	matcd_probe,
+	matcd_attach,
+	"matcdc"
+};
+COMPAT_ISA_DRIVER(matcd, matcddriver);
 
 
 static d_open_t		matcdopen;

@@ -78,6 +78,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/bus.h>
 #include <machine/clock.h>
 #include <machine/ipl.h>
 #ifndef SMP
@@ -88,6 +89,10 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
 #include <i386/isa/ic/cd1400.h>
+
+#ifndef COMPAT_OLDISA
+#error "The cy device requires the old isa compatibility shims"
+#endif
 
 #ifdef SMP
 #define disable_intr()	COM_DISABLE_INTR()
@@ -361,8 +366,12 @@ static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
 struct isa_driver	siodriver = {
-	sioprobe, sioattach, driver_name
+	INTR_TYPE_TTY | INTR_TYPE_FAST,
+	sioprobe,
+	sioattach,
+	driver_name
 };
+COMPAT_ISA_DRIVER(cy, cydriver);	/* XXX */
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;

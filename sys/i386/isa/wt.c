@@ -67,12 +67,16 @@
 #include <sys/malloc.h>
 #include <sys/mtio.h>
 #include <sys/conf.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
 
+#ifndef COMPAT_OLDISA
+#error "The wt device requires the old isa compatibility shims"
+#endif
 
 /*
  * Uncomment this to enable internal device tracing.
@@ -271,7 +275,13 @@ wtattach (struct isa_device *id)
 	return (1);
 }
 
-struct isa_driver wtdriver = { wtprobe, wtattach, "wt", };
+struct isa_driver wtdriver = {
+	INTR_TYPE_BIO,
+	wtprobe,
+	wtattach,
+	"wt",
+};
+COMPAT_ISA_DRIVER(wt, wtdriver);
 
 /*
  * Open routine, called on every device open.

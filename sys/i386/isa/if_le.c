@@ -41,10 +41,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -64,6 +66,10 @@
 #include <vm/pmap.h>
 
 #include <net/bpf.h>
+
+#ifndef COMPAT_OLDISA
+#error "The le device requires the old isa compatibility shims"
+#endif
 
 /* Forward declarations */
 typedef struct le_softc le_softc_t;
@@ -248,8 +254,12 @@ static const le_board_t le_boards[] = {
  * This tells the autoconf code how to set us up.
  */
 struct isa_driver ledriver = {
-    le_probe, le_attach, "le",
+	INTR_TYPE_NET,
+	le_probe,
+	le_attach,
+	"le",
 };
+COMPAT_ISA_DRIVER(le, ledriver);
 
 static unsigned le_intrs[NLE];
 
