@@ -27,7 +27,7 @@ BIN1+=	printcap
 .if !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
-	moduli
+	${.CURDIR}/../crypto/openssh/moduli
 .endif
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
