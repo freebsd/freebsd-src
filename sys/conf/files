@@ -121,6 +121,7 @@ miscfs/procfs/procfs_subr.c	optional procfs
 miscfs/procfs/procfs_vfsops.c	optional procfs
 miscfs/procfs/procfs_vnops.c	optional procfs
 miscfs/procfs/procfs_map.c	optional procfs
+miscfs/procfs/procfs_type.c	optional procfs
 miscfs/specfs/spec_vnops.c	standard
 miscfs/umapfs/umap_subr.c	optional umapfs
 miscfs/umapfs/umap_vfsops.c	optional umapfs
