@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.89.2.3 2004/03/24 03:32:43 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.89.2.4 2004/07/13 16:00:25 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -444,6 +444,10 @@ handle_ctrl_proto(u_int proto, const u_char *pptr, int length)
 				pfunc = NULL;
 				break;
 			}
+
+                        if (pfunc == NULL) /* catch the above null pointer if unknown CP */
+                            break;
+
 			if ((j = (*pfunc)(tptr, len)) == 0)
 				break;
 			x -= j;
