@@ -129,7 +129,7 @@ char buf[BUFSZ];
 			break;
 		}
 	}
-	/* obfree(obj, otmp2);	/* now unnecessary: no pointers on bill */
+	/*obfree(obj, otmp2);*/	/* now unnecessary: no pointers on bill */
 	free((char *) obj);	/* let us hope nobody else saved a pointer */
 }
 

@@ -91,7 +91,7 @@
 /	Process arguments, initialize program, and loop forever processing
 /	player input.
 /
-/***************************************************************************/
+****************************************************************************/
 
 main(argc, argv)
 int	argc;
@@ -332,7 +332,7 @@ double	dtemp;			/* for temporary calculations */
 / DESCRIPTION:
 /	Set global flags, and open files which remain open.
 /
-/************************************************************************/
+*************************************************************************/
 
 initialstate()
 {
@@ -393,7 +393,7 @@ initialstate()
 / DESCRIPTION:
 /	Prompt player, and roll up new character.
 /
-/************************************************************************/
+*************************************************************************/
 
 long
 rollnewplayer()
@@ -512,7 +512,7 @@ int	ch;		/* input */
 / DESCRIPTION:
 /	Process main menu options.
 /
-/************************************************************************/
+*************************************************************************/
 
 procmain()
 {
@@ -745,7 +745,7 @@ bool	hasmoved = FALSE;	/* set if player has moved */
 / DESCRIPTION:
 /	Print important information about game, players, etc.
 /
-/************************************************************************/
+*************************************************************************/
 
 titlelist()
 {
@@ -878,7 +878,7 @@ char	hiname[21], nxtname[21];/* used for finding the two highest players */
 / DESCRIPTION:
 /	Search for a character of a certain name, and check password.
 /
-/************************************************************************/
+*************************************************************************/
 
 long
 recallplayer()
@@ -964,7 +964,7 @@ int	ch;			/* input */
 / DESCRIPTION:
 /	Handle gurus, medics, etc.
 /
-/************************************************************************/
+*************************************************************************/
 
 neatstuff()
 {
@@ -1098,7 +1098,7 @@ int	ch;	/* input */
 / DESCRIPTION:
 /	Use the lookup table for rolling stats.
 /
-/************************************************************************/
+*************************************************************************/
 
 genchar(type)
 int	type;
@@ -1158,7 +1158,7 @@ register struct charstats	*statptr;/* for pointing into Stattable */
 / DESCRIPTION:
 /	Catch a bunch of signals, and turn on curses stuff.
 /
-/************************************************************************/
+*************************************************************************/
 
 playinit()
 {
@@ -1264,7 +1264,7 @@ playinit()
 /	Close all open files.  If we are "in curses" terminate curses.
 /	If 'doexit' is set, exit, otherwise return.
 /
-/************************************************************************/
+*************************************************************************/
 
 cleanup(doexit)
 bool	doexit;
