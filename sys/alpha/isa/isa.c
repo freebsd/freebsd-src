@@ -353,8 +353,7 @@ isa_setup_intr(device_t dev, device_t child,
 			 device_get_nameunit(child ? child : dev),
 			 0x800 + (irq->r_start << 4), 
 			 ((flags & INTR_FAST) ? isa_handle_fast_intr :
-			     isa_handle_intr), ii,
-			 ithread_priority(flags), flags, &ii->ih,
+			     isa_handle_intr), ii, flags, &ii->ih,
 			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start],
 			 isa_disable_intr, isa_enable_intr);
 	if (error) {
