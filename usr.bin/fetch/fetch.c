@@ -196,6 +196,7 @@ fetch(char *URL, char *path)
 
     timeout = 0;
     *flags = 0;
+    count = 0;
 
     /* common flags */
     if (v_level > 2)
@@ -232,12 +233,10 @@ fetch(char *URL, char *path)
     /* set the protocol timeout. */
     fetchTimeout = timeout;
 
-    /* stat remote file */
-    if (fetchStat(url, &us, flags) == -1)
-	goto failure;
-
     /* just print size */
     if (s_flag) {
+	if (fetchStat(url, &us, flags) == -1)
+	    goto failure;
 	if (us.size == -1)
 	    printf("Unknown\n");
 	else
@@ -245,11 +244,39 @@ fetch(char *URL, char *path)
 	goto success;
     }
 
-    /* check that size is as expected */
-    if (S_size && us.size != -1 && us.size != S_size) {
-	warnx("%s: size mismatch: expected %lld, actual %lld",
-	      path, S_size, us.size);
+    /*
+     * If the -r flag was specified, we have to compare the local and
+     * remote files, so we should really do a fetchStat() first, but I
+     * know of at least one HTTP server that only sends the content
+     * size in response to GET requests, and leaves it out of replies
+     * to HEAD requests. Also, in the (frequent) case that the local
+     * and remote files match but the local file is truncated, we have
+     * sufficient information *before* the compare to issue a correct
+     * request. Therefore, we always issue a GET request as if we were
+     * sure the local file was a truncated copy of the remote file; we
+     * can drop the connection later if we change our minds.
+     */
+    if (r_flag && !o_stdout && stat(path, &sb) != -1)
+	url->offset = sb.st_size;
+     
+    /* start the transfer */
+    if ((f = fetchXGet(url, &us, flags)) == NULL) {
+	warnx("%s: %s", path, fetchLastErrString);
 	goto failure;
+    }
+    if (sigint)
+	goto signal;
+    
+    /* check that size is as expected */
+    if (S_size) {
+	if (us.size == -1) {
+	    warnx("%s: size unknown", path);
+	    goto failure;
+	} else if (us.size != S_size) {
+	    warnx("%s: size mismatch: expected %lld, actual %lld",
+		  path, S_size, us.size);
+	    goto failure;
+	}
     }
     
     /* symlink instead of copy */
@@ -261,33 +288,56 @@ fetch(char *URL, char *path)
 	goto success;
     }
 
+    /* open output file */
     if (o_stdout) {
 	/* output to stdout */
 	of = stdout;
-    } else if (r_flag && us.size != -1 && stat(path, &sb) != -1
-	       && (F_flag || (us.mtime && sb.st_mtime == us.mtime))) {
-	/* output to file, restart aborted transfer */
+    } else if (url->offset) {
+	/* resume mode, local file exists */
+	if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
+	    /* no match! have to refetch */
+	    fclose(f);
+	    url->offset = 0;
+	    if ((f = fetchXGet(url, &us, flags)) == NULL) {
+		warnx("%s: %s", path, fetchLastErrString);
+		goto failure;
+	    }
+	    if (sigint)
+		goto signal;
+	} else {
+	    us.size += url->offset;
+	}
 	if (us.size == sb.st_size)
+	    /* nothing to do */
 	    goto success;
-	else if (sb.st_size > us.size && truncate(path, us.size) == -1) {
-	    warn("%s: truncate()", path);
+	if (sb.st_size > us.size) {
+	    /* local file too long! */
+	    warnx("%s: local file (%lld bytes) is longer "
+		  "than remote file (%lld bytes)",
+		  path, sb.st_size, us.size);
 	    goto failure;
 	}
+	/* we got through, open local file in append mode */
+	/*
+	 * XXX there's a race condition here - the file we open is not
+         * necessarily the same as the one we stat()'ed earlier...
+	 */
 	if ((of = fopen(path, "a")) == NULL) {
 	    warn("%s: open()", path);
 	    goto failure;
 	}
-	url->offset = sb.st_size;
-    } else if (m_flag && us.size != -1 && stat(path, &sb) != -1) {
-	/* output to file, mirror mode */
+    }
+    if (m_flag && stat(path, &sb) != -1) {
+	/* mirror mode, local file exists */
 	if (sb.st_size == us.size && sb.st_mtime == us.mtime)
-	    return 0;
-	if ((of = fopen(path, "w")) == NULL) {
-	    warn("%s: open()", path);
-	    goto failure;
-	}
-    } else {
-	/* output to file, all other cases */
+	    goto success;
+    }
+    if (!of) {
+	/*
+	 * We don't yet have an output file; either this is a vanilla
+	 * run with no special flags, or the local and remote files
+	 * didn't match.
+	 */
 	if ((of = fopen(path, "w")) == NULL) {
 	    warn("%s: open()", path);
 	    goto failure;
@@ -295,14 +345,6 @@ fetch(char *URL, char *path)
     }
     count = url->offset;
 
-    /* start the transfer */
-    if ((f = fetchGet(url, flags)) == NULL) {
-	warnx("%s", fetchLastErrString);
-	if (!R_flag && !r_flag && !o_stdout)
-	    unlink(path);
-	goto failure;
-    }
-    
     /* start the counter */
     stat_start(&xs, path, us.size, count);
 
@@ -341,6 +383,7 @@ fetch(char *URL, char *path)
     }
     
     /* timed out or interrupted? */
+ signal:
     if (sigalrm)
 	warnx("transfer timed out");
     if (sigint)
@@ -472,6 +515,8 @@ main(int argc, char *argv[])
 	    break;
 	case 'M':
 	case 'm':
+	    if (r_flag)
+		errx(1, "the -m and -r flags are mutually exclusive");
 	    m_flag = 1;
 	    break;
 	case 'n':
@@ -488,6 +533,8 @@ main(int argc, char *argv[])
 	    R_flag = 1;
 	    break;
 	case 'r':
+	    if (m_flag)
+		errx(1, "the -m and -r flags are mutually exclusive");
 	    r_flag = 1;
 	    break;
 	case 'S':
@@ -534,7 +581,7 @@ main(int argc, char *argv[])
 	    errx(1, strerror(ENOMEM));
 	argc++;
     }
-    
+
     if (!argc) {
 	usage();
 	exit(EX_USAGE);
@@ -564,8 +611,10 @@ main(int argc, char *argv[])
     sa.sa_flags = 0;
     sa.sa_handler = sig_handler;
     sigemptyset(&sa.sa_mask);
-    (void)sigaction(SIGALRM, &sa, NULL);
-    (void)sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+    sa.sa_flags = SA_RESETHAND;
+    sigaction(SIGINT, &sa, NULL);
+    fetchRestartCalls = 0;
     
     /* output file */
     if (o_flag) {
@@ -614,7 +663,7 @@ main(int argc, char *argv[])
 	}
 
 	if (sigint)
-	    exit(1);
+	    kill(getpid(), SIGINT);
 	
 	if (e == 0 && once_flag)
 	    exit(0);

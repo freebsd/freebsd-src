@@ -81,29 +81,33 @@ struct url_ent {
 #define	FETCH_VERBOSE	19
 
 /* FILE-specific functions */
+FILE		*fetchXGetFile(struct url *, struct url_stat *, char *);
 FILE		*fetchGetFile(struct url *, char *);
 FILE		*fetchPutFile(struct url *, char *);
 int		 fetchStatFile(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchListFile(struct url *, char *);
 
 /* HTTP-specific functions */
-char		*fetchContentType(FILE *);
+FILE		*fetchXGetHTTP(struct url *, struct url_stat *, char *);
 FILE		*fetchGetHTTP(struct url *, char *);
 FILE		*fetchPutHTTP(struct url *, char *);
 int		 fetchStatHTTP(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchListHTTP(struct url *, char *);
 
 /* FTP-specific functions */
+FILE		*fetchXGetFTP(struct url *, struct url_stat *, char *);
 FILE		*fetchGetFTP(struct url *, char *);
 FILE		*fetchPutFTP(struct url *, char *);
 int		 fetchStatFTP(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchListFTP(struct url *, char *);
 
 /* Generic functions */
+FILE		*fetchXGetURL(char *, struct url_stat *, char *);
 FILE		*fetchGetURL(char *, char *);
 FILE		*fetchPutURL(char *, char *);
 int		 fetchStatURL(char *, struct url_stat *, char *);
 struct url_ent	*fetchListURL(char *, char *);
+FILE		*fetchXGet(struct url *, struct url_stat *, char *);
 FILE		*fetchGet(struct url *, char *);
 FILE		*fetchPut(struct url *, char *);
 int		 fetchStat(struct url *, struct url_stat *, char *);
@@ -119,5 +123,6 @@ extern int	 fetchLastErrCode;
 #define MAXERRSTRING 256
 extern char	 fetchLastErrString[MAXERRSTRING];
 extern int	 fetchTimeout;
+extern int	 fetchRestartCalls;
 
 #endif
