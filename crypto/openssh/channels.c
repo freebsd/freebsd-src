@@ -17,7 +17,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: channels.c,v 1.57 2000/05/08 17:42:24 markus Exp $");
+RCSID("$Id: channels.c,v 1.59 2000/05/30 17:23:36 markus Exp $");
 
 #include "ssh.h"
 #include "packet.h"
@@ -145,23 +145,6 @@ channel_lookup(int id)
 		return NULL;
 	}
 	return c;
-}
-
-void
-set_nonblock(int fd)
-{
-	int val;
-	val = fcntl(fd, F_GETFL, 0);
-	if (val < 0) {
-		error("fcntl(%d, F_GETFL, 0): %s", fd, strerror(errno));
-		return;
-	}
-	if (val & O_NONBLOCK)
-		return;
-	debug("fd %d setting O_NONBLOCK", fd);
-	val |= O_NONBLOCK;
-	if (fcntl(fd, F_SETFL, val) == -1)
-		error("fcntl(%d, F_SETFL, O_NONBLOCK): %s", fd, strerror(errno));
 }
 
 /*
@@ -2074,11 +2057,11 @@ cleanup_socket(void)
 }
 
 /*
- * This if called to process SSH_CMSG_AGENT_REQUEST_FORWARDING on the server.
+ * This is called to process SSH_CMSG_AGENT_REQUEST_FORWARDING on the server.
  * This starts forwarding authentication requests.
  */
 
-void
+int
 auth_input_request_forwarding(struct passwd * pw)
 {
 	int sock, newch;
@@ -2096,8 +2079,16 @@ auth_input_request_forwarding(struct passwd * pw)
 	strlcpy(channel_forwarded_auth_socket_dir, "/tmp/ssh-XXXXXXXX", MAX_SOCKET_NAME);
 
 	/* Create private directory for socket */
-	if (mkdtemp(channel_forwarded_auth_socket_dir) == NULL)
-		packet_disconnect("mkdtemp: %.100s", strerror(errno));
+	if (mkdtemp(channel_forwarded_auth_socket_dir) == NULL) {
+		packet_send_debug("Agent forwarding disabled: mkdtemp() failed: %.100s",
+		    strerror(errno));
+		restore_uid();
+		xfree(channel_forwarded_auth_socket_name);
+		xfree(channel_forwarded_auth_socket_dir);
+		channel_forwarded_auth_socket_name = NULL;
+		channel_forwarded_auth_socket_dir = NULL;
+		return 0;
+	}
 	snprintf(channel_forwarded_auth_socket_name, MAX_SOCKET_NAME, "%s/agent.%d",
 		 channel_forwarded_auth_socket_dir, (int) getpid());
 
@@ -2132,6 +2123,7 @@ auth_input_request_forwarding(struct passwd * pw)
 				 xstrdup("auth socket"));
 	strlcpy(channels[newch].path, channel_forwarded_auth_socket_name,
 	    sizeof(channels[newch].path));
+	return 1;
 }
 
 /* This is called to process an SSH_SMSG_AGENT_OPEN message. */
