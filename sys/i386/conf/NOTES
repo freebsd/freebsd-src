@@ -413,6 +413,9 @@ options 	NETATALKDEBUG		#Appletalk debugging
 #options 	NS			#Xerox NS protocols
 #options 	NSIP			#XNS over IP
 
+# mchain library. It can be either loaded as KLD or compiled into kernel
+options 	LIBMCHAIN
+
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
