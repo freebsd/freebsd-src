@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
+#endif
 static char rcsid[] =
-	"$Id: rsh.c,v 1.7 1996/02/11 09:14:12 markm Exp $";
+	"$Id: rsh.c,v 1.8 1996/09/06 05:24:05 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -85,7 +87,6 @@ char   *copyargs __P((char **));
 void	sendsig __P((int));
 void	talk __P((int, long, pid_t, int, int));
 void	usage __P((void));
-void	warning __P(());
 
 int
 main(argc, argv)
@@ -209,7 +210,8 @@ main(argc, argv)
 		sp = getservbyname((doencrypt ? "ekshell" : "kshell"), "tcp");
 		if (sp == NULL) {
 			use_kerberos = 0;
-			warning("can't get entry for %s/tcp service",
+			warnx(
+	"warning, using standard rsh: can't get entry for %s/tcp service",
 			    doencrypt ? "ekshell" : "kshell");
 		}
 	}
@@ -249,9 +251,11 @@ try_connect:
 			if (sp == NULL)
 				errx(1, "shell/tcp: unknown service");
 			if (errno == ECONNREFUSED)
-				warning("remote host doesn't support Kerberos");
+				warnx(
+		"warning, using standard rsh: remote host doesn't support Kerberos");
 			if (errno == ENOENT)
-				warning("can't provide Kerberos auth data");
+				warnx(
+		"warning, using standard rsh: can't provide Kerberos auth data");
 			goto try_connect;
 		}
 	} else {
@@ -436,24 +440,6 @@ sendsig(sig)
 #endif
 		(void)write(rfd2, &signo, 1);
 }
-
-#ifdef KERBEROS
-/* VARARGS */
-void
-warning(va_alist)
-va_dcl
-{
-	va_list ap;
-	char *fmt;
-
-	(void)fprintf(stderr, "rsh: warning, using standard rsh: ");
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, ".\n");
-}
-#endif
 
 char *
 copyargs(argv)
