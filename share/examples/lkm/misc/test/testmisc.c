@@ -46,17 +46,14 @@ main()
 	int	err = 0;
 
 	printf( "Table offset as reported by modstat: ");
-	if( gets( buf) == NULL) {
+	fflush( stdout);
+	if( fgets( buf, sizeof buf, stdin) == NULL) {
 		printf( "[ABORT]\n");
 		exit( 1);
 	}
 
-	if( err = syscall( atoi( buf) /* no arguments*/))
+	if(( err = syscall( atoi( buf) /* no arguments*/)))
 		perror( "syscall");
 
 	exit( err);
 }
-
-/*
- * EOF -- This file has not been truncated
- */

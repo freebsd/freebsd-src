@@ -34,9 +34,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-
+# $Id: Makefile,v 1.3 1995/12/25 07:18:59 bde Exp $
+#
 PROG=	testmisc
 NOMAN=
+
+MODSTAT= /usr/bin/modstat
 
 load:
 	@echo "This test program will call the sample system call;"
@@ -48,7 +51,7 @@ load:
 	@echo "system console each time it is run."
 	@echo
 	@echo
-	/sbin/modstat -n miscmod
+	${MODSTAT} -n misc_mod
 	@echo
 	@./testmisc
 
@@ -57,10 +60,6 @@ unload:
 	@echo "has been successfully unloaded by building 'unload' in"
 	@echo "the 'module' subdirectory."
 	@echo
-	/sbin/modstat -n miscmod
+	${MODSTAT} -n misc_mod
 
 .include <bsd.prog.mk>
-
-#
-# EOF -- This file has not been truncated.
-#

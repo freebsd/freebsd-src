@@ -35,31 +35,11 @@
 # SUCH DAMAGE.
 #
 
-SRCS=newsyscall.c
-OBJS=$(SRCS:.c=.o)
+BINDIR=	/tmp
+SRCS=	mycall.c newsyscall.c
+KMOD=	newsyscall_mod
+NOMAN=	none
 
-KSRCS=mycall.c
-KOBJS=mycall.o
+CLEANFILES+= ${KMOD}
 
-MODOBJ=combined.o
-
-KMOD=newsyscall
-CFLAGS= -DKERNEL -I/sys/sys -I/sys
-
-all:	$(MODOBJ)
-
-clean:
-	rm -f $(OBJS) $(KOBJS) $(MODOBJ) $(KMOD)
-
-load:
-	/sbin/modload -o $(KMOD) -e$(KMOD) $(MODOBJ)
-
-unload:
-	/sbin/modunload -n $(KMOD)
-
-$(MODOBJ): $(OBJS) $(KOBJS)
-	$(LD) -r -o $(MODOBJ) $(OBJS) $(KOBJS)
-
-#
-# EOF -- This file has not been truncated
-#
+.include <bsd.kmod.mk>
