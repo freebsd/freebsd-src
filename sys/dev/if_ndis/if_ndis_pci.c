@@ -263,6 +263,26 @@ ndis_attach_pci(dev)
 	}
 
 	/*
+	 * If the BIOS did not set up an interrupt for this device,
+	 * the resource traversal code above will fail to set up
+	 * an IRQ resource. This is usually a bad thing, so try to
+	 * force the allocation of an interrupt here. If one was
+	 * not assigned to us by the BIOS, bus_alloc_resource()
+	 * should route one for us.
+	 */
+	if (sc->ndis_irq == NULL) {
+		rid = 0;
+		sc->ndis_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+		if (sc->ndis_irq == NULL) {
+			device_printf(dev, "couldn't route interrupt\n");
+			error = ENXIO;
+			goto fail;
+		}
+		sc->ndis_rescnt++;
+	}
+
+	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 #define NDIS_NSEG_NEW 32
