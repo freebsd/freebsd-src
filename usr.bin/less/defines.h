@@ -243,6 +243,12 @@
 /* Define HAVE_UPPER_LOWER if you have isupper, islower, toupper, tolower */
 #define HAVE_UPPER_LOWER 1
 
+/* Define HAVE_SIGSET_T you have the sigset_t type */
+/* #undef HAVE_SIGSET_T */
+
+/* Define HAVE_SIGEMPTYSET if you have the sigemptyset macro */
+#define HAVE_SIGEMPTYSET 1
+
 /* Define EDIT_PGM to your editor. */
 #define EDIT_PGM "vi"
 
@@ -254,6 +260,9 @@
 
 /* Define if you have the popen function.  */
 #define HAVE_POPEN 1
+
+/* Define if you have the sigprocmask function.  */
+#define HAVE_SIGPROCMASK 1
 
 /* Define if you have the sigsetmask function.  */
 #define HAVE_SIGSETMASK 1
