@@ -8,6 +8,7 @@ DEC_EB164		opt_cpu.h
 DEC_EB64PLUS		opt_cpu.h
 DEC_KN20AA		opt_cpu.h
 DEC_2100_A50		opt_cpu.h
+DEC_2100_A500		opt_cpu.h
 DEC_ST550		opt_cpu.h
 DEC_ST6600		opt_cpu.h
 DEC_AXPPCI_33		opt_cpu.h
