@@ -11,6 +11,7 @@
     <year>2002</year>
     <year>2003</year>
     <year>2004</year>
+    <year>2005</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -137,6 +138,10 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
+      <para arch="i386,pc98">Support for the OLDCARD subsystem has
+	been removed.  The NEWCARD system is now used for all PCCARD
+	device support.</para>
+
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
@@ -146,8 +151,24 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.ath.4; driver has been updated to split the
+	  transmit rate control algorithm into a separate module.
+	  Either <literal>device ath_rate_onoe</literal> or
+	  <literal>device ath_rate_amrr</literal> must be included in
+	  the kernel configuration when using the &man.ath.4;
+	  driver.</para>
+
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;. &merged;</para>
+
+	<para>Support for 802.11 devices in the &man.wlan.4; has been
+	  greatly overhauled.  In addition to architectural changes,
+	  it includes completed 802.11g, WPA, 802.11i, 802.1x,
+	  WME/WMM, AP-side power-saving, and plugin frameworks for
+	  cryptography modules, authenticators, and access control.
+	  Note in particular that WEP now requires the
+	  <filename>wlan_wep</filename> module to be loaded (or
+	  compiled) into the kernel.</para>
 
       </sect4>
     </sect3>
@@ -173,7 +194,16 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.amr.4; driver is now safe for use on systems
+	using &man.pae.4;. &merged;</para>
+
+      <para>The &man.matcd.4; driver has been removed.</para>
+
+      <para arch="pc98">The &man.wd.4; driver has been removed.  The
+	&man.ata.4; driver has been found to work well enough on the
+	pc98 platform that there is no need for the older &man.wd.4;
+	driver.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -197,6 +227,12 @@
       utility now supports a <option>-f</option> command-line flag to
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
+
+    <para>The &man.ifconfig.8; utility has been restructured.  It is
+      now more modular and flexible with respect to supporting
+      interface-specific functionality.  The 802.11 support has been
+      updated to support recent changes to the 802.11 subsystem and
+      drivers.</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
