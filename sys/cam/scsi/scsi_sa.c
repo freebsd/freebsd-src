@@ -1620,7 +1620,7 @@ again:
 				CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
 				    ("Variable Record Count is %d\n", length));
 			}
-			devstat_start_transaction(softc->device_stats);
+			devstat_start_transaction_bio(softc->device_stats, bp);
 			/*
 			 * Some people have theorized that we should
 			 * suppress illegal length indication if we are

@@ -1507,7 +1507,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction(softc->device_stats);
+			devstat_start_transaction_bio(softc->device_stats, bp);
 
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/4,
