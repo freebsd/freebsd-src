@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.154 2002/02/27 12:12:45 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.155 2002/02/27 12:42:41 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1301,6 +1301,12 @@ uhci_check_intr(uhci_softc_t *sc, uhci_intr_info_t *ii)
 		return;
 	}
 #endif
+	if (ii->xfer->status == USBD_CANCELLED ||
+	    ii->xfer->status == USBD_TIMEOUT) {
+		DPRINTF(("uhci_check_intr: aborted xfer=%p\n", ii->xfer));
+		return;
+	}
+
 	if (ii->stdstart == NULL)
 		return;
 	lstd = ii->stdend;
@@ -1369,13 +1375,6 @@ uhci_idone(uhci_intr_info_t *ii)
 		splx(s);
 	}
 #endif
-
-	if (xfer->status == USBD_CANCELLED ||
-	    xfer->status == USBD_TIMEOUT) {
-		DPRINTF(("uhci_idone: aborted xfer=%p\n", xfer));
-		return;
-	}
-
 	if (xfer->nframes != 0) {
 		/* Isoc transfer, do things differently. */
 		uhci_soft_td_t **stds = upipe->u.iso.stds;
