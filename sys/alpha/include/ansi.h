@@ -48,7 +48,7 @@
  * to hold the required 24 hours worth of ticks if the frequency is
  * 1000000ul, and ``unsigned long long'' would be nonstandard).
  */
-#define	_BSD_CLK_TCK_		100
-#define	_BSD_CLOCKS_PER_SEC_	100
+#define	_BSD_CLK_TCK_		128
+#define	_BSD_CLOCKS_PER_SEC_	128
 
 #endif	/* !_MACHINE_ANSI_H_ */
