@@ -546,7 +546,7 @@ ata_cyrix_setmode(struct ata_device *atadev, int mode)
     int error;
 
     atadev->channel->dma->alignment = 16;
-    atadev->channel->dma->max_iosize = 63 * 1024;
+    atadev->channel->dma->max_iosize = 126 * DEV_BSIZE;
 
     mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
 
@@ -1067,7 +1067,7 @@ ata_national_setmode(struct ata_device *atadev, int mode)
     int error;
 
     atadev->channel->dma->alignment = 16;
-    atadev->channel->dma->max_iosize = 63 * 1024;
+    atadev->channel->dma->max_iosize = 126 * DEV_BSIZE;
 
     mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
 
@@ -2157,8 +2157,10 @@ ata_sii_allocate(device_t dev, struct ata_channel *ch)
     if (ctlr->chip->max_dma >= ATA_SA150)
 	ch->flags |= ATA_NO_SLAVE;
 
-    if ((ctlr->chip->cfg2 & SIIBUG) && ch->dma)
-	ch->dma->boundary = 8 * 1024;
+    if ((ctlr->chip->cfg2 & SIIBUG) && ch->dma) {
+	ch->dma->boundary = 16 * DEV_BSIZE;
+	ch->dma->max_iosize = 15 * DEV_BSIZE;
+    }
 
     ata_generic_hw(ch);
 
