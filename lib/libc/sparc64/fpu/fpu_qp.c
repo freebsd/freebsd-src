@@ -135,10 +135,10 @@ _QP_TTOQ(ui,	i,	u_int,	u_int,	a[0])
 _QP_TTOQ(ux,	x,	u_long,	u_long,	a[0])
 
 _QP_QTOT(d,	d,	double,	a)
-_QP_QTOT(i,	i,	int,	)
-_QP_QTOT(s,	s,	float,	)
+_QP_QTOT(i,	i,	int)
+_QP_QTOT(s,	s,	float)
 _QP_QTOT(x,	x,	long,	a)
-_QP_QTOT(ui,	i,	u_int,	)
+_QP_QTOT(ui,	i,	u_int)
 _QP_QTOT(ux,	x,	u_long,	a)
 
 _QP_CMP(eq,	0,	FCC_EQ)
