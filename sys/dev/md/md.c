@@ -108,7 +108,6 @@ static int	mdrootready;
 static int	mdunits;
 static dev_t	status_dev = 0;
 
-
 #define CDEV_MAJOR	95
 
 static d_strategy_t mdstrategy;
@@ -149,6 +148,17 @@ static struct cdevsw mddisk_cdevsw;
 
 static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
 
+#define NINDIR	(PAGE_SIZE / sizeof(uintptr_t))
+#define NMASK	(NINDIR-1)
+static int nshift;
+
+struct indir {
+	uintptr_t	*array;
+	uint		total;
+	uint		used;
+	uint		shift;
+};
+
 struct md_s {
 	int unit;
 	LIST_ENTRY(md_s) list;
@@ -164,7 +174,7 @@ struct md_s {
 	unsigned flags;
 
 	/* MD_MALLOC related fields */
-	u_char **secp;
+	struct indir *indir;
 
 	/* MD_PRELOAD related fields */
 	u_char *pl_ptr;
@@ -178,6 +188,156 @@ struct md_s {
 	vm_object_t object;
 };
 
+static int mddestroy(struct md_s *sc, struct thread *td);
+
+static struct indir *
+new_indir(uint shift)
+{
+	struct indir *ip;
+
+	ip = malloc(sizeof *ip, M_MD, M_NOWAIT | M_ZERO);
+	if (ip == NULL)
+		return(NULL);
+	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
+	    M_MDSECT, M_NOWAIT | M_ZERO);
+	if (ip->array == NULL) {
+		free(ip, M_MD);
+		return(NULL);
+	}
+	ip->total = NINDIR;
+	ip->shift = shift;
+	return(ip);
+}
+
+static void
+del_indir(struct indir *ip)
+{
+
+	free(ip->array, M_MD);
+	free(ip, M_MD);
+}
+
+/*
+ * This function does the math and alloctes the top level "indir" structure
+ * for a device of "size" sectors.
+ */
+
+static struct indir *
+dimension(off_t size)
+{
+	off_t rcnt;
+	struct indir *ip;
+	int i, layer;
+
+	rcnt = size;
+	layer = 0;
+	while (rcnt > NINDIR) {
+		rcnt /= NINDIR;
+		layer++;
+	}
+	/* figure out log2(NINDIR) */
+	for (i = NINDIR, nshift = -1; i; nshift++)
+		i >>= 1;
+
+	/*
+	 * XXX: the top layer is probably not fully populated, so we allocate
+	 * too much space for ip->array in new_indir() here.
+	 */
+	ip = new_indir(layer * nshift);
+	return (ip);
+}
+
+/*
+ * Read a given sector
+ */
+
+static uintptr_t
+s_read(struct indir *ip, off_t offset)
+{
+	struct indir *cip;
+	int idx;
+	uintptr_t up;
+
+	if (md_debug > 1)
+		printf("s_read(%lld)\n", offset);
+	up = 0;
+	for (cip = ip; cip != NULL;) {
+		if (cip->shift) {
+			idx = (offset >> cip->shift) & NMASK;
+			up = cip->array[idx];
+			cip = (struct indir *)up;
+			continue;
+		}
+		idx = offset & NMASK;
+		return(cip->array[idx]);
+	}
+	return (0);
+}
+
+/*
+ * Write a given sector, prune the tree if the value is 0
+ * If the new value is different from the old, return the old value.
+ */
+
+static int
+s_write(struct indir *ip, off_t offset, uintptr_t ptr, uintptr_t *old)
+{
+	struct indir *cip, *lip[10];
+	int idx, li;
+	uintptr_t up;
+
+	if (md_debug > 1)
+		printf("s_write(%lld, %p, %p)\n", offset, (void *)ptr, old);
+	up = 0;
+	li = 0;
+	cip = ip;
+	for (;;) {
+		lip[li++] = cip;
+		if (cip->shift) {
+			idx = (offset >> cip->shift) & NMASK;
+			up = cip->array[idx];
+			if (up != 0) {
+				cip = (struct indir *)up;
+				continue;
+			}
+			/* Allocate branch */
+			cip->array[idx] =
+			    (uintptr_t)new_indir(cip->shift - nshift);
+			if (cip->array[idx] == 0)
+				return(ENOMEM);
+			cip->used++;
+			up = cip->array[idx];
+			cip = (struct indir *)up;
+			continue;
+		}
+		/* leafnode */
+		idx = offset & NMASK;
+		up = cip->array[idx];
+		if (old != NULL && up != ptr)
+			*old = up;
+		if (up != 0)
+			cip->used--;
+		cip->array[idx] = ptr;
+		if (ptr != 0)
+			cip->used++;
+		break;
+	}
+	if (cip->used != 0 || li == 1)
+		return (0);
+	li--;
+	while (cip->used == 0 && cip != ip) {
+		li--;
+		idx = (offset >> lip[li]->shift) & NMASK;
+		up = lip[li]->array[idx];
+		KASSERT(up == (uintptr_t)cip, ("md screwed up"));
+		del_indir(cip);
+		lip[li]->array[idx] = NULL;
+		lip[li]->used--;
+		cip = lip[li];
+	}
+	return (0);
+}
+
 static int
 mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
@@ -185,8 +345,8 @@ mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 	struct disklabel *dl;
 
 	if (md_debug)
-		printf("mdopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, td->td_proc);
+		printf("mdopen(%p %x %x %p)\n",
+			devtoname(dev), flag, fmt, td);
 
 	sc = dev->si_drv1;
 
@@ -225,50 +385,29 @@ mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
 {
-	int i;
-	devstat_trans_flags dop;
-	u_char *secp, **secpp, *dst;
-	unsigned secno, nsec, secval, uc;
-
-	if (bp->bio_cmd == BIO_DELETE)
-		dop = DEVSTAT_NO_DATA;
-	else if (bp->bio_cmd == BIO_READ)
-		dop = DEVSTAT_READ;
-	else
-		dop = DEVSTAT_WRITE;
+	int i, error;
+	u_char *dst;
+	unsigned secno, nsec, uc;
+	uintptr_t sp, osp;
 
 	nsec = bp->bio_bcount / sc->secsize;
 	secno = bp->bio_pblkno;
 	dst = bp->bio_data;
+	error = 0;
 	while (nsec--) {
-		secpp = &sc->secp[secno];
-		if ((uintptr_t)*secpp > 255) {
-			secp = *secpp;
-			secval = 0;
-		} else {
-			secp = NULL;
-			secval = (uintptr_t) *secpp;
-		}
-
-		if (md_debug > 2)
-			printf("%x %p %p %d\n",
-			    bp->bio_flags, secpp, secp, secval);
-
+		osp = 0;
 		if (bp->bio_cmd == BIO_DELETE) {
-			if (!(sc->flags & MD_RESERVE) && secp != NULL) {
-				FREE(secp, M_MDSECT);
-				*secpp = 0;
-			}
+			error = s_write(sc->indir, secno, 0, &osp);
 		} else if (bp->bio_cmd == BIO_READ) {
-			if (secp != NULL) {
-				bcopy(secp, dst, sc->secsize);
-			} else if (secval) {
-				for (i = 0; i < sc->secsize; i++)
-					dst[i] = secval;
-			} else {
+			sp = s_read(sc->indir, secno);
+			if (sp == 0)
 				bzero(dst, sc->secsize);
-			}
-		} else {
+			else if (sp <= 255)
+				for (i = 0; i < sc->secsize; i++)
+					dst[i] = sp;
+			else
+				bcopy((void *)sp, dst, sc->secsize);
+		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
 				uc = dst[0];
 				for (i = 1; i < sc->secsize; i++)
@@ -279,36 +418,43 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 				uc = 0;
 			}
 			if (i == sc->secsize) {
-				if (secp)
-					FREE(secp, M_MDSECT);
-				*secpp = (u_char *)(uintptr_t)uc;
+				error = s_write(sc->indir, secno, uc, &osp);
 			} else {
-				if (secp == NULL)
-					MALLOC(secp, u_char *, sc->secsize, M_MDSECT, M_WAITOK);
-				bcopy(dst, secp, sc->secsize);
-				*secpp = secp;
+				sp = s_read(sc->indir, secno);
+				if (sp <= 255)
+					sp = (uintptr_t) malloc(
+					    sc->secsize, M_MDSECT, M_NOWAIT);
+				if (sp == 0) {
+					error = ENOMEM;
+				} else {
+					bcopy(dst, (void *)sp, sc->secsize);
+					error = s_write(sc->indir, secno, 
+					    sp, &osp);
+				}
 			}
+		} else {
+			error = EOPNOTSUPP;
 		}
+		if (osp > 255)
+			free((void*)osp, M_MDSECT);
+		if (error)
+			break;
 		secno++;
 		dst += sc->secsize;
 	}
 	bp->bio_resid = 0;
-	return (0);
+	return (error);
 }
 
 
 static int
 mdstart_preload(struct md_s *sc, struct bio *bp)
 {
-	devstat_trans_flags dop;
 
 	if (bp->bio_cmd == BIO_DELETE) {
-		dop = DEVSTAT_NO_DATA;
 	} else if (bp->bio_cmd == BIO_READ) {
-		dop = DEVSTAT_READ;
 		bcopy(sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_data, bp->bio_bcount);
 	} else {
-		dop = DEVSTAT_WRITE;
 		bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
 	}
 	bp->bio_resid = 0;
@@ -466,7 +612,7 @@ mdnew(int unit)
 		unit = max + 1;
 	if (unit > DKMAXUNIT)
 		return (NULL);
-	MALLOC(sc, struct md_s *, sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
+	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
@@ -526,8 +672,11 @@ static int
 mdcreate_malloc(struct md_ioctl *mdio)
 {
 	struct md_s *sc;
-	unsigned u;
+	off_t u;
+	uintptr_t sp;
+	int error;
 
+	error = 0;
 	if (mdio->md_size == 0)
 		return (EINVAL);
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
@@ -549,14 +698,25 @@ mdcreate_malloc(struct md_ioctl *mdio)
 	sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
-	MALLOC(sc->secp, u_char **, sc->nsect * sizeof(u_char *), M_MD, M_WAITOK | M_ZERO);
+	sc->indir = dimension(sc->nsect);
 	if (mdio->md_options & MD_RESERVE) {
-		for (u = 0; u < sc->nsect; u++)
-			MALLOC(sc->secp[u], u_char *, DEV_BSIZE, M_MDSECT, M_WAITOK | M_ZERO);
+		for (u = 0; u < sc->nsect; u++) {
+			sp = (uintptr_t) malloc( sc->secsize,
+			    M_MDSECT, M_NOWAIT | M_ZERO);
+			if (sp != 0)
+				error = s_write(sc->indir, u, sp, NULL);
+			else
+				error = ENOMEM;
+			if (error)
+				break;
+		}
 	}
-	printf("%s%d: Malloc disk\n", MD_NAME, sc->unit);
-	mdinit(sc);
-	return (0);
+	if (!error)  {
+		printf("%s%d: Malloc disk\n", MD_NAME, sc->unit);
+		mdinit(sc);
+	} else
+		mddestroy(sc, NULL);
+	return (error);
 }
 
 
@@ -671,7 +831,6 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
-	unsigned u;
 
 	GIANT_REQUIRED;
 
@@ -687,17 +846,19 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->object != NULL) {
 		vm_pager_deallocate(sc->object);
 	}
+#if 0
 	if (sc->secp != NULL) {
 		for (u = 0; u < sc->nsect; u++)
 			if ((uintptr_t)sc->secp[u] > 255)
-				FREE(sc->secp[u], M_MDSECT);
-		FREE(sc->secp, M_MD);
+				free(sc->secp[u], M_MDSECT);
+		free(sc->secp, M_MD);
 	}
+#endif
 
 	/* XXX: LOCK(unique unit numbers) */
 	LIST_REMOVE(sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
-	FREE(sc, M_MD);
+	free(sc, M_MD);
 	return (0);
 }
 
