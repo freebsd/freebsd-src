@@ -1,13 +1,17 @@
-#ifndef _STDDEF_H
-#ifndef _STDDEF_H_
-#ifndef _ANSI_STDDEF_H
-#ifndef __STDDEF_H__
+/* $FreeBSD$ */
+
+#if (!defined(_STDDEF_H) && !defined(_STDDEF_H_) && !defined(_ANSI_STDDEF_H) \
+     && !defined(__STDDEF_H__)) \
+    || defined(__need_wchar_t) || defined(__need_size_t) \
+    || defined(__need_ptrdiff_t) || defined(__need_NULL) \
+    || defined(__need_wint_t)
 
 /* Any one of these symbols __need_* means that GNU libc
    wants us just to define one data type.  So don't define
    the symbols that indicate this file's entire job has been done.  */
 #if (!defined(__need_wchar_t) && !defined(__need_size_t)	\
-     && !defined(__need_ptrdiff_t) && !defined(__need_NULL))
+     && !defined(__need_ptrdiff_t) && !defined(__need_NULL)	\
+     && !defined(__need_wint_t))
 #define _STDDEF_H
 #define _STDDEF_H_
 /* snaroff@next.com says the NeXT needs this.  */
@@ -70,7 +74,7 @@
    not defined, and so that defining this macro defines _GCC_SIZE_T.
    If we find that the macros are still defined at this point, we must
    invoke them so that the type is defined as expected.  */
-#if defined (TYPE_ptrdiff_t) && (defined (__need_ptrdiff_t) || defined (_STDDEF_H_))
+#if defined (_TYPE_ptrdiff_t) && (defined (__need_ptrdiff_t) || defined (_STDDEF_H_))
 _TYPE_ptrdiff_t;
 #undef _TYPE_ptrdiff_t
 #endif
@@ -133,6 +137,7 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 /* Define this type if we are doing the whole job,
    or if we want this type in particular.  */
 #if defined (_STDDEF_H) || defined (__need_size_t)
+#ifndef __size_t__	/* BeOS */
 #ifndef _SIZE_T	/* in case <sys/types.h> has defined it. */
 #ifndef _SYS_SIZE_T_H
 #ifndef _T_SIZE_
@@ -146,6 +151,7 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 #ifndef _GCC_SIZE_T
 #ifndef _SIZET_
 #ifndef __size_t
+#define __size_t__	/* BeOS */
 #define _SIZE_T
 #define _SYS_SIZE_T_H
 #define _T_SIZE_
@@ -164,6 +170,9 @@ typedef __PTRDIFF_TYPE__ ptrdiff_t;
 #endif
 #if !(defined (__GNUG__) && defined (size_t))
 typedef __SIZE_TYPE__ size_t;
+#ifdef __BEOS__
+typedef long ssize_t;
+#endif /* __BEOS__ */
 #endif /* !(defined (__GNUG__) && defined (size_t)) */
 #endif /* __size_t */
 #endif /* _SIZET_ */
@@ -178,6 +187,7 @@ typedef __SIZE_TYPE__ size_t;
 #endif /* _T_SIZE_ */
 #endif /* _SYS_SIZE_T_H */
 #endif /* _SIZE_T */
+#endif /* __size_t__ */
 #undef	__need_size_t
 #endif /* _STDDEF_H or __need_size_t.  */
 
@@ -190,6 +200,7 @@ typedef __SIZE_TYPE__ size_t;
 /* Define this type if we are doing the whole job,
    or if we want this type in particular.  */
 #if defined (_STDDEF_H) || defined (__need_wchar_t)
+#ifndef __wchar_t__	/* BeOS */
 #ifndef _WCHAR_T
 #ifndef _T_WCHAR_
 #ifndef _T_WCHAR
@@ -202,6 +213,7 @@ typedef __SIZE_TYPE__ size_t;
 #ifndef ___int_wchar_t_h
 #ifndef __INT_WCHAR_T_H
 #ifndef _GCC_WCHAR_T
+#define __wchar_t__	/* BeOS */
 #define _WCHAR_T
 #define _T_WCHAR_
 #define _T_WCHAR
@@ -235,7 +247,11 @@ typedef _BSD_RUNE_T_ rune_t;
 #endif
 
 #ifndef __WCHAR_TYPE__
+#ifdef __BEOS__
+#define __WCHAR_TYPE__ unsigned char
+#else
 #define __WCHAR_TYPE__ int
+#endif
 #endif
 #ifndef __cplusplus
 typedef __WCHAR_TYPE__ wchar_t;
@@ -252,12 +268,27 @@ typedef __WCHAR_TYPE__ wchar_t;
 #endif
 #endif
 #endif
+#endif /* __wchar_t__ */
 #undef	__need_wchar_t
 #endif /* _STDDEF_H or __need_wchar_t.  */
 
+#if defined (_STDDEF_H) || defined (__need_wint_t)
+#ifndef _WINT_T
+#define _WINT_T
+
+#ifndef __WINT_TYPE__
+#define __WINT_TYPE__ unsigned int
+#endif
+typedef __WINT_TYPE__ wint_t;
+#endif
+#undef __need_wint_t
+#endif
+
 /*  In 4.3bsd-net2, leave these undefined to indicate that size_t, etc.
     are already defined.  */
-#if defined(_ANSI_H_) || defined(_MACHINE_ANSI_H_)
+/*  BSD/OS 3.1 requires the MACHINE_ANSI_H check here.  FreeBSD 2.x apparently
+    does not, even though there is a check for MACHINE_ANSI_H above.  */
+#if defined(_ANSI_H_) || (defined(__bsdi__) && defined(_MACHINE_ANSI_H_))
 /*  The references to _GCC_PTRDIFF_T_, _GCC_SIZE_T_, and _GCC_WCHAR_T_
     are probably typos and should be removed before 2.8 is released.  */
 #ifdef _GCC_PTRDIFF_T_
@@ -285,7 +316,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 #undef _WCHAR_T_
 #undef _BSD_WCHAR_T_
 #endif
-#endif /* defined(_ANSI_H_) || defined(_MACHINE_ANSI_H_) */
+#endif /* _ANSI_H_ || ( __bsdi__ && _MACHINE_ANSI_H_ ) */
 
 #endif /* __sys_stdtypes_h */
 
@@ -293,7 +324,11 @@ typedef __WCHAR_TYPE__ wchar_t;
 
 #if defined (_STDDEF_H) || defined (__need_NULL)
 #undef NULL		/* in case <stdio.h> has defined it. */
+#ifdef __GNUG__
+#define NULL __null
+#else   /* G++ */
 #define NULL ((void *)0)
+#endif  /* G++ */
 #endif	/* NULL not defined and <stddef.h> or need NULL.  */
 #undef	__need_NULL
 
@@ -305,7 +340,5 @@ typedef __WCHAR_TYPE__ wchar_t;
 
 #endif /* _STDDEF_H was defined this time */
 
-#endif /* __STDDEF_H__ was not defined before */
-#endif /* _ANSI_STDDEF_H was not defined before */
-#endif /* _STDDEF_H_ was not defined before */
-#endif /* _STDDEF_H was not defined before */
+#endif /* !_STDDEF_H && !_STDDEF_H_ && !_ANSI_STDDEF_H && !__STDDEF_H__
+	  || __need_XXX was not defined before */
