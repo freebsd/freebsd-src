@@ -1,5 +1,5 @@
 /* subsegs.c - subsegments -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -298,6 +298,16 @@ subseg_set_rest (seg, subseg)
 
       *lastPP = newP;
       newP->frch_next = frcP;	/* perhaps NULL */
+
+#ifdef BFD_ASSEMBLER
+      {
+	segment_info_type *seginfo;
+	seginfo = seg_info (seg);
+	if (seginfo && seginfo->frchainP == frcP)
+	  seginfo->frchainP = newP;
+      }
+#endif
+      
       frcP = newP;
     }
   /*
@@ -366,7 +376,7 @@ subseg_new (segname, subseg)
     return new_seg;
   }
 #else
-  as_bad ("Attempt to switch to nonexistent segment \"%s\"", segname);
+  as_bad (_("Attempt to switch to nonexistent segment \"%s\""), segname);
   return now_seg;
 #endif
 }
@@ -523,21 +533,81 @@ section_symbol (sec)
       || symbol_table_frozen
 #endif
       )
-    /* Here we know it won't be going into the symbol table.  */
-    s = symbol_create (sec->name, sec, 0, &zero_address_frag);
+    {
+      /* Here we know it won't be going into the symbol table.  */
+      s = symbol_create (sec->name, sec, 0, &zero_address_frag);
+    }
   else
-    s = symbol_new (sec->name, sec, 0, &zero_address_frag);
+    {
+      s = symbol_find_base (sec->name, 0);
+      if (s == NULL)
+	s = symbol_new (sec->name, sec, 0, &zero_address_frag);
+      else
+	{
+	  if (S_GET_SEGMENT (s) == undefined_section)
+	    {
+	      S_SET_SEGMENT (s, sec);
+	      symbol_set_frag (s, &zero_address_frag);
+	    }
+	}
+    }
+
   S_CLEAR_EXTERNAL (s);
 
   /* Use the BFD section symbol, if possible.  */
   if (obj_sec_sym_ok_for_reloc (sec))
-    s->bsym = sec->symbol;
+    symbol_set_bfdsym (s, sec->symbol);
 
   seginfo->sym = s;
   return s;
 }
 
 #endif /* BFD_ASSEMBLER */
+
+/* Return whether the specified segment is thought to hold text.  */
+
+#ifndef BFD_ASSEMBLER
+const char * const nontext_section_names[] =
+{
+  ".eh_frame",
+  ".gcc_except_table",
+#ifdef OBJ_COFF
+#ifndef COFF_LONG_SECTION_NAMES
+  ".eh_fram",
+  ".gcc_exc",
+#endif
+#endif
+  NULL
+};
+#endif /* ! BFD_ASSEMBLER */
+
+int
+subseg_text_p (sec)
+     segT sec;
+{
+#ifdef BFD_ASSEMBLER
+  return (bfd_get_section_flags (stdoutput, sec) & SEC_CODE) != 0;
+#else /* ! BFD_ASSEMBLER */
+  const char * const *p;
+
+  if (sec == data_section || sec == bss_section)
+    return 0;
+
+  for (p = nontext_section_names; *p != NULL; ++p)
+    {
+      if (strcmp (segment_name (sec), *p) == 0)
+	return 0;
+
+#ifdef obj_segment_name
+      if (strcmp (obj_segment_name (sec), *p) == 0)
+	return 0;
+#endif
+    }
+
+  return 1;
+
+#endif /* ! BFD_ASSEMBLER */
+}
 
 void
 subsegs_print_statistics (file)

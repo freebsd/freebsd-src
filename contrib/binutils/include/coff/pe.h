@@ -3,29 +3,32 @@
 #ifndef _PE_H
 #define _PE_H
 
-/* NT specific file attributes */
+/* NT specific file attributes.  */
 #define IMAGE_FILE_RELOCS_STRIPPED           0x0001
 #define IMAGE_FILE_EXECUTABLE_IMAGE          0x0002
 #define IMAGE_FILE_LINE_NUMS_STRIPPED        0x0004
 #define IMAGE_FILE_LOCAL_SYMS_STRIPPED       0x0008
+#define IMAGE_FILE_AGGRESSIVE_WS_TRIM        0x0010
+#define IMAGE_FILE_LARGE_ADDRESS_AWARE       0x0020
+#define IMAGE_FILE_16BIT_MACHINE             0x0040
 #define IMAGE_FILE_BYTES_REVERSED_LO         0x0080
 #define IMAGE_FILE_32BIT_MACHINE             0x0100
 #define IMAGE_FILE_DEBUG_STRIPPED            0x0200
+#define IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP   0x0400
 #define IMAGE_FILE_SYSTEM                    0x1000
 #define IMAGE_FILE_DLL                       0x2000
+#define IMAGE_FILE_UP_SYSTEM_ONLY            0x4000
 #define IMAGE_FILE_BYTES_REVERSED_HI         0x8000
 
-/* additional flags to be set for section headers to allow the NT loader to
+/* Additional flags to be set for section headers to allow the NT loader to
    read and write to the section data (to replace the addresses of data in
-   dlls for one thing); also to execute the section in .text's case */
+   dlls for one thing); also to execute the section in .text's case.  */
 #define IMAGE_SCN_MEM_DISCARDABLE 0x02000000
 #define IMAGE_SCN_MEM_EXECUTE     0x20000000
 #define IMAGE_SCN_MEM_READ        0x40000000
 #define IMAGE_SCN_MEM_WRITE       0x80000000
 
-/*
- * Section characteristics added for ppc-nt
- */
+/* Section characteristics added for ppc-nt.  */
 
 #define IMAGE_SCN_TYPE_NO_PAD                0x00000008  /* Reserved. */
 
@@ -53,7 +56,6 @@
 #define IMAGE_SCN_ALIGN_32BYTES              0x00600000
 #define IMAGE_SCN_ALIGN_64BYTES              0x00700000
 
-
 #define IMAGE_SCN_LNK_NRELOC_OVFL            0x01000000  /* Section contains extended relocations. */
 #define IMAGE_SCN_MEM_NOT_CACHED             0x04000000  /* Section is not cachable.               */
 #define IMAGE_SCN_MEM_NOT_PAGED              0x08000000  /* Section is not pageable.               */
@@ -67,6 +69,26 @@
 #define IMAGE_COMDAT_SELECT_EXACT_MATCH	     (4) /* Warn if different.  */
 #define IMAGE_COMDAT_SELECT_ASSOCIATIVE	     (5) /* Base on other section.  */
 
+/* Machine numbers.  */
+
+#define IMAGE_FILE_MACHINE_UNKNOWN           0x0
+#define IMAGE_FILE_MACHINE_ALPHA             0x184
+#define IMAGE_FILE_MACHINE_ARM               0x1c0
+#define IMAGE_FILE_MACHINE_ALPHA64           0x284
+#define IMAGE_FILE_MACHINE_I386              0x14c
+#define IMAGE_FILE_MACHINE_IA64              0x200
+#define IMAGE_FILE_MACHINE_M68K              0x268
+#define IMAGE_FILE_MACHINE_MIPS16            0x266
+#define IMAGE_FILE_MACHINE_MIPSFPU           0x366
+#define IMAGE_FILE_MACHINE_MIPSFPU16         0x466
+#define IMAGE_FILE_MACHINE_POWERPC           0x1f0
+#define IMAGE_FILE_MACHINE_R3000             0x162
+#define IMAGE_FILE_MACHINE_R4000             0x166
+#define IMAGE_FILE_MACHINE_R10000            0x168
+#define IMAGE_FILE_MACHINE_SH3               0x1a2
+#define IMAGE_FILE_MACHINE_SH4               0x1a6
+#define IMAGE_FILE_MACHINE_THUMB             0x1c2
+                                                                           
 /* Magic values that are true for all dos/nt implementations */
 #define DOSMAGIC       0x5a4d  
 #define NT_SIGNATURE   0x00004550
@@ -76,12 +98,7 @@
 #undef  FILNMLEN
 #define FILNMLEN	18	/* # characters in a file name		*/
 
-
-#ifdef COFF_IMAGE_WITH_PE
-/* The filehdr is only weired in images */
-
-#undef FILHDR
-struct external_PE_filehdr
+struct external_PEI_filehdr
 {
   /* DOS header fields */
   char e_magic[2];		/* Magic number, 0x5a4d */
@@ -108,7 +125,6 @@ struct external_PE_filehdr
 
   /* From standard header */  
 
-
   char f_magic[2];		/* magic number			*/
   char f_nscns[2];		/* number of sections		*/
   char f_timdat[4];		/* time & date stamp		*/
@@ -119,12 +135,16 @@ struct external_PE_filehdr
 
 };
 
+#ifdef COFF_IMAGE_WITH_PE
 
-#define FILHDR struct external_PE_filehdr
-#undef FILHSZ
+/* The filehdr is only weird in images.  */
+
+#undef  FILHDR
+#define FILHDR struct external_PEI_filehdr
+#undef  FILHSZ
 #define FILHSZ 152
 
-#endif
+#endif /* COFF_IMAGE_WITH_PE */
 
 typedef struct 
 {
@@ -163,7 +183,16 @@ typedef struct
 
 #undef  E_FILNMLEN
 #define E_FILNMLEN	18	/* # characters in a file name		*/
-#endif
 
+/* Import Tyoes fot ILF format object files..  */
+#define IMPORT_CODE	0
+#define IMPORT_DATA	1
+#define IMPORT_CONST	2
 
+/* Import Name Tyoes for ILF format object files.  */
+#define IMPORT_ORDINAL		0
+#define IMPORT_NAME		1
+#define IMPORT_NAME_NOPREFIX	2
+#define IMPORT_NAME_UNDECORATE	3
 
+#endif /* _PE_H */

@@ -1,5 +1,6 @@
 /* ld.h -- general linker header file
-   Copyright (C) 1991, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -21,6 +22,31 @@
 #ifndef LD_H
 #define LD_H
 
+#ifdef HAVE_LOCALE_H
+# include <locale.h>
+#endif
+
+#ifdef ENABLE_NLS
+# include <libintl.h>
+# define _(String) gettext (String)
+# ifdef gettext_noop
+#  define N_(String) gettext_noop (String)
+# else
+#  define N_(String) (String)
+# endif
+#else
+/* Stubs that do something close enough.  */
+# define textdomain(String) (String)
+# define gettext(String) (String)
+# define dgettext(Domain,Message) (Message)
+# define dcgettext(Domain,Message,Type) (Message)
+# define bindtextdomain(Domain,Directory) (Domain)
+# define _(String) (String)
+# define N_(String) (String)
+#endif
+
+#include "bin-bugs.h"
+
 /* Look in this environment name for the linker to pretend to be */
 #define EMULATION_ENVIRON "LDEMULATION"
 /* If in there look for the strings: */
@@ -31,6 +57,23 @@
 /* Input sections which are put in a section of this name are actually
    discarded.  */
 #define DISCARD_SECTION_NAME "/DISCARD/"
+
+/* A file name list */
+typedef struct name_list
+{
+   const char *name;
+   struct name_list *next;
+} name_list;
+
+/* A wildcard specification.  This is only used in ldgram.y, but it
+   winds up in ldgram.h, so we need to define it outside.  */
+
+struct wildcard_spec
+{
+  const char *name;
+  struct name_list *exclude_name_list;
+  boolean sorted;
+};
 
 /* Extra information we hold on sections */
 typedef struct  user_section_struct
@@ -95,6 +138,9 @@ typedef struct
      files.  */
   boolean warn_mismatch;
 
+  /* Remove unreferenced sections?  */
+  boolean gc_sections;
+
   /* Name of shared object whose symbol table should be filtered with
      this shared object.  From the --filter option.  */
   char *filter_shlib;
@@ -102,6 +148,15 @@ typedef struct
   /* Name of shared object for whose symbol table this shared object
      is an auxiliary filter.  From the --auxiliary option.  */
   char **auxiliary_filters;
+
+  /* A version symbol to be applied to the symbol names found in the
+     .exports sections.  */
+  char *version_exports_section;
+
+  /* If true (the default) check section addresses, once compute,
+     fpor overlaps.  */
+  boolean check_section_addresses;
+  
 } args_type;
 
 extern args_type command_line;
@@ -116,6 +171,12 @@ typedef struct
 
   /* If true, doing a dynamic link.  */
   boolean dynamic_link;
+
+  /* If true, -shared is supported.  */
+  /* ??? A better way to do this is perhaps to define this in the
+     ld_emulation_xfer_struct since this is really a target dependent
+     parameter.  */
+  boolean has_shared;
 
   /* If true, build constructors.  */
   boolean build_constructors;
@@ -170,5 +231,16 @@ extern int yyparse PARAMS ((void));
 extern void add_cref PARAMS ((const char *, bfd *, asection *, bfd_vma));
 extern void output_cref PARAMS ((FILE *));
 extern void check_nocrossrefs PARAMS ((void));
+
+extern void ld_abort PARAMS ((const char *, int, const char *))
+     ATTRIBUTE_NORETURN;
+
+/* If gcc >= 2.6, we can give a function name, too.  */
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 6)
+#define __PRETTY_FUNCTION__  ((char*) NULL)
+#endif
+
+#undef abort
+#define abort() ld_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #endif

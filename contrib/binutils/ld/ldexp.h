@@ -1,5 +1,5 @@
 /* ldexp.h -
-   Copyright 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 1998 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -14,8 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GLD; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GLD; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #ifndef LDEXP_H
 #define LDEXP_H
@@ -25,7 +26,7 @@ typedef struct
 {
   bfd_vma value;
   struct lang_output_section_statement_struct *section;
-  boolean valid;
+  boolean valid_p;
 } etree_value_type;
 
 
@@ -42,6 +43,7 @@ typedef struct
 	   etree_undef,
 	   etree_unspec,
 	   etree_value,
+	   etree_assert,
 	   etree_rel } node_class;
 } node_type;
 
@@ -84,7 +86,11 @@ typedef union etree_union
     asection *section;
     bfd_vma value;
   } rel;
-
+  struct {
+    node_type type;
+    union etree_union *child;
+    const char *message;
+  } assert_s;
 } etree_type;
 
 
@@ -101,6 +107,7 @@ etree_type *exp_unop PARAMS ((int, etree_type *));
 etree_type *exp_nameop PARAMS ((int, CONST char *));
 etree_type *exp_assop PARAMS ((int, CONST char *, etree_type *));
 etree_type *exp_provide PARAMS ((const char *, etree_type *));
+etree_type *exp_assert PARAMS ((etree_type *, const char *));
 void exp_print_tree PARAMS ((etree_type *));
 bfd_vma exp_get_vma PARAMS ((etree_type *, bfd_vma, char *, lang_phase_type));
 int exp_get_value_int PARAMS ((etree_type *, int, char *,lang_phase_type));

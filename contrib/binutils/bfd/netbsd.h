@@ -1,5 +1,5 @@
 /* BFD back-end definitions used by all NetBSD targets.
-   Copyright (C) 1990, 91, 92, 94, 95, 96, 97 1998
+   Copyright (C) 1990, 91, 92, 94, 95, 96, 97, 98, 2000
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -91,11 +91,7 @@ MY(write_object_contents) (abfd)
       NAME(aout,adjust_sizes_and_vmas) (abfd, &text_size, &text_end);
     }
 
-#if CHOOSE_RELOC_SIZE
-  CHOOSE_RELOC_SIZE(abfd);
-#else
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
-#endif
 
   /* Magic number, maestro, please!  */
   switch (bfd_get_arch(abfd)) {

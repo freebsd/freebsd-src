@@ -14,7 +14,7 @@ libdir=$2
 host=$3
 target=$4
 target_alias=$5
-DEFAULT_EMULATION=$6
+EMULATION_LIBPATH=$6
 NATIVE_LIB_DIRS=$7
 EMULATION_NAME=$8
 tool_lib=`echo ${libdir} | sed -e 's|/lib$||'`/${9-$target_alias}/lib
@@ -36,26 +36,24 @@ fi
 # To force a logically empty LIB_PATH, do LIBPATH=":".
 
 if [ "x${LIB_PATH}" = "x" ] ; then
+  # Cross, or native non-default emulation not requesting LIB_PATH.
+  LIB_PATH=
+
   if [ "x${host}" = "x${target}" ] ; then
-    if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
-      # Native.
-      LIB_PATH=/lib:/usr/lib
-      if [ -n "${NATIVE_LIB_DIRS}" ]; then
-	LIB_PATH=${LIB_PATH}:${NATIVE_LIB_DIRS}
-      fi
-      if [ "${libdir}" != /usr/lib ]; then
-	LIB_PATH=${LIB_PATH}:${libdir}
-      fi
-      if [ "${libdir}" != /usr/local/lib ] ; then
-	LIB_PATH=${LIB_PATH}:/usr/local/lib
-      fi
-    else
-      # Native, but not default emulation.
-      LIB_PATH=
-    fi
-  else
-    # Cross.
-    LIB_PATH=
+    case " $EMULATION_LIBPATH " in
+      *" ${EMULATION_NAME} "*)
+        # Native, and default or emulation requesting LIB_PATH.
+        LIB_PATH=/lib:/usr/lib
+        if [ -n "${NATIVE_LIB_DIRS}" ]; then
+	  LIB_PATH=${LIB_PATH}:${NATIVE_LIB_DIRS}
+        fi
+        if [ "${libdir}" != /usr/lib ]; then
+	  LIB_PATH=${LIB_PATH}:${libdir}
+        fi
+        if [ "${libdir}" != /usr/local/lib ] ; then
+	  LIB_PATH=${LIB_PATH}:/usr/local/lib
+        fi
+    esac
   fi
 fi
 
@@ -127,7 +125,9 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
     ldscripts/${EMULATION_NAME}.xs
 fi
 
-test "$DEFAULT_EMULATION" = "$EMULATION_NAME" && COMPILE_IN=true
+for i in $EMULATION_LIBPATH ; do
+  test "$i" = "$EMULATION_NAME" && COMPILE_IN=true
+done
 
 # Generate e${EMULATION_NAME}.c.
 . ${srcdir}/emultempl/${TEMPLATE_NAME-generic}.em
