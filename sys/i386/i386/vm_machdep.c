@@ -135,7 +135,7 @@ cpu_fork(td1, p2, flags)
 	if ((flags & RFPROC) == 0) {
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
-			struct mdproc *mdp1 = &td1->td_proc->p_md;
+			struct mdproc *mdp1 = &p1->p_md;
 			struct proc_ldt *pldt = mdp1->md_ldt;
 			if (pldt && pldt->ldt_refcnt > 1) {
 				pldt = user_ldt_alloc(mdp1, pldt->ldt_len);
@@ -167,8 +167,8 @@ cpu_fork(td1, p2, flags)
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/* Point mdproc and then copy over td1's contents */
-	mdp2 = &td2->td_proc->p_md;
-	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
+	mdp2 = &p2->p_md;
+	bcopy(&p1->p_md, mdp2, sizeof(*mdp2));
 
 	/*
 	 * Create a new fresh stack for the new process.
