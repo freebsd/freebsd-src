@@ -116,6 +116,12 @@
     <para>The loader tunable <varname>debug.mpsafevm</varname> has been
       has been enabled by default.</para>
 
+    <para>MemGuard, a kernel memory allocator designed to help detect
+      <quote>tamper-after-free</quote> scenarios, has been added.
+      This must be explicitly enabled via <literal>options
+      DEBUG_MEMGUARD</literal>, plus small kernel modifications.  It
+      is generally intended for use by kernel developers.</para>
+
     <para>A number of bugs have been fixed in the ULE
       scheduler. &merged;</para>
 
@@ -149,20 +155,27 @@
 
     <sect3 id="proc">
       <title>Hardware Support</title>
-
+	
       <para>A framework for flexible processor speed control has been
 	added.  It provides methods for various drivers to control CPU
 	power utilization by adjusting the processor speed.  More
 	details can be found in the &man.cpufreq.4; manual page.
 	Currently supported drivers include acpi_perf (ACPI CPU
-	performance states), icss (Intel SpeedStep for ICH), and
+	performance states), ichss (Intel SpeedStep for ICH), and
 	acpi_throttle (ACPI CPU throttling).</para>
 
       <para arch="i386">Support for the OLDCARD subsystem has
 	been removed.  The NEWCARD system is now used for all PCCARD
 	device support.</para>
 
-      <para>The &man.uplcom.4; now supports handling of the
+      <para>The &man.psm.4; driver now has improved support for
+	Synaptics Touchpad users.  It now has better tracking of
+	slow-speed movement and now has support for various extra
+	buttons and dials.  These features can be tuned with the
+	<varname>hw.psm.synaptics.<replaceable>*</replaceable></varname>
+	hierarchy of sysctl variables.</para>
+
+      <para>The &man.uplcom.4; driver now supports handling of the
 	<literal>CTS</literal> signal.</para>
 
       <sect4 id="mm">
@@ -184,7 +197,9 @@
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
 
-	<para>The &man.dc.4; now supports the &man.altq.4; framework.</para>
+	<para>The &man.dc.4; driver now supports the &man.altq.4; framework.</para>
+
+	<para>The &man.hme.4; driver is now MPSAFE. &merged;</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
@@ -232,6 +247,24 @@
 
       <para>RFC 1644 T/TCP support has been removed.</para>
 
+      <para>Random ephemeral port number allocation has led to some
+        problems with port reuse at high connection rates.  This
+        feature is now disabled during periods of high connection
+        rates; whenever new connections are created faster than
+        <varname>net.inet.ip.portrange.randomcps</varname> per second,
+        port number randomization is disabled for the next
+        <varname>net.inet.ip.portrange.randomtime</varname>
+        seconds.  The default values for these two sysctl variables
+        are <literal>10</literal> and <literal>45</literal>,
+        respectively.</para>
+
+      <para>Fine-grained locking has been applied to many of the data
+	structures in the IPX/SPX protocol stack.  While not fully
+	MPSAFE at this point, it is generally safe to use IPX/SPX
+	without the Giant lock (in other words, the
+	<varname>debug.mpsafenet</varname> sysctl variable may be set
+	to <literal>1</literal>).</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -239,6 +272,12 @@
 
       <para>The &man.amr.4; driver is now safe for use on systems
 	using &man.pae.4;. &merged;</para>
+
+      <para>The SHSEC GEOM class has been added.  It provides for the
+	sharing of a secret between multiple GEOM providers.  All of
+	these providers must be present in order to reveal the
+	secret.  This feature is controlled by the &man.gshsec.8;
+	utility.</para>
 
       <para>The &man.matcd.4; driver has been removed.</para>
 
@@ -255,7 +294,7 @@
 	as the presence of Rockridge extensions) is now only printed
 	if the kernel was booted in verbose mode.  This change was
 	made to reduce the amount of (generally unnecessary) kernel
-	log messages.</para>
+	log messages. &merged;</para>
 
     </sect3>
 
@@ -287,11 +326,28 @@
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
 
+    <para>The &man.dump.8; utility now supports a <option>-n</option>
+      flag to suppress the creation of a <filename>.snap</filename>
+      directory on new file systems.  This feature is intended for use
+      on memory or vnode file systems that will not require snapshot
+      support.</para>
+
     <para>The &man.ifconfig.8; utility has been restructured.  It is
       now more modular and flexible with respect to supporting
       interface-specific functionality.  The 802.11 support has been
       updated to support recent changes to the 802.11 subsystem and
       drivers.</para>
+
+    <para>Support for abbreviated forms of a number of &man.ipfw.8;
+      options has been deprecated.  Warnings are printed to stderr
+      indicated the correct full form when one of these abbreviations
+      is detected.</para>
+
+    <para>The <filename>libarchive</filename> library (as well as the
+      &man.tar.1; command that uses it) now has support for reading ISO
+      images (with optional RockRidge extensions) and ZIP archives
+      (with <literal>deflate</literal> and <literal>none</literal>
+      compression).</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -335,6 +391,14 @@
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behavior. &merged;</para>
+
+    <para>An &man.rpmatch.3; library function has been added to check
+      a string for being an affirmative or negative response in the
+      current locale.</para>
+
+    <para>The &man.telnet.1; and &man.telnetd.8; programs now support
+      the <option>-S</option> option for specifying a numeric TOS
+      byte.</para>
 
     <para>The &man.tcpdrop.8; command, which closes a selected TCP
       connection, has been added.  It was obtained from
@@ -398,7 +462,10 @@
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para>Manual pages in the base system have received a number of
+      cleanups, both for content and presentation.  Cross-references
+      are more correct and consistent, standard section headings are
+      now used throughout, and markup has been cleaned up.</para>
 
   </sect2>
 </sect1>
