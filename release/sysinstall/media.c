@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.24.2.4 1995/06/02 02:40:18 jkh Exp $
+ * $Id: media.c,v 1.24.2.5 1995/06/03 23:23:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -231,6 +231,15 @@ mediaSetTape(char *str)
     }
     else
 	mediaDevice = devs[0];
+    if (mediaDevice) {
+	char *val;
+
+	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterward!");
+	if (!val)
+	    mediaDevice = NULL;
+	else
+	    mediaDevice->private = strdup(val);
+    }
     return mediaDevice ? 1 : 0;
 }
 
@@ -264,7 +273,8 @@ mediaSetFTP(char *str)
     ftpDevice.get = mediaGetFTP;
     ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = mediaDevice;
+    if (str)
+	ftpDevice.private = mediaDevice;
     mediaDevice = &ftpDevice;
     return 1;
 }

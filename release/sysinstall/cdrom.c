@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.5 1995/05/29 11:01:03 jkh Exp $
+ * $Id: cdrom.c,v 1.6 1995/05/30 08:28:20 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitCDROM(Device *dev)
     struct iso_args	args;
     struct stat		sb;
 
-    if (cdromMounted)
+    if (cdromMounted || OnCDROM)
 	return TRUE;
 
     if (Mkdir("/cdrom", NULL))
@@ -101,24 +101,24 @@ mediaInitCDROM(Device *dev)
 }
 
 int
-mediaGetCDROM(char *file)
+mediaGetCDROM(Device *dev, char *file)
 {
     char		buf[PATH_MAX];
 
-    snprintf(buf, PATH_MAX, "/cdrom/%s", file);
+    snprintf(buf, PATH_MAX, "%s/%s", OnCDROM ? "" : "/cdrom", file);
     if (!access(buf,R_OK))
-	    return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "%s/dists/%s", OnCDROM ? "" : "/cdrom", file);
     return open(buf, O_RDONLY);
 }
 
 void
 mediaShutdownCDROM(Device *dev)
 {
-    if (!cdromMounted)
+    if (!cdromMounted || OnCDROM)
 	return;
     msgDebug("Unmounting /cdrom\n");
-    if (unmount("/cdrom", 0) != 0)
+    if (unmount("/cdrom", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
     msgDebug("Unmount returned\n");
     cdromMounted = FALSE;

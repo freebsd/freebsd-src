@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.13 1995/06/03 23:44:09 jkh Exp $
+ * $Id: menus.c,v 1.41.2.14 1995/06/04 01:57:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -336,6 +336,8 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
       { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
 	DMENU_CALL,	distSetXDeveloper, 0, 0		},
+      { "Kern-Developer", "Full binaries and doc, kernel sources only [35MB]",
+	DMENU_CALL,	distSetKernDeveloper, 0, 0	},
       { "User",		"Average user - binaries and doc but no sources [19MB]",
 	DMENU_CALL,	distSetUser, 0, 0		},
       { "X-User",	"Same as above, but includes XFree86 [45MB]",
@@ -648,7 +650,9 @@ after a final confirmation).",
 	DMENU_SUBMENU,	&MenuInstallType, 0, 0		},
       { "Media", "Choose the installation media type",		/* M */
 	DMENU_SUBMENU,	&MenuMedia, 0, 0		},
-      { "Install", "Install FreeBSD onto your hard disk(s)",	/* I */
+      { "Options", "Go to Options submenu",                        /* O */
+	DMENU_SUBMENU, &MenuOptions, 0, 0		},
+      { "Commit", "Install FreeBSD onto your hard disk(s)",	/* C */
 	DMENU_CALL,	installCommit, 0, 0		},
       { "Configure", "Do post-install configuration of FreeBSD", /* C */
 	DMENU_SUBMENU,	&MenuConfigure, 0, 0		},
@@ -724,7 +728,7 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0		},
       { "NFS server",	"This machine will be an NFS server",
 	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0		},
-      { "interfaces",	"Configure additional interfaces",
+      { "Interfaces",	"Configure network interfaces",
 	DMENU_CALL,	tcpMenuSelect, 0, 0			},
       { "ntpdate",	"Select a clock-syncronization server",
 	DMENU_SUBMENU,	&MenuNTP, 0, 0				},
