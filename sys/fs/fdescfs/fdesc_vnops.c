@@ -440,7 +440,7 @@ fdesc_readdir(ap)
 
 	fcnt = i - 2;		/* The first two nodes are `.' and `..' */
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	while (i < fdp->fd_nfiles + 2 && uio->uio_resid >= UIO_MX) {
 		switch (i) {
 		case 0:	/* `.' */
@@ -456,7 +456,7 @@ fdesc_readdir(ap)
 			break;
 		default:
 			if (fdp->fd_ofiles[fcnt] == NULL) {
-				FILEDESC_UNLOCK(fdp);
+				FILEDESC_UNLOCK_FAST(fdp);
 				goto done;
 			}
 
@@ -470,15 +470,15 @@ fdesc_readdir(ap)
 		/*
 		 * And ship to userland
 		 */
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		error = uiomove(dp, UIO_MX, uio);
 		if (error)
 			goto done;
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		i++;
 		fcnt++;
 	}
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 done:
 	uio->uio_offset = i * UIO_MX;
