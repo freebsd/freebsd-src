@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)df.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: df.1,v 1.3 1994/09/24 02:55:08 davidg Exp $
+.\"	$Id: df.1,v 1.4 1996/08/29 18:05:48 wosch Exp $
 .\"
 .Dd January 13, 1994
 .Dt DF 1
@@ -78,11 +78,14 @@ with the possibly stale statistics that were previously obtained.
 .It Fl t
 Only print out statistics for filesystems of the specified types.
 The recognized types are:
-ufs, nfs, mfs, lfs, msdos, fdesc, portal, kernfs, procfs, afs and isofs.
+ufs, nfs, mfs, lfs, msdos, fdesc, portal, kernfs, procfs, afs, isofs,
+iso9660fs, cdfs, and cd9660,
 along with the aggregates:
 all (the default),
-local (ufs, mfs, lfs, msdos, isofs),
+local (ufs, mfs, lfs, msdos, cd9660),
 and misc (fdesc, portal, kernfs, procfs).
+The names isofs, iso9660fs, cdfs, and cd9660 are aliases to each other
+all of them refering to the same type of file system.
 The string ``no'' may be prepending to a type to get its complement
 (e.g. ``nonfs'' to get non-NFS filesystems).  The first
 .Fl t
