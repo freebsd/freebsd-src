@@ -35,27 +35,6 @@
 
 
 /*
- * Tor's clock improvements.
- *
- *  When the giant kernel lock disappears, a different strategy should
- *  probably be used, thus this patch can only be considered a temporary
- *  measure.
- *
- *  This patch causes (NCPU-1)*(128+100) extra IPIs per second.
- *  During profiling, the number is (NCPU-1)*(1024+100) extra IPIs/s
- *  in addition to extra IPIs due to forwarding ASTs to other CPUs.
- *
- *  Having a shared AST flag in an SMP configuration is wrong, and I've
- *  just kludged around it, based upon the kernel lock blocking other
- *  processors from entering the kernel while handling an AST for one
- *  processor. When the giant kernel lock disappers, this kludge breaks.
- *
- *  -- Tor
- */
-#define BETTER_CLOCK
-
-
-/*
  * Control the "giant lock" pushdown by logical steps.
  */
 #define PUSHDOWN_LEVEL_1
@@ -92,8 +71,8 @@
 
 /*
  * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
- */
 #define VERBOSE_CPUSTOP_ON_DDBBREAK
+ */
 #define CPUSTOP_ON_DDBBREAK
 
 

@@ -109,10 +109,8 @@ void	init_secondary		__P((void));
 void	smp_invltlb		__P((void));
 int	stop_cpus		__P((u_int));
 int	restart_cpus		__P((u_int));
-#ifdef BETTER_CLOCK 
 void	forward_statclock	__P((int pscnt));
 void	forward_hardclock	__P((int pscnt));
-#endif /* BETTER_CLOCK */
 void	forward_signal		__P((struct proc *));
 void	forward_roundrobin	__P((void));
 #ifdef	APIC_INTR_REORDER
