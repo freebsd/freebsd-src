@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.34 1996/10/12 19:49:32 bde Exp $
+ * $Id: if_ether.c,v 1.35 1996/11/15 18:50:31 fenner Exp $
  */
 
 /*
@@ -450,7 +450,7 @@ in_arpinput(m)
 	op = ntohs(ea->arp_op);
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
 	(void)memcpy(&itaddr, ea->arp_tpa, sizeof (itaddr));
-	for (ia = in_ifaddr; ia; ia = ia->ia_next)
+	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_next)
 		if (ia->ia_ifp == &ac->ac_if) {
 			maybe_ia = ia;
 			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
