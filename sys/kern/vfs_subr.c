@@ -193,11 +193,11 @@ int	prtactive;
  */
 static int syncer_delayno;
 static long syncer_mask;
-LIST_HEAD(synclist, vnode);
+LIST_HEAD(synclist, bufobj);
 static struct synclist *syncer_workitem_pending;
 /*
  * The sync_mtx protects:
- *	vp->v_synclist
+ *	bo->bo_synclist
  *	sync_vnode_count
  *	syncer_delayno
  *	syncer_state
@@ -831,6 +831,7 @@ getnewvnode(tag, mp, vops, vpp)
 		VI_LOCK(vp);
 		vp->v_dd = vp;
 		bo = &vp->v_bufobj;
+		bo->bo_private = vp;
 		bo->bo_mtx = &vp->v_interlock;
 		vp->v_vnlock = &vp->v_lock;
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
@@ -927,8 +928,8 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
 
-	VI_LOCK(vp);
 	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
 	if (flags & V_SAVE) {
 		error = bufobj_wwait(bo, slpflag, slptimeo);
 		if (error) {
@@ -1397,39 +1398,39 @@ brelvp(struct buf *bp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	vp = bp->b_vp;
-	VI_LOCK(vp);
+	vp = bp->b_vp;		/* XXX */
 	bo = bp->b_bufobj;
+	BO_LOCK(bo);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
-	if ((vp->v_iflag & VI_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
-		vp->v_iflag &= ~VI_ONWORKLST;
+	if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
+		bo->bo_flag &= ~BO_ONWORKLST;
 		mtx_lock(&sync_mtx);
-		LIST_REMOVE(vp, v_synclist);
+		LIST_REMOVE(bo, bo_synclist);
  		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
 	vdropl(vp);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 }
 
 /*
  * Add an item to the syncer work queue.
  */
 static void
-vn_syncer_add_to_worklist(struct vnode *vp, int delay)
+vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 {
 	int slot;
 
-	ASSERT_VI_LOCKED(vp, "vn_syncer_add_to_worklist");
+	ASSERT_BO_LOCKED(bo);
 
 	mtx_lock(&sync_mtx);
-	if (vp->v_iflag & VI_ONWORKLST)
-		LIST_REMOVE(vp, v_synclist);
+	if (bo->bo_flag & BO_ONWORKLST)
+		LIST_REMOVE(bo, bo_synclist);
 	else {
-		vp->v_iflag |= VI_ONWORKLST;
+		bo->bo_flag |= BO_ONWORKLST;
  		syncer_worklist_len++;
 	}
 
@@ -1437,7 +1438,7 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 		delay = syncer_maxdelay - 2;
 	slot = (syncer_delayno + delay) & syncer_mask;
 
-	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], vp, v_synclist);
+	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], bo, bo_synclist);
 	mtx_unlock(&sync_mtx);
 }
 
@@ -1474,6 +1475,7 @@ sched_sync(void)
 	struct synclist *next;
 	struct synclist *slp;
 	struct vnode *vp;
+	struct bufobj *bo;
 	struct mount *mp;
 	long starttime;
 	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);
@@ -1549,16 +1551,17 @@ sched_sync(void)
 			last_work_seen = syncer_delayno;
 		if (net_worklist_len > 0 && syncer_state == SYNCER_FINAL_DELAY)
 			syncer_state = SYNCER_SHUTTING_DOWN;
-		while ((vp = LIST_FIRST(slp)) != NULL) {
+		while ((bo = LIST_FIRST(slp)) != NULL) {
+			vp = bo->bo_private; 	/* XXX */
 			if (VOP_ISLOCKED(vp, NULL) != 0 ||
 			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
-				LIST_REMOVE(vp, v_synclist);
-				LIST_INSERT_HEAD(next, vp, v_synclist);
+				LIST_REMOVE(bo, bo_synclist);
+				LIST_INSERT_HEAD(next, bo, bo_synclist);
 				continue;
 			}
 			if (VI_TRYLOCK(vp) == 0) {
-				LIST_REMOVE(vp, v_synclist);
-				LIST_INSERT_HEAD(next, vp, v_synclist);
+				LIST_REMOVE(bo, bo_synclist);
+				LIST_INSERT_HEAD(next, bo, bo_synclist);
 				vn_finished_write(mp);
 				continue;
 			}
@@ -1575,14 +1578,14 @@ sched_sync(void)
 			VOP_UNLOCK(vp, 0, td);
 			vn_finished_write(mp);
 			VI_LOCK(vp);
-			if ((vp->v_iflag & VI_ONWORKLST) != 0) {
+			if ((bo->bo_flag & BO_ONWORKLST) != 0) {
 				/*
 				 * Put us back on the worklist.  The worklist
 				 * routine will remove us from our current
 				 * position and then add us back in at a later
 				 * position.
 				 */
-				vn_syncer_add_to_worklist(vp, syncdelay);
+				vn_syncer_add_to_worklist(bo, syncdelay);
 			}
 			vdropl(vp);
 			VI_UNLOCK(vp);
@@ -1759,7 +1762,7 @@ reassignbuf(struct buf *bp)
 	 * of clean buffers.
 	 */
 	if (bp->b_flags & B_DELWRI) {
-		if ((vp->v_iflag & VI_ONWORKLST) == 0) {
+		if ((bo->bo_flag & BO_ONWORKLST) == 0) {
 			switch (vp->v_type) {
 			case VDIR:
 				delay = dirdelay;
@@ -1770,18 +1773,18 @@ reassignbuf(struct buf *bp)
 			default:
 				delay = filedelay;
 			}
-			vn_syncer_add_to_worklist(vp, delay);
+			vn_syncer_add_to_worklist(bo, delay);
 		}
 		buf_vlist_add(bp, bo, BX_VNDIRTY);
 	} else {
 		buf_vlist_add(bp, bo, BX_VNCLEAN);
 
-		if ((vp->v_iflag & VI_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
+		if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 			mtx_lock(&sync_mtx);
-			LIST_REMOVE(vp, v_synclist);
+			LIST_REMOVE(bo, bo_synclist);
  			syncer_worklist_len--;
 			mtx_unlock(&sync_mtx);
-			vp->v_iflag &= ~VI_ONWORKLST;
+			bo->bo_flag &= ~BO_ONWORKLST;
 		}
 	}
 	VI_UNLOCK(vp);
@@ -3329,7 +3332,8 @@ vfs_allocate_syncvnode(mp)
 		next = start;
 	}
 	VI_LOCK(vp);
-	vn_syncer_add_to_worklist(vp, syncdelay > 0 ? next % syncdelay : 0);
+	vn_syncer_add_to_worklist(&vp->v_bufobj,
+	    syncdelay > 0 ? next % syncdelay : 0);
 	/* XXX - vn_syncer_add_to_worklist() also grabs and drops sync_mtx. */
 	mtx_lock(&sync_mtx);
 	sync_vnode_count++;
@@ -3355,6 +3359,7 @@ sync_fsync(ap)
 	struct mount *mp = syncvp->v_mount;
 	struct thread *td = ap->a_td;
 	int error, asyncflag;
+	struct bufobj *bo;
 
 	/*
 	 * We only need to do something if this is a lazy evaluation.
@@ -3365,9 +3370,10 @@ sync_fsync(ap)
 	/*
 	 * Move ourselves to the back of the sync list.
 	 */
-	VI_LOCK(syncvp);
-	vn_syncer_add_to_worklist(syncvp, syncdelay);
-	VI_UNLOCK(syncvp);
+	bo = &syncvp->v_bufobj;
+	BO_LOCK(bo);
+	vn_syncer_add_to_worklist(bo, syncdelay);
+	BO_UNLOCK(bo);
 
 	/*
 	 * Walk the list of vnodes pushing all that are dirty and
@@ -3421,16 +3427,18 @@ sync_reclaim(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct bufobj *bo;
 
 	VI_LOCK(vp);
+	bo = &vp->v_bufobj;
 	vp->v_mount->mnt_syncer = NULL;
-	if (vp->v_iflag & VI_ONWORKLST) {
+	if (bo->bo_flag & BO_ONWORKLST) {
 		mtx_lock(&sync_mtx);
-		LIST_REMOVE(vp, v_synclist);
+		LIST_REMOVE(bo, bo_synclist);
  		syncer_worklist_len--;
 		sync_vnode_count--;
 		mtx_unlock(&sync_mtx);
-		vp->v_iflag &= ~VI_ONWORKLST;
+		bo->bo_flag &= ~BO_ONWORKLST;
 	}
 	VI_UNLOCK(vp);
 

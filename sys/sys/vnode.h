@@ -130,7 +130,6 @@ struct vnode {
 	} v_un;
 	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
 	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* m vnodes for mount point */
-	LIST_ENTRY(vnode) v_synclist;		/* S dirty vnode list */
 	enum	vtype v_type;			/* u vnode type */
 	const char *v_tag;			/* u type of underlying data */
 	void	*v_data;			/* u private data for fs */
@@ -224,11 +223,6 @@ struct xvnode {
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_OBJDIRTY	0x0400	/* object might be dirty */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
-/*
- * XXX VI_ONWORKLST could be replaced with a check for NULL list elements
- * in v_synclist.
- */
-#define	VI_ONWORKLST	0x0200	/* On syncer work-list */
 
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */

@@ -85,8 +85,15 @@ struct bufobj {
 	struct buf_ops	*bo_ops;	/* - Buffer operations */
 	int		bo_bsize;	/* - Block size for i/o */
 	struct vm_object *bo_object;	/* v Place to store VM object */
+	LIST_ENTRY(bufobj) bo_synclist;	/* S dirty vnode list */
+	void		*bo_private;	/* private pointer */
 };
 
+/*
+ * XXX BO_ONWORKLST could be replaced with a check for NULL list elements
+ * in v_synclist.
+ */
+#define	BO_ONWORKLST	(1 << 0)	/* On syncer work-list */
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
 
 #define	BO_LOCK(bo) \
@@ -111,5 +118,3 @@ int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 #endif /* _SYS_BUFOBJ_H_ */
-
-
