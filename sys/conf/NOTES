@@ -638,9 +638,13 @@ options 	ACCEPT_FILTER_HTTP
 options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 
 # DUMMYNET enables the "dummynet" bandwidth limiter. You need
-# IPFIREWALL as well. See the dummynet(4) manpage for more info.
+# IPFIREWALL as well. See the dummynet(4) and ipfw(8) manpages for more info.
+# When you run DUMMYNET it is advisable to also have "options HZ=1000"
+# to achieve a smoother scheduling of the traffic.
+#
 # BRIDGE enables bridging between ethernet cards -- see bridge(4).
-# You can use IPFIREWALL and dummynet together with bridging.
+# You can use IPFIREWALL and DUMMYNET together with bridging.
+#
 options 	DUMMYNET
 options 	BRIDGE
 
@@ -832,11 +836,12 @@ options 	_KPOSIX_VERSION=199309L
 # CLOCK OPTIONS
 
 # The granularity of operation is controlled by the kernel option HZ whose
-# default value (100) means a granularity of 10ms.  For an accurate simulation
-# of high data rates it might be necessary to reduce the timer granularity to
-# 1ms or less.  Consider, however, that some interfaces using programmed I/O
-# may require a considerable time to output packets.  So, reducing the
-# granularity too much might actually cause ticks to be missed thus reducing
+# default value (100) means a granularity of 10ms (1s/HZ).
+# Some subsystems, such as DUMMYNET, might benefit from a smaller
+# granularity such as 1ms or less, for a smoother scheduling of packets.
+# Consider, however, that reducing the granularity too much might
+# cause excessive overhead in clock interrupt processing,
+# potentially causing ticks to be missed and thus actually reducing
 # the accuracy of operation.
 
 options 	HZ=100
