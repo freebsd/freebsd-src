@@ -31,8 +31,7 @@ aac		scottl	Pre-commit review requested
 udf		scottl	Pre-commit review with myself or asmodai requested.
 powerpc		benno	Pre-commit review preferred.
 CAM		gibbs,
-		ken,
-		mjacob	Pre-commit review requested. send to scsi@freebsd.org
+		ken	Pre-commit review requested. send to scsi@freebsd.org
 devstat(9)	ken	Pre-commit review requested.
 camcontrol(8)	ken	Pre-commit review requested.
 libcam		ken	Pre-commit review requested.
@@ -41,9 +40,8 @@ iostat(8)	ken	Pre-commit review requested.
 cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
-isp(4)		mjacob	{isp_freebsd.?,isp_pci.c}: heads-up on changes please.
-			All other files need pre-commit with mjacob as they're
-			shared with five other platforms.
+isp(4)		mjacob	Pre-commit review requested.
+sa(4)		mjacob	Pre-commit review requested.
 tdfx(4)		cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.
