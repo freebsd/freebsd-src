@@ -45,46 +45,23 @@ __FBSDID("$FreeBSD$");
 	.globl	HIDENAME(curbrk)
 	.globl	HIDENAME(minbrk)
 ENTRY(_brk)
+	pushq	%rdi
 	jmp	ok
 
 ENTRY(brk)
-#ifdef PIC
-	movl	4(%esp),%eax
-	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx	# set up GOT addressing
-	movl	PIC_GOT(HIDENAME(minbrk)),%ecx	#
-	PIC_EPILOGUE
-	cmpl	%eax,(%ecx)
+	pushq	%rdi
+	movq	%rdi,%rax
+	cmpq	%rax,PIC_GOT(HIDENAME(minbrk))
 	jbe	ok
-	movl	(%ecx),%eax
-	movl	%eax,4(%esp)
+	movq	PIC_GOT(HIDENAME(minbrk)),%rdi
 ok:
-	mov	$SYS_break,%eax
+	movq	$SYS_break,%rax
 	KERNCALL
 	jb	err
-	movl	4(%esp),%eax
-	movl	%eax,(%edx)
-	movl	$0,%eax
+	movq	0(%rsp),%rax
+	movq	%rax,PIC_GOT(HIDENAME(curbrk))
+	movq	$0,%rax
+	popq	%rdi
 	ret
 err:
-	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
-
-#else
-
-	movl	4(%esp),%eax
-	cmpl	%eax,HIDENAME(minbrk)
-	jbe	ok
-	movl	HIDENAME(minbrk),%eax
-	movl	%eax,4(%esp)
-ok:
-	mov	$SYS_break,%eax
-	KERNCALL
-	jb	err
-	movl	4(%esp),%eax
-	movl	%eax,HIDENAME(curbrk)
-	movl	$0,%eax
-	ret
-err:
-	jmp	HIDENAME(cerror)
-#endif
