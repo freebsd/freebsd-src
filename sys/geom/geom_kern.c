@@ -83,6 +83,7 @@ g_up_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
 	mtx_lock(&mymutex);
@@ -108,6 +109,7 @@ g_down_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
 	mtx_lock(&mymutex);
@@ -132,6 +134,7 @@ g_event_procbody(void)
 	struct proc *p = g_event_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_run_events();
@@ -213,15 +216,15 @@ sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 SYSCTL_NODE(_kern, OID_AUTO, geom, CTLFLAG_RW, 0, "GEOMetry management");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confxml, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_confxml, "A",
+	0, 0, sysctl_kern_geom_confxml, "",
 	"Dump the GEOM config in XML");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confdot, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_confdot, "A",
+	0, 0, sysctl_kern_geom_confdot, "",
 	"Dump the GEOM config in dot");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_kern_geom_conftxt, "A",
+	0, 0, sysctl_kern_geom_conftxt, "",
 	"Dump the GEOM config in txt");
 
 SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
