@@ -36,8 +36,6 @@
 #include <sys/disk.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
 
 /* For use with destroy_dev(9). */
 static dev_t null_dev;
@@ -87,8 +85,9 @@ static struct cdevsw zero_cdevsw = {
 
 static void *zbuf;
 
+/* ARGSUSED */
 static int
-null_write(dev_t dev, struct uio *uio, int flags)
+null_write(dev_t dev __unused, struct uio *uio, int flags __unused)
 {
 	uio->uio_resid = 0;
 	return 0;
@@ -107,21 +106,23 @@ null_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	return (set_dumper(NULL));
 }
 
+/* ARGSUSED */
 static int
-zero_read(dev_t dev, struct uio *uio, int flags)
+zero_read(dev_t dev __unused, struct uio *uio, int flags __unused)
 {
-	u_int c;
+	int c;
 	int error = 0;
 
 	while (uio->uio_resid > 0 && error == 0) {
-		c = min(uio->uio_resid, PAGE_SIZE);
+		c = uio->uio_resid < PAGE_SIZE ? uio->uio_resid : PAGE_SIZE;
 		error = uiomove(zbuf, c, uio);
 	}
 	return error;
 }
 
+/* ARGSUSED */
 static int
-null_modevent(module_t mod, int type, void *data)
+null_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch(type) {
 	case MOD_LOAD:
