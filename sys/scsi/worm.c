@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.44 1997/08/01 12:48:35 jmz Exp $
+ *      $Id: worm.c,v 1.45 1997/09/02 20:06:41 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -263,7 +263,7 @@ wormattach(struct scsi_link *sc_link)
 #endif
 	struct scsi_data *worm = sc_link->sd;
 
-	TAILQ_INIT(&worm->buf_queue);
+	bufq_init(&worm->buf_queue);
 
 #ifdef DEVFS
 	mynor = wormunit(sc_link->dev);
@@ -337,11 +337,11 @@ wormstart(unit, flags)
 			return;
 		}
 
-		bp = worm->buf_queue.tqh_first;
+		bp = bufq_first(&worm->buf_queue);
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &worm->buf_queue, bp, b_act);
+		bufq_remove(&worm->buf_queue, bp);
 
 		if (((bp->b_flags & B_READ) == B_WRITE) 
 		    && ((worm->worm_flags & WORMFL_TRACK_PREPED) == 0)) {
@@ -468,7 +468,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * Place it in the queue of activities for this device
 	 * at the end.
 	 */
-	TAILQ_INSERT_TAIL(&worm->buf_queue, bp, b_act);
+	bufq_insert_tail(&worm->buf_queue, bp);
 
 	wormstart(unit, 0);
 

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.80 1997/09/02 20:06:38 bde Exp $
+ * $Id: st.c,v 1.81 1997/09/07 10:08:23 joerg Exp $
  */
 
 /*
@@ -228,7 +228,7 @@ stattach(struct scsi_link *sc_link)
 
 	unit = sc_link->dev_unit;
 
-	TAILQ_INIT(&st->buf_queue);
+	bufq_init(&st->buf_queue);
 	/*
 	 * Check if the drive is a known criminal and take
 	 * Any steps needed to bring it into line
@@ -816,7 +816,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * at the end (a bit silly because we only have on user..
 	 * (but it could fork() ))
 	 */
-	TAILQ_INSERT_TAIL(&st->buf_queue, bp, b_act);
+	bufq_insert_tail(&st->buf_queue, bp);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -875,11 +875,11 @@ ststart(unit, flags)
 			return;
 		}
 
-		bp = st->buf_queue.tqh_first;
+		bp = bufq_first(&st->buf_queue);
 		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		TAILQ_REMOVE( &st->buf_queue, bp, b_act);
+		bufq_remove(&st->buf_queue, bp);
 
 		/*
 		 * if the device has been unmounted by the user
