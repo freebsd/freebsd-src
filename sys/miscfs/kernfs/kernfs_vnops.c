@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.29 1998/03/26 20:52:21 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.30 1998/03/28 10:33:11 bde Exp $
  */
 
 /*
@@ -431,6 +431,9 @@ kernfs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+
+	if (vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Silently ignore attribute changes.
