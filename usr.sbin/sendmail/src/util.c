@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.109 (Berkeley) 11/16/96";
+static char sccsid[] = "@(#)util.c	8.113 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -215,7 +215,7 @@ printav(av)
 	while (*av != NULL)
 	{
 		if (tTd(0, 44))
-			printf("\n\t%08x=", *av);
+			printf("\n\t%08lx=", (u_long) *av);
 		else
 			(void) putchar(' ');
 		xputs(*av++);
@@ -423,7 +423,6 @@ buildfname(gecos, login, buf, buflen)
 {
 	register char *p;
 	register char *bp = buf;
-	int l;
 
 	if (*gecos == '*')
 		gecos++;
@@ -507,7 +506,7 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 
 	if (tTd(44, 4))
 		printf("safefile(%s, uid=%d, gid=%d, flags=%x, mode=%o):\n",
-			fn, uid, gid, flags, mode);
+			fn, (int) uid, (int) gid, flags, mode);
 	errno = 0;
 	if (st == NULL)
 		st = &fstbuf;
@@ -635,8 +634,8 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 		}
 		ret = errno;
 		if (tTd(44, 4))
-			printf("\t[final dir %s uid %d mode %o] %s\n",
-				fn, stbuf.st_uid, stbuf.st_mode,
+			printf("\t[final dir %s uid %d mode %lo] %s\n",
+				fn, (int) stbuf.st_uid, (u_long) stbuf.st_mode,
 				errstring(ret));
 		*p = '/';
 		st->st_mode = ST_MODE_NOFILE;
@@ -662,6 +661,12 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 	{
 		if (tTd(44, 4))
 			printf("\t[exec bits %o]\tEPERM]\n", st->st_mode);
+		return EPERM;
+	}
+	if (st->st_nlink > 1)
+	{
+		if (tTd(44, 4))
+			printf("\t[link count %d]\tEPERM\n", st->st_nlink);
 		return EPERM;
 	}
 
@@ -690,8 +695,9 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 			mode >>= 3;
 	}
 	if (tTd(44, 4))
-		printf("\t[uid %d, stat %o, mode %o] ",
-			st->st_uid, st->st_mode, mode);
+		printf("\t[uid %d, nlink %d, stat %lo, mode %lo] ",
+			(int) st->st_uid, (int) st->st_nlink,
+			(u_long) st->st_mode, (u_long) mode);
 	if ((st->st_uid == uid || st->st_uid == 0 ||
 	     !bitset(SFF_MUSTOWN, flags)) &&
 	    (st->st_mode & mode) == mode)
@@ -966,7 +972,7 @@ putxline(l, mci, pxflags)
 			p = &l[strlen(l)];
 
 		if (TrafficLogFile != NULL)
-			fprintf(TrafficLogFile, "%05d >>> ", getpid());
+			fprintf(TrafficLogFile, "%05d >>> ", (int) getpid());
 
 		/* check for line overflow */
 		while (mci->mci_mailer->m_linelimit > 0 &&
@@ -998,7 +1004,7 @@ putxline(l, mci, pxflags)
 			(void) putc(' ', mci->mci_out);
 			if (TrafficLogFile != NULL)
 				fprintf(TrafficLogFile, "%s!\n%05d >>>  ",
-					l, getpid());
+					l, (int) getpid());
 			*q = svchar;
 			l = q;
 			slop = 1;
@@ -1087,7 +1093,7 @@ xfclose(fp, a, b)
 	char *a, *b;
 {
 	if (tTd(53, 99))
-		printf("xfclose(%x) %s %s\n", fp, a, b);
+		printf("xfclose(%lx) %s %s\n", (u_long) fp, a, b);
 #if XDEBUG
 	if (fileno(fp) == 1)
 		syserr("xfclose(%s %s): fd = 1", a, b);
@@ -1178,11 +1184,11 @@ sfgets(buf, siz, fp, timeout, during)
 	{
 		buf[0] = '\0';
 		if (TrafficLogFile != NULL)
-			fprintf(TrafficLogFile, "%05d <<< [EOF]\n", getpid());
+			fprintf(TrafficLogFile, "%05d <<< [EOF]\n", (int) getpid());
 		return (NULL);
 	}
 	if (TrafficLogFile != NULL)
-		fprintf(TrafficLogFile, "%05d <<< %s", getpid(), buf);
+		fprintf(TrafficLogFile, "%05d <<< %s", (int) getpid(), buf);
 	if (SevenBitInput)
 	{
 		for (p = buf; *p != '\0'; p++)
@@ -2271,6 +2277,25 @@ proc_list_drop(pid)
 	}
 	if (CurChildren > 0)
 		CurChildren--;
+}
+/*
+**  PROC_LIST_CLEAR -- clear the process list
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+proc_list_clear()
+{
+	int i;
+
+	for (i = 0; i < ProcListSize; i++)
+		ProcListVec[i] = NO_PID;
+	CurChildren = 0;
 }
 /*
 **  PROC_LIST_PROBE -- probe processes in the list to see if they still exist

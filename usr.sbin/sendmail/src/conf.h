@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.272 (Berkeley) 11/16/96
+ *	@(#)conf.h	8.279 (Berkeley) 12/1/96
  */
 
 /*
@@ -443,6 +443,7 @@ typedef int		pid_t;
 #   undef WEXITSTATUS
 #   undef HASUNAME
 #   define setpgid	setpgrp
+#   define MODE_T	int
 typedef int		pid_t;
 extern char		*getenv();
 
@@ -476,6 +477,7 @@ extern char		*getenv();
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define IP_SRCROUTE	0	/* does not have <netinet/ip_var.h> */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) */
+# define HASSNPRINTF	1	/* has snprintf(3) */
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
@@ -574,7 +576,7 @@ extern long	dgux_inet_addr();
 # ifndef HASFLOCK
 #  define HASFLOCK	1	/* has flock(2) call */
 # endif
-# define LA_TYPE	LA_INT
+# define LA_TYPE	LA_ALPHAOSF
 # define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
 # define _PATH_VENDOR_CF	"/var/adm/sendmail/sendmail.cf"
 # ifndef _PATH_SENDMAILPID
@@ -1435,7 +1437,6 @@ extern int	syslog(int, char *, ...);
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASINITGROUPS	1	/* has initgroups(3) function */
 # define HASSETVBUF	1	/* has setvbuf(3) function */
-# define HASSIGSETMASK	0	/* does not have sigsetmask(2) function */
 # ifndef HASGETUSERSHELL
 #  define HASGETUSERSHELL 0	/* does not have getusershell(3) function */
 # endif
@@ -1489,6 +1490,7 @@ extern struct group	*getgrent(), *getgrnam(), *getgrgid();
 #  define setpgid	setpgrp
 #  undef WIFEXITED
 #  undef WEXITSTATUS
+#  define MODE_T	int	/* system include files have no mode_t */
 typedef int		pid_t;
 typedef int		(*sigfunc_t)();
 #  define SIGFUNC_DEFINED
@@ -1842,15 +1844,6 @@ extern int	errno;
 # define SECUREWARE	0	/* assume no SecureWare C2 auditing hooks */
 #endif
 
-/* heuristic setting of HASSETSIGMASK; can override above */
-#ifndef HASSIGSETMASK
-# ifdef SIGVTALRM
-#  define HASSETSIGMASK	1
-# else
-#  define HASSETSIGMASK	0
-# endif
-#endif
-
 /*
 **  If no type for argument two of getgroups call is defined, assume
 **  it's an integer -- unfortunately, there seem to be several choices
@@ -1918,6 +1911,9 @@ extern int	errno;
 /* pseudo-code used in server SMTP */
 # define EX_QUIT	22	/* drop out of server immediately */
 
+/* pseudo-code used for mci_setstat */
+# define EX_NOTSTICKY	-5	/* don't save persistent status */
+
 
 /*
 **  These are used in a few cases where we need some special
@@ -1980,9 +1976,15 @@ extern int h_errno;
 */
 
 #if NETINET || NETISO
-# define SMTP		1	/* enable user and server SMTP */
-# define QUEUE		1	/* enable queueing */
-# define DAEMON		1	/* include the daemon (requires IPC & SMTP) */
+# ifndef SMTP
+#  define SMTP		1	/* enable user and server SMTP */
+# endif
+# ifndef QUEUE
+#  define QUEUE		1	/* enable queueing */
+# endif
+# ifndef DAEMON
+#  define DAEMON	1	/* include the daemon (requires IPC & SMTP) */
+# endif
 #endif
 
 

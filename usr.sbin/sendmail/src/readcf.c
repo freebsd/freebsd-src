@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.176 (Berkeley) 11/10/96";
+static char sccsid[] = "@(#)readcf.c	8.181 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1298,7 +1298,7 @@ printmailer(m)
 		m->m_mno, m->m_name,
 		m->m_mailer, m->m_se_rwset, m->m_sh_rwset,
 		m->m_re_rwset, m->m_rh_rwset, m->m_maxsize,
-		m->m_uid, m->m_gid);
+		(int) m->m_uid, (int) m->m_gid);
 	for (j = '\0'; j <= '\177'; j++)
 		if (bitnset(j, m->m_flags))
 			(void) putchar(j);
@@ -1423,7 +1423,7 @@ struct optioninfo
 	{ "DefaultUser",		'u',		FALSE	},
 	{ "FallbackMXhost",		'V',		FALSE	},
 	{ "Verbose",			'v',		TRUE	},
-	{ "TryNullMXList",		'w',		TRUE	},
+	{ "TryNullMXList",		'w',		FALSE	},
 	{ "QueueLA",			'x',		FALSE	},
 	{ "RefuseLA",			'X',		FALSE	},
 	{ "RecipientFactor",		'y',		FALSE	},
@@ -1465,7 +1465,7 @@ struct optioninfo
 #define O_OPCHARS	0x92
 	{ "OperatorChars",		O_OPCHARS,	FALSE	},
 #define O_DONTINITGRPS	0x93
-	{ "DontInitGroups",		O_DONTINITGRPS,	TRUE	},
+	{ "DontInitGroups",		O_DONTINITGRPS,	FALSE	},
 #define O_SLFH		0x94
 	{ "SingleLineFromHeader",	O_SLFH,		TRUE	},
 #define O_ABH		0x95
@@ -1728,7 +1728,7 @@ setoption(opt, val, safe, sticky, e)
 
 		  case SM_QUEUE:	/* queue only */
 		  case SM_DEFER:	/* queue only and defer map lookups */
-#ifndef QUEUE
+#if !QUEUE
 			syserr("need QUEUE to set -odqueue or -oddefer");
 #endif /* QUEUE */
 			/* fall through..... */
@@ -1849,7 +1849,7 @@ setoption(opt, val, safe, sticky, e)
 		}
 		if (tTd(8, 2))
 			printf("_res.options = %x, HasWildcardMX = %d\n",
-				_res.options, HasWildcardMX);
+				(u_int) _res.options, HasWildcardMX);
 #else
 		usrerr("name server (I option) specified but BIND not compiled in");
 #endif
@@ -1906,7 +1906,7 @@ setoption(opt, val, safe, sticky, e)
 	    /* 'N' available -- was "net name" */
 
 	  case 'O':		/* daemon options */
-#ifdef DAEMON
+#if DAEMON
 		setdaemonoptions(val);
 #else
 		syserr("DaemonPortOptions (O option) set but DAEMON not compiled in");

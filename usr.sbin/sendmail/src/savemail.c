@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.100 (Berkeley) 9/27/96";
+static char sccsid[] = "@(#)savemail.c	8.101 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -481,8 +481,8 @@ returntosender(msg, returnq, flags, e)
 
 	if (tTd(6, 1))
 	{
-		printf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%x, returnq=",
-		       msg, returndepth, e);
+		printf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%lx, returnq=",
+		       msg, returndepth, (u_long) e);
 		printaddr(returnq, TRUE);
 		if (tTd(6, 20))
 		{

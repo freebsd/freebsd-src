@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.96 (Berkeley) 11/11/96";
+static char sccsid[] = "@(#)envelope.c	8.99 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -110,7 +110,7 @@ dropenvelope(e, fulldrop)
 	{
 		extern void printenvflags();
 
-		printf("dropenvelope %x: id=", e);
+		printf("dropenvelope %lx: id=", (u_long) e);
 		xputs(e->e_id);
 		printf(", flags=");
 		printenvflags(e);
@@ -168,8 +168,8 @@ dropenvelope(e, fulldrop)
 			queueit = TRUE;
 #if XDEBUG
 		else if (bitset(QQUEUEUP, q->q_flags))
-			syslog(LOG_DEBUG, "%s: q_flags = %x",
-				e->e_id, q->q_flags);
+			syslog(LOG_DEBUG, "dropenvelope: %s: q_flags = %x, paddr = %s",
+				e->e_id, q->q_flags, q->q_paddr);
 #endif
 
 		/* see if a notification is needed */
@@ -349,7 +349,7 @@ simpledrop:
 	}
 	else if (queueit || !bitset(EF_INQUEUE, e->e_flags))
 	{
-#ifdef QUEUE
+#if QUEUE
 		queueup(e, FALSE);
 #else /* QUEUE */
 		syserr("554 dropenvelope: queueup");
