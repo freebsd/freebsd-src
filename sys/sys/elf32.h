@@ -41,6 +41,7 @@ typedef u_int32_t	Elf32_Off;
 typedef int32_t		Elf32_Sword;
 typedef u_int32_t	Elf32_Word;
 typedef u_int32_t	Elf32_Size;
+typedef Elf32_Off	Elf32_Hashelt;
 
 /*
  * ELF header.
