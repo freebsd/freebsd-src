@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.7 1993/12/02 01:03:26 jkh Exp $
+ *	$Id: rtld.c,v 1.8 1993/12/04 00:53:16 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -384,7 +384,7 @@ again:
 		fatal("Cannot map %s text\n", path);
 
 	if (mmap(addr + hdr.a_text, hdr.a_data,
-				PROT_READ|PROT_WRITE|PROT_EXEC,
+				PROT_READ|PROT_WRITE,
 				MAP_FILE|MAP_FIXED|MAP_COPY,
 				fd, hdr.a_text) == (caddr_t)-1)
 		fatal("Cannot map %s data", path);
@@ -397,7 +397,7 @@ again:
 		perror("/dev/zero");
 #endif
 	if (hdr.a_bss && mmap(addr + hdr.a_text + hdr.a_data, hdr.a_bss,
-				PROT_READ|PROT_WRITE|PROT_EXEC,
+				PROT_READ|PROT_WRITE,
 				MAP_ANON|MAP_FIXED|MAP_COPY,
 				fd, hdr.a_text + hdr.a_data) == (caddr_t)-1)
 		fatal("Cannot map %s bss", path);
@@ -990,26 +990,6 @@ char	*sym;
 
 static caddr_t	curbrk;
 
-static void
-init_brk()
-{
-	struct rlimit   rlim;
-	char		*cp, **cpp = environ;
-
-	if (getrlimit(RLIMIT_STACK, &rlim) < 0) {
-		xprintf("ld.so: brk: getrlimit failure\n");
-		_exit(1);
-	}
-
-        if (environ < USRSTACK - MAXSSIZ) {
-                curbrk = (caddr_t) 
-                    (((long)(USRSTACK - MAXSSIZ - rlim.rlim_cur) + PAGSIZ) & ~(PAGSIZ - 1));
-        } else {
-                curbrk = (caddr_t) 
-                   (((long)(USRSTACK - rlim.rlim_cur) + PAGSIZ) & ~(PAGSIZ - 1)) ;
-        }
-}
-
 void
 #if __STDC__
 xprintf(char *fmt, ...)
@@ -1031,82 +1011,18 @@ char	*fmt;
 	va_end(ap);
 }
 
-#if 1
 caddr_t
 sbrk(incr)
 int incr;
 {
 	int	fd = -1;
-	caddr_t	oldbrk;
 
-	if (curbrk == 0)
-		init_brk();
+	/* Round-up increment to page size */
+	incr = ((incr + PAGSIZ - 1) & ~(PAGSIZ - 1));
 
 #if DEBUG
 xprintf("sbrk: incr = %#x, curbrk = %#x\n", incr, curbrk);
 #endif
-	if (incr == 0)
-		return curbrk;
-
-	incr = (incr + PAGSIZ - 1) & ~(PAGSIZ - 1);
-
-#ifdef NEED_DEV_ZERO
-	fd = open("/dev/zero", O_RDWR, 0);
-	if (fd == -1)
-		perror("/dev/zero");
-#endif
-
-	if (mmap(curbrk, incr,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_FIXED|MAP_COPY, fd, 0) == (caddr_t)-1) {
-		xprintf("Cannot map anonymous memory");
-		_exit(1);
-	}
-
-#ifdef NEED_DEV_ZERO
-	close(fd);
-#endif
-
-	oldbrk = curbrk;
-#if TRY_THIS_FOR_A_CHANGE
-	curbrk -= incr;
-#else
-	curbrk += incr;
-#endif
-
-	return oldbrk;
-}
-
-#else
-
-caddr_t
-sbrk(incr)
-int incr;
-{
-	int	fd = -1;
-	caddr_t	oldbrk;
-
-xprintf("sbrk: incr = %#x, curbrk = %#x\n", incr, curbrk);
-#if DEBUG
-xprintf("sbrk: incr = %#x, curbrk = %#x\n", incr, curbrk);
-#endif
-	if (curbrk == 0 && (curbrk = mmap(0, PAGSIZ,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
-		xprintf("Cannot map anonymous memory");
-		_exit(1);
-	}
-
-	/* There's valid memory from `curbrk' to next page boundary */
-	if ((long)curbrk + incr <= (((long)curbrk + PAGSIZ) & ~(PAGSIZ - 1))) {
-		oldbrk = curbrk;
-		curbrk += incr;
-		return oldbrk;
-	}
-	/*
-	 * If asking for than currently left in this chunk,
-	 * go somewhere completely different.
-	 */
 
 #ifdef NEED_DEV_ZERO
 	fd = open("/dev/zero", O_RDWR, 0);
@@ -1117,16 +1033,14 @@ xprintf("sbrk: incr = %#x, curbrk = %#x\n", incr, curbrk);
 	if ((curbrk = mmap(0, incr,
 			PROT_READ|PROT_WRITE,
 			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
-		perror("Cannot map anonymous memory");
+		xprintf("Cannot map anonymous memory");
+		_exit(1);
 	}
 
 #ifdef NEED_DEV_ZERO
 	close(fd);
 #endif
 
-	oldbrk = curbrk;
-	curbrk += incr;
-
-	return oldbrk;
+	return(curbrk);
 }
-#endif
+
