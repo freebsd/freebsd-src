@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.19 1996/04/02 12:26:10 phk Exp $
+ * $Id: ip_icmp.c,v 1.20 1996/04/03 18:52:22 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <net/route.h>
 
+#define _IP_VHL
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -92,7 +93,7 @@ icmp_error(n, type, code, dest, destifp)
 	struct ifnet *destifp;
 {
 	register struct ip *oip = mtod(n, struct ip *), *nip;
-	register unsigned oiplen = oip->ip_hl << 2;
+	register unsigned oiplen = IP_VHL_HL(oip->ip_vhl) << 2;
 	register struct icmp *icp;
 	register struct mbuf *m;
 	unsigned icmplen;
@@ -168,7 +169,7 @@ icmp_error(n, type, code, dest, destifp)
 	nip = mtod(m, struct ip *);
 	bcopy((caddr_t)oip, (caddr_t)nip, sizeof(struct ip));
 	nip->ip_len = m->m_len;
-	nip->ip_hl = sizeof(struct ip) >> 2;
+	nip->ip_vhl = IP_VHL_BORING;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
 	icmp_reflect(m);
@@ -297,7 +298,7 @@ icmp_input(m, hlen)
 		 * Problem with datagram; advise higher level routines.
 		 */
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
-		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
+		    IP_VHL_HL(icp->icmp_ip.ip_vhl) < (sizeof(struct ip) >> 2)) {
 			icmpstat.icps_badlen++;
 			goto freeit;
 		}
@@ -423,7 +424,7 @@ reflect:
 		if (code > 3)
 			goto badcode;
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
-		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
+		    IP_VHL_HL(icp->icmp_ip.ip_vhl) < (sizeof(struct ip) >> 2)) {
 			icmpstat.icps_badlen++;
 			break;
 		}
@@ -486,7 +487,7 @@ icmp_reflect(m)
 	register struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
-	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
+	int optlen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof(struct ip);
 
 	if (!in_canforward(ip->ip_src) &&
 	    ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) !=
@@ -584,7 +585,7 @@ icmp_reflect(m)
 		 * mbuf's data back, and adjust the IP length.
 		 */
 		ip->ip_len -= optlen;
-		ip->ip_hl = sizeof(struct ip) >> 2;
+		ip->ip_vhl = IP_VHL_BORING;
 		m->m_len -= optlen;
 		if (m->m_flags & M_PKTHDR)
 			m->m_pkthdr.len -= optlen;
@@ -613,7 +614,7 @@ icmp_send(m, opts)
 	register struct icmp *icp;
 	struct route ro;
 
-	hlen = ip->ip_hl << 2;
+	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	m->m_data += hlen;
 	m->m_len -= hlen;
 	icp = mtod(m, struct icmp *);
