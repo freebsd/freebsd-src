@@ -55,7 +55,7 @@ Lstartgp:
 #ifndef BOOT1
 	CALL(extend_heap)
 #endif
-	
+
 	lda	a0,_edata
 	lda	a1,_end
 	subq	a1,a0,a1
@@ -64,7 +64,7 @@ Lstartgp:
 #ifndef BOOT1
 	lda	sp,stackbase + STACK_SIZE - ENTRY_FRAME
 #endif
-	
+
 	CALL(main)			/* transfer to C */
 
 XLEAF(_rtt, 0)
