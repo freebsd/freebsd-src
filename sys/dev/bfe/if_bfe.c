@@ -884,7 +884,9 @@ static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
+#if __FreeBSD_version > 500000
 	struct ifmultiaddr  *ifma;
+#endif
 	u_int32_t val;
 	int i = 0;
 
@@ -1278,7 +1280,9 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	struct bfe_data *r = NULL;
 	struct mbuf     *m;
 	u_int32_t       frag, cur, cnt = 0;
+#if __FreeBSD_version > 500000
 	int chainlen = 0;
+#endif
 
 	if(BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
 		return(ENOBUFS);
