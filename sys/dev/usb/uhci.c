@@ -227,6 +227,7 @@ void		uhci_dump_td __P((uhci_soft_td_t *));
 #elif defined(__FreeBSD__)
 #define UWRITE2(sc,r,x)		outw((sc)->sc_iobase + (r), (x))
 #define UWRITE4(sc,r,x)		outl((sc)->sc_iobase + (r), (x))
+#define UREAD1(sc,r)		inb((sc)->sc_iobase + (r))
 #define UREAD2(sc,r)		inw((sc)->sc_iobase + (r))
 #define UREAD4(sc,r)		inl((sc)->sc_iobase + (r))
 #endif

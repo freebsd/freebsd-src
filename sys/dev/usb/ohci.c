@@ -1205,11 +1205,12 @@ void
 ohci_timeout(addr)
 	void *addr;
 {
-#if 0
+#if OHCI_DEBUG
 	usbd_request_handle *reqh = addr;
-#endif
 
 	DPRINTF(("ohci_timeout: reqh=%p\n", reqh));
+#endif
+
 #if 0
 	int s;
 
