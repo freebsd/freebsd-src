@@ -67,7 +67,7 @@ CFLAGS+= -DNO_MMALLOC
 YFLAGS=
 
 CLEANFILES=	init.c init.c-tmp wait.h
-CLEANFILES=	findvar%UAfix.c
+CLEANFILES+=	findvar%UAfix.c
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
