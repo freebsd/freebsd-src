@@ -105,6 +105,7 @@
 #endif /* PCVT_FREEBSD >= 200 */
 
 #include <i386/isa/pcvt/pcvt_conf.h>
+#include <i386/isa/kbdio.h>
 
 #if PCVT_NETBSD > 9
 #include "device.h"
@@ -263,6 +264,8 @@ in the config file"
  *	Keyboard and Keyboard Controller
  *---------------------------------------------------------------------------*/
 
+#ifndef _I386_ISA_KBDIO_H_
+
 #define CONTROLLER_CTRL	0x64	/* W - command, R - status	*/
 #define CONTROLLER_DATA	0x60	/* R/W - data			*/
 
@@ -308,6 +311,8 @@ in the config file"
 #define KEYB_C_ID	0xf2	/* return keyboard id */
 #define KEYB_C_ECHO	0xee	/* diagnostic, echo 0xee */
 #define KEYB_C_LEDS	0xed	/* set/reset numlock,capslock & scroll lock */
+
+#endif /* _I386_ISA_KBDIO_H_ */
 
 /* responses from the KEYBOARD (via the 8042 controller on mainboard..) */
 
@@ -999,6 +1004,10 @@ u_char	chargen_access		= 0;		/* synchronize access */
 u_char	keyboard_type		= KB_UNKNOWN;	/* type of keyboard */
 u_char	keyboard_is_initialized = 0;		/* for ddb sanity */
 u_char	kbd_polling		= 0;		/* keyboard is being polled */
+#ifdef _I386_ISA_KBDIO_H_
+u_char	reset_keyboard		= 0;		/* OK to reset keyboard */
+KBDC	kbdc			= NULL;		/* keyboard controller */
+#endif /* _I386_ISA_KBDIO_H_ */
 
 #if PCVT_SHOWKEYS
 u_char	keyboard_show		= 0;		/* normal display */
@@ -1136,6 +1145,10 @@ extern u_char		can_do_132col;
 extern u_char		vga_family;
 extern u_char		keyboard_is_initialized;
 extern u_char		kbd_polling;
+#ifdef _I386_ISA_KBDIO_H_
+extern u_char		reset_keyboard;
+extern KBDC		kbdc;
+#endif /* _I386_ISA_KBDIO_H_ */
 
 #if PCVT_SHOWKEYS
 extern u_char		keyboard_show;
@@ -1266,7 +1279,10 @@ void	fkl_on ( struct video_state *svsp );
 struct tty *get_pccons ( Dev_t dev );
 void	init_sfkl ( struct video_state *svsp );
 void	init_ufkl ( struct video_state *svsp );
+#ifndef _I386_ISA_KBDIO_H_
 int	kbd_cmd ( int val );
+int	kbd_response ( void );
+#endif /* _I386_ISA_KBDIO_H_ */
 void	kbd_code_init ( void );
 void	kbd_code_init1 ( void );
 
