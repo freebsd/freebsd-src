@@ -1,5 +1,5 @@
 #
-# $Id: mfs.mtree,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $Id: mfs.mtree,v 1.2 1998/08/31 12:32:30 abial Exp $
 #
 /set type=dir uname=root gname=wheel mode=0755
 .              
@@ -8,8 +8,6 @@
     dos            
     ..
     etc            
-    ..
-    help           
     ..
     mnt            
     ..
