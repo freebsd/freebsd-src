@@ -2405,7 +2405,7 @@ Parse_File(name, stream)
 		    goto nextLine;
 		}
 	    }
-	    if (*line == '#') {
+	    if (*line == '#' || *line == '\0') {
 		/* If we're this far, the line must be a comment. */
 		goto nextLine;
 	    }
