@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.37 1997/05/07 19:41:37 peter Exp $
+ * $Id: proc.h,v 1.38 1997/05/22 07:24:46 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -133,6 +133,7 @@ struct	proc {
 	u_quad_t p_uticks;		/* Statclock hits in user mode. */
 	u_quad_t p_sticks;		/* Statclock hits in system mode. */
 	u_quad_t p_iticks;		/* Statclock hits processing intr. */
+	struct	timeval *p_sleepend;	/* Wake time for nanosleep & friends */
 
 	int	p_traceflag;		/* Kernel trace points. */
 	struct	vnode *p_tracep;	/* Trace to vnode. */
