@@ -47,6 +47,7 @@
 static const struct pccard_product ata_pccard_products[] = {
 	/* NetBSD has a few others that need to migrate into pccarddevs */
 	/* XXX */
+	PCMCIA_CARD(FREECOM, PCCARDIDE, 0),
 	PCMCIA_CARD(EXP, EXPMULTIMEDIA, 0),
 	PCMCIA_CARD(IODATA, CBIDE2, 0),
 	PCMCIA_CARD(OEM2, CDROM1, 0),
