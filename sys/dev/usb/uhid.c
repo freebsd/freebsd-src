@@ -231,7 +231,14 @@ USB_ATTACH(uhid)
 	sc->sc_repdesc_size = size;
 
 #ifdef __FreeBSD__
-	cdevsw_add(&uhid_cdevsw);
+	{
+		static int global_init_done = 0;
+
+		if (!global_init_done) {
+			cdevsw_add(&uhid_cdevsw);
+			global_init_done = 1;
+		}
+	}
 #endif
 	USB_ATTACH_SUCCESS_RETURN;
 }
