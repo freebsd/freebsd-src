@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 $lno=0;
-while (<STDIN>) {
+while (<>) {
 	chop;
 	s/#.*//;
 	s/\f//g;
