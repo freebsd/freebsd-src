@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.100 1998/09/15 10:24:46 gibbs Exp $
+ * $Id: disks.c,v 1.101 1998/09/30 21:48:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -336,6 +336,11 @@ diskPartition(Device *dev)
 			    partitiontype = fat;
 			else
 			    partitiontype = unknown;
+#ifdef __alpha__
+			if (partitiontype == freebsd && size == chunk_info[current_chunk]->size)
+			    All_FreeBSD(d, 1);
+			else
+#endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 			variable_set2(DISK_PARTITIONED, "yes");
