@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.166 1998/09/17 00:45:26 brian Exp $
+ * $Id: command.c,v 1.167 1998/10/17 12:28:05 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -83,6 +83,7 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
+#include "iface.h"
 
 /* ``set'' values */
 #define	VAR_AUTHKEY	0
@@ -131,7 +132,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/09/17 00:45:26 $";
+const char VersionDate[] = "$Date: 1998/10/17 12:28:05 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -139,15 +140,17 @@ static int QuitCommand(struct cmdargs const *);
 static int OpenCommand(struct cmdargs const *);
 static int CloseCommand(struct cmdargs const *);
 static int DownCommand(struct cmdargs const *);
-static int AllowCommand(struct cmdargs const *);
 static int SetCommand(struct cmdargs const *);
 static int LinkCommand(struct cmdargs const *);
 static int AddCommand(struct cmdargs const *);
 static int DeleteCommand(struct cmdargs const *);
 static int NegotiateCommand(struct cmdargs const *);
 static int ClearCommand(struct cmdargs const *);
+static int RunListCommand(struct cmdargs const *);
+static int IfaceAddCommand(struct cmdargs const *);
+static int IfaceDeleteCommand(struct cmdargs const *);
+static int IfaceClearCommand(struct cmdargs const *);
 #ifndef NOALIAS
-static int AliasCommand(struct cmdargs const *);
 static int AliasEnable(struct cmdargs const *);
 static int AliasOption(struct cmdargs const *);
 #endif
@@ -386,7 +389,7 @@ expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle)
     nargv[arg] = subst(nargv[arg], "HISADDR",
                        inet_ntoa(bundle->ncp.ipcp.peer_ip));
     nargv[arg] = subst(nargv[arg], "AUTHNAME", bundle->cfg.auth.name);
-    nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->ifp.Name);
+    nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->iface->name);
     nargv[arg] = subst(nargv[arg], "MYADDR", inet_ntoa(bundle->ncp.ipcp.my_ip));
     nargv[arg] = subst(nargv[arg], "USER", bundle->ncp.mp.peer.authname);
     nargv[arg] = subst(nargv[arg], "PEER_ENDDISC",
@@ -513,6 +516,69 @@ FgShellCommand(struct cmdargs const *arg)
   return ShellCommand(arg, 0);
 }
 
+#ifndef NOALIAS
+static struct cmdtab const AliasCommands[] =
+{
+  {"addr", NULL, alias_RedirectAddr, LOCAL_AUTH,
+   "static address translation", "alias addr [addr_local addr_alias]"},
+  {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
+   "stop incoming connections", "alias deny_incoming [yes|no]",
+   (const void *) PKT_ALIAS_DENY_INCOMING},
+  {"enable", NULL, AliasEnable, LOCAL_AUTH,
+   "enable IP aliasing", "alias enable [yes|no]"},
+  {"log", NULL, AliasOption, LOCAL_AUTH,
+   "log aliasing link creation", "alias log [yes|no]",
+   (const void *) PKT_ALIAS_LOG},
+  {"port", NULL, alias_RedirectPort, LOCAL_AUTH,
+   "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
+  {"same_ports", NULL, AliasOption, LOCAL_AUTH,
+   "try to leave port numbers unchanged", "alias same_ports [yes|no]",
+   (const void *) PKT_ALIAS_SAME_PORTS},
+  {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
+   "alias unregistered (private) IP address space only",
+   "alias unregistered_only [yes|no]",
+   (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
+  {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
+   "allocate host sockets", "alias use_sockets [yes|no]",
+   (const void *) PKT_ALIAS_USE_SOCKETS},
+  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+   "Display this message", "alias help|? [command]", AliasCommands},
+  {NULL, NULL, NULL},
+};
+#endif
+
+static struct cmdtab const AllowCommands[] = {
+  {"modes", "mode", AllowModes, LOCAL_AUTH,
+  "Only allow certain ppp modes", "allow modes mode..."},
+  {"users", "user", AllowUsers, LOCAL_AUTH,
+  "Only allow ppp access to certain users", "allow users logname..."},
+  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+  "Display this message", "allow help|? [command]", AllowCommands},
+  {NULL, NULL, NULL},
+};
+
+static struct cmdtab const IfaceCommands[] =
+{
+  {"add", NULL, IfaceAddCommand, LOCAL_AUTH,
+   "Add iface address", "iface add addr[/bits| mask] peer", NULL},
+  {NULL, "add!", IfaceAddCommand, LOCAL_AUTH,
+   "Add or change an iface address", "iface add! addr[/bits| mask] peer",
+   (void *)1},
+  {"clear", NULL, IfaceClearCommand, LOCAL_AUTH,
+   "Clear iface address(es)", "iface clear"},
+  {"delete", "rm", IfaceDeleteCommand, LOCAL_AUTH,
+   "Delete iface address", "iface delete addr", NULL},
+  {NULL, "rm!", IfaceDeleteCommand, LOCAL_AUTH,
+   "Delete iface address", "iface delete addr", (void *)1},
+  {NULL, "delete!", IfaceDeleteCommand, LOCAL_AUTH,
+   "Delete iface address", "iface delete addr", (void *)1},
+  {"show", NULL, iface_Show, LOCAL_AUTH,
+   "Show iface address(es)", "iface show"},
+  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
+   "Display this message", "alias help|? [command]", IfaceCommands},
+  {NULL, NULL, NULL},
+};
+
 static struct cmdtab const Commands[] = {
   {"accept", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "accept option request", "accept option .."},
@@ -521,11 +587,11 @@ static struct cmdtab const Commands[] = {
   {NULL, "add!", AddCommand, LOCAL_AUTH,
   "add or change route", "add! dest mask gateway", (void *)1},
 #ifndef NOALIAS
-  {"alias", NULL, AliasCommand, LOCAL_AUTH,
-  "alias control", "alias option [yes|no]"},
+  {"alias", NULL, RunListCommand, LOCAL_AUTH,
+  "alias control", "alias option [yes|no]", AliasCommands},
 #endif
-  {"allow", "auth", AllowCommand, LOCAL_AUTH,
-  "Allow ppp access", "allow users|modes ...."},
+  {"allow", "auth", RunListCommand, LOCAL_AUTH,
+  "Allow ppp access", "allow users|modes ....", AllowCommands},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
   {"clear", NULL, ClearCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -548,6 +614,8 @@ static struct cmdtab const Commands[] = {
   "Generate a down event", "down"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
+  {"iface", "interface", RunListCommand, LOCAL_AUTH,
+  "interface control", "iface option ...", IfaceCommands},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -655,6 +723,8 @@ static struct cmdtab const ShowCommands[] = {
   "packet filters", "show filter [in|out|dial|alive]"},
   {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "HDLC errors", "show hdlc"},
+  {"iface", "interface", iface_Show, LOCAL_AUTH,
+  "Interface status", "show iface"},
   {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
   "IPCP status", "show ipcp"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
@@ -1200,13 +1270,12 @@ SetInterfaceAddr(struct cmdargs const *arg)
   struct ipcp *ipcp = &arg->bundle->ncp.ipcp;
   const char *hisaddr;
 
-  hisaddr = NULL;
-  ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
-  ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
-
   if (arg->argc > arg->argn + 4)
     return -1;
 
+  hisaddr = NULL;
+  ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
+  ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
   ipcp->cfg.HaveTriggerAddress = 0;
   ipcp->cfg.netmask.s_addr = INADDR_ANY;
   iplist_reset(&ipcp->cfg.peer_list);
@@ -1228,19 +1297,12 @@ SetInterfaceAddr(struct cmdargs const *arg)
     }
   }
 
-  /*
-   * For backwards compatibility, 0.0.0.0 means any address.
-   */
+  /* 0.0.0.0 means any address (0 bits) */
   if (ipcp->cfg.my_range.ipaddr.s_addr == INADDR_ANY) {
     ipcp->cfg.my_range.mask.s_addr = INADDR_ANY;
     ipcp->cfg.my_range.width = 0;
   }
   ipcp->my_ip.s_addr = ipcp->cfg.my_range.ipaddr.s_addr;
-
-  if (ipcp->cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-    ipcp->cfg.peer_range.mask.s_addr = INADDR_ANY;
-    ipcp->cfg.peer_range.width = 0;
-  }
 
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
                                   arg->bundle->phys_type.all & PHYS_AUTO))
@@ -1717,7 +1779,6 @@ SetCommand(struct cmdargs const *arg)
   return 0;
 }
 
-
 static int
 AddCommand(struct cmdargs const *arg)
 {
@@ -1759,9 +1820,7 @@ AddCommand(struct cmdargs const *arg)
   if (strcasecmp(arg->argv[arg->argn+gw], "HISADDR") == 0) {
     gateway = arg->bundle->ncp.ipcp.peer_ip;
     addrs |= ROUTE_GWHISADDR;
-  } else if (strcasecmp(arg->argv[arg->argn+gw], "INTERFACE") == 0)
-    gateway.s_addr = INADDR_ANY;
-  else
+  } else
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
 
   if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
@@ -1808,51 +1867,6 @@ DeleteCommand(struct cmdargs const *arg)
 }
 
 #ifndef NOALIAS
-static struct cmdtab const AliasCommands[] =
-{
-  {"addr", NULL, alias_RedirectAddr, LOCAL_AUTH,
-   "static address translation", "alias addr [addr_local addr_alias]"},
-  {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
-   "stop incoming connections", "alias deny_incoming [yes|no]",
-   (const void *) PKT_ALIAS_DENY_INCOMING},
-  {"enable", NULL, AliasEnable, LOCAL_AUTH,
-   "enable IP aliasing", "alias enable [yes|no]"},
-  {"log", NULL, AliasOption, LOCAL_AUTH,
-   "log aliasing link creation", "alias log [yes|no]",
-   (const void *) PKT_ALIAS_LOG},
-  {"port", NULL, alias_RedirectPort, LOCAL_AUTH,
-   "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
-  {"same_ports", NULL, AliasOption, LOCAL_AUTH,
-   "try to leave port numbers unchanged", "alias same_ports [yes|no]",
-   (const void *) PKT_ALIAS_SAME_PORTS},
-  {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
-   "alias unregistered (private) IP address space only",
-   "alias unregistered_only [yes|no]",
-   (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
-  {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
-   "allocate host sockets", "alias use_sockets [yes|no]",
-   (const void *) PKT_ALIAS_USE_SOCKETS},
-  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "alias help|? [command]", AliasCommands},
-  {NULL, NULL, NULL},
-};
-
-
-static int
-AliasCommand(struct cmdargs const *arg)
-{
-  if (arg->argc > arg->argn)
-    FindExec(arg->bundle, AliasCommands, arg->argc, arg->argn, arg->argv,
-             arg->prompt, arg->cx);
-  else if (arg->prompt)
-    prompt_Printf(arg->prompt, "Use `alias help' to get a list or `alias help"
-            " <option>' for syntax help.\n");
-  else
-    log_Printf(LogWARN, "alias command must have arguments\n");
-
-  return 0;
-}
-
 static int
 AliasEnable(struct cmdargs const *arg)
 {
@@ -1862,6 +1876,8 @@ AliasEnable(struct cmdargs const *arg)
       return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
       arg->bundle->AliasEnabled = 0;
+      arg->bundle->cfg.opt &= ~OPT_IFACEALIAS;
+      /* Don't iface_Clear() - there may be manually configured addresses */
       return 0;
     }
   }
@@ -1893,32 +1909,6 @@ AliasOption(struct cmdargs const *arg)
   return -1;
 }
 #endif /* #ifndef NOALIAS */
-
-static struct cmdtab const AllowCommands[] = {
-  {"modes", "mode", AllowModes, LOCAL_AUTH,
-  "Only allow certain ppp modes", "allow modes mode..."},
-  {"users", "user", AllowUsers, LOCAL_AUTH,
-  "Allow users access to ppp", "allow users logname..."},
-  {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-  "Display this message", "allow help|? [command]", AllowCommands},
-  {NULL, NULL, NULL},
-};
-
-static int
-AllowCommand(struct cmdargs const *arg)
-{
-  /* arg->bundle may be NULL (see system_IsValid()) ! */
-  if (arg->argc > arg->argn)
-    FindExec(arg->bundle, AllowCommands, arg->argc, arg->argn, arg->argv,
-             arg->prompt, arg->cx);
-  else if (arg->prompt)
-    prompt_Printf(arg->prompt, "Use `allow ?' to get a list or `allow ? <cmd>'"
-                  " for syntax help.\n");
-  else
-    log_Printf(LogWARN, "allow command must have arguments\n");
-
-  return 0;
-}
 
 static int
 LinkCommand(struct cmdargs const *arg)
@@ -2047,6 +2037,22 @@ OptSet(struct cmdargs const *arg)
 }
 
 static int
+IfaceAliasOptSet(struct cmdargs const *arg)
+{
+  unsigned save = arg->bundle->cfg.opt;
+  int result = OptSet(arg);
+
+  if (result == 0)
+    if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->AliasEnabled) {
+      arg->bundle->cfg.opt = save;
+      log_Printf(LogWARN, "Cannot enable iface-alias without IP aliasing\n");
+      result = 2;
+    }
+
+  return result;
+}
+
+static int
 NegotiateSet(struct cmdargs const *arg)
 {
   long param = (long)arg->cmd->args;
@@ -2138,8 +2144,11 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_THROUGHPUT},
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
+  {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
+   "maintain interface addresses", "disable|enable",
+   (const void *)OPT_IFACEALIAS},
 
-#define OPT_MAX 7	/* accept/deny allowed below and not above */
+#define OPT_MAX 8	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
@@ -2256,5 +2265,98 @@ ClearCommand(struct cmdargs const *arg)
     clear_type = THROUGHPUT_ALL;
 
   throughput_clear(t, clear_type, arg->prompt);
+  return 0;
+}
+
+static int
+RunListCommand(struct cmdargs const *arg)
+{
+  const char *cmd = arg->argc ? arg->argv[arg->argc - 1] : "???";
+
+  if (arg->argc > arg->argn)
+    FindExec(arg->bundle, arg->cmd->args, arg->argc, arg->argn, arg->argv,
+             arg->prompt, arg->cx);
+  else if (arg->prompt)
+    prompt_Printf(arg->prompt, "Use `%s help' to get a list or `%s help"
+                  " <option>' for syntax help.\n", cmd, cmd);
+  else
+    log_Printf(LogWARN, "%s command must have arguments\n", cmd);
+
+  return 0;
+}
+
+static int
+IfaceAddCommand(struct cmdargs const *arg)
+{
+  int bits, n, how;
+  struct in_addr ifa, mask, brd;
+
+  if (arg->argc == arg->argn + 2) {
+    if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, &mask, &bits))
+      return -1;
+    n = 1;
+  } else if (arg->argc == arg->argn + 3) {
+    if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+      return -1;
+    if (!ParseAddr(NULL, 1, arg->argv + arg->argn + 1, &mask, NULL, NULL))
+      return -1;
+    n = 2;
+  } else
+    return -1;
+
+  if (!ParseAddr(NULL, 1, arg->argv + arg->argn + n, &brd, NULL, NULL))
+    return -1;
+
+  how = IFACE_ADD_LAST;
+  if (arg->cmd->args)
+    how |= IFACE_FORCE_ADD;
+
+  return !iface_inAdd(arg->bundle->iface, ifa, mask, brd, how);
+}
+
+static int
+IfaceDeleteCommand(struct cmdargs const *arg)
+{
+  struct in_addr ifa;
+  int ok;
+
+  if (arg->argc != arg->argn + 1)
+    return -1;
+
+  if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+    return -1;
+
+  if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED &&
+      arg->bundle->ncp.ipcp.my_ip.s_addr == ifa.s_addr) {
+    log_Printf(LogWARN, "%s: Cannot remove active interface address\n",
+               inet_ntoa(ifa));
+    return 1;
+  }
+
+  ok = iface_inDelete(arg->bundle->iface, ifa);
+  if (!ok) {
+    if (arg->cmd->args)
+      ok = 1;
+    else if (arg->prompt)
+      prompt_Printf(arg->prompt, "%s: No such address\n", inet_ntoa(ifa));
+    else
+      log_Printf(LogWARN, "%s: No such address\n", inet_ntoa(ifa));
+  }
+
+  return !ok;
+}
+
+static int
+IfaceClearCommand(struct cmdargs const *arg)
+{
+  int how;
+
+  if (arg->argc != arg->argn)
+    return -1;
+
+  how = arg->bundle->ncp.ipcp.fsm.state == ST_OPENED ?
+        IFACE_CLEAR_ALIASES : IFACE_CLEAR_ALL;
+  iface_Clear(arg->bundle->iface, how);
+
   return 0;
 }
