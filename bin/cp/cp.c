@@ -253,23 +253,23 @@ copy(argv, type, fts_options)
 	struct stat to_stat;
 	FTS *ftsp;
 	FTSENT *curr;
-	int base = 0, dne, nlen, rval;
+	int base = 0, dne, badcp, nlen, rval;
 	char *p, *target_mid;
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
 		err(1, NULL);
-	for (rval = 0; (curr = fts_read(ftsp)) != NULL;) {
+	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
 		switch (curr->fts_info) {
 		case FTS_NS:
 		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));
-			rval = 1;
+			badcp = rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
 			warnx("%s: directory causes a cycle", curr->fts_path);
-			rval = 1;
+			badcp = rval = 1;
 			continue;
 		case FTS_DP:			/* Ignore, continue. */
 			continue;
@@ -321,7 +321,7 @@ copy(argv, type, fts_options)
 			if (target_mid - to.p_path + nlen > MAXPATHLEN) {
 				warnx("%s%s: name too long (not copied)",
 				    to.p_path, p);
-				rval = 1;
+				badcp = rval = 1;
 				continue;
 			}
 			(void)strncat(target_mid, p, nlen);
@@ -338,7 +338,7 @@ copy(argv, type, fts_options)
 			    to_stat.st_ino == curr->fts_statp->st_ino) {
 				warnx("%s and %s are identical (not copied).",
 				    to.p_path, curr->fts_path);
-				rval = 1;
+				badcp = rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
 					(void)fts_set(ftsp, curr, FTS_SKIP);
 				continue;
@@ -347,7 +347,7 @@ copy(argv, type, fts_options)
 			    S_ISDIR(to_stat.st_mode)) {
 		warnx("cannot overwrite directory %s with non-directory %s",
 				    to.p_path, curr->fts_path);
-				rval = 1;
+				badcp = rval = 1;
 				continue;
 			}
 			dne = 0;
@@ -356,14 +356,14 @@ copy(argv, type, fts_options)
 		switch (curr->fts_statp->st_mode & S_IFMT) {
 		case S_IFLNK:
 			if (copy_link(curr, !dne))
-				rval = 1;
+				badcp = rval = 1;
 			break;
 		case S_IFDIR:
 			if (!Rflag && !rflag) {
 				warnx("%s is a directory (not copied).",
 				    curr->fts_path);
 				(void)fts_set(ftsp, curr, FTS_SKIP);
-				rval = 1;
+				badcp = rval = 1;
 				break;
 			}
 			/*
@@ -389,7 +389,7 @@ copy(argv, type, fts_options)
                          * forever.
 			 */
 			if (pflag && setfile(curr->fts_statp, 0))
-				rval = 1;
+				badcp = rval = 1;
 			else if (dne)
 				(void)chmod(to.p_path,
 				    curr->fts_statp->st_mode);
@@ -398,27 +398,27 @@ copy(argv, type, fts_options)
 		case S_IFCHR:
 			if (Rflag) {
 				if (copy_special(curr->fts_statp, !dne))
-					rval = 1;
+					badcp = rval = 1;
 			} else {
 				if (copy_file(curr, dne))
-					rval = 1;
+					badcp = rval = 1;
 			}
 			break;
 		case S_IFIFO:
 			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
-					rval = 1;
+					badcp = rval = 1;
 			} else {
 				if (copy_file(curr, dne))
-					rval = 1;
+					badcp = rval = 1;
 			}
 			break;
 		default:
 			if (copy_file(curr, dne))
-				rval = 1;
+				badcp = rval = 1;
 			break;
 		}
-		if (!rval && vflag)
+		if (vflag && !badcp)
 			(void)printf("%s -> %s\n", curr->fts_path, to.p_path);
 	}
 	if (errno)
