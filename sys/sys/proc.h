@@ -556,7 +556,7 @@ struct proc {
 #define	p_startcopy	p_endzero
 	sigset_t	p_sigmask;	/* (c) Current signal mask. */
 	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
-	int		p_magic;	/* (b) Magic number. */
+	u_int		p_magic;	/* (b) Magic number. */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
