@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.22 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_lock.c,v 1.23 1999/01/20 14:49:11 eivind Exp $
  */
 
 #include "opt_lint.h"
@@ -205,9 +205,30 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	switch (flags & LK_TYPE_MASK) {
 
 	case LK_SHARED:
+		/*
+		 * If we are not the exclusive lock holder, we have to block
+		 * while there is an exclusive lock holder or while an
+		 * exclusive lock request or upgrade request is in progress.
+		 *
+		 * However, if P_DEADLKTREAT is set, we override exclusive
+		 * lock requests or upgrade requests ( but not the exclusive
+		 * lock itself ).
+		 */
 		if (lkp->lk_lockholder != pid) {
-			error = acquire(lkp, extflags,
-				LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE);
+			if (p->p_flag & P_DEADLKTREAT) {
+				error = acquire(
+					    lkp,
+					    extflags,
+					    LK_HAVE_EXCL
+					);
+			} else {
+				error = acquire(
+					    lkp, 
+					    extflags,
+					    LK_HAVE_EXCL | LK_WANT_EXCL | 
+					     LK_WANT_UPGRADE
+					);
+			}
 			if (error)
 				break;
 			sharelock(lkp, 1);
