@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.78 1995/10/13 19:47:40 wollman Exp $
+ * $Id: if_ed.c,v 1.79 1995/10/21 00:55:23 phk Exp $
  */
 
 #include "ed.h"
@@ -38,6 +38,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -2256,11 +2261,34 @@ ed_ioctl(ifp, command, data)
 			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
-#ifdef NS
+#ifdef IPX
+		/*
+		 * XXX - This code is probably wrong
+		 */
+		case AF_IPX:
+			{
+				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
 
-			/*
-			 * XXX - This code is probably wrong
-			 */
+				if (ipx_nullhost(*ina))
+					ina->x_host =
+					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
+				else {
+					bcopy((caddr_t) ina->x_host.c_host,
+					      (caddr_t) sc->arpcom.ac_enaddr,
+					      sizeof(sc->arpcom.ac_enaddr));
+				}
+
+				/*
+				 * Set new address
+				 */
+				ed_init(ifp->if_unit);
+				break;
+			}
+#endif
+#ifdef NS
+		/*
+		 * XXX - This code is probably wrong
+		 */
 		case AF_NS:
 			{
 				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);

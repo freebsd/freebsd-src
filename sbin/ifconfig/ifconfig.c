@@ -50,11 +50,16 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+
+#define	IPXIP
+#define IPTUNNEL
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 
 #define	NSIP
 #include <netns/ns.h>
 #include <netns/ns_if.h>
-#include <netdb.h>
 
 #define EON
 #include <netiso/iso.h>
@@ -144,6 +149,7 @@ struct	cmd {
  * Maryland principally by James O'Toole and Chris Torek.
  */
 int	in_status(), in_getaddr();
+int	ipx_status(), ipx_getaddr();
 int	xns_status(), xns_getaddr();
 int	iso_status(), iso_getaddr();
 int	ether_status();
@@ -161,6 +167,8 @@ struct afswtch {
 } afs[] = {
 #define C(x) ((caddr_t) &x)
 	{ "inet", AF_INET, in_status, in_getaddr,
+	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+	{ "ipx", AF_IPX, ipx_status, ipx_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "ns", AF_NS, xns_status, xns_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
@@ -313,6 +321,16 @@ ifconfig(argc,argv,af,rafp,flag)
 	}
 	if (af == AF_ISO)
 		adjust_nsellength();
+	if (setipdst && af==AF_IPX) {
+		struct ipxip_req rq;
+		int size = sizeof(rq);
+
+		rq.rq_ipx = addreq.ifra_addr;
+		rq.rq_ip = addreq.ifra_dstaddr;
+
+		if (setsockopt(s, 0, SO_IPXIP_ROUTE, &rq, size) < 0)
+			Perror("Encapsulation Routing");
+	}
 	if (setipdst && af==AF_NS) {
 		struct nsip_req rq;
 		int size = sizeof(rq);
@@ -539,6 +557,43 @@ in_status(force)
 	putchar('\n');
 }
 
+ipx_status(force)
+	int force;
+{
+	struct sockaddr_ipx *sipx;
+
+	close(s);
+	s = socket(AF_IPX, SOCK_DGRAM, 0);
+	if (s < 0) {
+		if (errno == EPROTONOSUPPORT)
+			return;
+		perror("ifconfig: socket");
+		exit(1);
+	}
+	if (ioctl(s, SIOCGIFADDR, (caddr_t)&ifr) < 0) {
+		if (errno == EADDRNOTAVAIL || errno == EAFNOSUPPORT) {
+			if (!force)
+				return;
+			bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
+		} else
+			perror("ioctl (SIOCGIFADDR)");
+	}
+	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	sipx = (struct sockaddr_ipx *)&ifr.ifr_addr;
+	printf("\tipx %s ", ipx_ntoa(sipx->sipx_addr));
+	if (flags & IFF_POINTOPOINT) { /* by W. Nesheim@Cornell */
+		if (ioctl(s, SIOCGIFDSTADDR, (caddr_t)&ifr) < 0) {
+			if (errno == EADDRNOTAVAIL)
+			    bzero((char *)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
+			else
+			    Perror("ioctl (SIOCGIFDSTADDR)");
+		}
+		strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+		sipx = (struct sockaddr_ipx *)&ifr.ifr_dstaddr;
+		printf("--> %s ", ipx_ntoa(sipx->sipx_addr));
+	}
+	putchar('\n');
+}
 
 xns_status(force)
 	int force;
@@ -791,6 +846,24 @@ printb(s, v, bits)
 		}
 		putchar('>');
 	}
+}
+
+#define SIPX(x) ((struct sockaddr_ipx *) &(x))
+struct sockaddr_ipx *sipxtab[] = {
+SIPX(ridreq.ifr_addr), SIPX(addreq.ifra_addr),
+SIPX(addreq.ifra_mask), SIPX(addreq.ifra_broadaddr)};
+
+ipx_getaddr(addr, which)
+char *addr;
+{
+	struct sockaddr_ipx *sipx = sipxtab[which];
+	struct ipx_addr ipx_addr();
+
+	sipx->sipx_family = AF_IPX;
+	sipx->sipx_len = sizeof(*sipx);
+	sipx->sipx_addr = ipx_addr(addr);
+	if (which == MASK)
+		printf("Attempt to set IPX netmask will be ineffectual\n");
 }
 
 #define SNS(x) ((struct sockaddr_ns *) &(x))

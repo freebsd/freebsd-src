@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.3 (Berkeley) 3/9/94";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.5 1995/05/30 06:32:53 rgrimes Exp $";
+	"$Id: route.c,v 1.6 1995/07/12 19:21:36 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,6 +51,8 @@ static const char rcsid[] =
 #include <net/route.h>
 #undef KERNEL
 #include <netinet/in.h>
+
+#include <netipx/ipx.h>
 
 #include <netns/ns.h>
 
@@ -169,6 +171,9 @@ pr_family(af)
 	case AF_INET:
 		afname = "Internet";
 		break;
+	case AF_IPX:
+		afname = "IPX";
+		break;
 	case AF_NS:
 		afname = "XNS";
 		break;
@@ -198,7 +203,6 @@ pr_family(af)
 void
 pr_rthdr()
 {
-
 	if (Aflag)
 		printf("%-8.8s ","Address");
 	printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
@@ -376,6 +380,16 @@ p_sockaddr(sa, flags, width)
 		      ((flags & RTF_HOST) ?
 			routename(sin->sin_addr.s_addr) :
 			netname(sin->sin_addr.s_addr, 0L));
+		break;
+	    }
+
+	case AF_IPX:
+	    {
+struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
+		if (ipx_nullhost(satoipx_addr(work)))
+			cp = "default";
+		else
+			cp = ipx_print(sa);
 		break;
 	    }
 
@@ -575,7 +589,8 @@ netname(in, mask)
 		net = i & mask;
 		while ((mask & 1) == 0)
 			mask >>= 1, net >>= 1;
-		np = getnetbyaddr(net, AF_INET);
+		if (!(np = getnetbyaddr(net, AF_INET)))
+			np = getnetbyaddr(i, AF_INET);
 		if (np)
 			cp = np->n_name;
 	}
@@ -619,6 +634,101 @@ rt_stats(off)
 	printf("\t%u use%s of a wildcard route\n",
 		rtstat.rts_wildcard, plural(rtstat.rts_wildcard));
 }
+
+char *
+ipx_print(sa)
+	register struct sockaddr *sa;
+{
+	u_short port;
+	struct netent *np = 0;
+	struct hostent *hp = 0;
+	struct servent *sp = 0;	
+	char *net = "", *host = "";
+	register char *p; register u_char *q;
+	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
+static	char mybuf[50];
+	char cport[10], chost[15], cnet[15];
+
+	sp = getservbyport(work.x_port, "ipx");
+	port = ntohs(work.x_port);
+
+	if (ipx_nullnet(work) && ipx_nullhost(work)) {
+
+		if (port) {
+			if (sp)	sprintf(mybuf, "*.%s", sp->s_name);
+			else	sprintf(mybuf, "*.%x", port);
+		} else
+			sprintf(mybuf, "*.*");
+
+		return (mybuf);
+	}
+
+	if (np = getnetbyaddr(*(u_long *)&work.x_net, AF_IPX))
+		net = np->n_name;
+	else if (ipx_wildnet(work))
+		net = "any";
+	else if (ipx_nullnet(work))
+		net = "*";
+	else {
+		q = work.x_net.c_net;
+		sprintf(cnet, "%02x%02x%02x%02x",
+			q[0], q[1], q[2], q[3]);
+		for (p = cnet; *p == '0' && p < cnet + 8; p++)
+			continue;
+		net = p;
+	}
+
+	if (hp = gethostbyaddr((char *)&work.x_host, 6, AF_IPX))
+		host = hp->h_name;
+	else if (ipx_wildhost(work))
+		host = "any";
+	else if (ipx_nullhost(work))
+		host = "*";
+	else {
+		q = work.x_host.c_host;
+		sprintf(chost, "%02x%02x%02x%02x%02x%02x",
+			q[0], q[1], q[2], q[3], q[4], q[5]);
+		for (p = chost; *p == '0' && p < chost + 12; p++)
+			continue;
+		host = p;
+	}
+
+	if (port) {
+		if (strcmp(host, "*") == 0) host = "";
+		if (sp)	sprintf(cport, "%s%s", *host ? "." : "", sp->s_name);
+		else	sprintf(cport, "%s%x", *host ? "." : "", port);
+	} else
+		*cport = 0;
+
+	sprintf(mybuf,"%s.%s%s", net, host, cport);
+	return(mybuf);
+}
+
+char *
+ipx_phost(sa)
+	struct sockaddr *sa;
+{
+	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
+	struct sockaddr_ipx work;
+static	union ipx_net ipx_zeronet;
+	char *p;
+	struct ipx_addr in;
+	struct hostent *hp;
+
+	work = *sipx;
+	in = work.sipx_addr;
+
+	hp = gethostbyaddr((char *)&in, sizeof(struct ipx_addr), AF_IPX);
+	if (hp)	return (hp->h_name);
+
+	work.sipx_addr.x_port = 0;
+	work.sipx_addr.x_net = ipx_zeronet;
+	p = ipx_print((struct sockaddr *)&work);
+	if (strncmp("*.", p, 2) == 0) p += 2;
+
+	return(p);
+}
+
 short ns_nullh[] = {0,0,0};
 short ns_bh[] = {-1,-1,-1};
 

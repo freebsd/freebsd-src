@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: if_ppp.h,v 1.2 1994/09/23 00:13:20 wollman Exp $
+ * $Id: if_ppp.h,v 1.3 1995/05/30 08:08:09 rgrimes Exp $
  */
 
 #ifndef _IF_PPP_H_
@@ -45,10 +45,12 @@ struct ppp_header {
  */
 #define PPP_IP		0x21	/* Internet Protocol */
 #define	PPP_XNS		0x25	/* Xerox NS */
+#define PPP_IPX		0x2b	/* IPX Datagram (RFC1552) */
 #define	PPP_VJC_COMP	0x2d	/* VJ compressed TCP */
 #define	PPP_VJC_UNCOMP	0x2f	/* VJ uncompressed TCP */
 #define PPP_COMP	0xfd	/* compressed packet */
 #define PPP_LCP		0xc021	/* Link Control Protocol */
+#define PPP_IPXCP	0x802b	/* IPX Control Protocol (RFC1552) */
 #define PPP_CCP		0x80fd	/* Compression Control Protocol */
 
 /*

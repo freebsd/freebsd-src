@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.15 1995/07/29 11:41:03 bde Exp $
+ * $Id: route.h,v 1.16 1995/10/16 20:53:55 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -242,6 +242,7 @@ struct rt_addrinfo {
 
 struct route_cb {
 	int	ip_count;
+	int	ipx_count;
 	int	ns_count;
 	int	iso_count;
 	int	any_count;

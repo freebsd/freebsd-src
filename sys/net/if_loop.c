@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.12 1995/09/09 18:10:22 davidg Exp $
+ * $Id: if_loop.c,v 1.13 1995/09/22 17:57:48 wollman Exp $
  */
 
 /*
@@ -61,6 +61,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -167,6 +172,12 @@ looutput(ifp, m, dst, rt)
 	case AF_INET:
 		ifq = &ipintrq;
 		isr = NETISR_IP;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		ifq = &ipxintrq;
+		isr = NETISR_IPX;
 		break;
 #endif
 #ifdef NS

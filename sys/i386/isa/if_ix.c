@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.9 1995/10/05 03:01:13 davidg Exp $
+ *	$Id: if_ix.c,v 1.10 1995/10/13 19:47:48 wollman Exp $
  */
 
 #include "ix.h"
@@ -55,6 +55,11 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #endif /* INET */
+
+#ifdef IPX /*ZZZ no work done on this, this is just here to remind me*/
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif /* IPX */
 
 #ifdef NS /*ZZZ no work done on this, this is just here to remind me*/
 #include <netns/ns.h>
@@ -1519,6 +1524,12 @@ ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 				break;
 			}
 #endif /* INET */
+#ifdef IPX
+			case AF_IPX: {
+				/*ZZZ*/printf("Address family IPX not supported by ixioctl\n");
+				break;
+			}
+#endif /* IPX */
 #ifdef NS
 			case AF_NS: {
 				/*ZZZ*/printf("Address family NS not supported by ixioctl\n");
