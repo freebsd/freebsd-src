@@ -573,6 +573,110 @@ struct ndis_80211_test {
 
 typedef struct ndis_80211_test ndis_80211_test;
 
+/* TCP OIDs. */
+
+#define OID_TCP_TASK_OFFLOAD			0xFC010201
+#define OID_TCP_TASK_IPSEC_ADD_SA		0xFC010202
+#define OID_TCP_TASK_IPSEC_DELETE_SA		0xFC010203
+#define OID_TCP_SAN_SUPPORT			0xFC010204
+
+
+#define NDIS_TASK_OFFLOAD_VERSION 1
+
+#define NDIS_TASK_TCPIP_CSUM			0x00000000
+#define NDIS_TASK_IPSEC				0x00000001
+#define NDIS_TASK_TCP_LARGESEND			0x00000002
+
+#define NDIS_ENCAP_UNSPEC			0x00000000
+#define NDIS_ENCAP_NULL				0x00000001
+#define NDIS_ENCAP_IEEE802_3			0x00000002
+#define NDIS_ENCAP_IEEE802_5			0x00000003
+#define NDIS_ENCAP_SNAP_ROUTED			0x00000004
+#define NDIS_ENCAP_SNAP_BRIDGED			0x00000005
+
+#define NDIS_ENCAPFLAG_FIXEDHDRLEN		0x00000001
+
+struct ndis_encap_fmt {
+	uint32_t		nef_encap;
+	uint32_t		nef_flags;
+	uint32_t		nef_encaphdrlen;
+};
+
+typedef struct ndis_encap_fmt ndis_encap_fmt;
+
+struct ndis_task_offload_hdr {
+	uint32_t		ntoh_vers;
+	uint32_t		ntoh_len;
+	uint32_t		ntoh_rsvd;
+	uint32_t		ntoh_offset_firsttask;
+	ndis_encap_fmt		ntoh_encapfmt;
+};
+
+typedef struct ndis_task_offload_hdr ndis_task_offload_hdr;
+
+struct ndis_task_offload {
+	uint32_t		nto_vers;
+	uint32_t		nto_len;
+	uint32_t		nto_task;
+	uint32_t		nto_offset_nexttask;
+	uint32_t		nto_taskbuflen;
+	uint8_t			nto_taskbuf[1];
+};
+
+typedef struct ndis_task_offload ndis_task_offload;
+
+#define NDIS_TCPSUM_FLAGS_IP_OPTS	0x00000001
+#define NDIS_TCPSUM_FLAGS_TCP_OPTS	0x00000002
+#define NDIS_TCPSUM_FLAGS_TCP_CSUM	0x00000004
+#define NDIS_TCPSUM_FLAGS_UDP_CSUM	0x00000008
+#define NDIS_TCPSUM_FLAGS_IP_CSUM	0x00000010
+
+struct ndis_task_tcpip_csum {
+	uint32_t		nttc_v4tx;
+	uint32_t		nttc_v4rx;
+	uint32_t		nttc_v6tx;
+	uint32_t		nttc_v6rx;
+};
+
+typedef struct ndis_task_tcpip_csum ndis_task_tcpip_csum;
+
+struct ndis_task_tcp_largesend {
+	uint32_t		nttl_vers;
+	uint32_t		nttl_maxofflen;
+	uint32_t		nttl_minsegcnt;
+	uint8_t			nttl_tcpopt;
+	uint8_t			nttl_ipopt;
+};
+
+typedef struct ndis_task_tcp_largesend ndis_task_tcp_largesend;
+
+#define NDIS_IPSEC_AH_MD5		0x00000001
+#define NDIS_IPSEC_AH_SHA1		0x00000002
+#define NDIS_IPSEC_AH_TRANSPORT		0x00000004
+#define NDIS_IPSEC_AH_TUNNEL		0x00000008
+#define NDIS_IPSEC_AH_SEND		0x00000010
+#define NDIS_IPSEC_AH_RECEIVE		0x00000020
+
+#define NDIS_IPSEC_ESP_DES		0x00000001
+#define NDIS_IPSEC_ESP_RSVD		0x00000002
+#define NDIS_IPSEC_ESP_3DES		0x00000004
+#define NDIS_IPSEC_ESP_NULL		0x00000008
+#define NDIS_IPSEC_ESP_TRANSPORT	0x00000010
+#define NDIS_IPSEC_ESP_TUNNEL		0x00000020
+#define NDIS_IPSEC_ESP_SEND		0x00000040
+#define NDIS_IPSEC_ESP_RECEIVE		0x00000080
+
+struct ndis_task_ipsec {
+	uint32_t		nti_ah_esp_combined;
+	uint32_t		nti_ah_transport_tunnel_combined;
+	uint32_t		nti_v4_options;
+	uint32_t		nti_rsvd;
+	uint32_t		nti_v4ah;
+	uint32_t		nti_v4esp;
+};
+
+typedef struct ndis_task_ipsec ndis_task_ipsec;
+
 /*
  * Attribures of NDIS drivers. Not all drivers support
  * all attributes.
@@ -871,6 +975,43 @@ struct ndis_sc_list {
 };
 
 typedef struct ndis_sc_list ndis_sc_list;
+
+struct ndis_tcpip_csum {
+	union {
+		uint32_t		ntc_txflags;
+		uint32_t		ntc_rxflags;
+		uint32_t		ntc_val;
+	} u;
+};
+
+typedef struct ndis_tcpip_csum ndis_tcpip_csum;
+
+#define NDIS_TXCSUM_DO_IPV4		0x00000001
+#define NDIS_TXCSUM_DO_IPV6		0x00000002
+#define NDIS_TXCSUM_DO_TCP		0x00000004
+#define NDIS_TXCSUM_DO_UDP		0x00000008
+#define NDIS_TXCSUM_DO_IP		0x00000010
+
+#define NDIS_RXCSUM_TCP_FAILED		0x00000001
+#define NDIS_RXCSUM_UDP_FAILED		0x00000002
+#define NDIS_RXCSUM_IP_FAILED		0x00000004
+#define NDIS_RXCSUM_TCP_PASSED		0x00000008
+#define NDIS_RXCSUM_UDP_PASSED		0x00000010
+#define NDIS_RXCSUM_IP_PASSED		0x00000020
+#define NDIS_RXCSUM_LOOPBACK		0x00000040
+
+struct ndis_vlan {
+	union {
+		struct {
+			uint32_t			nvt_userprio:3;
+			uint32_t			nvt_canformatid:1;
+			uint32_t			nvt_vlanid:12;
+			uint32_t			nvt_rsvd:16;
+		} nv_taghdr;
+	} u;
+};
+
+typedef struct ndis_vlan ndis_vlan;
 
 enum ndis_perpkt_info {
 	ndis_tcpipcsum_info,
