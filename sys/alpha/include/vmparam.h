@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: vmparam.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_ALPHA_VMPARAM_H
 #define	_ALPHA_VMPARAM_H
@@ -74,6 +74,9 @@
 #ifndef	MAXSSIZ
 #define	MAXSSIZ		(1<<25)			/* max stack size (32M) */
 #endif
+#ifndef SGROWSIZ
+#define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
+#endif
 
 /*
  * PTEs for mapping user space into the kernel for phyio operations.
@@ -131,23 +134,30 @@
 
 /* user/kernel map constants */
 #define VM_MIN_ADDRESS		((vm_offset_t)ALPHA_USEG_BASE) /* 0 */
-#define VM_MAXUSER_ADDRESS	((vm_offset_t)0x0000000200000000) /* 8G XXX */
+#define VM_MAXUSER_ADDRESS	((vm_offset_t)(ALPHA_USEG_END + 1L))
 #define VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
 #define VM_MIN_KERNEL_ADDRESS	((vm_offset_t)ALPHA_K1SEG_BASE)
 #define VM_MAX_KERNEL_ADDRESS	((vm_offset_t)ALPHA_K1SEG_END)
 
 /* virtual sizes (bytes) for various kernel submaps */
-#ifndef	_KERNEL
-#define VM_MBUF_SIZE		(NMBCLUSTERS*MCLBYTES)
-#define VM_KMEM_SIZE		(NKMEMCLUSTERS*CLBYTES)
-#define VM_PHYS_SIZE		(USRIOSIZE*CLBYTES)
-#else
-extern u_int32_t vm_mbuf_size, vm_kmem_size, vm_phys_size;
-#define VM_MBUF_SIZE		vm_mbuf_size
-#define VM_KMEM_SIZE		vm_kmem_size
-#define VM_PHYS_SIZE		vm_phys_size
+#ifndef VM_KMEM_SIZE
+#define VM_KMEM_SIZE		(12 * 1024 * 1024)
+#endif
+
+/*
+ * How many physical pages per KVA page allocated.
+ * min(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE), VM_KMEM_SIZE_MAX)
+ * is the total KVA space allocated for kmem_map.
+ */
+#ifndef VM_KMEM_SIZE_SCALE
+#define	VM_KMEM_SIZE_SCALE	(4) /* XXX 8192 byte pages */
+#endif
+
+/* initial pagein size of beginning of executable file */
+#ifndef VM_INITIAL_PAGEIN
+#define	VM_INITIAL_PAGEIN	16
 #endif
 
 /* some Alpha-specific constants */
-#define	VPTBASE		((vm_offset_t)0xfffffffc00000000) /* Virt. pg table */
+#define	VPTBASE		((vm_offset_t)0xfffffffe00000000) /* Virt. pg table */
 #endif	/* !_ALPHA_VMPARAM_H */

@@ -1,0 +1,80 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+#	$Id$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+#
+font8x16.o			optional	std8x16font		\
+	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c" \
+	no-implicit-rule before-depend \
+	clean		"${STD8X16FONT}-8x16 font8x16.c" 
+
+#
+alpha/alpha/autoconf.c		standard	device-driver
+alpha/alpha/cpuconf.c		standard
+alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
+alpha/alpha/mountroot.c		optional	slice
+alpha/alpha/ipl_funcs.c		standard
+alpha/alpha/pal.s		standard
+alpha/alpha/cons.c		standard
+alpha/alpha/prom.c		standard
+alpha/alpha/prom_disp.s		standard
+alpha/alpha/db_disasm.c		optional	ddb
+alpha/alpha/db_interface.c	optional	ddb
+alpha/alpha/db_trace.c		optional	ddb
+alpha/alpha/exception.s		standard
+alpha/alpha/in_cksum.c		optional	inet
+# locore.s needs to be handled in Makefile to put it first.  Otherwise it's
+# now normal.
+# alpha/alpha/locore.s		standard
+alpha/alpha/machdep.c		standard
+alpha/alpha/math_emulate.c	optional	math_emulate
+alpha/alpha/mem.c		standard
+alpha/alpha/mp_machdep.c	optional	smp
+alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
+alpha/alpha/perfmon.c		optional	perfmon
+alpha/alpha/pmap.c		standard
+alpha/alpha/procfs_machdep.c	standard
+alpha/alpha/simplelock.s	optional	smp
+alpha/alpha/support.s		standard
+alpha/alpha/swtch.s		standard
+alpha/alpha/sys_machdep.c	standard
+alpha/alpha/trap.c		standard
+alpha/alpha/interrupt.c		standard
+alpha/alpha/userconfig.c	optional	userconfig
+alpha/alpha/vm_machdep.c	standard
+alpha/alpha/clock.c		standard
+alpha/alpha/diskslice_machdep.c	standard
+alpha/tlsb/tlsb.c		optional	tlsb
+alpha/tlsb/gbus.c		optional	gbus
+alpha/tlsb/kftxx.c		optional	kft
+alpha/tlsb/mcclock_tlsb.c	optional	gbus
+alpha/tlsb/zs_tlsb.c		optional	gbus
+alpha/tlsb/dwlpx.c		optional	dwlpx
+dev/dec/mcclock.c		optional	gbus
+alpha/pci/pcibus.c		optional	pci
+kern/subr_bus.c			standard
+libkern/bcd.c			standard
+libkern/bcmp.c			standard
+libkern/ffs.c			standard
+libkern/inet_ntoa.c		standard
+libkern/index.c			standard
+libkern/mcount.c		optional	profiling-routine
+libkern/qsort.c			standard
+libkern/random.c		standard
+libkern/scanc.c			standard
+libkern/skpc.c			standard
+libkern/strcat.c		standard
+libkern/strcmp.c		standard
+libkern/strcpy.c		standard
+libkern/strlen.c		standard
+libkern/strncmp.c		standard
+libkern/strncpy.c		standard
+libkern/alpha/htonl.S		standard
+libkern/alpha/htons.S		standard
+libkern/alpha/ntohl.S		standard
+libkern/alpha/ntohs.S		standard

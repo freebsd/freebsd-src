@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: alpha_cpu.h,v 1.1 1998/01/10 10:13:13 jb Exp $ */
 /* From: NetBSD: alpha_cpu.h,v 1.15 1997/09/20 19:02:34 mjacob Exp */
 
 /*
@@ -183,8 +183,12 @@ struct alpha_logout_area {
  * NOTE THAT THESE DEFINITIONS MAY CHANGE IN FUTURE ALPHA CPUS!
  */
 
-#define	ALPHA_PGSHIFT		13
+#define	ALPHA_PGSHIFT		13 /* bits that index within page */
+#define ALPHA_PTSHIFT		10 /* bits that index within page tables */
 #define	ALPHA_PGBYTES		(1 << ALPHA_PGSHIFT)
+#define ALPHA_L3SHIFT		ALPHA_PGSHIFT
+#define ALPHA_L2SHIFT		(ALPHA_L3SHIFT+ALPHA_PTSHIFT)
+#define ALPHA_L1SHIFT		(ALPHA_L2SHIFT+ALPHA_PTSHIFT)
 
 #define	ALPHA_USEG_BASE		0			/* virtual */
 #define	ALPHA_USEG_END		0x000003ffffffffff
@@ -218,8 +222,8 @@ struct alpha_logout_area {
 
 #define	ALPHA_PTE_PFN			0xffffffff00000000
 
-#define	ALPHA_PTE_TO_PFN(pte)		((pte) >> 32)
-#define	ALPHA_PTE_FROM_PFN(pfn)		((pfn) << 32)
+#define	ALPHA_PTE_TO_PFN(pte)		((u_long)(pte) >> 32)
+#define	ALPHA_PTE_FROM_PFN(pfn)		((u_long)(pfn) << 32)
 
 typedef unsigned long alpha_pt_entry_t;
 
@@ -280,6 +284,7 @@ typedef unsigned long alpha_pt_entry_t;
 #define	ALPHA_IMPLVER_EV5	1		/* EV5/EV56/PCA56 */
 #define	ALPHA_IMPLVER_EV6	2		/* EV6 */
 
+
 /*
  * Stubs for Alpha instructions normally inaccessible from C.
  */
@@ -307,6 +312,7 @@ unsigned long	alpha_pal_rdmces __P((void));
 unsigned long	alpha_pal_rdps __P((void));
 unsigned long	alpha_pal_rdusp __P((void));
 unsigned long	alpha_pal_rdval __P((void));
+unsigned long	alpha_pal_swpctx __P((unsigned long));
 unsigned long	alpha_pal_swpipl __P((unsigned long));
 unsigned long	_alpha_pal_swpipl __P((unsigned long));	/* for profiling */
 void		alpha_pal_tbi __P((unsigned long, vm_offset_t));

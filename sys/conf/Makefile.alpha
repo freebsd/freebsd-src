@@ -1,0 +1,272 @@
+# Makefile.alpha -- with config changes.
+# Copyright 1990 W. Jolitz
+#	from: @(#)Makefile.alpha	7.1 5/10/91
+#	$Id: Makefile.alpha,v 1.109 1998/04/17 07:51:36 dima Exp $
+#
+# Makefile for FreeBSD
+#
+# This makefile is constructed from a machine description:
+#	config machineid
+# Most changes should be made in the machine description
+#	/sys/alpha/conf/``machineid''
+# after which you should do
+#	 config machineid
+# Generic makefile changes should be made in
+#	/sys/alpha/conf/Makefile.alpha
+# after which config should be rerun for all machines.
+#
+
+# Which version of config(8) is required.
+%VERSREQ=	300003
+
+BINFORMAT?=	elf
+
+STD8X16FONT?=	iso
+
+.if exists(./@/.)
+S=	./@
+.else
+S=	../..
+.endif
+ALPHA=	${S}/alpha
+
+COPTFLAGS?=-O
+INCLUDES= -nostdinc -I- -I. -I$S
+# This hack is to allow kernel compiles to succeed on machines w/out srcdist
+.if exists($S/../include)
+INCLUDES+= -I$S/../include
+.else
+INCLUDES+= -I/usr/include
+.endif
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs
+LOAD_ADDRESS?=	0xfffffc0000230000
+DEFINED_PROF=	${PROF}
+.if defined(PROF)
+CFLAGS+=	-malign-functions=4
+.if ${PROFLEVEL} >= 2
+IDENT+=	-DGPROF4 -DGUPROF
+PROF+=	-mprofiler-epilogue
+.endif
+.endif
+
+NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
+NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+# XXX LOCORE means "don't declare C stuff" not "for locore.s".
+NORMAL_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
+DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
+DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
+PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
+
+# ${ALPHA}/alpha/setdef0.c and ${ALPHA}/alpha/setdef1.c are intentionally
+# omitted from SYSTEM_CFILES.  They depend on setdefs.h, a header which
+# is generated from all of ${OBJS}.  We don't want to have to compile
+# everything just to do a make depend.
+SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
+SYSTEM_SFILES= ${ALPHA}/alpha/locore.s
+SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
+.if ${CFLAGS:M-g} == ""
+SYMORDER_EXCLUDE=-x symbols.exclude
+.endif
+SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
+.if ${BINFORMAT} == elf
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+	setdef1.o
+SYSTEM_LD= @${LD} -Bstatic -N -Ttext ${LOAD_ADDRESS} -e locorestart -defsym _DYNAMIC=0 \
+	-o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL= @size $@; chmod 755 $@
+.endif
+
+%BEFORE_DEPEND
+
+%OBJS
+
+%CFILES
+
+%SFILES
+
+%LOAD
+
+%CLEAN
+
+clean:
+	rm -f *.o *.s eddep errs genassym gensetdefs kernel linterrs \
+	      makelinks param.c setdefs.h symbols.exclude symbols.sort tags \
+	      vers.c vnode_if.c vnode_if.h ${CLEAN}
+
+#lint: /tmp param.c
+#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
+#	  ${ALPHA}/alpha/Locore.c ${CFILES} ioconf.c param.c | \
+#	    grep -v 'struct/union .* never defined' | \
+#	    grep -v 'possible pointer alignment problem'
+
+symbols.exclude: Makefile
+	echo "gcc2_compiled." >symbols.exclude
+	echo "___gnu_compiled_c" >>symbols.exclude
+
+symbols.sort: ${ALPHA}/alpha/symbols.raw
+	grep -v '^#' ${ALPHA}/alpha/symbols.raw \
+	    | sed 's/^	//' | sort -u > symbols.sort
+
+locore.o: ${ALPHA}/alpha/locore.s assym.s
+	${NORMAL_S}
+
+setdef0.o: ${ALPHA}/alpha/setdef0.c setdefs.h
+	${NORMAL_C}
+
+setdef1.o: ${ALPHA}/alpha/setdef1.c setdefs.h
+	${NORMAL_C}
+
+setdefs.h: gensetdefs ${OBJS}
+	@echo Generating kernel linker sets
+	@./gensetdefs ${OBJS} >setdefs.h
+
+gensetdefs: gensetdefs.o
+	${CC} ${CFLAGS} gensetdefs.o -o $@
+
+gensetdefs.o: ${ALPHA}/alpha/gensetdefs.c
+	${CC} -c ${CFLAGS} ${ALPHA}/alpha/gensetdefs.c
+
+# everything potentially depends on the Makefile since everything potentially
+# depends on the options.  Some things are more dependent on the Makefile for
+# historical reasons.
+machdep.o: Makefile
+
+# the following is necessary because autoconf.o depends on #if GENERIC
+autoconf.o: Makefile
+
+# XXX - may no longer be needed
+locore.o: Makefile
+
+# depends on KDB (cons.o also depends on GENERIC)
+trap.o cons.o: Makefile
+
+# this rule stops ./assym.s in .depend from causing problems
+./assym.s: assym.s
+
+assym.s: genassym
+	./genassym >assym.s
+
+# Some of the defines that genassym outputs may well depend on the
+# value of kernel options.
+genassym.o: ${ALPHA}/alpha/genassym.c Makefile opt_global.h
+	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
+
+genassym: genassym.o
+	${CC} ${CFLAGS} ${PARAM} genassym.o -o $@
+
+SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
+SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o
+CLEAN+=	__divqu.S __divq.S __divlu.S __divl.S
+CLEAN+=	__remqu.S __remq.S __remlu.S __reml.S
+
+__divqu.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__divqu')define(OP,\`div')define(S,\`false')"; \
+	 echo "define(WORDSIZE,64)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__divq.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__divq')define(OP,\`div')define(S,\`true')"; \
+	 echo "define(WORDSIZE,64)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__divlu.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__divlu')define(OP,\`div')define(S,\`false')"; \
+	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__divl.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__divl')define(OP,\`div')define(S,\`true')"; \
+	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__remqu.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__remqu')define(OP,\`rem')define(S,\`false')"; \
+	 echo "define(WORDSIZE,64)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__remq.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__remq')define(OP,\`rem')define(S,\`true')"; \
+	 echo "define(WORDSIZE,64)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__remlu.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__remlu')define(OP,\`rem')define(S,\`false')"; \
+	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+__reml.S: ${S}/alpha/alpha/divrem.m4
+	@echo 'building ${.TARGET} from ${.ALLSRC}'
+	@(echo "define(NAME,\`__reml')define(OP,\`rem')define(S,\`true')"; \
+	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
+
+
+${OBJS}: opt_global.h
+
+# XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
+depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
+	rm -f .newdep
+	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
+	mkdep -a -f .newdep ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
+	MKDEP_CPP="${CC} -E -x assembler-with-cpp" ; export MKDEP_CPP ; \
+	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
+	rm -f .depend
+	mv -f .newdep .depend
+
+cleandepend:
+	rm -f .depend
+
+links:
+	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \
+	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
+	echo ${CFILES:Nswapkernel.c} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	  sort -u | comm -23 - dontlink | \
+	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
+	sh makelinks && rm -f dontlink
+
+tags:
+	@echo "see $S/kern/Makefile for tags"
+
+install:
+	@if [ ! -f kernel ] ; then \
+		echo "You must first build your kernel before trying to install." ; \
+		exit 1 ; \
+	fi
+.if exists(${DESTDIR}/kernel)
+	chflags noschg ${DESTDIR}/kernel
+	mv ${DESTDIR}/kernel ${DESTDIR}/kernel.old
+.endif
+	PATH=$${PATH}:/sbin:/usr/sbin; \
+	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/kernel ] ; then \
+		sysctl -w kern.bootfile=${DESTDIR}/kernel.old ; \
+		if [ -f /var/db/kvm_kernel.db ] ; then \
+			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		fi \
+	fi
+	install -c -m 555 -o root -g wheel -fschg kernel ${DESTDIR}/
+
+ioconf.o: ioconf.c $S/sys/param.h $S/sys/buf.h
+	${CC} -c ${CFLAGS} ioconf.c
+
+param.c: $S/conf/param.c
+	-rm -f param.c
+	cp $S/conf/param.c .
+
+param.o: param.c Makefile
+	${CC} -c ${CFLAGS} ${PARAM} param.c
+
+vers.o: ${SYSTEM_DEP} ${SYSTEM_SWAP_DEP}
+	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
+	${CC} ${CFLAGS} -c vers.c
+
+vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+
+.include <bsd.kern.mk>
+
+%RULES
+
+# DO NOT DELETE THIS LINE -- make depend uses it

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.18 1998/06/07 17:09:37 dfr Exp $
+ *	$Id: db_print.c,v 1.19 1998/06/08 02:15:37 bde Exp $
  */
 
 /*
@@ -53,7 +53,7 @@ db_show_regs(dummy1, dummy2, dummy3, dummy4)
 
 	for (regp = db_regs; regp < db_eregs; regp++) {
 	    db_read_variable(regp, &value);
-	    db_printf("%-12s%#10n", regp->name, value);
+	    db_printf("%-12s%#10ln", regp->name, value);
 	    db_find_xtrn_sym_and_offset((db_addr_t)value, &name, &offset);
 	    if (name != 0 && offset <= db_maxoff && offset != value) {
 		db_printf("\t%s", name);
