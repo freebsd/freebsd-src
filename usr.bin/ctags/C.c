@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)C.c	8.4 (Berkeley) 4/2/94";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <limits.h>
@@ -193,6 +198,16 @@ c_entries()
 		 * reserved words.
 		 */
 		default:
+			/* ignore whitespace */
+			if (c == ' ' || c == '\t') {
+				int save = c;
+				while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
+					;
+				if (c == EOF)
+					return;
+				(void)ungetc(c, inf);
+				c = save;
+			}
 	storec:		if (!intoken(c)) {
 				if (sp == tok)
 					break;
@@ -310,6 +325,11 @@ hash_entry()
 	int	curline;		/* line started on */
 	char	*sp;			/* buffer pointer */
 	char	tok[MAXTOKEN];		/* storage buffer */
+
+	/* ignore leading whitespace */
+	while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
+		;
+	(void)ungetc(c, inf);
 
 	curline = lineno;
 	for (sp = tok;;) {		/* get next token */
