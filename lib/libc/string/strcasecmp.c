@@ -31,13 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <string.h>
-#include <ctype.h>
-
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
+
+#include <sys/cdefs.h>
+#include <string.h>
+#include <ctype.h>
 
 typedef unsigned char u_char;
 
