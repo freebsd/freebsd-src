@@ -157,7 +157,7 @@ typedef struct {
 
 	wtstatus_t error;               /* status of controller */
 
-	unsigned short DATAPORT, CMDPORT, STATPORT, CTLPORT, SDMAPORT, RDMAPORT;
+	unsigned DATAPORT, CMDPORT, STATPORT, CTLPORT, SDMAPORT, RDMAPORT;
 	unsigned char BUSY, NOEXCEP, RESETMASK, RESETVAL;
 	unsigned char ONLINE, RESET, REQUEST, IEN;
 } wtinfo_t;
