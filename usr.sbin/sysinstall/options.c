@@ -53,6 +53,7 @@ varCheck(Option opt)
 static char *
 resetLogo(char *str)
 {
+    clear();
     return "[RESET!]";
 }
 
