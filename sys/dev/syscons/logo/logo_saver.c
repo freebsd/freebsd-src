@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: logo_saver.c,v 1.1 1998/12/28 14:22:57 des Exp $
  */
 
 #include <sys/param.h>
@@ -39,11 +39,8 @@
 #include <saver.h>
 
 static u_char *vid;
-static int banksize;
+static int banksize, scrmode, scrw, scrh;
 static u_char save_pal[768];
-
-#define SCRW 800
-#define SCRH 600
 
 #include "logo.c"
 
@@ -54,25 +51,25 @@ logo_blit(int x, int y)
 {
     int d, l, o, p;
     
-    for (o = 0, p = y * SCRW + x; p > banksize; p -= banksize)
+    for (o = 0, p = y * scrw + x; p > banksize; p -= banksize)
 	o += banksize;
     set_origin(cur_console, o);
 
     for (d = 0; d < sizeof logo_img; d += logo_w) {
 	if (p + logo_w < banksize) {
 	    bcopy(logo_img + d, vid + p, logo_w);
-	    p += SCRW;
+	    p += scrw;
 	} else if (p < banksize) {
 	    l = banksize - p;
 	    bcopy(logo_img + d, vid + p, l);
 	    set_origin(cur_console, (o += banksize));
 	    bcopy(logo_img + d + l, vid, logo_w - l);
-	    p += SCRW - banksize;
+	    p += scrw - banksize;
 	} else {
 	    p -= banksize;
 	    set_origin(cur_console, (o += banksize));
 	    bcopy(logo_img + d, vid + p, logo_w);
-	    p += SCRW;
+	    p += scrw;
 	}
     }
 }
@@ -84,9 +81,12 @@ logo_update(void)
     static int xinc = 1, yinc = 1;
 
     /* Turn when you hit the edge */
-    if ((xpos + logo_w + xinc > SCRW) || (xpos + xinc < 0)) xinc = -xinc;
-    if ((ypos + logo_h + yinc > SCRH) || (ypos + yinc < 0)) yinc = -yinc;
-    xpos += xinc; ypos += yinc;
+    if ((xpos + logo_w + xinc > scrw) || (xpos + xinc < 0))
+	xinc = -xinc;
+    if ((ypos + logo_h + yinc > scrh) || (ypos + yinc < 0))
+	yinc = -yinc;
+    xpos += xinc;
+    ypos += yinc;
 	
     /* XXX Relies on margin around logo to erase trail */
     logo_blit(xpos, ypos);
@@ -97,14 +97,14 @@ logo_saver(int blank)
 {
     scr_stat *scp = cur_console;
     static int saved_mode;
-    int pl;
+    int i, pl;
 
     if (blank) {
 	/* switch to graphics mode */
 	if (scrn_blanked <= 0) {
 	    pl = splhigh();
 	    saved_mode = scp->mode;
-	    scp->mode = M_VESA_CG800x600;
+	    scp->mode = scrmode;
 	    scp->status |= SAVER_RUNNING|GRAPHICS_MODE;
 	    save_palette(scp, (char *)save_pal);
 	    set_mode(scp);
@@ -112,7 +112,10 @@ logo_saver(int blank)
 	    scrn_blanked++;
 	    vid = (u_char *)Crtat;
 	    splx(pl);
-	    /* XXX should clear all banks */
+	    for (i = 0; i < scrw*scrh; i += banksize) {
+		set_origin(scp, i);
+		bzero(vid, banksize);
+	    }
 	}
 	logo_update();
     } else {
@@ -136,17 +139,22 @@ static int
 logo_saver_load(void)
 {
     video_info_t info;
-
-    /* check that the console is capable of running in 800x600x256 */
-    if ((*biosvidsw.get_info)(cur_console->adp, M_VESA_CG800x600, &info)) {
-        log(LOG_NOTICE, "logo_saver: the console does not support M_VESA_CG800x600\n");
+    int adp;
+    
+    adp = cur_console->adp;
+    if (!(*biosvidsw.get_info)(adp, M_VESA_CG800x600, &info)) {
+	scrmode = M_VESA_CG800x600;
+    } else if (!(*biosvidsw.get_info)(adp, M_VGA_CG320, &info)) {
+	scrmode = M_VGA_CG320;
+    } else {
+        log(LOG_NOTICE, "logo_saver: no suitable graphics mode\n");
 	return ENODEV;
     }
     
-    /* is it possible for window_size not to be a multiple of window_gran? */
-    while (banksize + info.vi_window_gran <= info.vi_window_size)
-	banksize += info.vi_window_gran;
-
+    banksize = info.vi_window_size;
+    scrw = info.vi_width;
+    scrh = info.vi_height;
+    
     return add_scrn_saver(logo_saver);
 }
 
