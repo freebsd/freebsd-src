@@ -66,7 +66,6 @@ static char *
 private_strerror (errnum)
      int errnum;
 {
-  extern char *sys_errlist[];
   extern int sys_nerr;
 
   if (errnum > 0 && errnum <= sys_nerr)
