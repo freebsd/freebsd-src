@@ -6,7 +6,7 @@
 # runs the file-specific summary script and appends the summary data to 
 # designated files.
 #
-DATE=`date +19%y%m%d`
+DATE=`date +%Y%m%d`
 SIN=S.in
 SOUT=S.out
 LOOP=loop_summary
