@@ -39,7 +39,6 @@
 #define	_VNODE_PAGER_	1
 
 #ifdef _KERNEL
-vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
 struct vnode *vnode_pager_lock(vm_object_t);
 
 /*

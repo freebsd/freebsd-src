@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
+#include <sys/limits.h>
 #include <sys/conf.h>
 #include <sys/sf_buf.h>
 
@@ -81,6 +82,7 @@ static void vnode_pager_dealloc(vm_object_t);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
+static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
 
 struct pagerops vnodepagerops = {
 	.pgo_init =	vnode_pager_init,
@@ -98,6 +100,54 @@ vnode_pager_init(void)
 {
 
 	vnode_pbuf_freecnt = nswbuf / 2 + 1;
+}
+
+/* Create the VM system backing object for this vnode */
+int
+vnode_create_vobject(struct vnode *vp, size_t isize, struct thread *td)
+{
+	vm_object_t object;
+	vm_ooffset_t size = isize;
+	struct vattr va;
+
+	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
+		return (0);
+
+	while ((object = vp->v_object) != NULL) {
+		VM_OBJECT_LOCK(object);
+		if (!(object->flags & OBJ_DEAD)) {
+			VM_OBJECT_UNLOCK(object);
+			return (0);
+		}
+		VOP_UNLOCK(vp, 0, td);
+		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
+		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vodead", 0);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	}
+
+	if (size == 0) {
+		if (vn_isdisk(vp, NULL)) {
+			size = IDX_TO_OFF(INT_MAX);
+		} else {
+			if (VOP_GETATTR(vp, &va, td->td_ucred, td) != 0)
+				return (0);
+			size = va.va_size;
+		}
+	}
+
+	object = vnode_pager_alloc(vp, size, 0, 0);
+	/*
+	 * Dereference the reference we just created.  This assumes
+	 * that the object is associated with the vp.
+	 */
+	VM_OBJECT_LOCK(object);
+	object->ref_count--;
+	VM_OBJECT_UNLOCK(object);
+	vrele(vp);
+
+	KASSERT(vp->v_object != NULL, ("vnode_create_vobject: NULL object"));
+
+	return (0);
 }
 
 /*
