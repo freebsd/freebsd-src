@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_ntfs.8,v 1.2 1999/01/30 05:06:53 semen Exp $
+.\"	$Id: mount_ntfs.8,v 1.2 1999/02/19 12:38:10 semenu Exp $
 .\"
 .Dd Jan 3, 1999
 .Dt MOUNT_NTFS 8
@@ -63,9 +63,10 @@ contains the file system).
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl a
-Force behaviour to return MS-DOS 8.3 names also on readdir().
+Force behaviour to return MS-DOS 8.3 names also on 
+.Fn readdir .
 .It Fl i
-Make name lookup case insesitive for all names except POSIX names.
+Make name lookup case insensitive for all names except POSIX names.
 .It Fl u Ar uid
 Set the owner of the files in the file system to
 .Ar uid .
@@ -87,12 +88,13 @@ foo[[:ATTRTYPE]:ATTRNAME]
 .Ed
 .Pp
 .Sq ATTRTYPE
-is one of indentifier listed in $AttrDef file of
+is one of identifier listed in $AttrDef file of
 volume. Default is $DATA.
 .Sq ATTRNAME
 is an attribute name. Default is none.
 .Sh EXAMPLES
-To mount an ntfs volume located in /dev/wd1s1:
+To mount an ntfs volume located in 
+.Pa /dev/wd1s1 :
 .Bd -literal -offset indent
 # mount_ntfs /dev/wd1s1 /mnt
 .Ed
@@ -117,12 +119,16 @@ files are not supported either.
 .Xr fstab 5 ,
 .Xr mount 8
 .Sh CAVEATS
-This utulity gives almost only read-only access to NTFS volume. See WRITING section.
+This utility gives almost only read-only access to NTFS volume. See
+.Sx WRITING
+section.
 .Sh HISTORY
 The
 .Nm
-first appered in FreeBSD 3.0
+first appeared in
+.Fx 3.0 .
 .Sh AUTHOR
-NTFS kernel inplementation,
+NTFS kernel implementation,
 .Nm
-and manual were written by Semen Ustimenko <semenu@FreeBSD.org>.
+and manual were written by
+.An Semen Ustimenko Aq semenu@FreeBSD.org .
