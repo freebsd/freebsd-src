@@ -5,7 +5,7 @@
 @subsubsection @code{bfd_openr}
 @strong{Synopsis}
 @example
-bfd *bfd_openr(CONST char *filename, CONST char *target);
+bfd *bfd_openr(const char *filename, const char *target);
 @end example
 @strong{Description}@*
 Open the file @var{filename} (using @code{fopen}) with the target
@@ -21,7 +21,7 @@ are @code{bfd_error_no_memory}, @code{bfd_error_invalid_target} or @code{system_
 @subsubsection @code{bfd_fdopenr}
 @strong{Synopsis}
 @example
-bfd *bfd_fdopenr(CONST char *filename, CONST char *target, int fd);
+bfd *bfd_fdopenr(const char *filename, const char *target, int fd);
 @end example
 @strong{Description}@*
 @code{bfd_fdopenr} is to @code{bfd_fopenr} much like @code{fdopen} is to @code{fopen}.
@@ -55,7 +55,7 @@ the BFD is passed to @code{bfd_close}, the stream will be closed.
 @subsubsection @code{bfd_openw}
 @strong{Synopsis}
 @example
-bfd *bfd_openw(CONST char *filename, CONST char *target);
+bfd *bfd_openw(const char *filename, const char *target);
 @end example
 @strong{Description}@*
 Create a BFD, associated with file @var{filename}, using the
@@ -108,7 +108,7 @@ All memory attached to the BFD is released.
 @subsubsection @code{bfd_create}
 @strong{Synopsis}
 @example
-bfd *bfd_create(CONST char *filename, bfd *templ);
+bfd *bfd_create(const char *filename, bfd *templ);
 @end example
 @strong{Description}@*
 Create a new BFD in the manner of

@@ -1,5 +1,7 @@
 -*- text -*-
 
+Changes in binutils 2.12:
+
 * Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
 
 * size: Add --totals to display summary of sizes (Berkeley format only).

@@ -1,3 +1,8 @@
+2002-02-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config.guess: Import from master sources, rev 1.232.
+	* config.sub: Import from master sources, rev 1.246.
+
 2002-02-09  Alexandre Oliva  <aoliva@redhat.com>
 
 	Contribute sh64-elf.

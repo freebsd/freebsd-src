@@ -194,7 +194,7 @@ Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Fr
 
 @end titlepage
 
-@ifinfo
+@ifnottex
 @node Top
 @top Using @value{AS}
 
@@ -223,7 +223,7 @@ section entitled "GNU Free Documentation License".
 * GNU Free Documentation License::  GNU Free Documentation License
 * Index::                       Index
 @end menu
-@end ifinfo
+@end ifnottex
 
 @node Overview
 @chapter Overview

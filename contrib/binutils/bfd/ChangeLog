@@ -1,3 +1,58 @@
+2002-03-20  Tom Rix  <trix@redhat.com>
+
+	* coff-rs6000.c (_bfd_xcoff_stat_arch_elt): Renamed from 
+	_bfd_xcoff_generic_stat_arch_elt.  Fix format check.
+	* coff64-rs6000.c :  Use _bfd_xcoff_stat_arch_elt. 
+
+Mon Mar 18 18:06:54 CET 2002  Jan Hubicka  <jh@suse.cz>
+
+	* cpu-i386.c (bfd_x86_64_arch): Rename to "i386:x86-64"
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure.in: Set is_release=y for 2.12 release.
+	* configure: Likewise.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure.in: Bump version to 2.12.
+	* configure: Likewise.
+
+2002-03-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in (WIN32LIBADD): Don't eval PICFLAG assignment.
+	* configure: Regenerate.
+
+2002-02-26  Andrew Macleod  <amacleod@cygnus.com>
+
+	* elflink.h (elf_bfd_final_link): Don't crash on SHN_UNDEF local
+	dynsyms.
+
+2002-02-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* elf64-ppc.c (ppc64_elf_check_relocs): Warning fix.
+	(ppc64_elf_relocate_section): Don't generate power4 style branch
+	hints for *_BRTAKEN and *_BRNTAKEN relocs.
+
+	* elf64-ppc.c (STFD_FR0_0R1, LFD_FR0_0R1, BLR): Define.
+	(struct ppc_link_hash_table): Add sfpr.
+	(ppc64_elf_link_hash_table_create): Init it.
+	(ppc64_elf_create_dynamic_sections): Split creation of .stub and
+	.glink out to..
+	(create_linkage_sections): ..here.  Make .sfpr too.
+	(ppc64_elf_check_relocs): Call create_linkage_sections, and set
+	dynobj early.
+	(MIN_SAVE_FPR, MAX_SAVE_FPR): Define.
+	(ppc64_elf_func_desc_adjust): Look for missing ._savef* and
+	._restf* functions, and create as needed.
+	(func_desc_adjust): Only force_local for shared libs.
+
+2002-02-22  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf64-sh64.c (sh_elf64_relocate_section): Fix a typo from my
+	last patch.
+	* elf64-x86-64.c (elf64_x86_64_relocate_section): Likewise.
+
 2002-02-20  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
 
 	* osf-core.c (osf_core_vec):  OSF/1 (Digital Unix) core files are
@@ -527,6 +582,7 @@
 	sym check if we find one.
 	* elf64-s390.c (elf_s390_size_dynamic_sections): Likewise.
 	* elf32-hppa.c (elf32_hppa_size_dynamic_sections): Likewise.
+	* elf32-i386.c (elf_i386_size_dynamic_sections): Likewise.
 	* elf32-s390.c (elf_s390_size_dynamic_sections): Likewise.
 	(elf_s390_grok_prstatus): Add missing prototype.
 

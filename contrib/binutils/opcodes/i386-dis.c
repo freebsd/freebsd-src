@@ -1807,7 +1807,10 @@ prefix_name (pref, sizeflag)
     case 0x66:
       return (sizeflag & DFLAG) ? "data16" : "data32";
     case 0x67:
-      return (sizeflag & AFLAG) ? "addr16" : "addr32";
+      if (mode_64bit)
+        return (sizeflag & AFLAG) ? "addr32" : "addr64";
+      else
+        return ((sizeflag & AFLAG) && !mode_64bit) ? "addr16" : "addr32";
     case FWAIT_OPCODE:
       return "fwait";
     default:
@@ -2081,7 +2084,7 @@ print_insn (pc, info)
       sizeflag ^= AFLAG;
       if (dp->bytemode3 != loop_jcxz_mode || intel_syntax)
 	{
-	  if (sizeflag & AFLAG)
+	  if ((sizeflag & AFLAG) || mode_64bit)
 	    oappend ("addr32 ");
 	  else
 	    oappend ("addr16 ");
@@ -2626,8 +2629,16 @@ putop (template, sizeflag)
 	    *obufp++ = 'b';
 	  break;
 	case 'E':		/* For jcxz/jecxz */
-	  if (sizeflag & AFLAG)
-	    *obufp++ = 'e';
+	  if (mode_64bit)
+	    {
+	      if (sizeflag & AFLAG)
+		*obufp++ = 'r';
+	      else
+		*obufp++ = 'e';
+	    }
+	  else
+	    if (sizeflag & AFLAG)
+	      *obufp++ = 'e';
 	  used_prefixes |= (prefixes & PREFIX_ADDR);
 	  break;
 	case 'F':
@@ -2636,9 +2647,9 @@ putop (template, sizeflag)
 	  if ((prefixes & PREFIX_ADDR) || (sizeflag & SUFFIX_ALWAYS))
 	    {
 	      if (sizeflag & AFLAG)
-		*obufp++ = 'l';
+		*obufp++ = mode_64bit ? 'q' : 'l';
 	      else
-		*obufp++ = 'w';
+		*obufp++ = mode_64bit ? 'l' : 'w';
 	      used_prefixes |= (prefixes & PREFIX_ADDR);
 	    }
 	  break;
@@ -3014,7 +3025,7 @@ OP_E (bytemode, sizeflag)
   disp = 0;
   append_seg ();
 
-  if (sizeflag & AFLAG) /* 32 bit address mode */
+  if ((sizeflag & AFLAG) || mode_64bit) /* 32 bit address mode */
     {
       int havesib;
       int havebase;
@@ -3048,7 +3059,7 @@ OP_E (bytemode, sizeflag)
 	  if ((base & 7) == 5)
 	    {
 	      havebase = 0;
-	      if (mode_64bit && !havesib)
+	      if (mode_64bit && !havesib && (sizeflag & AFLAG))
 		riprel = 1;
 	      disp = get32s ();
 	    }
@@ -3115,7 +3126,8 @@ OP_E (bytemode, sizeflag)
 	  if (!havesib && (rex & REX_EXTZ))
 	    base += 8;
 	  if (havebase)
-	    oappend (mode_64bit ? names64[base] : names32[base]);
+	    oappend (mode_64bit && (sizeflag & AFLAG)
+		     ? names64[base] : names32[base]);
 	  if (havesib)
 	    {
 	      if (index != 4)
@@ -3128,11 +3140,13 @@ OP_E (bytemode, sizeflag)
                           *obufp = '\0';
                         }
                       sprintf (scratchbuf, "%s",
-			       mode_64bit ? names64[index] : names32[index]);
+			       mode_64bit && (sizeflag & AFLAG)
+			       ? names64[index] : names32[index]);
                     }
                   else
 		    sprintf (scratchbuf, ",%s",
-			     mode_64bit ? names64[index] : names32[index]);
+			     mode_64bit && (sizeflag & AFLAG)
+			     ? names64[index] : names32[index]);
 		  oappend (scratchbuf);
 		}
               if (!intel_syntax
@@ -3703,7 +3717,7 @@ OP_OFF (bytemode, sizeflag)
 
   append_seg ();
 
-  if (sizeflag & AFLAG)
+  if ((sizeflag & AFLAG) || mode_64bit)
     off = get32 ();
   else
     off = get16 ();
@@ -3764,7 +3778,12 @@ ptr_reg (code, sizeflag)
 
   USED_REX (REX_MODE64);
   if (rex & REX_MODE64)
-    s = names64[code - eAX_reg];
+    {
+      if (!(sizeflag & AFLAG))
+        s = names32[code - eAX_reg];
+      else
+        s = names64[code - eAX_reg];
+    }
   else if (sizeflag & AFLAG)
     s = names32[code - eAX_reg];
   else
