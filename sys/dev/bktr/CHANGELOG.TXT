@@ -254,7 +254,7 @@
                     and MSP34xx Audio chip. Fixed i2c read error.
                     Hauppauge supplied details of new Tuner Types.
                     Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
-                    AverMedia detection with PCI subsystem vendor id.
+                    AVerMedia detection with PCI subsystem vendor id.
 
 1.57    26 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
                     Support for MSP3410D / MSP3415D Stereo/Mono audio
@@ -418,10 +418,19 @@
 		  Found FM radio bug mute introduced in release 2.00
 
 2.04  20 Oct 1999 Roger Hardiman <roger@freebsd.org>
-		  Updated AverMedia audio sources to support FM and Line In
-		  sources properly. (Based on info supplied by AverMedia)
+		  Updated AVerMedia audio sources to support FM and Line In
+		  sources properly. (Based on info supplied by AVerMedia)
 		  Make PLL mode the default for Bt878 chips. This means PAL
 		  Bt878 users no longer need the BKTR_USE_PLL kernel option.
 		  Detect and auto-configure Dolby Surround Sound DPL3518A chip
 		  on Hauppauge WinTV Theater. From Frank Nobis <fn@radio-do.de>
 
+2.05   8 Nov 1999 Update tuner control codes for Philips SECAM. Submitted by
+                  Cyrille Lefevre <clefevre@citeweb.net>
+		  Updated clipping code, ready for Xv support in XFree86 4.0,
+		  submitted by Thomas Mueller <tmueller@thmu.de>
+		  Thomas also has information on a LynxOS port of this driver.
+                  Phase out the rgb_prog RISC program and use rgb_vbi_prog as
+                  the default. Now you no longer have to open /dev/vbi
+                  before /dev/bktr. - Roger Hardiman <roger@freebsd.org>
+                  
