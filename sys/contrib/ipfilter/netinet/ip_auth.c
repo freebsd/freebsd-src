@@ -445,22 +445,8 @@ fr_authioctlloop:
 # if SOLARIS
 			error = (fr_qin(fra->fra_q, m) == 0) ? EINVAL : 0;
 # else /* SOLARIS */
-#  if __FreeBSD_version >= 501104
-			if (! netisr_dispatch(NETISR_IP, m))
+			if (! netisr_queue(NETISR_IP, m))
 				error = ENOBUFS;
-#  else
-			ifq = &ipintrq;
-			if (IF_QFULL(ifq)) {
-				IF_DROP(ifq);
-				m_freem(m);
-				error = ENOBUFS;
-			} else {
-				IF_ENQUEUE(ifq, m);
-#   if IRIX < 605
-				schednetisr(NETISR_IP);
-#   endif
-			}
-#  endif
 # endif /* SOLARIS */
 			if (error)
 				fr_authstats.fas_quefail++;
