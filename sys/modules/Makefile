@@ -59,7 +59,7 @@ SUBDIR=	${_3dfx} \
 	dcons \
 	dcons_crom \
 	de \
-	digi \
+	${_digi} \
 	${_dpt} \
 	${_drm} \
 	dummynet \
@@ -301,6 +301,7 @@ _awi=		awi
 _bktr=		bktr
 _coff=		coff
 _cp=		cp
+_digi=		digi
 _drm=		drm
 _ed=		ed
 _elink=		elink
@@ -393,6 +394,7 @@ _aac=		aac
 #_acpi=		acpi		# doesn't work on amd64 yet
 _agp=		agp
 _ciss=		ciss
+_digi=		digi
 _drm=		drm
 _em=		em
 _ext2fs=	ext2fs
