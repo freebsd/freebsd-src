@@ -1084,14 +1084,12 @@ ip_fw_chk(struct ip **pip, int hlen,
 	last_pkt.flags = flags;
 
 	if (*flow_id) {
-		/* Accept if passed first test */
-		if (fw_one_pass)
-			return 0;
 		/*
 		 * Packet has already been tagged. Look for the next rule
 		 * to restart processing.
 		 */
-		chain = LIST_NEXT(*flow_id, next);
+		if (fw_one_pass) /* just accept if fw_one_pass is set */
+			return 0;
 
 		if ((chain = (*flow_id)->rule->next_rule_ptr) == NULL)
 			chain = (*flow_id)->rule->next_rule_ptr =
@@ -1416,8 +1414,8 @@ got_match:
 			return(f->fw_divert_port | IP_FW_PORT_TEE_FLAG);
 #endif
 		case IP_FW_F_SKIPTO: /* XXX check */
-			if ( (chain = f->next_rule_ptr) == NULL )
-			    chain = lookup_next_rule(chain) ;
+			chain = f->next_rule_ptr ? f->next_rule_ptr :
+				lookup_next_rule(chain) ;
 			if (! chain)
 			    goto dropit;
 			goto again ;
