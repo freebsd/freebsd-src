@@ -142,7 +142,7 @@ printcpuinfo(void)
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if (strcmp(cpu_vendor,"GenuineIntel") == 0) {
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 0x300) {
 			u_int brand_index;
 
@@ -275,7 +275,7 @@ printcpuinfo(void)
 					    cpu_brandtable[brand_index]);
 			}
 		}
-	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
+	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		/*
 		 * Values taken from AMD Processor Recognition
 		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
@@ -347,7 +347,7 @@ printcpuinfo(void)
 				enable_K6_wt_alloc();
 		}
 #endif
-	} else if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
+	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		strcpy(cpu_model, "Cyrix ");
 		switch (cpu_id & 0xff0) {
 		case 0x440:
