@@ -480,9 +480,7 @@ svr4_sys_uname(td, uap)
 	strncpy(sut.sysname, ostype, sizeof(sut.sysname));
 	sut.sysname[sizeof(sut.sysname) - 1] = '\0';
 
-	strncpy(sut.nodename, getcredhostname(td->td_ucred),
-	    sizeof(sut.nodename));
-	sut.nodename[sizeof(sut.nodename) - 1] = '\0';
+	getcredhostname(td->td_ucred, sut.nodename, sizeof(sut.nodename));
 
 	strncpy(sut.release, osrelease, sizeof(sut.release));
 	sut.release[sizeof(sut.release) - 1] = '\0';
