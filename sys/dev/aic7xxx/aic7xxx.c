@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#146 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#147 $
  */
 
 #ifdef __linux__
@@ -4046,9 +4046,6 @@ ahc_shutdown(void *arg)
 
 	ahc = (struct ahc_softc *)arg;
 
-	/* Kill off our recovery thread. */
-	ahc_terminate_recovery_thread(ahc);
- 
 	/* This will reset most registers to 0, but not all */
 	ahc_reset(ahc, /*reinit*/FALSE);
 	ahc_outb(ahc, SCSISEQ, 0);
