@@ -1,9 +1,9 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/string ${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/string ${.CURDIR}/string
 
-CFLAGS+= -I${.CURDIR}/../libc/locale
+CFLAGS+= -I${.CURDIR}/locale
 
 # machine-independent string sources
 MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
@@ -21,11 +21,10 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 
 
 # machine-dependent string sources
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc)
-.include "${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/string/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/string/Makefile.inc"
 .endif
 
-.if ${LIB} == "c"
 MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \
 	memcmp.3 memcpy.3 memmove.3 memset.3 rindex.3 strcasecmp.3 strcat.3 \
 	strchr.3 strcmp.3 strcoll.3 strcpy.3 strcspn.3 strdup.3 strerror.3 \
@@ -54,4 +53,3 @@ MLINKS+=wmemchr.3 wmemcmp.3 wmemchr.3 wmemcpy.3 \
 	wmemchr.3 wcsncpy.3 wmemchr.3 wcspbrk.3 \
 	wmemchr.3 wcsrchr.3 wmemchr.3 wcsspn.3 \
 	wmemchr.3 wcsstr.3
-.endif

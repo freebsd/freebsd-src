@@ -2,7 +2,7 @@
 
 MAINTAINER=	rwatson@FreeBSD.org
 
-.PATH: ${.CURDIR}/../libc/posix1e
+.PATH: ${.CURDIR}/posix1e
 
 SRCS+=	acl_calc_mask.c			\
 	acl_copy.c			\
@@ -23,8 +23,6 @@ SRCS+=	acl_calc_mask.c			\
 	mac_exec.c			\
 	mac_get.c			\
 	mac_set.c
-
-.if ${LIB} == "c"
 
 MAN+=	acl.3				\
 	acl_add_perm.3			\
@@ -81,5 +79,3 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	mac_set.3 mac_set_proc.3		\
 	mac_text.3 mac_from_text.3		\
 	mac_text.3 mac_to_text.3
-
-.endif

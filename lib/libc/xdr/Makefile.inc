@@ -1,11 +1,10 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../libc/xdr ${.CURDIR}/.
+.PATH: ${.CURDIR}/xdr ${.CURDIR}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
 	xdr_rec.c xdr_reference.c xdr_stdio.c
 
-.if ${LIB} == "c"
 MAN+=	xdr.3
 
 MLINKS+=	rpc_xdr.3 xdr_accepted_reply.3 \
@@ -47,4 +46,3 @@ MLINKS+=	rpc_xdr.3 xdr_accepted_reply.3 \
 		xdr.3 xdr_vector.3 \
 		xdr.3 xdr_void.3 \
                 xdr.3 xdr_wrapstring.3
-.endif

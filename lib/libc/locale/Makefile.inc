@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # locale sources
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/locale ${.CURDIR}/locale
 
 SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	isctype.c iswctype.c \
@@ -18,7 +18,6 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
 	wcwidth.c
 
-.if ${LIB} == "c"
 MAN+=	btowc.3 \
 	ctype.3 digittoint.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isdigit.3 isgraph.3 islower.3 isprint.3 ispunct.3 isspace.3 \
@@ -55,4 +54,3 @@ MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
 	wcstol.3 wcstoimax.3 wcstol.3 wcstoumax.3
 MLINKS+=wctrans.3 towctrans.3
 MLINKS+=wctype.3 iswctype.3
-.endif

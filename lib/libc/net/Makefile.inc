@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net ${.CURDIR}/../libc/net
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/net ${.CURDIR}/net
 
 SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
@@ -37,11 +37,10 @@ nslexer.c: nslexer.l nsparser.h
 		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
 
 # machine-dependent net sources
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc)
-.include "${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/net/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/net/Makefile.inc"
 .endif
 
-.if ${LIB} == "c"
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	getifaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 hesiod.3 \
@@ -100,4 +99,3 @@ MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_search.3 resolver.3 res_send.3 resolver.3 dn_skipname.3 \
 	resolver.3 ns_get16.3 resolver.3 ns_get32.3 \
 	resolver.3 ns_put16.3 resolver.3 ns_put32.3
-.endif

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/sys ${.CURDIR}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
@@ -13,8 +13,8 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc)
-.include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/sys/Makefile.inc"
 .endif
 
 # Sources common to both syscall interfaces:
@@ -53,7 +53,6 @@ ${SPSEUDO}:
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    > ${.TARGET}
 
-.if ${LIB} == "c"
 MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
@@ -141,5 +140,4 @@ MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
 MLINKS+=sched_setparam.2 sched_getparam.2
 MLINKS+=sched_setscheduler.2 sched_getscheduler.2
-.endif
 .endif
