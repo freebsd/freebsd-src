@@ -266,8 +266,8 @@ __fpsetsticky(fp_except_t _m)
 
 #if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) && defined(__GNUC__)
 
-#define	fpsetround()	__fpsetround()
-#define	fpgetround(_m)	__fpgetround(_m)
+#define	fpgetround()	__fpgetround()
+#define	fpsetround(_m)	__fpsetround(_m)
 #define	fpgetprec()	__fpgetprec()
 #define	fpsetprec(_m)	__fpsetprec(_m)
 #define	fpgetmask()	__fpgetmask()
