@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.26 1998/04/19 09:11:17 obrien Exp $
+#	$Id: Makefile,v 1.109.2.27 1998/04/26 08:40:48 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -630,7 +630,6 @@ build-tools:
 		gnu/usr.bin/man/makewhatis	\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo     \
-		share/info		\
 		usr.bin/basename	\
 		usr.bin/cap_mkdb	\
 		usr.bin/chflags		\
