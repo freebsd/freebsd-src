@@ -5,10 +5,9 @@
 KMOD=	nwfs
 KMODDEPS= ncp
 
-SRCS=	nwfs_node.c nwfs_ioctl.c nwfs_io.c nwfs_vfsops.c nwfs_vnops.c \
+SRCS=	vnode_if.h \
+	nwfs_node.c nwfs_ioctl.c nwfs_io.c nwfs_vfsops.c nwfs_vnops.c \
 	nwfs_subr.c opt_ncp.h opt_nwfs.h opt_vmpage.h
-
-VFS_KLD=true
 
 NOMAN=true
 
