@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.20 1995/10/26 08:56:08 jkh Exp $
+ * $Id: package.c,v 1.21 1995/10/27 02:12:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,7 +84,7 @@ package_extract(Device *dev, char *name)
 
     ret = RET_FAIL;
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    msgNotify("Adding %s from %s", path, dev->name);
+    msgNotify("Adding %s\nfrom %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	pen[0] = '\0';
