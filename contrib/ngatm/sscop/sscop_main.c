@@ -41,7 +41,6 @@
 #include <signal.h>
 #include <assert.h>
 #include <err.h>
-#include <isc/eventlib.h>
 
 #include <netnatm/unimsg.h>
 #include <netnatm/saal/sscop.h>
@@ -95,8 +94,13 @@ static const struct sscop_funcs sscop_funcs = {
  * SSCOP file descriptor is ready. Allocate and read one message
  * and dispatch a signal.
  */
+#ifdef USE_LIBBEGEMOT
+static void
+proto_infunc(int fd, int mask __unused, void *uap)
+#else
 static void
 proto_infunc(evContext ctx __unused, void *uap, int fd, int mask __unused)
+#endif
 {
 	struct uni_msg *m;
 
@@ -107,8 +111,13 @@ proto_infunc(evContext ctx __unused, void *uap, int fd, int mask __unused)
 /*
  * User input. Allocate and read message and dispatch signal.
  */
+#ifdef USE_LIBBEGEMOT
+static void
+user_infunc(int fd, int mask __unused, void *uap)
+#else
 static void
 user_infunc(evContext ctx __unused, void *uap, int fd, int mask __unused)
+#endif
 {
 	struct uni_msg *m;
 
@@ -134,7 +143,9 @@ main(int argc, char *argv[])
 	struct sigaction sa;
 	int wait = 0;
 	u_int mask;
+#ifndef USE_LIBBEGEMOT
 	evEvent ev;
+#endif
 
 	/*
 	 * Default is to have the USER on stdin and SSCOP on stdout
@@ -209,8 +220,10 @@ main(int argc, char *argv[])
 	if(user_out_fd < 0)
 		user_out_fd = user_fd;
 
+#ifndef USE_LIBBEGEMOT
 	if (evCreate(&evctx))
 		err(1, "evCreate");
+#endif
 
 	/*
 	 * Catch USR1
@@ -233,8 +246,14 @@ main(int argc, char *argv[])
 	/*
 	 * Register sscop fd
 	 */
+#ifdef USE_LIBBEGEMOT
+	if ((sscop_h = poll_register(sscop_fd, proto_infunc,
+	    sscop, POLL_IN)) == -1)
+		err(1, "can't select on sscop fd");
+#else
 	if (evSelectFD(evctx, sscop_fd, EV_READ, proto_infunc, sscop, &sscop_h))
 		err(1, "can't select on sscop fd");
+#endif
 
 	/*
 	 * if we are active - send establish request
@@ -246,11 +265,15 @@ main(int argc, char *argv[])
 	 * Run protocol until it get's ready
 	 */
 	while (sscop_fd >= 0 && !ready) {
+#ifdef USE_LIBBEGEMOT
+		poll_dispatch(1);
+#else
 		if (evGetNext(evctx, &ev, EV_WAIT) == 0) {
 			if (evDispatch(evctx, ev))
 				err(1, "dispatch event");
 		} else if (errno != EINTR)
 			err(1, "get event");
+#endif
 	}
 
 	/*
@@ -265,15 +288,23 @@ main(int argc, char *argv[])
 	VERBOSE(("READY - starting data transfer"));
 
 	if (!unidir &&
+#ifdef USE_LIBBEGEMOT
+	    ((user_h = poll_register(user_fd, user_infunc, sscop, POLL_IN)) == -1))
+#else
 	    evSelectFD(evctx, user_fd, EV_READ, user_infunc, sscop, &user_h))
+#endif
 		err(1, "can't select on sscop fd");
 
 	while (!sigusr1 && sscop_fd >= 0) {
+#ifdef USE_LIBBEGEMOT
+		poll_dispatch(1);
+#else
 		if (evGetNext(evctx, &ev, EV_WAIT) == 0) {
 			if (evDispatch(evctx, ev))
 				err(1, "dispatch event");
 		} else if (errno != EINTR)
 			err(1, "get event");
+#endif
 	}
 
 	if (sigusr1 && sscop_fd >= 0) {
@@ -282,11 +313,15 @@ main(int argc, char *argv[])
 		 */
 		sscop_aasig(sscop, SSCOP_RELEASE_request, NULL, 0);
 		while (!finished && sscop_fd >= 0) {
+#ifdef USE_LIBBEGEMOT
+			poll_dispatch(1);
+#else
 			if (evGetNext(evctx, &ev, EV_WAIT) == 0) {
 				if (evDispatch(evctx, ev))
 					err(1, "dispatch event");
 			} else if (errno != EINTR)
 				err(1, "get event");
+#endif
 		}
 	}
 
@@ -333,7 +368,11 @@ sscop_send_upper(struct sscop *sscop, void *arg __unused, enum sscop_aasig sig,
 	  case SSCOP_RELEASE_indication:
 		if (end_at_eof) {
 			VERBOSE((" ... exiting"));
+#ifdef USE_LIBBEGEMOT
+			poll_unregister(sscop_h);
+#else
 			evDeselectFD(evctx, sscop_h);
+#endif
 			(void)close(sscop_fd);
 			sscop_fd = -1;
 		}
@@ -345,7 +384,11 @@ sscop_send_upper(struct sscop *sscop, void *arg __unused, enum sscop_aasig sig,
 	  case SSCOP_RELEASE_confirm:
 		if (end_at_eof) {
 			VERBOSE((" ... exiting"));
+#ifdef USE_LIBBEGEMOT
+			poll_unregister(sscop_h);
+#else
 			evDeselectFD(evctx, sscop_h);
+#endif
 			(void)close(sscop_fd);
 			sscop_fd = -1;
 		}
