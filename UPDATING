@@ -1001,8 +1001,20 @@ COMMON ITEMS:
 
 	To rebuild everything and install it on the current system.
 	-----------------------------------------------------------
-	make world
-	Build a new kernel, see above.
+	# Note: sometimes if you are running current you gotta do more than
+	# is listed here if you are upgrading from a really old current.
+
+	<maybe fix /etc/fstab>				[7]
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -p					[5]
+	make installworld
+	mergemaster					[4]
+	<reboot>
+
 
 	To upgrade from 4.x-stable to current
 	-------------------------------------
