@@ -41,30 +41,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+struct IEEEdp {
+	u_int manl : 32;
+	u_int manh : 20;
+	u_int  exp : 11;
+	u_int sign :  1;
+};
+
 int
 isnan(d)
 	double d;
 {
-	register struct IEEEdp {
-		u_int manl : 32;
-		u_int manh : 20;
-		u_int  exp : 11;
-		u_int sign :  1;
-	} *p = (struct IEEEdp *)&d;
+	union {
+		double v;
+		struct IEEEdp s;
+	} u;
 
-	return(p->exp == 2047 && (p->manh || p->manl));
+	u.v = d;
+	return (u.s.exp == 2047 && (u.s.manh || u.s.manl));
 }
 
 int
 isinf(d)
 	double d;
 {
-	register struct IEEEdp {
-		u_int manl : 32;
-		u_int manh : 20;
-		u_int  exp : 11;
-		u_int sign :  1;
-	} *p = (struct IEEEdp *)&d;
+	union {
+		double v;
+		struct IEEEdp s;
+	} u;
 
-	return(p->exp == 2047 && !p->manh && !p->manl);
+	u.v = d;
+	return (u.s.exp == 2047 && !u.s.manh && !u.s.manl);
 }

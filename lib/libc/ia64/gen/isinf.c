@@ -43,18 +43,26 @@ int
 isnan(d)
 	double d;
 {
-	struct ieee_double *p = (struct ieee_double *)&d;
+	union {
+		double v;
+		struct ieee_double s;
+	} u;
 
-	return (p->dbl_exp == DBL_EXP_INFNAN &&
-	    (p->dbl_frach || p->dbl_fracl));
+	u.v = d;
+	return (u.s.dbl_exp == DBL_EXP_INFNAN &&
+	    (u.s.dbl_frach || u.s.dbl_fracl));
 }
 
 int
 isinf(d)
 	double d;
 {
-	struct ieee_double *p = (struct ieee_double *)&d;
+	union {
+		double v;
+		struct ieee_double s;
+	} u;
 
-	return (p->dbl_exp == DBL_EXP_INFNAN &&
-	    !p->dbl_frach && !p->dbl_fracl);
+	u.v = d;
+	return (u.s.dbl_exp == DBL_EXP_INFNAN &&
+	    !u.s.dbl_frach && !u.s.dbl_fracl);
 }
