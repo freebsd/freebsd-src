@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.14 1998/11/02 23:28:11 msmith Exp $
+ *	$Id: main.c,v 1.1 1999/02/03 08:39:09 kato Exp $
  */
 
 /*
@@ -164,11 +164,12 @@ extract_currdev(void)
 	 * and we are not booting from the lowest-numbered disk type 
 	 * (ie. SCSI when IDE also exists).
 	 */
-#ifdef PC98
-	if (major == 6)
-	    biosdev = 0x30 + B_UNIT(initial_bootdev);
-	else
-	    biosdev = (major << 3) + 0x80 + B_UNIT(initial_bootdev);
+#ifdef PC98 
+	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
+	    if (B_TYPE(initial_bootdev) == 6)
+		biosdev = 0x30 + B_UNIT(initial_bootdev);
+	    else
+		biosdev = (major << 3) + 0x80 + B_UNIT(initial_bootdev);
 #else
 	if ((biosdev == 0) && (B_TYPE(initial_bootdev) != 2))	/* biosdev doesn't match major */
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
