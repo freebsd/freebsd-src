@@ -283,7 +283,7 @@ struct acpi_ec_softc {
 #define EC_POLL_DELAY	1
 
 /* Total time in ms spent in the poll loop waiting for a response. */
-#define EC_POLL_TIMEOUT	50
+#define EC_POLL_TIMEOUT	100
 
 #define EVENT_READY(event, status)			\
 	(((event) == EC_EVENT_OUTPUT_BUFFER_FULL &&	\
