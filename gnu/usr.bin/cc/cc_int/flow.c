@@ -2192,6 +2192,8 @@ find_auto_inc (needed, x, insn)
 		if (GET_CODE (temp) == CALL_INSN)
 		  reg_n_calls_crossed[regno]++;
 	    }
+	  else
+	    return;
 
 	  /* If we haven't returned, it means we were able to make the
 	     auto-inc, so update the status.  First, record that this insn

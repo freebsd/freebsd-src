@@ -11072,7 +11072,7 @@ finish_function (lineno, call_poplevel)
       store_parm_decls ();
     }
 
-  if (write_symbols != NO_DEBUG && TREE_CODE (fntype) != METHOD_TYPE)
+  if (write_symbols != NO_DEBUG /*&& TREE_CODE (fntype) != METHOD_TYPE*/)
     {
       tree ttype = target_type (fntype);
       tree parmdecl;

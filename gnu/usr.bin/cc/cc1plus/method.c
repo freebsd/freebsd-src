@@ -514,6 +514,7 @@ build_overload_name (parmtypes, begin, end)
   tree parmtype;
 
   if (begin) OB_INIT ();
+  numeric_outputed_need_bar = 0;
 
   if ((just_one = (TREE_CODE (parmtypes) != TREE_LIST)))
     {
@@ -920,7 +921,6 @@ build_decl_overload (dname, parms, for_method)
     {
       ALLOCATE_TYPEVEC (parms);
       nofold = 0;
-      numeric_outputed_need_bar = 0;
       if (for_method)
 	{
 	  build_overload_name (TREE_VALUE (parms), 0, 0);
