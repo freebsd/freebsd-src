@@ -51,7 +51,14 @@ static int	bmaj2cmaj[NUMCDEVSW];
 
 MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
+/*
+ * This is the number of hash-buckets.  Experiements with 'real-life'
+ * udev_t's show that a prime halfway between two powers of two works
+ * best.
+ */
 #define DEVT_HASH 83
+
+/* The number of dev_t's we can create before malloc(9) kick in.  */
 #define DEVT_STASH 50
 
 static struct specinfo devt_stash[DEVT_STASH];
