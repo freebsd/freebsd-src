@@ -1653,7 +1653,14 @@ retrieve(char *cmd, char *name)
 			goto done;
 		}
 		if (!S_ISREG(st.st_mode)) {
-			if (guest) {
+			/*
+			 * Never sending a raw directory is a workaround
+			 * for buggy clients that will attempt to RETR
+			 * a directory before listing it, e.g., Mozilla.
+			 * Preventing a guest from getting irregular files
+			 * is a simple security measure.
+			 */
+			if (S_ISDIR(st.st_mode) || guest) {
 				reply(550, "%s: not a plain file.", name);
 				goto done;
 			}
