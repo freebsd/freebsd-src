@@ -48,7 +48,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	mbstate_t mbs;
 	char *mbp;
 	size_t mbresult;
-	int ret;
+	int ret, sverrno;
 
 	if (n == 0) {
 		errno = EINVAL;
@@ -66,6 +66,12 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	f._extra = &ext;
 	INITEXTRA(&f);
 	ret = __vfwprintf(&f, fmt, ap);
+	if (ret < 0) {
+		sverrno = errno;
+		free(f._bf._base);
+		errno = sverrno;
+		return (-1);
+	}
 	*f._p = '\0';
 	mbp = f._bf._base;
 	memset(&mbs, 0, sizeof(mbs));
