@@ -34,8 +34,6 @@
 #include "pcic.h"
 #endif
 
-#if	NPCIC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -58,6 +56,22 @@
 #include <pccard/i82365.h>
 #include <pccard/card.h>
 #include <pccard/slot.h>
+#include <sys/devconf.h>
+
+extern struct kern_devconf kdc_pccard0;
+
+struct kern_devconf kdc_pcic[PCIC_MAX_SLOTS] = {
+    {
+	0, 0, 0,		/* filled in by dev_attach */
+	"pcic", 0, { MDDT_BUS, 0 },
+	0, 0, 0, BUS_EXTERNALLEN,
+	&kdc_pccard0,		/* parent is the CPU */
+	0,			/* no parentdata */
+	DC_UNKNOWN,
+	"PCMCIA or PCCARD slot",
+	DC_CLS_BUS		/* class */
+    }
+};
 
 /*
  *	Prototypes for interrupt handler.
@@ -68,6 +82,7 @@ static int pcic_power __P((struct slot *));
 static void pcic_reset __P((struct slot *));
 static void pcic_disable __P((struct slot *));
 static void pcic_mapirq __P((struct slot *, int));
+static void pcictimeout __P((void));
 
 /*
  *	Per-slot data table.
@@ -233,11 +248,14 @@ pcic_unload()
 int	slot;
 struct pcic_slot *cp = pcic_slots;
 
+	untimeout(pcictimeout);
 	if (pcic_irq)
 		{
-		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++)
+		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++) {
 			if (cp->sp)
 				putb(cp, PCIC_STAT_INT, 0);
+			kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
+		}
 		unregister_intr(pcic_irq, pcicintr);
 		}
 	pccard_remove_controller(&cinfo);
@@ -535,9 +553,18 @@ unsigned char c;
  */
 	validslots++;
 	cp->slot = slot;
+	if (kdc_pcic[slot].kdc_state == DC_UNKNOWN) {
+	    if (slot != 0)
+		kdc_pcic[slot] = kdc_pcic[0];
+	    kdc_pcic[slot].kdc_unit = slot;
+	    kdc_pcic[slot].kdc_state = DC_UNCONFIGURED;
+	    kdc_pcic[slot].kdc_description = cinfo.name;
+	    dev_attach(kdc_pcic+slot);
+	}
 	sp = pccard_alloc_slot(&cinfo);
 	if (sp == 0)
 		continue;
+	kdc_pcic[slot].kdc_state = DC_IDLE;
 	sp->cdata = cp;
 	cp->sp = sp;
 /*
@@ -548,19 +575,9 @@ unsigned char c;
 		{
 		pcic_irq = pccard_alloc_intr(PCIC_INT_MASK_ALLOWED,
 			pcicintr, 0, &pcic_imask);
-#if 0
-		for (try = 0; try < 16; try++)
-			if (((1 << try) & PCIC_INT_MASK_ALLOWED) &&
-			    !pccard_alloc_intr(try, pcicintr, 0, &tty_imask))
-				{
-				pcic_irq = try;
-				break;
-				}
-#endif
 		if (pcic_irq < 0)
 			printf("pcic: failed to allocate IRQ\n");
 		}
-	INTREN (1 << pcic_irq);
 /*
  *	Check for a card in this slot.
  */
@@ -578,6 +595,8 @@ unsigned char c;
 	if (pcic_irq > 0)
 		putb(cp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	}
+	if (validslots)
+		timeout(pcictimeout,0,hz/2);
 	return(validslots);
 }
 /*
@@ -711,6 +730,18 @@ struct pcic_slot *sp = slotp->cdata;
 }
 
 /*
+ *	PCIC timer, it seems that we loose interrupts sometimes
+ *	so poll just in case...
+ */
+
+static void
+pcictimeout()
+{
+	timeout(pcictimeout,0,hz/2);
+	pcicintr(0);
+}
+
+/*
  *	PCIC Interrupt handler.
  *	Check each slot in turn, and read the card status change
  *	register. If this is non-zero, then a change has occurred
@@ -725,18 +756,18 @@ struct pcic_slot *cp = pcic_slots;
 
 	s = splhigh();
 	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++)
-		if (cp->sp)
-			if ((chg = getb(cp, PCIC_STAT_CHG)) != 0)
-				if (chg & PCIC_CDTCH)
-					{
-					if ((getb(cp, PCIC_STATUS) & PCIC_CD) ==
-							PCIC_CD)
-						pccard_event(cp->sp,
-							card_inserted);
-					else
-						pccard_event(cp->sp,
-							card_removed);
-					}
+		if (cp->sp && (chg = getb(cp, PCIC_STAT_CHG)) != 0)
+			if (chg & PCIC_CDTCH) {
+				if ((getb(cp, PCIC_STATUS) & PCIC_CD) ==
+						PCIC_CD) {
+					kdc_pcic[slot].kdc_state = DC_BUSY;;
+					pccard_event(cp->sp,
+						card_inserted);
+				} else {
+					pccard_event(cp->sp,
+						card_removed);
+					kdc_pcic[slot].kdc_state = DC_IDLE;;
+				}
+			}
 	splx(s);
 }
-#endif
