@@ -591,7 +591,7 @@ END_DEBUG
 		}
 		sdev = &target->luns[lun];
 		sdev->status = SBP_DEV_RESET;
-		sdev->type = (reg->val & 0xf0000) >> 16;
+		sdev->type = (reg->val & 0xff0000) >> 16;
 
 		fwdma_malloc(sbp->fd.fc, 
 			/* alignment */ sizeof(u_int32_t),
