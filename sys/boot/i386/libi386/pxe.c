@@ -286,11 +286,13 @@ pxe_open(struct open_file *f, ...)
 		if (!rootpath[1])
 			strcpy(rootpath, PXENFSROOTPATH);
 
-		for(i=0; i<FNAME_SIZE; i++)
-			if(rootpath[i] == ':')
+		for (i = 0; i < FNAME_SIZE; i++)
+			if (rootpath[i] == ':')
 				break;
-		if(i && i != FNAME_SIZE) {
-			i++;
+		if (i && i != FNAME_SIZE) {
+			rootpath[i++] = '\0';
+			if (inet_addr(&rootpath[0]) != INADDR_NONE)
+				rootip.s_addr = inet_addr(&rootpath[0]);
 			bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 			bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
 		}
