@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.24 1999/05/21 08:23:58 dfr Exp $
+ *	$Id: subr_bus.c,v 1.25 1999/05/22 09:52:21 peter Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,8 @@
 #include <sys/sysctl.h>
 #include <sys/bus_private.h>
 #include <sys/systm.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 #include <machine/stdarg.h>	/* for device_printf() */
 
 #include "opt_bus.h"
@@ -1606,6 +1608,152 @@ SYSINIT(cfgload, SI_SUB_KMEM, SI_ORDER_ANY + 50, resource_cfgload, 0)
 /*
  * Some useful method implementations to make life easier for bus drivers.
  */
+
+void
+resource_list_init(struct resource_list *rl)
+{
+	SLIST_INIT(rl);
+}
+
+void
+resource_list_free(struct resource_list *rl)
+{
+    struct resource_list_entry *rle;
+
+    while ((rle = SLIST_FIRST(rl)) != NULL) {
+	if (rle->res)
+	    panic("resource_list_free: resource entry is busy");
+	SLIST_REMOVE_HEAD(rl, link);
+	free(rle, M_DEVBUF);
+    }
+}
+
+void
+resource_list_add(struct resource_list *rl,
+		  int type, int rid,
+		  u_long start, u_long end, u_long count)
+{
+    struct resource_list_entry *rle;
+
+    rle = resource_list_find(rl, type, rid);
+    if (!rle) {
+	rle = malloc(sizeof(struct resource_list_entry), M_DEVBUF, M_NOWAIT);
+	if (!rle)
+	    panic("resource_list_add: can't record entry");
+	SLIST_INSERT_HEAD(rl, rle, link);
+	rle->type = type;
+	rle->rid = rid;
+	rle->res = NULL;
+    }
+
+    if (rle->res)
+	panic("resource_list_add: resource entry is busy");
+
+    rle->start = start;
+    rle->end = end;
+    rle->count = count;
+}
+
+struct resource_list_entry*
+resource_list_find(struct resource_list *rl,
+		   int type, int rid)
+{
+    struct resource_list_entry *rle;
+
+    SLIST_FOREACH(rle, rl, link)
+	if (rle->type == type && rle->rid == rid)
+	    return rle;
+    return NULL;
+}
+
+void
+resource_list_remove(struct resource_list *rl,
+		     int type, int rid)
+{
+    struct resource_list_entry *rle = resource_list_find(rl, type, rid);
+
+    if (rle) {
+	SLIST_REMOVE(rl, rle, resource_list_entry, link);
+	free(rle, M_DEVBUF);
+    }
+}
+
+struct resource *
+resource_list_alloc(device_t bus, device_t child,
+		    int type, int *rid,
+		    u_long start, u_long end,
+		    u_long count, u_int flags)
+{
+    struct resource_list *rl;
+    struct resource_list_entry *rle = 0;
+    int passthrough = (device_get_parent(child) != bus);
+    int isdefault = (start == 0UL && end == ~0UL);
+
+    if (passthrough) {
+	return BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
+				  type, rid,
+				  start, end, count, flags);
+    }
+
+    rl = device_get_ivars(child);
+    rle = resource_list_find(rl, type, *rid);
+
+    if (!rle)
+	return 0;		/* no resource of that type/rid */
+    if (rle->res)
+	panic("resource_list_alloc: resource entry is busy");
+
+    if (isdefault) {
+	start = rle->start;
+	count = max(count, rle->count);
+	end = max(rle->end, start + count - 1);
+    }
+
+    rle->res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
+				  type, rid, start, end, count, flags);
+
+    /*
+     * Record the new range.
+     */
+    if (rle->res) {
+	    rle->start = rman_get_start(rle->res);
+	    rle->end = rman_get_end(rle->res);
+	    rle->count = count;
+    }
+
+    return rle->res;
+}
+
+int
+resource_list_release(device_t bus, device_t child,
+		      int type, int rid, struct resource *res)
+{
+    struct resource_list *rl;
+    struct resource_list_entry *rle = 0;
+    int passthrough = (device_get_parent(child) != bus);
+    int error;
+
+    if (passthrough) {
+	return BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
+				    type, rid, res);
+    }
+
+    rl = device_get_ivars(child);
+    rle = resource_list_find(rl, type, rid);
+
+    if (!rle)
+	panic("resource_list_release: can't find resource");
+    if (!rle->res)
+	panic("resource_list_release: resource entry is not busy");
+
+    error = BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
+				 type, rid, res);
+    if (error)
+	return error;
+
+    rle->res = NULL;
+    return 0;
+}
 
 /*
  * Call DEVICE_IDENTIFY for each driver.
