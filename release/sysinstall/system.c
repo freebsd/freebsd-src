@@ -128,9 +128,10 @@ systemInitialize(int argc, char **argv)
 	setsid();
 	close(0);
 	fd = open("/dev/ttyv0", O_RDWR);
-	if (fd == -1)
+	if (fd == -1) {
 	    fd = open("/dev/console", O_RDWR);	/* fallback */
-	else
+	    variable_set2(VAR_FIXIT_TTY, "serial", 0); /* give fixit a hint */
+	} else
 	    OnVTY = TRUE;
 	/*
 	 * To make _sure_ we're on a VTY and don't have /dev/console switched
@@ -143,6 +144,9 @@ systemInitialize(int argc, char **argv)
 	    if ((fd2 = open("/dev/console", O_RDWR)) != -1) {
 		if (ioctl(fd2, CONS_CURSORTYPE, &type) == -1) {
 		    OnVTY = FALSE;
+		    variable_set2(VAR_FIXIT_TTY, "serial", 0); /* Tell Fixit
+								  the console
+								  type */
 		    close(fd); close(fd2);
 		    open("/dev/console", O_RDWR);
 		}
@@ -445,7 +449,7 @@ systemCreateHoloshell(void)
 	    (void) waitpid(ehs_pid, &pstat, WNOHANG);
 	}
 
-	if (!OnVTY)
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
 	    systemSuspendDialog();	/* must be before the fork() */
 	if ((ehs_pid = fork()) == 0) {
 	    int i, fd;
@@ -455,10 +459,10 @@ systemCreateHoloshell(void)
 	    ioctl(0, TIOCNOTTY, NULL);
 	    for (i = getdtablesize(); i >= 0; --i)
 		close(i);
-	    if (OnVTY)
-	        fd = open("/dev/ttyv3", O_RDWR);
-	    else
+	    if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
 	        fd = open("/dev/console", O_RDWR);
+	    else
+	        fd = open("/dev/ttyv3", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
 	    dup2(0, 1);
 	    dup2(0, 2);
@@ -473,7 +477,7 @@ systemCreateHoloshell(void)
 	    }
 	    else
 		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
-	    if (!OnVTY){
+	    if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) {
 	        printf("Type ``exit'' in this fixit shell to resume sysinstall.\n\n");
 		fflush(stdout);
 	    }
@@ -482,15 +486,19 @@ systemCreateHoloshell(void)
 	    exit(1);
 	}
 	else {
-	    if (OnVTY) {
+	    if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
 	        WINDOW *w = savescr();
 
 	        msgNotify("Starting an emergency holographic shell on VTY4");
 	        sleep(2);
 	        restorescr(w);
 	    }
-	    if (!OnVTY){
-	        (void)waitpid(ehs_pid, &waitstatus, 0);
+	    else {
+	        (void)waitpid(ehs_pid, &waitstatus, 0); /* we only wait for
+							   shell to finish 
+							   it serial mode
+							   since there is no
+							   virtual console */
 	        systemResumeDialog();
 	    }
 	}
