@@ -348,8 +348,8 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
 	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
 
-#define SY(parent, var, comment) \
-	int var ;                               \
+#define SY(parent, var, comment)			\
+	static int var ;				\
 	SYSCTL_INT(parent, OID_AUTO, var, CTLFLAG_RW, &(var), 0, comment);
 
 int bdg_ipfw_drops;
@@ -365,23 +365,15 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge_refresh, CTLTYPE_INT|CTLFLAG_WR,
 
 #if 1 /* diagnostic vars */
 
-static int bdg_split_pkts;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_split_pkts,
-	CTLFLAG_RW, &bdg_split_pkts,0,"Packets split in bdg_forward");
+SY(_net_link_ether, bdg_split_pkts, "Packets split in bdg_forward");
 
-static int bdg_thru;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_thru,
-	CTLFLAG_RW, &bdg_thru,0,"Packets through bridge");
+SY(_net_link_ether, bdg_thru, "Packets through bridge");
 
-static int bdg_copied;
-SYSCTL_INT(_net_link_ether, OID_AUTO, bdg_copied,
-	CTLFLAG_RW, &bdg_copied,0,"Packets copied in bdg_forward");
+SY(_net_link_ether, bdg_copied, "Packets copied in bdg_forward");
 
 SY(_net_link_ether, bdg_copy, "Force copy in bdg_forward");
-SY(_net_link_ether, bdg_nopredict, "Disable predicted header location");
 SY(_net_link_ether, bdg_predict, "Correctly predicted header location");
 
-SY(_net_link_ether, bdg_null_eh, "bdg_forward called with null_eh");
 SY(_net_link_ether, bdg_fw_avg, "Cycle counter avg");
 SY(_net_link_ether, bdg_fw_ticks, "Cycle counter item");
 SY(_net_link_ether, bdg_fw_count, "Cycle counter count");
@@ -652,8 +644,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
      */
     struct ether_header save_eh = *eh ;
 
-    quad_t ticks;
-    DDB(ticks = rdtsc();)
+    DEB(quad_t ticks; ticks = rdtsc();)
     bdg_thru++;
 
     if (dst == BDG_DROP) { /* this should not happen */
@@ -762,7 +753,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	 * The firewall knows this is a bridged packet as the cookie ptr
 	 * is NULL.
 	 */
-	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL, &m, &rule, NULL);
+	i = (*ip_fw_chk_ptr)(&ip, 0, NULL, NULL /* cookie */, &m, &rule, NULL);
 
 	if (m == NULL) { /* pkt discarded by firewall */
 	    /*
@@ -800,7 +791,7 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    /*
 	     * check the common case of eh pointing already into the mbuf
 	     */
-	    if ( bdg_nopredict == 0 && (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+	    if ( (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
 		m->m_data -= ETHER_HDR_LEN ;
 		m->m_len += ETHER_HDR_LEN ;
 		m->m_pkthdr.len += ETHER_HDR_LEN ;
@@ -873,7 +864,7 @@ forward:
 	    /*
 	     * check the common case of eh pointing already into the mbuf
 	     */
-	    if ( bdg_nopredict == 0 && (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
+	    if ( (void *)eh + ETHER_HDR_LEN == (void *)m->m_data) {
 		m->m_data -= ETHER_HDR_LEN ;
 		m->m_len += ETHER_HDR_LEN ;
 		m->m_pkthdr.len += ETHER_HDR_LEN ;
@@ -908,7 +899,7 @@ forward:
 	if (ifp == NULL)
 	    once = 1 ;
     }
-    DDB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
+    DEB(bdg_fw_ticks += (u_long)(rdtsc() - ticks) ; bdg_fw_count++ ;
 	if (bdg_fw_count != 0) bdg_fw_avg = bdg_fw_ticks/bdg_fw_count; )
 
     return error ;
