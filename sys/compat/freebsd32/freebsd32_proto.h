@@ -179,6 +179,10 @@ struct freebsd32_sysctl_args {
 	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
 	char newlen_l_[PADL_(u_int32_t)]; u_int32_t newlen; char newlen_r_[PADR_(u_int32_t)];
 };
+struct freebsd32_nanosleep_args {
+	char rqtp_l_[PADL_(const struct timespec *)]; const struct timespec * rqtp; char rqtp_r_[PADR_(const struct timespec *)];
+	char rmtp_l_[PADL_(struct timespec *)]; struct timespec * rmtp; char rmtp_r_[PADR_(struct timespec *)];
+};
 struct freebsd32_kevent_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char changelist_l_[PADL_(const struct kevent *)]; const struct kevent * changelist; char changelist_r_[PADR_(const struct kevent *)];
@@ -231,6 +235,7 @@ int	freebsd32_lseek(struct thread *, struct freebsd32_lseek_args *);
 int	freebsd32_truncate(struct thread *, struct freebsd32_truncate_args *);
 int	freebsd32_ftruncate(struct thread *, struct freebsd32_ftruncate_args *);
 int	freebsd32_sysctl(struct thread *, struct freebsd32_sysctl_args *);
+int	freebsd32_nanosleep(struct thread *, struct freebsd32_nanosleep_args *);
 int	freebsd32_kevent(struct thread *, struct freebsd32_kevent_args *);
 int	freebsd32_sendfile(struct thread *, struct freebsd32_sendfile_args *);
 int	freebsd32_sigaction(struct thread *, struct freebsd32_sigaction_args *);

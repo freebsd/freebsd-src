@@ -352,7 +352,7 @@
 237	UNIMPL	timer_settime
 238	UNIMPL	timer_gettime
 239	UNIMPL	timer_getoverrun
-240	MNOPROTO { int nanosleep(const struct timespec *rqtp, \
+240	MSTD	{ int freebsd32_nanosleep(const struct timespec *rqtp, \
 		    struct timespec *rmtp); }
 241	UNIMPL	nosys
 242	UNIMPL	nosys
