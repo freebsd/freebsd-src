@@ -3662,7 +3662,7 @@ table_handler(int ac, char *av[])
 		} else
 			ent.masklen = 32;
 		if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
-			errx(EX_NOHOST, "hostname ``%s'' unknown", av);
+			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 		ac--; av++;
 		if (do_add && ac)
 			ent.value = strtoul(*av, NULL, 0);
