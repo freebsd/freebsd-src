@@ -172,6 +172,7 @@ SUBDIR=	apply \
 	uniq \
 	units \
 	unvis \
+	usbhidctl \
 	users \
 	uudecode \
 	uuencode \
