@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.37 1999/01/03 22:19:23 jkh Exp $
+#	$Id: rc.network,v 1.38 1999/01/13 08:20:55 hm Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -35,6 +35,20 @@ network_pass1() {
     if [ "X${isdn_enable}" = X"YES" -a -f /etc/rc.isdn ]; then
 	    . /etc/rc.isdn
     fi
+
+    # Special options for sppp(4) interfaces go here.  These need
+    # to go _before_ the general ifconfig section, since in the case
+    # of hardwired (no link1 flag) but required authentication, you
+    # cannot pass auth parameters down to the already running interface.
+    for ifn in ${sppp_interfaces}; do
+	    eval spppcontrol_args=\$spppconfig_${ifn}
+	    if [ -n "${spppcontrol_args}" ] ; then
+		    # The auth secrets might contain spaces; in order
+		    # to retain the quotation, we need to eval them
+		    # here.
+		    eval spppcontrol ${ifn} ${spppcontrol_args}
+	    fi
+    done
 
     # Set up all the network interfaces, calling startup scripts if needed
     for ifn in ${network_interfaces}; do
