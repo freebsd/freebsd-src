@@ -5,16 +5,17 @@ LIB=		fetch
 WARNS?=		4
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
-.if !defined(NOCRYPT)
-CFLAGS+=	-DWITH_SSL
-.endif
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
-#DPADD=		${LIBCRYPTO} ${LIBSSL}
-#LDADD=		-lcrypto -lssl
+
+.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+CFLAGS+=	-DWITH_SSL
+DPADD=		${LIBCRYPTO} ${LIBSSL}
+LDADD=		-lcrypto -lssl
+.endif
 
 NO_WERROR=	yes
 
