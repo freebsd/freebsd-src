@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	Aflag, aflag, bflag, nflag, wflag, Xflag;
+static int	Aflag, aflag, bflag, Nflag, nflag, wflag, Xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -86,21 +86,37 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabnwX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabNnwX")) != -1) {
 		switch (ch) {
-		case 'A': Aflag = 1; break;
-		case 'a': aflag = 1; break;
-		case 'b': bflag = 1; break;
-		case 'n': nflag = 1; break;
-		case 'w': wflag = 1; break;
-		case 'X': Xflag = Aflag = 1; break;
-		default: usage();
+		case 'A':
+			Aflag = 1;
+			break;
+		case 'a':
+			aflag = 1;
+			break;
+		case 'b':
+			bflag = 1;
+			break;
+		case 'N':
+			Nflag = 1;
+			break;
+		case 'n':
+			nflag = 1;
+			break;
+		case 'w':
+			wflag = 1;
+			break;
+		case 'X':
+			Xflag = Aflag = 1;
+			break;
+		default:
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if (wflag && (Aflag || aflag))
+	if ((wflag && (Aflag || aflag)) || (Nflag && nflag))
 		usage();
 	if (Aflag || aflag)
 		exit (sysctl_all(0, 0));
@@ -360,6 +376,11 @@ show_var(int *oid, int nlen)
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl name %d %d %d", i, j, errno);
+
+	if (Nflag) {
+		printf("%s", name);
+		return (0);
+	}
 
 	/* find an estimate of how much we need for this var */
 	j = 0;
