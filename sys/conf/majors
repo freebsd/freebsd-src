@@ -125,7 +125,7 @@ maj 	name		comments
 128	arla		Arla (AFS-clone) driver
 129	i2o		Intelligent I/O Character Device
 130	*mlx		Mylex DAC960 RAID (control device)
-134	cp		Cronyx Tau-PCI synchronous WAN adapters
+134	*cp		Cronyx Tau-PCI synchronous WAN adapters
 135	*zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
