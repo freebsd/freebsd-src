@@ -82,7 +82,7 @@ struct arglist {
 static char	*copynext __P((char *, char *));
 static int	 fcmp __P((const void *, const void *));
 static void	 formatf __P((struct afile *, int));
-static void	 getcmd __P((char *, char *, char *, struct arglist *));
+static void	 getcmd __P((char *, char *, char *, int, struct arglist *));
 struct dirent	*glob_readdir __P((RST_DIR *dirp));
 static int	 glob_stat __P((const char *, struct stat *));
 static void	 mkentry __P((struct direct *, struct afile *));
@@ -109,7 +109,7 @@ runcmdshell()
 	arglist.glob.gl_closedir = (void *)rst_closedir;
 	arglist.glob.gl_lstat = glob_stat;
 	arglist.glob.gl_stat = glob_stat;
-	canon("/", curdir);
+	canon("/", curdir, sizeof(curdir));
 loop:
 	if (setjmp(reset) != 0) {
 		if (arglist.freeglob != 0) {
@@ -121,7 +121,7 @@ loop:
 		volno = 0;
 	}
 	runshell = 1;
-	getcmd(curdir, cmd, name, &arglist);
+	getcmd(curdir, cmd, name, sizeof(name), &arglist);
 	switch (cmd[0]) {
 	/*
 	 * Add elements to the extraction list.
@@ -300,9 +300,10 @@ loop:
  * eliminate any embedded ".." components.
  */
 static void
-getcmd(curdir, cmd, name, ap)
+getcmd(curdir, cmd, name, size, ap)
 	char *curdir, *cmd, *name;
 	struct arglist *ap;
+	int size;
 {
 	register char *cp;
 	static char input[BUFSIZ];
@@ -357,7 +358,7 @@ getnext:
 	 * If it is an absolute pathname, canonicalize it and return it.
 	 */
 	if (rawname[0] == '/') {
-		canon(rawname, name);
+		canon(rawname, name, size);
 	} else {
 		/*
 		 * For relative pathnames, prepend the current directory to
@@ -366,7 +367,7 @@ getnext:
 		(void) strcpy(output, curdir);
 		(void) strcat(output, "/");
 		(void) strcat(output, rawname);
-		canon(output, name);
+		canon(output, name, size);
 	}
 	if (glob(name, GLOB_ALTDIRFUNC, NULL, &ap->glob) < 0)
 		fprintf(stderr, "%s: out of memory\n", ap->cmd);
@@ -438,8 +439,9 @@ copynext(input, output)
  * remove any imbedded "." and ".." components.
  */
 void
-canon(rawname, canonname)
+canon(rawname, canonname, len)
 	char *rawname, *canonname;
+	int len;
 {
 	register char *cp, *np;
 
@@ -449,6 +451,11 @@ canon(rawname, canonname)
 		(void) strcpy(canonname, ".");
 	else
 		(void) strcpy(canonname, "./");
+	if (strlen(canonname) + strlen(rawname) >= len) {
+		fprintf(stderr, "canonname: not enough bufferspace\n");
+		done(1);
+	}
+		
 	(void) strcat(canonname, rawname);
 	/*
 	 * Eliminate multiple and trailing '/'s
