@@ -409,6 +409,7 @@ gif_ioctl(ifp, cmd, data)
 	struct sockaddr *dst, *src;
 	struct sockaddr *sa;
 	int i;
+	int s;
 	struct gif_softc *sc2;
 		
 	switch (cmd) {
@@ -537,8 +538,10 @@ gif_ioctl(ifp, cmd, data)
 		bcopy((caddr_t)dst, (caddr_t)sa, size);
 		sc->gif_pdst = sa;
 
-		ifp->if_flags |= IFF_UP;
-		if_up(ifp);		/* send up RTM_IFINFO */
+		ifp->if_flags |= IFF_RUNNING;
+		s = splimp();
+		if_up(ifp);	/* mark interface UP and send up RTM_IFINFO */
+		splx(s);
 
 		error = 0;
 		break;
