@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.5 1995/01/11 07:07:00 paul Exp $
+ *	$Id: parser.c,v 1.6 1995/05/30 00:07:22 rgrimes Exp $
  */
 
 #ifndef lint
@@ -1179,6 +1179,10 @@ parsebackq: {
 
                 STARTSTACKSTR(out);
                 while ((c = pgetc ()) != '`') {
+                       if (c == PEOF) {
+                                startlinno = plinno;
+                                synerror("EOF in backquote substitution");
+                       }
                        if (c == '\\') {
                                 c = pgetc ();
                                 if ( c != '\\' && c != '`' && c != '$'
