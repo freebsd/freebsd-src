@@ -134,7 +134,6 @@ typedef	__gid_t		gid_t;		/* group id */
 #endif
 
 typedef	u_int32_t	ino_t;		/* inode number */
-typedef	__intrmask_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
 
 #ifndef _MODE_T_DECLARED
@@ -169,6 +168,17 @@ typedef	__vm_size_t	vm_size_t;
 #ifdef _KERNEL
 typedef	int		boolean_t;
 typedef	__intfptr_t	intfptr_t;
+
+/*-
+ * XXX this is fixed width for historical reasons.  It should have had type
+ * __int_fast32_t.  Fixed-width types should not be used unless binary
+ * compatibility is essential.  Least-width types should be used even less
+ * since they provide smaller benefits.
+ * XXX should be MD.
+ * XXX this is bogus in -current, but still used for spl*().
+ */
+typedef	__uint32_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
+
 typedef	__uintfptr_t	uintfptr_t;
 typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
