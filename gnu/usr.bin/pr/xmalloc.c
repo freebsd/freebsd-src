@@ -1,5 +1,5 @@
 /* xmalloc.c -- malloc with out of memory checking
-   Copyright (C) 1990, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,23 +15,46 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#ifdef STDC_HEADERS
+#ifdef HAVE_CONFIG_H
+#if defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
+#include "config.h"
+#endif
+#endif
+
+#if __STDC__
+#define VOID void
+#else
+#define VOID char
+#endif
+
+#include <sys/types.h>
+
+#if STDC_HEADERS
 #include <stdlib.h>
 #else
-char *malloc ();
-char *realloc ();
+VOID *malloc ();
+VOID *realloc ();
 void free ();
 #endif
 
+#if __STDC__ && defined (HAVE_VPRINTF)
+void error (int, int, char const *, ...);
+#else
 void error ();
+#endif
 
 /* Allocate N bytes of memory dynamically, with error checking.  */
 
-char *
+VOID *
 xmalloc (n)
-     unsigned n;
+     size_t n;
 {
-  char *p;
+  VOID *p;
 
   p = malloc (n);
   if (p == 0)
@@ -45,10 +68,10 @@ xmalloc (n)
    If P is NULL, run xmalloc.
    If N is 0, run free and return NULL.  */
 
-char *
+VOID *
 xrealloc (p, n)
-     char *p;
-     unsigned n;
+     VOID *p;
+     size_t n;
 {
   if (p == 0)
     return xmalloc (n);
