@@ -105,7 +105,7 @@ set_acl_mask(acl_t *prev_acl)
 		return 0;
 	}
 
-	prev_acl = &acl;
+	**prev_acl = *acl;
 	acl_free(acl);
 
 	return 0;
