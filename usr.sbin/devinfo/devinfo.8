@@ -37,26 +37,24 @@
 .Nm
 .Op Fl ru
 .Sh DESCRIPTION
-Devinfo without any arguments, shows the lists of devices using indentation
-and how they are reached from the
-.Em nexus
+The
+.Nm
+utility, without any arguments, shows the hierarchy of devices available
+in the syste, starting from the
+.Dq nexus
 device.
 .Pp
-The following command line arguments are accepted.  When no command line
-argument(s) are passed,
-.Xr devinfo 8
-simply prints the hierarchy of the device table.
-.Bl -bullet -width indent
-.It
-.Op -r :
-causes hardware resource information (such as IRQ, I/O ports, I/O memory
-addresses) to be listed, under each device that has reserved those resources.
-.It
-.Op -u :
-displays the same information as
-.Op -r ,
-but sorts by resource type rather than by device, allowing you to review the
-set of system resources for usage and available resources. I.e., it lists all
+The following options are accepted.
+.Bl -tag -width indent
+.It Fl r
+Causes hardware resource information (such as IRQ, I/O ports, I/O memory
+addresses) to be also listed, under each device that has reserved those resources.
+.It Fl u
+Displays the same information as with
+.Fl r
+but sorts by resource type rather than by device, allowing to review the
+set of system resources by usage and available resources.
+I.e., it lists all
 the IRQ consumers together.
 .El
 .Sh SEE ALSO
@@ -67,5 +65,4 @@ the IRQ consumers together.
 .Xr pnpinfo 8 ,
 .Xr vmstat 8
 .Sh AUTHORS
-.An "Mike Smith"
-.Aq msmith@FreeBSD.org
+.An Mike Smith Aq msmith@FreeBSD.org
