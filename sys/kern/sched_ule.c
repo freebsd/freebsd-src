@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
@@ -105,6 +106,8 @@ struct ke_sched {
 #define	ke_assign	ke_procq.tqe_next
 
 #define	KEF_ASSIGNED	KEF_SCHED0	/* KSE is being migrated. */
+#define	KEF_PINNED	KEF_SCHED1	/* KSE is temporarily bound. */
+#define	KEF_BOUND	KEF_SCHED2	/* KSE can not migrate. */
 
 struct kg_sched {
 	int	skg_slptime;		/* Number of ticks we vol. slept */
@@ -263,7 +266,8 @@ static __inline void kseq_setidle(struct kseq *kseq);
 static void kseq_notify(struct kse *ke, int cpu);
 static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq);
-#define	KSE_CAN_MIGRATE(ke, class)	((class) != PRI_ITHD)
+#define	KSE_CAN_MIGRATE(ke, class)					\
+    ((class) != PRI_ITHD && ((ke)->ke_flags & (KEF_BOUND|KEF_PINNED)) == 0)
 #endif
 
 void
@@ -1370,7 +1374,7 @@ sched_add(struct thread *td)
 	/*
 	 * If there are any idle processors, give them our extra load.
 	 */
-	if (kseq_idle && class != PRI_ITHD &&
+	if (kseq_idle && KSE_CAN_MIGRATE(ke, class) &&
 	    kseq->ksq_load_transferable >= kseq->ksq_cpus) {
 		int cpu;
 
@@ -1460,6 +1464,53 @@ sched_pctcpu(struct thread *td)
 	mtx_unlock_spin(&sched_lock);
 
 	return (pctcpu);
+}
+
+void
+sched_pin(struct thread *td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	td->td_kse->ke_flags |= KEF_PINNED;
+}
+
+void
+sched_unpin(struct thread *td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	td->td_kse->ke_flags &= ~KEF_PINNED;
+}
+
+void
+sched_bind(struct thread *td, int cpu)
+{
+	struct kse *ke;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	ke = td->td_kse;
+#ifndef SMP
+	ke->ke_flags |= KEF_BOUND;
+#else
+	if (PCPU_GET(cpuid) == cpu) {
+		ke->ke_flags |= KEF_BOUND;
+		return;
+	}
+	/* sched_rem without the runq_remove */
+	ke->ke_state = KES_THREAD;
+	ke->ke_ksegrp->kg_runq_kses--;
+	kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+	ke->ke_cpu = cpu;
+	kseq_notify(ke, cpu);
+	/* When we return from mi_switch we'll be on the correct cpu. */
+	td->td_proc->p_stats->p_ru.ru_nvcsw++;
+	mi_switch();
+#endif
+}
+
+void
+sched_unbind(struct thread *td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	td->td_kse->ke_flags &= ~KEF_BOUND;
 }
 
 int
