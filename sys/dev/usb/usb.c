@@ -129,7 +129,7 @@ struct cdevsw usb_cdevsw = {
 	/* strategy */	nostrategy,
 	/* name */	"usb",
 	/* parms */	noparms,
-	/* maj */	-1,
+	/* maj */	USB_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,

@@ -80,12 +80,6 @@ void usbd_do_request_async_cb
 
 static SIMPLEQ_HEAD(, usbd_request) usbd_free_requests;
 
-#if defined(__FreeBSD__)
-#define USB_CDEV_MAJOR	108
-
-extern struct cdevsw usb_cdevsw;
-#endif
-
 #ifdef USB_DEBUG
 char *usbd_error_strs[USBD_ERROR_MAX] = {
 	"NORMAL_COMPLETION",
@@ -374,6 +368,7 @@ usbd_get_request_status(reqh, priv, buffer, count, status)
 		*count = reqh->actlen;
 	if (status)
 		*status = reqh->status;
+
 	return (USBD_NORMAL_COMPLETION);
 }
 
