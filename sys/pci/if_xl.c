@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.46 1998/08/31 15:10:22 wpaul Exp $
+ *	$Id: if_xl.c,v 1.7 1998/08/31 15:26:09 wpaul Exp $
  */
 
 /*
@@ -124,7 +124,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.46 1998/08/31 15:10:22 wpaul Exp $";
+	"$Id: if_xl.c,v 1.7 1998/08/31 15:26:09 wpaul Exp $";
 #endif
 
 /*
@@ -1284,7 +1284,7 @@ xl_attach(config_id, unit)
 			irq = pci_conf_read(config_id, XL_PCI_INTLINE);
 
 			/* Reset the power state. */
-			printf("xl%d: chip is is in D%d power mode "
+			printf("xl%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & XL_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
 			pci_conf_write(config_id, XL_PCI_PWRMGMTCTRL, command);
