@@ -1863,7 +1863,7 @@ ip_mroute_mod_handle(struct lkm_table *lkmtp, int cmd)
 		static int (*old_ip_mrouter_done)();
 		static int (*old_ip_mforward)();
 		static int (*old_mrt_ioctl)();
-		static int (*old_proto4_input)();
+		static void (*old_proto4_input)();
 		static int (*old_legal_vif_num)();
 		extern u_char ip_protox[];
 		extern struct protosw inetsw[];
