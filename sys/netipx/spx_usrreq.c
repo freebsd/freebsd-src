@@ -314,8 +314,19 @@ spx_input(m, ipxp)
 	return;
 
 dropwithreset:
-	if (dropsocket)
+	if (dropsocket) {
+		struct socket *head;
+		ACCEPT_LOCK();
+		KASSERT((so->so_qstate & SQ_INCOMP) != 0,
+		    ("spx_input: nascent socket not SQ_INCOMP on soabort()"));
+		head = so->so_head;
+		TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		head->so_incqlen--;
+		so->so_qstate &= ~SQ_INCOMP;
+		so->so_head = NULL;
+		ACCEPT_UNLOCK();
 		soabort(so);
+	}
 	si->si_seq = ntohs(si->si_seq);
 	si->si_ack = ntohs(si->si_ack);
 	si->si_alo = ntohs(si->si_alo);
