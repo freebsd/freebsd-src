@@ -69,7 +69,7 @@
 /*
  * TCP protocol interface to socket abstraction.
  */
-extern	char *tcpstates[];
+extern	char *tcpstates[];	/* XXX ??? */
 
 static int	tcp_attach __P((struct socket *));
 static int	tcp_connect __P((struct tcpcb *, struct mbuf *));
@@ -288,7 +288,7 @@ tcp_usr_accept(struct socket *so, struct mbuf *nam)
 	struct tcpcb *tp;
 
 	COMMON_START();
-	in_setpeeraddr(inp, nam);
+	in_setpeeraddr(so, nam);
 	COMMON_END(PRU_ACCEPT);
 }
 
@@ -415,19 +415,6 @@ tcp_usr_abort(struct socket *so)
 }
 
 /*
- * Fill in st_bklsize for fstat() operations on a socket.
- */
-static int
-tcp_usr_sense(struct socket *so, struct stat *sb)
-{
-	int s = splnet();
-
-	sb->st_blksize = so->so_snd.sb_hiwat;
-	splx(s);
-	return 0;
-}
-
-/*
  * Receive out-of-band data.
  */
 static int
@@ -457,49 +444,13 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	COMMON_END(PRU_RCVOOB);
 }
 
-static int
-tcp_usr_sockaddr(struct socket *so, struct mbuf *nam)
-{
-	int s = splnet();
-	int error = 0;
-	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
-
-	COMMON_START();
-	in_setsockaddr(inp, nam);
-	COMMON_END(PRU_SOCKADDR);
-}
-
-static int
-tcp_usr_peeraddr(struct socket *so, struct mbuf *nam)
-{
-	int s = splnet();
-	int error = 0;
-	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
-
-	COMMON_START();
-	in_setpeeraddr(inp, nam);
-	COMMON_END(PRU_PEERADDR);
-}
-
-/*
- * XXX - this should just be a call to in_control, but we need to get
- * the types worked out.
- */
-static int
-tcp_usr_control(struct socket *so, int cmd, caddr_t arg, struct ifnet *ifp)
-{
-	return in_control(so, cmd, arg, ifp);
-}
-
 /* xxx - should be const */
 struct pr_usrreqs tcp_usrreqs = {
 	tcp_usr_abort, tcp_usr_accept, tcp_usr_attach, tcp_usr_bind,
-	tcp_usr_connect, pru_connect2_notsupp, tcp_usr_control, tcp_usr_detach,
-	tcp_usr_disconnect, tcp_usr_listen, tcp_usr_peeraddr, tcp_usr_rcvd,
-	tcp_usr_rcvoob, tcp_usr_send, tcp_usr_sense, tcp_usr_shutdown,
-	tcp_usr_sockaddr
+	tcp_usr_connect, pru_connect2_notsupp, in_control, tcp_usr_detach,
+	tcp_usr_disconnect, tcp_usr_listen, in_setpeeraddr, tcp_usr_rcvd,
+	tcp_usr_rcvoob, tcp_usr_send, pru_sense_null, tcp_usr_shutdown,
+	in_setsockaddr
 };
 
 /*

@@ -170,6 +170,7 @@ extern struct socket *ip_mrouter; /* multicast routing daemon */
 extern int	(*legal_vif_num) __P((int));
 extern u_long	(*ip_mcast_src) __P((int));
 extern int rsvp_on;
+extern struct	pr_usrreqs rip_usrreqs;
 
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_drain __P((void));
@@ -190,8 +191,6 @@ void	 rip_ctlinput __P((int, struct sockaddr *, void *));
 void	 rip_init __P((void));
 void	 rip_input __P((struct mbuf *, int));
 int	 rip_output __P((struct mbuf *, struct socket *, u_long));
-int	 rip_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	ipip_input __P((struct mbuf *, int));
 void	rsvp_input __P((struct mbuf *, int));
 int	ip_rsvp_init __P((struct socket *));
