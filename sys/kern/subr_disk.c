@@ -92,7 +92,7 @@ disk_invalidate (struct disk *disk)
 }
 
 void
-disk_delete(dev_t dev)
+disk_destroy(dev_t dev)
 {
 	return;
 }
