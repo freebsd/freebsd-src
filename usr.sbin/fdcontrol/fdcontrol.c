@@ -34,8 +34,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <machine/ioctl_fd.h>
 #include <sys/file.h>
+#include <sys/fdcio.h>
 
 int
 getnumber(void)
