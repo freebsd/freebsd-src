@@ -148,7 +148,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 	 * Note: -C is only available in FreeBSD 2.2 and above
 	 */
 #ifdef HAVE_PWDB_C
-	if (pwdb("-C", NULL) == 0) {	/* Check only */
+	if (pwdb("-C", (char *)NULL) == 0) {	/* Check only */
 #else
 	{				/* No -C */
 #endif
@@ -185,7 +185,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 					rc = pwdb(NULL);
 #ifdef HAVE_PWDB_U
 				else
-					rc = pwdb("-u", user, NULL);
+					rc = pwdb("-u", user, (char *)NULL);
 #endif
 			}
 		}
