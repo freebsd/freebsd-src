@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: null_subr.c,v 1.2 1994/05/25 09:08:00 rgrimes Exp $
+ * $Id: null_subr.c,v 1.3 1994/10/02 17:48:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -168,7 +168,7 @@ null_node_alloc(mp, lowervp, vpp)
 	 * check to see if someone else has beaten us to it.
 	 * (We could have slept in MALLOC.)
 	 */
-	othervp = null_node_find(lowervp);
+	othervp = null_node_find(mp, lowervp);
 	if (othervp) {
 		FREE(xp, M_TEMP);
 		vp->v_type = VBAD;	/* node is discarded */
