@@ -68,3 +68,9 @@ KBDIO_DEBUG		opt_kbd.h
 # Clock options
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 TIMER_FREQ			opt_clock.h
+
+# Options for emulators.  These should only be used at config time, so
+# they are handled like options for static file systems
+# (see src/sys/conf/options), except for broken debugging options.
+COMPAT_OSF1            opt_dontuse.h
+
