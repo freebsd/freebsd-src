@@ -30,8 +30,6 @@
  * $FreeBSD$
  */
 
-#include "pci.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -47,10 +45,8 @@
 #include <dev/sound/pci/csareg.h>
 #include <dev/sound/pci/csavar.h>
 
-#if NPCI > 0
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#endif /* NPCI > 0 */
 
 #include <dev/sound/pci/csaimg.h>
 
@@ -74,10 +70,8 @@ struct csa_softc {
 
 typedef struct csa_softc *sc_p;
 
-#if NPCI > 0
 static int csa_probe(device_t dev);
 static int csa_attach(device_t dev);
-#endif /* NPCI > 0 */
 static struct resource *csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					      u_long start, u_long end, u_long count, u_int flags);
 static int csa_release_resource(device_t bus, device_t child, int type, int rid,
@@ -95,7 +89,6 @@ static int csa_transferimage(csa_res *resp, u_long *src, u_long dest, u_long len
 
 static devclass_t csa_devclass;
 
-#if NPCI > 0
 static int
 csa_probe(device_t dev)
 {
@@ -223,7 +216,6 @@ csa_attach(device_t dev)
 
 	return (0);
 }
-#endif /* NPCI > 0 */
 
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -902,7 +894,6 @@ csa_writemem(csa_res *resp, u_long offset, u_int32_t data)
 	bus_space_write_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset, data);
 }
 
-#if NPCI > 0
 static device_method_t csa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		csa_probe),
@@ -934,4 +925,3 @@ static driver_t csa_driver = {
  * csa can be attached to a pci bus.
  */
 DRIVER_MODULE(csa, pci, csa_driver, csa_devclass, 0, 0);
-#endif /* NPCI > 0 */
