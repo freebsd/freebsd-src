@@ -17,11 +17,7 @@
 #define DIST_DES		0x1000
 #define DIST_CATPAGES		0x2000
 #define DIST_PORTS		0x4000
-#ifdef USE_XIG_ENVIRONMENT
-#define DIST_XIG_SERVER		0x8000
-#else
 #define DIST_USR1		0x8000
-#endif
 #define DIST_ALL		0x7FFF
 
 /* Canned distribution sets */
@@ -58,7 +54,6 @@
 #define DIST_SRC_SMAILCF	0x10000
 #define DIST_SRC_ALL		0xFFFF	/* no SMAILCF, it's part of USBIN */
 
-#ifndef USE_XIG_ENVIRONMENT
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001
 #define DIST_XF86_CFG		0x0002
@@ -112,6 +107,5 @@
 #define DIST_XF86_FONTS_SERVER		0x0020
 #define DIST_XF86_FONTS_ALL		0x003F
 #define DIST_XF86_ALL		0x1FFFF
-#endif	/* !USE_XIG_ENVIRONMENT */
 
 #endif	/* _DIST_H_INCLUDE */

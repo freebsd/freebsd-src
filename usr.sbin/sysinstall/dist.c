@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.120 1997/10/13 12:12:14 jkh Exp $
+ * $Id: dist.c,v 1.121 1998/01/23 07:53:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,11 +41,9 @@
 unsigned int Dists;
 unsigned int DESDists;
 unsigned int SrcDists;
-#ifndef USE_XIG_ENVIRONMENT
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
-#endif
 
 typedef struct _dist {
     char *my_name;
@@ -58,11 +56,9 @@ typedef struct _dist {
 extern Distribution DistTable[];
 extern Distribution DESDistTable[];
 extern Distribution SrcDistTable[];
-#ifndef USE_XIG_ENVIRONMENT
 extern Distribution XF86DistTable[];
 extern Distribution XF86FontDistTable[];
 extern Distribution XF86ServerDistTable[];
-#endif
 
 /* The top-level distribution categories */
 static Distribution DistTable[] = {
@@ -80,11 +76,7 @@ static Distribution DistTable[] = {
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
-#ifdef USE_XIG_ENVIRONMENT
-{ "accelx",	"/usr/X11R6/lib/X11",	&Dists,		DIST_XIG_SERVER,	NULL		},
-#else
 { "XF86331",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
-#endif
 { NULL },
 };
 
@@ -120,7 +112,6 @@ static Distribution SrcDistTable[] = {
 { NULL },
 };
 
-#ifndef USE_XIG_ENVIRONMENT
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
 { "XF86331",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
@@ -183,7 +174,6 @@ static Distribution XF86FontDistTable[] = {
 { "X331fsrv",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
 { NULL },
 };
-#endif	/* !USE_XIG_ENVIRONMENT */
 
 static int	distMaybeSetDES(dialogMenuItem *self);
 static int	distMaybeSetPorts(dialogMenuItem *self);
@@ -199,7 +189,6 @@ distVerifyFlags(void)
 	    DESDists |= DIST_DES_DES;
 	Dists |= DIST_DES;
     }
-#ifndef USE_XIG_ENVIRONMENT
     if (XF86Dists & DIST_XF86_SET)
 	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
     if (XF86ServerDists)
@@ -208,7 +197,6 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists)
 	Dists |= (DIST_XF86 | DIST_COMPAT21);
-#endif
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
@@ -220,11 +208,9 @@ distReset(dialogMenuItem *self)
     Dists = 0;
     DESDists = 0;
     SrcDists = 0;
-#ifndef USE_XIG_ENVIRONMENT
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
-#endif
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -244,7 +230,6 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
 
-#ifndef	USE_XIG_ENVIRONMENT
     if ((cp = variable_get(VAR_DIST_X11)) != NULL)
 	XF86Dists = atoi(cp);
 
@@ -253,7 +238,6 @@ distConfig(dialogMenuItem *self)
 
     if ((cp = variable_get(VAR_DIST_XFONTS)) != NULL)
 	XF86FontDists = atoi(cp);
-#endif
     distVerifyFlags();
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
@@ -279,13 +263,9 @@ distSetXDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-#ifdef USE_XIG_ENVIRONMENT
-    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
-#else
     XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-#endif
     i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -323,13 +303,9 @@ distSetXUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
-#ifdef USE_XIG_ENVIRONMENT
-    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
-#else
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-#endif
     i = distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -350,13 +326,9 @@ distSetEverything(dialogMenuItem *self)
 
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-#ifdef USE_XIG_ENVIRONMENT
-    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
-#else
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-#endif
     i = distMaybeSetDES(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -487,12 +459,8 @@ distSetXF86(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
 
-#ifdef USE_XIG_ENVIRONMENT
-    Dists |= (DIST_XIG_SERVER | DIST_COMPAT21);
-#else
     if (!dmenuOpenSimple(&MenuXF86Select, FALSE))
 	i = DITEM_FAILURE;
-#endif
     distVerifyFlags();
     return i | DITEM_RESTORE;
 }
