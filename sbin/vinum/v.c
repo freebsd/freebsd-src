@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: v.c,v 1.35 2003/04/26 02:02:49 grog Exp $
+ * $Id: v.c,v 1.38 2003/05/01 01:39:42 grog Exp $
  * $FreeBSD$
  */
 
@@ -275,7 +275,6 @@ struct funkey {
 	FUNKEY(info),
 	FUNKEY(set),
 	FUNKEY(init),
-	FUNKEY(label),
 	FUNKEY(resetconfig),
 	FUNKEY(rm),
 	FUNKEY(mv),
