@@ -3,11 +3,11 @@
 1.0  Getting started.
 ---------------------
 
-After a general introduction, you will find some explanation on what you need
-to do to assign space to FreeBSD on your disk(s).  This is done through
-the "sysinstall" program, which lives on the inital boot floppy.  Those
-already expert with PCs may wish to skip ahead to section 1.2, the rest of
-you may enjoy the brief history lesson.
+After a general introduction, you will find some explanation on what you
+need to do to assign space to FreeBSD on your disk(s).  This is done
+through the "sysinstall" program, which lives on the inital boot floppy.
+Those already expert with PCs may wish to skip ahead to section 1.2, the
+rest of you may (or may not) enjoy the brief history lesson.
 
 
 1.1  The ins and outs of allocating disk storage on your PC.
@@ -15,22 +15,22 @@ you may enjoy the brief history lesson.
 
 Modern hard disk drives are now getting big enough that people don't want
 to allocate all of one to just one operating system anymore, especially
-given the increasing size of disk drives (the latest 9.0 Gbyte models holding
-the equivalent of some six thousand 1.44MB floppies!) and the virtual
-explosion of operating system options available for the PC.  To solve this
-problem, IBM came up with a scheme for "slicing" the disks into more manageble
-chunks, or partitions.  It works, but only just.  To better understand
-why, first a brief bit of history:
+given the increasing size of disk drives (the latest 9.0 Gbyte models
+holding the equivalent of some six thousand 1.44MB floppies!) and the
+virtual explosion of operating system options available for the PC.  To
+solve this problem, IBM came up with a scheme for "slicing" the disks
+into more manageble chunks, or partitions.  It works, but only just.
+To better understand why, first a brief bit of history:
 
 MS-DOS, when hard disk support was unceremoniously grafted on back in the
-late eighties, didn't have such things.  What it had was a way to install
+late eighties, didn't have such "slices".  What it had was a way to install
 Xenix and MS-DOS on the same disk (Remember when Microsoft were in the UNIX
-business?  A long time ago, to be sure!).
+business?).
 
-In the first sector on the disk was a piece of "primary boot code" and a table
-with four entries.  Each of those entries pointed at an arbitrary slice
-of the disk, with one of them was marked "active".  The machine would boot
-by reading the first sector containing the boot code into RAM and then
+In the first sector on the disk was a piece of "primary boot code" and a
+table with four entries.  Each of those entries pointed at an arbitrary
+slice of the disk, with one of them was marked "active".  The machine would
+boot by reading the first sector containing the boot code into RAM and then
 jumping to it.  The job of this small piece of boot code was to look at
 the 4 entry table and decide which OS was to be booted by looking
 for the "active" flag.   It would go and load the first sector of that slice
@@ -48,10 +48,13 @@ no size limit.  And the trick was that the secondary had ANOTHER "table entry"
 so that now suddenly up to 5 slices could be available to MS-DOS.  The
 Secondary boot record was later made recursive, thus effectively avoiding
 any fixed limit.  Of course, they were still stuck with a maximum of 26 slices
-given the use of "drive letters" in DOS.  Yes, truly DOS was and is an
-utterly terrible operating system, which of course explains its amazing degree
-of success.  Anyway, this all brings us up to today, which is where FreeBSD
-comes in.
+given the use of "drive letters" in DOS.  They also reserved only 10 bits
+for cylinder addressing, limiting DOS to being able to address a maximum
+of 1024 cylinders (and cause of the dreaded "cylinder translation" kludges,
+the misconfiguration of which many users have seen as the notorious "Missing
+Operating System" message).  Yes, truly DOS was and is an utterly terrible
+operating system, which of course explains its amazing degree of success.
+Anyway, this all brings us up to today, which is where FreeBSD comes in:
 
 
 1.2  What FreeBSD does
@@ -256,4 +259,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.1 1994/11/05 05:54:21 phk Exp $
+$Id: DISKSPACE.FAQ,v 1.2 1994/11/05 06:54:49 jkh Exp $
