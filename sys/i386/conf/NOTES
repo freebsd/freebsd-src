@@ -450,6 +450,9 @@ options 	ACPI_MAX_THREADS=1
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
+# ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
+device		acpi_asus
+
 # ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_toshiba
 
