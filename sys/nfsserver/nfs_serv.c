@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.62 1998/05/30 16:33:56 peter Exp $
+ * $Id: nfs_serv.c,v 1.63 1998/05/31 17:27:47 peter Exp $
  */
 
 /*
@@ -2545,6 +2545,10 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	fullsiz = siz;
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam,
 		 &rdonly, (nfsd->nd_flag & ND_KERBAUTH), TRUE);
+	if (!error && vp->v_type != VDIR) {
+		error = ENOTDIR;
+		vput(vp);
+	}
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
@@ -2801,6 +2805,10 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	fullsiz = siz;
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam,
 		 &rdonly, (nfsd->nd_flag & ND_KERBAUTH), TRUE);
+	if (!error && vp->v_type != VDIR) {
+		error = ENOTDIR;
+		vput(vp);
+	}
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
 		nfsm_srvpostop_attr(getret, &at);
