@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1996 Alex Nash
  * Copyright (c) 1996 Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
  * Idea and grammar partially left from:
@@ -27,6 +28,7 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <limits.h>
+#include <time.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -40,6 +42,7 @@ char 		progname[BUFSIZ];		/* Program name for errors */
 int 		s;				/* main RAW socket 	   */
 int 		do_resolv=0;			/* Would try to resolv all */
 int		do_acct=0;			/* Show packet/byte count  */
+int		do_time=0;			/* Show time stamps        */
 
 int
 mask_bits(m_ad)
@@ -63,6 +66,40 @@ mask_bits(m_ad)
 }                         
 
 void
+print_port(port, comma, flg)
+	u_short port,flg;
+	const char *comma;
+{
+	int printed = 0;
+
+	if (do_resolv) {
+		struct servent *se;
+		const char *protocol;
+
+		switch (flg & IP_FW_F_KIND) {
+			case IP_FW_F_TCP:
+				protocol = "tcp";
+				break;
+			case IP_FW_F_UDP:
+				protocol = "udp";
+				break;
+			default:
+				protocol = NULL;
+				break;
+		}
+
+		se = getservbyport(htons(port), protocol);
+
+		if (se) {
+			printf("%s%s", comma, se->s_name);
+			printed = 1;
+		}
+	} 
+	if (!printed)
+		printf("%s%d",comma,port);
+}
+
+void
 show_ipfw(chain)
 	struct ip_fw *chain;
 {
@@ -71,14 +108,30 @@ show_ipfw(chain)
 	struct hostent *he;
 	int i,mb;
 
+	if (do_resolv)
+		setservent(1/*stayopen*/);
 
 	printf("%05u ", chain->fw_number);
 
 	if (do_acct) 
 		printf("%10lu %10lu ",chain->fw_pcnt,chain->fw_bcnt);
 
+	if (do_time)
+	{
+		if (chain->timestamp)
+		{
+			char timestr[30];
+
+			strcpy(timestr, ctime((time_t *)&chain->timestamp));
+			*strchr(timestr, '\n') = '\0';
+			printf("%s ", timestr);
+		}
+		else
+			printf("                         ");
+	}
+
 	if (chain->fw_flg & IP_FW_F_ACCEPT)
-		printf("accept");
+		printf("allow");
 	else if (chain->fw_flg & IP_FW_F_ICMPRPL)
 		printf("reject");
 	else if (chain->fw_flg & IP_FW_F_COUNT)
@@ -136,7 +189,7 @@ show_ipfw(chain)
 
 	comma = " ";
 	for (i=0;i<chain->fw_nsp; i++ ) {
-		printf("%s%d",comma,chain->fw_pts[i]);
+		print_port(chain->fw_pts[i], comma, chain->fw_flg);
 		if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 			comma = "-";
 		else
@@ -174,7 +227,7 @@ show_ipfw(chain)
 
 	comma = " ";
 	for (i=0;i<chain->fw_ndp;i++) {
-		printf("%s%d",comma,chain->fw_pts[chain->fw_nsp+i]);
+		print_port(chain->fw_pts[chain->fw_nsp+i], comma, chain->fw_flg);
 		if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
 			comma = "-";
 		else
@@ -193,7 +246,10 @@ show_ipfw(chain)
 		printf(" via ");
 		strncpy(ifnb,chain->fw_via_name,FW_IFNLEN);
 		ifnb[FW_IFNLEN]='\0';
-		printf("%s%d",ifnb,chain->fw_via_unit);
+		if (chain->fw_flg & IP_FW_F_IFUWILD)
+			printf("%s*",ifnb);
+		else 
+			printf("%s%d",ifnb,chain->fw_via_unit);
 	} else if (chain->fw_via_ip.s_addr) {
 		printf(" via ");
 		printf(inet_ntoa(chain->fw_via_ip));
@@ -218,11 +274,11 @@ show_ipfw(chain)
 		if (chain->fw_ipnopt & IP_FW_IPOPT_TS)   PRINTOPT("!ts");
 	} 
 
-	if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
+	if (chain->fw_tcpf & IP_FW_TCPF_ESTAB) 
+		printf(" established");
+	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
 		printf(" setup");
-	else if (chain->fw_tcpnf == IP_FW_TCPF_SYN && !chain->fw_tcpf)
-		printf(" established");
 	else if (chain->fw_tcpf || chain->fw_tcpnf) {
 		int 	_flg_printed = 0;
 #define PRINTFLG(x)	{if (_flg_printed) printf(",");\
@@ -242,7 +298,22 @@ show_ipfw(chain)
 		if (chain->fw_tcpf  & IP_FW_TCPF_URG)  PRINTFLG("urg");
 		if (chain->fw_tcpnf & IP_FW_TCPF_URG)  PRINTFLG("!urg");
 	} 
+	if (chain->fw_flg & IP_FW_F_ICMPBIT) {
+		int type_index;
+		int first = 1;
+
+		printf(" icmptype");
+
+		for (type_index = 0; type_index < 256; ++type_index)
+			if (chain->fw_icmptypes[type_index / (sizeof(unsigned) * 8)] & 
+				(1U << (type_index % (sizeof(unsigned) * 8)))) {
+				printf("%c%d", first == 1 ? ' ' : ',', type_index);
+				first = 0;
+			}
+	}
 	printf("\n");
+	if (do_resolv)
+		endservent();
 }
 
 void
@@ -270,8 +341,6 @@ show_usage(str)
 {
 	if (str)
 		fprintf(stderr,"%s: ERROR - %s\n",progname,str);
-	else
-		fprintf(stderr,"%s: ERROR - bad arguments\n",progname);
 	fprintf(stderr,
 "Usage:\n"
 "\t%s [options]\n"
@@ -283,19 +352,37 @@ show_usage(str)
 "\trule:\taction proto src dst extras...\n"
 "\t\taction: {allow|deny|reject|count} [log]\n"
 "\t\tproto: {ip|tcp|udp|icmp}}\n"
-"\t\tsrc: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
-"\t\tdst: {any|ip[{/bits|:mask}]} [{port|port-port},...]\n"
+"\t\tsrc: from {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
+"\t\tdst: to {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "\textras:\n"
 "\t\tfragment\n"
 "\t\t{in|out|inout}\n"
 "\t\tvia {ifname|ip}\n"
-"\t\ttcpflags [!]{syn|fin|rst|ack|psh},...\n"
+"\t\t{established|setup}\n"
+"\t\ttcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
+"\t\tipoptions [!]{ssrr|lsrr|rr|ts},...\n"
+"\t\ticmptypes {type},...\n"
 , progname
 );
 
 		
 	fprintf(stderr,"See man %s(8) for proper usage.\n",progname);
 	exit (1);
+}
+
+int
+lookup_host (host, ipaddr)
+	char *host;
+	struct in_addr *ipaddr;
+{
+	struct hostent *he = gethostbyname(host);
+
+	if (!he)
+		return(-1);
+
+	*ipaddr = *(struct in_addr *)he->h_addr_list[0];
+
+	return(0);
 }
 
 void
@@ -319,7 +406,7 @@ fill_ip(ipno, mask, acp, avp)
 			*p++ = '\0'; 
 		}
 
-		if (!inet_aton(*av,ipno))
+		if (lookup_host(*av,ipno) != 0)
 			show_usage("ip number\n");
 		switch (md) {
 			case ':':
@@ -337,6 +424,7 @@ fill_ip(ipno, mask, acp, avp)
 				mask->s_addr = htonl(0xffffffff);
 				break;
 		}
+		ipno->s_addr &= mask->s_addr;
 		av++;
 		ac--;
 	}
@@ -344,49 +432,46 @@ fill_ip(ipno, mask, acp, avp)
 	*avp = av;
 }
 
-int
-fill_port(cnt, ptr, off, av)
-	u_short *cnt, *ptr, off;
-	char **av;
+void
+add_port(cnt, ptr, off, port)
+	u_short *cnt, *ptr, off, port;
 {
-	char *s, sc = 0;
-	int i = 0;
+	if (off + *cnt >= IP_FW_MAX_PORTS)
+		errx(1, "too many ports (max is %d)", IP_FW_MAX_PORTS);
+	ptr[off+*cnt] = port;
+	(*cnt)++;
+}
 
-	s = strchr(*av,'-');
+int
+fill_port(cnt, ptr, off, arg)
+	u_short *cnt, *ptr, off;
+	char *arg;
+{
+	char *s;
+	int initial_range = 0;
+
+	s = strchr(arg,'-');
 	if (s) {
-		sc = *s;
 		*s++ = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		*av = s;
-		s = strchr(*av,',');
-		if (s) {
-			sc = *s;
+		if (strchr(arg, ','))
+			errx(1, "port range must be first in list");
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000);
+		arg = s;
+		s = strchr(arg,',');
+		if (s)
 			*s++ = '\0';
-		} else
-			sc = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		if (sc && sc != ',') show_usage("Expected comma\n");
-		*av = s;
-		sc = 0;
-		i = 1;
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff);
+		arg = s;
+		initial_range = 1;
 	}
-	while (*av != NULL) {
-		s = strchr(*av,',');
-		if (s) {
-			sc = *s;
+	while (arg != NULL) {
+		s = strchr(arg,',');
+		if (s)
 			*s++ = '\0';
-		} else
-			sc = '\0';
-		ptr[off+*cnt] = atoi(*av);
-		(*cnt)++;
-		if (!sc)
-			break;
-		if (sc != ',') show_usage("Expected comma\n");
-		*av = s;
+		add_port(cnt, ptr, off, atoi(arg));
+		arg = s;
 	}
-	return i;
+	return initial_range;
 }
 
 void
@@ -398,6 +483,19 @@ fill_tcpflag(set, reset, vp)
 	u_char *d;
 
 	while (p && *p) {
+		struct tpcflags {
+			char * name;
+			u_char value;
+		} flags[] = {
+			{ "syn", IP_FW_TCPF_SYN },
+			{ "fin", IP_FW_TCPF_FIN },
+			{ "ack", IP_FW_TCPF_ACK },
+			{ "psh", IP_FW_TCPF_PSH },
+			{ "rst", IP_FW_TCPF_RST },
+			{ "urg", IP_FW_TCPF_URG }
+		};
+		int i;
+
 		if (*p == '!') {
 			p++;
 			d = reset;
@@ -407,11 +505,13 @@ fill_tcpflag(set, reset, vp)
 		q = strchr(p, ',');
 		if (q) 
 			*q++ = '\0';
-		if (!strncmp(p,"syn",strlen(p))) *d |= IP_FW_TCPF_SYN;
-		if (!strncmp(p,"fin",strlen(p))) *d |= IP_FW_TCPF_FIN;
-		if (!strncmp(p,"ack",strlen(p))) *d |= IP_FW_TCPF_ACK;
-		if (!strncmp(p,"psh",strlen(p))) *d |= IP_FW_TCPF_PSH;
-		if (!strncmp(p,"rst",strlen(p))) *d |= IP_FW_TCPF_RST;
+		for (i = 0; i < sizeof(flags) / sizeof(flags[0]); ++i)
+			if (!strncmp(p, flags[i].name, strlen(p))) {
+				*d |= flags[i].value;
+				break;
+			}
+		if (i == sizeof(flags) / sizeof(flags[0]))
+			show_usage("invalid tcp flag\n");
 		p = q;
 	}
 }
@@ -443,6 +543,35 @@ fill_ipopt(set, reset, vp)
 }
 
 void
+fill_icmptypes(types, vp, fw_flg)
+	u_long *types;
+	char **vp;
+	u_short *fw_flg;
+{
+	char *c = *vp;
+
+	while (*c)
+	{
+		unsigned long icmptype;
+
+		if ( *c == ',' )
+			++c;
+
+		icmptype = strtoul(c, &c, 0);
+
+		if ( *c != ',' && *c != '\0' )
+			show_usage("invalid ICMP type");
+
+		if (icmptype > 255)
+			show_usage("ICMP types are between 0 and 255 inclusive");
+
+		types[icmptype / (sizeof(unsigned) * 8)] |= 
+			1 << (icmptype % (sizeof(unsigned) * 8));
+		*fw_flg |= IP_FW_F_ICMPBIT;
+	}
+}
+
+void
 delete(ac,av)
 	int ac;
 	char **av;
@@ -461,7 +590,7 @@ delete(ac,av)
 
 	i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
 	if (i)
-		err(1,"setsockopt(Add)");
+		err(1,"setsockopt(IP_FW_DEL)");
 }
 
 void
@@ -483,6 +612,8 @@ add(ac,av)
 
 	/* Action */
 	if (ac && !strncmp(*av,"accept",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
+	} else if (ac && !strncmp(*av,"allow",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (ac && !strncmp(*av,"pass",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
@@ -523,7 +654,7 @@ add(ac,av)
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, av))
+		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av))
 			rule.fw_flg |= IP_FW_F_SRNG;
 		av++; ac--;
 	}
@@ -537,7 +668,7 @@ add(ac,av)
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, av))
+		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, *av))
 			rule.fw_flg |= IP_FW_F_DRNG;
 		av++; ac--;
 	}
@@ -548,9 +679,12 @@ add(ac,av)
 			char *q;
 
 			strcpy(rule.fw_via_name, *av);
-			for (q = rule.fw_via_name; *q && !isdigit(*q); q++)
+			for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 				continue;
-			rule.fw_via_unit = atoi(q);
+			if (*q == '*')
+				rule.fw_flg = IP_FW_F_IFUWILD;
+			else
+				rule.fw_via_unit = atoi(q);
 			*q = '\0';
 			rule.fw_flg |= IP_FW_F_IFNAME;
 		} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
@@ -560,7 +694,7 @@ add(ac,av)
 	}
 
 	while (ac) {
-		if (!strncmp(*av,"frag",strlen(*av))) { 
+		if (!strncmp(*av,"fragment",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_FRAG; av++; ac--; continue;
 		}
 		if (!strncmp(*av,"in",strlen(*av))) { 
@@ -576,7 +710,7 @@ add(ac,av)
 		}
 		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_TCP) {
 			if (!strncmp(*av,"established",strlen(*av))) { 
-				rule.fw_tcpnf  |= IP_FW_TCPF_SYN;
+				rule.fw_tcpf  |= IP_FW_TCPF_ESTAB;
 				av++; ac--; continue;
 			}
 			if (!strncmp(*av,"setup",strlen(*av))) { 
@@ -590,6 +724,13 @@ add(ac,av)
 				av++; ac--; continue;
 			}
 		}
+		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP) {
+			if (ac > 1 && !strncmp(*av,"icmptypes",strlen(*av))) {
+				av++; ac--;
+				fill_icmptypes(rule.fw_icmptypes, av, &rule.fw_flg);
+				av++; ac--; continue;
+			}
+		}
 		printf("%d %s\n",ac,*av);
 		show_usage("Unknown argument\n");
 	}
@@ -597,7 +738,41 @@ add(ac,av)
 	show_ipfw(&rule);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
-		err(1,"setsockopt(Delete)");
+		err(1,"setsockopt(IP_FW_ADD)");
+}
+
+void
+zero (ac, av)
+	int ac;
+	char **av;
+{
+	av++; ac--;
+
+	if (!ac) {
+		/* clear all entries */
+		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		} 
+		printf("Accounting cleared.\n");
+	} else {
+		/* clear a specific entry */
+		struct ip_fw rule;
+
+		memset(&rule, 0, sizeof rule);
+
+		/* Rule number */
+		if (isdigit(**av)) {
+			rule.fw_number = atoi(*av); av++; ac--;
+
+			if (setsockopt(s, IPPROTO_IP, IP_FW_ZERO, &rule, sizeof rule))
+				err(1, "setsockopt(Zero)");
+			printf("Entry %d cleared\n", rule.fw_number);
+		}
+		else {
+			show_usage("expected number");
+		}
+	}
 }
 
 int
@@ -614,21 +789,24 @@ ipfw_main(ac,av)
 		show_usage(NULL);
 	}
 
-	while ((ch = getopt(ac, av ,"aN")) != EOF)
+	while ((ch = getopt(ac, av ,"atN")) != EOF)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
+			break;
+		case 't':
+			do_time=1;
 			break;
 		case 'N':
 	 		do_resolv=1;
 			break;
 		default:
-			show_usage(NULL);
+			show_usage("Unrecognised switch");
 	}
 
 	ac -= optind;
 	if (*(av+=optind)==NULL) {
-		 show_usage(NULL);
+		 show_usage("Bad arguments");
 	}
 
 	if (!strncmp(*av, "add", strlen(*av))) {
@@ -642,19 +820,15 @@ ipfw_main(ac,av)
 		} 
 		printf("Flushed all rules.\n");
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
-		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} 
-		printf("Accounting cleared.\n");
+		zero(ac,av);
 	} else if (!strncmp(*av, "print", strlen(*av))) {
 		list(--ac,++av);
 	} else if (!strncmp(*av, "list", strlen(*av))) {
 		list(--ac,++av);
 	} else {
-		show_usage(NULL);
+		show_usage("Bad arguments");
 	}
-	return 0;
+        return 0;
 }
 
 int 
@@ -674,7 +848,7 @@ main(ac, av)
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
 		fprintf(stderr,"%s: Can't open raw socket.\n"
-			"Must be root to use this programm. \n",progname);
+			"Must be root to use this program. \n",progname);
 		exit(1);
 	}
 
