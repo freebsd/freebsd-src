@@ -460,7 +460,7 @@ static void
 print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount pt.");
     if (!RunningAsInit)
 	mvprintw(18, 47, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");

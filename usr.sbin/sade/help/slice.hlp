@@ -1,15 +1,15 @@
-This is the Main Partition (or ``FDISK'') Editor.
+This is the Main Slice (or ``FDISK'' Partition) Editor.
 
 Possible commands are printed at the bottom and the Master Boot Record
 contents are shown at the top.  You can move up and down with the
-arrow keys and (C)reate a new partition whenever the highlighted
-selection bar is over a partition whose type is marked as "unused."
+arrow keys and (C)reate a new slice whenever the highlighted
+selection bar is over a slice whose type is marked as "unused."
 
-You are expected to leave this screen with at least one partition
+You are expected to leave this screen with at least one slice
 marked "FreeBSD."  Note that unlike Linux, you don't need to create
-multiple FreeBSD fdisk partition entries for different things like
+multiple FreeBSD fdisk slice entries for different things like
 swap, file systems, etc.  The usual convention is to create ONE
-FreeBSD partition per drive and then subsection this partition into
+FreeBSD slice per drive and then subsection this slice into
 swap and file systems with the Label editor.
 
 No actual changes will be made to the disk until you (C)ommit from the
@@ -28,7 +28,7 @@ For the truly dedicated disk case, you can select `No' at the
 compatibility prompt.  In that case, all BIOS geometry considerations
 will no longer be in effect and you can safely ignore any
 ``The detected geometry is invalid'' warning messages you may later
-see.  It is also not necessary in this case to set a partition bootable
+see.  It is also not necessary in this case to set a slice bootable
 or install an MBR boot manager as both things are then irrelevant.
 
 The FreeBSD slice will start at absolute sector 0 of the disk (so that
@@ -42,18 +42,18 @@ FreeBSD server or workstation, not a typical `home PC'.
 
 The flags field has the following legend:
 
-        '='  -- This partition is properly aligned.
-        '>'  -- This partition doesn't end before cylinder 1024
-        'R'  -- This partition contains the root (/) filesystem
-        'B'  -- Partition employs BAD144 bad-spot handling
-        'C'  -- This is the FreeBSD 2.0-compatibility partition (default)
-        'A'  -- This partition is marked active.
+        '='  -- This slice is properly aligned.
+        '>'  -- This slice doesn't end before cylinder 1024
+        'R'  -- This slice contains the root (/) filesystem
+        'B'  -- Slice employs BAD144 bad-spot handling
+        'C'  -- This is the FreeBSD 2.0-compatibility slice (default)
+        'A'  -- This slice is marked active.
 
-If you select a partition for Bad144 handling, it will be scanned
+If you select a slice for Bad144 handling, it will be scanned
 for bad blocks before any new filesystems are made on it.
 
-If no partition is marked Active, you will need to either install
+If no slice is marked Active, you will need to either install
 a Boot Manager (the option for which will be presented later in the
 installation) or set one Active before leaving this screen.
 
-To leave the partition editor, type `Q'.
+To leave the slice editor, type `Q'.
