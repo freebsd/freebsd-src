@@ -1,7 +1,7 @@
 #       $FreeBSD$ 
 
 MAINTAINER	 = n_hibma@freebsd.org
-SOURCE		 = ../../dev/usb
+SOURCE		 = ${.CURDIR}/../../dev/usb
 
 .PATH:  ${SOURCE}
 KMOD		 = umodem_mod
