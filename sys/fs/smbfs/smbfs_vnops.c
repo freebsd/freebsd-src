@@ -170,13 +170,13 @@ smbfs_open(ap)
 	int mode = ap->a_mode;
 	int error, accmode;
 
-	SMBVDEBUG("%s,%d\n", np->n_name, np->n_opencount);
+	SMBVDEBUG("%s,%d\n", np->n_name, (np->n_flag & NOPEN) != 0);
 	if (vp->v_type != VREG && vp->v_type != VDIR) { 
 		SMBFSERR("open eacces vtype=%d\n", vp->v_type);
 		return EACCES;
 	}
 	if (vp->v_type == VDIR) {
-		np->n_opencount++;
+		np->n_flag |= NOPEN;
 		return 0;
 	}
 	if (np->n_flag & NMODIFIED) {
@@ -198,10 +198,8 @@ smbfs_open(ap)
 			np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;
 		}
 	}
-	if (np->n_opencount) {
-		np->n_opencount++;
+	if ((np->n_flag & NOPEN) != 0)
 		return 0;
-	}
 	/*
 	 * Use DENYNONE to give unixy semantics of permitting
 	 * everything not forbidden by permissions.  Ie denial
@@ -221,50 +219,8 @@ smbfs_open(ap)
 			error = smbfs_smb_open(np, accmode, &scred);
 		}
 	}
-	if (!error) {
-		np->n_opencount++;
-	}
-	smbfs_attr_cacheremove(vp);
-	return error;
-}
-
-static int
-smbfs_closel(struct vop_close_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-	struct smbnode *np = VTOSMB(vp);
-	struct thread *td = ap->a_td;
-	struct smb_cred scred;
-	struct vattr vattr;
-	int error;
-
-	SMBVDEBUG("name=%s, pid=%d, c=%d\n", np->n_name, td->td_proc->p_pid,
-	    np->n_opencount);
-
-	smb_makescred(&scred, td, ap->a_cred);
-
-	if (np->n_opencount == 0) {
-		if (vp->v_type != VDIR)
-			SMBERROR("Negative opencount\n");
-		return 0;
-	}
-	np->n_opencount--;
-	if (vp->v_type == VDIR) {
-		if (np->n_opencount)
-			return 0;
-		if (np->n_dirseq) {
-			smbfs_findclose(np->n_dirseq, &scred);
-			np->n_dirseq = NULL;
-		}
-		error = 0;
-	} else {
-		error = smbfs_vinvalbuf(vp, V_SAVE, ap->a_cred, td, 1);
-		if (np->n_opencount)
-			return error;
-		VOP_GETATTR(vp, &vattr, ap->a_cred, td);
-		error = smbfs_smb_close(np->n_mount->sm_share, np->n_fid, 
-			   &np->n_mtime, &scred);
-	}
+	if (error == 0)
+		np->n_flag |= NOPEN;
 	smbfs_attr_cacheremove(vp);
 	return error;
 }
@@ -285,7 +241,7 @@ smbfs_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
-	int error, dolock;
+	int dolock;
 
 	VI_LOCK(vp);
 	dolock = (vp->v_iflag & VI_XLOCK) == 0;
@@ -293,10 +249,10 @@ smbfs_close(ap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 	else
 		VI_UNLOCK(vp);
-	error = smbfs_closel(ap);
+	/* Nothing. */
 	if (dolock)
 		VOP_UNLOCK(vp, 0, td);
-	return error;
+	return 0;
 }
 
 /*
@@ -333,7 +289,7 @@ smbfs_getattr(ap)
 	}
 	smbfs_attr_cacheenter(vp, &fattr);
 	smbfs_attr_cachelookup(vp, va);
-	if (np->n_opencount)
+	if (np->n_flag & NOPEN)
 		np->n_size = oldsize;
 	return 0;
 }
@@ -384,7 +340,7 @@ smbfs_setattr(ap)
 		vnode_pager_setsize(vp, (u_long)vap->va_size);
  		tsize = np->n_size;
  		np->n_size = vap->va_size;
-		if (np->n_opencount == 0) {
+		if ((np->n_flag & NOPEN) == 0) {
 			error = smbfs_smb_open(np,
 					       SMB_SM_DENYNONE|SMB_AM_OPENRW,
 					       &scred);
@@ -422,7 +378,7 @@ smbfs_setattr(ap)
 		 * If file is opened, then we can use handle based calls.
 		 * If not, use path based ones.
 		 */
-		if (np->n_opencount == 0) {
+		if ((np->n_flag & NOPEN) == 0) {
 			if (vcp->vc_flags & SMBV_WIN95) {
 				error = VOP_OPEN(vp, FWRITE, ap->a_cred, ap->a_td);
 				if (!error) {
@@ -571,7 +527,7 @@ smbfs_remove(ap)
 	struct smb_cred scred;
 	int error;
 
-	if (vp->v_type == VDIR || np->n_opencount || vrefcnt(vp) != 1)
+	if (vp->v_type == VDIR || (np->n_flag & NOPEN) != 0 || vrefcnt(vp) != 1)
 		return EPERM;
 	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
 	error = smbfs_smb_delete(np, &scred);
@@ -841,8 +797,8 @@ int smbfs_print (ap)
 		printf("no smbnode data\n");
 		return (0);
 	}
-	printf("\tname = %s, parent = %p, opencount = %d\n", np->n_name,
-	    np->n_parent ? np->n_parent : NULL, np->n_opencount);
+	printf("\tname = %s, parent = %p, open = %d\n", np->n_name,
+	    np->n_parent ? np->n_parent : NULL, (np->n_flag & NOPEN) != 0);
 	return (0);
 }
 
