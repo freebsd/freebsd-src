@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.52 1999/08/18 06:11:58 mdodd Exp $
+ * $Id: if_fe.c,v 1.53 1999/08/18 22:14:21 mdodd Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -863,7 +863,7 @@ fe_read_eeprom_ssi (struct fe_softc *sc, u_char *data)
 
 	/* Restore the saved register values, for the case that we
            didn't have 78Q8377A at the given address.  */
-	outb(sc->ioaddr[FE_BMPR12], save12);
+	outb(bmpr12, save12);
 	outb(sc->ioaddr[FE_DLCR7], save7);
 	outb(sc->ioaddr[FE_DLCR6], save6);
 
@@ -946,7 +946,7 @@ fe_read_eeprom_lnx (struct fe_softc *sc, u_char *data)
 	u_char save20;
 	u_short reg20 = sc->ioaddr[0x14];
 
-	save20 = inb(sc->ioaddr[0x14]);
+	save20 = inb(reg20);
 
 	/* NOTE: DELAY() timing constants are approximately three
            times longer (slower) than the required minimum.  This is
@@ -1023,13 +1023,13 @@ fe_read_eeprom_lnx (struct fe_softc *sc, u_char *data)
 	fe_eeprom_cycle_lnx(reg20, LNX_CYCLE_STOP);
 
     RET:
-	outb(sc->ioaddr[0x14], save20);
+	outb(reg20, save20);
 	
 #if 1
 	/* Report what we got.  */
-	data -= LNX_EEPROM_SIZE;
 	if (bootverbose) {
-		for (i = 0; i < JLI_EEPROM_SIZE; i += 16) {
+		data -= LNX_EEPROM_SIZE;
+		for (i = 0; i < LNX_EEPROM_SIZE; i += 16) {
 			printf("fe%d: EEPROM(LNX):%3x: %16D\n",
 			       sc->sc_unit, i, data + i, " ");
 		}
