@@ -34,8 +34,6 @@
 #define _NETINET6_IN6_IFATTACH_H_
 
 #ifdef _KERNEL
-void in6_nigroup_attach __P((const char *, int));
-void in6_nigroup_detach __P((const char *, int));
 void in6_ifattach __P((struct ifnet *, struct ifnet *));
 void in6_ifdetach __P((struct ifnet *));
 void in6_get_tmpifid __P((struct ifnet *, u_int8_t *, const u_int8_t *, int));
