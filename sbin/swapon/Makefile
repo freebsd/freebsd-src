@@ -3,5 +3,7 @@
 
 PROG=	swapon
 MAN=	swapon.8
+LINKS=	${BINDIR}/swapon ${BINDIR}/swapoff
+MLINKS=	swapon.8 swapoff.8
 
 .include <bsd.prog.mk>

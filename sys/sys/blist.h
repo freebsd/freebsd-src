@@ -9,6 +9,7 @@
  *		(void)  blist_destroy(blist)
  *		blkno = blist_alloc(blist, count)
  *		(void)  blist_free(blist, blkno, count)
+ *		nblks = blist_fill(blist, blkno, count)
  *		(void)  blist_resize(&blist, count, freeextra)
  *		
  *
@@ -78,6 +79,7 @@ extern blist_t blist_create(daddr_t blocks);
 extern void blist_destroy(blist_t blist);
 extern daddr_t blist_alloc(blist_t blist, daddr_t count);
 extern void blist_free(blist_t blist, daddr_t blkno, daddr_t count);
+extern int blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
 extern void blist_print(blist_t blist);
 extern void blist_resize(blist_t *pblist, daddr_t count, int freenew);
 
