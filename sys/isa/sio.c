@@ -41,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.9 1993/09/28 00:01:10 jkh Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/isa/sio.c,v 1.10 1993/10/12 06:32:28 davidg Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -646,7 +646,7 @@ bidir_open_top:
 
 				    /* if not active, turn DTR & RTS off */
 				    if (!com->active)
-					(void) commctl(com, MCR_DTR | MCR_RTS, DMBIC);
+					(void) commctl(com, MCR_DTR, DMBIC);
 
 				    /* if there was an error, take off. */
 				    if (error != 0) {
@@ -788,7 +788,7 @@ comhardclose(com)
 	tp = com->tp;
 	if (tp->t_cflag & HUPCL || tp->t_state & TS_WOPEN
 	    || !(tp->t_state & TS_ISOPEN))
-		(void) commctl(com, 0, DMSET);
+		(void) commctl(com, MCR_RTS, DMSET);
 #ifdef COM_BIDIR
 	com->active = com->active_in = com->active_out = FALSE;
 	com->softDCD = FALSE;
@@ -1022,10 +1022,10 @@ sioioctl(dev, cmd, data, flag, p)
 		outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 		break;
 	case TIOCSDTR:
-		(void) commctl(com, MCR_DTR | MCR_RTS, DMBIS);
+		(void) commctl(com, MCR_DTR, DMBIS);
 		break;
 	case TIOCCDTR:
-		(void) commctl(com, MCR_DTR | MCR_RTS, DMBIC);
+		(void) commctl(com, MCR_DTR, DMBIC);
 		break;
 	case TIOCMSET:
 		(void) commctl(com, tiocm2mcr(*(int *)data), DMSET);
@@ -1188,7 +1188,7 @@ repeat:
 					disable_intr();
 					outb(com->modem_ctl_port,
 					     com->mcr_image
-					     &= ~(MCR_DTR | MCR_RTS));
+					     &= ~MCR_DTR);
 					enable_intr();
 				}
 			}
@@ -1323,7 +1323,7 @@ comparam(tp, t)
 	iobase = com->iobase;
 	s = spltty();
 	if (divisor == 0) {
-		(void) commctl(com, 0, DMSET);	/* hang up line */
+		(void) commctl(com, MCR_RTS, DMSET);	/* hang up line */
 		splx(s);
 		return (0);
 	}
