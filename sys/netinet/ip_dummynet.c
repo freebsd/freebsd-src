@@ -405,22 +405,6 @@ heap_free(struct dn_heap *h)
  */
 
 /*
- * Return the mbuf tag holding the dummynet state.  As an optimization
- * this is assumed to be the first tag on the list.  If this turns out
- * wrong we'll need to search the list.
- */
-static struct dn_pkt_tag *
-dn_tag_get(struct mbuf *m)
-{
-    struct m_tag *mtag = m_tag_first(m);
-    KASSERT(mtag != NULL &&
-	    mtag->m_tag_cookie == MTAG_ABI_COMPAT &&
-	    mtag->m_tag_id == PACKET_TAG_DUMMYNET,
-	    ("packet on dummynet queue w/o dummynet tag!"));
-    return (struct dn_pkt_tag *)(mtag+1);
-}
-
-/*
  * Scheduler functions:
  *
  * transmit_event() is called when the delay-line needs to enter
@@ -441,85 +425,87 @@ dn_tag_get(struct mbuf *m)
 static void
 transmit_event(struct dn_pipe *pipe)
 {
-    struct mbuf *m ;
-    struct dn_pkt_tag *pkt ;
+    struct dn_pkt *pkt ;
 
     DUMMYNET_LOCK_ASSERT();
 
-    while ( (m = pipe->head) ) {
-	pkt = dn_tag_get(m);
-	if ( !DN_KEY_LEQ(pkt->output_time, curr_time) )
-	    break;
+    while ( (pkt = pipe->head) && DN_KEY_LEQ(pkt->output_time, curr_time) ) {
 	/*
 	 * first unlink, then call procedures, since ip_input() can invoke
 	 * ip_output() and viceversa, thus causing nested calls
 	 */
-	pipe->head = m->m_nextpkt ;
+	pipe->head = DN_NEXT(pkt) ;
 
 	/* XXX: drop the lock for now to avoid LOR's */
 	DUMMYNET_UNLOCK();
+	/*
+	 * The actual mbuf is preceded by a struct dn_pkt, resembling an mbuf
+	 * (NOT A REAL one, just a small block of malloc'ed memory) with
+	 *     m_type = MT_TAG, m_flags = PACKET_TAG_DUMMYNET
+	 *     dn_m (m_next) = actual mbuf to be processed by ip_input/output
+	 * and some other fields.
+	 * The block IS FREED HERE because it contains parameters passed
+	 * to the called routine.
+	 */
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT:
-	    (void)ip_output(m, NULL, NULL, pkt->flags, NULL, NULL);
+	    (void)ip_output((struct mbuf *)pkt, NULL, NULL, 0, NULL, NULL);
+	    rt_unref (pkt->ro.ro_rt, __func__) ;
 	    break ;
 
 	case DN_TO_IP_IN :
-	    ip_input(m) ;
+	    ip_input((struct mbuf *)pkt) ;
 	    break ;
 
 	case DN_TO_BDG_FWD :
-	    /*
-	     * The bridge requires/assumes the Ethernet header is
-	     * contiguous in the first mbuf header.  Insure this is true.
-	     */
-	    if (BDG_LOADED) {
-		if (m->m_len < ETHER_HDR_LEN &&
-		    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		    printf("dummynet/bridge: pullup fail, dropping pkt\n");
-		    break;
-		}
-		m = bdg_forward_ptr(m, pkt->ifp);
-	    } else {
+	    if (!BDG_LOADED) {
 		/* somebody unloaded the bridge module. Drop pkt */
 		/* XXX rate limit */
 		printf("dummynet: dropping bridged packet trapped in pipe\n");
-	    }
-	    if (m)
-		m_freem(m);
-	    break;
-
-	case DN_TO_ETH_DEMUX:
-	    /*
-	     * The Ethernet code assumes the Ethernet header is
-	     * contiguous in the first mbuf header.  Insure this is true.
-	     */
-	    if (m->m_len < ETHER_HDR_LEN &&
-		(m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
-		printf("dummynet/ether: pullup fail, dropping pkt\n");
+		m_freem(pkt->dn_m);
 		break;
-	    }
-	    ether_demux(m->m_pkthdr.rcvif, m); /* which consumes the mbuf */
-	    break ;
+	    } /* fallthrough */
+	case DN_TO_ETH_DEMUX:
+	    {
+		struct mbuf *m = (struct mbuf *)pkt ;
 
+		if (pkt->dn_m->m_len < ETHER_HDR_LEN &&
+		    (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
+		    printf("dummynet/bridge: pullup fail, dropping pkt\n");
+		    break;
+		}
+		/*
+		 * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
+		 * on return it will supply the pointer to the actual packet
+		 * (originally pkt->dn_m, but could be something else now) if
+		 * it has not consumed it.
+		 */
+		if (pkt->dn_dir == DN_TO_BDG_FWD) {
+		    m = bdg_forward_ptr(m, pkt->ifp);
+		    if (m)
+			m_freem(m);
+		} else
+		    ether_demux(NULL, m); /* which consumes the mbuf */
+	    }
+	    break ;
 	case DN_TO_ETH_OUT:
-	    ether_output_frame(pkt->ifp, m);
+	    ether_output_frame(pkt->ifp, (struct mbuf *)pkt);
 	    break;
 
 	default:
 	    printf("dummynet: bad switch %d!\n", pkt->dn_dir);
-	    m_freem(m);
+	    m_freem(pkt->dn_m);
 	    break ;
 	}
+	free(pkt, M_DUMMYNET);
 	DUMMYNET_LOCK();
     }
     /* if there are leftover packets, put into the heap for next event */
-    if ( (m = pipe->head) ) {
-	pkt = dn_tag_get(m) ;
-	/* XXX should check errors on heap_insert, by draining the
-	 * whole pipe p and hoping in the future we are more successful
-	 */
-	heap_insert(&extract_heap, pkt->output_time, pipe ) ;
-    }
+    if ( (pkt = pipe->head) )
+         heap_insert(&extract_heap, pkt->output_time, pipe ) ;
+    /* XXX should check errors on heap_insert, by draining the
+     * whole pipe p and hoping in the future we are more successful
+     */
 }
 
 /*
@@ -527,8 +513,8 @@ transmit_event(struct dn_pipe *pipe)
  * before being able to transmit a packet. The credit is taken from
  * either a pipe (WF2Q) or a flow_queue (per-flow queueing)
  */
-#define SET_TICKS(_m, q, p)	\
-    ((_m)->m_pkthdr.len*8*hz - (q)->numbytes + p->bandwidth - 1 ) / \
+#define SET_TICKS(pkt, q, p)	\
+    (pkt->dn_m->m_pkthdr.len*8*hz - (q)->numbytes + p->bandwidth - 1 ) / \
 	    p->bandwidth ;
 
 /*
@@ -536,23 +522,21 @@ transmit_event(struct dn_pipe *pipe)
  * and put into delay line (p_queue)
  */
 static void
-move_pkt(struct mbuf *pkt, struct dn_flow_queue *q,
+move_pkt(struct dn_pkt *pkt, struct dn_flow_queue *q,
 	struct dn_pipe *p, int len)
 {
-    struct dn_pkt_tag *dt = dn_tag_get(pkt);
-
-    q->head = pkt->m_nextpkt ;
+    q->head = DN_NEXT(pkt) ;
     q->len-- ;
     q->len_bytes -= len ;
 
-    dt->output_time = curr_time + p->delay ;
+    pkt->output_time = curr_time + p->delay ;
 
     if (p->head == NULL)
 	p->head = pkt;
     else
-	p->tail->m_nextpkt = pkt;
+	DN_NEXT(p->tail) = pkt;
     p->tail = pkt;
-    p->tail->m_nextpkt = NULL;
+    DN_NEXT(p->tail) = NULL;
 }
 
 /*
@@ -565,7 +549,7 @@ move_pkt(struct mbuf *pkt, struct dn_flow_queue *q,
 static void
 ready_event(struct dn_flow_queue *q)
 {
-    struct mbuf *pkt;
+    struct dn_pkt *pkt;
     struct dn_pipe *p = q->fs->pipe ;
     int p_was_empty ;
 
@@ -587,7 +571,7 @@ ready_event(struct dn_flow_queue *q)
      */
     q->numbytes += ( curr_time - q->sched_time ) * p->bandwidth;
     while ( (pkt = q->head) != NULL ) {
-	int len = pkt->m_pkthdr.len;
+	int len = pkt->dn_m->m_pkthdr.len;
 	int len_scaled = p->bandwidth ? len*8*hz : 0 ;
 	if (len_scaled > q->numbytes )
 	    break ;
@@ -655,9 +639,9 @@ ready_event_wfq(struct dn_pipe *p)
     while ( p->numbytes >=0 && (sch->elements>0 || neh->elements >0) ) {
 	if (sch->elements > 0) { /* have some eligible pkts to send out */
 	    struct dn_flow_queue *q = sch->p[0].object ;
-	    struct mbuf *pkt = q->head;
+	    struct dn_pkt *pkt = q->head;
 	    struct dn_flow_set *fs = q->fs;
-	    u_int64_t len = pkt->m_pkthdr.len;
+	    u_int64_t len = pkt->dn_m->m_pkthdr.len;
 	    int len_scaled = p->bandwidth ? len*8*hz : 0 ;
 
 	    heap_extract(sch, NULL); /* remove queue from heap */
@@ -674,7 +658,7 @@ ready_event_wfq(struct dn_pipe *p)
 		 * update F and position in backlogged queue, then
 		 * put flow in not_eligible_heap (we will fix this later).
 		 */
-		len = (q->head)->m_pkthdr.len;
+		len = (q->head)->dn_m->m_pkthdr.len;
 		q->F += (len<<MY_M)/(u_int64_t) fs->weight ;
 		if (DN_KEY_LEQ(q->S, p->V))
 		    heap_insert(neh, q->S, q);
@@ -729,7 +713,7 @@ ready_event_wfq(struct dn_pipe *p)
 
 	if (p->bandwidth > 0)
 	    t = ( p->bandwidth -1 - p->numbytes) / p->bandwidth ;
-	dn_tag_get(p->tail)->output_time += t ;
+	p->tail->output_time += t ;
 	p->sched_time = curr_time ;
 	heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
 	/* XXX should check errors on heap_insert, and drain the whole
@@ -1132,8 +1116,7 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 static int
 dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 {
-    struct dn_pkt_tag *pkt;
-    struct m_tag *mtag;
+    struct dn_pkt *pkt;
     struct dn_flow_set *fs;
     struct dn_pipe *pipe ;
     u_int64_t len = m->m_pkthdr.len ;
@@ -1141,9 +1124,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     int is_pipe;
 #if IPFW2
     ipfw_insn *cmd = fwa->rule->cmd + fwa->rule->act_ofs;
-#endif
 
-#if IPFW2
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
     is_pipe = (cmd->opcode == O_PIPE);
@@ -1194,17 +1175,16 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	goto dropit ;
 
     /* XXX expensive to zero, see if we can remove it*/
-    mtag = m_tag_get(PACKET_TAG_DUMMYNET,
-		sizeof(struct dn_pkt_tag), M_NOWAIT|M_ZERO);
-    if ( mtag == NULL )
+    pkt = (struct dn_pkt *)malloc(sizeof (*pkt), M_DUMMYNET, M_NOWAIT|M_ZERO);
+    if ( pkt == NULL )
 	goto dropit ;		/* cannot allocate packet header	*/
-    m_tag_prepend(m, mtag);	/* attach to mbuf chain */
-    m->m_nextpkt = NULL;
-
-    pkt = (struct dn_pkt_tag *)(mtag+1);
     /* ok, i can handle the pkt now... */
     /* build and enqueue packet + parameters */
+    pkt->hdr.mh_type = MT_TAG;
+    pkt->hdr.mh_flags = PACKET_TAG_DUMMYNET;
     pkt->rule = fwa->rule ;
+    DN_NEXT(pkt) = NULL;
+    pkt->dn_m = m;
     pkt->dn_dir = dir ;
 
     pkt->ifp = fwa->oif;
@@ -1226,14 +1206,14 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	pkt->flags = fwa->flags;
     }
     if (q->head == NULL)
-	q->head = m;
+	q->head = pkt;
     else
-	q->tail->m_nextpkt = m;
-    q->tail = m;
+	DN_NEXT(q->tail) = pkt;
+    q->tail = pkt;
     q->len++;
     q->len_bytes += len ;
 
-    if ( q->head != m )		/* flow was not idle, we are done */
+    if ( q->head != pkt )	/* flow was not idle, we are done */
 	goto done;
     /*
      * If we reach this point the flow was previously idle, so we need
@@ -1246,7 +1226,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
 	 */
 	dn_key t = 0 ;
 	if (pipe->bandwidth)
-	    t = SET_TICKS(m, q, pipe);
+	    t = SET_TICKS(pkt, q, pipe);
 	q->sched_time = curr_time ;
 	if (t == 0)	/* must process it now */
 	    ready_event( q );
@@ -1320,10 +1300,12 @@ dropit:
  * Below, the rt_unref is only needed when (pkt->dn_dir == DN_TO_IP_OUT)
  * Doing this would probably save us the initial bzero of dn_pkt
  */
-#define	DN_FREE_PKT(_m) do {				\
-	rt_unref(dn_tag_get(_m)->ro.ro_rt, __func__);	\
-	m_freem(_m);					\
-} while (0)
+#define DN_FREE_PKT(pkt)	{		\
+	struct dn_pkt *n = pkt ;		\
+	rt_unref ( n->ro.ro_rt, __func__ ) ;	\
+	m_freem(n->dn_m);			\
+	pkt = DN_NEXT(n) ;			\
+	free(n, M_DUMMYNET) ;	}
 
 /*
  * Dispose all packets and flow_queues on a flow_set.
@@ -1334,6 +1316,7 @@ dropit:
 static void
 purge_flow_set(struct dn_flow_set *fs, int all)
 {
+    struct dn_pkt *pkt ;
     struct dn_flow_queue *q, *qn ;
     int i ;
 
@@ -1341,13 +1324,8 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 
     for (i = 0 ; i <= fs->rq_size ; i++ ) {
 	for (q = fs->rq[i] ; q ; q = qn ) {
-	    struct mbuf *m, *mnext;
-
-	    mnext = q->head;
-	    while ((m = mnext) != NULL) {
-		mnext = m->m_nextpkt;
-		DN_FREE_PKT(m);
-	    }
+	    for (pkt = q->head ; pkt ; )
+		DN_FREE_PKT(pkt) ;
 	    qn = q->next ;
 	    free(q, M_DUMMYNET);
 	}
@@ -1374,15 +1352,12 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 static void
 purge_pipe(struct dn_pipe *pipe)
 {
-    struct mbuf *m, *mnext;
+    struct dn_pkt *pkt ;
 
     purge_flow_set( &(pipe->fs), 1 );
 
-    mnext = pipe->head;
-    while ((m = mnext) != NULL) {
-	mnext = m->m_nextpkt;
-	DN_FREE_PKT(m);
-    }
+    for (pkt = pipe->head ; pkt ; )
+	DN_FREE_PKT(pkt) ;
 
     heap_free( &(pipe->scheduler_heap) );
     heap_free( &(pipe->not_eligible_heap) );
@@ -1437,15 +1412,13 @@ dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
 {
     int i ;
     struct dn_flow_queue *q ;
-    struct mbuf *m ;
+    struct dn_pkt *pkt ;
 
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is ovflow */
 	for (q = fs->rq[i] ; q ; q = q->next )
-	    for (m = q->head ; m ; m = m->m_nextpkt ) {
-		struct dn_pkt_tag *pkt = dn_tag_get(m) ;
+	    for (pkt = q->head ; pkt ; pkt = DN_NEXT(pkt) )
 		if (pkt->rule == r)
 		    pkt->rule = ip_fw_default_rule ;
-	    }
 }
 /*
  * when a firewall rule is deleted, scan all queues and remove the flow-id
@@ -1455,9 +1428,8 @@ void
 dn_rule_delete(void *r)
 {
     struct dn_pipe *p ;
+    struct dn_pkt *pkt ;
     struct dn_flow_set *fs ;
-    struct dn_pkt_tag *pkt ;
-    struct mbuf *m ;
 
     DUMMYNET_LOCK();
     /*
@@ -1470,11 +1442,9 @@ dn_rule_delete(void *r)
     for ( p = all_pipes ; p ; p = p->next ) {
 	fs = &(p->fs) ;
 	dn_rule_delete_fs(fs, r);
-	for (m = p->head ; m ; m = m->m_nextpkt ) {
-	    pkt = dn_tag_get(m) ;
+	for (pkt = p->head ; pkt ; pkt = DN_NEXT(pkt) )
 	    if (pkt->rule == r)
 		pkt->rule = ip_fw_default_rule ;
-	}
     }
     DUMMYNET_UNLOCK();
 }
@@ -1748,7 +1718,7 @@ dummynet_drain()
 {
     struct dn_flow_set *fs;
     struct dn_pipe *p;
-    struct mbuf *m, *mnext;
+    struct dn_pkt *pkt;
 
     DUMMYNET_LOCK_ASSERT();
 
@@ -1761,12 +1731,8 @@ dummynet_drain()
 
     for (p = all_pipes; p; p= p->next ) {
 	purge_flow_set(&(p->fs), 0);
-
-	mnext = p->head;
-	while ((m = mnext) != NULL) {
-	    mnext = m->m_nextpkt;
-	    DN_FREE_PKT(m);
-	}
+	for (pkt = p->head ; pkt ; )
+	    DN_FREE_PKT(pkt) ;
 	p->head = p->tail = NULL ;
     }
 }

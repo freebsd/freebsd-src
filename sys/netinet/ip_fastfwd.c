@@ -110,7 +110,6 @@
 #include <machine/in_cksum.h>
 
 #include <netinet/ip_fw.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
 static int ipfastforward_active = 0;
@@ -133,7 +132,7 @@ ip_fastforward(struct mbuf *m)
 	struct ip *tip;
 	struct mbuf *teem = NULL;
 #endif
-	struct m_tag *mtag;
+	struct mbuf *tag = NULL;
 	struct route ro;
 	struct sockaddr_in *dst = NULL;
 	struct in_ifaddr *ia = NULL;
@@ -150,6 +149,16 @@ ip_fastforward(struct mbuf *m)
 	 */
 	if (!ipfastforward_active || !ipforwarding)
 		return 0;
+
+	/*
+	 * If there is any MT_TAG we fall back to ip_input because we can't
+	 * handle TAGs here. Should never happen as we get directly called
+	 * from the if_output routines.
+	 */
+	if (m->m_type == MT_TAG) {
+		KASSERT(0, ("%s: packet with MT_TAG not expected", __func__));
+		return 0;
+	}
 
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
@@ -364,13 +373,25 @@ fallback:
 			/*
 			 * See if this is a fragment
 			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK))
+			if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
+				MGETHDR(tag, M_DONTWAIT, MT_TAG);
+				if (tag == NULL)
+					goto drop;
+				tag->m_flags = PACKET_TAG_DIVERT;
+				tag->m_data = (caddr_t)(intptr_t)args.divert_rule;
+				tag->m_next = m;
+				/* XXX: really bloody hack, see ip_input */
+				tag->m_nextpkt = (struct mbuf *)1;
+				m = tag;
+				tag = NULL;
+
 				goto droptoours;
+			}
 			/*
 			 * Tee packet
 			 */
 			if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-				teem = divert_clone(m);
+				teem = m_dup(m, M_DONTWAIT);
 			else
 				teem = m;
 			if (teem == NULL)
@@ -392,7 +413,7 @@ fallback:
 			/*
 			 * Deliver packet to divert input routine
 			 */
-			divert_packet(teem, 0);
+			divert_packet(teem, 0, ipfw & 0xffff, args.divert_rule);
 			/*
 			 * If this was not tee, we are done
 			 */
@@ -539,13 +560,27 @@ passin:
 			/*
 			 * See if this is a fragment
 			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK))
+			if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
+				MGETHDR(tag, M_DONTWAIT, MT_TAG);
+				if (tag == NULL) {
+					RTFREE(ro.ro_rt);
+					goto drop;
+				}
+				tag->m_flags = PACKET_TAG_DIVERT;
+				tag->m_data = (caddr_t)(intptr_t)args.divert_rule;
+				tag->m_next = m;
+				/* XXX: really bloody hack, see ip_input */
+				tag->m_nextpkt = (struct mbuf *)1;
+				m = tag;
+				tag = NULL;
+
 				goto droptoours;
+			}
 			/*
 			 * Tee packet
 			 */
 			if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-				teem = divert_clone(m);
+				teem = m_dup(m, M_DONTWAIT);
 			else
 				teem = m;
 			if (teem == NULL)
@@ -567,7 +602,7 @@ passin:
 			/*
 			 * Deliver packet to divert input routine
 			 */
-			divert_packet(teem, 0);
+			divert_packet(teem, 0, ipfw & 0xffff, args.divert_rule);
 			/*
 			 * If this was not tee, we are done
 			 */
@@ -603,24 +638,38 @@ passout:
 			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr) {
 forwardlocal:
 				if (args.next_hop) {
-					mtag = m_tag_get(PACKET_TAG_IPFORWARD,
-						   sizeof(struct sockaddr_in *),
-						   M_NOWAIT);
-					if (mtag == NULL) {
-						/* XXX statistic */
+					/* XXX leak */
+					MGETHDR(tag, M_DONTWAIT, MT_TAG);
+					if (tag == NULL) {
 						if (ro.ro_rt)
 							RTFREE(ro.ro_rt);
 						goto drop;
 					}
-					*(struct sockaddr_in **)(mtag+1) =
-						args.next_hop;
-					m_tag_prepend(m, mtag);
+					tag->m_flags = PACKET_TAG_IPFORWARD;
+					tag->m_data = (caddr_t)args.next_hop;
+					tag->m_next = m;
+					/* XXX: really bloody hack,
+					 * see ip_input */
+					tag->m_nextpkt = (struct mbuf *)1;
+					m = tag;
+					tag = NULL;
 				}
 #ifdef IPDIVERT
 droptoours:	/* Used for DIVERT */
 #endif
-				/* NB: ip_input understands this */
-				m->m_flags |= M_FASTFWD_OURS;
+				MGETHDR(tag, M_DONTWAIT, MT_TAG);
+				if (tag == NULL) {
+					if (ro.ro_rt)
+						RTFREE(ro.ro_rt);
+					goto drop;
+				}
+				tag->m_flags = PACKET_TAG_IPFASTFWD_OURS;
+				tag->m_data = NULL;
+				tag->m_next = m;
+				/* XXX: really bloody hack, see ip_input */
+				tag->m_nextpkt = (struct mbuf *)1;
+				m = tag;
+				tag = NULL;
 
 				/* ip still points to the real packet */
 				ip->ip_len = htons(ip->ip_len);
