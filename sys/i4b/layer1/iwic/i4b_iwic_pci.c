@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 10 14:33:08 2001]
+ *      last edit-date: [Tue Jan 16 10:53:03 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -266,6 +266,12 @@ iwic_pci_attach(device_t dev)
 
 	iwic_init_linktab(sc);
 	
+	if(bootverbose)
+	{
+		int ver = IWIC_READ(sc, D_RBCH);
+		printf("iwic%d: W6692 chip version = %d\n", unit, D_RBCH_VN(ver));
+	}
+
 	i4b_l1_mph_status_ind(L0IWICUNIT(sc->sc_unit), STI_ATTACH, sc->sc_cardtyp, &iwic_l1mux_func);
 
 	IWIC_READ(sc, ISTA);
