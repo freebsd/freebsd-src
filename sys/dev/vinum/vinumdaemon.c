@@ -34,6 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumdaemon.c,v 1.7 1999/10/12 09:39:48 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -47,16 +48,26 @@
 /* declarations */
 void recover_io(struct request *rq);
 
-struct daemonq *daemonq;				    /* daemon's work queue */
-struct daemonq *dqend;					    /* and the end of the queue */
 int daemon_options = 0;					    /* options */
 int daemonpid;						    /* PID of daemon */
+struct daemonq *daemonq;				    /* daemon's work queue */
+struct daemonq *dqend;					    /* and the end of the queue */
+
+/*
+ * We normally call Malloc to get a queue element.  In interrupt
+ * context, we can't guarantee that we'll get one, since we're not
+ * allowed to wait.  If malloc fails, use one of these elements.
+ */
+
+#define INTQSIZE 4
+struct daemonq intq[INTQSIZE];				    /* queue elements for interrupt context */
+struct daemonq *intqp;					    /* and pointer in it */
 
 void
 vinum_daemon(void)
 {
-    struct daemonq *request;
     int s;
+    struct daemonq *request;
 
     daemon_save_config();				    /* start by saving the configuration */
     daemonpid = curproc->p_pid;				    /* mark our territory */
@@ -160,7 +171,10 @@ vinum_daemon(void)
 		log(LOG_WARNING, "Invalid request\n");
 		break;
 	    }
-	    Free(request);				    /* done with the request */
+	    if (request->privateinuse)			    /* one of ours, */
+		request->privateinuse = 0;		    /* no longer in use */
+	    else
+		Free(request);				    /* return it */
 	}
     }
 }
@@ -202,6 +216,22 @@ queue_daemon_request(enum daemonrq type, union daemoninfo info)
     int s;
 
     struct daemonq *qelt = (struct daemonq *) Malloc(sizeof(struct daemonq));
+
+    if (qelt == NULL) {					    /* malloc failed, we're prepared for that */
+	/*
+	 * Take one of our spares.  Give up if it's still in use; the only
+	 * message we're likely to get here is a 'drive failed' message,
+	 * and that'll come by again if we miss it.
+	 */
+	if (intqp->privateinuse)			    /* still in use? */
+	    return;					    /* yes, give up */
+	qelt = intqp++;
+	if (intqp == &intq[INTQSIZE])			    /* got to the end, */
+	    intqp = intq;				    /* wrap around */
+	qelt->privateinuse = 1;				    /* it's ours, and it's in use */
+    } else
+	qelt->privateinuse = 0;
+
     qelt->next = NULL;					    /* end of the chain */
     qelt->type = type;
     qelt->info = info;
