@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.21 1995/12/14 09:53:10 phk Exp $
+ * $Id: bpf.c,v 1.22 1996/02/06 18:51:04 wollman Exp $
  */
 
 #include "bpfilter.h"
@@ -1300,26 +1300,29 @@ bpfattach(ifp, dlt, hdrlen)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
 
+#ifdef DEVFS
 static	void *bpf_devfs_token[NBPFILTER];
+#endif
 
 static bpf_devsw_installed = 0;
 
 static void 	bpf_drvinit(void *unused)
 {
 	dev_t dev;
-	int	i;
-	char	name[32];
+#ifdef DEVFS
+	int i;
+#endif
 
 	if( ! bpf_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&bpf_cdevsw, NULL);
 		bpf_devsw_installed = 1;
 #ifdef DEVFS
+
 		for ( i = 0 ; i < NBPFILTER ; i++ ) {
-			sprintf(name,"bpf%d",i);
 			bpf_devfs_token[i] =
-				devfs_add_devsw( "/", name,
-					&bpf_cdevsw, i, DV_CHR, 0, 0, 0600);
+				devfs_add_devswf(&bpf_cdevsw, i, DV_CHR, 0, 0, 
+						 0600, "bpf%d", i);
 		}
 #endif
     	}

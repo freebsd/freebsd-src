@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.66 1996/02/13 03:46:48 ache Exp $
+ *      $Id: cd.c,v 1.67 1996/03/10 07:13:04 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -206,7 +206,6 @@ cdattach(struct scsi_link *sc_link)
 	u_int32_t unit;
 	struct cd_parms *dp;
 	struct scsi_data *cd = sc_link->sd;
-	char	name[32];
 
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
@@ -243,25 +242,18 @@ cdattach(struct scsi_link *sc_link)
 #ifdef DEVFS
 #define CD_UID 0
 #define CD_GID 13
-	sprintf(name, "rcd%da",unit);
-	cd->ra_devfs_token = devfs_add_devsw(
-		"/", name, &cd_cdevsw, unit * 8,
-		DV_CHR,	CD_UID,  CD_GID, 0660);
-
-	sprintf(name, "rcd%dc",unit);
-	cd->rc_devfs_token = devfs_add_devsw(
-		"/", name, &cd_cdevsw, (unit * 8 ) + RAW_PART,
-		DV_CHR,	CD_UID,  CD_GID, 0600);
-
-	sprintf(name, "cd%da",unit);
-	cd->a_devfs_token = devfs_add_devsw(
-		"/", name, &cd_bdevsw, (unit * 8 ) + 0,
-		DV_BLK,	CD_UID,  CD_GID, 0660);
-
-	sprintf(name, "cd%dc",unit);
-	cd->c_devfs_token = devfs_add_devsw(
-		"/", name, &cd_bdevsw, (unit * 8 ) + RAW_PART,
-		DV_BLK,	CD_UID,  CD_GID, 0600);
+	cd->ra_devfs_token = 
+		devfs_add_devswf(&cd_cdevsw, unit * 8, DV_CHR, CD_UID, 
+				CD_GID, 0660, "rcd%da", unit);
+	cd->rc_devfs_token = 
+		devfs_add_devswf(&cd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
+				CD_UID, CD_GID, 0600, "rcd%dc", unit);
+	cd->a_devfs_token = 
+		devfs_add_devswf(&cd_bdevsw, unit * 8, DV_BLK, CD_UID, 
+				CD_GID, 0660, "cd%da", unit);
+	cd->c_devfs_token = 
+		devfs_add_devswf(&cd_bdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
+				CD_UID, CD_GID, 0600, "cd%dc", unit);
 #endif
 
 	return 0;
