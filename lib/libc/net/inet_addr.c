@@ -72,7 +72,7 @@ static char rcsid[] = "$FreeBSD$";
  * ASCII internet address interpretation routine.
  * The value returned is in network order.
  */
-u_long		/* XXX should be struct in_addr :( */
+in_addr_t		/* XXX should be struct in_addr :( */
 inet_addr(cp)
 	register const char *cp;
 {
@@ -96,7 +96,7 @@ inet_aton(cp, addr)
 	struct in_addr *addr;
 {
 	u_long parts[4];
-	u_long val;
+	in_addr_t val;
 	char *c;
 	char *endptr;
 	int gotend, n;
