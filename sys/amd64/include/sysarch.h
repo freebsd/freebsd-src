@@ -39,12 +39,12 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
-#define	AMD64_GET_FSBASE	0
-#define	AMD64_SET_FSBASE	1
-#define	AMD64_GET_GSBASE	2
-#define	AMD64_SET_GSBASE	3
+/* Leave space for 0-127 for to avoid translating syscalls */
+#define	AMD64_GET_FSBASE	128
+#define	AMD64_SET_FSBASE	129
+#define	AMD64_GET_GSBASE	130
+#define	AMD64_SET_GSBASE	131
 
-#if 0 /* these wrappers need to be implemented in libc first */
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
@@ -54,7 +54,6 @@ unsigned long amd64_set_fsbase(unsigned long);
 unsigned long amd64_get_gsbase(void);
 unsigned long amd64_set_gsbase(unsigned long);
 __END_DECLS
-#endif
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */
