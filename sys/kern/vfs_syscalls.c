@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.130 1999/08/12 20:38:32 alfred Exp $
+ * $Id: vfs_syscalls.c,v 1.131 1999/08/22 01:46:57 jdp Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2192,7 +2192,8 @@ getutimes(usrtvp, tsp)
 	int error;
 
 	if (usrtvp == NULL) {
-		vfs_timestamp(&tsp[0]);
+		microtime(&tv[0]);
+		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
 		tsp[1] = tsp[0];
 	} else {
 		if ((error = copyin(usrtvp, tv, sizeof (tv))) != 0)
