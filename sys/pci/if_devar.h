@@ -609,10 +609,10 @@ struct _tulip_softc_t {
      */
     u_int32_t tulip_setupbuf[192/sizeof(u_int32_t)];
     u_int32_t tulip_setupdata[192/sizeof(u_int32_t)];
-    char tulip_boardid[17];		/* buffer for board ID */
-    u_int8_t tulip_rombuf[128];
-    u_int8_t tulip_pci_busno;		/* needed for multiport boards */
-    u_int8_t tulip_pci_devno;		/* needed for multiport boards */
+    char tulip_boardid[24];	/* buffer for board ID */
+    u_int8_t tulip_rombuf[128]; /* must be aligned */
+    u_int8_t tulip_pci_busno;	/* needed for multiport boards */
+    u_int8_t tulip_pci_devno;	/* needed for multiport boards */
     u_int8_t tulip_connidx;
     tulip_srom_connection_t tulip_conntype;
     tulip_desc_t *tulip_rxdescs;
