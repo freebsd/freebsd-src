@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.150 1998/01/16 22:12:49 pst Exp $
+#	$Id: MAKEDEV,v 1.151 1998/01/22 21:26:22 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -472,24 +472,20 @@ od*|sd*|vn*|wd*|wfd*)
 	;;
 
 ccd*)
-	umask 37
+	umask $disk_umask
 	name=ccd
 	blk=21; chr=74
 	unit=`expr $i : '...\(.*\)'`
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
-		minor=`dkminor 0 $unit 0 0`
-		mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
-		chmod 600 r${name}${unit}.ctl
 		for part in 0 1 2 3 4 5 6 7
 		do
 			minor=`dkminor 0 $unit 0 $part` 
 			partname=`dkitop $part`
-			mknod  $name$unit$partname \
-			      b $blk $minor
-			mknod r$name$unit$partname \
-			      c $chr $minor
+			mknod  $name$unit$partname b $blk $minor
+			mknod r$name$unit$partname c $chr $minor
 		done
+		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
