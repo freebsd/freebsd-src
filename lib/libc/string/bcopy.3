@@ -44,7 +44,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In string.h
+.In strings.h
 .Ft void
 .Fn bcopy "const void *src" "void *dst" "size_t len"
 .Sh DESCRIPTION
@@ -72,3 +72,10 @@ A
 .Fn bcopy
 function appeared in
 .Bx 4.2 .
+Its prototype existed previously in
+.Aq Pa string.h
+before it was moved to
+.Aq Pa strings.h
+for
+.St -p1003.1-2001
+compliance.
