@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id: telnet.1,v 1.6 1997/02/22 19:57:24 peter Exp $
+.\"	$Id: telnet.1,v 1.7 1997/08/14 06:44:41 charnier Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -128,14 +128,14 @@ command on this man page.)
 Sets the initial value of the
 .Ic debug
 toggle to
-.Dv TRUE
-.It Fl e Ar escape char 
+.Dv TRUE .
+.It Fl e Ar escapechar 
 Sets the initial
 .Nm
 escape character to
-.Ar escape char.
+.Ar escapechar .
 If
-.Ar escape char
+.Ar escapechar
 is omitted, then
 there will be no escape character.
 .It Fl f
@@ -148,8 +148,9 @@ If Kerberos authentication is being used, the
 option requests that
 .Nm
 obtain tickets for the remote host in
-realm realm instead of the remote host's realm, as determined
-by
+realm
+.Ar realm
+instead of the remote host's realm, as determined by
 .Xr krb_realmofhost 3 .
 .It Fl l Ar user 
 When connecting to the remote system, if the remote system
@@ -177,7 +178,9 @@ Specifies a user interface similar to
 .Xr rlogin 1 .
 In this
 mode, the escape character is set to the tilde (~) character,
-unless modified by the -e option.
+unless modified by the
+.Fl e
+option.
 .It Fl x
 Turns on encryption of the data stream if possible.  This
 option is not available outside of the United States and
@@ -204,7 +207,7 @@ The line ~^] escapes to the normal
 escape prompt.
 .Pp
 Once a connection has been opened,
-.Nm telnet
+.Nm
 will attempt to enable the
 .Dv TELNET LINEMODE
 option.
@@ -263,7 +266,7 @@ and
 is sent as a 
 .Dv TELNET ABORT
 instead of 
-.Dv BREAK
+.Dv BREAK .
 There are options (see
 .Ic toggle
 .Ic autoflush
@@ -307,7 +310,8 @@ commands).
 The auth command manipulates the information sent through the
 .Dv TELNET AUTHENTICATE
 option.  Valid arguments for the
-auth command are as follows:
+.Ic auth
+command are:
 .Bl -tag -width "disable type"
 .It Ic disable Ar type
 Disables the specified type of authentication.  To
@@ -342,7 +346,9 @@ Note:  Because of export controls, the
 .Dv TELNET ENCRYPT
 option is not supported outside of the United States and Canada.
 .Pp
-Valid arguments for the encrypt command are as follows:
+Valid arguments for the
+.Ic encrypt
+command are:
 .Bl -tag -width Ar
 .It Ic disable Ar type Ic [input|output]
 Disables the specified type of encryption.  If you
@@ -399,7 +405,7 @@ commands.
 The
 .Ic environ
 command is used to manipulate the
-the variables that my be sent through the
+variables that my be sent through the
 .Dv TELNET ENVIRON
 option.
 The initial set of variables is taken from the users
@@ -415,7 +421,7 @@ variable is also exported if the
 or
 .Fl l
 options are used.
-.br
+.Pp
 Valid arguments for the
 .Ic environ
 command are:
@@ -536,9 +542,8 @@ command.
 .El
 .It Xo
 .Ic open Ar host
-.Oo Op Fl l
-.Ar user
-.Oc Ns Oo Fl
+.Op Fl l Ar user
+.Oo Op Fl
 .Ar port Oc
 .Xc
 Open a connection to the named host.
@@ -553,13 +558,13 @@ The host specification may be either a host name (see
 or an Internet address specified in the \*(Lqdot notation\*(Rq (see
 .Xr inet 3 ) .
 The
-.Op Fl l
+.Fl l
 option may be used to specify the user name
 to be passed to the remote system via the
 .Ev ENVIRON
 option.
 When connecting to a non-standard port,
-.Nm telnet
+.Nm
 omits any automatic initiation of
 .Tn TELNET
 options.  When the port number is preceded by a minus sign,
@@ -711,7 +716,7 @@ command.
 The
 .Ic set
 command will set any one of a number of
-.Nm telnet
+.Nm
 variables to a specific value or to
 .Dv TRUE .
 The special value
@@ -822,7 +827,7 @@ character.
 .It Ic forw1
 .It Ic forw2
 If
-.Tn TELNET
+.Nm
 is operating in
 .Dv LINEMODE ,
 these are the
@@ -863,7 +868,7 @@ mode (see
 below),
 .Ic and
 if
-.Nm telnet
+.Nm
 is operating in \*(Lqcharacter at a time\*(Rq mode, then when this
 character is typed, a
 .Dv TELNET EL
@@ -878,7 +883,7 @@ the terminal's
 character.
 .It Ic lnext
 If
-.Nm telnet
+.Nm
 is operating in
 .Dv LINEMODE
 or \*(Lqold line by line\*(Lq mode, then this character is taken to
@@ -946,7 +951,7 @@ then this character is taken to
 be the terminal's
 .Ic start
 character.
-The initial value for the kill character is taken to be
+The initial value for the start character is taken to be
 the terminal's
 .Ic start
 character.
@@ -958,7 +963,7 @@ then this character is taken to
 be the terminal's
 .Ic stop
 character.
-The initial value for the kill character is taken to be
+The initial value for the stop character is taken to be
 the terminal's
 .Ic stop
 character.
@@ -1140,7 +1145,7 @@ name are propagated through the
 .Dv TELNET ENVIRON
 option.
 This command is the same as specifying
-.Ar a
+.Fl a
 option on the
 .Ic open
 command.
@@ -1260,11 +1265,11 @@ is sent as
 .Ic abort  ,
 and
 .Ic eof and
-.B suspend
+.Ic suspend
 are sent as
 .Ic eof and
-.Ic susp ,
-see
+.Ic susp
+(see
 .Ic send
 above).
 .It Ic netdata
@@ -1294,7 +1299,7 @@ escape sequence is preceded by a '*' to aid in locating them.
 .It Ic skiprc
 When the skiprc toggle is
 .Dv TRUE ,
-.Tn TELNET
+.Nm
 skips the reading of the
 .Pa \&.telnetrc
 file in the users home
@@ -1310,7 +1315,7 @@ When the
 .Ic verbose_encrypt
 toggle is
 .Dv TRUE ,
-.Tn TELNET
+.Nm
 prints out a message each time encryption is enabled or
 disabled.  The initial value for this toggle is
 .Dv FALSE.
@@ -1329,19 +1334,21 @@ This command only works when the user is using the
 .It Ic \&! Op Ar command 
 Execute a single command in a subshell on the local
 system.  If
-.Ic command
+.Ar command
 is omitted, then an interactive
 subshell is invoked.
 .It Ic \&? Op Ar command 
 Get help.  With no arguments,
 .Nm
 prints a help summary.
-If a command is specified,
+If 
+.Ar command
+is specified,
 .Nm
 will print the help information for just that command.
 .El
 .Sh ENVIRONMENT
-.Nm Telnet
+.Nm
 uses at least the
 .Ev HOME ,
 .Ev SHELL ,
