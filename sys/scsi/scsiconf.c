@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.61 1996/07/12 04:12:05 bde Exp $
+ *      $Id: scsiconf.c,v 1.62 1996/09/06 23:09:15 phk Exp $
  */
 
 #include "opt_scsi.h"
@@ -1346,10 +1346,4 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 		bestmatch = &unknowndev;
 	}
 	return (bestmatch);
-}
-
-int
-scsi_externalize(struct scsi_link *sl, struct sysctl_req *req)
-{
-	return SYSCTL_OUT(req, sl, sizeof *sl);
 }

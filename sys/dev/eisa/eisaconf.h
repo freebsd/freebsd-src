@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.9 1996/04/20 21:21:50 gibbs Exp $
+ *	$Id: eisaconf.h,v 1.10 1996/09/06 23:06:59 phk Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -71,7 +71,6 @@ struct eisa_ioconf {
 	u_short		irq;		/* bitmask of interrupt */
 };
 
-struct kern_devconf;
 struct eisa_device;
 
 struct eisa_driver {
@@ -94,7 +93,6 @@ struct eisa_device {
 	char*			full_name; /* for use in the probe message */
 	struct eisa_ioconf	ioconf;
 	struct eisa_driver*	driver;
-	struct kern_devconf*	kdc;
 };
 
 void eisa_configure __P((void));
@@ -111,11 +109,5 @@ int eisa_reg_iospace __P((struct eisa_device *, resvaddr_t *));
 int eisa_add_mspace __P((struct eisa_device *, u_long, u_long, int));
 int eisa_reg_mspace __P((struct eisa_device *, resvaddr_t *));
 int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *));
-
-
-struct sysctl_req;
-int eisa_externalize (struct eisa_device *, struct sysctl_req*);
-
-#define EISA_EXTERNALLEN (sizeof(struct eisa_device))
 
 #endif /* _I386_EISA_EISACONF_H_ */
