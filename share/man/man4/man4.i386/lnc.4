@@ -25,14 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 1997
+.Dd September 13, 2004
 .Dt LNC 4 i386
 .Os
 .Sh NAME
 .Nm lnc
 .Nd AMD Lance/PCnet Ethernet device driver
 .Sh SYNOPSIS
-.Cd "device lnc 1"
+.Cd "device lnc"
 .Pp
 In
 .Pa /boot/device.hints :
@@ -45,26 +45,40 @@ The
 .Nm
 driver provides support for the AMD family of Lance/PCnet Ethernet NICs
 including the Am7990 and Am79C960.
-The Ethernet cards supported by the
+.Sh HARDWARE
+The
 .Nm
-interface are:
+driver supports the following adapters:
 .Pp
-.Bl -item -offset indent -compact
+.Bl -bullet -compact
 .It
 Novell NE2100
 .It
 Novell NE32-VL
 .It
+Isolan AT 4141-0 (16 bit)
+.It
 Isolan BICC
+.It
+Isolink 4110 (8 bit)
+.It
+Diamond HomeFree
 .It
 Digital DEPCA
 .It
 Hewlett Packard Vectra 486/66XM
 .It
 Hewlett Packard Vectra XU
-.It
-Diamond HomeFree
 .El
+.Pp
+Also supported are adapters working with the
+.Xr pcn 4
+driver.
+The
+.Nm
+driver runs these in compatibility mode, thus the
+.Xr pcn 4
+driver should be preferred.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "lnc%d: Framing error"
