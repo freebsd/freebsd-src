@@ -168,7 +168,7 @@ o Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
   REQUEST packets can now be disabled via sysctl.  The netstat program
   will print out statistics on how many times this happens.
 
-o A subtle and seldom bug in ffs has been fixed.
+o A subtle and seldom encountered bug in ffs has been fixed.
 
 o The VFS name cache has been reworked to be more accountable and efficient.
 
@@ -221,6 +221,10 @@ o Added support for SMC EtherPower II 10/100 Fast Ethernet card
   [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
 o Added support for ATAPI floppy drives (LS-120).
+  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
+
+o Added support for IBM Etherjet and other Crystam Semiconductor
+  CS89x0-based NICs.
   [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
 o Added support for Texas Instruments TNET100 'ThunderLAN' PCI NIC.
@@ -471,7 +475,7 @@ Fujitsu MB86960A/MB86965A
 
 HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
-Intel EtherExpress (not recommended due to driver instability)
+Intel EtherExpress 16
 Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
 
@@ -492,6 +496,9 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards
+
+Crystal Semiconductor CS89x0-based NICs, including:
+IBM Etherjet ISA
 
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
