@@ -266,7 +266,8 @@ function releases a
 mutual exclusion lock;
 if a higher priority thread is waiting for the mutex,
 the releasing thread will be disconnected
-to allow the higher priority thread to acquire the mutex and run.
+to allow the higher priority thread to acquire the mutex and run unless
+the current thread is executing in a critical section.
 .Pp
 The
 .Fn mtx_unlock_spin
@@ -282,28 +283,11 @@ and
 functions behave in exactly the same way as do the standard mutex
 unlock routines above, while also allowing a
 .Fa flags
-argument which may only be
-.Dv MTX_QUIET
-in the
-.Fn mtx_unlock_spin_flags
-case, and may be one or more of
-.Dv MTX_QUIET
-and
-.Dv MTX_NOSWITCH
-in the
-.Fn mtx_unlock_flags
-case.
+argument which may specify
+.Dv MTX_QUIET .
 The behavior of
 .Dv MTX_QUIET
 is identical to its behavior in the mutex lock routines.
-The
-.Dv MTX_NOSWITCH
-flag bit signifies,
-for a
-.Dv MTX_DEF
-mutex only,
-that the releasing thread is not to be disconnected from the CPU following
-the release of the mutex.
 .Pp
 The
 .Fn mtx_destroy
@@ -463,24 +447,11 @@ Standard locking and unlocking should be performed with the
 and
 .Fn mtx_unlock_spin
 functions.
-If one of these flags is required then, and only then,
-should the corresponding flags-accepting routines be used.
+Only if a flag is required should the corresponding
+flags-accepting routines be used.
 .Pp
 Options that modify mutex behavior:
-.Bl -tag -width MTX_NOSWITCH
-.It Dv MTX_NOSWITCH
-When releasing a
-.Dv MTX_DEF
-mutex,
-this flag prevents a thread switch that might occur
-if another higher priority thread was waiting for the mutex.
-This may cause priority inversion and should be used carefully.
-This flag can only be passed to
-.Fn mtx_unlock_flags .
-.Pp
-This flag is used internally by the lock code.
-It should not be used in general kernel code
-and is documented here for completeness only.
+.Bl -tag -width MTX_QUIET
 .It Dv MTX_QUIET
 This option is used to quiet logging messages during individual mutex
 operations.
