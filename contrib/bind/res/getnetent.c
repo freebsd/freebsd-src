@@ -43,7 +43,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getnetent.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: getnetent.c,v 8.3 1996/08/05 08:31:35 vixie Exp $";
+static char rcsid[] = "$Id: getnetent.c,v 8.4 1997/06/01 20:34:37 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -122,7 +122,7 @@ getnetent()
 	if (netf == NULL && (netf = fopen(_PATH_NETWORKS, "r" )) == NULL)
 		return (NULL);
 again:
-	p = fgets(line, BUFSIZ, netf);
+	p = fgets(line, sizeof line, netf);
 	if (p == NULL)
 		return (NULL);
 	if (*p == '#')

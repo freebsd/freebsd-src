@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 8.9 1996/05/17 09:10:41 vixie Exp $
+ * $Id: options.h,v 8.12 1996/11/11 06:36:43 vixie Exp $
  */
 
 /*
@@ -93,7 +93,7 @@
 #define SLAVE_FORWARD	/* use sensible timeouts on slave forwarders (pma) */
 #define WANT_PIDFILE	/* if you want the named.pid file (ucb/arc) */
 #define DOTTED_SERIAL	/* if you want to be able to specify dotted serial#s */
-/*#define SENSIBLE_DOTS	/* if you want dotted serial#s to make numeric sense */
+#define SENSIBLE_DOTS	/* if you want dotted serial#s to make numeric sense */
 #define NCACHE		/* negative caching (anant@isi.edu) */
 /*#define VALIDATE	/* validation procedure (anant@isi.edu) (BUGGY!) */
 /*#define SHORT_FNAMES	/* file names used in named-xfer need to be short */
@@ -107,11 +107,10 @@
 #define ADDAUTH 	/* return NS and glue w/ authorative answers (mpa) */
 #define RFC1535		/* use RFC 1535 default for "search" list (vix) */
 #define GEN_AXFR	/* distinct zones within each class */
-#define DATUMREFCNT	/* use reference counts on datums (mpa) */
 #define LAME_DELEGATION	/* lame delegations (original-del,reworked-bb&del)*/
 #define LAME_LOGGING LOG_DEBUG /* log lame delegations, set log level */
 #define GETSER_LOGGING LOG_INFO /* log errors/timeouts getting serial number */
-/*#define RETURNSOA	/* good code that the world isn't ready for yet */
+#define RETURNSOA	/* good code that the world might be ready for now */
 #define CLEANCACHE	/* useful and necessary in the face of NCACHE */
 #define PURGE_ZONE	/* remove all traces of a zone when reloading (mpa) */
 #define STATS		/* keep nameserver statistics; uses more memory */
@@ -148,14 +147,6 @@
  */
 #ifdef DMALLOC
 # include "dmalloc.h"
-#endif
-
-/* systems with killall(1M) don't need this
- */
-#ifdef __sgi
-# ifdef WANT_PIDFILE
-#  undef WANT_PIDFILE
-# endif
 #endif
 
 #ifdef LAME_LOGGING

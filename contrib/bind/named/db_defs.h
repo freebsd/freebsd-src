@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.4 1996/05/17 09:10:46 vixie Exp $
+ *	$Id: db_defs.h,v 8.6 1997/06/01 20:34:34 vixie Exp $
  */
 
 /*
@@ -76,6 +76,9 @@
  */
 struct databuf {
 	struct databuf	*d_next;	/* linked list */
+#ifdef STATS
+	struct nameser	*d_ns;		/* NS from whence this came */
+#endif
 	u_int32_t	d_ttl;		/* time to live */
 					/* if d_zone == DB_Z_CACHE, then
 					 * d_ttl is actually the time when
@@ -90,16 +93,12 @@ struct databuf {
 	int16_t		d_zone;		/* zone number or 0 for the cache */
 	int16_t		d_class;	/* class number */
 	int16_t		d_type;		/* type number */
-	int16_t		d_mark;		/* place to mark data */
 	int16_t		d_size;		/* size of data area */
+	u_int32_t	d_rcnt;
 #ifdef NCACHE
-	int16_t		d_rcode;	/* rcode added for negative caching */
+	unsigned	d_rcode :4;	/* rcode added for negative caching */
 #endif
-	int16_t		d_rcnt;
-#ifdef STATS
-	struct nameser	*d_ns;		/* NS from whence this came */
-#endif
-/*XXX*/	u_int32_t       d_nstime;       /* NS response time, milliseconds */
+	u_int16_t	d_nstime;	/* NS response time, milliseconds */
 	u_char		d_data[sizeof(char*)]; /* malloc'd (padded) */
 };
 #define DATASIZE(n) (sizeof(struct databuf) - sizeof(char*) + n)
@@ -108,6 +107,7 @@ struct databuf {
  * d_flags definitions
  */
 #define DB_F_HINT       0x01		/* databuf belongs to fcachetab */
+#define DB_F_ACTIVE     0x02		/* databuf is linked into a cache */
 
 /*
  * d_cred definitions

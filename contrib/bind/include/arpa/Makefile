@@ -61,7 +61,10 @@ all depend:
 clean:
 	rm -f *~ *.BAK *.CKP *.orig
 
-install:
+install: ${DESTDIR}${DESTINC}/arpa
 	set -x; for x in ${HFILES}; do \
 		${INSTALL} -c -m 444 $$x ${DESTDIR}${DESTINC}/arpa/$$x; \
 	done
+
+${DESTDIR}${DESTINC}/arpa:
+	mkdir $@

@@ -1,4 +1,333 @@
-$Id: CHANGES,v 8.40 1996/08/05 08:31:20 vixie Exp $
+$Id: CHANGES,v 8.53 1997/06/01 20:34:25 vixie Exp vixie $
+
+	--- 4.9.6 released ---
+
+805. [security]	The server now caches only those response records
+		that are within the current query domain.  (From BIND-8)
+
+804. [security]	another buffer overrun plugged, this time in res_search().
+
+803. [bug]	core leak fixed in ns_resp.c (twice).
+
+802. [proto]	RTT sorting was defeating round robin for nameserver A RRs.
+
+801. [bug]	res_send() now considers FD_SETSIZE usefully.
+
+800. [bug]	formatting errors corrected in precsize_aton().
+
+799. [bug]	now that inet_pton() is safe, we call it a little more often.
+
+798. [bug]	file descriptor leak plugged on systems without SO_LINGER.
+
+797. [bug]	named-xfer signal, exit, and stub bugs fixed.
+
+798. [bug]	tokens with merely _leading_ digits won't be taken as TTL's.
+
+797. [port]	Motorola 88K port integrated.
+
+796. [doc]	some spelling errors, omissions, and misdirections removed.
+
+795. [security]	"dig @0 version.bind chaos" no longer shows user names.
+
+794. [bug]	make d_rcnt larger; reorder databuf for packing efficiency.
+
+793. [bug]	we forgot to reset a pointer after a realloc (named_xfer.c).
+
+792. [bug]	RRset TTL was not being maintained coherently.
+
+791. [doc]	BOG was off by one in its ndots description.
+
+790. [whining]	preserve forwarded RRset order for one last release.
+
+789. [bug]	TCP timeouts were leaking file descriptors.
+
+788. [bug]	AXFR needs 64K to fit in, not PACKETSZ.
+
+787. [bug]	dangling CNAMEs caused erroneous forwarded responses.
+
+786. [protocol]	better checking of incoming additional data.
+
+785. [bug]	forced reload of parents after zone expiry had problems.
+
+784. [bug]	SRV RR's were not decoded properly.
+
+783. [bug]	BUFSIZ is less than PACKETSZ on some systems (overruns).
+
+782. [bug]	named could spin on invalid TCP input formats (ns_main.c).
+
+781. [bug]	short names of all hex digits were being handled incorrectly.
+
+780. [bug]	doupdate was handling BOGUSNS and syslog messages incorrectly.
+
+779. [bug]	named-xfer can now handle RFC1035-compliant zone transfers.
+
+778. [security]	wire protocol names now limited to MAXCDNAME octets.
+
+777. [port]	res_send name redefinition now covered by BIND_RES_POSIX3.
+
+	--- 4.9.5-p1 released ---
+
+776. [doc]	doc/misc/FAQ.* updated by its author.
+
+775. [bug]	KEY RRs were not allowed to default fields per [DNSSEC].
+
+774. [bug]	nslookup was overflowing yet another internal data structure.
+
+773. [bug]	syslog was being given an unprotected string to format from.
+
+772. [debug]	a debugging syslog() was made clearer.
+
+771. [contrib]	contrib/host updated by its author.
+
+770. [bug]	nslookup was overflowing an internal data structure.
+
+769. [port]	ultrix linkage hackery removed from res/res_comp.c.
+
+768. [lint]	named-xfer u_char* vs. char*.
+
+767. [port]	shres/sunos updates from the author.
+
+766. [bug]	nslookup was not limiting the number of addresses it handled.
+
+765. [port]	LOG_NOWAIT turned on if available.
+
+764. [lint]	nslookup NULL vs ERROR.
+
+763. [bug]	p_rr() was erroneously reporting short packets.
+
+762. [bug]	minor memory leak fixed (during bad-name syslogging).
+
+761. [port]	NeXTstep portability improved for modern systems.
+
+760. [bug]	NAPTR RR support was incomplete/broken in named-xfer.
+
+759. [port]	The resolver's POSIX.3 conformance is now optional since
+		it was causing trouble for vendor shared library editing.
+
+	--- 4.9.5-rel released ---
+
+758. [doc]	more Linux libc discussions included.
+
+757. [doc]	RFCs 1876, 1995, 1996, 2010, and 2052 now included.
+
+756. [contrib]	new version of contrib/host received from author.
+
+755. [bug]	nslookup had a latent buffer overrun in initialization.
+
+754. [port]	NCR's flavour of SVr4 is now supported.
+
+753. [bug]	fp_nquery() could read past end of buffer.  (fix from BIND 8.1)
+
+752. [conf]	SENSIBLE_DOTS is now the default.  SGI can use WANT_PIDFILE.
+
+751. [doc]	the the BOG had an extra "the" in two places.
+
+750. [bug]	erroneous zones weren't resetting z_ftime.
+
+749. [bug]	named-xfer's handling of unknown type codes was not robust.
+		(it's still wrong but now it's wrong more gracefully.)
+
+748. [lint]	u_char vs. char changes in db_load.c.
+
+747. [bug]	a previous patch had leftovers.
+
+746. [bug]	dangling CNAMEs were not handled properly.
+
+745. [doc]	shres/sunos/INSTALL, ./INSTALL and man/gethostbyname.3
+		modernized.
+
+744. [bug]	NAPTR replacement domains were being verified as hostnames.
+
+743. [port]	hpux10.10 makefile cleanup.
+
+742. [bug]	inet_net_pton() was doing bad things to subnets and b'casts.
+
+741. [func]	source and owner are now logged with name errors.
+
+	--- 4.9.5-t6b released ---
+
+740. [bug]	dangling cname checking had a few memory leaks.
+
+739. [func]	SRV support made more complete; NAPTR support added.
+
+738. [protocol]	dangling CNAMEs are no longer considered format errors.
+
+737. [bug]	owner domain names like "*." were not considered valid.
+
+736. [contrib]	new version of contrib/host included.
+
+735. [doc]	added some text to shres/solaris/INSTALL.
+
+734. [bug]	loading a zone with a single line SOA RR killed following line.
+
+733. [bug]	priming could deadlock in odd cases.
+
+732. [bug]	SIGHUP now caught before initial zone load.
+
+731. [bug]	IP/TCP session logging now controlled by #ifdef DEBUG.
+
+730. [port]	untested HPUX 10 support added to top level Makefile.
+
+729. [port]	ultrix vs. _res_close(); ultrix wins.
+
+728. [bug]	several d_rcode references weren't #ifdef'd NCACHE.
+
+727. [bug]	SOA timer warnings now consistently logged at LOG_WARNING.
+
+726. [protocol]	added T_NAPTR as RR type 35, hoping the IANA concurs.
+
+	--- 4.9.5-t5b released ---
+
+725. [port]	shared libraries should work on Linux now.
+
+724. [bug]	"dig @0 VERSION.BIND TXT CHAOS" had never been tested.
+
+723. [port]	Solaris 2.6 has AF_LINK but not sa_len.
+
+722. [protocol]	verify RdLength of A and AAAA RRs.
+
+721. [port]	missing include directories will be made during "install".
+
+720. [port]	solaris and sunos should use native assemblers with gcc.
+
+719. [port]	cleaned up some A/UX linkages.
+
+718. [func]	some SOA sanity checks were changed from errors to warnings.
+
+717. [port]	BSD/named/Makefile needed to have dmalloc.c reference removed.
+
+716. [protocol]	cnames and referrals were generating spurious log messages.
+
+715. [port]	ultrix PCC didn't like a =&, said it was ambigious somehow.
+
+	--- 4.9.5-t4b released ---
+
+714. [port]	contrib/os2-emx now contains files nec'y for OS/2 (EMX).
+
+713. [func]	gethostbyname2(x, AF_INET6) now accepts address literals.
+
+712. [bug]	gethostbyname() wasn't seeing RES_USE_INET6 early enough.
+
+711. [bug]	nslookup was printing IPv6 addresses improperly.
+
+710. [port]	an alignment bug was found and fixed by Cray.
+
+709. [bug]	named-xfer was dumping core on incoming LOC RRs.
+
+708. [protocol]	primary zones are edited to make rrset ttl's coherent during
+		loading.
+
+707. [protocol]	rrsets with coherent ttl's won't be overridden by new rrsets
+		with incoherent ttl's.
+
+706. [port]	Ultrix portability restored.
+
+705. [func]	added "limit files XXX" to boot file.
+
+704. [bug]	trace generation code was getting unaligned accesses.
+
+703. [contrib]	added contrib/getkeyby, from gnu@toad.com.
+
+702. [func]	MAXDNAME is now 4*256+1 to allow for \000 and the NUL.
+
+701. [bug]	samedomain() wasn't paying attention to escapes.
+
+700. [func]	allow long text strings in T_X25 RRs.
+
+699. [port]	added base64.c to shres/*/Makefile.
+
+698. [port]	picked some lint out of tools/nslookup/getinfo.c.
+
+697. [bug]	we were calling isupper() without calling isascii() first.
+
+696. [protocol]	a new kind of bad referral is now caught and ignored.
+
+	--- 4.9.5-t3b released ---
+
+695. [func]	Use delete_stale() in preference to delete_all() more often.
+
+694. [func]	DATUMREFCNT is no longer an option.
+
+693. [port]	fixed up the CPPFLAGS usage in the top level Makefile.
+
+692. [port]	fixed up the __ defines (for POSIX.3) in include/resolv.h.
+
+691. [port]	removed all uses of "ssize_t", the world is not ready for it.
+		(fixed two latent signed/unsigned code bugs in the process.)
+
+	--- 4.9.5-t3a released ---
+
+690. [bug]	the stale() and delete_all() calls in finddata() weren't
+		respectful toward T_ANY and C_ANY queries.
+
+689. [lint]	miscellaneous compiler warnings were disappeared.
+
+688. [func]	handles insane/unreachable root servers a little better now.
+
+687. [bug]	T1A's core dumps from bad databufs should be all fixed now.
+
+686. [func]	overlong TXT strings should work again.
+
+685. [port]	updated compat/include/sys/cdefs.h to BSD 4.4-Lite (8.7) vers.
+
+684. [doc]	doc/i-d/* added.
+
+683. [contrib]	"nslint" added to contrib/.
+
+682. [protocol]	irrelevant authority information is now correctly ignored.
+
+681. [func]	DO_RELOAD Is no longer optional.
+
+680. [cleanup]	ALLOW_UPDATES is gone.
+
+679. [port]	some systems need _res to be in text rather than bss.
+
+678. [port]	-Dssize_t=int is gone; see portability.h.
+
+677. [contrib]	outdates #671; update to contrib/host version 960808.
+
+676. [doc]	formatting fix to man/named.man8.
+
+	--- 4.9.5-t2a released ---
+
+675. [lint]	various.
+
+674. [feature]	support added for SRV RR (untested).
+
+673. [protocol]	added definitions for EID, NIMLOC, SRV, ATMA, and IXFR.
+
+672. [bug]	fixed decoding problem wrt AAAA in tools/nslookup/debug.c.
+
+671. [bug]	fixed formatting problem wrt TXT in contrib/host/host.c.
+
+	--- 4.9.5-t1a released ---
+
+670. [feature]	added SIG and KEY RR support (without signature or
+		verification).
+
+669. [internal]	name/number translations are now mostly table driven.
+
+668. [feature]	nslookup now has better[/different] error messages.
+
+667. [feature]	inet_neta(), inet_net_ntop(), inet_net_pton() added.
+
+666. [bug]	parent zone will be reloaded when a child zone changes.
+
+665. [protocol]	RETURNSOA logic has been refined, and now ships "enabled."
+
+664. [protocol]	cached RRsets are now completely flushed when new data arrives.
+
+663. [port]	IRIX shared libraries are now supported.
+
+662. [port]	SCO OSE5 support has been upgraded slightly.
+
+661. [bug]	insane root servers will now be handled correctly.
+
+660. [bug]	TXT RRs are now parsed and displayed in full RFC1035 form.
+
+659. [port]	UXP/DS is now supported in the top level Makefile.
+
+658. [feature]	BIND now checks that UDP checksums are enabled in the kernel.
 
 	--- 4.9.4-p1 released ---
 

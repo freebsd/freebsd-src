@@ -250,7 +250,7 @@ Slave mode is activated by placing the simple command
 \fIoptions forward-only\fP
 .)b
 in the bootfile.  If this option is used, then you must specify forwarders.
-When in slave mode, the server will forward each query to each of the the
+When in slave mode, the server will forward each query to each of the
 forwarders until an answer is found or the list of forwarders is exhausted.
 The server will not try to contact any remote name server other than those
 named in the \fIforwarders\fP list.
@@ -543,7 +543,7 @@ resolver variable.  Supported options at this time are:
 sets the \s-1RES_DEBUG\s+1 bit in \fB_res.options\fP.
 .ip \fBndots:\fP\fIn\fP
 sets the lower threshold (measured in ``number of dots'') on names given to
-\fIres_query\fP() such that names with more than this number of dots will be
+\fIres_query\fP() such that names with at least this number of dots will be
 tried as absolute names before any \fIlocal-domain\fP or \fIsearch-list\fP
 processing is done.  The default for this internal variable is ``1''.
 .\" .pp
@@ -829,7 +829,7 @@ protocol per address.  Note that RFC1123 says of \fIWKS\fP records:
    ...
                  The TXT and WKS RR types have not been widely used by
                  Internet sites; as a result, an application cannot rely
-                 on the the existence of a TXT or WKS RR in most
+                 on the existence of a TXT or WKS RR in most
                  domains.
 .)l
 .sh 3 "CNAME - Canonical Name"
@@ -1045,6 +1045,10 @@ The \fIPX\fP record is still experimental; not all servers implement or
 recognize it.
 
 .sh 2 "Discussion about the TTL"
+.pp
+The use of different Time To Live fields with in a RRset have been
+deprecated and this is enforced by the server when loading a primary
+zone.  See the Security section for more discussion of differing TTLs.
 .pp
 The Time To Live assigned to the records and to the zone via the
 Minimum field in the SOA record is very important. High values will
