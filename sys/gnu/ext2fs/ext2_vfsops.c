@@ -53,7 +53,6 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/disklabel.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
 #include <sys/mutex.h>
@@ -627,9 +626,7 @@ ext2_mountfs(devvp, mp, td)
 	register struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
 	dev_t dev = devvp->v_rdev;
-	struct partinfo dpart;
-	int havepart = 0;
-	int error, i, size;
+	int error, i;
 	int ronly;
 
 	/*
@@ -655,13 +652,6 @@ ext2_mountfs(devvp, mp, td)
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
-	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, td) != 0)
-		size = DEV_BSIZE;
-	else {
-		havepart = 1;
-		size = dpart.disklab->d_secsize;
-	}
-
 	bp = NULL;
 	ump = NULL;
 	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
