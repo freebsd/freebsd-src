@@ -58,9 +58,6 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-typedef u_int32_t in_addr_t;
-typedef u_int16_t in_port_t;
-
 __BEGIN_DECLS
 in_addr_t	htonl __P((in_addr_t)) __attribute__((__const__));
 in_port_t	htons __P((in_port_t)) __attribute__((__const__));
