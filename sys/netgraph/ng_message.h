@@ -67,10 +67,11 @@ struct ng_mesg {
 		u_char		version;		/*  == NGM_VERSION */
 		u_char		spare;			/* pad to 2 bytes */
 		u_int16_t	arglen;			/* length of data */
+		u_int32_t	cmd;			/* command identifier */
 		u_int32_t	flags;			/* message status */
+		u_int32_t	spare2;			/* pad to 8 bytes */
 		u_int32_t	token;			/* match with reply */
 		u_int32_t	typecookie;		/* node's type cookie */
-		u_int32_t	cmd;			/* command identifier */
 		u_char		cmdstr[NG_CMDSTRSIZ];	/* cmd string + \0 */
 	} header;
 	char	data[];			/* placeholder for actual data */
@@ -84,10 +85,11 @@ struct ng_mesg {
 	  { "version",		&ng_parse_uint8_type	},	\
 	  { "spare",		&ng_parse_uint8_type	},	\
 	  { "arglen",		&ng_parse_uint16_type	},	\
+	  { "cmd",		&ng_parse_uint32_type	},	\
 	  { "flags",		&ng_parse_hint32_type	},	\
+	  { "spare2",		&ng_parse_uint32_type	},	\
 	  { "token",		&ng_parse_uint32_type	},	\
 	  { "typecookie",	&ng_parse_uint32_type	},	\
-	  { "cmd",		&ng_parse_uint32_type	},	\
 	  { "cmdstr",		&ng_parse_cmdbuf_type	},	\
 	  { "data",		(dtype)			},	\
 	  { NULL }						\
@@ -98,7 +100,7 @@ struct ng_mesg {
  * Interfaces within the kernel are defined by a different 
  * value (see NG_ABI_VERSION in netgraph.g)
  */
-#define NG_VERSION	6
+#define NG_VERSION	7
 
 /* Flags field flags */
 #define NGF_ORIG	0x00000000	/* the msg is the original request */
