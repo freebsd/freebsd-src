@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.109 1998/08/18 07:46:58 msmith Exp $
+ *	$Id: vm_machdep.c,v 1.110 1998/09/25 17:34:48 peter Exp $
  */
 
 #include "npx.h"
@@ -159,6 +159,9 @@ cpu_fork(p1, p2)
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
 	 */
 
+#ifdef SMP
+	pcb2->pcb_mpnest = 1;
+#endif
 #ifdef VM86
 	/*
 	 * XXX don't copy the i/o pages.  this should probably be fixed.
