@@ -249,7 +249,8 @@ all)
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
 	sh MAKEDEV usb usb0 uhid0 ums0 ulpt0 ugen0	# cdev, USB devices
-	sh MAKEDEV bpf0 ipl tun0			# cdev, network
+	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 			# cdev, network
+	sh MAKEDEV ipl tun0 tun1 tun2 tun3		# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
