@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.35 1995/08/11 11:31:07 davidg Exp $
+ * $Id: vfs_subr.c,v 1.36 1995/08/25 20:49:44 bde Exp $
  */
 
 /*
@@ -1315,12 +1315,16 @@ again:
 				goto again;
 			}
 			if (bp + VPTRSZ + VNODESZ > ewhere) {
+				vfs_unbusy(mp);
 				*sizep = bp - where;
 				return (ENOMEM);
 			}
-			if ((error = copyout((caddr_t) &vp, bp, VPTRSZ)) ||
-			    (error = copyout((caddr_t) vp, bp + VPTRSZ, VNODESZ)))
+			if ((error = copyout(&vp, bp, VPTRSZ)) ||
+			    (error = copyout(vp, bp + VPTRSZ, VNODESZ))) {
+				vfs_unbusy(mp);
+				*sizep = bp - where;
 				return (error);
+			}
 			bp += VPTRSZ + VNODESZ;
 		}
 		vfs_unbusy(mp);
