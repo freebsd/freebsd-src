@@ -7,6 +7,7 @@ CFLAGS+=-I${.CURDIR}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c lst.c main.c \
 	make.c parse.c str.c suff.c targ.c util.c var.c var_modify.c
 
+NO_WERROR=
 WARNS?=	3
 NO_SHARED?=	YES
 
