@@ -253,8 +253,7 @@ static void
 ssc_takeroot(void *junk)
 {
 	if (sscrootready)
-		rootdevnames[0] = "ufs:/dev/sscdisk0c";
+		rootdevnames[0] = "ufs:/dev/sscdisk0";
 }
 
 SYSINIT(ssc_root, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, ssc_takeroot, NULL);
-
