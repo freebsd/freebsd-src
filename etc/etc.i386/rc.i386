@@ -35,7 +35,7 @@ case ${ibcs2_enable} in
 	;;
 esac
 
-# Start the Linux mode binary compatibility if requested.
+# Start the Linux binary compatibility if requested.
 #
 case ${linux_enable} in
 [Yy][Ee][Ss])
