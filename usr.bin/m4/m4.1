@@ -1,5 +1,5 @@
 .\"
-.\"	@(#) $Id: m4.1,v 1.5 1998/03/23 07:44:42 charnier Exp $
+.\"	@(#) $Id: m4.1,v 1.6 1998/06/26 14:25:18 rnordier Exp $
 .\"
 .Dd January 26, 1993
 .Dt m4 1
@@ -64,7 +64,7 @@ comments are turned off.  The maximum length for a comment marker is
 five characters.
 .It changequote
 Defines the quote symbols to be the first and second arguments.
-The symbols may be up to five characters long.  If no arguments are
+Note, only the first character of each argument is used.  If no arguments are
 given it restores the default open and close single quotes.
 .It decr
 Decrements the argument by 1.  The argument must be a valid numeric string.
