@@ -445,7 +445,7 @@
 				struct l_itimerval *oitv); }
 363	STD	{ int linux_utimes(char *fname, struct l_timeval *times); }
 364	MNOPROTO { int getrusage(int who, struct rusage *rusage); }
-365	STD	{ int linux_wait4(l_pid_t pid, l_uint *status, l_int options, \
+365	MSTD	{ int linux_wait4(l_pid_t pid, l_uint *status, l_int options, \
 				struct l_rusage *rusage); }		
 366	STD	{ int linux_adjtimex(void); }
 367	STD	{ int linux_getcwd(char *buf, l_ulong bufsize); }
