@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.keymaps,v 1.1 1996/04/14 16:55:21 wosch Exp wosch $
+# $Id: INDEX.keymaps,v 1.4 1996/04/14 17:22:43 wosch Exp $
 #
 # database for kbdmap(8) 
 #
@@ -22,6 +22,7 @@
 # Language support: MENU, FONT
 #
 MENU:en:Choise your keyboard language
+MENU:da:Vælg dit keyboard layout
 MENU:de:Wähle Deine Tastaturbelegung
 MENU:fr:Choisissez la nationalité de votre clavier
 #
@@ -31,10 +32,12 @@ FONT:de_AT.CP850:cp850-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
 # 
 danish.iso.kbd:en:Danish ISO-8859-1
+danish.iso.kbd:da:Dansk ISO-8859-1
 danish.iso.kbd:de:Dänisch ISO-8859-1
 danish.iso.kbd:fr:Danois ISO-8859-1
 
 danish.cp865.kbd:en:Danish Codepage 865
+danish.cp865.kbd:da:Dansk Code page 865
 danish.cp865.kbd:de:Dänisch Codeseite 865
 danish.cp865.kbd:fr:Danois Code page 865
 
@@ -58,6 +61,9 @@ jp.106.kbd:de:Japanisch 106
 
 jp.106x.kbd:en:Japanese 106x
 jp.106x.kbd:de:Japanisch 106x
+
+norwegian.iso.kbd:en:Norwegian ISO-8859-1
+norwegian.iso.kbd:no:Norsk ISO-8859-1
 
 ru.cp866.kbd:en:Russian Codepage 866 (alternative)
 ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
