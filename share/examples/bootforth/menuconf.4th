@@ -14,11 +14,11 @@
 : menu
 	2 fg
 	20 7 at-xy 
-	." 1.  Start FreeBSD /boot/stable.conf."
+	." 1.  Start FreeBSD with /boot/stable.conf."
         20 8 at-xy
-        ." 2.  Start FreeBSD /boot/current.conf."
+        ." 2.  Start FreeBSD with /boot/current.conf."
 	20 9 at-xy
-	." 3.  Start FreeBSD /boot/loader.rc."
+	." 3.  Start FreeBSD with standard configuration. "
 	20 10 at-xy
 	." 4.  Reboot."
 	me
