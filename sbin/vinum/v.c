@@ -769,6 +769,12 @@ continue_revive(int sdno)
 	    message->index = sdno;			    /* pass sd number */
 	    message->type = sd_object;			    /* and type of object */
 	    message->state = object_up;
+	    if (SSize != 0) {				    /* specified a size for init */
+		if (SSize < 512)
+		    SSize <<= DEV_BSHIFT;
+		message->blocksize = SSize;
+	    } else
+		message->blocksize = DEFAULT_REVIVE_BLOCKSIZE;
 	    ioctl(superdev, VINUM_SETSTATE, message);
 	}
 	if (reply.error) {
