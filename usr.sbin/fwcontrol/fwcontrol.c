@@ -168,9 +168,9 @@ send_phy_config(int fd, int root_node, int gap_count)
 	printf("send phy_config root_node=%d gap_count=%d\n",
 						root_node, gap_count);
 
-	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
        		err(1, "ioctl");
-	}
+	free(asyreq);
 }
 
 static void
@@ -185,9 +185,9 @@ send_link_on(int fd, int node)
 	asyreq->pkt.mode.ld[1] |= (1 << 30) | ((node & 0x3f) << 24);
 	asyreq->pkt.mode.ld[2] = ~asyreq->pkt.mode.ld[1];
 
-	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
        		err(1, "ioctl");
-	}
+	free(asyreq);
 }
 
 static void
@@ -207,9 +207,9 @@ reset_start(int fd, int node)
 
 	asyreq->pkt.mode.wreqq.data = htonl(0x1);
 
-	if (ioctl(fd, FW_ASYREQ, asyreq) < 0) {
+	if (ioctl(fd, FW_ASYREQ, asyreq) < 0)
        		err(1, "ioctl");
-	}
+	free(asyreq);
 }
 
 static void
