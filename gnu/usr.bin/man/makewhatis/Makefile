@@ -1,17 +1,24 @@
-.include "../Makefile.inc"
+.if exists(${.CURDIR}/obj)
+TARG=  ${.CURDIR}/obj/makewhatis
+.else
+TARG=  ${.CURDIR}/makewhatis
+.endif
 
-all:	makewhatis
+all:	${TARG}
 
-obj depend rcsfreeze tags all:
+depend rcsfreeze tags all:
 	@echo -n
 
 cleandir: clean
+	cd ${.CURDIR}; rm -rf obj;
 
 clean:
-	@rm -f makewhatis
+	@rm -f ${TARG}
 
 install:
-	install -c -o bin -g bin -m 444 makewhatis /usr/bin
+	install -c -o bin -g bin -m 444 ${TARG} /usr/bin
 
-makewhatis: makewhatis.sh
-	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' makewhatis.sh > makewhatis
+${TARG}: ${.CURDIR}/makewhatis.sh
+	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' ${.CURDIR}/makewhatis.sh > ${TARG}
+
+.include "../Makefile.inc"

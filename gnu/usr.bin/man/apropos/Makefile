@@ -1,26 +1,35 @@
-.include "../Makefile.inc"
+.if exists(${.CURDIR}/obj)
+MANP=  ${.CURDIR}/obj/apropos.1
+TARG=  ${.CURDIR}/obj/apropos
+.else
+MANP=  ${.CURDIR}/apropos.1
+TARG=  ${.CURDIR}/apropos
+.endif
 
-all:	apropos apropos.1
+all:	${TARG} ${MANP}
 
-obj depend rcsfreeze tags all:
+depend rcsfreeze tags all:
 	@echo -n
 
 cleandir: clean
+	cd ${.CURDIR}; rm -rf obj;
 
 clean:
-	@rm -f apropos apropos.1
+	@rm -f ${TARG} ${MANP}
 
-apropos: apropos.sh
+${TARG}: ${.CURDIR}/apropos.sh
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' \
-		apropos.sh > apropos
+		${.CURDIR}/apropos.sh > $@
 
-apropos.1: apropos.man
+${MANP}: ${.CURDIR}/apropos.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
-	apropos.man > apropos.1
+	${.CURDIR}/apropos.man > $@
 
-install: apropos apropos.1
-	install -c -o bin -g bin -m 555 apropos /usr/bin
-	install -c -o bin -g bin -m 444 apropos.1 /usr/share/man/man1
+install: ${TARG} ${MANP}
+	install -c -o bin -g bin -m 555 ${TARG} /usr/bin
+	install -c -o bin -g bin -m 444 ${MANP} /usr/share/man/man1
+
+.include "../Makefile.inc"
