@@ -55,6 +55,7 @@
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -63,6 +64,7 @@
 #include <net/ethernet.h>
 #include <net/netisr.h>
 
+#include <dev/usb/usb.h>
 #include <dev/usb/usb_ethersubr.h>
 
 #ifndef lint
@@ -71,6 +73,12 @@ static const char rcsid[] =
 #endif
 
 static struct ifqueue usbq;
+struct usb_ifent {
+	struct ifnet		*ifp;
+	LIST_ENTRY(usb_ifent)	list;
+};
+static LIST_HEAD(, usb_ifent) usb_iflisthead;
+static int usb_inited = 0;
 
 static void usbintr		__P((void));
 
@@ -78,17 +86,33 @@ static void usbintr()
 {
 	struct ether_header	*eh;
 	struct mbuf		*m;
+	struct ifnet		*ifp;
+	struct usb_ifent	*e;
 	int			s;
 
 	s = splimp();
 
+	/* Check the RX queue */
 	while(1) {
 		IF_DEQUEUE(&usbq, m);
 		if (m == NULL)
 			break;
 		eh = mtod(m, struct ether_header *);
 		m_adj(m, sizeof(struct ether_header));
-		ether_input(m->m_pkthdr.rcvif, eh, m);
+		ifp = m->m_pkthdr.rcvif;
+		ether_input(ifp, eh, m);
+		if (ifp->if_snd.ifq_head != NULL)
+			(*ifp->if_start)(ifp);
+	}
+
+	/* Check the TX queue */
+	while (usb_iflisthead.lh_first != NULL) {
+		e = usb_iflisthead.lh_first;
+		ifp = e->ifp;
+		if (ifp->if_snd.ifq_head != NULL)
+			(*ifp->if_start)(ifp);
+		LIST_REMOVE(e, list);
+		free(e, M_USBDEV);
 	}
 
 	splx(s);
@@ -98,7 +122,12 @@ static void usbintr()
 
 void usb_register_netisr()
 {
-	register_netisr(NETISR_USB, usbintr);
+	if (usb_inited == 0) {
+		register_netisr(NETISR_USB, usbintr);
+		LIST_INIT(&usb_iflisthead);
+		usb_inited++;
+	}
+
 	return;
 }
 
@@ -114,5 +143,28 @@ void usb_ether_input(m)
 	IF_ENQUEUE(&usbq, m);
 	schednetisr(NETISR_USB);
 	splx(s);
+	return;
+}
+
+void usb_tx_done(ifp)
+	struct ifnet		*ifp;
+{
+	struct usb_ifent	*e;
+
+	/* See if this if is already scheduled. */
+	for (e = usb_iflisthead.lh_first; e != NULL; e = e->list.le_next) {
+		if (ifp == e->ifp)
+			return;
+	}
+		
+	e = malloc(sizeof(struct usb_ifent), M_USB, M_NOWAIT);
+	if (e == NULL)
+		return;
+
+	e->ifp = ifp;
+
+	LIST_INSERT_HEAD(&usb_iflisthead, e, list);
+	schednetisr(NETISR_USB);
+
 	return;
 }
