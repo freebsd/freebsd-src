@@ -33,9 +33,9 @@
  *	i4b daemon - network monitor protocl definition
  *	-----------------------------------------------
  *
- *	$Id: monitor.h,v 1.5 1999/02/14 09:44:57 hm Exp $
+ *	$Id: monitor.h,v 1.6 1999/05/30 13:49:20 hm Exp $
  *
- *      last edit-date: [Mon Aug  3 06:52:06 1998]
+ *      last edit-date: [Sun May 30 15:50:10 1999]
  *
  *	-mh	created
  *	-hm	checking in
@@ -256,8 +256,8 @@
 /* put a string into recor r at offset off, make sure it's not to long
  * and proper terminate it */
 #define	I4B_PUT_STR(r, off, str)	{		\
-	strncpy(r+off, str, I4B_MAX_MON_STRING);	\
-	r[off+I4B_MAX_MON_STRING-1] = (BYTE)0; 		}
+	strncpy((r)+(off), (str), I4B_MAX_MON_STRING);	\
+	(r)[(off)+I4B_MAX_MON_STRING-1] = (BYTE)0; 		}
 
 #endif /* MONITOR_H */
 

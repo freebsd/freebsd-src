@@ -33,9 +33,9 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- *	$Id: monitor.c,v 1.9 1999/05/06 08:24:45 hm Exp $
+ *	$Id: monitor.c,v 1.10 1999/05/30 08:32:30 hm Exp $
  *
- *      last edit-date: [Mon Feb 15 16:42:18 1999]
+ *      last edit-date: [Sun May 30 10:33:05 1999]
  *
  *	-mh	created
  *
@@ -587,23 +587,35 @@ static int monitor_command(int con_index, int fd, int rights)
 	ioctl(fd, FIONREAD, &u);
 	if (u < I4B_MON_CMD_HDR) {
 		if (u == 0) {
+			log(LL_ERR, "monitor #%d, read 0 bytes", con_index);
 			/* socket closed by peer */
 			close(fd);
 			return 1;
 		}
 		return 0;	/* not enough data there yet */
 	}
+
 	bytes = recv(fd, cmd, I4B_MON_CMD_HDR, MSG_PEEK);
+
 	if (bytes < I4B_MON_CMD_HDR)
+	{
+		log(LL_ERR, "monitor #%d, read only %d bytes", con_index, bytes);
 		return 0;	/* errh? something must be wrong... */
+	}
+
 	bytes = I4B_GET_2B(cmd, I4B_MON_CMD_LEN);
-	if (bytes >= sizeof cmd) {
+
+	if (bytes >= sizeof cmd)
+	{
 		close(fd);
-		log(LL_ERR, "garbage on monitor connection #%d, closing it", con_index);
+		log(LL_ERR, "monitor #%d, garbage on connection", con_index);
 		return 1;
 	}
+
 	/* now we know the size, it fits, so lets read it! */
-	if (read(fd, cmd, bytes) <= 0) {
+	if (read(fd, cmd, bytes) <= 0)
+	{
+		log(LL_ERR, "monitor #%d, read <= 0", con_index);
 		close(fd);
 		return 1;
 	}

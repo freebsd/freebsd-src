@@ -27,9 +27,9 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.4 1999/05/23 23:24:11 imp Exp $ 
+ *	$Id: main.c,v 1.22 1999/07/30 06:51:13 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 28 16:47:28 1999]
+ *      last edit-date: [Fri Jul 30 08:14:34 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -73,6 +73,33 @@ int opt_zero = 0;
 int opt_unit = 0;
 int opt_hscx = 0;
 int opt_rhscx = 0;
+int opt_lapd = 0;
+int opt_rlapd = 0;
+
+/*---------------------------------------------------------------------------*
+ *	usage display and exit
+ *---------------------------------------------------------------------------*/
+static void
+usage(void)
+{
+	fprintf(stderr, "\n");
+	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d, compiled %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
+	fprintf(stderr, "usage: isdndebug -e -g -h -l <layer> -m -q -r -s <value> -u <unit> -z -H -Q\n");
+	fprintf(stderr, "       -e            set error only debugging output\n");
+	fprintf(stderr, "       -g            get current debugging values\n");
+	fprintf(stderr, "       -h            get HSCX event counters\n");	
+	fprintf(stderr, "       -l layer      specify layer (1...4)\n");
+	fprintf(stderr, "       -m            set maximum debugging output\n");
+	fprintf(stderr, "       -q            get Q.921 statistics\n");
+	fprintf(stderr, "       -r            reset values(s) to compiled in default\n");
+	fprintf(stderr, "       -s value      set new debugging value for layer\n");
+	fprintf(stderr, "       -u unit       unit number for -h, -q, -H and -Q commands\n");	
+	fprintf(stderr, "       -z            set zero (=no) debugging output\n");
+	fprintf(stderr, "       -H            reset HSCX event counters to zero\n");	
+	fprintf(stderr, "       -Q            reset Q.921 statistics\n");
+	fprintf(stderr, "\n");
+	exit(1);
+}
 
 /*---------------------------------------------------------------------------*
  *	program entry
@@ -84,7 +111,7 @@ main(int argc, char **argv)
 	ctl_debug_t cdbg;
 	int ret;
 	
-	while ((c = getopt(argc, argv, "eghl:mrs:u:zH")) != -1)
+	while ((c = getopt(argc, argv, "eghl:mqrs:u:zHQ")) != -1)
 	{
 		switch(c)
 		{
@@ -98,6 +125,10 @@ main(int argc, char **argv)
 
 			case 'h':
 				opt_hscx = 1;
+				break;
+
+			case 'q':
+				opt_lapd = 1;
 				break;
 
 			case 'r':
@@ -134,6 +165,10 @@ main(int argc, char **argv)
 				opt_rhscx = 1;
 				break;
 
+			case 'Q':
+				opt_rlapd = 1;
+				break;
+
 			case '?':
 			default:
 				usage();
@@ -142,13 +177,14 @@ main(int argc, char **argv)
 	}
 
 	if(opt_get == 0 && opt_set == 0 && opt_reset == 0 && opt_max == 0 &&
-	   opt_err == 0 && opt_zero == 0 && opt_hscx == 0 && opt_rhscx == 0)
+	   opt_err == 0 && opt_zero == 0 && opt_hscx == 0 && opt_rhscx == 0 &&
+	   opt_lapd == 0 && opt_rlapd == 0)
 	{
 		usage();
 	}
 
 	if((opt_get + opt_set + opt_reset + opt_max + opt_err + opt_zero +
-		opt_hscx + opt_rhscx) > 1)
+		opt_hscx + opt_rhscx + opt_lapd + opt_rlapd) > 1)
 	{
 		usage();
 	}
@@ -222,6 +258,59 @@ main(int argc, char **argv)
 		printf("HSCX event counters unit %d chan %d reset to zero!\n",
 			hst.unit, hst.chan);
 
+		exit(0);
+	}
+
+	if(opt_lapd)
+	{
+		l2stat_t l2s;
+
+		l2s.unit = opt_unit;
+		
+		if((ret = ioctl(isdnfd, I4B_CTL_GET_LAPDSTAT, &l2s)) < 0)
+		{
+			fprintf(stderr, "ioctl I4B_CTL_GET_LAPDSTAT failed: %s", strerror(errno));
+			exit(1);
+		}
+
+		printf("unit %d Q.921 statistics: receive     transmit\n", opt_unit);
+		printf("---------------------------------------------\n");
+		printf("# of I-frames       %12lu %12lu\n", l2s.lapdstat.rx_i, l2s.lapdstat.tx_i);
+		printf("# of RR-frames      %12lu %12lu\n", l2s.lapdstat.rx_rr, l2s.lapdstat.tx_rr);
+		printf("# of RNR-frames     %12lu %12lu\n", l2s.lapdstat.rx_rnr, l2s.lapdstat.tx_rnr);
+		printf("# of REJ-frames     %12lu %12lu\n", l2s.lapdstat.rx_rej, l2s.lapdstat.tx_rej);
+		printf("# of SABME-frames   %12lu %12lu\n", l2s.lapdstat.rx_sabme, l2s.lapdstat.tx_sabme);
+		printf("# of DM-frames      %12lu %12lu\n", l2s.lapdstat.rx_dm, l2s.lapdstat.tx_dm);
+		printf("# of DISC-frames    %12lu %12lu\n", l2s.lapdstat.rx_disc, l2s.lapdstat.tx_disc);
+		printf("# of UA-frames      %12lu %12lu\n", l2s.lapdstat.rx_ua, l2s.lapdstat.tx_ua);
+		printf("# of FRMR-frames    %12lu %12lu\n", l2s.lapdstat.rx_frmr, l2s.lapdstat.tx_frmr);
+		printf("# of TEI-frames     %12lu %12lu\n", l2s.lapdstat.rx_tei, l2s.lapdstat.tx_tei);
+		printf("# of UI-frames      %12lu      \n", l2s.lapdstat.rx_ui);
+		printf("# of XID-frames     %12lu      \n", l2s.lapdstat.rx_xid);
+		printf("                                       errors\n");
+		printf("---------------------------------------------\n");
+		printf("# of frames with incorrect length%12lu\n", l2s.lapdstat.err_rx_len);
+		printf("# of frames with bad frame type  %12lu\n", l2s.lapdstat.err_rx_badf);
+		printf("# of bad S frames                %12lu\n", l2s.lapdstat.err_rx_bads);
+		printf("# of bad U frames                %12lu\n", l2s.lapdstat.err_rx_badu);
+		printf("# of bad UI frames               %12lu\n", l2s.lapdstat.err_rx_badui);
+
+		exit(0);
+	}
+
+	if(opt_rlapd)
+	{
+		int unit;
+
+		unit = opt_unit;
+		
+		if((ret = ioctl(isdnfd, I4B_CTL_CLR_LAPDSTAT, &unit)) < 0)
+		{
+			fprintf(stderr, "ioctl I4B_CTL_CLR_LAPDSTAT failed: %s", strerror(errno));
+			exit(1);
+		}
+
+		printf("Q.921 statistics counters unit %d reset to zero!\n", unit);
 		exit(0);
 	}
 		
@@ -532,27 +621,5 @@ printl4(unsigned long val)
 	printf("         ++++-++++-++++-++++-++++-+-------------- unassigned\n");
 }
 
-/*---------------------------------------------------------------------------*
- *	usage display and exit
- *---------------------------------------------------------------------------*/
-static void
-usage(void)
-{
-	fprintf(stderr, "\n");
-	fprintf(stderr, "isdndebug - i4b set debug level, version %d.%d.%d, compiled %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
-	fprintf(stderr, "usage: isdndebug -e -h -g -l <layer> -m -r -s <value> -u <unit> -z -H\n");
-	fprintf(stderr, "       -e            set error only debugging output\n");
-	fprintf(stderr, "       -g            get current debugging values\n");
-	fprintf(stderr, "       -h            get HSCX event counters\n");	
-	fprintf(stderr, "       -l layer      specify layer (1...4)\n");
-	fprintf(stderr, "       -m            set maximum debugging output\n");
-	fprintf(stderr, "       -r            reset values(s) to compiled in default\n");
-	fprintf(stderr, "       -s value      set new debugging value for layer\n");
-	fprintf(stderr, "       -u unit       unit number for -h and -H commands\n");	
-	fprintf(stderr, "       -z            set zero (=no) debugging output\n");
-	fprintf(stderr, "       -H            reset HSCX event counters to zero\n");	
-	fprintf(stderr, "\n");
-	exit(1);
-}
 
 /* EOF */

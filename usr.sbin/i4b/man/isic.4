@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isic.4,v 1.18 1999/05/03 08:48:25 hm Exp $
+.\"	$Id: isic.4,v 1.23 1999/07/30 07:21:19 hm Exp $
 .\"
-.\"	last edit-date: [Tue Apr 20 14:08:35 1999]
+.\"	last edit-date: [Fri Jul 30 09:20:24 1999]
 .\"
-.Dd December 22, 1998
+.Dd July 30, 1999
 .Dt isic 4
 .Sh NAME
 .Nm isic
@@ -50,8 +50,13 @@ For an AVM A1 or AVM Fritz!Card classic:
 .Cd "device isic0 at isa? port 0x340 net irq 5 flags 4 vector isicintr"
 .Pp
 For an AVM Fritz!Card PCMCIA:
+.Cd options \&"AVM_A1\&"
 .Cd options \&"AVM_A1_PCMCIA\&"
 .Cd "device isic0 at isa? port 0x340 net irq 5 flags 10 vector isicintr"
+.Pp
+For an AVM Fritz!Card PnP:
+.Cd options \&"AVM_PNP\&"
+.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
 .Pp
 For a Teles S0/16.3 PnP card (PnP):
 .Cd options \&"TEL_S0_16_3_P\&"
@@ -88,6 +93,10 @@ For an ELSA QuickStep 1000pro ISA (PnP):
 For an ELSA QuickStep 1000pro PCI:
 .Cd options \&"ELSA_QS1PCI\&"
 .Cd "device isic0"
+.Pp
+For a Siemens I-Surf 2.0 PnP:
+.Cd options \&"SIEMENS_ISURF2\&"
+.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
 .Pp
 .Ar FreeBSD PnP configuration:
 .Pp
@@ -179,6 +188,12 @@ For an ELSA MicroLink ISDN/MC
 For an ELSA MicroLink MC/all
 .Cd options \&"ELSA_MCALL\&"
 .Cd "isic* at pcmcia? function ?"
+.Pp
+Cards on the Amiga Zorro bus:
+.Pp
+For a BSC/ITH ISDN Master, ITH ISDN MasterII or VMC ISDN Blaster
+.Cd "aster* at zbus?"
+.Cd "isic* at aster? port ?"
 .Pp
 .Sh DESCRIPTION
 The
@@ -347,6 +362,21 @@ value is 18.
 Valid i/o port values must be in the range (<unknown>).
 .Pp
 Valid interrupt configurations are (<unknown>).
+.Pp
+.It Ar "BSC ISDN Master"
+.It Ar "ITH ISDN MasterII"
+.It Ar "VMC ISDN Blaster"
+.Pp
+The card addresses are auto-configured by the Zorro bus kernel subsystem.
+The ISDN functions of the boards are at known (to the driver) relative
+addresses.
+.Pp
+Note that currently, you have to jumper the card interupt for 
+.Em IPL 2
+instead of IPL 6 (which is used by most AmigaOS software).
+.Pp
+Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
+is no NetBSD problem, but general.
 .El
 .Pp
 .Sh CAVEATS
@@ -378,3 +408,6 @@ can be contacted at hm@kts.org.
 .Pp
 The complete porting to and maintenance of NetBSD was done by Martin Husemann.
 He can be contacted at martin@rumolt.teuto.de
+.Pp
+The NetBSD/Amiga ISDN Blaster/Master/MasterII driver was written by
+Ignatios Souvatzis <is@netbsd.org>.

@@ -27,9 +27,9 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.5 1999/05/20 10:11:20 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.47 1999/06/08 17:49:44 hm Exp $ 
  *
- *      last edit-date: [Thu May  6 10:05:01 1999]
+ *      last edit-date: [Tue Jun  8 19:48:16 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -147,6 +147,8 @@ PDEVSTATIC	d_select_t	i4bselect;
 #endif
 
 #define CDEV_MAJOR 60
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
 static struct cdevsw i4b_cdevsw = {
 	/* open */	i4bopen,
 	/* close */	i4bclose,
@@ -168,11 +170,38 @@ static struct cdevsw i4b_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+#else
+static struct cdevsw i4b_cdevsw = {
+	i4bopen,	i4bclose,	i4bread,	nowrite,
+	i4bioctl,	nostop,		nullreset,	nodevtotty,
+	POLLFIELD,	nommap,		NULL,		"i4b", NULL,	-1
+};
+#endif
 
 PDEVSTATIC void i4battach(void *);
 PSEUDO_SET(i4battach, i4b_i4bdrv);
 
-#endif /* __FreeBSD__ */
+static void
+i4b_drvinit(void *unused)
+{
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+	cdevsw_add(&i4b_cdevsw);
+#else
+	static int i4b_devsw_installed = 0;
+	dev_t dev;
+
+	if( ! i4b_devsw_installed )
+	{
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&i4b_cdevsw,NULL);
+		i4b_devsw_installed = 1;
+	}
+#endif
+}
+
+SYSINIT(i4bdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,i4b_drvinit,NULL)
+
+#endif /* BSD > 199306 && defined(__FreeBSD__) */
 
 #ifdef __bsdi__
 #include <sys/device.h>
@@ -961,16 +990,4 @@ i4bputqueue_hipri(struct mbuf *m)
 	}
 }
 
-#if BSD > 199306 && defined(__FreeBSD__)
-static int i4b_devsw_installed = 0;
-
-static void
-i4b_drvinit(void *unused)
-{
-
-	cdevsw_add(&i4b_cdevsw);
-}
-
-SYSINIT(i4bdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,i4b_drvinit,NULL)
-#endif /* __FreeBSD__ */
 #endif /* NI4B > 0 */

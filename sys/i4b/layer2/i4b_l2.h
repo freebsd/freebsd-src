@@ -27,9 +27,9 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- *	$Id: i4b_l2.h,v 1.17 1999/04/22 11:51:45 hm Exp $ 
+ *	$Id: i4b_l2.h,v 1.18 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 22 13:50:55 1999]
+ *      last edit-date: [Fri May 28 15:51:17 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -103,6 +103,11 @@ typedef struct {
 	
 	int (*postfsmfunc)(int);/* function to be called at fsm exit */
 	int	postfsmarg;	/* argument for above function */
+
+	/* statistics */
+
+	lapdstat_t	stat;	/* lapd protocol statistics */
+
 } l2_softc_t;
 
 extern l2_softc_t l2_softc[];

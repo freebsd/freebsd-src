@@ -37,9 +37,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Teles S0/16.3
  *	========================================================
  *
- *	$Id: i4b_tel_s0163.c,v 1.18 1999/02/14 19:51:02 hm Exp $ 
+ *	$Id: i4b_tel_s0163.c,v 1.19 1999/07/26 09:03:25 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:28:45 1999]
+ *      last edit-date: [Mon Jul 26 10:59:38 1999]
  *
  *	-hm	clean up
  *	-hm	more cleanup
@@ -212,7 +212,7 @@ isic_probe_s0163(struct isa_device *dev)
 	
 	if(dev->id_unit >= ISIC_MAXUNIT)
 	{
-		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for Teles S0/16.3!",
+		printf("isic%d: Error, unit %d >= ISIC_MAXUNIT for Teles S0/16.3!\n",
 				dev->id_unit, dev->id_unit);
 		return(0);	
 	}	
@@ -232,7 +232,7 @@ isic_probe_s0163(struct isa_device *dev)
 
 	if(dev->id_maddr)
 	{
-		printf("isic%d: Error, mem addr 0x%lx specified for Teles S0/16.3!",
+		printf("isic%d: Error, mem addr 0x%lx specified for Teles S0/16.3!\n",
 			dev->id_unit, (u_long)dev->id_maddr);
 		return(0);
 	}
@@ -249,7 +249,7 @@ isic_probe_s0163(struct isa_device *dev)
 			break;
 			
 		default:
-			printf("isic%d: Error, invalid iobase 0x%x specified for Teles S0/16.3!",
+			printf("isic%d: Error, invalid iobase 0x%x specified for Teles S0/16.3!\n",
 				dev->id_unit, dev->id_iobase);
 			return(0);
 			break;
@@ -258,21 +258,21 @@ isic_probe_s0163(struct isa_device *dev)
 	
 	if(((byte = inb(sc->sc_port)) != 0x51) && (byte != 0x10))
 	{
-		printf("isic%d: Error, signature 1 0x%x != 0x51 or 0x10 for Teles S0/16.3!",
+		printf("isic%d: Error, signature 1 0x%x != 0x51 or 0x10 for Teles S0/16.3!\n",
 			dev->id_unit, byte);
 		return(0);
 	}
 	
 	if((byte = inb(sc->sc_port + 1)) != 0x93)
 	{
-		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16.3!",
+		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16.3!\n",
 			dev->id_unit, byte);
 		return(0);
 	}
 
 	if((byte = inb(sc->sc_port + 2)) != 0x1c)	
 	{
-		printf("isic%d: Error, signature 3 0x%x != 0x1c for Teles S0/16.3!",
+		printf("isic%d: Error, signature 3 0x%x != 0x1c for Teles S0/16.3!\n",
 			dev->id_unit, byte);
 		return(0);
 	}
@@ -359,7 +359,7 @@ set_softc(struct isic_softc *sc, struct isa_attach_args *ia, int unit)
 			break;
 			
 		default:
-			printf("isic%d: Error, invalid iobase 0x%x specified for Teles S0/16.3!",
+			printf("isic%d: Error, invalid iobase 0x%x specified for Teles S0/16.3!\n",
 				unit, ia->ia_iobase);
 			return(0);
 			break;
@@ -429,7 +429,7 @@ isic_probe_s0163(struct device *dev, struct cfdata *cf,
 
 	if(ia->ia_maddr)
 	{
-		printf("isic%d: Error, mem addr 0x%lx specified for Teles S0/16.3!",
+		printf("isic%d: Error, mem addr 0x%lx specified for Teles S0/16.3!\n",
 			cf->cf_unit, (u_long)ia->ia_maddr);
 		return 0;
 	}
@@ -441,21 +441,21 @@ isic_probe_s0163(struct device *dev, struct cfdata *cf,
 	
 	if((byte = inb(sc->sc_port)) != 0x51)
 	{
-		printf("isic%d: Error, signature 1 0x%x != 0x51 for Teles S0/16.3!",
+		printf("isic%d: Error, signature 1 0x%x != 0x51 for Teles S0/16.3!\n",
 			cf->cf_unit, byte);
 		return(0);
 	}
 	
 	if((byte = inb(sc->sc_port + 1)) != 0x93)
 	{
-		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16.3!",
+		printf("isic%d: Error, signature 2 0x%x != 0x93 for Teles S0/16.3!\n",
 			cf->cf_unit, byte);
 		return(0);
 	}
 
 	if((byte = inb(sc->sc_port + 2)) != 0x1c)	
 	{
-		printf("isic%d: Error, signature 3 0x%x != 0x1c for Teles S0/16.3!",
+		printf("isic%d: Error, signature 3 0x%x != 0x1c for Teles S0/16.3!\n",
 			cf->cf_unit, byte);
 		return(0);
 	}

@@ -27,9 +27,9 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- *	$Id: i4b_debug.h,v 1.18 1999/04/28 14:50:55 hm Exp $ 
+ *	$Id: i4b_debug.h,v 1.19 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 28 16:50:36 1999]
+ *      last edit-date: [Fri May 28 16:27:07 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -220,5 +220,55 @@ typedef struct {
 #define	I4B_CTL_GET_HSCXSTAT	_IOWR('C', 2, hscxstat_t)
 
 #define	I4B_CTL_CLR_HSCXSTAT	_IOW('C', 3, hscxstat_t)
+
+/*---------------------------------------------------------------------------*
+ *	get LAPD/Q.921 statistics
+ *---------------------------------------------------------------------------*/
+typedef struct {
+				/* transmit */
+
+	u_long	tx_i;	/* I 	*/
+	u_long	tx_rr;	/* RR	*/
+	u_long	tx_rnr;	/* RNR 	*/
+	u_long	tx_rej;	/* REJ	*/
+	u_long	tx_sabme;	/* SABME*/
+	u_long	tx_dm;	/* DM	*/
+	u_long	tx_disc;	/* DISC */
+	u_long	tx_ua;	/* UA	*/
+	u_long	tx_frmr;	/* FRMR	*/	
+	u_long	tx_tei;	/* TEI	*/
+
+				/* receive */
+
+	u_long	rx_i;	/* I    */
+	u_long	rx_rr;	/* RR   */
+	u_long	rx_rnr;	/* RNR  */
+	u_long	rx_rej;	/* REJ  */
+	u_long	rx_sabme;	/* SABME*/
+	u_long	rx_tei;	/* TEI	*/
+	u_long	rx_ui;	/* UI	*/
+	u_long	rx_disc;	/* DISC */
+	u_long	rx_xid;	/* XID	*/
+	u_long	rx_dm;	/* DM	*/
+	u_long	rx_ua;	/* UA	*/
+	u_long	rx_frmr;	/* FRMR	*/	
+	
+					/* errors */
+
+	u_long	err_rx_len;	/* incorrect length */
+	u_long	err_rx_badf;	/* bad frame type */
+	u_long	err_rx_bads;	/* bad s frame */
+	u_long	err_rx_badu;	/* bad u frame */
+	u_long	err_rx_badui;	/* bad ui frame */
+} lapdstat_t;
+
+typedef struct {
+	int unit;
+	lapdstat_t lapdstat;
+} l2stat_t;
+
+#define	I4B_CTL_GET_LAPDSTAT	_IOWR('C', 4, l2stat_t)
+
+#define	I4B_CTL_CLR_LAPDSTAT	_IOW('C', 5, int)
 
 /* EOF */
