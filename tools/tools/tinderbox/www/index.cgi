@@ -90,19 +90,19 @@ sub do_config($) {
 		    $age = 9
 			if ($age > 9);
 		    $class .= "-$age";
-		    $links .= "<span class=\"$class\">" .
+		    $links .= "<span class='$class'>" .
 			strftime("%Y-%m-%d %H:%M&nbsp;UTC", gmtime($stat[9])) .
 			"</span><br />";
 		    my $size = sprintf("[%.1f&nbsp;kB]", $stat[7] / 1024);
-		    $links .= " <span class=\"tiny\">" .
-			"<a href=\"$log.brief\">summary&nbsp;$size</a>" .
+		    $links .= " <span class='tiny'>" .
+			"<a target='_top' href='$log.brief'>summary&nbsp;$size</a>" .
 			"</span><br />";
 		}
 		if (-f "$DIR/$log.full") {
 		    my @stat = stat("$DIR/$log.full");
 		    my $size = sprintf("[%.1f&nbsp;MB]", $stat[7] / 1048576);
-		    $links .= " <span class=\"tiny\">" .
-			"<a href=\"$log.full\">full&nbsp;log&nbsp;$size</a>" .
+		    $links .= " <span class='tiny'>" .
+			"<a target='_top' href='$log.full'>full&nbsp;log&nbsp;$size</a>" .
 			"</span><br />";
 		}
 		if ($links eq "") {
@@ -138,22 +138,22 @@ MAIN:{
     }
     closedir(DIR);
 
-    print "<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>
+    print "<?xml version='1.0' encoding='iso-8859-1'?>
 <!DOCTYPE html
-     PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
-     \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">
-<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">
+     PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN'
+     'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en' lang='en'>
   <head>
     <title>FreeBSD tinderbox logs</title>
-    <meta name=\"robots\" content=\"nofollow\" />
-    <meta http-equiv=\"refresh\" content=\"600\" />
-    <link rel=\"stylesheet\" type=\"text/css\" media=\"screen\" href=\"tb.css\" />
-    <link rel=\"shortcut icon\" type=\"image/png\" href=\"daemon.png\" />
+    <meta name='robots' content='nofollow' />
+    <meta http-equiv='refresh' content='600' />
+    <link rel='stylesheet' type='text/css' media='screen' href='tb.css' />
+    <link rel='shortcut icon' type='image/png' href='daemon.png' />
   </head>
   <body>
-    <h1>FreeBSD tinderbox logs</h1>
+    <!-- h1>FreeBSD tinderbox logs</h1 -->
 
-    <table border=\"1\" cellpadding=\"3\">
+    <table border='1' cellpadding='3'>
 ";
     foreach my $config (sort(keys(%CONFIGS))) {
 	next if $config =~ m/^update_/;
@@ -162,15 +162,15 @@ MAIN:{
     my $date = strftime("%Y-%m-%d %H:%M UTC", gmtime());
     print "
     </table>
-    <p class=\"update\">Last updated: $date</p>
-    <p>
-      <a href=\"http://validator.w3.org/check/referer\"><img
-          src=\"valid-xhtml10.png\"
-          alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
-      <a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img
-          src=\"valid-css.png\"
-          alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
-    </p>
+    <!-- p class='update'>Last updated: $date</p -->
+    <!-- p>
+      <a target='_top' href='http://validator.w3.org/check/referer'><img
+          src='valid-xhtml10.png'
+          alt='Valid XHTML 1.0!' height='31' width='88' /></a>
+      <a target='_top' href='http://jigsaw.w3.org/css-validator/check/referer'><img
+          src='valid-css.png'
+          alt='Valid CSS!' height='31' width='88' /></a>
+    </p -->
   </body>
 </html>
 ";
