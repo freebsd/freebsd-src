@@ -10,7 +10,7 @@ LINKS=	${BINDIR}/chpass ${BINDIR}/chfn ${BINDIR}/chpass ${BINDIR}/chsh
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 
 beforeinstall:
-	[ -r /usr/bin/chpass ] && chflags noschg /usr/bin/chpass
+	chflags noschg /usr/bin/chpass
 
 afterinstall:
 	chflags schg /usr/bin/chpass
