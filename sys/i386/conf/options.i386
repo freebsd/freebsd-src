@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.66 1997/12/28 13:36:00 phk Exp $
+#	$Id: options.i386,v 1.67 1998/01/25 04:37:47 eivind Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -114,3 +114,12 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+DPT_VERIFY_HINTR        opt_dpt.h
+DPT_USE_SINTR           opt_dpt.h
+DPT_RESTRICTED_FREELIST opt_dpt.h
+DPT_MEASURE_PERFORMANCE opt_dpt.h
+DPT_FREELIST_IS_STACK   opt_dpt.h
+DPT_HANDLE_TIMEOUTS     opt_dpt.h
+DPT_TIMEOUT_FACTOR      opt_dpt.h
+DPT_INTR_DELAY		opt_dpt.h
+DPT_LOST_IRQ		opt_dpt.h
