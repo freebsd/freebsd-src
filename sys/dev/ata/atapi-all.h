@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.h,v 1.4 1999/03/28 18:57:19 sos Exp $
+ *	$Id: atapi-all.h,v 1.5 1999/05/17 15:58:45 sos Exp $
  */
 
 /* ATAPI misc defines */
@@ -221,14 +221,14 @@ struct atapi_request {
     void			*driver;	/* ptr to calling driver */
     u_int8_t			ccb[16];	/* command control block */
     int32_t			ccbsize;	/* size of ccb (12 | 16) */
+    u_int32_t                   bytecount;      /* bytes to transfer */
+    u_int32_t                   donecount;      /* bytes transferred */
+    u_int32_t                   result;		/* result code */
     int32_t			flags;
 #define		A_READ			0x0001
 #define		ATAPI_F_DMA_ENABLED	0x0002
 #define		ATAPI_F_DMA_USED	0x0004
 
-    u_int32_t                   bytecount;      /* bytes to transfer */
-    u_int32_t                   donecount;      /* bytes transferred */
-    u_int32_t                   result;		/* result code */
     int8_t			*data;		/* pointer to data buf */
     struct buf			*bp;		/* associated buf ptr */
     atapi_callback_t		*callback;	/* ptr to callback func */
