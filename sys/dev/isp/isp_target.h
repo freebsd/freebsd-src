@@ -71,6 +71,7 @@ typedef struct {
  */
 #define LUN_TQAE	0x00000001	/* bit1  Tagged Queue Action Enable */
 #define LUN_DSSM	0x01000000	/* bit24 Disable Sending SDP Message */
+#define	LUN_DISAD	0x02000000	/* bit25 Disable autodisconnect */
 #define LUN_DM		0x40000000	/* bit30 Disconnects Mandatory */
 
 /*
