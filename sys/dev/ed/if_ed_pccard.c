@@ -63,6 +63,7 @@ static int	ed_pccard_detach(device_t);
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
 static int	ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size);
+static int	linksys;
 
 static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
@@ -170,6 +171,7 @@ ed_pccard_probe(device_t dev)
 	ed_release_resources(dev);
 
 end:
+	linksys = ed_get_Linksys(dev);
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
 
@@ -201,7 +203,7 @@ ed_pccard_attach(device_t dev)
 		return (error);
 	}	      
 
-	if (ed_get_Linksys(sc) == 0) {
+	if (linksys == 0) {
 		pccard_get_ether(dev, ether_addr);
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= ether_addr[i];
