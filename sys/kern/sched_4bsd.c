@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
+#define KTR_4BSD	0x0
+
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
@@ -68,9 +70,29 @@ __FBSDID("$FreeBSD$");
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 
 struct ke_sched {
-	int	ske_cpticks;	/* (j) Ticks of cpu time. */
+	int		ske_cpticks;	/* (j) Ticks of cpu time. */
+	struct runq	*ske_runq;	/* runq the kse is currently on */
 };
+#define ke_runq 	ke_sched->ske_runq
+#define KEF_BOUND	KEF_SCHED1
 
+#define SKE_RUNQ_PCPU(ke)						\
+    ((ke)->ke_runq != 0 && (ke)->ke_runq != &runq)
+
+/*
+ * KSE_CAN_MIGRATE macro returns true if the kse can migrate between
+ * cpus.  Currently ithread cpu binding is disabled on x86 due to a
+ * bug in the Xeon round-robin interrupt delivery that delivers all
+ * interrupts to cpu 0.
+ */
+#ifdef __i386__
+#define KSE_CAN_MIGRATE(ke)						\
+    ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
+#else
+#define KSE_CAN_MIGRATE(ke)						\
+     PRI_BASE((ke)->ke_ksegrp->kg_pri_class) != PRI_ITHD &&		\
+    ((ke)->ke_thread->td_pinned == 0 &&((ke)->ke_flags & KEF_BOUND) == 0)
+#endif
 static struct ke_sched ke_sched;
 
 struct ke_sched *kse0_sched = &ke_sched;
@@ -83,21 +105,47 @@ static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 
 static struct callout roundrobin_callout;
 
+static void	setup_runqs(void);
 static void	roundrobin(void *arg);
 static void	schedcpu(void);
-static void	schedcpu_thread(void *dummy);
+static void	schedcpu_thread(void);
 static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct ksegrp *kg);
 static void	resetpriority(struct ksegrp *kg);
 
-SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
+static struct kproc_desc sched_kp = {
+        "schedcpu",
+        schedcpu_thread,
+        NULL
+};
+SYSINIT(schedcpu, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, kproc_start, &sched_kp)
+SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
 /*
  * Global run queue.
  */
 static struct runq runq;
-SYSINIT(runq, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, runq_init, &runq)
+
+#ifdef SMP
+/*
+ * Per-CPU run queues
+ */
+static struct runq runq_pcpu[MAXCPU];
+#endif
+
+static void
+setup_runqs(void)
+{
+#ifdef SMP
+	int i;
+
+	for (i = 0; i < MAXCPU; ++i)
+		runq_init(&runq_pcpu[i]);
+#endif
+
+	runq_init(&runq);
+}
 
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
@@ -355,7 +403,7 @@ schedcpu(void)
  * Main loop for a kthread that executes schedcpu once a second.
  */
 static void
-schedcpu_thread(void *dummy)
+schedcpu_thread(void)
 {
 	int nowake;
 
@@ -416,6 +464,7 @@ resetpriority(struct ksegrp *kg)
 static void
 sched_setup(void *dummy)
 {
+	setup_runqs();
 
 	if (sched_quantum == 0)
 		sched_quantum = SCHED_QUANTUM;
@@ -425,16 +474,17 @@ sched_setup(void *dummy)
 
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
-
-	/* Kick off schedcpu kernel process. */
-	kthread_create(schedcpu_thread, NULL, NULL, 0, 0, "schedcpu");
 }
 
 /* External interfaces start here */
 int
 sched_runnable(void)
 {
-        return runq_check(&runq);
+#ifdef SMP
+	return runq_check(&runq) + runq_check(&runq_pcpu[PCPU_GET(cpuid)]);
+#else
+	return runq_check(&runq);
+#endif
 }
 
 int 
@@ -654,7 +704,20 @@ sched_add(struct thread *td)
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
-	runq_add(&runq, ke);
+#ifdef SMP
+	if (KSE_CAN_MIGRATE(ke)) {
+		CTR1(KTR_4BSD, "adding kse:%p to gbl runq", ke);
+		ke->ke_runq = &runq;
+	} else {
+		CTR1(KTR_4BSD, "adding kse:%p to pcpu runq", ke);
+		if (!SKE_RUNQ_PCPU(ke))
+			ke->ke_runq = &runq_pcpu[PCPU_GET(cpuid)];
+	}
+#else
+	ke->ke_runq = &runq;
+#endif
+	
+	runq_add(ke->ke_runq, ke);
 }
 
 void
@@ -668,7 +731,8 @@ sched_rem(struct thread *td)
 	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	runq_remove(&runq, ke);
+	runq_remove(ke->ke_sched->ske_runq, ke);
+
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
 }
@@ -677,11 +741,33 @@ struct kse *
 sched_choose(void)
 {
 	struct kse *ke;
+	struct runq *rq;
 
+#ifdef SMP
+	struct kse *kecpu;
+
+	rq = &runq;
 	ke = runq_choose(&runq);
+	kecpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
+
+	if (ke == NULL || 
+	    (kecpu != NULL && 
+	     kecpu->ke_thread->td_priority < ke->ke_thread->td_priority)) {
+		CTR2(KTR_4BSD, "choosing kse %p from pcpu runq %d", kecpu,
+		     PCPU_GET(cpuid));
+		ke = kecpu;
+		rq = &runq_pcpu[PCPU_GET(cpuid)];
+	} else { 
+		CTR1(KTR_4BSD, "choosing kse %p from main runq", ke);
+	}
+
+#else
+	rq = &runq;
+	ke = runq_choose(&runq);
+#endif
 
 	if (ke != NULL) {
-		runq_remove(&runq, ke);
+		runq_remove(rq, ke);
 		ke->ke_state = KES_THREAD;
 
 		KASSERT((ke->ke_thread != NULL),
@@ -713,6 +799,36 @@ sched_userret(struct thread *td)
 		td->td_priority = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
 	}
+}
+
+void
+sched_bind(struct thread *td, int cpu)
+{
+	struct kse *ke;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(TD_IS_RUNNING(td),
+	    ("sched_bind: cannot bind non-running thread"));
+
+	ke = td->td_kse;
+
+	ke->ke_flags |= KEF_BOUND;
+#ifdef SMP
+	ke->ke_runq = &runq_pcpu[cpu];
+	if (PCPU_GET(cpuid) == cpu)
+		return;
+
+	ke->ke_state = KES_THREAD;
+
+	mi_switch(SW_VOL);
+#endif
+}
+
+void
+sched_unbind(struct thread* td)
+{
+	mtx_assert(&sched_lock, MA_OWNED);
+	td->td_kse->ke_flags &= ~KEF_BOUND;
 }
 
 int
