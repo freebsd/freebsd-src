@@ -59,6 +59,7 @@ static void aic_start __P((struct aic_softc *aic));
 static void aic_select __P((struct aic_softc *aic));
 static void aic_selected __P((struct aic_softc *aic));
 static void aic_reselected __P((struct aic_softc *aic));
+static void aic_reconnect __P((struct aic_softc *aic, int tag));
 static void aic_cmd __P((struct aic_softc *aic));
 static void aic_msgin __P((struct aic_softc *aic));
 static void aic_handle_msgin __P((struct aic_softc *aic));
@@ -354,6 +355,8 @@ aic_start(struct aic_softc *aic)
 		}
 	}
 
+	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_start: idle\n"));
+
 	aic_outb(aic, SIMODE0, ENSELDI);
 	aic_outb(aic, SIMODE1, ENSCSIRST);
 	aic_outb(aic, SCSISEQ, ENRESELI);
@@ -407,13 +410,11 @@ aic_selected(struct aic_softc *aic)
 		if ((ti->flags & TINFO_TAG_ENB) != 0 &&
 		    (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0)
 			aic->msg_outq |= AIC_MSG_TAG_Q;
+		else
+			ti->lubusy |= 1 << scb->lun;
 		if ((ti->flags & TINFO_SDTR_NEGO) != 0)
 			aic->msg_outq |= AIC_MSG_SDTR;
 	}
-
-	/* mark target/lun busy only for untagged operations */
-	if ((aic->msg_outq & AIC_MSG_TAG_Q) == 0)
-		ti->lubusy |= 1 << scb->lun;
 
 	aic_outb(aic, CLRSINT0, CLRSELDO);
 	aic_outb(aic, CLRSINT1, CLRBUSFREE);
@@ -431,7 +432,6 @@ static void
 aic_reselected(struct aic_softc *aic)
 {
 	u_int8_t selid;
-	struct aic_tinfo *ti;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_reselected\n"));
 
@@ -445,9 +445,10 @@ aic_reselected(struct aic_softc *aic)
 		aic->nexus = NULL;
 	}
 
-	selid = aic_inb(aic, SELID) & SCSI_ID_MASK;
+	selid = aic_inb(aic, SELID) & ~(1 << aic->initiator);
 	if (selid & (selid - 1)) {
 		/* this should never have happened */
+		printf("aic_reselected: invalid selid %x\n", selid);
 		aic_reset(aic, /*initiate_reset*/TRUE);
 		return;
 	}
@@ -455,14 +456,13 @@ aic_reselected(struct aic_softc *aic)
 	aic->state = AIC_RESELECTED;
 	aic->target = ffs(selid) - 1;
 	aic->lun = -1;
-	ti = &aic->tinfo[aic->target];
 
 	aic_outb(aic, CLRSINT0, CLRSELDI);
 	aic_outb(aic, CLRSINT1, CLRBUSFREE);
 	aic_outb(aic, SIMODE0, 0);
 	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 	aic_outb(aic, SCSISEQ, ENAUTOATNP);
-	aic_outb(aic, SCSIRATE, ti->scsirate);
+	aic_outb(aic, SCSIRATE, aic->tinfo[aic->target].scsirate);
 }
 
 /*
@@ -485,13 +485,46 @@ aic_sched_msgout(struct aic_softc *aic, u_int8_t msg)
 static __inline int
 aic_spiordy(struct aic_softc *aic)
 {
-	int spincount = 100;
-	u_int8_t spiordy = 0;
-
-	while (spincount-- && !(aic_inb(aic, DMASTAT) & INTSTAT) &&
-	    !(spiordy = aic_inb(aic, SSTAT0) & SPIORDY))
+	while (!(aic_inb(aic, DMASTAT) & INTSTAT) &&
+	    !(aic_inb(aic, SSTAT0) & SPIORDY))
 		;
-	return (spiordy);
+	return !(aic_inb(aic, DMASTAT) & INTSTAT);
+}
+
+/*
+ * Reestablish a disconnected nexus.
+ */
+void
+aic_reconnect(struct aic_softc *aic, int tag)
+{
+	struct aic_scb *scb;
+	struct ccb_hdr *ccb_h;
+
+	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_reconnect\n"));
+
+	/* Find the nexus */
+	TAILQ_FOREACH(ccb_h, &aic->nexus_ccbs, sim_links.tqe) {
+		scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
+		if (scb->target == aic->target && scb->lun == aic->lun &&
+		    (tag == -1 || scb->tag == tag))
+			break;
+	}
+
+	/* ABORT if nothing is found */
+	if (!ccb_h) {
+		if (tag == -1)
+			aic_sched_msgout(aic, MSG_ABORT);
+		else
+			aic_sched_msgout(aic, MSG_ABORT_TAG);
+		xpt_async(AC_UNSOL_RESEL, aic->path, NULL);
+		return;
+	}
+
+	/* Reestablish the nexus */
+	TAILQ_REMOVE(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
+	aic->nexus = scb;
+	scb->flags &= ~SCB_DISCONNECTED;
+	aic->state = AIC_HASNEXUS;
 }
 
 /*
@@ -547,7 +580,7 @@ aic_msgin(struct aic_softc *aic)
 				aic_sched_msgout(aic, MSG_MESSAGE_REJECT);
 			}
 			msglen += 2;
-		} else if (aic->msg_buf[0] & 0x20)
+		} else if (aic->msg_buf[0] >= 0x20 && aic->msg_buf[0] <= 0x2f)
 			msglen = 2;
 		else
 			msglen = 1;
@@ -579,51 +612,24 @@ aic_handle_msgin(struct aic_softc *aic)
 	struct ccb_trans_settings neg;
 
 	if (aic->state == AIC_RESELECTED) {
-		int tag;
-
-		ti = &aic->tinfo[aic->target];
-		/*
-		 * We expect to see an IDENTIFY message, possibly followed
-		 * by a SIMPLE_Q_TAG message.
-		 */
-		if (MSG_ISIDENTIFY(aic->msg_buf[0])) {
-			aic->lun = aic->msg_buf[0] & MSG_IDENTIFY_LUNMASK;
-			if (ti->flags & TINFO_TAG_ENB)
-				return;
-			else
-				tag = -1;
-		} else if (aic->msg_buf[0] != MSG_SIMPLE_Q_TAG) {
-			tag = aic->msg_buf[1];
-		} else {
+		if (!MSG_ISIDENTIFY(aic->msg_buf[0])) {
 			aic_sched_msgout(aic, MSG_MESSAGE_REJECT);
 			return;
 		}
+		aic->lun = aic->msg_buf[0] & MSG_IDENTIFY_LUNMASK;
+		if (aic->tinfo[aic->target].lubusy & (1 << aic->lun))
+			aic_reconnect(aic, -1);
+		else
+			aic->state = AIC_RECONNECTING;
+		return;
+	}
 
-		/* Find the nexus */
-		TAILQ_FOREACH(ccb_h, &aic->nexus_ccbs, sim_links.tqe) {
-			scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
-			if (ccb_h->target_id == aic->target &&
-			    ccb_h->target_lun == aic->lun &&
-			    (tag == -1 || scb->tag == tag))
-				break;
-		}
-
-		/* ABORT if nothing is found */
-		if (!ccb_h) {
-			if (tag == -1)
-				aic_sched_msgout(aic, MSG_ABORT);
-			else
-				aic_sched_msgout(aic, MSG_ABORT_TAG);
-			xpt_async(AC_UNSOL_RESEL, ccb_h->path, NULL);
+	if (aic->state == AIC_RECONNECTING) {
+		if (aic->msg_buf[0] != MSG_SIMPLE_Q_TAG) {
+			aic_sched_msgout(aic, MSG_MESSAGE_REJECT);
 			return;
 		}
-
-		/* Reestablish the nexus */
-		TAILQ_REMOVE(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
-		aic->nexus = scb;
-		scb->flags &= ~SCB_DISCONNECTED;
-		aic->state = AIC_HASNEXUS;
-		CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("reconnected\n"));
+		aic_reconnect(aic, aic->msg_buf[1]);
 		return;
 	}
 
@@ -633,7 +639,6 @@ aic_handle_msgin(struct aic_softc *aic)
 		scb = aic->nexus;
 		ccb_h = &scb->ccb->ccb_h;
 		csio = &scb->ccb->csio;
-		ccb_h->status &= ~CAM_STATUS_MASK;
 		if ((scb->flags & SCB_SENSE) != 0) {
 			/* auto REQUEST SENSE command */
 			scb->flags &= ~SCB_SENSE;
@@ -707,11 +712,11 @@ aic_handle_msgin(struct aic_softc *aic)
 	case MSG_DISCONNECT:
 		scb = aic->nexus;
 		ccb_h = &scb->ccb->ccb_h;
-		TAILQ_INSERT_HEAD(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
+		TAILQ_INSERT_TAIL(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
 		scb->flags |= SCB_DISCONNECTED;
-		ti = &aic->tinfo[scb->target];
 		aic->flags |= AIC_BUSFREE_OK;
-		CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("disconnected\n"));
+		aic->nexus = NULL;
+		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE, ("disconnected\n"));
 		break;
 	case MSG_MESSAGE_REJECT:
 		switch (aic->msg_outq & -aic->msg_outq) {
@@ -797,7 +802,7 @@ aic_msgout(struct aic_softc *aic)
 				ti = &aic->tinfo[scb->target];
 				aic->msg_buf[0] = MSG_IDENTIFY(scb->lun,
 				    (ti->flags & TINFO_DISC_ENB) &&
-				    (ccb->ccb_h.flags & CAM_DIS_DISCONNECT));
+				    !(ccb->ccb_h.flags & CAM_DIS_DISCONNECT));
 				aic->msg_len = 1;
 				break;
 			case AIC_MSG_TAG_Q:
@@ -987,6 +992,8 @@ aic_cmd(struct aic_softc *aic)
 	struct aic_scb *scb = aic->nexus;
 	struct scsi_request_sense sense_cmd;
 
+	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("aic_cmd\n"));
+
 	if (scb->flags & SCB_SENSE) {
 		/* autosense request */
 		sense_cmd.opcode = REQUEST_SENSE;
@@ -1001,6 +1008,7 @@ aic_cmd(struct aic_softc *aic)
 		scb->data_len = scb->ccb->csio.sense_len;
 	}
 
+	aic_outb(aic, SIMODE1, ENSCSIRST|ENPHASEMIS|ENBUSFREE);
 	aic_outb(aic, DMACNTRL0, ENDMA|WRITE);
 	aic_outb(aic, SXFRCTL0, SCSIEN|DMAEN|CHEN);
 	aic_outsw(aic, DMADATA, (u_int16_t *)scb->cmd_ptr,
@@ -1009,6 +1017,7 @@ aic_cmd(struct aic_softc *aic)
 	    (aic_inb(aic, DMASTAT) & INTSTAT) == 0)
 		;
 	aic_outb(aic, SXFRCTL0, CHEN);
+	aic_outb(aic, SIMODE1, ENSCSIRST|ENBUSFREE|ENREQINIT);
 }
 
 /*
@@ -1037,8 +1046,10 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 					scb->target,
 					CAM_LUN_WILDCARD);
 
-		if (error == CAM_REQ_CMP)
+		if (error == CAM_REQ_CMP) {
 			xpt_async(AC_SENT_BDR, path, NULL);
+			xpt_free_path(path);
+		}
 
 		ccb_h = TAILQ_FIRST(&aic->pending_ccbs);
 		while (ccb_h != NULL) {
@@ -1046,7 +1057,7 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 
 			pending_scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
 			if (ccb_h->target_id == scb->target) {
-				ccb_h->status = CAM_BDR_SENT;
+				ccb_h->status |= CAM_BDR_SENT;
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 				TAILQ_REMOVE(&aic->pending_ccbs,
 				    &pending_scb->ccb->ccb_h, sim_links.tqe);
@@ -1065,7 +1076,7 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 
 			nexus_scb = (struct aic_scb *)ccb_h->ccb_scb_ptr;
 			if (ccb_h->target_id == scb->target) {
-				ccb_h->status = CAM_BDR_SENT;
+				ccb_h->status |= CAM_BDR_SENT;
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 				TAILQ_REMOVE(&aic->nexus_ccbs,
 				    &nexus_scb->ccb->ccb_h, sim_links.tqe);
@@ -1084,7 +1095,6 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 	
 	if (aic->nexus == scb) {
 		aic->nexus = NULL;
-		aic->state = AIC_IDLE;
 	}
 	aic_free_scb(aic, scb);
 	xpt_done(ccb);
@@ -1108,7 +1118,7 @@ aic_timeout(void *arg)
 	printf("ccb %p - timed out", ccb);
 	if (aic->nexus && aic->nexus != scb)
 		printf(", nexus %p", aic->nexus->ccb);
-	printf(", phase %x\n", aic_inb(aic, SCSISIGI));
+	printf(", phase 0x%x, state %d\n", aic_inb(aic, SCSISIGI), aic->state);
 
 	s = splcam();
 
@@ -1143,7 +1153,6 @@ aic_timeout(void *arg)
 		aic_sched_msgout(aic, MSG_BUS_DEV_RESET);
 	} else {
 		if (aic->nexus == scb) {
-			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 			ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
 			aic_done(aic, scb);
 		}
@@ -1189,7 +1198,7 @@ aic_intr(void *arg)
 		return;
 	}
 
-	if (aic->state != AIC_HASNEXUS) {
+	if (aic->state <= AIC_SELECTING) {
 		if ((sstat0 & SELDI) != 0) {
 			aic_reselected(aic);
 			aic_outb(aic, DMACNTRL0, INTEN);
@@ -1211,6 +1220,41 @@ aic_intr(void *arg)
 				sstat1 = aic_inb(aic, SSTAT1);
 			aic->flags |= AIC_BUSFREE_OK;
 		}
+	}
+
+	if ((sstat1 & BUSFREE) != 0) {
+		aic_outb(aic, SCSISEQ, 0);
+		aic_outb(aic, CLRSINT0, sstat0);
+		aic_outb(aic, CLRSINT1, sstat1);
+		if ((scb = aic->nexus)) {
+			if ((aic->flags & AIC_BUSFREE_OK) == 0) {
+				ccb = scb->ccb;
+				ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
+				aic_done(aic, scb);
+			} else if (scb->flags & SCB_DEVICE_RESET) {
+				ccb = scb->ccb;
+				if (ccb->ccb_h.func_code == XPT_RESET_DEV) {
+					xpt_async(AC_SENT_BDR,
+					    ccb->ccb_h.path, NULL);
+					ccb->ccb_h.status |= CAM_REQ_CMP;
+				} else
+					ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
+				aic_done(aic, scb);
+			} else if (scb->flags & SCB_SENSE) {
+				/* autosense request */
+				aic->flags &= ~AIC_BUSFREE_OK;
+				aic->tinfo[scb->target].lubusy &=
+				    ~(1 << scb->lun);
+				aic_select(aic);
+				aic_outb(aic, DMACNTRL0, INTEN);
+				return;
+			}
+		}
+		aic->flags &= ~AIC_BUSFREE_OK;
+		aic->state = AIC_IDLE;
+		aic_start(aic);
+		aic_outb(aic, DMACNTRL0, INTEN);
+		return;
 	}
 
 	if ((sstat1 & REQINIT) != 0) {
@@ -1244,34 +1288,6 @@ aic_intr(void *arg)
 			break;
 		}
 		aic->prev_phase = phase;
-		aic_outb(aic, DMACNTRL0, INTEN);
-		return;
-	}
-
-	if ((sstat1 & BUSFREE) != 0) {
-		aic_outb(aic, SCSISEQ, 0);
-		aic_outb(aic, CLRSINT0, sstat0);
-		aic_outb(aic, CLRSINT1, sstat1);
-		if ((scb = aic->nexus)) {
-			if ((aic->flags & AIC_BUSFREE_OK) == 0) {
-				ccb = scb->ccb;
-				ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
-				aic_done(aic, scb);
-			} else if (scb->flags & SCB_DEVICE_RESET) {
-				ccb = scb->ccb;
-				ccb->ccb_h.status = CAM_REQ_CMP;
-				aic_done(aic, scb);
-			} else if (scb->flags & SCB_SENSE) {
-				/* autosense request */
-				aic->flags &= ~AIC_BUSFREE_OK;
-				aic_select(aic);
-				aic_outb(aic, DMACNTRL0, INTEN);
-				return;
-			}
-		}
-		aic->flags &= ~AIC_BUSFREE_OK;
-		aic->state = AIC_IDLE;
-		aic_start(aic);
 		aic_outb(aic, DMACNTRL0, INTEN);
 		return;
 	}
@@ -1354,27 +1370,23 @@ aic_reset(struct aic_softc *aic, int initiate_reset)
 
 	while ((ccb_h = TAILQ_FIRST(&aic->pending_ccbs)) != NULL) {
 		TAILQ_REMOVE(&aic->pending_ccbs, ccb_h, sim_links.tqe);
-		ccb_h->status &= ~CAM_STATUS_MASK;
 		ccb_h->status |= CAM_SCSI_BUS_RESET;
 		aic_done(aic, (struct aic_scb *)ccb_h->ccb_scb_ptr);
 	}
 
 	while ((ccb_h = TAILQ_FIRST(&aic->nexus_ccbs)) != NULL) {
 		TAILQ_REMOVE(&aic->nexus_ccbs, ccb_h, sim_links.tqe);
-		ccb_h->status &= ~CAM_STATUS_MASK;
 		ccb_h->status |= CAM_SCSI_BUS_RESET;
 		aic_done(aic, (struct aic_scb *)ccb_h->ccb_scb_ptr);
 	}
 
 	if (aic->nexus) {
 		ccb_h = &aic->nexus->ccb->ccb_h;
-		ccb_h->status &= ~CAM_STATUS_MASK;
 		ccb_h->status |= CAM_SCSI_BUS_RESET;
 		aic_done(aic, aic->nexus);
 	}
 
 	aic->state = AIC_IDLE;
-
 	aic_outb(aic, DMACNTRL0, INTEN);
 }
 
