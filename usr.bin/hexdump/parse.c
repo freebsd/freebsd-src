@@ -151,7 +151,7 @@ add(fmt)
 	}
 }
 
-static char spec[] = ".#-+ 0123456789";
+static const char *spec = ".#-+ 0123456789";
 
 int
 size(fs)
