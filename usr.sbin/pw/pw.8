@@ -400,6 +400,8 @@ sessions, requiring the user to reconnect to be affected by the changes.
 This option sets the login class for the user being created.
 See
 .Xr login.conf 5
+and
+.Xr passwd 5
 for more information on user login classes.
 .It Fl m
 This option instructs
@@ -457,16 +459,6 @@ Specifying a full path (or supplying a blank "" shell) avoids this check
 and allows for such entries as
 .Pa /nonexistent
 that should be set for accounts not intended for interactive login.
-.It Fl L Ar class
-Set the
-.Em class
-field in the user's passwd record.
-This field is not currently used, but will be used in the future to specify a
-.Em termcap
-entry like tag.
-See
-.Xr passwd 5
-for details.
 .It Fl h Ar fd
 This option provides a special interface by which interactive scripts can
 set an account password using
