@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.102 1997/09/01 07:45:23 fsmp Exp $
+ *	$Id: clock.c,v 1.103 1997/10/28 11:43:57 bde Exp $
  */
 
 /*
@@ -49,12 +49,14 @@
  */
 
 #include "opt_clock.h"
-#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#ifndef SMP
+#include <sys/lock.h>
+#endif
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -77,7 +79,6 @@
 #include <i386/isa/rtc.h>
 #include <i386/isa/timerreg.h>
 
-#include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
 
 #ifdef SMP
