@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /*
- * We're assuming that there won't be a whole lot of excludes, 
+ * We're assuming that there won't be a whole lot of excludes,
  * so it's OK to use a stupid algorithm.
  */
 struct exclude {
@@ -103,7 +103,7 @@ check_excludes(const char *fname, const char *path)
 #define MATCH(g, n) (fnmatch((g), (n), FNM_PATHNAME) == 0)
 
 	LIST_FOREACH(e, &excludes, link) {
-		if ((e->pathname && MATCH(e->glob, path)) 
+		if ((e->pathname && MATCH(e->glob, path))
 		    || MATCH(e->glob, fname))
 			return 1;
 	}
