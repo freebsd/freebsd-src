@@ -38,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)diskpart.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "@(#)diskpart.c	8.3 (Berkeley) 11/30/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -343,9 +347,9 @@ main(argc, argv)
 struct disklabel disk;
 
 struct	field {
-	char	*f_name;
-	char	*f_defaults;
-	u_long	*f_location;
+	char		*f_name;
+	char		*f_defaults;
+	u_int32_t	*f_location;
 } fields[] = {
 	{ "sector size",		"512",	&disk.d_secsize },
 	{ "#sectors/track",		0,	&disk.d_nsectors },
@@ -354,35 +358,47 @@ struct	field {
 	{ 0, 0, 0 },
 };
 
+char *
+mygets(buf)
+	char *buf;
+{
+	size_t len;
+
+	if (fgets(buf, BUFSIZ, stdin) == NULL)
+		buf[0] = '\0';
+	len = strlen(buf);
+	if (len != 0 && buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+	return (buf);
+}
+
 struct disklabel *
 promptfordisk(name)
 	char *name;
 {
 	struct disklabel *dp = &disk;
 	struct field *fp;
-	int i, len;
+	int i;
 	char buf[BUFSIZ], **tp, *cp;
 
 	strncpy(dp->d_typename, name, sizeof(dp->d_typename));
 	fprintf(stderr,
 		"%s: unknown disk type, want to supply parameters (y/n)? ",
 		name);
-	(void) fgets(buf, BUFSIZ, stdin);
+	(void) mygets(buf);
 	if (*buf != 'y')
 		return ((struct disklabel *)0);
 	for (;;) {
 		fprintf(stderr, "Disk/controller type (%s)? ", dktypenames[1]);
-		(void) fgets(buf, BUFSIZ, stdin);
-		if (buf[0] == 0)
+		(void) mygets(buf);
+		if (buf[0] == 0) {
 			dp->d_type = 1;
-		else {
-			len = strlen(buf);
-			if (buf[len - 1] == '\n')
-				buf[len - 1] = '\0';
-			dp->d_type = gettype(buf, dktypenames);
-		}
-		if (dp->d_type >= 0)
 			break;
+		}
+		if ((i = gettype(buf, dktypenames)) >= 0) {
+			dp->d_type = i;
+			break;
+		}
 		fprintf(stderr, "%s: unrecognized controller type\n", buf);
 		fprintf(stderr, "use one of:\n", buf);
 		for (tp = dktypenames; *tp; tp++)
@@ -392,10 +408,7 @@ promptfordisk(name)
 gettype:
 	dp->d_flags = 0;
 	fprintf(stderr, "type (winchester|removable|simulated)? ");
-	(void) fgets(buf, BUFSIZ, stdin);
-	len = strlen(buf);
-	if (buf[len - 1] == '\n')
-	    buf[len - 1] = '\0';
+	(void) mygets(buf);
 	if (strcmp(buf, "removable") == 0)
 		dp->d_flags = D_REMOVABLE;
 	else if (strcmp(buf, "simulated") == 0)
@@ -409,7 +422,7 @@ gettype:
 	if (dp->d_type == DTYPE_SMD)
 	   fprintf(stderr, "Do %ss support bad144 bad block forwarding (yes)? ",
 		dp->d_typename);
-	(void) fgets(buf, BUFSIZ, stdin);
+	(void) mygets(buf);
 	if (*buf != 'n')
 		dp->d_flags |= D_BADSECT;
 	for (fp = fields; fp->f_name != NULL; fp++) {
@@ -418,7 +431,7 @@ again:
 		if (fp->f_defaults != NULL)
 			fprintf(stderr, "(%s)", fp->f_defaults);
 		fprintf(stderr, "? ");
-		cp = fgets(buf, BUFSIZ, stdin);
+		cp = mygets(buf);
 		if (*cp == '\0') {
 			if (fp->f_defaults == NULL) {
 				fprintf(stderr, "no default value\n");
@@ -434,7 +447,7 @@ again:
 	}
 	fprintf(stderr, "sectors/cylinder (%d)? ",
 	    dp->d_nsectors * dp->d_ntracks);
-	(void) fgets(buf, BUFSIZ, stdin);
+	(void) mygets(buf);
 	if (buf[0] == 0)
 		dp->d_secpercyl = dp->d_nsectors * dp->d_ntracks;
 	else
@@ -442,7 +455,7 @@ again:
 	fprintf(stderr, "Drive-type-specific parameters, <cr> to terminate:\n");
 	for (i = 0; i < NDDATA; i++) {
 		fprintf(stderr, "d%d? ", i);
-		(void) fgets(buf, BUFSIZ, stdin);
+		(void) mygets(buf);
 		if (buf[0] == 0)
 			break;
 		dp->d_drivedata[i] = atol(buf);
