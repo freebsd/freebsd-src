@@ -143,8 +143,12 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 void
 Fixup_Names(struct disk *d)
 {
-    struct chunk *c1, *c2, *c3;
-    int i,j;
+    struct chunk *c1, *c2;
+    int i;
+#ifdef __i386__
+    struct chunk *c3;
+    int j;
+#endif
     
     c1 = d->chunks;
     for(i=1,c2 = c1->part; c2 ; c2 = c2->next) {
@@ -260,6 +264,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	if (c1->offset == offset)
 	    return c1;
     barfout(1,"Serious internal trouble");
+    return 0;
 }
 
 int
