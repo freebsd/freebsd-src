@@ -519,7 +519,9 @@ ShellCommand(struct cmdargs const *arg, int bg)
     for (i = getdtablesize(); i > STDERR_FILENO; i--)
       fcntl(i, F_SETFD, 1);
 
+#ifndef NOSUID
     setuid(ID0realuid());
+#endif
     if (arg->argc > arg->argn) {
       /* substitute pseudo args */
       char *argv[MAXARGS];
