@@ -54,13 +54,12 @@ static void
 usage(void)
 {
 	printf("fwcontrol [-g gap_count] [-b pri_req] [-c node]"
-		" [-r] [-t] [-s] [-d node] [-l file]\n");
+		" [-r] [-t] [-d node] [-l file]\n");
 	printf("\t-g: broadcast gap_count by phy_config packet\n");
 	printf("\t-b: set PRIORITY_BUDGET register on all supported nodes\n");
 	printf("\t-c: read configuration ROM\n");
 	printf("\t-r: bus reset\n");
 	printf("\t-t: read topology map\n");
-	printf("\t-s: read speed map\n");
 	printf("\t-d: hex dump of configuration ROM\n");
 	printf("\t-l: load and parse hex dump file of configuration ROM\n");
 	exit(0);
@@ -339,27 +338,6 @@ show_topology_map(int fd)
 	free(tmap);
 }
 
-static void
-show_speed_map(int fd)
-{
-	struct fw_speed_map *smap;
-	int i,j;
-
-	smap = malloc(sizeof(struct fw_speed_map));
-	if (smap == NULL)
-		return;
-	if (ioctl(fd, FW_GSPMAP, &smap) < 0) {
-       		err(1, "ioctl");
-	}
-	printf("crc_len: %d generation:%d\n", smap->crc_len, smap->generation);
-	for (i = 0; i < 64; i ++) {
-		for (j = 0; j < 64; j ++)
-			printf("%d", smap->speed[i][j]);
-		printf("\n");
-	}
-	free(smap);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -375,7 +353,7 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	while ((ch = getopt(argc, argv, "g:b:rtsc:d:l:")) != -1)
+	while ((ch = getopt(argc, argv, "g:b:rtc:d:l:")) != -1)
 		switch(ch) {
 		case 'g':
 			/* gap count */
@@ -392,9 +370,6 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			show_topology_map(fd);
-			break;
-		case 's':
-			show_speed_map(fd);
 			break;
 		case 'c':
 			tmp = strtol(optarg, NULL, 0);
