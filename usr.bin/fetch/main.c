@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.13 1996/08/07 02:15:26 jkh Exp $ */
+/* $Id: main.c,v 1.14 1996/08/12 12:55:26 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,6 +60,7 @@ char *change_to_dir = 0;
 char *host = 0;
 int passive_mode = 0;
 char *file_to_get = 0;
+int http_proxy = 0;
 int http = 0;
 int http_port = 80;
 int mirror = 0;
@@ -71,7 +72,8 @@ FILE *file = 0;
 void usage (), die (), rm (), t_out (), ftpget (), httpget (),
     display (int, int), parse (char *), output_file_name(),
     f_size (char *, int *, time_t *), ftperr (FILE* ftp, char *, ...),
-    filter (unsigned char *, int);
+    filter (unsigned char *, int),
+    setup_http_proxy();
 int match (char *, char *), http_open ();
 
 void
@@ -192,6 +194,8 @@ main (int argc, char **argv)
 	signal (SIGINT, die);
 	signal (SIGQUIT, die);
 	signal (SIGTERM, die);
+
+	setup_http_proxy();
 
 	if (http)
 	    httpget ();
@@ -484,7 +488,8 @@ httpget ()
 	restart = 0;
 
 	s = http_open ();
-	sprintf (str, "GET /%s HTTP/1.0\n\n", file_to_get);
+	sprintf (str, "GET %s%s HTTP/1.0\r\n\r\n", 
+		 http_proxy? "" : "/", file_to_get);
 	i = strlen (str);
 	if (i != write (s, str, i))
 	    err (1, "could not send GET command to HTTP server.");
@@ -580,7 +585,7 @@ filter (unsigned char *p, int len)
 			if (i > 0)
 			    size = atoi (s+i);
 			/* assume that the file to get begins after an empty line */
-			i = match (".*(\n\n|\r\n\r\n)", s);
+			i = match ("(\n\n|\r\n\r\n)", s);
 			if (i > 0) {
 				if (s[i] == '\r')
 				    t = s+i+4;
@@ -660,3 +665,43 @@ void msgDebug (char *p)
 {
 	printf ("%s", p);
 }
+
+void
+setup_http_proxy()
+{
+	char *e;
+	char *p;
+	char *url;
+	unsigned short port;
+
+	if (!(e = getenv("HTTP_PROXY"))
+	    || !(p = strchr(e, ':'))
+	    || (port = atoi(p+1)) == 0)
+		return;
+
+	if (!(url = (char *) malloc (strlen(file_to_get) 
+				+ strlen(host) 
+				+ (change_to_dir ? strlen(change_to_dir) : 0)
+				+ 50)))
+		return;
+
+	if (http) {
+		sprintf(url, "http://%s:%d/%s",
+			host, http_port, file_to_get);
+	} else {
+		if (change_to_dir) {
+			sprintf(url, "ftp://%s/%s/%s", 
+				host, change_to_dir, file_to_get);
+		} else {
+			sprintf(url, "ftp://%s/%s", host, file_to_get);
+		}
+	}
+	file_to_get = url;
+
+	*p = 0;
+	host = strdup(e);
+	http_port = port;
+	http = 1;
+	http_proxy = 1;
+}
+
