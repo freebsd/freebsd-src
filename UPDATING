@@ -812,6 +812,13 @@ COMMON ITEMS:
 	or several minor releases, or when several months have passed
 	on the -current branch).
 
+	Sometimes, obscure build problems are the result of environment
+	poisoning.  This can happen because the make utility reads its
+	environment when searching for values for global variables.
+	To run your build attempts in an "environmental clean room",
+	prefix all make commands with 'env -i '.  See the env(1) manual
+	page for more details.
+
 	To build a kernel
 	-----------------
 	If you are updating from a prior version of FreeBSD (even one just
