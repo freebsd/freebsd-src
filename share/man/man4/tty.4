@@ -393,6 +393,16 @@ in
 .Fa state
 is cleared in the terminal.
 .El
+.Sh IMPLEMENTATION NOTES
+The total number of input and output bytes
+through all terminal devices
+are available via the
+.Va kern.tk_nin
+and
+.Va kern.tk_nout
+read-only
+.Xr sysctl 8
+variables.
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr ioctl 2 ,
