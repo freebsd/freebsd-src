@@ -823,13 +823,6 @@ ext2_statfs(mp, sbp, td)
 	sbp->f_bavail = sbp->f_bfree - es->s_r_blocks_count; 
 	sbp->f_files = es->s_inodes_count; 
 	sbp->f_ffree = es->s_free_inodes_count; 
-	if (sbp != &mp->mnt_stat) {
-		sbp->f_type = mp->mnt_vfc->vfc_typenum;
-		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
-			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
-		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
-			(caddr_t)&sbp->f_mntfromname[0], MNAMELEN);
-	}
 	return (0);
 }
 

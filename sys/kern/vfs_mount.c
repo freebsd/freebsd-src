@@ -1571,3 +1571,14 @@ __mnt_vnode_next(struct vnode **nvp, struct mount *mp)
 		*nvp = NULL;
 	return (vp);
 }
+
+int
+__vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+{
+	int error;
+
+	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
+	if (sbp != &mp->mnt_stat)
+		memcpy(sbp, &mp->mnt_stat, sizeof sbp);
+	return (error);
+}
