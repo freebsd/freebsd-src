@@ -107,7 +107,6 @@ SUBDIR=	ac \
 	${_ofwdump} \
 	${_pccard} \
 	pciconf \
-	${_pcvt/ispcvt} \
 	${_pcvt} \
 	periodic \
 	pkg_install \
@@ -302,7 +301,6 @@ _lptcontrol=	lptcontrol
 _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
-_pcvt/ispcvt=	pcvt/ispcvt
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif
