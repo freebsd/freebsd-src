@@ -116,7 +116,7 @@ static const char rcsid[] =
 
 int	Lflag;			/* add a volume label */
 int	Nflag;			/* run without writing file system */
-int	Oflag = 1;		/* file system format (1 => UFS1, 2 => UFS2) */
+int	Oflag = 2;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
 quad_t	fssize;			/* file system size */

@@ -334,7 +334,7 @@ typedef struct _part_info {
 			Boolean acls;		/* unused */
 			Boolean multilabel;	/* unused */
 			Boolean softupdates;
-			Boolean ufs2;
+			Boolean ufs1;
 		} newfs_ufs;
 		struct {
 			/* unused */
