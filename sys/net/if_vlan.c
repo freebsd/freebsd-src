@@ -443,7 +443,7 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	for (ifv = LIST_FIRST(&ifv_list); ifv != NULL;
 	    ifv = LIST_NEXT(ifv, ifv_list)) {
 		if (m->m_pkthdr.rcvif == ifv->ifv_p
-		    && ifv->ifv_tag == t)
+		    && ifv->ifv_tag == EVL_VLANOFTAG(t))
 			break;
 	}
 
@@ -679,6 +679,10 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = copyin(ifr->ifr_data, &vlr, sizeof vlr);
 		if (error)
 			break;
+		if (vlr.vlr_tag & ~EVL_VLID_MASK) {
+			error = EINVAL;
+			break;
+		}
 		if (vlr.vlr_parent[0] == '\0') {
 			vlan_unconfig(ifp);
 			if (ifp->if_flags & IFF_UP) {
