@@ -366,7 +366,9 @@ sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 			gp->state = GMON_PROF_OFF;
 			stopguprof(gp);
 			gp->profrate = profhz;
+			PROC_LOCK(&proc0);
 			startprofclock(&proc0);
+			PROC_UNLOCK(&proc0);
 			gp->state = state;
 #ifdef GUPROF
 		} else if (state == GMON_PROF_HIRES) {
@@ -424,35 +426,28 @@ profil(td, uap)
 	register struct profil_args *uap;
 {
 	struct uprof *upp;
-	int s;
-	int error = 0;
+	struct proc *p;
 
-	mtx_lock(&Giant);
+	if (uap->scale > (1 << 16))
+		return (EINVAL);
 
-	if (uap->scale > (1 << 16)) {
-		error = EINVAL;
-		goto done2;
-	}
+	p = td->td_proc;
 	if (uap->scale == 0) {
 		PROC_LOCK(td->td_proc);
 		stopprofclock(td->td_proc);
 		PROC_UNLOCK(td->td_proc);
-		goto done2;
+		return (0);
 	}
 	upp = &td->td_proc->p_stats->p_prof;
-
-	/* Block profile interrupts while changing state. */
-	s = splstatclock();
 	upp->pr_off = uap->offset;
 	upp->pr_scale = uap->scale;
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
-	startprofclock(td->td_proc);
-	splx(s);
+	PROC_LOCK(p);
+	startprofclock(p);
+	PROC_UNLOCK(p);
 
-done2:
-	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 /*
@@ -521,14 +516,11 @@ addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
 		return;
 
 	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
-	if (!(p->p_sflag & PS_PROFIL)) {
-		mtx_unlock_spin(&sched_lock);
+	if (!(p->p_flag & P_PROFIL)) {
 		PROC_UNLOCK(p);
 		return;
 	}
 	p->p_profthreads++;
-	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	prof = &p->p_stats->p_prof;
 	if (pc < prof->pr_off ||
@@ -547,7 +539,7 @@ addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
 out:
 	PROC_LOCK(p);
 	if (--p->p_profthreads == 0) {
-		if (p->p_sflag & PS_STOPPROF) {
+		if (p->p_flag & P_STOPPROF) {
 			wakeup(&p->p_profthreads);
 			stop = 0;
 		}
