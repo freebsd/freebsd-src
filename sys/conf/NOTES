@@ -1684,6 +1684,15 @@ device		fpa	1
 # only works for Tigon II chips, and has no effect for Tigon I chips.
 options 	TI_JUMBO_HDRSPLIT
 
+# These two options allow manipulating the mbuf cluster size and mbuf size,
+# respectively.  Be very careful with NIC driver modules when changing
+# these from their default values, because that can potentially cause a
+# mismatch between the mbuf size assumed by the kernel and the mbuf size
+# assumed by a module.  The only driver that currently has the ability to
+# detect a mismatch is ti(4).
+options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
+options 	MSIZE=512	# mbuf size in bytes
+
 #
 # ATM related options (Cranor version)
 # (note: this driver cannot be used with the HARP ATM stack)
@@ -2269,8 +2278,6 @@ options 	MSGTQL=41	# Max number of messages in system
 
 options 	NBUF=512	# Number of buffer headers
 
-options 	MSIZE=256	# mbuf size in bytes
-options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	NMBCLUSTERS=1024	# Number of mbuf clusters
 
 options 	SCSI_NCR_DEBUG
