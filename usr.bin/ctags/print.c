@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  *	prepare it for printing.
  */
 void
-getline()
+getline(void)
 {
 	long	saveftell;
 	int	c;
@@ -98,8 +98,7 @@ getline()
  *	write out the tags
  */
 void
-put_entries(node)
-	NODE	*node;
+put_entries(NODE *node)
 {
 
 	if (node->left)

@@ -56,9 +56,7 @@ static void	free_tree(NODE *);
  *	enter a new node in the tree
  */
 void
-pfnote(name, ln)
-	const char	*name;
-	int	ln;
+pfnote(const char *name, int ln)
 {
 	NODE	*np;
 	char	*fp;
@@ -98,9 +96,7 @@ pfnote(name, ln)
 }
 
 static void
-add_node(node, cur_node)
-	NODE	*node,
-		*cur_node;
+add_node(NODE *node, NODE *cur_node)
 {
 	int	dif;
 
@@ -128,8 +124,7 @@ add_node(node, cur_node)
 }
 
 static void
-free_tree(node)
-	NODE	*node;
+free_tree(NODE *node)
 {
 	while (node) {
 		if (node->right)
