@@ -11,7 +11,7 @@
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "5.2.1-RELEASE">
+<!ENTITY release.prev "5.3-RELEASE">
 
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
@@ -41,7 +41,7 @@
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xfree86       "4.4.0">
 <!ENTITY release.manpath.xorg          "6.7.0">
-<!ENTITY release.manpath.netbsd        "1.6.1">
+<!ENTITY release.manpath.netbsd        "1.6.2">
 <!ENTITY release.manpath.freebsd-ports "Ports">
 <!ENTITY release.manpath.freebsd       "5.3-stable">
 
