@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.9 1997/02/22 14:33:11 peter Exp $
+ *	$Id: defs.h,v 1.2.2.1 1997/08/19 21:22:01 joerg Exp $
  */
 
 /* Definitions for RIPv2 routing process.
@@ -50,7 +50,7 @@
  *	tell the kernel hop counts
  *	do not advertise if ipforwarding=0
  *
- * The vestigual support for other protocols has been removed.  There
+ * The vestigial support for other protocols has been removed.  There
  * is no likelihood that IETF RIPv1 or RIPv2 will ever be used with
  * other protocols.  The result is far smaller, faster, cleaner, and
  * perhaps understandable.
@@ -358,7 +358,7 @@ struct ag_info {
 	u_int	ag_seqno;
 	u_short	ag_tag;
 	u_short	ag_state;
-#define	    AGS_SUPPRESS    0x001	/* combine with coaser mask */
+#define	    AGS_SUPPRESS    0x001	/* combine with coarser mask */
 #define	    AGS_PROMOTE	    0x002	/* synthesize combined routes */
 #define	    AGS_REDUN0	    0x004	/* redundant, finer routes output */
 #define	    AGS_REDUN1	    0x008
@@ -370,7 +370,7 @@ struct ag_info {
 #define	    AGS_FINE_GATE   0x080	/* ignore differing ag_gate when this
 					 * has the finer netmask */
 #define	    AGS_CORS_GATE   0x100	/* ignore differing gate when this
-					 * has the coarser netmaks */
+					 * has the coarser netmasks */
 #define	    AGS_SPLIT_HZ    0x200	/* suppress for split horizon */
 
 	/* some bits are set if they are set on either route */
@@ -437,7 +437,7 @@ extern int	lookforinterfaces;	/* 1=probe for new up interfaces */
 extern int	supplier_set;		/* -s or -q requested */
 extern int	ridhosts;		/* 1=reduce host routes */
 extern int	mhome;			/* 1=want multi-homed host route */
-extern int	advertise_mhome;	/* 1=must continue adverising it */
+extern int	advertise_mhome;	/* 1=must continue advertising it */
 extern int	auth_ok;		/* 1=ignore auth if we do not care */
 
 extern struct timeval clk;		/* system clock's idea of time */
