@@ -17,6 +17,9 @@ descriptors and hangs.  Am-utils circumvents this by using its own version
 of yp_all which uses udp and iterats over NIS maps.  The latter isn't as
 reliable as yp_all() which uses TCP, but it is better than hanging.
 
+(I have some reports that older version of hpux-9, with older libc, also
+leak file descriptors.)
+
 
 (2) alpha-unknown-linux-gnu (RedHat Linux 4.2)
 
