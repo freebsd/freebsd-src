@@ -75,6 +75,7 @@ compat/linux/linux_sysctl.c	optional	compat_linux
 compat/linux/linux_uid16.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
 compat/ndis/kern_ndis.c		optional	ndisapi pci
+compat/ndis/kern_windrv.c	optional	ndisapi pci
 compat/ndis/subr_hal.c		optional	ndisapi pci
 compat/ndis/subr_ndis.c		optional	ndisapi pci
 compat/ndis/subr_ntoskrnl.c	optional	ndisapi pci
