@@ -325,7 +325,9 @@ main(argc, argv)
 	appcstrg(&cppflags, "-$");
 	appcstrg(&cppflags, "-C");
 	appcstrg(&cppflags, "-Wcomment");
-#if defined (__FreeBSD__) && (__FreeBSD__ == 3)
+#if defined (__FreeBSD__) && (__FreeBSD__ == 4)
+	appcstrg(&cppflags, "-D__FreeBSD__=4");
+#elif defined (__FreeBSD__) && (__FreeBSD__ == 3)
 	appcstrg(&cppflags, "-D__FreeBSD__=3");
 #elif defined (__FreeBSD__) && (__FreeBSD__ == 2)
 	appcstrg(&cppflags, "-D__FreeBSD__=2");
