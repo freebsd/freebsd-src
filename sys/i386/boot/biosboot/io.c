@@ -1,4 +1,3 @@
-
 /*
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
@@ -25,10 +24,11 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.9 1994/09/20 22:24:59 adam Exp $
+ *	$Id: io.c,v 1.10 1994/11/07 11:26:29 davidg Exp $
  */
 
 #include <machine/cpufunc.h>
+#include <sys/reboot.h>
 
 #define K_RDWR 		0x60		/* keyboard data & cmds (read/write) */
 #define K_STATUS 	0x64		/* keyboard status */
@@ -43,6 +43,8 @@
 					   enable output buffer full interrupt
 					   enable data line
 					   enable clock line */
+
+extern int loadflags;
 
 /*
  * Gate A20 for high memory
@@ -73,7 +75,6 @@ printf(format,data)
 	int *dataptr = &data;
 	char c;
 
-	reset_twiddle();
 	while (c = *format++)
 		if (c != '%')
 			putchar(c);
@@ -119,9 +120,12 @@ printf(format,data)
 
 putchar(c)
 {
-	if (c == '\n')
-		putc('\r');
-	putc(c);
+	if (c == '\n') {
+		if (loadflags & RB_SERIAL) serial_putc('\r');
+			else putc('\r');
+	}
+	if (loadflags & RB_SERIAL) serial_putc(c);
+		else putc(c);
 }
 
 getchar(in_buf)
@@ -130,7 +134,7 @@ getchar(in_buf)
 	int c;
 
 loop:
-	if ((c=getc()) == '\r')
+	if ((c = ((loadflags & RB_SERIAL) ? serial_getc(c) : getc(c))) == '\r')
 		c = '\n';
 	if (c == '\b') {
 		if (in_buf != 0) {
@@ -173,7 +177,7 @@ char *buf;
 #if BOOTWAIT
 	for (i = BOOTWAIT; i>0; delay1ms(),i--)
 #endif
-		if (ischar())
+		if ((loadflags & RB_SERIAL) ? serial_ischar() : ischar())
 			for (;;)
 				switch(*ptr = getchar(ptr - buf) & 0xff) {
 				      case '\n':
@@ -186,6 +190,7 @@ char *buf;
 				      default:
 					ptr++;
 				}
+
 	return 0;
 }
 
@@ -208,24 +213,13 @@ int len;
 		*to++ = *from++;
 }
 
-static int tw_on;
-static int tw_pos;
-static char tw_chars[] = "|/-\\";
+/* To quote Ken: "You are not expected to understand this." :) */
 
-reset_twiddle()
-{
-	if (tw_on)
-		putchar('\b');
-	tw_on = 0;
-	tw_pos = 0;
-}
+static unsigned long tw_chars = 0x5C2D2F7C; /* "\-/|" */
 
 twiddle()
 {
-	if (tw_on)
-		putchar('\b');
-	else
-		tw_on = 1;
-	putchar(tw_chars[tw_pos++]);
-	tw_pos %= (sizeof(tw_chars) - 1);
+	putchar((char)tw_chars);
+	tw_chars = (tw_chars >> 8) | ((tw_chars & (unsigned long)0xFF) << 24);
+	putchar('\b');
 }

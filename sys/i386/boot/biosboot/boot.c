@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.28 1994/12/18 19:14:13 bde Exp $
+ *	$Id: boot.c,v 1.29 1994/12/18 20:30:10 joerg Exp $
  */
 
 
@@ -59,52 +59,47 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 struct exec head;
 struct bootinfo_t bootinfo;
-char *name;
-char *names[] = {
-	"/kernel"
-};
-#define NUMNAMES	(sizeof(names)/sizeof(char *))
+char *name = { "/kernel" };
 
-#ifdef COMCONSOLE
 extern void init_serial(void);
-#endif
+extern int probe_keyboard(void);
+int loadflags = 0;
 
 extern int end;
 boot(drive)
 int drive;
 {
-	int loadflags, currname = 0, ret;
+	int ret;
 	char *t;
-#ifdef COMCONSOLE
-	init_serial();
-#endif
 
-		
+	if (probe_keyboard()) {
+		init_serial();
+		loadflags |= RB_SERIAL;
+		printf ("\nNo keyboard found.\n");
+	}
+
 	/* Pick up the story from the Bios on geometry of disks */
 
 	for(ret = 0; ret < N_BIOS_GEOM; ret ++)
 		bootinfo.bios_geom[ret] = get_diskinfo(ret + 0x80);
 
-	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
-		ouraddr, memsize(0), memsize(1));
-	printf("Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n");
-	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b][-v]]\n",
-			devs[(drive & 0x80) ? 0 : 2], names[0]);
-	printf("Use ? for file list or simply press Return for defaults\n");
+	/* This is nasty, but why use 4 printf()s when 1 will do. */
+
+	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\nUse hd(1,a)/kernel to boot sd0 when wd0 is also installed.\nUsage: [[[%s(%d,a)]%s][-s][-r][-a][-c][-d][-b][-v][-h]]\nUse ? for file list or simply press Return for defaults\n", ouraddr, memsize(0), memsize(1), devs[(drive & 0x80) ? 0 : 2],
+	(unit = (drive & 0x7f)), name);
+
 	gateA20();
+
 loadstart:
 	/***************************************************************\
 	* As a default set it to the first partition of the first	*
 	* floppy or hard drive						*
 	\***************************************************************/
-	part = unit = 0;
-	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
-	name = names[currname++];
 
-	loadflags = 0;
-	if (currname == NUMNAMES)
-		currname = 0;
-	printf("Boot: ");
+	part = 0;
+	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
+
+	printf ("Boot: ");
 	getbootdev(&loadflags);
 	ret = openrd();
 	if (ret != 0) {
@@ -147,6 +142,12 @@ loadprog(howto)
 			, 'a'+part
 			, name
 			, addr);
+/*
+ * With the current scheme of things, addr can never be less than ouraddr,
+ * so this next bit of code is largely irrelevant. Taking it out saves lots
+ * of space.
+ */
+#ifdef REDUNDANT 
 	if(addr < ouraddr)
 	{
 		if((addr + head.a_text + head.a_data) > ouraddr)
@@ -160,6 +161,7 @@ loadprog(howto)
 			return;
 		}
 	}
+#endif
 	printf("text=0x%x ", head.a_text);
 	/********************************************************/
 	/* LOAD THE TEXT SEGMENT				*/
@@ -185,6 +187,11 @@ loadprog(howto)
 	/* (but clear it)					*/
 	/********************************************************/
 	printf("bss=0x%x ", head.a_bss);
+
+/*
+ * This doesn't do us any good anymore either.
+ */
+#ifdef REDUNDANT
 	if( (addr < ouraddr) && ((addr + head.a_bss) > ouraddr))
 	{
 		pbzero(addr,ouraddr - (int)addr);
@@ -194,7 +201,9 @@ loadprog(howto)
 		pbzero(addr,head.a_bss);
 	}
 	addr += head.a_bss;
-
+#else
+	pbzero(addr,head.a_bss);
+#endif
 #ifdef LOADSYMS /* not yet, haven't worked this out yet */
 	if (addr > 0x100000)
 	{
@@ -286,6 +295,8 @@ getbootdev(howto)
 						*howto |= RB_HALT; continue;
 					      case 'v':
 						*howto |= RB_VERBOSE; continue;
+					      case 'h':
+						*howto ^= RB_SERIAL; continue;
 					}
 			else {
 				name = ptr;
