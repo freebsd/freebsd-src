@@ -31,51 +31,65 @@
 
 #ifdef _KERNEL
 
-#define	T_RESERVED	0x0
-#define	T_POWER_ON	0x1
-#define	T_WATCHDOG	0x2
-#define	T_RESET_EXT	0x3
-#define	T_RESET_SOFT	0x4
-#define	T_RED_STATE	0x5
-#define	T_INSN_EXCPTN	0x6
-#define	T_INSN_ERROR	0x7
-#define	T_INSN_ILLEGAL	0x8
-#define	T_PRIV_OPCODE	0x9
-#define	T_FP_DISABLED	0xa
-#define	T_FP_IEEE	0xb
-#define	T_FP_OTHER	0xc
-#define	T_TAG_OVFLW	0xd
-#define	T_DIVIDE	0xe
-#define	T_DATA_EXCPTN	0xf
-#define	T_DATA_ERROR	0x10
-#define	T_ALIGN		0x11
-#define	T_ALIGN_LDDF	0x12
-#define	T_ALIGN_STDF	0x13
-#define	T_PRIV_ACTION	0x14
-#define	T_INTR		0x15
-#define	T_WATCH_PHYS	0x16
-#define	T_WATCH_VIRT	0x17
-#define	T_ECC		0x18
-#define	T_IMMU_MISS	0x19
-#define	T_DMMU_MISS	0x1a
-#define	T_DMMU_PROT	0x1b
-#define	T_SPILL		0x1c
-#define	T_FILL		0x1d
-#define	T_FILL_RET	0x1e
-#define	T_BREAKPOINT	0x1f
-#define	T_SYSCALL	0x20
-#define	T_RSTRWP_PHYS	0x21
-#define	T_RSTRWP_VIRT	0x22
-#define	T_SOFT		0x23
-#define	T_KERNEL	0x40
+#define	T_RESERVED			0
+#define	T_INSTRUCTION_EXCEPTION		1
+#define	T_INSTRUCTION_ERROR		2
+#define	T_INSTRUCTION_PROTECTION	3
+#define	T_ILLTRAP_INSTRUCTION		4
+#define	T_ILLEGAL_INSTRUCTION		5
+#define	T_PRIVILEGED_OPCODE		6
+#define	T_FP_DISABLED			7
+#define	T_FP_EXCEPTION_IEEE_754		8
+#define	T_FP_EXCEPTION_OTHER		9
+#define	T_TAG_OFERFLOW			10
+#define	T_DIVISION_BY_ZERO		11
+#define	T_DATA_EXCEPTION		12
+#define	T_DATA_ERROR			13
+#define	T_DATA_PROTECTION		14
+#define	T_MEM_ADDRESS_NOT_ALIGNED	15
+#define	T_PRIVILEGED_ACTION		16
+#define	T_ASYNC_DATA_ERROR		17
+#define	T_TRAP_INSTRUCTION_16		18
+#define	T_TRAP_INSTRUCTION_17		19
+#define	T_TRAP_INSTRUCTION_18		20
+#define	T_TRAP_INSTRUCTION_19		21
+#define	T_TRAP_INSTRUCTION_20		22
+#define	T_TRAP_INSTRUCTION_21		23
+#define	T_TRAP_INSTRUCTION_22		24
+#define	T_TRAP_INSTRUCTION_23		25
+#define	T_TRAP_INSTRUCTION_24		26
+#define	T_TRAP_INSTRUCTION_25		27
+#define	T_TRAP_INSTRUCTION_26		28
+#define	T_TRAP_INSTRUCTION_27		29
+#define	T_TRAP_INSTRUCTION_28		30
+#define	T_TRAP_INSTRUCTION_29		31
+#define	T_TRAP_INSTRUCTION_30		32
+#define	T_TRAP_INSTRUCTION_31		33
+
+#define	T_INTERRUPT			34
+#define	T_PA_WATCHPOINT			35
+#define	T_VA_WATCHPOINT			36
+#define	T_CORRECTED_ECC_ERROR		37
+#define	T_INSTRUCTION_MISS		38
+#define	T_DATA_MISS			39
+#define	T_SPILL				40
+#define	T_FILL				41
+#define	T_FILL_RET			42
+#define	T_BREAKPOINT			43
+#define	T_CLEAN_WINDOW			44
+#define	T_RANGE_CHECK			45
+#define	T_FIX_ALIGNMENT			46
+#define	T_INTEGER_OVERFLOW		47
+#define	T_SYSCALL			48
+#define	T_RSTRWP_PHYS			49
+#define	T_RSTRWP_VIRT			50
+
+#define	T_KERNEL			64
 
 #ifndef LOCORE
 extern const char *trap_msg[];
 #endif
 
 #endif
-
-#define	ST_BREAKPOINT	0x1
-#define	ST_SYSCALL	0x9
 
 #endif /* !_MACHINE_TRAP_H_ */
