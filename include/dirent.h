@@ -31,9 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.2 (Berkeley) 7/28/94
- *
  * $FreeBSD$
- *
  */
 
 #ifndef _DIRENT_H_
@@ -97,8 +95,8 @@ int scandir __P((const char *, struct dirent ***,
     int (*)(struct dirent *), int (*)(const void *, const void *)));
 int alphasort __P((const void *, const void *));
 int getdirentries __P((int, char *, int, long *));
-#endif /* not POSIX */
 int readdir_r __P((DIR *, struct dirent *, struct dirent **));
+#endif /* not POSIX */
 __END_DECLS
 
 #endif /* !KERNEL */

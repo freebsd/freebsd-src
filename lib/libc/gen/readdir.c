@@ -89,34 +89,37 @@ readdir_r(dirp, entry, result)
 	struct dirent **result;
 {
 	struct dirent *dp;
-	int ret;
+	int ret, saved_errno;
 
-	if (dirp->dd_fd < 0) {
-		return EBADF;
-	}
 #ifdef _THREAD_SAFE
-	if ((ret = _FD_LOCK(dirp->dd_fd, FD_READ, NULL)) != 0) {
-		return ret;
-	}
+	if ((ret = _FD_LOCK(dirp->dd_fd, FD_READ, NULL)) != 0)
+		return (ret);
 #endif
+
+	saved_errno = errno;
 	errno = 0;
 	dp = readdir(dirp);
-	if (dp == NULL && errno != 0) {
+	if (errno != 0) {
+		if (dp == NULL) {
 #ifdef _THREAD_SAFE
-		_FD_UNLOCK(dirp->dd_fd, FD_READ);
+			_FD_UNLOCK(dirp->dd_fd, FD_READ);
 #endif
-		return errno;
-	}
-	if (dp != NULL) {
+			return (errno);
+		}
+	} else
+		errno = saved_errno;
+
+	if (dp != NULL)
 		memcpy(entry, dp, sizeof *entry);
-	}
+
 #ifdef _THREAD_SAFE
 	_FD_UNLOCK(dirp->dd_fd, FD_READ);
 #endif
-	if (dp != NULL) {
+
+	if (dp != NULL)
 		*result = entry;
-	} else {
+	else
 		*result = NULL;
-	}
-	return 0;
+
+	return (0);
 }
