@@ -96,9 +96,6 @@ crypt_sha(pw, salt)
 		return NULL;
 	}
 #endif
-  	SHA_Init(&ctx);
-  
-  	/* The password first, since that is what is most unknown */
 	SHA_Init(&ctx);
 
 	/* The password first, since that is what is most unknown */
