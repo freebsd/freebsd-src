@@ -73,7 +73,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (r != PAM_SUCCESS)
 		return (r);
-	if (rhost == NULL)
+	if (rhost == NULL || *rhost == '\0')
 		rhost = openpam_get_option(pamh, "allow_local") ?
 		    "" : "localhost";
 
