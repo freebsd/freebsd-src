@@ -312,6 +312,9 @@ makefloat(int sign, int exp, u_int64_t frac,
 			break;
 		}
 
+		if (frac == 0)
+			*status |= FPCR_UNF;
+
 		/*
 		 * Rounding up may take us to TWO if
 		 * fraclo == (TWO - epsilon).  Also If fraclo has been
