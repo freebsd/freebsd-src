@@ -666,6 +666,15 @@ nodisks:
 	dmenuOpenSimple(&MenuMouse, FALSE);
 #endif
 
+#ifdef __i386__
+    if (checkLoaderACPI() != 0) {
+    	dialog_clear_norefresh();
+    	if (!msgNoYes("ACPI was disabled during boot.\n"
+		      "Would you like to disable it permanently?"))
+		(void)configLoaderACPI(1 /*disable*/);
+    }
+#endif
+
     /* Now would be a good time to checkpoint the configuration data */
     configRC_conf();
     sync();
