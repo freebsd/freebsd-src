@@ -1282,29 +1282,25 @@ static int xl_attach(dev)
 	 * back in the D0 state, then restore the PCI config ourselves.
 	 */
 
-	command = pci_read_config(dev, XL_PCI_CAPID, 4) & 0x000000FF;
-	if (command == 0x01) {
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		u_int32_t		iobase, membase, irq;
 
-		command = pci_read_config(dev, XL_PCI_PWRMGMTCTRL, 4);
-		if (command & XL_PSTATE_MASK) {
-			u_int32_t		iobase, membase, irq;
+		/* Save important PCI config data. */
+		iobase = pci_read_config(dev, XL_PCI_LOIO, 4);
+		membase = pci_read_config(dev, XL_PCI_LOMEM, 4);
+		irq = pci_read_config(dev, XL_PCI_INTLINE, 4);
 
-			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, XL_PCI_LOIO, 4);
-			membase = pci_read_config(dev, XL_PCI_LOMEM, 4);
-			irq = pci_read_config(dev, XL_PCI_INTLINE, 4);
+		/* Reset the power state. */
+		printf("xl%d: chip is in D%d power mode "
+		    "-- setting to D0\n", unit,
+		    pci_get_powerstate(dev));
 
-			/* Reset the power state. */
-			printf("xl%d: chip is in D%d power mode "
-			"-- setting to D0\n", unit, command & XL_PSTATE_MASK);
-			command &= 0xFFFFFFFC;
-			pci_write_config(dev, XL_PCI_PWRMGMTCTRL, command, 4);
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 
-			/* Restore PCI config data. */
-			pci_write_config(dev, XL_PCI_LOIO, iobase, 4);
-			pci_write_config(dev, XL_PCI_LOMEM, membase, 4);
-			pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
-		}
+		/* Restore PCI config data. */
+		pci_write_config(dev, XL_PCI_LOIO, iobase, 4);
+		pci_write_config(dev, XL_PCI_LOMEM, membase, 4);
+		pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
 	}
 
 	/*
