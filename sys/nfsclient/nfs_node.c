@@ -58,116 +58,38 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsmount.h>
 
 static uma_zone_t nfsnode_zone;
-static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
-static u_long nfsnodehash;
-static int nfs_node_hash_lock;
-
-#define	NFSNOHASH(fhsum) \
-	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
 
 #define TRUE	1
 #define	FALSE	0
 
-SYSCTL_DECL(_debug_hashstat);
-
-/*
- * Grab an atomic snapshot of the nfsnode hash chain lengths
- */
-static int
-sysctl_debug_hashstat_rawnfsnode(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	struct nfsnodehashhead *nnpp;
-	struct nfsnode *nnp;
-	int n_nfsnode;
-	int count;
-
-	n_nfsnode = nfsnodehash + 1;	/* nfsnodehash = max index, not count */
-	if (!req->oldptr)
-		return SYSCTL_OUT(req, 0, n_nfsnode * sizeof(int));
-
-	/* Scan hash tables for applicable entries */
-	for (nnpp = nfsnodehashtbl; n_nfsnode > 0; n_nfsnode--, nnpp++) {
-		count = 0;
-		LIST_FOREACH(nnp, nnpp, n_hash) {
-			count++;
-		}
-		error = SYSCTL_OUT(req, (caddr_t)&count, sizeof(count));
-		if (error)
-			return (error);
-	}
-	return (0);
-}
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnfsnode, CTLTYPE_INT|CTLFLAG_RD, 0, 0,
-	    sysctl_debug_hashstat_rawnfsnode, "S,int", "nfsnode chain lengths");
-
-static int
-sysctl_debug_hashstat_nfsnode(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	struct nfsnodehashhead *nnpp;
-	struct nfsnode *nnp;
-	int n_nfsnode;
-	int count, maxlength, used, pct;
-
-	if (!req->oldptr)
-		return SYSCTL_OUT(req, 0, 4 * sizeof(int));
-
-	n_nfsnode = nfsnodehash + 1;	/* nfsnodehash = max index, not count */
-	used = 0;
-	maxlength = 0;
-
-	/* Scan hash tables for applicable entries */
-	for (nnpp = nfsnodehashtbl; n_nfsnode > 0; n_nfsnode--, nnpp++) {
-		count = 0;
-		LIST_FOREACH(nnp, nnpp, n_hash) {
-			count++;
-		}
-		if (count)
-			used++;
-		if (maxlength < count)
-			maxlength = count;
-	}
-	n_nfsnode = nfsnodehash + 1;
-	pct = (used * 100 * 100) / n_nfsnode;
-	error = SYSCTL_OUT(req, (caddr_t)&n_nfsnode, sizeof(n_nfsnode));
-	if (error)
-		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&used, sizeof(used));
-	if (error)
-		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&maxlength, sizeof(maxlength));
-	if (error)
-		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&pct, sizeof(pct));
-	if (error)
-		return (error);
-	return (0);
-}
-SYSCTL_PROC(_debug_hashstat, OID_AUTO, nfsnode, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_debug_hashstat_nfsnode, "I", "nfsnode chain lengths");
-
-/*
- * Initialize hash links for nfsnodes
- * and build nfsnode free list.
- */
 void
 nfs_nhinit(void)
 {
 
 	nfsnode_zone = uma_zcreate("NFSNODE", sizeof(struct nfsnode), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSHASH, &nfsnodehash);
 }
 
-/*
- * Release hash table resources
- */
 void
 nfs_nhuninit(void)
 {
-	hashdestroy(nfsnodehashtbl, M_NFSHASH, nfsnodehash);
 	uma_zdestroy(nfsnode_zone);
+}
+
+struct nfs_vncmp {
+	int	fhsize;
+	void	*fh;
+};
+
+static int
+nfs_vncmpf(struct vnode *vp, void *arg)
+{
+	struct nfs_vncmp *a;
+	struct nfsnode *np;
+
+	a = arg;
+	np = VTONFS(vp);
+	return (bcmp(a->fh, np->n_fhp, a->fhsize));
 }
 
 /*
@@ -180,13 +102,14 @@ int
 nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 {
 	struct thread *td = curthread;	/* XXX */
-	struct nfsnode *np, *np2;
-	struct nfsnodehashhead *nhpp;
+	struct nfsnode *np;
 	struct vnode *vp;
 	struct vnode *nvp;
 	int error;
+	u_int hash;
 	int rsflags;
 	struct nfsmount *nmp;
+	struct nfs_vncmp ncmp;
 
 	/*
 	 * Calculate nfs mount point and figure out whether the rslock should
@@ -198,51 +121,33 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	else
 		rsflags = 0;
 
-retry:
-	nhpp = NFSNOHASH(fnv_32_buf(fhp->fh_bytes, fhsize, FNV1_32_INIT));
-loop:
-	LIST_FOREACH(np, nhpp, n_hash) {
-		if (mntp != NFSTOV(np)->v_mount || np->n_fhsize != fhsize ||
-		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
-			continue;
-		vp = NFSTOV(np);
-		/*
-		 * np or vp may become invalid if vget() blocks, so loop 
-		 */
-		if (vget(vp, LK_EXCLUSIVE|LK_SLEEPFAIL, td))
-			goto loop;
-		*npp = np;
-		return(0);
+	*npp = NULL;
+
+	hash = fnv_32_buf(fhp->fh_bytes, fhsize, FNV1_32_INIT);
+	ncmp.fhsize = fhsize;
+	ncmp.fh = fhp;
+
+	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	    td, &nvp, nfs_vncmpf, &ncmp);
+	if (error)
+		return (error);
+	if (nvp != NULL) {
+		*npp = VTONFS(nvp);
+		return (0);
 	}
-	/*
-	 * Obtain a lock to prevent a race condition if the getnewvnode()
-	 * or MALLOC() below happens to block.
-	 */
-	if (nfs_node_hash_lock) {
-		while (nfs_node_hash_lock) {
-			nfs_node_hash_lock = -1;
-			tsleep(&nfs_node_hash_lock, PVM, "nfsngt", 0);
-		}
-		goto loop;
-	}
-	nfs_node_hash_lock = 1;
 
 	/*
 	 * Allocate before getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if zalloc should block.
 	 */
-	np = uma_zalloc(nfsnode_zone, M_WAITOK);
+	np = uma_zalloc(nfsnode_zone, M_WAITOK | M_ZERO);
 
 	if (nmp->nm_flag & NFSMNT_NFSV4)
 		error = getnewvnode("nfs4", mntp, &nfs4_vnodeops, &nvp);
 	else
 		error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
 	if (error) {
-		if (nfs_node_hash_lock < 0)
-			wakeup(&nfs_node_hash_lock);
-		nfs_node_hash_lock = 0;
-		*npp = 0;
 		uma_zfree(nfsnode_zone, np);
 		return (error);
 	}
@@ -251,24 +156,17 @@ loop:
 		vp->v_bufobj.bo_ops = &buf_ops_nfs4;
 	else
 		vp->v_bufobj.bo_ops = &buf_ops_nfs;
-	bzero((caddr_t)np, sizeof *np);
 	vp->v_data = np;
 	np->n_vnode = vp;
-	/*
-	 * Insert the nfsnode in the hash queue for its new file handle
-	 */
-	LIST_FOREACH(np2, nhpp, n_hash) {
-		if (mntp != NFSTOV(np2)->v_mount || np2->n_fhsize != fhsize ||
-		    bcmp((caddr_t)fhp, (caddr_t)np2->n_fhp, fhsize))
-			continue;
-		vrele(vp);
-		if (nfs_node_hash_lock < 0)
-			wakeup(&nfs_node_hash_lock);
-		nfs_node_hash_lock = 0;
-		uma_zfree(nfsnode_zone, np);
-		goto retry;
+	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE,
+	    td, &nvp, nfs_vncmpf, &ncmp);
+	if (error)
+		return (error);
+	if (nvp != NULL) {
+		*npp = VTONFS(nvp);
+		/* XXX I wonder of nfs_reclaim will survive the unused vnode */
+		return (0);
 	}
-	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	if (fhsize > NFS_SMALLFH) {
 		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
 	} else
@@ -277,15 +175,6 @@ loop:
 	np->n_fhsize = fhsize;
 	lockinit(&np->n_rslock, PVFS | rsflags, "nfrslk", 0, LK_NOPAUSE);
 	*npp = np;
-
-	if (nfs_node_hash_lock < 0)
-		wakeup(&nfs_node_hash_lock);
-	nfs_node_hash_lock = 0;
-
-	/*
-	 * Lock the new nfsnode.
-	 */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	return (0);
 }
@@ -332,8 +221,7 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("nfs_reclaim: pushing active", vp);
 
-	if (np->n_hash.le_prev != NULL)		/* XXX beware */
-		LIST_REMOVE(np, n_hash);
+	vfs_hash_remove(vp);
 
 	/*
 	 * Free up any directory cookie structures and
