@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1 1996/07/10 19:44:22 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.1 1997/02/02 18:55:33 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -109,7 +109,7 @@ div_init(void)
 	 * to allocate a one entry hash list than it is to check all
 	 * over the place for hashbase == NULL.
 	 */
-	divcbinfo.hashbase = phashinit(1, M_PCB, &divcbinfo.hashsize);
+	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 }
 
 /*
