@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.51 1998/12/26 13:14:45 phk Exp $
+ * $Id: if_spppsubr.c,v 1.52 1998/12/27 21:30:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -477,16 +477,16 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		}
 		switch (ntohs (h->protocol)) {
 		default:
+			if (debug)
+				log(LOG_DEBUG,
+				    SPP_FMT "rejecting protocol "
+				    "<addr=0x%x ctrl=0x%x proto=0x%x>\n",
+				    SPP_ARGS(ifp),
+				    h->address, h->control, ntohs(h->protocol));
 			if (sp->state[IDX_LCP] == STATE_OPENED)
 				sppp_cp_send (sp, PPP_LCP, PROTO_REJ,
 					++sp->pp_seq, m->m_pkthdr.len + 2,
 					&h->protocol);
-			if (debug)
-				log(LOG_DEBUG,
-				    SPP_FMT "invalid input protocol "
-				    "<addr=0x%x ctrl=0x%x proto=0x%x>\n",
-				    SPP_ARGS(ifp),
-				    h->address, h->control, ntohs(h->protocol));
 			++ifp->if_noproto;
 			goto drop;
 		case PPP_LCP:
@@ -1202,8 +1202,7 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 		    sppp_proto_name(proto),
 		    sppp_cp_type_name (lh->type), lh->ident,
 		    ntohs (lh->len));
-		if (len)
-			sppp_print_bytes ((u_char*) (lh+1), len);
+		sppp_print_bytes ((u_char*) (lh+1), len);
 		addlog(">\n");
 	}
 	if (IF_QFULL (&sp->pp_cpq)) {
@@ -1244,8 +1243,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		    SPP_ARGS(ifp), cp->name,
 		    sppp_state_name(sp->state[cp->protoidx]),
 		    sppp_cp_type_name (h->type), h->ident, ntohs (h->len));
-		if (len > 4)
-			sppp_print_bytes ((u_char*) (h+1), len-4);
+		sppp_print_bytes ((u_char*) (h+1), len-4);
 		addlog(">\n");
 	}
 	if (len > ntohs (h->len))
@@ -1508,7 +1506,8 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 				       SPP_ARGS(ifp), len);
 			break;
 		}
-		if (ntohl (*(long*)(h+1)) == sp->lcp.magic) {
+		if ((sp->lcp.opts & (1 << LCP_OPT_MAGIC)) &&
+		    ntohl (*(long*)(h+1)) == sp->lcp.magic) {
 			/* Line loopback mode detected. */
 			printf(SPP_FMT "loopback\n", SPP_ARGS(ifp));
 			if_down (ifp);
@@ -1543,7 +1542,8 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		if (debug)
 			addlog(SPP_FMT "lcp got echo rep\n",
 			       SPP_ARGS(ifp));
-		if (ntohl (*(long*)(h+1)) != sp->lcp.magic)
+		if (!(sp->lcp.opts & (1 << LCP_OPT_MAGIC)) ||
+		    ntohl (*(long*)(h+1)) != sp->lcp.magic)
 			sp->pp_alivecnt = 0;
 		break;
 	default:
@@ -1801,14 +1801,8 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.protos = 0;
 	sp->lcp.mru = sp->lcp.their_mru = PP_MTU;
 
-	/*
-	 * Initialize counters and timeout values.  Note that we don't
-	 * use the 3 seconds suggested in RFC 1661 since we are likely
-	 * running on a fast link.  XXX We should probably implement
-	 * the exponential backoff option.  Note that these values are
-	 * relevant for all control protocols, not just LCP only.
-	 */
-	sp->lcp.timeout = 1 * hz;
+	/* Note that these values are  relevant for all control protocols */
+	sp->lcp.timeout = 3 * hz;
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
@@ -2581,16 +2575,6 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
-#ifdef notyet
-		case IPCP_OPT_COMPRESSION:
-			if (len >= 6 && p[1] >= 6) {
-				/* correctly formed compress option */
-				continue;
-			}
-			if (debug)
-				addlog("[invalid] ");
-			break;
-#endif
 		case IPCP_OPT_ADDRESS:
 			if (len >= 6 && p[1] == 6) {
 				/* correctly formed address option */
@@ -2629,10 +2613,6 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
-#ifdef notyet
-		case IPCP_OPT_COMPRESSION:
-			continue;
-#endif
 		case IPCP_OPT_ADDRESS:
 			/* This is the address he wants in his end */
 			desiredaddr = p[2] << 24 | p[3] << 16 |
@@ -2751,11 +2731,6 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 			 */
 			sp->ipcp.opts &= ~(1 << IPCP_OPT_ADDRESS);
 			break;
-#ifdef notyet
-		case IPCP_OPT_COMPRESS:
-			sp->ipcp.opts &= ~(1 << IPCP_OPT_COMPRESS);
-			break;
-#endif
 		}
 	}
 	if (debug)
@@ -2819,13 +2794,6 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				}
 			}
 			break;
-#ifdef notyet
-		case IPCP_OPT_COMPRESS:
-			/*
-			 * Peer wants different compression parameters.
-			 */
-			break;
-#endif
 		}
 	}
 	if (debug)
@@ -2868,17 +2836,6 @@ sppp_ipcp_scr(struct sppp *sp)
 	char opt[6 /* compression */ + 6 /* address */];
 	u_long ouraddr;
 	int i = 0;
-
-#ifdef notyet
-	if (sp->ipcp.opts & (1 << IPCP_OPT_COMPRESSION)) {
-		opt[i++] = IPCP_OPT_COMPRESSION;
-		opt[i++] = 6;
-		opt[i++] = 0;	/* VJ header compression */
-		opt[i++] = 0x2d; /* VJ header compression */
-		opt[i++] = max_slot_id;
-		opt[i++] = comp_slot_id;
-	}
-#endif
 
 	if (sp->ipcp.opts & (1 << IPCP_OPT_ADDRESS)) {
 		sppp_get_ip_addrs(sp, &ouraddr, 0, 0);
@@ -3020,8 +2977,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 				    SPP_ARGS(ifp),
 				    sppp_auth_type_name(PPP_CHAP, h->type),
 				    h->ident, ntohs(h->len));
-				if (len > 4)
-					sppp_print_bytes((u_char*) (h+1), len-4);
+				sppp_print_bytes((u_char*) (h+1), len-4);
 				addlog(">\n");
 			}
 			break;
@@ -3112,8 +3068,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 				    SPP_ARGS(ifp),
 				    sppp_auth_type_name(PPP_CHAP, h->type),
 				    h->ident, ntohs(h->len));
-				if (len > 4)
-					sppp_print_bytes((u_char*)(h+1), len-4);
+				sppp_print_bytes((u_char*)(h+1), len-4);
 				addlog(">\n");
 			}
 			break;
@@ -3198,8 +3153,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			    SPP_ARGS(ifp),
 			    sppp_state_name(sp->state[IDX_CHAP]),
 			    h->type, h->ident, ntohs(h->len));
-			if (len > 4)
-				sppp_print_bytes((u_char*)(h+1), len-4);
+			sppp_print_bytes((u_char*)(h+1), len-4);
 			addlog(">\n");
 		}
 		break;
@@ -3430,8 +3384,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 				    SPP_ARGS(ifp),
 				    sppp_auth_type_name(PPP_PAP, h->type),
 				    h->ident, ntohs(h->len));
-				if (len > 4)
-					sppp_print_bytes((u_char*)(h+1), len-4);
+				sppp_print_bytes((u_char*)(h+1), len-4);
 				addlog(">\n");
 			}
 			break;
@@ -3530,8 +3483,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			    "<0x%x id=0x%x len=%d",
 			    SPP_ARGS(ifp),
 			    h->type, h->ident, ntohs(h->len));
-			if (len > 4)
-				sppp_print_bytes((u_char*)(h+1), len-4);
+			sppp_print_bytes((u_char*)(h+1), len-4);
 			addlog(">\n");
 		}
 		break;
@@ -3760,8 +3712,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		    SPP_ARGS(ifp), cp->name,
 		    sppp_auth_type_name(cp->proto, lh->type),
 		    lh->ident, ntohs(lh->len));
-		if (len)
-			sppp_print_bytes((u_char*) (lh+1), len);
+		sppp_print_bytes((u_char*) (lh+1), len);
 		addlog(">\n");
 	}
 	if (IF_QFULL (&sp->pp_cpq)) {
@@ -4117,7 +4068,7 @@ sppp_cp_type_name(u_char type)
 	case ECHO_REPLY: return "echo-reply";
 	case DISC_REQ:   return "discard-req";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", type);
+	snprintf (buf, sizeof(buf), "cp/0x%x", type);
 	return buf;
 }
 
@@ -4140,7 +4091,7 @@ sppp_auth_type_name(u_short proto, u_char type)
 		case PAP_NAK:		return "nak";
 		}
 	}
-	snprintf (buf, sizeof(buf), "0x%x", type);
+	snprintf (buf, sizeof(buf), "auth/0x%x", type);
 	return buf;
 }
 
@@ -4157,7 +4108,7 @@ sppp_lcp_opt_name(u_char opt)
 	case LCP_OPT_PROTO_COMP:	return "proto-comp";
 	case LCP_OPT_ADDR_COMP:		return "addr-comp";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", opt);
+	snprintf (buf, sizeof(buf), "lcp/0x%x", opt);
 	return buf;
 }
 
@@ -4170,7 +4121,7 @@ sppp_ipcp_opt_name(u_char opt)
 	case IPCP_OPT_COMPRESSION:	return "compression";
 	case IPCP_OPT_ADDRESS:		return "address";
 	}
-	snprintf (buf, sizeof(buf), "0x%x", opt);
+	snprintf (buf, sizeof(buf), "ipcp/0x%x", opt);
 	return buf;
 }
 
@@ -4215,16 +4166,15 @@ sppp_proto_name(u_short proto)
 	case PPP_PAP:	return "pap";
 	case PPP_CHAP:	return "chap";
 	}
-	snprintf(buf, sizeof(buf), "0x%x", (unsigned)proto);
+	snprintf(buf, sizeof(buf), "proto/0x%x", (unsigned)proto);
 	return buf;
 }
 
 static void
 sppp_print_bytes(const u_char *p, u_short len)
 {
-	addlog(" %02x", *p++);
-	while (--len > 0)
-		addlog("-%02x", *p++);
+	if (len)
+		addlog(" %*D", len, p, "-");
 }
 
 static void
