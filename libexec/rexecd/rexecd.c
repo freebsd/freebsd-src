@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.8.2.2 1996/11/23 08:25:36 phk Exp $
+ *	$Id: rexecd.c,v 1.8.2.3 1997/02/09 04:40:52 imp Exp $
  */
 
 #ifndef lint
@@ -66,9 +66,9 @@ static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
 /*VARARGS1*/
 int error();
 
-char	username[20] = "USER=";
-char	homedir[64] = "HOME=";
-char	shell[64] = "SHELL=";
+char	username[MAXLOGNAME + 5 + 1] = "USER=";
+char	homedir[MAXPATHLEN + 5 + 1] = "HOME=";
+char	shell[MAXPATHLEN + 6 + 1] = "SHELL=";
 char	path[sizeof(_PATH_DEFPATH) + sizeof("PATH=")] = "PATH=";
 char	*envinit[] =
 	    {homedir, shell, path, username, 0};
@@ -213,10 +213,6 @@ doit(f, fromp)
 
 	syslog(LOG_INFO, "login from %s as %s", remote, user);
 
-	if (chdir(pwd->pw_dir) < 0) {
-		error("No remote directory.\n");
-		exit(1);
-	}
 	(void) write(2, "\0", 1);
 	if (port) {
 		(void) pipe(pv);
@@ -276,6 +272,10 @@ doit(f, fromp)
 		cp++;
 	else
 		cp = pwd->pw_shell;
+	if (chdir(pwd->pw_dir) < 0) {
+		error("No remote directory.\n");
+		exit(1);
+	}
 	execl(pwd->pw_shell, cp, "-c", cmdbuf, 0);
 	perror(pwd->pw_shell);
 	exit(1);
