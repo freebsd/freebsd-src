@@ -297,7 +297,7 @@ cb_file_change (pfile, new_map)
     }
 
   update_header_times (new_map->to_file);
-  in_system_header = new_map->sysp != 0;
+  in_system_header = (warn_system_headers && new_map->sysp != 0);
   input_filename = new_map->to_file;
   lineno = to_line;
   map = new_map;

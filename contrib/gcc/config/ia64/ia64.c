@@ -1467,11 +1467,7 @@ ia64_expand_call (retval, addr, nextarg, sibcall_p)
     }
 
   if (sibcall_p)
-    {
-      use_reg (&CALL_INSN_FUNCTION_USAGE (insn), b0);
-      use_reg (&CALL_INSN_FUNCTION_USAGE (insn),
-	       gen_rtx_REG (DImode, AR_PFS_REGNUM));
-    }
+    use_reg (&CALL_INSN_FUNCTION_USAGE (insn), b0);
 }
 void
 ia64_reload_gp ()
@@ -1524,7 +1520,7 @@ ia64_split_call (retval, addr, retaddr, scratch_r, scratch_b,
 
   /* If we find we're calling through a register, then we're actually
      calling through a descriptor, so load up the values.  */
-  if (REG_P (addr))
+  if (REG_P (addr) && GR_REGNO_P (REGNO (addr)))
     {
       rtx tmp;
       bool addr_dead_p;
@@ -2746,7 +2742,7 @@ ia64_expand_epilogue (sibcall_p)
       reg = gen_rtx_REG (DImode, AR_PFS_REGNUM);
       emit_move_insn (reg, alt_reg);
     }
-  else if (! current_function_is_leaf)
+  else if (TEST_HARD_REG_BIT (current_frame_info.mask, AR_PFS_REGNUM))
     {
       alt_regno = next_scratch_gr_reg ();
       alt_reg = gen_rtx_REG (DImode, alt_regno);
@@ -7162,12 +7158,11 @@ ia64_epilogue_uses (regno)
   switch (regno)
     {
     case R_GR (1):
-      /* When a function makes a call through a function descriptor, we
-         will write a (potentially) new value to "gp".  After returning
-         from such a call, we need to make sure the function restores the
-         original gp-value, even if the function itself does not use the
-         gp anymore.  */
-      return (TARGET_CONST_GP && !(TARGET_AUTO_PIC || TARGET_NO_PIC));
+      /* With a call to a function in another module, we will write a new
+	 value to "gp".  After returning from such a call, we need to make
+	 sure the function restores the original gp-value, even if the
+	 function itself does not use the gp anymore.  */
+      return !(TARGET_AUTO_PIC || TARGET_NO_PIC);
 
     case IN_REG (0): case IN_REG (1): case IN_REG (2): case IN_REG (3):
     case IN_REG (4): case IN_REG (5): case IN_REG (6): case IN_REG (7):
@@ -7349,14 +7344,9 @@ bool
 ia64_function_ok_for_sibcall (decl)
      tree decl;
 {
-  /* Direct calls are always ok.  */
-  if (decl)
-    return true;
-
-  /* If TARGET_CONST_GP is in effect, then our caller expects us to
-     return with our current GP.  This means that we'll always have
-     a GP reload after an indirect call.  */
-  return !ia64_epilogue_uses (R_GR (1));
+  /* We must always return with our current GP.  This means we can
+     only sibcall to functions defined in the current module.  */
+  return decl && (*targetm.binds_local_p) (decl);
 }
 
 /* Output assembly directives for prologue regions.  */
