@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <fstab.h>
+#include <libufs.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,26 +70,14 @@ static const char rcsid[] =
 /* the optimization warning string template */
 #define	OPTWARN	"should optimize for %s with minfree %s %d%%"
 
-union {
-	struct	fs sb;
-	char pad[MAXBSIZE];
-} sbun;
-#define	sblock sbun.sb
+struct uufsd disk;
+#define	sblock disk.d_fs
 
-int fi;
-long dev_bsize = 1;
-
-void bwrite(ufs2_daddr_t, const char *, int);
-int bread(ufs2_daddr_t, char *, int);
-void getsb(struct fs *, const char *);
-void putsb(struct fs *, const char *, int);
 void usage(void);
 void printfs(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char *special;
 	const char *name;
@@ -227,7 +216,12 @@ again:
 	}
 	if (fs == NULL && (st.st_mode & S_IFMT) == S_IFDIR)
 		errx(10, "%s: unknown file system", special);
-	getsb(&sblock, special);
+	if (ufs_disk_fillout(&disk, special) == -1) {
+		if (disk.d_error != NULL)
+			errx(11, "%s: %s", special, disk.d_error);
+		else
+			err(12, "%s", special);
+	}
 
 	if (pflag) {
 		printfs();
@@ -362,7 +356,7 @@ again:
 		}
 	}
 
-	putsb(&sblock, special, Aflag);
+	sbwrite(&disk, Aflag);
 	if (active) {
 		bzero(&args, sizeof(args));
 		if (mount("ufs", fs->fs_file,
@@ -374,7 +368,7 @@ again:
 }
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
@@ -383,66 +377,8 @@ usage()
 	exit(2);
 }
 
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-static ufs2_daddr_t sblockloc;
-
 void
-getsb(fs, file)
-	struct fs *fs;
-	const char *file;
-{
-	int i;
-
-	fi = open(file, O_RDONLY);
-	if (fi < 0)
-		err(3, "cannot open %s", file);
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (bread(sblock_try[i], (char *)fs, SBLOCKSIZE))
-			err(4, "%s: bad super block", file);
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblock_try[i])) &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1)
-		err(5, "Cannot find file system superblock");
-	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
-	sblockloc = sblock_try[i] / dev_bsize;
-}
-
-void
-putsb(fs, file, all)
-	struct fs *fs;
-	const char *file;
-	int all;
-{
-	int i;
-
-	/*
-	 * Re-open the device read-write. Use the read-only file
-	 * descriptor as an interlock to prevent the device from
-	 * being mounted while we are switching mode.
-	 */
-	i = fi;
-	fi = open(file, O_RDWR);
-	close(i);
-	if (fi < 0)
-		err(3, "cannot open %s", file);
-	bwrite(sblockloc, (const char *)fs, SBLOCKSIZE);
-	if (all)
-		for (i = 0; i < fs->fs_ncg; i++)
-			bwrite(fsbtodb(fs, cgsblock(fs, i)),
-			    (const char *)fs, SBLOCKSIZE);
-	close(fi);
-}
-
-void
-printfs()
+printfs(void)
 {
 	warnx("ACLs: (-a)                                         %s",
 		(sblock.fs_flags & FS_ACLS)? "enabled" : "disabled");
@@ -466,35 +402,4 @@ printfs()
 	if (sblock.fs_minfree < MINFREE &&
 	    sblock.fs_optim == FS_OPTTIME)
 		warnx(OPTWARN, "space", "<", MINFREE);
-}
-
-void
-bwrite(blk, buf, size)
-	ufs2_daddr_t blk;
-	const char *buf;
-	int size;
-{
-
-	if (lseek(fi, (off_t)blk * dev_bsize, SEEK_SET) < 0)
-		err(6, "FS SEEK");
-	if (write(fi, buf, size) != size)
-		err(7, "FS WRITE");
-}
-
-int
-bread(bno, buf, cnt)
-	ufs2_daddr_t bno;
-	char *buf;
-	int cnt;
-{
-	int i;
-
-	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0)
-		return(1);
-	if ((i = read(fi, buf, cnt)) != cnt) {
-		for(i=0; i<sblock.fs_bsize; i++)
-			buf[i] = 0;
-		return (1);
-	}
-	return (0);
 }
