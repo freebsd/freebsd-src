@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: db_dump.c,v 1.2 1994/09/22 20:45:00 pst Exp $";
+static char rcsid[] = "$Id: db_dump.c,v 1.3 1995/05/30 03:48:35 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -108,7 +108,7 @@ doachkpt()
     }
 
     (void) gettime(&tt);
-    fprintf(fp, "; Dumped at %s", ctime(&tt.tv_sec));
+    fprintf(fp, "; Dumped at %s", ctimel(tt.tv_sec));
     fflush(fp);
     if (ferror(fp)) {
 	dprintf(3, (ddt, "doachkpt(write to checkpoint file failed)\n"));
@@ -119,7 +119,7 @@ doachkpt()
 	int n = scan_root(hashtab);
 
 	if (n < MINROOTS) {
-	    syslog(LOG_ERR, "%d root hints... (too low)", n);
+	    syslog(LOG_NOTICE, "%d root hints... (too low)", n);
 	    fprintf(fp, "; ---- Root hint cache dump ----\n");
 	    (void) db_dump(fcachetab, fp, DB_Z_CACHE, "");
 	}
@@ -134,7 +134,6 @@ doachkpt()
         }
     }
 
-    (void) fsync(fileno(fp));
     if (my_fclose(fp) == EOF) {
         return;
     }
@@ -161,7 +160,7 @@ scan_root(htp)
 	struct timeval soon;
 	int roots = 0;
 
-	dprintf(1, (ddt, "scan_root(0x%x)\n", htp));
+	dprintf(1, (ddt, "scan_root(0x%lx)\n", (u_long)htp));
 
 	/* metric by which we determine whether a root NS pointer is still */
 	/* valid (will be written out if we do a dump).  we also add some */
@@ -236,11 +235,12 @@ doadump()
 	FILE	*fp;
 
 	dprintf(3, (ddt, "doadump()\n"));
+	syslog(LOG_NOTICE, "dumping nameserver data\n");
 
 	if ((fp = fopen(dumpfile, "w")) == NULL)
 		return;
 	gettime(&tt);
-	fprintf(fp, "; Dumped at %s", ctime(&tt.tv_sec));
+	fprintf(fp, "; Dumped at %s", ctimel(tt.tv_sec));
 	if (zones && nzones)
 		zt_dump(fp);
 	fputs(
@@ -256,6 +256,7 @@ doadump()
 	if (fcachetab != NULL)
 		(void) db_dump(fcachetab, fp, DB_Z_ALL, "");
 	(void) my_fclose(fp);
+	syslog(LOG_NOTICE, "finished dumping nameserver data\n");
 }
 
 #ifdef ALLOW_UPDATES
@@ -315,7 +316,7 @@ zt_dump(fp)
 			zp->z_expire, zp->z_minimum);
 		fprintf(fp, ";\tftime=%ld, xaddr=[%s], state=%04x, pid=%d\n",
 			zp->z_ftime, inet_ntoa(zp->z_xaddr),
-			zp->z_flags, zp->z_xferpid);
+			zp->z_flags, (int)zp->z_xferpid);
 		sprintf(buf, ";\tz_addr[%d]: ", zp->z_addrcnt);
 		pre = buf;
 		for (cnt = 0;  cnt < zp->z_addrcnt;  cnt++) {
@@ -324,8 +325,19 @@ zt_dump(fp)
 		}
 		if (zp->z_addrcnt)
 			fputc('\n', fp);
+#ifdef BIND_NOTIFY
+		if (zp->z_notifylist) {
+			register struct notify *ap;
+
+			for (ap = zp->z_notifylist; ap; ap = ap->next)
+				fprintf(fp, ";\tNotify [%s] %s",
+					inet_ntoa(ap->addr),
+					ctime(&ap->last));
+		}
+#endif
 	}
 	fprintf(fp, ";; --zone table--\n");
+	return (0);
 }
 
 int
@@ -388,7 +400,7 @@ db_dump(htp, fp, zone, origin)
 				    fprintf(fp, ".%s.\t", origin); /* ??? */
 			    } else
 				fprintf(fp, "%s\t", np->n_dname);
-			    if (strlen(np->n_dname) < 8)
+			    if (strlen(np->n_dname) < (size_t)8)
 				tab = 1;
 			    found_data++;
 			} else {
@@ -440,8 +452,8 @@ db_dump(htp, fp, zone, origin)
 				case C_HS:
 					GETLONG(n, cp);
 					n = htonl(n);
-					fprintf(fp, "%s",
-					   inet_ntoa(*(struct in_addr *)&n));
+					fputs(inet_ntoa(*(struct in_addr *)&n),
+					      fp);
 					break;
 				}
 				if (dp->d_nstime) {
@@ -489,15 +501,15 @@ db_dump(htp, fp, zone, origin)
 #endif
 				cp += strlen((char *)cp) + 1;
 				GETLONG(n, cp);
-				fprintf(fp, "\t\t%lu", n);
+				fprintf(fp, "\t\t%lu", (u_long)n);
 				GETLONG(n, cp);
-				fprintf(fp, " %lu", n);
+				fprintf(fp, " %lu", (u_long)n);
 				GETLONG(n, cp);
-				fprintf(fp, " %lu", n);
+				fprintf(fp, " %lu", (u_long)n);
 				GETLONG(n, cp);
-				fprintf(fp, " %lu", n);
+				fprintf(fp, " %lu", (u_long)n);
 				GETLONG(n, cp);
-				fprintf(fp, " %lu )", n);
+				fprintf(fp, " %lu )", (u_long)n);
 #if defined(RETURNSOA) && defined(NCACHE)
 				if (dp->d_rcode == NXDOMAIN) {
 					fprintf(fp,";%s.;NXDOMAIN%s-$",cp,sep);
@@ -509,8 +521,16 @@ db_dump(htp, fp, zone, origin)
 			case T_AFSDB:
 			case T_RT:
 				GETSHORT(n, cp);
-				fprintf(fp,"%lu", n);
-				fprintf(fp," %s.", cp);
+				fprintf(fp, "%lu", (u_long)n);
+				fprintf(fp, " %s.", cp);
+				break;
+
+			case T_PX:
+				GETSHORT(n, cp);
+				fprintf(fp, "%lu", (u_long)n);
+				fprintf(fp, " %s.", cp);
+				cp += strlen((char *)cp) + 1;
+				fprintf(fp, " %s.", cp);
 				break;
 
 			case T_TXT:
@@ -538,7 +558,11 @@ db_dump(htp, fp, zone, origin)
 				      isoa.isoa_len);
 				(void) fputs(iso_ntoa(&isoa), fp);
 				break;
-
+#ifdef LOC_RR
+			case T_LOC:
+				(void) fputs(loc_ntoa(dp->d_data, NULL), fp);
+				break;
+#endif /* LOC_RR */
 			case T_UINFO:
 				fprintf(fp, "\"%s\"", cp);
 				break;
@@ -556,8 +580,7 @@ db_dump(htp, fp, zone, origin)
 			case T_WKS:
 				GETLONG(addr, cp);
 				addr = htonl(addr);
-				fprintf(fp, "%s ",
-					inet_ntoa(*(struct in_addr *)&addr));
+				fputs(inet_ntoa(*(struct in_addr *)&addr), fp);
 				proto = protocolname(*cp);
 				cp += sizeof(char);
 				fprintf(fp, "%s ", proto);
@@ -590,23 +613,10 @@ db_dump(htp, fp, zone, origin)
 				  int TmpSize = 2 * dp->d_size + 30;
 				  char *TmpBuf = (char *) malloc(TmpSize);
 				  if (TmpBuf == NULL) {
-					dprintf(1,
-						(ddt,
-						 "Dump T_UNSPEC: bad malloc\n"
-						 )
-						);
-					syslog(LOG_ERR,
-					       "Dump T_UNSPEC: malloc: %m");
 					TmpBuf = "BAD_MALLOC";
 				  }
 				  if (btoa(cp, dp->d_size, TmpBuf, TmpSize)
 				      == CONV_OVERFLOW) {
-					dprintf(1, (ddt,
-				      "Dump T_UNSPEC: Output buffer overflow\n"
-						    )
-						);
-					    syslog(LOG_ERR,
-				    "Dump T_UNSPEC: Output buffer overflow\n");
 					    TmpBuf = "OVERFLOW";
 					}
 					fprintf(fp, "%s", TmpBuf);

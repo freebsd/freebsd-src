@@ -1,12 +1,12 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static char rcsid[] = "$Id: ns_stats.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
+static char rcsid[] = "$Id: ns_stats.c,v 1.2 1995/05/30 03:49:00 rgrimes Exp $";
 #endif /* not lint */
 
 /*
- * ++Copyright++ 1986
+ * ++Copyright++ 1986,1994
  * -
- * Copyright (c) 1986
+ * Copyright (c) 1986,1994
  *    The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@ static char rcsid[] = "$Id: ns_stats.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <syslog.h>
 #include <errno.h>
@@ -80,8 +81,10 @@ static const char *typenames[T_ANY+1] = {
 	"CNAME", "SOA", "MB", "MG", "MR",
 	"NULL", "WKS", "PTR", "HINFO", "MINFO",
 	"MX", "TXT", "RP", "AFSDB", "X25",
-	"ISDN", "RT", "NSAP", 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	"ISDN", "RT", "NSAP", "NSAP_PTR", "SIG",
+	"KEY", "PX", "invalid(GPOS)", "AAAA", "LOC",
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
 	/* 20 per line */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -109,21 +112,24 @@ static void		nameserStats __P((FILE *));
 void
 ns_stats()
 {
-	time_t timenow;
+	time_t timenow = time(NULL);
 	register FILE *f;
 	register int i;
 
+	syslog(LOG_NOTICE, "dumping nameserver stats\n");
+
 	if (!(f = fopen(statsfile, "a"))) {
-		dprintf(1, (ddt, "can't open stat file, \"%s\"\n", statsfile));
-		syslog(LOG_ERR, "cannot open stat file, \"%s\"\n", statsfile);
+		syslog(LOG_NOTICE, "cannot open stat file, \"%s\"\n",
+		       statsfile);
 		return;
 	}
 
-	time(&timenow);
 	fprintf(f, "+++ Statistics Dump +++ (%ld) %s",
 		(long)timenow, ctime(&timenow));
-	fprintf(f, "%d\ttime since boot (secs)\n", timenow - boottime);
-	fprintf(f, "%d\ttime since reset (secs)\n", timenow - resettime);
+	fprintf(f, "%ld\ttime since boot (secs)\n",
+		(long)(timenow - boottime));
+	fprintf(f, "%ld\ttime since reset (secs)\n",
+		(long)(timenow - resettime));
 
 #ifdef DMALLOC
 	/* malloc statistics */
@@ -131,15 +137,15 @@ ns_stats()
 #endif
 
 	/* query type statistics */
-	fprintf(f, "%d\tUnknown query types\n", typestats[0]);
+	fprintf(f, "%lu\tUnknown query types\n", (u_long)typestats[0]);
 	for(i=1; i < T_ANY+1; i++)
 		if (typestats[i])
 			if (typenames[i])
-				fprintf(f, "%lu\t%s queries\n", typestats[i],
-					typenames[i]);
+				fprintf(f, "%lu\t%s queries\n",
+					(u_long)typestats[i], typenames[i]);
 			else
 				fprintf(f, "%lu\ttype %d queries\n",
-					typestats[i], i);
+					(u_long)typestats[i], i);
 
 	/* name server statistics */
 	nameserStats(f);
@@ -147,6 +153,7 @@ ns_stats()
 	fprintf(f, "--- Statistics Dump --- (%ld) %s",
 		(long)timenow, ctime(&timenow));
 	(void) my_fclose(f);
+	syslog(LOG_NOTICE, "done dumping nameserver stats\n");
 }
 
 void
@@ -187,6 +194,12 @@ static const char	*statNames[nssLast] = {
 			"SDupQ",	/* sent them a retry */
 			"SFail",	/* sent them a SERVFAIL */
 			"SFErr",	/* sent them a FORMERR */
+			"SErr",	        /* sent failed (in sendto) */
+#ifdef XSTATS
+			"RNotNsQ",      /* received from remote port != ns_port */
+			"SNaAns",       /* sent them a non autoritative answer */
+			"SNXD",         /* sent them a negative response */
+#endif
 			};
 #endif /*STATS*/
 
@@ -268,10 +281,10 @@ nameserStatsOut(f, stats)
 	u_long stats[];
 {
 	int i;
-	char *pre = "\t";
+	const char *pre = "\t";
 
 	for (i = 0;  i < (int)nssLast;  i++) {
-		fprintf(f, "%s%u", pre, stats[i]);
+		fprintf(f, "%s%lu", pre, (u_long)stats[i]);
 		pre = ((i+1) % 5) ? " " : "  ";
 	}
 	fputc('\n', f);
@@ -282,7 +295,7 @@ nameserStatsHdr(f)
 	FILE *f;
 {
 	int i;
-	char *pre = "\t";
+	const char *pre = "\t";
 
 	fprintf(f, "(Legend)\n");
 	for (i = 0;  i < (int)nssLast;  i++) {
@@ -323,3 +336,63 @@ nameserStats(f)
 	nameserStatsFile = NULL;
 #endif /*STATS*/
 }
+
+#ifdef XSTATS
+/* Benoit Grange, log minimal statistics, called from ns_maint */
+void
+ns_logstats()
+{
+	char buffer[1024];
+	char buffer2[32], header[64];
+	time_t timenow = time(NULL);
+	int i;
+
+#ifdef HAVE_GETRUSAGE
+# define tv_float(tv) ((tv).tv_sec + ((tv).tv_usec / 1000000.0))
+	struct rusage usage, childu;
+
+	getrusage(RUSAGE_SELF, &usage);
+	getrusage(RUSAGE_CHILDREN, &childu);
+
+	sprintf(buffer, "CPU=%gu/%gs CHILDCPU=%gu/%gs",
+		tv_float(usage.ru_utime), tv_float(usage.ru_stime),
+		tv_float(childu.ru_utime), tv_float(childu.ru_stime));
+	syslog(LOG_INFO, "USAGE %lu %lu %s", timenow, boottime, buffer);
+# undef tv_float
+#endif
+
+	sprintf(header, "NSTATS %lu %lu", timenow, boottime);
+	strcpy(buffer, header);
+
+	for (i = 0; i < T_ANY+1; i++) {
+		if (typestats[i]) {
+			if (typenames[i])
+				sprintf(buffer2, " %s=%lu",
+					typenames[i], typestats[i]);
+			else
+				sprintf(buffer2, " %d=%lu", i, typestats[i]);
+			if (strlen(buffer) + strlen(buffer2) >
+			    sizeof(buffer) - 1) {
+				syslog(LOG_INFO, buffer);
+				strcpy(buffer, header);
+			}
+			strcat(buffer, buffer2);
+		}
+	}
+	syslog(LOG_INFO, buffer);
+
+	sprintf(header, "XSTATS %lu %lu", (u_long)timenow, (u_long)boottime);
+	strcpy(buffer, header);
+	for (i = 0;  i < (int)nssLast;  i++) {
+		sprintf(buffer2, " %s=%lu",
+			statNames[i]?statNames[i]:"?", (u_long)globalStats[i]);
+		if (strlen(buffer) + strlen(buffer2) > sizeof(buffer) - 1) {
+			syslog(LOG_INFO, buffer);
+			strcpy(buffer, header);
+		}
+		strcat(buffer, buffer2);
+	}
+	syslog(LOG_INFO, buffer);
+}
+
+#endif /*XSTATS*/

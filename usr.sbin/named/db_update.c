@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_update.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
+static char rcsid[] = "$Id: db_update.c,v 1.2 1995/05/30 03:48:44 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -66,6 +66,7 @@ static char rcsid[] = "$Id: db_update.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+#include <resolv.h>
 
 #include "named.h"
 
@@ -91,18 +92,19 @@ isRefByNS(name, htp)
 
 	for (np = htp->h_tab[0];  np != NULL;  np = np->n_next) {
 		for (dp = np->n_data;  dp != NULL;  dp = dp->d_next) {
-			if ((dp->d_class == C_ANY || dp->d_class == C_IN) &&
-			    (dp->d_type == T_NS) &&
+			if ((dp->d_class == C_ANY ||
+			     dp->d_class == C_IN ||
+			     dp->d_class == C_HS) &&
+			    dp->d_type == T_NS &&
 #ifdef NCACHE
-			    (!dp->d_rcode) &&
+			    !dp->d_rcode &&
 #endif
 			    !strcasecmp(name, (char *)dp->d_data)) {
 				return (1);
 			}
 		}
-		if (np->n_hash && isRefByNS(name, np->n_hash)) {
+		if (np->n_hash && isRefByNS(name, np->n_hash))
 			return (1);
-		}
 	}
 	return (0);
 }
@@ -156,6 +158,13 @@ findMyZone(np, class)
 }
 
 
+#ifdef NO_GLUE
+#define ISVALIDGLUE(xdp) ((xdp)->d_type == T_NS || (xdp)->d_type == T_A)
+#else
+#define ISVALIDGLUE(xdp) (1)
+#endif /*NO_GLUE*/
+
+
 /* int
  * db_update(name, odp, newdp, flags, htp)
  *	update data base node at `name'.  `flags' controls the action.
@@ -207,22 +216,26 @@ db_update(name, odp, newdp, flags, htp)
 	register struct databuf *dp, *pdp;
 	register struct namebuf *np;
 	int zn, isHintNS;
-	char *fname;
+	const char *fname;
 
-	dprintf(3, (ddt, "db_update(%s, 0x%x, 0x%x, 0%o, 0x%x)%s\n",
-		    name, odp, newdp, flags, htp,
+	dprintf(3, (ddt, "db_update(%s, 0x%lx, 0x%lx, 0%o, 0x%lx)%s\n",
+		    name, (u_long)odp, (u_long)newdp, flags, (u_long)htp,
 		    (odp && (odp->d_flags&DB_F_HINT)) ? " hint":"" ));
 	np = nlookup(name, &htp, &fname, newdp != NULL);
 	if (np == NULL || fname != name)
 		return (NONAME);
 
 	/* don't let nonauthoritative updates write in authority zones */
-	if (newdp && (flags & DB_NOTAUTH) &&
-	    (zn = findMyZone(np, newdp->d_class)) != DB_Z_CACHE) {
+	if (newdp && ((zn = findMyZone(np, newdp->d_class)) != DB_Z_CACHE) &&
+#ifdef STUBS
+			    (zones[zn].z_type != Z_STUB) &&
+#endif
+			    (flags & DB_NOTAUTH)) {
 		int foundRR = 0;
 
-		/* don't generate the warning if we've done so recently or
-		 * if the update would have been harmless (identical data).
+		/*
+		 * Don't generate the warning if the update
+		 * would have been harmless (identical data).
 		 */
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
 			if (!db_cmp(dp, newdp)) {
@@ -230,31 +243,28 @@ db_update(name, odp, newdp, flags, htp)
 				break;
 			}
 		}
-		if (!foundRR &&
-		    !haveComplained((char*)from_addr.sin_addr.s_addr,
-				    (char*)dhash((u_char*)name, strlen(name))))
-			syslog(LOG_NOTICE,
-			   "[%s].%d attempted update to auth zone \"%s\" (%s)",
-			       inet_ntoa(from_addr.sin_addr),
-			       ntohs(from_addr.sin_port),
-			       zones[zn].z_origin,
-			       name);
+		if (!foundRR)
+			dprintf(5, (ddt,
+				    "[%s].%d update? to auth zone \"%s\" (%s)",
+				    inet_ntoa(from_addr.sin_addr),
+				    ntohs(from_addr.sin_port),
+				    zones[zn].z_origin,
+				    name));
 		return (AUTH);
+	}
+
+	if (newdp && zn && !(flags & DB_NOTAUTH)) {
+		if (db_getclev(zones[zn].z_origin) > newdp->d_clev) {
+			dprintf(5,(ddt, "attempted update child zone %s, %s\n",
+				zones[zn].z_origin, name));
+			return(AUTH);
+		}
 	}
 
 	/* some special checks for root NS' A RR's */
 	isHintNS = isRefByNS(name, fcachetab);
+#ifdef DEPRECATED
 	if (newdp && isHintNS && newdp->d_type == T_A) {
-		/* obviously bogus addresses die here */
-		if (
-#ifdef NCACHE
-		    (!newdp->d_rcode) &&
-#endif
-		    (((struct in_addr *)newdp->d_data)->s_addr == INADDR_ANY))
-		{
-			syslog(LOG_INFO, "bogus (0.0.0.0) root A RR received");
-			return (AUTH);
-		}
 		/* upgrade credibility of additional data for rootsrv addrs */
 		if (newdp->d_cred == DB_C_ADDITIONAL) {
 			dprintf(3, (ddt,
@@ -267,10 +277,12 @@ db_update(name, odp, newdp, flags, htp)
 			newdp->d_clev = 0;
 		}
 	}
+#endif
 
         /* Reflect certain updates in hint cache also... */
 	/* Don't stick data we are authoritative for in hints. */
         if (!(flags & DB_NOHINTS) &&
+	    (flags & DB_PRIMING) &&
 	    (odp != NULL) &&
 	    (htp != fcachetab) &&
 	    (odp->d_zone <= 0) &&
@@ -296,7 +308,8 @@ db_update(name, odp, newdp, flags, htp)
 			      (flags|DB_NOHINTS),
 			      fcachetab)
 		    != OK) {
-			dprintf(3, (ddt, "db_update: hint %x freed\n", dp));
+			dprintf(3, (ddt, "db_update: hint %lx freed\n",
+				    (u_long)dp));
 			(void) free((char *)dp);
 		}
         }
@@ -322,13 +335,9 @@ db_update(name, odp, newdp, flags, htp)
 				    !odp->d_rcode &&
 #endif /*NCACHE*/
 				    zones[odp->d_zone].z_type != Z_CACHE) {
-					syslog(LOG_ERR,
+					syslog(LOG_INFO,
 				     "%s has CNAME and other data (illegal)\n",
 					    name);
-					dprintf(1, (ddt,
-				    "db_update: %s: CNAME and more (%d, %d)\n",
-						    name, odp->d_type,
-						    dp->d_type));
 					goto skip;
 				}
 				if (!newdp || newdp->d_class != dp->d_class)
@@ -362,9 +371,35 @@ db_update(name, odp, newdp, flags, htp)
 				 * but isn't as credible, reject it.
 				 */
 				if (newdp->d_cred == DB_C_ZONE &&
-				    newdp->d_cred == dp->d_cred &&
-				    newdp->d_clev < dp->d_clev)
-					return (AUTH);
+				    dp->d_cred == DB_C_ZONE) {
+					/* Both records are from a zone file.
+					 * If their credibility levels differ,
+					 * we're dealing with a zone cut.  The
+					 * record with lower clev is from the
+					 * upper zone's file and is therefore
+					 * glue.
+					 */
+					if (newdp->d_clev < dp->d_clev) {
+					    if (!ISVALIDGLUE(newdp)) {
+						syslog(LOG_INFO,
+		"domain %s %s record in zone %s should be in zone %s, ignored",
+						 name, p_type(newdp->d_type),
+						 zones[newdp->d_zone].z_origin,
+						 zones[dp->d_zone].z_origin);
+					    }
+					    return (AUTH);
+					}
+					if (newdp->d_clev > dp->d_clev) {
+					    if (!ISVALIDGLUE(dp)) {
+						syslog(LOG_INFO,
+		"domain %s %s record in zone %s should be in zone %s, deleted",
+						 name, p_type(dp->d_type),
+						 zones[dp->d_zone].z_origin,
+						 zones[newdp->d_zone].z_origin);
+					    }
+					    goto delete;
+					}
+				}
 #ifdef NCACHE
 				/* process NXDOMAIN */
 				/* policy */
@@ -400,12 +435,9 @@ db_update(name, odp, newdp, flags, htp)
 					    ntohs(from_addr.sin_port),
 					    dp->d_cred,
 					    dp->d_clev));
-				if (newdp->d_cred > dp->d_cred ||
-				    (newdp->d_cred == DB_C_ZONE &&
-				     newdp->d_clev > dp->d_clev)) {
-					/* better credibility and the old datum
-					 * was not from a zone file.  remove
-					 * the old datum.
+				if (newdp->d_cred > dp->d_cred) {
+					/* better credibility.
+					 * remove the old datum.
 					 */
 					goto delete;
 				}
@@ -414,9 +446,56 @@ db_update(name, odp, newdp, flags, htp)
 					return (AUTH);
 				}
 				if (newdp->d_cred == DB_C_ZONE &&
-				    newdp->d_cred == dp->d_cred &&
-				    newdp->d_clev < dp->d_clev)
-					return (AUTH);
+				    dp->d_cred == DB_C_ZONE ) {
+					/* Both records are from a zone file.
+					 * If their credibility levels differ,
+					 * we're dealing with a zone cut.  The
+					 * record with lower clev is from the
+					 * upper zone's file and is therefore
+					 * glue.
+					 */
+
+					/* XXX - Tricky situation here is you
+					 * have 2 zones a.b.c and sub.a.b.c
+					 * being served by the same server.
+					 * named will send NS records for
+					 * sub.a.b.c during zone transfer of
+					 * a.b.c zone.  If we're secondary for
+					 * both zones, and we reload zone
+					 * a.b.c, we'll get the NS records
+					 * (and possibly A records to go with
+					 * them?) for sub.a.b.c as part of the
+					 * a.b.c zone transfer.  But we've
+					 * already got a more credible record
+					 * from the sub.a.b.c zone.  So we want
+					 * to ignore the new record, but we
+					 * shouldn't syslog because there's
+					 * nothing the user can do to prevent
+					 * the situation.  Perhaps we should
+					 * only complain when we are primary?
+	 				 */
+
+					if (newdp->d_clev < dp->d_clev) {
+					    if (!ISVALIDGLUE(newdp)) {
+						syslog(LOG_INFO,
+		"domain %s %s record in zone %s should be in zone %s, ignored",
+						 name, p_type(newdp->d_type),
+						 zones[newdp->d_zone].z_origin,
+						 zones[dp->d_zone].z_origin);
+					    }
+					    return (AUTH);
+					}
+					if (newdp->d_clev > dp->d_clev) {
+					    if (!ISVALIDGLUE(dp)) {
+						syslog(LOG_INFO,
+		"domain %s %s record in zone %s should be in zone %s, deleted",
+						 name, p_type(dp->d_type),
+						 zones[dp->d_zone].z_origin,
+						 zones[newdp->d_zone].z_origin);
+					    }
+					    goto delete;
+					}
+				}
 
 				/* credibility is the same.
 				 * let it aggregate in the normal way.
@@ -439,7 +518,8 @@ db_update(name, odp, newdp, flags, htp)
 				if (dp->d_type == T_SOA)
 					goto delete;
 				if (dp->d_type == T_WKS &&
-				    !bcmp(dp->d_data, newdp->d_data, INT16SZ))
+				    !bcmp(dp->d_data, newdp->d_data,
+					  INT32SZ + sizeof(u_char)))
 					goto delete;
 			}
 			if ((flags & DB_NODATA) && !db_cmp(dp, odp)) {
@@ -458,8 +538,8 @@ db_update(name, odp, newdp, flags, htp)
 					if (odp->d_ttl > dp->d_ttl)
 						dp->d_ttl = odp->d_ttl;
 					dprintf(3, (ddt,
-						"db_update: new ttl %d, +%d\n",
-						    dp->d_ttl,
+						"db_update: new ttl %ld +%d\n",
+						    (u_long)dp->d_ttl,
 						    dp->d_ttl - tt.tv_sec));
 				}
 				return (DATAEXISTS);
@@ -493,8 +573,8 @@ db_update(name, odp, newdp, flags, htp)
 	 *	response source address here if flags&NOTAUTH.
 	 */
 	fixttl(newdp);
-	dprintf(3, (ddt, "db_update: adding%s %x\n",
-		    (newdp->d_flags&DB_F_HINT) ? " hint":"", newdp));
+	dprintf(3, (ddt, "db_update: adding%s %lx\n",
+		    (newdp->d_flags&DB_F_HINT) ? " hint":"", (u_long)newdp));
 #ifdef INVQ
 	if (!(newdp->d_flags & DB_F_HINT))
 		addinv(np, newdp);	/* modify inverse query tables */
@@ -553,7 +633,7 @@ db_cmp(dp1, dp2)
 	register struct databuf *dp1, *dp2;
 {
 	register u_char *cp1, *cp2;
-	int len;
+	int len, len2;
 
 	if (dp1->d_type != dp2->d_type || dp1->d_class != dp2->d_class)
 		return (1);
@@ -576,6 +656,7 @@ db_cmp(dp1, dp2)
 	case T_WKS:
 	case T_NULL:
 	case T_NSAP:
+	case T_LOC:
 #ifdef ALLOW_T_UNSPEC
         case T_UNSPEC:
 #endif
@@ -595,11 +676,17 @@ db_cmp(dp1, dp2)
 		cp1 = dp1->d_data;
 		cp2 = dp2->d_data;
 		len = *cp1;
+		len2 = *cp2;
+		if (len != len2)
+                      return (1);
 		if (strncasecmp((char *)++cp1, (char *)++cp2, len))
 			return (1);
 		cp1 += len;
 		cp2 += len;
 		len = *cp1;
+		len2 = *cp2;
+		if (len != len2)
+                      return (1);
 		return (strncasecmp((char *)++cp1, (char *)++cp2, len));
 
 	case T_SOA:
@@ -624,6 +711,17 @@ db_cmp(dp1, dp2)
 		cp2 = dp2->d_data;
 		if (*cp1++ != *cp2++ || *cp1++ != *cp2++)	/* cmp prio */
 			return (1);
+		return (strcasecmp((char *)cp1, (char *)cp2));
+
+	case T_PX:
+		cp1 = dp1->d_data;
+		cp2 = dp2->d_data;
+		if (*cp1++ != *cp2++ || *cp1++ != *cp2++)       /* cmp prio */
+			return (1);
+		if (strcasecmp((char *)cp1, (char *)cp2))
+			return (1);
+		cp1 += strlen((char *)cp1) + 1;
+		cp2 += strlen((char *)cp2) + 1;
 		return (strcasecmp((char *)cp1, (char *)cp2));
 
 	case T_TXT:

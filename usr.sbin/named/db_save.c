@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_save.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
+static char rcsid[] = "$Id: db_save.c,v 1.2 1995/05/30 03:48:42 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -68,6 +68,7 @@ static char rcsid[] = "$Id: db_save.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
 #include <arpa/nameser.h>
 #include <syslog.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "named.h"
 
@@ -75,20 +76,21 @@ static char rcsid[] = "$Id: db_save.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
  * Allocate a name buffer & save name.
  */
 struct namebuf *
-savename(name)
-	char *name;
+savename(name, len)
+	const char *name;
+	int len;
 {
 	register struct namebuf *np;
 
 	np = (struct namebuf *) malloc(sizeof(struct namebuf));
-	if (np == NULL) {
-		syslog(LOG_ERR, "savename: %m");
-		exit(1);
-	}
-	np->n_dname = savestr(name);
-	np->n_next = NULL;
-	np->n_data = NULL;
-	np->n_hash = NULL;
+	if (np == NULL)
+		panic(errno, "savename: malloc");
+	bzero((char*)np, sizeof(struct namebuf));
+	np->n_dname = malloc(len + 1);
+	if (np == NULL)
+		panic(errno, "savename: malloc");
+	strncpy(np->n_dname, name, len);
+	np->n_dname[len] = '\0';
 	return (np);
 }
 
@@ -109,27 +111,18 @@ savedata(class, type, ttl, data, size)
 	int size;
 {
 	register struct databuf *dp;
+	int bytes = (type == T_NS) ? DATASIZE(size)+INT32SZ : DATASIZE(size);
 
-	if (type == T_NS)
-		dp = (struct databuf *)
+	dp = (struct databuf *)
 #ifdef DMALLOC
-		    dmalloc(file, line,
+		dmalloc(file, line, bytes)
 #else
-		    malloc(
+		malloc(bytes)
 #endif
-			   (unsigned)DATASIZE(size)+INT32SZ);
-	else
-		dp = (struct databuf *)
-#ifdef DMALLOC
-			    dmalloc(file, line,
-#else
-			    malloc(
-#endif
-				   (unsigned)DATASIZE(size));
-	if (dp == NULL) {
-		syslog(LOG_ERR, "savedata: %m");
-		exit(1);
-	}
+	;
+	if (dp == NULL)
+		panic(errno, "savedata: malloc");
+	bzero((char*)dp, bytes);
 	dp->d_next = NULL;
 	dp->d_type = type;
 	dp->d_class = class;
@@ -198,8 +191,8 @@ savehash(oldhtp)
 		htp->h_cnt = 0;
 		return (htp);
 	}
-	dprintf(4, (ddt, "savehash(%#x) cnt=%d, sz=%d, newsz=%d\n",
-		    oldhtp, oldhtp->h_cnt, oldhtp->h_size, newsize));
+	dprintf(4, (ddt, "savehash(%#lx) cnt=%d, sz=%d, newsz=%d\n",
+		    (u_long)oldhtp, oldhtp->h_cnt, oldhtp->h_size, newsize));
 	htp->h_cnt = oldhtp->h_cnt;
 	for (n = 0; n < oldhtp->h_size; n++) {
 		for (np = oldhtp->h_tab[n]; np != NULL; np = nnp) {
