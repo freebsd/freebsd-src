@@ -84,8 +84,6 @@ DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(afs_syscall);
-DUMMY(setfsuid);
-DUMMY(setfsgid);
 DUMMY(getsid);
 DUMMY(sysctl);
 DUMMY(getresuid);
