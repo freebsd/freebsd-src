@@ -51,6 +51,21 @@ typedef uint64_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
 typedef uint32_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
 #endif
 
+/* Interesting values for PCI power management */
+struct pcicfg_pp {
+    uint16_t	pp_cap;		/* PCI power management capabilities */
+    uint8_t	pp_status;	/* config space address of PCI power status reg */
+    uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
+    uint8_t	pp_data;	/* config space address of PCI power data reg */
+};
+ 
+/* Interesting values for PCI MSI */
+struct pcicfg_msi {
+    uint16_t	msi_ctrl;	/* Message Control */
+    uint8_t	msi_msgnum;	/* Number of messages */
+    uint16_t	msi_data;	/* Location of MSI data word */
+};
+
 /* config header information common to all header types */
 
 typedef struct pcicfg {
@@ -85,11 +100,8 @@ typedef struct pcicfg {
     uint8_t	slot;		/* config space slot address */
     uint8_t	func;		/* config space function number */
 
-    uint16_t	pp_cap;		/* PCI power management capabilities */
-    uint8_t	pp_status;	/* config space address of PCI power status reg */
-    uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
-    uint8_t	pp_data;	/* config space address of PCI power data reg */
-    
+    struct pcicfg_pp pp;	/* pci power management */
+    struct pcicfg_msi msi;	/* pci msi */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */

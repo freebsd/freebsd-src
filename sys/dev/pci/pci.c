@@ -431,14 +431,22 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		/* Process this entry */
 		switch (REG(ptr, 1)) {
 		case PCIY_PMG:		/* PCI power management */
-			if (cfg->pp_cap == 0) {
-				cfg->pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
-				cfg->pp_status = ptr + PCIR_POWER_STATUS;
-				cfg->pp_pmcsr = ptr + PCIR_POWER_PMCSR;
+			if (cfg->pp.pp_cap == 0) {
+				cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
+				cfg->pp.pp_status = ptr + PCIR_POWER_STATUS;
+				cfg->pp.pp_pmcsr = ptr + PCIR_POWER_PMCSR;
 				if ((nextptr - ptr) > PCIR_POWER_DATA)
-					cfg->pp_data = ptr + PCIR_POWER_DATA;
+					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
 			break;
+		case PCIY_MSI:		/* PCI MSI */
+			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
+			if (cfg->msi.msi_ctrl & PCIM_MSICTRL_64BIT)
+				cfg->msi.msi_data = PCIR_MSI_DATA_64BIT;
+			else
+				cfg->msi.msi_data = PCIR_MSI_DATA;
+			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
+						     PCIM_MSICTRL_MMC_MASK)>>1);
 		default:
 			break;
 		}
@@ -477,22 +485,23 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	uint16_t status;
 	int result;
 
-	if (cfg->pp_cap != 0) {
-		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2) & ~PCIM_PSTAT_DMASK;
+	if (cfg->pp.pp_cap != 0) {
+		status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2)
+		    & ~PCIM_PSTAT_DMASK;
 		result = 0;
 		switch (state) {
 		case PCI_POWERSTATE_D0:
 			status |= PCIM_PSTAT_D0;
 			break;
 		case PCI_POWERSTATE_D1:
-			if (cfg->pp_cap & PCIM_PCAP_D1SUPP) {
+			if (cfg->pp.pp_cap & PCIM_PCAP_D1SUPP) {
 				status |= PCIM_PSTAT_D1;
 			} else {
 				result = EOPNOTSUPP;
 			}
 			break;
 		case PCI_POWERSTATE_D2:
-			if (cfg->pp_cap & PCIM_PCAP_D2SUPP) {
+			if (cfg->pp.pp_cap & PCIM_PCAP_D2SUPP) {
 				status |= PCIM_PSTAT_D2;
 			} else {
 				result = EOPNOTSUPP;
@@ -505,7 +514,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 			result = EINVAL;
 		}
 		if (result == 0)
-			PCI_WRITE_CONFIG(dev, child, cfg->pp_status, status, 2);
+			PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_status, status,
+					 2);
 	} else {
 		result = ENXIO;
 	}
@@ -520,8 +530,8 @@ pci_get_powerstate_method(device_t dev, device_t child)
 	uint16_t status;
 	int result;
 
-	if (cfg->pp_cap != 0) {
-		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2);
+	if (cfg->pp.pp_cap != 0) {
+		status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2);
 		switch (status & PCIM_PSTAT_DMASK) {
 		case PCIM_PSTAT_D0:
 			result = PCI_POWERSTATE_D0;
@@ -671,15 +681,25 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 		if (cfg->intpin > 0)
 			printf("\tintpin=%c, irq=%d\n",
 			    cfg->intpin +'a' -1, cfg->intline);
-		if (cfg->pp_cap) {
+		if (cfg->pp.pp_cap) {
 			uint16_t status;
 
-			status = pci_read_config(cfg->dev, cfg->pp_status, 2);
+			status = pci_read_config(cfg->dev, cfg->pp.pp_status, 2);
 			printf("\tpowerspec %d  supports D0%s%s D3  current D%d\n",
-			    cfg->pp_cap & PCIM_PCAP_SPEC,
-			    cfg->pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
-			    cfg->pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
+			    cfg->pp.pp_cap & PCIM_PCAP_SPEC,
+			    cfg->pp.pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
+			    cfg->pp.pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
 			    status & PCIM_PSTAT_DMASK);
+		}
+		if (cfg->msi.msi_data) {
+			int ctrl;
+
+			ctrl =  cfg->msi.msi_ctrl;
+			printf("\tMSI supports %d message%s%s%s\n",
+			    cfg->msi.msi_msgnum,
+			    (cfg->msi.msi_msgnum == 1) ? "" : "s",
+			    (ctrl & PCIM_MSICTRL_64BIT) ? ", 64 bit" : "",
+			    (ctrl & PCIM_MSICTRL_VECTOR) ? ", vector masks":"");
 		}
 	}
 }
