@@ -42,6 +42,14 @@
 
 enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
 
+#ifdef PC98
+#define	SUBTYPE_FREEBSD		50324
+#define	SUBTYPE_FAT		37218
+#else
+#define	SUBTYPE_FREEBSD		165
+#define	SUBTYPE_FAT		6
+#endif
+
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
 
@@ -87,6 +95,7 @@ print_chunks(Disk *d, int u)
 
     for (i = Total = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
+#ifndef PC98
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 	dialog_clear_norefresh();
 	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
@@ -101,6 +110,7 @@ print_chunks(Disk *d, int u)
 	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	Sanitize_Bios_Geom(d);
     }
+#endif
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     clrtobot();
@@ -153,6 +163,7 @@ print_command_summary()
     move(0, 0);
 }
 
+#ifndef PC98
 static u_char *
 getBootMgr(char *dname)
 {
@@ -193,6 +204,7 @@ getBootMgr(char *dname)
 #endif
     return NULL;
 }
+#endif
 
 int
 diskGetSelectCount(Device ***devs)
@@ -220,7 +232,9 @@ diskPartition(Device *dev)
     int rv, key = 0;
     Boolean chunking;
     char *msg = NULL;
+#ifndef PC98
     u_char *mbrContents;
+#endif
     WINDOW *w = savescr();
     Disk *d = (Disk *)dev->private;
     int size_unit;
@@ -321,9 +335,19 @@ diskPartition(Device *dev)
 		msg = "Slice in use, delete it first or move to an unused one.";
 	    else {
 		char *val, tmp[20], *cp;
-		int size, subtype;
+		int size;
+#ifdef PC98
+		char name[16];
+
+		snprintf(name, 16, "%s", "FreeBSD");
+		val = msgGetInput(name,
+			"Please specify the name for new FreeBSD slice.");
+		if (val)
+			strncpy(name, val, 16);
+#else
+		int subtype;
 		chunk_e partitiontype;
-		
+#endif
 		snprintf(tmp, 20, "%lu", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD slice in blocks\n"
 				  "or append a trailing `M' for megabytes (e.g. 20M).");
@@ -332,7 +356,15 @@ diskPartition(Device *dev)
 			size *= ONE_MEG;
 		    else if (*cp && toupper(*cp) == 'G')
 			size *= ONE_GIG;
-		    strcpy(tmp, "165");
+#ifdef PC98
+		    Create_Chunk(d, chunk_info[current_chunk]->offset, size,
+			freebsd, 3,
+			(chunk_info[current_chunk]->flags & CHUNK_ALIGN),
+			name);
+		    variable_set2(DISK_PARTITIONED, "yes", 0);
+		    record_chunks(d);
+#else
+		    sprintf(tmp, "%d", SUBTYPE_FREEBSD);
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
 				      "Pressing Enter will choose the default, a native FreeBSD\n"
 				      "slice (type 165).  You can choose other types, 6 for a\n"
@@ -342,9 +374,9 @@ diskPartition(Device *dev)
 				      "for you to use another tool, such as DOS FORMAT, to later format\n"
 				      "and use the partition.");
 		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
-			if (subtype == 165)
+			if (subtype == SUBTYPE_FREEBSD)
 			    partitiontype = freebsd;
-			else if (subtype == 6)
+			else if (subtype == SUBTYPE_FAT)
 			    partitiontype = fat;
 			else
 			    partitiontype = unknown;
@@ -358,6 +390,7 @@ diskPartition(Device *dev)
 			variable_set2(DISK_PARTITIONED, "yes", 0);
 			record_chunks(d);
 		    }
+#endif /* PC98 */
 		}
 		clear();
 	    }
@@ -382,7 +415,17 @@ diskPartition(Device *dev)
 		int subtype;
 		chunk_e partitiontype;
 
-		strcpy(tmp, "165");
+		sprintf(tmp, "%d", SUBTYPE_FREEBSD);
+#ifdef PC98
+		val = msgGetInput(tmp, "New partition type:\n\n"
+				  "Pressing Enter will choose the default, a native FreeBSD\n"
+				  "slice (type 50324).  Other popular values are 37218 for\n"
+				  "DOS FAT partition.\n\n"
+				  "Note:  If you choose a non-FreeBSD partition type, it will not\n"
+				  "be formatted or otherwise prepared, it will simply reserve space\n"
+				  "for you to use another tool, such as DOS format, to later format\n"
+				  "and actually use the partition.");
+#else
 		val = msgGetInput(tmp, "New partition type:\n\n"
 				  "Pressing Enter will choose the default, a native FreeBSD\n"
 				  "slice (type 165).  Other popular values are 6 for\n"
@@ -392,10 +435,11 @@ diskPartition(Device *dev)
 				  "be formatted or otherwise prepared, it will simply reserve space\n"
 				  "for you to use another tool, such as DOS format, to later format\n"
 				  "and actually use the partition.");
+#endif /* PC98 */
 		if (val && (subtype = strtol(val, NULL, 0)) > 0) {
-		    if (subtype == 165)
+		    if (subtype == SUBTYPE_FREEBSD)
 			partitiontype = freebsd;
-		    else if (subtype == 6)
+		    else if (subtype == SUBTYPE_FAT)
 			partitiontype = fat;
 		    else
 			partitiontype = unknown;
@@ -457,6 +501,7 @@ diskPartition(Device *dev)
 			       "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes", 0);
 		
+#ifndef PC98
 		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 		 * booteasy or a "standard" MBR -- both would be fatal in this case.
@@ -470,6 +515,7 @@ diskPartition(Device *dev)
 		else
 		    mbrContents = NULL;
 		Set_Boot_Mgr(d, mbrContents);
+#endif /* !PC98 */
 
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
@@ -496,6 +542,7 @@ diskPartition(Device *dev)
 	case '\033':	/* ESC */
 	case 'Q':
 	    chunking = FALSE;
+#ifndef PC98
 	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
@@ -513,10 +560,11 @@ diskPartition(Device *dev)
 		(mbrContents = getBootMgr(d->name)) != NULL)
 		Set_Boot_Mgr(d, mbrContents);
 #endif
+#endif /* !PC98 */
 	    break;
 
 	case 'Z':
-		size_unit = (size_unit + 1) % UNIT_SIZE;
+	    size_unit = (size_unit + 1) % UNIT_SIZE;
 	    break;
 	    
 	default:
@@ -714,7 +762,9 @@ diskPartitionNonInteractive(Device *dev)
 {
     char *cp;
     int i, sz, all_disk = 0;
+#ifndef PC98
     u_char *mbrContents;
+#endif
     Disk *d = (Disk *)dev->private;
 
     record_chunks(d);
@@ -733,8 +783,16 @@ diskPartitionNonInteractive(Device *dev)
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least 10MB in size, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
-		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size, freebsd, 3,
+#ifdef PC98
+		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size,
+				 freebsd, 3,
+				 (chunk_info[i]->flags & CHUNK_ALIGN),
+				 "FreeBSD");
+#else
+		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size,
+				 freebsd, 3,
 				 (chunk_info[i]->flags & CHUNK_ALIGN));
+#endif
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}
@@ -765,7 +823,14 @@ diskPartitionNonInteractive(Device *dev)
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least sz MB, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
-		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3, (chunk_info[i]->flags & CHUNK_ALIGN));
+#ifdef PC98
+		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3,
+				 (chunk_info[i]->flags & CHUNK_ALIGN),
+				 "FreeBSD");
+#else
+		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3,
+				 (chunk_info[i]->flags & CHUNK_ALIGN));
+#endif
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}
@@ -790,10 +855,12 @@ diskPartitionNonInteractive(Device *dev)
 	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_PARTITION);
 	    return;
 	}
+#ifndef PC98
 	if (!all_disk) {
 	    mbrContents = getBootMgr(d->name);
 	    Set_Boot_Mgr(d, mbrContents);
 	}
+#endif
 	variable_set2(DISK_PARTITIONED, "yes", 0);
     }
 }

@@ -18,6 +18,9 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	wizard.c keymap.h
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
+.if ${MACHINE} == "pc98"
+CFLAGS+= -DPC98
+.endif
 .if ${MACHINE_ARCH} != "i386" || defined(X_AS_PKG)
 CFLAGS+= -DX_AS_PKG
 .endif
@@ -30,6 +33,9 @@ makedevs.c:	Makefile rtermcap keymap.h
 	echo '#include <sys/types.h>' > makedevs.tmp
 	./rtermcap ansi | \
 		file2c 'const char termcap_ansi[] = {' ',0};' \
+		>> makedevs.tmp
+	./rtermcap cons25w | \
+		file2c 'const char termcap_cons25w[] = {' ',0};' \
 		>> makedevs.tmp
 	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
@@ -52,7 +58,7 @@ makedevs.c:	Makefile rtermcap keymap.h
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
-.if ${MACHINE_ARCH} != "alpha"
+.if ${MACHINE} == "i386"
 	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
 	file2c 'u_char mbr[] = {' '};' < /boot/mbr >> makedevs.tmp
 .endif
