@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#79 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#80 $
  *
  * $FreeBSD$
  */
@@ -2475,9 +2475,10 @@ reswitch:
 			panic("HOST_MSG_LOOP interrupt with no active message");
 
 #ifdef AHC_DEBUG
-		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
 			ahc_print_devinfo(ahc, &devinfo);
 			printf("INITIATOR_MSG_OUT");
+		}
 #endif
 		phasemis = bus_phase != P_MESGOUT;
 		if (phasemis) {
