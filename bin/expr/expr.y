@@ -1,13 +1,16 @@
 %{
 /* Written by Pace Willisson (pace@blitz.com) 
- * and placed in the public domain
+ * and placed in the public domain.
  *
- * $Header: /b/source/CVS/src/bin/expr/expr.y,v 1.9 1993/07/20 01:10:55 jtc Exp $
+ * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
+ *
+ * $Header: /b/source/CVS/src/bin/expr/expr.y,v 1.11 1993/08/17 16:01:23 jtc Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <err.h>
   
 enum valtype {
 	integer, string
@@ -90,8 +93,7 @@ int i;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL) {
-		fprintf (stderr, "expr: out of memory\n");
-		exit (2);
+		err (2, NULL);
 	}
 
 	vp->type = integer;
@@ -107,8 +109,7 @@ char *s;
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		fprintf (stderr, "expr: out of memory\n");
-		exit (2);
+		err (2, NULL);
 	}
 
 	vp->type = string;
@@ -171,8 +172,7 @@ struct val *vp;
 
 	tmp = malloc (25);
 	if (tmp == NULL) {
-		fprintf (stderr, "expr: out of memory\n");
-		exit (2);
+		err (2, NULL);
 	}
 
 	sprintf (tmp, "%d", vp->u.i);
@@ -251,8 +251,7 @@ int
 yyerror (s)
 char *s;
 {
-	fprintf (stderr, "expr: syntax error\n");
-	exit (2);
+	errx (2, "syntax error");
 }
 
 
@@ -292,7 +291,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);	
-		r = make_integer (strcmp (a->u.s, b->u.s) == 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) == 0);
 	} else {
 		r = make_integer (a->u.i == b->u.i);
 	}
@@ -311,7 +310,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcmp (a->u.s, b->u.s) > 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) > 0);
 	} else {
 		r= make_integer (a->u.i > b->u.i);
 	}
@@ -330,7 +329,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcmp (a->u.s, b->u.s) < 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) < 0);
 	} else {
 		r = make_integer (a->u.i < b->u.i);
 	}
@@ -349,7 +348,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcmp (a->u.s, b->u.s) >= 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) >= 0);
 	} else {
 		r = make_integer (a->u.i >= b->u.i);
 	}
@@ -368,7 +367,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcmp (a->u.s, b->u.s) <= 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) <= 0);
 	} else {
 		r = make_integer (a->u.i <= b->u.i);
 	}
@@ -387,7 +386,7 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcmp (a->u.s, b->u.s) != 0);
+		r = make_integer (strcoll (a->u.s, b->u.s) != 0);
 	} else {
 		r = make_integer (a->u.i != b->u.i);
 	}
@@ -404,8 +403,7 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		fprintf (stderr, "expr: non-numeric argument\n");
-		exit (2);
+		errx (2, "non-numeric argument");
 	}
 
 	r = make_integer (a->u.i + b->u.i);
@@ -421,8 +419,7 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		fprintf (stderr, "expr: non-numeric argument\n");
-		exit (2);
+		errx (2, "non-numeric argument");
 	}
 
 	r = make_integer (a->u.i - b->u.i);
@@ -438,8 +435,7 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		fprintf (stderr, "expr: non-numeric argument\n");
-		exit (2);
+		errx (2, "non-numeric argument");
 	}
 
 	r = make_integer (a->u.i * b->u.i);
@@ -455,13 +451,11 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		fprintf (stderr, "expr: non-numeric argument\n");
-		exit (2);
+		errx (2, "non-numeric argument");
 	}
 
 	if (b->u.i == 0) {
-		fprintf (stderr, "expr: division by zero\n");
-		exit (2);
+		errx (2, "division by zero");
 	}
 
 	r = make_integer (a->u.i / b->u.i);
@@ -477,13 +471,11 @@ struct val *a, *b;
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		fprintf (stderr, "expr: non-numeric argument\n");
-		exit (2);
+		errx (2, "non-numeric argument");
 	}
 
 	if (b->u.i == 0) {
-		fprintf (stderr, "expr: division by zero\n");
-		exit (2);
+		errx (2, "division by zero");
 	}
 
 	r = make_integer (a->u.i % b->u.i);
@@ -518,22 +510,25 @@ struct val *a, *b;
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, newpat, 0)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		fprintf (stderr, "expr: %s\n", errbuf);
-		exit (2);
+		errx (2, "%s", errbuf);
 	}
 	free (newpat);
 
 	/* compare string against pattern */
 	if (regexec(&rp, a->u.s, SE_MAX, rm, 0) == 0) {
 		if (rm[1].rm_so >= 0) {
-			*(a->u.s + rm[1].rm_eo) = 0;
+			*(a->u.s + rm[1].rm_eo) = '\0';
 			v = make_str (a->u.s + rm[1].rm_so);
 
 		} else {
 			v = make_integer (rm[0].rm_eo - rm[0].rm_so);
 		}
 	} else {
-		v = make_integer (0);
+		if (rp.re_nsub == 0) {
+			v = make_integer (0);
+		} else {
+			v = make_str ("");
+		}
 	}
 
 	/* free arguments and pattern buffer */
