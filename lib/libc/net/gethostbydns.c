@@ -389,7 +389,6 @@ gethostanswer(answer, anslen, qname, qtype)
 				bp += nn;
 			}
 
-			buflen -= sizeof(align) - ((u_long)bp % sizeof(align));
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
 
 			if (bp + n >= ep) {
