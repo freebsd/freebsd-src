@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.37 1996/05/06 17:42:13 wollman Exp $
+ *	$Id: ip_output.c,v 1.38 1996/05/21 20:47:31 peter Exp $
  */
 
 #define _IP_VHL
@@ -60,6 +60,13 @@
 #include <machine/mtpr.h>
 #endif
 #include <machine/in_cksum.h>
+
+#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
+#undef COMPAT_IPFW
+#define COMPAT_IPFW 1
+#else
+#undef COMPAT_IPFW
+#endif
 
 u_short ip_id;
 
@@ -325,10 +332,12 @@ sendit:
 	/*
 	 * Check with the firewall...
 	 */
+#ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr && !(*ip_fw_chk_ptr)(&ip, hlen, ifp, 1, &m)) {
 		error = EACCES;
 		goto done;
 	}
+#endif
 
 	/*
 	 * If small enough for interface, can just send directly.
