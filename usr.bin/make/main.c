@@ -930,7 +930,6 @@ ReadMakefile(p, q)
 	void *q __unused;
 {
 	char *fname = p;		/* makefile to read */
-	extern Lst parseIncPath;
 	FILE *stream;
 	char *name, path[MAXPATHLEN];
 	char *MAKEFILE;
