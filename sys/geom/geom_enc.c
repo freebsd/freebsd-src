@@ -101,3 +101,19 @@ g_enc_le4(u_char *p, uint32_t u)
 	p[3] = (u >> 24) & 0xff;
 }
 
+uint64_t
+g_dec_le8(u_char *p)
+{
+
+	return(g_dec_le4(p) | ((uint64_t)(g_dec_le4(p + 4)) << 32));
+}
+
+
+void
+g_enc_le8(u_char *p, uint64_t u)
+{
+
+	g_enc_le4(p, u);
+	g_enc_le4(p + 4, u >> 32);
+}
+
