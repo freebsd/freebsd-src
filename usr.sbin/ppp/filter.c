@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.10 1997/06/09 03:27:19 brian Exp $
+ * $Id: filter.c,v 1.11 1997/06/28 01:34:03 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -308,7 +308,7 @@ struct filterent *ofp;
 
   argc--; argv++;
 
-  if (ofp->action == A_DENY) {
+  if (fp->action == A_DENY) {
     if (STREQ(*argv, "host")) {
       fp->action |= A_UHOST;
       argc--; argv++;
@@ -331,6 +331,8 @@ struct filterent *ofp;
 	if (proto) {
 	  argc--; argv++;
 	}
+      } else {
+	argc--; argv++;
       }
     } else {
       LogPrintf(LogWARN, "Parse: Address/protocol expected.\n");
