@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.47 1995/04/16 14:12:15 davidg Exp $
+ * $Id: vm_pageout.c,v 1.48 1995/04/17 10:00:55 davidg Exp $
  */
 
 /*
@@ -251,7 +251,7 @@ vm_pageout_clean(m, sync)
 
 		object->paging_in_progress++;
 
-		pager = vm_pager_allocate(PG_DFLT, (caddr_t) 0,
+		pager = vm_pager_allocate(PG_DFLT, 0,
 		    object->size, VM_PROT_ALL, 0);
 		if (pager != NULL) {
 			object->pager = pager;

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.5 1995/01/09 16:05:56 davidg Exp $
+ * $Id: vm_pager.h,v 1.6 1995/03/16 18:17:32 bde Exp $
  */
 
 /*
@@ -52,7 +52,7 @@ TAILQ_HEAD(pagerlst, pager_struct);
 
 struct pager_struct {
 	TAILQ_ENTRY(pager_struct) pg_list;	/* links for list management */
-	caddr_t pg_handle;		/* ext. handle (vp, dev, fp) */
+	void *pg_handle;		/* ext. handle (vp, dev, fp) */
 	int pg_type;			/* type of pager */
 	struct pagerops *pg_ops;	/* pager operations */
 	void *pg_data;			/* private pager data */
@@ -70,7 +70,7 @@ struct pager_struct {
 
 struct pagerops {
 	void (*pgo_init) __P((void));		/* Initialize pager. */
-	vm_pager_t(*pgo_alloc) __P((caddr_t, vm_size_t, vm_prot_t, vm_offset_t));	/* Allocate pager. */
+	vm_pager_t(*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_offset_t));	/* Allocate pager. */
 	void (*pgo_dealloc) __P((vm_pager_t));	/* Disassociate. */
 	int (*pgo_getpage) __P((vm_pager_t, vm_page_t, boolean_t));
 	int (*pgo_getpages) __P((vm_pager_t, vm_page_t *, int, int, boolean_t));	/* Get (read) page. */
@@ -106,7 +106,7 @@ struct pagerops {
 #ifdef KERNEL
 extern struct pagerops *dfltpagerops;
 
-vm_pager_t vm_pager_allocate __P((int, caddr_t, vm_size_t, vm_prot_t, vm_offset_t));
+vm_pager_t vm_pager_allocate __P((int, void *, vm_size_t, vm_prot_t, vm_offset_t));
 vm_page_t vm_pager_atop __P((vm_offset_t));
 void vm_pager_bufferinit __P((void));
 void vm_pager_deallocate __P((vm_pager_t));
