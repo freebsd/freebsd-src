@@ -2142,7 +2142,7 @@ fw_bmr(struct firewire_comm *fc)
 	fwdev.status = FWDEVINIT;
 	/* Set cmstr bit on the cycle master */
 	fwmem_write_quad(&fwdev, NULL, 0/*spd*/,
-		0xffff, 0xf0000000 | STATE_SET, 1 << 16,
+		0xffff, 0xf0000000 | STATE_SET, htonl(1 << 16),
 		fw_asy_callback_free);
 
 	return 0;
