@@ -50,6 +50,7 @@
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/aio.h> /* for aio_swake proto */
 
 int	maxsockets;
 
@@ -337,6 +338,8 @@ sowakeup(so, sb)
 		pgsigio(so->so_sigio, SIGIO, 0);
 	if (sb->sb_flags & SB_UPCALL)
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
+	if (sb->sb_flags & SB_AIO)
+		aio_swake(so, sb);
 }
 
 /*

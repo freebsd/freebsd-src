@@ -695,7 +695,9 @@ retry:
 		goto retry;
 	}
 	p->p_flag &= ~P_SELECT;
+
 	error = tsleep((caddr_t)&selwait, PSOCK | PCATCH, "select", timo);
+	
 	splx(s);
 	if (error == 0)
 		goto retry;
