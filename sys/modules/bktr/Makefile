@@ -12,17 +12,14 @@
 # $FreeBSD$
 
 S	= ${.CURDIR}/../..
-.PATH:  $S/pci
+.PATH:  $S/dev/bktr
 KMOD	= bktr 
-SRCS	= brooktree848.c bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
-CLEANFILES	+= bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
+SRCS	= bktr_core.c bktr.h opt_devfs.h opt_bktr.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
+CLEANFILES	+= bktr.h opt_devfs.h opt_bktr.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
 FLAGS		+= ${DEBUG_FLAGS}
 
 bktr.h:
 	echo "#define NBKTR 1" > bktr.h
-
-pci.h:
-	echo "#define NPCI 1" > pci.h
 
 smbus.h:
 	# Does not use SMBUS/IICBUS. Uses the old i2c code self contained in
