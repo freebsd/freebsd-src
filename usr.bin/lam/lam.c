@@ -114,9 +114,10 @@ getargs(char *av[])
 	P = S = F = T = 0;		/* capitalized options */
 	while ((p = *++av) != NULL) {
 		if (*p != '-' || !p[1]) {
-			if (*p == '-')
+			morefiles++;
+			if (*p == '-') {
 				ip->fp = stdin;
-			else if ((ip->fp = fopen(p, "r")) == NULL) {
+			} else if ((ip->fp = fopen(p, "r")) == NULL) {
 				err(1, "%s", p);
 			}
 			ip->pad = P;
