@@ -201,7 +201,7 @@ static driver_t acpi_cpu_driver = {
     sizeof(struct acpi_cpu_softc),
 };
 
-extern devclass_t cpu_devclass;
+static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, acpi, acpi_cpu_driver, cpu_devclass, 0, 0);
 MODULE_DEPEND(cpu, acpi, 1, 1, 1);
 
