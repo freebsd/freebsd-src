@@ -117,6 +117,7 @@ struct lnc_softc {
 	int initialised;
 	int rap;
 	int rdp;
+	struct kern_devconf kdc;
 #ifdef DEBUG
 	int lnc_debug;
 #endif
@@ -137,6 +138,16 @@ void lnc_dump_state(int);
 
 struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
+static struct kern_devconf kdc_lnc = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"lnc", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,
+	""
+};
+
 inline void
 write_csr(int unit, u_short port, u_short val)
 {
@@ -149,6 +160,51 @@ read_csr(int unit, u_short port)
 {
 	outw(lnc_softc[unit].rap, port);
 	return (inw(lnc_softc[unit].rdp));
+}
+
+static inline void
+lnc_registerdev(struct isa_device *isa_dev)
+{
+	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
+	struct kern_devconf *kdc = &sc->kdc;
+	*kdc = kdc_lnc;
+	kdc->kdc_unit = isa_dev->id_unit;
+	kdc->kdc_parentdata = isa_dev; 
+
+	switch(sc->nic.ic) {
+		case LANCE:
+			if (sc->nic.ident == BICC)
+				kdc->kdc_description = "BICC (LANCE) Ethernet controller";
+			else if (sc->nic.ident == NE2100)
+				kdc->kdc_description = "NE2100 (LANCE) Ethernet controller";
+			else if (sc->nic.ident == DEPCA)
+				kdc->kdc_description = "DEPCA (LANCE) Ethernet controller";
+			break;
+		case C_LANCE:
+			if (sc->nic.ident == BICC)
+				kdc->kdc_description = "BICC (C-LANCE) Ethernet controller";
+			else if (sc->nic.ident == NE2100)
+				kdc->kdc_description = "NE2100 (C-LANCE) Ethernet controller";
+			else if (sc->nic.ident == DEPCA)
+				kdc->kdc_description = "DEPCA (C-LANCE) Ethernet controller";
+			break;
+		case PCnet_ISA:
+			kdc->kdc_description = "PCnet-ISA Ethernet controller";
+			break;
+		case PCnet_ISAplus:
+			kdc->kdc_description = "PCnet-ISA+ Ethernet controller";
+			break;
+		case PCnet_32:
+			kdc->kdc_description = "PCnet-32 VL-Bus Ethernet controller";
+			break;
+		case PCnet_PCI:
+			kdc->kdc_description = "PCnet-PCI Ethernet controller";
+			break;
+		default:
+			break;
+	}
+				
+	dev_attach(kdc);
 }
 
 
@@ -475,27 +531,37 @@ lnc_rint(int unit)
 				 * ethernet and packet headers
 				 */
 				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
-				head->m_pkthdr.len = pkt_len - sizeof(*eh);
+				head->m_pkthdr.len = pkt_len - sizeof *eh;
+
+				/*
+				 * BPF expects the ether header to be in the first
+				 * mbuf of the chain so point eh at the right place
+				 * but don't increment the mbuf pointers before
+				 * the bpf tap.
+				 */
+
 				eh = (struct ether_header *) head->m_data;
-				head->m_data += sizeof *eh;
-				head->m_len -= sizeof *eh;
 
 #if NBPFILTER > 0
 				if (sc->bpf)
 					bpf_mtap(sc->bpf, head);
 
 				/* Check this packet is really for us */
-				/* XXX -- this doesn't look right */
 
 				if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
+					!(eh->ether_dhost[0] & 1) && /* Broadcast and multicast */
 					(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-							sizeof(eh->ether_dhost)) != 0) &&
-							(bcmp(eh->ether_dhost, etherbroadcastaddr,
-							sizeof(eh->ether_dhost)) != 0))
+							sizeof(eh->ether_dhost))))
 						m_freem(head);
 				else
 #endif
-				ether_input(&sc->arpcom.ac_if, eh, head);
+				{
+					/* Skip over the ether header */
+					head->m_data += sizeof *eh;
+					head->m_len -= sizeof *eh;
+
+					ether_input(&sc->arpcom.ac_if, eh, head);
+				}
 
 			} else {
 				log(LOG_ERR,"lnc%d: Packet dropped, no mbufs\n",unit);
@@ -750,26 +816,6 @@ lnc_tint(int unit)
 
 }
 
-static struct kern_devconf kdc_lnc[NLNC] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"lnc", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_BUSY,
-	"Generic LANCE-based Ethernet adapter"
-} };
-
-static inline void
-lnc_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_lnc[id->id_unit] = kdc_lnc[0];
-	kdc_lnc[id->id_unit].kdc_unit = id->id_unit;
-	kdc_lnc[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_lnc[id->id_unit]);
-}
-
 int
 lnc_probe(struct isa_device * isa_dev)
 {
@@ -781,6 +827,7 @@ int vsw;
 	printf("Vendor Specific Word = %x\n", vsw);
 #endif
 
+
 	if (nports = bicc_probe(isa_dev))
 		return (nports);
 	if (nports = ne2100_probe(isa_dev))
@@ -788,6 +835,12 @@ int vsw;
 	if (nports = depca_probe(isa_dev))
 		return (nports);
 
+	/*
+	 * Register device even though probe has
+	 * failed so it can be reconfigured later.
+	 */
+
+	lnc_registerdev(isa_dev);
 	return (0);
 }
 
@@ -811,7 +864,7 @@ ne2100_probe(struct isa_device * isa_dev)
 		/* Extract MAC address from PROM */
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			sc->arpcom.ac_enaddr[i] = inb(isa_dev->id_iobase + i);
-
+		lnc_registerdev(isa_dev);
 		return (NE2100_IOSIZE);
 	} else {
 		return (0);
@@ -847,6 +900,8 @@ int i;
 		/* Extract MAC address from PROM */
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			sc->arpcom.ac_enaddr[i] = inb(isa_dev->id_iobase + (i * 2));
+
+		lnc_registerdev(isa_dev);
 		return (BICC_IOSIZE);
 	} else {
 		return (0);
@@ -902,8 +957,10 @@ depca_probe(struct isa_device * isa_dev)
 		/* Extract MAC address from PROM */
 		for (i = 0; i < DEPCA_ADDR_ROM_SIZE; i++)
 			maddr_ring[i] = inb(isa_dev->id_iobase + DEPCA_ADP);
-		if (dec_macaddr_extract(maddr_ring, sc))
+		if (dec_macaddr_extract(maddr_ring, sc)) {
+			lnc_registerdev(isa_dev);
 			return (DEPCA_IOSIZE);
+		}
 	}
 	return (0);
 }
@@ -1037,11 +1094,11 @@ lnc_attach(struct isa_device * isa_dev)
 	 */
 
 	if_attach(&sc->arpcom.ac_if);
+	sc->kdc.kdc_state = DC_IDLE;
 
-	printf("lnc%d: %s, %s address %s\n",
+	printf("lnc%d: %s, address %s\n",
 	       isa_dev->id_unit,
-	       nic_ident[sc->nic.ident],
-	       ic_ident[sc->nic.ic],
+		   sc->kdc.kdc_description,
 	       ether_sprintf(sc->arpcom.ac_enaddr));
 
 #if NBPFILTER > 0
@@ -1523,6 +1580,8 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 	switch (command) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
+		sc->kdc.kdc_state = DC_BUSY;
+
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
@@ -1568,6 +1627,8 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 			 */
 			lnc_init(ifp->if_unit);
 		}
+		sc->kdc.kdc_state = 
+			((ifp->if_flags & IFF_UP) ? DC_BUSY : DC_IDLE);
 		break;
 #ifdef notyet
 	case SIOCADDMULTI:
