@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.45 1997/08/16 19:16:04 wollman Exp $
+ * $Id: nfs_vfsops.c,v 1.46 1997/09/02 01:19:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -382,8 +382,6 @@ nfs_fsinfo(nmp, vp, cred, p)
  *   can talk to the server
  * - If nfs_diskless.mygateway is filled in, use that address as
  *   a default gateway.
- * - hand craft the swap nfs vnode hanging off a fake mount point
- *	if swdevt[0].sw_dev == NODEV
  * - build the rootfs mount point and call mountnfs() to do the rest.
  */
 int

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsdiskless.h,v 1.8 1997/02/22 09:42:47 peter Exp $
+ * $Id: nfsdiskless.h,v 1.9 1997/05/12 19:02:55 tegge Exp $
  */
 
 
@@ -43,8 +43,8 @@
 
 /*
  * Structure that must be initialized for a diskless nfs client.
- * This structure is used by nfs_mountroot() to set up the root and swap
- * vnodes plus do a partial ifconfig(8) and route(8) so that the critical net
+ * This structure is used by nfs_mountroot() to set up the root vnode,
+ * and to do a partial ifconfig(8) and route(8) so that the critical net
  * interface can communicate with the server.
  * The primary bootstrap is expected to fill in the appropriate fields before
  * starting the kernel. Whether or not the swap area is nfs mounted is
