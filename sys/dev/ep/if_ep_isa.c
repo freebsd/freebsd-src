@@ -221,10 +221,18 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		/* Retreive IOPORT */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_ADDR_CFG);
 #ifdef PC98
-		ioport = (((data & 0x1f) * 0x100) + 0x40d0);
+		ioport = (((data & ADDR_CFG_MASK) * 0x100) + 0x40d0);
 #else
-		ioport = (((data & 0x1f) << 4) + 0x200);
+		ioport = (((data & ADDR_CFG_MASK) << 4) + 0x200);
 #endif
+
+		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
+			device_printf(parent, "if_ep: <%s> at port 0x%03x in EISA mode!\n",
+					desc, ioport);
+			/* Set the adaptor tag so that the next card can be found. */
+			outb(ELINK_ID_PORT, tag--);
+			continue;
+		}
 
 		/* Test for an adapter with PnP support. */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_CAP);
