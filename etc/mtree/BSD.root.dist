@@ -20,6 +20,8 @@
         ..
     ..
     etc
+        X11
+        ..
         defaults
         ..
         gnats

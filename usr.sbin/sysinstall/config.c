@@ -709,8 +709,9 @@ tryagain:
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
+	Mkdir("/etc/X11");	/* XXX:Remove this later after we are happy mtree will have created this for us. */
 	systemExecute(execcmd);
-	if (!file_readable("/etc/XF86Config")) {
+	if (!file_readable("/etc/X11/XF86Config")) {
 	    if (!msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
 		goto tryagain;
 	    else {
