@@ -2496,7 +2496,8 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		ifp->if_capenable = ifr->ifr_reqcap;
+		ifp->if_capenable &= ~IFCAP_POLLING;
+		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
 		break;
 
 	default:
