@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.28 1995/11/06 00:36:01 bde Exp $
+ * $Id: nfs_vnops.c,v 1.29 1995/11/09 08:17:02 bde Exp $
  */
 
 /*
@@ -313,10 +313,20 @@ static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
 #endif
 
-void nqnfs_clientlease();
-static int nfs_commit();
-static int nfs_removerpc();
-static int nfs_renamerpc();
+static int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt,
+				struct ucred *cred, struct proc *procp));
+static int	nfs_mknodrpc __P((struct vnode *dvp, struct vnode **vpp,
+				  struct componentname *cnp,
+				  struct vattr *vap));
+static int	nfs_removerpc __P((struct vnode *dvp, char *name, int namelen,
+				   struct ucred *cred, struct proc *proc));
+static int	nfs_renamerpc __P((struct vnode *fdvp, char *fnameptr,
+				   int fnamelen, struct vnode *tdvp,
+				   char *tnameptr, int tnamelen,
+				   struct ucred *cred, struct proc *proc));
+static int	nfs_renameit __P((struct vnode *sdvp,
+				  struct componentname *scnp,
+				  struct sillyrename *sp));
 
 /*
  * Global variables
