@@ -183,7 +183,7 @@ pccnbk_alloc_resources(device_t dev)
 	devi->iorv = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 	    SYS_RES_IOPORT, &rid, start, end, count, RF_ACTIVE);
 	if (!devi->iorv) {
-		printf("Cannot allocate ports 0x%x-0x%x\n", start, end);
+		printf("Cannot allocate ports 0x%lx-0x%lx\n", start, end);
 		return (ENOMEM);
 	}
 	rid = 0;
