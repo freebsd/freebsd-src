@@ -932,7 +932,8 @@ scsixferrate(struct cam_device *device)
 		fprintf(stdout, ")");
 	}
 
-        if (device->inq_data.flags & SID_CmdQue)
+	if (((ccb->cts.valid & CCB_TRANS_TQ_VALID) != 0)
+	 && (ccb->cts.flags & CCB_TRANS_TAG_ENB))
                 fprintf(stdout, ", Tagged Queueing Enabled");
  
         fprintf(stdout, "\n");
