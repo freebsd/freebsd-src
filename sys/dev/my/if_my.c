@@ -1181,6 +1181,7 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 	if (m_new == NULL) {
 		printf("my%d: no memory for rx list -- packet dropped!\n",
 		       sc->my_unit);
+		MY_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 	MCLGET(m_new, M_DONTWAIT);
@@ -1188,6 +1189,7 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 		printf("my%d: no memory for rx list -- packet dropped!\n",
 		       sc->my_unit);
 		m_freem(m_new);
+		MY_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 	c->my_mbuf = m_new;
@@ -1296,8 +1298,10 @@ my_txeof(struct my_softc * sc)
 	ifp = &sc->arpcom.ac_if;
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
-	if (sc->my_cdata.my_tx_head == NULL)
+	if (sc->my_cdata.my_tx_head == NULL) {
+		MY_UNLOCK(sc);
 		return;
+	}
 	/*
 	 * Go through our tx list and free mbufs for those frames that have
 	 * been transmitted.
@@ -1450,6 +1454,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
 		printf("my%d: no memory for tx list", sc->my_unit);
+		MY_UNLOCK(sc);
 		return (1);
 	}
 	if (m_head->m_pkthdr.len > MHLEN) {
@@ -1457,6 +1462,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			printf("my%d: no memory for tx list", sc->my_unit);
+			MY_UNLOCK(sc);
 			return (1);
 		}
 	}
@@ -1871,3 +1877,5 @@ my_shutdown(device_t dev)
 	my_stop(sc);
 	return;
 }
+
+
