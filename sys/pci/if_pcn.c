@@ -657,7 +657,6 @@ pcn_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, (u_int8_t *) eaddr);
-	callout_handle_init(&sc->pcn_stat_ch);
 	PCN_UNLOCK(sc);
 	return(0);
 
@@ -671,7 +670,8 @@ fail:
 	if (sc->pcn_res)
 		bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 
-	mtx_destroy(&sc->pcn_mtx);
+	if (mtx_initialized(&sc->mtx) != 0)
+		mtx_destroy(&sc->pcn_mtx);
 
 	return(error);
 }
@@ -976,6 +976,8 @@ pcn_intr(arg)
 		return;
 	}
 
+	PCN_LOCK(sc);
+
 	CSR_WRITE_4(sc, PCN_IO32_RAP, PCN_CSR_CSR);
 
 	while ((status = CSR_READ_4(sc, PCN_IO32_RDP)) & PCN_CSR_INTR) {
@@ -996,6 +998,7 @@ pcn_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		pcn_start(ifp);
 
+	PCN_UNLOCK(sc);
 	return;
 }
 
