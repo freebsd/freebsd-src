@@ -1,4 +1,4 @@
-/*	$Id: ftp.c,v 1.13 1998/06/09 04:30:51 imp Exp $	*/
+/*	$Id: ftp.c,v 1.14 1998/07/26 18:49:36 imp Exp $	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-__RCSID("$Id: ftp.c,v 1.13 1998/06/09 04:30:51 imp Exp $");
+__RCSID("$Id: ftp.c,v 1.14 1998/07/26 18:49:36 imp Exp $");
 __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -333,7 +333,8 @@ getreply(expecteof)
 			if (dig > 4 && pflag == 1 && isdigit((unsigned char)c))
 				pflag = 2;
 			if (pflag == 2) {
-				if (c != '\r' && c != ')')
+				if (c != '\r' && c != ')' &&
+				    pt < &pasv[sizeof(pasv)-1])
 					*pt++ = c;
 				else {
 					*pt = '\0';
