@@ -25,7 +25,7 @@ CFLAGS+=-DRELEASE_CRUNCH
 CFLAGS+=-DNONAT
 .else
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	alias_cmd.c
+SRCS+=	nat_cmd.c
 LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
 .endif
@@ -59,8 +59,8 @@ SRCS+=	i4b.c
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
 CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
-OBJS+=	alias_cmd.o chap_ms.o radius.o
-chap_ms.o alias_cmd.o radius.o:
+OBJS+=	nat_cmd.o chap_ms.o radius.o
+chap_ms.o nat_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif

@@ -46,7 +46,7 @@
 
 #include "layer.h"
 #ifndef NONAT
-#include "alias_cmd.h"
+#include "nat_cmd.h"
 #endif
 #include "proto.h"
 #include "acf.h"
