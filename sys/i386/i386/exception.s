@@ -269,12 +269,12 @@ doreti_next:
 	 */
 	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
 	jz	doreti_notvm86
-	cmpl	$1,in_vm86call		/* are we in a vm86 call? */
+	cmpl	$1,in_vm86call		/* are we in a vm86 call? XXXSMP */
 	jne	doreti_ast		/* can handle ASTs now if not */
   	jmp	doreti_exit
 
 doreti_notvm86:
-	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
+	testb	$SEL_RPL_MASK,TF_CS(%esp) /* are we returning to user mode? */
 	jz	doreti_exit		/* can't handle ASTs now if not */
 
 doreti_ast:
