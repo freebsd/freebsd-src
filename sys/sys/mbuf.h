@@ -407,7 +407,6 @@ extern	int max_datalen;		/* MHLEN - max_hdr */
 extern	int max_hdr;			/* Largest link + protocol header */
 extern	int max_linkhdr;		/* Largest link-level header */
 extern	int max_protohdr;		/* Largest protocol header */
-extern	struct mbpstat mb_statpcpu[];	/* Per-CPU allocation stats */
 extern	struct mbstat mbstat;		/* General mbuf stats/infos */
 extern	int nmbclusters;		/* Maximum number of clusters */
 extern	int nmbcnt;			/* Scale kmem_map for counter space */
