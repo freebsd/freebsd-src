@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: camlib.c,v 1.1 1998/09/15 06:16:46 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -491,11 +491,29 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 
 	/*
 	 * Attempt to get the passthrough device.  This ioctl will fail if 
-	 * the device name is null, or if the device doesn't exist.
+	 * the device name is null, if the device doesn't exist, or if the
+	 * passthrough driver isn't in the kernel.
 	 */
 	if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
-		sprintf(cam_errbuf, "%s: CAMGETPASSTHRU ioctl failed\n"
-			"%s: %s", func_name, func_name, strerror(errno));
+		char tmpstr[256];
+
+		/*
+		 * If we get ENOENT from the transport layer version of
+		 * the CAMGETPASSTHRU ioctl, it means one of two things:
+		 * either the device name/unit number passed in doesn't
+		 * exist, or the passthrough driver isn't in the kernel.
+		 */
+		if (errno == ENOENT) {
+			snprintf(tmpstr, sizeof(tmpstr),
+				 "\n%s: either the pass driver isn't in "
+				 "your kernel\n%s: or %s%d doesn't exist",
+				 func_name, func_name, dev_name, unit);
+		}
+		snprintf(cam_errbuf, sizeof(cam_errbuf),
+			 "%s: CAMGETPASSTHRU ioctl failed\n"
+			 "%s: %s%s", func_name, func_name, strerror(errno),
+			 (errno == ENOENT) ? tmpstr : "");
+
 		return(NULL);
 	}
 
@@ -589,6 +607,11 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	 * parameter: the passthrough driver unit number.
 	 */
 	if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
+		/*
+		 * At this point we know the passthrough device must exist
+		 * because we just opened it above.  The only way this
+		 * ioctl can fail is if the ccb size is wrong.
+		 */
 		sprintf(cam_errbuf, "%s: CAMGETPASSTHRU ioctl failed\n"
 			"%s: %s", func_name, func_name, strerror(errno));
 		goto crod_bailout;
