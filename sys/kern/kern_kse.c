@@ -626,12 +626,12 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
 		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 		mtx_lock_spin(&sched_lock);
-		ksegrp_link(newkg, p);
 		if (p->p_numksegrps >= max_groups_per_proc) {
-			ksegrp_unlink(newkg);
 			mtx_unlock_spin(&sched_lock);
+			ksegrp_free(newkg);
 			return (EPROCLIM);
 		}
+		ksegrp_link(newkg, p);
 		mtx_unlock_spin(&sched_lock);
 	} else {
 		newkg = kg;
