@@ -66,7 +66,8 @@ instead of the default file
 If debugging support is compiled into
 .Nm
 this option is used to specify the debugging level, or better which kind 
-of debugging messages are displayed. The debugging level is the sum of the
+of debugging messages are displayed.
+The debugging level is the sum of the
 following values:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
@@ -104,14 +105,16 @@ disable displaying debug messages on the full-screen display.
 .It Fl f
 Specifying this option causes
 .Nm
-to enter the full-screen mode of operation. When operating in this mode,
+to enter the full-screen mode of operation.
+When operating in this mode,
 entering the control character
 .Em Control-L
 causes the display to be refreshed and entering
 .Em Carriage-Return
 or
 .Em Enter
-will pop-up a command window. Because the
+will pop-up a command window.
+Because the
 .Nm
 daemon will not listen to messages while the command window is active,
 this command window will disappear automatically after 5 seconds without
@@ -121,7 +124,8 @@ While the command window is active,
 .Em Tab
 or
 .Em Space
-advances to the next menu item. To execute a command, press
+advances to the next menu item.
+To execute a command, press
 .Em Return
 or
 .Em Enter
@@ -135,13 +139,16 @@ facility but instead is appended to a file.
 .It Fl L
 Specifies the name of the logfile which is used when the option
 .Em -l
-is set. See also the keyword
+is set.
+See also the keyword
 .Em rotatesuffix
 in the system section of
 .Xr isdnd.rc 5 .
 .It Fl P
 This option prints out the parsed and verified isdnd configuration in the same
-format as the isdnd.rc file. This output can be used as an isdnd.rc file. This 
+format as the isdnd.rc file.
+This output can be used as an isdnd.rc file.
+This 
 feature is especially useful when debugging an isdnd.rc file to see, what the
 default settings of options are when they are not set in the isdnd.rc input
 file.
@@ -165,7 +172,8 @@ and on which the full-screen mode output is displayed.
 This option may be used to specify the logging facility in case
 .Xr syslog 3
 logging is configured and another facility than the default LOCAL0
-facility shall be used. The facility is to be specified as an integer in
+facility shall be used.
+The facility is to be specified as an integer in
 the range 0-11 or 16-23 (see the file /usr/include/syslog.h). 
 .It Fl t
 In conjunction with the 
@@ -177,7 +185,8 @@ options,
 specifies a terminal type or termcap entry name (such as vt220) for the device
 used for
 .Nm
-full-screen output. This is useful if an unused (no getty running) tty line is
+full-screen output.
+This is useful if an unused (no getty running) tty line is
 used for full-screen output for which no 
 .Li TERM
 environment variable exists.
@@ -189,7 +198,8 @@ is set to
 .Em cmdl .
 .It Fl m
 If the isdn daemon is compiled with local or remote monitoring support,
-this option disables all monitoring access. It overrides the config
+this option disables all monitoring access.
+It overrides the config
 file option
 .Em monitor-allowed .
 .El
@@ -276,7 +286,8 @@ After getting the CDID, the daemon looks up several additional information
 in its entry section of the configuration corresponding to that connection 
 and issues a
 .Em I4B_CONNECT_REQ
-ioctl message to the kernel. The kernel now dials the remote side and
+ioctl message to the kernel.
+The kernel now dials the remote side and
 if the remote side accepts the call, the kernel sends a
 .Em MSG_CONNECT_ACTIVE_IND
 to the daemon.
@@ -325,7 +336,8 @@ message and the CDID corresponding to the call is no longer valid.
 Sending a HUP signal to 
 .Nm
 causes all open connections to be terminated and the configuration file is
-reread. In case aliasfile handling was enabled, the aliasfile is also
+reread.
+In case aliasfile handling was enabled, the aliasfile is also
 reread.
 
 Sending a USR1 signal to 
