@@ -111,8 +111,8 @@ initattr(int argc, char *argv[])
 	char	*fs_path = NULL;
 	char	*zero_buf = NULL;
 	long	loop, num_inodes;
-	int	initattr_rlevel = UFS_EXTATTR_PERM_OWNER;
-	int	initattr_wlevel = UFS_EXTATTR_PERM_OWNER;
+	int	initattr_rlevel = UFS_EXTATTR_PERM_ROOT;
+	int	initattr_wlevel = UFS_EXTATTR_PERM_ROOT;
 	int	ch, i, error;
 
 	optind = 0;
