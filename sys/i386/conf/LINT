@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.8 1995/10/11 06:26:55 davidg Exp $
+#	$Id: LINT,v 1.184.4.9 1995/10/25 17:29:53 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -425,11 +425,11 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 #
-# SCSI host adapters: `aha', `ahb', `aic', `bt', `nca'
+# SCSI host adapters:
 #
 # aha: Adaptec 154x
-# ahb: Adaptec 174x
-# ahc: Adaptec 274x/284x/294x
+# ahb: Adaptec 174x (See Eisa and PCI section below)
+# ahc: Adaptec 274x/284x/294x  (See Eisa and PCI section below)
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
 # nca: ProAudioSpectrum cards using the NCR 5380 or Trantor T130
@@ -441,12 +441,9 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 # probed correctly.
 #
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
-controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
-controller	ahb0	at isa? bio irq ? vector ahbintr
+controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
-
 controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
 controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
 controller	nca1	at isa? port 0x1f84
@@ -723,6 +720,20 @@ device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
 
+# 
+# EISA devices:
+#
+# The EISA bus device is eisa0.  It provides auto-detection and
+# configuration support for all devices on the EISA bus.
+# 
+# The `ahb' device provides support for the Adaptec 174X adapter.
+# 
+# The `ahc' device provides support for the Adaptec 274X and 284X
+# adapters.  The 284X, although a VLB card responds to EISA probes.
+#
+controller	eisa0
+controller	ahb0
+controller	ahc0
 
 #
 # PCI devices:
@@ -730,6 +741,9 @@ device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
 # The main PCI bus device is `pci'.  It provides auto-detection and
 # configuration support for all devices on the PCI bus, using either
 # configuration mode defined in the PCI specification.
+#
+# The `ahc' device provides support for the Adaptec 29/3940(U)(W)
+# and motherboard based AIC7870/AIC7880 adapters
 #
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
