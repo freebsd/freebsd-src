@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: iso88025.h,v 1.10 1999/01/09 19:01:58 lile Exp $
+ * $Id: iso88025.h,v 1.2 1999/03/10 10:11:43 julian Exp $
  *
  * Information gathered from tokenring@freebsd, /sys/net/ethernet.h and
  * the Mach token ring driver.
