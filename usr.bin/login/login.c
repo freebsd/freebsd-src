@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.33 1998/04/30 16:48:20 peter Exp $";
+	"$Id: login.c,v 1.34 1998/04/30 16:50:07 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -118,6 +118,7 @@ int	 klogin __P((struct passwd *, char *, char *, char *));
 #endif
 
 extern void login __P((struct utmp *));
+extern void trimdomain __P((char *, int));
 static void usage __P((void));
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
@@ -213,6 +214,9 @@ main(argc, argv)
 			if (domain && (p = strchr(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
+
+			trimdomain(optarg, UT_HOSTSIZE );
+
 			if (strlen(optarg) > UT_HOSTSIZE) {
 				struct hostent *hp = gethostbyname(optarg);
 
