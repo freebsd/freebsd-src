@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.3 1994/10/10 07:57:33 phk Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.4 1994/12/12 12:35:45 bde Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -765,7 +765,7 @@ freeclusterchain(pmp, cluster)
 		fatblock(pmp, byteoffset, &bn, &bsize, &bo);
 		if (lbn != bn) {
 			if (bp)
-				updatefats(pmp, bp, bn);
+				updatefats(pmp, bp, lbn);
 			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
 			if (error)
 				return error;
