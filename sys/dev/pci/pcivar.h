@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.27 1999/04/17 08:36:07 peter Exp $
+ * $Id: pcivar.h,v 1.28 1999/04/24 19:59:20 peter Exp $
  *
  */
 
@@ -299,8 +299,8 @@ int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
 
-struct moduledata;
-int compat_pci_handler (struct moduledata *, int, void *);
+struct module;
+int compat_pci_handler (struct module *, int, void *);
 #define COMPAT_PCI_DRIVER(name, pcidata)				\
 static moduledata_t name##_mod = {					\
 	#name,								\

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.95 1999/04/16 21:22:52 peter Exp $
+ * $Id: pci.c,v 1.96 1999/04/24 19:59:20 peter Exp $
  *
  */
 
@@ -928,7 +928,7 @@ static devclass_t	pci_devclass;
  * Create a new style driver around each old pci driver.
  */
 int
-compat_pci_handler(struct moduledata *mod, int type, void *data)
+compat_pci_handler(module_t mod, int type, void *data)
 {
 	struct pci_device *dvp = (struct pci_device *)data;
 	driver_t *driver;
@@ -947,7 +947,7 @@ compat_pci_handler(struct moduledata *mod, int type, void *data)
 		devclass_add_driver(pci_devclass, driver);
 		break;
 	case MOD_UNLOAD:
-		printf("%s: module unload not supported!\n", mod->name);
+		printf("%s: module unload not supported!\n", dvp->pd_name);
 		return EOPNOTSUPP;
 	default:
 		break;
