@@ -152,7 +152,7 @@ struct kinfo_proc {
 	char	ki_wmesg[WMESGLEN+1];	/* wchan message */
 	char	ki_login[MAXLOGNAME+1];	/* setlogin name */
 	char	ki_mtxname[MTXNAMELEN+1]; /* mutex name */
-	char	ki_sparestrings[102];	/* spare string space */
+	char	ki_sparestrings[99];	/* spare string space */
 	struct	rusage ki_rusage;	/* process rusage statistics */
 	long	ki_sflag;		/* PS_* flags */
 	struct	priority ki_pri;	/* process priority */
