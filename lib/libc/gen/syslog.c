@@ -32,7 +32,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)syslog.c	8.4 (Berkeley) 3/18/94";
+/*
+static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
+*/
+static const char rcsid[] =
+  "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
