@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.2 1995/10/09 07:20:59 bde Exp $
+.\"	$Id: install.1,v 1.3 1996/01/30 13:52:33 mpp Exp $
 .\"
 .Dd October 9, 1995
 .Dt INSTALL 1
@@ -68,12 +68,12 @@ If the target file already exists, it is overwritten if permissions
 allow.
 .Pp
 .Bl -tag -width Ds
-.It Fl C .
+.It Fl C
 Copy the file, as if the
 .Fl c
 option is specified,
 except if the target file already exists and the files are the same,
-then don't change the modification time of the target
+then don't change the modification time of the target.
 .It Fl c
 Copy the file.
 This flag turns off the default behavior of
