@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.10 1995/03/03 21:21:24 dima Exp $
+ *	$Id: vidcontrol.c,v 1.11 1995/05/30 03:52:53 rgrimes Exp $
  */
 
 #include <ctype.h>
@@ -63,7 +63,7 @@ usage()
 "                  -c blink         (set cursor to blinking inverted block)\n"
 "                  -c destructive   (set cursor to blinking destructive char)\n"
 "                  -d               (dump screenmap to stdout)\n"
-"                  -l filename      (load srceenmap file filename)\n"
+"                  -l filename      (load screenmap file filename)\n"
 "                  -L               (load default screenmap)\n"
 "                  -f DxL filename  (load font, D dots wide & L lines high)\n"
 "                  -t N             (set screensaver timeout in seconds)\n"
