@@ -91,7 +91,10 @@ register struct ww *w;
 			if (p >= buf + n - 1)
 				wwputc(ctrl('g'), w);
 			else
-				wwputs(unctrl(*p++ = c), w);
+				if (isctrl(c))
+  					wwputs(unctrl(*p++ = c), w);
+				else
+					wwputc(*p++ = c, w);
 		}
 	}
 	*p = 0;
@@ -104,6 +107,6 @@ struct ww *w;
 {
 	register i;
 
-	for (i = strlen(unctrl(c)); --i >= 0;)
+	for (i = isctrl(c) ? strlen(unctrl(c)) : 1; --i >= 0;)
 		(void) wwwrite(w, "\b \b", 3);
 }
