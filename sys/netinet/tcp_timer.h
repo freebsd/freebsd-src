@@ -92,11 +92,26 @@
 
 /*
  * Minimum retransmit timer is 3 ticks, for algorithmic stability.
- * The maximum is 64 seconds.  The prior minimum of 1*hz (1 second) badly
- * breaks throughput on any networks faster then a modem that has minor
- * (e.g. 1%) packet loss.
+ * TCPT_RANGESET() will add another TCPTV_CPU_VAR to deal with
+ * the expected worst-case processing variances by the kernels
+ * representing the end points.  Such variances do not always show
+ * up in the srtt because the timestamp is often calculated at
+ * the interface rather then at the TCP layer.  This value is
+ * typically 50ms.  However, it is also possible that delayed
+ * acks (typically 100ms) could create issues so we set the slop
+ * to 200ms to try to cover it.  Note that, properly speaking,
+ * delayed-acks should not create a major issue for interactive
+ * environments which 'P'ush the last segment, at least as 
+ * long as implementations do the required 'at least one ack
+ * for every two packets' for the non-interactive streaming case.
+ * (maybe the RTO calculation should use 2*RTT instead of RTT
+ * to handle the ack-every-other-packet case).
+ *
+ * The prior minimum of 1*hz (1 second) badly breaks throughput on any
+ * networks faster then a modem that has minor (e.g. 1%) packet loss.
  */
 #define	TCPTV_MIN	( 3 )			/* minimum allowable value */
+#define TCPTV_CPU_VAR	( hz/5 )		/* cpu variance allowed (200ms) */
 #define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
 #define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
@@ -116,7 +131,7 @@ static char *tcptimers[] =
  * Force a time value to be in a certain range.
  */
 #define	TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
-	(tv) = (value); \
+	(tv) = (value) + tcp_rexmit_slop; \
 	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
 	else if ((u_long)(tv) > (u_long)(tvmax)) \
@@ -130,6 +145,8 @@ extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_maxidle;			/* time to drop after starting probes */
 extern int tcp_delacktime;		/* time before sending a delayed ACK */
 extern int tcp_maxpersistidle;
+extern int tcp_rexmit_min;
+extern int tcp_rexmit_slop;
 extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
