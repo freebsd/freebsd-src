@@ -17,7 +17,7 @@ CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
-MKDEPCMD=	CC="${CC}" MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
+MKDEP=		-DCRT_BEGIN
 
 .if ${MACHINE_ARCH} == "ia64"
 BEGINSRC=	crtbegin.asm
