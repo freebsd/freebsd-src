@@ -1,2 +1,2 @@
-sinclude(./libtool.m4)dnl
+sinclude(../../libtool.m4)dnl
 

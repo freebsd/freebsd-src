@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.83.2.5.2.3 $)
+AC_REVISION($Revision: 1.83.2.5.2.10 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -508,6 +508,7 @@ then
 	WANT_IRS_THREADSGR_OBJS="\${WANT_IRS_THREADSGR_OBJS}"
 	WANT_IRS_THREADSPW_OBJS="\${WANT_IRS_THREADSPW_OBJS}"
 	WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}"
+	WANT_THREADS_OBJS="\${WANT_THREADS_OBJS}"
 	thread_dir=pthreads
 else
 	ALWAYS_DEFINES=""
@@ -515,6 +516,7 @@ else
 	WANT_IRS_THREADSGR_OBJS=""
 	WANT_IRS_THREADSPW_OBJS=""
 	WANT_IRS_THREADS_OBJS=""
+	WANT_THREADS_OBJS=""
 	thread_dir=nothreads
 fi
 
@@ -525,6 +527,7 @@ AC_SUBST(DO_PTHREADS)
 AC_SUBST(WANT_IRS_THREADSGR_OBJS)
 AC_SUBST(WANT_IRS_THREADSPW_OBJS)
 AC_SUBST(WANT_IRS_THREADS_OBJS)
+AC_SUBST(WANT_THREADS_OBJS)
 
 AC_CHECK_FUNC(if_nametoindex,
 	[USE_IFNAMELINKID="#define USE_IFNAMELINKID 1"],
@@ -1075,6 +1078,7 @@ USE_FIONBIO_IOCTL="#undef USE_FIONBIO_IOCTL"
 case "$host" in
 	*aix3.2*)	PORT_DIR="port/aix32";;
 	*aix4*)		PORT_DIR="port/aix4";;
+	*aix5*)		PORT_DIR="port/aix5";;
 	*aux3*)		PORT_DIR="port/aux3";;
 	*-bsdi2*)	PORT_DIR="port/bsdos2";;
 	*-bsdi*)	PORT_DIR="port/bsdos";;
@@ -2298,11 +2302,13 @@ AC_SUBST(INNETGR_ARGS)
 # Random remaining OS-specific issues involving compiler warnings.
 # XXXDCL print messages to indicate some compensation is being done?
 #
-AC_SUBST(ISC_PLATFORM_BRACEPTHREADONCEINIT)
-ISC_PLATFORM_BRACEPTHREADONCEINIT="#undef ISC_PLATFORM_BRACEPTHREADONCEINIT"
 BROKEN_IN6ADDR_INIT_MACROS="#undef BROKEN_IN6ADDR_INIT_MACROS"
 
 case "$host" in
+	*-aix5.1.*)
+		hack_shutup_pthreadmutexinit=yes
+		hack_shutup_in6addr_init_macros=yes
+		;;
 	*-bsdi3.1*)
 		hack_shutup_sputaux=yes
 		;;
@@ -2314,18 +2320,28 @@ case "$host" in
 	*-bsdi4.1*)
 		hack_shutup_stdargcast=yes
 		;;
+	*-hpux11.11)
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-osf5.1|*-osf5.1b)
+		hack_shutup_in6addr_init_macros=yes
+		;;
 	*-solaris2.8)
-		hack_shutup_pthreadonceinit=yes
+		hack_shutup_pthreadmutexinit=yes
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-solaris2.9)
 		hack_shutup_in6addr_init_macros=yes
 		;;
 esac
 
-case "$hack_shutup_pthreadonceinit" in
+case "$hack_shutup_pthreadmutexinit" in
 	yes)
 		#
-		# Shut up PTHREAD_ONCE_INIT unbraced initializer warnings.
+		# Shut up PTHREAD_MUTEX_INITIALIZER unbraced
+		# initializer warnings.
 		#
-		ISC_PLATFORM_BRACEPTHREADONCEINIT="#define ISC_PLATFORM_BRACEPTHREADONCEINIT 1"
+		AC_DEFINE(SHUTUP_MUTEX_INITIALIZER)
 		;;
 esac
 

@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_print.c,v 1.3.2.1.4.5 2004/07/28 20:16:45 marka Exp $";
+static const char rcsid[] = "$Id: ns_print.c,v 1.3.2.1.4.7 2004/09/16 07:01:12 marka Exp $";
 #endif
 
 /* Import. */
@@ -705,8 +705,8 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 	int n, m;
 	char *p;
 
-	len = SPRINTF((tmp, "\\# %u%s\t; %s", edata - rdata,
-		       rdlen != 0 ? " (" : "", comment));
+	len = SPRINTF((tmp, "\\# %u%s\t; %s", (unsigned)(edata - rdata),
+		       rdlen != 0U ? " (" : "", comment));
 	T(addstr(tmp, len, &buf, &buflen));
 	while (rdata < edata) {
 		p = tmp;

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.15.2.56 2004/06/18 04:39:48 marka Exp $ */
+/* $Id: server.c,v 1.339.2.15.2.59 2004/11/10 22:13:56 marka Exp $ */
 
 #include <config.h>
 
@@ -522,6 +522,7 @@ configure_order(dns_order_t *order, cfg_obj_t *ent) {
 	const char *str;
 	isc_buffer_t b;
 	isc_result_t result;
+	isc_boolean_t addroot;
 
 	result = ns_config_getclass(cfg_tuple_get(ent, "class"),
 				    dns_rdataclass_any, &rdclass);
@@ -538,11 +539,12 @@ configure_order(dns_order_t *order, cfg_obj_t *ent) {
 		str = cfg_obj_asstring(obj);
 	else
 		str = "*";
+	addroot = ISC_TF(strcmp(str, "*") == 0);
 	isc_buffer_init(&b, str, strlen(str));
 	isc_buffer_add(&b, strlen(str));
 	dns_fixedname_init(&fixed);
 	result = dns_name_fromtext(dns_fixedname_name(&fixed), &b,
-				  dns_rootname, ISC_FALSE, NULL);
+				   dns_rootname, ISC_FALSE, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
@@ -557,6 +559,18 @@ configure_order(dns_order_t *order, cfg_obj_t *ent) {
 		mode = 0;
 	else
 		INSIST(0);
+
+	/*
+	 * "*" should match everything including the root (BIND 8 compat).
+	 * As dns_name_matcheswildcard(".", "*.") returns FALSE add a
+	 * explict entry for "." when the name is "*".
+	 */
+	if (addroot) {
+		result = dns_order_add(order, dns_rootname,
+				       rdtype, rdclass, mode);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	}
 
 	return (dns_order_add(order, dns_fixedname_name(&fixed),
 			      rdtype, rdclass, mode));
@@ -1903,7 +1917,8 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 		dns_dispatch_t *dispatch6;
 
 		dispatch6 = dns_resolver_dispatchv6(view->resolver);
-		INSIST(dispatch6 != NULL);
+		if (dispatch6 == NULL)
+			continue;
 		result = dns_dispatch_getlocaladdress(dispatch6, &addr);
 		if (result != ISC_R_SUCCESS)
 			goto fail;
@@ -2805,7 +2820,7 @@ run_server(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	ns_server_t *server = (ns_server_t *)event->ev_arg;
 
-	UNUSED(task);
+	INSIST(task == server->task);
 
 	isc_event_free(&event);
 
@@ -2843,11 +2858,11 @@ run_server(isc_task_t *task, isc_event_t *event) {
 
 	isc_hash_init();
 
-	CHECKFATAL(load_zones(server, ISC_FALSE),
-		   "loading zones");
+	CHECKFATAL(load_zones(server, ISC_FALSE), "loading zones");
 
+	ns_os_started();
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
-		      ISC_LOG_INFO, "running");
+		      ISC_LOG_NOTICE, "running");
 }
 
 void 
@@ -3187,8 +3202,7 @@ loadconfig(ns_server_t *server) {
 	start_reserved_dispatches(server);
 	result = load_configuration(ns_g_lwresdonly ?
 				    lwresd_g_conffile : ns_g_conffile,
-				    server,
-				    ISC_FALSE);
+				    server, ISC_FALSE);
 	if (result == ISC_R_SUCCESS)
 		end_reserved_dispatches(server, ISC_FALSE);
 	else

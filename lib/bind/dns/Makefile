@@ -9,23 +9,23 @@ SRCDIR=		${BIND_DIR}/lib/dns
 
 LIB=		dns
 
-.PATH:		${SRCDIR}/sec/dst
-SRCS+=		dst_api.c \
-		dst_lib.c dst_parse.c \
-		dst_result.c gssapi_link.c \
-		gssapictx.c hmac_link.c \
-		key.c openssl_link.c \
-		openssldh_link.c openssldsa_link.c \
-		opensslrsa_link.c
-
 .PATH:		${SRCDIR}
 SRCS+=		acl.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
-		dnssec.c ds.c forward.c journal.c keytable.c \
+		dnssec.c ds.c \
+		dst_api.c dst_lib.c dst_parse.c dst_result.c \
+		forward.c \
+		gssapi_link.c gssapictx.c hmac_link.c \
+		journal.c \
+		key.c \
+		keytable.c \
 		lib.c log.c lookup.c \
 		master.c masterdump.c message.c \
-		name.c ncache.c nsec.c order.c peer.c portlist.c \
+		name.c ncache.c nsec.c \
+		openssl_link.c openssldh_link.c \
+		openssldsa_link.c opensslrsa_link.c \
+		order.c peer.c portlist.c \
 		rbt.c rbtdb.c rbtdb64.c rcode.c rdata.c \
 		rdatalist.c \
 		rdataset.c rdatasetiter.c rdataslab.c request.c \
@@ -34,7 +34,7 @@ SRCS+=		acl.c adb.c byaddr.c \
 		tsig.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c
 
-CFLAGS+=	-I${SRCDIR}/sec/dst/include -I${SRCDIR}/include -I${SRCDIR}
+CFLAGS+=	-I${SRCDIR}/include/dst -I${SRCDIR}/include -I${SRCDIR}
 CFLAGS+=	-I${.CURDIR}
 
 DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
@@ -115,10 +115,10 @@ DNSINCS=	${SRCDIR}/include/dns/acl.h \
 
 DNSINCSDIR=	${INCLUDEDIR}/dns
 
-DSTINCS=	${SRCDIR}/sec/dst/include/dst/dst.h \
-		${SRCDIR}/sec/dst/include/dst/gssapi.h \
-		${SRCDIR}/sec/dst/include/dst/lib.h \
-		${SRCDIR}/sec/dst/include/dst/result.h \
+DSTINCS=	${SRCDIR}/include/dst/dst.h \
+		${SRCDIR}/include/dst/gssapi.h \
+		${SRCDIR}/include/dst/lib.h \
+		${SRCDIR}/include/dst/result.h
 
 DSTINCSDIR=	${INCLUDEDIR}/dst
 

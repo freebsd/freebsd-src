@@ -51,16 +51,16 @@ struct in_addr
 inet_makeaddr(net, host)
 	u_long net, host;
 {
-	u_long addr;
+	struct in_addr a;
 
 	if (net < 128U)
-		addr = (net << IN_CLASSA_NSHIFT) | (host & IN_CLASSA_HOST);
+		a.s_addr = (net << IN_CLASSA_NSHIFT) | (host & IN_CLASSA_HOST);
 	else if (net < 65536U)
-		addr = (net << IN_CLASSB_NSHIFT) | (host & IN_CLASSB_HOST);
+		a.s_addr = (net << IN_CLASSB_NSHIFT) | (host & IN_CLASSB_HOST);
 	else if (net < 16777216L)
-		addr = (net << IN_CLASSC_NSHIFT) | (host & IN_CLASSC_HOST);
+		a.s_addr = (net << IN_CLASSC_NSHIFT) | (host & IN_CLASSC_HOST);
 	else
-		addr = net | host;
-	addr = htonl(addr);
-	return (*(struct in_addr *)&addr);
+		a.s_addr = net | host;
+	a.s_addr = htonl(a.s_addr);
+	return (a);
 }

@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.2.200.6 2004/07/20 07:01:57 marka Exp $
+# $Id: Makefile.in,v 1.2.200.10 2004/12/10 00:05:48 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -30,6 +30,14 @@ CINCLUDES =	-I. ${BIND9_INCLUDES} ${DNS_INCLUDES} ${ISC_INCLUDES} \
 
 CDEFINES =
 CWARNINGS =
+
+ISCLIBS =	../../lib/isc/libisc.@A@
+ISCCFGLIBS =    ../../lib/isccfg/libisccfg.@A@
+DNSLIBS =    ../../lib/dns/libdns.@A@
+
+ISCDEPLIBS =	../../lib/isc/libisc.@A@
+ISCCFGDEPLIBS =	../../lib/isccfg/libisccfg.@A@
+DNSDEPLIBS =    ../../lib/dns/libdns.@A@
 
 LIBS =		@LIBS@
 
@@ -57,11 +65,11 @@ libbind9.@SA@: ${OBJS}
 	${AR} ${ARFLAGS} $@ ${OBJS}
 	${RANLIB} $@
 
-libbind9.la: ${OBJS}
+libbind9.la: ${OBJS} ${ISCCFGDEPLIBS} ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libbind9.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${LIBS}
+		${OBJS} ${DNSLIBS} ${ISCCFGLIBS} ${ISCLIBS} ${LIBS}
 
 timestamp: libbind9.@A@
 	touch timestamp

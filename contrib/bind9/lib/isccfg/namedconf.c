@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.21.44.28 2004/06/04 02:33:01 marka Exp $ */
+/* $Id: namedconf.c,v 1.21.44.29 2004/10/17 23:19:51 marka Exp $ */
 
 #include <config.h>
 
@@ -586,6 +586,7 @@ options_clauses[] = {
 	{ "has-old-clients", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "heartbeat-interval", &cfg_type_uint32, 0 },
 	{ "host-statistics", &cfg_type_boolean, CFG_CLAUSEFLAG_NOTIMP },
+	{ "host-statistics-max", &cfg_type_uint32, CFG_CLAUSEFLAG_NOTIMP },
 	{ "hostname", &cfg_type_qstringornone, 0 },
 	{ "interface-interval", &cfg_type_uint32, 0 },
 	{ "listen-on", &cfg_type_listenon, CFG_CLAUSEFLAG_MULTI },

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.71.2.6.2.6 2004/06/19 02:30:12 sra Exp $ */
+/* $Id: dig.h,v 1.71.2.6.2.7 2004/09/06 01:33:06 marka Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -192,6 +192,7 @@ struct dig_query {
 	isc_uint32_t msg_count;
 	isc_uint32_t rr_count;
 	char *servname;
+	char *userarg;
 	isc_bufferlist_t sendlist,
 		recvlist,
 		lengthlist;
@@ -209,6 +210,7 @@ struct dig_query {
 
 struct dig_server {
 	char servername[MXNAME];
+	char userarg[MXNAME];
 	ISC_LINK(dig_server_t) link;
 };
 
@@ -272,7 +274,7 @@ dig_lookup_t *
 clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers);
 
 dig_server_t *
-make_server(const char *servname);
+make_server(const char *servname, const char *userarg);
 
 void
 flush_server_list(void);

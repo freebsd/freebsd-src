@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.333.2.23.2.50 2004/08/28 05:53:37 marka Exp $ */
+/* $Id: zone.c,v 1.333.2.23.2.55 2005/02/03 23:50:45 marka Exp $ */
 
 #include <config.h>
 
@@ -1488,7 +1488,7 @@ zone_count_ns_rr(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		result = ISC_R_SUCCESS;
 		goto invalidate_rdataset;
 	}
-	else if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS)
 		goto invalidate_rdataset;
 
 	count = 0;
@@ -1524,6 +1524,22 @@ zone_load_soa_rr(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	dns_rdataset_init(&rdataset);
 	result = dns_db_findrdataset(db, node, version, dns_rdatatype_soa,
 				     dns_rdatatype_none, 0, &rdataset, NULL);
+	if (result == ISC_R_NOTFOUND) {
+		if (soacount != NULL)
+			*soacount = 0;
+		if (serial != NULL)
+			*serial = 0;
+		if (refresh != NULL)
+			*refresh = 0;
+		if (retry != NULL)
+			*retry = 0;
+		if (expire != NULL)
+			*expire = 0;
+		if (minimum != NULL)
+			*minimum = 0;
+		result = ISC_R_SUCCESS;
+		goto invalidate_rdataset;
+	}
 	if (result != ISC_R_SUCCESS)
 		goto invalidate_rdataset;
 
@@ -2199,7 +2215,6 @@ zone_expire(dns_zone_t *zone) {
 	zone->refresh = DNS_ZONE_DEFAULTREFRESH;
 	zone->retry = DNS_ZONE_DEFAULTRETRY;
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_HAVETIMERS);
-	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_NEEDDUMP);
 	zone_unload(zone);
 }
 
@@ -2554,6 +2569,7 @@ zone_unload(dns_zone_t *zone) {
 
 	dns_db_detach(&zone->db);
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_LOADED);
+	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_NEEDDUMP);
 }
 
 void
@@ -2907,6 +2923,7 @@ zone_notify(dns_zone_t *zone) {
 	dns_notifytype_t notifytype;
 	unsigned int flags = 0;
 	isc_boolean_t loggednotify = ISC_FALSE;
+	dns_db_t *db = NULL;
 
 	REQUIRE(DNS_ZONE_VALID(zone));
 
@@ -2921,6 +2938,13 @@ zone_notify(dns_zone_t *zone) {
 	if (notifytype == dns_notifytype_no)
 		return;
 
+	LOCK_ZONE(zone);
+	if (zone->db != NULL)
+		dns_db_attach(zone->db, &db);
+	UNLOCK_ZONE(zone);
+	if (db == NULL)
+		return;
+
 	origin = &zone->origin;
 
 	/*
@@ -2933,14 +2957,13 @@ zone_notify(dns_zone_t *zone) {
 	/*
 	 * Get SOA RRset.
 	 */
-	dns_db_currentversion(zone->db, &version);
-	result = dns_db_findnode(zone->db, origin, ISC_FALSE, &node);
+	dns_db_currentversion(db, &version);
+	result = dns_db_findnode(db, origin, ISC_FALSE, &node);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup1;
 
 	dns_rdataset_init(&soardset);
-	result = dns_db_findrdataset(zone->db, node, version,
-				     dns_rdatatype_soa,
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_soa,
 				     dns_rdatatype_none, 0, &soardset, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup2;
@@ -2997,8 +3020,7 @@ zone_notify(dns_zone_t *zone) {
 	 */
 
 	dns_rdataset_init(&nsrdset);
-	result = dns_db_findrdataset(zone->db, node, version,
-				     dns_rdatatype_ns,
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_ns,
 				     dns_rdatatype_none, 0, &nsrdset, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup3;
@@ -3055,9 +3077,10 @@ zone_notify(dns_zone_t *zone) {
 	if (dns_name_dynamic(&master))
 		dns_name_free(&master, zone->mctx);
  cleanup2:
-	dns_db_detachnode(zone->db, &node);
+	dns_db_detachnode(db, &node);
  cleanup1:
-	dns_db_closeversion(zone->db, &version, ISC_FALSE);
+	dns_db_closeversion(db, &version, ISC_FALSE);
+	dns_db_detach(&db);
 }
 
 /***
@@ -3623,7 +3646,12 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 			result = ISC_R_FAILURE;
 			if (zone->journal != NULL)
 				result = isc_file_settime(zone->journal, &now);
-			if (result != ISC_R_SUCCESS)
+			if (result == ISC_R_SUCCESS &&
+			    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_NEEDDUMP) &&
+			    !DNS_ZONE_FLAG(zone, DNS_ZONEFLG_DUMPING)) {
+				result = isc_file_settime(zone->masterfile,
+							  &now);
+			} else if (result != ISC_R_SUCCESS)
 				result = isc_file_settime(zone->masterfile,
 							  &now);
 			/* Someone removed the file from underneath us! */
@@ -5208,12 +5236,35 @@ static isc_result_t
 zone_replacedb(dns_zone_t *zone, dns_db_t *db, isc_boolean_t dump) {
 	dns_dbversion_t *ver;
 	isc_result_t result;
+	unsigned int soacount = 0;
+	unsigned int nscount = 0;
 
 	/*
 	 * 'zone' locked by caller.
 	 */
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(LOCKED_ZONE(zone));
+
+	result = zone_get_from_db(db, &zone->origin, &nscount, &soacount,
+				  NULL, NULL, NULL, NULL, NULL);
+	if (result == ISC_R_SUCCESS) {
+		if (soacount != 1) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "has %d SOA records", soacount);
+			result = DNS_R_BADZONE;
+		}
+		if (nscount == 0) {
+			dns_zone_log(zone, ISC_LOG_ERROR, "has no NS records");
+			result = DNS_R_BADZONE;
+		}
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	} else {
+		dns_zone_log(zone, ISC_LOG_ERROR,
+			    "retrieving SOA and NS records failed: %s",
+			    dns_result_totext(result));
+		return (result);
+	}
 
 	ver = NULL;
 	dns_db_currentversion(db, &ver);
@@ -5364,10 +5415,19 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 					     "transferred zone "
 					     "has %d SOA record%s", soacount,
 					     (soacount != 0) ? "s" : "");
-			if (nscount == 0)
+			if (nscount == 0) {
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "transferred zone "
 					     "has no NS records");
+				if (DNS_ZONE_FLAG(zone,
+						  DNS_ZONEFLG_HAVETIMERS)) {
+					zone->refresh = DNS_ZONE_DEFAULTREFRESH;
+					zone->retry = DNS_ZONE_DEFAULTRETRY;
+				}
+				DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_HAVETIMERS);
+				zone_unload(zone);
+				goto next_master;
+			}
 			zone->serial = serial;
 			zone->refresh = RANGE(refresh, zone->minrefresh,
 					      zone->maxrefresh);
@@ -5442,6 +5502,7 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 		goto same_master;
 
 	default:
+	next_master:
 		zone->curmaster++;
 	same_master:
 		if (zone->curmaster >= zone->masterscnt) {

@@ -119,6 +119,15 @@ line.
 $GENERATE: The "$$" construct for getting a literal $ into a domain
 name is deprecated.  Use \$ instead.
 
+2.6. TXT records are no longer automatically split.
+
+Some versions of BIND accepted strings in TXT RDATA consisting of more
+than 255 characters and silently split them to be able to encode the
+strings in a protocol conformant way. You may now see errors like this
+        dns_rdata_fromtext: local.db:119: ran out of space
+if you have TXT RRs with too longs strings. Make sure to split the
+string in the zone data file at or before a single one reaches 255
+characters.
 
 3. Interoperability Impact of New Protocol Features
 
@@ -243,4 +252,4 @@ necessary, the umask should be set explicitly in the script used to
 start the named process.
 
 
-$Id: migration,v 1.37.2.3.2.2 2004/03/06 13:16:19 marka Exp $
+$Id: migration,v 1.37.2.3.2.3 2004/11/22 22:33:09 marka Exp $

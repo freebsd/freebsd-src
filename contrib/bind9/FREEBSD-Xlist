@@ -32,8 +32,7 @@ lib/win32
 win32utils
 
 # Various ports to other OSs
-lib/bind/port/aix32
-lib/bind/port/aix4
+lib/bind/port/aix*
 lib/bind/port/aux3
 lib/bind/port/bsdos
 lib/bind/port/bsdos2

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen.c,v 1.3.206.2 2004/03/17 00:29:48 marka Exp $";
+static const char rcsid[] = "$Id: gen.c,v 1.3.206.3 2004/09/16 00:57:34 marka Exp $";
 #endif
 
 /*
@@ -391,8 +391,10 @@ init_map_rules(struct gen_p *irs, const char *conf_file) {
 		default_map_rules(irs);
 		return;
 	}
-	(void) sprintf(pattern, "%%%ds %%%ds %%%ds\n",
-		       sizeof mapname, sizeof accname, sizeof options);
+	(void) sprintf(pattern, "%%%lus %%%lus %%%lus\n",
+		       (unsigned long)sizeof mapname,
+		       (unsigned long)sizeof accname,
+		       (unsigned long)sizeof options);
 	while (fgets(line, sizeof line, conf)) {
 		enum irs_map_id map;
 		enum irs_acc_id acc;

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.90.2.4.2.7 2004/08/18 23:25:58 marka Exp $ */
+/* $Id: nslookup.c,v 1.90.2.4.2.8 2004/09/06 01:33:05 marka Exp $ */
 
 #include <config.h>
 
@@ -402,7 +402,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	debug("printmessage()");
 
 	isc_sockaddr_format(&query->sockaddr, servtext, sizeof(servtext));
-	printf("Server:\t\t%s\n", query->servname);
+	printf("Server:\t\t%s\n", query->userarg);
 	printf("Address:\t%s\n", servtext);
 	
 	puts("");
@@ -461,7 +461,7 @@ show_settings(isc_boolean_t full, isc_boolean_t serv_only) {
 		get_address(srv->servername, port, &sockaddr);
 		isc_sockaddr_format(&sockaddr, sockstr, sizeof(sockstr));
 		printf("Default server: %s\nAddress: %s\n",
-			srv->servername, sockstr);
+			srv->userarg, sockstr);
 		if (!full)
 			return;
 		srv = ISC_LIST_NEXT(srv, link);
@@ -738,7 +738,9 @@ get_next_command(void) {
 		setoption(arg);
 	else if ((strcasecmp(ptr, "server") == 0) ||
 		 (strcasecmp(ptr, "lserver") == 0)) {
+		isc_app_block();
 		set_nameserver(arg);
+		isc_app_unblock();
 		show_settings(ISC_TRUE, ISC_TRUE);
 	} else if (strcasecmp(ptr, "exit") == 0) {
 		in_use = ISC_FALSE;

@@ -1,4 +1,238 @@
 
+	--- 9.3.1 released ---
+
+1818.	[bug]		'named-checkconf -z' triggered an INSIST. [RT #13599]
+
+	--- 9.3.1rc1 released ---
+
+1812.	[port]		win32: IN6_IS_ADDR_UNSPECIFIED macro is incorrect.
+			[RT #13453]
+
+1808.	[bug]		zone.c:notify_zone() contained a race condition,
+			zone->db could change underneath it.  [RT #13511]
+
+1806.	[bug]		The resolver returned the wrong result when a CNAME /
+			DNAME was encountered when fetching glue from a
+			secure namespace. [RT #13501]
+
+1805.	[bug]		Pending status was not being cleared when DLV was
+			active. [RT #13501]
+
+	--- 9.3.1beta2 released ---
+
+1800.	[bug]		Changes #1719 allowed a INSIST to be triggered.
+			[RT #13428]
+
+	--- 9.3.1beta1 released ---
+
+1790.	[cleanup]	Move lib/dns/sec/dst up into lib/dns.  This should
+			allow parallel make to succeed.
+
+1789.	[bug]		Prerequisite test for tkey and dnssec could fail
+			with "configure --with-libtool".
+
+1788.	[bug]		libbind9.la/libbind9.so needs to link against
+			libisccfg.la/libisccfg.so.
+
+1787.	[port]		HPUX: both "cc" and "gcc" need -Wl,+vnocompatwarnings.
+
+1786.	[port]		AIX: libt_api needs to be taught to look for
+			T_testlist in the main executable (--with-libtool).
+			[RT #13239]
+
+1785.	[bug]		libbind9.la/libbind9.so needs to link against
+			libisc.la/libisc.so.
+
+1784.	[cleanup]	"libtool -allow-undefined" is the default.
+			Leave hooks in configure to allow it to be set
+			if needed in the future.
+
+1783.	[cleanup]	We only need one copy of libtool.m4, ltmain.sh in the
+			source tree.
+
+1782.	[port]		OSX: --with-libtool + --enable-libbind broke on
+			__evOptMonoTime.  [RT #13219]
+
+1781.	[port]		FreeBSD 5.3: set PTHREAD_SCOPE_SYSTEM. [RT #12810]
+
+1780.	[bug]		Update libtool to 1.5.10.
+
+1779.	[port]		OSF 5.1: libtool didn't handle -pthread correctly.
+
+1778.   [port]   	HUX 11.11: fix broken IN6ADDR_ANY_INIT and
+			IN6ADDR_LOOPBACK_INIT macros.
+
+1777.   [port]   	OSF 5.1: fix broken IN6ADDR_ANY_INIT and
+			IN6ADDR_LOOPBACK_INIT macros.
+
+1776.   [port]   	Solaris 2.9: fix broken IN6ADDR_ANY_INIT and
+                        IN6ADDR_LOOPBACK_INIT macros.
+
+1775.	[bug]		Only compile getnetent_r.c when threaded. [RT #13205]
+
+1774.	[port]		Aix: Silence compiler warnings / build failures.
+			[RT #13154]
+
+1773.	[bug]		Fast retry on host / net unreachable. [RT #13153]
+
+1770.	[bug]		named-checkconf failed to report missing a missing
+			file clause for rbt{64} master/hint zones. [RT#13009]
+
+1769.	[port]		win32: change compiler flags /MTd ==> /MDd,
+			/MT ==> /MD.
+
+1768.	[bug]		nsecnoexistnodata() could be called with a non-NSEC
+			rdataset. [RT #12907]
+
+1767.	[port]		Builds on IPv6 platforms without IPv6 Advanced API
+			support for (struct in6_pktinfo) failed.  [RT #13077]
+
+1766.	[bug]		Update the master file timestamp on successful refresh
+			as well as the journal's timestamp. [RT# 13062]
+
+1765.	[bug]		configure --with-openssl=auto failed. [RT #12937]
+
+1764.	[bug]		dns_zone_replacedb failed to emit a error message
+			if there was no SOA record in the replacment db.
+			[RT #13016]
+
+1762.	[bug]		isc_interfaceiter_create() could return ISC_R_SUCCESS
+			even when it failed. [RT #12995]
+
+1761.	[bug]		'rndc dumpdb' didn't report unassociated entries.
+			[RT #12971]
+
+1760.	[bug]		Host / net unreachable was not penalising rtt
+			estimates. [RT #12970]
+
+1759.	[bug]		Named failed to startup if the OS supported IPv6
+			but had no IPv6 interfaces configured. [RT #12942]
+
+1754.	[bug]		We wern't always attempting to query the parent
+			server for the DS records at the zone cut.
+			[RT #12774]
+
+1753.	[bug]		Don't serve a slave zone which has no NS records.
+			[RT #12894]
+
+1752.	[port]		Move isc_app_start() to after ns_os_daemonise()
+			as some fork() implementations unblock the signals
+			that are blocked by isc_app_start(). [RT #12810]
+
+1751.	[bug]		--enable-getifaddrs failed under linux. [RT #12867]
+
+1750.	[port]		lib/bind/make/rules.in:subdirs was not bash friendly.
+			[RT #12864]
+
+1749.	[bug]		'check-names response ignore;' failed to ignore.
+			[RT #12866]
+
+1747.	[bug]		BIND 8 compatability: named/named-checkconf failed
+			to parse "host-statistics-max" in named.conf.
+
+1745.	[bug]		Dig/host/nslookup accept replies from link locals
+			regardless of scope if no scope was specified when
+			query was sent. [RT #12745]
+
+1744.	[bug]		If tuple2msgname() failed to convert a tuple to
+			a name a REQUIRE could be triggered. [RT #12796]
+
+1743.	[bug]		If isc_taskmgr_create() was not able to create the
+			requested number of worker threads then destruction
+			of the manager would trigger an INSIST() failure.
+			[RT #12790]
+			
+1742.	[bug]		Deleting all records at a node then adding a
+			previously existing record, in a single UPDATE
+			transaction, failed to leave / regenerate the
+			associated RRSIG records. [RT #12788]
+
+1741.	[bug]		Deleting all records at a node in a secure zone
+			using a update-policy grant failed. [RT #12787]
+
+1740.	[bug]		Replace rbt's hash algorithm as it performed badly
+			with certain zones. [RT #12729]
+			
+			NOTE: a hash context now needs to be established
+			via isc_hash_create() if the application was not
+			already doing this.
+
+1739.	[bug]		dns_rbt_deletetree() could incorrectly return
+			ISC_R_QUOTA.  [RT #12695]
+
+1738.	[bug]		Enable overrun checking by default. [RT #12695]
+
+1737.	[bug]		named failed if more than 16 masters were specified.
+			[RT #12627]
+
+1736.	[bug]		dst_key_fromnamedfile() could fail to read a
+			public key. [RT #12687]
+			
+1735.	[bug]		'dig +sigtrace' could die with a REQUIRE failure.
+			[RE #12688]
+
+1734.	[cleanup]	'rndc-confgen -a -t' remove extra '/' in path.
+			[RT #12588]
+
+1733.	[bug]		Return non-zero exit status on initial load failure.
+			[RT #12658]
+
+1732.	[bug]		'rrset-order name "*"' wasn't being applied to ".".
+			[RT #12467]
+
+1731.	[port]		darwin: relax version test in ifconfig.sh.
+			[RT #12581]
+
+1730.	[port]		Determine the length type used by the socket API.
+			[RT #12581]
+
+1728.	[doc]		Update check-names documentation.
+
+1727.	[bug]		named-checkzone: check-names support didn't match
+			documentation.
+
+1726.	[port]		aix5: add support for aix5.
+
+1725.	[port]		linux: update error message on interaction of threads,
+			capabilities and setuid support (named -u). [RT #12541]
+
+1724.	[bug]		Look for DNSKEY records with "dig +sigtrace".
+			[RT #12557]
+
+1723.	[cleanup]	Silence compiler warnings from t_tasks.c. [RT #12493]
+
+1722.	[bug]		Don't commit the journal on malformed ixfr streams.
+			[RT #12519]
+
+1721.	[bug]		Error message from the journal processing were not
+			always identifing the relevent journal. [RT #12519]
+
+1720.	[bug]		'dig +chase' did not terminate on a RFC 2308 Type 1
+			negative response. [RT #12506]
+
+1719.	[bug]		named was not correctly caching a RFC 2308 Type 1
+			negative response. [RT #12506]
+
+1718.	[bug]		nsupdate was not handling RFC 2308 Type 3 negative
+			responses when looking for the zone / master server.
+			[RT #12506]
+
+1717.	[port]		solaris: ifconfig.sh did not support Solaris 10.
+			"ifconfig.sh down" didn't work for Solaris 9.
+
+1716.	[doc]		named.conf(5) was being installed in the wrong
+			location.  [RT# 12441]
+
+1714.	[bug]		dig/host/nslookup were only trying the first
+			address when a nameserver was specified by name.
+			[RT #12286]
+
+1713.	[port]		linux: extend capset failure message to say:
+			please ensure that the capset kernel module is
+			loaded.  see insmod(8)
+
+1712.	[bug]		Missing FULLCHECK for "trusted-key" in dig.
+
 	--- 9.3.0 released ---
 
 1711.	[func]		'rndc unfreeze' has been deprecated by 'rndc thaw'.
@@ -298,6 +532,10 @@
 
 1609.	[func]		dig now has support to chase DNSSEC signature chains.
 			Requires -DDIG_SIGCHASE=1 to be set in STD_CDEFINES.
+
+			DNSSEC validation code in dig coded by Olivier Courtay
+			(olivier.courtay@irisa.fr) for the IDsA project
+			(http://idsa.irisa.fr).
 
 1608.	[func]		dig and host now accept -4/-6 to select IP transport
 			to use when making queries.

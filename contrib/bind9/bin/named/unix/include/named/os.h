@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.14.2.2.8.8 2004/03/08 04:04:21 marka Exp $ */
+/* $Id: os.h,v 1.14.2.2.8.9 2004/09/29 06:36:44 marka Exp $ */
 
 #ifndef NS_OS_H
 #define NS_OS_H 1
@@ -60,5 +60,8 @@ ns_os_shutdownmsg(char *command, isc_buffer_t *text);
 
 void
 ns_os_tzset(void);
+
+void
+ns_os_started(void);
 
 #endif /* NS_OS_H */

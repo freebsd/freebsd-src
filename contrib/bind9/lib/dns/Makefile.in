@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.126.2.3.2.15 2004/07/20 07:01:57 marka Exp $
+# $Id: Makefile.in,v 1.126.2.3.2.17 2004/12/09 04:07:15 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -29,9 +29,10 @@ top_srcdir =	@top_srcdir@
 
 @BIND9_MAKE_INCLUDES@
 
-CINCLUDES =	-I. ${DNS_INCLUDES} ${ISC_INCLUDES}
+CINCLUDES =	-I. -Iinclude ${DNS_INCLUDES} \
+		${ISC_INCLUDES} @DST_OPENSSL_INC@ @DST_GSSAPI_INC@
 
-CDEFINES =
+CDEFINES =	-DUSE_MD5 @USE_OPENSSL@ @USE_GSSAPI@
 CWARNINGS =
 
 ISCLIBS =	../../lib/isc/libisc.@A@
@@ -42,13 +43,10 @@ LIBS =		@LIBS@
 
 # Alphabetically
 
-DSTOBJS =	sec/dst/dst_api.@O@ \
-		sec/dst/dst_lib.@O@ sec/dst/dst_parse.@O@ \
-		sec/dst/dst_result.@O@ sec/dst/gssapi_link.@O@ \
-		sec/dst/gssapictx.@O@ sec/dst/hmac_link.@O@ \
-		sec/dst/key.@O@ sec/dst/openssl_link.@O@ \
-		sec/dst/openssldh_link.@O@ sec/dst/openssldsa_link.@O@ \
-		sec/dst/opensslrsa_link.@O@
+DSTOBJS =	dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
+		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@ \
+		openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
+		opensslrsa_link.@O@
 
 # Alphabetically
 DNSOBJS =	acl.@O@ adb.@O@ byaddr.@O@ \
@@ -69,6 +67,12 @@ DNSOBJS =	acl.@O@ adb.@O@ byaddr.@O@ \
 OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS}
 
 # Alphabetically
+DSTSRCS =	dst_api.c dst_lib.c dst_parse.c \
+		dst_result.c gssapi_link.c gssapictx.c \
+		hmac_link.c key.c \
+		openssl_link.c openssldh_link.c \
+		openssldsa_link.c opensslrsa_link.c
+
 SRCS =		acl.c adb.c byaddr.c \
 		cache.c callbacks.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
@@ -83,8 +87,9 @@ SRCS =		acl.c adb.c byaddr.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
 		tsig.c ttl.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c ${OTHERSRCS}
+SRCS = ${DSTSRCS} ${DNSSRCS}
 
-SUBDIRS =	include sec
+SUBDIRS =	include 
 TARGETS =	include/dns/enumtype.h include/dns/enumclass.h \
 		include/dns/rdatastruct.h timestamp
 
@@ -159,6 +164,5 @@ depend: include/dns/enumtype.h include/dns/enumclass.h \
 	include/dns/rdatastruct.h code.h
 subdirs: include/dns/enumtype.h include/dns/enumclass.h \
 	include/dns/rdatastruct.h code.h
-${DNSOBJS}: include/dns/enumtype.h include/dns/enumclass.h \
+${OBJS}: include/dns/enumtype.h include/dns/enumclass.h \
 	include/dns/rdatastruct.h
-rdata.${0}: code.h

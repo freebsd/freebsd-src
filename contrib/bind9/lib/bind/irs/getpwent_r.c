@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getpwent_r.c,v 1.5.206.1 2004/03/09 08:33:36 marka Exp $";
+static const char rcsid[] = "$Id: getpwent_r.c,v 1.5.206.2 2004/09/17 13:32:37 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -130,7 +130,7 @@ getpwuid_r(uid_t uid,  struct passwd *pwptr, char *buf, int buflen) {
 PASS_R_RETURN
 getpwent_r(struct passwd *pwptr, PASS_R_ARGS) {
 	struct passwd *pw = getpwent();
-	int res;
+	int res = 0;
 
 	if (pw == NULL)
 		return (PASS_R_BAD);
@@ -184,7 +184,7 @@ endpwent_r(void)
 PASS_R_RETURN
 fgetpwent_r(FILE *f, struct passwd *pwptr, PASS_R_COPY_ARGS) {
 	struct passwd *pw = fgetpwent(f);
-	int res;
+	int res = 0;
 
 	if (pw == NULL)
 		return (PASS_R_BAD);

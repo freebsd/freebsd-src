@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.c,v 1.13.126.5 2004/05/15 03:46:12 jinmei Exp $ */
+/* $Id: getaddresses.c,v 1.13.126.6 2004/09/16 01:00:58 marka Exp $ */
 
 #include <config.h>
 #include <string.h>
@@ -84,7 +84,7 @@ bind9_getaddresses(const char *hostname, in_port_t port,
 			isc_sockaddr_v6fromin(&addrs[0], &in4, port);
 		*addrcount = 1;
 		return (ISC_R_SUCCESS);
-	} else if (strlen(hostname) <= 127) {
+	} else if (strlen(hostname) <= 127U) {
 		char tmpbuf[128], *d;
 		isc_uint32_t zone = 0;
 
