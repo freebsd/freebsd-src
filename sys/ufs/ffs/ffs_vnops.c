@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.24 1997/03/04 18:35:15 bde Exp $
+ * $Id: ffs_vnops.c,v 1.25 1997/03/22 06:53:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/lockf.h>
@@ -237,13 +238,14 @@ VNODEOP_SET(ffs_fifoop_opv_desc);
 /*
  * Enabling cluster read/write operations.
  */
-int doclusterread = 1;
-int doclusterwrite = 1;
+static int ffs_doclusterread = 1;
+static int ffs_doclusterwrite = 1;
 
-#include <sys/sysctl.h>
 SYSCTL_NODE(_vfs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS filesystem");
-SYSCTL_INT(_vfs_ffs, FFS_CLUSTERREAD, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
-SYSCTL_INT(_vfs_ffs, FFS_CLUSTERWRITE, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
+SYSCTL_INT(_vfs_ffs, FFS_CLUSTERREAD, doclusterread,
+		   CTLFLAG_RW, &ffs_doclusterread, 0, "");
+SYSCTL_INT(_vfs_ffs, FFS_CLUSTERWRITE, doclusterwrite,
+		   CTLFLAG_RW, &ffs_doclusterwrite, 0, "");
 
 #include <ufs/ufs/ufs_readwrite.c>
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.28 1997/03/03 16:23:02 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.29 1997/03/22 06:53:44 bde Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -123,7 +123,7 @@ READ(ap)
 #else
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
-		else if (doclusterread)
+		else if (ffs_doclusterread)
 			error = cluster_read(vp, ip->i_size, lbn,
 				size, NOCRED, uio->uio_resid, seqcount, &bp);
 		else if (lbn - 1 == vp->v_lastr) {
@@ -281,7 +281,7 @@ WRITE(ap)
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
 		} else if (xfersize + blkoffset == fs->fs_bsize) {
-			if (doclusterwrite) {
+			if (ffs_doclusterwrite) {
 				bp->b_flags |= B_CLUSTEROK;
 				cluster_write(bp, ip->i_size);
 			} else {
