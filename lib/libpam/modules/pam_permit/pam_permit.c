@@ -32,9 +32,9 @@ __FBSDID("$FreeBSD$");
 #define	PAM_SM_SESSION
 #define	PAM_SM_PASSWORD
 
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <security/_pam_macros.h>
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #define NOBODY "nobody"
 
