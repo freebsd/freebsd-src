@@ -43,30 +43,32 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for various NICs and embedded ethernet interfaces
+driver provides support for various NICs and embedded Ethernet interfaces
 based on the VIA Networking Technologies VT612x Gigabit Ethernet
 controller chips.
 .Pp
 The VT612x 33/66Mhz PCI device which combines a tri-speed MAC with
-an integrated 10/100/1000 copper PHY. The MAC supports TCP/IP hardware
+an integrated 10/100/1000 copper PHY.
+The MAC supports TCP/IP hardware
 checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
 as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
 64-bit multicast hash filter, 4 separate transmit DMA queues, flow control
-and jumbo frames up to 16K in size. The VT612x has a 16K receive
-FIFO and 48K transmit FIFO.
+and jumbo frames up to 16K in size.
+The VT612x has a 16K receive FIFO and 48K transmit FIFO.
 .Pp
 The
 .Nm
 driver takes advantage of the VT612x's checksum offload and VLAN
 tagging features, as well as the jumbo frame and CAM filter support.
 The CAM filter is used for multicast address filtering to provide
-64 perfect multicast address filter support. If it is necessary for
-the interface to join more than 64 multicast groups, the driver will
-switch over to using the hash filter.
+64 perfect multicast address filter support.
+If it is necessary for the interface to join more than 64 multicast
+groups, the driver will switch over to using the hash filter.
 .Pp
 The jumbo frame support can be enabled by setting the interface MTU
 to any value larger than the default of 1500 bytes, up to a maximum
-of 9000 bytes. The receive and transmit checksum offload support
+of 9000 bytes.
+The receive and transmit checksum offload support
 can be toggled on and off using the
 .Xr ifconfig 8
 utility.
@@ -149,7 +151,7 @@ Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
 .It
-VIA Networking LAN-on-motherboard Gigabig Ethernet
+VIA Networking LAN-on-motherboard Gigabit Ethernet
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -159,7 +161,6 @@ A fatal initialization error has occurred.
 A fatal initialization error has occurred.
 .It "nge%d: couldn't map interrupt"
 A fatal initialization error has occurred.
-during initialization.
 .It "nge%d: failed to enable memory mapping!"
 The driver failed to initialize PCI shared memory mapping.
 This might
