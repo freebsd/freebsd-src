@@ -33,7 +33,6 @@
  */
 
 #include "tw.h"
-#if NTW > 0
 
 /*
  * Driver configuration parameters
@@ -1153,5 +1152,3 @@ static int twchecktime(int target, int tol)
   }
 }
 #endif /* HIRESTIME */
-
-#endif /* NTW */

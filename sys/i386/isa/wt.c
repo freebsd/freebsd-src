@@ -58,8 +58,6 @@
  */
 
 #include "wt.h"
-#if NWT > 0
-
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -978,5 +976,3 @@ wtstatus (wtinfo_t *t)
 	splx(x);
 	return (1);
 }
-
-#endif /* NWT */

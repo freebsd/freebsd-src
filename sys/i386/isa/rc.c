@@ -35,7 +35,6 @@
 
 #include "rc.h"
 
-#if NRC > 0
 /*#define RCDEBUG*/
 
 #include <sys/param.h>
@@ -1452,5 +1451,3 @@ rc_wait0(nec, unit, chan, line)
 		printf("rc%d/%d: channel command timeout, rc.c line: %d\n",
 		      unit, chan, line);
 }
-
-#endif /* NRC */
