@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: e_acos.S,v 1.5 1997/02/22 15:08:43 peter Exp $")
+RCSID("$Id: e_acos.S,v 1.2.8.1 1997/03/03 14:17:17 bde Exp $")
 
 /*
  * acos(x) = atan2(sqrt(1  - x^2, x).

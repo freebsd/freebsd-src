@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: s_finite.S,v 1.1.1.1 1994/08/19 09:40:01 jkh Exp $")
+RCSID("$Id: s_finite.S,v 1.2 1994/08/19 11:14:24 jkh Exp $")
 
 ENTRY(finite)
 	movl	8(%esp),%eax
