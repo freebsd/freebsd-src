@@ -32,10 +32,10 @@
  * Structure definitions for the Cardbus Bridge driver
  */
 
-struct intrhand {
-	void(*func)(void*arg);
+struct cbb_intrhand {
+	driver_intr_t *intr;
 	void	*arg;
-	STAILQ_ENTRY(intrhand) entries;
+	STAILQ_ENTRY(cbb_intrhand) entries;
 };
 
 struct cbb_reslist {
@@ -65,6 +65,7 @@ struct cbb_softc {
 	struct mtx	mtx;
 	struct cv	cv;
 	u_int32_t	flags;
+#define CBB_CARD_OK		0x08000000
 #define	CBB_KLUDGE_ALLOC	0x10000000
 #define	CBB_16BIT_CARD		0x20000000
 #define	CBB_KTHREAD_RUNNING	0x40000000
@@ -80,6 +81,7 @@ struct cbb_softc {
 #define	CB_TOPIC95	7		/* Toshiba ToPIC95 */
 #define	CB_TOPIC97	8		/* Toshiba ToPIC97/100 */
 	SLIST_HEAD(, cbb_reslist) rl;
+	STAILQ_HEAD(, cbb_intrhand) intr_handlers;
 
 	device_t	cbdev;
 	device_t	pccarddev;

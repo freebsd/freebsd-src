@@ -143,7 +143,7 @@ struct yenta_chipinfo {
 	{PCIC_ID_TI1410, "TI1410 PCI-CardBus Bridge", CB_TI12XX},
 	{PCIC_ID_TI1420, "TI1420 PCI-CardBus Bridge", CB_TI12XX},
 	{PCIC_ID_TI1421, "TI1421 PCI-CardBus Bridge", CB_TI12XX},
-	{PCIC_ID_TI1450, "TI1450 PCI-CardBus Bridge", CB_TI125X},
+	{PCIC_ID_TI1450, "TI1450 PCI-CardBus Bridge", CB_TI125X}, /*SIC!*/
 	{PCIC_ID_TI1451, "TI1451 PCI-CardBus Bridge", CB_TI12XX},
 	{PCIC_ID_TI1510, "TI1510 PCI-CardBus Bridge", CB_TI12XX},
 	{PCIC_ID_TI1520, "TI1520 PCI-CardBus Bridge", CB_TI12XX},
@@ -570,6 +570,7 @@ cbb_attach(device_t brdev)
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	SLIST_INIT(&sc->rl);
+	STAILQ_INIT(&sc->intr_handlers);
 
 #ifndef	BURN_THE_BOATS
 	/*
@@ -730,7 +731,7 @@ cbb_detach(device_t brdev)
 	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
 	sc->flags |= CBB_KTHREAD_DONE;
 	if (sc->flags & CBB_KTHREAD_RUNNING) {
-		wakeup(sc);
+		cv_broadcast(&sc->cv);
 		mtx_unlock(&sc->mtx);
 		DEVPRINTF((brdev, "waiting for kthread exit..."));
 		error = tsleep(sc, PWAIT, "cbb-detach-wait", 60 * hz);
@@ -780,7 +781,8 @@ static int
 cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
   int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int err;
+	struct cbb_intrhand *ih;
+	struct cbb_softc *sc = device_get_softc(dev);
 
 	/*
 	 * You aren't allowed to have fast interrupts for pccard/cardbus
@@ -790,21 +792,36 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 */
 	if ((flags & INTR_FAST) != 0)
 		return (EINVAL);
-	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
-	    cookiep);
+	ih = malloc(sizeof(struct cbb_intrhand), M_DEVBUF, M_NOWAIT);
+	if (ih == NULL)
+		return (ENOMEM);
+	*cookiep = ih;
+	ih->intr = intr;
+	ih->arg = arg;
+	STAILQ_INSERT_TAIL(&sc->intr_handlers, ih, entries);
+	/*
+	 * XXX we should do what old card does to ensure that we don't
+	 * XXX call the function's interrupt routine(s).
+	 */
 	/*
 	 * XXX need to turn on ISA interrupts, if we ever support them, but
 	 * XXX for now that's all we need to do.
 	 */
-	return (err);
+	return (0);
 }
 
 static int
 cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
 {
+	struct cbb_intrhand *ih;
+	struct cbb_softc *sc = device_get_softc(dev);
+
 	/* XXX Need to do different things for ISA interrupts. */
-	return (bus_generic_teardown_intr(dev, child, irq, cookie));
+	ih = (struct cbb_intrhand *) cookie;
+	STAILQ_REMOVE(&sc->intr_handlers, ih, cbb_intrhand, entries);
+	free(ih, M_DEVBUF);
+	return (0);
 }
 
 
@@ -907,10 +924,10 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&sc->mtx);
 		cv_wait(&sc->cv, &sc->mtx);
-		do {
+		err = 0;
+		while (err != EWOULDBLOCK && 
+		    (sc->flags & CBB_KTHREAD_DONE) == 0)
 			err = cv_timedwait(&sc->cv, &sc->mtx, 1 * hz);
-		} while (err != EWOULDBLOCK &&
-		    (sc->flags & CBB_KTHREAD_DONE) == 0);
 		mtx_unlock(&sc->mtx);
 	}
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
@@ -933,21 +950,9 @@ static void
 cbb_insert(struct cbb_softc *sc)
 {
 	uint32_t sockevent, sockstate;
-	int timeout = 30;
 
-	/*
-	 * Debounce interrupt.  However, most of the debounce
-	 * is done in the thread's timeout routines.
-	 */
-	do {
-		sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-		sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-	} while (sockstate & CBB_SOCKET_STAT_CD && --timeout > 0);
-
-	if (timeout < 0) {
-		device_printf (sc->dev, "insert timeout");
-		return;
-	}
+	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
+	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
 
 	DEVPRINTF((sc->dev, "card inserted: event=0x%08x, state=%08x\n",
 	    sockevent, sockstate));
@@ -958,6 +963,8 @@ cbb_insert(struct cbb_softc *sc)
 			if (CARD_ATTACH_CARD(sc->pccarddev) != 0)
 				device_printf(sc->dev,
 				    "PC Card card activation failed\n");
+			else
+				sc->flags |= CBB_CARD_OK;
 		} else {
 			device_printf(sc->dev,
 			    "PC Card inserted, but no pccard bus.\n");
@@ -968,6 +975,8 @@ cbb_insert(struct cbb_softc *sc)
 			if (CARD_ATTACH_CARD(sc->cbdev) != 0)
 				device_printf(sc->dev,
 				    "CardBus card activation failed\n");
+			else
+				sc->flags |= CBB_CARD_OK;
 		} else {
 			device_printf(sc->dev,
 			    "CardBUS card inserted, but no cardbus bus.\n");
@@ -1000,6 +1009,7 @@ cbb_intr(void *arg)
 {
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
+	struct cbb_intrhand *ih;
 
 	/*
 	 * This ISR needs work XXX
@@ -1009,8 +1019,22 @@ cbb_intr(void *arg)
 		/* ack the interrupt */
 		cbb_setb(sc, CBB_SOCKET_EVENT, sockevent);
 
+		/*
+		 * If anything has happened to the socket, we assume that
+		 * the card is no longer OK, and we shouldn't call its
+		 * ISR.  We set CARD_OK as soon as we've attached the
+		 * card.  This helps in a noisy eject, which happens
+		 * all too often when users are ejecting their PC Cards.
+		 *
+		 * We use this method in preference to checking to see if
+		 * the card is still there because the check suffers from
+		 * a race condition in the bouncing case.  Prior versions
+		 * of the pccard software used a similar trick and achieved
+		 * excellent results.
+		 */
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
 			mtx_lock(&sc->mtx);
+			sc->flags &= ~CBB_CARD_OK;
 			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
 		}
@@ -1024,8 +1048,12 @@ cbb_intr(void *arg)
 		}
 		/* Other bits? */
 	}
-
-	/* Call the interrupt if we still have the card */
+	if (sc->flags & CBB_CARD_OK) {
+		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
+			(*ih->intr)(ih->arg);
+		}
+		
+	}
 }
 
 /************************************************************************/
@@ -1843,8 +1871,9 @@ static int
 cbb_suspend(device_t self)
 {
 	int			error = 0;
-	struct cbb_softc*	sc = device_get_softc(self);
+	struct cbb_softc	*sc = device_get_softc(self);
 
+	cbb_setb(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
 	bus_teardown_intr(self, sc->irq_res, sc->intrhand);
 	error = bus_generic_suspend(self);
 	return (error);
@@ -1857,11 +1886,24 @@ cbb_resume(device_t self)
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
 	uint32_t tmp;
 
+	/*
+	 * Some BIOSes will not save the BARs for the pci chips, so we
+	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
+	 * device, it will read back as 0x1, so no explicit test for
+	 * memory devices are needed.
+	 *
+	 * Note: The PCI bus code should do this automatically for us on
+	 * suspend/resume, but until it does, we have to cope.
+	 */
 	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
 	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
 	    rman_get_start(sc->base_res)));
 
 	cbb_chipinit(sc);
+
+	/* reset interrupt -- Do we really need to do this? */
+	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
+	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
 
 	/* re-establish the interrupt. */
 	if (bus_setup_intr(self, sc->irq_res, INTR_TYPE_AV, cbb_intr, sc,
@@ -1878,22 +1920,8 @@ cbb_resume(device_t self)
 	/* CSC Interrupt: Card detect interrupt on */
 	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 
-	/* reset interrupt */
-	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
-	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
-
-	/*
-	 * Some BIOSes will not save the BARs for the pci chips, so we
-	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
-	 * device, it will read back as 0x1, so no explicit test for
-	 * memory devices are needed.
-	 *
-	 * Note: The PCI bus code should do this automatically for us on
-	 * suspend/resume, but until it does, we have to cope.
-	 */
-	if (pci_read_config(self, CBBR_SOCKBASE, 4) == 0)
-                pci_write_config(self, CBBR_SOCKBASE,
-		    rman_get_start(sc->base_res), 4);
+	/* Force us to go query the socket state */
+	cbb_setb(sc, CBB_SOCKET_FORCE, CBB_SOCKET_EVENT_CD);
 
 	error = bus_generic_resume(self);
 
