@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: startup.c,v 1.1 1995/10/26 21:28:26 julian Exp $
+ *	$Id: startup.c,v 1.2 1995/11/13 21:01:36 julian Exp $
  */
 
 #ifndef lint
@@ -238,6 +238,7 @@ void
 addrouteforif(ifp)
 	struct interface *ifp;
 {
+	struct sockaddr_ipx net;
 	struct sockaddr *dst;
 	struct rt_entry *rt;
 
@@ -260,7 +261,11 @@ addrouteforif(ifp)
 			}
 		}
 	} else {
-		dst = &ifp->int_broadaddr;
+		bzero(&net, sizeof(net));
+		net.sipx_family = AF_IPX;
+		net.sipx_len = sizeof (net);
+		net.sipx_addr.x_net = satoipx_addr(ifp->int_broadaddr).x_net;
+		dst = (struct sockaddr *)&net;
 	}
 	rt = rtlookup(dst);
 	if (rt)
