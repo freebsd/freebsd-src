@@ -32,8 +32,8 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	STD	LINUX	{ int linux_setup(void); }
-1	NOPROTO	LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
-2	STD	LINUX	{ int linux_fork(void); }
+1	MNOPROTO LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
+2	MSTD	LINUX	{ int linux_fork(void); }
 3	NOPROTO	LINUX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	LINUX	{ int write(int fd, char *buf, u_int nbyte); }
 5	STD	LINUX	{ int linux_open(char *path, int flags, int mode); }
@@ -115,7 +115,7 @@
 				linux_osigset_t oldmask, \
 				linux_osigset_t mask); }
 73	STD	LINUX	{ int linux_sigpending(linux_osigset_t *mask); }
-74	NOPROTO	LINUX	{ int osethostname(char *hostname, u_int len); } \
+74	MNOPROTO LINUX	{ int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
 75	STD	LINUX	{ int linux_setrlimit(u_int resource, \
 				struct ogetrlimit *rlim); }
@@ -124,7 +124,7 @@
 77	NOPROTO	LINUX	{ int getrusage(int who, struct rusage *rusage); }
 78	NOPROTO	LINUX	{ int gettimeofday(struct timeval *tp, \
 				struct timezone *tzp); }
-79	NOPROTO	LINUX	{ int settimeofday(struct timeval *tp, \
+79	MNOPROTO LINUX	{ int settimeofday(struct timeval *tp, \
 				struct timezone *tzp); }
 80	STD	LINUX	{ int linux_getgroups(u_int gidsetsize, \
 				linux_gid_t *gidset); }
@@ -149,7 +149,7 @@
 95	NOPROTO	LINUX	{ int fchown(int fd, int uid, int gid); }
 96	NOPROTO	LINUX	{ int getpriority(int which, int who); }
 97	NOPROTO	LINUX	{ int setpriority(int which, int who, int prio); }
-98	NOPROTO	LINUX	{ int profil(caddr_t samples, u_int size, \
+98	MNOPROTO LINUX	{ int profil(caddr_t samples, u_int size, \
 				u_int offset, u_int scale); }
 99	STD	LINUX	{ int linux_statfs(char *path, \
 				struct linux_statfs_buf *buf); }
@@ -184,7 +184,7 @@
 118	NOPROTO	LINUX	{ int fsync(int fd); }
 119	STD	LINUX	{ int linux_sigreturn(struct linux_sigframe *sfp); }
 120	STD	LINUX	{ int linux_clone(int flags, void *stack); }
-121	NOPROTO	LINUX	{ int setdomainname(char *name, int len); }
+121	MNOPROTO LINUX	{ int setdomainname(char *name, int len); }
 122	STD	LINUX	{ int linux_newuname(struct linux_new_utsname *buf); }
 123	STD	LINUX	{ int linux_modify_ldt(int func, void *ptr, \
 				size_t bytecount); }
@@ -239,7 +239,7 @@
 160	STD	POSIX	{ int linux_sched_get_priority_min(int policy); }
 161	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, \
 				struct timespec *interval); }
-162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+162	MNOPROTO POSIX	{ int nanosleep(const struct timespec *rqtp, \
 				struct timespec *rmtp); }
 163	STD	LINUX	{ int linux_mremap(caddr_t addr, int old_len, \
 				int new_len, int flags); }
@@ -281,7 +281,7 @@
 187	STD	LINUX	{ int linux_sendfile(void); }
 188	STD	LINUX	{ int linux_getpmsg(void); }
 189	STD	LINUX	{ int linux_putpmsg(void); }
-190	STD	LINUX	{ int linux_vfork(void); }
+190	MSTD	LINUX	{ int linux_vfork(void); }
 191	STD	LINUX	{ int linux_ugetrlimit(void); }
 192	STD	LINUX	{ int linux_mmap2(void); }
 193	STD	LINUX	{ int linux_truncate64(void); }

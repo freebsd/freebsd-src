@@ -32,8 +32,8 @@
 
 
 0	NOPROTO	OSF1	{ int nosys(void); }
-1	NOPROTO	OSF1	{ void sys_exit(int rval); } exit sys_exit_args void
-2	NOPROTO	OSF1	{ int fork(void); }
+1	MNOPROTO OSF1	{ void sys_exit(int rval); } exit sys_exit_args void
+2	MNOPROTO OSF1	{ int fork(void); }
 3	NOPROTO	OSF1	{ ssize_t read(int fd, char *buf, ssize_t nbyte); }
 4	NOPROTO	OSF1	{ ssize_t write(int fd, char *buf, ssize_t nbyte); }
 5	UNIMPL	OSF1	old open
@@ -107,7 +107,7 @@
 63	NOPROTO	OSF1	{ int getpgrp(void); }
 64	NOPROTO	OSF1	{ int ogetpagesize(void); }
 65	UNIMPL	OSF1	mremap
-66	NOPROTO	OSF1	{ int vfork(void); }
+66	MNOPROTO OSF1	{ int vfork(void); }
 67	STD	OSF1	{ int osf1_stat(char *path, struct osf1_stat *ub); }
 68	STD	OSF1	{ int osf1_lstat(char *path, \
 			    struct osf1_stat *ub); }
@@ -134,9 +134,9 @@
 85	STD	OSF1	{ int osf1_table(long id, long index, void *addr,       \
 			    long nel, u_long lel); }
 86	STD	OSF1	{ int osf1_getitimer(u_int which, struct itimerval *itv); }
-87	NOPROTO	OSF1	{ int ogethostname(char *hostname, u_int len); } \
+87	MNOPROTO OSF1	{ int ogethostname(char *hostname, u_int len); } \
 			    ogethostname gethostname_args int
-88	NOPROTO	OSF1	{ int osethostname(char *hostname, u_int len); } \
+88	MNOPROTO OSF1	{ int osethostname(char *hostname, u_int len); } \
 			    osethostname sethostname_args int
 89	NOPROTO	OSF1	{ int getdtablesize(void); }
 90	NOPROTO	OSF1	{ int dup2(u_int from, u_int to); }
@@ -184,7 +184,7 @@
 			    u_int iovcnt); }
 121	STD	OSF1	{ int osf1_writev(int fd, struct osf1_iovec *iovp, \
 			    u_int iovcnt); }
-122	NOPROTO	OSF1	{ int settimeofday(struct timeval *tv, \
+122	MNOPROTO OSF1	{ int settimeofday(struct timeval *tv, \
 			    struct timezone *tzp); }
 123	NOPROTO	OSF1	{ int fchown(int fd, int uid, int gid); }
 124	NOPROTO	OSF1	{ int fchmod(int fd, int mode); }
@@ -209,8 +209,8 @@
 139	OBSOL	OSF1	4.2 sigreturn
 140	UNIMPL	OSF1	adjtime
 141	NOPROTO	OSF1	{ int ogetpeername(int fdes, caddr_t asa, int *alen); }
-142	NOPROTO	OSF1	{ int32_t ogethostid(void); }
-143	NOPROTO	OSF1	{ int osethostid(int32_t hostid); }
+142	MNOPROTO OSF1	{ int32_t ogethostid(void); }
+143	MNOPROTO OSF1	{ int osethostid(int32_t hostid); }
 144	STD	OSF1	{ int osf1_getrlimit(u_int which, \
 			    struct rlimit *rlp); }
 145	STD	OSF1	{ int osf1_setrlimit(u_int which, \
@@ -218,7 +218,7 @@
 146	UNIMPL	OSF1	old killpg
 147	NOPROTO	OSF1	{ int setsid(void); }
 148	UNIMPL	OSF1	quotactl
-149	NOPROTO	OSF1	{ int oquota(void); }
+149	MNOPROTO OSF1	{ int oquota(void); }
 150	NOPROTO	OSF1	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
 			    ogetsockname getsockname_args int
 151	UNIMPL	OSF1
@@ -241,8 +241,8 @@
 162	UNIMPL	OSF1
 163	UNIMPL	OSF1	async_daemon
 164	UNIMPL	OSF1	getfh
-165	NOPROTO	OSF1	{ int getdomainname(char *domainname, int len); }
-166	NOPROTO	OSF1	{ int setdomainname(char *domainname, int len); }
+165	MNOPROTO OSF1	{ int getdomainname(char *domainname, int len); }
+166	MNOPROTO OSF1	{ int setdomainname(char *domainname, int len); }
 167	UNIMPL	OSF1
 168	UNIMPL	OSF1
 169	UNIMPL	OSF1	exportfs
@@ -288,7 +288,7 @@
 205	NOPROTO	OSF1	{ int semget(key_t key, int nsems, int semflg); }
 206	NOPROTO	OSF1	{ int semop(int semid, struct sembuf *sops, \
                             u_int nsops); }
-207	NOPROTO	OSF1	{ int uname(struct utsname *name); }
+207	MNOPROTO OSF1	{ int uname(struct utsname *name); }
 208	NOPROTO	OSF1	{ int lchown(char *path, int uid, \
 			    int gid); }
 209	NOPROTO	OSF1	{ int shmat(int shmid, void *shmaddr, int shmflg); }
