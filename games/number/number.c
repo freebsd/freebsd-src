@@ -165,6 +165,7 @@ badnum:			errx(1, "illegal number: %s", line);
 	if (*line == '-') {
 		(void)printf("minus%s", lflag ? " " : "\n");
 		++line;
+		--len;
 	}
 
 	rval = len > 0 ? unit(len, line) : 0;
