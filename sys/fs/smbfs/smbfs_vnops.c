@@ -139,10 +139,9 @@ smbfs_access(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct ucred *cred = ap->a_cred;
-	u_int mode = ap->a_mode;
+	mode_t mode = ap->a_mode;
+	mode_t mpmode;
 	struct smbmount *smp = VTOSMBFS(vp);
-	int error = 0;
 
 	SMBVDEBUG("\n");
 	if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
@@ -153,15 +152,10 @@ smbfs_access(ap)
 			break;
 		}
 	}
-	if (cred->cr_uid == 0)
-		return 0;
-	if (cred->cr_uid != smp->sm_args.uid) {
-		mode >>= 3;
-		if (!groupmember(smp->sm_args.gid, cred))
-			mode >>= 3;
-	}
-	error = (((vp->v_type == VREG) ? smp->sm_args.file_mode : smp->sm_args.dir_mode) & mode) == mode ? 0 : EACCES;
-	return error;
+	mpmode = vp->v_type == VREG ? smp->sm_args.file_mode :
+	    smp->sm_args.dir_mode;
+	return (vaccess(vp->v_type, mpmode, smp->sm_args.uid,
+	    smp->sm_args.gid, ap->a_mode, ap->a_cred, NULL));
 }
 
 /* ARGSUSED */
