@@ -30,7 +30,7 @@
 */gdb/*a68v*
 */gdb/*altos*
 */gdb/*cisco*
-*/gdb/*coff*
+*/gdb/coff*
 */gdb/*convex*
 */gdb/*cpu32bug*
 */gdb/*cxux*
