@@ -67,6 +67,7 @@
 #define KTR_VM		0x00100000		/* The virtual memory system */
 #define KTR_IDLELOOP	0x00200000		/* checks done in the idle process */
 #define	KTR_RUNQ	0x00400000		/* Run queue */
+#define	KTR_ALL		0x007fffff
 
 /*
  * Trace classes which can be assigned to particular use at compile time
