@@ -1,6 +1,6 @@
 
 LIB=	cam
-SRCS=	camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c
+SRCS=	camlib.c scsi_cmdparse.c scsi_all.c scsi_sa.c cam.c
 
 # MAN3=	cam.3
 
