@@ -51,8 +51,9 @@ allocchn(snddev_info *d, int direction)
 static int
 getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
 {
-	if ((d->flags & SD_F_PRIO_SET) == SD_F_PRIO_SET)
-		panic("read and write both prioritised");
+	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
+		("getchns: read and write both prioritised"));
+
 	if (d->flags & SD_F_SIMPLEX) {
 		*rdch = (d->flags & SD_F_PRIO_RD)? d->arec[chan] : &d->fakechan;
 		*wrch = (d->flags & SD_F_PRIO_WR)? d->aplay[chan] : &d->fakechan;
@@ -66,8 +67,8 @@ getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
 static void
 setchns(snddev_info *d, int chan)
 {
-	if ((d->flags & SD_F_PRIO_SET) == SD_F_PRIO_SET)
-		panic("read and write both prioritised");
+	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
+		("getchns: read and write both prioritised"));
 	d->flags |= SD_F_DIR_SET;
 	if (d->flags & SD_F_EVILSB16) {
 		if ((d->flags & SD_F_PRIO_RD) && (d->aplay[chan])) {
@@ -159,7 +160,10 @@ dsp_close(snddev_info *d, int chan, int devtype)
 		chn_abort(rdch);
 		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
 	}
-	if (wrch) wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+	if (wrch) {
+		chn_flush(wrch);
+		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
+	}
 	d->aplay[chan] = NULL;
 	d->arec[chan] = NULL;
 	return 0;
@@ -173,8 +177,8 @@ dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_RD;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
 	getchns(d, chan, &rdch, &wrch);
-	if (!rdch || !(rdch->flags & CHN_F_BUSY))
-		panic("dsp_read: non%s channel", rdch? "busy" : "existant");
+	KASSERT(wrch, ("dsp_read: nonexistant channel"));
+	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
 	if (rdch->flags & CHN_F_MAPPED) return EINVAL;
 	if (!(rdch->flags & CHN_F_RUNNING)) {
 		rdch->flags |= CHN_F_RUNNING;
@@ -191,8 +195,8 @@ dsp_write(snddev_info *d, int chan, struct uio *buf, int flag)
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_WR;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
 	getchns(d, chan, &rdch, &wrch);
-	if (!wrch || !(wrch->flags & CHN_F_BUSY))
-		panic("dsp_write: non%s channel", wrch? "busy" : "existant");
+	KASSERT(wrch, ("dsp_write: nonexistant channel"));
+	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
 	if (wrch->flags & CHN_F_MAPPED) return EINVAL;
 	if (!(wrch->flags & CHN_F_RUNNING)) {
 		wrch->flags |= CHN_F_RUNNING;
@@ -529,7 +533,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
     	default:
-		DEB(printf("default ioctl snd%d fn 0x%08x fail\n", unit, cmd));
+		DEB(printf("default ioctl chan%d fn 0x%08lx fail\n", chan, cmd));
 		ret = EINVAL;
 		break;
     	}

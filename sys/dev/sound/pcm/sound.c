@@ -352,7 +352,7 @@ sndpoll(dev_t i_dev, int events, struct proc *p)
     	int dev, chan;
     	snddev_info *d = get_snddev_info(i_dev, NULL, &dev, &chan);
 
-    	DEB(printf("sndpoll dev 0x%04x events 0x%08x\n", i_dev, events));
+	DEB(printf("sndpoll d 0x%p dev 0x%04x events 0x%08x\n", d, dev, events));
 
     	if (d == NULL) return ENXIO;
 

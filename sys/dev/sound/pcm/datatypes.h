@@ -58,7 +58,7 @@ struct _snd_mixer {
  */
 
 struct _snd_dbuf {
-        char *buf;
+        u_int8_t *buf;
         int bufsize;
         volatile int rp, fp; /* pointers to the ready and free area */
         volatile int dl; /* transfer size */
@@ -71,6 +71,7 @@ struct _snd_dbuf {
 	u_long prev_total; /* copy of the above when GETxPTR called */
 	int first_poll;
 	bus_dmamap_t dmamap;
+	int underflow;
 };
 
 typedef int (pcmfeed_init_t)(pcm_feeder *feeder);
