@@ -1,6 +1,10 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
 7:095:Moscow:Russia
+7:::Kazakhstan
+7:::Kirgizstan
+7:::Tadzhikistan
+7:::Uzbekistan
 20:2:Cairo:Egypt, Arab Rep. of
 20:3:Alexandria:Egypt, Arab Rep. of
 20:66:Port Said:Egypt, Arab Rep. of
@@ -23,12 +27,17 @@
 30:61:Patrai:Greece
 30:651:Ioannina:Greece
 30:721:Kalamata:Greece
-30:81:Iraklion (Crete):Greece
+30:81:Iraklion Kritis (Crete):Greece
 31:10:Rotterdam:Netherlands
 31:13:Tilburg:Netherlands
+31:15:Delft:Netherlands
 31:20:Amsterdam:Netherlands
 31:30:Utrecht:Netherlands
+31:35:Hilversum:Netherlands
 31:40:Eindhoven:Netherlands
+31:50:Groningen:Netherlands
+31:53:Enschede:Netherlands
+31:55:Apeldoorn:Netherlands
 31:70:The Hague:Netherlands
 31:76:Breda:Netherlands
 31:85:Arnhem:Netherlands
@@ -36,26 +45,15 @@
 32:2:Brussels:Belgium
 32:3:Antwerp:Belgium
 32:41:Liege (Luik):Belgium
-32:91:Ghent (Gand):Belgium
-33:1:Paris:France
-33:20:Lille:France
-33:26:Reims:France
-33:35:Le Havre:France
-33:35:Rouen:France
-33:56:Bordeaux:France
-33:61:Toulouse:France
+32:9:Ghent (Gand):Belgium
+33:1:Paris and surrounds:France
+33:2:NW region:France
+33:3:NE region:France
+33:4:SE region:France
+33:4:Corsica:France
+33:5:SW region:France
 33:628::Andorra
-33:67:Montpellier:France
-33:76:Grenoble:France
-33:77:St. Etienne:France
-33:7:Lyon:France
-33:88:Strasbourg:France
-33:91:Marseille:France
 33:93::Monaco
-33:93:Nice:France
-33:94:Toulon:France
-33:98:Brest:France
-33:99:Rennes:France
 34:1:Madrid:Spain
 34:28:Las Palmas (Canary Is.):Spain
 34:3:Barcelona:Spain
@@ -67,9 +65,6 @@
 34:71:Palma de Mallorca:Spain
 34:76:Zaragoza:Spain
 36:1:Budapest:Hungary
-38:11:Belgrade:Yugoslavia
-38:41:Zagreb:Yugoslavia
-38:50:Dubrovnik:Yugoslavia
 39:10:Genoa:Italy
 39:11:Turin:Italy
 39:2:Milan:Italy
@@ -77,7 +72,6 @@
 39:41:Venice:Italy
 39:45:Verona:Italy
 39:51:Bologna:Italy
-39:541::San Marino
 39:55:Florence:Italy
 39:6::Vatican City
 39:6:Rome:Italy
@@ -87,41 +81,62 @@
 39:91:Palermo:Italy
 39:95:Catania:Italy
 39:99:Taranto:Italy
-40:0:Bucharest:Romania, Soc. Rep. of
-41:1:Zurich:Switzerland
+40:0:Bucharest:Romania
+41:1:Zuerich:Switzerland
 41:21:Lausanne:Switzerland
+41:21:Montreaux:Switzerland
 41:22:Geneva:Switzerland
 41:31:Berne:Switzerland
 41:41:Lucerne:Switzerland
 41:52:Winterthur:Switzerland
 41:61:Basel:Switzerland
+41:71:St. Gallen:Switzerland
 41:75::Liechtenstein
-42:2:Prague:Czechoslovakia
-43:222:Vienna:Austria
+41:82:St. Moritz:Switzerland
+41:91:Lugano:Switzerland
+42:2:Prague:Czech Republic
+42:7:Bratislava:Slovak Republic
+43:1:Vienna:Austria
 43:316:Graz:Austria
-43:5222:Innsbruck:Austria
-44:71:London, Eng.:United Kingdom
-44:81:London, Eng.:United Kingdom
-44:203:Coventry, Eng.:United Kingdom
-44:21:Birmingham, Eng.:United Kingdom
-44:222:Cardiff, Wales:United Kingdom
-44:232:Belfast, N. Ire.:United Kingdom
-44:272:Bristol, Eng.:United Kingdom
-44:274:Bradford, Eng.:United Kingdom
-44:31:Edinburgh, Scot.:United Kingdom
-44:41:Glasgow, Scot.:United Kingdom
-44:484:Huddersfield, Eng.:United Kingdom
-44:485:Hillington, Eng.:United Kingdom
-44:51:Liverpool, Eng.:United Kingdom
-44:532:Leeds, Eng.:United Kingdom
-44:533:Leicester, Eng.:United Kingdom
-44:602:Nottingham, Eng.:United Kingdom
-44:61:Manchester, Eng.:United Kingdom
-44:682:New Castle-on-Tyne, Eng.:United Kingdom
-44:742:Sheffield, Eng.:United Kingdom
-44:752:Plymouth, Eng.:United Kingdom
-44:782:Stoke-on-Trent, Eng.:United Kingdom
-44:902:Wolverhampton, Eng.:United Kingdom
+43:512:Innsbruck:Austria
+43:662:Salzburg:Austria
+43:732:Linz:Austria
+44:171:London, Eng.:United Kingdom
+44:181:London, Eng.:United Kingdom
+44:1132:Leeds, Eng.:United Kingdom
+44:1142:Sheffield, Eng.:United Kingdom
+44:1159:Nottingham, Eng.:United Kingdom
+44:1162:Leicester, Eng.:United Kingdom
+44:1179:Bristol, Eng.:United Kingdom
+44:1202:Bournemouth, Eng.:United Kingdom
+44:1203:Coventry, Eng.:United Kingdom
+44:121:Birmingham, Eng.:United Kingdom
+44:1222:Cardiff, Wales:United Kingdom
+44:1223:Cambridge, Eng.:United Kingdom
+44:1232:Belfast, N. Ire.:United Kingdom
+44:1253:Blackpool, Eng.:United Kingdom
+44:1273:Brighton, Eng.:United Kingdom
+44:1274:Bradford, Eng.:United Kingdom
+44:131:Edinburgh, Scot.:United Kingdom
+44:1332:Derby, Eng.:United Kingdom
+44:141:Glasgow, Scot.:United Kingdom
+44:1472:Grimsby, Eng.:United Kingdom
+44:1473:Ipswich, Eng.:United Kingdom
+44:1482:Hull, Eng.:United Kingdom
+44:1484:Huddersfield, Eng.:United Kingdom
+44:1485:Hillington, Eng.:United Kingdom
+44:151:Liverpool, Eng.:United Kingdom
+44:1603:Norwich, Eng.:United Kingdom
+44:161:Manchester, Eng.:United Kingdom
+44:1642:Middlesborough, Eng.:United Kingdom
+44:1703:Southampton, Eng.:United Kingdom
+44:1705:Portsmouth, Eng.:United Kingdom
+44:1752:Plymouth, Eng.:United Kingdom
+44:1782:Stoke-on-Trent, Eng.:United Kingdom
+44:1865:Oxford, Eng.:United Kingdom
+44:1902:Wolverhampton, Eng.:United Kingdom
+44:1904:York, Eng.:United Kingdom
+44:191:Newcastle upon Tyne, Eng.:United Kingdom
 45:3:Copenhagen:Denmark
 45:6:Aarhus:Denmark
 45:8:Aalborg:Denmark
@@ -134,16 +149,16 @@
 47:2:Oslo:Norway
 47:5:Bergen:Norway
 47:7:Trondheim:Norway
-48:12:Crakow:Poland, People's Rep. of
-48:22:Warsaw:Poland, People's Rep. of
-48:42:Lodz:Poland, People's Rep. of
-48:58:Gdansk:Poland, People's Rep. of
+48:12:Crakow:Poland
+48:22:Warsaw:Poland
+48:42:Lodz:Poland
+48:58:Gdansk:Poland
 49:201:Essen:Germany, Fed. Rep. of
 49:202:Wuppertal:Germany, Fed. Rep. of
 49:203:Duisburg:Germany, Fed. Rep. of
 49:209:Gelsenkirchen:Germany, Fed. Rep. of
-49:211:Dusseldorf:Germany, Fed. Rep. of
-49:221:Cologne (Koln):Germany, Fed. Rep. of
+49:211:Duesseldorf:Germany, Fed. Rep. of
+49:221:Cologne (Koeln):Germany, Fed. Rep. of
 49:228:Bonn:Germany, Fed. Rep. of
 49:231:Dortmund:Germany, Fed. Rep. of
 49:30:Berlin:Germany, Fed. Rep. of
@@ -173,6 +188,7 @@
 52:681:Los Mochis:Mexico
 52:682:La Paz:Mexico
 52:684:Cabo San Lucas:Mexico
+53:::Cuba
 54:1:Buenos Aires:Argentina
 54:21:La Plata:Argentina
 54:41:Rosario:Argentina
@@ -207,17 +223,20 @@
 60:5:Ipoh:Malaysia
 61:2:Sydney:Australia
 61:3:Melbourne:Australia
-61:62:Canberra:Australia
+61:3:Victoria (all areas):Australia
+61:3:Tasmania:Australia
+61:6:Canberra:Australia
 61:7:Brisbane:Australia
 61:8:Adelaide:Australia
+61:89:Northern Territory (all areas):Australia
 61:9:Perth:Australia
 62:21:Jakarta:Indonesia
-63:2:Manila:Phillippines
-63:32:Cebu City:Phillippines
-63:33:Iloilo City:Phillippines
-63:34:Bacolod:Phillippines
-63:452:Tarlac City:Phillippines
-63:82:Davao:Phillippines
+63:2:Manila:Philippines
+63:32:Cebu City:Philippines
+63:33:Iloilo City:Philippines
+63:34:Bacolod:Philippines
+63:452:Tarlac City:Philippines
+63:82:Davao:Philippines
 64:3:Christchurch:New Zealand
 64:4:Wellington:New Zealand
 64:9:Auckland:New Zealand
@@ -237,17 +256,19 @@
 81:92:Fukuoka:Japan
 81:93:Kitakyushu:Japan
 81:958:Nagasaki:Japan
-82:2:Seoul:Korea, Rep. of
-82:32:Inchon:Korea, Rep. of
-82:51:Pusan:Korea, Rep. of
-82:53:Taegu:Korea, Rep. of
-82:62:Kwangju:Korea, Rep. of
+82:2:Seoul:South Korea
+82:32:Inchon:South Korea
+82:51:Pusan:South Korea
+82:53:Taegu:South Korea
+82:62:Kwangju:South Korea
+84:::Viet Nam
 86:1:Beijing:China, People's Rep. of
 86:20:Ghuangzhou:China, People's Rep. of
 86:21:Shanghai:China, People's Rep. of
 86:591:Fuzhou:China, People's Rep. of
-90:1:Istanbul:Turkey
-90:4:Ankara:Turkey
+90:212:Istanbul (European side):Turkey
+90:216:Istanbul (Asian side):Turkey
+90:312:Ankara:Turkey
 91:11:New Delhi:India
 91:22:Bombay:India
 91:33:Calcutta:India
@@ -256,6 +277,7 @@
 92:51:Islamabad:Pakistan
 94:1:Colombo Central:Sri Lanka, Dem. Soc. Rep. of
 94:8:Kandy:Sri Lanka, Dem. Soc. Rep. of
+95:::Myanmar
 98:21:Teheran:Iran
 98:31:Esfahan:Iran
 98:41:Tabriz:Iran
@@ -264,35 +286,50 @@
 212:7:Rabat:Morocco, Kingdom of
 213:::Algeria
 216:1:Tunis:Tunisia
-218:21:Tripoli:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
-218:51:Misuratha:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
-218:61:Benghazi:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
+218:21:Tripoli:Libya
+218:51:Misuratha:Libya
+218:61:Benghazi:Libya
 220:::Gambia
 221:::Senegal Republic
+222:::Mauritania
+223:::Mali
 224:4:Conakry:Guinea, People's Rev. Rep.
 225:::Ivory Coast Rep. of
+226:::Burkina Faso
 227:::Niger Republic
 228:::Togo, Rep. of
 229:::Benin, People's Rep. of
 230:::Mauritius
 231:::Liberia
+232:::Sierra Leone
 233:21:Accra:Ghana
 234:1:Lagos:Nigeria, Fed. Rep. of
 234:22:Ibadan:Nigeria, Fed. Rep. of
 234:64:Kano:Nigeria, Fed. Rep. of
+235:::Chad
+236:::Central Africa
 237:::Cameroon, United Rep. of
 238:::Cape Verde Islands
 241:::Gabon Republic
 243:12:Kinshasa:Zaire, Rep. of
 243:222:Lubumbashi:Zaire, Rep. of
+244:::Angola
+245:::Guinea Bissau
+246:::Diego Garcia
 247:::Ascension Island
+248:::Seychelles
+249:::Sudan
 250:::Rwanda
 251:1:Addis Ababa:Ethiopia
+253:::Djibouti
 254:2:Nairobi:Kenya, Rep. of
 255:51:Dar Es Salaam:Tanzania
 256:41:Kampala:Uganda
 256:42:Entebbe:Uganda
+257:::Burundi
+258:::Mozambique
 260:1:Lusaka:Zambia
+262:::Reunion
 263:4:Harare:Zimbabwe
 264:61:Windhoek:Namibia
 265::Blantyre:Malawi
@@ -300,7 +337,9 @@
 266:::Lesotho
 267:31:Gaborone:Botswana
 268:::Swaziland
-297:8::Aruba
+290:::St. Helena
+291:::Eritrea
+297:::Aruba
 298:::Faeroe Islands
 299:11:Soendre Stroemfjord:Greenland (Kalaallit Nunaat)
 299:2:Godthaab:Greenland (Kalaallit Nunaat)
@@ -314,13 +353,32 @@
 353:51:Waterford:Ireland, Rep. of
 353:61:Limerick:Ireland, Rep. of
 353:91:Galway:Ireland, Rep. of
-354:1:Reykjavik:Iceland
+354:::Iceland
+355:::Albania
 356:::Malta
 357:21:Nicosia:Cyprus
-358:0:Helsinki:Finland
-358:31:Tampere:Finland
+358:9:Helsinki:Finland
+358:28::Aaland Islands
+358:3:Tampere:Finland
 359:2:Sofia:Bulgaria
+370:2:Vilnius:Lithuania
+371:2:Riga:Latvia
+372:2:Tallin:Estonia
+373:::Moldova
+374:::Armenia
+375:17:Minsk:Belarus
+376:::Andorra
+378:549::San Marino
 380:44:Kiev:Ukraine
+380:::Turkmenistan
+381:11:Belgrade:Yugoslavia
+381:11:Belgrade:Serbia
+381:81:Titograd:Montenegro
+385:1:Zagreb:Croatia
+385:20:Dubrovnik:Croatia
+386:61:Ljubliana:Slovenia
+387:71:Sarajevo:Bosnia-Herzegovina
+389:91:Skopje:Macedonia
 501:2:Belize City:Belize
 501:8:Belmopan:Belize
 502:2:Guatemala City:Guatemala
@@ -345,7 +403,7 @@
 593:4:Guayaquil:Ecuador
 594:::French Guiana
 595:21:Asuncion:Paraguay
-596:::French Antilles
+596:::Martinique
 597:::Suriname
 598:2:Montevideo:Uruguay
 599:3:St. Eustatius:Netherlands Antilles
@@ -356,9 +414,12 @@
 670:::Saipan
 671:::Guam
 673:2:Bandar Seri Begawan:Brunei
+674:::Nauru
 675:::Papua New Guinea
 676:::Tonga Islands
+678:::Vanuatu
 679:::Fiji Islands
+682:::Cook Islands
 684:::American Samoa
 687:::New Caledonia
 689:::French Polynesia (Moorea & Tahiti)
@@ -368,6 +429,7 @@
 691:370:Kosrae:Micronesia, Fed. States of
 692:871:Ebeye:Marshall Islands
 692:9:Majuro:Marshall Islands
+850:::North Korea
 852:0:Castle Peak:Hong Kong
 852:0:Kwai Chung:Hong Kong
 852:0:Sha Tin:Hong Kong
@@ -379,12 +441,16 @@
 852:5:Ma Wan:Hong Kong
 852:5:Peng Chau:Hong Kong
 853:::Macao
+855:::Cambodia
+856:::Lao
 880:2:Dhaka:Bangladesh, People's Rep. of
 886:2:Taipei:Taiwan, Rep. of China
 886:6:Tainan:Taiwan, Rep. of China
 886:7:Kaohsiung:Taiwan, Rep. of China
 960:::Maldives, Rep. of
+961:::Lebanon
 962:6:Amman:Jordan
+963:::Syria
 964:1:Baghdad:Iraq
 965:::Kuwait
 966:1:Riyadh:Saudi Arabia
@@ -409,5 +475,9 @@
 972:8:Rehovot:Israel
 973:::Bahrain
 974:::Qatar
+975:::Bhutan
+976:::Mongolia
 977:::Nepal
+994:::Azerbaijan
+995:::Georgia
 5399:::Guantanamo Bay (U.S. Naval Base)
