@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.20 1998/04/06 23:27:51 halley Exp $";
-static char rcsid[] = "$Id: res_send.c,v 1.23 1998/06/11 09:03:01 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.24 1998/06/14 11:25:46 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -898,3 +898,12 @@ res_close()
 		vc = 0;
 	}
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef res_close
+__weak_reference(__res_close, _res_close);
+#undef res_send
+__weak_reference(__res_send, res_send);

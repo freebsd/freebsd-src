@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: nsap_addr.c,v 1.4 1997/02/22 15:00:27 peter Exp $";
+static char rcsid[] = "$Id: nsap_addr.c,v 1.5 1998/06/11 09:02:45 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -103,3 +103,12 @@ inet_nsap_ntoa(binlen, binary, ascii)
 	*ascii = '\0';
 	return (start);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_nsap_addr
+__weak_reference(__inet_nsap_addr, inet_nsap_addr);
+#undef inet_nsap_ntoa
+__weak_reference(__inet_nsap_ntoa, inet_nsap_ntoa);

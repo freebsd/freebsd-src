@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: inet_addr.c,v 1.5 1997/02/22 15:00:16 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -178,3 +178,12 @@ inet_aton(cp, addr)
 		addr->s_addr = htonl(val);
 	return (1);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_addr
+__weak_reference(__inet_addr, inet_addr);
+#undef inet_aton
+__weak_reference(__inet_aton, inet_aton);

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
-#	$Id: Makefile.inc,v 1.26 1998/02/20 08:15:55 jb Exp $
+#	$Id: Makefile.inc,v 1.27 1998/06/11 09:02:30 peter Exp $
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net ${.CURDIR}/../libc/net
@@ -15,7 +15,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c \
 	ns_ntoa.c ns_parse.c ns_print.c ns_ttl.c nsap_addr.c \
 	rcmd.c recv.c res_comp.c res_data.c res_debug.c \
 	res_init.c res_mkquery.c res_mkupdate.c res_query.c res_send.c \
-	res_stubs.c res_update.c send.c
+	res_update.c send.c
 # not supported: iso_addr.c 
 
 # machine-dependent net sources
