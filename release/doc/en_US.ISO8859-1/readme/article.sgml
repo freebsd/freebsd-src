@@ -177,10 +177,10 @@
       <para>For any questions or general technical support issues,
 	please send mail to the &a.questions;.</para>
 
-      <para>If you're tracking the -STABLE development efforts, you
+      <para>If you are tracking the -STABLE development efforts, you
 	<emphasis>must</emphasis> join the &a.stable;, in order to
 	keep abreast of recent developments and changes that may
-	affect the way you use and maintain the system.
+	affect the way you use and maintain the system.</para>
 
       <para>Being a largely-volunteer effort, the &os;
 	Project is always happy to have extra hands willing to help&mdash;there are already far more desired enhancements than
@@ -223,7 +223,7 @@
       <para>The preferred method to submit bug reports from a machine
 	with Internet mail connectivity is to use the &man.send-pr.1;
 	command or use the Web form at <ulink
-	url="http://www.FreeBSD.org/send-pr.html">http://www.FreeBSD.org/send-pr.html</ulink>.
+	url="http://www.FreeBSD.org/send-pr.html"></ulink>.
 	<quote>Problem Reports</quote> (PRs) submitted in this way
 	will be filed and their progress tracked; the &os; developers
 	will do their best to respond to all reported bugs as soon as
