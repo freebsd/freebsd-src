@@ -96,12 +96,8 @@
 
 #include "opt_bktr.h"		/* Include any kernel config options */
 
-#ifdef __FreeBSD__
-#include "bktr.h"
-#endif /* __FreeBSD__ */
-
 #if (                                                            \
-       (defined(__FreeBSD__) && (NBKTR > 0))                     \
+       (defined(__FreeBSD__))                                    \
     || (defined(__bsdi__))                                       \
     || (defined(__OpenBSD__))                                    \
     || (defined(__NetBSD__))                                     \
