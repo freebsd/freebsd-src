@@ -85,7 +85,7 @@
   080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
-  083   del    '.'    del    del    del    del    boot   del     N
+  083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   ns     ns     ns     ns     ns     ns     ns     ns      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   '<'    '>'    nop    nop    '|'    nop    nop    nop     O
