@@ -1245,8 +1245,9 @@ int	_thread_sys_msync(void *, size_t, int);
 
 /* #include <setjmp.h> */
 #ifdef _SETJMP_H_
-extern void	__longjmp(jmp_buf, int);
-extern void	__siglongjmp(sigjmp_buf, int);
+extern void	__siglongjmp(sigjmp_buf, int) __dead2;
+extern void	__longjmp(jmp_buf, int) __dead2;
+extern void	___longjmp(jmp_buf, int) __dead2;
 #endif
 __END_DECLS
 
