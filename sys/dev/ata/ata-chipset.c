@@ -535,7 +535,7 @@ ata_cypress_ident(device_t dev)
      * doesn't work with the crappy ATA interrupt setup on the alpha.
      */
     if (pci_get_devid(dev) == ATA_CYPRESS_82C693 &&
-	pci_get_function(dev) == 0 &&
+	pci_get_function(dev) == 1 &&
 	pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
 	device_set_desc(dev, "Cypress 82C693 ATA controller");
 	ctlr->chipinit = ata_cypress_chipinit;
@@ -561,6 +561,8 @@ ata_cypress_setmode(struct ata_device *atadev, int mode)
 {
     device_t parent = device_get_parent(atadev->channel->dev);
     int error;
+
+    mode = ata_limit_mode(atadev, mode, ATA_WDMA2);
 
 /* XXX missing WDMA0+1 + PIO modes */
     if (mode == ATA_WDMA2) { 
