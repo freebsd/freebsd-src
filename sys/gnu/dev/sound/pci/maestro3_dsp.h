@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD$ */
 /*
  *      ESS Technology allegro audio driver.
  *
