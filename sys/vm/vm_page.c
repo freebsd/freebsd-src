@@ -130,6 +130,9 @@ static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 
+struct mtx vm_page_queue_mtx;
+struct mtx vm_page_queue_free_mtx;
+
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
 long first_page = 0;
@@ -202,6 +205,13 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	}
 
 	end = phys_avail[biggestone+1];
+
+	/*
+	 * Initialize the locks.
+	 */
+	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF);
+	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
+	   MTX_SPIN);
 
 	/*
 	 * Initialize the queue headers for the free queue, the active queue
@@ -743,11 +753,13 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	int s;
 
 	s = splvm();
+	vm_page_lock_queues();
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
 	if (m->queue - m->pc == PQ_CACHE)
 		vm_page_deactivate(m);
 	vm_page_dirty(m);
+	vm_page_unlock_queues();
 	splx(s);
 }
 
@@ -766,7 +778,7 @@ vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while (TRUE) {
 		m = vm_pageq_find(
 		    PQ_CACHE,
@@ -844,14 +856,13 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
 	};
 
 	s = splvm();
-
 loop:
+	mtx_lock_spin(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count > cnt.v_free_reserved) {
 		/*
 		 * Allocate from the free queue if there are plenty of pages
 		 * in it.
 		 */
-
 		m = vm_page_select_free(object, pindex, prefer_zero);
 	} else if (
 	    (page_req == VM_ALLOC_SYSTEM && 
@@ -864,13 +875,15 @@ loop:
 		 */
 		m = vm_page_select_free(object, pindex, FALSE);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
+		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		/*
 		 * Allocatable from cache (non-interrupt only).  On success,
 		 * we must free the page and try again, thus ensuring that
 		 * cnt.v_*_free_min counters are replenished.
 		 */
-		m = vm_page_select_cache(object, pindex);
-		if (m == NULL) {
+		vm_page_lock_queues();
+		if ((m = vm_page_select_cache(object, pindex)) == NULL) {
+			vm_page_unlock_queues();
 			splx(s);
 #if defined(DIAGNOSTIC)
 			if (cnt.v_cache_count > 0)
@@ -884,11 +897,13 @@ loop:
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_free(m);
+		vm_page_unlock_queues();
 		goto loop;
 	} else {
 		/*
 		 * Not allocatable from cache from interrupt, give up.
 		 */
+		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		splx(s);
 		vm_pageout_deficit++;
 		pagedaemon_wakeup();
@@ -925,6 +940,7 @@ loop:
 	m->busy = 0;
 	m->valid = 0;
 	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
+	mtx_unlock_spin(&vm_page_queue_free_mtx);
 
 	/*
 	 * vm_page_insert() is safe prior to the splx().  Note also that
@@ -1152,6 +1168,7 @@ vm_page_free_toq(vm_page_t m)
 	} else
 		m->queue = PQ_FREE + m->pc;
 	pq = &vm_page_queues[m->queue];
+	mtx_lock_spin(&vm_page_queue_free_mtx);
 	pq->lcnt++;
 	++(*pq->cnt);
 
@@ -1165,6 +1182,7 @@ vm_page_free_toq(vm_page_t m)
 	} else {
 		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
 	}
+	mtx_unlock_spin(&vm_page_queue_free_mtx);
 	vm_page_free_wakeup();
 	splx(s);
 }

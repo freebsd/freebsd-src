@@ -216,6 +216,11 @@ struct vpgqueues {
 };
 
 extern struct vpgqueues vm_page_queues[PQ_COUNT];
+extern struct mtx vm_page_queue_mtx;
+extern struct mtx vm_page_queue_free_mtx;
+
+#define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
+#define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
 #endif			/* !defined(KLD_MODULE) */
 
