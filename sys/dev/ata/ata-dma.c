@@ -1004,6 +1004,15 @@ via_82c586:
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
+    case 0x000116ca:	/* Cenatek Rocket Drive controller */
+	if (wdmamode >= 0 &&
+	    (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) & 
+	     ((device==ATA_MASTER)?ATA_BMSTAT_DMA_MASTER:ATA_BMSTAT_DMA_SLAVE)))
+	    atadev->mode = ATA_DMA;
+	else
+	    atadev->mode = ATA_PIO;
+	return;
+
     default:		/* unknown controller chip */
 	/* better not try generic DMA on ATAPI devices it almost never works */
 	if ((device == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
@@ -1012,7 +1021,7 @@ via_82c586:
 
 	/* if controller says its setup for DMA take the easy way out */
 	/* the downside is we dont know what DMA mode we are in */
-	if ((udmamode >= 0 || wdmamode > 1) &&
+	if ((udmamode >= 0 || wdmamode >= 2) &&
 	    (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) &
 	     ((device==ATA_MASTER) ? 
 	      ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
@@ -1034,7 +1043,7 @@ via_82c586:
 	}
     }
     error = ata_command(atadev, ATA_C_SETFEATURES, 0, ATA_PIO0 + apiomode,
-			ATA_C_F_SETXFER,ATA_WAIT_READY);
+			ATA_C_F_SETXFER, ATA_WAIT_READY);
     if (bootverbose)
 	ata_prtdev(atadev, "%s setting PIO%d on generic chip\n",
 		   (error) ? "failed" : "success", apiomode < 0 ? 0 : apiomode);
