@@ -204,7 +204,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: csplit [-ks] [-f prefix] [-n number] file [args ...]\n");
+"usage: csplit [-ks] [-f prefix] [-n number] file args ...\n");
 	exit(1);
 }
 
