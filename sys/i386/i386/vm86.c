@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.20 1999/01/28 01:59:51 dillon Exp $
+ *	$Id: vm86.c,v 1.22 1999/03/18 04:37:18 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -673,7 +673,6 @@ vm86_datacall(intnum, vmf, vmc)
 		entry = vmc->pmap[i].pte_num; 
 		vmc->pmap[i].old_pte = pte[entry];
 		pte[entry] = page | PG_V | PG_RW | PG_U;
-printf("New entry %d: %x\n", entry, pte[entry]);
 	}
 
 	vmf->vmf_trapno = intnum;
