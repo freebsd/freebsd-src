@@ -1749,6 +1749,8 @@ msdosfs_strategy(ap)
 	int error = 0;
 	daddr_t blkno;
 
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	if (bp->b_vp->v_type == VBLK || bp->b_vp->v_type == VCHR)
 		panic("msdosfs_strategy: spec");
 	/*

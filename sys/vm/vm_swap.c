@@ -105,6 +105,8 @@ swapdev_strategy(ap)
 	struct vnode *vp;
 	struct buf *bp;
 
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	bp = ap->a_bp;
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
 

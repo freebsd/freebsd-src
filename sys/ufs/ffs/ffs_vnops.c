@@ -1384,6 +1384,8 @@ struct vop_strategy_args {
 	struct vnode *vp;
 	daddr_t lbn;
 
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	vp = ap->a_vp;
 	lbn = ap->a_bp->b_lblkno;
 	if (VTOI(vp)->i_fs->fs_magic == FS_UFS2_MAGIC &&
