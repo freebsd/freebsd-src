@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.18 1994/08/31 06:17:49 davidg Exp $
+ * $Id: st.c,v 1.19 1994/09/28 20:16:45 se Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_tape.h>
 #include <scsi/scsiconf.h>
+#include <sys/devconf.h>
 
 u_int32 ststrats, stqueues;
 
@@ -255,6 +256,39 @@ struct st_data {
 
 static u_int32 next_st_unit = 0;
 
+static int
+st_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
+
+static int
+st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+	       size_t len)
+{
+	return scsi_externalize(st_data[kdc->kdc_unit]->sc_link, userp, &len);
+}
+
+static struct kern_devconf kdc_st_template = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"st", 0, { "scsi", MDDT_SCSI, 0 },
+	st_externalize, 0, st_goaway, SCSI_EXTERNALLEN
+};
+
+static inline void
+st_registerdev(int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_st_template;
+	kdc->kdc_unit = unit;
+	dev_attach(kdc);
+}
+
 /*
  * The routine called by the low level scsi routine when it discovers
  * A device suitable for this driver
@@ -333,6 +367,7 @@ stattach(sc_link)
 	 */
 	st->buf_queue = 0;
 	st->flags |= ST_INITIALIZED;
+	st_registerdev(unit);
 	return 0;
 }
 
