@@ -30,7 +30,7 @@ CFLAGS+= -DUSE_OPIE -DLOGIN_CAP
 DPADD+=	${LIBOPIE} ${LIBMD}
 LDADD+=	-lopie -lmd
 
-.if !defined(NOPAM)
+.if !defined(NO_PAM)
 CFLAGS+= -DUSE_PAM
 DPADD+=	${LIBPAM}
 LDADD+=	${MINUSLPAM}

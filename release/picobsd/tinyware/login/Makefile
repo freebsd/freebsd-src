@@ -12,7 +12,7 @@ CFLAGS+=-DLOGIN_ACCESS -DLOGALL
 DPADD=	${LIBUTIL} ${LIBCRYPT}
 LDADD=	-lutil -lcrypt
 
-.if !defined(NOPAM)
+.if !defined(NO_PAM)
 CFLAGS+= -DUSE_PAM
 DPADD+=	${LIBPAM}
 LDADD+=	${MINUSLPAM}

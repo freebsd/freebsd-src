@@ -27,6 +27,9 @@ PPP_NO_ATM=
 .if defined(NO_I4B)
 PPP_NO_I4B=
 .endif
+.if defined(NO_PAM)
+PPP_NO_PAM=
+.endif
 
 .if defined(PPP_NO_SUID)
 BINMODE=550

@@ -1,7 +1,7 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 # $FreeBSD$
 
-# Only NOPAM is used by PicoBSD and supported here
+# Only NO_PAM is used by PicoBSD and supported here
 
 
 PROG=	passwd
