@@ -46,6 +46,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/syslog.h>
 

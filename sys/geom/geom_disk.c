@@ -44,6 +44,8 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/diskslice.h>
+#include <sys/disklabel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/stdint.h>
@@ -94,8 +96,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	} else {
 		error = 0;
 	}
-        pp->mediasize =
-	    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit;
+        pp->mediasize = dp->d_mediasize;
 	return (error);
 }
 
@@ -110,7 +111,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	printf("Kerneldump off=%jd len=%jd\n", (intmax_t)gkd->offset, (intmax_t)gkd->length);
 	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
 	di.priv = dp->d_dev;
-	di.blocksize = dp->d_label.d_secsize;
+	di.blocksize = dp->d_sectorsize;
 	di.mediaoffset = gkd->offset;
 	di.mediasize = gkd->length;
 	error = set_dumper(&di);
@@ -153,17 +154,13 @@ g_disk_start(struct bio *bp)
 		mtx_unlock(&Giant);
 		break;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::sectorsize",
-		    dp->d_label.d_secsize))
+		if (g_handleattr_int(bp, "GEOM::sectorsize", dp->d_sectorsize))
 			break;
-		else if (g_handleattr_int(bp, "GEOM::fwsectors",
-		    dp->d_label.d_nsectors))
+		else if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
 			break;
-		else if (g_handleattr_int(bp, "GEOM::fwheads",
-		    dp->d_label.d_ntracks))
+		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
 			break;
-		else if (g_handleattr_off_t(bp, "GEOM::mediasize",
-		    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit))
+		else if (g_handleattr_off_t(bp, "GEOM::mediasize", dp->d_mediasize))
 			break;
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;

@@ -111,21 +111,15 @@ static int
 idad_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct idad_softc *drv;
-	struct disklabel *label;
 
 	drv = idad_getsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
 
-	label = &drv->disk.d_label;
-	bzero(label, sizeof(*label));
-	label->d_type = DTYPE_SCSI;
-	label->d_secsize = drv->secsize;
-	label->d_nsectors = drv->sectors;
-	label->d_ntracks = drv->heads;
-	label->d_ncylinders = drv->cylinders;
-	label->d_secpercyl = drv->sectors * drv->heads;
-	label->d_secperunit = drv->secperunit;
+	drv->disk.d_sectorsize = drv->secsize;
+	drv->disk.d_mediasize = (off_t)drv->secperunit * drv->secsize;
+	drv->disk.d_fwsectors = drv->sectors;
+	drv->disk.d_fwheads = drv->heads;
 
 	return (0);
 }

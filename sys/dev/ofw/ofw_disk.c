@@ -114,24 +114,16 @@ static int
 ofwd_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct	ofwd_softc *sc;
-	struct	disklabel *label;
 
 	sc = (struct ofwd_softc *)dev->si_drv1;
 	if (sc == NULL)
 		return (ENXIO);
 
-	/*
-	 * Build synthetic label.
-	 */
-	label = &sc->ofwd_disk.d_label;
-	bzero(label, sizeof(*label));
-	label->d_type = DTYPE_ESDI;
-	label->d_secsize = OFWD_BLOCKSIZE;
-	label->d_nsectors = 33554432;
-	label->d_ntracks = 1;
-	label->d_ncylinders = 1024;
-	label->d_secpercyl = 32768;
-	label->d_secperunit = 33554432;
+	sc->ofwd_disk.d_sectorsize = OFWD_BLOCKSIZE;
+	sc->ofwd_disk.d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
+	/* XXX: probably don't need the next two */
+	sc->ofwd_disk.d_fwsectors = 33554432;
+	sc->ofwd_disk.d_fwheads = 1
 
 	sc->ofwd_flags |= OFWD_OPEN;
 	return (0);

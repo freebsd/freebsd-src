@@ -496,7 +496,6 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	struct disklabel *label;	
 	struct scsi_read_capacity_data *rcap;
 	union  ccb *ccb;
 	int unit;
@@ -565,33 +564,12 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	free(rcap, M_TEMP);
 
 	if (error == 0) {
-		struct ccb_getdev cgd;
 
-		/* Build label for whole disk. */
-		label = &softc->disk.d_label;
-		bzero(label, sizeof(*label));
-		label->d_type = DTYPE_SCSI;
-
-		/*
-		 * Grab the inquiry data to get the vendor and product names.
-		 * Put them in the typename and packname for the label.
-		 */
-		xpt_setup_ccb(&cgd.ccb_h, periph->path, /*priority*/ 1);
-		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-		xpt_action((union ccb *)&cgd);
-
-		strncpy(label->d_typename, cgd.inq_data.vendor,
-			min(SID_VENDOR_SIZE, sizeof(label->d_typename)));
-		strncpy(label->d_packname, cgd.inq_data.product,
-			min(SID_PRODUCT_SIZE, sizeof(label->d_packname)));
-		
-		label->d_secsize = softc->params.secsize;
-		label->d_nsectors = softc->params.secs_per_track;
-		label->d_ntracks = softc->params.heads;
-		label->d_ncylinders = softc->params.cylinders;
-		label->d_secpercyl = softc->params.heads
-				  * softc->params.secs_per_track;
-		label->d_secperunit = softc->params.sectors;
+		softc->disk.d_sectorsize = softc->params.secsize;
+		softc->disk.d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
+		/* XXX: these are not actually "firmware" values, so they may be wrong */
+		softc->disk.d_fwsectors = softc->params.secs_per_track;
+		softc->disk.d_fwheads = softc->params.heads;
 
 		/*
 		 * Check to see whether or not the blocksize is set yet.

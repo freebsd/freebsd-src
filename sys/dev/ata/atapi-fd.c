@@ -224,7 +224,6 @@ static int
 afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct afd_softc *fdp = dev->si_drv1;
-    struct disklabel *label = &fdp->disk.d_label;
 
     atapi_test_ready(fdp->device);
 
@@ -236,13 +235,12 @@ afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 
     fdp->device->flags &= ~ATA_D_MEDIA_CHANGED;
 
-    bzero(label, sizeof *label);
-    label->d_secsize = fdp->cap.sector_size;
-    label->d_nsectors = fdp->cap.sectors;  
-    label->d_ntracks = fdp->cap.heads;
-    label->d_ncylinders = fdp->cap.cylinders;
-    label->d_secpercyl = fdp->cap.sectors * fdp->cap.heads;
-    label->d_secperunit = label->d_secpercyl * fdp->cap.cylinders;
+    fdp->disk.d_sectorsize = fdp->cap.sector_size;
+    fdp->disk.d_mediasize = (off_t)fdp->cap.sector_size * fdp->cap.sectors *
+	fdp->cap.heads * fdp->cap.cylinders;
+    fdp->disk.d_fwsectors = fdp->cap.sectors;
+    fdp->disk.d_fwheads = fdp->cap.heads;
+  
     return 0;
 }
 

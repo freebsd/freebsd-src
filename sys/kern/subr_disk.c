@@ -18,6 +18,8 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/diskslice.h>
+#include <sys/disklabel.h>
 #ifndef GEOM
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -175,6 +177,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	}
 
 	bzero(dp, sizeof(*dp));
+	dp->d_label = malloc(sizeof *dp->d_label, M_DEVBUF, M_WAITOK|M_ZERO);
 
 	if (proto->d_open != diskopen) {
 		*proto = *cdevsw;
@@ -232,6 +235,7 @@ void
 disk_destroy(dev_t dev)
 {
 	LIST_REMOVE(dev->si_disk, d_list);
+	free(dev->si_disk->d_label, M_DEVBUF);
 	bzero(dev->si_disk, sizeof(*dev->si_disk));
     	dev->si_disk = NULL;
 	destroy_dev(dev);
@@ -305,6 +309,8 @@ diskopen(dev_t dev, int oflags, int devtype, struct thread *td)
 		if (!pdev->si_iosize_max)
 			pdev->si_iosize_max = dev->si_iosize_max;
 		error = dp->d_devsw->d_open(pdev, oflags, devtype, td);
+		dp->d_label->d_secsize = dp->d_sectorsize;
+		dp->d_label->d_secperunit = dp->d_mediasize / dp->d_sectorsize;
 	}
 
 	/* Inherit properties from the whole/raw dev_t */
@@ -313,7 +319,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct thread *td)
 	if (error)
 		goto out;
 	
-	error = dsopen(dev, devtype, dp->d_dsflags, &dp->d_slice, &dp->d_label);
+	error = dsopen(dev, devtype, dp->d_dsflags, &dp->d_slice, dp->d_label);
 
 	if (!dsisopen(dp->d_slice)) 
 		dp->d_devsw->d_close(pdev, oflags, devtype, td);

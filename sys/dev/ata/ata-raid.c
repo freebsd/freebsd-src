@@ -470,16 +470,11 @@ static int
 aropen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ar_softc *rdp = dev->si_drv1;
-    struct disklabel *dl;
 	
-    dl = &rdp->disk.d_label;
-    bzero(dl, sizeof *dl);
-    dl->d_secsize = DEV_BSIZE;
-    dl->d_nsectors = rdp->sectors;
-    dl->d_ntracks = rdp->heads;
-    dl->d_ncylinders = rdp->cylinders;
-    dl->d_secpercyl = rdp->sectors * rdp->heads;
-    dl->d_secperunit = rdp->total_sectors;
+    rdp->disk.d_sectorsize = DEV_BSIZE;
+    rdp->disk.d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
+    rdp->disk.d_fwsectors = rdp->sectors;
+    rdp->disk.d_fwheads = rdp->heads;
     return 0;
 }
 
