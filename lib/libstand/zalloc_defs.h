@@ -34,9 +34,7 @@
  */
 
 #define USEGUARD		/* use stard/end guard bytes */
-#if !defined(__powerpc__)
 #define USEENDGUARD
-#endif
 #define DMALLOCDEBUG		/* add debugging code to gather stats */
 #define ZALLOCDEBUG
 
