@@ -170,7 +170,7 @@ typedef writeargs nfswriteargs;
  */
 #ifdef NFSMNT_NFSV3
 
-# define MOUNT_NFS3 MOUNT_NFS
+# define MOUNT_NFS3	"nfs"	/* is this right? */
 # define MNTOPT_NFS3	"nfs"
 
 /*
