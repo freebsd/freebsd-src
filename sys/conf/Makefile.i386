@@ -18,6 +18,8 @@
 # -DTRACE	compile in kernel tracing hooks
 # -DQUOTA	compile in file system quotas
 #
+#	$Id$
+#
 
 TOUCH=	touch -f -c
 LD=	/usr/bin/ld
