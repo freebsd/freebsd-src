@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.9 2000/05/22 10:26:15 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.12 2000/06/19 02:38:37 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -381,8 +381,8 @@ caddr_t data;
 {
 	register ipstate_t *is, *isn;
 	ipstate_save_t ips, *ipsp;
+	int error, out;
 	frentry_t *fr;
-	int error;
 
 	error = IRCOPY(data, (caddr_t)&ipsp, sizeof(ipsp));
 	if (error)
@@ -405,8 +405,26 @@ caddr_t data;
 				return ENOMEM;
 			}
 			bcopy((char *)&ips.ips_fr, (char *)fr, sizeof(*fr));
+			out = fr->fr_flags & FR_OUTQUE ? 1 : 0;
 			isn->is_rule = fr;
 			ips.ips_is.is_rule = fr;
+			if (*fr->fr_ifname) {
+				fr->fr_ifa = GETUNIT(fr->fr_ifname, fr->fr_v);
+				if (fr->fr_ifa == NULL)
+					fr->fr_ifa = (void *)-1;
+#ifdef	_KERNEL
+				else {
+					strncpy(isn->is_ifname[out],
+						IFNAME(fr->fr_ifa), IFNAMSIZ);
+					isn->is_ifp[out] = fr->fr_ifa;
+				}
+#endif
+			} else
+				fr->fr_ifa = NULL;
+			/*
+			 * send a copy back to userland of what we ended up
+			 * to allow for verification.
+			 */
 			error = IWCOPY((caddr_t)&ips, ipsp, sizeof(ips));
 			if (error) {
 				KFREE(isn);
@@ -1582,8 +1600,8 @@ fr_info_t *fin;
 				     (oic->icmp6_type == ICMP6_ECHO_REQUEST)) ||
 				     (is->is_type - 1 == oic->icmp6_type )) {
 				    	ips_stats.iss_hits++;
-    		                        is->is_pkts++;
-                	                is->is_bytes += fin->fin_plen;
+    					is->is_pkts++;
+					is->is_bytes += fin->fin_plen;
 					return is->is_rule;
 				}
 			}
