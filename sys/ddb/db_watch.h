@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.4 1995/05/30 07:57:21 rgrimes Exp $
+ *	$Id: db_watch.h,v 1.5 1995/11/24 13:53:03 bde Exp $
  */
 
 /*
@@ -47,12 +47,5 @@ typedef struct db_watchpoint {
 	db_addr_t hiaddr;		/* to this address */
 	struct db_watchpoint *link;	/* link in in-use or free chain */
 } *db_watchpoint_t;
-
-void		db_delete_watchpoint __P((vm_map_t map, db_addr_t addr));
-boolean_t	db_find_watchpoint __P((vm_map_t map, db_addr_t addr,
-					db_regs_t *regs));
-void		db_list_watchpoints __P((void));
-void		db_set_watchpoint __P((vm_map_t map, db_addr_t addr,
-				       vm_size_t size));
 
 #endif /* !_DDB_DB_WATCH_H_ */

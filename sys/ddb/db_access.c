@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.7 1995/05/30 07:56:46 rgrimes Exp $
+ *	$Id: db_access.c,v 1.8 1995/11/24 14:13:29 bde Exp $
  */
 
 /*
@@ -41,7 +41,7 @@
  * boundaries.
  */
 
-unsigned db_extend[] = {	/* table for sign-extending */
+static unsigned db_extend[] = {	/* table for sign-extending */
 	0,
 	0xFFFFFF80U,
 	0xFFFF8000U,

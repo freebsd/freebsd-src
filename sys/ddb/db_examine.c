@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.8 1995/05/30 07:56:55 rgrimes Exp $
+ *	$Id: db_examine.c,v 1.9 1995/11/24 14:13:33 bde Exp $
  */
 
 /*
@@ -42,7 +42,7 @@
 #include <ddb/db_sym.h>
 #include <ddb/db_access.h>
 
-char	db_examine_format[TOK_STRING_SIZE] = "x";
+static char	db_examine_format[TOK_STRING_SIZE] = "x";
 
 static void db_examine(db_addr_t, char *, int);
 static void db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
@@ -186,7 +186,7 @@ db_examine(addr, fmt, count)
 /*
  * Print value.
  */
-char	db_print_format = 'x';
+static char	db_print_format = 'x';
 
 /*ARGSUSED*/
 void

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.14 1995/08/27 02:39:39 bde Exp $
+ *	$Id: db_command.c,v 1.15 1995/11/24 14:13:32 bde Exp $
  */
 
 /*
@@ -55,12 +55,14 @@ db_addr_t	db_last_addr;
 db_addr_t	db_prev;
 db_addr_t	db_next;
 
+static db_cmdfcn_t	db_fncall;
+static db_cmdfcn_t	db_panic;
 /*
  * if 'ed' style: 'dot' is set at start of last item printed,
  * and '+' points to next line.
  * Otherwise: 'dot' points to next item, '..' points to last.
  */
-boolean_t	db_ed_style = TRUE;
+static boolean_t	db_ed_style = TRUE;
 
 /*
  * Utility routine - discard tokens through end-of-line.
@@ -97,16 +99,16 @@ struct command {
 #define	CMD_AMBIGUOUS	3
 #define	CMD_HELP	4
 
-extern void	db_cmd_list __P((struct command *table));
-extern int	db_cmd_search __P((char *name, struct command *table,
+static void	db_cmd_list __P((struct command *table));
+static int	db_cmd_search __P((char *name, struct command *table,
 				   struct command **cmdp));
-extern void	db_command __P((struct command **last_cmdp,
+static void	db_command __P((struct command **last_cmdp,
 				struct command *cmd_table));
 
 /*
  * Search for command prefix.
  */
-int
+static int
 db_cmd_search(name, table, cmdp)
 	char *		name;
 	struct command	*table;
@@ -154,7 +156,7 @@ db_cmd_search(name, table, cmdp)
 	return (result);
 }
 
-void
+static void
 db_cmd_list(table)
 	struct command *table;
 {
@@ -166,7 +168,7 @@ db_cmd_list(table)
 	}
 }
 
-void
+static void
 db_command(last_cmdp, cmd_table)
 	struct command	**last_cmdp;	/* IN_OUT */
 	struct command	*cmd_table;
@@ -309,7 +311,7 @@ db_command(last_cmdp, cmd_table)
  * 'show' commands
  */
 
-struct command db_show_all_cmds[] = {
+static struct command db_show_all_cmds[] = {
 #if 0
 	{ "threads",	db_show_all_threads,	0,	0 },
 #endif
@@ -317,7 +319,7 @@ struct command db_show_all_cmds[] = {
 	{ (char *)0 }
 };
 
-struct command db_show_cmds[] = {
+static struct command db_show_cmds[] = {
 	{ "all",	0,			0,	db_show_all_cmds },
 	{ "registers",	db_show_regs,		0,	0 },
 	{ "breaks",	db_listbreak_cmd, 	0,	0 },
@@ -336,7 +338,7 @@ struct command db_show_cmds[] = {
 	{ (char *)0, }
 };
 
-struct command db_command_table[] = {
+static struct command db_command_table[] = {
 	{ "print",	db_print_cmd,		0,	0 },
 	{ "p",		db_print_cmd,		0,	0 },
 	{ "examine",	db_examine_cmd,		CS_SET_DOT, 0 },
@@ -365,7 +367,7 @@ struct command db_command_table[] = {
 	{ (char *)0, }
 };
 
-struct command	*db_last_command = 0;
+static struct command	*db_last_command = 0;
 
 #if 0
 void
@@ -381,7 +383,7 @@ db_help_cmd()
 }
 #endif
 
-void
+static void
 db_panic(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy1;
 	boolean_t	dummy2;
@@ -429,7 +431,7 @@ db_error(s)
  * Call random function:
  * !expr(arg,arg,arg)
  */
-void
+static void
 db_fncall(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy1;
 	boolean_t	dummy2;
