@@ -1,4 +1,4 @@
-# @(#)asia	7.18
+# @(#)asia	7.23
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -30,10 +30,11 @@
 #	3:00	AST ADT	Arabia*
 #	3:00	BSK BSD	Baku (was 4:00)*
 #	3:30	IST IDT	Iran
+#	4:00	AMST AMDT Armenia (was 3:00) (was YSK, YSD)*
 #	4:00	TBSK TBSD Tbilisi (was 3:00)*
-#	4:00	YSK YSD Yerevan (was 3:00)*
 #	4:00	GST GDT	Gulf*
 #	4:30	AFT	Afghanistan*
+#	5:00	ASK ASD	Aktau (was SHSK, SHSD)*
 #	5:00	ASK ASD	Ashkhabad (was 4:00)*
 #	5:00	BSK BSD Bishkek (was 6:00) (was FSK, FSD)*
 #	5:00	PKT	Pakistan*
@@ -69,11 +70,12 @@
 
 ###############################################################################
 
+# These rules for Russia are stolen from the `europe' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Russia	1981	1984	-	Apr	1	0:00	1:00	D
-Rule	Russia	1981	1983	-	Oct	1	0:00	0	K
-Rule	Russia	1984	max	-	Sep	lastSun	2:00s	0	K
-Rule	Russia	1985	max	-	Mar	lastSun	2:00s	1:00	D
+Rule RussiaAsia 1981	1984	-	Apr	1	0:00	1:00	D
+Rule RussiaAsia 1981	1983	-	Oct	1	0:00	0	K
+Rule RussiaAsia 1984	max	-	Sep	lastSun	2:00s	0	K
+Rule RussiaAsia 1985	max	-	Mar	lastSun	2:00s	1:00	D
 
 # Afghanistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -82,18 +84,32 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 			4:30	-	AFT
 
 # Armenia
+# From Paul Eggert (1996-05-04):
+# Shanks has Yerevan switching to 3:00 (with Russian DST) in spring 1991,
+# but usno1995 has Armenia at 4:00 (with DST), and Edgar Der-Danieliantz
+# <edd@AIC.NET> reported today that Yerevan probably won't use DST this year,
+# though it did use DST in 1995.  We guess Yerevan stayed in sync with Moscow
+# between 1990 and 1995, but stopped using DST in 1996.
+# Der-Danieliantz also asked for a better abbreviation than `YSK'
+# after independence.  Apparently no abbreviation is in common use;
+# use `AMST/AMDT' since `AM' is the ISO country code for Armenia.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Armenia	1992	1995	-	Sep	lastSun	2:00s	0	S
+Rule	Armenia	1992	1995	-	Mar	lastSun	2:00s	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	-	YSK	1957 Mar
-			4:00	Russia	YS%s
-# Shanks has Yerevan switching to 3:00 (with Russian DST) in spring 1991,
-# but usno1995 has Armenia at 4:00 (with DST).  Ignore the 1991 switch for now.
+			4:00 RussiaAsia YS%s	1991 Mar 31 2:00s
+			3:00	1:00	YSD	1991 Sep 29 2:00s
+			3:00	-	AMST	1992 Jan 19 2:00s
+			4:00	Armenia	AM%sT	1996
+			4:00	-	AMST
 
 # Azerbaijan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 			3:00	-	BSK	1957 Mar
-			4:00	Russia	BS%s	1991 Mar 31 2:00s
+			4:00 RussiaAsia BS%s	1991 Mar 31 2:00s
 			3:00	1:00	BSD	1991 Sep 29 2:00s
 			3:00	-	BSK
 # Shanks has Baku using Russian DST rules after 1991,
@@ -133,7 +149,7 @@ Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar   # Bandar Seri Begawan
 
 # Burma / Myanmar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Rangoon	6:24:40 -	LMT	1880
+Zone	Asia/Rangoon	6:24:40 -	LMT	1880		# or Yangon
 			6:25	-	RMT	1920
 			6:30	-	BMT	1942 May
 			9:00	-	JST	1945 May 3
@@ -179,7 +195,6 @@ Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Shang	1928	only	-	Jan	 1	0:00	0	S
 Rule	Shang	1940	only	-	Jun	 3	0:00	1:00	D
 Rule	Shang	1940	1941	-	Oct	 1	0:00	0	S
 Rule	Shang	1941	only	-	Mar	16	0:00	1:00	D
@@ -213,7 +228,6 @@ Zone	Asia/Kashgar	5:03:56	-	LMT	1928
 # Republic of China
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Taiwan	1896	only	-	Jan	1	0:00	0	S
 Rule	Taiwan	1945	1951	-	May	1	0:00	1:00	D
 Rule	Taiwan	1945	1951	-	Oct	1	0:00	0	S
 Rule	Taiwan	1952	only	-	Mar	1	0:00	1:00	D
@@ -232,7 +246,6 @@ Zone	Asia/Taipei	8:06:00 -	LMT	1896
 ###############################################################################
 # Hong Kong
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	HK	1904	only	-	Oct	30	0:00	0	-
 Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
 Rule	HK	1946	only	-	Dec	1	3:30	0	-
 Rule	HK	1947	only	-	Apr	13	3:30	1:00	S
@@ -254,7 +267,6 @@ Zone	Asia/Hong_Kong	7:36:36 -	LMT	1904 Oct 30
 
 # Macao
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Macao	1912	only	-	Jan	1	0:00	0	S
 Rule	Macao	1961	1962	-	Mar	Sun>=16	3:30	1:00	D
 Rule	Macao	1961	1964	-	Nov	Sun>=1	3:30	0	S
 Rule	Macao	1963	only	-	Mar	Sun>=16	0:00	1:00	D
@@ -278,7 +290,6 @@ Zone	Asia/Macao	7:34:20 -	LMT	1912
 
 # Cyprus
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Cyprus	1921	only	-	Nov	14	0:00	0	-
 Rule	Cyprus	1975	only	-	Apr	13	0:00	1:00	" DST"
 Rule	Cyprus	1975	only	-	Oct	12	0:00	0	-
 Rule	Cyprus	1976	only	-	May	15	0:00	1:00	" DST"
@@ -307,9 +318,9 @@ Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			2:59	-	LST	1924 May  2
 			3:00	-	TBSK	1957 Mar
-			4:00	Russia	TBS%s	1991 Mar 31 2:00s
+			4:00 RussiaAsia TBS%s	1991 Mar 31 2:00s
 			3:00	1:00	TBSD	1991 Sep 29 2:00s
-			3:00	Russia	TBS%s	1994 Sep 25 2:00s
+			3:00 RussiaAsia TBS%s	1994 Sep 25 2:00s
 			4:00	-	TBSK
 
 # India
@@ -348,7 +359,6 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 
 # Iran
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Iran	1977	only	-	Nov	1	0:00	0	S
 Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	D
 Rule	Iran	1978	only	-	Oct	21	0:00	0	S
 Rule	Iran	1979	only	-	Sep	19	0:00	0	S
@@ -390,7 +400,6 @@ Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Zion	1918	only	-	Jan	 1	0:00	0	S
 Rule	Zion	1940	only	-	Jun	 1	0:00	1:00	D
 Rule	Zion	1942	1944	-	Nov	 1	0:00	0	S
 Rule	Zion	1943	only	-	Apr	 1	2:00	1:00	D
@@ -553,7 +562,6 @@ Zone	Asia/Tokyo	9:19:04	-	LMT	1896
 # Most likely Shanks is merely guessing dates from 1992 on.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule    Jordan	1931	only	-	Jan	1	0:00	0	-
 Rule    Jordan	1973	only	-	Jun	6	0:00	1:00	" DST"
 Rule    Jordan	1973	1975	-	Oct	1	0:00	0	-
 Rule    Jordan	1974	1977	-	May	1	0:00	1:00	" DST"
@@ -576,21 +584,31 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EET%s
 
 # Kazakhstan
-# From Shanks (1991):
+# From Paul Eggert (1996-04-19):
+# Andrew Evtichov <evti@chevron.com> (1996-04-13) writes that Kazakhstan
+# stayed in sync with Moscow after 1990, and that Aktau is the biggest city
+# in western Kazakhstan.  Follow Shanks before 1991, Evtichov afterwards.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Alma-Ata	5:07:48 -	LMT	1924 May  2
+Zone	Asia/Alma-Ata	5:07:48 -	LMT	1924 May  2 # or Almaty
 			5:00	-	AASK	1957 Mar
-			6:00	Russia	AAS%s
-# Shanks has Alma-Ata switching to 5:00 in 1991,
-# but usno1995 has Kazakhstan at 6:00.  Ignore the 1991 switch for now.
+			6:00 RussiaAsia AAS%s	1991 Mar 31 2:00s
+			5:00	1:00	AASD	1991 Sep 29 2:00s
+			5:00	-	AASK	1992 Jan 19 2:00s
+			6:00 RussiaAsia AAS%s
+Zone	Asia/Aktau	3:21:04	-	LMT	1924 May  2 # or Aqtau
+			4:00	-	SHSK	1957 Mar # Fort Shevchenko
+			5:00 RussiaAsia SHS%s	1991 Mar 31 2:00s
+			4:00	1:00	ASD	1991 Sep 29 2:00s
+			4:00	-	ASK	1992 Jan 19 2:00s
+			5:00 RussiaAsia AS%s
 
 # Kirgizstan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
 			5:00	-	FSK	1957 Mar	# Frunze
-			6:00	Russia	FS%s	1991 Mar 31 2:00s
+			6:00 RussiaAsia FS%s	1991 Mar 31 2:00s
 			5:00	1:00	FSD	1991 Sep 29 2:00s
-			5:00	Russia	BS%s
+			5:00 RussiaAsia BS%s
 
 ###############################################################################
 
@@ -642,7 +660,6 @@ Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jun  9
 
 # Lebanon
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Lebanon	1880	only	-	Jan	1	0:00	0	-
 Rule	Lebanon	1920	only	-	Mar	28	0:00	1:00	" DST"
 Rule	Lebanon	1920	only	-	Oct	25	0:00	0	-
 Rule	Lebanon	1921	only	-	Apr	3	0:00	1:00	" DST"
@@ -685,10 +702,12 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880			# Male
 			5:00	-	PKT
 
 # Mongolia
+# Shanks says that Mongolia has three time zones,
+# but usno1995 and http://www.odci.gov/cia/publications/95fact/802389h.gif
+# both say that it has just one.
 # Let's comment out the western and eastern Mongolian time zones
 # till we know what their principal towns are.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Mongol	1978	only	-	Jan	1	0:00	0	S
 Rule	Mongol	1981	1984	-	Apr	1	0:00	1:00	T
 Rule	Mongol	1981	1984	-	Oct	1	0:00	0	S
 Rule	Mongol	1985	max	-	Mar	lastSun	2:00	1:00	T
@@ -726,16 +745,16 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # Palestine
 # These rules for Egypt are stolen from the `africa' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Egypt	1957	only	-	May	10	0:00	1:00	" DST"
-Rule	Egypt	1957	1958	-	Oct	 1	0:00	0	-
-Rule	Egypt	1958	only	-	May	 1	0:00	1:00	" DST"
-Rule	Egypt	1959	1981	-	May	 1	1:00	1:00	" DST"
-Rule	Egypt	1959	1965	-	Sep	30	3:00	0	-
-Rule	Egypt	1966	max	-	Oct	 1	3:00	0	-
+Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	" DST"
+Rule EgyptAsia	1957	1958	-	Oct	 1	0:00	0	-
+Rule EgyptAsia	1958	only	-	May	 1	0:00	1:00	" DST"
+Rule EgyptAsia	1959	1981	-	May	 1	1:00	1:00	" DST"
+Rule EgyptAsia	1959	1965	-	Sep	30	3:00	0	-
+Rule EgyptAsia	1966	max	-	Oct	 1	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 			2:00	-	EET	1957 May 10
-			2:00	Egypt	EET%s	1967 Jun 30
+			2:00 EgyptAsia	EET%s	1967 Jun 30
 			2:00	Zion	I%sT
 # This will undoubtedly change soon.
 
@@ -746,7 +765,6 @@ Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 # Howse writes (p 162) that until 1844 the Philippines kept American date.
 # The rest of this data is from Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Phil	1899	only	-	May	11	0:00	0	S
 Rule	Phil	1936	only	-	Nov	1	0:00	1:00	D
 Rule	Phil	1937	only	-	Feb	1	0:00	0	S
 Rule	Phil	1954	only	-	Apr	12	0:00	1:00	D
@@ -796,7 +814,6 @@ Zone	Asia/Colombo	5:19:24 -	LMT	1880
 
 # Syria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Syria	1920	only	-	Jan	1	0:00	0	-
 Rule	Syria	1920	1923	-	Apr	Sun>=15	2:00	1:00	" DST"
 Rule	Syria	1920	1923	-	Oct	Sun>=1	2:00	0	-
 Rule	Syria	1962	only	-	Apr	29	2:00	1:00	" DST"
@@ -828,7 +845,7 @@ Zone	Asia/Damascus	2:25:12 -	LMT	1920
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
 			5:00	-	DSK	1957 Mar
-			6:00	Russia	DS%s	1991
+			6:00 RussiaAsia DS%s	1991
 			6:00	-	DSK
 # Shanks has Dushanbe at 5:00 (6:00 summer) after 1991 Sep 29 3:00,
 # but usno1995 has it at 6:00.  Go with usno1995.
@@ -843,7 +860,7 @@ Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Ashkhabad	3:53:32 -	LMT	1924 May  2
 			4:00	-	ASK	1957 Mar
-			5:00	Russia	AS%s	1991
+			5:00 RussiaAsia AS%s	1991
 			5:00	-	ASK
 # Shanks has Ashkhabad at 4:00 (5:00 summer) after 1991 Sep 20 3:00,
 # but usno has it at 5:00.  Go with usno1995.
@@ -857,11 +874,13 @@ Zone	Asia/Dubai	3:41:12 -	LMT	1920
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tashkent	4:37:12 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s	1991 Mar 31 2:00s
+			6:00 RussiaAsia TS%s	1991 Mar 31 2:00s
 			5:00	1:00	TSD	1991 Sep 29 2:00s
 			5:00	-	TSK
 # Shanks has Tashkent using DST after 1991, but usno1995 says they don't.
 # Go with usno1995.
+# http://www.odci.gov/cia/publications/95fact/802389h.gif claims that
+# Uzbekistan has two time zones, but we lack data about this.
 
 # Vietnam
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
