@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.119 1998/09/05 12:25:54 asami Exp $
+#	$Id$
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -31,6 +31,106 @@
 	msdosfs
 	..
 	stallion
+	..
+	perl
+		5.00502
+			B
+			..
+			CGI
+			..
+			CPAN
+			..
+			Class
+			..
+			Data
+			..
+			Devel
+			..
+			ExtUtils
+			..
+			File
+				Spec
+				..
+			..
+			Getopt
+			..
+			I18N
+			..
+			IPC
+			..
+			Math
+			..
+			Net
+			..
+			Pod
+			..
+			Search
+			..
+			Sys
+			..
+			Term
+			..
+			Test
+			..
+			Text
+			..
+			Tie
+			..
+			Time
+			..
+			User
+			..
+			auto
+				Getopt
+					Long
+					..
+				..
+			..
+			mach
+				B
+				..
+				CORE
+				..
+				IO
+				..
+				auto
+					B
+					..
+					DB_File
+					..
+					Data
+						Dumper
+						..
+					..
+					DynaLoader
+					..
+					Fcntl
+					..
+					IO
+					..
+					IPC
+						SysV
+						..
+					..
+					NDBM_File
+					..
+					Opcode
+					..
+					POSIX
+					..
+					SDBM_File
+					..
+					Socket
+					..
+					attrs
+					..
+					re
+					..
+					sdbm
+					..
+				..
+			..
+		..
 	..
     ..
     libexec
@@ -556,10 +656,16 @@
 	    Etc
 	    ..
 	..
-        perl
-            sys
-            ..
-        ..
+	perl
+/set type=dir uname=man gname=bin mode=0755
+	    man			uname=bin
+		cat3
+		..
+		man3		uname=bin
+		..
+	    ..
+	..
+/set type=dir uname=bin gname=bin mode=0755
         skel
         ..
         syscons
