@@ -57,8 +57,10 @@ network_start()
 	# Configure the interface(s).
 	network_common ifn_start verbose
 
-	# Resync ipfilter
-	/etc/rc.d/ipfilter resync
+	if [ -f /etc/rc.d/ipfilter ] ; then
+		# Resync ipfilter
+		/etc/rc.d/ipfilter resync
+	fi
 }
 
 network_stop()
