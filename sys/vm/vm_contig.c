@@ -145,7 +145,7 @@ contigmalloc1(
 	int i, s, start;
 	vm_paddr_t phys;
 	vm_offset_t addr, tmp_addr;
-	int pass;
+	int pass, pqtype;
 	vm_page_t pga = vm_page_array;
 
 	size = round_page(size);
@@ -162,11 +162,10 @@ contigmalloc1(
 		vm_page_lock_queues();
 again:
 		/*
-		 * Find first page in array that is free, within range, aligned, and
-		 * such that the boundary won't be crossed.
+		 * Find first page in array that is free, within range,
+		 * aligned, and such that the boundary won't be crossed.
 		 */
 		for (i = start; i < cnt.v_page_count; i++) {
-			int pqtype;
 			phys = VM_PAGE_TO_PHYS(&pga[i]);
 			pqtype = pga[i].queue - pga[i].pc;
 			if (((pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
@@ -196,7 +195,6 @@ again1:
 		 * Check successive pages for contiguous and free.
 		 */
 		for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
-			int pqtype;
 			pqtype = pga[i].queue - pga[i].pc;
 			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
 			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
@@ -218,7 +216,8 @@ again1:
 			if (m->flags & PG_ZERO)
 				vm_page_zero_count--;
 			m->flags = 0;
-			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
+			KASSERT(m->dirty == 0,
+			    ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
 			m->object = NULL;
@@ -227,8 +226,8 @@ again1:
 		vm_page_unlock_queues();
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
-		 * Allocate kernel VM, unfree and assign the physical pages to it and
-		 * return kernel VM pointer.
+		 * Allocate kernel VM, unfree and assign the physical pages to
+		 * it and return kernel VM pointer.
 		 */
 		vm_map_lock(map);
 		if (vm_map_findspace(map, vm_map_min(map), size, &addr) !=
@@ -261,7 +260,7 @@ again1:
 		splx(s);
 		return ((void *)addr);
 	}
-	return NULL;
+	return (NULL);
 }
 
 void *
@@ -278,9 +277,8 @@ contigmalloc(
 
 	GIANT_REQUIRED;
 	ret = contigmalloc1(size, type, flags, low, high, alignment, boundary,
-			     kernel_map);
+	    kernel_map);
 	return (ret);
-
 }
 
 void
@@ -303,6 +301,4 @@ vm_page_alloc_contig(
 	ret = ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
 					  alignment, 0ul, kernel_map));
 	return (ret);
-
 }
-
