@@ -1481,7 +1481,9 @@ sizecmd(filename)
 	case TYPE_L:
 	case TYPE_I: {
 		struct stat stbuf;
-		if (stat(filename, &stbuf) < 0 || !S_ISREG(stbuf.st_mode))
+		if (stat(filename, &stbuf) < 0)
+			perror_reply(550, filename);
+		else if (!S_ISREG(stbuf.st_mode))
 			reply(550, "%s: not a plain file.", filename);
 		else
 			reply(213, "%qu", stbuf.st_size);
@@ -1496,7 +1498,11 @@ sizecmd(filename)
 			perror_reply(550, filename);
 			return;
 		}
-		if (fstat(fileno(fin), &stbuf) < 0 || !S_ISREG(stbuf.st_mode)) {
+		if (fstat(fileno(fin), &stbuf) < 0) {
+			perror_reply(550, filename);
+			(void) fclose(fin);
+			return;
+		} else if (!S_ISREG(stbuf.st_mode)) {
 			reply(550, "%s: not a plain file.", filename);
 			(void) fclose(fin);
 			return;
