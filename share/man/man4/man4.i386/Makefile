@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.61 1997/02/22 21:19:54 mpp Exp $
+#	$Id: Makefile,v 1.62 1997/04/14 15:05:49 bde Exp $
 
 MAN4=   aha.4 ahb.4 ahc.4 aic.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 de.4 dgb.4 \
 	ed.4 eg.4 el.4 ep.4 ex.4 gsc.4 fdc.4 fe.4 fxp.4 ie.4 io.4 \
@@ -61,6 +61,7 @@ MLINKS+=	sysmouse.4 ../sysmouse.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	uha.4 ../uha.4
 MLINKS+=	wd.4 ../wd.4
+MLINKS+=	wl.4 ../wl.4
 MLINKS+=	wt.4 ../wt.4
 MLINKS+=	vx.4 ../vx.4
 MLINKS+=	ze.4 ../ze.4
