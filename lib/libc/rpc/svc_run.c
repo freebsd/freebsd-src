@@ -68,7 +68,7 @@ svc_run()
 			if (errno == EINTR) {
 				continue;
 			}
-			warn("svc_run: - select failed");
+			_warn("svc_run: - select failed");
 			return;
 		case 0:
 			continue;
