@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7.4.1 1997/02/14 01:54:12 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.4.2 1997/02/15 16:35:38 jkh Exp $";
 #endif
 
 /*
@@ -53,9 +53,7 @@ extract_plist(char *home, Package *pkg)
     char *where_args, *perm_args, *last_chdir;
     int maxargs, where_count = 0, perm_count = 0, add_count;
 
-    maxargs = sysconf(_SC_ARG_MAX);
-    maxargs -= 64;			/* some slop for the tar cmd text,
-					   and sh -c */
+    maxargs = sysconf(_SC_ARG_MAX) / 2;
     where_args = alloca(maxargs);
     if (!where_args)
 	barf("can't get argument list space");
