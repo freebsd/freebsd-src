@@ -139,7 +139,7 @@ to be a pointer to a buffer sufficiently large to hold the formatted string.
 This pointer should be passed to
 .Xr free 3
 to release the allocated storage when it is no longer needed.
-If sufficient space cannot be allocated, 
+If sufficient space cannot be allocated,
 .Fn asprintf
 and
 .Fn vasprintf
@@ -204,7 +204,7 @@ A
 .Cm #
 character
 specifying that the value should be converted to an ``alternate form''.
-For 
+For
 .Cm c ,
 .Cm d ,
 .Cm i ,
@@ -214,7 +214,7 @@ For
 and
 .Cm u ,
 conversions, this option has no effect.
-For 
+For
 .Cm o
 conversions, the precision of the number is increased to force the first
 character of the output string to a zero (except if a zero value is printed
@@ -369,6 +369,26 @@ argument, or that a following
 .Cm n
 conversion corresponds to a pointer to a
 .Em long int
+argument.
+.It
+The optional characters
+.Cm ll
+(ell ell) specifying that a following
+.Cm d ,
+.Cm i ,
+.Cm o ,
+.Cm u ,
+.Cm x ,
+or
+.Cm X
+conversion applies to a pointer to a
+.Em long long int
+or
+.Em unsigned long long int
+argument, or that a following
+.Cm n
+conversion corresponds to a pointer to a
+.Em long long int
 argument.
 .It
 The optional character
@@ -623,7 +643,7 @@ and
 .Fn vsprintf
 functions
 conform to
-.St -ansiC 
+.St -ansiC
 and
 .St -isoC-99 .
 The
