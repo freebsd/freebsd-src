@@ -210,14 +210,6 @@ swapon(p, uap)
 	if (error)
 		vrele(vp);
 
-	if (!swapdev_vp) {
-		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
-		    &swapdev_vp);
-		if (error)
-			panic("Cannot get vnode for swapdev");
-		swapdev_vp->v_type = VNON;	/* Untyped */
-	}
-
 	return (error);
 }
 
@@ -245,6 +237,14 @@ swaponvp(p, vp, dev, nblks)
 	register long blk;
 	swblk_t dvbase;
 	int error;
+
+	if (!swapdev_vp) {
+		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
+		    &swapdev_vp);
+		if (error)
+			panic("Cannot get vnode for swapdev");
+		swapdev_vp->v_type = VNON;	/* Untyped */
+	}
 
 	ASSERT_VOP_UNLOCKED(vp, "swaponvp");
 	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
