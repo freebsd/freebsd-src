@@ -283,6 +283,14 @@ ip_fastforward(struct mbuf *m)
 		goto drop;
 	}
 
+#ifdef ALTQ
+	/*
+	 * Is packet dropped by traffic conditioner?
+	 */
+	if (altq_input != NULL && (*altq_input)(m, AF_INET) == 0)
+		return 1;
+#endif
+
 	/*
 	 * Step 2: fallback conditions to normal ip_input path processing
 	 */
@@ -669,6 +677,7 @@ droptoours:	/* Used for DIVERT */
 		goto consumed;
 	}
 
+#ifndef ALTQ
 	/*
 	 * Check if there is enough space in the interface queue
 	 */
@@ -678,6 +687,7 @@ droptoours:	/* Used for DIVERT */
 		/* would send source quench here but that is depreciated */
 		goto drop;
 	}
+#endif
 
 	/*
 	 * Check if media link state of interface is not down
