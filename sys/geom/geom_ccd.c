@@ -65,23 +65,23 @@
 #include <sys/stat.h>
 #include <sys/disk.h>
 #include <sys/fcntl.h>
-#include <sys/vnode.h>
 #include <geom/geom.h>
-#include <geom/geom_disk.h>
-
-#include <sys/ccdvar.h>
 
 /*
- * Component info table.
- * Describes a single component of a concatenated disk.
+ * Number of blocks to untouched in front of a component partition.
+ * This is to avoid violating its disklabel area when it starts at the
+ * beginning of the slice.
  */
-struct ccdcinfo {
-	struct vnode	*ci_vp;			/* device's vnode */
-	dev_t		ci_dev;			/* XXX: device's dev_t */
-	size_t		ci_size; 		/* size */
-	char		*ci_path;		/* path to component */
-	size_t		ci_pathlen;		/* length of component path */
-};
+#if !defined(CCD_OFFSET)
+#define CCD_OFFSET 16
+#endif
+
+/* sc_flags */
+#define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
+#define CCDF_MIRROR	0x04	/* use mirroring */
+
+/* Mask of user-settable ccd flags. */
+#define CCDF_USERMASK	(CCDF_UNIFORM|CCDF_MIRROR)
 
 /*
  * Interleave description table.
@@ -117,279 +117,126 @@ struct ccdiinfo {
 };
 
 /*
- * Concatenated disk pseudo-geometry information.
+ * Component info table.
+ * Describes a single component of a concatenated disk.
  */
-struct ccdgeom {
-	u_int32_t	ccg_secsize;	/* # bytes per sector */
-	u_int32_t	ccg_nsectors;	/* # data sectors per track */
-	u_int32_t	ccg_ntracks;	/* # tracks per cylinder */
-	u_int32_t	ccg_ncylinders;	/* # cylinders per unit */
+struct ccdcinfo {
+	struct vnode	*ci_vp;			/* device's vnode */
+	size_t		ci_size; 		/* size */
+	struct g_provider *ci_provider;		/* provider */
+	struct g_consumer *ci_consumer;		/* consumer */
 };
-
 
 /*
  * A concatenated disk is described by this structure.
  */
+
 struct ccd_s {
 	LIST_ENTRY(ccd_s) list;
 
 	int		 sc_unit;		/* logical unit number */
 	struct vnode	 **sc_vpp;		/* array of component vnodes */
 	int		 sc_flags;		/* flags */
-	int		 sc_cflags;		/* configuration flags */
 	size_t		 sc_size;		/* size of ccd */
 	int		 sc_ileave;		/* interleave */
-	u_int		 sc_nccdisks;		/* number of components */
-#define	CCD_MAXNDISKS	 65536
+	u_int		 sc_ndisks;		/* number of components */
 	struct ccdcinfo	 *sc_cinfo;		/* component info */
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
-	struct ccdgeom   sc_geom;		/* pseudo geometry info */
+	u_int32_t	 sc_secsize;		/* # bytes per sector */
 	int		 sc_pick;		/* side of mirror picked */
 	daddr_t		 sc_blk[2];		/* mirror localization */
-	struct disk	 *sc_disk;
-	struct cdev	 *__remove00;		/* XXX: remove when convenient */
 };
 
-MALLOC_DEFINE(M_CCD, "CCD driver", "Concatenated Disk driver");
-
-/*
-   This is how mirroring works (only writes are special):
-
-   When initiating a write, ccdbuffer() returns two "struct ccdbuf *"s
-   linked together by the cb_mirror field.  "cb_pflags &
-   CCDPF_MIRROR_DONE" is set to 0 on both of them.
-
-   When a component returns to ccdiodone(), it checks if "cb_pflags &
-   CCDPF_MIRROR_DONE" is set or not.  If not, it sets the partner's
-   flag and returns.  If it is, it means its partner has already
-   returned, so it will go to the regular cleanup.
-
- */
-
-struct ccdbuf {
-	struct bio	cb_buf;		/* new I/O buf */
-	struct bio	*cb_obp;	/* ptr. to original I/O buf */
-	struct ccdbuf	*cb_freenext;	/* free list link */
-	struct ccd_s	*cb_softc;
-	int		cb_comp;	/* target component */
-	int		cb_pflags;	/* mirror/parity status flag */
-	struct ccdbuf	*cb_mirror;	/* mirror counterpart */
-};
-
-/* bits in cb_pflags */
-#define CCDPF_MIRROR_DONE 1	/* if set, mirror counterpart is done */
-
-/* convinient macros for often-used statements */
-#define IS_ALLOCATED(unit)	(ccdfind(unit) != NULL)
-#define IS_INITED(cs)		(((cs)->sc_flags & CCDF_INITED) != 0)
-
-static dev_t	ccdctldev;
-
-static disk_strategy_t ccdstrategy;
-static d_ioctl_t ccdctlioctl;
-
-#define NCCDFREEHIWAT	16
-
-#define CDEV_MAJOR 74
-
-static struct cdevsw ccdctl_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
-	.d_ioctl =	ccdctlioctl,
-	.d_name =	"ccdctl",
-	.d_maj =	CDEV_MAJOR,
-};
-
-static LIST_HEAD(, ccd_s) ccd_softc_list =
-	LIST_HEAD_INITIALIZER(&ccd_softc_list);
-
-static struct ccd_s *ccdfind(int);
-static struct ccd_s *ccdnew(int);
-static int ccddestroy(struct ccd_s *);
-
-/* called during module initialization */
-static void ccdattach(void);
-static int ccd_modevent(module_t, int, void *);
-
-/* called by biodone() at interrupt time */
+static g_start_t g_ccd_start;
 static void ccdiodone(struct bio *bp);
-
-static void ccdstart(struct ccd_s *, struct bio *);
-static void ccdinterleave(struct ccd_s *, int);
-static int ccdinit(struct ccd_s *, char **, struct thread *);
-static int ccdlookup(char *, struct thread *p, struct vnode **);
-static int ccdbuffer(struct ccdbuf **ret, struct ccd_s *,
+static void ccdinterleave(struct ccd_s *);
+static int ccdinit(struct gctl_req *req, struct ccd_s *);
+static int ccdbuffer(struct bio **ret, struct ccd_s *,
 		      struct bio *, daddr_t, caddr_t, long);
-static int ccdlock(struct ccd_s *);
-static void ccdunlock(struct ccd_s *);
 
-
-/*
- * Number of blocks to untouched in front of a component partition.
- * This is to avoid violating its disklabel area when it starts at the
- * beginning of the slice.
- */
-#if !defined(CCD_OFFSET)
-#define CCD_OFFSET 16
-#endif
-
-static struct ccd_s *
-ccdfind(int unit)
-{
-	struct ccd_s *sc = NULL;
-
-	/* XXX: LOCK(unique unit numbers) */
-	LIST_FOREACH(sc, &ccd_softc_list, list) {
-		if (sc->sc_unit == unit)
-			break;
-	}
-	/* XXX: UNLOCK(unique unit numbers) */
-	return ((sc == NULL) || (sc->sc_unit != unit) ? NULL : sc);
-}
-
-static struct ccd_s *
-ccdnew(int unit)
-{
-	struct ccd_s *sc;
-
-	/* XXX: LOCK(unique unit numbers) */
-	if (IS_ALLOCATED(unit) || unit > 32)
-		return (NULL);
-
-	MALLOC(sc, struct ccd_s *, sizeof(*sc), M_CCD, M_WAITOK | M_ZERO);
-	sc->sc_unit = unit;
-	LIST_INSERT_HEAD(&ccd_softc_list, sc, list);
-	/* XXX: UNLOCK(unique unit numbers) */
-	return (sc);
-}
-
-static int
-ccddestroy(struct ccd_s *sc)
-{
-
-	/* XXX: LOCK(unique unit numbers) */
-	LIST_REMOVE(sc, list);
-	/* XXX: UNLOCK(unique unit numbers) */
-	FREE(sc, M_CCD);
-	return (0);
-}
-
-/*
- * Called by main() during pseudo-device attachment.  All we need
- * to do is to add devsw entries.
- */
 static void
-ccdattach()
+g_ccd_orphan(struct g_consumer *cp)
 {
-
-	ccdctldev = make_dev(&ccdctl_cdevsw, 0xffff00ff,
-		UID_ROOT, GID_OPERATOR, 0640, "ccd.ctl");
-	ccdctldev->si_drv1 = ccdctldev;
 }
 
 static int
-ccd_modevent(module_t mod, int type, void *data)
+g_ccd_access(struct g_provider *pp, int dr, int dw, int de)
 {
-	int error = 0;
+	struct g_geom *gp;
+	struct g_consumer *cp1, *cp2;
+	int error;
 
-	switch (type) {
-	case MOD_LOAD:
-		ccdattach();
-		break;
+	de += dr;
+	de += dw;
 
-	case MOD_UNLOAD:
-		printf("ccd0: Unload not supported!\n");
-		error = EOPNOTSUPP;
-		break;
-
-	case MOD_SHUTDOWN:
-		break;
-
-	default:
-		error = EOPNOTSUPP;
+	gp = pp->geom;
+	error = ENXIO;
+	LIST_FOREACH(cp1, &gp->consumer, consumer) {
+		error = g_access_rel(cp1, dr, dw, de);
+		if (error) {
+			LIST_FOREACH(cp2, &gp->consumer, consumer) {
+				if (cp1 == cp2)
+					break;
+				g_access_rel(cp1, -dr, -dw, -de);
+			}
+			break;
+		}
 	}
 	return (error);
 }
 
-DEV_MODULE(ccd, ccd_modevent, NULL);
+/*
+ * Free the softc and its substructures.
+ */
+static void
+g_ccd_freesc(struct ccd_s *sc)
+{
+	struct ccdiinfo *ii;
+
+	g_free(sc->sc_cinfo);
+	if (sc->sc_itable != NULL) {
+		for (ii = sc->sc_itable; ii->ii_ndisk > 0; ii++)
+			if (ii->ii_index != NULL)
+				g_free(ii->ii_index);
+		g_free(sc->sc_itable);
+	}
+	g_free(sc);
+}
+
 
 static int
-ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
+ccdinit(struct gctl_req *req, struct ccd_s *cs)
 {
-	struct ccdcinfo *ci = NULL;	/* XXX */
+	struct ccdcinfo *ci;
 	size_t size;
 	int ix;
-	struct vnode *vp;
 	size_t minsize;
 	int maxsecsize;
-	struct ccdgeom *ccg = &cs->sc_geom;
-	char *tmppath = NULL;
-	int error = 0;
 	off_t mediasize;
 	u_int sectorsize;
 
-
 	cs->sc_size = 0;
 
-	/* Allocate space for the component info. */
-	cs->sc_cinfo = malloc(cs->sc_nccdisks * sizeof(struct ccdcinfo),
-	    M_CCD, M_WAITOK);
-
-	/*
-	 * Verify that each component piece exists and record
-	 * relevant information about it.
-	 */
 	maxsecsize = 0;
 	minsize = 0;
-	tmppath = malloc(MAXPATHLEN, M_CCD, M_WAITOK);
-	for (ix = 0; ix < cs->sc_nccdisks; ix++) {
-		vp = cs->sc_vpp[ix];
+	for (ix = 0; ix < cs->sc_ndisks; ix++) {
 		ci = &cs->sc_cinfo[ix];
-		ci->ci_vp = vp;
 
-		/*
-		 * Copy in the pathname of the component.
-		 */
-		if ((error = copyinstr(cpaths[ix], tmppath,
-		    MAXPATHLEN, &ci->ci_pathlen)) != 0) {
-			goto fail;
-		}
-		ci->ci_path = malloc(ci->ci_pathlen, M_CCD, M_WAITOK);
-		bcopy(tmppath, ci->ci_path, ci->ci_pathlen);
-
-		ci->ci_dev = vn_todev(vp);
-
-		/*
-		 * Get partition information for the component.
-		 */
-		error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
-		    FREAD, td->td_ucred, td);
-		if (error != 0) {
-			goto fail;
-		}
-		/*
-		 * Get partition information for the component.
-		 */
-		error = VOP_IOCTL(vp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
-		    FREAD, td->td_ucred, td);
-		if (error != 0) {
-			goto fail;
-		}
+		mediasize = ci->ci_provider->mediasize;
+		sectorsize = ci->ci_provider->sectorsize;
 		if (sectorsize > maxsecsize)
 			maxsecsize = sectorsize;
 		size = mediasize / DEV_BSIZE - CCD_OFFSET;
 
-		/*
-		 * Calculate the size, truncating to an interleave
-		 * boundary if necessary.
-		 */
+		/* Truncate to interleave boundary */
 
 		if (cs->sc_ileave > 1)
 			size -= size % cs->sc_ileave;
 
 		if (size == 0) {
-			error = ENODEV;
-			goto fail;
+			gctl_error(req, "Component %s has effective size zero",
+			    ci->ci_provider->name);
+			return(ENODEV);
 		}
 
 		if (minsize == 0 || size < minsize)
@@ -398,17 +245,14 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		cs->sc_size += size;
 	}
 
-	free(tmppath, M_CCD);
-	tmppath = NULL;
-
 	/*
 	 * Don't allow the interleave to be smaller than
 	 * the biggest component sector.
 	 */
 	if ((cs->sc_ileave > 0) &&
 	    (cs->sc_ileave < (maxsecsize / DEV_BSIZE))) {
-		error = EINVAL;
-		goto fail;
+		gctl_error(req, "Interleave to small for sector size");
+		return(EINVAL);
 	}
 
 	/*
@@ -421,69 +265,49 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	 * specified.
 	 */
 	if (cs->sc_flags & CCDF_UNIFORM) {
-		for (ci = cs->sc_cinfo;
-		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++) {
+		for (ix = 0; ix < cs->sc_ndisks; ix++) {
+			ci = &cs->sc_cinfo[ix];
 			ci->ci_size = minsize;
 		}
-		if (cs->sc_flags & CCDF_MIRROR) {
-			/*
-			 * Check to see if an even number of components
-			 * have been specified.  The interleave must also
-			 * be non-zero in order for us to be able to 
-			 * guarentee the topology.
-			 */
-			if (cs->sc_nccdisks % 2) {
-				printf("ccd%d: mirroring requires an even number of disks\n", cs->sc_unit );
-				error = EINVAL;
-				goto fail;
-			}
-			if (cs->sc_ileave == 0) {
-				printf("ccd%d: an interleave must be specified when mirroring\n", cs->sc_unit);
-				error = EINVAL;
-				goto fail;
-			}
-			cs->sc_size = (cs->sc_nccdisks/2) * minsize;
-		} else {
-			if (cs->sc_ileave == 0) {
-				printf("ccd%d: an interleave must be specified when using parity\n", cs->sc_unit);
-				error = EINVAL;
-				goto fail;
-			}
-			cs->sc_size = cs->sc_nccdisks * minsize;
-		}
+		cs->sc_size = cs->sc_ndisks * minsize;
 	}
+
+	if (cs->sc_flags & CCDF_MIRROR) {
+		/*
+		 * Check to see if an even number of components
+		 * have been specified.  The interleave must also
+		 * be non-zero in order for us to be able to 
+		 * guarentee the topology.
+		 */
+		if (cs->sc_ndisks % 2) {
+			gctl_error(req,
+			      "Mirroring requires an even number of disks");
+			return(EINVAL);
+		}
+		if (cs->sc_ileave == 0) {
+			gctl_error(req,
+			     "An interleave must be specified when mirroring");
+			return(EINVAL);
+		}
+		cs->sc_size = (cs->sc_ndisks/2) * minsize;
+	} 
 
 	/*
 	 * Construct the interleave table.
 	 */
-	ccdinterleave(cs, cs->sc_unit);
+	ccdinterleave(cs);
 
 	/*
 	 * Create pseudo-geometry based on 1MB cylinders.  It's
 	 * pretty close.
 	 */
-	ccg->ccg_secsize = maxsecsize;
-	ccg->ccg_ntracks = 1;
-	ccg->ccg_nsectors = 1024 * 1024 / ccg->ccg_secsize;
-	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
+	cs->sc_secsize = maxsecsize;
 
-	cs->sc_flags |= CCDF_INITED;
-	cs->sc_cflags = cs->sc_flags;	/* So we can find out later... */
 	return (0);
-fail:
-	while (ci > cs->sc_cinfo) {
-		ci--;
-		free(ci->ci_path, M_CCD);
-	}
-	if (tmppath != NULL)
-		free(tmppath, M_CCD);
-	free(cs->sc_cinfo, M_CCD);
-	ccddestroy(cs);
-	return (error);
 }
 
 static void
-ccdinterleave(struct ccd_s *cs, int unit)
+ccdinterleave(struct ccd_s *cs)
 {
 	struct ccdcinfo *ci, *smallci;
 	struct ccdiinfo *ii;
@@ -499,9 +323,8 @@ ccdinterleave(struct ccd_s *cs, int unit)
 	 *
 	 * Chances are this is too big, but we don't care.
 	 */
-	size = (cs->sc_nccdisks + 1) * sizeof(struct ccdiinfo);
-	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_CCD,
-	    M_WAITOK | M_ZERO);
+	size = (cs->sc_ndisks + 1) * sizeof(struct ccdiinfo);
+	cs->sc_itable = g_malloc(size, M_WAITOK | M_ZERO);
 
 	/*
 	 * Trivial case: no interleave (actually interleave of disk size).
@@ -513,9 +336,9 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		bn = 0;
 		ii = cs->sc_itable;
 
-		for (ix = 0; ix < cs->sc_nccdisks; ix++) {
+		for (ix = 0; ix < cs->sc_ndisks; ix++) {
 			/* Allocate space for ii_index. */
-			ii->ii_index = malloc(sizeof(int), M_CCD, M_WAITOK);
+			ii->ii_index = g_malloc(sizeof(int), M_WAITOK);
 			ii->ii_ndisk = 1;
 			ii->ii_startblk = bn;
 			ii->ii_startoff = 0;
@@ -537,14 +360,14 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 * Allocate space for ii_index.  We might allocate more then
 		 * we use.
 		 */
-		ii->ii_index = malloc((sizeof(int) * cs->sc_nccdisks),
-		    M_CCD, M_WAITOK);
+		ii->ii_index = g_malloc((sizeof(int) * cs->sc_ndisks),
+		    M_WAITOK);
 
 		/*
 		 * Locate the smallest of the remaining components
 		 */
 		smallci = NULL;
-		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_nccdisks]; 
+		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks]; 
 		    ci++) {
 			if (ci->ci_size > size &&
 			    (smallci == NULL ||
@@ -558,7 +381,8 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 */
 		if (smallci == NULL) {
 			ii->ii_ndisk = 0;
-			free(ii->ii_index, M_CCD);
+			g_free(ii->ii_index);
+			ii->ii_index = NULL;
 			break;
 		}
 
@@ -568,7 +392,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		ii->ii_startblk = bn / cs->sc_ileave;
 
 		/*
-		 * Record starting comopnent block using an sc_ileave 
+		 * Record starting component block using an sc_ileave 
 		 * blocksize.  This value is relative to the beginning of
 		 * a component disk.
 		 */
@@ -580,7 +404,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 */
 		ix = 0;
 		for (ci = cs->sc_cinfo; 
-		    ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++) {
+		    ci < &cs->sc_cinfo[cs->sc_ndisks]; ci++) {
 			if (ci->ci_size >= smallci->ci_size) {
 				ii->ii_index[ix++] = ci - cs->sc_cinfo;
 			}
@@ -593,69 +417,29 @@ ccdinterleave(struct ccd_s *cs, int unit)
 }
 
 static void
-ccdstrategy(struct bio *bp)
-{
-	struct ccd_s *cs;
-	int pbn;        /* in sc_secsize chunks */
-	long sz;        /* in sc_secsize chunks */
-
-	cs = bp->bio_disk->d_drv1;
-
-	pbn = bp->bio_blkno / (cs->sc_geom.ccg_secsize / DEV_BSIZE);
-	sz = howmany(bp->bio_bcount, cs->sc_geom.ccg_secsize);
-
-	/*
-	 * If out of bounds return an error. If at the EOF point,
-	 * simply read or write less.
-	 */
-
-	if (pbn < 0 || pbn >= cs->sc_size) {
-		bp->bio_resid = bp->bio_bcount;
-		if (pbn != cs->sc_size)
-			biofinish(bp, NULL, EINVAL);
-		else
-			biodone(bp);
-		return;
-	}
-
-	/*
-	 * If the request crosses EOF, truncate the request.
-	 */
-	if (pbn + sz > cs->sc_size) {
-		bp->bio_bcount = (cs->sc_size - pbn) * 
-		    cs->sc_geom.ccg_secsize;
-	}
-
-	bp->bio_resid = bp->bio_bcount;
-
-	/*
-	 * "Start" the unit.
-	 */
-	ccdstart(cs, bp);
-	return;
-}
-
-static void
-ccdstart(struct ccd_s *cs, struct bio *bp)
+g_ccd_start(struct bio *bp)
 {
 	long bcount, rcount;
-	struct ccdbuf *cbp[2];
+	struct bio *cbp[2];
 	caddr_t addr;
 	daddr_t bn;
 	int err;
 	int sent;
+	struct ccd_s *cs;
+
+	cs = bp->bio_to->geom->softc;
 
 	/*
 	 * Translate the partition-relative block number to an absolute.
 	 */
-	bn = bp->bio_blkno;
+	bn = bp->bio_offset / cs->sc_secsize;
 
 	/*
 	 * Allocate component buffers and fire off the requests
 	 */
 	addr = bp->bio_data;
 	sent = 0;
-	for (bcount = bp->bio_bcount; bcount > 0; bcount -= rcount) {
+	for (bcount = bp->bio_length; bcount > 0; bcount -= rcount) {
 		err = ccdbuffer(cbp, cs, bp, bn, addr, bcount);
 		if (err) {
 			printf("ccdbuffer error %d\n", err);
@@ -674,9 +458,9 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 			}
 			return;
 		}
-		rcount = cbp[0]->cb_buf.bio_bcount;
+		rcount = cbp[0]->bio_length;
 
-		if (cs->sc_cflags & CCDF_MIRROR) {
+		if (cs->sc_flags & CCDF_MIRROR) {
 			/*
 			 * Mirroring.  Writes go to both disks, reads are
 			 * taken from whichever disk seems most appropriate.
@@ -686,9 +470,9 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 			 * to writes when making this determination and we
 			 * also try to avoid hogging.
 			 */
-			if (cbp[0]->cb_buf.bio_cmd == BIO_WRITE) {
-				BIO_STRATEGY(&cbp[0]->cb_buf);
-				BIO_STRATEGY(&cbp[1]->cb_buf);
+			if (cbp[0]->bio_cmd != BIO_READ) {
+				g_io_request(cbp[0], cbp[0]->bio_from);
+				g_io_request(cbp[1], cbp[1]->bio_from);
 				sent++;
 			} else {
 				int pick = cs->sc_pick;
@@ -700,14 +484,14 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 					cs->sc_pick = pick = 1 - pick;
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
-				BIO_STRATEGY(&cbp[pick]->cb_buf);
+				g_io_request(cbp[pick], cbp[pick]->bio_from);
 				sent++;
 			}
 		} else {
 			/*
 			 * Not mirroring
 			 */
-			BIO_STRATEGY(&cbp[0]->cb_buf);
+			g_io_request(cbp[0], cbp[0]->bio_from);
 			sent++;
 		}
 		bn += btodb(rcount);
@@ -719,10 +503,10 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
  * Build a component buffer header.
  */
 static int
-ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t addr, long bcount)
+ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t addr, long bcount)
 {
 	struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
-	struct ccdbuf *cbp;
+	struct bio *cbp;
 	daddr_t cbn, cboff;
 	off_t cbc;
 
@@ -788,7 +572,7 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 			ccdisk = ii->ii_index[0];
 			cbn = ii->ii_startoff + off;
 		} else {
-			if (cs->sc_cflags & CCDF_MIRROR) {
+			if (cs->sc_flags & CCDF_MIRROR) {
 				/*
 				 * We have forced a uniform mapping, resulting
 				 * in a single interleave array.  We double
@@ -824,491 +608,250 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	/*
 	 * Fill in the component buf structure.
 	 */
-	cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_NOWAIT | M_ZERO);
-	if (cbp == NULL)
-		return (ENOMEM);
-	cbp->cb_buf.bio_cmd = bp->bio_cmd;
-	cbp->cb_buf.bio_done = ccdiodone;
-	cbp->cb_buf.bio_dev = ci->ci_dev;		/* XXX */
-	cbp->cb_buf.bio_blkno = cbn + cboff + CCD_OFFSET;
-	cbp->cb_buf.bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
-	cbp->cb_buf.bio_data = addr;
-	cbp->cb_buf.bio_caller2 = cbp;
+	cbp = g_clone_bio(bp);
+	cbp->bio_done = g_std_done;
+	cbp->bio_offset = dbtob(cbn + cboff + CCD_OFFSET);
+	cbp->bio_data = addr;
 	if (cs->sc_ileave == 0)
               cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
               cbc = dbtob((off_t)(cs->sc_ileave - cboff));
-	cbp->cb_buf.bio_bcount = (cbc < bcount) ? cbc : bcount;
- 	cbp->cb_buf.bio_caller1 = (void*)cbp->cb_buf.bio_bcount;
+	cbp->bio_length = (cbc < bcount) ? cbc : bcount;
 
-	/*
-	 * context for ccdiodone
-	 */
-	cbp->cb_obp = bp;
-	cbp->cb_softc = cs;
-	cbp->cb_comp = ci - cs->sc_cinfo;
-
+	cbp->bio_from = ci->ci_consumer;
 	cb[0] = cbp;
 
-	/*
-	 * Note: both I/O's setup when reading from mirror, but only one
-	 * will be executed.
-	 */
-	if (cs->sc_cflags & CCDF_MIRROR) {
-		/* mirror, setup second I/O */
-		cbp = malloc(sizeof(struct ccdbuf), M_CCD, M_NOWAIT);
-		if (cbp == NULL) {
-			free(cb[0], M_CCD);
-			cb[0] = NULL;
-			return (ENOMEM);
-		}
-		bcopy(cb[0], cbp, sizeof(struct ccdbuf));
-		cbp->cb_buf.bio_caller2 = cbp;
-		cbp->cb_buf.bio_dev = ci2->ci_dev;
-		cbp->cb_comp = ci2 - cs->sc_cinfo;
+	if (cs->sc_flags & CCDF_MIRROR) {
+		cbp = g_clone_bio(bp);
+		cbp->bio_done = cb[0]->bio_done = ccdiodone;
+		cbp->bio_offset = cb[0]->bio_offset;
+		cbp->bio_data = cb[0]->bio_data;
+		cbp->bio_length = cb[0]->bio_length;
+		cbp->bio_from = ci2->ci_consumer;
+		cbp->bio_caller1 = cb[0];
+		cb[0]->bio_caller1 = cbp;
 		cb[1] = cbp;
-		/* link together the ccdbuf's and clear "mirror done" flag */
-		cb[0]->cb_mirror = cb[1];
-		cb[1]->cb_mirror = cb[0];
-		cb[0]->cb_pflags &= ~CCDPF_MIRROR_DONE;
-		cb[1]->cb_pflags &= ~CCDPF_MIRROR_DONE;
 	}
 	return (0);
 }
 
 /*
- * Called at interrupt time.
- * Mark the component as done and if all components are done,
- * take a ccd interrupt.
+ * Called only for mirrored reads.
  */
 static void
-ccdiodone(struct bio *ibp)
+ccdiodone(struct bio *cbp)
 {
-	struct ccdbuf *cbp;
-	struct bio *bp;
-	struct ccd_s *cs;
-	int count;
+	struct bio *mbp, *pbp;
 
-	cbp = ibp->bio_caller2;
-	cs = cbp->cb_softc;
-	bp = cbp->cb_obp;
-	/*
-	 * If an error occured, report it.  If this is a mirrored 
-	 * configuration and the first of two possible reads, do not
-	 * set the error in the bp yet because the second read may
-	 * succeed.
-	 */
+	mbp = cbp->bio_caller1;
+	pbp = cbp->bio_parent;
 
-	if (cbp->cb_buf.bio_flags & BIO_ERROR) {
-		const char *msg = "";
-
-		if ((cs->sc_cflags & CCDF_MIRROR) &&
-		    (cbp->cb_buf.bio_cmd == BIO_READ) &&
-		    (cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-			/*
-			 * We will try our read on the other disk down
-			 * below, also reverse the default pick so if we 
-			 * are doing a scan we do not keep hitting the
-			 * bad disk first.
-			 */
-
-			msg = ", trying other disk";
-			cs->sc_pick = 1 - cs->sc_pick;
-			cs->sc_blk[cs->sc_pick] = bp->bio_blkno;
-		} else {
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_error = cbp->cb_buf.bio_error ? 
-			    cbp->cb_buf.bio_error : EIO;
-		}
-		printf("ccd%d: error %d on component %d block %jd "
-		    "(ccd block %jd)%s\n", cs->sc_unit, bp->bio_error,
-		    cbp->cb_comp, 
-		    (intmax_t)cbp->cb_buf.bio_blkno, (intmax_t)bp->bio_blkno,
-		    msg);
-	}
-
-	/*
-	 * Process mirror.  If we are writing, I/O has been initiated on both
-	 * buffers and we fall through only after both are finished.
-	 *
-	 * If we are reading only one I/O is initiated at a time.  If an
-	 * error occurs we initiate the second I/O and return, otherwise 
-	 * we free the second I/O without initiating it.
-	 */
-
-	if (cs->sc_cflags & CCDF_MIRROR) {
-		if (cbp->cb_buf.bio_cmd == BIO_WRITE) {
-			/*
-			 * When writing, handshake with the second buffer
-			 * to determine when both are done.  If both are not
-			 * done, return here.
-			 */
-			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-				cbp->cb_mirror->cb_pflags |= CCDPF_MIRROR_DONE;
-				free(cbp, M_CCD);
+	if (pbp->bio_cmd == BIO_READ) {
+		if (cbp->bio_error == 0) {
+			g_std_done(cbp);
+			if (mbp == NULL)
 				return;
-			}
-		} else {
-			/*
-			 * When reading, either dispose of the second buffer
-			 * or initiate I/O on the second buffer if an error 
-			 * occured with this one.
-			 */
-			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-				if (cbp->cb_buf.bio_flags & BIO_ERROR) {
-					cbp->cb_mirror->cb_pflags |= 
-					    CCDPF_MIRROR_DONE;
-					BIO_STRATEGY(&cbp->cb_mirror->cb_buf);
-					free(cbp, M_CCD);
-					return;
-				} else {
-					free(cbp->cb_mirror, M_CCD);
-				}
-			}
+			pbp->bio_inbed++;
+			g_destroy_bio(mbp);
+			if (pbp->bio_children == pbp->bio_inbed)
+				g_io_deliver(pbp, pbp->bio_error);
+			return;
 		}
+		if (mbp != NULL) {
+			mbp->bio_caller1 = NULL;
+			pbp->bio_inbed++;
+			g_destroy_bio(cbp);
+			g_io_request(mbp, mbp->bio_from);
+			return;
+		}
+		g_std_done(cbp);
 	}
-
-	/*
-	 * use bio_caller1 to determine how big the original request was rather
-	 * then bio_bcount, because bio_bcount may have been truncated for EOF.
-	 *
-	 * XXX We check for an error, but we do not test the resid for an
-	 * aligned EOF condition.  This may result in character & block
-	 * device access not recognizing EOF properly when read or written 
-	 * sequentially, but will not effect filesystems.
-	 */
-	count = (long)cbp->cb_buf.bio_caller1;
-	free(cbp, M_CCD);
-
-	/*
-	 * If all done, "interrupt".
-	 */
-	bp->bio_resid -= count;
-	if (bp->bio_resid < 0)
-		panic("ccdiodone: count");
-	if (bp->bio_resid == 0) {
-		if (bp->bio_flags & BIO_ERROR)
-			bp->bio_resid = bp->bio_bcount;
-		biodone(bp);
+	if (mbp != NULL) {
+		mbp->bio_caller1 = NULL;
+		pbp->bio_inbed++;
+		if (cbp->bio_error != 0 && pbp->bio_error != 0)
+			pbp->bio_error = cbp->bio_error;
+		return;
 	}
+	g_std_done(cbp);
 }
 
-static int ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td);
-
-static int
-ccdctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	struct ccd_ioctl *ccio;
-	u_int unit;
-
-	switch (cmd) {
-	case CCDIOCSET:
-	case CCDIOCCLR:
-		ccio = (struct ccd_ioctl *)data;
-		unit = ccio->ccio_size;
-		return (ccdioctltoo(unit, cmd, data, flag, td));
-	default:
-		return (ENOIOCTL);
-	}
-}
-
-static int
-ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	int i, j, lookedup = 0, error = 0;
-	struct ccd_s *cs;
-	struct ccd_ioctl *ccio = (struct ccd_ioctl *)data;
-	struct ccdgeom *ccg;
-	char **cpp;
-	struct vnode **vpp;
-
-	cs = ccdfind(unit);
-	switch (cmd) {
-	case CCDIOCSET:
-		if (cs == NULL)
-			cs = ccdnew(unit);
-		if (IS_INITED(cs))
-			return (EBUSY);
-
-		if ((flag & FWRITE) == 0)
-			return (EBADF);
-
-		if ((error = ccdlock(cs)) != 0)
-			return (error);
-
-		if (ccio->ccio_ndisks > CCD_MAXNDISKS)
-			return (EINVAL);
- 
-		/* Fill in some important bits. */
-		cs->sc_ileave = ccio->ccio_ileave;
-		if (cs->sc_ileave == 0 && (ccio->ccio_flags & CCDF_MIRROR)) {
-			printf("ccd%d: disabling mirror, interleave is 0\n",
-			    unit);
-			ccio->ccio_flags &= ~(CCDF_MIRROR);
-		}
-		if ((ccio->ccio_flags & CCDF_MIRROR) &&
-		    !(ccio->ccio_flags & CCDF_UNIFORM)) {
-			printf("ccd%d: mirror/parity forces uniform flag\n",
-			       unit);
-			ccio->ccio_flags |= CCDF_UNIFORM;
-		}
-		cs->sc_flags = ccio->ccio_flags & CCDF_USERMASK;
-
-		/*
-		 * Allocate space for and copy in the array of
-		 * componet pathnames and device numbers.
-		 */
-		cpp = malloc(ccio->ccio_ndisks * sizeof(char *),
-		    M_CCD, M_WAITOK);
-		vpp = malloc(ccio->ccio_ndisks * sizeof(struct vnode *),
-		    M_CCD, M_WAITOK);
-
-		error = copyin((caddr_t)ccio->ccio_disks, (caddr_t)cpp,
-		    ccio->ccio_ndisks * sizeof(char **));
-		if (error) {
-			free(vpp, M_CCD);
-			free(cpp, M_CCD);
-			ccdunlock(cs);
-			return (error);
-		}
-
-
-		for (i = 0; i < ccio->ccio_ndisks; ++i) {
-			if ((error = ccdlookup(cpp[i], td, &vpp[i])) != 0) {
-				for (j = 0; j < lookedup; ++j)
-					(void)vn_close(vpp[j], FREAD|FWRITE,
-					    td->td_ucred, td);
-				free(vpp, M_CCD);
-				free(cpp, M_CCD);
-				ccdunlock(cs);
-				return (error);
-			}
-			++lookedup;
-		}
-		cs->sc_vpp = vpp;
-		cs->sc_nccdisks = ccio->ccio_ndisks;
-
-		/*
-		 * Initialize the ccd.  Fills in the softc for us.
-		 */
-		if ((error = ccdinit(cs, cpp, td)) != 0) {
-			for (j = 0; j < lookedup; ++j)
-				(void)vn_close(vpp[j], FREAD|FWRITE,
-				    td->td_ucred, td);
-			/*
-			 * We can't ccddestroy() cs just yet, because nothing
-			 * prevents user-level app to do another ioctl()
-			 * without closing the device first, therefore
-			 * declare unit null and void and let ccdclose()
-			 * destroy it when it is safe to do so.
-			 */
-			cs->sc_flags &= (CCDF_WANTED | CCDF_LOCKED);
-			free(vpp, M_CCD);
-			free(cpp, M_CCD);
-			ccdunlock(cs);
-			return (error);
-		}
-		free(cpp, M_CCD);
-
-		/*
-		 * The ccd has been successfully initialized, so
-		 * we can place it into the array and read the disklabel.
-		 */
-		ccio->ccio_unit = unit;
-		ccio->ccio_size = cs->sc_size;
-		ccg = &cs->sc_geom;
-		cs->sc_disk = malloc(sizeof(struct disk), M_CCD,
-		    M_ZERO | M_WAITOK);
-		cs->sc_disk->d_strategy = ccdstrategy;
-		cs->sc_disk->d_name = "ccd";
-		cs->sc_disk->d_sectorsize = ccg->ccg_secsize;
-		cs->sc_disk->d_mediasize =
-		    cs->sc_size * (off_t)ccg->ccg_secsize;
-		cs->sc_disk->d_fwsectors = ccg->ccg_nsectors;
-		cs->sc_disk->d_fwheads = ccg->ccg_ntracks;
-		cs->sc_disk->d_drv1 = cs;
-		cs->sc_disk->d_maxsize = MAXPHYS;
-		disk_create(unit, cs->sc_disk, 0, NULL, NULL);
-
-		ccdunlock(cs);
-
-		break;
-
-	case CCDIOCCLR:
-		if (cs == NULL)
-			return (ENXIO);
-
-		if (!IS_INITED(cs))
-			return (ENXIO);
-
-		if ((flag & FWRITE) == 0)
-			return (EBADF);
-
-		if ((error = ccdlock(cs)) != 0)
-			return (error);
-
-		/* Don't unconfigure if any other partitions are open */
-		if (cs->sc_disk->d_flags & DISKFLAG_OPEN) {
-			ccdunlock(cs);
-			return (EBUSY);
-		}
-
-		disk_destroy(cs->sc_disk);
-		free(cs->sc_disk, M_CCD);
-		cs->sc_disk = NULL;
-		/* Declare unit null and void (reset all flags) */
-		cs->sc_flags &= (CCDF_WANTED | CCDF_LOCKED);
-
-		/* Close the components and free their pathnames. */
-		for (i = 0; i < cs->sc_nccdisks; ++i) {
-			/*
-			 * XXX: this close could potentially fail and
-			 * cause Bad Things.  Maybe we need to force
-			 * the close to happen?
-			 */
-			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
-			    td->td_ucred, td);
-			free(cs->sc_cinfo[i].ci_path, M_CCD);
-		}
-
-		/* Free interleave index. */
-		for (i = 0; cs->sc_itable[i].ii_ndisk; ++i)
-			free(cs->sc_itable[i].ii_index, M_CCD);
-
-		/* Free component info and interleave table. */
-		free(cs->sc_cinfo, M_CCD);
-		free(cs->sc_itable, M_CCD);
-		free(cs->sc_vpp, M_CCD);
-
-		/* This must be atomic. */
-		ccdunlock(cs);
-		ccddestroy(cs);
-
-		break;
-	}
-
-	return (0);
-}
-
-
-/*
- * Lookup the provided name in the filesystem.  If the file exists,
- * is a valid block device, and isn't being used by anyone else,
- * set *vpp to the file's vnode.
- */
-static int
-ccdlookup(char *path, struct thread *td, struct vnode **vpp)
-{
-	struct nameidata nd;
-	struct vnode *vp;
-	int error, flags;
-
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, td);
-	flags = FREAD | FWRITE;
-	if ((error = vn_open(&nd, &flags, 0)) != 0) {
-		return (error);
-	}
-	vp = nd.ni_vp;
-
-	if (vrefcnt(vp) > 1) {
-		error = EBUSY;
-		goto bad;
-	}
-
-	if (!vn_isdisk(vp, &error)) 
-		goto bad;
-
-
-	VOP_UNLOCK(vp, 0, td);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	*vpp = vp;
-	return (0);
-bad:
-	VOP_UNLOCK(vp, 0, td);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	/* vn_close does vrele() for vp */
-	(void)vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-	return (error);
-}
-
-/*
-
- * Wait interruptibly for an exclusive lock.
- *
- * XXX
- * Several drivers do this; it should be abstracted and made MP-safe.
- */
-static int
-ccdlock(struct ccd_s *cs)
-{
-	int error;
-
-	while ((cs->sc_flags & CCDF_LOCKED) != 0) {
-		cs->sc_flags |= CCDF_WANTED;
-		if ((error = tsleep(cs, PRIBIO | PCATCH, "ccdlck", 0)) != 0)
-			return (error);
-	}
-	cs->sc_flags |= CCDF_LOCKED;
-	return (0);
-}
-
-/*
- * Unlock and wake up any waiters.
- */
 static void
-ccdunlock(struct ccd_s *cs)
+g_ccd_create(struct gctl_req *req, struct g_class *mp)
 {
-
-	cs->sc_flags &= ~CCDF_LOCKED;
-	if ((cs->sc_flags & CCDF_WANTED) != 0) {
-		cs->sc_flags &= ~CCDF_WANTED;
-		wakeup(cs);
-	}
-}
-
-static struct sbuf *
-g_ccd_list(int unit)
-{
+	int *unit, *ileave, *nprovider;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	struct ccd_s *sc;
 	struct sbuf *sb;
-	struct ccd_s *cs;
-	int i;
+	char buf[20];
+	int i, error;
+
+	g_topology_assert();
+	unit = gctl_get_paraml(req, "unit", sizeof (*unit));
+	ileave = gctl_get_paraml(req, "ileave", sizeof (*ileave));
+	nprovider = gctl_get_paraml(req, "nprovider", sizeof (*nprovider));
+
+	/* Check for duplicate unit */
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc->sc_unit == *unit) {
+			gctl_error(req, "Unit %d already configured", *unit);
+			return;
+		}
+	}
+
+	if (*nprovider <= 0) {
+		gctl_error(req, "Bogus nprovider argument (= %d)", *nprovider);
+		return;
+	}
+
+	/* Check all providers are valid */
+	for (i = 0; i < *nprovider; i++) {
+		sprintf(buf, "provider%d", i);
+		pp = gctl_get_provider(req, buf);
+		if (pp == NULL)
+			return;
+	}
+
+	gp = g_new_geomf(mp, "ccd%d", *unit);
+	gp->start = g_ccd_start;
+	gp->orphan = g_ccd_orphan;
+	gp->access = g_ccd_access;
+	sc = g_malloc(sizeof *sc, M_WAITOK | M_ZERO);
+	gp->softc = sc;
+	sc->sc_ndisks = *nprovider;
+
+	/* Allocate space for the component info. */
+	sc->sc_cinfo = g_malloc(sc->sc_ndisks * sizeof(struct ccdcinfo),
+	    M_WAITOK | M_ZERO);
+
+	/* Create consumers and attach to all providers */
+	for (i = 0; i < *nprovider; i++) {
+		sprintf(buf, "provider%d", i);
+		pp = gctl_get_provider(req, buf);
+		cp = g_new_consumer(gp);
+		error = g_attach(cp, pp);
+		KASSERT(error == 0, ("attach to %s failed", pp->name));
+		sc->sc_cinfo[i].ci_consumer = cp;
+		sc->sc_cinfo[i].ci_provider = pp;
+	}
+
+	sc->sc_unit = *unit;
+	sc->sc_ileave = *ileave;
+
+	if (gctl_get_param(req, "uniform", NULL))
+		sc->sc_flags |= CCDF_UNIFORM;
+	if (gctl_get_param(req, "mirror", NULL))
+		sc->sc_flags |= CCDF_MIRROR;
+
+	if (sc->sc_ileave == 0 && (sc->sc_flags & CCDF_MIRROR)) {
+		printf("%s: disabling mirror, interleave is 0\n", gp->name);
+		sc->sc_flags &= ~(CCDF_MIRROR);
+	}
+
+	if ((sc->sc_flags & CCDF_MIRROR) && !(sc->sc_flags & CCDF_UNIFORM)) {
+		printf("%s: mirror/parity forces uniform flag\n", gp->name);
+		sc->sc_flags |= CCDF_UNIFORM;
+	}
+
+	error = ccdinit(req, sc);
+	if (error != 0) {
+		g_ccd_freesc(sc);
+		gp->softc = NULL;
+		g_wither_geom(gp, ENXIO);
+		return;
+	}
+
+	pp = g_new_providerf(gp, "%s", gp->name);
+	pp->mediasize = sc->sc_size * (off_t)sc->sc_secsize;
+	pp->sectorsize = sc->sc_secsize;
+	g_error_provider(pp, 0);
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	LIST_FOREACH(cs, &ccd_softc_list, list) {
-		if (!IS_INITED(cs))
-			continue;
+	sbuf_printf(sb, "ccd%d: %d components ", sc->sc_unit, *nprovider);
+	for (i = 0; i < *nprovider; i++) {
+		sbuf_printf(sb, "%s%s",
+		    i == 0 ? "(" : ", ", 
+		    sc->sc_cinfo[i].ci_provider->name);
+	}
+	sbuf_printf(sb, "), %jd blocks ", (off_t)pp->mediasize / DEV_BSIZE);
+	if (sc->sc_ileave != 0)
+		sbuf_printf(sb, "interleaved at %d blocks\n",
+			sc->sc_ileave);
+	else
+		sbuf_printf(sb, "concatenated\n");
+	sbuf_finish(sb);
+	gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+}
+
+static void
+g_ccd_destroy(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_geom *gp;
+	struct g_provider *pp;
+	struct ccd_s *sc;
+
+	g_topology_assert();
+	gp = gctl_get_geom(req, mp, "geom");
+	if (gp == NULL)
+		return;
+	sc = gp->softc;
+	pp = LIST_FIRST(&gp->provider);
+	if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0) {
+		gctl_error(req, "%s is open(r%dw%de%d)", gp->name,
+		    pp->acr, pp->acw, pp->ace);
+		return;
+	}
+	g_ccd_freesc(sc);
+	gp->softc = NULL;
+	g_wither_geom(gp, ENXIO);
+}
+
+static void
+g_ccd_list(struct gctl_req *req, struct g_class *mp)
+{
+	struct sbuf *sb;
+	struct ccd_s *cs;
+	struct g_geom *gp;
+	int i, unit, *up;
+
+	up = gctl_get_paraml(req, "unit", sizeof (int));
+	unit = *up;
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		cs = gp->softc;
 		if (unit >= 0 && unit != cs->sc_unit)
 			continue;
 		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
-		    cs->sc_unit, cs->sc_ileave, cs->sc_cflags & CCDF_USERMASK);
+		    cs->sc_unit, cs->sc_ileave, cs->sc_flags & CCDF_USERMASK);
 			
-		for (i = 0; i < cs->sc_nccdisks; ++i) {
-			sbuf_printf(sb, "%s%s", i == 0 ? "" : " ",
-			    cs->sc_cinfo[i].ci_path);
+		for (i = 0; i < cs->sc_ndisks; ++i) {
+			sbuf_printf(sb, "%s/dev/%s", i == 0 ? "" : " ",
+			    cs->sc_cinfo[i].ci_provider->name);
 		}
 		sbuf_printf(sb, "\n");
 	}
 	sbuf_finish(sb);
-	return (sb);
+	gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
 }
 
 static void
 g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
-	struct sbuf *sb;
-	int u, *up;
 
 	g_topology_assert();
 	if (!strcmp(verb, "create geom")) {
-		gctl_error(req, "TBD");
+		g_ccd_create(req, mp);
 	} else if (!strcmp(verb, "destroy geom")) {
-		gctl_error(req, "TBD");
+		g_ccd_destroy(req, mp);
 	} else if (!strcmp(verb, "list")) {
-		up = gctl_get_paraml(req, "unit", sizeof (int));
-		u = *up;
-		sb = g_ccd_list(u);
-		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		g_ccd_list(req, mp);
 	} else {
 		gctl_error(req, "unknown verb");
 	}
