@@ -831,7 +831,7 @@ mm_answer_pam_respond(int socket, Buffer *m)
 	auth_method = "keyboard-interactive/pam";
 	if (ret == 0)
 		pam_authok = pam_ctxt;
-	return (ret);
+	return (0);
 }
 
 int
