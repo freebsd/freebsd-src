@@ -48,6 +48,7 @@ static device_method_t sio_ebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sio_ebus_probe),
 	DEVMETHOD(device_attach,	sio_ebus_attach),
+	DEVMETHOD(device_detach,	siodetach),
 
 	{ 0, 0 }
 };
