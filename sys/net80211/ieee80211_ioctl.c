@@ -868,9 +868,7 @@ ieee80211_ioctl_getkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 		return error;
 	kid = ik.ik_keyix;
 	if (kid == IEEE80211_KEYIX_NONE) {
-		if (ic->ic_sta == NULL)
-			return EINVAL;
-		ni = ieee80211_find_node(ic->ic_sta, ik.ik_macaddr);
+		ni = ieee80211_find_node(&ic->ic_sta, ik.ik_macaddr);
 		if (ni == NULL)
 			return EINVAL;		/* XXX */
 		wk = &ni->ni_ucastkey;
@@ -958,9 +956,7 @@ ieee80211_ioctl_getwpaie(struct ieee80211com *ic, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, wpaie.wpa_macaddr, IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
-	if (ic->ic_sta == NULL)
-		return EINVAL;
-	ni = ieee80211_find_node(ic->ic_sta, wpaie.wpa_macaddr);
+	ni = ieee80211_find_node(&ic->ic_sta, wpaie.wpa_macaddr);
 	if (ni == NULL)
 		return EINVAL;		/* XXX */
 	memset(wpaie.wpa_ie, 0, sizeof(wpaie.wpa_ie));
@@ -989,9 +985,7 @@ ieee80211_ioctl_getstastats(struct ieee80211com *ic, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, macaddr, IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
-	if (ic->ic_sta == NULL)
-		return EINVAL;
-	ni = ieee80211_find_node(ic->ic_sta, macaddr);
+	ni = ieee80211_find_node(&ic->ic_sta, macaddr);
 	if (ni == NULL)
 		return EINVAL;		/* XXX */
 	if (ireq->i_len > sizeof(struct ieee80211req_sta_stats))
@@ -1137,9 +1131,7 @@ ieee80211_ioctl_getstainfo(struct ieee80211com *ic, struct ieee80211req *ireq)
 	int error, space;
 	u_int8_t *p, *cp;
 
-	nt = ic->ic_sta;
-	if (nt == NULL)
-		return EINVAL;
+	nt = &ic->ic_sta;
 	p = ireq->i_data;
 	space = ireq->i_len;
 	error = 0;
@@ -1181,9 +1173,7 @@ ieee80211_ioctl_getstatxpow(struct ieee80211com *ic, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, &txpow, sizeof(txpow));
 	if (error != 0)
 		return error;
-	if (ic->ic_sta == NULL)
-		return EINVAL;
-	ni = ieee80211_find_node(ic->ic_sta, txpow.it_macaddr);
+	ni = ieee80211_find_node(&ic->ic_sta, txpow.it_macaddr);
 	if (ni == NULL)
 		return EINVAL;		/* XXX */
 	txpow.it_txpow = ni->ni_txpower;
@@ -1506,9 +1496,7 @@ ieee80211_ioctl_setkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 			if (!IEEE80211_ADDR_EQ(ik.ik_macaddr, ni->ni_bssid))
 				return EADDRNOTAVAIL;
 		} else {
-			if (ic->ic_sta == NULL)
-				return EINVAL;
-			ni = ieee80211_find_node(ic->ic_sta, ik.ik_macaddr);
+			ni = ieee80211_find_node(&ic->ic_sta, ik.ik_macaddr);
 			if (ni == NULL)
 				return ENOENT;
 		}
@@ -1561,9 +1549,7 @@ ieee80211_ioctl_delkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 	if (dk.idk_keyix == (u_int8_t) IEEE80211_KEYIX_NONE) {
 		struct ieee80211_node *ni;
 
-		if (ic->ic_sta == NULL)
-			return EINVAL;
-		ni = ieee80211_find_node(ic->ic_sta, dk.idk_macaddr);
+		ni = ieee80211_find_node(&ic->ic_sta, dk.idk_macaddr);
 		if (ni == NULL)
 			return EINVAL;		/* XXX */
 		/* XXX error return */
@@ -1644,15 +1630,13 @@ ieee80211_ioctl_setmlme(struct ieee80211com *ic, struct ieee80211req *ireq)
 		case IEEE80211_M_HOSTAP:
 			/* NB: the broadcast address means do 'em all */
 			if (!IEEE80211_ADDR_EQ(mlme.im_macaddr, ic->ic_ifp->if_broadcastaddr)) {
-				if (ic->ic_sta == NULL ||
-				    (ni = ieee80211_find_node(ic->ic_sta,
+				if ((ni = ieee80211_find_node(&ic->ic_sta,
 						mlme.im_macaddr)) == NULL)
 					return EINVAL;
 				domlme(&mlme, ni);
 				ieee80211_free_node(ni);
 			} else {
-				if (ic->ic_sta != NULL)
-					ieee80211_iterate_nodes(ic->ic_sta,
+				ieee80211_iterate_nodes(&ic->ic_sta,
 						domlme, &mlme);
 			}
 			break;
@@ -1664,9 +1648,7 @@ ieee80211_ioctl_setmlme(struct ieee80211com *ic, struct ieee80211req *ireq)
 	case IEEE80211_MLME_UNAUTHORIZE:
 		if (ic->ic_opmode != IEEE80211_M_HOSTAP)
 			return EINVAL;
-		if (ic->ic_sta == NULL)
-			return EINVAL;
-		ni = ieee80211_find_node(ic->ic_sta, mlme.im_macaddr);
+		ni = ieee80211_find_node(&ic->ic_sta, mlme.im_macaddr);
 		if (ni == NULL)
 			return EINVAL;
 		if (mlme.im_op == IEEE80211_MLME_AUTHORIZE)
@@ -1799,9 +1781,7 @@ ieee80211_ioctl_setstatxpow(struct ieee80211com *ic, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, &txpow, sizeof(txpow));
 	if (error != 0)
 		return error;
-	if (ic->ic_sta == NULL)
-		return EINVAL;
-	ni = ieee80211_find_node(ic->ic_sta, txpow.it_macaddr);
+	ni = ieee80211_find_node(&ic->ic_sta, txpow.it_macaddr);
 	if (ni == NULL)
 		return EINVAL;		/* XXX */
 	ni->ni_txpower = txpow.it_txpow;

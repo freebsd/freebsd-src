@@ -845,11 +845,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				ieee80211_sta_leave(ic, ni);
 				break;
 			case IEEE80211_M_HOSTAP:
-				nt = ic->ic_sta;
-				if (nt == NULL) {	/* XXX cannot happen */
-					if_printf(ifp, "no sta table (run)\n");
-					break;
-				}
+				nt = &ic->ic_sta;
 				IEEE80211_NODE_LOCK(nt);
 				TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 					if (ni->ni_associd == 0)
@@ -872,11 +868,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				    IEEE80211_REASON_AUTH_LEAVE);
 				break;
 			case IEEE80211_M_HOSTAP:
-				nt = ic->ic_sta;
-				if (nt == NULL) {	/* XXX cannot happen */
-					if_printf(ifp, "no sta table (assoc)\n");
-					break;
-				}
+				nt = &ic->ic_sta;
 				IEEE80211_NODE_LOCK(nt);
 				TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 					IEEE80211_SEND_MGMT(ic, ni,
@@ -1072,8 +1064,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 		 * XXX
 		 */
 		ic->ic_scan.nt_inact_timer = IEEE80211_INACT_WAIT;
-		if (ic->ic_sta != NULL)
-			ic->ic_sta->nt_inact_timer = IEEE80211_INACT_WAIT;
+		ic->ic_sta.nt_inact_timer = IEEE80211_INACT_WAIT;
 		break;
 	}
 	return 0;
