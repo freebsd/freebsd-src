@@ -21,8 +21,8 @@ SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	libncurses libradius libskey libtacplus \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libdevstat libdisk libedit libfetch libform \
-	libftpio libgnumalloc ${_libio} libipx libkvm libmenu libopie libpam \
-	libpanel libpcap libresolv librpcsvc libss libstand \
+	libftpio libgnumalloc ${_libio} libipx libkvm libmenu ${_libncp} \
+	libopie libpam libpanel libpcap libresolv librpcsvc libss libstand \
 	${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
@@ -44,6 +44,7 @@ _libcrypt+=	../secure/lib/libcrypt
 
 .if ${MACHINE_ARCH} == "i386"
 _compat=	compat
+_libncp=	libncp
 _libvgl=	libvgl
 .endif
 

@@ -35,9 +35,13 @@
     ..
     netkey
     ..
+    netncp
+    ..
     netns
     ..
     nfs
+    ..
+    nwfs
     ..
     objc
     ..
