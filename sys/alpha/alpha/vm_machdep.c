@@ -347,6 +347,13 @@ cpu_set_upcall(struct thread *td, void *pcb)
 #endif
 }
 
+void
+cpu_set_upcall_kse(struct thread *td, struct kse *ke)
+{
+
+	/* XXX */
+}
+
 #if 0
 void
 cpu_set_args(struct thread *td, struct kse *ke)
