@@ -335,23 +335,6 @@ cpu_coredump(p, vp, cred)
 	    p));
 }
 
-#ifdef notyet
-static void
-setredzone(pte, vaddr)
-	u_short *pte;
-	caddr_t vaddr;
-{
-/* eventually do this by setting up an expand-down stack segment
-   for ss0: selector, allowing stack access down to top of u.
-   this means though that protection violations need to be handled
-   thru a double fault exception that must do an integral task
-   switch to a known good context, within which a dump can be
-   taken. a sensible scheme might be to save the initial context
-   used by sched (that has physical memory mapped 1:1 at bottom)
-   and take the dump while still in mapped mode */
-}
-#endif
-
 /*
  * Map an IO request into kernel virtual address space.
  *
