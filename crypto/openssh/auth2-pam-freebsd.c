@@ -188,8 +188,7 @@ pam_thread(void *ctxtp)
 	struct pam_conv pam_conv = { pam_thread_conv, ctxt };
 
 	buffer_init(&buffer);
-	pam_err = pam_set_item(pam_handle,
-	    PAM_CONV, (const void *)&pam_conv);
+	pam_err = pam_set_item(pam_handle, PAM_CONV, (const void *)&pam_conv);
 	if (pam_err != PAM_SUCCESS)
 		goto auth_fail;
 	pam_err = pam_authenticate(pam_handle, 0);
@@ -221,11 +220,24 @@ pam_thread_cleanup(void *ctxtp)
 	close(ctxt->pam_csock);
 }
 
+static int
+pam_null_conv(int n,
+	 const struct pam_message **msg,
+	 struct pam_response **resp,
+	 void *data)
+{
+
+	return (PAM_CONV_ERR);
+}
+
+static struct pam_conv null_conv = { pam_null_conv, NULL };
+
 static void
 pam_cleanup(void *arg)
 {
 	(void)arg;
 	debug("PAM: cleanup");
+	pam_set_item(pam_handle, PAM_CONV, (const void *)&null_conv);
 	if (pam_cred_established) {
 		pam_setcred(pam_handle, PAM_DELETE_CRED);
 		pam_cred_established = 0;
@@ -242,7 +254,6 @@ pam_cleanup(void *arg)
 static int
 pam_init(const char *user)
 {
-	struct pam_conv no_conv = { NULL, NULL };
 	extern ServerOptions options;
 	extern u_int utmp_len;
 	const char *pam_rhost, *pam_user;
@@ -258,7 +269,7 @@ pam_init(const char *user)
 		pam_handle = NULL;
 	}
 	debug("PAM: initializing for \"%s\"", user);
-	pam_err = pam_start("sshd", user, &no_conv, &pam_handle);
+	pam_err = pam_start("sshd", user, &null_conv, &pam_handle);
 	if (pam_err != PAM_SUCCESS)
 		return (-1);
 	pam_rhost = get_remote_name_or_ip(utmp_len,
@@ -465,6 +476,10 @@ do_pam_account(const char *user, const char *ruser)
 void
 do_pam_session(const char *user, const char *tty)
 {
+	pam_err = pam_set_item(pam_handle, PAM_CONV, (const void *)&null_conv);
+	if (pam_err != PAM_SUCCESS)
+		fatal("PAM: failed to set PAM_CONV: %s",
+		    pam_strerror(pam_handle, pam_err));
 	debug("PAM: setting PAM_TTY to \"%s\"", tty);
 	pam_err = pam_set_item(pam_handle, PAM_TTY, tty);
 	if (pam_err != PAM_SUCCESS)
@@ -480,6 +495,10 @@ do_pam_session(const char *user, const char *tty)
 void
 do_pam_setcred(int init)
 {
+	pam_err = pam_set_item(pam_handle, PAM_CONV, (const void *)&null_conv);
+	if (pam_err != PAM_SUCCESS)
+		fatal("PAM: failed to set PAM_CONV: %s",
+		    pam_strerror(pam_handle, pam_err));
 	if (init) {
 		debug("PAM: establishing credentials");
 		pam_err = pam_setcred(pam_handle, PAM_ESTABLISH_CRED);
@@ -559,8 +578,7 @@ do_pam_chauthtok(void)
 
 	if (use_privsep)
 		fatal("PAM: chauthtok not supprted with privsep");
-	pam_err = pam_set_item(pam_handle,
-	    PAM_CONV, (const void *)&pam_conv);
+	pam_err = pam_set_item(pam_handle, PAM_CONV, (const void *)&pam_conv);
 	if (pam_err != PAM_SUCCESS)
 		fatal("PAM: failed to set PAM_CONV: %s",
 		    pam_strerror(pam_handle, pam_err));
