@@ -176,11 +176,7 @@ Fixup_Names(struct disk *d)
 }
 
 int
-#ifdef PC98
 Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subtype, u_long flags, const char *sname)
-#else
-Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subtype, u_long flags)
-#endif
 {
 	int i;
 	u_long l;
@@ -205,11 +201,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 		size -= l;
 	}
 	
-#ifdef PC98
 	i = Add_Chunk(d, offset, size, "X", type, subtype, flags, sname);
-#else
-	i = Add_Chunk(d, offset, size, "X", type, subtype, flags);
-#endif
 	Fixup_Names(d);
 	return i;
 }
@@ -231,11 +223,7 @@ Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size, chun
 	}
 	return 0;
      found:
-#ifdef PC98
 	i = Add_Chunk(d, offset, size, "X", type, subtype, flags, "-");
-#else
-	i = Add_Chunk(d, offset, size, "X", type, subtype, flags);
-#endif
 	if (i)
 		return 0;
 	Fixup_Names(d);

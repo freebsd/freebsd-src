@@ -123,13 +123,8 @@ Clone_Chunk(const struct chunk *c1)
 }
 
 static int
-#ifdef PC98
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	chunk_e type, int subtype, u_long flags, const char *sname)
-#else
-Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags)
-#endif
 {
 	struct chunk *ct,*cs;
 
@@ -218,13 +213,8 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 }
 
 int
-#ifdef PC98
 Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 	chunk_e type, int subtype, u_long flags, const char *sname)
-#else
-Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
-	chunk_e type, int subtype, u_long flags)
-#endif
 {
 	struct chunk *c1,*c2,ct;
 	u_long end = offset + size - 1;
@@ -243,10 +233,8 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		c2->offset = c1->offset = offset;
 		c2->size = c1->size = size;
 		c2->end = c1->end = end;
-#ifdef PC98
 		c1->sname = strdup(sname);
 		c2->sname = strdup("-");
-#endif
 		c1->name = strdup(name);
 		c2->name = strdup("-");
 		c1->type = type;
@@ -313,13 +301,8 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 			size -= offset;
 
 		    doit:
-#ifdef PC98
 			return Insert_Chunk(c2, offset, size, name,
 				type, subtype, flags, sname);
-#else
-			return Insert_Chunk(c2, offset, size, name,
-				type, subtype, flags);
-#endif
 		}
 	}
 	return __LINE__;

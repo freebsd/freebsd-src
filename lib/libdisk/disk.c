@@ -624,11 +624,7 @@ Int_Open_Disk(const char *name, u_long size)
 	if (dl.d_ntracks && dl.d_nsectors)
 		d->bios_cyl = size / (dl.d_ntracks * dl.d_nsectors);
 
-#ifdef PC98
 	if (Add_Chunk(d, 0, size, name, whole, 0, 0, "-"))
-#else
-	if (Add_Chunk(d, 0, size, name, whole, 0, 0))
-#endif
 		DPRINT(("Failed to add 'whole' chunk"));
 
 #ifdef __i386__
@@ -699,7 +695,7 @@ Int_Open_Disk(const char *name, u_long size)
 			ds.dss_slices[i].ds_name))
 #else
 		if (Add_Chunk(d, ds.dss_slices[i].ds_offset,
-			ds.dss_slices[i].ds_size, sname, ce, subtype, flags))
+			ds.dss_slices[i].ds_size, sname, ce, subtype, flags, ""))
 #endif
 			DPRINT(("failed to add chunk for slice %d", i - 1));
 
@@ -762,7 +758,7 @@ Int_Open_Disk(const char *name, u_long size)
 				0,
 				ds.dss_slices[i].ds_name) && j != 3)
 #else
-				0) && j != 3)
+				0, "") && j != 3)
 #endif
 				DPRINT((
 			"Failed to add chunk for partition %c [%lu,%lu]",
