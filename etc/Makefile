@@ -26,7 +26,7 @@ WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
 COPYRIGHT= COPYRIGHT
-FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD ${COPYRIGHT}
+FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD RELNOTES.FreeBSD ${COPYRIGHT}
 #
 # Floppy drive name and files for building FreeBSD Floppies
 FLOPPY?=	fd0
@@ -84,17 +84,17 @@ all clean cleandir depend etc install lint:
 crypt:
 	rm -f ${LIBCRYPT};
 	(cd ${.CURDIR}/../${CRYPT_LIB}; \
-		make cleandir obj depend all install)
+		${MAKE} cleandir obj depend all install)
 	for i in ${CRYPT_FILES}; do \
 		cd ${.CURDIR}/../$$i; \
-		make cleandir obj depend all; \
+		${MAKE} cleandir obj depend all; \
 	done
 	
 non-crypt:
 	rm -f ${LIBCRYPT}
 	for i in ${CRYPT_FILES}; do \
 		cd ${.CURDIR}/../$$i; \
-		make cleandir obj depend all; \
+		${MAKE} cleandir obj depend all; \
 	done
 	
 distribution: distrib-dirs
@@ -153,21 +153,21 @@ distribution: distrib-dirs
 	(cd etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    fstab.* ${DESTDIR}/etc)
 .if defined(NOCRYPT)
-	make non-crypt
-	(cd ..; NOCRYPT=nocrypt; export NOCRYPT; make install)
+	${MAKE} non-crypt
+	(cd ..; NOCRYPT=nocrypt; export NOCRYPT; ${MAKE} install)
 .else
-	make crypt
-	(cd ..; make install)
+	${MAKE} crypt
+	(cd ..; ${MAKE} install)
 .endif
 	(cd ../usr.sbin/sendmail/src; \
-	    make install; \
+	    ${MAKE} install; \
 	 cd ../cf/cf; \
-	    make tcpproto.cf; \
+	    ${MAKE} tcpproto.cf; \
 	    install -o root -g wheel -m 644 tcpproto.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
-	(cd ..; make mdec; )
+	(cd ..; ${MAKE} mdec; )
 .if ${MACHINE} == "tahoe"
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS1} \
 	    ${DESTDIR}/)
@@ -184,10 +184,10 @@ hcx9-distribution:
 kc-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 	(cd ../sys/compile; rm -rf GENERICAH GENERICBT)
 	(cd ../sys/i386/conf; config GENERICAH; config GENERICBT)
-	(cd ../sys/compile/GENERICAH; make depend; make all; \
+	(cd ../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
 	    install -c -o root -g wheel -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICAH)
-	(cd ../sys/compile/GENERICBT; make depend; make all; \
+	(cd ../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
 	    install -c -o root -g wheel -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICBT)
 
