@@ -47,7 +47,7 @@ int
 ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
     Elf_Off dataoff, size_t len, void *dest)
 {
-        Elf_Addr *where, addr, addend;
+        Elf_Addr *where, addend;
         Elf_Word rtype, symidx;
         const Elf_Rela *rela;
 
