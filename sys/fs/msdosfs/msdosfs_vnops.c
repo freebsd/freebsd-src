@@ -87,6 +87,7 @@
 static vop_advlock_t	msdosfs_advlock;
 static vop_create_t	msdosfs_create;
 static vop_mknod_t	msdosfs_mknod;
+static vop_open_t	msdosfs_open;
 static vop_close_t	msdosfs_close;
 static vop_access_t	msdosfs_access;
 static vop_getattr_t	msdosfs_getattr;
@@ -206,6 +207,21 @@ msdosfs_mknod(ap)
 	} */ *ap;
 {
     return (EINVAL);
+}
+
+static int
+msdosfs_open(ap)
+	struct vop_open_args /* {
+		struct vnode *a_vp;
+		int a_mode;
+		struct ucred *a_cred;
+		struct thread *a_td;
+		int a_fdidx;
+	} */ *ap;
+{
+	struct denode *dep = VTODE(ap->a_vp);
+	vnode_create_vobject(ap->a_vp, dep->de_FileSize, ap->a_td);
+	return 0;
 }
 
 static int
@@ -1876,6 +1892,7 @@ struct vop_vector msdosfs_vnodeops = {
 	.vop_advlock =		msdosfs_advlock,
 	.vop_bmap =		msdosfs_bmap,
 	.vop_cachedlookup =	msdosfs_lookup,
+	.vop_open =		msdosfs_open,
 	.vop_close =		msdosfs_close,
 	.vop_create =		msdosfs_create,
 	.vop_fsync =		msdosfs_fsync,

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <isofs/cd9660/iso_rrip.h>
 
 static vop_setattr_t	cd9660_setattr;
+static vop_open_t	cd9660_open;
 static vop_access_t	cd9660_access;
 static vop_getattr_t	cd9660_getattr;
 static vop_ioctl_t	cd9660_ioctl;
@@ -154,6 +155,23 @@ cd9660_access(ap)
 	return (vaccess(vp->v_type, ip->inode.iso_mode, ip->inode.iso_uid,
 	    ip->inode.iso_gid, ap->a_mode, ap->a_cred, NULL));
 }
+
+static int
+cd9660_open(ap)
+	struct vop_open_args /* {
+		struct vnode *a_vp;
+		int a_mode;
+		struct ucred *a_cred;
+		struct thread *a_td;
+		int a_fdidx;
+	} */ *ap;
+{
+	struct iso_node *ip = VTOI(ap->a_vp);
+
+	vnode_create_vobject(ap->a_vp, ip->i_size, ap->a_td);
+	return 0;
+}
+
 
 static int
 cd9660_getattr(ap)
@@ -782,6 +800,7 @@ cd9660_pathconf(ap)
  */
 struct vop_vector cd9660_vnodeops = {
 	.vop_default =		&default_vnodeops,
+	.vop_open =		cd9660_open,
 	.vop_access =		cd9660_access,
 	.vop_bmap =		cd9660_bmap,
 	.vop_cachedlookup =	cd9660_lookup,
