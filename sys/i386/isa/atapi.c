@@ -99,7 +99,7 @@
  */
 #undef DEBUG
 
-#include "wd.h"
+#include "wdc.h"
 #include "wcd.h"
 /* #include "whd.h" -- add your driver here */
 /* #include "wmt.h" -- add your driver here */

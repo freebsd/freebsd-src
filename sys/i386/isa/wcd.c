@@ -18,7 +18,7 @@
 /*
  * The driver was tested on Toshiba XM-5302TA drive. (vak)
  */
-#include "wd.h"
+#include "wdc.h"
 #include "wcd.h"
 #if NWCD > 0 && NWDC > 0 && defined (ATAPI)
 
