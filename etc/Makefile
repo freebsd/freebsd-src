@@ -26,6 +26,10 @@ SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config
 .endif
 
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
+.endif
+
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
@@ -76,6 +80,10 @@ distribution:
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
 	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
 	    ${DESTDIR}/etc/ssh )
+.endif
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
+	    ${DESTDIR}/etc/ssl )
 .endif
 .if !defined(NO_MAKEDEV)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
