@@ -398,14 +398,13 @@ acpi_tz_monitor(void *Context)
      */
     newactive = TZ_ACTIVE_NONE;
     for (i = TZ_NUMLEVELS - 1; i >= 0; i--) {
-	if ((sc->tz_zone.ac[i] != -1) && (temp >= sc->tz_zone.ac[i])) {
+	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i]) {
 	    newactive = i;
 	    if (sc->tz_active != newactive) {
 		ACPI_VPRINT(sc->tz_dev,
 			    acpi_device_get_parent_softc(sc->tz_dev),
 			    "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
 			    TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
-		getnanotime(&sc->tz_cooling_started);
 	    }
 	}
     }
@@ -455,6 +454,7 @@ acpi_tz_monitor(void *Context)
 		    acpi_tz_aclevel_string(sc->tz_active),
 		    acpi_tz_aclevel_string(newactive), TZ_KELVTOC(temp));
 	sc->tz_active = newactive;
+	getnanotime(&sc->tz_cooling_started);
     }
 
     /* XXX (de)activate any passive cooling that may be required. */
