@@ -663,8 +663,10 @@ main(argc, argv, envp)
 				        eval_client(&req), service, sep->se_proto);
 				    if (sep->se_socktype != SOCK_STREAM)
 					recv(ctrl, buf, sizeof (buf), 0);
-				    if (dofork)
+				    if (dofork) {
+					sleep(1);
 					_exit(0);
+				    }
 				}
 				if (log) {
 				    syslog(allow_severity,
