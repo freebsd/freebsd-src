@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.16 1999/01/27 19:00:49 dillon Exp $
+ *	$Id: db_sym.h,v 1.17 1999/01/27 23:45:37 dillon Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
@@ -86,7 +86,7 @@ void		db_symbol_values __P((c_db_sym_t, const char **, db_expr_t *));
 	db_symbol_values(db_search_symbol(val,DB_STGY_XTRN,offp),namep,0)
 					/* ditto, but no locals */
 
-int		db_eqname __P((char *, char *, int));
+int		db_eqname __P((const char *, const char *, int));
 					/* strcmp, modulo leading char */
 
 void		db_printsym __P((db_expr_t, db_strategy_t));

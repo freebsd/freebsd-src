@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.28 1999/01/27 19:00:49 dillon Exp $
+ *	$Id: db_sym.c,v 1.29 1999/01/27 23:45:37 dillon Exp $
  */
 
 /*
@@ -98,8 +98,8 @@ db_qualify(sym, symtabname)
 
 boolean_t
 db_eqname(src, dst, c)
-	char *src;
-	char *dst;
+	const char *src;
+	const char *dst;
 	int c;
 {
 	if (!strcmp(src, dst))
