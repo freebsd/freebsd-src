@@ -33,6 +33,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/uuid.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <machine/mca.h>

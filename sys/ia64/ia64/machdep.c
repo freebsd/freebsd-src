@@ -58,6 +58,7 @@
 #include <sys/linker.h>
 #include <sys/random.h>
 #include <sys/cons.h>
+#include <sys/uuid.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
