@@ -43,6 +43,7 @@
 #include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -257,7 +258,9 @@ ip_init()
 	maxnipq = nmbclusters / 4;
 	ip_maxfragpackets = nmbclusters / 4;
 
+#ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
+#endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 
 	register_netisr(NETISR_IP, ipintr);
