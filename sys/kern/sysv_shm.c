@@ -45,6 +45,7 @@
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/jail.h>
 
@@ -95,7 +96,11 @@ static int shm_find_segment_by_key __P((key_t));
 static struct shmid_ds *shm_find_segment_by_shmid __P((int));
 static int shm_delete_mapping __P((struct proc *, struct shmmap_state *));
 static void shmrealloc __P((void));
-static void shminit __P((void *));
+static void shminit __P((void));
+static int sysvshm_modload __P((struct module *, int, void *));
+static int shmunload __P((void));
+static void shmexit_myhook __P((struct proc *p));
+static void shmfork_myhook __P((struct proc *p1, struct proc *p2));
 
 /*
  * Tuneable values
@@ -624,8 +629,8 @@ shmsys(p, uap)
 	return ((*shmcalls[uap->which])(p, &uap->a2));
 }
 
-void
-shmfork(p1, p2)
+static void
+shmfork_myhook(p1, p2)
 	struct proc *p1, *p2;
 {
 	struct shmmap_state *shmmap_s;
@@ -641,8 +646,8 @@ shmfork(p1, p2)
 			shmsegs[IPCID_TO_IX(shmmap_s->shmid)].shm_nattch++;
 }
 
-void
-shmexit(p)
+static void
+shmexit_myhook(p)
 	struct proc *p;
 {
 	struct shmmap_state *shmmap_s;
@@ -680,8 +685,7 @@ shmrealloc(void)
 }
 
 static void
-shminit(dummy)
-	void *dummy;
+shminit()
 {
 	int i;
 
@@ -696,5 +700,55 @@ shminit(dummy)
 	shm_last_free = 0;
 	shm_nused = 0;
 	shm_committed = 0;
+	shmexit_hook = &shmexit_myhook;
+	shmfork_hook = &shmfork_myhook;
 }
-SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL);
+
+static int
+shmunload()
+{
+
+	if (shm_nused > 0)
+		return (EBUSY);
+
+	free(shmsegs, M_SHM);
+	shmexit_hook = NULL;
+	shmfork_hook = NULL;
+	return (0);
+}
+
+static int
+sysvshm_modload(struct module *module, int cmd, void *arg)
+{
+	int error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		shminit();
+		break;
+	case MOD_UNLOAD:
+		error = shmunload();
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t sysvshm_moduledata = {
+	"sysvshm_mod",
+	&sysvshm_modload,
+	NULL
+};
+
+SYSCALL_MODULE_HELPER(shmsys, 4);
+SYSCALL_MODULE_HELPER(shmat, 3);
+SYSCALL_MODULE_HELPER(shmctl, 3);
+SYSCALL_MODULE_HELPER(shmdt, 1);
+SYSCALL_MODULE_HELPER(shmget, 3);
+
+DECLARE_MODULE(sysvshm_mod, sysvshm_moduledata,
+	SI_SUB_SYSV_SHM, SI_ORDER_FIRST);

@@ -16,6 +16,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sem.h>
+#include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -23,7 +24,10 @@
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
-static void seminit __P((void *));
+static void seminit __P((void));
+static int sysvsem_modload __P((struct module *, int, void *));
+static int semunload __P((void));
+static void semexit_myhook __P((struct proc *p));
 
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
@@ -159,8 +163,7 @@ RO seminfo.semaem	/* SEMAEM unused - user param */
 #endif
 
 static void
-seminit(dummy)
-	void *dummy;
+seminit(void)
 {
 	register int i;
 
@@ -183,8 +186,57 @@ seminit(dummy)
 		suptr->un_proc = NULL;
 	}
 	semu_list = NULL;
+	semexit_hook = &semexit_myhook;
 }
-SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
+
+static int
+semunload(void)
+{
+
+	if (semtot != 0)
+		return (EBUSY);
+
+	free(sem, M_SEM);
+	free(sema, M_SEM);
+	free(semu, M_SEM);
+	semexit_hook = NULL;
+	return (0);
+}
+
+static int
+sysvsem_modload(struct module *module, int cmd, void *arg)
+{
+	int error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		seminit();
+		break;
+	case MOD_UNLOAD:
+		error = semunload();
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t sysvsem_moduledata = {
+	"sysvsem_mod",
+	&sysvsem_modload,
+	NULL
+};
+
+SYSCALL_MODULE_HELPER(semsys, 5);
+SYSCALL_MODULE_HELPER(__semctl, 4);
+SYSCALL_MODULE_HELPER(semget, 3);
+SYSCALL_MODULE_HELPER(semop, 3);
+
+DECLARE_MODULE(sysvsem_mod, sysvsem_moduledata,
+	SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
 
 /*
  * Entry point for all SEM calls
@@ -933,8 +985,8 @@ done:
  * Go through the undo structures for this process and apply the adjustments to
  * semaphores.
  */
-void
-semexit(p)
+static void
+semexit_myhook(p)
 	struct proc *p;
 {
 	register struct sem_undo *suptr;

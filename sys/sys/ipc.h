@@ -85,6 +85,10 @@ struct ipc_perm {
 struct proc;
 
 int	ipcperm __P((struct proc *, struct ipc_perm *, int));
+extern void (*semexit_hook)(struct proc *);
+extern void (*shmfork_hook)(struct proc *, struct proc *);
+extern void (*shmexit_hook)(struct proc *);
+
 #else /* ! _KERNEL */
 
 /* XXX doesn't really belong here, but has been historical practice in SysV. */

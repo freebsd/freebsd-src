@@ -9,7 +9,7 @@
 ;   MPSAFE	optional field, specifies that syscall does not want the
 ;		BGL grabbed automatically (it is SMP safe).
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO, NOIMPL
+;		NODEF, NOARGS, NOPROTO, NOIMPL, NOSTD
 ;	namespc one of POSIX, BSD, NOHIDE
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
@@ -24,6 +24,9 @@
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
+;	NOSTD	implemented but as a lkm that can be statically
+;			compiled in sysent entry will be filled with lkmsys
+;			so the SYSCALL_MODULE macro works
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
@@ -249,7 +252,6 @@
 158	STD	BSD	{ int fstatfs(int fd, struct statfs *buf); }
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
-; 161 is initialized by the NFS code, if present.
 161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
 162	STD	BSD	{ int getdomainname(char *domainname, int len); }
 163	STD	BSD	{ int setdomainname(char *domainname, int len); }
@@ -259,13 +261,16 @@
 			    struct rtprio *rtp); }
 167	UNIMPL	NOHIDE	nosys
 168	UNIMPL	NOHIDE	nosys
-169	STD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
+; 169 is initialized by the SYSVSEM code if present or loaded
+169	NOSTD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
 			    int a5); }
+; 169 is initialized by the SYSVMSG code if present or loaded
 ; XXX should be		{ int semsys(int which, ...); }
-170	STD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
+170	NOSTD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
 			    int a5, int a6); }
+; 169 is initialized by the SYSVSHM code if present or loaded
 ; XXX should be		{ int msgsys(int which, ...); }
-171	STD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
+171	NOSTD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
 ; XXX should be		{ int shmsys(int which, ...); }
 172	UNIMPL	NOHIDE	nosys
 173	STD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
@@ -338,25 +343,25 @@
 
 ;
 ; The following were introduced with NetBSD/4.4Lite-2
-;
-220	STD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
+; They are initialized by thier respective modules/sysinits
+220	NOSTD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
 			    union semun *arg); }
-221	STD	BSD	{ int semget(key_t key, int nsems, int semflg); }
-222	STD	BSD	{ int semop(int semid, struct sembuf *sops, \
+221	NOSTD	BSD	{ int semget(key_t key, int nsems, int semflg); }
+222	NOSTD	BSD	{ int semop(int semid, struct sembuf *sops, \
 			    u_int nsops); }
 223	UNIMPL	NOHIDE	semconfig
-224	STD	BSD	{ int msgctl(int msqid, int cmd, \
+224	NOSTD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }
-225	STD	BSD	{ int msgget(key_t key, int msgflg); }
-226	STD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
+225	NOSTD	BSD	{ int msgget(key_t key, int msgflg); }
+226	NOSTD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
 			    int msgflg); }
-227	STD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
+227	NOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
 			    long msgtyp, int msgflg); }
-228	STD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
-229	STD	BSD	{ int shmctl(int shmid, int cmd, \
+228	NOSTD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
+229	NOSTD	BSD	{ int shmctl(int shmid, int cmd, \
 			    struct shmid_ds *buf); }
-230	STD	BSD	{ int shmdt(void *shmaddr); }
-231	STD	BSD	{ int shmget(key_t key, int size, int shmflg); }
+230	NOSTD	BSD	{ int shmdt(void *shmaddr); }
+231	NOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
 ;
 232	STD	POSIX	{ int clock_gettime(clockid_t clock_id, \
 			    struct timespec *tp); }
@@ -526,3 +531,4 @@
 367	STD	BSD	{ int __cap_get_file(const char *path_p, struct cap *cap_p); }
 368	STD	BSD	{ int __cap_set_fd(int fd, struct cap *cap_p); }
 369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
+370	NODEF	NOHIDE	lkmressys lkmressys nosys_args int
