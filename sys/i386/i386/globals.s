@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.7 1998/08/18 07:46:58 msmith Exp $
+ * $Id: globals.s,v 1.8 1998/09/28 12:20:46 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -69,12 +69,13 @@
 globaldata:
 	.space	GD_SIZEOF		/* in data segment */
 #endif
-	.globl	_curproc,_curpcb,_npxproc,_common_tss,_switchtime
+	.globl	_curproc,_curpcb,_npxproc,_common_tss,_switchtime,_switchticks
 	.set	_curproc,globaldata + GD_CURPROC
 	.set	_curpcb,globaldata + GD_CURPCB
 	.set	_npxproc,globaldata + GD_NPXPROC
 	.set	_common_tss,globaldata + GD_COMMON_TSS
 	.set	_switchtime,globaldata + GD_SWITCHTIME
+	.set	_switchticks,globaldata + GD_SWITCHTICKS
 
 #ifdef VM86
 	.globl	_common_tssd,_private_tss,_my_tr
