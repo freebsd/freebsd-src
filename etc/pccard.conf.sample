@@ -412,6 +412,14 @@ card "Xircom" "CreditCard Modem 56 - GlobalA"
  	insert  echo Xircom CreditCard Modem 56 - GlobalACCESS inserted
  	remove  echo Xircom CreditCard Modem 56 - GlobalACCESS removed
 
+# Xircom Realport card + modem
+card "Xircom" "16-bit Ethernet + Modem 56"
+	config 0x27 "xe0" 9
+	insert  echo Xircom Realport Ethernet inserted
+	insert	/etc/pccard_ether xe0
+	remove  echo Xircom Realport Ethernet removed
+	remove	/etc/pccard_ether xe0 delete
+
 # GATEWAY 2000 FAX/Data Modem (14.4K)
 card "GATEWAY2000" "CC3144"
 	config  0x22 "sio3" ?
