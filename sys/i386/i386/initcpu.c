@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: initcpu.c,v 1.1 1997/03/22 19:00:36 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -252,7 +252,7 @@ init_i486_on_386(void)
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0, NW = 0 */
 
-	write_elfags(eflags);
+	write_eflags(eflags);
 }
 #endif
 
