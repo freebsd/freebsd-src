@@ -96,6 +96,7 @@
 #include <netinet/icmp6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/in_pcb.h>
+#include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
 
 #ifdef IPSEC
@@ -661,7 +662,7 @@ skip_ipsec2:;
 		/* XXX rt not locked */
 		ia = ifatoia6(ro->ro_rt->rt_ifa);
 		ifp = ro->ro_rt->rt_ifp;
-		ro->ro_rt->rt_use++;
+		ro->ro_rt->rt_rmx.rmx_pksent++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in6 *)ro->ro_rt->rt_gateway;
 		m->m_flags &= ~(M_BCAST | M_MCAST);	/* just in case */
@@ -757,7 +758,7 @@ skip_ipsec2:;
 			}
 			ia = ifatoia6(ro->ro_rt->rt_ifa);
 			ifp = ro->ro_rt->rt_ifp;
-			ro->ro_rt->rt_use++;
+			ro->ro_rt->rt_rmx.rmx_pksent++;
 			RT_UNLOCK(ro->ro_rt);
 		}
 
@@ -1387,11 +1388,20 @@ ip6_getpmtu(ro_pmtu, ro, ifp, dst, mtup, alwaysfragp)
 	}
 	if (ro_pmtu->ro_rt) {
 		u_int32_t ifmtu;
+		struct in_conninfo inc;
+
+		bzero(&inc, sizeof(inc));
+		inc.inc_flags = 1; /* IPv6 */
+		inc.inc6_faddr = *dst;
 
 		if (ifp == NULL)
 			ifp = ro_pmtu->ro_rt->rt_ifp;
 		ifmtu = IN6_LINKMTU(ifp);
-		mtu = ro_pmtu->ro_rt->rt_rmx.rmx_mtu;
+		mtu = tcp_hc_getmtu(&inc);
+		if (mtu)
+			mtu = min(mtu, ro_pmtu->ro_rt->rt_rmx.rmx_mtu);
+		else
+			mtu = ro_pmtu->ro_rt->rt_rmx.rmx_mtu;
 		if (mtu == 0)
 			mtu = ifmtu;
 		else if (mtu < IPV6_MMTU) {
@@ -1415,8 +1425,7 @@ ip6_getpmtu(ro_pmtu, ro, ifp, dst, mtup, alwaysfragp)
 			 * field isn't locked).
 			 */
 			mtu = ifmtu;
-			if (!(ro_pmtu->ro_rt->rt_rmx.rmx_locks & RTV_MTU))
-				ro_pmtu->ro_rt->rt_rmx.rmx_mtu = mtu;
+			ro_pmtu->ro_rt->rt_rmx.rmx_mtu = mtu;
 		}
 	} else if (ifp) {
 		mtu = IN6_LINKMTU(ifp);
@@ -1993,7 +2002,9 @@ do { \
 			{
 				u_long pmtu = 0;
 				struct ip6_mtuinfo mtuinfo;
-				struct route_in6 *ro = (struct route_in6 *)&in6p->in6p_route;
+				struct route_in6 sro;
+
+				bzero(&sro, sizeof(sro));
 
 				if (!(so->so_state & SS_ISCONNECTED))
 					return (ENOTCONN);
@@ -2002,8 +2013,10 @@ do { \
 				 * routing, or optional information to specify
 				 * the outgoing interface.
 				 */
-				error = ip6_getpmtu(ro, NULL, NULL,
+				error = ip6_getpmtu(&sro, NULL, NULL,
 				    &in6p->in6p_faddr, &pmtu, NULL);
+				if (sro.ro_rt)
+					RTFREE(sro.ro_rt);
 				if (error)
 					break;
 				if (pmtu > IPV6_MAXPACKET)

@@ -87,7 +87,8 @@ static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *, struct socket *);
-static void	rt_setmetrics(u_long, struct rt_metrics *, struct rt_metrics *);
+static void	rt_setmetrics(u_long, struct rt_metrics *, struct rt_metrics_lite *);
+static void	rt_getmetrics(struct rt_metrics_lite *, struct rt_metrics *);
 static void	rt_dispatch(struct mbuf *, struct sockaddr *);
 
 /*
@@ -355,9 +356,6 @@ route_output(m, so)
 			RT_LOCK(saved_nrt);
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
-			saved_nrt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
-			saved_nrt->rt_rmx.rmx_locks |=
-				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
 			RT_REMREF(saved_nrt);
 			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			RT_UNLOCK(saved_nrt);
@@ -428,7 +426,7 @@ route_output(m, so)
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm,
 				(struct walkarg *)0);
 			rtm->rtm_flags = rt->rt_flags;
-			rtm->rtm_rmx = rt->rt_rmx;
+			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
 
@@ -478,9 +476,7 @@ route_output(m, so)
 				rt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			/* FALLTHROUGH */
 		case RTM_LOCK:
-			rt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
-			rt->rt_rmx.rmx_locks |=
-				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
+			/* We don't support locks anymore */
 			break;
 		}
 		RT_UNLOCK(rt);
@@ -542,17 +538,25 @@ flush:
 }
 
 static void
-rt_setmetrics(u_long which, struct rt_metrics *in, struct rt_metrics *out)
+rt_setmetrics(u_long which, struct rt_metrics *in, struct rt_metrics_lite *out)
 {
 #define metric(f, e) if (which & (f)) out->e = in->e;
-	metric(RTV_RPIPE, rmx_recvpipe);
-	metric(RTV_SPIPE, rmx_sendpipe);
-	metric(RTV_SSTHRESH, rmx_ssthresh);
-	metric(RTV_RTT, rmx_rtt);
-	metric(RTV_RTTVAR, rmx_rttvar);
-	metric(RTV_HOPCOUNT, rmx_hopcount);
+	/*
+	 * Only these are stored in the routing entry since introduction
+	 * of tcp hostcache. The rest is ignored.
+	 */
 	metric(RTV_MTU, rmx_mtu);
 	metric(RTV_EXPIRE, rmx_expire);
+#undef metric
+}
+
+static void
+rt_getmetrics(struct rt_metrics_lite *in, struct rt_metrics *out)
+{
+#define metric(e) out->e = in->e;
+	bzero(out, sizeof(*out));
+	metric(rmx_mtu);
+	metric(rmx_expire);
 #undef metric
 }
 
@@ -948,8 +952,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
 		rtm->rtm_flags = rt->rt_flags;
-		rtm->rtm_use = rt->rt_use;
-		rtm->rtm_rmx = rt->rt_rmx;
+		rtm->rtm_use = rt->rt_rmx.rmx_pksent;
+		rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 		rtm->rtm_index = rt->rt_ifp->if_index;
 		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
 		rtm->rtm_addrs = info.rti_addrs;

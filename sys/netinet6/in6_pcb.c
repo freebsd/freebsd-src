@@ -337,8 +337,7 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 		 * Is it the intended behavior?
 		 */
 		*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
-					      inp->in6p_moptions,
-					      &inp->in6p_route,
+					      inp->in6p_moptions, NULL,
 					      &inp->in6p_laddr, &error);
 		if (*plocal_addr6 == 0) {
 			if (error == 0)
@@ -351,10 +350,6 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 		 * and exit to caller, that will do the lookup.
 		 */
 	}
-
-	if (inp->in6p_route.ro_rt)
-		ifp = inp->in6p_route.ro_rt->rt_ifp;
-
 	return (0);
 }
 
@@ -447,8 +442,6 @@ in6_pcbdetach(inp)
 
  	ip6_freepcbopts(inp->in6p_outputopts);
  	ip6_freemoptions(inp->in6p_moptions);
-	if (inp->in6p_route.ro_rt)
-		RTFREE(inp->in6p_route.ro_rt);
 	/* Check and free IPv4 related resources in case of mapped addr */
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
@@ -830,26 +823,10 @@ void
 in6_losing(in6p)
 	struct inpcb *in6p;
 {
-	struct rtentry *rt;
-	struct rt_addrinfo info;
-
-	if ((rt = in6p->in6p_route.ro_rt) != NULL) {
-		RT_LOCK(rt);
-		in6p->in6p_route.ro_rt = NULL;
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_flags = rt->rt_flags;
-		info.rti_info[RTAX_DST] = rt_key(rt);
-		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
-		if (rt->rt_flags & RTF_DYNAMIC)
-			rtexpunge(rt);
-		RTFREE_LOCKED(rt);
-		/*
-		 * A new route can be allocated
-		 * the next time output is attempted.
-		 */
-	}
+	/*
+	 * We don't store route pointers in the routing table anymore
+	 */
+	return;
 }
 
 /*
@@ -861,14 +838,9 @@ in6_rtchange(inp, errno)
 	struct inpcb *inp;
 	int errno;
 {
-	if (inp->in6p_route.ro_rt) {
-		RTFREE(inp->in6p_route.ro_rt);
-		inp->in6p_route.ro_rt = 0;
-		/*
-		 * A new route can be allocated the next time
-		 * output is attempted.
-		 */
-	}
+	/*
+	 * We don't store route pointers in the routing table anymore
+	 */
 	return inp;
 }
 

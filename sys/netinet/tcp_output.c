@@ -125,11 +125,12 @@ tcp_output(struct tcpcb *tp)
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
-	struct rmxp_tao *taop;
+	struct rmxp_tao tao;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 
+	bzero(&tao, sizeof(tao));
 	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
 #endif
 
@@ -232,7 +233,6 @@ again:
 	 */
 	len = (long)ulmin(so->so_snd.sb_cc, win) - off;
 
-	taop = tcp_gettaocache(&tp->t_inpcb->inp_inc);
 
 	/*
 	 * Lop off SYN bit if it has already been sent.  However, if this
@@ -242,8 +242,10 @@ again:
 	if ((flags & TH_SYN) && SEQ_GT(tp->snd_nxt, tp->snd_una)) {
 		flags &= ~TH_SYN;
 		off--, len++;
+		if (tcp_do_rfc1644)
+			tcp_hc_gettao(&tp->t_inpcb->inp_inc, &tao);
 		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
-		    (taop == NULL || taop->tao_ccsent == 0))
+		     tao.tao_ccsent == 0)
 			return 0;
 	}
 
@@ -429,7 +431,7 @@ send:
 
 			opt[0] = TCPOPT_MAXSEG;
 			opt[1] = TCPOLEN_MAXSEG;
-			mss = htons((u_short) tcp_mssopt(tp));
+			mss = htons((u_short) tcp_mssopt(&tp->t_inpcb->inp_inc));
 			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
 
@@ -872,10 +874,7 @@ send:
 		 * Also, desired default hop limit might be changed via
 		 * Neighbor Discovery.
 		 */
-		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb,
-					       tp->t_inpcb->in6p_route.ro_rt ?
-					       tp->t_inpcb->in6p_route.ro_rt->rt_ifp
-					       : NULL);
+		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 #if defined(IPSEC) && !defined(FAST_IPSEC)
@@ -886,36 +885,27 @@ send:
 		}
 #endif /*IPSEC*/
 		error = ip6_output(m,
-			    tp->t_inpcb->in6p_outputopts,
-			    &tp->t_inpcb->in6p_route,
+			    tp->t_inpcb->in6p_outputopts, NULL,
 			    (so->so_options & SO_DONTROUTE), NULL, NULL,
 			    tp->t_inpcb);
 	} else
 #endif /* INET6 */
     {
-	struct rtentry *rt;
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
  	if (INP_CHECK_SOCKAF(so, AF_INET6))
- 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb,
- 					    tp->t_inpcb->in6p_route.ro_rt ?
- 					    tp->t_inpcb->in6p_route.ro_rt->rt_ifp
- 					    : NULL);
+ 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
 #endif /* INET6 */
 	/*
-	 * See if we should do MTU discovery.  We do it only if the following
-	 * are true:
-	 *	1) we have a valid route to the destination
-	 *	2) the MTU is not locked (if it is, then discovery has been
-	 *	   disabled)
+	 * If we do path MTU discovery, then we set DF on every packet.
+	 * This might not be the best thing to do according to RFC3390
+	 * Section 2. However the tcp hostcache migitates the problem
+	 * so it affects only the first tcp connection with a host.
 	 */
-	if (path_mtu_discovery
-	    && (rt = tp->t_inpcb->inp_route.ro_rt)
-	    && rt->rt_flags & RTF_UP
-	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+	if (path_mtu_discovery)
 		ip->ip_off |= IP_DF;
-	}
-	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
+
+	error = ip_output(m, tp->t_inpcb->inp_options, NULL,
 	    (so->so_options & SO_DONTROUTE), 0, tp->t_inpcb);
     }
 	if (error) {
