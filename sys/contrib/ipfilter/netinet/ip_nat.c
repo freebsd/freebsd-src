@@ -127,7 +127,7 @@ hostmap_t	**maptable  = NULL;
 
 u_long	fr_defnatage = DEF_NAT_AGE,
 	fr_defnaticmpage = 6;		/* 3 seconds */
-static natstat_t nat_stats;
+natstat_t nat_stats;
 int	fr_nat_lock = 0;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	kmutex_t	ipf_rw, ipf_hostmap;
@@ -404,8 +404,11 @@ int mode;
 	KMALLOC(nt, ipnat_t *);
 	if ((cmd == SIOCADNAT) || (cmd == SIOCRMNAT))
 		error = IRCOPYPTR(data, (char *)&natd, sizeof(natd));
-	else if (cmd == SIOCIPFFL)	/* SIOCFLNAT & SIOCCNATL */
+	else if (cmd == SIOCIPFFL) {	/* SIOCFLNAT & SIOCCNATL */
 		error = IRCOPY(data, (char *)&arg, sizeof(arg));
+		if (error)
+			error = EFAULT;
+	}
 
 	if (error)
 		goto done;
@@ -499,7 +502,7 @@ int mode;
 		 * mapping range.  In all cases, the range is inclusive of
 		 * the start and ending IP addresses.
 		 * If to a CIDR address, lose 2: broadcast + network address
-		 *                               (so subtract 1)
+		 *			         (so subtract 1)
 		 * If to a range, add one.
 		 * If to a single IP address, set to 1.
 		 */
@@ -642,7 +645,8 @@ int mode;
 					sizeof(fr_nat_lock));
 			if (!error)
 				fr_nat_lock = arg;
-		}
+		} else
+			error = EFAULT;
 		break;
 	case SIOCSTPUT :
 		if (fr_nat_lock)
@@ -667,6 +671,8 @@ int mode;
 		MUTEX_DOWNGRADE(&ipf_nat);
 		error = IWCOPY((caddr_t)&iplused[IPL_LOGNAT], (caddr_t)data,
 			       sizeof(iplused[IPL_LOGNAT]));
+		if (error)
+			error = EFAULT;
 #endif
 		break;
 	default :
@@ -733,7 +739,7 @@ caddr_t data;
 static int fr_natgetent(data)
 caddr_t data;
 {
-	nat_save_t ipn, *ipnp, *ipnn;
+	nat_save_t ipn, *ipnp, *ipnn = NULL;
 	register nat_t *n, *nat;
 	ap_session_t *aps;
 	int error;
@@ -786,33 +792,33 @@ caddr_t data;
 			ipn.ipn_dsize += aps->aps_psiz;
 		KMALLOCS(ipnn, nat_save_t *, sizeof(*ipnn) + ipn.ipn_dsize);
 		if (ipnn == NULL)
-			return NULL;
+			return ENOMEM;
 		bcopy((char *)&ipn, (char *)ipnn, sizeof(ipn));
 
-		bcopy((char *)aps, ipn.ipn_data, sizeof(*aps));
+		bcopy((char *)aps, ipnn->ipn_data, sizeof(*aps));
 		if (aps->aps_data) {
-			bcopy(aps->aps_data, ipn.ipn_data + sizeof(*aps),
+			bcopy(aps->aps_data, ipnn->ipn_data + sizeof(*aps),
 			      aps->aps_psiz);
-			ipn.ipn_dsize += aps->aps_psiz;
+			ipnn->ipn_dsize += aps->aps_psiz;
 		}
 		error = IWCOPY((caddr_t)ipnn, ipnp,
 			       sizeof(ipn) + ipn.ipn_dsize);
 		if (error)
-			return EFAULT;
+			error = EFAULT;
 		KFREES(ipnn, sizeof(*ipnn) + ipn.ipn_dsize);
 	} else {
 		error = IWCOPY((caddr_t)&ipn, ipnp, sizeof(ipn));
 		if (error)
-			return EFAULT;
+			error = EFAULT;
 	}
-	return 0;
+	return error;
 }
 
 
 static int fr_natputent(data)
 caddr_t data;
 {
-	nat_save_t ipn, *ipnp, *ipnn;
+	nat_save_t ipn, *ipnp, *ipnn = NULL;
 	register nat_t *n, *nat;
 	ap_session_t *aps;
 	frentry_t *fr;
@@ -826,6 +832,7 @@ caddr_t data;
 	error = IRCOPY((caddr_t)ipnp, (caddr_t)&ipn, sizeof(ipn));
 	if (error)
 		return EFAULT;
+	nat = NULL;
 	if (ipn.ipn_dsize) {
 		KMALLOCS(ipnn, nat_save_t *, sizeof(ipn) + ipn.ipn_dsize);
 		if (ipnn == NULL)
@@ -833,14 +840,18 @@ caddr_t data;
 		bcopy((char *)&ipn, (char *)ipnn, sizeof(ipn));
 		error = IRCOPY((caddr_t)ipnp, (caddr_t)ipn.ipn_data,
 			       ipn.ipn_dsize);
-		if (error)
-			return EFAULT;
+		if (error) {
+			error = EFAULT;
+			goto junkput;
+		}
 	} else
 		ipnn = NULL;
 
 	KMALLOC(nat, nat_t *);
-	if (nat == NULL)
-		return ENOMEM;
+	if (nat == NULL) {
+		error = EFAULT;
+		goto junkput;
+	}
 
 	bcopy((char *)&ipn.ipn_nat, (char *)nat, sizeof(*nat));
 	/*
@@ -1459,7 +1470,7 @@ int dir;
 	icmphdr_t *icmp;
 	tcphdr_t *tcp = NULL;
 	ip_t *oip;
-	int flags = 0, type;
+	int flags = 0, type, minlen;
 
 	icmp = (icmphdr_t *)fin->fin_dp;
 	/*
@@ -1479,13 +1490,45 @@ int dir;
 		return NULL;
 
 	oip = (ip_t *)((char *)fin->fin_dp + 8);
-	if (ip->ip_len < ICMPERR_MAXPKTLEN + ((oip->ip_hl - 5) << 2))
+	minlen = (oip->ip_hl << 2);
+	if (minlen < sizeof(ip_t))
 		return NULL;
+	if (ip->ip_len < ICMPERR_IPICMPHLEN + minlen)
+		return NULL;
+	/*
+	 * Is the buffer big enough for all of it ?  It's the size of the IP
+	 * header claimed in the encapsulated part which is of concern.  It
+	 * may be too big to be in this buffer but not so big that it's
+	 * outside the ICMP packet, leading to TCP deref's causing problems.
+	 * This is possible because we don't know how big oip_hl is when we
+	 * do the pullup early in fr_check() and thus can't gaurantee it is
+	 * all here now.
+	 */
+#ifdef  _KERNEL
+	{
+	mb_t *m;
+
+# if SOLARIS
+	m = fin->fin_qfm;
+	if ((char *)oip + fin->fin_dlen - ICMPERR_ICMPHLEN > (char *)m->b_wptr)
+		return NULL;
+# else
+	m = *(mb_t **)fin->fin_mp;
+	if ((char *)oip + fin->fin_dlen - ICMPERR_ICMPHLEN >
+	    (char *)ip + m->m_len)
+		return NULL;
+# endif
+	}
+#endif
+
 	if (oip->ip_p == IPPROTO_TCP)
 		flags = IPN_TCP;
 	else if (oip->ip_p == IPPROTO_UDP)
 		flags = IPN_UDP;
 	if (flags & IPN_TCPUDP) {
+		minlen += 8;		/* + 64bits of data to get ports */
+		if (ip->ip_len < ICMPERR_IPICMPHLEN + minlen)
+			return NULL;
 		tcp = (tcphdr_t *)((char *)oip + (oip->ip_hl << 2));
 		if (dir == NAT_INBOUND)
 			return nat_inlookup(fin->fin_ifp, flags,
@@ -1577,7 +1620,10 @@ int dir;
 	if ((flags & IPN_TCPUDP) != 0) {
 		tcphdr_t *tcp;
 
-		/* XXX - what if this is bogus hl and we go off the end ? */
+		/*
+		 * XXX - what if this is bogus hl and we go off the end ?
+		 * In this case, nat_icmpinlookup() will have returned NULL.
+		 */
 		tcp = (tcphdr_t *)((((char *)oip) + (oip->ip_hl << 2)));
 
 		if (nat->nat_dir == NAT_OUTBOUND) {

@@ -1144,8 +1144,10 @@ int dst;
 			return ENOBUFS;
 
 		MCLGET(m, M_DONTWAIT);
-		if (!m)
+		if ((m->m_flags & M_EXT) == 0) {
+			m_freem(m);
 			return ENOBUFS;
+		}
 		avail = (m->m_flags & M_EXT) ? MCLBYTES : MHLEN;
 		xtra = MIN(ntohs(oip6->ip6_plen) + sizeof(ip6_t),
 			   avail - hlen - sizeof(*icmp) - max_linkhdr);
