@@ -85,10 +85,10 @@ static	int first = 1;
  */
 
 void
-nsprotopr(u_long off, char *name, int af __unused)
+nsprotopr(u_long off, const char *name, int af __unused)
 {
 	struct nspcb cb;
-	register struct nspcb *prev, *next;
+	struct nspcb *prev, *next;
 	int isspp;
 
 	if (off == 0)
@@ -158,7 +158,7 @@ nsprotopr(u_long off, char *name, int af __unused)
  * Dump SPP statistics structure.
  */
 void
-spp_stats(u_long off, char *name, int af __unused)
+spp_stats(u_long off, const char *name, int af __unused)
 {
 	struct spp_istat spp_istat;
 #define sppstat spp_istat.newstats
@@ -234,7 +234,7 @@ spp_stats(u_long off, char *name, int af __unused)
  * Dump IDP statistics structure.
  */
 void
-idp_stats(u_long off, char *name, int af __unused)
+idp_stats(u_long off, const char *name, int af __unused)
 {
 	struct idpstat idpstat;
 
@@ -268,11 +268,11 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-nserr_stats(u_long off, char *name, int af __unused)
+nserr_stats(u_long off, const char *name, int af __unused)
 {
 	struct ns_errstat ns_errstat;
-	register int j;
-	register int histoprint = 1;
+	int j;
+	int histoprint = 1;
 	int z;
 
 	if (off == 0)

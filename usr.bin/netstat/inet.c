@@ -81,9 +81,8 @@ static const char rcsid[] =
 #include "netstat.h"
 
 char	*inetname (struct in_addr *);
-void	inetprint (struct in_addr *, int, char *, int);
+void	inetprint (struct in_addr *, int, const char *, int);
 #ifdef INET6
-extern void	inet6print (struct in6_addr *, int, char *, int);
 static int udp_done, tcp_done;
 #endif /* INET6 */
 
@@ -95,7 +94,7 @@ static int udp_done, tcp_done;
  */
 void
 protopr(u_long proto,		/* for sysctl version we pass proto # */
-	char *name, int af)
+	const char *name, int af1)
 {
 	int istcp;
 	static int first = 1;
@@ -172,11 +171,11 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		if (inp->inp_gencnt > oxig->xig_gen)
 			continue;
 
-		if ((af == AF_INET && (inp->inp_vflag & INP_IPV4) == 0)
+		if ((af1 == AF_INET && (inp->inp_vflag & INP_IPV4) == 0)
 #ifdef INET6
-		    || (af == AF_INET6 && (inp->inp_vflag & INP_IPV6) == 0)
+		    || (af1 == AF_INET6 && (inp->inp_vflag & INP_IPV6) == 0)
 #endif /* INET6 */
-		    || (af == AF_UNSPEC && ((inp->inp_vflag & INP_IPV4) == 0
+		    || (af1 == AF_UNSPEC && ((inp->inp_vflag & INP_IPV4) == 0
 #ifdef INET6
 					    && (inp->inp_vflag &
 						INP_IPV6) == 0
@@ -186,13 +185,13 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			continue;
 		if (!aflag &&
 		    (
-		     (af == AF_INET &&
+		     (af1 == AF_INET &&
 		      inet_lnaof(inp->inp_laddr) == INADDR_ANY)
 #ifdef INET6
-		     || (af == AF_INET6 &&
+		     || (af1 == AF_INET6 &&
 			 IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 #endif /* INET6 */
-		     || (af == AF_UNSPEC &&
+		     || (af1 == AF_UNSPEC &&
 			 (((inp->inp_vflag & INP_IPV4) != 0 &&
 			   inet_lnaof(inp->inp_laddr) == INADDR_ANY)
 #ifdef INET6
@@ -244,11 +243,11 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 				? "4 " : "  ";
 		printf("%-3.3s%-2.2s ", name, vchar);
 		if (Lflag) {
-			char buf[15];
+			char buf1[15];
 
-			snprintf(buf, 15, "%d/%d/%d", so->so_qlen,
+			snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
 				 so->so_incqlen, so->so_qlimit);
-			printf("%-14.14s ", buf);
+			printf("%-14.14s ", buf1);
 		} else {
 			printf("%6u %6u  ",
 			       so->so_rcv.sb_cc,
@@ -343,7 +342,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
  * Dump TCP statistics structure.
  */
 void
-tcp_stats(u_long off __unused, char *name, int af __unused)
+tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct tcpstat tcpstat, zerostat;
 	size_t len = sizeof tcpstat;
@@ -436,21 +435,21 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
 	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
 
-	p(tcps_sc_added, "\t%lu syncache entries added\n"); 
-	p(tcps_sc_retransmitted, "\t\t%lu retransmitted\n"); 
-	p(tcps_sc_dupsyn, "\t\t%lu dupsyn\n"); 
-	p(tcps_sc_dropped, "\t\t%lu dropped\n"); 
-	p(tcps_sc_completed, "\t\t%lu completed\n"); 
-	p(tcps_sc_bucketoverflow, "\t\t%lu bucket overflow\n"); 
-	p(tcps_sc_cacheoverflow, "\t\t%lu cache overflow\n"); 
-	p(tcps_sc_reset, "\t\t%lu reset\n"); 
-	p(tcps_sc_stale, "\t\t%lu stale\n"); 
-	p(tcps_sc_aborted, "\t\t%lu aborted\n"); 
-	p(tcps_sc_badack, "\t\t%lu badack\n"); 
-	p(tcps_sc_unreach, "\t\t%lu unreach\n"); 
-	p(tcps_sc_zonefail, "\t\t%lu zone failures\n"); 
-	p(tcps_sc_sendcookie, "\t%lu cookies sent\n"); 
-	p(tcps_sc_recvcookie, "\t%lu cookies received\n"); 
+	p(tcps_sc_added, "\t%lu syncache entrie%s added\n"); 
+	p1a(tcps_sc_retransmitted, "\t\t%lu retransmitted\n"); 
+	p1a(tcps_sc_dupsyn, "\t\t%lu dupsyn\n"); 
+	p1a(tcps_sc_dropped, "\t\t%lu dropped\n"); 
+	p1a(tcps_sc_completed, "\t\t%lu completed\n"); 
+	p1a(tcps_sc_bucketoverflow, "\t\t%lu bucket overflow\n"); 
+	p1a(tcps_sc_cacheoverflow, "\t\t%lu cache overflow\n"); 
+	p1a(tcps_sc_reset, "\t\t%lu reset\n"); 
+	p1a(tcps_sc_stale, "\t\t%lu stale\n"); 
+	p1a(tcps_sc_aborted, "\t\t%lu aborted\n"); 
+	p1a(tcps_sc_badack, "\t\t%lu badack\n"); 
+	p1a(tcps_sc_unreach, "\t\t%lu unreach\n"); 
+	p(tcps_sc_zonefail, "\t\t%lu zone failure%s\n"); 
+	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n"); 
+	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n"); 
 #undef p
 #undef p1a
 #undef p2
@@ -462,7 +461,7 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
  * Dump UDP statistics structure.
  */
 void
-udp_stats(u_long off __unused, char *name, int af __unused)
+udp_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct udpstat udpstat, zerostat;
 	size_t len = sizeof udpstat;
@@ -516,7 +515,7 @@ udp_stats(u_long off __unused, char *name, int af __unused)
  * Dump IP statistics structure.
  */
 void
-ip_stats(u_long off __unused, char *name, int af __unused)
+ip_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct ipstat ipstat, zerostat;
 	size_t len = sizeof ipstat;
@@ -573,7 +572,7 @@ ip_stats(u_long off __unused, char *name, int af __unused)
 #undef p1a
 }
 
-static	char *icmpnames[] = {
+static	const char *icmpnames[] = {
 	"echo reply",
 	"#1",
 	"#2",
@@ -599,7 +598,7 @@ static	char *icmpnames[] = {
  * Dump ICMP statistics.
  */
 void
-icmp_stats(u_long off __unused, char *name, int af __unused)
+icmp_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct icmpstat icmpstat, zerostat;
 	int i, first;
@@ -674,7 +673,7 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
  * Dump IGMP statistics structure.
  */
 void
-igmp_stats(u_long off __unused, char *name, int af __unused)
+igmp_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct igmpstat igmpstat, zerostat;
 	size_t len = sizeof igmpstat;
@@ -710,7 +709,7 @@ igmp_stats(u_long off __unused, char *name, int af __unused)
  * Pretty print an Internet address (net address + port).
  */
 void
-inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
+inetprint(struct in_addr *in, int port, const char *proto, int num_port)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -719,9 +718,9 @@ inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
 	if (Wflag)
 	    sprintf(line, "%s.", inetname(in));
 	else
-	    sprintf(line, "%.*s.", (Aflag && !numeric_port) ? 12 : 16, inetname(in));
+	    sprintf(line, "%.*s.", (Aflag && !num_port) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
-	if (!numeric_port && port)
+	if (!num_port && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
 		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
@@ -742,7 +741,7 @@ inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
 char *
 inetname(struct in_addr *inp)
 {
-	register char *cp;
+	char *cp;
 	static char line[MAXHOSTNAMELEN];
 	struct hostent *hp;
 	struct netent *np;
