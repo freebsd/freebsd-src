@@ -2525,12 +2525,12 @@ void
 _thr_debug_check_yield(struct pthread *curthread)
 {
 	/*
-	 * Note that TMDF_DONOTRUNUSER is set after process is suspended.
+	 * Note that TMDF_SUSPEND is set after process is suspended.
 	 * When we are being debugged, every suspension in process
 	 * will cause all KSEs to schedule an upcall in kernel, unless the
 	 * KSE is in critical region.
 	 * If the function is being called, it means the KSE is no longer
-	 * in critical region, if the TMDF_DONOTRUNUSER is set by debugger
+	 * in critical region, if the TMDF_SUSPEND is set by debugger
 	 * before KSE leaves critical region, we will catch it here, else
 	 * if the flag is changed during testing, it also not a problem,
 	 * because the change only occurs after a process suspension event

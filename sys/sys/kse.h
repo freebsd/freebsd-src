@@ -101,7 +101,7 @@ struct kse_mailbox {
 
 /* These flags are kept in tm_dlfags */
 #define TMDF_SSTEP		0x01
-#define TMDF_DONOTRUNUSER	0x02
+#define TMDF_SUSPEND		0x02
 
 /* Flags for kse_switchin */
 #define KSE_SWITCHIN_SETTMBX	0x01
