@@ -131,6 +131,40 @@ cmsg_len = sizeof(struct in_addr)
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
+.Pp
+.Dv IP_PORTRANGE 
+may be used to set the port range used for selecting a local port number
+on a socket with an unspecified (zero) port number. It has the following
+possible values:
+.Bl -tag -width IP_PORTRANGE_DEFAULT
+.It Dv IP_PORTRANGE_DEFAULT
+use the default range of values, normally
+.Dv IPPORT_RESERVED
+through
+.Dv IPPORT_RESERVED .
+This is adjustable through the sysctl setting:
+.Nm net.inet.ip.portrange.first
+and
+.Nm net.inet.ip.portrange.last .
+.It Dv IP_PORTRANGE_HIGH
+use a high range of values, normally
+.Dv IPPORT_HIFIRSTAUTO
+and
+.Dv IPPORT_HILASTAUTO .
+This is adjustable through the sysctl setting:
+.Nm net.inet.ip.portrange.hifirst
+and
+.Nm net.inet.ip.portrange.hilast .
+.It Dv IP_PORTRANGE_LOW
+use a low range of ports, which are normally restricted to
+privileged processes on
+.Ux
+systems.  The range is normally from
+.Dv IPPORT_RESERVED
+down to
+.Li 1
+in descending order.  This range is not sysctl configurable.
+.El
 .Ss "Multicast Options"
 .Pp
 .Tn IP 
