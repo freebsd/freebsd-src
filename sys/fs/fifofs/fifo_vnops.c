@@ -211,7 +211,7 @@ fail1:
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
-		rso->so_state |= SS_CANTRCVMORE;
+		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;
 		vp->v_fifoinfo = fip;
 	}
 
@@ -229,7 +229,7 @@ fail1:
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
-			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
+			fip->fi_writesock->so_snd.sb_state &= ~SBS_CANTSENDMORE;
 			if (fip->fi_writers > 0) {
 				wakeup(&fip->fi_writers);
 				sowwakeup(fip->fi_writesock);
@@ -243,7 +243,7 @@ fail1:
 		}
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
-			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
+			fip->fi_readsock->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
 				sorwakeup(fip->fi_writesock);
@@ -447,7 +447,7 @@ filt_fiforead(struct knote *kn, long hint)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	kn->kn_data = so->so_rcv.sb_cc;
-	if (so->so_state & SS_CANTRCVMORE) {
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
@@ -471,7 +471,7 @@ filt_fifowrite(struct knote *kn, long hint)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	kn->kn_data = sbspace(&so->so_snd);
-	if (so->so_state & SS_CANTSENDMORE) {
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}

@@ -1144,7 +1144,7 @@ sendit:		/* Forward data with optional peer sockaddr as meta info */
 	 * If the peer has closed the connection, forward a 0-length mbuf
 	 * to indicate end-of-file.
 	 */
-	if (so->so_state & SS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
 		MGETHDR(m, waitflag, MT_DATA);
 		if (m != NULL) {
 			m->m_len = m->m_pkthdr.len = 0;
@@ -1171,7 +1171,7 @@ ng_ksocket_check_accept(priv_p priv)
 	}
 	/* Unlocked read. */
 	if (TAILQ_EMPTY(&head->so_comp)) {
-		if (head->so_state & SS_CANTRCVMORE)
+		if (head->so_rcv.sb_state & SBS_CANTRCVMORE)
 			return ECONNABORTED;
 		return EWOULDBLOCK;
 	}

@@ -650,7 +650,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp == NULL) {
 		/*
 		 * OOPS! we lost a race, the TCP session got reset after
-		 * we checked SS_CANTSENDMORE, eg: while doing uiomove or a
+		 * we checked SBS_CANTSENDMORE, eg: while doing uiomove or a
 		 * network interrupt in the non-splnet() section of sosend().
 		 */
 		if (m)
@@ -788,7 +788,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 
 	COMMON_START();
 	if ((so->so_oobmark == 0 &&
-	     (so->so_state & SS_RCVATMARK) == 0) ||
+	     (so->so_rcv.sb_state & SBS_RCVATMARK) == 0) ||
 	    so->so_options & SO_OOBINLINE ||
 	    tp->t_oobflags & TCPOOB_HADDATA) {
 		error = EINVAL;
