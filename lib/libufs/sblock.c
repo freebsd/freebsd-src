@@ -60,6 +60,7 @@ sbread(struct uufsd *disk)
 
 	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
 		if (bread(disk, superblock, disk->d_sb, SBLOCKSIZE) == -1) {
+			disk->d_error = "truncated superblock";
 			DEBUG(NULL);
 			return -1;
 		}
@@ -82,6 +83,7 @@ sbread(struct uufsd *disk)
 		 * which to associate this disk/filesystem.
 		 */
 		DEBUG("no superblock found");
+		disk->d_error = "no superblock found";
 		errno = ENOENT;
 		return -1;
 	}
@@ -104,10 +106,12 @@ sbwrite(struct uufsd *disk, int all)
 	disk->d_fd = open(disk->d_name, O_WRONLY);
 	if (disk->d_fd < 0) {
 		DEBUG("open");
+		disk->d_error = "failed to open disk";
 		return -1;
 	}
 	if (bwrite(disk, disk->d_sblock, fs, SBLOCKSIZE) == -1) {
 		DEBUG(NULL);
+		disk->d_error = "failed to write superblock";
 		return -1;
 	}
 	if (all) {
@@ -115,6 +119,7 @@ sbwrite(struct uufsd *disk, int all)
 			if (bwrite(disk, fsbtodb(fs, cgsblock(fs, i)),
 			    fs, SBLOCKSIZE) == -1) {
 				DEBUG(NULL);
+				disk->d_error = "failed to update a superblock";
 				return -1;
 			}
 	}

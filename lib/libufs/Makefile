@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	ufs
-SRCS=	block.c inode.c sblock.c type.c
+SRCS=	block.c error.c inode.c sblock.c type.c
 INCS=	libufs.h
 CFLAGS+= -I${.CURDIR} -D_LIBUFS
 .if defined(LIBUFS_DEBUG)
