@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.18 1998/03/21 02:08:33 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.19 1998/03/23 08:33:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -100,7 +100,11 @@ static HitList etc_files [] = {
    { JUST_COPY,		"profile",		TRUE, NULL },
    { JUST_COPY,		"protocols",		TRUE, NULL },
    { JUST_COPY,		"pwd.db",		TRUE, NULL },
+   { JUST_COPY,		"rc",			TRUE, NULL },
+   { JUST_COPY,		"rc.firewall",		TRUE, NULL },
+   { JUST_COPY,		"rc.i386",		TRUE, NULL },
    { JUST_COPY,		"rc.local",		TRUE, NULL },
+   { JUST_COPY,		"rc.network",		TRUE, NULL },
    { JUST_COPY,		"rc.conf",		FALSE, NULL },
    { JUST_COPY,		"remote",		TRUE, NULL },
    { JUST_COPY,		"resolv.conf",		TRUE, NULL },
@@ -353,12 +357,13 @@ media:
 	traverseHitlist(etc_files);
     }
 
-    msgConfirm("OK!  At this stage, we've resurrected all the /etc files\n"
-	       "and moved each new copy over to /etc/upgrade/<file> in case you want\n"
-	       "to see what the new versions look like.  If you want to wander over\n"
-	       "to the Emergency Holographic Shell [ALT-F4] at this point to do\n"
-	       "that, now would be a good time.  When you're ready to reboot into\n"
-	       "the new system, just exit the installation.");
+    msgConfirm("Upgrade completed!  All of your old /etc files have been restored.\n"
+	       "For your reference, the new /etc files are in /etc/upgrade/ in case\n"
+	       "you wish to upgrade these files by hand (though that should not be\n"
+	       "strictly necessary).  If your root partition is specified in /etc/fstab\n"
+	       "using the old \"compatibility\" slice, you may also wish to update it to\n"
+	       "use a fully qualified slice name in order to avoid warnings on startup.\n\n"
+	       "When you're ready to reboot into the new system, simply exit the installation.");
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
