@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.394 1998/09/30 20:54:28 jkh Exp $
+#	$Id: Makefile,v 1.395 1998/10/01 09:27:02 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -712,8 +712,12 @@ doMFSKERN:
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
+.if ${MACHINE_ARCH} == "i386"
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
+.else
+	cp fs-image.${FSIMAGE} ${RD}/floppies/
+.endif
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
