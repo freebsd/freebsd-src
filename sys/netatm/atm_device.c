@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <net/if.h>
+#include <net/bpf.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -368,6 +369,17 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 				tok, state );
 			KB_FREEALL((KBuffer *)arg1);
 			break;
+		}
+
+		/*
+		 * Send the packet to the interface's bpf if this vc has one.
+		 */
+		if (cvcp->cvc_conn->co_mpx == ATM_ENC_LLC &&
+		    cvcp->cvc_vcc && cvcp->cvc_vcc->vc_nif) {
+			struct ifnet *ifp =
+			    (struct ifnet *)cvcp->cvc_vcc->vc_nif;
+
+			BPF_MTAP(ifp, (KBuffer *)arg1);
 		}
 
 		/*
