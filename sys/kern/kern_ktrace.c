@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.11 1996/03/11 06:03:23 hsu Exp $
+ * $Id: kern_ktrace.c,v 1.12 1996/08/04 20:13:07 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -343,6 +343,45 @@ done:
 	return (error);
 #else
 	return ENOSYS;
+#endif
+}
+
+/*
+ * utrace system call
+ */
+/* ARGSUSED */
+int
+utrace(curp, uap, retval)
+	struct proc *curp;
+	register struct utrace_args *uap;
+	int *retval;
+{
+#ifdef KTRACE
+	register struct ktr_user *ktp;
+	struct ktr_header *kth;
+	struct proc *p = curproc;	/* XXX */
+	register caddr_t cp;
+
+	if (!KTRPOINT(p, KTR_USER))
+		return (0);
+	p->p_traceflag |= KTRFAC_ACTIVE;
+	kth = ktrgetheader(KTR_USER);
+	MALLOC(ktp, struct ktr_user *, sizeof(struct ktr_user) + uap->len,
+		M_KTRACE, M_WAITOK);
+	ktp->len = uap->len;
+	cp = (caddr_t)((char *)ktp + sizeof (struct ktr_user));
+	if (!copyin(uap->addr, cp, uap->len)) {
+		kth->ktr_buf = (caddr_t)ktp;
+		kth->ktr_len = sizeof (struct ktr_user) + uap->len;
+		ktrwrite(p->p_tracep, kth);
+	}
+	FREE(kth, M_KTRACE);
+	FREE(ktp, M_KTRACE);
+	p->p_traceflag &= ~KTRFAC_ACTIVE;
+
+	return (0);
+#else
+	return (ENOSYS);
 #endif
 }
 

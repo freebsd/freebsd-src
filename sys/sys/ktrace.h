@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id: ktrace.h,v 1.7 1995/03/16 18:16:19 bde Exp $
+ * $Id: ktrace.h,v 1.8 1995/12/14 08:32:31 phk Exp $
  */
 
 #ifndef _SYS_KTRACE_H_
@@ -133,6 +133,17 @@ struct ktr_csw {
 };
 
 /*
+ * KTR_USER - data comming from userland
+ */
+#define KTR_USER	7
+struct ktr_user {
+	int	len;	/* number of bytes */
+	/*
+	 * followed by data provided by user
+	 */
+};
+
+/*
  * kernel trace points (in p_traceflag)
  */
 #define KTRFAC_MASK	0x00ffffff
@@ -142,6 +153,7 @@ struct ktr_csw {
 #define KTRFAC_GENIO	(1<<KTR_GENIO)
 #define	KTRFAC_PSIG	(1<<KTR_PSIG)
 #define KTRFAC_CSW	(1<<KTR_CSW)
+#define KTRFAC_USER	(1<<KTR_USER)
 /*
  * trace flags (also in p_traceflags)
  */
@@ -163,6 +175,7 @@ void	ktrsysret __P((struct vnode *, int, int, int));
 
 __BEGIN_DECLS
 int	ktrace __P((const char *, int, int, pid_t));
+int	utrace __P((const caddr_t , size_t));
 __END_DECLS
 
 #endif	/* !KERNEL */
