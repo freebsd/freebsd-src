@@ -91,6 +91,8 @@ struct file_list {
 #define	SWAPSPEC	6
 #define COMPDEVICE	7
 #define COMPSPEC	8
+#define NODEPEND	9
+#define LOCAL		10
 #define DEVDONE		0x80000000
 #define TYPEMASK	0x7fffffff
 
