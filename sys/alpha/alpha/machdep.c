@@ -1238,7 +1238,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
 	/*
@@ -1342,7 +1342,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
-		PROC_UNLOCK(p);
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
