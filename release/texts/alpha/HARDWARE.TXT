@@ -456,6 +456,13 @@ on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth from
 from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in mind when doing 
 really high speed things with 64 bit PCI adapters.
 
+Keyboard:
+If you experience SRM errors like "ERROR: scancode 0xa3 not supported
+on PCXAL" after halting FreeBSD you should update your SRM firmware 
+to V7.2-1 or later. This SRM version is first available on the Firmware
+Update CD V5.7, or on www.compaq.com The problem is fixed on both Miata MX5
+and Miata GL.
+
 USB:
 Supported by FreeBSD 4.1 and later.
 
