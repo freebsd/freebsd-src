@@ -117,7 +117,7 @@ static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 
 void r_debug_state(struct r_debug*, struct link_map*);
-void xprintf(const char *, ...);
+void xprintf(const char *, ...) __printflike(1, 2);
 
 /*
  * Data declarations.
