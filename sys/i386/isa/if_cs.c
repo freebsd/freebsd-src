@@ -39,20 +39,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sockio.h>
+#include <sys/conf.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/ethernet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -132,10 +131,10 @@ static u_long	cs_unit = NCS;
 static int      cs_attach               __P((struct cs_softc *, int, int));
 static int      cs_attach_isa           __P((struct isa_device *));
 static void	cs_init			__P((void *));
-static int	cs_ioctl		__P((struct ifnet *, u_long, caddr_t));
+static int	cs_ioctl		__P((struct ifnet *, int, caddr_t));
 static int	cs_probe		__P((struct isa_device *));
 static int	cs_cs89x0_probe		__P((struct cs_softc *,
-					 u_int *, int *, int, int, int));
+					 u_short *, short *, int, int, int));
 static void	cs_start		__P((struct ifnet *));
 static void	cs_stop			__P((struct cs_softc *));
 static void	cs_reset		__P((struct cs_softc *));
@@ -345,8 +344,8 @@ enable_bnc(struct cs_softc *sc)
 }
 
 static int
-cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
-			int *dev_drq, int iobase, int unit, int flags)
+cs_cs89x0_probe(struct cs_softc *sc, u_short *dev_irq,
+			short *dev_drq, int iobase, int unit, int flags)
 {
 	unsigned rev_type = 0;
 	int i, irq=0, result;
@@ -653,8 +652,7 @@ cs_init(void *xsc)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int i, s, result, rx_cfg;
 
-	/* address not known */
-	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
+	if (ifp->if_addrlist == (struct ifaddr *) 0)
 		return;
 
 	/*
@@ -877,7 +875,7 @@ csintr_sc(struct cs_softc *sc, int unit)
 /*
  * Handle interrupts
  */
-void
+static void
 csintr(int unit)
 {
 	struct cs_softc *sc = &cs_softc[unit];
@@ -1070,7 +1068,7 @@ cs_setmode(struct cs_softc *sc)
 }
 
 static int
-cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
+cs_ioctl(register struct ifnet *ifp, int command, caddr_t data)
 {
 	struct cs_softc *sc=ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -1114,15 +1112,24 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-	    /*
-	     * Multicast list has changed; set the hardware filter
-	     * accordingly.
-	     *
-	     * See note about multicasts in cs_setmode
-	     */
-	    cs_setmode(sc);
-	    error = 0;
-	    break;
+		/*
+		 * Update out multicast list.
+		 */
+                error = (command == SIOCADDMULTI)
+                        ? ether_addmulti(ifr, &sc->arpcom)
+                        : ether_delmulti(ifr, &sc->arpcom);
+
+                if (error == ENETRESET) {
+                        /*
+                         * Multicast list has changed; set the hardware filter
+                         * accordingly.
+                         *
+                         * See note about multicasts in cs_setmode
+			 */
+                        cs_setmode(sc);
+                        error = 0;
+                }
+                break;
 
         case SIOCSIFMEDIA:
         case SIOCGIFMEDIA:
@@ -1220,7 +1227,6 @@ cs_mediaset(struct cs_softc *sc, int media)
 #endif
 
 	switch (IFM_SUBTYPE(media)) {
-	default:
 	case IFM_AUTO:
 		if (error=enable_tp(sc))
        		if (error=enable_bnc(sc))
