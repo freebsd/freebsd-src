@@ -369,6 +369,10 @@ show_crom(u_int32_t *crom_buf)
 	u_int16_t crc;
 
 	printf("first quad: 0x%08x ", *crom_buf);
+	if (crom_buf[0] == 0) {
+		printf("(Invalid Configuration ROM)\n");
+		return;
+	}
 	hdr = (struct csrhdr *)crom_buf;
 	if (hdr->info_len == 1) {
 		/* minimum ROM */
@@ -596,11 +600,20 @@ open_dev(int *fd, char *devbase)
 }
 
 int
+sysctl_set_int(char *name, int val)
+{
+	if (sysctlbyname(name, NULL, NULL, &val, sizeof(int)) < 0)
+		err(1, "sysctl %s failed.", name);
+}
+
+int
 main(int argc, char **argv)
 {
 	u_int32_t crom_buf[1024/4];
 	char devbase[1024] = "/dev/fw0";
 	int fd, i, tmp, ch, len=1024;
+	struct fw_eui64 eui;
+	struct eui64 target;
 
 	fd = -1;
 
@@ -609,7 +622,7 @@ main(int argc, char **argv)
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "g:o:s:b:prtc:d:l:u:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "g:m:o:s:b:prtc:d:l:u:R:S:")) != -1)
 		switch(ch) {
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
@@ -636,6 +649,15 @@ main(int argc, char **argv)
 		case 'l':
 			load_crom(optarg, crom_buf);
 			show_crom(crom_buf);
+			break;
+		case 'm':
+		       if (eui64_hostton(optarg, &target) != 0 &&
+			   eui64_aton(optarg, &target) != 0)
+				errx(1, "invalid target: %s", optarg);
+			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
+			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
+			sysctl_set_int("hw.firewire.fwmem.eui64_hi", eui.hi);
+			sysctl_set_int("hw.firewire.fwmem.eui64_lo", eui.lo);
 			break;
 		case 'o':
 			open_dev(&fd, devbase);
