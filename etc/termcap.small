@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	5.88 (Berkeley) 4/30/91
-#
+# $FreeBSD$
 # 
 # for syscons
 # common entry without semigraphics
