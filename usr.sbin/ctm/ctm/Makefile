@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.7 1995/03/04 20:36:44 phk Exp $
+# $Id: Makefile,v 1.8 1995/03/25 18:14:22 joerg Exp $
 #
 
 PROG=		ctm
@@ -17,7 +17,7 @@ LDADD+=		-lmd
 DPADD+=		${LIBMD}
 MAN1=		ctm.1
 MAN5=		ctm.5
-CFLAGS+=	-Wall -g
+CFLAGS+=	-Wall
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"
