@@ -82,37 +82,58 @@ static __inline__ int radeon_check_and_fixup_packets( drm_radeon_private_t *dev_
 						      drm_file_t *filp_priv,
 						      int id,
 						      u32 *data ) {
-	if ( id == RADEON_EMIT_PP_MISC &&
-	     radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
-						 &data[( RADEON_RB3D_DEPTHOFFSET
-							 - RADEON_PP_MISC ) / 4] ) ) {
-		DRM_ERROR( "Invalid depth buffer offset\n" );
-		return DRM_ERR( EINVAL );
-	} else if ( id == RADEON_EMIT_PP_CNTL &&
-		    radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
-							&data[( RADEON_RB3D_COLOROFFSET
-								- RADEON_PP_CNTL ) / 4] ) ) {
-		DRM_ERROR( "Invalid colour buffer offset\n" );
-		return DRM_ERR( EINVAL );
-	} else if ( id >= R200_EMIT_PP_TXOFFSET_0 &&
-		    id <= R200_EMIT_PP_TXOFFSET_5 &&
-		    radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
-							&data[0] ) ) {
-		DRM_ERROR( "Invalid R200 texture offset\n" );
-		return DRM_ERR( EINVAL );
-	} else if ( ( id == RADEON_EMIT_PP_TXFILTER_0 || id == RADEON_EMIT_PP_TXFILTER_1 ||
-		      id == RADEON_EMIT_PP_TXFILTER_2 /*|| id == RADEON_EMIT_PP_TXFILTER_3 ||
-		      id == RADEON_EMIT_PP_TXFILTER_4 || id == RADEON_EMIT_PP_TXFILTER_5*/ ) &&
-		    radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
-							&data[( RADEON_PP_TXOFFSET_0
-								- RADEON_PP_TXFILTER_0 ) / 4] ) ) {
-		DRM_ERROR( "Invalid R100 texture offset\n" );
-		return DRM_ERR( EINVAL );
-	} else if ( id == R200_PP_CUBIC_OFFSET_F1_0 || id == R200_PP_CUBIC_OFFSET_F1_1 ||
-		    id == R200_PP_CUBIC_OFFSET_F1_2 || id == R200_PP_CUBIC_OFFSET_F1_3 ||
-		    id == R200_PP_CUBIC_OFFSET_F1_4 || id == R200_PP_CUBIC_OFFSET_F1_5 ) {
+	switch ( id ) {
+
+	case RADEON_EMIT_PP_MISC:
+		if ( radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
+							 &data[( RADEON_RB3D_DEPTHOFFSET
+								 - RADEON_PP_MISC ) / 4] ) ) {
+			DRM_ERROR( "Invalid depth buffer offset\n" );
+			return DRM_ERR( EINVAL );
+		}
+		break;
+
+	case RADEON_EMIT_PP_CNTL:
+		if ( radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
+							 &data[( RADEON_RB3D_COLOROFFSET
+								 - RADEON_PP_CNTL ) / 4] ) ) {
+			DRM_ERROR( "Invalid colour buffer offset\n" );
+			return DRM_ERR( EINVAL );
+		}
+		break;
+
+	case R200_EMIT_PP_TXOFFSET_0:
+	case R200_EMIT_PP_TXOFFSET_1:
+	case R200_EMIT_PP_TXOFFSET_2:
+	case R200_EMIT_PP_TXOFFSET_3:
+	case R200_EMIT_PP_TXOFFSET_4:
+	case R200_EMIT_PP_TXOFFSET_5:
+		if ( radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
+							 &data[0] ) ) {
+			DRM_ERROR( "Invalid R200 texture offset\n" );
+			return DRM_ERR( EINVAL );
+		}
+		break;
+
+	case RADEON_EMIT_PP_TXFILTER_0:
+	case RADEON_EMIT_PP_TXFILTER_1:
+	case RADEON_EMIT_PP_TXFILTER_2:
+		if ( radeon_check_and_fixup_offset_user( dev_priv, filp_priv,
+							 &data[( RADEON_PP_TXOFFSET_0
+								 - RADEON_PP_TXFILTER_0 ) / 4] ) ) {
+			DRM_ERROR( "Invalid R100 texture offset\n" );
+			return DRM_ERR( EINVAL );
+		}
+		break;
+
+	case R200_EMIT_PP_CUBIC_OFFSETS_0:
+	case R200_EMIT_PP_CUBIC_OFFSETS_1:
+	case R200_EMIT_PP_CUBIC_OFFSETS_2:
+	case R200_EMIT_PP_CUBIC_OFFSETS_3:
+	case R200_EMIT_PP_CUBIC_OFFSETS_4:
+	case R200_EMIT_PP_CUBIC_OFFSETS_5: {
 		int i;
-		for ( i = 0; i < 6; i++ ) {
+		for ( i = 0; i < 5; i++ ) {
 			if ( radeon_check_and_fixup_offset_user( dev_priv,
 								 filp_priv,
 								 &data[i] ) ) {
@@ -120,6 +141,75 @@ static __inline__ int radeon_check_and_fixup_packets( drm_radeon_private_t *dev_
 				return DRM_ERR( EINVAL );
 			}
 		}
+		break;
+	}
+
+	case RADEON_EMIT_RB3D_COLORPITCH:
+	case RADEON_EMIT_RE_LINE_PATTERN:
+	case RADEON_EMIT_SE_LINE_WIDTH:
+	case RADEON_EMIT_PP_LUM_MATRIX:
+	case RADEON_EMIT_PP_ROT_MATRIX_0:
+	case RADEON_EMIT_RB3D_STENCILREFMASK:
+	case RADEON_EMIT_SE_VPORT_XSCALE:
+	case RADEON_EMIT_SE_CNTL:
+	case RADEON_EMIT_SE_CNTL_STATUS:
+	case RADEON_EMIT_RE_MISC:
+	case RADEON_EMIT_PP_BORDER_COLOR_0:
+	case RADEON_EMIT_PP_BORDER_COLOR_1:
+	case RADEON_EMIT_PP_BORDER_COLOR_2:
+	case RADEON_EMIT_SE_ZBIAS_FACTOR:
+	case RADEON_EMIT_SE_TCL_OUTPUT_VTX_FMT:
+	case RADEON_EMIT_SE_TCL_MATERIAL_EMMISSIVE_RED:
+	case R200_EMIT_PP_TXCBLEND_0:
+	case R200_EMIT_PP_TXCBLEND_1:
+	case R200_EMIT_PP_TXCBLEND_2:
+	case R200_EMIT_PP_TXCBLEND_3:
+	case R200_EMIT_PP_TXCBLEND_4:
+	case R200_EMIT_PP_TXCBLEND_5:
+	case R200_EMIT_PP_TXCBLEND_6:
+	case R200_EMIT_PP_TXCBLEND_7:
+	case R200_EMIT_TCL_LIGHT_MODEL_CTL_0:
+	case R200_EMIT_TFACTOR_0:
+	case R200_EMIT_VTX_FMT_0:
+	case R200_EMIT_VAP_CTL:
+	case R200_EMIT_MATRIX_SELECT_0:
+	case R200_EMIT_TEX_PROC_CTL_2:
+	case R200_EMIT_TCL_UCP_VERT_BLEND_CTL:
+	case R200_EMIT_PP_TXFILTER_0:
+	case R200_EMIT_PP_TXFILTER_1:
+	case R200_EMIT_PP_TXFILTER_2:
+	case R200_EMIT_PP_TXFILTER_3:
+	case R200_EMIT_PP_TXFILTER_4:
+	case R200_EMIT_PP_TXFILTER_5:
+	case R200_EMIT_VTE_CNTL:
+	case R200_EMIT_OUTPUT_VTX_COMP_SEL:
+	case R200_EMIT_PP_TAM_DEBUG3:
+	case R200_EMIT_PP_CNTL_X:
+	case R200_EMIT_RB3D_DEPTHXY_OFFSET:
+	case R200_EMIT_RE_AUX_SCISSOR_CNTL:
+	case R200_EMIT_RE_SCISSOR_TL_0:
+	case R200_EMIT_RE_SCISSOR_TL_1:
+	case R200_EMIT_RE_SCISSOR_TL_2:
+	case R200_EMIT_SE_VAP_CNTL_STATUS:
+	case R200_EMIT_SE_VTX_STATE_CNTL:
+	case R200_EMIT_RE_POINTSIZE:
+	case R200_EMIT_TCL_INPUT_VTX_VECTOR_ADDR_0:
+	case R200_EMIT_PP_CUBIC_FACES_0:
+	case R200_EMIT_PP_CUBIC_FACES_1:
+	case R200_EMIT_PP_CUBIC_FACES_2:
+	case R200_EMIT_PP_CUBIC_FACES_3:
+	case R200_EMIT_PP_CUBIC_FACES_4:
+	case R200_EMIT_PP_CUBIC_FACES_5:
+	case RADEON_EMIT_PP_TEX_SIZE_0:
+	case RADEON_EMIT_PP_TEX_SIZE_1:
+	case RADEON_EMIT_PP_TEX_SIZE_2:
+	case R200_EMIT_RB3D_BLENDCOLOR:
+		/* These packets don't contain memory offsets */
+		break;
+
+	default:
+		DRM_ERROR( "Unknown state packet ID %d\n", id );
+		return DRM_ERR( EINVAL );
 	}
 
 	return 0;
@@ -475,7 +565,8 @@ static struct {
 	{ R200_PP_CUBIC_OFFSET_F1_5, 5, "R200_PP_CUBIC_OFFSET_F1_5" },
 	{ RADEON_PP_TEX_SIZE_0, 2, "RADEON_PP_TEX_SIZE_0" },
 	{ RADEON_PP_TEX_SIZE_1, 2, "RADEON_PP_TEX_SIZE_1" },
-	{ RADEON_PP_TEX_SIZE_2, 2, "RADEON_PP_TEX_SIZE_1" },
+	{ RADEON_PP_TEX_SIZE_2, 2, "RADEON_PP_TEX_SIZE_2" },
+	{ R200_RB3D_BLENDCOLOR, 3, "R200_RB3D_BLENDCOLOR" },
 };
 
 
@@ -1410,7 +1501,7 @@ static int radeon_cp_dispatch_texture( DRMFILE filp,
 		/* Update the input parameters for next time */
 		image->y += height;
 		image->height -= height;
-		(const u8 *)image->data += size;
+		image->data = (const u8 *)image->data + size;
 	} while (image->height > 0);
 
 	/* Flush the pixel cache after the blit completes.  This ensures
@@ -2398,10 +2489,21 @@ int radeon_cp_getparam( DRM_IOCTL_ARGS )
 	case RADEON_PARAM_STATUS_HANDLE:
 		value = dev_priv->ring_rptr_offset;
 		break;
+#if BITS_PER_LONG == 32
+	/*
+	 * This ioctl() doesn't work on 64-bit platforms because hw_lock is a
+	 * pointer which can't fit into an int-sized variable.  According to
+	 * Michel Dänzer, the ioctl() is only used on embedded platforms, so
+	 * not supporting it shouldn't be a problem.  If the same functionality
+	 * is needed on 64-bit platforms, a new ioctl() would have to be added,
+	 * so backwards-compatibility for the embedded platforms can be
+	 * maintained.  --davidm 4-Feb-2004.
+	 */
 	case RADEON_PARAM_SAREA_HANDLE:
 		/* The lock is the first dword in the sarea. */
 		value = (long)dev->lock.hw_lock; 
 		break;	
+#endif
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
 		break;

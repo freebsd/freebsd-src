@@ -35,7 +35,11 @@
 #include "dev/drm/sis_drv.h"
 #include "dev/drm/sis_ds.h"
 #if defined(__linux__) && defined(CONFIG_FB_SIS)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#include <video/sisfb.h>
+#else
 #include <linux/sisfb.h>
+#endif
 #endif
 
 #define MAX_CONTEXT 100
