@@ -461,6 +461,8 @@ in6_control(so, cmd, data, ifp, p)
 			return(EPERM);
 		/*fall through*/
 	case SIOCGIFPREFIX_IN6:
+		if (ip6_forwarding == 0)
+			return(EPERM);
 		return(in6_prefix_ioctl(so, cmd, data, ifp));
 	}
 
