@@ -91,5 +91,8 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
+testftp:       ftp.c
+	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
+
 .include <bsd.prog.mk>
 
