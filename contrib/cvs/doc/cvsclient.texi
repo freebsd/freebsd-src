@@ -309,7 +309,7 @@ out what the other supports before exchanging large amounts of data
 (such as file contents).
 
 @c Hmm, having 3 sections in this menu makes a certain amount of sense
-@c but that structure gets lots in the printed manual (not sure about
+@c but that structure gets lost in the printed manual (not sure about
 @c HTML).  Perhaps there is a better way.
 @menu
 

@@ -302,6 +302,8 @@ conflict: %s created independently by second party",
 		 * has changed.  If the sticky tag has changed, we just need
 		 * to re-register the entry
 		 */
+		/* TODO: decide whether we need to check file permissions
+		   for a mismatch, and return T_CONFLICT if so. */
 		if (vers->entdata->options &&
 		    strcmp (vers->entdata->options, vers->options) != 0)
 		    ret = T_CHECKOUT;
@@ -377,7 +379,7 @@ conflict: %s created independently by second party",
 		 * The user file is still unmodified, so just get it as well
 		 */
 #ifdef SERVER_SUPPORT
-	        if (strcmp (vers->entdata->options ?
+		if (strcmp (vers->entdata->options ?
 			    vers->entdata->options : "", vers->options) != 0
 		    || (vers->srcfile != NULL
 			&& (vers->srcfile->flags & INATTIC) != 0))

@@ -1,3 +1,29 @@
+1998-03-04  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* acconfig.h, configure.in: Add PRESERVE_PERMISSIONS_SUPPORT and
+	always define it.
+	* configure, config.h.in: Regenerated.
+
+Tue Feb 17 18:32:36 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Add memmove back to AC_REPLACE_FUNCS list.
+	* configure: Rebuild.
+
+1998-02-16  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO (190): Remove "failed to check out" from commit.c from
+	lists of error messages suppressed by -q; it no longer is.
+
+4 Feb 1998  Jim Kingdon
+
+	* cvsnt.mak: The usual "because Visual C++ feels like it"
+	changes.  These ones seem to have to do with reordering
+	files and release versus debug configurations, mainly.
+
+Fri Jan 30 10:37:40 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Update which version of CVS was tested with EMX.
+
 15 Jan 1998  W. L. Estes  <wlestes@hamlet.uncg.edu>
 	and Jim Kingdon  <kingdon@harvey.cyclic.com>
 

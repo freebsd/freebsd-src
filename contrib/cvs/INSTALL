@@ -143,7 +143,7 @@ i386 family:
 	Windows 95 (1.9 client and local)
 	QNX (1.9.1 + patches for strippath() and va_list)
 	OS/2 Version 3 using IBM C/C++ Tools 2.01 (1.8.86 + patches, client)
-	OS/2 Version 3 using EMX 0.9c (1.9.10 + patches, client)
+	OS/2 Version 3 using EMX 0.9c (1.9.22, client)
 	OS/2 Version 3 using Watcom version ? (? - has this been tested?)
 m68k:
 	Sun 3 running SunOS 4.1.1_U1 w/ bundled K&R /usr/5bin/cc (1.8.86+)

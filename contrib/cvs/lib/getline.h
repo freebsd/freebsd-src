@@ -11,5 +11,8 @@
 
 int
   getline __PROTO ((char **_lineptr, size_t *_n, FILE *_stream));
+int
+  getstr __PROTO ((char **_lineptr, size_t *_n, FILE *_stream,
+		   char _terminator, int _offset));
 
 #endif /* _getline_h_ */

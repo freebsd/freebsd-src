@@ -35,6 +35,7 @@ SOURCES = \
 	getopt1.c \
 	hostname.c \
 	md5.c \
+	memmove.c \
 	mkdir.c \
 	regex.c \
 	rename.c \

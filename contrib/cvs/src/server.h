@@ -57,16 +57,19 @@ extern void server_checked_in
 extern void server_copy_file
     PROTO((char *file, char *update_dir, char *repository, char *newfile));
 
-/* Send the appropriate responses for a file described by FILE,
-   UPDATE_DIR, REPOSITORY, and VERS.  FILE_INFO is the result of
-   statting the file, or NULL if it hasn't been statted yet.  This is
-   called after server_register or server_scratch.  In the latter case
-   the file is to be removed (and vers can be NULL).  In the former
-   case, vers must be non-NULL, and UPDATED indicates whether the file
-   is now up to date (SERVER_UPDATED, yes, SERVER_MERGED, no,
-   SERVER_PATCHED, yes, but file is a diff from user version to
-   repository version, SERVER_RCS_DIFF, yes, like SERVER_PATCHED but
-   with an RCS style diff).  */
+/* Send the appropriate responses for a file described by FINFO and
+   VERS.  This is called after server_register or server_scratch.  In
+   the latter case the file is to be removed (and VERS can be NULL).
+   In the former case, VERS must be non-NULL, and UPDATED indicates
+   whether the file is now up to date (SERVER_UPDATED, yes,
+   SERVER_MERGED, no, SERVER_PATCHED, yes, but file is a diff from
+   user version to repository version, SERVER_RCS_DIFF, yes, like
+   SERVER_PATCHED but with an RCS style diff).  MODE is the mode the
+   file should get, or (mode_t) -1 if this should be obtained from the
+   file itself.  CHECKSUM is the MD5 checksum of the file, or NULL if
+   this need not be sent.  If FILEBUF is not NULL, it holds the
+   contents of the file, in which case the file itself may not exist.
+   If FILEBUF is not NULL, server_updated will free it.  */
 enum server_updated_arg4
 {
     SERVER_UPDATED,
@@ -74,10 +77,14 @@ enum server_updated_arg4
     SERVER_PATCHED,
     SERVER_RCS_DIFF
 };
+#ifdef __STDC__
+struct buffer;
+#endif
+
 extern void server_updated
     PROTO((struct file_info *finfo, Vers_TS *vers,
-	   enum server_updated_arg4 updated, struct stat *,
-	   unsigned char *checksum));
+	   enum server_updated_arg4 updated, mode_t mode,
+	   unsigned char *checksum, struct buffer *filebuf));
 
 /* Whether we should send RCS format patches.  */
 extern int server_use_rcs_diff PROTO((void));

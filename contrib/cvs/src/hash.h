@@ -56,3 +56,4 @@ void dellist PROTO((List ** listp));
 void delnode PROTO((Node * p));
 void freenode PROTO((Node * p));
 void sortlist PROTO((List * list, int (*)(const Node *, const Node *)));
+int fsortcmp PROTO((const Node * p, const Node * q));

@@ -326,6 +326,26 @@ parse_config (cvsroot)
 		goto error_return;
 	    }
 	}
+	else if (strcmp (line, "PreservePermissions") == 0)
+	{
+	    if (strcmp (p, "no") == 0)
+		preserve_perms = 0;
+	    else if (strcmp (p, "yes") == 0)
+	    {
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
+		preserve_perms = 1;
+#else
+		error (0, 0, "\
+warning: this CVS does not support PreservePermissions");
+#endif
+	    }
+	    else
+	    {
+		error (0, 0, "unrecognized value '%s' for PreservePermissions",
+		       p);
+		goto error_return;
+	    }
+	}
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a

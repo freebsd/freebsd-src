@@ -1,3 +1,25 @@
+1998-02-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* regex.c: Partial merge with version from emacs 20.2.  Brings
+	over some trivial changes (whitespace and so on) (most such
+	changes I didn't bother with, for this time).  Don't cast to int
+	before comparing old_regend[r] to regstart[r] (this is the point
+	of bothering; the old code was broken for 64 bit machines.
+	Reported by Paul Vixie).
+
+Tue Feb 17 18:33:26 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* memmove.c: New file, resurrecting the old one.
+	* Makefile.in (SOURCES): Add memmove.c.
+
+1998-02-03  Tim Pierce  <twp@skepsis.com>
+
+	* system.h (CVS_LSTAT): New macro.
+
+Sat Feb  7 17:33:39 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* getline.h (getstr): Declare.
+
 13 Jan 1998  Jim Kingdon
 
 	* fncase.c: Include config.h before system.h.
