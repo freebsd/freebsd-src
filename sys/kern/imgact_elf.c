@@ -922,8 +922,7 @@ static void cb_size_segment(vm_map_entry_t, void *);
 static void each_writable_segment(struct proc *, segment_callback, void *);
 static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
     int, void *, size_t);
-static void __elfN(puthdr)(struct proc *, void *, size_t *,
-    const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int);
+static void __elfN(puthdr)(struct proc *, void *, size_t *, int);
 static void __elfN(putnote)(void *, size_t *, const char *, int,
     const void *, size_t);
 
@@ -953,9 +952,7 @@ __elfN(coredump)(td, vp, limit)
 	 * size is calculated.
 	 */
 	hdrsize = 0;
-	__elfN(puthdr)((struct proc *)NULL, (void *)NULL, &hdrsize,
-	    (const prstatus_t *)NULL, (const prfpregset_t *)NULL,
-	    (const prpsinfo_t *)NULL, seginfo.count);
+	__elfN(puthdr)(p, (void *)NULL, &hdrsize, seginfo.count);
 
 	if (hdrsize + seginfo.size >= limit)
 		return (EFAULT);
@@ -1115,47 +1112,13 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	size_t hdrsize;
 	void *hdr;
 {
-	struct {
-		prstatus_t status;
-		prfpregset_t fpregset;
-		prpsinfo_t psinfo;
-	} *tempdata;
 	struct proc *p = td->td_proc;
 	size_t off;
-	prstatus_t *status;
-	prfpregset_t *fpregset;
-	prpsinfo_t *psinfo;
-
-	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO | M_WAITOK);
-	status = &tempdata->status;
-	fpregset = &tempdata->fpregset;
-	psinfo = &tempdata->psinfo;
-
-	/* Gather the information for the header. */
-	status->pr_version = PRSTATUS_VERSION;
-	status->pr_statussz = sizeof(prstatus_t);
-	status->pr_gregsetsz = sizeof(gregset_t);
-	status->pr_fpregsetsz = sizeof(fpregset_t);
-	status->pr_osreldate = osreldate;
-	status->pr_cursig = p->p_sig;
-	status->pr_pid = p->p_pid;
-	fill_regs(td, &status->pr_reg);
-
-	fill_fpregs(td, fpregset);
-
-	psinfo->pr_version = PRPSINFO_VERSION;
-	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
-	strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
-
-	/* XXX - We don't fill in the command line arguments properly yet. */
-	strlcpy(psinfo->pr_psargs, p->p_comm, sizeof(psinfo->pr_psargs));
 
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
 	off = 0;
-	__elfN(puthdr)(p, hdr, &off, status, fpregset, psinfo, numsegs);
-
-	free(tempdata, M_TEMP);
+	__elfN(puthdr)(p, hdr, &off, numsegs);
 
 	/* Write it to the core file. */
 	return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
@@ -1164,13 +1127,18 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 }
 
 static void
-__elfN(puthdr)(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
-    const prfpregset_t *fpregset, const prpsinfo_t *psinfo, int numsegs)
+__elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 {
-	size_t ehoff;
-	size_t phoff;
-	size_t noteoff;
-	size_t notesz;
+	struct {
+		prstatus_t status;
+		prfpregset_t fpregset;
+		prpsinfo_t psinfo;
+	} *tempdata;
+	prstatus_t *status;
+	prfpregset_t *fpregset;
+	prpsinfo_t *psinfo;
+	struct thread *first, *thr;
+	size_t ehoff, noteoff, notesz, phoff;
 
 	ehoff = *off;
 	*off += sizeof(Elf_Ehdr);
@@ -1179,13 +1147,76 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 	*off += (numsegs + 1) * sizeof(Elf_Phdr);
 
 	noteoff = *off;
-	__elfN(putnote)(dst, off, "FreeBSD", NT_PRSTATUS, status,
-	    sizeof *status);
-	__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
-	    sizeof *fpregset);
+	/*
+	 * Don't allocate space for the notes if we're just calculating
+	 * the size of the header. We also don't collect the data.
+	 */
+	if (dst != NULL) {
+		tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO|M_WAITOK);
+		status = &tempdata->status;
+		fpregset = &tempdata->fpregset;
+		psinfo = &tempdata->psinfo;
+	} else {
+		tempdata = NULL;
+		status = NULL;
+		fpregset = NULL;
+		psinfo = NULL;
+	}
+
+	if (dst != NULL) {
+		psinfo->pr_version = PRPSINFO_VERSION;
+		psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+		strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
+		/*
+		 * XXX - We don't fill in the command line arguments properly
+		 * yet.
+		 */
+		strlcpy(psinfo->pr_psargs, p->p_comm,
+		    sizeof(psinfo->pr_psargs));
+	}
 	__elfN(putnote)(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
 	    sizeof *psinfo);
+
+	/*
+	 * We want to start with the registers of the first thread in the
+	 * process so that the .reg and .reg2 pseudo-sections created by bfd
+	 * will be identical to the .reg/$PID and .reg2/$PID pseudo-sections.
+	 * This makes sure that any tool that only looks for .reg and .reg2
+	 * and not for .reg/$PID and .reg2/$PID will behave the same as
+	 * before. The first thread is the thread with an ID equal to the 
+	 * process' ID.
+	 */
+	first = TAILQ_FIRST(&p->p_threads);
+	while (first->td_tid > PID_MAX)
+		first = TAILQ_NEXT(first, td_plist);
+	thr = first;
+	do {
+		if (dst != NULL) {
+			status->pr_version = PRSTATUS_VERSION;
+			status->pr_statussz = sizeof(prstatus_t);
+			status->pr_gregsetsz = sizeof(gregset_t);
+			status->pr_fpregsetsz = sizeof(fpregset_t);
+			status->pr_osreldate = osreldate;
+			status->pr_cursig = p->p_sig;
+			status->pr_pid = thr->td_tid;
+			fill_regs(thr, &status->pr_reg);
+			fill_fpregs(thr, fpregset);
+		}
+		__elfN(putnote)(dst, off, "FreeBSD", NT_PRSTATUS, status,
+		    sizeof *status);
+		__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
+		    sizeof *fpregset);
+		/* XXX allow for MD specific notes. */
+		thr = (thr == first) ? TAILQ_FIRST(&p->p_threads) :
+		    TAILQ_NEXT(thr, td_plist);
+		if (thr == first)
+			thr = TAILQ_NEXT(thr, td_plist);
+	} while (thr != NULL);
+
 	notesz = *off - noteoff;
+
+	if (dst != NULL)
+		free(tempdata, M_TEMP);
 
 	/* Align up to a page boundary for the program segments. */
 	*off = round_page(*off);
