@@ -568,23 +568,35 @@ fake_modname(const char *name)
     return fp;
 }
 
+#if defined(__i386__) && __ELF_WORD_SIZE == 64
+struct mod_metadata64 {
+	int		md_version;	/* structure version MDTV_* */  
+	int		md_type;	/* type of entry MDT_* */
+	u_int64_t	md_data;	/* specific data */
+	u_int64_t	md_cval;	/* common string label */
+};
+#endif
+
 int
 __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 {
     struct mod_metadata md;
+#if defined(__i386__) && __ELF_WORD_SIZE == 64
+    struct mod_metadata64 md64;
+#endif
     struct mod_depend *mdepend;
     struct mod_version mver;
     Elf_Sym sym;
-    char *s, **p, **p_stop;
+    char *s;
     int modcnt, minfolen;
-    Elf_Addr v;
+    Elf_Addr v, p, p_stop;
 
     if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
 	return ENOENT;
-    p = (char **)(uintptr_t)(sym.st_value + ef->off);
+    p = sym.st_value + ef->off;
     if (__elfN(lookup_symbol)(fp, ef, "__stop_set_modmetadata_set", &sym) != 0)
 	return ENOENT;
-    p_stop = (char **)(uintptr_t)(sym.st_value + ef->off);
+    p_stop = sym.st_value + ef->off;
 
     modcnt = 0;
     while (p < p_stop) {
@@ -594,6 +606,13 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 #else
 	v += ef->off;
 #endif
+#if defined(__i386__) && __ELF_WORD_SIZE == 64
+	COPYOUT(v, &md64, sizeof(md64));
+	md.md_version = md64.md_version;
+	md.md_type = md64.md_type;
+	md.md_cval = (const char *)(uintptr_t)(md64.md_cval + ef->off);
+	md.md_data = (void *)(uintptr_t)(md64.md_data + ef->off);
+#else
 	COPYOUT(v, &md, sizeof(md));
 #ifdef __sparc64__
 	__elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));
@@ -601,7 +620,8 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 	md.md_cval += ef->off;
 	md.md_data += ef->off;
 #endif
-	p++;
+#endif
+	p += sizeof(Elf_Addr);
 	switch(md.md_type) {
 	  case MDT_DEPEND:
 	    if (ef->kernel)		/* kernel must not depend on anything */
