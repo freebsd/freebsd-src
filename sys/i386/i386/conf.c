@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.40 1994/11/01 01:47:22 pst Exp $
+ *	$Id: conf.c,v 1.41 1994/11/03 17:49:01 pst Exp $
  */
 
 #include <sys/param.h>
@@ -602,6 +602,26 @@ d_ioctl_t ctxioctl;
 #define nullstop	(d_stop_t *)nullop
 #define nullreset	(d_reset_t *)nullop
 
+#include "cx.h"
+#if NCX > 0
+d_open_t cxopen;
+d_close_t cxclose;
+d_rdwr_t cxread, cxwrite;
+d_ioctl_t cxioctl;
+d_select_t cxselect;
+d_stop_t cxstop;
+extern struct tty *cx_tty[];
+#else
+#define cxopen		(d_open_t *)enxio
+#define cxclose		(d_close_t *)enxio
+#define cxread		(d_rdwr_t *)enxio
+#define cxwrite		(d_rdwr_t *)enxio
+#define cxioctl		(d_ioctl_t *)enxio
+#define cxstop		(d_stop_t *)enxio
+#define cxselect	(d_select_t *)enxio
+#define cx_tty		NULL
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -739,7 +759,10 @@ struct cdevsw	cdevsw[] =
 	  seltrue,	nommap,		NULL },			/*framegrabber*/
 	{ sockopen,	sockclose,	noread,		nowrite,	/*41*/
 	  sockioctl,	nostop,		nullreset,	NULL,	/* socksys */
-	  seltrue,	nommap,		NULL }
+	  seltrue,	nommap,		NULL },
+	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
+	  cxioctl,	cxstop,		noreset,	cx_tty,	/* cronyx-sigma */
+	  cxselect,	nommap,		NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
