@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.8 1998/04/06 09:12:33 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.9 1998/04/07 00:54:09 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -152,10 +152,17 @@ ShowMemMap(struct cmdargs const *arg)
 {
   /* Watch it - ~m calls us with arg == NULL */
   int i;
+  static const char *mbuftype[] = { 
+    "async", "fsm", "hdlcout", "ipin", "echo", "lqr", "link", "vjcomp",
+    "ipq", "mp" };
 
-  for (i = 0; i <= MB_MAX; i += 2)
-    prompt_Printf(arg->prompt, "%d: %d   %d: %d\n",
-	    i, MemMap[i].count, i + 1, MemMap[i + 1].count);
+  for (i = 1; i < MB_MAX; i += 2)
+    prompt_Printf(arg->prompt, "%10.10s: %04d\t%10.10s: %04d\n",
+	    mbuftype[i-1], MemMap[i].count, mbuftype[i], MemMap[i+1].count);
+
+  if (i == MB_MAX)
+    prompt_Printf(arg->prompt, "%10.10s: %04d\n",
+                  mbuftype[i-1], MemMap[i].count);
 
   return 0;
 }
@@ -168,6 +175,8 @@ LogMemory()
 	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
   LogPrintf(LogDEBUG, "LogMemory:  5: %d  6: %d   7: %d   8: %d\n",
 	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
+  LogPrintf(LogDEBUG, "LogMemory:  9: %d 10: %d\n",
+	MemMap[9].count, MemMap[10].count);
 }
 
 struct mbuf *
