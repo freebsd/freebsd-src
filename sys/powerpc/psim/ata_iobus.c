@@ -40,6 +40,7 @@
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <machine/stdarg.h>
+#include <vm/uma.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
