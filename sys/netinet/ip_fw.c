@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.107 1999/04/20 13:32:04 peter Exp $
+ *	$Id: ip_fw.c,v 1.108 1999/04/20 14:29:59 peter Exp $
  */
 
 /*
@@ -629,7 +629,7 @@ again:
 				if (pip)                                \
 				    *pip = ip ;                         \
 				else                                    \
-				    ip = (struct ip *)((int)ip + 14);   \
+				    ip = (struct ip *)((char *)ip + 14);\
 				offset = (ip->ip_off & IP_OFFMASK);     \
 			    }                                           \
 			} while (0)
