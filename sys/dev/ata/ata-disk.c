@@ -413,7 +413,7 @@ ad_transfer(struct ad_request *request)
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
 	    printf("ad%d: error executing command\n", adp->lun);
-	    return;
+	    goto transfer_failed;
 	}
 
 	/* if this is a DMA transfer, start it, return and wait for interrupt */
@@ -432,9 +432,11 @@ ad_transfer(struct ad_request *request)
 
     /* ready to write PIO data ? */
     if (ata_wait(adp->controller, adp->unit, 
-		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0)
+		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
 	printf("ad%d: timeout waiting for DRQ", adp->lun);
-    
+	goto transfer_failed;
+    }
+
     /* output the data */
     if (adp->controller->flags & ATA_USE_16BIT)
 	outsw(adp->controller->ioaddr + ATA_DATA,
@@ -444,6 +446,16 @@ ad_transfer(struct ad_request *request)
 	outsl(adp->controller->ioaddr + ATA_DATA,
 	      (void *)((uintptr_t)request->data + request->donecount),
 	      request->currentsize / sizeof(int32_t));
+    return;
+
+transfer_failed:
+    untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
+    request->bp->bio_error = EIO;
+    request->bp->bio_flags |= BIO_ERROR;
+    request->bp->bio_resid = request->bytecount;
+    devstat_end_transaction_bio(&adp->stats, request->bp);
+    biodone(request->bp);
+    free(request, M_AD);
 }
 
 int32_t
@@ -457,8 +469,10 @@ ad_interrupt(struct ad_request *request)
 	dma_stat = ata_dmadone(adp->controller);
 
     /* get drive status */
-    if (ata_wait(adp->controller, adp->unit, 0) < 0)
-	 printf("ad%d: timeout waiting for status", adp->lun);
+    if (ata_wait(adp->controller, adp->unit, 0) < 0) {
+	printf("ad%d: timeout waiting for status", adp->lun);
+	request->flags |= ADR_F_ERROR;
+    }
 
     /* do we have a corrected soft error ? */
     if (adp->controller->status & ATA_S_CORR)
@@ -467,7 +481,6 @@ ad_interrupt(struct ad_request *request)
     /* did any real errors happen ? */
     if ((adp->controller->status & ATA_S_ERROR) ||
 	((request->flags & ADR_F_DMA_USED) && (dma_stat & ATA_BMSTAT_ERROR))) {
-oops:
 	printf("ad%d: %s %s ERROR blk# %d", adp->lun,
 	       (adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "HARD",
 	       (request->flags & ADR_F_READ) ? "READ" : "WRITE",
@@ -518,20 +531,20 @@ oops:
 
 	if (ata_wait(adp->controller, adp->unit, 
 		     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
-	    printf("ad%d: read error detected late", adp->lun);
-	    goto oops;	 
+	    printf("ad%d: read error detected (too) late", adp->lun);
+	    request->flags |= ADR_F_ERROR;
 	}
-
-	/* data ready, read in */
-	if (adp->controller->flags & ATA_USE_16BIT)
-	    insw(adp->controller->ioaddr + ATA_DATA,
-		 (void *)((uintptr_t)request->data + request->donecount), 
-		 request->currentsize / sizeof(int16_t));
-	else
-	    insl(adp->controller->ioaddr + ATA_DATA,
-		 (void *)((uintptr_t)request->data + request->donecount), 
-		 request->currentsize / sizeof(int32_t));
-
+	else {
+	    /* data ready, read in */
+	    if (adp->controller->flags & ATA_USE_16BIT)
+		insw(adp->controller->ioaddr + ATA_DATA,
+		     (void *)((uintptr_t)request->data + request->donecount), 
+		     request->currentsize / sizeof(int16_t));
+	    else
+		insl(adp->controller->ioaddr + ATA_DATA,
+		     (void *)((uintptr_t)request->data + request->donecount), 
+		     request->currentsize / sizeof(int32_t));
+	}
     }
 
     /* finish up transfer */
@@ -548,13 +561,12 @@ oops:
 	}
     }
 
-    request->bp->bio_resid = request->bytecount;
-    devstat_end_transaction_bio(&adp->stats, request->bp);
-    biodone(request->bp);
-
     /* disarm timeout for this transfer */
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
 
+    request->bp->bio_resid = request->bytecount;
+    devstat_end_transaction_bio(&adp->stats, request->bp);
+    biodone(request->bp);
     free(request, M_AD);
     return ATA_OP_FINISHED;
 }
