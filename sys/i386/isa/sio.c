@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.99.4.3 1996/04/13 15:01:25 bde Exp $
+ *	$Id: sio.c,v 1.99.4.4 1996/11/07 17:53:06 bde Exp $
  */
 
 #include "sio.h"
@@ -2197,11 +2197,21 @@ siocnprobe(cp)
 {
 	int	unit;
 
+	/*
+	 * If this has already been done, don't do it again
+	 * because cdevsw[maj] has been changed to cnopen and
+	 * we won't find the right table entry.
+	 */
+	if (cp->cn_dev > 0)
+	    return;
+ 
 	/* locate the major number */
 	/* XXX - should be elsewhere since KGDB uses it */
 	for (commajor = 0; commajor < nchrdev; commajor++)
 		if (cdevsw[commajor].d_open == sioopen)
 			break;
+
+	/* XXX - we should panic() if we don't find it */
 
 	/* XXX: ick */
 	unit = DEV_TO_UNIT(CONUNIT);

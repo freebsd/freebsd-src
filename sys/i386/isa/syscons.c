@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.13 1996/11/10 16:57:38 nate Exp $
+ *  $Id: syscons.c,v 1.117.4.14 1996/11/10 19:12:48 jkh Exp $
  */
 
 #include "sc.h"
@@ -1130,10 +1130,19 @@ pccnprobe(struct consdev *cp)
 {
     int maj;
 
+    /*
+     * If this has already been done, don't do it again
+     * because cdevsw[maj] has been changed to cnopen and
+     * we won't find the right table entry.
+     */
+    if (cp->cn_dev > 0)
+	return;
+
     /* locate the major number */
     for (maj = 0; maj < nchrdev; maj++)
 	if ((void*)cdevsw[maj].d_open == (void*)scopen)
 	    break;
+    /* XXX - we should panic() if we don't find it */
 
     /* initialize required fields */
     cp->cn_dev = makedev(maj, MAXCONS);
