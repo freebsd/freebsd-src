@@ -146,6 +146,7 @@ void	_mtx_exit(struct mtx *mtxp, int type, const char *file, int line);
 /* Global locks */
 extern struct mtx	sched_lock;
 extern struct mtx	Giant;
+extern struct mtx	clock_lock;
 
 /*
  * Used to replace return with an exit Giant and return.

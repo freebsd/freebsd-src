@@ -289,6 +289,7 @@ schedcpu(arg)
 		if (p->p_stat == SWAIT)
 			continue;
 		 */
+		mtx_enter(&sched_lock, MTX_SPIN);
 		p->p_swtime++;
 		if (p->p_stat == SSLEEP || p->p_stat == SSTOP)
 			p->p_slptime++;
@@ -297,13 +298,15 @@ schedcpu(arg)
 		 * If the process has slept the entire second,
 		 * stop recalculating its priority until it wakes up.
 		 */
-		if (p->p_slptime > 1)
+		if (p->p_slptime > 1) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			continue;
+		}
+
 		/*
 		 * prevent state changes and protect run queue
 		 */
 		s = splhigh();
-		mtx_enter(&sched_lock, MTX_SPIN);
 
 		/*
 		 * p_pctcpu is only for ps.
@@ -451,9 +454,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * in case this is the idle process and already asleep.
 		 */
 		mtx_exit(&sched_lock, MTX_SPIN);
-#if 0
-		splx(safepri);
-#endif
 		splx(s);
 		return (0);
 	}
@@ -994,7 +994,6 @@ setrunnable(p)
 	p->p_stat = SRUN;
 	if (p->p_flag & P_INMEM)
 		setrunqueue(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 	if (p->p_slptime > 1)
 		updatepri(p);
@@ -1005,6 +1004,7 @@ setrunnable(p)
 	}
 	else
 		maybe_resched(p);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /*
@@ -1018,6 +1018,7 @@ resetpriority(p)
 {
 	register unsigned int newpriority;
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
 		newpriority = PUSER + p->p_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (p->p_nice - PRIO_MIN);
@@ -1025,6 +1026,7 @@ resetpriority(p)
 		p->p_usrpri = newpriority;
 	}
 	maybe_resched(p);
+	mtx_exit(&sched_lock, MTX_SPIN);
 }
 
 /* ARGSUSED */

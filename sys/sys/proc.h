@@ -273,6 +273,7 @@ struct	proc {
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_INMEM		0x00004	/* Loaded into memory. */
+#define P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
@@ -284,7 +285,8 @@ struct	proc {
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define P_NOLOAD	0x08000	/* Ignore during load avg calculations. */
+#define	P_ALRMPEND	0x08000 /* Pending SIGVTALRM needs to be posted. */
+#define	P_PROFPEND	0x08000 /* Pending SIGPROF needs to be posted. */
 
 /* Should probably be changed into a hold count. */
 /* was	P_NOSWAP	0x08000	was: Do not swap upages; p->p_hold */

@@ -342,7 +342,6 @@
 #define _cpu_lockid			FS(cpu_lockid)
 #define _curpcb				FS(curpcb)
 #define _curproc			FS(curproc)
-#define _prevproc			FS(prevproc)
 #define	_idleproc			FS(idleproc)
 #define _astpending			FS(astpending)
 #define _currentldt			FS(currentldt)

@@ -49,17 +49,18 @@
 	.text ; \
 	SUPERALIGN_TEXT ; \
 IDTVEC(vec_name) ; \
-	pushl	%eax ;		/* save only call-used registers */ \
-	pushl	%ecx ; \
-	pushl	%edx ; \
+	pushl	$0 ;		/* dummy error code */ \
+	pushl	$0 ;		/* dummy trap type */ \
+	pushal ; \
 	pushl	%ds ; \
+	pushl	%es ; \
 	pushl	%fs ; \
-	MAYBE_PUSHL_ES ; \
 	mov	$KDSEL,%ax ; \
 	mov	%ax,%ds ; \
+	mov	%ax,%es ; \
 	mov	%ax,%fs ; \
-	MAYBE_MOVW_AX_ES ; \
-	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ; \
+	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
+	incb	_intr_nesting_level ; \
 	pushl	_intr_unit + (irq_num) * 4 ; \
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
@@ -67,19 +68,8 @@ IDTVEC(vec_name) ; \
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
-/*	movl	_cpl,%eax ;	// are we unmasking pending SWIs? / \
-	notl	%eax ; \
-	andl	_spending,$SWI_MASK ; \
-	jne	2f ; 		// yes, maybe handle them */ \
-1: ; \
 	MEXITCOUNT ; \
-	MAYBE_POPL_ES ; \
-	popl	%fs ; \
-	popl	%ds ; \
-	popl	%edx ; \
-	popl	%ecx ; \
-	popl	%eax ; \
-	iret ; \
+	jmp	doreti_next
 
 #if 0
 ; \
@@ -141,7 +131,7 @@ IDTVEC(vec_name) ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
-	incb	_intr_nesting_level ; /* XXX do we need this? */ \
+	incb	_intr_nesting_level ; \
 __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */ \
@@ -152,26 +142,6 @@ __CONCAT(Xresume,irq_num): ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
 	jmp	doreti_next	/* and catch up inside doreti */
-
-/*
- * Reenable the interrupt mask after completing an interrupt.  Called
- * from ithd_loop.  There are two separate functions, one for each
- * ICU.
- */
-       .globl   setimask0, setimask1
-setimask0:
-	cli
-	movb	_imen,%al
-	outb	%al,$IO_ICU1 + ICU_IMR_OFFSET
-	sti
-	ret
-
-setimask1:
-	cli
-	movb	_imen + 1,%al
-	outb	%al,$IO_ICU2 + ICU_IMR_OFFSET
-	sti
-	ret
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0, ENABLE_ICU1)
