@@ -941,6 +941,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		ni->ni_fhdwell = ic->ic_bss->ni_fhdwell;
 		ni->ni_fhindex = ic->ic_bss->ni_fhindex;
 		if (ni->ni_associd == 0) {
+			/* XXX handle rollover at 2007 */
+			/* XXX guarantee uniqueness */
 			ni->ni_associd = 0xc000 | ic->ic_bss->ni_associd++;
 			newassoc = 1;
 		} else
