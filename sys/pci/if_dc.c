@@ -1863,10 +1863,30 @@ dc_parse_21143_srom(sc)
 	struct dc_eblock_hdr	*hdr;
 	int			i, loff;
 	char			*ptr;
+	int			have_mii;
 
+	have_mii = 0;
 	loff = sc->dc_srom[27];
 	lhdr = (struct dc_leaf_hdr *)&(sc->dc_srom[loff]);
 
+	ptr = (char *)lhdr;
+	ptr += sizeof(struct dc_leaf_hdr) - 1;
+	/*
+	 * Look if we got a MII media block.
+	 */
+	for (i = 0; i < lhdr->dc_mcnt; i++) {
+		hdr = (struct dc_eblock_hdr *)ptr;
+		if (hdr->dc_type == DC_EBLOCK_MII)
+		    have_mii++;
+
+		ptr += (hdr->dc_len & 0x7F);
+		ptr++;
+	}
+
+	/*
+	 * Do the same thing again. Only use SIA and SYM media
+	 * blocks if no MII media block is available.
+	 */
 	ptr = (char *)lhdr;
 	ptr += sizeof(struct dc_leaf_hdr) - 1;
 	for (i = 0; i < lhdr->dc_mcnt; i++) {
@@ -1876,10 +1896,14 @@ dc_parse_21143_srom(sc)
 			dc_decode_leaf_mii(sc, (struct dc_eblock_mii *)hdr);
 			break;
 		case DC_EBLOCK_SIA:
-			dc_decode_leaf_sia(sc, (struct dc_eblock_sia *)hdr);
+			if (! have_mii)
+				dc_decode_leaf_sia(sc,
+				    (struct dc_eblock_sia *)hdr);
 			break;
 		case DC_EBLOCK_SYM:
-			dc_decode_leaf_sym(sc, (struct dc_eblock_sym *)hdr);
+			if (! have_mii)
+				dc_decode_leaf_sym(sc,
+				    (struct dc_eblock_sym *)hdr);
 			break;
 		default:
 			/* Don't care. Yet. */
