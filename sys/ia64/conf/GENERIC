@@ -159,6 +159,7 @@ device		bpf		#Berkeley packet filter
 
 # USB support
 #device		uhci		# UHCI PCI->USB interface (breaks BigSur!)
+device		ehci		# EHCI host controller
 device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)
 device		ugen		# Generic
