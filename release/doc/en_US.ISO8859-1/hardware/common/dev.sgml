@@ -836,10 +836,10 @@
 
     <para arch="i386">IBM / Adaptec ServeRAID series (ips driver)</para>
 
-    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+    <para arch="i386,alpha,pc98,sparc64,ia64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (mpt driver)
       <itemizedlist>
-	<listitem>
+	<listitem arch="i386,alpha,pc98,sparc64">
 	  <para>LSI FC909, FC929</para>
 	</listitem>
 	<listitem>
@@ -3012,7 +3012,7 @@
       linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
 
-    <para arch="i386,pc98,alpha">Host Controllers (&man.ohci.4; and &man.uhci.4; drivers)
+    <para arch="i386,pc98,alpha,ia64">Host Controllers (&man.ohci.4; and &man.uhci.4; drivers)
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>ALi Aladdin-V</para>
@@ -3053,7 +3053,7 @@
         <listitem arch="i386,alpha">
 	  <para>VIA 83C572 USB</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,ia64">
 	  <para>UHCI or OHCI compliant motherboard chipsets (no
 	  exceptions known)</para>
 	</listitem>
