@@ -12,8 +12,8 @@ BINDIR?=	/boot
 CFLAGS+=	-DPC98
 
 # architecture-specific loader code
-SRCS=		main.c conf.c
-.PATH:		${.CURDIR}/../../i386/loader
+SRCS=		main.c conf.c pxe.c
+.PATH:		${.CURDIR}/../../i386/loader ${.CURDIR}/../../i386/libi386
 
 # Enable PnP and ISA-PnP code.
 HAVE_PNP=	yes
@@ -76,8 +76,8 @@ vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../i386/loader/version
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
-	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
-		${BASE}.bin
+	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
+		-b ${BTXKERN} ${BASE}.bin
 #	/usr/bin/kzip ${.TARGET}
 #	mv ${.TARGET}.kz ${.TARGET}
 
@@ -110,6 +110,8 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
+.include <${.CURDIR}/../Makefile.inc>
+
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
 
@@ -127,5 +129,3 @@ machine:
 .endif
 
 CLEANFILES+=	machine
-
-
