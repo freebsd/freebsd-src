@@ -545,16 +545,16 @@ f_flags(plan, entry)
 {
 	u_long flags;
 
-	flags = entry->fts_statp->st_flags &
-	    (UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
-	     SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND);
+	flags = entry->fts_statp->st_flags;
 	if (plan->flags & F_ATLEAST)
-		/* note that plan->fl_flags always is a subset of
-		   plan->fl_mask */
-		return (flags & plan->fl_mask) == plan->fl_flags;
+		return (flags | plan->fl_flags) == flags &&
+		    !(flags & plan->fl_notflags);
+	else if (plan->flags & F_ANY)
+		return (flags & plan->fl_flags) ||
+		    (flags | plan->fl_notflags) != flags;
 	else
-		return flags == plan->fl_flags;
-	/* NOTREACHED */
+		return flags == plan->fl_flags &&
+		    !(plan->fl_flags & plan->fl_notflags);
 }
 
 PLAN *
@@ -574,12 +574,15 @@ c_flags(option, argvp)
 	if (*flags_str == '-') {
 		new->flags |= F_ATLEAST;
 		flags_str++;
+	} else if (*flags_str == '+') {
+		new->flags |= F_ANY;
+		flags_str++;
 	}
 	if (strtofflags(&flags_str, &flags, &notflags) == 1)
 		errx(1, "%s: %s: illegal flags string", option->name, flags_str);
 
 	new->fl_flags = flags;
-	new->fl_mask = flags | notflags;
+	new->fl_notflags = notflags;
 	return new;
 }
 
