@@ -549,7 +549,7 @@ installNovice(dialogMenuItem *self)
 	WINDOW *w = savescr();
 
 	dialog_clear();
-	systemExecute("rm -f /etc/localtime /etc/wall_cmos_clock; tzsetup");
+	systemExecute("tzsetup");
 	restorescr(w);
     }
 
