@@ -32,21 +32,19 @@
  * $FreeBSD$
  */
 
-#ifndef NO_X
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/keysym.h>
-#endif
-
-#include <stdio.h>
-#include <termios.h>
-#include <limits.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <paths.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
 #ifdef __FreeBSD__
 # include <sys/kbio.h>
 #else
@@ -56,109 +54,99 @@
 #  include "/sys/i386/isa/pcconsioctl.h"
 # endif
 #endif
-#include <sys/mman.h>
-#include <ctype.h> 
-#include "doscmd.h"
-#include "mouse.h"
-#include "video.h"
-#include "font.h"
 
-static struct termios save = { 0 };
-static struct termios raw = { 0 };
-static int flags = 0;
-static int mode = -1;
-#define	vmem		((u_short *)0xB8000)
+#ifndef NO_X
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/keysym.h>
+#endif
+
+#include "doscmd.h"
+#include "AsyncIO.h"
+#include "font8x8.h"
+#include "font8x14.h"
+#include "font8x16.h"
+#include "mouse.h"
+#include "trap.h"
+#include "tty.h"
+#include "video.h"
+
+#ifndef NO_X
+static int show = 1;
+#endif
 static int blink = 1;
 int flipdelete = 0;		/* Flip meaning of delete and backspace */
 extern int capture_fd;
 static u_short break_code = 0x00;
 static u_short scan_code = 0x00;
+int height;
+int width;
+int vattr;
+char *xfont = 0;
 
 #ifndef NO_X
-static Display *dpy = 0;
-static Window win;
-static XFontStruct *font;
-static unsigned long black;
-static unsigned long white;
-static unsigned long pixels[16];
-static char *color_names[16] = {
-    "black",
-    "medium blue",
-    "olive drab",
-    "turquoise3",
-    "red1",
-    "maroon",
-    "goldenrod4",
-    "gray80",
-    "gray50",
-    "sky blue",
-    "spring green",
-    "PaleTurquoise2",
-    "pink",
-    "violet red",
-    "yellow1",
-    "white",
-};
+Display *dpy;
+Window win;
+XFontStruct *font;
+XImage *xi = 0;
+Visual *visual;
+unsigned int depth;
+unsigned long black;
+unsigned long white;
+int FW, FH, FD;
+GC gc;
+GC cgc;
+int xfd;
 
-static int FW, FH, FD;
-static GC gc;
-static GC cgc;
-static int xfd;
+/* LUT for the vram -> XImage conversion */
+u_int8_t lut[4][256][8];
+
+/* X pixel values for the RGB triples */
+unsigned long pixels[16];
 #endif
+
+typedef struct TextLine {
+    u_short	*data;
+    u_char	max_length;	/* Not used, but here for future use */
+    u_char	changed:1;
+} TextLine;
+TextLine *lines;
 
 int kbd_fd = -1;
 int kbd_read = 0;
-static int vattr = 0x0700;
 
-static int width = 80;
-static int height = 25;
 static struct termios tty_cook, tty_raw;
 
-typedef struct TextLine {
-	u_short	*data;
-	u_char	max_length;	/* Not used, but here for future use */
-	u_char	changed:1;
-} TextLine;
-static TextLine *lines;
+#define	row (CursRow0)
+#define	col (CursCol0)
 
-/*
- * 0040:0050 is a list of 16 bytes, 2 for each page, which contains
- * the column and row of each page
- */
-#define	row BIOSDATA[0x51]
-#define	col BIOSDATA[0x50]
-
-u_char	*VREG;
-
-inline SetVREGCur()
+inline void
+SetVREGCur()
 {
-	int cp = row * width + col;
-	VREG[MVC_CurHigh] = cp >> 8;
-	VREG[MVC_CurLow] = cp & 0xff;
+    int cp = row * width + col;
+    VGA_CRTC[CRTC_CurLocHi] = cp >> 8;
+    VGA_CRTC[CRTC_CurLocLo] = cp & 0xff;
 }
 
-/*
- * 0040:0060 contains the start and end of the cursor
- */
-#define	curs_end BIOSDATA[0x60]
-#define	curs_start BIOSDATA[0x61]
-
-#define	video_pate	BISODATA[0x62]
-
-#define	IBMFONT	"vga"		/* font supplied */
-
-char *xfont = 0;
-
-void video_async_event();
-void debug_event();
-int video_event();
-void tty_cooked();
-void video_update();
-unsigned char video_inb(int);
+void	_kbd_event(void *);
+void	debug_event(void *);
+int	video_event();
+void	video_async_event(void *);
+void	tty_cooked();
 unsigned char inb_port60(int);
-void video_outb(int, unsigned char);
-void kbd_event(int fd, REGISTERS);
-u_short read_raw_kbd(int fd, u_short *code);
+void	kbd_event(int fd, REGISTERS);
+u_short	read_raw_kbd(int fd, u_short *code);
+
+/* Local functions */
+#ifndef NO_X
+static void	dac2rgb(XColor *, int);
+static void	prepare_lut(void);
+static void	putchar_graphics(int, int, int);
+static void	tty_rwrite_graphics(int, int, int);
+static void	video_update_graphics(void);
+static void	video_update_text(void);
+static void	vram2ximage(void);
+#endif
 
 #define	PEEKSZ	16
 
@@ -210,44 +198,18 @@ u_short read_raw_kbd(int fd, u_short *code);
 #define	K4_LED		0x40		/* LED update in progress */
 #define	K4_ERROR	0x80
 
-struct VideoSavePointerTable {
-	u_short	video_parameter_tabel[2];
-	u_short	parameter_dynamic_save_area[2];		/* Not used */
-	u_short	alphanumeric_character_set_override[2];	/* Not used */
-	u_short	graphics_character_set_override[2];	/* Not used */
-	u_short	secondary_save_pointer_table[2];	/* Not used */
-	u_short	mbz[4];
-};
-
-struct SecondaryVideoSavePointerTable {
-	u_short	length;
-	u_short	display_combination_code_table[2];
-	u_short	alphanumeric_character_set_override[2];	/* Not used */
-	u_short	user_palette_profile_table[2];		/* Not used */
-	u_short	mbz[6];
-};
-
 int KbdEmpty();
 void KbdWrite(u_short code);
 void KbdRepl(u_short code);
 u_short KbdRead();
 u_short KbdPeek();
 
-int redirect0;
-int redirect1;
-int redirect2;
-
-static void
+void
 Failure()
 {
         fprintf(stderr, "X Connection shutdown\n");
 	quit(1);
 }
-
-struct VideoSavePointerTable *vsp;
-struct SecondaryVideoSavePointerTable *svsp;
-
-#include "vparams.h"
 
 static void
 console_denit(void *arg)
@@ -271,10 +233,12 @@ console_denit(void *arg)
 }
 
 void
-_kbd_event(int fd, REGISTERS)
+_kbd_event(void *pfd)
 {
-	printf("_kbd_event: fd=%d\n", fd);
-	kbd_read = 1;
+    int fd = *(int *)pfd;
+    
+    printf("_kbd_event: fd=%d\n", fd);
+    kbd_read = 1;
 }
 
 void
@@ -355,7 +319,7 @@ console_init()
     _RegisterIO(0, debug_event, 0, Failure);
     _RegisterIO(fd, kbd_event, fd, Failure);
 #endif
-    _RegisterIO(fd, _kbd_event, fd, Failure);
+    _RegisterIO(fd, _kbd_event, &fd, Failure);
 }
 
 void
@@ -373,8 +337,7 @@ video_blink(int mode)
 	blink = mode;
 }
 
-static int show = 1;
-
+void
 setgc(u_short attr)
 {
 #ifndef NO_X
@@ -385,154 +348,198 @@ setgc(u_short attr)
 		v.foreground = pixels[(attr >> 8) & 0x0f];
 
 	v.background = pixels[(attr >> 12) & (blink ? 0x07 : 0x0f)];
-#if 0
-    	if (v.foreground == v.background) {
-		v.foreground = pixels[15];
-		v.background = pixels[0];
-	}
-#endif
 	XChangeGC(dpy, gc, GCForeground|GCBackground, &v);
 #endif
 }
 
 void
-video_update(REGISTERS)
+video_update(regcontext_t *REGS)
 {
 #ifndef NO_X
-    	static int or = -1;
-    	static int oc = -1;
-
-	static int icnt = 4;
-
-	static char buf[256];
-	int r, c;
-	int attr = vmem[0] & 0xff00;
-	XGCValues v;
+	static int icnt = 3;
 
 	if (kbd_read)
 	    kbd_event(kbd_fd, REGS);
 
     	if (--icnt == 0) {
-
-	    icnt = 4;
+	    icnt = 3;
 
 	    lpt_poll();		/* Handle timeout on lpt code */
 
-	    if (xmode) {
-		wakeup_poll();	/* Wake up anyone waiting on kbd poll */
-
-		show ^= 1;
-
-		setgc(attr);
-
-		for (r = 0; r < height; ++r) {
-			int cc = 0;
-
-			if (!lines[r].changed) {
-			    if ((r == or || r == row) && (or != row || oc != col))
-				lines[r].changed = 1;
-			    else {
-				for (c = 0; c < width; ++c) {
-				    if (lines[r].data[c] != vmem[r * width + c]) {
-					lines[r].changed = 1;
-					break;
-				    }
-				    if (blink && lines[r].data[c] & 0x8000) {
-					lines[r].changed = 1;
-					break;
-				    }
-				}
-			    }
-			}
-
-			if (!lines[r].changed)
-			    continue;
-
-			reset_poll();
-			lines[r].changed = 0;
-			memcpy(lines[r].data,
-			       &vmem[r * width], sizeof(u_short) * width);
-
-			for (c = 0; c < width; ++c) {
-				int cv = vmem[r * width + c];
-				if ((cv & 0xff00) != attr) {
-				    if (cc < c)
-					XDrawImageString(dpy, win, gc,
-							 2 + cc * FW,
-							 2 + (r + 1) * FH,
-							 buf + cc, c - cc);
-				    cc = c;
-				    attr = cv  & 0xff00;
-				    setgc(attr);
-				}
-				buf[c] = (cv & 0xff) ? cv & 0xff : ' ';
-			}
-			if (cc < c) {
-				XDrawImageString(dpy, win, gc,
-						 2 + cc * FW,
-						 2 + (r + 1) * FH,
-						 buf + cc, c - cc);
-			}
-		}
-		or = row;
-		oc = col;
-
-		if (curs_start <= curs_end && curs_end <= FH &&
-		    show && row < height && col < width) {
-			int start, end;
-
-			attr = vmem[row * width + col] & 0xff00;
-			v.foreground = pixels[(attr >> 8) & 0x0f] ^
-				       pixels[(attr >> 12) & (blink ? 0x07 : 0x0f)];
-			if (v.foreground) {
-				v.function = GXxor;
-			} else {
-				v.foreground = pixels[7];
-				v.function = GXcopy;
-			}
-			XChangeGC(dpy, cgc, GCForeground | GCFunction, &v);
-			start = curs_start * FH / 8;
-			end = curs_end * FH / 8;
-			XFillRectangle(dpy, win, cgc,
-				       2 + col * FW,
-				       2 + row * FH + start + FD,
-				       FW, end + 1 - start);
-		}
-
-		if (mouse_status.installed && mouse_status.show) {
-		    c = mouse_status.x / mouse_status.hmickey;
-		    r = mouse_status.y / mouse_status.vmickey;
-
-		    lines[r].changed = 1;
-		    attr = vmem[r * width + c] & 0xff00;
-		    v.foreground = pixels[(attr >> 8) & 0x0f] ^
-				   pixels[(attr >> 12) & 0x0f];
-		    if (v.foreground) {
-			    v.function = GXxor;
-		    } else {
-			    v.foreground = pixels[7];
-			    v.function = GXcopy;
-		    }
-		    XChangeGC(dpy, cgc, GCForeground | GCFunction, &v);
-		    XFillRectangle(dpy, win, cgc,
-				   2 + c * FW,
-				   2 + r * FH + 2,
-				   FW, FH);
-		}
-		
-		XFlush(dpy);
-	    }
-    	}
+	    /* quick and dirty */
+	    if (VGA_ATC[ATC_ModeCtrl] & 1)
+		video_update_graphics();
+	    else
+		video_update_text();
+	}
 
     	if (!booting) {
-	    *(u_long *)&BIOSDATA[0x6c] += 1;    /* Timer ticks since midnight... */
+	    *(u_long *)&BIOSDATA[0x6c] += 1;    /* ticks since midnight */
 	    while (*(u_long *)&BIOSDATA[0x6c] >= 24*60*6*182) {
 		*(u_long *)&BIOSDATA[0x6c] -= 24*60*6*182;
-		BIOSDATA[0x70]++;		    /* BIOSDATA[0x70] # times past mn */
+		BIOSDATA[0x70]++;               /* # times past mn */
 	    }
     	}
 #endif
 }
+
+#ifndef NO_X
+static void
+video_update_graphics()
+{
+    vram2ximage();
+    
+    XPutImage(dpy, win, DefaultGC(dpy, DefaultScreen(dpy)),
+	      xi, 0, 0, 0, 0, width, height);
+    XFlush(dpy);
+    
+    return;
+}
+
+static void
+video_update_text()
+{
+    static int or = -1;
+    static int oc = -1;
+
+
+    static char buf[256];
+    int r, c;
+    int attr = vmem[0] & 0xff00;
+    XGCValues v;
+
+    if (xmode) {
+	wakeup_poll();	/* Wake up anyone waiting on kbd poll */
+
+	show ^= 1;
+
+	setgc(attr);
+
+	for (r = 0; r < height; ++r) {
+	    int cc = 0;
+
+	    if (!lines[r].changed) {
+		if ((r == or || r == row) && (or != row || oc != col))
+		    lines[r].changed = 1;
+		else {
+		    for (c = 0; c < width; ++c) {
+			if (lines[r].data[c] != vmem[r * width + c]) {
+			    lines[r].changed = 1;
+			    break;
+			}
+			if (blink && lines[r].data[c] & 0x8000) {
+			    lines[r].changed = 1;
+			    break;
+			}
+		    }
+		}
+	    }
+
+	    if (!lines[r].changed)
+		continue;
+
+	    reset_poll();
+	    lines[r].changed = 0;
+	    memcpy(lines[r].data,
+		   &vmem[r * width], sizeof(u_short) * width);
+
+	    for (c = 0; c < width; ++c) {
+		int cv = vmem[r * width + c];
+		if ((cv & 0xff00) != attr) {
+		    if (cc < c)
+			XDrawImageString(dpy, win, gc,
+					 2 + cc * FW,
+					 2 + (r + 1) * FH,
+					 buf + cc, c - cc);
+		    cc = c;
+		    attr = cv  & 0xff00;
+		    setgc(attr);
+		}
+		buf[c] = (cv & 0xff) ? cv & 0xff : ' ';
+	    }
+	    if (cc < c) {
+		XDrawImageString(dpy, win, gc,
+				 2 + cc * FW,
+				 2 + (r + 1) * FH,
+				 buf + cc, c - cc);
+	    }
+	}
+	or = row;
+	oc = col;
+
+	if (CursStart <= CursEnd && CursEnd <= FH &&
+	    show && row < height && col < width) {
+
+	    attr = vmem[row * width + col] & 0xff00;
+	    v.foreground = pixels[(attr >> 8) & 0x0f] ^
+		pixels[(attr >> 12) & (blink ? 0x07 : 0x0f)];
+	    if (v.foreground) {
+		v.function = GXxor;
+	    } else {
+		v.foreground = pixels[7];
+		v.function = GXcopy;
+	    }
+	    XChangeGC(dpy, cgc, GCForeground | GCFunction, &v);
+	    XFillRectangle(dpy, win, cgc,
+			   2 + col * FW,
+			   2 + row * FH + CursStart + FD,
+			   FW, CursEnd + 1 - CursStart);
+	}
+
+	if (mouse_status.installed && mouse_status.show) {
+	    c = mouse_status.x / mouse_status.hmickey;
+	    r = mouse_status.y / mouse_status.vmickey;
+
+	    lines[r].changed = 1;
+	    attr = vmem[r * width + c] & 0xff00;
+	    v.foreground = pixels[(attr >> 8) & 0x0f] ^
+		pixels[(attr >> 12) & 0x0f];
+	    if (v.foreground) {
+		v.function = GXxor;
+	    } else {
+		v.foreground = pixels[7];
+		v.function = GXcopy;
+	    }
+	    XChangeGC(dpy, cgc, GCForeground | GCFunction, &v);
+	    XFillRectangle(dpy, win, cgc,
+			   2 + c * FW,
+			   2 + r * FH + 2,
+			   FW, FH);
+	}
+		
+	XFlush(dpy);
+    }
+}
+
+/* Convert the contents of the video RAM into an XImage.
+
+   Bugs: - The function is way too slow.
+	 - It only works for the 16 color modes.
+	 - It only works on 15/16-bit TrueColor visuals. */
+static void
+vram2ximage()
+{
+    int i, x, y, yoffset;
+    u_int16_t *image = (u_int16_t *)xi->data;
+
+    yoffset = 0;
+    for (y = 0; y < height; y++) {
+	yoffset += width / 8;
+	for (x = 0; x < width; x += 8) {
+	    int offset = yoffset + x / 8;
+	    for (i = 0; i < 8; i++) {
+		int color = lut[0][vplane0[offset]][i] |
+		    lut[1][vplane1[offset]][i] |
+		    lut[2][vplane2[offset]][i] |
+		    lut[3][vplane3[offset]][i];
+		*image++ = (u_int16_t)pixels[color];
+	    }	    
+	}
+    }
+    
+    return;
+}
+#endif
 
 static u_short Ascii2Scan[] = {
  0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff,
@@ -651,15 +658,14 @@ struct {
 };
 
 void
-debug_event(int fd, REGISTERS)
+debug_event(void *pfd)
 {
     static char ibuf[1024];
-    static char icnt = 0;
+    static int icnt = 0;
     static u_short ds = 0;
     static u_short di = 0;
     static u_short cnt = 16 * 8;
     char *ep;
-
     int r;
 
     r = read(0, ibuf + icnt, sizeof(ibuf) - icnt);
@@ -669,7 +675,7 @@ debug_event(int fd, REGISTERS)
     icnt += r;
 
     ibuf[icnt] = 0;
-    while (ep = strchr(ibuf, '\n')) {
+    while ((ep = strchr(ibuf, '\n')) != 0) {
     	int ac;
     	char *_av[16];
     	char **av;
@@ -681,7 +687,7 @@ debug_event(int fd, REGISTERS)
     	    if (!strcasecmp(av[0], "dump")) {
     	    	if (ac > 1) {
 		    char *c;
-		    if (c = strchr(av[1], ':')) {
+		    if ((c = strchr(av[1], ':')) != 0) {
 			ds = strtol(av[1], 0, 16);
 			di = strtol(c+1, 0, 16);
 		    } else
@@ -713,12 +719,11 @@ debug_event(int fd, REGISTERS)
 		    printf("\n");
     	    	}
     	    } else if (!strcasecmp(av[0], "dis")) {
-		int r;
 		u_char *ap = (u_char *)(((u_long)ds << 4) + di);
 
     	    	if (ac > 1) {
 		    char *c;
-		    if (c = strchr(av[1], ':')) {
+		    if ((c = strchr(av[1], ':')) != 0) {
 			ds = strtol(av[1], 0, 16);
 			di = strtol(c+1, 0, 16);
 		    } else
@@ -734,15 +739,17 @@ debug_event(int fd, REGISTERS)
 		    di += c;
 		    ap += c;
     	    	}
+#if 0				/* Huh?? */
     	    } else if (!strcasecmp(av[0], "regs")) {
 		dump_regs(REGS);
+#endif
     	    } else if (!strcasecmp(av[0], "force")) {
 		char *p = av[1];
 
-    	    	while (p = *++av) {
+    	    	while ((p = *++av) != 0) {
 		    while (*p) {
 			if (*p >= ' ' && *p <= '~')
-			    KbdWrite(ScanCodes[Ascii2Scan[*p] & 0xff].base);
+			    KbdWrite(ScanCodes[Ascii2Scan[(int)*p] & 0xff].base);
 			++p;
     	    	    }
     	    	}
@@ -807,7 +814,6 @@ u_short
 read_raw_kbd(int fd, u_short *code)
 {
     unsigned char c;
-    unsigned char oldled = K4_STATUS & 0x7;
 
     *code = 0xffff;
 
@@ -963,7 +969,8 @@ printf("FORCED REDRAW\n");
 	    case 0x14:	/* T */
 		tmode ^= 1;
 		if (!tmode)
-		    resettrace(&saved_sigframe->sf_uc.uc_mcontext);
+		    resettrace((regcontext_t *)&saved_sigframe->
+			sf_uc.uc_mcontext);
 		return(0xffff);
 	    case 0x53:	/* DEL */
 		quit(0);
@@ -976,10 +983,11 @@ printf("FORCED REDRAW\n");
 }
 
 void
-video_async_event(int fd, regcontext_t *REGS)
+video_async_event(void *pfd)
 {
 #ifndef NO_X
-    	int int09 = 0;
+    	int int9 = 0;
+	int fd = *(int *)pfd;
 
 	for (;;) {
                 int x;
@@ -993,7 +1001,7 @@ video_async_event(int fd, regcontext_t *REGS)
                 XFlush(dpy);
                 while (QLength(dpy) > 0) {
                         XNextEvent(dpy, &ev);
-                        int09 |= video_event(&ev);
+                        int9 |= video_event(&ev);
                 }
 
                 FD_ZERO(&fdset);
@@ -1012,14 +1020,14 @@ video_async_event(int fd, regcontext_t *REGS)
                         return;
                 case 0:
 			XFlush(dpy);
-			if (int09)
+			if (int9)
 			    hardint(0x09);
                         return;
                 default:
                         if (FD_ISSET(fd, &fdset)) {
                                 do {
                                         XNextEvent(dpy, &ev);
-                                        int09 |= video_event(&ev);
+                                        int9 |= video_event(&ev);
                                 } while (QLength(dpy));
                         }
                         break;
@@ -1032,8 +1040,6 @@ void
 kbd_async_event(int fd, REGISTERS)
 {
     unsigned char c;
-
-    unsigned char oldled = K4_STATUS & 0x7;
 
     while (read(fd, &c, 1) == 1) {
     	switch (c) {
@@ -1194,7 +1200,6 @@ video_event(XEvent *ev)
 	case KeyRelease: {
 		static char buf[128];
 		KeySym ks;
-		int n;
 
 		break_code |= 0x80;
 
@@ -1456,7 +1461,7 @@ video_event(XEvent *ev)
 				if (ks == 'T' || ks == 't') {
 				    tmode ^= 1;
 				    if (!tmode)
-					    resettrace(&saved_sigframe->
+					    resettrace((regcontext_t *)&saved_sigframe->
 						sf_uc.uc_mcontext); 
 				    break;
 				}
@@ -1501,70 +1506,6 @@ video_event(XEvent *ev)
 }
 #endif
 
-#define	R03D4	BIOSDATA[0x65]
-static u_char	R03BA = 0;
-static u_char	R03DA = 0;
-
-unsigned char
-video_inb(int port)
-{
-	switch(port) {
-	case CGA_Status:
-		R03DA += 1;	/* Just cylce throught the values */
-		return(R03DA &= 0x0f);
-	case 0x03c2:	/* Misc */
-	case 0x03cc:	/* Misc */
-		return(0xc3);
-	case CVC_Data:
-		if (R03D4 < 0x10) {
-			return(VREG[R03D4]);
-		}
-		break;
-	}
-}
-
-void
-video_outb(int port, unsigned char value)
-{
-	int cp;
-
-	switch(port) {
-	case 0x03cc:
-	case 0x03c2:
-		if ((value & 0x1) == 0)	/* Trying to request monochrome */
-			break;
-		return;
-	case CGA_Control:
-		if (value & 0x22)	/* Trying to select graphics */
-			break;
-		return;
-	case CVC_Address:
-		R03D4 = value & 0x1f;
-		return;
-	case CVC_Data:
-		if (R03D4 > 0x0f)
-			break;
-		VREG[R03D4] = value;
-		switch (R03D4) {
-		case MVC_CurHigh:
-			cp = row * width + col;
-			cp &= 0xff;
-			cp |= (value << 8) & 0xff00;
-			row = cp / width;
-			col = cp % width;
-			break;
-		case MVC_CurLow:
-			cp = row * width + col;
-			cp &= 0xff00;
-			cp |= value & 0xff;
-			row = cp / width;
-			col = cp % width;
-			break;
-		}
-		return;
-	}
-}
-
 void
 tty_move(int r, int c)
 {
@@ -1607,7 +1548,6 @@ tty_write(int c, int attr)
 {
     	if (attr == TTYF_REDIRECT) {
 		if (redirect1) {
-		    char tc = c;
 		    write(1, &c, 1);
 		    return;
 		}
@@ -1669,38 +1609,110 @@ tty_write(int c, int attr)
 void
 tty_rwrite(int n, int c, int attr)
 {
-	u_char srow, scol;
-	c &= 0xff;
+    u_char srow, scol;
+    c &= 0xff;
 
-	srow = row;
-	scol = col;
-	while (n--) {
-		if (col >= width) {
-			col = 0;
-			tty_index();
-		}
-		if (row > (height - 1))
-			row = 0;
-		if (attr >= 0)
-			vmem[row * width + col] = attr & 0xff00;
-		else
-			vmem[row * width + col] &= 0xff00;
-		vmem[row * width + col++] |= c;
+#ifndef NO_X
+    if (VGA_ATC[ATC_ModeCtrl] & 1) {
+	tty_rwrite_graphics(n, c, attr);
+	return;
+    }
+#endif
+    
+    srow = row;
+    scol = col;
+    while (n--) {
+	if (col >= width) {
+	    col = 0;
+	    tty_index();
 	}
-	row = srow;
-	col = scol;
-	SetVREGCur();
+	if (row > (height - 1))
+	    row = 0;
+	if (attr >= 0)
+	    vmem[row * width + col] = attr & 0xff00;
+	else
+	    vmem[row * width + col] &= 0xff00;
+	vmem[row * width + col++] |= c;
+    }
+    row = srow;
+    col = scol;
+    SetVREGCur();
 }
 
-void
-tty_pause()
+#ifndef NO_X
+/* Write a character in graphics mode. Note that the text is put at *text*
+   coordinates. */
+static void
+tty_rwrite_graphics(int n, int c, int attr)
 {
-	sigset_t set;
+    u_int8_t srow, scol;
+    int ht = height / CharHeight;
+    int wd = width / 8;
 
-	sigprocmask(0, 0, &set);
-	sigdelset(&set, SIGIO);
-	sigdelset(&set, SIGALRM);
-	sigsuspend(&set);
+    srow = row;
+    scol = col;
+
+    while (n--) {
+	if (col >= wd) {
+	    col = 0;
+	    /* tty_index(); *//* scroll up if last line is filled */
+	}
+	if (row > (ht - 1))
+	    row = 0;
+	putchar_graphics(row * wd * CharHeight + col, c, attr);
+	col++;
+    }
+    row = srow;
+    col = scol;
+    SetVREGCur();
+
+    return;
+}
+
+/* Put the character together from its pixel representation in 'font8xXX[]'
+   and write it to 'vram'. The attribute byte gives the desired color; if bit
+   7 is set, the pixels are XOR'd with the underlying color(s).
+
+   XXX This must be updated for the 256 color modes. */
+static void
+putchar_graphics(int xy, int c, int attr)
+{
+    int i, j;
+    u_int8_t cline;
+    u_int8_t *cpos;
+    
+    /* get char position in the pixel representation */
+    cpos = (u_int8_t *)(0xC3000 + c * CharHeight);
+
+    for (i = 0; i < CharHeight; i++) {
+	cline = cpos[i];
+	for (j = 0; j < 4; j++) {
+	    if (attr & 0x8000) {
+		/* XOR */
+		if (attr & (0x0100 << j))
+		    vram[xy + i * width / 8 + j * 0x10000] ^= cline;
+	    } else {
+		/* replace */
+		if (attr & (0x0100 << j))
+		    vram[xy + i * width / 8 + j * 0x10000] &= ~cline;
+		else
+		    vram[xy + i * width / 8 + j * 0x10000] |= cline;
+	    }
+	}
+    }
+
+    return;
+}
+#endif
+
+void tty_pause()
+{
+    sigset_t set;
+
+    sigprocmask(0, 0, &set);
+    sigdelset(&set, SIGIO);
+    sigdelset(&set, SIGALRM);
+    sigsuspend(&set);
 }
 
 static int nextchar = 0;
@@ -1710,7 +1722,7 @@ tty_read(REGISTERS, int flag)
 {
     int r;
 
-    if (r = nextchar) {
+    if ((r = nextchar) != 0) {
 	nextchar = 0;
 	return(r & 0xff);
     }
@@ -1800,6 +1812,7 @@ tty_state()
 	return(K1_STATUS);
 }
 
+int
 tty_estate()
 {
     int state = 0;
@@ -1955,76 +1968,80 @@ KbdPeek()
 	return(K_BUF(K_NEXT));
 }
 
-void int10(REGISTERS);
+void
+kbd_init()
+{
+	u_long vec;
+	
+	define_input_port_handler(0x60, inb_port60);
+
+	K_BUFSTARTP = 0x1e;	/* Start of keyboard buffer */
+	K_BUFENDP = 0x3e;	/* End of keyboard buffer */
+	K_NEXT = K_FREE = K_BUFSTARTP;
+	
+	vec = insert_hardint_trampoline();
+	ivec[0x09] = vec;
+	register_callback(vec, int09, "int 09");
+
+	return;
+}
 
 void
-video_init()
+kbd_bios_init()
 {
-    u_long vec;
+	BIOSDATA[0x96] = 0x10;	/* MF II kbd, 101 keys */
+	K1_STATUS = 0;
+	K2_STATUS = 0;
+	K3_STATUS = 0;
+	K4_STATUS = 0;
+}
+
 #ifndef NO_X
-    XSizeHints sh;
-    XGCValues gcv;
-    XColor ccd, rgb;
-#endif
-    unsigned long mask;
-    int level;
-    int i, j;
+/* Calculate 16 bit RGB values for X from the 6 bit DAC values and the
+   palette. This works for 16 and 256 color modes, although we don't really
+   support the latter yet. */
+static void
+dac2rgb(XColor *color, int i)
+{
+    int n, m;
 
-    VREG = (u_char *)malloc(32);
+    /* 256 colors are easy; just take the RGB values from the DAC and
+       shift left. For the pedants: multiplication with 65535./63. and
+       rounding makes a difference of less than two percent. */
+    if (VGA_ATC[ATC_ModeCtrl] & 0x40) {
+	color->red   = dac_rgb[i].red << 10;
+	color->green = dac_rgb[i].green << 10;
+	color->blue  = dac_rgb[i].blue << 10;
 
-    /*
-     * Define all known I/O port handlers
-     */
-    define_input_port_handler(0x60, inb_port60);
-
-    if (!raw_kbd) {
-	define_input_port_handler(CGA_Status, video_inb);
-	define_input_port_handler(0x03c2, video_inb);
-	define_input_port_handler(0x03cc, video_inb);
-	define_input_port_handler(CVC_Data, video_inb);
-	define_output_port_handler(CGA_Control, video_outb);
-	define_output_port_handler(0x03c2, video_outb);
-	define_output_port_handler(0x03cc, video_outb);
-	define_output_port_handler(CVC_Address, video_outb);
-	define_output_port_handler(CVC_Data, video_outb);
-    }
-
-    redirect0 = isatty(0) == 0 || !xmode ;
-    redirect1 = isatty(1) == 0 || !xmode ;
-    redirect2 = isatty(2) == 0 || !xmode ;
-
-    K_BUFSTARTP = 0x1e;	/* Start of keyboard buffer */
-    K_BUFENDP = 0x3e;	/* End of keyboard buffer */
-    K_NEXT = K_FREE = K_BUFSTARTP;
-
-    vec = insert_hardint_trampoline();
-    ivec[0x09] = vec;
-    register_callback(vec, int09, "int 09");
-
-    /*
-     * Initialize video memory with black background, white foreground
-     */
-    for (i = 0; i < height * width; ++i)
-	vmem[i] = vattr;
-
-    if (!xmode)
 	return;
+    }
 
+    /* For the 16 color modes, check bit 7 of the Mode Control register in
+       the ATC. If set, we take bits 0-3 of the Color Select register and
+       bits 0-3 of the palette register 'i' to build the index into the
+       DAC table; otherwise, bits 2 and 3 of the CS reg and bits 0-5 of
+       the palette register are used. Note that the entries in 'palette[]'
+       are supposed to be already masked to 6 bits. */
+    if (VGA_ATC[ATC_ModeCtrl] & 0x80) {
+	n = VGA_ATC[ATC_ColorSelect] & 0x0f;
+	m = palette[i] & 0x0f;
+    } else {
+	n = VGA_ATC[ATC_ColorSelect] & 0x0c;
+	m = palette[i];
+    }
+    color->red   = dac_rgb[16*n + m].red << 10;
+    color->green = dac_rgb[16*n + m].green << 10;
+    color->blue  = dac_rgb[16*n + m].blue << 10;
+}
+#endif
+
+/* Get a connection to the X server and create the window. */
+void
+init_window()
+{
 #ifndef NO_X
-    if (!(lines = (TextLine *)malloc(sizeof(TextLine) * height))) {
-	fprintf(stderr, "Could not allocate data structure for text lines\n");
-	quit(1);
-    }
-    for (i = 0; i < height; ++i) {
-	lines[i].max_length = width;
-	if (!(lines[i].data = (u_short *)malloc(width * sizeof(u_short)))) {
-	    fprintf(stderr,
-		    "Could not allocate data structure for text lines\n");
-	    quit(1);
-	}
-	lines[i].changed = 1;
-    }
-
+    XGCValues gcv;
+    int i;
 
     {
 	/*
@@ -2032,185 +2049,255 @@ video_init()
 	 * Open up all the available fd's, leave 3 behind for X
 	 * to play with, open X and then release all the other fds
 	 */
-    	int nfds = sysconf(_SC_OPEN_MAX);
-    	int *fds = malloc(sizeof(int) * nfds);
+	int nfds = sysconf(_SC_OPEN_MAX);
+	int *fds = malloc(sizeof(int) * nfds);
 	i = 0;
-    	if (fds)
+	if (fds)
 	    for (i = 0; i < nfds && (i == 0 || fds[i-1] < 63); ++i)
 		if ((fds[i] = open(_PATH_DEVNULL, 0)) < 0)
 		    break;
 	/*
 	 * Leave 3 fds behind for X to play with
 	 */
-    	if (i > 0) close(fds[--i]);
-    	if (i > 0) close(fds[--i]);
-    	if (i > 0) close(fds[--i]);
-
+	if (i > 0) close(fds[--i]);
+	if (i > 0) close(fds[--i]);
+	if (i > 0) close(fds[--i]);
+		
 	dpy = XOpenDisplay(NULL);
-
-    	while (i > 0)
+		
+	while (i > 0)
 	    close(fds[--i]);
     }
-
-    if (dpy == NULL) {
-	    fprintf(stderr, "Could not open display ``%s''\n",
-		    XDisplayName(NULL));
-	    quit(1);
-    }
+    if (dpy == NULL)
+	err(1, "Could not open display ``%s''\n", XDisplayName(NULL));
     xfd = ConnectionNumber(dpy);
 
-    _RegisterIO(xfd, video_async_event, xfd, Failure);
+    _RegisterIO(xfd, video_async_event, &xfd, Failure);
     if (debug_flags & D_DEBUGIN)
-	    _RegisterIO(0, debug_event, 0, Failure);
+	_RegisterIO(0, debug_event, 0, Failure);
     _BlockIO();
 
-    pixels[0] = BlackPixel(dpy, DefaultScreen(dpy));
-    pixels[15] = WhitePixel(dpy, DefaultScreen(dpy));
-    for (i = 0; i < 15; ++i) {
-	    if (XAllocNamedColor(dpy,
-				 DefaultColormap(dpy, DefaultScreen(dpy)),
-				 color_names[i], &ccd, &rgb)) {
-		    pixels[i] = ccd.pixel;
-	    } else if (i < 7)
-		    pixels[i] = pixels[0];
-	    else
-		    pixels[i] = pixels[15];
-    }
-
-    if (!xfont)
-	xfont = IBMFONT;
-
-    font = XLoadQueryFont(dpy, xfont);
-
-    if (font == NULL)
-	font = XLoadQueryFont(dpy, IBMFONT);
-
-    if (font == NULL) {
-	    fprintf(stderr, "Could not open font ``%s''\n", xfont);
-	    quit(1);
-    }
-
-    FW = font->max_bounds.width;
-    FH = font->max_bounds.ascent + font->max_bounds.descent;
-    FD = font->max_bounds.descent;
-
-    curs_start = 6;
-    curs_end = 7;
-
-    sh.width = FW * width + 4;
-    sh.height = FH * height + 4;
-
-    sh.width += 4;
-    sh.height += 4;
-
-    sh.min_width = sh.max_width = sh.width;
-    sh.min_height = sh.max_height = sh.height;
-
-    sh.flags = USSize | PMinSize | PMaxSize | PSize;
-
+    /* Create window, but defer setting a size and GC. */
     win = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0,
-			      sh.width, sh.height, 2, black, black);
-    if (win == NULL) {
-	    fprintf(stderr, "Could not create window\n");
-	    quit(1);
-    }
+			      1, 1, 2, black, black);
 
     gcv.foreground = white;
     gcv.background = black;
-    gcv.font = font->fid;
-
-    mask = GCForeground | GCBackground | GCFont;
-
-    gc = XCreateGC(dpy, win, mask, &gcv);
+    gc = XCreateGC(dpy, win, GCForeground | GCBackground, &gcv);
 
     gcv.foreground = 1;
     gcv.background = 0;
     gcv.function = GXxor;
     cgc = XCreateGC(dpy, win, GCForeground|GCBackground|GCFunction, &gcv);
 
-    XSetNormalHints(dpy, win, &sh);
     if (raw_kbd) {
 	XSelectInput(dpy, win, ExposureMask | ButtonPressMask
-			       | ButtonReleaseMask | PointerMotionMask );
+		     | ButtonReleaseMask | PointerMotionMask );
     } else {
 	XSelectInput(dpy, win, KeyReleaseMask | KeyPressMask |
-			       ExposureMask | ButtonPressMask
-			       | ButtonReleaseMask | PointerMotionMask );
+		     ExposureMask | ButtonPressMask
+		     | ButtonReleaseMask | PointerMotionMask );
     }
 
     XStoreName(dpy, win, "DOS");
-    XMapWindow(dpy, win);
-    XFlush(dpy);
 
     _UnblockIO();
+
+    /* Get the default visual and depth for later use. */
+    depth = DefaultDepth(dpy, DefaultScreen(dpy));
+    visual = DefaultVisual(dpy, DefaultScreen(dpy));
+
+    prepare_lut();
+
+    /* While we are developing the graphics code ... */
+    call_on_quit(write_vram, NULL);
 #endif
 }
 
 void
-video_bios_init()
+load_font()
 {
-	u_char *p;
-	u_long vec;
+#ifndef NO_X
+    XGCValues gcv;
+    
+    if (!xfont)
+	xfont = FONTVGA;
 
-    	if (raw_kbd)
-		return;
+    font = XLoadQueryFont(dpy, xfont);
 
-	/*
-	 * Put the Video Save Pointer table @ C000:0000
-	 * Put the Secondary Video Save Pointer table @ C000:0020
-	 * Put the Display Combination code table @ C000:0040
-	 * Put the Video Parameter table @ C000:1000 - C000:2FFF
-	 * Put the default Font @ C000:3000 - C000:3FFF
-	 */
-	
-	*(u_long *)&BIOSDATA[0xA8] = 0xC0000000; /* 0040:00A8 points to us */
+    if (font == NULL)
+	font = XLoadQueryFont(dpy, FONTVGA);
 
-	vsp = (struct VideoSavePointerTable *)0xC0000L;
-	memset(vsp, 0, sizeof(struct VideoSavePointerTable));
-	svsp = (struct SecondaryVideoSavePointerTable *)0xC0020L;
+    if (font == NULL)
+	err(1, "Could not open font ``%s''\n", xfont);
 
-	vsp->video_parameter_tabel[0] = 0x1000;
-	vsp->video_parameter_tabel[1] = 0xC000;
+    gcv.font = font->fid;
+    XChangeGC(dpy, gc, GCFont, &gcv);
+    
+    FW = font->max_bounds.width;
+    FH = font->max_bounds.ascent + font->max_bounds.descent;
+    FD = font->max_bounds.descent;
 
-	vsp->secondary_save_pointer_table[0] = 0x0020;
-	vsp->secondary_save_pointer_table[1] = 0xC000;
+    /* Put the pixel representation at c000:3000. */
+    switch (CharHeight) {
+    case 8:
+	memcpy((void *)0xc3000, font8x8, sizeof(font8x8));
+	break;
+    case 14:
+	memcpy((void *)0xc3000, font8x14, sizeof(font8x14));
+	break;
+    case 16:
+	memcpy((void *)0xc3000, font8x16, sizeof(font8x16));
+	break;
+    default:
+	err(1, "load_font: CharHeight = %d?", CharHeight);
+    }
+    
+    return;
+#endif
+}
 
-	svsp->display_combination_code_table[0] = 0x0040;
-	svsp->display_combination_code_table[1] = 0xC000;
+/* Get a new, or resize an old XImage as canvas for the graphics display. */
+void
+get_ximage()
+{
+#ifndef NO_X
+    if (xi != NULL)
+	XFree(xi);
+    
+    xi = XCreateImage(dpy, visual, depth, ZPixmap, 0, NULL,
+                      width, height, 32, 0);
+    if (xi == NULL)
+        err(1, "Could not get ximage");
 
-	p = (u_char *)0xC0040;
-	*p++ = 2;		/* Only support 2 combinations currently */
-	*p++ = 1;		/* Version # */
-	*p++ = 8;		/* We wont use more than type 8 */
-	*p++ = 0;		/* Resereved */
-	*p++ = 0; *p++ = 0;	/* No Display No Display */
-	*p++ = 0; *p++ = 8;	/* No Display VGA Color */
+    xi->data = malloc(width * height * depth / 8);
+    if (xi->data == NULL) {
+        XDestroyImage(xi);
+        err(1, "Could not get memory for ximage data");
+    }
+    
+    return;
+#endif
+}
 
-	memcpy((void *)0xC1000, videoparams, sizeof(videoparams));
+/* Get memory for the text line buffer. */
+void
+get_lines()
+{
+    int i;
+    
+    if (!(lines = (TextLine *)malloc(sizeof(TextLine) * height)))
+	err(1, "Could not allocate data structure for text lines\n");
 
-	ivec[0x1d] = 0xC0001000L;	/* Video Parameter Table */
-	ivec[0x1e] = 0xC0003000L;	
-	ivec[0x42] = ivec[0x10];	/* Copy of video interrupt */
-        memcpy((void *)0xC3000L, ascii_font, sizeof(ascii_font));
+    for (i = 0; i < height; ++i) {
+	lines[i].max_length = width;
+	if (!(lines[i].data = (u_short *)malloc(width * sizeof(u_short))))
+	    err(1, "Could not allocate data structure for text lines\n");
+	lines[i].changed = 1;
+    }
+}
 
-                     BIOSDATA[0x49] = 3;        /* Video Mode */
-        *(u_short *)&BIOSDATA[0x4a] = 80;       /* Columns on Screen */
-        *(u_short *)&BIOSDATA[0x4c] = 0;        /* Page */
-        *(u_short *)&BIOSDATA[0x4e] = 0;        /* Offset into video memory */
-        *(u_short *)&BIOSDATA[0x63] = 0x03d4;   /* controller base reg */
-                     BIOSDATA[0x84] = 24;       /* Rows on screen */
-        *(u_short *)&BIOSDATA[0x85] = 16;       /* font height */
-                     BIOSDATA[0x87] = 0;        /* video ram etc. */
-                     BIOSDATA[0x88] = 0xf9;     /* video switches */
-                     BIOSDATA[0x89] = 0x11;     /* video stats */
-                     BIOSDATA[0x8a] = 1;        /* Index into DCC table */
-		     BIOSDATA[0x96] = 0x10;	
-	K1_STATUS = 0;
-	K2_STATUS = 0;
-	K3_STATUS = 0;
-	K4_STATUS = 0;
+#ifndef NO_X
+/* Prepare the LUT for the VRAM -> XImage conversion. */
+static void
+prepare_lut()
+{
+    int i, j, k;
 
-	vec = insert_softint_trampoline();
-	ivec[0x10] = vec;
-	register_callback(vec, int10, "int 10");
+    for (i = 0; i < 4; i++) {
+	for (j = 0; j < 256; j++) {
+	    for (k = 0; k < 8; k++) {
+		lut[i][j][7 - k] = ((j & (1 << k)) ? (1 << i) : 0);
+	    }
+	}
+    }
+
+    return;
+}
+#endif
+
+/* Resize the window, using information from 'vga_status[]'. This function is
+   called after a mode change. */
+void
+resize_window()
+{
+#ifndef NO_X
+    XSizeHints *sh;
+    vmode_t vmode;
+    
+    sh = XAllocSizeHints();
+    if (sh == NULL)
+	err(1, "Could not get XSizeHints structure");
+#endif
+    
+    width = DpyCols;
+    height = DpyRows + 1;
+
+#ifndef NO_X
+    vmode = vmodelist[find_vmode(VideoMode)];
+    if (vmode.type == TEXT) {
+	sh->base_width = FW * width + 4;
+	sh->base_height = FH * height + 4;
+	sh->base_width += 4;
+	sh->base_height += 4;
+    } else {
+	width *= 8;
+	height *= CharHeight;
+	sh->base_width = width;
+	sh->base_height = height;
+    }
+    
+    sh->min_width = sh->max_width = sh->base_width;
+    sh->min_height = sh->max_height = sh->base_height;
+    sh->flags = USSize | PMinSize | PMaxSize | PSize;
+
+    debug(D_VIDEO, "window size %dx%d\n", sh->base_width, sh->base_height);
+    
+    XSetWMNormalHints(dpy, win, sh);
+    XResizeWindow(dpy, win, sh->base_width, sh->base_height);
+    XMapWindow(dpy, win);
+    XFlush(dpy);
+    
+    XFree(sh);
+    
+    return;
+#endif
+}
+
+/* Calculate 'pixels[]' from the current DAC table and palette.
+
+   To do: do not use 'pixels[]', use an array of 'XColor's which we can
+   allocate and free on demand. Install a private colormap if necessary. */
+void
+update_pixels()
+{
+#ifndef NO_X
+    int i;
+
+    /* We support only 16 colors for now. */
+    for (i = 0; i < 16; i++) {
+	XColor color;
+
+	dac2rgb(&color, i);
+	if (XAllocColor(dpy,
+			DefaultColormap(dpy, DefaultScreen(dpy)), &color)) {
+	    pixels[i] = color.pixel;
+	} else if (i < 7)
+	    pixels[i] = BlackPixel(dpy, DefaultScreen(dpy));
+	else
+	    pixels[i] = WhitePixel(dpy, DefaultScreen(dpy));
+    }
+#endif
+}
+
+void
+write_vram(void *arg)
+{
+    int fd;
+
+    if ((fd = open("vram", O_WRONLY | O_CREAT, 0644)) == -1)
+	err(1, "Can't open vram file");
+    (void)write(fd, (void *)vram, 256 * 1024);
+
+    return;
 }

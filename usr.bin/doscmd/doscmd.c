@@ -37,6 +37,8 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
@@ -52,6 +54,10 @@
 #include <machine/vm86.h>
 
 #include "doscmd.h"
+#include "cwd.h"
+#include "trap.h"
+#include "tty.h"
+#include "video.h"
 
 /* exports */
 int		capture_fd = -1;
@@ -61,7 +67,7 @@ int		booting = 0;
 int		raw_kbd = 0;
 int		timer_disable = 0;
 struct timeval	boot_time;
-unsigned long *ivec = (unsigned long *)0;
+unsigned long	*ivec = (unsigned long *)0;
 
 u_long	pending[256];			/* pending interrupts */
 int	n_pending;
@@ -85,7 +91,6 @@ static FILE	*find_doscmdrc(void);
 static int	do_args(int argc, char *argv[]);
 static void	usage(void);
 static int	open_name(char *name, char *ext);
-static void	init_iomap(void);
 
 /* Local option flags &c. */
 static int	zflag = 0;
@@ -113,9 +118,6 @@ main(int argc, char **argv)
     regcontext_t *REGS = (regcontext_t *)&uc.uc_mcontext;
     int fd;
     int i;    
-    char buffer[4096];
-    FILE *fp;
-
 
     /* XXX should only be for tty mode */
     fd = open (_PATH_DEVNULL, O_RDWR);
@@ -202,16 +204,16 @@ main(int argc, char **argv)
     }
 
     /* install signal handlers */
-    setsignal (SIGFPE, sigfpe);		/* */
-    setsignal (SIGALRM, sigalrm);	/* */
-    setsignal (SIGILL, sigill);		/* */
-    setsignal (SIGTRAP, sigtrap);	/* */
-    setsignal (SIGUSR2, sigtrace);	/* */
-    setsignal (SIGINFO, sigtrace);	/* */
+    setsignal(SIGFPE, sigfpe);		/* */
+    setsignal(SIGALRM, sigalrm);	/* */
+    setsignal(SIGILL, sigill);		/* */
+    setsignal(SIGTRAP, sigtrap);	/* */
+    setsignal(SIGUSR2, sigtrace);	/* */
+    setsignal(SIGINFO, sigtrace);	/* */
 #ifdef USE_VM86
-    setsignal (SIGURG, sigurg);		/* entry from NetBSD vm86 */
+    setsignal(SIGURG, sigurg);		/* entry from NetBSD vm86 */
 #else
-    setsignal (SIGBUS, sigbus);		/* entry from FreeBSD, BSD/OS vm86 */
+    setsignal(SIGBUS, sigbus);		/* entry from FreeBSD, BSD/OS vm86 */
 #endif
 	
     /* Call init functions */
@@ -220,6 +222,8 @@ main(int argc, char **argv)
     init_io_port_handlers();
     bios_init();
     cpu_init();
+    kbd_init();
+    kbd_bios_init();
     video_init();
     if (xmode)
 	mouse_init();
@@ -285,6 +289,8 @@ main(int argc, char **argv)
     if (vflag) dump_regs(REGS);
     fatal ("vm86 returned (no kernel support?)\n");
 #undef	sc
+    /* quiet -Wall */
+    return 0;
 }
 
 /*
@@ -342,19 +348,19 @@ setup_boot(regcontext_t *REGS)
 ** try to read the boot sector from the specified disk
 */
 static int
-try_boot(int booting)
+try_boot(int bootdrv)
 {
     int fd;
 
-    fd = disk_fd(booting);
+    fd = disk_fd(bootdrv);
     if (fd < 0)	{			/* can we boot it? */
-	debug(D_DISK, "Cannot boot from %c\n", drntol(booting));
+	debug(D_DISK, "Cannot boot from %c\n", drntol(bootdrv));
 	return -1;
     }
     
     /* read bootblock */
     if (read(fd, (char *)0x7c00, 512) != 512) {
-        debug(D_DISK, "Short read on boot block from %c:\n", drntol(booting));
+        debug(D_DISK, "Short read on boot block from %c:\n", drntol(bootdrv));
 	return -1;
     }
     
@@ -472,7 +478,6 @@ find_doscmdrc(void)
 {
     FILE	*fp;
     char 	buffer[4096];
-    int		fd;
     
     if ((fp = fopen(".doscmdrc", "r")) == NULL) {
 	struct passwd *pwd = getpwuid(geteuid());
@@ -505,10 +510,10 @@ do_args(int argc, char *argv[])
     FILE	*fp;
     char 	*col;
 
-    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXYfbri:o:p:d:")) != -1) {
+    while ((c = getopt (argc, argv, "234Oc:TkCIEGMPRLAU:S:HDtzvVxXYfbri:o:p:d:")) != -1) {
 	switch (c) {
 	case 'd':
-	    if (fp = fopen(optarg, "w")) {
+	    if ((fp = fopen(optarg, "w")) != 0) {
 		debugf = fp;
 		setbuf (fp, NULL);
 	    } else
@@ -535,7 +540,7 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'i':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -547,7 +552,7 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'o':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -559,7 +564,7 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'p':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -588,6 +593,9 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'E':
 	    debug_flags |= D_EXEC;
+	    break;
+	case 'G':
+	    debug_flags |= D_VIDEO;
 	    break;
 	case 'C':
 	    debug_flags |= D_DOSCALL;
