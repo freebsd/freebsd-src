@@ -577,6 +577,8 @@ TargPrintNode (gnp, passp)
 		printf("! "); break;
 	    case OP_DOUBLEDEP:
 		printf(":: "); break;
+	    default:
+		break;
 	}
 	Targ_PrintType (gn->type);
 	Lst_ForEach (gn->children, TargPrintName, (void *)0);
