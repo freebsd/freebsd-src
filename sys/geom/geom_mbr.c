@@ -65,6 +65,7 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
         { 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
 };
+
 static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -77,8 +78,10 @@ g_mbr_print(int i, struct dos_partition *dp)
 {
 
 	printf("[%d] f:%02x typ:%d", i, dp->dp_flag, dp->dp_typ);
-	printf(" s(CHS):%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
-	printf(" e(CHS):%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
+	printf(" s(CHS):%d/%d/%d", DPCYL(dp->dp_scyl, dp->dp_ssect),
+	    dp->dp_shd, DPSECT(dp->dp_ssect));
+	printf(" e(CHS):%d/%d/%d", DPCYL(dp->dp_ecyl, dp->dp_esect),
+	    dp->dp_ehd, DPSECT(dp->dp_esect));
 	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
 }
 
