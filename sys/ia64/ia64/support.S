@@ -366,8 +366,8 @@ ENTRY(fusufault, 0)
 END(fusufault)
 	
 ENTRY(fswintrberr, 0)
-XENTRY(fuswintr)					/* XXX what is a 'word'? */
-XENTRY(suswintr)					/* XXX what is a 'word'? */
+XENTRY(fuswintr)			/* XXX 16 bit short for profiling */
+XENTRY(suswintr)			/* XXX 16 bit short for profiling */
 	mov	ret0=-1
 	br.ret.sptk.few rp
 END(fswintrberr)
