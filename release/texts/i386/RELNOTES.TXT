@@ -91,6 +91,12 @@ can be changed with the INSTKERNEL variable.  The NO_KERNELCLEAN
 variable prevents cleaning of the kernel build directory (which is now
 done via "make clean", rather than "config -r").
 
+kobj functionality has been merged from -CURRENT to better support
+sound drivers.
+
+Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
+replace an older, unified driver.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -198,6 +204,15 @@ flag.
 sendmail(8) and associated utilities upgraded from version 8.11.1 to
 version 8.11.2.  See /usr/src/contrib/sendmail/RELEASE_NOTES for more
 information.
+
+pkg_create(1) and pkg_install(1) can now work with packages that have
+been compressed using bzip2(1).
+
+pkg_info(1) can now accept a -g flag for verifying an installed
+package against its recorded checksums (to see if it's been modified
+post-installation).  Naturally, this mechanism is only as secure as
+the contents of /var/db/pkg if it's to be used for auditing
+purposes.
 
 
 2. Supported Configurations
