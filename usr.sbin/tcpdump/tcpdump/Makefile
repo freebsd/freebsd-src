@@ -13,6 +13,7 @@ SRCS=	version.c addrtoname.c bpf_dump.c bpf_filter.c bpf_image.c etherent.c \
 	tcplex.c util.c
 .PATH:	/sys/net
 CLEANFILES+=	tcpgram.c tcplex.c y.tab.h y.tab.c version.c version.h
+LDADD+=	-ll
 
 version.c version.h: VERSION
 	rm -f version.c ; \
