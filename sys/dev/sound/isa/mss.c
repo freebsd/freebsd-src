@@ -79,12 +79,13 @@ static void ad_write(snddev_info *d, int reg, u_char data);
 static void ad_write_cnt(snddev_info *d, int reg, u_short data);
 static int ad_read(snddev_info *d, int reg);
 
+#if NPNP > 0 /* the ad1816 is pnp only */
 /* ad1816 prototypes */
 
 /* IO primitives */
 static int      ad1816_wait_init(snddev_info * d, int x);
-static unsigned short ad1816_read(snddev_info * d, unsigned int reg);
-static void     ad1816_write(snddev_info * d, unsigned int reg, unsigned short data);
+static u_short ad1816_read(snddev_info * d, u_int reg);
+static void     ad1816_write(snddev_info * d, u_int reg, u_short data);
 /* intr and callback functions */
 static irq_proc_t ad1816_intr;
 static snd_callback_t ad1816_callback;
@@ -97,6 +98,7 @@ static int      ad1816_set_recsrc(snddev_info * d, int mask);
 static void     ad1816_mixer_reset(snddev_info * d);
 
 /* ad1816 prototypes end */
+#endif
 
 /*
  * device descriptors for the boards supported by this module.
@@ -202,6 +204,7 @@ mss_probe_end:
     return mss_detect(dev) ? 8 : 0 ; /* mss uses 8 regs */
 }
 
+#if NPNP > 0
 static int
 ad1816_attach(struct isa_device *dev)
 {
@@ -226,6 +229,7 @@ ad1816_attach(struct isa_device *dev)
     ad1816_mixer_reset(d);
     return 0 ;
 }
+#endif /* NPNP */
 
 /*
  * the address passed as io_base for mss_attach is also the old
@@ -243,9 +247,10 @@ mss_attach(struct isa_device *dev)
 	d->name, dev->id_unit,
 	d->io_base, d->irq, d->dbuf_out.chan, d->dbuf_in.chan, dev->id_flags);
 
+#if NPNP > 0
     if (d->bd_id == MD_AD1816)
 	return ad1816_attach(dev);
-
+#endif
     dev->id_alive = 8 ; /* number of io ports */
     /* should be already set but just in case... */
 
@@ -1453,7 +1458,7 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "Yamaha SA2";
     else if ( id == 0x3000a865)
 	s = "Yamaha SA3";
-    else if (vend_id == 0x0000a865)
+    else if ( id == 0x0000a865)
 	s = "Yamaha YMF719 OPL-SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
