@@ -67,8 +67,6 @@
 
 #include "assym.s"
 
-#define	KTR_TLB	KTR_CT5
-
 	.register %g2,#ignore
 	.register %g3,#ignore
 	.register %g6,#ignore
@@ -545,17 +543,7 @@ END(tl0_sfsr_trap)
 	.align	32
 	.endm
 
-#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_immu_miss
-	b,a	%xcc, tl0_immu_miss_traced
-	 nop
-	.align	128
-	.endm
-
-ENTRY(tl0_immu_miss_traced)
-#else
-	.macro	tl0_immu_miss
-#endif
 	/*
 	 * Force kernel store order.
 	 */
@@ -582,22 +570,6 @@ ENTRY(tl0_immu_miss_traced)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB,
-	    "tl0_immu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	rdpr	%tl, %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	rdpr	%tpc, %g5
-	stx	%g5, [%g4 + KTR_PARM2]
-	rdpr	%tnpc, %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-	stx	%g2, [%g4 + KTR_PARM4]
-	stx	%g3, [%g4 + KTR_PARM5]
-	stx	%g1, [%g4 + KTR_PARM6]
-9:
-#endif
-
 	/*
 	 * Loop over the ttes in this bucket
 	 */
@@ -609,18 +581,6 @@ ENTRY(tl0_immu_miss_traced)
 	 * not use %g4 or %g5 until this instruction completes successfully.
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_immu_miss: vpn=%#lx data=%#lx"
-	    , %g6, %g4, %g5, 7, 8, 9)
-	ldx	[%g1 + TTE_VPN], %g4
-	stx	%g4, [%g6 + KTR_PARM1]
-	ldx	[%g1 + TTE_DATA], %g5
-	stx	%g5, [%g6 + KTR_PARM2]
-9:
-	ldx	[%g1 + TTE_VPN], %g4
-	ldx	[%g1 + TTE_DATA], %g5
-#endif
 
 	/*
 	 * Recover the virtual page number, which may have been clobbered.
@@ -649,14 +609,6 @@ ENTRY(tl0_immu_miss_traced)
 	bz,a,pn	%xcc, tl0_immu_miss_set_ref
 	 nop
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_immu_miss: match tar=%#lx data=%#lx"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%g5, [%g1 + KTR_PARM2]
-9:
-#endif
-
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
 	 */
@@ -681,12 +633,8 @@ ENTRY(tl0_immu_miss_traced)
 
 	b,a	%xcc, tl0_immu_miss_trap
 	 nop
-#if KTR_COMPILE & KTR_TLB
-END(tl0_immu_miss_traced)
-#else
 	.align	128
 	.endm
-#endif
 
 ENTRY(tl0_immu_miss_set_ref)
 	/*
@@ -694,27 +642,11 @@ ENTRY(tl0_immu_miss_set_ref)
 	 */
 	TTE_SET_REF(%g1, %g4, %g5)
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_immu_miss_set_ref: tp=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g1, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
-
 	/*
 	 * May have become invalid, in which case start over.
 	 */
 	brgez,pn %g4, 1f
 	 or	%g4, TD_REF, %g4
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_immu_miss_set_ref: return tar=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g2, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
@@ -734,13 +666,6 @@ ENTRY(tl0_immu_miss_trap)
 	 * Reload the tag access register.
 	 */
 	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_immu_miss_trap: tar=%#lx"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	/*
 	 * Save the tag access register, and call common trap code.
@@ -773,22 +698,6 @@ END(tl0_immu_miss_trap)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB,
-	    "tl0_dmmu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	rdpr	%tl, %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	rdpr	%tpc, %g5
-	stx	%g5, [%g4 + KTR_PARM2]
-	rdpr	%tnpc, %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-	stx	%g2, [%g4 + KTR_PARM4]
-	stx	%g3, [%g4 + KTR_PARM5]
-	stx	%g1, [%g4 + KTR_PARM6]
-9:
-#endif
-
 	/*
 	 * Loop over the ttes in this bucket
 	 */
@@ -800,18 +709,6 @@ END(tl0_immu_miss_trap)
 	 * not use %g4 or %g5 until this instruction completes successfully.
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_miss: vpn=%#lx data=%#lx"
-	    , %g6, %g4, %g5, 7, 8, 9)
-	ldx	[%g1 + TTE_VPN], %g4
-	stx	%g4, [%g6 + KTR_PARM1]
-	ldx	[%g1 + TTE_DATA], %g5
-	stx	%g5, [%g6 + KTR_PARM2]
-9:
-	ldx	[%g1 + TTE_VPN], %g4
-	ldx	[%g1 + TTE_DATA], %g5
-#endif
 
 	/*
 	 * Recover the virtual page number, which may have been clobbered.
@@ -836,14 +733,6 @@ END(tl0_immu_miss_trap)
 	 andcc	%g5, TD_REF, %g0
 	bz,a,pn	%xcc, dmmu_miss_user_set_ref
 	 nop
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_miss: match tar=%#lx data=%#lx"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%g5, [%g1 + KTR_PARM2]
-9:
-#endif
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
@@ -874,27 +763,11 @@ ENTRY(dmmu_miss_user_set_ref)
 	 */
 	TTE_SET_REF(%g1, %g4, %g5)
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_miss_set_ref: tp=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g1, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
-
 	/*
 	 * May have become invalid, in which case start over.
 	 */
 	brgez,pn %g4, 1f
 	 or	%g4, TD_REF, %g4
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_miss_set_ref: return tar=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g2, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
@@ -904,17 +777,7 @@ ENTRY(dmmu_miss_user_set_ref)
 1:	retry
 END(dmmu_miss_user_set_ref)
 
-#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_dmmu_miss
-	b,a	%xcc, tl0_dmmu_miss_traced
-	 nop
-	.align	128
-	.endm
-
-ENTRY(tl0_dmmu_miss_traced)
-#else
-	.macro	tl0_dmmu_miss
-#endif
 	/*
 	 * Force kernel store order.
 	 */
@@ -930,12 +793,8 @@ ENTRY(tl0_dmmu_miss_traced)
 	 */
 	b,a	%xcc, tl0_dmmu_miss_trap
 	 nop
-#if KTR_COMPILE & KTR_TLB
-END(tl0_dmmu_miss_traced)
-#else
 	.align	128
 	.endm
-#endif
 
 ENTRY(tl0_dmmu_miss_trap)
 	/*
@@ -947,13 +806,6 @@ ENTRY(tl0_dmmu_miss_trap)
 	 * Reload the tag access register.
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_miss_trap: tar=%#lx"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	/*
 	 * Save the tag access register and call common trap code.
@@ -986,22 +838,6 @@ END(tl0_dmmu_miss_trap)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB,
-	    "tl0_dmmu_prot: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	rdpr	%tl, %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	rdpr	%tpc, %g5
-	stx	%g5, [%g4 + KTR_PARM2]
-	rdpr	%tnpc, %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-	stx	%g2, [%g4 + KTR_PARM4]
-	stx	%g3, [%g4 + KTR_PARM5]
-	stx	%g1, [%g4 + KTR_PARM6]
-9:
-#endif
-
 	/*
 	 * Loop over the ttes in this bucket
 	 */
@@ -1013,18 +849,6 @@ END(tl0_dmmu_miss_trap)
 	 * not use %g4 or %g5 until this instruction completes successfully.
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_prot: vpn=%#lx data=%#lx"
-	    , %g6, %g4, %g5, 7, 8, 9)
-	ldx	[%g1 + TTE_VPN], %g4
-	stx	%g4, [%g6 + KTR_PARM1]
-	ldx	[%g1 + TTE_DATA], %g5
-	stx	%g5, [%g6 + KTR_PARM2]
-9:
-	ldx	[%g1 + TTE_VPN], %g4
-	ldx	[%g1 + TTE_DATA], %g5
-#endif
 
 	/*
 	 * Recover the virtual page number, which may have been clobbered.
@@ -1064,17 +888,7 @@ END(tl0_dmmu_miss_trap)
 	membar	#Sync
 	.endm
 
-#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_dmmu_prot
-	b,a	%xcc, tl0_dmmu_prot_traced
-	 nop
-	.align	128
-	.endm
-
-ENTRY(tl0_dmmu_prot_traced)
-#else
-	.macro	tl0_dmmu_prot
-#endif
 	/*
 	 * Force kernel store order.
 	 */
@@ -1090,12 +904,8 @@ ENTRY(tl0_dmmu_prot_traced)
 	 */
 	b,a	%xcc, tl0_dmmu_prot_trap
 	 nop
-#if KTR_COMPILE & KTR_TLB
-END(tl0_dmmu_prot_traced)
-#else
 	.align	128
 	.endm
-#endif
 
 ENTRY(dmmu_prot_set_w)
 	/*
@@ -1111,27 +921,11 @@ ENTRY(dmmu_prot_set_w)
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_prot_set_w: tp=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g1, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
-
 	/*
 	 * May have become invalid in which case start over.
 	 */
 	brgez,pn %g4, 1f
 	 or	%g4, TD_W, %g4
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_prot_set_w: return tar=%#lx data=%#lx"
-	   , %g3, %g5, %g6, 7, 8, 9)
-	stx	%g2, [%g3 + KTR_PARM1]
-	stx	%g4, [%g3 + KTR_PARM2]
-9:
-#endif
 
 	/*
 	 * Load the tte data into the tlb and retry the instruction.
@@ -1151,13 +945,6 @@ ENTRY(tl0_dmmu_prot_trap)
 	 * Load the tar, sfar and sfsr.
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl0_dmmu_prot_trap: tar=%#lx"
-	    , %g1, %g3, %g4, 7, 8, 9)
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
@@ -1529,17 +1316,7 @@ ENTRY(tl1_immu_miss_trap)
 	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
 END(tl1_immu_miss_trap)
 
-#if KTR_COMPILE & KTR_TLB
 	.macro	tl1_dmmu_miss
-	b,a	%xcc, tl1_dmmu_miss_traced
-	 nop
-	.align	128
-	.endm
-
-ENTRY(tl1_dmmu_miss_traced)
-#else
-	.macro	tl1_dmmu_miss
-#endif
 	/*
 	 * Load the context and the virtual page number from the tag access
 	 * register.
@@ -1569,42 +1346,10 @@ ENTRY(tl1_dmmu_miss_traced)
 	sllx	%g3, TTE_SHIFT, %g3
 	add	%g3, %g4, %g3
 
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB,
-	    "tl1_dmmu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
-	    , %g4, %g5, %g6, 7, 8, 9)
-	rdpr	%tl, %g5
-	stx	%g5, [%g4 + KTR_PARM1]
-	rdpr	%tpc, %g5
-	stx	%g5, [%g4 + KTR_PARM2]
-	rdpr	%tnpc, %g5
-	stx	%g5, [%g4 + KTR_PARM3]
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g6
-	stx	%g6, [%g4 + KTR_PARM4]
-	srlx	%g6, TAR_VPN_SHIFT, %g6
-	stx	%g6, [%g4 + KTR_PARM5]
-	stx	%g3, [%g4 + KTR_PARM6]
-9:
-#endif
-
 	/*
 	 * Load the tte.
 	 */
 	ldda	[%g3] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl1_dmmu_miss: vpn=%#lx data=%#lx"
-	    , %g6, %g4, %g5, 7, 8, 9)
-	ldx	[%g3 + TTE_VPN], %g4
-	stx	%g4, [%g6 + KTR_PARM1]
-	ldx	[%g3 + TTE_DATA], %g5
-	stx	%g5, [%g6 + KTR_PARM2]
-9:
-	ldx	[%g3 + TTE_VPN], %g4
-	ldx	[%g3 + TTE_DATA], %g5
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g6
-	srlx	%g6, TAR_VPN_SHIFT, %g6
-#endif
 
 	/*
 	 * Check that its valid and that the virtual page numbers match.
@@ -1631,35 +1376,16 @@ ENTRY(tl1_dmmu_miss_traced)
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
-1:
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl1_dmmu_miss: match data=%#lx"
-	    , %g3, %g4, %g6, 7, 8, 9)
-	stx	%g5, [%g3 + KTR_PARM1]
-9:
-#endif
-	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
+1:	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 2:	retry
-#if KTR_COMPILE & KTR_TLB
-END(tl1_dmmu_miss_traced)
-#else
 	.align	128
 	.endm
-#endif
 
 ENTRY(tl1_dmmu_miss_trap)
 	/*
 	 * Switch to alternate globals.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl1_dmmu_miss_trap: tar=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	KSTACK_CHECK
 
@@ -1686,14 +1412,6 @@ ENTRY(tl1_dmmu_miss_user)
 	 * Handle faults during window spill/fill.
 	 */
 	RESUME_SPILLFILL_MMU
-
-#if KTR_COMPILE & KTR_TLB
-	CATR(KTR_TLB, "tl1_dmmu_miss_user: trap tar=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
 
 	/*
 	 * Reload the tag access register.
