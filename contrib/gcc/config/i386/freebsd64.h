@@ -19,6 +19,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/x86-64 ELF)");
@@ -26,6 +28,16 @@ Boston, MA 02111-1307, USA.  */
 /* Provide a LINK_SPEC appropriate for the FreeBSD/x86-64 ELF target.
    This is a copy of LINK_SPEC from <i386/freebsd.h> tweaked for
    the x86-64 target.  */
+
+#undef  CC1_SPEC
+#define CC1_SPEC "%(cc1_cpu) %{profile:-p} \
+  %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
+  %{maout: %{!mno-underscores: %{!munderscores: -munderscores }}}"
+
+#undef  ASM_SPEC
+#define ASM_SPEC	"%{v*: -v} %{maout: %{fpic:-k} %{fPIC:-k}} \
+			%{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Yd,*} \
+			%{Wa,*:%*} %{m32:--32}"
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
