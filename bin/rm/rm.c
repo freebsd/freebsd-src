@@ -235,7 +235,8 @@ rm_tree(argv)
 			switch (p->fts_info) {
 			case FTS_DP:
 			case FTS_DNR:
-				if ((e=rmdir(p->fts_accpath)) || (fflag && errno == ENOENT)) {
+				if ((e=rmdir(p->fts_accpath)) == 0 ||
+				    (fflag && errno == ENOENT)) {
 					if (e == 0 && vflag)
 						(void)printf("%s\n", p->fts_accpath);
 					continue;
