@@ -80,6 +80,7 @@ int	 ufs_ihashins(struct inode *, int, struct vnode **);
 struct vnode *
 	 ufs_ihashlookup(dev_t, ino_t);
 void	 ufs_ihashrem(struct inode *);
+void	 ufs_ihashuninit(void);
 int	 ufs_inactive(struct vop_inactive_args *);
 int	 ufs_init(struct vfsconf *);
 void	 ufs_itimes(struct vnode *vp);
@@ -89,6 +90,7 @@ int	 ufs_reclaim(struct vop_reclaim_args *);
 void	 ffs_snapgone(struct inode *);
 int	 ufs_root(struct mount *, struct vnode **);
 int	 ufs_start(struct mount *, int, struct thread *);
+int	 ufs_uninit(struct vfsconf *);
 int	 ufs_vinit(struct mount *, vop_t **, vop_t **, struct vnode **);
 
 /*

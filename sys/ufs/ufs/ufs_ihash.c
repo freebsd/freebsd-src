@@ -68,6 +68,17 @@ ufs_ihashinit()
 }
 
 /*
+ * Destroy the inode hash table.
+ */
+void
+ufs_ihashuninit()
+{
+
+	hashdestroy(ihashtbl, M_UFSIHASH, ihash);
+	mtx_destroy(&ufs_ihash_mtx);
+}
+
+/*
  * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, return it, even if it is locked.
  */

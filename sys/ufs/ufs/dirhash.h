@@ -108,6 +108,8 @@ struct dirhash {
 /*
  * Dirhash functions.
  */
+void	ufsdirhash_init(void);
+void	ufsdirhash_uninit(void);
 int	ufsdirhash_build(struct inode *);
 doff_t	ufsdirhash_findfree(struct inode *, int, int *);
 doff_t	ufsdirhash_enduseful(struct inode *);
