@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.45 1999/01/26 02:38:10 julian Exp $
+ *	$Id: imgact_elf.c,v 1.46 1999/01/27 21:49:55 dillon Exp $
  */
 
 #include "opt_rlimit.h"
@@ -984,5 +984,5 @@ elf_putnote(void *dst, size_t *off, const char *name, int type,
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-static const struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
+static struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
 EXEC_SET(elf, elf_execsw);
