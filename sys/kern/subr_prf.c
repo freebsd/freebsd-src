@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.24 1996/01/19 11:38:18 phk Exp $
+ * $Id: subr_prf.c,v 1.25 1996/01/19 21:05:52 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -439,6 +439,10 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 
 	if (fmt == NULL)
 		fmt = "(fmt null)\n";
+
+	if (radix < 8 || radix > 16)
+		radix = 10;
+
 	for (;;) {
 		padc = ' ';
 		width = 0;
