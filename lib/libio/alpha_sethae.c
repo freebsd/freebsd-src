@@ -31,8 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/sysarch.h>
 
-extern int sysarch(int, char *);
-
 struct parms {
 	u_int64_t hae;
 };
@@ -44,5 +42,5 @@ alpha_sethae(u_int64_t hae)
 
 	p.hae = hae;
 
-	return (sysarch(ALPHA_SETHAE, (char *)&p));
+	return (sysarch(ALPHA_SETHAE, &p));
 }
