@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: syscalls.c,v 1.4 1998/01/05 07:30:25 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -170,15 +170,15 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
   switch (sc->type & ARG_MASK) {
   case Hex:
     tmp = malloc(12);
-    sprintf(tmp, "0x%x", args[sc->offset]);
+    sprintf(tmp, "0x%lx", args[sc->offset]);
     break;
   case Octal:
     tmp = malloc(13);
-    sprintf(tmp, "0%o", args[sc->offset]);
+    sprintf(tmp, "0%lo", args[sc->offset]);
     break;
   case Int:
     tmp = malloc(12);
-    sprintf(tmp, "%d", args[sc->offset]);
+    sprintf(tmp, "%ld", args[sc->offset]);
     break;
   case String:
     {
@@ -202,7 +202,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
     }
   case Ptr:
     tmp = malloc(12);
-    sprintf(tmp, "0x%x", args[sc->offset]);
+    sprintf(tmp, "0x%lx", args[sc->offset]);
     break;
   case Ioctl:
     {
@@ -211,7 +211,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	tmp = strdup(temp);
       else {
 	tmp = malloc(12);
-	sprintf(tmp, "0x%x", args[sc->offset]);
+	sprintf(tmp, "0x%lx", args[sc->offset]);
       }
     }
   }

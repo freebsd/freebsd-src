@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ns.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: ipx.c,v 1.8 1997/05/10 10:03:41 jhay Exp $";
+	"$Id: ipx.c,v 1.9 1997/07/29 06:51:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -153,6 +153,7 @@ ipxprotopr(off, name)
 }
 
 #define ANY(x,y,z) (printf("\t%u %s%s%s\n",x,y,plural(x),z))
+#define ANYl(x,y,z) (printf("\t%lu %s%s%s\n",x,y,plural(x),z))
 
 /*
  * Dump SPX statistics structure.
@@ -181,57 +182,56 @@ spx_stats(off, name)
 	ANY(spx_istat.bdreas, "packet", " dropped out of sequence");
 	ANY(spx_istat.lstdup, "packet", " duplicating the highest packet");
 	ANY(spx_istat.notyet, "packet", " refused as exceeding allocation");
-	ANY(spxstat.spxs_connattempt, "connection", " initiated");
-	ANY(spxstat.spxs_accepts, "connection", " accepted");
-	ANY(spxstat.spxs_connects, "connection", " established");
-	ANY(spxstat.spxs_drops, "connection", " dropped");
-	ANY(spxstat.spxs_conndrops, "embryonic connection", " dropped");
-	ANY(spxstat.spxs_closed, "connection", " closed (includes drops)");
-	ANY(spxstat.spxs_segstimed, "packet", " where we tried to get rtt");
-	ANY(spxstat.spxs_rttupdated, "time", " we got rtt");
-	ANY(spxstat.spxs_delack, "delayed ack", " sent");
-	ANY(spxstat.spxs_timeoutdrop, "connection", " dropped in rxmt timeout");
-	ANY(spxstat.spxs_rexmttimeo, "retransmit timeout", "");
-	ANY(spxstat.spxs_persisttimeo, "persist timeout", "");
-	ANY(spxstat.spxs_keeptimeo, "keepalive timeout", "");
-	ANY(spxstat.spxs_keepprobe, "keepalive probe", " sent");
-	ANY(spxstat.spxs_keepdrops, "connection", " dropped in keepalive");
-	ANY(spxstat.spxs_sndtotal, "total packet", " sent");
-	ANY(spxstat.spxs_sndpack, "data packet", " sent");
-	ANY(spxstat.spxs_sndbyte, "data byte", " sent");
-	ANY(spxstat.spxs_sndrexmitpack, "data packet", " retransmitted");
-	ANY(spxstat.spxs_sndrexmitbyte, "data byte", " retransmitted");
-	ANY(spxstat.spxs_sndacks, "ack-only packet", " sent");
-	ANY(spxstat.spxs_sndprobe, "window probe", " sent");
-	ANY(spxstat.spxs_sndurg, "packet", " sent with URG only");
-	ANY(spxstat.spxs_sndwinup, "window update-only packet", " sent");
-	ANY(spxstat.spxs_sndctrl, "control (SYN|FIN|RST) packet", " sent");
-	ANY(spxstat.spxs_sndvoid, "request", " to send a non-existant packet");
-	ANY(spxstat.spxs_rcvtotal, "total packet", " received");
-	ANY(spxstat.spxs_rcvpack, "packet", " received in sequence");
-	ANY(spxstat.spxs_rcvbyte, "byte", " received in sequence");
-	ANY(spxstat.spxs_rcvbadsum, "packet", " received with ccksum errs");
-	ANY(spxstat.spxs_rcvbadoff, "packet", " received with bad offset");
-	ANY(spxstat.spxs_rcvshort, "packet", " received too short");
-	ANY(spxstat.spxs_rcvduppack, "duplicate-only packet", " received");
-	ANY(spxstat.spxs_rcvdupbyte, "duplicate-only byte", " received");
-	ANY(spxstat.spxs_rcvpartduppack, "packet", " with some duplicate data");
-	ANY(spxstat.spxs_rcvpartdupbyte, "dup. byte", " in part-dup. packet");
-	ANY(spxstat.spxs_rcvoopack, "out-of-order packet", " received");
-	ANY(spxstat.spxs_rcvoobyte, "out-of-order byte", " received");
-	ANY(spxstat.spxs_rcvpackafterwin, "packet", " with data after window");
-	ANY(spxstat.spxs_rcvbyteafterwin, "byte", " rcvd after window");
-	ANY(spxstat.spxs_rcvafterclose, "packet", " rcvd after 'close'");
-	ANY(spxstat.spxs_rcvwinprobe, "rcvd window probe packet", "");
-	ANY(spxstat.spxs_rcvdupack, "rcvd duplicate ack", "");
-	ANY(spxstat.spxs_rcvacktoomuch, "rcvd ack", " for unsent data");
-	ANY(spxstat.spxs_rcvackpack, "rcvd ack packet", "");
-	ANY(spxstat.spxs_rcvackbyte, "byte", " acked by rcvd acks");
-	ANY(spxstat.spxs_rcvwinupd, "rcvd window update packet", "");
+	ANYl(spxstat.spxs_connattempt, "connection", " initiated");
+	ANYl(spxstat.spxs_accepts, "connection", " accepted");
+	ANYl(spxstat.spxs_connects, "connection", " established");
+	ANYl(spxstat.spxs_drops, "connection", " dropped");
+	ANYl(spxstat.spxs_conndrops, "embryonic connection", " dropped");
+	ANYl(spxstat.spxs_closed, "connection", " closed (includes drops)");
+	ANYl(spxstat.spxs_segstimed, "packet", " where we tried to get rtt");
+	ANYl(spxstat.spxs_rttupdated, "time", " we got rtt");
+	ANYl(spxstat.spxs_delack, "delayed ack", " sent");
+	ANYl(spxstat.spxs_timeoutdrop, "connection",
+	    " dropped in rxmt timeout");
+	ANYl(spxstat.spxs_rexmttimeo, "retransmit timeout", "");
+	ANYl(spxstat.spxs_persisttimeo, "persist timeout", "");
+	ANYl(spxstat.spxs_keeptimeo, "keepalive timeout", "");
+	ANYl(spxstat.spxs_keepprobe, "keepalive probe", " sent");
+	ANYl(spxstat.spxs_keepdrops, "connection", " dropped in keepalive");
+	ANYl(spxstat.spxs_sndtotal, "total packet", " sent");
+	ANYl(spxstat.spxs_sndpack, "data packet", " sent");
+	ANYl(spxstat.spxs_sndbyte, "data byte", " sent");
+	ANYl(spxstat.spxs_sndrexmitpack, "data packet", " retransmitted");
+	ANYl(spxstat.spxs_sndrexmitbyte, "data byte", " retransmitted");
+	ANYl(spxstat.spxs_sndacks, "ack-only packet", " sent");
+	ANYl(spxstat.spxs_sndprobe, "window probe", " sent");
+	ANYl(spxstat.spxs_sndurg, "packet", " sent with URG only");
+	ANYl(spxstat.spxs_sndwinup, "window update-only packet", " sent");
+	ANYl(spxstat.spxs_sndctrl, "control (SYN|FIN|RST) packet", " sent");
+	ANYl(spxstat.spxs_sndvoid, "request", " to send a non-existant packet");
+	ANYl(spxstat.spxs_rcvtotal, "total packet", " received");
+	ANYl(spxstat.spxs_rcvpack, "packet", " received in sequence");
+	ANYl(spxstat.spxs_rcvbyte, "byte", " received in sequence");
+	ANYl(spxstat.spxs_rcvbadsum, "packet", " received with ccksum errs");
+	ANYl(spxstat.spxs_rcvbadoff, "packet", " received with bad offset");
+	ANYl(spxstat.spxs_rcvshort, "packet", " received too short");
+	ANYl(spxstat.spxs_rcvduppack, "duplicate-only packet", " received");
+	ANYl(spxstat.spxs_rcvdupbyte, "duplicate-only byte", " received");
+	ANYl(spxstat.spxs_rcvpartduppack, "packet",
+	    " with some duplicate data");
+	ANYl(spxstat.spxs_rcvpartdupbyte, "dup. byte", " in part-dup. packet");
+	ANYl(spxstat.spxs_rcvoopack, "out-of-order packet", " received");
+	ANYl(spxstat.spxs_rcvoobyte, "out-of-order byte", " received");
+	ANYl(spxstat.spxs_rcvpackafterwin, "packet", " with data after window");
+	ANYl(spxstat.spxs_rcvbyteafterwin, "byte", " rcvd after window");
+	ANYl(spxstat.spxs_rcvafterclose, "packet", " rcvd after 'close'");
+	ANYl(spxstat.spxs_rcvwinprobe, "rcvd window probe packet", "");
+	ANYl(spxstat.spxs_rcvdupack, "rcvd duplicate ack", "");
+	ANYl(spxstat.spxs_rcvacktoomuch, "rcvd ack", " for unsent data");
+	ANYl(spxstat.spxs_rcvackpack, "rcvd ack packet", "");
+	ANYl(spxstat.spxs_rcvackbyte, "byte", " acked by rcvd acks");
+	ANYl(spxstat.spxs_rcvwinupd, "rcvd window update packet", "");
 }
-
-#undef ANY
-#define ANY(x,y,z)  (printf("\t%u %s%s%s\n",x,y,plural(x),z))
 
 /*
  * Dump IPX statistics structure.
@@ -247,17 +247,17 @@ ipx_stats(off, name)
 		return;
 	kread(off, (char *)&ipxstat, sizeof (ipxstat));
 	printf("%s:\n", name);
-	ANY(ipxstat.ipxs_total, "total packet", " received");
-	ANY(ipxstat.ipxs_badsum, "packet", " with bad checksums");
-	ANY(ipxstat.ipxs_tooshort, "packet", " smaller than advertised");
-	ANY(ipxstat.ipxs_toosmall, "packet", " smaller than a header");
-	ANY(ipxstat.ipxs_forward, "packet", " forwarded");
-	ANY(ipxstat.ipxs_cantforward, "packet", " not forwardable");
-	ANY(ipxstat.ipxs_delivered, "packet", " for this host");
-	ANY(ipxstat.ipxs_localout, "packet", " sent from this host");
-	ANY(ipxstat.ipxs_odropped, "packet", " dropped due to no bufs, etc.");
-	ANY(ipxstat.ipxs_noroute, "packet", " discarded due to no route");
-	ANY(ipxstat.ipxs_mtutoosmall, "packet", " too big");
+	ANYl(ipxstat.ipxs_total, "total packet", " received");
+	ANYl(ipxstat.ipxs_badsum, "packet", " with bad checksums");
+	ANYl(ipxstat.ipxs_tooshort, "packet", " smaller than advertised");
+	ANYl(ipxstat.ipxs_toosmall, "packet", " smaller than a header");
+	ANYl(ipxstat.ipxs_forward, "packet", " forwarded");
+	ANYl(ipxstat.ipxs_cantforward, "packet", " not forwardable");
+	ANYl(ipxstat.ipxs_delivered, "packet", " for this host");
+	ANYl(ipxstat.ipxs_localout, "packet", " sent from this host");
+	ANYl(ipxstat.ipxs_odropped, "packet", " dropped due to no bufs, etc.");
+	ANYl(ipxstat.ipxs_noroute, "packet", " discarded due to no route");
+	ANYl(ipxstat.ipxs_mtutoosmall, "packet", " too big");
 }
 
 static	struct {

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: if.c,v 1.23 1997/02/22 19:56:21 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -196,7 +196,7 @@ intpr(interval, ifnetaddr)
 				char netnum[10];
 
 				*(union ipx_net *) &net = sipx->sipx_addr.x_net;
-				sprintf(netnum, "%lx", ntohl(net));
+				sprintf(netnum, "%lx", (u_long)ntohl(net));
 				printf("ipx:%-8s ", netnum);
 /*				printf("ipx:%-8s ", netname(net, 0L)); */
 				printf("%-15s ",

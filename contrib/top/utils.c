@@ -391,7 +391,8 @@ long seconds;
     {
 	/* standard method produces MMM:SS */
 	/* we avoid printf as must as possible to make this quick */
-	sprintf(result, "%3d:%02d", seconds / 60l, seconds % 60l);
+	sprintf(result, "%3ld:%02ld",
+	    (long)(seconds / 60), (long)(seconds % 60));
     }
     return(result);
 }

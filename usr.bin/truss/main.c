@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.7 1998/01/05 07:30:25 charnier Exp $";
+	"$Id: main.c,v 1.8 1998/01/07 06:19:50 jmg Exp $";
 #endif /* not lint */
 
 /*
@@ -215,10 +215,10 @@ main(int ac, char **av) {
 	funcs->exit_syscall(pid, pfs.val);
 	break;
       case S_SIG:
-	fprintf(outfile, "SIGNAL %d\n", pfs.val);
+	fprintf(outfile, "SIGNAL %lu\n", pfs.val);
 	break;
       case S_EXIT:
-	fprintf (outfile, "process exit, rval = %d\n", pfs.val);
+	fprintf (outfile, "process exit, rval = %lu\n", pfs.val);
 	break;
       case S_EXEC:
 	funcs = set_etype();
