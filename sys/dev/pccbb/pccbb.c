@@ -1398,6 +1398,13 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 	else
 		align = 1;
 
+	/*
+	 * This looks somewhat bogus, and doesn't seem to really respect
+	 * alignment.  The alignment stuff is happening too late (it
+	 * should happen at allocation time, not activation time) and
+	 * this code looks generally to be too complex for the purpose
+	 * it surves.
+	 */
 	SLIST_FOREACH(rle, &sc->rl, link) {
 		if (rle->type != type)
 			;
@@ -1465,9 +1472,9 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 		if (starts[1] != 0xffffffff)
 			starts[1] -= starts[1] % align;
 		if (ends[0] % align != 0)
-			ends[0] += align - ends[0]%align - 1;
+			ends[0] += align - ends[0] % align - 1;
 		if (ends[1] % align != 0)
-			ends[1] += align - ends[1]%align - 1;
+			ends[1] += align - ends[1] % align - 1;
 	}
 
 	if (type == SYS_RES_MEMORY) {
