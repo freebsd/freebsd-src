@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.3 1998/10/06 04:16:07 ken Exp $
+ *	$Id: subr_devstat.c,v 1.4 1998/10/14 20:44:05 ken Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@ STAILQ_HEAD(devstatlist, devstat) device_statq;
  * and add it to the queue of devices.  
  */
 void
-devstat_add_entry(struct devstat *ds, char *dev_name, 
+devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type)

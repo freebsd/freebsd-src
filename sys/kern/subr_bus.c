@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.8 1998/10/27 09:21:43 dfr Exp $
+ *	$Id: subr_bus.c,v 1.9 1998/11/13 09:39:37 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -668,6 +668,16 @@ device_get_desc(device_t dev)
 }
 
 void
+device_print_prettyname(device_t dev)
+{
+	const char *name = device_get_name(dev);
+
+	if (name == 0)
+		name = "(no driver assigned)";
+	printf("%s%d: ", name, device_get_unit(dev));
+}
+
+void
 device_set_desc(device_t dev, const char* desc)
 {
     dev->desc = desc;
@@ -807,9 +817,10 @@ device_probe_and_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 	    }
 	}
-    } else
-	printf("%s%d: disabled, not probed.\n",
-	       dev->devclass->name, dev->unit);
+    } else {
+	    device_print_prettyname(dev);
+	    printf("not probed (disabled)\n");
+    }
 
     return 0;
 }
@@ -855,7 +866,7 @@ static int
 resource_match_string(int i, char *resname, char *value)
 {
 	int j;
-	struct resource *res;
+	struct config_resource *res;
 
 	for (j = 0, res = devtab[i].resources;
 	     j < devtab[i].resource_count; j++, res++)
@@ -867,10 +878,11 @@ resource_match_string(int i, char *resname, char *value)
 }
 
 static int
-resource_find(const char *name, int unit, char *resname, struct resource **result)
+resource_find(const char *name, int unit, char *resname, 
+	      struct config_resource **result)
 {
 	int i, j;
-	struct resource *res;
+	struct config_resource *res;
 
 	/*
 	 * First check specific instances, then generic.
@@ -906,7 +918,7 @@ int
 resource_int_value(const char *name, int unit, char *resname, int *result)
 {
 	int error;
-	struct resource *res;
+	struct config_resource *res;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_INT)
@@ -919,7 +931,7 @@ int
 resource_long_value(const char *name, int unit, char *resname, long *result)
 {
 	int error;
-	struct resource *res;
+	struct config_resource *res;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_LONG)
@@ -932,7 +944,7 @@ int
 resource_string_value(const char *name, int unit, char *resname, char **result)
 {
 	int error;
-	struct resource *res;
+	struct config_resource *res;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_STRING)
@@ -1011,59 +1023,167 @@ bus_generic_shutdown(device_t dev)
     return 0;
 }
 
+int
+bus_generic_suspend(device_t dev)
+{
+	int		error;
+	device_t	child, child2;
+
+	for (child = TAILQ_FIRST(&dev->children);
+	     child; child = TAILQ_NEXT(child, link)) {
+		error = DEVICE_SUSPEND(child);
+		if (error) {
+			for (child2 = TAILQ_FIRST(&dev->children);
+			     child2 && child2 != child; 
+			     child2 = TAILQ_NEXT(child2, link))
+				DEVICE_RESUME(child2);
+			return (error);
+		}
+	}
+	return 0;
+}
+
+int
+bus_generic_resume(device_t dev)
+{
+	device_t	child;
+
+	for (child = TAILQ_FIRST(&dev->children);
+	     child; child = TAILQ_NEXT(child, link)) {
+		DEVICE_RESUME(child);
+		/* if resume fails, there's nothing we can usefully do... */
+	}
+	return 0;
+}
+
 void
 bus_generic_print_child(device_t dev, device_t child)
 {
 }
 
 int
-bus_generic_read_ivar(device_t dev, device_t child, int index, u_long* result)
+bus_generic_read_ivar(device_t dev, device_t child, int index, 
+		      uintptr_t * result)
 {
     return ENOENT;
 }
 
 int
-bus_generic_write_ivar(device_t dev, device_t child, int index, u_long value)
+bus_generic_write_ivar(device_t dev, device_t child, int index, 
+		       uintptr_t value)
 {
     return ENOENT;
 }
 
-void *
-bus_generic_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg)
+int
+bus_generic_setup_intr(device_t dev, device_t child, struct resource *irq, 
+		       driver_intr_t *intr, void *arg, void **cookiep)
 {
-    /* Propagate up the bus hierarchy until someone handles it. */
-    if (dev->parent)
-	return BUS_CREATE_INTR(dev->parent, dev, irq, intr, arg);
-    else
-	return NULL;
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_SETUP_INTR(dev->parent, dev, irq, intr, arg, 
+				       cookiep));
+	else
+		return (EINVAL);
 }
 
 int
-bus_generic_connect_intr(device_t dev, void *ih)
+bus_generic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+			  void *cookie)
 {
-    /* Propagate up the bus hierarchy until someone handles it. */
-    if (dev->parent)
-	return BUS_CONNECT_INTR(dev->parent, ih);
-    else
-	return EINVAL;
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_TEARDOWN_INTR(dev->parent, dev, irq, cookie));
+	else
+		return (EINVAL);
 }
 
-static int root_create_intr(device_t dev, device_t child,
-			    driver_intr_t *intr, void *arg)
+int
+bus_generic_activate_resource(device_t dev, device_t child, int type, int rid,
+			      struct resource *r)
 {
-    /*
-     * If an interrupt mapping gets to here something bad has happened.
-     * Should probably panic.
-     */
-    return EINVAL;
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_ACTIVATE_RESOURCE(dev->parent, child, type, rid, 
+					      r));
+	else
+		return (EINVAL);
+}
+
+int
+bus_generic_deactivate_resource(device_t dev, device_t child, int type,
+				int rid, struct resource *r)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_DEACTIVATE_RESOURCE(dev->parent, child, type, rid,
+						r));
+	else
+		return (EINVAL);
+}
+
+/*
+ * Some convenience functions to make it easier for drivers to use the
+ * resource-management functions.  All these really do is hide the
+ * indirection through the parent's method table, making for slightly
+ * less-wordy code.  In the future, it might make sense for this code
+ * to maintain some sort of a list of resources allocated by each device.
+ */
+struct resource *
+bus_alloc_resource(device_t dev, int type, int *rid, u_long start, u_long end,
+		   u_long count, u_int flags)
+{
+	if (dev->parent == 0)
+		return (0);
+	return (BUS_ALLOC_RESOURCE(dev->parent, dev, type, rid, start, end,
+				   count, flags));
+}
+
+int
+bus_activate_resource(device_t dev, int type, int rid, struct resource *r)
+{
+	if (dev->parent == 0)
+		return (EINVAL);
+	return (BUS_ACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
+}
+
+int
+bus_deactivate_resource(device_t dev, int type, int rid, struct resource *r)
+{
+	if (dev->parent == 0)
+		return (EINVAL);
+	return (BUS_DEACTIVATE_RESOURCE(dev->parent, dev, type, rid, r));
+}
+
+int
+bus_release_resource(device_t dev, int type, int rid, struct resource *r)
+{
+	if (dev->parent == 0)
+		return (EINVAL);
+	return (BUS_RELEASE_RESOURCE(dev->parent, dev,
+				     type, rid, r));
+}
+
+static int
+root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
+		void **cookiep)
+{
+	/*
+	 * If an interrupt mapping gets to here something bad has happened.
+	 */
+	panic("root_setup_intr");
 }
 
 static device_method_t root_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_create_intr,	root_create_intr),
+	DEVMETHOD(bus_setup_intr,	root_setup_intr),
 
 	{ 0, 0 }
 };
@@ -1075,11 +1195,11 @@ static driver_t root_driver = {
 	1,			/* no softc */
 };
 
-device_t root_bus;
-devclass_t root_devclass;
+device_t	root_bus;
+devclass_t	root_devclass;
 
 static int
-root_bus_module_handler(module_t mod, modeventtype_t what, void* arg)
+root_bus_module_handler(module_t mod, int what, void* arg)
 {
     switch (what) {
     case MOD_LOAD:
@@ -1104,7 +1224,7 @@ static moduledata_t root_bus_mod = {
 DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
 void
-root_bus_configure()
+root_bus_configure(void)
 {
     device_t dev;
 
@@ -1117,39 +1237,52 @@ root_bus_configure()
 }
 
 int
-driver_module_handler(module_t mod, modeventtype_t what, void* arg)
+driver_module_handler(module_t mod, int what, void *arg)
 {
-    struct driver_module_data* data = (struct driver_module_data*) arg;
-    devclass_t bus_devclass = devclass_find_internal(data->busname, TRUE);
-    int error;
+	int error, i;
+	struct driver_module_data *dmd;
+	devclass_t bus_devclass;
 
-    switch (what) {
-    case MOD_LOAD:
-    	PDEBUG(("Loading module: driver %s on bus %s",
-		DRIVERNAME(data->driver), data->busname));
-	if (error = devclass_add_driver(bus_devclass,
-					data->driver))
-	    return error;
-	*data->devclass =
-	    devclass_find_internal(data->driver->name, TRUE);
-	break;
+	dmd = (struct driver_module_data *)arg;
+	bus_devclass = devclass_find_internal(dmd->dmd_busname, TRUE);
+	error = 0;
 
-    case MOD_UNLOAD:
-    	PDEBUG(("Unloading module: driver %s from bus %s",
-		DRIVERNAME(data->driver), data->busname));
-	if (error = devclass_delete_driver(bus_devclass,
-					   data->driver))
-	    return error;
-	break;
-    }
+	switch (what) {
+	case MOD_LOAD:
+		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
+			PDEBUG(("Loading module: driver %s on bus %s",
+				DRIVERNAME(dmd->dmd_driver[i]), 
+				dmd->dmd_busname));
+			error = devclass_add_driver(bus_devclass,
+						    dmd->dmd_drivers[i]);
+		}
+		if (error)
+			break;
 
-    if (data->chainevh)
-	return data->chainevh(mod, what, data->chainarg);
-    else
-	return 0;
+		/*
+		 * The drivers loaded in this way are assumed to all
+		 * implement the same devclass.
+		 */
+		*dmd->dmd_devclass =
+			devclass_find_internal(dmd->dmd_drivers[0]->name,
+					       TRUE);
+		break;
+
+	case MOD_UNLOAD:
+		for (i = 0; !error && i < dmd->dmd_ndrivers; i++) {
+			PDEBUG(("Unloading module: driver %s from bus %s",
+				DRIVERNAME(dmd->dmd_drivers[i]), 
+				dmd->dmd_busname));
+			error = devclass_delete_driver(bus_devclass,
+						       dmd->dmd_drivers[i]);
+		}
+		break;
+	}
+
+	if (!error && dmd->dmd_chainevh)
+		error = dmd->dmd_chainevh(mod, what, dmd->dmd_chainarg);
+	return (error);
 }
-
-
 
 #ifdef BUS_DEBUG
 

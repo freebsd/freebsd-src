@@ -23,31 +23,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.3 1998/06/10 10:57:29 dfr Exp $
+ *	$Id: module.h,v 1.4 1998/10/09 23:05:45 peter Exp $
  */
 
 #ifndef _SYS_MODULE_H_
 #define _SYS_MODULE_H_
 
-typedef enum {
+typedef enum modeventtype {
     MOD_LOAD,
     MOD_UNLOAD,
     MOD_SHUTDOWN
 } modeventtype_t;
 
-struct module;
-typedef struct module *module_t;
+typedef	struct module *module_t;
 
-typedef int (*modeventhand_t)(module_t mod, modeventtype_t what, void *arg);
+typedef	int (*modeventhand_t)(module_t mod, int /*modeventtype_t*/ what,
+			      void *arg);
 
 /*
  * Struct for registering modules statically via SYSINIT.
  */
 typedef struct moduledata {
-    char*		name;	/* module name */
-    modeventhand_t	evhand;	/* event handler */
-    void*		priv;	/* extra data */
-    void*		_file;	/* private; used by linker */
+	char		*name;	/* module name */
+	modeventhand_t	evhand;	/* event handler */
+	void		*priv;	/* extra data */
+	void		*_file;	/* private; used by linker */
 } moduledata_t;
 
 #ifdef KERNEL
