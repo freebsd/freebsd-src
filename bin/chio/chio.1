@@ -77,7 +77,8 @@ There are five element types:
 .Em drive
 (data transfer), and
 .Em voltag
-(select by volume identifier).  The
+(select by volume identifier).
+The
 .Em voltag
 pseudo-element type allows the selection of tapes by their volume tag
 (typically a barcode on the tape).
@@ -114,7 +115,8 @@ is specified, the media unit will be inverted before insertion.
 .Op Cm inv1
 .Op Cm inv2
 .Xc
-Perform a media unit exchange operation.  The media unit in
+Perform a media unit exchange operation.
+The media unit in
 .Ar <src ET/EU>
 is moved to
 .Ar <dst1 ET/EU>
@@ -177,10 +179,12 @@ Configure the changer to use picker
 .Xc
 Perform an
 .Em INITIALIZE ELEMENT STATUS
-operation on the changer.  The optional
+operation on the changer.
+The optional
 .Ar <timeout>
 parameter may be given to specify a timeout in seconds for the
-operations.  This may be used if the operation takes unusually long
+operations.
+This may be used if the operation takes unusually long
 because of buggy firmware or the like.
 .It Ic voltag Xo
 .Op Fl fca
@@ -189,15 +193,18 @@ because of buggy firmware or the like.
 .Op Ar <label>
 .Op Ar <serial>
 .Xc
-Change volume tag for an element in the media changer.  This command
-is only supported by few media changers.  If it is not supported by a
+Change volume tag for an element in the media changer.
+This command
+is only supported by few media changers.
+If it is not supported by a
 device, using this command will usually result in an "Invalid Field in
 CDB" error message on the console.
 .Pp
 If the
 .Fl c
 flag is specified, the volume tag of the specified element is
-cleared.  If the
+cleared.
+If the
 .Fl f
 flag is specified, the volume tag is superseded with the specified
 volume tag even if a volume tag is already defined for the element.
@@ -213,12 +220,14 @@ flag is given, with the alternate volume tag.
 .Op Fl vVsSbIa
 .Op Ar <type>
 .Xc
-Report the status of all elements in the changer.  If
+Report the status of all elements in the changer.
+If
 .Ar <type>
 is specified, report the status of all elements of type
 .Ar <type> .
 .It Fl v
-Print the primary volume tag for each loaded medium, if any.  The volume
+Print the primary volume tag for each loaded medium, if any.
+The volume
 tag is printed as
 .Dq <LABEL:SERIAL> .
 .It Fl V
@@ -229,11 +238,14 @@ each element.
 .It Fl S
 Print the element source address for each element.
 .It Fl b
-Print SCSI bus information for each element.  Note that this information
+Print SCSI bus information for each element.
+Note that this information
 is valid only for drives.
 .It Fl I
-Print the internal element addresses for each element.  The internal
-element address is not normally used with this driver.  It is reported
+Print the internal element addresses for each element.
+The internal
+element address is not normally used with this driver.
+It is reported
 for diagnostic purposes only.
 .It Fl a
 Print all additional information (as in

@@ -66,13 +66,15 @@ and
 may be given.
 .Pp
 If any of the following sequences of characters is encountered during
-output, the sequence is not output.  Instead, the specified action is
+output, the sequence is not output.
+Instead, the specified action is
 performed:
 .Bl -tag -width indent
 .It Li \eb
 A backspace character is output.
 .It Li \ec
-Subsequent output is suppressed.  This is normally used at the end of the
+Subsequent output is suppressed.
+This is normally used at the end of the
 last argument to suppress the trailing newline that
 .Nm
 would otherwise output.
