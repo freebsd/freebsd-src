@@ -246,7 +246,8 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		}
 	}
 
-	aac_alloc_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	/* Skip aac_alloc_sync_fib().  We don't want to mess with sleep locks */
+	fib = &sc->aac_common->ac_sync_fib;
 	bw = (struct aac_blockwrite *)&fib->data[0];
 
 	while (length > 0) {

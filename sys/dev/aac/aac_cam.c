@@ -523,7 +523,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 		return (CAM_REQ_ABORTED);
 	}
 
-	aac_alloc_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib);
 
 	vmi = (struct aac_vmioctl *)&fib->data[0];
 	bzero(vmi, sizeof(struct aac_vmioctl));
@@ -570,7 +570,7 @@ aac_cam_get_tran_settings(struct aac_softc *sc, struct ccb_trans_settings *cts, 
 	struct aac_vmi_devinfo_resp *vmi_resp;
 	int error;
 
-	aac_alloc_sync_fib(sc, &fib, 0);
+	aac_alloc_sync_fib(sc, &fib);
 	vmi = (struct aac_vmioctl *)&fib->data[0];
 	bzero(vmi, sizeof(struct aac_vmioctl));
 
