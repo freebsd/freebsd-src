@@ -4,6 +4,10 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -35,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.18 1999/03/10 09:26:46 grog Exp grog $
+ * $Id: list.c,v 1.19 1999/07/03 04:00:05 grog Exp grog $
  */
 
 #include <ctype.h>
@@ -190,7 +194,7 @@ vinum_ldi(int driveno, int recurse)
 	    else
 		printf(" (%d%%)\n",
 		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
-			/ (drive.label.drive_size - DATASTART)));
+			/ (drive.label.drive_size - (DATASTART * DEV_BSIZE))));
 	}
 	if (sflag) {
 	    if (verbose || Verbose) {
@@ -437,12 +441,19 @@ vinum_lpi(int plexno, int recurse)
 			(int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
 			plex.multistripe,
 			(int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
+		if (plex.recovered_reads)
+		    printf("\t\tRecovered reads:%16qd\n", plex.recovered_reads);
+		if (plex.degraded_writes)
+		    printf("\t\tDegraded writes:%16qd\n", plex.degraded_writes);
+		if (plex.parityless_writes)
+		    printf("\t\tParityless writes:%14qd\n", plex.parityless_writes);
 	    } else {
 		printf("%-15s\t%7qd\t%15qd\t", plex.name, plex.reads, plex.bytes_read);
 		if (plex.reads != 0)
-		    printf("%7qd\t\t", plex.bytes_read / plex.reads);
+		    printf("%7qd\t", plex.bytes_read / plex.reads);
 		else
-		    printf("\t\t");
+		    printf("\t");
+		printf("%7qd\t", plex.recovered_reads);
 		printf("%7qd\t%15qd\t", plex.writes, plex.bytes_written);
 		if (plex.writes != 0)
 		    printf("%7qd\t", plex.bytes_written / plex.writes);
@@ -543,10 +554,14 @@ vinum_lsi(int sdno, int recurse)
 		    sd.driveoffset * DEV_BSIZE,
 		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
 	} else if (!sflag) {				    /* brief listing, no stats */
-	    printf("S %-21s State: %s\tPO: %s ",
+	    printf("S %-21s State: %s\t",
 		sd.name,
-		sd_state(sd.state),
-		&(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]); /* what a kludge! */
+		sd_state(sd.state));
+	    if (sd.plexno == -1)
+		printf("(detached)\t");
+	    else
+		printf("PO: %s ",
+		    &(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]);	/* what a kludge! */
 	    printf("Size: %s\n",
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	}
@@ -710,31 +725,34 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s 1VS %s %p\t0x%x\t0x%-9x\t%ld\n",
+		printf("%s 1VS %s %p\t%d.%d\t0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s 2LR %s %p\t0x%x\t0x%-9x\t%ld\n",
+		printf("%s 2LR %s %p\t%d.%d\t0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_rqe:				    /* user RQE */
-		printf("%s 3RQ %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 3RQ %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -744,11 +762,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_iodone:			    /* iodone called */
-		printf("%s 4DN %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 4DN %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -758,11 +777,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_data:			    /* RAID-5 write data block */
-		printf("%s 5RD %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 5RD %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -772,11 +792,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
-		printf("%s 6RP %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 6RP %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -884,7 +905,8 @@ printconfig(FILE * of, char *comment)
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
-	    }
+	    } else
+		fprintf(of, "detached ");
 	    fprintf(of, "\n");
 	}
     }
@@ -894,16 +916,84 @@ printconfig(FILE * of, char *comment)
 	get_sd_info(&sd, i);
 	if (sd.state != sd_unallocated) {
 	    get_drive_info(&drive, sd.driveno);
-	    get_plex_info(&plex, sd.plexno);
-	    fprintf(of,
-		"%ssd name %s drive %s plex %s len %qds driveoffset %qds plexoffset %qds\n",
-		comment,
-		sd.name,
-		drive.label.name,
-		plex.name,
-		sd.sectors,
-		sd.driveoffset,
-		sd.plexoffset);
+	    if (sd.plexno >= 0) {
+		get_plex_info(&plex, sd.plexno);
+		fprintf(of,
+		    "%ssd name %s drive %s plex %s len %qds driveoffset %qds plexoffset %qds\n",
+		    comment,
+		    sd.name,
+		    drive.label.name,
+		    plex.name,
+		    sd.sectors,
+		    sd.driveoffset,
+		    sd.plexoffset);
+	    } else
+		fprintf(of,
+		    "%ssd name %s drive %s detached len %qds driveoffset %qds\n",
+		    comment,
+		    sd.name,
+		    drive.label.name,
+		    sd.sectors,
+		    sd.driveoffset);
+	}
+    }
+}
+
+void 
+list_defective_objects()
+{
+    int o;						    /* object */
+    int heading_needed = 1;
+
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    for (o = 0; o < vinum_conf.drives_allocated; o++) {
+	get_drive_info(&drive, o);
+	if ((drive.state != drive_unallocated)		    /* drive exists */
+	&&(drive.state != drive_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_ldi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.volumes_allocated; o++) {
+	get_volume_info(&vol, o);
+	if ((vol.state != volume_unallocated)		    /* volume exists */
+	&&(vol.state != volume_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lvi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.plexes_allocated; o++) {
+	get_plex_info(&plex, o);
+	if ((plex.state != plex_unallocated)		    /* plex exists */
+	&&(plex.state != plex_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lpi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.subdisks_allocated; o++) {
+	get_sd_info(&sd, o);
+	if ((sd.state != sd_unallocated)		    /* sd exists */
+	&&(sd.state != sd_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lsi(o, 0);				    /* print info */
 	}
     }
 }
