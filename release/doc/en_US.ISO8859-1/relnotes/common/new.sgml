@@ -232,6 +232,11 @@
     <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
     of bugs compared to its prior behavior.</para>
 
+    <para>&man.ipfw.8; will now avoid the display of dynamic
+    firewall rules unless the <option>-d</option> flag is passed to
+    it.  The <option>-e</option> option lists expired dynamic
+    rules.</para>
+
     <para><filename>libstand</filename> now has support for
     filesystems containing <application>bzip2</application>-compressed
     files.</para>
