@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 1.5.2.1 2001/01/10 03:23:42 ezk Exp $
+ * $Id: mk-amd-map.c,v 1.5.2.5 2003/06/09 16:57:46 ezk Exp $
  * $FreeBSD$
  */
 
@@ -287,7 +287,22 @@ main(int argc, char *argv[])
       exit(1);
     }
 
+#ifdef HAVE_MKSTEMP
+    {
+      /*
+       * XXX: hack to avoid compiler complaints about mktemp not being
+       * secure, since we have to do a dbm_open on this anyway.  So use
+       * mkstemp if you can, and then close the fd, but we get a safe
+       * and unique file name.
+       */
+      int dummyfd;
+      dummyfd = mkstemp(maptmp);
+      if (dummyfd >= 0)
+	close(dummyfd);
+    }
+#else /* not HAVE_MKSTEMP */
     mktemp(maptmp);
+#endif /* not HAVE_MKSTEMP */
 
     /* remove existing temps (if any) */
 #ifdef HAVE_DB_SUFFIX
@@ -307,7 +322,7 @@ main(int argc, char *argv[])
     }
 #endif /* not HAVE_DB_SUFFIX */
 
-    db = dbm_open(maptmp, O_RDWR|O_CREAT, 0444);
+    db = dbm_open(maptmp, O_RDWR|O_CREAT|O_EXCL, 0444);
     if (!db) {
       fprintf(stderr, "cannot initialize temporary database: %s", maptmp);
       exit(1);

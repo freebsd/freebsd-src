@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +39,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.4 1999/02/04 07:24:44 ezk Exp $
+ * $Id: fsinfo.c,v 1.5.2.5 2003/07/18 04:50:20 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -185,9 +186,9 @@ Usage: %s [-v] [-a autodir] [-h hostname] [-b bootparams] [-d dumpsets]\n\
   }
 
   if (g_argv[0])
-    log("g_argv[0] = %s", g_argv[0]);
+    fsi_log("g_argv[0] = %s", g_argv[0]);
   else
-    log("g_argv[0] = (nil)");
+    fsi_log("g_argv[0] = (nil)");
 }
 
 
