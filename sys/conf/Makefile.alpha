@@ -45,12 +45,12 @@ SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 
 %CLEAN
 
-.include "$S/conf/kern.post.mk"
-
 SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
 SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o
 CLEAN+=	__divqu.S __divq.S __divlu.S __divl.S
 CLEAN+=	__remqu.S __remq.S __remlu.S __reml.S
+
+.include "$S/conf/kern.post.mk"
 
 __divqu.S: $S/$M/$M/divrem.m4
 	@echo 'building ${.TARGET} from ${.ALLSRC}'
