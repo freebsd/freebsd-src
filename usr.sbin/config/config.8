@@ -159,6 +159,13 @@ the problems in the configuration file should be corrected and
 should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
+.Pp
+If the option "INCLUDE_CONFIG_FILE" is used in the configuration file the 
+entire input file is embedded in the new kernel.  This means that
+.Xr strings 1
+can be used to extract it from a kernel. 
+.Pp
+strings | grep ___ will print just the configure information.
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
 .It Pa /sys/conf/files
