@@ -87,6 +87,5 @@
 #define	__FLT_DIG	6
 #define	__FLT_MAX	3.40282347E+38F
 #define	__FLT_MIN	1.17549435E-38F
-#endif
 
 #endif /* !_MACHINE__LIMITS_H_ */
