@@ -333,12 +333,12 @@ kmem_malloc(map, size, flags)
 				printf("Out of mbuf address space!\n");
 				printf("Consider increasing NMBCLUSTERS\n");
 			}
-			goto bad;
+			return (0);
 		}
 		if ((flags & M_NOWAIT) == 0)
 			panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
 				(long)size, (long)map->size);
-		goto bad;
+		return (0);
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
@@ -399,7 +399,7 @@ retry:
 			vm_object_unlock(kmem_object);
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
-			goto bad;
+			return (0);
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
@@ -445,9 +445,6 @@ retry:
 	vm_map_unlock(map);
 
 	return (addr);
-
-bad:	
-	return (0);
 }
 
 /*
