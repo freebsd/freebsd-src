@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.179 1999/02/13 05:30:49 jkh Exp $
+#	$Id: rc,v 1.180 1999/03/11 16:17:24 jfitz Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -172,6 +172,7 @@ echo .
 
 # Whack the pty perms back into shape.
 chmod 666 /dev/tty[pqrsPQRS]*
+chown root:tty /dev/tty/[pqrsPQRS]*
 
 # clean up left-over files
 clean_var			# If it hasn't already been done
