@@ -87,17 +87,12 @@ o WWW Resources:
 Our WEB site, http://www.freebsd.org, is also a very good source for
 updated information and provides a number of advanced documentation
 searching facilities.  If you wish to use Netscape as your browser,
-you may install the BSDI version from ftp://ftp.mcom.com or simply
-type:
-
-        # cd /usr/ports/www/netscape3
-        # make all install
-
-If you have the Ports collection installed on your machine.
-
+several versions may be found in the ports collection under
+/usr/ports/www if you've installed the ports collection on your
+machine (always a good idea).
 
 Several other non-commercial browsers are also available in
-/usr/ports/net and may be compiled and installed in the same fashion.
+/usr/ports/www and may be compiled and installed in the same fashion.
 Many are also available as pre-compiled packages - see the Packages
 entry in the Configuration menu for more details.
 
@@ -193,7 +188,7 @@ by running the /stand/sysinstall utility with the argument ``configPackages''
 or by feeding the individual filenames to the pkg_add(1) command.
 
 The ports collection may be installed like any other distribution
-and requires about 15MB unpacked.  More information on the ports collection
+and requires about 30MB unpacked.  More information on the ports collection
 may be obtained from http://www.freebsd.org/ports or locally from
 file:/usr/share/doc/handbook if you've installed the doc distribution.
 
