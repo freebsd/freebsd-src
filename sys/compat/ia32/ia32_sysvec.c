@@ -136,7 +136,7 @@ static Elf32_Brandinfo ia32_brand_info = {
 						NULL,
 						"/libexec/ld-elf.so.1",
 						&ia32_freebsd_sysvec,
-						"/libexec/ld-elf-32.so.1",
+						"/libexec/ld-elf32.so.1",
 					  };
 
 SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -150,7 +150,7 @@ static Elf32_Brandinfo ia32_brand_oinfo = {
 						NULL,
 						"/usr/libexec/ld-elf.so.1",
 						&ia32_freebsd_sysvec,
-						"/usr/libexec/ld-elf-32.so.1",
+						"/usr/libexec/ld-elf32.so.1",
 					  };
 
 SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
