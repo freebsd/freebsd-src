@@ -491,10 +491,6 @@ ufs_print(vp)
 		*flags++ = 'M';
 	if (flag & IN_RENAME)
 		*flags++ = 'R';
-	if (flag & IN_SHLOCK)
-		*flags++ = 'S';
-	if (flag & IN_EXLOCK)
-		*flags++ = 'E';
 	if (flag & IN_HASHED)
 		*flags++ = 'H';
 	if (flag & IN_LAZYMOD)
@@ -940,12 +936,6 @@ filemode()
 			*fbp++ = 'W';
 		if (fp->f_flag & FAPPEND)
 			*fbp++ = 'A';
-#ifdef FSHLOCK	/* currently gone */
-		if (fp->f_flag & FSHLOCK)
-			*fbp++ = 'S';
-		if (fp->f_flag & FEXLOCK)
-			*fbp++ = 'X';
-#endif
 		if (fp->f_flag & FASYNC)
 			*fbp++ = 'I';
 		*fbp = '\0';
