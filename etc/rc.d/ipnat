@@ -33,7 +33,7 @@ ipnat_precmd()
 {
 	case ${OSTYPE} in
 	NetBSD)
-		if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then	
+		if ! checkyesno ipfilter || [ ! -f /etc/ipf.conf ]; then
 			echo "Enabling ipfilter for NAT."
 			/sbin/ipf -E -Fa
 		fi
