@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.12 1995/04/15 22:46:28 bde Exp $
+ * $Id: disklabel.h,v 1.13 1995/04/30 23:48:27 julian Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -66,7 +66,7 @@
 #endif
 
 #ifndef readMSPtolabel
-#define readMSPtolabel(a,b,c,d,e,)		/* zap calls if irrelevant */
+#define readMSPtolabel(a,b,c,d,e)		/* zap calls if irrelevant */
 #endif
 
 #ifdef	tahoe
