@@ -34,7 +34,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 13, 2004
+.Dd January 26, 2005
 .Dt NL 1
 .Os
 .Sh NAME
@@ -247,3 +247,7 @@ The
 .Nm
 utility first appeared in
 .At V.2 .
+.Sh BUGS
+Input lines are limited to
+.Dv LINE_MAX
+(2048) bytes in length.
