@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.105 1998/09/14 19:56:38 sos Exp $
+ *	$Id: autoconf.c,v 1.106 1998/09/15 10:03:42 gibbs Exp $
  */
 
 /*
@@ -101,6 +101,16 @@
 
 #include <sys/bus.h>
 
+#if defined( FFS_ROOT ) && !defined( FFS )
+#error ``options FFS_ROOT'' requires ``options FFS''
+#endif
+#if defined( NFS_ROOT ) && !defined( NFS )
+#error ``options NFS_ROOT'' requires ``options NFS''
+#endif
+#if defined( CD9660_ROOT ) && !defined( CD9660 )
+#error ``options CD9660_ROOT'' requires ``options CD9660''
+#endif
+
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
@@ -109,7 +119,7 @@ static void	configure_start __P((void));
 static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
 
-#ifdef CD9660
+#if defined(CD9660_ROOT)
 
 #include <sys/fcntl.h>
 #include <sys/proc.h>
@@ -169,7 +179,7 @@ find_cdrom_root()
 	rootdev = orootdev;
 	return EINVAL;
 }
-#endif /* CD9660 */
+#endif /* CD9660_ROOT */
 
 extern void xpt_init __P((void));
 
@@ -310,7 +320,7 @@ cpu_rootconf()
 	 * XXX NetBSD has a much cleaner approach to finding root.
 	 * XXX We should adopt their code.
 	 */
-#if defined(CD9660) || defined(CD9660_ROOT)
+#if defined(CD9660_ROOT)
 	if ((boothowto & RB_CDROM)) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
@@ -347,7 +357,7 @@ cpu_rootconf()
 		mountrootfsname = "nfs";
 	}
 #endif /* BOOTP_NFSROOT */
-#if defined(NFS) || defined(NFS_ROOT)
+#if defined(NFS_ROOT)
 	if (!mountrootfsname && nfs_diskless_valid) {
 		if (bootverbose)
 			printf("Considering NFS root f/s.\n");
@@ -355,7 +365,7 @@ cpu_rootconf()
 	}
 #endif /* NFS */
 
-#if defined(FFS) || defined(FFS_ROOT)
+#if defined(FFS_ROOT)
 	if (!mountrootfsname) {
 		mountrootfsname = "ufs";
 		if (bootverbose)
