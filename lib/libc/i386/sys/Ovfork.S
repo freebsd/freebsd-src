@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: Ovfork.S,v 1.6 1997/02/22 14:59:28 peter Exp $
+ *	$Id: Ovfork.S,v 1.7 1998/05/05 22:07:02 jb Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: Ovfork.S,v 1.6 1997/02/22 14:59:28 peter Exp $"
+	.asciz "$Id: Ovfork.S,v 1.7 1998/05/05 22:07:02 jb Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -52,7 +52,11 @@
  *
  */
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_vfork)
+#else
 ENTRY(vfork)
+#endif
 	popl	%ecx		/* my rta into ecx */
 	lea	SYS_vfork,%eax
 	KERNCALL

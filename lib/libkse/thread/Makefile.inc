@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.13 1998/06/01 02:14:34 jb Exp $
+#	$Id: Makefile.inc,v 1.14 1998/09/07 19:01:43 alex Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
@@ -91,6 +91,7 @@ SRCS+= \
 	uthread_spec.c \
 	uthread_spinlock.c \
 	uthread_suspend_np.c \
+	uthread_vfork.c \
 	uthread_wait4.c \
 	uthread_write.c \
 	uthread_writev.c \
