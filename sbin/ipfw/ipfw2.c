@@ -2414,7 +2414,7 @@ end_mask:
 			break;
 
 		default:
-			errx(EX_DATAERR, "unrecognised option ``%s''", *av);
+			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
 		}
 	}
 	if (do_pipe == 1) {
