@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.6 1997/04/15 17:37:23 jkh Exp $
+#	$Id: GENERIC,v 1.77.2.7 1997/04/15 18:05:59 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -101,7 +101,7 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 #options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
 # Mandatory, don't remove
-device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr flags 0x1
+device		npx0	at isa? port "IO_NPX" flags 0x1 irq 13 vector npxintr
 
 #
 # Laptop support (see LINT for more options)
