@@ -22,7 +22,12 @@ GNU General Public License for more details.
 #include "diff.h"
 #include <signal.h>
 #include "getopt.h"
-#include "fnmatch.h"
+
+#ifdef HAVE_FNMATCH
+# include <fnmatch.h> /* This is supposed to be available on Posix systems */
+#else /* HAVE_FNMATCH */
+# include "fnmatch.h" /* Our substitute */
+#endif /* HAVE_FNMATCH */
 
 #ifndef DEFAULT_WIDTH
 #define DEFAULT_WIDTH 130

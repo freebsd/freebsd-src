@@ -8,7 +8,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.  */
 
-AC_DEFUN(ACX_WITH_GSSAPI,[
+AC_DEFUN([ACX_WITH_GSSAPI],[
 #
 # Use --with-gssapi[=DIR] to enable GSSAPI support.
 #
@@ -16,9 +16,12 @@ AC_DEFUN(ACX_WITH_GSSAPI,[
 #
 # Search for /SUNHEA/ and read the comments about this default below.
 #
-AC_ARG_WITH([gssapi],
-	    [  --with-gssapi=value     GSSAPI directory],
-	    [acx_gssapi_withgssapi=$withval], [acx_gssapi_withgssapi=yes])dnl
+AC_ARG_WITH(
+  [gssapi],
+  AC_HELP_STRING(
+    [--with-gssapi],
+    [GSSAPI directory (default autoselects)]), ,
+  [with_gssapi=yes])dnl
 
 dnl
 dnl FIXME - cache withval and obliterate later cache values when options change
@@ -34,7 +37,7 @@ if test -n "$acx_gssapi_cv_gssapi"; then
   AC_MSG_CHECKING([for GSSAPI])
 else :; fi
 AC_CACHE_VAL([acx_gssapi_cv_gssapi], [
-if test x$acx_gssapi_withgssapi = xyes; then
+if test x$with_gssapi = xyes; then
   # --with but no location specified
   # assume a gssapi.h or gssapi/gssapi.h locates our install.
   #
@@ -53,10 +56,12 @@ if test x$acx_gssapi_withgssapi = xyes; then
       break
     fi
     if test x$acx_gssapi_cv_gssapi = xyes; then
-      AC_CHECKING([for GSSAPI])
+      AC_MSG_CHECKING([for GSSAPI])
+      AC_MSG_RESULT([])
     else
       CPPFLAGS="$acx_gssapi_save_CPPFLAGS -I$acx_gssapi_cv_gssapi/include"
-      AC_CHECKING([for GSSAPI in $acx_gssapi_cv_gssapi])
+      AC_MSG_CHECKING([for GSSAPI in $acx_gssapi_cv_gssapi])
+      AC_MSG_RESULT([])
     fi
     unset ac_cv_header_gssapi_h
     unset ac_cv_header_gssapi_gssapi_h
@@ -70,7 +75,7 @@ if test x$acx_gssapi_withgssapi = xyes; then
   done
   CPPFLAGS=$acx_gssapi_save_CPPFLAGS
 else
-  acx_gssapi_cv_gssapi=$acx_gssapi_withgssapi
+  acx_gssapi_cv_gssapi=$with_gssapi
 fi
 AC_MSG_CHECKING([for GSSAPI])
 ])dnl
@@ -93,7 +98,8 @@ fi
 #
 if test x$acx_gssapi_cv_gssapi != xno; then
   # define HAVE_GSSAPI and set up the includes
-  AC_DEFINE([HAVE_GSSAPI],, [Define if you have GSSAPI with Kerberos version 5 available.])
+  AC_DEFINE([HAVE_GSSAPI], ,
+[Define if you have GSSAPI with Kerberos version 5 available.])
   includeopt=$includeopt$GSSAPI_INCLUDES
 
   # locate any other headers
@@ -103,37 +109,61 @@ if test x$acx_gssapi_cv_gssapi != xno; then
   dnl easier to spot errors by reading configure output
   AC_CHECK_HEADERS([gssapi.h gssapi/gssapi.h gssapi/gssapi_generic.h krb5.h])
   # And look through them for GSS_C_NT_HOSTBASED_SERVICE or its alternatives
-  AC_CACHE_CHECK([for GSS_C_NT_HOSTBASED_SERVICE], [acx_gssapi_cv_gss_c_nt_hostbased_service],
-   [acx_gssapi_cv_gss_c_nt_hostbased_service=no
+  AC_CACHE_CHECK(
+    [for GSS_C_NT_HOSTBASED_SERVICE],
+    [acx_gssapi_cv_gss_c_nt_hostbased_service],
+  [
+    acx_gssapi_cv_gss_c_nt_hostbased_service=no
     if test "$ac_cv_header_gssapi_h" = "yes"; then
-      AC_EGREP_HEADER([GSS_C_NT_HOSTBASED_SERVICE], [gssapi.h],
-		      [acx_gssapi_cv_gss_c_nt_hostbased_service=yes],
-		      AC_EGREP_HEADER([gss_nt_service_name], [gssapi.h],
-				      [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name]))
+      AC_EGREP_HEADER(
+	[GSS_C_NT_HOSTBASED_SERVICE], [gssapi.h],
+	[acx_gssapi_cv_gss_c_nt_hostbased_service=yes],
+      [
+	AC_EGREP_HEADER(
+	  [gss_nt_service_name], [gssapi.h],
+	  [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name])
+      ])
     fi
     if test $acx_gssapi_cv_gss_c_nt_hostbased_service = no &&
-        test "$ac_cv_header_gssapi_gssapi_h" = "yes"; then
-      AC_EGREP_HEADER([GSS_C_NT_HOSTBASED_SERVICE], [gssapi/gssapi.h],
-		      [acx_gssapi_cv_gss_c_nt_hostbased_service],
-		      AC_EGREP_HEADER([gss_nt_service_name], [gssapi/gssapi.h],
-				      [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name]))
-    fi
+       test "$ac_cv_header_gssapi_gssapi_h" = "yes"; then
+      AC_EGREP_HEADER(
+	[GSS_C_NT_HOSTBASED_SERVICE], [gssapi/gssapi.h],
+	[acx_gssapi_cv_gss_c_nt_hostbased_service=yes],
+      [
+	AC_EGREP_HEADER([gss_nt_service_name], [gssapi/gssapi.h],
+	  [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name])
+      ])
+    else :; fi
     if test $acx_gssapi_cv_gss_c_nt_hostbased_service = no &&
-        test "$ac_cv_header_gssapi_gssapi_generic_h" = "yes"; then
-      AC_EGREP_HEADER([GSS_C_NT_HOSTBASED_SERVICE], [gssapi/gssapi_generic.h],
-		      [acx_gssapi_cv_gss_c_nt_hostbased_service],
-		      AC_EGREP_HEADER([gss_nt_service_name], [gssapi/gssapi_generic.h],
-				      [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name]))
-    fi])
+       test "$ac_cv_header_gssapi_gssapi_generic_h" = "yes"; then
+      AC_EGREP_HEADER(
+	[GSS_C_NT_HOSTBASED_SERVICE], [gssapi/gssapi_generic.h],
+	[acx_gssapi_cv_gss_c_nt_hostbased_service=yes],
+      [
+	AC_EGREP_HEADER(
+	  [gss_nt_service_name], [gssapi/gssapi_generic.h],
+	  [acx_gssapi_cv_gss_c_nt_hostbased_service=gss_nt_service_name])
+      ])
+    else :; fi
+  ])
   if test $acx_gssapi_cv_gss_c_nt_hostbased_service != yes &&
-      test $acx_gssapi_cv_gss_c_nt_hostbased_service != no; then
+     test $acx_gssapi_cv_gss_c_nt_hostbased_service != no; then
     # don't define for yes since that means it already means something and
     # don't define for no since we'd rather the compiler catch the error
-    AC_DEFINE_UNQUOTED([GSS_C_NT_HOSTBASED_SERVICE], [$acx_gssapi_cv_gss_c_nt_hostbased_service],
+    # It's debatable whether we'd prefer that the compiler catch the error
+    #  - it seems our estranged developer is more likely to be familiar with
+    #	 the intricacies of the compiler than with those of autoconf, but by
+    #	 the same token, maybe we'd rather alert them to the fact that most
+    #	 of the support they need to fix the problem is installed if they can
+    #	 simply locate the appropriate symbol.
+    AC_DEFINE_UNQUOTED(
+      [GSS_C_NT_HOSTBASED_SERVICE],
+      [$acx_gssapi_cv_gss_c_nt_hostbased_service],
 [Define to an alternative value if GSS_C_NT_HOSTBASED_SERVICE isn't defined
 in the gssapi.h header file.  MIT Kerberos 1.2.1 requires this.  Only relevant
 when using GSSAPI.])
-  fi
+  else :; fi
+
   CPPFLAGS=$acx_gssapi_save_CPPFLAGS
 
   # Expect the libs to be installed parallel to the headers

@@ -18,6 +18,6 @@ int
                          int limit));
 int
   getstr __PROTO ((char **_lineptr, size_t *_n, FILE *_stream,
-		   char _terminator, int _offset, int limit));
+		   int _terminator, int _offset, int limit));
 
 #endif /* _getline_h_ */

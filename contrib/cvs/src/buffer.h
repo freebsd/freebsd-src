@@ -112,6 +112,7 @@ extern void buf_free PROTO((struct buffer *));
 extern struct buffer *buf_nonio_initialize PROTO((void (*) (struct buffer *)));
 extern struct buffer *stdio_buffer_initialize
   PROTO((FILE *, int, int, void (*) (struct buffer *)));
+extern FILE *stdio_buffer_get_file PROTO((struct buffer *));
 extern struct buffer *compress_buffer_initialize
   PROTO((struct buffer *, int, int, void (*) (struct buffer *)));
 extern struct buffer *packetizing_buffer_initialize
