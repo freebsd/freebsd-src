@@ -44,12 +44,11 @@ These are <chain-actions>:
 
 This is <chain-entry pattern> structure:
  For forwarding/blocking chains:
-  vr[eject] <proto/addr pattern>    reject packet,send ICMP unreachable and log.
+  lr[eject] <proto/addr pattern>    reject packet,send ICMP unreachable and log.
   r[eject]  <proto/addr pattern>    reject packet,send ICMP unreachable.
-  vd[eny]   <proto/addr pattern>    reject packet,log it.
+  ld[eny]   <proto/addr pattern>    reject packet,log it.
   d[eny]    <proto/addr pattern>    reject packet.
   l[og]     <proto/addr pattern>    allow packet,log it.
-  va[ccept] <proto/addr pattern>    allow packet,log it.
   a[ccept]  <proto/addr pattern>    allow packet.
  For accounting chain:
   s[ingle]        <proto/addr pattern>   log packets matching entry.
