@@ -39,14 +39,17 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 
-char p_stat[]="?iRSTZ";
+char p_stat[]="?iRSTZWM";
 
 int
 main(int argc, char *argv[])
 {
-	int mib[3],i=0,num,len;
-	struct kinfo_proc kp,*t,*u;
-	char buf[20],vty[5],pst[5];
+	int mib[4],i=0, num, len, j, plen;
+	int sz = sizeof(struct proc) + sizeof(struct eproc);
+	struct proc *p;
+	struct eproc *ep;
+	char buf[MAXPATHLEN],vty[5],pst[5], wmesg[10];
+	char *t;
 	int ma,mi;
 
 	mib[0]=CTL_KERN;
@@ -56,18 +59,38 @@ main(int argc, char *argv[])
 		perror("sysctl sizing");
 		exit(1);
 	}
-	t=(struct kinfo_proc *)malloc(len);
+	t=(char *)malloc(len);
 	if(sysctl(mib,3,t,&len,NULL,0)) {
 		perror("sysctl info");
 		exit(1);
 	}
-	num=len / sizeof(struct kinfo_proc);
+	mib[2]=KERN_PROC_ARGS;
+	num = len / sz;
 	i=0;
-	printf("USERNAME  PID PPID PRI NICE TTY STAT WCHAN   COMMAND\n");
-	while(i<num) {
-		u=(t+num-i-1);
-		ma=major(u->kp_eproc.e_tdev);
-		mi=minor(u->kp_eproc.e_tdev);
+	printf("USERNAME   PID  PPID PRI NICE TTY STAT WCHAN   COMMAND\n");
+	while(i < num) {
+		p=(struct proc *)(t + (num - i - 1) * sz);
+		ep=(struct eproc *)(t + (num - i - 1) * sz + sizeof(struct proc));
+		mib[3]=p->p_pid;
+		plen = MAXPATHLEN;
+		if(sysctl(mib,4,buf,&plen,NULL,0)) {
+			perror("sysctl info");
+			exit(1);
+		}
+		if(plen == 0) {
+			sprintf(buf, "(%s)", p->p_comm);
+		} else {
+			for(j=0; j < plen-1; j++) {
+				if(buf[j] == '\0') buf[j] = ' ';
+			}
+		}
+		if(strcmp(ep->e_wmesg, "") == 0) {
+			sprintf(wmesg, "-");
+		} else {
+			strcpy(wmesg, ep->e_wmesg);
+		}
+		ma=major(ep->e_tdev);
+		mi=minor(ep->e_tdev);
 		switch(ma) {
 		case 255:
 			strcpy(vty,"??");
@@ -85,20 +108,19 @@ main(int argc, char *argv[])
 			sprintf(vty,"p%d",mi);
 			break;
 		}
-		sprintf(pst,"%c",p_stat[u->kp_proc.p_stat]);
-		printf("%8s%5d%5d %3d %4d %3s %-4s %-7s (%s)\n",
-			u->kp_eproc.e_login,
-			u->kp_proc.p_pid,
-			u->kp_eproc.e_ppid,
-			u->kp_proc.p_priority,
-			u->kp_proc.p_nice,
+		sprintf(pst,"%c",p_stat[p->p_stat]);
+		printf("%8s %5u %5u %3d %4d %3s %-4s %-7s %s\n",
+			ep->e_login,
+			p->p_pid,
+			ep->e_ppid,
+			p->p_priority - 22,
+			p->p_nice,
 			vty,
 			pst,
-			u->kp_eproc.e_wmesg,
-			u->kp_proc.p_comm);
+			wmesg,
+			buf);
 		i++;
 	}
-	free(t);
+	free((void *)t);
 	exit(0);
-
 }
