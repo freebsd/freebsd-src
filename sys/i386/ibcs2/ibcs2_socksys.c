@@ -207,5 +207,5 @@ ibcs2_setipdomainname(td, uap)
 	sctl[0] = CTL_KERN;
         sctl[1] = KERN_HOSTNAME;
  	hlen = strlen(hname) + 1;
-        return (kernel_sysctl(td, sctl, 2, 0, 0, hname, hlen, 0));
+        return (kernel_sysctl(td, sctl, 2, 0, 0, hname, hlen, 0, 0));
 }
