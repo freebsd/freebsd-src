@@ -38,7 +38,7 @@ LSUBDIRS=	cam/scsi dev/an dev/ic dev/iicbus dev/ofw dev/ppbus dev/smbus \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/bluetooth/include \
-	security/lomac security/mac_biba security/mac_bsdextended \
+	security/mac_biba security/mac_bsdextended security/mac_lomac\
 	security/mac_mls security/mac_partition ufs/ffs ufs/ufs
 
 # For SHARED=symlinks, cam, netatm, and netgraph are symlinks, so cam/scsi,
