@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.1 1998/09/15 07:03:33 gibbs Exp $
+ *      $Id: advansys.c,v 1.2 1998/09/20 05:04:05 gibbs Exp $
  */
 /*
  * Ported from:
@@ -159,8 +159,6 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 		ccb_h = &ccb->ccb_h;
 		csio = &ccb->csio;
 		cinfo = adv_get_ccb_info(adv);
-		cinfo->state |= ACCB_ACTIVE;
-
 		if (cinfo == NULL)
 			panic("XXX Handle CCB info error!!!");
 
@@ -479,25 +477,6 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 		scsiq.q2.tag_code = 0;
 	scsiq.q2.vm_id = 0;
 
-	s = splcam();
-
-	/*
-	 * Last time we need to check if this SCB needs to
-	 * be aborted.
-	 */             
-	if (ccb_h->status != CAM_REQ_INPROG) {
-		if (nsegments != 0) {
-			bus_dmamap_unload(adv->buffer_dmat, cinfo->dmamap);
-		}
-		if ((cinfo->state & ACCB_RELEASE_SIMQ) != 0) {
-			ccb_h->status |= CAM_RELEASE_SIMQ;
-		}
-		adv_free_ccb_info(adv, cinfo);
-		xpt_done((union ccb *)csio);
-		splx(s);
-		return;
-	}
-
 	if (nsegments != 0) {
 		bus_dmasync_op_t op;
 
@@ -525,6 +504,25 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 		scsiq.sg_head = NULL;
 	}
 
+	s = splcam();
+
+	/*
+	 * Last time we need to check if this SCB needs to
+	 * be aborted.
+	 */             
+	if (ccb_h->status != CAM_REQ_INPROG) {
+		if (nsegments != 0) {
+			bus_dmamap_unload(adv->buffer_dmat, cinfo->dmamap);
+		}
+		if ((cinfo->state & ACCB_RELEASE_SIMQ) != 0) {
+			ccb_h->status |= CAM_RELEASE_SIMQ;
+		}
+		adv_free_ccb_info(adv, cinfo);
+		xpt_done((union ccb *)csio);
+		splx(s);
+		return;
+	}
+
 	if (adv_execute_scsi_queue(adv, &scsiq, csio->dxfer_len) != 0) {
 		/* Temporary resource shortage */
 		if (nsegments != 0) {
@@ -542,6 +540,7 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 		splx(s);
 		return;
 	}
+	cinfo->state |= ACCB_ACTIVE;
 	ccb_h->status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&adv->pending_ccbs, ccb_h, sim_links.le);
 	/* Schedule our timeout */
@@ -1021,8 +1020,7 @@ adv_run_doneq(struct adv_softc *adv)
 			 scsiq.d3.scsi_stat, scsiq.q_no);
 
 		doneq_head = done_qno;
-		done_qno = adv_read_lram_8(adv, done_qaddr					   
-					   + ADV_SCSIQ_B_FWD);
+		done_qno = adv_read_lram_8(adv, done_qaddr + ADV_SCSIQ_B_FWD);
 	}
 	adv_write_lram_16(adv, ADVV_DONE_Q_TAIL_W, doneq_head);
 }
