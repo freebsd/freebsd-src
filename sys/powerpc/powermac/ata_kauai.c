@@ -54,7 +54,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #define  ATA_KAUAI_REGOFFSET	0x2000
-#define  ATA_KAUAI_ALTOFFSET    (ATA_KAUAI_REGOFFSET + 0x16)
+
+/*
+ * Offset to alt-control register from base
+ */
+#define  ATA_KAUAI_ALTOFFSET    (ATA_KAUAI_REGOFFSET + 0x160)
+
+/*
+ * Define the gap between registers
+ */
+#define ATA_KAUAI_REGGAP        16
 
 /*
  * Define the kauai pci bus attachment.
@@ -161,7 +170,7 @@ ata_kauai_probe(device_t dev)
 
 	ch = device_get_softc(dev);
 
-        rid = 0;
+        rid = PCIR_BARS;
         mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~1, 1,
             RF_ACTIVE);
         if (mem == NULL) {
@@ -174,7 +183,7 @@ ata_kauai_probe(device_t dev)
 	 */
         for (i = ATA_DATA; i <= ATA_STATUS; i++) {
                 ch->r_io[i].res = mem;
-                ch->r_io[i].offset = i + ATA_KAUAI_REGOFFSET;
+                ch->r_io[i].offset = i*ATA_KAUAI_REGGAP + ATA_KAUAI_REGOFFSET;
         }
         ch->r_io[ATA_ALTSTAT].res = mem;
         ch->r_io[ATA_ALTSTAT].offset = ATA_KAUAI_ALTOFFSET;
