@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/stat.h>
 
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ida/idareg.h>
 #include <dev/ida/idavar.h>
+#include <dev/ida/idaio.h>
 
 /* prototypes */
 static void ida_alloc_qcb(struct ida_softc *ida);
@@ -61,6 +63,12 @@ static void ida_construct_qcb(struct ida_softc *ida);
 static void ida_start(struct ida_softc *ida);
 static void ida_done(struct ida_softc *ida, struct ida_qcb *qcb);
 static int ida_wait(struct ida_softc *ida, struct ida_qcb *qcb);
+
+static d_ioctl_t ida_ioctl;
+static struct cdevsw ida_cdevsw = {
+	.d_ioctl =	ida_ioctl,
+	.d_name =	"ida",
+};
 
 void
 ida_free(struct ida_softc *ida)
@@ -268,6 +276,11 @@ ida_attach(struct ida_softc *ida)
 		}
 	}
 
+	ida->ida_dev_t = make_dev(&ida_cdevsw, ida->unit,
+				 UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR,
+				 "ida%d", ida->unit);
+	ida->ida_dev_t->si_drv1 = ida;
+
 	ida->num_drives = 0;
 	for (i = 0; i < cinfo.num_drvs; i++)
 		device_add_child(ida->dev, /*"idad"*/NULL, -1);
@@ -297,7 +310,7 @@ ida_detach(device_t dev)
 	 * iterate over our "child devices"?
 	 */
 
-
+	destroy_dev(ida->ida_dev_t);
 	ida_free(ida);
 	return (error);
 }
@@ -547,4 +560,108 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 	qcb->buf = NULL;
 	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
 	ida_construct_qcb(ida);
+}
+
+/*
+ * IOCTL stuff follows.
+ */
+struct cmd_info {
+	int	cmd;
+	int	len;
+	int	flags;
+};
+static struct cmd_info *ida_cmd_lookup(int);
+
+static int
+ida_ioctl (dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+{
+	struct ida_softc *sc;
+	struct ida_user_command *uc;
+	struct cmd_info *ci;
+	int len;
+	int flags;
+	int error;
+	int data;
+	void *daddr;
+
+	sc = (struct ida_softc *)dev->si_drv1;
+	uc = (struct ida_user_command *)addr;
+	error = 0;
+
+	switch (cmd) {
+	case IDAIO_COMMAND:
+		ci = ida_cmd_lookup(uc->command);
+		if (ci == NULL) {
+			error = EINVAL;
+			break;
+		}
+		len = ci->len;
+		flags = ci->flags;
+		if (len)
+			daddr = &uc->d.buf;
+		else {
+			daddr = &data;
+			len = sizeof(data);
+		}
+		error = ida_command(sc, uc->command, daddr, len,
+				    uc->drive, uc->blkno, flags);
+		break;
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
+
+static struct cmd_info ci_list[] = {
+	{ CMD_GET_LOG_DRV_INFO,
+			sizeof(struct ida_drive_info), DMA_DATA_IN },
+	{ CMD_GET_CTRL_INFO,
+			sizeof(struct ida_controller_info), DMA_DATA_IN },
+	{ CMD_SENSE_DRV_STATUS,
+			sizeof(struct ida_drive_status), DMA_DATA_IN },
+	{ CMD_START_RECOVERY,		0, 0 },
+	{ CMD_GET_PHYS_DRV_INFO,
+			sizeof(struct ida_phys_drv_info), DMA_DATA_TRANSFER },
+	{ CMD_BLINK_DRV_LEDS,
+			sizeof(struct ida_blink_drv_leds), DMA_DATA_OUT },
+	{ CMD_SENSE_DRV_LEDS,
+			sizeof(struct ida_blink_drv_leds), DMA_DATA_IN },
+	{ CMD_GET_LOG_DRV_EXT,
+			sizeof(struct ida_drive_info_ext), DMA_DATA_IN },
+	{ CMD_RESET_CTRL,		0, 0 },
+	{ CMD_GET_CONFIG,		0, 0 },
+	{ CMD_SET_CONFIG,		0, 0 },
+	{ CMD_LABEL_LOG_DRV,
+			sizeof(struct ida_label_logical), DMA_DATA_OUT },
+	{ CMD_SET_SURFACE_DELAY,	0, 0 },
+	{ CMD_SENSE_BUS_PARAMS,		0, 0 },
+	{ CMD_SENSE_SUBSYS_INFO,	0, 0 },
+	{ CMD_SENSE_SURFACE_ATS,	0, 0 },
+	{ CMD_PASSTHROUGH,		0, 0 },
+	{ CMD_RESET_SCSI_DEV,		0, 0 },
+	{ CMD_PAUSE_BG_ACT,		0, 0 },
+	{ CMD_RESUME_BG_ACT,		0, 0 },
+	{ CMD_START_FIRMWARE,		0, 0 },
+	{ CMD_SENSE_DRV_ERR_LOG,	0, 0 },
+	{ CMD_START_CPM,		0, 0 },
+	{ CMD_SENSE_CP,			0, 0 },
+	{ CMD_STOP_CPM,			0, 0 },
+	{ CMD_FLUSH_CACHE,		0, 0 },
+	{ CMD_ACCEPT_MEDIA_EXCH,	0, 0 },
+	{ 0, 0, 0 }
+};
+
+static struct cmd_info *
+ida_cmd_lookup (int command)
+{
+	struct cmd_info *ci;
+
+	ci = ci_list;
+	while (ci->cmd) {
+		if (ci->cmd == command)
+			return (ci);
+		ci++;
+	}
+	return (NULL);
 }
