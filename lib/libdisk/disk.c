@@ -223,9 +223,9 @@ Int_Open_Disk(const char *name)
 		if (!strcmp(t, "SUN"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
 		else if (!strcmp(t, "MBR") && ty == 165)
-			i = Add_Chunk(d, off, len, n, freebsd, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
 		else if (!strcmp(t, "MBR"))
-			i = Add_Chunk(d, off, len, n, mbr, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
 		else if (!strcmp(t, "BSD"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
 		else if (!strcmp(t, "PC98"))
