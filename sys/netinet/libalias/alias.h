@@ -56,9 +56,6 @@ struct alias_link;
                          struct in_addr addr,
                          u_short port);
 
-    extern int
-    PacketAliasPptp(struct in_addr);
-
     extern struct alias_link *
     PacketAliasRedirectProto(struct in_addr,
                              struct in_addr,
