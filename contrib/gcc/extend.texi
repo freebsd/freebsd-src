@@ -1394,13 +1394,15 @@ for consistency with the @code{printf} style format string argument
 @code{my_format}.
 
 The parameter @var{archetype} determines how the format string is
-interpreted, and should be either @code{printf} or @code{scanf}.  The
-parameter @var{string-index} specifies which argument is the format
-string argument (starting from 1), while @var{first-to-check} is the
-number of the first argument to check against the format string.  For
-functions where the arguments are not available to be checked (such as
-@code{vprintf}), specify the third parameter as zero.  In this case the
-compiler only checks the format string for consistency.
+interpreted, and should be @code{printf}, @code{printf0}, or
+@code{scanf}.  @code{printf0} allows the format string to be a null
+pointer, while @code{printf} does not.  The parameter @var{string-index}
+specifies which argument is the format string argument (starting
+from 1), while @var{first-to-check} is the number of the first
+argument to check against the format string.  For functions where
+the arguments are not available to be checked (such as @code{vprintf}),
+specify the third parameter as zero.  In this case the compiler
+only checks the format string for consistency.
 
 In the example above, the format string (@code{my_format}) is the second
 argument of the function @code{my_print}, and the arguments to check
