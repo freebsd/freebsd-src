@@ -51,6 +51,7 @@ volatile u_int started_cpus;
 void (*cpustop_restartfunc) __P((void));
 int mp_ncpus;
 
+volatile int smp_started;
 u_int all_cpus;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
