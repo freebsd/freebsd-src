@@ -28,25 +28,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: modload.c,v 1.20 1997/08/21 22:33:59 jlemon Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <a.out.h>
+#include <err.h>
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <unistd.h>
 #include <string.h>
-#include <limits.h>
-#include <errno.h>
-
-#include <err.h>
-#include <a.out.h>
+#include <unistd.h>
 
 #include <sys/param.h>
 #include <sys/ioccom.h>
-#include <sys/conf.h>
-#include <sys/mount.h>
 #include <sys/lkm.h>
 #include <sys/file.h>
 #include <sys/wait.h>
@@ -358,7 +358,7 @@ main(argc, argv)
 	}
 
 	/*
-	 * Save ourselves before disaster (potentitally) strikes...
+	 * Save ourselves before disaster (potentially) strikes...
 	 */
 	sync();
 
