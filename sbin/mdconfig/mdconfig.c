@@ -161,6 +161,7 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+	mdio.md_version = MDIOVERSION;
 
 	mdmaybeload();
 	fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
@@ -253,6 +254,7 @@ int
 query(const int fd, const int unit)
 {
 
+	mdio.md_version = MDIOVERSION;
 	mdio.md_unit = unit;
 
 	if (ioctl(fd, MDIOCQUERY, &mdio) < 0)

@@ -831,9 +831,18 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
 			devtoname(dev), cmd, addr, flags, td);
 
+	/*
+	 * We assert the version number in the individual ioctl
+	 * handlers instead of out here because (a) it is possible we
+	 * may add another ioctl in the future which doesn't read an
+	 * mdio, and (b) the correct return value for an unknown ioctl
+	 * is ENOIOCTL, not EINVAL.
+	 */
 	mdio = (struct md_ioctl *)addr;
 	switch (cmd) {
 	case MDIOCATTACH:
+		if (mdio->md_version != MDIOVERSION)
+			return (EINVAL);
 		switch (mdio->md_type) {
 		case MD_MALLOC:
 			return (mdcreate_malloc(mdio));
@@ -847,11 +856,15 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			return (EINVAL);
 		}
 	case MDIOCDETACH:
+		if (mdio->md_version != MDIOVERSION)
+			return (EINVAL);
 		if (mdio->md_file != NULL || mdio->md_size != 0 ||
 		    mdio->md_options != 0)
 			return (EINVAL);
 		return (mddetach(mdio->md_unit, td));
 	case MDIOCQUERY:
+		if (mdio->md_version != MDIOVERSION)
+			return (EINVAL);
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
