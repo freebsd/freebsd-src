@@ -36,6 +36,7 @@
  * Definitions for the Philips SAA7116 digital video to pci interface.
  */
 #define	BROOKTREE_848_ID			0x0350109E
+#define BROOKTREE 849_ID                        0x0351109E
 
 typedef volatile u_int 	bregister_t;
 /*
@@ -304,6 +305,7 @@ struct TVTUNER {
 	u_char		channel;
 	u_char		band;
 	u_char		afc;
+ 	u_char		radio_mode;	/* current mode of the radio mode */
 };
 
 /* description of the PHYSICAL tuner */
