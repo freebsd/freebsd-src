@@ -55,7 +55,7 @@ struct lock {
 	int	lk_waitcount;		/* # of processes sleeping for lock */
 	short	lk_exclusivecount;	/* # of recursive exclusive locks */
 	short	lk_prio;		/* priority at which to sleep */
-	char	*lk_wmesg;		/* resource sleeping (for tsleep) */
+	const char *lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
 	pid_t	lk_lockholder;		/* pid of exclusive lock holder */
 #ifdef	DEBUG_LOCKS
@@ -199,8 +199,8 @@ struct lock {
 void dumplockinfo(struct lock *lkp);
 struct thread;
 
-void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
-			int flags));
+void	lockinit __P((struct lock *, int prio, const char *wmesg,
+			int timo, int flags));
 void	lockdestroy __P((struct lock *));
 
 #ifdef DEBUG_LOCKS
