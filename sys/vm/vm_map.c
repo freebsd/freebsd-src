@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.140 1999/01/21 08:29:10 dillon Exp $
+ * $Id: vm_map.c,v 1.141 1999/01/21 09:40:48 dillon Exp $
  */
 
 /*
@@ -2225,7 +2225,7 @@ vm_map_split(entry)
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
-		/* page automatically made dirty by rename */
+		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
 	}
 
@@ -3036,10 +3036,8 @@ vm_freeze_copyopts(object, froma, toa)
 				vm_page_protect(m_in, VM_PROT_NONE);
 				pmap_copy_page(VM_PAGE_TO_PHYS(m_in), VM_PAGE_TO_PHYS(m_out));
 				m_out->valid = m_in->valid;
-				m_out->dirty = VM_PAGE_BITS_ALL;
-
+				vm_page_dirty(m_out);
 				vm_page_activate(m_out);
-
 				vm_page_wakeup(m_in);
 			}
 			vm_page_wakeup(m_out);
