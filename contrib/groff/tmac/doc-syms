@@ -156,6 +156,38 @@
 ..
 .\" NS Fx macro - FreeBSD
 .\" NS b0 string local temporary
+.ds Fx*1.0
+.ds Fx*1.1
+.ds Fx*1.1.5
+.ds Fx*1.1.5.1
+.ds Fx*2
+.ds Fx*2.0
+.ds Fx*2.0.5
+.ds Fx*2.1
+.ds Fx*2.1.5
+.ds Fx*2.1.6
+.ds Fx*2.1.7
+.ds Fx*2.2
+.ds Fx*2.2.1
+.ds Fx*2.2.2
+.ds Fx*2.2.5
+.ds Fx*2.2.6
+.ds Fx*2.2.7
+.ds Fx*2.2.8
+.ds Fx*3
+.ds Fx*3.0
+.ds Fx*3.1
+.ds Fx*3.2
+.ds Fx*3.3
+.ds Fx*3.4
+.ds Fx*3.5
+.ds Fx*4
+.ds Fx*4.0
+.ds Fx*4.1
+.ds Fx*4.1.1
+.ds Fx*4.2
+.ds Fx*5
+.ds Fx*5.0
 .de Fx
 .nr cF \\n(.f
 .nr cZ \\n(.s
@@ -171,35 +203,7 @@
 .		nr aP \\n(aP+1
 .		if \\n(C\\n(aP==2 \{\
 .			ds b0 \\*(A\\n(aP
-.			ie     "\\*(b0"1.0"       %comment%
-.			el .ie "\\*(b0"1.1"       %comment%
-.			el .ie "\\*(b0"1.1.5"     %comment%
-.			el .ie "\\*(b0"1.1.5.1"   %comment%
-.			el .ie "\\*(b0"2.0"       %comment%
-.			el .ie "\\*(b0"2.0.5"     %comment%
-.			el .ie "\\*(b0"2.1"       %comment%
-.			el .ie "\\*(b0"2.1.5"     %comment%
-.			el .ie "\\*(b0"2.1.6"     %comment%
-.			el .ie "\\*(b0"2.1.7"     %comment%
-.			el .ie "\\*(b0"2.2"       %comment%
-.			el .ie "\\*(b0"2.2.1"     %comment%
-.			el .ie "\\*(b0"2.2.2"     %comment%
-.			el .ie "\\*(b0"2.2.5"     %comment%
-.			el .ie "\\*(b0"2.2.6"     %comment%
-.			el .ie "\\*(b0"2.2.7"     %comment%
-.			el .ie "\\*(b0"2.2.8"     %comment%
-.			el .ie "\\*(b0"3.0"       %comment%
-.			el .ie "\\*(b0"3.1"       %comment%
-.			el .ie "\\*(b0"3.2"       %comment%
-.			el .ie "\\*(b0"3.3"       %comment%
-.			el .ie "\\*(b0"3.4"       %comment%
-.			el .ie "\\*(b0"3.5"       %comment%
-.			el .ie "\\*(b0"4.0"       %comment%
-.			el .ie "\\*(b0"4.1"       %comment%
-.			el .ie "\\*(b0"4.1.1"     %comment%
-.			el .ie "\\*(b0"4.2"       %comment%
-.			el .ie "\\*(b0"5.0"       %comment%
-.			el .tm Unknown FreeBSD version ``\\*(b0'' at line \\n(c.
+.			if !dFx*\\*(b0 .tm Unknown FreeBSD version ``\\*(b0'' at line \\n(c.
 .			rm b0
 .			as b1 \ 
 .		\}
