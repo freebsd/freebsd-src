@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.15 1996/03/18 11:09:03 davidg Exp $
+ *	$Id: ftpd.c,v 1.16 1996/04/11 10:22:16 davidg Exp $
  */
 
 #ifndef lint
@@ -1606,7 +1606,7 @@ myoob(signo)
 void
 passive()
 {
-	int len;
+	int len, on;
 	u_short port;
 	char *p, *a;
 
@@ -1620,35 +1620,23 @@ passive()
 		return;
 	}
 
-	if (restricted_data_ports) {
-		for (port = FTP_DATA_BOTTOM; port <= FTP_DATA_TOP; port++) {
-			pasv_addr = ctrl_addr;
-			pasv_addr.sin_port = htons(port);
-			(void) seteuid((uid_t)0);
-			if (bind(pdata, (struct sockaddr *)&pasv_addr,
-				 sizeof(pasv_addr)) < 0) {
-				(void) seteuid((uid_t)pw->pw_uid);
-				if (errno == EADDRINUSE)
-					continue;
-				else
-					goto pasv_error;
-			}
-			(void) seteuid((uid_t)pw->pw_uid);
-			break;
-		}
-		if (port > FTP_DATA_TOP)
-			goto pasv_error;
-	} else {
-		pasv_addr = ctrl_addr;
-		pasv_addr.sin_port = 0;
-		(void) seteuid((uid_t)0);
-		if (bind(pdata, (struct sockaddr *)&pasv_addr,
-			 sizeof(pasv_addr)) < 0) {
-			(void) seteuid((uid_t)pw->pw_uid);
-			goto pasv_error;
-		}
+	on = restricted_data_ports ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
+	(void) seteuid((uid_t)0);
+	if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
+			(char *)&on, sizeof(on)) < 0) {
 		(void) seteuid((uid_t)pw->pw_uid);
+		goto pasv_error;
 	}
+
+	pasv_addr = ctrl_addr;
+	pasv_addr.sin_port = 0;
+	(void) seteuid((uid_t)0);
+	if (bind(pdata, (struct sockaddr *)&pasv_addr,
+		 sizeof(pasv_addr)) < 0) {
+		(void) seteuid((uid_t)pw->pw_uid);
+		goto pasv_error;
+	}
+	(void) seteuid((uid_t)pw->pw_uid);
 
 	len = sizeof(pasv_addr);
 	if (getsockname(pdata, (struct sockaddr *) &pasv_addr, &len) < 0)
