@@ -1007,10 +1007,6 @@ DMenu MenuXF86SelectCore = {
       { " lk98",	"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
 #endif
-      { " sources",	"XFree86 3.3.5 standard sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { " csources",	"XFree86 3.3.5 contrib sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { NULL } },
 };
 
