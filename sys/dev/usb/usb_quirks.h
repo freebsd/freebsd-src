@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_quirks.h,v 1.11 2000/04/27 15:26:50 augustss Exp $	*/
+/*	$NetBSD: usb_quirks.h,v 1.20 2001/04/15 09:38:01 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -48,10 +48,14 @@ struct usbd_quirks {
 #define UQ_BUS_POWERED	0x0020	/* device is bus powered, despite claim */
 #define UQ_BAD_AUDIO	0x0040	/* device claims audio class, but isn't */
 #define UQ_SPUR_BUT_UP	0x0080	/* spurious mouse button up events */
-#define UQ_NO_XU	0x0100	/* audio device has broken extension unit */
-#define UQ_ASSUME_CM_OVER_DATA 0x0200 /* modem device breaks on cm over data */
+#define UQ_AU_NO_XU	0x0100	/* audio device has broken extension unit */
+#define UQ_POWER_CLAIM	0x0200	/* hub lies about power status */
+#define UQ_AU_NO_FRAC	0x0400	/* don't adjust for fractional samples */
+#define UQ_AU_INP_ASYNC	0x0800	/* input is async despite claim of adaptive */
+#define UQ_ASSUME_CM_OVER_DATA 0x1000 /* modem device breaks on cm over data */
+#define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
 };
 
-extern struct usbd_quirks usbd_no_quirk;
+extern const struct usbd_quirks usbd_no_quirk;
 
-struct usbd_quirks *usbd_find_quirk(usb_device_descriptor_t *);
+const struct usbd_quirks *usbd_find_quirk(usb_device_descriptor_t *);
