@@ -78,17 +78,15 @@ ftello(fp)
 	fpos_t rv;
 	int ret;
 
-	/* make sure stdio is set up */
-	if (!__sdidinit)
-		__sinit();
-
 	FLOCKFILE(fp);
 	ret = _ftello(fp, &rv);
 	FUNLOCKFILE(fp);
 	if (ret)
 		return (-1);
-	if (rv < 0)     /* Unspecified value because of ungetc() at 0 */
-		rv = 0;
+	if (rv < 0) {   /* Unspecified value because of ungetc() at 0 */
+		errno = ESPIPE;
+		return (-1);
+	}
 	return (rv);
 }
 
