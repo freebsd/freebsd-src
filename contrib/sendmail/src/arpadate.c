@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arpadate.c	8.14 (Berkeley) 2/2/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: arpadate.c,v 8.23 1999/09/23 19:59:18 ca Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
 /*
 **  ARPADATE -- Create date in ARPANET format
@@ -34,7 +35,7 @@ static char sccsid[] = "@(#)arpadate.c	8.14 (Berkeley) 2/2/1999";
 **
 **	Bugs:
 **		Timezone is computed from local time, rather than
-**		from whereever (and whenever) the message was sent.
+**		from wherever (and whenever) the message was sent.
 **		To do better is very hard.
 **
 **		Some sites are now inserting the timezone into the
@@ -44,7 +45,7 @@ static char sccsid[] = "@(#)arpadate.c	8.14 (Berkeley) 2/2/1999";
 
 #ifndef TZNAME_MAX
 # define TZNAME_MAX	50	/* max size of timezone */
-#endif
+#endif /* ! TZNAME_MAX */
 
 /* values for TZ_TYPE */
 #define TZ_NONE		0	/* no character timezone support */
@@ -148,10 +149,10 @@ arpadate(ud)
 		tz = NULL;
 #if TZ_TYPE == TZ_TM_NAME
 		tz = lt->tm_name;
-#endif
+#endif /* TZ_TYPE == TZ_TM_NAME */
 #if TZ_TYPE == TZ_TM_ZONE
 		tz = lt->tm_zone;
-#endif
+#endif /* TZ_TYPE == TZ_TM_ZONE */
 #if TZ_TYPE == TZ_TZNAME
 		{
 			extern char *tzname[];
@@ -163,14 +164,14 @@ arpadate(ud)
 			else
 				tz = NULL;
 		}
-#endif
+#endif /* TZ_TYPE == TZ_TZNAME */
 #if TZ_TYPE == TZ_TIMEZONE
 		{
 			extern char *timezone();
 
 			tz = timezone(off, lt->tm_isdst);
 		}
-#endif
+#endif /* TZ_TYPE == TZ_TIMEZONE */
 		if (off < 0)
 		{
 			off = -off;
@@ -198,5 +199,5 @@ arpadate(ud)
 	}
 	*q = '\0';
 
-	return (b);
+	return b;
 }

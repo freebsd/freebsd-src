@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)00.contents	8.1 (Berkeley) 7/5/93
+.\" $FreeBSD$
 .\"
 .OH '''SMM Contents'
 .EH 'SMM Contents'''
@@ -99,11 +100,6 @@ for the line printer spooling system.
 The last word in installing and operating the \fIsendmail\fP program.
 
 .ne 3
-.IP
-.tl 'Sendmail \- An Internetwork Mail Router''SMM:9'
-.QP
-An overview document on the design and implementation of \fIsendmail\fP.
-
 .IP
 .tl 'Name Server Operations Guide for BIND''SMM:10'
 .QP

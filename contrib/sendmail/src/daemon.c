@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -10,40 +11,78 @@
  *
  */
 
-#include <errno.h>
-#include "sendmail.h"
+#include <sendmail.h>
+
 
 #ifndef lint
-#ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (with daemon mode)";
-#else
-static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (without daemon mode)";
-#endif
-#endif /* not lint */
+# ifdef DAEMON
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.14 2000/07/14 04:15:00 gshapiro Exp $ (with daemon mode)";
+# else /* DAEMON */
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.14 2000/07/14 04:15:00 gshapiro Exp $ (without daemon mode)";
+# endif /* DAEMON */
+#endif /* ! lint */
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
-#endif
+#endif /* defined(SOCK_STREAM) || defined(__GNU_LIBRARY__) */
 
 #if DAEMON || defined(USE_SOCK_STREAM)
-# include <arpa/inet.h>
+# if NETINET || NETINET6
+#  include <arpa/inet.h>
+# endif /* NETINET || NETINET6 */
 # if NAMED_BIND
-#  include <resolv.h>
 #  ifndef NO_DATA
 #   define NO_DATA	NO_ADDRESS
-#  endif
-# endif
-#endif
+#  endif /* ! NO_DATA */
+# endif /* NAMED_BIND */
+#endif /* DAEMON || defined(USE_SOCK_STREAM) */
 
 #if DAEMON
 
 # include <sys/time.h>
 
-# if IP_SRCROUTE
+# if IP_SRCROUTE && NETINET
 #  include <netinet/in_systm.h>
 #  include <netinet/ip.h>
-#  include <netinet/ip_var.h>
-# endif
+#  if HAS_IN_H
+#   include <netinet/in.h>
+#   ifndef IPOPTION
+#    define IPOPTION	ip_opts
+#    define IP_LIST	ip_opts
+#    define IP_DST	ip_dst
+#   endif /* ! IPOPTION */
+#  else /* HAS_IN_H */
+#   include <netinet/ip_var.h>
+#   ifndef IPOPTION
+#    define IPOPTION	ipoption
+#    define IP_LIST	ipopt_list
+#    define IP_DST	ipopt_dst
+#   endif /* ! IPOPTION */
+#  endif /* HAS_IN_H */
+# endif /* IP_SRCROUTE && NETINET */
+
+/* structure to describe a daemon */
+struct daemon
+{
+	int		d_socket;	/* fd for socket */
+	SOCKADDR	d_addr;		/* socket for incoming */
+	u_short		d_port;		/* port number */
+	int		d_listenqueue;	/* size of listen queue */
+	int		d_tcprcvbufsize;	/* size of TCP receive buffer */
+	int		d_tcpsndbufsize;	/* size of TCP send buffer */
+	time_t		d_refuse_connections_until;
+	bool		d_firsttime;
+	int		d_socksize;
+	BITMAP256	d_flags;	/* flags; see sendmail.h */
+	char		*d_mflags;	/* flags for use in macro */
+	char		*d_name;	/* user-supplied name */
+};
+
+typedef struct daemon DAEMON_T;
+
+static void	connecttimeout __P((void));
+static int	opendaemonsocket __P((struct daemon *, bool));
+static u_short	setupdaemon __P((SOCKADDR *));
 
 /*
 **  DAEMON.C -- routines to use when running as a daemon.
@@ -74,6 +113,14 @@ static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (without daemon 
 **	host_map_lookup(map, hbuf, avp, pstat)
 **		Convert the entry in hbuf into a canonical form.
 */
+
+static DAEMON_T	Daemons[MAXDAEMONS];
+static int	ndaemons = 0;			/* actual number of daemons */
+
+/* options for client */
+static int	TcpRcvBufferSize = 0;	/* size of TCP receive buffer */
+static int	TcpSndBufferSize = 0;	/* size of TCP send buffer */
+
 /*
 **  GETREQUESTS -- open mail IPC port and get requests.
 **
@@ -81,7 +128,7 @@ static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (without daemon 
 **		e -- the current envelope.
 **
 **	Returns:
-**		none.
+**		pointer to flags.
 **
 **	Side Effects:
 **		Waits until some interesting activity occurs.  When
@@ -92,89 +139,49 @@ static char sccsid[] = "@(#)daemon.c	8.236 (Berkeley) 1/25/1999 (without daemon 
 **		to the communication channel.
 */
 
-int		DaemonSocket	= -1;		/* fd describing socket */
-SOCKADDR	DaemonAddr;			/* socket for incoming */
-int		ListenQueueSize = 10;		/* size of listen queue */
-int		TcpRcvBufferSize = 0;		/* size of TCP receive buffer */
-int		TcpSndBufferSize = 0;		/* size of TCP send buffer */
-
-void
+BITMAP256 *
 getrequests(e)
 	ENVELOPE *e;
 {
 	int t;
-	time_t refuse_connections_until = 0;
-	bool firsttime = TRUE;
-	FILE *pidf;
-	int sff;
-	int socksize;
-	u_short port;
-#if XDEBUG
+	time_t last_disk_space_check = 0;
+	int idx, curdaemon = -1;
+	int i, olddaemon = 0;
+# if XDEBUG
 	bool j_has_dot;
-#endif
+# endif /* XDEBUG */
 	char status[MAXLINE];
-	extern void reapchild __P((int));
-#ifdef NETUNIX
+	SOCKADDR sa;
+	SOCKADDR_LEN_T len = sizeof sa;
+# if NETUNIX
 	extern int ControlSocket;
-#endif
-	extern int opendaemonsocket __P((bool));
-	extern int opencontrolsocket __P((void));
+# endif /* NETUNIX */
+	extern ENVELOPE BlankEnvelope;
 
-	/*
-	**  Set up the address for the mailer.
-	*/
+#define D(x,idx)	x[idx]
 
-	switch (DaemonAddr.sa.sa_family)
+
+	for (idx = 0; idx < ndaemons; idx++)
 	{
-	  case AF_UNSPEC:
-		DaemonAddr.sa.sa_family = AF_INET;
-		/* fall through ... */
-
-	  case AF_INET:
-		if (DaemonAddr.sin.sin_addr.s_addr == 0)
-			DaemonAddr.sin.sin_addr.s_addr = INADDR_ANY;
-		port = DaemonAddr.sin.sin_port;
-		break;
-
-	  default:
-		/* unknown protocol */
-		port = 0;
-		break;
+		Daemons[idx].d_port = setupdaemon(&(Daemons[idx].d_addr));
+		Daemons[idx].d_firsttime = TRUE;
+		Daemons[idx].d_refuse_connections_until = (time_t) 0;
 	}
-	if (port == 0)
-	{
-		register struct servent *sp;
-
-		sp = getservbyname("smtp", "tcp");
-		if (sp == NULL)
-		{
-			syserr("554 service \"smtp\" unknown");
-			port = htons(25);
-		}
-		else
-			port = sp->s_port;
-	}
-
-	switch (DaemonAddr.sa.sa_family)
-	{
-	  case AF_INET:
-		DaemonAddr.sin.sin_port = port;
-		break;
-
-	  default:
-		/* unknown protocol */
-		break;
-	}
-
 	/*
 	**  Try to actually open the connection.
 	*/
 
 	if (tTd(15, 1))
-		printf("getrequests: port 0x%x\n", port);
+	{
+		for (idx = 0; idx < ndaemons; idx++)
+			dprintf("getrequests: daemon %s: port %d\n",
+				Daemons[idx].d_name,
+				ntohs(Daemons[idx].d_port));
+	}
 
 	/* get a socket for the SMTP connection */
-	socksize = opendaemonsocket(TRUE);
+	for (idx = 0; idx < ndaemons; idx++)
+		Daemons[idx].d_socksize = opendaemonsocket(&Daemons[idx], TRUE);
 
 	if (opencontrolsocket() < 0)
 		sm_syslog(LOG_WARNING, NOQID,
@@ -183,43 +190,28 @@ getrequests(e)
 
 	(void) setsignal(SIGCHLD, reapchild);
 
-	/* write the pid to the log file for posterity */
-	sff = SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT;
-	if (TrustedUid != 0 && RealUid == TrustedUid)
-		sff |= SFF_OPENASROOT;
-	pidf = safefopen(PidFile, O_WRONLY|O_TRUNC, 0644, sff);
-	if (pidf == NULL)
-	{
-		sm_syslog(LOG_ERR, NOQID, "unable to write %s", PidFile);
-	}
-	else
-	{
-		extern char *CommandLineArgs;
+	/* write the pid to file */
+	log_sendmail_pid(e);
 
-		/* write the process id on line 1 */
-		fprintf(pidf, "%ld\n", (long) getpid());
-
-		/* line 2 contains all command line flags */
-		fprintf(pidf, "%s\n", CommandLineArgs);
-
-		/* flush and close */
-		fclose(pidf);
-	}
-
-#if XDEBUG
+# if XDEBUG
 	{
 		char jbuf[MAXHOSTNAMELEN];
 
 		expand("\201j", jbuf, sizeof jbuf, e);
 		j_has_dot = strchr(jbuf, '.') != NULL;
 	}
-#endif
+# endif /* XDEBUG */
 
 	/* Add parent process as first item */
-	proc_list_add(getpid(), "Sendmail daemon");
+	proc_list_add(getpid(), "Sendmail daemon", PROC_DAEMON);
 
 	if (tTd(15, 1))
-		printf("getrequests: %d\n", DaemonSocket);
+	{
+		for (idx = 0; idx < ndaemons; idx++)
+			dprintf("getrequests: daemon %s: %d\n",
+				Daemons[idx].d_name,
+				Daemons[idx].d_socket);
+	}
 
 	for (;;)
 	{
@@ -227,59 +219,96 @@ getrequests(e)
 		auto SOCKADDR_LEN_T lotherend;
 		bool timedout = FALSE;
 		bool control = FALSE;
-		int savederrno;
+		int save_errno;
 		int pipefd[2];
-		extern bool refuseconnections __P((int));
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
-		if (curtime() >= refuse_connections_until)
+
+		for (idx = 0; idx < ndaemons; idx++)
 		{
-			if (refuseconnections(ntohs(port)))
+			if (curtime() < Daemons[idx].d_refuse_connections_until)
+				continue;
+			if (refuseconnections(Daemons[idx].d_name, e, idx))
 			{
-				if (DaemonSocket >= 0)
+				if (Daemons[idx].d_socket >= 0)
 				{
 				       /* close socket so peer fails quickly */
-				       (void) close(DaemonSocket);
-				       DaemonSocket = -1;
+				       (void) close(Daemons[idx].d_socket);
+				       Daemons[idx].d_socket = -1;
 				}
 
 				/* refuse connections for next 15 seconds */
-				refuse_connections_until = curtime() + 15;
+				Daemons[idx].d_refuse_connections_until = curtime() + 15;
 			}
-			else if (DaemonSocket < 0 || firsttime)
+			else if (Daemons[idx].d_socket < 0 ||
+				 Daemons[idx].d_firsttime)
 			{
+			      if (!Daemons[idx].d_firsttime && LogLevel >= 9)
+				sm_syslog(LOG_INFO, NOQID,
+					  "accepting connections again for daemon %s",
+					  Daemons[idx].d_name);
+
 			      /* arrange to (re)open the socket if needed */
-			      (void) opendaemonsocket(FALSE);
-			      firsttime = FALSE;
+			      (void) opendaemonsocket(&Daemons[idx], FALSE);
+			      Daemons[idx].d_firsttime = FALSE;
 			}
 		}
 
-#if XDEBUG
+		if (curtime() >= last_disk_space_check)
+		{
+			if (!enoughdiskspace(MinBlocksFree + 1, FALSE))
+			{
+				if (!bitnset(D_ETRNONLY, Daemons[idx].d_flags))
+				{
+					/* log only if not logged before */
+					if (LogLevel >= 9)
+						sm_syslog(LOG_INFO, NOQID,
+							  "rejecting new messages: min free: %d",
+							  MinBlocksFree);
+					sm_setproctitle(TRUE, e,
+							"rejecting new messages: min free: %d",
+							 MinBlocksFree);
+					setbitn(D_ETRNONLY, Daemons[idx].d_flags);
+				}
+			}
+			else if (bitnset(D_ETRNONLY, Daemons[idx].d_flags))
+			{
+				/* log only if not logged before */
+				if (LogLevel >= 9)
+					sm_syslog(LOG_INFO, NOQID,
+						  "accepting new messages (again)");
+				/* title will be set below */
+				clrbitn(D_ETRNONLY, Daemons[idx].d_flags);
+			}
+			/* only check disk space once a minute */
+			last_disk_space_check = curtime() + 60;
+		}
+
+# if XDEBUG
 		/* check for disaster */
 		{
 			char jbuf[MAXHOSTNAMELEN];
-			extern void dumpstate __P((char *));
 
 			expand("\201j", jbuf, sizeof jbuf, e);
 			if (!wordinclass(jbuf, 'w'))
 			{
 				dumpstate("daemon lost $j");
 				sm_syslog(LOG_ALERT, NOQID,
-					"daemon process doesn't have $j in $=w; see syslog");
+					  "daemon process doesn't have $j in $=w; see syslog");
 				abort();
 			}
 			else if (j_has_dot && strchr(jbuf, '.') == NULL)
 			{
 				dumpstate("daemon $j lost dot");
 				sm_syslog(LOG_ALERT, NOQID,
-					"daemon process $j lost dot; see syslog");
+					  "daemon process $j lost dot; see syslog");
 				abort();
 			}
 		}
-#endif
+# endif /* XDEBUG */
 
-#if 0
+# if 0
 		/*
 		**  Andrew Sun <asun@ieps-sun.ml.com> claims that this will
 		**  fix the SVr4 problem.  But it seems to have gone away,
@@ -289,8 +318,9 @@ getrequests(e)
 		if (DaemonSocket >= 0 &&
 		    SetNonBlocking(DaemonSocket, FALSE) < 0)
 			log an error here;
-#endif
+# endif /* 0 */
 		(void) releasesignal(SIGALRM);
+
 		for (;;)
 		{
 			int highest = -1;
@@ -299,32 +329,47 @@ getrequests(e)
 
 			FD_ZERO(&readfds);
 
-			/* wait for a connection */
-			if (DaemonSocket >= 0)
+			for (idx = 0; idx < ndaemons; idx++)
 			{
-				sm_setproctitle(TRUE,
-						"accepting connections on port %d",
-						ntohs(port));
-				if (DaemonSocket > highest)
-					highest = DaemonSocket;
-				FD_SET(DaemonSocket, &readfds);
+				/* wait for a connection */
+				if (Daemons[idx].d_socket >= 0)
+				{
+					if (!bitnset(D_ETRNONLY, Daemons[idx].d_flags))
+					{
+						sm_setproctitle(TRUE, e,
+								"accepting connections");
+					}
+					if (Daemons[idx].d_socket > highest)
+						highest = Daemons[idx].d_socket;
+					FD_SET((u_int)Daemons[idx].d_socket, &readfds);
+				}
 			}
-#ifdef NETUNIX
+
+# if NETUNIX
 			if (ControlSocket >= 0)
 			{
 				if (ControlSocket > highest)
 					highest = ControlSocket;
 				FD_SET(ControlSocket, &readfds);
 			}
-#endif
-			if (DaemonSocket >= 0)
-				timeout.tv_sec = 60;
-			else
+# endif /* NETUNIX */
+
+			/*
+			**  if one socket is closed, set the timeout
+			**  to 5 seconds (so it might get reopened soon),
+			**  otherwise (all sockets open) 60.
+			*/
+			idx = 0;
+			while (idx < ndaemons && Daemons[idx].d_socket >= 0)
+				idx++;
+			if (idx < ndaemons)
 				timeout.tv_sec = 5;
+			else
+				timeout.tv_sec = 60;
 			timeout.tv_usec = 0;
 
 			t = select(highest + 1, FDSET_CAST &readfds,
-			   	   NULL, NULL, &timeout);
+				   NULL, NULL, &timeout);
 
 			if (DoQueueRun)
 				(void) runqueue(TRUE, FALSE);
@@ -336,16 +381,28 @@ getrequests(e)
 
 			control = FALSE;
 			errno = 0;
-			if (DaemonSocket >= 0 &&
-			    FD_ISSET(DaemonSocket, &readfds))
+			curdaemon = -1;
+
+			/* look "round-robin" for an active socket */
+			if ((idx = olddaemon + 1) >= ndaemons)
+				idx = 0;
+			for (i = 0; i < ndaemons; i++)
 			{
-				lotherend = socksize;
-				t = accept(DaemonSocket,
-					   (struct sockaddr *)&RealHostAddr,
-					   &lotherend);
+				if (Daemons[idx].d_socket >= 0 &&
+				    FD_ISSET(Daemons[idx].d_socket, &readfds))
+				{
+					lotherend = Daemons[idx].d_socksize;
+					t = accept(Daemons[idx].d_socket,
+						   (struct sockaddr *)&RealHostAddr,
+						   &lotherend);
+					olddaemon = curdaemon = idx;
+					break;
+				}
+				if (++idx >= ndaemons)
+					idx = 0;
 			}
-#ifdef NETUNIX
-			else if (ControlSocket >= 0 &&
+# if NETUNIX
+			if (curdaemon == -1 && ControlSocket >= 0 &&
 				 FD_ISSET(ControlSocket, &readfds))
 			{
 				struct sockaddr_un sa_un;
@@ -356,7 +413,7 @@ getrequests(e)
 					   &lotherend);
 				control = TRUE;
 			}
-#endif
+# endif /* NETUNIX */
 			if (t >= 0 || errno != EINTR)
 				break;
 		}
@@ -365,29 +422,77 @@ getrequests(e)
 			timedout = FALSE;
 			continue;
 		}
-		if (control)
-		{
-			if (t >= 0)
-			{
-				extern void control_command __P((int, ENVELOPE *));
-
-				control_command(t, e);
-			}
-			else
-				syserr("getrequests: control accept");
-			continue;
-		}
-		savederrno = errno;
+		save_errno = errno;
 		(void) blocksignal(SIGALRM);
 		if (t < 0)
 		{
-			errno = savederrno;
+			errno = save_errno;
 			syserr("getrequests: accept");
 
 			/* arrange to re-open the socket next time around */
-			(void) close(DaemonSocket);
-			DaemonSocket = -1;
+			(void) close(Daemons[curdaemon].d_socket);
+			Daemons[curdaemon].d_socket = -1;
+# if SO_REUSEADDR_IS_BROKEN
+			/*
+			**  Give time for bound socket to be released.
+			**  This creates a denial-of-service if you can
+			**  force accept() to fail on affected systems.
+			*/
+
+			Daemons[curdaemon].d_refuse_connections_until = curtime() + 15;
+# endif /* SO_REUSEADDR_IS_BROKEN */
 			continue;
+		}
+
+		if (!control)
+		{
+			/* set some daemon related macros */
+			switch (Daemons[curdaemon].d_addr.sa.sa_family)
+			{
+			  case AF_UNSPEC:
+				define(macid("{daemon_family}", NULL),
+				       "unspec", &BlankEnvelope);
+				break;
+# if NETINET
+			  case AF_INET:
+				define(macid("{daemon_family}", NULL),
+				       "inet", &BlankEnvelope);
+				break;
+# endif /* NETINET */
+# if NETINET6
+			  case AF_INET6:
+				define(macid("{daemon_family}", NULL),
+				       "inet6", &BlankEnvelope);
+				break;
+# endif /* NETINET6 */
+# if NETISO
+			  case AF_ISO:
+				define(macid("{daemon_family}", NULL),
+				       "iso", &BlankEnvelope);
+				break;
+# endif /* NETISO */
+# if NETNS
+			  case AF_NS:
+				define(macid("{daemon_family}", NULL),
+				       "ns", &BlankEnvelope);
+				break;
+# endif /* NETNS */
+# if NETX25
+			  case AF_CCITT:
+				define(macid("{daemon_family}", NULL),
+				       "x.25", &BlankEnvelope);
+				break;
+# endif /* NETX25 */
+			}
+			define(macid("{daemon_name}", NULL),
+			       Daemons[curdaemon].d_name, &BlankEnvelope);
+			if (Daemons[curdaemon].d_mflags != NULL)
+				define(macid("{daemon_flags}", NULL),
+				       Daemons[curdaemon].d_mflags,
+				       &BlankEnvelope);
+			else
+				define(macid("{daemon_flags}", NULL),
+				       "", &BlankEnvelope);
 		}
 
 		/*
@@ -395,7 +500,16 @@ getrequests(e)
 		*/
 
 		if (tTd(15, 2))
-			printf("getrequests: forking (fd = %d)\n", t);
+			dprintf("getrequests: forking (fd = %d)\n", t);
+
+		/*
+		**  advance state of PRNG
+		**  this is necessary because otherwise all child processes
+		**  will produce the same PRN sequence and hence the selection
+		**  of a queue directory (and other things, e.g., MX selection)
+		**  are not "really" random.
+		*/
+		(void) get_random();
 
 		/*
 		**  Create a pipe to keep the child from writing to the
@@ -406,7 +520,7 @@ getrequests(e)
 		if (pipe(pipefd) < 0)
 			pipefd[0] = pipefd[1] = -1;
 
-		blocksignal(SIGCHLD);
+		(void) blocksignal(SIGCHLD);
 		pid = fork();
 		if (pid < 0)
 		{
@@ -417,7 +531,7 @@ getrequests(e)
 				(void) close(pipefd[1]);
 			}
 			(void) releasesignal(SIGCHLD);
-			sleep(10);
+			(void) sleep(10);
 			(void) close(t);
 			continue;
 		}
@@ -425,8 +539,7 @@ getrequests(e)
 		if (pid == 0)
 		{
 			char *p;
-			extern SIGFUNC_DECL intsig __P((int));
-			FILE *inchannel, *outchannel;
+			FILE *inchannel, *outchannel = NULL;
 
 			/*
 			**  CHILD -- return to caller.
@@ -434,22 +547,49 @@ getrequests(e)
 			**	Verify calling user id if possible here.
 			*/
 
+			if (!control)
+			{
+				define(macid("{daemon_addr}", NULL),
+				       newstr(anynet_ntoa(&Daemons[curdaemon].d_addr)),
+				       &BlankEnvelope);
+				(void) snprintf(status, sizeof status, "%d",
+						ntohs(Daemons[curdaemon].d_port));
+				define(macid("{daemon_port}", NULL),
+				       newstr(status), &BlankEnvelope);
+			}
+
 			(void) releasesignal(SIGALRM);
 			(void) releasesignal(SIGCHLD);
 			(void) setsignal(SIGCHLD, SIG_DFL);
 			(void) setsignal(SIGHUP, intsig);
-			(void) close(DaemonSocket);
+			for (idx = 0; idx < ndaemons; idx++)
+			{
+				if (Daemons[idx].d_socket >= 0)
+					(void) close(Daemons[idx].d_socket);
+			}
 			clrcontrol();
-			proc_list_clear();
 
-			/* Add parent process as first child item */
-			proc_list_add(getpid(), "daemon child");
+			/* Avoid SMTP daemon actions if control command */
+			if (control)
+			{
+				/* Add control socket process */
+				proc_list_add(getpid(), "console socket child",
+					PROC_CONTROL_CHILD);
+			}
+			else
+			{
+				proc_list_clear();
 
-			/* don't schedule queue runs if we are told to ETRN */
-			QueueIntvl = 0;
+				/* Add parent process as first child item */
+				proc_list_add(getpid(), "daemon child",
+					      PROC_DAEMON_CHILD);
 
-			sm_setproctitle(TRUE, "startup with %s",
-				anynet_ntoa(&RealHostAddr));
+				/* don't schedule queue runs if ETRN */
+				QueueIntvl = 0;
+
+				sm_setproctitle(TRUE, e, "startup with %s",
+						anynet_ntoa(&RealHostAddr));
+			}
 
 			if (pipefd[0] != -1)
 			{
@@ -473,12 +613,31 @@ getrequests(e)
 				(void) close(pipefd[0]);
 			}
 
+			/* control socket processing */
+			if (control)
+			{
+				control_command(t, e);
+
+				/* NOTREACHED */
+				exit(EX_SOFTWARE);
+			}
+
 			/* determine host name */
 			p = hostnamebyanyaddr(&RealHostAddr);
 			if (strlen(p) > (SIZE_T) MAXNAME)
 				p[MAXNAME] = '\0';
 			RealHostName = newstr(p);
-			sm_setproctitle(TRUE, "startup with %s", p);
+			if (RealHostName[0] == '[')
+			{
+				/* TEMP, FAIL: which one? */
+				define(macid("{client_resolve}", NULL),
+				       (h_errno == TRY_AGAIN) ? "TEMP" : "FAIL",
+				       &BlankEnvelope);
+			}
+			else
+				define(macid("{client_resolve}", NULL), "OK",
+				       &BlankEnvelope);
+			sm_setproctitle(TRUE, e, "startup with %s", p);
 
 			if ((inchannel = fdopen(t, "r")) == NULL ||
 			    (t = dup(t)) < 0 ||
@@ -492,44 +651,107 @@ getrequests(e)
 			OutChannel = outchannel;
 			DisConnected = FALSE;
 
-#ifdef XLA
+# ifdef XLA
 			if (!xla_host_ok(RealHostName))
 			{
-				message("421 Too many SMTP sessions for this host");
+				message("421 4.4.5 Too many SMTP sessions for this host");
 				finis(FALSE, EX_OK);
 			}
-#endif
+# endif /* XLA */
+			/* find out name for interface of connection */
+			if (getsockname(fileno(InChannel), &sa.sa,
+					&len) == 0)
+			{
+				p = hostnamebyanyaddr(&sa);
+				if (tTd(15, 9))
+					dprintf("getreq: got name %s\n", p);
+				define(macid("{if_name}", NULL),
+				       newstr(p), &BlankEnvelope);
+
+				/* do this only if it is not the loopback */
+				/* interface: how to figure out? XXX */
+				if (!isloopback(sa))
+				{
+					define(macid("{if_addr}", NULL),
+					       newstr(anynet_ntoa(&sa)),
+					       &BlankEnvelope);
+					p = xalloc(5);
+					snprintf(p, 4, "%d", sa.sa.sa_family);
+					define(macid("{if_family}", NULL), p,
+					       &BlankEnvelope);
+					if (tTd(15, 7))
+						dprintf("getreq: got addr %s and family %s\n",
+							macvalue(macid("{if_addr}", NULL),
+								 &BlankEnvelope),
+							macvalue(macid("{if_addr}", NULL),
+								 &BlankEnvelope));
+				}
+				else
+				{
+					define(macid("{if_addr}", NULL), NULL,
+					       &BlankEnvelope);
+					define(macid("{if_family}", NULL), NULL,
+					       &BlankEnvelope);
+				}
+			}
+			else
+			{
+				if (tTd(15, 7))
+					dprintf("getreq: getsockname failed\n");
+				define(macid("{if_name}", NULL), NULL,
+				       &BlankEnvelope);
+				define(macid("{if_addr}", NULL), NULL,
+				       &BlankEnvelope);
+				define(macid("{if_family}", NULL), NULL,
+				       &BlankEnvelope);
+			}
 			break;
 		}
 
 		/* parent -- keep track of children */
-		snprintf(status, sizeof status, "SMTP server child for %s",
-			 anynet_ntoa(&RealHostAddr));
-		proc_list_add(pid, status);
+		if (control)
+		{
+			snprintf(status, sizeof status, "control socket server child");
+			proc_list_add(pid, status, PROC_CONTROL);
+		}
+		else
+		{
+			snprintf(status, sizeof status,
+				 "SMTP server child for %s",
+				 anynet_ntoa(&RealHostAddr));
+			proc_list_add(pid, status, PROC_DAEMON);
+		}
 		(void) releasesignal(SIGCHLD);
 
 		/* close the read end of the synchronization pipe */
 		if (pipefd[0] != -1)
+		{
 			(void) close(pipefd[0]);
+			pipefd[0] = -1;
+		}
 
 		/* close the port so that others will hang (for a while) */
 		(void) close(t);
 
 		/* release the child by closing the read end of the sync pipe */
 		if (pipefd[1] != -1)
+		{
 			(void) close(pipefd[1]);
+			pipefd[1] = -1;
+		}
 	}
+
 	if (tTd(15, 2))
-		printf("getreq: returning\n");
-	return;
+		dprintf("getreq: returning\n");
+	return &Daemons[curdaemon].d_flags;
 }
 /*
-**  OPENDAEMONSOCKET -- open the SMTP socket
+**  OPENDAEMONSOCKET -- open SMTP socket
 **
-**	Deals with setting all appropriate options.  DaemonAddr must
-**	be set up in advance.
+**	Deals with setting all appropriate options.
 **
 **	Parameters:
+**		d -- the structure for the daemon to open.
 **		firsttime -- set if this is the initial open.
 **
 **	Returns:
@@ -540,101 +762,229 @@ getrequests(e)
 **		Exits if the socket cannot be created.
 */
 
-#define MAXOPENTRIES	10	/* maximum number of tries to open connection */
+# define MAXOPENTRIES	10	/* maximum number of tries to open connection */
 
-int
-opendaemonsocket(firsttime)
+static int
+opendaemonsocket(d, firsttime)
+	struct daemon *d;
 	bool firsttime;
 {
 	int on = 1;
-	int socksize = 0;
+	int fdflags;
+	SOCKADDR_LEN_T socksize = 0;
 	int ntries = 0;
-	int saveerrno;
+	int save_errno;
 
 	if (tTd(15, 2))
-		printf("opendaemonsocket()\n");
+		dprintf("opendaemonsocket(%s)\n", d->d_name);
 
 	do
 	{
 		if (ntries > 0)
-			sleep(5);
-		if (firsttime || DaemonSocket < 0)
+			(void) sleep(5);
+		if (firsttime || d->d_socket < 0)
 		{
-			DaemonSocket = socket(DaemonAddr.sa.sa_family, SOCK_STREAM, 0);
-			if (DaemonSocket < 0)
+			d->d_socket = socket(d->d_addr.sa.sa_family,
+					     SOCK_STREAM, 0);
+			if (d->d_socket < 0)
 			{
-				saveerrno = errno;
-				syserr("opendaemonsocket: can't create server SMTP socket");
+				save_errno = errno;
+				syserr("opendaemonsocket: daemon %s: can't create server SMTP socket", d->d_name);
 			  severe:
 				if (LogLevel > 0)
 					sm_syslog(LOG_ALERT, NOQID,
-						"problem creating SMTP socket");
-				DaemonSocket = -1;
+						  "daemon %s: problem creating SMTP socket", d->d_name);
+				d->d_socket = -1;
 				continue;
 			}
 
 			/* turn on network debugging? */
 			if (tTd(15, 101))
-				(void) setsockopt(DaemonSocket, SOL_SOCKET,
+				(void) setsockopt(d->d_socket, SOL_SOCKET,
 						  SO_DEBUG, (char *)&on,
 						  sizeof on);
 
-			(void) setsockopt(DaemonSocket, SOL_SOCKET,
+			(void) setsockopt(d->d_socket, SOL_SOCKET,
 					  SO_REUSEADDR, (char *)&on, sizeof on);
-			(void) setsockopt(DaemonSocket, SOL_SOCKET,
+			(void) setsockopt(d->d_socket, SOL_SOCKET,
 					  SO_KEEPALIVE, (char *)&on, sizeof on);
 
-#ifdef SO_RCVBUF
-			if (TcpRcvBufferSize > 0)
+# ifdef SO_RCVBUF
+			if (d->d_tcprcvbufsize > 0)
 			{
-				if (setsockopt(DaemonSocket, SOL_SOCKET,
+				if (setsockopt(d->d_socket, SOL_SOCKET,
 					       SO_RCVBUF,
-					       (char *) &TcpRcvBufferSize,
-					       sizeof(TcpRcvBufferSize)) < 0)
-					syserr("opendaemonsocket: setsockopt(SO_RCVBUF)");
+					       (char *) &d->d_tcprcvbufsize,
+					       sizeof(d->d_tcprcvbufsize)) < 0)
+					syserr("opendaemonsocket: daemon %s: setsockopt(SO_RCVBUF)", d->d_name);
 			}
-#endif
+# endif /* SO_RCVBUF */
+# ifdef SO_SNDBUF
+			if (d->d_tcpsndbufsize > 0)
+			{
+				if (setsockopt(d->d_socket, SOL_SOCKET,
+					       SO_SNDBUF,
+					       (char *) &d->d_tcpsndbufsize,
+					       sizeof(d->d_tcpsndbufsize)) < 0)
+					syserr("opendaemonsocket: daemon %s: setsockopt(SO_SNDBUF)", d->d_name);
+			}
+# endif /* SO_SNDBUF */
 
-			switch (DaemonAddr.sa.sa_family)
+			if ((fdflags = fcntl(d->d_socket, F_GETFD, 0)) == -1 ||
+			    fcntl(d->d_socket, F_SETFD,
+				  fdflags | FD_CLOEXEC) == -1)
+			{
+				save_errno = errno;
+				syserr("opendaemonsocket: daemon %s: failed to %s close-on-exec flag: %s",
+				       d->d_name,
+				       fdflags == -1 ? "get" : "set",
+				       errstring(save_errno));
+				(void) close(d->d_socket);
+				goto severe;
+			}
+
+			switch (d->d_addr.sa.sa_family)
 			{
 # if NETINET
 			  case AF_INET:
-				socksize = sizeof DaemonAddr.sin;
+				socksize = sizeof d->d_addr.sin;
 				break;
-# endif
+# endif /* NETINET */
+
+# if NETINET6
+			  case AF_INET6:
+				socksize = sizeof d->d_addr.sin6;
+				break;
+# endif /* NETINET6 */
 
 # if NETISO
 			  case AF_ISO:
-				socksize = sizeof DaemonAddr.siso;
+				socksize = sizeof d->d_addr.siso;
 				break;
-# endif
+# endif /* NETISO */
 
 			  default:
-				socksize = sizeof DaemonAddr;
+				socksize = sizeof d->d_addr;
 				break;
 			}
 
-			if (bind(DaemonSocket, &DaemonAddr.sa, socksize) < 0)
+			if (bind(d->d_socket, &d->d_addr.sa, socksize) < 0)
 			{
 				/* probably another daemon already */
-				saveerrno = errno;
-				syserr("opendaemonsocket: cannot bind");
-				(void) close(DaemonSocket);
+				save_errno = errno;
+				syserr("opendaemonsocket: daemon %s: cannot bind",
+				       d->d_name);
+				(void) close(d->d_socket);
 				goto severe;
 			}
 		}
-		if (!firsttime && listen(DaemonSocket, ListenQueueSize) < 0)
+		if (!firsttime &&
+		    listen(d->d_socket, d->d_listenqueue) < 0)
 		{
-			saveerrno = errno;
-			syserr("opendaemonsocket: cannot listen");
-			(void) close(DaemonSocket);
+			save_errno = errno;
+			syserr("opendaemonsocket: daemon %s: cannot listen",
+			       d->d_name);
+			(void) close(d->d_socket);
 			goto severe;
 		}
 		return socksize;
-	} while (ntries++ < MAXOPENTRIES && transienterror(saveerrno));
-	syserr("!opendaemonsocket: server SMTP socket wedged: exiting");
-	/*NOTREACHED*/
+	} while (ntries++ < MAXOPENTRIES && transienterror(save_errno));
+	syserr("!opendaemonsocket: daemon %s: server SMTP socket wedged: exiting",
+	       d->d_name);
+	/* NOTREACHED */
 	return -1;  /* avoid compiler warning on IRIX */
+}
+/*
+**  SETUPDAEMON -- setup socket for daemon
+**
+**	Parameters:
+**		daemonaddr -- socket for daemon
+**		daemon -- number of daemon
+**
+**	Returns:
+**		port number on which daemon should run
+**
+*/
+static u_short
+setupdaemon(daemonaddr)
+	SOCKADDR *daemonaddr;
+{
+	u_short port;
+
+	/*
+	**  Set up the address for the mailer.
+	*/
+
+	if (daemonaddr->sa.sa_family == AF_UNSPEC)
+	{
+		memset(daemonaddr, '\0', sizeof *daemonaddr);
+# if NETINET
+		daemonaddr->sa.sa_family = AF_INET;
+# endif /* NETINET */
+	}
+
+	switch (daemonaddr->sa.sa_family)
+	{
+# if NETINET
+	  case AF_INET:
+		if (daemonaddr->sin.sin_addr.s_addr == 0)
+			daemonaddr->sin.sin_addr.s_addr = INADDR_ANY;
+		port = daemonaddr->sin.sin_port;
+		break;
+# endif /* NETINET */
+
+# if NETINET6
+	  case AF_INET6:
+		if (IN6_IS_ADDR_UNSPECIFIED(&daemonaddr->sin6.sin6_addr))
+			daemonaddr->sin6.sin6_addr = in6addr_any;
+		port = daemonaddr->sin6.sin6_port;
+		break;
+# endif /* NETINET6 */
+
+	  default:
+		/* unknown protocol */
+		port = 0;
+		break;
+	}
+	if (port == 0)
+	{
+# ifdef NO_GETSERVBYNAME
+		port = htons(25);
+# else /* NO_GETSERVBYNAME */
+		{
+			register struct servent *sp;
+
+			sp = getservbyname("smtp", "tcp");
+			if (sp == NULL)
+			{
+				syserr("554 5.3.5 service \"smtp\" unknown");
+				port = htons(25);
+			}
+			else
+				port = sp->s_port;
+		}
+# endif /* NO_GETSERVBYNAME */
+	}
+
+	switch (daemonaddr->sa.sa_family)
+	{
+# if NETINET
+	  case AF_INET:
+		daemonaddr->sin.sin_port = port;
+		break;
+# endif /* NETINET */
+
+# if NETINET6
+	  case AF_INET6:
+		daemonaddr->sin6.sin6_port = port;
+		break;
+# endif /* NETINET6 */
+
+	  default:
+		/* unknown protocol */
+		break;
+	}
+	return(port);
 }
 /*
 **  CLRDAEMON -- reset the daemon connection
@@ -652,26 +1002,41 @@ opendaemonsocket(firsttime)
 void
 clrdaemon()
 {
-	if (DaemonSocket >= 0)
-		(void) close(DaemonSocket);
-	DaemonSocket = -1;
+	int i;
+
+	for (i = 0; i < ndaemons; i++)
+	{
+		if (Daemons[i].d_socket >= 0)
+			(void) close(Daemons[i].d_socket);
+		Daemons[i].d_socket = -1;
+	}
 }
 /*
-**  SETDAEMONOPTIONS -- set options for running the daemon
+**  SETSOCKADDROPTIONS -- set options for SOCKADDR (daemon or client)
 **
 **	Parameters:
 **		p -- the options line.
+**		d -- the daemon structure to fill in.
 **
 **	Returns:
 **		none.
 */
 
-void
-setdaemonoptions(p)
+static void
+setsockaddroptions(p, d)
 	register char *p;
+	struct daemon *d;
 {
-	if (DaemonAddr.sa.sa_family == AF_UNSPEC)
-		DaemonAddr.sa.sa_family = AF_INET;
+# if NETISO
+	short port;
+# endif /* NETISO */
+	int l;
+	char *h, *flags;
+
+# if NETINET
+	if (d->d_addr.sa.sa_family == AF_UNSPEC)
+		d->d_addr.sa.sa_family = AF_INET;
+# endif /* NETINET */
 
 	while (p != NULL)
 	{
@@ -698,123 +1063,366 @@ setdaemonoptions(p)
 		{
 		  case 'F':		/* address family */
 			if (isascii(*v) && isdigit(*v))
-				DaemonAddr.sa.sa_family = atoi(v);
-#if NETINET
+				d->d_addr.sa.sa_family = atoi(v);
+# if NETINET
 			else if (strcasecmp(v, "inet") == 0)
-				DaemonAddr.sa.sa_family = AF_INET;
-#endif
-#if NETISO
+				d->d_addr.sa.sa_family = AF_INET;
+# endif /* NETINET */
+# if NETINET6
+			else if (strcasecmp(v, "inet6") == 0)
+				d->d_addr.sa.sa_family = AF_INET6;
+# endif /* NETINET6 */
+# if NETISO
 			else if (strcasecmp(v, "iso") == 0)
-				DaemonAddr.sa.sa_family = AF_ISO;
-#endif
-#if NETNS
+				d->d_addr.sa.sa_family = AF_ISO;
+# endif /* NETISO */
+# if NETNS
 			else if (strcasecmp(v, "ns") == 0)
-				DaemonAddr.sa.sa_family = AF_NS;
-#endif
-#if NETX25
+				d->d_addr.sa.sa_family = AF_NS;
+# endif /* NETNS */
+# if NETX25
 			else if (strcasecmp(v, "x.25") == 0)
-				DaemonAddr.sa.sa_family = AF_CCITT;
-#endif
+				d->d_addr.sa.sa_family = AF_CCITT;
+# endif /* NETX25 */
 			else
-				syserr("554 Unknown address family %s in Family=option", v);
+				syserr("554 5.3.5 Unknown address family %s in Family=option",
+				       v);
 			break;
 
 		  case 'A':		/* address */
-			switch (DaemonAddr.sa.sa_family)
+			switch (d->d_addr.sa.sa_family)
 			{
-#if NETINET
+# if NETINET
 			  case AF_INET:
-				if (isascii(*v) && isdigit(*v))
-					DaemonAddr.sin.sin_addr.s_addr = inet_addr(v);
-				else
+				if (!isascii(*v) || !isdigit(*v) ||
+				    ((d->d_addr.sin.sin_addr.s_addr = inet_addr(v)) == INADDR_NONE))
 				{
 					register struct hostent *hp;
 
-					hp = sm_gethostbyname(v);
+					hp = sm_gethostbyname(v, AF_INET);
 					if (hp == NULL)
-						syserr("554 host \"%s\" unknown", v);
+						syserr("554 5.3.0 host \"%s\" unknown",
+						       v);
 					else
-						bcopy(hp->h_addr, &DaemonAddr.sin.sin_addr, INADDRSZ);
+					{
+						while (*(hp->h_addr_list) &&
+						       hp->h_addrtype != AF_INET)
+							hp->h_addr_list++;
+						if (*(hp->h_addr_list) == NULL)
+							syserr("554 5.3.0 host \"%s\" unknown",
+							       v);
+						else
+							memmove(&d->d_addr.sin.sin_addr,
+								*(hp->h_addr_list),
+								INADDRSZ);
+					}
 				}
 				break;
-#endif
+# endif /* NETINET */
+
+# if NETINET6
+			  case AF_INET6:
+				if (!isascii(*v) || !isxdigit(*v) ||
+				    inet_pton(AF_INET6, v,
+					      &d->d_addr.sin6.sin6_addr) != 1)
+				{
+					register struct hostent *hp;
+
+					hp = sm_gethostbyname(v, AF_INET6);
+					if (hp == NULL)
+						syserr("554 5.3.0 host \"%s\" unknown",
+						       v);
+					else
+					{
+						while (*(hp->h_addr_list) &&
+						       hp->h_addrtype != AF_INET6)
+							hp->h_addr_list++;
+						if (*(hp->h_addr_list) == NULL)
+							syserr("554 5.3.0 host \"%s\" unknown",
+							       v);
+						else
+							memmove(&d->d_addr.sin6.sin6_addr,
+								*(hp->h_addr_list),
+								IN6ADDRSZ);
+					}
+				}
+				break;
+# endif /* NETINET6 */
 
 			  default:
-				syserr("554 Address= option unsupported for family %d",
-					DaemonAddr.sa.sa_family);
+				syserr("554 5.3.5 address= option unsupported for family %d",
+				       d->d_addr.sa.sa_family);
 				break;
 			}
 			break;
 
 		  case 'P':		/* port */
-			switch (DaemonAddr.sa.sa_family)
+			switch (d->d_addr.sa.sa_family)
 			{
-#if NETISO
-				short port;
-#endif
-
-#if NETINET
+# if NETINET
 			  case AF_INET:
 				if (isascii(*v) && isdigit(*v))
-					DaemonAddr.sin.sin_port = htons(atoi(v));
+					d->d_addr.sin.sin_port = htons((u_short)atoi((const char *)v));
 				else
 				{
+#  ifdef NO_GETSERVBYNAME
+					syserr("554 5.3.5 invalid port number: %s",
+					       v);
+#  else /* NO_GETSERVBYNAME */
 					register struct servent *sp;
 
 					sp = getservbyname(v, "tcp");
 					if (sp == NULL)
-						syserr("554 service \"%s\" unknown", v);
+						syserr("554 5.3.5 service \"%s\" unknown",
+						       v);
 					else
-						DaemonAddr.sin.sin_port = sp->s_port;
+						d->d_addr.sin.sin_port = sp->s_port;
+#  endif /* NO_GETSERVBYNAME */
 				}
 				break;
-#endif
+# endif /* NETINET */
 
-#if NETISO
+# if NETINET6
+			  case AF_INET6:
+				if (isascii(*v) && isdigit(*v))
+					d->d_addr.sin6.sin6_port = htons((u_short)atoi(v));
+				else
+				{
+#  ifdef NO_GETSERVBYNAME
+					syserr("554 5.3.5 invalid port number: %s",
+					       v);
+#  else /* NO_GETSERVBYNAME */
+					register struct servent *sp;
+
+					sp = getservbyname(v, "tcp");
+					if (sp == NULL)
+						syserr("554 5.3.5 service \"%s\" unknown",
+						       v);
+					else
+						d->d_addr.sin6.sin6_port = sp->s_port;
+#  endif /* NO_GETSERVBYNAME */
+				}
+				break;
+# endif /* NETINET6 */
+
+# if NETISO
 			  case AF_ISO:
 				/* assume two byte transport selector */
 				if (isascii(*v) && isdigit(*v))
-					port = htons(atoi(v));
+					port = htons((u_short)atoi(v));
 				else
 				{
+#  ifdef NO_GETSERVBYNAME
+					syserr("554 5.3.5 invalid port number: %s",
+					       v);
+#  else /* NO_GETSERVBYNAME */
 					register struct servent *sp;
 
 					sp = getservbyname(v, "tcp");
 					if (sp == NULL)
-						syserr("554 service \"%s\" unknown", v);
+						syserr("554 5.3.5 service \"%s\" unknown",
+						       v);
 					else
 						port = sp->s_port;
+#  endif /* NO_GETSERVBYNAME */
 				}
-				bcopy((char *) &port, TSEL(&DaemonAddr.siso), 2);
+				memmove(TSEL(&d->d_addr.siso),
+					(char *) &port, 2);
 				break;
-#endif
+# endif /* NETISO */
 
 			  default:
-				syserr("554 Port= option unsupported for family %d",
-					DaemonAddr.sa.sa_family);
+				syserr("554 5.3.5 Port= option unsupported for family %d",
+				       d->d_addr.sa.sa_family);
 				break;
 			}
 			break;
 
 		  case 'L':		/* listen queue size */
-			ListenQueueSize = atoi(v);
+			d->d_listenqueue = atoi(v);
+			break;
+
+		  case 'M':		/* modifiers (flags) */
+			l = 3 * strlen(v) + 3;
+			h = v;
+			flags = xalloc(l);
+			d->d_mflags = flags;
+			for (; *h != '\0'; h++)
+			{
+				if (!(isascii(*h) && isspace(*h)))
+				{
+					if (flags != d->d_mflags)
+						*f++ = ' ';
+					*flags++ = *h;
+					if (isupper(*h))
+						*flags++ = *h;
+				}
+			}
+			*flags++ = '\0';
+			for (; *v != '\0'; v++)
+				if (!(isascii(*v) && isspace(*v)))
+					setbitn(*v, d->d_flags);
 			break;
 
 		  case 'S':		/* send buffer size */
-			TcpSndBufferSize = atoi(v);
+			d->d_tcpsndbufsize = atoi(v);
 			break;
 
 		  case 'R':		/* receive buffer size */
-			TcpRcvBufferSize = atoi(v);
+			d->d_tcprcvbufsize = atoi(v);
+			break;
+
+		  case 'N':		/* name */
+			d->d_name = v;
 			break;
 
 		  default:
-			syserr("554 DaemonPortOptions parameter \"%s\" unknown", f);
+			syserr("554 5.3.5 PortOptions parameter \"%s\" unknown",
+			       f);
 		}
 	}
 }
 /*
-**  MAKECONNECTION -- make a connection to an SMTP socket on another machine.
+**  SETDAEMONOPTIONS -- set options for running the MTA daemon
+**
+**	Parameters:
+**		p -- the options line.
+**
+**	Returns:
+**		TRUE if successful, FALSE otherwise.
+*/
+
+bool
+setdaemonoptions(p)
+	register char *p;
+{
+	if (ndaemons >= MAXDAEMONS)
+		return FALSE;
+	Daemons[ndaemons].d_socket = -1;
+	Daemons[ndaemons].d_listenqueue = 10;
+	clrbitmap(Daemons[ndaemons].d_flags);
+	setsockaddroptions(p, &Daemons[ndaemons]);
+
+	if (Daemons[ndaemons].d_name != NULL)
+		Daemons[ndaemons].d_name = newstr(Daemons[ndaemons].d_name);
+	else
+	{
+		char num[30];
+
+		snprintf(num, sizeof num, "Daemon%d", ndaemons);
+		Daemons[ndaemons].d_name = newstr(num);
+	}
+
+	if (tTd(37, 1))
+	{
+		dprintf("Daemon %s flags: ", Daemons[ndaemons].d_name);
+		if (bitnset(D_ETRNONLY, Daemons[ndaemons].d_flags))
+			dprintf("ETRNONLY ");
+		if (bitnset(D_NOETRN, Daemons[ndaemons].d_flags))
+			dprintf("NOETRN ");
+		dprintf("\n");
+	}
+	++ndaemons;
+	return TRUE;
+}
+/*
+**  INITDAEMON -- initialize daemon if not yet done.
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none
+**
+**	Side Effects:
+**		initializes structure for one daemon.
+*/
+void
+initdaemon()
+{
+	if (ndaemons == 0)
+	{
+		Daemons[ndaemons].d_socket = -1;
+		Daemons[ndaemons].d_listenqueue = 10;
+		Daemons[ndaemons].d_name = "Daemon0";
+		ndaemons = 1;
+	}
+}
+/*
+**  SETCLIENTOPTIONS -- set options for running the client
+**
+**	Parameters:
+**		p -- the options line.
+**
+**	Returns:
+**		none.
+*/
+
+static SOCKADDR	ClientAddr;		/* address for client */
+
+void
+setclientoptions(p)
+	register char *p;
+{
+	struct daemon d;
+	extern ENVELOPE BlankEnvelope;
+
+	memset(&d, '\0', sizeof d);
+	setsockaddroptions(p, &d);
+
+	/* grab what we need */
+	memcpy(&ClientAddr, &d.d_addr, sizeof ClientAddr);
+	TcpSndBufferSize = d.d_tcpsndbufsize;
+	TcpRcvBufferSize = d.d_tcprcvbufsize;
+	if (d.d_mflags != NULL)
+		define(macid("{client_flags}", NULL), d.d_mflags,
+		       &BlankEnvelope);
+	else
+		define(macid("{client_flags}", NULL), "", &BlankEnvelope);
+}
+/*
+**  ADDR_FAMILY -- determine address family from address
+**
+**	Parameters:
+**		addr -- the string representation of the address
+**
+**	Returns:
+**		AF_INET, AF_INET6 or AF_UNSPEC
+**
+**	Side Effects:
+**		none.
+*/
+
+static int
+addr_family(addr)
+	char *addr;
+{
+# if NETINET6
+	SOCKADDR clt_addr;
+# endif /* NETINET6 */
+
+# if NETINET
+	if (inet_addr(addr) != INADDR_NONE)
+	{
+		if (tTd(16, 9))
+			printf("addr_family(%s): INET\n", addr);
+		return AF_INET;
+	}
+# endif /* NETINET */
+# if NETINET6
+	if (inet_pton(AF_INET6, addr, &clt_addr.sin6.sin6_addr) == 1)
+	{
+		if (tTd(16, 9))
+			printf("addr_family(%s): INET6\n", addr);
+		return AF_INET6;
+	}
+# endif /* NETINET6 */
+	if (tTd(16, 9))
+		printf("addr_family(%s): UNSPEC\n", addr);
+	return AF_UNSPEC;
+}
+/*
+**  MAKECONNECTION -- make a connection to an SMTP socket on a machine.
 **
 **	Parameters:
 **		host -- the name of the host.
@@ -833,19 +1441,12 @@ setdaemonoptions(p)
 
 static jmp_buf	CtxConnectTimeout;
 
-static void
-connecttimeout()
-{
-	errno = ETIMEDOUT;
-	longjmp(CtxConnectTimeout, 1);
-}
-
 SOCKADDR	CurHostAddr;		/* address of current host */
 
 int
 makeconnection(host, port, mci, e)
 	char *host;
-	u_short port;
+	volatile u_int port;
 	register MCI *mci;
 	ENVELOPE *e;
 {
@@ -853,54 +1454,221 @@ makeconnection(host, port, mci, e)
 	register volatile int s;
 	register struct hostent *volatile hp = (struct hostent *)NULL;
 	SOCKADDR addr;
-	int sav_errno;
-	volatile int addrlen;
+	SOCKADDR clt_addr;
+	int save_errno = 0;
+	volatile SOCKADDR_LEN_T addrlen;
 	volatile bool firstconnect;
 	EVENT *volatile ev = NULL;
+# if NETINET6
+	volatile bool v6found = FALSE;
+# endif /* NETINET6 */
+	volatile int family = InetMode;
+	SOCKADDR_LEN_T len;
+	volatile SOCKADDR_LEN_T socksize = 0;
+	volatile bool clt_bind;
+	BITMAP256 d_flags;
+	char *p;
+	extern ENVELOPE BlankEnvelope;
+
+	/* retranslate ${daemon_flags} into bitmap */
+	clrbitmap(d_flags);
+	if ((p = macvalue(macid("{daemon_flags}", NULL), e)) != NULL)
+	{
+		for (; *p != '\0'; p++)
+		{
+			if (!(isascii(*p) && isspace(*p)))
+				setbitn(*p, d_flags);
+		}
+	}
+
+	/* "add" ${client_flags} to bitmap */
+	if ((p = macvalue(macid("{client_flags}", NULL), e)) != NULL)
+	{
+		for (; *p != '\0'; p++)
+		{
+			/* look for just this one flag */
+			if (*p == D_IFNHELO)
+			{
+				setbitn(*p, d_flags);
+				break;
+			}
+		}
+	}
+
+# if NETINET6
+ v4retry:
+# endif /* NETINET6 */
+	clt_bind = FALSE;
+
+	/* Set up the address for outgoing connection. */
+	if (bitnset(D_BINDIF, d_flags) &&
+	    (p = macvalue(macid("{if_addr}", NULL), e)) != NULL)
+	{
+# if NETINET6
+		char p6[INET6_ADDRSTRLEN];
+# endif /* NETINET6 */
+
+		memset(&clt_addr, '\0', sizeof clt_addr);
+
+		/* infer the address family from the address itself */
+		clt_addr.sa.sa_family = addr_family(p);
+		switch (clt_addr.sa.sa_family)
+		{
+# if NETINET
+		  case AF_INET:
+			if ((clt_addr.sin.sin_addr.s_addr = inet_addr(p))
+			    != INADDR_NONE)
+			{
+				clt_bind = TRUE;
+				socksize = sizeof (struct sockaddr_in);
+			}
+			else if (clt_addr.sin.sin_port != 0)
+			{
+				clt_addr.sin.sin_addr.s_addr = INADDR_ANY;
+				clt_bind = TRUE;
+				socksize = sizeof (struct sockaddr_in);
+			}
+			break;
+# endif /* NETINET */
+
+# if NETINET6
+		  case AF_INET6:
+			if (inet_addr(p) != INADDR_NONE)
+				snprintf(p6, sizeof p6, "::ffff:%s", p);
+			else
+				strlcpy(p6, p, sizeof p6);
+			if (inet_pton(AF_INET6, p6,
+				      &clt_addr.sin6.sin6_addr) == 1)
+			{
+				clt_bind = TRUE;
+				socksize = sizeof (struct sockaddr_in6);
+			}
+			else if (clt_addr.sin6.sin6_port != 0)
+			{
+				if (IN6_IS_ADDR_UNSPECIFIED(&clt_addr.sin6.sin6_addr))
+					clt_addr.sin6.sin6_addr = in6addr_any;
+				clt_bind = TRUE;
+				socksize = sizeof (struct sockaddr_in6);
+			}
+			break;
+# endif /* NETINET6 */
+
+# if 0
+		  default:
+			syserr("554 5.3.5 Address= option unsupported for family %d",
+			       clt_addr.sa.sa_family);
+			break;
+# endif /* 0 */
+		}
+		if (clt_bind)
+			family = clt_addr.sa.sa_family;
+	}
+	else
+	{
+		STRUCTCOPY(ClientAddr, clt_addr);
+		if (clt_addr.sa.sa_family == AF_UNSPEC)
+			clt_addr.sa.sa_family = InetMode;
+		switch (clt_addr.sa.sa_family)
+		{
+# if NETINET
+		  case AF_INET:
+			if (clt_addr.sin.sin_addr.s_addr == 0)
+				clt_addr.sin.sin_addr.s_addr = INADDR_ANY;
+			else
+				clt_bind = TRUE;
+			if (clt_addr.sin.sin_port != 0)
+				clt_bind = TRUE;
+			socksize = sizeof (struct sockaddr_in);
+			break;
+# endif /* NETINET */
+# if NETINET6
+		  case AF_INET6:
+			if (IN6_IS_ADDR_UNSPECIFIED(&clt_addr.sin6.sin6_addr))
+				clt_addr.sin6.sin6_addr = in6addr_any;
+			else
+				clt_bind = TRUE;
+			socksize = sizeof (struct sockaddr_in6);
+			if (clt_addr.sin6.sin6_port != 0)
+				clt_bind = TRUE;
+			break;
+# endif /* NETINET6 */
+# if NETISO
+		  case AF_ISO:
+			socksize = sizeof clt_addr.siso;
+			clt_bind = TRUE;
+			break;
+# endif /* NETISO */
+		  default:
+			break;
+		}
+	}
 
 	/*
 	**  Set up the address for the mailer.
 	**	Accept "[a.b.c.d]" syntax for host name.
 	*/
 
-#if NAMED_BIND
+# if NAMED_BIND
 	h_errno = 0;
-#endif
+# endif /* NAMED_BIND */
 	errno = 0;
-	bzero(&CurHostAddr, sizeof CurHostAddr);
+	memset(&CurHostAddr, '\0', sizeof CurHostAddr);
+	memset(&addr, '\0', sizeof addr);
 	SmtpPhase = mci->mci_phase = "initial connection";
 	CurHostName = host;
 
 	if (host[0] == '[')
 	{
-#if NETINET
-		unsigned long hid = INADDR_NONE;
-#endif
-		register char *p = strchr(host, ']');
-
+		p = strchr(host, ']');
 		if (p != NULL)
 		{
+# if NETINET
+			unsigned long hid = INADDR_NONE;
+# endif /* NETINET */
+# if NETINET6
+			struct sockaddr_in6 hid6;
+# endif /* NETINET6 */
+
 			*p = '\0';
-#if NETINET
-			hid = inet_addr(&host[1]);
-			if (hid == INADDR_NONE)
-#endif
+# if NETINET6
+			memset(&hid6, '\0', sizeof hid6);
+# endif /* NETINET6 */
+# if NETINET
+			if (family == AF_INET &&
+			    (hid = inet_addr(&host[1])) != INADDR_NONE)
+			{
+				addr.sin.sin_family = AF_INET;
+				addr.sin.sin_addr.s_addr = hid;
+			}
+			else
+# endif /* NETINET */
+# if NETINET6
+			if (family == AF_INET6 &&
+			    inet_pton(AF_INET6, &host[1],
+				      &hid6.sin6_addr) == 1)
+			{
+				addr.sin6.sin6_family = AF_INET6;
+				addr.sin6.sin6_addr = hid6.sin6_addr;
+			}
+			else
+# endif /* NETINET6 */
 			{
 				/* try it as a host name (avoid MX lookup) */
-				hp = sm_gethostbyname(&host[1]);
+				hp = sm_gethostbyname(&host[1], family);
 				if (hp == NULL && p[-1] == '.')
 				{
-#if NAMED_BIND
+# if NAMED_BIND
 					int oldopts = _res.options;
 
 					_res.options &= ~(RES_DEFNAMES|RES_DNSRCH);
-#endif
+# endif /* NAMED_BIND */
 					p[-1] = '\0';
-					hp = sm_gethostbyname(&host[1]);
+					hp = sm_gethostbyname(&host[1],
+							      family);
 					p[-1] = '.';
-#if NAMED_BIND
+# if NAMED_BIND
 					_res.options = oldopts;
-#endif
+# endif /* NAMED_BIND */
 				}
 				*p = ']';
 				goto gothostent;
@@ -911,62 +1679,87 @@ makeconnection(host, port, mci, e)
 		{
 			extern char MsgBuf[];
 
-			usrerr("553 Invalid numeric domain spec \"%s\"", host);
+			usrerrenh("5.1.2",
+				  "553 Invalid numeric domain spec \"%s\"",
+				  host);
 			mci_setstat(mci, EX_NOHOST, "5.1.2", MsgBuf);
+			errno = EINVAL;
 			return EX_NOHOST;
 		}
-#if NETINET
-		addr.sin.sin_family = AF_INET;		/*XXX*/
-		addr.sin.sin_addr.s_addr = hid;
-#endif
 	}
 	else
 	{
 		/* contortion to get around SGI cc complaints */
 		{
-			register char *p = &host[strlen(host) - 1];
-
-			hp = sm_gethostbyname(host);
+			p = &host[strlen(host) - 1];
+			hp = sm_gethostbyname(host, family);
 			if (hp == NULL && *p == '.')
 			{
-#if NAMED_BIND
+# if NAMED_BIND
 				int oldopts = _res.options;
 
 				_res.options &= ~(RES_DEFNAMES|RES_DNSRCH);
-#endif
+# endif /* NAMED_BIND */
 				*p = '\0';
-				hp = sm_gethostbyname(host);
+				hp = sm_gethostbyname(host, family);
 				*p = '.';
-#if NAMED_BIND
+# if NAMED_BIND
 				_res.options = oldopts;
-#endif
+# endif /* NAMED_BIND */
 			}
 		}
 gothostent:
 		if (hp == NULL)
 		{
-#if NAMED_BIND
+# if NAMED_BIND
 			/* check for name server timeouts */
 			if (errno == ETIMEDOUT || h_errno == TRY_AGAIN ||
 			    (errno == ECONNREFUSED && UseNameServer))
 			{
+				save_errno = errno;
 				mci_setstat(mci, EX_TEMPFAIL, "4.4.3", NULL);
+				errno = save_errno;
 				return EX_TEMPFAIL;
 			}
-#endif
+# endif /* NAMED_BIND */
+# if NETINET6
+			/*
+			**  Try v6 first, then fall back to v4.
+			**  If we found a v6 address, but no v4
+			**  addresses, then TEMPFAIL.
+			*/
+
+			if (family == AF_INET6)
+			{
+				family = AF_INET;
+				goto v4retry;
+			}
+			if (v6found)
+				goto v6tempfail;
+# endif /* NETINET6 */
+			save_errno = errno;
 			mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
-			return (EX_NOHOST);
+			errno = save_errno;
+			return EX_NOHOST;
 		}
 		addr.sa.sa_family = hp->h_addrtype;
 		switch (hp->h_addrtype)
 		{
-#if NETINET
+# if NETINET
 		  case AF_INET:
-			bcopy(hp->h_addr,
-				&addr.sin.sin_addr,
+			memmove(&addr.sin.sin_addr,
+				hp->h_addr,
 				INADDRSZ);
 			break;
-#endif
+# endif /* NETINET */
+
+# if NETINET6
+		  case AF_INET6:
+			memmove(&addr.sin6.sin6_addr,
+				hp->h_addr,
+				IN6ADDRSZ);
+			break;
+# endif /* NETINET6 */
 
 		  default:
 			if (hp->h_length > sizeof addr.sa.sa_data)
@@ -974,10 +1767,11 @@ gothostent:
 				syserr("makeconnection: long sa_data: family %d len %d",
 					hp->h_addrtype, hp->h_length);
 				mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
+				errno = EINVAL;
 				return EX_NOHOST;
 			}
-			bcopy(hp->h_addr,
-				addr.sa.sa_data,
+			memmove(addr.sa.sa_data,
+				hp->h_addr,
 				hp->h_length);
 			break;
 		}
@@ -990,57 +1784,69 @@ gothostent:
 
 	if (port == 0)
 	{
+# ifdef NO_GETSERVBYNAME
+		port = htons(25);
+# else /* NO_GETSERVBYNAME */
 		register struct servent *sp = getservbyname("smtp", "tcp");
 
 		if (sp == NULL)
 		{
 			if (LogLevel > 2)
 				sm_syslog(LOG_ERR, NOQID,
-					"makeconnection: service \"smtp\" unknown");
+					  "makeconnection: service \"smtp\" unknown");
 			port = htons(25);
 		}
 		else
 			port = sp->s_port;
+# endif /* NO_GETSERVBYNAME */
 	}
 
 	switch (addr.sa.sa_family)
 	{
-#if NETINET
+# if NETINET
 	  case AF_INET:
 		addr.sin.sin_port = port;
 		addrlen = sizeof (struct sockaddr_in);
 		break;
-#endif
+# endif /* NETINET */
 
-#if NETISO
+# if NETINET6
+	  case AF_INET6:
+		addr.sin6.sin6_port = port;
+		addrlen = sizeof (struct sockaddr_in6);
+		break;
+# endif /* NETINET6 */
+
+# if NETISO
 	  case AF_ISO:
 		/* assume two byte transport selector */
-		bcopy((char *) &port, TSEL((struct sockaddr_iso *) &addr), 2);
+		memmove(TSEL((struct sockaddr_iso *) &addr), (char *) &port, 2);
 		addrlen = sizeof (struct sockaddr_iso);
 		break;
-#endif
+# endif /* NETISO */
 
 	  default:
 		syserr("Can't connect to address family %d", addr.sa.sa_family);
 		mci_setstat(mci, EX_NOHOST, "5.1.2", NULL);
-		return (EX_NOHOST);
+		errno = EINVAL;
+		return EX_NOHOST;
 	}
 
 	/*
 	**  Try to actually open the connection.
 	*/
 
-#ifdef XLA
+# ifdef XLA
 	/* if too many connections, don't bother trying */
 	if (!xla_noqueue_ok(host))
 		return EX_TEMPFAIL;
-#endif
+# endif /* XLA */
 
 	firstconnect = TRUE;
 	for (;;)
 	{
 		if (tTd(16, 1))
-			printf("makeconnection (%s [%s])\n",
+			dprintf("makeconnection (%s [%s])\n",
 				host, anynet_ntoa(&addr));
 
 		/* save for logging */
@@ -1058,16 +1864,17 @@ gothostent:
 		}
 		if (s < 0)
 		{
-			sav_errno = errno;
+			save_errno = errno;
 			syserr("makeconnection: cannot create socket");
-#ifdef XLA
+# ifdef XLA
 			xla_host_end(host);
-#endif
+# endif /* XLA */
 			mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+			errno = save_errno;
 			return EX_TEMPFAIL;
 		}
 
-#ifdef SO_SNDBUF
+# ifdef SO_SNDBUF
 		if (TcpSndBufferSize > 0)
 		{
 			if (setsockopt(s, SOL_SOCKET, SO_SNDBUF,
@@ -1075,21 +1882,71 @@ gothostent:
 				       sizeof(TcpSndBufferSize)) < 0)
 				syserr("makeconnection: setsockopt(SO_SNDBUF)");
 		}
-#endif
+# endif /* SO_SNDBUF */
+# ifdef SO_RCVBUF
+		if (TcpRcvBufferSize > 0)
+		{
+			if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,
+				       (char *) &TcpRcvBufferSize,
+				       sizeof(TcpRcvBufferSize)) < 0)
+				syserr("makeconnection: setsockopt(SO_RCVBUF)");
+		}
+# endif /* SO_RCVBUF */
+
 
 		if (tTd(16, 1))
-			printf("makeconnection: fd=%d\n", s);
+			dprintf("makeconnection: fd=%d\n", s);
 
 		/* turn on network debugging? */
 		if (tTd(16, 101))
 		{
 			int on = 1;
+
 			(void) setsockopt(s, SOL_SOCKET, SO_DEBUG,
 					  (char *)&on, sizeof on);
 		}
 		if (e->e_xfp != NULL)
-			(void) fflush(e->e_xfp);		/* for debugging */
-		errno = 0;					/* for debugging */
+			(void) fflush(e->e_xfp);	/* for debugging */
+		errno = 0;				/* for debugging */
+
+		if (clt_bind)
+		{
+			int on = 1;
+
+			switch (clt_addr.sa.sa_family)
+			{
+# if NETINET
+			  case AF_INET:
+				if (clt_addr.sin.sin_port != 0)
+					(void) setsockopt(s, SOL_SOCKET,
+							  SO_REUSEADDR,
+							  (char *) &on,
+							  sizeof on);
+				break;
+# endif /* NETINET */
+
+# if NETINET6
+			  case AF_INET6:
+				if (clt_addr.sin6.sin6_port != 0)
+					(void) setsockopt(s, SOL_SOCKET,
+							  SO_REUSEADDR,
+							  (char *) &on,
+							  sizeof on);
+				break;
+# endif /* NETINET6 */
+			}
+
+			if (bind(s, &clt_addr.sa, socksize) < 0)
+			{
+				save_errno = errno;
+				(void) close(s);
+				errno = save_errno;
+				syserr("makeconnection: cannot bind socket [%s]",
+				       anynet_ntoa(&clt_addr));
+				errno = save_errno;
+				return EX_TEMPFAIL;
+			}
+		}
 
 		/*
 		**  Linux seems to hang in connect for 90 minutes (!!!).
@@ -1107,29 +1964,40 @@ gothostent:
 			else
 				ev = NULL;
 
-#if _FFR_CONNECTONLYTO_OPTION
-			/* for testing */
-			if (ConnectOnlyTo != 0)
-				addr.sin.sin_addr.s_addr = ConnectOnlyTo;
-#endif
+			switch (ConnectOnlyTo.sa.sa_family)
+			{
+# if NETINET
+			  case AF_INET:
+				addr.sin.sin_addr.s_addr = ConnectOnlyTo.sin.sin_addr.s_addr;
+				break;
+# endif /* NETINET */
+
+# if NETINET6
+			  case AF_INET6:
+				memmove(&addr.sin6.sin6_addr,
+					&ConnectOnlyTo.sin6.sin6_addr,
+					IN6ADDRSZ);
+				break;
+# endif /* NETINET6 */
+			}
 			i = connect(s, (struct sockaddr *) &addr, addrlen);
-			sav_errno = errno;
+			save_errno = errno;
 			if (ev != NULL)
 				clrevent(ev);
 			if (i >= 0)
 				break;
 		}
 		else
-			sav_errno = errno;
+			save_errno = errno;
 
 		/* if running demand-dialed connection, try again */
 		if (DialDelay > 0 && firstconnect)
 		{
 			if (tTd(16, 1))
-				printf("Connect failed (%s); trying again...\n",
-					errstring(sav_errno));
+				dprintf("Connect failed (%s); trying again...\n",
+					errstring(save_errno));
 			firstconnect = FALSE;
-			sleep(DialDelay);
+			(void) sleep(DialDelay);
 			continue;
 		}
 
@@ -1140,53 +2008,224 @@ gothostent:
 			sm_syslog(LOG_INFO, e->e_id,
 				  "makeconnection (%s [%s]) failed: %s",
 				  host, anynet_ntoa(&addr),
-				  errstring(sav_errno));
+				  errstring(save_errno));
 
 		if (hp != NULL && hp->h_addr_list[addrno] != NULL)
 		{
 			if (tTd(16, 1))
-				printf("Connect failed (%s); trying new address....\n",
-					errstring(sav_errno));
+				dprintf("Connect failed (%s); trying new address....\n",
+					errstring(save_errno));
 			switch (addr.sa.sa_family)
 			{
-#if NETINET
+# if NETINET
 			  case AF_INET:
-				bcopy(hp->h_addr_list[addrno++],
-				      &addr.sin.sin_addr,
-				      INADDRSZ);
+				memmove(&addr.sin.sin_addr,
+					hp->h_addr_list[addrno++],
+					INADDRSZ);
 				break;
-#endif
+# endif /* NETINET */
+
+# if NETINET6
+			  case AF_INET6:
+				memmove(&addr.sin6.sin6_addr,
+					hp->h_addr_list[addrno++],
+					IN6ADDRSZ);
+				break;
+# endif /* NETINET6 */
 
 			  default:
-				bcopy(hp->h_addr_list[addrno++],
-					addr.sa.sa_data,
+				memmove(addr.sa.sa_data,
+					hp->h_addr_list[addrno++],
 					hp->h_length);
 				break;
 			}
 			continue;
 		}
+		errno = save_errno;
 
+# if NETINET6
+		if (family == AF_INET6)
+		{
+			if (tTd(16, 1))
+				dprintf("Connect failed (%s); retrying with AF_INET....\n",
+					errstring(save_errno));
+			v6found = TRUE;
+			family = AF_INET;
+			goto v4retry;
+		}
+	v6tempfail:
+# endif /* NETINET6 */
 		/* couldn't open connection */
-#ifdef XLA
+# if NETINET6
+		/* Don't clobber an already saved errno from v4retry */
+		if (errno > 0)
+# endif /* NETINET6 */
+			save_errno = errno;
+		if (tTd(16, 1))
+			dprintf("Connect failed (%s)\n", errstring(save_errno));
+# ifdef XLA
 		xla_host_end(host);
-#endif
+# endif /* XLA */
 		mci_setstat(mci, EX_TEMPFAIL, "4.4.1", NULL);
+		errno = save_errno;
 		return EX_TEMPFAIL;
 	}
 
 	/* connection ok, put it into canonical form */
+	mci->mci_out = NULL;
 	if ((mci->mci_out = fdopen(s, "w")) == NULL ||
 	    (s = dup(s)) < 0 ||
 	    (mci->mci_in = fdopen(s, "r")) == NULL)
 	{
+		save_errno = errno;
 		syserr("cannot open SMTP client channel, fd=%d", s);
 		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+		if (mci->mci_out != NULL)
+			(void) fclose(mci->mci_out);
+		(void) close(s);
+		errno = save_errno;
+		return EX_TEMPFAIL;
+	}
+
+	/* find out name for Interface through which we connect */
+	len = sizeof addr;
+	if (getsockname(s, &addr.sa, &len) == 0)
+	{
+		char *name;
+		char *p;
+
+		define(macid("{if_addr}", NULL), newstr(anynet_ntoa(&addr)),
+		       &BlankEnvelope);
+		p = xalloc(5);
+		snprintf(p, 4, "%d", addr.sa.sa_family);
+		define(macid("{if_family}", NULL), p, &BlankEnvelope);
+
+		name = hostnamebyanyaddr(&addr);
+		define(macid("{if_name}", NULL), newstr(name), &BlankEnvelope);
+		if (LogLevel > 11)
+		{
+			/* log connection information */
+			sm_syslog(LOG_INFO, e->e_id,
+				  "SMTP outgoing connect on %.40s", name);
+		}
+		if (bitnset(D_IFNHELO, d_flags))
+		{
+			if (name[0] != '[' && strchr(name, '.') != NULL)
+				mci->mci_heloname = newstr(name);
+		}
+	}
+	else
+	{
+		define(macid("{if_name}", NULL), NULL, &BlankEnvelope);
+		define(macid("{if_addr}", NULL), NULL, &BlankEnvelope);
+		define(macid("{if_family}", NULL), NULL, &BlankEnvelope);
+	}
+	mci_setstat(mci, EX_OK, NULL, NULL);
+	return EX_OK;
+}
+
+static void
+connecttimeout()
+{
+	errno = ETIMEDOUT;
+	longjmp(CtxConnectTimeout, 1);
+}
+/*
+**  MAKECONNECTION_DS -- make a connection to a domain socket.
+**
+**	Parameters:
+**		mux_path -- the path of the socket to connect to.
+**		mci -- a pointer to the mail connection information
+**			structure to be filled in.
+**
+**	Returns:
+**		An exit code telling whether the connection could be
+**			made and if not why not.
+**
+**	Side Effects:
+**		none.
+*/
+
+# if NETUNIX
+int makeconnection_ds(mux_path, mci)
+	char *mux_path;
+	register MCI *mci;
+{
+	int sock;
+	int rval, save_errno;
+	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_ROOTOK|SFF_EXECOK;
+	struct sockaddr_un unix_addr;
+
+	/* if not safe, don't connect */
+	rval = safefile(mux_path, RunAsUid, RunAsGid, RunAsUserName,
+			sff, S_IRUSR|S_IWUSR, NULL);
+
+	if (rval != 0)
+	{
+		syserr("makeconnection_ds: unsafe domain socket");
+		mci_setstat(mci, EX_TEMPFAIL, "4.3.5", NULL);
+		errno = rval;
+		return EX_TEMPFAIL;
+	}
+
+	/* prepare address structure */
+	memset(&unix_addr, '\0', sizeof unix_addr);
+	unix_addr.sun_family = AF_UNIX;
+
+	if (strlen(mux_path) >= sizeof unix_addr.sun_path)
+	{
+		syserr("makeconnection_ds: domain socket name too long");
+		/* XXX why TEMPFAIL ? */
+		mci_setstat(mci, EX_TEMPFAIL, "5.3.5", NULL);
+		errno = ENAMETOOLONG;
+		return EX_UNAVAILABLE;
+	}
+	(void) strlcpy(unix_addr.sun_path, mux_path, sizeof unix_addr.sun_path);
+
+	/* initialize domain socket */
+	sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock == -1)
+	{
+		save_errno = errno;
+		syserr("makeconnection_ds: could not create domain socket");
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+		errno = save_errno;
+		return EX_TEMPFAIL;
+	}
+
+	/* connect to server */
+	if (connect(sock, (struct sockaddr *) &unix_addr,
+		    sizeof(unix_addr)) == -1)
+	{
+		save_errno = errno;
+		syserr("Could not connect to socket %s", mux_path);
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.1", NULL);
+		(void) close(sock);
+		errno = save_errno;
+		return EX_TEMPFAIL;
+	}
+
+	/* connection ok, put it into canonical form */
+	mci->mci_out = NULL;
+	if ((mci->mci_out = fdopen(sock, "w")) == NULL ||
+	    (sock = dup(sock)) < 0 ||
+	    (mci->mci_in = fdopen(sock, "r")) == NULL)
+	{
+		save_errno = errno;
+		syserr("cannot open SMTP client channel, fd=%d", sock);
+		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+		if (mci->mci_out != NULL)
+			(void) fclose(mci->mci_out);
+		(void) close(sock);
+		errno = save_errno;
 		return EX_TEMPFAIL;
 	}
 
 	mci_setstat(mci, EX_OK, NULL, NULL);
-	return (EX_OK);
+	errno = 0;
+	return EX_OK;
 }
+# endif /* NETUNIX */
 /*
 **  MYHOSTNAME -- return the name of this host.
 **
@@ -1210,16 +2249,29 @@ myhostname(hostbuf, size)
 
 	if (gethostname(hostbuf, size) < 0)
 	{
-		(void) strcpy(hostbuf, "localhost");
+		(void) strlcpy(hostbuf, "localhost", size);
 	}
-	hp = sm_gethostbyname(hostbuf);
+	hp = sm_gethostbyname(hostbuf, InetMode);
 	if (hp == NULL)
 		return NULL;
 	if (strchr(hp->h_name, '.') != NULL || strchr(hostbuf, '.') == NULL)
+		(void) cleanstrcpy(hostbuf, hp->h_name, size);
+
+# if NETINFO
+	if (strchr(hostbuf, '.') == NULL)
 	{
-		(void) strncpy(hostbuf, hp->h_name, size - 1);
-		hostbuf[size - 1] = '\0';
+		char *domainname;
+
+		domainname = ni_propval("/locations", NULL, "resolver",
+					"domain", '\0');
+		if (domainname != NULL &&
+		    strlen(domainname) + strlen(hostbuf) + 1 < size)
+		{
+			(void) strlcat(hostbuf, ".", size);
+			(void) strlcat(hostbuf, domainname, size);
+		}
 	}
+# endif /* NETINFO */
 
 	/*
 	**  If there is still no dot in the name, try looking for a
@@ -1230,11 +2282,11 @@ myhostname(hostbuf, size)
 	{
 		char **ha;
 
-		for (ha = hp->h_aliases; *ha != NULL; ha++)
+		for (ha = hp->h_aliases; ha != NULL && *ha != NULL; ha++)
 		{
 			if (strchr(*ha, '.') != NULL)
 			{
-				(void) strncpy(hostbuf, *ha, size - 1);
+				(void) cleanstrcpy(hostbuf, *ha, size - 1);
 				hostbuf[size - 1] = '\0';
 				break;
 			}
@@ -1254,21 +2306,21 @@ myhostname(hostbuf, size)
 	    !getcanonname(hostbuf, size, TRUE))
 	{
 		sm_syslog(LOG_CRIT, NOQID,
-			"My unqualified host name (%s) unknown; sleeping for retry",
-			hostbuf);
+			  "My unqualified host name (%s) unknown; sleeping for retry",
+			  hostbuf);
 		message("My unqualified host name (%s) unknown; sleeping for retry",
 			hostbuf);
-		sleep(60);
+		(void) sleep(60);
 		if (!getcanonname(hostbuf, size, TRUE))
 		{
 			sm_syslog(LOG_ALERT, NOQID,
-				"unable to qualify my own domain name (%s) -- using short name",
-				hostbuf);
+				  "unable to qualify my own domain name (%s) -- using short name",
+				  hostbuf);
 			message("WARNING: unable to qualify my own domain name (%s) -- using short name",
 				hostbuf);
 		}
 	}
-	return (hp);
+	return hp;
 }
 /*
 **  ADDRCMP -- compare two host addresses
@@ -1283,24 +2335,44 @@ myhostname(hostbuf, size)
 **		else -- they don't match
 */
 
-int
+static int
 addrcmp(hp, ha, sa)
 	struct hostent *hp;
 	char *ha;
 	SOCKADDR *sa;
 {
+# if NETINET6
+	u_char *a;
+# endif /* NETINET6 */
+
 	switch (sa->sa.sa_family)
 	{
+# if NETINET
 	  case AF_INET:
 		if (hp->h_addrtype == AF_INET)
-			return bcmp(ha, (char *) &sa->sin.sin_addr, hp->h_length);
+			return memcmp(ha, (char *) &sa->sin.sin_addr, INADDRSZ);
 		break;
+# endif /* NETINET */
 
+# if NETINET6
+	  case AF_INET6:
+		a = (u_char *) &sa->sin6.sin6_addr;
+
+		/* Straight binary comparison */
+		if (hp->h_addrtype == AF_INET6)
+			return memcmp(ha, a, IN6ADDRSZ);
+
+		/* If IPv4-mapped IPv6 address, compare the IPv4 section */
+		if (hp->h_addrtype == AF_INET &&
+		    IN6_IS_ADDR_V4MAPPED(&sa->sin6.sin6_addr))
+			return memcmp(a + IN6ADDRSZ - INADDRSZ, ha, INADDRSZ);
+		break;
+# endif /* NETINET6 */
 	}
 	return -1;
 }
 /*
-**  GETAUTHINFO -- get the real host name asociated with a file descriptor
+**  GETAUTHINFO -- get the real host name associated with a file descriptor
 **
 **	Uses RFC1413 protocol to try to get info from the other end.
 **
@@ -1327,6 +2399,7 @@ getauthinfo(fd, may_be_forged)
 	int fd;
 	bool *may_be_forged;
 {
+	u_short port = 0;
 	SOCKADDR_LEN_T falen;
 	register char *volatile p = NULL;
 	SOCKADDR la;
@@ -1347,12 +2420,21 @@ getauthinfo(fd, may_be_forged)
 	if (isatty(fd) || (i = getpeername(fd, &RealHostAddr.sa, &falen)) < 0 ||
 	    falen <= 0 || RealHostAddr.sa.sa_family == 0)
 	{
-		if (i < 0 && errno != ENOTSOCK)
-			return NULL;
+		if (i < 0)
+		{
+			/*
+			**  ENOTSOCK is OK: bail on anything else, but reset
+			**  errno in this case, so a mis-report doesn't
+			**  happen later.
+			*/
+			if (errno != ENOTSOCK)
+				return NULL;
+			errno = 0;
+		}
 		(void) snprintf(hbuf, sizeof hbuf, "%s@localhost",
 			RealUserName);
 		if (tTd(9, 1))
-			printf("getauthinfo: %s\n", hbuf);
+			dprintf("getauthinfo: %s\n", hbuf);
 		return hbuf;
 	}
 
@@ -1377,7 +2459,8 @@ getauthinfo(fd, may_be_forged)
 	else
 	{
 		/* try to match the reverse against the forward lookup */
-		hp = sm_gethostbyname(RealHostName);
+		hp = sm_gethostbyname(RealHostName,
+				      RealHostAddr.sa.sa_family);
 
 		if (hp == NULL)
 			*may_be_forged = TRUE;
@@ -1394,27 +2477,75 @@ getauthinfo(fd, may_be_forged)
 		goto noident;
 
 	lalen = sizeof la;
-	if (RealHostAddr.sa.sa_family != AF_INET ||
-	    getsockname(fd, &la.sa, &lalen) < 0 || lalen <= 0 ||
-	    la.sa.sa_family != AF_INET)
+	switch (RealHostAddr.sa.sa_family)
 	{
+# if NETINET
+	  case AF_INET:
+		if (getsockname(fd, &la.sa, &lalen) < 0 ||
+		    lalen <= 0 ||
+		    la.sa.sa_family != AF_INET)
+		{
+			/* no ident info */
+			goto noident;
+		}
+		port = RealHostAddr.sin.sin_port;
+
+		/* create ident query */
+		(void) snprintf(ibuf, sizeof ibuf, "%d,%d\r\n",
+				ntohs(RealHostAddr.sin.sin_port),
+				ntohs(la.sin.sin_port));
+
+		/* create local address */
+		la.sin.sin_port = 0;
+
+		/* create foreign address */
+#  ifdef NO_GETSERVBYNAME
+		RealHostAddr.sin.sin_port = htons(113);
+#  else /* NO_GETSERVBYNAME */
+		sp = getservbyname("auth", "tcp");
+		if (sp != NULL)
+			RealHostAddr.sin.sin_port = sp->s_port;
+		else
+			RealHostAddr.sin.sin_port = htons(113);
+		break;
+#  endif /* NO_GETSERVBYNAME */
+# endif /* NETINET */
+
+# if NETINET6
+	  case AF_INET6:
+		if (getsockname(fd, &la.sa, &lalen) < 0 ||
+		    lalen <= 0 ||
+		    la.sa.sa_family != AF_INET6)
+		{
+			/* no ident info */
+			goto noident;
+		}
+		port = RealHostAddr.sin6.sin6_port;
+
+		/* create ident query */
+		(void) snprintf(ibuf, sizeof ibuf, "%d,%d\r\n",
+				ntohs(RealHostAddr.sin6.sin6_port),
+				ntohs(la.sin6.sin6_port));
+
+		/* create local address */
+		la.sin6.sin6_port = 0;
+
+		/* create foreign address */
+#  ifdef NO_GETSERVBYNAME
+		RealHostAddr.sin6.sin6_port = htons(113);
+#  else /* NO_GETSERVBYNAME */
+		sp = getservbyname("auth", "tcp");
+		if (sp != NULL)
+			RealHostAddr.sin6.sin6_port = sp->s_port;
+		else
+			RealHostAddr.sin6.sin6_port = htons(113);
+		break;
+#  endif /* NO_GETSERVBYNAME */
+# endif /* NETINET6 */
+	  default:
 		/* no ident info */
 		goto noident;
 	}
-
-	/* create ident query */
-	(void) snprintf(ibuf, sizeof ibuf, "%d,%d\r\n",
-		ntohs(RealHostAddr.sin.sin_port), ntohs(la.sin.sin_port));
-
-	/* create local address */
-	la.sin.sin_port = 0;
-
-	/* create foreign address */
-	sp = getservbyname("auth", "tcp");
-	if (sp != NULL)
-		RealHostAddr.sin.sin_port = sp->s_port;
-	else
-		RealHostAddr.sin.sin_port = htons(113);
 
 	s = -1;
 	if (setjmp(CtxAuthTimeout) != 0)
@@ -1427,21 +2558,22 @@ getauthinfo(fd, may_be_forged)
 	/* put a timeout around the whole thing */
 	ev = setevent(TimeOuts.to_ident, authtimeout, 0);
 
+
 	/* connect to foreign IDENT server using same address as SMTP socket */
-	s = socket(AF_INET, SOCK_STREAM, 0);
+	s = socket(la.sa.sa_family, SOCK_STREAM, 0);
 	if (s < 0)
 	{
 		clrevent(ev);
 		goto noident;
 	}
-	if (bind(s, &la.sa, sizeof la.sin) < 0 ||
-	    connect(s, &RealHostAddr.sa, sizeof RealHostAddr.sin) < 0)
+	if (bind(s, &la.sa, lalen) < 0 ||
+	    connect(s, &RealHostAddr.sa, lalen) < 0)
 	{
 		goto closeident;
 	}
 
 	if (tTd(9, 10))
-		printf("getauthinfo: sent %s", ibuf);
+		dprintf("getauthinfo: sent %s", ibuf);
 
 	/* send query */
 	if (write(s, ibuf, strlen(ibuf)) < 0)
@@ -1468,7 +2600,7 @@ getauthinfo(fd, may_be_forged)
 	*++p = '\0';
 
 	if (tTd(9, 3))
-		printf("getauthinfo:  got %s\n", ibuf);
+		dprintf("getauthinfo:  got %s\n", ibuf);
 
 	/* parse result */
 	p = strchr(ibuf, ':');
@@ -1536,19 +2668,37 @@ closeident:
 	clrevent(ev);
 
 noident:
+	/* put back the original incoming port */
+	switch (RealHostAddr.sa.sa_family)
+	{
+# if NETINET
+	  case AF_INET:
+		if (port > 0)
+			RealHostAddr.sin.sin_port = port;
+		break;
+# endif /* NETINET */
+
+# if NETINET6
+	  case AF_INET6:
+		if (port > 0)
+			RealHostAddr.sin6.sin6_port = port;
+		break;
+# endif /* NETINET6 */
+	}
+
 	if (RealHostName == NULL)
 	{
 		if (tTd(9, 1))
-			printf("getauthinfo: NULL\n");
+			dprintf("getauthinfo: NULL\n");
 		return NULL;
 	}
 	snprintf(hbuf, sizeof hbuf, "%s", RealHostName);
 
 postident:
-#if IP_SRCROUTE
-# ifndef GET_IPOPT_DST
-#  define GET_IPOPT_DST(dst)	(dst)
-# endif
+# if IP_SRCROUTE
+#  ifndef GET_IPOPT_DST
+#   define GET_IPOPT_DST(dst)	(dst)
+#  endif /* ! GET_IPOPT_DST */
 	/*
 	**  Extract IP source routing information.
 	**
@@ -1569,8 +2719,7 @@ postident:
 		u_char *q;
 		u_char *o;
 		int l;
-		struct in_addr addr;
-		struct ipoption ipopt;
+		struct IPOPTION ipopt;
 
 		ipoptlen = sizeof ipopt;
 		if (getsockopt(fd, IPPROTO_IP, IP_OPTIONS,
@@ -1578,12 +2727,12 @@ postident:
 			goto noipsr;
 		if (ipoptlen == 0)
 			goto noipsr;
-		o = (u_char *) ipopt.ipopt_list;
+		o = (u_char *) ipopt.IP_LIST;
 		while (o != NULL && o < (u_char *) &ipopt + ipoptlen)
 		{
 			switch (*o)
 			{
-			  case IPOPT_EOL: 
+			  case IPOPT_EOL:
 				o = NULL;
 				break;
 
@@ -1609,7 +2758,7 @@ postident:
 				snprintf(p, SPACELEFT(hbuf, p), " [%s@%.*s",
 				    *o == IPOPT_SSRR ? "!" : "",
 				    l > 240 ? 120 : l / 2,
-				    inet_ntoa(GET_IPOPT_DST(ipopt.ipopt_dst)));
+				    inet_ntoa(GET_IPOPT_DST(ipopt.IP_DST)));
 				i = strlen(p);
 				p += i;
 				l -= strlen(p);
@@ -1620,17 +2769,19 @@ postident:
 				q = &o[3];
 				for ( ; j >= 0; j--)
 				{
+					struct in_addr addr;
+
 					memcpy(&addr, q, sizeof(addr));
 					snprintf(p, SPACELEFT(hbuf, p),
-						"%c%.*s",
-						j != 0 ? '@' : ':',
-						l > 240 ? 120 :
-						    j == 0 ? l : l / 2,
-						inet_ntoa(addr));
+						 "%c%.*s",
+						 j != 0 ? '@' : ':',
+						 l > 240 ? 120 :
+						 j == 0 ? l : l / 2,
+						 inet_ntoa(addr));
 					i = strlen(p);
 					p += i;
 					l -= i + 1;
-					q += sizeof(struct in_addr); 
+					q += sizeof(struct in_addr);
 				}
 				o += o[1];
 				break;
@@ -1646,7 +2797,7 @@ postident:
 	}
 
 noipsr:
-#endif
+# endif /* IP_SRCROUTE */
 	if (RealHostName != NULL && RealHostName[0] != '[')
 	{
 		p = &hbuf[strlen(hbuf)];
@@ -1659,11 +2810,30 @@ noipsr:
 		(void) snprintf(p, SPACELEFT(hbuf, p), " (may be forged)");
 	}
 
-#if IP_SRCROUTE
+# if IP_SRCROUTE
 postipsr:
-#endif
+# endif /* IP_SRCROUTE */
 	if (tTd(9, 1))
-		printf("getauthinfo: %s\n", hbuf);
+		dprintf("getauthinfo: %s\n", hbuf);
+
+	/* put back the original incoming port */
+	switch (RealHostAddr.sa.sa_family)
+	{
+# if NETINET
+	  case AF_INET:
+		if (port > 0)
+			RealHostAddr.sin.sin_port = port;
+		break;
+# endif /* NETINET */
+
+# if NETINET6
+	  case AF_INET6:
+		if (port > 0)
+			RealHostAddr.sin6.sin6_port = port;
+		break;
+# endif /* NETINET6 */
+	}
+
 	return hbuf;
 }
 /*
@@ -1696,8 +2866,13 @@ host_map_lookup(map, name, av, statp)
 	int *statp;
 {
 	register struct hostent *hp;
+# if NETINET
 	struct in_addr in_addr;
-	char *cp;
+# endif /* NETINET */
+# if NETINET6
+	struct in6_addr in6_addr;
+# endif /* NETINET6 */
+	char *cp, *ans = NULL;
 	register STAB *s;
 	char hbuf[MAXNAME + 1];
 
@@ -1710,15 +2885,15 @@ host_map_lookup(map, name, av, statp)
 	if (bitset(NCF_VALID, s->s_namecanon.nc_flags))
 	{
 		if (tTd(9, 1))
-			printf("host_map_lookup(%s) => CACHE %s\n",
-			       name,
-			       s->s_namecanon.nc_cname == NULL
+			dprintf("host_map_lookup(%s) => CACHE %s\n",
+				name,
+				s->s_namecanon.nc_cname == NULL
 					? "NULL"
 					: s->s_namecanon.nc_cname);
 		errno = s->s_namecanon.nc_errno;
-#if NAMED_BIND
+# if NAMED_BIND
 		h_errno = s->s_namecanon.nc_herrno;
-#endif
+# endif /* NAMED_BIND */
 		*statp = s->s_namecanon.nc_stat;
 		if (*statp == EX_TEMPFAIL)
 		{
@@ -1731,9 +2906,9 @@ host_map_lookup(map, name, av, statp)
 		if (s->s_namecanon.nc_cname == NULL)
 		{
 			syserr("host_map_lookup(%s): bogus NULL cache entry, errno = %d, h_errno = %d",
-				name,
-				s->s_namecanon.nc_errno,
-				s->s_namecanon.nc_herrno);
+			       name,
+			       s->s_namecanon.nc_errno,
+			       s->s_namecanon.nc_herrno);
 			return NULL;
 		}
 		if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -1752,10 +2927,11 @@ host_map_lookup(map, name, av, statp)
 	**  lookups because those could try to connect to a server.
 	*/
 
-	if (CurEnv->e_sendmode == SM_DEFER)
+	if (CurEnv->e_sendmode == SM_DEFER &&
+	    bitset(MF_DEFER, map->map_mflags))
 	{
 		if (tTd(9, 1))
-			printf("host_map_lookup(%s) => DEFERRED\n", name);
+			dprintf("host_map_lookup(%s) => DEFERRED\n", name);
 		*statp = EX_TEMPFAIL;
 		return NULL;
 	}
@@ -1767,96 +2943,96 @@ host_map_lookup(map, name, av, statp)
 	**  unknown.
 	*/
 
+	if (tTd(9, 1))
+		dprintf("host_map_lookup(%s) => ", name);
 	if (*name != '[')
 	{
-		if (tTd(9, 1))
-			printf("host_map_lookup(%s) => ", name);
-		s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
 		snprintf(hbuf, sizeof hbuf, "%s", name);
 		if (getcanonname(hbuf, sizeof hbuf - 1, !HasWildcardMX))
-		{
-			if (tTd(9, 1))
-				printf("%s\n", hbuf);
-			s->s_namecanon.nc_stat = EX_OK;
-			s->s_namecanon.nc_cname = newstr(hbuf);
-			if (bitset(MF_MATCHONLY, map->map_mflags))
-				cp = map_rewrite(map, name, strlen(name), NULL);
-			else
-				cp = map_rewrite(map, hbuf, strlen(hbuf), av);
-			return cp;
-		}
-		else
-		{
-			s->s_namecanon.nc_errno = errno;
-#if NAMED_BIND
-			s->s_namecanon.nc_herrno = h_errno;
-			if (tTd(9, 1))
-				printf("FAIL (%d)\n", h_errno);
-			switch (h_errno)
-			{
-			  case TRY_AGAIN:
-				if (UseNameServer)
-				{
-					CurEnv->e_status = "4.4.3";
-					message("851 %s: Name server timeout",
-						shortenstring(name, 33));
-				}
-				*statp = EX_TEMPFAIL;
-				break;
-
-			  case HOST_NOT_FOUND:
-			  case NO_DATA:
-				*statp = EX_NOHOST;
-				break;
-
-			  case NO_RECOVERY:
-				*statp = EX_SOFTWARE;
-				break;
-
-			  default:
-				*statp = EX_UNAVAILABLE;
-				break;
-			}
-#else
-			if (tTd(9, 1))
-				printf("FAIL\n");
-			*statp = EX_NOHOST;
-#endif
-			s->s_namecanon.nc_stat = *statp;
-			return NULL;
-		}
+			ans = hbuf;
 	}
-	if ((cp = strchr(name, ']')) == NULL)
-		return (NULL);
-	*cp = '\0';
-	in_addr.s_addr = inet_addr(&name[1]);
-	*cp = ']';
-
-	/* nope -- ask the name server */
-	hp = sm_gethostbyaddr((char *)&in_addr, INADDRSZ, AF_INET);
-	s->s_namecanon.nc_errno = errno;
-#if NAMED_BIND
-	s->s_namecanon.nc_herrno = h_errno;
-#endif
-	s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
-	if (hp == NULL)
-	{
-		s->s_namecanon.nc_stat = *statp = EX_NOHOST;
-		return (NULL);
-	}
-
-	/* found a match -- copy out */
-	hp->h_name = denlstring((char *) hp->h_name, TRUE, TRUE);
-	s->s_namecanon.nc_stat = *statp = EX_OK;
-	s->s_namecanon.nc_cname = newstr(hp->h_name);
-	if (bitset(MF_MATCHONLY, map->map_mflags))
-		cp = map_rewrite(map, name, strlen(name), NULL);
 	else
-		cp = map_rewrite(map, hp->h_name, strlen(hp->h_name), av);
-	return cp;
-}
+	{
+		if ((cp = strchr(name, ']')) == NULL)
+			return NULL;
+		*cp = '\0';
 
-# else /* DAEMON */
+		hp = NULL;
+# if NETINET
+		if ((in_addr.s_addr = inet_addr(&name[1])) != INADDR_NONE)
+			hp = sm_gethostbyaddr((char *)&in_addr,
+					      INADDRSZ, AF_INET);
+# endif /* NETINET */
+# if NETINET6
+		if (hp == NULL &&
+		    inet_pton(AF_INET6, &name[1], &in6_addr) == 1)
+			hp = sm_gethostbyaddr((char *)&in6_addr,
+					      IN6ADDRSZ, AF_INET6);
+# endif /* NETINET6 */
+		*cp = ']';
+
+		if (hp != NULL)
+		{
+			/* found a match -- copy out */
+			ans = denlstring((char *) hp->h_name, TRUE, TRUE);
+		}
+	}
+
+	s->s_namecanon.nc_flags |= NCF_VALID;	/* will be soon */
+
+	/* Found an answer */
+	if (ans != NULL)
+	{
+		s->s_namecanon.nc_stat = *statp = EX_OK;
+		s->s_namecanon.nc_cname = newstr(ans);
+		if (bitset(MF_MATCHONLY, map->map_mflags))
+			cp = map_rewrite(map, name, strlen(name), NULL);
+		else
+			cp = map_rewrite(map, ans, strlen(ans), av);
+		return cp;
+	}
+
+
+	/* No match found */
+	s->s_namecanon.nc_errno = errno;
+# if NAMED_BIND
+	s->s_namecanon.nc_herrno = h_errno;
+	if (tTd(9, 1))
+		dprintf("FAIL (%d)\n", h_errno);
+	switch (h_errno)
+	{
+	  case TRY_AGAIN:
+		if (UseNameServer)
+		{
+			CurEnv->e_status = "4.4.3";
+			message("851 %s: Name server timeout",
+				shortenstring(name, 33));
+		}
+		*statp = EX_TEMPFAIL;
+		break;
+
+	  case HOST_NOT_FOUND:
+	  case NO_DATA:
+		*statp = EX_NOHOST;
+		break;
+
+	  case NO_RECOVERY:
+		*statp = EX_SOFTWARE;
+		break;
+
+	  default:
+		*statp = EX_UNAVAILABLE;
+		break;
+	}
+# else /* NAMED_BIND */
+	if (tTd(9, 1))
+		dprintf("FAIL\n");
+	*statp = EX_NOHOST;
+# endif /* NAMED_BIND */
+	s->s_namecanon.nc_stat = *statp;
+	return NULL;
+}
+#else /* DAEMON */
 /* code for systems without sophisticated networking */
 
 /*
@@ -1882,10 +3058,10 @@ myhostname(hostbuf, size)
 		fixcrlf(hostbuf, TRUE);
 		(void) fclose(f);
 	}
-	return (NULL);
+	return NULL;
 }
 /*
-**  GETAUTHINFO -- get the real host name asociated with a file descriptor
+**  GETAUTHINFO -- get the real host name associated with a file descriptor
 **
 **	Parameters:
 **		fd -- the descriptor
@@ -1911,7 +3087,7 @@ getauthinfo(fd, may_be_forged)
 	return NULL;
 }
 /*
-**  MAPHOSTNAME -- turn a hostname into canonical form
+**  HOST_MAP_LOOKUP -- turn a hostname into canonical form
 **
 **	Parameters:
 **		map -- a pointer to the database map.
@@ -1938,13 +3114,45 @@ host_map_lookup(map, name, avp, statp)
 	char **avp;
 	char *statp;
 {
-	register struct hostent *hp;
+	register struct hostent *hp = NULL;
 	char *cp;
 
-	hp = sm_gethostbyname(name);
+	hp = sm_gethostbyname(name, InetMode);
+	if (hp == NULL && InetMode != AF_INET)
+		hp = sm_gethostbyname(name, AF_INET);
 	if (hp == NULL)
 	{
+# if NAMED_BIND
+		if (tTd(9, 1))
+			dprintf("FAIL (%d)\n", h_errno);
+		switch (h_errno)
+		{
+		  case TRY_AGAIN:
+			if (UseNameServer)
+			{
+				CurEnv->e_status = "4.4.3";
+				message("851 %s: Name server timeout",
+					shortenstring(name, 33));
+			}
+			*statp = EX_TEMPFAIL;
+			break;
+
+		  case HOST_NOT_FOUND:
+		  case NO_DATA:
+			*statp = EX_NOHOST;
+			break;
+
+		  case NO_RECOVERY:
+			*statp = EX_SOFTWARE;
+			break;
+
+		  default:
+			*statp = EX_UNAVAILABLE;
+			break;
+		}
+#else /* NAMED_BIND */
 		*statp = EX_NOHOST;
+#endif /* NAMED_BIND */
 		return NULL;
 	}
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -1989,6 +3197,14 @@ host_map_init(map, args)
 		  case 't':
 			map->map_mflags |= MF_NODEFER;
 			break;
+
+		  case 'S':	/* only for consistency */
+			map->map_spacesub = *++p;
+			break;
+
+		  case 'D':
+			map->map_mflags |= MF_DEFER;
+			break;
 		}
 		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
 			p++;
@@ -2001,6 +3217,36 @@ host_map_init(map, args)
 		map->map_tapp = newstr(map->map_tapp);
 	return TRUE;
 }
+
+#if NETINET6
+/*
+**  ANYNET_NTOP -- convert an IPv6 network address to printable form.
+**
+**	Parameters:
+**		s6a -- a pointer to an in6_addr structure.
+**		dst -- buffer to store result in
+**		dst_len -- size of dst buffer
+**
+**	Returns:
+**		A printable version of that structure.
+*/
+char *
+anynet_ntop(s6a, dst, dst_len)
+	struct in6_addr *s6a;
+	char *dst;
+	size_t dst_len;
+{
+	register char *ap;
+
+	if (IN6_IS_ADDR_V4MAPPED(s6a))
+		ap = (char *) inet_ntop(AF_INET,
+					&s6a->s6_addr[IN6ADDRSZ - INADDRSZ],
+					dst, dst_len);
+	else
+		ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
+	return ap;
+}
+#endif /* NETINET6 */
 /*
 **  ANYNET_NTOA -- convert a network address to printable form.
 **
@@ -2013,9 +3259,9 @@ host_map_init(map, args)
 
 #ifdef USE_SOCK_STREAM
 
-#if NETLINK
-# include <net/if_dl.h>
-#endif
+# if NETLINK
+#  include <net/if_dl.h>
+# endif /* NETLINK */
 
 char *
 anynet_ntoa(sap)
@@ -2034,27 +3280,35 @@ anynet_ntoa(sap)
 
 	switch (sap->sa.sa_family)
 	{
-#if NETUNIX
+# if NETUNIX
 	  case AF_UNIX:
-	  	if (sap->sunix.sun_path[0] != '\0')
-	  		snprintf(buf, sizeof buf, "[UNIX: %.64s]",
+		if (sap->sunix.sun_path[0] != '\0')
+			snprintf(buf, sizeof buf, "[UNIX: %.64s]",
 				sap->sunix.sun_path);
-	  	else
-	  		snprintf(buf, sizeof buf, "[UNIX: localhost]");
+		else
+			snprintf(buf, sizeof buf, "[UNIX: localhost]");
 		return buf;
-#endif
+# endif /* NETUNIX */
 
-#if NETINET
+# if NETINET
 	  case AF_INET:
-		return inet_ntoa(sap->sin.sin_addr);
-#endif
+		return (char *) inet_ntoa(sap->sin.sin_addr);
+# endif /* NETINET */
 
-#if NETLINK
+# if NETINET6
+	  case AF_INET6:
+		ap = anynet_ntop(&sap->sin6.sin6_addr, buf, sizeof buf);
+		if (ap != NULL)
+			return ap;
+		break;
+# endif /* NETINET6 */
+
+# if NETLINK
 	  case AF_LINK:
 		snprintf(buf, sizeof buf, "[LINK: %s]",
 			link_ntoa((struct sockaddr_dl *) &sap->sa));
 		return buf;
-#endif
+# endif /* NETLINK */
 	  default:
 		/* this case is needed when nothing is #defined */
 		/* in order to keep the switch syntactically correct */
@@ -2091,37 +3345,51 @@ hostnamebyanyaddr(sap)
 	register SOCKADDR *sap;
 {
 	register struct hostent *hp;
+# if NAMED_BIND
 	int saveretry;
+# endif /* NAMED_BIND */
+# if NETINET6
+	struct in6_addr in6_addr;
+# endif /* NETINET6 */
 
-#if NAMED_BIND
+# if NAMED_BIND
 	/* shorten name server timeout to avoid higher level timeouts */
 	saveretry = _res.retry;
-	_res.retry = 3;
-#endif /* NAMED_BIND */
+	if (_res.retry * _res.retrans > 20)
+		_res.retry = 20 / _res.retrans;
+# endif /* NAMED_BIND */
 
 	switch (sap->sa.sa_family)
 	{
-#if NETINET
+# if NETINET
 	  case AF_INET:
 		hp = sm_gethostbyaddr((char *) &sap->sin.sin_addr,
 			INADDRSZ,
 			AF_INET);
 		break;
-#endif
+# endif /* NETINET */
 
-#if NETISO
+# if NETINET6
+	  case AF_INET6:
+		hp = sm_gethostbyaddr((char *) &sap->sin6.sin6_addr,
+				      IN6ADDRSZ,
+				      AF_INET6);
+		break;
+# endif /* NETINET6 */
+
+# if NETISO
 	  case AF_ISO:
 		hp = sm_gethostbyaddr((char *) &sap->siso.siso_addr,
 			sizeof sap->siso.siso_addr,
 			AF_ISO);
 		break;
-#endif
+# endif /* NETISO */
 
-#if NETUNIX
+# if NETUNIX
 	  case AF_UNIX:
 		hp = NULL;
 		break;
-#endif
+# endif /* NETUNIX */
 
 	  default:
 		hp = sm_gethostbyaddr(sap->sa.sa_data,
@@ -2130,25 +3398,30 @@ hostnamebyanyaddr(sap)
 		break;
 	}
 
-#if NAMED_BIND
+# if NAMED_BIND
 	_res.retry = saveretry;
-#endif /* NAMED_BIND */
+# endif /* NAMED_BIND */
 
-	if (hp != NULL && hp->h_name[0] != '[' &&
-	    inet_addr(hp->h_name) == INADDR_NONE)
+# if NETINET || NETINET6
+	if (hp != NULL && hp->h_name[0] != '['
+#  if NETINET6
+	    && inet_pton(AF_INET6, hp->h_name, &in6_addr) != 1
+#  endif /* NETINET6 */
+#  if NETINET
+	    && inet_addr(hp->h_name) == INADDR_NONE
+#  endif /* NETINET */
+	    )
 		return denlstring((char *) hp->h_name, TRUE, TRUE);
-#if NETUNIX
-	else if (sap->sa.sa_family == AF_UNIX && sap->sunix.sun_path[0] == '\0')
+# endif /* NETINET || NETINET6 */
+# if NETUNIX
+	if (sap->sa.sa_family == AF_UNIX && sap->sunix.sun_path[0] == '\0')
 		return "localhost";
-#endif
-	else
+# endif /* NETUNIX */
 	{
-		/* produce a dotted quad */
 		static char buf[203];
 
 		(void) snprintf(buf, sizeof buf, "[%.200s]", anynet_ntoa(sap));
 		return buf;
 	}
 }
-
-#endif /* SOCK_STREAM */
+#endif /* USE_SOCK_STREAM */

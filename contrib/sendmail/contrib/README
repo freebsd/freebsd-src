@@ -5,6 +5,6 @@ for assistance.
 Some of these are patches to sendmail itself.  You may need to take
 care -- some of the patches may be out of date with the latest release
 of sendmail.  Also, the previous comment applies -- patches belong to
-the original author, not to me.
+the original author, not to us.
 
-Eric Allman, 26 May 1993
+$Revision: 8.2 $, Last updated $Date: 1999/09/24 05:46:47 $

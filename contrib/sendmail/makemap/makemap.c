@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,44 +12,34 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.71 (Berkeley) 11/29/1998";
-#endif /* not lint */
+static char copyright[] =
+"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+	All rights reserved.\n\
+     Copyright (c) 1992 Eric P. Allman.  All rights reserved.\n\
+     Copyright (c) 1992, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+#endif /* ! lint */
+
+#ifndef lint
+static char id[] = "@(#)$Id: makemap.c,v 8.135.4.10 2000/07/18 05:41:39 gshapiro Exp $";
+#endif /* ! lint */
+
+/* $FreeBSD$ */
 
 #include <sys/types.h>
-#include <sys/errno.h>
 #ifndef ISC_UNIX
 # include <sys/file.h>
-#endif
-#include "sendmail.h"
-#include "pathnames.h"
-
-#ifdef NDBM
-# include <ndbm.h>
-#endif
-
-#ifdef NEWDB
-# include <db.h>
-# ifndef DB_VERSION_MAJOR
-#  define DB_VERSION_MAJOR 1
-# endif
-#endif
-
-enum type { T_DBM, T_BTREE, T_HASH, T_ERR, T_UNKNOWN };
-
-union dbent
-{
-#ifdef NDBM
-	datum	dbm;
-#endif
-#ifdef NEWDB
-	DBT	db;
-#endif
-	struct
-	{
-		char	*data;
-		size_t	size;
-	} xx;
-};
+#endif /* ! ISC_UNIX */
+#include <ctype.h>
+#include <stdlib.h>
+#include <unistd.h>
+#ifdef EX_OK
+# undef EX_OK		/* unistd.h may have another use for this */
+#endif /* EX_OK */
+#include <sysexits.h>
+#include <sendmail/sendmail.h>
+#include <sendmail/pathnames.h>
+#include <libsmdb/smdb.h>
 
 uid_t	RealUid;
 gid_t	RealGid;
@@ -58,11 +49,32 @@ uid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
 bool	DontInitGroups = FALSE;
-long	DontBlameSendmail = DBS_SAFE;
-u_char	tTdvect[100];
 uid_t	TrustedUid = 0;
+BITMAP256 DontBlameSendmail;
 
 #define BUFSIZE		1024
+#if _FFR_DELIM
+# define ISSEP(c) ((sep == '\0' && isascii(c) && isspace(c)) || (c) == sep)
+#else /* _FFR_DELIM */
+# define ISSEP(c) (isascii(c) && isspace(c))
+#endif /* _FFR_DELIM */
+
+
+static void
+usage(progname)
+	char *progname;
+{
+	fprintf(stderr,
+		"Usage: %s [-C cffile] [-N] [-c cachesize] [-d] [-e] [-f] [-l] [-o] [-r] [-s] %s[-u] [-v] type mapname\n",
+		progname,
+#if _FFR_DELIM
+		"[-t  delimiter] "
+#else /* _FFR_DELIM */
+		""
+#endif /* _FFR_DELIM */
+		);
+	exit(EX_USAGE);
+}
 
 int
 main(argc, argv)
@@ -74,85 +86,65 @@ main(argc, argv)
 	bool inclnull = FALSE;
 	bool notrunc = FALSE;
 	bool allowreplace = FALSE;
-	bool allowdups = FALSE;
+	bool allowempty = FALSE;
 	bool verbose = FALSE;
 	bool foldcase = TRUE;
+	bool unmake = FALSE;
+#if _FFR_DELIM
+	char sep = '\0';
+#endif /* _FFR_DELIM */
 	int exitstat;
 	int opt;
 	char *typename = NULL;
 	char *mapname = NULL;
-	char *ext = NULL;
 	int lineno;
 	int st;
 	int mode;
+	int smode;
 	int putflags = 0;
-#ifdef NEWDB
-	long dbcachesize = 1024 * 1024;
-#endif
-	enum type type;
-#if !O_EXLOCK
-	int fd;
-#endif
-	int sff = SFF_ROOTOK|SFF_REGONLY;
+	long sff = SFF_ROOTOK|SFF_REGONLY;
 	struct passwd *pw;
-	union
-	{
-#ifdef NDBM
-		DBM	*dbm;
-#endif
-#ifdef NEWDB
-		DB	*db;
-#endif
-		void	*dbx;
-	} dbp;
-	union dbent key, val;
-#ifdef NEWDB
-# if DB_VERSION_MAJOR < 2
-	BTREEINFO bti;
-	HASHINFO hinfo;
-# else
-	DB_INFO dbinfo;
-# endif
-#endif
+	SMDB_DATABASE *database;
+	SMDB_CURSOR *cursor;
+	SMDB_DBENT db_key, db_val;
+	SMDB_DBPARAMS params;
+	SMDB_USER_INFO user_info;
 	char ibuf[BUFSIZE];
-	char fbuf[MAXNAME];
-	char dbuf[MAXNAME];
-#ifdef NDBM
-	char pbuf[MAXNAME];
-#endif
-#if _FFR_TRUSTED_USER
+#if HASFCHOWN
 	FILE *cfp;
 	char buf[MAXLINE];
-#endif
+#endif /* HASFCHOWN */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
-	struct stat std;
-#ifdef NDBM
-	struct stat stp;
-#endif
 	extern char *optarg;
 	extern int optind;
 
-	progname = argv[0];
+	memset(&params, '\0', sizeof params);
+	params.smdbp_cache_size = 1024 * 1024;
+
+	progname = strrchr(argv[0], '/');
+	if (progname != NULL)
+		progname++;
+	else
+		progname = argv[0];
 	cfile = _PATH_SENDMAILCF;
 
+	clrbitmap(DontBlameSendmail);
 	RunAsUid = RealUid = getuid();
 	RunAsGid = RealGid = getgid();
 	pw = getpwuid(RealUid);
 	if (pw != NULL)
-	{
-		if (strlen(pw->pw_name) > MAXNAME - 1)
-			pw->pw_name[MAXNAME] = 0;
-		sprintf(rnamebuf, "%s", pw->pw_name);
-	}
+		(void) strlcpy(rnamebuf, pw->pw_name, sizeof rnamebuf);
 	else
-		sprintf(rnamebuf, "Unknown UID %d", (int) RealUid);
+		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
+				(int) RealUid);
 	RunAsUserName = RealUserName = rnamebuf;
+	user_info.smdbu_id = RunAsUid;
+	user_info.smdbu_group_id = RunAsGid;
+	(void) strlcpy(user_info.smdbu_name, RunAsUserName,
+		       SMDB_MAX_USER_NAME_LEN);
 
-#if _FFR_NEW_MAKEMAP_FLAGS
-#define OPTIONS		"C:Nc:dflorsv"
-#else
-#define OPTIONS		"C:Ndforsv"
-#endif
+
+#define OPTIONS		"C:Nc:t:deflorsuv"
 	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
@@ -165,34 +157,26 @@ main(argc, argv)
 			inclnull = TRUE;
 			break;
 
-#if _FFR_NEW_MAKEMAP_FLAGS
 		  case 'c':
-# ifdef NEWDB
-			dbcachesize = atol(optarg);
-# endif
+			params.smdbp_cache_size = atol(optarg);
 			break;
-#endif
 
 		  case 'd':
-			allowdups = TRUE;
+			params.smdbp_allow_dup = TRUE;
+			break;
+
+		  case 'e':
+			allowempty = TRUE;
 			break;
 
 		  case 'f':
 			foldcase = FALSE;
 			break;
 
-#if _FFR_NEW_MAKEMAP_FLAGS
 		  case 'l':
-# ifdef NDBM
-			printf("dbm\n");
-# endif
-# ifdef NEWDB
-			printf("hash\n");
-			printf("btree\n");
-# endif
+			smdb_print_available_types();
 			exit(EX_OK);
 			break;
-#endif
 
 		  case 'o':
 			notrunc = TRUE;
@@ -203,7 +187,25 @@ main(argc, argv)
 			break;
 
 		  case 's':
-			DontBlameSendmail |= DBS_MAPINUNSAFEDIRPATH|DBS_WRITEMAPTOHARDLINK|DBS_WRITEMAPTOSYMLINK|DBS_LINKEDMAPINWRITABLEDIR;
+			setbitn(DBS_MAPINUNSAFEDIRPATH, DontBlameSendmail);
+			setbitn(DBS_WRITEMAPTOHARDLINK, DontBlameSendmail);
+			setbitn(DBS_WRITEMAPTOSYMLINK, DontBlameSendmail);
+			setbitn(DBS_LINKEDMAPINWRITABLEDIR, DontBlameSendmail);
+			break;
+
+#if _FFR_DELIM
+		  case 't':
+			if (optarg == NULL || *optarg == '\0')
+			{
+				fprintf(stderr, "Invalid separator\n");
+				break;
+			}
+			sep = *optarg;
+			break;
+#endif /* _FFR_DELIM */
+
+		  case 'u':
+			unmake = TRUE;
 			break;
 
 		  case 'v':
@@ -211,51 +213,36 @@ main(argc, argv)
 			break;
 
 		  default:
-			type = T_ERR;
-			break;
+			usage(progname);
+			/* NOTREACHED */
 		}
 	}
 
-	if (!bitset(DBS_WRITEMAPTOSYMLINK, DontBlameSendmail))
+	if (!bitnset(DBS_WRITEMAPTOSYMLINK, DontBlameSendmail))
 		sff |= SFF_NOSLINK;
-        if (!bitset(DBS_WRITEMAPTOHARDLINK, DontBlameSendmail))
+	if (!bitnset(DBS_WRITEMAPTOHARDLINK, DontBlameSendmail))
 		sff |= SFF_NOHLINK;
-	if (!bitset(DBS_LINKEDMAPINWRITABLEDIR, DontBlameSendmail))
+	if (!bitnset(DBS_LINKEDMAPINWRITABLEDIR, DontBlameSendmail))
 		sff |= SFF_NOWLINK;
 
 	argc -= optind;
 	argv += optind;
 	if (argc != 2)
-		type = T_ERR;
+	{
+		usage(progname);
+		/* NOTREACHED */
+	}
 	else
 	{
 		typename = argv[0];
 		mapname = argv[1];
-		ext = NULL;
-
-		if (strcmp(typename, "dbm") == 0)
-		{
-			type = T_DBM;
-		}
-		else if (strcmp(typename, "btree") == 0)
-		{
-			type = T_BTREE;
-			ext = ".db";
-		}
-		else if (strcmp(typename, "hash") == 0)
-		{
-			type = T_HASH;
-			ext = ".db";
-		}
-		else
-			type = T_UNKNOWN;
 	}
 
-#if _FFR_TRUSTED_USER
+#if HASFCHOWN
+	/* Find TrustedUser value in sendmail.cf */
 	if ((cfp = fopen(cfile, "r")) == NULL)
 	{
-		fprintf(stderr, "mailstats: ");
-		perror(cfile);
+		fprintf(stderr, "makemap: %s: %s", cfile, errstring(errno));
 		exit(EX_NOINPUT);
 	}
 	while (fgets(buf, sizeof(buf), cfp) != NULL)
@@ -281,8 +268,6 @@ main(argc, argv)
 					TrustedUid = atoi(b);
 				else
 				{
-					register struct passwd *pw;
-					
 					TrustedUid = 0;
 					pw = getpwnam(b);
 					if (pw == NULL)
@@ -291,15 +276,17 @@ main(argc, argv)
 					else
 						TrustedUid = pw->pw_uid;
 				}
-				
+
 # ifdef UID_MAX
 				if (TrustedUid > UID_MAX)
 				{
-					syserr("TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-					       TrustedUid, UID_MAX);
+					fprintf(stderr,
+						"TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+						(long) TrustedUid,
+						(long) UID_MAX);
 					TrustedUid = 0;
 				}
-# endif
+# endif /* UID_MAX */
 				break;
 			}
 
@@ -309,470 +296,187 @@ main(argc, argv)
 		}
 	}
 	(void) fclose(cfp);
-#endif
-	switch (type)
+#endif /* HASFCHOWN */
+
+	if (!params.smdbp_allow_dup && !allowreplace)
+		putflags = SMDBF_NO_OVERWRITE;
+
+	if (unmake)
 	{
-	  case T_ERR:
-#if _FFR_NEW_MAKEMAP_FLAGS
-		fprintf(stderr,
-			"Usage: %s [-N] [-c cachesize] [-d] [-f] [-l] [-o] [-r] [-s] [-v] type mapname\n",
-			progname);
-#else
-		fprintf(stderr, "Usage: %s [-N] [-d] [-f] [-o] [-r] [-s] [-v] type mapname\n", progname);
-#endif
-		exit(EX_USAGE);
-
-	  case T_UNKNOWN:
-		fprintf(stderr, "%s: Unknown database type %s\n",
-			progname, typename);
-		exit(EX_USAGE);
-
-#ifndef NDBM
-	  case T_DBM:
-#endif
-#ifndef NEWDB
-	  case T_BTREE:
-	  case T_HASH:
-#endif
-		fprintf(stderr, "%s: Type %s not supported in this version\n",
-			progname, typename);
-		exit(EX_UNAVAILABLE);
-
-#ifdef NEWDB
-	  case T_BTREE:
-# if DB_VERSION_MAJOR < 2
-		bzero(&bti, sizeof bti);
-# else
-		bzero(&dbinfo, sizeof dbinfo);
-# endif
-		if (allowdups)
+		mode = O_RDONLY;
+		smode = S_IRUSR;
+	}
+	else
+	{
+		mode = O_RDWR;
+		if (!notrunc)
 		{
-# if DB_VERSION_MAJOR < 2
-			bti.flags |= R_DUP;
-# else
-			dbinfo.flags |= DB_DUP;
-# endif
+			mode |= O_CREAT|O_TRUNC;
+			sff |= SFF_CREAT;
 		}
-		if (allowdups || allowreplace)
-			putflags = 0;
-		else
-		{
-# if DB_VERSION_MAJOR < 2
-			putflags = R_NOOVERWRITE;
-# else
-			putflags = DB_NOOVERWRITE;
-# endif
-		}
-		break;
-
-	  case T_HASH:
-# if DB_VERSION_MAJOR < 2
-		bzero(&hinfo, sizeof hinfo);
-# else
-		bzero(&dbinfo, sizeof dbinfo);
-# endif
-		if (allowreplace)
-			putflags = 0;
-		else
-		{
-# if DB_VERSION_MAJOR < 2
-			putflags = R_NOOVERWRITE;
-# else
-			putflags = DB_NOOVERWRITE;
-# endif
-		}
-		break;
-#endif
-#ifdef NDBM
-	  case T_DBM:
-		if (allowdups)
-		{
-			fprintf(stderr, "%s: Type %s does not support -d (allow dups)\n",
-				progname, typename);
-			exit(EX_UNAVAILABLE);
-		}
-		if (allowreplace)
-			putflags = DBM_REPLACE;
-		else
-			putflags = DBM_INSERT;
-		break;
-#endif
+		smode = S_IWUSR;
 	}
 
-	/*
-	**  Adjust file names.
-	*/
+	params.smdbp_num_elements = 4096;
 
-	if (ext != NULL)
+	errno = smdb_open_database(&database, mapname, mode, smode, sff,
+				   typename, &user_info, &params);
+	if (errno != SMDBE_OK)
 	{
-		int el, fl;
+		char *hint;
 
-		el = strlen(ext);
-		fl = strlen(mapname);
-		if (el + fl + 1 >= sizeof fbuf)
-		{
-			fprintf(stderr, "%s: file name too long", mapname);
-			exit(EX_USAGE);
-		}
-		if (fl < el || strcmp(&mapname[fl - el], ext) != 0)
-		{
-			strcpy(fbuf, mapname);
-			strcat(fbuf, ext);
-			mapname = fbuf;
-		}
-	}
-
-	if (!notrunc)
-		sff |= SFF_CREAT;
-	switch (type)
-	{
-#ifdef NEWDB
-	  case T_BTREE:
-	  case T_HASH:
-		if (strlen(mapname) >= sizeof dbuf)
-		{
+		if (errno == SMDBE_UNSUPPORTED_DB_TYPE &&
+		    (hint = smdb_db_definition(typename)) != NULL)
 			fprintf(stderr,
-				"%s: map name too long\n", mapname);
-			exit(EX_USAGE);
-		}
-		strcpy(dbuf, mapname);
-		if ((st = safefile(dbuf, RealUid, RealGid, RealUserName,
-				   sff, S_IWUSR, &std)) != 0)
-		{
+				"%s: Need to recompile with -D%s for %s support\n",
+				progname, hint, typename);
+		else
 			fprintf(stderr,
-				"%s: could not create: %s\n",
-				dbuf, errstring(st));
-			exit(EX_CANTCREAT);
-		}
-		break;
-#endif
-#ifdef NDBM
-	  case T_DBM:
-		if (strlen(mapname) + 5 > sizeof dbuf)
-		{
-			fprintf(stderr,
-				"%s: map name too long\n", mapname);
-			exit(EX_USAGE);
-		}
-		sprintf(dbuf, "%s.dir", mapname);
-		if ((st = safefile(dbuf, RealUid, RealGid, RealUserName,
-			   sff, S_IWUSR, &std)) != 0)
-		{
-			fprintf(stderr,
-				"%s: could not create: %s\n",
-				dbuf, errstring(st));
-			exit(EX_CANTCREAT);
-		}
-		sprintf(pbuf, "%s.pag", mapname);
-		if ((st = safefile(pbuf, RealUid, RealGid, RealUserName,
-			   sff, S_IWUSR, &stp)) != 0)
-		{
-			fprintf(stderr,
-				"%s: could not create: %s\n",
-				pbuf, errstring(st));
-			exit(EX_CANTCREAT);
-		}
-		break;
-#endif
-	  default:
-		fprintf(stderr,
-			"%s: internal error: type %d\n",
-			progname,
-			type);
-		exit(EX_SOFTWARE);
-	}
-
-	/*
-	**  Create the database.
-	*/
-
-	mode = O_RDWR;
-	if (!notrunc)
-		mode |= O_CREAT|O_TRUNC;
-#if O_EXLOCK
-	mode |= O_EXLOCK;
-#else
-	/* pre-lock the database */
-	fd = safeopen(dbuf, mode & ~O_TRUNC, 0644, sff);
-	if (fd < 0)
-	{
-		fprintf(stderr, "%s: cannot create type %s map %s\n",
-			progname, typename, mapname);
+				"%s: error opening type %s map %s: %s\n",
+				progname, typename, mapname, errstring(errno));
 		exit(EX_CANTCREAT);
 	}
-#endif
-	switch (type)
+
+	(void) database->smdb_sync(database, 0);
+
+	if (geteuid() == 0 && TrustedUid != 0)
 	{
-#ifdef NDBM
-	  case T_DBM:
-		dbp.dbm = dbm_open(mapname, mode, 0644);
-		if (dbp.dbm != NULL &&
-		    dbm_dirfno(dbp.dbm) == dbm_pagfno(dbp.dbm))
-		{
-			fprintf(stderr, "dbm map %s: cannot run with GDBM\n",
-				mapname);
-			dbm_close(dbp.dbm);
-			exit(EX_CONFIG);
-		}
-		if (dbp.dbm != NULL &&
-		    (filechanged(dbuf, dbm_dirfno(dbp.dbm), &std) ||
-		     filechanged(pbuf, dbm_pagfno(dbp.dbm), &stp)))
+		errno = database->smdb_set_owner(database, TrustedUid, -1);
+		if (errno != SMDBE_OK)
 		{
 			fprintf(stderr,
-				"dbm map %s: file changed after open\n",
-				mapname);
-			dbm_close(dbp.dbm);
-			exit(EX_CANTCREAT);
+				"WARNING: ownership change on %s failed %s",
+				mapname, errstring(errno));
 		}
-#if _FFR_TRUSTED_USER
-		if (geteuid() == 0 && TrustedUid != 0)
-		{
-			if (fchown(dbm_dirfno(dbp.dbm), TrustedUid, -1) < 0 ||
-			    fchown(dbm_pagfno(dbp.dbm), TrustedUid, -1) < 0)
-			{
-				fprintf(stderr,
-					"WARNING: ownership change on %s failed: %s",
-					mapname, errstring(errno));
-			}
-		}
-#endif
-
-		break;
-#endif
-
-#ifdef NEWDB
-	  case T_HASH:
-		/* tweak some parameters for performance */
-# if DB_VERSION_MAJOR < 2
-		hinfo.nelem = 4096;
-		hinfo.cachesize = dbcachesize;
-# else
-		dbinfo.h_nelem = 4096;
-		dbinfo.db_cachesize = dbcachesize;
-# endif
-		
-# if DB_VERSION_MAJOR < 2
-		dbp.db = dbopen(mapname, mode, 0644, DB_HASH, &hinfo);
-# else
-		{
-			int flags = 0;
-			
-			if (bitset(O_CREAT, mode))
-				flags |= DB_CREATE;
-			if (bitset(O_TRUNC, mode))
-				flags |= DB_TRUNCATE;
-			
-			dbp.db = NULL;
-			errno = db_open(mapname, DB_HASH, flags, 0644,
-					NULL, &dbinfo, &dbp.db);
-		}
-# endif
-		if (dbp.db != NULL)
-		{
-			int fd;
-			
-# if DB_VERSION_MAJOR < 2
-			fd = dbp.db->fd(dbp.db);
-# else
-			fd = -1;
-			errno = dbp.db->fd(dbp.db, &fd);
-# endif
-			if (filechanged(dbuf, fd, &std))
-			{
-				fprintf(stderr,
-					"db map %s: file changed after open\n",
-					mapname);
-# if DB_VERSION_MAJOR < 2
-				dbp.db->close(dbp.db);
-# else
-				errno = dbp.db->close(dbp.db, 0);
-# endif
-				exit(EX_CANTCREAT);
-			}
-			(void) (*dbp.db->sync)(dbp.db, 0);
-#if _FFR_TRUSTED_USER
-			if (geteuid() == 0 && TrustedUid != 0)
-			{
-				if (fchown(fd, TrustedUid, -1) < 0)
-				{
-					fprintf(stderr,
-						"WARNING: ownership change on %s failed: %s",
-						mapname, errstring(errno));
-				}
-			}
-#endif
-		}
-		break;
-
-	  case T_BTREE:
-		/* tweak some parameters for performance */
-# if DB_VERSION_MAJOR < 2
-		bti.cachesize = dbcachesize;
-# else
-		dbinfo.db_cachesize = dbcachesize;
-# endif
-
-# if DB_VERSION_MAJOR < 2
-		dbp.db = dbopen(mapname, mode, 0644, DB_BTREE, &bti);
-# else
-		{
-			int flags = 0;
-			
-			if (bitset(O_CREAT, mode))
-				flags |= DB_CREATE;
-			if (bitset(O_TRUNC, mode))
-				flags |= DB_TRUNCATE;
-			
-			dbp.db = NULL;
-			errno = db_open(mapname, DB_BTREE, flags, 0644,
-					NULL, &dbinfo, &dbp.db);
-		}
-# endif
-		if (dbp.db != NULL)
-		{
-			int fd;
-			
-# if DB_VERSION_MAJOR < 2
-			fd = dbp.db->fd(dbp.db);
-# else
-			fd = -1;
-			errno = dbp.db->fd(dbp.db, &fd);
-# endif
-			if (filechanged(dbuf, fd, &std))
-			{
-				fprintf(stderr,
-					"db map %s: file changed after open\n",
-					mapname);
-# if DB_VERSION_MAJOR < 2
-				dbp.db->close(dbp.db);
-# else
-				errno = dbp.db->close(dbp.db, 0);
-# endif
-				exit(EX_CANTCREAT);
-			}
-			(void) (*dbp.db->sync)(dbp.db, 0);
-#if _FFR_TRUSTED_USER
-			if (geteuid() == 0 && TrustedUid != 0)
-			{
-				if (fchown(fd, TrustedUid, -1) < 0)
-				{
-					fprintf(stderr,
-						"WARNING: ownership change on %s failed: %s",
-						mapname, errstring(errno));
-				}
-			}
-#endif
-		}
-		break;
-#endif
-
-	  default:
-		fprintf(stderr, "%s: internal error: type %d\n",
-			progname, type);
-		exit(EX_SOFTWARE);
-	}
-
-	if (dbp.dbx == NULL)
-	{
-		fprintf(stderr, "%s: cannot open type %s map %s\n",
-			progname, typename, mapname);
-		exit(EX_CANTCREAT);
 	}
 
 	/*
 	**  Copy the data
 	*/
 
-	lineno = 0;
 	exitstat = EX_OK;
-	while (fgets(ibuf, sizeof ibuf, stdin) != NULL)
+	if (unmake)
 	{
-		register char *p;
-
-		lineno++;
-
-		/*
-		**  Parse the line.
-		*/
-
-		p = strchr(ibuf, '\n');
-		if (p != NULL)
-			*p = '\0';
-		else if (!feof(stdin))
+		bool stop;
+		errno = database->smdb_cursor(database, &cursor, 0);
+		if (errno != SMDBE_OK)
 		{
-			fprintf(stderr, "%s: %s: line %d: line too long (%ld bytes max)\n",
-				progname, mapname, lineno, (long) sizeof ibuf);
-			continue;
-		}
-			
-		if (ibuf[0] == '\0' || ibuf[0] == '#')
-			continue;
-		if (isascii(ibuf[0]) && isspace(ibuf[0]))
-		{
-			fprintf(stderr, "%s: %s: line %d: syntax error (leading space)\n",
-				progname, mapname, lineno);
-			continue;
-		}
-#ifdef NEWDB
-		if (type == T_HASH || type == T_BTREE)
-		{
-			bzero(&key.db, sizeof key.db);
-			bzero(&val.db, sizeof val.db);
-		}
-#endif
 
-		key.xx.data = ibuf;
-		for (p = ibuf; *p != '\0' && !(isascii(*p) && isspace(*p)); p++)
-		{
-			if (foldcase && isascii(*p) && isupper(*p))
-				*p = tolower(*p);
-		}
-		key.xx.size = p - key.xx.data;
-		if (inclnull)
-			key.xx.size++;
-		if (*p != '\0')
-			*p++ = '\0';
-		while (isascii(*p) && isspace(*p))
-			p++;
-		if (*p == '\0')
-		{
-			fprintf(stderr, "%s: %s: line %d: no RHS for LHS %s\n",
-				progname, mapname, lineno, key.xx.data);
-			continue;
-		}
-		val.xx.data = p;
-		val.xx.size = strlen(p);
-		if (inclnull)
-			val.xx.size++;
-
-		/*
-		**  Do the database insert.
-		*/
-
-		if (verbose)
-		{
-			printf("key=`%s', val=`%s'\n", key.xx.data, val.xx.data);
+			fprintf(stderr,
+				"%s: cannot make cursor for type %s map %s\n",
+				progname, typename, mapname);
+			exit(EX_SOFTWARE);
 		}
 
-		switch (type)
-		{
-#ifdef NDBM
-		  case T_DBM:
-			st = dbm_store(dbp.dbm, key.dbm, val.dbm, putflags);
-			break;
-#endif
+		memset(&db_key, '\0', sizeof db_key);
+		memset(&db_val, '\0', sizeof db_val);
 
-#ifdef NEWDB
-		  case T_BTREE:
-		  case T_HASH:
-# if DB_VERSION_MAJOR < 2
-			st = (*dbp.db->put)(dbp.db, &key.db, &val.db, putflags);
-# else
-			errno = (*dbp.db->put)(dbp.db, NULL, &key.db,
-					       &val.db, putflags);
+		for (stop = FALSE, lineno = 0; !stop; lineno++)
+		{
+			errno = cursor->smdbc_get(cursor, &db_key, &db_val,
+						  SMDB_CURSOR_GET_NEXT);
+			if (errno != SMDBE_OK)
+			{
+				stop = TRUE;
+			}
+			if (!stop)
+				printf("%.*s\t%.*s\n",
+				       (int) db_key.data.size,
+				       (char *) db_key.data.data,
+				       (int) db_val.data.size,
+				       (char *)db_val.data.data);
+
+		}
+		(void) cursor->smdbc_close(cursor);
+	}
+	else
+	{
+		lineno = 0;
+		while (fgets(ibuf, sizeof ibuf, stdin) != NULL)
+		{
+			register char *p;
+
+			lineno++;
+
+			/*
+			**  Parse the line.
+			*/
+
+			p = strchr(ibuf, '\n');
+			if (p != NULL)
+				*p = '\0';
+			else if (!feof(stdin))
+			{
+				fprintf(stderr,
+					"%s: %s: line %d: line too long (%ld bytes max)\n",
+					progname, mapname, lineno, (long) sizeof ibuf);
+				exitstat = EX_DATAERR;
+				continue;
+			}
+
+			if (ibuf[0] == '\0' || ibuf[0] == '#')
+				continue;
+			if (
+#if _FFR_DELIM
+			    sep == '\0' &&
+#endif /* _FFR_DELIM */
+			    isascii(ibuf[0]) && isspace(ibuf[0]))
+			{
+				fprintf(stderr,
+					"%s: %s: line %d: syntax error (leading space)\n",
+					progname, mapname, lineno);
+				exitstat = EX_DATAERR;
+				continue;
+			}
+
+			memset(&db_key, '\0', sizeof db_key);
+			memset(&db_val, '\0', sizeof db_val);
+			db_key.data.data = ibuf;
+
+			for (p = ibuf; *p != '\0' && !(ISSEP(*p)); p++)
+			{
+				if (foldcase && isascii(*p) && isupper(*p))
+					*p = tolower(*p);
+			}
+			db_key.data.size = p - ibuf;
+			if (inclnull)
+				db_key.data.size++;
+
+			if (*p != '\0')
+				*p++ = '\0';
+			while (ISSEP(*p))
+				p++;
+			if (!allowempty && *p == '\0')
+			{
+				fprintf(stderr,
+					"%s: %s: line %d: no RHS for LHS %s\n",
+					progname, mapname, lineno,
+					(char *) db_key.data.data);
+				exitstat = EX_DATAERR;
+				continue;
+			}
+
+			db_val.data.data = p;
+			db_val.data.size = strlen(p);
+			if (inclnull)
+				db_val.data.size++;
+
+			/*
+			**  Do the database insert.
+			*/
+
+			if (verbose)
+			{
+				printf("key=`%s', val=`%s'\n",
+				       (char *) db_key.data.data,
+				       (char *) db_val.data.data);
+			}
+
+			errno = database->smdb_put(database, &db_key, &db_val,
+						   putflags);
 			switch (errno)
 			{
-			  case DB_KEYEXIST:
+			  case SMDBE_KEY_EXIST:
 				st = 1;
 				break;
 
@@ -784,25 +488,24 @@ main(argc, argv)
 				st = -1;
 				break;
 			}
-# endif
-			break;
-#endif
-		  default:
-			break;
-		}
 
-		if (st < 0)
-		{
-			fprintf(stderr, "%s: %s: line %d: key %s: put error\n",
-				progname, mapname, lineno, key.xx.data);
-			perror(mapname);
-			exitstat = EX_IOERR;
-		}
-		else if (st > 0)
-		{
-			fprintf(stderr,
-				"%s: %s: line %d: key %s: duplicate key\n",
-				progname, mapname, lineno, key.xx.data);
+			if (st < 0)
+			{
+				fprintf(stderr,
+					"%s: %s: line %d: key %s: put error: %s\n",
+					progname, mapname, lineno,
+					(char *) db_key.data.data,
+					errstring(errno));
+				exitstat = EX_IOERR;
+			}
+			else if (st > 0)
+			{
+				fprintf(stderr,
+					"%s: %s: line %d: key %s: duplicate key\n",
+					progname, mapname,
+					lineno, (char *) db_key.data.data);
+				exitstat = EX_DATAERR;
+			}
 		}
 	}
 
@@ -810,114 +513,29 @@ main(argc, argv)
 	**  Now close the database.
 	*/
 
-	switch (type)
+	errno = database->smdb_close(database);
+	if (errno != SMDBE_OK)
 	{
-#ifdef NDBM
-	  case T_DBM:
-		dbm_close(dbp.dbm);
-		break;
-#endif
-
-#ifdef NEWDB
-	  case T_HASH:
-	  case T_BTREE:
-# if DB_VERSION_MAJOR < 2
-		if ((*dbp.db->close)(dbp.db) < 0)
-# else
-		if ((errno = (*dbp.db->close)(dbp.db, 0)) != 0)
-# endif
-		{
-			fprintf(stderr, "%s: %s: error on close\n",
-				progname, mapname);
-			perror(mapname);
-			exitstat = EX_IOERR;
-		}
-#endif
-	  default:
-		break;
+		fprintf(stderr, "%s: close(%s): %s\n",
+			progname, mapname, errstring(errno));
+		exitstat = EX_IOERR;
 	}
+	smdb_free_database(database);
 
-#if !O_EXLOCK
-	/* release locks */
-	close(fd);
-#endif
-
-	exit (exitstat);
-}
-/*
-**  LOCKFILE -- lock a file using flock or (shudder) fcntl locking
-**
-**	Parameters:
-**		fd -- the file descriptor of the file.
-**		filename -- the file name (for error messages).
-**		ext -- the filename extension.
-**		type -- type of the lock.  Bits can be:
-**			LOCK_EX -- exclusive lock.
-**			LOCK_NB -- non-blocking.
-**
-**	Returns:
-**		TRUE if the lock was acquired.
-**		FALSE otherwise.
-*/
-
-bool
-lockfile(fd, filename, ext, type)
-	int fd;
-	char *filename;
-	char *ext;
-	int type;
-{
-# if !HASFLOCK
-	int action;
-	struct flock lfd;
-	extern int errno;
-
-	bzero(&lfd, sizeof lfd);
-	if (bitset(LOCK_UN, type))
-		lfd.l_type = F_UNLCK;
-	else if (bitset(LOCK_EX, type))
-		lfd.l_type = F_WRLCK;
-	else
-		lfd.l_type = F_RDLCK;
-	if (bitset(LOCK_NB, type))
-		action = F_SETLK;
-	else
-		action = F_SETLKW;
-
-	if (fcntl(fd, action, &lfd) >= 0)
-		return TRUE;
-
-	/*
-	**  On SunOS, if you are testing using -oQ/tmp/mqueue or
-	**  -oA/tmp/aliases or anything like that, and /tmp is mounted
-	**  as type "tmp" (that is, served from swap space), the
-	**  previous fcntl will fail with "Invalid argument" errors.
-	**  Since this is fairly common during testing, we will assume
-	**  that this indicates that the lock is successfully grabbed.
-	*/
-
-	if (errno == EINVAL)
-		return TRUE;
-
-# else	/* HASFLOCK */
-
-	if (flock(fd, type) >= 0)
-		return TRUE;
-
-# endif
-
-	return FALSE;
+	exit(exitstat);
+	/* NOTREACHED */
+	return exitstat;
 }
 
 /*VARARGS1*/
 void
 #ifdef __STDC__
 message(const char *msg, ...)
-#else
+#else /* __STDC__ */
 message(msg, va_alist)
 	const char *msg;
 	va_dcl
-#endif
+#endif /* __STDC__ */
 {
 	const char *m;
 	VA_LOCAL_DECL
@@ -928,20 +546,20 @@ message(msg, va_alist)
 	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
 		m += 4;
 	VA_START(msg);
-	vfprintf(stderr, m, ap);
+	(void) vfprintf(stderr, m, ap);
 	VA_END;
-	fprintf(stderr, "\n");
+	(void) fprintf(stderr, "\n");
 }
 
 /*VARARGS1*/
 void
 #ifdef __STDC__
 syserr(const char *msg, ...)
-#else
+#else /* __STDC__ */
 syserr(msg, va_alist)
 	const char *msg;
 	va_dcl
-#endif
+#endif /* __STDC__ */
 {
 	const char *m;
 	VA_LOCAL_DECL
@@ -952,65 +570,7 @@ syserr(msg, va_alist)
 	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
 		m += 4;
 	VA_START(msg);
-	vfprintf(stderr, m, ap);
+	(void) vfprintf(stderr, m, ap);
 	VA_END;
-	fprintf(stderr, "\n");
-}
-
-const char *
-errstring(err)
-	int err;
-{
-#if !HASSTRERROR
-	static char errstr[64];
-# if !defined(ERRLIST_PREDEFINED)
-	extern char *sys_errlist[];
-	extern int sys_nerr;
-# endif
-#endif
-
-	/* handle pseudo-errors internal to sendmail */
-	switch (err)
-	{
-	  case E_SM_OPENTIMEOUT:
-		return "Timeout on file open";
-
-	  case E_SM_NOSLINK:
-		return "Symbolic links not allowed";
-
-	  case E_SM_NOHLINK:
-		return "Hard links not allowed";
-
-	  case E_SM_REGONLY:
-		return "Regular files only";
-
-	  case E_SM_ISEXEC:
-		return "Executable files not allowed";
-
-	  case E_SM_WWDIR:
-		return "World writable directory";
-
-	  case E_SM_GWDIR:
-		return "Group writable directory";
-
-	  case E_SM_FILECHANGE:
-		return "File changed after open";
-
-	  case E_SM_WWFILE:
-		return "World writable file";
-
-	  case E_SM_GWFILE:
-		return "Group writable file";
-	}
-
-#if HASSTRERROR
-	return strerror(err);
-#else
-	if (err < 0 || err >= sys_nerr)
-	{
-		sprintf(errstr, "Error %d", err);
-		return errstr;
-	}
-	return sys_errlist[err];
-#endif
+	(void) fprintf(stderr, "\n");
 }
