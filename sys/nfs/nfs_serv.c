@@ -68,13 +68,10 @@
  *	error occurs.  If no error occurs, the VOP_*() routines only free
  *	the path component if SAVESTART is NOT set.
  *
- *	VOP_SYMLINK, lookup(), and namei()
+ *	lookup() and namei()
  *	may return garbage in various structural fields/return elements
  *	if an error is returned, and may garbage up nd.ni_dvp even if no
  *	error is returned and you did not request LOCKPARENT or WANTPARENT.
- *	VOP_SYMLINK return garbage in its return vnode (i.e. not
- *	something we need to release) even if no error occurs.  Our cleanup
- *	code is sensitive to garbage, so we have to carefully clear it out.
  *
  *	We use the ni_cnd.cn_flags 'HASBUF' flag to track whether the name
  *	buffer has been freed or not.  This is unique to nfs_serv.c for
@@ -1699,10 +1696,6 @@ nfsrv_create(nfsd, slp, procp, mrq)
 				nd.ni_cnd.cn_flags &= ~HASBUF;
 				goto nfsmreply0;
 			}
-
-			/*
-			 * release vp we do not use
-			 */
 			vput(nd.ni_vp);
 			nd.ni_vp = NULL;
 
@@ -1912,10 +1905,6 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 			nd.ni_cnd.cn_flags &= ~HASBUF;
 			goto out;
 		}
-
-		/*
-		 * release vp we do not use
-		 */
 		vput(nd.ni_vp);
 		nd.ni_vp = NULL;
 
@@ -2559,14 +2548,16 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 
 	/*
 	 * issue symlink op.  SAVESTART is set so the underlying path component
-	 * is only freed by the VOP if an error occurs.  VOP_SYMLINK does not
-	 * return a referenced ni_vp, but it may fill the pointer with garbage.
+	 * is only freed by the VOP if an error occurs.
 	 */
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
-	nd.ni_vp = NULL;
 	if (error)
 		nd.ni_cnd.cn_flags &= ~HASBUF;
+	else {
+		vput(nd.ni_vp);
+		nd.ni_vp = NULL;
+	}
 	/*
 	 * releases directory prior to potential lookup op.
 	 */
