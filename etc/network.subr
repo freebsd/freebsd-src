@@ -299,6 +299,24 @@ list_net_interfaces()
 		esac
 	done
 
+	case ${pccard_ifconfig} in
+	[Dd][Hh][Cc][Pp])
+		for _if in ${removable_interfaces} ; do
+			_test_if=`ifconfig ${_if} 2>&1`
+			case "$_test_if" in
+			"ifconfig: interface $_if does not exist")
+				;;
+			*)
+				_dhcplist="${_dhcplist}${_aprefix}${_if}"
+				[ -z "$_aprefix" ] && _aprefix=' '
+				;;
+			esac
+		done
+		;;
+	*)
+		;;
+	esac
+
 	case "$type" in
 	nodhcp)
 		echo $_nodhcplist
