@@ -115,6 +115,13 @@ dumpfs(name)
 	if (read(fd, &afs, SBSIZE) != SBSIZE)
 		goto err;
 
+	if (afs.fs_magic != FS_MAGIC) {
+		warnx("%s: superblock has bad magic number, skipping.",
+			name);
+		(void) close(fd);
+		return (1);
+	}
+     
 	if (afs.fs_postblformat == FS_42POSTBLFMT)
 		afs.fs_nrpos = 8;
 	dev_bsize = afs.fs_fsize / fsbtodb(&afs, 1);
