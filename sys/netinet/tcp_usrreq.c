@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.24 1996/07/12 17:28:47 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.25 1996/09/13 23:51:44 pst Exp $
  */
 
 #include <sys/param.h>
@@ -857,7 +857,7 @@ tcp_connect(tp, nam)
 	error = in_pcbladdr(inp, nam, &ifaddr);
 	if (error)
 		return error;
-	oinp = in_pcblookup(inp->inp_pcbinfo->listhead,
+	oinp = in_pcblookuphash(inp->inp_pcbinfo,
 	    sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
 						: ifaddr->sin_addr,
