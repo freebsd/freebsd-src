@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.56 1996/01/05 20:12:39 wollman Exp $
+ *      $Id: cd.c,v 1.57 1996/01/30 12:59:00 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -760,7 +760,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len;
+			u_int32 len, readlen, idx;
 			u_int32 starting_track = te->starting_track;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
@@ -793,12 +793,35 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
+
+			/* calculate reading length without leadout entry */
+			readlen = ((int)th->ending_track - starting_track) + 1;
+			if (readlen < 1)        /* read at least one entry */
+				readlen = 1;
+			readlen *= sizeof(struct cd_toc_entry);
+			if (readlen > len)
+				readlen = len;
+
 			error = cd_read_toc(unit, te->address_format,
 				starting_track,
 				(struct cd_toc_entry *)&data,
-				len + sizeof(struct ioc_toc_header));
+				readlen + sizeof(struct ioc_toc_header));
 			if (error)
 				break;
+			th->len = ((th->len & 0xff) << 8) + ((th->len >> 8) & 0xff);
+
+			/* make fake leadout entry if needed */
+			idx = starting_track + len / sizeof(struct cd_toc_entry) - 1;
+			if (idx == th->ending_track + 1) {
+				idx -= starting_track; /* now offset in the entries */
+				if (idx > 0) {
+					data.entries[idx].control = data.entries[idx-1].control;
+					data.entries[idx].addr_type = data.entries[idx-1].addr_type;
+				}
+				data.entries[idx].track = 170; /* magic */
+				data.entries[idx].addr.lba = th->len;
+			}
+
 			error = copyout(data.entries, te->data, len);
 		}
 		break;
