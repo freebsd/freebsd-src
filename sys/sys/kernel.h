@@ -127,7 +127,8 @@ enum sysinit_sub_id {
 	SI_SUB_CREATE_INIT	= 0x2500000,	/* create init process*/
 	SI_SUB_SCHED_IDLE	= 0x2600000,	/* required idle procs */
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
-	SI_SUB_SOFTINTR		= 0x2800000,	/* start soft interrupt thread */
+	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
+	SI_SUB_SOFTINTR		= 0x2800001,	/* start soft interrupt thread */
 	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
