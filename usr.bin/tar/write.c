@@ -349,9 +349,13 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	pending_dir = NULL;
 
-	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
-		bsdtar_errc(bsdtar, 1, errno,
+	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir)) {
+		bsdtar_warnc(bsdtar, errno,
 		    "chdir(%s) failed", bsdtar->start_dir);
+		bsdtar->return_value = 1;
+		return;
+	}
+
 
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);
@@ -363,9 +367,12 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			if (*arg == '\0') {
 				bsdtar->argv++;
 				arg = *bsdtar->argv;
-				if (arg == NULL)
-					bsdtar_errc(bsdtar, 1, 0,
+				if (arg == NULL) {
+					bsdtar_warnc(bsdtar, 1, 0,
 					    "Missing argument for -C");
+					bsdtar->return_value = 1;
+					return;
+				}
 			}
 
 			/*-
@@ -417,10 +424,13 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			if (pending_dir &&
 			    (*arg != '/' || (*arg == '@' && arg[1] != '/'))) {
 				/* Handle a deferred -C */
-				if (chdir(pending_dir))
-					bsdtar_errc(bsdtar, 1, 0,
+				if (chdir(pending_dir)) {
+					bsdtar_warnc(bsdtar, 0,
 					    "could not chdir to '%s'\n",
 					    pending_dir);
+					bsdtar->return_value = 1;
+					return;
+				}
 				free(pending_dir);
 				pending_dir = NULL;
 			}
