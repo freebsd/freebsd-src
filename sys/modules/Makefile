@@ -214,7 +214,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
-	uart \
+	${_uart} \
 	ubsa \
 	ubsec \
 	ubser \
@@ -246,7 +246,7 @@ SUBDIR=	${_3dfx} \
 	${_vesa} \
 	vge \
 	vkbd \
-	vpo \
+	${_vpo} \
 	vr \
 	vx \
 	wb \
@@ -259,8 +259,13 @@ SUBDIR=	${_3dfx} \
 	${_xe} \
 	xl
 
-.if ${MACHINE_ARCH} != "sparc64"
+.if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
+.endif
+
+.if ${MACHINE_ARCH} != "powerpc"
+_uart=	uart
+_vpo=	vpo
 .endif
 
 .if defined(ALL_MODULES)
