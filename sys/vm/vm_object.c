@@ -476,6 +476,14 @@ vm_object_deallocate(vm_object_t object)
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
+				if (!VM_OBJECT_TRYLOCK(robject)) {
+					/*
+					 * Avoid a potential deadlock.
+					 */
+					object->ref_count++;
+					VM_OBJECT_UNLOCK(object);
+					continue;
+				}
 				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
@@ -487,22 +495,24 @@ vm_object_deallocate(vm_object_t object)
 						object->paging_in_progress
 					) {
 	/* XXX */				VM_OBJECT_UNLOCK(object);
+	/* XXX */				VM_OBJECT_UNLOCK(robject);
 						vm_object_pip_sleep(robject, "objde1");
 						vm_object_pip_sleep(object, "objde2");
+	/* XXX */				VM_OBJECT_LOCK(robject);
 	/* XXX */				VM_OBJECT_LOCK(object);
 					}
 					VM_OBJECT_UNLOCK(object);
 					if (robject->ref_count == 1) {
-	/* XXX */				VM_OBJECT_LOCK(robject);
 						robject->ref_count--;
 						object = robject;
 						goto doterm;
 					}
-
 					object = robject;
+	/* XXX */			VM_OBJECT_UNLOCK(object);
 					vm_object_collapse(object);
 					continue;
 				}
+				VM_OBJECT_UNLOCK(robject);
 			}
 			VM_OBJECT_UNLOCK(object);
 			goto done;
