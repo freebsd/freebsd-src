@@ -5,7 +5,7 @@ SUBDIR=
 .if !defined(NO_OPENSSH)
 SUBDIR+=sftp-server ssh-keysign
 .endif
-.if !defined(MAKE_KERBEROS5)
+.if defined(NO_KERBEROS)
 SUBDIR+=telnetd
 .endif
 .endif
