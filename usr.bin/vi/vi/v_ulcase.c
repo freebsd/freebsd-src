@@ -84,6 +84,7 @@ v_ulcase(sp, ep, vp)
 	u_long cnt;
 	char *p;
 
+	len = 0;
 	lno = vp->m_start.lno;
 	cno = vp->m_start.cno;
 
@@ -120,7 +121,10 @@ v_ulcase(sp, ep, vp)
 
 	/* Check to see if we tried to move past EOF. */
 	if (file_gline(sp, ep, vp->m_final.lno, &len) == NULL) {
-		(void)file_gline(sp, ep, --vp->m_final.lno, &len);
+		/* line number start with 1, lno zero is illegal */
+		if (vp->m_final.lno > 1)
+			--vp->m_final.lno;
+		(void)file_gline(sp, ep, vp->m_final.lno, &len);
 		vp->m_final.cno = len == 0 ? 0 : len - 1;
 	}
 	return (0);
