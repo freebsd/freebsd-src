@@ -623,9 +623,9 @@ MCWriteCat(int fd)
 	    nmsgs * sizeof(struct _nls_msg_hdr));
 
 	/* compute offsets for set & msg header tables and string pool */
-	set_hdr = (struct _nls_set_hdr *) ((char *) msgcat +
+	set_hdr = (struct _nls_set_hdr *)(void *)((char *)msgcat +
 	    sizeof(struct _nls_cat_hdr));
-	msg_hdr = (struct _nls_msg_hdr *) ((char *) msgcat +
+	msg_hdr = (struct _nls_msg_hdr *)(void *)((char *)msgcat +
 	    sizeof(struct _nls_cat_hdr) +
 	    nsets * sizeof(struct _nls_set_hdr));
 	strings = (char *) msgcat +
