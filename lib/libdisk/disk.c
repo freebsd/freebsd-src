@@ -360,9 +360,6 @@ pc98_mo_done:
 #endif
 	close(fd);
 	Fixup_Names(d);
-#ifndef PC98
-	Bios_Limit_Chunk(d->chunks,1024*d->bios_hd*d->bios_sect);
-#endif
 	return d;
 }
 
@@ -411,8 +408,8 @@ Clone_Disk(struct disk *d)
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
 	if(d2->bootmgr) {
-		d2->bootmgr = malloc(DOSPARTOFF);
-		memcpy(d2->bootmgr,d->bootmgr,DOSPARTOFF);
+		d2->bootmgr = malloc(d2->bootmgr_size);
+		memcpy(d2->bootmgr,d->bootmgr,d2->bootmgr_size);
 	}
 #if defined(__i386__)
 	if(d2->boot1) {
@@ -483,17 +480,21 @@ Disk_Names()
 }
 
 void
-Set_Boot_Mgr(struct disk *d, const u_char *b)
+Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 {
 #ifndef PC98
+	/* XXX - assumes sector size of 512 */
+	if (s % 512 != 0)
+		return;
 	if (d->bootmgr)
 		free(d->bootmgr);
 	if (!b) {
-		d->bootmgr = 0;
+		d->bootmgr = NULL;
 	} else {
-		d->bootmgr = malloc(DOSPARTOFF);
+		d->bootmgr_size = s;
+		d->bootmgr = malloc(s);
 		if(!d->bootmgr) err(1,"malloc failed");
-		memcpy(d->bootmgr,b,DOSPARTOFF);
+		memcpy(d->bootmgr,b,s);
 	}
 #endif
 }
