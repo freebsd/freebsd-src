@@ -64,7 +64,8 @@ QINFIFO		= 0x9b
 QINCNT		= 0x9c
 QOUTFIFO	= 0x9d
 
-SCSICONF	= 0x5a
+SCSICONF_A	= 0x5a
+SCSICONF_B	= 0x5b
 
 #  The two reserved bytes at SCBARRAY+1[23] are expected to be set to
 #  zero, and the reserved bit in SCBARRAY+0 is used as an internal flag
@@ -98,16 +99,17 @@ SIGNAL_4	= 0x41				# SDTR -> SCSIRATE conversion
 STATUS_ERROR    = 0x51
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
-#  device information, 32-33 and 5a-5f as well.  Since we don't support
-#  wide or twin-bus SCSI, 28-2f can be reclaimed.  As it turns out, the
-#  BIOS trashes 20-27 anyway, writing the synchronous negotiation results
+#  device information, 32-33 and 5a-5f as well. As it turns out, the
+#  BIOS trashes 20-2f, writing the synchronous negotiation results
 #  on top of the BIOS values, so we re-use those for our per-target
 #  scratchspace (actually a value that can be copied directly into
-#  SCSIRATE).  This implies, since we can't get the BIOS config values,
-#  that all targets will be negotiated with for synchronous transfer.
-#  NEEDSDTR has one bit per target indicating if an SDTR message is
-#  needed for that device - this will be set initially, as well as
-#  after a bus reset condition.
+#  SCSIRATE).  The kernel driver will enable synchronous negotiation
+#  for all targets that have a value other than 0 in the lower four
+#  bits of the target scratch space.  This should work irregardless of
+#  whether the bios has been installed. NEEDSDTR has one bit per target 
+#  indicating if an SDTR message is needed for that device - this will 
+#  be set initially (based on a search through the target scratch space), 
+#  as well as after a bus reset condition.
 #
 #  The high bit of DROPATN is set if ATN should be dropped before the ACK
 #  when outb is called.  REJBYTE contains the first byte of a MESSAGE IN
@@ -124,10 +126,11 @@ STATUS_ERROR    = 0x51
 #  Note that SG_NEXT occupies four bytes.
 #
 SYNCNEG		= 0x20
-DISC_DSB_A	= 0x32
 
 DROPATN		= 0x30
 REJBYTE		= 0x31
+DISC_DSB_A	= 0x32
+DISC_DSB_B	= 0x33
 RESELECT	= 0x34
 
 MSG_FLAGS	= 0x35
@@ -141,11 +144,11 @@ MSG_START+5	= 0x3c
 -MSG_START+0	= 0xc9				# 2's complement of MSG_START+0
 
 ARG_1		= 0x4c				# sdtr conversion args & return
-ARG_2		= 0x4d
 RETURN_1	= 0x4c
 
-SIGSTATE	= 0x4e				# value written to SCSISIGO
-NEEDSDTR	= 0x4f				# send SDTR message, 1 bit/trgt
+SIGSTATE	= 0x4d				# value written to SCSISIGO
+NEEDSDTR_A	= 0x4e				# send SDTR message, 1 bit/trgt
+NEEDSDTR_B	= 0x4f
 
 SG_SIZEOF	= 0x8 				# sizeof(struct scatterlist)
 SG_NOLOAD	= 0x50				# load SG pointer/length?
@@ -157,12 +160,24 @@ SG_NEXT+2	= 0x54
 SG_NEXT+3	= 0x55
 
 SCBCOUNT	= 0x56				# the actual number of SCBs
-ACTIVE_A	= 0x57
+FLAGS		= 0x57				# Device configuration flags
+TWIN_BUS	= 0x01
+WIDE_BUS	= 0x02
+
+ACTIVE_A	= 0x58
+ACTIVE_B	= 0x59
 
 #  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
 start:
+	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
+# For fairness, we check the other bus first, since we just finished a 
+# transaction on the current channel.
+	xor	SBLKCTL,0x08			# Toggle to the other bus
+	test	SCSISIGI,0x4	jnz reselect	# BSYI
+	xor	SBLKCTL,0x08			# Toggle to the original bus
+start2:
 	test	SCSISIGI,0x4	jnz reselect	# BSYI
 	test	QINCNT,SCBMASK	jz start
 
@@ -174,18 +189,34 @@ start:
 	mov	SCBPTR,QINFIFO
 
 # See if there is not already an active SCB for this target.  This code
-# will have to be modified when we add support for dual and wide busses.
+# locks out on a per target basis instead of target/lun.  Although this
+# is not ideal for devices that have multiple luns active at the same
+# time, it is faster than looping through all SCB's looking for active
+# commands.  It may be benificial to make findscb a more general procedure
+# to see if the added cost of the search is negligible.  This code also 
+# assumes that the kernel driver will clear the active flags on board 
+# initialization, board reset, and a target's SELTO.
 
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
-	test	ACTIVE_A,A      jz active  
+	test	SCBARRAY+1,0x88	jz test_a	# Id < 8 && A channel
+
+	test	ACTIVE_B,A	jnz requeue
+	or	ACTIVE_B,A	# Mark the current target as busy
+	jmp	start_scb
+
 # Place the currently active back on the queue for later processing
+requeue:
 	mov	QINFIFO, SCBPTR
 	jmp	start
 
-# Mark the current target as busy and get working on the SCB
-active:
-	or	ACTIVE_A,A
+test_a:
+	test	ACTIVE_A,A	jnz requeue
+	or	ACTIVE_A,A	# Mark the current target as busy
+
+start_scb:
+	and	A,0x08,SCBARRAY+1
+	mov	SBLKCTL,A	# select channel, !wide
 	mov	SCBARRAY+1	call initialize
 	clr	SG_NOLOAD
 	clr	RESELECT
@@ -485,24 +516,37 @@ p_mesgin:
 #  We got a "command complete" message, so put the SCB pointer
 #  into the Queue Out, and trigger a completion interrupt.
 #  Check status for non zero return and interrupt driver if needed
-#  This allows the driver to do a sense command to find out the
-#  source of error.  We don't bother to post to the QOUTFIFO in
-#  the error case since it would require extra work in the kernel
-#  driver to ensure that the entry was removed before the command
-#  complete code tried processing it.
-
-#  First, mark this target as free.
-	and     FUNCTION1,0x70,SCBARRAY+1
-	mov	A,FUNCTION1
-	xor     ACTIVE_A,A 
+#  This allows the driver to interpret errors only when they occur
+#  instead of always uploading the scb.  If the status is SCSI_CHECK,
+#  the driver will download a new scb requesting sense, to replace 
+#  the old one and the sequencer code will imediately jump to start 
+#  working on it.  If the kernel driver does not wish to request sense, 
+#  the sequencer program counter is incremented by 1, preventing another run 
+#  on the current SCB and the command is allowed to complete.  We don't 
+#  bother to post to the QOUTFIFO in the error case since it would require 
+#  extra work in the kernel driver to ensure that the entry was removed 
+#  before the command complete code tried processing it.
 
 	test	SCBARRAY+14,0xff	jz status_ok  # 0 Status?
 	call	inb_last			# ack & turn auto PIO back on
 	mvi	INTSTAT,STATUS_ERROR		# let driver know
-	jmp	ITloop
+	jmp	start_scb
+
 status_ok:
+
+#  First, mark this target as free.
+	and	FUNCTION1,0x70,SCBARRAY+1
+	mov	A,FUNCTION1
+	test	SCBARRAY+1,0x88 jz clear_a
+	xor	ACTIVE_B,A
+	jmp	complete
+
+clear_a:
+	xor	ACTIVE_A,A
+
+complete:
 	mov	QOUTFIFO,SCBPTR
-	mvi	INTSTAT,0x2			# CMDCMPLT
+	mvi	INTSTAT,0x02			# CMDCMPLT
 	jmp	p_mesgin_done
 
 #  Is it an extended message?  We only support the synchronous data
@@ -523,15 +567,24 @@ p_mesgin1:
 	cmp	A,1		jne p_mesginN	# SDTR code
 
 	mvi	ARG_1		call inb_next	# xfer period
-	mvi	ARG_2		call inb_next	# REQ/ACK offset
+	mvi	A		call inb_next	# REQ/ACK offset
 	mvi	INTSTAT,SIGNAL_4		# call driver to convert
 
 	call	ndx_sdtr			# index sync config for target
 	mov	DINDEX,SINDEX
-	mov	DINDIR,RETURN_1			# save returned value
-
 	not	A				# turn off "need sdtr" flag
-	and	NEEDSDTR,A
+	test	SBLKCTL,0x08	jnz p_mesgin1_b
+	test	SCSIID,0x80	jnz p_mesgin1_b
+	and	NEEDSDTR_A,A
+	jmp	p_mesgin1_save
+
+p_mesgin1_b:
+	and	NEEDSDTR_B,A
+
+p_mesgin1_save:
+	and	A,0x80,SINDIR			# get the WIDEXFER flag
+	or	RETURN_1,A			# Set WIDEXFER if necessary
+	mov	DINDIR,RETURN_1			# save returned value
 
 #  Even though the SCSI-2 specification says that a device responding
 #  to our SDTR message should honor our parameters for transmitting
@@ -587,7 +640,7 @@ p_mesgin5:
 #
 	test	MSG_FLAGS,0x80	jnz p_mesgin_done
 
-	xor	SCBARRAY+0,0x4			# clear disconnect bit in SCB
+	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
 	mvi	RESELECT,0xc0			# make note of IDENTIFY
 
 	call	sg_scb2ram			# implied restore pointers
@@ -606,14 +659,28 @@ p_mesgin6:
 
 	and	FUNCTION1,0x70,SCSIID		# outstanding SDTR message?
 	mov	A,FUNCTION1
-	test	NEEDSDTR,A	jz p_mesgin_done  # no - ignore rejection
-
+	
+	test	SBLKCTL,0x08	jnz p_mesgin6_b	
+	test	SCSIID,0x80	jnz p_mesgin6_b	
+	test	NEEDSDTR_A,A	jz p_mesgin_done  # no - ignore rejection
 	call	ndx_sdtr			# note use of asynch xfer
 	mov	DINDEX,SINDEX
 	clr	DINDIR
 
-	not	A				# turn off "active sdtr" flag
-	and	NEEDSDTR,A
+	not	A
+	and	NEEDSDTR_A,A
+	jmp	p_mesgin6_done
+
+p_mesgin6_b:
+	test	NEEDSDTR_B,A	jz p_mesgin_done  # no - ignore rejection
+	call	ndx_sdtr			# note use of asynch xfer
+	mov	DINDEX,SINDEX
+	clr	DINDIR
+
+	not	A
+	and	NEEDSDTR_B,A
+	
+p_mesgin6_done:
 
 	clr	SCSIRATE			# select asynch xfer
 	jmp	p_mesgin_done
@@ -772,7 +839,7 @@ dma2:
 dma3:
 	test	SINDEX,0x4	jnz dma5	# DIRECTION
 dma4:
-	test	DFSTATUS,0x1	jz dma4		# FIFOFLUSHACK
+	test	DFSTATUS,0x1	jz dma4		# FIFOEMP
 
 #  Now shut the DMA enables off, and copy STCNT (ie. the underrun
 #  amount, if any) to the SCB registers; SG_COUNT will get copied to
@@ -795,9 +862,20 @@ dma6:
 #  contents are stomped on return.
 #
 initialize:
-	clr	SBLKCTL				# channel A, !wide
 	and	SCSIID,0xf0,SINDEX		# target ID
-	and	A,0x7,SCSICONF			# SCSI_ID_A[210]
+	test	SBLKCTL,0x08	jnz initialize_b
+	mvi	SINDEX,SCSICONF_A
+	test	FLAGS,WIDE_BUS	jnz initialize_wide
+	and	A,0x7,SCSICONF_A		# SCSI_ID_A[210]
+	jmp	initialize_2
+initialize_b:
+	and	A,0x7,SCSICONF_B		# SCSI_ID_B[210]
+	mvi	SCSICONF_B	 jmp	initialize_2
+
+initialize_wide:
+	and	A, 0xf,SCSICONF_B
+
+initialize_2:
 	or	SCSIID,A
 
 #  Esundry initialization.
@@ -821,8 +899,8 @@ initialize:
 #
 #  STPWEN is 7870-specific, enabling an external termination power source.
 #
-	and	A,0x38,SCSICONF			# PARITY_ENB_A|SEL_TIM_A[10]
-	or	SXFRCTL1,0x5,A			# ENSTIMER|STPWEN
+	and	A,0x38,SINDIR			# PARITY_ENB|SEL_TIM[10]
+	or	SXFRCTL1,0x7,A			# ENSTIMER|ACTNEGEN|STPWEN
 	mvi	SIMODE1,0x84			# ENSELTIMO|ENSCSIPERR
 	
 #  Initialize scatter-gather pointers by setting up the working copy
@@ -849,19 +927,25 @@ assert1:
 	ret
 
 #  Find out if disconnection is ok from the information the BIOS has left
-#  us.  The target ID should be in the upper four bits of SINDEX; A will
+#  us.  The tcl from SCBARRAY+1 should be in SINDEX; A will
 #  contain either 0x40 (disconnection ok) or 0x00 (disconnection not ok)
 #  on exit.
 #
-#  This is the only place the target ID is limited to three bits, so we
-#  can use the FUNCTION1 register.
+#  To allow for wide or twin busses, we check the upper bit of the target ID
+#  and the channel ID and look at the appropriate disconnect register. 
 #
 disconnect:
 	and	FUNCTION1,0x70,SINDEX		# strip off extra just in case
 	mov	A,FUNCTION1
-	test	DISC_DSB_A,A	jz disconnect1	# bit nonzero if DISabled
+	test	SINDEX, 0x88	jz disconnect_a
 
+	test	DISC_DSB_B,A	jz disconnect1	# bit nonzero if DISabled
 	clr	A		ret
+
+disconnect_a:
+	test	DISC_DSB_A,A	jz disconnect1	# bit nonzero if DISabled
+	clr	A		ret
+
 disconnect1:
 	mvi	A,0x40		ret
 
@@ -874,9 +958,10 @@ disconnect1:
 #
 findSCB:
 	and	A,0x7,SINDEX		# lun in lower three bits
-	or	DINDEX,A,SELID		# can I do this?
-	and	DINDEX,0xf7		# only channel A implemented
-
+	or	DINDEX,A,SELID		
+	and	DINDEX,0xf7
+	and	A,0x08,SBLKCTL		# B Channel??
+	or	DINDEX,A
 	clr	SINDEX
 
 findSCB1:
@@ -884,7 +969,6 @@ findSCB1:
 	mov	SCBPTR,SINDEX			# switch to new SCB
 	cmp	SCBARRAY+1,A	jne findSCB2	# target ID/channel/lun match?
 	test	SCBARRAY+0,0x4	jz findSCB2	# should be disconnected
-
 	ret
 
 findSCB2:
@@ -1029,7 +1113,9 @@ sg_advance2:
 #
 ndx_sdtr:
 	shr	A,SCSIID,4
-	and	A,0x7
+	test	SBLKCTL,0x08	jz ndx_sdtr_2
+	or	A,0x08		# Channel B entries add 8
+ndx_sdtr_2:
 	add	SINDEX,SYNCNEG,A
 
 	and	FUNCTION1,0x70,SCSIID		# 3-bit target address decode
@@ -1042,7 +1128,11 @@ mk_sdtr:
 	mov	DINDEX,SINDEX			# save SINDEX
 
 	call	ndx_sdtr
-	test	NEEDSDTR,A	jnz mk_sdtr1	# do we need negotiation?
+	test	SCBARRAY+1,0x88	jz  mk_sdtr1_a
+	test	NEEDSDTR_B,A	jnz mk_sdtr1	# do we need negotiation?
+	ret
+mk_sdtr1_a:
+	test	NEEDSDTR_A,A	jnz mk_sdtr1	# do we need negotiation?
 	ret
 
 mk_sdtr1:
