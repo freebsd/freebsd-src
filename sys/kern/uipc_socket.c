@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.29 1997/08/21 20:33:39 bde Exp $
+ *	$Id: uipc_socket.c,v 1.30 1997/09/02 20:05:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1085,38 +1086,35 @@ sohasoutofband(so)
 }
 
 int
-soselect(struct socket *so, int which, struct proc *p)
+sopoll(struct socket *so, int events, struct ucred *cred, struct proc *p)
 {
+	int revents = 0;
 	int s = splnet();
-	switch (which) {
 
-	case FREAD:
-		if (soreadable(so)) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &so->so_rcv.sb_sel);
-		so->so_rcv.sb_flags |= SB_SEL;
-		break;
+	if (events & (POLLIN | POLLRDNORM))
+		if (soreadable(so))
+			revents |= events & (POLLIN | POLLRDNORM);
 
-	case FWRITE:
-		if (sowriteable(so)) {
-			splx(s);
-			return (1);
-		}
-		selrecord(p, &so->so_snd.sb_sel);
-		so->so_snd.sb_flags |= SB_SEL;
-		break;
+	if (events & (POLLOUT | POLLWRNORM))
+		if (sowriteable(so))
+			revents |= events & (POLLOUT | POLLWRNORM);
 
-	case 0:
-		if (so->so_oobmark || (so->so_state & SS_RCVATMARK)) {
-			splx(s);
-			return (1);
+	if (events & (POLLPRI | POLLRDBAND))
+		if (so->so_oobmark || (so->so_state & SS_RCVATMARK))
+			revents |= events & (POLLPRI | POLLRDBAND);
+
+	if (revents == 0) {
+		if (events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
+			selrecord(p, &so->so_rcv.sb_sel);
+			so->so_rcv.sb_flags |= SB_SEL;
 		}
-		selrecord(p, &so->so_rcv.sb_sel);
-		so->so_rcv.sb_flags |= SB_SEL;
-		break;
+
+		if (events & (POLLOUT | POLLWRNORM)) {
+			selrecord(p, &so->so_snd.sb_sel);
+			so->so_snd.sb_flags |= SB_SEL;
+		}
 	}
+
 	splx(s);
-	return (0);
+	return (revents);
 }
