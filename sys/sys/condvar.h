@@ -63,7 +63,7 @@ void	cv_broadcast(struct cv *cvp);
 
 void	cv_waitq_remove(struct proc *p);
 
-#define	cv_waitq_empty(cvp)	(TAILQ_EMPTY(&cvp->cv_waitq))
+#define	cv_waitq_empty(cvp)	(TAILQ_EMPTY(&(cvp)->cv_waitq))
 #define	cv_wmesg(cvp)		((cvp)->cv_description)
 
 #endif	/* _KERNEL */
