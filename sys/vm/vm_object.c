@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.22 1995/02/12 09:19:44 davidg Exp $
+ * $Id: vm_object.c,v 1.23 1995/02/18 06:48:33 davidg Exp $
  */
 
 /*
@@ -245,6 +245,9 @@ vm_object_deallocate(object)
 
 	while (object != NULL) {
 
+		if (object->ref_count == 0)
+			panic("vm_object_deallocate: object deallocated too many times");
+
 		/*
 		 * The cache holds a reference (uncounted) to the object; we
 		 * must lock it before removing the object.
@@ -284,8 +287,8 @@ vm_object_deallocate(object)
 						vm_object_unlock(object);
 						vm_object_cache_unlock();
 						robject->ref_count += 1;
-						vm_object_deallocate(robject);
-						return;
+						object = robject;
+						continue;
 					}
 					vm_object_cache_unlock();
 					vm_object_unlock(object);
@@ -1377,7 +1380,6 @@ vm_object_collapse(object)
 						vm_page_unlock_queues();
 					} else {
 						vm_page_rename(p, object, new_offset);
-						p->dirty = VM_PAGE_BITS_ALL;
 					}
 				}
 			}
@@ -1398,8 +1400,8 @@ vm_object_collapse(object)
 					 * shadow object.
 					 */
 					bopager = backing_object->pager;
-					backing_object->pager = NULL;
 					vm_object_remove(backing_object->pager);
+					backing_object->pager = NULL;
 					swap_pager_copy(
 					    bopager, backing_object->paging_offset,
 					    object->pager, object->paging_offset,
