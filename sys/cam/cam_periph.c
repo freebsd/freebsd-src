@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.13 1999/05/09 01:25:04 ken Exp $
+ *      $Id: cam_periph.c,v 1.14 1999/05/22 21:58:45 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1463,23 +1463,25 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		case SCSI_STATUS_QUEUE_FULL:
 		{
 			/* no decrement */
-			struct ccb_getdev cgd;
+			struct ccb_getdevstats cgds;
 
 			/*
 			 * First off, find out what the current
 			 * transaction counts are.
 			 */
-			xpt_setup_ccb(&cgd.ccb_h,
+			xpt_setup_ccb(&cgds.ccb_h,
 				      ccb->ccb_h.path,
 				      /*priority*/1);
-			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_action((union ccb *)&cgd);
+			cgds.ccb_h.func_code = XPT_GDEV_STATS;
+			xpt_action((union ccb *)&cgds);
 
 			/*
 			 * If we were the only transaction active, treat
 			 * the QUEUE FULL as if it were a BUSY condition.
 			 */
-			if (cgd.dev_active != 0) {
+			if (cgds.dev_active != 0) {
+				int total_openings;
+
 				/*
 			 	 * Reduce the number of openings to
 				 * be 1 less than the amount it took
@@ -1487,10 +1489,12 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 * minimum allowed tag count for this
 				 * device.
 			 	 */
-				openings = cgd.dev_active;
-				if (openings < cgd.mintags)
-					openings = cgd.mintags;
-				if (openings < cgd.dev_active+cgd.dev_openings)
+				total_openings =
+				    cgds.dev_active+cgds.dev_openings;
+				openings = cgds.dev_active;
+				if (openings < cgds.mintags)
+					openings = cgds.mintags;
+				if (openings < total_openings)
 					relsim_flags = RELSIM_ADJUST_OPENINGS;
 				else {
 					/*
