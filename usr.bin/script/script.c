@@ -178,8 +178,10 @@ main(int argc, char *argv[])
 			break;
 		if (n > 0 && FD_ISSET(STDIN_FILENO, &rfd)) {
 			cc = read(STDIN_FILENO, ibuf, BUFSIZ);
-			if (cc <= 0)
+			if (cc < 0)
 				break;
+			if (cc == 0)
+				(void)write(master, ibuf, 0);
 			if (cc > 0) {
 				(void)write(master, ibuf, cc);
 				if (kflg && tcgetattr(master, &stt) >= 0 &&
