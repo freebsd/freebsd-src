@@ -245,16 +245,9 @@ struct sbp_cmd_status{
 	u_int8_t	s_qlfr;
 	u_int32_t	info;
 	u_int32_t	cdb;
-
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t	s_keydep:24,
-			fru:8;
-#else
-	u_int32_t	fru:8,
-			s_keydep:24;
-#endif
+	u_int8_t	fru;
+	u_int8_t	s_keydep[3];
 	u_int32_t	vend[2];
-
 };
 
 struct sbp_dev{
@@ -1402,10 +1395,9 @@ END_DEBUG
 			sense->flags |= SSD_EOM;
 		if(sbp_cmd_status->ill_len)
 			sense->flags |= SSD_ILI;
-		sense->info[0] = ntohl(sbp_cmd_status->info) & 0xff;
-		sense->info[1] =(ntohl(sbp_cmd_status->info) >> 8) & 0xff;
-		sense->info[2] =(ntohl(sbp_cmd_status->info) >> 16) & 0xff;
-		sense->info[3] =(ntohl(sbp_cmd_status->info) >> 24) & 0xff;
+
+		bcopy(&sbp_cmd_status->info, &sense->info[0], 4);
+
 		if (sbp_status->len <= 1)
 			/* XXX not scsi status. shouldn't be happened */ 
 			sense->extra_len = 0;
@@ -1415,16 +1407,15 @@ END_DEBUG
 		else
 			/* fru, sense_key_spec */
 			sense->extra_len = 10;
-		sense->cmd_spec_info[0] = ntohl(sbp_cmd_status->cdb) & 0xff;
-		sense->cmd_spec_info[1] = (ntohl(sbp_cmd_status->cdb) >> 8) & 0xff;
-		sense->cmd_spec_info[2] = (ntohl(sbp_cmd_status->cdb) >> 16) & 0xff;
-		sense->cmd_spec_info[3] = (ntohl(sbp_cmd_status->cdb) >> 24) & 0xff;
+
+		bcopy(&sbp_cmd_status->cdb, &sense->cmd_spec_info[0], 4);
+
 		sense->add_sense_code = sbp_cmd_status->s_code;
 		sense->add_sense_code_qual = sbp_cmd_status->s_qlfr;
 		sense->fru = sbp_cmd_status->fru;
-		sense->sense_key_spec[0] = ntohl(sbp_cmd_status->s_keydep) & 0xff;
-		sense->sense_key_spec[1] = (ntohl(sbp_cmd_status->s_keydep) >>8) & 0xff;
-		sense->sense_key_spec[2] = (ntohl(sbp_cmd_status->s_keydep) >>16) & 0xff;
+
+		bcopy(&sbp_cmd_status->s_keydep[0],
+		    &sense->sense_key_spec[0], 3);
 
 		ocb->ccb->csio.scsi_status = sbp_cmd_status->status;;
 		ocb->ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
