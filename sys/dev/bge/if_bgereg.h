@@ -525,6 +525,10 @@
 #define BGE_RX_BD_RULES_CTL15		0x04F8
 #define BGE_RX_BD_RULES_MASKVAL15	0x04FC
 #define BGE_RX_RULES_CFG		0x0500
+#define BGE_SERDES_CFG			0x0590
+#define BGE_SERDES_STS			0x0594
+#define BGE_SGDIG_CFG			0x05B0
+#define BGE_SGDIG_STS			0x05B4
 #define BGE_RX_STATS			0x0800
 #define BGE_TX_STATS			0x0880
 
@@ -654,6 +658,40 @@
 /* Receive Rules Mask register */
 #define BGE_RXRULEMASK_VALUE		0x0000FFFF
 #define BGE_RXRULEMASK_MASKVAL		0xFFFF0000
+
+/* SERDES configuration register */
+#define BGE_SERDESCFG_RXR		0x00000007 /* phase interpolator */
+#define BGE_SERDESCFG_RXG		0x00000018 /* rx gain setting */
+#define BGE_SERDESCFG_RXEDGESEL		0x00000040 /* rising/falling egde */
+#define BGE_SERDESCFG_TX_BIAS		0x00000380 /* TXDAC bias setting */
+#define BGE_SERDESCFG_IBMAX		0x00000400 /* bias current +25% */
+#define BGE_SERDESCFG_IBMIN		0x00000800 /* bias current -25% */
+#define BGE_SERDESCFG_TXMODE		0x00001000
+#define BGE_SERDESCFG_TXEDGESEL		0x00002000 /* rising/falling edge */
+#define BGE_SERDESCFG_MODE		0x00004000 /* TXCP/TXCN disabled */
+#define BGE_SERDESCFG_PLLTEST		0x00008000 /* PLL test mode */
+#define BGE_SERDESCFG_CDET		0x00010000 /* comma detect enable */
+#define BGE_SERDESCFG_TBILOOP		0x00020000 /* local loopback */
+#define BGE_SERDESCFG_REMLOOP		0x00040000 /* remote loopback */
+#define BGE_SERDESCFG_INVPHASE		0x00080000 /* Reverse 125Mhz clock */
+#define BGE_SERDESCFG_12REGCTL		0x00300000 /* 1.2v regulator ctl */
+#define BGE_SERDESCFG_REGCTL		0x00C00000 /* regulator ctl (2.5v) */
+
+/* SERDES status register */
+#define BGE_SERDESSTS_RXSTAT		0x0000000F /* receive status bits */
+#define BGE_SERDESSTS_CDET		0x00000010 /* comma code detected */
+
+/* SGDIG config (not documented) */
+#define BGE_SGDIGCFG_PAUSE_CAP		0x00000800
+#define BGE_SGDIGCFG_ASYM_PAUSE		0x00001000
+#define BGE_SGDIGCFG_SEND		0x40000000
+#define BGE_SGDIGCFG_AUTO		0x80000000
+
+/* SGDIG status (not documented) */
+#define BGE_SGDIGSTS_PAUSE_CAP		0x00080000
+#define BGE_SGDIGSTS_ASYM_PAUSE		0x00100000
+#define BGE_SGDIGSTS_DONE		0x00000002
+
 
 /* MI communication register */
 #define BGE_MICOMM_DATA			0x0000FFFF
