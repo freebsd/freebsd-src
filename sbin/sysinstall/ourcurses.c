@@ -178,6 +178,6 @@ ShowFile(char *filename, char *header)
 	return;
     }
     dialog_clear();
-    dialog_textbox(header, filename, LINES-1, COLS);
+    dialog_textbox(header, filename, LINES, COLS);
     dialog_clear();
 }
