@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.89 1999/05/30 16:52:11 phk Exp $
+ *	$Id: cy.c,v 1.90 1999/05/31 11:25:57 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -2853,7 +2853,8 @@ cd_getreg(com, reg)
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	val = cd_inb(iobase, reg, cy_align);
-	write_eflags(ef);
+	if (ef & PSL_I)
+		enable_intr();
 	return (val);
 }
 
@@ -2879,7 +2880,8 @@ cd_setreg(com, reg, val)
 	if (basecom->car != car)
 		cd_outb(iobase, CD1400_CAR, cy_align, basecom->car = car);
 	cd_outb(iobase, reg, cy_align, val);
-	write_eflags(ef);
+	if (ef & PSL_I)
+		enable_intr();
 }
 
 #ifdef CyDebug
