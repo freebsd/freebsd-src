@@ -35,6 +35,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -45,21 +46,30 @@
 static MALLOC_DEFINE(M_PFSVNCACHE, "pfs_vncache", "pseudofs vnode cache");
 
 static struct mtx pfs_vncache_mutex;
-
-struct pfs_vnode {
-	struct vnode		*pv_vnode;
-	struct pfs_vnode	*pv_next;
-} *pfs_vncache;
+struct pfs_vdata *pfs_vncache;
+static void pfs_exit(struct proc *p);
 
 SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
     "pseudofs vnode cache");
 
+static int pfs_vncache_entries;
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, entries, CTLFLAG_RD,
+    &pfs_vncache_entries, 0,
+    "number of entries in the vnode cache");
+
+static int pfs_vncache_maxentries;
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, maxentries, CTLFLAG_RD,
+    &pfs_vncache_maxentries, 0,
+    "highest number of entries in the vnode cache");
+
 static int pfs_vncache_hits;
-SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, hits, CTLFLAG_RD, &pfs_vncache_hits, 0,
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, hits, CTLFLAG_RD,
+    &pfs_vncache_hits, 0,
     "number of cache hits since initialization");
 
 static int pfs_vncache_misses;
-SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD, &pfs_vncache_misses, 0,
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD,
+    &pfs_vncache_misses, 0,
     "number of cache misses since initialization");
 
 extern vop_t **pfs_vnodeop_p;
@@ -70,7 +80,9 @@ extern vop_t **pfs_vnodeop_p;
 void
 pfs_vncache_load(void)
 {
-	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", MTX_DEF);
+	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", MTX_DEF|MTX_RECURSE);
+	/* XXX at_exit() can fail with ENOMEN */
+	at_exit(pfs_exit);
 }
 
 /*
@@ -79,6 +91,7 @@ pfs_vncache_load(void)
 void
 pfs_vncache_unload(void)
 {
+	rm_at_exit(pfs_exit);
 	mtx_destroy(&pfs_vncache_mutex);
 }
 
@@ -89,18 +102,17 @@ int
 pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		  struct pfs_node *pn, pid_t pid)
 {
-	struct pfs_vnode *pv;
 	struct pfs_vdata *pvd;
 	int error;
 	
 	/* see if the vnode is in the cache */
+	/* XXX linear search... not very efficient */
 	mtx_lock(&pfs_vncache_mutex);
-	for (pv = pfs_vncache; pv; pv = pv->pv_next) {
-		pvd = (struct pfs_vdata *)pv->pv_vnode->v_data;
+	for (pvd = pfs_vncache; pvd; pvd = pvd->pvd_next) {
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid) {
-			if (vget(pv->pv_vnode, 0, curthread) == 0) {
+			if (vget(pvd->pvd_vnode, 0, curthread) == 0) {
 				++pfs_vncache_hits;
-				*vpp = pv->pv_vnode;
+				*vpp = pvd->pvd_vnode;
 				mtx_unlock(&pfs_vncache_mutex);
 				return (0);
 			}
@@ -112,8 +124,9 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	++pfs_vncache_misses;
 
 	/* nope, get a new one */
-	MALLOC(pv, struct pfs_vnode *, sizeof *pv, M_PFSVNCACHE, M_WAITOK);
 	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
+	if (++pfs_vncache_entries > pfs_vncache_maxentries)
+		pfs_vncache_maxentries = pfs_vncache_entries;
 	error = getnewvnode(VT_PSEUDOFS, mp, pfs_vnodeop_p, vpp);
 	if (error)
 		return (error);
@@ -126,6 +139,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 #if 0
 		printf("root vnode allocated\n");
 #endif
+		/* fall through */
 	case pfstype_dir:
 	case pfstype_this:
 	case pfstype_parent:
@@ -143,10 +157,13 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	default:
 		panic("%s has unexpected type: %d", pn->pn_name, pn->pn_type);
 	}
-	pv->pv_vnode = *vpp;
+	pvd->pvd_vnode = *vpp;
 	mtx_lock(&pfs_vncache_mutex);
-	pv->pv_next = pfs_vncache;
-	pfs_vncache = pv;
+	pvd->pvd_prev = NULL;
+	pvd->pvd_next = pfs_vncache;
+	if (pvd->pvd_next)
+		pvd->pvd_next->pvd_prev = pvd;
+	pfs_vncache = pvd;
 	mtx_unlock(&pfs_vncache_mutex);
 	return (0);
 }
@@ -157,23 +174,46 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 int
 pfs_vncache_free(struct vnode *vp)
 {
-	struct pfs_vnode *prev, *pv;
 	struct pfs_vdata *pvd;
 	
 	mtx_lock(&pfs_vncache_mutex);
-	for (prev = NULL, pv = pfs_vncache; pv; prev = pv, pv = pv->pv_next)
-		if (pv->pv_vnode == vp)
-			break;
-	KASSERT(pv != NULL, ("pfs_vncache_free(): not in cache\n"));
-	if (prev)
-		prev->pv_next = pv->pv_next;
-	else
-		pfs_vncache = pv->pv_next;
-	mtx_unlock(&pfs_vncache_mutex);
-	
 	pvd = (struct pfs_vdata *)vp->v_data;
+	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
+	if (pvd->pvd_next)
+		pvd->pvd_next->pvd_prev = pvd->pvd_prev;
+	if (pvd->pvd_prev)
+		pvd->pvd_prev->pvd_next = pvd->pvd_next;
+	else
+		pfs_vncache = pvd->pvd_next;
+	mtx_unlock(&pfs_vncache_mutex);
+
+	--pfs_vncache_entries;
 	FREE(pvd, M_PFSVNCACHE);
 	vp->v_data = NULL;
-	FREE(pv, M_PFSVNCACHE);
 	return (0);
+}
+
+/*
+ * Free all vnodes associated with a defunct process
+ */
+static void
+pfs_exit(struct proc *p)
+{
+	struct pfs_vdata *pvd, *prev;
+
+	mtx_lock(&pfs_vncache_mutex);
+	/*
+	 * The double loop is necessary because vgone() indirectly
+	 * calls pfs_vncache_free() which frees pvd, so we have to
+	 * backtrace one step every time we free a vnode.
+	 */
+	/* XXX linear search... not very efficient */
+	for (pvd = pfs_vncache; pvd != NULL; pvd = pvd->pvd_next) {
+		while (pvd != NULL && pvd->pvd_pid == p->p_pid) {
+			prev = pvd->pvd_prev;
+			vgone(pvd->pvd_vnode);
+			pvd = prev ? prev->pvd_next : pfs_vncache;
+		}
+	}
+	mtx_unlock(&pfs_vncache_mutex);
 }
