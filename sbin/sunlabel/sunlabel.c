@@ -752,7 +752,7 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 	fprintf(out,
 "# /dev/%s:\n"
 "text: %s\n"
-"bytes/sectors: %d\n"
+"bytes/sector: %d\n"
 "sectors/cylinder: %ju\n",
 	    disk,
 	    sl->sl_text,
