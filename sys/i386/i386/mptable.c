@@ -635,23 +635,38 @@ static void
 mptable_parse_io_int(int_entry_ptr intr)
 {
 	void *ioapic;
-	u_int pin;
+	u_int pin, apic_id;
 
+	apic_id = intr->dst_apic_id;
 	if (intr->dst_apic_id == 0xff) {
-		printf("MPTable: Ignoring global interrupt entry for pin %d\n",
-		    intr->dst_apic_int);
-		return;
+		/*
+		 * An APIC ID of 0xff means that the interrupt is connected
+		 * to the specified pin on all I/O APICs in the system.  If
+		 * there is only one I/O APIC, then use that APIC to route
+		 * the interrupts.  If there is more than one I/O APIC, then
+		 * punt.
+		 */
+		if (mptable_nioapics == 1) {
+			apic_id = 0;
+			while (ioapics[apic_id] == NULL)
+				apic_id++;
+		} else {
+			printf(
+			"MPTable: Ignoring global interrupt entry for pin %d\n",
+			    intr->dst_apic_int);
+			return;
+		}
 	}
-	if (intr->dst_apic_id >= NAPICID) {
+	if (apic_id >= NAPICID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
 	}
-	ioapic = ioapics[intr->dst_apic_id];
+	ioapic = ioapics[apic_id];
 	if (ioapic == NULL) {
 		printf(
 	"MPTable: Ignoring interrupt entry for missing ioapic%d\n",
-		    intr->dst_apic_id);
+		    apic_id);
 		return;
 	}
 	pin = intr->dst_apic_int;
