@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.18 1997/04/26 11:45:48 peter Exp $
+ *	$Id: spl.h,v 1.19 1997/04/26 20:04:18 peter Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -99,11 +99,6 @@ extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 
 /*
- * ipending has to be volatile so that it is read every time it is accessed
- * in splx() and spl0(), but we don't want it to be read nonatomically when
- * it is changed.  Pretending that ipending is a plain int happens to give
- * suitable atomic code for "ipending |= constant;".
- *
  * The volatile bitmap variables must be set atomically.  This normally
  * involves using a machine-dependent bit-set or `or' instruction.
  */
