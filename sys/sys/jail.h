@@ -39,6 +39,7 @@ int jail_attach(int);
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_task.h>
 
 #define JAIL_MAX	999999
 
@@ -56,8 +57,8 @@ MALLOC_DECLARE(M_PRISON);
  *   (p) locked by pr_mutex
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
+ *   (d) set only during destruction of jail, no mutex needed
  */
-struct mtx;
 struct prison {
 	LIST_ENTRY(prison) pr_list;			/* (a) all prisons */
 	int		 pr_id;				/* (c) prison id */
@@ -68,6 +69,7 @@ struct prison {
 	u_int32_t	 pr_ip;				/* (c) ip addr host */
 	void		*pr_linux;			/* (p) linux abi */
 	int		 pr_securelevel;		/* (p) securelevel */
+	struct task	 pr_task;			/* (d) destroy task */
 	struct mtx	 pr_mtx;
 };
 

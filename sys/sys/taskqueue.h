@@ -34,16 +34,9 @@
 #endif
 
 #include <sys/queue.h>
+#include <sys/_task.h>
 
 struct taskqueue;
-
-/*
- * Each task includes a function which is called from
- * taskqueue_run().  The first argument is taken from the 'ta_context'
- * field of struct task and the second argument is a count of how many
- * times the task was enqueued before the call to taskqueue_run().
- */
-typedef void task_fn_t(void *context, int pending);
 
 /*
  * A notification callback function which is called from
@@ -53,14 +46,6 @@ typedef void task_fn_t(void *context, int pending);
  * interrupt or waking a kernel thread).
  */
 typedef void (*taskqueue_enqueue_fn)(void *context);
-
-struct task {
-	STAILQ_ENTRY(task) ta_link;	/* link for queue */
-	int	ta_pending;		/* count times queued */
-	int	ta_priority;		/* priority of task in queue */
-	task_fn_t *ta_func;		/* task handler */
-	void	*ta_context;		/* argument for handler */
-};
 
 struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
