@@ -5,15 +5,9 @@ PROG=	init
 MAN=	init.8
 MLINKS=	init.8 securelevel.8
 BINMODE=500
-INSTALLFLAGS=-fschg
+INSTALLFLAGS=-fschg -b -B.bak
 CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP -DCOMPAT_SYSV_INIT
 DPADD=	${LIBUTIL} ${LIBCRYPT}
 LDADD=	-lutil -lcrypt
-
-beforeinstall:
-.if exists(${DESTDIR}${BINDIR}/${PROG})
-	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
-	mv ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.bak
-.endif
 
 .include <bsd.prog.mk>
