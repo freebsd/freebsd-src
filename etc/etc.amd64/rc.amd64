@@ -209,17 +209,3 @@ if [ -n "${allscreens_flags}" ]; then
 fi
 
 echo '.'
-
-# interrupts for /dev/random device
-#
-case ${rand_irqs} in
-[Nn][Oo] | '')
-        ;;
-*)
-	echo -n 'entropy IRQs:'
-	for irq in ${rand_irqs}; do
-		echo -n " ${irq}" && rndcontrol -q -s ${irq}
-	done
-	echo '.'
-	;;
-esac
