@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.8 1994/11/21 04:35:26 jkh Exp $
+# $Id: netinst.sh,v 1.9 1994/11/21 05:36:01 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -25,6 +25,40 @@ ROUTE_FLAGS="add default"
 
 # Grab the miscellaneous functions.
 . /stand/miscfuncs.sh
+
+network_set_defaults()
+{
+	hostname=""
+	domain=""
+	ipaddr="127.0.0.1"
+}
+
+network_basic_setup()
+{
+	hostname=""
+	while [ "$hostname" = "" ]; do
+		default_value=""
+		if ! network_dialog "What is the fully qualified name of this host?"; then return 1; fi
+		if [ "$answer" = "" ]; then
+			error "You must select a host name!"
+			continue
+		else
+			hostname=$answer
+		fi
+	done
+	echo $hostname > /etc/myname
+	hostname $hostname
+
+	default_value=`echo $hostname | sed -e 's/[^.]*\.//'`
+	if network_dialog "What is the domain name of this host (Internet, not YP/NIS)?"; then
+		domain=$answer
+	fi
+
+	default_value="$ipaddr"
+	if ! network_dialog "What is the IP address of this host?"; then  return 1; fi
+	ipaddr=$answer
+       	echo "$ipaddr    $hostname `echo $hostname | sed -e 's/\.$domain//'`" >> /etc/hosts
+}
 
 network_setup_ether()
 {
@@ -116,22 +150,7 @@ network_setup()
 		esac	
 		if [ "$interface" = "" ]; then	continue; fi
 
-		default_value=""
-		if ! network_dialog "What is the fully qualified name of this host?"; then return 1; fi
-		hostname=$answer
-		echo $hostname > /etc/myname
-		hostname $hostname
-
-		default_value=`echo $hostname | sed -e 's/[^.]*\.//'`
-		if network_dialog "What is the domain name of this host (Internet, not YP/NIS)?"; then
-			domain=$answer
-		fi
-
-		default_value=""
-		if ! network_dialog "What is the IP address of this host?"; then  return 1; fi
-		ipaddr=$answer
-
-        	echo "$ipaddr    $hostname `echo $hostname | sed -e 's/\.$domain//'`" >> /etc/hosts
+		network_basic_setup
 
 		default_value="$netmask"
 		if network_dialog "Please specify the netmask"; then
