@@ -1,7 +1,6 @@
-/*
- * panic.h -  header for at(1)
- * Copyright (c) 1993 Thomas Koenig
- * All rights reserved.
+/* 
+ *  panic.h -  header for at(1)
+ *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,11 +21,24 @@
  * THEORY OF LIABILITY, WETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: panic.h,v 1.1 1993/12/05 11:36:58 cgd Exp $
  */
 
-void panic	__P((char *a));
-void perr	__P((char *a));
-void perr2	__P((char *a, char *b));
-void usage	__P((void));
+#ifdef __FreeBSD__
+#define __NORETURN
+#endif
+
+void
+#ifdef __GNUC__
+__NORETURN
+#endif
+panic(char *a);
+void
+#ifdef __GNUC__
+__NORETURN
+#endif
+perr(char *a);
+void
+#ifdef __GNUC__
+__NORETURN
+#endif
+usage(void);
