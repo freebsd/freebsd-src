@@ -201,7 +201,8 @@ struct vattr {
 #define VA_EXCLUSIVE	0x02		/* exclusive create request */
 
 /*
- * Flags for ioflag. (high 16 bits used to ask for read-ahead)
+ * Flags for ioflag. (high 16 bits used to ask for read-ahead and
+ * help with write clustering)
  */
 #define	IO_UNIT		0x01		/* do I/O as atomic unit */
 #define	IO_APPEND	0x02		/* append write to end */
