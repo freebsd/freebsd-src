@@ -119,7 +119,7 @@
       <title>Boot Loaders</title>
 
       <para arch="i386"><filename>boot2</filename> now supports a
-	<option>-n</option> to disallow boot interruption by
+	<option>-n</option> option to disallow boot interruption by
 	keypresses.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
@@ -180,6 +180,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The TCP implementation now properly ignores packets
 	addressed to IP-layer broadcast addresses.</para>
+
+      <para>The ephemeral port range used for TCP and UDP has been
+	changed to 49152&ndash;65535 (the old default was
+	1024&ndash;5000).  This increases the number of concurrent
+	outgoing connections/streams.</para>
     </sect3>
 
     <sect3>
@@ -328,6 +333,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>bzip2</application> has been updated to
 	1.0.2.</para>
+
+      <para>The <application>ISC DHCP</application> client has been
+	updated to 3.0.1RC8.</para>
 
       <para><application>sendmail</application> has been updated to
 	8.12.2.  &man.sendmail.8; is no longer installed as a
