@@ -320,8 +320,8 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 #endif
 	if (origin < ENTROPYSOURCE) {
 
-		/* The reseed task must not be jumped on */
-		mask = splsofttq();
+		/* Called inside irq handlers; protect from interference */
+		mask = splhigh();
 
 		which = random_state.which;
 		pool = &random_state.pool[which];
