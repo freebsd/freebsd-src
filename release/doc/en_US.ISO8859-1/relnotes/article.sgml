@@ -376,9 +376,6 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para>The IPv6 code is now based on a snapshot based on the KAME
-      Project's IPv6 stack as of 28 May, 2001. &merged;</para>
-
       <para>&man.accept.filter.9;, a kernel feature to reduce overheads
       when accepting and reading new connections on listening sockets,
       has been added. &merged;</para>
@@ -733,6 +730,43 @@
 	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver. The
 	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
 	cards and the AVM T1 Primary Rate cards.</para>
+      </sect4>
+
+      <sect4 id="kame-kernel">
+        <title>KAME</title>
+
+        <para>The IPv6 stack is now based on a snapshot based on the KAME
+	Project's IPv6 snapshot as of 28 May, 2001.  Most of the
+	items listed in this section are a result of this import.
+	<xref linkend="kame-userland"> lists userland updates to the
+	KAME IPv6 stack. &merged;</para>
+
+        <para>&man.gif.4; is now based on RFC 2893, rather than RFC
+	1933.  The <literal>IFF_LINK2</literal> interface flag can
+	be used to control ingress filtering. &merged;</para>
+
+	<para><application>IPSec</application> has received some
+	enhancements, including the ability to use the Rijndael and
+	SHA2 algorithms.  IPSec RC5 support has been removed due to
+	patent issues. &merged;</para>
+
+	<para>&man.stf.4; now conforms to RFC 3056; the
+	<literal>IFF_LINK2</literal> interface flag can be used to
+	control ingress filtering. &merged;</para>
+
+	<para>IPv6 has better checking of illegal addresses (such as
+	loopback addresses) on physical networks. &merged;</para>
+
+	<para>The <varname>IPV6_V6ONLY</varname> socket option is
+	now completely supported.  The kernel's default behavior
+	with respect to this option is controlled by the
+	<varname>net.inet6.ip6.v6only</varname> sysctl
+	variable. &merged;</para>
+
+	<para>RFC 3041 (Privacy Extensions for Stateless Address
+	Autoconfiguration) is now supported.  It can be enabled via
+	the <varname>net.inet6.ip6.use_tempaddr</varname> sysctl
+	variable. &merged;</para>
       </sect4>
     </sect3>
   </sect2>
@@ -1691,11 +1725,6 @@
       <para><application>Perl</application> has been updated to version
       5.6.0.</para>
 
-      <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
-      restrictive licensing conditions.  These programs are available
-      in the ports collection as <filename>net/pim6dd</filename> and
-      <filename>net/pim6dd</filename>. &merged;</para>
-
       <para>&man.route.8; is now more verbose when changing indirect
       routes, in the case of a gateway route that is the same route as
       the one being modified.</para>
@@ -1722,6 +1751,41 @@
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
       variable. &merged;</para>
+
+      <sect4 id="kame-userland">
+        <title>KAME</title>
+
+        <para>The IPv6 stack is now based on a snapshot based on the KAME
+	Project's IPv6 snapshot as of 28 May, 2001.  Most of the
+	items listed in this section are a result of this import.
+	<xref linkend="kame-kernel"> lists kernel updates to the KAME
+	IPv6 stack. &merged;</para>
+
+	<para>&man.faithd.8; now supports a configuration file for
+	access control. &merged;</para>
+
+	<para>&man.ifconfig.8; can now perform the functions of
+	&man.gifconfig.8;. &merged;</para>
+
+	<para>&man.ifconfig.8; can now perform the functions of
+	&man.prefix.8;.  &man.prefix.8; is now a shell script for
+	partial backwards compatability. &merged;</para>
+
+	<para>&man.ndp.8; now implements garbage collection for stale
+	NDP entries, as described in RFC 2461 (Neighbor Discovery for
+	IP Version 6 (IPv6)). &merged;</para>
+
+        <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
+        restrictive licensing conditions.  These programs are available
+        in the ports collection as <filename>net/pim6dd</filename> and
+        <filename>net/pim6dd</filename>. &merged;</para>
+
+	<para>&man.route6d.8; now supports a <option>-n</option> flag
+	to avoid updating the kernel forwarding table. &merged;</para>
+
+	<para>The <option>-R</option> (router renumbering) option to
+	&man.rtadvd.8; is currently ignored. &merged;</para>
+      </sect4>
 
       <sect4>
         <title>OpenSSH</title>
