@@ -20,7 +20,7 @@ CFLAGS+= -I${GCCDIR}/cp -I.
 DPADD+=	${LIBCC_INT} 
 LDADD+=	${LIBCC_INT}
 
-CLEANFILES+=	parse.c parse.h y.tab.c y.tab.h cfns.h
+CLEANFILES=	parse.c parse.h y.tab.c y.tab.h cfns.h
 
 .ORDER: parse.c parse.h
 parse.c: parse.y

@@ -27,7 +27,7 @@ c-parse.c: c-parse.in
 	    -e "s/realloc/xrealloc/g" \
 	    c-parse.c.in >c-parse.c
 
-CLEANFILES+=	c-parse.c c-parse.y		# insurance
+CLEANFILES=	c-parse.c c-parse.y
 
 #-----------------------------------------------------------------------
 

@@ -21,7 +21,7 @@ build-tools: fini
 fini: fini.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-CLEANFILES+=	fini fini.o
+CLEANFILES=	fini fini.o
 
 #-----------------------------------------------------------------------
 # str-* gunk
