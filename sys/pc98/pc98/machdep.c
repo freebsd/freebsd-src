@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.33 1997/03/29 02:48:49 kato Exp $
+ *	$Id: machdep.c,v 1.34 1997/03/31 11:11:12 davidg Exp $
  */
 
 #include "npx.h"
@@ -759,11 +759,17 @@ int _default_ldt;
 union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
+struct i386tss common_tss;
 
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
 
 extern  struct user *proc0paddr;
+
+#ifdef TSS_IS_CACHED			/* cpu_switch helper */
+struct segment_descriptor *tssptr;
+int gsel_tss;
+#endif
 
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[] = {
@@ -798,7 +804,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	(int) ldt,		/* segment base address  */
 	sizeof(ldt)-1,		/* length - all address space */
 	SDT_SYSLDT,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_UPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
@@ -822,7 +828,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
-{	(int) kstack,		/* segment base address  */
+{	(int) &common_tss,	/* segment base address */
 	sizeof(struct i386tss)-1,/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -966,7 +972,9 @@ init386(first)
 	int x;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
+#ifndef TSS_IS_CACHED
 	int gsel_tss;
+#endif
 	struct isa_device *idp;
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
@@ -1335,10 +1343,12 @@ init386(first)
 			   avail_end + off, VM_PROT_ALL, TRUE);
 	msgbufmapped = 1;
 
-	/* make a initial tss so microp can get interrupt stack on syscall! */
-	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
-	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	/* make an initial tss so cpu can get interrupt stack on syscall! */
+	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
+	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	ltr(gsel_tss);
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
@@ -1347,15 +1357,14 @@ init386(first)
 	dblfault_tss.tss_cr3 = IdlePTD;
 	dblfault_tss.tss_eip = (int) dblfault_handler;
 	dblfault_tss.tss_eflags = PSL_KERNEL;
-	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = dblfault_tss.tss_gs =
-		GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_ds = dblfault_tss.tss_es = dblfault_tss.tss_fs = 
+	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
 
-	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt =
-		(sizeof(struct i386tss))<<16;
-
-	ltr(gsel_tss);
+#ifdef TSS_IS_CACHED			/* cpu_switch helper */
+	tssptr = &gdt[GPROC0_SEL].sd;
+#endif
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
@@ -1391,9 +1400,7 @@ init386(first)
  * index into the user block.  Don't you just *love* virtual memory?
  * (I'm starting to think seymour is right...)
  */
-#define	TF_REGP(p)	((struct trapframe *) \
-			 ((char *)(p)->p_addr \
-			  + ((char *)(p)->p_md.md_regs - kstack)))
+#define	TF_REGP(p)	((struct trapframe *)(p)->p_md.md_regs)
 
 int
 ptrace_set_pc(p, addr)
@@ -1425,7 +1432,7 @@ int ptrace_write_u(p, off, data)
 	 * Privileged kernel state is scattered all over the user area.
 	 * Only allow write access to parts of regs and to fpregs.
 	 */
-	min = (char *)p->p_md.md_regs - kstack;
+	min = (char *)p->p_md.md_regs - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
 		tp = TF_REGP(p);
 		frame_copy = *tp;
