@@ -61,10 +61,10 @@ data are being exchanged between the pocket ethernet adapter and the
 printer interface.  The default is the fastest mode the RTL 8002
 supports.  If the printer adapter to use is particularly slow (which
 can be noticed by watching the ethernet wire for crippled packets, or
-by not seeing correclty received packets), the configuration flag 0x2
+by not seeing correctly received packets), the configuration flag 0x2
 can be set in order to throttle down the
 .Nm
-driver.  Note that in fast mode, the data rate is assymetric, sending
+driver.  Note that in fast mode, the data rate is asymmetric, sending
 is a little faster (up to two times) than receiving.  Rates like 150
 KB/s for sending and 80 KB/s for receiving are common.  For slow mode,
 both rates are about the same, and in the range of 50 KB/s through 70
