@@ -47,7 +47,8 @@ acl_init(int count)
 	}
 
 	acl = (struct acl *) malloc(sizeof(struct acl));
-	bzero(acl, sizeof(struct acl));
+	if (acl != NULL)
+		bzero(acl, sizeof(struct acl));
 
 	return (acl);
 }
