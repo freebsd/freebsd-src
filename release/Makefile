@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.454 1999/01/10 21:31:37 rnordier Exp $
+#	$Id: Makefile,v 1.455 1999/01/11 00:54:00 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -249,7 +249,7 @@ clean:
 # Clean out /R and make the directory structure.
 release.1:
 	-mkdir /R
-	chflags -R noschg /R/.
+	-chflags -R noschg /R/.
 	rm -rf /R/*
 	mkdir ${RD}
 	mkdir ${RD}/floppies
@@ -281,7 +281,7 @@ release.2:
 		make kprog \
 	)
 .endif
-	chflags -R noschg ${RD}/trees
+	-chflags -R noschg ${RD}/trees
 	touch release.2
 
 # Make and install the generic kernel(s).
