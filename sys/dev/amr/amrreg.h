@@ -24,12 +24,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Copyright (c) 2002 Eric Moore
+ * Copyright (c) 2002 LSI Logic Corporation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  * 3. The party using or redistributing the source code and binary forms
- *    agrees to the above disclaimer and the terms and conditions set forth
+ *    agrees to the disclaimer below and the terms and conditions set forth
  *    herein.
  *
- * Additional Copyright (c) 2002 by Eric Moore under same license.
- * Additional Copyright (c) 2002 LSI Logic Corporation
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  *
  *      $FreeBSD$
  */
@@ -49,7 +71,12 @@
  * cleanly fit more than 16 entries in without a page boundary.  But is this a concern,
  * since we allocate the s/g maps contiguously anyway?
  */
-#define AMR_NSEG		16
+/*
+ * emoore - Oct 21, 2002
+ * firmware doesn't have sglist boundary restrictions.
+ * The sgelem can be set to 26
+ */
+#define AMR_NSEG		26
 
 #define AMR_MAXCMD		255		/* ident = 0 not allowed */
 #define AMR_LIMITCMD		120		/* maximum count of outstanding commands */
@@ -61,6 +88,7 @@
 #define AMR_MAX_SCSI_CMDS	(15 * AMR_MAX_CHANNELS)	/* one for every target? */
 
 #define AMR_MAX_CDB_LEN		0x0a
+#define AMR_MAX_EXTCDB_LEN	0x10
 #define AMR_MAX_REQ_SENSE_LEN	0x20
 
 #define AMR_BLKSIZE		512		/* constant for all controllers */
@@ -96,6 +124,7 @@
 #define AMR_CONFIG_ENQ3_SOLICITED_NOTIFY	0x01
 #define AMR_CONFIG_ENQ3_SOLICITED_FULL		0x02
 #define AMR_CONFIG_ENQ3_UNSOLICITED		0x03
+#define AMR_CMD_EXTPASS		0xe3
 
 /*
  * Command results
@@ -431,6 +460,31 @@ struct amr_passthrough
     u_int8_t	ap_request_sense_area[AMR_MAX_REQ_SENSE_LEN];
     u_int8_t	ap_no_sg_elements;
     u_int8_t	ap_scsi_status;
+    u_int32_t	ap_data_transfer_address;
+    u_int32_t	ap_data_transfer_length;
+} __packed;
+
+struct amr_ext_passthrough
+{
+    u_int8_t	ap_timeout:3;
+    u_int8_t	ap_ars:1;
+    u_int8_t	ap_rsvd1:1;
+    u_int8_t	ap_cd_rom:1;
+    u_int8_t	ap_rsvd2:1;
+    u_int8_t	ap_islogical:1;
+    u_int8_t	ap_logical_drive_no;
+    u_int8_t	ap_channel;
+    u_int8_t	ap_scsi_id;
+    u_int8_t	ap_queue_tag;
+    u_int8_t	ap_queue_action;
+    u_int8_t	ap_cdb_length;
+    u_int8_t	ap_rsvd3;
+    u_int8_t	ap_cdb[AMR_MAX_EXTCDB_LEN];
+    u_int8_t	ap_no_sg_elements;
+    u_int8_t	ap_scsi_status;
+    u_int8_t	ap_request_sense_length;
+    u_int8_t	ap_request_sense_area[AMR_MAX_REQ_SENSE_LEN];
+    u_int8_t	ap_rsvd4;
     u_int32_t	ap_data_transfer_address;
     u_int32_t	ap_data_transfer_length;
 } __packed;
