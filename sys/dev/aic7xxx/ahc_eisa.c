@@ -29,9 +29,6 @@
  * $FreeBSD$
  */
 
-#include "eisa.h"
-#if NEISA > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -104,8 +101,7 @@ aic7770_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE)
-	    + AHC_EISA_SLOT_OFFSET;
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + AHC_EISA_SLOT_OFFSET;
 
 		/* Pause the card preseving the IRQ type */
 	hcntrl = inb(iobase + HCNTRL) & IRQMS;
@@ -474,5 +470,3 @@ static driver_t ahc_eisa_driver = {
 static devclass_t ahc_devclass;
 
 DRIVER_MODULE(ahc, eisa, ahc_eisa_driver, ahc_devclass, 0, 0);
-
-#endif /* NEISA > 0 */
