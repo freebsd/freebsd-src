@@ -516,7 +516,7 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 		   devstat_select_mode select_mode, int maxshowdevs,
 		   int perf_select)
 {
-	register int i, j, k;
+	int i, j, k;
 	int init_selections = 0, init_selected_var = 0;
 	struct device_selection *old_dev_select = NULL;
 	int old_num_selections = 0, old_num_selected;
@@ -979,7 +979,7 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 	char *tstr[5];
 	char **tempstr;
 	int num_args;
-	register int i, j;
+	int i, j;
 	const char *func_name = "devstat_buildmatch";
 
 	/* We can't do much without a string to parse */

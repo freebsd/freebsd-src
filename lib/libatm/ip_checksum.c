@@ -73,7 +73,7 @@ ip_checksum(addr, count)
 	/* Compute Internet Checksum for "count" bytes
 	 * beginning at location "addr".
 	 */
-	register long sum = 0;
+	long sum = 0;
 
 	while( count > 1 ) {
 		/* This is the inner loop */

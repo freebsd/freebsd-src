@@ -106,7 +106,7 @@ RIPEMD160_CTX *c;
 const unsigned char *data;
 size_t len;
 	{
-	register u_int32_t *p;
+	u_int32_t *p;
 	int sw,sc;
 	u_int32_t l;
 
@@ -276,7 +276,7 @@ RIPEMD160_CTX *ctx;
 const u_int32_t *X;
 int num;
 	{
-	register u_int32_t A,B,C,D,E;
+	u_int32_t A,B,C,D,E;
 	u_int32_t a,b,c,d,e;
 
 	for (;;)
@@ -475,9 +475,9 @@ void RIPEMD160_Final(md, c)
 unsigned char *md;
 RIPEMD160_CTX *c;
 	{
-	register int i,j;
-	register u_int32_t l;
-	register u_int32_t *p;
+	int i,j;
+	u_int32_t l;
+	u_int32_t *p;
 	static unsigned char end[4]={0x80,0x00,0x00,0x00};
 	unsigned char *cp=end;
 

@@ -45,7 +45,7 @@ fstat(fd, sb)
 	int fd;
 	struct stat *sb;
 {
-	register struct open_file *f = &files[fd];
+	struct open_file *f = &files[fd];
 
 	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
 		errno = EBADF;

@@ -293,7 +293,7 @@ netif_open(machdep_hint)
 	void *machdep_hint;
 {
 	int fd;
-	register struct iodesc *s;
+	struct iodesc *s;
 	struct netif *nif;
 	
 	/* find a free socket */
