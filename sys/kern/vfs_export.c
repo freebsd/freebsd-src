@@ -120,8 +120,10 @@ vfs_hang_addrlist(mp, nep, argp)
 		return (0);
 	}
 
+#if MSIZE <= 256
 	if (argp->ex_addrlen > MLEN)
 		return (EINVAL);
+#endif
 
 	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
 	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK | M_ZERO);
