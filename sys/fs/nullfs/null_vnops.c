@@ -201,7 +201,6 @@ static int	null_inactive(struct vop_inactive_args *ap);
 static int	null_islocked(struct vop_islocked_args *ap);
 static int	null_lock(struct vop_lock_args *ap);
 static int	null_lookup(struct vop_lookup_args *ap);
-static int	null_open(struct vop_open_args *ap);
 static int	null_print(struct vop_print_args *ap);
 static int	null_reclaim(struct vop_reclaim_args *ap);
 static int	null_rename(struct vop_rename_args *ap);
@@ -507,28 +506,6 @@ null_access(ap)
 			break;
 		}
 	}
-	return (null_bypass((struct vop_generic_args *)ap));
-}
-
-/*
- * We must handle open to be able to catch MNT_NODEV and friends.
- */
-static int
-null_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
-
-	if ((vp->v_mount->mnt_flag & MNT_NODEV) &&
-	    (lvp->v_type == VBLK || lvp->v_type == VCHR))
-		return ENXIO;
-
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
@@ -895,7 +872,6 @@ static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_islocked_desc,		(vop_t *) null_islocked },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
 	{ &vop_lookup_desc,		(vop_t *) null_lookup },
-	{ &vop_open_desc,		(vop_t *) null_open },
 	{ &vop_print_desc,		(vop_t *) null_print },
 	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
 	{ &vop_rename_desc,		(vop_t *) null_rename },
