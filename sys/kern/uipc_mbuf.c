@@ -284,7 +284,6 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags),
 	    ("m_move_pkthdr: to has tags"));
 #endif
-	KASSERT((to->m_flags & M_EXT) == 0, ("m_move_pkthdr: to has cluster"));
 #ifdef MAC
 	/*
 	 * XXXMAC: It could be this should also occur for non-MAC?
@@ -292,8 +291,9 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 	if (to->m_flags & M_PKTHDR)
 		m_tag_delete_chain(to, NULL);
 #endif
-	to->m_flags = from->m_flags & M_COPYFLAGS;
-	to->m_data = to->m_pktdat;
+	to->m_flags = (from->m_flags & M_COPYFLAGS) | (to->m_flags & M_EXT);
+	if ((to->m_flags & M_EXT) == 0)
+		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
 	SLIST_INIT(&from->m_pkthdr.tags);	/* purge tags from src */
 	from->m_flags &= ~M_PKTHDR;
