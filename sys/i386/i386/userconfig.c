@@ -353,7 +353,7 @@ static DEV_INFO device_info[] = {
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"ex",          "Intel EtherExpress Pro/10 Ethernet adapter",	0,	CLS_NETWORK},
-{"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
+{"fe",          "Fujitsu MB86960A/MB86965A Ethernet adapters",	0,	CLS_NETWORK},
 {"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
