@@ -173,6 +173,28 @@ static int	tar_read_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
 
+/*
+ * ANSI C99 defines constants for these, but not everyone supports
+ * those constants, so I define a couple of static variables here and
+ * compute the values.  These calculations should be portable to any
+ * 2s-complement architecture.
+ */
+#ifdef UINT64_MAX
+static const uint64_t max_uint64 = UINT64_MAX;
+#else
+static const uint64_t max_uint64 = ~(uint64_t)0;
+#endif
+#ifdef INT64_MAX
+static const int64_t max_int64 = INT64_MAX;
+#else
+static const int64_t max_int64 = (int64_t)((~(uint64_t)0) >> 1);
+#endif
+#ifdef INT64_MIN
+static const int64_t min_int64 = INT64_MIN;
+#else
+static const int64_t min_int64 = (int64_t)(~max_int64);
+#endif
+
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
@@ -1154,9 +1176,10 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
 	int64_t	s;
 	unsigned long l;
 	int sign;
+	int64_t limit, last_digit_limit;
 
-	static const int64_t limit64 = INT64_MAX / 10;
-	static const char last_digit_limit64 = INT64_MAX % 10;
+	limit = max_int64 / 10;
+	last_digit_limit = max_int64 % 10;
 
 	s = 0;
 	sign = 1;
@@ -1166,9 +1189,9 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
 	}
 	while (*p >= '0' && *p <= '9') {
 		digit = *p - '0';
-		if (s > limit64 ||
-		    (s == limit64 && digit > last_digit_limit64)) {
-			s = UINT64_MAX; /* Truncate on overflow */
+		if (s > limit ||
+		    (s == limit && digit > last_digit_limit)) {
+			s = max_uint64;
 			break;
 		}
 		s = (s * 10) + digit;
@@ -1346,6 +1369,10 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
 static int64_t
 tar_atol(const char *p, unsigned char_cnt)
 {
+	/*
+	 * Technically, GNU tar considers a field to be in base-256
+	 * only if the first byte is 0xff or 0x80.
+	 */
 	if (*p & 0x80)
 		return (tar_atol256(p, char_cnt));
 	return (tar_atol8(p, char_cnt));
@@ -1359,12 +1386,12 @@ tar_atol(const char *p, unsigned char_cnt)
 static int64_t
 tar_atol8(const char *p, unsigned char_cnt)
 {
-	int64_t	l;
-	int digit, sign;
+	int64_t	l, limit, last_digit_limit;
+	int digit, sign, base;
 
-	static const int64_t	limit = INT64_MAX / 8;
-	static const int	base = 8;
-	static const char	last_digit_limit = INT64_MAX % 8;
+	base = 8;
+	limit = max_int64 / base;
+	last_digit_limit = max_int64 % base;
 
 	while (*p == ' ' || *p == '\t')
 		p++;
@@ -1378,7 +1405,7 @@ tar_atol8(const char *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow */
+			l = max_uint64; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1396,12 +1423,12 @@ tar_atol8(const char *p, unsigned char_cnt)
 static int64_t
 tar_atol10(const wchar_t *p, unsigned char_cnt)
 {
-	int64_t l;
-	int digit, sign;
+	int64_t l, limit, last_digit_limit;
+	int base, digit, sign;
 
-	static const int64_t	limit = INT64_MAX / 10;
-	static const int	base = 10;
-	static const char	last_digit_limit = INT64_MAX % 10;
+	base = 10;
+	limit = max_int64 / base;
+	last_digit_limit = max_int64 % base;
 
 	while (*p == ' ' || *p == '\t')
 		p++;
@@ -1415,7 +1442,7 @@ tar_atol10(const wchar_t *p, unsigned char_cnt)
 	digit = *p - '0';
 	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
 		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = UINT64_MAX; /* Truncate on overflow */
+			l = max_uint64; /* Truncate on overflow. */
 			break;
 		}
 		l = (l * base) + digit;
@@ -1424,29 +1451,38 @@ tar_atol10(const wchar_t *p, unsigned char_cnt)
 	return (sign < 0) ? -l : l;
 }
 
-
-
 /*
- * Parse a base-256 integer.
+ * Parse a base-256 integer.  This is just a straight signed binary
+ * value in big-endian order, except that the high-order bit is
+ * ignored.  Remember that "int64_t" may or may not be exactly 64
+ * bits; the implementation here tries to avoid making any assumptions
+ * about the actual size of an int64_t.  It does assume we're using
+ * twos-complement arithmetic, though.
  */
 static int64_t
-tar_atol256(const char *p, unsigned char_cnt)
+tar_atol256(const char *_p, unsigned char_cnt)
 {
-	int64_t	l;
-	int digit;
+	int64_t	l, upper_limit, lower_limit;
+	const unsigned char *p = _p;
 
-	const int64_t limit = INT64_MAX / 256;
+	upper_limit = max_int64 / 256;
+	lower_limit = min_int64 / 256;
 
-	/* Ignore high bit of first byte (that's the base-256 flag). */
-	l = 0;
-	digit = 0x7f & *(const unsigned char *)p;
-	while (char_cnt-- > 0) {
-		if (l > limit) {
-			l = INT64_MAX; /* Truncate on overflow */
+	/* Pad with 1 or 0 bits, depending on sign. */
+	if ((0x40 & *p) == 0x40)
+		l = (int64_t)-1;
+	else
+		l = 0;
+	l = (l << 6) | (0x3f & *p++);
+	while (--char_cnt > 0) {
+		if (l > upper_limit) {
+			l = max_int64; /* Truncate on overflow */
+			break;
+		} else if (l < lower_limit) {
+			l = min_int64;
 			break;
 		}
-		l = (l << 8) + digit;
-		digit = *(const unsigned char *)++p;
+		l = (l << 8) | (0xff & (int64_t)*p++);
 	}
 	return (l);
 }
