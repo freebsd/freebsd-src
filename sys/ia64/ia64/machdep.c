@@ -732,6 +732,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		breakpoint();
 	}
 #endif
+	ia64_set_tpr(0);
 }
 
 int
