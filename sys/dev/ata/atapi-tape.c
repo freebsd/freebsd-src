@@ -482,7 +482,8 @@ ast_start(struct atapi_softc *atp)
     devstat_start_transaction(&stp->stats);
 
     atapi_queue_cmd(stp->atp, ccb, bp->bio_data, blkcount * stp->blksize, 
-		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
+		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0,
+		    120, ast_done, bp);
 }
 
 static int 

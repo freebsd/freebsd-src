@@ -116,6 +116,7 @@
 #define ATAPI_SET_SPEED			0xbb	/* set drive speed */
 #define ATAPI_MECH_STATUS		0xbd	/* get changer status */
 #define ATAPI_READ_CD			0xbe	/* read data */
+#define ATAPI_POLL_DSC			0xff	/* poll DSC status bit */
 
 /* ATAPI request sense structure */   
 struct atapi_reqsense {

@@ -248,9 +248,31 @@ atapi_transfer(struct atapi_request *request)
 	   request->device->devname, atapi_cmd2str(request->ccb[0]));
     atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
 #endif
+    /* is this just a POLL DSC command ? */
+    if (request->ccb[0] == ATAPI_POLL_DSC) {
+	outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
+	DELAY(10);
+	if (inb(atp->controller->altioaddr) & ATA_S_DSC)
+	    request->error = 0;
+	else
+	    request->error = EBUSY;
+	if (request->callback) {
+	    if (!((request->callback)(request))) {
+		if (request->dmatab)
+		    free(request->dmatab, M_DEVBUF);
+		free(request, M_ATAPI);
+	    }
+	}
+	else 
+            wakeup((caddr_t)request);	
+	atp->controller->active = ATA_IDLE; /* should go in ata-all.c */
+	return;
+    }
+
     /* start timeout for this command */
     request->timeout_handle = timeout((timeout_t *)atapi_timeout, 
 				      request, request->timeout);
+
     if (request->ccb[0] != ATAPI_REQUEST_SENSE)
 	atp->cmd = request->ccb[0];
 
@@ -486,13 +508,17 @@ atapi_test_ready(struct atapi_softc *atp)
 int
 atapi_wait_ready(struct atapi_softc *atp, int timeout)
 {
-    int error = 0, timout = timeout * hz;
+    int error = 0;
+    int8_t ccb[16] = { ATAPI_POLL_DSC, 0, 0, 0, 0,
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    while (timout > 0) {
-	if ((error = atapi_test_ready(atp)) != EBUSY)
+    timeout *= hz;
+    while (timeout > 0) {
+	error = atapi_queue_cmd(atp, ccb, NULL, 0, 0, 0, NULL, NULL);
+	if (error != EBUSY)
 	    break;
-	tsleep((caddr_t)&error, PRIBIO, "atpwt", 50);
-	timout -= 50;
+	tsleep((caddr_t)&error, PRIBIO, "atpwt", hz / 2);
+	timeout -= (hz / 2);
     }
     return error;
 }
@@ -666,6 +692,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xbb: return ("SET_SPEED");
     case 0xbd: return ("MECH_STATUS");
     case 0xbe: return ("READ_CD");
+    case 0xff: return ("POLL_DSC");
     default: {
 	static char buffer[16];
 	sprintf(buffer, "unknown CMD (0x%02x)", cmd);
