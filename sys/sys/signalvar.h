@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.20 1998/11/11 10:04:13 truckman Exp $
+ * $Id: signalvar.h,v 1.21 1998/12/19 02:55:34 julian Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -175,7 +175,9 @@ void	psignal __P((struct proc *p, int sig));
 void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
-
+#ifdef COMPAT_LINUX_THREADS
+void check_sigacts (void);
+#endif
 /*
  * Machine-dependent functions:
  */

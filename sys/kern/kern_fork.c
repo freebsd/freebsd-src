@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.52 1998/11/09 15:07:41 truckman Exp $
+ * $Id: kern_fork.c,v 1.53 1998/12/19 02:55:33 julian Exp $
  */
 
 #include "opt_ktrace.h"
@@ -64,7 +64,7 @@
 
 #ifdef COMPAT_LINUX_THREADS
 #include <machine/frame.h>
-
+#include <sys/user.h>
 #endif /* COMPAT_LINUX_THREADS */
 #ifdef SMP
 static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
@@ -331,21 +331,41 @@ again:
 
 #ifdef COMPAT_LINUX_THREADS
 	if (flags & RFSIGSHARE) {
+		p2->p_procsig = p1->p_procsig;
 		p2->p_procsig->ps_refcnt++;
+		if (p1->p_sigacts == &p1->p_addr->u_sigacts) {
+			struct sigacts *newsigacts;
+			int s;
+
+			if (p2->p_procsig->ps_refcnt != 2)
+				printf ("PID:%d Creating shared sigacts with procsig->ps_refcnt %d\n",
+					p2->p_pid, p2->p_procsig->ps_refcnt);
+			/* Create the shared sigacts structure */
+			MALLOC (newsigacts, struct sigacts *, sizeof (struct sigacts),
+				M_SUBPROC, M_WAITOK);
+			s = splhigh();
+			/* Set p_sigacts to the new shared structure.  Note that this
+			 * is updating p1->p_sigacts at the same time, since p_sigacts
+			 * is just a pointer to the shared p_procsig->ps_sigacts.
+			 */
+			p2->p_sigacts  = newsigacts;
+			/* Copy in the values from the u area */
+			*p2->p_sigacts = p1->p_addr->u_sigacts;
+			splx (s);
+		}
 	} else {
-		p2->p_procsig = malloc(sizeof(struct procsig), M_TEMP, M_WAITOK);
-		p2->p_procsig->ps_refcnt = 1;
-		p2->p_procsig->ps_posix  = 0;
+		MALLOC (p2->p_procsig, struct procsig *, sizeof(struct procsig),
+			M_SUBPROC, M_WAITOK);
 		bcopy(&p1->p_procsig->ps_begincopy, &p2->p_procsig->ps_begincopy,
 			(unsigned)&p1->p_procsig->ps_endcopy -
 			(unsigned)&p1->p_procsig->ps_begincopy);
+		p2->p_procsig->ps_refcnt = 1;
+		/* Note that we fill in the values of sigacts in vm_fork */
+		p2->p_sigacts = NULL;
 	}
 	if (flags & RFLINUXTHPN) {
 	        p2->p_sigparent = SIGUSR1;
 	}
-	p2->p_sigacts = &p2->p_procsig->ps_sigacts;
-	if((flags & RFTHREAD) != 0 && (flags & RFPOSIXSIG) != 0)
-	        p2->p_procsig->ps_posix = 1;
 #endif /* COMPAT_LINUX_THREADS */
 	/* bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;

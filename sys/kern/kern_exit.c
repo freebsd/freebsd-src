@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.69 1998/11/11 10:03:54 truckman Exp $
+ * $Id: kern_exit.c,v 1.70 1998/12/19 02:55:33 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -73,6 +73,9 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
+#ifdef COMPAT_LINUX_THREADS
+#include <sys/user.h>
+#endif
 
 static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
@@ -438,14 +441,6 @@ loop:
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
-#ifdef COMPAT_LINUX_THREADS
-		#if 0
-		if ((p->p_sigparent != 0) ^ ((uap->options & WLINUXCLONE) != 0)) {
-			continue;
-		}
-		#endif
-
-#endif /* COMPAT_LINUX_THREADS */
 		nfound++;
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
@@ -515,11 +510,11 @@ loop:
 
 #ifdef COMPAT_LINUX_THREADS
 			if (--p->p_procsig->ps_refcnt == 0) {
-			        free(p->p_procsig, M_TEMP);
+				if (p->p_sigacts != &p->p_addr->u_sigacts)
+					FREE(p->p_sigacts, M_SUBPROC);
+			        FREE(p->p_procsig, M_SUBPROC);
 				p->p_procsig = NULL;
-				p->p_sigacts = NULL;
 			}
-
 #endif /* COMPAT_LINUX_THREADS */
 			/*
 			 * Give machine-dependent layer a chance
@@ -576,11 +571,6 @@ proc_reparent(child, parent)
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
-#ifdef COMPAT_LINUX_THREADS
-	#if 0
-	child->p_sigparent = 0;
-	#endif
-#endif /* COMPAT_LINUX_THREADS */
 }
 
 /*
@@ -636,3 +626,22 @@ rm_at_exit(function)
 	}
 	return (count);
 }
+
+#ifdef COMPAT_LINUX_THREADS
+void check_sigacts (void)
+{
+	struct proc *p = curproc;
+	struct sigacts *pss;
+	int s;
+
+	if (p->p_procsig->ps_refcnt == 1 &&
+	    p->p_sigacts != &p->p_addr->u_sigacts) {
+		pss = p->p_sigacts;
+		s = splhigh();
+		p->p_addr->u_sigacts = *pss;
+		p->p_sigacts = &p->p_addr->u_sigacts;
+		splx(s);
+		FREE(pss, M_SUBPROC);
+	}
+}
+#endif
