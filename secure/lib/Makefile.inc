@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 .include "${.CURDIR}/../../Makefile.inc"
 .if exists(${.CURDIR}/../../../lib/Makefile.inc)

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_subr.c,v 1.11 1998/07/09 22:24:03 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_subr.c,v 1.11 1998/07/09 22:24:03 johnc Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>  

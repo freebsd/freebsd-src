@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vfslist.c	8.1 (Berkeley) 5/8/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>

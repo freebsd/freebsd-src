@@ -1,5 +1,5 @@
 #
-# $Id: natd.cf.sample,v 1.2.2.1 1999/03/24 17:13:04 brian Exp $
+# $FreeBSD$
 #
 #
 # Configuration file for natd.

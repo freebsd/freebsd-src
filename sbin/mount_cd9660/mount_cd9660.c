@@ -49,7 +49,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_cd9660.c	8.7 (Berkeley) 5/1/95";
 */
 static const char rcsid[] =
-	"$Id: mount_cd9660.c,v 1.13 1999/04/18 10:57:51 dcs Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/cdio.h>

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.1.1.1 1999/02/03 03:51:19 semenu Exp $
+# $FreeBSD$
 #
 
 PROG=	mount_ntfs

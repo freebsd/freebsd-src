@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id$
+# $FreeBSD$
 
 RELDATE=`sysctl -n kern.osreldate 2>/dev/null`
 if [ "x$RELDATE" = x ]; then

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_dnld.c,v 1.1 1998/09/15 08:22:47 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_dnld.c,v 1.1 1998/09/15 08:22:47 phk Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>

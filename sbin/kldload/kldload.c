@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kldload.c,v 1.4 1998/01/05 07:07:44 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>
