@@ -598,9 +598,15 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
 #if defined(__i386__)
     ficlSetEnv("arch-i386",         FICL_TRUE);
     ficlSetEnv("arch-alpha",        FICL_FALSE);
+    ficlSetEnv("arch-ia64",         FICL_FALSE);
 #elif defined(__alpha__)
     ficlSetEnv("arch-i386",         FICL_FALSE);
     ficlSetEnv("arch-alpha",        FICL_TRUE);
+    ficlSetEnv("arch-ia64",         FICL_FALSE);
+#elif defined(__ia64__)
+    ficlSetEnv("arch-i386",         FICL_FALSE);
+    ficlSetEnv("arch-alpha",        FICL_FALSE);
+    ficlSetEnv("arch-ia64",         FICL_TRUE);
 #endif
 
     return;
