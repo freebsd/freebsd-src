@@ -112,9 +112,9 @@ struct stack_block {
 	char space[MINSIZE];
 };
 
-struct stack_block stackbase;
-struct stack_block *stackp = &stackbase;
-struct stackmark *markp;
+STATIC struct stack_block stackbase;
+STATIC struct stack_block *stackp = &stackbase;
+STATIC struct stackmark *markp;
 char *stacknxt = stackbase.space;
 int stacknleft = MINSIZE;
 int sstrnleft;

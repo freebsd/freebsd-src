@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #define ATABSIZE 39
 
-struct alias *atab[ATABSIZE];
+STATIC struct alias *atab[ATABSIZE];
 
 STATIC void setalias(char *, char *);
 STATIC int unalias(char *);

@@ -96,11 +96,11 @@ struct var vps1;
 struct var vps2;
 struct var vvers;
 #if ATTY
-struct var vterm;
+STATIC struct var vterm;
 #endif
-struct var voptind;
+STATIC struct var voptind;
 
-const struct varinit varinit[] = {
+STATIC const struct varinit varinit[] = {
 #if ATTY
 	{ &vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
 	  NULL },
@@ -134,7 +134,7 @@ const struct varinit varinit[] = {
 	  NULL }
 };
 
-struct var *vartab[VTABSIZE];
+STATIC struct var *vartab[VTABSIZE];
 
 STATIC struct var **hashvar(char *);
 STATIC int varequal(char *, char *);
