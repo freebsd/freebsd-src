@@ -76,7 +76,7 @@ struct __dlfunc_arg {
 	int __dlfunc_dummy;
 };
 
-typedef void (*__dlfunc_t)(struct __dlfunc_arg);
+typedef void (*dlfunc_t)(struct __dlfunc_arg);
 
 __BEGIN_DECLS
 /* XSI functions first */
@@ -87,7 +87,7 @@ void *dlsym(void * /* __restrict */, const char * /* __restrict */);
 
 #if __BSD_VISIBLE
 int dladdr(const void *, Dl_info *);
-__dlfunc_t dlfunc(void * /* __restrict */, const char * /* __restrict */);
+dlfunc_t dlfunc(void * /* __restrict */, const char * /* __restrict */);
 void dllockinit(void *_context,
 		void *(*_lock_create)(void *_context),
 		void (*_rlock_acquire)(void *_lock),
