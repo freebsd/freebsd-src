@@ -403,7 +403,7 @@ wchan(k, ve)
 				      KI_EPROC(k)->e_wmesg);
 		else
 			(void)printf("%-*lx", v->width,
-			    (long)KI_PROC(k)->p_wchan &~ KERNBASE);
+			    (long)KI_PROC(k)->p_wchan);
 	} else
 		(void)printf("%-*s", v->width, "-");
 }
@@ -672,7 +672,7 @@ printval(bp, v)
 		(void)printf(ofmt, v->width, *(u_long *)bp);
 		break;
 	case KPTR:
-		(void)printf(ofmt, v->width, *(u_long *)bp &~ KERNBASE);
+		(void)printf(ofmt, v->width, *(u_long *)bp);
 		break;
 	default:
 		errx(1, "unknown type %d", v->type);
