@@ -38,7 +38,6 @@ kget(char *out)
 #include "sysinstall.h"
 #include <sys/sysctl.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>
 
 int
 kget(char *out)
@@ -46,11 +45,9 @@ kget(char *out)
     int len, i, bytes_written = 0;
     char *buf;
     char *mib1 = "machdep.uc_devlist";
-    char *mib2 = "machdep.uc_pnplist";
     char name[9];
     FILE *fout = NULL;
     struct isa_device *id;
-    struct pnp_cinfo *c;
     char *p;
  
     /* create the output file; if we end up not writing to it, we'll 
@@ -66,17 +63,17 @@ kget(char *out)
     i = sysctlbyname(mib1, NULL, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error buffer sizing\n");
-	goto pnp;
+	goto bail;
     }
     if (len <= 0) {
 	msgDebug("kget: mib1 has length of %d\n", len);
-	goto pnp;
+	goto bail;
     }
     buf = (char *)alloca(len * sizeof(char));
     i = sysctlbyname(mib1, buf, &len, NULL, NULL);
     if (i) {
 	msgDebug("kget: error retrieving data\n");
-	goto pnp;
+	goto bail;
     }
 
 
@@ -115,57 +112,6 @@ kget(char *out)
 	}
 	i += sizeof(struct isa_device) + 8;
     }
-
-pnp:
-    /* Now, print the changes to PnP override table */
-    i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
-    if (i) {
-	/* Possibly our kernel doesn't support PnP. Ignore the error. */
-	msgDebug("kget: can't get PnP data - skipping...\n");
-	goto bail;
-    }
-    if (len <= 0) {
-	msgDebug("kget: PnP data has length of %d\n", len);
-	goto bail;
-    }
-    buf = (char *)alloca(len * sizeof(char));
-    i = sysctlbyname(mib2, buf, &len, NULL, NULL);
-    if (i) {
-	msgDebug("kget: error retrieving data mib2\n");
-	goto bail;
-    }
-    /* Print the PnP override table. Taken from userconfig.c */
- 
-    i = 0;
-    do {
-	c = (struct pnp_cinfo *)(buf + i);
-	if (c->csn >0 && c->csn != 255) {
-	    int pmax, mmax;
-
-	    if (c->enable == 0) {
-		bytes_written += fprintf(fout, "pnp %d %d disable\n",
-					 c->csn, c->ldn);
-		continue;
-	    }
-	    bytes_written += fprintf(fout, "pnp %d %d %s irq0 %d irq1 %d drq0 %d drq1 %d",
-				     c->csn, c->ldn, c->override ? "os":"bios",
-				     c->irq[0], c->irq[1], c->drq[0], c->drq[1]);
-	    if (c->flags)
-		bytes_written += fprintf(fout, " flags 0x%lx", c->flags);
-	    pmax = 0;
-	    while (c->port[pmax] != 0 && pmax < 8) {
-		bytes_written += fprintf(fout, " port%d %d", pmax, c->port[pmax]);
-		pmax++;
-	    }
-	    mmax = 0;
-	    while (c->mem[mmax].base != 0 && mmax < 8) {
-		bytes_written += fprintf(fout, " mem%d %d",
-					 mmax, (int)c->mem[mmax].base);
-		mmax++;
-	    }
-	    bytes_written += fprintf(fout,"\n");
-        }
-    } while ((i += sizeof(struct pnp_cinfo)) < len);
 
 bail:
     if (bytes_written)
