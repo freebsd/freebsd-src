@@ -360,7 +360,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
-			    error, mediasize);
+			    error, (long long)mediasize);
 		}
 		error = g_bsd_i386(cp, secsize, &ms->ondisk);
 		if (error)

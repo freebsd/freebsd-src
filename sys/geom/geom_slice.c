@@ -176,13 +176,13 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
 		sbuf_printf(sb, "%s<length>%llu</length>\n",
-		    indent, gsp->slices[pp->index].length);
-		sbuf_printf(sb, "%s<seclength>%llu</seclength>\n",
-		    indent, gsp->slices[pp->index].length / 512);
-		sbuf_printf(sb, "%s<offset>%llu</offset>\n",
-		    indent, gsp->slices[pp->index].offset);
-		sbuf_printf(sb, "%s<secoffset>%llu</secoffset>\n",
-		    indent, gsp->slices[pp->index].offset / 512);
+		    indent, (unsigned long long)gsp->slices[pp->index].length);
+		sbuf_printf(sb, "%s<seclength>%llu</seclength>\n", indent,
+		    (unsigned long long)gsp->slices[pp->index].length / 512);
+		sbuf_printf(sb, "%s<offset>%llu</offset>\n", indent,
+		    (unsigned long long)gsp->slices[pp->index].offset);
+		sbuf_printf(sb, "%s<secoffset>%llu</secoffset>\n", indent,
+		    (unsigned long long)gsp->slices[pp->index].offset / 512);
 	}
 }
 
