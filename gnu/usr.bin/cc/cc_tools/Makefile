@@ -133,7 +133,7 @@ GENSRCS+=	${COMMONHDRS}
 
 config.h hconfig.h:
 	echo '#include "auto-host.h"' > ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' >> ${.TARGET}
+	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"' >> ${.TARGET}
 
 multilib.h:
 	echo 'static char *multilib_raw[] = { \
@@ -151,13 +151,13 @@ specs.h:
 	echo '#include "f/lang-specs.h"'    >> ${.TARGET}
 
 tconfig.h:
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
+	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"' > ${.TARGET}
 
 tm.h:
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"' > ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
+	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"' > ${.TARGET}
+	echo '#include "${GCC_ARCH}/freebsd.h"' >> ${.TARGET}
+.if ${GCC_ARCH} == "i386"
+	echo '#include "${GCC_ARCH}/perform.h"' >> ${.TARGET}
 .endif
 
 #-----------------------------------------------------------------------
