@@ -940,6 +940,14 @@ apm_processevent(void)
 			    }
 			}
 			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_USERSTANDBYREQ);
+			if (apm_op_inprog == 0) {
+			    apm_op_inprog++;
+			    if (apm_record_event(sc, apm_event)) {
+				apm_suspend(PMST_STANDBY);
+			    }
+			}
+			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
  			apm_lastreq_notify();
 			if (apm_op_inprog == 0) {
