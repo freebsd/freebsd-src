@@ -394,32 +394,36 @@ begin:
  * Signal trampoline, copied to top of user stack
  */
 NON_GPROF_ENTRY(sigcode)
-	call	*SIGF_HANDLER(%esp)	/* call signal handler */
-	lea	SIGF_UC(%esp),%eax	/* get ucontext_t */
+	calll	*SIGF_HANDLER(%esp)
+	leal	SIGF_UC(%esp),%eax	/* get ucontext */
 	pushl	%eax
 	testl	$PSL_VM,UC_EFLAGS(%eax)
-	jne	9f
+	jne	1f
 	movl	UC_GS(%eax),%gs		/* restore %gs */
-9:
+1:
 	movl	$SYS_sigreturn,%eax
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
-0:	jmp	0b
+					/* on stack */
+1:
+	jmp	1b
 
 #ifdef COMPAT_FREEBSD4
 	ALIGN_TEXT
 freebsd4_sigcode:
-	call	*SIGF_HANDLER(%esp)	/* call signal handler */
-	lea	SIGF_UC(%esp),%eax	/* get ucontext_t */
+	calll	*SIGF_HANDLER(%esp)
+	leal	SIGF_UC4(%esp),%eax	/* get ucontext */
 	pushl	%eax
 	testl	$PSL_VM,UC4_EFLAGS(%eax)
-	jne	9f
+	jne	1f
 	movl	UC4_GS(%eax),%gs	/* restore %gs */
-9:
+1:
 	movl	$344,%eax		/* 4.x SYS_sigreturn */
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
-0:	jmp	0b
+					/* on stack */
+1:
+	jmp	1b
 #endif
 
 #ifdef COMPAT_43
