@@ -88,15 +88,15 @@ main(argc, argv)
 {
 	struct msdosfs_args args;
 	struct stat sb;
-	int c, error, mntflags, set_gid, set_uid, set_mask;
+	int c, error, mntflags, set_gid, set_uid, set_mask, set_dirmask;
 	char *dev, *dir, mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 
-	mntflags = set_gid = set_uid = set_mask = 0;
+	mntflags = set_gid = set_uid = set_mask = set_dirmask = 0;
 	(void)memset(&args, '\0', sizeof(args));
 	args.magic = MSDOSFS_ARGSMAGIC;
 
-	while ((c = getopt(argc, argv, "sl9u:g:m:o:L:W:")) != -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:W:")) != -1) {
 		switch (c) {
 #ifdef MSDOSFSMNT_GEMDOSFS
 		case 'G':
@@ -124,6 +124,10 @@ main(argc, argv)
 			args.mask = a_mask(optarg);
 			set_mask = 1;
 			break;
+		case 'M':
+			args.dirmask = a_mask(optarg);
+			set_dirmask = 1;
+			break;
 		case 'L':
 			load_ultable(&args, optarg);
 			args.flags |= MSDOSFSMNT_ULTABLE;
@@ -144,7 +148,16 @@ main(argc, argv)
 
 	if (optind + 2 != argc)
 		usage();
-
+	
+	if (set_mask && !set_dirmask) {
+		args.dirmask = args.mask;
+		set_dirmask = 1;
+	}
+	else if (set_dirmask && !set_mask) {
+		args.mask = args.dirmask;
+		set_mask = 1;
+	}
+	
 	dev = argv[optind];
 	dir = argv[optind + 1];
 
@@ -170,7 +183,8 @@ main(argc, argv)
 		if (!set_gid)
 			args.gid = sb.st_gid;
 		if (!set_mask)
-			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+			args.mask = args.dirmask = 
+				sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
 	error = getvfsbyname("msdos", &vfc);

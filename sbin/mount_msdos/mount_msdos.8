@@ -42,6 +42,7 @@
 .Op Fl u Ar uid
 .Op Fl g Ar gid
 .Op Fl m Ar mask
+.Op Fl M Ar mask
 .Op Fl s
 .Op Fl l
 .Op Fl 9
@@ -102,14 +103,28 @@ read, write, and execute permissions for files, but
 others should only have read and execute permissions.
 See
 .Xr chmod 1
-for more information about octal file modes.)
+for more information about octal file modes.
 Only the nine low-order bits of
 .Ar mask
 are used.
+The value of
+.Ar -M
+is used if it is supplied and
+.Ar -m
+is omitted.
 The default
 .Ar mask
 is taken from the
 directory on which the file system is being mounted.
+.It Fl M Ar mask
+Specify the maximum file permissions for directories
+in the file system.
+The value of
+.Ar -m
+is used if it is supplied and
+.Ar -M
+is omitted.
+See the previous option's description for details.
 .It Fl s
 Force behaviour to
 ignore and not generate Win'95 long filenames.

@@ -65,7 +65,10 @@ struct msdosfsmount {
 	dev_t pm_dev;		/* block special device mounted */
 	uid_t pm_uid;		/* uid to set as owner of the files */
 	gid_t pm_gid;		/* gid to set as owner of the files */
-	mode_t pm_mask;		/* mask to and with file protection bits */
+	mode_t pm_mask;		/* mask to and with file protection bits 
+				   for files */
+	mode_t pm_dirmask;	/* mask to and with file protection bits
+				   for directories */
 	struct vnode *pm_devvp;	/* vnode for block device mntd */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
 	u_long pm_BlkPerSec;	/* How many DEV_BSIZE blocks fit inside a physical sector */
@@ -211,7 +214,8 @@ struct msdosfs_args {
 	struct	export_args export;	/* network export information */
 	uid_t	uid;		/* uid that owns msdosfs files */
 	gid_t	gid;		/* gid that owns msdosfs files */
-	mode_t	mask;		/* mask to be applied for msdosfs perms */
+	mode_t	mask;		/* file mask to be applied for msdosfs perms */
+	mode_t	dirmask;	/* dir  mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
 	int magic;		/* version number */
 	u_int16_t u2w[128];     /* Local->Unicode table */
