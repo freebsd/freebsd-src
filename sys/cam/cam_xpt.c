@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.7 1998/09/18 19:55:34 ken Exp $
+ *      $Id: cam_xpt.c,v 1.8 1998/09/20 05:03:34 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -264,6 +264,15 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
                 { T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
         },
+	{
+		/*
+		 * Doesn't handle queue full condition correctly,
+		 * so we need to limit maxtags to what the device
+		 * can handle instead of determining this automatically.
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "WN321010S*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/32
+	},
         {
 		/* Doesn't understand EVP Serial Requests */
 		{
@@ -4774,7 +4783,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 				     probedone,
 				     MSG_SIMPLE_Q_TAG,
 				     SSD_FULL_SIZE,
-				     /*timeout*/10000);
+				     /*timeout*/60000);
 		break;
 	}
 	case PROBE_INQUIRY:
@@ -4814,7 +4823,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
-			     /*timeout*/5 * 1000);
+			     /*timeout*/60 * 1000);
 		break;
 	}
 	case PROBE_MODE_SENSE:
@@ -4837,7 +4846,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 					mode_buf,
 					mode_buf_len,
 					SSD_FULL_SIZE,
-					/*timeout*/5000);
+					/*timeout*/60000);
 			break;
 		}
 		xpt_print_path(periph->path);
@@ -4870,7 +4879,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 				     /*evpd*/TRUE,
 				     SVPD_UNIT_SERIAL_NUMBER,
 				     SSD_MIN_SIZE,
-				     /*timeout*/5 * 1000);
+				     /*timeout*/60 * 1000);
 			break;
 		}
 		/*
