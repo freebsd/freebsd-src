@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.2 1997/01/07 13:29:21 davidn Exp $
+ *	$Id: login_cap.c,v 1.3 1997/01/07 13:32:04 davidn Exp $
  */
 
 #include <stdio.h>
@@ -56,8 +56,8 @@ allocstr(char * str)
   char * p;
   size_t sz = strlen(str) + 1;	/* realloc() only if necessary */
   if (sz <= internal_stringsz)
-    p = internal_string;
-  else if ((p = realloc(internal_string, sz)) != NULL)  {
+    p = strcpy(internal_string, str);
+  else if ((p = realloc(internal_string, sz)) != NULL) {
     internal_stringsz = sz;
     internal_string = strcpy(p, str);
   }
@@ -95,7 +95,9 @@ arrayize(char *str, const char *chars, int *size)
 
   for (i = 0, ptr = str; *ptr; i++) {
     int count = strcspn(ptr, chars);
-    ptr = ptr + count + 1;
+    ptr += count;
+    if (*ptr)
+      ++ptr;
   }
 
   if ((ptr = allocstr(str)) == NULL) {
@@ -215,7 +217,7 @@ login_cap_t *
 login_getclass(const struct passwd *pwd)
 {
   const char * class = NULL;
-  if (pwd == NULL) {
+  if (pwd != NULL) {
     if ((class = pwd->pw_class) == NULL || *class == '\0')
       class = (pwd->pw_uid == 0) ? "root" : NULL;
   }
@@ -301,11 +303,13 @@ login_getcaplist(login_cap_t *lc, const char * cap, const char * chars)
 char *
 login_getpath(login_cap_t *lc, const char *cap, char * error)
 {
-  char *ptr, *str = login_getcapstr(lc, (char*)cap, NULL, NULL);
+  char *str = login_getcapstr(lc, (char*)cap, NULL, NULL);
 
-  if (str == NULL || (ptr = allocstr(str)) == NULL)
+  if (str == NULL)
     str = error;
   else {
+    char *ptr = str;
+
     while (*ptr) {
       int count = strcspn(ptr, ", \t");
       ptr += count;
