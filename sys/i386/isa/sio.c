@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.67 1995/02/25 20:09:14 pst Exp $
+ *	$Id: sio.c,v 1.68 1995/02/26 02:30:18 bde Exp $
  */
 
 #include "sio.h"
@@ -1838,15 +1838,6 @@ siodevtotty(dev)
 	if ((u_int) unit >= NSIO)
 		return (NULL);
 	return (&sio_tty[unit]);
-}
-
-int
-sioselect(dev, rw, p)
-	dev_t		dev;
-	int		rw;
-	struct proc	*p;
-{
-	return (ttyselect(siodevtotty(dev), rw, p));
 }
 
 static void

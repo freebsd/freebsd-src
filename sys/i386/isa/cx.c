@@ -671,6 +671,19 @@ int cxparam (struct tty *tp, struct termios *t)
 	splx (s);
 	return (0);
 }
+
+struct tty *cxdevtotty (dev_t dev)
+{
+	int unit = UNIT(dev);
+
+	if (unit == UNIT_CTL)
+		return (NULL);
+
+	if (unit > NCX*NCHAN)
+		return (NULL);
+
+	return (cxchan[unit]->ttyp);
+}
  
 int cxselect (dev_t dev, int flag, struct proc *p)
 {
@@ -678,7 +691,11 @@ int cxselect (dev_t dev, int flag, struct proc *p)
 
 	if (unit == UNIT_CTL)
 		return (0);
-	return (ttyselect (cxchan[unit]->ttyp, flag, p));
+
+	if (unit > NCX*NCHAN)
+		return (ENXIO);
+
+	return (ttyselect(cxchan[unit]->ttyp, flag, p));
 }
 
 /*

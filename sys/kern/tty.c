@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.32 1995/02/25 20:09:29 pst Exp $
+ * $Id: tty.c,v 1.33 1995/02/27 19:47:31 ugen Exp $
  */
 
 #include "snp.h"
@@ -985,6 +985,19 @@ win:			splx(s);
 	}
 	splx(s);
 	return (0);
+}
+
+/*
+ * This is a wrapper for compatibility with the select vector used by
+ * cdevsw.  It relies on a proper xxxdevtotty routine.
+ */
+int
+ttselect(dev, rw, p)
+	dev_t dev;
+	int rw;
+	struct proc *p;
+{
+	return ttyselect((*cdevsw[major(dev)].d_devtotty)(dev), rw, p);
 }
 
 /*

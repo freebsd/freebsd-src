@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.1 1995/02/22 13:40:21 sos Exp $
+ *	$Id: syscons.h,v 1.2 1995/02/25 20:09:21 pst Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ void scintr(int unit);
 int pcmmap(dev_t dev, int offset, int nprot);
 static void scinit(void);
 static u_int scgetc(int noblock);
-static struct tty *get_tty_ptr(dev_t dev);
+struct tty *scdevtotty(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp();
 static void init_scp(scr_stat *scp);
