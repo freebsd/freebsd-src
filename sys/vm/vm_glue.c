@@ -262,14 +262,10 @@ vm_proc_new(struct proc *p)
 	p->p_upages_obj = upobj;
 	VM_OBJECT_LOCK(upobj);
 	for (i = 0; i < UAREA_PAGES; i++) {
-		m = vm_page_grab(upobj, i,
+		m = vm_page_grab(upobj, i, VM_ALLOC_NOBUSY |
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
-
-		vm_page_lock_queues();
-		vm_page_wakeup(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(upobj);
 
@@ -470,13 +466,10 @@ vm_thread_new(struct thread *td, int pages)
 		/*
 		 * Get a kernel stack page.
 		 */
-		m = vm_page_grab(ksobj, i,
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NOBUSY |
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
-		vm_page_lock_queues();
-		vm_page_wakeup(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
