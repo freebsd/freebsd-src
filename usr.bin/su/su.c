@@ -130,7 +130,6 @@ main(int argc, char *argv[])
 			statusp, child_pid, child_pgrp, ret_pid, setmaclabel;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
-
 	struct sigaction sa, sa_int, sa_quit;
 
 	shell = class = cleanenv = NULL;
@@ -329,7 +328,6 @@ main(int argc, char *argv[])
 	sigaction(SIGQUIT, &sa, &sa_quit);
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGTSTP, &sa, NULL);
-  
 	statusp = 1;
 	child_pid = fork();
 	switch (child_pid) {
