@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.3 1994/10/01 15:04:58 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.4 1994/10/03 03:48:38 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -690,12 +690,11 @@ topic.
       [Alternatively:  What the heck IS multicasting and what applications
       make use of it?]
 
-First off, to you'll need to rebuild a kernel with multicast support in it.
-This requires that you have the sources to at least the kernel and the config
-utility.  See /usr/src/sys/i386/conf/LINT for its comments on multicast; you'll
-need to set the MROUTING and MULTICAST options as shown there.
+Multicast host operations are fully supported in FreeBSD 2.0 by default.
+If you want your box to run as a multicast router, you will need to load
+the ip_mroute_mod loadable kernel module and run mrouted.
 
-Further reading/exploration for those interested in multicast:
+For more information:
 
 Product		Description		Where
 --------------- ----------------------- ---------------------------------------
