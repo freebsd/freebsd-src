@@ -64,49 +64,7 @@ dsp_open(struct snddev_info *d, int chan, int oflags, int devtype, pid_t pid)
 	struct pcm_channel *rdch, *wrch;
 	u_int32_t fmt;
 
-	if (chan >= d->chancount)
-		return ENODEV;
-	if ((d->flags & SD_F_SIMPLEX) && (d->arec[chan] || d->aplay[chan]))
-		return EBUSY;
-
-	rdch = d->arec[chan];
-	wrch = d->aplay[chan];
-
-	if (oflags & FREAD) {
-		if (rdch == NULL) {
-			rdch = pcm_chnalloc(d, PCMDIR_REC);
-			if (!rdch)
-				return EBUSY;
-			rdch->pid = pid;
-		} else
-			return EBUSY;
-	}
-
-	if (oflags & FWRITE) {
-		if (wrch == NULL) {
-			wrch = pcm_chnalloc(d, PCMDIR_PLAY);
-			if (!wrch) {
-				if (rdch && (oflags & FREAD))
-					pcm_chnfree(rdch);
-				return EBUSY;
-			}
-			wrch->pid = pid;
-		} else
-			return EBUSY;
-	}
-
-	if (rdch) {
-		CHN_LOCK(rdch);
-		pcm_chnref(rdch, 1);
-	}
-	if (wrch) {
-		CHN_LOCK(wrch);
-		pcm_chnref(wrch, 1);
-	}
-
-	d->aplay[chan] = wrch;
-	d->arec[chan] = rdch;
-
+	/* decide default format */
 	switch (devtype) {
 	case SND_DEV_DSP16:
 		fmt = AFMT_S16_LE;
@@ -125,21 +83,100 @@ dsp_open(struct snddev_info *d, int chan, int oflags, int devtype, pid_t pid)
 		break;
 
 	default:
-		return ENXIO;
+		panic("impossible devtype %d", devtype);
 	}
 
-	if (rdch && (oflags & FREAD)) {
-	        chn_reset(rdch, fmt);
-		if (oflags & O_NONBLOCK) rdch->flags |= CHN_F_NBIO;
+	/* lock snddev so nobody else can monkey with it */
+	snd_mtxlock(d->lock);
+	if (chan >= d->chancount) {
+		/* not a valid channel, exit */
+		snd_mtxunlock(d->lock);
+		return ENODEV;
 	}
-	if (wrch && (oflags & FWRITE)) {
-	        chn_reset(wrch, fmt);
-		if (oflags & O_NONBLOCK) wrch->flags |= CHN_F_NBIO;
+	if ((d->flags & SD_F_SIMPLEX) && (d->arec[chan] || d->aplay[chan])) {
+		/* simplex device, already open, exit */
+		snd_mtxunlock(d->lock);
+		return EBUSY;
 	}
-	if (wrch)
-		CHN_UNLOCK(wrch);
-	if (rdch)
-		CHN_UNLOCK(rdch);
+
+	/*  if we get here, the open request is valid */
+	rdch = d->arec[chan];
+	wrch = d->aplay[chan];
+
+	if (oflags & FREAD) {
+		/* open for read */
+		if (rdch == NULL) {
+			/* not already open, try to get a channel */
+			rdch = pcm_chnalloc(d, PCMDIR_REC, pid);
+			if (!rdch) {
+				/* no channel available, exit */
+				snd_mtxunlock(d->lock);
+				return EBUSY;
+			}
+			/* got a channel, already locked for us */
+		} else {
+			/* already open for read, exit */
+			snd_mtxunlock(d->lock);
+			return EBUSY;
+		}
+	}
+
+	if (oflags & FWRITE) {
+		/* open for write */
+		if (wrch == NULL) {
+			/* not already open, try to get a channel */
+			wrch = pcm_chnalloc(d, PCMDIR_PLAY, pid);
+			if (!wrch) {
+				/* no channel available */
+				if (rdch && (oflags & FREAD)) {
+					/* just opened a read channel, release it */
+					pcm_chnrelease(rdch);
+				}
+				/* exit */
+				snd_mtxunlock(d->lock);
+				return EBUSY;
+			}
+			/* got a channel, already locked for us */
+		} else {
+			/* already open for write */
+			if (rdch && (oflags & FREAD)) {
+				/* just opened a read channel, release it */
+				pcm_chnrelease(rdch);
+			}
+			/* exit */
+			snd_mtxunlock(d->lock);
+			return EBUSY;
+		}
+	}
+
+	d->aplay[chan] = wrch;
+	d->arec[chan] = rdch;
+	snd_mtxunlock(d->lock);
+	/* finished with snddev, new channels still locked */
+
+	/* bump refcounts, reset and unlock any channels that we just opened */
+	if (rdch) {
+		if (oflags & FREAD) {
+	        	chn_reset(rdch, fmt);
+			if (oflags & O_NONBLOCK)
+				rdch->flags |= CHN_F_NBIO;
+		} else {
+			CHN_LOCK(rdch);
+			pcm_chnref(rdch, 1);
+		}
+	 	CHN_UNLOCK(rdch);
+	}
+	if (wrch) {
+		if (oflags & FWRITE) {
+	        	chn_reset(wrch, fmt);
+			if (oflags & O_NONBLOCK)
+				wrch->flags |= CHN_F_NBIO;
+		} else {
+			CHN_LOCK(wrch);
+			pcm_chnref(wrch, 1);
+		}
+	 	CHN_UNLOCK(wrch);
+	}
 	return 0;
 }
 
@@ -147,37 +184,56 @@ int
 dsp_close(struct snddev_info *d, int chan, int devtype)
 {
 	struct pcm_channel *rdch, *wrch;
+	int exit;
 
+	snd_mtxlock(d->lock);
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
 
-	if (rdch && pcm_chnref(rdch, -1))
+	exit = 0;
+
+	/* decrement refcount for each channel, exit if nonzero */
+	if (rdch) {
+		CHN_LOCK(rdch);
+		if (pcm_chnref(rdch, -1) > 0) {
+			CHN_UNLOCK(rdch);
+			exit = 1;
+		}
+	}
+	if (wrch) {
+		CHN_LOCK(wrch);
+		if (pcm_chnref(wrch, -1) > 0) {
+			CHN_UNLOCK(wrch);
+			exit = 1;
+		}
+	}
+	if (exit) {
+		snd_mtxunlock(d->lock);
 		return 0;
-	if (wrch && pcm_chnref(wrch, -1))
-		return 0;
+	}
+
+	/* both refcounts are zero, abort and release */
+
+	if (d->fakechan)
+		d->fakechan->flags = 0;
 
 	d->aplay[chan] = NULL;
 	d->arec[chan] = NULL;
 
 	d->flags &= ~SD_F_TRANSIENT;
+	snd_mtxunlock(d->lock);
 
 	if (rdch) {
-		CHN_LOCK(rdch);
 		chn_abort(rdch);
 		rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(rdch, 0);
-		rdch->pid = -1;
-		pcm_chnfree(rdch);
-		CHN_UNLOCK(rdch);
+		pcm_chnrelease(rdch);
 	}
 	if (wrch) {
-		CHN_LOCK(wrch);
 		chn_flush(wrch);
 		wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 		chn_reset(wrch, 0);
-		wrch->pid = -1;
-		pcm_chnfree(wrch);
-		CHN_UNLOCK(wrch);
+		pcm_chnrelease(wrch);
 	}
 
 	return 0;
@@ -189,11 +245,14 @@ dsp_read(struct snddev_info *d, int chan, struct uio *buf, int flag)
 	struct pcm_channel *rdch, *wrch;
 	int ret;
 
+	snd_mtxlock(d->lock);
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_RD;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
 
 	getchns(d, chan, &rdch, &wrch);
 	CHN_LOCK(rdch);
+	snd_mtxunlock(d->lock);
+
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
 	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
 
@@ -215,11 +274,14 @@ dsp_write(struct snddev_info *d, int chan, struct uio *buf, int flag)
 	struct pcm_channel *rdch, *wrch;
 	int ret;
 
+	snd_mtxlock(d->lock);
 	if (!(d->flags & SD_F_PRIO_SET)) d->flags |= SD_F_PRIO_WR;
 	if (!(d->flags & SD_F_DIR_SET)) setchns(d, chan);
 
 	getchns(d, chan, &rdch, &wrch);
 	CHN_LOCK(wrch);
+	snd_mtxunlock(d->lock);
+
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
 	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
 
@@ -240,10 +302,16 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 {
     	int ret = 0, *arg_i = (int *)arg;
     	u_long s;
-    	struct pcm_channel *wrch = NULL, *rdch = NULL;
+    	struct pcm_channel *wrch, *rdch;
 
+	snd_mtxlock(d->lock);
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
+	if (rdch)
+		CHN_LOCK(rdch);
+	if (wrch)
+		CHN_LOCK(wrch);
+	snd_mtxunlock(d->lock);
 
 	if (rdch && (rdch->flags & CHN_F_DEAD))
 		rdch = NULL;
@@ -252,10 +320,6 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	if (!(rdch || wrch))
 		return EINVAL;
 
-	if (wrch)
-		CHN_LOCK(wrch);
-	if (rdch)
-		CHN_LOCK(rdch);
     	/*
      	 * all routines are called with int. blocked. Make sure that
      	 * ints are re-enabled when calling slow or blocking functions!
@@ -277,6 +341,7 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOSSIZE:     /* set the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
+
 	    		if (wrch)
 				chn_setblocksize(wrch, 2, p->play_size);
 	    		if (rdch)
@@ -286,6 +351,7 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGSIZE:	/* get the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
+
 	    		if (wrch)
 				p->play_size = sndbuf_getblksz(wrch->bufsoft);
 	    		if (rdch)
@@ -296,6 +362,7 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOSFMT:
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
+
 	    		if (wrch) {
 				chn_setformat(wrch, p->play_format);
 				chn_setspeed(wrch, p->play_rate);
@@ -310,6 +377,7 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOGFMT:
 		{
 	    		snd_chan_param *p = (snd_chan_param *)arg;
+
 	    		p->play_rate = wrch? wrch->speed : 0;
 	    		p->rec_rate = rdch? rdch->speed : 0;
 	    		p->play_format = wrch? wrch->format : 0;
@@ -321,8 +389,11 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		{
 	    		snd_capabilities *p = (snd_capabilities *)arg;
 			struct pcmchan_caps *pcaps = NULL, *rcaps = NULL;
-			if (rdch) rcaps = chn_getcaps(rdch);
-			if (wrch) pcaps = chn_getcaps(wrch);
+
+			if (rdch)
+				rcaps = chn_getcaps(rdch);
+			if (wrch)
+				pcaps = chn_getcaps(wrch);
 	    		p->rate_min = max(rcaps? rcaps->minspeed : 0,
 	                      		  pcaps? pcaps->minspeed : 0);
 	    		p->rate_max = min(rcaps? rcaps->maxspeed : 1000000,
@@ -371,11 +442,15 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_NONBLOCK:
     	case FIONBIO: /* set/clear non-blocking i/o */
-		if (rdch) rdch->flags &= ~CHN_F_NBIO;
-		if (wrch) wrch->flags &= ~CHN_F_NBIO;
+		if (rdch)
+			rdch->flags &= ~CHN_F_NBIO;
+		if (wrch)
+			wrch->flags &= ~CHN_F_NBIO;
 		if (*arg_i) {
-		    	if (rdch) rdch->flags |= CHN_F_NBIO;
-		    	if (wrch) wrch->flags |= CHN_F_NBIO;
+		    	if (rdch)
+				rdch->flags |= CHN_F_NBIO;
+		    	if (wrch)
+				wrch->flags |= CHN_F_NBIO;
 		}
 		break;
 
@@ -395,8 +470,10 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SETBLKSIZE:
 		RANGE(*arg_i, 16, 65536);
-		if (wrch) chn_setblocksize(wrch, 2, *arg_i);
-		if (rdch) chn_setblocksize(rdch, 2, *arg_i);
+		if (wrch)
+			chn_setblocksize(wrch, 2, *arg_i);
+		if (rdch)
+			chn_setblocksize(rdch, 2, *arg_i);
 		break;
 
     	case SNDCTL_DSP_RESET:
@@ -456,7 +533,6 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		break ;
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
-		splx(s);
 		if ((*arg_i != AFMT_QUERY)) {
 			if (wrch)
 				ret = chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
@@ -545,7 +621,8 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
 				rdch->blocks = sndbuf_getblocks(bs);
-	    		} else ret = EINVAL;
+	    		} else
+				ret = EINVAL;
 		}
 		break;
 
@@ -560,7 +637,8 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
 				wrch->blocks = sndbuf_getblocks(bs);
-	    		} else ret = EINVAL;
+	    		} else
+				ret = EINVAL;
 		}
 		break;
 
@@ -633,26 +711,41 @@ dsp_ioctl(struct snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		ret = EINVAL;
 		break;
     	}
-	if (rdch)
-		CHN_UNLOCK(rdch);
 	if (wrch)
 		CHN_UNLOCK(wrch);
+	if (rdch)
+		CHN_UNLOCK(rdch);
+	splx(s);
     	return ret;
 }
 
 int
 dsp_poll(struct snddev_info *d, int chan, int events, struct proc *p)
 {
-	int ret = 0, e;
+	int ret, e;
 	struct pcm_channel *wrch = NULL, *rdch = NULL;
 
+	ret = 0;
+	snd_mtxlock(d->lock);
 	getchns(d, chan, &rdch, &wrch);
+	if (rdch)
+		CHN_LOCK(rdch);
+	if (wrch)
+		CHN_LOCK(wrch);
 
-	e = events & (POLLOUT | POLLWRNORM);
-	if (wrch && e) ret |= chn_poll(wrch, e, p);
-
-	e = events & (POLLIN | POLLRDNORM);
-	if (rdch && e) ret |= chn_poll(rdch, e, p);
+	if (wrch) {
+		e = (events & (POLLOUT | POLLWRNORM));
+		if (e)
+			ret |= chn_poll(wrch, e, p);
+		CHN_UNLOCK(wrch);
+	}
+	if (rdch) {
+		e = (events & (POLLIN | POLLRDNORM));
+		if (e)
+			ret |= chn_poll(rdch, e, p);
+		CHN_UNLOCK(rdch);
+	}
+	snd_mtxunlock(d->lock);
 
 	return ret;
 }

@@ -35,6 +35,7 @@
 #include "feeder_if.h"
 
 #undef	SNDSTAT_VERBOSE
+#define	PCM_MAXCHANS	256
 
 static dev_t status_dev = 0;
 static int do_status(int action, struct uio *buf);
@@ -168,33 +169,34 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
 }
 
+/* return a locked channel */
 struct pcm_channel *
-pcm_chnalloc(struct snddev_info *d, int direction)
+pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid)
 {
 	struct pcm_channel *c;
     	struct snddev_channel *sce;
 
-	snd_mtxlock(d->lock);
+	snd_mtxassert(d->lock);
 	SLIST_FOREACH(sce, &d->channels, link) {
 		c = sce->channel;
 		CHN_LOCK(c);
 		if ((c->direction == direction) && !(c->flags & CHN_F_BUSY)) {
 			c->flags |= CHN_F_BUSY;
-			CHN_UNLOCK(c);
-			snd_mtxunlock(d->lock);
+			c->pid = pid;
 			return c;
 		}
 		CHN_UNLOCK(c);
 	}
-	snd_mtxunlock(d->lock);
 	return NULL;
 }
 
+/* release a locked channel and unlock it */
 int
-pcm_chnfree(struct pcm_channel *c)
+pcm_chnrelease(struct pcm_channel *c)
 {
-	CHN_LOCK(c);
+	CHN_LOCKASSERT(c);
 	c->flags &= ~CHN_F_BUSY;
+	c->pid = -1;
 	CHN_UNLOCK(c);
 	return 0;
 }
@@ -204,24 +206,18 @@ pcm_chnref(struct pcm_channel *c, int ref)
 {
 	int r;
 
-	CHN_LOCK(c);
+	CHN_LOCKASSERT(c);
 	c->refcount += ref;
 	r = c->refcount;
-	CHN_UNLOCK(c);
 	return r;
 }
 
 #ifdef USING_DEVFS
 static void
-pcm_makelinks(void *dummy)
+snd_setdefaultunit(struct snddev_info *d)
 {
-	int unit;
-	dev_t pdev;
 	static dev_t dsp = 0, dspW = 0, audio = 0, mixer = 0;
-    	struct snddev_info *d;
 
-	if (pcm_devclass == NULL || devfs_present == 0)
-		return;
 	if (dsp) {
 		destroy_dev(dsp);
 		dsp = 0;
@@ -239,33 +235,73 @@ pcm_makelinks(void *dummy)
 		mixer = 0;
 	}
 
-	unit = snd_unit;
-	if (unit < 0 || unit > devclass_get_maxunit(pcm_devclass))
-		return;
-	d = devclass_get_softc(pcm_devclass, unit);
-	if (d == NULL || d->chancount == 0)
+	if (d == NULL)
 		return;
 
-	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP, 0));
-	dsp = make_dev_alias(pdev, "dsp");
-	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, 0));
-	dspW = make_dev_alias(pdev, "dspW");
-	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_AUDIO, 0));
-	audio = make_dev_alias(pdev, "audio");
-	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
-	mixer = make_dev_alias(pdev, "mixer");
+	if (d->dspdev)
+		dsp = make_dev_alias(d->dspdev, "dsp");
+	if (d->dspWdev)
+		dspW = make_dev_alias(d->dspWdev, "dspW");
+	if (d->audiodev)
+		audio = make_dev_alias(d->audiodev, "audio");
+	if (d->mixerdev)
+		mixer = make_dev_alias(d->mixerdev, "mixer");
+}
+#endif
+
+static void
+pcm_relinkdspunit(struct snddev_info *d)
+{
+#ifdef USING_DEVFS
+	int unit = device_get_unit(d->dev);
+	dev_t pdev;
+
+	if (d->dspdev) {
+		destroy_dev(d->dspdev);
+		d->dspdev = 0;
+	}
+	if (d->dspWdev) {
+		destroy_dev(d->dspWdev);
+		d->dspWdev = 0;
+	}
+	if (d->audiodev) {
+		destroy_dev(d->audiodev);
+		d->audiodev = 0;
+	}
+
+	if (d->defaultchan < d->chancount) {
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP, d->defaultchan));
+		d->dspdev = make_dev_alias(pdev, "dsp%d", unit);
+
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, d->defaultchan));
+		d->dspWdev = make_dev_alias(pdev, "dspW%d", unit);
+
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_AUDIO, d->defaultchan));
+		d->audiodev = make_dev_alias(pdev, "audio%d", unit);
+	}
+
+	if (unit == snd_unit)
+		snd_setdefaultunit(d);
+#endif
 }
 
+#ifdef USING_DEVFS
 static int
 sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 {
+	struct snddev_info *d;
 	int error, unit;
 
 	unit = snd_unit;
 	error = sysctl_handle_int(oidp, &unit, sizeof(unit), req);
 	if (error == 0 && req->newptr != NULL) {
+		if (unit < 0 || unit > devclass_get_maxunit(pcm_devclass))
+			return EINVAL;
+		d = devclass_get_softc(pcm_devclass, unit);
+		if (d == NULL || d->chancount == 0)
+			return EINVAL;
 		snd_unit = unit;
-		pcm_makelinks(NULL);
+		snd_setdefaultunit(d);
 	}
 	return (error);
 }
@@ -342,15 +378,43 @@ int
 pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 {
     	struct snddev_channel *sce;
+	struct pcm_channel **aplay, **arec;
     	int unit = device_get_unit(d->dev);
+	int cc, sz;
+
+	snd_mtxlock(d->lock);
+	if (d->chancount == d->maxchans) {
+		cc = d->maxchans? d->maxchans * 2 : 2;
+	    	sz = cc * sizeof(struct pcm_channel *);
+		aplay = malloc(sz, M_DEVBUF, M_WAITOK | M_ZERO);
+    		arec = malloc(sz, M_DEVBUF, M_WAITOK | M_ZERO);
+		if (aplay == NULL || arec == NULL) {
+			if (aplay)
+				free(aplay, M_DEVBUF);
+			if (arec)
+				free(arec, M_DEVBUF);
+			snd_mtxunlock(d->lock);
+			return EINVAL;
+		}
+		if (d->aplay) {
+			bcopy(d->aplay, aplay, d->maxchans * sizeof(struct pcm_channel *));
+			free(d->aplay, M_DEVBUF);
+		}
+		d->aplay = aplay;
+		if (d->arec) {
+			bcopy(d->arec, arec, d->maxchans * sizeof(struct pcm_channel *));
+			free(d->arec, M_DEVBUF);
+		}
+		d->arec = arec;
+		d->maxchans = cc;
+	}
 
 	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!sce) {
-		free(ch, M_DEVBUF);
+		snd_mtxunlock(d->lock);
 		return ENOMEM;
 	}
 
-	snd_mtxlock(d->lock);
 	sce->channel = ch;
 	SLIST_INSERT_HEAD(&d->channels, sce, link);
 
@@ -362,10 +426,9 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, d->chancount);
 	/* XXX SND_DEV_NORESET? */
 
-#ifdef USING_DEVFS
     	if (d->chancount++ == 0)
-		pcm_makelinks(NULL);
-#endif
+		pcm_relinkdspunit(d);
+
 	snd_mtxunlock(d->lock);
 
 	return 0;
@@ -390,10 +453,8 @@ gotit:
 	SLIST_REMOVE(&d->channels, sce, snddev_channel, link);
 	free(sce, M_DEVBUF);
 
-#ifdef USING_DEVFS
     	if (d->chancount == 0)
-		pcm_makelinks(NULL);
-#endif
+		pcm_relinkdspunit(d);
 	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP, d->chancount));
 	destroy_dev(pdev);
 	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, d->chancount));
@@ -462,7 +523,13 @@ void
 pcm_setflags(device_t dev, u_int32_t val)
 {
     	struct snddev_info *d = device_get_softc(dev);
-
+/*
+	if ((val & SD_F_SIMPLEX) && (d->fakechan == NULL)) {
+		device_printf(dev, "set simplex mode\n");
+		d->fakechan = fkchan_setup(dev);
+		chn_init(d->fakechan, NULL, 0);
+	}
+*/
 	d->flags = val;
 }
 
@@ -478,7 +545,7 @@ pcm_getdevinfo(device_t dev)
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
-    	int sz, unit = device_get_unit(dev);
+    	int unit = device_get_unit(dev);
     	struct snddev_info *d = device_get_softc(dev);
 
 	d->lock = snd_mtxcreate(device_get_nameunit(dev));
@@ -489,26 +556,33 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 			 UID_ROOT, GID_WHEEL, 0444, "sndstat");
 	}
 
-	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
+	d->mixerdev = make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
 
+	d->dspdev = 0;
+	d->dspWdev = 0;
+	d->audiodev = 0;
 	d->dev = dev;
 	d->devinfo = devinfo;
 	d->chancount = 0;
-	d->maxchans = numplay + numrec;
+	d->defaultchan = 0;
+	d->maxchans = 0;
+	d->aplay = NULL;
+	d->arec = NULL;
+/*
     	sz = d->maxchans * sizeof(struct pcm_channel *);
 
 	if (sz > 0) {
 		d->aplay = (struct pcm_channel **)malloc(sz, M_DEVBUF, M_WAITOK | M_ZERO);
     		d->arec = (struct pcm_channel **)malloc(sz, M_DEVBUF, M_WAITOK | M_ZERO);
     		if (!d->arec || !d->aplay) goto no;
-
-		if (numplay == 0 || numrec == 0)
-			d->flags |= SD_F_SIMPLEX;
-
-		d->fakechan = fkchan_setup(dev);
-		chn_init(d->fakechan, NULL, 0);
 	}
+*/
+	if (((numplay == 0) || (numrec == 0)) && (numplay != numrec)) {
+		d->flags |= SD_F_SIMPLEX;
+	}
+	d->fakechan = fkchan_setup(dev);
+	chn_init(d->fakechan, NULL, 0);
 
 #ifdef SND_DYNSYSCTL
 	sysctl_ctx_init(&d->sysctl_tree);
@@ -521,13 +595,17 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	}
 #endif
 #if 1
-	vchan_initsys(d);
+	if (numplay > 0)
+		vchan_initsys(d);
 #endif
+	snd_setdefaultunit(d);
 	snd_mtxunlock(d->lock);
     	return 0;
 no:
+/*
 	if (d->aplay) free(d->aplay, M_DEVBUF);
 	if (d->arec) free(d->arec, M_DEVBUF);
+*/
 	/* snd_mtxunlock(d->lock); */
 	snd_mtxfree(d->lock);
 	return ENXIO;
@@ -539,7 +617,6 @@ pcm_unregister(device_t dev)
     	int unit = device_get_unit(dev);
     	struct snddev_info *d = device_get_softc(dev);
     	struct snddev_channel *sce;
-	dev_t pdev;
 
 	snd_mtxlock(d->lock);
 	SLIST_FOREACH(sce, &d->channels, link) {
@@ -559,9 +636,9 @@ pcm_unregister(device_t dev)
 	d->sysctl_tree_top = NULL;
 	sysctl_ctx_free(&d->sysctl_tree);
 #endif
-
-	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
-	destroy_dev(pdev);
+	if (unit == snd_unit)
+		snd_setdefaultunit(NULL);
+	destroy_dev(d->mixerdev);
 	mixer_uninit(dev);
 
 	while (d->chancount > 0)

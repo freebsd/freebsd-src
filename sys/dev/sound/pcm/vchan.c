@@ -332,7 +332,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
     	struct snddev_channel *sce;
 	struct pcm_channel *c;
-	int err, newcnt, cnt;
+	int err, oldcnt, newcnt, cnt;
 
 	d = oidp->oid_arg1;
 
@@ -343,6 +343,7 @@ sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
 		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
 			cnt++;
 	}
+	oldcnt = cnt;
 	newcnt = cnt;
 
 	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
@@ -379,6 +380,8 @@ addok:
 				if (err == 0)
 					cnt++;
 			}
+			if (SLIST_EMPTY(&c->children))
+				c->flags &= ~CHN_F_BUSY;
 		} else if (newcnt < cnt) {
 			while (err == 0 && newcnt < cnt) {
 				SLIST_FOREACH(sce, &d->channels, link) {

@@ -490,7 +490,7 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
 	struct snd_dbuf *bs = c->bufsoft;
 	int ret;
 
-	CHN_LOCK(c);
+	CHN_LOCKASSERT(c);
     	if (!(c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_TRIGGERED))
 		chn_start(c, 1);
 	ret = 0;
@@ -498,7 +498,6 @@ chn_poll(struct pcm_channel *c, int ev, struct proc *p)
 		ret = ev;
 	else
 		selrecord(p, sndbuf_getsel(bs));
-	CHN_UNLOCK(c);
 	return ret;
 }
 
