@@ -247,6 +247,12 @@ void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error
 /* geom_kern.c / geom_kernsim.c */
 void g_init(void);
 
+struct g_ioctl {
+	u_long		cmd;
+	void		*data;
+	int		fflag;
+	struct thread	*td;
+};
 
 #ifdef _KERNEL
 
@@ -272,7 +278,7 @@ g_free(void *ptr)
 }
 
 extern struct sx topology_lock;
-#define g_topology_lock() sx_xlock(&topology_lock)
+#define g_topology_lock() do { mtx_assert(&Giant, MA_NOTOWNED); sx_xlock(&topology_lock); } while (0)
 #define g_topology_unlock() sx_xunlock(&topology_lock)
 #define g_topology_assert() sx_assert(&topology_lock, SX_XLOCKED)
 
