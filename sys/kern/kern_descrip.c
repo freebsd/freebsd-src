@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/conf.h>
@@ -56,7 +57,6 @@
 #include <sys/stat.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
 #include <sys/event.h>
@@ -1182,9 +1182,9 @@ fdfree(td)
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
 	if (fdp->fd_knlist)
-		FREE(fdp->fd_knlist, M_TEMP);
+		FREE(fdp->fd_knlist, M_KQUEUE);
 	if (fdp->fd_knhash)
-		FREE(fdp->fd_knhash, M_TEMP);
+		FREE(fdp->fd_knhash, M_KQUEUE);
 	FREE(fdp, M_FILEDESC);
 }
 
