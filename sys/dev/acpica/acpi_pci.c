@@ -57,6 +57,8 @@ struct acpi_pci_devinfo {
 	int			ap_flags;
 };
 
+ACPI_SERIAL_DECL(pci_powerstate, "ACPI PCI power methods");
+
 static int	acpi_pci_attach(device_t dev);
 static int	acpi_pci_child_location_str_method(device_t cbdev,
 		    device_t child, char *buf, size_t buflen);
@@ -183,6 +185,7 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 	ACPI_STATUS status;
 	int acpi_state, old_state, error;
 
+	error = 0;
 	switch (state) {
 	case PCI_POWERSTATE_D0:
 		acpi_state = ACPI_STATE_D0;
@@ -209,11 +212,12 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 	 * it can enable any needed Power Resources before changing the PCI
 	 * power state.
 	 */
+	ACPI_SERIAL_BEGIN(pci_powerstate);
 	old_state = pci_get_powerstate(child);
 	if (old_state < state) {
 		error = pci_set_powerstate_method(dev, child, state);
 		if (error)
-			return (error);
+			goto out;
 	}
 	h = acpi_get_handle(child);
 	status = acpi_pwr_switch_consumer(h, acpi_state);
@@ -222,9 +226,11 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		    "Failed to set ACPI power state D%d on %s: %s\n",
 		    acpi_state, acpi_name(h), AcpiFormatException(status));
 	if (old_state > state)
-		return (pci_set_powerstate_method(dev, child, state));
-	else
-		return (0);
+		error = pci_set_powerstate_method(dev, child, state);
+
+out:
+	ACPI_SERIAL_END(pci_powerstate);
+	return (error);
 }
 
 static void
