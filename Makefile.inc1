@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.75 1999/05/02 15:23:55 markm Exp $
+#	$Id: Makefile.inc1,v 1.76 1999/05/03 17:54:59 obrien Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -391,6 +391,9 @@ update:
 .endif
 .if defined(SUPFILE2)
 	@${SUP} ${SUPFLAGS} ${SUPFILE2}
+.endif
+.if defined(PORTSSUPFILE)
+	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
 .endif
 .endif
 .if defined(CVS_UPDATE)
