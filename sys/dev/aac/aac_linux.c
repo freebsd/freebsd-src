@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2002 Scott Long
+ * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2001 Scott Long
+ * Copyright (c) 2000 BSDi
+ * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +29,6 @@
  *	$FreeBSD$
  */
 
-/*
- * Linux ioctl handler for the aac device driver
- */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -49,9 +48,9 @@ static struct linux_ioctl_handler aac_linux_handler = {aac_linux_ioctl,
 						       AAC_LINUX_IOCTL_MIN,
 						       AAC_LINUX_IOCTL_MAX};
 
-SYSINIT  (aac_linux_register,   SI_SUB_KLD, SI_ORDER_MIDDLE,
+SYSINIT  (aac_register,   SI_SUB_KLD, SI_ORDER_MIDDLE,
 	  linux_ioctl_register_handler, &aac_linux_handler);
-SYSUNINIT(aac_linux_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
+SYSUNINIT(aac_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
 	  linux_ioctl_unregister_handler, &aac_linux_handler);
 
 static int
@@ -62,23 +61,20 @@ aac_linux_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(aac_linux, aac_linux_modevent, NULL);
-MODULE_DEPEND(aac_linux, linux, 1, 1, 1);
+MODULE_DEPEND(aac, linux, 1, 1, 1);
 
 static int
-aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
+aac_linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	u_long cmd;
-	int error;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
-		return (error);
+	fp = p->p_fd->fd_ofiles[args->fd];
 	cmd = args->cmd;
 
 	/*
 	 * Pass the ioctl off to our standard handler.
 	 */
-	error = (fo_ioctl(fp, cmd, (caddr_t)args->arg, td->td_ucred, td));
-	fdrop(fp, td);
-	return (error);
+	return(fo_ioctl(fp, cmd, (caddr_t)args->arg, p));
 }
+
