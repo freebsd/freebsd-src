@@ -1,5 +1,6 @@
-#
-# IBM 370 and compatibles.
+
+#------------------------------------------------------------------------------
+# ibm370:  file(1) magic for IBM 370 and compatibles.
 #
 # "ibm370" said that 0x15d == 0535 was "ibm 370 pure executable".
 # What the heck *is* "USS/370"?
@@ -16,4 +17,3 @@
 0	beshort		0535		SVR2 executable (USS/370)
 >12	belong		>0		not stripped
 >24	belong		>0		- version %ld
-
