@@ -34,7 +34,6 @@
  */
 
 #include "opt_ddb.h"
-#include "opt_preemption.h"
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
@@ -445,11 +444,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		ithd->it_disable(ithd->it_vector);
 	}
-#ifdef PREEMPTION
 	error = ithread_schedule(ithd, !cold);
-#else
-	error = ithread_schedule(ithd, 0);
-#endif
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
 }
 
