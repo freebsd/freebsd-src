@@ -1,0 +1,152 @@
+yes I know this is not in mandoc format..
+
+The slices are stackable..
+With alternating layers of handler(driver)/slice/handler/slice/handler/slice
+The "Slice" is implemented as a common structure shared between three
+pieces of code. Each slice in the stack can be thought of in OO terms as
+an instance of the 'slice' object. Methods include all the 'device' node
+methods exported via the cdevsw[], bdevsw[] and devfs interfaces. Thus
+whenever a handler exports a slice object, a unique node is made available
+to the users via the device system, to access that slice, as if it were a
+disk in it's own right. Since the interface is implemented by the same
+code no matter where in the stack it occurs, all partitions and devices
+which are exported by the slice code, exhibit almost identical behavior.
+Theoretically, it should be possible to treat a partition of a device, as
+if it were a separate device, as it should exhibit the same behavior as
+the device itself (except for size).
+
+The diagram below exhibits the form of one layer of the stack. Each handler
+can decide how many slices to export on the upper side, and 
+how many slices to connect to on the lower side. If A slice can not be
+further subdivided, there may not be an upper handler.
+
+ [upper handler] (optional)
+       ^
+       |
+       |
+       v                                        |------ raw (char) device
+[common slice information]<---------->[slice device]
+       ^                                        |------ block device
+       |
+       |
+       v
+ [lower handler]  (may be a device driver)
+
+Each of these 3 items share some knowledge of the internal structure and
+contents of the slice structure. They also know each other's published 
+interfaces. This may change as the design settles down and it becomes more
+obvious which parts can be hidden.
+
+The slices are created bottom up.
+When the driver decides that there is media that should be made available,
+it creates a 'slice' object to represent it. This slice object comes with a
+set of methods for exporting and implementing a device. The action of creating
+a slice therefor creates the interface through which a user can access that
+device. A driver might even export such slice before the media is present,
+in order to make a device node available to the user. (e.g. the floppy
+driver would make /dev/rfd0 available even if there was no media present,
+simply because it has no way of detecting that the media has been added.
+Attempts to open or access that node would result in the usual EIO
+errors.
+
+i.e. the device probes, and creates a static 'slice' that is associated with 
+the device.. The static slice can't be removed unless the driver does so,
+thought if the media is changed the size of the slice may change.
+
+
+Some time after the media has been detected, or deduced to be present,
+the driver would ask the system to try interpret the contents of the 
+media. It does this by passing the slice to the generic code. The generic 
+code will ask all the possible handlers to see if that slice (or virtual
+disk) has the structure it requires. Sometimes the driver (or lower handler,
+for that is what the driver is from the point of view of the slice) Will 'seed'
+the slice with a 'hint' which will make the generic code narrow it's requests
+to a particular handler, or group of handlers.
+
+When a slice object attaches an handler to one of it's slices, that handler
+might elect to further export more slices, each representing some different
+view of the slice. This could result on a multi layer stack of slices and
+handlers, depending on the contents of the device. Whether a handler will
+elect to further divide a slice given to it is solely up to that handler. No
+other code has jurisdiction over that decision. 
+
+Because a device may need to know that it is being used, it is important
+that open() events be cascaded down towards the device. Handlers that 
+export multiple slices upwards must pass down the union of all the open
+states of those slices.
+
+A lower level handler can decide that the slices it has exported are no
+longer valid. This can occur for several reasons. For example a write to a
+low level slice might change the structures defining a higher level slice,
+or a driver (the lowest level handler) might notice that the media on which
+a slice is based, has been removed, or in some other way become
+unavailable. The handler must be able to invalidate the slice(es) affected,
+and know that the system will cascade that invalidation upwards as needed.
+A higher handler may decide to no pass on the invalidation if it calculates
+that higher level services can still be provided without the particular
+lower slice being present, (e.g. a RAID handler).
+
+Access to various layers is controlled by a strict protocol to avoid
+accidental system damage. There is a single sysctl variable that can
+disable the enforcement of this protocol, however it should ony be used
+in special (e.g. system instalation) circumstances. The basic protocol
+is that a higher level device cannot be opened while one of it's lower
+layers is open for writing. Similarly, a lower layer cannot be openned for
+writing while an upper layer is open at all. Two devices at different
+layers can be openned at the same time if there is no direct
+decendancy between the two. In an analogue, we might say that 'cousins'
+can be openned independantly, but anscestors and descendents cannot.
+The sysctl variable kern.slicexclusive has 3 values.
+0 disables the checks metioned above.  1 enables them, and 2
+enables eve more draconian rules in which even READ opens are disabled.
+
+Further rules govern the interaction of the block and raw versions of a
+slice. For example, if a block device is open for read/write, it's raw
+device can not be written to (in mode 1)
+
+[think about upwards permission inherritance for subslices]
+
+
+[setting up new configurations]
+A disk exports simply a raw slice. It has no preference as to what goes on it..
+(preferences are stored in the slice's probehints structure.)
+To slice it into fdisk type:
+1/ set the hints to "mbr", through an ioctl on that device. (e.g. rsd0)
+2/ Run the "mbr" code's constructor. this will initialise the slice.
+   The "mbr" code will actually write an mbr to the slice,
+   with default values. (so it will recognise it in the future). 
+   (this is why the claim is separate from the constructor). The claim()
+   is nondestructive. The constructor KNOWS it owns the slice.
+3/ Send ioctls to the device that are redirected UP to the new handler.
+   These ioctls allow "type specific templates" and manipulation
+   of slice tables. Each hander interprets these to suit it's own table 
+   format. This uses the sl_h_upconfig() method, which is basically an
+   ioctl entrypoint, but which is not automatically cascaded up.
+
+
+rc should have the following added to it to make the system 'safe'
+when multi-user mode is entered.
+
+*** /etc/rc.orig	Sat Apr 18 14:34:48 1998
+--- /etc/rc	Sat Apr 18 14:38:32 1998
+***************
+*** 82,87 ****
+--- 82,96 ----
+  	exit 1
+  fi
+  
++ ###DEVFS
++ # put the storage slices into safe mode.
++ # 0 == unsafe. One char, one blk and one subslice can all be openned R/W.
++ # 1 = readonly. If a subslice is open, a blk and chr can be openned R/O.
++ #                 If a slice is open R/W, subslices cannot be openned.
++ # 2 = exclusive. If a subslice is open, a blk or chr cannot be openned.
++ #                 and visa versa.
++ sysctl -w kern.slicexclusive=1
++ 
+  # If there is a global system configuration file, suck it in.
+  if [ -f /etc/rc.conf ]; then
+      . /etc/rc.conf
+
+
+

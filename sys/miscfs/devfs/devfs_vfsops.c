@@ -23,9 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.27 1998/03/01 22:46:08 msmith Exp $
+ *	$Id: devfs_vfsops.c,v 1.28 1998/04/17 22:36:53 des Exp $
  *
  */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
