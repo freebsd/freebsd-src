@@ -413,6 +413,19 @@ Integer: trigger level of cached, unreferenced, protocol-cloned routes
 which initiates dynamic adaptation (default 128).
 .El
 .Ss Interaction between IPv4/v6 sockets
+By default,
+.Nx
+does not route IPv4 traffic to
+.Dv AF_INET6
+sockets.
+The default behavior intentionally violates RFC2553 for security reasons.
+Listen to two sockets if you want to accept both IPv4 and IPv6 traffic.
+IPv4 traffic may be routed with certain
+per-socket/per-node configuration, however, it is not recommended to do so.
+Consult
+.Xr ip6 4
+for details.
+.Pp
 The behavior of
 .Dv AF_INET6
 TCP/UDP socket is documented in RFC2553.
@@ -480,18 +493,6 @@ Users are advised to take care handling connections
 from IPv4 mapped address to
 .Dv AF_INET6
 sockets.
-.\".Pp
-.\"Because of the above, by default,
-.\"KAME/NetBSD and KAME/OpenBSD
-.\"does not route IPv4 traffic to
-.\".Dv AF_INET6
-.\"sockets.
-.\"Listen to two sockets if you want to accept both IPv4 and IPv6 traffic.
-.\"On KAME/NetBSD, IPv4 traffic may be routed with certain
-.\"per-socket/per-node configuration, however, it is not recommended.
-.\"Consult
-.\".Xr ip6 4
-.\"for details.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr socket 2 ,
