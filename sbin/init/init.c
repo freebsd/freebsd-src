@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.25 1997/08/06 16:07:52 ache Exp $
+ *		$Id: init.c,v 1.26 1997/08/06 16:34:51 ache Exp $
  */
 
 #ifndef lint
@@ -51,6 +51,8 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <db.h>
 #include <errno.h>
@@ -1447,6 +1449,16 @@ runshutdown()
 	size_t len;
 	char *argv[3];
 	struct sigaction sa;
+	struct stat sb;
+
+	/*
+	 * rc.shutdown is optional, so to prevent any unnecessary
+	 * complaints from the shell we simply don't run it if the
+	 * file does not exist. If the stat() here fails for other
+	 * reasons, we'll let the shell complain.
+	 */
+	if (stat(_PATH_RUNDOWN, &sb) == -1 && errno == ENOENT)
+		return 0;
 
 	if ((pid = fork()) == 0) {
 		int	fd;
