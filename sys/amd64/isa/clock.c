@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.49 1996/01/15 21:26:43 phk Exp $
+ *	$Id: clock.c,v 1.50 1996/01/16 06:35:40 ache Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ u_int	idelayed;
 unsigned	i586_ctr_rate;
 long long	i586_ctr_bias;
 long long	i586_last_tick;
+unsigned long	i586_avg_tick;
 #endif
 u_int	stat_imask = SWI_CLOCK_MASK;
 int 	timer0_max_count;
