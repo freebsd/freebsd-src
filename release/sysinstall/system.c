@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.10 1995/05/11 09:01:35 jkh Exp $
+ * $Id: system.c,v 1.11 1995/05/16 11:37:26 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -69,6 +69,7 @@ systemInitialize(int argc, char **argv)
 
 	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
+	setenv("PATH", "/stand:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stdout, 0);
 	setbuf(stderr, 0);
@@ -133,7 +134,6 @@ systemShellEscape(void)
 	msgWarn("No shell available, sorry!");
 	return 1;
     }
-    setenv("PATH", "/stand", 1);
     setenv("PS1", "freebsd% ", 1);
     dialog_clear();
     dialog_update();
