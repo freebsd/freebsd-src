@@ -23,4 +23,4 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/osf1.sh ${DESTDIR}/usr/bin/osf1
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

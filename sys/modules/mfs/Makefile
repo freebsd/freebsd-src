@@ -6,4 +6,4 @@ SRCS=	vnode_if.h \
 	mfs_vfsops.c mfs_vnops.c opt_mfs.h
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

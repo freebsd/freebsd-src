@@ -7,4 +7,4 @@ NOMAN=
 CFLAGS+= -I${.CURDIR}/..
 CWARNFLAGS= -Wall -pedantic
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

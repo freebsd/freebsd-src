@@ -5,4 +5,4 @@ KMOD=		ng_hole
 SRCS= 		ng_hole.c
 MAN8=		ng_hole.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

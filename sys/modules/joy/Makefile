@@ -9,4 +9,4 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/joy.sh ${DESTDIR}/usr/bin/joy
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

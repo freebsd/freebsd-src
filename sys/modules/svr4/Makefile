@@ -38,4 +38,4 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/svr4.sh ${DESTDIR}/usr/sbin/svr4
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

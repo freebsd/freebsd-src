@@ -13,4 +13,4 @@ CFLAGS+= ${PROTOS}
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

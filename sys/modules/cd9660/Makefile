@@ -7,4 +7,4 @@ SRCS=	vnode_if.h \
 	cd9660_util.c cd9660_vfsops.c cd9660_vnops.c
 NOMAN=
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

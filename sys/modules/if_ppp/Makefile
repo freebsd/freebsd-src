@@ -51,4 +51,4 @@ opt_ppp.h:
 	echo "#define PPP_FILTER ${PPP_FILTER}" >> opt_ppp.h
 .endif
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

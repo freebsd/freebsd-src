@@ -10,4 +10,4 @@ CFLAGS+= -DIPFILTER_LKM -DIPFILTER_LOG
 # If you don't want long functionality remove -DIPFILTER_LOG
 #
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"

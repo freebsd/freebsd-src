@@ -5,4 +5,4 @@ KMOD=		ng_echo
 SRCS= 		ng_echo.c
 MAN8=		ng_echo.8
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../../conf/kmod.mk"

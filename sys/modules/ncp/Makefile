@@ -41,4 +41,4 @@ unload:
 deinstall:
 	rm -f /modules/ncp.ko
 
-.include <bsd.kmod.mk>
+.include "${.CURDIR}/../../conf/kmod.mk"
