@@ -53,6 +53,7 @@ typedef struct {
     int		x, y, w, len;	/* the (y, x) position of the upperleft */
 				/* corner and the width <w> of the display */
 				/* and length <len> of the field */
+    int		attr_mask;	/* special attributes */
 } StringObj;
 
 typedef struct {

@@ -50,6 +50,9 @@
 #define DITEM_RESTORE		(1 << 19)
 #define DITEM_CONTINUE		(1 << 20)
 
+/* Attributes as used by entry fields right now */
+#define DITEM_NO_ECHO		0x0001
+
 
 /* negative offsets for buttons in item lists, if specified */
 #define OK_BUTTON		-2
@@ -77,7 +80,7 @@ typedef struct _dmenu_item {
 #define FALSE (0)
 #endif
 
-extern int DialogX, DialogY;
+extern int DialogX, DialogY, DialogInputAttrs;
 
 /*
  * Attribute names
@@ -122,7 +125,7 @@ extern bool use_shadow;
 void draw_shadow(WINDOW *win, int y, int x, int height, int width);
 #endif
 void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border);
-int line_edit(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, chtype attrs, int first, unsigned char *result);
+int line_edit(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, chtype attrs, int first, unsigned char *result, int attr_mask);
 int     strheight(const char *p);
 int     strwidth(const char *p);
 
