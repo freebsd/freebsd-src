@@ -108,6 +108,7 @@ SUBDIR=	IPXrouted \
 	traceroute6 \
 	trpt \
 	tzsetup \
+	ugidfw \
 	usbd \
 	usbdevs \
 	vidcontrol \
