@@ -124,6 +124,7 @@ struct cam_ed {
 	struct	xpt_quirk_entry *quirk;	/* Oddities about this device */
 					/* Storage for the inquiry data */
 	struct	scsi_inquiry_data inq_data;
+	u_int8_t	 inq_len;	/* valid length in inq_data */
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
 					 * This allows us to override settings
@@ -131,8 +132,8 @@ struct cam_ed {
 					 * queuing for a device.
 					 */
 	u_int8_t	 queue_flags;	/* Queue flags from the control page */
-	u_int8_t	 *serial_num;
 	u_int8_t	 serial_num_len;
+	u_int8_t	 *serial_num;
 	u_int32_t	 qfrozen_cnt;
 	u_int32_t	 flags;
 #define CAM_DEV_UNCONFIGURED	 	0x01
@@ -2919,16 +2920,7 @@ xpt_action(union ccb *start_ccb)
 			bus = cgd->ccb_h.path->bus;
 			tar = cgd->ccb_h.path->target;
 			cgd->inq_data = dev->inq_data;
-			cgd->pd_type = SID_TYPE(&dev->inq_data);
-#ifndef GARBAGE_COLLECT
-			cgd->dev_openings = dev->ccbq.dev_openings;
-			cgd->dev_active = dev->ccbq.dev_active;
-			cgd->devq_openings = dev->ccbq.devq_openings;
-			cgd->devq_queued = dev->ccbq.queue.entries;
-			cgd->held = dev->ccbq.held;
-			cgd->maxtags = dev->quirk->maxtags;
-			cgd->mintags = dev->quirk->mintags;
-#endif
+			cgd->inq_len = dev->inq_len;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -5041,6 +5033,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 typedef enum {
 	PROBE_TUR,
 	PROBE_INQUIRY,
+	PROBE_FULL_INQUIRY,
 	PROBE_MODE_SENSE,
 	PROBE_SERIAL_NUM,
 	PROBE_TUR_FOR_NEGOTIATION
@@ -5284,6 +5277,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		break;
 	}
 	case PROBE_INQUIRY:
+	case PROBE_FULL_INQUIRY:
 	{
 		struct scsi_inquiry_data *inq_buf;
 
@@ -5311,12 +5305,15 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			MD5Final(softc->digest, &softc->context);
 		} 
 
+		if (softc->action == PROBE_INQUIRY)
+			periph->path->device->inq_len = SHORT_INQUIRY_LENGTH;
+	
 		scsi_inquiry(csio,
 			     /*retries*/4,
 			     probedone,
 			     MSG_SIMPLE_Q_TAG,
 			     (u_int8_t *)inq_buf,
-			     sizeof(*inq_buf),
+			     (size_t) periph->path->device->inq_len,
 			     /*evpd*/FALSE,
 			     /*page_code*/0,
 			     SSD_MIN_SIZE,
@@ -5439,17 +5436,47 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		return;
 	}
 	case PROBE_INQUIRY:
+	case PROBE_FULL_INQUIRY:
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			struct scsi_inquiry_data *inq_buf;
 			u_int8_t periph_qual;
 			u_int8_t periph_dtype;
+			u_int8_t alen;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
 			inq_buf = &path->device->inq_data;
 
 			periph_qual = SID_QUAL(inq_buf);
 			periph_dtype = SID_TYPE(inq_buf);
+
+			/*
+			 * We conservatively request only SHORT_INQUIRY_LEN
+			 * bytes of inquiry information during our first try
+			 * at sending an INQUIRY. If the device has more
+			 * information to give, perform a second reques
+			 * specifying the amount of information the device
+			 * is willing to give (but not overflowing the amount
+			 * of room we have for it).
+			 */
+
+			alen = inq_buf->additional_length;
+
+			if (periph_dtype != T_NODEVICE
+			    && periph_qual == SID_QUAL_LU_CONNECTED
+			    && softc->action == PROBE_INQUIRY
+			    && alen > (SHORT_INQUIRY_LENGTH - 8)) {
+
+				path->device->inq_len =
+				    min(alen + 8, sizeof (*inq_buf));
+				softc->action = PROBE_FULL_INQUIRY;
+				xpt_release_ccb(done_ccb);
+				xpt_schedule(periph, priority);
+				return;
+			}
+
+
+			
 			if (periph_dtype != T_NODEVICE) {
 				switch(periph_qual) {
 				case SID_QUAL_LU_CONNECTED:
