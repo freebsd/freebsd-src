@@ -38,6 +38,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 
@@ -88,6 +89,18 @@ static driver_t pcib_driver = {
 devclass_t pcib_devclass;
 
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+
+/*
+ * sysctl and tunable vars
+ */
+static int pci_allow_unsupported_io_range = 0;
+TUNABLE_INT("hw.pci.allow_unsupported_io_range",
+	(int *)&pci_allow_unsupported_io_range);
+SYSCTL_DECL(_hw_pci);
+SYSCTL_INT(_hw_pci, OID_AUTO, allow_unsupported_io_range, CTLFLAG_RD,
+	&pci_allow_unsupported_io_range, 0,
+	"Allows the PCI Bridge to pass through an unsupported memory range "
+	"assigned by the BIOS.");
 
 /*
  * Generic device interface
@@ -288,21 +301,23 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 	    if (!pcib_is_isa_io(start)) {
-#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
-		if (start < sc->iobase)
-		    start = sc->iobase;
-		if (end > sc->iolimit)
-		    end = sc->iolimit;
-		if (end < start)
-		    start = 0;
-#else
-		if (start < sc->iobase)
-		    printf("start (%lx) < sc->iobase (%x)\n", start, sc->iobase);
-		if (end > sc->iolimit)
-		    printf("end (%lx) > sc->iolimit (%x)\n", end, sc->iolimit);
-		if (end < start)
-		    printf("end (%lx) < start (%lx)\n", end, start);
-#endif
+		if (!pci_allow_unsupported_io_range) {
+		    if (start < sc->iobase)
+			start = sc->iobase;
+		    if (end > sc->iolimit)
+			end = sc->iolimit;
+		    if (end < start)
+			start = 0;
+		} else {
+		    if (start < sc->iobase)
+			printf("start (%lx) < sc->iobase (%x)\n", start,
+				sc->iobase);
+		    if (end > sc->iolimit)
+			printf("end (%lx) > sc->iolimit (%x)\n",
+				end, sc->iolimit);
+		    if (end < start)
+			printf("end (%lx) < start (%lx)\n", end, start);
+		}
 	    }
 	    if (!pcib_is_isa_io(start) &&
 	      ((start < sc->iobase) || (end > sc->iolimit))) {
@@ -325,21 +340,23 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	     */
 	case SYS_RES_MEMORY:
 	    if (!pcib_is_isa_mem(start)) {
-#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
-		if (start < sc->membase && end >= sc->membase)
-		    start = sc->membase;
-		if (end > sc->memlimit)
-		    end = sc->memlimit;
-		if (end < start)
-		    start = 0;
-#else
-		if (start < sc->membase && end > sc->membase)
-		    printf("start (%lx) < sc->membase (%x)\n", start, sc->membase);
-		if (end > sc->memlimit)
-		    printf("end (%lx) > sc->memlimit (%x)\n", end, sc->memlimit);
-		if (end < start) 
-		    printf("end (%lx) < start (%lx)\n", end, start);
-#endif
+		if (!pci_allow_unsupported_io_range) {
+		    if (start < sc->membase && end >= sc->membase)
+			start = sc->membase;
+		    if (end > sc->memlimit)
+			end = sc->memlimit;
+		    if (end < start)
+			start = 0;
+		} else {
+		    if (start < sc->membase && end > sc->membase)
+			printf("start (%lx) < sc->membase (%x)\n",
+				start, sc->membase);
+		    if (end > sc->memlimit)
+			printf("end (%lx) > sc->memlimit (%x)\n",
+				end, sc->memlimit);
+		    if (end < start)
+			printf("end (%lx) < start (%lx)\n", end, start);
+		}
 	    }
 	    if (!pcib_is_isa_mem(start) &&
 	        (((start < sc->membase) || (end > sc->memlimit)) &&
@@ -351,9 +368,8 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			device_get_name(child), device_get_unit(child), start,
 			end, sc->membase, sc->memlimit, sc->pmembase,
 			sc->pmemlimit);
-#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
-		return(NULL);
-#endif
+		if (!pci_allow_unsupported_io_range)
+		    return (NULL);
 	    }
 	    if (bootverbose)
 		device_printf(sc->dev, "device %s%d requested decoded memory range 0x%lx-0x%lx\n",

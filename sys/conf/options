@@ -480,9 +480,6 @@ SMP			opt_global.h
 # Size of the kernel message buffer
 MSGBUF_SIZE		opt_msgbuf.h
 
-# PCI related options
-PCI_ALLOW_UNSUPPORTED_IO_RANGE	opt_pci.h
-
 # NFS options
 NFS_MINATTRTIMO		opt_nfs.h
 NFS_MAXATTRTIMO		opt_nfs.h
