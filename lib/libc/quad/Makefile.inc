@@ -4,8 +4,7 @@
 
 .if ${MACHINE} == "i386"
 
-SRCS+=	cmpdi2.c \
-	divdi3.c moddi3.c udivdi3.c umoddi3.c qdivrem.c 
+SRCS+=	divdi3.c moddi3.c qdivrem.c udivdi3.c umoddi3.c
 
 .else
 
