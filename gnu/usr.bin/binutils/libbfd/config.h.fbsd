@@ -163,8 +163,14 @@
 /* Define if you have the <sys/procfs.h> header file.  */
 #define HAVE_SYS_PROCFS_H 1
 
+/* Define if you have the <sys/stat.h> header file.  */
+#define HAVE_SYS_STAT_H 1
+
 /* Define if you have the <sys/time.h> header file.  */
 #define HAVE_SYS_TIME_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
 
 /* Define if you have the <time.h> header file.  */
 #define HAVE_TIME_H 1
@@ -179,7 +185,7 @@
 #define PACKAGE "bfd"
 
 /* Version number of package */
-/* #define VERSION "2.12" */
+/* #define VERSION "2.13" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
@@ -210,6 +216,9 @@
 
 /* Define if getenv is not declared in system header files. */
 /* #undef NEED_DECLARATION_GETENV */
+
+/* Define if struct core_dumpx has member c_impl */
+/* #undef HAVE_ST_C_IMPL */
 
 /* Define if <sys/procfs.h> has prstatus_t. */
 #define HAVE_PRSTATUS_T 1
