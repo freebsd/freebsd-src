@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1994/10/06 09:40:58 rgrimes Exp $
+#	$Id: Makefile,v 1.19 1994/10/07 05:36:01 ache Exp $
 #
 
 PROG=	boot
@@ -50,8 +50,8 @@ all:		boot1 boot2
 
 beforeinstall:
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot1 ${BINDIR}/sdboot
+		boot1 ${DESTDIR}/${BINDIR}/sdboot
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot2 ${BINDIR}/bootsd
+		boot2 ${DESTDIR}/${BINDIR}/bootsd
 	
 .include <bsd.prog.mk>
