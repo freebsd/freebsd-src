@@ -861,7 +861,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	If you have really bad/marginal IDE drives, you may find they
 	don't work well.  Use pio mode instead.  The easiest way to
 	cope if you have a problem combination is to add:
-		/sbin/sysctl -w hw.atamodes=pio,pio,pio,pio
+		/sbin/sysctl hw.ata.ata_dma=0
 	to the start of /etc/rc.conf.
 
 20000319:
