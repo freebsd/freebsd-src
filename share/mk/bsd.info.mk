@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.45 1997/10/12 18:54:34 wosch Exp $
+#	$Id: bsd.info.mk,v 1.46 1997/11/09 15:03:12 wosch Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -102,10 +102,6 @@ DVIPS2ASCII?=	dvips2ascii
 
 .SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1 .html
 
-# What to do if there's no dir file there.  This is really gross!!!
-${DESTDIR}${INFODIR}/${INFODIRFILE}:
-	@(cd /usr/src/share/info; make install)
-
 .texi.info .texinfo.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
 		-o ${.TARGET}
@@ -113,6 +109,7 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 .texi.dvi .texinfo.dvi:
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
+# Run again to reolve cross references.
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 
@@ -120,6 +117,7 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
+# Run again to reolve cross references.
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
 	${DVIPS} -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
@@ -135,15 +133,15 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
-
 .for _f in ${FORMATS}
-IFILENS+= ${INFO:S/$/.${_f}/g}
-CLEANFILES+=${INFO:S/$/.${_f}*/g}
+IFILENS+=	${INFO:S/$/.${_f}/}
 .endfor
 
 .if !defined(NOINFO)
+CLEANFILES+=	${IFILENS}
 .if !defined(NOINFOCOMPRESS)
-IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/g:S/.html${ICOMPRESS_EXT}/.html/g}
+CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
+IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
@@ -153,11 +151,9 @@ all: ${IFILES} _SUBDIR
 all:
 .endif
 
-.for _f in ${FORMATS}
-.for x in ${INFO:S/$/.${_f}/g}
+.for x in ${IFILENS}
 ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 	${ICOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
-.endfor
 .endfor
 
 .for x in ${INFO}
@@ -190,21 +186,18 @@ ${INFO}.texi: ${SRCS}
 .endif
 
 depend: _SUBDIR
-	@echo -n
-
 
 # tex garbage
 .if ${FORMATS:Mps} || ${FORMATS:Mdvi} || ${FORMATS:Mlatin1}
 .for _f in aux cp fn ky log out pg toc tp vr dvi
-CLEANFILES+=	${INFO:S/$/.${_f}/g} ${INFO:S/$/-la.${_f}/g}
+CLEANFILES+=	${INFO:S/$/.${_f}/} ${INFO:S/$/-la.${_f}/}
 .endfor
-CLEANFILES+= ${INFO:S/$/-la.texi/g}
+CLEANFILES+=	${INFO:S/$/-la.texi/}
 .endif
 
 .if ${FORMATS:Mhtml}
-CLEANFILES+= ${INFO:S/$/.info.*.html/g} ${INFO:S/$/.info/g}
+CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
-
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
@@ -214,7 +207,7 @@ install: ${INSTALLINFODIRS} _SUBDIR
 .endif
 .if ${FORMATS:Mhtml}
 	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${INFO:S/$/.info.*.html/g} ${DESTDIR}${INFODIR}
+		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
 .endif
 .else
 install:
