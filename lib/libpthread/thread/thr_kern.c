@@ -1036,7 +1036,7 @@ thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 	struct kse *curkse;
-	int ret;
+	int ret, err_save = curthread->error;
 
 	DBG_MSG(">>> sig wrapper\n");
 	if (curthread->lock_switch)
@@ -1045,6 +1045,7 @@ thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
 	_kse_critical_enter();
 	curkse = _get_curkse();
 	curthread->tmbx.tm_context = *ucp;
+	curthread->error = err_save;
 	ret = _thread_switch(&curthread->tmbx, &curkse->k_mbx.km_curthread);
 	if (ret != 0)
 		PANIC("thr_resume_wrapper: thread has returned "
