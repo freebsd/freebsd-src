@@ -139,7 +139,7 @@ static struct cdevsw ucom_cdevsw = {
 	/* poll */      ttypoll,
 	/* mmap */      nommap,
 	/* strategy */  nostrategy,
-	/* name */      "usio",
+	/* name */      "ucom",
 	/* maj */       UCOM_CDEV_MAJOR,
 	/* dump */      nodump,
 	/* psize */     nopsize,
@@ -191,11 +191,11 @@ ucom_attach(struct ucom_softc *sc)
 
 	DPRINTF(("ucom_attach: tty_attach tp = %p\n", tp));
 
-	DPRINTF(("ucom_attach: make_dev: usio%d\n", unit));
+	DPRINTF(("ucom_attach: make_dev: ucom%d\n", unit));
 
 	sc->dev = make_dev(&ucom_cdevsw, unit | UCOM_CALLOUT_MASK,
 			UID_UUCP, GID_DIALER, 0660,
-			"usio%d", unit);
+			"ucom%d", unit);
 	sc->dev->si_tty = tp;
 
 	return (0);
