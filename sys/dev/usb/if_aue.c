@@ -463,6 +463,18 @@ static void aue_miibus_statchg(dev)
 	}
 	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB|AUE_CTL0_TX_ENB);
 
+	/*
+	 * Set the LED modes on the LinkSys adapter.
+	 * This turns on the 'dual link LED' bin in the auxmode
+	 * register of the Broadcom PHY.
+	 */
+	if (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) {
+		u_int16_t		auxmode;
+		auxmode = aue_miibus_readreg(dev, 0, 0x1b);
+		aue_miibus_writereg(dev, 0, 0x1b, auxmode | 0x04);
+	}
+
 	return;
 }
 
