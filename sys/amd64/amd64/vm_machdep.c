@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.68 1996/09/08 20:44:12 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.69 1996/09/28 22:37:43 dyson Exp $
  */
 
 #include "npx.h"
@@ -623,8 +623,7 @@ cpu_wait(p)
 	struct proc *p;
 {
 	/* drop per-process resources */
-	pmap_qremove((vm_offset_t) p->p_addr, UPAGES);
-	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
+	pmap_dispose_proc(p);
 	vmspace_free(p->p_vmspace);
 }
 
