@@ -95,7 +95,6 @@ in the host environment:
 sendmail_enable="NO"
 inetd_flags="-wW -a 192.168.11.23"
 portmap_enable="NO"
-syslogd_flags="-ss"
 .Ed
 .Pp
 .Li 192.169.11.23
@@ -113,16 +112,14 @@ them, if possible.
 .Pp
 A number of daemons ship with the base system that may have problems when
 run from outside of a jail in a jail-centric environment.  This includes
-.Xr syslogd 8 ,
 .Xr sendmail 8 ,
 .Xr named 8 ,
 and
 .Xr portmap 8 .
 While sendmail and named can be configured to listen only on a specific
 IP using their configuration files, in most cases it is easier to simply
-run the daemons in jails only, and not in the host environment.  Syslogd
-cannot be configured to bind only a single IP, but can be configured to
-not bind a network port, using the ``-ss'' argument.  Attempting to serve
+run the daemons in jails only, and not in the host environment.
+Attempting to serve
 NFS from the host environment may also cause confusion, and cannot be
 easily reconfigured to use only specific IPs, as some NFS services are
 hosted directly from the kernel.  Any third party network software running
