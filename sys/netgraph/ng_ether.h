@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_ETHER_NODE_TYPE	"ether"
-#define NGM_ETHER_COOKIE	917786905
+#define NGM_ETHER_COOKIE	917786906
 
 /* Hook names */
 #define NG_ETHER_HOOK_LOWER	"lower"		/* connection to raw device */
@@ -58,7 +58,10 @@ enum {
 	NGM_ETHER_GET_IFNAME = 1,	/* get the interface name */
 	NGM_ETHER_GET_IFINDEX,		/* get the interface global index # */
 	NGM_ETHER_GET_ENADDR,		/* get Ethernet address */
+	NGM_ETHER_SET_ENADDR,		/* set Ethernet address */
+	NGM_ETHER_GET_PROMISC,		/* get node's promiscuous mode bit */
 	NGM_ETHER_SET_PROMISC,		/* enable/disable promiscuous mode */
+	NGM_ETHER_GET_AUTOSRC,		/* get source address override */
 	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
 };
 
