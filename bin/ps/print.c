@@ -67,7 +67,7 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #include "lomac.h"
 #include "ps.h"
 
-static void printval __P((char *, VAR *));
+static void printval(char *, VAR *);
 
 void
 printheader(void)
