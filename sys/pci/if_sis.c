@@ -1908,14 +1908,14 @@ sis_initl(struct sis_softc *sc)
 	}
 
 	/*
-	 * Page 78 of the DP83815 data sheet (september 2002 version)
+	 * Short Cable Receive Errors (MP21.E)
+	 * also: Page 78 of the DP83815 data sheet (september 2002 version)
 	 * recommends the following register settings "for optimum
 	 * performance." for rev 15C.  The driver from NS also sets
 	 * the PHY_CR register for later versions.
 	 */
-	if (sc->sis_type == SIS_TYPE_83815) {
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr <= NS_SRR_15D) {
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
-		/* DC speed = 01 */
 		CSR_WRITE_4(sc, NS_PHY_CR, 0x189C);
 		if (sc->sis_srr == NS_SRR_15C) {
 			/* set val for c2 */
@@ -2004,29 +2004,24 @@ sis_initl(struct sis_softc *sc)
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
 
-	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr < NS_SRR_16A &&
+	if (sc->sis_type == SIS_TYPE_83815 &&
 	     IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 		uint32_t reg;
 
 		/*
-		 * Some DP83815s experience problems when used with short
-		 * (< 30m/100ft) Ethernet cables in 100BaseTX mode.  This
-		 * sequence adjusts the DSP's signal attenuation to fix the
-		 * problem.
+		 * Short Cable Receive Errors (MP21.E) 
 		 */
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0x0001);
-
-		reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
-		/* Allow coefficient to be read */
-		CSR_WRITE_4(sc, NS_PHY_DSPCFG, (reg & 0xfff) | 0x1000);
-		DELAY(100);
-		reg = CSR_READ_4(sc, NS_PHY_TDATA);
-		if ((reg & 0x0080) == 0 ||
-		     (reg > 0xd8 && reg <= 0xff)) {
-			device_printf(sc->sis_self, "Applying short cable fix (reg=%x)\n", reg);
+		reg = CSR_READ_4(sc, NS_PHY_DSPCFG) & 0xfff;
+		CSR_WRITE_4(sc, NS_PHY_DSPCFG, reg | 0x1000);
+		DELAY(100000);
+		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
+		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
+			device_printf(sc->sis_self,
+			    "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
-			/* Adjust coefficient and prevent change */
-			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
+			reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
+			SIS_SETBIT(sc, NS_PHY_DSPCFG, reg | 0x20);
 		}
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
 	}
