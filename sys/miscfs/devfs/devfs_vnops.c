@@ -33,7 +33,6 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
-#include <sys/disklabel.h>
 #include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
@@ -48,8 +47,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
-#include <vm/vm_extern.h>
 
 
 /*

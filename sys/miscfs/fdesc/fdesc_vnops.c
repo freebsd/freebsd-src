@@ -54,7 +54,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
-#include <sys/socketvar.h>
 #include <sys/conf.h>
 #include <miscfs/fdesc/fdesc.h>
 
