@@ -555,7 +555,7 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-	caddr_t	stack_addr = (caddr_t) (USRSTACK - maxssiz);
+	vm_offset_t stack_addr = USRSTACK - maxssiz;
 	vm_map_t map = &vmspace->vm_map;
 
 	GIANT_REQUIRED;
@@ -579,8 +579,8 @@ exec_new_vmspace(imgp)
 	}
 
 	/* Allocate a new stack */
-	error = vm_map_stack (&vmspace->vm_map, (vm_offset_t)stack_addr,
-			      (vm_size_t)maxssiz, VM_PROT_ALL, VM_PROT_ALL, 0);
+	error = vm_map_stack(&vmspace->vm_map, stack_addr, (vm_size_t)maxssiz,
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 		return (error);
 
