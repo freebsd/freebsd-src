@@ -283,11 +283,11 @@ main(int ac, char **av)
 		printf("nprocs %d\n", nprocs);
 
 	for (i = 0; i < nprocs; i++) {
-		thispid = procs[i].kp_proc.p_pid;
-		strncpy(thiscmd, procs[i].kp_proc.p_comm, MAXCOMLEN);
+		thispid = procs[i].ki_pid;
+		strncpy(thiscmd, procs[i].ki_comm, MAXCOMLEN);
 		thiscmd[MAXCOMLEN] = '\0';
-		thistdev = procs[i].kp_eproc.e_tdev;
-		thisuid = procs[i].kp_eproc.e_pcred.p_ruid;	/* real uid */
+		thistdev = procs[i].ki_tdev;
+		thisuid = procs[i].ki_ruid;	/* real uid */
 
 		matched = 1;
 		if (user) {
