@@ -1,7 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.1 1995/09/03 19:52:52 jkh Exp $
- *
- *  Copyright (C) 1995 by Serge Babkin <babkin@hq.icb.chel.su>
+ *  dgb.c $Id: dgb.c,v 1.2 1995/09/04 01:58:41 jkh Exp $
  *
  *  Digiboard driver.
  *
@@ -12,10 +10,6 @@
  *  which is under GNU General Public License version 2 so this driver 
  *  is forced to be under GPL 2 too.
  *
- *	Serge Babkin does not guarantee that this file is totally correct
- *  for any given task and users of this file must accept responsibility
- *  for any damage that occurs from the application of this file.
- *
  *  Written by Serge Babkin,
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
@@ -25,6 +19,12 @@
 #include "dgb.h"
 
 #if NDGB > 0 
+
+/* the overall number of ports controlled by this driver */
+
+#ifndef NDGBPORTS
+#	define NDGBPORTS (NDGB*16)
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -75,59 +75,11 @@
 #define	CONTROL_INIT_STATE	0x20
 #define	CONTROL_LOCK_STATE	0x40
 #define UNIT_MASK			0x30000
-#define PORT_MASK			0xF
+#define PORT_MASK			0x1F
 #define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
 #define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
 #define	MINOR_TO_UNIT(mynor)	(((mynor) & UNIT_MASK)>>16)
-#define MINOR_TO_PORT(mynor)	((mynor) & 0xF)
-
-/*
- * Input buffer watermarks.
- * The external device is asked to stop sending when the buffer exactly reaches
- * high water, or when the high level requests it.
- * The high level is notified immediately (rather than at a later clock tick)
- * when this watermark is reached.
- * The buffer size is chosen so the watermark should almost never be reached.
- * The low watermark is invisibly 0 since the buffer is always emptied all at
- * once.
- */
-#define	RS_IHIGHWATER (3 * RS_IBUFSIZE / 4)
-
-/*
- * com state bits.
- * (CS_BUSY | CS_TTGO) and (CS_BUSY | CS_TTGO | CS_ODEVREADY) must be higher
- * than the other bits so that they can be tested as a group without masking
- * off the low bits.
- *
- * The following com and tty flags correspond closely:
- *	CS_BUSY		= TS_BUSY (maintained by comstart() and comflush())
- *	CS_TTGO		= ~TS_TTSTOP (maintained by comstart() and siostop())
- *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
- *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
- * TS_FLUSH is not used.
- * XXX I think TIOCSETA doesn't clear TS_TTSTOP when it clears IXON.
- * XXX CS_*FLOW should be CF_*FLOW in com->flags (control flags not state).
- */
-#define	CS_BUSY		0x80	/* output in progress */
-#define	CS_TTGO		0x40	/* output not stopped by XOFF */
-#define	CS_ODEVREADY	0x20	/* external device h/w ready (CTS) */
-#define	CS_CHECKMSR	1	/* check of MSR scheduled */
-#define	CS_CTS_OFLOW	2	/* use CTS output flow control */
-#define	CS_DTR_OFF	0x10	/* DTR held off */
-#define	CS_ODONE	4	/* output completed */
-#define	CS_RTS_IFLOW	8	/* use RTS input flow control */
-
-static	char const * const	error_desc[] = {
-#define	CE_OVERRUN			0
-	"silo overflow",
-#define	CE_INTERRUPT_BUF_OVERFLOW	1
-	"interrupt-level buffer overflow",
-#define	CE_TTY_BUF_OVERFLOW		2
-	"tty-level buffer overflow",
-};
-
-#define	CE_NTYPES			3
-#define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
+#define MINOR_TO_PORT(mynor)	((mynor) & PORT_MASK)
 
 /* types.  XXX - should be elsewhere */
 typedef u_int	Port_t;		/* hardware port */
@@ -187,8 +139,6 @@ struct dgb_p {
 	u_char	last_modem_status;	/* last MSR read by intr handler */
 	u_char	prev_modem_status;	/* last MSR handled by high level */
 
-	struct tty	*tp;	/* cross reference */
-
 	/* Initial state. */
 	struct termios	it_in;	/* should be in struct tty */
 	struct termios	it_out;
@@ -223,6 +173,8 @@ struct dgb_softc {
 	
 
 struct dgb_softc dgb_softc[NDGB];
+struct dgb_p dgb_ports[NDGBPORTS];
+struct tty dgb_tty[NDGBPORTS];
 
 /*
  * The public functions in the com module ought to be declared in a com-driver
@@ -511,6 +463,7 @@ dgbattach(dev)
 	int nfails;
 	ushort *pstat;
 	int lowwater;
+	int nports=0;
 
 	if(sc->status!=ENABLED) {
 		DPRINT2("dbg%d: try to attach a disabled card\n",unit);
@@ -808,42 +761,26 @@ load_fep:
 		return 0;
 	}
 
+	if(nports+sc->numports>NDGBPORTS) {
+		printf("dgb%d: only %d ports are usable\n", unit, NDGBPORTS-nports);
+		sc->numports=NDGBPORTS-nports;
+	}
+
+	/* allocate port and tty structures */
+	sc->ports=&dgb_ports[nports];
+	sc->ttys=&dgb_tty[nports];
+	nports+=sc->numports;
+
 	addr=setwin(sc,PORTBASE);
 	pstat=(ushort *)(mem+addr);
 
-	for(i=0; i<32 && pstat[i]; i++);
-
-	if(i!=sc->numports) {
-		printf("dgb%d: %d ports are shown as valid ones\n",unit,i);
-		if(i<sc->numports)
-			sc->numports=i;
-		printf("dgb%d: %d ports will be used\n",unit,sc->numports);
-	}
-
-	MALLOC(sc->ports, struct dgb_p *, sizeof(struct dgb_p)*sc->numports,
-		M_TTYS, M_NOWAIT);
-
-	if(sc->ports==0) {
-		printf("dgb%d: unable to malloc the per port structures\n",unit);
-		sc->status=DISABLED;
-		hidewin(sc);
-		return 0;
+	for(i=0; i<sc->numports && pstat[i]; i++)
+		if(pstat[i])
+			sc->ports[i].status=ENABLED;
+		else {
+			sc->ports[i].status=DISABLED;
+			printf("dgb%d: port %d is broken\n", unit, i);
 		}
-
-	bzero(sc->ports, sizeof(struct dgb_p)*sc->numports);
-
-	MALLOC(sc->ttys, struct tty *, sizeof(struct tty)*sc->numports,
-		M_TTYS, M_NOWAIT);
-
-	if(sc->ttys==0) {
-		printf("dgb%d: unable to malloc the tty structures\n",unit);
-		FREE(sc->ttys, M_TTYS);
-		sc->status=DISABLED;
-		hidewin(sc);
-		return 0;
-		}
-
-	bzero(sc->ttys, sizeof(struct tty)*sc->numports);
 
 	/* We should now init per-port structures */
 	bc=(struct board_chan *)(mem + CHANSTRUCT);
@@ -854,11 +791,8 @@ load_fep:
 	else
 		shrinkmem=0;
 
-
 	for(i=0; i<sc->numports; i++, bc++) {
 		port= &sc->ports[i];
-
-		port->status=ENABLED;
 
 		port->tty=&sc->ttys[i];
 		port->unit=unit;
@@ -2016,9 +1950,25 @@ dgbselect(dev, rw, p)
 	int		rw;
 	struct proc	*p;
 {
-	if (minor(dev) & CONTROL_MASK)
+	int mynor;
+	int unit,port;
+	struct dgb_softc *sc;
+	int ti;
+
+	mynor=minor(dev);
+
+	if (mynor & CONTROL_MASK)
 		return (ENODEV);
-	return (ttselect(dev & ~MINOR_MAGIC_MASK, rw, p));
+
+	unit=MINOR_TO_UNIT(mynor);
+	port=MINOR_TO_PORT(mynor);
+
+	sc=&dgb_softc[unit];
+
+	/* get index in the tty table */
+	ti= &sc->ttys[port]-dgb_tty;
+
+	return (ttselect(ti, rw, p));
 }
 
 static void 
