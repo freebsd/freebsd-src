@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.16 1997/12/07 20:49:39 wosch Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -72,8 +72,6 @@ static char const sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #include <des.h>
 #include <krb.h>
 
-/* #include "../../usr.bin/rlogin/krb.h" */
-
 char	dst_realm_buf[REALM_SZ];
 char	*dest_realm = NULL;
 int	use_kerberos = 1;
@@ -95,6 +93,9 @@ u_short	port;
 uid_t	userid;
 int errs, rem;
 int pflag, iamremote, iamrecursive, targetshouldbedirectory;
+
+static int argc_copy;
+static char **argv_copy;
 
 #define	CMDNEEDS	64
 char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
@@ -119,6 +120,24 @@ main(argc, argv)
 	struct servent *sp;
 	int ch, fflag, tflag;
 	char *targ, *shell;
+	int i;
+
+	/*
+	 * Prepare for execing ourselves.
+	 */
+
+	argc_copy = argc + 1;
+	argv_copy = malloc((argc_copy + 1) * sizeof(*argv_copy));
+	if (argv_copy == NULL)
+		err(1, "malloc");
+	argv_copy[0] = argv[0];
+	argv_copy[1] = "-K";
+	for(i = 1; i < argc; ++i) {
+		argv_copy[i + 1] = strdup(argv[i]);
+		if (argv_copy[i + 1] == NULL)
+			errx(1, "strdup: out of memory");
+	}
+	argv_copy[argc + 1] = NULL;
 
 	fflag = tflag = 0;
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
@@ -774,10 +793,8 @@ int
 kerberos(host, bp, locuser, user)
 	char **host, *bp, *locuser, *user;
 {
-	struct servent *sp;
-
-again:
 	if (use_kerberos) {
+		setuid(getuid());
 		rem = KSUCCESS;
 		errno = 0;
 		if (dest_realm == NULL)
@@ -791,15 +808,11 @@ again:
 			krcmd(host, port, user, bp, 0, dest_realm);
 
 		if (rem < 0) {
-			use_kerberos = 0;
-			if ((sp = getservbyname("shell", "tcp")) == NULL)
-				errx(1, "unknown service shell/tcp");
 			if (errno == ECONNREFUSED)
 			    oldw("remote host doesn't support Kerberos");
 			else if (errno == ENOENT)
 			    oldw("can't provide Kerberos authentication data");
-			port = sp->s_port;
-			goto again;
+			execv(_PATH_RCP, argv_copy);
 		}
 	} else {
 #ifdef CRYPT
