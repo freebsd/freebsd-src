@@ -1045,7 +1045,7 @@ get_pid(const char *pid_file)
 			    pid_file);
 		(void) fclose(f);
 	}
-	return pid;
+	return (pid);
 }
 
 /* Skip Over Blanks */
@@ -1089,7 +1089,7 @@ parse8601(char *s, char *errline)
 
 	ul = strtoul(s, &t, 10);
 	if (*t != '\0' && *t != 'T')
-		return -1;
+		return (-1);
 
 	/*
 	 * Now t points either to the end of the string (if no time was
@@ -1112,19 +1112,19 @@ parse8601(char *s, char *errline)
 	case 0:
 		break;
 	default:
-		return -1;
+		return (-1);
 	}
 
 	/* sanity check */
 	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
 	    || tm.tm_mday < 1 || tm.tm_mday > 31)
-		return -1;
+		return (-1);
 
 	if (*t != '\0') {
 		s = ++t;
 		ul = strtoul(s, &t, 10);
 		if (*t != '\0' && !isspace(*t))
-			return -1;
+			return (-1);
 
 		switch (t - s) {
 		case 6:
@@ -1138,17 +1138,17 @@ parse8601(char *s, char *errline)
 		case 0:
 			break;
 		default:
-			return -1;
+			return (-1);
 		}
 
 		/* sanity check */
 		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
 		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
-			return -1;
+			return (-1);
 	}
 	if ((tsecs = mktime(&tm)) == -1)
 		errx(1, "nonexistent time:\n%s", errline);
-	return tsecs;
+	return (tsecs);
 }
 
 /* physically move file */
@@ -1251,23 +1251,23 @@ parseDWM(char *s, char *errline)
 		switch (*s) {
 		case 'D':
 			if (Dseen)
-				return -1;
+				return (-1);
 			Dseen++;
 			s++;
 			l = strtol(s, &t, 10);
 			if (l < 0 || l > 23)
-				return -1;
+				return (-1);
 			tm.tm_hour = l;
 			break;
 
 		case 'W':
 			if (WMseen)
-				return -1;
+				return (-1);
 			WMseen++;
 			s++;
 			l = strtol(s, &t, 10);
 			if (l < 0 || l > 6)
-				return -1;
+				return (-1);
 			if (l != tm.tm_wday) {
 				int save;
 
@@ -1289,7 +1289,7 @@ parseDWM(char *s, char *errline)
 
 		case 'M':
 			if (WMseen)
-				return -1;
+				return (-1);
 			WMseen++;
 			s++;
 			if (tolower(*s) == 'l') {
@@ -1299,10 +1299,10 @@ parseDWM(char *s, char *errline)
 			} else {
 				l = strtol(s, &t, 10);
 				if (l < 1 || l > 31)
-					return -1;
+					return (-1);
 
 				if (l > nd)
-					return -1;
+					return (-1);
 				tm.tm_mday = l;
 			}
 			break;
@@ -1319,5 +1319,5 @@ parseDWM(char *s, char *errline)
 	}
 	if ((tsecs = mktime(&tm)) == -1)
 		errx(1, "nonexistent time:\n%s", errline);
-	return tsecs;
+	return (tsecs);
 }
