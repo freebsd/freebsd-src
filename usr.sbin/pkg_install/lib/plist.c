@@ -401,8 +401,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 		    if ((cp = MD5File(tmp, buf)) != NULL) {
 			/* Mismatch? */
 			if (strcmp(cp, p->next->name + 4)) {
-			    if (Verbose)
-				printf("%s fails original MD5 checksum - %s\n",
+			    warnx("`%s' fails original MD5 checksum - %s",
 				       tmp, Force ? "deleted anyway." : "not deleted.");
 			    if (!Force) {
 				fail = FAIL;
