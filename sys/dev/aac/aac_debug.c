@@ -120,9 +120,6 @@ aac_print_queues(struct aac_softc *sc)
 	    sc->aac_qstat[AACQ_READY].q_max);
 	device_printf(sc->aac_dev, "AACQ_BUSY      %d/%d\n", 
 	    sc->aac_qstat[AACQ_BUSY].q_length, sc->aac_qstat[AACQ_BUSY].q_max);
-	device_printf(sc->aac_dev, "AACQ_COMPLETE  %d/%d\n", 
-	    sc->aac_qstat[AACQ_COMPLETE].q_length,
-	    sc->aac_qstat[AACQ_COMPLETE].q_max);
 }
 
 /*
