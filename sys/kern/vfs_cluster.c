@@ -264,12 +264,20 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			rbp = cluster_rbuild(vp, filesize, lblkno, blkno,
 				size, ncontig, NULL);
 			lblkno += (rbp->b_bufsize / size);
+			if (rbp->b_flags & B_DELWRI) {
+				bqrelse(rbp);
+				continue;
+			}
 		} else {
 			rbp = getblk(vp, lblkno, size, 0, 0, 0);
+			lblkno += 1;
+			if (rbp->b_flags & B_DELWRI) {
+				bqrelse(rbp);
+				continue;
+			}
 			rbp->b_flags |= B_ASYNC | B_RAM;
 			rbp->b_iocmd = BIO_READ;
 			rbp->b_blkno = blkno;
-			lblkno += 1;
 		}
 		if (rbp->b_flags & B_CACHE) {
 			rbp->b_flags &= ~B_ASYNC;
