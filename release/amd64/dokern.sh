@@ -33,9 +33,7 @@ sed	\
 	-e '/	pty	/d' \
 	-e '/	random	/d' \
 	-e '/	ses	/d' \
-	-e '/	sf	/d' \
 	-e '/	splash	/d' \
-	-e '/	ste	/d' \
 	-e '/	tun	/d' \
 	-e '/	txp	/d' \
 	-e '/	ugen	/d' \
