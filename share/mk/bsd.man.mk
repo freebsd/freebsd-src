@@ -58,17 +58,17 @@ MROFF_CMD?=	groff -Tascii -man
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
-SECTIONS=	1 1aout 2 3 4 5 6 7 8 9 n
-
-.for sect in ${SECTIONS}
-.SUFFIXES: .${sect}
+SECTIONS=	1 1aout 2 3 4 5 6 7 8 9
+.SUFFIXES:	${SECTIONS:S/^/./g}
 
 # Backwards compatibility.
+.if !defined(MAN)
+.for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
 MAN+=	${MAN${sect}}
 .endif
-
 .endfor
+.endif
 
 all-man:
 
