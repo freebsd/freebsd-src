@@ -150,7 +150,7 @@ userret(p, frame, oticks)
 		postsig(sig);
 
 	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH();
+	PROC_UNLOCK_NOSWITCH(p);
 	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (resched_wanted(p)) {
 		/*
