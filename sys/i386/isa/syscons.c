@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.116 1995/05/21 18:30:05 sos Exp $
+ *  $Id: syscons.c,v 1.117 1995/05/30 08:03:13 rgrimes Exp $
  */
 
 #include "sc.h"
@@ -2038,14 +2038,14 @@ static scr_stat
 {
     scr_stat *scp;
 
-    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_NOWAIT);
+    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(scp);
     scp->scr_buf = scp->cursor_pos = scp->scr_buf = scp->mouse_pos =
 	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-			  M_DEVBUF, M_NOWAIT);
+			  M_DEVBUF, M_WAITOK);
     scp->history_head = scp->history_pos = scp->history =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
-			  M_DEVBUF, M_NOWAIT);
+			  M_DEVBUF, M_WAITOK);
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
     if (crtc_vga && video_mode_ptr)
 	set_mode(scp);
