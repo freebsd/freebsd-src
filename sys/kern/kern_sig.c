@@ -718,7 +718,6 @@ struct osigpending_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 osigpending(td, uap)
 	struct thread *td;
@@ -726,11 +725,9 @@ osigpending(td, uap)
 {
 	struct proc *p = td->td_proc;
 
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	SIG2OSIG(p->p_siglist, td->td_retval[0]);
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	return (0);
 }
 #endif /* COMPAT_43 */
