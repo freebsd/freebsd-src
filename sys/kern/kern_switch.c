@@ -214,7 +214,7 @@ slot_fill(struct ksegrp *kg)
 		 */
 		if (td) {
 			kg->kg_last_assigned = td;
-			sched_add(td, SRQ_BORING);
+			sched_add(td, SRQ_YIELDING);
 			CTR2(KTR_RUNQ, "slot_fill: td%p -> kg%p", td, kg);
 		} else {
 			/* no threads to use up the slots. quit now */
@@ -315,6 +315,140 @@ adjustrunqueue( struct thread *td, int newpri)
 	td->td_priority = newpri;
 	setrunqueue(td, SRQ_BORING);
 }
+
+/*
+ * This function is called when a thread is about to be put on a
+ * ksegrp run queue because it has been made runnable or its 
+ * priority has been adjusted and the ksegrp does not have a 
+ * free kse slot.  It determines if a thread from the same ksegrp
+ * should be preempted.  If so, it tries to switch threads
+ * if the thread is on the same cpu or notifies another cpu that
+ * it should switch threads. 
+ */
+
+static void
+maybe_preempt_in_ksegrp(struct thread *td)
+#if  !defined(SMP)
+{
+	struct thread *running_thread;
+
+#ifndef FULL_PREEMPTION
+	int pri;
+	pri = td->td_priority;
+	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD))
+		return;
+#endif
+	mtx_assert(&sched_lock, MA_OWNED);
+	running_thread = curthread;
+
+	if (running_thread->td_ksegrp != td->td_ksegrp)
+		return;
+
+	if (td->td_priority > running_thread->td_priority)
+		return;
+#ifdef PREEMPTION
+	if (running_thread->td_critnest > 1) 
+		running_thread->td_pflags |= TDP_OWEPREEMPT;
+	 else 		
+		 mi_switch(SW_INVOL, NULL);
+	
+#else
+	running_thread->td_flags |= TDF_NEEDRESCHED;
+#endif
+	return;
+}
+
+#else /* SMP */
+{
+	struct thread *running_thread;
+	int worst_pri;
+	struct ksegrp *kg;
+	cpumask_t cpumask,dontuse;
+	struct pcpu *pc;
+	struct pcpu *best_pcpu;
+	struct thread *cputhread;
+
+#ifndef FULL_PREEMPTION
+	int pri;
+	pri = td->td_priority;
+	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD))
+		return;
+#endif
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	running_thread = curthread;
+
+#if !defined(KSEG_PEEMPT_BEST_CPU)
+	if (running_thread->td_ksegrp != td->td_ksegrp) {
+#endif
+		kg = td->td_ksegrp;
+
+		/* if someone is ahead of this thread, wait our turn */
+		if (td != TAILQ_FIRST(&kg->kg_runq))  
+			return;
+		
+		worst_pri = td->td_priority;
+		best_pcpu = NULL;
+		dontuse   = stopped_cpus | idle_cpus_mask;
+		
+		/* 
+		 * Find a cpu with the worst priority that runs at thread from
+		 * the same  ksegrp - if multiple exist give first the last run
+		 * cpu and then the current cpu priority 
+		 */
+		
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			cpumask   = pc->pc_cpumask;
+			cputhread = pc->pc_curthread;
+
+			if ((cpumask & dontuse)  ||	 
+			    cputhread->td_ksegrp != kg)
+				continue;	
+
+			if (cputhread->td_priority > worst_pri) {
+				worst_pri = cputhread->td_priority;
+				best_pcpu = pc;	
+				continue;
+			}
+			
+			if (cputhread->td_priority == worst_pri &&
+			    best_pcpu != NULL &&			
+			    (td->td_lastcpu == pc->pc_cpuid ||
+				(PCPU_GET(cpumask) == cpumask &&
+				    td->td_lastcpu != best_pcpu->pc_cpuid))) 
+			    best_pcpu = pc;
+		}		
+		
+		/* Check if we need to preempt someone */
+		if (best_pcpu == NULL) 
+			return;
+
+		if (PCPU_GET(cpuid) != best_pcpu->pc_cpuid) {
+			best_pcpu->pc_curthread->td_flags |= TDF_NEEDRESCHED;
+			ipi_selected(best_pcpu->pc_cpumask, IPI_AST);
+			return;
+		}
+#if !defined(KSEG_PEEMPT_BEST_CPU)
+	}	
+#endif
+
+	if (td->td_priority > running_thread->td_priority)
+		return;
+#ifdef PREEMPTION
+	if (running_thread->td_critnest > 1) 
+		running_thread->td_pflags |= TDP_OWEPREEMPT;
+	 else 		
+		 mi_switch(SW_INVOL, NULL);
+	
+#else
+	running_thread->td_flags |= TDF_NEEDRESCHED;
+#endif
+	return;
+}
+#endif /* !SMP */
+
+
 int limitcount;
 void
 setrunqueue(struct thread *td, int flags)
@@ -421,6 +555,8 @@ setrunqueue(struct thread *td, int flags)
 	} else {
 		CTR3(KTR_RUNQ, "setrunqueue: held: td%p kg%p pid%d",
 			td, td->td_ksegrp, td->td_proc->p_pid);
+		if ((flags & SRQ_YIELDING) == 0)
+			maybe_preempt_in_ksegrp(td);
 	}
 }
 
