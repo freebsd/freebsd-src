@@ -426,8 +426,6 @@ dtors_section ()							\
 #define TYPE_ASM_OP	".type"
 #undef SIZE_ASM_OP
 #define SIZE_ASM_OP	".size"
-#undef SET_ASM_OP
-#define SET_ASM_OP	".set"
 
 /* This is how we tell the assembler that two symbols have the same value.  */
 
