@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.12 1995/10/28 15:38:43 phk Exp $
+ * $Id: aic6360.c,v 1.13 1995/11/04 17:07:05 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -655,7 +655,7 @@ struct aic_softc { /* One of these per adapter */
 #define AIC_SHOWMISC 0x08
 #define AIC_SHOWTRAC 0x10
 #define AIC_SHOWSTART 0x20
-int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
+static int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 
 #if AIC_DEBUG
 #define AIC_ACBS(str)  do {if (aic_debug & AIC_SHOWACBS) printf str;} while (0)
@@ -674,41 +674,41 @@ int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 #endif
 
 #ifdef __FreeBSD__
-int	aicprobe	__P((struct isa_device *));
-int	aicattach	__P((struct isa_device *));
+static int	aicprobe	__P((struct isa_device *));
+static int	aicattach	__P((struct isa_device *));
 #else
-int	aicprobe        __P((struct device *, struct device *, void *));
-void	aicattach       __P((struct device *, struct device *, void *));
+static int	aicprobe        __P((struct device *, struct device *, void *));
+static void	aicattach       __P((struct device *, struct device *, void *));
 #endif
-void	aic_minphys	__P((struct buf *));
+static void	aic_minphys	__P((struct buf *));
 #ifdef __FreeBSD__
-u_int32	aic_adapter_info __P((int));
-void 	aic_init	__P((struct aic_data *));
-int 	aic_find	__P((struct aic_data *));
+static u_int32	aic_adapter_info __P((int));
+static void 	aic_init	__P((struct aic_data *));
+static int 	aic_find	__P((struct aic_data *));
 #else
-u_int	aic_adapter_info __P((struct aic_softc *));
+static u_int	aic_adapter_info __P((struct aic_softc *));
 int	aicintr         __P((struct aic_softc *));
-void	aic_init        __P((struct aic_softc *));
+static void	aic_init        __P((struct aic_softc *));
 #endif
-void	aic_done	__P((struct acb *));
+static void	aic_done	__P((struct acb *));
 #ifdef __FreeBSD__
-int32	aic_scsi_cmd	__P((struct scsi_xfer *));
-int	aic_poll	__P((int, struct acb *));
+static int32	aic_scsi_cmd	__P((struct scsi_xfer *));
+static int	aic_poll	__P((int, struct acb *));
 #else
-int	aic_scsi_cmd    __P((struct scsi_xfer *));
-int	aic_poll        __P((struct aic_softc *, struct acb *));
+static int	aic_scsi_cmd    __P((struct scsi_xfer *));
+static int	aic_poll        __P((struct aic_softc *, struct acb *));
 #endif
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
 #ifdef __FreeBSD__
-timeout_t aic_timeout;
-void	aic_sched	__P((struct aic_data *));
-void	aic_scsi_reset	__P((struct aic_data *));
+static timeout_t aic_timeout;
+static void	aic_sched	__P((struct aic_data *));
+static void	aic_scsi_reset	__P((struct aic_data *));
 #else
-void	aic_timeout     __P((void *arg));
-int	aic_find        __P((struct aic_softc *));
-void	aic_sched       __P((struct aic_softc *));
-void	aic_scsi_reset  __P((struct aic_softc *));
+static void	aic_timeout     __P((void *arg));
+static int	aic_find        __P((struct aic_softc *));
+static void	aic_sched       __P((struct aic_softc *));
+static void	aic_scsi_reset  __P((struct aic_softc *));
 #endif
 #if AIC_DEBUG
 void	aic_print_active_acb();
@@ -728,7 +728,7 @@ struct cfdriver aiccd = {
 	NULL, "aic", aicprobe, aicattach, DV_DULL, sizeof(struct aic_softc)
 #endif
 
-struct scsi_adapter aic_switch = {
+static struct scsi_adapter aic_switch = {
 	aic_scsi_cmd,
 	aic_minphys,
 	0,
@@ -740,7 +740,7 @@ struct scsi_adapter aic_switch = {
 #endif
 };
 
-struct scsi_device aic_dev = {
+static struct scsi_device aic_dev = {
 	NULL,			/* Use default error handler */
 	NULL,			/* have a queue, served by this */
 	NULL,			/* have no async handler */
@@ -778,7 +778,7 @@ aic_registerdev(struct isa_device *id)
  * aicprobe: probe for AIC6360 SCSI-controller
  * returns non-zero value if a controller is found.
  */
-int
+static int
 #ifdef __FreeBSD__
 aicprobe(dev)
 	struct isa_device *dev;
@@ -863,7 +863,7 @@ aicprobe(parent, self, aux)
 /* Do the real search-for-device.
  * Prerequisite: aic->iobase should be set to the proper value
  */
-int
+static int
 aic_find(aic)
 #ifdef __FreeBSD__
 	struct aic_data *aic;
@@ -924,7 +924,7 @@ aicprint()
  * Attach the AIC6360, fill out some high and low level data structures
  */
 #ifdef __FreeBSD__
-int
+static int
 aicattach(dev)
 	struct isa_device *dev;
 #else
@@ -1035,7 +1035,7 @@ aic6360_reset(aic)
 }
 
 /* Pull the SCSI RST line for 500 us */
-void
+static void
 aic_scsi_reset(aic)
 #ifdef __FreeBSD__
 	struct aic_data *aic;
@@ -1063,7 +1063,7 @@ aic_scsi_reset(aic)
  * Initialize aic SCSI driver, also (conditonally) reset the SCSI bus.
  * The reinitialization is still buggy (e.g. on SCSI resets).
  */
-void
+static void
 aic_init(aic)
 #ifdef __FreeBSD__
 	struct aic_data *aic;
@@ -1152,9 +1152,9 @@ aic_init(aic)
  * SCSI-commands.
  */
 #ifdef __FreeBSD__
-int32
+static int32
 #else
-int
+static int
 #endif
 aic_scsi_cmd(xs)
 	struct scsi_xfer *xs;
@@ -1234,7 +1234,7 @@ aic_scsi_cmd(xs)
 /*
  * Adjust transfer size in buffer structure
  */
-void
+static void
 aic_minphys(bp)
 	struct buf *bp;
 {
@@ -1246,11 +1246,11 @@ aic_minphys(bp)
 
 
 #ifdef __FreeBSD__
-u_int32
+static u_int32
 aic_adapter_info(unit)
 	int	unit;
 #else
-u_int
+static u_int
 aic_adapter_info(aic)
 	struct aic_softc *aic;
 #endif
@@ -1263,7 +1263,7 @@ aic_adapter_info(aic)
 /*
  * Used when interrupt driven I/O isn't allowed, e.g. during boot.
  */
-int
+static int
 #ifdef __FreeBSD__
 aic_poll(unit, acb)
 	int	unit;
@@ -1351,7 +1351,7 @@ aicphase(aic)
  * save us an unecessary interrupt just to get things going.  Should only be
  * called when state == AIC_IDLE and at bio pl.
  */
-void
+static void
 aic_sched(aic)
 #ifdef __FreeBSD__
 	register struct aic_data *aic;
@@ -1410,7 +1410,7 @@ aic_sched(aic)
 /*
  * POST PROCESSING OF SCSI_CMD (usually current)
  */
-void
+static void
 aic_done(acb)
 	struct acb *acb;
 {
@@ -1950,7 +1950,7 @@ aic_msgout(aic)
  * This new revision has been optimized (I tried) to make the common case fast,
  * and the rarer cases (as a result) somewhat more comlex
  */
-void
+static void
 aic_dataout(aic)
 	register struct aic_data *aic;
 {
@@ -2066,7 +2066,7 @@ phasechange:
  * transferred.  This, is OK for fast targets, but not so smart for slow
  * targets which don't disconnect or for huge transfers.
  */
-void
+static void
 aic_datain(aic)
 #ifdef __FreeBSD__
 	register struct aic_data *aic;
@@ -2564,7 +2564,7 @@ aicintr(aic)
 	return;
 }
 
-void
+static void
 aic_timeout(void *arg1) {
 	int s = splbio();
 	struct acb *acb = (struct acb *)arg1;
