@@ -13,8 +13,5 @@ check-password
 \ Load in the boot menu
 include /boot/beastie.4th
 
-\ Do the normal initialization and startup
-initialize drop
-
 \ Start the boot menu
 beastie-start
