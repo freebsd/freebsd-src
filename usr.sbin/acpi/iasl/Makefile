@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=	iasl
-SRCS+=	aslcompilerparse.c aslcompilerlex.c aslanalyze.c aslcodegen.c \
+SRCS+=	aslcompiler.y.h aslcompilerparse.c aslcompilerlex.c \
+	aslanalyze.c aslcodegen.c \
 	aslcompile.c aslerror.c aslfiles.c asllength.c \
 	asllisting.c aslload.c asllookup.c aslmain.c \
 	aslmap.c aslopcodes.c asloperands.c aslresource.c \
@@ -38,9 +39,9 @@ CFLAGS+= -D_USE_BERKELEY_YACC
 .endif
 
 CLEANFILES= y.output y.tab.c y.tab.h aslcompiler.y.h \
-	aslcompilerparse.c aslcompilerlex.c iasl
+	aslcompilerparse.c aslcompilerlex.c
 
-aslcompilerparse.c: aslcompiler.y
+aslcompilerparse.c aslcompiler.y.h: aslcompiler.y
 	${YACC} ${YFLAGS} ${ACPICA_DIR}/compiler/aslcompiler.y
 	cp y.tab.c aslcompilerparse.c
 	cp y.tab.h aslcompiler.y.h
