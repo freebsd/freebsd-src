@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: xdryp.c,v 1.1 1994/08/07 23:04:54 wollman Exp $";
+static char *rcsid = "$Id: xdryp.c,v 1.2 1995/04/02 01:02:17 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -449,16 +449,16 @@ xdr_ypmap_parms(xdrs, objp)
 XDR *xdrs;
 struct ypmap_parms *objp;
 {
-	if (!xdr_domainname(xdrs, &objp->domain)) {
+	if (!xdr_domainname(xdrs, objp->domain)) {
 		return (FALSE);
 	}
-	if (!xdr_mapname(xdrs, &objp->map)) {
+	if (!xdr_mapname(xdrs, objp->map)) {
 		return (FALSE);
 	}
 	if (!xdr_u_long(xdrs, &objp->ordernum)) {
 		return (FALSE);
 	}
-	if (!xdr_peername(xdrs, &objp->owner)) {
+	if (!xdr_peername(xdrs, objp->owner)) {
 		return (FALSE);
 	}
 }
