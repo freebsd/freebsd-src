@@ -63,13 +63,13 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <paths.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
-#include <stdarg.h>
 #include "newfs.h"
 
 static void fatal(const char *fmt, ...) __printflike(1, 2);
@@ -136,15 +136,15 @@ int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
-static int	t_or_u_flag = 0;	/* user has specified -t or -u */
-static char	*disktype;
-static int	unlabeled;
 
 static char	device[MAXPATHLEN];
+static char	*disktype;
 static char	*progname;
+static int	t_or_u_flag;	/* user has specified -t or -u */
+static int	unlabeled;
 
-static void rewritelabel (char *s, int fd, register struct disklabel *lp);
-static void usage (void);
+static void rewritelabel(char *s, int fd, register struct disklabel *lp);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
