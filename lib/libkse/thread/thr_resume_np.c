@@ -35,35 +35,19 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+/* Resume a thread: */
 int
 pthread_resume_np(pthread_t thread)
 {
-	int		ret	= -1;
-	pthread_t	pthread;
-	/*
-	 * Search for the thread in the linked list.
-	 */
-	for (pthread = _thread_link_list; pthread != NULL && ret == -1; pthread = pthread->nxt) {
-		/* Is this the thread? */
-		if (pthread == thread) {
-			/* Found the thread. Is it suspended? */
-			if (pthread->state == PS_SUSPENDED) {
-				/* Allow the thread to run. */
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				ret = 0;
-			} else if (pthread->state == PS_RUNNING) {
-				/* Thread is already running. */
-				ret = 0;
-			} else {
-				/* Thread is in some other state. */
-				errno = EINVAL;
-			}
+	int ret;
+
+	/* Find the thread in the list of active threads: */
+	if ((ret = _find_thread(thread)) == 0) {
+		/* The thread exists. Is it suspended? */
+		if (thread->state != PS_SUSPENDED) {
+			/* Allow the thread to run. */
+			PTHREAD_NEW_STATE(thread,PS_RUNNING);
 		}
-	}
-	/* Check if thread was not found. */
-	if (ret == -1) {
-		/* No such thread */
-		errno = ESRCH;
 	}
 	return(ret);
 }

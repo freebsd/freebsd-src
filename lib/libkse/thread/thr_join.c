@@ -38,9 +38,8 @@
 int
 pthread_join(pthread_t pthread, void **thread_return)
 {
-	int             rval = 0;
-	int             status;
-	pthread_t	pthread1;
+	int ret = 0;
+	pthread_t pthread1 = NULL;
 
 	/* Check if the caller has specified an invalid thread: */
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
@@ -52,38 +51,23 @@ pthread_join(pthread_t pthread, void **thread_return)
 		/* Avoid a deadlock condition: */
 		return(EDEADLK);
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
+	/*
+	 * Find the thread in the list of active threads or in the
+	 * list of dead threads:
+	 */
+	if (_find_thread(pthread) == 0 ||
+	    _find_dead_thread(pthread) == 0)
+		pthread1  = pthread;
 
-	/* Point to the first thread in the list: */
-	pthread1 = _thread_link_list;
-
-	/* Search for the thread to join to: */
-	while (pthread1 != NULL && pthread1 != pthread) {
-		/* Point to the next thread: */
-		pthread1 = pthread1->nxt;
-	}
-
-	if (pthread1 == NULL) {
-		/* Point to the first thread in the dead thread list: */
-		pthread1 = _thread_dead;
-
-		/* Search for the thread to join to: */
-		while (pthread1 != NULL && pthread1 != pthread) {
-			/* Point to the next thread: */
-			pthread1 = pthread1->nxt;
-		}
-	}
-
-	if (pthread1 == NULL) {
+	if (pthread1 == NULL)
 		/* Return an error: */
-		rval = ESRCH;
+		ret = ESRCH;
 
 	/* Check if this thread has been detached: */
-	} else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+	else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0)
 		/* Return an error: */
-		rval = ESRCH;
-	}
+		ret = ESRCH;
+
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
 		/* Add the running thread to the join queue: */
@@ -92,32 +76,22 @@ pthread_join(pthread_t pthread, void **thread_return)
 		/* Schedule the next thread: */
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
-		/* Block signals again: */
-		_thread_kern_sig_block(NULL);
-
 		/* Check if the thread is not detached: */
-		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
+		if ((pthread->attr.flags & PTHREAD_DETACHED) == 0)
 			/* Check if the return value is required: */
-			if (thread_return) {
+			if (thread_return)
 				/* Return the thread's return value: */
 				*thread_return = pthread->ret;
-			}
-		} else {
+		else
 			/* Return an error: */
-			rval = ESRCH;
-		}
-	} else {
-		/* Check if the return value is required: */
-		if (thread_return != NULL) {
-			/* Return the thread's return value: */
-			*thread_return = pthread->ret;
-		}
-	}
+			ret = ESRCH;
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+	/* Check if the return value is required: */
+	} else if (thread_return != NULL)
+		/* Return the thread's return value: */
+		*thread_return = pthread->ret;
 
 	/* Return the completion status: */
-	return (rval);
+	return (ret);
 }
 #endif

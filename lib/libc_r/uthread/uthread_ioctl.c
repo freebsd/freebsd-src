@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,12 @@ ioctl(int fd, unsigned long request,...)
 {
 	int             ret;
 	int		*op;
-	int             status;
 	va_list         ap;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	/* Lock the file descriptor: */
 	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
 		/* Initialise the variable argument list: */
-	va_start(ap, request);
+		va_start(ap, request);
 
 		switch( request) {
 		case FIONBIO:
@@ -65,18 +61,16 @@ ioctl(int fd, unsigned long request,...)
 			ret = 0;
 			break;
 		default:
-		ret = _thread_sys_ioctl(fd, request, va_arg(ap, char *));
+			ret = _thread_sys_ioctl(fd, request, va_arg(ap, char *));
 			break;
 		}
 
 		/* Free variable arguments: */
-	va_end(ap);
+		va_end(ap);
 
 		/* Unlock the file descriptor: */
 		_thread_fd_unlock(fd, FD_RDWR);
 	}
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the completion status: */
 	return (ret);

@@ -43,9 +43,9 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 	pthread_cond_t	pcond;
 	int             rval = 0;
 
-	if (cond == NULL) {
+	if (cond == NULL)
 		rval = EINVAL;
-	} else {
+	else {
 		/*
 		 * Check if a pointer to a condition variable attribute
 		 * structure was passed by the caller: 
@@ -85,6 +85,7 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 				_thread_queue_init(&pcond->c_queue);
 				pcond->c_flags |= COND_FLAGS_INITED;
 				pcond->c_type = type;
+				pcond->access_lock = 0;
 				*cond = pcond;
 			}
 		}
@@ -98,31 +99,23 @@ pthread_cond_destroy(pthread_cond_t * cond)
 {
 	int             rval = 0;
 
-	if (cond == NULL || *cond == NULL) {
+	if (cond == NULL || *cond == NULL)
 		rval = EINVAL;
-	} else {
-		/* Process according to condition variable type: */
-		switch ((*cond)->c_type) {
-		/* Fast condition variable: */
-		case COND_TYPE_FAST:
-			/* Nothing to do here. */
-			break;
+	else {
+		/* Lock the condition variable structure: */
+		_spinlock(&(*cond)->access_lock);
 
-		/* Trap invalid condition variable types: */
-		default:
-			/* Return an invalid argument error: */
-			rval = EINVAL;
-			break;
-		}
+		/*
+		 * Free the memory allocated for the condition
+		 * variable structure:
+		 */
+		free(*cond);
 
-		/* Check for errors: */
-		if (rval == 0) {
-			/* Destroy the contents of the condition structure: */
-			_thread_queue_init(&(*cond)->c_queue);
-			(*cond)->c_flags = 0;
-			free(*cond);
-			*cond = NULL;
-		}
+		/*
+		 * NULL the caller's pointer now that the condition
+		 * variable has been destroyed:
+		 */
+		*cond = NULL;
 	}
 	/* Return the completion status: */
 	return (rval);
@@ -143,8 +136,8 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	 */
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the condition variable structure: */
+		_spinlock(&(*cond)->access_lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -162,12 +155,15 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			/* Wait forever: */
 			_thread_run->wakeup_time.tv_sec = -1;
 
+			/* Unlock the condition variable structure: */
+			_atomic_unlock(&(*cond)->access_lock);
+
 			/* Schedule the next thread: */
 			_thread_kern_sched_state(PS_COND_WAIT,
 			    __FILE__, __LINE__);
 
-			/* Block signals: */
-			_thread_kern_sig_block(NULL);
+			/* Lock the condition variable structure: */
+			_spinlock(&(*cond)->access_lock);
 
 			/* Lock the mutex: */
 			rval = pthread_mutex_lock(mutex);
@@ -180,8 +176,8 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+	/* Unlock the condition variable structure: */
+	_atomic_unlock(&(*cond)->access_lock);
 	}
 
 	/* Return the completion status: */
@@ -204,8 +200,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 */
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the condition variable structure: */
+		_spinlock(&(*cond)->access_lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -233,12 +229,15 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				 */
 				_thread_queue_deq(&(*cond)->c_queue);
 			} else {
+				/* Unlock the condition variable structure: */
+				_atomic_unlock(&(*cond)->access_lock);
+
 				/* Schedule the next thread: */
 				_thread_kern_sched_state(PS_COND_WAIT,
 				    __FILE__, __LINE__);
 
-				/* Block signals: */
-				_thread_kern_sig_block(NULL);
+				/* Lock the condition variable structure: */
+				_spinlock(&(*cond)->access_lock);
 
 				/* Lock the mutex: */
 				if ((rval = pthread_mutex_lock(mutex)) != 0) {
@@ -258,8 +257,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+	/* Unlock the condition variable structure: */
+	_atomic_unlock(&(*cond)->access_lock);
 	}
 
 	/* Return the completion status: */
@@ -273,11 +272,11 @@ pthread_cond_signal(pthread_cond_t * cond)
 	int             status;
 	pthread_t       pthread;
 
-	if (cond == NULL || *cond == NULL) {
+	if (cond == NULL || *cond == NULL)
 		rval = EINVAL;
-	} else {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+	else {
+		/* Lock the condition variable structure: */
+		_spinlock(&(*cond)->access_lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -297,8 +296,8 @@ pthread_cond_signal(pthread_cond_t * cond)
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the condition variable structure: */
+		_atomic_unlock(&(*cond)->access_lock);
 	}
 
 	/* Return the completion status: */
@@ -312,33 +311,37 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 	int             status;
 	pthread_t       pthread;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
-	/* Process according to condition variable type: */
-	switch ((*cond)->c_type) {
-	/* Fast condition variable: */
-	case COND_TYPE_FAST:
-		/*
-		 * Enter a loop to bring all threads off the
-		 * condition queue:
-		 */
-		while ((pthread =
-		    _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
-			/* Allow the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-		}
-		break;
-
-	/* Trap invalid condition variable types: */
-	default:
-		/* Return an invalid argument error: */
+	if (cond == NULL || *cond == NULL)
 		rval = EINVAL;
-		break;
-	}
+	else {
+		/* Lock the condition variable structure: */
+		_spinlock(&(*cond)->access_lock);
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+		/* Process according to condition variable type: */
+		switch ((*cond)->c_type) {
+		/* Fast condition variable: */
+		case COND_TYPE_FAST:
+			/*
+			 * Enter a loop to bring all threads off the
+			 * condition queue:
+			 */
+			while ((pthread =
+			    _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
+				/* Allow the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+			}
+			break;
+	
+		/* Trap invalid condition variable types: */
+		default:
+			/* Return an invalid argument error: */
+			rval = EINVAL;
+			break;
+		}
+
+		/* Unlock the condition variable structure: */
+		_atomic_unlock(&(*cond)->access_lock);
+	}
 
 	/* Return the completion status: */
 	return (rval);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,13 @@ recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from, int *
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
+				_thread_run->interrupted = 0;
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (errno == EINTR) {
+				if (_thread_run->interrupted) {
 					/* Return an error status: */
+					errno = EINTR;
 					ret = -1;
 					break;
 				}

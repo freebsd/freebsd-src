@@ -66,6 +66,7 @@ nanosleep(const struct timespec * time_to_sleep,
 			_thread_run->wakeup_time.tv_sec += 1;
 			_thread_run->wakeup_time.tv_nsec -= 1000000000;
 		}
+		_thread_run->interrupted = 0;
 
 		/* Reschedule the current thread to sleep: */
 		_thread_kern_sched_state(PS_SLEEP_WAIT, __FILE__, __LINE__);
@@ -106,8 +107,8 @@ nanosleep(const struct timespec * time_to_sleep,
 			time_remaining->tv_nsec = remaining_time.tv_nsec;
 		}
 
-		/* Check if the entire sleep was not completed: */
-		if (remaining_time.tv_nsec != 0 || remaining_time.tv_sec != 0) {
+		/* Check if the sleep was interrupted: */
+		if (_thread_run->interrupted) {
 			/* Return an EINTR error : */
 			errno = EINTR;
 			ret = -1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,6 @@ close(int fd)
 
 	/* Lock the file descriptor while the file is closed: */
 	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
-
 		/* Get file descriptor status. */
 		fstat(fd, &sb);
 
@@ -84,12 +81,8 @@ close(int fd)
 		/* Close the file descriptor: */
 		ret = _thread_sys_close(fd);
 
-		/* Free the file descriptor table entry: */
 		free(_thread_fd_table[fd]);
 		_thread_fd_table[fd] = NULL;
-
-		/* Unblock signals again: */
-		_thread_kern_sig_unblock(status);
 	}
 	return (ret);
 }
