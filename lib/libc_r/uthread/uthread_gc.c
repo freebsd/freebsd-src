@@ -36,6 +36,7 @@
  */
 #include <errno.h>
 #include <time.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/types.h>
@@ -52,8 +53,6 @@ _thread_gc(pthread_addr_t arg)
 	sigset_t	mask;
 	pthread_t	pthread;
 	pthread_t	pthread_cln;
-	pthread_t	pthread_nxt;
-	pthread_t	pthread_prv;
 	struct timespec	abstime;
 	void		*p_stack;
 
