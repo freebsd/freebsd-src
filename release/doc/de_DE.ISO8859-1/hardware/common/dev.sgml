@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.45 2002/11/20 19:29:00 ue Exp $
-	basiert auf: 1.115
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.46 2002/12/01 12:11:23 ue Exp $
+	basiert auf: 1.116
 -->
 
 <sect1>
@@ -3786,6 +3786,14 @@
           <para>GoHubs GoCOM232 (ubsa Treiber)</para>
         </listitem>
 
+	<listitem>
+	  <para>HP USB-Serial Adapter (&man.uftdi.4; Treiber)</para>
+	</listitem>
+
+	<listitem>
+	  <para>Inland UAS111 (&man.uftdi.4; Treiber)</para>
+	</listitem>
+
         <listitem>
           <para>Peracom single port serial adapter (ubsa
             Treiber)</para>
@@ -3794,6 +3802,10 @@
 	<listitem>
 	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4;
 	    Treiber)</para>
+	</listitem>
+
+	<listitem>
+	  <para>QVS USC-1000 (&man.uftdi.4; Treiber)</para>
 	</listitem>
 
 	<listitem>
