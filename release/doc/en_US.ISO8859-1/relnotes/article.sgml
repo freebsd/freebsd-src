@@ -256,6 +256,9 @@
     <para arch="sparc64">Support has been added for SBus-based
       devices.</para>
 
+    <para>The &man.snp.4; device is no longer static and can now be
+      compiled as a module. &merged;</para>
+
     <para arch="i386">The &man.spic.4; driver, which provides access
       to the jog dial device on some Sony laptops, has been
       added.</para>
@@ -2603,7 +2606,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       write a message to all users of a given group. &merged;</para>
 
     <para>&man.watch.8; now takes a <option>-f</option> option to
-      specify a &man.snp.4; device to use.</para>
+      specify a &man.snp.4; device to use. &merged;</para>
 
     <para>&man.which.1; is now a C program, rather than a Perl
       script.</para>
