@@ -33,6 +33,8 @@
 #ifdef RSRR
 
 #include "defs.h"
+#include <sys/param.h>
+#include <stddef.h>
 
 /* Taken from prune.c */
 /*
@@ -84,7 +86,13 @@ rsrr_init()
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sun_family = AF_UNIX;
     strcpy(serv_addr.sun_path, RSRR_SERV_PATH);
+#if BSD >= 199103
+    servlen = offsetof(struct sockaddr_un, sun_path)
+	    + strlen(serv_addr.sun_path);
+    serv_addr.sun_len = servlen;
+#else
     servlen = sizeof(serv_addr.sun_family) + strlen(serv_addr.sun_path);
+#endif
  
     if (bind(rsrr_socket, (struct sockaddr *) &serv_addr, servlen) < 0)
 	log(LOG_ERR, errno, "Can't bind RSRR socket");
