@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id$")
+RCSID("$Id: e_log10.S,v 1.4 1997/02/22 15:08:49 peter Exp $")
 
 ENTRY(__ieee754_log10)
 	fldlg2

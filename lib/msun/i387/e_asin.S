@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id$")
+RCSID("$Id: e_asin.S,v 1.5 1997/02/22 15:08:44 peter Exp $")
 
 /*
  * asin(x) = atan2(x, sqrt(1  - x^2).
