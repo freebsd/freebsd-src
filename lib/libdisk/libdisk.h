@@ -10,19 +10,61 @@
 *
 */
 
+#define DEBUG 1
+/* You can define a particular architecture here if you are debugging. */
+/* #define P_DEBUG p_sparc64 */
+
 #define MAX_NO_DISKS	32
 /* Max # of disks Disk_Names() will return */
 
 #define MAX_SEC_SIZE    2048  /* maximum sector size that is supported */
 #define MIN_SEC_SIZE	512   /* the sector size to end sensing at */
 
+const static enum platform {
+	p_any,			/* for debugging ! */
+	p_alpha,
+	p_i386,
+	p_pc98,
+	p_sparc64,
+	p_ia64,
+	p_ppc
+} platform =
+#if defined (P_DEBUG)
+	P_DEBUG
+#elif defined (PC98)
+	p_pc98
+#elif defined(__i386__)
+	p_i386
+#elif defined(__alpha__)
+	p_alpha
+#elif defined(__sparc64__)
+	p_sparc64
+#elif defined(__ia64__)
+	p_ia64
+#elif defined(__ppc__)
+	p_ppc
+#else
+	IHAVENOIDEA
+#endif
+	;
+
+	
+
+
 typedef enum {
 	whole,
 	unknown,
+
+	sun,
+	pc98,
+	mbr,
+	gpt,
+
 	fat,
 	freebsd,
 	extended,
 	part,
+	spare,
 	unused
 } chunk_e;
 
@@ -104,7 +146,7 @@ struct chunk {
 #define DELCHUNK_RECOVER	0x0001
 
 
-extern const char *chunk_n[];
+const char *chunk_name(chunk_e type);
 
 const char *
 slice_type_name( int type, int subtype );
@@ -135,6 +177,10 @@ void
 Sanitize_Bios_Geom(struct disk *disk);
 /* Set the bios geometry to something sane
  */
+
+int
+Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
+	chunk_e type, int subtype, u_long flags, const char *sname);
 
 int
 Delete_Chunk2(struct disk *disk, struct chunk *, int flags);
@@ -256,7 +302,7 @@ int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, c
 void * read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
 struct disklabel * read_disklabel(int, daddr_t, u_long);
-struct disk * Int_Open_Disk(const char *name, u_long size);
+struct disk * Int_Open_Disk(const char *name);
 int Fixup_Names(struct disk *);
 int MakeDevChunk(const struct chunk *c1, const char *path);
 __END_DECLS

@@ -24,6 +24,10 @@ SRCS	+=	write_ia64_disk.c
 SRCS	+=	write_alpha_disk.c
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+SRCS	+=	write_sparc64_disk.c
+.endif
+
 CLEANFILES+=	tmp.c tst01 tst01.o
 NOPROFILE=	yes
 NOPIC=		yes
@@ -34,3 +38,12 @@ MAN=		libdisk.3
 
 tst01: tst01.o libdisk.a
 	cc ${CFLAGS} -static tst01.o -o tst01 libdisk.a
+
+ad0:	all install tst01
+	./tst01 ad0
+
+da0:	all install tst01
+	./tst01 da0
+
+da1:	all install tst01
+	./tst01 da1

@@ -54,7 +54,6 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 		case whole:
 			if (Chunk_Inside(chunks, &ct))
 				return chunks;
-#ifndef PC98
 		case extended:
 			for(c1 = chunks->part; c1; c1 = c1->next) {
 				if (c1->type != type)
@@ -63,7 +62,6 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 					return c1;
 			}
 			return 0;
-#endif
 		case freebsd:
 			for(c1 = chunks->part; c1; c1 = c1->next) {
 				if (c1->type == type)
@@ -122,7 +120,7 @@ Clone_Chunk(const struct chunk *c1)
 	return c2;
 }
 
-static int
+int
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	chunk_e type, int subtype, u_long flags, const char *sname)
 {
@@ -236,38 +234,68 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		c1->subtype = subtype;
 		return 0;
 	}
-	if (type == freebsd)
-#ifdef PC98
-		subtype = 0xc494;
-#else
-		subtype = 0xa5;
-#endif
+
 	c1 = 0;
-#ifndef PC98
-	if(!c1 && (type == freebsd || type == fat || type == unknown))
-		c1 = Find_Mother_Chunk(d->chunks, offset, end, extended);
-#endif
-	if(!c1 && (type == freebsd || type == fat || type == unknown))
-		c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
-#ifndef PC98
-	if(!c1 && type == extended)
-		c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
-#endif
-	if(!c1 && type == part)
-		c1 = Find_Mother_Chunk(d->chunks, offset, end, freebsd);
+	/* PLATFORM POLICY BEGIN ------------------------------------- */
+	switch(platform) {
+	case p_i386:
+		switch (type) {
+		case fat:
+		case mbr:
+		case extended:
+		case freebsd:
+			subtype = 0xa5;
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
+			break;
+		case part:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, freebsd);
+			break;
+		default:
+			return(-1);
+		}
+		break;
+	case p_pc98:
+		subtype = 0xc494;
+		break;
+	case p_sparc64:
+	case p_alpha:
+		switch (type) {
+		case freebsd:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
+			break;
+		case part:
+			c1 = Find_Mother_Chunk(d->chunks, offset, end, freebsd);
+			break;
+		default:
+			return(-1);
+		}
+		break;
+	default:
+		return (-1);
+	}
+	/* PLATFORM POLICY END ---------------------------------------- */
+
 	if(!c1)
 		return __LINE__;
 	for(c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type != unused)
 			continue;
-		if(Chunk_Inside(c2, &ct)) {
+		if(!Chunk_Inside(c2, &ct))
+			continue;
+/* PLATFORM POLICY BEGIN ------------------------------------- */
+		if (platform == p_sparc64) {
+			offset = Prev_Cyl_Aligned(d, offset);
+			size = Next_Cyl_Aligned(d, size);
+			break;
+		}
+		if (platform == p_i386) {
 			if (type != freebsd)
-				goto doit;
+				break;
 			if (!(flags & CHUNK_ALIGN))
-				goto doit;
+				break;
 			if (offset == d->chunks->offset
 			   && end == d->chunks->end)
-				goto doit;
+				break;
 
 			/* Round down to prev cylinder */
 			offset = Prev_Cyl_Aligned(d,offset);
@@ -279,7 +307,6 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 			/* Keep one track clear in front of parent */
 			if (offset == c1->offset)
 				offset = Next_Track_Aligned(d, offset + 1);
-
 			/* Work on the (end+1) */
 			size += offset;
 			/* Round up to cylinder */
@@ -292,13 +319,14 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 
 			/* Convert back to size */
 			size -= offset;
-
-		    doit:
-			return Insert_Chunk(c2, offset, size, name,
-				type, subtype, flags, sname);
 		}
+
+/* PLATFORM POLICY END ------------------------------------- */
 	}
-	return __LINE__;
+	if (c2 == NULL)
+		return (__LINE__);
+	return Insert_Chunk(c2, offset, size, name,
+		type, subtype, flags, sname);
 }
 
 char *
@@ -325,7 +353,7 @@ Print_Chunk(struct chunk *c1,int offset)
 	for(; i < 10; i++) putchar(' ');
 	printf("%p %8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s",
 		c1, c1->offset, c1->size, c1->end, c1->name, c1->sname,
-		chunk_n[c1->type], c1->subtype,
+		chunk_name(c1->type), c1->subtype,
 		ShowChunkFlags(c1));
 	putchar('\n');
 	Print_Chunk(c1->part, offset + 2);
