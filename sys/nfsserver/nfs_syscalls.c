@@ -334,14 +334,16 @@ nfssvc_addsock(fp, mynam, p)
 	if (so->so_proto->pr_protocol == IPPROTO_UDP) {
 		tslp = nfs_udpsock;
 		if (tslp->ns_flag & SLP_VALID) {
-			FREE(mynam, M_SONAME);
+			if (mynam != NULL)
+				FREE(mynam, M_SONAME);
 			return (EPERM);
 		}
 #ifdef ISO
 	} else if (so->so_proto->pr_protocol == ISOPROTO_CLTP) {
 		tslp = nfs_cltpsock;
 		if (tslp->ns_flag & SLP_VALID) {
-			FREE(mynam, M_SONAME);
+			if (mynam != NULL)
+				FREE(mynam, M_SONAME);
 			return (EPERM);
 		}
 #endif /* ISO */
@@ -352,7 +354,8 @@ nfssvc_addsock(fp, mynam, p)
 		siz = NFS_MAXPACKET;
 	error = soreserve(so, siz, siz);
 	if (error) {
-		FREE(mynam, M_SONAME);
+		if (mynam != NULL)
+			FREE(mynam, M_SONAME);
 		return (error);
 	}
 
