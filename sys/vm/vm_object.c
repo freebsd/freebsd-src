@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.20 1995/01/25 20:36:29 davidg Exp $
+ * $Id: vm_object.c,v 1.21 1995/02/02 09:08:48 davidg Exp $
  */
 
 /*
@@ -170,7 +170,10 @@ vm_object_init(vm_offset_t nothing)
 	vm_object_count = 0;
 	simple_lock_init(&vm_cache_lock);
 	simple_lock_init(&vm_object_list_lock);
-	vm_object_cache_max = (cnt.v_page_count - 500) / 8;
+	
+	vm_object_cache_max = 84;
+	if (cnt.v_page_count > 1000)
+		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
 
 	for (i = 0; i < VM_OBJECT_HASH_COUNT; i++)
 		TAILQ_INIT(&vm_object_hashtable[i]);
