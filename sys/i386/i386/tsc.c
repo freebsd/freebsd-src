@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.46 1996/01/12 17:33:12 bde Exp $
+ *	$Id: clock.c,v 1.48 1996/01/15 21:12:50 phk Exp $
  */
 
 /*
@@ -398,29 +398,18 @@ sysbeep(int pitch, int period)
 /*
  * RTC support routines
  */
-static int
-bcd2int(int bcd)
-{
-	return(bcd/16 *	10 + bcd%16);
-}
 
-static int
-int2bcd(int dez)
-{
-	return(dez/10 *	16 + dez%10);
-}
-
-static inline void
+static __inline void
 writertc(u_char reg, u_char val)
 {
 	outb(IO_RTC, reg);
 	outb(IO_RTC + 1, val);
 }
 
-static int
+static __inline int
 readrtc(int port)
 {
-	return(bcd2int(rtcin(port)));
+	return(bcd2bin(rtcin(port)));
 }
 
 /*
@@ -523,9 +512,9 @@ resettodr()
 
 	tm -= tz.tz_minuteswest * 60 + adjkerntz;
 
-	writertc(RTC_SEC, int2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
-	writertc(RTC_MIN, int2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
-	writertc(RTC_HRS, int2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
+	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
+	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
+	writertc(RTC_HRS, bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
 
 	/* We have now the days	since 01-01-1970 in tm */
 	writertc(RTC_WDAY, (tm+4)%7);			/* Write back Weekday */
@@ -536,10 +525,10 @@ resettodr()
 
 	/* Now we have the years in y and the day-of-the-year in tm */
 #ifdef USE_RTC_CENTURY
-	writertc(RTC_YEAR, int2bcd(y%100));		/* Write back Year    */
-	writertc(RTC_CENTURY, int2bcd(y/100));		/* ... and Century    */
+	writertc(RTC_YEAR, bin2bcd(y%100));		/* Write back Year    */
+	writertc(RTC_CENTURY, bin2bcd(y/100));		/* ... and Century    */
 #else
-	writertc(RTC_YEAR, int2bcd(y - 1900));          /* Write back Year    */
+	writertc(RTC_YEAR, bin2bcd(y - 1900));          /* Write back Year    */
 #endif
 	for (m = 0; ; m++) {
 		int ml;
@@ -552,8 +541,8 @@ resettodr()
 		tm -= ml;
 	}
 
-	writertc(RTC_MONTH, int2bcd(m + 1));            /* Write back Month   */
-	writertc(RTC_DAY, int2bcd(tm + 1));             /* Write back Month Day */
+	writertc(RTC_MONTH, bin2bcd(m + 1));            /* Write back Month   */
+	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
 
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
