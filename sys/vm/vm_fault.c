@@ -319,12 +319,13 @@ RetryFault:;
 			/* 
 			 * check for page-based copy on write
 			 */
-
+			vm_page_lock_queues();
 			if ((fs.m->cow) && 
 			    (fault_type & VM_PROT_WRITE)) {
 				s = splvm();
 				vm_page_cowfault(fs.m);
 				splx(s);
+				vm_page_unlock_queues();
 				unlock_things(&fs);
 				goto RetryFault;
 			}
@@ -345,7 +346,6 @@ RetryFault:;
 			 * around with a vm_page_t->busy page except, perhaps,
 			 * to pmap it.
 			 */
-			vm_page_lock_queues();
 			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
 				unlock_things(&fs);

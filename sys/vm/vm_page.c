@@ -1815,10 +1815,16 @@ vm_page_cowfault(vm_page_t m)
 
  retry_alloc:
 	vm_page_remove(m);
-	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
+	/*
+	 * An interrupt allocation is requested because the page
+	 * queues lock is held. 
+	 */
+	mnew = vm_page_alloc(object, pindex, VM_ALLOC_INTERRUPT);
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
+		vm_page_unlock_queues();
 		VM_WAIT;
+		vm_page_lock_queues();
 		goto retry_alloc;
 	}
 
