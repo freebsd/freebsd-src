@@ -211,8 +211,6 @@ process(pp, file)
 		case 'U':  /* unlink associated files */
 			if (strchr(line+1, '/') || strncmp(line+1, "df", 2))
 				break;
-			if (from != host)
-				printf("%s: ", host);
 			do_unlink(line+1);
 		}
 	}
