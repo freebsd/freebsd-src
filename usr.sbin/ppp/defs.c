@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.7 1997/12/23 22:38:53 brian Exp $
+ *	$Id: defs.c,v 1.8 1997/12/24 09:28:56 brian Exp $
  */
 
 #include <sys/param.h>
@@ -100,7 +100,7 @@ GetShortHost()
 }
 
 void
-DropClient()
+DropClient(int verbose)
 {
   FILE *oVarTerm;
 
@@ -111,6 +111,7 @@ DropClient()
       fclose(oVarTerm);
     close(netfd);
     netfd = -1;
-    LogPrintf(LogPHASE, "Client connection closed.\n");
+    if (verbose)
+      LogPrintf(LogPHASE, "Client connection dropped.\n");
   }
 }
