@@ -2613,8 +2613,10 @@ maskloop:
 		hv = NAT_HASH_FN(iph, 0, ipf_rdrrules_sz);
 		for (np = rdr_rules[hv]; np; np = np->in_rnext) {
 			if ((np->in_ifp && (np->in_ifp != ifp)) ||
-			    (np->in_p && (np->in_p != fin->fin_p)) ||
-			    (np->in_flags && !(nflags & np->in_flags)))
+			    (np->in_p && (np->in_p != fin->fin_p)))
+				continue;
+			if ((np->in_flags & IPN_RF) &&
+			    !(nflags & np->in_flags))
 				continue;
 			if (np->in_flags & IPN_FILTER) {
 				if (!nat_match(fin, np, ip))
