@@ -123,12 +123,20 @@ static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
+static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
+static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
+		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
+		    ACPI_BUFFER *ret);
+static ACPI_STATUS acpi_device_walk_ns(device_t bus, device_t dev,
+		    ACPI_OBJECT_TYPE type, UINT32 max_depth,
+		    ACPI_WALK_CALLBACK user_fn, void *context, void **ret);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 			struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
 static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 			void *context, void **status);
+static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static int	acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
@@ -175,6 +183,11 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+    /* ACPI bus */
+    DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
+    DEVMETHOD(acpi_evaluate_object,	acpi_device_eval_obj),
+    DEVMETHOD(acpi_walk_namespace,	acpi_device_walk_ns),
+
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
@@ -218,7 +231,7 @@ TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
 static int
 acpi_modevent(struct module *mod, int event, void *junk)
 {
-    switch(event) {
+    switch (event) {
     case MOD_LOAD:
 	if (!cold) {
 	    printf("The ACPI driver cannot be loaded after boot.\n");
@@ -1053,6 +1066,46 @@ out:
     return_VALUE (valid);
 }
 
+static char *
+acpi_device_id_probe(device_t bus, device_t dev, char **ids) 
+{
+    ACPI_HANDLE h;
+    int i;
+
+    h = acpi_get_handle(dev);
+    if (ids == NULL || h == NULL || acpi_get_type(dev) != ACPI_TYPE_DEVICE)
+	return (NULL);
+
+    /* Try to match one of the array of IDs with a HID or CID. */
+    for (i = 0; ids[i] != NULL; i++) {
+	if (acpi_MatchHid(h, ids[i]))
+	    return (ids[i]);
+    }
+    return (NULL);
+}
+
+static ACPI_STATUS
+acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
+    ACPI_OBJECT_LIST *parameters, ACPI_BUFFER *ret)
+{
+    ACPI_HANDLE h;
+
+    if ((h = acpi_get_handle(dev)) == NULL)
+	return (AE_BAD_PARAMETER);
+    return (AcpiEvaluateObject(h, pathname, parameters, ret));
+}
+
+static ACPI_STATUS
+acpi_device_walk_ns(device_t bus, device_t dev, ACPI_OBJECT_TYPE type,
+    UINT32 max_depth, ACPI_WALK_CALLBACK user_fn, void *context, void **ret)
+{
+    ACPI_HANDLE h;
+
+    if ((h = acpi_get_handle(dev)) == NULL)
+	return (AE_BAD_PARAMETER);
+    return (AcpiWalkNamespace(type, h, max_depth, user_fn, context, ret));
+}
+
 static int
 acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 {
@@ -1195,7 +1248,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 
     bus = (device_t)context;
     if (ACPI_SUCCESS(AcpiGetType(handle, &type))) {
-	switch(type) {
+	switch (type) {
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
@@ -1398,8 +1451,8 @@ acpi_BatteryIsPresent(device_t dev)
 /*
  * Match a HID string against a handle
  */
-BOOLEAN
-acpi_MatchHid(ACPI_HANDLE h, char *hid) 
+static BOOLEAN
+acpi_MatchHid(ACPI_HANDLE h, const char *hid) 
 {
     ACPI_DEVICE_INFO	*devinfo;
     ACPI_BUFFER		buf;
@@ -2484,7 +2537,7 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
      * Currently, other ioctls just fetch information.
      * Not changing system behavior.
      */
-    if((flag & FWRITE) == 0)
+    if ((flag & FWRITE) == 0)
 	return (EPERM);
 
     /* Core system ioctls. */
