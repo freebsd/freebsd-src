@@ -43,6 +43,7 @@
 #include "opt_ddb_trace.h"
 #include "opt_ddb_unattended.h"
 #include "opt_hw_wdog.h"
+#include "opt_mac.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 
@@ -56,6 +57,7 @@
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -159,10 +161,17 @@ reboot(struct thread *td, struct reboot_args *uap)
 {
 	int error;
 
-	mtx_lock(&Giant);
-	if ((error = suser(td)) == 0)
+	error = 0;
+#ifdef MAC
+	error = mac_check_system_reboot(td->td_ucred, uap->opt);
+#endif
+	if (error == 0)
+		error = suser(td);
+	if (error == 0) {
+		mtx_lock(&Giant);
 		boot(uap->opt);
-	mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
+	}
 	return (error);
 }
 

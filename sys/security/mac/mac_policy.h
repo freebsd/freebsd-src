@@ -310,6 +310,7 @@ struct mac_policy_ops {
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_visible)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_system_reboot)(struct ucred *cred, int howto);
 	int	(*mpo_check_system_swapon)(struct ucred *cred,
 		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_vnode_access)(struct ucred *cred,
@@ -502,6 +503,7 @@ enum mac_op_constant {
 	MAC_CHECK_SOCKET_RELABEL,
 	MAC_CHECK_SOCKET_SEND,
 	MAC_CHECK_SOCKET_VISIBLE,
+	MAC_CHECK_SYSTEM_REBOOT,
 	MAC_CHECK_SYSTEM_SWAPON,
 	MAC_CHECK_VNODE_ACCESS,
 	MAC_CHECK_VNODE_CHDIR,
