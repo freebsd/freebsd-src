@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.56 1998/03/07 21:35:28 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.57 1998/03/08 09:57:09 julian Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -165,8 +165,8 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		}
 		reqbp = bp = NULL;
 	} else {
-		u_quad_t firstread;
-		firstread = (u_quad_t) lblkno * size;
+		off_t firstread;
+		firstread = bp->b_offset;
 		if (firstread + totread > filesize)
 			totread = filesize - firstread;
 		if (totread > size) {
@@ -253,6 +253,7 @@ single_block_read:
 			curproc->p_stats->p_ru.ru_inblock++;
 		}
 	}
+
 	/*
 	 * and if we have read-aheads, do them too
 	 */
@@ -346,6 +347,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_iodone = cluster_callback;
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
+	bp->b_offset = tbp->b_offset;
 	pbgetvp(vp, bp);
 
 	TAILQ_INIT(&bp->b_cluster.cluster_head);
@@ -363,8 +365,20 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				round_page(size) > vp->v_maxio)
 				break;
 
-			if (incore(vp, lbn + i))
-				break;
+			if (tbp = incore(vp, lbn + i)) {
+				if (tbp->b_flags & B_BUSY)
+					break;
+
+				for (j = 0; j < tbp->b_npages; j++)
+					if (tbp->b_pages[j]->valid)
+						break;
+				
+				if (j != tbp->b_npages)
+					break;
+	
+				if (tbp->b_bcount != size)
+					break;
+			}
 
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 
@@ -374,18 +388,12 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 
-			for (j=0;j<tbp->b_npages;j++) {
-				if (tbp->b_pages[j]->valid) {
+			for (j = 0;j < tbp->b_npages; j++)
+				if (tbp->b_pages[j]->valid)
 					break;
-				}
-			}
 
 			if (j != tbp->b_npages) {
-				/*
-				 * force buffer to be re-constituted later
-				 */
-				tbp->b_flags |= B_RELBUF;
-				brelse(tbp);
+				bqrelse(tbp);
 				break;
 			}
 
@@ -525,7 +533,7 @@ cluster_write(bp, filesize)
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
 #ifndef notyet_block_reallocation_enabled
-			if (((u_quad_t)(lbn + 1) * lblocksize) != filesize ||
+			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
 				lbn != vp->v_lastw + 1 ||
 				vp->v_clen <= cursize) {
 				if (!async)
@@ -576,7 +584,7 @@ cluster_write(bp, filesize)
 		 * existing cluster.
 		 */
 		if ((vp->v_type == VREG) &&
-			((u_quad_t) (lbn + 1) * lblocksize) != filesize &&
+			((u_quad_t) bp->b_offset + lblocksize) != filesize &&
 		    (bp->b_blkno == bp->b_lblkno) &&
 		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen, NULL) ||
 		     bp->b_blkno == -1)) {
@@ -682,6 +690,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
+		bp->b_offset = tbp->b_offset;
 		(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
 		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
 						(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));

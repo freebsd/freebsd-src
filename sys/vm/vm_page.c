@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.95 1998/03/07 21:37:13 dyson Exp $
+ *	$Id: vm_page.c,v 1.96 1998/03/08 06:27:30 dyson Exp $
  */
 
 /*
@@ -1427,7 +1427,12 @@ vm_page_bits(int base, int size)
 
 	if ((base == 0) && (size >= PAGE_SIZE))
 		return VM_PAGE_BITS_ALL;
+
 	size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+	if (size > PAGE_SIZE - base) {
+		size = PAGE_SIZE - base;
+	}
+
 	base = (base % PAGE_SIZE) / DEV_BSIZE;
 	chunk = vm_page_dev_bsize_chunks[size / DEV_BSIZE];
 	return (chunk << base) & VM_PAGE_BITS_ALL;
@@ -1463,6 +1468,7 @@ vm_page_set_invalid(m, base, size)
 	m->valid &= ~(bits = vm_page_bits(base, size));
 	if (m->valid == 0)
 		m->dirty &= ~bits;
+	m->object->generation++;
 }
 
 /*
