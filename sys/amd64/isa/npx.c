@@ -118,20 +118,20 @@
 
 #else	/* not __GNUC__ */
 
-void	fldcw		(caddr_t addr);
-void	fnclex		(void);
-void	fninit		(void);
-void	fnsave		(caddr_t addr);
-void	fnstcw		(caddr_t addr);
-void	fnstsw		(caddr_t addr);
-void	fp_divide_by_0	(void);
-void	frstor		(caddr_t addr);
+void	fldcw(caddr_t addr);
+void	fnclex(void);
+void	fninit(void);
+void	fnsave(caddr_t addr);
+void	fnstcw(caddr_t addr);
+void	fnstsw(caddr_t addr);
+void	fp_divide_by_0(void);
+void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
-void	fxsave		(caddr_t addr);
-void	fxrstor		(caddr_t addr);
+void	fxsave(caddr_t addr);
+void	fxrstor(caddr_t addr);
 #endif
-void	start_emulating	(void);
-void	stop_emulating	(void);
+void	start_emulating(void);
+void	stop_emulating(void);
 
 #endif	/* __GNUC__ */
 
@@ -159,17 +159,17 @@ void	stop_emulating	(void);
 
 typedef u_char bool_t;
 
-static	int	npx_attach	(device_t dev);
-static	void	npx_identify	(driver_t *driver, device_t parent);
+static	int	npx_attach(device_t dev);
+static	void	npx_identify(driver_t *driver, device_t parent);
 #ifndef SMP
-static	void	npx_intr	(void *);
+static	void	npx_intr(void *);
 #endif
-static	int	npx_probe	(device_t dev);
-static	void	fpusave		(union savefpu *);
-static	void	fpurstor	(union savefpu *);
+static	int	npx_probe(device_t dev);
+static	void	fpusave(union savefpu *);
+static	void	fpurstor(union savefpu *);
 #ifdef I586_CPU_XXX
-static	long	timezero	(const char *funcname,
-				     void (*func)(void *buf, size_t len));
+static	long	timezero(const char *funcname,
+		    void (*func)(void *buf, size_t len));
 #endif /* I586_CPU */
 
 int	hw_float;		/* XXX currently just alias for npx_exists */
