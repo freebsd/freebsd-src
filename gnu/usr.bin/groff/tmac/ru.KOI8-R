@@ -125,6 +125,7 @@
 .ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
 .ds doc-str-Lb-libnetgraph Пользовательская библиотека Netgraph (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libossaudio Библиотека эмуляции OSS Audio (libossaudio, \-lossaudio)
+.ds doc-str-Lb-libpam      Библиотека PAM (libpam, \-lpam)
 .ds doc-str-Lb-libposix    Библиотека \*[Px]\-совместимости (libposix, \-lposix)
 .ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
 .ds doc-str-Lb-librpcsvc   Библиотека служб RPC (librpcsvc, \-lrpcsvc)
