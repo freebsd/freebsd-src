@@ -29,7 +29,7 @@
 	build.
 -->
 
-<sect1>
+<sect1 id="support">
   <sect1info>
     <pubdate>$FreeBSD$</pubdate>
   </sect1info>

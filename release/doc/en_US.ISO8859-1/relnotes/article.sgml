@@ -29,7 +29,7 @@
   </abstract>
 </articleinfo>
 
-<sect1>
+<sect1 id="intro">
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
@@ -63,7 +63,7 @@
 ]]>
 </sect1>
 
-<sect1>
+<sect1 id="new">
   <title>What's New</title>
 
   <para>This section describes
@@ -4651,7 +4651,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 </sect1>
 
-<sect1>
+<sect1 id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
   <para>Users with existing &os; systems are
