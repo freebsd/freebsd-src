@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: crypt.3,v 1.1.1.1 1994/04/04 14:57:18 g89r4222 Exp $
+.\"	$Id$
 .\"
 .\" Manual page, using -mandoc macros
 .\"
@@ -100,6 +100,14 @@ Thus only 12 bits of
 are used.
 .Fa count
 is set to 25.
+.Ss "FreeBSD" or "Exportable" crypt:
+.Pp
+If the salt begins with ``$1$'' then the freely exportable 
+.Tn MD5
+algorithm is used to calculate a hash value, from which the password string
+is generated. The
+.Tn MD5
+derived routine is designed to be time-consuming like the DES based version.
 .Ss Algorithm:
 .Pp
 The
