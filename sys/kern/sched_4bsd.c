@@ -123,7 +123,7 @@ maybe_resched(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_priority < curthread->td_priority && curthread->td_kse)
-		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+		curthread->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
@@ -535,7 +535,7 @@ sched_switchout(struct thread *td)
 	td->td_lastcpu = ke->ke_oncpu;
 	td->td_last_kse = ke;
 	ke->ke_oncpu = NOCPU;
-	ke->ke_flags &= ~KEF_NEEDRESCHED;
+	td->td_flags &= ~TDF_NEEDRESCHED;
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,
 	 * then put it back on the run queue as it has not been suspended

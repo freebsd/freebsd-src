@@ -492,7 +492,7 @@ sched_switchout(struct thread *td)
 	td->td_last_kse = ke;
         td->td_lastcpu = ke->ke_oncpu;
 	ke->ke_oncpu = NOCPU;
-        ke->ke_flags &= ~KEF_NEEDRESCHED;
+        td->td_flags &= ~TDF_NEEDRESCHED;
 
 	if (TD_IS_RUNNING(td)) {
 		setrunqueue(td);
@@ -518,7 +518,7 @@ sched_switchin(struct thread *td)
 #if SCHED_STRICT_RESCHED
 	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 	    td->td_priority != td->td_ksegrp->kg_user_pri)
-		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+		curthread->td_flags |= TDF_NEEDRESCHED;
 #endif
 }
 
@@ -530,7 +530,7 @@ sched_nice(struct ksegrp *kg, int nice)
 	kg->kg_nice = nice;
 	sched_priority(kg);
 	FOREACH_THREAD_IN_GROUP(kg, td) {
-		td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+		td->td_flags |= TDF_NEEDRESCHED;
 	}
 }
 
@@ -584,7 +584,7 @@ sched_wakeup(struct thread *td)
 	setrunqueue(td);
 #if SCHED_STRICT_RESCHED
         if (td->td_priority < curthread->td_priority)
-                curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+                curthread->td_flags |= TDF_NEEDRESCHED;
 #endif
 }
 
@@ -686,7 +686,7 @@ sched_clock(struct thread *td)
 
 	if (nke && nke->ke_thread &&
 	    nke->ke_thread->td_priority < td->td_priority)
-		ke->ke_flags |= KEF_NEEDRESCHED;
+		td->td_flags |= TDF_NEEDRESCHED;
 #endif
 	/*
 	 * We used a tick charge it to the ksegrp so that we can compute our
@@ -704,7 +704,7 @@ sched_clock(struct thread *td)
 	if (ke->ke_slice == 0) {
 		td->td_priority = sched_priority(kg);
 		ke->ke_slice = sched_slice(kg);
-		ke->ke_flags |= KEF_NEEDRESCHED;
+		td->td_flags |= TDF_NEEDRESCHED;
 		ke->ke_runq = NULL;
 	}
 }

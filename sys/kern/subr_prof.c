@@ -478,7 +478,7 @@ done2:
  * inaccurate.
  */
 void
-addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks)
+addupc_intr(struct thread *td, uintptr_t pc, u_int ticks)
 {
 	struct uprof *prof;
 	caddr_t addr;
@@ -487,7 +487,7 @@ addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks)
 
 	if (ticks == 0)
 		return;
-	prof = &ke->ke_proc->p_stats->p_prof;
+	prof = &td->td_proc->p_stats->p_prof;
 	if (pc < prof->pr_off ||
 	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size)
 		return;			/* out of range; ignore */
@@ -497,7 +497,7 @@ addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks)
 		mtx_lock_spin(&sched_lock);
 		prof->pr_addr = pc;
 		prof->pr_ticks = ticks;
-		ke->ke_flags |= KEF_OWEUPC | KEF_ASTPENDING ;
+		td->td_flags |= TDF_OWEUPC | TDF_ASTPENDING ;
 		mtx_unlock_spin(&sched_lock);
 	}
 }
@@ -508,9 +508,9 @@ addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks)
  * XXXKSE, don't use kse unless we got sched lock.
  */
 void
-addupc_task(struct kse *ke, uintptr_t pc, u_int ticks)
+addupc_task(struct thread *td, uintptr_t pc, u_int ticks)
 {
-	struct proc *p = ke->ke_proc; 
+	struct proc *p = td->td_proc; 
 	struct uprof *prof;
 	caddr_t addr;
 	u_int i;

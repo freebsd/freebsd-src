@@ -123,7 +123,7 @@ forward_signal(struct thread *td)
 	int id;
 
 	/*
-	 * signotify() has already set KEF_ASTPENDING and PS_NEEDSIGCHECK on
+	 * signotify() has already set TDF_ASTPENDING and PS_NEEDSIGCHECK on
 	 * this process, so all we need to do is poke it if it is currently
 	 * executing so that it executes ast().
 	 */
@@ -169,7 +169,7 @@ forward_roundrobin(void)
 		id = pc->pc_cpumask;
 		if (id != PCPU_GET(cpumask) && (id & stopped_cpus) == 0 &&
 		    td != pc->pc_idlethread) {
-			td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+			td->td_flags |= TDF_NEEDRESCHED;
 			map |= id;
 		}
 	}

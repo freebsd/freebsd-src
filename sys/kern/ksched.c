@@ -186,7 +186,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			rtp_to_pri(&rtp, kg);
 			FOREACH_THREAD_IN_GROUP(kg, td) { /* XXXKSE */
 				if (TD_IS_RUNNING(td)) {
-					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+					td->td_flags |= TDF_NEEDRESCHED;
 				} else if (TD_ON_RUNQ(td)) {
 					if (td->td_priority > kg->kg_user_pri) {
 						sched_prio(td, kg->kg_user_pri);
@@ -216,7 +216,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			 */
 			FOREACH_THREAD_IN_GROUP(kg, td) {
 				if (TD_IS_RUNNING(td)) {
-					td->td_kse->ke_flags |= KEF_NEEDRESCHED;
+					td->td_flags |= TDF_NEEDRESCHED;
 				} else if (TD_ON_RUNQ(td)) {
 					if (td->td_priority > kg->kg_user_pri) {
 						sched_prio(td, kg->kg_user_pri);
@@ -242,7 +242,7 @@ int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *t
 int ksched_yield(register_t *ret, struct ksched *ksched)
 {
 	mtx_lock_spin(&sched_lock);
-	curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
+	curthread->td_flags |= TDF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 	return 0;
 }

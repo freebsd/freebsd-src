@@ -448,7 +448,6 @@ mi_switch(void)
 	struct bintime new_switchtime;
 	struct thread *td = curthread;	/* XXX */
 	struct proc *p = td->td_proc;	/* XXX */
-	struct kse *ke = td->td_kse;
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
@@ -489,7 +488,7 @@ mi_switch(void)
 	if (p->p_cpulimit != RLIM_INFINITY &&
 	    p->p_runtime.sec > p->p_cpulimit) {
 		p->p_sflag |= PS_XCPU;
-		ke->ke_flags |= KEF_ASTPENDING;
+		td->td_flags |= TDF_ASTPENDING;
 	}
 
 	/*
