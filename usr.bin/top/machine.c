@@ -415,17 +415,39 @@ get_system_info(struct system_info *si)
 
 #define NOPROC	((void *)-1)
 
+/*
+ * We need to compare data from the old process entry with the new
+ * process entry.
+ * To facilitate doing this quickly we stash a pointer in the kinfo_proc
+ * structure to cache the mapping.  We also use a negative cache pointer
+ * of NOPROC to avoid duplicate lookups.
+ * XXX: this could be done when the actual processes are fetched, we do
+ * it here out of laziness.
+ */
 const struct kinfo_proc *
 get_old_proc(struct kinfo_proc *pp)
 {
 	struct kinfo_proc **oldpp, *oldp;
 
+	/*
+	 * If this is the first fetch of the kinfo_procs then we don't have
+	 * any previous entries.
+	 */
 	if (previous_proc_count == 0)
 		return (NULL);
+	/* negative cache? */
 	if (pp->ki_udata == NOPROC)
 		return (NULL);
+	/* cached? */
 	if (pp->ki_udata != NULL)
 		return (pp->ki_udata);
+	/*
+	 * Not cached,
+	 * 1) look up based on pid.
+	 * 2) compare process start.
+	 * If we fail here, then setup a negative cache entry, otherwise
+	 * cache it.
+	 */
 	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
 	    sizeof(*previous_pref), compare_pid);
 	if (oldpp == NULL) {
@@ -441,6 +463,10 @@ get_old_proc(struct kinfo_proc *pp)
 	return (oldp);
 }
 
+/*
+ * Return the total amount of IO done in blocks in/out and faults.
+ * store the values individually in the pointers passed in.
+ */
 long
 get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp)
 {
@@ -464,6 +490,9 @@ get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp)
 	return (ret);
 }
 
+/*
+ * Return the total number of block in/out and faults by a process.
+ */
 long
 get_io_total(struct kinfo_proc *pp)
 {
