@@ -37,6 +37,7 @@
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/file.h>
 #include <sys/proc.h>
@@ -636,6 +637,8 @@ vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
 
 /*
  * Given a file path, get an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_get_file(struct proc *p, struct __acl_get_file_args *uap)
@@ -643,18 +646,23 @@ __acl_get_file(struct proc *p, struct __acl_get_file_args *uap)
 	struct nameidata nd;
 	int error;
 
+	mtx_lock(&Giant);
 	/* what flags are required here -- possible not LOCKLEAF? */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	error = namei(&nd);
-	if (error)
-		return(error);
-	error = vacl_get_acl(p, nd.ni_vp, SCARG(uap, type), SCARG(uap, aclp));
-	NDFREE(&nd, 0);
+	if (error == 0) {
+		error = vacl_get_acl(p, nd.ni_vp, SCARG(uap, type), 
+			    SCARG(uap, aclp));
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Given a file path, set an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_set_file(struct proc *p, struct __acl_set_file_args *uap)
@@ -662,17 +670,22 @@ __acl_set_file(struct proc *p, struct __acl_set_file_args *uap)
 	struct nameidata nd;
 	int error;
 
+	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	error = namei(&nd);
-	if (error)
-		return(error);
-	error = vacl_set_acl(p, nd.ni_vp, SCARG(uap, type), SCARG(uap, aclp));
-	NDFREE(&nd, 0);
+	if (error == 0) {
+		error = vacl_set_acl(p, nd.ni_vp, SCARG(uap, type),
+			    SCARG(uap, aclp));
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Given a file descriptor, get an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_get_fd(struct proc *p, struct __acl_get_fd_args *uap)
@@ -680,15 +693,20 @@ __acl_get_fd(struct proc *p, struct __acl_get_fd_args *uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
 	error = getvnode(p->p_fd, SCARG(uap, filedes), &fp);
-	if (error)
-		return(error);
-	return vacl_get_acl(p, (struct vnode *)fp->f_data, SCARG(uap, type),
-	    SCARG(uap, aclp));
+	if (error == 0) {
+		error = vacl_get_acl(p, (struct vnode *)fp->f_data,
+			    SCARG(uap, type), SCARG(uap, aclp));
+	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
  * Given a file descriptor, set an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_set_fd(struct proc *p, struct __acl_set_fd_args *uap)
@@ -696,15 +714,20 @@ __acl_set_fd(struct proc *p, struct __acl_set_fd_args *uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
 	error = getvnode(p->p_fd, SCARG(uap, filedes), &fp);
-	if (error)
-		return(error);
-	return vacl_set_acl(p, (struct vnode *)fp->f_data, SCARG(uap, type),
-	    SCARG(uap, aclp));
+	if (error == 0) {
+		error = vacl_set_acl(p, (struct vnode *)fp->f_data,
+			    SCARG(uap, type), SCARG(uap, aclp));
+	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
  * Given a file path, delete an ACL from it.
+ *
+ * MPSAFE
  */
 int
 __acl_delete_file(struct proc *p, struct __acl_delete_file_args *uap)
@@ -712,17 +735,21 @@ __acl_delete_file(struct proc *p, struct __acl_delete_file_args *uap)
 	struct nameidata nd;
 	int error;
 
+	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	error = namei(&nd);
-	if (error)
-		return(error);
-	error = vacl_delete(p, nd.ni_vp, SCARG(uap, type));
-	NDFREE(&nd, 0);
+	if (error == 0) {
+		error = vacl_delete(p, nd.ni_vp, SCARG(uap, type));
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Given a file path, delete an ACL from it.
+ *
+ * MPSAFE
  */
 int
 __acl_delete_fd(struct proc *p, struct __acl_delete_fd_args *uap)
@@ -730,15 +757,20 @@ __acl_delete_fd(struct proc *p, struct __acl_delete_fd_args *uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
 	error = getvnode(p->p_fd, SCARG(uap, filedes), &fp);
-	if (error)
-		return(error);
-	error = vacl_delete(p, (struct vnode *)fp->f_data, SCARG(uap, type));
+	if (error == 0) {
+		error = vacl_delete(p, (struct vnode *)fp->f_data, 
+			    SCARG(uap, type));
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Given a file path, check an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_aclcheck_file(struct proc *p, struct __acl_aclcheck_file_args *uap)
@@ -746,17 +778,22 @@ __acl_aclcheck_file(struct proc *p, struct __acl_aclcheck_file_args *uap)
 	struct nameidata	nd;
 	int	error;
 
+	mtx_lock(&Giant);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	error = namei(&nd);
-	if (error)
-		return(error);
-	error = vacl_aclcheck(p, nd.ni_vp, SCARG(uap, type), SCARG(uap, aclp));
-	NDFREE(&nd, 0);
+	if (error == 0) {
+		error = vacl_aclcheck(p, nd.ni_vp, SCARG(uap, type),
+			    SCARG(uap, aclp));
+		NDFREE(&nd, 0);
+	}
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
  * Given a file descriptor, check an ACL for it
+ *
+ * MPSAFE
  */
 int
 __acl_aclcheck_fd(struct proc *p, struct __acl_aclcheck_fd_args *uap)
@@ -764,9 +801,12 @@ __acl_aclcheck_fd(struct proc *p, struct __acl_aclcheck_fd_args *uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
 	error = getvnode(p->p_fd, SCARG(uap, filedes), &fp);
-	if (error)
-		return(error);
-	return vacl_aclcheck(p, (struct vnode *)fp->f_data, SCARG(uap, type),
-	    SCARG(uap, aclp));
+	if (error == 0) {
+		error = vacl_aclcheck(p, (struct vnode *)fp->f_data,
+			    SCARG(uap, type), SCARG(uap, aclp));
+	}
+	mtx_unlock(&Giant);
+	return (error);
 }
