@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.21 1999/02/06 16:58:50 fenner Exp $
+ * $Id: machine.c,v 1.22 1999/03/05 16:38:13 bde Exp $
  */
 
 
@@ -584,7 +584,7 @@ char *(*get_userid)();
     /* generate "STATE" field */
     switch (state = PP(pp, p_stat)) {
 	case SRUN:
-	    if (smpmode && PP(pp, p_oncpu) == 0xff)
+	    if (smpmode && PP(pp, p_oncpu) != 0xff)
 		sprintf(status, "CPU%d", PP(pp, p_oncpu));
 	    else
 		strcpy(status, "RUN");
