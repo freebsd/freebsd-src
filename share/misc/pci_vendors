@@ -175,6 +175,7 @@
 	4C53	Rage L Mobility PCI
 	4C54	Mach64 LT (264LT)
 	4C57	Radeon Mobility M6 LW
+	4C58	M7-GL
 	4C59	Mobility 6 Radeon Mobility M6 LY
 	4C5A	Radeon Mobility M6 LZ
 	4D46	Rage Mobility 128 AGP 4x
@@ -209,9 +210,12 @@
 	5147	Radeon QG
 	5148	R200 ATI FireGL 8700/8800
 	514C	Radeon QL ATI Radeon 8500
+	514E	R200
+	514F	R200
 	5157	RV200 Radeon QW
 	5159	Radeon VE QY
 	515A	Radeon VE QZ
+	516C	R200
 	5245	Rage 128 GL PCI
 	5246	Rage 128 GL AGP 2x
 	5247	Rage 128 RG
@@ -253,6 +257,8 @@
 	0304	SAA7785 ThunderBird PCI Audio Accelerator
 	0305	QSound ThunderBird PCI Audio Gameport
 	0306	QSound ThunderBird PCI Audio Support Registers
+	0307	Thunderbird Avenger Audio Accelerator
+	0308	Thunderbird Avenger GamePort Enumerator
 	0702	VAS96011 Golden Gate II
 1005	Advance Logic (ADL) Inc
 	2064	ALG2032/2064 alg2032  63067s1
@@ -395,7 +401,7 @@
 	0142	Yotta Video Compositor Input
 	0144	Yotta Video Compositor Output
 	0156	405GP PLB to PCI Bridge
-	0170	RC1000 Rasterizer/IBM GT1000 Geometr(FireGL2/3/4)
+	0170	RC1000 Rasterizer/IBM GT1000 Geometr
 	01A7	IBM 133 PCI-X Bridge R1.1
 	01BD	ServeRAID 4x Morpheus SCSI RAID Controller
 	01BE	ServeRAID 4M SCSI RAID Controller
@@ -1635,9 +1641,13 @@
 	0200	GeForce3 [NV20]
 	0201	GeForce3 Ti 200 [NV20DDR]
 	0202	GeForce3 Ti 500 [NV20BR]
-	0203	Quadro DCC [NV20GL]
-	0250	NV25
-	0258	NV25GL
+	0203	Quadro DCC [NV20DCC]
+	0250	GeForce4 Ti 4600 [NV25.1]
+	0251	GeForce4 Ti 4400 [NV25.2]
+	0253	GeForce4 Ti 4200 [NV25.4]
+	0258	Quadro4 900XGL [NV25GL.1]
+	0259	Quadro4 750XGL [NV25GL.2]
+	025B	Quadro4 700XGL [NV25GL.4]
 	02A0	NV2A GeForce3 Integrated GPU (Xbox)
 10DF	Emulex Corporation
 	10DF	Light Pulse Fibre Channel Adapter
@@ -1683,6 +1693,7 @@
 	8089	SOB Kingsberg Spacetec Serial Output Board
 	809C	S5933 Traquair HEPC3
 	80D7	PCI-9112
+	80D8	PCI-7200
 	80D9	PCI-9118
 	80DA	PCI-9812
 	811A	PCI-DSlink PCI-IEEE1355-DS-DE interface
@@ -1838,6 +1849,7 @@
 	3101	VT8653 CPU to PCI Bridge
 	3102	VT8662 CPU to PCI Bridge
 	3103	VT8615 CPU to PCI Bridge
+	3104	USB 2.0 Enhanced Host Controller
 	3109	VT8233C PCI to ISA Bridge
 	3112	VT8361 KLE133 CPU to PCI Bridge
 	3113	PCI to PCI Bridge
@@ -2596,6 +2608,7 @@
 1200	CSS Corp
 1201	Vista Controls Corp
 1202	Network General Corp
+	0001	PCI ATM Adapter (NAIATMPCI)
 1203	Bayer Corporation Agfa Div
 1204	Lattice Semiconductor Corp
 1205	Array Corp
@@ -2934,6 +2947,7 @@
 12A8	News Datacom
 12A9	Xiotech Corp.
 12AA	SDL Communications Inc.
+	556C	NAI HSSI Sniffer PCI Adapter
 12AB	Yuan Yuan Enterprise Co. Ltd.
 	3000	TUN-200/MPG-200C PCI TV (and possibly DVD Decoder??) Card
 12AC	MeasureX Corp.
@@ -3219,6 +3233,7 @@
 133B	Softcom Microsystems
 133C	Holontech Corp
 133D	S S Technologies
+	1000	SST-5136-PFB-PCI Industrial I/O Card
 133E	Virtual Computer Corp
 133F	SCM Microsystems
 1340	Atalla Corp
@@ -3577,6 +3592,7 @@
 	0001	ADAT/EDIT Audio Editing
 1449	TUT Systems Inc
 144A	ADLINK Technology Inc
+	7248	PCI-7248
 	7250	PCI-7250
 	7296	PCI-7296
 	7432	PCI-7432
@@ -3703,6 +3719,14 @@
 14B8	Techsoft Technology Co Ltd
 14B9	Aironet Wireless Communications
 	0001	PC4800
+	0340	Cisco Systems 340 Series PCI Wireless LAN Adapter
+	0350	Cisco Systems 350 Series PCI Wireless LAN Adapter
+	2500	PC2500 DS Wireless PCI LAN Adapter
+	3100	PC3100 FH Wireless PCI LAN Adapter
+	3101	PC3100 FH Wireless PCI LAN Adapter
+	3500	PC3500 FH Wireless PCI LAN Adapter
+	4500	PC4500 DS Wireless PCI LAN Adapter
+	4800	PC4800 DS Wireless PCI LAN Adapter
 14BA	Internix Inc.
 14BB	Semtech Corporation
 14BC	Globespan Semiconductor Inc
@@ -4391,6 +4415,8 @@
 1679	Tokyo Electron Device Ltd.
 168A	Utimaco Safeware AG
 16AE	SafeNet Inc.
+16CA	Cenatek Inc
+	0001	Rocket Drive Solid State Disk
 173B	Altima
 	03E8	Gigabit Ethernet Adapter AC1000
 1755	Alchemy Semiconductor Inc.
@@ -4599,6 +4625,7 @@
 	8C2F	86C594 SuperSavage/IXC DDR
 	8D01	Twister
 	8D02	Twister-K
+	8D04	ProSavage DDR
 	9102	86C410 Savage 2000
 	CA00	86C617 SonicVibes PCI Audio Accelerator
 5349	??Unknown?? (Seen on Intel 810 Motherboard AC'97 Modem Device!)
@@ -4868,10 +4895,10 @@
 	84E3	82463GX Memory Address Controller
 	84E4	82464GX Memory Data Controller
 	9620	I2O RAID PCI to PCI Bridge
-	9621	SRCU21 I2O 1.5 RAID Controller
-	9622	SRCUxx I2O 1.5 RAID Controller
-	9641	SRCU31 I2O 1.5 RAID Controller
-	96A1	SRCU31L I2O 1.5 RAID Controller
+	9621	SRCU21 I2O 1.5 RAID Controller (F/W<6.0)
+	9622	SRCUxx I2O 1.5 RAID Controller (F/W<6.0)
+	9641	SRCU31 I2O 1.5 RAID Controller (F/W<6.0)
+	96A1	SRCU31L I2O 1.5 RAID Controller (F/W<6.0)
 	B152	S21152BB PCI to PCI Bridge
 	B154	S21152BA,S21154AE/BE PCI to PCI Bridge
 	B555	21555 Non-Transparent PCI-to-PCI Bridge
