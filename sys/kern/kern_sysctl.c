@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.17 1994/10/06 21:06:30 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.18 1994/10/16 03:52:14 wollman Exp $
  */
 
 /*
@@ -55,16 +55,9 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-sysctlfn kern_sysctl;
-sysctlfn hw_sysctl;
 #ifdef DEBUG
-sysctlfn debug_sysctl;
+static sysctlfn debug_sysctl;
 #endif
-extern sysctlfn vm_sysctl;
-extern sysctlfn fs_sysctl;
-extern sysctlfn net_sysctl;
-extern sysctlfn cpu_sysctl;
-extern sysctlfn ntp_sysctl;
 
 /*
  * Locking and stats
@@ -180,7 +173,7 @@ char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
 long hostid;
 int securelevel = -1;
-char kernelname[MAXPATHLEN] = "/kernel";
+char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 extern int osreldate;
@@ -364,7 +357,7 @@ static struct ctldebug *debugvars[CTL_DEBUG_MAXID] = {
 	&debug10, &debug11, &debug12, &debug13, &debug14,
 	&debug15, &debug16, &debug17, &debug18, &debug19,
 };
-int
+static int
 debug_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;
