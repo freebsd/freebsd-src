@@ -808,7 +808,7 @@ typedef struct ndis_request ndis_request;
  */
 struct ndis_miniport_interrupt {
 	void			*ni_introbj;
-	ndis_spin_lock		ni_dpccountlock;
+	ndis_kspin_lock		ni_dpccountlock;
 	void			*ni_rsvd;
 	void			*ni_isrfunc;
 	void			*ni_dpcfunc;
@@ -1156,6 +1156,14 @@ struct ndis_timer_entry {
 };
 
 TAILQ_HEAD(nte_head, ndis_timer_entry);
+
+struct ndis_fh {
+	void			*nf_vp;
+	void			*nf_map;
+	uint32_t		nf_maplen; 
+};
+
+typedef struct ndis_fh ndis_fh;
 
 /*
  * The miniport block is basically the internal NDIS handle. We need
