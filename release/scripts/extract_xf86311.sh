@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.1 1995/02/02 14:18:04 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.2 1995/02/02 14:21:46 jkh Exp $
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
@@ -97,13 +97,14 @@ dialog --title "XFree86 3.1.1 Installation" --menu \
 Please chose one of the following options.  It is also \n\
 recommended that choices be followed in order on this menu,\n\
 XFree86 3.1.1 having a pleasantly linear setup and configuration." \
--1 -1 7 \
+-1 -1 8 \
   "COPYRIGHT" "Read the XFree86 Project, Inc.'s copyright notice" \
   "README" "General README file on XFree86 - recommended" \
   "FreeBSD" "XFree86 information specific to FreeBSD" \
   "Select" "Select the components of XFree86 you wish to install" \
   "Install" "Install selected components of XFree86" \
   "Configure" "Configure a newly installed XFree86" \
+  "startx" "Try to run startx and bring X up all the way" \
   "Exit" "Exit the XFree86 installation." \
       2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
@@ -117,6 +118,13 @@ XFree86 3.1.1 having a pleasantly linear setup and configuration." \
    Select) do_select_menu ;;
    Install) do_selected_install ;;
    Configure) do_configure ;;
+   startx)
+	if [ -x /usr/X11R6/bin/startx ]; then
+		/usr/X11R6/bin/startx
+	else
+		dialog --title "Error" --msgbox "You must first install XFree86." -1 -1
+	fi
+	;;
    Exit) INSTALLING=no ;;
    esac
 done
