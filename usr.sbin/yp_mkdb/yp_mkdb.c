@@ -293,6 +293,11 @@ main (argc, argv)
 			continue;
 		}
 
+		if (!strlen(keybuf)) {
+			warnx("no key -- check source file for blank lines");
+			continue;
+		}
+
 		if (strlen(datbuf) > YPMAXRECORD) {
 			warnx("data too long: %s", datbuf);
 			continue;
