@@ -93,6 +93,10 @@ int tag ();
 int update ();
 #endif				/* __STDC__ */
 
+#ifdef FREEBSD_DEVELOPER
+int freebsd = TRUE;		/* Use the FreeBSD -K flags!! */
+#endif
+
 struct cmd
 {
     char *fullname;		/* Full name of the function (e.g. "commit") */
@@ -137,6 +141,9 @@ static char *usg[] =
     "        -b bindir    Find RCS programs in 'bindir'\n",
     "        -e editor    Use 'editor' for editing log information\n",
     "        -d CVS_root  Overrides $CVSROOT as the root of the CVS tree\n",
+#ifdef FREEBSD_DEVELOPER
+    "        -x           Do NOT use the FreeBSD -K default flags\n",
+#endif
     "\n",
     "    and where 'command' is:\n",
     "        add          Adds a new file/directory to the repository\n",
@@ -209,7 +216,11 @@ main (argc, argv)
 	cvswrite = FALSE;
 
     optind = 1;
+#ifdef FREEBSD_DEVELOPER
+    while ((c = gnu_getopt (argc, argv, "Qqrwtnlvb:e:d:Hx")) != -1)
+#else
     while ((c = gnu_getopt (argc, argv, "Qqrwtnlvb:e:d:H")) != -1)
+#endif /* FREEBSD_DEVELOPER */
     {
 	switch (c)
 	{
@@ -255,6 +266,11 @@ main (argc, argv)
 	    case 'H':
 		help = TRUE;
 		break;
+#ifdef FREEBSD_DEVELOPER
+	    case 'x':
+		freebsd = FALSE;
+		break;
+#endif /* FREEBSD_DEVELOPER */
 	    case '?':
 	    default:
 		usage (usg);
