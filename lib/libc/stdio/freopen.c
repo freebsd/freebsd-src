@@ -64,7 +64,7 @@ freopen(file, mode, fp)
 	FILE *fp;
 {
 	int f;
-	int flags, isopen, oflags, sverrno, wantfd;
+	int dflags, flags, isopen, oflags, sverrno, wantfd;
 
 	if ((flags = __sflags(mode, &oflags)) == 0) {
 		(void) fclose(fp);
@@ -75,6 +75,59 @@ freopen(file, mode, fp)
 
 	if (!__sdidinit)
 		__sinit();
+
+	/*
+	 * If the filename is a NULL pointer, the caller is asking us to
+	 * re-open the same file with a different mode. We allow this only
+	 * if the modes are compatible.
+	 */
+	if (file == NULL) {
+		/* See comment below regarding freopen() of closed files. */
+		if (fp->_flags == 0) {
+			FUNLOCKFILE(fp);
+			errno = EINVAL;
+			return (NULL);
+		}
+		if ((dflags = _fcntl(fp->_file, F_GETFL)) < 0) {
+			sverrno = errno;
+			fclose(fp);
+			FUNLOCKFILE(fp);
+			errno = sverrno;
+			return (NULL);
+		}
+		if ((dflags & O_ACCMODE) != O_RDWR && (dflags & O_ACCMODE) !=
+		    (oflags & O_ACCMODE)) {
+			fclose(fp);
+			FUNLOCKFILE(fp);
+			errno = EINVAL;
+			return (NULL);
+		}
+		if ((oflags ^ dflags) & O_APPEND) {
+			dflags &= ~O_APPEND;
+			dflags |= oflags & O_APPEND;
+			if (_fcntl(fp->_file, F_SETFL, dflags) < 0) {
+				sverrno = errno;
+				fclose(fp);
+				FUNLOCKFILE(fp);
+				errno = sverrno;
+				return (NULL);
+			}
+		}
+		if (oflags & O_TRUNC)
+			ftruncate(fp->_file, 0);
+		if (_fseeko(fp, 0, oflags & O_APPEND ? SEEK_END : SEEK_SET,
+		    0) < 0 && errno != ESPIPE) {
+			sverrno = errno;
+			fclose(fp);
+			FUNLOCKFILE(fp);
+			errno = sverrno;
+			return (NULL);
+		}
+		f = fp->_file;
+		isopen = 0;
+		wantfd = -1;
+		goto finish;
+	}
 
 	/*
 	 * There are actually programs that depend on being able to "freopen"
@@ -112,6 +165,7 @@ freopen(file, mode, fp)
 	}
 	sverrno = errno;
 
+finish:
 	/*
 	 * Finish closing fp.  Even if the open succeeded above, we cannot
 	 * keep fp->_base: it may be the wrong size.  This loses the effect
@@ -134,6 +188,9 @@ freopen(file, mode, fp)
 		FREELB(fp);
 	fp->_lb._size = 0;
 	fp->_extra->orientation = 0;
+	memset(&fp->_extra->state, 0, sizeof(fp->_extra->state));
+	memset(&fp->_extra->cstate, 0, sizeof(fp->_extra->cstate));
+	fp->_extra->cstatepos = 0;
 
 	if (f < 0) {			/* did not get it after all */
 		fp->_flags = 0;		/* set it free */
