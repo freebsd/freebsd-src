@@ -428,7 +428,6 @@ nwfs_statfs(mp, sbp, td)
 	    nmp->n_volume, &vi, td, td->td_ucred);
 	if (error) return error;
 	secsize = 512;			/* XXX how to get real value ??? */
-	sbp->f_spare2=0;		/* placeholder */
 	/* fundamental filesystem block size */
 	sbp->f_bsize = vi.sectors_per_block*secsize;
 	/* optimal transfer block size */
