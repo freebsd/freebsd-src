@@ -143,7 +143,7 @@ ip_output(m0, opt, ro, flags, imo)
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
 #endif
-	struct ip_fw_chain *rule = NULL;
+	struct ip_fw *rule = NULL;
   
 #ifdef IPDIVERT
 	/* Get and reset firewall cookie */
@@ -165,7 +165,7 @@ ip_output(m0, opt, ro, flags, imo)
              * processing was already done, and we need to go down.
              * Get parameters from the header.
              */
-            rule = (struct ip_fw_chain *)(m->m_data) ;
+            rule = (struct ip_fw *)(m->m_data) ;
 	    opt = NULL ;
 	    ro = & ( ((struct dn_pkt *)m)->ro ) ;
 	    imo = NULL ;
