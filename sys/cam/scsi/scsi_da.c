@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #endif /* _KERNEL */
 
 #include <sys/devicestat.h>
@@ -48,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
-#include <sys/taskqueue.h>
 
 #include <machine/md_var.h>
 
