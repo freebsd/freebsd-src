@@ -98,6 +98,10 @@ struct acpi_prw_data {
 /* Flags for each device defined in the AML namespace. */
 #define ACPI_FLAG_WAKE_ENABLED	0x1
 
+/* Macros for extracting parts of a PCI address from an _ADR value. */
+#define	ACPI_ADR_PCI_SLOT(adr)	(((adr) & 0xffff0000) >> 16)
+#define	ACPI_ADR_PCI_FUNC(adr)	((adr) & 0xffff)
+
 /*
  * Entry points to ACPI from above are global functions defined in this
  * file, sysctls, and I/O on the control device.  Entry points from below

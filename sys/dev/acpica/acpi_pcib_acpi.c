@@ -188,8 +188,8 @@ acpi_pcib_acpi_attach(device_t dev)
 		device_printf(dev, "couldn't find _ADR\n");
 	} else {
 	    /* XXX: We assume bus 0. */
-	    slot = addr >> 16;
-	    func = addr & 0xffff;
+	    slot = ACPI_ADR_PCI_SLOT(addr);
+	    func = ACPI_ADR_PCI_FUNC(addr);
 	    if (bootverbose)
 		device_printf(dev, "reading config registers from 0:%d:%d\n",
 		    slot, func);
