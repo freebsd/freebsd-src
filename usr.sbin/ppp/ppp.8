@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.102 1998/05/29 18:32:41 brian Exp $
+.\" $Id: ppp.8,v 1.103 1998/06/12 17:45:26 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2297,6 +2297,17 @@ will be replaced with the appropriate values.  If you wish to pause
 while the command executes, use the
 .Dv shell
 command instead.
+.It clear modem|ipcp Op current|overall|peak...
+Clear the specified throughput values at either the
+.Dq modem
+or
+.Dq ipcp
+level.  If
+.Dq modem
+is specified, context must be given (see the
+.Dq link
+command below).  If no second argument is given, all values are
+cleared.
 .It clone Ar name[,name]...
 Clone the specified link, creating one or more new links according to the
 .Ar name
