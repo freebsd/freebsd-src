@@ -26,6 +26,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 #define _USE_BSD 1
 
 /* System Headers */
@@ -36,6 +41,7 @@
 #include <sys/param.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
@@ -92,7 +98,6 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static const char rcsid[] = "$FreeBSD$";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -103,7 +108,6 @@ static int send_mail = 0;
 
 extern char **environ;
 int fcreated;
-char *namep;
 char atfile[] = ATJOB_DIR "12345678901234";
 
 char *atinput = (char*)0;	/* where to get input from */
@@ -138,7 +142,7 @@ static void alarmc(int signo)
 {
 /* Time out after some seconds
  */
-    panic("File locking timed out");
+    panic("file locking timed out");
 }
 
 /* Local functions */
@@ -157,13 +161,13 @@ static char *cwdname(void)
     while (1)
     {
 	if (ptr == NULL)
-	    panic("Out of memory");
+	    panic("out of memory");
 
 	if (getcwd(ptr, size-1) != NULL)
 	    return ptr;
 	
 	if (errno != ERANGE)
-	    perr("Cannot get directory");
+	    perr("cannot get directory");
 	
 	free (ptr);
 	size += SIZE;
@@ -237,7 +241,7 @@ writefile(time_t runtimer, char queue)
     PRIV_START
 
     if ((lockdes = open(LFILE, O_WRONLY | O_CREAT, S_IWUSR | S_IRUSR)) < 0)
-	perr("Cannot open lockfile " LFILE);
+	perr("cannot open lockfile " LFILE);
 
     lock.l_type = F_WRLCK; lock.l_whence = SEEK_SET; lock.l_start = 0;
     lock.l_len = 0;
@@ -255,7 +259,7 @@ writefile(time_t runtimer, char queue)
     alarm(0);
 
     if ((jobno = nextjob()) == EOF)
-	perr("Cannot generate job number");
+	perr("cannot generate job number");
 
     sprintf(ppos, "%c%5lx%8lx", queue, 
 	    jobno, (unsigned long) (runtimer/60));
@@ -266,7 +270,7 @@ writefile(time_t runtimer, char queue)
 
     if (stat(atfile, &statbuf) != 0)
 	if (errno != ENOENT)
-	    perr("Cannot access " ATJOB_DIR);
+	    perr("cannot access " ATJOB_DIR);
 
     /* Create the file. The x bit is only going to be set after it has
      * been completely written out, to make sure it is not executed in the
@@ -275,13 +279,13 @@ writefile(time_t runtimer, char queue)
      */
     cmask = umask(S_IRUSR | S_IWUSR | S_IXUSR);
     if ((fdes = creat(atfile, O_WRONLY)) == -1)
-	perr("Cannot create atjob file"); 
+	perr("cannot create atjob file"); 
 
     if ((fd2 = dup(fdes)) <0)
-	perr("Error in dup() of job file");
+	perr("error in dup() of job file");
 
     if(fchown(fd2, real_uid, real_gid) != 0)
-	perr("Cannot give away file");
+	perr("cannot give away file");
 
     PRIV_END
 
@@ -304,7 +308,7 @@ writefile(time_t runtimer, char queue)
     close(lockdes);
 
     if((fp = fdopen(fdes, "w")) == NULL)
-	panic("Cannot reopen atjob file");
+	panic("cannot reopen atjob file");
 
     /* Get the userid to mail to, first by trying getlogin(), which reads
      * /etc/utmp, then from LOGNAME, finally from getpwuid().
@@ -325,7 +329,7 @@ writefile(time_t runtimer, char queue)
     {
 	fpin = freopen(atinput, "r", stdin);
 	if (fpin == NULL)
-	    perr("Cannot open input file");
+	    perr("cannot open input file");
     }
     fprintf(fp, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %*s %d\n",
 	(long) real_uid, (long) real_gid, LOGNAMESIZE, mailname, send_mail);
@@ -336,7 +340,7 @@ writefile(time_t runtimer, char queue)
 
     /* Write out the environment. Anything that may look like a
      * special character to the shell is quoted, except for \n, which is
-     * done with a pair of "'s.  Dont't export the no_export list (such
+     * done with a pair of "'s.  Don't export the no_export list (such
      * as TERM or DISPLAY) because we don't want these.
      */
     for (atenv= environ; *atenv != NULL; atenv++)
@@ -416,10 +420,10 @@ writefile(time_t runtimer, char queue)
 
     fprintf(fp, "\n");
     if (ferror(fp))
-	panic("Output error");
+	panic("output error");
 	
     if (ferror(stdin))
-	panic("Input error");
+	panic("input error");
 
     fclose(fp);
 
@@ -427,7 +431,7 @@ writefile(time_t runtimer, char queue)
      */
 
     if (fchmod(fd2, S_IRUSR | S_IWUSR | S_IXUSR) < 0)
-	perr("Cannot give away file");
+	perr("cannot give away file");
 
     close(fd2);
     fprintf(stderr, "Job %ld will be executed using /bin/sh\n", jobno);
@@ -458,16 +462,16 @@ list_jobs()
     PRIV_START
 
     if (chdir(ATJOB_DIR) != 0)
-	perr("Cannot change to " ATJOB_DIR);
+	perr("cannot change to " ATJOB_DIR);
 
     if ((spool = opendir(".")) == NULL)
-	perr("Cannot open " ATJOB_DIR);
+	perr("cannot open " ATJOB_DIR);
 
     /*	Loop over every file in the directory 
      */
     while((dirent = readdir(spool)) != NULL) {
 	if (stat(dirent->d_name, &buf) != 0)
-	    perr("Cannot stat in " ATJOB_DIR);
+	    perr("cannot stat in " ATJOB_DIR);
 	
 	/* See it's a regular file and has its x bit turned on and
          * is the user's
@@ -518,10 +522,10 @@ process_jobs(int argc, char **argv, int what)
     PRIV_START
 
     if (chdir(ATJOB_DIR) != 0)
-	perr("Cannot change to " ATJOB_DIR);
+	perr("cannot change to " ATJOB_DIR);
 
     if ((spool = opendir(".")) == NULL)
-	perr("Cannot open " ATJOB_DIR);
+	perr("cannot open " ATJOB_DIR);
 
     PRIV_END
 
@@ -531,7 +535,7 @@ process_jobs(int argc, char **argv, int what)
 
 	PRIV_START
 	if (stat(dirent->d_name, &buf) != 0)
-	    perr("Cannot stat in " ATJOB_DIR);
+	    perr("cannot stat in " ATJOB_DIR);
 	PRIV_END
 
 	if(sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm)!=3)
@@ -539,10 +543,8 @@ process_jobs(int argc, char **argv, int what)
 
 	for (i=optind; i < argc; i++) {
 	    if (atoi(argv[i]) == jobno) {
-		if ((buf.st_uid != real_uid) && !(real_uid == 0)) {
-		    fprintf(stderr, "%s: Not owner\n", argv[i]);
-		    exit(EXIT_FAILURE);
-		}
+		if ((buf.st_uid != real_uid) && !(real_uid == 0))
+		    errx(EXIT_FAILURE, "%s: not owner", argv[i]);
 		switch (what) {
 		  case ATRM:
 
@@ -567,7 +569,7 @@ process_jobs(int argc, char **argv, int what)
 			PRIV_END
 
 			if (!fp) {
-			    perr("Cannot open file");
+			    perr("cannot open file");
 			}
 			while((ch = getc(fp)) != EOF) {
 			    putchar(ch);
@@ -576,10 +578,8 @@ process_jobs(int argc, char **argv, int what)
 		    break;
 
 		  default:
-		    fprintf(stderr,
-			    "Internal error, process_jobs = %d\n",what);
-		    exit(EXIT_FAILURE);
-		    break;
+		    errx(EXIT_FAILURE, "internal error, process_jobs = %d",
+			what);
 	        }
 	    }
 	}
@@ -593,10 +593,7 @@ mymalloc(size_t n)
 {
     void *p;
     if ((p=malloc(n))==(void *)0)
-    {
-	fprintf(stderr,"Virtual memory exhausted\n");
-	exit(EXIT_FAILURE);
-    }
+	errx(EXIT_FAILURE, "virtual memory exhausted");
     return p;
 }
 
@@ -622,8 +619,6 @@ main(int argc, char **argv)
 	pgm = argv[0];
     else
         pgm++;
-
-    namep = pgm;
 
     /* find out what this program is supposed to do
      */
@@ -715,10 +710,7 @@ main(int argc, char **argv)
     /* select our program
      */
     if(!check_permission())
-    {
-	fprintf(stderr, "You do not have permission to use %s.\n",namep);
-	exit(EXIT_FAILURE);
-    }
+	errx(EXIT_FAILURE, "you do not have permission to use this program");
     switch (program) {
     case ATQ:
 
@@ -770,7 +762,7 @@ main(int argc, char **argv)
 	break;
 
     default:
-	panic("Internal error");
+	panic("internal error");
 	break;
     }
     exit(EXIT_SUCCESS);

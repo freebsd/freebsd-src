@@ -23,9 +23,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /* System Headers */
 
 #include <sys/types.h>
+#include <err.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stddef.h>
@@ -44,11 +50,6 @@
 #define MAXUSERID 10
 
 /* Structures and unions */
-
-
-/* File scope variables */
-
-static const char rcsid[] = "$FreeBSD$";
 
 /* Function declarations */
 
@@ -89,10 +90,7 @@ int check_permission()
 	return 1;
 
     if ((pentry = getpwuid(uid)) == NULL)
-    {
-	perror("Cannot access user database");
-	exit(EXIT_FAILURE);
-    }
+	err(EXIT_FAILURE, "cannot access user database");
 
     PRIV_START
 
@@ -118,9 +116,9 @@ int check_permission()
 	    return !check_for_user(fp, pentry->pw_name);
 	}
 	else if (errno != ENOENT)
-	    perror("at.deny");
+	    warn("at.deny");
     }
     else
-	perror("at.allow");
+	warn("at.allow");
     return 0;
 }
