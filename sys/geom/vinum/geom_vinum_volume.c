@@ -314,6 +314,8 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	first = 0;
 	p = gp->softc;
+
+	/* Let's see if the volume this plex wants is already configured. */
 	v = gv_find_vol(sc, p->volume);
 	if (v == NULL)
 		return (NULL);
@@ -325,12 +327,18 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		gp->softc = v;
 		first++;
 		TAILQ_INIT(&v->bqueue);
+	} else
+		gp = v->geom;
+
+	/* Create bio queue mutex and worker thread, if necessary. */
+	if (mtx_initialized(&v->bqueue_mtx) == 0)
 		mtx_init(&v->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
+
+	if (!(v->flags & GV_VOL_THREAD_ACTIVE)) {
 		kthread_create(gv_vol_worker, v, NULL, 0, 0, "gv_v %s",
 		    v->name);
 		v->flags |= GV_VOL_THREAD_ACTIVE;
-	} else
-		gp = v->geom;
+	}
 
 	/*
 	 * Create a new consumer and attach it to the plex geom.  Since this

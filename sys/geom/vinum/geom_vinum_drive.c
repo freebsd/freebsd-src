@@ -535,13 +535,21 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			d->freelist_entries = 1;
 
 			TAILQ_INIT(&d->bqueue);
-			mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
-			kthread_create(gv_drive_worker, d, NULL, 0, 0,
-			    "gv_d %s", d->name);
-			d->flags |= GV_DRIVE_THREAD_ACTIVE;
 
 			/* Save it into the main configuration. */
 			LIST_INSERT_HEAD(&sc->drives, d, drive);
+		}
+
+		/*
+		 * Create a bio queue mutex and a worker thread, if necessary.
+		 */
+		if (mtx_initialized(&d->bqueue_mtx) == 0)
+			mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
+
+		if (!(d->flags & GV_DRIVE_THREAD_ACTIVE)) {
+			kthread_create(gv_drive_worker, d, NULL, 0, 0,
+			    "gv_d %s", d->name);
+			d->flags |= GV_DRIVE_THREAD_ACTIVE;
 		}
 
 		g_access(cp, -1, 0, 0);
