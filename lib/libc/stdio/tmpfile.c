@@ -59,7 +59,9 @@ tmpfile()
 	char *buf;
 	const char *tmpdir;
 
-	tmpdir = getenv("TMPDIR");
+	tmpdir = NULL;
+	if (issetugid() == 0)
+		tmpdir = getenv("TMPDIR");
 	if (tmpdir == NULL)
 		tmpdir = _PATH_TMP;
 
