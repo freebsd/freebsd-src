@@ -508,7 +508,19 @@ chn_sync(struct pcm_channel *c, int threshold)
     	struct snd_dbuf *bs = c->bufsoft;
 
 	CHN_LOCKASSERT(c);
-    	for (;;) {
+
+	/* if we haven't yet started and nothing is buffered, else start*/
+	if (!(c->flags & CHN_F_TRIGGERED)) {
+		if (sndbuf_getready(bs) > 0) {
+			ret = chn_start(c, 1);
+			if (ret)
+				return ret;
+		} else {
+			return 0;
+		}
+	}
+
+	for (;;) {
 		rdy = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(bs) : sndbuf_getready(bs);
 		if (rdy <= threshold) {
 	    		ret = chn_sleep(c, "pcmsyn", 1);
@@ -572,10 +584,13 @@ chn_abort(struct pcm_channel *c)
 
 /*
  * this routine tries to flush the dma transfer. It is called
- * on a close. We immediately abort any read DMA
- * operation, and then wait for the play buffer to drain.
+ * on a close of a playback channel.
+ * first, if there is data in the buffer, but the dma has not yet
+ * begun, we need to start it.
+ * next, we wait for the play buffer to drain
+ * finally, we stop the dma.
  *
- * called from: dsp_close
+ * called from: dsp_close, not valid for record channels.
  */
 
 int
@@ -586,10 +601,19 @@ chn_flush(struct pcm_channel *c)
     	struct snd_dbuf *bs = c->bufsoft;
 
 	CHN_LOCKASSERT(c);
-	KASSERT(c->direction == PCMDIR_PLAY, ("chn_wrupdate on bad channel"));
-    	DEB(printf("chn_flush c->flags 0x%08x\n", c->flags));
-	if (!(c->flags & CHN_F_TRIGGERED))
-		return 0;
+	KASSERT(c->direction == PCMDIR_PLAY, ("chn_flush on bad channel"));
+    	DEB(printf("chn_flush: c->flags 0x%08x\n", c->flags));
+
+	/* if we haven't yet started and nothing is buffered, else start*/
+	if (!(c->flags & CHN_F_TRIGGERED)) {
+		if (sndbuf_getready(bs) > 0) {
+			ret = chn_start(c, 1);
+			if (ret)
+				return ret;
+		} else {
+			return 0;
+		}
+	}
 
 	c->flags |= CHN_F_CLOSING;
 	resid = sndbuf_getready(bs) + sndbuf_getready(b);
@@ -603,13 +627,16 @@ chn_flush(struct pcm_channel *c)
 			ret = 0;
 		if (ret == 0) {
 			resid = sndbuf_getready(bs) + sndbuf_getready(b);
-			if (resid >= resid_p)
+			if (resid == resid_p)
 				count--;
+			if (resid > resid_p)
+				DEB(printf("chn_flush: buffer length increasind %d -> %d\n", resid_p, resid));
 			resid_p = resid;
 		}
    	}
 	if (count == 0)
-		DEB(printf("chn_flush: timeout\n"));
+		DEB(printf("chn_flush: timeout, hw %d, sw %d\n",
+			sndbuf_getready(b), sndbuf_getready(bs)));
 
 	c->flags &= ~CHN_F_TRIGGERED;
 	/* kill the channel */
@@ -776,7 +803,7 @@ int
 chn_setvolume(struct pcm_channel *c, int left, int right)
 {
 	CHN_LOCKASSERT(c);
-	/* could add a feeder for volume changing if channel returns -1 */
+	/* should add a feeder for volume changing if channel returns -1 */
 	c->volume = (left << 8) | right;
 	return 0;
 }
@@ -1075,7 +1102,7 @@ chn_buildfeeder(struct pcm_channel *c)
 	}
 	flags = c->feederflags;
 
-	DEB(printf("not mapped, feederflags %x\n", flags));
+	DEB(printf("feederflags %x\n", flags));
 
 	for (type = FEEDER_RATE; type <= FEEDER_LAST; type++) {
 		if (flags & (1 << type)) {
@@ -1093,7 +1120,7 @@ chn_buildfeeder(struct pcm_channel *c)
 			}
 
 			if (c->feeder->desc->out != fc->desc->in) {
- 				DEB(printf("build fmtchain from %x to %x: ", c->feeder->desc->out, fc->desc->in));
+ 				DEB(printf("build fmtchain from 0x%x to 0x%x: ", c->feeder->desc->out, fc->desc->in));
 				tmp[0] = fc->desc->in;
 				tmp[1] = 0;
 				if (chn_fmtchain(c, tmp) == 0) {
@@ -1106,11 +1133,11 @@ chn_buildfeeder(struct pcm_channel *c)
 
 			err = chn_addfeeder(c, fc, fc->desc);
 			if (err) {
-				DEB(printf("can't add feeder %p, output %x, err %d\n", fc, fc->desc->out, err));
+				DEB(printf("can't add feeder %p, output 0x%x, err %d\n", fc, fc->desc->out, err));
 
 				return err;
 			}
-			DEB(printf("added feeder %p, output %x\n", fc, c->feeder->desc->out));
+			DEB(printf("added feeder %p, output 0x%x\n", fc, c->feeder->desc->out));
 		}
 	}
 
@@ -1126,7 +1153,7 @@ chn_buildfeeder(struct pcm_channel *c)
 			u_int32_t *x = chn_getcaps(c)->fmtlist;
 			printf("acceptable formats for %s:\n", c->name);
 			while (*x) {
-				printf("[%8x] ", *x);
+				printf("[0x%8x] ", *x);
 				x++;
 			}
 #endif
