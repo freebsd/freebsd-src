@@ -36,6 +36,8 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 PFILES=	mqueue.h sched.h semaphore.h \
 		# aio.h
 
+SFILES=	soundcard.h
+
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
 
 LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
@@ -87,6 +89,9 @@ beforeinstall: ${SHARED}
 .endfor
 .for i in ${PFILES}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
+.endfor
+.for i in ${SFILES}
+	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
 .endfor
 
 copies:
