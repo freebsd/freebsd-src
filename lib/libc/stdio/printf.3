@@ -150,15 +150,17 @@ to be a NULL pointer.
 .Fn Snprintf
 and
 .Fn vsnprintf
-return the number of characters
-that would have been written had
-.Fa size 
-been sufficiently large, not counting the terminating
-.Ql \e0
-character, or a negative value if an encoding error occurred.
-Thus, the null-terminated output has been completely written if and only if
-the returned value is nonnegative and less than
-.Fa size .
+will write at most
+.Fa size Ns \-1
+of the characters printed into the output string
+(the
+.Fa size Ns 'th
+character then gets the terminating
+.Ql \e0 ) ;
+if the return value is greater than or equal to the
+.Fa size
+argument, the string was too short
+and some of the printed characters were discarded.
 The output is always null-terminated.
 .Pp
 .Fn Sprintf
