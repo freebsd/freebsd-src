@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.6 1996/06/25 21:33:18 ache Exp $ */
+/* $Id: main.c,v 1.7 1996/07/02 01:49:47 jmz Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,7 +46,7 @@
 
 #include <ftpio.h>
 
-#define BUFFER_SIZE 32*1024
+#define BUFFER_SIZE 1024
 #define HTTP_TIMEOUT 60 /* seconds */
 #define FTP_TIMEOUT 300 /* seconds */
 
@@ -208,14 +208,6 @@ ftpget ()
 	time_t t;
 	struct itimerval timer;
 
-	signal (SIGALRM, t_out);
-	if ((cp = getenv("FTP_TIMEOUT")) != NULL)
-	    timer.it_interval.tv_sec = timer.it_value.tv_sec = atoi(cp);
-	else
-	    timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
-	timer.it_interval.tv_usec = timer.it_value.tv_usec = 0;
-	setitimer(ITIMER_REAL, &timer, 0);
-
 	if ((cp = getenv("FTP_PASSWORD")) != NULL)
 	    strcpy(ftp_pw, cp);
 	else {
@@ -279,9 +271,17 @@ ftpget ()
 	} else 
 	    file = stdout;
 
+	signal (SIGALRM, t_out);
+	if ((cp = getenv("FTP_TIMEOUT")) != NULL)
+	    timer.it_interval.tv_sec = timer.it_value.tv_sec = atoi(cp);
+	else
+	    timer.it_interval.tv_sec = timer.it_value.tv_sec = FTP_TIMEOUT;
+	timer.it_interval.tv_usec = timer.it_value.tv_usec = 0;
+	setitimer(ITIMER_REAL, &timer, 0);
+
 	display (size, size0);
 	while (1) {
-		n = status = read (fileno (fp), buffer, BUFFER_SIZE);
+		n = status = fread (buffer, 1, BUFFER_SIZE, fp);
 		if (status <= 0) 
 		    break;
 		display (size, n);
