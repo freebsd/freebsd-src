@@ -1,8 +1,8 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.14 2002/12/07 20:14:02 ue Exp $
-basiert auf: 1.16
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.15 2002/12/22 11:51:46 ue Exp $
+basiert auf: 1.17
 
 install.sgml
 
@@ -149,13 +149,16 @@ from {alpha,i386}/INSTALL.TXT.
       und Sie &os; von CD installieren, ist dieser Schritt nicht
       notwendig.</para>
 
-    <para arch="i386,alpha">F&uuml;r eine Standard-Installation von
-      CDROM oder &uuml;ber ein Netzwerk m&uuml;ssen Sie nur zwei
-      Dateien aus dem Verzeichnis <filename>floppies/</filename> auf
-      Disketten &uuml;bertragen, dabei handelt es sich um die
-      Disketten-Images <filename>kern.flp</filename> und
+    <para arch="i386,alpha">Bei den meisten Installationen von CDROM
+      oder &uuml;ber ein Netzwerk m&uuml;ssen Sie nur die Dateien aus
+      dem Verzeichnis <filename>floppies/</filename> auf Disketten
+      &uuml;bertragen, dabei handelt es sich um die Disketten-Images
+      <filename>kern.flp</filename> und
       <filename>mfsroot.flp</filename>, die f&uuml;r 1.44 MByte
-      Diskettenlaufwerke gedacht sind.</para>
+      Diskettenlaufwerke gedacht sind.  In einigen F&auml;llen
+      brauchen sie auch das dritte Image
+      <filename>drivers.flp</filename>, dies h&auml;ngt von Ihrer
+      Hardware ab.</para>
 
     <para arch="pc98">F&uuml;r eine Standard-Installation von CDROM
       oder &uuml;ber ein Netzwerk m&uuml;ssen Sie nur zwei Dateien aus
@@ -170,9 +173,10 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386,alpha,pc98">Wenn Sie diese Images &uuml;ber das Internet beziehen
       wollen, brauchen Sie nur Dateien
-      <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
-      und
+      <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>,
       <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
+      und
+      <replaceable>release</replaceable><filename>/floppies/drivers.flp</filename>
       von <ulink url="&release.url;"></ulink> oder einem der vielen
       Mirrors beziehen.  Eine Liste aller Mirrors finden Sie im
       Kapitel <ulink

@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.165 2002/12/07 22:08:11 ue Exp $
-  basiert auf: 1.466
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.166 2002/12/22 12:40:22 ue Exp $
+  basiert auf: 1.467
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -1659,7 +1659,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <filename>/usr/src/sys/ufs/ufs/README.extattr</filename>.</para>
 
       <para role="historic">Da sich die Lizenz ge&auml;ndert hat, konnten die
-        Softupdates in den Kernel-Sourcecode integriert werden und
+        Soft Updates in den Kernel-Sourcecode integriert werden und
         stehen daher jetzt auch im Standardkernel
         (<filename>GENERIC</filename>) zur Verf&uuml;gung.
         &merged;</para>
@@ -1671,7 +1671,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>&man.statfs.2; und &man.df.1; halten nach, wie viele
         Bl&ouml;cke und Dateien noch freigegeben werden m&uuml;ssen,
-        wenn Sie mit Softupdates zusammen laufen.</para>
+        wenn Sie mit Soft Updates zusammen laufen.</para>
 
       <para role="historic">Ein FFS-Fehler, der bei sehr gro&szlig;en Dateisystemen
         zur Zerst&ouml;rung des Superblocks f&uuml;hren konnte, wurde
@@ -1814,6 +1814,18 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	<quote>Partitioning</quote> von &man.sysinstall.8; UFS2 als
 	Option anzugeben.  Alle 64-Bit Plattformen k&ouml;nnen auch
 	von UFS2 Dateisystemen booten.</para>
+
+      <para>Der UFS1 Superblock mu&szlig;te leicht ge&auml;ndert
+	werden, um die diversen in diesem Abschnitt erw&auml;hnten
+	&Auml;nderungen unterst&uuml;tzen zu k&ouml;nnen.  Dadurch
+	kann es zu leichten Kompatibilit&auml;tsproblemen kommen, wenn
+	eine a&auml;ltere &os;-Version (vor 4.7-RELEASE) versucht,
+	&man.mount.8; oder &man.fsck.8; auf ein UFS1 Dateisystem
+	anzuwenden, das von &os; ab &release.current;  erzeugt wurde,
+	beginnend mit &os; 4.7-RELEASE sind die Formate kompatibel.
+	Dieses Problem tritt nur auf Systemen auf, auf denen mehrere
+	&os;-Versionen installiert sind, die abwechselnd gestartet
+	werden.</para>
     </sect3>
 
     <sect3>
@@ -2937,7 +2949,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>&man.fsck.ffs.8; unterst&uuml;tzt jetzt die Option
       <option>-B</option> zur &Uuml;berpr&uuml;fung von Dateisystemen
-      im Hintergrund (dazu m&uuml;ssen auf das Dateisystem Softupdates
+      im Hintergrund (dazu m&uuml;ssen auf das Dateisystem Soft Updates
       aktiv sein).  Mit der Option <option>-F</option> kann angegeben
       werden, ob eine Pr&uuml;fung im Vordergrund /notwendig
       ist.</para>
@@ -3471,7 +3483,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para role="historic">Bei Verwendung der neuen Option <option>-U</option>
       aktiviert &man.newfs.8; auf einem neuen Dateisystem automatisch
-      Softupdates. &merged;</para>
+      Soft Updates. &merged;</para>
 
     <para role="historic">Die von &man.newfs.8; genutzte Anzahl der Zylinder pro
       Gruppe wird jetzt standardm&auml;&szlig;ig auf den maximalen Wert
@@ -3988,7 +4000,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       &man.sysinstall.8;.  &merged;</para>
 
     <para role="historic">&man.sysinstall.8; aktiviert jetzt auf allen erzeugten
-      Dateisystem au&szlig;er root die Softupdates.  &merged;</para>
+      Dateisystem au&szlig;er root die Soft Updates.  &merged;</para>
 
     <para role="historic">Wenn &man.sysinstall.8; <quote>automatisch</quote>
       Partitionen anlegt, werden jetzt sinnvollere Standardwerte
