@@ -204,8 +204,8 @@ close_drive(struct drive *drive)
 	LOCKDRIVE(drive);				    /* keep the daemon out */
     if (drive->vp)
 	close_locked_drive(drive);			    /* and close it */
-    if (drive->state > drive_down)			    /* if it's up, */
-        drive->state = drive_down;			    /* go down directly, do not pass daemon */
+    if (drive->state > drive_down)			    /* if it's up */
+	drive->state = drive_down;			    /* make sure it's down */
     unlockdrive(drive);
 }
 
@@ -260,9 +260,8 @@ remove_drive(int driveno)
 }
 
 /*
- * Read data from a drive
- *
- * Return error number
+ * Read data from a drive.
+ * Return error number.
  */
 int
 read_drive(struct drive *drive, void *buf, size_t length, off_t offset)
@@ -514,7 +513,8 @@ check_drive(char *devicename)
     } else {
 	if (drive->lasterror == 0)
 	    drive->lasterror = ENODEV;
-	set_drive_state(drive->driveno, drive_down, setstate_force);
+        close_drive(drive);
+        drive->state = drive_down;
     }
     return drive;
 }
@@ -992,8 +992,14 @@ vinum_scandisk(char *devicename[], int drives)
 	else
 	    log(LOG_INFO, "vinum: updating configuration from %s\n", drive->devicename);
 
+	if (drive->state == drive_up)
 	/* Read in both copies of the configuration information */
-	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
+	  error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
+	else
+	  {
+	  error = EIO;
+	  printf("vinum_scandisk: %s is %s\n", drive->devicename, drive_state(drive->state));
+	  }
 
 	if (error != 0) {
 	    log(LOG_ERR, "vinum: Can't read device %s, error %d\n", drive->devicename, error);
