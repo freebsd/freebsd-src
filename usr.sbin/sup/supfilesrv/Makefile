@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.1 1995/12/26 05:15:19 peter Exp $
+# $Id: Makefile,v 1.2 1996/02/06 19:03:56 pst Exp $
 
 PROG=	supfilesrv
-SRCS=	supfilesrv.c setproctitle.o
+SRCS=	supfilesrv.c
 MAN8=	supservers.8
 MLINKS=	supservers.8 supfilesrv.8 supservers.8 supscan.8
 
