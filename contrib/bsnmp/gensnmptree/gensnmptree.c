@@ -63,7 +63,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <errno.h>
 #ifdef HAVE_ERR_H
 #include <err.h>
