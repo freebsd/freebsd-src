@@ -26,6 +26,7 @@
 # endif
 #endif
 
+int datesep = '/';
 int preserve_perms = 0;
 
 /* The RCS -k options, and a set of enums that must match the array.
@@ -3549,8 +3550,8 @@ printable_date (rcs_date)
 		   &sec);
     if (year < 1900)
 	year += 1900;
-    sprintf (buf, "%04d/%02d/%02d %02d:%02d:%02d", year, mon, mday,
-	     hour, min, sec);
+    sprintf (buf, "%04d%c%02d%c%02d %02d:%02d:%02d",
+	     year, datesep, mon, datesep, mday, hour, min, sec);
     return xstrdup (buf);
 }
 
