@@ -73,11 +73,9 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     at->at_task.ta_func = AcpiOsExecuteQueue;
     at->at_task.ta_context = at;
     switch (Priority) {
-#if 0
     case OSD_PRIORITY_GPE:
 	at->at_task.ta_priority = 4;
 	break;
-#endif
     case OSD_PRIORITY_HIGH:
 	at->at_task.ta_priority = 3;
 	break;
