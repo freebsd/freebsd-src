@@ -15,8 +15,26 @@ CFLAGS+= -DL_ENDIAN
 
 WITH_RSA?= YES
 
-SRCS+=		buildinf.h openssl/opensslconf.h openssl/_evp.h
-CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/_evp.h
+HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
+	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
+	des/des.h dh/dh.h dsa/dsa.h ../e_os.h ../e_os2.h ebcdic.h \
+	err/err.h hmac/hmac.h lhash/lhash.h md2/md2.h \
+	md5/md5.h mdc2/mdc2.h objects/objects.h opensslv.h pem/pem.h \
+	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
+	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
+	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
+	x509/x509_vfy.h x509v3/x509v3.h
+
+.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
+HDRS+=	idea/idea.h
+.endif
+
+.for h in ${HDRS}
+CRYPTO_HDRS+= ${LCRYPTO_SRC}/${h}
+.endfor
+
+SRCS+=		buildinf.h openssl/opensslconf.h openssl/evp.h
+CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/evp.h
 CLEANDIRS+=	openssl
 
 buildinf.h:
@@ -31,12 +49,16 @@ buildinf.h:
 #	any of ${CRYPTO_HDRS} ${EXTRA_HDRS} will no repopulate openssl/.
 #	This deficiency will be fixed in a later commit.
 
-.ORDER:	openssl/opensslconf.h openssl/_evp.h
+.ORDER:	openssl/opensslconf.h openssl/evp.h
 
 openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 	${INSTALL} ${COPY} -m 444 ${CRYPTO_HDRS} ${EXTRA_HDRS} openssl
 
-openssl/_evp.h: ${LCRYPTO_SRC}/evp/evp.h
+openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
+.if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
+.else
+	${INSTALL} ${COPY} -m 444 ${.OODATE} ${.TARGET}
+.endif
