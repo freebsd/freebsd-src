@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.133 1995/01/30 14:40:06 ache Exp $
+#	$Id: LINT,v 1.134 1995/01/31 06:33:58 amurai Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -351,6 +351,11 @@ options		DISKSLICE
 #options	DUMMY_NOPS
 #options	TUNE_1542
 
+# Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
+#device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
+#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
+
+# The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 
 #
