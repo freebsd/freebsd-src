@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elf_freebsd.c,v 1.4 1998/10/04 09:12:15 msmith Exp $
+ *	$Id: elf_freebsd.c,v 1.5 1998/10/04 20:58:46 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -64,24 +64,19 @@ elf_exec(struct loaded_module *mp)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    /* XXX allow override? */
-    setenv("kernelname", mp->m_name, 1);
-
     if ((err = bi_load(mp->m_args, &boothowto, &bootdev, &bootinfop)) != 0)
 	return(err);
     entry = ehdr->e_entry & 0xffffff;
 
     ssym = esym = 0;
-#if 0 /* XXX something wrong with the symbol tables */
-    if ((md = mod_findmetadata(mp, MODINFOMD_ELFSSYM)) != NULL)
+    if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
 	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = mod_findmetadata(mp, MODINFOMD_ELFESYM)) != NULL)
+    if ((md = mod_findmetadata(mp, MODINFOMD_ESYM)) != NULL)
 	esym = *((vm_offset_t *)&(md->md_data));
     if (ssym == 0 || esym == 0)
 	ssym = esym = 0;		/* sanity */
-#endif
     bi = (struct bootinfo *)PTOV(bootinfop);
-    bi->bi_symtab = ssym;
+    bi->bi_symtab = ssym;	/* XXX this is only the primary kernel symtab */
     bi->bi_esymtab = esym;
 
 
