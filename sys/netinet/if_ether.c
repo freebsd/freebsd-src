@@ -102,7 +102,7 @@ struct llinfo_arp {
 static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 struct	ifqueue arpintrq;
-static int	arp_inuse, arp_allocated;
+static int	arp_inuse, arp_allocated, arpinit_done;
 
 static int	arp_maxtries = 5;
 static int	useloopback = 1; /* use loopback interface for local traffic */
@@ -162,13 +162,10 @@ arp_rtrequest(req, rt, info)
 	register struct sockaddr *gate = rt->rt_gateway;
 	register struct llinfo_arp *la = (struct llinfo_arp *)rt->rt_llinfo;
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
-	static int arpinit_done;
 
 	if (!arpinit_done) {
 		arpinit_done = 1;
-		LIST_INIT(&llinfo_arp);
 		timeout(arptimer, (caddr_t)0, hz);
-		register_netisr(NETISR_ARP, arpintr);
 	}
 	if (rt->rt_flags & RTF_GATEWAY)
 		return;
@@ -494,6 +491,10 @@ arpintr()
 	register struct arphdr *ar;
 	int s;
 
+	if (!arpinit_done) {
+		arpinit_done = 1;
+		timeout(arptimer, (caddr_t)0, hz);
+	}
 	while (arpintrq.ifq_head) {
 		s = splimp();
 		IF_DEQUEUE(&arpintrq, m);
@@ -943,6 +944,8 @@ arp_init(void)
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
+	LIST_INIT(&llinfo_arp);
+	register_netisr(NETISR_ARP, arpintr);
 }
 
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
