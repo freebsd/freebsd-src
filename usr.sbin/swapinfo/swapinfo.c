@@ -8,6 +8,7 @@
  * Kevin Lahey, February 16, 1993
  */
 
+#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
