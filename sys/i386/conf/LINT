@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.5 1996/12/14 14:32:11 joerg Exp $
+#	$Id: LINT,v 1.286.2.6 1996/12/21 02:10:51 se Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -46,6 +46,19 @@ maxusers	10
 #
 options		CHILD_MAX=128
 options		OPEN_MAX=128
+
+#
+# Certain applications can grow to be larger than the 128M limit
+# that FreeBSD initially imposes.  Below are some options to
+# allow that limit to grow to 256MB, and can be increased further
+# with changing the parameters.  MAXDSIZ is the maximum that the
+# limit can be set to, and the DFLDSIZ is the default value for
+# the limit.  You might want to set the default lower than the
+# max, and explicitly set the maximum with a shell command for processes
+# that regularly exceed the limit like INND.
+#
+options		"MAXDSIZ='(256*1024*1024)'"
+options		"DFLDSIZ='(256*1024*1024)'"
 
 #
 # Under some circumstances it is useful to have an extra number of
