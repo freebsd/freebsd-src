@@ -195,6 +195,18 @@ ncp_conn_assert_locked(struct ncp_conn *conn,char *checker, struct proc *p){
 	return EIO;
 }
 
+void
+ncp_conn_invalidate(struct ncp_conn *ncp)
+{
+	ncp->flags &= ~(NCPFL_ATTACHED | NCPFL_LOGGED | NCPFL_INVALID);
+}
+
+int
+ncp_conn_invalid(struct ncp_conn *ncp)
+{
+	return ncp->flags & NCPFL_INVALID;
+}
+
 /* 
  * create, fill with defaults and return in locked state
  */
@@ -275,7 +287,7 @@ ncp_conn_free(struct ncp_conn *ncp)
 	if (ncp_conn_access(ncp, ncp->ucred, NCPM_WRITE))
 		return EACCES;
 
-	if ((ncp->flags & (NCPFL_INVALID | NCPFL_ATTACHED)) == NCPFL_ATTACHED)
+	if (ncp->flags & NCPFL_ATTACHED)
 		ncp_ncp_disconnect(ncp);
 	ncp_sock_disconnect(ncp);
 
