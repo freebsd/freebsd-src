@@ -54,9 +54,7 @@ that the process expects to be traced by its parent.  All the other
 arguments are ignored.  (If the parent process does not expect to trace
 the child, it will probably be rather confused by the results; once the
 traced process stops, it cannot be made to continue except via
-.Eo \&
-.Fn ptrace
-.Ec \&.)
+.Fn ptrace . )
 When a process has used this request and calls
 .Xr execve 2
 or any of the routines built on it
@@ -69,7 +67,7 @@ Also, any setuid or setgid bits on the executable being executed will
 be ignored.
 .It Dv PT_READ_I , Dv PT_READ_D
 These requests read a single
-.Li int
+.Vt int
 of data from the traced process' address space.  Traditionally,
 .Fn ptrace
 has allowed for machines with distinct address spaces for instruction
@@ -99,12 +97,12 @@ except that they write rather than read.  The
 argument supplies the value to be written.
 .It Dv PT_READ_U
 This request reads an
-.Li int
+.Vt int
 from the traced process' user structure.  The
 .Fa addr
 argument specifies the location of the int relative to the base of the
 user structure; it will usually be an integer value cast to
-.Li caddr_t
+.Vt caddr_t
 either explicitly or via the presence of a prototype for
 .Eo \&
 .Fn ptrace
@@ -115,14 +113,14 @@ and
 .Dv PT_READ_D ,
 .Fa addr
 must be aligned on an
-.Li int
+.Vt int
 boundary.  The value read is returned as the return value from
 .Eo \&
 .Fn ptrace
 .Ec .
 .It Dv PT_WRITE_U
 This request writes an
-.Li int
+.Vt int
 into the traced process' user structure.
 .Fa addr
 specifies the offset, just as for
@@ -138,7 +136,9 @@ The traced process continues execution.
 .Fa addr
 is an address specifying the place where execution is to be resumed (a
 new value for the program counter), or
-.Li (caddr_t)1
+.Po
+.Vt caddr_t
+.Pc Ns 1
 to indicate that execution is to pick up where it left off.
 .Fa data
 provides a signal number to be delivered to the traced process as it
@@ -180,7 +180,9 @@ are:
 .Bl -tag -width 12n
 .It Dv PT_GETREGS
 This request reads the traced process' machine registers into the
-.Dq Li "struct reg"
+.Do
+.Vt "struct reg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -189,7 +191,9 @@ pointed to by
 This request is the converse of
 .Dv PT_GETREGS ;
 it loads the traced process' machine registers from the
-.Dq Li "struct reg"
+.Do
+.Vt "struct reg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -197,7 +201,9 @@ pointed to by
 .It Dv PT_GETFPREGS
 This request reads the traced process' floating-point registers into
 the
-.Dq Li "struct fpreg"
+.Do
+.Vt "struct fpreg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -206,7 +212,9 @@ pointed to by
 This request is the converse of
 .Dv PT_GETFPREGS ;
 it loads the traced process' floating-point registers from the
-.Dq Li "struct fpreg"
+.Do
+.Vt "struct fpreg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -214,7 +222,9 @@ pointed to by
 .It Dv PT_GETDBREGS
 This request reads the traced process' debug registers into
 the
-.Dq Li "struct dbreg"
+.Do
+.Vt "struct dbreg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -223,7 +233,9 @@ pointed to by
 This request is the converse of
 .Dv PT_GETDBREGS ;
 it loads the traced process' debug registers from the
-.Dq Li "struct dbreg"
+.Do
+.Vt "struct dbreg"
+.Dc
 (defined in
 .Aq Pa machine/reg.h )
 pointed to by
@@ -265,7 +277,7 @@ to
 or
 .Dv PT_WRITE_U
 was not
-.Li int Ns \&-aligned.
+.Vt int Ns \-aligned .
 .It
 The signal number (in
 .Fa data )

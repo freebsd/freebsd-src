@@ -35,27 +35,30 @@
 .Sh SYNOPSIS
 .Fd #include <aio.h>
 .Ft int
-.Fn aio_waitcomplete "struct aiocb **iocbp, struct timeval *timeout"
+.Fn aio_waitcomplete "struct aiocb **iocbp" "struct timespec *timeout"
 .Sh DESCRIPTION
 The
 .Fn aio_waitcomplete
-function waits for completion of an asynchronous I/O request.  Upon completion,
+function waits for completion of an asynchronous I/O request.
+Upon completion,
 .Fn aio_waitcomplete
 returns the result of the function and sets
 .Fa iocbp
-to point to the structure associated with the original request. If an
-asynchronous I/O request is completed before
+to point to the structure associated with the original request.
+If an asynchronous I/O request is completed before
 .Fn aio_waitcomplete
 is called, it returns immediately with the completed request.
 .Pp
 If
 .Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait for a
-asynchronous I/O request to complete.  If
+asynchronous I/O request to complete.
+If
 .Fa timeout
 is a NULL pointer,
 .Fn aio_waitcomplete
-waits indefinitely.  To effect a poll, the
+waits indefinitely.
+To effect a poll, the
 .Fa timeout
 argument should be non-NULL, pointing to a zero-valued timeval structure.
 .Pp
@@ -70,8 +73,8 @@ should not be called for the control block returned in
 .Sh RETURN VALUES
 If an asynchronous I/O request has completed,
 .Fa iocbp
-is set to point to the control block passed with the original request, and
-the status is returned as described in
+is set to point to the control block passed with the original request,
+and the status is returned as described in
 .Xr read 2 ,
 .Xr write 2 ,
 or
@@ -82,8 +85,8 @@ returns
 .Dv -1 ,
 sets iocbp to
 .Dv NULL
-and
-.Dv errno
+and sets
+.Va errno
 to indicate the error condition.
 .Sh ERRORS
 The
@@ -114,7 +117,7 @@ completed.
 .Xr aio_write 2 ,
 .Xr fsync 2 ,
 .Xr read 2 ,
-.Xr write 2 .
+.Xr write 2
 .Sh STANDARDS
 The
 .Fn aio_waitcomplete

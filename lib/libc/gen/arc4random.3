@@ -50,23 +50,23 @@
 .Fn arc4random_addrandom "unsigned char *dat" "int datlen"
 .Sh DESCRIPTION
 The
-.Fn arc4random 
+.Fn arc4random
 function uses the key stream generator employed by the
 arc4 cipher, which uses 8*8 8 bit S-Boxes.
 The S-Boxes
-can be in about 
+can be in about
 .if t 2\u\s71700\s10\d
 .if n (2**1700)
 states.
 .Pp
 The
 .Fn arc4random_stir
-function reads data from 
+function reads data from
 .Pa /dev/urandom
 and uses it to permute the S-Boxes via
 .Fn arc4random_addrandom .
 .Pp
-There is no need to call 
+There is no need to call
 .Fn arc4random_stir
 before using
 .Fn arc4random ,
@@ -78,12 +78,12 @@ automatically initializes itself.
 .Xr random 3 ,
 .Xr srandomdev 3
 .Sh HISTORY
-.Pa RC4 
+.Pa RC4
 has been designed by RSA Data Security, Inc.
 It was posted anonymously
 to the USENET and was confirmed to be equivalent by several sources who
 had access to the original cipher.
-Since 
+Since
 .Pa RC4
-used to be a trade secret, the cipher is now referred to as 
+used to be a trade secret, the cipher is now referred to as
 .Pa ARC4 .

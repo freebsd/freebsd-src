@@ -48,9 +48,10 @@ variable specified by
 and unblocks the mutex specified by
 .Fa mutex .
 The waiting thread unblocks only after another thread calls
-.Xr pthread_cond_signal 3 , or
+.Xr pthread_cond_signal 3 ,
+or
 .Xr pthread_cond_broadcast 3
-with the same condition variable, and the current thread requires the lock
+with the same condition variable, and the current thread reacquires the lock
 on
 .Fa mutex .
 .Sh RETURN VALUES
@@ -79,6 +80,5 @@ is invalid.
 .Xr pthread_cond_timedwait 3
 .Sh STANDARDS
 .Fn pthread_cond_wait
-conforms to ISO/IEC 9945-1 ANSI/IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 Second Edition 1996-07-12.
+conforms to
+.St -p1003.1-96 .

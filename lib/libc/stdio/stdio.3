@@ -42,9 +42,9 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <stdio.h>
-.Fd FILE *stdin;
-.Fd FILE *stdout;
-.Fd FILE *stderr;
+.Vt FILE *stdin ;
+.Vt FILE *stdout ;
+.Vt FILE *stderr ;
 .Sh DESCRIPTION
 The standard
 .Tn I/O
@@ -179,9 +179,9 @@ without first removing their current definitions with
 .Dv FOPEN_MAX ,
 .Dv L_cuserid ,
 .Dv L_ctermid ,
-.Dv L_tmpnam,
+.Dv L_tmpnam ,
 .Dv NULL ,
-.Dv P_tmpdir,
+.Dv P_tmpdir ,
 .Dv SEEK_CUR ,
 .Dv SEEK_END ,
 .Dv SEEK_SET ,
@@ -225,7 +225,7 @@ library and system functions, especially
 The
 .Nm
 library conforms to
-.St -ansiC .
+.St -isoC .
 .Sh LIST OF FUNCTIONS
 .Bl -column "Description"
 .It Sy "Function	Description"

@@ -57,14 +57,14 @@ If no flags are set a zero length string is returned.
 If memory cannot be allocated for the return value,
 .Fn fflagstostr
 returns
-.Dv NULL . 
+.Dv NULL .
 .Pp
-The value returned from 
+The value returned from
 .Fn fflagstostr
-is obtained from 
-.Fn malloc 
+is obtained from
+.Fn malloc
 and should be returned to the system with
-.Fn free 
+.Fn free
 when the program is done with it.
 .Pp
 The

@@ -115,14 +115,12 @@ When
 .Ev TZ
 is used directly as a specification of the time conversion information,
 it must have the following syntax (spaces inserted for clarity):
-.Bd -filled -offset indent
-.Em std offset Bo
-.Em dst Bo
-.Em offset
-.Bc
+.Bd -ragged -offset indent
+.Em std offset
 .Bo
-.No , Em rule
-.Bc
+.Em dst
+.Bq Em offset
+.Bq , Em rule
 .Bc
 .Ed
 .Pp
@@ -156,13 +154,13 @@ Indicates the value one must add to the local time to arrive at
 Coordinated Universal Time.  The
 .Em offset
 has the form:
-.Bd -unfilled -offset indent
+.Bd -ragged -offset indent
+.Sm off
 .Em hh Bo
-.Pf \&: Em mm
-.Bo
-.Pf \&: Em ss
+.Em : mm
+.Bq Em : ss
 .Bc
-.Bc
+.Sm on
 .Ed
 .Pp
 The minutes
@@ -191,7 +189,7 @@ west (which may be indicated by an optional preceding
 Indicates when to change to and back from summer time.  The
 .Em rule
 has the form:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Em date/time,date/time
 .Ed
 .Pp

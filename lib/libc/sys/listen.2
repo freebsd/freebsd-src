@@ -60,7 +60,7 @@ The
 call applies only to sockets of type
 .Dv SOCK_STREAM
 or
-.Dv SOCK_SEQPACKET.
+.Dv SOCK_SEQPACKET .
 .Pp
 The
 .Fa backlog
@@ -76,15 +76,15 @@ the request may be ignored so that retries may succeed.
 The
 .Xr sysctl 3
 MIB variable
-.Dq Li kern.ipc.somaxconn
+.Dq Va kern.ipc.somaxconn
 specifies a hard limit on
 .Fa backlog ;
-if a  value greater than
-.Li kern.ipc.somaxconn
+if a value greater than
+.Va kern.ipc.somaxconn
 or less than zero is specified,
 .Fa backlog
 is silently forced to
-.Li kern.ipc.somaxconn .
+.Va kern.ipc.somaxconn .
 .Sh IMPLEMENTATION NOTES
 .Pp
 In the non-threaded library

@@ -40,7 +40,7 @@
 .Dt MALLOC 3
 .Os FreeBSD
 .Sh NAME
-.Nm malloc, calloc, realloc, free, reallocf
+.Nm malloc , calloc , realloc , free , reallocf
 .Nd general purpose memory allocation functions
 .Sh LIBRARY
 .Lb libc
@@ -297,7 +297,7 @@ function returns no value.
 The major difference between this implementation and other allocation
 implementations is that the free pages are not accessed unless allocated,
 and are aggressively returned to the kernel for reuse.
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 Most allocation implementations will store a data structure containing a
 linked list in the free chunks of memory,
 used to tie all the free memory together.
@@ -436,7 +436,7 @@ The
 and
 .Fn free
 functions conform to
-.St -ansiC .
+.St -isoC .
 .Sh BUGS
 The messages printed in case of problems provide no detail about the
 actual values.

@@ -52,11 +52,11 @@ This interface is made obsolete by setitimer(2).
 The
 .Fn alarm
 function sets a timer to deliver the signal
-.Dv SIGALRM 
+.Dv SIGALRM
 to the calling process after the specified number of
 .Fa seconds .
 If an alarm has already been set with
-.Fn alarm 
+.Fn alarm
 but has not been delivered, another call to
 .Fn alarm
 will supersede the prior call.
@@ -72,7 +72,7 @@ restriction the maximum number of
 allowed is 100000000.
 .Sh RETURN VALUES
 .Pp
-The return value of 
+The return value of
 .Fn alarm
 is the amount of time left on the timer from a previous call to
 .Fn alarm .
@@ -89,10 +89,10 @@ If no alarm is currently set, the return value is 0.
 .\" .Sh STANDARDS
 .\" The
 .\" .Fn alarm
-.\" function conforms to 
+.\" function conforms to
 .\" .St -p1003.1-90 .
 .Sh HISTORY
 An
 .Fn alarm
-function appeared in 
+function appeared in
 .At v7 .

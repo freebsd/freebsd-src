@@ -95,21 +95,25 @@ struct	hostent {
 .Pp
 The members of this structure are:
 .Bl -tag -width h_addr_list
-.It Fa h_name
+.It Va h_name
 Official name of the host.
-.It Fa h_aliases
-A NULL-terminated array of alternate names for the host.
-.It Fa h_addrtype
+.It Va h_aliases
+A
+.Dv NULL Ns -terminated
+array of alternate names for the host.
+.It Va h_addrtype
 The type of address being returned; usually
 .Dv AF_INET .
-.It Fa h_length
+.It Va h_length
 The length, in bytes, of the address.
-.It Fa h_addr_list
-A NULL-terminated array of network addresses for the host.
+.It Va h_addr_list
+A
+.Dv NULL Ns -terminated
+array of network addresses for the host.
 Host addresses are returned in network byte order.
-.It Fa h_addr
+.It Va h_addr
 The first address in
-.Fa h_addr_list ;
+.Va h_addr_list ;
 this is for backward compatibility.
 .El
 .Pp
@@ -178,7 +182,9 @@ The
 function writes a message to the diagnostic output consisting of the
 string parameter
 .Fa s ,
-the constant string ": ", and a message corresponding to the value of
+the constant string
+.Qq Li ":\ " ,
+and a message corresponding to the value of
 .Va h_errno .
 .Pp
 The
@@ -210,7 +216,7 @@ can be used to print an error message describing the failure.
 If its argument
 .Fa string
 is
-.Pf non Dv -NULL ,
+.Pf non- Dv NULL ,
 it is printed, followed by a colon and a space.
 The error message is printed with a trailing newline.
 .Pp
@@ -298,7 +304,9 @@ functions appeared in
 .Bx 4.2 .
 The
 .Fn gethostbyname2
-function first appeared in bind-4.9.4.
+function first appeared in
+.Tn BIND
+version 4.9.4.
 .Sh BUGS
 These functions use static data storage;
 if the data is needed for future use, it should be

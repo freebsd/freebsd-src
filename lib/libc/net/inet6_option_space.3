@@ -48,15 +48,16 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Ft "int"
-.Fn inet6_options_space "int nbytes"
+.Fn inet6_option_space "int nbytes"
 .Ft "int"
 .Fn inet6_option_init "void *bp" "struct cmsghdr **cmsgp" "int type"
 .Ft "int"
 .Fn inet6_option_append "struct cmsghdr *cmsg" "const u_int8_t *typep" "int multx" "int plusy"
 .Ft "u_int8_t *"
-.Fn inet6_option_alloc "struct cmsghdr *cmsg" "int datalen" "int multx" "int plusy";
+.Fn inet6_option_alloc "struct cmsghdr *cmsg" "int datalen" "int multx" "int plusy"
 .Ft "int"
 .Fn inet6_option_next "const struct cmsghdr *cmsg" "u_int8_t **tptrp"
 .Ft "int"
@@ -80,17 +81,13 @@ ancillary data, including the
 .Li cmsghdr
 structure at the beginning,
 and any padding at the end
-.Po
-to make its size a multiple of 8 bytes
-.Pc .
+(to make its size a multiple of 8 bytes).
 The argument is the size of the structure defining the option,
 which must include any pad bytes at the beginning
-.Po
-the value
+(the value
 .Li y
 in the alignment term
-.Dq Li xn + y
-.Pc ,
+.Dq Li "xn + y" ) ,
 the type byte, the length byte, and the option data.
 .Pp
 Note: If multiple options are stored in a single ancillary data
@@ -180,17 +177,16 @@ before calling this function.
 The option type must have a value from
 .Li 2
 to
-.Li 255 , inclusive.
-.Po
-.Li 0
+.Li 255 ,
+inclusive.
+.Li ( 0
 and
 .Li 1
 are reserved for the
 .Li Pad1
 and
 .Li PadN
-options, respectively.
-.Pc
+options, respectively.)
 .Pp
 The option data length must have a value between
 .Li 0
@@ -248,12 +244,10 @@ initialized by
 is the value of the option data length byte for this option.
 This value is required as an argument to allow the function to
 determine if padding must be appended at the end of the option.
-.Po
-The
+(The
 .Fn inet6_option_append
 function does not need a data length argument
-since the option data length must already be stored by the caller.
-.Pc
+since the option data length must already be stored by the caller.)
 .Pp
 .Fa multx
 is the value
@@ -288,10 +282,8 @@ and
 .Fa *tptrp
 points to
 the 8-bit option type field
-.Po
-which is followed by the 8-bit option
-data length, followed by the option data
-.Pc .
+(which is followed by the 8-bit option
+data length, followed by the option data).
 If no more options remain
 to be processed, the return value is
 .Li -1
@@ -406,7 +398,8 @@ on an error.
 .Pp
 .Fn inet6_option_alloc
 returns
-.Dv NULL on an error.
+.Dv NULL
+on an error.
 .Pp
 On errors,
 .Fn inet6_option_next

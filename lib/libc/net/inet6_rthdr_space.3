@@ -50,6 +50,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <netinet/in.h>
 .Ft size_t
 .Fn inet6_rthdr_space "int type" "int segments"
@@ -211,10 +212,8 @@ When implemented, this should behave as follows.
 .Pp
 This function takes a Routing header that was received as ancillary
 data
-.Po
-pointed to by the first argument,
-.Fa in
-.Pc
+(pointed to by the first argument,
+.Fa in )
 and writes a new Routing
 header that sends datagrams along the reverse of that route.
 Both
@@ -237,10 +236,8 @@ The return value of the function is -1 upon an error.
 .Ss inet6_rthdr_getaddr
 This function returns a pointer to the IPv6 address specified by
 .Fa index
-.Po
-which must have a value between 1 and the value returned by
-.Fn inet6_rthdr_segments
-.Pc
+(which must have a value between 1 and the value returned by
+.Fn inet6_rthdr_segments )
 in the Routing header described by
 .Fa cmsg .
 An
@@ -254,11 +251,9 @@ Upon an error the return value of the function is
 .Ss inet6_rthdr_getflags
 This function returns the flags value specified by
 .Fa index
-.Po
-which must
+(which must
 have a value between 0 and the value returned by
-.Fn inet6_rthdr_segments
-.Pc
+.Fn inet6_rthdr_segments )
 in the Routing header described by
 .Fa cmsg .
 For an IPv6 Type 0 Routing header the return value will be either
