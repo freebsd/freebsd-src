@@ -35,13 +35,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
+static const char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -459,10 +458,10 @@ flush_appends()
 
 static void
 lputs(s)
-	register char *s;
+	char *s;
 {
-	register int count;
-	register char *escapes, *p;
+	int count;
+	char *escapes, *p;
 	struct winsize win;
 	static int termwidth = -1;
 
@@ -544,8 +543,8 @@ regsub(sp, string, src)
 	SPACE *sp;
 	char *string, *src;
 {
-	register int len, no;
-	register char c, *dst;
+	int len, no;
+	char c, *dst;
 
 #define	NEEDSP(reqlen)							\
 	if (sp->len >= sp->blen - (reqlen) - 1) {			\
@@ -618,7 +617,7 @@ cspace(sp, p, len, spflag)
  */
 void
 cfclose(cp, end)
-	register struct s_command *cp, *end;
+	struct s_command *cp, *end;
 {
 
 	for (; cp != end; cp = cp->next)

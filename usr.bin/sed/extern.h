@@ -46,7 +46,7 @@ extern u_long linenum;
 extern int appendnum;
 extern int lastline;
 extern int aflag, eflag, nflag;
-extern char *fname;
+extern const char *fname;
 extern int rflags;	/* regex flags to use */
 
 void	 cfclose __P((struct s_command *, struct s_command *));
