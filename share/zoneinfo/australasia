@@ -1,6 +1,6 @@
 # @(#)australasia	7.45
 # This file also includes Pacific islands.
-
+# $FreeBSD$
 # Notes are at the end of this file
 
 ###############################################################################
@@ -113,7 +113,7 @@ Rule	AV	1986	only	-	Oct	19	2:00s	1:00	-
 Rule	AV	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AV	1991	1994	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1995	max	-	Mar	lastSun	2:00s	0	-
-Rule	AV	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AV	2000	only	-	Aug	27	2:00s	1:00	-
 Rule	AV	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
@@ -133,7 +133,7 @@ Rule	AN	1986	only	-	Oct	19	2:00s	1:00	-
 Rule	AN	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AN	1990	1995	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1996	max	-	Mar	lastSun	2:00s	0	-
-Rule	AN	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AN	2000	only	-	Aug	27	2:00s	1:00	-
 Rule	AN	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
@@ -813,7 +813,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # IATA SSIM (1998-09) says that the spring 2000 change for Australian
 # Capital Territory, New South Wales except Lord Howe Island and Broken
-# Hill, and Victoria will be August 26, presumably due to the Sydney Olympics.
+# Hill, and Victoria will be August 27, due to the Sydney Olympics.
 
 # Yancowinna
 
