@@ -890,7 +890,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/DSP_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/MSS_BUFFSIZE, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &mss->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
