@@ -276,6 +276,13 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[SLAVE].attach)
 	    ch->device[SLAVE].attach(&ch->device[SLAVE]);
     }
+
+    /* restore transfermode on devices */
+    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))
+	ch->device[MASTER].setmode(&ch->device[MASTER],ch->device[MASTER].mode);
+    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))
+	ch->device[SLAVE].setmode(&ch->device[SLAVE], ch->device[SLAVE].mode);
+
 #ifdef DEV_ATAPICAM
     atapi_cam_reinit_bus(ch);
 #endif
