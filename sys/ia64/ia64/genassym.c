@@ -61,10 +61,6 @@
 #include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <nfs/nfsproto.h>
-#include <nfs/rpcv2.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
 
 ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
 ASSYM(GD_FPCURTHREAD, offsetof(struct globaldata, gd_fpcurthread));
