@@ -42,7 +42,8 @@
 #define _COMPONENT	THERMAL_CONTROL
 MODULE_NAME("THERMAL")
 
-#define TZ_KELVTOC(x)	(((x) - 2732) / 10), (((x) - 2732) % 10)
+#define TZ_ZEROC	2732
+#define TZ_KELVTOC(x)	(((x) - TZ_ZEROC) / 10), (((x) - TZ_ZEROC) % 10)
 
 struct acpi_tz_softc {
     device_t	tz_dev;
@@ -51,7 +52,9 @@ struct acpi_tz_softc {
 
 static int	acpi_tz_probe(device_t dev);
 static int	acpi_tz_attach(device_t dev);
-static void     acpi_tz_check_tripping_point(void *context);
+static void	acpi_tz_check_tripping_point(void *context);
+static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context);
+
 static device_method_t acpi_tz_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_tz_probe),
@@ -82,43 +85,11 @@ acpi_tz_probe(device_t dev)
     }
     return_VALUE(ENXIO);
 }
-static void acpi_tz_check_tripping_point(void *context)
-{
-	device_t dev = context;
-	struct acpi_tz_softc *sc;
-	UINT32 param[4];
-	ACPI_BUFFER b;
-	sc = device_get_softc(dev);
-	b.Pointer = &param[0];
-	b.Length = sizeof(param);
-	if((AcpiEvaluateObject(sc->tz_handle,"_TMP",NULL,&b)) != AE_OK){
-		device_printf(dev,"CANNOT FOUND _TMP\n");
-		return;
-	}
-	
-	device_printf(dev,"%d.%d K\n",param[1]/10,param[1]%10);
-	return;
-}
-#define ACPI_TZ_STATUS_CHANGE 0x80
-#define ACPI_TZ_TRIPPOINT_CHANGE 0x81
-static void acpi_tz_notify_handler( ACPI_HANDLE h,UINT32 notify, void *context)
-{
 
-	switch(notify){
-	case ACPI_TZ_STATUS_CHANGE:
-	case ACPI_TZ_TRIPPOINT_CHANGE:
-		/*Check trip point*/
-		AcpiOsQueueForExecution(OSD_PRIORITY_LO,
-		    acpi_tz_check_tripping_point,context);
-		break;
-  }
-}
 static int
 acpi_tz_attach(device_t dev)
 {
     struct acpi_tz_softc	*sc;
-    UINT32			param[4];
-    ACPI_BUFFER			buf;
     ACPI_STATUS			status;
 
     FUNCTION_TRACE(__FUNCTION__);
@@ -127,24 +98,52 @@ acpi_tz_attach(device_t dev)
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
 
-    buf.Pointer = &param[0];
-    buf.Length = sizeof(param);
-    if ((status = AcpiEvaluateObject(sc->tz_handle, "_TMP", NULL, &buf)) != AE_OK) {
-	device_printf(sc->tz_dev, "can't fetch temperature - %s\n", acpi_strerror(status));
-	return_VALUE(ENXIO);
-    }
-    if (param[0] != ACPI_TYPE_NUMBER) {
-	device_printf(sc->tz_dev, "%s._TMP does not evaluate to ACPI_TYPE_NUMBER\n", 
-		      acpi_name(sc->tz_handle));
-	return_VALUE(ENXIO);
-    }
-    device_printf(sc->tz_dev, "current temperature %d.%dC\n", TZ_KELVTOC(param[1]));
+    AcpiInstallNotifyHandler(sc->tz_handle, ACPI_DEVICE_NOTIFY, 
+			     acpi_tz_notify_handler, dev);
 
-    AcpiInstallNotifyHandler(sc->tz_handle,ACPI_DEVICE_NOTIFY,
-			     acpi_tz_notify_handler,dev);
+    /*
+     * Don't bother evaluating/printing the temperature at this point;
+     * on many systems it'll be bogus until the EC is running.
+     */
     return_VALUE(0);
 }
 
+static void
+acpi_tz_check_tripping_point(void *context)
+{
+    struct acpi_tz_softc	*sc;
+    device_t			dev = context;
+    ACPI_STATUS			status;
+    int				tp;
+
+    FUNCTION_TRACE(__FUNCTION__);
+
+    sc = device_get_softc(dev);
+    if ((status =  acpi_EvaluateInteger(sc->tz_handle, "_TMP", &tp)) != AE_OK) {
+	device_printf(dev, "can't evaluate _TMP method - %s\n", acpi_strerror(status));
+	return_VOID;
+    }
+    
+    device_printf(dev,"%d.%dC\n", TZ_KELVTOC(tp));
+    return_VOID;
+}
+
+#define ACPI_TZ_STATUS_CHANGE 0x80
+#define ACPI_TZ_TRIPPOINT_CHANGE 0x81
+static void
+acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+    FUNCTION_TRACE(__FUNCTION__);
+
+    switch(notify){
+    case ACPI_TZ_STATUS_CHANGE:
+    case ACPI_TZ_TRIPPOINT_CHANGE:
+	/*Check trip point*/
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_tz_check_tripping_point, context);
+	break;	
+    }
+    return_VOID;
+}
 
 
 
