@@ -47,13 +47,16 @@ struct tcb {
 	struct tcb		*tcb_self;	/* required by rtld */
 	void			*tcb_dtv;	/* required by rtld */
 	struct pthread		*tcb_thread;
+	int			tcb_ldt;
 };
 
 void
 _retire_thread(void *entry)
 {
-	_rtld_free_tls(entry, sizeof(struct tcb), 16);
-	/* XXX free ldt descriptor here */
+	struct tcb *tcb = (struct tcb *)entry;
+
+	i386_set_ldt(tcb->tcb_ldt, NULL, 1);
+	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }
 
 void *
@@ -65,6 +68,10 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	int ldt_index;
 
 	*err = 0;
+
+	if (uc == NULL && thr->arch_id != NULL) {
+		return (thr->arch_id);
+	}
 
 	if (uc == NULL) {
 		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
@@ -104,7 +111,7 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	ldt_index = i386_set_ldt(LDT_AUTO_ALLOC, &desc, 1);
 	if (ldt_index == -1)
 		abort();
-
+	tcb->tcb_ldt = ldt_index;
 	/*
 	 * Set up our gs with the index into the ldt for this entry.
 	 */
