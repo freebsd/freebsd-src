@@ -257,7 +257,7 @@ g_bsd_alpha(struct g_consumer *cp, int secsize, struct disklabel *dl)
 	g_bsd_ledec_disklabel(buf + 64, dl);
 	if (dl->d_magic == DISKMAGIC &&
 	    dl->d_magic2 == DISKMAGIC &&
-	    g_bsd_lesum(dl, buf) == 0) 
+	    g_bsd_lesum(dl, buf + 64) == 0) 
 		error = 0;
 	else
 		error = ENOENT;
