@@ -148,7 +148,6 @@
 
 #define	IO_ASCSIZE	5		/* AmiScan GI1904-based hand scanner */
 #define	IO_CGASIZE	12		/* CGA controllers */
-#define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
 #define	IO_DMASIZE	16		/* 8237 DMA controllers */
 #define	IO_DPGSIZE	32		/* 74LS612 DMA page registers */
 #define	IO_EISASIZE	256		/* EISA controllers */

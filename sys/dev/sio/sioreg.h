@@ -126,3 +126,5 @@
 #ifndef CONSPEED
 #define CONSPEED 9600
 #endif
+
+#define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
