@@ -973,7 +973,7 @@ ng_bridge_remove_hosts(priv_p priv, int linkNum)
  * a detected loopback condition, and we remove any hosts from
  * the hashtable whom we haven't heard from in a long while.
  *
- * If the node has the NG_INVALID flag set, out job is to kill it.
+ * If the node has the NG_INVALID flag set, our job is to kill it.
  */
 static void
 ng_bridge_timeout(void *arg)
