@@ -3,7 +3,7 @@
 
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	ascii.7 clocks.7 environ.7 hier.7 hostname.7 intro.7 mailaddr.7 \
-	man.7 mdoc.7 mdoc.samples.7 operator.7 ports.7 security.7 \
+	operator.7 ports.7 security.7 \
 	style.perl.7
 MLINKS=	intro.7 miscellaneous.7
 

@@ -171,7 +171,10 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
+		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
+		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
+		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
@@ -208,7 +211,23 @@ KMAKEENV=	${WMAKEENV} \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec:${OBJFORMAT_PATH}
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
-		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc
+		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc \
+		usr/share/dict \
+		usr/share/groff_font/devX100 \
+		usr/share/groff_font/devX100-12 \
+		usr/share/groff_font/devX75 \
+		usr/share/groff_font/devX75-12 \
+		usr/share/groff_font/devascii \
+		usr/share/groff_font/devcp1047 \
+		usr/share/groff_font/devdvi \
+		usr/share/groff_font/devhtml \
+		usr/share/groff_font/devkoi8-r \
+		usr/share/groff_font/devlatin1 \
+		usr/share/groff_font/devlbp \
+		usr/share/groff_font/devlj4 \
+		usr/share/groff_font/devps \
+		usr/share/groff_font/devutf8 \
+		usr/share/tmac/mdoc usr/share/tmac/mm
 
 .if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
 USRDIRS+=	usr/libexec/aout
@@ -231,10 +250,9 @@ buildworld:
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
 .else
-	for dir in bin games include lib sbin; do \
+	for dir in bin games include lib sbin share; do \
 		rm -rf ${WORLDTMP}/usr/$$dir; \
 	done
-	rm -f ${WORLDTMP}/sys
 	# XXX - Work-around for broken cc/cc_tools/Makefile.
 	# This is beyond dirty...
 	rm -f ${OBJTREE}${.CURDIR}/gnu/usr.bin/cc/cc_tools/.depend
@@ -245,7 +263,7 @@ buildworld:
 .for _dir in ${INCDIRS}
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
-	ln -sf ${.CURDIR}/sys ${WORLDTMP}/sys
+	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1: bootstrap tools"
@@ -549,7 +567,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
-    gnu/usr.bin/gperf gnu/usr.bin/texinfo
+    gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
