@@ -235,7 +235,7 @@ fork1(p1, flags, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		vm_fork(p1, 0, flags);
+		vm_forkproc(p1, 0, flags);
 
 		/*
 		 * Close all file descriptors.
@@ -412,7 +412,7 @@ again:
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
-	 * The p_stats and p_sigacts substructs are set in vm_fork.
+	 * The p_stats and p_sigacts substructs are set in vm_forkproc.
 	 */
 	p2->p_flag = 0;
 	mtx_lock_spin(&sched_lock);
@@ -461,7 +461,7 @@ again:
 		PROC_LOCK(p1);
 		bcopy(p1->p_procsig, p2->p_procsig, sizeof(*p2->p_procsig));
 		p2->p_procsig->ps_refcnt = 1;
-		p2->p_sigacts = NULL;	/* finished in vm_fork() */
+		p2->p_sigacts = NULL;	/* finished in vm_forkproc() */
 	}
 	if (flags & RFLINUXTHPN) 
 	        p2->p_sigparent = SIGUSR1;
@@ -573,7 +573,7 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	vm_fork(p1, p2, flags);
+	vm_forkproc(p1, p2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;

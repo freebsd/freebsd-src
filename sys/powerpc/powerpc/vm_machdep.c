@@ -159,38 +159,21 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
-	while (mtx_owned(&Giant))
-		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
-
-	/*
-	 * We have to wait until after releasing all locks before
-	 * changing p_stat.  If we block on a mutex then we will be
-	 * back at SRUN when we resume and our parent will never
-	 * harvest us.
-	 */
-	p->p_stat = SZOMB;
-
-	wakeup(p->p_pptr);
-	PROC_UNLOCK_NOSWITCH(p);
-
-	cnt.v_swtch++;
-	cpu_switch();
-	panic("cpu_exit");
 }
 
 void
 cpu_wait(p)
 	struct proc *p;
 {
-	GIANT_REQUIRED;
-	
-	/* drop per-process resources */
-	pmap_dispose_proc(p);
+}
 
-	/* and clean-out the vmspace */
-	vmspace_free(p->p_vmspace);
+/* Temporary helper */
+void
+cpu_throw(void)
+{
+
+	cpu_switch();
+	panic("cpu_throw() didn't");
 }
 
 /*
