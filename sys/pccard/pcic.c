@@ -703,7 +703,7 @@ pcic_power(struct slot *slt)
 					slt->pwr.vcc = 50;
 				break;
 			default:
-				/* I have no idea how do do this for others */
+				/* I have no idea how to do this for others */
 				break;
 			}
 
