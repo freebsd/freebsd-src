@@ -830,6 +830,7 @@ again:
 		goto again;
 	}
 	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	disc_optim(tp, &tp->t_termios, rc);
 	if ((tp->t_state & TS_ISOPEN) && CALLOUT(dev))
 		rc->rc_flags |= RC_ACTOUT;
 out:
@@ -860,6 +861,7 @@ rcclose(dev, flag, mode, p)
 #endif
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
+	disc_optim(tp, &tp->t_termios, rc);
 	rcstop(tp, FREAD | FWRITE);
 	rc_hardclose(rc);
 	ttyclose(tp);
@@ -1133,6 +1135,7 @@ struct proc     *p;
 	if (error >= 0)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
+	disc_optim(tp, &tp->t_termios, rc);
 	if (error >= 0)
 		return (error);
 	s = spltty();
