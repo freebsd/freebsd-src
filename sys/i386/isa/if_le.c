@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.45 1998/06/07 17:10:35 dfr Exp $
+ * $Id: if_le.c,v 1.46 1998/07/15 09:38:09 bde Exp $
  */
 
 /*
@@ -88,13 +88,8 @@ typedef struct le_board le_board_t;
 typedef u_short le_mcbits_t;
 #define	LE_MC_NBPW_LOG2		4
 #define LE_MC_NBPW		(1 << LE_MC_NBPW_LOG2)
-#if __FreeBSD__ > 1
 #define	IF_RESET_ARGS	int unit
 #define	LE_RESET(ifp)	(((sc)->if_reset)((sc)->le_if.if_unit))
-#else
-#define	IF_RESET_ARGS	int unit, int dummy
-#define	LE_RESET(ifp)	(((sc)->if_reset)((sc)->le_if.if_unit, 0))
-#endif
 
 #if !defined(LE_NOLEMAC)
 /*
