@@ -37,7 +37,6 @@ LINKS=	${BINDIR}/sendmail /usr/bin/newaliases \
 	${BINDIR}/sendmail /usr/bin/mailq \
 	${BINDIR}/sendmail /usr/bin/hoststat \
 	${BINDIR}/sendmail ${BINDIR}/purgestat
-BINOWN=	root
 BINMODE=4555
 
 beforeinstall:

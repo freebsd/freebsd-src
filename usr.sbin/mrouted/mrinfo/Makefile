@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1997/12/17 15:11:43 bde Exp $
+#	$Id: Makefile,v 1.9 1998/03/07 09:49:06 bde Exp $
 
 PROG=	mrinfo
 
@@ -9,7 +9,6 @@ DPADD=	${LIBMROUTED}
 LDADD=	${LIBMROUTED}
 
 MAN8=	mrinfo.8
-BINOWN=	root
 BINMODE=4555
 
 .include <bsd.prog.mk>
