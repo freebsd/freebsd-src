@@ -880,7 +880,7 @@ static void commentLine(FICL_VM *pVM)
     char *cp = vmGetInBuf(pVM);
     char ch = *cp;
 
-    while ((ch != '\0') && (ch != '\r') && (ch != '\n'))
+    while ((pVM->tib.end != cp) && (ch != '\0') && (ch != '\r') && (ch != '\n'))
     {
         ch = *++cp;
     }
@@ -890,11 +890,11 @@ static void commentLine(FICL_VM *pVM)
     ** Check for /r, /n, /r/n, or /n/r end-of-line sequences,
     ** and point cp to next char. If EOL is \0, we're done.
     */
-    if (ch != '\0')
+    if ((pVM->tib.end != cp) && (ch != '\0'))
     {
         cp++;
 
-        if ( (ch != *cp) 
+        if ( (pVM->tib.end != cp) && (ch != *cp) 
              && ((*cp == '\r') || (*cp == '\n')) )
             cp++;
     }
@@ -1180,12 +1180,9 @@ static void interpret(FICL_VM *pVM)
     // Get next word...if out of text, we're done.
     */
     if (si.count == 0)
-    {
         vmThrow(pVM, VM_OUTOFTEXT);
-    }
 
     interpWord(pVM, si);
-
 
     return;                 /* back to inner interpreter */
 }
@@ -1234,7 +1231,6 @@ static void interpWord(FICL_VM *pVM, STRINGINFO si)
             {
                 vmThrowErr(pVM, "Error: Compile only!");
             }
-
             vmExecute(pVM, tempFW);
         }
 
@@ -2069,13 +2065,13 @@ static void dotParen(FICL_VM *pVM)
     char *pDest = pVM->pad;
     char ch;
 
-    pSrc = skipSpace(pSrc);
+    pSrc = skipSpace(pSrc,pVM->tib.end);
 
-    for (ch = *pSrc; (ch != '\0') && (ch != ')'); ch = *++pSrc)
+    for (ch = *pSrc; (pVM->tib.end != pSrc) && (ch != '\0') && (ch != ')'); ch = *++pSrc)
         *pDest++ = ch;
 
     *pDest = '\0';
-    if (ch == ')')
+    if ((pVM->tib.end != pSrc) && (ch == ')'))
         pSrc++;
 
     vmTextOut(pVM, pVM->pad, 0);
@@ -2441,7 +2437,7 @@ static void quit(FICL_VM *pVM)
 
 static void ficlAbort(FICL_VM *pVM)
 {
-    vmThrow(pVM, VM_ERREXIT);
+    vmThrow(pVM, VM_ABORT);
     return;
 }
 
@@ -2462,6 +2458,10 @@ static void ficlAbort(FICL_VM *pVM)
 ** Implementation: if there's more text in the TIB, use it. Otherwise
 ** throw out for more text. Copy characters up to the max count into the
 ** address given, and return the number of actual characters copied.
+**
+** This may not strictly violate the standard, but I'm sure any programs
+** asking for user input at load time will *not* be expecting this
+** behavior. (sobral)
 **************************************************************************/
 static void accept(FICL_VM *pVM)
 {
@@ -2469,7 +2469,7 @@ static void accept(FICL_VM *pVM)
     char *cp;
     char *pBuf = vmGetInBuf(pVM);
 
-    len = strlen(pBuf);
+    for (len = 0; pVM->tib.end != &pBuf[len] && pBuf[len]; len++);
     if (len == 0)
         vmThrow(pVM, VM_RESTART);
     /* OK - now we have something in the text buffer - use it */
@@ -2692,25 +2692,28 @@ static void environmentQ(FICL_VM *pVM)
 ** EVALUATE CORE ( i*x c-addr u -- j*x )
 ** Save the current input source specification. Store minus-one (-1) in
 ** SOURCE-ID if it is present. Make the string described by c-addr and u
-** both the input source and input buffer, set >IN to zero, and interpret.
+** both the input source andinput buffer, set >IN to zero, and interpret.
 ** When the parse area is empty, restore the prior input source
 ** specification. Other stack effects are due to the words EVALUATEd. 
 **
-** DEFICIENCY: this version does not handle errors or restarts.
+** DEFICIENCY: this version does not handle restarts. Also, exceptions
+** are just passed ahead. Is this the Right Thing? I don't know...
 **************************************************************************/
 static void evaluate(FICL_VM *pVM)
 {
-    UNS32 count = stackPopUNS32(pVM->pStack);
+    INT32 count = stackPopINT32(pVM->pStack);
     char *cp    = stackPopPtr(pVM->pStack);
     CELL id;
+    int result;
 
-    IGNORE(count);
     id = pVM->sourceID;
     pVM->sourceID.i = -1;
     vmPushIP(pVM, &pInterpret);
-    ficlExec(pVM, cp);
+    result = ficlExec(pVM, cp, count);
     vmPopIP(pVM);
     pVM->sourceID = id;
+    if (result != VM_OUTOFTEXT)
+	vmThrow(pVM, result);
     return;
 }
 
@@ -2843,12 +2846,12 @@ static void parse(FICL_VM *pVM)
 
     cp = pSrc;              /* mark start of text */
 
-    while ((*pSrc != delim) && (*pSrc != '\0'))
+    while ((pVM->tib.end != pSrc) && (*pSrc != delim) && (*pSrc != '\0'))
         pSrc++;             /* find next delimiter or end */
 
     count = pSrc - cp;      /* set length of result */
 
-    if (*pSrc == delim)     /* gobble trailing delimiter */
+    if ((pVM->tib.end != pSrc) && (*pSrc == delim))     /* gobble trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
@@ -3159,9 +3162,11 @@ static void sToD(FICL_VM *pVM)
 ** input buffer. 
 **************************************************************************/
 static void source(FICL_VM *pVM)
-{
+{   int i;
+
     stackPushPtr(pVM->pStack, pVM->tib.cp);
-    stackPushINT32(pVM->pStack, strlen(pVM->tib.cp));
+    for (i = 0; (pVM->tib.end != &pVM->tib.cp[i]) && pVM->tib.cp[i]; i++);
+    stackPushINT32(pVM->pStack, i);
     return;
 }
 
@@ -4049,6 +4054,194 @@ static void forget(FICL_VM *pVM)
     return;
 }
 
+/*************** freebsd added memory-alloc handling words ******************/
+
+static void allocate(FICL_VM *pVM)
+{
+    size_t size;
+    void *p;
+
+    size = stackPopINT32(pVM->pStack);
+    p = ficlMalloc(size);
+    stackPushPtr(pVM->pStack, p);
+    if (p)
+	stackPushINT32(pVM->pStack, 0);
+    else
+	stackPushINT32(pVM->pStack, 1);
+}
+
+static void free4th(FICL_VM *pVM)
+{
+    void *p;
+
+    p = stackPopPtr(pVM->pStack);
+    ficlFree(p);
+    stackPushINT32(pVM->pStack, 0);
+}
+
+static void resize(FICL_VM *pVM)
+{
+    size_t size;
+    void *new, *old;
+
+    size = stackPopINT32(pVM->pStack);
+    old = stackPopPtr(pVM->pStack);
+    new = ficlRealloc(old, size);
+    if (new) {
+	stackPushPtr(pVM->pStack, new);
+	stackPushINT32(pVM->pStack, 0);
+     } else {
+	stackPushPtr(pVM->pStack, old);
+	stackPushINT32(pVM->pStack, 1);
+    }
+}
+
+/***************** freebsd added exception handling words *******************/
+
+/*
+ * Catch, from ANS Forth standard. Installs a safety net, then EXECUTE
+ * the word in ToS. If an exception happens, restore the state to what
+ * it was before, and pushes the exception value on the stack. If not,
+ * push zero.
+ *
+ * Notice that Catch implements an inner interpreter. This is ugly,
+ * but given how ficl works, it cannot be helped. The problem is that
+ * colon definitions will be executed *after* the function returns,
+ * while "code" definitions will be executed immediately. I considered
+ * other solutions to this problem, but all of them shared the same
+ * basic problem (with added disadvantages): if ficl ever changes it's
+ * inner thread modus operandi, one would have to fix this word.
+ *
+ * More comments can be found throughout catch's code.
+ *
+ * BUGS: do not handle locals unnesting correctly... I think...
+ *
+ * Daniel C. Sobral	Jan 09/1999
+ */
+
+static void catch(FICL_VM *pVM)
+{
+	int		except;
+	jmp_buf		vmState;
+	FICL_VM		VM;
+	FICL_STACK	pStack;
+	FICL_STACK	rStack;
+	FICL_WORD	*pFW;
+	IPTYPE		exitIP;
+
+	/*
+         * Get xt.
+	 * We need this *before* we save the stack pointer, or
+         * we'll have to pop one element out of the stack after
+         * an exception. I prefer to get done with it up front. :-)
+         */
+#if FICL_ROBUST > 1
+	vmCheckStack(pVM, 1, 0);
+#endif
+	pFW = stackPopPtr(pVM->pStack);
+
+	/* 
+	 * Save vm's state -- a catch will not back out environmental
+         * changes.
+	 *
+	 * We are *not* saving dictionary state, since it is
+	 * global instead of per vm, and we are not saving
+	 * stack contents, since we are not required to (and,
+	 * thus, it would be useless). We save pVM, and pVM
+	 * "stacks" (a structure containing general information
+	 * about it, including the current stack pointer).
+         */
+	memcpy((void*)&VM, (void*)pVM, sizeof(FICL_VM));
+	memcpy((void*)&pStack, (void*)pVM->pStack, sizeof(FICL_STACK));
+	memcpy((void*)&rStack, (void*)pVM->rStack, sizeof(FICL_STACK));
+
+	/*
+	 * Give pVM a jmp_buf
+	 */
+	pVM->pState = &vmState;
+
+	/*
+	 * Safety net
+	 */
+	except = setjmp(vmState);
+
+	/*
+	 * And now, choose what to do depending on except.
+	 */
+
+		/* Things having gone wrong... */
+	if(except) {
+		/* Restore vm's state */
+		memcpy((void*)pVM, (void*)&VM, sizeof(FICL_VM));
+		memcpy((void*)pVM->pStack, (void*)&pStack, sizeof(FICL_STACK));
+		memcpy((void*)pVM->rStack, (void*)&rStack, sizeof(FICL_STACK));
+
+		/* Push error */
+		stackPushINT32(pVM->pStack, except);
+
+		/* Things being ok... */
+	} else {
+		/*
+		 * We need to know when to exit the inner loop
+		 * Colonp, the "code" for colon words, just pushes
+		 * the word's IP onto the RP, and expect the inner
+		 * interpreter to do the rest. Well, I'd rather have
+		 * it done *before* I return from this function,
+		 * losing the automatic variables I'm using to save
+		 * state. Sure, I could save this on dynamic memory
+		 * and save state on RP, or I could even implement
+		 * the poor man's version of this word in Forth with
+		 * sp@, sp!, rp@ and rp!, but we have a lot of state
+		 * neatly tucked away in pVM, so why not save it?
+		 */
+		exitIP = pVM->ip;
+
+		/* Execute the xt -- inline code for vmExecute */
+
+		pVM->runningWord = pFW;
+		pFW->code(pVM);
+
+		/*
+		 * Run the inner loop until we get back to exitIP
+		 */
+		for (; pVM->ip != exitIP;) {
+			pFW = *pVM->ip++;
+
+			/* Inline code for vmExecute */
+			pVM->runningWord = pFW;
+			pFW->code(pVM);
+		}
+
+
+		/* Restore just the setjmp vector */
+		pVM->pState = VM.pState;
+
+		/* Push 0 -- everything is ok */
+		stackPushINT32(pVM->pStack, 0);
+	}
+}
+
+/*
+ * Throw -- maybe vmThow already do what's required, but I don't really
+ * know what happens when you longjmp(buf, 0). From ANS Forth standard.
+ *
+ * Anyway, throw takes the ToS and, if that's different from zero,
+ * returns to the last executed catch context. Further throws will
+ * unstack previously executed "catches", in LIFO mode.
+ *
+ * Daniel C. Sobral	Jan 09/1999
+ */
+
+static void throw(FICL_VM *pVM)
+{
+	int except;
+	
+	except = stackPopINT32(pVM->pStack);
+
+	if (except)
+		vmThrow(pVM, except);
+}
+
 /************************* freebsd added I/O words **************************/
 
 /*          fopen - open a file and return new fd on stack.
@@ -4385,14 +4578,37 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
-#ifdef __i386__
+    /*
+    ** EXCEPTION word set
+    */
+    dictAppendWord(dp, "catch",     catch,          FW_DEFAULT);
+    dictAppendWord(dp, "throw",     throw,          FW_DEFAULT);
+    
+    ficlSetEnv("exception",         FICL_TRUE);
+    ficlSetEnv("exception-ext",     FICL_TRUE);
+
+    /*
+    ** MEMORY-ALLOC word set
+    */
+    dictAppendWord(dp, "allocate",  allocate,       FW_DEFAULT);
+    dictAppendWord(dp, "free",      free4th,        FW_DEFAULT);
+    dictAppendWord(dp, "resize",    resize,         FW_DEFAULT);
+ 
+    ficlSetEnv("memory-alloc",         FICL_TRUE);
+
 #ifndef TESTMAIN
+#ifdef __i386__
     dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
     dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
 #endif
+#endif
+
+#if defined(__i386__)
     ficlSetEnv("arch-i386",         FICL_TRUE);
-#else
+    ficlSetEnv("arch-alpha",        FICL_FALSE);
+#elif defined(__alpha__)
     ficlSetEnv("arch-i386",         FICL_FALSE);
+    ficlSetEnv("arch-alpha",        FICL_TRUE);
 #endif
 
     /*
