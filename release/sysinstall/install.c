@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.93 1996/04/29 21:15:42 jkh Exp $
+ * $Id: install.c,v 1.94 1996/04/30 05:23:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -382,7 +382,6 @@ installNovice(dialogMenuItem *self)
 		   "No.\n\n"
 		   "If you wish to re-enter this utility after the system is up, you\n"
 		   "may do so by typing: /stand/sysinstall.");
-    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
 
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
 	if (!msgYesNo("Would you like to configure this machine's network interfaces?")) {
@@ -515,6 +514,7 @@ installCommit(dialogMenuItem *self)
 		       "If you have any network devices you have not yet configured,\n"
 		       "see the Interfaces configuration item on the Configuration menu.");
     }
+    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
