@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1998/09/18 02:03:29 msmith Exp $
+# $Id: Makefile,v 1.5 1998/09/19 01:35:53 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -18,7 +18,7 @@ CFLAGS+=	-DVERBOSE_LS
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	<${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I.
 
 CLEANFILES+=	vers.c vers.o ${BASE}.list setdef0.o setdef1.o setdefs.h \
 		gensetdefs.o gensetdefs ${BASE}.bin
@@ -35,11 +35,15 @@ LIBSTAND=	-lstand
 #LIBSTAND=	${.CURDIR}/../../../lib/libstand/libstand.a
 
 # BTX components
+.if exists(${.OBJDIR}/../btx)
+BTXDIR=		${.OBJDIR}/../btx
+.else
 BTXDIR=		${.CURDIR}/../btx
+.endif
 BTXLDR=		${BTXDIR}/btxldr/btxldr
 BTXKERN=	${BTXDIR}/btx/btx
 BTXCRT=		${BTXDIR}/lib/crt0.o
-CFLAGS+=	-I${BTXDIR}/lib
+CFLAGS+=	-I${.CURDIR}/../btx/lib
 
 # BTX is expecting ELF components
 CFLAGS+=	-elf

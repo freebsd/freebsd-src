@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/09/14 18:27:05 msmith Exp $
+#	$Id: Makefile,v 1.3 1998/09/17 23:52:04 msmith Exp $
 
 ORG=0x100000
 
@@ -14,13 +14,8 @@ btxldr: btxldr.o
 .endif
 
 btxldr.o: btxldr.s
-	${AS} ${AFLAGS} -o ${.TARGET} btxldr.s
+	${AS} ${AFLAGS} -o ${.TARGET} ${.CURDIR}/btxldr.s
 
-clean:
-	rm -f btxldr btxldr.out btxldr.o
+CLEANFILES+= btxldr btxldr.out btxldr.o
 
-depend:
-
-cleandepend:
-
-install:
+.include <bsd.prog.mk>
