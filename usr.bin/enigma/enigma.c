@@ -34,6 +34,7 @@ char	t3[ROTORSZ];
 char	deck[ROTORSZ];
 char	buf[13];
 
+int	main(int, char *[]);
 void	shuffle(char *);
 void	setup(char *);
 
@@ -56,11 +57,11 @@ setup(pw)
 		close(1);
 		dup(pf[0]);
 		dup(pf[1]);
-		execlp("makekey", "-", 0);
-		execl("/usr/libexec/makekey", "-", 0);	/* BSDI */
-		execl("/usr/lib/makekey", "-", 0);
-		execl("/usr/bin/makekey", "-", 0);	/* IBM */
-		execl("/lib/makekey", "-", 0);
+		execlp("makekey", "-", (char *)0);
+		execl("/usr/libexec/makekey", "-", (char *)0);	/* BSDI */
+		execl("/usr/lib/makekey", "-", (char *)0);
+		execl("/usr/bin/makekey", "-", (char *)0);	/* IBM */
+		execl("/lib/makekey", "-", (char *)0);
 		perror("makekey");
 		fprintf(stderr, "enigma: cannot execute 'makekey', aborting\n");
 		exit(1);
