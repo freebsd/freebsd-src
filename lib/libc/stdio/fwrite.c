@@ -67,6 +67,7 @@ fwrite(buf, size, count, fp)
 	uio.uio_iovcnt = 1;
 
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	/*
 	 * The usual case is success (__sfvwrite returns 0);
 	 * skip the divide if this happens, since divides are

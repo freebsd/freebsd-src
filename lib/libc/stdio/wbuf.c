@@ -69,6 +69,8 @@ __swbuf(c, fp)
 		return (EOF);
 	c = (unsigned char)c;
 
+	ORIENT(fp, -1);
+
 	/*
 	 * If it is completely full, flush it out.  Then, in any case,
 	 * stuff c into the buffer.  If this causes the buffer to fill

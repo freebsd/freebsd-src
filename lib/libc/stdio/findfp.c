@@ -176,6 +176,12 @@ found:
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
 /*	fp->_lock = NULL; */	/* once set always set (reused) */
+	fp->_extra->orientation = 0;
+#ifdef notdef
+	/* Stateful encoding/decoding is not yet supported. */
+	memset(&fp->_extra->wstate, 0, sizeof(mbstate_t));
+	memset(&fp->_extra->rstate, 0, sizeof(mbstate_t));
+#endif
 	return (fp);
 }
 

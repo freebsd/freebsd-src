@@ -145,6 +145,8 @@ __svfscanf(FILE *fp, const char *fmt0, va_list ap)
 	char decimal_point = localeconv()->decimal_point[0];
 #endif
 
+	ORIENT(fp, -1);
+
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;

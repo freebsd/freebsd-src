@@ -66,6 +66,7 @@ fread(buf, size, count, fp)
 	if ((resid = count * size) == 0)
 		return (0);
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	if (fp->_r < 0)
 		fp->_r = 0;
 	total = resid;
