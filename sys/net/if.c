@@ -1016,7 +1016,9 @@ ifpromisc(ifp, pswitch)
 {
 	struct ifreq ifr;
 	int error;
+	int oldflags;
 
+	oldflags = ifp->if_flags;
 	if (pswitch) {
 		/*
 		 * If the device is not configured up, we cannot put it in
@@ -1040,6 +1042,8 @@ ifpromisc(ifp, pswitch)
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 	if (error == 0)
 		rt_ifmsg(ifp);
+	else
+		ifp->if_flags = oldflags;
 	return error;
 }
 
