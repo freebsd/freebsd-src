@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
- * $Id: ufs_ihash.c,v 1.2 1994/08/02 07:54:55 davidg Exp $
+ * $Id: ufs_ihash.c,v 1.3 1994/10/06 21:07:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -122,7 +122,8 @@ ufs_ihashins(ip)
 	struct inode **ipp, *iq;
 
 	ipp = &ihashtbl[INOHASH(ip->i_dev, ip->i_number)];
-	if (iq = *ipp)
+	iq = *ipp;
+	if (iq)
 		iq->i_prev = &ip->i_next;
 	ip->i_next = iq;
 	ip->i_prev = ipp;
@@ -145,7 +146,8 @@ ufs_ihashrem(ip)
 {
 	register struct inode *iq;
 
-	if (iq = ip->i_next)
+	iq = ip->i_next;
+	if (iq)
 		iq->i_prev = ip->i_prev;
 	*ip->i_prev = iq;
 #ifdef DIAGNOSTIC
