@@ -7,6 +7,7 @@ PROG= 		${BASE}.efi
 NOMAN=
 NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
 BINDIR?=	/boot
+STRIP=		# We must not strip loader.efi at install time.
 
 SRCS+=		main.c conf.c dev_net.c
 
