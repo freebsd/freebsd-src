@@ -301,10 +301,15 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 	return (ret);
 }
 
+/*
+ * Libc internal.
+ */
 int
 _pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	int	ret = 0;
+
+	_thread_sigblock();
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -316,6 +321,9 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 1)) == 0)
 		ret = mutex_lock_common(mutex, 1);
+
+	if (ret != 0)
+		_thread_sigunblock();
 
 	return (ret);
 }
