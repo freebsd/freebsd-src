@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.1 1997/05/03 03:49:51 jb Exp $
 #
 # This file contains make rules that are shared by libc and libc_r.
 #
@@ -22,4 +22,3 @@
 CFLAGS+= -DYP
 .include "${.CURDIR}/../libc/yp/Makefile.inc"
 .endif
-.include "${.CURDIR}/../libc/${MACHINE}/sys/Makefile.inc"
