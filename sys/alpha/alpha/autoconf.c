@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.27 1999/05/29 19:23:20 gallatin Exp $
+ *	$Id: autoconf.c,v 1.28 1999/05/31 20:44:11 dt Exp $
  */
 
 #include "opt_bootp.h"
@@ -62,7 +62,6 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
-static int      setdumpdev __P((dev_t dev));
 
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
@@ -261,58 +260,3 @@ cpu_rootconf()
 	}
 #endif
 }
-
-void
-cpu_dumpconf()
-{
-	if (setdumpdev(dumpdev) != 0)
-                dumpdev = NODEV;
-}
-
-static int
-setdumpdev(dev)
-        dev_t dev;
-{
-        int maj, psize;
-        long newdumplo;
-
-        if (dev == NODEV) {
-                dumpdev = dev;
-                return (0);
-        }
-        maj = major(dev);
-        if (bdevsw(dev) == NULL)
-                return (ENXIO);         /* XXX is this right? */
-        if (bdevsw(dev)->d_psize == NULL)
-                return (ENXIO);         /* XXX should be ENODEV ? */
-        psize = bdevsw(dev)->d_psize(dev);
-        if (psize == -1)
-                return (ENXIO);         /* XXX should be ENODEV ? */
-        /*
-         * XXX should clean up checking in dumpsys() to be more like this,
-         * and nuke dodump sysctl (too many knobs), and move this to
-         * kern_shutdown.c...
-         */
-        newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
-        if (newdumplo < 0)
-                return (ENOSPC);
-        dumpdev = dev;
-        dumplo = newdumplo;
-        return (0);
-}
-
-static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
-{
-        int error;
-        udev_t ndumpdev;
-
-        ndumpdev = dev2udev(dumpdev);
-        error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-        if (error == 0 && req->newptr != NULL)
-                error = setdumpdev(udev2dev(ndumpdev, 1));
-        return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	    0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");

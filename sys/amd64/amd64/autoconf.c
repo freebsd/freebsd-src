@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.127 1999/07/03 17:40:29 peter Exp $
+ *	$Id: autoconf.c,v 1.128 1999/07/03 21:03:56 peter Exp $
  */
 
 /*
@@ -101,7 +101,6 @@ static void	configure_final __P((void *));
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
-static int	setdumpdev __P((dev_t dev));
 #if defined(FFS) || defined(FFS_ROOT)
 static void	setroot __P((void));
 #endif
@@ -362,47 +361,6 @@ cpu_rootconf()
 	}
 }
 
-
-void
-cpu_dumpconf()
-{
-	if (setdumpdev(dumpdev) != 0)
-		dumpdev = NODEV;
-}
-
-static int
-setdumpdev(dev)
-	dev_t dev;
-{
-	int maj, psize;
-	long newdumplo;
-
-	if (dev == NODEV) {
-		dumpdev = dev;
-		return (0);
-	}
-	maj = major(dev);
-	if (bdevsw(dev) == NULL)
-		return (ENXIO);		/* XXX is this right? */
-	if (bdevsw(dev)->d_psize == NULL)
-		return (ENXIO);		/* XXX should be ENODEV ? */
-	psize = bdevsw(dev)->d_psize(dev);
-	if (psize == -1)
-		return (ENXIO);		/* XXX should be ENODEV ? */
-	/*
-	 * XXX should clean up checking in dumpsys() to be more like this,
-	 * and nuke dodump sysctl (too many knobs), and move this to
-	 * kern_shutdown.c...
-	 */
-	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
-	if (newdumplo < 0)
-		return (ENOSPC);
-	dumpdev = dev;
-	dumplo = newdumplo;
-	return (0);
-}
-
-
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
 #define FDMAJOR 2
@@ -491,23 +449,6 @@ setroot()
 	sprintf(rootdevnames[1], "%s%s", sname, partname);
 }
 #endif
-
-
-static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
-{
-	int error;
-	udev_t ndumpdev;
-
-	ndumpdev = dev2udev(dumpdev);
-	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (error == 0 && req->newptr != NULL)
-		error = setdumpdev(udev2dev(ndumpdev, 1));
-	return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
 
 
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.53 1999/06/26 02:46:02 mckusick Exp $
+ * $Id: kern_shutdown.c,v 1.54 1999/07/01 22:54:55 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -127,6 +127,8 @@ static struct shutdown_list shutdown_lists[SHUTDOWN_FINAL + 1];
 
 static void boot __P((int)) __dead2;
 static void dumpsys __P((void));
+static int setdumpdev __P((dev_t dev));
+
 
 #ifndef _SYS_SYSPROTO_H_
 struct reboot_args {
@@ -352,8 +354,41 @@ static u_long const	dumpmag = 0x8fca0101UL;
 static int	dumpsize = 0;		/* also for savecore */
 
 static int	dodump = 1;
-SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, 
-    &dodump, 0, "Do coredump on kernel panic");
+
+SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0,
+    "Try to perform coredump on kernel panic");
+
+static int
+setdumpdev(dev)
+	dev_t dev;
+{
+	int maj, psize;
+	long newdumplo;
+
+	if (dev == NODEV) {
+		dumpdev = dev;
+		return (0);
+	}
+	maj = major(dev);
+	if (bdevsw(dev) == NULL)
+		return (ENXIO);		/* XXX is this right? */
+	if (bdevsw(dev)->d_psize == NULL)
+		return (ENXIO);		/* XXX should be ENODEV ? */
+	psize = bdevsw(dev)->d_psize(dev);
+	if (psize == -1)
+		return (ENXIO);		/* XXX should be ENODEV ? */
+	/*
+	 * XXX should clean up checking in dumpsys() to be more like this,
+	 * and nuke dodump sysctl (too many knobs).
+	 */
+	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
+	if (newdumplo < 0)
+		return (ENOSPC);
+	dumpdev = dev;
+	dumplo = newdumplo;
+	return (0);
+}
+
 
 /* ARGSUSED */
 static void dump_conf __P((void *dummy));
@@ -361,9 +396,27 @@ static void
 dump_conf(dummy)
 	void *dummy;
 {
-	cpu_dumpconf();
+	if (setdumpdev(dumpdev) != 0)
+		dumpdev = NODEV;
 }
+
 SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
+
+static int
+sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+{
+	int error;
+	udev_t ndumpdev;
+
+	ndumpdev = dev2udev(dumpdev);
+	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
+	if (error == 0 && req->newptr != NULL)
+		error = setdumpdev(udev2dev(ndumpdev, 1));
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
 
 /*
  * Doadump comes here after turning off memory management and
