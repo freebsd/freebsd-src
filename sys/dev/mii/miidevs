@@ -1,4 +1,4 @@
-$FreeBSD$
+$Id: miidevs,v 1.1 1999/08/21 17:40:43 wpaul Exp $
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
 /*-
@@ -50,6 +50,7 @@ $FreeBSD$
  */
 
 oui AMD				0x00001a	Advanced Micro Devices
+oui BROADCOM			0x001018	Broadcom Corporation
 oui DAVICOM			0x00606e	Davicom Semiconductor
 oui ICS				0x00a0be	Integrated Circuit Systems
 oui INTEL			0x00aa00	Intel
@@ -86,6 +87,9 @@ oui xxDAVICOM			0x006040	Davicom Semiconductor
 /* Advanced Micro Devices PHYs */
 model xxAMD 79C873		0x0000 Am79C873 10/100 media interface
 model AMD 79c973phy		0x0036 Am79c973 internal PHY
+
+/* Broadcom Corp. PHYs. */
+model BROADCOM 3c905Cphy	0x0017 3c905C 10/100 internal PHY
 
 /* Davicom Semiconductor PHYs */
 model xxDAVICOM DM9101		0x0000 DM9101 10/100 media interface
