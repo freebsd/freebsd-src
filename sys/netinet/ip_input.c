@@ -261,7 +261,7 @@ ip_init()
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
 			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol && pr->pr_protocol < IPPROTO_MAX)
+			if (pr->pr_protocol <= IPPROTO_MAX)
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 		}
 
@@ -1143,6 +1143,67 @@ ip_drain()
 	IPQ_UNLOCK();
 	in_rtqdrain();
 }
+
+/*
+ * The protocol to be inserted into ip_protox[] must be already registered
+ * in inetsw[], either statically or through pf_proto_register().
+ */
+int
+ipproto_register(u_char ipproto)
+{
+	struct protosw *pr;
+
+	/* Sanity checks. */
+	if (ipproto == 0)
+		return (EPROTONOSUPPORT);
+
+	/*
+	 * The protocol slot must not be occupied by another protocol
+	 * already.  An index pointing to IPPROTO_RAW is unused.
+	 */
+	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip_protox[ipproto] != pr - inetsw)	/* IPPROTO_RAW */
+		return (EEXIST);
+
+	/* Find the protocol position in inetsw[] and set the index. */
+	for (pr = inetdomain.dom_protosw;
+	     pr < inetdomain.dom_protoswNPROTOSW; pr++) {
+		if (pr->pr_domain->dom_family == PF_INET &&
+		    pr->pr_protocol && pr->pr_protocol == ipproto) {
+			/* Be careful to only index valid IP protocols. */
+			if (pr->pr_protocol <= IPPROTO_MAX) {
+				ip_protox[pr->pr_protocol] = pr - inetsw;
+				return (0);
+			} else
+				return (EINVAL);
+		}
+	}
+	return (EPROTONOSUPPORT);
+}
+
+int
+ipproto_unregister(u_char ipproto)
+{
+	struct protosw *pr;
+
+	/* Sanity checks. */
+	if (ipproto == 0)
+		return (EPROTONOSUPPORT);
+
+	/* Check if the protocol was indeed registered. */
+	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip_protox[ipproto] == pr - inetsw)  /* IPPROTO_RAW */
+		return (ENOENT);
+
+	/* Reset the protocol slot to IPPROTO_RAW. */
+	ip_protox[ipproto] = pr - inetsw;
+	return (0);
+}
+
 
 /*
  * Do option processing on a datagram,
