@@ -33,10 +33,9 @@
  *                                   \PLUS NUMBER MINUTES|HOURS|DAYS|WEEKS/
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 /* System Headers */
 
