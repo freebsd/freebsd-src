@@ -222,7 +222,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	s = (struct socket *)calloc(1, sizeof(*s));
-	if (KMCPY(s, f->f_data, sizeof(*s)) == -1)
+	if (KMCPY(s, f->un_data.socket, sizeof(*s)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - f_data - failed\n",
 			o[fd], s, sizeof(*s));
@@ -316,10 +316,11 @@ struct	tcpiphdr *ti;
 	    }
 
 	s = (struct socket *)calloc(1, sizeof(*s));
-	if (KMCPY(s, f->f_data, sizeof(*s)) == -1)
+	if (KMCPY(s, f->un_data.socket, sizeof(*s)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%lu) - f_data - failed\n",
-			(u_long)f->f_data, (u_long)s, (u_long)sizeof(*s));
+			(u_long)f->un_data.socket, (u_long)s,
+			(u_long)sizeof(*s));
 		return NULL;
 	    }
 

@@ -1305,7 +1305,7 @@ unp_gc()
 			 * Now check if it is possibly one of OUR sockets.
 			 */ 
 			if (fp->f_type != DTYPE_SOCKET ||
-			    (so = (struct socket *)fp->f_data) == 0) {
+			    (so = fp->un_data.socket) == 0) {
 				FILE_UNLOCK(fp);
 				continue;
 			}
@@ -1412,9 +1412,10 @@ unp_gc()
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
 		struct file *tfp = *fpp;
 		FILE_LOCK(tfp);
-		if (tfp->f_type == DTYPE_SOCKET && tfp->f_data != NULL) {
+		if (tfp->f_type == DTYPE_SOCKET &&
+		    tfp->un_data.socket != NULL) {
 			FILE_UNLOCK(tfp);
-			sorflush((struct socket *)(tfp->f_data));
+			sorflush(tfp->un_data.socket);
 		} else
 			FILE_UNLOCK(tfp);
 	}

@@ -69,7 +69,7 @@ soo_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 	int flags;
 {
-	struct socket *so = (struct socket *)fp->f_data;
+	struct socket *so = fp->un_data.socket;
 	int error;
 
 	mtx_lock(&Giant);
@@ -94,7 +94,7 @@ soo_write(fp, uio, active_cred, flags, td)
 	struct thread *td;
 	int flags;
 {
-	struct socket *so = (struct socket *)fp->f_data;
+	struct socket *so = fp->un_data.socket;
 	int error;
 
 	mtx_lock(&Giant);
@@ -119,7 +119,7 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	register struct socket *so = (struct socket *)fp->f_data;
+	register struct socket *so = fp->un_data.socket;
 
 	switch (cmd) {
 
@@ -183,7 +183,7 @@ soo_poll(fp, events, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct socket *so = (struct socket *)fp->f_data;
+	struct socket *so = fp->un_data.socket;
 	return so->so_proto->pr_usrreqs->pru_sopoll(so, events,
 	    fp->f_cred, td);
 }
@@ -195,7 +195,7 @@ soo_stat(fp, ub, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct socket *so = (struct socket *)fp->f_data;
+	struct socket *so = fp->un_data.socket;
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
@@ -229,9 +229,9 @@ soo_close(fp, td)
 	int error = 0;
 	struct socket *so;
 
-	so = (struct socket *)fp->f_data;
+	so = fp->un_data.socket;
 	fp->f_ops = &badfileops;
-	fp->f_data = 0;
+	fp->un_data.socket = 0;
 
 	if (so)
 		error = soclose(so);

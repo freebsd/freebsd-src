@@ -141,7 +141,7 @@ socket(td, uap)
 		} else
 			FILEDESC_UNLOCK(fdp);
 	} else {
-		fp->f_data = so;	/* already has ref count */
+		fp->un_data.socket = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
@@ -329,7 +329,7 @@ accept1(td, uap, compat)
 
 	FILE_LOCK(nfp);
 	soref(so);			/* file descriptor reference */
-	nfp->f_data = so;		/* nfp has ref count from falloc */
+	nfp->un_data.socket = so;	/* nfp has ref count from falloc */
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
@@ -524,12 +524,12 @@ socketpair(td, uap)
 		goto free2;
 	fhold(fp1);
 	sv[0] = fd;
-	fp1->f_data = so1;		/* so1 already has ref count */
+	fp1->un_data.socket = so1;	/* so1 already has ref count */
 	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
 	fhold(fp2);
-	fp2->f_data = so2;		/* so2 already has ref count */
+	fp2->un_data.socket = so2;	/* so2 already has ref count */
 	sv[1] = fd;
 	error = soconnect2(so1, so2);
 	if (error)
