@@ -39,8 +39,8 @@
  * The POSIX.1e implementation page may be reached at:
  * http://www.trustedbsd.org/
  */
-#ifndef _SYS_MAC_H
-#define	_SYS_MAC_H
+#ifndef _SYS_MAC_H_
+#define	_SYS_MAC_H_
 
 #include <sys/_label.h>
 
@@ -364,4 +364,4 @@ int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
 #endif /* !_KERNEL */
 
-#endif /* !_SYS_MAC_H */
+#endif /* !_SYS_MAC_H_ */

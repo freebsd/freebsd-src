@@ -25,8 +25,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _SYS_REGRESSION_H
-#define	_SYS_REGRESSION_H
+#ifndef _SYS_REGRESSION_H_
+#define	_SYS_REGRESSION_H_
 
 #ifndef _KERNEL
 /*
@@ -35,4 +35,4 @@
 int	__setugid(int _flag);
 #endif /* !_KERNEL */
 
-#endif /* !_SYS_REGRESSION_H */
+#endif /* !_SYS_REGRESSION_H_ */
