@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-MAN1=		afmtodit.1
+MAN=		afmtodit.1
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	${MAN}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

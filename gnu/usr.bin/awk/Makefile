@@ -9,7 +9,7 @@
 PROG=	awk
 SRCS=	array.c awktab.y builtin.c eval.c field.c gawkmisc.c io.c main.c \
 	msg.c node.c re.c version.c dfa.c getopt.c getopt1.c
-MAN1=	doc/gawk.1
+MAN=	doc/gawk.1
 
 MLINKS=	gawk.1 awk.1
 

@@ -5,7 +5,7 @@ SRCS=		main.cc table.cc
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	tbl.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

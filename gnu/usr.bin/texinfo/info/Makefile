@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	info
-MAN1=	info.1
-MAN5=	info.5 texinfo.5
+MAN=	info.1 info.5 texinfo.5
 
 SRCS=	dir.c display.c doc.c dribble.c echo-area.c filesys.c \
 	footnotes.c gc.c indices.c info-utils.c info.c infodoc.c \

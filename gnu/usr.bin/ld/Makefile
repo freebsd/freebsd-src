@@ -6,7 +6,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 PROG=	ld
 BINDIR= /usr/libexec/aout
-MAN1aout=ld.1aout
+MAN=	ld.1aout
 SRCS=	ld.c symbol.c lib.c shlib.c warnings.c support.c rrs.c xbits.c md.c \
 	cplus-dem.c
 CFLAGS+= -I${.CURDIR} -I${RTLD} -I${RTLD}/${MACHINE_ARCH} \

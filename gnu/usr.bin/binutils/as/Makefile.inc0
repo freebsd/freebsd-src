@@ -6,7 +6,7 @@ RELTOP:=	../${RELTOP}
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
-MAN1=		doc/as.1
+MAN=		doc/as.1
 SRCS+=		app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 		cond.c ecoff.c expr.c flonum-copy.c flonum-konst.c \
 		flonum-mult.c frags.c hash.c input-file.c \
