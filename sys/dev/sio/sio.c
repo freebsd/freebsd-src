@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/serial.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
@@ -283,6 +284,7 @@ struct com_s {
 static	int	espattach(struct com_s *com, Port_t esp_port);
 #endif
 
+static	int	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
 static	timeout_t siodtrwakeup;
@@ -290,7 +292,7 @@ static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
 static	void	siointr(void *arg);
-static	int	commctl(struct com_s *com, int bits, int how);
+static	int	commodem(struct tty *tp, int sigon, int sigoff);
 static	int	comparam(struct tty *tp, struct termios *t);
 static	void	siopoll(void *);
 static	void	siosettimeout(void);
@@ -1284,10 +1286,12 @@ open_top:
 		tp->t_oproc = comstart;
 		tp->t_param = comparam;
 		tp->t_stop = comstop;
+		tp->t_modem = commodem;
+		tp->t_break = combreak;
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
-		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
+		(void)commodem(tp, SER_DTR | SER_RTS, 0);
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
 		++com->wopeners;
@@ -1474,7 +1478,7 @@ comhardclose(com)
 		        && !(com->prev_modem_status & MSR_DCD)
 		        && !(com->it_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
-			(void)commctl(com, TIOCM_DTR, DMBIC);
+			(void)commodem(tp, 0, SER_DTR);
 			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
 				timeout(siodtrwakeup, com, com->dtr_wait);
 				com->state |= CS_DTR_OFF;
@@ -2108,34 +2112,6 @@ sioioctl(dev, cmd, data, flag, td)
 		return (error);
 	s = spltty();
 	switch (cmd) {
-	case TIOCSBRK:
-		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
-		break;
-	case TIOCCBRK:
-		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-		break;
-	case TIOCSDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIS);
-		break;
-	case TIOCCDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIC);
-		break;
-	/*
-	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
-	 * changes get undone on the next call to comparam().
-	 */
-	case TIOCMSET:
-		(void)commctl(com, *(int *)data, DMSET);
-		break;
-	case TIOCMBIS:
-		(void)commctl(com, *(int *)data, DMBIS);
-		break;
-	case TIOCMBIC:
-		(void)commctl(com, *(int *)data, DMBIC);
-		break;
-	case TIOCMGET:
-		*(int *)data = commctl(com, 0, DMGET);
-		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(td);
@@ -2236,6 +2212,22 @@ repeat:
 }
 
 static int
+combreak(tp, sig)
+	struct tty 	*tp;
+	int		sig;
+{
+	struct com_s	*com;
+
+	com = tp->t_dev->si_drv1;
+
+	if (sig)
+		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
+	else
+		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+	return (0);
+}
+
+static int
 comparam(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
@@ -2265,9 +2257,9 @@ comparam(tp, t)
 	/* parameters are OK, convert them to the com struct and the device */
 	s = spltty();
 	if (t->c_ospeed == 0)
-		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
+		(void)commodem(tp, 0, SER_DTR);	/* hang up line */
 	else
-		(void)commctl(com, TIOCM_DTR, DMBIS);
+		(void)commodem(tp, SER_DTR, 0);
 	cflag = t->c_cflag;
 	switch (cflag & CSIZE) {
 	case CS5:
@@ -2597,59 +2589,52 @@ comstop(tp, rw)
 }
 
 static int
-commctl(com, bits, how)
-	struct com_s	*com;
-	int		bits;
-	int		how;
+commodem(tp, sigon, sigoff)
+	struct tty 	*tp;
+	int		sigon, sigoff;
 {
-	int	mcr;
-	int	msr;
+	struct com_s	*com;
+	int	bitand, bitor, msr;
 
-	if (how == DMGET) {
-		bits = TIOCM_LE;	/* XXX - always enabled while open */
-		mcr = com->mcr_image;
-		if (mcr & MCR_DTR)
-			bits |= TIOCM_DTR;
-		if (mcr & MCR_RTS)
-			bits |= TIOCM_RTS;
-		msr = com->prev_modem_status;
-		if (msr & MSR_CTS)
-			bits |= TIOCM_CTS;
-		if (msr & MSR_DCD)
-			bits |= TIOCM_CD;
-		if (msr & MSR_DSR)
-			bits |= TIOCM_DSR;
-		/*
-		 * XXX - MSR_RI is naturally volatile, and we make MSR_TERI
-		 * more volatile by reading the modem status a lot.  Perhaps
-		 * we should latch both bits until the status is read here.
-		 */
-		if (msr & (MSR_RI | MSR_TERI))
-			bits |= TIOCM_RI;
-		return (bits);
-	}
-	mcr = 0;
-	if (bits & TIOCM_DTR)
-		mcr |= MCR_DTR;
-	if (bits & TIOCM_RTS)
-		mcr |= MCR_RTS;
+	com = tp->t_dev->si_drv1;
 	if (com->gone)
 		return(0);
-	mtx_lock_spin(&sio_lock);
-	switch (how) {
-	case DMSET:
-		outb(com->modem_ctl_port,
-		     com->mcr_image = mcr | (com->mcr_image & MCR_IENABLE));
-		break;
-	case DMBIS:
-		outb(com->modem_ctl_port, com->mcr_image |= mcr);
-		break;
-	case DMBIC:
-		outb(com->modem_ctl_port, com->mcr_image &= ~mcr);
-		break;
+	if (sigon != 0 || sigoff != 0) {
+		bitand = bitor = 0;
+		if (sigoff & SER_DTR)
+			bitand |= MCR_DTR;
+		if (sigoff & SER_RTS)
+			bitand |= MCR_RTS;
+		if (sigon & SER_DTR)
+			bitor |= MCR_DTR;
+		if (sigon & SER_RTS)
+			bitor |= MCR_RTS;
+		bitand = ~bitand;
+		mtx_lock_spin(&sio_lock);
+		com->mcr_image &= bitand;
+		com->mcr_image |= bitor;
+		outb(com->modem_ctl_port, com->mcr_image);
+		mtx_unlock_spin(&sio_lock);
+		return (0);
+	} else {
+		bitor = 0;
+		if (com->mcr_image & MCR_DTR)
+			bitor |= SER_DTR;
+		if (com->mcr_image & MCR_RTS)
+			bitor |= SER_RTS;
+		msr = com->prev_modem_status;
+		if (msr & MSR_CTS)
+			bitor |= SER_CTS;
+		if (msr & MSR_DCD)
+			bitor |= SER_DCD;
+		if (msr & MSR_DSR)
+			bitor |= SER_DSR;
+		if (msr & MSR_DSR)
+			bitor |= SER_DSR;
+		if (msr & (MSR_RI | MSR_TERI))
+			bitor |= SER_RI;
+		return (bitor);
 	}
-	mtx_unlock_spin(&sio_lock);
-	return (0);
 }
 
 static void
