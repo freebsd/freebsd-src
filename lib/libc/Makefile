@@ -16,7 +16,7 @@ INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
 
 #
-# This is a list of syscalls that are renamed as _thread_sys_{syscall}
+# This is a list of syscalls that are renamed as __sys_{syscall}
 # so that libpthread and libc_r can override and/or replace them.
 # In the case of libc_r replacement functions are provided, whereas
 # libpthread can both override and provide replacement functions.
