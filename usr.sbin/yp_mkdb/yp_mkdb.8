@@ -43,6 +43,8 @@
 .Fl u Ar dbname
 .Nm yp_mkdb
 .Op Fl c
+.Op Fl b
+.Op Fl s
 .Op Fl i Ar inputfile
 .Op Fl o Ar outputfile
 .Op Fl m Ar mastername
@@ -96,6 +98,36 @@ of a database creation command,
 .Nm yp_mkdb
 will send the signal only after the new database has been successfully
 created.
+.It Fl b
+This flag causes
+.Nm yp_mkdb
+to add a special entry to the database with a key of
+.Em YP_INTERDOMAIN
+and an empty data field. If this key is present in a map, it alters the
+behavior of the 'match' procedure in
+.Xr ypserv 8
+slightly. If a match query fails (because the server couldn't find
+a record that matched the supplied key), and the
+.Em YP_INTERDOMAIN
+key exists within the queried may,
+.Xr ypserv 8
+will try to match the entry again using a DNS lookup. Note that this
+special behavior only applies to the
+.Em hosts
+maps. Using the
+.Fl b
+flag for other maps has no effect.
+.Pp
+.It Fl s
+This flag is used to add a special entry to the database with a key of
+.Em YP_SECURE
+and an empty data field. If this key is present in a map,
+.Xr ypserv 8
+will deny access to the map to any client that is not using a
+reserved port for its query. This is used mainly for the
+.Em master.passwd
+maps, which should be restricted to privileged access only.
+.Pp
 .It Fl u Ar dbname
 .Pp
 Dump (or 'unwind') an NIS database. This option can be used to
@@ -104,22 +136,22 @@ inspect the contents of an existing NIS database.
 .Pp
 When generating an NIS map, encode
 .Nm inputfile
-as a special entry in the database with called
-.Nm YP_INPUT_FILE.
+as a special entry in the database with a key of
+.Em YP_INPUT_FILE.
 .Pp
 .It Op Fl o Ar outputfile
 .Pp
 When generating an NIS map, encode
 .Nm outputfile
-as a special entry in the database with called
-.Nm YP_OUTPUT_FILE .
+as a special entry in the database with a key of
+.Em YP_OUTPUT_FILE .
 .Pp
 .It Op Fl m Ar mastername
 .Pp
 When generating an NIS map encode
 .Nm mastername
-as a special entry in the database with called
-.Nm YP_MASTER_NAME .
+as a special entry in the database with a key of
+.Em YP_MASTER_NAME .
 This entry in the database is frequently used by various NIS utilities
 to determine the name of an NIS master server for a domain. By default,
 .Nm yp_mkdb
