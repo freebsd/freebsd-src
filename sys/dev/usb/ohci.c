@@ -2511,9 +2511,9 @@ ohci_root_ctrl_start(usbd_xfer_handle xfer)
 			DPRINTFN(5,("ohci_root_ctrl_transfer: reset port %d\n",
 				    index));
 			OWRITE4(sc, port, UPS_RESET);
-			for (i = 0; i < 10; i++) {
+			for (i = 0; i < 5; i++) {
 				usb_delay_ms(&sc->sc_bus,
-				    USB_PORT_ROOT_RESET_DELAY);
+					     USB_PORT_ROOT_RESET_DELAY);
 				if ((OREAD4(sc, port) & UPS_RESET) == 0)
 					break;
 			}
