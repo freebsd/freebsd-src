@@ -34,8 +34,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
