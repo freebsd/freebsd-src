@@ -1,4 +1,4 @@
-/*	$KAME: traceroute6.c,v 1.42 2001/05/08 04:36:41 itojun Exp $	*/
+/*	$KAME: traceroute6.c,v 1.66 2003/01/21 09:04:15 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -256,6 +256,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 
@@ -284,18 +285,6 @@ static const char rcsid[] =
 #define DUMMY_PORT 10010
 
 #define	MAXPACKET	65535	/* max ip packet size */
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN	64
-#endif
-
-#ifndef FD_SET
-#define NFDBITS         (8*sizeof(fd_set))
-#define FD_SETSIZE      NFDBITS
-#define FD_SET(n, p)    ((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
-#define FD_CLR(n, p)    ((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
-#define FD_ISSET(n, p)  ((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)      bzero((char *)(p), sizeof(*(p)))
-#endif
 
 #ifndef HAVE_GETIPNODEBYNAME
 #define getipnodebyname(x, y, z, u)	gethostbyname2((x), (y))
@@ -310,6 +299,10 @@ struct opacket {
 	u_char hops;		/* hop limit of the packet */
 	struct timeval tv;	/* time packet left */
 };
+struct tv32 {
+	u_int32_t tv32_sec;
+	u_int32_t tv32_usec;
+};
 
 u_char	packet[512];		/* last inbound (icmp) packet */
 struct opacket	*outpacket;	/* last output (udp) packet */
@@ -321,7 +314,7 @@ int	wait_for_reply __P((int, struct msghdr *));
 int	setpolicy __P((int so, char *policy));
 #endif
 #endif
-void	send_probe __P((int, int));
+void	send_probe __P((int, u_long));
 struct udphdr *get_udphdr __P((struct ip6_hdr *, u_char *));
 int	get_hoplim __P((struct msghdr *));
 double	deltaT __P((struct timeval *, struct timeval *));
@@ -334,7 +327,6 @@ void	usage __P((void));
 
 int rcvsock;			/* receive (icmp) socket file descriptor */
 int sndsock;			/* send (udp) socket file descriptor */
-struct timezone tz;		/* leftover */
 
 struct msghdr rcvmhdr;
 struct iovec rcviov[2];
@@ -342,7 +334,8 @@ int rcvhlim;
 struct in6_pktinfo *rcvpktinfo;
 
 struct sockaddr_in6 Src, Dst, Rcv;
-int datalen;			/* How much data */
+u_long datalen;			/* How much data */
+#define	ICMP6ECHOLEN	8
 /* XXX: 2064 = 127(max hops in type 0 rthdr) * sizeof(ip6_hdr) + 16(margin) */
 char rtbuf[2064];
 #ifdef USE_RFC2292BIS
@@ -353,15 +346,17 @@ struct cmsghdr *cmsg;
 char *source = 0;
 char *hostname;
 
-int nprobes = 3;
-int first_hop = 1;
-int max_hops = 30;
-u_short ident;
-u_short port = 32768+666;	/* start udp dest port # for probe packets */
+u_long nprobes = 3;
+u_long first_hop = 1;
+u_long max_hops = 30;
+u_int16_t srcport;
+u_int16_t port = 32768+666;	/* start udp dest port # for probe packets */
+u_int16_t ident;
 int options;			/* socket options */
 int verbose;
 int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
+int useicmp;
 int lflag;			/* print both numerical address & hostname */
 
 int
@@ -372,10 +367,15 @@ main(argc, argv)
 	struct hostent *hp;
 	int error;
 	struct addrinfo hints, *res;
-	int ch, i, on, probe, seq, hops, rcvcmsglen;
+	int ch, i, on, seq, rcvcmsglen;
+	u_long probe, hops;
 	static u_char *rcvcmsgbuf;
 	char hbuf[NI_MAXHOST], src0[NI_MAXHOST];
 	char *ep;
+	int mib[4] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_DEFHLIM };
+	size_t size;
+	u_long lport;
+	int minlen;
 
 	/*
 	 * Receive ICMP
@@ -388,6 +388,10 @@ main(argc, argv)
 	/* revoke privs */
 	seteuid(getuid());
 	setuid(getuid());
+
+	size = sizeof(i);
+	(void) sysctl(mib, sizeof(mib)/sizeof(mib[0]), &i, &size, NULL, 0);
+	max_hops = i;
 
 	/* set a minimum set of socket options */
 	on = 1;
@@ -414,23 +418,19 @@ main(argc, argv)
 #endif
 
 	seq = 0;
-
-	while ((ch = getopt(argc, argv, "df:g:lm:np:q:rs:w:v")) != -1)
+	
+	while ((ch = getopt(argc, argv, "df:g:Ilm:np:q:rs:w:v")) != -1)
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
 			break;
 		case 'f':
 			ep = NULL;
+			errno = 0;
 			first_hop = strtoul(optarg, &ep, 0);
-			if (!*argv || *ep) {
+			if (errno || !*optarg || *ep || first_hop > 255) {
 				fprintf(stderr,
 				    "traceroute6: invalid min hoplimit.\n");
-				exit(1);
-			}
-			if (first_hop > max_hops) {
-				fprintf(stderr,
-				    "traceroute6: min hoplimit must be <= %d.\n", max_hops);
 				exit(1);
 			}
 			break;
@@ -470,20 +470,20 @@ main(argc, argv)
 #endif
 			freehostent(hp);
 			break;
+		case 'I':
+			useicmp++;
+			ident = htons(getpid() & 0xffff); /* same as ping6 */
+			break;
 		case 'l':
 			lflag++;
 			break;
 		case 'm':
 			ep = NULL;
+			errno = 0;
 			max_hops = strtoul(optarg, &ep, 0);
-			if (!*argv || *ep) {
+			if (errno || !*optarg || *ep || max_hops > 255) {
 				fprintf(stderr,
 				    "traceroute6: invalid max hoplimit.\n");
-				exit(1);
-			}
-			if (max_hops < first_hop) {
-				fprintf(stderr,
-				    "traceroute6: max hoplimit must be >= %d.\n", first_hop);
 				exit(1);
 			}
 			break;
@@ -492,22 +492,24 @@ main(argc, argv)
 			break;
 		case 'p':
 			ep = NULL;
-			port = strtoul(optarg, &ep, 0);
-			if (!*argv || *ep) {
-				fprintf(stderr,
-				    "traceroute6: port.\n");
+			errno = 0;
+			lport = strtoul(optarg, &ep, 0);
+			if (errno || !*optarg || *ep) {
+				fprintf(stderr, "traceroute6: invalid port.\n");
 				exit(1);
 			}
-			if (port < 1) {
+			if (lport == 0 || lport != (lport & 0xffff)) {
 				fprintf(stderr,
-				    "traceroute6: port must be >0.\n");
+				    "traceroute6: port out of range.\n");
 				exit(1);
 			}
+			port = lport & 0xffff;
 			break;
 		case 'q':
 			ep = NULL;
+			errno = 0;
 			nprobes = strtoul(optarg, &ep, 0);
-			if (!*argv || *ep) {
+			if (errno || !*optarg || *ep) {
 				fprintf(stderr,
 				    "traceroute6: invalid nprobes.\n");
 				exit(1);
@@ -533,8 +535,9 @@ main(argc, argv)
 			break;
 		case 'w':
 			ep = NULL;
+			errno = 0;
 			waittime = strtoul(optarg, &ep, 0);
-			if (!*argv || *ep) {
+			if (errno || !*optarg || *ep) {
 				fprintf(stderr,
 				    "traceroute6: invalid wait time.\n");
 				exit(1);
@@ -550,6 +553,12 @@ main(argc, argv)
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (max_hops < first_hop) {
+		fprintf(stderr,
+		    "traceroute6: max hoplimit must be larger than first hoplimit.\n");
+		exit(1);
+	}
 
 	if (argc < 1 || argc > 2)
 		usage();
@@ -582,23 +591,36 @@ main(argc, argv)
 		fprintf(stderr, "traceroute6: not enough core\n");
 		exit(1);
 	}
+	if (res->ai_next) {
+		if (getnameinfo(res->ai_addr, res->ai_addrlen, hbuf,
+		    sizeof(hbuf), NULL, 0, NI_NUMERICHOST) != 0)
+			strlcpy(hbuf, "?", sizeof(hbuf));
+		fprintf(stderr, "traceroute6: Warning: %s has multiple "
+		    "addresses; using %s\n", hostname, hbuf);
+	}
 
 	if (*++argv) {
 		ep = NULL;
+		errno = 0;
 		datalen = strtoul(*argv, &ep, 0);
-		if (!*argv || *ep) {
+		if (errno || !*argv || *ep) {
 			fprintf(stderr,
 			    "traceroute6: invalid packet length.\n");
 			exit(1);
 		}
 	}
-	if (datalen < 0 || datalen >= MAXPACKET - sizeof(struct opacket)) {
+	if (useicmp)
+		minlen = ICMP6ECHOLEN + sizeof(struct tv32);
+	else
+		minlen = sizeof(struct opacket);
+	if (datalen < minlen)
+		datalen = minlen;
+	else if (datalen >= MAXPACKET) {
 		fprintf(stderr,
-		    "traceroute6: packet size must be 0 <= s < %ld.\n",
-		    (long)(MAXPACKET - sizeof(struct opacket)));
+		    "traceroute6: packet size must be %d <= s < %ld.\n",
+		    minlen, (long)MAXPACKET);
 		exit(1);
 	}
-	datalen += sizeof(struct opacket);
 	outpacket = (struct opacket *)malloc((unsigned)datalen);
 	if (! outpacket) {
 		perror("malloc");
@@ -662,15 +684,20 @@ main(argc, argv)
 #endif /*IPSEC*/
 
 	/*
-	 * Send UDP
+	 * Send UDP or ICMP
 	 */
-	if ((sndsock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		perror("socket(SOCK_DGRAM)");
-		exit(5);
+	if (useicmp) {
+		sndsock = rcvsock;
+	} else {
+		if ((sndsock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+			perror("socket(SOCK_DGRAM)");
+			exit(5);
+		}
 	}
 #ifdef SO_SNDBUF
-	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&datalen,
-	    sizeof(datalen)) < 0) {
+	i = datalen;
+	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&i,
+	    sizeof(i)) < 0) {
 		perror("setsockopt(SO_SNDBUF)");
 		exit(6);
 	}
@@ -762,7 +789,8 @@ main(argc, argv)
 		freeaddrinfo(res);
 	} else {
 		struct sockaddr_in6 Nxt;
-		int dummy, len;
+		int dummy;
+		socklen_t len;
 
 		Nxt = Dst;
 		Nxt.sin6_port = htons(DUMMY_PORT);
@@ -791,22 +819,21 @@ main(argc, argv)
 		close(dummy);
 	}
 
-	ident = (getpid() & 0xffff) | 0x8000;
-	Src.sin6_port = htons(ident);
+	Src.sin6_port = htons(0);
 	if (bind(sndsock, (struct sockaddr *)&Src, Src.sin6_len) < 0) {
 		perror("bind");
 		exit(1);
 	}
 
-	if (ident == 0) {
+	{
 		socklen_t len;
 
 		len = sizeof(Src);
-		if (getsockname(sndsock, (struct sockaddr *)&Src, &i) < 0) {
+		if (getsockname(sndsock, (struct sockaddr *)&Src, &len) < 0) {
 			perror("getsockname");
 			exit(1);
 		}
-		ident = ntohs(Src.sin6_port);
+		srcport = ntohs(Src.sin6_port);
 	}
 
 	/*
@@ -819,12 +846,12 @@ main(argc, argv)
 	fprintf(stderr, " to %s (%s)", hostname, hbuf);
 	if (source)
 		fprintf(stderr, " from %s", source);
-	fprintf(stderr, ", %d hops max, %d byte packets\n",
+	fprintf(stderr, ", %lu hops max, %lu byte packets\n",
 	    max_hops, datalen);
 	(void) fflush(stderr);
 
 	if (first_hop > 1)
-		printf("Skipping %d intermediate hops\n", first_hop - 1);
+		printf("Skipping %lu intermediate hops\n", first_hop - 1);
 
 	/*
 	 * Main loop
@@ -834,17 +861,16 @@ main(argc, argv)
 		int got_there = 0;
 		int unreachable = 0;
 
-		printf("%2d ", hops);
+		printf("%2lu ", hops);
 		bzero(&lastaddr, sizeof(lastaddr));
 		for (probe = 0; probe < nprobes; ++probe) {
 			int cc;
 			struct timeval t1, t2;
-			struct timezone tz;
 
-			(void) gettimeofday(&t1, &tz);
+			(void) gettimeofday(&t1, NULL);
 			send_probe(++seq, hops);
 			while ((cc = wait_for_reply(rcvsock, &rcvmhdr))) {
-				(void) gettimeofday(&t2, &tz);
+				(void) gettimeofday(&t2, NULL);
 				if ((i = packet_ok(&rcvmhdr, cc, seq))) {
 					if (! IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
 					    &lastaddr)) {
@@ -956,28 +982,46 @@ setpolicy(so, policy)
 
 void
 send_probe(seq, hops)
-	int seq, hops;
+	int seq;
+	u_long hops;
 {
-	struct opacket *op = outpacket;
 	int i;
 
+	i = hops;
 	if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_UNICAST_HOPS,
-	    (char *)&hops, sizeof(hops)) < 0) {
+	    (char *)&i, sizeof(i)) < 0) {
 		perror("setsockopt IPV6_UNICAST_HOPS");
 	}
 
 	Dst.sin6_port = htons(port + seq);
 
-	op->seq = seq;
-	op->hops = hops;
-	(void) gettimeofday(&op->tv, &tz);
+	if (useicmp) {
+		struct icmp6_hdr *icp = (struct icmp6_hdr *)outpacket;
+		struct timeval tv;
+		struct tv32 *tv32;
+
+		icp->icmp6_type = ICMP6_ECHO_REQUEST;
+		icp->icmp6_code = 0;
+		icp->icmp6_cksum = 0;
+		icp->icmp6_id = ident;
+		icp->icmp6_seq = htons(seq);
+		(void) gettimeofday(&tv, NULL);
+		tv32 = (struct tv32 *)((u_int8_t *)outpacket + ICMP6ECHOLEN);
+		tv32->tv32_sec = htonl(tv.tv_sec);
+		tv32->tv32_usec = htonl(tv.tv_usec);
+	} else {
+		struct opacket *op = outpacket;
+		op->seq = seq;
+		op->hops = hops;
+		(void) gettimeofday(&op->tv, NULL);
+	}
 
 	i = sendto(sndsock, (char *)outpacket, datalen, 0,
 	    (struct sockaddr *)&Dst, Dst.sin6_len);
 	if (i < 0 || i != datalen)  {
 		if (i<0)
 			perror("sendto");
-		printf("traceroute6: wrote %s %d chars, ret=%d\n",
+		printf("traceroute6: wrote %s %lu chars, ret=%d\n",
 		    hostname, datalen, i);
 		(void) fflush(stdout);
 	}
@@ -1157,9 +1201,18 @@ packet_ok(mhdr, cc, seq)
 				warnx("failed to get upper layer header");
 			return(0);
 		}
-		if (up->uh_sport == htons(ident) &&
-		    up->uh_dport == htons(port+seq))
+		if (useicmp &&
+		    ((struct icmp6_hdr *)up)->icmp6_id == ident &&
+		    ((struct icmp6_hdr *)up)->icmp6_seq == htons(seq))
 			return (type == ICMP6_TIME_EXCEEDED ? -1 : code + 1);
+		else if (!useicmp &&
+		    up->uh_sport == htons(srcport) &&
+		    up->uh_dport == htons(port + seq))
+			return (type == ICMP6_TIME_EXCEEDED ? -1 : code + 1);
+	} else if (useicmp && type == ICMP6_ECHO_REPLY) {
+		if (icp->icmp6_id == ident &&
+		    icp->icmp6_seq == htons(seq))
+			return (ICMP6_DST_UNREACH_NOPORT + 1);
 	}
 	if (verbose) {
 		int i;
@@ -1192,7 +1245,7 @@ packet_ok(mhdr, cc, seq)
 }
 
 /*
- * Increment pointer until find the UDP header.
+ * Increment pointer until find the UDP or ICMP header.
  */
 struct udphdr *
 get_udphdr(ip6, lim)
@@ -1212,10 +1265,11 @@ get_udphdr(ip6, lim)
 		switch (nh) {
 		case IPPROTO_ESP:
 		case IPPROTO_TCP:
-		case IPPROTO_ICMPV6:
 			return(NULL);
+		case IPPROTO_ICMPV6:
+			return(useicmp ? (struct udphdr *)cp : NULL);
 		case IPPROTO_UDP:
-			return((struct udphdr *)cp);
+			return(useicmp ? NULL : (struct udphdr *)cp);
 		case IPPROTO_FRAGMENT:
 			hlen = sizeof(struct ip6_frag);
 			nh = ((struct ip6_frag *)cp)->ip6f_nxt;
@@ -1327,8 +1381,9 @@ inetname(sa)
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: traceroute6 [-dlnrv] [-f firsthop] [-g gateway] [-m hoplimit] [-p port]\n"
-"       [-q probes] [-s src] [-w waittime] target [datalen]\n");
+
+	fprintf(stderr,
+"usage: traceroute6 [-dIlnrv] [-f firsthop] [-g gateway] [-m hoplimit]\n"
+"       [-p port] [-q probes] [-s src] [-w waittime] target [datalen]\n");
 	exit(1);
 }
