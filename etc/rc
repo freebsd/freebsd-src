@@ -191,6 +191,15 @@ if [ -r /etc/rc.network ]; then
 	network_pass1
 fi
 
+case ${ipv6_enable} in
+[Yy][Ee][Ss])
+	if [ -r /etc/rc.network6 ]; then
+		. /etc/rc.network6	# We only need to do this once also.
+		network6_pass1
+	fi
+	;;
+esac
+
 # Mount NFS filesystems.
 echo -n "Mounting NFS file systems"
 mount -a -t nfs
