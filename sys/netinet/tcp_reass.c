@@ -501,7 +501,7 @@ tcp_input(m, off0, proto)
 	 * both the SYN and FIN bits set. This prevents e.g. nmap from
 	 * identifying the TCP/IP stack.
 	 *
-	 * This is incompatible with RFC1644 extensions (T/TCP).
+	 * This is a violation of the TCP specification.
 	 */
 	if (drop_synfin && (thflags & (TH_SYN|TH_FIN)) == (TH_SYN|TH_FIN))
 		goto drop;
