@@ -154,7 +154,7 @@ do_authloop(Authctxt *authctxt)
 		switch (type) {
 #ifdef AFS
 #ifndef KRB5
-		case SSH_CMSG_HAVE_KRB4_TGT:
+		case SSH_CMSG_HAVE_KERBEROS_TGT:
 			if (!options.krb4_tgt_passing) {
 				/* packet_get_all(); */
 				verbose("Kerberos v4 tgt passing disabled.");
@@ -406,7 +406,8 @@ do_authloop(Authctxt *authctxt)
 			/* Passing krb5 ticket */
 			if (!options.krb5_tgt_passing 
                             /*|| !options.krb5_authentication */) {
-
+				verbose("Kerberos v5 tgt passing disabled.");
+				break;
 			}
 			
 			if (tkt_client == NULL) {
