@@ -61,7 +61,9 @@ talk()
 	char buf[BUFSIZ];
 	struct timeval wait;
 
-	message("Connection established\007\007\007");
+	message("Connection established");
+	write(STDOUT_FILENO, "\007\007\007", 3);
+	
 	current_line = 0;
 
 	/*
