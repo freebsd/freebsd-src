@@ -16,8 +16,8 @@ mdconfig -a -t malloc -s 3M -u `expr $us + 2` || exit 1
 
 gstripe create -s 8192 $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $us + 2` || exit 1
 
-dd if=${src} of=/dev/${name}.stripe bs=1m count=$tsize >/dev/null 2>&1
-dd if=/dev/${name}.stripe of=${dst} bs=1m count=$tsize >/dev/null 2>&1
+dd if=${src} of=/dev/stripe/${name} bs=1m count=$tsize >/dev/null 2>&1
+dd if=/dev/stripe/${name} of=${dst} bs=1m count=$tsize >/dev/null 2>&1
 
 if [ `md5 -q ${src}` != `md5 -q ${dst}` ]; then
 	echo "FAIL"
