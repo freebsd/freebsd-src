@@ -288,6 +288,7 @@ int	tsleep __P((void *chan, int pri, const char *wmesg, int timo));
 int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
 int	await  __P((int pri, int timo));
 void	wakeup __P((void *chan));
+void	wakeup_one __P((void *chan));
 
 /*
  * Common `dev_t' stuff are declared here to avoid #include poisoning
