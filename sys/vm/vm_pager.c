@@ -420,3 +420,47 @@ relpbuf(bp, pfreecnt)
 	mtx_unlock(&pbuf_mtx);
 	splx(s);
 }
+
+/*
+ * Associate a p-buffer with a vnode.
+ *
+ * Also sets B_PAGING flag to indicate that vnode is not fully associated
+ * with the buffer.  i.e. the bp has not been linked into the vnode or
+ * ref-counted.
+ */
+void
+pbgetvp(struct vnode *vp, struct buf *bp)
+{
+
+	KASSERT(bp->b_vp == NULL, ("pbgetvp: not free"));
+
+	bp->b_vp = vp;
+	bp->b_flags |= B_PAGING;
+	bp->b_bufobj = &vp->v_bufobj;
+}
+
+/*
+ * Disassociate a p-buffer from a vnode.
+ */
+void
+pbrelvp(struct buf *bp)
+{
+
+	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
+	KASSERT(bp->b_bufobj != NULL, ("pbrelvp: NULL bufobj"));
+
+	/* XXX REMOVE ME */
+	BO_LOCK(bp->b_bufobj);
+	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
+		panic(
+		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
+		    bp,
+		    (int)bp->b_flags
+		);
+	}
+	BO_UNLOCK(bp->b_bufobj);
+	bp->b_vp = NULL;
+	bp->b_bufobj = NULL;
+	bp->b_flags &= ~B_PAGING;
+}
+
