@@ -736,6 +736,8 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
 			show_one_geom(gp);
 		}
 	}
