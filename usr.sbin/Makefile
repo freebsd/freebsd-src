@@ -149,6 +149,7 @@ SUBDIR=	ac \
 	${_sicontrol} \
 	sliplogin \
 	slstat \
+	smbmsg \
 	${_spkrtest} \
 	spray \
 	${_sysinstall} \
