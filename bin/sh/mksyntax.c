@@ -351,7 +351,7 @@ print(name)
  */
 
 static char *macro[] = {
-	"#define is_digit(c)\t((c >= 0 && is_type+SYNBASE)[c] & ISDIGIT)",
+	"#define is_digit(c)\t((is_type+SYNBASE)[c] & ISDIGIT)",
 	"#define is_alpha(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLQUOTEMARK) && isalpha((unsigned char) (c)))",
 	"#define is_name(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLQUOTEMARK) && ((c) == '_' || isalpha((unsigned char) (c))))",
 	"#define is_in_name(c)\t((c) != PEOF && ((c) < CTLESC || (c) > CTLQUOTEMARK) && ((c) == '_' || isalnum((unsigned char) (c))))",
