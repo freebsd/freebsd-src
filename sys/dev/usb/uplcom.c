@@ -71,6 +71,8 @@
  *
  */
 
+#include "opt_uplcom.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -101,9 +103,9 @@
 
 #include <dev/usb/ucomvar.h>
 
+SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
 #ifdef USB_DEBUG
 static int	uplcomdebug = 0;
-SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
 SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
 	   &uplcomdebug, 0, "uplcom debug level");
 
@@ -122,7 +124,9 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
 #define	UPLCOM_IFACE_INDEX		0
 #define	UPLCOM_SECOND_IFACE_INDEX	1
 
+#ifndef UPLCOM_INTR_INTERVAL
 #define UPLCOM_INTR_INTERVAL		100	/* ms */
+#endif
 
 #define	UPLCOM_SET_REQUEST		0x01
 #define	UPLCOM_SET_CRTSCTS		0x41
@@ -235,6 +239,29 @@ DRIVER_MODULE(uplcom, uhub, uplcom_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(uplcom, usb, 1, 1, 1);
 MODULE_DEPEND(uplcom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(uplcom, UPLCOM_MODVER);
+
+static int	uplcominterval = UPLCOM_INTR_INTERVAL;
+
+static int
+sysctl_hw_usb_uplcom_interval(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = uplcominterval;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	if (0 < val && val <= 1000)
+		uplcominterval = val;
+	else
+		err = EINVAL;
+
+	return (err);
+}
+
+SYSCTL_PROC(_hw_usb_uplcom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
+	    0, sizeof(int), sysctl_hw_usb_uplcom_interval,
+	    "I", "uplcom interrpt pipe interval");
 
 USB_MATCH(uplcom)
 {
@@ -700,7 +727,7 @@ uplcom_open(void *addr, int portno)
 					  sc->sc_intr_buf,
 					  sc->sc_isize,
 					  uplcom_intr,
-					  UPLCOM_INTR_INTERVAL);
+					  uplcominterval);
 		if (err) {
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
 			       USBDEVNAME(sc->sc_ucom.sc_dev),
