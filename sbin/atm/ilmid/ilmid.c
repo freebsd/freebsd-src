@@ -841,7 +841,7 @@ parse_oids ( h, bp )
 		len--;
 
 		/* Create new Variable instance */
-		if ( ( var = malloc(sizeof(Variable)) ) == NULL )
+		if ( ( var = (Variable *)malloc(sizeof(Variable)) ) == NULL )
 		{
 			*bp = bufp;
 			return;
@@ -925,7 +925,7 @@ asn_get_header ( bufp )
 	/*
 	 * Allocate memory to hold the SNMP header
 	 */
-	if ( ( h = malloc(sizeof(Snmp_Header)) ) == NULL )
+	if ( ( h = (Snmp_Header *)malloc(sizeof(Snmp_Header)) ) == NULL )
 		return ( (Snmp_Header *)NULL );
 
 	/*
@@ -1477,7 +1477,7 @@ build_cold_start()
 	Snmp_Header	*hdr;
 	Variable	*var;
 
-	hdr = malloc(sizeof(Snmp_Header));
+	hdr = (Snmp_Header *)malloc(sizeof(Snmp_Header));
 	if (hdr == NULL) {
 		fprintf(stderr, "malloc() failed in %s()\n", __func__);
 		exit(1);
@@ -1518,7 +1518,7 @@ build_generic_header()
 {
 	Snmp_Header	*hdr;
 
-	hdr = malloc(sizeof(Snmp_Header));
+	hdr = (Snmp_Header *)malloc(sizeof(Snmp_Header));
 	if (hdr == NULL) {
 		fprintf(stderr, "malloc() failed in %s()\n", __func__);
 		exit(1);
@@ -1957,7 +1957,7 @@ set_address ( hdr, intf )
 
 	PDU_Header = build_generic_header();
 
-	PDU_Header->head = malloc(sizeof(Variable));
+	PDU_Header->head = (Variable *)malloc(sizeof(Variable));
 	if (PDU_Header->head == NULL) {
 		fprintf(stderr, "malloc() failed in %s()\n", __func__);
 		exit(1);
@@ -2252,7 +2252,7 @@ ilmi_do_state ()
 	 		 */
 			PDU_Header = build_generic_header();
 
-			PDU_Header->head = malloc(sizeof(Variable));
+			PDU_Header->head = (Variable *)malloc(sizeof(Variable));
 			if (PDU_Header->head == NULL) {
 				fprintf(stderr, "malloc() failed in %s()\n", __func__);
 				exit(1);
