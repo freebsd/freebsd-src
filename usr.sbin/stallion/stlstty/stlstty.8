@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 14, 1998
-.Os FreeBSD
+.Os
 .Dt STLSTTY 8 i386
 .Sh NAME
 .Nm stlstty
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl hV
-.Op Ar SWITCHES
+.Op Ar switches
 .Sh DESCRIPTION
 .Nm
 is used to view and set the advanced driver switches available on
@@ -58,13 +58,13 @@ If no switch settings are listed on the
 .Nm
 command line then it will display the current setting of all switches
 for the port that is
-.Pa standard input.
+standard input.
 If one or more switches is listed on the
 .Nm
 command line then those switches will be set accordingly.
 .Pp
 The options are:
-.Bl -tag -width xxxxx
+.Bl -tag -width indent
 .It Fl h
 Output usage information.
 .It Fl V
@@ -73,9 +73,9 @@ Output version information.
 .Sh SWITCHES
 All switches are enabled by using the switch name as a parameter
 to
-.Nm stlstty .
+.Nm .
 To disable a setting use a
-.Pa "-"
+.Fl
 character in front of the switch name.
 .Pp
 All switches configurable by
@@ -86,49 +86,50 @@ Once a switch is set it will remain set until changed using
 or by a reboot of the board or system.
 .Pp
 The following switches are configurable through
-.Nm stlstty :
-.Bl -tag -width xxxxx
-.It Ar maprts (\-maprts)
+.Nm :
+.Bl -tag -width indent
+.It Cm maprts Pq Fl maprts
 Maps the functionality normally associated with the DTR pin to
 action on the RTS pin instead.
 So in other words the RTS pin will now act as if it were the DTR pin.
 This is useful for boards that have ports that do not have full
-modem signaling on their connector (eg ONboard 16).
-.It Ar mapcts (\-mapcts)
+modem signaling on their connector (e.g. ONboard 16).
+.It Cm mapcts Pq Fl mapcts
 Maps the functionality normally associated with the DCD pin to
 be actioned on the CTS pin.
 So in other words the CTS pin will now act as if it were the DCD pin.
 This is useful for boards that have ports that do not have full
-modem signaling on their connector (eg ONboard 16).
-.It Ar rtslock (\-rtslock)
+modem signaling on their connector (e.g. ONboard 16).
+.It Cm rtslock Pq Fl rtslock
 Locks RTS based flow control on this port on.
 No matter what the port flow control is configured to be via
 the usual
-.Pa stty
+.Xr stty 1
 program, RTS based (hardware) flow control will be active on
 this port.
-.It Ar ctslock (\-ctslock)
+.It Cm ctslock Pq Fl ctslock
 Locks CTS based flow control on this port on.
 No matter what the port flow control is configured to be via
 the usual
-.Pa stty
+.Xr stty 1
 program, CTS based (hardware) flow control will be active on
 this port.
-.It Ar loopback (\-loopback)
+.It Cm loopback Pq Fl loopback
 Enables the internal loopback mode of the port UART.
 All data transmitted on this port will be received,
 and none will physically be transmitted by the port.
-.It Ar fakedcd (\-fakedcd)
+.It Cm fakedcd Pq Fl fakedcd
 The DCD pin will always be reported as being asserted,
 regardless of the physical state of the hardware pin.
-.It Ar dtrfollow (\-dtrfollow)
+.It Cm dtrfollow Pq Fl dtrfollow
 The DTR signal will only be asserted when data is being
 transmitted from the port.
 This is useful in conjunction with the EasyConnection
 Dual Interface module when fitted with RS-485 line drivers.
-.It Ar rximin (\-rximin)
+.It Cm rximin Pq Fl rximin
 Disables (or enables) the slave processor's received character
-"bunching" algorithms.
+.Dq bunching
+algorithms.
 By default the slave processor will bunch up received data,
 so that it can be sent to the host in large chunks.
 This increases the time it takes for any individual character
@@ -136,16 +137,17 @@ to be seen by an application.
 This may be undesirable for latency sensitive applications or
 protocols.
 To reduce received character latency the
-.Pa rximin
+.Cm rximin
 switch should be turned on.
-.It Ar rxitime (\-rxitime)
+.It Cm rxitime Pq Fl rxitime
 Disables (or enables) the slave processor's received character
 wait timer.
-This timer is used as part of the slave processor's data "bunching"
+This timer is used as part of the slave processor's data
+.Dq bunching
 algorithm.
 By turning this switch on the timer is reduced to a minimum,
 so that received data will immediately be sent to the host system.
-.It Ar rxthold (\-rxthold)
+.It Cm rxthold Pq Fl rxthold
 Disables the UART received FIFO for this port.
 By default the UART received FIFO is programmed to a reasonably
 high level, to minimize CPU overhead.
@@ -159,4 +161,5 @@ Turning this switch on disables use of the received FIFO.
 .Xr stli 4 ,
 .Xr stlstats 8
 .Sh HISTORY
-This program was originally developed by Greg Ungerer (gerg@stallion.com).
+This program was originally developed by
+.An Greg Ungerer Aq gerg@stallion.com .
