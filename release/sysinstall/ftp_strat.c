@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.3 1995/10/04 07:54:43 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.4 1995/10/04 12:08:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,7 +167,7 @@ retry:
 	    goto retry;
     }
 
-    if (!FtpChdir(ftp, variable_get(RELNAME))) {
+    if (FtpChdir(ftp, variable_get(RELNAME))) {
 	msgConfirm("Unable to CD to release %s directory.\n"
 		   "Perhaps a different FTP site for this release?",
 		   variable_get(RELNAME));
