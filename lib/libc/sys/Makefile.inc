@@ -94,9 +94,11 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 sys/profil.2 \
 	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
 	sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 sys/select.2 \
+	sys/semctl.2 sys/semget.2 sys/semop.2 \
 	sys/send.2 sys/setgroups.2 \
 	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 \
-	sys/setsid.2 sys/setuid.2 sys/shutdown.2 \
+	sys/setsid.2 sys/setuid.2 sys/shmat.2 sys/shmctl.2 sys/shmget.2 \
+	sys/shutdown.2 \
 	sys/sigaction.2 sys/sigpending.2 sys/sigprocmask.2 sys/sigreturn.2 \
 	sys/sigaltstack.2 sys/sigstack.2 sys/sigsuspend.2 sys/socket.2 \
 	sys/socketpair.2 sys/stat.2 sys/statfs.2 sys/swapon.2 sys/symlink.2 \
@@ -130,6 +132,7 @@ MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
 MLINKS+=setpgid.2 setpgrp.2
 MLINKS+=setuid.2 setegid.2 setuid.2 seteuid.2 setuid.2 setgid.2
+MLINKS+=shmat.2 shmdt.2
 MLINKS+=stat.2 fstat.2 stat.2 lstat.2
 MLINKS+=statfs.2 fstatfs.2
 MLINKS+=syscall.2 __syscall.2

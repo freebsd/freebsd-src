@@ -1,0 +1,192 @@
+.\"
+.\" Copyright (c) 1995 David Hovemeyer <daveho@infocom.com>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd September 22, 1995
+.Dt SEMOP 2
+.Os FreeBSD
+.Sh NAME
+.Nm semop
+.Nd atomic array of operations on a semaphore set
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/ipc.h>
+.Fd #include <sys/sem.h>
+.Ft int
+.Fn "semop" "int semid" "struct sembuf array[]" "unsigned nops"
+.Sh DESCRIPTION
+.Fn Semop
+atomically performs the array of operations indicated by
+.Fa array
+on the semaphore set indicated by
+.Fa semid .
+The length of
+.Fa array
+is indicated by
+.Fa nops .
+Each operation is encoded in a
+.Fa "struct sembuf" ,
+which is defined as follows:
+.Bd -literal
+.\"
+.\" From <sys/sem.h>
+.\"
+struct sembuf {
+        u_short sem_num;        /* semaphore # */
+        short   sem_op;         /* semaphore operation */
+        short   sem_flg;        /* operation flags */
+};
+.Ed
+.Pp
+For each element in
+.Fa array ,
+.Fa sem_op
+and
+.Fa sem_flg
+determine an operation to be performed on semaphore number
+.Fa sem_num
+in the set.  The values SEM_UNDO and IPC_NOWAIT may be
+.Em OR Ns 'ed
+into the
+.Fa sem_flg
+member in order to modify the behavior of the given operation.
+.Pp
+The operation performed depends as follows on the value of
+.Fa sem_op :
+.\"
+.\" This section is based on the description of semop() in
+.\" Stevens, _Advanced Programming in the UNIX Environment_.
+.\"
+.Bl -bullet
+.It
+When
+.Fa sem_op
+is positive, the semaphore's value is incremented by
+.Fa sem_op Ns 's
+value.  If SEM_UNDO is specified, the semaphore's adjust on exit
+value is decremented by
+.Fa sem_op Ns 's
+value.  A positive value for
+.Fa sem_op
+generally corresponds to a process releasing a resource
+associated with the semaphore.
+.It
+The behavior when
+.Fa sem_op
+is negative depends on the current value of the semaphore:
+.Bl -bullet
+.It
+If the current value of the semaphore is greater than or equal to
+the absolute value of
+.Fa sem_op ,
+then the value is decremented by the absolute value of
+.Fa sem_op .
+If SEM_UNDO is specified, the semaphore's adjust on exit
+value is incremented by the absolute value of
+.Fa sem_op .
+.It
+If the current value of the semaphore is less than
+.Fa sem_op Ns 's
+value, one of the following happens:
+.\" XXX a *second* sublist?
+.Bl -bullet
+.It
+If IPC_NOWAIT was specifed, then
+.Fn semop
+returns immediately with a return value of EAGAIN.
+.It
+If some other process has removed the semaphore with the IPC_RMID
+option of
+.Fn semctl ,
+then
+.Fn semop
+returns immediately with a return value of EINVAL.
+.It
+Otherwise, the calling process is put to sleep until the semaphore's
+value is greater than or equal to the absolute value of
+.Fa sem_op .
+When this condition becomes true, the semaphore's value is decremented
+by the absolute value of
+.Fa sem_op ,
+and the semaphore's adjust on exit value is incremented by the
+absolute value of
+.Fa sem_op .
+.El
+.Pp
+A negative value for
+.Fa sem_op
+generally means that a process is waiting for a resource to become
+available.
+.El
+.Pp
+.It
+When
+.Fa sem_op
+is zero, the process waits for the semaphore's value to become zero.
+If it is already zero, the call to
+.Fn semop
+can return immediately.  Otherwise, the calling process is put to 
+sleep until the semaphore's value becomes zero.
+.El
+.Pp
+For each semaphore a process has in use, the kernel maintains an
+`adjust on exit' value, as alluded to earlier.  When a process
+exits, either voluntarily or involuntarily, the adjust on exit value
+for each semaphore is added to the semaphore's value.  This can
+be used to insure that a resource is released if a process terminates
+unexpectedly.
+.Sh RETURN VALUES
+On success,
+.Fn semop
+returns 0; otherwise, -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn Semop
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+No semaphore set corresponds to
+.Fa semid .
+.It Bq Er EACCES
+Permission denied due to mismatch between operation and mode of
+semaphore set.
+.It Bq Er EAGAIN
+The semaphore's value was less than
+.Fa sem_op ,
+and IPC_NOWAIT was specified.
+.It Bq Er E2BIG
+Too many operations were specified.
+.It Bq Er EFBIG
+.\"
+.\" I'd have thought this would be EINVAL, but the source says
+.\" EFBIG.
+.\"
+.Fa sem_num
+was not in the range of valid semaphores for the set.
+.Sh SEE ALSO
+.Xr semget 2 ,
+.Xr semctl 2
