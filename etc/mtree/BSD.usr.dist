@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.24 1994/10/10 15:17:14 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.25 1994/10/24 10:00:00 sos Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -92,6 +92,20 @@
                 ..
             ..
         ..
+	info
+	..
+	locale
+		Ja_JP.EUC
+		..
+		POSIX
+		..
+		Russian.koi8-r
+		..
+		ja_JP.EUC
+		..
+		ru_SU.KOI8-R
+		..
+	..
 /set type=dir uname=man gname=bin mode=0755
         man             uname=bin
             cat1           
@@ -144,6 +158,8 @@
         ..
         mk             
         ..
+	perl
+	..
         skel           
         ..
         syscons        
