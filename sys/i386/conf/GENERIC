@@ -77,7 +77,6 @@ device		atapicd			# ATAPI CDROM drives
 device		atapifd			# ATAPI floppy drives
 device		atapist			# ATAPI tape drives
 options 	ATA_STATIC_ID		#Static device numbering
-#options 	ATA_ENABLE_ATAPI_DMA	#Enable DMA on ATAPI devices
 
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
