@@ -31,30 +31,38 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
+#include <sys/poll.h>
+#include <sys/select.h>
 #include <sys/random.h>
 #include <sys/time.h>
+#include <machine/mutex.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include <dev/randomdev/hash.h>
-#include <dev/randomdev/yarrow.h>
+#include <dev/random/hash.h>
+#include <dev/random/yarrow.h>
+
+static u_int read_random_phony(void *, u_int);
 
 /* hold the address of the routine which is actually called if
  * the ramdomdev is loaded
  */
-static void (*reap)(struct timespec *, void *, u_int, u_int, u_int, u_int) = NULL;
+static void (*reap_func)(struct timespec *, void *, u_int, u_int, u_int, u_int) = NULL;
+static u_int (*read_func)(void *, u_int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
-random_init_harvester(void (*reaper)(struct timespec *, void *, u_int, u_int, u_int, u_int))
+random_init_harvester(void (*reaper)(struct timespec *, void *, u_int, u_int, u_int, u_int), u_int (*reader)(void *, u_int))
 {
-	reap = reaper;
+	reap_func = reaper;
+	read_func = reader;
 }
 
 /* Deinitialise the harvester at unload time */
 void
 random_deinit_harvester(void)
 {
-	reap = NULL;
+	reap_func = NULL;
+	read_func = read_random_phony;
 }
 
 /* Entropy harvesting routine. This is supposed to be fast; do
@@ -67,25 +75,60 @@ random_harvest(void *entropy, u_int count, u_int bits, u_int frac, u_int origin)
 {
 	struct timespec timebuf;
 
-	if (reap) {
+	if (reap_func) {
 		nanotime(&timebuf);
-		(*reap)(&timebuf, entropy, count, bits, frac, origin);
+		(*reap_func)(&timebuf, entropy, count, bits, frac, origin);
 	}
 }
 
-/* Helper routines to enable kthread_exit() to work while the module is
- * being (or has been) unloaded.
- */
-void
-random_set_wakeup(int *var, int value)
+/* Userland-visible version of read_random */
+u_int
+read_random(void *buf, u_int count)
 {
-	*var = value;
-	wakeup(var);
+	return (*read_func)(buf, count);
 }
 
-void
-random_set_wakeup_exit(int *var, int value, int exitval)
+/* If the entropy device is not loaded, make a token effort to
+ * provide _some_ kind of randomness. This should only be used
+ * inside other RNG's, like arc4random(9).
+ */
+static u_int
+read_random_phony(void *buf, u_int count)
 {
-	random_set_wakeup(var, value);
-	kthread_exit(exitval);
+	struct timespec timebuf;
+	u_long randval;
+	int size, i;
+	static int initialised = 0;
+
+	/* Try to give random(9) a half decent initialisation
+	 * DO not make the mistake of thinking this is secure!!
+	 */
+	if (!initialised) {
+		nanotime(&timebuf);
+		srandom((u_long)(timebuf.tv_sec ^ timebuf.tv_nsec));
+	}
+
+	/* Fill buf[] with random(9) output */
+	for (i = 0; i < count; i+= sizeof(u_long)) {
+		randval = random();
+		size = (count - i) < sizeof(u_long) ? (count - i) : sizeof(u_long);
+		memcpy(&((char *)buf)[i], &randval, size);
+	}
+
+	return count;
+}
+
+/* Helper routine to enable kthread_exit() to work while the module is
+ * being (or has been) unloaded.
+ * This routine is in this file because it is always linked into the kernel,
+ * and will thus never be unloaded. This is critical for unloadable modules
+ * that have threads.
+ */
+void
+random_set_wakeup_exit(void *control)
+{
+	wakeup(control);
+	mtx_enter(&Giant, MTX_DEF);
+	kthread_exit(0);
+	/* NOTREACHED */
 }
