@@ -1,4 +1,4 @@
-#	$Id: README,v 1.12 1998/09/09 05:48:51 jb Exp $
+#	$Id: README,v 1.13 1998/12/15 16:51:48 cracauer Exp $
 
 This directory is for tools.
 
@@ -7,15 +7,18 @@ other categories.
 
 Please make a subdir per program, and add a brief description to this file.
 
-epfe 		extract printing filter examples from printing.sgml
+editing		Editor modes and the like to help editing FreeBSD code.
+epfe 		Extract printing filter examples from printing.sgml.
+html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
-html-mv         Rename HTML generated filenames to human readable filenames.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 mid	 	Create a Message-ID database for mailing lists.
 portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
-tcl_bmake	generates a bmake Makefile for src/lib/libtcl
+tcl_bmake	Generates a bmake Makefile for src/lib/libtcl.
 upgrade         Scripts used for upgrading an installed system.
+vop_table	Generates a HTML document that shows all the VOP's in
+		the kernel.
