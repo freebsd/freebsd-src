@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.153 2002/11/21 07:15:59 ue Exp $
-  basiert auf: 1.454
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.154 2002/11/23 17:29:28 ue Exp $
+  basiert auf: 1.455
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -1476,6 +1476,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	<literal>CDRIOCWRITESPEED</literal>, mit der die
 	Geschwindigkeit eines CD-ROM Laufwerkes eingestellt werden
 	kann.</para>
+
+      <para>Der Treiber &man.targ.4; wurde &uuml;berarbeitet;
+	<filename>/usr/share/examples/scsi_target</filename> wurde um
+	einen neuen Modus erweitert, in dem ein <quote>direct
+	access</quote> Ger&auml;t emuliert wird.</para>
 
       <para arch="i386" role="historic">Der neue Treiber ciss unterst&uuml;tzt
         Ger&auml;te, die das Common Interface for SCSI-3 Support
