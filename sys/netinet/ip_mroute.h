@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.13 1997/02/22 09:41:35 peter Exp $
+ * $Id: ip_mroute.h,v 1.14 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -188,6 +188,8 @@ struct mfc {
     u_long	    mfc_wrong_if;		/* wrong if for src-grp	     */
     int		    mfc_expire;			/* time to clean entry up    */
     struct timeval  mfc_last_assert;		/* last time I sent an assert*/
+    struct rtdetq  *mfc_stall;			/* q of packets awaiting mfc */
+    struct mfc     *mfc_next;			/* next mfc entry            */
 };
 
 /*
@@ -216,6 +218,7 @@ struct rtdetq {
 #ifdef UPCALL_TIMING
     struct timeval	t;		/* Timestamp */
 #endif /* UPCALL_TIMING */
+    struct rtdetq	*next;		/* Next in list of packets          */
 };
 
 #define MFCTBLSIZ	256
