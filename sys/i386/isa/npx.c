@@ -944,6 +944,10 @@ npxsetregs(td, addr)
 
 	s = intr_disable();
 	if (td == PCPU_GET(fpcurthread)) {
+#ifdef CPU_ENABLE_SSE
+		if (!cpu_fxsr)
+#endif
+			fnclex();	/* As in npxdrop(). */
 		fpurstor(addr);
 		intr_restore(s);
 	} else {
