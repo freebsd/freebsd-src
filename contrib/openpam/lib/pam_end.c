@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_end.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_end.c#14 $
  */
 
 #include <stdlib.h>
@@ -68,8 +68,10 @@ pam_end(pam_handle_t *pamh,
 	}
 
 	/* clear environment */
-	while (pamh->env_count)
-		FREE(pamh->env[--pamh->env_count]);
+	while (pamh->env_count) {
+		--pamh->env_count;
+		FREE(pamh->env[pamh->env_count]);
+	}
 	FREE(pamh->env);
 
 	/* clear chains */
