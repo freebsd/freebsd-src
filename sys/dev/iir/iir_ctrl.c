@@ -261,11 +261,13 @@ iir_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
         }
 
       case GDT_IOCTL_DRVERS:
+      case GDT_IOCTL_DRVERS_OLD:
         *(int *)cmdarg = 
             (IIR_DRIVER_VERSION << 8) | IIR_DRIVER_SUBVERSION;
         break;
 
       case GDT_IOCTL_CTRTYPE:
+      case GDT_IOCTL_CTRTYPE_OLD:
         {
             gdt_ctrt_t *p;
             struct gdt_softc *gdt; 
