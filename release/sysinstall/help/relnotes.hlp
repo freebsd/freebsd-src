@@ -35,6 +35,11 @@ o The psm, mse and sysmouse drivers are improved to provide
   that the user is no longer required to supply a mouse protocol
   type on the command line. 
 
+o The Specialix multiport serial driver has had a facelift in
+  an attempt to support the newer module types and host cards.
+  It should support ISA, EISA and PCI now.  Thanks to Nick Sayer
+  of Specialix for providing patches for integration.
+
 Userland features:
 
 o popen() library call now uses and offers bidirectional pipes.
