@@ -47,7 +47,22 @@
 
 #include <dev/pci/pcivar.h>
 
-#include <pci/cy_pcireg.h>
+#define CY_PCI_BASE_ADDR0		0x10
+#define CY_PCI_BASE_ADDR1		0x14
+#define CY_PCI_BASE_ADDR2		0x18
+
+#define CY_PLX_9050_ICS			0x4c
+#define CY_PLX_9060_ICS			0x68
+#define CY_PLX_9050_ICS_IENABLE		0x040
+#define CY_PLX_9050_ICS_LOCAL_IENABLE	0x001
+#define CY_PLX_9060_ICS_IENABLE		0x100
+#define CY_PLX_9060_ICS_LOCAL_IENABLE	0x800
+
+/* Cyclom-Y Custom Register for PLX ID. */
+#define	PLX_VER				0x3400
+#define	PLX_9050			0x0b
+#define	PLX_9060			0x0c
+#define	PLX_9080			0x0d
 
 extern int cyattach_common(void *, int); /* Not exactly correct */
 extern void cyintr(int);
