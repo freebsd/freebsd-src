@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.48 1998/03/23 19:52:23 jlemon Exp $
+ *	$Id: exception.s,v 1.49 1998/04/04 13:24:07 phk Exp $
  */
 
 #include "npx.h"
@@ -346,7 +346,7 @@ ENTRY(fork_trampoline)
 	movl	_curproc,%eax
 	addl	$P_RUNTIME,%eax
 	pushl	%eax
-	call	_getmicroruntime
+	call	_microruntime
 	popl	%eax
 
 	/*
