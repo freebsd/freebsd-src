@@ -1000,6 +1000,10 @@ struct ti_softc {
 	u_int8_t		ti_copper;	/* 1000baseTX card */
 	u_int8_t		ti_linkstat;	/* Link state */
 	int			ti_hdrsplit;	/* enable header splitting */
+	bus_dma_tag_t		ti_parent_dmat;
+	bus_dma_tag_t		ti_rdata_dmat;
+	bus_dmamap_t		ti_rdata_dmamap;
+	uint32_t		ti_rdata_phys;
 	struct ti_ring_data	*ti_rdata;	/* rings */
 	struct ti_chain_data	ti_cdata;	/* mbufs */
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
