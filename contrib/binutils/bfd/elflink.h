@@ -5349,21 +5349,11 @@ elf_bfd_final_link (abfd, info)
     {
       for (p = o->link_order_head; p != NULL; p = p->next)
 	{
-	  Elf_Internal_Shdr *rhdr;
-
 	  if (p->type == bfd_indirect_link_order
-	      && (bfd_get_flavour (p->u.indirect.section->owner)
+	      && (bfd_get_flavour ((sub = p->u.indirect.section->owner))
 		  == bfd_target_elf_flavour)
-	      && (((rhdr = &elf_section_data (p->u.indirect.section)->rel_hdr)
-		   ->sh_entsize == 0)
-		  || rhdr->sh_entsize == sizeof (Elf_External_Rel)
-		  || rhdr->sh_entsize == sizeof (Elf_External_Rela))
-	      && (((rhdr = elf_section_data (p->u.indirect.section)->rel_hdr2)
-		   == NULL)
-		  || rhdr->sh_entsize == sizeof (Elf_External_Rel)
-		  || rhdr->sh_entsize == sizeof (Elf_External_Rela)))
+	      && elf_elfheader (sub)->e_ident[EI_CLASS] == bed->s->elfclass)
 	    {
-	      sub = p->u.indirect.section->owner;
 	      if (! sub->output_has_begun)
 		{
 		  if (! elf_link_input_bfd (&finfo, sub))
@@ -6766,6 +6756,12 @@ elf_link_input_bfd (finfo, input_bfd)
 	      void (*reloc_emitter) PARAMS ((bfd *, asection *,
 					     Elf_Internal_Shdr *,
 					     Elf_Internal_Rela *));
+	      boolean rela_normal;
+
+	      input_rel_hdr = &elf_section_data (o)->rel_hdr;
+	      rela_normal = (bed->rela_normal
+			     && (input_rel_hdr->sh_entsize
+				 == sizeof (Elf_External_Rela)));
 
 	      /* Adjust the reloc addresses and symbol indices.  */
 
@@ -6788,7 +6784,7 @@ elf_link_input_bfd (finfo, input_bfd)
 		  irela->r_offset += o->output_offset;
 
 		  /* Relocs in an executable have to be virtual addresses.  */
-		  if (finfo->info->emitrelocations)
+		  if (!finfo->info->relocateable)
 		    irela->r_offset += o->output_section->vma;
 
 		  r_symndx = ELF_R_SYM (irela->r_info);
@@ -6839,10 +6835,9 @@ elf_link_input_bfd (finfo, input_bfd)
 			 processor specific section.  If we have
 			 discarded a section, the output_section will
 			 be the absolute section.  */
-		      if (sec != NULL
-			  && (bfd_is_abs_section (sec)
-			      || (sec->output_section != NULL
-				  && bfd_is_abs_section (sec->output_section))))
+		      if (bfd_is_abs_section (sec)
+			  || (sec != NULL
+			      && bfd_is_abs_section (sec->output_section)))
 			r_symndx = 0;
 		      else if (sec == NULL || sec->owner == NULL)
 			{
@@ -6854,6 +6849,11 @@ elf_link_input_bfd (finfo, input_bfd)
 			  r_symndx = sec->output_section->target_index;
 			  BFD_ASSERT (r_symndx != 0);
 			}
+
+		      /* Adjust the addend according to where the
+			 section winds up in the output section.  */ 
+		      if (rela_normal)
+			irela->r_addend += sec->output_offset;
 		    }
 		  else
 		    {
@@ -6912,7 +6912,6 @@ elf_link_input_bfd (finfo, input_bfd)
 	      else
 		reloc_emitter = elf_link_output_relocs;
 
-	      input_rel_hdr = &elf_section_data (o)->rel_hdr;
 	      (*reloc_emitter) (output_bfd, o, input_rel_hdr, internal_relocs);
 
 	      input_rel_hdr = elf_section_data (o)->rel_hdr2;
@@ -6920,7 +6919,8 @@ elf_link_input_bfd (finfo, input_bfd)
 		{
 		  internal_relocs += (NUM_SHDR_ENTRIES (input_rel_hdr)
 				      * bed->s->int_rels_per_ext_rel);
-		  reloc_emitter (output_bfd, o, input_rel_hdr, internal_relocs);
+		  (*reloc_emitter) (output_bfd, o, input_rel_hdr,
+				    internal_relocs);
 		}
 
 	    }
