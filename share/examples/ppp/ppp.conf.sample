@@ -224,9 +224,9 @@ dodgy:
     set filter dial 0 deny icmp
     set filter dial 1 permit 0 0
 #
-# or any TCP SYN or RST packets (badly closed TCP channels):
+# or any TCP FIN or RST packets (badly closed TCP channels):
 #
-    set filter dial 2 deny 0 0 tcp syn finrst
+    set filter dial 2 deny 0 0 tcp finrst
 #
 # Once the line's up, allow connections for ident (113), telnet (23),
 # ftp (20 & 21), DNS (53), my place of work (192.244.191.0/24),
