@@ -320,6 +320,9 @@ thread_exit(void)
 	ke = td->td_kse;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(p != NULL, ("thread exiting without a process"));
+	KASSERT(ke != NULL, ("thread exiting without a kse"));
+	KASSERT(kg != NULL, ("thread exiting without a kse group"));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	CTR1(KTR_PROC, "thread_exit: thread %p", td);
 	KASSERT(!mtx_owned(&Giant), ("dying thread owns giant"));
@@ -331,41 +334,35 @@ thread_exit(void)
 	cpu_thread_exit(td);	/* XXXSMP */
 
 	/* Reassign this thread's KSE. */
-	if (ke != NULL) {
-		ke->ke_thread = NULL;
-		td->td_kse = NULL;
-		ke->ke_state = KES_UNQUEUED;
-		kse_reassign(ke);
-	}
+	ke->ke_thread = NULL;
+	td->td_kse = NULL;
+	ke->ke_state = KES_UNQUEUED;
+	kse_reassign(ke);
 
 	/* Unlink this thread from its proc. and the kseg */
-	if (p != NULL) {
-		TAILQ_REMOVE(&p->p_threads, td, td_plist);
-		p->p_numthreads--;
-		if (kg != NULL) {
-			TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
-			kg->kg_numthreads--;
-		}
-		/*
-		 * The test below is NOT true if we are the
-		 * sole exiting thread. P_STOPPED_SNGL is unset
-		 * in exit1() after it is the only survivor.
-		 */
-		if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
-			if (p->p_numthreads == p->p_suspcount) {
-				TAILQ_REMOVE(&p->p_suspended,
-				    p->p_singlethread, td_runq);
-				setrunqueue(p->p_singlethread);
-				p->p_suspcount--;
-			}
+	TAILQ_REMOVE(&p->p_threads, td, td_plist);
+	p->p_numthreads--;
+	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
+	kg->kg_numthreads--;
+	/*
+	 * The test below is NOT true if we are the
+	 * sole exiting thread. P_STOPPED_SNGL is unset
+	 * in exit1() after it is the only survivor.
+	 */
+	if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
+		if (p->p_numthreads == p->p_suspcount) {
+			TAILQ_REMOVE(&p->p_suspended,
+			    p->p_singlethread, td_runq);
+			setrunqueue(p->p_singlethread);
+			p->p_suspcount--;
 		}
 	}
+	PROC_UNLOCK(p);
 	td->td_state	= TDS_SURPLUS;
 	td->td_proc	= NULL;
 	td->td_ksegrp	= NULL;
 	td->td_last_kse	= NULL;
 	ke->ke_tdspare = td;
-	PROC_UNLOCK(p);
 	cpu_throw();
 	/* NOTREACHED */
 }
