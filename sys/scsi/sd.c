@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.60 1995/04/23 22:07:53 gibbs Exp $
+ *      $Id: sd.c,v 1.61 1995/04/29 17:52:44 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -575,8 +575,8 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 	if (cmd ==  DIOCSBAD)
 		return (EINVAL);	/* XXX */
-	error = dsioctl(dev, cmd, addr, flag, sd->dk_slices, sdstrategy1,
-			(ds_setgeom_t *)NULL);
+	error = dsioctl("sd", dev, cmd, addr, flag, &sd->dk_slices,
+			sdstrategy1, (ds_setgeom_t *)NULL);
 	if (error != -1)
 		return (error);
 	if (PARTITION(dev) != RAW_PART && !SCSI_SUPER(dev))
