@@ -623,6 +623,11 @@ immediate_or_a:
 	expression
 	{
 		$$ = $1;
+		if ($$.value == 0) {
+			stop("Immediate value of 0 not valid for opcode",
+			     EX_DATAERR);
+			/* NOTREACHED */
+		}
 	}
 |	T_A
 	{
