@@ -73,6 +73,11 @@ currently permit it.
 .It Fl h
 If the file is a symbolic link, change the times of the link
 itself rather than the file that the link points to.
+Note that
+.Fl h
+implies
+.Fl c
+and thus will not create any new files.
 .It Fl m
 Change the modification time of the file.
 The access time of the file is not changed unless the
