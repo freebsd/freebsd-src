@@ -255,6 +255,10 @@ Boston, MA 02111-1307, USA.  */
 
 /************************[  Assembler stuff  ]********************************/
 
+/* Override the default comment-starter of "/" from unix.h.  */
+#undef  ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
+
 #undef  ASM_APP_ON
 #define ASM_APP_ON	"#APP\n"
 
