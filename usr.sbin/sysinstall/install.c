@@ -443,6 +443,7 @@ fixit_common(void)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
     else if ((symlink("/mnt2/etc/spwd.db", "/etc/spwd.db") == -1 && errno != EEXIST) ||
 	     (symlink("/mnt2/etc/protocols", "/etc/protocols") == -1 && errno != EEXIST) ||
+	     (symlink("/mnt2/etc/group", "/etc/group") == -1 && errno != EEXIST) ||
 	     (symlink("/mnt2/etc/services", "/etc/services") == -1 && errno != EEXIST))
 	msgConfirm("Couldn't symlink the /etc/ files!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
