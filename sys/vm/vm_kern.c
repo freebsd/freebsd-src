@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.39 1997/08/05 00:01:52 dyson Exp $
+ * $Id: vm_kern.c,v 1.40 1998/01/22 17:30:35 dyson Exp $
  */
 
 /*
@@ -328,7 +328,6 @@ retry:
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(kmem_object,
 					OFF_TO_IDX(offset + i));
-				PAGE_WAKEUP(m);
 				vm_page_free(m);
 			}
 			vm_map_delete(map, addr, addr + size);
