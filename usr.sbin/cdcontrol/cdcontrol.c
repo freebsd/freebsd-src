@@ -1044,10 +1044,8 @@ int open_cd ()
 
 	if (*cdname == '/') {
 		snprintf (devbuf, MAXPATHLEN, "%s", cdname);
-	} else if (*cdname == 'r') {
-		snprintf (devbuf, MAXPATHLEN, "/dev/%s", cdname);
 	} else {
-		snprintf (devbuf, MAXPATHLEN, "/dev/r%s", cdname);
+		snprintf (devbuf, MAXPATHLEN, "/dev/%s", cdname);
 	}
 
 	fd = open (devbuf, O_RDONLY);
