@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.124 1996/10/03 06:01:35 jkh Exp $
+ * $Id: install.c,v 1.125 1996/10/03 08:17:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -607,8 +607,10 @@ installFixup(dialogMenuItem *self)
 	}
     }
 
+#ifdef notyet
     /* Snapshot any boot -c changes back to the GENERIC kernel */
     save_userconfig_to_kernel("/kernel");
+#endif
 
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
