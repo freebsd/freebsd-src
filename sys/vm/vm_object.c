@@ -1208,8 +1208,8 @@ vm_object_split(vm_map_entry_t entry)
 	vm_page_t m;
 	vm_object_t orig_object, new_object, source;
 	vm_offset_t s, e;
-	vm_pindex_t offidxstart, offidxend, idx;
-	vm_size_t size;
+	vm_pindex_t offidxstart, offidxend;
+	vm_size_t idx, size;
 	vm_ooffset_t offset;
 
 	GIANT_REQUIRED;
