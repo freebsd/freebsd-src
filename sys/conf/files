@@ -902,7 +902,6 @@ bpf.h			standard			\
 	no-obj no-implicit-rule before-depend
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
-#net/hostcache.c		standard
 net/if.c		standard
 net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
@@ -1069,7 +1068,6 @@ netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
 netinet/in.c		optional inet
 netinet/in_gif.c	optional gif inet
-#netinet/in_hostcache.c	optional inet
 netinet/ip_id.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
