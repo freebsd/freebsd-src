@@ -109,3 +109,22 @@ str_lowercase(char *str)
 	++str;
     }
 }
+
+char *
+get_string(char *str, int max, FILE *fp)
+{
+    int len;
+
+    if (!str)
+	return NULL;
+    str[0] = '\0';
+    while (fgets(str, max, fp)) {
+	len = strlen(str);
+	while (len && isspace(str[len - 1]))
+	    str[--len] = '\0';
+	if (len)
+	   return str;
+    }
+    return NULL;
+}
+
