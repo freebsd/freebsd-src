@@ -127,6 +127,15 @@ static video_switch_t ofwfbvidsw = {
 	.putm			= ofwfb_putm,
 };
 
+/*
+ * bitmap depth-specific routines
+ */
+static vi_blank_display_t ofwfb_blank_display8;
+static vi_putc_t ofwfb_putc8;
+
+static vi_blank_display_t ofwfb_blank_display32;
+static vi_putc_t ofwfb_putc32;
+
 VIDEO_DRIVER(ofwfb, ofwfbvidsw, ofwfb_configure);
 
 extern sc_rndr_sw_t txtrndrsw;
@@ -138,9 +147,9 @@ RENDERER_MODULE(ofwfb, gfb_set);
  * Define the iso6429-1983 colormap
  */
 static struct {
-	u_int8_t	red;
-	u_int8_t	green;
-	u_int8_t	blue;
+	uint8_t	red;
+	uint8_t	green;
+	uint8_t	blue;
 } ofwfb_cmap[16] = {		/*  #     R    G    B   Color */
 				/*  -     -    -    -   ----- */
 	{ 0x00, 0x00, 0x00 },	/*  0     0    0    0   Black */
@@ -168,15 +177,27 @@ static u_int16_t ofwfb_static_window[ROW*COL];
 static struct ofwfb_softc ofwfb_softc;
 
 static int
-ofwfb_background(u_int8_t attr)
+ofwfb_background(uint8_t attr)
 {
 	return (attr >> 4);
 }
 
 static int
-ofwfb_foreground(u_int8_t attr)
+ofwfb_foreground(uint8_t attr)
 {
 	return (attr & 0x0f);
+}
+
+static u_int
+ofwfb_pix32(int attr)
+{
+	u_int retval;
+
+	retval = (ofwfb_cmap[attr].blue  << 16) |
+		(ofwfb_cmap[attr].green << 8) |
+		ofwfb_cmap[attr].red;
+
+	return (retval);
 }
 
 static int
@@ -211,9 +232,16 @@ ofwfb_configure(int flags)
 
 	/* Only support 8-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
-	if (depth != 8)
+	if (depth == 8) {
+		sc->sc_blank = ofwfb_blank_display8;
+		sc->sc_putc = ofwfb_putc8;
+	} else if (depth == 32) {
+		sc->sc_blank = ofwfb_blank_display32;
+		sc->sc_putc = ofwfb_putc32;
+	} else
 		return (0);
 
+	sc->sc_depth = depth;
 	sc->sc_node = node;
 	sc->sc_console = 1;
 	OF_getprop(node, "height", &sc->sc_height, sizeof(sc->sc_height));
@@ -255,20 +283,22 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 
 	vid_init_struct(adp, "ofwfb", -1, unit);
 
-	/*
-	 * Install the ISO6429 colormap - older OFW systems
-	 * don't do this by default
-	 */
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
-	for (i = 0; i < 16; i++) {
-		OF_call_method("color!", ih, 4, 1, 
-			       ofwfb_cmap[i].red,
-			       ofwfb_cmap[i].green,
-			       ofwfb_cmap[i].blue,
-			       i,
-			       &retval);
+	if (sc->sc_depth == 8) {
+		/*
+		 * Install the ISO6429 colormap - older OFW systems
+		 * don't do this by default
+		 */
+		memset(name, 0, sizeof(name));
+		OF_package_to_path(sc->sc_node, name, sizeof(name));
+		ih = OF_open(name);
+		for (i = 0; i < 16; i++) {
+			OF_call_method("color!", ih, 4, 1,
+				       ofwfb_cmap[i].red,
+				       ofwfb_cmap[i].green,
+				       ofwfb_cmap[i].blue,
+				       i,
+				       &retval);
+		}
 	}
 
 	/* The default font size can be overridden by loader */
@@ -442,20 +472,46 @@ ofwfb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 }
 
 static int
-ofwfb_blank_display(video_adapter_t *adp, int mode)
+ofwfb_blank_display8(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	u_int8_t *addr;
+	uint8_t *addr;
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (u_int8_t *) sc->sc_addr;
+	addr = (uint8_t *) sc->sc_addr;
 
 	/* Could be done a lot faster e.g. 32-bits, or Altivec'd */
 	for (i = 0; i < sc->sc_stride*sc->sc_height; i++)
 		*(addr + i) = ofwfb_background(SC_NORM_ATTR);
 
 	return (0);
+}
+
+static int
+ofwfb_blank_display32(video_adapter_t *adp, int mode)
+{
+	struct ofwfb_softc *sc;
+	int i;
+	uint32_t *addr;
+
+	sc = (struct ofwfb_softc *)adp;
+	addr = (uint32_t *) sc->sc_addr;
+
+	for (i = 0; i < (sc->sc_stride/4)*sc->sc_height; i++)
+		*(addr + i) = ofwfb_pix32(ofwfb_background(SC_NORM_ATTR));
+
+	return (0);
+}
+
+static int
+ofwfb_blank_display(video_adapter_t *adp, int mode)
+{
+	struct ofwfb_softc *sc;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	return ((*sc->sc_blank)(adp, mode));
 }
 
 static int
@@ -523,7 +579,7 @@ ofwfb_copy(video_adapter_t *adp, vm_offset_t src, vm_offset_t dst, int n)
 }
 
 static int
-ofwfb_putp(video_adapter_t *adp, vm_offset_t off, u_int32_t p, u_int32_t a,
+ofwfb_putp(video_adapter_t *adp, vm_offset_t off, uint32_t p, uint32_t a,
     int size, int bpp, int bit_ltor, int byte_ltor)
 {
 	TODO;
@@ -531,20 +587,20 @@ ofwfb_putp(video_adapter_t *adp, vm_offset_t off, u_int32_t p, u_int32_t a,
 }
 
 static int
-ofwfb_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
+ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 {
 	struct ofwfb_softc *sc;
 	int row;
 	int col;
 	int i, j, k;
-	u_int8_t *addr;
+	uint8_t *addr;
 	u_char *p;
 
 	sc = (struct ofwfb_softc *)adp;
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->sc_font + c*sc->sc_font_height;
-	addr = (u_int8_t *)sc->sc_addr + (row + sc->sc_ymargin)*sc->sc_stride 
+	addr = (uint8_t *)sc->sc_addr + (row + sc->sc_ymargin)*sc->sc_stride
 		+ col + sc->sc_xmargin;
 
 	for (i = 0; i < sc->sc_font_height; i++) {
@@ -561,6 +617,47 @@ ofwfb_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 }
 
 static int
+ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
+{
+	struct ofwfb_softc *sc;
+	int row;
+	int col;
+	int i, j, k;
+	uint32_t *addr;
+	u_char *p;
+
+	sc = (struct ofwfb_softc *)adp;
+        row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
+        col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
+	p = sc->sc_font + c*sc->sc_font_height;
+	addr = (uint32_t *)sc->sc_addr
+		+ (row + sc->sc_ymargin)*(sc->sc_stride/4)
+		+ col + sc->sc_xmargin;
+
+	for (i = 0; i < sc->sc_font_height; i++) {
+		for (j = 0, k = 7; j < 8; j++, k--) {
+			if ((p[i] & (1 << k)) == 0)
+				*(addr + j) = ofwfb_pix32(ofwfb_background(a));
+			else
+				*(addr + j) = ofwfb_pix32(ofwfb_foreground(a));
+		}
+		addr += (sc->sc_stride/4);
+	}
+
+	return (0);
+}
+
+static int
+ofwfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
+{
+	struct ofwfb_softc *sc;
+
+	sc = (struct ofwfb_softc *)adp;
+
+	return ((*sc->sc_putc)(adp, off, c, a));
+}
+
+static int
 ofwfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
@@ -572,8 +669,8 @@ ofwfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 }
 
 static int
-ofwfb_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
-    u_int32_t pixel_mask, int size)
+ofwfb_putm(video_adapter_t *adp, int x, int y, uint8_t *pixel_image,
+    uint32_t pixel_mask, int size)
 {
 	struct ofwfb_softc *sc;
 
