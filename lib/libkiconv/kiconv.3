@@ -32,7 +32,7 @@
 .Nm kiconv_add_xlat16_cspair ,
 .Nm kiconv_add_xlat16_cspairs ,
 .Nm kiconv_add_xlat16_table
-.Nd Kernel side iconv library
+.Nd kernel side iconv library
 .Sh LIBRARY
 .Lb libkiconv
 .Sh SYNOPSIS
@@ -57,64 +57,70 @@
 .Fc
 .Sh DESCRIPTION
 The
-.Xr kiconv 3
+.Nm kiconv
 library provides multi-byte character conversion tables for kernel side
 iconv service.
 .Pp
+The
 .Fn kiconv_add_xlat16_cspair
+function
 defines a conversion table using
 .Xr iconv 3
 between
-.Ar fromcode
+.Fa fromcode
 charset and
-.Ar tocode
+.Fa tocode
 charset.
 You can specify
-.Ar flag
+.Fa flag
 to determine if
 .Xr tolower 3
 /
 .Xr toupper 3
 conversion is included in the table.
 The
-.Ar flag
+.Fa flag
 has following values.
 .Pp
-.Bl -tag -width "KICONV_FROM_LOWER" -compact
-.It Fa KICONV_LOWER
-.It Fa KICONV_FROM_LOWER
+.Bl -tag -width ".Dv KICONV_FROM_LOWER" -compact
+.It Dv KICONV_LOWER
+.It Dv KICONV_FROM_LOWER
 It generates a tolower table in addition to a character conversion table.
 The difference between two is tolower
-.Ar tocode
+.Fa tocode
 or tolower
-.Ar fromcode .
-.It Fa KICONV_UPPER
-.It Fa KICONV_FROM_UPPER
+.Fa fromcode .
+.It Dv KICONV_UPPER
+.It Dv KICONV_FROM_UPPER
 It generates a toupper table in addition to a character conversion table.
 The difference between two is toupper
-.Ar tocode
+.Fa tocode
 or toupper
-.Ar fromcode .
+.Fa fromcode .
 .El
 .Pp
 A tolower/toupper conversion is limited to single-byte characters.
 .Pp
+The
 .Fn kiconv_add_xlat16_cspairs
+function
 defines two conversion tables which are from
-.Ar localcode
+.Fa localcode
 to
-.Ar foreigncode
+.Fa foreigncode
 and from
-.Ar foreigncode
+.Fa foreigncode
 to
-.Ar localcode .
-This conversion tables also contain both of tolower and toupper tables.
+.Fa localcode .
+These conversion tables also contain both tolower and toupper tables.
 .Pp
+The
 .Fn kiconv_add_xlat16_table
+function
 defines a conversion table directly pointed by
-.Ar data
+.Fa data
 whose length is
-.Ar datalen ,
+.Fa datalen ,
 not using
 .Xr iconv 3 .
 .Sh SEE ALSO
