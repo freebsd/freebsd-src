@@ -87,7 +87,7 @@ void		 rst_closedir(RST_DIR *dirp);
 void	 	 runcmdshell(void);
 char		*savename(char *);
 void	 	 setdirmodes(int);
-void		 setinput(char *);
+void		 setinput(char *, int);
 void		 setup(void);
 void	 	 skipdirs(void);
 void		 skipfile(void);
