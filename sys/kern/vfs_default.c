@@ -378,8 +378,6 @@ vop_stdcreatevobject(ap)
 	int error = 0;
 	vm_ooffset_t size;
 
-	GIANT_REQUIRED;
-
 	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
 		return (0);
 
@@ -435,8 +433,6 @@ vop_stddestroyvobject(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	vm_object_t obj = vp->v_object;
-
-	GIANT_REQUIRED;
 
 	if (obj == NULL)
 		return (0);
