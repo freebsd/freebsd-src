@@ -30,30 +30,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 1998
+.Dd September 3, 2004
 .Dt TL 4
 .Os
 .Sh NAME
 .Nm tl
-.Nd Texas Instruments ThunderLAN ethernet device driver
+.Nd Texas Instruments ThunderLAN Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device tl"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI ethernet adapters based on the Texas
-Instruments ThunderLAN ethernet controller chip.
-This includes a large
-number of Compaq PCI-bus ethernet adapters as well as the integrated
-ethernet controllers built in to several models of Compaq Prosignia
-servers and Compaq Deskpro desktop machines (Compaq Netelligent 10, 10/100,
-10/100 Dual-Port, 10/100 Proliant, 10/100 TX Embedded UTP, 10 T PCI UTP/Coax,
-and 10/100 TX UTP; Compaq NetFlex 3P, 3P Integrated, and 3P w/BNC).
-This driver also supports
-the Olicom OC-2135/2138, OC-2325 and OC-2326 10/100 TX UTP adapters
-and the Racore 8165 10/100baseTX and 8148 10baseT/100baseTX/100baseFX
-multi-personality cards.
+driver provides support for PCI Ethernet adapters based on the Texas
+Instruments ThunderLAN Ethernet controller chip.
 .Pp
 The ThunderLAN controller has a standard MII interface that supports
 up to 32 physical interface devices (PHYs).
@@ -83,7 +73,7 @@ disabled using the following media options.
 .It 10baseT/UTP
 Set 10Mbps operation
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation
+Set 100Mbps (Fast Ethernet) operation
 .It 10base5/AUI
 Enable AUI/BNC interface (useful only with the built-in PHY).
 .El
@@ -105,6 +95,53 @@ Note that the 100baseTX media type is only available if supported
 by the PHY.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Texas Instruments ThunderLAN based
+Ethernet and Fast Ethernet adapters including a large
+number of Compaq PCI Ethernet adapters.
+Also supported are:
+.Pp
+.Bl -bullet -compact
+.It
+Olicom OC-2135/2138 10/100 TX UTP adapter
+.It
+Olicom OC-2325/OC-2326 10/100 TX UTP adapter
+.It
+Racore 8148 10baseT/100baseTX/100baseFX adapter
+.It
+Racore 8165 10/100baseTX adapter
+.El
+.Pp
+The
+.Nm
+driver also supports the built-in Ethernet adapters of
+various Compaq Prosignia servers and Compaq Deskpro desktop
+machines including:
+.Pp
+.Bl -bullet -compact
+.It
+Compaq Netelligent 10
+.It
+Compaq Netelligent 10 T PCI UTP/Coax
+.It
+Compaq Netelligent 10/100
+.It
+Compaq Netelligent 10/100 Dual-Port
+.It
+Compaq Netelligent 10/100 Proliant
+.It
+Compaq Netelligent 10/100 TX Embedded UTP
+.It
+Compaq Netelligent 10/100 TX UTP
+.It
+Compaq NetFlex 3P
+.It
+Compaq NetFlex 3P Integrated
+.It
+Compaq NetFlex 3P w/BNC
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "tl%d: couldn't map memory"
