@@ -134,6 +134,7 @@ struct device {
 #define DF_DESCMALLOCED	8	/* description was malloced */
 #define DF_QUIET	16	/* don't print verbose attach message */
 #define DF_DONENOMATCH	32	/* don't execute DEVICE_NOMATCH again */
+#define DF_EXTERNALSOFTC 64	/* softc not allocated by us */
     u_char		order;	/* order from device_add_child_ordered() */
     u_char		pad;
 #ifdef DEVICE_SYSCTLS
