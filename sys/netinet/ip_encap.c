@@ -73,7 +73,6 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -202,20 +201,6 @@ encap4_input(m, off)
 			(*psw->pr_input)(m, off);
 		} else
 			m_freem(m);
-		return;
-	}
-
-	/* for backward compatibility - messy... */
-	/* XXX
-	 * I THINK they meant to call ip_input()
-	 * The original code called ipip_input()
-	 * which just calls rip_input()
-	 * which makes no sense.
-	 * (It is also not compiled in in LINT)
-	 */
-	if (proto == IPPROTO_IPV4) {
-		m_adj(m, off);
-		ip_input(m/*, off */);
 		return;
 	}
 
