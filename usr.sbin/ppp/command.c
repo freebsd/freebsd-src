@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.136 1998/05/29 18:32:10 brian Exp $
+ * $Id: command.c,v 1.137 1998/06/06 23:00:33 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/29 18:32:10 $";
+const char VersionDate[] = "$Date: 1998/06/06 23:00:33 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1496,7 +1496,7 @@ static struct cmdtab const SetCommands[] = {
   {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
   "Redial timeout", "set redial value|random[.value|random] [attempts]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
-  "server port", "set server|socket TcpPort|LocalName|none [mask]"},
+  "server port", "set server|socket TcpPort|LocalName|none password [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
   "modem speed", "set speed value"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,

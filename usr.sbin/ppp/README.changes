@@ -40,7 +40,8 @@ o The `display' command has been removed.  All information is available
   with the appropriate `show' command.
 o Msext does not need to be enabled/disabled.  Setting the NBNS (set nbns)
   will auto enable it.  The DNS side may be enabled/disabled, and if
-  enabled without a `set dns' will use values from /etc/resolv.conf.
+  enabled without a `set dns' (was `set ns') will use values from
+  /etc/resolv.conf.
 o Filters are now called `allow', `dial', `in' and `out'.  `set
   ifilter ...' becomes `set filter in ...' etc.
 o Authname and Authkey may only be `set' in phase DEAD.
