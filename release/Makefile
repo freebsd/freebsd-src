@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193 1995/06/11 19:29:26 rgrimes Exp $
+#	$Id: Makefile,v 1.193.2.1 1995/07/21 11:15:28 rgrimes Exp $
 #
 # How to roll a release:
 #
@@ -11,10 +11,10 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-#BUILDNAME=SOME_RANDOM_BUILD
-
+BUILDNAME=2.0.6
+CHROOTDIR=/a/release
 # If this is a RELEASE, then set
-#RELEASETAG=something
+RELEASETAG=RELENG_2_0_5
 
 # Things which without too much trouble can be considered variables
 
@@ -70,10 +70,9 @@ release:
 .endif
 .if exists(${CHROOTDIR})
 	chflags -R noschg ${CHROOTDIR}/.
-	rm -rf ${CHROOTDIR}/*
-.else
-	mkdir ${CHROOTDIR}
+	rm -rf ${CHROOTDIR}
 .endif
+	mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
@@ -88,29 +87,25 @@ release:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "echo Release Finished"		>> ${CHROOTDIR}/mk
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
 	cd ${CHROOTDIR}/usr ; cvs co -P -r ${RELEASETAG} src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
-	# To be used in development...
-	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	  mv newvers.sh foo && \
+	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
-# Same as above, but assume that a build just fell over, has been corrected
-# and now we just want to pick up where we left off.
+# Same as above but for re-rolling the release after simply changing a few
+# things.
 rerelease:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME)
-	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
+	@echo "To make a re-release you must set CHROOTDIR and BUILDNAME" && false
 .endif
 	@if [ ! -d ${CHROOTDIR} ]; then echo "No ${CHROOTDIR} directory to re-release in!"; exit 1; fi
-	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
@@ -128,6 +123,7 @@ rerelease:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "echo Re-Release Finished"		>> ${CHROOTDIR}/mk
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
@@ -136,10 +132,8 @@ rerelease:
 .endif
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
-	# To be used in development...
-	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	  mv newvers.sh foo && \
+	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
