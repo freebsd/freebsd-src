@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.12 1996/12/04 04:20:48 asami Exp $
+ *	$Id: if_ed.c,v 1.13 1996/12/07 13:04:21 kato Exp $
  */
 
 /*
@@ -3314,7 +3314,8 @@ ed_ioctl(ifp, command, data)
 
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-		ether_ioctl(ifp, command, data);
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -3373,17 +3374,6 @@ ed_ioctl(ifp, command, data)
 			 */
 			ed_setrcr(sc);
 			error = 0;
-		}
-		break;
-
-	case SIOCSIFMTU:
-		/*
-		 * Set the interface MTU.
-		 */
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
 		}
 		break;
 
