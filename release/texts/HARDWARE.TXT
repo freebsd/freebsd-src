@@ -369,14 +369,35 @@ DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
-AMI MegaRAID Express and Enterprise family controllers (all models).
-Booting from these controllers is not supported.
+AMI MegaRAID Express and Enterprise family RAID controllers:
+    MegaRAID 418
+    MegaRAID Enterprise 1200 (428)
+    MegaRAID Enterprise 1300
+    MegaRAID Enterprise 1400
+    MegaRAID Enterprise 1500
+    MegaRAID Elite 1500
+    MegaRAID Express 200
+    MegaRAID Express 300
+    Dell PERC
+    Dell PERC 2/SC
+    Dell PERC 2/DC
+Some HP NetRAID controllers are OEM versions of AMI designs, and
+these are also supported.
 
-Mylex DAC960 and DAC1164 controllers with 3.x and 4.x firmware,
-including the P, PL, PJ, PG and PTL (AcceleRAID 250).  Other
-AcceleRAID models may function but have not been tested.  Booting from
-these controllers is not supported, and enabling the controller BIOS may
-cause the FreeBSD bootstrap to fail.
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+firmware:
+    DAC960P
+    DAC960PD
+    DAC960PDU
+    DAC960PL
+    DAC960PJ
+    DAC960PG
+    AcceleRAID 150
+    AcceleRAID 250
+    eXtremeRAID 1100
+This list includes controllers sold by Digital/Compaq in Alpha systems
+in the StorageWorks family, eg. KZPSC, KZPAC.  EISA adaptes are not 
+supported.
 
 Qlogic Controllers:
 

@@ -116,6 +116,39 @@ DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
+AMI MegaRAID Express and Enterprise family RAID controllers:
+    MegaRAID 418
+    MegaRAID Enterprise 1200 (428)
+    MegaRAID Enterprise 1300
+    MegaRAID Enterprise 1400
+    MegaRAID Enterprise 1500
+    MegaRAID Elite 1500
+    MegaRAID Express 200
+    MegaRAID Express 300
+    Dell PERC
+    Dell PERC 2/SC
+    Dell PERC 2/DC
+Some HP NetRAID controllers are OEM versions of AMI designs, and
+these are also supported.  Booting from these controllers is 
+supported, but not possible due to SRM limitations.
+
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+firmware:
+    DAC960P
+    DAC960PD
+    DAC960PDU
+    DAC960PL
+    DAC960PJ
+    DAC960PG
+    AcceleRAID 150
+    AcceleRAID 250
+    eXtremeRAID 1100
+This list includes controllers sold by Digital/Compaq in Alpha systems
+in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these 
+controllers is supported when recognised by SRM (typically Digital/
+Compaq models only, and only in systems where they are supported).
+EISA adapters are not supported.
+
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200

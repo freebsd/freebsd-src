@@ -383,11 +383,4 @@ A: There is a problem with the onboard Ethernet in the Netfinity 3500
    will have to install another Ethernet adapter and avoid attempting
    to configure the onboard adapter at any time.
 
-Q: When I install to my AMI RAID controller and reboot, the kernel 
-   cannot mount root, even though the AMI controller was detected.
-
-A: On some systems, the AMI controller doesn't work as the driver expects
-   when it has been booted from.  This results in the array being
-   unreadable.  The only current workaround is to boot from another disk.
-
 [ Please send hardware tips for this Q&A section to jkh@freebsd.org ]
