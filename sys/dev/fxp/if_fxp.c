@@ -863,7 +863,7 @@ fxp_release(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 	int i;
 
-	mtx_assert(&sc->sc_mtx, MA_NOTOWNED);
+	FXP_LOCK_ASSERT(sc, MA_NOTOWNED);
 	KASSERT(sc->ih == NULL,
 	    ("fxp_release() called with intr handle still active"));
 	if (sc->miibus)
@@ -1295,7 +1295,7 @@ fxp_start_body(struct ifnet *ifp)
 	struct mbuf *mb_head;
 	int error;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	/*
 	 * See if we need to suspend xmit until the multicast filter
 	 * has been reprogrammed (which can only be done at the head
@@ -1634,7 +1634,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	if (rnr)
 		sc->rnr++;
 #ifdef DEVICE_POLLING
@@ -1993,7 +1993,7 @@ fxp_init_body(struct fxp_softc *sc)
 	struct fxp_cb_mcs *mcsp;
 	int i, prm, s;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	s = splimp();
 	/*
 	 * Cancel any pending I/O
@@ -2434,7 +2434,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	 * Detaching causes us to call ioctl with the mutex owned.  Preclude
 	 * that by saying we're busy if the lock is already held.
 	 */
-	if (mtx_owned(&sc->sc_mtx))
+	if (FXP_LOCKED(sc))
 		return (EBUSY);
 
 	FXP_LOCK(sc);
@@ -2517,7 +2517,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		FXP_UNLOCK(sc);
 		error = ether_ioctl(ifp, command, data);
 	}
-	if (mtx_owned(&sc->sc_mtx))
+	if (FXP_LOCKED(sc))
 		FXP_UNLOCK(sc);
 	splx(s);
 	return (error);
@@ -2579,6 +2579,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 	int count;
 
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	/*
 	 * If there are queued commands, we must wait until they are all
 	 * completed. If we are already waiting, then add a NOP command
