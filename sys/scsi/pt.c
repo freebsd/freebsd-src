@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.15 1996/03/10 18:17:54 davidg Exp $
+ *      $Id: pt.c,v 1.16 1996/03/27 20:07:29 bde Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_scsi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

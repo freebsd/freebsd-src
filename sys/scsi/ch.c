@@ -2,11 +2,12 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.31 1996/03/10 18:17:53 davidg Exp $
+ *      $Id: ch.c,v 1.32 1996/03/27 18:50:07 bde Exp $
  */
 
 #include	<sys/types.h>
 #include	<ch.h>
+#include	"opt_scsi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

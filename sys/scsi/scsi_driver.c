@@ -35,9 +35,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.15 1996/04/07 17:32:41 bde Exp $
+ * $Id: scsi_driver.c,v 1.16 1996/06/16 19:54:02 joerg Exp $
  *
  */
+
+#include "opt_scsi.h"
+
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/param.h>
