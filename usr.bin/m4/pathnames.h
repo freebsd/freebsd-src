@@ -1,6 +1,3 @@
-/*	$OpenBSD: pathnames.h,v 1.4 1997/04/04 18:41:29 deraadt Exp $	*/
-/*	$NetBSD: pathnames.h,v 1.6 1995/09/29 00:27:55 cgd Exp $	*/
-
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -49,8 +46,8 @@
 #define	UNIQUE		3			/* unique char location */
 #endif
 
-#if defined(unix) || defined(__NetBSD__) || defined(__OpenBSD__)
-#define _PATH_DIVNAME	"/tmp/m4.0XXXXXXXXXX"	/* unix diversion files */
+#ifdef unix
+#define _PATH_DIVNAME	"/tmp/m4.0XXXXXX"	/* unix diversion files */
 #define UNIQUE		8			/* unique char location */
 #endif
 
