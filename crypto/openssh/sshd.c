@@ -167,32 +167,6 @@ unsigned char session_id[16];
 unsigned char *session_id2 = NULL;
 int session_id2_len = 0;
 
-/* These are used to implement connections_per_period. */
-struct ratelim_connection {
-	struct timeval connections_begin;
-	unsigned int connections_this_period;
-} *ratelim_connections;
-
-static void
-ratelim_init(void) {
-	ratelim_connections = calloc(num_listen_socks,
-	    sizeof(struct ratelim_connection));
-	if (ratelim_connections == NULL)
-		fatal("calloc: %s", strerror(errno));
-}
-
-static __inline struct timeval
-timevaldiff(struct timeval *tv1, struct timeval *tv2) {
-	struct timeval diff;
-	int carry;
-
-	carry = tv1->tv_usec > tv2->tv_usec;
-	diff.tv_sec = tv2->tv_sec - tv1->tv_sec - (carry ? 1 : 0);
-	diff.tv_usec = tv2->tv_usec - tv1->tv_usec + (carry ? 1000000 : 0);
-
-	return diff;
-}
-
 /* record remote hostname or ip */
 unsigned int utmp_len = MAXHOSTNAMELEN;
 
@@ -508,7 +482,6 @@ main(int ac, char **av)
 	int opt, sock_in = 0, sock_out = 0, newsock, j, i, fdsetsz, on = 1;
 	pid_t pid;
 	socklen_t fromlen;
- 	int ratelim_exceeded = 0;
 	int silent = 0;
 	fd_set *fdset;
 	struct sockaddr_storage from;
@@ -874,8 +847,6 @@ main(int ac, char **av)
 		for (i = 0; i < options.max_startups; i++)
 			startup_pipes[i] = -1;
 
-		ratelim_init();
-
 		/*
 		 * Stay listening for connections until the system crashes or
 		 * the daemon is killed with a signal.
@@ -948,27 +919,6 @@ main(int ac, char **av)
 						break;
 					}
 
-				if (options.connections_per_period != 0) {
-					struct timeval diff, connections_end;
-					struct ratelim_connection *rc;
-
-					(void)gettimeofday(&connections_end, NULL);
-					rc = &ratelim_connections[i];
-					diff = timevaldiff(&rc->connections_begin,
-					    &connections_end);
-					if (diff.tv_sec >= options.connections_period) {
-						/*
-						 * Slide the window forward only after
-						 * completely leaving it.
-						 */
-						rc->connections_begin = connections_end;
-						rc->connections_this_period = 1;
-					} else {
-						if (++rc->connections_this_period >
-						    options.connections_per_period)
-							ratelim_exceeded = 1;
-					}
-				}
 
 				/*
 				 * Got connection.  Fork a child to handle it, unless
@@ -987,19 +937,6 @@ main(int ac, char **av)
 					startup_pipe = -1;
 					pid = getpid();
 					break;
-				} else if (ratelim_exceeded) {
-					const char *myaddr;
-
-					myaddr = get_ipaddr(newsock);
-					log("rate limit (%u/%u) on %s port %d "
-					    "exceeded by %s",
-					    options.connections_per_period,
-					    options.connections_period, myaddr,
-					    get_sock_port(newsock, 1), ntop);
-					free((void *)myaddr);
-					close(newsock);
-					ratelim_exceeded = 0;
-					continue;
 				} else {
 					/*
 					 * Normal production daemon.  Fork, and have

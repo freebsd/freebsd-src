@@ -680,18 +680,7 @@ parse_flag:
 			break;
 
 		case sConnectionsPerPeriod:
-			arg = strdelim(&cp);
-			if (cp == NULL)
-				fatal("%.200s line %d: missing (>= 0) number argument.\n",
-					filename, linenum);
-			if (sscanf(arg, "%u/%u", &options->connections_per_period,
-			    &options->connections_period) != 2)
-				fatal("%.200s line %d: invalid numerical argument(s).\n",
-				    filename, linenum);
-			if (options->connections_per_period != 0 &&
-			    options->connections_period == 0)
-				fatal("%.200s line %d: invalid connections period.\n",
-				    filename, linenum);
+			fatal("ConnectionsPerPeriod has been deprecated.");
 			break;
 
 		case sSubsystem:
