@@ -48,7 +48,9 @@ from Intel.
 .Sh ENVIRONMENT
 This support is still experimental, and thus there are many debugging
 and tuning options which are managed via the kernel environment
-space, and set in the loader before booting the kernel.
+space, and set in the
+.Xr loader 8
+before booting the kernel.
 .Pp
 Debugging is separated between layers and levels, where a layer is
 a portion of the ACPI subsystem, and a level is a particular kind
@@ -60,122 +62,125 @@ tokens, with layers listed in
 and levels in
 .Va debug.acpi.level .
 The supported layers are:
-.Bl -bullet -offset indent -compact
+.Pp
+.Bl -item -offset indent -compact
 .It
-ACPI_UTILITIES
+.Li ACPI_UTILITIES
 .It
-ACPI_HARDWARE
+.Li ACPI_HARDWARE
 .It
-ACPI_EVENTS
+.Li ACPI_EVENTS
 .It
-ACPI_TABLES
+.Li ACPI_TABLES
 .It
-ACPI_NAMESPACE
+.Li ACPI_NAMESPACE
 .It
-ACPI_PARSER
+.Li ACPI_PARSER
 .It
-ACPI_DISPATCHER
+.Li ACPI_DISPATCHER
 .It
-ACPI_EXECUTER
+.Li ACPI_EXECUTER
 .It
-ACPI_RESOURCES
+.Li ACPI_RESOURCES
 .It
-ACPI_POWER
+.Li ACPI_POWER
 .It
-ACPI_BUS
+.Li ACPI_BUS
 .It
-ACPI_POWER
+.Li ACPI_POWER
 .It
-ACPI_EC
+.Li ACPI_EC
 .It
-ACPI_PROCESSOR
+.Li ACPI_PROCESSOR
 .It
-ACPI_AC_ADAPTER
+.Li ACPI_AC_ADAPTER
 .It
-ACPI_BATTERY
+.Li ACPI_BATTERY
 .It
-ACPI_BUTTON
+.Li ACPI_BUTTON
 .It
-ACPI_SYSTEM
+.Li ACPI_SYSTEM
 .It
-ACPI_THERMAL
+.Li ACPI_THERMAL
 .It
-ACPI_DEBUGGER
+.Li ACPI_DEBUGGER
 .It
-ACPI_OS_SERVICES
+.Li ACPI_OS_SERVICES
 .It
-ACPI_ALL_COMPONENTS
+.Li ACPI_ALL_COMPONENTS
 .El
+.Pp
 The supported levels are:
-.Bl -bullet -offset indent -compact
+.Pp
+.Bl -item -offset indent -compact
 .It
-ACPI_OK
+.Li ACPI_OK
 .It
-ACPI_INFO
+.Li ACPI_INFO
 .It
-ACPI_WARN
+.Li ACPI_WARN
 .It
-ACPI_ERROR
+.Li ACPI_ERROR
 .It
-ACPI_FATAL
+.Li ACPI_FATAL
 .It
-ACPI_DEBUG_OBJECT
+.Li ACPI_DEBUG_OBJECT
 .It
-ACPI_ALL
+.Li ACPI_ALL
 .It
-TRACE_THREADS
+.Li TRACE_THREADS
 .It
-TRACE_PARSE
+.Li TRACE_PARSE
 .It
-TRACE_DISPATCH
+.Li TRACE_DISPATCH
 .It
-TRACE_LOAD
+.Li TRACE_LOAD
 .It
-TRACE_EXEC
+.Li TRACE_EXEC
 .It
-TRACE_NAMES
+.Li TRACE_NAMES
 .It
-TRACE_OPREGION
+.Li TRACE_OPREGION
 .It
-TRACE_BFIELD
+.Li TRACE_BFIELD
 .It
-TRACE_TRASH
+.Li TRACE_TRASH
 .It
-TRACE_TABLES
+.Li TRACE_TABLES
 .It
-TRACE_FUNCTIONS
+.Li TRACE_FUNCTIONS
 .It
-TRACE_VALUES
+.Li TRACE_VALUES
 .It
-TRACE_OBJECTS
+.Li TRACE_OBJECTS
 .It
-TRACE_ALLOCATIONS
+.Li TRACE_ALLOCATIONS
 .It
-TRACE_RESOURCES
+.Li TRACE_RESOURCES
 .It
-TRACE_IO
+.Li TRACE_IO
 .It
-TRACE_INTERRUPTS
+.Li TRACE_INTERRUPTS
 .It
-TRACE_USER_REQUESTS
+.Li TRACE_USER_REQUESTS
 .It
-TRACE_PACKAGE
+.Li TRACE_PACKAGE
 .It
-TRACE_MUTEX
+.Li TRACE_MUTEX
 .It
-TRACE_INIT
+.Li TRACE_INIT
 .It
-TRACE_ALL
+.Li TRACE_ALL
 .It
-VERBOSE_AML_DISASSEMBLE
+.Li VERBOSE_AML_DISASSEMBLE
 .It
-VERBOSE_INFO
+.Li VERBOSE_INFO
 .It
-VERBOSE_TABLES
+.Li VERBOSE_TABLES
 .It
-VERBOSE_EVENTS
+.Li VERBOSE_EVENTS
 .It
-VERBOSE_ALL
+.Li VERBOSE_ALL
 .El
 .Pp
 Selection of the appropriate layer and level values is important
@@ -184,7 +189,9 @@ Check the code to see which you need.
 .Pp
 Debugging output by the ACPI CA subsystem is prefixed with the
 module name in lowercase, followed by a source line number.
-Output from the FreeBSD-local code follows the same format, but
+Output from the
+.Fx Ns -local
+code follows the same format, but
 the module name is uppercased.
 .Pp
 The
@@ -197,43 +204,43 @@ environment variable
 .Pp
 ACPI sub-devices and features that can be disabled:
 .Bl -tag -width processor
-.It bus
+.It Li bus
 .Pq Vt feature
 Probes and attaches subdevices.
 Disabling will avoid scanning the ACPI namespace entirely.
-.It children
+.It Li children
 .Pq Vt feature
 Attaches standard ACPI sub-drivers and devices enumerated in the
 ACPI namespace.
 Disabling this has a similar effect to disabling
-.Dq bus ,
+.Dq Li bus ,
 except that the
 ACPI namespace will still be scanned.
-.It button
+.It Li button
 .Pq Vt device
 Supports ACPI button devices (typically power and sleep buttons).
-.It ec
+.It Li ec
 .Pq Vt device
 Supports the ACPI Embedded Controller interface, used to
 communicate with embedded platform controllers.
-.It isa
+.It Li isa
 .Pq Vt device
 Supports an ISA bus bridge defined in the ACPI namespace,
 typically as a child of a PCI bus.
-.It lid
+.It Li lid
 .Pq Vt device
 Supports an ACPI laptop lid switch, which typically puts a
 system to sleep.
-.It pci
+.It Li pci
 .Pq Vt device
 Supports Host to PCI bridges.
-.It processor
+.It Li processor
 .Pq Vt device
 Supports CPU power-saving and speed-setting functions.
-.It thermal
+.It Li thermal
 .Pq Vt device
 Supports system cooling and heat management.
-.It timer
+.It Li timer
 .Pq Vt device
 Implements a timecounter using the ACPI fixed-frequency timer.
 .El
@@ -243,41 +250,36 @@ may be causing problems, by listing the full path of the root of
 the region to be avoided in the kernel environment variable
 .Va debug.acpi.avoid .
 The object and all of its children will be ignored during the
-bus/children scan of the namespace.  The ACPI CA code will still
+bus/children scan of the namespace.
+The ACPI CA code will still
 know about the avoided region.
 .Sh COMPATIBILITY
 ACPI is only found/supported on Intel platforms (i386/IA32 and IA64).
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr acpi 9
-.Sh AUTHOR
+.Sh AUTHORS
+.An -nosplit
 The ACPI CA subsystem is developed and maintained by
 Intel Architecture Labs.
 .Pp
 The following people made notable contributions to the ACPI subsystem
 in
 .Fx :
-.Bl -bullet -offset indent -compact
-.It
-.An Michael Smith Aq msmith@freebsd.org ,
-.It
-.An Takanori Watanabe Aq takawata@jp.freebsd.org ,
-.It
-.An Mitsuru IWASAKI Aq iwasaki@jp.freebsd.org ,
-.It
+.An Michael Smith Aq msmith@FreeBSD.org ,
+.An Takanori Watanabe Aq takawata@jp.FreeBSD.org ,
+.An Mitsuru IWASAKI Aq iwasaki@jp.FreeBSD.org ,
 .An Munehiro Matsuda ,
-.It
 the ACPI-jp mailing list at
-.Aq acpi-jp@jp.freebsd.org ,
-.It
+.Aq acpi-jp@jp.FreeBSD.org ,
 and many other contributors.
-.El
 .Pp
 This manual page was written by
-.An Michael Smith Aq msmith@freebsd.org .
+.An Michael Smith Aq msmith@FreeBSD.org .
 .Sh BUGS
 The kernel device is
 .Cd device acpica
-for historical reasons.  It will change to
+for historical reasons.
+It will change to
 .Cd device acpi
 at some time in the future.
