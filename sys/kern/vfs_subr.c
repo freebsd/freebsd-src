@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.53 1996/03/09 06:43:19 dyson Exp $
+ * $Id: vfs_subr.c,v 1.54 1996/05/31 00:20:31 peter Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ int vttoif_tab[9] = {
 }
 
 TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
-u_long freevnodes	= 0;
+static u_long freevnodes = 0;
 
 struct mntlist mountlist;	/* mounted filesystem list */
 
