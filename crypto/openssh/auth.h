@@ -160,6 +160,7 @@ struct passwd * getpwnamallow(const char *user);
 
 char	*get_challenge(Authctxt *);
 int	verify_response(Authctxt *, const char *);
+void	abandon_challenge_response(Authctxt *);
 
 struct passwd * auth_get_user(void);
 
