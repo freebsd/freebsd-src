@@ -31,12 +31,17 @@
 #ifndef _SYS_ASSYM_H_
 #define	_SYS_ASSYM_H_
 
-#ifndef ASSYM
-#define	ASSYM(sym, v)		unsigned long sym = (unsigned long)v
+#ifndef offsetof
+#define	offsetof(s, m)		(&((struct s*)0)->m)
 #endif
 
-#define	ASSYM_SELF(sym)		ASSYM(assym_##sym, sym)
-#define	ASSYM_CONST(sym, v)	ASSYM(assym_##sym, v)
-#define	ASSYM_OFFSET(sym, s, m)	ASSYM(assym_##sym, (&((struct s*)0)->m))
+#ifndef __assym
+#define	__assym(sym, v)		unsigned long sym = (unsigned long)v
+#endif
+
+#define	ASSYM(sym, v)		__assym(assym_##sym, v)
+
+#define	ASSYM_SELF(sym)		ASSYM(sym, sym)
+#define ASSYM_OFFSET(sym, s, m)	ASSYM(sym, offsetof(s, m))
 
 #endif /* !_SYS_ASSYM_H_ */
