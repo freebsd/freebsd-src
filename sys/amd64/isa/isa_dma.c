@@ -228,7 +228,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		panic("isa_dmastart: channel out of range");
 
 	if ((chan < 4 && nbytes > (1<<16))
-	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
+	    || (chan >= 4 && (nbytes > (1<<17) || (uintptr_t)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
 	if ((dma_inuse & (1 << chan)) == 0)
