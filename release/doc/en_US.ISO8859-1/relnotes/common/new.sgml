@@ -178,6 +178,11 @@
 	    specified to &man.make.1;.</para>
 	</step>
       </procedure>
+
+      <para>A new &man.ng.l2tp.4; netgraph node type, which implements
+	the encapsulation layer of the L2TP protocol as described in
+	RFC 2661, has been added.</para>
+
     </sect3>
 
     <sect3>
@@ -230,6 +235,9 @@
 
       <para arch="i386">The ich sound driver now provides rudimentary
 	support for ich4 audio support.</para>
+
+      <para>The uaudio driver, for USB audio devices, has been
+        added.</para>
 
     </sect3>
 
@@ -326,6 +334,12 @@
       option to automatically answer <quote>no</quote> when it would
       ask to overwrite a file.</para>
 
+    <para>The &man.daemon.8; program, a command-line interface to
+      &man.daemon.3;, has been added.  It detaches itself from its
+      controlling terminal and executes a program specified on the
+      command line.  This allows the user to run an arbitrary program
+      as if it were written to be a daemon.</para>
+
     <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
       it to just print out the dump size estimates and exit.</para>
 
@@ -354,6 +368,14 @@
     <para>&man.ifconfig.8; now supports a <option>eui64</option>
       command to fill in the lowermost 64 bits of an IPv6 address
       automatically.  This makes &man.prefix.8; obsolete.</para>
+
+    <para>&man.ifconfig.8; now has the ability to set promiscuous mode
+      on an interface, via the new <option>promisc</option>
+      flag.</para>
+
+    <para>&man.inetd.8; now has the capability for limiting the
+      maximum number of simultaneous invocations of each service from
+      a single IP address.</para>
 
     <para>The &man.ls.1; program now supports a <option>-m</option>
       flag to list files across a page, a <option>-p</option> flag to
@@ -549,6 +571,14 @@
 
       <para><application>texinfo</application> has been updated to
 	4.2.</para>
+
+      <para>The contributed version of
+	<application>tcp_wrappers</application> now includes the
+	&man.tcpd.8; helper daemon.  While not strictly necessary in a
+	standard &os; installation (because &man.inetd.8; already
+	incorporates this functionality), this may be useful for
+	&man.inetd.8; replacements such as
+	<application>xinetd</application>.</para>
 
       <para><application>tcpdump</application> has been updated to
 	3.7.1.</para>
