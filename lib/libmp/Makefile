@@ -8,6 +8,6 @@ WARNS?=		2
 NO_WERROR=	yes
 SRCS=		mpasbn.c
 INCS=		mp.h
-MAN3=		libmp.3
+MAN=		libmp.3
 
 .include <bsd.lib.mk>
