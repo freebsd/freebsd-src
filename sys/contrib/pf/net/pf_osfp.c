@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pf_osfp.c,v 1.3 2003/08/27 18:23:36 frantzen Exp $ */
 
 /*
@@ -36,12 +37,15 @@
 #include <netinet/ip6.h>
 #endif /* INET6 */
 
-
 #ifdef _KERNEL
 # define DPFPRINTF(format, x...)		\
 	if (pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
+#if defined(__FreeBSD__)
+typedef uma_zone_t pool_t;
+#else
 typedef struct pool pool_t;
+#endif
 
 #else
 /* Userland equivalents so we can lend code to tcpdump et al. */
@@ -54,6 +58,10 @@ typedef struct pool pool_t;
 # define pool_get(pool, flags)	malloc(*(pool))
 # define pool_put(pool, item)	free(item)
 # define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
+
+# if defined(__FreeBSD__)
+# define NTOHS(x) (x) = ntohs((u_int16_t)(x))
+# endif
 
 # ifdef PFDEBUG
 #  include <stdarg.h>
@@ -106,7 +114,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
 {
 	struct pf_os_fingerprint fp, *fpresult;
 	int cnt, optlen = 0;
-	u_int8_t *optp;
+	const u_int8_t *optp;
 
 	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN || (ip->ip_off &
 	    htons(IP_OFFMASK)))
@@ -122,7 +130,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
 
 
 	cnt = (tcp->th_off << 2) - sizeof(*tcp);
-	optp = (caddr_t)tcp + sizeof(*tcp);
+	optp = (const u_int8_t *)((const char *)tcp + sizeof(*tcp));
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
 		if (*optp == TCPOPT_EOL)
 			break;
@@ -228,15 +236,46 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 }
 
 /* Initialize the OS fingerprint system */
+#if defined(__FreeBSD__)
+int
+#else
 void
+#endif
 pf_osfp_initialize(void)
 {
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	int error = ENOMEM;
+	
+	do {
+		pf_osfp_entry_pl = pf_osfp_pl = NULL;
+		UMA_CREATE(pf_osfp_entry_pl, struct pf_osfp_entry, "pfospfen");
+		UMA_CREATE(pf_osfp_pl, struct pf_os_fingerprint, "pfosfp");
+		error = 0;
+	} while(0);
+#else
 	pool_init(&pf_osfp_entry_pl, sizeof(struct pf_osfp_entry), 0, 0, 0,
 	    "pfosfpen", NULL);
 	pool_init(&pf_osfp_pl, sizeof(struct pf_os_fingerprint), 0, 0, 0,
 	    "pfosfp", NULL);
+#endif
 	SLIST_INIT(&pf_osfp_list);
+#if defined(__FreeBSD__)
+#if defined(_KERNEL)
+	return (error);
+#else
+	return (0);
+#endif
+#endif
 }
+
+#if defined(__FreeBSD__) && (_KERNEL)
+void
+pf_osfp_cleanup(void)
+{
+	UMA_DESTROY(pf_osfp_entry_pl);
+	UMA_DESTROY(pf_osfp_pl);
+}
+#endif
 
 /* Flush the fingerprint list */
 void

@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: if_pfsync.h,v 1.2 2002/12/11 18:31:26 mickey Exp $	*/
 
 /*
@@ -33,10 +34,17 @@
 struct pfsync_softc {
 	struct ifnet	sc_if;
 
+#if defined(__FreeBSD__)
+	struct callout	sc_tmo;
+#else
 	struct timeout	sc_tmo;
+#endif
 	struct mbuf	*sc_mbuf;	/* current cummulative mbuf */
 	struct pf_state	*sc_ptr;	/* current ongoing state */
 	int		 sc_count;	/* number of states in one mtu */
+#if defined(__FreeBSD__)
+	LIST_ENTRY(pfsync_softc) sc_next;
+#endif
 };
 #endif
 

@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /* $OpenBSD: if_pflog.h,v 1.9 2003/07/15 20:27:27 dhartmei Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
@@ -29,6 +30,9 @@
 
 struct pflog_softc {
 	struct ifnet	sc_if;  /* the interface */
+#if defined(__FreeBSD__)
+	LIST_ENTRY(pflog_softc) sc_next;
+#endif
 };
 
 /* XXX keep in sync with pfvar.h */

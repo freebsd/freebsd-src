@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfvar.h,v 1.170 2003/08/22 21:50:34 david Exp $ */
 
 /*
@@ -38,7 +39,26 @@
 #include <sys/tree.h>
 
 #include <net/radix.h>
+#if defined(__FreeBSD__)
+#include <vm/uma.h>
+#else
 #include <netinet/ip_ipsp.h>
+#endif
+
+#if defined(__FreeBSD__)
+#include <netinet/in.h>
+/*
+ * XXX
+ *  If we include <netipsec/keydb.h>, we need _KERNEL definition.
+ *  This makes pfctl compilation difficult.
+ */
+union sockaddr_union {
+	struct sockaddr		sa;
+	struct sockaddr_in	sin;
+	struct sockaddr_in6	sin6;
+};
+#endif
+
 #include <netinet/tcp_fsm.h>
 
 struct ip;
@@ -119,7 +139,11 @@ struct pf_addr_dyn {
 	struct ifnet		*ifp;
 	struct pf_addr		*addr;
 	sa_family_t		 af;
+#if defined(__FreeBSD__) && defined(HOOK_HACK)
+	eventhandler_tag	hook_cookie;
+#else
 	void			*hook_cookie;
+#endif
 	u_int8_t		 undefined;
 };
 
@@ -128,6 +152,66 @@ struct pf_addr_dyn {
  */
 
 #ifdef _KERNEL
+
+#if defined(__FreeBSD__)
+#define splsoftnet()	splnet()
+
+#define PF_NAME		"pf"
+
+#define PR_NOWAIT	M_NOWAIT
+#define pool_get(p, f)	uma_zalloc(*(p), (f))
+#define pool_put(p, o)	uma_zfree(*(p), (o))
+
+#define UMA_CREATE(var, type, desc) \
+		var = uma_zcreate(desc, sizeof(type),	\
+			NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0); \
+		if (var == NULL) break
+#define UMA_DESTROY(var) \
+		if(var) uma_zdestroy(var)
+
+extern struct mtx pf_task_mtx;
+#if defined(ALTQ)
+extern struct mtx pf_altq_mtx;
+extern int pfaltq_ref;
+#endif
+
+#define	PF_ASSERT(h) mtx_assert(&pf_task_mtx, (h))
+
+#define PF_LOCK()	do {			\
+	PF_ASSERT(MA_NOTOWNED);			\
+	mtx_lock(&pf_task_mtx);			\
+} while(0)
+#define PF_UNLOCK()	do {			\
+	PF_ASSERT(MA_OWNED);			\
+	mtx_unlock(&pf_task_mtx);		\
+} while(0)
+
+#define PF_COPYIN(uaddr, kaddr, len, r) do {	\
+	PF_UNLOCK();				\
+	r = copyin((uaddr), (kaddr), (len));	\
+	PF_LOCK();				\
+} while(0)
+
+#define PF_COPYOUT(kaddr, uaddr, len, r) do {	\
+	PF_UNLOCK();				\
+	r = copyout((kaddr), (uaddr), (len));	\
+	PF_LOCK();				\
+} while(0)
+
+extern void init_pf_mutex(void);
+extern void destroy_pf_mutex(void);
+
+#define PF_MODVER	1
+#define PFLOG_MODVER	1
+#define PFSYNC_MODVER	1
+
+#define PFLOG_MINVER	1
+#define PFLOG_PREFVER	PFLOG_MODVER
+#define PFLOG_MAXVER	1
+#define PFSYNC_MINVER	1
+#define PFSYNC_PREFVER	PFSYNC_MODVER
+#define PFSYNC_MAXVER	1
+#endif
 
 #ifdef INET
 #ifndef INET6
@@ -1101,6 +1185,13 @@ struct pfioc_table {
 #define DIOCOSFPFLUSH	_IO('D', 78)
 #define DIOCOSFPADD	_IOWR('D', 79, struct pf_osfp_ioctl)
 #define DIOCOSFPGET	_IOWR('D', 80, struct pf_osfp_ioctl)
+#if defined(__FreeBSD__)
+struct pf_ifspeed {
+	char			ifname[IFNAMSIZ];
+	u_int32_t		baudrate;
+};
+#define DIOCGIFSPEED	_IOWR('D', 81, struct pf_ifspeed)
+#endif
 
 #ifdef _KERNEL
 RB_HEAD(pf_state_tree, pf_tree_node);
@@ -1135,9 +1226,17 @@ extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 extern void			 pf_rule_set_qid(struct pf_rulequeue *);
 extern u_int32_t		 pf_qname_to_qid(char *);
 extern void			 pf_update_anchor_rules(void);
+#if defined(__FreeBSD__)
+extern uma_zone_t		 pf_tree_pl, pf_rule_pl, pf_addr_pl;
+extern uma_zone_t		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
+extern uma_zone_t		 pfr_ktable_pl, pfr_kentry_pl;
+extern uma_zone_t		 pf_cache_pl, pf_cent_pl;
+extern uma_zone_t		 pf_state_scrub_pl;
+#else
 extern struct pool		 pf_tree_pl, pf_rule_pl, pf_addr_pl;
 extern struct pool		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
 extern struct pool		 pf_state_scrub_pl;
+#endif
 extern void			 pf_purge_timeout(void *);
 extern void			 pf_purge_expired_states(void);
 extern int			 pf_insert_state(struct pf_state *);
@@ -1234,13 +1333,50 @@ void		pf_tag_unref(u_int16_t);
 int		pf_tag_packet(struct mbuf *, struct pf_tag *, int);
 
 extern struct pf_status	pf_status;
+
+#if defined(__FreeBSD__)
+extern uma_zone_t	pf_frent_pl, pf_frag_pl;
+#else
 extern struct pool	pf_frent_pl, pf_frag_pl;
+#endif
 
 struct pf_pool_limit {
 	void		*pp;
 	unsigned	 limit;
 };
 extern struct pf_pool_limit	pf_pool_limits[PF_LIMIT_MAX];
+
+#if defined(__FreeBSD__)
+struct pf_frent {
+	LIST_ENTRY(pf_frent) fr_next;
+	struct ip *fr_ip;
+	struct mbuf *fr_m;
+};
+
+struct pf_frcache {
+	LIST_ENTRY(pf_frcache) fr_next;
+	uint16_t        fr_off;
+	uint16_t        fr_end;
+};
+
+struct pf_fragment {
+	RB_ENTRY(pf_fragment) fr_entry;
+	TAILQ_ENTRY(pf_fragment) frag_next;
+	struct in_addr  fr_src;
+	struct in_addr  fr_dst;
+	u_int8_t        fr_p;           /* protocol of this fragment */
+	u_int8_t        fr_flags;       /* status flags */
+	u_int16_t       fr_id;          /* fragment id for reassemble */
+	u_int16_t       fr_max;         /* fragment data max */
+	u_int32_t       fr_timeout;
+#define fr_queue        fr_u.fru_queue
+#define fr_cache        fr_u.fru_cache
+	union {
+		LIST_HEAD(pf_fragq, pf_frent) fru_queue;        /* buffering */
+		LIST_HEAD(pf_cacheq, pf_frcache) fru_cache;     /* non-buf */
+	} fr_u;
+};
+#endif /* (__FreeBSD__) */
 
 #endif /* _KERNEL */
 
@@ -1255,7 +1391,12 @@ struct pf_osfp_enlist *
 	pf_osfp_fingerprint_hdr(const struct ip *, const struct tcphdr *);
 void	pf_osfp_flush(void);
 int	pf_osfp_get(struct pf_osfp_ioctl *);
+#if defined(__FreeBSD__)
+int	pf_osfp_initialize(void);
+void	pf_osfp_cleanup(void);
+#else
 void	pf_osfp_initialize(void);
+#endif
 int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 struct pf_os_fingerprint *
 	pf_osfp_validate(void);
