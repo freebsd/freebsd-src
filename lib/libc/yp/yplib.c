@@ -39,6 +39,8 @@ static char *rcsid = "$Id: yplib.c,v 1.4 1995/03/24 21:21:37 wpaul Exp $";
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
@@ -180,7 +182,6 @@ struct dom_binding **ypdb;
 	int clnt_sock, fd, gpid;
 	CLIENT *client;
 	int new=0, r;
-	char *_defaultdom;
 
 	gpid = getpid();
 	if( !(pid==-1 || pid==gpid) ) {
@@ -218,9 +219,30 @@ again:
 		sprintf(path, "%s/%s.%d", BINDINGDIR, dom, 2);
 		if( (fd=open(path, O_RDONLY)) == -1) {
 			/* no binding file, YP is dead. */
-			if(new)
-				free(ysd);
-			return YPERR_YPBIND;
+			/*
+			 * XXX Not necessarily: the caller might be asking
+			 * for a domain that we simply aren't bound to yet.
+			 * Check that the binding file for the default domain
+			 * is also unlocked before giving up.
+			 */
+			close(fd);
+			if (new) {
+				char *_defaultdom;
+
+				if (yp_get_default_domain(&_defaultdom))
+					return YPERR_NODOM;
+				if (!strcmp(dom, _defaultdom))
+					goto bail;
+				sprintf(path, "%s/%s.%d", BINDINGDIR, _defaultdom, 2);
+				if((fd=open(path, O_RDONLY)) > 0 && 
+					(flock(fd, LOCK_EX|LOCK_NB)) == -1 &&
+						errno==EWOULDBLOCK) {
+						close(fd);
+						goto skipit;
+				} else {
+					goto bail;
+				}
+			}
 		}
 		if( flock(fd, LOCK_EX|LOCK_NB) == -1 && errno==EWOULDBLOCK) {
 			struct iovec iov[2];
@@ -260,14 +282,19 @@ again:
 			 */
 			close(fd);
 			if (new) {
+				char *_defaultdom;
+
 				if (yp_get_default_domain(&_defaultdom))
 					return YPERR_NODOM;
 				sprintf(path, "%s/%s.%d", BINDINGDIR, _defaultdom, 2);
+				if (!strcmp(dom, _defaultdom))
+					goto bail;
 				if((fd=open(path, O_RDONLY)) > 0 && 
 					(flock(fd, LOCK_EX|LOCK_NB)) == -1 &&
 						errno==EWOULDBLOCK) {
 						close(fd);
 				} else {
+bail:
 					close(fd); /* for paranoia's sake */
 					free(ysd);
 					return YPERR_YPBIND;
@@ -275,6 +302,7 @@ again:
 			}
 		}
 	}
+skipit:
 #endif
 	if(ysd->dom_vers==-1 || ysd->dom_vers==0) {
 		bzero((char *)&clnt_sin, sizeof clnt_sin);
@@ -720,7 +748,7 @@ again:
 	_yp_unbind(ysd);
 	return r;
 }
-
+int
 yp_maplist(indomain, outmaplist)
 char *indomain;
 struct ypmaplist **outmaplist;
@@ -838,7 +866,6 @@ int
 _yp_check(dom)
 char **dom;
 {
-	int use_yp = 0;
 	char *unused;
 
 	if( _yp_domain[0]=='\0' )
