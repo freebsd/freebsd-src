@@ -965,14 +965,14 @@ ugen*)
 			i=$(($i + 1))
 		done
 	else
-		minor=`minor2unit $(($unit * 16 + $endpoint))`
+		minor=`unit2minor $(($unit * 16 + $endpoint))`
 		mknod ugen$unit.$endpoint c 114 $minor
 	fi
 	;;
 
 urio*)
 	unit=`expr $i : 'urio\(.*\)'`
-	mknod urio$unit c 143 `minor2unit $unit`
+	mknod urio$unit c 143 `unit2minor $unit`
 	;;
 
 usio*)
