@@ -191,7 +191,7 @@ functional.
 
 Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
-where large memory dumps could take up to an hour to complete.
+where large memory dumps could take up to an hour to complete. [MERGED]
 
 The bktr(4) driver has been updated to 2.15.  New tuner types have
 been added, and improvememts to the KLD module and to memory
@@ -232,6 +232,12 @@ writing to DVD-RAM, PD and similar drives that probe as CD devices.
 Note that change affects only random-access writeable devices, not
 sequential-only writeable devices such as CD-R drives, which are
 supported by cdrecord.
+
+The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
+Privacy (WEP) encryption, settable via ancontrol(8).
+
+The pcm(4) audio driver is now compiled into the GENERIC kernel by
+default.
 
 
 1.2. SECURITY FIXES
@@ -275,6 +281,11 @@ FreeBSD-SA-00:69).  [MERGED]
 The "nat deny_incoming" command in ppp(8) now works correctly (see
 security advisory FreeBSD-SA-00:70).  [MERGED]
 
+A bug in OpenSSH in which a server was unable to disable ssh-agent or
+X11 forwarding was fixed.  [MERGED]
+
+The ssh(1) binary is no longer SUID root by default.
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -287,8 +298,7 @@ mtree(8) now includes support for a file listing pathnames to be excluded
 when creating and verifying prototypes.  This makes it easier to use
 mtree as a part of an intrusion-detection system.  [MERGED]
 
-OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
-and enhancements. [MERGED]
+OpenSSL has been upgraded to 0.9.6.
 
 The OPIE one-time-password suite has been updated to 2.32. [MERGED]
 
@@ -414,7 +424,7 @@ sshd is now enabled by default on new installs. [MERGED]
 
 perl has been updated to version 5.6.0.
 
-Binutils have been upgraded to 2.10.0. [MERGED]
+Binutils have been upgraded to 2.10.1.
 
 libreadline has been upgraded to 4.1. [MERGED]
 
@@ -493,6 +503,19 @@ Use of the CSMG_* macros no longer require inclusion of <sys/param.h>.
 
 IP Filter is now supported by the rc.conf(5) boot-time configuration
 and initialization. [MERGED]
+
+The lastlogin(1) utility, which prints the last login time of each
+user, has been imported from NetBSD.
+
+A new netgraph node type ng_one2many(4) for multiplexing and
+demultiplexing packets over multiple links has been added.  [MERGED]
+
+Softupdates for FFS have received some bugfixes and enhancements.
+
+newfs(1) now implements write combining, which can make creation of
+new filesystems up to seven times faster. [MERGED]
+
+A number of buffer overflows in config(8) have been fixed. [MERGED]
 
 
 2. Supported Configurations
