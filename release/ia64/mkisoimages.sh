@@ -56,7 +56,7 @@ if ! which mkisofs; then
     if ! pkg_add -r cdrtools; then
 	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
 	    echo "Don't worry; building the port..."
-	    if ! (cd $MKISOFS_PORT && make install && make clean); then
+	    if ! (cd $MKISOFS_PORT && make install BATCH=yes && make clean); then
 		echo "Worry; reverting to hackery..."
 		hackery
 	    fi

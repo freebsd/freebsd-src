@@ -37,7 +37,7 @@ type mkisofs 2>&1 | grep " is " >/dev/null
 if [ $? -ne 0 ]; then
 	echo The cdrtools port is not installed.  Trying to get it now.
 	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
-		cd /usr/ports/sysutils/cdrtools && make install && make clean
+		cd /usr/ports/sysutils/cdrtools && make install BATCH=yes && make clean
 	else
 		if ! pkg_add -r cdrtools; then
 			echo "Could not get it via pkg_add - please go install this"
@@ -56,7 +56,7 @@ type setcdboot 2>&1 | grep " is " >/dev/null
 if [ $? -ne 0 ]; then
 	echo The setcdboot port is not installed.  Trying to get it now.
 	if [ -f /usr/ports/sysutils/setcdboot/Makefile ]; then
-		cd /usr/ports/sysutils/setcdboot && make install && make clean
+		cd /usr/ports/sysutils/setcdboot && make install BATCH=yes && make clean
 	else
 		if ! pkg_add -r setcdboot; then
 			echo "Could not get it via pkg_add - please go install this"
