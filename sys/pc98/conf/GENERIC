@@ -45,7 +45,7 @@ options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
-options 	EPSON_BOUNCEDMA		#use bounce buufer for 15-16M
+options 	EPSON_BOUNCEDMA		#use bounce buffer for 15-16M
 #options 	EPSON_MEMWIN		#EPSON memory window support
 options 	UCONSOLE		#Allow users to grab the console
 #options 	LINE30
