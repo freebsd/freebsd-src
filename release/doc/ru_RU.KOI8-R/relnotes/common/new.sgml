@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.37
+     Original revision: 1.761.2.39
 -->
 
 <articleinfo>
@@ -123,6 +123,15 @@
       системы.  За дальнейшей информацией обращайтесь к сообщению безопасности
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.</para>
 
+    <para>В клиенте TELNET были исправлены две ошибки переполнения буфера.
+      Они могут позволить злонамеренному серверу TELNET или активному
+      атакующему в сети между клиентом и сервером заставить
+      &man.telnet.1; выполнить произвольный код с привилегиями пользователя,
+      запустившего клиент.
+      За дальнейшей информацией обращайтесь к сообщению безопасности
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
+      </para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -222,6 +231,9 @@
 	<para arch="amd64">Конвертер драйверов устройств &man.ndis.4;
 	  теперь поддерживает бинарные файлы &windows;/x86-64 на системах
 	  amd64.</para>
+
+	<para>Драйвер &man.re.4; теперь поддерживает инфраструктуру
+	  &man.altq.4;.</para>
 
 	<para>Драйвер &man.sf.4; теперь поддерживает device polling и
 	  &man.altq.4;.</para>
@@ -511,6 +523,10 @@
       (the National Internet Development Agency of Korea),
       содержащего информацию о IP адресах в Корее.</para>
 
+    <para>Была исправлена ошибка чтения файлов конфигурации,
+      таких как &man.hosts.5;, &man.services.5; и так далее, которые
+      не заканчивались символом новой строки.</para>
+
     <sect3 id="rc-scripts">
       <title>Скрипты <filename>/etc/rc.d</filename></title>
 
@@ -652,7 +668,17 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
   <sect2 id="doc">
     <title>Документация</title>
 
-    <para></para>
+    <para>Следующие страницы справочной системы, которые были получены
+      из документов RFC, и возможно нарушали IETF копирайт, были замещены:
+      &man.gai.strerror.3;,
+      &man.getaddrinfo.3;,
+      &man.getnameinfo.3;,
+      &man.inet6.opt.init.3;,
+      &man.inet6.option.space.3;,
+      &man.inet6.rth.space.3;,
+      &man.inet6.rthdr.space.3;,
+      &man.icmp6.4; и
+      &man.ip6.4;.</para>
 
   </sect2>
 
@@ -663,11 +689,11 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
   <para>Пользователям с уже установленными системами &os; 
     <emphasis>настоятельно</emphasis> рекомендуется прочесть
-    <quote>Руководство для новых пользователей &os; &release.current;</quote>.
+    <quote>Руководство по миграции на &os; &release.current;</quote>.
     На дистрибутивном носителе или в любом другом месте, где можно найти
     информацию о релизе, имя файла этого документа обычно
-    <filename>EARLY.TXT</filename>.  Он предоставляет отдельные заметки
-    по обновлению, но, что более важно, сравнительно рассматривает работу с
+    <filename>MIGRATE5.TXT</filename>.  Он предоставляет отдельные заметки
+    по обновлению с &os; 4.X, но, что более важно, сравнительно рассматривает работу с
     4.<replaceable>X</replaceable> и обновление до
     5.<replaceable>X</replaceable>.</para>
 
