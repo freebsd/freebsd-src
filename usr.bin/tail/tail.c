@@ -71,7 +71,7 @@ main(argc, argv)
 {
 	struct stat sb;
 	FILE *fp;
-	long off;
+	off_t off;
 	enum STYLE style;
 	int ch, first;
 	char *p;
@@ -91,7 +91,7 @@ main(argc, argv)
 #define	ARG(units, forward, backward) {					\
 	if (style)							\
 		usage();						\
-	off = strtol(optarg, &p, 10) * (units);				\
+	off = strtoll(optarg, &p, 10) * (units);                        \
 	if (*p)								\
 		errx(1, "illegal offset -- %s", optarg);		\
 	switch(optarg[0]) {						\
@@ -216,7 +216,7 @@ main(argc, argv)
 
 /*
  * Convert the obsolete argument form into something that getopt can handle.
- * This means that anything of the form [+-][0-9][0-9]*[lbc][fr] that isn't
+ * This means that anything of the form [+-][0-9][0-9]*[lbc][Ffr] that isn't
  * the option argument for a -b, -c or -n option gets converted.
  */
 static void
@@ -252,7 +252,7 @@ obsolete(argv)
 			 * output style characters.
 			 */
 			t = *argv + len - 1;
-			if (*t == 'f' || *t == 'r') {
+			if (*t == 'F' || *t == 'f' || *t == 'r') {
 				*p++ = *t;
 				*t-- = '\0';
 			}
@@ -291,6 +291,7 @@ obsolete(argv)
 				++argv;
 			/* FALLTHROUGH */
 		/* Options w/o arguments, continue with the next option. */
+		case 'F':
 		case 'f':
 		case 'r':
 			continue;

@@ -56,7 +56,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 static void r_buf __P((FILE *));
-static void r_reg __P((FILE *, enum STYLE, long, struct stat *));
+static void r_reg __P((FILE *, enum STYLE, off_t, struct stat *));
 
 /*
  * reverse -- display input in reverse order by line.
@@ -80,7 +80,7 @@ void
 reverse(fp, style, off, sbp)
 	FILE *fp;
 	enum STYLE style;
-	long off;
+	off_t off;
 	struct stat *sbp;
 {
 	if (style != REVERSE && off == 0)
@@ -111,7 +111,7 @@ static void
 r_reg(fp, style, off, sbp)
 	FILE *fp;
 	enum STYLE style;
-	long off;
+	off_t off;
 	struct stat *sbp;
 {
 	struct mapinfo map;
