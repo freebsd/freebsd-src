@@ -26,7 +26,7 @@ NOPUSH = "True"
 # passwords in them) to the superuser on other FreeBSD machines, but
 # non-FreeBSD clients (e.g. SunOS, Solaris (without NIS+), IRIX, HP-UX,
 # etc...) will only work properly in 'unsecure' mode.
-#
+# 
 #UNSECURE = "True"
 
 # These are commands which this Makefile needs to properly rebuild the
@@ -118,7 +118,7 @@ ethers.byname: $(ETHERS)
 	$(RM) $@
 	$(CAT) $(ETHERS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
-		print $$0"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
+		print $$2"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) -i $(ETHERS) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
@@ -129,7 +129,7 @@ ethers.byaddr: $(ETHERS)
 	$(RM) $@
 	$(CAT) $(ETHERS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
-		print $$0"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
+		print $$1"\t"$$0 }' $^ | $(DBLOAD) -i $(ETHERS) \
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
@@ -140,7 +140,7 @@ bootparams: $(BOOTPARAMS)
 	$(RM) $@
 	$(CAT) $(BOOTPARAMS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
-		print $$0"\t"$$0 }' $^ | $(DBLOAD) -i $(BOOTPARAMS) \
+		print $$0 }' $^ | $(DBLOAD) -i $(BOOTPARAMS) \
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
@@ -151,7 +151,7 @@ netgroup: $(NETGROUP)
 	$(RM) $@
 	$(CAT) $(NETGROUP) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
-		print $$0"\t"$$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
+		print $$0 }' $^ | $(DBLOAD) -i $(NETGROUP) \
 							-o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
