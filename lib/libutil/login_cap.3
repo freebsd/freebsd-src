@@ -178,8 +178,9 @@ As noted above, the
 .Fn get*class
 functions return a login_cap_t object which is used to access
 the matching or default record in the capabilities database.
+The
 .Fn getclassbyname
-accepts two arguments: the first one is the record identifier of the
+function accepts two arguments: the first one is the record identifier of the
 record to be retrieved, the second is an optional directory name.
 If the first
 .Ar name
@@ -253,8 +254,9 @@ has no login class, then the system "default" entry is retrieved.
 Once a program no longer wishes to use a login_cap_t object,
 .Fn login_close
 may be called to free all resources used by the login class.
+The
 .Fn login_close
-may be passed a NULL pointer with no harmful side-effects.
+function may be passed a NULL pointer with no harmful side-effects.
 .Pp
 The remaining functions may be used to retrieve individual
 capability records.
