@@ -23,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)python.cs.mc	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)python.cs.mc	8.9 (Berkeley) 5/19/1998')
 OSTYPE(bsd4.4)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 define(`LOCAL_RELAY', vangogh.CS.Berkeley.EDU)dnl

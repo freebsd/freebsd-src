@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)loose_relay_check.m4	8.3 (Berkeley) 5/19/98')
+VERSIONID(`@(#)loose_relay_check.m4	8.3 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_LOOSE_RELAY_CHECK_', 1)

@@ -7,7 +7,7 @@
 # the sendmail distribution.
 #
 #
-#	@(#)install.sh	8.9 (Berkeley) 5/19/98
+#	@(#)install.sh	8.9 (Berkeley) 5/19/1998
 
 # Set default program
 program=mv

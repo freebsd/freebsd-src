@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.104 (Berkeley) 6/30/98 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.108 (Berkeley) 10/6/1998 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.104 (Berkeley) 6/30/98 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.108 (Berkeley) 10/6/1998 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -118,7 +118,7 @@ smtpinit(m, mci, e)
 	*/
 
 	SmtpPhase = mci->mci_phase = "client greeting";
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	r = reply(m, mci, e, TimeOuts.to_initial, esmtp_check);
 	if (r < 0)
 		goto tempfail1;
@@ -151,7 +151,7 @@ tryhelo:
 		smtpmessage("HELO %s", m, mci, MyHostName);
 		SmtpPhase = mci->mci_phase = "client HELO";
 	}
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	r = reply(m, mci, e, TimeOuts.to_helo, helo_options);
 	if (r < 0)
 		goto tempfail1;
@@ -439,7 +439,7 @@ smtpmailfrom(m, mci, e)
 			*bufp == '@' ? ',' : ':', bufp, optbuf);
 	}
 	SmtpPhase = mci->mci_phase = "client MAIL";
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	r = reply(m, mci, e, TimeOuts.to_mail, NULL);
 	if (r < 0)
 	{
@@ -580,7 +580,7 @@ smtprcpt(to, m, mci, e)
 	smtpmessage("RCPT To:<%s>%s", m, mci, to->q_user, optbuf);
 
 	SmtpPhase = mci->mci_phase = "client RCPT";
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	r = reply(m, mci, e, TimeOuts.to_rcpt, NULL);
 	to->q_rstatus = newstr(SmtpReplyBuffer);
 	to->q_status = smtptodsn(r);
@@ -661,7 +661,7 @@ smtpdata(m, mci, e)
 	/* send the command and check ok to proceed */
 	smtpmessage("DATA", m, mci);
 	SmtpPhase = mci->mci_phase = "client DATA 354";
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	r = reply(m, mci, e, TimeOuts.to_datainit, NULL);
 	if (r < 0 || REPLYTYPE(r) == 4)
 	{
@@ -741,7 +741,7 @@ smtpdata(m, mci, e)
 
 	/* check for the results of the transaction */
 	SmtpPhase = mci->mci_phase = "client DATA status";
-	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+	sm_setproctitle(TRUE, "%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
 	if (bitnset(M_LMTP, m->m_flags))
 		return EX_OK;
 	r = reply(m, mci, e, TimeOuts.to_datafinal, NULL);
@@ -974,7 +974,6 @@ reply(m, mci, e, timeout, pfunc)
 	for (;;)
 	{
 		register char *p;
-		extern time_t curtime __P((void));
 
 		/* actually do the read */
 		if (e->e_xfp != NULL)
@@ -1008,7 +1007,10 @@ reply(m, mci, e, timeout, pfunc)
 			oldholderrs = HoldErrs;
 			HoldErrs = TRUE;
 			usrerr("451 reply: read error from %s", CurHostName);
-			mci_setstat(mci, EX_TEMPFAIL, "4.4.2", MsgBuf);
+
+			/* errors on QUIT should not be persistent */
+			if (strncmp(SmtpMsgBuffer, "QUIT", 4) != 0)
+				mci_setstat(mci, EX_TEMPFAIL, "4.4.2", MsgBuf);
 
 			/* if debugging, pause so we can see state */
 			if (tTd(18, 100))
@@ -1032,7 +1034,8 @@ reply(m, mci, e, timeout, pfunc)
 					wbufleft -= plen;
 				}
 				snprintf(p, wbufleft, "reply(%.100s) during %s",
-					CurHostName, SmtpPhase);
+					 CurHostName == NULL ? "NO_HOST" : CurHostName,
+					 SmtpPhase);
 				checkfd012(wbuf);
 			}
 #endif

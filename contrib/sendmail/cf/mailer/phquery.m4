@@ -23,7 +23,7 @@ POPDIVERT
 ###   PH Mailer specification   ###
 ####################################
 
-VERSIONID(`@(#)phquery.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)phquery.m4	8.6 (Berkeley) 5/19/1998')
 
 Mph,		P=PH_MAILER_PATH, F=CONCAT(`nrDFM', PH_MAILER_FLAGS), S=10, R=20/40,
 		A=PH_MAILER_ARGS

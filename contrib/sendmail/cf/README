@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@Sendmail.ORG>
 
-		@(#)README	8.174 (Berkeley) 6/30/98
+		@(#)README	8.184 (Berkeley) 12/29/1998
 
 
 This document describes the sendmail configuration files being used
@@ -719,6 +719,9 @@ nullclient	This is a special case -- it creates a stripped down
 		they are qualified with the masquerade name, which
 		defaults to the name of the hub machine).  No mailers
 		should be defined.  No aliasing or forwarding is done.
+		Also, note that absolutely no anti-spam or anti-relaying
+		is done in a null client configuration.  More information
+		can be found in the ANTI-SPAM CONFIGURATION CONTROL section.
 
 local_lmtp	Use an LMTP capable local mailer.  The argument to this
 		feature is the pathname of an LMTP capable mailer.  By
@@ -783,14 +786,27 @@ relay_hosts_only
 
 relay_based_on_MX
 		Turns on the ability to allow relaying based on the MX
-		records of the host portion of an incoming recipient.  See
+		records of the host portion of an incoming recipient; that
+		is, if an MX record for host foo.com points to your site,
+		you will accept and relay mail addressed to foo.com.  See
 		description below for more information before using this
-		feature.
+		feature.  Also, see the KNOWNBUGS entry regarding bestmx
+		map lookups.
+
+		FEATURE(relay_based_on_MX) does not necessarily allow
+		routing of these messages which you expect to be allowed,
+		if route address syntax (or %-hack syntax) is used.  If
+		this is a problem, add entries to the access-table or use
+		FEATURE(loose_relay_check).
 
 relay_local_from
 		Allows relaying if the domain portion of the mail sender
 		is a local host.  This should only be used if absolutely
-		necessary as it opens a window for spammers.
+		necessary as it opens a window for spammers.  Specifically,
+		they can send mail to your mail server that claims to be
+		from your domain (either directly or via a routed address),
+		and you will go ahead and relay it out to arbitrary hosts
+		on the Internet.
 		
 accept_unqualified_senders
 		Normally, MAIL FROM: commands in the SMTP session will be
@@ -1203,7 +1219,8 @@ If you use
 	FEATURE(relay_entire_domain)
 
 then any host in any of your local domains (that is, the $=m class)
-will be relayed.
+will be relayed (that is, you will accept mail either to or from any
+host in your domain).
 
 You can also allow relaying based on the MX records of the host
 portion of an incoming recipient address by using
@@ -1212,9 +1229,11 @@ portion of an incoming recipient address by using
 
 For example, if your server receives a recipient of user@domain.com
 and domain.com lists your server in its MX records, the mail will be
-accepted.  Note that this will stop spammers from using your host to
-relay spam but it will not stop outsiders from using your server as a
-relay for their site.  Along the same lines,
+accepted for relay to domain.com.  Note that this will stop spammers
+from using your host to relay spam but it will not stop outsiders from
+using your server as a relay for their site (that is, they set up an
+MX record pointing to your mail server, and you will relay mail addressed
+to them without any prior arrangement).  Along the same lines,
 
 	FEATURE(relay_local_from)
 
@@ -1265,28 +1284,39 @@ definition for the database; for example
 
 	FEATURE(access_db, hash -o /etc/mail/access)
 
+Remember, since /etc/mail/access is a database, after creating the text
+file as described below, you must use makemap to create the database
+map.  For example:
+
+makemap hash /etc/mail/access < /etc/mail/access
+
 The table itself uses e-mail addresses, domain names, and network
 numbers as keys.  For example,
 
 	spammer@aol.com		REJECT
 	cyberspammer.com	REJECT
-	206.117.147		REJECT
+	192.168.212		REJECT
 
 would refuse mail from spammer@aol.com, any user from cyberspammer.com
 (or any host within the cyberspammer.com domain), and any host on the
-206.117.147.* network.
+192.168.212.* network.
 
 The value part of the map can contain:
 
-	OK		accept mail even if other rules in the
-			running ruleset would reject it.
-	RELAY		Allow domain to relay through your SMTP
-			server.  RELAY also serves an implicit
-			OK for the other checks.
-	REJECT		reject the sender/recipient with a general
+	OK		Accept mail even if other rules in the
+			running ruleset would reject it, for example,
+			if the domain name is unresolvable.
+	RELAY		Accept mail addressed to the indicated domain or
+			received from the indicated domain for relaying
+			through your SMTP server.  RELAY also serves as
+			an implicit OK for the other checks.
+	REJECT		Reject the sender or recipient with a general
 			purpose message.
-	DISCARD		discard the message completely using
-			the $#discard mailer
+	DISCARD		Discard the message completely using the
+			$#discard mailer.  This only works for sender
+			addresses (i.e., it indicates that you should
+			discard anything received from the indicated
+			domain).
 	### any text	where ### is an RFC 821 compliant error code
 			and "any text" is a message to return for
 			the command.
@@ -1333,7 +1363,15 @@ domains, or addresses in your domain which should not receive mail:
 
 This would prevent a recipient of badlocaluser@mydomain.com, any
 user at host.mydomain.com, and the single address
-user@otherhost.mydomain.com from receiving mail.
+user@otherhost.mydomain.com from receiving mail.  Enabling this
+feature will keep you from sending mails to all addresses that
+have an error message or REJECT as value part in the access map.
+Taking the example from above:
+
+	spammer@aol.com		REJECT
+	cyberspammer.com	REJECT
+
+Mail can't be sent to spammer@aol.com or anyone at cyberspammer.com.
 
 There is also a ``Realtime Blackhole List'' run by the MAPS project
 at http://maps.vix.com/.  This is a database maintained in DNS of
@@ -1381,6 +1419,17 @@ a Message-ID: header:
 	SCheckMessageId
 	R< $+ @ $+ >		$@ OK
 	R$*			$#error $: 553 Header Error
+
+Users of FEATURE(nullclient) who desire to use the anti-spam and
+anti-relaying capabilities should replace FEATURE(nullclient, mailhub)
+with:
+
+	undefine(`ALIAS_FILE')
+	define(`MAIL_HUB', `mailhub')
+	define(`SMART_HOST', `mailhub')
+	define(`confFORWARD_PATH', `')
+
+where mailhub is the fully qualified hostname for their mail server.
 
 
 +--------------------------------+
@@ -1712,7 +1761,7 @@ confAUTO_REBUILD	AutoRebuildAliases
 					file if needed.
 confERROR_MODE		ErrorMode	[print] Error message mode.
 confERROR_MESSAGE	ErrorHeader	[undefined] Error message header/file.
-confSAVE_FROM_LINES	SafeFromLine	Save extra leading From_ lines.
+confSAVE_FROM_LINES	SaveFromLine	Save extra leading From_ lines.
 confTEMP_FILE_MODE	TempFileMode	[0600] Temporary file mode.
 confMATCH_GECOS		MatchGECOS	[False] Match GECOS field.
 confMAX_HOP		MaxHopCount	[25] Maximum hop count.

@@ -20,7 +20,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)ucbarpa.mc	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)ucbarpa.mc	8.9 (Berkeley) 5/19/1998')
 DOMAIN(CS.Berkeley.EDU)dnl
 OSTYPE(bsd4.4)dnl
 MAILER(local)dnl

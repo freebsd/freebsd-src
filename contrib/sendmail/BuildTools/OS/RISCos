@@ -1,4 +1,4 @@
-#	@(#)RISCos	8.5	(Berkeley)	3/12/98
+#	@(#)RISCos	8.5	(Berkeley)	3/12/1998
 define(`confCC', `cc -systype bsd43 -Olimit 900')
 define(`confBEFORE', `stdlib.h dirent.h unistd.h stddef.h')
 define(`confMAPDEF', `-DNDBM')

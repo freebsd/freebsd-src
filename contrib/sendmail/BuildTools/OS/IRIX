@@ -1,4 +1,4 @@
-#	@(#)IRIX	8.7	(Berkeley)	3/12/98
+#	@(#)IRIX	8.7	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-DIRIX ')
 define(`confLIBS', `-lmld -lmalloc -lsun')

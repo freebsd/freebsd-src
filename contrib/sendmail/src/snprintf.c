@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)snprintf.c	8.11 (Berkeley) 6/4/98";
+static char sccsid[] = "@(#)snprintf.c	8.12 (Berkeley) 10/13/1998";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -367,10 +367,10 @@ quad_to_string(value)
 	static char buf[64];
 
 	/*
-	** Use sprintf() instead of snprintf() since snprintf()
-	** does not support %qu or %llu.  The buffer is large enough
-	** to hold the string so there is no danger of buffer
-	** overflow.
+	**  Use sprintf() instead of snprintf() since snprintf()
+	**  does not support %qu or %llu.  The buffer is large enough
+	**  to hold the string so there is no danger of buffer
+	**  overflow.
 	*/
 
 #if NEED_PERCENTQ

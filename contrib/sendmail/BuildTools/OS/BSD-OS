@@ -1,4 +1,4 @@
-#	@(#)BSD-OS	8.8	(Berkeley)	6/3/98
+#	@(#)BSD-OS	8.8	(Berkeley)	6/3/1998
 define(`confMAPDEF', `-DNEWDB -DMAP_REGEX')
 define(`confENVDEF', `-DNETISO')
 define(`confLIBS', `-lutil -lkvm')

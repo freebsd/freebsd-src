@@ -1,4 +1,4 @@
-#	@(#)TRACEFLAGS	8.21 (Berkeley) 4/27/98
+#	@(#)TRACEFLAGS	8.21 (Berkeley) 4/27/1998
 0, 1	main.c		main	skip background fork
 0, 4	main.c		main	canonical name, UUCP node name, a.k.a.s
 0, 15	main.c		main	print configuration

@@ -14,9 +14,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)mklinux.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)mklinux.m4	8.8 (Berkeley) 10/6/1998')
 ifdef(`STATUS_FILE',,
-	`define(`STATUS_FILE', /var/log/sendmail.st)')
+	`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/log/sendmail.st'))')
 ifdef(`PROCMAIL_MAILER_PATH',,
 	define(`PROCMAIL_MAILER_PATH', `/usr/bin/procmail'))
 FEATURE(local_procmail)

@@ -1,4 +1,4 @@
-#	@(#)uts.systemV	8.10	(Berkeley)	3/12/98
+#	@(#)uts.systemV	8.10	(Berkeley)	3/12/1998
 PUSHDIVERT(1)
 #  Sendmail 8 on UTS requires BIND 4.9's include files and lib44bsd and
 #  libresolv libraries.  The BIND version on UTS is much too old.

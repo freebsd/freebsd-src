@@ -1,4 +1,4 @@
-#	@(#)NCR.MP-RAS.2.x	8.9	(Berkeley)	3/12/98
+#	@(#)NCR.MP-RAS.2.x	8.9	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-DNCR_MP_RAS2 ')
 define(`confOPTIMIZE', `-O2')

@@ -1,4 +1,4 @@
-#	@(#)CLIX	8.8	(Berkeley)	3/12/98
+#	@(#)CLIX	8.8	(Berkeley)	3/12/1998
 define(`confCC', `gcc')
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-DCLIX ')

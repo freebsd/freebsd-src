@@ -1,4 +1,4 @@
-#	@(#)AIX	8.6	(Berkeley)	3/12/98
+#	@(#)AIX	8.6	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-D_AIX3 ')
 define(`confOPTIMIZE', `-g')

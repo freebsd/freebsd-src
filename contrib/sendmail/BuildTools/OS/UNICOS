@@ -1,4 +1,4 @@
-#	@(#)UNICOS	8.7	(Berkeley)	2/26/98
+#	@(#)UNICOS	8.7	(Berkeley)	2/26/1998
 define(`confENVDEF', `-DUNICOS ')
 define(`confOPTIMIZE', `-O')
 define(`confMBINDIR', `/usr/lib')

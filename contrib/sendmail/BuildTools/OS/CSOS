@@ -1,4 +1,4 @@
-#	@(#)CSOS	8.5	(Berkeley)	2/8/98
+#	@(#)CSOS	8.5	(Berkeley)	2/8/1998
 define(`confLIBS', `-lnet')
 define(`confMBINDIR', `/usr/lib')
 define(`confSBINDIR', `/usr/etc')

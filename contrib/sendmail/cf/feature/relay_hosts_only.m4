@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)relay_hosts_only.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)relay_hosts_only.m4	8.7 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_RELAY_HOSTS_ONLY_', 1)

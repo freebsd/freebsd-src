@@ -12,10 +12,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)nodns.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)nodns.m4	8.9 (Berkeley) 10/6/1998')
 divert(-1)
 
 undefine(`confBIND_OPTS')dnl
 errprint(`FEATURE(nodns) is no-op.
-Use ServiceSwitchFile ('ifdef(`confSERVICE_SWITCH_FILE',confSERVICE_SWITCH_FILE,`/etc/service.switch' if your OS does not provide its own)`) instead.
+Use ServiceSwitchFile ('ifdef(`confSERVICE_SWITCH_FILE',confSERVICE_SWITCH_FILE,ifdef(`_USE_ETC_MAIL_',`/etc/mail/service.switch',`/etc/service.switch'))`) if your OS does not provide its own instead.
 ')

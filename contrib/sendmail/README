@@ -1,5 +1,5 @@
 /*-
- *	@(#)README	8.48 (Berkeley) 5/19/98
+ *	@(#)README	8.50 (Berkeley) 12/17/1998
  */
 
 			SENDMAIL RELEASE 8
@@ -13,11 +13,12 @@ There is a web site at http://WWW.Sendmail.ORG -- see that site for
 the latest updates.
 
 ******************************************************************
-**  DO NOT USE MAKE to compile sendmail.  Instead, cd src and	**
-**  use the "Build" shell script.  On many environments this	**
-**  will do everything for you, no fuss, no muss.  See		**
-**  src/README for more details of compilation.  See cf/README	**
-**  for details about building a runtime configuration file.	**
+**  A new Build architecture is in place that allows you to	**
+**  use the "Build" shell script in any of the program		**
+**  directories.  On many environments this will do everything	**
+**  for you, no fuss, no muss.  See src/README for more details	**
+**  of compilation.  See cf/README for details about building	**
+**  a runtime configuration file.				**
 ******************************************************************
 
 Sendmail is a trademark of Sendmail, Inc.
@@ -232,6 +233,7 @@ Important RFCs for electronic mail are:
 	RFC1894	An Extensible Message Format for Delivery Status
 		Notifications
 	RFC1985	SMTP Service Extension for Remote Message Queue Starting
+	RFC2033 Local Mail Transfer Protocol
 
 Other standards that may be of interest (but which are less directly
 relevant to sendmail) are:

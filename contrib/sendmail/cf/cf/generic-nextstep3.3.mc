@@ -19,7 +19,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)generic-nextstep3.3.mc	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)generic-nextstep3.3.mc	8.7 (Berkeley) 5/19/1998')
 OSTYPE(nextstep)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.117 (Berkeley) 6/4/98";
+static char sccsid[] = "@(#)envelope.c	8.121 (Berkeley) 12/18/1998";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -827,7 +827,7 @@ setsender(from, e, delimptr, delimchar, internal)
 			sm_syslog(LOG_NOTICE, e->e_id,
 				"cannot prescan from (%s)",
 				shortenstring(from, MAXSHORTSTR));
-		finis();
+		finis(TRUE, ExitStat);
 	}
 	(void) rewrite(pvp, 3, 0, e);
 	(void) rewrite(pvp, 1, 0, e);

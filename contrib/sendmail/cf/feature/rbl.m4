@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)rbl.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)rbl.m4	8.8 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_RBL_', ifelse(_ARG_, `', `rbl.maps.vix.com', `_ARG_'))dnl

@@ -12,8 +12,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bestmx_is_local.m4	8.12 (Berkeley) 5/19/98')
+VERSIONID(`@(#)bestmx_is_local.m4	8.13 (Berkeley) 8/13/1998')
 divert(-1)
+
+define(_BESTMX_IS_LOCAL_, _ARG_)
 
 LOCAL_CONFIG
 # turn on bestMX lookup table

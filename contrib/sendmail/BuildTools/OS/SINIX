@@ -1,4 +1,4 @@
-#	@(#)SINIX	8.5	(Berkeley)	2/12/98
+#	@(#)SINIX	8.5	(Berkeley)	2/12/1998
 define(`confCC', `/usr/bin/cc')
 define(`confENVDEF', `-D__svr4__ ')
 define(`confLIBS', `-lsocket -lnsl -lelf')
