@@ -508,6 +508,7 @@ umap_rename(ap)
  */
 static struct vop_vector umap_vnodeops = {
 	.vop_default =		umap_bypass,
+
 	.vop_getattr =		umap_getattr,
 	.vop_inactive =		umap_inactive,
 	.vop_lock =		umap_lock,

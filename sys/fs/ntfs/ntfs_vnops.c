@@ -752,25 +752,21 @@ ntfs_pathconf(ap)
  * Global vfs data structures
  */
 struct vop_vector ntfs_vnodeops = {
-	.vop_default = &default_vnodeops,
+	.vop_default =		&default_vnodeops,
 
-	.vop_getattr = ntfs_getattr,
-	.vop_inactive = ntfs_inactive,
-	.vop_reclaim = ntfs_reclaim,
-	.vop_pathconf = ntfs_pathconf,
-
-	.vop_cachedlookup = ntfs_lookup,
-	.vop_lookup = vfs_cache_lookup,
-
-	.vop_access = ntfs_access,
-	.vop_close = ntfs_close,
-	.vop_open = ntfs_open,
-	.vop_readdir = ntfs_readdir,
-	.vop_fsync = ntfs_fsync,
-
-	.vop_bmap = ntfs_bmap,
-	.vop_strategy = ntfs_strategy,
-	.vop_read = ntfs_read,
-	.vop_write = ntfs_write,
-
+	.vop_access =		ntfs_access,
+	.vop_bmap =		ntfs_bmap,
+	.vop_cachedlookup =	ntfs_lookup,
+	.vop_close =		ntfs_close,
+	.vop_fsync =		ntfs_fsync,
+	.vop_getattr =		ntfs_getattr,
+	.vop_inactive =		ntfs_inactive,
+	.vop_lookup =		vfs_cache_lookup,
+	.vop_open =		ntfs_open,
+	.vop_pathconf =		ntfs_pathconf,
+	.vop_read =		ntfs_read,
+	.vop_readdir =		ntfs_readdir,
+	.vop_reclaim =		ntfs_reclaim,
+	.vop_strategy =		ntfs_strategy,
+	.vop_write =		ntfs_write,
 };
