@@ -4,6 +4,6 @@
 
 KMOD=	snd_csa
 SRCS=	device_if.h bus_if.h isa_if.h pci_if.h
-SRCS+=	csa.c
+SRCS+=	csa.c csapcm.c
 
 .include <bsd.kmod.mk>
