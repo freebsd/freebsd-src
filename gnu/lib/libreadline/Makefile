@@ -1,31 +1,11 @@
-#       $Id: Makefile,v 1.29 1997/06/07 13:18:30 ache Exp $
+#       $Id: Makefile,v 1.30 1998/04/28 07:16:24 ache Exp $
+
+SUBDIR = history readline
 
 SRCDIR= ${.CURDIR}/../../../contrib/libreadline
-.PATH: ${SRCDIR}
 
-SUBDIR= doc
-
-LIB=    readline
-SHLIB_MAJOR= 3
-SHLIB_MINOR= 1
-MAN3=   readline.3
-
-RL_LIBRARY_VERSION = 2.2
-LOCAL_CFLAGS= -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
-CFLAGS+= -I${.CURDIR} -I${SRCDIR} -DHAVE_CONFIG_H ${LOCAL_CFLAGS}
-
-HISTSRC=  history.c histexpand.c histfile.c histsearch.c shell.c
-TILDESRC= tilde.c
-SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
-	  rltty.c complete.c bind.c isearch.c display.c signals.c \
-	  util.c kill.c undo.c macro.c input.c callback.c terminal.c \
-	  nls.c xmalloc.c \
-	  $(HISTSRC) $(TILDESRC)
-
-INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h
-
-DPADD+= $(LIBTERMCAP)
-LDADD+= -ltermcap
+INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
+		   rlstdc.h rlconf.h
 
 beforeinstall:
 .for i in ${INSTALLED_HEADERS}
@@ -33,4 +13,4 @@ beforeinstall:
 		${DESTDIR}/usr/include/readline
 .endfor
 
-.include <bsd.lib.mk>
+.include <bsd.subdir.mk>
