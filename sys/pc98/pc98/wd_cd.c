@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998, 1999 Søren Schmidt
+ * Copyright (c) 1998, 1999 Sen Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -441,7 +441,7 @@ acdstrategy(struct buf *bp)
 
 #ifdef NOTYET
     /* allow write only on CD-R/RW media */   /* all for now SOS */
-    if (!(bp->b_flags & B_READ) && !(writeable_media)) {
+    if ((bp->b_iocmd == BIO_WRITE) && !(writeable_media)) {
         bp->b_error = EROFS;
         bp->b_flags |= B_ERROR;
         biodone(bp);
@@ -487,7 +487,7 @@ acd_start(struct acd *cdp)
 
     acd_select_slot(cdp);
 
-    if ((bp->b_flags & B_READ) == B_WRITE) {
+    if (bp->b_iocmd == BIO_WRITE) {
         if ((cdp->flags & F_TRACK_PREPED) == 0) {
             if ((cdp->flags & F_TRACK_PREP) == 0) {
                 printf("wcd%d: sequence error\n", cdp->lun);
@@ -505,7 +505,7 @@ acd_start(struct acd *cdp)
         }
     }
 
-    if (bp->b_flags & B_READ)
+    if (bp->b_iocmd == BIO_READ)
 #ifdef NOTYET
     	lba = bp->b_offset / cdp->block_size;
 #else
@@ -515,7 +515,7 @@ acd_start(struct acd *cdp)
 	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
     blocks = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
 
-    if ((bp->b_flags & B_READ) == B_WRITE) {
+    if (bp->b_iocmd == BIO_WRITE) {
         cmd = ATAPI_WRITE_BIG;
         count = -bp->b_bcount;
     } else {
@@ -542,7 +542,7 @@ acd_done(struct acd *cdp, struct buf *bp, int resid, struct atapires result)
         bp->b_flags |= B_ERROR;
     } else {
         bp->b_resid = resid;
-        if ((bp->b_flags & B_READ) == B_WRITE)
+        if (bp->b_iocmd == BIO_WRITE)
             cdp->flags |= F_WRITTEN;
     }
     devstat_end_transaction_buf(cdp->device_stats, bp);
