@@ -245,14 +245,12 @@ print_bday(void *data __unused)
 	int day;
 
 	getmicrotime(&tv);
-
 	/*
 	 * We modulus by 126230400 (4*365.25*24*60*60) and then check each
 	 * valid day in the four years covered by that interval to account
 	 * for leap years.  Note that this will break in 2100 AD.
 	 */
 	day = (tv.tv_sec % 126230400) / (24*60*60);
-
 	/*
 	 * Day 0 is Jan 1, so day 22 of Feb is Feb 23.  Leap year was '72,
 	 * so the third year in each set is a leap year.
