@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.33 1998/03/09 19:26:36 brian Exp $
+ * $Id: command.c,v 1.131.2.34 1998/03/13 00:43:58 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -172,12 +172,6 @@ DialCommand(struct cmdargs const *arg)
 {
   int res;
 
-  if (LcpInfo.fsm.state > ST_CLOSED) {
-    prompt_Printf(&prompt, "LCP state is [%s]\n",
-                  StateNames[LcpInfo.fsm.state]);
-    return 0;
-  }
-
   if ((mode & MODE_DAEMON) && !(mode & MODE_AUTO)) {
     LogPrintf(LogWARN,
               "Manual dial is only available in auto and interactive mode\n");
@@ -187,7 +181,7 @@ DialCommand(struct cmdargs const *arg)
   if (arg->argc > 0 && (res = LoadCommand(arg)) != 0)
     return res;
 
-  bundle_Open(arg->bundle, NULL);
+  bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL);
 
   return 0;
 }
@@ -356,7 +350,7 @@ static struct cmdtab const Commands[] = {
   "delete a route if it exists", "delete! dest", (void *)1},
   {"deny", NULL, DenyCommand, LOCAL_AUTH,
   "Deny option request", "deny option .."},
-  {"dial", "call", DialCommand, LOCAL_AUTH,
+  {"dial", "call", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Dial and login", "dial|call [remote]"},
   {"disable", NULL, DisableCommand, LOCAL_AUTH,
   "Disable option", "disable option .."},
@@ -583,7 +577,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show Input filters", "show ifilter option .."},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
-  {"lcp", NULL, ReportLcpStatus, LOCAL_AUTH,
+  {"lcp", NULL, ReportLcpStatus, LOCAL_AUTH | LOCAL_CX,
   "Show LCP status", "show lcp"},
   {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
@@ -827,7 +821,7 @@ QuitCommand(struct cmdargs const *arg)
 static int
 CloseCommand(struct cmdargs const *arg)
 {
-  bundle_Close(LcpInfo.fsm.bundle, arg->cx ? arg->cx->name : NULL, 1);
+  bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
   return 0;
 }
 

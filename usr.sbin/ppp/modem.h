@@ -15,16 +15,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.16.2.10 1998/02/23 00:38:38 brian Exp $
+ * $Id: modem.h,v 1.16.2.11 1998/03/06 00:34:44 brian Exp $
  *
  *	TODO:
  */
 
+struct datalink;
 struct physical;
 struct ccp;
 
 extern int modem_Raw(struct physical *, struct bundle *);
-extern struct physical *modem_Create(const char *);
+extern struct physical *modem_Create(const char *, struct datalink *);
 extern int modem_Open(struct physical *, struct bundle *);
 extern int modem_Speed(struct physical *);
 extern speed_t IntToSpeed(int);

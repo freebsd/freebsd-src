@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.15 1998/03/01 01:07:44 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.16 1998/03/13 00:44:03 brian Exp $
  *
  *	TODO:
  */
@@ -468,7 +468,6 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   cp = MBUF_CTOP(bp);
 
   if (!LcpInfo.want_acfcomp) {
-
     /*
      * We expect that packet is not compressed.
      */

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.31 1998/03/11 02:21:59 brian Exp $
+ * $Id: modem.c,v 1.77.2.32 1998/03/13 00:44:16 brian Exp $
  *
  *  TODO:
  */
@@ -87,7 +87,7 @@ static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                            int *);
 
 struct physical *
-modem_Create(const char *name)
+modem_Create(const char *name, struct datalink *dl)
 {
   struct physical *p;
 
@@ -123,6 +123,7 @@ modem_Create(const char *name)
   p->dev_is_modem = 0;
   p->out = NULL;
   p->connect_count = 0;
+  p->dl = dl;
 
   *p->name.full = '\0';
   p->name.base = p->name.full;

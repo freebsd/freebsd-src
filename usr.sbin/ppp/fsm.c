@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.16 1998/02/27 01:22:22 brian Exp $
+ * $Id: fsm.c,v 1.27.2.17 1998/03/13 00:44:02 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -50,6 +50,11 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
+#include "auth.h"
+#include "chat.h"
+#include "chap.h"
+#include "pap.h"
+#include "datalink.h"
 
 u_char AckBuff[200];
 u_char NakBuff[200];
@@ -710,17 +715,19 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       LogPrintf(LogERROR, "FsmRecvProtoRej: Not a physical link !\n");
     break;
   case PROTO_CCP:
-    fp = &bundle2ccp(fp->bundle, fp->link->name)->fsm;
-    (*fp->fn->LayerFinish)(fp);
-    switch (fp->state) {
-    case ST_CLOSED:
-    case ST_CLOSING:
-      NewState(fp, ST_CLOSED);
-    default:
-      NewState(fp, ST_STOPPED);
-      break;
+    if (fp->proto == PROTO_LCP) {
+      fp = &lcp2ccp(fsm2lcp(fp))->fsm;
+      (*fp->fn->LayerFinish)(fp);
+      switch (fp->state) {
+      case ST_CLOSED:
+      case ST_CLOSING:
+        NewState(fp, ST_CLOSED);
+      default:
+        NewState(fp, ST_STOPPED);
+        break;
+      }
+      (*fp->parent->LayerFinish)(fp->parent->object, fp);
     }
-    (*fp->parent->LayerFinish)(fp->parent->object, fp);
     break;
   }
   pfree(bp);
@@ -729,20 +736,23 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 static void
 FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
+  struct lcp *lcp = fsm2lcp(fp);
   u_char *cp;
   u_long *lp, magic;
 
-  cp = MBUF_CTOP(bp);
-  lp = (u_long *) cp;
-  magic = ntohl(*lp);
-  if (magic != LcpInfo.his_magic) {
-    LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
-    /* XXX: We should send terminate request */
-  }
-  if (fp->state == ST_OPENED) {
-    *lp = htonl(LcpInfo.want_magic);	/* Insert local magic number */
-    LogPrintf(fp->LogLevel, "SendEchoRep(%s)\n", StateNames[fp->state]);
-    FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
+  if (lcp) {
+    cp = MBUF_CTOP(bp);
+    lp = (u_long *) cp;
+    magic = ntohl(*lp);
+    if (magic != lcp->his_magic) {
+      LogPrintf(LogERROR, "RecvEchoReq: his magic is bad!!\n");
+      /* XXX: We should send terminate request */
+    }
+    if (fp->state == ST_OPENED) {
+      *lp = htonl(lcp->want_magic);	/* Insert local magic number */
+      LogPrintf(fp->LogLevel, "SendEchoRep(%s)\n", StateNames[fp->state]);
+      FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
+    }
   }
   pfree(bp);
 }
@@ -750,21 +760,24 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 static void
 FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
+  struct lcp *lcp = fsm2lcp(fp);
   u_long *lp, magic;
 
-  lp = (u_long *) MBUF_CTOP(bp);
-  magic = ntohl(*lp);
-  /* Tolerate echo replies with either magic number */
-  if (magic != 0 && magic != LcpInfo.his_magic && magic != LcpInfo.want_magic) {
-    LogPrintf(LogERROR, "RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
-	      LcpInfo.his_magic, magic);
-
-    /*
-     * XXX: We should send terminate request. But poor implementation may die
-     * as a result.
-     */
+  if (lcp) {
+    lp = (u_long *) MBUF_CTOP(bp);
+    magic = ntohl(*lp);
+    /* Tolerate echo replies with either magic number */
+    if (magic != 0 && magic != lcp->his_magic && magic != lcp->want_magic) {
+      LogPrintf(LogWARN,
+                "RecvEchoRep: Bad magic: expected 0x%08x,  got: 0x%08x\n",
+	        lcp->his_magic, magic);
+      /*
+       * XXX: We should send terminate request. But poor implementation may die
+       * as a result.
+       */
+    }
+    RecvEchoLqr(fp, bp);
   }
-  RecvEchoLqr(fp, bp);
   pfree(bp);
 }
 
@@ -836,7 +849,7 @@ static const struct fsmcodedesc {
 };
 
 void
-FsmInput(struct fsm * fp, struct mbuf * bp)
+FsmInput(struct fsm *fp, struct mbuf * bp)
 {
   int len;
   struct fsmheader *lhp;

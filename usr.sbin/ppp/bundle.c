@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.21 1998/03/13 00:43:52 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.22 1998/03/13 00:44:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -640,7 +640,6 @@ bundle_Open(struct bundle *bundle, const char *name)
       if (name != NULL)
         break;
     }
-  bundle_NewPhase(bundle, PHASE_ESTABLISH);
 }
 
 struct datalink *

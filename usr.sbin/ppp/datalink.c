@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.18 1998/03/13 00:43:59 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.19 1998/03/13 00:44:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -495,7 +495,7 @@ datalink_Create(const char *name, struct bundle *bundle,
   dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
-  if ((dl->physical = modem_Create(dl->name)) == NULL) {
+  if ((dl->physical = modem_Create(dl->name, dl)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
