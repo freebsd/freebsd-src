@@ -400,8 +400,11 @@ ahc_intr(struct ahc_softc *ahc)
 			ahc_run_tqinfifo(ahc, /*paused*/FALSE);
 #endif
 	}
-	if (intstat & BRKADRINT)
+	if (intstat & BRKADRINT) {
 		ahc_handle_brkadrint(ahc);
+		/* Fatal error, no more interrupts to handle. */
+		return;
+	}
 
 	if ((intstat & (SEQINT|SCSIINT)) != 0)
 		ahc_pause_bug_fix(ahc);
