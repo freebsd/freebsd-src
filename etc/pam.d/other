@@ -14,7 +14,7 @@ auth		required	pam_unix.so	no_warn try_first_pass
 account		required	pam_unix.so
 
 # session
-session		required	pam_unix.so
+session		required	pam_lastlog.so
 
 # password
 password	required	pam_deny.so
