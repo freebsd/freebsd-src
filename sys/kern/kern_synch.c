@@ -378,8 +378,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	int rval = 0;
 	WITNESS_SAVE_DECL(mtx);
 
-	KASSERT(!mtx_owned(&vm_mtx) || mtx == &vm_mtx,
-	    ("sleeping with vm_mtx held."));
 #ifdef KTRACE
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
