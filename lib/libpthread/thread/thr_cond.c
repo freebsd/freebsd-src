@@ -261,18 +261,20 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int             rval = 0;
 	int             status;
 
-	if (abstime->tv_sec < 0 || 
-		abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000)
-		return (EINVAL);
-
-	if (cond == NULL)
+	if (cond == NULL || abstime == NULL)
 		rval = EINVAL;
+
+	if (abstime->tv_sec < 0 || 
+		abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	/*
 	 * If the condition variable is statically initialized,
 	 * perform the dynamic initialization:
 	 */
-	else if (*cond != NULL ||
+	if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);

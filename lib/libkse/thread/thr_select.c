@@ -59,8 +59,10 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 	/* Check if a timeout was specified: */
 	if (timeout) {
 		if (timeout->tv_sec < 0 ||
-			timeout->tv_usec < 0 || timeout->tv_usec >= 1000000)
-			return (EINVAL); 
+			timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
+			errno = EINVAL;
+			return (-1);
+		}
 
 		/* Convert the timeval to a timespec: */
 		TIMEVAL_TO_TIMESPEC(timeout, &ts);
