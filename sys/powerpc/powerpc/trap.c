@@ -97,9 +97,7 @@ int	setfault(faultbuf);		/* defined in locore.S */
 int	badaddr(void *, size_t);
 int	badaddr_read(void *, size_t, int *);
 
-#ifdef	WITNESS
 extern char	*syscallnames[];
-#endif
 
 struct powerpc_exception {
 	u_int	vector;
@@ -321,6 +319,7 @@ handle_onfault(struct trapframe *frame)
 		frame->srr0 = (*fb)[0];
 		frame->fixreg[1] = (*fb)[1];
 		frame->fixreg[2] = (*fb)[2];
+		frame->fixreg[3] = 1;
 		frame->cr = (*fb)[3];
 		bcopy(&(*fb)[4], &frame->fixreg[13],
 		    19 * sizeof(register_t));
@@ -396,6 +395,12 @@ syscall(struct trapframe *frame)
 	} else
 		error = 0;
 
+	CTR5(KTR_SYSC, "syscall: p=%s %s(%x %x %x)", p->p_comm,
+	     syscallnames[code],
+	     frame->fixreg[FIRSTARG],
+	     frame->fixreg[FIRSTARG+1],
+	     frame->fixreg[FIRSTARG+2]);
+
 #ifdef	KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, narg, (register_t *)params);
@@ -413,6 +418,9 @@ syscall(struct trapframe *frame)
 		STOPEVENT(p, S_SCE, narg);
 
 		error = (*callp->sy_call)(td, params);
+
+		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", p->p_comm,
+		     syscallnames[code], td->td_retval[0]);
 	}
 	switch (error) {
 	case 0:
