@@ -2890,6 +2890,7 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
+	case FORMAT_UNIT:
 	case INQUIRY:
 	case START_STOP_UNIT:
 	case SEND_DIAGNOSTIC:
@@ -2898,17 +2899,15 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case READ_10:
 	case WRITE_10:
 	case POSITION_TO_ELEMENT:	/* SEEK_10 */
+	case WRITE_AND_VERIFY:
+	case VERIFY:
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
 	case READ_12:
 	case WRITE_12:
+	case READ_FORMAT_CAPACITIES:
 		memcpy(*rcmd, cmd, cmdlen);
 		return 1;
-
-	/* Other UFI commands: FORMAT_UNIT, READ_FORMAT_CAPACITY,
-	 * VERIFY, WRITE_AND_VERIFY.
-	 * These should be checked whether they somehow can be made to fit.
-	 */
 
 	default:
 		printf("%s: Unsupported UFI command 0x%02x\n",
