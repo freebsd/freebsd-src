@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.105 1998/03/08 06:52:45 jkh Exp $
+ *      $Id: scsiconf.c,v 1.106 1998/07/11 07:45:58 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -250,7 +250,7 @@ static struct scsidevs knowndevs[] =
 {
 #if NOD > 0
 	{
-		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-100*", "*",
+		T_OPTICAL, T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1*", "*",
 		"od", SC_MORE_LUS
 	},
 	{
