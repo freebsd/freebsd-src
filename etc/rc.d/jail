@@ -6,7 +6,7 @@
 # PROVIDE: jail
 # REQUIRE: LOGIN
 # BEFORE: securelevel
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr
 
@@ -14,6 +14,50 @@ name="jail"
 rcvar=`set_rcvar`
 start_cmd="jail_start"
 stop_cmd="jail_stop"
+
+# init_variables _j
+#	Initialize the various jail variables for jail _j.
+#
+init_variables()
+{
+	_j="$1"
+
+	if [ -z "$_j" ]; then
+		warn "init_variables: you must specify a jail"
+		return
+	fi
+
+	eval jail_rootdir=\"\$jail_${_j}_rootdir\"
+	jail_devdir="${jail_rootdir}/dev"
+	jail_fdescdir="${jail_devdir}/fd"
+	jail_procdir="${jail_rootdir}/proc"
+	eval jail_hostname=\"\$jail_${_j}_hostname\"
+	eval jail_ip=\"\$jail_${_j}_ip\"
+	eval jail_exec=\"\$jail_${_j}_exec\"
+	[ -z "${jail_exec}" ] && jail_exec="/bin/sh /etc/rc"
+
+	# The default jail ruleset will be used by rc.subr if none is specified.
+	eval jail_ruleset=\"\$jail_${_j}_devfs_ruleset\"
+	eval jail_devfs=\"\$jail_${_j}_devfs_enable\"
+	[ -z "${jail_devfs}" ] && jail_devfs="NO"
+	eval jail_fdescfs=\"\$jail_${_j}_fdescfs_enable\"
+	[ -z "${jail_fdescfs}" ] && jail_fdescfs="NO"
+	eval jail_procfs=\"\$jail_${_j}_procfs_enable\"
+	[ -z "${jail_procfs}" ] && jail_procfs="NO"
+
+	# Debuggin aid
+	#
+	debug "$_j devfs enable: $jail_devfs"
+	debug "$_j fdescfs enable: $jail_fdescfs"
+	debug "$_j procfs enable: $jail_procfs"
+	debug "$_j hostname: $jail_hostname"
+	debug "$_j ip: $jail_ip"
+	debug "$_j root: $jail_rootdir"
+	debug "$_j devdir: $jail_devdir"
+	debug "$_j fdescdir: $jail_fdescdir"
+	debug "$_j procdir: $jail_procdir"
+	debug "$_j ruleset: $jail_ruleset"
+}
 
 jail_start()
 {
@@ -46,22 +90,68 @@ jail_start()
 	fi
 	echo '.'
 
-	echo 'Starting Jails.'
+	echo -n 'Starting Jails:'
 	for _jail in ${jail_list} 
 	do
-		eval jail_rootdir=\"\$jail_${_jail}_rootdir\"
-		eval jail_hostname=\"\$jail_${_jail}_hostname\"
-		eval jail_ip=\"\$jail_${_jail}_ip\"
-		eval jail_exec=\"\$jail_${_jail}_exec\"
-		[ -z "${jail_exec}" ] && jail_exec="/bin/sh /etc/rc"
-		
-		jail ${jail_rootdir} ${jail_hostname} ${jail_ip} ${jail_exec}
+		init_variables $_jail
+		if checkyesno jail_devfs; then
+			info "Mounting devfs on ${jail_devdir}"
+			devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
+
+			# Transitional symlink for old binaries
+			if [ ! -L ${jail_devdir}/log ]; then
+				devfs_link ${jail_devdir} ../var/run/log log
+			fi
+
+			# Jail console output
+			devfs_link ${jail_devdir} ../var/log/console console
+		fi
+		if checkyesno jail_fdescfs; then
+			info "Mounting fdescfs on ${jail_fdescdir}"
+			mount -t fdescfs fdesc "${jail_fdescdir}"
+		fi
+		if checkyesno jail_procfs; then
+			info "Mounting procfs onto ${jail_procdir}"
+			if [ -d ${jail_procdir} ] ; then
+				mount -t procfs proc "${jail_procdir}"
+			fi
+		fi
+		jail 1>/dev/null 2>&1 \
+		    ${jail_rootdir} ${jail_hostname} ${jail_ip} ${jail_exec}
+		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
 	done
+	echo '.'
 }
 
 jail_stop()
 {
-	kill -TERM $(ps aux | awk '$8 ~ /.*J/ {print  $2};')
+	echo 'Stopping all jails.'
+	if checkyesno jail_stop_jailer; then
+		rc_pid=$(ps aux | grep "jailer" | awk '$8 ~ /.*J/ {print  $2};')
+	else
+		rc_pid=$(ps aux | awk '$8 ~ /.*J/ {print  $2};')
+	fi
+	if [ -n "${rc_pid}" ]; then
+		kill -TERM $rc_pid
+		wait_for_pids $rc_pid
+	fi
+	for _jail in ${jail_list}
+	do
+		init_variables $_jail
+		if checkyesno jail_devfs; then
+			if [ -d ${jail_devdir} ] ; then
+				umount -f ${jail_devdir} >/dev/null 2>&1
+			fi
+		fi
+		if checkyesno jail_fdescfs; then
+			umount -f ${jail_fdescdir} >/dev/null 2>&1
+		fi
+		if checkyesno jail_procfs; then
+			if [ -d ${jail_procdir} ] ; then
+				umount -f ${jail_procdir} >/dev/null 2>&1
+			fi
+		fi
+	done
 }
 
 
