@@ -1,14 +1,11 @@
-#	@(#)Makefile	29-Dec-96
-
 PROG   = gctags
-DEFS   = -DGTAGS -DBUGFIX -DMODIFY -DYACC
+DEFS   = -DGLOBAL -DYACC
 CC     = gcc
-#WARN   = -Wall -Wparentheses -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS = -O $(DEFS) -I../include
-LIBS   = -ldb
-OBJS   = C.o ctags.o fortran.o lisp.o print.o tree.o yacc.o assembler.o err.o
+CFLAGS = -O $(DEFS) -I../lib -I/usr/include/db
+LIBS   = -L../lib -lutil -ldb
+OBJS   = C.o assembler.o ctags.o fortran.o lisp.o print.o tree.o yacc.o
 BINDIR = /usr/bin
-MANDIR = /usr/share/man
+MANDIR = /usr/man
 
 all: $(PROG)
 
@@ -20,4 +17,4 @@ install:
 	cp $(PROG).1 $(MANDIR)/man1
 	chmod 644 $(MANDIR)/man1/$(PROG).1
 clean:
-	rm -f $(PROG) $(OBJS) GTAGS GRTAGS
+	rm -f $(PROG) $(OBJS)

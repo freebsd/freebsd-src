@@ -1,8 +1,6 @@
-#	@(#)Makefile	29-Dec-96
-
 PROG   = htags
 BINDIR = /usr/bin
-MANDIR = /usr/share/man
+MANDIR = /usr/man
 
 all:
 install:

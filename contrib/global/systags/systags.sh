@@ -58,15 +58,15 @@ fi
 # remove old files
 #
 case $nflag in
-1)	echo "rm -rf $dir/htags.log $dir/GTAGS $dir/GRTAGS $dir/HTML";;
-*)	rm -rf $dir/htags.log $dir/GTAGS $dir/GRTAGS $dir/HTML;;
+1)	echo "rm -rf $dir/htags.log $dir/gtags.log $dir/GTAGS $dir/GRTAGS $dir/GSYMS $dir/HTML";;
+*)	rm -rf $dir/htags.log $dir/gtags.log $dir/GTAGS $dir/GRTAGS $dir/GSYMS $dir/HTML;;
 esac
 #
-# make global database(GTAGS, GRTAGS).
+# make global database(GTAGS, GRTAGS, GSYMS).
 #
 case $nflag in
-1)	echo "gtags -se $dir";;
-*)	gtags -se $dir;;
+1)	echo "gtags -v $dir > $dir/gtags.log 2>&1";;
+*)	gtags -v $dir > $dir/gtags.log 2>&1;;
 esac
 case $? in
 0)	;;

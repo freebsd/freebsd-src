@@ -1,13 +1,20 @@
-#	@(#)Makefile	29-Dec-96
-
 PROG   = gtags
+CC     = gcc
+LIBS   = -L../lib -lutil -ldb
+CFLAGS = -O -I../lib -I/usr/include/db
+DEPLIBS= ../lib/libutil.a
+OBJS   = gtags.o
 BINDIR = /usr/bin
-MANDIR = /usr/share/man
+MANDIR = /usr/man
 
-all:
+all: $(PROG)
+
+$(PROG): $(OBJS) $(DEPLIBS)
+	$(CC) -o $(PROG) $(OBJS) $(LIBS)
 install:
-	cp $(PROG).pl $(BINDIR)/$(PROG)
+	cp $(PROG) $(BINDIR)
 	chmod 755 $(BINDIR)/$(PROG)
 	cp $(PROG).1 $(MANDIR)/man1
 	chmod 644 $(MANDIR)/man1/$(PROG).1
 clean:
+	rm -f $(PROG) $(OBJS)

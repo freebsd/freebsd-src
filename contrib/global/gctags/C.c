@@ -46,7 +46,7 @@ static int	func_entry __P((void));
 static void	hash_entry __P((void));
 static void	skip_string __P((int));
 static int	str_entry __P((int));
-#ifdef GTAGS
+#ifdef GLOBAL
 static int	cmp __P((const void *, const void *));
 static int	isstatement __P((char *));
 static void	define_line __P((void));
@@ -116,7 +116,7 @@ c_entries()
 			 */
 			if (--level < 0)
 				level = 0;
-#ifdef GTAGS
+#ifdef GLOBAL
 			/*
 			 * -e flag force a function to end when a '}' appear
 			 * at column 0. If -e flag not specified, all functions
@@ -192,7 +192,7 @@ c_entries()
 		/*
 		 * if we have a current token, parenthesis on
 		 * level zero indicates a function.
-#ifdef GTAGS
+#ifdef GLOBAL
 		 * in the case of rflag == 1, if we have a current token,
 		 * parenthesis on level > zero indicates a function reference.
 #endif
@@ -201,10 +201,14 @@ c_entries()
 #endif
 		 */
 		case '(':
+#ifdef GLOBAL
+			if (sflag)
+				break;
+#endif
 #ifdef YACC
 			if (inyacc == NO)
 #endif
-#ifdef GTAGS
+#ifdef GLOBAL
 			if (!rflag && !level && token)
 #else
 			if (!level && token)
@@ -222,7 +226,7 @@ c_entries()
 				 */
 				getline();
 				curline = lineno;
-#ifdef GTAGS
+#ifdef GLOBAL
 				/* to make sure. */
 				if (!isstatement(tok))
 #endif
@@ -232,13 +236,14 @@ c_entries()
 				}
 				break;
 			}
-#ifdef GTAGS
+#ifdef GLOBAL
 			else if (rflag && level && token) {
 				if (sp != tok)
 					*sp = EOS;
-				getline();
-				if (!isstatement(tok) && isdefined(tok))
+				if (!isstatement(tok) && lookup(tok)) {
+					getline();
 					pfnote(tok, lineno);
+				}
 				break;
 			}
 #endif
@@ -305,13 +310,7 @@ c_entries()
 		 * reserved words.
 		 */
 		default:
-#ifdef BUGFIX
-			/*
-			 * to treat following function.
-			 * func      (arg) {
-			 * ....
-			 * }
-			 */
+			/* ignore whitespace */
 			if (c == ' ' || c == '\t') {
 				int save = c;
 				while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
@@ -321,12 +320,39 @@ c_entries()
 				(void)ungetc(c, inf);
 				c = save;
 			}
-#endif
 	storec:		if (!intoken(c)) {
 				if (sp == tok)
 					break;
 				*sp = EOS;
-#ifdef GTAGS
+#ifdef GLOBAL
+				/* ignore assembler in C source */
+				if (!memcmp(tok, "_asm",4)) {
+					while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
+						;
+					if (c == EOF)
+						return;
+					if (c == '{') {
+						while (GETC(!=, EOF) && c != '}') {
+							if (c == '\n')
+								SETLINE;
+						}
+					} else {
+						while (GETC(!=, EOF) && c != '\n')
+							;
+						if (c == '\n')
+							SETLINE;
+					}
+					if (c == EOF)
+						return;
+					break;
+				}
+				if (sflag) {
+					if (!isstatement(tok)) {
+						getline();
+						pfnote(tok, lineno);
+					}
+					break;
+				}
 				if (!memcmp(tok, "extern",7)) {
 					while (GETC(!=, EOF) && c != ';') {
 						if (c == '\n')
@@ -367,6 +393,18 @@ c_entries()
 				*sp++ = c;
 				token = YES;
 			}
+#ifdef GLOBAL
+			/* skip hex number */
+			else if (sp == tok && c == '0') {
+				if (GETC(==, 'x') || c == 'X') {
+					while (GETC(!=, EOF) && isxdigit(c))
+						;
+					if (c == EOF)
+						return;
+				}
+				(void)ungetc(c, inf);
+			}
+#endif
 			continue;
 			/* end of default */
 		} /* end of switch */
@@ -454,15 +492,10 @@ hash_entry()
 	char	*sp;			/* buffer pointer */
 	char	tok[MAXTOKEN];		/* storage buffer */
 
-#ifdef BUGFIX
-	/*
-	 * to treat following macro.
-	 * #     macro(arg)        ....
-	 */
+	/* ignore leading whitespace */
 	while (GETC(!=, EOF) && (c == ' ' || c == '\t'))
 		;
 	(void)ungetc(c, inf);
-#endif
 	curline = lineno;
 	for (sp = tok;;) {		/* get next token */
 		if (GETC(==, EOF))
@@ -472,8 +505,16 @@ hash_entry()
 		*sp++ = c;
 	}
 	*sp = EOS;
+#ifdef GLOBAL
+	if (sflag && memcmp(tok, "include", 7)) {
+		(void)ungetc(c, inf);
+		define_line();
+		return;
+	}
+#endif
 	if (memcmp(tok, "define", 6))	/* only interested in #define's */
 		goto skip;
+	
 	for (;;) {			/* this doesn't handle "#define \n" */
 		if (GETC(==, EOF))
 			return;
@@ -492,12 +533,12 @@ hash_entry()
 			break;
 	}
 	*sp = EOS;
-#ifdef GTAGS
+#ifdef GLOBAL
 	if (rflag) {
 		/*
 		 * #define XXX\n
 		 */
-		if (c == '\n' || (c == '\r' && GETC(==, '\n'))) {
+		if (c == '\n') {
 			SETLINE;
 			return;
 		}
@@ -531,19 +572,13 @@ hash_entry()
 	}
 skip:	if (c == '\n') {		/* get rid of rest of define */
 		SETLINE
-#ifdef MODIFY
-		if (*(sp - 1) == '\r') {
-			if (*(sp - 2) != '\\')
-				return;
-		} else
-#endif
 		if (*(sp - 1) != '\\')
 			return;
 	}
 	(void)skip_key('\n');
 }
 
-#ifdef GTAGS
+#ifdef GLOBAL
 		/* sorted by alphabet */
 static struct words {
 	char *name;
@@ -619,12 +654,20 @@ define_line()
 			goto endtok;
 
 		case '\\':
-			if (GETC(==, '\n') || (c == '\r' && GETC(==, '\n'))) {
+			if (GETC(==, '\n')) {
 				SETLINE;
 			}
 			continue;
 
 		case '\n':
+			if (sflag && token) {
+				if (sp != tok)
+					*sp = EOS;
+				if (!isstatement(tok)) {
+					getline();
+					pfnote(tok, lineno);
+				}
+			}
 			SETLINE;
 			return;
 	endtok:		if (sp > tok) {
@@ -651,11 +694,13 @@ define_line()
 			goto storec;
 
 		case '(':
+			if (sflag)
+				break;
 			if (token) {
 				if (sp != tok)
 					*sp = EOS;
 				getline();
-				if (!isstatement(tok) && isdefined(tok))
+				if (!isstatement(tok) && lookup(tok))
 					pfnote(tok, lineno);
 				break;
 			}
@@ -670,6 +715,13 @@ storec:			if (!intoken(c)) {
 					break;
 				*sp = EOS;
 				sp = tok;
+				if (sflag) {
+					if (!isstatement(tok)) {
+						getline();
+						pfnote(tok, lineno);
+					}
+					break;
+				}
 			}
 			else if (sp != tok || begtoken(c)) {
 				*sp++ = c;
@@ -774,10 +826,6 @@ skip_string(key)
 		case '\\':		/* a backslash escapes anything */
 			skip = !skip;	/* we toggle in case it's "\\" */
 			break;
-#ifdef MODIFY
-		case '\r':
-			break;
-#endif
 		case '\n':
 			SETLINE;
 			/*FALLTHROUGH*/
@@ -823,10 +871,6 @@ skip_key(key)
 			(void)ungetc(c, inf);
 			c = '/';
 			goto norm;
-#ifdef MODIFY
-		case '\r':
-			break;
-#endif
 		case '\n':
 			SETLINE;
 			/*FALLTHROUGH*/

@@ -1,17 +1,15 @@
-#	@(#)Makefile	29-Dec-96
-
 PROG   = btreeop
 CC     = gcc
-#WARN   = -Wall -Wparentheses -Wstrict-prototypes -Wmissing-prototypes
-LIBS   = -ldb
-CFLAGS = -O -I../include
-OBJS   = btreeop.o err.o
+LIBS   = -L../lib -lutil -ldb
+CFLAGS = -O -I../lib -I/usr/include/db
+DEPLIBS= ../lib/libutil.a
+OBJS   = btreeop.o
 BINDIR = /usr/bin
-MANDIR = /usr/share/man
+MANDIR = /usr/man
 
 all: $(PROG)
 
-$(PROG): $(OBJS)
+$(PROG): $(OBJS) $(DEPLIBS)
 	$(CC) -o $(PROG) $(OBJS) $(LIBS)
 install:
 	cp $(PROG) $(BINDIR)
@@ -19,4 +17,4 @@ install:
 	cp $(PROG).1 $(MANDIR)/man1
 	chmod 644 $(MANDIR)/man1/$(PROG).1
 clean:
-	rm -f $(PROG) $(OBJS) GTAGS GRTAGS
+	rm -f $(PROG) $(OBJS)
