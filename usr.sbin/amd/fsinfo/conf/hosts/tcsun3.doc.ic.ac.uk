@@ -1,3 +1,0 @@
-#include "../csg_sun3"
-
-CSG_SUN3(tcsun3,doc.ic.ac.uk,pelican.doc.ic.ac.uk,pelican.doc.ic.ac.uk)
