@@ -453,6 +453,7 @@ struct pcn_softc {
 	device_t		pcn_miibus;
 	u_int8_t		pcn_unit;
 	u_int8_t		pcn_link;
+	u_int8_t		pcn_phyaddr;
 	int			pcn_if_flags;
 	int			pcn_type;
 	struct pcn_list_data	*pcn_ldata;
