@@ -13,10 +13,10 @@ beforeinstall:
 	@echo -n "install -d -o ${INFOOWN} -g ${INFOGRP} "
 	@echo "-m 0755 ${DESTDIR}${INFODIR}"
 	@exit 3;
-.endif          
-	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} dir-tmpl \
-		${DESTDIR}${INFODIR}/dir-tmpl
+.endif
+.if !exists(${DESTDIR}${INFODIR}/dir)
 	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		 dir-tmpl ${DESTDIR}${INFODIR}/dir
+.endif
 
 .include <bsd.prog.mk>
