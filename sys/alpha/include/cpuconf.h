@@ -72,7 +72,8 @@ extern struct platform {
 	void	(*mcheck_handler) __P((unsigned long, struct trapframe *,
 		unsigned long, unsigned long));
 	void	(*pci_intr_init) __P((void));
-	int     (*pci_intr_route) __P((device_t, device_t, int));
+	void	(*pci_intr_map) __P((void *));
+	int	(*pci_intr_route) __P((device_t, device_t, int)); 
 	void    (*pci_intr_disable) __P((int));
 	void    (*pci_intr_enable) __P((int));
 	int	(*pci_setup_ide_intr) __P((struct device *dev,

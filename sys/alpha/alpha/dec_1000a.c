@@ -103,12 +103,12 @@ void dec_1000a_init __P((int));
 static void dec_1000a_cons_init __P((void));
 
 
-static int dec_1000_intr_route __P((device_t, device_t, int));
+static void dec_1000_intr_map __P((void *));
 static void dec_1000_intr_disable __P((int));
 static void dec_1000_intr_enable __P((int));
 static void dec_1000_intr_init __P((void));
 
-static int dec_1000a_intr_route __P((device_t, device_t, int));
+static void dec_1000a_intr_map __P((void *));
 static void dec_1000a_intr_disable __P((int));
 static void dec_1000a_intr_enable __P((int));
 static void dec_1000a_intr_init __P((void));
@@ -156,14 +156,14 @@ dec_1000a_init(int cputype)
 	platform.cons_init = dec_1000a_cons_init;
 	switch (cputype) {
 	case ST_DEC_1000:
-		platform.pci_intr_route = dec_1000_intr_route;
+		platform.pci_intr_map = dec_1000_intr_map;
 		platform.pci_intr_disable = dec_1000_intr_disable;
 		platform.pci_intr_enable = dec_1000_intr_enable;
 		platform.pci_intr_init = dec_1000_intr_init;
 		break;
 
 	default:
-		platform.pci_intr_route = dec_1000a_intr_route;
+		platform.pci_intr_map = dec_1000a_intr_map;
 		platform.pci_intr_disable = dec_1000a_intr_disable;
 		platform.pci_intr_enable = dec_1000a_intr_enable;
 		platform.pci_intr_init = dec_1000a_intr_init;
@@ -236,27 +236,35 @@ dec_1000a_cons_init()
 }
 
 
-static int
-dec_1000_intr_route(bus, dev, pin)
-	device_t bus, dev;
-	int pin;
+static void
+dec_1000_intr_map(arg)
+	void *arg;
 {
-	switch(pci_get_slot(dev)) {
+	pcicfgregs *cfg;
+
+	cfg = (pcicfgregs *)arg;
+	if (cfg->intpin == 0)	/* No IRQ used. */
+		return;
+	if (!(1 <= cfg->intpin && cfg->intpin <= 4))
+		goto bad;
+
+	switch(cfg->slot) {
 	case 6:
-		if (pin != 1)
+		if(cfg->intpin != 1)
 			break;
-		return(0xc);			/* integrated ncr scsi */
+		cfg->intline = 0xc;		/* integrated ncr scsi */
+		return;
+		break;
 	case 11:
 	case 12:
 	case 13:
-		return((pci_get_slot(dev) - 11) * 4 + pin - 1);
+		cfg->intline = (cfg->slot - 11) * 4 + cfg->intpin - 1;
+		return;
 		break;
 	}
-	printf("dec_1000_intr_map: can't map dev %d pin %d\n",
-	       pci_get_slot(dev), pin);
-	return(255);
+bad:	printf("dec_1000_intr_map: can't map dev %d pin %d\n",
+	    cfg->slot, cfg->intpin);
 }
-
 
 /*
  * Read and write the mystery ICU IMR registers
@@ -311,12 +319,11 @@ dec_1000_intr_init()
 #define IMR2IRQ(bn) 	((bn) - 1)
 #define IRQ2IMR(irq) 	((irq) + 1)
 
-
-static int
-dec_1000a_intr_route(bus, dev, pin)
-	device_t bus, dev;
-	int pin;
+static void
+dec_1000a_intr_map(arg)
+	void *arg;
 {
+	pcicfgregs *cfg;
 	int device, imrbit;
 	/*
 	 * Get bit number in mystery ICU imr.
@@ -341,15 +348,23 @@ dec_1000a_intr_route(bus, dev, pin)
 		/* 14  */ IRQSPLIT(8)		/* Corelle */
 	};
 
-	device = pci_get_slot(dev);
-	if (0 <= device && device < sizeof(imrmap) / sizeof(imrmap[0])) {
-		imrbit = imrmap[device][pin - 1];
-		if (imrbit)
-			return(IMR2IRQ(imrbit));
+	cfg = (pcicfgregs *)arg;
+	device = cfg->slot;
+
+	if (cfg->intpin == 0)	/* No IRQ used. */
+		return;
+	if (!(1 <= cfg->intpin && cfg->intpin <= 4))
+		goto bad;
+
+	if (0 <= device && device < sizeof imrmap / sizeof imrmap[0]) {
+		imrbit = imrmap[device][cfg->intpin - 1];
+		if (imrbit) {
+			cfg->intline = IMR2IRQ(imrbit);
+			return;
+		}
 	}
-	printf("dec_1000a_intr_route: can't map dev %d pin %d\n",
-	       device, pin);
-	return(255);
+bad:	printf("dec_1000a_intr_map: can't map dev %d pin %d\n",
+	    device, cfg->intpin);
 }
 
 
