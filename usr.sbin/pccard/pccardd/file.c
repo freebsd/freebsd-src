@@ -573,6 +573,7 @@ new_driver(char *name)
 	drivers = drvp;
 	drvp->name = newstr(name);
 	drvp->kernel = newstr(name);
+	drvp->unit = -1;
 	p = drvp->kernel;
 	while (*p++)
 		if (*p >= '0' && *p <= '9') {
