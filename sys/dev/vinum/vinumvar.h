@@ -381,6 +381,10 @@ struct drive {
 	u_int64_t offset;
 	long sectors;
     } *freelist;
+#ifdef VINUMDEBUG
+    char lockfilename[16];				    /* name of file from which we were locked */
+    int lockline;					    /* and the line number */
+#endif
 };
 
 /*** Subdisk definitions ***/
