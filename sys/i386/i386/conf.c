@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.100 1995/10/12 23:28:41 bde Exp $
+ *	$Id: conf.c,v 1.101 1995/10/14 05:25:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -305,13 +305,17 @@ d_psize_t	atasize;
 
 #include "wcd.h"
 #if NWCD > 0
-d_open_t	wcdopen;
-d_close_t	wcdclose;
+d_open_t	wcdbopen;
+d_open_t	wcdropen;
+d_close_t	wcdbclose;
+d_close_t	wcdrclose;
 d_strategy_t	wcdstrategy;
 d_ioctl_t	wcdioctl;
 #else
-#define wcdopen		nxopen
-#define wcdclose	nxclose
+#define wcdbopen	nxopen
+#define wcdropen	nxopen
+#define wcdbclose	nxclose
+#define wcdrclose	nxclose
 #define wcdstrategy	nxstrategy
 #define wcdioctl	nxioctl
 #endif
@@ -445,8 +449,8 @@ struct bdevsw	bdevsw[] =
 	  matcddump,	matcdsize,	0 },
 	{ ataopen,	ataclose,	atastrategy,	ataioctl,	/*18*/
 	  atadump,	atasize,	0 },
-	{ wcdopen,      wcdclose,       wcdstrategy,    wcdioctl,       /*19*/
-	  nxdump,       zerosize,       0 },
+	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
+	  nxdump,	zerosize,	0 },
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
 	  oddump,	odsize,		0 },
 
@@ -1291,9 +1295,9 @@ struct cdevsw	cdevsw[] =
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
 	  siioctl,	sistop,		sireset,	sidevtotty,/* slxos */
 	  ttselect,	nxmmap,		NULL },
-	{ wcdopen,      wcdclose,       rawread,        nowrite,        /*69*/
-	  wcdioctl,     nostop,         nullreset,      nodevtotty,/* atapi */
-	  seltrue,      nommap,         wcdstrategy },
+	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
+	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
+	  seltrue,	nommap,		wcdstrategy },
 	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
 	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
 	  seltrue,	nommap,		odstrategy },
