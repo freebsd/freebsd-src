@@ -486,7 +486,7 @@ epc_syscall_return:
 	mov		r30=ar.bspstore
 	;;
 	mov		r14=ar.k5
-	dep		r30=0,r30,0,9
+	dep		r30=0,r30,0,13		// 8KB aligned.
 	;;
 }
 {	.mmi
@@ -518,7 +518,7 @@ epc_syscall_setup_ia32:
 	mov		r30=ar.bspstore
 	;;
 	mov		ar.unat=r17
-	dep		r30=0,r30,0,9
+	dep		r30=0,r30,0,13		// 8KB aligned
 	;;
 }
 {	.mmi
