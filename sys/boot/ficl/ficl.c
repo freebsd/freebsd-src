@@ -209,88 +209,87 @@ int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
         for (;;)
         {
 #ifdef FICL_TRACE
-        char buffer[40];
-	CELL *pc;
+	    CELL c;
+            char buffer[40];
 #endif
             tempFW = *pVM->ip++;
 #ifdef FICL_TRACE
-        if (ficl_trace && isAFiclWord(tempFW))
-        {
-	extern void literalParen(FICL_VM*);
-	extern void stringLit(FICL_VM*);
-	extern void ifParen(FICL_VM*);
-	extern void branchParen(FICL_VM*);
-	extern void qDoParen(FICL_VM*);
-	extern void doParen(FICL_VM*);
-	extern void loopParen(FICL_VM*);
-	extern void plusLoopParen(FICL_VM*);
-
-            if      (tempFW->code == literalParen)
+            if (ficl_trace && isAFiclWord(tempFW))
             {
-                CELL v = *++pc;
-                if (isAFiclWord(v.p))
+	        extern void literalParen(FICL_VM*);
+	        extern void stringLit(FICL_VM*);
+	        extern void ifParen(FICL_VM*);
+	        extern void branchParen(FICL_VM*);
+	        extern void qDoParen(FICL_VM*);
+	        extern void doParen(FICL_VM*);
+	        extern void loopParen(FICL_VM*);
+	        extern void plusLoopParen(FICL_VM*);
+    
+                if      (tempFW->code == literalParen)
                 {
-                    FICL_WORD *pLit = (FICL_WORD *)v.p;
-                    sprintf(buffer, "    literal %.*s (%#lx)",
-                        pLit->nName, pLit->name, v.u);
+               	    c = *(pVM->ip);
+               	    if (isAFiclWord(c.p))
+               	    {
+                   	    FICL_WORD *pLit = (FICL_WORD *)c.p;
+                   	    sprintf(buffer, "    literal %.*s (%#lx)",
+                       	    pLit->nName, pLit->name, c.u);
+               	    }
+               	    else
+                   	    sprintf(buffer, "    literal %ld (%#lx)", c.i, c.u);
                 }
-                else
-                    sprintf(buffer, "    literal %ld (%#lx)", v.i, v.u);
+                else if (tempFW->code == stringLit)
+                {
+               	    FICL_STRING *sp = (FICL_STRING *)(void *)pVM->ip;
+               	    sprintf(buffer, "    s\" %.*s\"", sp->count, sp->text);
+                }
+                else if (tempFW->code == ifParen)
+                {
+               	    c = *pVM->ip;
+               	    if (c.i > 0)
+                   	    sprintf(buffer, "    if / while (branch rel %ld)", c.i);
+               	    else
+                   	    sprintf(buffer, "    until (branch rel %ld)", c.i);
+                }
+                else if (tempFW->code == branchParen)
+                {
+               	    c = *pVM->ip;
+               	    if (c.i > 0)
+                   	    sprintf(buffer, "    else (branch rel %ld)", c.i);
+               	    else
+                   	    sprintf(buffer, "    repeat (branch rel %ld)", c.i);
+                }
+                else if (tempFW->code == qDoParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    ?do (leave abs %#lx)", c.u);
+                }
+                else if (tempFW->code == doParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    do (leave abs %#lx)", c.u);
+                }
+                else if (tempFW->code == loopParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    loop (branch rel %#ld)", c.i);
+                }
+                else if (tempFW->code == plusLoopParen)
+                {
+               	    c = *pVM->ip;
+               	    sprintf(buffer, "    +loop (branch rel %#ld)", c.i);
+                }
+                else /* default: print word's name */
+                {
+               	    sprintf(buffer, "    %.*s", tempFW->nName, tempFW->name);
+                }
+    
+                vmTextOut(pVM, buffer, 1);
             }
-            else if (tempFW->code == stringLit)
+            else if (ficl_trace) /* probably not a word - punt and print value */
             {
-                FICL_STRING *sp = (FICL_STRING *)(void *)++pc;
-                pc = (CELL *)alignPtr(sp->text + sp->count + 1) - 1;
-                sprintf(buffer, "    s\" %.*s\"", sp->count, sp->text);
+           	    sprintf(buffer, "    %ld (%#lx)", ((CELL*)pVM->ip)->i, ((CELL*)pVM->ip)->u);
+           	    vmTextOut(pVM, buffer, 1);
             }
-            else if (tempFW->code == ifParen)
-            {
-                CELL c = *++pc;
-                if (c.i > 0)
-                    sprintf(buffer, "    if / while (branch rel %ld)", c.i);
-                else
-                    sprintf(buffer, "    until (branch rel %ld)", c.i);
-            }
-            else if (tempFW->code == branchParen)
-            {
-                CELL c = *++pc;
-                if (c.i > 0)
-                    sprintf(buffer, "    else (branch rel %ld)", c.i);
-                else
-                    sprintf(buffer, "    repeat (branch rel %ld)", c.i);
-            }
-            else if (tempFW->code == qDoParen)
-            {
-                CELL c = *++pc;
-                sprintf(buffer, "    ?do (leave abs %#lx)", c.u);
-            }
-            else if (tempFW->code == doParen)
-            {
-                CELL c = *++pc;
-                sprintf(buffer, "    do (leave abs %#lx)", c.u);
-            }
-            else if (tempFW->code == loopParen)
-            {
-                CELL c = *++pc;
-                sprintf(buffer, "    loop (branch rel %#ld)", c.i);
-            }
-            else if (tempFW->code == plusLoopParen)
-            {
-                CELL c = *++pc;
-                sprintf(buffer, "    +loop (branch rel %#ld)", c.i);
-            }
-            else /* default: print word's name */
-            {
-                sprintf(buffer, "    %.*s", tempFW->nName, tempFW->name);
-            }
-
-            vmTextOut(pVM, buffer, 1);
-        }
-        else if (ficl_trace) /* probably not a word - punt and print value */
-        {
-            sprintf(buffer, "    %ld (%#lx)", pc->i, pc->u);
-            vmTextOut(pVM, buffer, 1);
-        }
 #endif FICL_TRACE
             /*
             ** inline code for
