@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -329,4 +331,26 @@ acpi_SetDefaultIntrModel(int model)
 {
 
 	intr_model = model;
+}
+
+/* Check BIOS date.  If 1998 or older, disable ACPI. */
+int
+acpi_machdep_quirks(int *quirks)
+{
+    char *va;
+    int year;
+
+    /* BIOS address 0xffff5 contains the date in the format mm/dd/yy. */
+    va = pmap_mapdev(0xffff0, 16);
+    sscanf(va + 11, "%2d", &year);
+    pmap_unmapdev((vm_offset_t)va, 16);
+
+    /* 
+     * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
+     * check must be changed by my 114th birthday.
+     */
+    if (year > 90 && year < 99)
+	*quirks = ACPI_Q_BROKEN;
+
+    return (0);
 }

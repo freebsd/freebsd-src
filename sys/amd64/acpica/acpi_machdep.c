@@ -56,3 +56,9 @@ acpi_SetDefaultIntrModel(int model)
 
 	intr_model = model;
 }
+
+int
+acpi_machdep_quirks(int *quirks)
+{
+	return (0);
+}
