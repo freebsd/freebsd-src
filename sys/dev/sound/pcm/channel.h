@@ -73,6 +73,7 @@ extern pcm_feeder feeder_root;
 #define	CHN_F_PENDING_IO	(CHN_F_READING | CHN_F_WRITING)
 #define CHN_F_RUNNING		0x00000010  /* dma is running */
 #define CHN_F_TRIGGERED		0x00000020
+#define CHN_F_NOTRIGGER		0x00000040
 
 #define CHN_F_BUSY              0x00001000  /* has been opened 	*/
 #define	CHN_F_HAS_SIZE		0x00002000  /* user set block size */

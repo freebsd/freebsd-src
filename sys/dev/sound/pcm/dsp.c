@@ -291,6 +291,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
 	    		((snd_sync_parm *)arg)->chan, ((snd_sync_parm *)arg)->pos);
 		break;
+#endif
 	/*
 	 * here follow the standard ioctls (filio.h etc.)
 	 */
@@ -303,11 +304,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case FIOASYNC: /*set/clear async i/o */
 		DEB( printf("FIOASYNC\n") ; )
 		break;
-#endif
+
     	case SNDCTL_DSP_NONBLOCK:
-#ifdef OLDPCM_IOCTL
     	case FIONBIO: /* set/clear non-blocking i/o */
-#endif
 		if (rdch) rdch->flags &= ~CHN_F_NBIO;
 		if (wrch) wrch->flags &= ~CHN_F_NBIO;
 		if (*arg_i) {
@@ -417,12 +416,13 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (maxfrags * fragsz > CHN_2NDBUFMAXSIZE)
 				maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
 
+			DEB(printf("SNDCTL_DSP_SETFRAGMENT %d frags, %d sz\n", maxfrags, fragsz));
 		    	if (rdch)
 				ret = chn_setblocksize(rdch, maxfrags, fragsz);
 		    	if (wrch && ret == 0)
 				ret = chn_setblocksize(wrch, maxfrags, fragsz);
 
-	    		*arg_i = (c->fragments << 16) | fragsz;
+	    		*arg_i = (c->fragments << 16) | c->blocksize;
 		}
 		break;
 
@@ -525,15 +525,19 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SETTRIGGER:
 		if (rdch) {
-			rdch->flags &= ~CHN_F_TRIGGERED;
+			rdch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
 		    	if (*arg_i & PCM_ENABLE_INPUT)
 				rdch->flags |= CHN_F_TRIGGERED;
+			else
+				rdch->flags |= CHN_F_NOTRIGGER;
 			chn_intr(rdch);
 		}
 		if (wrch) {
-			wrch->flags &= ~CHN_F_TRIGGERED;
+			wrch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
 		    	if (*arg_i & PCM_ENABLE_OUTPUT)
 				wrch->flags |= CHN_F_TRIGGERED;
+			else
+				wrch->flags |= CHN_F_NOTRIGGER;
 			chn_intr(wrch);
 		}
 		break;
