@@ -200,6 +200,7 @@ chrdev	name		comments
 179	raid		RAIDframe (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl)
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
+182	zs		Zilog 8350 serial chip <jake>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	was:MFS		was: used by MFS in <= RELENG_4
