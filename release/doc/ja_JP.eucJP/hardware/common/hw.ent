@@ -1,7 +1,7 @@
 <!-- -*- sgml -*- -->
 <!--
     $FreeBSD$
-    Original revision: 1.3
+    Original revision: 1.4
 -->
 
 <!-- Text constants which probably don't need to be changed.-->
@@ -14,4 +14,5 @@
 <!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.sgml">
 <!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.sgml">
 <!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.sgml">
+<!ENTITY sect.proc.pc98 SYSTEM "../pc98/proc-pc98.sgml">
 <!ENTITY sect.dev SYSTEM "../common/dev.sgml">

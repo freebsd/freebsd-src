@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Original revision: 1.6 -->
+<!-- Original revision: 1.6.2.1 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
@@ -35,17 +35,6 @@
                 (literal "をお読みください。")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
-              (make element gi: "small"  
-                (literal "FreeBSD ")
-		(literal (entity-text "release.branch"))
-		(literal " をお使いの方は、ぜひ ")
-                (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
-                (literal "> メーリングリストに参加ください。")))
-
-            (make element gi: "p"
-                  attributes: (list (list "align" "center"))
 	      (literal "この文書の原文に関するお問い合わせは <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
@@ -78,7 +67,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+5.0-current")))))
+              (else        (string-append u "&" "manpath=FreeBSD+5.0-RELEASE")))))
       ]]>
 
       (define (toc-depth nd)
