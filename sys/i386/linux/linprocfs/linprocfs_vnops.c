@@ -97,8 +97,9 @@ static struct proc_target {
 	/*	  name		type		validp */
 	{ DT_DIR, N("."),	Pproc,		NULL },
 	{ DT_DIR, N(".."),	Proot,		NULL },
-	{ DT_REG, N("mem"),	Pmem,		NULL },
+	{ DT_REG, N("cmdline"), Pcmdline,	NULL },
 	{ DT_LNK, N("exe"),	Pexe,		NULL },
+	{ DT_REG, N("mem"),	Pmem,		NULL },
 	{ DT_REG, N("stat"),	Pprocstat,	NULL },
 	{ DT_REG, N("status"),	Pprocstatus,	NULL },
 #undef N
@@ -549,6 +550,7 @@ linprocfs_getattr(ap)
 		vap->va_gid = KMEM_GROUP;
 		break;
 
+	case Pcmdline:
 	case Pprocstat:
 	case Pprocstatus:
 		vap->va_bytes = vap->va_size = 0;
