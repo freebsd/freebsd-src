@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.26 1994/10/11 23:33:00 ache Exp $
+#	$Id: Makefile,v 1.27 1994/10/15 21:19:56 wollman Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -245,6 +245,8 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
+	cd ${.CURDIR}/lib/csu/i386 && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
