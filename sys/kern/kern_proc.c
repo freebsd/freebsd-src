@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.46 1999/02/19 14:25:34 luoqi Exp $
+ * $Id: kern_proc.c,v 1.47 1999/04/28 11:36:57 phk Exp $
  */
 
 #include <sys/param.h>
@@ -578,7 +578,7 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
-	0, 0, sysctl_kern_proc, "S,proc", "");
+	0, 0, sysctl_kern_proc, "S,proc", "Return entire process table");
 
 SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.83 1999/01/27 22:42:25 dillon Exp $
+ *	$Id: tcp_input.c,v 1.84 1999/02/06 00:47:45 fenner Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -77,16 +77,17 @@ tcp_seq	tcp_iss;
 tcp_cc	tcp_ccgen;
 
 struct	tcpstat tcpstat;
-SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
-	CTLFLAG_RD, &tcpstat , tcpstat, "");
+SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RD, 
+    &tcpstat , tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
-	&log_in_vain, 0, "");
+    &log_in_vain, 0, "Log all incoming TCP connections");
 
 int tcp_delack_enabled = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW, 
-	&tcp_delack_enabled, 0, "");
+    &tcp_delack_enabled, 0, 
+    "Delay ACK to try and piggyback it onto a data packet");
 
 u_long	tcp_now;
 struct inpcbhead tcb;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.57 1999/04/20 13:32:06 peter Exp $
+ *	$Id: raw_ip.c,v 1.58 1999/04/27 11:17:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -413,10 +413,10 @@ rip_ctlinput(cmd, sa, vip)
 static u_long	rip_sendspace = RIPSNDQ;
 static u_long	rip_recvspace = RIPRCVQ;
 
-SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW, &rip_sendspace,
-	   0, "");
-SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW, &rip_recvspace,
-	   0, "");
+SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW, 
+    &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
+SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW, 
+    &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
 
 static int
 rip_attach(struct socket *so, int proto, struct proc *p)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.49 1998/12/03 20:23:21 dillon Exp $
+ *	$Id: udp_usrreq.c,v 1.50 1999/04/28 11:37:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 
 static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
-	&log_in_vain, 0, "");
+    &log_in_vain, 0, "Log all incoming UDP packets");
 
 static struct	inpcbhead udb;		/* from udp_var.h */
 static struct	inpcbinfo udbinfo;
@@ -86,7 +86,7 @@ static struct	inpcbinfo udbinfo;
 
 static struct	udpstat udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
-	&udpstat, udpstat, "");
+    &udpstat, udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
 static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
@@ -553,11 +553,11 @@ release:
 static u_long	udp_sendspace = 9216;		/* really max datagram size */
 					/* 40 1K datagrams */
 SYSCTL_INT(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
-	&udp_sendspace, 0, "");
+    &udp_sendspace, 0, "Maximum outgoing UDP datagram size");
 
 static u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
 SYSCTL_INT(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
-	&udp_recvspace, 0, "");
+    &udp_recvspace, 0, "Maximum incoming UDP datagram size");
 
 static int
 udp_abort(struct socket *so)
