@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.1 1997/01/02 01:26:18 se Exp $
+**  $Id: pcisupport.c,v 1.40.2.2 1997/06/13 17:37:01 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -692,7 +692,6 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x84c48086: /* Intel Orion */
 		config_orion (config_id);
 		break;
-	}
 	case 0x12258086: /* unidentified Intel host bridge, dev ID == 0x1225 */
 		config_i1225 (config_id);
 		break;
