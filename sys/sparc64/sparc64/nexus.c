@@ -163,13 +163,14 @@ static devclass_t nexus_devclass;
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
 static char *nexus_excl_name[] = {
-	"virtual-memory",
-	"memory",
 	"aliases",
-	"options",
-	"openprom",
 	"chosen",
+	"counter-timer",	/* No separate device; handled by psycho/sbus */
+	"memory",
+	"openprom",
+	"options",
 	"packages",
+	"virtual-memory",
 	NULL
 };
 
