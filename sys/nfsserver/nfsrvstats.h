@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.43 1998/08/23 03:07:16 wollman Exp $
+ * $Id: nfs.h,v 1.44 1998/09/07 05:42:15 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -594,8 +594,10 @@ int	nfs_send __P((struct socket *, struct sockaddr *, struct mbuf *,
 int	nfs_rephead __P((int, struct nfsrv_descript *, struct nfssvc_sock *,
 			 int, int, u_quad_t *, struct mbuf **, struct mbuf **,
 			 caddr_t *));
-int	nfs_sndlock __P((int *, int *, struct nfsreq *));
-void	nfs_sndunlock __P((int *, int *));
+int	nfs_sndlock __P((struct nfsreq *));
+void	nfs_sndunlock __P((struct nfsreq *));
+int	nfs_slplock __P((struct nfssvc_sock *, int));
+void	nfs_slpunlock __P((struct nfssvc_sock *));
 int	nfs_disct __P((struct mbuf **, caddr_t *, int, int, caddr_t *));
 int	nfs_vinvalbuf __P((struct vnode *, int, struct ucred *, struct proc *,
 			   int));
