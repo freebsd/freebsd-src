@@ -996,9 +996,9 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 		u_int devconfig1;
 
 		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
-			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY
-			      |  AHD_BUSFREEREV_BUG;
-		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG;
+			      |  AHD_NEW_DFCNTRL_OPTS|AHD_FAST_CDB_DELIVERY;
+		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_EARLY_REQ_BUG
+			  |  AHD_BUSFREEREV_BUG;
 
 		/*
 		 * Some issues have been resolved in the 7901B.
