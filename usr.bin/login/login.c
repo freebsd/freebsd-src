@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.32 1998/02/13 21:02:53 ache Exp $";
+	"$Id: login.c,v 1.33 1998/04/30 16:48:20 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -157,7 +157,7 @@ main(argc, argv)
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
 	time_t warntime;
-	uid_t uid, eiud;
+	uid_t uid, euid;
 	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
