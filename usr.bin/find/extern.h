@@ -47,7 +47,9 @@ struct stat;
 void	 printlong __P((char *, char *, struct stat *));
 int	 queryuser __P((char **));
 
+PLAN	*c_amin __P((char *));
 PLAN	*c_atime __P((char *));
+PLAN	*c_cmin __P((char *));
 PLAN	*c_ctime __P((char *));
 PLAN	*c_delete __P((void));
 PLAN	*c_depth __P((void));
@@ -74,6 +76,7 @@ PLAN	*c_user __P((char *));
 PLAN	*c_xdev __P((void));
 PLAN	*c_openparen __P((void));
 PLAN	*c_closeparen __P((void));
+PLAN	*c_mmin __P((char *));
 PLAN	*c_mtime __P((char *));
 PLAN	*c_not __P((void));
 PLAN	*c_or __P((void));
