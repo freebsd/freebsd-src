@@ -87,8 +87,8 @@ static int startdisk __P((struct diskentry *,
 static void printpart __P((void));
 
 int
-checkfstab(flags, maxrun, docheck, checkit)
-	int flags, maxrun;
+checkfstab(flags, docheck, checkit)
+	int flags;
 	void *(*docheck) __P((struct fstab *));
 	int (*checkit) __P((const char *, const char *, const char *, void *,
 	    pid_t *));
@@ -96,7 +96,7 @@ checkfstab(flags, maxrun, docheck, checkit)
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
 	struct partentry *p;
-	int ret, pid, retcode, passno, sumstatus, status;
+	int ret, pid, retcode, passno, sumstatus, status, nextpass;
 	void *auxarg;
 	const char *name;
 
@@ -105,7 +105,12 @@ checkfstab(flags, maxrun, docheck, checkit)
 
 	sumstatus = 0;
 
-	for (passno = 1; passno <= 2; passno++) {
+	nextpass = 0;
+	for (passno = 1; nextpass != INT_MAX; passno = nextpass) {
+		if (flags & CHECK_DEBUG)
+			printf("pass %d\n", passno);
+		
+		nextpass = INT_MAX;
 		if (setfsent() == 0) {
 			warnx("Can't open checklist file: %s\n", _PATH_FSTAB);
 			return (8);
@@ -114,14 +119,17 @@ checkfstab(flags, maxrun, docheck, checkit)
 			if ((auxarg = (*docheck)(fs)) == NULL)
 				continue;
 
-			/* XXX We don't need to search for blockdevs .. */
-			/* name = blockcheck(fs->fs_spec); */
 			name = fs->fs_spec;
+			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
+				nextpass = fs->fs_passno;
+
+			if (passno != fs->fs_passno)
+				continue;
+
 			if (flags & CHECK_DEBUG)
 				printf("pass %d, name %s\n", passno, name);
 
-			if ((flags & CHECK_PREEN) == 0 ||
-			    (passno == 1 && fs->fs_passno == 1)) {
+			if ((flags & CHECK_PREEN) == 0 || passno == 1) {
 				if (name == NULL) {
 					if (flags & CHECK_PREEN)
 						return 8;
@@ -133,36 +141,33 @@ checkfstab(flags, maxrun, docheck, checkit)
 
 				if (sumstatus)
 					return (sumstatus);
-			} else if (passno == 2 && fs->fs_passno > 1) {
-				if (name == NULL) {
-					(void) fprintf(stderr,
-					    "BAD DISK NAME %s\n", fs->fs_spec);
-					sumstatus |= 8;
-					continue;
-				}
-				addpart(fs->fs_vfstype, name, fs->fs_file,
-				    auxarg);
+				continue;
+			} 
+			if (name == NULL) {
+				(void) fprintf(stderr,
+				    "BAD DISK NAME %s\n", fs->fs_spec);
+				sumstatus |= 8;
+				continue;
 			}
+			addpart(fs->fs_vfstype, name, fs->fs_file,
+			    auxarg);
 		}
-		if ((flags & CHECK_PREEN) == 0)
-			return 0;
-	}
 
-	if (flags & CHECK_DEBUG)
-		printpart();
+		if ((flags & CHECK_PREEN) == 0 || passno == 1)
+			continue;
 
-	if (flags & CHECK_PREEN) {
-		if (maxrun == 0)
-			maxrun = ndisks;
-		if (maxrun > ndisks)
-			maxrun = ndisks;
-		nextdisk = TAILQ_FIRST(&diskh);
-		for (passno = 0; passno < maxrun; ++passno) {
+		if (flags & CHECK_DEBUG) {
+			printf("Parallel start\n");
+			printpart();
+		}
+		
+		TAILQ_FOREACH(nextdisk, &diskh, d_entries) {
 			if ((ret = startdisk(nextdisk, checkit)) != 0)
 				return ret;
-			nextdisk = TAILQ_NEXT(nextdisk, d_entries);
 		}
 
+		if (flags & CHECK_DEBUG) 
+			printf("Parallel wait\n");
 		while ((pid = wait(&status)) != -1) {
 			TAILQ_FOREACH(d, &diskh, d_entries) 
 				if (d->d_pid == pid)
@@ -207,28 +212,20 @@ checkfstab(flags, maxrun, docheck, checkit)
 			d->d_pid = 0;
 			nrun--;
 
-			if (TAILQ_EMPTY(&d->d_part))
+			if (TAILQ_EMPTY(&d->d_part)) {
+				TAILQ_REMOVE(&diskh, d, d_entries);
 				ndisks--;
-
-			if (nextdisk == NULL) {
-				if (!TAILQ_EMPTY(&d->d_part)) {
-					if ((ret = startdisk(d, checkit)) != 0)
-						return ret;
-				}
-			} else if (nrun < maxrun && nrun < ndisks) {
-				for ( ;; ) {
-					nextdisk = TAILQ_NEXT(nextdisk, d_entries);
-					if (nextdisk == NULL)
-						nextdisk = TAILQ_FIRST(&diskh);
-					if (!TAILQ_EMPTY(&nextdisk->d_part)
-					    && nextdisk->d_pid == 0)
-						break;
-				}
-				if ((ret = startdisk(nextdisk, checkit)) != 0)
-					return ret;
 			}
 		}
+		if (flags & CHECK_DEBUG) {
+			printf("Parallel end\n");
+			printpart();
+		}
 	}
+
+	if (!(flags & CHECK_PREEN))
+			return 0;
+
 	if (sumstatus) {
 		p = TAILQ_FIRST(&badh);
 		if (p == NULL)

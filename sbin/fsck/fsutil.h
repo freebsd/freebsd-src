@@ -58,5 +58,5 @@ char *estrdup __P((const char *));
 #define	CHECK_DEBUG	4
 
 struct fstab;
-int checkfstab __P((int, int, void *(*)(struct fstab *), 
+int checkfstab __P((int, void *(*)(struct fstab *), 
     int (*) (const char *, const char *, const char *, void *, pid_t *)));
