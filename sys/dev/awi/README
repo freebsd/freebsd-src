@@ -1,0 +1,60 @@
+# $Id: README,v 1.19 2000/03/24 08:13:24 onoe Exp $
+# $FreeBSD$
+
+===== Configuration
+	ifconfig awi0 link0
+		changes to encapsulation from 802.2 LLC/SNAP (default) to
+		ether encapsulation.  MELCO access point and PAO's ux driver 
+		use this.
+
+===== Supported Cards
+	Any IEEE 802.11 cards use AMD Am79C930 and Harris (Intersil) Chipset
+	with PCnetMobile firmware by AMD.
+	   BayStack 650   1Mbps Frequency Hopping PCCARD adapter
+	   BayStack 660   2Mbps Direct Sequence PCCARD adapter
+	   Icom SL-200    2Mbps Direct Sequence PCCARD adapter
+	   Melco WLI-PCM  2Mbps Direct Sequence PCCARD adapter
+	   NEL SSMagic    2Mbps Direct Sequence PCCARD adapter
+	   Netwave AirSurfer Plus
+			  1Mbps Frequency Hopping PCCARD adapter
+	   Netwave AirSurfer Pro
+			  2Mbps Direct Sequence PCCARD adapter
+
+===== Known Problems
+	WEP is not supported.
+	Does not create IBSS itself.
+
+	Cannot configure at all on FreeBSD:
+		selection of infrastructure/adhoc mode
+		ESSID
+		...
+
+===== How to add
+
+*** NetBSD current
+	already merged into current source tree.
+
+        pcmcia: update the awi driver, which now supports AMD 79c930-based 
+                802.11DS cards as well as 802.11FH cards, and can operate
+                in infrastructure mode, adhoc mode, and wi(4) compatible
+                adhoc mode. [onoe 20000322]
+
+*** FreeBSD-current
+	make directory /sys/dev/awi and put all files there.
+	move if_ieee80211.h to /sys/net
+	add following lines to /sys/conf/files
+		dev/awi/am79c930.c	optional awi
+		dev/awi/awi.c		optional awi
+		dev/awi/if_awi_pccard.c	optional awi card
+	add following line to config file
+		device		awi0
+	config and make kernel
+
+	add description of your card to /etc/pccard.conf
+	    ex.
+		card "AMD" "Am79C930"
+			config 0x1 "awi0" ?
+		card "Icom" "SL-200"
+			config 0x1 "awi0" ?
+		card "Bay Networks" "BayStack 650 Wireless LAN"
+			config 0x1 "awi0" ?
