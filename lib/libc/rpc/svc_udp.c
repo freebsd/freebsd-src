@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_udp.c 1.24 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_udp.c	2.2 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_udp.c,v 1.4 1995/10/22 14:51:39 phk Exp $";
+static char *rcsid = "$Id: svc_udp.c,v 1.5 1996/06/08 22:54:59 jraynard Exp $";
 #endif
 
 /*
@@ -114,6 +114,7 @@ svcudp_bufcreate(sock, sendsz, recvsz)
 		madesock = TRUE;
 	}
 	bzero((char *)&addr, sizeof (addr));
+	addr.sin_len = sizeof(struct sockaddr_in);
 	addr.sin_family = AF_INET;
 	if (bindresvport(sock, &addr)) {
 		addr.sin_port = 0;
