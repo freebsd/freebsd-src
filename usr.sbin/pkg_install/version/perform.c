@@ -109,6 +109,10 @@ pkg_do(char *pkg)
     }
     read_plist(&plist, fp);
     fclose(fp);
+    if (plist.name == NULL) {
+    	warnx("%s does not appear to be a valid package!", pkg);
+    	return 1;
+    }
 
     /*
      * First we check if the installed package has an origin, and try
