@@ -566,53 +566,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/* Check for bridging mode */
-	if (BDG_ACTIVE(ifp) ) {
-		struct ifnet *bif;
-
-		/*
-		 * Check with bridging code to see how the packet
-		 * should be handled.  Possibilities are:
-		 *
-		 *    BDG_BCAST		broadcast
-		 *    BDG_MCAST		multicast
-		 *    BDG_LOCAL		for local address, don't forward
-		 *    BDG_DROP		discard
-		 *    ifp		forward only to specified interface(s)
-		 *
-		 * Non-local destinations are handled by passing the
-		 * packet back to the bridge code.
-		 */
-		bif = bridge_in_ptr(ifp, eh);
-		if (bif == BDG_DROP) {		/* discard packet */
-			m_freem(m);
+	if (BDG_ACTIVE(ifp) )
+		if ((m = bridge_in_ptr(ifp, m)) == NULL)
 			return;
-		}
-		if (bif != BDG_LOCAL) {		/* non-local, forward */
-			m = bdg_forward_ptr(m, bif);
-			/*
-			 * The bridge may consume the packet if it's not
-			 * supposed to be passed up or if a problem occurred
-			 * while doing its job.  This is reflected by it
-			 * returning a NULL mbuf pointer.
-			 */
-			if (m == NULL) {
-				if (bif == BDG_BCAST || bif == BDG_MCAST)
-					if_printf(ifp,
-						"bridge dropped %s packet\n",
-						bif == BDG_BCAST ? "broadcast" :
-								   "multicast");
-				return;
-			}
-			/*
-			 * But in some cases the bridge may return the
-			 * packet for us to free; sigh.
-			 */
-			if (bif != BDG_BCAST && bif != BDG_MCAST) {
-				m_freem(m);
-				return;
-			}
-		}
-	}
 
 	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)

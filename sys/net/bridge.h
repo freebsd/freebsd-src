@@ -101,7 +101,7 @@ struct bdg_stats {
 #define BDG_STAT(ifp, type) bdg_stats.s[ifp->if_index].p_in[(uintptr_t)type]++ 
  
 #ifdef _KERNEL
-typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
+typedef	struct mbuf *bridge_in_t(struct ifnet *, struct mbuf *);
 /* bdg_forward frees the mbuf if necessary, returning null */
 typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ifnet *);
 typedef	void bdgtakeifaces_t(void);
