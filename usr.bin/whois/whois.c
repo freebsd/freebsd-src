@@ -84,7 +84,7 @@ const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
-static void s_asprintf(char **ret, const char *format, ...);
+static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
 static void usage(void);
 static void whois(const char *, const char *, int);
 
