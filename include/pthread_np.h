@@ -47,11 +47,11 @@ int pthread_multi_np __P((void));
 int pthread_resume_np __P((pthread_t));
 int pthread_single_np __P((void));
 int pthread_suspend_np __P((pthread_t));
-int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t attr));
-int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *attr, int kind));
+int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t));
+int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *, int));
 void pthread_set_name_np __P((pthread_t, char *));
-int pthread_switch_add_np (pthread_switch_routine_t routine);
-int pthread_switch_delete_np (pthread_switch_routine_t routine);
+int pthread_switch_add_np __P((pthread_switch_routine_t));
+int pthread_switch_delete_np __P((pthread_switch_routine_t));
 __END_DECLS
 
 #endif
