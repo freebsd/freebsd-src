@@ -251,6 +251,7 @@ login(host, user, pass)
 			printf("Name (%s:%s): ", host, myname);
 		else
 			printf("Name (%s): ", host);
+		(void)fflush(stdout);
 		if (fgets(tmp, sizeof(tmp) - 1, stdin) == NULL)
 			return (0);
 		tmp[strlen(tmp) - 1] = '\0';
