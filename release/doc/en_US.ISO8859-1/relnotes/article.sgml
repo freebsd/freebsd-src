@@ -441,12 +441,22 @@
       and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
       PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
       and VLAN tag insertion/stripping are supported, as well as
-      interrupt moderation.</para>
+      interrupt moderation. &merged;</para>
 
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
       network interface, and which ones are enabled.  &man.ifconfig.8;
       has support for querying these capabilities.</para>
+
+      <para>Performance with hosts having a large number of IP aliases
+      has been improved, by replacing the per-interface
+      <varname>if_inaddr</varname> linear list with a hash table.</para>
+
+      <para>Network devices now automatically appear in
+      <filename>/dev</filename>.  Interface hardware ioctls (not
+      protocol or routing) can be performed on these devices.  The
+      <varname>SIOCGIFCONF</varname> ioctl may be performed on the
+      special <filename>/dev/network</filename> node.</para>
     </sect3>
 
     <sect3>
@@ -1921,6 +1931,11 @@
 
     <para><filename>libgmp</filename> has been superceded by
     <filename>libmp</filename>.
+
+    <para><application>UUCP</application> has been removed from the
+    base system, with the exceptions of &man.cu.1; and &man.rmail.8;.
+    The remainder of <application>UUCP</application> can be found in
+    the Ports Collection, in <port>net/freebsd-uucp</port>.</para>
 
     <sect3>
       <title>Contributed Software</title>
