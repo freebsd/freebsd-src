@@ -82,6 +82,7 @@ static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG]; 
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
+volatile sig_atomic_t gotwinch;
 
 static int getsigaction(int, sig_t *);
 
@@ -249,7 +250,7 @@ setsignal(int signo)
 #endif
 #ifndef NO_HISTORY
 		case SIGWINCH:
-			if (rootshell && iflag && el != NULL)
+			if (rootshell && iflag)
 				action = S_CATCH;
 			break;
 #endif
@@ -369,7 +370,7 @@ onsig(int signo)
 
 #ifndef NO_HISTORY
 	if (signo == SIGWINCH)
-		el_resize(el);
+		gotwinch = 1;
 #endif
 }
 
