@@ -651,7 +651,7 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (ifp->if_snd.ifq_head != NULL)
 		ste_start(ifp);
 
-	if (sc->rxcycles > 0 && cmd == POLL_AND_CHECK_STATUS) {
+	if (cmd == POLL_AND_CHECK_STATUS) {
 		u_int16_t status;
 
 		status = CSR_READ_2(sc, STE_ISR_ACK);
