@@ -97,7 +97,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	struct trapframe *tf = p->p_md.md_regs;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
-#ifdef DONE_MORE_SIGALTSTACK_WORK
+#if defined(DONE_MORE_SIGALTSTACK_WORK)
 	struct sigacts *psp = p->p_sigacts;
 	struct sigaltstack *sf = &p->p_sigstk;
 #endif
@@ -147,7 +147,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the signal stack
 	 */
-#if DONE_MORE_SIGALTSTACK_WORK
+#if defined(DONE_MORE_SIGALTSTACK_WORK)
 	bsd_to_svr4_sigaltstack(sf, s);
 #else
 	s->ss_sp = (void *)(((u_long) tf->tf_esp) & ~(16384 - 1));
@@ -163,13 +163,12 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the flags
 	 */
-	uc->uc_flags = SVR4_UC_STACK|SVR4_UC_SIGMASK|SVR4_UC_CPU;
+	uc->uc_flags = SVR4_UC_SIGMASK|SVR4_UC_CPU|SVR4_UC_STACK;
 }
 
 
 /*
- * Set to ucontext specified.
- * has been taken.  Reset signal mask and
+ * Set to ucontext specified. Reset signal mask and
  * stack state from context.
  * Return to previous pc and psl as specified by
  * context left by sendsig. Check carefully to
@@ -182,7 +181,9 @@ svr4_setcontext(p, uc)
 	struct proc *p;
 	struct svr4_ucontext *uc;
 {
+#if defined(DONE_MORE_SIGALTSTACK_WORK)
 	struct sigacts *psp = p->p_sigacts;
+#endif
 	register struct trapframe *tf;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
@@ -201,12 +202,15 @@ svr4_setcontext(p, uc)
 	if ((uc->uc_flags & SVR4_UC_CPU) == 0)
 		return 0;
 
+	DPRINTF(("svr4_setcontext(%d)\n", p->p_pid));
+
 	tf = p->p_md.md_regs;
 
 	/*
 	 * Restore register context.
 	 */
 #ifdef VM86
+#warning "VM86 doesn't work yet, please don't try to use it."
 	if (r[SVR4_X86_EFL] & PSL_VM) {
 		tf->tf_vm86_gs = r[SVR4_X86_GS];
 		tf->tf_vm86_fs = r[SVR4_X86_FS];
@@ -262,6 +266,14 @@ svr4_setcontext(p, uc)
 	 * restore signal mask
 	 */
 	if (uc->uc_flags & SVR4_UC_SIGMASK) {
+#if defined(DEBUG_SVR4)
+		{
+			int i;
+			for (i = 0; i < 4; i++)
+				DPRINTF(("\tuc_sigmask[%d] = %lx\n", i,
+						uc->uc_sigmask.bits[i]));
+		}
+#endif
 		svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
 		SIG_CANTMASK(mask);
 		p->p_sigmask = mask;
@@ -356,9 +368,9 @@ svr4_getsiginfo(si, sig, code, addr)
 	default:
 		si->si_code = 0;
 		si->si_trap = 0;
-#ifdef DIAGNOSTIC
+#if defined(DEBUG_SVR4)
 		printf("sig %d code %ld\n", sig, code);
-		panic("svr4_getsiginfo");
+/*		panic("svr4_getsiginfo");*/
 #endif
 		break;
 	}
@@ -387,6 +399,10 @@ svr4_sendsig(catcher, sig, mask, code)
 	struct sigacts *psp = p->p_sigacts;
 	int oonstack;
 
+#if defined(DEBUG_SVR4)
+	printf("svr4_sendsig(%d)\n", sig);
+#endif
+
 	tf = p->p_md.md_regs;
 	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
@@ -395,7 +411,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct svr4_sigframe *)((caddr_t)p->p_sigstk.ss_sp +
+		fp = (struct svr4_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct svr4_sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
@@ -413,14 +429,18 @@ svr4_sendsig(catcher, sig, mask, code)
 	 */
 
 	svr4_getcontext(p, &frame.sf_uc, mask, oonstack);
-	DPRINTF(("obtained ucontext\n"));
+#if defined(DEBUG_SVR4)
+	printf("obtained ucontext\n");
+#endif
 	svr4_getsiginfo(&frame.sf_si, sig, code, (caddr_t) tf->tf_eip);
-	DPRINTF(("obtained siginfo\n"));
+#if defined(DEBUG_SVR4)
+	printf("obtained siginfo\n");
+#endif
 	frame.sf_signum = frame.sf_si.si_signo;
 	frame.sf_sip = &fp->sf_si;
 	frame.sf_ucp = &fp->sf_uc;
 	frame.sf_handler = catcher;
-#ifdef DEBUG_SVR4
+#if defined(DEBUG_SVR4)
 	printf("sig = %d, sip %p, ucp = %p, handler = %p\n", 
 	       frame.sf_signum, frame.sf_sip, frame.sf_ucp, frame.sf_handler);
 #endif
@@ -476,6 +496,7 @@ svr4_sys_sysarch(p, v)
 
 	case SVR4_SYSARCH_DSCR:
 #ifdef USER_LDT
+#warning "USER_LDT doesn't work - are you sure you want this?"
 		{
 			struct i386_set_ldt_args sa, *sap;
 			struct sys_sysarch_args ua;
