@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.11 1998/05/18 06:44:22 charnier Exp $";
+	"$Id: trap.c,v 1.12 1998/08/24 10:20:36 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -237,7 +237,7 @@ setsignal(signo)
 				break;
 			}
 #endif
-			action = S_IGN;
+			action = S_CATCH;
 			break;
 		case SIGTERM:
 			if (rootshell && iflag)
