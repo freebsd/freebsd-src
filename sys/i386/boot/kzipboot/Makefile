@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1995/04/15 08:23:31 phk Exp $
 
 PROG= kzip.o
 SRCS= head.S boot.c unzip.c misc.c malloc.c inflate.c
@@ -15,7 +15,7 @@ CSEG    = 0x8
 STRIP=	#  very important!! don't let kzip.o be stripped
 
 CFLAGS+= -DKADDR=$(KADDR) -DCSEG=$(CSEG)
-CFLAGS+= -DUSE_KERNEL_INFLATE -DKZIP -DCOMCONSOLE=0x3F8
+CFLAGS+= -DKZIP -DCOMCONSOLE=0x3F8
 
 kzip.o:  ${OBJS}
 	$(LD) -r -x -o kzip.o $(OBJS)
