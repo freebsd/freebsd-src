@@ -87,7 +87,8 @@
  *	further information.
  */
 #ifndef _SYS_TIMEX_H_
-#define _SYS_TIMEX_H_
+#define _SYS_TIMEX_H_ 1
+#define NTP_API		3	/* NTP API version */
 
 #ifndef MSDOS			/* Microsoft specific */
 #include <sys/syscall.h>
@@ -105,7 +106,7 @@
 #define MAXPHASE	500000000L /* max phase error (ns) */
 #define MAXFREQ		500000L	/* max freq error (ns/s) */
 #define MINSEC		256	/* min FLL update interval (s) */
-#define MAXSEC		1600	/* max PLL update interval (s) */
+#define MAXSEC		2048	/* max PLL update interval (s) */
 #define NANOSECOND	1000000000L /* nanoseconds in one second */
 #define SCALE_PPM	(65536 / 1000) /* crude ns/s to scaled PPM */
 #define MAXTC		10	/* max time constant in PLL mode */
@@ -114,7 +115,7 @@
  * The following defines and structures define the user interface for
  * the ntp_gettime() and ntp_adjtime() syscalls.
  *
- * Control mode codes (timex.modes and nanotimex.modes)
+ * Control mode codes (timex.modes)
  */
 #define MOD_OFFSET	0x0001	/* set time offset */
 #define MOD_FREQUENCY	0x0002	/* set frequency offset */
@@ -169,7 +170,7 @@
  * nanoseconds if not.
  */
 struct ntptimeval {
-	struct timespec time;	/* current time (ns/us) (ro) */
+	struct timespec time;	/* current time (ns) (ro) */
 	long maxerror;		/* maximum error (us) (ro) */
 	long esterror;		/* estimated error (us) (ro) */
 	int time_state;		/* time status */
