@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.39 1994/05/25 09:00:19 rgrimes Exp $
+ *	$Id: wd.c,v 1.40 1994/08/08 13:53:33 davidg Exp $
  */
 
 /* TODO:
@@ -86,7 +86,7 @@ static int wdtest = 0;
 #define TIMEOUT		10000
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
-#define	MAXTRANSFER	255	/* max size of transfer in sectors */
+#define	MAXTRANSFER	255	/* max size of transfer in sectors */ 
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
 #define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
