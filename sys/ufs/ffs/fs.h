@@ -206,7 +206,12 @@
 #define	FFS_DIR_FREE		 4	/* free specified dir inodes in map */
 #define	FFS_FILE_FREE		 5	/* free specified file inodes in map */
 #define	FFS_SET_FLAGS		 6	/* set filesystem flags */
-#define	FFS_MAXID		 7	/* number of valid ffs ids */
+#define	FFS_ADJ_NDIR		 7	/* adjust number of directories */
+#define	FFS_ADJ_NBFREE		 8	/* adjust number of free blocks */
+#define	FFS_ADJ_NIFREE		 9	/* adjust number of free inodes */
+#define	FFS_ADJ_NFFREE		10 	/* adjust number of free frags */
+#define	FFS_ADJ_NUMCLUSTERS	11	/* adjust number of free clusters */
+#define	FFS_MAXID		12	/* number of valid ffs ids */
 
 /*
  * Command structure passed in to the filesystem to adjust filesystem values.
