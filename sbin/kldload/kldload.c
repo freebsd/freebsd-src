@@ -39,7 +39,7 @@ static const char rcsid[] =
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldload [-v] filename\n");
+    fprintf(stderr, "usage: kldload [-v] file ...\n");
     exit(1);
 }
 
