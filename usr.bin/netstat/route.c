@@ -56,10 +56,6 @@ static const char rcsid[] =
 #include <netatalk/at.h>
 #include <netgraph/ng_socket.h>
 
-#ifdef NS
-#include <netns/ns.h>
-#endif
-
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
@@ -202,11 +198,6 @@ pr_family(int af1)
 	case AF_IPX:
 		afname = "IPX";
 		break;
-#ifdef NS
-	case AF_NS:
-		afname = "XNS";
-		break;
-#endif
 	case AF_ISO:
 		afname = "ISO";
 		break;
@@ -649,11 +640,6 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 		printf("%s", ((struct sockaddr_ng *)sa)->sg_data);
 		break;
 	    }
-#ifdef NS
-	case AF_NS:
-		cp = ns_print(sa);
-		break;
-#endif
 
 	case AF_LINK:
 	    {
@@ -1126,75 +1112,6 @@ ipx_phost(struct sockaddr *sa)
 
 	return(p);
 }
-
-#ifdef NS
-short ns_nullh[] = {0,0,0};
-short ns_bh[] = {-1,-1,-1};
-
-char *
-ns_print(struct sockaddr *sa)
-{
-	struct sockaddr_ns *sns = (struct sockaddr_ns*)sa;
-	struct ns_addr work;
-	union { union ns_net net_e; u_long long_e; } net;
-	u_short port;
-	static char mybuf[50], cport[10], chost[25];
-	char *host = "";
-	char *p; u_char *q;
-
-	work = sns->sns_addr;
-	port = ntohs(work.x_port);
-	work.x_port = 0;
-	net.net_e  = work.x_net;
-	if (ns_nullhost(work) && net.long_e == 0) {
-		if (port ) {
-			sprintf(mybuf, "*.%xH", port);
-			upHex(mybuf);
-		} else
-			sprintf(mybuf, "*.*");
-		return (mybuf);
-	}
-
-	if (bcmp(ns_bh, work.x_host.c_host, 6) == 0) {
-		host = "any";
-	} else if (bcmp(ns_nullh, work.x_host.c_host, 6) == 0) {
-		host = "*";
-	} else {
-		q = work.x_host.c_host;
-		sprintf(chost, "%02x%02x%02x%02x%02x%02xH",
-			q[0], q[1], q[2], q[3], q[4], q[5]);
-		for (p = chost; *p == '0' && p < chost + 12; p++)
-			continue;
-		host = p;
-	}
-	if (port)
-		sprintf(cport, ".%xH", htons(port));
-	else
-		*cport = 0;
-
-	sprintf(mybuf,"%xH.%s%s", ntohl(net.long_e), host, cport);
-	upHex(mybuf);
-	return(mybuf);
-}
-
-char *
-ns_phost(struct sockaddr *sa)
-{
-	struct sockaddr_ns *sns = (struct sockaddr_ns *)sa;
-	struct sockaddr_ns work;
-	static union ns_net ns_zeronet;
-	char *p;
-
-	work = *sns;
-	work.sns_addr.x_port = 0;
-	work.sns_addr.x_net = ns_zeronet;
-
-	p = ns_print((struct sockaddr *)&work);
-	if (strncmp("0H.", p, 3) == 0)
-		p += 3;
-	return(p);
-}
-#endif
 
 void
 upHex(char *p0)
