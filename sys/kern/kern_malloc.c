@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.51.2.1 1999/01/21 21:55:24 msmith Exp $
+ * $Id: kern_malloc.c,v 1.51.2.2 1999/01/22 05:17:56 dillon Exp $
  */
 
 #include "opt_vm.h"
@@ -129,7 +129,7 @@ malloc(size, type, flags)
 
 	s = splmem();
 
-	if (!type->ks_next)
+	if (type->ks_limit == 0)
 		malloc_init(type);
 
 	indx = BUCKETINDX(size);
@@ -263,7 +263,7 @@ free(addr, type)
 #endif
 	register struct malloc_type *ksp = type;
 
-	if (!type->ks_next)
+	if (type->ks_limit == 0)
 		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
 	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
@@ -445,7 +445,7 @@ malloc_init(data)
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");
 
-	if (type->ks_next)
+	if (type->ks_limit != 0)
 		return;
 
 	if (cnt.v_page_count == 0)
@@ -473,6 +473,9 @@ malloc_uninit(data)
 	if (cnt.v_page_count == 0)
 		panic("malloc_uninit not allowed before vm init");
 
+	if (type->ks_limit == 0)
+		panic("malloc_uninit on uninitialized type");
+
 	if (type == kmemstatistics)
 		kmemstatistics = type->ks_next;
 	else {
@@ -483,4 +486,6 @@ malloc_uninit(data)
 			}
 		}
 	}
+	type->ks_next = NULL;
+	type->ks_limit = 0;
 }
