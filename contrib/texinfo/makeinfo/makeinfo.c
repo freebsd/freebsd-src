@@ -2120,7 +2120,7 @@ convert_from_loaded_file (name)
       output_stream = fopen (real_output_filename, "w");
     }
 
-  if (output_stream != stdout)
+  if (verbose_mode && output_stream != stdout)
     printf ("Making %s file `%s' from `%s'.\n",
             no_headers ? "text" : "info", output_filename, input_filename);
 
