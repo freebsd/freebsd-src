@@ -197,7 +197,7 @@ msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
 net/bsd_comp.c		optional ppp_bsdcomp
-net/hostcache.c		standard
+#net/hostcache.c		standard
 net/if.c		standard
 net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
@@ -210,6 +210,7 @@ net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
 net/if_tun.c		optional tun
+net/if_vlan.c		optional vlan
 net/ppp_deflate.c	optional ppp_deflate
 net/ppp_tty.c		optional ppp
 net/radix.c		standard
@@ -254,7 +255,7 @@ netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
 netinet/in.c		optional inet
-netinet/in_hostcache.c	optional inet
+#netinet/in_hostcache.c	optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
