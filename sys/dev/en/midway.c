@@ -1415,10 +1415,7 @@ en_reset_ul(struct en_softc *sc)
 	/*
 	 * Unstop all waiters
 	 */
-	while (!cv_waitq_empty(&sc->cv_close)) {
-		cv_broadcast(&sc->cv_close);
-		DELAY(100);
-	}
+	cv_broadcast(&sc->cv_close);
 }
 
 /*
