@@ -407,3 +407,22 @@ sigreturn(td, uap)
 }
 
 
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+	pcb->un_32.pcb32_r8 = tf->tf_r8;
+	pcb->un_32.pcb32_r9 = tf->tf_r9;
+	pcb->un_32.pcb32_r10 = tf->tf_r10;
+	pcb->un_32.pcb32_r11 = tf->tf_r11;
+	pcb->un_32.pcb32_r12 = tf->tf_r12;
+	pcb->un_32.pcb32_pc = tf->tf_pc;
+	pcb->un_32.pcb32_lr = tf->tf_usr_lr;
+	pcb->un_32.pcb32_sp = tf->tf_usr_sp;
+}
