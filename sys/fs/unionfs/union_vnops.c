@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.45 1997/10/16 20:32:30 phk Exp $
+ * $Id: union_vnops.c,v 1.46 1997/10/26 20:55:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -244,6 +244,13 @@ union_lookup(ap)
 	lowervp = NULLVP;
 	iswhiteout = 0;
 
+	if (cnp->cn_flags & ISDOTDOT) {
+		if (upperdvp != NULL)
+			VREF(upperdvp);
+		if (lowerdvp != NULL)
+			VREF(lowerdvp);
+	}
+
 	/*
 	 * do the lookup in the upper level.
 	 * if that level comsumes additional pathnames,
@@ -305,7 +312,8 @@ union_lookup(ap)
 			*ap->a_vpp = uppervp;
 			if (!lockparent)
 				cnp->cn_flags &= ~LOCKPARENT;
-			return (uerror);
+			error = uerror;
+			goto out;
 		}
 		if (uerror == ENOENT || uerror == EJUSTRETURN) {
 			if (cnp->cn_flags & ISWHITEOUT) {
@@ -371,7 +379,8 @@ union_lookup(ap)
 			*ap->a_vpp = lowervp;
 			if (!lockparent)
 				cnp->cn_flags &= ~LOCKPARENT;
-			return (lerror);
+			error = lerror;
+			goto out;
 		}
 	} else {
 		lerror = ENOENT;
@@ -416,7 +425,8 @@ union_lookup(ap)
 
 	/* case 1. */
 	if ((uerror != 0) && (lerror != 0)) {
-		return (uerror);
+		error = uerror;
+		goto out;
 	}
 
 	/* case 2. */
@@ -433,7 +443,8 @@ union_lookup(ap)
 					vput(lowervp);
 					lowervp = NULLVP;
 				}
-				return (uerror);
+				error = uerror;
+				goto out;
 			}
 		}
 	}
@@ -462,6 +473,14 @@ union_lookup(ap)
 		}
 #endif
 	}
+
+out:
+    if (cnp->cn_flags & ISDOTDOT) {
+        if (upperdvp != NULL)
+            vrele(upperdvp);
+        if (lowerdvp != NULL)
+            vrele(lowerdvp);
+    }
 
 	return (error);
 }
@@ -1015,12 +1034,18 @@ union_fsync(ap)
 		un = VTOUNION(ap->a_vp);
 		if (dolock)
 			vn_lock(targetvp, LK_EXCLUSIVE | LK_RETRY, p);
-		else if ((un->un_flags & UN_ULOCK) == 0 &&
-				 VOP_ISLOCKED(targetvp) == 0) {
-			isupperlocked = 1;
-			vn_lock(targetvp, LK_EXCLUSIVE | LK_RETRY, p);
-			un->un_flags |= UN_ULOCK;
+		else  {
+			un = VTOUNION(ap->a_vp);
+			if ((un->un_flags & UN_ULOCK) == 0 &&
+			    targetvp->v_data != NULL &&
+			    ((struct lock *)targetvp->v_data)->lk_lockholder
+			        == curproc->p_pid &&
+			    VOP_ISLOCKED(targetvp) != 0)
+				return 0;   /* XXX */
+
+			FIXUP(un, p);
 		}
+
 		error = VOP_FSYNC(targetvp, ap->a_cred, ap->a_waitfor, p);
 		if (dolock)
 			VOP_UNLOCK(targetvp, 0, p);
