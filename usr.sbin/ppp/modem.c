@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.28 1998/01/26 20:05:02 brian Exp $
+ * $Id: modem.c,v 1.24.2.29 1998/01/29 00:44:15 brian Exp $
  *
  *  TODO:
  */
@@ -738,18 +738,11 @@ CloseLogicalModem(void)
 {
   LogPrintf(LogDEBUG, "CloseLogicalModem\n");
   if (modem >= 0) {
-    ClosePhysicalModem();
     if (Utmp) {
-      struct utmp ut;
-      strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-      ut.ut_line[sizeof ut.ut_line - 1] = '\0';
-      if (logout(ut.ut_line))
-        logwtmp(ut.ut_line, "", ""); 
-      else
-        LogPrintf(LogERROR, "CloseLogicalModem: No longer logged in on %s\n",
-		  ut.ut_line);
+      ID0logout(VarBaseDevice);
       Utmp = 0;
     }
+    ClosePhysicalModem();
     UnlockModem();
   }
 }

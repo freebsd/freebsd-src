@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.7.2.8 1997/10/16 23:58:09 brian Exp $
+ * $Id: pap.c,v 1.7.2.9 1998/01/26 20:05:06 brian Exp $
  *
  *	TODO:
  */
@@ -51,6 +51,7 @@
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
+#include "id.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
@@ -173,11 +174,9 @@ PapInput(struct mbuf * bp)
 	        struct utmp ut;
 	        memset(&ut, 0, sizeof ut);
 	        time(&ut.ut_time);
-	        strncpy(ut.ut_name, cp+1, sizeof ut.ut_name - 1);
+	        strncpy(ut.ut_name, cp+1, sizeof ut.ut_name);
 	        strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-	        if (logout(ut.ut_line))
-		  logwtmp(ut.ut_line, "", "");
-	        login(&ut);
+	        ID0login(&ut);
 	        Utmp = 1;
 	      }
 	    NewPhase(PHASE_NETWORK);

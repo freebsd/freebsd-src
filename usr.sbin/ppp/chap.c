@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.7.2.9 1997/09/23 00:01:23 brian Exp $
+ * $Id: chap.c,v 1.7.2.10 1998/01/26 20:04:20 brian Exp $
  *
  *	TODO:
  */
@@ -56,6 +56,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
+#include "id.h"
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
@@ -232,11 +233,9 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
 	    struct utmp ut;
 	    memset(&ut, 0, sizeof ut);
 	    time(&ut.ut_time);
-	    strncpy(ut.ut_name, name, sizeof ut.ut_name - 1);
+	    strncpy(ut.ut_name, name, sizeof ut.ut_name);
 	    strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-	    if (logout(ut.ut_line))
-	      logwtmp(ut.ut_line, "", "");
-	    login(&ut);
+	    ID0login(&ut);
 	    Utmp = 1;
 	  }
 	NewPhase(PHASE_NETWORK);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: id.c,v 1.6.2.1 1998/01/26 20:04:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -32,18 +32,20 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "command.h"
-#include "mbuf.h"
-#include "log.h"
-#include "main.h"
 #ifdef __OpenBSD__
 #include <util.h>
 #else
 #include <libutil.h>
 #endif
+#include <utmp.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "main.h"
 #include "id.h"
 
 static int uid;
@@ -174,4 +176,37 @@ ID0uu_unlock(const char *basettyname)
   LogPrintf(LogID0, "%d = uu_unlock(\"%s\")\n", ret, basettyname);
   ID0setuser();
   return ret;
+}
+
+void
+ID0login(struct utmp *ut)
+{
+  ID0set0();
+  if (logout(ut->ut_line)) {
+    LogPrintf(LogID0, "logout(\"%s\")\n", ut->ut_line);
+    logwtmp(ut->ut_line, "", "");
+    LogPrintf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut->ut_line);
+  }
+  login(ut);
+  LogPrintf(LogID0, "login(\"%s\", \"%.*s\")\n",
+            ut->ut_line, sizeof ut->ut_name, ut->ut_name);
+  ID0setuser();
+}
+
+void
+ID0logout(const char *device)
+{
+  struct utmp ut;
+
+  strncpy(ut.ut_line, device, sizeof ut.ut_line - 1);
+  ut.ut_line[sizeof ut.ut_line - 1] = '\0';
+
+  ID0set0();
+  if (logout(ut.ut_line)) {
+    LogPrintf(LogID0, "logout(\"%s\")\n", ut.ut_line);
+    logwtmp(ut.ut_line, "", ""); 
+    LogPrintf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut.ut_line);
+  } else
+    LogPrintf(LogERROR, "ID0logout: No longer logged in on %s\n", ut.ut_line);
+  ID0setuser();
 }
