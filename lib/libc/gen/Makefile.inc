@@ -23,7 +23,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
 	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
-	sigsetops.c sleep.c srand48.c stringlist.c \
+	sigsetops.c sleep.c srand48.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
 	ttyslot.c ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c \
@@ -48,7 +48,7 @@ MAN3+=  alarm.3 arc4random.3 clock.3 \
 	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 scandir.3 setjmp.3 setmode.3 shm_open.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
-	sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
+	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
 	ttyname.3 tzset.3 ualarm.3 uname.3 unvis.3 usleep.3 utime.3 \
 	valloc.3 vis.3
@@ -101,6 +101,7 @@ MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 	rand48.3 mrand48.3 rand48.3 nrand48.3 rand48.3 seed48.3 \
 	rand48.3 srand48.3
 MLINKS+=scandir.3 alphasort.3
+MLINKS+=strtofflags.3 fflagstostr.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
 	setjmp.3 siglongjmp.3 setjmp.3 sigsetjmp.3
