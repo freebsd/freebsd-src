@@ -611,8 +611,9 @@ lockmgr_printinfo(lkp)
 		printf(" lock type %s: SHARED (count %d)", lkp->lk_wmesg,
 		    lkp->lk_sharecount);
 	else if (lkp->lk_flags & LK_HAVE_EXCL)
-		printf(" lock type %s: EXCL (count %d) by thread %p",
-		    lkp->lk_wmesg, lkp->lk_exclusivecount, lkp->lk_lockholder);
+		printf(" lock type %s: EXCL (count %d) by thread %p (pid %d)",
+		    lkp->lk_wmesg, lkp->lk_exclusivecount,
+		    lkp->lk_lockholder, lkp->lk_lockholder->td_proc->p_pid);
 	if (lkp->lk_waitcount > 0)
 		printf(" with %d pending", lkp->lk_waitcount);
 }
