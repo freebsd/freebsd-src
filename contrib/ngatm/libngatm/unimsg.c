@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/libunimsg/unimsg.c,v 1.3 2003/09/19 13:10:35 hbb Exp $
+ * $Begemot: libunimsg/libngatm/unimsg.c,v 1.4 2004/07/08 08:21:41 brandt Exp $
  *
  * User space message structure.
  */
@@ -163,7 +163,7 @@ uni_msg_build(void *ptr, ...)
 u_int
 uni_msg_strip32(struct uni_msg *msg)
 {
-	u_int32_t w;
+	uint32_t w;
 
 	msg->b_wptr -= 4;
 	bcopy(msg->b_wptr, &w, 4);
@@ -176,7 +176,7 @@ uni_msg_strip32(struct uni_msg *msg)
 u_int
 uni_msg_get32(struct uni_msg *msg)
 {
-	u_int32_t w;
+	uint32_t w;
 
 	bcopy(msg->b_rptr, &w, 4);
 	msg->b_rptr += 4;
