@@ -36,11 +36,11 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
-.Ft int
+.Ft acl_t
 .Fn acl_get_file "const char *path_p" "acl_type_t type"
-.Ft int
+.Ft acl_t
 .Fn acl_get_fd "int fd"
-.Ft int
+.Ft acl_t
 .Fn acl_get_fd_np "int fd" "acl_type_t type"
 .Sh DESCRIPTION
 The
