@@ -90,6 +90,8 @@
 >>122	string	Windows\ self-extracting\ ZIP	\b, %s
 >0x1c	string	RJSX\xff\xff	\b, ARJ SFX
 >0x1c	string	diet\xf9\x9c	\b, diet compressed
+>0x1c	string	LZ09		\b, LZEXE v0.90 compressed
+>0x1c	string	LZ91		\b, LZEXE v0.91 compressed
 >0x1e	string	Copyright\ 1989-1990\ PKWARE\ Inc.	\b, PKSFX
 # JM: 0x1e "PKLITE Copr. 1990-92 PKWARE Inc. All Rights Reserved\7\0\0\0"
 >0x1e	string	PKLITE\ Copr.	\b, %.6s compressed

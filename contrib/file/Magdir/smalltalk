@@ -1,8 +1,9 @@
 
 #-----------------------------------------------
 # GNU Smalltalk image, starting at version 1.6.2
+# From: catull_us@yahoo.com
 #
-0	string	GSTIm\0\0	GNU Smalltalk
+0	string	GSTIm\0\0	GNU SmallTalk
 # little-endian
 >7	byte&1	=0		LE image version
 >>10	byte	x		%d.

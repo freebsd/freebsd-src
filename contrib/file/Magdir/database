@@ -72,3 +72,9 @@
 # Round Robin Database Tool by Tobias Oetiker <oetiker@ee.ethz.ch>
 0	string	RRD		RRDTool DB
 >4	string	x		version %s
+#----------------------------------------------------------------------
+# ROOT: file(1) magic for ROOT databases
+#
+0       string  root\0  ROOT file
+>4      belong  x       Version %d
+>33     belong  x       (Compression: %d)

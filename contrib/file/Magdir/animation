@@ -15,75 +15,96 @@
 # MPEG Audio (*.mpx)
 # from dreesen@math.fu-berlin.de
 
-# XXX
-# This conflicts with the FF FE signature for UTF-16-encoded Unicode
-# text, which will be identified as an MP3 file.  I don't have any MP3s
-# so I don't know how to (or even if it's possible to) change this to
-# tell the two apart.    enf@pobox.com
+# MPEG 1.0 Layer 3
+0       beshort&0xfffe  =0xfffa         \bMP3
+>2      byte&0xf0       =0x10           \b,  32 kBits
+>2      byte&0xf0       =0x20           \b,  40 kBits
+>2      byte&0xf0       =0x30           \b,  48 kBits
+>2      byte&0xf0       =0x40           \b,  56 kBits
+>2      byte&0xf0       =0x50           \b,  64 kBits
+>2      byte&0xf0       =0x60           \b,  80 kBits
+>2      byte&0xf0       =0x70           \b,  96 kBits
+>2      byte&0xf0       =0x80           \b, 112 kBits
+>2      byte&0xf0       =0x90           \b, 128 kBits
+>2      byte&0xf0       =0xA0           \b, 160 kBits
+>2      byte&0xf0       =0xB0           \b, 192 kBits
+>2      byte&0xf0       =0xC0           \b, 224 kBits
+>2      byte&0xf0       =0xD0           \b, 256 kBits
+>2      byte&0xf0       =0xE0           \b, 320 kBits
+# freq
+>2      byte&0x0C       =0x00           \b, 44.1 kHz
+>2      byte&0x0C       =0x04           \b, 48 kHz
+>2      byte&0x0C       =0x08           \b, 32 kHz
+# misc
+>3      byte&0xC0       =0x00           \b, Stereo
+>3      byte&0xC0       =0x40           \b, JStereo
+>3      byte&0xC0       =0x80           \b, Dual-Ch
+>3      byte&0xC0       =0xC0           \b, Mono
+#>1     byte&0x01       =0x00           \b, Error Protection
+#>2     byte&0x02       =0x02           \b, Padding
+#>2     byte&0x01       =0x01           \b, Private
+#>3     byte&0x08       =0x08           \b, Copyright
+#>3     byte&0x04       =0x04           \b, Original
+#>3     byte&0x03       1               \b, Emphasis 5
+#>3     byte&0x03       3               \b, Emphasis c
 
-0       beshort         &0xfff0         MP
-# MPEG 1.0
->1      byte&0x08       =0x08           \b
-# Layer 3
->>1     byte            &0x02           \b3
->>>2    byte&0xf0       =0x10           \b,  32 kBits
->>>2    byte&0xf0       =0x20           \b,  40 kBits
->>>2    byte&0xf0       =0x30           \b,  48 kBits
->>>2    byte&0xf0       =0x40           \b,  56 kBits
->>>2    byte&0xf0       =0x50           \b,  64 kBits
->>>2    byte&0xf0       =0x60           \b,  80 kBits
->>>2    byte&0xf0       =0x70           \b,  96 kBits
->>>2    byte&0xf0       =0x80           \b, 112 kBits
->>>2    byte&0xf0       =0x90           \b, 128 kBits
->>>2    byte&0xf0       =0xA0           \b, 160 kBits
->>>2    byte&0xf0       =0xB0           \b, 192 kBits
->>>2    byte&0xf0       =0xC0           \b, 224 kBits
->>>2    byte&0xf0       =0xD0           \b, 256 kBits
->>>2    byte&0xf0       =0xE0           \b, 320 kBits
-# Layer 2
->>1     byte            &0x04           \b2
->>>2    byte&0xf0       =0x10           \b,  32 kBits
->>>2    byte&0xf0       =0x20           \b,  48 kBits
->>>2    byte&0xf0       =0x30           \b,  56 kBits
->>>2    byte&0xf0       =0x40           \b,  64 kBits
->>>2    byte&0xf0       =0x50           \b,  80 kBits
->>>2    byte&0xf0       =0x60           \b,  96 kBits
->>>2    byte&0xf0       =0x70           \b, 112 kBits
->>>2    byte&0xf0       =0x80           \b, 128 kBits
->>>2    byte&0xf0       =0x90           \b, 160 kBits
->>>2    byte&0xf0       =0xA0           \b, 192 kBits
->>>2    byte&0xf0       =0xB0           \b, 224 kBits
->>>2    byte&0xf0       =0xC0           \b, 256 kBits
->>>2    byte&0xf0       =0xD0           \b, 320 kBits
->>>2    byte&0xf0       =0xE0           \b, 384 kBits
+# MPEG 1.0 Layer 2
+0       beshort&0xfffe  =0xfffc         \bMP2
+>2      byte&0xf0       =0x10           \b,  32 kBits
+>2      byte&0xf0       =0x20           \b,  48 kBits
+>2      byte&0xf0       =0x30           \b,  56 kBits
+>2      byte&0xf0       =0x40           \b,  64 kBits
+>2      byte&0xf0       =0x50           \b,  80 kBits
+>2      byte&0xf0       =0x60           \b,  96 kBits
+>2      byte&0xf0       =0x70           \b, 112 kBits
+>2      byte&0xf0       =0x80           \b, 128 kBits
+>2      byte&0xf0       =0x90           \b, 160 kBits
+>2      byte&0xf0       =0xA0           \b, 192 kBits
+>2      byte&0xf0       =0xB0           \b, 224 kBits
+>2      byte&0xf0       =0xC0           \b, 256 kBits
+>2      byte&0xf0       =0xD0           \b, 320 kBits
+>2      byte&0xf0       =0xE0           \b, 384 kBits
 # freq
->>2     byte&0x0C       =0x00           \b, 44.1 kHz
->>2     byte&0x0C       =0x04           \b, 48 kHz
->>2     byte&0x0C       =0x08           \b, 32 kHz
+>2      byte&0x0C       =0x00           \b, 44.1 kHz
+>2      byte&0x0C       =0x04           \b, 48 kHz
+>2      byte&0x0C       =0x08           \b, 32 kHz
+# misc
+>3      byte&0xC0       =0x00           \b, Stereo
+>3      byte&0xC0       =0x40           \b, JStereo
+>3      byte&0xC0       =0x80           \b, Dual-Ch
+>3      byte&0xC0       =0xC0           \b, Mono
+#>1     byte&0x01       =0x00           \b, Error Protection
+#>2     byte&0x02       =0x02           \b, Padding
+#>2     byte&0x01       =0x01           \b, Private
+#>3     byte&0x08       =0x08           \b, Copyright
+#>3     byte&0x04       =0x04           \b, Original
+#>3     byte&0x03       1               \b, Emphasis 5
+#>3     byte&0x03       3               \b, Emphasis c
+
 # MPEG 2.0
->1      byte&0x08       =0x00           \b
+0       beshort&0xfff8  =0xfff0         MP
 # Layer 3
->>1     byte            &0x02           \b3
+>1      byte            &0x02           \b3
 # Layer 2
->>1     byte            &0x04           \b2
->>2     byte&0xf0       =0x10           \b,   8 kBits
->>2     byte&0xf0       =0x20           \b,  16 kBits
->>2     byte&0xf0       =0x30           \b,  24 kBits
->>2     byte&0xf0       =0x40           \b,  32 kBits
->>2     byte&0xf0       =0x50           \b,  40 kBits
->>2     byte&0xf0       =0x60           \b,  48 kBits
->>2     byte&0xf0       =0x70           \b,  56 kBits
->>2     byte&0xf0       =0x80           \b,  64 kBits
->>2     byte&0xf0       =0x90           \b,  80 kBits
->>2     byte&0xf0       =0xA0           \b,  96 kBits
->>2     byte&0xf0       =0xB0           \b, 112 kBits
->>2     byte&0xf0       =0xC0           \b, 128 kBits
->>2     byte&0xf0       =0xD0           \b, 144 kBits
->>2     byte&0xf0       =0xE0           \b, 160 kBits
+>1      byte            &0x04           \b2
+>2      byte&0xf0       =0x10           \b,   8 kBits
+>2      byte&0xf0       =0x20           \b,  16 kBits
+>2      byte&0xf0       =0x30           \b,  24 kBits
+>2      byte&0xf0       =0x40           \b,  32 kBits
+>2      byte&0xf0       =0x50           \b,  40 kBits
+>2      byte&0xf0       =0x60           \b,  48 kBits
+>2      byte&0xf0       =0x70           \b,  56 kBits
+>2      byte&0xf0       =0x80           \b,  64 kBits
+>2      byte&0xf0       =0x90           \b,  80 kBits
+>2      byte&0xf0       =0xA0           \b,  96 kBits
+>2      byte&0xf0       =0xB0           \b, 112 kBits
+>2      byte&0xf0       =0xC0           \b, 128 kBits
+>2      byte&0xf0       =0xD0           \b, 144 kBits
+>2      byte&0xf0       =0xE0           \b, 160 kBits
 # freq
->>2     byte&0x0C       =0x00           \b, 22.05 kHz
->>2     byte&0x0C       =0x04           \b, 24 kHz
->>2     byte&0x0C       =0x08           \b, 16 kHz
+>2      byte&0x0C       =0x00           \b, 22.05 kHz
+>2      byte&0x0C       =0x04           \b, 24 kHz
+>2      byte&0x0C       =0x08           \b, 16 kHz
 # misc
 >3      byte&0xC0       =0x00           \b, Stereo
 >3      byte&0xC0       =0x40           \b, JStereo
@@ -168,3 +189,8 @@
 
 # Microsoft Advanced Streaming Format (ASF) <mpruett@sgi.com>
 0	belong			0x3026b275	Microsoft ASF
+
+# MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
+0	string			\x8aMNG		MNG video data,
+>4	belong			!0x0d0a1a0a	CORRUPTED,
+>4	belong			0x0d0a1a0a

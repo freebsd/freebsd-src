@@ -26,3 +26,7 @@
 # gnu gmon magic From: Eugen Dedu <dedu@ese-metz.fr>
 0	string		gmon		GNU prof performance data
 >4	long		x		- version %ld
+# From: Dave Pearson <davep@davep.org>
+# Harbour <URL:http://www.harbour-project.org/> HRB files.
+0     string \xc0HRB   Harbour HRB file
+>4    short  x         version %d

@@ -1,11 +1,44 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		36
+#define	patchlevel		41
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.36 2001/07/22 21:04:15 christos Exp $
+ * $Id: patchlevel.h,v 1.41 2003/02/27 20:53:45 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.41  2003/02/27 20:53:45  christos
+ * - fix memory allocation problem (Jeff Johnson)
+ * - fix stack overflow corruption (David Endler)
+ * - fixes from NetBSD source (Antti Kantee)
+ * - magic fixes
+ *
+ * Revision 1.40  2003/02/08 18:33:53  christos
+ * - detect inttypes.h too (Dave Love <d.love@dl.ac.uk>)
+ * - eliminate unsigned char warnings (Petter Reinholdtsen <pere@hungry.com>)
+ * - better elf PT_NOTE handling (Nalin Dahyabhai <nalin@redhat.com>)
+ * - add options to format the output differently
+ * - much more magic.
+ *
+ * Revision 1.39  2002/07/03 18:57:52  christos
+ * - ansify/c99ize
+ * - more magic
+ * - better COMPILE_ONLY support.
+ * - new magic files.
+ * - fix solaris compilation problems.
+ *
+ * Revision 1.38  2002/05/16 18:45:56  christos
+ * - pt_note elf additions from NetBSD
+ * - EMX os specific changes (Alexander Mai)
+ * - stdint.h detection, acconfig.h fixes (Maciej W. Rozycki, Franz Korntner)
+ * - regex file additions (Kim Cromie)
+ * - getopt_long support and misc cleanups (Michael Piefel)
+ * - many magic fixes and additions
+ *
+ * Revision 1.37  2001/09/03 14:44:22  christos
+ * daylight/tm_isdst detection
+ * magic fixes
+ * don't eat the whole file if it has only nulls
+ *
  * Revision 1.36  2001/07/22 21:04:15  christos
  * - magic fixes
  * - add new operators, pascal strings, UTC date printing, $HOME/.magic
@@ -211,4 +244,3 @@
  * Fix a tiny null-pointer bug in previous fix for tar archive + uncompress.
  * 
  */
-

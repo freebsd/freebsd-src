@@ -389,3 +389,7 @@
 >>>>>>>>>0xC4	belong	12		- received SIGSYS
 >>>>>>>>>0xC4	belong	33		- received SIGXCPU
 >>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+
+# From: AMAKAWA Shuhei <sa264@cam.ac.uk>
+0	string	HPHP49-			HP49 binary
+

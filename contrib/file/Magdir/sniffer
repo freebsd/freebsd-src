@@ -84,15 +84,18 @@
 >20	belong		13		(BSD/OS SLIP
 >20	belong		14		(BSD/OS PPP
 >20	belong		50		(PPP or Cisco HDLC
+>20	belong		51		(PPP-over-Ethernet
 >20	belong		100		(RFC 1483 ATM
 >20	belong		101		(raw IP
 >20	belong		102		(BSD/OS SLIP
 >20	belong		103		(BSD/OS PPP
 >20	belong		104		(BSD/OS Cisco HDLC
->20	belong		105		(Linux Classical IP over ATM
+>20	belong		105		(802.11
+>20	belong		106		(Linux Classical IP over ATM
 >20	belong		108		(OpenBSD loopback
 >20	belong		109		(OpenBSD IPSEC encrypted
 >20	belong		113		(Linux "cooked"
+>20	belong		114		(LocalTalk
 >16	belong		x		\b, capture length %d)
 0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
 >4	leshort		x		- version %d
@@ -113,15 +116,18 @@
 >20	lelong		13		(BSD/OS SLIP
 >20	lelong		14		(BSD/OS PPP
 >20	lelong		50		(PPP or Cisco HDLC
+>20	lelong		51		(PPP-over-Ethernet
 >20	lelong		100		(RFC 1483 ATM
 >20	lelong		101		(raw IP
 >20	lelong		102		(BSD/OS SLIP
 >20	lelong		103		(BSD/OS PPP
 >20	lelong		104		(BSD/OS Cisco HDLC
->20	lelong		105		(Linux Classical IP over ATM
+>20	lelong		105		(802.11
+>20	lelong		106		(Linux Classical IP over ATM
 >20	lelong		108		(OpenBSD loopback
 >20	lelong		109		(OpenBSD IPSEC encrypted
 >20	lelong		113		(Linux "cooked"
+>20	lelong		114		(LocalTalk
 >16	lelong		x		\b, capture length %d)
 
 #
@@ -189,3 +195,11 @@
 # RADCOM WAN/LAN Analyzer capture files.
 #
 0	string		\x42\xd2\x00\x34\x12\x66\x22\x88	RADCOM WAN/LAN Analyzer capture file
+
+#
+# NetStumbler log files.  Not really packets, per se, but about as
+# close as you can get.  These are log files from NetStumbler, a
+# Windows program, that scans for 802.11b networks.
+#
+0	string		NetS		NetStumbler log file
+>8	lelong		x		\b, %d stations found

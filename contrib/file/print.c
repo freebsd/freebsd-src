@@ -26,14 +26,8 @@
  */
 
 #include "file.h"
-#include <stdio.h>
-#include <errno.h>
 #include <string.h>
-#ifdef __STDC__
-# include <stdarg.h>
-#else
-# include <varargs.h>
-#endif
+#include <stdarg.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -41,20 +35,20 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.33 2001/07/22 21:04:15 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.39 2002/07/09 15:46:23 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
 
+#ifndef COMPILE_ONLY
 void
-mdump(m)
-	struct magic *m;
+mdump(struct magic *m)
 {
 	static const char *typ[] = { "invalid", "byte", "short", "invalid",
 				     "long", "string", "date", "beshort",
 				     "belong", "bedate", "leshort", "lelong",
 				     "ledate", "pstring", "ldate", "beldate",
-				     "leldate" };
+				     "leldate", "regex" };
 	static const char optyp[] = { '@', '&', '|', '^', '+', '-', 
 				      '*', '/', '%' };
 	(void) fputc('[', stderr);
@@ -110,6 +104,7 @@ mdump(m)
 			break;
 		case STRING:
 		case PSTRING:
+		case REGEX:
 			showstr(stderr, m->value.s, -1);
 			break;
 		case DATE:
@@ -129,15 +124,14 @@ mdump(m)
 	}
 	(void) fprintf(stderr, ",\"%s\"]\n", m->desc);
 }
+#endif
 
 /*
  * ckfputs - fputs, but with error checking
  * ckfprintf - fprintf, but with error checking
  */
 void
-ckfputs(str, fil) 	
-	const char *str;
-	FILE *fil;
+ckfputs(const char *str, FILE *fil)
 {
 	if (fputs(str,fil) == EOF)
 		error("write failed.\n");
@@ -145,23 +139,11 @@ ckfputs(str, fil)
 
 /*VARARGS*/
 void
-#ifdef __STDC__
 ckfprintf(FILE *f, const char *fmt, ...)
-#else
-ckfprintf(va_alist)
-	va_dcl
-#endif
 {
 	va_list va;
-#ifdef __STDC__
+
 	va_start(va, fmt);
-#else
-	FILE *f;
-	const char *fmt;
-	va_start(va);
-	f = va_arg(va, FILE *);
-	fmt = va_arg(va, const char *);
-#endif
 	(void) vfprintf(f, fmt, va);
 	if (ferror(f))
 		error("write failed.\n");
@@ -173,21 +155,11 @@ ckfprintf(va_alist)
  */
 /*VARARGS*/
 void
-#ifdef __STDC__
 error(const char *f, ...)
-#else
-error(va_alist)
-	va_dcl
-#endif
 {
 	va_list va;
-#ifdef __STDC__
+
 	va_start(va, f);
-#else
-	const char *f;
-	va_start(va);
-	f = va_arg(va, const char *);
-#endif
 	/* cuz we use stdout for most, stderr here */
 	(void) fflush(stdout); 
 
@@ -200,21 +172,11 @@ error(va_alist)
 
 /*VARARGS*/
 void
-#ifdef __STDC__
 magwarn(const char *f, ...)
-#else
-magwarn(va_alist)
-	va_dcl
-#endif
 {
 	va_list va;
-#ifdef __STDC__
+
 	va_start(va, f);
-#else
-	const char *f;
-	va_start(va);
-	f = va_arg(va, const char *);
-#endif
 	/* cuz we use stdout for most, stderr here */
 	(void) fflush(stdout); 
 
@@ -227,17 +189,30 @@ magwarn(va_alist)
 }
 
 
+#ifndef COMPILE_ONLY
 char *
-fmttime(v, local)
-	long v;
-	int local;
+fmttime(long v, int local)
 {
 	char *pp, *rt;
 	time_t t = (time_t)v;
+	struct tm *tm;
+
 	if (local) {
 		pp = ctime(&t);
 	} else {
-		struct tm *tm;
+#ifndef HAVE_DAYLIGHT
+		static int daylight = 0;
+#ifdef HAVE_TM_ISDST
+		static time_t now = (time_t)0;
+
+		if (now == (time_t)0) {
+			struct tm *tm1;
+			(void)time(&now);
+			tm1 = localtime(&now);
+			daylight = tm1->tm_isdst;
+		}
+#endif /* HAVE_TM_ISDST */
+#endif /* HAVE_DAYLIGHT */
 		if (daylight)
 			t += 3600;
 		tm = gmtime(&t);
@@ -248,3 +223,4 @@ fmttime(v, local)
 		*rt = '\0';
 	return pp;
 }
+#endif

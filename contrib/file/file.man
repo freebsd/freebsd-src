@@ -1,28 +1,31 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.39 2001/04/27 22:48:33 christos Exp $
+.\" $Id: file.man,v 1.44 2003/02/27 20:47:46 christos Exp $
 .SH NAME
 file
 \- determine file type
 .SH SYNOPSIS
 .B file
 [
-.B \-bciknsvzL
+.B \-bciknNsvzL
 ]
 [
 .B \-f
 .I namefile
 ]
 [
-.B \-m 
+.B \-F
+separator ]
+[
+.B \-m
 .I magicfiles
 ]
 .I file
-\&...
+\*[Am]...
 .br
 .B file
 .B -C
 [
-.B \-m 
+.B \-m
 magicfile ]
 .SH DESCRIPTION
 This manual page documents version __VERSION__ of the
@@ -54,7 +57,7 @@ Exceptions are well-known file formats (core files, tar archives)
 that are known to contain binary data.
 When modifying the file
 .I __MAGIC__
-or the program itself, 
+or the program itself,
 .B "preserve these keywords" .
 People depend on knowing that all the readable files in a directory
 have the word ``text'' printed.
@@ -77,13 +80,13 @@ Any known file types appropriate to the system you are running on
 implement them)
 are intuited if they are defined in
 the system header file
-.IR <sys/stat.h>  .
+.IR \*[Lt]sys/stat.h\*[Gt] .
 .PP
 The magic number tests are used to check for files with data in
 particular fixed formats.
 The canonical example of this is a binary executable (compiled program)
 .I a.out
-file, whose format is defined in 
+file, whose format is defined in
 .I a.out.h
 and possibly
 .I exec.h
@@ -97,7 +100,7 @@ offset into the file can usually be described in this way.
 The information identifying these files is read from the compiled
 magic file
 .I __MAGIC__.mgc ,
-or 
+or
 .I __MAGIC__
 if the compile file does not exist.
 .PP
@@ -135,13 +138,13 @@ For example, the keyword
 .B .br
 indicates that the file is most likely a
 .BR troff (1)
-input file, just as the keyword 
+input file, just as the keyword
 .B struct
 indicates a C program.
 These tests are less reliable than the previous
 two groups, so they are performed last.
 The language test routines also test for some miscellany
-(such as 
+(such as
 .BR tar (1)
 archives).
 .PP
@@ -154,7 +157,7 @@ Do not prepend filenames to output lines (brief mode).
 .TP 8
 .B \-c
 Cause a checking printout of the parsed form of the magic file.
-This is usually used in conjunction with 
+This is usually used in conjunction with
 .B \-m
 to debug a new magic file before installing it.
 .TP 8
@@ -163,21 +166,26 @@ Write a magic.mgc output file that contains a pre-parsed version of
 file.
 .TP 8
 .BI \-f " namefile"
-Read the names of the files to be examined from 
+Read the names of the files to be examined from
 .I namefile
-(one per line) 
+(one per line)
 before the argument list.
-Either 
+Either
 .I namefile
 or at least one filename argument must be present;
 to test the standard input, use ``\-'' as a filename argument.
 .TP 8
+.BI \-F " separator"
+Use the specified separator character instead of ``:''.
+.TP 8
 .B \-i
 Causes the file command to output mime type strings rather than the more
-traditional human readable ones. Thus it may say
+traditional human readable ones.
+Thus it may say
 ``text/plain; charset=us-ascii''
 rather
-than ``ASCII text''. In order for this option to work, file changes the way
+than ``ASCII text''.
+In order for this option to work, file changes the way
 it handles files recognised by the command itself (such as many of the
 text file types, directories etc), and makes use of an alternative
 ``magic'' file.
@@ -191,9 +199,12 @@ Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
 .TP 8
 .B \-n
-Force stdout to be flushed after checking each file. This is only useful if
-checking a list of files. It is intended to be used by programs that want
-filetype output from a pipe.
+Force stdout to be flushed after checking each file.
+This is only useful if checking a list of files.
+It is intended to be used by programs that want filetype output from a pipe.
+.TP 8
+.B \-N
+Don't pad output to align filenames nicely.
 .TP 8
 .B \-v
 Print the version of the program and exit.
@@ -228,7 +239,7 @@ to disregard the file size as reported by
 since on some systems it reports a zero size for raw disk partitions.
 .SH FILES
 .I __MAGIC__.mgc
-\- defaults compiled list of magic numbers
+\- default compiled list of magic numbers
 .PP
 .I __MAGIC__
 \- default list of magic numbers
@@ -250,22 +261,22 @@ can be used to set the default magic number files.
 .SH STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
-contained therein. 
+contained therein.
 Its behaviour is mostly compatible with the System V program of the same name.
 This version knows more magic, however, so it will produce
-different (albeit more accurate) output in many cases. 
+different (albeit more accurate) output in many cases.
 .PP
-The one significant difference 
+The one significant difference
 between this version and System V
 is that this version treats any white space
 as a delimiter, so that spaces in pattern strings must be escaped.
 For example,
 .br
->10	string	language impress\ 	(imPRESS data)
+\*[Gt]10	string	language impress\ 	(imPRESS data)
 .br
 in an existing magic file would have to be changed to
 .br
->10	string	language\e impress	(imPRESS data)
+\*[Gt]10	string	language\e impress	(imPRESS data)
 .br
 In addition, in this version, if a pattern string contains a backslash,
 it must be escaped.  For example
@@ -281,16 +292,16 @@ SunOS releases 3.2 and later from Sun Microsystems include a
 .BR file (1)
 command derived from the System V one, but with some extensions.
 My version differs from Sun's only in minor ways.
-It includes the extension of the `&' operator, used as,
+It includes the extension of the `\*[Am]' operator, used as,
 for example,
 .br
->16	long&0x7fffffff	>0		not stripped
+\*[Gt]16	long\*[Am]0x7fffffff	\*[Gt]0		not stripped
 .SH MAGIC DIRECTORY
 The magic file entries have been collected from various sources,
 mainly USENET, and contributed by various authors.
 Christos Zoulas (address below) will collect additional
 or corrected magic file entries.
-A consolidation of magic file entries 
+A consolidation of magic file entries
 will be distributed periodically.
 .PP
 The order of entries in the magic file is significant.
@@ -300,17 +311,20 @@ If your old
 .B file
 command uses a magic file,
 keep the old magic file around for comparison purposes
-(rename it to 
+(rename it to
 .IR __MAGIC__.orig ).
 .SH EXAMPLES
 .nf
-$ file file.c file /dev/hda
+$ file file.c file /dev/{wd0a,hda}
 file.c:   C program text
-file:     ELF 32-bit LSB executable, Intel 80386, version 1,
-          dynamically linked, not stripped
-/dev/hda: block special
-
-$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+file:     ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
+          dynamically linked (uses shared libs), stripped
+/dev/wd0a: block special (0/0)
+/dev/hda: block special (3/0)
+$ file -s /dev/wd0{b,d}
+/dev/wd0b: data
+/dev/wd0d: x86 boot sector
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}	# Linux
 /dev/hda:   x86 boot sector
 /dev/hda1:  Linux/i386 ext2 filesystem
 /dev/hda2:  x86 boot sector
@@ -323,30 +337,48 @@ $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda9:  empty
 /dev/hda10: empty
 
-$ file -i file.c file /dev/hda
+$ file -s /dev/rwd0e				# BSD
+/dev/rwd0e:
+Unix Fast File system (little-endian),
+last mounted on /usr,
+last written at Mon Feb 10 13:22:40 2003,
+clean flag 2,
+number of blocks 28754208,
+number of data blocks 27812712,
+number of cylinder groups 3566,
+block size 8192,
+fragment size 1024,
+minimum percentage of free blocks 5,
+rotational delay 0ms,
+disk rotational speed 60rps,
+TIME optimization
+
+$ file -i file.c file /dev/{wd0a,hda}
 file.c:      text/x-c
-file:        application/x-executable, dynamically linked (uses shared libs), not stripped
+file:        application/x-executable, dynamically linked (uses shared libs),
+not stripped
 /dev/hda:    application/x-not-regular-file
+/dev/wd0a:   application/x-not-regular-file
 
 .fi
 .SH HISTORY
-There has been a 
+There has been a
 .B file
-command in every \s-1UNIX\s0 since at least Research Version 6
-(man page dated January 16, 1975).
+command in every \s-1UNIX\s0 since at least Research Version 4
+(man page dated November, 1973).
 The System V version introduced one significant major change:
 the external list of magic number types.
 This slowed the program down slightly but made it a lot more flexible.
 .PP
 This program, based on the System V version,
-was written by Ian Darwin <ian@darwinsys.com>
+was written by Ian Darwin \*[Lt]ian@darwinsys.com\*[Gt]
 without looking at anybody else's source code.
 .PP
 John Gilmore revised the code extensively, making it better than
 the first version.
 Geoff Collyer found several inadequacies
 and provided some magic file entries.
-Contributions by the `&' operator by Rob McMahon, cudcv@warwick.ac.uk, 1989.
+Contributions by the `\*[Am]' operator by Rob McMahon, cudcv@warwick.ac.uk, 1989.
 .PP
 Guy Harris, guy@netapp.com, made many changes from 1993 to the present.
 .PP
@@ -363,7 +395,8 @@ of non-ASCII files.
 .PP
 The list of contributors to the "Magdir" directory (source for the
 /etc/magic
-file) is too long to include here. You know who you are; thank you.
+file) is too long to include here.
+You know who you are; thank you.
 .SH LEGAL NOTICE
 Copyright (c) Ian F. Darwin, Toronto, Canada, 1986-1999.
 Covered by the standard Berkeley Software Distribution copyright; see the file
@@ -378,7 +411,8 @@ were written by John Gilmore from his public-domain
 program, and are not covered by the above license.
 .SH BUGS
 There must be a better way to automate the construction of the Magic
-file from all the glop in Magdir. What is it?
+file from all the glop in Magdir.
+What is it?
 Better yet, the magic file should be compiled into binary (say,
 .BR ndbm (3)
 or, better yet, fixed-length
@@ -413,11 +447,11 @@ commands vs man page macros.
 Regular expression support would make this easy.
 .PP
 The program doesn't grok \s-2FORTRAN\s0.
-It should be able to figure \s-2FORTRAN\s0 by seeing some keywords which 
+It should be able to figure \s-2FORTRAN\s0 by seeing some keywords which
 appear indented at the start of line.
 Regular expression support would make this easy.
 .PP
-The list of keywords in 
+The list of keywords in
 .I ascmagic
 probably belongs in the Magic file.
 This could be done by using some keyword like `*' for the offset value.
@@ -425,16 +459,18 @@ This could be done by using some keyword like `*' for the offset value.
 Another optimisation would be to sort
 the magic file so that we can just run down all the
 tests for the first byte, first word, first long, etc, once we
-have fetched it.  Complain about conflicts in the magic file entries.
+have fetched it.
+Complain about conflicts in the magic file entries.
 Make a rule that the magic entries sort based on file offset rather
 than position within the magic file?
 .PP
-The program should provide a way to give an estimate 
+The program should provide a way to give an estimate
 of ``how good'' a guess is.
 We end up removing guesses (e.g. ``From '' as first 5 chars of file) because
 they are not as good as other guesses (e.g. ``Newsgroups:'' versus
-``Return-Path:'').  Still, if the others don't pan out, it should be
-possible to use the first guess.  
+``Return-Path:'').
+Still, if the others don't pan out, it should be
+possible to use the first guess.
 .PP
 This program is slower than some vendors' file commands.
 The new support for multiple character codes makes it even slower.
@@ -445,4 +481,4 @@ You can obtain the original author's latest version by anonymous FTP
 on
 .B ftp.astron.com
 in the directory
-.I /pub/file/file-X.YY.tar.gz
+.I /pub/file/file-X.YZ.tar.gz
