@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: mail.local.c,v 1.2 1996/10/29 05:22:52 peter Exp $
  */
 
 #ifndef lint
@@ -176,7 +176,7 @@ extern FILE	*fdopen __P((int, const char *));
 
 int eval = EX_OK;			/* sysexits.h error value. */
 
-void		deliver __P((int, char *, int));
+void		deliver __P((int, char *, int, int));
 void		e_to_sys __P((int));
 void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
@@ -193,7 +193,7 @@ main(argc, argv)
 	char *argv[];
 {
 	struct passwd *pw;
-	int ch, fd, nobiff;
+	int ch, fd, nobiff, nofsync;
 	uid_t uid;
 	char *from;
 	extern char *optarg;
@@ -214,7 +214,8 @@ main(argc, argv)
 
 	from = NULL;
 	nobiff = 0;
-	while ((ch = getopt(argc, argv, "bdf:r:")) != EOF)
+	nofsync = 0;
+	while ((ch = getopt(argc, argv, "bdf:r:s")) != EOF)
 		switch(ch) {
 		case 'b':
 			nobiff++;
@@ -228,6 +229,9 @@ main(argc, argv)
 				usage();
 			}
 			from = optarg;
+			break;
+		case 's':
+			nofsync++;
 			break;
 		case '?':
 		default:
@@ -259,7 +263,7 @@ main(argc, argv)
 	 * at the expense of repeated failures and multiple deliveries.
 	 */
 	for (fd = store(from); *argv; ++argv)
-		deliver(fd, *argv, nobiff);
+		deliver(fd, *argv, nobiff, nofsync);
 	exit(eval);
 }
 
@@ -314,8 +318,8 @@ store(from)
 }
 
 void
-deliver(fd, name, nobiff)
-	int fd, nobiff;
+deliver(fd, name, nobiff, nofsync)
+	int fd, nobiff, nofsync;
 	char *name;
 {
 	struct stat fsb, sb;
@@ -457,6 +461,13 @@ tryagain:
 	if (nr < 0) {
 		e_to_sys(errno);
 		warn("temporary file: %s", strerror(errno));
+		goto err3;
+	}
+
+	/* Flush to disk, don't wait for update. */
+	if (!nofsync && fsync(mbfd)) {
+		e_to_sys(errno);
+		warn("%s: %s", path, strerror(errno));
 err3:
 		if (setreuid(0, 0) < 0) {
 			e_to_sys(errno);
@@ -470,15 +481,6 @@ err1:		(void)close(mbfd);
 err0:		unlockmbox();
 		return;
 	}
-
-#if !defined(DONT_FSYNC)
-	/* Flush to disk, don't wait for update. */
-	if (fsync(mbfd)) {
-		e_to_sys(errno);
-		warn("%s: %s", path, strerror(errno));
-		goto err3;
-	}
-#endif
 		
 	/* Close and check -- NFS doesn't write until the close. */
 	if (close(mbfd)) {
@@ -588,7 +590,7 @@ void
 usage()
 {
 	eval = EX_USAGE;
-	err("usage: mail.local [-b] [-f from] user ...");
+	err("usage: mail.local [-b] [-f from] [-s] user ...");
 }
 
 #if __STDC__
