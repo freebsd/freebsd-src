@@ -64,7 +64,10 @@ dec_2100_a500_init(cputype)
 	 * See if we're a `Sable' or a `Lynx'.
 	 */
 	if (cputype == ST_DEC_2100_A500) {
-		sable_lynx_base = SABLE_BASE;
+		if (alpha_implver() == ALPHA_IMPLVER_EV5)
+			sable_lynx_base = LYNX_BASE;
+		else
+			sable_lynx_base = SABLE_BASE;
 		platform.family = "DEC AlphaServer 2100";
 	} else if (cputype == ST_DEC_2100A_A500) {
 		sable_lynx_base = LYNX_BASE;
