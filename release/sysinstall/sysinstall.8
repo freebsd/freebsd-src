@@ -26,7 +26,7 @@
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm sysinstall
 .Nd system installation and configuration tool
@@ -165,10 +165,11 @@ functions taking their arguments by examining known variable names.
 This requires that you be sure to assign the relevant variables before
 calling a function which requires them.
 .Pp
-The 
+The
 .Ar noError
 variable can be assigned before each directive: this will cause any error
-detected while processing the directive itself to be ignored. The value of
+detected while processing the directive itself to be ignored.
+The value of
 .Ar noError
 will automatically reset to the default "unassigned" every time a directive is
 processed.
@@ -192,7 +193,7 @@ loading any required 3rd-party routing daemons as necessary.
 .Bl -tag -width indent
 .It router
 can be set to the name of the desired routing daemon,
-e.g.
+e.g.\&
 .Dq routed
 or
 .Dq gated ,
@@ -428,8 +429,8 @@ Compatibility with
 4.x
 (available for
 earlier releases of
-.Fx 4.x
-)
+.Fx
+4.x)
 .It Li ports
 The ports collection.
 .It Li krb4
@@ -757,7 +758,7 @@ The netmask for the selected host interface (non-optional).
 .It _ftpPath
 The fully qualified URL of the FTP site containing the
 .Fx
-distribution you're interested in, e.g.
+distribution you're interested in, e.g.\&
 .Ar ftp://ftp.FreeBSD.org/pub/FreeBSD/ .
 .El
 .It mediaSetFTPActive
