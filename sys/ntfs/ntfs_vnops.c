@@ -156,7 +156,8 @@ ntfs_read(ap)
 
 	dprintf(("ntfs_read: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
 
-	ntfs_filesize(ntmp, fp, &toread, NULL);
+	toread = fp->f_size;
+
 	dprintf(("ntfs_read: filesize: %d",(u_int32_t)toread));
 
 	toread = min( uio->uio_resid, toread - uio->uio_offset );
@@ -165,7 +166,7 @@ ntfs_read(ap)
 
 	MALLOC(data, u_int8_t *, toread, M_TEMP,M_WAITOK);
 
-	error = ntfs_readattr( ntmp, ip, fp->f_attrtype,
+	error = ntfs_readattr(ntmp, ip, fp->f_attrtype,
 		fp->f_attrname, uio->uio_offset, toread, data);
 	if(error) {
 		printf("ntfs_read: ntfs_readattr failed: %d\n",error);
@@ -245,9 +246,7 @@ ntfs_inactive(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-#if defined(NTFS_DEBUG) || defined(DISGNOSTIC)
 	register struct ntnode *ip = VTONT(vp);
-#endif
 	int error;
 
 	dprintf(("ntfs_inactive: vnode: %p, ntnode: %d\n", vp, ip->i_number));
@@ -262,7 +261,7 @@ ntfs_inactive(ap)
 #else
 #ifdef DIAGNOSTIC
 	if (VOP_ISLOCKED(vp))
-		panic("ntfs_inactive: locked ntnode");
+		panic("ntfs_inactive: locked vnode");
 	if (curproc)
 		ip->i_lockholder = curproc->p_pid;
 	else
@@ -275,7 +274,7 @@ ntfs_inactive(ap)
 	 * If we are done with the ntnode, reclaim it
 	 * so that it can be reused immediately.
 	 */
-	if (vp->v_usecount == 0 /*&& ip->i_mode == 0*/)
+	if (vp->v_usecount == 0 && ip->i_mode == 0)
 #if __FreeBSD_version >= 300000
 		vrecycle(vp, (struct simplelock *)0, ap->a_p);
 #else
@@ -295,11 +294,14 @@ ntfs_reclaim(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct fnode *fp = VTOF(vp);
-#if NTFS_DEBUG
 	register struct ntnode *ip = FTONT(fp);
-#endif
+	int error;
 
 	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %d\n", vp, ip->i_number));
+
+	error = ntfs_ntget(ip);
+	if (error)
+		return (error);
 
 #if __FreeBSD_version >= 300000
 	VOP_UNLOCK(vp,0,ap->a_p);
@@ -315,6 +317,8 @@ ntfs_reclaim(ap)
 	ntfs_frele(fp);
 
 	vp->v_data = NULL;
+
+	ntfs_ntput(ip);
 
 	return (0);
 }
@@ -428,14 +432,14 @@ ntfs_write(ap)
 
 	dprintf(("ntfs_write: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
 
-	ntfs_filesize(ntmp, fp, &towrite, NULL);
+	towrite = fp->f_size;
+
+	dprintf(("ntfs_write: filesize: %d",(u_int32_t)towrite));
 
 	if (uio->uio_resid + uio->uio_offset > towrite) {
 		printf("ntfs_write: CAN'T WRITE BEYOND OF FILE\n");
 		return (EFBIG);
 	}
-
-	dprintf(("ntfs_write: filesize: %d",(u_int32_t)towrite));
 
 	towrite = min(uio->uio_resid, towrite - uio->uio_offset);
 	off = uio->uio_offset;
@@ -948,7 +952,7 @@ ntfs_lookup(ap)
 		}
 		return (error);
 	} else {
-		error = ntfs_ntlookup(ntmp, dvp, cnp, ap->a_vpp);
+		error = ntfs_ntlookupfile(ntmp, dvp, cnp, ap->a_vpp);
 		if(error)
 			return (error);
 
@@ -961,6 +965,8 @@ ntfs_lookup(ap)
 #else
 			VOP_UNLOCK(dvp);
 #endif
+		if (cnp->cn_flags & MAKEENTRY)
+			cache_enter(dvp, *ap->a_vpp, cnp);
 
 	}
 	return (error);
