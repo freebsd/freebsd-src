@@ -38,17 +38,13 @@
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)
-#if 0
 	.asciz "@(#)sbrk.s	8.1 (Berkeley) 6/4/93"
-#else
+#if 0
 	RCSID("$NetBSD: sbrk.S,v 1.7 2000/07/25 15:14:46 mycroft Exp $")
 #endif
 #endif /* SYSLIBC_SCCS and not lint */
-
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 

@@ -40,17 +40,12 @@
 #include <machine/asm.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 	.asciz "@(#)htons.s	8.1 (Berkeley) 6/4/93"
-#else
+#if 0
 	RCSID("$NetBSD: htons.S,v 1.1 1998/09/11 04:56:30 eeh Exp $")
 #endif
 #endif /* LIBC_SCCS and not lint */
-
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
+__FBSDID("$FreeBSD$");
 
 /* netorder = htons(hostorder) */
         .weak CNAME(htons)
