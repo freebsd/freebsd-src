@@ -9,7 +9,6 @@ SRCS+=	ifmedia.c
 CFLAGS+=-DUSE_IF_MEDIA
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DINET6
-WARNS=	0
 
 #comment out to exclude SIOC[GS]ETVLAN support
 SRCS+=	ifvlan.c
@@ -31,5 +30,6 @@ LDADD=	-lipx
 
 CFLAGS+=-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \
 	-Wnested-externs -I..
+WARNS=	0
 
 .include <bsd.prog.mk>
