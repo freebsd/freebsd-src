@@ -62,11 +62,6 @@ struct dom_binding {};
 #include "yppasswd.h"
 #include "yppasswd_private.h"
 
-struct cmessage {
-        struct cmsghdr cmsg;
-        struct cmsgcred cmcred;
-};
-
 char *tempname;
 
 void reaper(sig)
@@ -705,47 +700,43 @@ int *yppasswdproc_update_master_1_svc(master_yppasswd *argp,
 	static int result;
 	int pfd, tfd;
 	int pid;
+	uid_t uid;
 	int rval = 0;
 	DBT key, data;
 	char *passfile_hold;
 	char passfile_buf[MAXPATHLEN + 2];
 	struct sockaddr_in *rqhost;
-	struct cmessage			*cm;
-	SVCXPRT				*transp;
+	SVCXPRT	*transp;
 
 	result = 1;
+	transp = rqstp->rq_xprt;
 
 	/*
 	 * NO AF_INET CONNETCIONS ALLOWED!
 	 */
-	rqhost = svc_getcaller(rqstp->rq_xprt);
+	rqhost = svc_getcaller(transp);
 	if (rqhost->sin_family != AF_UNIX) {
 		yp_error("Alert! %s/%d attempted to use superuser-only \
 procedure!\n", inet_ntoa(rqhost->sin_addr), rqhost->sin_port);
-		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		svcerr_auth(transp, AUTH_BADCRED);
 		return(&result);
 	}
 
-	transp = rqstp->rq_xprt;
-
-	if (transp->xp_verf.oa_length < sizeof(struct cmessage) ||
-		transp->xp_verf.oa_base == NULL ||
-		transp->xp_verf.oa_flavor != AUTH_UNIX) {
+	if (rqstp->rq_cred.oa_flavor != AUTH_SYS) {
 		yp_error("caller didn't send proper credentials");
-		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		svcerr_auth(transp, AUTH_BADCRED);
 		return(&result);
 	}
 
-	cm = (struct cmessage *)transp->xp_verf.oa_base;
-	if (cm->cmsg.cmsg_type != SCM_CREDS) {
+	if (__rpc_get_local_uid(transp, &uid) < 0) {
 		yp_error("caller didn't send proper credentials");
-		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		svcerr_auth(transp, AUTH_BADCRED);
 		return(&result);
 	}
-
- 	if (cm->cmcred.cmcred_euid) {
+	
+	if (uid) {
 		yp_error("caller euid is %d, expecting 0 -- rejecting request",
-				cm->cmcred.cmcred_euid);
+		    uid);
 		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
 		return(&result);
 	}
