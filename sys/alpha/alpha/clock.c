@@ -63,8 +63,11 @@
 #define	SECDAY	((unsigned)(24*SECHOUR))	/* seconds per day */
 #define	SECYR	((unsigned)(365*SECDAY))	/* seconds per common year */
 
-#define	LEAPYEAR(y)	\
-	(((y) % 4) == 0 && (((y) % 100) != 0 || ((y) % 400) == 0))
+/*
+ * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
+ * can use a simple formula for leap years.
+ */
+#define	LEAPYEAR(y)	(((y) % 4) == 0)
 
 device_t clockdev;
 int clockinitted;
