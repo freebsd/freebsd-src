@@ -1030,24 +1030,22 @@ groupmember(gid, cred)
 }
 
 /*
- * The suser_permitted MIB entry allows the determination of whether or
- * not the system 'super-user' policy is in effect.  If true, an effective
- * uid of 0 connotes special privilege, overriding many mandatory and
- * discretionary system protections.  If false, uid 0 is offered no
- * special privilege in the kernel security policy.  Setting this value
- * to 0 may seriously impact the functionality of many existing userland
- * programs, and should not be changed without careful consideration of
- * the consequences.
+ * `suser_permitted' (which can be set by the kern.security.suser_permitted
+ * sysctl) determines whether the system 'super-user' policy is in effect.
+ * If it is nonzero, an effective uid of 0 connotes special privilege,
+ * overriding many mandatory and discretionary protections.  If it is zero,
+ * uid 0 is offered no special privilege in the kernel security policy.
+ * Setting it to zero may seriously impact the functionality of many
+ * existing userland programs, and should not be done without careful
+ * consideration of the consequences.
  */
 static int	suser_permitted = 1;
 SYSCTL_INT(_kern_security, OID_AUTO, suser_permitted, CTLFLAG_RW,
     &suser_permitted, 0, "processes with uid 0 have privilege");
 
 /*
- * Test whether the specified credentials imply "super-user"
- * privilege.
- *
- * Returns 0 or error.
+ * Test whether the specified credentials imply "super-user" privilege.
+ * Return 0 or EPERM.
  */
 int
 suser(p)
@@ -1077,12 +1075,12 @@ suser_xxx(cred, proc, flag)
 	return (0);
 }
 
-/*
- * u_cansee(u1, u2): determine if u1 "can see" the subject specified by u2
- * Arguments: imutable credentials u1, u2
+/*-
+ * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: none
- * References: u1 and u2 must be valid for the lifetime of the call
+ * References: u1 and u2 must be immutable credentials
+ *             u1 and u2 must be valid for the lifetime of the call
  *             u1 may equal u2, in which case only one reference is required
  */
 int
@@ -1099,11 +1097,10 @@ u_cansee(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
-/*
- * p_cansee(p1, p2): determine if p1 "can see" the subject specified by p2
- * Arguments: processes p1 and p2
+/*-
+ * Determine if p1 "can see" the subject specified by p2.
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect p1->p_ucred and p2->p_cured must
+ * Locks: Sufficient locks to protect p1->p_ucred and p2->p_ucred must
  *        be held.  Normally, p1 will be curproc, and a lock must be held
  *        for p2.
  * References: p1 and p2 must be valid for the lifetime of the call
@@ -1116,20 +1113,18 @@ p_cansee(struct proc *p1, struct proc *p2)
 	return (u_cansee(p1->p_ucred, p2->p_ucred));
 }
 
-/*
- * p_cansignal(p1, p2, signum): determine whether p1 may deliver the
- *                              specified signal to p2
- * Arguments: processes p1 and p2, signal number 'signum'
- * Returns: 0 on success, an errno value otherwise
- * Locks: Sufficient locks to protect various components of p1 and p2 must
- *        be held.  Normally, p1 will be curproc, and a lock must be held
- *        for p2.
+/*-
+ * Determine whether p1 may deliver the specified signal to p2.
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of p1 and p2
+ *        must be held.  Normally, p1 will be curproc, and a lock must
+ *        be held for p2.
  * References: p1 and p2 must be valid for the lifetime of the call
  */
 int
 p_cansignal(struct proc *p1, struct proc *p2, int signum)
 {
-	int	error;
+	int error;
 	
 	if (p1 == p2)
 		return (0);
@@ -1156,7 +1151,6 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 	 */
 	if (p2->p_flag & P_SUGID) {
 		switch (signum) {
-		/* Generally permit job and terminal control signals. */
 		case 0:
 		case SIGKILL:
 		case SIGINT:
@@ -1168,9 +1162,13 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 		case SIGHUP:
 		case SIGUSR1:
 		case SIGUSR2:
+			/*
+			 * Generally, permit job and terminal control
+			 * signals.
+			 */
 			break;
 		default:
-		/* Not permitted, privilege is required. */
+			/* Not permitted, privilege is required. */
 			error = suser_xxx(NULL, p1, PRISON_ROOT);
 			if (error)
 				return (error);
@@ -1194,13 +1192,12 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
         return (0);
 }
 
-/*
- * p_cansched(p1, p2): determine whether p1 may reschedule p2
- * Arguments: processes p1 and p2
- * Returns: 0 on success, an errno value otherwise
+/*-
+ * Determine whether p1 may reschedule p2
+ * Returns: 0 for permitted, an errno value otherwise
  * Locks: Sufficient locks to protect various components of p1 and p2
  *        must be held.  Normally, p1 will be curproc, and a lock must
- *        be held on p2.
+ *        be held for p2.
  * References: p1 and p2 must be valid for the lifetime of the call
  */
 int
@@ -1210,16 +1207,13 @@ p_cansched(struct proc *p1, struct proc *p2)
 
 	if (p1 == p2)
 		return (0);
-
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
-
 	if (p1->p_ucred->cr_ruid == p2->p_ucred->cr_ruid)
 		return (0);
 	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid)
 		return (0);
-
-	if (!suser_xxx(0, p1, PRISON_ROOT))
+	if (suser_xxx(0, p1, PRISON_ROOT) == 0)
 		return (0);
 
 #ifdef CAPABILITIES
@@ -1231,7 +1225,7 @@ p_cansched(struct proc *p1, struct proc *p2)
 }
 
 /*
- * The kern.unprivileged_procdebug_permitted flag may be used to disable
+ * The kern_unprivileged_procdebug_permitted flag may be used to disable
  * a variety of unprivileged inter-process debugging services, including
  * some procfs functionality, ptrace(), and ktrace().  In the past,
  * inter-process debugging has been involved in a variety of security
@@ -1245,13 +1239,12 @@ SYSCTL_INT(_kern_security, OID_AUTO, unprivileged_procdebug_permitted,
     CTLFLAG_RW, &kern_unprivileged_procdebug_permitted, 0,
     "Unprivileged processes may use process debugging facilities");
 
-/*
- * p_candebug(p1, p2): determine whether p1 may debug p2
- * Arguments: processes p1 and p2
- * Returns: 0 on success, an errno value otherwise
- * Locks: Sufficient locks to protect the various components of p1 and p2
- *        must be held.  Normally, p1 will be curproc, and a lock must be
- *        held for p2.
+/*-
+ * Determine whether p1 may debug p2.
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of p1 and p2
+ *        must be held.  Normally, p1 will be curproc, and a lock must
+ *        be held for p2.
  * References: p1 and p2 must be valid for the lifetime of the call
  */
 int
@@ -1262,16 +1255,19 @@ p_candebug(struct proc *p1, struct proc *p2)
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
 
-	/* not owned by you, has done setuid (unless you're root) */
-	/* add a CAP_SYS_PTRACE here? */
+	/*
+	 * Not owned by you, has done setuid (unless you're root).
+	 * XXX add a CAP_SYS_PTRACE here?
+	 */
 	if (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid ||
-	    p2->p_flag & P_SUGID || !kern_unprivileged_procdebug_permitted)
-		if ((error = suser_xxx(0, p1, PRISON_ROOT)))
+	    p2->p_flag & P_SUGID || !kern_unprivileged_procdebug_permitted) {
+		if ((error = suser_xxx(0, p1, PRISON_ROOT)) != 0)
 			return (error);
+	}
 
-	/* can't trace init when securelevel > 0 */
+	/* Can't trace init when securelevel > 0. */
 	if (securelevel > 0 && p2->p_pid == 1)
 		return (EPERM);
 
@@ -1293,7 +1289,7 @@ crget()
 }
 
 /*
- * Claim another reference to a ucred structure
+ * Claim another reference to a ucred structure.
  */
 void
 crhold(cr)
@@ -1439,8 +1435,8 @@ setsugid(p)
 		p->p_stops = 0;
 }
 
-/*
- * change_euid(): Change a process's effective uid.
+/*-
+ * Change a process's effective uid.
  * Side effects: newcred->cr_uid and newcred->cr_uidinfo will be modified.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
@@ -1456,8 +1452,8 @@ change_euid(newcred, euid)
 	newcred->cr_uidinfo = uifind(euid);
 }
 
-/*
- * change_egid(): Change a process's effective gid.
+/*-
+ * Change a process's effective gid.
  * Side effects: newcred->cr_gid will be modified.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
@@ -1471,8 +1467,8 @@ change_egid(newcred, egid)
 	newcred->cr_groups[0] = egid;
 }
 
-/*
- * change_ruid(): Change a process's real uid.
+/*-
+ * Change a process's real uid.
  * Side effects: newcred->cr_ruid will be updated, newcred->cr_ruidinfo
  *               will be updated, and the old and new cr_ruidinfo proc
  *               counts will be updated.
@@ -1492,8 +1488,8 @@ change_ruid(newcred, ruid)
 	(void)chgproccnt(newcred->cr_ruidinfo, 1, 0);
 }
 
-/*
- * change_rgid(): Change a process's real gid.
+/*-
+ * Change a process's real gid.
  * Side effects: newcred->cr_rgid will be updated.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
@@ -1507,8 +1503,8 @@ change_rgid(newcred, rgid)
 	newcred->cr_rgid = rgid;
 }
 
-/*
- * change_svuid(): Change a process's saved uid.
+/*-
+ * Change a process's saved uid.
  * Side effects: newcred->cr_svuid will be updated.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
@@ -1522,8 +1518,8 @@ change_svuid(newcred, svuid)
 	newcred->cr_svuid = svuid;
 }
 
-/*
- * change_svgid(): Change a process's saved gid.
+/*-
+ * Change a process's saved gid.
  * Side effects: newcred->cr_svgid will be updated.
  * References: newcred must be an exclusive credential reference for the
  *             duration of the call.
