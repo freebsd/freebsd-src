@@ -54,7 +54,7 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <pci/pci_ioctl.h>
+#include <sys/pciio.h>
 
 #ifdef APIC_IO
 #include <machine/smp.h>
