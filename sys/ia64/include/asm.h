@@ -33,19 +33,6 @@
  *	aid in writing more readable assembly code.
  *	Some rules to make assembly code understandable by
  *	a debugger are also noted.
- *
- *	The document
- *
- *		"ALPHA Calling Standard", DEC 27-Apr-90
- *
- *	defines (a superset of) the rules and conventions
- *	we use.  While we make no promise of adhering to
- *	such standard and its evolution (esp where we
- *	can get faster code paths) it is certainly intended
- *	that we be interoperable with such standard.
- *
- *	In this sense, this file is a proper part of the
- *	definition of the (software) Alpha architecture.
  */
 
 /*
