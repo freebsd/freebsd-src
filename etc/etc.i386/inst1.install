@@ -5,6 +5,7 @@
 # already in /etc/disktab.  You can edit it out of the file after installation.
 #
 PATH=/sbin:/bin:/usr/bin:/usr/sbin:.
+export PATH
 
 OPSYSTEM=FreeBSD
 OPSYSID=165
