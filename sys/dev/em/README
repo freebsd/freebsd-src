@@ -1,9 +1,8 @@
 $FreeBSD$
-
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-April 3, 2002
+July 2, 2002
 
 
 Contents
@@ -24,13 +23,12 @@ In This Release
 
 This file describes the FreeBSD* driver, version 1.3.x, for the Intel(R)
 PRO/1000 Family of Adapters. This driver has been developed for use with 
-FreeBSD, version 4.5.
+FreeBSD, version 4.6. As a new feature for this release, the driver is now 
+compiled by default into the FreeBSD 4.6 kernel.
 
 The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on 
 all but the 82542-based adapters. For specific adapters, refer to the 
 Supported Adapters section below.
-
-Support for VLANs has been added as a new feature in this driver version.
 
 For questions related to hardware requirements, refer to the documentation 
 supplied with your Intel PRO/1000 adapter. All hardware requirements listed 
@@ -146,31 +144,19 @@ NOTE: You must have kernel sources installed in order to compile the driver
 
 7. If you want to compile the driver into the kernel, enter:
 
-        mkdir /usr/src/sys/dev/em       
         cd em-x.x.x/src
         cp if_em* /usr/src/sys/dev/em   
-        mkdir /usr/src/sys/modules/em
         cp Makefile /usr/src/sys/modules/em
 
-   Edit Makefile at /usr/src/sys/modules to add the em subdirectory.
+   Edit the /usr/src/sys/conf/files.i386 file, and add the following line:
 
-   Edit your config file and add the following line, if it is not already
-   in the file:
-
-        device em
-
-   Edit your config file, and remove the 'device wx' line from the file.
-        
-   Edit the /usr/src/sys/conf/files.i386 file, and add the following lines:
-
-        dev/em/if_em.c optional em
         dev/em/if_em_hw.c optional em
 
-   Remove the following files from the /usr/src/sys/conf/files.i386 file, if 
+   Remove the following lines from the /usr/src/sys/conf/files.i386 file, if 
    they exist:
 
-        /dev/em/if_em_fx_hw.c
-        /dev/em/if_em_phy.c
+        /dev/em/if_em_fxhw.c optional em
+        /dev/em/if_em_phy.c optional em
 
    Compile and install the kernel.
 
