@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- *	$Id$
+ *	$Id: interp_parse.c,v 1.1 1998/09/01 00:41:24 msmith Exp $
  * 
  * The meat of the simple parser.
  */
@@ -71,30 +71,41 @@ isdelim(char ch)
     return '\0';
 }
 
+static int
+isquote(char ch)
+{
+    return (ch == '\'' || ch == '"');
+}
+
 int
 parse(int *argc, char ***argv, char *str)
 {
     int ac;
     char *val, *p, *q, *copy = NULL;
     int i = 0;
-    char token, tmp, *buf;
+    char token, tmp, quote, *buf;
     enum { STR, VAR, WHITE } state;
 
     ac = *argc = 0;
+    quote = 0;
     if (!str || (p = copy = backslash(str)) == NULL)
 	return 1;
 
     /* Initialize vector and state */
     clean();
     state = STR;
-    buf = malloc(PARSE_BUFSIZE);
+    buf = (char *)malloc(PARSE_BUFSIZE);
     token = 0;
 
     /* And awaaaaaaaaay we go! */
     while (*p) {
 	switch (state) {
 	case STR:
-	    if (isspace(*p)) {
+	    if (isquote(*p)) {
+		quote = quote ? 0 : *p;
+		++p;
+	    }
+	    else if (isspace(*p) && !quote) {
 		state = WHITE;
 		if (i) {
 		    buf[i] = '\0';
@@ -151,7 +162,7 @@ parse(int *argc, char ***argv, char *str)
     }
     args[ac] = NULL;
     *argc = ac;
-    *argv = malloc((sizeof(char *) * ac + 1));
+    *argv = (char **)malloc((sizeof(char *) * ac + 1));
     bcopy(args, *argv, sizeof(char *) * ac + 1);
     free(copy);
     return 0;
