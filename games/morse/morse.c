@@ -54,6 +54,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <fcntl.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -228,13 +229,13 @@ tone_t          sound;
 "usage: morse [-s] [-p] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
 #endif
 
-static const struct morsetab *hightab = iso8859tab;
+static const struct morsetab *hightab;
 
 int
 main(int argc, char **argv)
 {
 	int    ch, lflags;
-	char  *p;
+	char  *p, *codeset;
 
 	while ((ch = getopt(argc, argv, GETOPTOPTS)) != -1)
 		switch ((char) ch) {
@@ -318,14 +319,14 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if(((p = getenv("LC_ALL")) && *p) ||
-	   ((p = getenv("LC_CTYPE")) && *p) ||
-	   ((p = getenv("LANG")) && *p)) {
-		if(strlen(p) >= sizeof(".KOI8-R") &&
-		   strcasecmp(&p[strlen(p) + 1 - sizeof(".KOI8-R")], ".KOI8-R") == 0)
+	if (setlocale(LC_CTYPE, "") != NULL &&
+	    *(codeset = nl_langinfo(CODESET)) != '\0') {
+		if (strcmp(codeset, "KOI8-R") == 0)
 			hightab = koi8rtab;
+		else if (strcmp(codeset, "ISO8859-1") == 0 ||
+			 strcmp(codeset, "ISO8859-15") == 0)
+			hightab = iso8859tab;
 	}
-	(void) setlocale(LC_CTYPE, "");
 
 	if (*argv) {
 		do {
@@ -372,7 +373,7 @@ morse(char c)
 		}
 	}
 	for (m = ((unsigned char)c < 0x80? mtab: hightab);
-	     m->inchar != '\0';
+	     m != NULL && m->inchar != '\0';
 	     m++) {
 		if (m->inchar == c) {
 			if (pflag) {
