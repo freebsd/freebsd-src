@@ -371,39 +371,6 @@ dsioctl(dev, cmd, data, flags, sspp)
 		*(struct disklabel *)data = *lp;
 		return (0);
 
-	case DIOCGDVIRGIN:
-		lp = (struct disklabel *)data;
-		if (ssp->dss_slices[WHOLE_DISK_SLICE].ds_label) {
-			*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
-		} else {
-			bzero(lp, sizeof(struct disklabel));
-		}
-
-		lp->d_magic = DISKMAGIC;
-		lp->d_magic2 = DISKMAGIC;
-		pp = &lp->d_partitions[RAW_PART];
-		pp->p_offset = 0;
-		pp->p_size = sp->ds_size;
-
-		lp->d_npartitions = MAXPARTITIONS;
-		if (lp->d_interleave == 0)
-			lp->d_interleave = 1;
-		if (lp->d_rpm == 0)
-			lp->d_rpm = 3600;
-		if (lp->d_nsectors == 0)
-			lp->d_nsectors = 32;
-		if (lp->d_ntracks == 0)
-			lp->d_ntracks = 64;
-
-		lp->d_bbsize = BBSIZE;
-		lp->d_sbsize = 0;
-		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
-		lp->d_ncylinders = sp->ds_size / lp->d_secpercyl;
-		lp->d_secperunit = sp->ds_size;
-		lp->d_checksum = 0;
-		lp->d_checksum = dkcksum(lp);
-		return (0);
-
 	case DIOCGMEDIASIZE:
 		if (lp == NULL)
 			*(off_t *)data = (off_t)sp->ds_size * ssp->dss_secsize;
