@@ -97,7 +97,7 @@ char *argv[];
 	 * Log it
 	 */
 	syslog(LOG_DAEMON|LOG_INFO, "connect to %s,%d",
-		inet_ntoa(natlook.nl_realip), natlook.nl_realport);
+		inet_ntoa(natlook.nl_realip), ntohs(natlook.nl_realport));
 	printf("connect to %s,%d\n",
 		inet_ntoa(natlook.nl_realip), ntohs(natlook.nl_realport));
 

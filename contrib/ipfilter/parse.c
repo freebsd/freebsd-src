@@ -35,7 +35,7 @@
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)parse.c	1.44 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: parse.c,v 2.0.2.18 1997/10/19 15:39:29 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: parse.c,v 2.0.2.18.2.1 1997/11/20 12:43:49 darrenr Exp $";
 #endif
 
 extern	struct	ipopt_names	ionames[], secclass[];
@@ -475,7 +475,8 @@ char	*line;
 	/*
 	 * lazy users...
 	 */
-	if (!fil.fr_proto && (fil.fr_dcmp || fil.fr_scmp || fil.fr_tcpf)) {
+	if (!fil.fr_proto && !(fil.fr_ip.fi_fl & FI_TCPUDP) &&
+	    (fil.fr_dcmp || fil.fr_scmp || fil.fr_tcpf)) {
 		(void)fprintf(stderr,
 			"no protocol given for TCP/UDP comparisons\n");
 		return NULL;
@@ -541,7 +542,7 @@ u_char	*cp;
 	/*
 	 * is it possibly hostname/num ?
 	 */
-	if ((s = index(**seg, '/'))) {
+	if ((s = index(**seg, '/')) || (s = index(**seg, ':'))) {
 		*s++ = '\0';
 		if (!isdigit(*s))
 			return -1;

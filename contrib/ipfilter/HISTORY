@@ -5,6 +5,49 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+3.2.3	10/11/97 - Released
+
+fix some iplang bugs
+
+fix tcp checksum data overrun, sgi #define changes,
+avoid infinite loop when nat'ing to single IP# - Marc Boucher
+
+fixup DEVFS usage for FreeBSD
+
+fix sunos5 "make clean" cleaning up too much
+
+3.2.2	28/11/97 - Released
+
+change packet matching to return actual error, if bad packet, to facilitate
+ECONNRESET for TCP.
+
+allow ip:netmask in grammar too now - Guido
+
+assume IRIX has u_int32_t in sys/types.h (needed for R10000)
+
+rewrite parts of command line options for ipmon
+
+fix TCP urgent packet & offset testing and add LAND attack test for iptest
+
+fix grammar error in yacc grammar for iplang
+
+redirect (rdr) destination port bytes-wapped when it shouldn't be.
+
+general: fr_check now returns error code, such as EHOSTUNREACH or
+ECONNRESET (attempt to make ECONNRESET work for locally outbound
+packets).
+
+linux: enable return-rst, need to filter tcp retransmits which are sent
+       separately from normal packets
+
+memory leak plugged in ip_proxy.c
+
+BSDI compatibility patches from Guido
+
+tcp checksum fix - Marc Boucher
+
+recursive mutex and ioctl param fix - Marc Boucher
+
 3.2.1	12/11/97 - Released
 
 port to BSD/OS 3.0
