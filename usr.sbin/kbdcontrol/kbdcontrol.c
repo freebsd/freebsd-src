@@ -44,15 +44,11 @@ static const char rcsid[] =
 #include "lex.h"
 
 /*
- * PASTE and CONS_CLRHIST are't defined in 4.x, but we need them to
- * bridge to 5.0-current so define them here as a stop gap transition
- * measure.
+ * PASTE isn't defined in 4.x, but we need it to bridge to 5.0-current
+ * so define it here as a stop gap transition measure.
  */
 #ifndef PASTE
 #define PASTE		0xa3		/* paste from cut-paste buffer */
-#endif
-#ifndef	CONS_CLRHIST
-#define CONS_CLRHIST	_IO('c', 10)
 #endif
 
 char ctrl_names[32][4] = {
@@ -988,8 +984,12 @@ void
 clear_history()
 {
 
+#ifdef CONS_CLRHIST
 	if (ioctl(0, CONS_CLRHIST) == -1)
 		warn("clear history buffer");
+#else
+	warnx("clearing history not supported");
+#endif
 }
 
 static char
