@@ -45,27 +45,9 @@ module is unloaded (if
 .Nm
 is built into your kernel, the network interfaces cannot be removed).
 .Pp
-On older systems without
-.Xr devfs 5
-support,
-.Xr MAKEDEV 8
-should be used to create the initial control devices and the task
-of locating an unused device is left up to the opener (a
+The
 .Nm
-device is usually obtained by attempting to open
-.Pa /dev/tap0 ,
-and if that fails
-.Pa /dev/tap1
-etc., until an
-.Va errno
-of
-.Er EBUSY
-is not received).
-.Pp
-On systems with
-.Xr devfs 5
-support,
-.Nm
+interface
 permits opens on the special control device
 .Pa /dev/tap .
 When this device is opened,
