@@ -452,7 +452,13 @@ traverse(int argc, char *argv[], int options)
 	    fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL)
 		err(1, "fts_open");
 
-	display(NULL, fts_children(ftsp, 0), options);
+	/*
+	 * We ignore errors from fts_children here since they will be
+	 * replicated and signalled on the next call to fts_read() below.
+	 */
+	chp = fts_children(ftsp, 0);
+	if (chp != NULL)
+		display(NULL, chp, options);
 	if (f_listdir)
 		return;
 
@@ -532,16 +538,6 @@ display(const FTSENT *p, FTSENT *list, int options)
 	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
-
-	/*
-	 * If list is NULL there are two possibilities: that the parent
-	 * directory p has no children, or that fts_children() returned an
-	 * error.  We ignore the error case since it will be replicated
-	 * on the next call to fts_read() on the post-order visit to the
-	 * directory p, and will be signaled in traverse().
-	 */
-	if (list == NULL)
-		return;
 
 	needstats = f_inode || f_longform || f_size;
 	flen = 0;
@@ -784,7 +780,13 @@ label_out:
 		++entries;
 	}
 
-	if (!entries)
+	/*
+	 * If there are no entries to display, we normally stop right
+	 * here.  However, we must continue if we have to display the
+	 * total block count.  In this case, we display the total only
+	 * on the second (p != NULL) pass.
+	 */
+	if (!entries && (!(f_longform || f_size) || p == NULL))
 		return;
 
 	d.list = list;
