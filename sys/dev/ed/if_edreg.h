@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.15 1994/08/02 07:39:30 davidg Exp $
+ * $Id: if_edreg.h,v 1.16 1994/08/04 17:42:35 davidg Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions 
@@ -705,6 +705,25 @@ struct ed_ring	{
 #define ED_WD790_ICR_EIL	0x01	/* enable interrupts */
 
 /*
+ * REV/IOPA Revision / I/O Pipe register for the 83C79X
+ */
+#define ED_WD790_REV	7
+
+#define ED_WD790	0x20
+#define ED_WD795	0x40
+
+/*
+ * 79X RAM Address Register (RAR)
+ *	Enabled with SWH bit=1 in HWR register
+ */
+#define ED_WD790_RAR	0x0b
+
+#define ED_WD790_RAR_SZ8	0x00	/* 8k memory buffer */
+#define ED_WD790_RAR_SZ16	0x10	/* 16k memory buffer */
+#define ED_WD790_RAR_SZ32	0x20	/* 32k memory buffer */
+#define ED_WD790_RAR_SZ64	0x30	/* 64k memory buffer */
+
+/*
  * General Control Register (GCR)
  *	Enabled with SWH bit=1 in HWR register
  */
@@ -714,6 +733,7 @@ struct ed_ring	{
 #define ED_WD790_GCR_IR1	0x08	/* bit 1 of encoded IRQ */
 #define ED_WD790_GCR_ZWSEN	0x20	/* zero wait state enable */
 #define ED_WD790_GCR_IR2	0x40	/* bit 2 of encoded IRQ */
+#define ED_WD790_GCR_LIT	0x01	/* Link Integrity Test Enable */
 /*
  * The three bits of the encoded IRQ are decoded as follows:
  *
