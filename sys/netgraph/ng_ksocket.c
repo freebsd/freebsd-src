@@ -732,12 +732,13 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 				so->so_state &= ~SS_ISCONNECTING;
 				ERROUT(error);
 			}
-			if ((so->so_state & SS_ISCONNECTING) != 0)
+			if ((so->so_state & SS_ISCONNECTING) != 0) {
 				/* We will notify the sender when we connect */
 				priv->response_token = msg->header.token;
 				strcpy(priv->response_addr, raddr);
 				priv->flags |= KSF_CONNECTING;
 				ERROUT(EINPROGRESS);
+			}
 			break;
 		    }
 
