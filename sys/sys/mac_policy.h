@@ -63,9 +63,12 @@ struct label;
 struct mac_policy_conf;
 struct mbuf;
 struct mount;
+struct msqid_kernel;
 struct pipepair;
 struct proc;
 struct sbuf;
+struct semid_kernel;
+struct shmid_kernel;
 struct sockaddr;
 struct socket;
 struct sysctl_oid;
@@ -100,6 +103,10 @@ struct mac_policy_ops {
 	void	(*mpo_init_devfsdirent_label)(struct label *label);
 	void	(*mpo_init_ifnet_label)(struct label *label);
 	int	(*mpo_init_inpcb_label)(struct label *label, int flag);
+	void	(*mpo_init_sysv_msgmsg_label)(struct label *label);
+	void	(*mpo_init_sysv_msgqueue_label)(struct label *label);
+	void	(*mpo_init_sysv_sema_label)(struct label *label);
+	void	(*mpo_init_sysv_shm_label)(struct label *label);
 	int	(*mpo_init_ipq_label)(struct label *label, int flag);
 	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
 	void	(*mpo_init_mount_label)(struct label *label);
@@ -114,6 +121,10 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_devfsdirent_label)(struct label *label);
 	void	(*mpo_destroy_ifnet_label)(struct label *label);
 	void	(*mpo_destroy_inpcb_label)(struct label *label);
+	void	(*mpo_destroy_sysv_msgmsg_label)(struct label *label);
+	void	(*mpo_destroy_sysv_msgqueue_label)(struct label *label);
+	void	(*mpo_destroy_sysv_sema_label)(struct label *label);
+	void	(*mpo_destroy_sysv_shm_label)(struct label *label);
 	void	(*mpo_destroy_ipq_label)(struct label *label);
 	void	(*mpo_destroy_mbuf_label)(struct label *label);
 	void	(*mpo_destroy_mount_label)(struct label *label);
@@ -123,6 +134,10 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_pipe_label)(struct label *label);
 	void	(*mpo_destroy_proc_label)(struct label *label);
 	void	(*mpo_destroy_vnode_label)(struct label *label);
+	void	(*mpo_cleanup_sysv_msgmsg)(struct label *msglabel);
+	void	(*mpo_cleanup_sysv_msgqueue)(struct label *msqlabel);
+	void	(*mpo_cleanup_sysv_sema)(struct label *semalabel);
+	void	(*mpo_cleanup_sysv_shm)(struct label *shmlabel);
 	void	(*mpo_copy_cred_label)(struct label *src,
 		    struct label *dest);
 	void	(*mpo_copy_ifnet_label)(struct label *src,
@@ -225,6 +240,19 @@ struct mac_policy_ops {
 		    struct label *pipelabel);
 
 	/*
+	 * Labeling event operations: System V IPC primitives.
+	 */
+	void	(*mpo_create_sysv_msgmsg)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqlabel,
+		    struct msg *msgptr, struct label *msglabel);
+	void	(*mpo_create_sysv_msgqueue)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqlabel);
+	void	(*mpo_create_sysv_sema)(struct ucred *cred,
+		    struct semid_kernel *semakptr, struct label *semalabel);
+	void	(*mpo_create_sysv_shm)(struct ucred *cred,
+		    struct shmid_kernel *shmsegptr, struct label *shmlabel);
+
+	/*
 	 * Labeling event operations: network objects.
 	 */
 	void	(*mpo_create_bpfdesc)(struct ucred *cred, struct bpf_d *bpf_d,
@@ -315,6 +343,42 @@ struct mac_policy_ops {
 	int	(*mpo_check_inpcb_deliver)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
+	int	(*mpo_check_sysv_msgmsq)(struct ucred *cred,
+		    struct msg *msgptr, struct label *msglabel,
+		    struct msqid_kernel *msqkptr, struct label *msqklabel);
+	int	(*mpo_check_sysv_msgrcv)(struct ucred *cred,
+		    struct msg *msgptr, struct label *msglabel);
+	int	(*mpo_check_sysv_msgrmid)(struct ucred *cred,
+		    struct msg *msgptr, struct label *msglabel);
+	int	(*mpo_check_sysv_msqget)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqklabel);
+	int	(*mpo_check_sysv_msqsnd)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqklabel);
+	int	(*mpo_check_sysv_msqrcv)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqklabel);
+	int	(*mpo_check_sysv_msqctl)(struct ucred *cred,
+		    struct msqid_kernel *msqkptr, struct label *msqklabel,
+		    int cmd);
+	int	(*mpo_check_sysv_semctl)(struct ucred *cred,
+		    struct semid_kernel *semakptr, struct label *semaklabel,
+		    int cmd);
+	int	(*mpo_check_sysv_semget)(struct ucred *cred,
+		    struct semid_kernel *semakptr, struct label *semaklabel);
+	int	(*mpo_check_sysv_semop)(struct ucred *cred,
+		    struct semid_kernel *semakptr, struct label *semaklabel,
+		    size_t accesstype);
+	int	(*mpo_check_sysv_shmat)(struct ucred *cred,
+		    struct shmid_kernel *shmsegptr,
+		    struct label *shmseglabel, int shmflg);
+	int	(*mpo_check_sysv_shmctl)(struct ucred *cred,
+		    struct shmid_kernel *shmsegptr,
+		    struct label *shmseglabel, int cmd);
+	int	(*mpo_check_sysv_shmdt)(struct ucred *cred,
+		    struct shmid_kernel *shmsegptr,
+		    struct label *shmseglabel);
+	int	(*mpo_check_sysv_shmget)(struct ucred *cred,
+		    struct shmid_kernel *shmsegptr,
+		    struct label *shmseglabel, int shmflg);
 	int	(*mpo_check_kenv_dump)(struct ucred *cred);
 	int	(*mpo_check_kenv_get)(struct ucred *cred, char *name);
 	int	(*mpo_check_kenv_set)(struct ucred *cred, char *name,
@@ -328,7 +392,7 @@ struct mac_policy_ops {
 		    struct label *mntlabel);
 	int	(*mpo_check_pipe_ioctl)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel,
-		    unsigned long cmd, void *data); 
+		    unsigned long cmd, void *data);
 	int	(*mpo_check_pipe_poll)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel);
 	int	(*mpo_check_pipe_read)(struct ucred *cred,
