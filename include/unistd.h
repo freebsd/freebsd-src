@@ -38,8 +38,33 @@
 #define	_UNISTD_H_
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#include <sys/types.h>			/* XXX adds too much pollution. */
 #include <sys/unistd.h>
+#include <sys/_types.h>
+
+#ifdef	_BSD_GID_T_
+typedef	_BSD_GID_T_	gid_t;
+#undef	_BSD_GID_T_
+#endif
+
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
+#ifdef	_BSD_SSIZE_T_
+typedef	_BSD_SSIZE_T_	ssize_t;
+#undef	_BSD_SSIZE_T_
+#endif
+
+#ifdef	_BSD_UID_T_
+typedef	_BSD_UID_T_	uid_t;
+#undef	_BSD_UID_T_
+#endif
+
+/*
+ * XXX missing type definitions for off_t, pid_t and useconds_t.
+ */
 
 #define	 STDIN_FILENO	0	/* standard input file descriptor */
 #define	STDOUT_FILENO	1	/* standard output file descriptor */
