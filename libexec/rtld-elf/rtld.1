@@ -106,7 +106,7 @@ library-name, major-version-number, minor-version-number
 recognises a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
-.Bl -tag -width "LD_TRACE_LOADED_OBJECTS_PROGNAME"
+.Bl -tag -width "LD_IGNORE_MISSING_OBJECTS"
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
@@ -134,6 +134,30 @@ object. This is usually indicative of an incorrectly built library.
 When set to a nonempty string, no warning messages of any kind are
 issued. Normally, a warning is given if satisfactorily versioned
 library could not be found.
+.It Ev LD_IGNORE_MISSING_OBJECTS
+When set to a nonempty string, makes it a nonfatal condition if
+one or more required shared objects cannot be loaded.
+Loading and execution proceeds using the objects that are
+available.
+A warning is produced for each missing object, unless the environment
+variable
+.Ev LD_SUPPRESS_WARNINGS
+is set to a nonempty string.
+.Pp
+This is ignored for set-user-ID and set-group-ID programs.
+.Pp
+Missing shared objects can be ignored without errors if all the
+following conditions hold:
+.Bl -bullet
+.It
+They do not supply definitions for any required data symbols.
+.It
+No functions defined by them are called during program execution.
+.It
+The environment variable
+.Ev LD_BIND_NOW
+is unset or is set to the empty string.
+.El
 .It Ev LD_TRACE_LOADED_OBJECTS
 When set to a nonempty string, causes
 .Nm
