@@ -72,14 +72,16 @@ The options are as follows:
 Use the specified mount
 .Ar options ,
 as described in
-.Xr mount 8 ,
-or one of the MSDOS file system-specific options
-.Ar shortnames ,
-.Ar longnames
-or
-.Ar nowin95 ,
-all of which can be used to affect Windows name translation in the
-underlying file system.
+.Xr mount 8 .
+The following MSDOS file system-specific options are available:
+.Bl -tag -width indent
+.It Cm longnames
+Force Windows 95 long filenames to be visible.
+.It Cm shortnames
+Force only the old MS-DOS 8.3 style filenames to be visible.
+.It Cm nowin95
+Completely ignore Windows 95 extended file information.
+.El
 .It Fl u Ar uid
 Set the owner of the files in the file system to
 .Ar uid .
