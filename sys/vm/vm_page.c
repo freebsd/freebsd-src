@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.133 1999/06/22 07:18:17 alc Exp $
+ *	$Id: vm_page.c,v 1.134 1999/07/01 19:53:42 peter Exp $
  */
 
 /*
@@ -104,8 +104,6 @@ struct pglist vm_page_queue_active = {0};
 struct pglist vm_page_queue_inactive = {0};
 struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {{0}};
 
-static int no_queue=0;
-
 struct vpgqueues vm_page_queues[PQ_COUNT] = {{0}};
 static int pqcnt[PQ_COUNT] = {0};
 
@@ -113,8 +111,6 @@ static void
 vm_page_queue_init(void) {
 	int i;
 
-	vm_page_queues[PQ_NONE].pl = NULL;
-	vm_page_queues[PQ_NONE].cnt = &no_queue;
 	for(i=0;i<PQ_L2_SIZE;i++) {
 		vm_page_queues[PQ_FREE+i].pl = &vm_page_queue_free[i];
 		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
@@ -128,10 +124,10 @@ vm_page_queue_init(void) {
 		vm_page_queues[PQ_CACHE+i].pl = &vm_page_queue_cache[i];
 		vm_page_queues[PQ_CACHE+i].cnt = &cnt.v_cache_count;
 	}
-	for(i=0;i<PQ_COUNT;i++) {
+	for(i=PQ_FREE;i<PQ_COUNT;i++) {
 		if (vm_page_queues[i].pl) {
 			TAILQ_INIT(vm_page_queues[i].pl);
-		} else if (i != 0) {
+		} else {
 			panic("vm_page_queue_init: queue %d is null", i);
 		}
 		vm_page_queues[i].lcnt = &pqcnt[i];
@@ -398,7 +394,7 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	m->object->generation++;
+	object->generation++;
 
 	/*
 	 * show that the object has one more resident page.
@@ -1208,7 +1204,6 @@ vm_page_wire(m)
 	}
 	m->wire_count++;
 	splx(s);
-	(*vm_page_queues[PQ_NONE].lcnt)++;
 	vm_page_flag_set(m, PG_MAPPED);
 }
 
