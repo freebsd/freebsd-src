@@ -1057,7 +1057,7 @@ after_listen:
 	 * for incoming connections is handled in tcp_syncache.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
-	tcp_dooptions(tp,&to, optp, optlen, thflags & TH_SYN,th);
+	tcp_dooptions(tp, &to, optp, optlen, thflags & TH_SYN, th);
 	if (thflags & TH_SYN) {
 		if (to.to_flags & TOF_SCALE) {
 			tp->t_flags |= TF_RCVD_SCALE;
@@ -1084,7 +1084,7 @@ after_listen:
 	if (tp->sack_enable) {
 		/* Delete stale (cumulatively acked) SACK holes */
 		tcp_del_sackholes(tp, th);
-		tp->rcv_laststart = th->th_seq; /* last rec'vd segment*/
+		tp->rcv_laststart = th->th_seq; /* last recv'd segment*/
 		tp->rcv_lastend = th->th_seq + tlen;
 	}
 
@@ -2579,7 +2579,7 @@ static void
 tcp_dooptions(tp, to, cp, cnt, is_syn, th)
 	struct tcpcb *tp;
 	struct tcpopt *to;
-	u_char *cp;   
+	u_char *cp;
 	int cnt;
 	int is_syn;
 	struct tcphdr *th;
