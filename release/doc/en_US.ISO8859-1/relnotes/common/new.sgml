@@ -1756,11 +1756,12 @@
     longer world-executable).  Users of &man.pppd.8; may need to
     change their group settings. &merged;</para>
 
-    <para>&man.ftpd.8; now supports an <option>-o</option> option to
-    disable the <literal>RETR</literal> command.  Coupled with
-    <option>-A</option> and appropriate file permissions, this allows one
-    to create a relatively safe anonymous FTP drop box for others to upload
-    to.</para>
+    <para>&man.ftpd.8; now supports <option>-o</option> and
+    <option>-O</option> options to disable the <literal>RETR</literal>
+    command; the former for everybody, and the latter only for guest users.
+    Coupled with <option>-A</option> and appropriate file permissions,
+    these can be used to create a relatively safe anonymous FTP drop box
+    for others to upload to.</para>
 
     <para>The &man.daemon.8; program, a command-line interface to
     &man.daemon.3;, has been added.  It detaches itself from its
