@@ -452,14 +452,18 @@ main(int argc, char *argv[], char **envp)
 				| O_NONBLOCK | O_EXLOCK, 0644);
 			if (fd < 0) {
 				if (errno == EAGAIN)
-					errx(1, "%s: file locked", pid_file);
+					syslog(LOG_ERR,
+					    "%s: already locked", pid_file);
 				else
-					err(1, "%s", pid_file);
+					syslog(LOG_ERR, "%s: %m", pid_file);
+				exit(1);
 			}
 			snprintf(buf, sizeof(buf),
 				"%lu\n", (unsigned long) getpid());
-			if (write(fd, buf, strlen(buf)) < 0)
-				err(1, "%s: write", pid_file);
+			if (write(fd, buf, strlen(buf)) < 0) {
+				syslog(LOG_ERR, "%s: write: %m", pid_file);
+				exit(1);
+			}
 			/* Leave the pid file open and locked */
 		}
 		/*
