@@ -101,7 +101,6 @@ extern struct msginfo	msginfo;
 #ifndef MSGSEG
 #define MSGSEG	2048		/* must be less than 32767 */
 #endif
-#undef MSGMAX			/* ALWAYS compute MGSMAX! */
 #define MSGMAX	(MSGSSZ*MSGSEG)
 #ifndef MSGMNB
 #define MSGMNB	2048		/* max # of bytes in a queue */
