@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.23 1995/05/24 09:00:32 jkh Exp $
+ * $Id: label.c,v 1.24 1995/05/25 01:22:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,7 +67,6 @@
 
 /* All the chunks currently displayed on the screen */
 static struct {
-    struct disk *d;
     struct chunk *c;
     PartType type;
 } label_chunk_info[MAX_CHUNKS + 1];
@@ -79,7 +78,7 @@ check_conflict(char *name)
 {
     int i;
 
-    for (i = 0; label_chunk_info[i].d; i++)
+    for (i = 0; label_chunk_info[i].c; i++)
 	if (label_chunk_info[i].type == PART_FILESYSTEM
 	    && label_chunk_info[i].c->private
 	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private)->mountpoint, name))
@@ -132,7 +131,6 @@ record_label_chunks()
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		label_chunk_info[j].type = PART_SLICE;
-		label_chunk_info[j].d = d;
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
@@ -152,7 +150,6 @@ record_label_chunks()
 			    label_chunk_info[j].type = PART_SWAP;
 			else
 			    label_chunk_info[j].type = PART_FILESYSTEM;
-			label_chunk_info[j].d = d;
 			label_chunk_info[j].c = c2;
 			++j;
 		    }
@@ -160,13 +157,11 @@ record_label_chunks()
 	    }
 	    else if (c1->type == fat) {
 		label_chunk_info[j].type = PART_FAT;
-		label_chunk_info[j].d = d;
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
 	}
     }
-    label_chunk_info[j].d = NULL;
     label_chunk_info[j].c = NULL;
     if (here >= j)
 	here = j  ? j - 1 : 0;
@@ -206,8 +201,15 @@ get_mountpoint(struct chunk *old)
 
     val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
 		      "Please specify a mount point for the partition");
-    if (!val)
+    if (!val) {
+	if (!old)
+	    return NULL;
+	else {
+	    free(old->private);
+	    old->private = NULL;
+	}
 	return NULL;
+    }
 
     /* Is it just the same value? */
     if (old && old->private && !strcmp(((PartInfo *)old->private)->mountpoint, val))
@@ -312,16 +314,14 @@ print_label_chunks(void)
     prow = CHUNK_PART_START_ROW;
     pcol = 0;
 
-    for (i = 0; label_chunk_info[i].d; i++) {
+    for (i = 0; label_chunk_info[i].c; i++) {
 	if (i == here)
 	    attrset(A_REVERSE);
 	/* Is it a slice entry displayed at the top? */
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(label_chunk_info[i].c);
-	    mvprintw(srow++, 0,
-		     "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
-		     label_chunk_info[i].d->name,
-		     label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
+	    mvprintw(srow++, 0, "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
+		     label_chunk_info[i].c->disk->name, label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry, at the bottom */
 	else {
@@ -392,8 +392,9 @@ print_command_summary()
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
-    addstr("reverse video.");
+    addstr("reverse");
     attrset(A_NORMAL);
+    addstr(" video.");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
@@ -429,18 +430,26 @@ diskLabelEditor(char *str)
 	key = toupper(getch());
 	switch (key) {
 
+	case '\014':	/* ^L */
+	    continue;
+
 	case KEY_UP:
 	case '-':
 	    if (here != 0)
 		--here;
+	    else
+		while (label_chunk_info[here + 1].c)
+		    ++here;
 	    break;
 
 	case KEY_DOWN:
 	case '+':
 	case '\r':
 	case '\n':
-	    if (label_chunk_info[here + 1].d)
+	    if (label_chunk_info[here + 1].c)
 		++here;
+	    else
+		here = 0;
 	    break;
 
 	case KEY_HOME:
@@ -448,7 +457,7 @@ diskLabelEditor(char *str)
 	    break;
 
 	case KEY_END:
-	    while (label_chunk_info[here + 1].d)
+	    while (label_chunk_info[here + 1].c)
 		++here;
 	    break;
 
@@ -473,7 +482,7 @@ diskLabelEditor(char *str)
 		struct chunk *tmp;
 		u_long flags = 0;
 
-		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).\n\nSpace free: %d blocks (%dMB)", sz, sz / ONE_MEG);
+		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or\nappend a trailing `M' for megabytes (e.g. 20M), `C' for cylinders\nor `%%' for a percentage of remaining space.\n\nSpace free is %d blocks (%dMB)", sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0)
 		    break;
 
@@ -481,9 +490,14 @@ diskLabelEditor(char *str)
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
 		    break;
 		}
-		if (*cp && toupper(*cp) == 'M')
-		    size *= ONE_MEG;
-	    
+		if (*cp) {
+		    if (toupper(*cp) == 'M')
+			size *= ONE_MEG;
+		    else if (toupper(*cp) == 'C')
+			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
+		    else if (*cp == '%')
+			size = sz * (size * 0.10);
+		}
 		type = get_partition_type();
 		if (type == PART_NONE)
 		    break;
@@ -506,7 +520,7 @@ diskLabelEditor(char *str)
 		    if (size < ROOT_MIN_SIZE)
 			msgConfirm("Warning: This is smaller than the recommended size for a\nroot partition.  For a variety of reasons, root\npartitions should usually be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
 		}
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
+		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 					label_chunk_info[here].c,
 					size, part,
 					(type == PART_SWAP) ? FS_SWAP : FS_BSDFFS,
@@ -517,7 +531,7 @@ diskLabelEditor(char *str)
 		}
 		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
 		    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation for your root partition and try again!");
-		    Delete_Chunk(label_chunk_info[here].d, tmp);
+		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
 		    break;
 		}
 		if (type != PART_SWAP) {
@@ -541,7 +555,7 @@ diskLabelEditor(char *str)
 		msg = "Use the Disk Partition Editor to delete DOS partitions";
 		break;
 	    }
-	    Delete_Chunk(label_chunk_info[here].d, label_chunk_info[here].c);
+	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
 	    record_label_chunks();
 	    break;
 

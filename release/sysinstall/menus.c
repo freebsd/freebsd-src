@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.28 1995/05/24 17:49:20 jkh Exp $
+ * $Id: menus.c,v 1.29 1995/05/25 01:22:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -337,6 +337,8 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL,	distSetEverything, 0, 0		},
       { "Custom",	"Specify your own distribution set [?]",
 	DMENU_SUBMENU,	&MenuDistributions, 0, 0	},
+      { "Reset",	"Reset selected distribution list to None",
+	DMENU_CALL,	distReset, 0, 0			},
       { NULL } },
 };
 
@@ -582,11 +584,10 @@ DMenu MenuInstall = {
     "Choose Installation Options",		/* title */
     "Before installation can continue, you need to specify a few\n\
 details on the type of distribution you wish to have, where you wish\n\
-to install it from, and how you wish to allocate disk storage to FreeBSD\n\
+to install it from and how you wish to allocate disk storage to FreeBSD.\n\n\
 None of the items in this menu will actually modify the contents of\n\
 your disk until you select the \"Write\" menu item (and even then, only\n\
-after a final confirmation).  If you do not wish to install FreeBSD\n\
-at this time then select Cancel to leave this menu.",
+after a final confirmation).  Select Cancel to leave this menu.",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { "Distributions", "Choose the type of installation you want", /* T */

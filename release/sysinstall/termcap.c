@@ -63,8 +63,10 @@ set_termcap(void)
 		    return -1;
 	    }
 	}
-	if (DebugFD == -1)
+	if (DebugFD == -1) {
 	    DebugFD = open("/dev/ttyv1", O_WRONLY);
+	    ioctl(DebugFD, TIOCCONS, (char *)NULL);
+	}
 	OnVTY = TRUE;
     }
     return 0;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.4 1995/05/24 09:00:08 jkh Exp $
+ * $Id: config.c,v 1.5 1995/05/24 18:52:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,6 +63,20 @@ chunk_compare(const void *p1, const void *p2)
 	return 1;
     else
 	return strcmp(((PartInfo *)c1->private)->mountpoint, ((PartInfo *)c2->private)->mountpoint);
+}
+
+static char *
+nameof(Chunk *c1)
+{
+    static char rootname[64];
+
+    /* Our boot blocks can't deal with root partitions on slices - need the compatbility name */
+    if (c1->type == part && c1->flags & CHUNK_IS_ROOT) {
+	sprintf(rootname, "%sa", c1->disk->name);
+	return rootname;
+    }
+    else
+	return c1->name;
 }
 
 static char *
@@ -135,11 +149,16 @@ configFstab(void)
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
-	for (c1 = disk->chunks->part; c1; c1 = c1->next)
-	    if (c1->type == freebsd)
-		for (c2 = c1->part; c2; c2 = c2->next)
-		    if (c2->type == part || c2->type == fat)
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
+		    if (c2->type == part)
 			chunk_list[nchunks++] = c2;
+		}
+	    }
+	    else if (c1->type == fat)
+		chunk_list[nchunks++] = c1;
+	}
     }
 
     /* Sort them puppies! */
@@ -154,7 +173,7 @@ configFstab(void)
     /* Go for the burn */
     msgNotify("Generating /etc/fstab file");
     for (i = 0; i < nchunks; i++) {
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", chunk_list[i]->name, mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]),
 		seq_num(chunk_list[i]));
     }
