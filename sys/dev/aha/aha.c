@@ -58,7 +58,8 @@
  * $FreeBSD$
  */
 
-#include "pnp.h"
+/* #include "pnp.h" */
+#define NPNP 0
 
 #include <sys/param.h>
 #include <sys/systm.h> 
