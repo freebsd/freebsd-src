@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.88 1999/04/19 16:10:40 kato Exp $
+ *	$Id: sio.c,v 1.89 1999/04/27 11:18:01 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2555,7 +2555,7 @@ more_intr:
 			if (tmp & STS8251_OE)    line_status |= LSR_OE;
 			if (tmp & STS8251_FE)    line_status |= LSR_FE;
 			if (tmp & STS8251_BD_SD) line_status |= LSR_BI;
-		} else
+		} else {
 #endif /* PC98 */
 		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
 			modem_status = inb(com->modem_status_port);
@@ -2569,6 +2569,7 @@ more_intr:
 		}
 		line_status = inb(com->line_status_port);
 #ifdef PC98
+		}
 		if (com->pc98_if_type == COM_IF_RSA98III)
 			rsa_buf_status = inb(com->rsabase + rsa_srr);
 #endif /* PC98 */
