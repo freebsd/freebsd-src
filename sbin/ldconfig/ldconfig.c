@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ldconfig.c,v 1.23 1998/07/06 07:02:26 charnier Exp $";
+	"$Id: ldconfig.c,v 1.24 1998/08/02 16:06:33 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@ static const char rcsid[] =
 #include <a.out.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <elf.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -49,6 +50,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "ldconfig.h"
 #include "shlib.h"
 #include "support.h"
 
@@ -56,17 +58,29 @@ static const char rcsid[] =
 /* test */
 #undef _PATH_LD_HINTS
 #define _PATH_LD_HINTS		"./ld.so.hints"
+#undef _PATH_ELF_HINTS
+#define _PATH_ELF_HINTS		"./ld-elf.so.hints"
 #endif
 
 #undef major
 #undef minor
+
+enum obj_format { Unknown, Aout, Elf };
+
+#ifndef DEFAULT_FORMAT
+#ifdef __ELF__
+#define DEFAULT_FORMAT	Elf
+#else
+#define DEFAULT_FORMAT	Aout
+#endif
+#endif
 
 static int			verbose;
 static int			nostd;
 static int			justread;
 static int			merge;
 static int			rescan;
-static char			*hints_file = _PATH_LD_HINTS;
+static char			*hints_file;
 
 struct shlib_list {
 	/* Internal list of shared libraries found */
@@ -82,13 +96,14 @@ struct shlib_list {
 static struct shlib_list	*shlib_head = NULL, **shlib_tail = &shlib_head;
 static char			*dir_list;
 
-static void	enter __P((char *, char *, char *, int *, int));
-static int	dodir __P((char *, int));
-int		dofile __P((char *, int));
-static int	buildhints __P((void));
-static int	readhints __P((void));
-static void	listhints __P((void));
-static void	usage __P((void));
+static int		buildhints __P((void));
+static int		dodir __P((char *, int));
+int			dofile __P((char *, int));
+static void		enter __P((char *, char *, char *, int *, int));
+static enum obj_format	getobjfmt __P((int *, char **));
+static void		listhints __P((void));
+static int		readhints __P((void));
+static void		usage __P((void));
 
 int
 main(argc, argv)
@@ -97,7 +112,10 @@ char	*argv[];
 {
 	int		i, c;
 	int		rval = 0;
+	enum obj_format	fmt;
 
+	fmt = getobjfmt(&argc, argv);
+	hints_file = fmt == Aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
 	while ((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
 		switch (c) {
 		case 'R':
@@ -122,6 +140,15 @@ char	*argv[];
 			usage();
 			break;
 		}
+	}
+
+	if (fmt == Elf) {
+		if (justread)
+			list_elf_hints(hints_file);
+		else
+			update_elf_hints(hints_file, argc - optind,
+			    argv + optind, merge || rescan);
+		return 0;
 	}
 
 	dir_list = strdup("");
@@ -177,6 +204,62 @@ char	*argv[];
 	rval |= buildhints();
 
 	return rval;
+}
+
+static enum obj_format
+getobjfmt(argcp, argv)
+	int *argcp;
+	char **argv;
+{
+	enum obj_format	  fmt;
+	char		**src, **dst;
+	const char	 *env;
+	FILE		 *fp;
+
+	fmt = Unknown;
+
+	/* Scan for "-aout" or "-elf" arguments, deleting them as we go. */
+	for (dst = src = argv + 1;  *src != NULL;  src++) {
+		if (strcmp(*src, "-aout") == 0)
+			fmt = Aout;
+		else if (strcmp(*src, "-elf") == 0)
+			fmt = Elf;
+		else
+			*dst++ = *src;
+	}
+	*dst = NULL;
+	*argcp -= src - dst;
+	if (fmt != Unknown)
+		return fmt;
+
+	/* Check the OBJFORMAT environment variable. */
+	if ((env = getenv("OBJFORMAT")) != NULL) {
+		if (strcmp(env, "aout") == 0)
+			return Aout;
+		else if (strcmp(env, "elf") == 0)
+			return Elf;
+	}
+
+	/* Take a look at "/etc/objformat". */
+	if ((fp = fopen("/etc/objformat", "r")) != NULL) {
+		char buf[1024];
+
+		while (fgets(buf, sizeof buf, fp) != NULL) {
+			if (strcmp(buf, "OBJFORMAT=aout\n") == 0)
+				fmt = Aout;
+			else if (strcmp(buf, "OBJFORMAT=elf\n") == 0)
+				fmt = Elf;
+			else
+				warnx("Unrecognized line in /etc/objformat: %s",
+				    buf);
+		}
+		fclose(fp);
+	}
+	if (fmt != Unknown)
+		return fmt;
+
+	/* As a last resort, use the compiled in default. */
+	return DEFAULT_FORMAT;
 }
 
 static void
