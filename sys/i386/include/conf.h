@@ -1,3 +1,24 @@
+#ifndef _MACHINE_CONF_H_
+#define	_MACHINE_CONF_H_
+
+#ifdef KERNEL
+
+#ifndef ACTUALLY_LKM_NOT_KERNEL
+/*
+ * XXX instead of this, the per-driver declarations should probably be
+ * put in the "driver.h" headers.  Then ioconf.h could include all the
+ * "driver.h" headers and drivers would automatically include their
+ * own "driver.h" header, so we wouldn't need to include ioconf.h here.
+ * Interrupt handlers should probably be static.
+ */
+#include "ioconf.h"
+#endif
+
+/*
+ * The following was copied from the bogusly non-machine-generated
+ * file <i386/i386/conf.c>.  Eventually the routines should be static.
+ */
+
 d_rdwr_t rawread, rawwrite;
 d_open_t	wdopen;
 d_close_t	wdclose;
@@ -296,3 +317,7 @@ d_open_t     labpcopen;
 d_close_t    labpcclose;
 d_strategy_t labpcstrategy;
 d_ioctl_t    labpcioctl;
+
+#endif /* KERNEL */
+
+#endif /* !_MACHINE_CONF_H_ */

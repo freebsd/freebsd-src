@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.11 1995/10/28 15:39:19 phk Exp $
+ *	$Id: si.c,v 1.12 1995/11/04 13:23:40 bde Exp $
  */
 
 #ifndef lint
@@ -94,7 +94,6 @@ static void si_disc_optim __P((struct tty *tp, struct termios *t,
 static void sihardclose __P((struct si_port *pp));
 static void sidtrwakeup __P((void *chan));
 
-void	siintr	__P((int unit));
 int	siparam __P((struct tty *, struct termios *));
 
 extern	void	si_registerdev __P((struct isa_device *id));

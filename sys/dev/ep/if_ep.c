@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.32 1995/10/26 20:29:37 julian Exp $
+ *  $Id: if_ep.c,v 1.33 1995/10/28 15:39:04 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -113,7 +113,6 @@ static void epmbuffill __P((caddr_t, int));
 static void epmbufempty __P((struct ep_softc *));
 
 void epinit __P((int));
-void epintr __P((int));
 void epread __P((struct ep_softc *));
 void epreset __P((int));
 void epstart __P((struct ifnet *));

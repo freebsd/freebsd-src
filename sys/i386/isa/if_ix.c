@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.12 1995/10/28 15:39:06 phk Exp $
+ *	$Id: if_ix.c,v 1.13 1995/10/31 18:41:11 phk Exp $
  */
 
 #include "ix.h"
@@ -153,7 +153,6 @@ static int ixattach(struct isa_device *);
 static void ixinit(int);
 static void ixinit_rfa(int);
 static void ixinit_tfa(int);
-inthand2_t ixintr;
 static inline void ixintr_cx(int);
 static inline void ixintr_cx_free(int, cb_t *);
 static inline void ixintr_fr(int);

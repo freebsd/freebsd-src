@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.11 1995/09/19 18:55:07 bde Exp $
+ * $Id: aic6360.c,v 1.12 1995/10/28 15:38:43 phk Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -683,7 +683,6 @@ void	aicattach       __P((struct device *, struct device *, void *));
 void	aic_minphys	__P((struct buf *));
 #ifdef __FreeBSD__
 u_int32	aic_adapter_info __P((int));
-inthand2_t aicintr;
 void 	aic_init	__P((struct aic_data *));
 int 	aic_find	__P((struct aic_data *));
 #else

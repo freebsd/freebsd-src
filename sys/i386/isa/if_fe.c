@@ -245,9 +245,6 @@ struct fe_softc {
  */
 #define IFNET2SOFTC(P)	( ( struct fe_softc * )(P) )
 
-/* Public entry point.  This is the only functoin which must be external.  */
-void		feintr		( int );
-
 /* Standard driver entry points.  These can be static.  */
 int		fe_probe	( struct isa_device * );
 int		fe_attach	( struct isa_device * );

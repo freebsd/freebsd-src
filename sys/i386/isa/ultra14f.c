@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.36 1995/08/25 20:39:01 bde Exp $
+ *      $Id: ultra14f.c,v 1.37 1995/09/19 18:55:20 bde Exp $
  */
 
 #include <sys/types.h>
@@ -264,7 +264,6 @@ struct uha_data {
 
 int     uhaprobe();
 int     uha_attach();
-inthand2_t uhaintr;
 int32   uha_scsi_cmd();
 timeout_t uha_timeout;
 void	uha_free_mscp();

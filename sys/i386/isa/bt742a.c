@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.41 1995/09/19 18:55:08 bde Exp $
+ *      $Id: bt742a.c,v 1.42 1995/10/28 15:38:47 phk Exp $
  */
 
 /*
@@ -394,7 +394,6 @@ static int		bt_debug = 0;
 #ifdef	KERNEL
 static int		btprobe();
 static int		btattach();
-inthand2_t		btintr;
 static int32		bt_scsi_cmd();
 static int		bt_poll __P((int unit, struct scsi_xfer *xs, struct bt_ccb *ccb));
 static void		bt_timeout(void *);

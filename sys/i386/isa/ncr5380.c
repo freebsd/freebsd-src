@@ -215,7 +215,6 @@ adapter_t ncadata[NNCA];
 	if (cnt == -1 && msg)\
 		printf ("nca: %s timeout\n", msg); }
 
-inthand2_t ncaintr;
 static int nca_probe (struct isa_device *dev);
 static int nca_attach (struct isa_device *dev);
 static int32 nca_scsi_cmd (struct scsi_xfer *xs);
