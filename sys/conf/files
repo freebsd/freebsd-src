@@ -688,6 +688,7 @@ dev/usb/usbdi_util.c	optional usb device-driver
 dev/usb/usb_subr.c	optional usb device-driver
 dev/usb/usb_quirks.c	optional usb device-driver
 dev/usb/hid.c		optional usb device-driver
+dev/usb/uhub.c		optional usb device-driver
 # ordering in the list of drivers below is important and should
 # be the inverse of the wanted one (MAKE_SET)
 dev/usb/ugen.c		optional ugen device-driver
@@ -695,4 +696,3 @@ dev/usb/uhid.c		optional hid device-driver
 dev/usb/ums.c		optional ums device-driver
 dev/usb/ulpt.c		optional ulpt device-driver
 dev/usb/ukbd.c		optional ukbd device-driver
-dev/usb/uhub.c		optional uhub device-driver
