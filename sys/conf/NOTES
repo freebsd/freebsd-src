@@ -739,6 +739,20 @@ options 	_KPOSIX_VERSION=199309L
 
 options 	HZ=100
 
+# If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
+# message you probably have some broken sw/hw which disables interrupts
+# for too long.  You can make the system more resistant to this by
+# choosing a high value for NTIMECOUNTER.  The default is 5, there
+# is no upper limit but more than a couple of hundred are not productive.
+
+options 	NTIMECOUNTER=20
+
+# Enable support for the kernel PLL to use an external PPS signal,
+# under supervision of [x]ntpd(8)
+# More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
+
+options 	PPS_SYNC
+
 
 #####################################################################
 # SCSI DEVICES
@@ -937,20 +951,6 @@ options 	MSGBUF_SIZE=40960
 #
 # ISA bus
 #
-
-# Enable support for the kernel PLL to use an external PPS signal,
-# under supervision of [x]ntpd(8)
-# More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
-
-options 	PPS_SYNC
-
-# If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
-# message you probably have some broken sw/hw which disables interrupts
-# for too long.  You can make the system more resistant to this by
-# choosing a high value for NTIMECOUNTER.  The default is 5, there
-# is no upper limit but more than a couple of hundred are not productive.
-
-options 	NTIMECOUNTER=20
 
 # 
 # EISA bus
