@@ -105,7 +105,8 @@ main(argc, argv)
 	(void)time((time_t *)&spcl.c_date);
 
 	tsize = 0;	/* Default later, based on 'c' option for cart tapes */
-	tape = _PATH_DEFTAPE;
+	if ((tape = getenv("TAPE")) == NULL)
+		tape = _PATH_DEFTAPE;
 	dumpdates = _PATH_DUMPDATES;
 	temp = _PATH_DTMP;
 	if (TP_BSIZE / DEV_BSIZE == 0 || TP_BSIZE % DEV_BSIZE != 0)
@@ -256,6 +257,10 @@ main(argc, argv)
 		tape = index(host, ':');
 		*tape++ = '\0';
 #ifdef RDUMP
+		if (index(tape, "\n") {
+		    (void)fprintf(stderr, "invalid characters in tape\n");
+		    exit(X_ABORT);
+		}
 		if (rmthost(host) == 0)
 			exit(X_ABORT);
 #else
@@ -298,6 +303,8 @@ main(argc, argv)
 		(void)strncpy(spcl.c_filesys, "an unlisted file system",
 		    NAMELEN);
 	}
+	spcl.c_dev[NAMELEN-1]='\0';
+	spcl.c_filesys[NAMELEN-1]='\0';
 	(void)strcpy(spcl.c_label, "none");
 	(void)gethostname(spcl.c_host, NAMELEN);
 	spcl.c_level = level - '0';
@@ -556,9 +563,10 @@ rawname(cp)
 		return (NULL);
 	*dp = '\0';
 	(void)strncpy(rawbuf, cp, MAXPATHLEN - 1);
+	rawbuf[MAXPATHLEN-1] = '\0';
 	*dp = '/';
-      (void)strncat(rawbuf, "/r", MAXPATHLEN-1 - strlen(rawbuf));
-      (void)strncat(rawbuf, dp + 1, MAXPATHLEN-1 - strlen(rawbuf));
+	(void)strncat(rawbuf, "/r", MAXPATHLEN - 1 - strlen(rawbuf));
+	(void)strncat(rawbuf, dp + 1, MAXPATHLEN - 1 - strlen(rawbuf));
 	return (rawbuf);
 }
 

@@ -244,13 +244,13 @@ static void
 sendmes(tty, message)
 	char *tty, *message;
 {
-	char t[50], buf[BUFSIZ];
+	char t[MAXPATHLEN], buf[BUFSIZ];
 	register char *cp;
 	int lmsg = 1;
 	FILE *f_tty;
 
 	(void) strcpy(t, _PATH_DEV);
-	(void) strcat(t, tty);
+	(void) strncat(t, tty, sizeof t - strlen(_PATH_DEV) - 1);
 
 	if ((f_tty = fopen(t, "w")) != NULL) {
 		setbuf(f_tty, buf);
