@@ -285,7 +285,7 @@ do_sigaction(p, sig, act, oact, old)
 		if (act->sa_flags & SA_USERTRAMP)
 			SIGADDSET(ps->ps_usertramp, sig);
 		else
-			SIGDELSET(ps->ps_usertramp, seg);
+			SIGDELSET(ps->ps_usertramp, sig);
 #endif
 		if (sig == SIGCHLD) {
 			if (act->sa_flags & SA_NOCLDSTOP)
