@@ -1222,6 +1222,9 @@ vm_page_wire(m)
 		cnt.v_wire_count++;
 	}
 	m->wire_count++;
+	KASSERT(m->wire_count != 0,
+	    ("vm_page_wire: wire_count overflow m=%p", m));
+
 	splx(s);
 	vm_page_flag_set(m, PG_MAPPED);
 }
