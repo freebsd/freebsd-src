@@ -82,12 +82,13 @@ by giving a date in the form
 .Ar \%month-name day
 with an optional
 .Ar year ,
-or giving a date of the form
-.Ar MMDDYY
-or
-.Ar MM/DD/YY
-or
-.Ar DD.MM.YY .
+or giving a date of the forms
+.Ar DD.MM.YYYY ,
+.Ar DD.MM.YY ,
+.Ar MM/DD/YYYY ,
+.Ar MM/DD/YY ,
+.Ar MMDDYYYY , or
+.Ar MMDDYY .
 The specification of a date must follow the specification of
 the time of day.
 You can also give times like
