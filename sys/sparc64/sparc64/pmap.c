@@ -1372,7 +1372,9 @@ vm_page_t
 pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 
+	mtx_lock(&Giant);
 	pmap_enter(pm, va, m, VM_PROT_READ | VM_PROT_EXECUTE, FALSE);
+	mtx_unlock(&Giant);
 	return (NULL);
 }
 
