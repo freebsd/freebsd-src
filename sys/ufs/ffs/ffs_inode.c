@@ -85,9 +85,9 @@ ffs_update(vp, waitfor)
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYMOD | IN_MODIFIED);
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return (0);
 	fs = ip->i_fs;
+	if (fs->fs_ronly)
+		return (0);
 	/*
 	 * Ensure that uid and gid are correct. This is a temporary
 	 * fix until fsck has been changed to do the update.
@@ -169,6 +169,8 @@ ffs_truncate(vp, length, flags, cred, p)
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (UFS_UPDATE(ovp, 0));
 	}
+	if (fs->fs_ronly)
+		panic("ffs_truncate: read-only filesystem");
 #ifdef QUOTA
 	error = getinoquota(oip);
 	if (error)

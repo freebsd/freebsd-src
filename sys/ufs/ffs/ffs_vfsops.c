@@ -190,6 +190,14 @@ ffs_mount( mp, path, data, ndp, p)
 		err = 0;
 		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
 		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+			/*
+			 * Flush any dirty data.
+			 */
+			VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p);
+			/*
+			 * Check for and optionally get rid of files open
+			 * for writing.
+			 */
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
