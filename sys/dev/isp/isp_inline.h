@@ -747,7 +747,7 @@ isp_put_gid_ft_request(struct ispsoftc *isp, sns_gid_ft_req_t *src,
 	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
 	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
 	ISP_IOXPUT_32(isp, src->snscb_res3, &dst->snscb_res3);
-	ISP_IOXPUT_16(isp, src->snscb_fc4_type, &dst->snscb_fc4_type);
+	ISP_IOXPUT_32(isp, src->snscb_fc4_type, &dst->snscb_fc4_type);
 }
 
 static INLINE void
