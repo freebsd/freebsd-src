@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.libnames.mk,v 1.1 1996/09/05 18:05:07 bde Exp $
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
@@ -39,7 +39,7 @@ LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
 LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a	# XXX doesn't exist
 LIBREADLINE?=	${DESTDIR}/usr/lib/libreadline.a
-LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
+LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
 LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}/usr/lib/libscsi.a
