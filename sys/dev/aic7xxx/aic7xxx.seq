@@ -40,8 +40,9 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#40 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#50 $"
 PATCH_ARG_LIST = "struct ahc_softc *ahc"
+PREFIX = "ahc_"
 
 #include "aic7xxx.reg"
 #include "scsi_message.h"
@@ -389,13 +390,8 @@ initialize_scsiid:
 	}
 
 /*
- * Initialize transfer settings and clear the SCSI channel.
- * SINDEX should contain any additional bit's the client wants
- * set in SXFRCTL0.  We also assume that the current SCB is
- * a valid SCB for the target we wish to talk to.
+ * Initialize transfer settings with SCB provided settings.
  */
-initialize_channel:
-	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
 set_transfer_settings:
 	if ((ahc->features & AHC_ULTRA) != 0) {
 		test	SCB_CONTROL, ULTRAENB jz . + 2;
@@ -438,14 +434,21 @@ target_inb:
 select_out:
 	/* Turn off the selection hardware */
 	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ;
-	mvi	CLRSINT0, CLRSELDO;
 	mov	SCBPTR, WAITING_SCBH;
 	mov	WAITING_SCBH,SCB_NEXT;
 	mov	SAVED_SCSIID, SCB_SCSIID;
 	mov	SAVED_LUN, SCB_LUN;
-	call	initialize_channel;
+	call	set_transfer_settings;
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
 		test	SSTAT0, TARGET	jz initiator_select;
+
+		or	SXFRCTL0, CLRSTCNT|CLRCHN;
+
+		/*
+		 * Put tag in connonical location since not
+		 * all connections have an SCB.
+		 */
+		mov	INITIATOR_TAG, SCB_TARGET_ITAG;
 
 		/*
 		 * We've just re-selected an initiator.
@@ -453,6 +456,7 @@ select_out:
 		 * sending our identify messages.
 		 */
 		mvi	P_MESGIN|BSYO call change_phase;
+		mvi	CLRSINT0, CLRSELDO;
 
 		/*
 		 * Start out with a simple identify message.
@@ -491,15 +495,16 @@ target_ITloop:
 		 * on the state of NO_DISCONNECT.
 		 */
 		test	SEQ_FLAGS, NO_DISCONNECT jz target_disconnect; 
-		mov	RETURN_1, ALLZEROS;
+		mvi	TARG_IMMEDIATE_SCB, SCB_LIST_NULL;
 		call	complete_target_cmd;
-		cmp	RETURN_1, CONT_MSG_LOOP jne .;
 		if ((ahc->flags & AHC_PAGESCBS) != 0) {
 			mov	ALLZEROS	call	get_free_or_disc_scb;
 		}
+		cmp	TARG_IMMEDIATE_SCB, SCB_LIST_NULL je .;
 		mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
-		mov	SCB_TAG	 call dma_scb;
+		mov	TARG_IMMEDIATE_SCB call dma_scb;
 		call	set_transfer_settings;
+		or	SXFRCTL0, CLRSTCNT|CLRCHN;
 		jmp	target_synccmd;
 
 target_mesgout:
@@ -636,6 +641,7 @@ complete_target_cmd:
 
 if ((ahc->flags & AHC_INITIATORROLE) != 0) {
 initiator_select:
+	or	SXFRCTL0, SPIOEN|CLRSTCNT|CLRCHN;
 	/*
 	 * As soon as we get a successful selection, the target
 	 * should go into the message out phase since we have ATN
@@ -643,6 +649,7 @@ initiator_select:
 	 */
 	mvi	MSG_OUT, MSG_IDENTIFYFLAG;
 	or	SEQ_FLAGS, IDENTIFY_SEEN;
+	mvi	CLRSINT0, CLRSELDO;
 
 	/*
 	 * Main loop for information transfer phases.  Wait for the
@@ -1775,7 +1782,7 @@ mesgin_identify:
 	 * transactions by first looking at the transaction stored in
 	 * the busy target array.  If there is no untagged transaction
 	 * for this target or the transaction is for a different lun, then
-	 * this must be an untagged transaction.
+	 * this must be a tagged transaction.
 	 */
 	shr	SINDEX, 4, SAVED_SCSIID;
 	and	SAVED_LUN, MSG_IDENTIFY_LUNMASK, A;
@@ -2217,9 +2224,9 @@ dma_scb_fromhost:
 			 * available data to force the chip to
 			 * continue the transfer.  This does not
 			 * happen for SCSI transfers as the SCSI module
-			 * will drain the FIFO as data is made available.
+			 * will drain the FIFO as data are made available.
 			 * When the hang occurs, we know that a multiple
-			 * of 8 bytes are in the FIFO because the PCI
+			 * of 8 bytes is in the FIFO because the PCI
 			 * module has an 8 byte input latch that only
 			 * dumps to the FIFO when HCNT == 0 or the
 			 * latch is full.
@@ -2256,7 +2263,6 @@ dma_scb_hang_dma_done:
 		} else {
 			call	dma_finish;
 		}
-		/* If we were putting the SCB, we are done */
 		call	dfdat_in_8;
 		call	dfdat_in_8;
 		call	dfdat_in_8;
