@@ -2076,6 +2076,19 @@ re_init(xsc)
 	re_stop(sc);
 
 	/*
+	 * Enable C+ RX and TX mode, as well as VLAN stripping and
+	 * RX checksum offload. Only enable dual-address cycle if
+	 * we're on a 64-bit bus. We must configure the C+ register
+	 * before all others.
+	 */
+	CSR_WRITE_2(sc, RL_CPLUS_CMD, RL_CPLUSCMD_RXENB|
+	    RL_CPLUSCMD_TXENB|RL_CPLUSCMD_PCI_MRW|
+	    (CSR_READ_1(sc, RL_CFG2) & RL_BUSWIDTH_64BITS ?
+	    RL_CPLUSCMD_PCI_DAC : 0)|RL_CPLUSCMD_VLANSTRIP|
+	    (ifp->if_capenable & IFCAP_RXCSUM ?
+	    RL_CPLUSCMD_RXCSUM_ENB : 0));
+
+	/*
 	 * Init our MAC address.  Even though the chipset
 	 * documentation doesn't mention it, we need to enter "Config
 	 * register write enable" mode to modify the ID registers.
@@ -2167,14 +2180,8 @@ re_init(xsc)
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 #endif
 	/*
-	 * If this is a C+ capable chip, enable C+ RX and TX mode,
-	 * and load the addresses of the RX and TX lists into the chip.
+	 * Load the addresses of the RX and TX lists into the chip.
 	 */
-	CSR_WRITE_2(sc, RL_CPLUS_CMD, RL_CPLUSCMD_RXENB|
-	    RL_CPLUSCMD_TXENB|RL_CPLUSCMD_PCI_MRW|
-	    RL_CPLUSCMD_VLANSTRIP|
-	    (ifp->if_capenable & IFCAP_RXCSUM ?
-	    RL_CPLUSCMD_RXCSUM_ENB : 0));
 
 	CSR_WRITE_4(sc, RL_RXLIST_ADDR_HI,
 	    RL_ADDR_HI(sc->rl_ldata.rl_rx_list_addr));
