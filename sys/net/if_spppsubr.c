@@ -508,7 +508,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct ppp_header *h;
 	struct ifqueue *inq = 0;
 	struct sppp *sp = (struct sppp *)ifp;
-	int len;
+	int len, do_account = 0;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	if (ifp->if_flags & IFF_UP)
@@ -584,6 +584,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
+			do_account++;
 			break;
 #endif
 #ifdef INET6
@@ -598,6 +599,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IPV6);
 				inq = &ip6intrq;
 			}
+			do_account++;
 			break;
 		case PPP_VJ_COMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
@@ -633,6 +635,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IPX);
 				inq = &ipxintrq;
 			}
+			do_account++;
 			break;
 #endif
 #ifdef NS
@@ -642,6 +645,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_NS);
 				inq = &nsintrq;
 			}
+			do_account++;
 			break;
 #endif
 		}
@@ -670,24 +674,28 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		case ETHERTYPE_IP:
 			schednetisr (NETISR_IP);
 			inq = &ipintrq;
+			do_account++;
 			break;
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			schednetisr (NETISR_IPV6);
 			inq = &ip6intrq;
+			do_account++;
 			break;
 #endif
 #ifdef IPX
 		case ETHERTYPE_IPX:
 			schednetisr (NETISR_IPX);
 			inq = &ipxintrq;
+			do_account++;
 			break;
 #endif
 #ifdef NS
 		case ETHERTYPE_NS:
 			schednetisr (NETISR_NS);
 			inq = &nsintrq;
+			do_account++;
 			break;
 #endif
 		}
@@ -713,6 +721,13 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				SPP_ARGS(ifp));
 		goto drop;
 	}
+	if (do_account)
+		/*
+		 * Do only account for network packets, not for control
+		 * packets.  This is used by some subsystems to detect
+		 * idle lines.
+		 */
+		sp->pp_last_recv = time_second;
 }
 
 /*
@@ -911,14 +926,19 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 
 	/*
 	 * Queue message on interface, and start output if interface
-	 * not yet active.  Also adjust output byte count.
-	 * The packet length includes header, FCS and 1 flag,
-	 * according to RFC 1333.
+	 * not yet active.
 	 */
 	if (! IF_HANDOFF_ADJ(ifq, m, ifp, 3)) {
 		++ifp->if_oerrors;
 		return (rv? rv: ENOBUFS);
 	}
+	/*
+	 * Unlike in sppp_input(), we can always bump the timestamp
+	 * here since sppp_output() is only called on behalf of
+	 * network-layer traffic; control-layer traffic is handled
+	 * by sppp_cp_send().
+	 */
+	sp->pp_last_sent = time_second;
 	return (0);
 }
 
@@ -955,6 +975,7 @@ sppp_attach(struct ifnet *ifp)
 	mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", MTX_DEF);
 	mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
 	sp->enable_vj = 1;
+	sp->pp_last_recv = sp->pp_last_sent = time_second;
 	sl_compress_init(&sp->pp_comp, -1);
 	sppp_lcp_init(sp);
 	sppp_ipcp_init(sp);
