@@ -254,6 +254,7 @@ struct syncache {
 	struct		mbuf *sc_ipopts;	/* source route */
 	struct 		in_conninfo sc_inc;	/* addresses */
 	u_int32_t	sc_tsrecent;
+	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
 	tcp_cc		sc_cc_recv;
 	tcp_seq 	sc_irs;			/* seq from peer */
