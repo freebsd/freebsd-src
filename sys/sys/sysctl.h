@@ -499,6 +499,8 @@ int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 			size_t *oldlenp, int inkernel, void *new, size_t newlen,
 			size_t *retval);
+int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
+			int *nindx, struct sysctl_req *req);
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>
