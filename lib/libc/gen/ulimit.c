@@ -40,7 +40,7 @@ ulimit(int cmd, ...)
 {
 	struct rlimit limit;
 	va_list ap;
-	long arg, size;
+	long arg;
 
 	if (cmd == UL_GETSIZE) {
 		if (getrlimit(RLIMIT_FSIZE, &limit) == -1)
