@@ -591,7 +591,7 @@ hint.wt.0.at="isa"
 hint.wt.0.port="0x300"
 hint.wt.0.irq="5"
 hint.wt.0.drq="1"
-device		ctx	1
+device		ctx
 hint.ctx.0.at="isa"
 hint.ctx.0.port="0x230"
 hint.ctx.0.maddr="0xd0000"
