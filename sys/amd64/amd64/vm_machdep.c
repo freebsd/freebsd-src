@@ -185,13 +185,6 @@ cpu_set_fork_handler(td, func, arg)
 void
 cpu_exit(struct thread *td)
 {
-	struct pcb *pcb = td->td_pcb;
-
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		/* disable all hardware breakpoints */
-		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
-	}
 }
 
 void
