@@ -38,7 +38,7 @@ drive.  It's been most useful!
 
 The FreeBSD Core Team (in alphabetical order):
 
-	Andreas Schulz <ats@g386bsd.first.bmd.de>
+	Andreas Schulz <ats@freebsd.first.gmd.de>
 	Andrew A. Chernov <ache@astral.msk.su>
 	Bruce Evans <bde@FreeBSD.org>
 	David Greenman <davidg@Root.COM>
@@ -201,4 +201,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.2 1994/11/22 09:16:46 phk Exp $
+$Id: CONTRIB.FreeBSD,v 1.3 1994/11/22 09:54:19 jkh Exp $
