@@ -75,21 +75,21 @@ int promode;
 int asked[RANKS], comphand[RANKS], deck[RANKS];
 int userasked[RANKS], userhand[RANKS];
 
-void	chkwinner __P((int player, int *hand));
-int	compmove __P((void));
-int	countbooks __P((int *hand));
-int	countcards __P((int *hand));
-int	drawcard __P((int player, int *hand));
-int	gofish __P((int askedfor, int player, int *hand));
-void	goodmove __P((int player, int move, int *hand, int *opphand));
-void	init __P((void));
-void 	instructions __P((void));
-int	nrandom __P((int n));
-void	printhand __P((int *hand));
-void	printplayer __P((int player));
-int	promove __P((void));
-void	usage __P((void));
-int 	usermove __P((void));
+void	chkwinner(int player, int *hand);
+int	compmove(void);
+int	countbooks(int *hand);
+int	countcards(int *hand);
+int	drawcard(int player, int *hand);
+int	gofish(int askedfor, int player, int *hand);
+void	goodmove(int player, int move, int *hand, int *opphand);
+void	init(void);
+void 	instructions(void);
+int	nrandom(int n);
+void	printhand(int *hand);
+void	printplayer(int player);
+int	promove(void);
+void	usage(void);
+int 	usermove(void);
 
 int
 main(argc, argv)

@@ -73,10 +73,9 @@ static const char rcsid[] =
 #define	Nzero	  55.204723	/* lunar mean long of node at EPOCH */
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 
-static void	adj360 __P((double *));
-static double	dtor __P((double));
-int main	__P((void));
-static double	potm __P((double));
+static void	adj360(double *);
+static double	dtor(double);
+static double	potm(double);
 
 int
 main()

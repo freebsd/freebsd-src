@@ -42,16 +42,12 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <curses.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include "deck.h"
 #include "cribbage.h"
@@ -389,21 +385,11 @@ int     Mpos = 0;
 static int Newpos = 0;
 
 void
-#if __STDC__
 msg(const char *fmt, ...)
-#else
-msg(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsprintf(&Msgbuf[Newpos], fmt, ap);
 	va_end(ap);
 	endmsg();
@@ -414,21 +400,11 @@ msg(fmt, va_alist)
  *	Add things to the current message
  */
 void
-#if __STDC__
 addmsg(const char *fmt, ...)
-#else
-addmsg(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsprintf(&Msgbuf[Newpos], fmt, ap);
 	va_end(ap);
 }

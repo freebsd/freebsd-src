@@ -107,9 +107,9 @@ extern int pattern_size;	/* length of pattern array */
 
 int	hflag;
 
-void	primes __P((ubig, ubig));
-ubig	read_num_buf __P((void));
-void	usage __P((void));
+void	primes(ubig, ubig);
+ubig	read_num_buf(void);
+void	usage(void);
 
 int
 main(argc, argv)

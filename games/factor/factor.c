@@ -88,8 +88,8 @@ extern ubig *pr_limit;		/* largest prime in the prime array */
 
 int	hflag;
 
-void	pr_fact __P((ubig));	/* print factors of a value */
-void	usage __P((void));
+void	pr_fact(ubig);	/* print factors of a value */
+void	usage(void);
 
 int
 main(argc, argv)

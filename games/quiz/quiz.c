@@ -53,6 +53,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,16 +67,16 @@ static QE qlist;
 static int catone, cattwo, tflag;
 static u_int qsize;
 
-char	*appdstr __P((char *, char *, size_t));
-void	 downcase __P((char *));
-void	 err __P((const char *, ...));
-void	 get_cats __P((char *, char *));
-void	 get_file __P((char *));
-char	*next_cat __P((char *));
-void	 quiz __P((void));
-void	 score __P((u_int, u_int, u_int));
-void	 show_index __P((void));
-void	 usage __P((void));
+char	*appdstr(char *, char *, size_t);
+void	 downcase(char *);
+void	 err(const char *, ...);
+void	 get_cats(char *, char *);
+void	 get_file(char *);
+char	*next_cat(char *);
+void	 quiz(void);
+void	 score(u_int, u_int, u_int);
+void	 show_index(void);
+void	 usage(void);
 
 int
 main(argc, argv)
@@ -369,27 +370,11 @@ usage()
 	exit(1);
 }
 
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 void
-#if __STDC__
 err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-        va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)fprintf(stderr, "quiz: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);

@@ -41,7 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
-void	 convert __P((int));
+void	 convert(int);
 
 int
 battlestar_move(thataway, token)

@@ -78,8 +78,7 @@ double stdf[26] = {
 	2.62, 0.81, 1.88, 0.23,  2.07, 0.06,
 };
 
-int main __P((int, char **));
-void printit __P((char *));
+void printit(char *);
 
 int
 main(argc, argv)
