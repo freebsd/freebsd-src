@@ -24,6 +24,7 @@
  */
 
 #include "md4.h"
+#include <string.h>
 
 typedef unsigned char *POINTER;
 typedef unsigned short int UINT2;
