@@ -57,11 +57,5 @@ afterinstall:
 		mv -f ${DESTDIR}/etc/sendmail.cf \
 		    ${DESTDIR}/etc/mail/sendmail.cf; \
 	fi
-	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/aliases -a \
-	      ! -f ${DESTDIR}/etc/mail/aliases ]; then \
-		set -x; \
-		cp ${DESTDIR}/etc/aliases \
-		   ${DESTDIR}/etc/mail/aliases; \
-	fi
 
 .include <bsd.prog.mk>
