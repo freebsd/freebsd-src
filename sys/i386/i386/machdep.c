@@ -159,7 +159,6 @@ SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 	CTLFLAG_RD, &tlb_flush_count, 0, "");
 #endif
 
-long physmem = 0;
 int cold = 1;
 
 #ifdef COMPAT_43
@@ -169,42 +168,6 @@ static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
     u_long code);
 #endif
-
-static int
-sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = ctob(physmem);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "LU", "");
-
-static int
-sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = ctob(physmem - cnt.v_wire_count);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "LU", "");
-
-static int
-sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = i386_btop(avail_end - avail_start);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_availpages, "LU", "");
 
 long Maxmem = 0;
 

@@ -114,7 +114,6 @@ static const char rcsid[] =
 #include <sys/vnode.h>
 #include <machine/sigframe.h>
 
-long physmem = 0;
 int cold = 1;
 
 char		pcpu0[PAGE_SIZE];
@@ -152,18 +151,6 @@ int		restore_ofw_mapping(void);
 void		install_extint(void (*)(void));
 
 int             setfault(faultbuf);             /* defined in locore.S */
-
-static int
-sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
-{
-	u_long val;
-
-	val = ctob(physmem);
-	return (sysctl_handle_long(oidp, &val, 0, req));
-}
-
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "LU", "");
 
 long		Maxmem = 0;
 

@@ -149,6 +149,32 @@ SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD,
 SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD,
     0, PAGE_SIZE, "System memory page size");
 
+static int
+sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+
+	val = ctob(physmem);
+	return (sysctl_handle_long(oidp, &val, 0, req));
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "LU", "");
+
+static int
+sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+
+	val = ctob(physmem - cnt.v_wire_count);
+	return (sysctl_handle_long(oidp, &val, 0, req));
+}
+
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "LU", "");
+
+SYSCTL_ULONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
+
 static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
