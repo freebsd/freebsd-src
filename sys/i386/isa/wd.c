@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.113 1996/07/27 19:01:10 dyson Exp $
+ *	$Id: wd.c,v 1.114 1996/08/12 00:53:02 wpaul Exp $
  */
 
 /* TODO:
@@ -1402,6 +1402,30 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	return (0);
 }
 
+static void
+wdsetmulti(struct disk *du)
+{
+	/*
+	 * The config option flags low 8 bits define the maximum multi-block
+	 * transfer size.  If the user wants the maximum that the drive
+	 * is capable of, just set the low bits of the config option to
+	 * 0x00ff.
+	 */
+	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
+		int configval = du->cfg_flags & WDOPT_MULTIMASK;
+		du->dk_multi = min(du->dk_multi, configval);
+		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
+			du->dk_multi = 1;
+		} else {
+		    	if (wdwait(du, WDCS_READY, TIMEOUT) < 0) {
+				du->dk_multi = 1;
+			}
+		}
+	} else {
+		du->dk_multi = 1;
+	}
+}
+
 /*
  * issue IDC to drive to tell it just what geometry it is to be.
  */
@@ -1449,26 +1473,15 @@ wdsetctlr(struct disk *du)
 		return (1);
 	}
 
-	/*
-	 * The config option flags low 8 bits define the maximum multi-block
-	 * transfer size.  If the user wants the maximum that the drive
-	 * is capable of, just set the low bits of the config option to
-	 * 0x00ff.
-	 */
-	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
-		if (du->dk_multi > (du->cfg_flags & WDOPT_MULTIMASK))
-			du->dk_multi = du->cfg_flags & WDOPT_MULTIMASK;
-		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
-			du->dk_multi = 1;
-		}
-	} else {
-		du->dk_multi = 1;
-	}
+	wdsetmulti(du);
 
 #ifdef NOTYET
 /* set read caching and write caching */
 	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
+	wdwait(du, WDCS_READY, TIMEOUT);
+
 	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
+	wdwait(du, WDCS_READY, TIMEOUT);
 #endif
 
 	return (0);
@@ -1641,6 +1654,12 @@ failed:
 	for (i=sizeof(wp->wdp_model)-1; i>=0 && wp->wdp_model[i]==' '; i--) {
 		wp->wdp_model[i] = '\0';
 	}
+
+	/*
+	 * find out the drives maximum multi-block transfer capability
+	 */
+	du->dk_multi = wp->wdp_nsecperint & 0xff;
+	wdsetmulti(du);
 
 #ifdef WDDEBUG
 	printf(
