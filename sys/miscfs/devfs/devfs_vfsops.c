@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.9 1996/01/02 09:14:49 peter Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.10 1996/04/06 13:34:36 joerg Exp $
  *
  *
  */
@@ -50,9 +50,10 @@ devfs_init(void)
  * it must be mounted during single user.. until it is, only std{in/out/err}
  * and the root filesystem are available.
  */
+/*proto*/
 int
 devfs_mount(struct mount *mp, char *path, caddr_t data,
-	    struct nameidata *ndp, struct proc *p) /*proto*/
+	    struct nameidata *ndp, struct proc *p)
 {
 	struct devfsmount *devfs_mp_p;	/* devfs specific mount control block	*/
 	int error;
