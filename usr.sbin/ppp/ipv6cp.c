@@ -81,6 +81,12 @@
 
 
 #ifndef NOINET6
+#define IN6ADDR_LINKLOCAL_MCAST_INIT \
+	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }}}
+static const struct in6_addr in6addr_linklocal_mcast =
+	IN6ADDR_LINKLOCAL_MCAST_INIT;
+
 static int ipv6cp_LayerUp(struct fsm *);
 static void ipv6cp_LayerDown(struct fsm *);
 static void ipv6cp_LayerStart(struct fsm *);
@@ -190,7 +196,8 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_char *myifid, u_char *hisifid)
 {
   struct bundle *bundle = ipv6cp->fsm.bundle;
   struct in6_addr myaddr, hisaddr;
-  struct ncprange myrange;
+  struct ncprange myrange, range;
+  struct ncpaddr addr;
   struct sockaddr_storage ssdst, ssgw, ssmask;
   struct sockaddr *sadst, *sagw, *samask;
 
@@ -226,6 +233,10 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_char *myifid, u_char *hisifid)
   if (!Enabled(bundle, OPT_IFACEALIAS))
     iface_Clear(bundle->iface, &bundle->ncp, AF_INET6,
                 IFACE_CLEAR_ALIASES|IFACE_SYSTEM);
+
+  ncpaddr_setip6(&addr, &in6addr_linklocal_mcast);
+  ncprange_set(&range, &addr, 32);
+  rt_Set(bundle, RTM_ADD, &range, &ipv6cp->myaddr, 1, 0);
 
   if (bundle->ncp.cfg.sendpipe > 0 || bundle->ncp.cfg.recvpipe > 0) {
     ncprange_getsa(&myrange, &ssgw, &ssmask);
