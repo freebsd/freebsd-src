@@ -276,7 +276,6 @@ void
 lcp_Setup(struct lcp *lcp, int openmode)
 {
   struct physical *p = link2physical(lcp->fsm.link);
-  int phmtu = p ? physical_DeviceMTU(p) : 0;
 
   lcp->fsm.open_mode = openmode;
 
@@ -291,8 +290,6 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_shortseq = 0;
 
   lcp->want_mru = lcp->cfg.mru;
-  if (phmtu && lcp->want_mru > phmtu)
-    lcp->want_mru = phmtu;
   lcp->want_mrru = lcp->fsm.bundle->ncp.mp.cfg.mrru;
   lcp->want_shortseq = IsEnabled(lcp->fsm.bundle->ncp.mp.cfg.shortseq) ? 1 : 0;
   lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
@@ -376,6 +373,7 @@ LcpSendConfigReq(struct fsm *fp)
   struct lcp_opt *o;
   struct mp *mp;
   u_int16_t proto;
+  u_short maxmru;
 
   if (!p) {
     log_Printf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
@@ -397,7 +395,15 @@ LcpSendConfigReq(struct fsm *fp)
     }
   }
 
-  if (!REJECTED(lcp, TY_MRU)) {
+  maxmru = p ? physical_DeviceMTU(p) : 0;
+  if (lcp->cfg.max_mru && (!maxmru || maxmru > lcp->cfg.max_mru))
+    maxmru = lcp->cfg.max_mru;
+  if (maxmru && lcp->want_mru > maxmru) {
+    log_Printf(LogWARN, "%s: Reducing configured MRU from %u to %u\n",
+               fp->link->name, lcp->want_mru, maxmru);
+    lcp->want_mru = maxmru;
+  }
+  if (!REJECTED(lcp, TY_MRU) || lcp->want_mru < DEF_MRU) {
     ua_htons(&lcp->want_mru, o->data);
     INC_LCP_OPT(TY_MRU, 4, o);
   }
@@ -604,7 +610,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct lcp *lcp = fsm2lcp(fp);
   int type, length, sz, pos, op, callback_req, mru_req;
   u_int32_t magic, accmap;
-  u_short mru, phmtu, proto;
+  u_short mru, phmtu, maxmtu, maxmru, wantmtu, wantmru, proto;
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
@@ -686,35 +692,45 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        phmtu = p ? physical_DeviceMTU(p) : 0;
-        if (phmtu && mru > phmtu) {
-          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : phmtu;
+        maxmtu = p ? physical_DeviceMTU(p) : 0;
+        if (lcp->cfg.max_mtu && (!maxmtu || maxmtu > lcp->cfg.max_mtu))
+          maxmtu = lcp->cfg.max_mtu;
+        if ((wantmtu = lcp->cfg.mtu) == 0 && (wantmtu = maxmtu) == 0)
+            wantmtu = DEF_MRU;
+        if (maxmtu && wantmtu > maxmtu) {
+          log_Printf(LogWARN, "%s: Reducing configured MTU from %u to %u\n",
+                     fp->link->name, wantmtu, maxmtu);
+          wantmtu = maxmtu;
+        }
+        if (wantmtu < MIN_MRU)
+          wantmtu = MIN_MRU;
+
+        if (maxmtu && mru > maxmtu) {
+          lcp->his_mru = maxmtu;
           memcpy(dec->nakend, cp, 2);
           ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
-        } if (mru > lcp->cfg.max_mtu) {
-          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : lcp->cfg.max_mtu;
-          memcpy(dec->nakend, cp, 2);
-          ua_htons(&lcp->his_mru, dec->nakend + 2);
-          dec->nakend += 4;
-        } else if (mru < MIN_MRU || mru < lcp->cfg.mtu) {
+        } else if (mru < wantmtu) {
           /* Push him up to MTU or MIN_MRU */
-          lcp->his_mru = mru < lcp->cfg.mtu ? lcp->cfg.mtu : MIN_MRU;
+          lcp->his_mru = wantmtu;
           memcpy(dec->nakend, cp, 2);
           ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
         } else {
-          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : mru;
+          lcp->his_mru = wantmtu;
           memcpy(dec->ackend, cp, 4);
           dec->ackend += 4;
         }
 	break;
       case MODE_NAK:
-        if (mru > lcp->cfg.max_mru) {
-          lcp->want_mru = lcp->cfg.max_mru;
-          if (p && lcp->want_mru > physical_DeviceMTU(p))
-            lcp->want_mru = physical_DeviceMTU(p);
-        } else if (mru < MIN_MRU)
+        maxmru = p ? physical_DeviceMTU(p) : 0;
+        if (lcp->cfg.max_mru && (!maxmru || maxmru > lcp->cfg.max_mru))
+          maxmru = lcp->cfg.max_mru;
+        wantmru = lcp->cfg.mru > maxmru ? maxmru : lcp->cfg.mru;
+
+        if (mru > wantmru)
+          lcp->want_mru = wantmru;
+        else if (mru < MIN_MRU)
           lcp->want_mru = MIN_MRU;
         else
           lcp->want_mru = mru;
