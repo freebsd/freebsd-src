@@ -120,7 +120,7 @@
 #ifndef __ACPIOSXF_H__
 #define __ACPIOSXF_H__
 
-#include "platform/acenv.h"
+#include "acenv.h"
 #include "actypes.h"
 
 
