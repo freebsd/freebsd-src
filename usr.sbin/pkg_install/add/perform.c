@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26.2.4 1995/10/15 14:08:34 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.5 1995/10/23 12:33:38 jkh Exp $";
 #endif
 
 /*
@@ -109,8 +109,10 @@ pkg_do(char *pkg)
 	else {
 	    if (pkg[0] == '/')	/* full pathname? */
 		strcpy(pkg_fullname, pkg);
-	    else
-		sprintf(pkg_fullname, "./%s", pkg);
+	    else {
+		char cwd[FILENAME_MAX];		
+		sprintf(pkg_fullname, "%s/%s", getwd(cwd),pkg);
+	    }
 	    if (!fexists(pkg_fullname)) {
 		cp = fileFindByPath(NULL, pkg);
 
