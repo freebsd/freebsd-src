@@ -111,6 +111,7 @@ int	mapdirs(ino_t maxino, long *tapesize);
 void	ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino);
 void	ufs2_blksout(ufs2_daddr_t *blkp, int frags, ino_t ino);
 void	bread(ufs2_daddr_t blkno, char *buf, int size);
+ssize_t cread(int fd, void *buf, size_t nbytes, off_t offset);
 void	dumpino(union dinode *dp, ino_t ino);
 void	dumpmap(char *map, int type, ino_t ino);
 void	writeheader(ino_t ino);
