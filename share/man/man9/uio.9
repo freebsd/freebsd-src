@@ -48,7 +48,7 @@ struct uio {
 };
 .Ed
 .Ft int
-.Fn uiomove "caddr_t buf" "int howmuch" "struct uio *uiop"
+.Fn uiomove "void *buf" "int howmuch" "struct uio *uiop"
 .Sh DESCRIPTION
 The function
 .Fn uiomove
@@ -137,7 +137,7 @@ fooread(dev_t dev, struct uio *uio, int flag)
 	while (uio->uio_resid > 0) {
 		if (data_available > 0) {
 			amnt = MIN(uio->uio_resid, data_available);
-			if ((rv = uiomove((caddr_t)buffer, amnt, uio))
+			if ((rv = uiomove(buffer, amnt, uio))
 			    != 0)
 				goto error;
 			data_available -= amnt;
