@@ -806,6 +806,9 @@ found:
 			return;
 		m = clone;
 		ip = mtod(m, struct ip *);
+		ip->ip_len += hlen;
+		divert_info = 0;
+		goto pass;
 	}
 #endif
 
