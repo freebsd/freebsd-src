@@ -9,10 +9,14 @@ sed	-e '/pty/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
+	-e '/maxusers/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 
 # So dhclient will work (just on boot floppy).
 echo "pseudo-device bpf 4"
+
+# reset maxusers to something lower
+echo "maxusers	5"
 
 echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
