@@ -1701,8 +1701,8 @@ retrieve(char *cmd, char *name)
 	time(&start);
 	send_data(fin, dout, st.st_blksize, st.st_size,
 		  restart_point == 0 && cmd == 0 && S_ISREG(st.st_mode));
-	if (cmd == 0 && guest && stats)
-		logxfer(name, st.st_size, start);
+	if (cmd == 0 && guest && stats && byte_count > 0)
+		logxfer(name, byte_count, start);
 	(void) fclose(dout);
 	data = -1;
 	pdata = -1;
