@@ -1,0 +1,3716 @@
+/*
+ * Aic79xx register and scratch ram definitions.
+ *
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 2000-2001 Adaptec Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * Alternatively, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
+ *
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
+ *
+ * $FreeBSD$
+ */
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#34 $"
+
+/*
+ * This file is processed by the aic7xxx_asm utility for use in assembling
+ * firmware for the aic79xx family of SCSI host adapters as well as to generate
+ * a C header file for use in the kernel portion of the Aic79xx driver.
+ */
+
+/* Register window Modes */
+#define M_DFF0		0
+#define M_DFF1		1
+#define M_CCHAN		2
+#define M_SCSI		3
+#define M_CFG		4
+#define M_DST_SHIFT	4
+
+#define MK_MODE(src, dst) ((src) | ((dst) << M_DST_SHIFT))
+#define SET_MODE(src, dst)					\
+	SET_SRC_MODE	src;					\
+	SET_DST_MODE	dst;					\
+	mvi	MK_MODE(src, dst) call set_mode_work_around
+
+/*
+ * Mode Pointer
+ * Controls which of the 5, 512byte, address spaces should be used
+ * as the source and destination of any register accesses in our
+ * register window.
+ */
+register MODE_PTR {
+	address			0x000
+	access_mode	RW
+	mask	DST_MODE	0x70
+	mask	SRC_MODE	0x07
+	mode_pointer
+}
+
+const SRC_MODE_SHIFT	0
+const DST_MODE_SHIFT	4
+
+/*
+ * Host Interrupt Status
+ */
+register INTSTAT {
+	address			0x001
+	access_mode	RW
+	bit	HWERRINT	0x80
+	bit	BRKADRINT	0x40
+	bit	SWTMINT		0x20
+	bit	PCIINT		0x10
+	bit	SCSIINT		0x08
+	bit	SEQINT		0x04
+	bit	CMDCMPLT	0x02
+	bit	SPLTINT		0x01
+	mask	INT_PEND 0xFF
+}
+
+/*
+ * Sequencer Interrupt Code
+ */
+register SEQINTCODE {
+	address			0x002
+	access_mode	RW
+	mask	BAD_PHASE	1		/* unknown scsi bus phase */
+	mask	SEND_REJECT	2		/* sending a message reject */
+	mask	PROTO_VIOLATION 3		/* Protocol Violation */
+	mask	NO_MATCH	4		/* no cmd match for reconnect */
+	mask	IGN_WIDE_RES	5		/* Complex IGN Wide Res Msg */
+	mask	PDATA_REINIT	6		/*
+						 * Returned to data phase
+						 * that requires data
+						 * transfer pointers to be
+						 * recalculated from the
+						 * transfer residual.
+						 */
+	mask	HOST_MSG_LOOP	7		/*
+						 * The bus is ready for the
+						 * host to perform another
+						 * message transaction.  This
+						 * mechanism is used for things
+						 * like sync/wide negotiation
+						 * that require a kernel based
+						 * message state engine.
+						 */
+	mask	BAD_STATUS	8		/* Bad status from target */
+	mask	DATA_OVERRUN	9		/*
+						 * Target attempted to write
+						 * beyond the bounds of its
+						 * command.
+						 */
+	mask	MKMSG_FAILED	10		/*
+						 * Target completed command
+						 * without honoring our ATN
+						 * request to issue a message. 
+						 */
+	mask	MISSED_BUSFREE	11		/*
+						 * The sequencer never saw
+						 * the bus go free after
+						 * either a command complete
+						 * or disconnect message.
+						 */
+	mask	SCB_MISMATCH	12		/*
+						 * Downloaded SCB's tag does
+						 * not match the entry we
+						 * intended to download.
+						 */
+	mask	NO_FREE_SCB	13		/*
+						 * get_free_or_disc_scb failed.
+						 */
+	mask	OUT_OF_RANGE	14
+	mask	NO_FREE_FIFO	15
+	mask	DUMP_CARD_STATE	16
+	mask	ILLEGAL_PHASE	17
+	mask	INVALID_SEQINT	18
+	mask	CFG4ISTAT_INTR	19
+	mask	STATUS_OVERRUN	20
+	mask	CFG4OVERRUN	21
+	mask	SNAPSHOTCLRCHN	22
+	mask	MONITORDRAIN	23
+	mask	ENTERING_NONPACK 24
+	mask	PCIX_ARBITOR_WW 25
+}
+
+/*
+ * Clear Host Interrupt
+ */
+register CLRINT {
+	address			0x003
+	access_mode	WO
+	bit	CLRBRKADRINT	0x40
+	bit	CLRSWTMINT	0x20
+	bit	CLRSCSIINT	0x08
+	bit	CLRSEQINT	0x04
+	bit	CLRCMDINT	0x02
+	bit	CLRSPLTINT	0x01
+}
+
+/*
+ * Error Register
+ */
+register ERROR {
+	address			0x004
+	access_mode	RO
+	bit	CIOPARERR	0x80
+	bit	MPARERR		0x20
+	bit	DPARERR		0x10
+	bit	SQPARERR	0x08
+	bit	ILLOPCODE	0x04
+	bit	DSCTMOUT	0x02
+}
+
+/*
+ * Clear Error
+ */
+register CLRERR {
+	address			0x004
+	access_mode 	WO
+	bit	CLRCIOPARERR	0x80
+	bit	CLRMPARERR	0x20
+	bit	CLRDPARERR	0x10
+	bit	CLRSQPARERR	0x08
+	bit	CLRILLOPCODE	0x04
+	bit	CLRDSCTMOUT	0x02
+}
+
+/*
+ * Host Control Register
+ * Overall host control of the device.
+ */
+register HCNTRL {
+	address			0x005
+	access_mode	RW
+	bit	POWRDN		0x40
+	bit	SWINT		0x10
+	bit	HCNTRL3		0x08
+	bit	PAUSE		0x04
+	bit	INTEN		0x02
+	bit	CHIPRST		0x01
+	bit	CHIPRSTACK	0x01
+}
+
+/*
+ * Host New SCB Queue Offset
+ */
+register HNSCB_QOFF {
+	address			0x006
+	access_mode	RW
+	size		2
+}
+
+/*
+ * Host Empty SCB Queue Offset
+ */
+register HESCB_QOFF {
+	address			0x008
+	access_mode	RW
+}
+
+/*
+ * Host Mailbox
+ */
+register HS_MAILBOX {
+	address			0x0B
+	access_mode	RW
+	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
+}
+
+/*
+ * Sequencer Interupt Status
+ */
+register SEQINTSTAT {
+	address			0x0C
+	access_mode	RO
+	bit	SEQ_SWTMRTO	0x10
+	bit	SEQ_SEQINT	0x08
+	bit	SEQ_SCSIINT	0x04
+	bit	SEQ_PCIINT	0x02
+	bit	SEQ_SPLTINT	0x01
+}
+
+/*
+ * Clear SEQ Interrupt
+ */
+register CLRSEQINTSTAT {
+	address			0x0C0
+	access_mode	WO
+	bit	CLRSEQ_SWTMRTO	0x10
+	bit	CLRSEQ_SEQINT	0x08
+	bit	CLRSEQ_SCSIINT	0x04
+	bit	CLRSEQ_PCIINT	0x02
+	bit	CLRSEQ_SPLTINT	0x01
+}
+
+/*
+ * Software Timer
+ */
+register SWTIMER {
+	address			0x0E0
+	access_mode	RW
+	size		2
+}
+
+/*
+ * SEQ New SCB Queue Offset
+ */
+register SNSCB_QOFF {
+	address			0x010
+	access_mode	RW
+	size		2
+	modes		M_CCHAN
+}
+
+/*
+ * SEQ Empty SCB Queue Offset
+ */
+register SESCB_QOFF {
+	address			0x012
+	access_mode	RW
+	modes		M_CCHAN
+}
+
+/*
+ * SEQ Done SCB Queue Offset
+ */
+register SDSCB_QOFF {
+	address			0x014
+	access_mode	RW
+	modes		M_CCHAN
+	size		2
+}
+
+/*
+ * Queue Offset Control & Status
+ */
+register QOFF_CTLSTA {
+	address			0x016
+	access_mode	RW
+	modes		M_CCHAN
+	bit	EMPTY_SCB_AVAIL	0x80
+	bit	NEW_SCB_AVAIL	0x40
+	bit	SDSCB_ROLLOVR	0x20
+	bit	HS_MAILBOX_ACT	0x10
+	mask	SCB_QSIZE	0x0F
+	mask	SCB_QSIZE_4	0x00
+	mask	SCB_QSIZE_8	0x01
+	mask	SCB_QSIZE_16	0x02
+	mask	SCB_QSIZE_32	0x03
+	mask	SCB_QSIZE_64	0x04
+	mask	SCB_QSIZE_128	0x05
+	mask	SCB_QSIZE_256	0x06
+	mask	SCB_QSIZE_512	0x07
+	mask	SCB_QSIZE_1024	0x08
+	mask	SCB_QSIZE_2048	0x09
+	mask	SCB_QSIZE_4096	0x0A
+	mask	SCB_QSIZE_8192	0x0B
+	mask	SCB_QSIZE_16384	0x0C
+}
+
+/*
+ * Interrupt Control
+ */
+register INTCTL {
+	address			0x018
+	access_mode	RW
+	bit	SWTMINTMASK	0x80
+	bit	SWTMINTEN	0x40
+	bit	SWTIMER_START	0x20
+	bit	AUTOCLRCMDINT	0x10
+	bit	PCIINTEN	0x08
+	bit	SCSIINTEN	0x04
+	bit	SEQINTEN	0x02
+	bit	SPLTINTEN	0x01
+}
+
+/*
+ * Data FIFO Control
+ */
+register DFCNTRL {
+	address			0x019
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	PRELOADEN	0x80
+	bit	SCSIEN		0x20
+	bit	SCSIENACK	0x20
+	bit	HDMAEN		0x08
+	bit	HDMAENACK	0x08
+	bit	DIRECTION	0x04
+	bit	DIRECTIONACK	0x04
+	bit	FIFOFLUSH	0x02
+	bit	FIFOFLUSHACK	0x02
+	bit	DIRECTIONEN	0x01
+}
+
+/*
+ * Device Space Command 0
+ */
+register DSCOMMAND0 {
+	address			0x019
+	access_mode	RW
+	modes		M_CFG
+	bit	CACHETHEN	0x80	/* Cache Threshold enable */
+	bit	DPARCKEN	0x40	/* Data Parity Check Enable */
+	bit	MPARCKEN	0x20	/* Memory Parity Check Enable */
+	bit	EXTREQLCK	0x10	/* External Request Lock */
+	bit	CIOPARCKEN	0x01	/* Internal bus parity error enable */
+}
+
+/*
+ * Data FIFO Status
+ */
+register DFSTATUS {
+	address			0x01A
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	bit	PRELOAD_AVAIL		0x80
+	bit	PKT_PRELOAD_AVAIL	0x40
+	bit	MREQPEND		0x10
+	bit	HDONE			0x08
+	bit	DFTHRESH		0x04
+	bit	FIFOFULL		0x02
+	bit	FIFOEMP			0x01
+}
+
+/*
+ * S/G Cache Pointer
+ */
+register SG_CACHE_PRE {
+	address			0x01B
+	access_mode	WO
+	modes		M_DFF0, M_DFF1
+	mask	SG_ADDR_MASK	0xf8
+	bit	ODD_SEG		0x04
+	bit	LAST_SEG	0x02
+}
+
+register SG_CACHE_SHADOW {
+	address			0x01B
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	SG_ADDR_MASK	0xf8
+	bit	ODD_SEG		0x04
+	bit	LAST_SEG	0x02
+	bit	LAST_SEG_DONE	0x01
+}
+
+/*
+ * Arbiter Control
+ */
+register ARBCTL {
+	address			0x01B
+	access_mode	RW
+	modes		M_CFG
+	bit	RESET_HARB	0x80
+	bit	RETRY_SWEN	0x08
+	mask	USE_TIME	0x07
+}
+
+/*
+ * Data Channel Host Address
+ */
+register HADDR {
+	address			0x070
+	access_mode	RW
+	size		8
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Host Overlay DMA Address
+ */
+register HODMAADR {
+	address			0x070
+	access_mode	RW
+	size		8
+	modes		M_SCSI
+}
+
+/*
+ * Data Channel Host Count
+ */
+register HCNT {
+	address			0x078
+	access_mode	RW
+	size		3
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Host Overlay DMA Count
+ */
+register HODMACNT {
+	address			0x078
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * Host Overlay DMA Enable
+ */
+register HODMAEN {
+	address			0x07A
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Scatter/Gather Host Address
+ */
+register SGHADDR {
+	address			0x07C
+	access_mode	RW
+	size		8
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * SCB Host Address
+ */
+register SCBHADDR {
+	address			0x07C
+	access_mode	RW
+	size		8
+	modes		M_CCHAN
+}
+
+/*
+ * Scatter/Gather Host Count
+ */
+register SGHCNT {
+	address			0x084
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * SCB Host Count
+ */
+register SCBHCNT {
+	address			0x084
+	access_mode	RW
+	modes		M_CCHAN
+}
+
+/*
+ * Data FIFO Threshold
+ */
+register DFF_THRSH {
+	address			0x088
+	access_mode	RW
+	modes		M_CFG
+	mask	WR_DFTHRSH	0x70
+	mask	RD_DFTHRSH	0x07
+	mask	RD_DFTHRSH_MIN	0x00
+	mask	RD_DFTHRSH_25	0x01
+	mask	RD_DFTHRSH_50	0x02
+	mask	RD_DFTHRSH_63	0x03
+	mask	RD_DFTHRSH_75	0x04
+	mask	RD_DFTHRSH_85	0x05
+	mask	RD_DFTHRSH_90	0x06
+	mask	RD_DFTHRSH_MAX	0x07
+	mask	WR_DFTHRSH_MIN	0x00
+	mask	WR_DFTHRSH_25	0x10
+	mask	WR_DFTHRSH_50	0x20
+	mask	WR_DFTHRSH_63	0x30
+	mask	WR_DFTHRSH_75	0x40
+	mask	WR_DFTHRSH_85	0x50
+	mask	WR_DFTHRSH_90	0x60
+	mask	WR_DFTHRSH_MAX	0x70
+}
+
+/*
+ * ROM Address
+ */
+register ROMADDR {
+	address			0x08A
+	access_mode	RW
+	size		3
+}
+
+/*
+ * ROM Control
+ */
+register ROMCNTRL {
+	address			0x08D
+	access_mode	RW
+	mask	ROMOP		0xE0
+	mask	ROMSPD		0x18
+	bit	REPEAT		0x02
+	bit	RDY		0x01
+}
+
+/*
+ * ROM Data
+ */
+register ROMDATA {
+	address			0x08E
+	access_mode	RW
+}
+
+/*
+ * Data Channel Receive Message 0
+ */
+register DCHRXMSG0 {
+	address			0x090
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask		CDNUM	0xF8
+	mask		CFNUM	0x07
+}
+
+/*
+ * CMC Recieve Message 0
+ */
+register CMCRXMSG0 {
+	address			0x090
+	access_mode	RO
+	modes		M_CCHAN
+	mask		CDNUM	0xF8
+	mask		CFNUM	0x07
+}
+
+/*
+ * Overlay Recieve Message 0
+ */
+register OVLYRXMSG0 {
+	address			0x090
+	access_mode	RO
+	modes		M_SCSI
+	mask		CDNUM	0xF8
+	mask		CFNUM	0x07
+}
+
+/*
+ * Relaxed Order Enable
+ */
+register ROENABLE {
+	address			0x090
+	access_mode	RW
+	modes		M_CFG
+	bit	MSIROEN		0x20
+	bit	OVLYROEN	0x10
+	bit	CMCROEN		0x08
+	bit	SGROEN		0x04
+	bit	DCH1ROEN	0x02
+	bit	DCH0ROEN	0x01
+}
+
+/*
+ * Data Channel Receive Message 1
+ */
+register DCHRXMSG1 {
+	address			0x091
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	CBNUM		0xFF
+}
+
+/*
+ * CMC Recieve Message 1
+ */
+register CMCRXMSG1 {
+	address			0x091
+	access_mode	RO
+	modes		M_CCHAN
+	mask	CBNUM		0xFF
+}
+
+/*
+ * Overlay Recieve Message 1
+ */
+register OVLYRXMSG1 {
+	address			0x091
+	access_mode	RO
+	modes		M_SCSI
+	mask	CBNUM		0xFF
+}
+
+/*
+ * No Snoop Enable
+ */
+register NSENABLE {
+	address			0x091
+	access_mode	RW
+	modes		M_CFG
+	bit	MSINSEN		0x20
+	bit	OVLYNSEN	0x10
+	bit	CMCNSEN		0x08
+	bit	SGNSEN		0x04
+	bit	DCH1NSEN	0x02
+	bit	DCH0NSEN	0x01
+}
+
+/*
+ * Data Channel Receive Message 2
+ */
+register DCHRXMSG2 {
+	address			0x092
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	MINDEX		0xFF
+}
+
+/*
+ * CMC Recieve Message 2
+ */
+register CMCRXMSG2 {
+	address			0x092
+	access_mode	RO
+	modes		M_CCHAN
+	mask	MINDEX		0xFF
+}
+
+/*
+ * Overlay Recieve Message 2
+ */
+register OVLYRXMSG2 {
+	address			0x092
+	access_mode	RO
+	modes		M_SCSI
+	mask	MINDEX		0xFF
+}
+
+/*
+ * Outstanding Split Transactions
+ */
+register OST {
+	address			0x092
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Data Channel Receive Message 3
+ */
+register DCHRXMSG3 {
+	address			0x093
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	MCLASS		0x0F
+}
+
+/*
+ * CMC Recieve Message 3
+ */
+register CMCRXMSG3 {
+	address			0x093
+	access_mode	RO
+	modes		M_CCHAN
+	mask	MCLASS		0x0F
+}
+
+/*
+ * Overlay Recieve Message 3
+ */
+register OVLYRXMSG3 {
+	address			0x093
+	access_mode	RO
+	modes		M_SCSI
+	mask	MCLASS		0x0F
+}
+
+/*
+ * PCI-X Control
+ */
+register PCIXCTL {
+	address			0x093
+	access_mode	RW
+	modes		M_CFG
+	bit	SERRPULSE	0x80
+	bit	UNEXPSCIEN	0x20
+	bit	SPLTSMADIS	0x10
+	bit	SPLTSTADIS	0x08
+	bit	SRSPDPEEN	0x04
+	bit	TSCSERREN	0x02
+	bit	CMPABCDIS	0x01
+}
+
+/*
+ * CMC Sequencer Byte Count
+ */
+register CMCSEQBCNT {
+	address			0x094
+	access_mode	RO
+	modes		M_CCHAN
+}
+
+/*
+ * Overlay Sequencer Byte Count
+ */
+register OVLYSEQBCNT {
+	address			0x094
+	access_mode	RO
+	modes		M_SCSI
+}
+
+/*
+ * Data Channel Sequencer Byte Count
+ */
+register DCHSEQBCNT {
+	address			0x094
+	access_mode	RO
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Data Channel Split Status 0
+ */
+register DCHSPLTSTAT0 {
+	address			0x096
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	STAETERM	0x80
+	bit	SCBCERR		0x40
+	bit	SCADERR		0x20
+	bit	SCDATBUCKET	0x10
+	bit	CNTNOTCMPLT	0x08
+	bit	RXOVRUN		0x04
+	bit	RXSCEMSG	0x02
+	bit	RXSPLTRSP	0x01
+}
+
+/*
+ * CMC Split Status 0
+ */
+register CMCSPLTSTAT0 {
+	address			0x096
+	access_mode	RW
+	modes		M_CCHAN
+	bit	STAETERM	0x80
+	bit	SCBCERR		0x40
+	bit	SCADERR		0x20
+	bit	SCDATBUCKET	0x10
+	bit	CNTNOTCMPLT	0x08
+	bit	RXOVRUN		0x04
+	bit	RXSCEMSG	0x02
+	bit	RXSPLTRSP	0x01
+}
+
+/*
+ * Overlay Split Status 0
+ */
+register OVLYSPLTSTAT0 {
+	address			0x096
+	access_mode	RW
+	modes		M_SCSI
+	bit	STAETERM	0x80
+	bit	SCBCERR		0x40
+	bit	SCADERR		0x20
+	bit	SCDATBUCKET	0x10
+	bit	CNTNOTCMPLT	0x08
+	bit	RXOVRUN		0x04
+	bit	RXSCEMSG	0x02
+	bit	RXSPLTRSP	0x01
+}
+
+/*
+ * Data Channel Split Status 1
+ */
+register DCHSPLTSTAT1 {
+	address			0x097
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	RXDATABUCKET	0x01
+}
+
+/*
+ * CMC Split Status 1
+ */
+register CMCSPLTSTAT1 {
+	address			0x097
+	access_mode	RW
+	modes		M_CCHAN
+	bit	RXDATABUCKET	0x01
+}
+
+/*
+ * Overlay Split Status 1
+ */
+register OVLYSPLTSTAT1 {
+	address			0x097
+	access_mode	RW
+	modes		M_SCSI
+	bit	RXDATABUCKET	0x01
+}
+
+/*
+ * S/G Receive Message 0
+ */
+register SGRXMSG0 {
+	address			0x098
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask		CDNUM	0xF8
+	mask		CFNUM	0x07
+}
+
+/*
+ * S/G Receive Message 1
+ */
+register SGRXMSG1 {
+	address			0x099
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	CBNUM		0xFF
+}
+
+/*
+ * S/G Receive Message 2
+ */
+register SGRXMSG2 {
+	address			0x09A
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	MINDEX		0xFF
+}
+
+/*
+ * S/G Receive Message 3
+ */
+register SGRXMSG3 {
+	address			0x09B
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	mask	MCLASS		0x0F
+}
+
+/*
+ * Slave Split Out Address 0
+ */
+register SLVSPLTOUTADR0 {
+	address			0x098
+	access_mode	RO
+	modes		M_SCSI
+	mask	LOWER_ADDR	0x7F
+}
+
+/*
+ * Slave Split Out Address 1
+ */
+register SLVSPLTOUTADR1 {
+	address			0x099
+	access_mode	RO
+	modes		M_SCSI
+	mask	REQ_DNUM	0xF8
+	mask	REQ_FNUM	0x07
+}
+
+/*
+ * Slave Split Out Address 2
+ */
+register SLVSPLTOUTADR2 {
+	address			0x09A
+	access_mode	RO
+	modes		M_SCSI
+	mask	REQ_BNUM	0xFF
+}
+
+/*
+ * Slave Split Out Address 3
+ */
+register SLVSPLTOUTADR3 {
+	address			0x09B
+	access_mode	RO
+	modes		M_SCSI
+	bit	RLXORD		020
+	mask	TAG_NUM		0x1F
+}
+
+/*
+ * SG Sequencer Byte Count
+ */
+register SGSEQBCNT {
+	address			0x09C
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Slave Split Out Attribute 0
+ */
+register SLVSPLTOUTATTR0 {
+	address			0x09C
+	access_mode	RO
+	modes		M_SCSI
+	mask	LOWER_BCNT	0xFF
+}
+
+/*
+ * Slave Split Out Attribute 1
+ */
+register SLVSPLTOUTATTR1 {
+	address			0x09D
+	access_mode	RO
+	modes		M_SCSI
+	mask	CMPLT_DNUM	0xF8
+	mask	CMPLT_FNUM	0x07
+}
+
+/*
+ * Slave Split Out Attribute 2
+ */
+register SLVSPLTOUTATTR2 {
+	address			0x09E
+	access_mode	RO
+	size		2
+	modes		M_SCSI
+	mask	CMPLT_BNUM	0xFF
+}
+/*
+ * S/G Split Status 0
+ */
+register SGSPLTSTAT0 {
+	address			0x09E
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	STAETERM	0x80
+	bit	SCBCERR		0x40
+	bit	SCADERR		0x20
+	bit	SCDATBUCKET	0x10
+	bit	CNTNOTCMPLT	0x08
+	bit	RXOVRUN		0x04
+	bit	RXSCEMSG	0x02
+	bit	RXSPLTRSP	0x01
+}
+
+/*
+ * S/G Split Status 1
+ */
+register SGSPLTSTAT1 {
+	address			0x09F
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	RXDATABUCKET	0x01
+}
+
+/*
+ * Special Function
+ */
+register SFUNCT {
+	address			0x09f
+	access_mode	RW
+	modes		M_CFG
+	mask	TEST_GROUP	0xF0
+	mask	TEST_NUM	0x0F
+}
+
+/*
+ * Data FIFO 0 PCI Status 
+ */
+register DF0PCISTAT {
+	address			0x0A0
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	SCAAPERR	0x08
+	bit	RDPERR		0x04
+	bit	TWATERR		0x02
+	bit	DPR		0x01
+}
+
+/*
+ * Data FIFO 1 PCI Status 
+ */
+register DF1PCISTAT {
+	address			0x0A1
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	SCAAPERR	0x08
+	bit	RDPERR		0x04
+	bit	TWATERR		0x02
+	bit	DPR		0x01
+}
+
+/*
+ * S/G PCI Status 
+ */
+register SGPCISTAT {
+	address			0x0A2
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	SCAAPERR	0x08
+	bit	RDPERR		0x04
+	bit	DPR		0x01
+}
+
+/*
+ * CMC PCI Status 
+ */
+register CMCPCISTAT {
+	address			0x0A3
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	SCAAPERR	0x08
+	bit	RDPERR		0x04
+	bit	TWATERR		0x02
+	bit	DPR		0x01
+}
+
+/*
+ * Overlay PCI Status 
+ */
+register OVLYPCISTAT {
+	address			0x0A4
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	SCAAPERR	0x08
+	bit	RDPERR		0x04
+	bit	DPR		0x01
+}
+
+/*
+ * PCI Status for MSI Master DMA Transfer
+ */
+register MSIPCISTAT {
+	address			0x0A6
+	access_mode	RW
+	modes		M_CFG
+	bit	SSE		0x40
+	bit	RMA		0x20
+	bit	RTA		0x10
+	bit	CLRPENDMSI	0x08
+	bit	TWATERR		0x02
+	bit	DPR		0x01
+}
+
+/*
+ * PCI Status for Target
+ */
+register TARGPCISTAT {
+	address			0x0A6
+	access_mode	RW
+	modes		M_CFG
+	bit	DPE		0x80
+	bit	SSE		0x40
+	bit	STA		0x08
+	bit	TWATERR		0x02
+}
+
+/*
+ * LQ Packet In
+ * The last LQ Packet recieved
+ */
+register LQIN {
+	address			0x020
+	access_mode	RW
+	size		20
+	modes		M_DFF0, M_DFF1, M_SCSI
+}
+
+/*
+ * SCB Type Pointer
+ * SCB offset for Target Mode SCB type information
+ */
+register TYPEPTR {
+	address			0x020
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Queue Tag Pointer
+ * SCB offset to the Two Byte tag identifier used for target mode.
+ */
+register TAGPTR {
+	address			0x021
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Logical Unit Number Pointer
+ * SCB offset to the LSB (little endian) of the lun field.
+ */
+register LUNPTR {
+	address			0x022
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Data Length Pointer
+ * SCB offset for the 4 byte data length field in target mode.
+ */
+register DATALENPTR {
+	address			0x023
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Status Length Pointer
+ * SCB offset to the two byte status field in target SCBs.
+ */
+register STATLENPTR {
+	address			0x024
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Command Length Pointer
+ * Scb offset for the CDB length field in initiator SCBs.
+ */
+register CMDLENPTR {
+	address			0x025
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Task Attribute Pointer
+ * Scb offset for the byte field specifying the attribute byte
+ * to be used in command packets.
+ */ 
+register ATTRPTR {
+	address			0x026
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Task Management Flags Pointer
+ * Scb offset for the byte field specifying the attribute flags
+ * byte to be used in command packets.
+ */ 
+register FLAGPTR {
+	address			0x027
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Command Pointer
+ * Scb offset for the first byte in the CDB for initiator SCBs.
+ */
+register CMDPTR {
+	address			0x028
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Queue Next Pointer
+ * Scb offset for the 2 byte "next scb link".
+ */
+register QNEXTPTR {
+	address			0x029
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * SCSI ID Pointer
+ * Scb offset to the value to place in the SCSIID register
+ * during target mode connections.
+ */
+register IDPTR {
+	address			0x02A
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Command Aborted Byte Pointer
+ * Offset to the SCB flags field that includes the
+ * "SCB aborted" status bit.
+ */
+register ABRTBYTEPTR {
+	address			0x02B
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Command Aborted Bit Pointer
+ * Bit offset in the SCB flags field for "SCB aborted" status.
+ */
+register ABRTBITPTR {
+	address			0x02C
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Logical Unit Number Length
+ * The length, in bytes, of the SCB lun field.
+ */
+register LUNLEN {
+	address			0x030
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * CDB Limit
+ * The size, in bytes, of the embedded CDB field in initator SCBs.
+ */
+register CDBLIMIT {
+	address			0x031
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Maximum Commands
+ * The maximum number of commands to issue during a
+ * single packetized connection.
+ */
+register MAXCMD {
+	address			0x032
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Maximum Command Counter
+ * The number of commands already sent during this connection
+ */
+register MAXCMDCNT {
+	address			0x033
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * LQ Packet Reserved Bytes
+ * The bytes to be sent in the currently reserved fileds
+ * of all LQ packets.
+ */
+register LQRSVD01 {
+	address			0x034
+	access_mode	RW
+	modes		M_SCSI
+}
+register LQRSVD16 {
+	address			0x035
+	access_mode	RW
+	modes		M_SCSI
+}
+register LQRSVD17 {
+	address			0x036
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Command Reserved 0
+ * The byte to be sent for the reserved byte 0 of
+ * outgoing command packets.
+ */
+register CMDRSVD0 {
+	address			0x037
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * LQ Manager Control 0
+ */
+register LQCTL0 {
+	address			0x038
+	access_mode	RW
+	modes		M_CFG
+	mask	LQITARGCLT	0xC0
+	mask	LQIINITGCLT	0x30
+	mask	LQ0TARGCLT	0x0C
+	mask	LQ0INITGCLT	0x03
+}
+
+/*
+ * LQ Manager Control 1
+ */
+register LQCTL1 {
+	address			0x038
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	PCI2PCI		0x04
+	bit	SINGLECMD	0x02
+	bit	ABORTPENDING	0x01
+}
+
+/*
+ * LQ Manager Control 2
+ */
+register LQCTL2 {
+	address			0x039
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	LQIRETRY	0x80
+	bit	LQICONTINUE	0x40
+	bit	LQITOIDLE	0x20
+	bit	LQIPAUSE	0x10
+	bit	LQORETRY	0x08
+	bit	LQOCONTINUE	0x04
+	bit	LQOTOIDLE	0x02
+	bit	LQOPAUSE	0x01
+}
+
+/*
+ * SCSI RAM BIST0
+ */
+register SCSBIST0 {
+	address			0x039
+	access_mode	RW
+	modes		M_CFG
+	bit	GSBISTERR	0x40
+	bit	GSBISTDONE	0x20
+	bit	GSBISTRUN	0x10
+	bit	OSBISTERR	0x04
+	bit	OSBISTDONE	0x02
+	bit	OSBISTRUN	0x01
+}
+
+/*
+ * SCSI Sequence Control0
+ */
+register SCSISEQ0 {
+	address			0x03A
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	TEMODEO		0x80
+	bit	ENSELO		0x40
+	bit	ENARBO		0x20
+	bit	FORCEBUSFREE	0x10
+	bit	SCSIRSTO	0x01
+}
+
+/*
+ * SCSI RAM BIST 1
+ */
+register SCSBIST1 {
+	address			0x03A
+	access_mode	RW
+	modes		M_CFG
+	bit	NTBISTERR	0x04
+	bit	NTBISTDONE	0x02
+	bit	NTBISTRUN	0x01
+}
+
+/*
+ * SCSI Sequence Control 1
+ */
+register SCSISEQ1 {
+	address			0x03B
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	MANUALCTL	0x40
+	bit	ENSELI		0x20
+	bit	ENRSELI		0x10
+	mask	MANUALP		0x0C
+	bit	ENAUTOATNP	0x02
+	bit	ALTSTIM		0x01
+}
+
+/*
+ * SCSI Transfer Control 0
+ */
+register SXFRCTL0 {
+	address			0x03C
+	access_mode	RW
+	modes		M_SCSI
+	bit	DFON		0x80
+	bit	DFPEXP		0x40
+	bit	BIOSCANCELEN	0x10
+	bit	SPIOEN		0x08
+}
+
+/*
+ * SCSI Transfer Control 1
+ */
+register SXFRCTL1 {
+	address			0x03D
+	access_mode	RW
+	modes		M_SCSI
+	bit	BITBUCKET	0x80
+	bit	ENSACHK		0x40
+	bit	ENSPCHK		0x20
+	mask	STIMESEL	0x18
+	bit	ENSTIMER	0x04
+	bit	ACTNEGEN	0x02
+	bit	STPWEN		0x01
+}
+
+/*
+ * SCSI Transfer Control 2
+ */
+register SXFRCTL2 {
+	address			0x03E
+	access_mode	RW
+	modes		M_SCSI
+	bit	AUTORSTDIS	0x10
+	bit	CMDDMAEN	0x08
+	mask	ASU		0x07
+}
+
+/*
+ * SCSI Bus Initiator IDs
+ * Bitmask of observed initiators on the bus.
+ */
+register BUSINITID {
+	address			0x03C
+	access_mode	RW
+	modes		M_CFG
+	size		2
+}
+
+/*
+ * Data Length Counters
+ * Packet byte counter.
+ */
+register DLCOUNT {
+	address			0x03C
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	size		3
+}
+
+/*
+ * Data FIFO Status
+ */
+register DFFSTAT {
+	address			0x03F
+	access_mode	RW
+	modes		M_SCSI
+	bit	FIFO1FREE	0x20
+	bit	FIFO0FREE	0x10
+	bit	CURRFIFO	0x01
+}
+
+/*
+ * SCSI Bus Target IDs
+ * Bitmask of observed targets on the bus.
+ */
+register BUSTARGID {
+	address			0x03E
+	access_mode	RW
+	modes		M_CFG
+	size		2
+}
+
+/*
+ * SCSI Control Signal Out
+ */
+register SCSISIGO {
+	address			0x040
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CDO		0x80
+	bit	IOO		0x40
+	bit	MSGO		0x20
+	bit	ATNO		0x10
+	bit	SELO		0x08
+	bit	BSYO		0x04
+	bit	REQO		0x02
+	bit	ACKO		0x01
+/*
+ * Possible phases to write into SCSISIG0
+ */
+	mask	PHASE_MASK	CDO|IOO|MSGO
+	mask	P_DATAOUT	0x00
+	mask	P_DATAIN	IOO
+	mask	P_DATAOUT_DT	P_DATAOUT|MSGO
+	mask	P_DATAIN_DT	P_DATAIN|MSGO
+	mask	P_COMMAND	CDO
+	mask	P_MESGOUT	CDO|MSGO
+	mask	P_STATUS	CDO|IOO
+	mask	P_MESGIN	CDO|IOO|MSGO
+}
+
+register SCSISIGI {
+	address			0x041
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CDI		0x80
+	bit	IOI		0x40
+	bit	MSGI		0x20
+	bit	ATNI		0x10
+	bit	SELI		0x08
+	bit	BSYI		0x04
+	bit	REQI		0x02
+	bit	ACKI		0x01
+/*
+ * Possible phases in SCSISIGI
+ */
+	mask	PHASE_MASK	CDI|IOI|MSGI
+	mask	P_DATAOUT	0x00
+	mask	P_DATAIN	IOI
+	mask	P_DATAOUT_DT	P_DATAOUT|MSGI
+	mask	P_DATAIN_DT	P_DATAIN|MSGI
+	mask	P_COMMAND	CDI
+	mask	P_MESGOUT	CDI|MSGI
+	mask	P_STATUS	CDI|IOI
+	mask	P_MESGIN	CDI|IOI|MSGI
+}
+
+/*
+ * Multiple Target IDs
+ * Bitmask of ids to respond as a target.
+ */
+register MULTARGID {
+	address			0x040
+	access_mode	RW
+	modes		M_CFG
+	size		2
+}
+
+/*
+ * SCSI Phase
+ */
+register SCSIPHASE {
+	address			0x042
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	STATUS_PHASE	0x20
+	bit	COMMAND_PHASE	0x10
+	bit	MSG_IN_PHASE	0x08
+	bit	MSG_OUT_PHASE	0x04
+	bit	DATA_IN_PHASE	0x02
+	bit	DATA_OUT_PHASE	0x01
+	mask	DATA_PHASE_MASK	0x03
+}
+
+/*
+ * SCSI Data 0 Image
+ */
+register SCSIDAT0_IMG {
+	address			0x043
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+}
+
+/*
+ * SCSI Latched Data
+ */
+register SCSIDAT {
+	address			0x044
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	size		2
+}
+
+/*
+ * SCSI Data Bus
+ */
+register SCSIBUS {
+	address			0x046
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	size		2
+}
+
+/*
+ * Target ID In
+ */
+register TARGIDIN {
+	address			0x048
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLKOUT		0x80
+	mask	TARGID		0x0F
+}
+
+/*
+ * Selection/Reselection ID
+ * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
+ * device did not set its own ID.
+ */
+register SELID {
+	address			0x049
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	mask	SELID_MASK	0xf0
+	bit	ONEBIT		0x08
+}
+
+/*
+ * SCSI Block Control
+ * Controls Bus type and channel selection.  SELWIDE allows for the
+ * coexistence of 8bit and 16bit devices on a wide bus.
+ */
+register SBLKCTL {
+	address			0x04A
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	DIAGLEDEN	0x80
+	bit	DIAGLEDON	0x40
+	bit	ENAB40		0x08	/* LVD transceiver active */
+	bit	ENAB20		0x04	/* SE/HVD transceiver active */
+	bit	SELWIDE		0x02
+}
+
+/*
+ * Option Mode
+ */
+register OPTIONMODE {
+	address			0x04A
+	access_mode	RW
+	modes		M_CFG
+	bit	BIOSCANCTL		0x80
+	bit	AUTOACKEN		0x40
+	bit	BIASCANCTL		0x20
+	bit	BUSFREEREV		0x10
+	bit	ENDGFORMCHK		0x04
+	bit	AUTO_MSGOUT_DE		0x02
+	mask	OPTIONMODE_DEFAULTS	AUTO_MSGOUT_DE
+}
+
+/*
+ * SCSI Status 0
+ */
+register SSTAT0	{
+	address			0x04B
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	TARGET		0x80	/* Board acting as target */
+	bit	SELDO		0x40	/* Selection Done */
+	bit	SELDI		0x20	/* Board has been selected */
+	bit	SELINGO		0x10	/* Selection In Progress */
+	bit	IOERR		0x08	/* LVD Tranceiver mode changed */
+	bit	OVERRUN		0x04	/* SCSI Offset overrun detected */
+	bit	SPIORDY		0x02	/* SCSI PIO Ready */
+	bit	ARBDO		0x01	/* Arbitration Done Out */
+}
+
+/*
+ * Clear SCSI Interrupt 0
+ * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT0.
+ */
+register CLRSINT0 {
+	address			0x04B
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRSELDO	0x40
+	bit	CLRSELDI	0x20
+	bit	CLRSELINGO	0x10
+	bit	CLRIOERR	0x08
+	bit	CLROVERRUN	0x04
+	bit	CLRSPIORDY	0x02
+	bit	CLRARBDO	0x01
+}
+
+/*
+ * SCSI Interrupt Mode 0
+ * Setting any bit will enable the corresponding function
+ * in SIMODE0 to interrupt via the IRQ pin.
+ */
+register SIMODE0 {
+	address			0x04B
+	access_mode	RW
+	modes		M_CFG
+	bit	ENSELDO		0x40
+	bit	ENSELDI		0x20
+	bit	ENSELINGO	0x10
+	bit	ENIOERR		0x08
+	bit	ENOVERRUN	0x04
+	bit	ENSPIORDY	0x02
+	bit	ENARBDO		0x01
+}
+
+/*
+ * SCSI Status 1
+ */
+register SSTAT1 {
+	address			0x04C
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	SELTO		0x80
+	bit	ATNTARG 	0x40
+	bit	SCSIRSTI	0x20
+	bit	PHASEMIS	0x10
+	bit	BUSFREE		0x08
+	bit	SCSIPERR	0x04
+	bit	STRB2FAST	0x02
+	bit	REQINIT		0x01
+}
+
+/*
+ * Clear SCSI Interrupt 1
+ * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT1.
+ */
+register CLRSINT1 {
+	address			0x04c
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRSELTIMEO	0x80
+	bit	CLRATNO		0x40
+	bit	CLRSCSIRSTI	0x20
+	bit	CLRBUSFREE	0x08
+	bit	CLRSCSIPERR	0x04
+	bit	CLRSTRB2FAST	0x02
+	bit	CLRREQINIT	0x01
+}
+
+/*
+ * SCSI Status 2
+ */
+register SSTAT2 {
+	address			0x04d
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	mask	BUSFREETIME	0xc0
+	mask	BUSFREE_LQO	0x40
+	mask	BUSFREE_DFF0	0x80
+	mask	BUSFREE_DFF1	0xC0
+	bit	NONPACKREQ	0x20
+	bit	EXP_ACTIVE	0x10	/* SCSI Expander Active */
+	bit	BSYX		0x08	/* Busy Expander */
+	bit	WIDE_RES	0x04	/* Modes 0 and 1 only */
+	bit	SDONE		0x02	/* Modes 0 and 1 only */
+	bit	DMADONE		0x01	/* Modes 0 and 1 only */
+}
+
+/*
+ * Clear SCSI Interrupt 2
+ */
+register CLRSINT2 {
+	address			0x04D
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRNONPACKREQ	0x20
+	bit	CLRWIDE_RES	0x04	/* Modes 0 and 1 only */
+	bit	CLRSDONE	0x02	/* Modes 0 and 1 only */
+	bit	CLRDMADONE	0x01	/* Modes 0 and 1 only */
+}
+
+/*
+ * SCSI Interrupt Mode 2
+ */
+register SIMODE2 {
+	address			0x04D
+	access_mode	RW
+	modes		M_CFG
+	bit	ENWIDE_RES	0x04
+	bit	ENSDONE		0x02
+	bit	ENDMADONE	0x01
+}
+
+/*
+ * Physical Error Diagnosis
+ */
+register PERRDIAG {
+	address			0x04E
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	HIZERO		0x80
+	bit	HIPERR		0x40
+	bit	PREVPHASE	0x20
+	bit	PARITYERR	0x10
+	bit	AIPERR		0x08
+	bit	CRCERR		0x04
+	bit	DGFORMERR	0x02
+	bit	DTERR		0x01
+}
+
+/*
+ * LQI Manager Current State
+ */
+register LQISTATE {
+	address			0x04E
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * SCSI Offset Count
+ */
+register SOFFCNT {
+	address			0x04F
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+}
+
+/*
+ * LQO Manager Current State
+ */
+register LQOSTATE {
+	address			0x04F
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * LQI Manager Status
+ */
+register LQISTAT0 {
+	address			0x050
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	LQIATNQAS	0x20
+	bit	LQICRCT1	0x10
+	bit	LQICRCT2	0x08
+	bit	LQIBADLQT	0x04
+	bit	LQIATNLQ	0x02
+	bit	LQIATNCMD	0x01
+}
+
+/*
+ * Clear LQI Interrupts 0
+ */
+register CLRLQIINTO {
+	address			0x050
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRLQIATNQAS	0x20
+	bit	CLRLQICRCT1	0x10
+	bit	CLRLQICRCT2	0x08
+	bit	CLRLQIBADLQT	0x04
+	bit	CLRLQIATNLQ	0x02
+	bit	CLRLQIATNCMD	0x01
+}
+
+/*
+ * LQI Manager Interrupt Mode 0
+ */
+register LQIMODE0 {
+	address			0x050
+	access_mode	RW
+	modes		M_CFG
+	bit	ENLQIATNQASK	0x20
+	bit	ENLQICRCT1	0x10
+	bit	ENLQICRCT2	0x08
+	bit	ENLQIBADLQT	0x04
+	bit	ENLQIATNLQ	0x02
+	bit	ENLQIATNCMD	0x01
+}
+
+/*
+ * LQI Manager Status 1
+ */
+register LQISTAT1 {
+	address			0x051
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	mask	LQIPHASE_LQ	0x80
+	mask	LQIPHASE_NLQ	0x40
+	bit	LQIABORT	0x20
+	mask	LQICRCI_LQ	0x10
+	mask	LQICRCI_NLQ	0x08
+	bit	LQIBADLQI	0x04
+	mask	LQIOVERI_LQ	0x02
+	mask	LQIOVERI_NLQ	0x01
+}
+
+/*
+ * Clear LQI Manager Interrupts1
+ */
+register CLRLQIINT1 {
+	address			0x051
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	mask	CLRLQIPHASE_LQ	0x80
+	mask	CLRLQIPHASE_NLQ	0x40
+	bit	CLRLIQABORT	0x20
+	mask	CLRLQICRCI_LQ	0x10
+	mask	CLRLQICRCI_NLQ	0x08
+	bit	CLRLQIBADLQI	0x04
+	mask	CLRLQIOVERI_LQ	0x02
+	mask	CLRLQIOVERI_NLQ	0x01
+}
+
+/*
+ * LQI Manager Interrupt Mode 1
+ */
+register LQIMODE1 {
+	address			0x051
+	access_mode	RW
+	modes		M_CFG
+	mask	ENLQIPHASE_LQ	0x80
+	mask	ENLQIPHASE_NLQ	0x40
+	bit	ENLIQABORT	0x20
+	mask	ENLQICRCI_LQ	0x10
+	mask	ENLQICRCI_NLQ	0x08
+	bit	ENLQIBADLQI	0x04
+	mask	ENLQIOVERI_LQ	0x02
+	mask	ENLQIOVERI_NLQ	0x01
+}
+
+/*
+ * LQI Manager Status 2
+ */
+register LQISTAT2 {
+	address			0x052
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	PACKETIZED	0x80
+	bit	LQIPHASE_OUTPKT	0x40
+	bit	LQIWORKONLQ	0x20
+	bit	LQIWAITFIFO	0x10
+	bit	LQISTOPPKT	0x08
+	bit	LQISTOPLQ	0x04
+	bit	LQISTOPCMD	0x02
+	bit	LQIGSAVAIL	0x01
+}
+
+/*
+ * SCSI Status 3
+ */
+register SSTAT3 {
+	address			0x053
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	NTRAMPERR	0x02
+	bit	OSRAMPERR	0x01
+}
+
+/*
+ * Clear SCSI Status 3
+ */
+register CLRSINT3 {
+	address			0x053
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRNTRAMPERR	0x02
+	bit	CLROSRAMPERR	0x01
+}
+
+/*
+ * SCSI Interrupt Mode 3
+ */
+register SIMODE3 {
+	address			0x053
+	access_mode	RW
+	modes		M_CFG
+	bit	ENNTRAMPERR	0x02
+	bit	ENOSRAMPERR	0x01
+}
+
+/*
+ * LQO Manager Status 0
+ */
+register LQOSTAT0 {
+	address			0x054
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	LQOTARGSCBPERR	0x10
+	bit	LQOSTOPT2	0x08
+	bit	LQOATNLQ	0x04
+	bit	LQOATNPKT	0x02
+	bit	LQOTCRC		0x01
+}
+
+/*
+ * Clear LQO Manager interrupt 0
+ */
+register CLRLQOINT0 {
+	address			0x054
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRLQOTARGSCBPERR	0x10
+	bit	CLRLQOSTOPT2		0x08
+	bit	CLRLQOATNLQ		0x04
+	bit	CLRLQOATNPKT		0x02
+	bit	CLRLQOTCRC		0x01
+}
+
+/*
+ * LQO Manager Interrupt Mode 0
+ */
+register LQOMODE0 {
+	address			0x054
+	access_mode	RW
+	modes		M_CFG
+	bit	ENLQOTARGSCBPERR	0x10
+	bit	ENLQOSTOPT2		0x08
+	bit	ENLQOATNLQ		0x04
+	bit	ENLQOATNPKT		0x02
+	bit	ENLQOTCRC		0x01
+}
+
+/*
+ * LQO Manager Status 1
+ */
+register LQOSTAT1 {
+	address			0x055
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	LQOINITSCBPERR	0x10
+	bit	LQOSTOPI2	0x08
+	bit	LQOBADQAS	0x04
+	bit	LQOBUSFREE	0x02
+	bit	LQOPHACHGINPKT	0x01
+}
+
+/*
+ * Clear LOQ Interrupt 1
+ */
+register CLRLQOINT1 {
+	address			0x055
+	access_mode	WO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	CLRLQOINITSCBPERR	0x10
+	bit	CLRLQOSTOPI2		0x08
+	bit	CLRLQOBADQAS		0x04
+	bit	CLRLQOBUSFREE		0x02
+	bit	CLRLQOPHACHGINPKT	0x01
+}
+
+/*
+ * LQO Manager Interrupt Mode 1
+ */
+register LQOMODE1 {
+	address			0x055
+	access_mode	RW
+	modes		M_CFG
+	bit	ENLQOINITSCBPERR	0x10
+	bit	ENLQOSTOPI2		0x08
+	bit	ENLQOBADQAS		0x04
+	bit	ENLQOBUSFREE		0x02
+	bit	ENLQOPHACHGINPKT	0x01
+}
+
+/*
+ * LQO Manager Status 2
+ */
+register LQOSTAT2 {
+	address			0x056
+	access_mode	RO
+	modes		M_DFF0, M_DFF1, M_SCSI
+	mask	LQOPKT		0xE0
+	bit	LQOWAITFIFO	0x10
+	bit	LQOPHACHGOUTPKT	0x02	/* outside of packet boundaries. */
+	bit	LQOSTOP0	0x01	/* Stopped after sending all packets */
+}
+
+/*
+ * Output Synchronizer Space Count
+ */
+register OS_SPACE_CNT {
+	address			0x056
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * SCSI Interrupt Mode 1
+ * Setting any bit will enable the corresponding function
+ * in SIMODE1 to interrupt via the IRQ pin.
+ */
+register SIMODE1 {
+	address			0x057
+	access_mode	RW
+	modes		M_DFF0, M_DFF1, M_SCSI
+	bit	ENSELTIMO	0x80
+	bit	ENATNTARG	0x40
+	bit	ENSCSIRST	0x20
+	bit	ENPHASEMIS	0x10
+	bit	ENBUSFREE	0x08
+	bit	ENSCSIPERR	0x04
+	bit	ENSTRB2FAST	0x02
+	bit	ENREQINIT	0x01
+}
+
+/*
+ * Good Status FIFO
+ */
+register GSFIFO {
+	address			0x058
+	access_mode	RO
+	size		2
+	modes		M_DFF0, M_DFF1, M_SCSI
+}
+
+/*
+ * Data FIFO SCSI Transfer Control
+ */
+register DFFSXFRCTL {
+	address			0x05A
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	CLRSHCNT	0x04
+	bit	CLRCHN		0x02
+	bit	RSTCHN		0x01
+}
+
+/*
+ * Next SCSI Control Block
+ */
+register NEXTSCB {
+	address			0x05A
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+	
+/*
+ * SEQ Interrupts
+ */
+register SEQINTSRC {
+	address			0x05B
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	bit	CTXTDONE	0x40
+	bit	SAVEPTRS	0x20
+	bit	CFG4DATA	0x10
+	bit	CFG4ISTAT	0x08
+	bit	CFG4TSTAT	0x04
+	bit	CFG4ICMD	0x02
+	bit	CFG4TCMD	0x01
+}
+
+/*
+ * Clear Arp Interrupts
+ */
+register CLRSEQINTSRC {
+	address			0x05B
+	access_mode	WO
+	modes		M_DFF0, M_DFF1
+	bit	CLRCTXTDONE	0x40
+	bit	CLRSAVEPTRS	0x20
+	bit	CLRCFG4DATA	0x10
+	bit	CLRCFG4ISTAT	0x08
+	bit	CLRCFG4TSTAT	0x04
+	bit	CLRCFG4ICMD	0x02
+	bit	CLRCFG4TCMD	0x01
+}
+
+/*
+ * SEQ Interrupt Enabled (Shared)
+ */
+register SEQIMODE {
+	address			0x05C
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	ENCTXTDONE	0x40
+	bit	ENSAVEPTRS	0x20
+	bit	ENCFG4DATA	0x10
+	bit	ENCFG4ISTAT	0x08
+	bit	ENCFG4TSTAT	0x04
+	bit	ENCFG4ICMD	0x02
+	bit	ENCFG4TCMD	0x01
+}
+
+/*
+ * Current SCSI Control Block
+ */
+register CURRSCB {
+	address			0x05C
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * Data FIFO Status
+ */
+register MDFFSTAT {
+	address			0x05D
+	access_mode	RO
+	modes		M_DFF0, M_DFF1
+	bit	LASTSDONE	0x10
+	bit	SHVALID		0x08
+	bit	DLZERO		0x04 /* FIFO data ends on packet boundary. */
+	bit	DATAINFIFO	0x02
+	bit	FIFOFREE	0x01
+}
+
+/*
+ * CRC Control
+ */
+register CRCCONTROL {
+	address			0x05d
+	access_mode	RW
+	modes		M_CFG
+	bit	CRCVALCHKEN		0x40
+}
+
+/*
+ * SCSI Test Control
+ */
+register SCSITEST {
+	address			0x05E
+	access_mode	RW
+	modes		M_CFG
+	bit	CNTRTEST	0x08
+	bit	SEL_TXPLL_DEBUG	0x04
+}
+
+/*
+ * Data FIFO Queue Tag
+ */
+register DFFTAG {
+	address			0x05E
+	access_mode	RW
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Last SCSI Control Block
+ */
+register LASTSCB {
+	address			0x05E
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * SCSI I/O Cell Power-down Control
+ */
+register IOPDNCTL {
+	address			0x05F
+	access_mode	RW
+	modes		M_CFG
+	bit	DISABLE_OE	0x80
+	bit	PDN_IDIST	0x04
+	bit	PDN_DIFFSENSE	0x01
+}
+
+/*
+ * Shaddow Host Address.
+ */
+register SHADDR {
+	address			0x060
+	access_mode	RO
+	size		8
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Data Group CRC Interval.
+ */
+register DGRPCRCI {
+	address			0x060
+	access_mode	RW
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * Data Transfer Negotiation Address
+ */
+register NEGOADDR {
+	address			0x060
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Data Transfer Negotiation Data - Period Byte
+ */
+register NEGPERIOD {
+	address			0x061
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Packetized CRC Interval
+ */
+register PACKCRCI {
+	address			0x062
+	access_mode	RW
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * Data Transfer Negotiation Data - Offset Byte
+ */
+register NEGOFFSET {
+	address			0x062
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Data Transfer Negotiation Data - PPR Options
+ */
+register NEGPPROPTS {
+	address			0x063
+	access_mode	RW
+	modes		M_SCSI
+	bit	PPROPT_PACE	0x08
+	bit	PPROPT_QAS	0x04
+	bit	PPROPT_DT	0x02
+	bit	PPROPT_IUT	0x01
+}
+
+/*
+ * Data Transfer Negotiation Data -  Connection Options
+ */
+register NEGCONOPTS {
+	address			0x064
+	access_mode	RW
+	modes		M_SCSI
+	bit	ENAIP		0x08
+	bit	ENAUTOATNI	0x04
+	bit	ENAUTOATNO	0x02
+	bit	WIDEXFER	0x01
+}
+
+/*
+ * Negotiation Table Annex Column Index.
+ */
+register ANNEXCOL {
+	address			0x065
+	access_mode	RW
+	modes		M_SCSI
+}
+
+const AHD_ANNEXCOL_PRECOMP	4
+const	AHD_PRECOMP_MASK	0x07
+const	AHD_PRECOMP_CUTBACK_17	0x04
+const	AHD_PRECOMP_CUTBACK_29	0x06
+const	AHD_PRECOMP_CUTBACK_37	0x07
+const	AHD_PRECOMP_FASTSLEW	0x40
+const AHD_NUM_ANNEXCOLS		4
+
+/*
+ * Negotiation Table Annex Data Port.
+ */
+register ANNEXDAT {
+	address			0x066
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Initiator's Own Id.
+ * The SCSI ID to use for Selection Out and seen during a reselection..
+ */
+register IOWNID {
+	address			0x067
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * 960MHz Phase-Locked Loop Control 0
+ */
+register PLL960CTL0 {
+	address			0x068
+	access_mode	RW
+	modes		M_CFG
+	bit	PLL_VCOSEL	0x80
+	bit	PLL_PWDN	0x40
+	mask	PLL_NS		0x30
+	bit	PLL_ENLUD	0x08
+	bit	PLL_ENLPF	0x04
+	bit	PLL_DLPF	0x02
+	bit	PLL_ENFBM	0x01
+}
+
+/*
+ * Target Own Id
+ */
+register TOWNID {
+	address			0x069
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * 960MHz Phase-Locked Loop Control 1
+ */
+register PLL960CTL1 {
+	address			0x069
+	access_mode	RW
+	modes		M_CFG
+	bit	PLL_CNTEN	0x80
+	bit	PLL_CNTCLR	0x40
+	bit	PLL_RST		0x01
+}
+
+/*
+ * Expander Signature
+ */
+register XSIG {
+	address			0x06A
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Shadow Byte Count
+ */
+register SHCNT {
+	address			0x068
+	access_mode	RW
+	size		3
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Selection Out ID
+ */
+register SELOID {
+	address			0x06B
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * 960-MHz Phase-Locked Loop Test Count
+ */
+register PLL960CNT0 {
+	address			0x06A
+	access_mode	RO
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * 400-MHz Phase-Locked Loop Control 0
+ */
+register PLL400CTL0 {
+	address			0x06C
+	access_mode	RW
+	modes		M_CFG
+	bit	PLL_VCOSEL	0x80
+	bit	PLL_PWDN	0x40
+	mask	PLL_NS		0x30
+	bit	PLL_ENLUD	0x08
+	bit	PLL_ENLPF	0x04
+	bit	PLL_DLPF	0x02
+	bit	PLL_ENFBM	0x01
+}
+
+/*
+ * Arbitration Fairness
+ */
+register FAIRNESS {
+	address			0x06C
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * 400-MHz Phase-Locked Loop Control 1
+ */
+register PLL400CTL1 {
+	address			0x06D
+	access_mode	RW
+	modes		M_CFG
+	bit	PLL_CNTEN	0x80
+	bit	PLL_CNTCLR	0x40
+	bit	PLL_RST		0x01
+}
+
+/*
+ * Arbitration Unfairness
+ */
+register UNFAIRNESS {
+	address			0x06E
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * 400-MHz Phase-Locked Loop Test Count
+ */
+register PLL400CNT0 {
+	address			0x06E
+	access_mode	RO
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * SCB Page Pointer
+ */
+register SCBPTR {
+	address			0x0A8
+	access_mode	RW
+	size		2
+	modes		M_DFF0, M_DFF1, M_CCHAN, M_SCSI
+}
+
+/*
+ * CMC SCB Array Count
+ * Number of bytes to transfer between CMC SCB memory and SCBRAM.
+ * Transfers must be 8byte aligned and sized.
+ */
+register CCSCBACNT {
+	address			0x0AB
+	access_mode	RW
+	modes		M_CCHAN
+}
+
+/*
+ * SCB Autopointer
+ * SCB-Next Address Snooping logic.  When an SCB is transferred to
+ * the card, the next SCB address to be used by the CMC array can
+ * be autoloaded from that transfer.
+ */
+register SCBAUTOPTR {
+	address			0x0AB
+	access_mode	RW
+	modes		M_CFG
+	bit	AUSCBPTR_EN	0x80
+	mask	SCBPTR_ADDR	0x38
+	mask	SCBPTR_OFF	0x07
+}
+
+/*
+ * CMC SG Ram Address Pointer
+ */
+register CCSGADDR {
+	address			0x0AC
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * CMC SCB RAM Address Pointer
+ */
+register CCSCBADDR {
+	address			0x0AC
+	access_mode	RW
+	modes		M_CCHAN
+}
+
+/*
+ * CMC SCB Ram Back-up Address Pointer
+ * Indicates the true stop location of transfers halted prior
+ * to SCBHCNT going to 0.
+ */
+register CCSCBADR_BK {
+	address			0x0AC
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * CMC SG Control
+ */
+register CCSGCTL {
+	address			0x0AD
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	CCSGDONE	0x80
+	bit	SG_CACHE_AVAIL	0x10
+	bit	CCSGEN		0x08
+	bit	SG_FETCH_REQ	0x02
+	bit	CCSGRESET	0x01
+}
+
+/*
+ * CMD SCB Control
+ */
+register CCSCBCTL {
+	address			0x0AD
+	access_mode	RW
+	modes		M_CCHAN
+	bit	CCSCBDONE	0x80
+	bit	ARRDONE		0x40
+	bit	CCARREN		0x10
+	bit	CCSCBEN		0x08
+	bit	CCSCBDIR	0x04
+	bit	CCSCBRESET	0x01
+}
+
+/*
+ * CMC Ram BIST
+ */
+register CMC_RAMBIST {
+	address			0x0AD
+	access_mode	RW
+	modes		M_CFG
+	bit	SG_ELEMENT_SIZE		0x80
+	bit	SCBRAMBIST_FAIL		0x40
+	bit	SG_BIST_FAIL		0x20
+	bit	SG_BIST_EN		0x10
+	bit	CMC_BUFFER_BIST_FAIL	0x02
+	bit	CMC_BUFFER_BIST_EN	0x01
+}
+
+/*
+ * CMC SG RAM Data Port
+ */
+register CCSGRAM {
+	address			0x0B0
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * CMC SCB RAM Data Port
+ */
+register CCSCBRAM {
+	address			0x0B0
+	access_mode	RW
+	modes		M_CCHAN
+}
+
+/*
+ * Flex DMA Address.
+ */
+register FLEXADR {
+	address			0x0B0
+	access_mode	RW
+	size		3
+	modes		M_SCSI
+}
+
+/*
+ * Flex DMA Byte Count
+ */
+register FLEXCNT {
+	address			0x0B3
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * Flex DMA Status
+ */
+register FLEXDMASTAT {
+	address			0x0B5
+	access_mode	RW
+	modes		M_SCSI
+	bit	FLEXDMAERR	0x02
+	bit	FLEXDMADONE	0x01
+}
+
+/*
+ * Flex DMA Data Port
+ */
+register FLEXDATA {
+	address			0x0B6
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Board Data
+ */
+register BRDDAT {
+	address			0x0B8
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Board Control
+ */
+register BRDCTL {
+	address			0x0B9
+	access_mode	RW
+	modes		M_SCSI
+	bit	FLXARBACK	0x80
+	bit	FLXARBREQ	0x40
+	mask	BRDADDR		0x38
+	bit	BRDEN		0x04
+	bit	BRDRW		0x02
+	bit	BRDSTB		0x01
+}
+
+/*
+ * Serial EEPROM Address
+ */
+register SEEADR {
+	address			0x0BA
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Serial EEPROM Data
+ */
+register SEEDAT {
+	address			0x0BC
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * Serial EEPROM Status
+ */
+register SEESTAT {
+	address			0x0BE
+	access_mode	RO
+	modes		M_SCSI
+	bit	INIT_DONE	0x80
+	mask	SEEOPCODE	0x70
+	bit	LDALTID_L	0x08
+	bit	SEEARBACK	0x04
+	bit	SEEBUSY		0x02
+	bit	SEESTART	0x01
+}
+
+/*
+ * Serial EEPROM Control
+ */
+register SEECTL {
+	address			0x0BE
+	access_mode	RW
+	modes		M_SCSI
+	mask	SEEOPCODE	0x70
+	mask	SEEOP_ERASE	0x70
+	mask	SEEOP_READ	0x60
+	mask	SEEOP_WRITE	0x50
+	/*
+	 * The following four commands use special
+	 * addresses for differentiation.
+	 */
+	mask	SEEOP_ERAL	0x40
+	mask	SEEOP_EWEN	0x40
+	mask	SEEOP_WALL	0x40
+	mask	SEEOP_EWDS	0x40
+	bit	SEERST		0x02
+	bit	SEESTART	0x01
+}
+
+const SEEOP_ERAL_ADDR	0x80
+const SEEOP_EWEN_ADDR	0xC0
+const SEEOP_WRAL_ADDR	0x40
+const SEEOP_EWDS_ADDR	0x00
+
+/*
+ * SCB Counter
+ */
+register SCBCNT {
+	address			0x0BF
+	access_mode	RW
+	modes		M_SCSI
+}
+
+/*
+ * Data FIFO Write Address
+ * Pointer to the next QWD location to be written to the data FIFO.
+ */
+register DFWADDR {
+	address			0x0C0
+	access_mode	RW
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * DSP Filter Control
+ */
+register DSPFLTRCTL {
+	address			0x0C0
+	access_mode	RW
+	modes		M_CFG
+	bit	FLTRDISABLE	0x20
+	bit	EDGESENSE	0x10
+	mask	DSPFCNTSEL	0x0F
+}
+
+/*
+ * DSP Data Channel Control
+ */
+register DSPDATACTL {
+	address			0x0C1
+	access_mode	RW
+	modes		M_CFG
+	bit	BYPASSENAB	0x80
+	bit	DESQDIS		0x10
+	bit	RCVROFFSTDIS	0x04
+	bit	XMITOFFSTDIS	0x02
+}
+
+/*
+ * Data FIFO Read Address
+ * Pointer to the next QWD location to be read from the data FIFO.
+ */
+register DFRADDR {
+	address			0x0C2
+	access_mode	RW
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * DSP REQ Control
+ */
+register DSPREQCTL {
+	address			0x0C2
+	access_mode	RW
+	modes		M_CFG
+	mask	MANREQCTL	0xC0
+	mask	MANREQDLY	0x3F
+}
+
+/*
+ * DSP ACK Control
+ */
+register DSPACKCTL {
+	address			0x0C3
+	access_mode	RW
+	modes		M_CFG
+	mask	MANACKCTL	0xC0
+	mask	MANACKDLY	0x3F
+}
+
+/*
+ * Data FIFO Data
+ * Read/Write byte port into the data FIFO.  The read and write
+ * FIFO pointers increment with each read and write respectively
+ * to this port.
+ */
+register DFDAT {
+	address			0x0C4
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * DSP Channel Select
+ */
+register DSPSELECT {
+	address			0x0C4
+	access_mode	RW
+	modes		M_CFG
+	bit	AUTOINCEN	0x80
+	mask	DSPSEL		0x1F
+}
+
+const NUMDSPS 0x14
+
+/*
+ * Write Bias Control
+ */
+register WRTBIASCTL {
+	address			0x0C5
+	access_mode	WO
+	modes		M_CFG
+	bit	AUTOXBCDIS	0x80
+	mask	XMITMANVAL	0x3F
+}
+
+const WRTBIASCTL_CPQ_DEFAULT 0x97
+
+/*
+ * Receiver Bias Control
+ */
+register RCVRBIOSCTL {
+	address			0x0C6
+	access_mode	WO
+	modes		M_CFG
+	bit	AUTORBCDIS	0x80
+	mask	RCVRMANVAL	0x3F
+}
+
+/*
+ * Write Bias Calculator
+ */
+register WRTBIASCALC {
+	address			0x0C7
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * Data FIFO Pointers
+ * Contains the byte offset from DFWADDR and DWRADDR to the current
+ * FIFO write/read locations.
+ */
+register DFPTRS {
+	address			0x0C8
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Receiver Bias Calculator
+ */
+register RCVRBIASCALC {
+	address			0x0C8
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * Data FIFO Debug Control
+ */
+register DFDBCTL {
+	address				0x0C8
+	access_mode	RW
+	modes		M_DFF0, M_DFF1
+	bit	DFF_CIO_WR_RDY		0x20
+	bit	DFF_CIO_RD_RDY		0x10
+	bit	DFF_DIR_ERR		0x08
+	bit	DFF_RAMBIST_FAIL	0x04
+	bit	DFF_RAMBIST_DONE	0x02
+	bit	DFF_RAMBIST_EN		0x01
+}
+
+/*
+ * Data FIFO Backup Read Pointer
+ * Contains the data FIFO address to be restored if the last
+ * data accessed from the data FIFO was not transferred successfully.
+ */
+register DFBKPTR {
+	address			0x0C9
+	access_mode	RW
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Skew Calculator
+ */
+register SKEWCALC {
+	address			0x0C9
+	access_mode	RO
+	modes		M_CFG
+}
+
+/*
+ * Data FIFO Space Count
+ * Number of FIFO locations that are free.
+ */
+register DFSCNT {
+	address			0x0CC
+	access_mode	RO
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Data FIFO Byte Count
+ * Number of filled FIFO locations.
+ */
+register DFBCNT {
+	address			0x0CE
+	access_mode	RO
+	size		2
+	modes		M_DFF0, M_DFF1
+}
+
+/*
+ * Sequencer Program Overlay Address.
+ * Low address must be written prior to high address.
+ */
+register OVLYADDR {
+	address			0x0D4
+	modes		M_SCSI
+	size		2
+	access_mode	RW
+}
+
+/*
+ * Sequencer Control 0
+ * Error detection mode, speed configuration,
+ * single step, breakpoints and program load.
+ */
+register SEQCTL0 {
+	address			0x0D6
+	access_mode RW
+	bit	PERRORDIS	0x80
+	bit	PAUSEDIS	0x40
+	bit	FAILDIS		0x20
+	bit	FASTMODE	0x10
+	bit	BRKADRINTEN	0x08
+	bit	STEP		0x04
+	bit	SEQRESET	0x02
+	bit	LOADRAM		0x01
+}
+
+/*
+ * Sequencer Control 1
+ * Instruction RAM Diagnostics
+ */
+register SEQCTL1 {
+	address			0x0D7
+	access_mode RW
+	bit	OVRLAY_DATA_CHK	0x08
+	bit	RAMBIST_DONE	0x04
+	bit	RAMBIST_FAIL	0x02
+	bit	RAMBIST_EN	0x01
+}
+
+/*
+ * Sequencer Flags
+ * Zero and Carry state of the ALU.
+ */
+register FLAGS {
+	address			0x0D8
+	access_mode RO
+	bit	ZERO		0x02
+	bit	CARRY		0x01
+}
+
+/*
+ * Sequencer Interrupt Control
+ */ 
+register SEQINTCTL {
+	address			0x0D9
+	access_mode RW
+	bit	INTVEC1DSL	0x80
+	bit	INT1_CONTEXT	0x20
+	bit	SCS_SEQ_INT1M1	0x10
+	bit	SCS_SEQ_INT1M0	0x08
+	mask	INTMASK		0x06
+	bit	IRET		0x01
+}
+
+/*
+ * Sequencer RAM Data Port
+ * Single byte window into the Sequencer Instruction Ram area starting
+ * at the address specified by OVLYADDR.  To write a full instruction word,
+ * simply write four bytes in succession.  OVLYADDR will increment after the
+ * most significant instrution byte (the byte with the parity bit) is written.
+ */
+register SEQRAM {
+	address			0x0DA
+	access_mode RW
+}
+
+/*
+ * Sequencer Program Counter
+ * Low byte must be written prior to high byte.
+ */
+register PRGMCNT {
+	address			0x0DE
+	access_mode	RW
+	size		2
+}
+
+/*
+ * Accumulator
+ */
+register ACCUM {
+	address			0x0E0
+	access_mode RW
+	accumulator
+}
+
+/*
+ * Source Index Register
+ * Incrementing index for reads of SINDIR and the destination (low byte only)
+ * for any immediate operands passed in jmp, jc, jnc, call instructions.
+ * Example:
+ *		mvi	0xFF	call some_routine;
+ *
+ *  Will set SINDEX[0] to 0xFF and call the routine "some_routine.
+ */
+register SINDEX	{
+	address			0x0E2
+	access_mode	RW
+	size		2
+	sindex
+}
+
+/*
+ * Destination Index Register
+ * Incrementing index for writes to DINDIR.  Can be used as a scratch register.
+ */
+register DINDEX {
+	address			0x0E4
+	access_mode	RW
+	size		2
+}
+
+/*
+ * Break Address
+ * Sequencer instruction breakpoint address address.
+ */
+register BRKADDR0 {
+	address			0x0E6
+	access_mode	RW
+}
+
+register BRKADDR1 {
+	address			0x0E6
+	access_mode	RW
+	bit	BRKDIS		0x80	/* Disable Breakpoint */
+}
+
+/*
+ * All Ones
+ * All reads to this register return the value 0xFF.
+ */
+register ALLONES {
+	address			0x0E8
+	access_mode RO
+	allones
+}
+
+/*
+ * All Zeros
+ * All reads to this register return the value 0.
+ */
+register ALLZEROS {
+	address			0x0EA
+	access_mode RO
+	allzeros
+}
+
+/*
+ * No Destination
+ * Writes to this register have no effect.
+ */
+register NONE {
+	address			0x0EA
+	access_mode WO
+	none
+}
+
+/*
+ * Source Index Indirect
+ * Reading this register is equivalent to reading (register_base + SINDEX) and
+ * incrementing SINDEX by 1.
+ */
+register SINDIR	{
+	address			0x0EC
+	access_mode RO
+}
+
+/*
+ * Destination Index Indirect
+ * Writing this register is equivalent to writing to (register_base + DINDEX)
+ * and incrementing DINDEX by 1.
+ */
+register DINDIR	 {
+	address			0x0ED
+	access_mode WO
+}
+
+/*
+ * Function One
+ * 2's complement to bit value conversion.  Write the 2's complement value
+ * (0-7 only) to the top nibble and retrieve the bit indexed by that value
+ * on the next read of this register. 
+ * Example:
+ *	Write	0x60
+ *	Read	0x40
+ */
+register FUNCTION1 {
+	address			0x0F0
+	access_mode RW
+}
+
+/*
+ * Stack
+ * Window into the stack.  Each stack location is 10 bits wide reported
+ * low byte followed by high byte.  There are 8 stack locations.
+ */
+register STACK {
+	address			0x0F2
+	access_mode RW
+}
+
+/*
+ * Interrupt Vector 1 Address
+ * Interrupt branch address for SCS SEQ_INT1 mode 0 and 1 interrupts.
+ */
+register INTVEC1_ADDR {
+	address			0x0F4
+	access_mode	RW
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * Current Address
+ * Address of the SEQRAM instruction currently executing instruction.
+ */
+register CURADDR {
+	address			0x0F4
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+/*
+ * Interrupt Vector 2 Address
+ * Interrupt branch address for HST_SEQ_INT2 interrupts.
+ */
+register INTVEC2_ADDR {
+	address			0x0F6
+	access_mode	RW
+	size		2
+	modes		M_CFG
+}
+
+/*
+ * Last Address
+ * Address of the SEQRAM instruction executed prior to the current instruction.
+ */
+register LASTADDR {
+	address			0x0F6
+	access_mode	RW
+	size		2
+	modes		M_SCSI
+}
+
+register AHD_PCI_CONFIG_BASE {
+	address			0x100
+	access_mode	RW
+	size		256
+	modes		M_CFG
+}
+
+/* ---------------------- Scratch RAM Offsets ------------------------- */
+scratch_ram {
+	/* Mode Specific */
+	address			0x0A0
+	size	8
+	modes	0, 1, 2, 3
+	REG0 {
+		size		2
+	}
+	REG1 {
+		size		2
+	}
+	REG2 {
+		size		2
+	}
+	SG_STATE {
+		size		1
+		bit	SEGS_AVAIL	0x01
+		bit	LOADING_NEEDED	0x02
+		bit	FETCH_INPROG	0x04
+	}
+	/*
+	 * Track whether the transfer byte count for
+	 * the current data phase is odd.
+	 */
+	DATA_COUNT_ODD {
+		size		1
+	}
+}
+
+scratch_ram {
+	/* Mode Specific */
+	address			0x0F8
+	size	8
+	modes	0, 1, 2, 3
+	LONGJMP_ADDR {
+		size		2
+	}
+	LONGJMP_SCB {
+		size		2
+	}
+	ACCUM_SAVE {
+		size		1
+	}
+}
+
+
+scratch_ram {
+	address			0x100
+	size	128
+	modes	0, 1, 2, 3
+	/*
+	 * Per "other-id" execution queues.  We use an array of
+	 * tail pointers into lists of SCBs sorted by "other-id".
+	 * The execution head pointer threads the head SCBs for
+	 * each list.
+	 */
+	WAITING_SCB_TAILS {
+		size		32
+	}
+	WAITING_TID_HEAD {
+		size		2
+	}
+	WAITING_TID_TAIL {
+		size		2
+	}
+	/*
+	 * SCBID of the next SCB in the new SCB queue.
+	 */
+	NEXT_QUEUED_SCB_ADDR {
+		size		4
+	}
+	/*
+	 * head of list of SCBs that have
+	 * completed but have not been
+	 * put into the qoutfifo.
+	 */
+	COMPLETE_SCB_HEAD {
+		size		2
+	}
+	/*
+	 * The list of completed SCBs in
+	 * the active DMA.
+	 */
+	COMPLETE_SCB_DMAINPROG_HEAD {
+		size		2
+	}
+	/*
+	 * head of list of SCBs that have
+	 * completed but need to be uploaded
+	 * to the host prior to being completed.
+	 */
+	COMPLETE_DMA_SCB_HEAD {
+		size		2
+	}
+	/* Counting semaphore to prevent new select-outs */
+	QFREEZE_COUNT {
+		size		2
+	}
+	/*
+	 * Mode to restore on idle_loop exit.
+	 */
+	SAVED_MODE {
+		size		1
+	}
+	/*
+	 * Single byte buffer used to designate the type or message
+	 * to send to a target.
+	 */
+	MSG_OUT {
+		size		1
+	}
+	/* Parameters for DMA Logic */
+	DMAPARAMS {
+		size		1
+		bit	PRELOADEN	0x80
+		bit	WIDEODD		0x40
+		bit	SCSIEN		0x20
+		bit	SDMAEN		0x10
+		bit	SDMAENACK	0x10
+		bit	HDMAEN		0x08
+		bit	HDMAENACK	0x08
+		bit	DIRECTION	0x04	/* Set indicates PCI->SCSI */
+		bit	FIFOFLUSH	0x02
+		bit	FIFORESET	0x01
+	}
+	SEQ_FLAGS {
+		size		1
+		bit	NOT_IDENTIFIED		0x80
+		bit	TARGET_CMD_IS_TAGGED	0x40
+		bit	NO_CDB_SENT		0x40
+		bit	DPHASE			0x20
+		/* Target flags */
+		bit	TARG_CMD_PENDING	0x10
+		bit	CMDPHASE_PENDING	0x08
+		bit	DPHASE_PENDING		0x04
+		bit	SPHASE_PENDING		0x02
+		bit	NO_DISCONNECT		0x01
+	}
+	/*
+	 * Temporary storage for the
+	 * target/channel/lun of a
+	 * reconnecting target
+	 */
+	SAVED_SCSIID {
+		size		1
+	}
+	SAVED_LUN {
+		size		1
+	}
+	/*
+	 * The last bus phase as seen by the sequencer. 
+	 */
+	LASTPHASE {
+		size		1
+		bit	CDI		0x80
+		bit	IOI		0x40
+		bit	MSGI		0x20
+		mask	PHASE_MASK	CDI|IOI|MSGI
+		mask	P_DATAOUT	0x00
+		mask	P_DATAIN	IOI
+		mask	P_DATAOUT_DT	P_DATAOUT|MSGO
+		mask	P_DATAIN_DT	P_DATAIN|MSGO
+		mask	P_COMMAND	CDI
+		mask	P_MESGOUT	CDI|MSGI
+		mask	P_STATUS	CDI|IOI
+		mask	P_MESGIN	CDI|IOI|MSGI
+		mask	P_BUSFREE	0x01
+	}
+	/*
+	 * Base address of our shared data with the kernel driver in host
+	 * memory.  This includes the qoutfifo and target mode
+	 * incoming command queue.
+	 */
+	SHARED_DATA_ADDR {
+		size		4
+	}
+	/*
+	 * Pointer to location in host memory for next
+	 * position in the qoutfifo.
+	 */
+	QOUTFIFO_NEXT_ADDR {
+		size		4
+	}
+	/*
+	 * Kernel and sequencer offsets into the queue of
+	 * incoming target mode command descriptors.  The
+	 * queue is full when the KERNEL_TQINPOS == TQINPOS.
+	 */
+	KERNEL_TQINPOS {
+		size		1
+	}
+	TQINPOS {                
+		size		1
+	}
+	ARG_1 {
+		size		1
+		mask	SEND_MSG		0x80
+		mask	SEND_SENSE		0x40
+		mask	SEND_REJ		0x20
+		mask	MSGOUT_PHASEMIS		0x10
+		mask	EXIT_MSG_LOOP		0x08
+		mask	CONT_MSG_LOOP_WRITE	0x04
+		mask	CONT_MSG_LOOP_READ	0x03
+		mask	CONT_MSG_LOOP_TARG	0x02
+		alias	RETURN_1
+	}
+	ARG_2 {
+		size		1
+		alias	RETURN_2
+	}
+
+	/*
+	 * Snapshot of MSG_OUT taken after each message is sent.
+	 */
+	LAST_MSG {
+		size		1
+	}
+
+	/*
+	 * Sequences the kernel driver has okayed for us.  This allows
+	 * the driver to do things like prevent initiator or target
+	 * operations.
+	 */
+	SCSISEQ_TEMPLATE {
+		size		1
+		bit	MANUALCTL	0x40
+		bit	ENSELI		0x20
+		bit	ENRSELI		0x10
+		mask	MANUALP		0x0C
+		bit	ENAUTOATNP	0x02
+		bit	ALTSTIM		0x01
+	}
+
+	/*
+	 * The initiator specified tag for this target mode transaction.
+	 */
+	INITIATOR_TAG {
+		size		1
+	}
+
+	SEQ_FLAGS2 {
+		size		1
+		bit	SCB_DMA			  0x01
+		bit	TARGET_MSG_PENDING	  0x02
+		bit	SELECTOUT_QFROZEN	  0x04
+	}
+	/*
+	 * Target-mode CDB type to CDB length table used
+	 * in non-packetized operation.
+	 */
+	CMDSIZE_TABLE {
+		size		8
+	}
+}
+
+/************************* Hardware SCB Definition ****************************/
+scb {
+	address			0x180
+	size	64
+	modes	0, 1, 2, 3
+	SCB_RESIDUAL_DATACNT {
+		size	4
+		alias	SCB_CDB_STORE
+	}
+	SCB_RESIDUAL_SGPTR {
+		size	4
+		alias	SCB_CDB_PTR
+		mask	SG_ADDR_MASK		0xf8	/* In the last byte */
+		bit	SG_OVERRUN_RESID	0x02	/* In the first byte */
+		bit	SG_LIST_NULL		0x01	/* In the first byte */
+	}
+	SCB_SCSI_STATUS {
+		size	1
+	}
+	SCB_TARGET_PHASES {
+		size	1
+	}
+	SCB_TARGET_DATA_DIR {
+		size	1
+	}
+	SCB_TARGET_ITAG {
+		size	1
+	}
+	SCB_SENSE_BUSADDR {
+		/*
+		 * Only valid if CDB length is less than 13 bytes or
+		 * we are using a CDB pointer.  Otherwise contains
+		 * the last 4 bytes of embedded cdb information.
+		 */
+		size	4
+		alias	SCB_NEXT_COMPLETE
+	}
+	SCB_CDB_LEN {
+		size	1
+		bit	SCB_CDB_LEN_PTR	0x80	/* CDB in host memory */
+	}
+	SCB_TASK_MANAGEMENT {
+		size	1
+	}
+	SCB_TAG {
+		size	2
+	}
+	SCB_NEXT {
+		alias	SCB_NEXT_SCB_BUSADDR
+		size	2
+	}
+	SCB_NEXT2 {
+		size	2
+	}
+	SCB_DATAPTR {
+		size	8
+	}
+	SCB_DATACNT {
+		/*
+		 * The last byte is really the high address bits for
+		 * the data address.
+		 */
+		size	4
+		bit	SG_LAST_SEG		0x80	/* In the fourth byte */
+		mask	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
+	}
+	SCB_SGPTR {
+		size	4
+		bit	SG_STATUS_VALID	0x04	/* In the first byte */
+		bit	SG_FULL_RESID	0x02	/* In the first byte */
+		bit	SG_LIST_NULL	0x01	/* In the first byte */
+	}
+	SCB_CONTROL {
+		size	1
+		bit	TARGET_SCB	0x80
+		bit	DISCENB		0x40
+		bit	TAG_ENB		0x20
+		bit	MK_MESSAGE	0x10
+		bit	STATUS_RCVD	0x08
+		bit	DISCONNECTED	0x04
+		mask	SCB_TAG_TYPE	0x03
+	}
+	SCB_SCSIID {
+		size	1
+		mask	TID	0xF0
+		mask	OID	0x0F
+	}
+	SCB_LUN {
+		size	1
+		mask	LID				0xff
+	}
+	SCB_TASK_ATTRIBUTE {
+		size	1
+		alias	SCB_NONPACKET_TAG
+	}
+	SCB_BUSADDR {
+		size	4
+	}
+	SCB_DISCONNECTED_LISTS {
+		size	16
+	}
+}
+
+/*********************************** Constants ********************************/
+const SEQ_STACK_SIZE	8
+const MK_MESSAGE_BIT_OFFSET	4
+const TID_SHIFT		4
+const TARGET_CMD_CMPLT	0xfe
+const INVALID_ADDR	0x80
+#define SCB_LIST_NULL	0xff
+
+const CCSGADDR_MAX	0x80
+const CCSCBADDR_MAX	0x80
+const CCSGRAM_MAXSEGS	16
+
+/* Selection Timeout Timer Constants */
+const STIMESEL_SHIFT	3
+const STIMESEL_MIN	0x18
+const STIMESEL_BUG_ADJ	0x8
+
+/* WDTR Message values */
+const BUS_8_BIT			0x00
+const BUS_16_BIT		0x01
+const BUS_32_BIT		0x02
+
+/* Offset maximums */
+const MAX_OFFSET		0xfe
+const MAX_OFFSET_PACED		0x7f
+const HOST_MSG			0xff
+
+/*
+ * The size of our sense buffers.
+ * Sense buffer mapping can be handled in either of two ways.
+ * The first is to allocate a dmamap for each transaction.
+ * Depending on the architecture, dmamaps can be costly. The
+ * alternative is to statically map the buffers in much the same
+ * way we handle our scatter gather lists.  The driver implements
+ * the later.
+ */
+const AHD_SENSE_BUFSIZE		256
+
+/* Target mode command processing constants */
+const CMD_GROUP_CODE_SHIFT	0x05
+
+const STATUS_BUSY		0x08
+const STATUS_QUEUE_FULL		0x28
+const STATUS_PKT_SENSE		0xFF
+const TARGET_DATA_IN		1
+
+const SCB_TRANSFER_SIZE		48
+/* PKT_OVERRUN_BUFSIZE must be a multiple of 256 less than 64K */
+const PKT_OVERRUN_BUFSIZE	512
+
+/*
+ * Downloaded (kernel inserted) constants
+ */
+const SG_PREFETCH_CNT download
+const SG_PREFETCH_CNT_LIMIT download
+const SG_PREFETCH_ALIGN_MASK download
+const SG_PREFETCH_ADDR_MASK download
+const SG_SIZEOF download
+const PKT_OVERRUN_BUFOFFSET download
+
+/*
+ * BIOS SCB offsets
+ */
+const NVRAM_SCB_OFFSET	0x2C
