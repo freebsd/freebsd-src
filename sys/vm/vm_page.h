@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.45 1998/09/01 17:12:19 wollman Exp $
+ * $Id: vm_page.h,v 1.46 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -203,7 +203,6 @@ extern struct vpgqueues {
  */
 #define	PG_BUSY		0x01		/* page is in transit (O) */
 #define	PG_WANTED	0x02		/* someone is waiting for page (O) */
-#define	PG_TABLED	0x04		/* page is in an object (O) */
 #define	PG_FICTITIOUS	0x08		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x10		/* page is mapped writeable */
 #define PG_MAPPED	0x20		/* page is mapped */
