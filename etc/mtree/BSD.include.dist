@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.18 1998/09/14 08:34:45 obrien Exp $
+#	$Id: BSD.include.dist,v 1.19 1998/09/15 10:21:53 gibbs Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -24,6 +24,8 @@
     net
     ..
     netatalk
+    ..
+    netatm
     ..
     netinet
     ..

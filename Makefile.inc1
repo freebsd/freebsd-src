@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.12 1998/09/10 00:27:57 obrien Exp $
+#	$Id: Makefile.inc1,v 1.13 1998/09/15 07:46:17 gibbs Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -476,13 +476,13 @@ bootstrap:
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
 	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
-.for d in net netinet posix4 sys vm machine
+.for d in net netatm netinet posix4 sys vm machine
 	if [ -h ${DESTDIR}/usr/include/$d ]; then \
 		rm -f ${DESTDIR}/usr/include/$d ; \
 	fi
 .endfor
 	cd ${.CURDIR}/sys; \
-		find -dx net netinet posix4 sys vm -name '*.h' -o -type d | \
+		find -dx net netatm netinet posix4 sys vm -name '*.h' -o -type d | \
 		cpio -dump ${DESTDIR}/usr/include
 	mkdir -p ${DESTDIR}/usr/include/machine
 	cd ${.CURDIR}/sys/${MACHINE_ARCH}/include; find -dx . -name '*.h' -o -type d | \

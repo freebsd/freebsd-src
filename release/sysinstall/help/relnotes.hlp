@@ -28,6 +28,20 @@ specifically marked as [MERGED] features.
 
 KERNEL CHANGES:
 
+o The Host ATM Research Platform ("HARP") software by Network
+  Computing Services, Inc. have been intergrated.
+  See /usr/src/share/examples/atm for more info.
+
+o The code responsible for maintaining time of day have been
+  rewritten.  New features are:  true support for nanoseconds in
+  both kernel and userland, continuous rather than stepwise adjustment
+  by NTPD, support for synchronizing to high precision external time 
+  signals.
+
+o Support for the PPS API described in draft-mogul-pps-api-02.txt for
+  TTL rising edge inputs via the parallel printer port.
+  been added to the parallel printer 
+
 o The code from 4.4BSD-Lite2 has been (finally) merged.
 
 o The SMP (Symmetric MultiProcessing) branch has been merged.
@@ -467,8 +481,33 @@ Note that NO token ring cards are supported at this time as we're
 still waiting for someone to donate a driver for one of them.  Any
 takers?
 
+2.3 ATM
+-------
 
-2.3. Misc
+   o ATM Host Interfaces
+        - FORE Systems, Inc. PCA-200E ATM PCI Adapters
+        - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
+
+   o ATM Signalling Protocols
+        - The ATM Forum UNI 3.1 signalling protocol
+        - The ATM Forum UNI 3.0 signalling protocol
+        - The ATM Forum ILMI address registration
+        - FORE Systems's proprietary SPANS signalling protocol
+        - Permanent Virtual Channels (PVCs)
+
+   o IETF "Classical IP and ARP over ATM" model
+        - RFC 1483, "Multiprotocol Encapsulation over ATM Adaptation Layer 5"
+        - RFC 1577, "Classical IP and ARP over ATM"
+        - RFC 1626, "Default IP MTU for use over ATM AAL5"
+        - RFC 1755, "ATM Signaling Support for IP over ATM"
+        - RFC 2225, "Classical IP and ARP over ATM"
+        - RFC 2334, "Server Cache Synchronization Protocol (SCSP)"
+        - Internet Draft draft-ietf-ion-scsp-atmarp-00.txt,
+                "A Distributed ATMARP Service Using SCSP"
+
+   o ATM Sockets interface
+
+2.4. Misc
 ---------
 
 AST 4 port serial card using shared IRQ.
@@ -517,9 +556,12 @@ GPIB and Transputer drivers.
 
 Genius and Mustek hand scanners.
 
+Xilinx XC6200 based reconfigurable hardware cards compatible with
+the HOT1 from Virtual Computers (www.vcc.com)
+
+Support for Dave Mills experimental Loran-C receiver.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
-
 
 3. Obtaining FreeBSD
 --------------------
