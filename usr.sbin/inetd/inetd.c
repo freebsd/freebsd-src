@@ -2338,7 +2338,7 @@ cpmip(const struct servtab *sep, int ctrl)
 				cnt += ct->ct_Count;
 			}
 		}
-		if (cnt * (CHTSIZE * CHTGRAN) / 60 > sep->se_maxcpm) {
+		if ((cnt * 60) / (CHTSIZE * CHTGRAN) > sep->se_maxcpm) {
 			char pname[INET6_ADDRSTRLEN];
 
 			getnameinfo((struct sockaddr *)&rss,
