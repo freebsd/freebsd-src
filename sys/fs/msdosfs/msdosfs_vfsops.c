@@ -812,15 +812,7 @@ msdosfs_sync(mp, waitfor, cred, td)
 	 */
 	MNT_ILOCK(mp);
 loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
-		/*
-		 * If the vnode that we are about to sync is no longer
-		 * associated with this mount point, start over.
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);

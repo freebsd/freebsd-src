@@ -407,14 +407,7 @@ restart:
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
 	MNT_ILOCK(mp);
 loop:
-	for (xvp = TAILQ_FIRST(&mp->mnt_nvnodelist); xvp; xvp = nvp) {
-		/*
-		 * Make sure this vnode wasn't reclaimed in getnewvnode().
-		 * Start over if it has (it won't be on the list anymore).
-		 */
-		if (xvp->v_mount != mp)
-			goto loop;
-		nvp = TAILQ_NEXT(xvp, v_nmntvnodes);
+	MNT_VNODE_FOREACH(xvp, mp, nvp) {
 		VI_LOCK(xvp);
 		MNT_IUNLOCK(mp);
 		if ((xvp->v_iflag & VI_XLOCK) ||

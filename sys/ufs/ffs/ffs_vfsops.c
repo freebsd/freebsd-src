@@ -489,12 +489,7 @@ ffs_reload(mp, cred, td)
 
 loop:
 	MNT_ILOCK(mp);
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
-		if (vp->v_mount != mp) {
-			MNT_IUNLOCK(mp);
-			goto loop;
-		}
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);
@@ -1129,21 +1124,13 @@ ffs_sync(mp, waitfor, cred, td)
 	lockreq |= LK_INTERLOCK;
 	MNT_ILOCK(mp);
 loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
-		/*
-		 * If the vnode that we are about to sync is no longer
-		 * associated with this mount point, start over.
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		/*
 		 * Depend on the mntvnode_slock to keep things stable enough
 		 * for a quick test.  Since there might be hundreds of
 		 * thousands of vnodes, we cannot afford even a subroutine
 		 * call unless there's a good chance that we have work to do.
 		 */
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);
@@ -1168,8 +1155,6 @@ loop:
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
 		MNT_ILOCK(mp);
-		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
-			goto loop;
 	}
 	MNT_IUNLOCK(mp);
 	/*

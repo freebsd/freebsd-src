@@ -165,6 +165,12 @@ struct mount {
 	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 };
 
+struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH(vp, mp, vp2) \
+	for ((vp2) = TAILQ_FIRST(&(mp)->mnt_nvnodelist);	\
+		(vp = __mnt_vnode_next(&(vp2), (mp))) != NULL;)
+
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
