@@ -1,10 +1,11 @@
-#	$Id: Makefile,v 1.8 1998/03/07 09:49:11 bde Exp $
+#	$Id: Makefile,v 1.9 1998/05/04 19:54:56 bde Exp $
 
 PROG=	mrouted
 
 S=	${.CURDIR}/..
 .PATH:	$S
 CFLAGS+=	-I$S
+YFLAGS=
 DPADD=	${LIBMROUTED}
 LDADD=	${LIBMROUTED}
 
