@@ -461,16 +461,17 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	enum uio_rw rw;
 	struct vnode *vp;
 	caddr_t base;
-	int len;
+	size_t len;
 	off_t offset;
 	enum uio_seg segflg;
 	int ioflg;
 	struct ucred *active_cred;
 	struct ucred *file_cred;
-	int *aresid;
+	size_t *aresid;
 	struct thread *td;
 {
 	int error = 0;
+	int iaresid;
 
 	do {
 		int chunk;
@@ -487,8 +488,9 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 			chunk = len;
 		if (rw != UIO_READ && vp->v_type == VREG)
 			bwillwrite();
+		iaresid = 0;
 		error = vn_rdwr(rw, vp, base, chunk, offset, segflg,
-		    ioflg, active_cred, file_cred, aresid, td);
+		    ioflg, active_cred, file_cred, &iaresid, td);
 		len -= chunk;	/* aresid calc already includes length */
 		if (error)
 			break;
@@ -497,7 +499,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 		uio_yield();
 	} while (len);
 	if (aresid)
-		*aresid += len;
+		*aresid = len + iaresid;
 	return (error);
 }
 

@@ -769,7 +769,7 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(uarea_pages + kstack_pages) +
 			ctob(vm->vm_dsize), UIO_USERSPACE,
-		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
+		    IO_UNIT | IO_DIRECT, cred, NOCRED, NULL, td);
 	return (error);
 }
 /*

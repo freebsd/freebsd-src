@@ -214,14 +214,14 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, vm->vm_daddr,
 		    (int)ctob(vm->vm_dsize),
 		    (off_t)ctob((uarea_pages + kstack_pages)),
-		    UIO_USERSPACE, IO_UNIT, cred, NOCRED, (int *)NULL, td);
+		    UIO_USERSPACE, IO_UNIT, cred, NOCRED, NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
 		    (caddr_t)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob((uarea_pages + kstack_pages)) +
 		    ctob(vm->vm_dsize),
-		    UIO_USERSPACE, IO_UNIT, cred, NOCRED, (int *)NULL, td);
+		    UIO_USERSPACE, IO_UNIT, cred, NOCRED, NULL, td);
 	return (error);
 
 }
