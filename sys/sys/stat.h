@@ -36,12 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.6 (Berkeley) 3/8/94
- * $Id: stat.h,v 1.2 1994/08/02 07:53:40 davidg Exp $
+ * $Id: stat.h,v 1.3 1994/09/09 15:19:40 dfr Exp $
  */
 
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
+/*
+ * XXX we need this for struct timespec.  We get miscellaneous namespace
+ * pollution with it.  struct timespace itself is namespace pollution if
+ * _POSIX_SOURCE is defined.
+ */
 #include <sys/time.h>
 
 #ifndef _POSIX_SOURCE
@@ -126,16 +131,16 @@ struct stat {
 #define	S_ISVTX	 0001000		/* save swapped text even after use */
 #endif
 
-#define	S_ISDIR(m)	((m & 0170000) == 0040000)	/* directory */
-#define	S_ISCHR(m)	((m & 0170000) == 0020000)	/* char special */
-#define	S_ISBLK(m)	((m & 0170000) == 0060000)	/* block special */
-#define	S_ISREG(m)	((m & 0170000) == 0100000)	/* regular file */
-#define	S_ISFIFO(m)	((m & 0170000) == 0010000 || \
-			 (m & 0170000) == 0140000)	/* fifo or socket */
+#define	S_ISDIR(m)	(((m) & 0170000) == 0040000)	/* directory */
+#define	S_ISCHR(m)	(((m) & 0170000) == 0020000)	/* char special */
+#define	S_ISBLK(m)	(((m) & 0170000) == 0060000)	/* block special */
+#define	S_ISREG(m)	(((m) & 0170000) == 0100000)	/* regular file */
+#define	S_ISFIFO(m)	(((m) & 0170000) == 0010000 || \
+			 ((m) & 0170000) == 0140000)	/* fifo or socket */
 #ifndef _POSIX_SOURCE
-#define	S_ISLNK(m)	((m & 0170000) == 0120000)	/* symbolic link */
-#define	S_ISSOCK(m)	((m & 0170000) == 0010000 || \
-			 (m & 0170000) == 0140000)	/* fifo or socket */
+#define	S_ISLNK(m)	(((m) & 0170000) == 0120000)	/* symbolic link */
+#define	S_ISSOCK(m)	(((m) & 0170000) == 0010000 || \
+			 ((m) & 0170000) == 0140000)	/* fifo or socket */
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -171,7 +176,8 @@ struct stat {
 #define	APPEND		(UF_APPEND | SF_APPEND)
 #define	IMMUTABLE	(UF_IMMUTABLE | SF_IMMUTABLE)
 #endif
-#endif
+
+#endif /* !_POSIX_SOURCE */
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
@@ -190,5 +196,7 @@ int	fchmod __P((int, mode_t));
 int	lstat __P((const char *, struct stat *));
 #endif
 __END_DECLS
-#endif
+
+#endif /* KERNEL */
+
 #endif /* !_SYS_STAT_H_ */
