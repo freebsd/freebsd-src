@@ -120,6 +120,8 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vp = (struct vnode *) handle;
 
+	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
+
 	mtx_lock(&Giant);
 	/*
 	 * Prevent race condition when allocating the object. This
@@ -212,9 +214,12 @@ vnode_pager_haspage(object, pindex, before, after)
 	if (vp == NULL)
 		return FALSE;
 
-	mp_fixme("Unlocked iflags access");
-	if (vp->v_iflag & VI_DOOMED)
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		VI_UNLOCK(vp);
 		return FALSE;
+	}
+	VI_UNLOCK(vp);
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
 	 * not have the page.
