@@ -218,7 +218,7 @@ vprint(p)
 	value_t *p;
 {
 	char *cp;
-	extern char *interp(), *ctrl();
+	extern char *interp();
 
 	if (col > 0 && col < MIDDLE)
 		while (col++ < MIDDLE)

@@ -61,6 +61,7 @@ static	int connected = 0;
 static	jmp_buf timeoutbuf, intbuf;
 static	int t3000_sync(), t3000_connect(), t3000_swallow();
 static	void t3000_nap();
+static	int t3000_write(int fd, char *cp, int n);
 
 int
 t3000_dialer(num, acu)
