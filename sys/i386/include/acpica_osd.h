@@ -34,11 +34,11 @@
 #include <machine/bus.h>
 #include <machine/acpi_machdep.h>
 #include <machine/vmparam.h>
-#include <sys/acpi.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/acpi/acpi.h>
+#include <dev/acpi/acpireg.h>
+#include <dev/acpi/acpivar.h>
 
 #include "pcib_if.h"
 
