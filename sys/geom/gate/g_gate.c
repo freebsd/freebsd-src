@@ -422,7 +422,6 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	LIST_INSERT_HEAD(&g_gate_list, sc, sc_next);
 	mtx_unlock(&g_gate_list_mtx);
 
-	DROP_GIANT();
 	g_topology_lock();
 	gp = g_new_geomf(&g_gate_class, "%s%d", G_GATE_PROVIDER_NAME,
 	    sc->sc_unit);
@@ -436,7 +435,6 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
-	PICKUP_GIANT();
 
 	if (sc->sc_timeout > 0) {
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
@@ -465,7 +463,10 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		struct g_gate_ctl_create *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
-		return (g_gate_create(ggio));
+		DROP_GIANT();
+		error = g_gate_create(ggio);
+		PICKUP_GIANT();
+		return (error);
 	    }
 	case G_GATE_CMD_DESTROY:
 	    {
@@ -475,12 +476,14 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		sc = g_gate_hold(ggio->gctl_unit);
 		if (sc == NULL)
 			return (ENXIO);
+		DROP_GIANT();
 		g_topology_lock();
 		mtx_lock(&g_gate_list_mtx);
 		error = g_gate_destroy(sc, ggio->gctl_force);
 		if (error == 0)
 			g_gate_wither(sc);
 		g_topology_unlock();
+		PICKUP_GIANT();
 		g_gate_release(sc);
 		return (error);
 	    }
