@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 5/31/93";
 range(from, to)
 struct ship *from, *to;
 {
-	bow1r, bow1c, bow2r, bow2c;
+	int bow1r, bow1c, bow2r, bow2c;
 	int stern1r, stern1c, stern2c, stern2r;
 	int bb, bs, sb, ss, result;
 
@@ -100,9 +100,9 @@ char side, anyship;
 }
 
 angle(dr, dc)
-dr, dc;
+int dr, dc;
 {
-	i;
+	int i;
 
 	if (dc >= 0 && dr > 0)
 		i = 0;
@@ -130,7 +130,7 @@ gunsbear(from, to)		/* checks for target bow or stern */
 struct ship *from, *to;
 {
 	int Dr, Dc, i;
-	ang;
+	int ang;
 
 	Dr = from->file->row - to->file->row;
 	Dc = to->file->col - from->file->col;
@@ -151,8 +151,8 @@ portside(from, on, quick)
 struct ship *from, *on;
 int quick;			/* returns true if fromship is */
 {				/* shooting at onship's starboard side */
-	ang;
-	Dr, Dc;
+	int ang;
+	int Dr, Dc;
 
 	Dr = from->file->row - on->file->row;
 	Dc = on->file->col - from->file->col;

@@ -44,7 +44,7 @@ unfoul()
 	struct ship *sp;
 	struct ship *to;
 	int nat;
-	i;
+	int i;
 
 	foreachship(sp) {
 		if (sp->file->captain[0])
@@ -258,7 +258,7 @@ resolve()
 
 compcombat()
 {
-	n;
+	int n;
 	struct ship *sp;
 	struct ship *closest;
 	int crew[3], men = 0, target, temp;

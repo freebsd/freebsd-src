@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)dr_4.c	8.1 (Berkeley) 5/31/93";
 ungrap(from, to)
 struct ship *from, *to;
 {
-	k;
+	int k;
 	char friend;
 
 	if ((k = grappled2(from, to)) == 0)
