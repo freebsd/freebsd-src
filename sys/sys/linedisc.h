@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.4 1994/10/08 22:22:56 phk Exp $
+ * $Id: conf.h,v 1.5 1994/12/05 01:34:54 jkh Exp $
  */
 
 #ifndef _SYS_CONF_H_
-#define _SYS_CONF_H_
+#define	_SYS_CONF_H_
 
 /*
  * Definitions of device driver entry switches
@@ -52,12 +52,14 @@ struct tty;
 struct uio;
 struct vnode;
 
+typedef void d_strategy_t __P((struct buf *));
+
 struct bdevsw {
 	int	(*d_open)	__P((dev_t dev, int oflags, int devtype,
 				     struct proc *p));
 	int	(*d_close)	__P((dev_t dev, int fflag, int devtype,
 				     struct proc *p));
-	int	(*d_strategy)	__P((struct buf *bp));
+	d_strategy_t	*d_strategy;
 	int	(*d_ioctl)	__P((dev_t dev, int cmd, caddr_t data,
 				     int fflag, struct proc *p));
 	int	(*d_dump)	();	/* parameters vary by architecture */
@@ -83,7 +85,7 @@ struct cdevsw {
 	struct	tty *d_ttys;
 	int	(*d_select)	__P((dev_t dev, int which, struct proc *p));
 	int	(*d_mmap)	__P(());
-	int	(*d_strategy)	__P((struct buf *bp));
+	d_strategy_t	*d_strategy;
 };
 
 #ifdef KERNEL
@@ -125,10 +127,10 @@ struct swdevt {
 #ifdef KERNEL
 extern struct swdevt swdevt[];
 
-int	iskmemdev __P((dev_t));
-int	iszerodev __P((dev_t));
-int	isdisk __P((dev_t, int));
-dev_t	chrtoblk __P((dev_t));
+dev_t	chrtoblk __P((dev_t dev));
+int	isdisk __P((dev_t dev, int type));
+int	iskmemdev __P((dev_t dev));
+int	iszerodev __P((dev_t dev));
 #endif
 
-#endif
+#endif /* !_SYS_CONF_H_ */
