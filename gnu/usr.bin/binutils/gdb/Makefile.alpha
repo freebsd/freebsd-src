@@ -2,4 +2,4 @@
 
 XSRCS+=	alphabsd-nat.c alphafbsd-tdep.c alpha-tdep.c \
 	core-regset.c
-CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf64_alpha_vec
+CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf64_alpha_freebsd_vec
