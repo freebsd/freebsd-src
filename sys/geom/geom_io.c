@@ -310,7 +310,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		bp = g_bioq_first(&g_bio_run_down);
 		if (bp == NULL) {
 			msleep(&g_wait_down, &g_bio_run_down.bio_queue_lock,
-			    PRIBIO | PDROP, "g_down", hz/10);
+			    PRIBIO | PDROP, "-", hz/10);
 			continue;
 		}
 		g_bioq_unlock(&g_bio_run_down);
@@ -367,7 +367,7 @@ g_io_schedule_up(struct thread *tp __unused)
 			continue;
 		}
 		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
-		    PRIBIO | PDROP, "g_up", hz/10);
+		    PRIBIO | PDROP, "-", hz/10);
 	}
 }
 
