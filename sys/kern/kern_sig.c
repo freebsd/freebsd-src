@@ -89,6 +89,10 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
+static int	do_sigprocmask(struct thread *td, int how,
+				sigset_t *set, sigset_t *oset, int old);
+static int	kern_sigtimedwait(struct thread *td, sigset_t set,
+				siginfo_t *info, struct timespec *timeout);
 
 struct filterops sig_filtops =
 	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
@@ -592,7 +596,7 @@ execsigs(p)
  *
  *	Manipulate signal mask.
  */
-int
+static int
 do_sigprocmask(td, how, set, oset, old)
 	struct thread *td;
 	int how;
@@ -694,9 +698,177 @@ osigprocmask(td, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigpending_args {
+	SIGSETOR(siglist, td->td_siglist);
 	sigset_t	*set;
 };
 #endif
+/*
+ * MPSAFE
+ */
+int
+sigwait(struct thread *td, struct sigwait_args *uap)
+{
+	siginfo_t info;
+	sigset_t set;
+	int error;
+
+	error = copyin(uap->set, &set, sizeof(set));
+	if (error)
+		return (error);
+
+	error = kern_sigtimedwait(td, set, &info, NULL);
+	if (error)
+		return (error);
+
+	error = copyout(&info.si_signo, uap->sig, sizeof(info.si_signo));
+	/* Repost if we got an error. */
+	if (error && info.si_signo)
+		tdsignal(td, info.si_signo);
+
+	return (error);
+}
+/*
+ * MPSAFE
+ */
+int
+sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
+{
+	struct timespec ts;
+	struct timespec *timeout;
+	sigset_t set;
+	siginfo_t info;
+	int error;
+
+	if (uap->timeout) {
+		error = copyin(uap->timeout, &ts, sizeof(ts));
+		if (error)
+			return (error);
+
+		timeout = &ts;
+	} else
+		timeout = NULL;
+
+	error = copyin(uap->set, &set, sizeof(set));
+	if (error)
+		return (error);
+
+	error = kern_sigtimedwait(td, set, &info, timeout);
+	if (error)
+		return (error);
+
+	error = copyout(&info, uap->info, sizeof(info));
+	/* Repost if we got an error. */
+	if (error && info.si_signo)
+		tdsignal(td, info.si_signo);
+
+	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
+{
+	siginfo_t info;
+	sigset_t set;
+	int error;
+
+	error = copyin(uap->set, &set, sizeof(set));
+	if (error)
+		return (error);
+
+	error = kern_sigtimedwait(td, set, &info, NULL);
+	if (error)
+		return (error);
+
+	error = copyout(&info, uap->info, sizeof(info));
+	/* Repost if we got an error. */
+	if (error && info.si_signo)
+		tdsignal(td, info.si_signo);
+
+	return (error);
+}
+
+static int
+kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
+    struct timespec *timeout)
+{
+	register struct sigacts *ps;
+	sigset_t oldmask;
+	struct proc *p; 
+	int error;
+	int sig;
+	int hz;
+
+	p = td->td_proc;
+	error = 0;
+	sig = 0;
+	SIG_CANTMASK(set);
+
+	mtx_lock(&Giant);
+	PROC_LOCK(p);
+
+	ps = p->p_sigacts;
+	oldmask = td->td_sigmask;
+	td->td_sigmask = set;
+	signotify(td);
+
+	sig = cursig(td);
+	if (sig)
+		goto out;
+
+	/*
+	 * POSIX says this must be checked after looking for pending
+	 * signals.
+	 */
+	if (timeout) {
+		struct timeval tv;
+
+		if (timeout->tv_nsec > 1000000000) {
+			error = EINVAL;
+			goto out;
+		}
+		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		hz = tvtohz(&tv);
+	} else
+		hz = 0;
+
+	error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "pause", hz);
+	if (error == EINTR)
+		error = 0;
+	else if (error)
+		goto out;
+
+	sig = cursig(td);
+out:
+	td->td_sigmask = oldmask;
+	if (sig) {
+		sig_t action;
+
+		action = ps->ps_sigact[_SIG_IDX(sig)];
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_PSIG))
+			ktrpsig(sig, action, td->td_flags & TDF_OLDMASK ?
+			    &td->td_oldsigmask : &td->td_sigmask, 0);
+#endif
+		_STOPEVENT(p, S_SIG, sig);
+
+		if (action == SIG_DFL)
+			sigexit(td, sig);
+			/* NOTREACHED */
+
+		SIGDELSET(td->td_siglist, sig);
+		info->si_signo = sig;
+		info->si_code = 0;
+	}
+
+	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
+
+	return (error);
+}
+
 /*
  * MPSAFE
  */
