@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.163 1999/03/19 09:00:08 brian Exp $
+.\" $Id: ppp.8,v 1.164 1999/03/25 23:36:25 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2723,31 +2723,36 @@ This command gives a summary of available alias commands.
 This option causes various aliasing statistics and information to
 be logged to the file
 .Pa /var/log/alias.log .
-.It alias port Xo
-.Op Ar proto
-.Ar targetIP Ns No \&: Ns Ar targetPORT
-.Op Ar aliasIP Ns No \&: Ns
-.Ar aliasPORT
+.It alias port Ar proto Ar targetIP Ns Xo
+.No : Ns Ar port Ns
+.Oo
+.No - Ns Ar port
+.Oc Ar aliasport Ns
+.Oo
+.No - Ns Ar aliasport Ns
+.Oc
 .Xc
-This command allows us to redirect connections arriving at
-.Ar aliasPORT
-for machine
-.Ar aliasIP
-to
-.Ar targetPORT
+This command causes incoming
+.Ar proto
+connections to port
+.Ar aliasport
+to be redirected to port
+.Ar port
 on
 .Ar targetIP .
-.Ar AliasIP
-defaults to the current interface address.
 .Ar Proto
-may be either
-.Sq tcp
+is either
+.Dq tcp
 or
-.Sq udp ,
-and only connections of the given protocol
-are matched.  This option is useful if you wish to run things like
-Internet phone on the machines behind your gateway.
-.It "alias pptp" Op Ar addr
+.Dq udp .
+.Pp
+A range of port numbers may be specified as shown above.  The ranges
+must be of the same size.
+.Pp
+This option is useful if you wish to run things like Internet phone on
+machines behind your gateway, but is limited in that connections to only
+one interior machine per port are possible.
+.It alias pptp Op Ar addr
 This tells
 .Nm
 to alias any

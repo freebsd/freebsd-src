@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.40 1999/03/01 02:52:39 brian Exp $
+ * $Id: fsm.c,v 1.41 1999/03/29 08:21:26 brian Exp $
  *
  *  TODO:
  */
@@ -826,6 +826,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   struct physical *p = link2physical(fp->link);
   u_short *sp, proto;
 
+  bp = mbuf_Contiguous(bp);
   sp = (u_short *)MBUF_CTOP(bp);
   proto = ntohs(*sp);
   log_Printf(fp->LogLevel, "%s: -- Protocol 0x%04x (%s) was rejected!\n",

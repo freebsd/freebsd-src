@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sig.c,v 1.11.2.5 1998/05/01 19:25:56 brian Exp $
+ *	$Id: sig.c,v 1.14 1999/03/30 00:44:57 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,6 +34,7 @@
 #include "sig.h"
 
 static int caused[NSIG];	/* An array of pending signals */
+static int necessary;		/* Anything set ? */
 static sig_type handler[NSIG];	/* all start at SIG_DFL */
 
 
@@ -43,6 +44,7 @@ static void
 signal_recorder(int sig)
 {
   caused[sig - 1]++;
+  necessary = 1;
 }
 
 
@@ -77,19 +79,29 @@ sig_signal(int sig, sig_type fn)
 
 /* Call the handlers for any pending signals */
 
-void
+int
 sig_Handle()
 {
   int sig;
   int got;
+  int result;
 
-  do {
-    got = 0;
-    for (sig = 0; sig < NSIG; sig++)
-      if (caused[sig]) {
-	caused[sig]--;
-	got++;
-	(*handler[sig]) (sig + 1);
-      }
-  } while (got);
+  result = 0;
+  if (necessary) {
+    /* We've *probably* got something in `caused' set */
+    necessary = 0;
+    /* `necessary' might go back to 1 while we're in here.... */
+    do {
+      got = 0;
+      for (sig = 0; sig < NSIG; sig++)
+        if (caused[sig]) {
+	  caused[sig]--;
+	  got++;
+	  result++;
+	  (*handler[sig])(sig + 1);
+        }
+    } while (got);
+  }
+
+  return result;
 }

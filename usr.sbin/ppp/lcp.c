@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.66.2.1 1999/03/24 18:03:11 brian Exp $
+ * $Id: lcp.c,v 1.72 1999/04/11 08:51:04 brian Exp $
  *
  */
 
@@ -643,26 +643,14 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
 	lcp->his_accmap = accmap;
-        lcp->want_accmap |= accmap;	/* restrict our requested map */
-        if (lcp->want_accmap == accmap) {
-	  memcpy(dec->ackend, cp, 6);
-	  dec->ackend += 6;
-        } else {
-          /* NAK with what we now want */
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 6;
-          ua_htonl(&lcp->want_accmap, dec->nakend);
-          dec->nakend += 4;
-        }
+	memcpy(dec->ackend, cp, 6);
+	dec->ackend += 6;
 	break;
       case MODE_NAK:
-	lcp->want_accmap |= accmap;
+	lcp->want_accmap = accmap;
 	break;
       case MODE_REJ:
-        if (lcp->want_accmap)
-          log_Printf(LogWARN, "Peer is rejecting our ACCMAP.... bad news !\n");
-        else
-	  lcp->his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;

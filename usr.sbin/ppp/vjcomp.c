@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.25 1999/02/06 02:54:47 brian Exp $
+ * $Id: vjcomp.c,v 1.27 1999/03/31 14:21:46 brian Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,7 @@
 #include <sys/un.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #include "mbuf.h"
 #include "log.h"
@@ -60,14 +61,15 @@ vj_SendFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
 {
   int type;
   u_short proto;
+  struct ip *pip;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
 
   log_Printf(LogDEBUG, "vj_SendFrame: COMPPROTO = %x\n",
             bundle->ncp.ipcp.peer_compproto);
-  if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
-      && cproto == PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp),
-                           &bundle->ncp.ipcp.vj.cslc,
+  bp = mbuf_Contiguous(bp);
+  pip = (struct ip *)MBUF_CTOP(bp);
+  if (pip->ip_p == IPPROTO_TCP && cproto == PROTO_VJCOMP) {
+    type = sl_compress_tcp(bp, pip, &bundle->ncp.ipcp.vj.cslc,
                            &bundle->ncp.ipcp.vj.slstat,
                            bundle->ncp.ipcp.peer_compproto & 0xff);
     log_Printf(LogDEBUG, "vj_SendFrame: type = %x\n", type);
@@ -101,6 +103,7 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf * bp, u_char type)
   struct mbuf *nbp;
   u_char work[MAX_HDR + MAX_VJHEADER];	/* enough to hold TCP/IP header */
 
+  bp = mbuf_Contiguous(bp);
   olen = len = mbuf_Length(bp);
   if (type == TYPE_UNCOMPRESSED_TCP) {
 
