@@ -1,0 +1,10 @@
+#$FreeBSD$
+*/Makefile.in
+*/acinclude.m4
+*/config/*
+*/configure
+*/configure.ac
+*/gensnmptree/Makefile.in
+*/lib/Makefile.in
+*/snmp_mibII/Makefile.in
+*/snmpd/Makefile.in
