@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1999-2001 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ static int ReceivedSignal;
 static int
 usage(const char *prog)
 {
-  fprintf(stderr, "Usage: %s [-Fd] [-P pidfile] [-a name] [-e exec]"
+  fprintf(stderr, "Usage: %s [-Fd] [-P pidfile] [-a name] [-e exec | -l label]"
           " [-p provider] interface\n", prog);
   return EX_USAGE;
 }
@@ -77,7 +77,6 @@ static void
 Farewell(int sig)
 {
   ReceivedSignal = sig;
-  signal(sig, SIG_DFL);		/* If something makes us block... */
 }
 
 static int
@@ -467,8 +466,9 @@ main(int argc, char **argv)
 {
   char hostname[MAXHOSTNAMELEN], *exec, rhook[NG_HOOKLEN + 1];
   unsigned char response[1024];
-  const char *prog, *provider, *acname;
+  const char *label, *prog, *provider, *acname;
   struct ngm_connect ngc;
+  struct sigaction act;
   int ch, cs, ds, ret, optF, optd, optn, sz, f;
   const char *pidfile;
 
@@ -476,11 +476,12 @@ main(int argc, char **argv)
   prog = prog ? prog + 1 : argv[0];
   pidfile = NULL;
   exec = NULL;
+  label = NULL;
   acname = NULL;
   provider = "";
   optF = optd = optn = 0;
 
-  while ((ch = getopt(argc, argv, "FP:a:de:n:p:")) != -1) {
+  while ((ch = getopt(argc, argv, "FP:a:de:l:n:p:")) != -1) {
     switch (ch) {
       case 'F':
         optF = 1;
@@ -502,6 +503,10 @@ main(int argc, char **argv)
         exec = optarg;
         break;
 
+      case 'l':
+        label = optarg;
+        break;
+
       case 'n':
         optn = 1;
         NgSetDebug(atoi(optarg));
@@ -519,20 +524,25 @@ main(int argc, char **argv)
   if (optind >= argc || optind + 2 < argc)
     return usage(prog);
 
+  if (exec != NULL && label != NULL)
+    return usage(prog);
+
   if (exec == NULL) {
-    if (provider == NULL) {
-      fprintf(stderr, "%s: Either a provider or an exec command"
+    if (label == NULL)
+      label = provider;
+    if (label == NULL) {
+      fprintf(stderr, "%s: Either a provider, a label or an exec command"
               " must be given\n", prog);
       return usage(prog);
     }
-    exec = (char *)alloca(sizeof DEFAULT_EXEC_PREFIX + strlen(provider));
+    exec = (char *)alloca(sizeof DEFAULT_EXEC_PREFIX + strlen(label));
     if (exec == NULL) {
       fprintf(stderr, "%s: Cannot allocate %d bytes\n", prog,
-              (int)(sizeof DEFAULT_EXEC_PREFIX) + strlen(provider));
+              (int)(sizeof DEFAULT_EXEC_PREFIX) + strlen(label));
       return EX_OSERR;
     }
     strcpy(exec, DEFAULT_EXEC_PREFIX);
-    strcpy(exec + sizeof DEFAULT_EXEC_PREFIX - 1, provider);
+    strcpy(exec + sizeof DEFAULT_EXEC_PREFIX - 1, label);
   }
 
   if (acname == NULL) {
@@ -591,10 +601,14 @@ main(int argc, char **argv)
   if (!optF && optn)
     NgSetErrLog(nglog, nglogx);
 
-  signal(SIGHUP, Farewell);
-  signal(SIGINT, Farewell);
-  signal(SIGQUIT, Farewell);
-  signal(SIGTERM, Farewell);
+  memset(&act, '\0', sizeof act);
+  act.sa_handler = Farewell;
+  act.sa_flags = 0;
+  sigemptyset(&act.sa_mask);
+  sigaction(SIGHUP, &act, NULL);
+  sigaction(SIGINT, &act, NULL);
+  sigaction(SIGQUIT, &act, NULL);
+  sigaction(SIGTERM, &act, NULL);
 
   while (!ReceivedSignal) {
     if (*provider)
