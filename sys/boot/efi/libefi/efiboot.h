@@ -83,6 +83,8 @@ extern ssize_t		efi_readin(int fd, vm_offset_t dest, size_t len);
 extern int		efi_boot(void);
 extern int		efi_autoload(void);
 
+extern int		fpswa_init(u_int64_t *fpswa_interface);
+
 struct bootinfo;
 struct preloaded_file;
 extern int		bi_load(struct bootinfo *, struct preloaded_file *,

@@ -297,6 +297,8 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey)
     bi->bi_symtab = ssym;
     bi->bi_esymtab = esym;
 
+    fpswa_init(&bi->bi_fpswa);		/* find FPSWA interface */
+
     /* find the last module in the chain */
     addr = 0;
     for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
