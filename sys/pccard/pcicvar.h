@@ -44,13 +44,11 @@ struct pcic_softc
 {
 	u_int32_t		slotmask;	/* Mask of valid slots */
 	u_int32_t		flags;		/* Interesting flags */
-#define PCIC_IO_MAPPED	0x00000001	/* ExCA registers are io mapped */
-#define PCIC_MEM_MAPPED	0x00000002	/* ExCA registers mem mapped */
-#define	PCIC_VG_POWER	0x00000004	/* Uses VG power regs */
-#define PCIC_DF_POWER	0x00000008	/* Uses DF step regs  */
-#define PCIC_PD_POWER	0x00000010	/* Uses CL-PD regs  */
-#define PCIC_KING_POWER	0x00000020	/* Uses IBM KING regs  */
-#define PCIC_AB_POWER	0x00000040	/* Use old A/B step power */
+#define PCIC_AB_POWER	0x00000001	/* Use old A/B step power */
+#define PCIC_DF_POWER	0x00000002	/* Uses DF step regs  */
+#define PCIC_PD_POWER	0x00000004	/* Uses CL-PD regs  */
+#define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
+#define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
 	int			iorid;		/* Rid of I/O region */
 	struct resource 	*iores;		/* resource for I/O region */
 	int			memrid;
@@ -84,3 +82,4 @@ int pcic_set_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t offset, u_int32_t *deltap);
 void pcic_clrb(struct pcic_slot *sp, int reg, unsigned char mask);
 void pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask);
+void pcic_dealloc(device_t dev);

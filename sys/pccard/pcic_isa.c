@@ -286,9 +286,18 @@ static int
 pcic_isa_attach(device_t dev)
 {
 	struct pcic_softc *sc;
+	int rid;
+	struct resource *r;
 
 	sc = device_get_softc(dev);
-	sc->flags |= PCIC_IO_MAPPED;
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (!r) {
+		pcic_dealloc(dev);
+		return (ENXIO);
+	}
+	sc->iorid = rid;
+	sc->iores = r;
 	return (pcic_attach(dev));
 }
 
