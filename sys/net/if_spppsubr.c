@@ -92,12 +92,8 @@
 #include <net/if_sppp.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
-# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
-# define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
 # define IOCTL_CMD_T	u_long
 #else
-# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg)
-# define TIMEOUT(fun, arg1, arg2, handle) timeout(fun, arg1, arg2)
 # define IOCTL_CMD_T	int
 #endif
 
@@ -259,11 +255,6 @@ struct cp {
 	void	(*scr)(struct sppp *sp);
 };
 
-static struct sppp *spppq;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-static struct callout_handle keepalive_ch;
-#endif
-
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3 && __FreeBSD_version < 501113
 #define	SPP_FMT		"%s%d: "
 #define	SPP_ARGS(ifp)	(ifp)->if_name, (ifp)->if_unit
@@ -271,6 +262,26 @@ static struct callout_handle keepalive_ch;
 #define	SPP_FMT		"%s: "
 #define	SPP_ARGS(ifp)	(ifp)->if_xname
 #endif
+
+#define SPPP_LOCK(sp) \
+		do { \
+		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+			mtx_lock (&(sp)->mtx); \
+		} while (0)
+#define SPPP_UNLOCK(sp) \
+		do { \
+		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+			mtx_unlock (&(sp)->mtx); \
+		} while (0)
+
+#define SPPP_LOCK_ASSERT(sp) \
+		do { \
+		    if (!((sp)->pp_if.if_flags & IFF_NEEDSGIANT)) \
+			mtx_assert (&(sp)->mtx, MA_OWNED); \
+		} while (0)
+#define SPPP_LOCK_OWNED(sp) \
+		(!((sp)->pp_if.if_flags & IFF_NEEDSGIANT) && \
+		 mtx_owned (&sp->mtx))
 
 #ifdef INET
 /*
@@ -317,6 +328,9 @@ static void sppp_close_event(const struct cp *cp, struct sppp *sp);
 static void sppp_to_event(const struct cp *cp, struct sppp *sp);
 
 static void sppp_null(struct sppp *sp);
+
+static void sppp_pp_up(struct sppp *sp);
+static void sppp_pp_down(struct sppp *sp);
 
 static void sppp_lcp_init(struct sppp *sp);
 static void sppp_lcp_up(struct sppp *sp);
@@ -415,6 +429,9 @@ static void sppp_gen_ip6_addr(struct sppp *sp, const struct in6_addr *src);
 static void sppp_suggest_ip6_addr(struct sppp *sp, struct in6_addr *src);
 #endif
 
+/* if_start () wrapper */
+static void sppp_ifstart (struct ifnet *ifp);
+
 /* our control protocol descriptors */
 static const struct cp lcp = {
 	PPP_LCP, IDX_LCP, CP_LCP, "lcp",
@@ -512,7 +529,10 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct sppp *sp = (struct sppp *)ifp;
 	u_char *iphdr;
 	int hlen, vjlen, do_account = 0;
-	int debug = ifp->if_flags & IFF_DEBUG;
+	int debug;
+
+	SPPP_LOCK(sp);
+	debug = ifp->if_flags & IFF_DEBUG;
 
 	if (ifp->if_flags & IFF_UP)
 		/* Count received bytes, add FCS and one flag */
@@ -526,6 +546,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			    SPP_ARGS(ifp), m->m_pkthdr.len);
 	  drop:
 		m_freem (m);
+		SPPP_UNLOCK(sp);
 	  drop2:
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
@@ -566,22 +587,26 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		case PPP_LCP:
 			sppp_cp_input(&lcp, sp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 		case PPP_PAP:
 			if (sp->pp_phase >= PHASE_AUTHENTICATE)
 				sppp_pap_input(sp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 		case PPP_CHAP:
 			if (sp->pp_phase >= PHASE_AUTHENTICATE)
 				sppp_chap_input(sp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 #ifdef INET
 		case PPP_IPCP:
 			if (sp->pp_phase == PHASE_NETWORK)
 				sppp_cp_input(&ipcp, sp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 		case PPP_IP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
@@ -612,8 +637,10 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				 */
 				m_adj(m, vjlen);
 				M_PREPEND(m, hlen, M_DONTWAIT);
-				if (m == NULL)
+				if (m == NULL) {
+					SPPP_UNLOCK(sp);
 					goto drop2;
+				}
 				bcopy(iphdr, mtod(m, u_char *), hlen);
 				isr = NETISR_IP;
 			}
@@ -642,6 +669,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			if (sp->pp_phase == PHASE_NETWORK)
 			    sppp_cp_input(&ipv6cp, sp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 
 		case PPP_IPV6:
@@ -679,6 +707,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		case CISCO_KEEPALIVE:
 			sppp_cisco_input ((struct sppp*) ifp, m);
 			m_freem (m);
+			SPPP_UNLOCK(sp);
 			return;
 #ifdef INET
 		case ETHERTYPE_IP:
@@ -714,6 +743,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	if (! (ifp->if_flags & IFF_UP) || isr == -1)
 		goto drop;
 
+	SPPP_UNLOCK(sp);
 	/* Check queue. */
 	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		if (debug)
@@ -721,6 +751,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				SPP_ARGS(ifp));
 		goto drop2;
 	}
+
 	if (do_account)
 		/*
 		 * Do only account for network packets, not for control
@@ -728,6 +759,32 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		 * idle lines.
 		 */
 		sp->pp_last_recv = time_second;
+}
+
+static void
+sppp_ifstart_sched(void *dummy)
+{
+	struct sppp *sp = dummy;
+	
+	sp->if_start(&sp->pp_if);
+}
+
+/* if_start () wrapper function. We use it to schedule real if_start () for
+ * execution. We can't call it directly
+ */
+static void
+sppp_ifstart(struct ifnet *ifp)
+{
+	struct sppp *sp = (struct sppp*) ifp;
+
+	if (SPPP_LOCK_OWNED(sp)) {
+		if (callout_pending(&sp->ifstart_callout))
+			return;
+		callout_reset(&sp->ifstart_callout, 1, sppp_ifstart_sched,
+		    (void *)sp); 
+	} else {
+		sp->if_start(ifp);
+	}
 }
 
 /*
@@ -745,6 +802,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 
 	if ((ifp->if_flags & IFF_UP) == 0 ||
 	    (ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == 0) {
@@ -752,6 +810,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	  drop:
 #endif
 		m_freem (m);
+		SPPP_UNLOCK(sp);
 		splx (s);
 		return (ENETDOWN);
 	}
@@ -800,6 +859,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		if(ip->ip_src.s_addr == INADDR_ANY)	/* -hm */
 		{
 			m_freem(m);
+			SPPP_UNLOCK(sp);
 			splx(s);
 			if(ip->ip_p == IPPROTO_TCP)
 				return(EADDRNOTAVAIL);
@@ -829,8 +889,8 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		/*
 		 * Do IP Header compression
 		 */
-		if (sp->pp_mode != IFF_CISCO && (sp->ipcp.flags & IPCP_VJ) &&
-		    ip->ip_p == IPPROTO_TCP)
+		if (sp->pp_mode != IFF_CISCO &&
+		    (sp->ipcp.flags & IPCP_VJ) && ip->ip_p == IPPROTO_TCP)
 			switch (sl_compress_tcp(m, ip, sp->pp_comp,
 						sp->ipcp.compress_cid)) {
 			case TYPE_COMPRESSED_TCP:
@@ -844,6 +904,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 				break;
 			default:
 				m_freem(m);
+				SPPP_UNLOCK(sp);
 				splx(s);
 				return (EINVAL);
 			}
@@ -865,6 +926,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
 				SPP_ARGS(ifp));
 		++ifp->if_oerrors;
+		SPPP_UNLOCK(sp);
 		splx (s);
 		return (ENOBUFS);
 	}
@@ -931,6 +993,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	default:
 		m_freem (m);
 		++ifp->if_oerrors;
+		SPPP_UNLOCK(sp);
 		splx (s);
 		return (EAFNOSUPPORT);
 	}
@@ -945,9 +1008,11 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		IFQ_HANDOFF_ADJ(ifp, m, 3, error);
 	if (error) {
 		++ifp->if_oerrors;
+		SPPP_UNLOCK(sp);
 		splx (s);
 		return (rv? rv: ENOBUFS);
 	}
+	SPPP_UNLOCK(sp);
 	splx (s);
 	/*
 	 * Unlike in sppp_input(), we can always bump the timestamp
@@ -964,13 +1029,14 @@ sppp_attach(struct ifnet *ifp)
 {
 	struct sppp *sp = (struct sppp*) ifp;
 
+	/* Initialize mtx lock */
+	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
+	
 	/* Initialize keepalive handler. */
-	if (spppq == NULL)
-		TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
-
-	/* Insert new entry into the keepalive list. */
-	sp->pp_next = spppq;
-	spppq = sp;
+ 	callout_init(&sp->keepalive_callout,
+		    (ifp->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
+ 		    (void *)sp); 
 
 	sp->pp_if.if_mtu = PP_MTU;
 	sp->pp_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
@@ -987,8 +1053,8 @@ sppp_attach(struct ifnet *ifp)
 	bzero(&sp->pp_seq[0], sizeof(sp->pp_seq));
 	bzero(&sp->pp_rseq[0], sizeof(sp->pp_rseq));
 	sp->pp_phase = PHASE_DEAD;
-	sp->pp_up = lcp.Up;
-	sp->pp_down = lcp.Down;
+	sp->pp_up = sppp_pp_up;
+	sp->pp_down = sppp_pp_down;
 	if(!mtx_initialized(&sp->pp_cpq.ifq_mtx))
 		mtx_init(&sp->pp_cpq.ifq_mtx, "sppp_cpq", NULL, MTX_DEF);
 	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
@@ -1001,6 +1067,10 @@ sppp_attach(struct ifnet *ifp)
 #ifdef INET6
 	sp->confflags |= CONF_ENABLE_IPV6;
 #endif
+ 	callout_init(&sp->ifstart_callout,
+		    (ifp->if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+	sp->if_start = ifp->if_start;
+	ifp->if_start = sppp_ifstart;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAITOK);
 	sl_compress_init(sp->pp_comp, -1);
 	sppp_lcp_init(sp);
@@ -1013,38 +1083,47 @@ sppp_attach(struct ifnet *ifp)
 void
 sppp_detach(struct ifnet *ifp)
 {
-	struct sppp **q, *p, *sp = (struct sppp*) ifp;
+	struct sppp *sp = (struct sppp*) ifp;
 	int i;
 
-	/* Remove the entry from the keepalive list. */
-	for (q = &spppq; (p = *q); q = &p->pp_next)
-		if (p == sp) {
-			*q = p->pp_next;
-			break;
-		}
+	KASSERT(mtx_initialized(&sp->mtx), ("sppp mutex is not initialized"));
 
 	/* Stop keepalive handler. */
-	if (spppq == NULL)
-		UNTIMEOUT(sppp_keepalive, 0, keepalive_ch);
+ 	if (!callout_drain(&sp->keepalive_callout))
+		callout_stop(&sp->keepalive_callout);
 
-	for (i = 0; i < IDX_COUNT; i++)
-		UNTIMEOUT((cps[i])->TO, (void *)sp, sp->ch[i]);
-	UNTIMEOUT(sppp_pap_my_TO, (void *)sp, sp->pap_my_to_ch);
+	for (i = 0; i < IDX_COUNT; i++) {
+		if (!callout_drain(&sp->ch[i]))
+			callout_stop(&sp->ch[i]);
+	}
+	if (!callout_drain(&sp->pap_my_to_ch))
+		callout_stop(&sp->pap_my_to_ch);
 	mtx_destroy(&sp->pp_cpq.ifq_mtx);
 	mtx_destroy(&sp->pp_fastq.ifq_mtx);
+	mtx_destroy(&sp->mtx);
 }
 
 /*
  * Flush the interface output queue.
  */
-void
-sppp_flush(struct ifnet *ifp)
+static void
+sppp_flush_unlocked(struct ifnet *ifp)
 {
 	struct sppp *sp = (struct sppp*) ifp;
 
 	sppp_qflush ((struct ifqueue *)&sp->pp_if.if_snd);
 	sppp_qflush (&sp->pp_fastq);
 	sppp_qflush (&sp->pp_cpq);
+}
+
+void
+sppp_flush(struct ifnet *ifp)
+{
+	struct sppp *sp = (struct sppp*) ifp;
+
+	SPPP_LOCK(sp);
+	sppp_flush_unlocked (ifp);
+	SPPP_UNLOCK(sp);
 }
 
 /*
@@ -1057,8 +1136,10 @@ sppp_isempty(struct ifnet *ifp)
 	int empty, s;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	empty = !sp->pp_fastq.ifq_head && !sp->pp_cpq.ifq_head &&
 		!sp->pp_if.if_snd.ifq_head;
+	SPPP_UNLOCK(sp);
 	splx(s);
 	return (empty);
 }
@@ -1074,6 +1155,7 @@ sppp_dequeue(struct ifnet *ifp)
 	int s;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	/*
 	 * Process only the control protocol queue until we have at
 	 * least one NCP open.
@@ -1087,6 +1169,7 @@ sppp_dequeue(struct ifnet *ifp)
 		if (m == NULL)
 			IF_DEQUEUE (&sp->pp_if.if_snd, m);
 	}
+	SPPP_UNLOCK(sp);
 	splx(s);
 	return m;
 }
@@ -1101,13 +1184,16 @@ sppp_pick(struct ifnet *ifp)
 	struct mbuf *m;
 	int s;
 
-	s= splimp ();
+	s = splimp ();
+	SPPP_LOCK(sp);
 
 	m = sp->pp_cpq.ifq_head;
 	if (m == NULL &&
-	    (sp->pp_phase == PHASE_NETWORK || sp->pp_mode == IFF_CISCO))
+	    (sp->pp_phase == PHASE_NETWORK ||
+	     sp->pp_mode == IFF_CISCO))
 		if ((m = sp->pp_fastq.ifq_head) == NULL)
 			m = sp->pp_if.if_snd.ifq_head;
+	SPPP_UNLOCK(sp);
 	splx (s);
 	return (m);
 }
@@ -1123,6 +1209,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	int s, rv, going_up, going_down, newmode;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	rv = 0;
 	switch (cmd) {
 	case SIOCAIFADDR:
@@ -1159,7 +1246,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 				lcp.Close(sp);
 			else if (sp->pp_tlf)
 				(sp->pp_tlf)(sp);
-			sppp_flush(ifp);
+			sppp_flush_unlocked(ifp);
 			ifp->if_flags &= ~IFF_RUNNING;
 			sp->pp_mode = newmode;
 		}
@@ -1220,6 +1307,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	default:
 		rv = ENOTTY;
 	}
+	SPPP_UNLOCK(sp);
 	splx(s);
 	return rv;
 }
@@ -1977,6 +2065,7 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 	int s;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	if (debug)
 		log(LOG_DEBUG, SPP_FMT "%s TO(%s) rst_counter = %d\n",
 		    SPP_ARGS(ifp), cp->name,
@@ -2008,8 +2097,8 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		case STATE_STOPPING:
 			sppp_cp_send(sp, cp->proto, TERM_REQ,
 				     ++sp->pp_seq[cp->protoidx], 0, 0);
-			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
-			    sp->ch[cp->protoidx]);
+			callout_reset(&sp->ch[cp->protoidx], sp->lcp.timeout,
+				      cp->TO, (void *)sp);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
@@ -2019,11 +2108,12 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 			break;
 		case STATE_ACK_SENT:
 			(cp->scr)(sp);
-			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
-			    sp->ch[cp->protoidx]);
+			callout_reset(&sp->ch[cp->protoidx], sp->lcp.timeout,
+				      cp->TO, (void *)sp);
 			break;
 		}
 
+	SPPP_UNLOCK(sp);
 	splx(s);
 }
 
@@ -2036,7 +2126,8 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 {
 	sp->state[cp->protoidx] = newstate;
 
-	UNTIMEOUT(cp->TO, (void *)sp, sp->ch[cp->protoidx]);
+	callout_stop (&sp->ch[cp->protoidx]);
+
 	switch (newstate) {
 	case STATE_INITIAL:
 	case STATE_STARTING:
@@ -2049,8 +2140,8 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
-		TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
-		    sp->ch[cp->protoidx]);
+		callout_reset(&sp->ch[cp->protoidx], sp->lcp.timeout,
+			      cp->TO, (void *)sp);
 		break;
 	}
 }
@@ -2062,6 +2153,22 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
  *                                                                          *
  *--------------------------------------------------------------------------*
  */
+static void
+sppp_pp_up(struct sppp *sp)
+{
+	SPPP_LOCK(sp);
+	lcp.Up(sp);
+	SPPP_UNLOCK(sp);
+}
+
+static void
+sppp_pp_down(struct sppp *sp)
+{
+	SPPP_LOCK(sp);
+	lcp.Down(sp);
+	SPPP_UNLOCK(sp);
+}
+
 static void
 sppp_lcp_init(struct sppp *sp)
 {
@@ -2079,9 +2186,8 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	callout_handle_init(&sp->ch[IDX_LCP]);
-#endif
+ 	callout_init(&sp->ch[IDX_LCP],
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -2775,9 +2881,8 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPCP] = 0;
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	callout_handle_init(&sp->ch[IDX_IPCP]);
-#endif
+ 	callout_init(&sp->ch[IDX_IPCP],
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -3260,12 +3365,8 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPV6CP] = 0;
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
-#if defined(__NetBSD__)
-	callout_init(&sp->ch[IDX_IPV6CP]);
-#endif
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	callout_handle_init(&sp->ch[IDX_IPV6CP]);
-#endif
+ 	callout_init(&sp->ch[IDX_IPV6CP],
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -3916,6 +4017,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			log(-1, "\n");
 		}
 		x = splimp();
+		SPPP_LOCK(sp);
 		sp->pp_flags &= ~PP_NEEDAUTH;
 		if (sp->myauth.proto == PPP_CHAP &&
 		    (sp->lcp.opts & (1 << LCP_OPT_AUTH_PROTO)) &&
@@ -3925,9 +4027,11 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			 * complete yet.  Leave it to tlu to proceed
 			 * to network phase.
 			 */
+			SPPP_UNLOCK(sp);
 			splx(x);
 			break;
 		}
+		SPPP_UNLOCK(sp);
 		splx(x);
 		sppp_phase_network(sp);
 		break;
@@ -4062,9 +4166,8 @@ sppp_chap_init(struct sppp *sp)
 	sp->fail_counter[IDX_CHAP] = 0;
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	callout_handle_init(&sp->ch[IDX_CHAP]);
-#endif
+ 	callout_init(&sp->ch[IDX_CHAP],
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -4095,6 +4198,7 @@ sppp_chap_TO(void *cookie)
 	int s;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	if (debug)
 		log(LOG_DEBUG, SPP_FMT "chap TO(%s) rst_counter = %d\n",
 		    SPP_ARGS(ifp),
@@ -4123,6 +4227,7 @@ sppp_chap_TO(void *cookie)
 			break;
 		}
 
+	SPPP_UNLOCK(sp);
 	splx(s);
 }
 
@@ -4147,7 +4252,7 @@ sppp_chap_tlu(struct sppp *sp)
 		 * a number between 300 and 810 seconds.
 		 */
 		i = 300 + ((unsigned)(random() & 0xff00) >> 7);
-		TIMEOUT(chap.TO, (void *)sp, i * hz, sp->ch[IDX_CHAP]);
+		callout_reset(&sp->ch[IDX_CHAP], i * hz, chap.TO, (void *)sp);
 	}
 
 	if (debug) {
@@ -4162,6 +4267,7 @@ sppp_chap_tlu(struct sppp *sp)
 	}
 
 	x = splimp();
+	SPPP_LOCK(sp);
 	/* indicate to LCP that we need to be closed down */
 	sp->lcp.protos |= (1 << IDX_CHAP);
 
@@ -4171,9 +4277,11 @@ sppp_chap_tlu(struct sppp *sp)
 		 * complete yet.  Defer the transition to network
 		 * phase.
 		 */
+		SPPP_UNLOCK(sp);
 		splx(x);
 		return;
 	}
+	SPPP_UNLOCK(sp);
 	splx(x);
 
 	/*
@@ -4191,7 +4299,7 @@ sppp_chap_tld(struct sppp *sp)
 
 	if (debug)
 		log(LOG_DEBUG, SPP_FMT "chap tld\n", SPP_ARGS(ifp));
-	UNTIMEOUT(chap.TO, (void *)sp, sp->ch[IDX_CHAP]);
+	callout_stop(&sp->ch[IDX_CHAP]);
 	sp->lcp.protos &= ~(1 << IDX_CHAP);
 
 	lcp.Close(sp);
@@ -4327,7 +4435,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 
 	/* ack and nak are his authproto */
 	case PAP_ACK:
-		UNTIMEOUT(sppp_pap_my_TO, (void *)sp, sp->pap_my_to_ch);
+		callout_stop(&sp->pap_my_to_ch);
 		if (debug) {
 			log(LOG_DEBUG, SPP_FMT "pap success",
 			    SPP_ARGS(ifp));
@@ -4339,6 +4447,7 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			log(-1, "\n");
 		}
 		x = splimp();
+		SPPP_LOCK(sp);
 		sp->pp_flags &= ~PP_NEEDAUTH;
 		if (sp->myauth.proto == PPP_PAP &&
 		    (sp->lcp.opts & (1 << LCP_OPT_AUTH_PROTO)) &&
@@ -4348,15 +4457,17 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			 * complete yet.  Leave it to tlu to proceed
 			 * to network phase.
 			 */
+			SPPP_UNLOCK(sp);
 			splx(x);
 			break;
 		}
+		SPPP_UNLOCK(sp);
 		splx(x);
 		sppp_phase_network(sp);
 		break;
 
 	case PAP_NAK:
-		UNTIMEOUT(sppp_pap_my_TO, (void *)sp, sp->pap_my_to_ch);
+		callout_stop (&sp->pap_my_to_ch);
 		if (debug) {
 			log(LOG_INFO, SPP_FMT "pap failure",
 			    SPP_ARGS(ifp));
@@ -4395,10 +4506,10 @@ sppp_pap_init(struct sppp *sp)
 	sp->fail_counter[IDX_PAP] = 0;
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-	callout_handle_init(&sp->ch[IDX_PAP]);
-	callout_handle_init(&sp->pap_my_to_ch);
-#endif
+ 	callout_init(&sp->ch[IDX_PAP],
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
+ 	callout_init(&sp->pap_my_to_ch,
+		    (sp->pp_if.if_flags & IFF_NEEDSGIANT) ? 0 : CALLOUT_MPSAFE);
 }
 
 static void
@@ -4413,8 +4524,8 @@ sppp_pap_open(struct sppp *sp)
 	if (sp->myauth.proto == PPP_PAP) {
 		/* we are peer, send a request, and start a timer */
 		pap.scr(sp);
-		TIMEOUT(sppp_pap_my_TO, (void *)sp, sp->lcp.timeout,
-		    sp->pap_my_to_ch);
+		callout_reset(&sp->pap_my_to_ch, sp->lcp.timeout,
+			      sppp_pap_my_TO, (void *)sp);
 	}
 }
 
@@ -4437,6 +4548,7 @@ sppp_pap_TO(void *cookie)
 	int s;
 
 	s = splimp();
+	SPPP_LOCK(sp);
 	if (debug)
 		log(LOG_DEBUG, SPP_FMT "pap TO(%s) rst_counter = %d\n",
 		    SPP_ARGS(ifp),
@@ -4460,6 +4572,7 @@ sppp_pap_TO(void *cookie)
 			break;
 		}
 
+	SPPP_UNLOCK(sp);
 	splx(s);
 }
 
@@ -4478,7 +4591,9 @@ sppp_pap_my_TO(void *cookie)
 		log(LOG_DEBUG, SPP_FMT "pap peer TO\n",
 		    SPP_ARGS(ifp));
 
+	SPPP_LOCK(sp);
 	pap.scr(sp);
+	SPPP_UNLOCK(sp);
 }
 
 static void
@@ -4494,6 +4609,7 @@ sppp_pap_tlu(struct sppp *sp)
 		    SPP_ARGS(ifp), pap.name);
 
 	x = splimp();
+	SPPP_LOCK(sp);
 	/* indicate to LCP that we need to be closed down */
 	sp->lcp.protos |= (1 << IDX_PAP);
 
@@ -4503,9 +4619,11 @@ sppp_pap_tlu(struct sppp *sp)
 		 * complete yet.  Defer the transition to network
 		 * phase.
 		 */
+		SPPP_UNLOCK(sp);
 		splx(x);
 		return;
 	}
+	SPPP_UNLOCK(sp);
 	splx(x);
 	sppp_phase_network(sp);
 }
@@ -4517,8 +4635,8 @@ sppp_pap_tld(struct sppp *sp)
 
 	if (debug)
 		log(LOG_DEBUG, SPP_FMT "pap tld\n", SPP_ARGS(ifp));
-	UNTIMEOUT(pap.TO, (void *)sp, sp->ch[IDX_PAP]);
-	UNTIMEOUT(sppp_pap_my_TO, (void *)sp, sp->pap_my_to_ch);
+	callout_stop (&sp->ch[IDX_PAP]);
+	callout_stop (&sp->pap_my_to_ch);
 	sp->lcp.protos &= ~(1 << IDX_PAP);
 
 	lcp.Close(sp);
@@ -4642,50 +4760,51 @@ sppp_qflush(struct ifqueue *ifq)
 static void
 sppp_keepalive(void *dummy)
 {
-	struct sppp *sp;
+	struct sppp *sp = (struct sppp*)dummy;
+	struct ifnet *ifp = &sp->pp_if;
 	int s;
 
 	s = splimp();
-	for (sp=spppq; sp; sp=sp->pp_next) {
-		struct ifnet *ifp = &sp->pp_if;
+	SPPP_LOCK(sp);
+	/* Keepalive mode disabled or channel down? */
+	if (! (sp->pp_flags & PP_KEEPALIVE) ||
+	    ! (ifp->if_flags & IFF_RUNNING))
+		goto out;
 
-		/* Keepalive mode disabled or channel down? */
-		if (! (sp->pp_flags & PP_KEEPALIVE) ||
-		    ! (ifp->if_flags & IFF_RUNNING))
-			continue;
+	/* No keepalive in PPP mode if LCP not opened yet. */
+	if (sp->pp_mode != IFF_CISCO &&
+	    sp->pp_phase < PHASE_AUTHENTICATE)
+		goto out;
 
-		/* No keepalive in PPP mode if LCP not opened yet. */
-		if (sp->pp_mode != IFF_CISCO &&
-		    sp->pp_phase < PHASE_AUTHENTICATE)
-			continue;
-
-		if (sp->pp_alivecnt == MAXALIVECNT) {
-			/* No keepalive packets got.  Stop the interface. */
-			printf (SPP_FMT "down\n", SPP_ARGS(ifp));
-			if_down (ifp);
-			sppp_qflush (&sp->pp_cpq);
-			if (sp->pp_mode != IFF_CISCO) {
-				/* XXX */
-				/* Shut down the PPP link. */
-				lcp.Down(sp);
-				/* Initiate negotiation. XXX */
-				lcp.Up(sp);
-			}
-		}
-		if (sp->pp_alivecnt <= MAXALIVECNT)
-			++sp->pp_alivecnt;
-		if (sp->pp_mode == IFF_CISCO)
-			sppp_cisco_send (sp, CISCO_KEEPALIVE_REQ,
-				 ++sp->pp_seq[IDX_LCP],	sp->pp_rseq[IDX_LCP]);
-		else if (sp->pp_phase >= PHASE_AUTHENTICATE) {
-			long nmagic = htonl (sp->lcp.magic);
-			sp->lcp.echoid = ++sp->pp_seq[IDX_LCP];
-			sppp_cp_send (sp, PPP_LCP, ECHO_REQ,
-				sp->lcp.echoid, 4, &nmagic);
+	if (sp->pp_alivecnt == MAXALIVECNT) {
+		/* No keepalive packets got.  Stop the interface. */
+		printf (SPP_FMT "down\n", SPP_ARGS(ifp));
+		if_down (ifp);
+		sppp_qflush (&sp->pp_cpq);
+		if (sp->pp_mode != IFF_CISCO) {
+			/* XXX */
+			/* Shut down the PPP link. */
+			lcp.Down(sp);
+			/* Initiate negotiation. XXX */
+			lcp.Up(sp);
 		}
 	}
+	if (sp->pp_alivecnt <= MAXALIVECNT)
+		++sp->pp_alivecnt;
+	if (sp->pp_mode == IFF_CISCO)
+		sppp_cisco_send (sp, CISCO_KEEPALIVE_REQ,
+			 ++sp->pp_seq[IDX_LCP],	sp->pp_rseq[IDX_LCP]);
+	else if (sp->pp_phase >= PHASE_AUTHENTICATE) {
+		long nmagic = htonl (sp->lcp.magic);
+		sp->lcp.echoid = ++sp->pp_seq[IDX_LCP];
+		sppp_cp_send (sp, PPP_LCP, ECHO_REQ,
+			sp->lcp.echoid, 4, &nmagic);
+	}
+out:
+	SPPP_UNLOCK(sp);
 	splx(s);
-	TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
+ 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
+		      (void *)sp);
 }
 
 /*
