@@ -154,25 +154,6 @@ runq_setbit(struct runq *rq, int pri)
 	rqb->rqb_bits[RQB_WORD(pri)] |= RQB_BIT(pri);
 }
 
-#if defined(INVARIANT_SUPPORT) && defined(DIAGNOSTIC)
-/*
- * Return true if the specified process is already in the run queue.
- */
-static __inline int
-runq_findproc(struct runq *rq, struct kse *ke)
-{
-	struct kse *ke2;
-	int i;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	for (i = 0; i < RQB_LEN; i++)
-		TAILQ_FOREACH(ke2, &rq->rq_queues[i], ke_procq)
-		    if (ke2 == ke)
-			    return 1;
-	return 0;
-}
-#endif
-
 /*
  * Add the process to the queue specified by its priority, and set the
  * corresponding status bit.
@@ -191,10 +172,6 @@ runq_add(struct runq *rq, struct kse *ke)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(p->p_stat == SRUN, ("runq_add: proc %p (%s) not SRUN",
 	    p, p->p_comm));
-#if defined(INVARIANTS) && defined(DIAGNOSTIC)
-	KASSERT(runq_findproc(rq, ke) == 0,
-	    ("runq_add: proc %p (%s) already in run queue", ke, p->p_comm));
-#endif
 	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
