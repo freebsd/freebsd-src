@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.92 1997/07/19 03:59:28 fsmp Exp $
+ *	$Id: clock.c,v 1.2 1997/07/20 17:02:32 smp Exp smp $
  */
 
 /*
@@ -830,19 +830,26 @@ resettodr()
 }
 
 #ifdef APIC_IO
+
 /* XXX FIXME: from icu.s: */
+#if !defined(APIC_PIN0_TIMER) || defined(DO_RTC_VEC)
 extern u_int	ivectors[];
 extern u_int	vec[];
+#endif
 
+#ifndef APIC_PIN0_TIMER
 extern void	vec8254	__P((void));
 extern u_int	Xintr8254;
 extern u_int	mask8254;
+#endif /* APIC_PIN0_TIMER */
+
 #ifdef DO_RTC_VEC
 /** XXX FIXME: remove vevRTS stuff after several weeks of no problems */
 extern void	vecRTC	__P((void));
 extern u_int	XintrRTC;
 extern u_int	maskRTC;
 #endif /* DO_RTC_VEC */
+
 #endif /* APIC_IO */
 
 /*
@@ -989,16 +996,6 @@ cpu_initclocks()
 #endif /* APIC_IO */
 
 	writertc(RTC_STATUSB, rtc_statusb);
-
-#ifdef APIC_IO
-	if (bootverbose) {
-		printf("SMP: enabled INTs: ");
-		for (x = 0; x < 24; ++x)
-			if ((imen & (1 << x)) == 0)
-	        		printf("%d, ", x);
-		printf("imen: 0x%08x\n", imen);
-	}
-#endif /* APIC_IO */
 }
 
 void
