@@ -83,7 +83,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * Allocate object and associate it with the pager.
 		 */
 		object = vm_object_allocate(OBJT_PHYS,
-			OFF_TO_IDX(foff + size));
+			OFF_TO_IDX(foff + PAGE_MASK + size));
 		object->handle = handle;
 		TAILQ_INSERT_TAIL(&phys_pager_object_list, object,
 		    pager_object_list);
