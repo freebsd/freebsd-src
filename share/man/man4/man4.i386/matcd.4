@@ -93,7 +93,7 @@
 .Sh SYNOPSIS
 .Cd "device matcd[0-4] at isa? port [?| addr]"
 .Cd "/dev/[r]matcd[0-15][a|c]
-.Cd "/dev/[r]matcdl[0-15][a|c]
+.Cd "/dev/[r]matcd[0-15]l[a|c]
 .Sh DESCRIPTION
 The
 .Nm
@@ -344,11 +344,11 @@ commands defined above are the only ones that the
 .Nm
 driver supports.
 .Sh FILES
-.Bl -tag -width /dev/(r)matcd0a_/dev/(r)matcdl0a -compact
-.It Pa /dev/[r]matcd0a /dev/[r]matcdl0a
+.Bl -tag -width /dev/(r)matcd0a_/dev/(r)matcd0la -compact
+.It Pa /dev/[r]matcd0a /dev/[r]matcd0la
 is used to access 2048-byte blocks of data on a CD-ROM disc
 that is recorded in the Mode 1 Form 1 format.
-.It Pa /dev/[r]matcd0c /dev/[r]matcdl0c
+.It Pa /dev/[r]matcd0c /dev/[r]matcd0lc
 is used to access 2352-byte frames on a CD-ROM disc
 recorded in any format.
 .It Pa /usr/src/sys/i386/isa/matcd/*
