@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/llc.h,v 1.1 2001/01/14 21:26:53 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/llc.h,v 1.2 2001/01/28 09:44:50 guy Exp $ (LBL)
  */
 
 /*
@@ -58,9 +58,12 @@
 #ifndef LLCSAP_SNAP
 #define	LLCSAP_SNAP		0xaa
 #endif
-#ifndef LLCSAP_ISONS
-#define	LLCSAP_ISONS		0xfe
-#endif
 #ifndef LLCSAP_IPX
 #define LLCSAP_IPX		0xe0
+#endif
+#ifndef LLCSAP_NETBEUI
+#define LLCSAP_NETBEUI		0xf0
+#endif
+#ifndef LLCSAP_ISONS
+#define	LLCSAP_ISONS		0xfe
 #endif

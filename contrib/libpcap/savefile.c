@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.49 2000/12/21 10:29:23 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.55 2001/11/28 07:16:53 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -149,25 +149,35 @@ static const char rcsid[] =
  */
 #define LINKTYPE_PPP_HDLC	50		/* PPP in HDLC-like framing */
 
+#define LINKTYPE_PPP_ETHER	51		/* NetBSD PPP-over-Ethernet */
+
 #define LINKTYPE_ATM_RFC1483	100		/* LLC/SNAP-encapsulated ATM */
 #define LINKTYPE_RAW		101		/* raw IP */
 #define LINKTYPE_SLIP_BSDOS	102		/* BSD/OS SLIP BPF header */
 #define LINKTYPE_PPP_BSDOS	103		/* BSD/OS PPP BPF header */
 #define LINKTYPE_C_HDLC		104		/* Cisco HDLC */
+#define LINKTYPE_IEEE802_11	105		/* IEEE 802.11 (wireless) */
 #define LINKTYPE_ATM_CLIP	106		/* Linux Classical IP over ATM */
+#define LINKTYPE_LOOP		108		/* OpenBSD loopback */
+
+#define LINKTYPE_LINUX_SLL	113		/* Linux cooked socket capture */
+#define LINKTYPE_LTALK		114		/* Apple LocalTalk hardware */
+#define LINKTYPE_ECONET		115		/* Acorn Econet */
+
+#define LINKTYPE_CISCO_IOS	118		/* For Cisco-internal use */
+#define LINKTYPE_PRISM_HEADER	119		/* 802.11+Prism II monitor mode */
+#define LINKTYPE_AIRONET_HEADER	120		/* FreeBSD Aironet driver stuff */
 
 /*
- * Reserved for future use.
+ * These types are reserved for future use.
  */
-#define LINKTYPE_IEEE802_11	105		/* IEEE 802.11 (wireless) */
 #define LINKTYPE_FR		107		/* BSD/OS Frame Relay */
-#define LINKTYPE_LOOP		108		/* OpenBSD loopback */
 #define LINKTYPE_ENC		109		/* OpenBSD IPSEC enc */
 #define LINKTYPE_LANE8023	110		/* ATM LANE + 802.3 */
 #define LINKTYPE_HIPPI		111		/* NetBSD HIPPI */
 #define LINKTYPE_HDLC		112		/* NetBSD HDLC framing */
-
-#define LINKTYPE_LINUX_SLL	113		/* Linux cooked socket capture */
+#define LINKTYPE_IPFILTER	116		/* IP Filter capture files */
+#define LINKTYPE_PFLOG		117		/* OpenBSD DLT_PFLOG */
 
 static struct linktype_map {
 	int	dlt;
@@ -216,6 +226,9 @@ static struct linktype_map {
 	/* NetBSD sync/async serial PPP (or Cisco HDLC) */
 	{ DLT_PPP_SERIAL,	LINKTYPE_PPP_HDLC },
 
+	/* NetBSD PPP over Ethernet */
+	{ DLT_PPP_ETHER,	LINKTYPE_PPP_ETHER },
+
 	/* IEEE 802.11 wireless */
 	{ DLT_IEEE802_11,	LINKTYPE_IEEE802_11 },
 
@@ -224,6 +237,21 @@ static struct linktype_map {
 
 	/* Linux cooked socket capture */
 	{ DLT_LINUX_SLL,	LINKTYPE_LINUX_SLL },
+
+	/* Apple LocalTalk hardware */
+	{ DLT_LTALK,		LINKTYPE_LTALK },
+
+	/* Acorn Econet */
+	{ DLT_ECONET,		LINKTYPE_ECONET },
+
+	/* For Cisco-internal use */
+	{ DLT_CISCO_IOS,	LINKTYPE_CISCO_IOS },
+
+	/* Prism II monitor-mode header plus 802.11 header */
+	{ DLT_PRISM_HEADER,	LINKTYPE_PRISM_HEADER },
+
+	/* FreeBSD Aironet driver stuff */
+	{ DLT_AIRONET_HEADER,	LINKTYPE_AIRONET_HEADER },
 
 	/*
 	 * Any platform that defines additional DLT_* codes should:
