@@ -4581,7 +4581,8 @@ ahc_init(struct ahc_softc *ahc)
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/AHC_NSEG,
+			       /*maxsize*/(AHC_NSEG - 1) * PAGE_SIZE,
+			       /*nsegments*/AHC_NSEG,
 			       /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &ahc->buffer_dmat) != 0) {
