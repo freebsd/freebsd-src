@@ -28,6 +28,7 @@ kdrv		KernelDriver; add/list/remove third-party kernel driver
 kerncruft	Shellscript to find orphaned *.c files in /sys
 kerninclude	Shellscript to find unused #includes in the kernel.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
+kttcp		An in-kernel version of the ttcp network performance tool
 mid	 	Create a Message-ID database for mailing lists.
 pciid		Generate src/share/misc/pci_vendors.
 portsinfo 	Generate list of new ports for last two weeks.
