@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.56 1999/07/01 13:21:43 peter Exp $
+ * $Id: kernel.h,v 1.57 1999/07/04 00:25:33 mckusick Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -106,6 +106,7 @@ enum sysinit_sub_id {
 	SI_SUB_DONE		= 0x0000001,	/* processed*/
 	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
+	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
@@ -237,6 +238,25 @@ struct sysinit {
 	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
 void	sysinit_add __P((struct sysinit **set));
+
+/*
+ * Infrastructure for tunable 'constants'.  Value may be specified at compile
+ * time or kernel load time.  Rules relating tunables together can be placed
+ * in a SYSINIT function at SI_SUB_TUNABLES with SI_ORDER_LAST.
+ */
+
+#define TUNABLE_INT_DECL(path, defval, var)	\
+static void __Tunable_ ## var (void *ignored)	\
+{						\
+    if (!getenv_int((path), &(var)))		\
+       (var) = (defval);			\
+}						\
+SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
+
+#define TUNABLE_INT_FETCH(path, defval, var)	\
+    if (!getenv_int((path), &(var)))		\
+       (var) = (defval);
+
 
 /*
  * Compatibility.  To be deprecated after LKM is removed.
