@@ -88,3 +88,20 @@ struct ed_softc {
 	u_char  next_packet;	/* pointer to next unread RX packet */
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
+
+void	ed_release_resources	__P((device_t));
+int	ed_alloc_port		__P((device_t, int, int));
+int	ed_alloc_memory		__P((device_t, int, int));
+int	ed_alloc_irq		__P((device_t, int, int));
+
+int	ed_probe_generic8390	__P((struct ed_softc *));
+int	ed_probe_WD80x3		__P((device_t));
+int	ed_probe_3Com		__P((device_t));
+int	ed_probe_Novell		__P((device_t));
+int	ed_probe_Novell_generic	__P((device_t, int, int));
+int	ed_probe_HP_pclanp	__P((device_t));
+
+int	ed_attach		__P((struct ed_softc *, int, int));
+
+driver_intr_t	edintr;
+
