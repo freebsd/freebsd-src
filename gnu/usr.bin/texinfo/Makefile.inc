@@ -1,13 +1,17 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.8 1999/01/14 20:00:26 markm Exp $
 
-TXIDIR=	${.CURDIR}/../../../../contrib/texinfo
+TXIDIR=		${.CURDIR}/../../../../contrib/texinfo
 
-.if exists(${.OBJDIR}/../libtxi)
-LIBTXI=	${.OBJDIR}/../libtxi/libtxi.a
-LIBINTL = ${.OBJDIR}/../libintl/libintl.a
+.if exists(${.OBJDIR}/../libintl)
+LIBINTL=	${.OBJDIR}/../libintl/libintl.a
 .else
-LIBTXI=	${.CURDIR}/../libtxi/libtxi.a
-LIBINTL = ${.CURDIR}/../libintl/libintl.a
+LIBINTL=	${.CURDIR}/../libintl/libintl.a
 .endif
 
-.include "../../Makefile.inc"
+.if exists(${.OBJDIR}/../libtxi)
+LIBTXI=		${.OBJDIR}/../libtxi/libtxi.a
+.else
+LIBTXI=		${.CURDIR}/../libtxi/libtxi.a
+.endif
+
+.include "../Makefile.inc"
