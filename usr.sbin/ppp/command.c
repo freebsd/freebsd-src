@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.50 1998/04/03 19:25:25 brian Exp $
+ * $Id: command.c,v 1.131.2.51 1998/04/03 19:26:19 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -301,7 +301,8 @@ ShellCommand(struct cmdargs const *arg, int bg)
     waitpid(shpid, &status, 0);
   }
 
-  prompt_TtyCommandMode(arg->prompt);
+  if (arg->prompt)
+    prompt_TtyCommandMode(arg->prompt);
 
   return (0);
 }

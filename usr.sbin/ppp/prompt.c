@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.18 1998/04/03 19:25:50 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.19 1998/04/03 19:26:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -308,6 +308,7 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     if (p->bundle)
       bundle_RegisterDescriptor(p->bundle, &p->desc);
     log_RegisterPrompt(p);
+    LogDiscardAllLocal(&p->logmask);
   }
 
   return p;
