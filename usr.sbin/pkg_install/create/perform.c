@@ -57,7 +57,11 @@ pkg_perform(char **pkgs)
     /* chop suffix off if already specified, remembering if we want to compress  */
     len = strlen(pkg);
     if (len > 4) {
-	if (!strcmp(&pkg[len - 4], ".tgz")) {
+	if (!strcmp(&pkg[len - 4], ".tbz")) {
+	    Zipper = BZIP2;
+	    pkg[len - 4] = '\0';
+	}
+	else if (!strcmp(&pkg[len - 4], ".tgz")) {
 	    Zipper = GZIP;
 	    pkg[len - 4] = '\0';
 	}
@@ -65,14 +69,10 @@ pkg_perform(char **pkgs)
 	    Zipper = NONE;
 	    pkg[len - 4] = '\0';
 	}
-	else if (!strcmp(&pkg[len - 4], ".tbz")) {
-	    Zipper = BZIP2;
-	    pkg[len - 4] = '\0';
-	}
     }
     if (Zipper == BZIP2) {
 	suf = "tbz";
-	setenv("BZIP2", "-9", 0);
+	setenv("BZIP2", "--best", 0);
     } else if (Zipper == GZIP) {
 	suf = "tgz";
 	setenv("GZIP", "-9", 0);
