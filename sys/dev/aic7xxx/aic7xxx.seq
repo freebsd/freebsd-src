@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.61 1997/02/22 09:28:51 peter Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.62 1997/02/25 03:02:56 gibbs Exp$"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -81,8 +81,6 @@ A = ACCUM
  */
 reset:
 	clr	SCSISIGO		/* De-assert BSY */
-	mvi	CLRSINT0, 0xFF		/* Clear all interrupts */
-	mvi	CLRSINT1, 0xFF		/* Clear all interrupts */
 	mvi	SCSISEQ,0x12		/* Always allow reselection 
 					 * ENRSELI|ENAUTOATNP
 					 */
@@ -283,18 +281,18 @@ select:
 	mov	WAITING_SCBH,SCB_NEXT
 select2:
 	/* Turn off the selection hardware */
-	mvi	CLRSINT1,CLRBUSFREE
 	mvi	SCSISEQ, 0x12			/* ENRSELI|ENAUTOATNP
 						 * ATN on parity errors
 						 * for "in" phases
 						 */
+	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
+	mvi	CLRSINT1,CLRBUSFREE
 	or	SIMODE1, ENBUSFREE		/*
 						 * We aren't expecting a
 						 * bus free, so interrupt
 						 * the kernel driver if it
 						 * happens.
 						 */
-	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
 /*
  * Initialize Ultra mode setting and clear the SCSI channel.
  */
@@ -547,13 +545,7 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	/*
-	 * If there is a parity error, wait for the kernel to
-	 * see the interrupt and "update" our message response
-	 * before continuing.
-	 */
 	test	SSTAT1, REQINIT	jz p_mesgout_loop
-	test	SSTAT1, SCSIPERR jnz p_mesgout_loop
 	and	LASTPHASE, PHASE_MASK, SCSISIGI
 	cmp	LASTPHASE, P_MESGOUT jne p_mesgout_done
 /*
@@ -568,8 +560,8 @@ p_mesgout_dropatn:
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
-	dec	DINDEX
 	mov	SCSIDATL,SINDIR
+	dec	DINDEX
 	jmp	p_mesgout_loop
 
 p_mesgout_done:
@@ -769,23 +761,23 @@ mesgin_identify:
 	test	A,0x78	jnz rej_mesgin	/*!DiscPriv|!LUNTAR|!Reserved*/
 	and	A,0x07			/* lun in lower three bits */
 	or      SAVED_TCL,A		/* SAVED_TCL should be complete now */
-	call	inb_last		/* ACK */
-
+	mov	SAVED_TCL call index_untagged_scb
+	mov	ARG_1, SINDIR
+	cmp	ARG_1,SCB_LIST_NULL	jne use_findSCB
 /*
  * Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
- * If we get one, we use the tag returned to switch to find the proper
+ * If we get one, we use the tag returned to find the proper
  * SCB.  With SCB paging, this requires using findSCB for both tagged
  * and non-tagged transactions since the SCB may exist in any slot.
  * If we're not using SCB paging, we can use the tag as the direct
  * index to the SCB.
  */
-	mvi	ARG_1,SCB_LIST_NULL	/* Default to no-tag */
+	call    inb_last                /* ACK Identify MSG */
 snoop_tag_loop:
 	test	SSTAT1,REQINIT		jz snoop_tag_loop
 	and	LASTPHASE, PHASE_MASK, SCSISIGI
-	cmp	LASTPHASE, P_MESGIN, jne use_findSCB
-	mvi	A			call inb_first
-	cmp	A,MSG_SIMPLE_Q_TAG	jne use_findSCB
+	cmp	LASTPHASE, P_MESGIN	jne not_found
+	cmp	SCSIBUSL,MSG_SIMPLE_Q_TAG jne not_found
 get_tag:
 	or	FLAGS, TAGGED_SCB
 	mvi	ARG_1	call inb_next	/* tag value */
@@ -796,7 +788,7 @@ get_tag:
  */
 	mov	A,COMP_SCBCOUNT	
 	add	SINDEX,A,ARG_1
-	jc	send_abort_msg
+	jc	not_found
 
 /*
  * Ensure that the SCB the tag points to is for an SCB transaction
@@ -809,24 +801,28 @@ use_findSCB:
 setup_SCB:
 	and	SCB_CONTROL,0xfb	  /* clear disconnect bit in SCB */
 	or	FLAGS,IDENTIFY_SEEN	  /* make note of IDENTIFY */
-	test	SCB_CONTROL,TAG_ENB	jnz  mesgin_done /* Ack Tag */
-	jmp	ITloop
+	jmp	mesgin_done
 index_by_tag:
 	mov	SCBPTR,ARG_1
 	mov	A, SAVED_TCL
-	cmp	SCB_TCL,A		jne send_abort_msg
-	test	SCB_CONTROL,TAG_ENB	jz  send_abort_msg
-	test	SCB_CONTROL,DISCONNECTED jz send_abort_msg
+	cmp	SCB_TCL,A		jne not_found
+	test	SCB_CONTROL,TAG_ENB	jz  not_found
+	test	SCB_CONTROL,DISCONNECTED jz not_found
 	jmp	setup_SCB
 
 not_found:
 	mvi	INTSTAT, NO_MATCH
 send_abort_msg:
-	test	FLAGS, TAGGED_SCB jnz abort_tag_msg
+	test	FLAGS, TAGGED_SCB jnz send_abort_tag_msg
 	mvi	MSG_ABORT	call mk_mesg
-	jmp	ITloop
-abort_tag_msg:
+	jmp	send_abort_done
+send_abort_tag_msg:
 	mvi	MSG_ABORT_TAG	call mk_mesg	/* ABORT TAG message */
+send_abort_done:
+	/* If we don't have the tag ID yet, we're "looking ahead" at state
+	 * that hasn't been processed, so don't ack.
+	 */
+	cmp	ARG_1, SCB_LIST_NULL	je ITloop
 	jmp	mesgin_done
 
 /*
@@ -979,11 +975,10 @@ assert:
  */
 findSCB:
 	mov	SCBPTR,SINDEX			/* switch to next SCB */
-	test	SCB_CONTROL,DISCONNECTED jz findSCB1 /*should be disconnected*/
-	cmp	ARG_1, SCB_LIST_NULL	jne findBySCBID
-	mov	A, SAVED_TCL
-	cmp	SCB_TCL,A	je foundSCB /* target ID/channel/lun match? */
-findSCB1:
+	mov	A, ARG_1			/* Tag passed in ARG_1 */
+	cmp	SCB_TAG,A	jne findSCB_loop
+	test	SCB_CONTROL,DISCONNECTED jnz foundSCB /*should be disconnected*/
+findSCB_loop:
 	inc	SINDEX
 	mov	A,SCBCOUNT
 	cmp	SINDEX,A	jne findSCB
@@ -994,18 +989,11 @@ findSCB1:
  */
 	test	FLAGS, PAGESCBS	jz find_error
 	mov	ALLZEROS	call	get_free_or_disc_scb
-	cmp	ARG_1, SCB_LIST_NULL jne find_dma_scb
-	mov	SAVED_TCL	call	index_untagged_scb
-	mov	ARG_1, SINDIR	/* SCBID of SCB to fetch */
-find_dma_scb:
 	mvi	DMAPARAMS, 0xd	/* HDMAEN|DIRECTION|FIFORESET */
 	mov	ARG_1	call dma_scb
 	test	SCB_CONTROL, ABORT_SCB jz return
 find_error:
 	mvi	SINDEX, SCB_LIST_NULL ret
-findBySCBID:
-	mov	A, ARG_1			/* Tag passed in ARG_1 */
-	cmp	SCB_TAG,A	jne findSCB1	/* Found it? */
 foundSCB:
 	test	SCB_CONTROL, ABORT_SCB jnz find_error
 	test	FLAGS,PAGESCBS	jz return
@@ -1145,6 +1133,7 @@ dequeue_free_scb:
 
 add_scb_to_free_list:
 	mov	SCB_NEXT, FREE_SCBH
+	mvi	SCB_TAG, SCB_LIST_NULL
 	mov	FREE_SCBH, SCBPTR ret
 
 add_scb_to_disc_list:
