@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.80 1998/11/23 01:33:47 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.81 1998/12/10 04:14:50 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -60,11 +60,7 @@ reset:
 	clr	SCSISIGO;		/* De-assert BSY */
 	and	SXFRCTL1, ~BITBUCKET;
 	/* Always allow reselection */
-	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		mvi	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP;
-	} else {
-		mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
-	}
+	and	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ_TEMPLATE;
 
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		/* Ensure that no DMA operations are in progress */
@@ -182,13 +178,12 @@ initialize_scsiid:
 		and	SCSIID, OID;		/* Clear old target */
 		or	SCSIID, A;
 	}
+	mov	SINDEX, SCSISEQ_TEMPLATE;
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		and	SINDEX, TARGET_SCB, SCB_CONTROL;
-		or	SCSISEQ, ENSELO|ENAUTOATNO|ENSELI
-				|ENRSELI|ENAUTOATNP, SINDEX ret ;
-	} else if ((ahc->flags & AHC_INITIATORMODE) != 0) {
-		mvi	SCSISEQ, ENSELO|ENAUTOATNO|ENRSELI|ENAUTOATNP ret;
+		test	SCB_CONTROL, TARGET_SCB jz . + 2;
+		or	SINDEX, TEMODE;
 	}
+	mov	SCSISEQ, SINDEX ret;
 
 /*
  * Initialize transfer settings and clear the SCSI channel.
@@ -435,11 +430,7 @@ initiator_reselect:
  */
 select_out:
 	/* Turn off the selection hardware */
-	if ((ahc->flags & AHC_TARGETMODE) != 0) {
-		mvi	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP;
-	} else if ((ahc->flags & AHC_INITIATORMODE) != 0) {
-		mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
-	}
+	and	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ_TEMPLATE;
 	mvi	CLRSINT0, CLRSELDO;
 	mov	SCBPTR, WAITING_SCBH;
 	mov	WAITING_SCBH,SCB_NEXT;
@@ -509,6 +500,8 @@ target_mesgout_pending_msg:
 		
 target_disconnect:
 		mvi	P_MESGIN|BSYO call change_phase;
+		test	SEQ_FLAGS, DPHASE	jz . + 2;
+		mvi	MSG_SAVEDATAPOINTER call target_outb;
 		mvi	MSG_DISCONNECT call target_outb;
 
 target_busfree:
