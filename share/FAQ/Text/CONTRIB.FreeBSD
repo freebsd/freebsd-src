@@ -55,6 +55,7 @@ The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@FreeBSD.org>
 	Rodney W. Grimes <rgrimes@FreeBSD.org>
+	Satoshi Asami <asami@FreeBSD.org>
 	Søren Schmidt <sos@FreeBSD.org>
 
 
@@ -242,4 +243,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.25 1995/03/21 00:37:06 ache Exp $
+$Id: CONTRIB.FreeBSD,v 1.1 1995/03/21 20:19:12 jkh Exp $
