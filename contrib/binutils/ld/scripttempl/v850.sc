@@ -55,11 +55,12 @@ SECTIONS
   .rela.bss	: { *(.rela.bss) }
   .rel.plt	: { *(.rel.plt) }
   .rela.plt	: { *(.rela.plt) }
-  .init		: { *(.init) } =0
+  .init		: { KEEP (*(.init)) } =0
   .plt		: { *(.plt) }
 
   .text		: {
     *(.text)
+    ${RELOCATING+*(.text.*)}
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
@@ -68,26 +69,42 @@ SECTIONS
   ${RELOCATING+_etext = .;}
   ${RELOCATING+PROVIDE (etext = .);}
 
+   /* This is special code area at the end of the normal text section.
+      It contains a small lookup table at the start followed by the
+      code pointed to by entries in the lookup table.  */
 
-  .fini		: { *(.fini)    } =0
-  .rodata	: { *(.rodata) *(.gnu.linkonce.r*) }
+  .call_table_data ${CALL_TABLE_START_ADDR} : {
+    ${RELOCATING+PROVIDE(__ctbp = .);}
+    *(.call_table_data)
+  } = 0xff   /* fill gaps with 0xff */
+  .call_table_text : {
+    *(.call_table_text)
+  }
+
+  .fini		: { KEEP (*(.fini))    } =0
+  .rodata	: { *(.rodata) ${RELOCATING+*(.rodata.*)} *(.gnu.linkonce.r*) }
   .rodata1	: { *(.rodata1) }
 
   .data		: {
     *(.data)
+    ${RELOCATING+*(.data.*)}
     *(.gnu.linkonce.d*)
     CONSTRUCTORS
   }
   .data1	: { *(.data1) }
   .ctors	: {
     ${RELOCATING+___ctors = .;}
-    *(.ctors)
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*crtend(.ctors))
     ${RELOCATING+___ctors_end = .;}
   }
 
   .dtors	: {
     ${RELOCATING+___dtors = .;}
-    *(.dtors)
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*crtend.o(.dtors))
     ${RELOCATING+___dtors_end = .;}
   }
 
@@ -109,14 +126,21 @@ SECTIONS
   .sdata ${SDATA_START_ADDR} : {
 	${RELOCATING+PROVIDE (__gp = . + 0x8000);}
 	*(.sdata)
+   }
+
+  /* See comment about .rozdata. */
+  .rosdata ${ROSDATA_START_ADDR} : {
+	*(.rosdata)
+  }
+
+  /* We place the .sbss data section AFTER the .rosdata section, so that
+     it can directly preceed the .bss section.  This allows runtime startup
+     code to initialise all the zero-data sections by simply taking the
+     value of '_edata' and zeroing until it reaches '_end'  */
+  .sbss : {
 	${RELOCATING+__sbss_start = .;}
 	*(.sbss)
 	*(.scommon)
-  }
-
-  /* See comment about .rozdata  */
-  .rosdata ${ROSDATA_START_ADDR} : {
-	*(.rosdata)
   }
 
   ${RELOCATING+_edata  = DEFINED (__sbss_start) ? __sbss_start : . ;}
@@ -125,6 +149,7 @@ SECTIONS
   .bss       :
   {
 	${RELOCATING+__bss_start = DEFINED (__sbss_start) ? __sbss_start : . ;}
+	${RELOCATING+__real_bss_start = . ;}
 	*(.dynbss)
 	*(.bss)
 	*(COMMON)

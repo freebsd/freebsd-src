@@ -18,7 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This program generates z8k-opc.h */
 
-#include <ansidecl.h>
 #include "sysdep.h"
 
 #define BYTE_INFO_LEN 10

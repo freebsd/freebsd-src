@@ -94,6 +94,6 @@ extern int sb_skip_white PARAMS ((int, sb *));
 extern int sb_skip_comma PARAMS ((int, sb *));
 
 /* Actually in input-scrub.c.  */
-extern void input_scrub_include_sb PARAMS ((sb *, char *));
+extern void input_scrub_include_sb PARAMS ((sb *, char *, int));
 
 #endif /* SB_H */

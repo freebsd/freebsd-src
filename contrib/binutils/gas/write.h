@@ -18,6 +18,9 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
+#ifndef __write_h__
+#define __write_h__
+
 #ifndef TC_I960
 #ifdef hpux
 #define EXEC_MACHINE_TYPE HP9000S200_ID
@@ -135,6 +138,15 @@ struct fix
   char *fx_file;
   unsigned fx_line;
 
+#ifdef USING_CGEN
+  struct {
+    /* CGEN_INSN entry for this instruction.  */
+    const struct cgen_insn *insn;
+    /* Target specific data, usually reloc number.  */
+    int opinfo;
+  } fx_cgen;
+#endif
+
 #ifdef TC_FIX_TYPE
   /* Location where a backend can attach additional data
      needed to perform fixups.  */
@@ -192,4 +204,5 @@ extern fixS *fix_new_exp
 
 extern void write_print_statistics PARAMS ((FILE *));
 
+#endif /* __write_h__ */
 /* end of write.h */

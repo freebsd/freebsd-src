@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 92, 93, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 95, 97, 98, 1999 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    I.E. it describes the in-file representation of ELF.  It requires
    the elf-common.h file which contains the portions that are common to
    both the internal and external representations. */
-   
+
 /* The 64-bit stuff is kind of random.  Perhaps someone will publish a
    spec someday.  */
 
@@ -240,6 +240,17 @@ typedef struct {
 
 typedef struct {
   unsigned char		vs_vers[2];
-} Elf_External_Versym;
+}
+#ifdef __GNUC__
+  __attribute__ ((packed))
+#endif
+  Elf_External_Versym;
+
+/* Structure for syminfo section.  */
+typedef struct
+{
+  unsigned char		si_boundto[2];
+  unsigned char		si_flags[2];
+} Elf_External_Syminfo;
 
 #endif /* _ELF_EXTERNAL_H */

@@ -1,5 +1,5 @@
 /* srconv.c -- Sysroff conversion program
-   Copyright (C) 1994, 95, 96, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 98, 99, 2000 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -65,16 +65,6 @@ static int ids2[20000];
 
 static int base1 = 0x18;
 static int base2 = 0x2018;
-
-char *
-xcalloc (a, b)
-     int a;
-     int b;
-{
-  char *r = xmalloc (a * b);
-  memset (r, 0, a * b);
-  return r;
-}
 
 static int
 get_member_id (x)
@@ -1886,14 +1876,14 @@ show_usage (file, status)
      FILE *file;
      int status;
 {
-  fprintf (file, "Usage: %s [-dhVq] in-file [out-file]\n", program_name);
+  fprintf (file, _("Usage: %s [-dhVq] in-file [out-file]\n"), program_name);
   exit (status);
 }
 
 static void
 show_help ()
 {
-  printf ("%s: Convert a COFF object file into a SYSROFF object file\n",
+  printf (_("%s: Convert a COFF object file into a SYSROFF object file\n"),
 	  program_name);
   show_usage (stdout, 0);
 }
@@ -1917,8 +1907,14 @@ main (ac, av)
   };
   char **matching;
   char *input_file;
-
   char *output_file;
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   program_name = av[0];
   xmalloc_set_program_name (program_name);
 
@@ -1941,7 +1937,7 @@ main (ac, av)
 	  show_help ();
 	  /*NOTREACHED */
 	case 'V':
-	  printf ("GNU %s version %s\n", program_name, PROGRAM_VERSION);
+	  printf (_("GNU %s version %s\n"), program_name, PROGRAM_VERSION);
 	  exit (0);
 	  /*NOTREACHED */
 	case 0:
@@ -1966,10 +1962,7 @@ main (ac, av)
 	    show_usage (stderr, 1);
 	  if (strcmp (input_file, output_file) == 0)
 	    {
-	      fprintf (stderr,
-		       "%s: input and output files must be different\n",
-		       program_name);
-	      exit (1);
+	      fatal (_("input and output files must be different"));
 	    }
 	}
     }
@@ -1978,9 +1971,7 @@ main (ac, av)
 
   if (!input_file)
     {
-      fprintf (stderr, "%s: no input file specified\n",
-	       program_name);
-      exit (1);
+      fatal (_("no input file specified"));
     }
 
   if (!output_file)
@@ -2025,9 +2016,7 @@ main (ac, av)
 
   if (!file)
     {
-      fprintf (stderr, "%s: unable to open output file %s\n",
-	       program_name, output_file);
-      exit (1);
+      fatal (_("unable to open output file %s"), output_file);
     }
 
   if (debug)

@@ -1,5 +1,5 @@
 /* alpha-dis.c -- Disassemble Alpha AXP instructions
-   Copyright 1996 Free Software Foundation, Inc.
+   Copyright 1996, 1999 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>,
    patterned after the PPC opcode handling written by Ian Lance Taylor.
 
@@ -20,9 +20,7 @@ along with this file; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include "ansidecl.h"
 #include "sysdep.h"
 #include "dis-asm.h"
 #include "opcode/alpha.h"
@@ -66,7 +64,7 @@ print_insn_alpha (memaddr, info)
   const char * const * regnames;
   const struct alpha_opcode *opcode, *opcode_end;
   const unsigned char *opindex;
-  unsigned insn, op;
+  unsigned insn, op, isa_mask;
   int need_comma;
 
   /* Initialize the majorop table the first time through */
@@ -88,6 +86,20 @@ print_insn_alpha (memaddr, info)
     regnames = vms_regnames;
   else
     regnames = osf_regnames;
+
+  isa_mask = AXP_OPCODE_NOPAL;
+  switch (info->mach)
+    {
+    case bfd_mach_alpha_ev4:
+      isa_mask |= AXP_OPCODE_EV4;
+      break;
+    case bfd_mach_alpha_ev5:
+      isa_mask |= AXP_OPCODE_EV5;
+      break;
+    case bfd_mach_alpha_ev6:
+      isa_mask |= AXP_OPCODE_EV6;
+      break;
+    }
 
   /* Read the insn into a host word */
   {
@@ -111,7 +123,7 @@ print_insn_alpha (memaddr, info)
       if ((insn & opcode->mask) != opcode->opcode)
 	continue;
 
-      if (!(opcode->flags & AXP_OPCODE_NOPAL))
+      if (!(opcode->flags & isa_mask))
 	continue;
 
       /* Make two passes over the operands.  First see if any of them

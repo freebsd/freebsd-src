@@ -1,5 +1,6 @@
 /* Main program of GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -82,6 +83,9 @@ boolean version_printed;
 /* Nonzero means link in every member of an archive.  */
 boolean whole_archive;
 
+/* True if we should demangle symbol names.  */
+boolean demangling;
+
 args_type command_line;
 
 ld_config_type config;
@@ -113,7 +117,7 @@ static boolean warning_callback PARAMS ((struct bfd_link_info *,
 static void warning_find_reloc PARAMS ((bfd *, asection *, PTR));
 static boolean undefined_symbol PARAMS ((struct bfd_link_info *,
 					 const char *, bfd *,
-					 asection *, bfd_vma));
+					 asection *, bfd_vma, boolean));
 static boolean reloc_overflow PARAMS ((struct bfd_link_info *, const char *,
 				       const char *, bfd_vma,
 				       bfd *, asection *, bfd_vma));
@@ -162,6 +166,12 @@ main (argc, argv)
   char *emulation;
   long start_time = get_run_time ();
 
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
 
@@ -179,7 +189,7 @@ main (argc, argv)
      a different target.  The macro TARGET is defined by Makefile.  */
   if (! bfd_set_default_target (TARGET))
     {
-      einfo ("%X%P: can't set BFD default target to `%s': %E\n", TARGET);
+      einfo (_("%X%P: can't set BFD default target to `%s': %E\n"), TARGET);
       xexit (1);
     }
 
@@ -188,10 +198,19 @@ main (argc, argv)
   whole_archive = false;
   config.build_constructors = true;
   config.dynamic_link = false;
+  config.has_shared = false;
   command_line.force_common_definition = false;
   command_line.interpreter = NULL;
   command_line.rpath = NULL;
   command_line.warn_mismatch = true;
+  command_line.check_section_addresses = true;
+
+  /* We initialize DEMANGLING based on the environment variable
+     COLLECT_NO_DEMANGLE.  The gcc collect2 program will demangle the
+     output of the linker, unless COLLECT_NO_DEMANGLE is set in the
+     environment.  Acting the same way here lets us provide the same
+     interface by default.  */
+  demangling = getenv ("COLLECT_NO_DEMANGLE") == NULL;
 
   link_info.callbacks = &link_callbacks;
   link_info.relocateable = false;
@@ -199,6 +218,8 @@ main (argc, argv)
   link_info.symbolic = false;
   link_info.static_link = false;
   link_info.traditional_format = false;
+  link_info.optimize = false;
+  link_info.no_undefined = false;
   link_info.strip = strip_none;
   link_info.discard = discard_none;
   link_info.keep_memory = true;
@@ -209,7 +230,12 @@ main (argc, argv)
   link_info.notice_all = false;
   link_info.notice_hash = NULL;
   link_info.wrap_hash = NULL;
-  
+  link_info.mpc860c0 = 0;
+  /* SVR4 linkers seem to set DT_INIT and DT_FINI based on magic _init
+     and _fini symbols.  We are compatible.  */
+  link_info.init_function = "_init";
+  link_info.fini_function = "_fini";
+
   ldfile_add_arch ("");
 
   config.make_executable = true;
@@ -230,10 +256,14 @@ main (argc, argv)
 
   if (link_info.relocateable)
     {
-      if (command_line.relax)
-	einfo ("%P%F: -relax and -r may not be used together\n");
+      if (command_line.gc_sections)
+	einfo ("%P%F: --gc-sections and -r may not be used together\n");
+      if (link_info.mpc860c0)
+	einfo (_("%P%F: -r and --mpc860c0 may not be used together\n"));
+      else if (command_line.relax)
+	einfo (_("%P%F: --relax and -r may not be used together\n"));
       if (link_info.shared)
-	einfo ("%P%F: -r and -shared may not be used together\n");
+	einfo (_("%P%F: -r and -shared may not be used together\n"));
     }
 
   /* Treat ld -r -s as ld -r -S -x (i.e., strip all local symbols).  I
@@ -262,7 +292,7 @@ main (argc, argv)
 	{
 	  if (trace_file_tries)
 	    {
-	      info_msg ("using internal linker script:\n");
+	      info_msg (_("using internal linker script:\n"));
 	      info_msg ("==================================================\n");
 	      info_msg (s);
 	      info_msg ("\n==================================================\n");
@@ -281,12 +311,12 @@ main (argc, argv)
     {
       if (version_printed)
 	xexit (0);
-      einfo ("%P%F: no input files\n");
+      einfo (_("%P%F: no input files\n"));
     }
 
   if (trace_files)
     {
-      info_msg ("%P: mode %s\n", emulation);
+      info_msg (_("%P: mode %s\n"), emulation);
     }
 
   ldemul_after_parse ();
@@ -304,7 +334,7 @@ main (argc, argv)
 	  if (config.map_file == (FILE *) NULL)
 	    {
 	      bfd_set_error (bfd_error_system_call);
-	      einfo ("%P%F: cannot open map file %s: %E\n",
+	      einfo (_("%P%F: cannot open map file %s: %E\n"),
 		     config.map_filename);
 	    }
 	}
@@ -350,7 +380,7 @@ main (argc, argv)
     {
       if (trace_files == true)
 	{
-	  einfo ("%P: link errors found, deleting executable `%s'\n",
+	  einfo (_("%P: link errors found, deleting executable `%s'\n"),
 		 output_filename);
 	}
 
@@ -361,7 +391,7 @@ main (argc, argv)
   else
     {
       if (! bfd_close (output_bfd))
-	einfo ("%F%B: final close failed: %E\n", output_bfd);
+	einfo (_("%F%B: final close failed: %E\n"), output_bfd);
 
       /* If the --force-exe-suffix is enabled, and we're making an
 	 executable file and it doesn't end in .exe, copy it to one which does. */
@@ -385,21 +415,21 @@ main (argc, argv)
 	      dst = fopen (dst_name, FOPEN_WB);
 
 	      if (!src)
-		einfo ("%X%P: unable to open for source of copy `%s'\n", output_filename);
+		einfo (_("%X%P: unable to open for source of copy `%s'\n"), output_filename);
 	      if (!dst)
-		einfo ("%X%P: unable to open for destination of copy `%s'\n", dst_name);
+		einfo (_("%X%P: unable to open for destination of copy `%s'\n"), dst_name);
 	      while ((l = fread (buf, 1, bsize, src)) > 0)
 		{
 		  int done = fwrite (buf, 1, l, dst);
 		  if (done != l)
 		    {
-		      einfo ("%P: Error writing file `%s'\n", dst_name);
+		      einfo (_("%P: Error writing file `%s'\n"), dst_name);
 		    }
 		}
 	      fclose (src);
 	      if (fclose (dst) == EOF)
 		{
-		  einfo ("%P: Error closing file `%s'\n", dst_name);
+		  einfo (_("%P: Error closing file `%s'\n"), dst_name);
 		}
 	      free (dst_name);
 	      free (buf);
@@ -411,16 +441,15 @@ main (argc, argv)
 
   if (config.stats)
     {
-      extern char **environ;
 #ifdef HAVE_SBRK
       char *lim = (char *) sbrk (0);
 #endif
       long run_time = get_run_time () - start_time;
 
-      fprintf (stderr, "%s: total time in link: %ld.%06ld\n",
+      fprintf (stderr, _("%s: total time in link: %ld.%06ld\n"),
 	       program_name, run_time / 1000000, run_time % 1000000);
 #ifdef HAVE_SBRK
-      fprintf (stderr, "%s: data size %ld\n", program_name,
+      fprintf (stderr, _("%s: data size %ld\n"), program_name,
 	       (long) (lim - (char *) &environ));
 #endif
     }
@@ -461,7 +490,7 @@ get_emulation (argc, argv)
 		}
 	      else
 		{
-		  einfo("%P%F: missing argument to -m\n");
+		  einfo(_("%P%F: missing argument to -m\n"));
 		}
 	    }
 	  else if (strcmp (argv[i], "-mips1") == 0
@@ -575,12 +604,12 @@ add_ysym (name)
       if (! bfd_hash_table_init_n (link_info.notice_hash,
 				   bfd_hash_newfunc,
 				   61))
-	einfo ("%P%F: bfd_hash_table_init failed: %E\n");
+	einfo (_("%P%F: bfd_hash_table_init failed: %E\n"));
     }      
 
   if (bfd_hash_lookup (link_info.notice_hash, name, true, true)
       == (struct bfd_hash_entry *) NULL)
-    einfo ("%P%F: bfd_hash_lookup failed: %E\n");
+    einfo (_("%P%F: bfd_hash_lookup failed: %E\n"));
 }
 
 /* Record a symbol to be wrapped, from the --wrap option.  */
@@ -596,10 +625,10 @@ add_wrap (name)
       if (! bfd_hash_table_init_n (link_info.wrap_hash,
 				   bfd_hash_newfunc,
 				   61))
-	einfo ("%P%F: bfd_hash_table_init failed: %E\n");
+	einfo (_("%P%F: bfd_hash_table_init failed: %E\n"));
     }
   if (bfd_hash_lookup (link_info.wrap_hash, name, true, true) == NULL)
-    einfo ("%P%F: bfd_hash_lookup failed: %E\n");
+    einfo (_("%P%F: bfd_hash_lookup failed: %E\n"));
 }
 
 /* Handle the -retain-symbols-file option.  */
@@ -614,7 +643,7 @@ add_keepsyms_file (filename)
   int c;
 
   if (link_info.strip == strip_some)
-    einfo ("%X%P: error: duplicate retain-symbols-file\n");
+    einfo (_("%X%P: error: duplicate retain-symbols-file\n"));
 
   file = fopen (filename, "r");
   if (file == (FILE *) NULL)
@@ -627,7 +656,7 @@ add_keepsyms_file (filename)
   link_info.keep_hash = ((struct bfd_hash_table *)
 			 xmalloc (sizeof (struct bfd_hash_table)));
   if (! bfd_hash_table_init (link_info.keep_hash, bfd_hash_newfunc))
-    einfo ("%P%F: bfd_hash_table_init failed: %E\n");
+    einfo (_("%P%F: bfd_hash_table_init failed: %E\n"));
 
   bufsize = 100;
   buf = (char *) xmalloc (bufsize);
@@ -658,12 +687,12 @@ add_keepsyms_file (filename)
 
 	  if (bfd_hash_lookup (link_info.keep_hash, buf, true, true)
 	      == (struct bfd_hash_entry *) NULL)
-	    einfo ("%P%F: bfd_hash_lookup for insertion failed: %E\n");
+	    einfo (_("%P%F: bfd_hash_lookup for insertion failed: %E\n"));
 	}
     }
 
   if (link_info.strip != strip_none)
-    einfo ("%P: `-retain-symbols-file' overrides `-s' and `-S'\n");
+    einfo (_("%P: `-retain-symbols-file' overrides `-s' and `-S'\n"));
 
   link_info.strip = strip_some;
 }
@@ -676,7 +705,7 @@ add_keepsyms_file (filename)
 /*ARGSUSED*/
 static boolean
 add_archive_element (info, abfd, name)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      bfd *abfd;
      const char *name;
 {
@@ -740,8 +769,8 @@ add_archive_element (info, abfd, name)
 	{
 	  char buf[100];
 
-	  sprintf (buf, "%-29s %s\n\n", "Archive member included",
-		   "because of file (symbol)");
+	  sprintf (buf, "%-29s %s\n\n", _("Archive member included"),
+		   _("because of file (symbol)"));
 	  minfo ("%s", buf);
 	  header_printed = true;
 	}
@@ -791,7 +820,7 @@ add_archive_element (info, abfd, name)
 /*ARGSUSED*/
 static boolean
 multiple_definition (info, name, obfd, osec, oval, nbfd, nsec, nval)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *name;
      bfd *obfd;
      asection *osec;
@@ -813,10 +842,10 @@ multiple_definition (info, name, obfd, osec, oval, nbfd, nsec, nval)
 	  && bfd_is_abs_section (nsec->output_section)))
     return true;
 
-  einfo ("%X%C: multiple definition of `%T'\n",
+  einfo (_("%X%C: multiple definition of `%T'\n"),
 	 nbfd, nsec, nval, name);
   if (obfd != (bfd *) NULL)
-    einfo ("%D: first defined here\n", obfd, osec, oval);
+    einfo (_("%D: first defined here\n"), obfd, osec, oval);
   return true;
 }
 
@@ -828,7 +857,7 @@ multiple_definition (info, name, obfd, osec, oval, nbfd, nsec, nval)
 /*ARGSUSED*/
 static boolean
 multiple_common (info, name, obfd, otype, osize, nbfd, ntype, nsize)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *name;
      bfd *obfd;
      enum bfd_link_hash_type otype;
@@ -845,43 +874,43 @@ multiple_common (info, name, obfd, otype, osize, nbfd, ntype, nsize)
       || ntype == bfd_link_hash_indirect)
     {
       ASSERT (otype == bfd_link_hash_common);
-      einfo ("%B: warning: definition of `%T' overriding common\n",
+      einfo (_("%B: warning: definition of `%T' overriding common\n"),
 	     nbfd, name);
       if (obfd != NULL)
-	einfo ("%B: warning: common is here\n", obfd);
+	einfo (_("%B: warning: common is here\n"), obfd);
     }
   else if (otype == bfd_link_hash_defined
 	   || otype == bfd_link_hash_defweak
 	   || otype == bfd_link_hash_indirect)
     {
       ASSERT (ntype == bfd_link_hash_common);
-      einfo ("%B: warning: common of `%T' overridden by definition\n",
+      einfo (_("%B: warning: common of `%T' overridden by definition\n"),
 	     nbfd, name);
       if (obfd != NULL)
-	einfo ("%B: warning: defined here\n", obfd);
+	einfo (_("%B: warning: defined here\n"), obfd);
     }
   else
     {
       ASSERT (otype == bfd_link_hash_common && ntype == bfd_link_hash_common);
       if (osize > nsize)
 	{
-	  einfo ("%B: warning: common of `%T' overridden by larger common\n",
+	  einfo (_("%B: warning: common of `%T' overridden by larger common\n"),
 		 nbfd, name);
 	  if (obfd != NULL)
-	    einfo ("%B: warning: larger common is here\n", obfd);
+	    einfo (_("%B: warning: larger common is here\n"), obfd);
 	}
       else if (nsize > osize)
 	{
-	  einfo ("%B: warning: common of `%T' overriding smaller common\n",
+	  einfo (_("%B: warning: common of `%T' overriding smaller common\n"),
 		 nbfd, name);
 	  if (obfd != NULL)
-	    einfo ("%B: warning: smaller common is here\n", obfd);
+	    einfo (_("%B: warning: smaller common is here\n"), obfd);
 	}
       else
 	{
-	  einfo ("%B: warning: multiple common of `%T'\n", nbfd, name);
+	  einfo (_("%B: warning: multiple common of `%T'\n"), nbfd, name);
 	  if (obfd != NULL)
-	    einfo ("%B: warning: previous common is here\n", obfd);
+	    einfo (_("%B: warning: previous common is here\n"), obfd);
 	}
     }
 
@@ -895,7 +924,7 @@ multiple_common (info, name, obfd, otype, osize, nbfd, ntype, nsize)
 /*ARGSUSED*/
 static boolean
 add_to_set (info, h, reloc, abfd, section, value)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      struct bfd_link_hash_entry *h;
      bfd_reloc_code_real_type reloc;
      bfd *abfd;
@@ -903,7 +932,7 @@ add_to_set (info, h, reloc, abfd, section, value)
      bfd_vma value;
 {
   if (config.warn_constructors)
-    einfo ("%P: warning: global constructor %s used\n",
+    einfo (_("%P: warning: global constructor %s used\n"),
 	   h->root.string);
 
   if (! config.build_constructors)
@@ -942,7 +971,7 @@ constructor_callback (info, constructor, name, abfd, section, value)
   char set_name[1 + sizeof "__CTOR_LIST__"];
 
   if (config.warn_constructors)
-    einfo ("%P: warning: global constructor %s used\n", name);
+    einfo (_("%P: warning: global constructor %s used\n"), name);
 
   if (! config.build_constructors)
     return true;
@@ -952,7 +981,7 @@ constructor_callback (info, constructor, name, abfd, section, value)
   if (bfd_reloc_type_lookup (output_bfd, BFD_RELOC_CTOR) == NULL
       && (link_info.relocateable
 	  || bfd_reloc_type_lookup (abfd, BFD_RELOC_CTOR) == NULL))
-    einfo ("%P%F: BFD backend error: BFD_RELOC_CTOR unsupported\n");
+    einfo (_("%P%F: BFD backend error: BFD_RELOC_CTOR unsupported\n"));
 
   s = set_name;
   if (bfd_get_symbol_leading_char (abfd) != '\0')
@@ -964,7 +993,7 @@ constructor_callback (info, constructor, name, abfd, section, value)
 
   h = bfd_link_hash_lookup (info->hash, set_name, true, true, true);
   if (h == (struct bfd_link_hash_entry *) NULL)
-    einfo ("%P%F: bfd_link_hash_lookup failed: %E\n");
+    einfo (_("%P%F: bfd_link_hash_lookup failed: %E\n"));
   if (h->type == bfd_link_hash_new)
     {
       h->type = bfd_link_hash_undefined;
@@ -994,7 +1023,7 @@ struct warning_callback_info
 /*ARGSUSED*/
 static boolean
 warning_callback (info, warning, symbol, abfd, section, address)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *warning;
      const char *symbol;
      bfd *abfd;
@@ -1032,11 +1061,11 @@ warning_callback (info, warning, symbol, abfd, section, address)
 
 	  symsize = bfd_get_symtab_upper_bound (abfd);
 	  if (symsize < 0)
-	    einfo ("%B%F: could not read symbols: %E\n", abfd);
+	    einfo (_("%B%F: could not read symbols: %E\n"), abfd);
 	  asymbols = (asymbol **) xmalloc (symsize);
 	  symbol_count = bfd_canonicalize_symtab (abfd, asymbols);
 	  if (symbol_count < 0)
-	    einfo ("%B%F: could not read symbols: %E\n", abfd);
+	    einfo (_("%B%F: could not read symbols: %E\n"), abfd);
 	  if (entry != NULL)
 	    {
 	      entry->asymbols = asymbols;
@@ -1082,14 +1111,14 @@ warning_find_reloc (abfd, sec, iarg)
 
   relsize = bfd_get_reloc_upper_bound (abfd, sec);
   if (relsize < 0)
-    einfo ("%B%F: could not read relocs: %E\n", abfd);
+    einfo (_("%B%F: could not read relocs: %E\n"), abfd);
   if (relsize == 0)
     return;
 
   relpp = (arelent **) xmalloc (relsize);
   relcount = bfd_canonicalize_reloc (abfd, sec, relpp, info->asymbols);
   if (relcount < 0)
-    einfo ("%B%F: could not read relocs: %E\n", abfd);
+    einfo (_("%B%F: could not read relocs: %E\n"), abfd);
 
   p = relpp;
   pend = p + relcount;
@@ -1115,12 +1144,13 @@ warning_find_reloc (abfd, sec, iarg)
 
 /*ARGSUSED*/
 static boolean
-undefined_symbol (info, name, abfd, section, address)
-     struct bfd_link_info *info;
+undefined_symbol (info, name, abfd, section, address, fatal)
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *name;
      bfd *abfd;
      asection *section;
      bfd_vma address;
+     boolean fatal;
 {
   static char *error_name;
   static unsigned int error_count;
@@ -1138,14 +1168,14 @@ undefined_symbol (info, name, abfd, section, address)
 	  hash = ((struct bfd_hash_table *)
 		  xmalloc (sizeof (struct bfd_hash_table)));
 	  if (! bfd_hash_table_init (hash, bfd_hash_newfunc))
-	    einfo ("%F%P: bfd_hash_table_init failed: %E\n");
+	    einfo (_("%F%P: bfd_hash_table_init failed: %E\n"));
 	}
 
       if (bfd_hash_lookup (hash, name, false, false) != NULL)
 	return true;
 
       if (bfd_hash_lookup (hash, name, true, true) == NULL)
-	einfo ("%F%P: bfd_hash_lookup failed: %E\n");
+	einfo (_("%F%P: bfd_hash_lookup failed: %E\n"));
     }
 
   /* We never print more than a reasonable number of errors in a row
@@ -1164,19 +1194,27 @@ undefined_symbol (info, name, abfd, section, address)
   if (section != NULL)
     {
       if (error_count < MAX_ERRORS_IN_A_ROW)
-	einfo ("%X%C: undefined reference to `%T'\n",
-	       abfd, section, address, name);
+	{
+	  einfo (_("%C: undefined reference to `%T'\n"),
+		 abfd, section, address, name);
+	  if (fatal)
+	    einfo ("%X");
+	}
       else if (error_count == MAX_ERRORS_IN_A_ROW)
-	einfo ("%D: more undefined references to `%T' follow\n",
+	einfo (_("%D: more undefined references to `%T' follow\n"),
 	       abfd, section, address, name);
     }
   else
     {
       if (error_count < MAX_ERRORS_IN_A_ROW)
-	einfo ("%X%B: undefined reference to `%T'\n",
-	       abfd, name);
+	{
+	  einfo (_("%B: undefined reference to `%T'\n"),
+		 abfd, name);
+	  if (fatal)
+	    einfo ("%X");
+	}
       else if (error_count == MAX_ERRORS_IN_A_ROW)
-	einfo ("%B: more undefined references to `%T' follow\n",
+	einfo (_("%B: more undefined references to `%T' follow\n"),
 	       abfd, name);
     }
 
@@ -1188,7 +1226,7 @@ undefined_symbol (info, name, abfd, section, address)
 /*ARGSUSED*/
 static boolean
 reloc_overflow (info, name, reloc_name, addend, abfd, section, address)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *name;
      const char *reloc_name;
      bfd_vma addend;
@@ -1197,10 +1235,10 @@ reloc_overflow (info, name, reloc_name, addend, abfd, section, address)
      bfd_vma address;
 {
   if (abfd == (bfd *) NULL)
-    einfo ("%P%X: generated");
+    einfo (_("%P%X: generated"));
   else
     einfo ("%X%C:", abfd, section, address);
-  einfo (" relocation truncated to fit: %s %T", reloc_name, name);
+  einfo (_(" relocation truncated to fit: %s %T"), reloc_name, name);
   if (addend != 0)
     einfo ("+%v", addend);
   einfo ("\n");
@@ -1212,17 +1250,17 @@ reloc_overflow (info, name, reloc_name, addend, abfd, section, address)
 /*ARGSUSED*/
 static boolean
 reloc_dangerous (info, message, abfd, section, address)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *message;
      bfd *abfd;
      asection *section;
      bfd_vma address;
 {
   if (abfd == (bfd *) NULL)
-    einfo ("%P%X: generated");
+    einfo (_("%P%X: generated"));
   else
     einfo ("%X%C:", abfd, section, address);
-  einfo ("dangerous relocation: %s\n", message);
+  einfo (_("dangerous relocation: %s\n"), message);
   return true;
 }
 
@@ -1232,17 +1270,17 @@ reloc_dangerous (info, message, abfd, section, address)
 /*ARGSUSED*/
 static boolean
 unattached_reloc (info, name, abfd, section, address)
-     struct bfd_link_info *info;
+     struct bfd_link_info *info ATTRIBUTE_UNUSED;
      const char *name;
      bfd *abfd;
      asection *section;
      bfd_vma address;
 {
   if (abfd == (bfd *) NULL)
-    einfo ("%P%X: generated");
+    einfo (_("%P%X: generated"));
   else
     einfo ("%X%C:", abfd, section, address);
-  einfo (" reloc refers to symbol `%T' which is not being output\n", name);
+  einfo (_(" reloc refers to symbol `%T' which is not being output\n"), name);
   return true;
 }
 
@@ -1261,9 +1299,12 @@ notice (info, name, abfd, section, value)
   if (! info->notice_all
       || (info->notice_hash != NULL
 	  && bfd_hash_lookup (info->notice_hash, name, false, false) != NULL))
-    einfo ("%B: %s %s\n", abfd,
-	   bfd_is_und_section (section) ? "reference to" : "definition of",
-	   name);
+    {
+      if (bfd_is_und_section (section))
+	einfo ("%B: reference to %s\n", abfd, name);
+      else
+	einfo ("%B: definition of %s\n", abfd, name);
+    }
 
   if (command_line.cref || nocrossref_list != NULL)
     add_cref (name, abfd, section, value);

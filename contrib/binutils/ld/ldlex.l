@@ -1,6 +1,6 @@
 %{
 
-/* Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 1998
+/* Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -74,6 +74,7 @@ static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
 static const char *file_name_stack[MAX_INCLUDE_DEPTH];
 static unsigned int lineno_stack[MAX_INCLUDE_DEPTH];
 static unsigned int include_stack_ptr = 0;
+static int vers_node_nesting = 0;
 
 static YY_BUFFER_STATE yy_create_string_buffer PARAMS ((const char *string,
 							size_t size));
@@ -114,7 +115,7 @@ WHITE		[ \t\n\r]+
 NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
-V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
+V_IDENTIFIER [*?.$_a-zA-Z][*?.$_a-zA-Z0-9]*
 
 %s SCRIPT
 %s EXPRESSION
@@ -239,9 +240,11 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 <EXPRESSION,BOTH,SCRIPT>"ALIGN"			{ RTOKEN(ALIGN_K);}
 <EXPRESSION,BOTH,SCRIPT>"ADDR"			{ RTOKEN(ADDR);}
 <EXPRESSION,BOTH,SCRIPT>"LOADADDR"		{ RTOKEN(LOADADDR);}
-<EXPRESSION,BOTH>"MAX"			{ RTOKEN(MAX); }
-<EXPRESSION,BOTH>"MIN"			{ RTOKEN(MIN); }
+<EXPRESSION,BOTH>"MAX"			{ RTOKEN(MAX_K); }
+<EXPRESSION,BOTH>"MIN"			{ RTOKEN(MIN_K); }
+<EXPRESSION,BOTH>"ASSERT"		{ RTOKEN(ASSERT_K); }
 <BOTH,SCRIPT>"ENTRY"			{ RTOKEN(ENTRY);}
+<BOTH,SCRIPT,MRI>"EXTERN"		{ RTOKEN(EXTERN);}
 <EXPRESSION,BOTH,SCRIPT>"NEXT"			{ RTOKEN(NEXT);}
 <EXPRESSION,BOTH,SCRIPT>"sizeof_headers"	{ RTOKEN(SIZEOF_HEADERS);}
 <EXPRESSION,BOTH,SCRIPT>"SIZEOF_HEADERS"	{ RTOKEN(SIZEOF_HEADERS);}
@@ -272,6 +275,7 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 <BOTH,SCRIPT>"NOFLOAT"		{ RTOKEN(NOFLOAT);}
 <EXPRESSION,BOTH,SCRIPT>"NOCROSSREFS"	{ RTOKEN(NOCROSSREFS);}
 <BOTH,SCRIPT>"OVERLAY"			{ RTOKEN(OVERLAY); }
+<BOTH,SCRIPT>"SORT"			{ RTOKEN(SORT); }
 <EXPRESSION,BOTH,SCRIPT>"NOLOAD"	{ RTOKEN(NOLOAD);}
 <EXPRESSION,BOTH,SCRIPT>"DSECT"		{ RTOKEN(DSECT);}
 <EXPRESSION,BOTH,SCRIPT>"COPY"		{ RTOKEN(COPY);}
@@ -285,6 +289,8 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 <BOTH,SCRIPT>"PHDRS"			{ RTOKEN (PHDRS); }
 <EXPRESSION,BOTH,SCRIPT>"AT"			{ RTOKEN(AT);}
 <EXPRESSION,BOTH,SCRIPT>"PROVIDE"		{ RTOKEN(PROVIDE); }
+<EXPRESSION,BOTH,SCRIPT>"KEEP"		{ RTOKEN(KEEP); }
+<EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"        { RTOKEN(EXCLUDE_FILE); }
 <MRI>"#".*\n?			{ ++ lineno; }
 <MRI>"\n"	                { ++ lineno;  RTOKEN(NEWLINE); }
 <MRI>"*".*			{ /* Mri comment line */ }
@@ -302,7 +308,6 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 <MRI>"NAME"                     { RTOKEN(NAMEWORD); }
 <MRI>"FORMAT"                   { RTOKEN(FORMAT); }
 <MRI>"CASE"                     { RTOKEN(CASE); }
-<MRI>"EXTERN"                   { RTOKEN(EXTERN); }
 <MRI>"START"                    { RTOKEN(START); }
 <MRI>"LIST".*                   { RTOKEN(LIST); /* LIST and ignore to end of line */ }
 <MRI>"SECT"			{ RTOKEN(SECT); }
@@ -358,7 +363,7 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 		  }
 	}
 
-<EXPRESSION,BOTH,SCRIPT>"\""[^\"]*"\"" {
+<EXPRESSION,BOTH,SCRIPT,VERS_NODE>"\""[^\"]*"\"" {
 					/* No matter the state, quotes
 					   give what's inside */
 					yylval.name = buystring(yytext+1);
@@ -374,6 +379,8 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 
 <VERS_NODE>local		{ RTOKEN(LOCAL); }
 
+<VERS_NODE>extern		{ RTOKEN(EXTERN); }
+
 <VERS_NODE>{V_IDENTIFIER}	{ yylval.name = buystring (yytext);
 				  return VERS_IDENTIFIER; }
 
@@ -382,8 +389,16 @@ V_IDENTIFIER [*?.$_a-zA-Z][*?_a-zA-Z0-9]*
 
 <VERS_START>"{"			{ BEGIN(VERS_SCRIPT); return *yytext; }
 
-<VERS_SCRIPT>"{"		{ BEGIN(VERS_NODE); return *yytext; }
-<VERS_SCRIPT,VERS_NODE>"}"	{ BEGIN(VERS_SCRIPT); return *yytext; }
+<VERS_SCRIPT>"{"		{ BEGIN(VERS_NODE); 
+				  vers_node_nesting = 0;
+				  return *yytext;
+				}
+<VERS_SCRIPT>"}"		{ return *yytext; }
+<VERS_NODE>"{"			{ vers_node_nesting++; return *yytext; }
+<VERS_NODE>"}"			{ if (--vers_node_nesting < 0)
+				    BEGIN(VERS_SCRIPT);
+				  return *yytext;
+				}
 
 <VERS_START,VERS_NODE,VERS_SCRIPT>[\n]		{ lineno++; }
 

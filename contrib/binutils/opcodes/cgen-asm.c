@@ -26,113 +26,166 @@
 #include "bfd.h"
 #include "symcat.h"
 #include "opcode/cgen.h"
+#include "opintl.h"
 
-/* Operand parsing callback.  */
-const char * (*cgen_parse_operand_fn)
-     PARAMS ((enum cgen_parse_operand_type, const char **, int, int,
-	      enum cgen_parse_operand_result *, bfd_vma *));
-
-/* This is not published as part of the public interface so we don't
-   declare this in cgen.h.  */
-extern CGEN_OPCODE_DATA *cgen_current_opcode_data;
-
-/* Assembler instruction hash table.  */
-static CGEN_INSN_LIST **asm_hash_table;
-
-/* Called once at startup and whenever machine/endian change.  */
+/* Set the cgen_parse_operand_fn callback.  */
 
 void
-cgen_asm_init ()
+cgen_set_parse_operand_fn (cd, fn)
+     CGEN_CPU_DESC cd;
+     cgen_parse_operand_fn fn;
 {
-  if (asm_hash_table)
-    {
-      free (asm_hash_table);
-      asm_hash_table = NULL;
-    }
+  cd->parse_operand_fn = fn;
 }
 
 /* Called whenever starting to parse an insn.  */
 
 void
-cgen_init_parse_operand ()
+cgen_init_parse_operand (cd)
+     CGEN_CPU_DESC cd;
 {
   /* This tells the callback to re-initialize.  */
-  (void) (*cgen_parse_operand_fn) (CGEN_PARSE_OPERAND_INIT, NULL, 0, 0,
-				   NULL, NULL);
+  (void) (* cd->parse_operand_fn)
+    (cd, CGEN_PARSE_OPERAND_INIT, NULL, 0, 0, NULL, NULL);
+}
+
+/* Subroutine of build_asm_hash_table to add INSNS to the hash table.
+
+   COUNT is the number of elements in INSNS.
+   ENTSIZE is sizeof (CGEN_IBASE) for the target.
+   ??? No longer used but leave in for now.
+   HTABLE points to the hash table.
+   HENTBUF is a pointer to sufficiently large buffer of hash entries.
+   The result is a pointer to the next entry to use.
+
+   The table is scanned backwards as additions are made to the front of the
+   list and we want earlier ones to be prefered.  */
+
+static CGEN_INSN_LIST *
+hash_insn_array (cd, insns, count, entsize, htable, hentbuf)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN *insns;
+     int count;
+     int entsize;
+     CGEN_INSN_LIST **htable;
+     CGEN_INSN_LIST *hentbuf;
+{
+  int i;
+
+  for (i = count - 1; i >= 0; --i, ++hentbuf)
+    {
+      unsigned int hash;
+      const CGEN_INSN *insn = &insns[i];
+
+      if (! (* cd->asm_hash_p) (insn))
+	continue;
+      hash = (* cd->asm_hash) (CGEN_INSN_MNEMONIC (insn));
+      hentbuf->next = htable[hash];
+      hentbuf->insn = insn;
+      htable[hash] = hentbuf;
+    }
+
+  return hentbuf;
+}
+
+/* Subroutine of build_asm_hash_table to add INSNS to the hash table.
+   This function is identical to hash_insn_array except the insns are
+   in a list.  */
+
+static CGEN_INSN_LIST *
+hash_insn_list (cd, insns, htable, hentbuf)
+     CGEN_CPU_DESC cd;
+     const CGEN_INSN_LIST *insns;
+     CGEN_INSN_LIST **htable;
+     CGEN_INSN_LIST *hentbuf;
+{
+  const CGEN_INSN_LIST *ilist;
+
+  for (ilist = insns; ilist != NULL; ilist = ilist->next, ++ hentbuf)
+    {
+      unsigned int hash;
+
+      if (! (* cd->asm_hash_p) (ilist->insn))
+	continue;
+      hash = (* cd->asm_hash) (CGEN_INSN_MNEMONIC (ilist->insn));
+      hentbuf->next = htable[hash];
+      hentbuf->insn = ilist->insn;
+      htable[hash] = hentbuf;
+    }
+
+  return hentbuf;
 }
 
 /* Build the assembler instruction hash table.  */
 
 static void
-build_asm_hash_table ()
+build_asm_hash_table (cd)
+     CGEN_CPU_DESC cd;
 {
-  unsigned int hash;
-  int count = cgen_insn_count ();
-  CGEN_OPCODE_DATA *data = cgen_current_opcode_data;
-  CGEN_INSN_TABLE *insn_table = data->insn_table;
-  unsigned int entry_size = insn_table->entry_size;
-  unsigned int hash_size = insn_table->asm_hash_table_size;
-  const CGEN_INSN *insn;
-  CGEN_INSN_LIST *insn_lists,*new_insns;
+  int count = cgen_insn_count (cd) + cgen_macro_insn_count (cd);
+  CGEN_INSN_TABLE *insn_table = &cd->insn_table;
+  CGEN_INSN_TABLE *macro_insn_table = &cd->macro_insn_table;
+  unsigned int hash_size = cd->asm_hash_size;
+  CGEN_INSN_LIST *hash_entry_buf;
+  CGEN_INSN_LIST **asm_hash_table;
+  CGEN_INSN_LIST *asm_hash_table_entries;
 
   /* The space allocated for the hash table consists of two parts:
      the hash table and the hash lists.  */
 
   asm_hash_table = (CGEN_INSN_LIST **)
-    xmalloc (hash_size * sizeof (CGEN_INSN_LIST *)
-	     + count * sizeof (CGEN_INSN_LIST));
-  memset (asm_hash_table, 0,
-	  hash_size * sizeof (CGEN_INSN_LIST *)
-	  + count * sizeof (CGEN_INSN_LIST));
-  insn_lists = (CGEN_INSN_LIST *) (asm_hash_table + hash_size);
+    xmalloc (hash_size * sizeof (CGEN_INSN_LIST *));
+  memset (asm_hash_table, 0, hash_size * sizeof (CGEN_INSN_LIST *));
+  asm_hash_table_entries = hash_entry_buf = (CGEN_INSN_LIST *)
+    xmalloc (count * sizeof (CGEN_INSN_LIST));
 
   /* Add compiled in insns.
-     The table is scanned backwards as later additions are inserted in
-     front of earlier ones and we want earlier ones to be prefered.
-     We stop at the first one as it is a reserved entry.
-     This is a bit tricky as the attribute member of CGEN_INSN is variable
-     among architectures.  This code could be moved to cgen-asm.in, but
-     I prefer to keep it here for now.  */
+     Don't include the first one as it is a reserved entry.  */
+  /* ??? It was the end of all hash chains, and also the special
+     "invalid insn" marker.  May be able to do it differently now.  */
 
-  for (insn = (CGEN_INSN *)
-       ((char *) insn_table->init_entries
-	+ entry_size * (insn_table->num_init_entries - 1));
-       insn > insn_table->init_entries;
-       insn = (CGEN_INSN *) ((char *) insn - entry_size), ++insn_lists)
-    {
-      hash = (*insn_table->asm_hash) CGEN_INSN_MNEMONIC (insn);
-      insn_lists->next = asm_hash_table[hash];
-      insn_lists->insn = insn;
-      asm_hash_table[hash] = insn_lists;
-    }
+  hash_entry_buf = hash_insn_array (cd,
+				    insn_table->init_entries + 1,
+				    insn_table->num_init_entries - 1,
+				    insn_table->entry_size,
+				    asm_hash_table, hash_entry_buf);
+
+  /* Add compiled in macro-insns.  */
+
+  hash_entry_buf = hash_insn_array (cd, macro_insn_table->init_entries,
+				    macro_insn_table->num_init_entries,
+				    macro_insn_table->entry_size,
+				    asm_hash_table, hash_entry_buf);
 
   /* Add runtime added insns.
-     ??? Currently later added insns will be prefered over earlier ones.
-     Not sure this is a bug or not.  */
-  for (new_insns = insn_table->new_entries;
-       new_insns != NULL;
-       new_insns = new_insns->next, ++insn_lists)
-    {
-      hash = (*insn_table->asm_hash) CGEN_INSN_MNEMONIC (new_insns->insn);
-      insn_lists->next = asm_hash_table[hash];
-      insn_lists->insn = new_insns->insn;
-      asm_hash_table[hash] = insn_lists;
-    }
+     Later added insns will be prefered over earlier ones.  */
+
+  hash_entry_buf = hash_insn_list (cd, insn_table->new_entries,
+				   asm_hash_table, hash_entry_buf);
+
+  /* Add runtime added macro-insns.  */
+
+  hash_insn_list (cd, macro_insn_table->new_entries,
+		  asm_hash_table, hash_entry_buf);
+
+  cd->asm_hash_table = asm_hash_table;
+  cd->asm_hash_table_entries = asm_hash_table_entries;
 }
 
 /* Return the first entry in the hash list for INSN.  */
 
 CGEN_INSN_LIST *
-cgen_asm_lookup_insn (insn)
+cgen_asm_lookup_insn (cd, insn)
+     CGEN_CPU_DESC cd;
      const char *insn;
 {
   unsigned int hash;
 
-  if (asm_hash_table == NULL)
-    build_asm_hash_table ();
+  if (cd->asm_hash_table == NULL)
+    build_asm_hash_table (cd);
 
-  hash = (*cgen_current_opcode_data->insn_table->asm_hash) (insn);
-  return asm_hash_table[hash];
+  hash = (* cd->asm_hash) (insn);
+  return cd->asm_hash_table[hash];
 }
 
 /* Keyword parser.
@@ -144,7 +197,8 @@ cgen_asm_lookup_insn (insn)
    recording something in the keyword table].  */
 
 const char *
-cgen_parse_keyword (strp, keyword_table, valuep)
+cgen_parse_keyword (cd, strp, keyword_table, valuep)
+     CGEN_CPU_DESC cd;
      const char **strp;
      CGEN_KEYWORD *keyword_table;
      long *valuep;
@@ -167,7 +221,7 @@ cgen_parse_keyword (strp, keyword_table, valuep)
     ++p;
 
   if (p - start >= (int) sizeof (buf))
-    return "unrecognized keyword/register name";
+    return _("unrecognized keyword/register name");
 
   memcpy (buf, start, p - start);
   buf[p - start] = 0;
@@ -186,10 +240,14 @@ cgen_parse_keyword (strp, keyword_table, valuep)
   return "unrecognized keyword/register name";
 }
 
-/* Signed integer parser.  */
+/* Parse a small signed integer parser.
+   ??? VALUEP is not a bfd_vma * on purpose, though this is confusing.
+   Note that if the caller expects a bfd_vma result, it should call
+   cgen_parse_address.  */
 
 const char *
-cgen_parse_signed_integer (strp, opindex, valuep)
+cgen_parse_signed_integer (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
      const char **strp;
      int opindex;
      long *valuep;
@@ -198,19 +256,23 @@ cgen_parse_signed_integer (strp, opindex, valuep)
   enum cgen_parse_operand_result result;
   const char *errmsg;
 
-  errmsg = (*cgen_parse_operand_fn) (CGEN_PARSE_OPERAND_INTEGER, strp,
-				     opindex, BFD_RELOC_NONE,
-				     &result, &value);
+  errmsg = (* cd->parse_operand_fn)
+    (cd, CGEN_PARSE_OPERAND_INTEGER, strp, opindex, BFD_RELOC_NONE,
+     &result, &value);
   /* FIXME: Examine `result'.  */
   if (!errmsg)
     *valuep = value;
   return errmsg;
 }
 
-/* Unsigned integer parser.  */
+/* Parse a small unsigned integer parser.
+   ??? VALUEP is not a bfd_vma * on purpose, though this is confusing.
+   Note that if the caller expects a bfd_vma result, it should call
+   cgen_parse_address.  */
 
 const char *
-cgen_parse_unsigned_integer (strp, opindex, valuep)
+cgen_parse_unsigned_integer (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
      const char **strp;
      int opindex;
      unsigned long *valuep;
@@ -219,9 +281,9 @@ cgen_parse_unsigned_integer (strp, opindex, valuep)
   enum cgen_parse_operand_result result;
   const char *errmsg;
 
-  errmsg = (*cgen_parse_operand_fn) (CGEN_PARSE_OPERAND_INTEGER, strp,
-				     opindex, BFD_RELOC_NONE,
-				     &result, &value);
+  errmsg = (* cd->parse_operand_fn)
+    (cd, CGEN_PARSE_OPERAND_INTEGER, strp, opindex, BFD_RELOC_NONE,
+     &result, &value);
   /* FIXME: Examine `result'.  */
   if (!errmsg)
     *valuep = value;
@@ -231,20 +293,21 @@ cgen_parse_unsigned_integer (strp, opindex, valuep)
 /* Address parser.  */
 
 const char *
-cgen_parse_address (strp, opindex, opinfo, resultp, valuep)
+cgen_parse_address (cd, strp, opindex, opinfo, resultp, valuep)
+     CGEN_CPU_DESC cd;
      const char **strp;
      int opindex;
      int opinfo;
      enum cgen_parse_operand_result *resultp;
-     long *valuep;
+     bfd_vma *valuep;
 {
   bfd_vma value;
   enum cgen_parse_operand_result result_type;
   const char *errmsg;
 
-  errmsg = (*cgen_parse_operand_fn) (CGEN_PARSE_OPERAND_ADDRESS, strp,
-				     opindex, opinfo,
-				     &result_type, &value);
+  errmsg = (* cd->parse_operand_fn)
+    (cd, CGEN_PARSE_OPERAND_ADDRESS, strp, opindex, opinfo,
+     &result_type, &value);
   /* FIXME: Examine `result'.  */
   if (!errmsg)
     {
@@ -263,11 +326,11 @@ cgen_validate_signed_integer (value, min, max)
 {
   if (value < min || value > max)
     {
-      const char *err =
-	"operand out of range (%ld not between %ld and %ld)";
       static char buf[100];
 
-      sprintf (buf, err, value, min, max);
+      /* xgettext:c-format */
+      sprintf (buf, _("operand out of range (%ld not between %ld and %ld)"),
+		      value, min, max);
       return buf;
     }
 
@@ -284,11 +347,11 @@ cgen_validate_unsigned_integer (value, min, max)
 {
   if (value < min || value > max)
     {
-      const char *err =
-	"operand out of range (%lu not between %lu and %lu)";
       static char buf[100];
 
-      sprintf (buf, err, value, min, max);
+      /* xgettext:c-format */
+      sprintf (buf, _("operand out of range (%lu not between %lu and %lu)"),
+	       value, min, max);
       return buf;
     }
 

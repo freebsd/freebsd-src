@@ -1,5 +1,6 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright (C) 1992, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 1999
+   Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -83,7 +84,7 @@ map_over_list (arch, function, list)
 	      prev = head;
 	    }
 	  if (! found)
-	    fprintf (stderr, "No entry %s in archive.\n", ptr->name);
+	    fprintf (stderr, _("No entry %s in archive.\n"), ptr->name);
 	}
     }
 }
@@ -95,7 +96,7 @@ FILE *outfile;
 static void
 ar_directory_doer (abfd, ignore)
      bfd *abfd;
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
     print_arelt_descr(outfile, abfd, verbose);
 }
@@ -115,7 +116,7 @@ ar_directory (ar_name, list, output)
       if (outfile == 0)
 	{
 	  outfile = stdout;
-	  fprintf (stderr,"Can't open file %s\n", output);
+	  fprintf (stderr,_("Can't open file %s\n"), output);
 	  output = 0;
 	}
     }
@@ -163,7 +164,7 @@ DEFUN(ar_open,(name, t),
   obfd = bfd_openw(tname, NULL);
 
   if (!obfd) {
-    fprintf(stderr,"%s: Can't open output archive %s\n", program_name,
+    fprintf(stderr,_("%s: Can't open output archive %s\n"), program_name,
 	    tname);
 
     maybequit();
@@ -175,13 +176,13 @@ DEFUN(ar_open,(name, t),
       bfd *ibfd;
       ibfd = bfd_openr(name, NULL);
       if (!ibfd) {
-	fprintf(stderr,"%s: Can't open input archive %s\n",
+	fprintf(stderr,_("%s: Can't open input archive %s\n"),
 		program_name, name);
 	maybequit();
 	return;
       }
       if (bfd_check_format(ibfd, bfd_archive) != true) {
-	fprintf(stderr,"%s: file %s is not an archive\n", program_name,
+	fprintf(stderr,_("%s: file %s is not an archive\n"), program_name,
 		name);
 	maybequit();
 	return;
@@ -222,7 +223,7 @@ ar_addlib (name, list)
 {
   if (obfd == NULL)
     {
-      fprintf (stderr, "%s: no output archive specified yet\n", program_name);
+      fprintf (stderr, _("%s: no output archive specified yet\n"), program_name);
       maybequit ();
     }
   else
@@ -242,7 +243,7 @@ DEFUN(ar_addmod, (list),
       struct list *list)
 {
   if (!obfd) {
-    fprintf(stderr, "%s: no open output archive\n", program_name);
+    fprintf(stderr, _("%s: no open output archive\n"), program_name);
     maybequit();
   }
   else 
@@ -250,7 +251,7 @@ DEFUN(ar_addmod, (list),
     while (list) {
       bfd *abfd = bfd_openr(list->name, NULL);
       if (!abfd)  {
-	fprintf(stderr,"%s: can't open file %s\n", program_name,
+	fprintf(stderr,_("%s: can't open file %s\n"), program_name,
 		list->name);
 	maybequit();
       }
@@ -277,7 +278,7 @@ DEFUN(ar_delete, (list),
       struct list *list)
 {
   if (!obfd) {
-    fprintf(stderr, "%s: no open output archive\n", program_name);
+    fprintf(stderr, _("%s: no open output archive\n"), program_name);
     maybequit();
   }
   else 
@@ -298,7 +299,7 @@ DEFUN(ar_delete, (list),
 	  member = member->next;
       }
       if (!found)  {
-	fprintf(stderr,"%s: can't find module file %s\n", program_name,
+	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
 		list->name);
 	maybequit();
       }
@@ -313,7 +314,7 @@ DEFUN_VOID(ar_save)
 {
 
   if (!obfd) {
-    fprintf(stderr, "%s: no open output archive\n", program_name);
+    fprintf(stderr, _("%s: no open output archive\n"), program_name);
     maybequit();
   }
   else {
@@ -333,7 +334,7 @@ DEFUN(ar_replace, (list),
       struct list *list)
 {
   if (!obfd) {
-    fprintf(stderr, "%s: no open output archive\n", program_name);
+    fprintf(stderr, _("%s: no open output archive\n"), program_name);
     maybequit();
   }
   else 
@@ -351,7 +352,7 @@ DEFUN(ar_replace, (list),
 	  bfd *abfd = bfd_openr(list->name, 0);
 	  if (!abfd) 
 	  {
-	    fprintf(stderr, "%s: can't open file %s\n", program_name, list->name);
+	    fprintf(stderr, _("%s: can't open file %s\n"), program_name, list->name);
 	    maybequit();
 	  }
 	  else {
@@ -367,11 +368,11 @@ DEFUN(ar_replace, (list),
       }
       if (!found)  {
 	bfd *abfd = bfd_openr(list->name, 0);
-	fprintf(stderr,"%s: can't find module file %s\n", program_name,
+	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
 		list->name);
 	if (!abfd) 
 	{
-	  fprintf(stderr, "%s: can't open file %s\n", program_name, list->name);
+	  fprintf(stderr, _("%s: can't open file %s\n"), program_name, list->name);
 	  maybequit();
 	}
 	else 
@@ -391,14 +392,14 @@ DEFUN_VOID(ar_list)
 {
   if (!obfd) 
   {
-    fprintf(stderr, "%s: no open output archive\n", program_name);
+    fprintf(stderr, _("%s: no open output archive\n"), program_name);
     maybequit();
   }
   else {
     bfd *abfd;
     outfile = stdout;
     verbose =1 ;
-    printf("Current open archive is %s\n", bfd_get_filename (obfd));
+    printf(_("Current open archive is %s\n"), bfd_get_filename (obfd));
     for (abfd = obfd->archive_head;
 	 abfd != (bfd *)NULL;
 	 abfd = abfd->next) 
@@ -425,7 +426,7 @@ DEFUN(ar_extract,(list),
   if (!obfd) 
   {
 
-    fprintf(stderr, "%s: no open  archive\n", program_name);
+    fprintf(stderr, _("%s: no open  archive\n"), program_name);
     maybequit();
   }
   else 
@@ -446,7 +447,7 @@ DEFUN(ar_extract,(list),
       }
       if (!found)  {
 	bfd_openr(list->name, 0);
-	fprintf(stderr,"%s: can't find module file %s\n", program_name,
+	fprintf(stderr,_("%s: can't find module file %s\n"), program_name,
 		list->name);
 
       }

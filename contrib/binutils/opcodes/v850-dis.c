@@ -18,9 +18,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 
-#include "ansidecl.h"
+#include "sysdep.h"
 #include "opcode/v850.h" 
 #include "dis-asm.h"
+#include "opintl.h"
 
 static const char *const v850_reg_names[] =
 { "r0", "r1", "r2", "sp", "gp", "r5", "r6", "r7", 
@@ -31,6 +32,8 @@ static const char *const v850_reg_names[] =
 static const char *const v850_sreg_names[] =
 { "eipc", "eipsw", "fepc", "fepsw", "ecr", "psw", "sr6", "sr7", 
   "sr8", "sr9", "sr10", "sr11", "sr12", "sr13", "sr14", "sr15",
+  "ctpc", "ctpsw", "dbpc", "dbpsw", "ctbp", "sr21", "sr22", "sr23", 
+  "sr24", "sr25", "sr26", "sr27", "sr28", "sr29", "sr30", "sr31",
   "sr16", "sr17", "sr18", "sr19", "sr20", "sr21", "sr22", "sr23", 
   "sr24", "sr25", "sr26", "sr27", "sr28", "sr29", "sr30", "sr31" };
 
@@ -51,6 +54,9 @@ disassemble (memaddr, info, insn)
   int				bytes_read;
   int				target_processor;
   
+  /* Special case: 32 bit MOV */
+  if ((insn & 0xffe0) == 0x0620)
+    short_op = true;
   
   bytes_read = short_op ? 2 : 4;
   
@@ -65,6 +71,13 @@ disassemble (memaddr, info, insn)
       target_processor = PROCESSOR_V850;
       break;
 
+    case bfd_mach_v850e:
+      target_processor = PROCESSOR_V850E;
+      break;
+
+    case bfd_mach_v850ea: 
+      target_processor = PROCESSOR_V850EA;
+      break;
     }
   
   /* Find the opcode.  */
@@ -186,6 +199,121 @@ disassemble (memaddr, info, insn)
 		    break;
 		  }
 		    
+		case V850E_PUSH_POP:
+		  {
+		    static int list12_regs[32]   = { 30,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0, 31, 29, 28, 23, 22, 21, 20, 27, 26, 25, 24 };
+		    static int list18_h_regs[32] = { 19, 18, 17, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 30, 31, 29, 28, 23, 22, 21, 20, 27, 26, 25, 24 };
+		    static int list18_l_regs[32] = {  3,  2,  1, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 14, 15, 13, 12,  7,  6,  5,  4, 11, 10,  9,  8 };
+		    int *             regs;
+		    int               i;
+		    unsigned long int mask = 0;
+		    int               pc   = false;
+		    int               sr   = false;
+		    
+		    
+		    switch (operand->shift)
+		      {
+		      case 0xffe00001: regs = list12_regs; break;
+		      case 0xfff8000f: regs = list18_h_regs; break;
+		      case 0xfff8001f: regs = list18_l_regs; value &= ~0x10; break;  /* Do not include magic bit */
+		      default:
+			/* xgettext:c-format */
+			fprintf (stderr, _("unknown operand shift: %x\n"), operand->shift );
+			abort();
+		      }
+
+		    for (i = 0; i < 32; i++)
+		      {
+			if (value & (1 << i))
+			  {
+			    switch (regs[ i ])
+			      {
+			      default: mask |= (1 << regs[ i ]); break;
+				/* xgettext:c-format */
+			      case 0:  fprintf (stderr, _("unknown pop reg: %d\n"), i ); abort();
+			      case -1: pc = true; break;
+			      case -2: sr = true; break;
+			      }
+			  }
+		      }
+
+		    info->fprintf_func (info->stream, "{");
+		    
+		    if (mask || pc || sr)
+		      {
+			if (mask)
+			  {
+			    unsigned int bit;
+			    int          shown_one = false;
+			    
+			    for (bit = 0; bit < 32; bit++)
+			      if (mask & (1 << bit))
+				{
+				  unsigned long int first = bit;
+				  unsigned long int last;
+
+				  if (shown_one)
+				    info->fprintf_func (info->stream, ", ");
+				  else
+				    shown_one = true;
+				  
+				  info->fprintf_func (info->stream, v850_reg_names[first]);
+				  
+				  for (bit++; bit < 32; bit++)
+				    if ((mask & (1 << bit)) == 0)
+				      break;
+
+				  last = bit;
+
+				  if (last > first + 1)
+				    {
+				      info->fprintf_func (info->stream, " - %s", v850_reg_names[ last - 1 ]);
+				    }
+				}
+			  }
+			
+			if (pc)
+			  info->fprintf_func (info->stream, "%sPC", mask ? ", " : "");
+			if (sr)
+			  info->fprintf_func (info->stream, "%sSR", (mask || pc) ? ", " : "");
+		      }
+		    
+		    info->fprintf_func (info->stream, "}");
+		  }
+		break;
+		  
+		case V850E_IMMEDIATE16:
+		  status = info->read_memory_func (memaddr + bytes_read, buffer, 2, info);
+		  if (status == 0)
+		    {
+		      bytes_read += 2;
+		      value = bfd_getl16 (buffer);
+
+		      /* If this is a DISPOSE instruction with ff set to 0x10, then shift value up by 16.  */
+		      if ((insn & 0x001fffc0) == 0x00130780)
+			value <<= 16;
+
+		      info->fprintf_func (info->stream, "0x%x", value);
+		    }
+		  else
+		    {
+		      info->memory_error_func (status, memaddr + bytes_read, info);
+		    }
+		  break;
+		  
+		case V850E_IMMEDIATE32:
+		  status = info->read_memory_func (memaddr + bytes_read, buffer, 4, info);
+		  if (status == 0)
+		    {
+		      bytes_read += 4;
+		      value = bfd_getl32 (buffer);
+		      info->fprintf_func (info->stream, "0x%lx", value);
+		    }
+		  else
+		    {
+		      info->memory_error_func (status, memaddr + bytes_read, info);
+		    }
+		  break;
 		}		  
 
 	      /* Handle jmp correctly.  */

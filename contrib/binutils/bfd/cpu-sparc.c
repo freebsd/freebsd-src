@@ -96,6 +96,20 @@ static const bfd_arch_info_type arch_info_struct[] =
     &arch_info_struct[4],
   },
   {
+    32,	/* bits in a word */
+    32,	/* bits in an address */
+    8,	/* bits in a byte */
+    bfd_arch_sparc,
+    bfd_mach_sparc_sparclite_le,
+    "sparc",
+    "sparc:sparclite_le",
+    3,
+    false,
+    sparc_compatible, 
+    bfd_default_scan,
+    &arch_info_struct[5],
+  },
+  {
     64,	/* bits in a word */
     64,	/* bits in an address */
     8,	/* bits in a byte */
@@ -107,7 +121,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false,
     sparc_compatible, 
     bfd_default_scan,
-    &arch_info_struct[5],
+    &arch_info_struct[6],
   },
   {
     64,	/* bits in a word */
