@@ -38,7 +38,7 @@
 .Ft void *
 .Fn tdelete "const void * restrict key" "void ** restrict rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
-.Fn tfind "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
+.Fn tfind "const void *key" "void * const *rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
 .Fn tsearch "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
 .Ft void
