@@ -33,6 +33,7 @@
 #if (!defined(BSD)) || (BSD < 199306)
 #include <sys/bitypes.h>
 #endif
+#include <sys/time.h>
 
 /*
  * We need to know the IPv6 address family number even on IPv4-only systems.
@@ -78,5 +79,8 @@ struct sockaddr_in6 {
 #ifndef ISC_FACILITY
 #define ISC_FACILITY LOG_DAEMON
 #endif
+
+int isc__gettimeofday(struct timeval *tp, struct timezone *tzp);
+#define gettimeofday isc__gettimeofday
 
 #endif /* ! PORT_AFTER_H */
