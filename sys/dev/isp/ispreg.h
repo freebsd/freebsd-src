@@ -986,4 +986,26 @@
 #define	ISP2100_NVRAM_BOOT_LUN(c)		(c)[80]
 
 #define	ISP2200_HBA_FEATURES(c)			(c)[232] | ((c)[233] << 8)
+
+/*
+ * Firmware Crash Dump
+ *
+ * QLogic needs specific information format when they look at firmware crashes.
+ *
+ * This is incredibly kernel memory consumptive (to say the least), so this
+ * code is only compiled in when needed.
+ */
+
+#define	QLA2200_RISC_IMAGE_DUMP_SIZE					\
+	(1 * sizeof (u_int16_t)) +	/* 'used' flag (also HBA type) */ \
+	(352 * sizeof (u_int16_t)) +	/* RISC registers */		\
+ 	(61440 * sizeof (u_int16_t))	/* RISC SRAM (offset 0x1000..0xffff) */
+#define	QLA2300_RISC_IMAGE_DUMP_SIZE					\
+	(1 * sizeof (u_int16_t)) +	/* 'used' flag (also HBA type) */ \
+	(464 * sizeof (u_int16_t)) +	/* RISC registers */		\
+ 	(63488 * sizeof (u_int16_t)) +	/* RISC SRAM (0x0800..0xffff) */ \
+	(4096 * sizeof (u_int16_t)) +	/* RISC SRAM (0x10000..0x10FFF) */ \
+	(61440 * sizeof (u_int16_t))	/* RISC SRAM (0x11000..0x1FFFF) */
+/* the larger of the two */
+#define	ISP_CRASH_IMAGE_SIZE	QLA2300_RISC_IMAGE_DUMP_SIZE
 #endif	/* _ISPREG_H */
