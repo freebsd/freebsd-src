@@ -32,7 +32,7 @@
 .\"     @(#)stdio.3	8.7 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2002
+.Dd January 10, 2003
 .Dt STDIO 3
 .Os
 .Sh NAME
@@ -186,38 +186,30 @@ without first removing their current definitions with
 .Dv SEEK_END ,
 .Dv SEEK_SET ,
 .Dv TMP_MAX ,
-.Dv clearerr ,
-.Dv feof ,
-.Dv ferror ,
-.Dv fileno ,
+.Dv clearerr_unlocked ,
+.Dv feof_unlocked ,
+.Dv ferror_unlocked ,
+.Dv fileno_unlocked ,
+.Dv getc_unlocked ,
+.Dv getchar_unlocked ,
+.Dv putc_unlocked ,
+.Dv putchar_unlocked ,
 .Dv fropen ,
 .Dv fwopen ,
-.Dv getc ,
-.Dv getchar ,
-.Dv getwc ,
-.Dv getwchar ,
-.Dv putc ,
-.Dv putchar ,
-.Dv putwc ,
-.Dv putwchar ,
 .Dv stderr ,
-.Dv stdin ,
-.Dv stdout ,
-.Dv vfscanf .
-Function versions of the macro functions
-.Fn clearerr ,
-.Fn feof ,
-.Fn ferror ,
-.Fn fileno ,
-.Fn getc ,
-.Fn getchar ,
-.Fn getwc ,
-.Fn getwchar ,
-.Fn putc ,
-.Fn putchar ,
-.Fn putwc
+.Dv stdin
 and
-.Fn putwchar
+.Dv stdout .
+Function versions of the macro functions
+.Dv clearerr_unlocked ,
+.Dv feof_unlocked ,
+.Dv ferror_unlocked ,
+.Dv fileno_unlocked ,
+.Dv getc_unlocked ,
+.Dv getchar_unlocked ,
+.Dv putc_unlocked
+and
+.Dv putchar_unlocked ,
 exist and will be used if the macro
 definitions are explicitly removed.
 .Sh SEE ALSO
