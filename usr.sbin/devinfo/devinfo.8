@@ -1,0 +1,71 @@
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 2002 Hiten Pandya
+.\" Copyright (c) 2002 Robert N. M. Watson
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2002
+.Os
+.Dt DEVINFO 8
+.Sh NAME
+.Nm devinfo 
+.Nd Print information about system device configuration.
+.Sh SYNOPSIS
+.Nm
+.Op Fl ru
+.Sh DESCRIPTION
+.Pp
+Devinfo with no arguments passed, shows the lists of devices using indentation
+and how they are reached from the device 
+.Em nexus .
+.Pp 
+The following command line arguments are accepted.  When no command line
+argument(s) are passed, 
+.Xr devinfo 8
+simply prints the hierarchy of the device table.
+.Bl -bullet -width indent
+.It 
+.Op -r :
+causes hardware resource information (such as IRQ, I/O ports, I/O memory
+addresses) to be listed, under each device that has reserved those resources.
+.It
+.Op -u :
+displays the same information as 
+.Op -r ,
+but sorts by resource type rather than by device, allowing you to review the
+set of system resources for usage and available resources. I.e., it lists all
+the IRQ consumers together.
+.El
+.Sh SEE ALSO
+.Xr pciconf 8 ,
+.Xr pnpinfo 8 ,
+.Xr vmstat 8 ,
+.Xr devinfo 3 ,
+.Xr systat 1
+.Sh AUTHORS
+.Pp
+.An "Mike Smith" 
+.Aq msmith@FreeBSD.org .

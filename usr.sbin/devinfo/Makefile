@@ -1,8 +1,9 @@
 # $FreeBSD$
 
 PROG=	devinfo
+MAN=	devinfo.8
+
 WARNS?=	2
-NOMAN=	#true
 
 DPADD=	${LIBDEVINFO}
 LDADD=	-ldevinfo
