@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp wpaul $
+ *	$Id: if_rl.c,v 1.10 1999/01/22 15:25:04 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.20 1999/01/16 20:46:24 wpaul Exp wpaul $";
+	"$Id: if_rl.c,v 1.10 1999/01/22 15:25:04 wpaul Exp $";
 #endif
 
 /*
@@ -1150,6 +1150,7 @@ rl_attach(config_id, unit)
 	ifp->if_watchdog = rl_watchdog;
 	ifp->if_init = rl_init;
 	ifp->if_baudrate = 10000000;
+	ifp->if_snd.ifq_maxlen = RL_TX_LIST_CNT - 1;
 
 	if (sc->rl_type == RL_8129) {
 		if (bootverbose)

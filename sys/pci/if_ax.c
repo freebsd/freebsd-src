@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.3 1999/01/16 20:40:52 wpaul Exp $
+ *	$Id: if_ax.c,v 1.4 1999/01/28 00:57:52 dillon Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.3 1999/01/16 20:40:52 wpaul Exp $";
+	"$Id: if_ax.c,v 1.4 1999/01/28 00:57:52 dillon Exp $";
 #endif
 
 /*
@@ -1213,7 +1213,7 @@ ax_attach(config_id, unit)
 	ifp->if_watchdog = ax_watchdog;
 	ifp->if_init = ax_init;
 	ifp->if_baudrate = 10000000;
-
+	ifp->if_snd.ifq_maxlen = AX_TX_LIST_CNT - 1;
 
 	if (bootverbose)
 		printf("ax%d: probing for a PHY\n", sc->ax_unit);
