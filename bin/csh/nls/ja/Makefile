@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
-
 NL=     ja
 DL=     ja_JP.EUC
 
@@ -17,6 +15,6 @@ tcsh.msg: set[0-9]*
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		tcsh.cat ${DESTDIR}${NLSDIR}/${DL}/tcsh.cat
+		tcsh.cat ${DESTDIR}/..${NLSDIR}/${DL}/tcsh.cat
 
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>
