@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd February 15, 2000
 .Dt SEM_WAIT 3
 .Os
@@ -54,7 +55,8 @@ The
 .Fn sem_trywait
 function decrements (locks) the semaphore pointed to by
 .Fa sem
-only if the value is non-zero.  Otherwise, the semaphore is not decremented and
+only if the value is non-zero.
+Otherwise, the semaphore is not decremented and
 an error is returned.
 .Sh RETURN VALUES
 .Rv -std
@@ -66,7 +68,9 @@ and
 functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa sem
+argument
 points to an invalid semaphore.
 .El
 .Pp
