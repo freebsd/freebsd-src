@@ -203,9 +203,7 @@ ng_ether_input2(node_p node, struct mbuf **mp, struct ether_header *eh)
 		return;
 
 	/* Send out lower/orphan hook */
-	NG_SEND_DATAQ(error, priv->lower, *mp, meta);
-
-	/* Any reflected packet must come later due to queuing */
+	(void)ng_queue_data(priv->lower, *mp, meta);
 	*mp = NULL;
 }
 
