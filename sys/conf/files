@@ -297,6 +297,7 @@ pci/bt9xx.c		optional bt device-driver
 pci/if_de.c		optional de device-driver
 pci/if_ed_p.c		optional ed device-driver
 pci/if_fxp.c		optional fxp device-driver
+pci/if_lnc_p.c		optional lnc device-driver
 pci/if_vx.c		optional vx  device-driver
 pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
