@@ -6,6 +6,15 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20000803:
+	The "installkernel" target has changed slightly. Now even if
+	you override KERNEL e.g. 'make installkernel KERNEL=MYKERNEL'
+	it will install the MYKERNEL file (built with the buildkernel
+	target) as /kernel rather than /MYKERNEL. Those who have
+	updated their /boot/loader.conf files to point to /MYKERNEL
+	should remove that entry or perform manual rename of /kernel
+	to /MYKERNEL.
+
 20000724:
 	FreeBSD 4.1 Released on or about this date.
 
@@ -51,8 +60,8 @@ COMMON ITEMS:
 	-----------------
 	cd /usr/src
 	# If you have not already done so, please buildworld here
-	# You will also need to update your config file to 4.0.  Usually
-	# people tend to start with GENERIC from 4.0 and hack from there.
+	# You will also need to update your config file to 4.x.  Usually
+	# people tend to start with GENERIC from 4.x and hack from there.
 	make buildkernel KERNEL=<YOUR_KERNEL_HERE>
 	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
 	# Verify that the new kernel works, it will be installed as
@@ -80,8 +89,16 @@ COMMON ITEMS:
 
 	Except when it doesn't work :-)
 
-	To update from 3.x to 4.0 stable
+	To update from 3.x to 4.x stable
 	--------------------------------
+	***********************************************************
+	READ -STABLE ARCHIVES FOR THE LAST WEEK OR TWO BEFORE
+	STARTING THIS PROCESS.  UPDATING MAY LAG BEHIND A LITTLE
+	A GOTCHAS ARE OFTEN REPORTED IN FREEBSD-STABLE@FREEBSD.ORG
+	BEFORE BEING INCLUDED HERE.  IF YOU ARE GOING TO DO REMOTE
+	MACHINES, MAKE SURE THAT THE EXACT VERSION YOU ARE UPDATING
+	THEM TO WORKS ON LOCAL MACHINES BEFORE PROCEEDING.
+	***********************************************************
 	<see notes below>				[3]
 	cd /usr/src
 	<see notes below>				[2]
@@ -109,20 +126,20 @@ COMMON ITEMS:
 	and then do a make buildworld + make installworld after you
 	are back to <multi-user> above:
 		MAKE_KERBEROS4
-	[3] Update to 4.0-stable sources.  Make sure that you get all
+	[3] Update to 4.x-stable sources.  Make sure that you get all
 	the parts.  If you are using cvsup files that are older than a
 	couple of months, be sure they have all the components listed
 	in /usr/share/examples/cvsup.  Crypto and secure are now
 	required.
 	[4] This step is optional, but is generally a good idea.  If
-	you wish to use many of the new features in 4.0, you must do
+	you wish to use many of the new features in 4.x, you must do
 	this anyway.
 	[5] If you get warnings from ld-elf.so that it cannot load
 	libc.so, run 'ldconfig -R /usr/obj/usr/src/lib/libc' and repeat
 	the installworld target.
 
 What follows are older entries for those people upgrading from earlier
-versions of -stable.
+versions of -stable/-current.
 
 20000308:
 	The binary interface of perl to its modules changed.  You
