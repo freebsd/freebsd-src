@@ -122,6 +122,7 @@ ReadObj(ComposeObj *Obj)
 	    break;
 	}
 	switch(ret) {
+	case KEY_DOWN:
 	case SEL_CR:
 	case SEL_TAB:	/* move to the next object in the list */
 	    if (o->next != NULL) {
@@ -130,6 +131,8 @@ ReadObj(ComposeObj *Obj)
 		o = Obj;	/* beginning of the list */
 	    }
 	    break;
+
+	case KEY_UP:
 	case SEL_BACKTAB: /* move to the previous object in the list */
 	    if (o->prev != NULL) {
 		o = o->prev;	/* previous object */
@@ -137,6 +140,7 @@ ReadObj(ComposeObj *Obj)
 		o = last;	/* end of the list */
 	    }
 	    break;
+
 	case KEY_F(1): /* display help_file */
 	case '?':
 	    display_helpfile();
@@ -177,6 +181,7 @@ PollObj(ComposeObj **Obj)
 	break;
     }
     switch(ret) {
+    case KEY_DOWN:
     case SEL_CR:
     case SEL_TAB:		     /* move to the next object in the list */
 	if ((*Obj)->next != NULL) {
@@ -185,6 +190,8 @@ PollObj(ComposeObj **Obj)
 	    *Obj = first;	     /* beginning of the list */
 	}
 	break;
+
+    case KEY_UP:
     case SEL_BACKTAB: 		     /* move to the previous object in the list */
 	if ((*Obj)->prev != NULL) {
 	    *Obj = (*Obj)->prev;     /* previous object */
