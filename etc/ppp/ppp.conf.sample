@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.13 1998/01/30 19:54:36 brian Exp $
+# $Id: ppp.conf.sample,v 1.5.2.14 1998/04/02 09:30:11 danny Exp $
 #
 #################################################################
 
@@ -287,11 +287,9 @@ tcp-client:
  set device tcpsrv.mynet:1234
  set dial
  set login
- set escape 0xff
  set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0
 
 tcp-server:
- set escape 0xff
  set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0
 
 # If you want to test ppp, do it through a loopback:
@@ -308,7 +306,6 @@ loop:
  set device localhost:ppploop
  set dial
  set login
- set escape 0xff
  set ifaddr 127.0.0.2 127.0.0.3
  set openmode passive
  set server /var/tmp/loop "" 0177
@@ -316,5 +313,4 @@ loop:
 loop-in:
  set timeout 0
  set log phase chat connect lcp ipcp command
- set escape 0xff
  allow mode direct
