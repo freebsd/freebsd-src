@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.16 1997/10/08 07:45:43 charnier Exp $";
+	"$Id: main.c,v 1.17 1998/09/08 10:42:19 jkh Exp $";
 #endif
 
 /*
@@ -143,6 +143,10 @@ main(int argc, char **argv)
     }
     /* Make sure the sub-execs we invoke get found */
     setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin", 1);
+
+    /* Set a reasonable umask */
+    umask(022);
+
     if ((err = pkg_perform(pkgs)) != 0) {
 	if (Verbose)
 	    warnx("%d package addition(s) failed", err);
