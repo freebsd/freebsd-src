@@ -484,7 +484,7 @@ setttymode(const char *tname, int raw)
 
 	gettable(tname, tabent);
 	if (OPset || EPset || APset)
-		APset++, OPset++, EPset++;
+		APset = OPset = EPset = 1;
 	setdefaults();
 	(void)tcflush(STDIN_FILENO, TCIOFLUSH);	/* clear out the crap */
 	ioctl(STDIN_FILENO, FIONBIO, &off);	/* turn off non-blocking mode */
