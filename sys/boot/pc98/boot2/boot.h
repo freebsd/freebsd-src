@@ -31,9 +31,9 @@
 #include <sys/disklabel.h>
 #include <sys/time.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ffs/fs.h>
 
 #define	RB_DUAL		0x40000		/* XXX */
 #define	RB_PROBEKBD	0x80000		/* XXX */
