@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: radix.c,v 1.3 1994/08/02 07:46:29 davidg Exp $
  */
 
 /*
@@ -208,13 +208,14 @@ on1:
 			return t;
 		cp = matched_off + v;
 	    }
-	} while (t = t->rn_dupedkey);
+	} while ((t = t->rn_dupedkey) != 0);
 	t = saved_t;
 	/* start searching up the tree */
 	do {
 		register struct radix_mask *m;
 		t = t->rn_p;
-		if (m = t->rn_mklist) {
+		m = t->rn_mklist;
+		if (m) {
 			/*
 			 * After doing measurements here, it may
 			 * turn out to be faster to open code
@@ -235,7 +236,7 @@ on1:
 				    (Bcmp(mstart, x->rn_key + off,
 					vlen - off) == 0))
 					    return x;
-			} while (m = m->rm_mklist);
+			} while ((m = m->rm_mklist) != 0);
 		}
 	} while (t != top);
 	return 0;
@@ -421,7 +422,7 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 			if (netmask == 0 ||
 			    (tt->rn_mask && rn_refines(netmask, tt->rn_mask)))
 				break;
-		} while (tt = tt->rn_dupedkey);
+		} while ((tt = tt->rn_dupedkey) != 0);
 		/*
 		 * If the mask is not duplicated, we wouldn't
 		 * find it among possible duplicate key entries
@@ -478,7 +479,7 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 		/*
 		 * Skip over masks whose index is > that of new node
 		 */
-		for (mp = &x->rn_mklist; m = *mp; mp = &m->rm_mklist)
+		for (mp = &x->rn_mklist; (m = *mp) != 0; mp = &m->rm_mklist)
 			if (m->rm_b >= b_leaf)
 				break;
 		t->rn_mklist = m; *mp = 0;
@@ -498,7 +499,7 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 	 * masks first.
 	 */
 	cplim = netmask + mlen;
-	for (mp = &x->rn_mklist; m = *mp; mp = &m->rm_mklist) {
+	for (mp = &x->rn_mklist; (m = *mp) != 0; mp = &m->rm_mklist) {
 		if (m->rm_b < b_leaf)
 			continue;
 		if (m->rm_b > b_leaf)
@@ -550,7 +551,8 @@ rn_delete(v_arg, netmask_arg, head)
 	/*
 	 * Delete our route from mask lists.
 	 */
-	if (dupedkey = tt->rn_dupedkey) {
+	dupedkey = tt->rn_dupedkey;
+	if (dupedkey) {
 		if (netmask) 
 			netmask = rn_search(netmask, rn_masktop)->rn_key;
 		while (tt->rn_mask != netmask)
@@ -573,7 +575,7 @@ rn_delete(v_arg, netmask_arg, head)
 		x = t;
 		t = t->rn_p;
 	} while (b <= t->rn_b && x != top);
-	for (mp = &x->rn_mklist; m = *mp; mp = &m->rm_mklist)
+	for (mp = &x->rn_mklist; (m = *mp) != 0; mp = &m->rm_mklist)
 		if (m == saved_m) {
 			*mp = m->rm_mklist;
 			MKFree(m);
@@ -624,7 +626,7 @@ on1:
 	 */
 	if (t->rn_mklist) {
 		if (x->rn_b >= 0) {
-			for (mp = &x->rn_mklist; m = *mp;)
+			for (mp = &x->rn_mklist; (m = *mp) != 0;)
 				mp = &m->rm_mklist;
 			*mp = t->rn_mklist;
 		} else {
@@ -634,7 +636,7 @@ on1:
 					x->rn_mklist = 0;
 					MKFree(m);
 				} else 
-					printf("%s %x at %x\n",
+					printf("%s %p at %p\n",
 					    "rn_delete: Orphaned Mask", m, x);
 				m = mm;
 			}
@@ -687,7 +689,7 @@ rn_walktree(h, f, w)
 			rn = rn->rn_l;
 		next = rn;
 		/* Process leaves */
-		while (rn = base) {
+		while ((rn = base) != 0) {
 			base = rn->rn_dupedkey;
 			if (!(rn->rn_flags & RNF_ROOT) && (error = (*f)(rn, w)))
 				return (error);

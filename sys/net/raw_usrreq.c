@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.2 1994/08/02 07:46:38 davidg Exp $
+ * $Id: raw_usrreq.c,v 1.3 1994/08/18 22:35:21 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,8 @@ raw_input(m0, proto, src, dst)
 			continue;
 		if (last) {
 			struct mbuf *n;
-			if (n = m_copy(m, 0, (int)M_COPYALL)) {
+			n = m_copy(m, 0, (int)M_COPYALL);
+			if (n) {
 				if (sbappendaddr(&last->so_rcv, src,
 				    n, (struct mbuf *)0) == 0)
 					/* should notify about lost packet */

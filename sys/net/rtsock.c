@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.4 1994/10/04 06:49:53 phk Exp $
+ * $Id: rtsock.c,v 1.5 1994/10/05 20:11:28 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,8 @@ route_usrreq(so, req, m, nam, control)
 
 	if (req == PRU_ATTACH) {
 		MALLOC(rp, struct rawcb *, sizeof(*rp), M_PCB, M_WAITOK);
-		if (so->so_pcb = (caddr_t)rp)
+		so->so_pcb = (caddr_t)rp;
+		if (so->so_pcb)
 			bzero(so->so_pcb, sizeof(*rp));
 
 	}
@@ -222,7 +223,8 @@ route_output(m, so)
 			netmask = rt_mask(rt);
 			genmask = rt->rt_genmask;
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
-				if (ifp = rt->rt_ifp) {
+				ifp = rt->rt_ifp;
+				if (ifp) {
 					ifpaddr = ifp->if_addrlist->ifa_addr;
 					ifaaddr = rt->rt_ifa->ifa_addr;
 					rtm->rtm_index = ifp->if_index;
@@ -451,7 +453,8 @@ again:
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
-	if (cp0 = cp)
+	cp0 = cp;
+	if (cp0)
 		cp += len;
 	for (i = 0; i < RTAX_MAX; i++) {
 		register struct sockaddr *sa;
@@ -474,8 +477,9 @@ again:
 			if (rw->w_tmemsize < len) {
 				if (rw->w_tmem)
 					free(rw->w_tmem, M_RTABLE);
-				if (rw->w_tmem = (caddr_t)
-						malloc(len, M_RTABLE, M_NOWAIT))
+				rw->w_tmem = (caddr_t)
+					malloc(len, M_RTABLE, M_NOWAIT);
+				if (rw->w_tmem)
 					rw->w_tmemsize = len;
 			}
 			if (rw->w_tmem) {
@@ -643,7 +647,8 @@ sysctl_dumpentry(rn, w)
 		rtm->rtm_index = rt->rt_ifp->if_index;
 		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
 		rtm->rtm_addrs = info.rti_addrs;
-		if (error = copyout((caddr_t)rtm, w->w_where, size))
+		error = copyout((caddr_t)rtm, w->w_where, size);
+		if (error)
 			w->w_where = NULL;
 		else
 			w->w_where += size;
@@ -677,11 +682,12 @@ sysctl_iflist(af, w)
 			ifm->ifm_flags = (u_short)ifp->if_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
-			if (error = copyout((caddr_t)ifm, w->w_where, len))
+			error = copyout((caddr_t)ifm, w->w_where, len);
+			if (error)
 				return (error);
 			w->w_where += len;
 		}
-		while (ifa = ifa->ifa_next) {
+		while ((ifa = ifa->ifa_next) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
 			ifaaddr = ifa->ifa_addr;
@@ -696,7 +702,8 @@ sysctl_iflist(af, w)
 				ifam->ifam_flags = ifa->ifa_flags;
 				ifam->ifam_metric = ifa->ifa_metric;
 				ifam->ifam_addrs = info.rti_addrs;
-				if (error = copyout(w->w_tmem, w->w_where, len))
+				error = copyout(w->w_tmem, w->w_where, len);
+				if (error)
 					return (error);
 				w->w_where += len;
 			}
