@@ -50,11 +50,4 @@ float	crealf(float complex);
 
 __END_DECLS
 
-#ifdef __GNUC__
-#define cimag(z)	(__imag__ (z))
-#define cimagf(z)	(__imag__ (z))
-#define creal(z)	(__real__ (z))
-#define crealf(z)	(__real__ (z))
-#endif
-
 #endif /* _COMPLEX_H */
