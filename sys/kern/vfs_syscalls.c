@@ -1324,7 +1324,6 @@ lseek(p, uap)
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
 	struct vattr vattr;
-	off_t ofs;
 	int error;
 
 	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
@@ -1334,22 +1333,21 @@ lseek(p, uap)
 		return (ESPIPE);
 	switch (SCARG(uap, whence)) {
 	case L_INCR:
-		ofs = fp->f_offset + SCARG(uap, offset);
+		fp->f_offset += SCARG(uap, offset);
 		break;
 	case L_XTND:
 		error=VOP_GETATTR((struct vnode *)fp->f_data, &vattr, cred, p);
 		if (error)
 			return (error);
-		ofs = SCARG(uap, offset) + vattr.va_size;
+		fp->f_offset = SCARG(uap, offset) + vattr.va_size;
 		break;
 	case L_SET:
-		ofs = SCARG(uap, offset);
+		fp->f_offset = SCARG(uap, offset);
 		break;
 	default:
 		return (EINVAL);
 	}
-	if (ofs < 0) return (EINVAL);
-	*(off_t *)(p->p_retval) = fp->f_offset = ofs;
+	*(off_t *)(p->p_retval) = fp->f_offset;
 	return (0);
 }
 
