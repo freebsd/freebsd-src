@@ -144,6 +144,9 @@ The syntax for card identifiers is:
 .Dl card Ar manufacturer version [ add_info1 [ add_info2 ]]
 .Dl config Ar index driver interrupt [ flags ]
 .Dl ether Ar offset
+.Dl reset Ar time
+.Dl iosize Ar size
+.Dl memsize Ar size
 .Dl insert Ar command
 .Dl remove Ar command
 .Pp
@@ -188,6 +191,19 @@ This value can be used within insert/remove
 commands using the
 .Em $ether
 macro.
+.Pp
+The optional
+.Em reset
+keyword specifies reset duration at a card insertion in
+.Ar time
+milliseconds.
+Default is 100msec.
+.Pp
+.Em iosize
+and
+.Em memsize
+keywords are used with cards whose resources such as I/O ports and
+shared memory block are not specified in the CIS tuple.
 .Pp
 The
 .Em insert
