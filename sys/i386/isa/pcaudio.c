@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.14 1995/09/03 05:43:30 julian Exp $
+ *	$Id: pcaudio.c,v 1.15 1995/09/08 11:07:53 bde Exp $
  */
 
 #include "pca.h"
@@ -81,11 +81,6 @@ static int pca_initialized = 0;
 void pcaintr(struct clockframe *frame);
 int pcaprobe(struct isa_device *dvp);
 int pcaattach(struct isa_device *dvp);
-int pcaclose(dev_t dev, int flags, int fmt, struct proc *p);
-int pcaopen(dev_t dev, int flags, int fmt, struct proc *p);
-int pcawrite(dev_t dev, struct uio *uio, int flag);
-int pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
-int pcaselect(dev_t dev, int rw, struct proc *p);
 
 struct	isa_driver pcadriver = {
 	pcaprobe, pcaattach, "pca",

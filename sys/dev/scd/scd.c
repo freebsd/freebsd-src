@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.7 1995/09/19 18:55:15 bde Exp $ */
+/* $Id: scd.c,v 1.8 1995/10/28 15:39:17 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -142,12 +142,6 @@ static struct scd_data {
 } scd_data[NSCD];
 
 /* prototypes */
-int	scdopen(dev_t dev, int flags, int fmt, struct proc *p);
-int	scdclose(dev_t dev, int flags, int fmt, struct proc *p);
-void	scdstrategy(struct buf *bp);
-int	scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
-int	scdsize(dev_t dev);
-
 static	int	bcd2bin(bcd_t b);
 static	bcd_t	bin2bcd(int b);
 static	void	hsg2msf(int hsg, bcd_t *msf);

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.28 1995/09/01 19:09:11 jkh Exp $
+ * $Id: soundcard.c,v 1.29 1995/09/08 19:57:13 bde Exp $
  */
 
 #include "sound_config.h"
@@ -59,12 +59,6 @@ struct selinfo selinfo[SND_NDEVS >> 4];
 
 int             sndprobe (struct isa_device *dev);
 int             sndattach (struct isa_device *dev);
-int             sndopen (dev_t dev, int flags, int fmt, struct proc *p);
-int             sndclose (dev_t dev, int flags, int fmt, struct proc *p);
-int             sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p);
-int             sndread (dev_t dev, struct uio *uio, int ioflag);
-int             sndwrite (dev_t dev, struct uio *uio, int ioflag);
-int             sndselect (dev_t dev, int rw, struct proc *p);
 static void	sound_mem_init(void);
 
 struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};

@@ -73,19 +73,6 @@ struct kern_devconf kdc_pccard0 = {
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
-/*
- *	cdevsw entry points
- */
-int	crdopen	__P((dev_t dev, int oflags, int devtype,
-				 struct proc *p));
-int	crdclose	__P((dev_t dev, int fflag, int devtype,
-				 struct proc *p));
-int	crdread	__P((dev_t dev, struct uio *uio, int ioflag));
-int	crdwrite	__P((dev_t dev, struct uio *uio, int ioflag));
-int	crdioctl	__P((dev_t dev, int cmd, caddr_t data,
-				 int fflag, struct proc *p));
-int	crdselect	__P((dev_t dev, int rw, struct proc *p));
-
 static int allocate_driver(struct slot *, struct drv_desc *);
 static void inserted(void *);
 static void disable_slot(struct slot *);

@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.102 1995/10/14 15:40:42 davidg Exp $
+ *	$Id: conf.c,v 1.103 1995/10/28 16:57:52 markm Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,6 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 
-d_rdwr_t rawread, rawwrite;
 
 /* Lots of bogus defines for shorthand purposes */
 #define noopen		(d_open_t *)enodev
@@ -99,12 +98,6 @@ int lkmenodev();
 
 #include "wd.h"
 #if (NWD > 0)
-d_open_t	wdopen;
-d_close_t	wdclose;
-d_strategy_t	wdstrategy;
-d_ioctl_t	wdioctl;
-d_dump_t	wddump;
-d_psize_t	wdsize;
 #else
 #define	wdopen		nxopen
 #define	wdclose		nxclose
@@ -116,12 +109,6 @@ d_psize_t	wdsize;
 
 #include "worm.h"
 #if NWORM > 0
-d_open_t	wormopen;
-d_close_t	wormclose;
-d_strategy_t	wormstrategy;
-d_ioctl_t	wormioctl;
-d_dump_t	wormdump;
-d_psize_t	wormsize;
 #else
 #define	wormopen		nxopen
 #define	wormclose		nxclose
@@ -133,12 +120,6 @@ d_psize_t	wormsize;
 
 #include "sctarg.h"
 #if NSCTARG > 0
-d_open_t	sctargopen;
-d_close_t	sctargclose;
-d_strategy_t	sctargstrategy;
-d_ioctl_t	sctargioctl;
-d_dump_t	sctargdump;
-d_psize_t	sctargsize;
 #else
 #define	sctargopen		nxopen
 #define	sctargclose		nxclose
@@ -150,12 +131,6 @@ d_psize_t	sctargsize;
 
 #include "pt.h"
 #if NPT > 0
-d_open_t	ptopen;
-d_close_t	ptclose;
-d_strategy_t	ptstrategy;
-d_ioctl_t	ptioctl;
-d_dump_t	ptdump;
-d_psize_t	ptsize;
 #else
 #define	ptopen		nxopen
 #define	ptclose		nxclose
@@ -167,12 +142,6 @@ d_psize_t	ptsize;
 
 #include "sd.h"
 #if NSD > 0
-d_open_t	sdopen;
-d_close_t	sdclose;
-d_strategy_t	sdstrategy;
-d_ioctl_t	sdioctl;
-d_dump_t	sddump;
-d_psize_t	sdsize;
 #else
 #define	sdopen		nxopen
 #define	sdclose		nxclose
@@ -184,10 +153,6 @@ d_psize_t	sdsize;
 
 #include "st.h"
 #if NST > 0
-d_open_t	stopen;
-d_close_t	stclose;
-d_strategy_t	ststrategy;
-d_ioctl_t	stioctl;
 /*int	stdump(),stsize();*/
 #define	stdump		nxdump
 #define	stsize		zerosize
@@ -202,11 +167,6 @@ d_ioctl_t	stioctl;
 
 #include "od.h"
 #if NOD > 0
-d_open_t	odopen;
-d_close_t	odclose;
-d_strategy_t	odstrategy;
-d_ioctl_t	odioctl;
-d_psize_t	odsize;
 #define	oddump	nxdump
 #else
 #define	odopen		nxopen
@@ -219,11 +179,6 @@ d_psize_t	odsize;
 
 #include "cd.h"
 #if NCD > 0
-d_open_t	cdopen;
-d_close_t	cdclose;
-d_strategy_t	cdstrategy;
-d_ioctl_t	cdioctl;
-d_psize_t	cdsize;
 #define	cddump		nxdump
 #else
 #define	cdopen		nxopen
@@ -236,11 +191,6 @@ d_psize_t	cdsize;
 
 #include "mcd.h"
 #if NMCD > 0
-d_open_t	mcdopen;
-d_close_t	mcdclose;
-d_strategy_t	mcdstrategy;
-d_ioctl_t	mcdioctl;
-d_psize_t	mcdsize;
 #define	mcddump		nxdump
 #else
 #define	mcdopen		nxopen
@@ -253,11 +203,6 @@ d_psize_t	mcdsize;
 
 #include "scd.h"
 #if NSCD > 0
-d_open_t	scdopen;
-d_close_t	scdclose;
-d_strategy_t	scdstrategy;
-d_ioctl_t	scdioctl;
-d_psize_t	scdsize;
 #define	scddump		nxdump
 #else
 #define	scdopen		nxopen
@@ -270,12 +215,6 @@ d_psize_t	scdsize;
 
 #include "matcd.h"
 #if NMATCD > 0
-d_open_t	matcdopen;
-d_close_t	matcdclose;
-d_strategy_t	matcdstrategy;
-d_ioctl_t	matcdioctl;
-d_dump_t	matcddump;
-d_psize_t	matcdsize;
 #define		matcddump	nxdump
 #else
 #define	matcdopen	nxopen
@@ -288,11 +227,6 @@ d_psize_t	matcdsize;
 
 #include "ata.h"
 #if (NATA > 0)
-d_open_t	ataopen;
-d_close_t	ataclose;
-d_strategy_t	atastrategy;
-d_ioctl_t	ataioctl;
-d_psize_t	atasize;
 #define atadump	nxdump
 #else
 #define	ataopen		nxopen
@@ -305,12 +239,6 @@ d_psize_t	atasize;
 
 #include "wcd.h"
 #if NWCD > 0
-d_open_t	wcdbopen;
-d_open_t	wcdropen;
-d_close_t	wcdbclose;
-d_close_t	wcdrclose;
-d_strategy_t	wcdstrategy;
-d_ioctl_t	wcdioctl;
 #else
 #define wcdbopen	nxopen
 #define wcdropen	nxopen
@@ -322,9 +250,6 @@ d_ioctl_t	wcdioctl;
 
 #include "ch.h"
 #if NCH > 0
-d_open_t	chopen;
-d_close_t	chclose;
-d_ioctl_t	chioctl;
 #else
 #define	chopen		nxopen
 #define	chclose		nxclose
@@ -333,12 +258,6 @@ d_ioctl_t	chioctl;
 
 #include "wt.h"
 #if NWT > 0
-d_open_t	wtopen;
-d_close_t	wtclose;
-d_strategy_t	wtstrategy;
-d_ioctl_t	wtioctl;
-d_dump_t	wtdump;
-d_psize_t	wtsize;
 #else
 #define	wtopen		nxopen
 #define	wtclose		nxclose
@@ -350,10 +269,6 @@ d_psize_t	wtsize;
 
 #include "fd.h"
 #if NFD > 0
-d_open_t	Fdopen;
-d_close_t	fdclose;
-d_strategy_t	fdstrategy;
-d_ioctl_t	fdioctl;
 #define	fddump		nxdump
 #define	fdsize		zerosize
 #else
@@ -367,12 +282,6 @@ d_ioctl_t	fdioctl;
 
 #include "vn.h"
 #if NVN > 0
-d_open_t	vnopen;
-d_close_t	vnclose;
-d_strategy_t	vnstrategy;
-d_ioctl_t	vnioctl;
-d_dump_t	vndump;
-d_psize_t	vnsize;
 #else
 #define	vnopen		nxopen
 #define	vnclose		nxclose
@@ -385,12 +294,6 @@ d_psize_t	vnsize;
 /* Matrox Meteor capture card */
 #include "meteor.h"
 #if     NMETEOR > 0
-d_open_t        meteor_open; 
-d_close_t       meteor_close;
-d_read_t        meteor_read;
-d_write_t       meteor_write;
-d_ioctl_t       meteor_ioctl;
-d_mmap_t        meteor_mmap;
 #else 
 #define meteor_open     nxopen
 #define meteor_close    nxclose 
@@ -406,7 +309,6 @@ d_mmap_t        meteor_mmap;
 #define swdump		nodump
 #define swsize		(d_psize_t *)enodev
 
-d_rdwr_t swread, swwrite;
 
 struct bdevsw	bdevsw[] =
 {
@@ -468,27 +370,10 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "machine/cons.h"
 
 /* /dev/mem */
-d_open_t	mmopen;
-d_close_t	mmclose;
-d_rdwr_t	mmrw;
-d_mmap_t	memmmap;
-d_ioctl_t	mmioctl;
 #define	mmselect	seltrue
 
 #include "pty.h"
 #if NPTY > 0
-d_open_t	ptsopen;
-d_close_t	ptsclose;
-d_rdwr_t	ptsread;
-d_rdwr_t	ptswrite;
-d_stop_t	ptsstop;
-d_open_t	ptcopen;
-d_close_t	ptcclose;
-d_rdwr_t	ptcread;
-d_rdwr_t	ptcwrite;
-d_select_t	ptcselect;
-d_ttycv_t	ptydevtotty;
-d_ioctl_t	ptyioctl;
 #else
 #define ptsopen		nxopen
 #define ptsclose	nxclose
@@ -507,12 +392,6 @@ d_ioctl_t	ptyioctl;
 
 #include "snp.h"
 #if NSNP > 0
-d_open_t	snpopen;
-d_close_t	snpclose;
-d_rdwr_t	snpread;
-d_rdwr_t	snpwrite;
-d_select_t	snpselect;
-d_ioctl_t	snpioctl;
 #else
 #define snpopen		nxopen
 #define snpclose	nxclose
@@ -524,19 +403,9 @@ d_ioctl_t	snpioctl;
 
 
 /* /dev/klog */
-d_open_t	logopen;
-d_close_t	logclose;
-d_rdwr_t	logread;
-d_ioctl_t	logioctl;
-d_select_t	logselect;
 
 #include "bqu.h"
 #if NBQU > 0
-d_open_t	bquopen;
-d_close_t	bquclose;
-d_rdwr_t	bquread, bquwrite;
-d_select_t	bquselect;
-d_ioctl_t	bquioctl;
 #else
 #define bquopen         nxopen
 #define bquclose        nxclose
@@ -548,10 +417,6 @@ d_ioctl_t	bquioctl;
 
 #include "lpt.h"
 #if NLPT > 0
-d_open_t	lptopen;
-d_close_t	lptclose;
-d_rdwr_t	lptwrite;
-d_ioctl_t	lptioctl;
 #else
 #define	lptopen		nxopen
 #define	lptclose	nxclose
@@ -561,11 +426,6 @@ d_ioctl_t	lptioctl;
 
 #include "tw.h"
 #if NTW > 0
-d_open_t	twopen;
-d_close_t	twclose;
-d_rdwr_t	twread, twwrite;
-d_select_t	twselect;
-d_ttycv_t	twdevtotty;
 #else
 #define twopen		nxopen
 #define twclose		nxclose
@@ -577,11 +437,6 @@ d_ttycv_t	twdevtotty;
 
 #include "psm.h"
 #if NPSM > 0
-d_open_t	psmopen;
-d_close_t	psmclose;
-d_rdwr_t	psmread;
-d_select_t	psmselect;
-d_ioctl_t	psmioctl;
 #else
 #define psmopen		nxopen
 #define psmclose	nxclose
@@ -592,11 +447,6 @@ d_ioctl_t	psmioctl;
 
 #include "snd.h"                 /* General Sound Driver */
 #if     NSND > 0
-d_open_t	sndopen;
-d_close_t	sndclose;
-d_ioctl_t	sndioctl;
-d_rdwr_t	sndread, sndwrite;
-d_select_t	sndselect;
 #else
 #define sndopen         nxopen
 #define sndclose        nxclose
@@ -607,15 +457,9 @@ d_select_t	sndselect;
 #endif
 
 /* /dev/fd/NNN */
-d_open_t fdopen;
 
 #include "bpfilter.h"
 #if NBPFILTER > 0
-d_open_t	bpfopen;
-d_close_t	bpfclose;
-d_rdwr_t	bpfread, bpfwrite;
-d_select_t	bpfselect;
-d_ioctl_t	bpfioctl;
 #else
 #define	bpfopen		nxopen
 #define	bpfclose	nxclose
@@ -627,10 +471,6 @@ d_ioctl_t	bpfioctl;
 
 #include "speaker.h"
 #if NSPEAKER > 0
-d_open_t	spkropen;
-d_close_t	spkrclose;
-d_rdwr_t	spkrwrite;
-d_ioctl_t	spkrioctl;
 #else
 #define spkropen	nxopen
 #define spkrclose	nxclose
@@ -640,11 +480,6 @@ d_ioctl_t	spkrioctl;
 
 #include "pca.h"
 #if NPCA > 0
-d_open_t	pcaopen;
-d_close_t	pcaclose;
-d_rdwr_t	pcawrite;
-d_ioctl_t	pcaioctl;
-d_select_t	pcaselect;
 #else
 #define pcaopen		nxopen
 #define pcaclose	nxclose
@@ -655,10 +490,6 @@ d_select_t	pcaselect;
 
 #include "mse.h"
 #if NMSE > 0
-d_open_t	mseopen;
-d_close_t	mseclose;
-d_rdwr_t	mseread;
-d_select_t	mseselect;
 #else
 #define	mseopen		nxopen
 #define	mseclose	nxclose
@@ -668,12 +499,6 @@ d_select_t	mseselect;
 
 #include "sio.h"
 #if NSIO > 0
-d_open_t	sioopen;
-d_close_t	sioclose;
-d_rdwr_t	sioread, siowrite;
-d_ioctl_t	sioioctl;
-d_stop_t	siostop;
-d_ttycv_t	siodevtotty;
 #define sioreset	nxreset
 #else
 #define sioopen		nxopen
@@ -688,13 +513,7 @@ d_ttycv_t	siodevtotty;
 
 #include "su.h"
 #if NSU > 0
-d_open_t	suopen;
-d_close_t	suclose;
-d_ioctl_t	suioctl;
-d_rdwr_t	suread, suwrite;
-d_select_t	suselect;
 #define	summap		nxmmap
-d_strategy_t	sustrategy;
 #else
 #define	suopen		nxopen
 #define	suclose		nxclose
@@ -708,24 +527,15 @@ d_strategy_t	sustrategy;
 
 #include "scbus.h"
 #if NSCBUS > 0
-d_open_t	ukopen;
-d_close_t	ukclose;
-d_ioctl_t	ukioctl;
 #else
 #define	ukopen		nxopen
 #define	ukclose		nxclose
 #define	ukioctl		nxioctl
 #endif
 
-d_open_t	lkmcopen;
-d_close_t	lkmcclose;
-d_ioctl_t	lkmcioctl;
 
 #include "apm.h"
 #if NAPM > 0
-d_open_t	apmopen;
-d_close_t	apmclose;
-d_ioctl_t	apmioctl;
 #else
 #define	apmopen		nxopen
 #define	apmclose	nxclose
@@ -734,11 +544,6 @@ d_ioctl_t	apmioctl;
 
 #include "ctx.h"
 #if NCTX > 0
-d_open_t	ctxopen;
-d_close_t	ctxclose;
-d_rdwr_t	ctxread;
-d_rdwr_t	ctxwrite;
-d_ioctl_t	ctxioctl;
 #else
 #define ctxopen		nxopen
 #define ctxclose	nxclose
@@ -749,13 +554,7 @@ d_ioctl_t	ctxioctl;
 
 #include "ssc.h"
 #if NSSC > 0
-d_open_t	sscopen;
-d_close_t	sscclose;
-d_ioctl_t	sscioctl;
-d_rdwr_t	sscread, sscwrite;
-d_select_t	sscselect;
 #define	sscmmap		nxmmap
-d_strategy_t	sscstrategy;
 #else
 #define	sscopen		nxopen
 #define	sscclose	nxclose
@@ -769,13 +568,6 @@ d_strategy_t	sscstrategy;
 
 #include "cx.h"
 #if NCX > 0
-d_open_t	cxopen;
-d_close_t	cxclose;
-d_rdwr_t	cxread, cxwrite;
-d_ioctl_t	cxioctl;
-d_select_t	cxselect;
-d_stop_t	cxstop;
-d_ttycv_t	cxdevtotty;
 #else
 #define cxopen		nxopen
 #define cxclose		nxclose
@@ -789,10 +581,6 @@ d_ttycv_t	cxdevtotty;
 
 #include "gp.h"
 #if NGP > 0
-d_open_t	gpopen;
-d_close_t	gpclose;
-d_rdwr_t	gpwrite;
-d_ioctl_t	gpioctl;
 #else
 #define gpopen  	nxopen
 #define gpclose 	nxclose
@@ -802,10 +590,6 @@ d_ioctl_t	gpioctl;
 
 #include "gsc.h"
 #if NGSC > 0
-d_open_t	gscopen;
-d_close_t	gscclose;
-d_rdwr_t	gscread;
-d_ioctl_t	gscioctl;
 #else
 #define gscopen		nxopen
 #define gscclose	nxclose
@@ -815,11 +599,6 @@ d_ioctl_t	gscioctl;
 
 #include "crd.h"
 #if NCRD > 0
-d_open_t	crdopen;
-d_close_t	crdclose;
-d_rdwr_t	crdread, crdwrite;
-d_ioctl_t	crdioctl;
-d_select_t	crdselect;
 #else
 #define crdopen		nxopen
 #define crdclose	nxclose
@@ -832,10 +611,6 @@ d_select_t	crdselect;
 
 #include "joy.h"
 #if NJOY > 0
-d_open_t	joyopen;
-d_close_t	joyclose;
-d_rdwr_t	joyread;
-d_ioctl_t	joyioctl;
 #else
 #define joyopen		nxopen
 #define joyclose	nxclose
@@ -845,11 +620,6 @@ d_ioctl_t	joyioctl;
 
 #include "asc.h"
 #if NASC > 0
-d_open_t      ascopen;
-d_close_t     ascclose;
-d_rdwr_t      ascread;
-d_ioctl_t     ascioctl;
-d_select_t    ascselect;
 #else
 #define ascopen               nxopen
 #define ascclose      nxclose
@@ -860,11 +630,6 @@ d_select_t    ascselect;
 
 #include "tun.h"
 #if NTUN > 0
-d_open_t	tunopen;
-d_close_t	tunclose;
-d_rdwr_t	tunread, tunwrite;
-d_ioctl_t	tunioctl;
-d_select_t	tunselect;
 #else
 #define tunopen         nxopen
 #define tunclose        nxclose
@@ -876,12 +641,6 @@ d_select_t	tunselect;
 
 #include "spigot.h"
 #if     NSPIGOT > 0
-d_open_t        spigot_open;
-d_close_t       spigot_close;
-d_ioctl_t       spigot_ioctl;
-d_rdwr_t        spigot_read, spigot_write;
-d_select_t      spigot_select;
-d_mmap_t        spigot_mmap;
 #else
 #define spigot_open     nxopen
 #define spigot_close    nxclose
@@ -895,13 +654,6 @@ d_mmap_t        spigot_mmap;
 /* Cyclades serial driver */
 #include "cy.h"
 #if	NCY > 0
-d_open_t        cyopen;
-d_close_t       cyclose;
-d_read_t        cyread;
-d_write_t       cywrite;
-d_ioctl_t	cyioctl;
-d_stop_t        cystop;
-d_ttycv_t	cydevtotty;
 #define cyreset	nxreset
 #define	cymmap	nxmmap
 #define cystrategy nxstrategy
@@ -920,14 +672,7 @@ d_ttycv_t	cydevtotty;
 
 #include "dgb.h"      
 #if NDGB > 0
-d_open_t		dgbopen;     
-d_close_t		dgbclose;   
-d_rdwr_t		dgbread;
-d_rdwr_t		dgbwrite; 
-d_ioctl_t		dgbioctl;   
-d_stop_t		dgbstop;     
 #define	dgbreset	nxreset
-d_ttycv_t		dgbdevtotty;
 #else
 #define dgbopen		nxopen
 #define dgbclose	nxclose
@@ -942,13 +687,6 @@ d_ttycv_t		dgbdevtotty;
 /* Specialix serial driver */
 #include "si.h"
 #if	NSI > 0
-d_open_t        siopen;
-d_close_t       siclose;
-d_read_t        siread;
-d_write_t       siwrite;
-d_ioctl_t	siioctl;
-d_stop_t        sistop;
-d_ttycv_t	sidevtotty;
 #define sireset	nxreset
 #else
 #define	siopen		nxopen
@@ -963,12 +701,6 @@ d_ttycv_t	sidevtotty;
 
 #include "ity.h"
 #if NITY > 0
-d_open_t	ityopen;
-d_close_t	ityclose;
-d_read_t	ityread;
-d_write_t	itywrite;
-d_ioctl_t	ityioctl;
-d_ttycv_t	itydevtotty;
 #define ityreset	nxreset
 #else
 #define ityopen		nxopen
@@ -982,9 +714,6 @@ d_ttycv_t	itydevtotty;
 
 #include "nic.h"
 #if NNIC > 0
-d_open_t	nicopen;
-d_close_t	nicclose;
-d_ioctl_t	nicioctl;
 #else
 #define nicopen		nxopen
 #define nicclose	nxclose
@@ -993,9 +722,6 @@ d_ioctl_t	nicioctl;
 
 #include "nnic.h"
 #if NNNIC > 0
-d_open_t  nnicopen;
-d_close_t nnicclose;
-d_ioctl_t nnicioctl;
 #else
 #define nnicopen        nxopen
 #define nnicclose       nxclose
@@ -1004,10 +730,6 @@ d_ioctl_t nnicioctl;
 
 #include "isdn.h"
 #if NISDN > 0
-d_open_t isdnopen;
-d_close_t isdnclose;
-d_read_t isdnread;
-d_ioctl_t isdnioctl;
 #else
 #define isdnopen	nxopen
 #define isdnclose	nxclose
@@ -1017,11 +739,6 @@ d_ioctl_t isdnioctl;
 
 #include "itel.h"
 #if NITEL > 0
-d_open_t itelopen;
-d_close_t itelclose;
-d_read_t itelread;
-d_write_t itelwrite;
-d_ioctl_t itelioctl;
 #else
 #define itelopen	nxopen
 #define itelclose	nxclose
@@ -1032,11 +749,6 @@ d_ioctl_t itelioctl;
 
 #include "ispy.h"
 #if NISPY > 0
-d_open_t  ispyopen;
-d_close_t ispyclose;
-d_read_t ispyread;
-d_write_t ispywrite;
-d_ioctl_t ispyioctl;
 #else
 #define ispyopen        nxopen
 #define ispyclose       nxclose
@@ -1047,12 +759,6 @@ d_ioctl_t ispyioctl;
 
 #include "rc.h"
 #if NRC > 0
-d_open_t        rcopen;
-d_close_t       rcclose;
-d_rdwr_t        rcread, rcwrite;
-d_ioctl_t       rcioctl;
-d_stop_t        rcstop;
-d_ttycv_t       rcdevtotty;
 #define rcreset        nxreset
 #else
 #define rcopen         nxopen
@@ -1067,10 +773,6 @@ d_ttycv_t       rcdevtotty;
 
 #include "labpc.h"
 #if NLABPC > 0
-d_open_t     labpcopen;
-d_close_t    labpcclose;
-d_strategy_t labpcstrategy;
-d_ioctl_t    labpcioctl;
 #else
 #define	labpcopen		nxopen
 #define	labpcclose		nxclose

@@ -72,15 +72,9 @@ int	tundebug = 0;
 
 struct tun_softc tunctl[NTUN];
 
-d_open_t tunopen;
-d_close_t tunclose;
 int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
-d_rdwr_t tunread;
-d_rdwr_t tunwrite;
-d_ioctl_t tunioctl;
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
-d_select_t tunselect;
 
 static struct cdevsw tuncdevsw =
 { tunopen,      tunclose,       tunread,        tunwrite,

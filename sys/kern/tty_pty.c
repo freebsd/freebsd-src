@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.22 1995/10/25 18:23:58 bde Exp $
+ * $Id: tty_pty.c,v 1.23 1995/10/30 17:16:55 bde Exp $
  */
 
 /*
@@ -81,8 +81,6 @@ int	npty = NPTY;		/* for pstat -t */
 #define	PF_REMOTE	0x20		/* remote and flow controlled input */
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
-
-void	ptsstop		__P((struct tty *, int));
 
 /*
  * Establish n (or default if n is 1) ptys in the system.
