@@ -49,47 +49,23 @@
  * Ethernet software status per interface.
  */
 struct vx_softc {
-    struct arpcom arpcom;	/* Ethernet common part		 */
-    short vx_io_addr;		/* i/o bus address		 */
-#define MAX_MBS  8		/* # of mbufs we keep around	 */
-    struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
-    int next_mb;		/* Which mbuf to use next. 	 */
-    int last_mb;		/* Last mbuf.			 */
-    struct mbuf *top, *mcur;
-    short tx_start_thresh;	/* Current TX_start_thresh.	 */
-    short tx_rate;
-    short tx_counter;
-    short rx_early_thresh;	/* Current RX_early_thresh.     */
-    short rx_latency;
-    short rx_avg_pkt;
-    short cur_len;
-    caddr_t bpf;		/* BPF  "magic cookie"		 */
-    u_short vx_connectors;	/* Connectors on this card.	 */
-    int stat;			/* some flags */
-#define         F_RX_FIRST   0x1
-#define         F_WAIT_TRAIL 0x2
-#define         F_RX_TRAILER 0x4
-#define		F_PROMISC    0x8
-#define		F_ALLMULTI   0x10
-
-#define         F_ACCESS_32_BITS 0x100
-
-#ifdef  VX_LOCAL_STATS
-    short tx_underrun;
-    short rx_no_first;
-    short rx_no_mbuf;
-    short rx_bpf_disc;
-    short rx_overrunf;
-    short rx_overrunl;
-#endif
+    int unit;			/* unit number */
+    struct arpcom arpcom;	/* Ethernet common part		*/
+    u_int vx_io_addr;		/* i/o bus address		*/
+#define MAX_MBS  8		/* # of mbufs we keep around	*/
+    struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
+    int next_mb;		/* Which mbuf to use next. 	*/
+    int last_mb;		/* Last mbuf.			*/
+    char vx_connectors;		/* Connectors on this card.	*/
+    char vx_connector;		/* Connector to use.		*/
+    short tx_start_thresh;	/* Current TX_start_thresh.	*/
+    int	tx_succ_ok;		/* # packets sent in sequence	*/
+				/* w/o underrun			*/
 };
 
 /*
  * Some global constants
  */
-#define ETHER_MIN_LEN	     64
-#define ETHER_MAX_LEN	   1518
-#define ETHER_ADDR_LEN	      6
 
 #define TX_INIT_RATE         16
 #define TX_INIT_MAX_RATE     64
@@ -119,13 +95,10 @@ struct vx_softc {
 #define EEPROM_CMD_EWEN  0x0030	/* Erase/Write Enable: No data required */
 
 #define EEPROM_BUSY		(1<<15)
-#define EEPROM_TST_MODE		(1<<14)
 
 /*
  * Some short functions, worth to let them be a macro
  */
-#define is_eeprom_busy(b) (inw((b)+VX_W0_EEPROM_COMMAND)&EEPROM_BUSY)
-#define GO_WINDOW(x)      outw(BASE+VX_COMMAND, WINDOW_SELECT|(x))
 
 /**************************************************************************
  *									  *
@@ -144,6 +117,9 @@ struct vx_softc {
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
+#define EEPROM_OEM_ADDR_0	0xa	/* Word */
+#define EEPROM_OEM_ADDR_1	0xb	/* Word */
+#define EEPROM_OEM_ADDR_2	0xc	/* Word */
 #define EEPROM_SOFT_INFO_2	0xf     /* Software information 2 */
 
 #define NO_RX_OVN_ANOMALY       (1<<5)
@@ -169,6 +145,13 @@ struct vx_softc {
 /* Write */
 #define VX_W0_EEPROM_DATA	0x0c
 #define VX_W0_EEPROM_COMMAND	0x0a
+#define VX_W0_RESOURCE_CFG	0x08
+#define VX_W0_ADDRESS_CFG	0x06 
+#define VX_W0_CONFIG_CTRL	0x04
+        /* Read */
+#define VX_W0_PRODUCT_ID	0x02
+#define VX_W0_MFG_ID		0x00
+
 
 /*
  * Window 1 registers. Operating Set.
@@ -196,7 +179,7 @@ struct vx_softc {
 #define VX_W2_ADDR_0		0x00
 
 /*
- * Window 3 registers. 
+ * Window 3 registers. FIFO Management.
  */
 /* Read */
 #define VX_W3_INTERNAL_CFG	0x00
@@ -274,33 +257,32 @@ struct vx_softc {
 #define TX_DISABLE		(u_short) (0xa<<11)
 #define TX_RESET		(u_short) (0xb<<11)
 #define REQ_INTR		(u_short) (0xc<<11)
+/*
+ * The following C_* acknowledge the various interrupts. Some of them don't
+ * do anything.  See the manual.
+ */
+#define ACK_INTR		(u_short) (0x6800)
+#	define C_INTR_LATCH	(u_short) (ACK_INTR|0x1)
+#	define C_CARD_FAILURE	(u_short) (ACK_INTR|0x2)
+#	define C_TX_COMPLETE	(u_short) (ACK_INTR|0x4)
+#	define C_TX_AVAIL	(u_short) (ACK_INTR|0x8)
+#	define C_RX_COMPLETE	(u_short) (ACK_INTR|0x10)
+#	define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
+#	define C_INT_RQD		(u_short) (ACK_INTR|0x40)
+#	define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
 #define SET_INTR_MASK		(u_short) (0xe<<11)
 #define SET_RD_0_MASK		(u_short) (0xf<<11)
 #define SET_RX_FILTER		(u_short) (0x10<<11)
-#define FIL_INDIVIDUAL	(u_short) (0x1)
-#define FIL_GROUP		(u_short) (0x2)
-#define FIL_BRDCST	(u_short) (0x4)
-#define FIL_ALL		(u_short) (0x8)
+#	define FIL_INDIVIDUAL	(u_short) (0x1)
+#	define FIL_MULTICAST     (u_short) (0x02)
+#	define FIL_BRDCST        (u_short) (0x04)
+#	define FIL_PROMISC       (u_short) (0x08)
 #define SET_RX_EARLY_THRESH	(u_short) (0x11<<11)
 #define SET_TX_AVAIL_THRESH	(u_short) (0x12<<11)
 #define SET_TX_START_THRESH	(u_short) (0x13<<11)
 #define STATS_ENABLE		(u_short) (0x15<<11)
 #define STATS_DISABLE		(u_short) (0x16<<11)
 #define STOP_TRANSCEIVER	(u_short) (0x17<<11)
-/*
- * The following C_* acknowledge the various interrupts. Some of them don't
- * do anything.  See the manual.
- */
-#define ACK_INTR		(u_short) (0x6800)
-#define C_INTR_LATCH	(u_short) (ACK_INTR|0x1)
-#define C_CARD_FAILURE	(u_short) (ACK_INTR|0x2)
-#define C_TX_COMPLETE	(u_short) (ACK_INTR|0x4)
-#define C_TX_AVAIL	(u_short) (ACK_INTR|0x8)
-#define C_RX_COMPLETE	(u_short) (ACK_INTR|0x10)
-#define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
-#define C_INT_RQD		(u_short) (ACK_INTR|0x40)
-#define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
-#define C_MASK	(u_short) 0xFF /* mask of C_* */
 
 /*
  * Status register. All windows.
@@ -328,33 +310,24 @@ struct vx_softc {
 #define S_RX_EARLY		(u_short) (0x20)
 #define S_INT_RQD		(u_short) (0x40)
 #define S_UPD_STATS		(u_short) (0x80)
-#define S_MASK	(u_short) 0xFF /* mask of S_* */
-#define S_5_INTS                (S_CARD_FAILURE|S_TX_COMPLETE|\
-				 S_TX_AVAIL|S_RX_COMPLETE|S_RX_EARLY)
 #define S_COMMAND_IN_PROGRESS	(u_short) (0x1000)
 
-/* Address Config. Register.
+#define VX_BUSY_WAIT while (inw(BASE + VX_STATUS) & S_COMMAND_IN_PROGRESS)
+
+/* Address Config. Register.    
  * Window 0/Port 06
  */
 
-#define ACF_CONNECTOR_BITS	14
+#define ACF_CONNECTOR_BITS	14  
 #define ACF_CONNECTOR_UTP	0
 #define ACF_CONNECTOR_AUI	1
 #define ACF_CONNECTOR_BNC	3
-
+   
 #define INTERNAL_CONNECTOR_BITS 20
-#define INTERNAL_CONNECTOR_MASK 0x00700000
-
-/* Resource configuration register.
- * Window 0/Port 08
- *
- */
-
-#define SET_IRQ(i)	(((i)<<12) | 0xF00) /* set IRQ i */
+#define INTERNAL_CONNECTOR_MASK 0x01700000
 
 /*
- * FIFO Registers.
- * RX Status. Window 1/Port 08
+ * FIFO Registers. RX Status.
  *
  *     15:     Incomplete or FIFO empty.
  *     14:     1: Error in RX Packet   0: Incomplete or no error.
@@ -369,18 +342,18 @@ struct vx_softc {
  *
  *     10-0:   RX Bytes (0-1514)
  */
-#define ERR_RX_INCOMPLETE  (u_short) (0x1<<15)
-#define ERR_RX		   (u_short) (0x1<<14)
-#define ERR_RX_OVERRUN 	   (u_short) (0x8<<11)
-#define ERR_RX_RUN_PKT	   (u_short) (0xb<<11)
-#define ERR_RX_ALIGN	   (u_short) (0xc<<11)
-#define ERR_RX_CRC	   (u_short) (0xd<<11)
-#define ERR_RX_OVERSIZE	   (u_short) (0x9<<11)
-#define ERR_RX_DRIBBLE	   (u_short) (0x2<<11)
+#define ERR_INCOMPLETE  (u_short) (0x8000)
+#define ERR_RX          (u_short) (0x4000)
+#define ERR_MASK        (u_short) (0x7800)
+#define ERR_OVERRUN     (u_short) (0x4000)
+#define ERR_RUNT        (u_short) (0x5800)
+#define ERR_ALIGNMENT   (u_short) (0x6000)
+#define ERR_CRC         (u_short) (0x6800)
+#define ERR_OVERSIZE    (u_short) (0x4800)
+#define ERR_DRIBBLE     (u_short) (0x1000)
 
 /*
- * FIFO Registers.
- * TX Status. Window 1/Port 0B
+ * TX Status. 
  *
  *   Reports the transmit status of a completed transmission. Writing this
  *   register pops the transmit completion stack.
@@ -397,38 +370,85 @@ struct vx_softc {
  *
  */
 #define TXS_COMPLETE		0x80
-#define TXS_SUCCES_INTR_REQ		0x40
+#define TXS_INTR_REQ		0x40
 #define TXS_JABBER		0x20
 #define TXS_UNDERRUN		0x10
 #define TXS_MAX_COLLISION	0x8
 #define TXS_STATUS_OVERFLOW	0x4
 
-#define RS_AUI				(1<<5)
-#define RS_BNC				(1<<4)
-#define RS_UTP				(1<<3)
+#define RS_AUI			(1<<5)
+#define RS_BNC			(1<<4)
+#define RS_UTP			(1<<3)
+#define	RS_T4			(1<<0)
+#define	RS_TX			(1<<1)
+#define	RS_FX			(1<<2)
+#define	RS_MII			(1<<6)
+
 
 /*
- * Media type and status.
- * Window 4/Port 0A
+ * FIFO Status (Window 4)
+ *
+ *   Supports FIFO diagnostics
+ *
+ *   Window 4/Port 0x04.1
+ *
+ *     15:	1=RX receiving (RO). Set when a packet is being received
+ *		into the RX FIFO.
+ *     14:	Reserved
+ *     13:	1=RX underrun (RO). Generates Adapter Failure interrupt.
+ *		Requires RX Reset or Global Reset command to recover.
+ *		It is generated when you read past the end of a packet -
+ *		reading past what has been received so far will give bad
+ *		data.
+ *     12:	1=RX status overrun (RO). Set when there are already 8
+ *		packets in the RX FIFO. While this bit is set, no additional
+ *		packets are received. Requires no action on the part of
+ *		the host. The condition is cleared once a packet has been
+ *		read out of the RX FIFO.
+ *     11:	1=RX overrun (RO). Set when the RX FIFO is full (there
+ *		may not be an overrun packet yet). While this bit is set,
+ *		no additional packets will be received (some additional
+ *		bytes can still be pending between the wire and the RX
+ *		FIFO). Requires no action on the part of the host. The
+ *		condition is cleared once a few bytes have been read out
+ *		from the RX FIFO.
+ *     10:	1=TX overrun (RO). Generates adapter failure interrupt.
+ *		Requires TX Reset or Global Reset command to recover.
+ *		Disables Transmitter.
+ *     9-8:	Unassigned.
+ *     7-0:	Built in self test bits for the RX and TX FIFO's.
  */
-#define ENABLE_UTP			0xc0
-#define DISABLE_UTP			0x0
+#define FIFOS_RX_RECEIVING	(u_short) 0x8000
+#define FIFOS_RX_UNDERRUN	(u_short) 0x2000
+#define FIFOS_RX_STATUS_OVERRUN	(u_short) 0x1000
+#define FIFOS_RX_OVERRUN	(u_short) 0x0800
+#define FIFOS_TX_OVERRUN	(u_short) 0x0400
 
 /*
  * Misc defines for various things.
  */
-#define ACTIVATE_ADAPTER_TO_CONFIG 	0xff /* to the id_port */
-#define MFG_ID 				0x6d50 /* in EEPROM and W0 ADDR_CONFIG */
-#define PROD_ID 			0x9150
+#define TAG_ADAPTER                     0xd0
+#define ACTIVATE_ADAPTER_TO_CONFIG      0xff
+#define ENABLE_DRQ_IRQ                  0x0001
+#define MFG_ID                          0x506d  /* `TCM' */
+#define PROD_ID                         0x5090
+#define GO_WINDOW(x)		outw(BASE+VX_COMMAND, WINDOW_SELECT|(x))
+#define JABBER_GUARD_ENABLE	0x40
+#define LINKBEAT_ENABLE		0x80
+#define	ENABLE_UTP		(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
+#define DISABLE_UTP		0x0
+#define RX_BYTES_MASK		(u_short) (0x07ff)
+#define TX_INDICATE		1<<15
 
-#define AUI 				0x1
-#define BNC 				0x2
-#define UTP 				0x4
+#define	VX_IOSIZE	0x20
 
-#define ETHER_ADDR_LEN			6
-#define ETHER_MAX			1536
-#define RX_BYTES_MASK			(u_short) (0x07ff)
+#define VX_CONNECTORS 8
 
- /* EISA support */
-#define VX_EISA_START                    0x1000
-#define VX_EISA_W0                       0x0c80
+extern struct vx_softc *vx_softc[];
+extern u_long vx_count;
+extern struct vx_softc *vxalloc __P((int));
+extern void vxfree __P((struct vx_softc *));
+extern int vxattach __P((struct vx_softc *));
+extern void vxstop __P((struct vx_softc *));
+extern void vxintr __P((struct vx_softc *));
+extern int vxbusyeeprom __P((struct vx_softc *));
