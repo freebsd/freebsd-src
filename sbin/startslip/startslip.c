@@ -76,6 +76,7 @@ int	flowcontrol = FC_NONE;
 char	*annex;
 int	hup;
 int     terminate;
+int     locked;
 int	logged_in = 0;
 int	wait_time = 60;		/* then back off */
 int     script_timeout = 90;    /* connect script default timeout */
@@ -85,6 +86,10 @@ int     script_timeout = 90;    /* connect script default timeout */
 #define MAXDIALS 20
 char *dials[MAXDIALS];
 int diali, dialc;
+
+FILE *pfd;
+char *devname;
+char pidfile[80];
 
 #ifdef DEBUG
 int	debug = 1;
@@ -108,9 +113,8 @@ main(argc, argv)
 	int ch, disc;
 	int fd = -1;
 	void sighup(), sigterm();
-	FILE *wfd = NULL, *pfd;
+	FILE *wfd = NULL;
 	char *dialerstring = 0, buf[BUFSIZ];
-	char pidfile[32];
 	int unitnum;
 	char unitname[32];
 	char *devicename, *username, *password;
@@ -207,11 +211,11 @@ main(argc, argv)
 	if (debug)
 		setbuf(stdout, NULL);
 
-	if ((cp = strrchr(devicename, '/')) == NULL)
-		cp = devicename;
+	if ((devname = strrchr(devicename, '/')) == NULL)
+		devname = devicename;
 	else
-		cp++;
-	sprintf(pidfile, PIDFILE, cp);
+		devname++;
+	sprintf(pidfile, PIDFILE, devname);
 	if ((pfd = fopen(pidfile, "r")) != NULL) {
 		pid = 0;
 		fscanf(pfd, "%d\n", &pid);
@@ -226,22 +230,15 @@ restart:
 		sprintf(buf, "%s %s down &", downscript ? downscript : "/sbin/ifconfig" , unitname);
 		(void) system(buf);
 	}
-	if (terminate) {
-		if (pfd)
-			unlink(pidfile);
-		exit(0);
-	}
+	if (terminate)
+		down(0);
 	logged_in = 0;
 	if (++tries > MAXTRIES) {
 		syslog(LOG_ERR, "exiting login after %d tries\n", tries);
 		/* ???
 		if (first)
 		*/
-		{
-			if (pfd)
-				unlink(pidfile);
-			exit(1);
-		}
+			down(3);
 	}
 	if (diali > 0)
 		dialerstring = dials[dialc++ % diali];
@@ -273,21 +270,35 @@ restart:
 	if (wfd) {
 		printd("fclose, ");
 		fclose(wfd);
-		wfd == NULL;
+		uu_unlock(devname);
+		locked = 0;
+		wfd = NULL;
+		fd = -1;
+		sleep(5);
 	}
 	if (fd >= 0) {
 		printd("close, ");
 		close(fd);
+		uu_unlock(devname);
+		locked = 0;
+		fd = -1;
 		sleep(5);
 	}
 	printd("open");
+	if (uu_lock(devname)) {
+		syslog(LOG_ERR, "can't lock %s", devicename);
+		syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
+		sleep(wait_time * tries);
+		goto restart;
+	}
+	locked = 1;
 	if ((fd = open(devicename, O_RDWR)) < 0) {
 		syslog(LOG_ERR, "open %s: %m\n", devicename);
-		if (first) {
-			if (pfd)
-				unlink(pidfile);
-			exit(1);
-		} else {
+		if (first)
+			down(1);
+		else {
+			uu_unlock(devname);
+			locked = 0;
 			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
 			sleep(wait_time * tries);
 			goto restart;
@@ -295,28 +306,30 @@ restart:
 	}
 	printd(" %d", fd);
 #ifdef TIOCSCTTY
-	if (ioctl(fd, TIOCSCTTY, 0) < 0)
+	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
 		syslog(LOG_ERR, "ioctl (TIOCSCTTY): %m");
+		down(2);
+	}
 #endif
 	signal(SIGHUP, sighup);
 	signal(SIGTERM, sigterm);
 	if (debug) {
 		if (ioctl(fd, TIOCGETD, &disc) < 0)
 			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
-		printd(" (disc was %d)", disc);
+		else
+			printd(" (disc was %d)", disc);
 	}
 	disc = TTYDISC;
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m\n",
 		    devicename);
+		down(2);
 	}
 	printd(", ioctl");
 #ifdef POSIX
 	if (tcgetattr(fd, &t) < 0) {
 		syslog(LOG_ERR, "%s: tcgetattr: %m\n", devicename);
-		if (pfd)
-			unlink(pidfile);
-	        exit(2);
+		down(2);
 	}
 	cfmakeraw(&t);
 	switch (flowcontrol) {
@@ -330,23 +343,13 @@ restart:
 	cfsetspeed(&t, speed);
 	if (tcsetattr(fd, TCSAFLUSH, &t) < 0) {
 		syslog(LOG_ERR, "%s: tcsetattr: %m\n", devicename);
-		if (first) {
-			if (pfd)
-				unlink(pidfile);
-			exit(2);
-		} else {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
-			goto restart;
-		}
+		down(2);
 	}
 #else
 	if (ioctl(fd, TIOCGETP, &sgtty) < 0) {
 		syslog(LOG_ERR, "%s: ioctl (TIOCGETP): %m\n",
 		    devicename);
-		if (pfd)
-			unlink(pidfile);
-	        exit(2);
+		down(2);
 	}
 	sgtty.sg_flags = RAW | ANYP;
 	sgtty.sg_erase = sgtty.sg_kill = 0377;
@@ -354,15 +357,7 @@ restart:
 	if (ioctl(fd, TIOCSETP, &sgtty) < 0) {
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETP): %m\n",
 		    devicename);
-		if (first) {
-			if (pfd)
-				unlink(pidfile);
-			exit(2);
-		} else {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
-			goto restart;
-		}
+		down(2);
 	}
 #endif
 	sleep(2);		/* wait for flakey line to settle */
@@ -371,10 +366,8 @@ restart:
 
 	wfd = fdopen(fd, "w+");
 	if (wfd == NULL) {
-		syslog(LOG_ERR, "can't fdopen slip line\n");
-		if (pfd)
-			unlink(pidfile);
-		exit(10);
+		syslog(LOG_ERR, "can't fdopen %s: %m", devicename);
+		down(2);
 	}
 	setbuf(wfd, (char *)0);
 	if (dialerstring) {
@@ -436,15 +429,11 @@ restart:
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETD SLIP): %m\n",
 		    devicename);
-		if (pfd)
-			unlink(pidfile);
-	        exit(1);
+		down(2);
 	}
 	if (ioctl(fd, SLIOCGUNIT, (caddr_t)&unitnum) < 0) {
 		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
-		if (pfd)
-			unlink(pidfile);
-		exit(1);
+		down(2);
 	}
 	sprintf(unitname, "sl%d", unitnum);
 	if (first && debug == 0) {
@@ -541,6 +530,15 @@ getline(buf, size, fd, timeout)
 		}
 	}
 	return (0);
+}
+
+down(code)
+{
+	if (pfd)
+		unlink(pidfile);
+	if (locked)
+		uu_unlock(devname);
+	exit(code);
 }
 
 usage()
