@@ -94,6 +94,8 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
 
+#define	uarea_pages	1
+
 extern char linux_sigcode[];
 extern int linux_szsigcode;
 
@@ -746,9 +748,8 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);
-	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	fill_user(p, (struct user *)tempuser);
 	PROC_UNLOCK(p);
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
 	bcopy(td->td_frame,
 	    tempuser + ctob(uarea_pages) +
 	    ((caddr_t)td->td_frame - (caddr_t)td->td_kstack),
