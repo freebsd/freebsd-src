@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.4 1994/12/02 03:32:24 wollman Exp $
+ * $Id: in_rmx.c,v 1.5 1994/12/02 23:10:32 wollman Exp $
  */
 
 /*
@@ -39,7 +39,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
-#define RTPRF_OURS		0x10000	/* set on routes we manage */
+#define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
  * Do what we need to do when inserting a route.
@@ -54,8 +54,8 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	/*
 	 * For IP, all non-host routes are automatically cloning.
 	 */
-	if(!(rt->rt_flags & RTF_HOST))
-		rt->rt_flags |= RTF_CLONING;
+	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING)))
+		rt->rt_flags |= RTF_PRCLONING;
 
 	return rn_addroute(v_arg, n_arg, head, treenodes);
 }
@@ -72,8 +72,8 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	if(rt && rt->rt_refcnt == 0) { /* this is first reference */
-		if(rt->rt_prflags & RTPRF_OURS) {
-			rt->rt_prflags &= ~RTPRF_OURS;
+		if(rt->rt_flags & RTPRF_OURS) {
+			rt->rt_flags &= ~RTPRF_OURS;
 			rt->rt_rmx.rmx_expire = 0;
 		}
 	}
@@ -96,11 +96,11 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	if((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
 
-	if((rt->rt_prflags & (RTPRF_WASCLONED | RTPRF_OURS)) 
-	   != RTPRF_WASCLONED)
+	if((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS)) 
+	   != RTF_WASCLONED)
 		return;
 
-	rt->rt_prflags |= RTPRF_OURS;
+	rt->rt_flags |= RTPRF_OURS;
 	rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
 }
 
@@ -109,13 +109,15 @@ int rtq_timeout = RTQ_TIMEOUT;
 
 struct rtqk_arg {
 	struct radix_node_head *rnh;
+	int draining;
 	int killed;
 	int found;
 	time_t nextstop;
 };
 
 /*
- * Get rid of old routes.
+ * Get rid of old routes.  When draining, this deletes everything, even when
+ * the timeout is not expired yet.
  */
 static int
 in_rtqkill(struct radix_node *rn, void *rock)
@@ -125,10 +127,10 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
-	if(rt->rt_prflags & RTPRF_OURS) {
+	if(rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
-		if(rt->rt_rmx.rmx_expire <= time.tv_sec) {
+		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec) {
 			if(rt->rt_refcnt > 0)
 				panic("rtqkill route really not free\n");
 
@@ -160,6 +162,7 @@ in_rtqtimo(void *rock)
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time.tv_sec + 10*rtq_timeout;
+	arg.draining = 0;
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
@@ -169,7 +172,15 @@ in_rtqtimo(void *rock)
 void
 in_rtqdrain(void)
 {
-	;
+	struct radix_node_head *rnh = rt_tables[AF_INET];
+	struct rtqk_arg arg;
+	int s = splnet();
+	arg.found = arg.killed = 0;
+	arg.rnh = rnh;
+	arg.nextstop = 0;
+	arg.draining = 1;
+	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	splx(s);
 }
 
 /*
