@@ -5246,6 +5246,7 @@ ahd_alloc(void *platform_arg, char *name)
 		return (NULL);
 	}
 	LIST_INIT(&ahd->pending_scbs);
+	LIST_INIT(&ahd->timedout_scbs);
 	/* We don't know our unit number until the OSM sets it */
 	ahd->name = name;
 	ahd->unit = -1;
@@ -9354,7 +9355,7 @@ ahd_recover_commands(struct ahd_softc *ahd)
 		lun = SCB_GET_LUN(scb);
 
 		ahd_print_path(ahd, scb);
-		printf("SCB 0x%x - timed out\n", scb->hscb->tag);
+		printf("SCB %d - timed out\n", SCB_GET_TAG(scb->hscb->tag));
 
 		if (scb->flags & (SCB_DEVICE_RESET|SCB_ABORT)) {
 			/*
@@ -9421,8 +9422,9 @@ bus_reset:
 			       "Identify Msg.\n", ahd_name(ahd));
 			goto bus_reset;
 		} else if (ahd_search_qinfifo(ahd, target, channel, lun,
-					      scb->hscb->tag, ROLE_INITIATOR,
-					      /*status*/0, SEARCH_COUNT) > 0) {
+					      SCB_GET_TAG(scb->hscb->tag),
+					      ROLE_INITIATOR, /*status*/0,
+					      SEARCH_COUNT) > 0) {
 
 			/*
 			 * We haven't even gone out on the bus
