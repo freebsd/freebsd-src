@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.219 1996/08/15 05:55:33 asami Exp $
+# $Id: bsd.port.mk,v 1.220 1996/08/17 10:16:02 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -705,7 +705,7 @@ do-configure:
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
-	    INSTALL_PROGRAM="/usr/bin/install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}" \
+	    INSTALL_PROGRAM="${INSTALL_PROGRAM}" \
 	    ${CONFIGURE_ENV} ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
@@ -728,6 +728,11 @@ do-build:
 
 .if !target(do-install)
 do-install:
+	@if [ `/bin/sh -c umask` != 0022 ]; then \
+		${ECHO_MSG} "===> Warning: your umask is \"`/bin/sh -c umask`"\".; \
+		${ECHO_MSG} "     If this is not desired, set it to an appropriate value"; \
+		${ECHO_MSG} "     and install this port again by \`\`make reinstall''."; \
+	fi
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
