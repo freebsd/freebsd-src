@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 45 $
+ *              $Revision: 50 $
  *
  ******************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "acinterp.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsalloc")
 
 
@@ -147,7 +147,7 @@ AcpiNsCreateNode (
     FUNCTION_TRACE ("NsCreateNode");
 
 
-    Node = AcpiCmCallocate (sizeof (ACPI_NAMESPACE_NODE));
+    Node = AcpiUtCallocate (sizeof (ACPI_NAMESPACE_NODE));
     if (!Node)
     {
         return_PTR (NULL);
@@ -222,7 +222,7 @@ AcpiNsDeleteNode (
         AcpiNsDetachObject (Node);
     }
 
-    AcpiCmFree (Node);
+    AcpiUtFree (Node);
 
 
     return_VOID;
@@ -249,7 +249,7 @@ AcpiNsInstallNode (
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     *ParentNode,    /* Parent */
     ACPI_NAMESPACE_NODE     *Node,      /* New Child*/
-    OBJECT_TYPE_INTERNAL    Type)
+    ACPI_OBJECT_TYPE8       Type)
 {
     UINT16                  OwnerId = TABLE_ID_DSDT;
     ACPI_NAMESPACE_NODE     *ChildNode;
@@ -305,9 +305,8 @@ AcpiNsInstallNode (
      * add the region in order to define fields in it, we
      * have a forward reference.
      */
-
     if ((ACPI_TYPE_ANY == Type) ||
-        (INTERNAL_TYPE_DEF_FIELD_DEFN == Type) ||
+        (INTERNAL_TYPE_FIELD_DEFN == Type) ||
         (INTERNAL_TYPE_BANK_FIELD_DEFN == Type))
     {
         /*
@@ -315,19 +314,15 @@ AcpiNsInstallNode (
          * We will fill in the actual type when the
          * real definition is found later.
          */
-
-        DEBUG_PRINT (ACPI_INFO,
-            ("NsInstallNode: [%4.4s] is a forward reference\n",
+        DEBUG_PRINTP (ACPI_INFO, ("[%4.4s] is a forward reference\n",
             &Node->Name));
-
     }
 
     /*
      * The DefFieldDefn and BankFieldDefn cases are actually
      * looking up the Region in which the field will be defined
      */
-
-    if ((INTERNAL_TYPE_DEF_FIELD_DEFN == Type) ||
+    if ((INTERNAL_TYPE_FIELD_DEFN == Type) ||
         (INTERNAL_TYPE_BANK_FIELD_DEFN == Type))
     {
         Type = ACPI_TYPE_REGION;
@@ -339,7 +334,6 @@ AcpiNsInstallNode (
      * being looked up.  Save any other value of Type as the type of
      * the entry.
      */
-
     if ((Type != INTERNAL_TYPE_SCOPE) &&
         (Type != INTERNAL_TYPE_DEF_ANY) &&
         (Type != INTERNAL_TYPE_INDEX_FIELD_DEFN))
@@ -347,15 +341,13 @@ AcpiNsInstallNode (
         Node->Type = (UINT8) Type;
     }
 
-    DEBUG_PRINT (TRACE_NAMES,
-        ("NsInstallNode: %4.4s added to %p at %p\n",
+    DEBUG_PRINTP (TRACE_NAMES, ("%4.4s added to %p at %p\n",
         &Node->Name, ParentNode, Node));
 
     /*
      * Increment the reference count(s) of all parents up to
      * the root!
      */
-
     while ((Node = AcpiNsGetParentObject (Node)) != NULL)
     {
         Node->ReferenceCount++;
@@ -417,8 +409,7 @@ AcpiNsDeleteChildren (
 
         if (ChildNode->Child)
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("NsDeleteChildren: Found a grandchild! P=%X C=%X\n",
+            DEBUG_PRINTP (ACPI_ERROR, ("Found a grandchild! P=%X C=%X\n",
                 ParentNode, ChildNode));
         }
 
@@ -426,8 +417,7 @@ AcpiNsDeleteChildren (
 
         DECREMENT_NAME_TABLE_METRICS (sizeof (ACPI_NAMESPACE_NODE));
 
-        DEBUG_PRINT (ACPI_INFO,
-            ("AcpiNsDeleteChildren: Object %p, Remaining %X\n",
+        DEBUG_PRINTP (ACPI_INFO, ("Object %p, Remaining %X\n",
             ChildNode, AcpiGbl_CurrentNodeCount));
 
         /*
@@ -439,7 +429,7 @@ AcpiNsDeleteChildren (
             AcpiNsDetachObject (ChildNode);
         }
 
-        AcpiCmFree (ChildNode);
+        AcpiUtFree (ChildNode);
 
         /* And move on to the next child in the list */
 
@@ -515,7 +505,7 @@ AcpiNsDeleteNamespaceSubtree (
             if (ObjDesc)
             {
                 AcpiNsDetachObject (ChildNode);
-                AcpiCmRemoveReference (ObjDesc);
+                AcpiUtRemoveReference (ObjDesc);
             }
 
 
@@ -672,7 +662,7 @@ AcpiNsDeleteNamespaceByOwner (
                 if (ObjDesc)
                 {
                     AcpiNsDetachObject (ChildNode);
-                    AcpiCmRemoveReference (ObjDesc);
+                    AcpiUtRemoveReference (ObjDesc);
                 }
             }
 

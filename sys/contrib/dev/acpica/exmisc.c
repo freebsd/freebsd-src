@@ -1,8 +1,8 @@
 
 /******************************************************************************
  *
- * Module Name: ammisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 73 $
+ * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -116,7 +116,7 @@
  *
  *****************************************************************************/
 
-#define __AMMISC_C__
+#define __EXMISC_C__
 
 #include "acpi.h"
 #include "acparser.h"
@@ -125,13 +125,13 @@
 #include "acdispat.h"
 
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("ammisc")
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exmisc")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecFatal
+ * FUNCTION:    AcpiExFatal
  *
  * PARAMETERS:  none
  *
@@ -149,7 +149,7 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecFatal (
+AcpiExFatal (
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     *TypeDesc;
@@ -158,15 +158,15 @@ AcpiAmlExecFatal (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AmlExecFatal");
+    FUNCTION_TRACE ("ExFatal");
 
 
     /* Resolve operands */
 
-    Status = AcpiAmlResolveOperands (AML_FATAL_OP, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (AML_FATAL_OP, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
                     AcpiPsGetOpcodeName (AML_FATAL_OP),
-                    3, "after AcpiAmlResolveOperands");
+                    3, "after AcpiExResolveOperands");
 
     /* Get operands */
 
@@ -177,19 +177,16 @@ AcpiAmlExecFatal (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AcpiAmlExecFatal/AML_FATAL_OP: bad operand(s) (Status=%X)\n",
+        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
             Status));
-
         goto Cleanup;
     }
 
 
     /* DefFatal    :=  FatalOp FatalType   FatalCode   FatalArg    */
 
-
-    DEBUG_PRINT (ACPI_INFO,
-        ("FatalOp: Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+    DEBUG_PRINTP (ACPI_INFO,
+        ("Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
         TypeDesc->Integer.Value, CodeDesc->Integer.Value, ArgDesc->Integer.Value));
 
 
@@ -203,9 +200,9 @@ Cleanup:
 
     /* Free the operands */
 
-    AcpiCmRemoveReference (ArgDesc);
-    AcpiCmRemoveReference (CodeDesc);
-    AcpiCmRemoveReference (TypeDesc);
+    AcpiUtRemoveReference (ArgDesc);
+    AcpiUtRemoveReference (CodeDesc);
+    AcpiUtRemoveReference (TypeDesc);
 
 
     /* If we get back from the OS call, we might as well keep going. */
@@ -217,7 +214,7 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecIndex
+ * FUNCTION:    AcpiExIndex
  *
  * PARAMETERS:  none
  *
@@ -238,7 +235,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecIndex (
+AcpiExIndex (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
@@ -250,16 +247,16 @@ AcpiAmlExecIndex (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AmlExecIndex");
+    FUNCTION_TRACE ("ExIndex");
 
 
     /* Resolve operands */
     /* First operand can be either a package or a buffer */
 
-    Status = AcpiAmlResolveOperands (AML_INDEX_OP, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (AML_INDEX_OP, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
                     AcpiPsGetOpcodeName (AML_INDEX_OP),
-                    3, "after AcpiAmlResolveOperands");
+                    3, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
@@ -270,17 +267,15 @@ AcpiAmlExecIndex (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AcpiAmlExecIndex/AML_INDEX_OP: bad operand(s) (Status=%X)\n",
+        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
             Status));
-
         goto Cleanup;
     }
 
 
     /* Create the internal return object */
 
-    RetDesc = AcpiCmCreateInternalObject (INTERNAL_TYPE_REFERENCE);
+    RetDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
     if (!RetDesc)
     {
         Status = AE_NO_MEMORY;
@@ -298,14 +293,13 @@ AcpiAmlExecIndex (
 
         if (IdxDesc->Integer.Value >= ObjDesc->Package.Count)
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("AmlExecIndex: Index value out of range\n"));
+            DEBUG_PRINTP (ACPI_ERROR, ("Index value beyond package end\n"));
             Status = AE_AML_PACKAGE_LIMIT;
             goto Cleanup;
         }
 
         if ((ResDesc->Common.Type == INTERNAL_TYPE_REFERENCE) &&
-            (ResDesc->Reference.OpCode == AML_ZERO_OP))
+            (ResDesc->Reference.Opcode == AML_ZERO_OP))
         {
             /*
              * There is no actual result descriptor (the ZeroOp Result
@@ -313,7 +307,7 @@ AcpiAmlExecIndex (
              * return a reference to the package element
              */
 
-            AcpiCmRemoveReference (ResDesc);
+            AcpiUtRemoveReference (ResDesc);
         }
 
         else
@@ -324,11 +318,11 @@ AcpiAmlExecIndex (
              */
 
             TmpDesc                       = ObjDesc->Package.Elements[IdxDesc->Integer.Value];
-            RetDesc->Reference.OpCode     = AML_INDEX_OP;
+            RetDesc->Reference.Opcode     = AML_INDEX_OP;
             RetDesc->Reference.TargetType = TmpDesc->Common.Type;
             RetDesc->Reference.Object     = TmpDesc;
 
-            Status = AcpiAmlExecStore (RetDesc, ResDesc, WalkState);
+            Status = AcpiExStore (RetDesc, ResDesc, WalkState);
             RetDesc->Reference.Object     = NULL;
         }
 
@@ -336,7 +330,7 @@ AcpiAmlExecIndex (
          * The local return object must always be a reference to the package element,
          * not the element itself.
          */
-        RetDesc->Reference.OpCode     = AML_INDEX_OP;
+        RetDesc->Reference.Opcode     = AML_INDEX_OP;
         RetDesc->Reference.TargetType = ACPI_TYPE_PACKAGE;
         RetDesc->Reference.Where      = &ObjDesc->Package.Elements[IdxDesc->Integer.Value];
     }
@@ -347,18 +341,17 @@ AcpiAmlExecIndex (
 
         if (IdxDesc->Integer.Value >= ObjDesc->Buffer.Length)
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("AmlExecIndex: Index value out of range\n"));
+            DEBUG_PRINTP (ACPI_ERROR, ("Index value beyond end of buffer\n"));
             Status = AE_AML_BUFFER_LIMIT;
             goto Cleanup;
         }
 
-        RetDesc->Reference.OpCode       = AML_INDEX_OP;
+        RetDesc->Reference.Opcode       = AML_INDEX_OP;
         RetDesc->Reference.TargetType   = ACPI_TYPE_BUFFER_FIELD;
         RetDesc->Reference.Object       = ObjDesc;
         RetDesc->Reference.Offset       = (UINT32) IdxDesc->Integer.Value;
 
-        Status = AcpiAmlExecStore (RetDesc, ResDesc, WalkState);
+        Status = AcpiExStore (RetDesc, ResDesc, WalkState);
     }
 
 
@@ -366,18 +359,18 @@ Cleanup:
 
     /* Always delete operands */
 
-    AcpiCmRemoveReference (ObjDesc);
-    AcpiCmRemoveReference (IdxDesc);
+    AcpiUtRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (IdxDesc);
 
     /* Delete return object on error */
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiCmRemoveReference (ResDesc);
+        AcpiUtRemoveReference (ResDesc);
 
         if (RetDesc)
         {
-            AcpiCmRemoveReference (RetDesc);
+            AcpiUtRemoveReference (RetDesc);
             RetDesc = NULL;
         }
     }
@@ -391,7 +384,7 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecMatch
+ * FUNCTION:    AcpiExMatch
  *
  * PARAMETERS:  none
  *
@@ -412,7 +405,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecMatch (
+AcpiExMatch (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
@@ -428,15 +421,15 @@ AcpiAmlExecMatch (
     UINT32                  MatchValue = (UINT32) -1;
 
 
-    FUNCTION_TRACE ("AmlExecMatch");
+    FUNCTION_TRACE ("ExMatch");
 
 
     /* Resolve all operands */
 
-    Status = AcpiAmlResolveOperands (AML_MATCH_OP, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (AML_MATCH_OP, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
                     AcpiPsGetOpcodeName (AML_MATCH_OP),
-                    6, "after AcpiAmlResolveOperands");
+                    6, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
@@ -451,10 +444,8 @@ AcpiAmlExecMatch (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExecMatch/AML_MATCH_OP: bad operand(s) (Status=%X)\n",
+        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
             Status));
-
         goto Cleanup;
     }
 
@@ -463,8 +454,7 @@ AcpiAmlExecMatch (
     if ((Op1Desc->Integer.Value > MAX_MATCH_OPERATOR) ||
         (Op2Desc->Integer.Value > MAX_MATCH_OPERATOR))
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AmlExecMatch: operation encoding out of range\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("operation encoding out of range\n"));
         Status = AE_AML_OPERAND_VALUE;
         goto Cleanup;
     }
@@ -472,13 +462,12 @@ AcpiAmlExecMatch (
     Index = (UINT32) StartDesc->Integer.Value;
     if (Index >= (UINT32) PkgDesc->Package.Count)
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AmlExecMatch: start position value out of range\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("Start position value out of range\n"));
         Status = AE_AML_PACKAGE_LIMIT;
         goto Cleanup;
     }
 
-    RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+    RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!RetDesc)
     {
         Status = AE_NO_MEMORY;
@@ -657,12 +646,12 @@ Cleanup:
 
     /* Free the operands */
 
-    AcpiCmRemoveReference (StartDesc);
-    AcpiCmRemoveReference (V2Desc);
-    AcpiCmRemoveReference (Op2Desc);
-    AcpiCmRemoveReference (V1Desc);
-    AcpiCmRemoveReference (Op1Desc);
-    AcpiCmRemoveReference (PkgDesc);
+    AcpiUtRemoveReference (StartDesc);
+    AcpiUtRemoveReference (V2Desc);
+    AcpiUtRemoveReference (Op2Desc);
+    AcpiUtRemoveReference (V1Desc);
+    AcpiUtRemoveReference (Op1Desc);
+    AcpiUtRemoveReference (PkgDesc);
 
 
     /* Delete return object on error */
@@ -670,7 +659,7 @@ Cleanup:
     if (ACPI_FAILURE (Status) &&
         (RetDesc))
     {
-        AcpiCmRemoveReference (RetDesc);
+        AcpiUtRemoveReference (RetDesc);
         RetDesc = NULL;
     }
 

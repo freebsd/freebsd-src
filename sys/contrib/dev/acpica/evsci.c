@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 69 $
+ *              $Revision: 72 $
  *
  ******************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "acevents.h"
 
 
-#define _COMPONENT          EVENT_HANDLING
+#define _COMPONENT          ACPI_EVENTS
         MODULE_NAME         ("evsci")
 
 
@@ -278,50 +278,6 @@ AcpiEvRemoveSciHandler (void)
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiEvSciCount
- *
- * PARAMETERS:  Event       Event that generated an SCI.
- *
- * RETURN:      Number of SCI's for requested event since last time
- *              SciOccured() was called for this event.
- *
- * DESCRIPTION: Checks to see if SCI has been generated from requested source
- *              since the last time this function was called.
- *
- ******************************************************************************/
-
-#ifdef ACPI_DEBUG
-
-UINT32
-AcpiEvSciCount (
-    UINT32                  Event)
-{
-    UINT32                  Count;
-
-    FUNCTION_TRACE ("EvSciCount");
-
-    /*
-     * Elements correspond to counts for TMR, NOT_USED, GBL,
-     * PWR_BTN, SLP_BTN, RTC, and GENERAL respectively.
-     */
-
-    if (Event >= NUM_FIXED_EVENTS)
-    {
-        Count = (UINT32) -1;
-    }
-    else
-    {
-        Count = AcpiGbl_EventCount[Event];
-    }
-
-    return_VALUE (Count);
-}
-
-#endif
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiEvRestoreAcpiState
  *
  * PARAMETERS:  none
@@ -422,12 +378,12 @@ AcpiEvTerminate (void)
 
     if (AcpiGbl_GpeRegisters)
     {
-        AcpiCmFree (AcpiGbl_GpeRegisters);
+        AcpiUtFree (AcpiGbl_GpeRegisters);
     }
 
     if (AcpiGbl_GpeInfo)
     {
-        AcpiCmFree (AcpiGbl_GpeInfo);
+        AcpiUtFree (AcpiGbl_GpeInfo);
     }
 
     return_VOID;

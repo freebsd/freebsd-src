@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: amconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 29 $
+ * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -115,7 +115,7 @@
  *
  *****************************************************************************/
 
-#define __AMCONFIG_C__
+#define __EXCONFIG_C__
 
 #include "acpi.h"
 #include "acparser.h"
@@ -127,13 +127,13 @@
 #include "acdispat.h"
 
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amconfig")
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exconfig")
 
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiAmlExecLoadTable
+ * FUNCTION:    AcpiExLoadTableOp
  *
  * PARAMETERS:  RgnDesc         - Op region where the table will be obtained
  *              DdbHandle       - Where a handle to the table will be returned
@@ -145,7 +145,7 @@
  ****************************************************************************/
 
 static ACPI_STATUS
-AcpiAmlExecLoadTable (
+AcpiExLoadTableOp (
     ACPI_OPERAND_OBJECT     *RgnDesc,
     ACPI_HANDLE             *DdbHandle)
 {
@@ -158,7 +158,7 @@ AcpiAmlExecLoadTable (
     UINT32                  i;
 
 
-    FUNCTION_TRACE ("AmlExecLoadTable");
+    FUNCTION_TRACE ("ExLoadTable");
 
     /* TBD: [Unhandled] Object can be either a field or an opregion */
 
@@ -168,7 +168,7 @@ AcpiAmlExecLoadTable (
     TableHeader.Length = 0;
     for (i = 0; i < sizeof (ACPI_TABLE_HEADER); i++)
     {
-        Status = AcpiEvAddressSpaceDispatch (RgnDesc, ADDRESS_SPACE_READ,
+        Status = AcpiEvAddressSpaceDispatch (RgnDesc, ACPI_READ_ADR_SPACE,
                             (ACPI_PHYSICAL_ADDRESS) i, 8,
                             (UINT32 *) ((UINT8 *) &TableHeader + i));
         if (ACPI_FAILURE (Status))
@@ -179,7 +179,7 @@ AcpiAmlExecLoadTable (
 
     /* Allocate a buffer for the entire table */
 
-    TablePtr = AcpiCmAllocate (TableHeader.Length);
+    TablePtr = AcpiUtAllocate (TableHeader.Length);
     if (!TablePtr)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -195,8 +195,8 @@ AcpiAmlExecLoadTable (
 
     for (i = 0; i < TableHeader.Length; i++)
     {
-        Status = AcpiEvAddressSpaceDispatch (RgnDesc, ADDRESS_SPACE_READ,
-                            (ACPI_PHYSICAL_ADDRESS)i, 8,
+        Status = AcpiEvAddressSpaceDispatch (RgnDesc, ACPI_READ_ADR_SPACE,
+                            (ACPI_PHYSICAL_ADDRESS) i, 8,
                             (UINT32 *) (TableDataPtr + i));
         if (ACPI_FAILURE (Status))
         {
@@ -214,7 +214,7 @@ AcpiAmlExecLoadTable (
                     AcpiGbl_AcpiTableData[ACPI_TABLE_SSDT].Signature,
                     AcpiGbl_AcpiTableData[ACPI_TABLE_SSDT].SigLength)))
     {
-        DEBUG_PRINT (ACPI_ERROR,
+        DEBUG_PRINTP (ACPI_ERROR,
             ("Table has invalid signature [%4.4s], must be SSDT or PSDT\n",
             TableHeader.Signature));
         Status = AE_BAD_SIGNATURE;
@@ -223,7 +223,7 @@ AcpiAmlExecLoadTable (
 
     /* Create an object to be the table handle */
 
-    TableDesc = AcpiCmCreateInternalObject (INTERNAL_TYPE_REFERENCE);
+    TableDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
     if (!TableDesc)
     {
         Status = AE_NO_MEMORY;
@@ -263,7 +263,7 @@ AcpiAmlExecLoadTable (
 
     /* Init the table handle */
 
-    TableDesc->Reference.OpCode = AML_LOAD_OP;
+    TableDesc->Reference.Opcode = AML_LOAD_OP;
     TableDesc->Reference.Object = TableInfo.InstalledDesc;
 
     *DdbHandle = TableDesc;
@@ -273,8 +273,8 @@ AcpiAmlExecLoadTable (
 
 Cleanup:
 
-    AcpiCmFree (TableDesc);
-    AcpiCmFree (TablePtr);
+    AcpiUtFree (TableDesc);
+    AcpiUtFree (TablePtr);
     return_ACPI_STATUS (Status);
 
 }
@@ -282,7 +282,7 @@ Cleanup:
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiAmlExecUnloadTable
+ * FUNCTION:    AcpiExUnloadTable
  *
  * PARAMETERS:  DdbHandle           - Handle to a previously loaded table
  *
@@ -293,7 +293,7 @@ Cleanup:
  ****************************************************************************/
 
 static ACPI_STATUS
-AcpiAmlExecUnloadTable (
+AcpiExUnloadTable (
     ACPI_HANDLE             DdbHandle)
 {
     ACPI_STATUS             Status = AE_NOT_IMPLEMENTED;
@@ -301,12 +301,12 @@ AcpiAmlExecUnloadTable (
     ACPI_TABLE_DESC         *TableInfo;
 
 
-    FUNCTION_TRACE ("AmlExecUnloadTable");
+    FUNCTION_TRACE ("ExUnloadTable");
 
 
     /* Validate the handle */
-    /* Although the handle is partially validated in AcpiAmlExecReconfiguration(),
-     *  when it calls AcpiAmlResolveOperands(), the handle is more completely
+    /* Although the handle is partially validated in AcpiExReconfiguration(),
+     *  when it calls AcpiExResolveOperands(), the handle is more completely
      *  validated here.
      */
 
@@ -340,7 +340,7 @@ AcpiAmlExecUnloadTable (
 
     /* Delete the table descriptor (DdbHandle) */
 
-    AcpiCmRemoveReference (TableDesc);
+    AcpiUtRemoveReference (TableDesc);
 
     return_ACPI_STATUS (Status);
 }
@@ -348,7 +348,7 @@ AcpiAmlExecUnloadTable (
 
 /*****************************************************************************
  *
- * FUNCTION:    AcpiAmlExecReconfiguration
+ * FUNCTION:    AcpiExReconfiguration
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *              WalkState           - Current state of the parse tree walk
@@ -360,7 +360,7 @@ AcpiAmlExecUnloadTable (
  ****************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecReconfiguration (
+AcpiExReconfiguration (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
@@ -369,14 +369,14 @@ AcpiAmlExecReconfiguration (
     ACPI_HANDLE             *DdbHandle;
 
 
-    FUNCTION_TRACE ("AmlExecReconfiguration");
+    FUNCTION_TRACE ("ExReconfiguration");
 
 
     /* Resolve the operands */
 
-    Status = AcpiAmlResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiAmlResolveOperands");
+                    2, "after AcpiExResolveOperands");
 
     /* Get the table handle, common for both opcodes */
 
@@ -393,15 +393,14 @@ AcpiAmlExecReconfiguration (
         Status |= AcpiDsObjStackPopObject (&RegionDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("ExecReconfiguration/AML_LOAD_OP: bad operand(s) (%X)\n",
-                Status));
+            DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Load) (%s)\n",
+                AcpiUtFormatException (Status)));
 
-            AcpiCmRemoveReference (RegionDesc);
+            AcpiUtRemoveReference (RegionDesc);
             return_ACPI_STATUS (Status);
         }
 
-        Status = AcpiAmlExecLoadTable (RegionDesc, DdbHandle);
+        Status = AcpiExLoadTableOp (RegionDesc, DdbHandle);
         break;
 
 
@@ -409,22 +408,19 @@ AcpiAmlExecReconfiguration (
 
         if (ACPI_FAILURE (Status))
         {
-            DEBUG_PRINT (ACPI_ERROR,
-                ("ExecReconfiguration/AML_UNLOAD_OP: bad operand(s) (%X)\n",
-                Status));
+            DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (unload) (%s)\n",
+                AcpiUtFormatException (Status)));
 
             return_ACPI_STATUS (Status);
         }
 
-        Status = AcpiAmlExecUnloadTable (DdbHandle);
+        Status = AcpiExUnloadTable (DdbHandle);
         break;
 
 
     default:
 
-        DEBUG_PRINT (ACPI_ERROR, ("AmlExecReconfiguration: bad opcode=%X\n",
-                        Opcode));
-
+        DEBUG_PRINTP (ACPI_ERROR, ("bad opcode=%X\n", Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
     }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acenv.h - Generation environment specific items
- *       $Revision: 70 $
+ *       $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -252,8 +252,8 @@
  */
 
 #define STRSTR(s1,s2)   strstr((s1), (s2))
-#define STRUPR(s)       strupr((s))
-#define STRLEN(s)       strlen((s))
+#define STRUPR(s)       AcpiUtStrupr  ((s))
+#define STRLEN(s)       (UINT32) strlen((s))
 #define STRCPY(d,s)     strcpy((d), (s))
 #define STRNCPY(d,s,n)  strncpy((d), (s), (NATIVE_INT)(n))
 #define STRNCMP(d,s,n)  strncmp((d), (s), (NATIVE_INT)(n))
@@ -292,35 +292,35 @@ typedef char *va_list;
  * Storage alignment properties
  */
 
-#define  _AUPBND         (sizeof(int) - 1)
-#define  _ADNBND         (sizeof(int) - 1)
+#define  _AUPBND         (sizeof (NATIVE_INT) - 1)
+#define  _ADNBND         (sizeof (NATIVE_INT) - 1)
 
 /*
  * Variable argument list macro definitions
  */
 
-#define _Bnd(X, bnd)    (((sizeof(X)) + (bnd)) & (~(bnd)))
-#define va_arg(ap, T)  (*(T *)(((ap)+=((_Bnd(T, _AUPBND)))-(_Bnd(T,_ADNBND)))))
-#define va_end(ap)      (void)0
-#define va_start(ap, A) (void)((ap)=(((char*)&(A))+(_Bnd(A,_AUPBND))))
+#define _Bnd(X, bnd)    (((sizeof (X)) + (bnd)) & (~(bnd)))
+#define va_arg(ap, T)   (*(T *)(((ap) += (_Bnd (T, _AUPBND))) - (_Bnd (T,_ADNBND))))
+#define va_end(ap)      (void) 0
+#define va_start(ap, A) (void) ((ap) = (((char *) &(A)) + (_Bnd (A,_AUPBND))))
 
 #endif /* va_arg */
 
 
-#define STRSTR(s1,s2)    AcpiCmStrstr  ((s1), (s2))
-#define STRUPR(s)        AcpiCmStrupr  ((s))
-#define STRLEN(s)        AcpiCmStrlen  ((s))
-#define STRCPY(d,s)      AcpiCmStrcpy  ((d), (s))
-#define STRNCPY(d,s,n)   AcpiCmStrncpy ((d), (s), (n))
-#define STRNCMP(d,s,n)   AcpiCmStrncmp ((d), (s), (n))
-#define STRCMP(d,s)      AcpiCmStrcmp  ((d), (s))
-#define STRCAT(d,s)      AcpiCmStrcat  ((d), (s))
-#define STRNCAT(d,s,n)   AcpiCmStrncat ((d), (s), (n))
-#define STRTOUL(d,s,n)   AcpiCmStrtoul ((d), (s),(n))
-#define MEMCPY(d,s,n)    AcpiCmMemcpy  ((d), (s), (n))
-#define MEMSET(d,v,n)    AcpiCmMemset  ((d), (v), (n))
-#define TOUPPER          AcpiCmToUpper
-#define TOLOWER          AcpiCmToLower
+#define STRSTR(s1,s2)    AcpiUtStrstr  ((s1), (s2))
+#define STRUPR(s)        AcpiUtStrupr  ((s))
+#define STRLEN(s)        AcpiUtStrlen  ((s))
+#define STRCPY(d,s)      AcpiUtStrcpy  ((d), (s))
+#define STRNCPY(d,s,n)   AcpiUtStrncpy ((d), (s), (n))
+#define STRNCMP(d,s,n)   AcpiUtStrncmp ((d), (s), (n))
+#define STRCMP(d,s)      AcpiUtStrcmp  ((d), (s))
+#define STRCAT(d,s)      AcpiUtStrcat  ((d), (s))
+#define STRNCAT(d,s,n)   AcpiUtStrncat ((d), (s), (n))
+#define STRTOUL(d,s,n)   AcpiUtStrtoul ((d), (s),(n))
+#define MEMCPY(d,s,n)    AcpiUtMemcpy  ((d), (s), (n))
+#define MEMSET(d,v,n)    AcpiUtMemset  ((d), (v), (n))
+#define TOUPPER          AcpiUtToUpper
+#define TOLOWER          AcpiUtToLower
 
 #endif /* ACPI_USE_SYSTEM_CLIBRARY */
 

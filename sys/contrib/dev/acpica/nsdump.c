@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 85 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -123,13 +123,13 @@
 #include "actables.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsdump")
 
 
 #if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpPathname
  *
@@ -141,7 +141,7 @@
  * DESCRIPTION: Print an object's full namespace pathname
  *              Manages allocation/freeing of a pathname buffer
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiNsDumpPathname (
@@ -163,7 +163,7 @@ AcpiNsDumpPathname (
         return_ACPI_STATUS (AE_OK);
     }
 
-    Buffer = AcpiCmAllocate (PATHNAME_MAX);
+    Buffer = AcpiUtAllocate (PATHNAME_MAX);
     if (!Buffer)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -177,13 +177,13 @@ AcpiNsDumpPathname (
         AcpiOsPrintf ("%s %s (%p)\n", Msg, Buffer, Handle);
     }
 
-    AcpiCmFree (Buffer);
+    AcpiUtFree (Buffer);
 
     return_ACPI_STATUS (AE_OK);
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpOneObject
  *
@@ -194,7 +194,7 @@ AcpiNsDumpPathname (
  * DESCRIPTION: Dump a single Node
  *              This procedure is a UserFunction called by AcpiNsWalkNamespace.
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiNsDumpOneObject (
@@ -207,8 +207,8 @@ AcpiNsDumpOneObject (
     ACPI_NAMESPACE_NODE     *ThisNode;
     UINT8                   *Value;
     ACPI_OPERAND_OBJECT     *ObjDesc = NULL;
-    OBJECT_TYPE_INTERNAL    ObjType;
-    OBJECT_TYPE_INTERNAL    Type;
+    ACPI_OBJECT_TYPE8       ObjType;
+    ACPI_OBJECT_TYPE8       Type;
     UINT32                  BytesToDump;
     UINT32                  DownstreamSiblingMask = 0;
     UINT32                  LevelTmp;
@@ -229,7 +229,7 @@ AcpiNsDumpOneObject (
 
     if (!ObjHandle)
     {
-        DEBUG_PRINT (ACPI_INFO, ("Null object handle\n"));
+        DEBUG_PRINT (ACPI_INFO, ("NsDumpOneObject: Null object handle\n"));
         return (AE_OK);
     }
 
@@ -303,7 +303,7 @@ AcpiNsDumpOneObject (
         Type = INTERNAL_TYPE_DEF_ANY;                                /* prints as *ERROR* */
     }
 
-    if (!AcpiCmValidAcpiName (ThisNode->Name))
+    if (!AcpiUtValidAcpiName (ThisNode->Name))
     {
         REPORT_WARNING (("Invalid ACPI Name %08X\n", ThisNode->Name));
     }
@@ -312,7 +312,7 @@ AcpiNsDumpOneObject (
      * Now we can print out the pertinent information
      */
 
-    DEBUG_PRINT_RAW (TRACE_TABLES, (" %4.4s %-9s ", &ThisNode->Name, AcpiCmGetTypeName (Type)));
+    DEBUG_PRINT_RAW (TRACE_TABLES, (" %4.4s %-9s ", &ThisNode->Name, AcpiUtGetTypeName (Type)));
     DEBUG_PRINT_RAW (TRACE_TABLES, ("%p S:%p O:%p",  ThisNode, ThisNode->Child, ThisNode->Object));
 
 
@@ -416,7 +416,7 @@ AcpiNsDumpOneObject (
             else
             {
                 DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type %X [%s])\n",
-                                    ObjType, AcpiCmGetTypeName (ObjType)));
+                                    ObjType, AcpiUtGetTypeName (ObjType)));
                 BytesToDump = sizeof (ACPI_OPERAND_OBJECT);
             }
         }
@@ -450,6 +450,10 @@ AcpiNsDumpOneObject (
             Value = (UINT8 *) ObjDesc->Buffer.Pointer;
             break;
 
+        case ACPI_TYPE_BUFFER_FIELD:
+            Value = (UINT8 *) ObjDesc->BufferField.BufferObj;
+            break;
+
         case ACPI_TYPE_PACKAGE:
             Value = (UINT8 *) ObjDesc->Package.Elements;
             break;
@@ -458,20 +462,16 @@ AcpiNsDumpOneObject (
             Value = (UINT8 *) ObjDesc->Method.Pcode;
             break;
 
-        case ACPI_TYPE_FIELD_UNIT:
-            Value = (UINT8 *) ObjDesc->FieldUnit.Container;
-            break;
-
-        case INTERNAL_TYPE_DEF_FIELD:
-            Value = (UINT8 *) ObjDesc->Field.Container;
+        case INTERNAL_TYPE_REGION_FIELD:
+            Value = (UINT8 *) ObjDesc->Field.RegionObj;
             break;
 
         case INTERNAL_TYPE_BANK_FIELD:
-            Value = (UINT8 *) ObjDesc->BankField.Container;
+            Value = (UINT8 *) ObjDesc->BankField.RegionObj;
             break;
 
         case INTERNAL_TYPE_INDEX_FIELD:
-            Value = (UINT8 *) ObjDesc->IndexField.Index;
+            Value = (UINT8 *) ObjDesc->IndexField.IndexObj;
             break;
 
        default:
@@ -487,7 +487,7 @@ Cleanup:
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpObjects
  *
@@ -501,11 +501,11 @@ Cleanup:
  * DESCRIPTION: Dump typed objects within the loaded namespace.
  *              Uses AcpiNsWalkNamespace in conjunction with AcpiNsDumpOneObject.
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiNsDumpObjects (
-    OBJECT_TYPE_INTERNAL    Type,
+    ACPI_OBJECT_TYPE8       Type,
     UINT32                  MaxDepth,
     UINT32                  OwnerId,
     ACPI_HANDLE             StartHandle)
@@ -522,7 +522,7 @@ AcpiNsDumpObjects (
 
 
 #ifndef _ACPI_ASL_COMPILER
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpOneDevice
  *
@@ -533,7 +533,7 @@ AcpiNsDumpObjects (
  * DESCRIPTION: Dump a single Node that represents a device
  *              This procedure is a UserFunction called by AcpiNsWalkNamespace.
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiNsDumpOneDevice (
@@ -565,7 +565,7 @@ AcpiNsDumpOneDevice (
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpRootDevices
  *
@@ -573,7 +573,7 @@ AcpiNsDumpOneDevice (
  *
  * DESCRIPTION: Dump all objects of type "device"
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiNsDumpRootDevices (void)
@@ -597,7 +597,7 @@ AcpiNsDumpRootDevices (void)
 
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpTables
  *
@@ -608,7 +608,7 @@ AcpiNsDumpRootDevices (void)
  *
  * DESCRIPTION: Dump the name space, or a portion of it.
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiNsDumpTables (
@@ -627,7 +627,7 @@ AcpiNsDumpTables (
          * If the name space has not been initialized,
          * there is nothing to dump.
          */
-        DEBUG_PRINT (TRACE_TABLES, ("NsDumpTables: name space not initialized!\n"));
+        DEBUG_PRINTP (TRACE_TABLES, ("name space not initialized!\n"));
         return_VOID;
     }
 
@@ -645,7 +645,7 @@ AcpiNsDumpTables (
 }
 
 
-/****************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsDumpEntry
  *
@@ -654,7 +654,7 @@ AcpiNsDumpTables (
  *
  * DESCRIPTION: Dump a single Node
  *
- ***************************************************************************/
+ ******************************************************************************/
 
 void
 AcpiNsDumpEntry (
@@ -671,7 +671,6 @@ AcpiNsDumpEntry (
 
     AcpiNsDumpOneObject (Handle, 1, &Info, NULL);
 
-    DEBUG_PRINT (TRACE_EXEC, ("leave AcpiNsDumpEntry %p\n", Handle));
     return_VOID;
 }
 

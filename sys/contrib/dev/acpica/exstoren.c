@@ -1,9 +1,9 @@
 
 /******************************************************************************
  *
- * Module Name: amstoren - AML Interpreter object store support,
+ * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 28 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -116,7 +116,7 @@
  *
  *****************************************************************************/
 
-#define __AMSTOREN_C__
+#define __EXSTOREN_C__
 
 #include "acpi.h"
 #include "acparser.h"
@@ -127,15 +127,13 @@
 #include "actables.h"
 
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amstoren")
-
-
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exstoren")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlResolveObject
+ * FUNCTION:    AcpiExResolveObject
  *
  * PARAMETERS:  SourceDescPtr       - Pointer to the source object
  *              TargetType          - Current type of the target
@@ -143,22 +141,22 @@
  *
  * RETURN:      Status, resolved object in SourceDescPtr.
  *
- * DESCRIPTION: Resolve an object.  If the object is a reference, dereference 
+ * DESCRIPTION: Resolve an object.  If the object is a reference, dereference
  *              it and return the actual object in the SourceDescPtr.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlResolveObject (
+AcpiExResolveObject (
     ACPI_OPERAND_OBJECT     **SourceDescPtr,
-    OBJECT_TYPE_INTERNAL    TargetType,
+    ACPI_OBJECT_TYPE8       TargetType,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     *SourceDesc = *SourceDescPtr;
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("AmlResolveObject");
+    FUNCTION_TRACE ("ExResolveObject");
 
 
     /*
@@ -173,18 +171,21 @@ AcpiAmlResolveObject (
      * These cases all require only Integers or values that
      * can be converted to Integers (Strings or Buffers)
      */
-    case ACPI_TYPE_INTEGER:
-    case ACPI_TYPE_FIELD_UNIT:
+    case ACPI_TYPE_BUFFER_FIELD:
+    case INTERNAL_TYPE_REGION_FIELD:
     case INTERNAL_TYPE_BANK_FIELD:
     case INTERNAL_TYPE_INDEX_FIELD:
 
     /*
-     * Stores into a Field/Region or into a Buffer/String 
+     * Stores into a Field/Region or into a Buffer/String
      * are all essentially the same.
      */
+    case ACPI_TYPE_INTEGER:
     case ACPI_TYPE_STRING:
     case ACPI_TYPE_BUFFER:
-    case INTERNAL_TYPE_DEF_FIELD:
+
+
+        /* TBD: FIX - check for source==REF, resolve, then check type */
 
         /*
          * If SourceDesc is not a valid type, try to resolve it to one.
@@ -196,7 +197,7 @@ AcpiAmlResolveObject (
             /*
              * Initially not a valid type, convert
              */
-            Status = AcpiAmlResolveToValue (SourceDescPtr, WalkState);
+            Status = AcpiExResolveToValue (SourceDescPtr, WalkState);
             if (ACPI_SUCCESS (Status) &&
                 (SourceDesc->Common.Type != ACPI_TYPE_INTEGER)     &&
                 (SourceDesc->Common.Type != ACPI_TYPE_BUFFER)      &&
@@ -205,10 +206,10 @@ AcpiAmlResolveObject (
                 /*
                  * Conversion successful but still not a valid type
                  */
-                DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlResolveObject: Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
-                    AcpiCmGetTypeName ((*SourceDescPtr)->Common.Type),
-                    AcpiCmGetTypeName (TargetType)));
+                DEBUG_PRINTP (ACPI_ERROR,
+                    ("Cannot assign type %s to %s (must be type Int/Str/Buf)\n",
+                    AcpiUtGetTypeName ((*SourceDescPtr)->Common.Type),
+                    AcpiUtGetTypeName (TargetType)));
                 Status = AE_AML_OPERAND_TYPE;
             }
         }
@@ -218,11 +219,9 @@ AcpiAmlResolveObject (
     case INTERNAL_TYPE_ALIAS:
 
         /*
-         * Aliases are resolved by AcpiAmlPrepOperands
+         * Aliases are resolved by AcpiExPrepOperands
          */
-        DEBUG_PRINT (ACPI_WARN,
-            ("AmlResolveObject: Store into Alias - should never happen\n"));
-
+        DEBUG_PRINTP (ACPI_WARN, ("Store into Alias - should never happen\n"));
         Status = AE_AML_INTERNAL;
         break;
 
@@ -241,11 +240,9 @@ AcpiAmlResolveObject (
 }
 
 
-
-
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlStoreObject
+ * FUNCTION:    AcpiExStoreObject
  *
  * PARAMETERS:  SourceDesc          - Object to store
  *              TargetType          - Current type of the target
@@ -254,7 +251,7 @@ AcpiAmlResolveObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: "Store" an object to another object.  This may include 
+ * DESCRIPTION: "Store" an object to another object.  This may include
  *              converting the source type to the target type (implicit
  *              conversion), and a copy of the value of the source to
  *              the target.
@@ -262,17 +259,17 @@ AcpiAmlResolveObject (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlStoreObject (
+AcpiExStoreObject (
     ACPI_OPERAND_OBJECT     *SourceDesc,
-    OBJECT_TYPE_INTERNAL    TargetType,
+    ACPI_OBJECT_TYPE8       TargetType,
     ACPI_OPERAND_OBJECT     **TargetDescPtr,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     *TargetDesc = *TargetDescPtr;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("AmlStoreObject");
+    FUNCTION_TRACE ("ExStoreObject");
 
 
     /*
@@ -282,12 +279,11 @@ AcpiAmlStoreObject (
      * If no conversion performed, SourceDesc is left alone, otherwise it
      * is updated with a new object.
      */
-    Status = AcpiAmlConvertToTargetType (TargetType, &SourceDesc, WalkState);
+    Status = AcpiExConvertToTargetType (TargetType, &SourceDesc, WalkState);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
-
 
     /*
      * We now have two objects of identical types, and we can perform a
@@ -297,8 +293,8 @@ AcpiAmlStoreObject (
     {
     case ACPI_TYPE_ANY:
     case INTERNAL_TYPE_DEF_ANY:
-        
-        /* 
+
+        /*
          * The target namespace node is uninitialized (has no target object),
          * and will take on the type of the source object
          */
@@ -313,37 +309,18 @@ AcpiAmlStoreObject (
 
         /* Truncate value if we are executing from a 32-bit ACPI table */
 
-        AcpiAmlTruncateFor32bitTable (TargetDesc, WalkState);
+        AcpiExTruncateFor32bitTable (TargetDesc, WalkState);
         break;
-
-
-    case ACPI_TYPE_FIELD_UNIT:
-
-        Status = AcpiAmlCopyIntegerToFieldUnit (SourceDesc, TargetDesc);
-        break;
-
-
-    case INTERNAL_TYPE_BANK_FIELD:
-
-        Status = AcpiAmlCopyIntegerToBankField (SourceDesc, TargetDesc);
-        break;
-
-
-    case INTERNAL_TYPE_INDEX_FIELD:
-
-        Status = AcpiAmlCopyIntegerToIndexField (SourceDesc, TargetDesc);
-        break;
-
 
     case ACPI_TYPE_STRING:
 
-        Status = AcpiAmlCopyStringToString (SourceDesc, TargetDesc);
+        Status = AcpiExCopyStringToString (SourceDesc, TargetDesc);
         break;
 
 
     case ACPI_TYPE_BUFFER:
 
-        Status = AcpiAmlCopyBufferToBuffer (SourceDesc, TargetDesc);
+        Status = AcpiExCopyBufferToBuffer (SourceDesc, TargetDesc);
         break;
 
 
@@ -361,9 +338,8 @@ AcpiAmlStoreObject (
         /*
          * All other types come here.
          */
-        DEBUG_PRINT (ACPI_WARN,
-            ("AmlStoreObject: Store into type %s not implemented\n",
-            AcpiCmGetTypeName (TargetType)));
+        DEBUG_PRINTP (ACPI_WARN, ("Store into type %s not implemented\n",
+            AcpiUtGetTypeName (TargetType)));
 
         Status = AE_NOT_IMPLEMENTED;
         break;

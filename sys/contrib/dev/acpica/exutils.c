@@ -1,8 +1,8 @@
 
 /******************************************************************************
  *
- * Module Name: amutils - interpreter/scanner utilities
- *              $Revision: 69 $
+ * Module Name: exutils - interpreter/scanner utilities
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -115,7 +115,7 @@
  *
  *****************************************************************************/
 
-#define __AMUTILS_C__
+#define __EXUTILS_C__
 
 #include "acpi.h"
 #include "acparser.h"
@@ -124,36 +124,37 @@
 #include "acnamesp.h"
 #include "acevents.h"
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amutils")
-
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exutils")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlEnterInterpreter
+ * FUNCTION:    AcpiExEnterInterpreter
  *
  * PARAMETERS:  None
  *
  * DESCRIPTION: Enter the interpreter execution region
+ *              TBD: should be a macro
  *
  ******************************************************************************/
 
-void
-AcpiAmlEnterInterpreter (void)
+ACPI_STATUS
+AcpiExEnterInterpreter (void)
 {
-    FUNCTION_TRACE ("AmlEnterInterpreter");
+    ACPI_STATUS             Status;
+
+    FUNCTION_TRACE ("ExEnterInterpreter");
 
 
-    AcpiCmAcquireMutex (ACPI_MTX_EXECUTE);
-
-    return_VOID;
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EXECUTE);
+    return_ACPI_STATUS (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExitInterpreter
+ * FUNCTION:    AcpiExExitInterpreter
  *
  * PARAMETERS:  None
  *
@@ -169,15 +170,17 @@ AcpiAmlEnterInterpreter (void)
  *          already executing
  *      7) About to invoke a user-installed opregion handler
  *
+ *              TBD: should be a macro
+ *
  ******************************************************************************/
 
 void
-AcpiAmlExitInterpreter (void)
+AcpiExExitInterpreter (void)
 {
-    FUNCTION_TRACE ("AmlExitInterpreter");
+    FUNCTION_TRACE ("ExExitInterpreter");
 
 
-    AcpiCmReleaseMutex (ACPI_MTX_EXECUTE);
+    AcpiUtReleaseMutex (ACPI_MTX_EXECUTE);
 
     return_VOID;
 }
@@ -185,7 +188,7 @@ AcpiAmlExitInterpreter (void)
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlValidateObjectType
+ * FUNCTION:    AcpiExValidateObjectType
  *
  * PARAMETERS:  Type            Object type to validate
  *
@@ -194,7 +197,7 @@ AcpiAmlExitInterpreter (void)
  ******************************************************************************/
 
 BOOLEAN
-AcpiAmlValidateObjectType (
+AcpiExValidateObjectType (
     ACPI_OBJECT_TYPE        Type)
 {
 
@@ -210,7 +213,7 @@ AcpiAmlValidateObjectType (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlTruncateFor32bitTable
+ * FUNCTION:    AcpiExTruncateFor32bitTable
  *
  * PARAMETERS:  ObjDesc         - Object to be truncated
  *              WalkState       - Current walk state
@@ -224,7 +227,7 @@ AcpiAmlValidateObjectType (
  ******************************************************************************/
 
 void
-AcpiAmlTruncateFor32bitTable (
+AcpiExTruncateFor32bitTable (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState)
 {
@@ -254,7 +257,7 @@ AcpiAmlTruncateFor32bitTable (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlAcquireGlobalLock
+ * FUNCTION:    AcpiExAcquireGlobalLock
  *
  * PARAMETERS:  Rule            - Lock rule: AlwaysLock, NeverLock
  *
@@ -267,32 +270,32 @@ AcpiAmlTruncateFor32bitTable (
  ******************************************************************************/
 
 BOOLEAN
-AcpiAmlAcquireGlobalLock (
+AcpiExAcquireGlobalLock (
     UINT32                  Rule)
 {
     BOOLEAN                 Locked = FALSE;
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AmlAcquireGlobalLock");
+    FUNCTION_TRACE ("ExAcquireGlobalLock");
 
 
-    /*  Only attempt lock if the Rule says so */
+    /* Only attempt lock if the Rule says so */
 
     if (Rule == (UINT32) GLOCK_ALWAYS_LOCK)
     {
-        /*  OK to get the lock   */
+        /* We should attempt to get the lock */
 
         Status = AcpiEvAcquireGlobalLock ();
-        if (ACPI_FAILURE (Status))
-        {
-            DEBUG_PRINT (ACPI_ERROR, ("Get Global Lock Failed!!\n"));
-        }
-
         if (ACPI_SUCCESS (Status))
         {
-            AcpiGbl_GlobalLockSet = TRUE;
             Locked = TRUE;
+        }
+
+        else
+        {
+            DEBUG_PRINTP (ACPI_ERROR, ("Could not acquire Global Lock, %s\n",
+                AcpiUtFormatException (Status)));
         }
     }
 
@@ -302,7 +305,7 @@ AcpiAmlAcquireGlobalLock (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlReleaseGlobalLock
+ * FUNCTION:    AcpiExReleaseGlobalLock
  *
  * PARAMETERS:  LockedByMe      - Return value from corresponding call to
  *                                AcquireGlobalLock.
@@ -314,31 +317,20 @@ AcpiAmlAcquireGlobalLock (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlReleaseGlobalLock (
+AcpiExReleaseGlobalLock (
     BOOLEAN                 LockedByMe)
 {
 
-    FUNCTION_TRACE ("AmlReleaseGlobalLock");
+    FUNCTION_TRACE ("ExReleaseGlobalLock");
 
 
     /* Only attempt unlock if the caller locked it */
 
     if (LockedByMe)
     {
-        /* Double check against the global flag */
+        /* OK, now release the lock */
 
-        if (AcpiGbl_GlobalLockSet)
-        {
-            /* OK, now release the lock */
-
-            AcpiEvReleaseGlobalLock ();
-            AcpiGbl_GlobalLockSet = FALSE;
-        }
-
-        else
-        {
-            DEBUG_PRINT (ACPI_ERROR, ("Global lock was not set\n"));
-        }
+        AcpiEvReleaseGlobalLock ();
     }
 
 
@@ -348,7 +340,7 @@ AcpiAmlReleaseGlobalLock (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlDigitsNeeded
+ * FUNCTION:    AcpiExDigitsNeeded
  *
  * PARAMETERS:  val             - Value to be represented
  *              base            - Base of representation
@@ -358,24 +350,27 @@ AcpiAmlReleaseGlobalLock (
  ******************************************************************************/
 
 UINT32
-AcpiAmlDigitsNeeded (
+AcpiExDigitsNeeded (
     ACPI_INTEGER            val,
     UINT32                  base)
 {
     UINT32                  NumDigits = 0;
 
 
-    FUNCTION_TRACE ("AmlDigitsNeeded");
+    FUNCTION_TRACE ("ExDigitsNeeded");
 
 
     if (base < 1)
     {
-        REPORT_ERROR (("AmlDigitsNeeded: Internal error - Invalid base\n"));
+        REPORT_ERROR (("ExDigitsNeeded: Internal error - Invalid base\n"));
     }
 
     else
     {
-        for (NumDigits = 1 + (val < 0); (val = ACPI_DIVIDE (val,base)); ++NumDigits)
+        /*
+         * ACPI_INTEGER is unsigned, which is why we don't worry about the '-'
+         */
+        for (NumDigits = 1; (val = ACPI_DIVIDE (val,base)); ++NumDigits)
         { ; }
     }
 
@@ -423,7 +418,7 @@ _ntohl (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlEisaIdToString
+ * FUNCTION:    AcpiExEisaIdToString
  *
  * PARAMETERS:  NumericId       - EISA ID to be converted
  *              OutString       - Where to put the converted string (8 bytes)
@@ -433,7 +428,7 @@ _ntohl (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlEisaIdToString (
+AcpiExEisaIdToString (
     UINT32                  NumericId,
     NATIVE_CHAR             *OutString)
 {
@@ -458,7 +453,7 @@ AcpiAmlEisaIdToString (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlUnsignedIntegerToString
+ * FUNCTION:    AcpiExUnsignedIntegerToString
  *
  * PARAMETERS:  Value           - Value to be converted
  *              OutString       - Where to put the converted string (8 bytes)
@@ -468,7 +463,7 @@ AcpiAmlEisaIdToString (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlUnsignedIntegerToString (
+AcpiExUnsignedIntegerToString (
     ACPI_INTEGER            Value,
     NATIVE_CHAR             *OutString)
 {
@@ -476,7 +471,7 @@ AcpiAmlUnsignedIntegerToString (
     UINT32                  DigitsNeeded;
 
 
-    DigitsNeeded = AcpiAmlDigitsNeeded (Value, 10);
+    DigitsNeeded = AcpiExDigitsNeeded (Value, 10);
 
     OutString[DigitsNeeded] = '\0';
 
@@ -488,9 +483,5 @@ AcpiAmlUnsignedIntegerToString (
 
     return (AE_OK);
 }
-
-
-
-
 
 

@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 83 $
+ *              $Revision: 91 $
  *
  ******************************************************************************/
 
@@ -125,7 +125,7 @@
 #include "acnamesp.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nseval")
 
 
@@ -186,12 +186,12 @@ AcpiNsEvaluateRelative (
 
     /* Get the prefix handle and Node */
 
-    AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
 
     PrefixNode = AcpiNsConvertHandleToEntry (Handle);
     if (!PrefixNode)
     {
-        AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         Status = AE_BAD_PARAMETER;
         goto Cleanup;
     }
@@ -203,13 +203,12 @@ AcpiNsEvaluateRelative (
                             IMODE_EXECUTE, NS_NO_UPSEARCH, NULL,
                             &Node);
 
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_INFO,
-            ("NsEvaluateRelative: Object [%s] not found [%.4X]\n",
-            Pathname, AcpiCmFormatException (Status)));
+        DEBUG_PRINTP (ACPI_INFO, ("Object [%s] not found [%s]\n",
+            Pathname, AcpiUtFormatException (Status)));
         goto Cleanup;
     }
 
@@ -218,22 +217,17 @@ AcpiNsEvaluateRelative (
      * to evaluate it.
      */
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("NsEvaluateRelative: %s [%p] Value %p\n",
+    DEBUG_PRINTP (ACPI_INFO, ("%s [%p] Value %p\n",
         Pathname, Node, Node->Object));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("NsEvaluateRelative: *** Completed eval of object %s ***\n",
+    DEBUG_PRINTP (ACPI_INFO, ("*** Completed eval of object %s ***\n",
         Pathname));
 
 Cleanup:
 
-    /* Cleanup */
-
-    AcpiCmFree (InternalPath);
-
+    AcpiUtFree (InternalPath);
     return_ACPI_STATUS (Status);
 }
 
@@ -280,7 +274,7 @@ AcpiNsEvaluateByName (
         return_ACPI_STATUS (Status);
     }
 
-    AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
 
     /* Lookup the name in the namespace */
 
@@ -288,12 +282,11 @@ AcpiNsEvaluateByName (
                             IMODE_EXECUTE, NS_NO_UPSEARCH, NULL,
                             &Node);
 
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_INFO,
-            ("NsEvaluateByName: Object at [%s] was not found, status=%.4X\n",
+        DEBUG_PRINTP (ACPI_INFO, ("Object at [%s] was not found, status=%.4X\n",
             Pathname, Status));
         goto Cleanup;
     }
@@ -303,14 +296,12 @@ AcpiNsEvaluateByName (
      * to evaluate it.
      */
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("NsEvaluateByName: %s [%p] Value %p\n",
+    DEBUG_PRINTP (ACPI_INFO, ("%s [%p] Value %p\n", 
         Pathname, Node, Node->Object));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("NsEvaluateByName: *** Completed eval of object %s ***\n",
+    DEBUG_PRINTP (ACPI_INFO, ("*** Completed eval of object %s ***\n",
         Pathname));
 
 
@@ -320,7 +311,7 @@ Cleanup:
 
     if (InternalPath)
     {
-        AcpiCmFree (InternalPath);
+        AcpiUtFree (InternalPath);
     }
 
     return_ACPI_STATUS (Status);
@@ -383,12 +374,12 @@ AcpiNsEvaluateByHandle (
 
     /* Get the prefix handle and Node */
 
-    AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
 
     Node = AcpiNsConvertHandleToEntry (Handle);
     if (!Node)
     {
-        AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -491,6 +482,27 @@ AcpiNsExecuteControlMethod (
     FUNCTION_TRACE ("NsExecuteControlMethod");
 
 
+    /* Verify that there is a method associated with this object */
+
+    ObjDesc = AcpiNsGetAttachedObject (MethodNode);
+    if (!ObjDesc)
+    {
+        DEBUG_PRINTP (ACPI_ERROR, ("No attached method object\n"));
+
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+        return_ACPI_STATUS (AE_ERROR);
+    }
+
+
+    DEBUG_PRINTP (ACPI_INFO, ("Control method at Offset %x Length %lx]\n",
+        ObjDesc->Method.Pcode + 1, ObjDesc->Method.PcodeLength - 1));
+
+    DUMP_PATHNAME (MethodNode, "NsExecuteControlMethod: Executing",
+        TRACE_NAMES, _COMPONENT);
+
+    DEBUG_PRINTP (TRACE_NAMES, ("At offset %8XH\n", ObjDesc->Method.Pcode + 1));
+
+
     /*
      * Unlock the namespace before execution.  This allows namespace access
      * via the external Acpi* interfaces while a method is being executed.
@@ -498,34 +510,12 @@ AcpiNsExecuteControlMethod (
      * interpreter locks to ensure that no thread is using the portion of the
      * namespace that is being deleted.
      */
-
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
-
-    /* Verify that there is a method associated with this object */
-
-    ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) MethodNode);
-    if (!ObjDesc)
-    {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("Control method is undefined (nil value)\n"));
-        return_ACPI_STATUS (AE_ERROR);
-    }
-
-
-    DEBUG_PRINT (ACPI_INFO, ("Control method at Offset %x Length %lx]\n",
-                    ObjDesc->Method.Pcode + 1,
-                    ObjDesc->Method.PcodeLength - 1));
-
-    DUMP_PATHNAME (MethodNode, "NsExecuteControlMethod: Executing",
-                    TRACE_NAMES, _COMPONENT);
-
-    DEBUG_PRINT (TRACE_NAMES,
-        ("At offset %8XH\n", ObjDesc->Method.Pcode + 1));
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
     /*
      * Execute the method via the interpreter
      */
-    Status = AcpiAmlExecuteMethod (MethodNode, Params, ReturnObjDesc);
+    Status = AcpiExExecuteMethod (MethodNode, Params, ReturnObjDesc);
 
     return_ACPI_STATUS (Status);
 }
@@ -568,7 +558,7 @@ AcpiNsGetObjectValue (
         /*
          *  Create a Reference object to contain the object
          */
-        ObjDesc = AcpiCmCreateInternalObject (Node->Type);
+        ObjDesc = AcpiUtCreateInternalObject (Node->Type);
         if (!ObjDesc)
         {
            Status = AE_NO_MEMORY;
@@ -595,6 +585,7 @@ AcpiNsGetObjectValue (
 
         MEMCPY (ObjDesc, ValDesc, sizeof (ACPI_OPERAND_OBJECT));
         ObjDesc->Common.ReferenceCount = 1;
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     }
 
 
@@ -606,7 +597,7 @@ AcpiNsGetObjectValue (
     {
         /* Create an Reference object to contain the object */
 
-        ObjDesc = AcpiCmCreateInternalObject (INTERNAL_TYPE_REFERENCE);
+        ObjDesc = AcpiUtCreateInternalObject (INTERNAL_TYPE_REFERENCE);
         if (!ObjDesc)
         {
            Status = AE_NO_MEMORY;
@@ -615,32 +606,38 @@ AcpiNsGetObjectValue (
 
         /* Construct a descriptor pointing to the name */
 
-        ObjDesc->Reference.OpCode  = (UINT8) AML_NAME_OP;
+        ObjDesc->Reference.Opcode  = (UINT8) AML_NAME_OP;
         ObjDesc->Reference.Object  = (void *) Node;
 
         /*
-         * Use AcpiAmlResolveToValue() to get the associated value.
-         * The call to AcpiAmlResolveToValue causes
-         * ObjDesc (allocated above) to always be deleted.
+         * Use ResolveToValue() to get the associated value.  This call
+         * always deletes ObjDesc (allocated above).
          *
          * NOTE: we can get away with passing in NULL for a walk state
          * because ObjDesc is guaranteed to not be a reference to either
          * a method local or a method argument
          *
-         * Even though we do not technically need to use the interpreter
-         * for this, we must enter it because we could hit an opregion.
-         * The opregion access code assumes it is in the interpreter.
+         * Even though we do not directly invoke the interpreter
+         * for this, we must enter it because we could access an opregion.
+         * The opregion access code assumes that the interpreter
+         * is locked.
+         *
+         * We must release the namespace lock before entering the
+         * intepreter.
          */
 
-        AcpiAmlEnterInterpreter();
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+        Status = AcpiExEnterInterpreter ();
+        if (ACPI_SUCCESS (Status))
+        {
+            Status = AcpiExResolveToValue (&ObjDesc, NULL);
 
-        Status = AcpiAmlResolveToValue (&ObjDesc, NULL);
-
-        AcpiAmlExitInterpreter();
+            AcpiExExitInterpreter ();
+        }
     }
 
     /*
-     * If AcpiAmlResolveToValue() succeeded, the return value was
+     * If AcpiExResolveToValue() succeeded, the return value was
      * placed in ObjDesc.
      */
 
@@ -649,15 +646,18 @@ AcpiNsGetObjectValue (
         Status = AE_CTRL_RETURN_VALUE;
 
         *ReturnObjDesc = ObjDesc;
-        DEBUG_PRINT (ACPI_INFO,
-            ("NsGetObjectValue: Returning obj %p\n", *ReturnObjDesc));
+        DEBUG_PRINTP (ACPI_INFO, ("Returning obj %p\n", *ReturnObjDesc));
     }
+
+    /* Namespace is unlocked */
+
+    return_ACPI_STATUS (Status);
 
 
 UnlockAndExit:
 
     /* Unlock the namespace */
 
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }

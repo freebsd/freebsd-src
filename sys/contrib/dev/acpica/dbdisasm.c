@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisasm - parser op tree display routines
- *              $Revision: 37 $
+ *              $Revision: 40 $
  *
  ******************************************************************************/
 
@@ -124,7 +124,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbdisasm")
 
 
@@ -334,9 +334,13 @@ AcpiDbDisplayOp (
                 }
 
                 if (AcpiDbBlockType (Op) == BLOCK_PAREN)
+                {
                     AcpiOsPrintf ("(\n");
+                }
                 else
+                {
                     AcpiOsPrintf ("{\n");
+                }
             }
 
             /* Close a block if we are nested less than last time */
@@ -352,9 +356,13 @@ AcpiDbDisplayOp (
                     }
 
                     if (AcpiDbBlockType (Op) == BLOCK_PAREN)
+                    {
                         AcpiOsPrintf (")\n");
+                    }
                     else
+                    {
                         AcpiOsPrintf ("}\n");
+                    }
                 }
             }
 
@@ -377,7 +385,7 @@ AcpiDbDisplayOp (
 
             /* Resolve a name reference */
 
-            if ((Op->Opcode == AML_NAMEPATH_OP && Op->Value.Name)  &&
+            if ((Op->Opcode == AML_INT_NAMEPATH_OP && Op->Value.Name)  &&
                 (Op->Parent) &&
                 (opt_verbose))
             {
@@ -706,7 +714,7 @@ AcpiDbDisplayOpcode (
         break;
 
 
-    case AML_STATICSTRING_OP:
+    case AML_INT_STATICSTRING_OP:
 
         if (Op->Value.String)
         {
@@ -721,31 +729,31 @@ AcpiDbDisplayOpcode (
         break;
 
 
-    case AML_NAMEPATH_OP:
+    case AML_INT_NAMEPATH_OP:
 
         AcpiDbDisplayNamestring (Op->Value.Name);
         break;
 
 
-    case AML_NAMEDFIELD_OP:
+    case AML_INT_NAMEDFIELD_OP:
 
         AcpiOsPrintf ("NamedField    (Length 0x%8.8X)  ", Op->Value.Integer);
         break;
 
 
-    case AML_RESERVEDFIELD_OP:
+    case AML_INT_RESERVEDFIELD_OP:
 
         AcpiOsPrintf ("ReservedField (Length 0x%8.8X)  ", Op->Value.Integer);
         break;
 
 
-    case AML_ACCESSFIELD_OP:
+    case AML_INT_ACCESSFIELD_OP:
 
         AcpiOsPrintf ("AccessField   (Length 0x%8.8X)  ", Op->Value.Integer);
         break;
 
 
-    case AML_BYTELIST_OP:
+    case AML_INT_BYTELIST_OP:
 
         if (opt_verbose)
         {
@@ -777,7 +785,7 @@ AcpiDbDisplayOpcode (
 
 
 #ifndef PARSER_ONLY
-        if ((Op->Opcode == AML_RETURN_VALUE_OP) &&
+        if ((Op->Opcode == AML_INT_RETURN_VALUE_OP) &&
             (WalkState->Results) &&
             (WalkState->Results->Results.NumResults))
         {

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 14 $
+ *              $Revision: 19 $
  *
  ******************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "acresrc.h"
 
 
-#define _COMPONENT          RESOURCE_MANAGER
+#define _COMPONENT          ACPI_RESOURCES
         MODULE_NAME         ("rsutils")
 
 
@@ -134,7 +134,7 @@
  *              RetBuffer       - a pointer to a buffer structure for the
  *                                  results
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get the _PRT value of an object
  *              contained in an object specified by the handle passed in
@@ -174,7 +174,7 @@ AcpiRsGetPrtMethodData (
     {
         /* Return object is required */
 
-        DEBUG_PRINT (ACPI_ERROR, ("No object was returned from _PRT\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("No object was returned from _PRT\n"));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -196,9 +196,8 @@ AcpiRsGetPrtMethodData (
      *  byte stream buffer that comes back from the _CRS method
      *  execution.
      */
-    Status = AcpiRsCreatePciRoutingTable (RetObj,
-                                      RetBuffer->Pointer,
-                                      &BufferSpaceNeeded);
+    Status = AcpiRsCreatePciRoutingTable (RetObj, RetBuffer->Pointer,
+                    &BufferSpaceNeeded);
 
     /*
      * Tell the user how much of the buffer we have used or is needed
@@ -211,8 +210,7 @@ AcpiRsGetPrtMethodData (
 
 Cleanup:
 
-    AcpiCmRemoveReference (RetObj);
-
+    AcpiUtRemoveReference (RetObj);
     return_ACPI_STATUS (Status);
 }
 
@@ -225,7 +223,7 @@ Cleanup:
  *              RetBuffer       - a pointer to a buffer structure for the
  *                                  results
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get the _CRS value of an object
  *              contained in an object specified by the handle passed in
@@ -263,7 +261,7 @@ AcpiRsGetCrsMethodData (
     {
         /* Return object is required */
 
-        DEBUG_PRINT (ACPI_ERROR, ("No object was returned from _CRS\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("No object was returned from _CRS\n"));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -284,15 +282,9 @@ AcpiRsGetCrsMethodData (
      *  byte stream buffer that comes back from the _CRS method
      *  execution.
      */
-    Status = AcpiRsCreateResourceList (RetObj,
-                                   RetBuffer->Pointer,
-                                   &BufferSpaceNeeded);
+    Status = AcpiRsCreateResourceList (RetObj, RetBuffer->Pointer,
+                &BufferSpaceNeeded);
 
-
-    if (ACPI_SUCCESS (Status))
-    {
-        DUMP_RESOURCE_LIST(RetBuffer->Pointer);
-    }
 
     /*
      * Tell the user how much of the buffer we have used or is needed
@@ -305,8 +297,7 @@ AcpiRsGetCrsMethodData (
 
 Cleanup:
 
-    AcpiCmRemoveReference (RetObj);
-
+    AcpiUtRemoveReference (RetObj);
     return_ACPI_STATUS (Status);
 }
 
@@ -319,7 +310,7 @@ Cleanup:
  *              RetBuffer       - a pointer to a buffer structure for the
  *                                  results
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get the _PRS value of an object
  *              contained in an object specified by the handle passed in
@@ -357,7 +348,7 @@ AcpiRsGetPrsMethodData (
     {
         /* Return object is required */
 
-        DEBUG_PRINT (ACPI_ERROR, ("No object was returned from _PRS\n"));
+        DEBUG_PRINTP (ACPI_ERROR, ("No object was returned from _PRS\n"));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -378,9 +369,8 @@ AcpiRsGetPrsMethodData (
      *  byte stream buffer that comes back from the _CRS method
      *  execution.
      */
-    Status = AcpiRsCreateResourceList (RetObj,
-                                   RetBuffer->Pointer,
-                                   &BufferSpaceNeeded);
+    Status = AcpiRsCreateResourceList (RetObj, RetBuffer->Pointer,
+                &BufferSpaceNeeded);
 
     /*
      * Tell the user how much of the buffer we have used or is needed
@@ -393,8 +383,7 @@ AcpiRsGetPrsMethodData (
 
 Cleanup:
 
-    AcpiCmRemoveReference (RetObj);
-
+    AcpiUtRemoveReference (RetObj);
     return_ACPI_STATUS (Status);
 }
 
@@ -407,7 +396,7 @@ Cleanup:
  *              InBuffer        - a pointer to a buffer structure of the
  *                                  parameter
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to set the _SRS of an object contained
  *              in an object specified by the handle passed in
@@ -436,20 +425,19 @@ AcpiRsSetSrsMethodData (
 
     /*
      * The InBuffer parameter will point to a linked list of
-     *  resource parameters.  It needs to be formatted into a
-     *  byte stream to be sent in as an input parameter.
+     * resource parameters.  It needs to be formatted into a
+     * byte stream to be sent in as an input parameter.
      */
     BufferSizeNeeded = 0;
 
     /*
      * First call is to get the buffer size needed
      */
-    Status = AcpiRsCreateByteStream (InBuffer->Pointer,
-                                 ByteStream,
-                                 &BufferSizeNeeded);
+    Status = AcpiRsCreateByteStream (InBuffer->Pointer, ByteStream,
+                &BufferSizeNeeded);
     /*
      * We expect a return of AE_BUFFER_OVERFLOW
-     *  if not, exit with the error
+     * if not, exit with the error
      */
     if (AE_BUFFER_OVERFLOW != Status)
     {
@@ -459,7 +447,7 @@ AcpiRsSetSrsMethodData (
     /*
      * Allocate the buffer needed
      */
-    ByteStream = AcpiCmCallocate(BufferSizeNeeded);
+    ByteStream = AcpiUtCallocate(BufferSizeNeeded);
     if (NULL == ByteStream)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -468,21 +456,20 @@ AcpiRsSetSrsMethodData (
     /*
      * Now call to convert the linked list into a byte stream
      */
-    Status = AcpiRsCreateByteStream (InBuffer->Pointer,
-                                 ByteStream,
-                                 &BufferSizeNeeded);
+    Status = AcpiRsCreateByteStream (InBuffer->Pointer, ByteStream,
+                &BufferSizeNeeded);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;
     }
 
     /*
-     *  Init the param object
+     * Init the param object
      */
-    AcpiCmInitStaticObject (&ParamObj);
+    AcpiUtInitStaticObject (&ParamObj);
 
     /*
-     *  Method requires one parameter.  Set it up
+     * Method requires one parameter.  Set it up
      */
     Params [0] = &ParamObj;
     Params [1] = NULL;
@@ -495,17 +482,16 @@ AcpiRsSetSrsMethodData (
     ParamObj.Buffer.Pointer = ByteStream;
 
     /*
-     *  Execute the method, no return value
+     * Execute the method, no return value
      */
     Status = AcpiNsEvaluateRelative (Handle, "_SRS", Params, NULL);
 
     /*
-     *  Clean up and return the status from AcpiNsEvaluateRelative
+     * Clean up and return the status from AcpiNsEvaluateRelative
      */
-
 Cleanup:
 
-    AcpiCmFree (ByteStream);
+    AcpiUtFree (ByteStream);
     return_ACPI_STATUS (Status);
 }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 70 $
+ *       $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -125,34 +125,38 @@
 
 /* Component IDs -- used in the global "DebugLayer" */
 
-#define GLOBAL                      0x00000001
-#define COMMON                      0x00000002
-#define PARSER                      0x00000004
-#define DISPATCHER                  0x00000008
-#define INTERPRETER                 0x00000010
-#define NAMESPACE                   0x00000020
-#define RESOURCE_MANAGER            0x00000040
-#define TABLE_MANAGER               0x00000080
-#define EVENT_HANDLING              0x00000100
-#define HARDWARE                    0x00000200
-#define MISCELLANEOUS               0x00000400
-#define OS_DEPENDENT                0x00000800
+#define ACPI_UTILITIES              0x00000001
+#define ACPI_HARDWARE               0x00000002
+#define ACPI_EVENTS                 0x00000004
+#define ACPI_TABLES                 0x00000008
+#define ACPI_NAMESPACE              0x00000010
+#define ACPI_PARSER                 0x00000020
+#define ACPI_DISPATCHER             0x00000040
+#define ACPI_EXECUTER               0x00000080
+#define ACPI_RESOURCES              0x00000100
+#define ACPI_DEVICES                0x00000200
+#define ACPI_POWER                  0x00000400
 
-#define BUS_MANAGER                 0x00001000
 
-#define PROCESSOR_CONTROL           0x00002000
-#define SYSTEM_CONTROL              0x00004000
-#define THERMAL_CONTROL             0x00008000
-#define POWER_CONTROL               0x00010000
+#define ACPI_BUS_MANAGER            0x00001000
+#define ACPI_POWER_CONTROL          0x00002000
+#define ACPI_EMBEDDED_CONTROLLER    0x00004000
+#define ACPI_PROCESSOR_CONTROL      0x00008000
+#define ACPI_AC_ADAPTER             0x00010000
+#define ACPI_BATTERY                0x00020000
+#define ACPI_BUTTON                 0x00040000
+#define ACPI_SYSTEM                 0x00080000
+#define ACPI_THERMAL_ZONE           0x00100000
 
-#define EMBEDDED_CONTROLLER         0x00020000
-#define BATTERY                     0x00040000
+#define ACPI_DEBUGGER               0x01000000
+#define ACPI_OS_SERVICES            0x02000000
+#define ACPI_ALL_COMPONENTS         0x01FFFFFF
 
-#define DEBUGGER                    0x00100000
-#define COMPILER                    0x00200000
-#define ALL_COMPONENTS              0x001FFFFF
+#define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
 
-#define COMPONENT_DEFAULT           (ALL_COMPONENTS)
+
+#define ACPI_COMPILER               0x10000000
+#define ACPI_TOOLS                  0x20000000
 
 
 /* Exception level -- used in the global "DebugLevel" */
@@ -168,6 +172,7 @@
 
 /* Trace level -- also used in the global "DebugLevel" */
 
+#define TRACE_THREADS               0x00000080
 #define TRACE_PARSE                 0x00000100
 #define TRACE_DISPATCH              0x00000200
 #define TRACE_LOAD                  0x00000400
@@ -189,7 +194,7 @@
 #define TRACE_MUTEX                 0x04000000
 #define TRACE_INIT                  0x08000000
 
-#define TRACE_ALL                   0x0FFFFF00
+#define TRACE_ALL                   0x0FFFFF80
 
 
 /* Exceptionally verbose output -- also used in the global "DebugLevel"  */

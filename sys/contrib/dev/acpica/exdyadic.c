@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: amdyadic - ACPI AML (p-code) execution for dyadic operators
- *              $Revision: 71 $
+ * Module Name: exdyadic - ACPI AML (p-code) execution for dyadic operators
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -115,7 +115,7 @@
  *****************************************************************************/
 
 
-#define __AMDYADIC_C__
+#define __EXDYADIC_C__
 
 #include "acpi.h"
 #include "acparser.h"
@@ -126,13 +126,13 @@
 #include "acdispat.h"
 
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amdyadic")
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exdyadic")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlDoConcatenate
+ * FUNCTION:    AcpiExDoConcatenate
  *
  * PARAMETERS:  *ObjDesc        - Object to be converted.  Must be an
  *                                Integer, Buffer, or String
@@ -144,7 +144,7 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlDoConcatenate (
+AcpiExDoConcatenate (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     *ObjDesc2,
     ACPI_OPERAND_OBJECT     **ActualRetDesc,
@@ -182,7 +182,7 @@ AcpiAmlDoConcatenate (
 
         /* Result of two integers is a buffer */
 
-        RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_BUFFER);
+        RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
         if (!RetDesc)
         {
             return (AE_NO_MEMORY);
@@ -191,11 +191,11 @@ AcpiAmlDoConcatenate (
         /* Need enough space for two integers */
 
         RetDesc->Buffer.Length = IntegerSize * 2;
-        NewBuf = AcpiCmCallocate (RetDesc->Buffer.Length);
+        NewBuf = AcpiUtCallocate (RetDesc->Buffer.Length);
         if (!NewBuf)
         {
             REPORT_ERROR
-                (("AmlExecDyadic2R/ConcatOp: Buffer allocation failure\n"));
+                (("ExDoConcatenate: Buffer allocation failure\n"));
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
@@ -225,7 +225,7 @@ AcpiAmlDoConcatenate (
 
     case ACPI_TYPE_STRING:
 
-        RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_STRING);
+        RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_STRING);
         if (!RetDesc)
         {
             return (AE_NO_MEMORY);
@@ -233,12 +233,12 @@ AcpiAmlDoConcatenate (
 
         /* Operand1 is string  */
 
-        NewBuf = AcpiCmAllocate (ObjDesc->String.Length +
+        NewBuf = AcpiUtAllocate (ObjDesc->String.Length +
                                  ObjDesc2->String.Length + 1);
         if (!NewBuf)
         {
             REPORT_ERROR
-                (("AmlExecDyadic2R/ConcatOp: String allocation failure\n"));
+                (("ExDoConcatenate: String allocation failure\n"));
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
@@ -259,18 +259,18 @@ AcpiAmlDoConcatenate (
 
         /* Operand1 is a buffer */
 
-        RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_BUFFER);
+        RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER);
         if (!RetDesc)
         {
             return (AE_NO_MEMORY);
         }
 
-        NewBuf = AcpiCmAllocate (ObjDesc->Buffer.Length +
+        NewBuf = AcpiUtAllocate (ObjDesc->Buffer.Length +
                                  ObjDesc2->Buffer.Length);
         if (!NewBuf)
         {
             REPORT_ERROR
-                (("AmlExecDyadic2R/ConcatOp: Buffer allocation failure\n"));
+                (("ExDoConcatenate: Buffer allocation failure\n"));
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
@@ -301,14 +301,14 @@ AcpiAmlDoConcatenate (
 
 Cleanup:
 
-    AcpiCmRemoveReference (RetDesc);
+    AcpiUtRemoveReference (RetDesc);
     return (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecDyadic1
+ * FUNCTION:    AcpiExDyadic1
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *
@@ -322,7 +322,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecDyadic1 (
+AcpiExDyadic1 (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
@@ -332,14 +332,14 @@ AcpiAmlExecDyadic1 (
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE_PTR ("AmlExecDyadic1", WALK_OPERANDS);
+    FUNCTION_TRACE_PTR ("ExDyadic1", WALK_OPERANDS);
 
 
     /* Resolve all operands */
 
-    Status = AcpiAmlResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiAmlResolveOperands");
+                    2, "after AcpiExResolveOperands");
 
     /* Get the operands */
 
@@ -349,9 +349,8 @@ AcpiAmlExecDyadic1 (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic1/%s: bad operand(s) (Status=%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("(%s) bad operand(s) %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (Status)));
 
         goto Cleanup;
     }
@@ -381,29 +380,30 @@ AcpiAmlExecDyadic1 (
             case ACPI_TYPE_THERMAL:
 
                 /*
-                 * Requires that Device and ThermalZone be compatible
-                 * mappings
+                 * Dispatch the notify to the appropriate handler
+                 * NOTE: the request is queued for execution after this method
+                 * completes.  The notify handlers are NOT invoked synchronously
+                 * from this thread -- because handlers may in turn run other
+                 * control methods.
                  */
 
-                /* Dispatch the notify to the appropriate handler */
-
-                AcpiEvNotifyDispatch (Node, (UINT32) ValDesc->Integer.Value);
+                Status = AcpiEvQueueNotifyRequest (Node,
+                                        (UINT32) ValDesc->Integer.Value);
                 break;
 
             default:
-                DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlExecDyadic1/NotifyOp: unexpected notify object type %X\n",
+                DEBUG_PRINTP (ACPI_ERROR, ("Unexpected notify object type %X\n",
                     ObjDesc->Common.Type));
 
                 Status = AE_AML_OPERAND_TYPE;
+                break;
             }
         }
         break;
 
     default:
 
-        REPORT_ERROR (("AcpiAmlExecDyadic1: Unknown dyadic opcode %X\n",
-            Opcode));
+        REPORT_ERROR (("AcpiExDyadic1: Unknown dyadic opcode %X\n", Opcode));
         Status = AE_AML_BAD_OPCODE;
     }
 
@@ -412,8 +412,8 @@ Cleanup:
 
     /* Always delete both operands */
 
-    AcpiCmRemoveReference (ValDesc);
-    AcpiCmRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (ValDesc);
+    AcpiUtRemoveReference (ObjDesc);
 
 
     return_ACPI_STATUS (Status);
@@ -422,7 +422,7 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecDyadic2R
+ * FUNCTION:    AcpiExDyadic2R
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *
@@ -436,7 +436,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecDyadic2R (
+AcpiExDyadic2R (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
@@ -451,14 +451,14 @@ AcpiAmlExecDyadic2R (
     UINT32                  NumOperands = 3;
 
 
-    FUNCTION_TRACE_U32 ("AmlExecDyadic2R", Opcode);
+    FUNCTION_TRACE_U32 ("ExDyadic2R", Opcode);
 
 
     /* Resolve all operands */
 
-    Status = AcpiAmlResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    NumOperands, "after AcpiAmlResolveOperands");
+                    NumOperands, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
@@ -473,9 +473,8 @@ AcpiAmlExecDyadic2R (
     Status |= AcpiDsObjStackPopObject (&ObjDesc, WalkState);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2R/%s: bad operand(s) (Status=%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("(%s) bad operand(s) (%s)\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (Status)));
 
         goto Cleanup;
     }
@@ -497,7 +496,7 @@ AcpiAmlExecDyadic2R (
     case AML_SHIFT_RIGHT_OP:
     case AML_SUBTRACT_OP:
 
-        RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+        RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!RetDesc)
         {
             Status = AE_NO_MEMORY;
@@ -576,13 +575,13 @@ AcpiAmlExecDyadic2R (
         if (!ObjDesc2->Integer.Value)
         {
             REPORT_ERROR
-                (("AmlExecDyadic2R/DivideOp: Divide by zero\n"));
+                (("ExDyadic2R/DivideOp: Divide by zero\n"));
 
             Status = AE_AML_DIVIDE_BY_ZERO;
             goto Cleanup;
         }
 
-        RetDesc2 = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+        RetDesc2 = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!RetDesc2)
         {
             Status = AE_NO_MEMORY;
@@ -653,15 +652,15 @@ AcpiAmlExecDyadic2R (
         switch (ObjDesc->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
-            Status = AcpiAmlConvertToInteger (&ObjDesc2, WalkState);
+            Status = AcpiExConvertToInteger (&ObjDesc2, WalkState);
             break;
 
         case ACPI_TYPE_STRING:
-            Status = AcpiAmlConvertToString (&ObjDesc2, WalkState);
+            Status = AcpiExConvertToString (&ObjDesc2, WalkState);
             break;
 
         case ACPI_TYPE_BUFFER:
-            Status = AcpiAmlConvertToBuffer (&ObjDesc2, WalkState);
+            Status = AcpiExConvertToBuffer (&ObjDesc2, WalkState);
             break;
 
         default:
@@ -679,7 +678,7 @@ AcpiAmlExecDyadic2R (
          * (Both are Integer, String, or Buffer), and we can now perform the
          * concatenation.
          */
-        Status = AcpiAmlDoConcatenate (ObjDesc, ObjDesc2, &RetDesc, WalkState);
+        Status = AcpiExDoConcatenate (ObjDesc, ObjDesc2, &RetDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -689,7 +688,7 @@ AcpiAmlExecDyadic2R (
 
     default:
 
-        REPORT_ERROR (("AcpiAmlExecDyadic2R: Unknown dyadic opcode %X\n",
+        REPORT_ERROR (("AcpiExDyadic2R: Unknown dyadic opcode %X\n",
                 Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
@@ -702,7 +701,7 @@ AcpiAmlExecDyadic2R (
      * descriptor (ResDesc).
      */
 
-    Status = AcpiAmlExecStore (RetDesc, ResDesc, WalkState);
+    Status = AcpiExStore (RetDesc, ResDesc, WalkState);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;
@@ -710,14 +709,14 @@ AcpiAmlExecDyadic2R (
 
     if (AML_DIVIDE_OP == Opcode)
     {
-        Status = AcpiAmlExecStore (RetDesc2, ResDesc2, WalkState);
+        Status = AcpiExStore (RetDesc2, ResDesc2, WalkState);
 
         /*
          * Since the remainder is not returned, remove a reference to
          * the object we created earlier
          */
 
-        AcpiCmRemoveReference (RetDesc2);
+        AcpiUtRemoveReference (RetDesc2);
     }
 
 
@@ -725,8 +724,8 @@ Cleanup:
 
     /* Always delete the operands */
 
-    AcpiCmRemoveReference (ObjDesc);
-    AcpiCmRemoveReference (ObjDesc2);
+    AcpiUtRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (ObjDesc2);
 
 
     /* Delete return object on error */
@@ -735,14 +734,14 @@ Cleanup:
     {
         /* On failure, delete the result ops */
 
-        AcpiCmRemoveReference (ResDesc);
-        AcpiCmRemoveReference (ResDesc2);
+        AcpiUtRemoveReference (ResDesc);
+        AcpiUtRemoveReference (ResDesc2);
 
         if (RetDesc)
         {
             /* And delete the internal return object */
 
-            AcpiCmRemoveReference (RetDesc);
+            AcpiUtRemoveReference (RetDesc);
             RetDesc = NULL;
         }
     }
@@ -756,7 +755,7 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecDyadic2S
+ * FUNCTION:    AcpiExDyadic2S
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *
@@ -769,7 +768,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecDyadic2S (
+AcpiExDyadic2S (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
@@ -780,14 +779,14 @@ AcpiAmlExecDyadic2S (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("AmlExecDyadic2S", WALK_OPERANDS);
+    FUNCTION_TRACE_PTR ("ExDyadic2S", WALK_OPERANDS);
 
 
     /* Resolve all operands */
 
-    Status = AcpiAmlResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiAmlResolveOperands");
+                    2, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
@@ -797,9 +796,8 @@ AcpiAmlExecDyadic2S (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2S/%s: bad operand(s) (Status=%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("(%s) bad operand(s) %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (Status)));
 
         goto Cleanup;
     }
@@ -807,7 +805,7 @@ AcpiAmlExecDyadic2S (
 
     /* Create the internal return object */
 
-    RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+    RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!RetDesc)
     {
         Status = AE_NO_MEMORY;
@@ -828,7 +826,7 @@ AcpiAmlExecDyadic2S (
 
     case AML_ACQUIRE_OP:
 
-        Status = AcpiAmlSystemAcquireMutex (TimeDesc, ObjDesc);
+        Status = AcpiExAcquireMutex (TimeDesc, ObjDesc, WalkState);
         break;
 
 
@@ -836,13 +834,13 @@ AcpiAmlExecDyadic2S (
 
     case AML_WAIT_OP:
 
-        Status = AcpiAmlSystemWaitEvent (TimeDesc, ObjDesc);
+        Status = AcpiExSystemWaitEvent (TimeDesc, ObjDesc);
         break;
 
 
     default:
 
-        REPORT_ERROR (("AcpiAmlExecDyadic2S: Unknown dyadic synchronization opcode %X\n", Opcode));
+        REPORT_ERROR (("AcpiExDyadic2S: Unknown dyadic synchronization opcode %X\n", Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
@@ -864,15 +862,15 @@ Cleanup:
 
     /* Delete params */
 
-    AcpiCmRemoveReference (TimeDesc);
-    AcpiCmRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (TimeDesc);
+    AcpiUtRemoveReference (ObjDesc);
 
     /* Delete return object on error */
 
     if (ACPI_FAILURE (Status) &&
         (RetDesc))
     {
-        AcpiCmRemoveReference (RetDesc);
+        AcpiUtRemoveReference (RetDesc);
         RetDesc = NULL;
     }
 
@@ -886,7 +884,7 @@ Cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecDyadic2
+ * FUNCTION:    AcpiExDyadic2
  *
  * PARAMETERS:  Opcode              - The opcode to be executed
  *
@@ -901,7 +899,7 @@ Cleanup:
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecDyadic2 (
+AcpiExDyadic2 (
     UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
@@ -913,14 +911,14 @@ AcpiAmlExecDyadic2 (
     BOOLEAN                 Lboolean;
 
 
-    FUNCTION_TRACE_PTR ("AmlExecDyadic2", WALK_OPERANDS);
+    FUNCTION_TRACE_PTR ("ExDyadic2", WALK_OPERANDS);
 
 
     /* Resolve all operands */
 
-    Status = AcpiAmlResolveOperands (Opcode, WALK_OPERANDS, WalkState);
+    Status = AcpiExResolveOperands (Opcode, WALK_OPERANDS, WalkState);
     DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (Opcode),
-                    2, "after AcpiAmlResolveOperands");
+                    2, "after AcpiExResolveOperands");
 
     /* Get all operands */
 
@@ -930,9 +928,8 @@ AcpiAmlExecDyadic2 (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2/%s: bad operand(s) (Status=%X)\n",
-            AcpiPsGetOpcodeName (Opcode), Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("(%s) bad operand(s) %s\n",
+            AcpiPsGetOpcodeName (Opcode), AcpiUtFormatException (Status)));
 
         goto Cleanup;
     }
@@ -940,7 +937,7 @@ AcpiAmlExecDyadic2 (
 
     /* Create the internal return object */
 
-    RetDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+    RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!RetDesc)
     {
         Status = AE_NO_MEMORY;
@@ -1002,7 +999,7 @@ AcpiAmlExecDyadic2 (
 
     default:
 
-        REPORT_ERROR (("AcpiAmlExecDyadic2: Unknown dyadic opcode %X\n", Opcode));
+        REPORT_ERROR (("AcpiExDyadic2: Unknown dyadic opcode %X\n", Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
         break;
@@ -1025,8 +1022,8 @@ Cleanup:
 
     /* Always delete operands */
 
-    AcpiCmRemoveReference (ObjDesc);
-    AcpiCmRemoveReference (ObjDesc2);
+    AcpiUtRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (ObjDesc2);
 
 
     /* Delete return object on error */
@@ -1034,7 +1031,7 @@ Cleanup:
     if (ACPI_FAILURE (Status) &&
         (RetDesc))
     {
-        AcpiCmRemoveReference (RetDesc);
+        AcpiUtRemoveReference (RetDesc);
         RetDesc = NULL;
     }
 
