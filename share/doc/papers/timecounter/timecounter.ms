@@ -1065,7 +1065,7 @@ Genius Who Solved the Greatest Scientific Problem of His
 Time" Penguin USA (Paper); ISBN: 0140258795.
 .LP
 [SAGE]
-This ``gee-wiz'' kind of article in Dr. Jobbs Journal is a good place to
+This ``gee-wiz'' kind of article in Dr. Dobbs Journal is a good place to
 start:
 .br
 http://www.ddj.com/documents/s=1493/ddj0001hc/0085a.htm
