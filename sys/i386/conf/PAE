@@ -73,7 +73,6 @@ nodevice	tl
 nodevice	tx
 nodevice	vr
 nodevice	wb
-nodevice	bge
 
 nodevice	cs
 nodevice	ed
