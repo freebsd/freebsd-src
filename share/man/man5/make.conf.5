@@ -583,13 +583,6 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
-Avoid using a value of
-.Pa /etc/mail/sendmail.mc
-as a buildworld will create
-.Pa /etc/mail/sendmail.cf
-before installworld installs an updated
-.Xr sendmail 8
-binary.
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default m4 configuration file for mail submission
@@ -600,13 +593,6 @@ file, e.g.,
 .Pa /etc/mail/mysubmit.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/submit.cf .
-Avoid using a value of
-.Pa /etc/mail/submit.mc
-as a buildworld will create
-.Pa /etc/mail/submit.cf
-before installworld installs an updated
-.Xr sendmail 8
-binary.
 .It Va SENDMAIL_ADDITIONAL_MC
 .Pq Vt str
 Additional
@@ -619,13 +605,6 @@ The value should include the full path to the
 file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
-Avoid using a value of
-.Pa /etc/mail/sendmail.mc
-as a buildworld will create
-.Pa /etc/mail/sendmail.cf
-before installworld installs an updated
-.Xr sendmail 8
-binary.
 .It Va SENDMAIL_M4_FLAGS
 .Pq Vt str
 Flags passed to m4 when building a
