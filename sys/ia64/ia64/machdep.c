@@ -174,13 +174,9 @@ cpu_startup(dummy)
 	vm_offset_t firstaddr;
 	vm_offset_t minaddr;
 
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
-
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	printf("%s", version);
 	identifycpu();
 
 	/* startrtclock(); */
