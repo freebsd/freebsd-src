@@ -216,6 +216,7 @@ ENTRY(tl1_kstack_fault)
 	sub	ASP_REG, SPOFF + CCFSZ, %sp
 	clr	%fp
 
+	set	trap, %o2
 	b	%xcc, tl1_trap
 	 mov	T_KSTACK_FAULT | T_KERNEL, %o0
 END(tl1_kstack_fault)
@@ -431,6 +432,7 @@ END(rsf_fatal)
 
 	.macro	tl0_setup	type
 	tl0_split
+	set	trap, %o2
 	ba	%xcc, tl0_utrap
 	 mov	\type, %o0
 	.endm
@@ -502,6 +504,7 @@ END(rsf_fatal)
 
 ENTRY(tl0_sfsr_trap)
 	tl0_split
+	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
 	ba	%xcc, tl0_utrap
@@ -710,6 +713,7 @@ ENTRY(tl0_immu_miss_trap)
 	 * Save the tag access register, and call common trap code.
 	 */
 	tl0_split
+	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl0_trap
 	 mov	T_INSTRUCTION_MISS, %o0
@@ -871,6 +875,7 @@ ENTRY(tl0_dmmu_miss_trap)
 	 * Save the tag access register and call common trap code.
 	 */
 	tl0_split
+	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl0_trap
 	 mov	T_DATA_MISS, %o0
@@ -1033,6 +1038,7 @@ ENTRY(tl0_dmmu_prot_trap)
 	 * Save the mmu registers and call common trap code.
 	 */
 	tl0_split
+	set	trap, %o2
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
@@ -1085,6 +1091,7 @@ ENTRY(tl0_sftrap)
 	and	%g1, TSTATE_CWP_MASK, %g1
 	wrpr	%g1, 0, %cwp
 	tl0_split
+	set	trap, %o2
 	b	%xcc, tl0_trap
 	 mov	%g2, %o0
 END(tl0_sftrap)
@@ -1105,7 +1112,8 @@ END(tl0_sftrap)
 
 	.macro	tl0_syscall
 	tl0_split
-	b	%xcc, tl0_syscall
+	set	syscall, %o2
+	ba	%xcc, tl0_trap
 	 mov	T_SYSCALL, %o0
 	.align	32
 	.endm
@@ -1124,6 +1132,8 @@ END(tl0_sftrap)
 
 	.macro	tl1_setup	type
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	b	%xcc, tl1_trap
 	 mov	\type | T_KERNEL, %o0
 	.endm
@@ -1153,6 +1163,8 @@ END(tl0_sftrap)
 
 ENTRY(tl1_insn_exceptn_trap)
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
 	b	%xcc, tl1_trap
@@ -1192,6 +1204,8 @@ ENTRY(tl1_sfsr_trap)
 	membar	#Sync
 
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g3, %o4
 	mov	%g4, %o5
 	b	%xcc, tl1_trap
@@ -1512,6 +1526,8 @@ ENTRY(tl1_immu_miss_trap)
 	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
 
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
@@ -1629,6 +1645,8 @@ ENTRY(tl1_dmmu_miss_trap)
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
@@ -1693,6 +1711,8 @@ ENTRY(tl1_dmmu_miss_user)
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
@@ -1835,6 +1855,8 @@ ENTRY(tl1_dmmu_prot_trap)
 	membar	#Sync
 
 	tl1_split
+	clr	%o1
+	set	trap, %o2
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
@@ -2387,10 +2409,9 @@ ENTRY(tl0_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	call	trap
+	set	tl0_ret - 8, %o7
+	jmpl	%o2, %g0
 	 add	%sp, CCFSZ + SPOFF, %o0
-	b,a	%xcc, tl0_ret
-	 nop
 END(tl0_trap)
 
 /*
@@ -2795,9 +2816,12 @@ ENTRY(tl1_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	call	trap
+	set	tl1_ret - 8, %o7
+	jmpl	%o2, %g0
 	 add	%sp, CCFSZ + SPOFF, %o0
+END(tl1_trap)
 
+ENTRY(tl1_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
 	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
@@ -2838,7 +2862,7 @@ ENTRY(tl1_trap)
 	wrpr	%g3, 0, %tnpc
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_trap: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_TRAP, "tl1_ret: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
@@ -2853,7 +2877,7 @@ ENTRY(tl1_trap)
 #endif
 
 	retry
-END(tl1_trap)
+END(tl1_ret)
 
 /*
  * void tl1_intr(u_int level, u_int mask)
