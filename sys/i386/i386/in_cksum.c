@@ -32,7 +32,7 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.11 1997/08/16 19:14:52 wollman Exp $
+ *	$Id: in_cksum.c,v 1.12 1997/09/02 20:05:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -62,10 +62,14 @@
  * Thanks to gcc we don't have to guess
  * which registers contain sum & w.
  */
-#define ADD(n)	asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
-#define ADDC(n)	asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
-#define LOAD(n)	asm volatile("movb " #n "(%1), %0" : "=r" (junk) : "r" (w))
-#define MOP	asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
+#define ADD(n)	__asm __volatile \
+		("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define ADDC(n)	__asm __volatile \
+		("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (w))
+#define LOAD(n)	__asm __volatile \
+		("movb " #n "(%1), %0" : "=r" (junk) :           "r" (w))
+#define MOP	__asm __volatile \
+		("adcl         $0, %0" : "=r" (sum) : "0" (sum))
 
 int
 in_cksum(m, len)

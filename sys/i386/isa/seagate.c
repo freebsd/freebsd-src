@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.26 1997/09/21 21:41:35 gibbs Exp $
+ * $Id: seagate.c,v 1.27 1997/11/07 09:20:30 phk Exp $
  */
 
 /*
@@ -779,9 +779,9 @@ void sea_timeout (void *arg)
  * after every MSGOUT, MSGIN, CMDOUT, STATIN request.
  * Return true if REQ deassert found.
  */
-static inline int sea_wait_for_req_deassert (adapter_t *z, int cnt, char *msg)
+static __inline int sea_wait_for_req_deassert (adapter_t *z, int cnt, char *msg)
 {
-	asm ("
+	__asm __volatile ("
 	1:      testb $0x10, %2
 		jz 2f
 		loop 1b
@@ -1073,7 +1073,7 @@ void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 	if (len && !(len % BLOCK_SIZE)) {
 		while (len) {
 			WAITFOR10 (*z->STATUS & STAT_REQ, "blind block read");
-	              asm("
+	              __asm __volatile ("
 			shr $2, %%ecx;
 			cld;
 			rep;
@@ -1085,7 +1085,7 @@ void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 		}
 	} else {
 #endif
-		asm ("cld
+		__asm __volatile ("cld
 		1:      movb (%%ebx), %%al
 			xorb $1, %%al
 			testb $0xf, %%al
@@ -1120,7 +1120,7 @@ void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 	if (len && !(len % BLOCK_SIZE)) {
 		while (len) {
 			WAITFOR10 (*z->STATUS & STAT_REQ, "blind block read");
-	              asm("
+	              __asm __volatile ("
 			shr $2, %%ecx;
 			cld;
 			rep;
@@ -1133,7 +1133,7 @@ void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 	} else {
 #endif
 		if (len >= 512) {
-			asm ("  cld
+			__asm __volatile ("  cld
 			1:      movb (%%esi), %%al
 				xorb $5, %%al
 				testb $0xf, %%al
@@ -1149,7 +1149,7 @@ void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 				"0" (data), "1" (len)           /* input */
 			: "eax", "ebx", "esi");                 /* clobbered */
 		} else {
-			asm ("  cld
+			__asm __volatile ("  cld
 			1:      movb (%%esi), %%al
 				xorb $5, %%al
 				testb $0xf, %%al
