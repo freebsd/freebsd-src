@@ -1,0 +1,35 @@
+#
+# magic.unknown: Unknown machine magic
+#
+# XXX - this probably should be pruned, as it'll match PDP-11 and
+# VAX image formats.
+#
+# 0x107 is 0407; 0x108 is 0410; both are PDP-11 (executable and pure,
+# respectively).
+#
+# 0x109 is 0411; that's PDP-11 split I&D, but the PDP-11 version doesn't
+# have the "version %ld", which may be a bogus COFFism (I don't think
+# there ever was COFF for the PDP-11).
+#
+# 0x10B is 0413; that's VAX demand-paged, but this is a short, not a
+# long, as it would be on a VAX.
+#
+# 0x10C is 0414, 0x10D is 0415, and 0x10E is 416; those *are* unknown.
+#
+0	short		0x107		unknown machine executable
+>8	short		>0		not stripped
+>15	byte		>0		- version %ld
+0	short		0x108		unknown pure executable
+>8	short		>0		not stripped
+>15	byte		>0		- version %ld
+0	short		0x109		PDP-11 separate I&D
+>8	short		>0		not stripped
+>15	byte		>0		- version %ld
+0	short		0x10b		unknown pure executable
+>8	short		>0		not stripped
+>15	byte		>0		- version %ld
+0	long		0x10c		unknown demand paged pure executable
+>16	long		>0		not stripped
+0	long		0x10d		unknown demand paged pure executable
+>16	long		>0		not stripped
+0	long		0x10e		unknown readable demand paged pure executable
