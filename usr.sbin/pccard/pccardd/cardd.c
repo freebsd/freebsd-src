@@ -26,98 +26,25 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.23 1997/12/08 06:35:07 nate Exp $";
+	"$Id: cardd.c,v 1.24 1998/02/04 20:19:39 guido Exp $";
 #endif /* not lint */
 
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #define EXTERN
 #include "cardd.h"
-
-char   *config_file = "/etc/pccard.conf";
 
 static struct card_config *assign_driver(struct card *);
 static int     assign_io(struct slot *);
 static int     setup_slot(struct slot *);
 static void    card_inserted(struct slot *);
 static void    card_removed(struct slot *);
-static void    dump_config_file(void);
 static void    pr_cmd(struct cmd *);
 static void    read_ether(struct slot *);
-static void    readslots(void);
-static void    slot_change(struct slot *);
-
-/*
- *	mainline code for cardd
- */
-int
-main(int argc, char *argv[])
-{
-	struct slot *sp;
-	int     count, debug = 0;
-	int     verbose = 0;
-
-	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
-		switch (count) {
-		case 'd':
-			setbuf(stdout, 0);
-			setbuf(stderr, 0);
-			debug = 1;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case 'f':
-			config_file = optarg;
-			break;
-		case ':':
-			die("no config file argument");
-			break;
-		case '?':
-			die("illegal option");
-			break;
-		}
-	}
-#ifdef	DEBUG
-	debug = 1;
-#endif
-	io_avail = bit_alloc(IOPORTS);	/* Only supports ISA ports */
-
-	/* Mem allocation done in MEMUNIT units. */
-	mem_avail = bit_alloc(MEMBLKS);
-	readfile(config_file);
-	if (verbose)
-		dump_config_file();
-	log_setup();
-	if (!debug)
-		if (daemon(0, 0))
-			die("fork failed");
-	readslots();
-	if (slots == 0)
-		die("no PC-CARD slots");
-	logmsg("pccardd started", NULL);
-	for (;;) {
-		fd_set  mask;
-		FD_ZERO(&mask);
-		for (sp = slots; sp; sp = sp->next)
-			FD_SET(sp->fd, &mask);
-		count = select(32, 0, 0, &mask, 0);
-		if (count == -1) {
-			logerr("select");
-			continue;
-		}
-		if (count)
-			for (sp = slots; sp; sp = sp->next)
-				if (FD_ISSET(sp->fd, &mask))
-					slot_change(sp);
-	}
-}
 
 /*
  *	Dump configuration file data.

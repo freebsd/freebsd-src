@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.9 1997/11/18 21:08:13 nate Exp $
+ * $Id: cardd.h,v 1.10 1997/11/19 02:31:39 nate Exp $
  *
  *	Common include file for PCMCIA daemon
  */
@@ -122,6 +122,11 @@ EXTERN bitstr_t *mem_avail;
 EXTERN bitstr_t *io_avail;
 
 EXTERN int     verbose;
+
+/* cardd.c functions */
+void	dump_config_file(void);
+void	readslots(void);
+void	slot_change(struct slot *);
 
 /* util.c functions */
 unsigned long alloc_memory(int);
