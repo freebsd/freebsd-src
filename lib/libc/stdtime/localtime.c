@@ -1222,7 +1222,7 @@ struct tm * const		tmp;
 	const struct lsinfo *	lp;
 	long			days;
 	long			rem;
-	int			y;
+	long			y;
 	int			yleap;
 	const int *		ip;
 	long			corr;
@@ -1291,7 +1291,7 @@ struct tm * const		tmp;
 	y = EPOCH_YEAR;
 #define LEAPS_THRU_END_OF(y)	((y) / 4 - (y) / 100 + (y) / 400)
 	while (days < 0 || days >= (long) year_lengths[yleap = isleap(y)]) {
-		int	newy;
+		long	newy;
 
 		newy = y + days / DAYSPERNYEAR;
 		if (days < 0)
@@ -1475,12 +1475,6 @@ int * const		okayp;
 	** (this works whether time_t is signed or unsigned).
 	*/
 	bits = TYPE_BIT(time_t) - 1;
-	/*
-	 * Limit to 32 bits or the things go crazy
-	 * when it tries to figure out times near 2^62 etc.
-	 */
-	if (bits > 31)
-		bits = 31;
 	/*
 	** If time_t is signed, then 0 is just above the median,
 	** assuming two's complement arithmetic.
