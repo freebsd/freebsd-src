@@ -29,6 +29,19 @@
 extern PKG_info p_inf;
 
 
+/*
+ * Local prototypes
+ */
+
+void 	install_pkgs_indir(void);
+
+
+
+/*
+ * Functions
+ */
+
+
 void
 view_installed(void)
 /*
@@ -157,13 +170,14 @@ preview_pkg(void)
     int		err;
 
     use_helpfile(PREVIEW_FS_HLP);
+    use_helpline("Select package to preview");
     fname = dialog_fselect(".", "*.tgz");
     while (fname) {
         use_helpfile(PREVIEW_HLP);
         use_helpline("use PgUp and PgDn and arrow-keys to move through the text");
         tmp_file = tempnam(NULL, "pkg.");
 	if (!tmp_file) {
-	    fprintf(stderr, "preview_pkg: Could not allocate space fore tmp_file");
+	    fprintf(stderr, "preview_pkg: Could not allocate space for tmp_file\n");
 	    exit(-1);
 	}
         sprintf(args, "-n %s", fname);
@@ -176,6 +190,7 @@ preview_pkg(void)
         free(fname);
         free(tmp_file);
 	use_helpfile(PREVIEW_FS_HLP);
+	use_helpline("Select package to preview");
         fname = dialog_fselect(".", "*.tgz");
     }
     if (fname) free(fname);
@@ -188,10 +203,33 @@ preview_pkg(void)
 void
 install_batch(void)
 /*
+ * Desc: Get the directory from which to list and install packages
+ */
+{
+    int	quit;
+
+    use_helpfile(DS_INSTALL_HLP);
+    quit = FALSE;
+    while (!quit) {
+	use_helpline("Select directory where the pkg's reside");
+	if (dialog_dselect(".", "*.tgz")) {
+	    quit = TRUE;
+	} else {
+	    install_pkgs_indir();
+	}
+    }
+
+    return;
+} /* install_batch() */
+	
+
+void
+install_pkgs_indir(void)
+/*
  * Desc: install several packages. 
  */
 {
-    WINDOW		*pkg_win, *w;
+    WINDOW		*pkg_win, *w, *tmpwin;
     DirList		*d = NULL;
     char		**fnames, o_pkg[MAXPATHLEN], o_pkgi[MAXPATHLEN],
 			**comment, **desc, **names, msg[512];
@@ -203,19 +241,19 @@ install_batch(void)
     long		total_marked = 0, *sizes;
     char		*tmp_file, tmp_dir[MAXPATHLEN];
 
-    /* first go to the directory where the packages are installed, then
-       list all packages in that directory with a short description of
+    /* list all packages in the current directory with a short description of
        the package. Pressing enter should give more info about a specific
        package. */
-    
-    use_helpfile(DS_INSTALL_HLP);
-    use_helpline("Select the directory where the pkg's reside");
-    if (dialog_dselect()) {
-	/* cancel button was pressed */
-	return;
-    }
-    use_helpline(NULL);
 
+    /* save current window */
+    tmpwin = dupwin(newscr);
+    if (tmpwin == NULL) {
+	endwin();
+	fprintf(stderr, "\ninstall_pkgs_indir: dupwin(newscr) failed\n");
+	exit(1);
+    }
+    
+    use_helpline(NULL);
     pkg_win = newwin(LINES-4, COLS-12, 2, 5);
     if (pkg_win == NULL) {
 	endwin();
@@ -510,6 +548,10 @@ install_batch(void)
     use_helpfile(NULL);
     use_helpline(NULL);
     delwin(pkg_win);
+
+    touchwin(tmpwin);
+    wrefresh(tmpwin);
+    delwin(tmpwin);
 	    
     return;
 } /* install_batch() */
