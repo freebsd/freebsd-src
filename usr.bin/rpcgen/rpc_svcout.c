@@ -769,12 +769,12 @@ write_msg_out(void)
 	f_print(fout, "#ifdef RPC_SVC_FG\n");
 	if (inetdflag || pmflag)
 		f_print(fout, "\tif (_rpcpmstart)\n");
-	f_print(fout, "\t\tsyslog(LOG_ERR, msg);\n");
+	f_print(fout, "\t\tsyslog(LOG_ERR, \"%%s\", msg);\n");
 	f_print(fout, "\telse\n");
 	f_print(fout,
 		"\t\t(void) fprintf(stderr, \"%%s\\n\", msg);\n");
 	f_print(fout, "#else\n");
-	f_print(fout, "\tsyslog(LOG_ERR, msg);\n");
+	f_print(fout, "\tsyslog(LOG_ERR, \"%%s\", msg);\n");
 	f_print(fout, "#endif\n");
 	f_print(fout, "}\n");
 }
