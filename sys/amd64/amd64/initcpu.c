@@ -82,7 +82,7 @@ int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
 u_int	cpu_id = 0;		/* Stepping ID */
 u_int	cpu_feature = 0;	/* Feature flags */
 u_int	cpu_high = 0;		/* Highest arg to CPUID */
-u_int	cpuid_cpuinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
+u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr = 0;		/* SSE enabled */
 #endif
