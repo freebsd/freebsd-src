@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.10 1998/09/17 09:38:36 dfr Exp $
+#	$Id: files.alpha,v 1.11 1998/10/10 18:32:18 gpalmer Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -64,13 +64,13 @@ clock_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 clock_if.c			standard				\
-	dependency	"$S/kern/makedevops.sh $S/alpha/alpha/clock_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -c $S/alpha/alpha/clock_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -c $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"clock_if.c"
 clock_if.h			standard				\
-	dependency	"$S/kern/makedevops.sh $S/alpha/alpha/clock_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -h $S/alpha/alpha/clock_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"clock_if.h"
 alpha/alpha/diskslice_machdep.c	standard
@@ -96,13 +96,13 @@ mcclock_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 mcclock_if.c			standard				\
-	dependency	"$S/kern/makedevops.sh $S/dev/dec/mcclock_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/dec/mcclock_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"mcclock_if.c"
 mcclock_if.h			standard				\
-	dependency	"$S/kern/makedevops.sh $S/dev/dec/mcclock_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/dec/mcclock_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"mcclock_if.h"
 alpha/pci/cia.c			optional	cia
