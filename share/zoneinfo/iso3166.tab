@@ -3,9 +3,16 @@
 # From Paul Eggert <eggert@twinsun.com> (1996-09-03):
 #
 # This file contains a table with the following columns:
-# 1.  ISO 3166 2-character country code.
+# 1.  ISO 3166-1:1997 2-character country code.  See: 
 # 2.  The usual English name for the country,
 #	chosen so that alphabetic sorting of subsets produces helpful lists.
+#	This is not the same as the English name in the ISO 3166 tables.
+#
+# The PS code below has been reserved for Palestine by the ISO;
+# however, the code is not yet officially assigned to Palestine.  Please see
+# <a href="ftp://ftp.informatik.uni-erlangen.de/pub/doc/ISO/ISO-3166-background">
+# Cord Wischhoefer, Country Code Elements for Palestine (1996-07-24)
+# </a>.
 #
 # Columns are separated by a single tab.
 # The table is sorted by country code.
@@ -51,8 +58,9 @@ BY	Belarus
 BZ	Belize
 CA	Canada
 CC	Cocos (Keeling) Islands
+CD	Congo (Dem. Rep.)
 CF	Central African Rep.
-CG	Congo
+CG	Congo (Rep.)
 CH	Switzerland
 CI	Cote d'Ivoire
 CK	Cook Islands
@@ -85,6 +93,7 @@ FK	Falkland Islands
 FM	Micronesia
 FO	Faeroe Islands
 FR	France
+FX	France, Metropolitan
 GA	Gabon
 GB	Britain (UK)
 GD	Grenada
@@ -103,7 +112,6 @@ GT	Guatemala
 GU	Guam
 GW	Guinea-Bissau
 GY	Guyana
-HK	Hong Kong
 HM	Heard Island & McDonald Islands
 HN	Honduras
 HR	Croatia
@@ -187,6 +195,7 @@ PL	Poland
 PM	St Pierre & Miquelon
 PN	Pitcairn
 PR	Puerto Rico
+PS	Palestine
 PT	Portugal
 PW	Palau
 PY	Paraguay
@@ -250,5 +259,4 @@ YT	Mayotte
 YU	Yugoslavia
 ZA	South Africa
 ZM	Zambia
-ZR	Zaire
 ZW	Zimbabwe

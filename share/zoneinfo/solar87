@@ -1,4 +1,4 @@
-# @(#)solar87	7.2
+# @(#)solar87	7.3
 
 # So much for footnotes about Saudi Arabia.
 # Apparent noon times below are for Riyadh; your mileage will vary.
@@ -380,7 +380,9 @@ Rule	sol87	1987	only	-	Dec	31	12:02:45s -0:02:45 -
 # Riyadh is at about 46 degrees 46 minutes East:  3 hrs, 7 mins, 4 secs
 # Before and after 1987, we'll operate on local mean solar time.
 
-# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
-Zone	Mideast/Riyadh87	3:07:04	-		??	1987
-				3:07:04	sol87		??	1988
-				3:07:04	-		??
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Asia/Riyadh87	3:07:04	-		??	1987
+			3:07:04	sol87		??	1988
+			3:07:04	-		??
+# For backward compatibility...
+Link	Asia/Riyadh87	Mideast/Riyadh87
