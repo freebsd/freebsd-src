@@ -14,11 +14,11 @@ For the latest of these 4.0-stable snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-If you wish to get the latest post-3.x-RELEASE technology.
+If you wish to get the latest post-4.0-RELEASE technology.
 
 Table of contents:
 ------------------
-1. What's new since the 3.1/4.0 branch
+1. What's new since 4.0-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -39,10 +39,8 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since the 3.1/4.0 branch
+1. What's new since 4.0-RELEASE
 --------------------------------------
-All changes described here are unique to the 4.0 branch unless
-specifically marked as [MERGED] features.
 
 1.1. KERNEL CHANGES
 -------------------
@@ -54,213 +52,25 @@ to report many different types of events.  Support for monitoring
 changes in sockets, pipes, fifos, and files are present, as well as
 for signals and processes. 
 
-An emulator for Tru64 (aka DEC OSF/1) binaries has been added.
-
-Support for the following platforms has been added:
-        AlphaServer 1000, 1000A
-        Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
-        AlphaServer DS20 (single CPU only)
-
-Device support on Alpha is greatly improved.  ATA drives are now vis1ble, and
-available as boot devices on platforms which support it.  Sound,
-floppy, and other ISA drivers are now known to work.
-
-NFS has been immensely improved with bug fixes and performance tuning
-
-Support for more than 32 signals has been added.
-
-A large number of bug fixes and performance improvements have been
-made to the VM system, including and most especially to mmap() and
-related functions.  The MAP_NOSYNC option has been added to better support 
-the use of shared files as an IPC mechanism.  The VM system's swapper has
-been completely rewritten and performance has been greatly enhanced,
-especially when swapping over NFS.
-
-An emulator for SVR4 binaries has been added.
-
-Support has been added for direct access to NTFS filesystems.
-
-A new ATA/ATAPI driver has been implemented. The aim of this new
-subsystem is to maximise performance on modern ATA/ATAPI based
-systems. The "ata" driver supports all major chipsets including
-those used on PCI card based controllers like the Promise and the
-Abit/SIIG. There is support for busmaster DMA transfers upto and
-including the new ATA/66 mode. The 'ata' driver automatically
-setup the hardware for the maximum possible transfer mode to
-maximise system throughput. Supported devices are all ATA compliant
-disks and ATAPI CDROM, CD-R, CD-RW, DVD-ROM, DVD-RAM, LS120, ZIP
-and tape drives. The ata driver also support PCCARD ATA devices.
-The 'ata' driver also sports error handling and timeout code, to 
-avoid the problems of "hung" ATA/ATAPI devices.
-
-A new utility 'burncd' has been written to facilitate easy control
-of ATAPI CD-R and CD-RW drives, and allows burning of CD-R/RW
-media in a wide selction of formats, including multisession mode.
-
-Driver support has been added for PCI gigabit ethernet adapters
-based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
-the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
-
-Driver support has been added for IEEE 802.11 PCMCIA wireless network
-adapters based on the Lucent Hermes chipset, including the Lucent
-WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
-6Mbps Turbo adapters are supported. [MERGED]
-
-Driver support has been added for PCI fast ethernet cards based
-on the ADMtek Inc. AL981 Comet chipset. [MERGED]
-
-Driver support has been added for PCI fast ethernet cards based
-on the ADMtek Inc. AN985 Centaur chipset. [MERGED]
-
-Support has been added for the Rise mP6 processor. [MERGED]
-
-Driver support has been added for SysKonnect SK-984x PCI gigabit
-ethernet adapters. [MERGED]
-
-Driver support has been added for Adaptec Duralink PCI ethernet adapters
-based on the Adaptec AIC-6915 fast ethernet controller. [MERGED]
-
-Driver support has been added for PCI fast ethernet adapters based on
-the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
-[MERGED]
-
-Driver support has been added for the 3Com 3c905C-TX. [MERGED]
-
-User- and group-based IPFW firewalling has been added. [MERGED]
-
-IPv6 IPFW has been imported from the KAME project.
-
-Support for probabalistic rule matching has been added to IPFW. [MERGED]
-
-IPFW logging is now dynamic. IPFW logging counts can be reset, and any
-given rule can be given an arbitrary logging limit. [MERGED]
-
-The top-level syslog(3) category "security" has been added, and IPFW now
-uses syslog(3) to log all messages to /var/log/security.
-
-Driver support has been added for PCI fast ethernet adapters based on
-the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
-[MERGED]
-
-Driver support has been added for PCI fast ethernet adapters based on
-the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
-Corporation XpressNet.
-
-Support has been added for blocking incoming ICMP redirects, outgoing RST
-frames and incoming SYN|FIN frames in order to lessen or nullify the
-impact of certain kinds of DoS attacks. [MERGED]
-
-Support has been added for forwarding IP datagrams without inspecting or
-decreasing the TTL in order to make gateways and firewalls less visible
-and therefore less exposed to attacks. [MERGED]
-
-The old `sd' (SCSI Disk) backwards compatibility support has been removed.
-Any usage of "/dev/sd*" in ``/etc/fstab'' must be replaced by "/dev/da*".
-In addition, any useage of "/dev/*sd*" in scripts need to be changed.
-Even if you have old `sd' device entries in /dev, they will no longer work.
-
-The `al' `ax' `dm' `pn' and `mx' drivers have been removed and replaced
-with a single driver (`dc') in order to reduce code duplication. The
-new driver handles all chipsets supported by the older driver, and it
-offers improved support for 10/100 cards based on the DEC/Intel 21143.
-
-Driver support has been added for the 3Com 3c450-TX HomeConnect
-PCI ethernet NIC. [MERGED]
-
-Driver support has been added for USB ethernet adapters based on
-the ADMtek AN986 Pegasus chip, including the LinkSys USB100TX,
-the Billionton USB100, the Melco Inc. LU-ATX, the D-Link 650TX
-and the SMC-2202USB.
-
-Driver support has been added for USB ethernet adapters based on
-the Kawasaki LSI KL5KUSB101B chip, including the LinkSys USB10T,
-the Peracom USB Ethernet Adapter, the 3Com 3c19250, the Entrega
-NET-USB-E45, the ADS Technologies USB-10BT, the ATen UC10T, the
-Netgear EA101, the D-Link DSB-650, and the SMC 2102USB and 2104USB.
-
-IPfilter version 3.3.6 has been integrated.
-
-Driver support has been added for USB ethernet adapters based on 
-the CATC USB-EL1210A chip, including the CATC Netmate and Netmate II,
-and the Belkin F5U111.
-
-Driver support has been added for Aironet 4500/4800 802.11 wireless
-adapters. This includes PCMCIA, PCI and ISA models.
-
-IPv6 support has been imported from the KAME project. This includes the
-kernel IPv6 protocol stack (sys/netinet6), TCP IPv6 support, configurable
-IPv6 and IPv4 tunneling over IPv6 or IPv4, and IPv6 TCP to IPv4 TCP
-translation gateway support. Protocol-independent name resolution
-functions have been added to libc (getaddrinfo, getnameinfo, etc).
 
 1.2. SECURITY FIXES
 -------------------
 
-Numerous security enhancements and fixes have been applied during the
-course of development of FreeBSD 4.0. Most of these have also been
-backported to the 3.x-STABLE series.
-
-A new jail(2) system call and admin command (jail(8)) have been added for
-additional flexibility in creating secure process execution environments.
-
-OpenSSL v0.9.4 (a general-purpose cryptography and SSL2/3/TLSv1 toolkit)
-has been integrated with the base system. In the future this will be used
-to provide strong cryptography for FreeBSD utilities out-of-the-box.
-
-OpenSSH 1.2 has been integrated with the base system. OpenSSH is a free
-(BSD-licensed), full-featured implementation of the SSH v1 protocol, which
-is completely interoperable with other SSH v1 clients and servers, such as
-the /usr/ports/security/ssh port.  OpenSSH provides all of the features of
-this port - in fact it is based on an older release before the software
-became restrictively licensed.  FreeBSD 4.0 provides SSH client/server
-functionality out-of-the-box if you choose to install the 'DES'
-cryptography distribution in sysinstall.
-
-IPsec support has been imported from the KAME project. This includes IPsec
-tunnel mode to implement a Virtual Private Network via a security gateway,
-and IPsec transport mode to achieve secure socket-level communication.
-Also, kernel-internal crypto code has been imported to sys/crypto, and
-IPsec support has been added to the following userland applications:
-sbin/ping, usr.sbin/inetd, usr.sbin/rrenumd, usr.sbin/traceroute6,
-usr.sbin/rtadvd, usr.sbin/setkey
 
 1.3. USERLAND CHANGES
 ---------------------
 
-The base C/C++ compiler has been upgraded from GCC 2.7.2 to GCC 2.95.2.
-This gives users full ISO C++ support, and preliminary C9x support.
+The OPIE one-time-password suite has been updated to 2.32.
 
-The timezone database has been updated to catch all of the recent changes
-in Europe, the former Soviet Union, and Central and South America.
-The timezone data files now contain a magic number allowing for easy
-identification.
+OpenSSH has been upgraded to 2.1.0, which provides support for the
+SSH2 protocol, including DSA keys.  Therefore, OpenSSH users in the US
+no longer need to rely on the restrictively-licensed RSAREF toolkit
+which is required to handle RSA keys.  OpenSSH 2.1 interoperates well
+with other SSH2 clients and servers, including the ssh2 port.  See
+http://www.openssh.com for more details.
 
-The f77 emulation via f2c has been replaced by a native F77 compiler.
-
-Groff/troff/eqn has been updated to version 1.15.
-
-Gdb has been updated to version 4.18 and is now part of the standard
-release for FreeBSD/alpha.
-
-Numerous fixes have been applied to improve the security of FreeBSD code
-as part of the FreeBSD Auditing Project.
-
-FreeBSD's threads library, libc_r, has had many features and performance
-improvements added, which makes it almost completely POSIX-compliant.
-
-The following dedicated IPv6 applications have been added:
- sbin/ping6, sbin/rtsol, usr.sbin/gifconfig, usr.sbin/ifmcstat,
- usr.sbin/pim6dd, usr.sbin/pim6sd, usr.sbin/prefix, usr.sbin/rip6query,
- usr.sbin/route6d, usr.sbin/rrenumd, usr.sbin/rtadvd, usr.sbin/rtsold,
- usr.sbin/traceroute6
-
-The following applications have been updated to support IPv6:
- usr.bin/netstat, usr.bin/fstat, usr.bin/sockstat, usr.sbin/tcpdchk,
- usr.sbin/tcpdump, usr.sbin/trpt, libexec/ftpd, libexec/rlogind,
- libexec/rshd, libexec/telnetd
-
-Many ports have been updated to support IPv6. See the 'ipv6' virtual ports
-category for a list.
+OpenSSH can now authenticate using OPIE passwords in SSH1 mode.
+Support is not yet available in SSH2 mode.
 
 
 2. Supported Configurations
