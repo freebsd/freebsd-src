@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.14 1996/10/04 08:43:36 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -40,7 +40,7 @@ HDRS=	ACG.h AllocRing.h Binomial.h BitSet.h BitString.h Complex.h \
 	Obstack.h Pix.h Poisson.h RNG.h Random.h Rational.h Regex.h RndInt.h \
 	SLList.h SmplHist.h SmplStat.h String.h Uniform.h Weibull.h \
 	bitdo1.h bitdo2.h bitprims.h builtin.h compare.h generic.h \
-	getpagesize.h libc.h minmax.h std.h strclass.h swap.h \
+	getpagesize.h libc.h minmax.h osfcn.h std.h strclass.h swap.h \
 	sysent.h typemacros.h
 
 beforeinstall:
