@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.86 1997/05/29 04:55:39 peter Exp $
+ *	$Id: isa.c,v 1.87 1997/05/29 05:56:12 fsmp Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/buf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #if defined(APIC_IO)
