@@ -35,7 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -114,7 +119,7 @@ enter_lastlog(pn)
 	    (long)pn->uid * sizeof(ll) ||
 	    read(fd, (char *)&ll, sizeof(ll)) != sizeof(ll)) {
 			/* as if never logged in */
-			ll.ll_line[0] = ll.ll_host[0] = NULL;
+			ll.ll_line[0] = ll.ll_host[0] = '\0';
 			ll.ll_time = 0;
 		}
 	if ((w = pn->whead) == NULL)
@@ -368,8 +373,7 @@ userinfo(pn, pw)
 	pn->mailrecv = -1;		/* -1 == not_valid */
 	if (stat(tbuf, &sb) < 0) {
 		if (errno != ENOENT) {
-			(void)fprintf(stderr,
-			    "finger: %s: %s\n", tbuf, strerror(errno));
+			warn("%s", tbuf);
 			return;
 		}
 	} else if (sb.st_size != 0) {
@@ -387,7 +391,6 @@ int
 hide(pw)
 	struct passwd *pw;
 {
-	int fd;
 	char buf[MAXPATHLEN+1];
 
 	if (!pw->pw_dir)
