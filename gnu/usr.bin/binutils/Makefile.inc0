@@ -8,7 +8,7 @@
 # definitions before the sub-Makefile is processed.
 #
 
-VERSION=	"2.11.2 [FreeBSD]"
+VERSION=	"2.11.2 20010719 [FreeBSD]"
 TARGET_ARCH?=	${MACHINE_ARCH}
 
 BINUTIL_ARCH=${TARGET_ARCH}
