@@ -685,3 +685,9 @@ rman_get_rid(struct resource *r)
 {
 	return (r->r_rid);
 }
+
+struct device *
+rman_get_device(struct resource *r)
+{
+	return (r->r_dev);
+}
