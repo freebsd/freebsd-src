@@ -27,29 +27,25 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2003
+.Dd February 18, 2004
 .Dt DISK 9
 .Os
 .Sh NAME
 .Nm disk
-.Nd Kernel disk storage API
+.Nd kernel disk storage API
 .Sh SYNOPSIS
 .In geom/geom_disk.h
 .Ft struct *disk
-.Fo disk_alloc
-.Fc
+.Fn disk_alloc void
 .Ft void
-.Fo disk_create
-.Fa "struct disk *disk"
-.Fa "int version"
-.Fc
+.Fn disk_create "struct disk *disk" "int version"
 .Ft void
 .Fn disk_destroy "struct disk *disk"
 .Sh DESCRIPTION
 The disk storage API permits kernel device drivers providing access to
 disk-like storage devices to advertise the device to other kernel
 components, including
-.Xr GEOM 4 ,
+.Xr GEOM 4
 and
 .Xr devfs 5 .
 .Pp
@@ -70,25 +66,26 @@ fill in the fields and call
 .Fn disk_create
 when the device is ready to service requests.
 After calling
-.Fn disk_destroy
-the device driver are not allowed to access the contents of struct disk
-any more.
+.Fn disk_destroy ,
+the device driver is not allowed to access the contents of
+.Vt "struct disk"
+anymore.
 .Pp
+The
 .Fn disk_create
-takes a second parameter 
-.Va version
+function
+takes a second parameter,
+.Fa version ,
 which must always be passed
 .Dv DISK_VERSION .
-If GEOM detects that the driver is compiled against an unsupported version
+If GEOM detects that the driver is compiled against an unsupported version,
 it will ignore the device and print a warning on the console.
-.Pp
 .Ss Descriptive Fields
-.Pp
 The following fields identify the disk device described by the structure
 instance, and must be filled in prior to submitting the structure to
-.Fn disk_create 
+.Fn disk_create
 and may not be subsequently changed:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Vt u_int Va d_flags
 Optional flags indicating to the storage framework what optional features
 or descriptions the storage device driver supports.
@@ -100,15 +97,14 @@ Currently supported flags are
 and
 .Dv DISKFLAG_CANDELETE
 (maintained by device driver).
-.Pp
 .It Vt "const char *" Va d_name
 Holds the name of the storage device class, e.g.,
-.Dq ahd .
+.Dq Li ahd .
 This value typically uniquely identifies a particular driver device,
 and must not conflict with devices serviced by other device drivers.
 .It Vt u_int Va d_unit
 Holds the instance of the storage device class, e.g.,
-.Dq 4 .
+.Dq Li 4 .
 This namespace is managed by the device driver, and assignment of unit
 numbers might be a property of probe order, or in some cases topology.
 Together, the
@@ -119,40 +115,40 @@ values will uniquely identify a disk storage device.
 .El
 .Ss Disk Device Methods
 The following fields identify various disk device methods, if implemented:
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Vt "disk_open_t *" Va d_open
-Optional: Invoked when the disk device is opened.
-If no method is provided open will always succeed.
+Optional: invoked when the disk device is opened.
+If no method is provided, open will always succeed.
 .It Vt "disk_close_t *" Va d_close
-Optional: Invoked when the disk device is closed.
+Optional: invoked when the disk device is closed.
 Although an error code may be returned, the call should always terminate
 any state setup by the corresponing open method call.
 .It Vt "disk_strategy_t *" Va d_strategy
-Mandatory: Invoked when a new
-.Vt struct bio
+Mandatory: invoked when a new
+.Vt "struct bio"
 is to be initiated on the disk device.
 .It Vt "disk_ioctl_t *" Va d_ioctl
-Optional: Invoked when a I/O control operation is initiated on the disk device.
+Optional: invoked when an I/O control operation is initiated on the disk device.
 Please note that for security reasons these operations should not
 be able to affect other devices than the one on which they are performed.
 .It Vt "dumper_t *" Va d_dump
-Optional: If configured with
-.Xr dumpon 8
+Optional: if configured with
+.Xr dumpon 8 ,
 this function is invoked from a very restricted system state after a
-kernel panic to record a copy of the sytem RAM to the disk.
+kernel panic to record a copy of the system RAM to the disk.
 .El
 .Ss Mandatory Media Properties
 The following fields identify the size and granularity of the disk device.
 These fields must stay stable from return of the drivers open method until
 the close method is called, but it is perfectly legal to modify them in
 the open method before returning.
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Vt u_int Va d_sectorsize
-The sectorsize of the disk device in bytes.
+The sector size of the disk device in bytes.
 .It Vt off_t Va d_mediasize
 The size of the disk device in bytes.
 .It Vt u_int Va d_maxsize
-The maximum supported size in bytes of I/O request.
+The maximum supported size in bytes of an I/O request.
 Requests larger than this size will be chopped up by GEOM.
 .El
 .Ss Optional Media Properties
@@ -162,29 +158,28 @@ Do not initialize these fields if the field/concept does not apply.
 These fields must stay stable from return of the drivers open method until
 the close method is called, but it is perfectly legal to modify them in
 the open method before returning.
-.Bl -tag -width XXX
-.It Vt u_int Va d_fwsectors
-.It Vt u_int Va d_fwheads
+.Bl -tag -width indent
+.It Vt u_int Va d_fwsectors , Vt u_int Va d_fwheads
 The number of sectors and heads advertised on the disk device by the
 firmware or BIOS.
 These values are almost universally bogus, but on some architectures
-necessary for the correct calculation of diskpartitioning.
-.It Vt u_int Va d_stripeoffset
-.It Vt u_int Va d_stripesize
+necessary for the correct calculation of disk partitioning.
+.It Vt u_int Va d_stripeoffset , Vt u_int Va d_stripesize
 These two fields can be used to describe the width and location of
 natural performance boundaries for most disk technologies.
 Please see
-.Xr src/sys/geom/notes
+.Pa src/sys/geom/notes
 for details.
 .El
 .Ss Driver Private Data
 This field may be used by the device driver to store a pointer to
 private data to implement the disk service.
-.Bl -tag -width XXX
+.Bl -tag -width indent
 .It Vt "void *" Va d_drv1
 Private data pointer.
-Typically used to store a pointer to the drivers "softc" structure
-for this disk device.
+Typically used to store a pointer to the drivers
+.Vt softc
+structure for this disk device.
 .El
 .Sh SEE ALSO
 .Xr GEOM 4 ,
