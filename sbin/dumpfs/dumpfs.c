@@ -91,26 +91,20 @@ void	usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	struct fstab *fs;
-	int ch, eval;
+	int eval;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch(ch) {
-		case '?':
-		default:
-			usage();
-		}
+	eval = 0;
+
+	while (getopt(argc, argv, "") != -1)
+		usage();
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1)
 		usage();
 
-	for (eval = 0; *argv; ++argv)
-		if ((fs = getfsfile(*argv)) == NULL)
-			eval |= dumpfs(*argv);
-		else
-			eval |= dumpfs(fs->fs_spec);
+	while (*argv != NULL)
+		eval |= dumpfs(*argv++);
 	exit(eval);
 }
 
