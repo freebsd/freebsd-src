@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.399 1998/01/31 07:23:07 eivind Exp $
+#	$Id: LINT,v 1.400 1998/01/31 19:41:27 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -293,6 +293,16 @@ options		DIAGNOSTIC
 # to be compiled.  See perfmon(4) for more information.
 #
 options		PERFMON
+
+
+#
+# This option let some drivers co-exist that can't co-exist in a running
+# system.  This is used to be able to compile all kernel code in one go for
+# quality assurance purposes (like this file, which the option takes it name
+# from.)
+#
+options COMPILING_LINT
+
 
 # XXX - this doesn't belong here.
 # Allow ordinary users to take the console - this is useful for X.
@@ -975,9 +985,8 @@ device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 net irq ? vector wlintr
-# Needed so that we can (bogusly) include both the dedicated PCCARD
-# drivers and the generic support
-options	LINT_PCCARD_HACK
+# We can (bogusly) include both the dedicated PCCARD drivers and the generic
+# support when COMPILING_LINT.
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 

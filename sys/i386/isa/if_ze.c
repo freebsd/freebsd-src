@@ -47,14 +47,16 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.47 1997/12/15 20:30:54 eivind Exp $
+ * $Id: if_ze.c,v 1.48 1998/01/08 23:41:06 eivind Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
+#include "opt_lint.h"
+
 #include "card.h"
 #include "pcic.h"
 #if NCARD > 0 || NPCIC > 0
-#ifndef LINT_PCCARD_HACK
+#ifndef COMPILING_LINT
 #error "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
 #else
 #warning "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
