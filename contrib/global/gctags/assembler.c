@@ -35,9 +35,12 @@
 static char sccsid[] = "@(#)assembler.c	8.3 (Berkeley) 6/6/97";
 #endif /* LIBC_SCCS and not lint */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "ctags.h"
+#include "lookup.h"
 
 #ifdef GLOBAL
 void
@@ -52,22 +55,51 @@ asm_entries()
 		if (!fgets(lbuf, sizeof(lbuf), inf))
 			return;
 		++lineno;
-		/* extract only ENTRY() and ALTENTRY(). */
-		if (lbuf[0] != 'E' && lbuf[0] != 'A')
-			continue;
-		lbp = lbuf;
-		if (!strncmp(lbp, "ENTRY(", 6)) {
-			lbp += 6;
-		} else if (!strncmp(lbp, "ALTENTRY(", 9)) {
-			lbp += 9;
-		} else
-			continue;
-		sp = tok;
-		while (*lbp && intoken(*lbp))
-			*sp++ = *lbp++;
-		if (*lbp != ')')
-			continue;
-		*sp = EOS;
+		if (rflag) {
+			/* extract only call EXT(xxx) or call _xxx */
+			lbp = lbuf;
+			while (*lbp && isspace(*lbp))
+				lbp++;
+			if (*lbp != 'c' || strncmp(lbp, "call", 4))
+				continue;
+			lbp += 4;
+			while (*lbp && isspace(*lbp))
+				lbp++;
+			sp = tok;
+			if (!strncmp(lbp, "EXT(" /* ) */, 4)) {
+				lbp += 4;
+				while (*lbp && intoken(*lbp))
+					*sp++ = *lbp++;
+				if (*lbp != /* ( */ ')')
+					continue;
+				*sp = EOS;
+			} else if (*lbp == '_') {
+				lbp++;
+				while (*lbp && intoken(*lbp))
+					*sp++ = *lbp++;
+				*sp = EOS;
+			} else
+				continue;
+			if (!lookup(tok))
+				continue;
+		} else {
+			/* extract only ENTRY() and ALTENTRY(). */
+			if (lbuf[0] != 'E' && lbuf[0] != 'A')
+				continue;
+			lbp = lbuf;
+			if (!strncmp(lbp, "ENTRY(", 6)) {
+				lbp += 6;
+			} else if (!strncmp(lbp, "ALTENTRY(", 9)) {
+				lbp += 9;
+			} else
+				continue;
+			sp = tok;
+			while (*lbp && intoken(*lbp))
+				*sp++ = *lbp++;
+			if (*lbp != /* ( */ ')')
+				continue;
+			*sp = EOS;
+		}
 		getline();
 		pfnote(tok, lineno);
 	}
