@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.37 1995/09/19 18:55:20 bde Exp $
+ *      $Id: ultra14f.c,v 1.38 1995/11/04 17:07:54 bde Exp $
  */
 
 #include <sys/types.h>
@@ -262,18 +262,18 @@ struct uha_data {
 	struct scsi_link sc_link;
 } *uhadata[NUHA];
 
-int     uhaprobe();
-int     uha_attach();
-int32   uha_scsi_cmd();
-timeout_t uha_timeout;
-void	uha_free_mscp();
-int     uha_abort();
-void    uhaminphys();
-void    uha_done();
-u_int32 uha_adapter_info();
-struct mscp *uha_mscp_phys_kv();
-int	uha_init __P((int unit));
-int	uha24_init __P((int unit));
+static int     uhaprobe();
+static int     uha_attach();
+static int32   uha_scsi_cmd();
+static timeout_t uha_timeout;
+static void	uha_free_mscp();
+static int     uha_abort();
+static void    uhaminphys();
+static void    uha_done();
+static u_int32 uha_adapter_info();
+static struct mscp *uha_mscp_phys_kv();
+static int	uha_init __P((int unit));
+static int	uha24_init __P((int unit));
 
 static	struct mscp *cheat;
 unsigned long int scratch;
@@ -296,7 +296,7 @@ struct isa_driver uhadriver =
 	"uha"
 };
 
-struct scsi_adapter uha_switch =
+static struct scsi_adapter uha_switch =
 {
 	uha_scsi_cmd,
 	uhaminphys,
@@ -308,7 +308,7 @@ struct scsi_adapter uha_switch =
 };
 
 /* the below structure is so we have a default dev struct for out link struct */
-struct scsi_device uha_dev =
+static struct scsi_device uha_dev =
 {
     NULL,			/* Use default error handler */
     NULL,			/* have a queue, served by this */
@@ -353,7 +353,7 @@ main()
 /*
  * Function to send a command out through a mailbox
  */
-void
+static void
 uha_send_mbox(int unit, struct mscp *mscp)
 {
 	struct uha_data *uha = uhadata[unit];
@@ -430,7 +430,7 @@ uha_abort(int unit, struct mscp *mscp)
  *
  *	wait = timeout in msec
  */
-int
+static int
 uha_poll(int unit, int wait)
 {
 	struct	uha_data *uha = uhadata[unit];
@@ -739,7 +739,7 @@ uha_free_mscp(unit, mscp, flags)
  * If there are none, see if we can allocate a new one.  If so, put it in the
  * hash table too otherwise either return an error or sleep.
  */
-struct mscp *
+static struct mscp *
 uha_get_mscp(unit, flags)
 	int	unit, flags;
 {
@@ -796,7 +796,7 @@ uha_get_mscp(unit, flags)
 /*
  * given a physical address, find the mscp that it corresponds to.
  */
-struct mscp *
+static struct mscp *
 uha_mscp_phys_kv(uha, mscp_phys)
 	struct	uha_data *uha;
 	long	int mscp_phys;
@@ -1068,7 +1068,7 @@ uhaminphys(bp)
  * start a scsi operation given the command and the data address.  Also
  * needs the unit, target and lu.
  */
-int32
+static int32
 uha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1321,7 +1321,7 @@ uha_scsi_cmd(xs)
 	return (COMPLETE);
 }
 
-void
+static void
 uha_timeout(arg1)
 	void	*arg1;
 {
