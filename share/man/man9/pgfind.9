@@ -45,6 +45,11 @@ as its argument and returns a pointer to the
 structure whose
 .Va pg_id
 is specified in the argument.
+.Pp
+.Fn pgfind
+locks the
+.Vt pgrp
+structure that is returned.
 .Sh RETURN VALUES
 The
 .Fn pgfind
