@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.20 1997/02/22 13:56:12 peter Exp $
+#	$Id: bsd.man.mk,v 1.21 1997/03/08 23:46:55 wosch Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -70,6 +70,8 @@ _MANPAGES+= ${MAN${sect}}
 .endif
 .endfor
 
+# XXX MANDEPEND is only used for groff, man/man, man/manpath, at and atrun.
+# It should be named more generally.
 all-man: ${MANDEPEND}
 
 .if defined(NOMANCOMPRESS)
