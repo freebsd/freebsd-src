@@ -24,7 +24,7 @@ has to contain the line
 .Ed
 .Pp
 so that
-.Xr atrun 8
+.Nm
 gets invoked every five minutes.
 .Pp
 At every invocation, 

@@ -49,12 +49,12 @@ The arguments are:
 the vnode being reclaimed
 .El
 .Pp
-.Xr VOP_INACTIVE 9
+.Fn VOP_INACTIVE
 is called when the kernel is no longer using the vnode.  This may be
 because the reference count reaches zero or it may be that the
 file system is being forcibly unmounted while there are open files.
 It can be used to reclaim space for 'open but deleted' files.
-.Xr VOP_RECLAIM 9
+.Fn VOP_RECLAIM
 is called when a vnode is being reused for a different file system.
 Any file system specific resources associated with the vnode should be
 freed.
