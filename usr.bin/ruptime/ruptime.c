@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  */
 
+/* $Id: ruptime.c,v 1.5 1995/08/07 19:17:40 wollman Exp $ */
+
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1983, 1993, 1994\n\
@@ -53,7 +55,6 @@ static char sccsid[] = "@(#)ruptime.c	8.2 (Berkeley) 4/5/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 struct hs {
@@ -196,16 +197,16 @@ interval(tval, updown)
 	static char resbuf[32];
 	int days, hours, minutes;
 
-	if (tval < 0 || tval > DAYSPERNYEAR * SECSPERDAY) {
+	if (tval < 0) {
 		(void)snprintf(resbuf, sizeof(resbuf), "   %s ??:??", updown);
 		return (resbuf);
 	}
 						/* round to minutes. */
-	minutes = (tval + (SECSPERMIN - 1)) / SECSPERMIN;
-	hours = minutes / MINSPERHOUR;
-	minutes %= MINSPERHOUR;
-	days = hours / HOURSPERDAY;
-	hours %= HOURSPERDAY;
+	minutes = (tval + (60 - 1)) / 60;
+	hours = minutes / 60;
+	minutes %= 60;
+	days = hours / 24;
+	hours %= 24;
 	if (days)
 		(void)snprintf(resbuf, sizeof(resbuf),
 		    "%s %2d+%02d:%02d", updown, days, hours, minutes);
