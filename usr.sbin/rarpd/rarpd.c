@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.10 1996/11/19 23:57:06 wpaul Exp $ (LBL)";
+    "$Id: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.12 1996/11/27 20:45:10 fenner Exp $";
 #endif
 
 /*
@@ -46,14 +46,10 @@ static const char rcsid[] =
 
 #include <net/bpf.h>
 #include <net/if.h>
-
-#if BSD >= 199100
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
-#if BSD >= 199200
 #include <net/route.h>
-#endif
-#endif
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -65,16 +61,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
-#if BSD >= 199200
 #include <stdlib.h>
 #include <unistd.h>
-#else
-
-extern char *optarg;
-extern int optind, opterr;
-
-extern int errno;
-#endif
 
 #if defined(SUNOS4) || defined(__FreeBSD__) /* XXX */
 #define HAVE_DIRENT_H
