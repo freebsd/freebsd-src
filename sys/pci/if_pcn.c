@@ -410,6 +410,7 @@ static int pcn_probe(dev)
 			case Am79C971:
 			case Am79C972:
 			case Am79C973:
+			case Am79C976:
 			case Am79C978:
 				break;
 			default:
@@ -761,7 +762,14 @@ static void pcn_rxeof(sc)
 			continue;
 		}
 
-		pcn_newbuf(sc, i, NULL);
+		if (pcn_newbuf(sc, i, NULL)) {
+			/* Ran out of mbufs; recycle this one. */
+			pcn_newbuf(sc, i, m);
+			ifp->if_ierrors++;
+			PCN_INC(i, PCN_RX_LIST_CNT);
+			continue;
+		}
+
 		PCN_INC(i, PCN_RX_LIST_CNT);
 
 		/* No errors; receive the packet. */
