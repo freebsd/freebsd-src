@@ -7,12 +7,10 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.10 1996/09/10 08:27:42 bde Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.11 1996/11/21 07:19:00 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
-
-#define M_DEVFSNAME M_DEVFSBACK
 
 #define	ISUID		04000		/* set user identifier when exec'ing */
 #define	ISGID		02000		/* set group identifier when exec'ing */

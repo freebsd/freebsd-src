@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.56 1997/09/27 13:40:08 kato Exp $
+ * $Id: ffs_vfsops.c,v 1.57 1997/10/10 18:16:59 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -63,6 +63,8 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
+
+MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
 static int	ffs_sbupdate __P((struct ufsmount *, int));
 static int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));

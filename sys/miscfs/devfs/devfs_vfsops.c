@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.19 1997/08/02 14:31:55 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.20 1997/08/16 19:15:10 wollman Exp $
  *
  *
  */
@@ -14,6 +14,8 @@
 #include <sys/malloc.h>
 
 #include <miscfs/devfs/devfsdefs.h>
+
+MALLOC_DEFINE(M_DEVFSMNT, "DEVFS mount", "DEVFS mount structure");
 
 static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
 static int mountdevfs( struct mount *mp, struct proc *p);

@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.28 1997/02/22 09:39:23 peter Exp $ */
+/*	$Id: sysv_shm.c,v 1.29 1997/08/02 14:31:39 bde Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -64,6 +64,8 @@ extern int shmdt __P((struct proc *p, struct shmdt_args *uap, int *retval));
 struct shmget_args;
 extern int shmget __P((struct proc *p, struct shmget_args *uap, int *retval));
 #endif
+
+MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
