@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.21 1999/06/30 03:39:29 alc Exp $
+ *	$Id: ipl_funcs.c,v 1.22 1999/07/10 15:28:01 bde Exp $
  */
 
 #include <sys/types.h>
@@ -237,16 +237,10 @@ unsigned NAME(void)				\
 {						\
 	unsigned x;				\
 						\
-	if (!bsp_apic_ready) {			\
-		x = cpl;			\
-		set_cpl;			\
-	}					\
-	else {					\
-		IFCPL_LOCK();			\
-		x = cpl;			\
-		set_cpl;			\
-		IFCPL_UNLOCK();			\
-	}					\
+	IFCPL_LOCK();				\
+	x = cpl;				\
+	set_cpl;				\
+	IFCPL_UNLOCK();				\
 						\
 	return (x);				\
 }
