@@ -28,6 +28,7 @@ MAN=	aac.4 \
 	ccd.4 \
 	cd.4 \
 	ch.4 \
+	crypto.4 \
 	csa.4 \
 	cue.4 \
 	da.4 \
@@ -51,6 +52,7 @@ MAN=	aac.4 \
 	gre.4 \
 	gusc.4 \
 	gx.4 \
+	hifn.4 \
 	ichsmb.4 \
 	icmp.4 \
 	icmp6.4 \
@@ -185,6 +187,7 @@ MAN=	aac.4 \
 	tun.4 \
 	twe.4 \
 	txp.4 \
+	ubsec.4 \
 	ucom.4 \
 	udbp.4 \
 	udp.4 \
