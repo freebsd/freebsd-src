@@ -1147,6 +1147,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	desc = pci_ata_match(child);
 	if (!desc) desc = pci_usb_match(child);
 	if (!desc) desc = pci_vga_match(child);
+	if (!desc) desc = pci_chip_match(child);
 	if (!desc) {
 		desc = "unknown card";
 		unknown++;
