@@ -244,13 +244,13 @@ do {							\
  */
 #define	KSE_LOCK_ACQUIRE(kse, lck)					\
 do {									\
-	if ((kse)->k_locklevel >= MAX_KSE_LOCKLEVEL)			\
-		PANIC("Exceeded maximum lock level");			\
-	else {								\
+	if ((kse)->k_locklevel < MAX_KSE_LOCKLEVEL) {			\
 		(kse)->k_locklevel++;					\
 		_lock_acquire((lck),					\
 		    &(kse)->k_lockusers[(kse)->k_locklevel - 1], 0);	\
 	}								\
+	else 								\
+		PANIC("Exceeded maximum lock level");			\
 } while (0)
 
 #define	KSE_LOCK_RELEASE(kse, lck)					\
@@ -665,7 +665,7 @@ struct pthread {
 	 * Used for tracking delivery of signal handlers.
 	 */
 	struct pthread_sigframe	*curframe;
-	siginfo_t		siginfo[_SIG_MAXSIG];
+	siginfo_t		*siginfo;
 
  	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -846,15 +846,14 @@ do {								\
 
 #define	THR_LOCK_ACQUIRE(thrd, lck)				\
 do {								\
-	if ((thrd)->locklevel >= MAX_THR_LOCKLEVEL)		\
-		PANIC("Exceeded maximum lock level");		\
-	else {							\
+	if ((thrd)->locklevel < MAX_THR_LOCKLEVEL) {		\
 		THR_DEACTIVATE_LAST_LOCK(thrd);			\
 		(thrd)->locklevel++;				\
 		_lock_acquire((lck),				\
 		    &(thrd)->lockusers[(thrd)->locklevel - 1],	\
 		    (thrd)->active_priority);			\
-	}							\
+	} else 							\
+		PANIC("Exceeded maximum lock level");		\
 } while (0)
 
 #define	THR_LOCK_RELEASE(thrd, lck)				\
