@@ -55,7 +55,7 @@ extern struct dosDirEntry *rootDir;
 /*
  * function declarations
  */
-int ask(int, const char *, ...) __attribute__((__format__(__printf__,2,3)));
+int ask(int, const char *, ...) __printflike(2, 3);
 
 /*
  * Check the dirty flag.  If the file system is clean, then return 1.
