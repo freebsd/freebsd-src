@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.25 1995/12/07 12:47:26 davidg Exp $
+ * $Id: nfs_subs.c,v 1.26 1995/12/17 21:12:30 phk Exp $
  */
 
 /*
@@ -112,6 +112,7 @@ struct nqtimerhead nqtimerhead;
 struct nqfhhashhead *nqfhhashtbl;
 u_long nqfhhash;
 
+#ifndef NFS_NOSERVER
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
@@ -144,6 +145,7 @@ int nfsv3_procid[NFS_NPROCS] = {
 	NFSPROC_NOOP
 };
 
+#endif /* NFS_NOSERVER */
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
  */
@@ -176,6 +178,7 @@ int nfsv2_procid[NFS_NPROCS] = {
 	NFSV2PROC_NOOP,
 };
 
+#ifndef NFS_NOSERVER
 /*
  * Maps errno values to nfs error numbers.
  * Use NFSERR_IO as the catch all for ones not specifically defined in
@@ -532,6 +535,8 @@ static short *nfsrv_v3errmap[] = {
 	nfsv3err_pathconf,
 	nfsv3err_commit,
 };
+
+#endif /* NFS_NOSERVER */
 
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsrtt nfsrtt;
@@ -1122,8 +1127,10 @@ nfs_init()
 		nfs_iodwant[i] = (struct proc *)0;
 	TAILQ_INIT(&nfs_bufq);
 	nfs_nhinit();			/* Init the nfsnode table */
+#ifndef NFS_NOSERVER
 	nfsrv_init(0);			/* Init server data structures */
 	nfsrv_initcache();		/* Init the server request cache */
+#endif
 
 	/*
 	 * Initialize the nqnfs server stuff.
@@ -1140,21 +1147,27 @@ nfs_init()
 	 * Initialize reply list and start timer
 	 */
 	TAILQ_INIT(&nfs_reqq);
+#ifndef NFS_NOSERVER
 	nfs_timer(0);
+#endif
 
 #ifdef __FreeBSD__
 	/*
 	 * Set up lease_check and lease_updatetime so that other parts
 	 * of the system can call us, if we are loadable.
 	 */
+#ifndef NFS_NOSERVER
 	lease_check = nfs_lease_check;
+#endif
 	lease_updatetime = nfs_lease_updatetime;
 	vfsconf[MOUNT_NFS]->vfc_refcount++; /* make us non-unloadable */
 #ifdef VFS_LKM
 	sysent[SYS_nfssvc].sy_narg = 2;
 	sysent[SYS_nfssvc].sy_call = nfssvc;
+#ifndef NFS_NOSERVER
 	sysent[SYS_getfh].sy_narg = 2;
 	sysent[SYS_getfh].sy_call = getfh;
+#endif
 #endif
 #endif
 
@@ -1388,6 +1401,7 @@ nfs_getattrcache(vp, vaper)
 	return (0);
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Set up nameidata for a lookup() call and do it
  */
@@ -1728,6 +1742,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	return (0);
 }
 
+#endif /* NFS_NOSERVER */
 /*
  * This function compares two net addresses by family and returns TRUE
  * if they are the same host.
@@ -1881,6 +1896,7 @@ loop:
 	splx(s);
 }
 
+#ifndef NFS_NOSERVER
 /*
  * Map errnos to NFS error numbers. For Version 3 also filter out error
  * numbers not specified for the associated procedure.
@@ -1960,3 +1976,4 @@ nfsrv_vrele(struct vnode *vp) {
 	}
 	return 0;
 }
+#endif /* NFS_NOSERVER */

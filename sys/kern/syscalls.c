@@ -171,7 +171,7 @@ char *syscallnames[] = {
 	"fstatfs",			/* 158 = fstatfs */
 	"#159",			/* 159 = nosys */
 	"#160",			/* 160 = nosys */
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 	"getfh",			/* 161 = getfh */
 #else
 	"#161",			/* 161 = nosys */

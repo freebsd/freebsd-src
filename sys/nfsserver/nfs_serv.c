@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.26 1995/12/07 12:47:25 davidg Exp $
+ * $Id: nfs_serv.c,v 1.27 1995/12/17 21:12:22 phk Exp $
  */
 
 /*
@@ -85,20 +85,21 @@
 #include <nfs/nfsm_subs.h>
 #include <nfs/nqnfs.h>
 
+nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
+		      NFFIFO, NFNON };
+#ifndef NFS_NOSERVER 
+nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFNON,
+		      NFCHR, NFNON };
 /* Global vars */
 extern u_long nfs_xdrneg1;
 extern u_long nfs_false, nfs_true;
 extern enum vtype nv3tov_type[8];
 extern struct nfsstats nfsstats;
-nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFNON,
-		      NFCHR, NFNON };
-nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
-		      NFFIFO, NFNON };
+
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
 
 int nfs_async;
 SYSCTL_INT(_fs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
-
 
 static int nfsrv_access __P((struct vnode *,int,struct ucred *,int,
 		struct proc *));
@@ -3431,3 +3432,5 @@ nfsrv_access(vp, flags, cred, rdonly, p)
 		return (error);
 	return (0);
 }
+#endif /* NFS_NOSERVER */
+
