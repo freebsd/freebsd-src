@@ -912,7 +912,7 @@ if [ "$hname" != "" ]; then
 		echo	"Initializing $hname filesystem, and mounting..."
 		newfs ${rotdelay} /dev/r${drivename}h $name
 	else
-		echo	"Initializing $hname filesystem..."
+		echo	"Preparing for $hname filesystem, and mounting..."
 	fi
 	mkdir -p /mnt/$hname
 	[ ! "$have_dos_part" ] &&
