@@ -1,249 +1,33 @@
 /*
- * Copyright (c) 1993 Herb Peyerl <hpeyerl@novatel.ca> All rights reserved.
- * 
+ * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met: 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer. 2. The name
- * of the author may not be used to endorse or promote products derived from
- * this software without specific prior written permission
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- * From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $ $Id: if_ep.c,v 1.9
- * 1994/05/02 22:27:33 ats Exp $
- * 
- * October 26, 1994
- * 
- * Modified by: Andres Vega Garcia 
- * INRIA - Sophia Antipolis, France 
- * e-mail: avega@sophia.inria.fr 
- * finger: avega@pax.inria.fr
- * 
- * 
- * What is new:
- * 
- *   1) We can recognize more than 1 board. 
- * 
- *   2) The problem which used to happen  with high trafic is corrected, 
- *      (No more need to 'down' and 'up' the interface). 
- * 
- *   3) In the transmission, we use the TX start threshold in a more dynamic 
- *      fashion (IMO the throughput is higher this way). 
- * 
- *   4) In the reception, we use the RX early threshold, that parameter is 
- *      adapted as the packets arrive (IMO the throughput is higher this way).
- * 
- *   5) Supports EISA cards.
- *   
- *   NB 0: The 32 bits acces is allowed for the EISA configured cards, thoung I 
- *   wasn't able to test the code added.
- * 
- *   NB 1: I added the option EP_LOCAL_STATS, it can be temporary as IMO is just
- *   used while working on this driver and the program that displays this
- *   information (epstat).
- *   
- * 
- * Some driver statistics can be viewed with the epstat utility.  In order to 
- * use this, you have to compile if_ep.c with
- * 
- * 	-DEP_LOCAL_STATS
- * 
- * which can be included in your machine config file (e.g. GENERICAH_EP)
- * as an option (option EP_LOCAL_STATS).
- * 
- * 
- * Modifications since FreeBSD 1.1.5.1 Release:
- * 
- * This explanation concerns the epstart(), epread() and epintr() functions.
- * 
- * =========================================================================
- * 	epstart()
- * =========================================================================
- * 
- * 
- * 	Let's see what the idea is:
- * 
- * 
- * Packet |------------------ LEN ---------------------|
- * 
- * 	       A
- * CPU	  |---------------|----------------------------|
- * 
- * 
- * Card	                  |----------------------------|
- * 
- * 
- * 
- * 	We suppose the Card is able to *write* bytes (send them to the media)
- * at the speed S_CARD (bytes/s), and that is faster than the speed of the CPU,
- * S_CPU, to write bytes to the TX FIFO, then, we have to write A bytes to the 
- * FIFO before enableing the transmision in the card. This way both, the card 
- * and the CPU must finish their writing at the same time.
- * 
- * 
- * 	Let TX_RATE = S_CPU / S_CARD,  where TX_RATE <= 1
- * 
- * 	We can find that:
- * 
- * (1)		A = LEN * (1 - TX_RATE)
- * 
- * 
- * 	Let TX_RATE_R be the *very real* value.
- * 
- * 	If TX_RATE > TX_RATE_R
- * 		We are supposing the CPU is faster than it really is and 
- * 		certainly the card will *finish* before the CPU, having a
- * 		TX Underrun Error, then, in such a case, we have to do:
- * 
- * 			TX_RATE -= STEP, where STEP is the step at which we
- * 					 move TX_RATE
- * 	
- * 	If TX_RATE < TX_RATE_R
- * 		We won't have the TX Underrun Error but it is possible that 
- * 		we don't use eficiently the TX START THRESH. feature.
- * 		We prevent this by doing:
- * 
- * 			TX_RATE += STEP every time we have sent succesfuly
- * 					(without Underrun) a certain number
- * 					of packets.
- * 		
- * 	Now, to avoid dealing with reals I used a FACTOR, then (1) will be 
- * transformed:
- * 
- * 		Let tx_rate = FACTOR * TX_RATE, tx_rate is the parameter 
- * 						really used.
- * 
- * 		A = (LEN * (FACTOR - tx_rate)) / FACTOR
- * 
- * 	Actually FACTOR = 64
- * 
- * (2)		A = (LEN * (64 - tx_rate)) >> 6
- * 
- * 	As I want to have some margin, and
- * 	as I have to write a number multiple of 4:
- * 
- * 	A = tx_start_threshold = (((LEN * (64 - tx_rate)) >> 6) & ~3) + 16
- * 
- * 
- * =========================================================================
- * 	epread()
- * =========================================================================
- * 
- * 	I mantain an estimation of the RX packet's average length, and an
- * estimation of the RX latency.
- * 
- * 	Every time I receive a complete packet I compute the average packet's 
- * length, rx_avg_pkt:
- * 
- * 	DELTA = LEN - rx_avg_pkt, where LEN is this packet's length 
- * 
- * 	if DELTA > 0
- * 		rx_avg_pkt += AVG_UP * DELTA
- * 	else
- * 		rx_avg_pkt += AVG_DOWN *DELTA
- * 
- * 
- * 	AVG_UP < AVG_DOWN
- * 
- * 	In the first case, I'm interested in being conservative about the 
- * average packet'length, because if I let it go up *too fast*, a shorter packet
- * than expected will probably cause an RX Overrun Error. But if I consider
- * the next packet will be smaller than it will, I just will have to wait
- * for the packet to complete reception.
- * 
- * 	In the other case, I'm interested in leting the rx_avg_pkt follow
- * the real packet's lenght closer, as it is important not to think the average 
- * packet is bigger than it realy is. If I don't do that, and the rx_avg_pkt
- * goes down *too slow*, I'll find myself thinking the packets are big when they
- * are really small and I'll have probably Rx Overrun Errors.
- * 
- * 	Actualy:
- * 
- * 		AVG_UP =   1/32
- * 		AVG_DOWN = 1/8
- * 
- * 
- * 	Every time I receive an incomplete packet I recompute the RX latency 
- * (rx_latency).
- * 
- * 	I know that if rx_latency = 0, when I go read the bytes from the RX
- * FIFO, I'll find as many bytes as I programmed in the RX Early Threshold, but
- * if rx_latency > 0, I'll find more bytes.
- * 
- * 	Let CUR_LAT be the RX latency seen by this packet.
- * 
- * 	CUR_LAT = LEN - rx_early_threshold,	where LEN is the number of
- * 						bytes I have just received.
- * 
- * 	DELTA = CUR_LAT - rx_latency
- * 
- * 
- * 	if DELTA >= 0
- * 		rx_latency += LAT_UP * DELTA
- * 	else
- * 		rx_latency += LAT_DOWN * DELTA
- * 
- * 
- * 	LAT_UP > LAT_DOWN
- * 
- * 	In a similar way as for rx average packet's length, I try to be more
- * conservative in the more critical case.
- * 
- * 	In the first case, I have to follow closer the incremets of the RX 
- * latency, because if I don't, I can find myself thinking that we (CPU) are 
- * *enough fast* and wait up to the last minute to go read data to find we have 
- * had RX Overrun Error.
- * 
- * 	In the other case I must be more conservative to avoid falling in
- * the situation I have just described, because if I go down *to fast* I'll 
- * think we are enough fast and we'll wake up later than due.
- * 
- * 	Actually:
- * 
- * 		LAT_UP =   1/4
- * 		LAT_DOWN = 1/32
- * 
- * 	Finally, I compute the rx_early_threshold for the next packet as:
- * 
- * 	rx_early_threshold = rx_avg_pkt - rx_latency
- * 
- * 	But, as I want to have a margin and 
- * 	as I have to write a value multiple of 4.
- * 
- * 
- * 	rx_early_threshold = (rx_avg_pkt - rx_latency - 16) & ~3
- * 
- * 
- * 	But if I have to wait for the rest of an incomplete packet
- * from which I have already received CUR_LEN bytes:
- * 
- * 
- * 	rx_early_threshold = (rx_avg_pkt-CUR_LEN - rx_latency - 16) & ~3
- * 
- * 
- * =========================================================================
- * 	epintr()
- * =========================================================================
- * 
- * 	For this function I just tryed to do what is stated in the 
- * Etherlink III Technical Reference.
- * 
- * 	It was here where I really solved the problem that used to happen with
- * high traffic.
- * 
- * 
- * 				Andres
- * 				avega@pax.inria.fr
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Herb Peyerl.
+ * 4. The name of Herb Peyerl may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #include "ep.h"
