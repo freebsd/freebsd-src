@@ -867,25 +867,25 @@ char *
 Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
     Boolean *freePtr)
 {
-    char	    *tstr;    	/* Pointer into str */
-    Var	    	    *v;	    	/* Variable in invocation */
-    char	    *cp;    	/* Secondary pointer into str (place marker
+    char	*tstr;		/* Pointer into str */
+    Var		*v;		/* Variable in invocation */
+    char	 *cp;		/* Secondary pointer into str (place marker
 				 * for tstr) */
-    Boolean 	    haveModifier;/* TRUE if have modifiers for the variable */
-    char	    endc;    	/* Ending character when variable in parens
+    Boolean	haveModifier;	/* TRUE if have modifiers for the variable */
+    char	endc;		/* Ending character when variable in parens
 				 * or braces */
-    char	    startc;	/* Starting character when variable in parens
+    char	startc;		/* Starting character when variable in parens
 				 * or braces */
-    int             cnt;	/* Used to count brace pairs when variable in
+    int		cnt;		/* Used to count brace pairs when variable in
 				 * in parens or braces */
-    char    	    *start;
-    char	     delim;
-    Boolean 	    dynamic;	/* TRUE if the variable is local and we're
+    char	*start;
+    char	delim;
+    Boolean	dynamic;	/* TRUE if the variable is local and we're
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
-    int		vlen;		/* length of variable name, after embedded variable
-				 * expansion */
+    int		vlen;		/* length of variable name, after embedded
+				 * variable expansion */
 
     *freePtr = FALSE;
     dynamic = FALSE;
@@ -955,6 +955,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	vlen = strlen(str);
 
 	v = VarFind(str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+
 	if ((v == (Var *)NULL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
 	{
@@ -978,8 +979,8 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		     */
 		    vname[0] = str[0];
 		    vname[1] = '\0';
-		    v = VarFind(vname, ctxt, 0);
 
+		    v = VarFind(vname, ctxt, 0);
 		    if (v != NULL && !haveModifier) {
 			/*
 			 * No need for nested expansion or anything, as we're
@@ -998,7 +999,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 			 * tell caller to free it.
 			 */
 			*freePtr = TRUE;
-			*lengthPtr = tstr-start+1;
+			*lengthPtr = tstr - start + 1;
 			*tstr = endc;
 			Buf_Destroy(buf, TRUE);
 			return (val);
@@ -1588,8 +1589,8 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		     * This can either be a bogus modifier or a System-V
 		     * substitution command.
 		     */
-		    VarPattern      pattern;
-		    Boolean         eqFound;
+		    VarPattern	pattern;
+		    Boolean	eqFound;
 
 		    pattern.flags = 0;
 		    eqFound = FALSE;
