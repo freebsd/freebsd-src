@@ -90,6 +90,9 @@ still wish to use it, though fetch is slightly more capable in that
 it can fetch from both FTP and HTTP servers (ftp://... or http://... URLs).
 See the man page for more details.
 
+The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
+believed to be fixed.
+
 
 2. Technical overview
 ---------------------
@@ -543,5 +546,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.32 1997/02/17 08:32:05 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.33 1997/03/12 01:57:58 jkh Exp $
  LocalWords:  Adaptec
