@@ -113,10 +113,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 {
     ACPI_PCI_ROUTING_TABLE	*prt;
     ACPI_HANDLE			lnkdev;
-    ACPI_BUFFER			crsbuf, prsbuf;
+    ACPI_BUFFER			crsbuf, prsbuf, buf;
     ACPI_RESOURCE		*crsres, *prsres, resbuf;
-    ACPI_DEVICE_INFO		devinfo;
-    ACPI_BUFFER			buf = {sizeof(devinfo), &devinfo};
+    ACPI_DEVICE_INFO		*devinfo;
     ACPI_STATUS			status;
     UINT32			NumberOfInterrupts;
     UINT32			*Interrupts;
@@ -126,8 +125,6 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     
-    crsbuf.Pointer = NULL;
-    prsbuf.Pointer = NULL;
     interrupt = 255;
 
     /* ACPI numbers pins 0-3, not 1-4 like the BIOS */
@@ -187,17 +184,24 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Verify that this is a PCI link device, and that it's present.
      */
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &buf))) {
 	device_printf(pcib, "couldn't validate PCI interrupt link device %s\n",
 	    prt->Source);
 	goto out;
     }
-    if (!(devinfo.Valid & ACPI_VALID_HID) || strcmp("PNP0C0F", devinfo.HardwareId.Value)) {
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
+    if ((devinfo->Valid & ACPI_VALID_HID) == 0 ||
+	strcmp("PNP0C0F", devinfo->HardwareId.Value) != 0) {
+
 	device_printf(pcib, "PCI interrupt link device %s has wrong _HID (%s)\n",
-		      prt->Source, devinfo.HardwareId.Value);
+		      prt->Source, devinfo->HardwareId.Value);
 	goto out;
     }
-    if (devinfo.Valid & ACPI_VALID_STA && (devinfo.CurrentStatus & 0x9) != 0x9) {
+    if ((devinfo->Valid & ACPI_VALID_STA) != 0 &&
+	(devinfo->CurrentStatus & 0x9) != 0x9) {
+
 	device_printf(pcib, "PCI interrupt link device %s not present\n",
 		      prt->Source);
 	goto out;
@@ -206,12 +210,14 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Get the current and possible resources for the interrupt link device.
      */
+    crsbuf.Pointer = NULL;
     crsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(pcib, "couldn't get PCI interrupt link device _CRS data - %s\n",
 		      AcpiFormatException(status));
 	goto out;	/* this is fatal */
     }
+    prsbuf.Pointer = NULL;
     prsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetPossibleResources(lnkdev, &prsbuf))) {
 	device_printf(pcib, "couldn't get PCI interrupt link device _PRS data - %s\n",
@@ -361,6 +367,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	AcpiOsFree(crsbuf.Pointer);
     if (prsbuf.Pointer != NULL)
 	AcpiOsFree(prsbuf.Pointer);
+    if (buf.Pointer != NULL)
+	AcpiOsFree(buf.Pointer);
 
     /* XXX APIC_IO interrupt mapping? */
     return_VALUE(interrupt);
