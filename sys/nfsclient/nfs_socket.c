@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.33 1998/05/31 17:27:49 peter Exp $
+ * $Id: nfs_socket.c,v 1.34 1998/05/31 17:57:43 peter Exp $
  */
 
 /*
@@ -550,6 +550,13 @@ tryagain:
 			   }
 			} while (error == EWOULDBLOCK);
 			if (!error && auio.uio_resid > 0) {
+			    /*
+			     * Don't log a 0 byte receive; it means
+			     * that the socket has been closed, and
+			     * can happen during normal operation
+			     * (forcible unmount or Solaris server).
+			     */
+			    if (auio.uio_resid != sizeof (u_int32_t))
 			    log(LOG_INFO,
 				 "short receive (%d/%d) from nfs server %s\n",
 				 sizeof(u_long) - auio.uio_resid,
@@ -581,6 +588,7 @@ tryagain:
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (!error && auio.uio_resid > 0) {
+			    if (len != auio.uio_resid)
 			    log(LOG_INFO,
 				"short receive (%d/%d) from nfs server %s\n",
 				len - auio.uio_resid, len,
