@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.50 1999/01/21 08:29:12 dillon Exp $
+ * $Id: vm_page.h,v 1.51 1999/01/21 10:06:24 dillon Exp $
  */
 
 /*
@@ -312,6 +312,7 @@ vm_page_assert_wait(vm_page_t m, int interruptible)
 static __inline void
 vm_page_busy(vm_page_t m)
 {
+	KASSERT((m->flags & PG_BUSY) == 0, ("vm_page_busy: page already busy!!!"));
 	vm_page_flag_set(m, PG_BUSY);
 }
 
@@ -341,6 +342,7 @@ vm_page_flash(vm_page_t m)
 static __inline void
 vm_page_wakeup(vm_page_t m)
 {
+	KASSERT(m->flags & PG_BUSY, ("vm_page_wakeup: page not busy!!!"));
 	vm_page_flag_clear(m, PG_BUSY);
 	vm_page_flash(m);
 }
@@ -425,6 +427,15 @@ vm_page_unhold(vm_page_t mem)
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 }
+
+/*
+ * 	vm_page_protect:
+ *
+ *	Reduce the protection of a page.  This routine never
+ *	raises the protection and therefore can be safely
+ *	called if the page is already at VM_PROT_NONE ( it
+ *	will be a NOP effectively ).
+ */
 
 static __inline void
 vm_page_protect(vm_page_t mem, int prot)
