@@ -79,9 +79,10 @@ static void acd_read_toc(struct acd_softc *);
 static int acd_play(struct acd_softc *, int, int);
 static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
+static int acd_open_disk(struct acd_softc *);
+static int acd_close_disk(struct acd_softc *, int);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
 static int acd_close_track(struct acd_softc *);
-static int acd_close_disk(struct acd_softc *, int);
 static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info *);
 static int acd_get_progress(struct acd_softc *, int *);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
@@ -972,6 +973,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
  
     case CDRIOCOPENDISK:
+	error = acd_open_disk(cdp);
 	break;
 
     case CDRIOCOPENTRACK:
@@ -1371,6 +1373,16 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int
+acd_open_disk(struct acd_softc *cdp)
+{
+    int8_t ccb[16] = { ATAPI_SEND_OPC_INFO, 0x01, 0, 0, 0, 0, 0, 0,
+		       0, 0, 0, 0, 0, 0, 0, 0 };
+
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 30, NULL, NULL);
+    return 0;
+}
+
+static int
 acd_close_disk(struct acd_softc *cdp, int multisession)
 {
     int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
@@ -1383,6 +1395,7 @@ acd_close_disk(struct acd_softc *cdp, int multisession)
 				(caddr_t)&param, sizeof(param))))
 	return error;
 
+    param.data_length = 0;
     if (multisession)
     	param.session_type = CDR_SESS_MULTI;
     else
@@ -1420,11 +1433,12 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 				(caddr_t)&param, sizeof(param))))
 	return error;
 
+    param.data_length = 0;
     param.page_code = ATAPI_CDROM_WRITE_PARAMETERS_PAGE;
     param.page_length = 0x32;
     param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
-    param.session_type = CDR_SESS_MULTI;
+    param.session_type = CDR_SESS_NONE;
     param.fp = 0;
     param.packet_size = 0;
 
