@@ -37,6 +37,9 @@
  * $FreeBSD$
  */
 
+#ifndef _DEV_IC_SAB82532_H_
+#define	_DEV_IC_SAB82532_H_
+
 /*
  * Register definitions for SAB82532 based on "Enhanced Serial Communication
  * Controller ESCC2 Version 3.2 User's Manual 07.96" from:
@@ -318,3 +321,5 @@
 #define	SAB_RSTAT_PE	0x80	/* parity error */
 #define	SAB_RSTAT_FE	0x40	/* framing error */
 #define	SAB_RSTAT_PAR	0x01	/* parity bit */
+
+#endif /* _DEV_IC_SAB82532_H_ */
