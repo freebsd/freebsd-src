@@ -121,6 +121,7 @@ static void enlarge __P((struct parse *p, sopno size));
 static void stripsnug __P((struct parse *p, struct re_guts *g));
 static void findmust __P((struct parse *p, struct re_guts *g));
 static sopno pluscount __P((struct parse *p, struct re_guts *g));
+static int collcmp __P((int c1, int c2));
 
 #ifdef __cplusplus
 }
@@ -741,6 +742,37 @@ register struct parse *p;
 		EMIT(OANYOF, freezeset(p, cs));
 }
 
+static int collcmp (c1, c2)
+int c1, c2;
+{
+	static char s1[2], s2[2];
+
+	if (c1 == c2)
+		return (0);
+	if (   (isascii(c1) && isascii(c2))
+	    || (!isalpha(c1) && !isalpha(c2))
+	   )
+		return (c1 - c2);
+	if (isalpha(c1) && !isalpha(c2)) {
+		if (isupper(c1))
+			return ('A' - c2);
+		else
+			return ('a' - c2);
+	} else if (isalpha(c2) && !isalpha(c1)) {
+		if (isupper(c2))
+			return (c1 - 'A');
+		else
+			return (c1 - 'a');
+	}
+	if (isupper(c1) && islower(c2))
+		return (-1);
+	else if (islower(c1) && isupper(c2))
+		return (1);
+	s1[0] = c1;
+	s2[0] = c2;
+	return strcoll(s1, s2);
+}
+
 /*
  - p_b_term - parse one term of a bracketed character list
  == static void p_b_term(register struct parse *p, register cset *cs);
@@ -799,10 +831,19 @@ register cset *cs;
 				finish = p_b_symbol(p);
 		} else
 			finish = start;
-/* xxx what about signed chars here... */
-		(void)REQUIRE(start <= finish, REG_ERANGE);
-		for (i = start; i <= finish; i++)
-			CHadd(cs, i);
+		if (start == finish)
+			CHadd(cs, start);
+		else {
+			uch s = (uch)start, f = (uch)finish;
+
+			(void)REQUIRE(collcmp(s, f) <= 0, REG_ERANGE);
+			for (i = CHAR_MIN; i <= CHAR_MAX; i++) {
+				if (   collcmp(s, (uch)i) <= 0
+				    && collcmp((uch)i, f) <= 0
+				   )
+					CHadd(cs, i);
+			}
+		}
 		break;
 	}
 }
