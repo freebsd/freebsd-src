@@ -66,8 +66,8 @@ trash_ctor(void *mem, int size, void *arg)
 
 	for (p = mem; cnt > 0; cnt--, p++)
 		if (*p != uma_junk)
-			panic("Memory modified after free %p(%d)\n",
-			    mem, size);
+			panic("Memory modified after free %p(%d) val=%x @ %p\n",
+			    mem, size, *p, p);
 }
 
 /*
@@ -132,8 +132,8 @@ mtrash_ctor(void *mem, int size, void *arg)
 
 	for (p = mem; cnt > 0; cnt--, p++)
 		if (*p != uma_junk) {
-			printf("Memory modified after free %p(%d)\n",
-			    mem, size);
+			printf("Memory modified after free %p(%d) val=%x @ %p\n",
+			    mem, size, *p, p);
 			panic("Most recently used by %s\n", (*ksp == NULL)?
 			    "none" : (*ksp)->ks_shortdesc);
 		}
