@@ -35,7 +35,7 @@ typedef struct hid_data *hid_data_t;
 
 typedef enum hid_kind {
 	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
-}hid_kind_t;
+} hid_kind_t;
 
 typedef struct hid_item {
 	/* Global */
@@ -77,13 +77,14 @@ typedef struct hid_item {
 
 /* Obtaining a report descriptor, descr.c: */
 report_desc_t hid_get_report_desc __P((int file));
+report_desc_t hid_use_report_desc __P((unsigned char *data, unsigned int size));
 void hid_dispose_report_desc __P((report_desc_t));
 
 /* Parsing of a HID report descriptor, parse.c: */
 hid_data_t hid_start_parse __P((report_desc_t d, int kindset));
 void hid_end_parse __P((hid_data_t s));
 int hid_get_item __P((hid_data_t s, hid_item_t *h));
-int hid_report_size __P((report_desc_t d, enum hid_kind k, int *idp));
+int hid_report_size __P((report_desc_t d, unsigned int id, enum hid_kind k));
 int hid_locate __P((report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h));
 
 /* Conversion to/from usage names, usage.c: */
