@@ -335,7 +335,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	struct tlabel *tl;
 	struct timeval tv;
 	struct timeval split_timeout;
-	int i;
+	int i, s;
 
 	split_timeout.tv_sec = 6;
 	split_timeout.tv_usec = 0;
@@ -343,6 +343,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 	microtime(&tv);
 	timevalsub(&tv, &split_timeout);
 
+	s = splfw();
 	for (i = 0; i < 0x40; i ++) {
 		while ((tl = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			xfer = tl->xfer;
@@ -365,6 +366,7 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 			}
 		}
 	}
+	splx(s);
 }
 
 static void
@@ -393,6 +395,7 @@ firewire_attach( device_t dev )
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
+	fc->status = -1;
 
 	unitmask = UNIT2MIN(device_get_unit(dev));
 
@@ -473,8 +476,17 @@ static int
 firewire_detach( device_t dev )
 {
 	struct firewire_softc *sc;
+	struct csrdir *csrd, *next;
+	struct fw_device *fwdev, *fwdev_next;
 
 	sc = (struct firewire_softc *)device_get_softc(dev);
+
+	bus_generic_detach(dev);
+
+	callout_stop(&sc->fc->timeout_callout);
+	callout_stop(&sc->fc->bmr_callout);
+	callout_stop(&sc->fc->retry_probe_callout);
+	callout_stop(&sc->fc->busprobe_callout);
 
 #if __FreeBSD_version >= 500000
 	destroy_dev(sc->dev);
@@ -486,13 +498,17 @@ firewire_detach( device_t dev )
 	}
 #endif
 	/* XXX xfree_free and untimeout on all xfers */
-	callout_stop(&sc->fc->timeout_callout);
-	callout_stop(&sc->fc->bmr_callout);
-	callout_stop(&sc->fc->retry_probe_callout);
-	callout_stop(&sc->fc->busprobe_callout);
+	for (fwdev = STAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
+							fwdev = fwdev_next) {
+		fwdev_next = STAILQ_NEXT(fwdev, link);
+		free(fwdev, M_FW);
+	}
+	for (csrd = SLIST_FIRST(&sc->fc->csrfree); csrd != NULL; csrd = next) {
+		next = SLIST_NEXT(csrd, link);
+		free(csrd, M_FW);
+	}
 	free(sc->fc->topology_map, M_FW);
 	free(sc->fc->speed_map, M_FW);
-	bus_generic_detach(dev);
 	return(0);
 }
 #if 0
@@ -1641,9 +1657,11 @@ fw_attach_dev(struct firewire_comm *fc)
 	if (i > 0)
 		printf("fw_attach_dev: %d pending handlers called\n", i);
 	if (fc->retry_count > 0) {
-		printf("retry_count = %d\n", fc->retry_count);
+		printf("probe failed for %d node\n", fc->retry_count);
+#if 0
 		callout_reset(&fc->retry_probe_callout, hz*2,
 					(void *)fc->ibr, (void *)fc);
+#endif
 	}
 	return;
 }
