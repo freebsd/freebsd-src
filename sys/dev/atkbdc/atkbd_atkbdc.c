@@ -77,7 +77,7 @@ atkbdidentify(driver_t *driver, device_t parent)
 {
 
 	/* always add at least one child */
-	BUS_ADD_CHILD(parent, KBDC_RID_KBD, driver->name, 0);
+	BUS_ADD_CHILD(parent, KBDC_RID_KBD, driver->name, device_get_unit(parent));
 }
 
 static int
