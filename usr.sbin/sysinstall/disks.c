@@ -622,6 +622,7 @@ diskPartition(Device *dev)
 	    clear();
 	    break;
 	    
+#ifndef __ia64__
 	case '|':
 	    if (!msgNoYes("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
@@ -635,6 +636,7 @@ diskPartition(Device *dev)
 		msg = "Wise choice!";
 	    clear();
 	    break;
+#endif
 
 	case '\033':	/* ESC */
 	case 'Q':
@@ -858,11 +860,11 @@ diskPartitionWrite(dialogMenuItem *self)
 	if (!devs[i]->enabled)
 	    continue;
 
-#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__)
 	if (!boot1) boot1 = bootalloc("boot1", NULL);
 	if (!boot2) boot2 = bootalloc("boot2", NULL);
 	Set_Boot_Blocks(d, boot1, boot2);
-#else
+#elif !defined(__ia64__)
 	if (!boot1) boot1 = bootalloc("boot1", NULL);
 	Set_Boot_Blocks(d, boot1, NULL);
 #endif
