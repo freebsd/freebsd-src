@@ -161,6 +161,8 @@ ffs_truncate(vp, length, flags, cred, td)
 	fs = oip->i_fs;
 	ump = oip->i_ump;
 
+	ASSERT_VOP_LOCKED(vp, "ffs_truncate");
+
 	if (length < 0)
 		return (EINVAL);
 	/*
@@ -277,6 +279,7 @@ ffs_truncate(vp, length, flags, cred, td)
 #endif
 			softdep_setup_freeblocks(oip, length, needextclean ?
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
+			ASSERT_VOP_LOCKED(vp, "ffs_truncate1");
 			vinvalbuf(ovp, needextclean ? 0 : V_NORMAL, td, 0, 0);
 			vnode_pager_setsize(vp, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
