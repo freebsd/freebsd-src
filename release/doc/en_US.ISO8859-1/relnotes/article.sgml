@@ -612,6 +612,11 @@
         <para>Experimental support for the Eicon.Diehl DIVA 2.0 and
         2.02 ISA PnP ISDN cards has been added to the &man.isic.4;
         <application>isdn4bsd</application> driver.</para> 
+
+	<para>Active CAPI-based ISDN cards manufacured by AVM are now
+	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver. The
+	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
+	cards and the AVM T1 Primary Rate cards.</para>
       </sect4>
     </sect3>
   </sect2>
