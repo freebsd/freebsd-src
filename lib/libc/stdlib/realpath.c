@@ -119,7 +119,7 @@ realpath(const char *path, char resolved[PATH_MAX])
 			 */
 			if (resolved_len > 1) {
 				resolved[resolved_len - 1] = '\0';
-				q = strrchr(resolved, '/');
+				q = strrchr(resolved, '/') + 1;
 				*q = '\0';
 				resolved_len = q - resolved;
 			}
@@ -158,7 +158,7 @@ realpath(const char *path, char resolved[PATH_MAX])
 			} else if (resolved_len > 1) {
 				/* Strip the last path component. */
 				resolved[resolved_len - 1] = '\0';
-				q = strrchr(resolved, '/');
+				q = strrchr(resolved, '/') + 1;
 				*q = '\0';
 				resolved_len = q - resolved;
 			}
