@@ -3179,7 +3179,6 @@ asr_attach (ATTACH_ARGS)
          *      Generate the device node information
          */
         (void)make_dev(&asr_cdevsw, unit, 0, 0, S_IRWXU, "rasr%d", unit);
-        destroy_dev(makedev(asr_cdevsw.d_maj,unit+1));
         ATTACH_RETURN(0);
 } /* asr_attach */
 
