@@ -117,6 +117,7 @@ devclass_t uhubroot_devclass;
 Static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
+
 	/* detach is not allowed for a root hub */
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
@@ -456,7 +457,7 @@ uhub_explore(usbd_device_handle dev)
 		if (!(status & UPS_CURRENT_CONNECT_STATUS)) {
 			/* Nothing connected, just ignore it. */
 #ifdef DIAGNOSTIC
-			printf("%s: device disappeared on port %d\n",
+			printf("%s: port %d, device disappeared after reset\n",
 			       USBDEVNAME(sc->sc_dev), port);
 #endif
 			continue;
@@ -469,11 +470,9 @@ uhub_explore(usbd_device_handle dev)
 			speed = USB_SPEED_LOW;
 		else
 			speed = USB_SPEED_FULL;
-
 		/* Get device info and set its address. */
 		err = usbd_new_device(USBDEV(sc->sc_dev), dev->bus, 
 		    dev->depth + 1, speed, port, up);
-
 		/* XXX retry a few times? */
 		if (err) {
 			DPRINTFN(-1,("uhub_explore: usb_new_device failed, "
@@ -538,7 +537,7 @@ uhub_activate(device_ptr_t self, enum devact act)
 USB_DETACH(uhub)
 {
 	USB_DETACH_START(uhub, sc);
-	usbd_device_handle dev = sc->sc_hub;
+	struct usbd_hub *hub = sc->sc_hub->hub;
 	struct usbd_port *rup;
 	int port, nports;
 
@@ -548,23 +547,24 @@ USB_DETACH(uhub)
 	DPRINTF(("uhub_detach: sc=%port\n", sc));
 #endif
 
-	if (dev->hub == NULL)		/* Must be partially working */
+	if (hub == NULL)		/* Must be partially working */
 		return (0);
 
 	usbd_abort_pipe(sc->sc_ipipe);
 	usbd_close_pipe(sc->sc_ipipe);
 
-	nports = dev->hub->hubdesc.bNbrPorts;
+	nports = hub->hubdesc.bNbrPorts;
 	for(port = 0; port < nports; port++) {
-		rup = &dev->hub->ports[port];
+		rup = &hub->ports[port];
 		if (rup->device)
 			usb_disconnect_port(rup, self);
 	}
 
-	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, dev, USBDEV(sc->sc_dev));
+	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_hub,
+			   USBDEV(sc->sc_dev));
 
-	free(dev->hub, M_USBDEV);
-	dev->hub = NULL;
+	free(hub, M_USBDEV);
+	sc->sc_hub->hub = NULL;
 
 	return (0);
 }
@@ -617,7 +617,6 @@ uhub_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 		usbd_clear_endpoint_stall_async(sc->sc_ipipe);
 	else if (status == USBD_NORMAL_COMPLETION)
 		usb_needs_explore(sc->sc_hub);
-
 }
 
 #if defined(__FreeBSD__)
