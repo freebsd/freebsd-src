@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.50 1996/12/28 07:55:15 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.51 1996/12/28 08:23:52 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -264,8 +264,7 @@ lib/X11/oneko/mouse.xpm
 	  and works correctly.
 
       <sect3>
-	<heading><label id="porting:submitting">Submitting the
-	  port</heading>
+	<heading>Submitting the port<label id="porting:submitting"></heading>
 
 	<p>Now that you are happy with your port, the only thing
 	  remaining is to put it in the main FreeBSD ports tree and
