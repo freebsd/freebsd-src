@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: sio.sgml,v 1.1 1996/02/16 13:28:21 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -17,13 +17,13 @@
 	  cards are supported as well.  See the <tt>sio(4)</tt>
 	  manual page for detailed technical documentation.
 
-<sect3><heading>Digiboard PC/8</heading>
+<sect3><heading>Digi International (DigiBoard) PC/8</heading>
 
 	  <p><em>Contributed by &a.awebster;.<newline>26 August
 	      1995.</em>
 
 	    Here is a config snippet from a machine with
-	    digiboard PC/8 with 16550.  It has 8 modems connected
+	    a Digi International PC/8 with 16550.  It has 8 modems connected
 	    to these 8 lines, and they work just great.  Do not
 	    forget to add <tt>options "COM_MULTIPORT"</tt> or it
 	    will not work very well!
