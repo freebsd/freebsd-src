@@ -62,11 +62,10 @@
 
 
 #include <sys/param.h>
-#ifdef DEBUG
-#include <sys/systm.h>		/* for printf() in EXCEPTION() */
-#endif
+#include <sys/systm.h>		/* for printf() in EXCEPTION() and
+				 * to bring in <machine/cpufunc.h
+				 */
 #include <sys/proc.h>
-#include <machine/cpufunc.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
