@@ -299,7 +299,7 @@ main(int argc, char *argv[])
 			pam_syslog("pam_set_item(PAM_RHOST)");
 			bail(NO_SLEEP_EXIT, 1);
 		}
-		
+
 		pwd = getpwnam(username);
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
@@ -324,7 +324,7 @@ main(int argc, char *argv[])
 			break;
 
 		pam_cleanup();
-		
+
 		(void)printf("Login incorrect\n");
 		failures++;
 
@@ -355,7 +355,7 @@ main(int argc, char *argv[])
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
 	if (!quietlog)
 		pam_silent = 0;
-	
+
 	/*
 	 * Switching needed for NFS with root access disabled.
 	 *
@@ -368,7 +368,7 @@ main(int argc, char *argv[])
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
 		if (login_getcapbool(lc, "requirehome", 0))
 			refused("Home directory not available", "HOMEDIR", 1);
-		if (chdir("/") < 0) 
+		if (chdir("/") < 0)
 			refused("Cannot find root directory", "ROOTDIR", 1);
 		if (!quietlog || *pwd->pw_dir)
 			printf("No home directory.\nLogging in with home = \"/\".\n");
@@ -382,8 +382,8 @@ main(int argc, char *argv[])
 	(void)setegid(egid);
 	if (!quietlog)
 		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
-	
-        shell = login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
+
+	shell = login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = strdup(_PATH_BSHELL);
 	if (pwd->pw_shell == NULL) {
@@ -464,7 +464,7 @@ main(int argc, char *argv[])
 	 * PAM modules might add supplementary groups during pam_setcred().
 	 */
 	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETGROUP) != 0) {
-                syslog(LOG_ERR, "setusercontext() failed - exiting");
+		syslog(LOG_ERR, "setusercontext() failed - exiting");
 		bail(NO_SLEEP_EXIT, 1);
 	}
 
@@ -474,7 +474,7 @@ main(int argc, char *argv[])
 		bail(NO_SLEEP_EXIT, 1);
 	}
 	pam_cred_established = 1;
-	
+
 	pam_err = pam_open_session(pamh, pam_silent);
 	if (pam_err != PAM_SUCCESS) {
 		pam_syslog("pam_open_session()");
@@ -501,7 +501,7 @@ main(int argc, char *argv[])
 	/*
 	 * NOTICE: We are now in the child process!
 	 */
-	
+
 	/*
 	 * Add any environment variables the PAM modules may have set.
 	 */
@@ -518,12 +518,12 @@ main(int argc, char *argv[])
 	 * the UID.
 	 */
 	if (setlogin(username) != 0) {
-                syslog(LOG_ERR, "setlogin(%s): %m - exiting", username);
+		syslog(LOG_ERR, "setlogin(%s): %m - exiting", username);
 		bail(NO_SLEEP_EXIT, 1);
 	}
 	if (setusercontext(lc, pwd, pwd->pw_uid,
 	    LOGIN_SETALL & ~(LOGIN_SETLOGIN|LOGIN_SETGROUP)) != 0) {
-                syslog(LOG_ERR, "setusercontext() failed - exiting");
+		syslog(LOG_ERR, "setusercontext() failed - exiting");
 		exit(1);
 	}
 
@@ -585,7 +585,7 @@ main(int argc, char *argv[])
 
 	execlp(shell, arg0, (char *)0);
 	err(1, "%s", shell);
-	
+
 	/*
 	 * That's it, folks!
 	 */
@@ -756,7 +756,7 @@ getloginname()
 				*p++ = ch;
 		}
 	} while (p == nbuf);
-	
+
 	*p = '\0';
 	if (nbuf[0] == '-') {
 		pam_silent = 0;
