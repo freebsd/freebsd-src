@@ -101,7 +101,10 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
+#if defined(NFSCLIENT) && defined(NFS_ROOT)
 	int	order = 0;
+#endif
+
 #ifdef BOOTP
 	if (!ia64_running_in_simulator())
 		bootpc_init();
