@@ -38,6 +38,8 @@
 PROG=	testsyscall
 NOMAN=
 
+MODSTAT= /usr/bin/modstat
+
 load:
 	@echo "This test program will call the sample system call;"
 	@echo "the "offset requested will be shown as 'Off' in the"
@@ -48,7 +50,7 @@ load:
 	@echo "system console each time it is run."
 	@echo
 	@echo
-	/sbin/modstat -n newsyscall
+	${MODSTAT} -n new_syscall
 	@echo
 	@./testsyscall
 
@@ -57,7 +59,7 @@ unload:
 	@echo "has been successfully unloaded by building 'unload' in"
 	@echo "the 'module' subdirectory."
 	@echo
-	/sbin/modstat -n newsyscall
+	${MODSTAT} -n new_syscall
 
 .include <bsd.prog.mk>
 
