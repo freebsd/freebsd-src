@@ -67,8 +67,8 @@ static __inline void
 usage(void)
 {
   fprintf(stderr, "%s\n%s\n",
-	"usage: truss [-fdDS] [-o file] -p pid",
-	"       truss [-fdDS] [-o file] command [args]");
+	"usage: truss [-faedDS] [-o file] -p pid",
+	"       truss [-faedDS] [-o file] command [args]");
   exit(1);
 }
 
@@ -146,13 +146,19 @@ main(int ac, char **av) {
   bzero(trussinfo, sizeof(struct trussinfo));
   trussinfo->outfile = stderr;
 
-  while ((c = getopt(ac, av, "p:o:fdDS")) != -1) {
+  while ((c = getopt(ac, av, "p:o:faedDS")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
       trussinfo->pid = atoi(optarg);
       break;
     case 'f': /* Follow fork()'s */
       trussinfo->flags |= FOLLOWFORKS;
+      break;
+    case 'a': /* Print execve() argument strings. */
+      trussinfo->flags |= EXECVEARGS;
+      break;
+    case 'e': /* Print execve() environment strings. */
+      trussinfo->flags |= EXECVEENVS;
       break;
     case 'd': /* Absolute timestamps */
       trussinfo->flags |= ABSOLUTETIMESTAMPS;
