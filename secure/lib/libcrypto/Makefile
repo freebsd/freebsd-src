@@ -68,6 +68,8 @@ SRCS+=	bn_add.c bn_blind.c bn_ctx.c bn_div.c bn_err.c bn_exp.c \
 	bn_shift.c bn_sqr.c bn_sqrt.c bn_word.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bn-586.s co-586.s
+.elif ${MACHINE_ARCH} == "amd64"
+SRCS+=	x86_64-gcc.c
 .else
 SRCS+=	bn_asm.c
 .endif
@@ -327,6 +329,10 @@ afterinstall:
 .PATH: ${.CURDIR}/i386
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+_bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
+.endif
+
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 _ideapath=	${LCRYPTO_SRC}/crypto/idea
 .endif
@@ -337,6 +343,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/asn1 \
 	${LCRYPTO_SRC}/crypto/bf \
 	${LCRYPTO_SRC}/crypto/bio \
+	${_bn_asmpath} \
 	${LCRYPTO_SRC}/crypto/bn \
 	${LCRYPTO_SRC}/crypto/buffer \
 	${LCRYPTO_SRC}/crypto/cast \
