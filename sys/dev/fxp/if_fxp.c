@@ -383,7 +383,7 @@ fxp_attach(device_t dev)
 	u_int32_t val;
 	u_int16_t data, myea[ETHER_ADDR_LEN / 2];
 	int i, rid, m1, m2, prefer_iomap, maxtxseg;
-	int s;
+	int s, ipcbxmit_disable;
 
 	sc->dev = dev;
 	callout_handle_init(&sc->stat_ch);
@@ -582,9 +582,31 @@ fxp_attach(device_t dev)
 	 * and later chips. Note: we need extended TXCB support
 	 * too, but that's already enabled by the code above.
 	 * Be careful to do this only on the right devices.
+	 *
+	 * At least some 82550 cards probed as "chip=0x12298086 rev=0x0d"
+	 * truncate packets that end with an mbuf containing 1 to 3 bytes
+	 * when used with this feature enabled in the previous version of the
+	 * driver.  This problem appears to be fixed now that the driver
+	 * always sets the hardware parse bit in the IPCB structure, which
+	 * the "Intel 8255x 10/100 Mbps Ethernet Controller Family Open
+	 * Source Software Developer Manual" says is necessary in the
+	 * cases where packet truncation was observed.
+	 *
+	 * The device hint "hint.fxp.UNIT_NUMBER.ipcbxmit_disable"
+	 * allows this feature to be disabled at boot time.
+	 *
+	 * If fxp is not compiled into the kernel, this feature may also
+	 * be disabled at run time:
+	 *    # kldunload fxp
+	 *    # kenv hint.fxp.0.ipcbxmit_disable=1
+	 *    # kldload fxp
 	 */
 
-	if (sc->revision == FXP_REV_82550 || sc->revision == FXP_REV_82550_C) {
+	if (resource_int_value("fxp", device_get_unit(dev), "ipcbxmit_disable",
+	    &ipcbxmit_disable) != 0)
+		ipcbxmit_disable = 0;
+	if (ipcbxmit_disable == 0 && (sc->revision == FXP_REV_82550 ||
+	    sc->revision == FXP_REV_82550_C)) {
 		sc->rfa_size = sizeof (struct fxp_rfa);
 		sc->tx_cmd = FXP_CB_COMMAND_IPCBXMIT;
 		sc->flags |= FXP_FLAG_EXT_RFA;
@@ -1277,6 +1299,23 @@ fxp_start_body(struct ifnet *ifp)
 		txp = sc->fxp_desc.tx_last->tx_next;
 
 		/*
+		 * A note in Appendix B of the Intel 8255x 10/100 Mbps
+		 * Ethernet Controller Family Open Source Software
+		 * Developer Manual says:
+		 *   Using software parsing is only allowed with legal
+		 *   TCP/IP or UDP/IP packets.
+		 *   ...
+		 *   For all other datagrams, hardware parsing must
+		 *   be used.
+		 * Software parsing appears to truncate ICMP and
+		 * fragmented UDP packets that contain one to three
+		 * bytes in the second (and final) mbuf of the packet.
+		 */
+		if (sc->flags & FXP_FLAG_EXT_RFA)
+			txp->tx_cb->ipcb_ip_activation_high =
+			    FXP_IPCB_HARDWAREPARSING_ENABLE;
+
+		/*
 		 * Deal with TCP/IP checksum offload. Note that
 		 * in order for TCP checksum offload to work,
 		 * the pseudo header checksum must have already
@@ -1287,8 +1326,6 @@ fxp_start_body(struct ifnet *ifp)
 
 		if (mb_head->m_pkthdr.csum_flags) {
 			if (mb_head->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				txp->tx_cb->ipcb_ip_activation_high =
-				    FXP_IPCB_HARDWAREPARSING_ENABLE;
 				txp->tx_cb->ipcb_ip_schedule =
 				    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
 				if (mb_head->m_pkthdr.csum_flags & CSUM_TCP)
