@@ -116,6 +116,13 @@ struct nfsd_args {
 
 #ifdef _KERNEL
 
+extern struct mtx nfsd_mtx;
+#define	NFSD_LOCK_ASSERT()	mtx_assert(&nfsd_mtx, MA_OWNED)
+#define	NFSD_UNLOCK_ASSERT()	mtx_assert(&nfsd_mtx, MA_NOTOWNED)
+#define	NFSD_LOCK_DONTCARE()
+#define	NFSD_LOCK()	mtx_lock(&nfsd_mtx)
+#define	NFSD_UNLOCK()	mtx_unlock(&nfsd_mtx)
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NFSRVDESC);
 MALLOC_DECLARE(M_NFSD);
@@ -145,8 +152,8 @@ extern u_int32_t nfsrv_rpc_auth_unix, nfsrv_rpc_msgaccepted, nfsrv_rpc_call,
 	nfsrv_rpc_autherr;
 
 /* Procedure table data */
-extern int	nfsrvv2_procid[NFS_NPROCS];
-extern int	nfsrv_nfsv3_procid[NFS_NPROCS];
+extern const int	nfsrvv2_procid[NFS_NPROCS];
+extern const int	nfsrv_nfsv3_procid[NFS_NPROCS];
 extern int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 		    struct nfssvc_sock *slp, struct thread *td,
 		    struct mbuf **mreqp);
