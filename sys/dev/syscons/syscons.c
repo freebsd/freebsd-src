@@ -495,7 +495,10 @@ sc_probe_unit(int unit, int flags)
 	return ENXIO;
     }
 
-    return ((sckbdprobe(unit, flags, FALSE)) ? 0 : ENXIO);
+    /* syscons will be attached even when there is no keyboard */
+    sckbdprobe(unit, flags, FALSE);
+
+    return 0;
 }
 
 /* probe video adapters, return TRUE if found */ 
