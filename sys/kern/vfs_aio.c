@@ -47,6 +47,7 @@
 #include <sys/conf.h>
 #include <sys/event.h>
 
+#include <posix4/posix4.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
@@ -350,6 +351,7 @@ aio_onceonly(void)
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	async_io_version = _POSIX_VERSION;
+	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, AIO_LISTIO_MAX);
 }
 
 /*
@@ -372,6 +374,7 @@ aio_unload(void)
 	rm_at_exit(aio_proc_rundown);
 	rm_at_exec(aio_proc_rundown);
 	kqueue_del_filteropts(EVFILT_AIO);
+	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, 0);
 	return (0);
 }
 
