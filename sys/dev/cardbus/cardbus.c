@@ -57,10 +57,9 @@
 #include <dev/cardbus/cardbusvar.h>
 #include <dev/cardbus/cardbus_cis.h>
 
-#include "pccbb_if.h"
+#include "power_if.h"
 #include "card_if.h"
 #include "pcib_if.h"
-
 
 #if defined CARDBUS_DEBUG
 #define STATIC
@@ -74,9 +73,8 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD $";
+  "$FreeBSD$";
 #endif
-
 
 struct cardbus_quirk {
 	u_int32_t devid;	/* Vendor/device of the card */
@@ -155,6 +153,13 @@ cardbus_attach(device_t dev)
 	return 0;
 }
 
+static int
+cardbus_detach(device_t dev)
+{
+	cardbus_detach_card(dev, DETACH_FORCE);
+	return 0;
+}
+
 /************************************************************************/
 /* Attach/Detach card							*/
 /************************************************************************/
@@ -188,24 +193,11 @@ static int
 cardbus_attach_card(device_t dev)
 {
 	device_t bdev = device_get_parent(dev);
-	int cdstatus;
 	int cardattached = 0;
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	int bus, slot, func;
 
-	/* inspect initial voltage */
-	if (0 == (cdstatus = PCCBB_DETECT_CARD(bdev))) {
-		DEVPRINTF((dev, "cardbusattach: no CardBus card detected\n"));
-		return ENXIO;
-	}
-
-	if (cdstatus & CARD_3V_CARD) {
-		PCCBB_POWER_SOCKET(bdev, CARD_VCC_3V);
-	} else {
-		device_printf(dev, "unsupported power: %d\n", cdstatus);
-		return EINVAL;
-	}
-	PCCBB_RESET(bdev);
+	POWER_ENABLE_SOCKET(bdev, dev);
 
 	bus = pci_get_secondarybus(bdev);
 	if (bus == 0) {
@@ -253,6 +245,7 @@ cardbus_attach_card(device_t dev)
 	}
 
 	if (cardattached > 0) return 0;
+	POWER_DISABLE_SOCKET(bdev, dev);
 	return ENOENT;
 }
 
@@ -268,18 +261,41 @@ cardbus_detach_card(device_t dev, int flags)
 
 	if (numdevs == 0) {
 		DEVPRINTF((dev, "Detaching card: no cards to detach!\n"));
+		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 		return ENOENT;
 	}
 
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		struct cardbus_devinfo *dinfo = device_get_ivars(devlist[tmp]);
-		if (device_detach(dinfo->cfg.dev) != 0) err++;
-		cardbus_release_all_resources(dinfo->cfg.dev,
-					      &dinfo->resources);
-		device_delete_child(dev, devlist[tmp]);
+		if (device_detach(dinfo->cfg.dev) == 0 || flags & DETACH_FORCE){
+			cardbus_release_all_resources(dinfo->cfg.dev,
+						      &dinfo->resources);
+			device_delete_child(dev, devlist[tmp]);
+		} else
+			err++;
 		cardbus_freecfg(dinfo);
 	}
+	if (err == 0)
+		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 	return err;
+}
+
+static void
+cardbus_driver_added(device_t dev, driver_t *driver)
+{
+	/* 
+	 * For this to work, we should:
+	 * 1) power up the slot if it isn't powered.
+	 *    (Is this necessary?  Can we assume _probe() doesn't need power?)
+	 * 2) probe (we should probe even though we already have child?)
+	 * 3) power up if we haven't done so and probe succeeds
+	 * 4) attach if probe succeeds.
+	 * 5) power down if probe or attach failed, and the slot was powered
+	 *    down to begin with.
+	 */
+	printf("I see you added a driver that could be a child of cardbus...\n");
+	printf("If this is for a cardbus card, please remove and reinsert the card.\n");
+	printf("(there is no current support for adding a driver like this)\n");
 }
 
 /************************************************************************/
@@ -649,6 +665,7 @@ cardbus_add_resources(device_t dev, pcicfgregs* cfg)
 	struct cardbus_quirk *q;
 	struct resource_list_entry *rle;
 	struct resource *res;
+	int rid;
 	int i;
 
 	for (i = 0; i < cfg->nummaps; i++) {
@@ -662,15 +679,16 @@ cardbus_add_resources(device_t dev, pcicfgregs* cfg)
 			cardbus_add_map(cbdev, dev, cfg, q->arg1);
 	}
 
+	rid = 0;
 	res = bus_generic_alloc_resource(cbdev, dev, SYS_RES_IRQ,
-					 0, 0, ~0, 1, RF_SHAREABLE);
+					 &rid, 0, ~0, 1, RF_SHAREABLE);
 
 	if (res == NULL)
 		panic("Cannot allocate IRQ for card\n");
 
-	resource_list_add(rl, SYS_RES_IRQ, 0,
+	resource_list_add(rl, SYS_RES_IRQ, rid,
 			  rman_get_start(res), rman_get_start(res), 1);
-	rle = resource_list_find(rl, SYS_RES_IRQ, 0);
+	rle = resource_list_find(rl, SYS_RES_IRQ, rid);
 	rle->res = res;
 }
 
@@ -688,8 +706,8 @@ cardbus_release_all_resources(device_t dev, struct resource_list *rl)
 	}
 }
 
-static struct
-resource* cardbus_alloc_resource(device_t self, device_t child, int type,
+static struct resource*
+cardbus_alloc_resource(device_t self, device_t child, int type,
 				 int* rid, u_long start, u_long end,
 				 u_long count, u_int flags)
 {
@@ -941,7 +959,7 @@ static device_method_t cardbus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cardbus_probe),
 	DEVMETHOD(device_attach,	cardbus_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	cardbus_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -951,13 +969,14 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	cardbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	cardbus_write_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
 	DEVMETHOD(bus_alloc_resource,	cardbus_alloc_resource),
 	DEVMETHOD(bus_release_resource,	cardbus_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
 	DEVMETHOD(bus_set_resource,	cardbus_set_resource_method),
 	DEVMETHOD(bus_get_resource,	cardbus_get_resource_method),
@@ -980,6 +999,7 @@ static driver_t cardbus_driver = {
 	0 /* no softc */
 };
 
-static devclass_t cardbus_devclass = {};
+static devclass_t cardbus_devclass;
 
 DRIVER_MODULE(cardbus, pccbb, cardbus_driver, cardbus_devclass, 0, 0);
+MODULE_DEPEND(cardbus, pccbb, 1, 1, 1);
