@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.124 1998/09/15 10:06:22 gibbs Exp $
+**  $Id: ncr.c,v 1.125 1998/09/15 22:05:38 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.124 1998/09/15 10:06:22 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.125 1998/09/15 22:05:38 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4606,18 +4606,23 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 			if ((cp->phys.header.launch.l_paddr
 			    == NCB_SCRIPT_PHYS (np, select))
 			 && (xpt_path_comp(path, cp->ccb->ccb_h.path) >= 0)) {
+				int i;
 
 				/* Remove from the start queue */
-				cp->phys.header.launch.l_paddr =
-				    NCB_SCRIPT_PHYS (np, skip);
+				for (i = 0; i < MAX_START; i++) {
+					if (np->squeue[i] == CCB_PHYS(cp, phys))
+						np->squeue[i] =
+						    NCB_SCRIPT_PHYS (np, skip);
+				}
 				cp->host_status=HS_STALL;
 				ncr_complete (np, cp);
 			}
+			break;
 		default:
 			break;
 		}
 		cp = cp->link_nccb;
-	};
+	}
 }
 
 /*==========================================================
