@@ -124,7 +124,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		while (curthread->join_status.thread == pthread) {
 			PTHREAD_SET_STATE(curthread, PS_JOIN);
 			/* Wait for our signal to wake up. */
+			GIANT_UNLOCK(curthread);
 			_thread_suspend(curthread, NULL);
+			GIANT_LOCK(curthread);
 		}
 
 		/*

@@ -275,12 +275,14 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			}
 
 			PTHREAD_SET_STATE(curthread, PS_COND_WAIT);
+			GIANT_UNLOCK(curthread);
 			rval = _thread_suspend(curthread, time);
 			if (rval == -1) {
 				printf("foo");
 				fflush(stdout);
 				abort();
 			}
+			GIANT_LOCK(curthread);
 
 			done = (seqno != (*cond)->c_seqno);
 
