@@ -1188,5 +1188,20 @@ const struct puc_device_description puc_devices[] = {
 	    PUC_ILR_TYPE_DIGI, { 0x07, 0x47 },
 	},
 
+	{   "Cronyx Omega2-PCI",
+	    {	0x13a8,	0x0158,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_UART, 0x010, 0x000, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0x200, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0x400, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0x600, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0x800, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0xA00, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0xC00, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+		{ PUC_PORT_TYPE_UART, 0x010, 0xE00, COM_FREQ * 8, PUC_FLAGS_MEMORY },
+	    },
+	},
+
 	{ 0 }
 };
