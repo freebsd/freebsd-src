@@ -45,21 +45,9 @@ options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
 
-# Platform chipsets
-controller	cia0
-controller	apecs0
-controller	tsunami0
-controller	lca0
-
 # Standard busses
 controller	pci0
 controller	isa0
-
-# TurboChannel host bus support
-controller	tcasic0
-controller	tc0
-#controller	tcds0
-controller	ioasic0
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
