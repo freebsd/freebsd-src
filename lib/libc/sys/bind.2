@@ -65,8 +65,8 @@ needed (using
 The rules used in address binding vary between communication domains.
 Consult the manual entries in section 4 for detailed information.
 .Pp
-For maximum portability, you should always zero-out the socket structure
-before populating it, before passing it to
+For maximum portability, you should always zero the socket address structure
+before populating it and passing it to
 .Fn bind .
 .Sh RETURN VALUES
 .Rv -std bind
