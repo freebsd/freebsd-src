@@ -59,24 +59,12 @@
 #include <dev/digi/digi_mod.h>
 #include <dev/digi/digi_pci.h>
 
-
-#define	CTRL_DEV		0x800000
-#define	CALLOUT_MASK		0x400000
-#define	CONTROL_INIT_STATE	0x100000
-#define	CONTROL_LOCK_STATE	0x200000
-#define	CONTROL_MASK		(CTRL_DEV|CONTROL_INIT_STATE|CONTROL_LOCK_STATE)
-#define UNIT_MASK		0x030000
-#define PORT_MASK		0x0000FF
-#define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
-#define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
-#define	MINOR_TO_UNIT(mynor)	(((mynor) & UNIT_MASK)>>16)
-#define MINOR_TO_PORT(mynor)	((mynor) & PORT_MASK)
-
-static d_open_t		digiopen;
-static d_close_t	digiclose;
-static d_read_t		digiread;
-static d_write_t	digiwrite;
-static d_ioctl_t	digiioctl;
+static t_open_t		digiopen;
+static d_open_t		digicopen;
+static d_close_t	digicclose;
+static t_ioctl_t	digiioctl;
+static d_ioctl_t	digisioctl;
+static d_ioctl_t	digicioctl;
 
 static void	digistop(struct tty *tp, int rw);
 static void	digibreak(struct tty *tp, int brk);
@@ -86,7 +74,7 @@ static void	digi_freemoduledata(struct digi_softc *);
 static void	fepcmd(struct digi_p *port, int cmd, int op, int ncmds);
 static void	digistart(struct tty *tp);
 static int	digiparam(struct tty *tp, struct termios *t);
-static void	digihardclose(struct digi_p *port);
+static void	digiclose(struct tty *tp);
 static void	digi_intr(void *);
 static int	digi_init(struct digi_softc *_sc);
 static int	digi_loadmoduledata(struct digi_softc *);
@@ -143,13 +131,11 @@ const struct digi_control_signals digi_normal_signals = {
 	0x02, 0x80, 0x20, 0x10, 0x40, 0x01
 };
 
-static struct cdevsw digi_sw = {
+static struct cdevsw digi_csw = {
 	.d_version =	D_VERSION,
-	.d_open =	digiopen,
-	.d_close =	digiclose,
-	.d_read =	digiread,
-	.d_write =	digiwrite,
-	.d_ioctl =	digiioctl,
+	.d_open =	digicopen,
+	.d_close =	digicclose,
+	.d_ioctl =	digicioctl,
 	.d_name =	driver_name,
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -233,6 +219,7 @@ digi_init(struct digi_softc *sc)
 	int lowwater;
 	struct digi_p *port;
 	volatile struct board_chan *bc;
+	struct tty *tp;
 
 	ptr = NULL;
 
@@ -529,23 +516,11 @@ digi_init(struct digi_softc *sc)
 		return (0);
 	}
 
-	if (sc->numports > 256) {
-		/* Our minor numbering scheme is broken for more than 256 */
-		device_printf(sc->dev, "%s, 256 ports (%d ports found)\n",
-		    sc->name, sc->numports);
-		sc->numports = 256;
-	} else
-		device_printf(sc->dev, "%s, %d ports found\n", sc->name,
-		    sc->numports);
+	device_printf(sc->dev, "%s, %d ports found\n", sc->name, sc->numports);
 
 	if (sc->ports)
 		free(sc->ports, M_TTYS);
 	sc->ports = malloc(sizeof(struct digi_p) * sc->numports,
-	    M_TTYS, M_WAITOK | M_ZERO);
-
-	if (sc->ttys)
-		free(sc->ttys, M_TTYS);
-	sc->ttys = malloc(sizeof(struct tty) * sc->numports,
 	    M_TTYS, M_WAITOK | M_ZERO);
 
 	/*
@@ -567,8 +542,18 @@ digi_init(struct digi_softc *sc)
 		port->pnum = i;
 		port->sc = sc;
 		port->status = ENABLED;
-		port->tp = sc->ttys + i;
 		port->bc = bc;
+		tp = port->tp = ttyalloc();
+		tp->t_oproc = digistart;
+		tp->t_param = digiparam;
+		tp->t_modem = digimodem;
+		tp->t_break = digibreak;
+		tp->t_stop = digistop;
+		tp->t_cioctl = digisioctl;
+		tp->t_ioctl = digiioctl;
+		tp->t_open = digiopen;
+		tp->t_close = digiclose;
+		tp->t_sc = port;
 
 		if (sc->model == PCXEVE) {
 			port->txbuf = ptr +
@@ -610,32 +595,15 @@ digi_init(struct digi_softc *sc)
 		 * echo off initially so that the line doesn't start blathering
 		 * before the echo flag can be turned off.
 		 */
-		port->it_in.c_iflag = 0;
-		port->it_in.c_oflag = 0;
-		port->it_in.c_cflag = TTYDEF_CFLAG;
-		port->it_in.c_lflag = 0;
-		termioschars(&port->it_in);
-		port->it_in.c_ispeed = port->it_in.c_ospeed = digidefaultrate;
-		port->it_out = port->it_in;
+		tp->t_init_in.c_iflag = 0;
+		tp->t_init_in.c_oflag = 0;
+		tp->t_init_in.c_cflag = TTYDEF_CFLAG;
+		tp->t_init_in.c_lflag = 0;
+		termioschars(&tp->t_init_in);
+		tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = digidefaultrate;
+		tp->t_init_out = tp->t_init_in;
 		port->send_ring = 1;	/* Default action on signal RI */
-
-		port->dev[0] = make_dev(&digi_sw, (sc->res.unit << 16) + i,
-		    UID_ROOT, GID_WHEEL, 0600, "ttyD%d.%d", sc->res.unit, i);
-		port->dev[1] = make_dev(&digi_sw, ((sc->res.unit << 16) + i) |
-		    CONTROL_INIT_STATE, UID_ROOT, GID_WHEEL,
-		    0600, "ttyiD%d.%d", sc->res.unit, i);
-		port->dev[2] = make_dev(&digi_sw, ((sc->res.unit << 16) + i) |
-		    CONTROL_LOCK_STATE, UID_ROOT, GID_WHEEL,
-		    0600, "ttylD%d.%d", sc->res.unit, i);
-		port->dev[3] = make_dev(&digi_sw, ((sc->res.unit << 16) + i) |
-		    CALLOUT_MASK, UID_UUCP, GID_DIALER,
-		    0660, "cuaD%d.%d", sc->res.unit, i);
-		port->dev[4] = make_dev(&digi_sw, ((sc->res.unit << 16) + i) |
-		    CALLOUT_MASK | CONTROL_INIT_STATE, UID_UUCP, GID_DIALER,
-		    0660, "cuaiD%d.%d", sc->res.unit, i);
-		port->dev[5] = make_dev(&digi_sw, ((sc->res.unit << 16) + i) |
-		    CALLOUT_MASK | CONTROL_LOCK_STATE, UID_UUCP, GID_DIALER,
-		    0660, "cualD%d.%d", sc->res.unit, i);
+		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "D%r%r", sc->res.unit, i);
 	}
 
 	sc->hidewin(sc);
@@ -651,15 +619,10 @@ digimodem(struct tty *tp, int sigon, int sigoff)
 {
 	struct digi_softc *sc;
 	struct digi_p *port;
-	int mynor, unit, pnum;
 	int bitand, bitor, mstat;
 
-	mynor = minor(tp->t_dev);
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	port = &sc->ports[pnum];
+	port = tp->t_sc;
+	sc = port->sc;
 
 	if (sigon == 0 && sigoff == 0) {
 		port->sc->setwin(port->sc, 0);
@@ -696,206 +659,71 @@ digimodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static int
-digiopen(struct cdev *dev, int flag, int mode, struct thread *td)
+digicopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct digi_softc *sc;
-	struct tty *tp;
-	int unit;
-	int pnum;
+
+	sc = dev->si_drv1;
+	if (sc->status != DIGI_STATUS_ENABLED) {
+		DLOG(DIGIDB_OPEN, (sc->dev, "Cannot open a disabled card\n"));
+		return (ENXIO);
+	}
+	sc->opencnt++;
+	return (0);
+}
+
+static int
+digiopen(struct tty *tp, struct cdev *dev)
+{
+	int error;
+	struct digi_softc *sc;
 	struct digi_p *port;
-	int s;
-	int error, mynor;
 	volatile struct board_chan *bc;
 
-	error = 0;
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(minor(dev));
-	pnum = MINOR_TO_PORT(minor(dev));
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	if (!sc)
-		return (ENXIO);
+	port = tp->t_sc;
+	sc = port->sc;
 
 	if (sc->status != DIGI_STATUS_ENABLED) {
 		DLOG(DIGIDB_OPEN, (sc->dev, "Cannot open a disabled card\n"));
 		return (ENXIO);
 	}
-	if (pnum >= sc->numports) {
-		DLOG(DIGIDB_OPEN, (sc->dev, "port%d: Doesn't exist\n", pnum));
-		return (ENXIO);
-	}
-	if (mynor & (CTRL_DEV | CONTROL_MASK)) {
-		sc->opencnt++;
-		return (0);
-	}
-	port = &sc->ports[pnum];
-	tp = dev->si_tty = port->tp;
 	bc = port->bc;
 
-	s = spltty();
+	/*
+	 * The device isn't open, so there are no conflicts.
+	 * Initialize it.  Initialization is done twice in many
+	 * cases: to preempt sleeping callin opens if we are callout,
+	 * and to complete a callin open after DCD rises.
+	 */
+	sc->setwin(sc, 0);
 
-open_top:
-	while (port->status & DIGI_DTR_OFF) {
-		port->wopeners++;
-		error = tsleep(&tp->t_dtr_wait, TTIPRI | PCATCH, "digidtr", 0);
-		port->wopeners--;
-		if (error)
-			goto out;
-	}
-
-	if (tp->t_state & TS_ISOPEN) {
-		/*
-		 * The device is open, so everything has been initialized.
-		 * Handle conflicts.
-		 */
-		if (mynor & CALLOUT_MASK) {
-			if (!port->active_out) {
-				error = EBUSY;
-				DLOG(DIGIDB_OPEN, (sc->dev, "port %d:"
-				    " BUSY error = %d\n", pnum, error));
-				goto out;
-			}
-		} else if (port->active_out) {
-			if (flag & O_NONBLOCK) {
-				error = EBUSY;
-				DLOG(DIGIDB_OPEN, (sc->dev,
-				    "port %d: BUSY error = %d\n", pnum, error));
-				goto out;
-			}
-			port->wopeners++;
-			error = tsleep(&port->active_out, TTIPRI | PCATCH,
-			    "digibi", 0);
-			port->wopeners--;
-			if (error != 0) {
-				DLOG(DIGIDB_OPEN, (sc->dev,
-				    "port %d: tsleep(digibi) error = %d\n",
-				    pnum, error));
-				goto out;
-			}
-			goto open_top;
-		}
-		if (tp->t_state & TS_XCLUDE && suser(td) != 0) {
-			error = EBUSY;
-			goto out;
-		}
+	bc->rout = bc->rin;	/* clear input queue */
+	bc->idata = 1;
+	bc->iempty = 1;
+	bc->ilow = 1;
+	bc->mint = port->cd | port->sc->csigs->ri;
+	bc->tin = bc->tout;
+	if (port->ialtpin) {
+		port->cd = sc->csigs->dsr;
+		port->dsr = sc->csigs->cd;
 	} else {
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it.  Initialization is done twice in many
-		 * cases: to preempt sleeping callin opens if we are callout,
-		 * and to complete a callin open after DCD rises.
-		 */
-		tp->t_oproc = digistart;
-		tp->t_param = digiparam;
-		tp->t_modem = digimodem;
-		tp->t_break = digibreak;
-		tp->t_stop = digistop;
-		tp->t_dev = dev;
-		tp->t_termios = (mynor & CALLOUT_MASK) ?
-		    port->it_out : port->it_in;
-		sc->setwin(sc, 0);
-
-		bc->rout = bc->rin;	/* clear input queue */
-		bc->idata = 1;
-		bc->iempty = 1;
-		bc->ilow = 1;
-		bc->mint = port->cd | port->sc->csigs->ri;
-		bc->tin = bc->tout;
-		if (port->ialtpin) {
-			port->cd = sc->csigs->dsr;
-			port->dsr = sc->csigs->cd;
-		} else {
-			port->cd = sc->csigs->cd;
-			port->dsr = sc->csigs->dsr;
-		}
-		port->wopeners++;			/* XXX required ? */
-		error = digiparam(tp, &tp->t_termios);
-		port->wopeners--;
-
-		if (error != 0) {
-			DLOG(DIGIDB_OPEN, (sc->dev,
-			    "port %d: cxpparam error = %d\n", pnum, error));
-			goto out;
-		}
-		ttsetwater(tp);
-
-		/* handle fake and initial DCD for callout devices */
-
-		if (bc->mstat & port->cd || mynor & CALLOUT_MASK)
-			ttyld_modem(tp, 1);
+		port->cd = sc->csigs->cd;
+		port->dsr = sc->csigs->dsr;
 	}
-
-	/* Wait for DCD if necessary */
-	if (!(tp->t_state & TS_CARR_ON) && !(mynor & CALLOUT_MASK) &&
-	    !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
-		port->wopeners++;
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "digidcd", 0);
-		port->wopeners--;
-		if (error != 0) {
-			DLOG(DIGIDB_OPEN, (sc->dev,
-			    "port %d: tsleep(digidcd) error = %d\n",
-			    pnum, error));
-			goto out;
-		}
-		goto open_top;
-	}
-	error = ttyld_open(tp, dev);
-	DLOG(DIGIDB_OPEN, (sc->dev, "port %d: l_open error = %d\n",
-	    pnum, error));
-
-	ttyldoptim(tp);
-
-	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
-		port->active_out = TRUE;
-
-	if (tp->t_state & TS_ISOPEN)
-		sc->opencnt++;
-out:
-	splx(s);
-
-	if (!(tp->t_state & TS_ISOPEN))
-		digihardclose(port);
-
-	DLOG(DIGIDB_OPEN, (sc->dev, "port %d: open() returns %d\n",
-	    pnum, error));
+	tp->t_wopeners++;			/* XXX required ? */
+	error = digiparam(tp, &tp->t_termios);
+	tp->t_wopeners--;
 
 	return (error);
 }
 
 static int
-digiclose(struct cdev *dev, int flag, int mode, struct thread *td)
+digicclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	int mynor;
-	struct tty *tp;
-	int unit, pnum;
 	struct digi_softc *sc;
-	struct digi_p *port;
-	int s;
 
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
-
-	if (mynor & (CTRL_DEV | CONTROL_MASK)) {
-		sc->opencnt--;
-		return (0);
-	}
-
-	port = sc->ports + pnum;
-	tp = port->tp;
-
-	DLOG(DIGIDB_CLOSE, (sc->dev, "port %d: closing\n", pnum));
-
-	s = spltty();
-	ttyld_close(tp, flag);
-	ttyldoptim(tp);
-	digihardclose(port);
-	tty_close(tp);
-	if (--sc->opencnt == 0)
-		splx(s);
+	sc = dev->si_drv1;
+	sc->opencnt--;
 	return (0);
 }
 
@@ -906,15 +734,17 @@ digidtrwakeup(void *chan)
 
 	port->status &= ~DIGI_DTR_OFF;
 	wakeup(&port->tp->t_dtr_wait);
-	port->wopeners--;
+	port->tp->t_wopeners--;
 }
 
 static void
-digihardclose(struct digi_p *port)
+digiclose(struct tty *tp)
 {
 	volatile struct board_chan *bc;
+	struct digi_p *port;
 	int s;
 
+	port = tp->t_sc;
 	bc = port->bc;
 
 	s = spltty();
@@ -923,74 +753,22 @@ digihardclose(struct digi_p *port)
 	bc->iempty = 0;
 	bc->ilow = 0;
 	bc->mint = 0;
-	if ((port->tp->t_cflag & HUPCL) ||
-	    (!port->active_out && !(bc->mstat & port->cd) &&
-	    !(port->it_in.c_cflag & CLOCAL)) ||
-	    !(port->tp->t_state & TS_ISOPEN)) {
-		digimodem(port->tp, 0, SER_DTR | SER_RTS);
-		if (port->tp->t_dtr_wait != 0) {
+	if ((tp->t_cflag & HUPCL) ||
+	    (!tp->t_actout && !(bc->mstat & port->cd) &&
+	    !(tp->t_init_in.c_cflag & CLOCAL)) ||
+	    !(tp->t_state & TS_ISOPEN)) {
+		digimodem(tp, 0, SER_DTR | SER_RTS);
+		if (tp->t_dtr_wait != 0) {
 			/* Schedule a wakeup of any callin devices */
-			port->wopeners++;
-			timeout(&digidtrwakeup, port, port->tp->t_dtr_wait);
+			tp->t_wopeners++;
+			timeout(&digidtrwakeup, port, tp->t_dtr_wait);
 			port->status |= DIGI_DTR_OFF;
 		}
 	}
-	port->active_out = FALSE;
-	wakeup(&port->active_out);
-	wakeup(TSA_CARR_ON(port->tp));
+	tp->t_actout = FALSE;
+	wakeup(&tp->t_actout);
+	wakeup(TSA_CARR_ON(tp));
 	splx(s);
-}
-
-static int
-digiread(struct cdev *dev, struct uio *uio, int flag)
-{
-	int mynor;
-	struct tty *tp;
-	int error, unit, pnum;
-	struct digi_softc *sc;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
-	tp = &sc->ttys[pnum];
-
-	error = ttyld_read(tp, uio, flag);
-	DLOG(DIGIDB_READ, (sc->dev, "port %d: read() returns %d\n",
-	    pnum, error));
-
-	return (error);
-}
-
-static int
-digiwrite(struct cdev *dev, struct uio *uio, int flag)
-{
-	int mynor;
-	struct tty *tp;
-	int error, unit, pnum;
-	struct digi_softc *sc;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiclose\n", unit));
-	tp = &sc->ttys[pnum];
-
-	error = ttyld_write(tp, uio, flag);
-	DLOG(DIGIDB_WRITE, (sc->dev, "port %d: write() returns %d\n",
-	    pnum, error));
-
-	return (error);
 }
 
 /*
@@ -1065,144 +843,96 @@ digi_loadmoduledata(struct digi_softc *sc)
 }
 
 static int
-digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+digisioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	int unit, pnum, mynor, error, s;
-	struct digi_softc *sc;
 	struct digi_p *port;
-	struct tty *tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	int oldcmd;
-	struct termios term;
-#endif
-#endif
+	struct digi_softc *sc;
 
-	mynor = minor(dev);
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
+	port = dev->si_drv1;
+	sc = port->sc;
 
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiioctl\n", unit));
+	switch (cmd) {
+	case DIGIIO_GETALTPIN:
+		if (ISINIT(dev))
+			*(int *)data = port->ialtpin;
+		else if (ISLOCK(dev))
+			*(int *)data = port->laltpin;
+		else
+			return (ENOTTY);
+		break;
+	case DIGIIO_SETALTPIN:
+		if (ISINIT(dev)) {
+			if (!port->laltpin) {
+				port->ialtpin = !!*(int *)data;
+				DLOG(DIGIDB_SET, (sc->dev,
+				    "port%d: initial ALTPIN %s\n", port->pnum,
+				    port->ialtpin ? "set" : "cleared"));
+			}
+		} else if (ISLOCK(dev)) {
+			port->laltpin = !!*(int *)data;
+			DLOG(DIGIDB_SET, (sc->dev,
+			    "port%d: ALTPIN %slocked\n",
+			    port->pnum, port->laltpin ? "" : "un"));
+		} else
+			return (ENOTTY);
+		break;
+	default:
+		return (ENOTTY);
+	}
+	return (0);
+}
+
+static int
+digicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	int error;
+	struct digi_softc *sc;
+
+	sc = dev->si_drv1;
 
 	if (sc->status == DIGI_STATUS_DISABLED)
 		return (ENXIO);
 
-	if (mynor & CTRL_DEV) {
-		switch (cmd) {
-		case DIGIIO_DEBUG:
+	switch (cmd) {
+	case DIGIIO_DEBUG:
 #ifdef DEBUG
-			digi_debug = *(int *)data;
-			return (0);
+		digi_debug = *(int *)data;
+		return (0);
 #else
-			device_printf(sc->dev, "DEBUG not defined\n");
-			return (ENXIO);
+		device_printf(sc->dev, "DEBUG not defined\n");
+		return (ENXIO);
 #endif
-		case DIGIIO_REINIT:
-			digi_loadmoduledata(sc);
-			error = digi_init(sc);
-			digi_freemoduledata(sc);
-			return (error);
+	case DIGIIO_REINIT:
+		digi_loadmoduledata(sc);
+		error = digi_init(sc);
+		digi_freemoduledata(sc);
+		return (error);
 
-		case DIGIIO_MODEL:
-			*(enum digi_model *)data = sc->model;
-			return (0);
+	case DIGIIO_MODEL:
+		*(enum digi_model *)data = sc->model;
+		return (0);
 
-		case DIGIIO_IDENT:
-			return (copyout(sc->name, *(char **)data,
-			    strlen(sc->name) + 1));
-		}
+	case DIGIIO_IDENT:
+		return (copyout(sc->name, *(char **)data,
+		    strlen(sc->name) + 1));
+	default:
+		return (ENOIOCTL);
 	}
+}
 
-	if (pnum >= sc->numports)
+static int
+digiioctl(struct tty *tp, u_long cmd, void *data, int flag, struct thread *td)
+{
+	struct digi_softc *sc;
+	struct digi_p *port;
+
+	port = tp->t_sc;
+	sc = port->sc;
+	if (sc->status == DIGI_STATUS_DISABLED)
 		return (ENXIO);
 
-	port = sc->ports + pnum;
 	if (!(port->status & ENABLED))
 		return (ENXIO);
-
-	tp = port->tp;
-
-	if (mynor & CONTROL_MASK) {
-		struct termios *ct;
-
-		switch (mynor & CONTROL_MASK) {
-		case CONTROL_INIT_STATE:
-			ct = (mynor & CALLOUT_MASK) ?
-			    &port->it_out : &port->it_in;
-			break;
-		case CONTROL_LOCK_STATE:
-			ct = (mynor & CALLOUT_MASK) ?
-			    &port->lt_out : &port->lt_in;
-			break;
-		default:
-			return (ENODEV);	/* /dev/nodev */
-		}
-
-		switch (cmd) {
-		case TIOCSETA:
-			error = suser(td);
-			if (error != 0)
-				return (error);
-			*ct = *(struct termios *)data;
-			return (0);
-
-		case TIOCGETA:
-			*(struct termios *)data = *ct;
-			return (0);
-
-		case TIOCGETD:
-			*(int *)data = TTYDISC;
-			return (0);
-
-		case TIOCGWINSZ:
-			bzero(data, sizeof(struct winsize));
-			return (0);
-
-		case DIGIIO_GETALTPIN:
-			switch (mynor & CONTROL_MASK) {
-			case CONTROL_INIT_STATE:
-				*(int *)data = port->ialtpin;
-				break;
-
-			case CONTROL_LOCK_STATE:
-				*(int *)data = port->laltpin;
-				break;
-
-			default:
-				panic("Confusion when re-testing minor");
-				return (ENODEV);
-			}
-			return (0);
-
-		case DIGIIO_SETALTPIN:
-			switch (mynor & CONTROL_MASK) {
-			case CONTROL_INIT_STATE:
-				if (!port->laltpin) {
-					port->ialtpin = !!*(int *)data;
-					DLOG(DIGIDB_SET, (sc->dev,
-					    "port%d: initial ALTPIN %s\n", pnum,
-					    port->ialtpin ? "set" : "cleared"));
-				}
-				break;
-
-			case CONTROL_LOCK_STATE:
-				port->laltpin = !!*(int *)data;
-				DLOG(DIGIDB_SET, (sc->dev,
-				    "port%d: ALTPIN %slocked\n",
-				    pnum, port->laltpin ? "" : "un"));
-				break;
-
-			default:
-				panic("Confusion when re-testing minor");
-				return (ENODEV);
-			}
-			return (0);
-
-		default:
-			return (ENOTTY);
-		}
-	}
 
 	switch (cmd) {
 	case DIGIIO_GETALTPIN:
@@ -1213,100 +943,32 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		if (!port->laltpin) {
 			if (*(int *)data) {
 				DLOG(DIGIDB_SET, (sc->dev,
-				    "port%d: ALTPIN set\n", pnum));
+				    "port%d: ALTPIN set\n", port->pnum));
 				port->cd = sc->csigs->dsr;
 				port->dsr = sc->csigs->cd;
 			} else {
 				DLOG(DIGIDB_SET, (sc->dev,
-				    "port%d: ALTPIN cleared\n", pnum));
+				    "port%d: ALTPIN cleared\n", port->pnum));
 				port->cd = sc->csigs->cd;
 				port->dsr = sc->csigs->dsr;
 			}
 		}
 		return (0);
-	}
-
-	tp = port->tp;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	term = tp->t_termios;
-	oldcmd = cmd;
-	error = ttsetcompat(tp, &cmd, data, &term);
-	if (error != 0)
-		return (error);
-	if (cmd != oldcmd)
-		data = (caddr_t) & term;
-#endif
-#endif
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int cc;
-		struct termios *dt;
-		struct termios *lt;
-
-		dt = (struct termios *)data;
-		lt = (mynor & CALLOUT_MASK) ? &port->lt_out : &port->lt_in;
-
-		dt->c_iflag =
-		    (tp->t_iflag & lt->c_iflag) | (dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag =
-		    (tp->t_oflag & lt->c_oflag) | (dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag =
-		    (tp->t_cflag & lt->c_cflag) | (dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag =
-		    (tp->t_lflag & lt->c_lflag) | (dt->c_lflag & ~lt->c_lflag);
-		port->c_iflag = dt->c_iflag & (IXOFF | IXON | IXANY);
-		dt->c_iflag &= ~(IXOFF | IXON | IXANY);
-		for (cc = 0; cc < NCCS; ++cc)
-			if (lt->c_cc[cc] != 0)
-				dt->c_cc[cc] = tp->t_cc[cc];
-		if (lt->c_ispeed != 0)
-			dt->c_ispeed = tp->t_ispeed;
-		if (lt->c_ospeed != 0)
-			dt->c_ospeed = tp->t_ospeed;
-	}
-	error = ttyioctl(dev, cmd, data, flag, td);
-	if (error == 0 && cmd == TIOCGETA)
-		((struct termios *)data)->c_iflag |= port->c_iflag;
-	ttyldoptim(tp);
-	if (error >= 0 && error != ENOTTY)
-		return (error);
-	s = spltty();
-	sc->setwin(sc, 0);
-	switch (cmd) {
 	case DIGIIO_RING:
 		port->send_ring = *(u_char *)data;
 		break;
-#ifdef DIGI_INTERRUPT
-	case TIOCTIMESTAMP:
-		*(struct timeval *)data = sc->intr_timestamp;
-
-		break;
-#endif
 	default:
-		splx(s);
 		return (ENOTTY);
 	}
-	splx(s);
 	return (0);
 }
 
 static void
 digibreak(struct tty *tp, int brk)
 {
-	int mynor;
-	int unit;
-	int pnum;
-	struct digi_softc *sc;
 	struct digi_p *port;
 
-	mynor = minor(tp->t_dev);
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiparam\n", unit));
-
-	port = &sc->ports[pnum];
+	port = tp->t_sc;
 
 	/*
 	 * now it sends 400 millisecond break because I don't know
@@ -1319,9 +981,6 @@ digibreak(struct tty *tp, int brk)
 static int
 digiparam(struct tty *tp, struct termios *t)
 {
-	int mynor;
-	int unit;
-	int pnum;
 	struct digi_softc *sc;
 	struct digi_p *port;
 	int cflag;
@@ -1330,16 +989,9 @@ digiparam(struct tty *tp, struct termios *t)
 	int s;
 	int window;
 
-	mynor = minor(tp->t_dev);
-	unit = MINOR_TO_UNIT(mynor);
-	pnum = MINOR_TO_PORT(mynor);
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digiparam\n", unit));
-
-	port = &sc->ports[pnum];
-
-	DLOG(DIGIDB_SET, (sc->dev, "port%d: setting parameters\n", pnum));
+	port = tp->t_sc;
+	sc = port->sc;
+	DLOG(DIGIDB_SET, (sc->dev, "port%d: setting parameters\n", port->pnum));
 
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
@@ -1355,12 +1007,12 @@ digiparam(struct tty *tp, struct termios *t)
 	sc->setwin(sc, 0);
 
 	if (cflag == 0) {				/* hangup */
-		DLOG(DIGIDB_SET, (sc->dev, "port%d: hangup\n", pnum));
+		DLOG(DIGIDB_SET, (sc->dev, "port%d: hangup\n", port->pnum));
 		digimodem(port->tp, 0, SER_DTR | SER_RTS);
 	} else {
 		digimodem(port->tp, SER_DTR | SER_RTS, 0);
 
-		DLOG(DIGIDB_SET, (sc->dev, "port%d: CBAUD = %d\n", pnum,
+		DLOG(DIGIDB_SET, (sc->dev, "port%d: CBAUD = %d\n", port->pnum,
 		    cflag));
 
 #if 0
@@ -1384,7 +1036,7 @@ digiparam(struct tty *tp, struct termios *t)
 #endif
 
 		cflag |= (t->c_cflag & CSIZE) >> 4;
-		DLOG(DIGIDB_SET, (sc->dev, "port%d: CFLAG = 0x%x\n", pnum,
+		DLOG(DIGIDB_SET, (sc->dev, "port%d: CFLAG = 0x%x\n", port->pnum,
 		    cflag));
 		fepcmd_w(port, SETCFLAGS, (unsigned)cflag, 0);
 	}
@@ -1398,7 +1050,7 @@ digiparam(struct tty *tp, struct termios *t)
 	if (port->c_iflag & IXOFF)
 		iflag |= 0x1000;
 
-	DLOG(DIGIDB_SET, (sc->dev, "port%d: set iflag = 0x%x\n", pnum, iflag));
+	DLOG(DIGIDB_SET, (sc->dev, "port%d: set iflag = 0x%x\n", port->pnum, iflag));
 	fepcmd_w(port, SETIFLAGS, (unsigned)iflag, 0);
 
 	hflow = 0;
@@ -1413,11 +1065,11 @@ digiparam(struct tty *tp, struct termios *t)
 	if (t->c_cflag & CCAR_OFLOW)
 		hflow |= port->cd;
 
-	DLOG(DIGIDB_SET, (sc->dev, "port%d: set hflow = 0x%x\n", pnum, hflow));
+	DLOG(DIGIDB_SET, (sc->dev, "port%d: set hflow = 0x%x\n", port->pnum, hflow));
 	fepcmd_w(port, SETHFLOW, 0xff00 | (unsigned)hflow, 0);
 
 	DLOG(DIGIDB_SET, (sc->dev, "port%d: set startc(0x%x), stopc(0x%x)\n",
-	    pnum, t->c_cc[VSTART], t->c_cc[VSTOP]));
+	    port->pnum, t->c_cc[VSTART], t->c_cc[VSTOP]));
 	fepcmd_b(port, SONOFFC, t->c_cc[VSTART], t->c_cc[VSTOP], 0);
 
 	if (sc->window != 0)
@@ -1533,7 +1185,7 @@ digi_intr(void *vp)
 		bc = port->bc;
 		tp = port->tp;
 
-		if (!(tp->t_state & TS_ISOPEN) && !port->wopeners) {
+		if (!(tp->t_state & TS_ISOPEN) && !tp->t_wopeners) {
 			DLOG(DIGIDB_IRQ, (sc->dev,
 			    "port %d: event 0x%x on closed port\n",
 			    event.pnum, event.event));
@@ -1657,8 +1309,6 @@ eoi:
 static void
 digistart(struct tty *tp)
 {
-	int unit;
-	int pnum;
 	struct digi_p *port;
 	struct digi_softc *sc;
 	volatile struct board_chan *bc;
@@ -1667,13 +1317,8 @@ digistart(struct tty *tp)
 	int s;
 	int wmask;
 
-	unit = MINOR_TO_UNIT(minor(tp->t_dev));
-	pnum = MINOR_TO_PORT(minor(tp->t_dev));
-
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digistart\n", unit));
-
-	port = &sc->ports[pnum];
+	port = tp->t_sc;
+	sc = port->sc;
 	bc = port->bc;
 
 	wmask = port->txbufsize - 1;
@@ -1684,7 +1329,7 @@ digistart(struct tty *tp)
 	if (!(tp->t_state & TS_TBLOCK)) {
 		if (port->status & PAUSE_RX) {
 			DLOG(DIGIDB_RX, (sc->dev, "port %d: resume RX\n",
-			    pnum));
+			    port->pnum));
 			/*
 			 * CAREFUL - braces are needed here if the DLOG is
 			 * optimised out!
@@ -1694,7 +1339,7 @@ digistart(struct tty *tp)
 		bc->idata = 1;
 	}
 	if (!(tp->t_state & TS_TTSTOP) && port->status & PAUSE_TX) {
-		DLOG(DIGIDB_TX, (sc->dev, "port %d: resume TX\n", pnum));
+		DLOG(DIGIDB_TX, (sc->dev, "port %d: resume TX\n", port->pnum));
 		port->status &= ~PAUSE_TX;
 		fepcmd_w(port, RESUMETX, 0, 10);
 	}
@@ -1707,7 +1352,7 @@ digistart(struct tty *tp)
 	while (tp->t_outq.c_cc != 0) {
 		tail = bc->tout;
 		DLOG(DIGIDB_INT, (sc->dev, "port%d: s tx head = %d tail = %d\n",
-		    pnum, head, tail));
+		    port->pnum, head, tail));
 
 		if (head < tail)
 			size = tail - head - 1;
@@ -1737,7 +1382,7 @@ digistart(struct tty *tp)
 		size = head - tail;
 
 	port->lbuf = size;
-	DLOG(DIGIDB_INT, (sc->dev, "port%d: s total cnt = %d\n", pnum, totcnt));
+	DLOG(DIGIDB_INT, (sc->dev, "port%d: s total cnt = %d\n", port->pnum, totcnt));
 	ttwwakeup(tp);
 	splx(s);
 }
@@ -1746,18 +1391,12 @@ static void
 digistop(struct tty *tp, int rw)
 {
 	struct digi_softc *sc;
-	int unit;
-	int pnum;
 	struct digi_p *port;
 
-	unit = MINOR_TO_UNIT(minor(tp->t_dev));
-	pnum = MINOR_TO_PORT(minor(tp->t_dev));
+	port = tp->t_sc;
+	sc = port->sc;
 
-	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
-	KASSERT(sc, ("digi%d: softc not allocated in digistop\n", unit));
-	port = sc->ports + pnum;
-
-	DLOG(DIGIDB_TX, (sc->dev, "port %d: pause TX\n", pnum));
+	DLOG(DIGIDB_TX, (sc->dev, "port %d: pause TX\n", port->pnum));
 	port->status |= PAUSE_TX;
 	fepcmd_w(port, PAUSETX, 0, 10);
 }
@@ -1812,9 +1451,10 @@ digi_errortxt(int id)
 int
 digi_attach(struct digi_softc *sc)
 {
-	sc->res.ctldev = make_dev(&digi_sw,
-	    (sc->res.unit << 16) | CTRL_DEV, UID_ROOT, GID_WHEEL,
+	sc->res.ctldev = make_dev(&digi_csw,
+	    sc->res.unit << 16, UID_ROOT, GID_WHEEL,
 	    0600, "digi%r.ctl", sc->res.unit);
+	sc->res.ctldev->si_drv1 = sc;
 
 	digi_loadmoduledata(sc);
 	digi_init(sc);
@@ -1827,12 +1467,14 @@ static int
 digi_inuse(struct digi_softc *sc)
 {
 	int i;
+	struct digi_p *port;
 
-	for (i = 0; i < sc->numports; i++)
-		if (sc->ttys[i].t_state & TS_ISOPEN) {
+	port = &sc->ports[0];
+	for (i = 0; i < sc->numports; i++, port++)
+		if (port->tp->t_state & TS_ISOPEN) {
 			DLOG(DIGIDB_INIT, (sc->dev, "port%d: busy\n", i));
 			return (1);
-		} else if (sc->ports[i].wopeners || sc->ports[i].opencnt) {
+		} else if (port->tp->t_wopeners || port->opencnt) {
 			DLOG(DIGIDB_INIT, (sc->dev, "port%d: blocked in open\n",
 			    i));
 			return (1);
@@ -1843,18 +1485,21 @@ digi_inuse(struct digi_softc *sc)
 static void
 digi_free_state(struct digi_softc *sc)
 {
-	int d, i;
+	int i;
 
 	/* Blow it all away */
 
 	for (i = 0; i < sc->numports; i++)
-		for (d = 0; d < 6; d++)
-			destroy_dev(sc->ports[i].dev[d]);
+		ttygone(sc->ports[i].tp);
 
+	/* XXX: this might be better done as a ttypurge method */
 	untimeout(digi_poll, sc, sc->callout);
 	callout_handle_init(&sc->callout);
 	untimeout(digi_int_test, sc, sc->inttest);
 	callout_handle_init(&sc->inttest);
+
+	for (i = 0; i < sc->numports; i++)
+		ttyfree(sc->ports[i].tp);
 
 	bus_teardown_intr(sc->dev, sc->res.irq, sc->res.irqHandler);
 #ifdef DIGI_INTERRUPT
@@ -1866,11 +1511,8 @@ digi_free_state(struct digi_softc *sc)
 #endif
 	if (sc->numports) {
 		KASSERT(sc->ports, ("digi%d: Lost my ports ?", sc->res.unit));
-		KASSERT(sc->ttys, ("digi%d: Lost my ttys ?", sc->res.unit));
 		free(sc->ports, M_TTYS);
 		sc->ports = NULL;
-		free(sc->ttys, M_TTYS);
-		sc->ttys = NULL;
 		sc->numports = 0;
 	}
 
