@@ -188,7 +188,7 @@ struct ata_softc {
 #define		ATA_ACTIVE		0x0008
 #define		ATA_ACTIVE_ATA		0x0010
 #define		ATA_ACTIVE_ATAPI	0x0020
-#define		ATA_REINITING		0x0040
+#define		ATA_CONTROL		0x0040
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */

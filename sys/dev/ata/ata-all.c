@@ -83,6 +83,9 @@ static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 static void ata_change_mode(struct ata_softc *, int, int);
 
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+
 /* global vars */
 devclass_t ata_devclass;
 
@@ -103,8 +106,10 @@ ata_probe(device_t dev)
     if (!dev)
 	return ENXIO;
     scp = device_get_softc(dev);
-    if (!scp || scp->devices)
+    if (!scp)
 	return ENXIO;
+    if (scp->r_io || scp->r_altio || scp->r_irq)
+	return EEXIST;
 
     /* initialize the softc basics */
     scp->active = ATA_IDLE;
@@ -125,7 +130,6 @@ ata_probe(device_t dev)
     rid = ATA_BMADDR_RID;
     scp->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 				     ATA_BMIOSIZE, RF_ACTIVE);
-
     if (bootverbose)
 	ata_printf(scp, -1, "iobase=0x%04x altiobase=0x%04x bmaddr=0x%04x\n", 
 		   (int)rman_get_start(scp->r_io),
@@ -221,7 +225,7 @@ ata_detach(device_t dev)
 
     /* make sure channel is not busy SOS XXX */
     s = splbio();
-    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
+    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_CONTROL))
         tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
     splx(s);
 
@@ -324,8 +328,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    s = splbio();
 	    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
         	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
-	    splx(s);
 	    error = ata_reinit(scp);
+	    splx(s);
 	    break;
 	}
 
@@ -520,8 +524,11 @@ ata_intr(void *data)
 	return;
 
     /* if drive is busy it didn't interrupt */
-    if (ATA_INB(scp->r_altio, ATA_ALTSTAT) & ATA_S_BUSY)
-	return;
+    if (ATA_INB(scp->r_altio, ATA_ALTSTAT) & ATA_S_BUSY) {
+	DELAY(100);
+	if (!(ATA_INB(scp->r_altio, ATA_ALTSTAT) & ATA_S_DRQ))
+	    return;
+    }
 
     /* clear interrupt and get status */
     scp->status = ATA_INB(scp->r_io, ATA_STATUS);
@@ -544,12 +551,12 @@ ata_intr(void *data)
 	break;
 #endif
     case ATA_WAIT_INTR:
-    case ATA_WAIT_INTR | ATA_REINITING:
+    case ATA_WAIT_INTR | ATA_CONTROL:
 	wakeup((caddr_t)scp);
 	break;
 
     case ATA_WAIT_READY:
-    case ATA_WAIT_READY | ATA_REINITING:
+    case ATA_WAIT_READY | ATA_CONTROL:
 	break;
 
     case ATA_IDLE:
@@ -566,13 +573,13 @@ ata_intr(void *data)
 	static int intr_count = 0;
 
 	if (intr_count++ < 10)
-	    ata_printf(scp, -1, "unwanted interrupt %d status = %02x\n", 
-		       intr_count, scp->status);
+	    ata_printf(scp, -1, "unwanted interrupt %d %sstatus = %02x\n", 
+		       intr_count, active2str(scp->active), scp->status);
     }
 #endif
     }
-    scp->active &= ATA_REINITING;
-    if (scp->active & ATA_REINITING)
+    scp->active &= ATA_CONTROL;
+    if (scp->active & ATA_CONTROL)
 	return;
     scp->running = NULL;
     ata_start(scp);
@@ -757,7 +764,7 @@ ata_reinit(struct ata_softc *scp)
 
     if (!scp->r_io || !scp->r_altio || !scp->r_irq)
 	return ENXIO;
-    scp->active = ATA_REINITING;
+    scp->active = ATA_CONTROL;
     scp->running = NULL;
     devices = scp->devices;
     ata_printf(scp, -1, "resetting devices .. ");
@@ -801,7 +808,6 @@ ata_reinit(struct ata_softc *scp)
 	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
 		newdev &= ~ATA_ATAPI_SLAVE;
     }
-    scp->active = ATA_IDLE;
     if (!misdev && newdev)
 	printf("\n");
 #ifdef DEV_ATADISK
@@ -825,6 +831,7 @@ ata_reinit(struct ata_softc *scp)
 	atapi_reinit((struct atapi_softc *)scp->dev_softc[SLAVE]);
 #endif
     printf("done\n");
+    scp->active = ATA_IDLE;
     ata_start(scp);
     return 0;
 }
@@ -914,6 +921,28 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 	       "c=%d, h=%d, s=%d, count=%d, feature=%d, flags=%02x\n",
 	       rman_get_start(scp->r_io), command, cylinder, head, sector,
 	       count, feature, flags);
+
+    /* sanity checks */
+    switch(scp->active) {
+    case ATA_IDLE:
+	break;
+
+    case ATA_CONTROL:
+	if (flags == ATA_WAIT_INTR || flags == ATA_WAIT_READY)
+	    break;
+	goto out;
+
+    case ATA_ACTIVE_ATA:
+    case ATA_ACTIVE_ATAPI:
+	if (flags == ATA_IMMEDIATE)
+	    break;
+
+    default:
+out:
+	printf("ata_command called %s flags=%s cmd=%02x\n",
+	       active2str(scp->active), active2str(flags), command);
+	break;
+    }
 #endif
 
     /* disable interrupt from device */
@@ -1123,29 +1152,26 @@ ata_umode(struct ata_params *ap)
 static char *
 active2str(int active)
 {
-    static char buf[8];
+    static char buf[64];
 
-    switch (active) {
-    case ATA_IDLE:
-	return("ATA_IDLE");
-    case ATA_IMMEDIATE:
-	return("ATA_IMMEDIATE");
-    case ATA_WAIT_INTR:
-	return("ATA_WAIT_INTR");
-    case ATA_WAIT_READY:
-	return("ATA_WAIT_READY");
-    case ATA_ACTIVE:
-	return("ATA_ACTIVE");
-    case ATA_ACTIVE_ATA:
-	return("ATA_ACTIVE_ATA");
-    case ATA_ACTIVE_ATAPI:
-	return("ATA_ACTIVE_ATAPI");
-    case ATA_REINITING:
-	return("ATA_REINITING");
-    default:
-	sprintf(buf, "0x%02x", active);
-	return buf;
-    }
+    bzero(buf, sizeof(buf));
+    if (active & ATA_IDLE)
+	strcat(buf, "ATA_IDLE ");
+    if (active & ATA_IMMEDIATE)
+	strcat(buf, "ATA_IMMEDIATE ");
+    if (active & ATA_WAIT_INTR)
+	strcat(buf, "ATA_WAIT_INTR ");
+    if (active & ATA_WAIT_READY)
+	strcat(buf, "ATA_WAIT_READY ");
+    if (active & ATA_ACTIVE)
+	strcat(buf, "ATA_ACTIVE ");
+    if (active & ATA_ACTIVE_ATA)
+	strcat(buf, "ATA_ACTIVE_ATA ");
+    if (active & ATA_ACTIVE_ATAPI)
+	strcat(buf, "ATA_ACTIVE_ATAPI ");
+    if (active & ATA_CONTROL)
+	strcat(buf, "ATA_CONTROL ");
+    return buf;
 }
 
 static void
