@@ -1144,7 +1144,7 @@ get_ticks()
 	/*
 	 * Adjust difference timeval
 	 */
-	if ( timediff.tv_usec > 1000000 ) {
+	if ( timediff.tv_usec >= 1000000 ) {
 		timediff.tv_usec -= 1000000;
 		timediff.tv_sec++;
 	}
