@@ -45,7 +45,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <stdlib.h>
 .Ft "char *"
-.Fn realpath "const char *pathname" "char resolvedname[MAXPATHLEN]"
+.Fn realpath "const char *pathname" "char resolved_path[MAXPATHLEN]"
 .Sh DESCRIPTION
 The
 .Fn realpath
@@ -59,9 +59,9 @@ in
 .Fa pathname ,
 and copies the resulting absolute pathname into
 the memory referenced by
-.Fa resolvedname .
+.Fa resolved_path .
 The
-.Fa resolvedname
+.Fa resolved_path
 argument
 .Em must
 refer to a buffer capable of storing at least
@@ -82,14 +82,14 @@ is called.
 The
 .Fn realpath
 function returns
-.Fa resolved_name
+.Fa resolved_path
 on success.
 If an error occurs,
 .Fn realpath
 returns
 .Dv NULL ,
 and
-.Fa resolved_name
+.Fa resolved_path
 contains the pathname which caused the problem.
 .Sh ERRORS
 The function
