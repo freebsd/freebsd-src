@@ -119,7 +119,9 @@ cpu_fork(td1, p2, td2, flags)
 	td2->td_pcb = (struct pcb *)
 	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	td2->td_md.md_flags = td1->td_md.md_flags & MDTD_FPUSED;
+	PROC_LOCK(p2);
 	p2->p_md.md_uac = p1->p_md.md_uac;
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Cache the physical address of the pcb, so we can
