@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.4 1994/10/02 17:35:33 phk Exp $
+ * $Id: uipc_socket2.c,v 1.5 1995/05/30 08:06:22 rgrimes Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/buf.h>
@@ -46,6 +47,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 
 /*
  * Primitive routines for operating on sockets and socket buffers
@@ -56,7 +58,8 @@ char	netio[] = "netio";
 char	netcon[] = "netcon";
 char	netcls[] = "netcls";
 
-u_long	sb_max = SB_MAX;		/* patchable */
+u_long	sb_max = SB_MAX;		/* XXX should be static */
+SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
 
 /*
  * Procedures to manipulate state flags of socket
