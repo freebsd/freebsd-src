@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: setkey.c,v 1.18 2001/05/08 04:36:39 itojun Exp $	*/
+/*	$KAME: setkey.c,v 1.28 2003/06/27 07:15:45 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -58,7 +58,7 @@ int main __P((int, char **));
 int get_supported __P((void));
 void sendkeyshort __P((u_int));
 void promisc __P((void));
-int sendkeymsg __P((void));
+int sendkeymsg __P((char *, size_t));
 int postproc __P((struct sadb_msg *, int));
 const char *numstr __P((int));
 void shortdump_hdr __P((void));
@@ -75,18 +75,12 @@ int so;
 
 int f_forever = 0;
 int f_all = 0;
-int f_debug = 0;
 int f_verbose = 0;
 int f_mode = 0;
 int f_cmddump = 0;
 int f_policy = 0;
 int f_hexdump = 0;
 int f_tflag = 0;
-char *pname;
-
-u_char m_buf[BUFSIZ];
-u_int m_len;
-
 static time_t thiszone;
 
 extern int lineno;
@@ -96,12 +90,12 @@ extern int parse __P((FILE **));
 void
 usage()
 {
-	printf("usage:\t%s [-dv] -c\n", pname);
-	printf("\t%s [-dv] -f (file)\n", pname);
-	printf("\t%s [-Padlv] -D\n", pname);
-	printf("\t%s [-Pdv] -F\n", pname);
-	printf("\t%s [-h] -x\n", pname);
-	pfkey_close(so);
+
+	printf("usage: setkey [-v] -c\n");
+	printf("       setkey [-v] -f filename\n");
+	printf("       setkey [-Palv] -D\n");
+	printf("       setkey [-Pv] -F\n");
+	printf("       setkey [-h] -x\n");
 	exit(1);
 }
 
@@ -112,8 +106,6 @@ main(ac, av)
 {
 	FILE *fp = stdin;
 	int c;
-
-	pname = *av;
 
 	if (ac == 1) {
 		usage();
@@ -157,9 +149,6 @@ main(ac, av)
 		case 'P':
 			f_policy = 1;
 			break;
-		case 'd':
-			f_debug = 1;
-			break;
 		case 'v':
 			f_verbose = 1;
 			break;
@@ -169,13 +158,18 @@ main(ac, av)
 		}
 	}
 
+	so = pfkey_open();
+	if (so < 0) {
+		perror("pfkey_open");
+		exit(1);
+	}
+
 	switch (f_mode) {
 	case MODE_CMDDUMP:
 		sendkeyshort(f_policy ? SADB_X_SPDDUMP: SADB_DUMP);
 		break;
 	case MODE_CMDFLUSH:
 		sendkeyshort(f_policy ? SADB_X_SPDFLUSH: SADB_FLUSH);
-		pfkey_close(so);
 		break;
 	case MODE_SCRIPT:
 		if (get_supported() < 0) {
@@ -199,16 +193,6 @@ main(ac, av)
 int
 get_supported()
 {
-	int so;
-
-	if ((so = pfkey_open()) < 0) {
-		perror("pfkey_open");
-		return -1;
-	}
-
-	/* debug mode ? */
-	if (f_debug)
-		return 0;
 
 	if (pfkey_send_register(so, SADB_SATYPE_UNSPEC) < 0)
 		return -1;
@@ -223,20 +207,18 @@ void
 sendkeyshort(type)
         u_int type;
 {
-	struct sadb_msg *m_msg = (struct sadb_msg *)m_buf;
+	struct sadb_msg msg;
 
-	m_len = sizeof(struct sadb_msg);
+	msg.sadb_msg_version = PF_KEY_V2;
+	msg.sadb_msg_type = type;
+	msg.sadb_msg_errno = 0;
+	msg.sadb_msg_satype = SADB_SATYPE_UNSPEC;
+	msg.sadb_msg_len = PFKEY_UNIT64(sizeof(msg));
+	msg.sadb_msg_reserved = 0;
+	msg.sadb_msg_seq = 0;
+	msg.sadb_msg_pid = getpid();
 
-	m_msg->sadb_msg_version = PF_KEY_V2;
-	m_msg->sadb_msg_type = type;
-	m_msg->sadb_msg_errno = 0;
-	m_msg->sadb_msg_satype = SADB_SATYPE_UNSPEC;
-	m_msg->sadb_msg_len = PFKEY_UNIT64(m_len);
-	m_msg->sadb_msg_reserved = 0;
-	m_msg->sadb_msg_seq = 0;
-	m_msg->sadb_msg_pid = getpid();
-
-	sendkeymsg();
+	sendkeymsg((char *)&msg, sizeof(msg));
 
 	return;
 }
@@ -244,27 +226,20 @@ sendkeyshort(type)
 void
 promisc()
 {
-	struct sadb_msg *m_msg = (struct sadb_msg *)m_buf;
+	struct sadb_msg msg;
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
-	int so, l;
+	ssize_t l;
 
-	m_len = sizeof(struct sadb_msg);
+	msg.sadb_msg_version = PF_KEY_V2;
+	msg.sadb_msg_type = SADB_X_PROMISC;
+	msg.sadb_msg_errno = 0;
+	msg.sadb_msg_satype = 1;
+	msg.sadb_msg_len = PFKEY_UNIT64(sizeof(msg));
+	msg.sadb_msg_reserved = 0;
+	msg.sadb_msg_seq = 0;
+	msg.sadb_msg_pid = getpid();
 
-	m_msg->sadb_msg_version = PF_KEY_V2;
-	m_msg->sadb_msg_type = SADB_X_PROMISC;
-	m_msg->sadb_msg_errno = 0;
-	m_msg->sadb_msg_satype = 1;
-	m_msg->sadb_msg_len = PFKEY_UNIT64(m_len);
-	m_msg->sadb_msg_reserved = 0;
-	m_msg->sadb_msg_seq = 0;
-	m_msg->sadb_msg_pid = getpid();
-
-	if ((so = socket(PF_KEY, SOCK_RAW, PF_KEY_V2)) < 0) {
-		err(1, "socket(PF_KEY)");
-		/*NOTREACHED*/
-	}
-
-	if ((l = send(so, m_buf, m_len, 0)) < 0) {
+	if ((l = send(so, &msg, sizeof(msg), 0)) < 0) {
 		err(1, "send");
 		/*NOTREACHED*/
 	}
@@ -301,7 +276,7 @@ promisc()
 		}
 		/* adjust base pointer for promisc mode */
 		if (base->sadb_msg_type == SADB_X_PROMISC) {
-			if (sizeof(*base) < l)
+			if ((ssize_t)sizeof(*base) < l)
 				base++;
 			else
 				base = NULL;
@@ -315,18 +290,13 @@ promisc()
 }
 
 int
-sendkeymsg()
+sendkeymsg(buf, len)
+	char *buf;
+	size_t len;
 {
-	int so;
-
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
-	int l;
+	ssize_t l;
 	struct sadb_msg *msg;
-
-	if ((so = pfkey_open()) < 0) {
-		perror("pfkey_open");
-		return -1;
-	}
 
     {
 	struct timeval tv;
@@ -342,11 +312,23 @@ sendkeymsg()
 		shortdump_hdr();
 again:
 	if (f_verbose) {
-		kdebug_sadb((struct sadb_msg *)m_buf);
+		kdebug_sadb((struct sadb_msg *)buf);
 		printf("\n");
 	}
+	if (f_hexdump) {
+		int i;
+		for (i = 0; i < len; i++) {
+			if (i % 16 == 0)
+				printf("%08x: ", i);
+			printf("%02x ", buf[i] & 0xff);
+			if (i % 16 == 15)
+				printf("\n");
+		}
+		if (len % 16)
+			printf("\n");
+	}
 
-	if ((l = send(so, m_buf, m_len, 0)) < 0) {
+	if ((l = send(so, buf, len, 0)) < 0) {
 		perror("send");
 		goto end;
 	}
@@ -378,7 +360,6 @@ again:
 	}
 
 end:
-	pfkey_close(so);
 	return(0);
 }
 

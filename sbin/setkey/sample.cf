@@ -45,9 +45,9 @@
 #
 # At Host-A and Host-B,
 spdadd fec0::10[any] fec0::11[110] tcp -P out ipsec
-	esp/transport/fec0::10-fec0::11/use ;
+	esp/transport//use ;
 spdadd fec0::11[110] fec0::10[any] tcp -P in ipsec
-	esp/transport/fec0::11-fec0::10/use ;
+	esp/transport//use ;
 add fec0::10 fec0::11 esp 0x10001
 	-m transport
 	-E blowfish-cbc "kamekame"
@@ -112,10 +112,10 @@ add 172.16.0.2 172.16.0.1 ah-old 0x10004
 # At Gateway-A:
 spdadd fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out ipsec
 	esp/tunnel/fec0:0:0:1::1-fec0:0:0:2::1/require
-	ah/transport/fec0:0:0:1::1-fec0:0:0:2::1/require ;
+	ah/transport//require ;
 spdadd fec0:0:0:2::/64 fec0:0:0:1::/64 any -P in ipsec
 	esp/tunnel/fec0:0:0:2::1-fec0:0:0:1::1/require
-	ah/transport/fec0:0:0:2::1-fec0:0:0:1::1/require ;
+	ah/transport//require ;
 add fec0:0:0:1::1 fec0:0:0:2::1 esp 0x10001
 	-m tunnel
 	-E 3des-cbc "kamekame12341234kame1234"
@@ -146,10 +146,10 @@ add fec0:0:0:2::1 fec0:0:0:1::1 ah 0x10001
 #
 # At Host-A:
 spdadd fec0:0:0:1::1[any] fec0:0:0:2::2[80] tcp -P out ipsec
-	esp/transport/fec0:0:0:1::1-fec0:0:0:2::2/use
+	esp/transport//use
 	esp/tunnel/fec0:0:0:1::1-fec0:0:0:2::1/require ;
 spdadd fec0:0:0:2::1[80] fec0:0:0:1::1[any] tcp -P in ipsec
-	esp/transport/fec0:0:0:2::2-fec0:0:0:1::1/use
+	esp/transport//use
 	esp/tunnel/fec0:0:0:2::1-fec0:0:0:1::1/require ;
 add fec0:0:0:1::1 fec0:0:0:2::2 esp 0x10001
 	-m transport
@@ -166,10 +166,10 @@ add fec0:0:0:2::1 fec0:0:0:1::1 esp 0x10004
 	-E rc5-cbc "kamekame"
 	-A hmac-md5 "this is the test" ;
 
-# By "get" command, you can get an entry of either SP or SA.
+# By "get" command, you can get a entry of either SP or SA.
 get fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
-# Also delete command, you can delete an entry of either SP or SA.
+# Also delete command, you can delete a entry of either SP or SA.
 spddelete fec0:0:0:1::/64 fec0:0:0:2::/64 any -P out;
 delete fec0:0:0:1::1 fec0:0:0:2::2 ah 0x10004 ;
 
@@ -188,24 +188,24 @@ dump esp ;
 flush ah ;
 
 # XXX
-add ::1 ::1 esp 10001 -m transport -E simple ;
+add ::1 ::1 esp 10001 -m transport -E null ;
 add ::1 ::1 esp 10002 -m transport -E des-deriv "12341234" ;
 add ::1 ::1 esp-old 10003 -m transport -E des-32iv "12341234" ;
-add ::1 ::1 esp 10004 -m transport -E simple -A null ;
-add ::1 ::1 esp 10005 -m transport -E simple -A hmac-md5 "1234123412341234" ;
-add ::1 ::1 esp 10006 -m tunnel -E simple -A hmac-sha1 "12341234123412341234" ;
-add ::1 ::1 esp 10007 -m transport -E simple -A keyed-md5 "1234123412341234" ;
-add ::1 ::1 esp 10008 -m any -E simple -A keyed-sha1 "12341234123412341234" ;
+add ::1 ::1 esp 10004 -m transport -E null -A null ;
+add ::1 ::1 esp 10005 -m transport -E null -A hmac-md5 "1234123412341234" ;
+add ::1 ::1 esp 10006 -m tunnel -E null -A hmac-sha1 "12341234123412341234" ;
+add ::1 ::1 esp 10007 -m transport -E null -A keyed-md5 "1234123412341234" ;
+add ::1 ::1 esp 10008 -m any -E null -A keyed-sha1 "12341234123412341234" ;
 add ::1 ::1 esp 10009 -m transport -E des-cbc "testtest" ;
 add ::1 ::1 esp 10010 -m transport -E 3des-cbc "testtest12341234testtest" ;
 add ::1 ::1 esp 10011 -m tunnel -E cast128-cbc "testtest1234" ;
 add ::1 ::1 esp 10012 -m tunnel -E blowfish-cbc "testtest1234" ;
 add ::1 ::1 esp 10013 -m tunnel -E rc5-cbc "testtest1234" ;
 add ::1 ::1 esp 10014 -m any -E rc5-cbc "testtest1234" ;
-add ::1 ::1 esp 10015 -m transport -f zero-pad -E simple ;
-add ::1 ::1 esp 10016 -m tunnel -f random-pad -r 8 -lh 100 -ls 80 -E simple ;
-add ::1 ::1 esp 10017 -m transport -f seq-pad -f nocyclic-seq -E simple ;
-add ::1 ::1 esp 10018 -m transport -E simple ;
+add ::1 ::1 esp 10015 -m transport -f zero-pad -E null ;
+add ::1 ::1 esp 10016 -m tunnel -f random-pad -r 8 -lh 100 -ls 80 -E null ;
+add ::1 ::1 esp 10017 -m transport -f seq-pad -f nocyclic-seq -E null ;
+add ::1 ::1 esp 10018 -m transport -E null ;
 #add ::1 ::1 ah 20000 -m transport -A null ;
 add ::1 ::1 ah 20001 -m any -A hmac-md5 "1234123412341234";
 add ::1 ::1 ah 20002 -m tunnel -A hmac-sha1 "12341234123412341234";
