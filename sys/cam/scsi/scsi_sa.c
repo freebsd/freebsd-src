@@ -40,7 +40,6 @@
 #include <sys/malloc.h>
 #include <sys/mtio.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <machine/limits.h>
 
