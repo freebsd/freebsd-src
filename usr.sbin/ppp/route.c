@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.33 1997/12/17 00:19:25 brian Exp $
+ * $Id: route.c,v 1.34 1997/12/17 21:22:05 brian Exp $
  *
  */
 
@@ -81,7 +81,7 @@ OsSetRoute(int cmd,
     LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
     return;
   }
-  memset(&rtmes, '\0', sizeof(rtmes));
+  memset(&rtmes, '\0', sizeof rtmes);
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
   rtmes.m_rtm.rtm_addrs = RTA_DST;
@@ -89,7 +89,7 @@ OsSetRoute(int cmd,
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 
-  memset(&rtdata, '\0', sizeof(rtdata));
+  memset(&rtdata, '\0', sizeof rtdata);
   rtdata.sin_len = 16;
   rtdata.sin_family = AF_INET;
   rtdata.sin_port = 0;
@@ -107,14 +107,14 @@ OsSetRoute(int cmd,
 
       iname = Index2Nam(IfIndex);
       ilen = strlen(iname);
-      dl.sdl_len = sizeof(dl)-sizeof(dl.sdl_data)+ilen;
+      dl.sdl_len = sizeof dl - sizeof dl.sdl_data + ilen;
       dl.sdl_family = AF_LINK;
       dl.sdl_index = IfIndex;
       dl.sdl_type = 0;
       dl.sdl_nlen = ilen;
       dl.sdl_alen = 0;
       dl.sdl_slen = 0;
-      strcpy(dl.sdl_data, iname);
+      strncpy(dl.sdl_data, iname, sizeof dl.sdl_data);
 
       memcpy(cp, &dl, dl.sdl_len);
       cp += dl.sdl_len;
@@ -219,7 +219,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
       snprintf(buf, sizeof buf, "%.*s", dl->sdl_nlen, dl->sdl_data);
     else if (dl->sdl_alen)
       if (dl->sdl_type == IFT_ETHER)
-        if (dl->sdl_alen < sizeof(buf)/3) {
+        if (dl->sdl_alen < sizeof buf / 3) {
           int f;
           u_char *MAC;
 
@@ -289,8 +289,8 @@ p_flags(u_long f, int max)
     char name[33], *flags;
     register struct bits *p = bits;
 
-    if (max > sizeof(name)-1)
-      max = sizeof(name)-1;
+    if (max > sizeof name - 1)
+      max = sizeof name - 1;
 
     for (flags = name; p->b_mask && flags - name < max; p++)
       if (p->b_mask & f)
@@ -334,10 +334,10 @@ Index2Nam(int idx)
     for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
       ifm = (struct if_msghdr *)ptr;
       dl = (struct sockaddr_dl *)(ifm + 1);
-      if (ifm->ifm_index > 0 && ifm->ifm_index <= sizeof(ifs)/sizeof(ifs[0])
+      if (ifm->ifm_index > 0 && ifm->ifm_index <= sizeof ifs/sizeof ifs[0]
           && ifs[ifm->ifm_index-1][0] == '\0') {
-        if ((len = dl->sdl_nlen) > sizeof(ifs[0])-1)
-          len = sizeof(ifs[0])-1;
+        if ((len = dl->sdl_nlen) > sizeof ifs[0] - 1)
+          len = sizeof ifs[0] - 1;
         strncpy(ifs[ifm->ifm_index-1], dl->sdl_data, len);
         ifs[ifm->ifm_index-1][len] = '\0';
         if (len && nifs < ifm->ifm_index)

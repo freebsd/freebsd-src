@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.24 1997/12/13 02:37:21 brian Exp $
+ * $Id: ccp.c,v 1.25 1997/12/17 21:21:53 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -100,7 +100,7 @@ static char const *cftypes[] = {
   "DEFLATE",		/* 26: Deflate (rfc1979) */
 };
 
-#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
+#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
 static const char *
 protoname(int proto)
@@ -119,7 +119,7 @@ static const struct ccp_algorithm *algorithm[] = {
 
 static int in_algorithm = -1;
 static int out_algorithm = -1;
-#define NALGORITHMS (sizeof(algorithm)/sizeof(algorithm[0]))
+#define NALGORITHMS (sizeof algorithm/sizeof algorithm[0])
 
 int
 ReportCcpStatus(struct cmdargs const *arg)
@@ -138,7 +138,7 @@ ReportCcpStatus(struct cmdargs const *arg)
 static void
 ccpstateInit(void)
 {
-  memset(&CcpInfo, '\0', sizeof(struct ccpstate));
+  memset(&CcpInfo, '\0', sizeof CcpInfo);
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
   if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
     (*algorithm[in_algorithm]->i.Term)();

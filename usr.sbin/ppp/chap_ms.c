@@ -19,7 +19,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.2 1997/10/26 01:02:20 brian Exp $
+ * $Id: chap_ms.c,v 1.3 1997/11/22 03:37:26 brian Exp $
  *
  */
 
@@ -53,7 +53,7 @@ ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
 {
     char    ZPasswordHash[21];
 
-    memset(ZPasswordHash, '\0', sizeof(ZPasswordHash));
+    memset(ZPasswordHash, '\0', sizeof ZPasswordHash);
     memcpy(ZPasswordHash, pwHash, 16);
 
     DesEncrypt(challenge, ZPasswordHash +  0, response + 0);
