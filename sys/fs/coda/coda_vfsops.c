@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/cfs_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: $
+ *  $Id: cfs_vfsops.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: cfs_vfsops.c,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -232,7 +235,7 @@ struct vfsops cfs_vfsops = {
     cfs_init,
 };
 
-VFS_SET(cfs_vfsops, cfs, MOUNT_CFS, VFCF_NETWORK);
+VFS_SET(cfs_vfsops, cfs, VFCF_NETWORK);
 
 int
 cfs_vfsopstats_init(void)
@@ -565,7 +568,7 @@ cfs_nb_statfs(vfsp, sbp, p)
     	#define NB_SFS_SIZ 0x895440
      */
     /* Note: Normal fs's have a bsize of 0x400 == 1024 */
-    sbp->f_type = MOUNT_CFS;
+    sbp->f_type = vfsp->mnt_vfc->vfc_typenum;
     sbp->f_bsize = 8192; /* XXX */
     sbp->f_iosize = 8192; /* XXX */
 #define NB_SFS_SIZ 0x8AB75D

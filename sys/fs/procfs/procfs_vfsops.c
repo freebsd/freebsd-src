@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.24 1998/07/27 01:07:01 alex Exp $
+ *	$Id: procfs_vfsops.c,v 1.25 1998/07/27 22:47:17 alex Exp $
  */
 
 /*
@@ -212,4 +212,4 @@ static struct vfsops procfs_vfsops = {
 	procfs_init,
 };
 
-VFS_SET(procfs_vfsops, procfs, MOUNT_PROCFS, VFCF_SYNTHETIC);
+VFS_SET(procfs_vfsops, procfs, VFCF_SYNTHETIC);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.42 1998/05/06 05:29:41 msmith Exp $
+ * $Id: mfs_vfsops.c,v 1.43 1998/05/11 19:27:18 julian Exp $
  */
 
 
@@ -102,7 +102,7 @@ static struct vfsops mfs_vfsops = {
 	mfs_init,
 };
 
-VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
+VFS_SET(mfs_vfsops, mfs, 0);
 
 #ifdef	SLICE
 	extern struct vnode	*root_device_vnode;

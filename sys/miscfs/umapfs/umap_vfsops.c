@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.21 1998/03/01 22:46:24 msmith Exp $
+ * $Id: umap_vfsops.c,v 1.22 1998/05/06 05:29:36 msmith Exp $
  */
 
 /*
@@ -428,4 +428,4 @@ static struct vfsops umap_vfsops = {
 	umapfs_init,
 };
 
-VFS_SET(umap_vfsops, umap, MOUNT_UMAP, VFCF_LOOPBACK);
+VFS_SET(umap_vfsops, umap, VFCF_LOOPBACK);
