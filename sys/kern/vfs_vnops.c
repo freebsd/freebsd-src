@@ -436,8 +436,6 @@ vn_stat(vp, sb, p)
 	 */
 	switch (vap->va_type) {
 	case VBLK:
-		sb->st_blksize = vp->v_rdev->si_bsize_best;
-		break;
 	case VCHR:
 		sb->st_blksize = vp->v_rdev->si_bsize_max;
 		break;

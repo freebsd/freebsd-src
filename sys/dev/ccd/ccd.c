@@ -634,7 +634,6 @@ ccdopen(dev, flags, fmt, p)
 	pmask = (1 << part);
 
 	dev->si_bsize_phys = DEV_BSIZE;
-	dev->si_bsize_best = BLKDEV_IOSIZE;
 	dev->si_bsize_max = MAXBSIZE;
 
 	/*
