@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.12 1996/12/27 13:06:31 kato Exp $
+ *	$Id: pc98.c,v 1.13 1997/01/03 07:45:41 kato Exp $
  */
 
 /*
@@ -555,10 +555,10 @@ isa_defaultirq()
 }
 
 #ifdef PC98
-caddr_t	dma_bouncebuf[4];
+static caddr_t	dma_bouncebuf[4];
 static u_int	dma_bouncebufsize[4];
 #else
-caddr_t	dma_bouncebuf[8];
+static caddr_t	dma_bouncebuf[8];
 static u_int	dma_bouncebufsize[8];
 #endif
 static u_int8_t	dma_bounced = 0;
