@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.49 1994/11/18 01:05:05 phk Exp $
+#	$Id: Makefile,v 1.50 1994/11/20 01:01:28 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -172,6 +172,9 @@ tarballs:
 	rm -rf ${RELEASEDIR}/manpages/usr/share/man
 	mv ${RELEASEDIR}/bindist/usr/share/man \
 		${RELEASEDIR}/manpages/usr/share/man
+	rm -rf ${RELEASEDIR}/games/usr/share/games
+	mv ${RELEASEDIR}/bindist/usr/share/games \
+		${RELEASEDIR}/games/usr/share/games
 	rm -rf ${RELEASEDIR}/dict/usr/share/dict
 	mv ${RELEASEDIR}/bindist/usr/share/dict \
 		${RELEASEDIR}/dict/usr/share/dict
