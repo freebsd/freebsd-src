@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24 
-#  $Id: Makefile,v 1.1.1.1 1994/08/19 09:39:41 jkh Exp $
+#  $Id: Makefile,v 1.2 1994/08/19 11:15:40 jkh Exp $
 # 
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -108,5 +108,12 @@ MLINKS+=ieee_test.3 significand.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 yn.3
 MLINKS+=lgamma.3 gamma.3
 MLINKS+=sqrt.3 cbrt.3
+
+# XXX we should have only one math.h, and a rule for installing .h's...
+beforeinstall:
+	@${ECHO} Installing new math.h
+	@(cd ${.CURDIR}/src; cmp -s math.h ${DESTDIR}/usr/include/math.h || \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 444 math.h \
+		${DESTDIR}/usr/include/math.h;)
 
 .include <bsd.lib.mk>
