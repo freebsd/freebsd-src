@@ -77,7 +77,8 @@ struct wi_req {
 #define WI_RID_FWDOWNLOAD	0x0500
 #define WI_RID_MONITOR_MODE	0x0600
 #define WI_RID_MIF		0x0700
-
+#define	WI_RID_SCAN_APS		0x0800
+#define	WI_RID_READ_APS		0x0900
 
 struct wi_80211_hdr {
 	u_int16_t		frame_ctl;
@@ -166,7 +167,6 @@ struct wi_fwdownload {
 	caddr_t sec_data;	/* Pointer (user) to secondary data */
 };
 
-#ifndef _KERNEL
 struct wi_counters {
 	u_int32_t		wi_tx_unicast_frames;
 	u_int32_t		wi_tx_multicast_frames;
@@ -190,7 +190,6 @@ struct wi_counters {
 	u_int32_t		wi_rx_msg_in_msg_frags;
 	u_int32_t		wi_rx_msg_in_bad_msg_frags;
 };
-#endif
 
 /*
  * Network parameters, static configuration entities.
@@ -238,7 +237,9 @@ struct wi_counters {
 #define WI_RID_WEP_MAPTABLE	0xFC29
 #define WI_RID_CNFAUTHMODE	0xFC2A
 #define WI_RID_ROAMING_MODE	0xFC2D
+#define WI_RID_OWN_BEACON_INT	0xFC33 /* beacon xmit time for BSS creation */
 #define WI_RID_CNF_DBM_ADJUST	0xFC46
+#define WI_RID_DBM_ADJUST	0xFC46 /* RSSI - WI_RID_DBM_ADJUST ~ dBm */
 #define WI_RID_BASIC_RATE	0xFCB3
 #define WI_RID_SUPPORT_RATE	0xFCB4
 
@@ -280,18 +281,17 @@ struct wi_counters {
 #define WI_RID_TX_CRYPT_KEY	0xFCB1
 #define WI_RID_TICK_TIME	0xFCE0
 
-#ifndef _KERNEL
 struct wi_key {
 	u_int16_t		wi_keylen;
 	u_int8_t		wi_keydat[14];
 };
 
+#define WI_NLTV_KEYS 4
 struct wi_ltv_keys {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
-	struct wi_key		wi_keys[4];
+	struct wi_key		wi_keys[WI_NLTV_KEYS];
 };
-#endif
 
 /*
  * NIC information
@@ -327,7 +327,7 @@ struct wi_ltv_keys {
 #define WI_RID_CURRENT_BSSID	0xFD42 /* ID of actually connected BSS */
 #define WI_RID_COMMS_QUALITY	0xFD43 /* quality of BSS connection */
 #define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
-#define WI_RID_OWN_BEACON_INT	0xFD45 /* beacon xmit time for BSS creation */
+#define WI_RID_CUR_BEACON_INT	0xFD45 /* current beacon interval */
 #define WI_RID_CUR_SCALE_THRESH	0xFD46 /* actual system scane thresh setting */
 #define WI_RID_PROT_RESP_TIME	0xFD47 /* time to wait for resp to req msg */
 #define WI_RID_SHORT_RTR_LIM	0xFD48 /* max tx attempts for short frames */
@@ -347,6 +347,34 @@ struct wi_ltv_keys {
 #define WI_RID_CUR_TX_RATE6	0xFD85
 #define WI_RID_OWN_MAC		0xFD86 /* unique local MAC addr */
 #define WI_RID_PCI_INFO		0xFD87 /* point coordination func cap */
+
+/*
+ * Scan Information
+ */
+#define	WI_RID_BCAST_SCAN_REQ	0xFCAB /* Broadcast Scan request (Symbol) */
+#define	 BSCAN_5SEC		0x01
+#define	 BSCAN_ONETIME		0x02
+#define	 BSCAN_PASSIVE		0x40
+#define	 BSCAN_BCAST		0x80
+#define WI_RID_SCAN_REQ		0xFCE1 /* Scan request (STA only) */
+#define WI_RID_JOIN_REQ		0xFCE2 /* Join request (STA only) */
+#define	WI_RID_AUTH_STATION	0xFCE3 /* Authenticates Station (AP) */
+#define	WI_RID_CHANNEL_REQ	0xFCE4 /* Channel Information Request (AP) */
+#define WI_RID_SCAN_RESULTS	0xFD88 /* Scan Results Table */
+
+struct wi_apinfo {
+	int			scanreason;	/* ScanReason */
+	char			bssid[6];	/* BSSID (mac address) */
+	int			channel;	/* Channel */
+	int			signal;		/* Signal level */
+	int			noise;		/* Average Noise Level*/
+	int			quality;	/* Quality */
+	int			namelen;	/* Length of SSID string */
+	char			name[32];	/* SSID string */
+	int			capinfo;	/* Capability info. */ 
+	int			interval;	/* BSS Beacon Interval */
+	int			rate;		/* Data Rate */
+};
 
 /*
  * Modem information
