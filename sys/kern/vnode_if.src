@@ -519,7 +519,7 @@ vop_aclcheck {
 };
 
 #
-#% getextattr	vp	= = =
+#% getextattr	vp	L L L
 #
 vop_getextattr {
 	IN struct vnode *vp;
