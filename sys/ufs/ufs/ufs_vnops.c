@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.14 1995/01/09 16:05:27 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.15 1995/02/14 06:12:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -650,8 +650,6 @@ ufs_remove(ap)
 	if ((error = ufs_dirremove(dvp, ap->a_cnp)) == 0) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
-		if( (ip->i_nlink == 0) && vp->v_vmdata)
-			((vm_object_t)vp->v_vmdata)->flags |= OBJ_INTERNAL;
 	}
 out:
 	if (dvp == vp)
