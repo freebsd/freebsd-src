@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.47.2.10 1997/12/02 09:57:20 danny Exp $
+ *	$Id: kern_exec.c,v 1.47.2.11 1997/12/16 15:47:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -162,6 +162,8 @@ interpret:
 		goto exec_fail_dealloc;
 	}
 
+	/* XXX temporary hack for CODA filesystem XXX */
+#ifndef	CFS
 	/*
 	 * Get the image header, which we define here as meaning the first
 	 * page of the executable.
@@ -176,7 +178,9 @@ interpret:
 		error = bread(imgp->vp, 0, imgp->vp->v_mount->mnt_stat.f_iosize,
 		     p->p_ucred, &bp);
 		imgp->image_header = bp->b_data;
-	} else {
+	} else 
+#endif
+	{
 		int resid;
 
 		/*
