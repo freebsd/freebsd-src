@@ -58,3 +58,43 @@ time_to_time64(time_t t)
     return((__int64_t)t);
 }
 
+/*
+ * Convert to/from 'long'.  Depending on the sizeof(long) this may or 
+ * may not require using the 50-year rule.
+ */
+long
+time_to_long(time_t t)
+{
+    if (sizeof(long) == sizeof(__int64_t))
+	return(time_to_time64(t));
+    return((long)t);
+}
+
+time_t
+long_to_time(long tlong)
+{
+    if (sizeof(long) == sizeof(__int32_t))
+	return(time32_to_time(tlong));
+    return((time_t)tlong);
+}
+
+/*
+ * Convert to/from 'int'.  Depending on the sizeof(int) this may or 
+ * may not require using the 50-year rule.
+ */
+int
+time_to_int(time_t t)
+{
+    if (sizeof(int) == sizeof(__int64_t))
+	return(time_to_time64(t));
+    return((int)t);
+}
+
+time_t
+int_to_time(int tint)
+{
+    if (sizeof(int) == sizeof(__int32_t))
+	return(time32_to_time(tint));
+    return((time_t)tint);
+}
+
