@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.38 1995/03/27 00:11:45 davidg Exp $
+ * $Id: vfs_bio.c,v 1.39 1995/04/09 06:02:43 davidg Exp $
  */
 
 /*
@@ -402,7 +402,12 @@ brelse(struct buf * bp)
 		for (i = 0; i < bp->b_npages; i++) {
 			m = bp->b_pages[i];
 			if (m == bogus_page) {
-				panic("brelse: bogus page found");
+				m = vm_page_lookup(obj, foff);
+				if (!m) {
+					panic("brelse: page missing\n");
+				}
+				bp->b_pages[i] = m;
+				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			resid = (m->offset + PAGE_SIZE) - foff;
 			if (resid > iototal)
@@ -410,6 +415,8 @@ brelse(struct buf * bp)
 			if (resid > 0) {
 				if (bp->b_flags & (B_ERROR | B_NOCACHE)) {
 					vm_page_set_invalid(m, foff, resid);
+					if (m->valid == 0)
+						vm_page_protect(m, VM_PROT_NONE);
 				} 
 			}
 			foff += resid;
@@ -736,7 +743,7 @@ loop:
 #if defined(VFS_BIO_DEBUG)
 			printf("getblk: invalid buffer size: %ld\n", bp->b_bcount);
 #endif
-			bp->b_flags |= B_INVAL;
+			bp->b_flags |= B_NOCACHE;
 			(void) VOP_BWRITE(bp);
 			goto loop;
 		}
