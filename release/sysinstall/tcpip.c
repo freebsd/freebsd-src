@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30 1995/06/11 19:30:12 rgrimes Exp $
+ * $Id: tcpip.c,v 1.30.2.1 1995/07/21 10:02:59 rgrimes Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -104,25 +104,25 @@ static Layout layout[] = {
       "IP Address:",
       "The IP address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
-#define LAYOUT_IPADDR		5
+#define LAYOUT_IPADDR		4
 { 10, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
       "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
-#define LAYOUT_NETMASK		6
+#define LAYOUT_NETMASK		5
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
       "Any interface-specific options to ifconfig you would like to use",
       extras, STRINGOBJ, NULL },
-#define LAYOUT_EXTRAS		7
+#define LAYOUT_EXTRAS		6
 { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON		8
+#define LAYOUT_OKBUTTON		7
 { 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON	9
+#define LAYOUT_CANCELBUTTON	8
 { NULL },
 };
 
@@ -290,14 +290,22 @@ tcpOpenDialog(Device *devp)
 	/* Ask for libdialog to do its stuff */
 	ret = PollObj(&obj);
 
-	/* We are in the Hostname field - calculate the domainname */
-	if (n == 0) {
+	if (n == LAYOUT_HOSTNAME) {
+	    /* We are in the Hostname field - calculate the domainname */
 	    if ((tmp = index(hostname, '.')) != NULL) {
 		strncpy(domainname, tmp + 1, strlen(tmp + 1));
 		domainname[strlen(tmp+1)] = '\0';
-		RefreshStringObj(layout[1].obj);
+		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
-	}
+	} else if (n == LAYOUT_IPADDR) {
+	    /* Insert a default value for the netmask, 0xffffff00 is
+	       the most appropriate one (entire class C, or subnetted
+	       class A/B network). */
+	    if(netmask[0] == '\0') {
+		strcpy(netmask, "255.255.255.0");
+		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
+	    }
+	}   
 
 	/* Handle special case stuff that libdialog misses. Sigh */
 	switch (ret) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.2 1995/07/21 11:45:38 rgrimes Exp $
+ * $Id: disks.c,v 1.31.2.3 1995/09/18 17:00:17 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,7 +179,28 @@ diskPartition(Disk *d)
 	    break;
 
 	case 'A':
-	    All_FreeBSD(d);
+	    if(!msgYesNo("Do you want to use the regular way to keep the disk\n"
+			 "cooperative with the usual BIOS partitioning schemes?"))
+		All_FreeBSD(d, 0);
+	    else {
+		int rv;
+		rv = !msgYesNo("This is dangerous in that it will make the drive absolutely\n"
+			       "uncooperative to other potential operating systems on the\n"
+			       "same disk.  It will rather lead to a totally dedicated disk,\n"
+			       "starting at the very first sector, bypassing all BIOS geometry\n"
+			       "considerations.\n"
+			       "You will run into serious troubles for ST-506 and ESDI drives,\n"
+			       "and you might suffer a great pain when applying this to some\n"
+			       "IDE drives (e.g. drives running under control of some sort of\n"
+			       "a disk manager).  SCSI drives are considered less harmful.\n"
+			       "Whenever you'll get this disk within the reach of some DOS\n"
+			       "\"fdisk\" utility, little red daemons will jump out of your\n"
+			       "drive and eat you up!\n\n"
+			       "Do you insist on dedicating the entire disk this way?");
+		if(rv)
+		    msgInfo("You can't say you haven't been warned!");
+		All_FreeBSD(d, rv);
+	    }
 	    record_chunks(d);
 	    break;
 
@@ -394,8 +415,12 @@ diskPartitionWrite(char *str)
 	if (!devs[i]->enabled)
 	    continue;
 
-	/* Do it once so that it only goes on the first drive */
-	if (mbrContents) {
+ 	/* Don't trash the MBR if the first (and therefore only) chunk
+ 	   is marked for a truly dedicated disk (i.e., the disklabel
+ 	   starts at sector 0), even in cases where the user has
+ 	   requested booteasy or a "standard" MBR -- both would be
+ 	   fatal in this case. */
+ 	if (mbrContents && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
 	    Set_Boot_Mgr(d, mbrContents);
 	    mbrContents = NULL;
 	}

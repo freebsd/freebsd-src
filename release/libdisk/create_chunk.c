@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.20.2.1 1995/05/31 23:53:45 jkh Exp $
+ * $Id: create_chunk.c,v 1.21 1995/06/11 19:29:33 rgrimes Exp $
  *
  */
 
@@ -157,15 +157,18 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 	int i;
 	u_long l;
 
-	/* Never use the first track */
-	if (!offset) {
-		offset += d->bios_sect;
-		size -= d->bios_sect;
-	}
+	if(!(flags & CHUNK_FORCE_ALL))
+	{
+		/* Never use the first track */
+		if (!offset) {
+			offset += d->bios_sect;
+			size -= d->bios_sect;
+		}
 
-	/* Always end on cylinder boundary */
-	l = (offset+size) % (d->bios_sect * d->bios_hd);
-	size -= l;
+		/* Always end on cylinder boundary */
+		l = (offset+size) % (d->bios_sect * d->bios_hd);
+		size -= l;
+	}
 
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	Fixup_Names(d);
