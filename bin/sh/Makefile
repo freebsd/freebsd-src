@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.12 1996/06/24 04:22:21 jkh Exp $
+#	$Id: Makefile,v 1.13 1996/09/01 10:19:18 peter Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -16,6 +16,8 @@ LDADD+= -ll -ledit -ltermcap
 
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
+# for debug:
+# CFLAGS+= -g -DDEBUG=2
 
 .PATH:	${.CURDIR}/bltin ${.CURDIR}/../../usr.bin/printf
 
