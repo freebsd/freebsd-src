@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.3 1994/08/02 07:42:14 davidg Exp $
+ * $Id: kern_subr.c,v 1.4 1995/02/12 09:11:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -89,6 +89,8 @@ uiomove(cp, n, uio)
 				bcopy((caddr_t)cp, iov->iov_base, cnt);
 			else
 				bcopy(iov->iov_base, (caddr_t)cp, cnt);
+			break;
+		case UIO_NOCOPY:
 			break;
 		}
 		iov->iov_base += cnt;
@@ -211,5 +213,38 @@ hashinit(elements, type, hashmask)
 	for (i = 0; i < hashsize; i++)
 		LIST_INIT(&hashtbl[i]);
 	*hashmask = hashsize - 1;
+	return (hashtbl);
+}
+
+#define NPRIMES 24
+static int primes[] = { 61, 127, 251, 509, 761, 1021, 1531, 2039, 2557,
+			3067, 3583, 4093, 4603, 5119, 5623, 6143, 6653,
+			7159, 7673, 8191, 12281, 16381, 24571, 32749 };
+
+/*
+ * General routine to allocate a prime number sized hash table.
+ */
+void *
+phashinit(elements, type, nentries)
+	int elements, type;
+	u_long *nentries;
+{
+	long hashsize;
+	LIST_HEAD(generic, generic) *hashtbl;
+	int i;
+
+	if (elements <= 0)
+		panic("hashinit: bad cnt");
+	for (i = 1, hashsize = primes[1]; hashsize <= elements;) {
+		i++;
+		if (i == NPRIMES)
+			break;
+		hashsize = primes[i];
+	}
+	hashsize = primes[i - 1];
+	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, M_WAITOK);
+	for (i = 0; i < hashsize; i++)
+		LIST_INIT(&hashtbl[i]);
+	*nentries = hashsize;
 	return (hashtbl);
 }
