@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.66 1997/05/12 16:29:47 brian Exp $ -->
+<!-- $Id: authors.sgml,v 1.67 1997/05/13 08:39:02 davidg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -51,6 +51,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.cawimm "Charles A. Wimmer
   <tt><htmlurl url='mailto:cawimm@FreeBSD.ORG' 
   name='&lt;cawimm@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.charnier "Philippe Charnier"
+  <tt><htmlurl url='mailto:charnier@FreeBSD.ORG'
+  name='&lt;charnier@FreeBSD.ORG'&gt;'></tt>">
 
 <!ENTITY a.chuck "Chuck Robey
   <tt><htmlurl url='mailto:chuckr@glue.umd.edu'
