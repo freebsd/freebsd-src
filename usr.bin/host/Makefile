@@ -17,6 +17,4 @@ CFLAGS+=	-I${SRCDIR}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN=		host.1
-
 .include <bsd.prog.mk>
