@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.8.2.3 1997/10/26 23:37:04 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.8.2.4 1998/03/07 13:17:52 jkh Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -39,7 +39,7 @@ depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 # .if defined ${SRCS:M*.[sS]} does not work
 __depend_s=	${SRCS:M*.[sS]}
 __depend_c=	${SRCS:M*.c}
-__depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cxx}
+__depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cpp} ${SRCS:M*.cxx}
 
 ${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
@@ -54,7 +54,8 @@ ${DEPENDFILE}: ${SRCS}
 .if defined(__depend_cc) && !empty(__depend_cc)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[BID]*} \
-		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} \
+		${.ALLSRC:M*.cxx}
 .endif
 
 .ORDER: ${DEPENDFILE} afterdepend

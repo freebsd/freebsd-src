@@ -1,11 +1,11 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.41.2.5 1997/06/28 08:23:09 pst Exp $
+#	$Id: bsd.prog.mk,v 1.41.2.6 1997/07/31 06:12:50 asami Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
-.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
+.SUFFIXES: .out .o .c .cc .cpp .cxx .C .y .l .s .S
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
 .if defined(DESTDIR)
