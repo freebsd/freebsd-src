@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.2 1996/09/16 17:03:29 wollman Exp $
+ *	$Id: defs.h,v 1.3 1996/11/19 20:42:11 wollman Exp $
  */
 
 /* Definitions for RIPv2 routing process.
@@ -77,6 +77,7 @@
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #ifdef sgi
 #include <net/radix.h>
 #else

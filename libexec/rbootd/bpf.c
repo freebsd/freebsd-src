@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bpf.c	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	$Id: bpf.c,v 1.3 1996/09/22 21:54:25 wosch Exp $
  *
  * Utah $Hdr: bpf.c 3.1 92/07/06$
  * Author: Jeff Forys, University of Utah CSS
@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)bpf.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/bpf.h>

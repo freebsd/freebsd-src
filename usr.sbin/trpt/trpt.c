@@ -55,6 +55,7 @@ static char sccsid[] = "@(#)trpt.c	8.1 (Berkeley) 6/6/93";
 #define PRUREQUESTS
 #include <sys/protosw.h>
 #include <sys/file.h>
+#include <sys/time.h>
 
 #include <net/route.h>
 #include <net/if.h>

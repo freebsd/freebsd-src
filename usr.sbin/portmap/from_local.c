@@ -44,12 +44,15 @@ static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 #endif
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <net/if.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
+#include <netdb.h>
 #include <syslog.h>
+
+#include <net/if.h>
+#include <netinet/in.h>
 
 #ifndef TRUE
 #define	TRUE	1

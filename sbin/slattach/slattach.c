@@ -42,26 +42,29 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id";
+static char rcsid[] = "$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
-#include <termios.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+
+#include <fcntl.h>
+#include <netdb.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <syslog.h>
+#include <termios.h>
+#include <unistd.h>
+
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/slip.h>
 #include <net/if_slvar.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <paths.h>
-#include <syslog.h>
-#include <signal.h>
-#include <strings.h>
 
 #define DEFAULT_BAUD	9600
 

@@ -16,22 +16,26 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.33 1996/08/31 17:58:23 nate Exp $
+ * $Id: ipfw.c,v 1.34 1996/10/17 01:05:03 alex Exp $
  *
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <err.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <limits.h>
-#include <time.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/time.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <limits.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
