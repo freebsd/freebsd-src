@@ -471,6 +471,14 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
+		 * These are the large storage arrays.
+		 * Submitted by:  William Carrel <william.carrel@infospace.com>
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "HITACHI", "OPEN*", "*" },
+		CAM_QUIRK_HILUNS, 2, 1024
+	},
+	{
+		/*
 		 * This old revision of the TDC3600 is also SCSI-1, and
 		 * hangs upon serial number probing.
 		 */
