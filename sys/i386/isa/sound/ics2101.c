@@ -30,7 +30,11 @@
 #include "sound_config.h"
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
+#ifdef __FreeBSD__
+#include <machine/ultrasound.h>
+#else
 #include "ultrasound.h"
+#endif
 #include "gus_hw.h"
 
 #define MIX_DEVS	(SOUND_MASK_MIC|SOUND_MASK_LINE| \
