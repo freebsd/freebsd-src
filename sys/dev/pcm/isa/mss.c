@@ -1,30 +1,24 @@
 /*
  * sound/ad1848.c
  * 
- * Modified by Luigi Rizzo (luigi@iet.unipi.it)
- *
  * Driver for Microsoft Sound System/Windows Sound System (mss)
  * -compatible boards. This includes:
  * 
- * AD1848, CS4248
- *
- * CS4231, used in the GUS MAX and some other cards;
- * AD1845, CS4231A (CS4231-like)
- * CS4232 (CS4231+SB and MPU, PnP)
- * CS4236 (upgrade of the CS4232, has a better mixer)
- * OPTi931 (WSS compatible, full duplex, some differences from CS42xx)
+ * AD1848, CS4248, CS423x, OPTi931, Yamaha SA2 and many others.
  *
  * Copyright Luigi Rizzo, 1997
  * Copyright by Hannu Savolainen 1994, 1995
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
- * are met: 1. Redistributions of source code must retain the above
- * copyright notice, this list of conditions and the following
- * disclaimer. 2.  Redistributions in binary form must reproduce the
- * above copyright notice, this list of conditions and the following
- * disclaimer in the documentation and/or other materials provided
- * with the distribution.
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer
+ *    in the documentation and/or other materials provided with the
+ *    distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -39,14 +33,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- *
  * Full data sheets in PDF format for the MSS-compatible chips
  * are available at
  *
  *	http://www.crystal.com/ for the CS42XX series, or
  *	http://www.opti.com/	for the OPTi931
- *
- * The OPTi931 appears to be quite buggy.
  */
 
 #include <i386/isa/snd/sound.h>
@@ -114,11 +105,12 @@ snddev_info mss_op_desc = {
     AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,	/* audio formats */
     /*
      * the enhanced boards also have AFMT_IMA_ADPCM | AFMT_S16_BE
+     * but we do not use these modes.
      */
 } ;
 
 /*
- * this is the probe routine. Note, it is not necessary to
+ * mss_probe() is the probe routine. Note, it is not necessary to
  * go through this for PnP devices, since they are already
  * indentified precisely using their PnP id.
  *
@@ -158,13 +150,13 @@ mss_probe(struct isa_device *dev)
 
     tmp = inb(dev->id_iobase + 3);
     if (tmp == 0xff) {	/* Bus float */
-	DDB(printf("I/O address inactive (%x), try pseudo_mss\n", tmp));
+	DEB(printf("I/O address inactive (%x), try pseudo_mss\n", tmp));
 	dev->id_flags &= ~DV_F_TRUE_MSS ;
 	goto mss_probe_end;
     }
     tmp &= 0x3f ;
     if (tmp != 0x04 && tmp != 0x0f && tmp != 0x00) {
-	DDB(printf("No MSS signature detected on port 0x%x (0x%x)\n",
+	DEB(printf("No MSS signature detected on port 0x%x (0x%x)\n",
 		   dev->id_iobase, inb(dev->id_iobase + 3)));
 	return 0;
     }
@@ -207,6 +199,9 @@ mss_attach(struct isa_device *dev)
 	d->name, dev->id_unit,
 	d->io_base, d->irq, d->dma1, d->dma2, dev->id_flags);
 
+    dev->id_alive = 8 ; /* number of io ports */
+    /* should be already set but just in case... */
+
     if ( dev->id_flags & DV_F_TRUE_MSS ) {
 	/* has IRQ/DMA registers, set IRQ and DMA addr */
 	static char     interrupt_bits[12] = {
@@ -238,11 +233,14 @@ mss_attach(struct isa_device *dev)
 		printf("invalid dual dma config %d:%d\n",
 			d->dma1, d->dma2);
 		dev->id_irq = 0 ;
+		dev->id_alive = 0 ; /* this makes attach fail. */
 		return 0 ;
 	    }
 	    outb(dev->id_iobase, bits );
 	}
     }
+    if (d->dma1 != d->dma2)
+	d->audio_fmt |= AFMT_FULLDUPLEX ;
     mss_reinit(d);
     ad1848_mixer_reset(d);
     return 0;
@@ -295,9 +293,6 @@ mss_open(dev_t dev, int flags, int mode, struct proc * p)
 	d->rsel.si_pid = 0;
 	d->rsel.si_flags = 0;
 
-	d->esel.si_pid = 0;
-	d->esel.si_flags = 0;
-
 	if (flags & O_NONBLOCK)
 	    d->flags |= SND_F_NBIO ;
 
@@ -313,9 +308,7 @@ mss_open(dev_t dev, int flags, int mode, struct proc * p)
 	    d->play_fmt = d->rec_fmt = AFMT_S16_LE ;
 	    break;
 	}
-	reset_dbuf(& (d->dbuf_in) );
-	reset_dbuf(& (d->dbuf_out) );
-	ask_init(d);
+	ask_init(d); /* and reset buffers... */
     }
     splx(s);
     return 0 ;
@@ -385,12 +378,13 @@ mss_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc * p)
 
 /*
  * the callback routine to handle all dma ops etc.
+ * With the exception of INIT, all other callbacks are invoked
+ * with interrupts disabled.
  */
 
 static int
 mss_callback(snddev_info *d, int reason)
 {
-    u_long   s;
     u_char m;
     int retry, wr, cnt;
 
@@ -405,14 +399,13 @@ mss_callback(snddev_info *d, int reason)
 	d->rec_fmt = d->play_fmt ; /* no split format on the WSS */
 	snd_set_blocksize(d);
 	mss_reinit(d);
+	reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
+	reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
 	return 1 ;
 	break ;
     
     case SND_CB_START :
-	/* fallthrough */
-    case SND_CB_RESTART :
-	s = spltty();
-	cnt = wr ? d->dbuf_out.dl0 : d->dbuf_in.dl0 ;
+	cnt = wr ? d->dbuf_out.dl : d->dbuf_in.dl ;
 	if (d->play_fmt == AFMT_S16_LE)
 	    cnt /= 2;
 	if (d->flags & SND_F_STEREO)
@@ -421,7 +414,7 @@ mss_callback(snddev_info *d, int reason)
 
 	DEB(printf("-- (re)start cnt %d\n", cnt));
 	m = ad_read(d,9) ;
-	DDB( if (m & 4) printf("OUCH! reg 9 0x%02x\n", m); );
+	DEB( if (m & 4) printf("OUCH! reg 9 0x%02x\n", m); );
 	m |= wr ? I9_PEN : I9_CEN ; /* enable DMA */
 	/*
 	 * on the OPTi931 the enable bit seems hard to set...
@@ -438,11 +431,9 @@ mss_callback(snddev_info *d, int reason)
 	else
 	    ad_write_cnt(d, 30, cnt);
 
-	splx(s);
 	break ;
     case SND_CB_STOP :
     case SND_CB_ABORT : /* XXX check this... */
-	s = spltty();
 	m = ad_read(d,9) ;
 	m &= wr ?  ~I9_PEN : ~I9_CEN ; /* Stop DMA */
 	/*
@@ -455,14 +446,18 @@ mss_callback(snddev_info *d, int reason)
 	if (retry == 0)
 	    printf("start dma, failed to clear bit 0x%02x 0x%02x\n",
 		m, ad_read(d, 9) ) ;
-
-	/* disable DMA by clearing count registers. */
+#if 1
+	/*
+	 * try to disable DMA by clearing count registers. Not sure it
+	 * is needed, and it might cause false interrupts when the
+	 * DMA is re-enabled later.
+	 */
 	if (wr || (d->dma1 == d->dma2) )
 	    ad_write_cnt(d, 14, 0);
 	else
 	    ad_write_cnt(d, 30, 0);
-	splx(s);
 	break;
+#endif
     }
     return 0 ;
 }
@@ -470,37 +465,56 @@ mss_callback(snddev_info *d, int reason)
 /*
  * main irq handler for the CS423x. The OPTi931 code is
  * a separate one.
+ * The correct way to operate for a device with multiple internal
+ * interrupt sources is to loop on the status register and ack
+ * interrupts until all interrupts are served and none are reported. At
+ * this point the IRQ line to the ISA IRQ controller should go low
+ * and be raised at the next interrupt.
+ *
+ * Since the ISA IRQ controller is sent EOI _before_ passing control
+ * to the isr, it might happen that we serve an interrupt early, in
+ * which case the status register at the next interrupt should just
+ * say that there are no more interrupts...
  */
 
 static void
 mss_intr(int unit)
 {
     snddev_info *d = &pcm_info[unit];
-    u_char i11, c;
-    u_char reason; /* b0 = playback, b1 = capture, b2 = timer */
+    u_char c, served = 0;
+    int i;
 
-    i11 = ad_read(d, 11);
-    reason = inb(io_Status(d));
+    DEB(printf("mss_intr\n"));
+    ad_read(d, 11); /* fake read of status bits */
 
-    if ( ! (reason & 1) ) /* no int, maybe a shared line ? */
-	return;
-    /* get exact reason */
-    c = (d->dma1 == d->dma2) ? 0x10 : ad_read(d, 24);
-    if ( (d->flags & SND_F_WR_DMA) && (c & 0x10) )
-	dsp_wrintr(d);
-    c = (d->dma1 == d->dma2) ? 0x20 : ad_read(d, 24);
-    if ( (d->flags & SND_F_RD_DMA) && (c & 0x20) )
-	dsp_rdintr(d);
-    /* XXX check this on the 4236... */
-    if (d->dma1 == d->dma2)
-	outb(io_Status(d), 0);	/* Clear interrupt status */
-    else
-	ad_write(d, 24, ~c); /* ack selectively */
+    /*
+     * loop until there are interrupts, but no more than 10 times.
+     */
+    for (i=10 ; i && inb(io_Status(d)) & 1 ; i-- ) {
+	/* get exact reason for full-duplex boards */
+	c = (d->dma1 == d->dma2) ? 0x30 : ad_read(d, 24);
+	c &= ~served ;
+	if ( d->dbuf_out.dl && (c & 0x10) ) {
+	    served |= 0x10 ;
+	    dsp_wrintr(d);
+	}
+	if ( d->dbuf_in.dl && (c & 0x20) ) {
+	    served |= 0x20 ;
+	    dsp_rdintr(d);
+	}
+	/* 
+	 * now ack the interrupt
+	 */
+	if (d->dma1 == d->dma2)
+	    outb(io_Status(d), 0);	/* Clear interrupt status */
+	else
+	    ad_write(d, 24, ~c); /* ack selectively */
+    }
 }
 
 /*
  * the opti931 seems to miss interrupts when working in full
- * duplex. god know why...
+ * duplex, so we try some heuristics to catch them.
  */
 static void
 opti931_intr(int unit)
@@ -509,8 +523,6 @@ opti931_intr(int unit)
     u_char masked=0, i11, mc11, c=0;
     u_char reason; /* b0 = playback, b1 = capture, b2 = timer */
     int loops = 10;
-    int w_miss=0, r_miss=0;
-    static int misses=0; /* XXX kludge */
 
 #if 0
     reason = inb(io_Status(d));
@@ -525,11 +537,11 @@ again:
     c=mc11 = (d->dma1 == d->dma2) ? 0xc : opti_read(d->conf_base, 11);
     mc11 &= 0x0c ;
     if (c & 0x10) {
-	printf("Warning CD interrupt\n");
+	printf("Warning: CD interrupt\n");
 	mc11 |= 0x10 ;
     }
     if (c & 0x20) {
-	printf("Warning MPU interrupt\n");
+	printf("Warning: MPU interrupt\n");
 	mc11 |= 0x20 ;
     }
     if (mc11 & masked) 
@@ -541,38 +553,18 @@ again:
 	    printf("one more try...\n");
 	    goto again;
 	}
-	if (w_miss || r_miss ) {
-	    misses++;
-	    if ( (misses & 0xff) == 1 )
-		printf("opti931: %d missed irq (now %s%s)\n",
-		    misses, w_miss?"play ":"",
-		    r_miss?"capture ":"");
-	}
-	if (loops==10)
+	if (loops==10) {
 	    printf("ouch, intr but nothing in mcir11 0x%02x\n", mc11);
-	if (w_miss) mc11 |= 4 ;
-	if (r_miss) mc11 |= 8 ;
-	if (mc11==0)
-	    return;
+	}
+	return;
     }
 
-    if ( (d->flags & SND_F_RD_DMA) && (mc11 & 8) ) {
+    if ( d->dbuf_in.dl && (mc11 & 8) ) {
 	dsp_rdintr(d);
-	r_miss = 0 ;
     }
-    else if (isa_dmastatus1(d->dma2) == 0 && (d->flags & SND_F_RD_DMA) )
-	r_miss = 1 ;
-
-    if ( (d->flags & SND_F_WR_DMA) && (mc11 & 4) ) {
-	if (isa_dmastatus1(d->dma1) != 0)
-	    printf("opti931_intr: wr dma %d\n", 
-		isa_dmastatus1(d->dma1));
+    if ( d->dbuf_out.dl && (mc11 & 4) ) {
 	dsp_wrintr(d);
-	w_miss = 0 ;
     }
-    else if (isa_dmastatus1(d->dma1) == 0 && (d->flags & SND_F_WR_DMA) )
-	w_miss = 1 ;
-
     opti_write(d->conf_base, 11, ~mc11); /* ack */
     if (--loops) goto again;
     printf("xxx too many loops\n");
@@ -597,6 +589,36 @@ opti_read(int io_base, u_char reg)
     outb(io_base, reg);
     return inb(io_base+1);
 }
+
+static void
+gus_write(int io_base, u_char reg, u_char value)
+{
+    outb(io_base + 3, reg);
+    outb(io_base + 5, value);
+}
+
+static void
+gus_writew(int io_base, u_char reg, u_short value)
+{
+    outb(io_base + 3, reg);
+    outb(io_base + 4, value);
+}
+
+static u_char
+gus_read(int io_base, u_char reg)
+{
+    outb(io_base+3, reg);
+    return inb(io_base+5);
+}
+
+static u_short
+gus_readw(int io_base, u_char reg)
+{
+    outb(io_base+3, reg);
+    return inw(io_base+4);
+}
+
+
 /*
  * AD_WAIT_INIT waits if we are initializing the board and
  * we cannot modify its settings
@@ -697,7 +719,8 @@ ad_enter_MCE(snddev_info *d)
     d->bd_flags |= BD_F_MCE_BIT;
     AD_WAIT_INIT(d, 100);
     prev = inb(io_Index_Addr(d));
-    outb(io_Index_Addr(d), prev | IA_MCE | IA_TRD ) ;
+    prev &= ~IA_TRD ;
+    outb(io_Index_Addr(d), prev | IA_MCE ) ;
 }
 
 static void
@@ -717,16 +740,14 @@ ad_leave_MCE(snddev_info *d)
     d->bd_flags &= ~BD_F_MCE_BIT;
 
     prev = inb(io_Index_Addr(d));
-
-    outb(io_Index_Addr(d), (prev & ~IA_MCE) | IA_TRD); /* Clear the MCE bit */
+    prev &= ~IA_TRD ;
+    outb(io_Index_Addr(d), prev & ~IA_MCE ); /* Clear the MCE bit */
     wait_for_calibration(d);
     splx(flags);
 }
 
 /*
  * only one source can be set...
- *
- * fixed -- lr 970725
  */
 static int
 mss_set_recsrc(snddev_info *d, int mask)
@@ -803,7 +824,7 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 	mix_d = &(opti931_devices);
 
     if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
-	DDB(printf("nbits = 0 for dev %d\n", dev) );
+	DEB(printf("nbits = 0 for dev %d\n", dev) );
 	return EINVAL;
     }
 
@@ -832,7 +853,7 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 	val = old & 0x7f ; /* clear mute bit. */
     change_bits(mix_d, &val, dev, LEFT_CHN, left);
     ad_write(d, regoffs, val);
-    DEB(printf("dev %d reg %d old 0x%02x new 0x%02x\n",
+    DEB(printf("LEFT: dev %d reg %d old 0x%02x new 0x%02x\n",
 	dev, regoffs, old, val));
 
     if ((*mix_d)[dev][RIGHT_CHN].nbits != 0) { /* have stereo */
@@ -840,11 +861,13 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 	 * Set the right channel
 	 */
 	regoffs = (*mix_d)[dev][RIGHT_CHN].regno;
-	val = ad_read(d, regoffs);
+	old = val = ad_read(d, regoffs);
 	if (regoffs != 1)
 	    val = old & 0x7f ; /* clear mute bit. */
 	change_bits(mix_d, &val, dev, RIGHT_CHN, right);
 	ad_write(d, regoffs, val);
+	DEB(printf("RIGHT: dev %d reg %d old 0x%02x new 0x%02x\n",
+	    dev, regoffs, old, val));
     }
     return 0; /* success */
 }
@@ -861,12 +884,28 @@ ad1848_mixer_reset(snddev_info *d)
     else
 	d->mix_devs = MODE1_MIXER_DEVICES;
 
-    d->mix_rec_devs = MODE1_REC_DEVICES;
+    d->mix_rec_devs = MSS_REC_DEVICES;
 
     for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 	if (d->mix_devs & (1 << i))
 	    mss_mixer_set(d, i, default_mixer_levels[i]);
     mss_set_recsrc(d, SOUND_MASK_MIC);
+    /*
+     * some device-specific things, mostly mute the mic to
+     * the output mixer so as to avoid hisses. In many cases this
+     * is the default after reset, this code is here mostly as a
+     * reminder that this might be necessary on other boards.
+     */
+    switch(d->bd_id) {
+    case MD_OPTI931:
+	ad_write(d, 20, 0x88);
+	ad_write(d, 21, 0x88);
+	break;
+    case MD_GUSPNP:
+	/* this is only necessary in mode 3 ... */
+	ad_write(d, 22, 0x88);
+	ad_write(d, 23, 0x88);
+    }
 }
 
 /*
@@ -874,8 +913,6 @@ ad1848_mixer_reset(snddev_info *d)
  * matching one. As a side effect, it returns the value to
  * be written in the speed bits of the codec. It does _NOT_
  * set the speed of the device (but it should!)
- *
- * fixed lr970724
  */
 
 static int
@@ -1009,7 +1046,7 @@ mss_detect(struct isa_device *dev)
 	else
 	    break ;
     if ((inb(io_Index_Addr(d)) & IA_BUSY) != 0x00) {	/* Not a AD1848 */
-	DDB(printf("mss_detect error, busy still set (0x%02x)\n",
+	DEB(printf("mss_detect error, busy still set (0x%02x)\n",
 		   inb(io_Index_Addr(d))));
 	return 0;
     }
@@ -1024,9 +1061,9 @@ mss_detect(struct isa_device *dev)
     tmp1 = ad_read(d, 0) ;
     tmp2 = ad_read(d, 1) ;
     if ( tmp1 != 0xaa || tmp2 != 0x45) {
-	DDB(printf("mss_detect error - IREG (0x%02x/0x%02x) want 0xaa/0x45\n",
+	DEB(printf("mss_detect error - IREG (0x%02x/0x%02x) want 0xaa/0x45\n",
 		tmp1, tmp2));
-	    return 0;
+	return 0;
     }
 
     ad_write(d, 0, 0x45);
@@ -1035,7 +1072,7 @@ mss_detect(struct isa_device *dev)
     tmp2 = ad_read(d, 1) ;
 
     if (tmp1 != 0x45 || tmp2 != 0xaa) {
-	DDB(printf("mss_detect error - IREG2 (%x/%x)\n", tmp1, tmp2));
+	DEB(printf("mss_detect error - IREG2 (%x/%x)\n", tmp1, tmp2));
 	return 0;
     }
 
@@ -1049,7 +1086,7 @@ mss_detect(struct isa_device *dev)
     tmp1 = ad_read(d, 12);
 
     if ((tmp & 0x0f) != (tmp1 & 0x0f)) {
-	DDB(printf("mss_detect error - I12 (0x%02x was 0x%02x)\n",
+	DEB(printf("mss_detect error - I12 (0x%02x was 0x%02x)\n",
 	    tmp1, tmp));
 	return 0;
     }
@@ -1073,7 +1110,7 @@ mss_detect(struct isa_device *dev)
 
     for (i = 0; i < 16; i++)
 	if ((tmp1 = ad_read(d, i)) != (tmp2 = ad_read(d, i + 16))) {
-	    DDB(printf("mss_detect warning - I%d: 0x%02x/0x%02x\n",
+	    DEB(printf("mss_detect warning - I%d: 0x%02x/0x%02x\n",
 		i, tmp1, tmp2));
 	    /*
 	     * note - this seems to fail on the 4232 on I11. So we just break
@@ -1110,14 +1147,14 @@ mss_detect(struct isa_device *dev)
 
 	    ad_write(d, 0, 0xaa);
 	    if ((tmp1 = ad_read(d, 16)) == 0xaa) {	/* Rotten bits? */
-		DDB(printf("mss_detect error - step H(%x)\n", tmp1));
+		DEB(printf("mss_detect error - step H(%x)\n", tmp1));
 		return 0;
 	    }
 	    /*
 	     * Verify that some bits of I25 are read only.
 	     */
 
-	    DDB(printf("mss_detect() - step I\n"));
+	    DEB(printf("mss_detect() - step I\n"));
 	    tmp1 = ad_read(d, 25);	/* Original bits */
 	    ad_write(d, 25, ~tmp1);	/* Invert all bits */
 	    if ((ad_read(d, 25) & 0xe7) == (tmp1 & 0xe7)) {
@@ -1182,7 +1219,7 @@ mss_detect(struct isa_device *dev)
 		    break;
 
 		case 0x83:	/* CS4236 */
-		case 0x03:	/* CS4236 on Intel PR440FX motherboard */
+		case 0x03:      /* CS4236 on Intel PR440FX motherboard XXX */
 		    name = "CS4236";
 		    d->bd_id = MD_CS4236;
 		    break ;
@@ -1197,7 +1234,7 @@ mss_detect(struct isa_device *dev)
 
 	}
     }
-    DDB(printf("mss_detect() - Detected %s\n", name));
+    DEB(printf("mss_detect() - Detected %s\n", name));
     strcpy(d->name, name);
     dev->id_flags &= ~DV_F_DEV_MASK ;
     dev->id_flags |= (d->bd_id << DV_F_DEV_SHIFT) & DV_F_DEV_MASK ;
@@ -1246,11 +1283,20 @@ mss_reinit(snddev_info *d)
 
     ad_write(d, 8, r) ;
     if (d->dma1 != d->dma2) {
+#if 0
+	if (d->bd_id == MD_GUSPNP && d->play_fmt == AFMT_MU_LAW) {
+	    printf("warning, cannot do ulaw rec + play on the GUS\n");
+	    r = 0 ; /* move to U8 */
+	}
+#endif
 	ad_write(d, 28, r & 0xf0 ) ; /* capture mode */
 	ad_write(d, 9, 0 /* no capture, no playback, dual dma */) ;
     } else
 	ad_write(d, 9, 4 /* no capture, no playback, single dma */) ;
     ad_leave_MCE(d);
+    /*
+     * not sure if this is really needed...
+     */
     ad_write_cnt(d, 14, 0 ); /* playback count */
     if (d->dma1 != d->dma2)
 	ad_write_cnt(d, 30, 0 ); /* rec. count on dual dma */
@@ -1271,31 +1317,34 @@ mss_reinit(snddev_info *d)
 
 #if NPNP > 0
 
-static char * cs4236_probe(u_long csn, u_long vend_id);
-static void cs4236_attach(u_long csn, u_long vend_id, char *name,
+static char * cs423x_probe(u_long csn, u_long vend_id);
+static void cs423x_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev);
 
-static struct pnp_device cs4236 = {
-	"cs423x",
-	cs4236_probe,
-	cs4236_attach,
+static struct pnp_device cs423x = {
+	"cs423x/ymh0020",
+	cs423x_probe,
+	cs423x_attach,
 	&nsnd,	/* use this for all sound cards */
 	&tty_imask	/* imask */
 };
-DATA_SET (pnpdevice_set, cs4236);
+DATA_SET (pnpdevice_set, cs423x);
 
 static char *
-cs4236_probe(u_long csn, u_long vend_id)
+cs423x_probe(u_long csn, u_long vend_id)
 {
     char *s = NULL ;
-    if (vend_id == 0x3742630e)
+    u_long id = vend_id & 0xff00ffff;
+    if ( id == 0x3700630e )
 	s = "CS4237" ;
-    else if (vend_id == 0x3642630e)
+    else if ( id == 0x3600630e )
 	s = "CS4236" ;
-    else if (vend_id == 0x360b630e)
-	s = "CS4236" ;
-    else if (vend_id == 0x3242630e)
+    else if ( id == 0x3200630e)
 	s = "CS4232" ;
+    else if ( id == 0x2000a865)
+	s = "Yamaha SA2";
+    else if (vend_id == 0x8140d315)
+	s = "SoundscapeVIVO";
     if (s) {
 	struct pnp_cinfo d;
 	read_pnp_parms(&d, 0);
@@ -1312,7 +1361,7 @@ cs4236_probe(u_long csn, u_long vend_id)
 extern snddev_info sb_op_desc;
 
 static void
-cs4236_attach(u_long csn, u_long vend_id, char *name,
+cs423x_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev)
 {
     struct pnp_cinfo d ;
@@ -1324,27 +1373,51 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
 	return ;
     }
     snddev_last_probed = &tmp_d;
-    if (d.flags & DV_PNP_SBCODEC) {
-	printf("CS423x use sb-compatible codec\n");
-	dev->id_iobase = d.port[2] ;
+    if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
+	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
-	tmp_d.alt_base = d.port[0] - 4;
+	if (vend_id == 0x2000a865 || vend_id == 0x8140d315) {
+	    /* Yamaha SA2 or ENSONIQ SoundscapeVIVO ENS4081 */
+	    dev->id_iobase = d.port[0] ;
+	    tmp_d.alt_base = d.port[1] ;
+	    d.irq[1] = 0 ; /* only needed for the VIVO */
+	} else {
+	    dev->id_iobase = d.port[2] ;
+	    tmp_d.alt_base = d.port[0] - 4;
+	}
 	d.drq[1] = 4 ; /* disable, it is not used ... */
-    } else {
-	/* mss-compatible codec */
-	dev->id_iobase = d.port[0] -4 ; /* XXX old mss have 4 bytes before... */
+    } else {			/* mss-compatible codec */
+	dev->id_alive = 8 ; /* number of io ports ? */
 	tmp_d = mss_op_desc ;
-	switch (vend_id) {
-	case 0x3742630e:	/* CS4237 */
-	case 0x3642630e:	/* CS4236 */
-	case 0x360b630e:	/* CS4236 on Intel PR440FX motherboard */
-	    tmp_d.bd_id = MD_CS4236 ; /* to short-circuit the detect routine */
+	dev->id_iobase = d.port[0] -4 ; /* XXX old mss have 4 bytes before... */
+	tmp_d.alt_base = d.port[2];
+	switch (vend_id & 0xff00ffff) {
+
+	case 0x2000a865:	/* yamaha SA-2 */
+	    dev->id_iobase = d.port[1];
+	    tmp_d.alt_base = d.port[0];
+	    tmp_d.bd_id = MD_YM0020 ;
 	    break;
-	default:
+
+	case 0x8100d315:	/* ENSONIQ SoundscapeVIVO */
+	    dev->id_iobase = d.port[1];
+	    tmp_d.alt_base = d.port[0];
+	    tmp_d.bd_id = MD_VIVO ;
+	    d.irq[1] = 0 ;
+	    break;
+
+	case 0x3700630e:        /* CS4237 */
+	    tmp_d.bd_id = MD_CS4237 ;
+	    break;
+
+	case 0x3600630e:        /* CS4236 */
+	    tmp_d.bd_id = MD_CS4236 ;
+	    break;
+
+        default:
 	    tmp_d.bd_id = MD_CS4232 ; /* to short-circuit the detect routine */
 	    break;
 	}
-	tmp_d.alt_base = d.port[2];
 	strcpy(tmp_d.name, name);
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
     }
@@ -1356,7 +1429,6 @@ cs4236_attach(u_long csn, u_long vend_id, char *name,
     dev->id_intr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
-    dev->id_alive = 1;
     pcmattach(dev);
 }
 
@@ -1428,7 +1500,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     dev->id_iobase = d.port[0] - 4 ; /* old mss have 4 bytes before... */
     tmp_d.io_base = dev->id_iobase; /* needed for ad_write to work... */
     tmp_d.alt_base = d.port[2];
-    opti_write(p, 4, 0x56 /* fifo 1/2, OPL3, audio enable, SB3.2 */ );
+    opti_write(p, 4, 0xd6 /* fifo empty, OPL3, audio enable, SB3.2 */ );
     ad_write (&tmp_d, 10, 2); /* enable interrupts */
 
     if (d.flags & DV_PNP_SBCODEC) { /* sb-compatible codec */
@@ -1458,6 +1530,8 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     dev->id_intr = pcmintr ;
     pcmattach(dev);
 }
+
+static void gus_mem_cfg(snddev_info *tmp);
 
 static char *guspnp_probe(u_long csn, u_long vend_id);
 static void guspnp_attach(u_long csn, u_long vend_id, char *name,
@@ -1493,7 +1567,14 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     struct pnp_cinfo d ;
     snddev_info tmp_d ; /* patched copy of the basic snddev_info */
 
+    u_char tmp;
+
     read_pnp_parms ( &d , 0 ) ;
+
+    /* d.irq[1] = d.irq[0] ; */
+    printf("pnp_read 0xf2 returns 0x%x\n", pnp_read(0xf2) );
+    pnp_write ( 0xf2, 0xff ); /* enable power on the guspnp */
+
     write_pnp_parms ( &d , 0 );
     enable_pnp_card();
 
@@ -1501,14 +1582,89 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     snddev_last_probed = &tmp_d;
 
     dev->id_iobase = d.port[2] - 4 ; /* room for 4 mss registers */
-    dev->id_drq = d.drq[0] ; /* primary dma */
+    dev->id_drq = d.drq[1] ; /* XXX PLAY dma */
     dev->id_irq = (1 << d.irq[0] ) ;
     dev->id_intr = pcmintr ;
-    dev->id_flags = DV_F_DUAL_DMA | d.drq[1]  ;
+    dev->id_flags = DV_F_DUAL_DMA | d.drq[0]  ; /* REC dma */
 
-    tmp_d.alt_base = d.port[0];
+    tmp_d.io_base = d.port[2] - 4;
+    tmp_d.alt_base = d.port[0]; /* 0x220 */
+    tmp_d.conf_base = d.port[1];  /* gus control block... */
+    tmp_d.bd_id = MD_GUSPNP ;
+
+    /* reset */
+    gus_write(tmp_d.conf_base, 0x4c /* _URSTI */, 0 );/* Pull reset */
+    DELAY(1000 * 30);
+    /* release reset  and enable DAC */
+    gus_write(tmp_d.conf_base, 0x4c /* _URSTI */, 3 );
+    printf("resetting the gus...\n");
+    DELAY(1000 * 30);
+    /* end of reset */
+
+    outb( tmp_d.alt_base, 0xC ); /* enable int and dma */
+
+    /*
+     * unmute left & right line. Need to go in mode3, unmute,
+     * and back to mode 2
+     */
+    tmp = ad_read(&tmp_d, 0x0c);
+    ad_write(&tmp_d, 0x0c, 0x6c ); /* special value to enter mode 3 */
+    ad_write(&tmp_d, 0x19, 0 ); /* unmute left */
+    ad_write(&tmp_d, 0x1b, 0 ); /* unmute right */
+    ad_write(&tmp_d, 0x0c, tmp ); /* restore old mode */
+
+    /* send codec interrupts on irq1 and only use that one */
+    gus_write(tmp_d.conf_base, 0x5a , 0x4f );
+
+    /* enable access to hidden regs */
+    tmp = gus_read(tmp_d.conf_base, 0x5b /* IVERI */ );
+    gus_write(tmp_d.conf_base, 0x5b , tmp | 1 );
+    printf("GUS: silicon rev %c\n", 'A' + ( ( tmp & 0xf ) >> 4) );
+
+    strcpy(tmp_d.name, name);
 
     pcmattach(dev);
 }
+
+#if 0
+int
+gus_mem_write(snddev_info *d, int addr, u_char data)
+{
+    gus_writew(d->conf_base, 0x43 , addr & 0xffff );
+    gus_write(d->conf_base, 0x44 , (addr>>16) & 0xff );
+    outb(d->conf_base + 7, data);
+}
+
+u_char
+gus_mem_read(snddev_info *d, int addr)
+{
+    gus_writew(d->conf_base, 0x43 , addr & 0xffff );
+    gus_write(d->conf_base, 0x44 , (addr>>16) & 0xff );
+    return inb(d->conf_base + 7);
+}
+
+void
+gus_mem_cfg(snddev_info *d)
+{
+    int base;
+    u_char old;
+    u_char a, b;
+
+    printf("configuring gus memory...\n");
+    gus_writew(d->conf_base, 0x52 /* LMCFI */, 1 /* 512K*/);
+    old = gus_read(d->conf_base, 0x19);
+    gus_write(d->conf_base, 0x19, old | 1); /* enable enhaced mode */
+    for (base = 0; base < 1024; base++) {
+	a=gus_mem_read(d, base*1024);
+	a = ~a ;
+	gus_mem_write(d, base*1024, a);
+	b=gus_mem_read(d, base*1024);
+	if ( b != a )
+		break ;
+    }
+    printf("Have found %d KB ( 0x%x != 0x%x)\n", base, a, b);
+}
+#endif /* gus mem cfg... */
+
 #endif	/* NPNP > 0 */
 #endif /* NPCM > 0 */

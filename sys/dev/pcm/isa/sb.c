@@ -11,13 +11,14 @@
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
- * are met: 1. Redistributions of source code must retain the above
- * copyright notice, this list of conditions and the following
- * disclaimer. 2.  Redistributions in binary form must reproduce the
- * above copyright notice, this list of conditions and the following
- * disclaimer in the documentation and/or other materials provided
- * with the distribution.
- * 
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -112,7 +113,7 @@ snddev_info sb_op_desc = {
  * resetting the dsp and testing if it is there.
  * Version detection etc. will be done at attach time.
  *
- * Remebber, isa probe routines are supposed to return the
+ * Remember, ISA probe routines are supposed to return the
  * size of io space used.
  */
 
@@ -140,6 +141,8 @@ sb_attach(struct isa_device *dev)
 {
     snddev_info *d = &pcm_info[dev->id_unit] ;
 
+    dev->id_alive = 16 ; /* number of io ports */
+    /* should be already set but just in case... */
     sb_dsp_init(d, dev);
     return 0 ;
 }
@@ -171,9 +174,6 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
     d->rsel.si_pid = 0;
     d->rsel.si_flags = 0;
 
-    d->esel.si_pid = 0;
-    d->esel.si_flags = 0;
-
     d->flags = 0 ;
     d->bd_flags &= ~BD_F_HISPEED ;
 
@@ -200,8 +200,6 @@ sb_dsp_open(dev_t dev, int flags, int mode, struct proc * p)
     if (flags & O_NONBLOCK)
 	d->flags |= SND_F_NBIO ;
 
-    reset_dbuf(& (d->dbuf_in) );
-    reset_dbuf(& (d->dbuf_out) );
     sb_reset_dsp(d->io_base);
     ask_init(d);
 
@@ -287,16 +285,17 @@ again:
 		reason |= 2;
 	}
     }
+    /* XXX previous location of ack... */
+    DEB(printf("sbintr, flags 0x%08lx reason %d\n", d->flags, reason));
+    if ( d->dbuf_out.dl && (reason & 1) )
+	dsp_wrintr(d);
+    if ( d->dbuf_in.dl && (reason & 2) )
+	dsp_rdintr(d);
+
     if ( c & 2 )
 	inb(DSP_DATA_AVL16); /* 16-bit int ack */
     if (c & 1)
 	inb(DSP_DATA_AVAIL);	/* 8-bit int ack */
-
-DEB(printf("sbintr, flags 0x%08lx reason %d\n", d->flags, reason));
-    if ( (d->flags & SND_F_WR_DMA) && (reason & 1) )
-	dsp_wrintr(d);
-    if ( (d->flags & SND_F_RD_DMA) && (reason & 2) )
-	dsp_rdintr(d);
 
     /*
      * the sb16 might have multiple sources etc.
@@ -320,7 +319,7 @@ static int
 sb_callback(snddev_info *d, int reason)
 {
     int rd = reason & SND_CB_RD ;
-    int l = (rd) ? d->dbuf_in.dl0 : d->dbuf_out.dl0 ;
+    int l = (rd) ? d->dbuf_in.dl : d->dbuf_out.dl ;
 
     switch (reason & SND_CB_REASON_MASK) {
     case SND_CB_INIT : /* called with int enabled and no pending io */
@@ -330,74 +329,68 @@ sb_callback(snddev_info *d, int reason)
 	    d->flags |= SND_F_XLAT8 ;
 	else
 	    d->flags &= ~SND_F_XLAT8 ;
+	reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
+	reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
 	return 1;
-	break ;
+	break;
 
     case SND_CB_START : /* called with int disabled */
-        sb_cmd(d->io_base, rd ? DSP_CMD_SPKOFF : DSP_CMD_SPKON);
-	d->flags &= ~SND_F_INIT ;
 	if (d->bd_flags & BD_F_SB16) {
 	    /* the SB16 can do full duplex using one 16-bit channel
 	     * and one 8-bit channel. It needs to be programmed to
 	     * use split format though.
+	     * We use the following algorithm:
+	     * 1. check which direction(s) are active;
+	     * 2. check if we should swap dma channels
+	     * 3. check if we can do the swap.
 	     */
-	    int b16 ;
-	    int swap = 0 ;
+	    int swap = 1 ; /* default... */
 
-	    b16 = (rd) ? d->rec_fmt : d->play_fmt ;
-	    b16 = (b16 == AFMT_S16_LE) ? 1 : 0;
-	    /*
-	     * check if I have to swap dma channels. Swap if
-	     * - !rd, dma1 <4,  b16
-	     * - !rd, dma1 >=4, !b16
-	     * - rd,  dma2 <4,  b16
-	     * - rd,  dma2 >=4, !b16
-	     */
-	    if (!rd) {
-		if ( (d->dma1 <4 && b16) || (d->dma1 >=4 && !b16) ) swap = 1;
+	    if (rd) {
+		if (d->flags & SND_F_WRITING || d->dbuf_out.dl)
+		    swap = 0;
+		if (d->rec_fmt == AFMT_S16_LE && d->dma2 >=4)
+		    swap = 0;
+		if (d->rec_fmt != AFMT_S16_LE && d->dma2 <4)
+		    swap = 0;
 	    } else {
-		if ( (d->dma2 <4 && b16) || (d->dma2 >=4 && !b16) ) swap = 1;
+		if (d->flags & SND_F_READING || d->dbuf_in.dl)
+		    swap = 0;
+		if (d->play_fmt == AFMT_S16_LE && d->dma1 >=4)
+		    swap = 0;
+		if (d->play_fmt != AFMT_S16_LE && d->dma1 <4)
+		    swap = 0;
 	    }
-	    /*
-	     * before swapping should make sure that there is no
-	     * pending DMA on the other channel...
-	     */
+		
 	    if (swap) {
 	        int c = d->dma2 ;
 		d->dma2 = d->dma1;
 		d->dma1 = c ;
+		reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
+		reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
+		DEB(printf("START dma chan: play %d, rec %d\n",
+		    d->dma1, d->dma2));
 	    }
-	    DEB(printf("sb_init: play %ld rec %ld dma1 %d dma2 %d\n",
-		    d->play_fmt, d->rec_fmt, d->dma1, d->dma2));
 	}
-	/* fallthrough */
-    case SND_CB_RESTART:
+	if (!rd)
+	    sb_cmd(d->io_base, DSP_CMD_SPKON);
+
 	if (d->bd_flags & BD_F_SB16) {
 	    u_char c, c1 ;
-	    /*
-	     * SB16 support still not completely working!!!
-	     *
-	     * in principle, on the SB16, I could support simultaneous
-	     * play & rec.
-	     * However, there is no way to ask explicitly for 8 or
-	     * 16 bit transfer. As a consequence, if we do 8-bit,
-	     * we need to use the 8-bit channel, and if we do 16-bit,
-	     * we need to use the other one. The only way I find to
-	     * do this is to swap d->dma1 and d->dma2 ...
-	     *
-	     */
 
 	    if (rd) {
 		c = ((d->dma2 > 3) ? DSP_DMA16 : DSP_DMA8) |
+			DSP_F16_AUTO |
 			DSP_F16_FIFO_ON | DSP_F16_ADC ;
-		c1 = (d->play_fmt == AFMT_U8) ? 0 : DSP_F16_SIGNED ;
-		if (d->play_fmt == AFMT_MU_LAW) c1 = 0 ;
+		c1 = (d->rec_fmt == AFMT_U8) ? 0 : DSP_F16_SIGNED ;
+		if (d->rec_fmt == AFMT_MU_LAW) c1 = 0 ;
 		if (d->rec_fmt == AFMT_S16_LE)
 		    l /= 2 ;
 	    } else {
 		c = ((d->dma1 > 3) ? DSP_DMA16 : DSP_DMA8) |
+			DSP_F16_AUTO |
 			DSP_F16_FIFO_ON | DSP_F16_DAC ;
-		c1 = (d->rec_fmt == AFMT_U8) ? 0 : DSP_F16_SIGNED ;
+		c1 = (d->play_fmt == AFMT_U8) ? 0 : DSP_F16_SIGNED ;
 		if (d->play_fmt == AFMT_MU_LAW) c1 = 0 ;
 		if (d->play_fmt == AFMT_S16_LE)
 		    l /= 2 ;
@@ -409,17 +402,40 @@ sb_callback(snddev_info *d, int reason)
 	    sb_cmd(d->io_base, c );
 	    sb_cmd3(d->io_base, c1 , l - 1) ;
 	} else {
+	    /* code for the SB2 and SB3 */
 	    u_char c ;
 	    if (d->bd_flags & BD_F_HISPEED)
-		c = (rd) ? DSP_CMD_HSADC : DSP_CMD_HSDAC ;
+		c = (rd) ? DSP_CMD_HSADC_AUTO : DSP_CMD_HSDAC_AUTO ;
 	    else
-		c = (rd) ? DSP_CMD_ADC8 : DSP_CMD_DAC8 ;
+		c = (rd) ? DSP_CMD_ADC8_AUTO : DSP_CMD_DAC8_AUTO ;
 	    sb_cmd3(d->io_base, c , l - 1) ;
 	}
 	break;
 
+    case SND_CB_ABORT : /* XXX */
     case SND_CB_STOP :
-	/* XXX ??? sb_cmd(d->io_base, DSP_CMD_SPKOFF);*/ /* speaker off */
+	{
+	    int cmd = DSP_CMD_DMAPAUSE_8 ; /* default: halt 8 bit chan */
+	    if (d->bd_flags & BD_F_SB16) {
+		if ( (rd && d->dbuf_in.chan>4) || (!rd && d->dbuf_out.chan>4) )
+		    cmd = DSP_CMD_DMAPAUSE_16 ;
+	    }
+	    if (d->bd_flags & BD_F_HISPEED) {
+		sb_reset_dsp(d->io_base);
+		d->flags |= SND_F_INIT ;
+	    } else {
+		sb_cmd(d->io_base, cmd); /* pause dma. */
+	       /*
+		* This seems to have the side effect of blocking the other
+		* side as well so I have to re-enable it :(
+		*/
+		if ( (rd && d->dbuf_out.dl) ||
+		     (!rd && d->dbuf_in.dl) )
+		    sb_cmd(d->io_base, cmd == DSP_CMD_DMAPAUSE_8 ?
+			0xd6 : 0xd4); /* continue other dma */
+	    }
+	}
+	DEB( sb_cmd(d->io_base, DSP_CMD_SPKOFF) ); /* speaker off */
 	break ;
 
     }
@@ -443,7 +459,7 @@ sb_reset_dsp(int io_base)
 	DELAY(30);
 
     if (inb(DSP_READ) != 0xAA) {
-        DEB(printf("sb_reset_dsp failed\n"));
+        DEB(printf("sb_reset_dsp 0x%x failed\n", io_base));
 	return 0;	/* Sorry */
     }
     return 1;
@@ -753,13 +769,13 @@ dsp_speed(snddev_info *d)
      * Now the speed should be valid. Compute the value to be
      * programmed into the board.
      *
-     * XXX check this code...
+     * XXX stereo init is still missing...
      */
 
     if (speed > 22050) { /* High speed mode on 2.01/3.xx */
 	int tmp;
 
-	tconst = (u_char) ((65536 - ((256000000 + speed / 2) / speed)) >> 8);
+	tconst = (u_char) ((65536 - ((256000000 + speed / 2) / speed)) >> 8) ;
 	d->bd_flags |= BD_F_HISPEED ;
 
 	flags = spltty();
@@ -1022,19 +1038,18 @@ static char *
 sb16pnp_probe(u_long csn, u_long vend_id)
 {   
     char *s = NULL ;
-    if (vend_id == 0x01009305)  
-        s = "Avance Asound 100" ;
-    if (vend_id == 0x2b008c0e)  
-        s = "SB16 Value PnP" ;
+
     /*
-     * The SB16/AWE64 cards seem to differ in the fourth byte of
+     * The SB16/AWExx cards seem to differ in the fourth byte of
      * the vendor id, so I have just masked it for the time being...
      * Reported values are:
      * SB16 Value PnP:	0x2b008c0e
      * SB AWE64 PnP:	0x39008c0e 0x9d008c0e 0xc3008c0e
      */
     if ( (vend_id & 0xffffff)  == (0x9d008c0e & 0xffffff) )
-	s = "SB AWE64 PnP";
+	s = "SB16 PnP";
+    else if (vend_id == 0x01009305)  
+        s = "Avance Asound 100" ;
     if (s) {
 	struct pnp_cinfo d; 
 	read_pnp_parms(&d, 0); 
