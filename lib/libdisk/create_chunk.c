@@ -22,7 +22,6 @@
 #include <sys/diskslice.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <err.h>
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
@@ -69,7 +68,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
     for (c1 = c->part; c1 ; c1 = c1->next) {
 	c1->oname = c1->name;
 	c1->name = malloc(12);
-	if(!c1->name) err(1,"Malloc failed");
+	if(!c1->name) barfout(1,"Malloc failed");
 	strcpy(c1->name,"X");
     }
     
@@ -134,7 +133,7 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 	if (c1->type == unused) continue;
 	free(c1->name);
 	c1->name = malloc(12);
-	if(!c1->name) err(1,"malloc failed");
+	if(!c1->name) barfout(1,"malloc failed");
 	sprintf(c1->name,"%ss%d",d->chunks->name,j++);
 	if (c1->type == freebsd)
 	    Fixup_FreeBSD_Names(d,c1);
@@ -156,7 +155,7 @@ Fixup_Names(struct disk *d)
 	    continue;
 #ifndef __alpha__
 	c2->oname = malloc(12);
-	if(!c2->oname) err(1,"malloc failed");
+	if(!c2->oname) barfout(1,"malloc failed");
 	for(j=1;j<=NDOSPART;j++) {
 	    sprintf(c2->oname,"%ss%d",c1->name,j);
 	    for(c3 = c1->part; c3 ; c3 = c3->next)
@@ -260,7 +259,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     for (c1=parent->part; c1 ; c1 = c1->next)
 	if (c1->offset == offset)
 	    return c1;
-    err(1,"Serious internal trouble");
+    barfout(1,"Serious internal trouble");
 }
 
 int
