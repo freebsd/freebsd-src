@@ -20,12 +20,7 @@
 #if !defined (DEMANGLE_H)
 #define DEMANGLE_H
 
-#ifdef IN_GCC
-#include "gansidecl.h"
-#define PARAMS(ARGS) PROTO(ARGS)
-#else /* ! IN_GCC */
 #include <ansidecl.h>
-#endif /* IN_GCC */
 
 /* Options passed to cplus_demangle (in 2nd parameter). */
 
@@ -38,8 +33,12 @@
 #define DMGL_GNU	(1 << 9)
 #define DMGL_LUCID	(1 << 10)
 #define DMGL_ARM	(1 << 11)
+#define DMGL_HP 	(1 << 12)       /* For the HP aCC compiler; same as ARM
+                                           except for template arguments, etc. */
+#define DMGL_EDG	(1 << 13)
+
 /* If none of these are set, use 'current_demangling_style' as the default. */
-#define DMGL_STYLE_MASK (DMGL_AUTO|DMGL_GNU|DMGL_LUCID|DMGL_ARM)
+#define DMGL_STYLE_MASK (DMGL_AUTO|DMGL_GNU|DMGL_LUCID|DMGL_ARM|DMGL_HP|DMGL_EDG)
 
 /* Enumeration of possible demangling styles.
 
@@ -55,7 +54,9 @@ extern enum demangling_styles
   auto_demangling = DMGL_AUTO,
   gnu_demangling = DMGL_GNU,
   lucid_demangling = DMGL_LUCID,
-  arm_demangling = DMGL_ARM
+  arm_demangling = DMGL_ARM,
+  hp_demangling = DMGL_HP,
+  edg_demangling = DMGL_EDG
 } current_demangling_style;
 
 /* Define string names for the various demangling styles. */
@@ -64,6 +65,8 @@ extern enum demangling_styles
 #define GNU_DEMANGLING_STYLE_STRING	"gnu"
 #define LUCID_DEMANGLING_STYLE_STRING	"lucid"
 #define ARM_DEMANGLING_STYLE_STRING	"arm"
+#define HP_DEMANGLING_STYLE_STRING	"hp"
+#define EDG_DEMANGLING_STYLE_STRING	"edg"
 
 /* Some macros to test what demangling style is active. */
 
@@ -71,7 +74,9 @@ extern enum demangling_styles
 #define AUTO_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_AUTO)
 #define GNU_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_GNU)
 #define LUCID_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_LUCID)
-#define ARM_DEMANGLING (CURRENT_DEMANGLING_STYLE & DMGL_ARM)
+#define ARM_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_ARM)
+#define HP_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_HP)
+#define EDG_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_EDG)
 
 extern char *
 cplus_demangle PARAMS ((const char *mangled, int options));
@@ -86,23 +91,5 @@ cplus_mangle_opname PARAMS ((const char *opname, int options));
 
 extern void
 set_cplus_marker_for_demangling PARAMS ((int ch));
-
-extern void
-do_tlink PARAMS ((char **, char **));
-
-extern void
-collect_execute PARAMS ((char *, char **, char *));
-
-extern void
-collect_exit PARAMS ((int));
-
-extern int
-collect_wait PARAMS ((char *));
-
-extern void
-dump_file PARAMS ((char *));
-
-extern int
-file_exists PARAMS ((char *));
 
 #endif	/* DEMANGLE_H */
