@@ -389,6 +389,7 @@ MLINKS+=sbuf.9 sbuf_delete.9
 
 MLINKS+=vcount.9 count_dev.9
 
+MLINKS+=zone.9 uma.9
 MLINKS+=zone.9 zalloc.9
 MLINKS+=zone.9 zfree.9
 MLINKS+=zone.9 zinit.9
