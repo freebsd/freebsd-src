@@ -371,7 +371,7 @@ variable allows the programmer to override the function which emits
 the text strings forming the errors and warnings if for some reason
 the stderr filedescriptor is not suitable for this.
 Please note that doing anything which tries to allocate memory in
-this function will certain suicide for the process.
+this function will assure death of the process.
 .Pp
 The following is a brief description of possible error messages and
 their meanings:
