@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: syslogd
-# REQUIRE: mountcritremote sysdb wscons
+# REQUIRE: mountcritremote
 # BEFORE:  SERVERS
 # KEYWORD: FreeBSD
 
