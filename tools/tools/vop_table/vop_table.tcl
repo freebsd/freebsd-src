@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/local/bin/tclsh8.2
+# $FreeBSD$
 
 proc do_file {file} {
 	global names ops op
@@ -25,12 +26,17 @@ proc do_file {file} {
 			}
 			if {![regexp {vop.*_desc} "$a"]} continue
 			regsub -all {[,&]} $a " " a
+			regsub -all {\(vop_t \*\)} $a " " a
 			set b [lindex $a 0]
+			if {"$b" == "/*"} {
+				set s 0
+				continue
+			}
 			#puts "$name>> [lindex $b 0] >> [lindex $b 3]"
 			set o [lindex $b 0]
 			regsub {_desc} $o "" o
 			set ops($o) 0
-			set op([list $name $o]) [lindex $b 3]
+			set op([list $name $o]) [lindex $b 1]
 			continue
 		}
 		puts "$s>> $a"
@@ -85,6 +91,10 @@ puts "<TR>"
 puts "</TR>"
 
 set fnames(vop_defaultop) *
+set fnames(vop_null) -
+set fnames(vop_panic) !
+set fnames(vfs_cache_lookup) C
+if {0} {
 set fnames(vop_nolock) nl
 set fnames(vop_noislocked) ni
 set fnames(vop_nounlock) nu
@@ -93,15 +103,14 @@ set fnames(vop_stdislocked) si
 set fnames(vop_stdunlock) su
 set fnames(vop_einval) I
 set fnames(vop_enotty) T
-set fnames(vop_null) -
 set fnames(vop_eopnotsupp) S
 set fnames(ufs_missingop) M
 set fnames(vop_nopoll) np
 set fnames(vop_nostrategy) ns
 set fnames(vop_revoke) vr
-set fnames(vfs_cache_lookup) cl
 set fnames(vop_stdpathconf) pc
 set fnames(vop_stdbwrite) bw
+}
 
 set fn 0
 set nop(aa) 0
@@ -109,10 +118,12 @@ unset nop(aa)
 foreach i $tbn {
 	puts {<TR>}
 	puts "<TD>$i</TD>"
+	set pfx [lindex [split $i _] 0]
 	foreach j $opn {
 		if {$j == "vop_default"} continue
+		set sfx [lindex [split $j _] 1]
 		if {![info exists op([list $i $j])]} {
-			puts "<TD></TD>"
+			puts "<TD BGCOLOR=\"#d0d0d0\"></TD>"
 			continue
 		}
 		set t $op([list $i $j])
@@ -120,6 +131,16 @@ foreach i $tbn {
 		set c "#00ddd0"
 		if {[info exists fnames($t)]} {
 			set t $fnames($t)
+		} elseif { $t == "${pfx}_${sfx}" } {
+			set t "F"
+		} elseif { $t == "vop_${sfx}" } {
+			set t "V"
+		} elseif { $t == "vop_no${sfx}" } {
+			set t "N"
+		} elseif { $t == "vop_std${sfx}" } {
+			set t "S"
+		} elseif { $sfx == "cachedlookup" && $t == "${pfx}_lookup" } {
+			set t "L"
 		} else {
 			if {![info exists nop($t)]} {
 				incr fn
@@ -129,7 +150,7 @@ foreach i $tbn {
 			}
 			incr use($nop($t))
 			set t "<FONT SIZE=-1>$nop($t)</FONT>"
-			set c "#00ffd0"
+			set c "#00ffff"
 		}
 		puts "<TD BGCOLOR=\"$c\">$t</TD>"
 	}
