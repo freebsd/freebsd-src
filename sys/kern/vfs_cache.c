@@ -657,18 +657,10 @@ vfs_cache_lookup(ap)
 		return (error);
 
 	error = cache_lookup(dvp, vpp, cnp);
-
-	if (!error) {
-		error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
-#ifdef LOOKUP_SHARED
-		if (!error && (flags & ISLASTCN) && (flags & LOCKSHARED))
-			VOP_LOCK(*vpp, LK_DOWNGRADE, td);
-#endif
-		return (error);
-	}
+	if (!error)
+		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 	if (error == ENOENT)
 		return (error);
-
 	vp = *vpp;
 	vpid = vp->v_id;
 	if (dvp == vp) {   /* lookup on "." */
@@ -676,22 +668,11 @@ vfs_cache_lookup(ap)
 		error = 0;
 	} else if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
-#ifdef LOOKUP_SHARED
-		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
-			error = vget(vp, LK_SHARED, td);
-		else
-#endif
-			error = vget(vp, LK_EXCLUSIVE, td);
+		error = vget(vp, cnp->cn_lkflags, td);
 		if (error)
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-	} else {
-#ifdef LOOKUP_SHARED
-		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
-			error = vget(vp, LK_SHARED, td);
-		else
-#endif
-			error = vget(vp, LK_EXCLUSIVE, td);
-	}
+	} else
+		error = vget(vp, cnp->cn_lkflags, td);
 	/*
 	 * Check that the capability number did not change
 	 * while we were waiting for the lock.
@@ -703,12 +684,7 @@ vfs_cache_lookup(ap)
 		if (flags & ISDOTDOT)
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
-	error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
-#ifdef LOOKUP_SHARED
-	if (!error && (flags & ISLASTCN) && (flags & LOCKSHARED))
-		VOP_LOCK(*vpp, LK_DOWNGRADE, td);
-#endif
-	return (error);
+	return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 }
 
 
