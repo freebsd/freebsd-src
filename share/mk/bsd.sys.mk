@@ -15,15 +15,17 @@ CFLAGS		+=	-Werror
 .  endif
 .  if ${WARNS} > 1
 CFLAGS		+=	-Wall
-# XXX Delete -Wuninitialized by default for now -- the compiler doesn't
-# XXX always get it right.
-CFLAGS		+=	-Wno-uninitialized
 .  endif
 .  if ${WARNS} > 2
 CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
 .  endif
 .  if ${WARNS} > 3
 CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
+.  endif
+.  if ${WARNS} > 1
+# XXX Delete -Wuninitialized by default for now -- the compiler doesn't
+# XXX always get it right.
+CFLAGS		+=	-Wno-uninitialized
 .  endif
 . endif
 
