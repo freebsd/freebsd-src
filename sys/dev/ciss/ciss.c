@@ -1008,6 +1008,67 @@ ciss_init_logical(struct ciss_softc *sc)
     return(error);
 }
 
+static int
+ciss_inquiry_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
+{
+    struct ciss_request			*cr;
+    struct ciss_command			*cc;
+    struct scsi_inquiry			*inq;
+    int					error;
+    int					command_status;
+    int					lun;
+
+    cr = NULL;
+    lun = ld->cl_address.logical.lun;
+
+    bzero(&ld->cl_geometry, sizeof(ld->cl_geometry));
+
+    if ((error = ciss_get_request(sc, &cr)) != 0)
+	goto out;
+
+    cc = CISS_FIND_COMMAND(cr);
+    cr->cr_data = &ld->cl_geometry;
+    cr->cr_length = sizeof(ld->cl_geometry);
+    cr->cr_flags = CISS_REQ_DATAIN;
+
+    cc->header.address.logical.mode = CISS_HDR_ADDRESS_MODE_LOGICAL;
+    cc->header.address.logical.lun  = lun;
+    cc->cdb.cdb_length = 6;
+    cc->cdb.type = CISS_CDB_TYPE_COMMAND;
+    cc->cdb.attribute = CISS_CDB_ATTRIBUTE_SIMPLE;
+    cc->cdb.direction = CISS_CDB_DIRECTION_READ;
+    cc->cdb.timeout = 30;
+
+    inq = (struct scsi_inquiry *)&(cc->cdb.cdb[0]);
+    inq->opcode = INQUIRY;
+    inq->byte2 = SI_EVPD;
+    inq->page_code = CISS_VPD_LOGICAL_DRIVE_GEOMETRY;
+    inq->length = sizeof(ld->cl_geometry);
+
+    if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
+	ciss_printf(sc, "error getting geometry (%d)\n", error);
+	goto out;
+    }
+
+    ciss_report_request(cr, &command_status, NULL);
+    switch(command_status) {
+    case CISS_CMD_STATUS_SUCCESS:
+    case CISS_CMD_STATUS_DATA_UNDERRUN:
+	break;
+    case CISS_CMD_STATUS_DATA_OVERRUN:
+	ciss_printf(sc, "WARNING: Data overrun\n");
+	break;
+    default:
+	ciss_printf(sc, "Error detecting logical drive geometry (%s)\n",
+		    ciss_name_command_status(command_status));
+	break;
+    }
+
+out:
+    if (cr != NULL)
+	ciss_release_request(cr);
+    return(error);
+}
 /************************************************************************
  * Identify a logical drive, initialise state related to it.
  */
@@ -1065,6 +1126,12 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
      * Build a CISS BMIC command to get the logical drive status.
      */
     if ((error = ciss_get_ldrive_status(sc, ld)) != 0)
+	goto out;
+
+    /*
+     * Get the logical drive geometry.
+     */
+    if ((error = ciss_inquiry_logical(sc, ld)) != 0)
 	goto out;
 
     /*
@@ -2064,6 +2131,7 @@ ciss_cam_rescan_all(struct ciss_softc *sc)
 static void
 ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
+    xpt_free_path(ccb->ccb_h.path);
     free(ccb, M_TEMP);
 }
 
@@ -2073,11 +2141,19 @@ ciss_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 static void
 ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
+    struct ciss_softc	*sc;
+    struct ccb_scsiio	*csio;
+    int			target;
+
+    sc = cam_sim_softc(sim);
+    csio = (struct ccb_scsiio *)&ccb->csio;
+    target = csio->ccb_h.target_id;
+
     switch (ccb->ccb_h.func_code) {
 
 	/* perform SCSI I/O */
     case XPT_SCSI_IO:
-	if (!ciss_cam_action_io(sim, (struct ccb_scsiio *)&ccb->csio))
+	if (!ciss_cam_action_io(sim, csio))
 	    return;
 	break;
 
@@ -2085,20 +2161,27 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     case XPT_CALC_GEOMETRY:
     {
 	struct ccb_calc_geometry	*ccg = &ccb->ccg;
-        u_int32_t			secs_per_cylinder;
+	struct ciss_ldrive		*ld = &sc->ciss_logical[target];
 
 	debug(1, "XPT_CALC_GEOMETRY %d:%d:%d", cam_sim_bus(sim), ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 
 	/*
-	 * This is the default geometry; hopefully we will have
-	 * successfully talked to the 'disk' and obtained its private
-	 * settings.
+	 * Use the cached geometry settings unless the fault tolerance
+	 * is invalid.
 	 */
-	ccg->heads = 255;
-	ccg->secs_per_track = 32;
-	secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-        ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-        ccb->ccb_h.status = CAM_REQ_CMP;
+	if (ld->cl_geometry.fault_tolerance == 0xFF) {
+	    u_int32_t			secs_per_cylinder;
+
+	    ccg->heads = 255;
+	    ccg->secs_per_track = 32;
+	    secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+	    ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+	} else {
+	    ccg->heads = ld->cl_geometry.heads;
+	    ccg->secs_per_track = ld->cl_geometry.sectors;
+	    ccg->cylinders = ntohs(ld->cl_geometry.cylinders);
+	}
+	ccb->ccb_h.status = CAM_REQ_CMP;
         break;
     }
 
