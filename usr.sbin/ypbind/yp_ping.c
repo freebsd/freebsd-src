@@ -59,14 +59,14 @@
  * Mountain View, California  94043
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char *sccsid = "@(#)from: clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)from: clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * clnt_udp.c, Implements a UDP/IP based, client side RPC.

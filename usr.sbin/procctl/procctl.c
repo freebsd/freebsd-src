@@ -30,10 +30,8 @@
  *
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * procctl -- clear the event mask, and continue, any specified processes.
