@@ -67,7 +67,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	int ch;
 
 	(void) setlocale(LC_ALL, "");
