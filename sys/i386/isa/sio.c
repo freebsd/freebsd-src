@@ -1520,8 +1520,13 @@ siointr1(com)
 	struct	timecounter *tc;
 	u_int	count;
 
-	int_ctl = inb(com->intr_ctl_port);
-	int_ctl_new = int_ctl;
+	if (COM_IIR_TXRDYBUG(com)) {
+		int_ctl = inb(com->intr_ctl_port);
+		int_ctl_new = int_ctl;
+	} else {
+		int_ctl = 0;
+		int_ctl_new = 0;
+	}
 
 	while (!com->gone) {
 		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
