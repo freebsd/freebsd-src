@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.49 1997/07/29 12:57:08 sos Exp $
+**  $Id: pcisupport.c,v 1.50 1997/08/02 14:33:13 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -212,6 +212,17 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("DEC 21050 PCI-PCI bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
+	/* VLSI -- vendor 0x1004 */
+	case 0x01011004:
+		return ("VLSI 82C532 Eagle Peripheral Controller");
+	case 0x01021004:
+		return ("VLSI 82C534 Eagle PCI Bus bridge");
+	case 0x01031004:
+		return ("VLSI 82C538 Eagle PCI Docking bridge");
+	case 0x01041004:
+		return ("VLSI 82C535 Eagle System Controller");
+	case 0x01051004:
+		return ("VLSI 82C147 IrDA Controller");
 	};
 
 	if (descr = generic_pci_bridge(tag))
