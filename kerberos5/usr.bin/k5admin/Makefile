@@ -1,26 +1,47 @@
 # $FreeBSD$
 
 PROG=		k5admin
-SRCS=		kadmin.c ank.c cpw.c del.c del_enctype.c get.c rename.c util.c \
-		ext.c mod.c init.c dump.c load.c random_password.c \
-		krb5_err.h heim_err.h hdb_err.h \
-		kadm5/private.h kadm5/admin.h kadm5/kadm5_err.h
+SRCS=		\
+	ank.c					\
+	cpw.c					\
+	del.c					\
+	del_enctype.c				\
+	dump.c					\
+	ext.c					\
+	get.c					\
+	init.c					\
+	kadmin.c				\
+	load.c					\
+	mod.c					\
+	rename.c				\
+	util.c					\
+	random_password.c			\
+	kadmin_locl.h				\
+	krb5_err.h heim_err.h hdb_err.h		\
+	kadm5/private.h				\
+	kadm5/admin.h				\
+	kadm5/kadm5_err.h
+
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/hdb \
 		-I${KRB5DIR}/lib/sl \
+		-I${KRB5DIR}/lib/kadm5 \
 		-I${KRB5DIR}/kadmin \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
-		-L${ROKENOBJDIR} -lroken ${_krb4libs} \
+		-L${ROKENOBJDIR} -lroken \
+		-L${VERSOBJDIR} -lvers \
+		${_krb4libs} \
 		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lmd -lcom_err \
