@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.1.1.1 1995/01/31 06:29:58 amurai Exp $
+.\" $Id: ppp.8,v 1.2 1995/02/26 12:17:54 amurai Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -17,10 +17,10 @@ ppp \- Point to Point Protocol (aka iijppp)
 ]
 .SH DESCRIPTION
 .LP
-This is user process \fIPPP\fR software package. Normally, \fIPPP\fR
+This is user process \fIPPP\fR software package.  Normally, \fIPPP\fR
 is implemented as a part of kernel and hard to debug and/or modify its
-behavior. However, in this implementation, \fIPPP\fR is implemented as
-a user process with the help of tunnel device driver.
+behavior. (i.e. pppd) However, in this implementation, \fIPPP\fR is
+implemented as a user process with the help of tunnel device driver.
 .LP
 
 .SH Major Features
@@ -86,10 +86,13 @@ available on the net.
    % ppp
    User Process PPP written by Toshiharu OHNO.
    -- If you write your hostname and password in ppp.secret,
-      you can't do anything even quit command --
-   ppp on tama> quit
-   what ?
+      you can't do anything except quit and help command --
+   ppp on "your hostname"> help
+     passwd  : Password for manupilation     quit    : Quit PPP program    
+     help    : Display this message
    ppp on tama> pass <password>
+   -- "on" change to "ON" if you type correct password.
+   ppp ON tama>
    -- You can specify modem and device name using following commands.
    ppp ON tama> set line /dev/cua01
    ppp ON tama> set speed 38400
@@ -110,8 +113,8 @@ available on the net.
 
    -- When peer start to speak PPP, the program will detect it
    -- automatically and back to command mode.
-   ppp on tama>
-   \fBPPP\fR>
+   ppp ON tama>
+   \fBPPP\fR ON TAMA>
 
    -- NOW, you are get connected !! Note that prompt has changed to
    -- capital letters
@@ -175,7 +178,7 @@ label is ALWAYS executed.
 
 Once connection is made, you'll find that prompt is changed to
 
- capital \fIPPP\fR>.
+ capital \fIPPP\fR on tama>.
 
    % ppp pm2
    ...
@@ -208,27 +211,36 @@ you are still able to use command features to check its behavior.
 
 
   % telnet localhost 3000
-  ...
-  PPP on tama> show ipcp
-  ....
+    Trying 127.0.0.1...
+    Connected to localhost.spec.co.jp.
+    Escape character is '^]'.
+    User Process PPP. Written by Toshiharu OHNO.
+    Working as auto mode. 
+    PPP on tama> show ipcp
+    what ?
+    PPP on tama> pass xxxx
+    PPP ON tama> show ipcp
+    IPCP [OPEND]
+      his side: xxxx
+      ....
 
 .LP
  Each ppp has associated port number, which is computed as "3000 +
 tunnel_device_number". If 3000 is not good base number, edit defs.h.
 When packet toward to remote network is detected, \fIPPP\fR will take
 dialing action and try to connect with the peer. If dialing is failed,
-program will wait for 30 seconds. Once this hold time expired, another
-trigger packet cause dialing action. Note that automatic re-dialing is
-NOT implemented.
+program will wait for 30 seconds. Once this hold time expired, It's
+re-dialing with previous trigger packets.
 
+ To terminate program, type
 
- To terminate program, use
-
-  PPP on tama> close
-  \fBppp\fR> quit all
+  PPP ON tama> close
+  \fBppp\fR ON tama> quit all
 
 .LP
- Simple ``quit'' command will terminates telnet connection, but \fIPPP\fR program itself is not terminated. You must use ``quit all'' to terminate the program running as daemon.
+ Simple ``quit'' command will terminates telnet connection, but
+\fIPPP\fR program itself is not terminated. You must use ``quit all''
+to terminate the program running as daemon.
 .LP
 
 .SH PACKET FILTERING
@@ -275,14 +287,14 @@ Use ``set filer-name -1'' to flush all rules.
  To receive incoming \fIPPP\fR connection request, follow next steps. 
 .LP
 
- a) Prepare bidir entry in your /etc/gettytab
-
-	bidir.38400:\
-	    :bi:ap:hf:tc=38400-baud:
+ a) Make sure modem and /etc/rc.serial is setting up correctly.
+    - Use HardWare Handshake (CTS/RTS) for flow controlling.
+    - Modem should be setup NO echo back (ATE0) and 
+      No results string (ATQ1)
 
  b) Edit /etc/ttys to enable getty on the port where modem is attached.
 
-	cua00  "/usr/libexec/getty stdir.38400" dialup on
+	ttyd1  "/usr/libexec/getty std.38400" dialup on secure
 
     Don't forget to send HUP signal to init process.
 
@@ -290,17 +302,18 @@ Use ``set filer-name -1'' to flush all rules.
 
  c) Prepare account for incoming user.
 
-ppp:*:21:0:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
+    ppp:xxxx:66:66:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
 
  d) Create /usr/local/bin/ppplogin file with next contents.
 
 	#!/bin/sh
-	/usr/local/bin/ppp -direct
+	/usr/sbin/ppp -direct
 
     You can specify label name for further control.
 
 .LP
- Direct mode (-direct) lets \fIPPP\fR to work with standard in and out.  Again, you can telnet to 3000 to get command mode control.
+ Direct mode (-direct) lets \fIPPP\fR to work with standard in and
+out.  Again, you can telnet to 3000 to get command mode control.
 .LP
 
 .SH SETTING IDLE TIMER
@@ -316,17 +329,23 @@ ppp:*:21:0:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
 .LP
 
 .LP
- In -auto mode, idle timeout cause \fIPPP\fR session closed. However, \fIPPP\fR program itself is keep running. Another trigger packet cause dialing action.
+ In -auto mode, idle timeout cause \fIPPP\fR session closed. However,
+\fIPPP\fR program itself is keep running. Another trigger packet cause
+dialing action.
 .LP
 
 .SH Predictor-1 compression
 
 .LP
- This version supports CCP and Predictor type 1 compression based on current IETF-draft specs. As a default behavior, \fIPPP\fR will propose to use (or willing to accept) this capability and use it if peer agrees (or requests).
+ This version supports CCP and Predictor type 1 compression based on
+current IETF-draft specs. As a default behavior, \fIPPP\fR will
+propose to use (or willing to accept) this capability and use it if
+peer agrees (or requests).
 .LP
 
 .LP
- To disable CCP/predictor function completely, use ``disable pred'' and ``deny pred'' command.
+ To disable CCP/predictor function completely, use ``disable pred''
+and ``deny pred'' command.
 .LP
 
 .SH Controlling IP address
@@ -496,10 +515,9 @@ o
 Use ``help'', ``show ?'' and ``set ?'' command.
 
 .TP 2
-o
-NetBSD and BSDI-1.0 has been supported in previous release,
-but no longer supported in this release.
-Please contact to author if you need old driver code.
+o NetBSD and BSDI-1.0 has been supported in previous release, but no
+longer supported in this release.  Please contact to author if you
+need old driver code.
 
 .SH FILES
 .LP
@@ -535,6 +553,12 @@ Logging and debug information file.
 tty port locking file.
 
 .SH BUGS
+If you try to connect to Network Provider, you should consider enough
+both my and his IP address. They may assign both/one of address
+dynamically when ppp is connected. The IP address which you did set up
+is just assumption when you set up ppp as dial-on-demand mode (-auto)
+that is required them before connecting. So just trigger packet in
+dial-on-demand will be lost.
 
 .SH HISTORY
 This programm has deliverd into core since FreeBSD-2.1 by Atsushi
@@ -542,3 +566,6 @@ Murai (amurai@spec.co.jp).
 
 .SH AUTHORS
 Toshiharu OHNO (tony-o@iij.ad.jp)
+
+
+
