@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc_malloc.c,v 1.1 1998/09/26 01:42:39 msmith Exp $
+ *	$Id: zalloc_malloc.c,v 1.2 1998/09/26 10:48:50 dfr Exp $
  */
 
 /*
@@ -35,7 +35,7 @@
 
 #include "zalloc_defs.h"
 
-static MemPool	MallocPool = INITPOOL("malloc", panic, znot);
+static MemPool	MallocPool;
 
 #ifdef DMALLOCDEBUG
 static int MallocMax;
@@ -92,23 +92,13 @@ free(void *ptr)
 	Guard *res = (void *)((char *)ptr - MALLOCALIGN);
 
 #ifdef USEGUARD
-	if (res->ga_Magic != GAMAGIC) {
-#ifdef USEPANIC
-	    panic("free(): guard1 fail @ %08lx\n", ptr);
-#else
-	    *(char *)0 = 1;
-#endif
-	}
+	if (res->ga_Magic != GAMAGIC)
+	    panic("free: guard1 fail @ %p", ptr);
 	res->ga_Magic = -1;
 #endif
 #ifdef USEENDGUARD
-	if (*((char *)res + res->ga_Bytes - 1) != -2) {
-#ifdef USEPANIC
-	    panic("free(): guard2 fail @ %08lx + %d\n", ptr, res->ga_Bytes - MALLOCALIGN);
-#else
-	    *(char *)0 = 1;
-#endif
-	}
+	if (*((char *)res + res->ga_Bytes - 1) != -2)
+	    panic("free: guard2 fail @ %p + %d", ptr, res->ga_Bytes - MALLOCALIGN);
 	*((char *)res + res->ga_Bytes - 1) = -1;
 #endif
 
