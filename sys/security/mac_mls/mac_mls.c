@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
- * Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001, 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -49,6 +49,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -493,36 +494,45 @@ mac_mls_destroy_label(struct label *label)
 }
 
 /*
- * mac_mls_element_to_string() is basically an snprintf wrapper with
- * the same properties as snprintf().  It returns the length it would
- * have added to the string in the event the string is too short.
+ * mac_mls_element_to_string() accepts an sbuf and MLS element.  It
+ * converts the MLS element to a string and stores the result in the
+ * sbuf; if there isn't space in the sbuf, -1 is returned.
  */
-static size_t
-mac_mls_element_to_string(char *string, size_t size,
-    struct mac_mls_element *element)
+static int
+mac_mls_element_to_string(struct sbuf *sb, struct mac_mls_element *element)
 {
-	int pos, bit = 1;
+	int i, first;
 
 	switch (element->mme_type) {
 	case MAC_MLS_TYPE_HIGH:
-		return (snprintf(string, size, "high"));
+		return (sbuf_printf(sb, "high"));
 
 	case MAC_MLS_TYPE_LOW:
-		return (snprintf(string, size, "low"));
+		return (sbuf_printf(sb, "low"));
 
 	case MAC_MLS_TYPE_EQUAL:
-		return (snprintf(string, size, "equal"));
+		return (sbuf_printf(sb, "equal"));
 
 	case MAC_MLS_TYPE_LEVEL:
-		pos = snprintf(string, size, "%d:", element->mme_level);
-		for (bit = 1; bit <= MAC_MLS_MAX_COMPARTMENTS; bit++) {
-			if (MAC_MLS_BIT_TEST(bit, element->mme_compartments))
-				pos += snprintf(string + pos, size - pos,
-				    "%d+", bit);
+		if (sbuf_printf(sb, "%d", element->mme_level) == -1)
+			return (-1);
+
+		first = 1;
+		for (i = 1; i <= MAC_MLS_MAX_COMPARTMENTS; i++) {
+			if (MAC_MLS_BIT_TEST(i, element->mme_compartments)) {
+				if (first) {
+					if (sbuf_putc(sb, ':') == -1)
+						return (-1);
+					if (sbuf_printf(sb, "%d", i) == -1)
+						return (-1);
+					first = 0;
+				} else {
+					if (sbuf_printf(sb, "+%d", i) == -1)
+						return (-1);
+				}
+			}
 		}
-		if (string[pos - 1] == '+' || string[pos - 1] == ':')
-			string[--pos] = NULL;
-		return (pos);
+		return (0);
 
 	default:
 		panic("mac_mls_element_to_string: invalid type (%d)",
@@ -530,60 +540,48 @@ mac_mls_element_to_string(char *string, size_t size,
 	}
 }
 
-static size_t
+/*
+ * mac_mls_to_string() converts an MLS label to a string, placing the
+ * results in the passed string buffer.  It returns 0 on success,
+ * or EINVAL if there isn't room in the buffer.  The size of the
+ * string appended, leaving out the nul termination, is returned to
+ * the caller via *caller_len.  Eventually, we should expose the
+ * sbuf to the caller rather than using C strings at this layer.
+ */
+static int
 mac_mls_to_string(char *string, size_t size, size_t *caller_len,
     struct mac_mls *mac_mls)
 {
-	size_t left, len;
-	char *curptr;
+	struct sbuf sb;
 
-	bzero(string, size);
-	curptr = string;
-	left = size;
+	sbuf_new(&sb, string, size, SBUF_FIXEDLEN);
 
 	if (mac_mls->mm_flags & MAC_MLS_FLAG_SINGLE) {
-		len = mac_mls_element_to_string(curptr, left,
-		    &mac_mls->mm_single);
-		if (len >= left)
+		if (mac_mls_element_to_string(&sb, &mac_mls->mm_single)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 	}
 
 	if (mac_mls->mm_flags & MAC_MLS_FLAG_RANGE) {
-		len = snprintf(curptr, left, "(");
-		if (len >= left)
+		if (sbuf_putc(&sb, '(') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = mac_mls_element_to_string(curptr, left,
-		    &mac_mls->mm_rangelow);
-		if (len >= left)
+		if (mac_mls_element_to_string(&sb, &mac_mls->mm_rangelow)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = snprintf(curptr, left, "-");
-		if (len >= left)
+		if (sbuf_putc(&sb, '-') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = mac_mls_element_to_string(curptr, left,
-		    &mac_mls->mm_rangehigh);
-		if (len >= left)
+		if (mac_mls_element_to_string(&sb, &mac_mls->mm_rangehigh)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = snprintf(curptr, left, ")");
-		if (len >= left)
+		if (sbuf_putc(&sb, ')') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 	}
 
+	sbuf_finish(&sb);
 	*caller_len = strlen(string);
 	return (0);
 }
@@ -606,7 +604,6 @@ mac_mls_externalize_label(struct label *label, char *element_name,
 	if (error)
 		return (error);
 
-	*len = strlen(element_data);
 	return (0);
 }
 

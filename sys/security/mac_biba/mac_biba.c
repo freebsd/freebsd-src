@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
- * Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001, 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -49,6 +49,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -528,36 +529,45 @@ mac_biba_destroy_label(struct label *label)
 }
 
 /*
- * mac_biba_element_to_string() is basically an snprintf wrapper with
- * the same properties as snprintf().  It returns the length it would
- * have added to the string in the event the string is too short.
+ * mac_biba_element_to_string() accepts an sbuf and Biba element.  It
+ * converts the Biba element to a string and stores the result in the
+ * sbuf; if there isn't space in the sbuf, -1 is returned.
  */
-static size_t
-mac_biba_element_to_string(char *string, size_t size,
-    struct mac_biba_element *element)
+static int
+mac_biba_element_to_string(struct sbuf *sb, struct mac_biba_element *element)
 {
-	int pos, bit = 1;
+	int i, first;
 
 	switch (element->mbe_type) {
 	case MAC_BIBA_TYPE_HIGH:
-		return (snprintf(string, size, "high"));
+		return (sbuf_printf(sb, "high"));
 
 	case MAC_BIBA_TYPE_LOW:
-		return (snprintf(string, size, "low"));
+		return (sbuf_printf(sb, "low"));
 
 	case MAC_BIBA_TYPE_EQUAL:
-		return (snprintf(string, size, "equal"));
+		return (sbuf_printf(sb, "equal"));
 
 	case MAC_BIBA_TYPE_GRADE:
-		pos = snprintf(string, size, "%d:", element->mbe_grade);
-		for (bit = 1; bit <= MAC_BIBA_MAX_COMPARTMENTS; bit++) {
-			if (MAC_BIBA_BIT_TEST(bit, element->mbe_compartments))
-				pos += snprintf(string + pos, size - pos,
-				    "%d+", bit);
+		if (sbuf_printf(sb, "%d", element->mbe_grade) == -1)
+			return (-1);
+
+		first = 1;
+		for (i = 1; i <= MAC_BIBA_MAX_COMPARTMENTS; i++) {
+			if (MAC_BIBA_BIT_TEST(i, element->mbe_compartments)) {
+				if (first) {
+					if (sbuf_putc(sb, ':') == -1)
+						return (-1);
+					if (sbuf_printf(sb, "%d", i) == -1)
+						return (-1);
+					first = 0;
+				} else {
+					if (sbuf_printf(sb, "+%d", i) == -1)
+						return (-1);
+				}
+			}
 		}
-		if (string[pos - 1] == '+' || string[pos - 1] == ':')
-			string[--pos] = '\0';
-		return (pos);
+		return (0);
 
 	default:
 		panic("mac_biba_element_to_string: invalid type (%d)",
@@ -565,60 +575,48 @@ mac_biba_element_to_string(char *string, size_t size,
 	}
 }
 
+/*
+ * mac_biba_to_string() converts an Biba label to a string, placing the
+ * results in the passed string buffer.  It returns 0 on success,
+ * or EINVAL if there isn't room in the buffer.  The size of the
+ * string appended, leaving out the nul termination, is returned to
+ * the caller via *caller_len.  Eventually, we should expose the
+ * sbuf to the caller rather than using C strings at this layer.
+ */
 static int
 mac_biba_to_string(char *string, size_t size, size_t *caller_len,
     struct mac_biba *mac_biba)
 {
-	size_t left, len;
-	char *curptr;
+	struct sbuf sb;
 
-	bzero(string, size);
-	curptr = string;
-	left = size;
+	sbuf_new(&sb, string, size, SBUF_FIXEDLEN);
 
 	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) {
-		len = mac_biba_element_to_string(curptr, left,
-		    &mac_biba->mb_single);
-		if (len >= left)
+		if (mac_biba_element_to_string(&sb, &mac_biba->mb_single)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 	}
 
 	if (mac_biba->mb_flags & MAC_BIBA_FLAG_RANGE) {
-		len = snprintf(curptr, left, "(");
-		if (len >= left)
+		if (sbuf_putc(&sb, '(') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = mac_biba_element_to_string(curptr, left,
-		    &mac_biba->mb_rangelow);
-		if (len >= left)
+		if (mac_biba_element_to_string(&sb, &mac_biba->mb_rangelow)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = snprintf(curptr, left, "-");
-		if (len >= left)
+		if (sbuf_putc(&sb, '-') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = mac_biba_element_to_string(curptr, left,
-		    &mac_biba->mb_rangehigh);
-		if (len >= left)
+		if (mac_biba_element_to_string(&sb, &mac_biba->mb_rangehigh)
+		    == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 
-		len = snprintf(curptr, left, ")");
-		if (len >= left)
+		if (sbuf_putc(&sb, ')') == -1)
 			return (EINVAL);
-		left -= len;
-		curptr += len;
 	}
 
+	sbuf_finish(&sb);
 	*caller_len = strlen(string);
 	return (0);
 }
@@ -640,7 +638,6 @@ mac_biba_externalize_label(struct label *label, char *element_name,
 	if (error)
 		return (error);
 
-	*len = strlen(element_data);
 	return (0);
 }
 
