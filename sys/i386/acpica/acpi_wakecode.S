@@ -42,6 +42,15 @@ wakeup_16:
 	movw	%cs,%ax
 	movw	%ax,%ds
 	movw	%ax,%ss
+	
+	/*
+	 * Re-initialize video BIOS.  Restore DS and SS from CS in
+	 * case the BIOS modified them.
+	 */
+	lcall	$0xc000, $3
+	movw	%cs, %ax
+	movw	%ax, %ds
+	movw	%ax, %ss
 
 	/* Load GDT for real mode */
 	lgdt	physical_gdt
