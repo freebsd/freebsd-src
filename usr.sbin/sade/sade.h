@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.60 1996/06/12 14:20:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.61 1996/06/14 14:33:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -91,12 +91,14 @@
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
+#define VAR_FTP_DIR			"ftpDirectory"
 #define VAR_FTP_ONERROR			"ftpOnError"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
 #define VAR_FTP_RETRIES			"ftpRetryCount"
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
+#define VAR_FTP_HOST			"ftpHost"
 #define VAR_GATED			"gated"
 #define VAR_GATEWAY			"defaultrouter"
 #define VAR_GEOMETRY			"geometry"
@@ -110,6 +112,7 @@
 #define VAR_NAMESERVER			"nameserver"
 #define VAR_NETMASK			"netmask"
 #define VAR_NFS_PATH			"nfs"
+#define VAR_NFS_HOST			"nfsHost"
 #define VAR_NFS_SECURE			"nfsSecure"
 #define VAR_NFS_SERVER			"nfs_server"
 #define VAR_NO_CONFIRM			"noConfirm"
