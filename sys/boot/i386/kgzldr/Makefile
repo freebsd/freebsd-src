@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
+OBJS=	${SRCS:N*.h:R:S/$/.o/g}
 CFLAGS=	-fno-builtin
 .if ${OBJFORMAT} == aout
 CFLAGS+=-O2
