@@ -31,9 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *rcsid = "$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp $";
 #endif /* LIBC_SCCS and not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
@@ -51,13 +56,13 @@ sl_init()
 {
 	StringList *sl = malloc(sizeof(StringList));
 	if (sl == NULL)
-		err(1, "stringlist: %m");
+		_err(1, "stringlist: %m");
 
 	sl->sl_cur = 0;
 	sl->sl_max = _SL_CHUNKSIZE;
 	sl->sl_str = malloc(sl->sl_max * sizeof(char *));
 	if (sl->sl_str == NULL)
-		err(1, "stringlist: %m");
+		_err(1, "stringlist: %m");
 	return sl;
 }
 
@@ -74,7 +79,7 @@ sl_add(sl, name)
 		sl->sl_max += _SL_CHUNKSIZE;
 		sl->sl_str = reallocf(sl->sl_str, sl->sl_max * sizeof(char *));
 		if (sl->sl_str == NULL)
-			err(1, "stringlist: %m");
+			_err(1, "stringlist: %m");
 	}
 	sl->sl_str[sl->sl_cur++] = name;
 }

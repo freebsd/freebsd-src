@@ -72,8 +72,10 @@ err_set_exit(void (*ef)(int))
 	err_exit = ef;
 }
 
+__weak_reference(_err, err);
+
 void
-err(int eval, const char *fmt, ...)
+_err(int eval, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);

@@ -95,7 +95,7 @@ _nsdbtaddsrc(dbt, src)
 		dbt->srclist = (ns_src *)realloc(dbt->srclist,
 		    (dbt->srclistsize + NSELEMSPERCHUNK) * sizeof(ns_src));
 		if (dbt->srclist == NULL)
-			err(1, "nsdispatch: memory allocation failure");
+			_err(1, "nsdispatch: memory allocation failure");
 	}
 	memmove(&dbt->srclist[dbt->srclistsize++], src, sizeof(ns_src));
 }
@@ -208,7 +208,7 @@ _nsdbtput(dbt)
 		_nsmap = (ns_dbt *)realloc(_nsmap,
 		    (_nsmapsize + NSELEMSPERCHUNK) * sizeof(ns_dbt));
 		if (_nsmap == NULL)
-			err(1, "nsdispatch: memory allocation failure");
+			_err(1, "nsdispatch: memory allocation failure");
 	}
 	memmove(&_nsmap[_nsmapsize++], dbt, sizeof(ns_dbt));
 }
