@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.33 1998/04/21 02:39:48 brian Exp $
+ *  dgb.c $Id: dgb.c,v 1.34 1998/04/21 21:06:22 brian Exp $
  *
  *  Digiboard driver.
  *
@@ -67,14 +67,9 @@
 
 #include <gnu/i386/isa/dgbios.h>
 #include <gnu/i386/isa/dgfep.h>
-#define DEBUG
-#include <gnu/i386/isa/dgreg.h>
 
-/* This avoids warnings: we're an isa device only
- * so it does not matter...
- */
-#undef outb
-#define outb outbv
+#define DGB_DEBUG		/* Enable debugging info via sysctl */
+#include <gnu/i386/isa/dgreg.h>
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -171,8 +166,8 @@ struct dgb_softc {
 	u_char unit;	/* unit number */
 	u_char type;	/* type of card: PCXE, PCXI, PCXEVE */
 	u_char altpin;	/* do we need alternate pin setting ? */
-	ushort numports;	/* number of ports on card */
-	ushort port;	/* I/O port */
+	int numports;	/* number of ports on card */
+	int port;	/* I/O port */
 	u_char *vmem; /* virtual memory address */
 	long pmem; /* physical memory address */
 	int mem_seg;  /* internal memory segment */
@@ -193,7 +188,6 @@ static struct tty dgb_tty[NDGBPORTS];
 
 /* Interrupt handling entry points. */
 static void	dgbpoll		__P((void *unit_c));
-/*static void	dgbintr		__P((int unit));*/
 
 /* Device switch entry points. */
 #define	dgbreset	noreset
@@ -309,9 +303,10 @@ dgbflags(struct dbgflagtbl *tbl, tcflag_t input)
   return output;
 }
 
+#ifdef DGB_DEBUG
 static int dgbdebug=0;
-SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW,
-	&dgbdebug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW, &dgbdebug, 0, "");
+#endif
 
 static __inline int setwin __P((struct dgb_softc *sc, unsigned addr));
 static __inline int setinitwin __P((struct dgb_softc *sc, unsigned addr));
@@ -321,8 +316,8 @@ static __inline void towin __P((struct dgb_softc *sc, int win));
 /*Helg: to allow recursive dgb...() calls */
 typedef struct
   {                 /* If we were called and don't want to disturb we need: */
-	short port,       /* write to this port */
-	      data;       /* this data on exit */
+	int port;		/* write to this port */
+	u_char data;		/* this data on exit */
 	                  /* or DATA_WINOFF  to close memory window on entry */
   } BoardMemWinState; /* so several channels and even boards can coexist */
 #define DATA_WINOFF 0
@@ -1569,15 +1564,6 @@ dgbpoll(unit_c)
 	timeout(dgbpoll, unit_c, hz/POLLSPERSEC);
 }
 
-
-#if 0
-static void
-dgbintr(unit)
-	int	unit;
-{
-}
-#endif
-
 static	int
 dgbioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
@@ -2328,11 +2314,6 @@ disc_optim(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
 {
-	/*
-	 * XXX can skip a lot more cases if Smarts.  Maybe
-	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
-	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
-	 */
 	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
 	    && (!(t->c_iflag & PARMRK)
