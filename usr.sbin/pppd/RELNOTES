@@ -1,3 +1,172 @@
+This is the README file for ppp-2.3, a package which implements the
+Point-to-Point Protocol (PPP) to provide Internet connections over
+serial lines.
+
+
+Introduction.
+*************
+
+The Point-to-Point Protocol (PPP) provides a standard way to establish
+a network connection over a serial link.  At present, this package
+supports IP and the protocols layered above IP, such as TCP and UDP.
+The Linux port of this package also has support for IPX.
+
+This software consists of two parts:
+
+- Kernel code, which establishes a network interface and passes
+packets between the serial port, the kernel networking code and the
+PPP daemon (pppd).  This code is implemented using STREAMS modules on
+SunOS 4.x, Solaris 2.x, System V Release 4, and OSF/1, and as a
+line discipline under Ultrix, NextStep, NetBSD, FreeBSD, and Linux.
+
+- The PPP daemon (pppd), which negotiates with the peer to establish
+the link and sets up the ppp network interface.  Pppd includes support
+for authentication, so you can control which other systems may make a
+PPP connection and what IP addresses they may use.
+
+
+Installation.
+*************
+
+The file SETUP contains general information about setting up your
+system for using PPP.  There is also a README file for each supported
+system, which contains more specific details for installing PPP on
+that system.  The supported systems, and the corresponding README
+files, are:
+
+	Digital Unix (OSF/1)		README.osf
+	Linux				README.linux
+	NetBSD, FreeBSD			README.bsd
+	NeXTStep			README.next
+	Solaris 2			README.sol2
+	SunOS 4.x			README.sunos4
+	System V Release 4		README.svr4
+	Ultrix 4.x			README.ultrix
+
+(Unfortunately, AIX 4 is no longer supported, since I don't have a
+maintainer for the AIX 4 port.  If you want to volunteer, contact me.)
+
+In each case you start by running the ./configure script.  This works
+out which operating system you are using and creates symbolic links to
+the appropriate makefiles.  You then run `make' to compile the
+user-level code, and (as root) `make install' to install the
+user-level programs pppd, chat and pppstats.
+
+The procedures for installing the kernel code vary from system to
+system.  On some systems, the kernel code can be loaded into a running
+kernel using a `modload' facility.  On others, the kernel image has to
+be recompiled and the system rebooted.  See the README.* files for
+details.
+
+
+What's new in ppp-2.3.
+**********************
+
+* Demand-dialling.  Pppd now has a mode where it will establish the
+network interface immediately when it starts, but not actually bring
+the link up until it sees some data to be sent.  Look for the demand
+option description in the pppd man page.  Demand-dialling is not
+supported under Ultrix or NeXTStep.
+
+* Idle timeout.  Pppd will optionally terminate the link if no data
+packets are sent or received within a certain time interval.
+
+* Pppd now runs the /etc/ppp/auth-up script, if it exists, when the
+peer successfully authenticates itself, and /etc/ppp/auth-down when
+the connection is subsequently terminated.  This can be useful for
+accounting purposes.
+
+* A new packet compression scheme, Deflate, has been implemented.
+This uses the same compression method as `gzip'.  This method is free
+of patent or copyright restrictions, and it achieves better
+compression than BSD-Compress.  It does consume more CPU cycles for
+compression than BSD-Compress, but this shouldn't be a problem for
+links running at 100kbit/s or less.
+
+* There is no code in this distribution which is covered by Brad
+Clements' restrictive copyright notice.  The STREAMS modules for SunOS
+and OSF/1 have been rewritten, based on the Solaris 2 modules, which
+were written from scratch without any Clements code.
+
+* Pppstats has been reworked to clean up the output format somewhat.
+It also has a new -d option which displays data rate in kbyte/s for
+those columns which would normally display bytes.
+
+* Pppd options beginning with - or + have been renamed, e.g. -ip
+became noip, +chap became require-chap, etc.  The old options are
+still accepted for compatibility but may be removed in future.
+
+* Pppd now has some options (such as the new `noauth' option) which
+can only be specified if it is being run by root, or in an
+"privileged" options file: /etc/ppp/options or an options file in the
+/etc/ppp/peers directory.  There is a new "call" option to read
+options from a file in /etc/ppp/peers, making it possible for non-root
+users to make unauthenticated connections, but only to certain trusted
+peers.  My intention is to make the `auth' option the default in a
+future release.
+
+* Several minor new features have been added to pppd, including the
+maxconnect and welcome options.  Pppd will now terminate the
+connection when there are no network control protocols running.  The
+allowed IP address(es) field in the secrets files can now specify
+subnets (with a notation like 123.45.67.89/24) and addresses which are
+not acceptable (put a ! on the front).
+
+* Numerous bugs have been fixed (no doubt some have been introduced :-)
+Thanks to those who reported bugs in ppp-2.2.
+
+
+Patents.
+********
+
+The BSD-Compress algorithm used for packet compression is the same as
+that used in the Unix "compress" command.  It is apparently covered by
+U.S. patents 4,814,746 (owned by IBM) and 4,558,302 (owned by Unisys),
+and corresponding patents in various other countries (but not
+Australia).  If this is of concern, you can build the package without
+including BSD-Compress.  To do this, edit net/ppp-comp.h to change the
+definition of DO_BSD_COMPRESS to 0.  The bsd-comp.c files are then no
+longer needed, so the references to bsd-comp.o may optionally be
+removed from the Makefiles.
+
+
+Contacts.
+*********
+
+The comp.protocols.ppp newsgroup is a useful place to get help if you
+have trouble getting your ppp connections to work.  Please do not send
+me questions of the form "please help me get connected to my ISP" -
+I'm sorry, but I simply do not have the time to answer all the
+questions like this that I get.
+
+If you find bugs in this package, please report them to the maintainer
+for the port for the operating system you are using:
+
+Digital Unix (OSF/1)	Farrell Woods <ftw@zk3.dec.com>
+Linux			Al Longyear <longyear@pobox.com>
+NetBSD			Matthew Green <mrg@eterna.com.au
+FreeBSD			Peter Wemm <peter@haywire.DIALix.COM>
+NeXTStep		Steve Perkins <perkins@cps.msu.edu>
+Solaris 2		Paul Mackerras <Paul.Mackerras@cs.anu.edu.au>
+SunOS 4.x		Paul Mackerras <Paul.Mackerras@cs.anu.edu.au>
+System V Release 4	Matthias Apitz <Matthias.Apitz@SOFTCON.de>
+Ultrix 4.x		Paul Mackerras (for want of anybody better :-)
+
+
+Copyrights:
+***********
+
+All of the code can be freely used and redistributed.
+
+
+Distribution:
+*************
+
+The primary site for releases of this software is:
+
+	ftp://cs.anu.edu.au/pub/software/ppp/
+
+-------------------------
 This is the README file for ppp-2.2, a package which implements the
 Point-to-Point Protocol (PPP) to provide Internet connections over
 serial lines.
