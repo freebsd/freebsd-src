@@ -232,13 +232,28 @@
 #define	PCICTL_6ENABLE	0x000000000000003f	/* enable 6 PCI slots */
 
 /* Uncorrectable error asynchronous fault status registers */
-#define	UEAFSR_BLK	(1UL << 22)	/* pri. error caused by read */
-#define	UEAFSR_P_DTE	(1UL << 56)	/* pri. DMA translation error */
-#define	UEAFSR_S_DTE	(1UL << 57)	/* sec. DMA translation error */
-#define	UEAFSR_S_DWR	(1UL << 58)	/* sec. error during write */
-#define	UEAFSR_S_DRD	(1UL << 59)	/* sec. error during read */
-#define	UEAFSR_P_DWR	(1UL << 61)	/* pri. error during write */
-#define	UEAFSR_P_DRD	(1UL << 62)	/* pri. error during read */
+#define	UEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction. */
+#define	UEAFSR_P_DTE	(1UL << 56)	/* Pri. DVMA translation error. */
+#define	UEAFSR_S_DTE	(1UL << 57)	/* Sec. DVMA translation error. */
+#define	UEAFSR_S_DWR	(1UL << 58)	/* Sec. error during DVMA write. */
+#define	UEAFSR_S_DRD	(1UL << 59)	/* Sec. error during DVMA read. */
+#define	UEAFSR_S_PIO	(1UL << 60)	/* Sec. error during PIO access. */
+#define	UEAFSR_P_DWR	(1UL << 61)	/* Pri. error during DVMA write. */
+#define	UEAFSR_P_DRD	(1UL << 62)	/* Pri. error during DVMA read. */
+#define	UEAFSR_P_PIO	(1UL << 63)	/* Pri. error during PIO access. */
+
+/* Correctable error asynchronous fault status registers */
+#define	CEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction. */
+#define	CEAFSR_S_DWR	(1UL << 58)	/* Sec. error caused by DVMA write. */
+#define	CEAFSR_S_DRD	(1UL << 59)	/* Sec. error caused by DVMA read. */
+#define	CEAFSR_S_PIO	(1UL << 60)	/* Sec. error caused by PIO access. */
+#define	CEAFSR_P_DWR	(1UL << 61)	/* Pri. error caused by DVMA write. */
+#define	CEAFSR_P_DRD	(1UL << 62)	/* Pri. error caused by DVMA read. */
+#define	CEAFSR_P_PIO	(1UL << 63)	/* Pri. error caused by PIO access. */
+
+#define	CEAFSR_ERRMASK							\
+	(CEAFSR_P_PIO | CEAFSR_P_DRD | CEAFSR_P_DWR |			\
+	 CEAFSR_S_PIO | CEAFSR_S_DRD | CEAFSR_S_DWR)
 
 /* Definitions for the target address space register. */
 #define	PCITAS_ADDR_SHIFT	29

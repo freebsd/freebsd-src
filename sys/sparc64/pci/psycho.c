@@ -745,12 +745,14 @@ psycho_ce(void *arg)
 	struct psycho_softc *sc = (struct psycho_softc *)arg;
 	u_int64_t afar, afsr;
 
-	PSYCHO_WRITE8(sc, PSR_CE_INT_CLR, 0);
 	afar = PSYCHO_READ8(sc, PSR_CE_AFA);
 	afsr = PSYCHO_READ8(sc, PSR_CE_AFS);
 	/* It's correctable.  Dump the regs and continue. */
 	device_printf(sc->sc_dev, "correctable DMA error AFAR %#lx "
 	    "AFSR %#lx\n", (u_long)afar, (u_long)afsr);
+	/* Clear the error bits that we caught. */
+	PSYCHO_WRITE8(sc, PSR_CE_AFS, afsr & CEAFSR_ERRMASK);
+	PSYCHO_WRITE8(sc, PSR_CE_INT_CLR, 0);
 }
 
 static void
