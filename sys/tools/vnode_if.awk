@@ -174,6 +174,7 @@ if (cfile) {
 	    "#include <sys/param.h>\n" \
 	    "#include <sys/systm.h>\n" \
 	    "#include <sys/vnode.h>\n" \
+	    "#include <sys/systm.h>\n" \
 	    "\n" \
 	    "struct vnodeop_desc vop_default_desc = {\n" \
 	    "	\"default\",\n" \
@@ -306,6 +307,7 @@ while ((getline < srcfile) > 0) {
 
 		# Print out function prototypes.
 		printh("int " uname "_AP(struct " name "_args *);");
+		printh("int " uname "_APV(struct vop_vector *vop, struct " name "_args *);");
 		printh("");
 		printh("static __inline int " uname "(");
 		for (i = 0; i < numargs; ++i) {
@@ -318,7 +320,7 @@ while ((getline < srcfile) > 0) {
 		printh("\ta.a_gen.a_desc = &" name "_desc;");
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
-		printh("\treturn (" uname "_AP(&a));");
+		printh("\treturn (" uname "_APV("args[0]"->v_op, &a));");
 		printh("}");
 
 		printh("");
@@ -350,16 +352,19 @@ while ((getline < srcfile) > 0) {
 		# Print out function.
 		printc("\nint\n" uname "_AP(struct " name "_args *a)");
 		printc("{");
-		printc("\tint rc;");
-		printc("\tstruct vnode *vp = a->a_" args[0]";");
-		printc("\tstruct vop_vector *vop = vp->v_op;");
 		printc("");
-		printc("\tKASSERT(a->a_gen.a_desc == &" name "_desc,");
-		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", vp, a));");
+		printc("\treturn(" uname "_APV(a->a_" args[0] "->v_op, a));");
+		printc("}");
+		printc("\nint\n" uname "_APV(struct vop_vector *vop, struct " name "_args *a)");
+		printc("{");
+		printc("\tint rc;");
+		printc("");
+		printc("\tVNASSERT(a->a_gen.a_desc == &" name "_desc, a->a_" args[0]",");
+		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", a->a_" args[0]", a));");
 		printc("\twhile(vop != NULL && \\");
 		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
 		printc("\t\tvop = vop->vop_default;")
-		printc("\tKASSERT(vop != NULL, (\"No "name"(%p, %p)\", vp, a));")
+		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
 		add_debug_pre(name);
