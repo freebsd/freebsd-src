@@ -194,12 +194,13 @@ readjob(struct printer *pp)
 			 */
 			strlcpy(cp + 6, from_host, sizeof(line)
 			    + (size_t)(line - cp - 6));
+			if (strchr(cp, '/')) {
+				frecverr("readjob: %s: illegal path name", cp);
+				/*NOTREACHED*/
+			}
 			strlcpy(tfname, cp, sizeof(tfname));
 			tfname[sizeof (tfname) - 1] = '\0';
 			tfname[0] = 't';
-			if (strchr(tfname, '/'))
-				frecverr("readjob: %s: illegal path name",
-				    tfname);
 			if (!chksize(size)) {
 				(void) write(STDOUT_FILENO, "\2", (size_t)1);
 				continue;
@@ -225,16 +226,15 @@ readjob(struct printer *pp)
 				size = size * 10 + (*cp++ - '0');
 			if (*cp++ != ' ')
 				break;
+			if (strchr(cp, '/')) {
+				frecverr("readjob: %s: illegal path name", cp);
+				/*NOTREACHED*/
+			}
 			if (!chksize(size)) {
 				(void) write(STDOUT_FILENO, "\2", (size_t)1);
 				continue;
 			}
 			strlcpy(dfname, cp, sizeof(dfname));
-			if (strchr(dfname, '/')) {
-				frecverr("readjob: %s: illegal path name",
-					dfname);
-				/*NOTREACHED*/
-			}
 			dfcnt++;
 			trstat_init(pp, dfname, dfcnt);
 			(void) readfile(pp, dfname, (size_t)size);
