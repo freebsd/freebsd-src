@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.15.2.1 1996/11/11 23:42:30 phk Exp $";
+	"$Id: inetd.c,v 1.15.2.2 1997/02/05 23:25:10 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -126,6 +126,10 @@ static char inetd_c_rcsid[] __attribute__ ((unused)) =
 #include <unistd.h>
 #include <libutil.h>
 #include <sysexits.h>
+
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#endif
 
 #include "pathnames.h"
 
@@ -267,6 +271,9 @@ main(argc, argv, envp)
 	char buf[50];
 	struct  sockaddr_in peer;
 	int i;
+#ifdef LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
 
 
 #ifdef OLD_SETPROCTITLE
@@ -281,7 +288,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:p:")) != EOF)
+	while ((ch = getopt(argc, argv, "dlR:a:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -503,12 +510,28 @@ main(argc, argv, envp)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(EX_NOUSER);
 				}
+#ifdef LOGIN_CAP
+				/*
+				 * Establish the class now, falls back to
+				 * the "default" if unavailable.
+				 */
+				lc = login_getpwclass(pwd);
+#endif
 				if (setsid() < 0) {
 					syslog(LOG_ERR,
 						"%s: can't setsid(): %m",
 						 sep->se_service);
 					/* _exit(EX_OSERR); not fatal yet */
 				}
+#ifdef LOGIN_CAP
+				if (setusercontext(lc, pwd, pwd->pw_uid,
+				    LOGIN_SETALL) != 0) {
+					syslog(LOG_ERR,
+					 "%s: can't setusercontext(..%s..): %m",
+					 sep->se_service, sep->se_user);
+					_exit(EX_OSERR);
+				}
+#else
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
 						syslog(LOG_ERR,
@@ -531,6 +554,7 @@ main(argc, argv, envp)
 						_exit(EX_OSERR);
 					}
 				}
+#endif
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
@@ -800,8 +824,10 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 	if (turnon(sep->se_fd, SO_REUSEADDR) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_REUSEADDR): %m");
+#ifdef SO_PRIVSTATE
 	if (turnon(sep->se_fd, SO_PRIVSTATE) < 0)
 		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
+#endif
 #undef turnon
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sizeof (sep->se_ctrladdr)) < 0) {
