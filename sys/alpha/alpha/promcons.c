@@ -49,7 +49,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
 
 #include <machine/prom.h>
 
