@@ -96,7 +96,7 @@ ipx_outputfl(m0, ro, flags)
 		/*
 		 * The old route has gone away; try for a new one.
 		 */
-		rtfree(ro->ro_rt);
+		RTFREE(ro->ro_rt);
 		ro->ro_rt = NULL;
 		rtalloc(ro);
 	}
