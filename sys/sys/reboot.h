@@ -61,9 +61,11 @@
 #define	RB_GDB		0x8000	/* use GDB remote debugger instead of DDB */
 #define	RB_MUTE		0x10000	/* start up with the console muted */
 #define	RB_SELFTEST	0x20000	/* don't complete the boot; do selftest */
-#define	RB_PAUSE	0x40000	/* pause after each output line during probe */
+#define	RB_RESERVED1	0x40000	/* reserved for internal use of boot blocks */
+#define	RB_RESERVED2	0x80000	/* reserved for internal use of boot blocks */
+#define	RB_PAUSE	0x100000 /* pause after each output line during probe */
 #define	RB_MULTIPLE	0x20000000	/* use multiple consoles */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
-#endif /* !_SYS_REBOOT_H_ */
+#endif
