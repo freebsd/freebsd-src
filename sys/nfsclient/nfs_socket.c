@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.36 1998/05/31 18:02:56 peter Exp $
+ * $Id: nfs_socket.c,v 1.37 1998/05/31 18:06:07 peter Exp $
  */
 
 /*
@@ -2052,7 +2052,7 @@ nfsrv_getstream(slp, waitflag)
 	register struct mbuf *m, **mpp;
 	register char *cp1, *cp2;
 	register int len;
-	struct mbuf *om, *m2, *recm = 0;
+	struct mbuf *om, *m2, *recm = NULL;
 	u_long recmark;
 
 	if (slp->ns_flag & SLP_GETSTREAM)
