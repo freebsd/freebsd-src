@@ -196,8 +196,8 @@ dixie		 96/tcp	   #DIXIE Protocol Specification
 dixie		 96/udp	   #DIXIE Protocol Specification
 swift-rvf	 97/tcp	   #Swift Remote Virtural File Protocol
 swift-rvf	 97/udp	   #Swift Remote Virtural File Protocol
-tacnews		 98/tcp	   #TAC News
-tacnews		 98/udp	   #TAC News
+tacnews		 98/tcp	   #TAC News, Unofficial: Red Hat linuxconf
+tacnews		 98/udp	   #TAC News, Unofficial: Red Hat linuxconf
 metagram	 99/tcp	   #Metagram Relay
 metagram	 99/udp	   #Metagram Relay
 newacct		100/tcp	   #[unauthorized use]
