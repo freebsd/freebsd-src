@@ -1569,7 +1569,12 @@ p_candebug(struct proc *p1, struct proc *p2)
 			return (error);
 	}
 
-	/* can't trace a process that's currently exec'ing */
+	/*
+	 * Can't trace a process that's currently exec'ing.
+	 * XXX: Note, this is not a security policy decision, it's a
+	 * basic correctness/functionality decision.  Therefore, this check
+	 * should be moved to the caller's of p_candebug().
+	 */
 	if ((p2->p_flag & P_INEXEC) != 0)
 		return (EAGAIN);
 	
