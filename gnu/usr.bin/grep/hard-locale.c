@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #if HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -51,7 +53,7 @@ char *alloca ();
 int
 hard_locale (int category)
 {
-#if ! (defined ENABLE_NLS && HAVE_SETLOCALE)
+#if ! HAVE_SETLOCALE
   return 0;
 #else
 
@@ -60,7 +62,7 @@ hard_locale (int category)
 
   if (p)
     {
-# if defined __GLIBC__ && __GLIBC__ >= 2
+# if defined(__FreeBSD__) || (defined __GLIBC__ && __GLIBC__ >= 2)
       if (strcmp (p, "C") == 0 || strcmp (p, "POSIX") == 0)
 	hard = 0;
 # else
