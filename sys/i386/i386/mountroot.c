@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: mountroot.c,v 1.1 1998/04/19 23:31:35 julian Exp $
+ *	$Id: mountroot.c,v 1.2 1998/04/20 21:54:19 julian Exp $
  */
 
 /*
@@ -45,10 +45,12 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
+
+#include "opt_bootp.h"
 #include "opt_cd9660.h"
 #include "opt_ffs.h"
-#include "opt_nfs.h"
 #include "opt_mfs.h"
+#include "opt_nfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
