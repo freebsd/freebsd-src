@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.38 1995/04/14 15:10:24 dufault Exp $
+ *      $Id: cd.c,v 1.39 1995/04/23 22:07:48 gibbs Exp $
  */
 
 #define SPLCD splbio
@@ -57,6 +57,9 @@ static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_
 static errval cd_getdisklabel __P((u_int8));
 
 int32   cdstrats, cdqueues;
+
+#define CDUNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
+#define CDSETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
 
 #define PAGESIZ 	4096
 #define SECSIZE 2048	/* XXX */	/* default only */
@@ -872,7 +875,7 @@ struct scsi_link *sc_link)
 		return (cd_reset(unit));
 		break;
 	default:
-		if(part == RAW_PART || SCSI_SUPER(dev))
+		if(part == RAW_PART)
 			error = scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link);
 		else
 			error = ENOTTY;

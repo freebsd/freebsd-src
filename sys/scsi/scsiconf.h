@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.23 1995/04/23 07:47:12 bde Exp $
+ *	$Id: scsiconf.h,v 1.24 1995/04/23 22:07:51 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -30,46 +30,6 @@ typedef	unsigned char 		u_int8;
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_driver.h>
-
-/* Minor number fields:
- *
- * NON-FIXED SCSI devices:
- *
- * ???? ???? ???? ???N MMMMMMMM mmmmmmmm
- *
- * ?: Don't know; those bits didn't use to exist, currently always 0.
- * N: New style device: must be zero.
- * M: Major device number.
- * m: old style minor device number.
- *
- * FIXED SCSI devices:
- *
- * ???? SBBB LLLI IIIN MMMMMMMM mmmmmmmm
- *
- * ?: Not used yet.
- * S: "Super" device; reserved for things like resetting the SCSI bus.
- * B: Scsi bus
- * L: Logical unit
- * I: Scsi target  (XXX: Why 16?  Why that many in scsiconf.h?)
- * N: New style device; must be one.
- * M: Major device number
- * m: Old style minor device number.
- */
-
-#define SCSI_SUPER(DEV)    (((DEV) & 0x08000000) >> 27)
-#define SCSI_MKSUPER(DEV)    ((DEV) | 0x08000000)
-
-#define SCSI_BUS(DEV)      (((DEV) & 0x07000000) >> 24)
-#define SCSI_LUN(DEV)      (((DEV) & 0x00E00000) >> 21)
-#define SCSI_ID(DEV)       (((DEV) & 0x001E0000) >> 17)
-#define SCSI_FIXED(DEV)      (((DEV) & 0x00010000) >> 16)
-
-
-#define SCSI_MKDEV(B, L, I) ( \
-         ((B) << 24) | \
-         ((L) << 21) | \
-         ((I) << 17) | \
-         ( 1  << 16) )
 
 /*
  * The following documentation tries to describe the relationship between the
@@ -143,11 +103,11 @@ struct scsi_adapter
  * driver has its own definition for it.
  */
 struct scsi_data;
-
 struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
 struct scsi_xfer;
 
 struct proc;
+struct buf;
 
 /*
  * These entry points are called by the low-end drivers to get services from
@@ -162,21 +122,21 @@ struct proc;
 
 struct scsi_device
 {
-/*  4*/	errval	(*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
-											* err processing complete */
-/*	8*/	void	(*start)(u_int32 unit, u_int32 flags);
+/*  4*/	errval (*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
+							 * err processing complete */
+/*  8*/	void	(*start)(u_int32 unit, u_int32 flags);
 /* 12*/	int32	(*async)();
 /* 16*/	int32	(*done)();	/* returns -1 to say done processing complete */
 /* 20*/	char	*name;		/* name of device type */
 /* 24*/	u_int32 flags;		/* device type dependent flags */
 /* 32*/	int32	spare[2];
 
-/* 36*/ int32	link_flags;		/* Flags OR'd into sc_link at attach time */
+/* 36*/ int32	link_flags;	/* Flags OR'd into sc_link at attach time */
 /* 40*/ errval  (*attach)(struct scsi_link *sc_link);
 /* 44*/ char	*desc;		/* Description of device */
 /* 48*/ int (*open)(dev_t dev, int flags, int fmt, struct proc *p);
 /* 52*/ int sizeof_scsi_data;
-/* 56*/ int type;					/* Type of device this supports */
+/* 56*/ int type;		/* Type of device this supports */
 /* 60*/ int	(*getunit)(dev_t dev);
 /* 64*/ dev_t  (*setunit)(dev_t dev, int unit);
 
@@ -209,32 +169,26 @@ struct scsi_device
 /* SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
  * name.
  */
-#define SCSI_DEVICE_ENTRIES(NAME)	\
-errval NAME##attach(struct scsi_link *sc_link);	\
-extern struct scsi_device NAME##_switch;	\
-void NAME##init(void)	\
-{	\
-	scsi_device_register(&NAME##_switch);	\
-}	\
-int NAME##open(dev_t dev, int flags, int fmt, struct proc *p)	\
-{	\
-	return scsi_open(dev, flags, fmt, p, &NAME##_switch);	\
-}	\
-int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) \
-{	\
-	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch);	\
-}	\
-int NAME##close(dev_t dev, int flag, int fmt, struct proc *p)	\
-{	\
-	return scsi_close(dev, flag, fmt, p, &NAME##_switch);	\
-}	\
-void NAME##minphys(struct buf *bp)	\
-{	\
-	scsi_minphys(bp, &NAME##_switch);	\
+#define SCSI_DEVICE_ENTRIES(NAME) \
+errval NAME##attach(struct scsi_link *sc_link); \
+extern struct scsi_device NAME##_switch; \
+void NAME##init(void) { \
+	scsi_device_register(&NAME##_switch); \
 } \
-void NAME##strategy(struct buf *bp)	\
-{	\
-	scsi_strategy(bp, &NAME##_switch);	\
+int NAME##open(dev_t dev, int flags, int fmt, struct proc *p) { \
+	return scsi_open(dev, flags, fmt, p, &NAME##_switch); \
+} \
+int NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p) { \
+	return scsi_ioctl(dev, cmd, addr, flag, p, &NAME##_switch); \
+} \
+int NAME##close(dev_t dev, int flag, int fmt, struct proc *p) { \
+	return scsi_close(dev, flag, fmt, p, &NAME##_switch); \
+} \
+void NAME##minphys(struct buf *bp) { \
+	scsi_minphys(bp, &NAME##_switch); \
+}  \
+void NAME##strategy(struct buf *bp) { \
+	scsi_strategy(bp, &NAME##_switch); \
 }
 
 #ifdef KERNEL
@@ -348,6 +302,11 @@ struct scsi_link
  * adapter driver.
  * XXX-HA And I added the "supports residuals properly" flag that ALSO goes
  * in an adapter structure.  I figure I'll fix both at once.
+ *
+ * XXX SDEV_OPEN is used for two things: To prevent more than one
+ * open and to make unit attentions errors be logged on the console.
+ * These should be split up; I'm adding SDEV_IS_OPEN to enforce one
+ * open only.
  */
 
 #define	SDEV_MEDIA_LOADED 	0x0001	/* device figures are still valid */
@@ -359,6 +318,7 @@ struct scsi_link
 #define SDEV_BOOTVERBOSE	0x0200	/* be noisy during boot */
 #define SDEV_RESIDS_WORK	0x0400	/* XXX-HA: Residuals work */
 #define SDEV_TARGET_OPS 	0x0800	/* XXX-HA: Supports target ops  */
+#define	SDEV_IS_OPEN 		0x1000	/* at least 1 open session */
 
 /*
  * One of these is allocated and filled in for each scsi bus.
@@ -448,8 +408,6 @@ struct scsi_xfer
 
 #ifdef KERNEL
 void *extend_get(struct extend_array *ea, int index);
-char * scsi_type_long_name(int type);
-char * scsi_type_name(int type);
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
 struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
 void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
@@ -516,6 +474,10 @@ void scsi_configure_finish __P((void));
 #define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
 
 #ifdef NEW_SCSICONF
+
+/* XXX This belongs in a tape file.
+ */
+
 /**********************************************************************
 			from the scsi2 spec
                 Value Tracks Density(bpi) Code Type  Reference     Note
@@ -578,43 +540,52 @@ void scsi_configure_finish __P((void));
 #define DAT_1		0x13
 #endif /* NEW_SCSICONF */
 
-/* Macros for getting and setting the unit numbers in the original
- * (not fixed device name) device numbers.
+/* XXX (dufault@hda.com) This is used only by "su" and "sctarg".
+ * The minor number field conflicts with the disk slice code,
+ * and so it is tough to access the disks through the "su" device.
  */
-#define SH0_UNIT(DEV)      (minor(DEV)&0xFF)           /* 8 bit unit */
-#define SH0SETUNIT(DEV, U) makedev(major(DEV), (U))
 
-#define SH3_UNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
-#define SH3SETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
-
-#define SH4_UNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
-#define SH4SETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
-
-#define CDUNITSHIFT          3
-#define CDUNIT(DEV)         SH3_UNIT(DEV)
-#define CDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
-
-#define CHUNIT(DEV)         SH4_UNIT(DEV)
-#define CHSETUNIT(DEV, U)   SH4SETUNIT((DEV), (U))
-
-#define STUNIT(DEV)         SH4_UNIT(DEV)
-#define STSETUNIT(DEV, U)   SH4SETUNIT((DEV), (U))
-
-#define UKUNIT(DEV)         SH0_UNIT(DEV)
-#define UKSETUNIT(DEV, U)   SH0SETUNIT((DEV), (U))
-
-/* Build an old style device number (unit encoded in the minor number)
- * from a base old one (no flag bits) and a full new one
- * (BUS, LUN, TARG in the minor number, and flag bits).
+/* Device number fields:
  *
- * OLDDEV has the major number and device unit only.  It was constructed
- * at attach time and is stored in the scsi_link structure.
+ * NON-FIXED SCSI devices:
  *
- * NEWDEV can have whatever in it, but only the old control flags and the
- * super bit are present.  IT CAN'T HAVE ANY UNIT INFORMATION or you'll
- * wind up with the wrong unit.
+ * ?FC? ???? ???? ???? MMMMMMMM mmmmmmmm
+ *
+ * F: Fixed device (nexus in number): must be 0.
+ * C: Control device; only user mode ioctl is supported.
+ * ?: Don't know; those bits didn't use to exist, currently always 0.
+ * M: Major device number.
+ * m: Old style minor device number.
+ *
+ * FIXED SCSI devices:
+ *
+ * XXX Conflicts with the slice code.  Maybe the slice code can be
+ * changed to respect the F bit?
+ *
+ * ?FC? ?BBB TTTT ?LLL MMMMMMMM mmmmmmmm
+ *
+ * F: Fixed device (nexus in number); must be 1.
+ * C: Control device; only user mode ioctl is supported.
+ * B: SCSI bus
+ * T: SCSI target ID
+ * L: Logical unit
+ * M: Major device number
+ * m: Old style minor device number.
  */
-#define OLD_DEV(NEWDEV, OLDDEV) ((OLDDEV) | ((NEWDEV) & 0x080000FF))
+
+#define SCSI_FIXED(DEV)    (((DEV) & SCSI_FIXED_MASK))
+#define SCSI_FIXED_MASK              0x40000000
+#define SCSI_CONTROL(DEV)  (((DEV) & 0x20000000))
+
+#define SCSI_BUS(DEV)      (((DEV) & 0x07000000) >> 24)
+#define SCSI_ID(DEV)       (((DEV) & 0x00F00000) >> 20)
+#define SCSI_LUN(DEV)      (((DEV) & 0x00070000) >> 16)
+
+#define SCSI_MKFIXED(B, T, L) ( \
+         ((B) << 24) | \
+         ((T) << 20) | \
+         ((L) << 16) | \
+         SCSI_FIXED_MASK )
 
 #endif /*SCSI_SCSICONF_H*/
 /* END OF FILE */

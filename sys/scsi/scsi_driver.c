@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.7 1995/03/21 11:21:02 dufault Exp $
+ * $Id: scsi_driver.c,v 1.8 1995/04/14 15:10:33 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -45,6 +45,7 @@
 #include <sys/buf.h>
 #include <sys/devconf.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 
 #include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
@@ -75,9 +76,8 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	dev_t dev;
 	struct scsi_device *device = sc_link->device;
 
-	if (bootverbose) {
+	if (bootverbose)
 		sc_link->flags |= SDEV_BOOTVERBOSE;
-	}
 
 	SC_DEBUG(sc_link, SDEV_DB2,
 	("%s%dattach: ", device->name, sc_link->dev_unit));
@@ -122,20 +122,20 @@ struct scsi_device *device)
 	if (sc_link == 0 || sc_link->sd == 0)
 		return ENXIO;
 
-	errcode = (device->dev_open) ? 
-		(*device->dev_open)(dev, flags, fmt, p, sc_link) : 0;
+	/* If it is a "once only" device that is already open return EBUSY.
+	 */
+	if ((sc_link->flags & SDEV_ONCE_ONLY) && (sc_link->flags & SDEV_IS_OPEN))
+		return EBUSY;
 
-	if (errcode == 0 && (sc_link->flags & SDEV_ONCE_ONLY)) {
-		/*
-		 * Only allow one at a time
-		 */
-		if (sc_link->flags & SDEV_OPEN) {
-			errcode = EBUSY;
-		}
-		else {
-			sc_link->flags |= SDEV_OPEN;
-		}
-	}
+	/* For the control device (user ioctl's only) don't call the open
+	 * entry.
+	 */
+	if (SCSI_CONTROL(dev) || (device->dev_open == 0))
+		errcode = 0;
+	else
+		errcode = (*device->dev_open)(dev, flags, fmt, p, sc_link);
+
+	sc_link->flags |= SDEV_IS_OPEN;
 
 	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%lx (unit %ld) result %d\n",
 		device->name, dev, unit, errcode));
@@ -143,38 +143,36 @@ struct scsi_device *device)
 	return errcode;
 }
 
-/*
- * close the device.. only called if we are the LAST
- * occurence of an open device
- */
 int 
 scsi_close(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_device *device)
 {
 	errval errcode;
-	struct scsi_link *scsi_link = SCSI_LINK(device, GETUNIT(device, dev));
+	struct scsi_link *sc_link = SCSI_LINK(device, GETUNIT(device, dev));
 
-	SC_DEBUG(scsi_link, SDEV_DB1, ("%sclose:  Closing device\n", device->name));
+	SC_DEBUG(sc_link, SDEV_DB1, ("%sclose:  Closing device\n", device->name));
 
-	errcode = (device->dev_close) ?
-		(*device->dev_close)(dev, flags, fmt, p, scsi_link) : 0;
+	if (SCSI_CONTROL(dev) || (device->dev_close == 0))
+		errcode = 0;
+	else
+		errcode = (*device->dev_close)(dev, flags, fmt, p, sc_link);
 
-	if (scsi_link->flags & SDEV_ONCE_ONLY)
-		scsi_link->flags &= ~SDEV_OPEN;
+	sc_link->flags &= ~SDEV_IS_OPEN;
 
 	return errcode;
 }
 
 int 
-scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int mode, struct proc *p,
+scsi_ioctl(dev_t dev, u_int32 cmd, caddr_t arg, int flags, struct proc *p,
 struct scsi_device *device)
 {
 	errval errcode;
-	struct scsi_link *scsi_link = SCSI_LINK(device, GETUNIT(device, dev));
+	struct scsi_link *sc_link = SCSI_LINK(device, GETUNIT(device, dev));
 
-	errcode = (device->dev_ioctl) ?
-		(*device->dev_ioctl)(dev, cmd, arg, mode, p, scsi_link)
-		: scsi_do_ioctl(dev, cmd, arg, mode, p, scsi_link);
+	if (SCSI_CONTROL(dev) || (device->dev_ioctl == 0))
+		errcode = scsi_do_ioctl(dev, cmd, arg, flags, p, sc_link);
+	else
+		errcode = (*device->dev_ioctl)(dev, cmd, arg, flags, p, sc_link);
 
 	return errcode;
 }
@@ -196,16 +194,24 @@ scsi_strategy(struct buf *bp, struct scsi_device *device)
 	SC_DEBUG(sc_link, SDEV_DB1, ("%ld bytes @ blk%ld\n",
 		bp->b_bcount, bp->b_blkno));
 
-	bp->b_resid = 0;
-	bp->b_error = 0;
-
-	if (bp->b_bcount == 0)
+	if (SCSI_CONTROL(bp->b_dev) || (device->dev_strategy == 0))
 	{
+		bp->b_resid = bp->b_bcount;
+		bp->b_error = EIO;
+		bp->b_flags |= B_ERROR;
 		biodone(bp);
 	}
-	else if (device->dev_strategy)
+	else
 	{
-		(*sc_link->adapter->scsi_minphys)(bp);
-		(*device->dev_strategy)(bp, sc_link);
+		bp->b_resid = 0;
+		bp->b_error = 0;
+
+		if (bp->b_bcount == 0)
+			biodone(bp);
+		else
+		{
+			(*sc_link->adapter->scsi_minphys)(bp);
+			(*device->dev_strategy)(bp, sc_link);
+		}
 	}
 }

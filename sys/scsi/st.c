@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.33 1995/04/23 22:07:54 gibbs Exp $
+ * $Id: st.c,v 1.34 1995/04/29 21:30:29 joerg Exp $
  */
 
 /*
@@ -53,11 +53,14 @@ u_int32 ststrats, stqueues;
 #define DEF_FIXED_BSIZE  512
 #define	ST_RETRIES	4	/* only on non IO commands */
 
+#define STUNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
+#define STSETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
+
 #define MODE(z)		(  (minor(z)       & 0x03) )
 #define DSTY(z)         ( ((minor(z) >> 2) & 0x03) )
 #define CTLMODE	3
 
-#define IS_CTLMODE(DEV) (MODE(DEV) == CTLMODE || SCSI_SUPER(DEV))
+#define IS_CTLMODE(DEV) (MODE(DEV) == CTLMODE)
 
 #define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
 					 * in SCSI II spec. */
