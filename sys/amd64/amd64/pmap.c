@@ -1880,7 +1880,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pte == NULL)
 		panic("pmap_enter: invalid page directory va=%#lx\n", va);
 
-	pa = VM_PAGE_TO_PHYS(m) & PG_FRAME;
+	pa = VM_PAGE_TO_PHYS(m);
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
