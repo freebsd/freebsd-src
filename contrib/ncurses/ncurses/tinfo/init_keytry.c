@@ -32,7 +32,7 @@
 			/* cursor_visible,cursor_normal,cursor_invisible */
 #include <tic.h>	/* struct tinfo_fkeys */
 
-MODULE_ID("$Id: init_keytry.c,v 1.2 1999/09/11 17:32:57 Jeffrey.Honig Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.3 2000/03/12 02:55:50 Todd.C.Miller Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -41,7 +41,7 @@ MODULE_ID("$Id: init_keytry.c,v 1.2 1999/09/11 17:32:57 Jeffrey.Honig Exp $")
 **
 */
 
-#ifdef	BROKEN_LINKER
+#if	BROKEN_LINKER
 #undef	_nc_tinfo_fkeys
 #endif
 
@@ -51,7 +51,7 @@ MODULE_ID("$Id: init_keytry.c,v 1.2 1999/09/11 17:32:57 Jeffrey.Honig Exp $")
 /* LINT_PREPRO
 #endif*/
 
-#ifdef	BROKEN_LINKER
+#if	BROKEN_LINKER
 struct tinfo_fkeys *_nc_tinfo_fkeysf(void)
 {
 	return _nc_tinfo_fkeys;

@@ -36,15 +36,18 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_replace.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
+MODULE_ID("$Id: p_replace.c,v 1.5 1999/11/25 13:49:26 juergen Exp $")
 
 int
 replace_panel(PANEL *pan, WINDOW *win)
 {
   if(!pan)
     return(ERR);
-  if(_nc_panel_is_linked(pan))
-    PANEL_UPDATE(pan,(PANEL*)0);
+
+  if (IS_LINKED(pan))
+    PANEL_UPDATE(pan,(PANEL*)0, TRUE);
+  
   pan->win = win;
+
   return(OK);
 }

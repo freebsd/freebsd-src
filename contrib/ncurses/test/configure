@@ -1458,21 +1458,22 @@ done
 
 
 for ac_func in \
-curses_version \
 gettimeofday \
 napms \
 resizeterm \
 strdup \
+use_default_colors \
 vsscanf \
+wresize \
 
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1471: checking for $ac_func" >&5
+echo "configure:1472: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1476 "configure"
+#line 1477 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1495,7 +1496,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1499: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1500: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1520,14 +1521,59 @@ fi
 done
 
 
+echo $ac_n "checking for function curses_version""... $ac_c" 1>&6
+echo "configure:1526: checking for function curses_version" >&5
+if eval "test \"`echo '$''{'cf_cv_func_curses_version'+set}'`\" = set"; then
+  echo $ac_n "(cached) $ac_c" 1>&6
+else
+  
+if test "$cross_compiling" = yes; then
+  cf_cv_func_curses_version=unknown
+else
+  cat > conftest.$ac_ext <<EOF
+#line 1535 "configure"
+#include "confdefs.h"
+
+#include <curses.h>
+int main()
+{
+	char temp[1024];
+	sprintf(temp, "%s\n", curses_version());
+	exit(0);
+}
+
+EOF
+if { (eval echo configure:1547: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+then
+  cf_cv_func_curses_version=yes
+
+else
+  echo "configure: failed program was:" >&5
+  cat conftest.$ac_ext >&5
+  rm -fr conftest*
+  cf_cv_func_curses_version=no
+
+fi
+rm -fr conftest*
+fi
+
+rm -f core
+fi
+
+echo "$ac_t""$cf_cv_func_curses_version" 1>&6
+test "$cf_cv_func_curses_version" = yes && cat >> confdefs.h <<\EOF
+#define HAVE_CURSES_VERSION 1
+EOF
+
+
 echo $ac_n "checking if sys/time.h conflicts with sys/select.h""... $ac_c" 1>&6
-echo "configure:1525: checking if sys/time.h conflicts with sys/select.h" >&5
+echo "configure:1571: checking if sys/time.h conflicts with sys/select.h" >&5
 if eval "test \"`echo '$''{'cf_cv_sys_time_select'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   
 cat > conftest.$ac_ext <<EOF
-#line 1531 "configure"
+#line 1577 "configure"
 #include "confdefs.h"
 
 #if HAVE_SYS_TIME_H
@@ -1541,7 +1587,7 @@ int main() {
 
 ; return 0; }
 EOF
-if { (eval echo configure:1545: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1591: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   cf_cv_sys_time_select=yes
 else

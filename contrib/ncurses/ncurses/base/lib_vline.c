@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
 **	lib_vline.c
 **
@@ -42,36 +40,37 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline.c,v 1.4 1998/06/28 00:10:12 tom Exp $")
+MODULE_ID("$Id: lib_vline.c,v 1.5 2000/04/29 21:14:11 tom Exp $")
 
-int wvline(WINDOW *win, chtype ch, int n)
+int
+wvline(WINDOW *win, chtype ch, int n)
 {
-int   code = ERR;
-short row, col;
-short end;
+    int code = ERR;
+    NCURSES_SIZE_T row, col;
+    NCURSES_SIZE_T end;
 
-	T((T_CALLED("wvline(%p,%s,%d)"), win, _tracechtype(ch), n));
+    T((T_CALLED("wvline(%p,%s,%d)"), win, _tracechtype(ch), n));
 
-	if (win) {
-		row = win->_cury;
-		col = win->_curx;
-		end = row + n - 1;
-		if (end > win->_maxy)
-			end = win->_maxy;
+    if (win) {
+	row = win->_cury;
+	col = win->_curx;
+	end = row + n - 1;
+	if (end > win->_maxy)
+	    end = win->_maxy;
 
-		if (ch == 0)
-			ch = ACS_VLINE;
-		ch = _nc_render(win, ch);
+	if (ch == 0)
+	    ch = ACS_VLINE;
+	ch = _nc_render(win, ch);
 
-		while(end >= row) {
-			struct ldat *line = &(win->_line[end]);
-			line->text[col] = ch;
-			CHANGED_CELL(line, col);
-			end--;
-		}
-
-		_nc_synchook(win);
-		code = OK;
+	while (end >= row) {
+	    struct ldat *line = &(win->_line[end]);
+	    line->text[col] = ch;
+	    CHANGED_CELL(line, col);
+	    end--;
 	}
-	returnCode(code);
+
+	_nc_synchook(win);
+	code = OK;
+    }
+    returnCode(code);
 }

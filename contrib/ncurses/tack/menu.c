@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: menu.c,v 1.1 1998/01/10 00:29:30 tom Exp $")
+MODULE_ID("$Id: menu.c,v 1.2 2000/03/04 21:13:53 tom Exp $")
 
 /*
    Menu control
@@ -85,7 +85,7 @@ menu_test_loop(
 		}
 		nch = 0;
 		if (test->test_procedure) {
-			/* The procedure takes precidence so I can pass
+			/* The procedure takes precedence so I can pass
 			   the menu entry as an argument.
 			*/
 			can_test(test->caps_done, FLAG_TESTED);
@@ -340,7 +340,7 @@ subtest_menu(
 /*
 **	menu_can_scan(menu-structure)
 **
-**	Recursivly scan the menu tree and find which cap names can be tested.
+**	Recursively scan the menu tree and find which cap names can be tested.
 */
 void
 menu_can_scan(
@@ -362,7 +362,7 @@ menu_can_scan(
 /*
 **	menu_search(menu-structure, cap)
 **
-**	Recursivly search the menu tree and execute any tests that use cap.
+**	Recursively search the menu tree and execute any tests that use cap.
 */
 static void
 menu_search(

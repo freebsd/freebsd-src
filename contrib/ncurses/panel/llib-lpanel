@@ -35,30 +35,6 @@
 
 #include "panel.priv.h"
 
-#undef _nc_free_obscure
-void	_nc_free_obscure(
-		PANEL	*pan)
-		{ /* void */ }
-
-#undef _nc_override
-void	_nc_override(
-		const PANEL *pan, 
-		int	show)
-		{ /* void */ }
-
-#undef _nc_calculate_obscure
-void	_nc_calculate_obscure(void)
-		{ /* void */ }
-
-#undef _nc_panel_is_linked
-bool	_nc_panel_is_linked(
-		const PANEL *pan)
-		{ return(*(bool *)0); }
-
-#undef _nc_panel_link_bottom
-void	_nc_panel_link_bottom(
-		PANEL	*pan)
-		{ /* void */ }
 
 /* ./p_above.c */
 

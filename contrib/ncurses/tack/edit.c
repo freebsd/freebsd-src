@@ -23,7 +23,7 @@
 #include <time.h>
 #include <tic.h>
 
-MODULE_ID("$Id: edit.c,v 1.3 1999/06/16 00:43:43 tom Exp $")
+MODULE_ID("$Id: edit.c,v 1.5 2000/03/25 17:26:12 tom Exp $")
 
 /*
  * Terminfo edit features
@@ -81,7 +81,7 @@ static int display_lines;		/* number of lines displayed */
 /*
 **	send_info_string(str)
 **
-**	Return the terminfo string prefixed by the correct seperator
+**	Return the terminfo string prefixed by the correct separator
 */
 static void
 send_info_string(
@@ -170,7 +170,7 @@ show_info(
 /*
 **	save_info_string(str, fp)
 **
-**	Write the terminfo string prefixed by the correct seperator
+**	Write the terminfo string prefixed by the correct separator
 */
 static void
 save_info_string(
@@ -341,7 +341,7 @@ show_value(
 	switch (nt->nte_type) {
 	case STRING:
 		_nc_reset_input((FILE *) 0, buf);
-		_nc_trans_string(tmp);
+		_nc_trans_string(tmp, tmp + sizeof(tmp));
 		s = (char *)malloc(strlen(tmp) + 1);
 		strcpy(s, tmp);
 		CUR Strings[nt->nte_index] = s;
@@ -556,7 +556,7 @@ mark_cap(
 **
 **	Scan the name list and get the names.
 **	Enter each name into the can-test data base.
-**	<space> ( and ) may be used as seperators.
+**	<space> ( and ) may be used as separators.
 */
 void
 can_test(
@@ -588,7 +588,7 @@ can_test(
 **	cap_index(name-list, index-list)
 **
 **	Scan the name list and return a list of indexes.
-**	<space> ( and ) may be used as seperators.
+**	<space> ( and ) may be used as separators.
 **	This list is terminated with -1.
 */
 void
@@ -629,7 +629,7 @@ cap_index(
 **
 **	Scan the name list and see if the cap is in the list.
 **	Return TRUE if we find an exact match.
-**	<space> ( and ) may be used as seperators.
+**	<space> ( and ) may be used as separators.
 */
 int
 cap_match(
@@ -863,7 +863,7 @@ change_one_entry(
 		ptextln("That string is not currently defined.  Please enter a new value, including the padding delay:");
 		read_string(buf, sizeof(buf));
 		_nc_reset_input((FILE *) 0, buf);
-		_nc_trans_string(pad);
+		_nc_trans_string(pad, pad + sizeof(pad));
 		t = (char *)malloc(strlen(pad) + 1);
 		strcpy(t, pad);
 		CUR Strings[x] = t;

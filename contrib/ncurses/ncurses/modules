@@ -1,6 +1,6 @@
-# $Id: modules,v 1.70 1999/10/23 12:39:12 tom Exp $
+# $Id: modules,v 1.72 2000/02/13 01:03:28 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998
+# Author: Thomas E. Dickey <dickey@clark.net> 1996-1998
 #
 
 @ base
@@ -165,7 +165,7 @@ lib_napms	lib		$(tinfo)
 lib_options	lib		$(tinfo)	../include/term.h
 lib_raw 	lib		$(tinfo)	../include/term.h
 lib_setup	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h
-lib_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
+lib_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h $(INCDIR)/capdefaults.c
 lib_termname	lib		$(tinfo)	$(INCDIR)/tic.h
 lib_ti		lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 lib_tparm	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
@@ -177,7 +177,7 @@ lib_ttyflags	lib		$(tinfo)	../include/term.h
 lib_twait	lib		$(serial)
 name_match	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 names		lib		.
-parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h ../include/parametrized.h
+parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h ../include/parametrized.h $(INCDIR)/capdefaults.c
 read_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 read_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 setbuf		lib		$(tinfo)

@@ -1,4 +1,4 @@
-# $Id: mk-1st.awk,v 1.39 1998/05/09 21:54:02 tom Exp $
+# $Id: mk-1st.awk,v 1.40 2000/04/01 20:50:29 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -114,7 +114,14 @@ BEGIN	{
 			}
 		}
 	}
-	!/^[@#]/ {
+	/^[@#]/ {
+		next
+	}
+	$1 ~ /trace/ {
+		if (traces != "all" && traces != MODEL && $1 != "lib_trace")
+			next
+	}
+	{
 		if (using \
 		 && ( $2 == "lib" \
 		   || $2 == "progs" \

@@ -36,61 +36,22 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hide.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
-
-/*+-------------------------------------------------------------------------
-	__panel_unlink(pan) - unlink panel from stack
---------------------------------------------------------------------------*/
-static void
-__panel_unlink(PANEL *pan)
-{
-  PANEL *prev;
-  PANEL *next;
-
-#ifdef TRACE
-  dStack("<u%d>",1,pan);
-  if(!_nc_panel_is_linked(pan))
-    return;
-#endif
-
-  PANEL_UPDATE(pan,(PANEL*)0);
-
-  prev = pan->below;
-  next = pan->above;
-
-  if(prev)
-    { /* if non-zero, we will not update the list head */
-      prev->above = next;
-      if(next)
-	next->below = prev;
-    }
-  else if(next)
-    next->below = prev;
-  if(pan == _nc_bottom_panel)
-    _nc_bottom_panel = next;
-  if(pan == _nc_top_panel)
-    _nc_top_panel = prev;
-
-  pan->above = (PANEL *)0;
-  pan->below = (PANEL *)0;
-  dStack("<u%d>",9,pan);
-}
+MODULE_ID("$Id: p_hide.c,v 1.5 1999/11/25 13:49:26 juergen Exp $")
 
 int
 hide_panel(register PANEL *pan)
 {
+  int err = OK;
+
   if(!pan)
     return(ERR);
 
   dBug(("--> hide_panel %s", USER_PTR(pan->user)));
+  dStack("<u%d>",1,pan);
 
-  if(!_nc_panel_is_linked(pan))
-    {
-      pan->above = (PANEL *)0;
-      pan->below = (PANEL *)0;
-      return(ERR);
-    }
+  HIDE_PANEL(pan,err,TRUE);
 
-  __panel_unlink(pan);
-  return(OK);
+  dStack("<u%d>",9,pan);
+
+  return(err);
 }
