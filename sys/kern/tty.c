@@ -731,6 +731,7 @@ ttioctl(tp, cmd, data, flag)
 {
 	register struct proc *p;
 	struct thread *td;
+	struct pgrp *pgrp;
 	int s, error;
 
 	td = curthread;			/* XXX */
@@ -770,30 +771,30 @@ ttioctl(tp, cmd, data, flag)
 	case  TIOCSETP:
 	case  TIOCSLTC:
 #endif
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		while (isbackground(p, tp) && !(p->p_flag & P_PPWAIT) &&
 		    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
 		    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
-			if (p->p_pgrp->pg_jobc == 0) {
-				PROC_UNLOCK(p);
-				PGRPSESS_SUNLOCK();
+			pgrp = p->p_pgrp;
+			PROC_UNLOCK(p);
+			if (pgrp->pg_jobc == 0) {
+				sx_sunlock(&proctree_lock);
 				return (EIO);
 			}
-			PROC_UNLOCK(p);
-			PGRP_LOCK(p->p_pgrp);
-			PGRPSESS_SUNLOCK();
-			pgsignal(p->p_pgrp, SIGTTOU, 1);
-			PGRP_UNLOCK(p->p_pgrp);
+			PGRP_LOCK(pgrp);
+			sx_sunlock(&proctree_lock);
+			pgsignal(pgrp, SIGTTOU, 1);
+			PGRP_UNLOCK(pgrp);
 			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
 					 0);
 			if (error)
 				return (error);
-			PGRPSESS_SLOCK();
+			sx_slock(&proctree_lock);
 			PROC_LOCK(p);
 		}
 		PROC_UNLOCK(p);
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		break;
 	}
 
@@ -1053,11 +1054,11 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	case TIOCSCTTY:			/* become controlling tty */
 		/* Session ctty vnode pointer set in vnode layer. */
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		if (!SESS_LEADER(p) ||
 		    ((p->p_session->s_ttyvp || tp->t_session) &&
 		     (tp->t_session != p->p_session))) {
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			return (EPERM);
 		}
 		tp->t_session = p->p_session;
@@ -1068,29 +1069,27 @@ ttioctl(tp, cmd, data, flag)
 		PROC_LOCK(p);
 		p->p_flag |= P_CONTROLT;
 		PROC_UNLOCK(p);
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		break;
 	case TIOCSPGRP: {		/* set pgrp of tty */
-		register struct pgrp *pgrp;
-
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		pgrp = pgfind(*(int *)data);
 		if (!isctty(p, tp)) {
 			if (pgrp != NULL)
 				PGRP_UNLOCK(pgrp);
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			return (ENOTTY);
 		}
 		if (pgrp == NULL) {
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			return (EPERM);
 		}
 		PGRP_UNLOCK(pgrp);
 		if (pgrp->pg_session != p->p_session) {
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			return (EPERM);
 		}
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		tp->t_pgrp = pgrp;
 		break;
 	}
@@ -1527,7 +1526,7 @@ ttymodem(tp, flag)
 			SET(tp->t_state, TS_ZOMBIE);
 			CLR(tp->t_state, TS_CONNECTED);
 			if (tp->t_session) {
-				PGRPSESS_SLOCK();
+				sx_slock(&proctree_lock);
 				if (tp->t_session->s_leader) {
 					struct proc *p;
 
@@ -1536,7 +1535,7 @@ ttymodem(tp, flag)
 					psignal(p, SIGHUP);
 					PROC_UNLOCK(p);
 				}
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 			}
 			ttyflush(tp, FREAD | FWRITE);
 			return (0);
@@ -1601,6 +1600,7 @@ ttread(tp, uio, flag)
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
 	struct timeval stime;
+	struct pgrp *pg;
 
 loop:
 	s = spltty();
@@ -1620,20 +1620,21 @@ loop:
 	 */
 	if (isbackground(p, tp)) {
 		splx(s);
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
 		    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
 		    (p->p_flag & P_PPWAIT) || p->p_pgrp->pg_jobc == 0) {
 			PROC_UNLOCK(p);
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			return (EIO);
 		}
+		pg = p->p_pgrp;
 		PROC_UNLOCK(p);
-		PGRP_LOCK(p->p_pgrp);
-		PGRPSESS_SUNLOCK();
-		pgsignal(p->p_pgrp, SIGTTIN, 1);
-		PGRP_UNLOCK(p->p_pgrp);
+		PGRP_LOCK(pg);
+		sx_sunlock(&proctree_lock);
+		pgsignal(pg, SIGTTIN, 1);
+		PGRP_UNLOCK(pg);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg2", 0);
 		if (error)
 			return (error);
@@ -1939,7 +1940,7 @@ loop:
 	 * Hang the process if it's in the background.
 	 */
 	p = curproc;
-	PGRPSESS_SLOCK();
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && !(p->p_flag & P_PPWAIT) &&
@@ -1947,13 +1948,13 @@ loop:
 	    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
 		if (p->p_pgrp->pg_jobc == 0) {
 			PROC_UNLOCK(p);
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 			error = EIO;
 			goto out;
 		}
 		PROC_UNLOCK(p);
 		PGRP_LOCK(p->p_pgrp);
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
 		PGRP_UNLOCK(p->p_pgrp);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg4", 0);
@@ -1962,7 +1963,7 @@ loop:
 		goto loop;
 	} else {
 		PROC_UNLOCK(p);
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 	}
 	/*
 	 * Process the user's data in at most OBUFSIZ chunks.  Perform any
