@@ -100,7 +100,7 @@ void dotrace __P((caddr_t));
 void klseek __P((int, off_t, int));
 int numeric __P((caddr_t *, caddr_t *));
 void tcp_trace __P((short, short, struct tcpcb *, struct tcpcb *,
-			void *, struct tcphdr *, int));
+			int, void *, struct tcphdr *, int));
 static void usage __P((void));
 
 int
@@ -227,7 +227,7 @@ dotrace(tcpcb)
 {
 	register struct tcp_debug *td;
 	register int i;
-	int prev_debx = tcp_debx;
+	int prev_debx = tcp_debx, family;
 
 again:	if (--tcp_debx < 0)
 		tcp_debx = TCP_NDEBUG - 1;
@@ -236,8 +236,27 @@ again:	if (--tcp_debx < 0)
 		if (tcpcb && td->td_tcb != tcpcb)
 			continue;
 		ntime = ntohl(td->td_time);
-		tcp_trace(td->td_act, td->td_ostate, td->td_tcb, &td->td_cb,
-		    td->td_ipgen, &td->td_th, td->td_req);
+#ifdef INET6
+		family = td->td_family;
+#else
+		family = AF_INET;
+#endif
+		switch(family) {
+		case AF_INET:
+			tcp_trace(td->td_act, td->td_ostate,
+				  (struct tcpcb *)td->td_tcb,
+				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
+				  &td->td_ti.ti_t, td->td_req);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			tcp_trace(td->td_act, td->td_ostate,
+				  (struct tcpcb *)td->td_tcb,
+				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
+				  &td->td_ti6.th, td->td_req);
+			break;
+#endif
+		}
 		if (i == tcp_debx)
 			goto done;
 	}
@@ -246,8 +265,27 @@ again:	if (--tcp_debx < 0)
 		if (tcpcb && td->td_tcb != tcpcb)
 			continue;
 		ntime = ntohl(td->td_time);
-		tcp_trace(td->td_act, td->td_ostate, td->td_tcb, &td->td_cb,
-		    td->td_ipgen, &td->td_th, td->td_req);
+#ifdef INET6
+		family = td->td_family;
+#else
+		family = AF_INET;
+#endif
+		switch(family) {
+		case AF_INET:
+			tcp_trace(td->td_act, td->td_ostate,
+				  (struct tcpcb *)td->td_tcb,
+				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
+				  &td->td_ti.ti_t, td->td_req);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			tcp_trace(td->td_act, td->td_ostate,
+				  (struct tcpcb *)td->td_tcb,
+				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
+				  &td->td_ti6.th, td->td_req);
+			break;
+#endif
+		}
 	}
 done:	if (follow) {
 		prev_debx = tcp_debx + 1;
@@ -273,9 +311,10 @@ done:	if (follow) {
  */
 /*ARGSUSED*/
 void
-tcp_trace(act, ostate, atp, tp, ip, th, req)
+tcp_trace(act, ostate, atp, tp, family, ip, th, req)
 	short act, ostate;
 	struct tcpcb *atp, *tp;
+	int family;
 	void *ip;
 	struct tcphdr *th;
 	int req;
@@ -290,12 +329,13 @@ tcp_trace(act, ostate, atp, tp, ip, th, req)
 #endif
 
 #ifdef INET6
-	switch (((struct ip *)ip)->ip_v) {
-	case 4:
+	switch (family) {
+	case AF_INET:
 		nopkt = 0;
+		isipv6 = 0;
 		ip4 = (struct ip *)ip;
 		break;
-	case 6:
+	case AF_INET6:
 		nopkt = 0;
 		isipv6 = 1;
 		ip6 = (struct ip6_hdr *)ip;

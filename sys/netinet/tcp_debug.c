@@ -53,6 +53,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/protosw.h>
+#include <sys/socket.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -96,6 +97,11 @@ tcp_trace(act, ostate, tp, ipgen, th, req)
 #ifdef INET6
 	isipv6 = (ipgen != NULL && ((struct ip *)ipgen)->ip_v == 6) ? 1 : 0;
 #endif /* INET6 */
+	td->td_family =
+#ifdef INET6
+		(isipv6 != 0) ? AF_INET6 :
+#endif
+		AF_INET;
 	if (tcp_debx == TCP_NDEBUG)
 		tcp_debx = 0;
 	td->td_time = iptime();
@@ -106,18 +112,54 @@ tcp_trace(act, ostate, tp, ipgen, th, req)
 		td->td_cb = *tp;
 	else
 		bzero((caddr_t)&td->td_cb, sizeof (*tp));
-	if (ipgen)
-		bcopy((caddr_t)ipgen, td->td_ipgen,
+	if (ipgen) {
+		switch (td->td_family) {
+		case AF_INET:
+			bcopy((caddr_t)ipgen, (caddr_t)&td->td_ti.ti_i,
+			      sizeof(td->td_ti.ti_i));
+			bzero((caddr_t)td->td_ip6buf, sizeof(td->td_ip6buf));
+			break;
 #ifdef INET6
-		      isipv6 ? sizeof(struct ip6_hdr) :
+		case AF_INET6:
+			bcopy((caddr_t)ipgen, (caddr_t)td->td_ip6buf,
+			      sizeof(td->td_ip6buf));
+			bzero((caddr_t)&td->td_ti.ti_i,
+			      sizeof(td->td_ti.ti_i));
+			break;
 #endif
-		      sizeof(struct ip));
-	else
-		bzero((caddr_t)td->td_ipgen, sizeof (td->td_ipgen));
-	if (th)
-		td->td_th = *th;
-	else
-		bzero((caddr_t)&td->td_th, sizeof (td->td_th));
+		default:
+			bzero((caddr_t)td->td_ip6buf, sizeof(td->td_ip6buf));
+			bzero((caddr_t)&td->td_ti.ti_i,
+			      sizeof(td->td_ti.ti_i));
+			break;
+		}
+	} else {
+		bzero((caddr_t)&td->td_ti.ti_i, sizeof(td->td_ti.ti_i));
+		bzero((caddr_t)td->td_ip6buf, sizeof(td->td_ip6buf));
+	}
+	if (th) {
+		switch (td->td_family) {
+		case AF_INET:
+			td->td_ti.ti_t = *th;
+			bzero((caddr_t)&td->td_ti6.th, sizeof(td->td_ti6.th));
+			break;
+#ifdef INET6
+		case AF_INET6:
+			td->td_ti6.th = *th;
+			bzero((caddr_t)&td->td_ti.ti_t,
+			      sizeof(td->td_ti.ti_t));
+			break;
+#endif
+		default:
+			bzero((caddr_t)&td->td_ti.ti_t,
+			      sizeof(td->td_ti.ti_t));
+			bzero((caddr_t)&td->td_ti6.th, sizeof(td->td_ti6.th));
+			break;
+		}
+	} else {
+		bzero((caddr_t)&td->td_ti.ti_t, sizeof(td->td_ti.ti_t));
+		bzero((caddr_t)&td->td_ti6.th, sizeof(td->td_ti6.th));
+	}
 	td->td_req = req;
 #ifdef TCPDEBUG
 	if (tcpconsdebug == 0)
