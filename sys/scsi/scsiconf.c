@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.93 1997/09/17 21:49:06 joerg Exp $
+ *      $Id: scsiconf.c,v 1.94 1997/09/18 00:15:55 msmith Exp $
  */
 
 #include "opt_scsi.h"
@@ -399,6 +399,11 @@ static struct scsidevs knowndevs[] =
 	 */
 	{
 		T_READONLY, T_READONLY, T_REMOV, "NAKAMICH", "MJ-4*" ,"*",
+		"cd", SC_MORE_LUS
+	},
+	/* yet another changer */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "REGAL", "CDC-4*" ,"*",
 		"cd", SC_MORE_LUS
 	},
 #endif /* !UKTEST */
