@@ -244,8 +244,8 @@ atalkprotopr(off, name)
 	}
 }
 
-#define ANY(x,y,z) \
-	((x) ? printf("\t%lu %s%s%s\n",x,y,plural(x),z) : 0)
+#define ANY(x,y,z) if (x || sflag <= 1) \
+	printf("\t%lu %s%s%s\n",x,y,plural(x),z)
 
 /*
  * Dump DDP statistics structure.
