@@ -148,7 +148,6 @@ legacy_attach(device_t dev)
 			device_probe_and_attach(child);
 		}
 
-#ifndef PC98
 	/*
 	 * Second, let our child driver's identify any child devices that
 	 * they can find.  Once that is done attach any devices that we
@@ -157,6 +156,7 @@ legacy_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
+#ifndef PC98
 	/*
 	 * If we didn't see EISA or ISA on a pci bridge, create some
 	 * connection points now so they show up "on motherboard".
