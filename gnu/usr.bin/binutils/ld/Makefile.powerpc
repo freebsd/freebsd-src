@@ -3,6 +3,7 @@
 TARGET_TUPLE?=	powerpc-unknown-freebsd
 
 .if ${TARGET_ARCH} == "powerpc"
+NATIVE_EMULATION=	elf32ppc
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf_powerpc\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
@@ -10,20 +11,20 @@ _powerpc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
 .endif
-EMS+=		ld_elf32ppc_emulation	\
-		ld_ppcmacos_emulation	\
-		ld_ppcnw_emulation	\
-		ld_ppcpe_emulation	\
-		ld_aixrs6_emulation	\
-		ld_rs6000lynx_emulation
-LDSCRIPTS+=	elf32ppc.x		\
-		elf32ppc.xbn		\
-		elf32ppc.xn		\
-		elf32ppc.xr		\
-		elf32ppc.xs		\
-		elf32ppc.xu		\
-		elf32ppc.xc		\
-		elf32ppc.xsc		\
+EMS+=		${NATIVE_EMULATION}	\
+		ppcmacos		\
+		ppcnw			\
+		ppcpe			\
+		aixrs6			\
+		rs6000lynx
+LDSCRIPTS+=	${NATIVE_EMULATION}.x	\
+		${NATIVE_EMULATION}.xbn	\
+		${NATIVE_EMULATION}.xn	\
+		${NATIVE_EMULATION}.xr	\
+		${NATIVE_EMULATION}.xs	\
+		${NATIVE_EMULATION}.xu	\
+		${NATIVE_EMULATION}.xc	\
+		${NATIVE_EMULATION}.xsc	\
 		ppcmacos.x		\
 		ppcmacos.xbn		\
 		ppcmacos.xn		\
@@ -59,24 +60,24 @@ LDSCRIPTS+=	elf32ppc.x		\
 		rs6000lynx.xu		\
 		rs6000lynx.xc		\
 		rs6000lynx.xsc
-SRCS+=		eelf32ppc.c		\
+SRCS+=		e${NATIVE_EMULATION}.c	\
 		eppcmacos.c		\
 		eppcnw.c		\
 		eppcpe.c		\
 		eaixrs6.c		\
 		ers6000lynx.c
-CLEANFILES+=	eelf32ppc.c		\
+CLEANFILES+=	e${NATIVE_EMULATION}.c	\
 		eppcmacos.c		\
 		eppcnw.c		\
 		eppcpe.c		\
 		eaixrs6.c		\
 		ers6000lynx.c
 
-eelf32ppc.c: emulparams/elf32ppc.sh emultempl/elf32.em scripttempl/elfppc.sc \
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elfppc.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    ${_powerpc_path} ${HOST} ${TARGET_TUPLE} \
-	    ${TARGET_TUPLE} elf32ppc "" elf32ppc
+	    ${TARGET_TUPLE} ${NATIVE_EMULATION} "" ${NATIVE_EMULATION}
 
 eppcmacos.c: emulparams/ppcmacos.sh emultempl/aix.em scripttempl/aix.sc \
     genscripts.sh stringify.sed
