@@ -60,6 +60,13 @@ extern int	verbose;
 
 struct inpcb;
 
+extern struct device_selection *dev_select;
+extern int			generation;
+extern int			num_devices;
+extern int			num_selected;
+extern int			num_selections;
+extern int			select_generation;
+
 int	 checkhost __P((struct inpcb *));
 int	 checkport __P((struct inpcb *));
 void	 closeiostat __P((WINDOW *));
