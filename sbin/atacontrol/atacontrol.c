@@ -155,7 +155,7 @@ cap_print(struct ata_params *parm)
 		printf("\n");
 
 	printf("dma%ssupported\n",
-		parm->capabilities1 & ATA_SUPPORT_DMA ? " " : " not");
+		parm->capabilities1 & ATA_SUPPORT_DMA ? " " : " not ");
 
 	printf("overlap%ssupported\n",
 		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
