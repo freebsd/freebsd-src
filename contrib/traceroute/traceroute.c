@@ -1230,7 +1230,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 	}
 	if (type == ICMP_ECHOREPLY
 	    && proto->num == IPPROTO_ICMP
-	    && (*proto->check)((u_char *)icp,seq))
+	    && (*proto->check)((u_char *)icp, (u_char)seq))
 		return -2;
 	if ((type == ICMP_TIMXCEED && code == ICMP_TIMXCEED_INTRANS) ||
 	    type == ICMP_UNREACH) {
@@ -1242,7 +1242,7 @@ packet_ok(register u_char *buf, int cc, register struct sockaddr_in *from,
 		inner = (u_char *)((u_char *)hip + hlen);
 		if (hlen + 12 <= cc
 		    && hip->ip_p == proto->num
-		    && (*proto->check)(inner, seq))
+		    && (*proto->check)(inner, (u_char)seq))
 			return (type == ICMP_TIMXCEED ? -1 : code + 1);
 	}
 #ifndef ARCHAIC
