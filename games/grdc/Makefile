@@ -1,4 +1,4 @@
-#       $Id$
+# $FreeBSD$
 
 PROG=   grdc
 MAN6=   grdc.6

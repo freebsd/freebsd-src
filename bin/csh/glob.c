@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)glob.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: glob.c,v 1.10 1997/08/08 00:54:03 steve Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

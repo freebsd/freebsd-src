@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146.2.6 1999/06/24 09:55:01 sheldonh Exp $
+# $FreeBSD$
 #
 
 /set type=dir uname=root gname=wheel mode=0755

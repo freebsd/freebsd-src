@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 320.whatis,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
+# $FreeBSD$
 #
 
 if [ -x /usr/libexec/makewhatis.local -a -x /usr/bin/manpath ] ; then

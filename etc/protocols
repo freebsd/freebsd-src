@@ -1,7 +1,7 @@
 #
 # Internet protocols
 #
-#	$Id: protocols,v 1.10.2.1 1999/06/06 14:05:20 andreas Exp $
+# $FreeBSD$
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # See also http://www.isi.edu/in-notes/iana/assignments/protocol-numbers

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- *	$Id: pathnames.h,v 1.4 1997/02/22 14:02:05 peter Exp $
+ * $FreeBSD$
  */
 
 #define	_PATH_BIN		"/bin"

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 300.uucp,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
+# $FreeBSD$
 #
 # This is really here for backwards compatibility, clean.weekly is not
 # created by default anymore.

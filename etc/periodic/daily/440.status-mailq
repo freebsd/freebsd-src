@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 440.status-mailq,v 1.2 1998/01/18 22:28:06 wosch Exp $
+# $FreeBSD$
 #
 if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ] ; then
     echo ""

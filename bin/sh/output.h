@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)output.h	8.2 (Berkeley) 5/4/95
- *	$Id: output.h,v 1.6 1997/02/22 13:58:41 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef OUTPUT_INCL

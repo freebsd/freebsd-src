@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.alpha,v 1.2 1998/08/31 08:57:56 dfr Exp $
+# $FreeBSD$
 #	Do alpha specific processing
 #
 

@@ -3,7 +3,7 @@
 
 # ATM networking startup script
 #
-#	$Id$
+# $FreeBSD$
 
 #
 # Initial interface configuration.

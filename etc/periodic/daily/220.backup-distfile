@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 220.backup-distfile,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $FreeBSD$
 #
 bak=/var/backups
 

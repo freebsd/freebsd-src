@@ -30,7 +30,7 @@
 static char * const rcsid = "@(#)io.c,v 1.1 1994/02/01 00:34:41 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: io.c,v 1.8 1997/02/22 14:03:16 peter Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

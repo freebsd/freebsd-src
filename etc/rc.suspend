@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: rc.suspend,v 1.1 1999/07/10 18:02:18 iwasaki Exp $
+# $FreeBSD$
 #
 # sample run command file for APM Suspend Event
 

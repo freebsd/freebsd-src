@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 999.local,v 1.1 1997/08/12 18:23:27 pst Exp $
+# $FreeBSD$
 #
 if [ -f /etc/monthly.local ]; then
     echo ""

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	PC-card startup script
-#	$Id$
+# $FreeBSD$
 
 if [ "X$pccard_enable" = X"YES" ] ; then
 	builtin=`kldstat -v -i 1 | grep pcic | awk '{print $2}'`

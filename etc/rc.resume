@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: rc.resume,v 1.1 1999/07/10 18:02:16 iwasaki Exp $
+# $FreeBSD$
 #
 # sample run command file for APM Resume Event
 
