@@ -309,7 +309,7 @@ tty_OpenInfo(struct physical *p)
 
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
 {
   struct ttydevice *dev = device2tty(d);
   int sz = physical_MaxDeviceSize();
@@ -332,6 +332,7 @@ static struct device basettydevice = {
   TTY_DEVICE,
   "tty",
   tty_AwaitCarrier,
+  NULL,
   tty_Raw,
   tty_Offline,
   tty_Cooked,
@@ -346,7 +347,7 @@ static struct device basettydevice = {
 
 struct device *
 tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == TTY_DEVICE) {
     struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;

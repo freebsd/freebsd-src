@@ -59,10 +59,18 @@ CFLAGS+=-DNOI4B
 SRCS+=	i4b.c
 .endif
 
+.if defined(NONETGRAPH)
+CFLAGS+=-DNONETGRAPH
+.else
+SRCS+=	ether.c
+LDADD+=	-lnetgraph
+DPADD+= ${LIBNETGRAPH}
+.endif
+
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNONETGRAPH
 OBJS+=	nat_cmd.o chap_ms.o radius.o
 chap_ms.o nat_cmd.o radius.o:
 	>null_${.PREFIX}.c

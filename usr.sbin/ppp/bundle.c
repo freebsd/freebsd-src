@@ -89,10 +89,13 @@
 #include "ip.h"
 #include "iface.h"
 
-#define SCATTER_SEGMENTS 6	/* version, datalink, name, physical,
-                                   throughput, device */
-#define SOCKET_OVERHEAD	100	/* additional buffer space for large */
-                                /* {recv,send}msg() calls            */
+#define SCATTER_SEGMENTS 6      /* version, datalink, name, physical,
+                                   throughput, device                   */
+#define SOCKET_OVERHEAD	100     /* additional buffer space for large
+                                   {recv,send}msg() calls               */
+
+#define SEND_MAXFD 2		/* Max file descriptors passed through
+                                   the local domain socket              */
 
 static int bundle_RemainingIdleTime(struct bundle *);
 
@@ -1332,21 +1335,23 @@ bundle_GetLabel(struct bundle *bundle)
 void
 bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)];
-  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  char cmsgbuf[(sizeof(struct cmsghdr) + sizeof(int)) * SEND_MAXFD];
+  struct cmsghdr *cmsg;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
   struct datalink *dl;
-  int niov, link_fd, expect, f;
+  int niov, expect, f, fd[SEND_MAXFD], nfd, onfd;
   pid_t pid;
 
   log_Printf(LogPHASE, "Receiving datalink\n");
 
   /* Create our scatter/gather array */
   niov = 1;
+
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = (char *)malloc(iov[0].iov_len);
-  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov, 0) == -1) {
+  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov,
+                   NULL, NULL, 0) == -1) {
     close(s);
     return;
   }
@@ -1358,9 +1363,12 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
     expect += iov[f].iov_len;
 
   /* Set up our message */
-  cmsg->cmsg_len = sizeof cmsgbuf;
-  cmsg->cmsg_level = SOL_SOCKET;
-  cmsg->cmsg_type = 0;
+  for (f = 0; f < SEND_MAXFD; f++) {
+    cmsg = (struct cmsghdr *)(cmsgbuf + f * sizeof(struct cmsghdr));
+    cmsg->cmsg_len = sizeof *cmsg + sizeof(int);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = 0;
+  }
 
   memset(&msg, '\0', sizeof msg);
   msg.msg_name = (caddr_t)sun;
@@ -1387,35 +1395,63 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   write(s, "!", 1);	/* ACK */
   close(s);
 
-  if (cmsg->cmsg_type != SCM_RIGHTS) {
-    log_Printf(LogERROR, "Recvmsg: no descriptor received !\n");
+  for (nfd = 0; nfd < SEND_MAXFD; nfd++) {
+    cmsg = (struct cmsghdr *)(cmsgbuf + nfd * sizeof(struct cmsghdr));
+    if (cmsg->cmsg_len == sizeof *cmsg + sizeof(int) &&
+        cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS)
+      fd[nfd] = *(int *)CMSG_DATA(cmsg);
+    else
+      break;
+  }
+
+  if (nfd == 0) {
+    log_Printf(LogERROR, "Recvmsg: no descriptors received !\n");
     while (niov--)
       free(iov[niov].iov_base);
     return;
   }
 
-  /* We've successfully received an open file descriptor through our socket */
+  /*
+   * We've successfully received one or more open file descriptors
+   * through our socket
+   */
   log_Printf(LogDEBUG, "Receiving device descriptor\n");
-  link_fd = *(int *)CMSG_DATA(cmsg);
+
+  nfd--;	/* Don't include p->fd */
 
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
                " (\"%.*s\", not \"%s\")\n", (int)iov[0].iov_len,
                (char *)iov[0].iov_base, Version);
-    close(link_fd);
+    while (nfd)
+      close(fd[nfd--]);
+    close(fd[0]);
     while (niov--)
       free(iov[niov].iov_base);
     return;
   }
 
   niov = 1;
-  dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
+  onfd = nfd;
+  dl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, fd[0],
+                    fd + 1, &nfd);
   if (dl) {
-    bundle_DatalinkLinkin(bundle, dl);
-    datalink_AuthOk(dl);
-    bundle_CalculateBandwidth(dl->bundle);
-  } else
-    close(link_fd);
+    if (nfd) {
+      log_Printf(LogERROR, "bundle_ReceiveDatalink: Failed to handle %d "
+                 "auxiliary file descriptors\n", nfd);
+      datalink_Destroy(dl);
+      while (nfd--)
+        close(fd[onfd--]);
+    } else {
+      bundle_DatalinkLinkin(bundle, dl);
+      datalink_AuthOk(dl);
+      bundle_CalculateBandwidth(dl->bundle);
+    }
+  } else {
+    while (nfd--)
+      close(fd[onfd--]);
+    close(fd[0]);
+  }
 
   free(iov[0].iov_base);
 }
@@ -1423,11 +1459,11 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 void
 bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)], ack;
-  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  char cmsgbuf[(sizeof(struct cmsghdr) + sizeof(int)) * SEND_MAXFD], ack;
+  struct cmsghdr *cmsg;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
-  int niov, link_fd, f, expect, newsid;
+  int niov, f, expect, newsid, fd[SEND_MAXFD], nfd;
   pid_t newpid;
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
@@ -1439,11 +1475,15 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = strdup(Version);
   niov = 1;
+  nfd = 0;
 
   read(s, &newpid, sizeof newpid);
-  link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov, newpid);
+  fd[0] = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov,
+                          fd + 1, &nfd, newpid);
 
-  if (link_fd != -1) {
+  if (fd[0] != -1) {
+    nfd++;	/* Include fd[0] */
+
     memset(&msg, '\0', sizeof msg);
 
     msg.msg_name = (caddr_t)sun;
@@ -1451,17 +1491,22 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     msg.msg_iov = iov;
     msg.msg_iovlen = niov;
 
-    cmsg->cmsg_len = sizeof cmsgbuf;
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    *(int *)CMSG_DATA(cmsg) = link_fd;
+    for (f = 0; f < nfd; f++) {
+      cmsg = (struct cmsghdr *)(cmsgbuf + f * sizeof(struct cmsghdr));
+      cmsg->cmsg_len = sizeof *cmsg + sizeof(int);
+      cmsg->cmsg_level = SOL_SOCKET;
+      cmsg->cmsg_type = SCM_RIGHTS;
+      *(int *)CMSG_DATA(cmsg) = fd[f];
+    }
+
     msg.msg_control = cmsgbuf;
-    msg.msg_controllen = sizeof cmsgbuf;
+    msg.msg_controllen = (sizeof *cmsg + sizeof(int)) * nfd;
 
     for (f = expect = 0; f < niov; f++)
       expect += iov[f].iov_len;
 
-    log_Printf(LogDEBUG, "Sending %d bytes in scatter/gather array\n", expect);
+    log_Printf(LogDEBUG, "Sending %d descriptor%s and %d bytes in scatter"
+               "/gather array\n", nfd, nfd == 1 ? "" : "s", expect);
 
     f = expect + SOCKET_OVERHEAD;
     setsockopt(s, SOL_SOCKET, SO_SNDBUF, &f, sizeof f);
@@ -1471,8 +1516,9 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     read(s, &ack, 1);
 
     newsid = Enabled(dl->bundle, OPT_KEEPSESSION) ||
-             tcgetpgrp(link_fd) == getpgrp();
-    close(link_fd);
+             tcgetpgrp(fd[0]) == getpgrp();
+    while (nfd)
+      close(fd[--nfd]);
     if (newsid)
       bundle_setsid(dl->bundle, 1);
   }
