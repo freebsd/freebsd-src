@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_ad_tkt.c,v 4.15 89/07/07 15:18:51 jtkohl Exp $
- *	$Id: get_ad_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: get_ad_tkt.c,v 1.3 1995/07/18 16:38:25 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_ad_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: get_ad_tkt.c,v 1.3 1995/07/18 16:38:25 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <des.h>
@@ -24,8 +26,6 @@ static char rcsid[] =
 /* use the bsd time.h struct defs for PC too! */
 #include <sys/time.h>
 #include <sys/types.h>
-
-extern int krb_debug;
 
 struct timeval tt_local = { 0, 0 };
 
@@ -65,11 +65,7 @@ unsigned long rep_err_code;
  * extraction macros like pkt_version(), pkt_msg_type(), etc.
  */
 
-get_ad_tkt(service,sinstance,realm,lifetime)
-    char    *service;
-    char    *sinstance;
-    char    *realm;
-    int     lifetime;
+int get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
 {
     static KTEXT_ST pkt_st;
     KTEXT pkt = & pkt_st;	/* Packet to KDC */
@@ -150,7 +146,7 @@ get_ad_tkt(service,sinstance,realm,lifetime)
     rpkt->length = 0;
 
     /* Send the request to the local ticket-granting server */
-    if (kerror = send_to_kdc(pkt, rpkt, realm)) return(kerror);
+    if ((kerror = send_to_kdc(pkt, rpkt, realm))) return(kerror);
 
     /* check packet version of the returned packet */
     if (pkt_version(rpkt) != KRB_PROT_VERSION )
@@ -181,9 +177,9 @@ get_ad_tkt(service,sinstance,realm,lifetime)
     bcopy((char *) pkt_cipher(rpkt),(char *) (cip->dat),cip->length);
 
 #ifndef NOENCRYPTION
-    key_sched(cr.session,key_s);
-    pcbc_encrypt((C_Block *)cip->dat,(C_Block *)cip->dat,(long)cip->length,
-	key_s,cr.session,DECRYPT);
+    key_sched((des_cblock *)cr.session,key_s);
+    pcbc_encrypt((des_cblock *)cip->dat,(des_cblock *)cip->dat,
+	(long)cip->length,key_s,(des_cblock *)cr.session,DECRYPT);
 #endif
     /* Get rid of all traces of key */
     bzero((char *) cr.session, sizeof(key));
@@ -226,8 +222,8 @@ get_ad_tkt(service,sinstance,realm,lifetime)
 					   code */
     }
 
-    if (kerror = save_credentials(s_name,s_instance,rlm,ses,lifetime,
-				  kvno,tkt,tt_local.tv_sec))
+    if ((kerror = save_credentials(s_name,s_instance,rlm,ses,lifetime,
+				  kvno,tkt,tt_local.tv_sec)))
 	return(kerror);
 
     return(AD_OK);

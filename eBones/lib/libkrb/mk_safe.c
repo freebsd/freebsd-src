@@ -15,16 +15,19 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: mk_safe.c,v 4.12 89/03/22 14:50:49 jtkohl Exp $
- *	$Id: mk_safe.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
+ *	$Id: mk_safe.c,v 1.3 1995/07/18 16:39:17 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: mk_safe.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
+"$Id: mk_safe.c,v 1.3 1995/07/18 16:39:17 mark Exp $";
 #endif /* lint */
+#endif
 
 /* system include files */
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -80,17 +83,8 @@ static long msg_time_sec;
  *						above using "key"
  */
 
-long krb_mk_safe(in,out,length,key,sender,receiver)
-    u_char *in;			/* application data */
-    u_char *out;		/*
-				 * put msg here, leave room for header!
-				 * breaks if in and out (header stuff)
-				 * overlap
-				 */
-    u_long length;		/* of in data */
-    C_Block *key;		/* encryption key for seed and ivec */
-    struct sockaddr_in *sender;	/* sender address */
-    struct sockaddr_in *receiver; /* receiver address */
+long krb_mk_safe(u_char *in, u_char *out, u_long length, des_cblock key,
+    struct sockaddr_in *sender, struct sockaddr_in *receiver)
 {
     register u_char     *p,*q;
 
@@ -154,10 +148,10 @@ long krb_mk_safe(in,out,length,key,sender,receiver)
     cksum = 0;
     bzero(big_cksum, sizeof(big_cksum));
 #else
-    cksum=quad_cksum(q,big_cksum,p-q,2,key);
+    cksum=quad_cksum((des_cblock *)q,big_cksum,p-q,2,(des_cblock *)key);
 #endif
     if (krb_debug)
-        printf("\ncksum = %u",cksum);
+        printf("\ncksum = %lu",cksum);
 
     /* stuff checksum */
     bcopy((char *)big_cksum,(char *)p,sizeof(big_cksum));

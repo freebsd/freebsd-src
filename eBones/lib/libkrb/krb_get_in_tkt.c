@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: der: krb_get_in_tkt.c,v 4.19 89/07/18 16:31:31 jtkohl Exp $
- *	$Id: krb_get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
+ *	$Id: krb_get_in_tkt.c,v 1.3 1995/07/18 16:39:04 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: krb_get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
+"$Id: krb_get_in_tkt.c,v 1.3 1995/07/18 16:39:04 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <des.h>
@@ -33,13 +35,8 @@ int     swap_bytes;
  * using the key returned by key_proc.
  */
 
-static int decrypt_tkt(user, instance, realm, arg, key_proc, cipp)
-  char *user;
-  char *instance;
-  char *realm;
-  char *arg;
-  int (*key_proc)();
-  KTEXT *cipp;
+static int decrypt_tkt(char *user, char *instance, char *realm, char *arg,
+    int (*key_proc)(), KTEXT *cipp)
 {
     KTEXT cip = *cipp;
     C_Block key;		/* Key for decrypting cipher */
@@ -59,9 +56,9 @@ static int decrypt_tkt(user, instance, realm, arg, key_proc, cipp)
     }
 
 #ifndef NOENCRYPTION
-    key_sched(key,key_s);
-    pcbc_encrypt((C_Block *)cip->dat,(C_Block *)cip->dat,
-		 (long) cip->length,key_s,key,DES_DECRYPT);
+    key_sched((des_cblock *)key,key_s);
+    pcbc_encrypt((des_cblock *)cip->dat,(des_cblock *)cip->dat,
+		 (long) cip->length,key_s,(des_cblock *)key,DES_DECRYPT);
 #endif /* !NOENCRYPTION */
     /* Get rid of all traces of key */
     bzero((char *)key,sizeof(key));
@@ -111,17 +108,9 @@ static int decrypt_tkt(user, instance, realm, arg, key_proc, cipp)
  * string		sinstance		service's instance
  */
 
-krb_get_in_tkt(user, instance, realm, service, sinstance, life,
-	       key_proc, decrypt_proc, arg)
-    char *user;
-    char *instance;
-    char *realm;
-    char *service;
-    char *sinstance;
-    int life;
-    int (*key_proc)();
-    int (*decrypt_proc)();
-    char *arg;
+int krb_get_in_tkt(char *user, char *instance, char *realm, char *service,
+    char *sinstance, int life, int (*key_proc)(), int (*decrypt_proc)(),
+    char *arg)
 {
     KTEXT_ST pkt_st;
     KTEXT pkt = &pkt_st;	/* Packet to KDC */
@@ -182,7 +171,7 @@ krb_get_in_tkt(user, instance, realm, service, sinstance, life,
 
     /* SEND THE REQUEST AND RECEIVE THE RETURN PACKET */
 
-    if (kerror = send_to_kdc(pkt, rpkt, realm)) return(kerror);
+    if ((kerror = send_to_kdc(pkt, rpkt, realm))) return(kerror);
 
     /* check packet version of the returned packet */
     if (pkt_version(rpkt) != KRB_PROT_VERSION)
@@ -289,8 +278,8 @@ krb_get_in_tkt(user, instance, realm, service, sinstance, life,
 	return(INTK_ERR);
 
     /* stash ticket, session key, etc. for future use */
-    if (kerror = save_credentials(s_name, s_instance, rlm, ses,
-				  lifetime, kvno, tkt, t_local.tv_sec))
+    if ((kerror = save_credentials(s_name, s_instance, rlm, ses,
+				  lifetime, kvno, tkt, t_local.tv_sec)))
 	return(kerror);
 
     return(INTK_OK);

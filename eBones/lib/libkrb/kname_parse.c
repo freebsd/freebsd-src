@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: kname_parse.c,v 4.4 88/12/01 14:07:29 jtkohl Exp $
- *	$Id: kname_parse.c,v 1.2 1994/07/19 19:25:39 g89r4222 Exp $
+ *	$Id: kname_parse.c,v 1.3 1995/07/18 16:38:54 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: kname_parse.c,v 1.2 1994/07/19 19:25:39 g89r4222 Exp $";
+"$Id: kname_parse.c,v 1.3 1995/07/18 16:38:54 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -38,7 +40,7 @@ extern char *krb_err_txt[];
  * Definition of "syntactically legitimate" names is according to
  * the Project Athena Technical Plan Section E.2.1, page 7 "Specifying
  * names", version dated 21 Dec 1987.
- * /
+ */
 
 /*
  * kname_parse() takes a Kerberos name "fullname" of the form:
@@ -52,8 +54,7 @@ extern char *krb_err_txt[];
  * KNAME_FMT is returned.
  */
 
-kname_parse(np, ip, rp, fullname)
-    char *np, *ip, *rp, *fullname;
+int kname_parse(char *np, char *ip, char *rp, char *fullname)
 {
     static char buf[FULL_SZ];
     char *rnext, *wnext;	/* next char to read, write */
@@ -70,7 +71,7 @@ kname_parse(np, ip, rp, fullname)
         return KNAME_FMT;
     (void) strcpy(buf, fullname);
 
-    while (c = *rnext++) {
+    while ((c = *rnext++)) {
         if (backslash) {
             *wnext++ = c;
             backslash = 0;
@@ -136,8 +137,7 @@ kname_parse(np, ip, rp, fullname)
  * Kerberos name; returns 0 if it's not.
  */
 
-k_isname(s)
-    char *s;
+int k_isname(char *s)
 {
     register char c;
     int backslash = 0;
@@ -146,7 +146,7 @@ k_isname(s)
         return 0;
     if (strlen(s) > ANAME_SZ - 1)
         return 0;
-    while(c = *s++) {
+    while((c = *s++)) {
         if (backslash) {
             backslash = 0;
             continue;
@@ -172,15 +172,14 @@ k_isname(s)
  * Kerberos instance; returns 0 if it's not.
  */
 
-k_isinst(s)
-    char *s;
+int k_isinst(char *s)
 {
     register char c;
     int backslash = 0;
 
     if (strlen(s) > INST_SZ - 1)
         return 0;
-    while(c = *s++) {
+    while((c = *s++)) {
         if (backslash) {
             backslash = 0;
             continue;
@@ -205,8 +204,7 @@ k_isinst(s)
  * Kerberos realm; returns 0 if it's not.
  */
 
-k_isrealm(s)
-    char *s;
+int k_isrealm(char *s)
 {
     register char c;
     int backslash = 0;
@@ -215,7 +213,7 @@ k_isrealm(s)
         return 0;
     if (strlen(s) > REALM_SZ - 1)
         return 0;
-    while(c = *s++) {
+    while((c = *s++)) {
         if (backslash) {
             backslash = 0;
             continue;

@@ -49,7 +49,8 @@ static char sccsid[] = "@(#)registerd.c	8.1 (Berkeley) 6/1/93";
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <syslog.h>
-#include <kerberosIV/des.h>
+#include <stdio.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 #include <kerberosIV/krb_db.h>
 #include <stdio.h>

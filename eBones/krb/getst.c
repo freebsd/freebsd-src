@@ -4,13 +4,17 @@
  * <Copyright.MIT>.
  *
  *	form: getst.c,v 4.5 88/11/15 16:31:39 jtkohl Exp $
- *	$Id: getst.c,v 1.2 1994/07/19 19:25:33 g89r4222 Exp $
+ *	$Id: getst.c,v 1.3 1995/07/18 16:38:47 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: getst.c,v 1.2 1994/07/19 19:25:33 g89r4222 Exp $";
+"$Id: getst.c,v 1.3 1995/07/18 16:38:47 mark Exp $";
 #endif /* lint */
+#endif
+
+#include <unistd.h>
 
 /*
  * getst() takes a file descriptor, a string and a count.  It reads
@@ -22,9 +26,7 @@ static char rcsid[] =
  * the null terminator.
  */
 
-getst(fd, s, n)
-    int fd;
-    register char *s;
+int getst(int fd, char *s, int n)
 {
     register count = n;
     while (read(fd, s, 1) > 0 && --count)

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.2 (Berkeley) 2/14/91
-#	$Id: Makefile,v 1.2 1994/07/19 19:23:53 g89r4222 Exp $
+#	$Id: Makefile,v 1.3 1995/07/18 16:37:25 mark Exp $
 
 PROG=	kdb_edit
 CFLAGS+=-DKERBEROS -DDEBUG -I. -I${.CURDIR}/../include

@@ -6,25 +6,29 @@
  * <mit-copyright.h>.
  *
  *	from: acl_files.c,v 4.4 89/12/19 13:30:53 jtkohl Exp $
- *	$Id: acl_files.c,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $
+ *	$Id: acl_files.c,v 1.3 1995/07/18 16:34:49 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: acl_files.c,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $";
+"$Id: acl_files.c,v 1.3 1995/07/18 16:34:49 mark Exp $";
 #endif lint
+#endif
 
 
 /*** Routines for manipulating access control list files ***/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <ctype.h>
-#include "krb.h"
+#include <unistd.h>
+#include <krb.h>
 
 __BEGIN_DECLS
 static int	acl_abort __P((char *, FILE *));
@@ -55,17 +59,14 @@ __END_DECLS
 
 extern int errno;
 
-extern char *malloc(), *calloc();
-extern time_t time();
+/* extern time_t time(); */
 
 /* Canonicalize a principal name */
 /* If instance is missing, it becomes "" */
 /* If realm is missing, it becomes the local realm */
 /* Canonicalized form is put in canon, which must be big enough to hold
    MAX_PRINCIPAL_SIZE characters */
-acl_canonicalize_principal(principal, canon)
-char *principal;
-char *canon;
+void acl_canonicalize_principal(char *principal, char *canon)
 {
     char *dot, *atsign, *end;
     int len;
@@ -126,8 +127,7 @@ char *canon;
 /* Return new FILE pointer */
 /* or NULL if file cannot be modified */
 /* REQUIRES WRITE PERMISSION TO CONTAINING DIRECTORY */
-static FILE *acl_lock_file(acl_file)
-char *acl_file;
+static FILE *acl_lock_file(char *acl_file)
 {
     struct stat s;
     char new[LINESIZE];
@@ -174,9 +174,7 @@ char *acl_file;
 /* Returns > 0 if lock was broken */
 /* Returns < 0 if some other error occurs */
 /* Closes f */
-static int acl_commit(acl_file, f)
-char *acl_file;
-FILE *f;
+static int acl_commit(char *acl_file, FILE *f)
 {
     char new[LINESIZE];
     int ret;
@@ -200,10 +198,7 @@ FILE *f;
  * Returns 0 if successful, < 0 otherwise
  * Closes f
  */
-static int
-acl_abort(acl_file, f)
-char	*acl_file;
-FILE	*f;
+static int acl_abort(char *acl_file, FILE *f)
 {
 	char		new[LINESIZE];
 	int		ret;
@@ -225,9 +220,7 @@ FILE	*f;
 /* Creates the file with permissions perm if it does not exist */
 /* Erases it if it does */
 /* Returns return value of acl_commit */
-int acl_initialize(acl_file, perm)
-char *acl_file;
-int perm;
+int acl_initialize(char *acl_file, int perm)
 {
     FILE *new;
     int fd;
@@ -248,8 +241,7 @@ int perm;
 
 /* Eliminate all whitespace character in buf */
 /* Modifies its argument */
-static nuke_whitespace(buf)
-char *buf;
+static void nuke_whitespace(char *buf)
 {
     register char *pin, *pout;
 
@@ -281,8 +273,7 @@ int size;
 }
 
 /* Destroy a hash table */
-static destroy_hash(h)
-struct hashtbl *h;
+static void destroy_hash(struct hashtbl *h)
 {
     int i;
 
@@ -294,8 +285,7 @@ struct hashtbl *h;
 }
 
 /* Compute hash value for a string */
-static unsigned hashval(s)
-register char *s;
+static unsigned hashval(char *s)
 {
     register unsigned hv;
 
@@ -306,9 +296,7 @@ register char *s;
 }
 
 /* Add an element to a hash table */
-static add_hash(h, el)
-struct hashtbl *h;
-char *el;
+static void add_hash(struct hashtbl *h, char *el)
 {
     unsigned hv;
     char *s;
@@ -339,9 +327,7 @@ char *el;
 }
 
 /* Returns nonzero if el is in h */
-static check_hash(h, el)
-struct hashtbl *h;
-char *el;
+static int check_hash(struct hashtbl *h, char *el)
 {
     unsigned hv;
 
@@ -368,8 +354,7 @@ static int acl_cache_next = 0;
 /* Returns < 0 if unsuccessful in loading acl */
 /* Returns index into acl_cache otherwise */
 /* Note that if acl is already loaded, this is just a lookup */
-static int acl_load(name)
-char *name;
+static int acl_load(char *name)
 {
     int i;
     FILE *f;
@@ -436,9 +421,7 @@ char *name;
 
 /* Returns nonzero if it can be determined that acl contains principal */
 /* Principal is not canonicalized, and no wildcarding is done */
-acl_exact_match(acl, principal)
-char *acl;
-char *principal;
+int acl_exact_match(char *acl, char *principal)
 {
     int idx;
 
@@ -449,9 +432,7 @@ char *principal;
 /* Returns nonzero if it can be determined that acl contains principal */
 /* Recognizes wildcards in acl of the form
    name.*@realm, *.*@realm, and *.*@* */
-acl_check(acl, principal)
-char *acl;
-char *principal;
+int acl_check(char *acl, char *principal)
 {
     char buf[MAX_PRINCIPAL_SIZE];
     char canon[MAX_PRINCIPAL_SIZE];
@@ -477,9 +458,7 @@ char *principal;
 
 /* Adds principal to acl */
 /* Wildcards are interpreted literally */
-acl_add(acl, principal)
-char *acl;
-char *principal;
+int acl_add(char *acl, char *principal)
 {
     int idx;
     int i;
@@ -511,9 +490,7 @@ char *principal;
 
 /* Removes principal from acl */
 /* Wildcards are interpreted literally */
-acl_delete(acl, principal)
-char *acl;
-char *principal;
+int acl_delete(char *acl, char *principal)
 {
     int idx;
     int i;

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1 1995/08/03 07:37:19 mark Exp $
 
 PROG=	kpropd
 CFLAGS+=-I${.CURDIR}/../include -I${.CURDIR}/../kprop

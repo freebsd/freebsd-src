@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_request.c,v 4.7 88/12/01 14:00:11 jtkohl Exp $
- *	$Id: get_request.c,v 1.2 1994/07/19 19:25:24 g89r4222 Exp $
+ *	$Id: get_request.c,v 1.3 1995/07/18 16:38:39 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_request.c,v 1.2 1994/07/19 19:25:24 g89r4222 Exp $";
+"$Id: get_request.c,v 1.3 1995/07/18 16:38:39 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>
@@ -26,11 +28,7 @@ static char *rcsid =
  * if there are less than n requests in the packet.
  */
 
-get_request(pkt, n, s_name, instance)
-    KTEXT pkt;			/* The packet itself */
-    int n;			/* Which request do we want */
-    char **s_name;		/* Service name to be filled in */
-    char **instance;		/* Instance name to be filled in */
+int get_request(KTEXT pkt, int n, char **s_name, char **instance)
 {
     /* Go to the beginning of the request list */
     char *ptr = (char *) pkt_a_realm(pkt) + 6 +

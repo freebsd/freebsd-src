@@ -5,16 +5,19 @@
  * <Copyright.MIT>.
  *
  *	from: kt.c,v 4.9 89/10/25 19:03:35 qjb Exp $
- *	$Id: in_tkt.c,v 1.1.1.1 1994/09/30 14:50:01 csgr Exp $
+ *	$Id: in_tkt.c,v 1.6 1995/07/18 16:38:49 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: in_tkt.c,v 1.1.1.1 1994/09/30 14:50:01 csgr Exp $";
+"$Id: in_tkt.c,v 1.6 1995/07/18 16:38:49 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <krb.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
@@ -24,8 +27,6 @@ static char rcsid[] =
 #include <sys/param.h>
 #endif
 
-extern int krb_debug;
-
 /*
  * in_tkt() is used to initialize the ticket store.  It creates the
  * file to contain the tickets and writes the given user's name "pname"
@@ -33,9 +34,7 @@ extern int krb_debug;
  * success, or KFAILURE if something goes wrong.
  */
 
-in_tkt(pname,pinst)
-    char *pname;
-    char *pinst;
+int in_tkt(char *pname, char *pinst)
 {
     int tktfile;
     uid_t me, metoo;
@@ -91,7 +90,7 @@ in_tkt(pname,pinst)
 	    return(KFAILURE);
 	} else
 	    if (krb_debug)
-		printf("swapped UID's %d and %d\n",metoo,me);
+		printf("swapped UID's %ld and %ld\n",metoo,me);
     }
     if ((tktfile = open(file,O_CREAT | O_TRUNC | O_WRONLY,0600)) < 0) {
 	if (krb_debug)
@@ -106,7 +105,7 @@ in_tkt(pname,pinst)
 	    return(KFAILURE);
 	} else
 	    if (krb_debug)
-		printf("swapped UID's %d and %d\n",me,metoo);
+		printf("swapped UID's %ld and %ld\n",me,metoo);
     }
     if (lstat(file,&buf) < 0) {
 	if (krb_debug)

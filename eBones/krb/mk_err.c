@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: mk_err.c,v 4.4 88/11/15 16:33:36 jtkohl Exp $
- *	$Id: mk_err.c,v 1.2 1994/07/19 19:25:54 g89r4222 Exp $
+ *	$Id: mk_err.c,v 1.3 1995/07/18 16:39:11 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: mk_err.c,v 1.2 1994/07/19 19:25:54 g89r4222 Exp $";
+"$Id: mk_err.c,v 1.3 1995/07/18 16:39:11 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <sys/types.h>
 #include <krb.h>

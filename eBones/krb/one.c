@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	form: one.c,v 4.1 88/11/15 16:51:41 jtkohl Exp $
- *	$Id: one.c,v 1.2 1994/07/19 19:26:05 g89r4222 Exp $
+ *	$Id: one.c,v 1.3 1995/07/18 16:39:24 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: one.c,v 1.2 1994/07/19 19:26:05 g89r4222 Exp $";
+"$Id: one.c,v 1.3 1995/07/18 16:39:24 mark Exp $";
 #endif	lint
+#endif
 
 /*
  * definition of variable set to 1.

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.4 1994/07/20 09:21:07 g89r4222 Exp $
+# $Id: Makefile,v 1.5 1995/07/18 16:41:22 mark Exp $
 
 PROG=	register
 SRCS=	register.c

@@ -12,12 +12,12 @@
  * Written July 9, 1987 by Jeffrey I. Schiller
  *
  *	from: kdb_util.c,v 4.4 90/01/09 15:57:20 raeburn Exp $
- *	$Id: kdb_util.c,v 1.2 1995/05/30 06:40:44 rgrimes Exp $
+ *	$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_util.c,v 1.2 1995/05/30 06:40:44 rgrimes Exp $";
+"$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $";
 #endif	lint
 
 #include <stdio.h>

@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: save_credentials.c,v 4.9 89/05/31 17:45:43 jtkohl Exp $
- *	$Id: save_credentials.c,v 1.2 1994/07/19 19:26:19 g89r4222 Exp $
+ *	$Id: save_credentials.c,v 1.3 1995/07/18 16:39:40 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: save_credentials.c,v 1.2 1994/07/19 19:26:19 g89r4222 Exp $";
+"$Id: save_credentials.c,v 1.3 1995/07/18 16:39:40 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -28,16 +30,8 @@ static char *rcsid =
  * by the tf_init() or tf_save_cred() routines.
  */
 
-save_credentials(service, instance, realm, session, lifetime, kvno,
-                 ticket, issue_date)
-    char *service;              /* Service name */
-    char *instance;             /* Instance */
-    char *realm;                /* Auth domain */
-    C_Block session;            /* Session key */
-    int lifetime;               /* Lifetime */
-    int kvno;                   /* Key version number */
-    KTEXT ticket;               /* The ticket itself */
-    long issue_date;            /* The issue time */
+int save_credentials(char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date)
 {
     int tf_status;   /* return values of the tf_util calls */
 

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/07/18 16:40:09 mark Exp $
 
 PROG=	ksrvutil
 SRCS=	ksrvutil.c

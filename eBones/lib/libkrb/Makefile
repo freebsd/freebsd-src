@@ -1,10 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.4 1995/01/20 01:12:19 wollman Exp $
+#	$Id: Makefile,v 1.5 1995/07/18 16:38:02 mark Exp $
 
 LIB=	krb
 SHLIB_MAJOR= 2
 SHLIB_MINOR= 0
-CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${.CURDIR}/../include -DBSD42
+CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${.CURDIR}/../include -DBSD42 -Wall
 SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	create_death_packet.c create_ticket.c debug_decl.c decomp_ticket.c \
 	des_rw.c dest_tkt.c extract_ticket.c fgetst.c get_ad_tkt.c \

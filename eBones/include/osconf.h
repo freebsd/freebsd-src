@@ -6,7 +6,7 @@
  * Athena configuration.
  *
  *	from: osconf.h,v 4.4 89/12/19 13:26:27 jtkohl Exp $
- *	$Id: osconf.h,v 1.2 1994/07/19 19:23:22 g89r4222 Exp $
+ *	$Id: osconf.h,v 1.3 1995/07/18 16:36:41 mark Exp $
  */
 
 #ifdef tahoe

@@ -1,7 +1,7 @@
 PROTOTYPE ACL LIBRARY
 
 Introduction
-	
+
 An access control list (ACL) is a list of principals, where each
 principal is is represented by a text string which cannot contain
 whitespace.  The library allows application programs to refer to named
@@ -90,7 +90,7 @@ int mode;
 Initialize acl.  If acl file does not exist, creates it with mode
 mode.  If acl exists, removes all members.  Returns 0 if successful,
 nonzero otherwise.  WARNING: Mode argument is likely to change with
-the eventual introduction of an ACL service.  
+the eventual introduction of an ACL service.
 
 
 Known problems

@@ -52,13 +52,13 @@ static char sccsid[] = "@(#)register.c	8.1 (Berkeley) 6/1/93";
 #include <pwd.h>
 #include <stdio.h>
 #include <netdb.h>
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 #include "pathnames.h"
 #include "register_proto.h"
 
-#define	SERVICE	"krbupdate"	/* service to add to KDC's database */
-#define	PROTO	"tcp"
+#define	SERVICE  "krbupdate"	/* service to add to KDC's database */
+#define	PROTOCOL "tcp"
 
 char	realm[REALM_SZ];
 char	krbhst[MAX_HSTNM];
@@ -90,7 +90,7 @@ main(argc, argv)
 		exit(1);
 	}
 
-	if ((se = getservbyname(SERVICE, PROTO)) == NULL) {
+	if ((se = getservbyname(SERVICE, PROTOCOL)) == NULL) {
 		fprintf(stderr, "couldn't find entry for service %s\n",
 			SERVICE);
 		exit(1);

@@ -1,6 +1,6 @@
 /*
- * $Source: /home/ncvs/src/eBones/kadmin/kadmin.c,v $
- * $Author: wollman $
+ * $Source: /usr/cvs/src/eBones/kadmin/kadmin.c,v $
+ * $Author: mark $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
