@@ -148,7 +148,7 @@ static int mpu_uartmode(sc_p scp);
 static int mpu_waitack(sc_p scp);
 static int mpu_status(sc_p scp);
 static int mpu_command(sc_p scp, u_int8_t value);
-static int mpu_readdata(sc_p scp);
+static int mpu_readdata(sc_p scp, u_int8_t *value);
 static int mpu_writedata(sc_p scp, u_int8_t value);
 static u_int mpu_readport(sc_p scp, int off);
 static void mpu_writeport(sc_p scp, int off, u_int8_t value);
@@ -454,6 +454,7 @@ mpu_intr(void *arg)
 	sc_p scp;
 	u_char c;
 	mididev_info *devinfo;
+	int leni;
 
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
@@ -464,16 +465,16 @@ mpu_intr(void *arg)
 	/* Read the received data. */
 	while ((mpu_status(scp) & MPU_INPUTBUSY) == 0) {
 		/* Receive the data. */
-		c = mpu_readdata(scp);
+		mpu_readdata(scp, &c);
 		mtx_unlock(&scp->mtx);
 		/* Queue into the passthru buffer and start transmitting if we can. */
 		if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
-			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c));
+			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c), &leni);
 			devinfo->callback(devinfo, MIDI_CB_START | MIDI_CB_WR);
 		}
 		/* Queue if we are reading. Discard an active sensing. */
 		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe) {
-			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c));
+			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c), &leni);
 		}
 		mtx_lock(&scp->mtx);
 	}
@@ -485,10 +486,13 @@ mpu_intr(void *arg)
 }
 
 static int
-mpu_callback(mididev_info *d, int reason)
+mpu_callback(void *di, int reason)
 {
 	int unit;
 	sc_p scp;
+	mididev_info *d;
+
+	d = (mididev_info *)di;
 
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
@@ -553,6 +557,7 @@ mpu_xmit(sc_p scp)
 	register mididev_info *devinfo;
 	register midi_dbuf *dbuf;
 	u_char c;
+	int leno;
 
 	devinfo = scp->devinfo;
 
@@ -573,7 +578,7 @@ mpu_xmit(sc_p scp)
 			/* XXX Wait until we can write the data. */
 			if ((mpu_status(scp) & MPU_OUTPUTBUSY) == 0) {
 				/* Send the data. */
-				midibuf_output_intr(dbuf, &c, sizeof(c));
+				midibuf_output_intr(dbuf, &c, sizeof(c), &leno);
 				mpu_writedata(scp, c);
 				/* We are playing now. */
 				devinfo->flags |= MIDI_F_WRITING;
@@ -639,12 +644,12 @@ mpu_uartmode(sc_p scp)
 static int
 mpu_waitack(sc_p scp)
 {
-	int i, resp;
+	int i;
+	u_int8_t resp;
 
 	resp = 0;
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
-		resp = mpu_readdata(scp);
-		if (resp >= 0)
+		if (mpu_readdata(scp, &resp) == 0)
 			break;
 	}
 	if (resp != MPU_ACK)
@@ -680,17 +685,22 @@ mpu_command(sc_p scp, u_int8_t value)
 
 /* Reads a byte of data. */
 static int
-mpu_readdata(sc_p scp)
+mpu_readdata(sc_p scp, u_int8_t *value)
 {
 	u_int status;
+
+	if (value == NULL)
+		return (EINVAL);
 
 	/* Is the interface ready to write? */
 	status = mpu_status(scp);
 	if ((status & MPU_INPUTBUSY) != 0)
 		/* The interface is busy. */
-		return (-EAGAIN);
+		return (EAGAIN);
 
-	return (int)mpu_readport(scp, MPU_DATAPORT) & 0xff;
+	*value = (u_int8_t)(mpu_readport(scp, MPU_DATAPORT) & 0xff);
+
+	return (0);
 }
 
 /* Writes a byte of data. */
