@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.2 1995/01/16 16:33:47 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.3 1995/02/03 17:15:12 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -45,20 +45,15 @@ struct ahc_dma_seg {
             long len;
 };
  
-typedef enum {
-	AHC_274,	/* Single Channel */
-	AHC_274T,	/* Twin Channel */
-	AHC_274W,	/* Wide Channel */
-	AHC_284,	/* VL Single Channel */
-	AHC_284T,	/* VL Twin Channel */
-	AHC_284W,	/* VL Wide Channel - Do these exist?? */
-	AHC_294,	/* PCI Single Channel */
-	AHC_294T,	/* PCI Twin Channel */
-	AHC_294W	/* PCI Wide Channel */
-}ahc_type;
+typedef u_char ahc_type;
+#define	AHC_WIDE	0x02	/* Wide Channel */
+#define AHC_TWIN	0x08	/* Twin Channel */
+#define	AHC_274		0x10	/* EISA Based Controller */
+#define	AHC_284		0x20	/* VL/ISA Based Controller */
+#define	AHC_294		0x40	/* PCI Based Controller */
 
 /*
- * The driver keeps up to four scb structures per card in memory.  Only the
+ * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
  * first 26 bytes of the structure are valid for the hardware, the rest used
  * for driver level bookeeping.  The "__attribute ((packed))" tags ensure that
  * gcc does not attempt to pad the long ints in the structure to word
@@ -72,11 +67,10 @@ struct scb {
 /*1*/   u_char control;
 #define	SCB_NEEDWDTR 0x80			/* Initiate Wide Negotiation */
 #define SCB_NEEDSDTR 0x40			/* Initiate Sync Negotiation */
+#define	SCB_TE	     0x20			/* Tag enable */
 #define	SCB_NEEDDMA  0x08			/* SCB needs to be DMA'd from
 						 * from host memory
 						 */
-#define	SCB_TE 0x20				/* Tag enable */
-#define	SCB_WAITING 0x06
 #define	SCB_DIS 0x04
 #define	SCB_TAG_TYPE 0x3
 #define		SIMPLE_QUEUE 0x0
@@ -138,6 +132,7 @@ struct ahc_data {
 	u_short needwdtr;		/* Current list of negotiated targets */
 	u_short sdtrpending;		/* Pending SDTR to these targets */
 	u_short wdtrpending;		/* Pending WDTR to these targets */
+	u_short	tagenable;		/* Targets that can handle tagqueing */
 	int	numscbs;
 	u_char	maxscbs;
 	int	unpause;
