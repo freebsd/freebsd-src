@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rpc.rusersd.8,v 1.4 1997/02/22 14:22:16 peter Exp $
 .\"
 .Dd June 7, 1993
 .Dt RPC.RUSERSD 8
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/rpc.rusersd
 .Sh DESCRIPTION
-.Nm rpc.rusersd
+.Nm Rpc.rusersd
 is a server which returns information about users
 currently logged in to the system.
 .Pp
@@ -50,12 +50,14 @@ The currently logged in users are queried using the
 .Xr rusers 1
 command.
 The
-.Nm rpc.rusersd
+.Nm
 daemon is normally invoked by
 .Xr inetd 8 .
 .Pp
-.Nm rpc.rusersd
-uses an RPC protocol defined in 
+.Nm Rpc.rusersd
+uses an
+.Tn RPC
+protocol defined in 
 .Pa /usr/include/rpcsvc/rnusers.x .
 .Sh SEE ALSO
 .Xr rusers 1 ,
