@@ -86,12 +86,13 @@ nfs_mount(server, port, path, fh)
 NFS_LOOKUP:  Lookup Pathname
 
 ***************************************************************************/
-nfs_lookup(server, port, fh, path, file_fh)
+nfs_lookup(server, port, fh, path, file_fh, sizep)
 	int server;
 	int port;
 	char *fh;
 	char *path;
 	char *file_fh;
+	int *sizep;
 {
 	struct	rpc_t buf, *rpc;
 	char	*rpcptr;
@@ -111,6 +112,8 @@ nfs_lookup(server, port, fh, path, file_fh)
 				return(-(ntohl(rpc->u.reply.data[0])));
 			} else {
 				bcopy(&rpc->u.reply.data[1],file_fh, 32);
+				if (sizep)
+				  *sizep = ntohl(rpc->u.reply.data[14]);
 				return(0);
 			}
 		}

@@ -98,10 +98,20 @@ Author: Martin Renters
 #define RFC1048_COOKIE		{ 99, 130, 83, 99 }
 #define RFC1048_PAD		0
 #define RFC1048_NETMASK		1
+#define RFC1048_TIME_OFFSET	2
 #define RFC1048_GATEWAY		3
+#define RFC1048_TIME_SERVER	4
+#define RFC1048_NAME_SERVER	5
+#define RFC1048_DOMAIN_SERVER	6
 #define RFC1048_HOSTNAME	12
+#define RFC1048_BOOT_SIZE	12	/* XXX */
+#define RFC1048_SWAP_SERVER	16
+#define RFC1048_ROOT_PATH	17
+#define RFC1048_SWAP_PATH	128	/* T128 */
+#define RFC1048_SWAP_LEN	129	/* T129 */
+
 #define RFC1048_END		255
-#define BOOTP_VENDOR_LEN	64
+#define BOOTP_VENDOR_LEN	256
 
 #define TFTP_RRQ	1
 #define TFTP_WRQ	2
@@ -190,7 +200,7 @@ struct bootp_t {
 	char bp_hwaddr[16];
 	char bp_sname[64];
 	char bp_file[128];
-	char bp_vend[64];
+	char bp_vend[BOOTP_VENDOR_LEN];
 };
 
 struct tftp_t {
