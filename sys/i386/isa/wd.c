@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.60 1994/11/04 05:21:17 phk Exp $
+ *	$Id: wd.c,v 1.61 1994/11/18 11:27:41 phk Exp $
  */
 
 /* TODO:
@@ -151,7 +151,7 @@ wdc_registerdev(struct isa_device *dvp)
 	int unit = dvp->id_unit;
 
 	if(unit != 0)
-		kdc_wd[unit] = kdc_wd[0];
+		kdc_wdc[unit] = kdc_wdc[0];
 
 	kdc_wdc[unit].kdc_unit = unit;
 	kdc_wdc[unit].kdc_parentdata = dvp;
