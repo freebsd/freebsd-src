@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.22 1996/12/09 15:16:36 jkh Exp $
+ * $Id: network.c,v 1.23 1996/12/11 09:35:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,7 +256,7 @@ startPPP(Device *devp)
 	struct termios foo;
 	extern int login_tty(int);
 
-	for (i = getdtablesize(); i; i--)
+	for (i = getdtablesize(); i >= 0; i--)
 	    close(i);
 
 	/* We're going over to VTY2 */
