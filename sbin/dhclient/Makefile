@@ -11,7 +11,7 @@ SRCS+=	alloc.c bpf.c conflex.c convert.c dispatch.c errwarn.c ethernet.c \
 	parse.c print.c raw.c socket.c tables.c tree.c upf.c
 
 CFLAGS+= -I${DIST_DIR}/includes -I${DIST_DIR}
-CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"'
+CFLAGS+= -DCLIENT_PATH='"PATH=/sbin:/bin:/usr/sbin:/usr/bin"' -Dwarn=dhcp_warn
 
 MAN5=	dhclient.conf.5 dhclient.leases.5 dhcp-options.5
 MAN8=	dhclient.8 dhclient-script.8

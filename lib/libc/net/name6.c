@@ -109,6 +109,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <nsswitch.h>
 #include <unistd.h>
 
 #ifndef _PATH_HOSTS
@@ -169,110 +171,32 @@ static char	*_hgetword(char **pp);
 static int	 _mapped_addr_enabled(void);
 
 static FILE	*_files_open(int *errp);
-static struct	 hostent *_files_ghbyname(const char *name, int af, int *errp);
-static struct	 hostent *_files_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
+static int	 _files_ghbyname(void *, void *, va_list);
+static int	 _files_ghbyaddr(void *, void *, va_list);
 static void	 _files_shent(int stayopen);
 static void	 _files_ehent(void);
 #ifdef YP
-static struct	 hostent *_nis_ghbyname(const char *name, int af, int *errp);
-static struct	 hostent *_nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
+static int	 _nis_ghbyname(void *, void *, va_list);
+static int	 _nis_ghbyaddr(void *, void *, va_list);
 #endif
-static struct	 hostent *_dns_ghbyname(const char *name, int af, int *errp);
-static struct	 hostent *_dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
+static int	 _dns_ghbyname(void *, void *, va_list);
+static int	 _dns_ghbyaddr(void *, void *, va_list);
 static void	 _dns_shent(int stayopen);
 static void	 _dns_ehent(void);
 #ifdef ICMPNL
-static struct	 hostent *_icmp_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
+static int	 _icmp_ghbyaddr(void *, void *, va_list);
 #endif /* ICMPNL */
 
-/*
- * Select order host function.
- */
-#define	MAXHOSTCONF	4
-
-#ifndef HOSTCONF
-#  define	HOSTCONF	"/etc/host.conf"
-#endif /* !HOSTCONF */
-
-struct _hostconf {
-	struct hostent *(*byname)(const char *name, int af, int *errp);
-	struct hostent *(*byaddr)(const void *addr, int addrlen, int af, int *errp);
-};
-
-/* default order */
-static struct _hostconf _hostconf[MAXHOSTCONF] = {
-	{ _dns_ghbyname,	_dns_ghbyaddr },
-	{ _files_ghbyname,	_files_ghbyaddr },
+/* Host lookup order if nsswitch.conf is broken or nonexistant */
+static const ns_src default_src[] = { 
+	{ NSSRC_FILES, NS_SUCCESS },
+	{ NSSRC_DNS, NS_SUCCESS },
 #ifdef ICMPNL
-	{ NULL,			_icmp_ghbyaddr },
-#endif /* ICMPNL */
-};
-
-static int	_hostconf_init_done;
-static void	_hostconf_init(void);
-
-/*
- * Initialize hostconf structure.
- */
-
-static void
-_hostconf_init(void)
-{
-	FILE *fp;
-	int n;
-	char *p, *line;
-	char buf[BUFSIZ];
-
-	_hostconf_init_done = 1;
-	n = 0;
-	p = HOSTCONF;
-	if ((fp = fopen(p, "r")) == NULL)
-		return;
-	while (n < MAXHOSTCONF && fgets(buf, sizeof(buf), fp)) {
-		line = buf;
-		if ((p = _hgetword(&line)) == NULL)
-			continue;
-		do {
-			if (strcmp(p, "hosts") == 0
-			||  strcmp(p, "local") == 0
-			||  strcmp(p, "file") == 0
-			||  strcmp(p, "files") == 0) {
-				_hostconf[n].byname = _files_ghbyname;
-				_hostconf[n].byaddr = _files_ghbyaddr;
-				n++;
-			}
-			else if (strcmp(p, "dns") == 0
-			     ||  strcmp(p, "bind") == 0) {
-				_hostconf[n].byname = _dns_ghbyname;
-				_hostconf[n].byaddr = _dns_ghbyaddr;
-				n++;
-			}
-#ifdef YP
-			else if (strcmp(p, "nis") == 0) {
-				_hostconf[n].byname = _nis_ghbyname;
-				_hostconf[n].byaddr = _nis_ghbyaddr;
-				n++;
-			}
+#define NSSRC_ICMP "icmp"
+	{ NSSRC_ICMP, NS_SUCCESS },
 #endif
-#ifdef ICMPNL
-			else if (strcmp(p, "icmp") == 0) {
-				_hostconf[n].byname = NULL;
-				_hostconf[n].byaddr = _icmp_ghbyaddr;
-				n++;
-			}
-#endif /* ICMPNL */
-		} while ((p = _hgetword(&line)) != NULL);
-	}
-	fclose(fp);
-	if (n < 0) {
-		/* no keyword found. do not change default configuration */
-		return;
-	}
-	for (; n < MAXHOSTCONF; n++) {
-		_hostconf[n].byname = NULL;
-		_hostconf[n].byaddr = NULL;
-	}
-}
+	{ 0 }
+};
 
 /*
  * Check if kernel supports mapped address.
@@ -311,7 +235,14 @@ static struct hostent *
 _ghbyname(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
-	int i;
+	int i, rval;
+	
+	static const ns_dtab dtab[] = {
+		NS_FILES_CB(_files_ghbyname, NULL)
+		{ NSSRC_DNS, _dns_ghbyname, NULL },
+		NS_NIS_CB(_nis_ghbyname, NULL)
+		{ 0 }
+	};
 
 	if (flags & AI_ADDRCONFIG) {
 		int s;
@@ -342,13 +273,9 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		}
 	}
 
-	for (i = 0; i < MAXHOSTCONF; i++) {
-		if (_hostconf[i].byname
-		 && (hp = (*_hostconf[i].byname)(name, af, errp)) != NULL)
-			return hp;
-	}
-
-	return NULL;
+	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
+			  name, af, errp);
+	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
 /* getipnodebyname() internal routine for multiple query(PF_UNSPEC) support. */
@@ -392,9 +319,6 @@ _getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 		return _hpaddr(af, name, &addrbuf, errp);
 	}
 
-	if (!_hostconf_init_done)
-		_hostconf_init();
-
 	*errp = HOST_NOT_FOUND;
 	hp = _ghbyname(name, af, flags, errp);
 
@@ -436,12 +360,22 @@ struct hostent *
 getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 {
 	struct hostent *hp;
-	int i;
+	int i, rval;
 #ifdef INET6
 	struct in6_addr addrbuf;
 #else
 	struct in_addr addrbuf;
 #endif
+
+	static const ns_dtab dtab[] = {
+		NS_FILES_CB(_files_ghbyaddr, NULL)
+		{ NSSRC_DNS, _dns_ghbyaddr, NULL },
+		NS_NIS_CB(_nis_ghbyaddr, NULL)
+#ifdef ICMPNL
+		{ NSSRC_ICMP, _icmp_ghbyaddr, NULL },
+#endif
+		{ 0 }
+	};
 
 	*errp = HOST_NOT_FOUND;
 
@@ -484,15 +418,9 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 		return NULL;
 	}
 
-	if (!_hostconf_init_done)
-		_hostconf_init();
-	for (i = 0; i < MAXHOSTCONF; i++) {
-		if (_hostconf[i].byaddr
-		&&  (hp = (*_hostconf[i].byaddr)(src, len, af, errp)) != NULL)
-			return hp;
-	}
-
-	return NULL;
+	rval = nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
+			  src, len, af, errp);
+	return (rval == NS_SUCCESS) ? hp : NULL;
 }
 
 void
@@ -828,9 +756,12 @@ _files_open(int *errp)
 	return fp;
 }
 
-static struct hostent *
-_files_ghbyname(const char *name, int af, int *errp)
+static int
+_files_ghbyname(void *rval, void *cb_data, va_list ap)
 {
+	const char *name;
+	int af; 
+	int *errp;
 	int match, nalias;
 	char *p, *line, *addrstr, *cname;
 	FILE *fp;
@@ -840,8 +771,14 @@ _files_ghbyname(const char *name, int af, int *errp)
 	char buf[BUFSIZ];
 	int af0 = af;
 
+	name = va_arg(ap, const char *);
+	af = va_arg(ap, int);
+	errp = va_arg(ap, int *);
+
+	*(struct hostent **)rval = NULL;
+
 	if ((fp = _files_open(errp)) == NULL)
-		return NULL;
+		return NS_UNAVAIL;
 	rethp = hp = NULL;
 
 	while (fgets(buf, sizeof(buf), fp)) {
@@ -906,12 +843,17 @@ _files_ghbyname(const char *name, int af, int *errp)
 		rethp = _hpmerge(rethp, hp, errp);
 	}
 	fclose(fp);
-	return rethp;
+	*(struct hostent **)rval = rethp;
+	return (rethp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
-static struct hostent *
-_files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
+static int
+_files_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
+	const void *addr; 
+	int addrlen; 
+	int af; 
+	int *errp;
 	int nalias;
 	char *p, *line;
 	FILE *fp;
@@ -920,8 +862,15 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	union inx_addr addrbuf;
 	char buf[BUFSIZ];
 
+	addr = va_arg(ap, const void *);
+	addrlen = va_arg(ap, int);
+	af = va_arg(ap, int);
+	errp = va_arg(ap, int *);
+
+	*(struct hostent**)rval = NULL;
+
 	if ((fp = _files_open(errp)) == NULL)
-		return NULL;
+		return NS_UNAVAIL;
 	hp = NULL;
 	while (fgets(buf, sizeof(buf), fp)) {
 		line = buf;
@@ -950,7 +899,8 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 		break;
 	}
 	fclose(fp);
-	return hp;
+	*(struct hostent **)rval = hp;
+	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
 #ifdef YP
@@ -959,11 +909,18 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
  *
  * XXX actually a hack, these are INET4 specific.
  */
-static struct hostent *
-_nis_ghbyname(const char *name, int af, int *errp)
+static int
+_nis_ghbyname(void *rval, void *cb_data, va_list ap)
 {
+	const char *name;
+	int af;
+	int *errp;
 	struct hostent *hp = NULL;
 
+	name = va_arg(ap, const char *);
+	af = va_arg(ap, int);
+	errp = va_arg(ap, int *);
+	
 	if (af == AF_UNSPEC)
 		af = AF_INET;
 	if (af == AF_INET) {
@@ -971,21 +928,32 @@ _nis_ghbyname(const char *name, int af, int *errp)
 		if (hp != NULL)
 			hp = _hpcopy(hp, errp);
 	}
-	return (hp);
+	
+	*(struct hostent **)rval = hp;
+	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 	
 }
 
-static struct hostent *
-_nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
+static int
+_nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
+	const void *addr;
+	int addrlen;
+	int af;
+	int *errp;
 	struct hostent *hp = NULL;
+
+	addr = va_arg(ap, const void *);
+	addrlen = va_arg(ap, int);
+	af = va_arg(ap, int);
 
 	if (af == AF_INET) {
 		hp = _gethostbynisaddr(addr, addrlen, af);
 		if (hp != NULL)
 			hp = _hpcopy(hp, errp);
 	}
-	return (hp);
+	*(struct hostent **)rval = hp;
+	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 #endif
 
@@ -1486,13 +1454,20 @@ _res_search_multi(name, rtl, errp)
 	return (NULL);
 }
 
-static struct hostent *
-_dns_ghbyname(const char *name, int af, int *errp)
+static int
+_dns_ghbyname(void *rval, void *cb_data, va_list ap)
 {
+	const char *name;
+	int af;
+	int *errp;
 	struct __res_type_list *rtl, rtl4;
 #ifdef INET6
 	struct __res_type_list rtl6;
 #endif
+
+	name = va_arg(ap, const char *);
+	af = va_arg(ap, int);
+	errp = va_arg(ap, int *);
 
 #ifdef INET6
 	switch (af) {
@@ -1514,12 +1489,17 @@ _dns_ghbyname(const char *name, int af, int *errp)
 	SLIST_NEXT(&rtl4, rtl_entry) = NULL; rtl4.rtl_type = T_A;
 	rtl = &rtl4;
 #endif
-	return(_res_search_multi(name, rtl, errp));
+	*(struct hostent **)rval = _res_search_multi(name, rtl, errp);
+	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
-static struct hostent *
-_dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
+static int
+_dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
 {
+	const void *addr;
+	int addrlen;
+	int af;
+	int *errp;
 	int n;
 	struct hostent *hp;
 	u_char c, *cp;
@@ -1533,16 +1513,23 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	char qbuf[MAXDNAME+1];
 	char *hlist[2];
 
+	addr = va_arg(ap, const void *);
+	addrlen = va_arg(ap, int);
+	af = va_arg(ap, int);
+	errp = va_arg(ap, int *);
+
+	*(struct hostent **)rval = NULL;
+
 #ifdef INET6
 	/* XXX */
 	if (af == AF_INET6 && IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)addr))
-		return NULL;
+		return NS_NOTFOUND;
 #endif
 
 	if ((_res.options & RES_INIT) == 0) {
 		if (res_init() < 0) {
 			*errp = h_errno;
-			return NULL;
+			return NS_UNAVAIL;
 		}
 	}
 	memset(&hbuf, 0, sizeof(hbuf));
@@ -1585,17 +1572,18 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	n = res_query(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
 	if (n < 0) {
 		*errp = h_errno;
-		return NULL;
+		return NS_UNAVAIL;
 	}
 	hp = getanswer(&buf, n, qbuf, T_PTR, &hbuf, errp);
 	if (!hp)
-		return NULL;
+		return NS_NOTFOUND;
 	hbuf.h_addrtype = af;
 	hbuf.h_length = addrlen;
 	hbuf.h_addr_list = hlist;
 	hlist[0] = (char *)addr;
 	hlist[1] = NULL;
-	return _hpcopy(&hbuf, errp);
+	*(struct hostent **)rval = _hpcopy(&hbuf, errp);
+	return NS_SUCCESS;
 }
 
 static void

@@ -10,7 +10,8 @@ CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
-	fts.h glob.h grp.h strhash.h histedit.h ieeefp.h ifaddrs.h iso646.h \
+	fts.h glob.h grp.h strhash.h \
+	hesiod.h histedit.h ieeefp.h ifaddrs.h iso646.h \
 	libgen.h limits.h link.h locale.h malloc.h memory.h mpool.h \
 	ndbm.h netdb.h nl_types.h nlist.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \

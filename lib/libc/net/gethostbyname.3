@@ -78,10 +78,15 @@ following structure describing an internet host
 referenced by name or by address, respectively.
 This structure contains either the information obtained from the name server,
 .Xr named 8 ,
-or broken-out fields from a line in 
-.Pa /etc/hosts .
-If the local name server is not running these routines do a lookup in
-.Pa /etc/hosts .
+broken-out fields from a line in
+.Pa /etc/hosts ,
+or database entries supplied by the
+.Xr yp 4
+system.
+The order of the lookups is controlled by the
+.Sq hosts
+entry in
+.Xr nsswitch.conf 5 .
 .Bd -literal
 struct	hostent {
 	char	*h_name;	/* official name of host */
@@ -188,9 +193,9 @@ value of the
 .Fa err
 parameter.
 .Sh FILES
-.Bl -tag -width /etc/resolv.conf -compact
+.Bl -tag -width /etc/nsswitch.conf -compact
 .It Pa /etc/hosts
-.It Pa /etc/host.conf
+.It Pa /etc/nsswitch.conf
 .It Pa /etc/resolv.conf
 .El
 .Sh DIAGNOSTICS

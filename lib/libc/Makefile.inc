@@ -39,6 +39,9 @@ NOASM=
 CFLAGS+= -DYP
 .include "${.CURDIR}/../libc/yp/Makefile.inc"
 .endif
+.if !defined(NO_HESIOD_LIBC)
+CFLAGS+= -DHESIOD
+.endif
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:

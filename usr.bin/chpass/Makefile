@@ -10,8 +10,9 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c yppasswd_private.h \
 BINMODE=4555
 .PATH:	${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../../libexec/ypxfr \
-	${.CURDIR}/../../usr.sbin/rpc.yppasswdd
-CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../usr.sbin/vipw
+	${.CURDIR}/../../usr.sbin/rpc.yppasswdd \
+	${.CURDIR}/../../lib/libc/gen
+CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../lib/libc/gen
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
 LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
