@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.53 1998/12/05 16:30:55 kato Exp $
+ *	$Id: identcpu.c,v 1.54 1998/12/27 23:23:26 msmith Exp $
  */
 
 #include "opt_cpu.h"
@@ -59,10 +59,8 @@
 #define	IDENTBLUE_IBMCPU	1
 #define	IDENTBLUE_CYRIXM2	2
 
-/* XXX - should be in header file */
-void	i486_bzero __P((void *buf, size_t len));
-
-void printcpuinfo(void);	/* XXX should be in different header file */
+/* XXX - should be in header file: */
+void printcpuinfo(void);
 void finishidentcpu(void);
 void earlysetcpuclass(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
@@ -71,6 +69,7 @@ void	enable_K6_wt_alloc(void);
 void	enable_K6_2_wt_alloc(void);
 #endif
 void panicifcpuunsupported(void);
+
 static void identifycyrix(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);

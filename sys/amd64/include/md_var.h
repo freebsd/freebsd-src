@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.26 1998/09/25 17:34:49 peter Exp $
+ *	$Id: md_var.h,v 1.27 1998/10/30 05:41:15 msmith Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -38,7 +38,12 @@
 
 extern	int	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
+extern	void	(*bcopy_vector) __P((const void *from, void *to, size_t len));
 extern	int	busdma_swi_pending;
+extern	int	(*copyin_vector) __P((const void *udaddr, void *kaddr,
+				      size_t len));
+extern	int	(*copyout_vector) __P((const void *kaddr, void *udaddr,
+				       size_t len));
 extern	u_int	cpu_feature;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;
@@ -51,6 +56,7 @@ extern	int	need_post_dma_flush;
 #endif
 extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
+extern	void	(*ovbcopy_vector) __P((const void *from, void *to, size_t len));
 extern	char	sigcode[];
 extern	int	szsigcode;
 
@@ -74,6 +80,12 @@ void	doreti_popl_es_fault __P((void)) __asm(__STRING(doreti_popl_es_fault));
 int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	fill_regs __P((struct proc *p, struct reg *regs));
 void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
+void	i486_bzero __P((void *buf, size_t len));
+void	i586_bcopy __P((const void *from, void *to, size_t len));
+void	i586_bzero __P((void *buf, size_t len));
+int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
+int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
+void	i686_pagezero __P((void *addr));
 int	is_physical_memory __P((vm_offset_t addr));
 u_long	kvtop __P((void *addr));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
