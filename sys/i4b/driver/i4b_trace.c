@@ -48,10 +48,6 @@
 #include <net/if.h>
 #include <sys/tty.h>
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/i4b_trace.h>
 #include <machine/i4b_ioctl.h>
 
@@ -94,18 +90,6 @@ static struct cdevsw i4btrc_cdevsw = {
         /* psize */     nopsize,
         /* flags */     0,
 };
-
-/*---------------------------------------------------------------------------*
- *	interface init routine
- *---------------------------------------------------------------------------*/
-static
-void i4btrcinit(void *unused)
-{
-	cdevsw_add(&i4btrc_cdevsw);
-}
-
-SYSINIT(i4btrcdev, SI_SUB_DRIVERS,
-	SI_ORDER_MIDDLE+CDEV_MAJOR, &i4btrcinit, NULL);
 
 static void i4btrcattach(void *);
 PSEUDO_SET(i4btrcattach, i4b_trace);
