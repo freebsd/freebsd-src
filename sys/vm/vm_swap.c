@@ -55,40 +55,6 @@
 #include <vm/swap_pager.h>
 
 /*
- * "sw" is a fake device implemented
- * in vm_swap.c and used only internally to get to swstrategy.
- * It cannot be provided to the users, because the
- * swstrategy routine munches the b_dev and b_blkno entries
- * before calling the appropriate driver.  This would horribly
- * confuse, e.g. the hashing routines. Instead, /dev/drum is
- * provided as a character (raw) device.
- */
-
-static	d_open_t	swopen;
-static	d_strategy_t    swstrategy;
-
-#define CDEV_MAJOR 4
-#define BDEV_MAJOR 26
-
-static struct cdevsw sw_cdevsw = {
-	/* open */	swopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	swstrategy,
-	/* name */	"sw",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
-};
-
-
-/*
  * Indirect driver for multi-controller paging.
  */
 
@@ -110,21 +76,7 @@ int vm_swap_size;
  *	The bp is expected to be locked and *not* B_DONE on call.
  */
 
-static int
-swopen(dev, flag, mode, p)
-	dev_t           dev;
-	int             flag;
-	int             mode;
-	struct proc     *p;
-{
-
-	if (mode == S_IFBLK || minor(dev) != 0)
-		return (ENXIO);
-	return (0);
-}
-
-
-static void
+void
 swstrategy(bp)
 	register struct buf *bp;
 {
@@ -132,17 +84,6 @@ swstrategy(bp)
 	register struct swdevt *sp;
 	struct vnode *vp;
 
-	/*
-	 * XXX: if we allow userland to come through, it will panic
-	 * XXX: so use minor zero for userland and fail it right here
-	 * XXX: and in noread/nowrite.
-	 */
-	if (minor(bp->b_dev) == 0) {
-		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
-		biodone(bp);
-		return;
-	}
 	sz = howmany(bp->b_bcount, PAGE_SIZE);
 	/*
 	 * Convert interleaved swap into per-device swap.  Note that
@@ -224,12 +165,7 @@ swapon(p, uap)
 	dev_t dev;
 	struct nameidata nd;
 	int error;
-	static int once;
 
-	if (!once) {
-		make_dev(&sw_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "drum");
-		once++;
-	}
 	error = suser(p);
 	if (error)
 		return (error);
@@ -361,19 +297,11 @@ swaponvp(p, vp, dev, nblks)
 	}
 
 	if (!swapdev_vp) {
-		struct vnode *vp1;
-		struct vnode *nvp;
-		dev_t dev;
-
 		error = getnewvnode(VT_NON, (struct mount *) 0,
-		    spec_vnodeop_p, &nvp);
+		    spec_vnodeop_p, &swapdev_vp);
 		if (error)
 			panic("Cannot get vnode for swapdev");
-		vp1 = nvp;
-		vp1->v_type = VBLK;
-		dev = make_dev(&sw_cdevsw, 1, UID_ROOT, GID_KMEM, 0640, "swapdev");
-		addalias(vp1, dev);
-		swapdev_vp = vp1;
+		swapdev_vp->v_type = VBLK;
 	}
 	return (0);
 }
