@@ -237,11 +237,11 @@ gem_attach(sc)
 	/* Get RX FIFO size */
 	sc->sc_rxfifosize = 64 *
 	    bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_FIFO_SIZE);
-	printf(", %uKB RX fifo", sc->sc_rxfifosize / 1024);
 
 	/* Get TX FIFO size */
 	v = bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_FIFO_SIZE);
-	printf(", %uKB TX fifo\n", v / 16);
+	device_printf(sc->sc_dev, "%ukB RX FIFO, %ukB TX FIFO\n",
+	    sc->sc_rxfifosize / 1024, v / 16);
 
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
