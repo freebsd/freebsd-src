@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.9 1998/03/23 19:52:38 jlemon Exp $
+ *	$Id: vm86.c,v 1.10 1998/03/24 08:29:05 kato Exp $
  */
 
 #include "opt_vm86.h"
@@ -418,7 +418,8 @@ vm86_initialize(void)
 	ext->ext_iomap = (caddr_t)(offset + ((u_int)&ext->ext_tss & PG_FRAME));
 
 	ext->ext_vm86.vm86_intmap = ext->ext_iomap - 32;
-	ext->ext_vm86.vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
+	if (cpu_feature & CPUID_VME)
+		ext->ext_vm86.vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
 
 	addr = (u_long *)ext->ext_vm86.vm86_intmap;
 	for (i = 0; i < (ctob(IOPAGES) + 32 + 16) / sizeof(u_long); i++)
