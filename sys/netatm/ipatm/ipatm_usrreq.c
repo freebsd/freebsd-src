@@ -90,7 +90,8 @@ ipatm_ioctl(code, data, arg1)
 	struct ipatmpvc	pv;
 	caddr_t		cp;
 	struct in_addr	ip;
-	int		space, err = 0;
+	int err = 0;
+	size_t space;
 	struct t_atm_traffic *traf;
 
 

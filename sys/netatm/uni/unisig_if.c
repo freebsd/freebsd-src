@@ -822,7 +822,8 @@ unisig_ioctl(code, data, arg1)
 	struct atm_pif		*pip;
 	Atm_connection		*cop;
 	u_int			vpi, vci;
-	int			err = 0, buf_len, i;
+	int			err = 0, i;
+	size_t buf_len;
 	caddr_t			buf_addr;
 
 	ATM_DEBUG1("unisig_ioctl: code=%d\n", code);
