@@ -32,6 +32,7 @@
 .Os
 .Sh NAME
 .Nm sysctl_add_oid ,
+.Nm sysctl_move_oid ,
 .Nm sysctl_remove_oid
 .Nd runtime sysctl tree manipulation
 .Sh SYNOPSIS
@@ -49,6 +50,11 @@
 .Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
 .Fa "const char *format"
 .Fa "const char *descr"
+.Fc
+.Ft int
+.Fo sysctl_move_oid
+.Fa "struct sysctl_oid *oidp"
+.Fa "struct sysctl_oid_list *parent"
 .Fc
 .Ft int
 .Fo sysctl_remove_oid
@@ -331,6 +337,14 @@ structures.
 .It Fa descr
 A pointer to a textual description of the oid.
 .El
+.Pp
+The
+.Fn sysctl_move_oid
+function reparents an existing oid.
+The oid is assigned a new number as if it had been created with
+.Fa number
+set to
+.Dv OID_AUTO .
 .Pp
 The
 .Fn sysctl_remove_oid
