@@ -121,7 +121,7 @@ main(int argc, char **argv)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:Uw:X")) != -1)
+	    "a:b:Cc:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -211,6 +211,9 @@ main(int argc, char **argv)
 			break;
 		case 'U':
 			softdep = true;
+			break;
+		case 'v':
+			argappend(&newfs_arg, "-O %s", optarg);
 			break;
 		case 'w':
 			if (compat)
