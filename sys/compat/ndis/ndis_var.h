@@ -975,6 +975,8 @@ struct ndis_sc_element {
 typedef struct ndis_sc_element ndis_sc_element;
 
 #define NDIS_MAXSEG		32
+#define NDIS_BUS_SPACE_SHARED_MAXADDR	0x3E7FFFFF
+
 struct ndis_sc_list {
 	uint32_t		nsl_frags;
 	uint32_t		*nsl_rsvd;
