@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)func.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: func.c,v 1.9 1997/08/08 00:54:03 steve Exp $";
+	"$Id: func.c,v 1.10 1998/02/28 10:49:56 jraynard Exp $";
 #endif
 #endif /* not lint */
 
@@ -1491,9 +1491,22 @@ doprintf(v, t)
     Char **v;
     struct command *t;
 {
+    Char **newv;
     char **c;
     extern int progprintf __P((int, char **));
     int ret;
+
+    gflag = 0;
+    tglob(v);
+    if (gflag) {
+        newv = globall(v);
+        if (newv == 0) {
+            stderror(ERR_NAME | ERR_NOMATCH);
+            return;
+        }
+        v = newv;
+        gargv=0;
+    }
 
     ret = progprintf(blklen(v), c = short2blk(v));
     (void) fflush(cshout);
