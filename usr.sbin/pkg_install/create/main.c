@@ -16,7 +16,7 @@ static const char *rcsid = "$Id: main.c,v 1.4 1993/09/04 05:06:33 jkh Exp $";
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "hvf:p:c:d:i:k:r:t:";
+static char Options[] = "hvf:p:c:d:i:k:r:t:X:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -26,6 +26,7 @@ char	*DeInstall	= NULL;
 char	*Contents	= NULL;
 char	*Require	= NULL;
 char	*PlayPen	= NULL;
+char	*ExcludeFrom	= NULL;
 
 int
 main(int argc, char **argv)
@@ -71,6 +72,10 @@ main(int argc, char **argv)
 
 	case 't':
 	    PlayPen = optarg;
+	    break;
+
+	case 'X':
+	    ExcludeFrom = optarg;
 	    break;
 
 	case 'h':
@@ -126,6 +131,7 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-k script  de-install script\n");
     fprintf(stderr, "-r script  pre/post requirements script\n");
     fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
+    fprintf(stderr, "-X file    exclude files listed in file\n");
     fprintf(stderr, "-v         verbose\n");
     exit(1);
 }
