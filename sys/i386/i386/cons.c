@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.16 1994/10/20 00:07:45 phk Exp $
+ *	$Id: cons.c,v 1.17 1994/10/31 17:20:14 joerg Exp $
  */
 
 
@@ -213,9 +213,12 @@ cnselect(dev, rw, p)
 int
 cngetc()
 {
+	int c;
 	if (cn_tab == NULL)
 		return (0);
-	return ((*cn_tab->cn_getc)(cn_tab->cn_dev));
+	c = (*cn_tab->cn_getc)(cn_tab->cn_dev);
+	if (c == '\r') c = '\n'; /* console input is always ICRNL */
+	return (c);
 }
 
 int
