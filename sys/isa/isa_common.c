@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/isa_common.c,v 1.16 2000/02/11 04:35:07 msmith Exp $
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.

@@ -23,7 +23,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/osf1/osf1.sh,v 1.1 1999/12/14 22:35:36 gallatin Exp $
 #
 
 FOUND=`kldstat -v | egrep 'osf1_ecoff'`

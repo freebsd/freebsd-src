@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.cshrc,v 1.25 2000/03/07 18:52:36 rwatson Exp $
 #
 #csh .cshrc file
 

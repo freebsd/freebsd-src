@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/amd.c,v 1.3 2000/01/14 03:39:30 gibbs Exp $
  */
 
 /*

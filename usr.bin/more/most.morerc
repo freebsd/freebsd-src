@@ -3,7 +3,7 @@
 # keys, in so far as more(1) is capable (which is not very far at the
 # moment).
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/more/most.morerc,v 1.1 1999/09/03 22:31:17 hoek Exp $
 #
 # BUGS: It's extremely unlikely that more(1) will ever support multiple
 #       windows as most(1) does.  Multiple windows is an editor function,

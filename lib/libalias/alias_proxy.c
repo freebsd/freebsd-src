@@ -22,7 +22,7 @@
 
     Initial development: April, 1998 (cjm)
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_proxy.c,v 1.4 1999/08/29 23:17:04 billf Exp $
 */
 
 

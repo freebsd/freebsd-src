@@ -13,7 +13,7 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  *	$Id: ip6_fw.c,v 1.7 1999/08/31 12:25:57 shin Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_fw.c,v 1.2 2000/03/11 20:03:22 shin Exp $
  */
 
 /*

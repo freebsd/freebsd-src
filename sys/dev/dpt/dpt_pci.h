@@ -28,7 +28,7 @@
  *
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt_pci.h,v 1.2 1999/08/28 00:50:46 peter Exp $"
 
 #define DPT_VENDOR_ID             0x00001044
 #define DPT_DEVICE_ID             0x0000a400

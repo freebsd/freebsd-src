@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile,v 1.9 1999/11/06 21:04:46 jb Exp $
 #
 
 .include "../Makefile.inc0"

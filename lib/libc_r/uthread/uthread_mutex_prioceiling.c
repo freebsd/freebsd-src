@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_mutex_prioceiling.c,v 1.3 1999/08/28 00:03:40 peter Exp $
  */
 #include <string.h>
 #include <stdlib.h>

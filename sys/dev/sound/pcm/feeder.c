@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/feeder.c,v 1.8 1999/12/05 19:09:13 cg Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libipsec/policy_parse.y,v 1.1 2000/01/06 12:40:34 shin Exp $
  */
 /* KAME $Id: policy_parse.y,v 1.1 1999/10/20 01:26:41 sakane Exp $ */
 

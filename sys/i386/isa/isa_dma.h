@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/isa_dma.h,v 1.3 1999/12/29 04:33:15 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DMA_H_

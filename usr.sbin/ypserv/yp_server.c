@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/ypserv/yp_server.c,v 1.31 1999/08/28 01:21:13 peter Exp $";
 #endif /* not lint */
 
 #include "yp.h"

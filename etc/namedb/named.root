@@ -14,7 +14,7 @@
 ;
 ;       last update:    Aug 22, 1997
 ;       related version of root zone:   1997082200
-; $FreeBSD$
+; $FreeBSD: src/etc/namedb/named.root,v 1.9 1999/09/13 17:09:08 peter Exp $
 ;
 ; formerly NS.INTERNIC.NET
 ;

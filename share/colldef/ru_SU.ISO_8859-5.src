@@ -1,6 +1,6 @@
 # Russian part of ISO8859-5 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/ru_SU.ISO_8859-5.src,v 1.1 1999/10/03 01:22:22 ache Exp $
 #
 charmap map.ISO_8859-5
 order \

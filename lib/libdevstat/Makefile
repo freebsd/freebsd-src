@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libdevstat/Makefile,v 1.4 2000/01/14 07:57:26 rgrimes Exp $
 
 MAINTAINER=ken@FreeBSD.ORG
 

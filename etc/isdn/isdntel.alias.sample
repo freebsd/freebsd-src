@@ -3,7 +3,7 @@
 #	alias file for the isdntel(1) application
 #	-----------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdntel.alias.sample,v 1.2 1999/08/27 23:23:58 peter Exp $
 #
 #	last edit-date: [Fri Dec 18 18:06:03 1998]
 #

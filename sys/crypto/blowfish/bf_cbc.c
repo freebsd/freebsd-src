@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/blowfish/bf_cbc.c,v 1.1 1999/12/22 19:13:07 shin Exp $
  */
 
 #include <crypto/blowfish/blowfish.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/i386/rtld_machdep.h,v 1.3 1999/08/28 00:10:14 peter Exp $
  */
 
 #ifndef RTLD_MACHDEP_H

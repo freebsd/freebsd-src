@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #else
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/lib/libkvm/kvm.c,v 1.12 1999/12/27 07:14:56 peter Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

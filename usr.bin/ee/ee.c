@@ -52,7 +52,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ee/ee.c,v 1.16 1999/10/18 16:30:12 ache Exp $";
 #endif /* not lint */
 
 char *ee_copyright_message = 

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/rdist/rshrcmd.c,v 1.6 1999/08/28 01:05:08 peter Exp $";
 #endif /* not lint */
 
 #include	"defs.h"

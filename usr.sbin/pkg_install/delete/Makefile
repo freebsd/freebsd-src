@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/delete/Makefile,v 1.11 1999/08/28 01:18:00 peter Exp $
 
 PROG= pkg_delete
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib

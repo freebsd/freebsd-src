@@ -33,7 +33,7 @@
  *	pcmcia_isic.h - common definitions for pcmcia isic cards
  *	--------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/pcmcia_isic.h,v 1.5 1999/08/28 00:45:45 peter Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:29:33 1999]
  *

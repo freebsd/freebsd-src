@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/in6_prefix.h,v 1.1 1999/11/22 02:45:02 shin Exp $
  */
 
 struct rr_prefix {

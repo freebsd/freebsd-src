@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/dev/amr/amrreg.h,v 1.1 1999/10/07 02:23:12 msmith Exp $
  */
 
 /*

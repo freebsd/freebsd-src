@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ipl.s,v 1.32 1999/11/19 16:49:30 dillon Exp $
  */
 
 

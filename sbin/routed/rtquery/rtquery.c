@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/rtquery/rtquery.c,v 1.13 1999/08/28 00:14:21 peter Exp $
  */
 
 char copyright[] =

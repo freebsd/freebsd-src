@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/isc-dhcp/FREEBSD-upgrade,v 1.9 1999/09/08 11:16:36 obrien Exp $
 
 ISC DHCP client 2.0
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/

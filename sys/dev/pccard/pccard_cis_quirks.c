@@ -1,5 +1,5 @@
 /*	$NetBSD: pcmcia_cis_quirks.c,v 1.5 1999/10/11 17:50:21 thorpej Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pccard/pccard_cis_quirks.c,v 1.2 1999/11/28 05:49:27 imp Exp $ */
 
 #define	PCCARDDEBUG
 

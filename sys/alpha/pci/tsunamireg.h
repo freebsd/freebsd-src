@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/tsunamireg.h,v 1.3 1999/08/28 00:39:03 peter Exp $ */
 
 /*
  * 21271 Chipset registers and constants.

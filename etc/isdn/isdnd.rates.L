@@ -5,7 +5,7 @@
 #
 #	$Id: isdnd.rates.L,v 1.2 1999/12/13 21:25:24 hm Exp $
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdnd.rates.L,v 1.1 1999/12/14 21:14:28 hm Exp $
 #
 #	last edit-date: [Mon Dec 13 21:42:33 1999]
 #

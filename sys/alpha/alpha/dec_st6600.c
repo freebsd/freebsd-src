@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/dec_st6600.c,v 1.5 1999/12/14 17:50:00 gallatin Exp $
  */
 
 #include "opt_ddb.h"

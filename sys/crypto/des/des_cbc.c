@@ -49,7 +49,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/des/des_cbc.c,v 1.1 1999/12/22 19:13:11 shin Exp $
  */
 
 #include <crypto/des/des_locl.h>

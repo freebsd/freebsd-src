@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot2/boot1.s,v 1.10 1999/08/28 00:40:01 peter Exp $
 
 		.set MEM_REL,0x700		# Relocation address
 		.set MEM_ARG,0x900		# Arguments

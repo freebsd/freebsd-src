@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/OSFpal.c,v 1.2 1999/08/28 00:39:25 peter Exp $
  * From	$NetBSD: OSFpal.c,v 1.5 1998/06/24 01:33:19 ross Exp $ 
  */
 

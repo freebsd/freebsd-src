@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/if_tx.c,v 1.34 1999/12/21 11:14:10 eivind Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)

@@ -1,5 +1,5 @@
 # Makefile for uuname
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uuname/Makefile,v 1.5 1999/08/27 23:33:58 peter Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.i386/disktab,v 1.20 1999/08/27 23:23:57 peter Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_usrreq.c,v 1.51 2000/01/09 19:17:28 shin Exp $
  */
 
 #include "opt_ipsec.h"

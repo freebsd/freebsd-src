@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6protosw.h,v 1.2 2000/01/15 05:20:40 shin Exp $
  */
 
 /*	BSDI protosw.h,v 2.3 1996/10/11 16:02:40 pjd Exp	*/

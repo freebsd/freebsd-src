@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mlx/mlxio.h,v 1.1 1999/10/07 02:20:32 msmith Exp $
  */
 
 #include <sys/ioccom.h>

@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ed/if_edreg.h,v 1.27 1999/09/02 15:06:23 kato Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions

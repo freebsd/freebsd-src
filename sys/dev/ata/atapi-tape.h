@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ata/atapi-tape.h,v 1.11 2000/02/18 20:57:31 sos Exp $
  */
 
 /* ATAPI tape drive Capabilities and Mechanical Status Page */

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/dec_kn8ae.c,v 1.5 1999/10/05 21:19:34 n_hibma Exp $ */
 /* $NetBSD: dec_kn8ae.c,v 1.15 1998/02/13 00:12:50 thorpej Exp $ */
 
 /*

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/icmp6.h,v 1.2 2000/02/10 19:33:55 shin Exp $
  */
 
 #ifndef _NETINET_ICMP6_H_

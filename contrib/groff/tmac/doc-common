@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/contrib/groff/tmac/doc-common,v 1.21 2000/01/28 13:05:55 joerg Exp $
 .\"
 .\"     %beginstrip%
 .nr %A 1

@@ -36,7 +36,7 @@
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/crc.c,v 1.1 2000/01/28 05:10:35 shin Exp $
  */
 /* CRC implantation : stolen from RFC 2083 section 15.*/
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/sha1.h,v 1.3 2000/02/10 19:35:52 shin Exp $
  */
 /*
  * FIPS pub 180-1: Secure Hash Algorithm (SHA-1)

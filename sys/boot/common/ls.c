@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/ls.c,v 1.8 1999/08/28 00:39:50 peter Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 

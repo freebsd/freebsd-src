@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.timeout.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.timeout.c,v 1.3 1999/11/16 02:57:12 billf Exp $ */
 
 #include	"hack.h"
 

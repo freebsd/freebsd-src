@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_auth.c,v 1.11 1999/08/28 00:05:45 peter Exp $
  */
 
 #include <sys/types.h>

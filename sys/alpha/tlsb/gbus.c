@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/gbus.c,v 1.8 1999/12/03 08:40:57 mdodd Exp $ */
 /* $NetBSD: gbus.c,v 1.8 1998/05/13 22:13:35 thorpej Exp $ */
 
 /*

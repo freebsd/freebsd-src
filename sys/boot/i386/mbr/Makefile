@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/mbr/Makefile,v 1.2 1999/08/28 00:40:20 peter Exp $
 
 PROG=		mbr
 NOMAN=

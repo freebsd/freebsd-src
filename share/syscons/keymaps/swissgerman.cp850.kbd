@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/swissgerman.cp850.kbd,v 1.1 1999/11/29 01:12:25 yokota Exp $
 #
 # swiss-german cp850 keymap
 # original 21.10.1996 by Adrian Steinmann <ast@marabu.ch>

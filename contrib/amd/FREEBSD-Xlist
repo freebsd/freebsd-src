@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/amd/FREEBSD-Xlist,v 1.1 1999/09/18 09:25:20 obrien Exp $
 *Makefile.*
 *README.autofs
 *aux

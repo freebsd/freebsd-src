@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/swissfrench.cp850.kbd,v 1.1 1999/11/29 01:12:25 yokota Exp $
 #
 # swiss-french cp850 keymap
 # original 13.06.1998 by Francois Tamone <tamone@eig.unige.ch>

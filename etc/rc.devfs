@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.devfs,v 1.7 1999/10/12 19:23:51 charnier Exp $
 #
 # If there is a global system configuration file, suck it in.
 #

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pw/pw.h,v 1.10 1999/10/26 08:34:08 davidn Exp $
  */
 
 #include <stdio.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libposix1e/acl_from_text.c,v 1.1 2000/01/15 19:44:24 rwatson Exp $
  */
 /*
  * acl_from_text: convert a text-form ACL from a string to an acl_t

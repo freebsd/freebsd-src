@@ -181,7 +181,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protz_rcsid[] = "$FreeBSD$";
+const char protz_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/uucico/protz.c,v 1.7 1999/08/27 23:33:49 peter Exp $";
 #endif
 
 #include <errno.h>

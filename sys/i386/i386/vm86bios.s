@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/vm86bios.s,v 1.15 1999/08/28 00:43:53 peter Exp $
  */
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */

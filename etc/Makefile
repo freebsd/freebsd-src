@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-# $FreeBSD$
+# $FreeBSD: src/etc/Makefile,v 1.219 2000/03/13 04:59:43 shin Exp $
 
 SUBDIR=	sendmail
 

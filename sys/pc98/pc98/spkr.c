@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/spkr.c,v 1.24 2000/02/01 08:54:14 kato Exp $
  */
 
 /*

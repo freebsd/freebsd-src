@@ -34,7 +34,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumparser.c,v 1.18 1999/12/30 09:31:22 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumparser.c,v 1.20 2000/01/05 06:08:55 grog Exp $
  */
 
 /*

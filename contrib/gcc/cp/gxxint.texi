@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@c %** $FreeBSD$
+@c %** $FreeBSD: src/contrib/gcc/cp/gxxint.texi,v 1.4 1999/10/16 07:56:14 obrien Exp $
 @c %**start of header 
 @setfilename g++int.info
 @settitle G++ internals

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ep/if_ep_mca.c,v 1.2 1999/10/27 06:25:15 mdodd Exp $
  */
 
 #include <sys/param.h>

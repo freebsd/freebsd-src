@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/arith_lex.l,v 1.14 1999/08/27 23:15:08 peter Exp $
  */
 
 #ifndef lint
@@ -42,7 +42,7 @@
 static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/arith_lex.l,v 1.14 1999/08/27 23:15:08 peter Exp $";
 #endif /* not lint */
 
 #include <unistd.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mtree/extern.h,v 1.3 1999/12/09 20:38:35 joe Exp $
  */
 
 int	 compare __P((char *, NODE *, FTSENT *));

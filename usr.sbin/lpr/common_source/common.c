@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/lpr/common_source/common.c,v 1.12 1999/08/28 01:16:47 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/caesar/caesar.c,v 1.8 1999/11/16 02:56:52 billf Exp $
  */
 
 #ifndef lint
@@ -52,7 +52,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)caesar.c    8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/games/caesar/caesar.c,v 1.8 1999/11/16 02:56:52 billf Exp $";
 #endif
 #endif /* not lint */
 

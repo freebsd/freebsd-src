@@ -12,7 +12,7 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  *	$Id: ip6_fw.h,v 1.1 1999/08/06 14:10:09 itojun Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_fw.h,v 1.3 2000/01/29 13:54:41 shin Exp $
  */
 
 #ifndef _IP6_FW_H

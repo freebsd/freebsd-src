@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/pal.S,v 1.2 1999/08/28 00:39:28 peter Exp $
  * From: $NetBSD: pal.s,v 1.12 1998/02/27 03:44:53 thorpej Exp $ 
  */
 

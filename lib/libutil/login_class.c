@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_class.c,v 1.14 2000/01/19 10:54:44 ru Exp $
  */
 
 #include <stdio.h>

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic7xxx.c,v 1.41.2.1 2000/03/18 23:00:11 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.

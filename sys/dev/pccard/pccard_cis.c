@@ -1,5 +1,5 @@
 /*	$NetBSD: pcmcia_cis.c,v 1.10 1998/12/29 09:03:15 marc Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pccard/pccard_cis.c,v 1.5 2000/01/10 06:58:17 imp Exp $ */
 
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.

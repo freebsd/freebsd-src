@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/net_osdep.h,v 1.1 1999/11/22 02:44:54 shin Exp $
  */
 /*
  * glue for kernel code programming differences.

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbhid.h,v 1.4 1999/04/22 01:57:01 augustss Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/usb/usbhid.h,v 1.7 1999/11/17 22:33:51 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

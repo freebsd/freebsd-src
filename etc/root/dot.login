@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.login,v 1.20 2000/03/07 18:52:37 rwatson Exp $
 #
 # csh .login file
 #

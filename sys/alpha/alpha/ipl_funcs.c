@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/ipl_funcs.c,v 1.15 2000/02/17 18:37:42 bde Exp $
  */
 
 #include <sys/param.h>

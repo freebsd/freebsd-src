@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/math_emulate.c,v 1.35 1999/08/28 00:43:47 peter Exp $
  */
 
 /*

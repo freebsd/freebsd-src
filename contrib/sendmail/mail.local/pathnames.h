@@ -9,7 +9,7 @@
  *
  *
  *	@(#)pathnames.h	8.5 (Berkeley) 5/19/1998
- *	$FreeBSD$
+ *	$FreeBSD: src/contrib/sendmail/mail.local/pathnames.h,v 1.2 1999/12/17 01:18:44 grog Exp $
  */
 #include <paths.h>
 

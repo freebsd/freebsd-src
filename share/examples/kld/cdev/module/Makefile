@@ -34,7 +34,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/kld/cdev/module/Makefile,v 1.3 1999/08/28 00:19:21 peter Exp $
 #
 # Copyright (c) 1993 Terrence R. Lambert.
 # All rights reserved.

@@ -1,7 +1,7 @@
 /*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
  * code.
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_rcmd_pxy.c,v 1.4 2000/02/10 21:29:11 guido Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;

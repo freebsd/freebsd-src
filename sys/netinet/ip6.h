@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip6.h,v 1.2 2000/02/10 19:33:56 shin Exp $
  */
 
 #define	__KAME_NETINET_IP6_H_INCLUDED_

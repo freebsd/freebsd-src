@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/nls/catgets.c,v 1.5 1999/08/28 00:00:24 peter Exp $ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

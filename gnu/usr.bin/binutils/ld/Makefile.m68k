@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.m68k,v 1.3 1999/12/17 15:50:44 marcel Exp $
 #
 
 .if	${TARGET_ARCH} == "m68k"

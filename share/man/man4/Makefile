@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man4/Makefile,v 1.83 2000/03/12 16:29:50 shin Exp $
 
 MAN4=	ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 atkbdc.4 aue.4 blackhole.4 \
 	bpf.4 bridge.4 ccd.4 cd.4 ch.4 csa.4 cue.4 da.4 dc.4 ddb.4 de.4 \

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/tsunami_pci.c,v 1.6 2000/01/20 16:49:18 gallatin Exp $
  */
 
 #include <sys/param.h>

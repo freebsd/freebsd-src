@@ -3,7 +3,7 @@
    actual type **after default promotions**.
    Thus, va_arg (..., short) is not valid.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/ginclude/stdarg.h,v 1.4 1999/10/16 07:12:34 obrien Exp $ */
 
 #ifndef _STDARG_H
 #ifndef _ANSI_STDARG_H_

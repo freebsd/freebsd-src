@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/ld/ld.h,v 1.21 1999/08/27 23:36:01 peter Exp $
  */
 /*-
  * This code is derived from software copyrighted by the Free Software

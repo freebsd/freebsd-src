@@ -1,5 +1,5 @@
 # Makefile for uux
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uux/Makefile,v 1.6 1999/08/27 23:34:05 peter Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

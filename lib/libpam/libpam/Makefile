@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libpam/libpam/Makefile,v 1.12 2000/03/09 06:28:27 kris Exp $
 
 PAMDIR=		${.CURDIR}/../../../contrib/libpam
 MODOBJDIR=	../modules

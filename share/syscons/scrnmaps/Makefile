@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/scrnmaps/Makefile,v 1.14 2000/01/08 18:11:06 ache Exp $
 
 SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm iso-8859-4_to_cp437.scm
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/clock.c,v 1.13 2000/01/04 11:30:01 mjacob Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*

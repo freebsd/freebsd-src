@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_log.c,v 1.39 1999/09/25 18:24:23 phk Exp $
  */
 
 /*

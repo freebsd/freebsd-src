@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/dialog/TESTS/Makefile,v 1.2 2000/01/08 09:34:45 jkh Exp $
 
 FILES=	README checklist ftreebox infobox inputbox menubox msgbox \
 	prgbox radiolist textbox treebox yesno

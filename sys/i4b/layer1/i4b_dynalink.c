@@ -33,7 +33,7 @@
  *	isdn4bsd layer1 driver for Dynalink IS64PH isdn TA
  *	==================================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_dynalink.c,v 1.7 1999/12/07 12:06:31 peter Exp $
  *
  *      last edit-date: [Sun Feb 14 10:26:21 1999]
  *

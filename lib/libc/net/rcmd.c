@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/lib/libc/net/rcmd.c,v 1.23 2000/02/10 19:46:47 shin Exp $ 
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

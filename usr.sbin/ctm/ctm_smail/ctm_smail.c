@@ -11,7 +11,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/ctm_smail/ctm_smail.c,v 1.12 1999/08/28 01:16:02 peter Exp $
  */
 
 #include <stdio.h>

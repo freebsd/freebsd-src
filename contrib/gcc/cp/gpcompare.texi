@@ -1,0 +1,236 @@
+@node ANSI
+@chapter @sc{gnu} C++ Conformance to @sc{ansi} C++
+
+These changes in the @sc{gnu} C++ compiler were made to comply more
+closely with the @sc{ansi} base document, @cite{The Annotated C++
+Reference Manual} (the @sc{arm}).  Further reducing the divergences from
+@sc{ansi} C++ is a continued goal of the @sc{gnu} C++ Renovation
+Project.
+
+@b{Section 3.4}, @i{Start and Termination}.  It is now invalid to take
+the address of the function @samp{main()}.
+
+@b{Section 4.8}, @i{Pointers to Members}.  The compiler produces
+an error for trying to convert between a pointer to a member and the type
+@samp{void *}.
+
+@b{Section 5.2.5}, @i{Increment and Decrement}.  It is an error to use
+the increment and decrement operators on an enumerated type.
+
+@b{Section 5.3.2}, @i{Sizeof}.  Doing @code{sizeof} on a function is now
+an error.
+
+@b{Section 5.3.4}, @i{Delete}.  The syntax of a @i{cast-expression} is
+now more strictly controlled.
+
+@b{Section 7.1.1}, @i{Storage Class Specifiers}.  Using the
+@code{static} and @code{extern} specifiers can now only be applied to
+names of objects, functions, and anonymous unions.
+
+@b{Section 7.1.1}, @i{Storage Class Specifiers}.  The compiler no longer complains
+about taking the address of a variable which has been declared to have @code{register}
+storage.
+
+@b{Section 7.1.2}, @i{Function Specifiers}.  The compiler produces an
+error when the @code{inline} or @code{virtual} specifiers are
+used on anything other than a function.
+
+@b{Section 8.3}, @i{Function Definitions}.  It is now an error to shadow
+a parameter name with a local variable; in the past, the compiler only
+gave a warning in such a situation.
+
+@b{Section 8.4.1}, @i{Aggregates}.  The rules concerning declaration of
+an aggregate are now all checked in the @sc{gnu} C++ compiler; they
+include having no private or protected members and no base classes.
+
+@b{Section 8.4.3}, @i{References}.  Declaring an array of references is
+now forbidden.  Initializing a reference with an initializer list is
+also considered an error.
+
+@b{Section 9.5}, @i{Unions}.  Global anonymous unions must be declared
+@code{static}.
+
+@b{Section 11.4}, @i{Friends}.  Declaring a member to be a friend of a
+type that has not yet been defined is an error.
+
+@b{Section 12.1}, @i{Constructors}.  The compiler generates a
+default copy constructor for a class if no constructor has been declared.
+
+@ignore
+@b{Section 12.4}, @i{Destructors}.  In accordance with the @sc{ansi} C++
+draft standard working paper, a pure virtual destructor must now be
+defined.
+@end ignore
+
+@b{Section 12.6.2}, @i{Special Member Functions}.  When using a
+@i{mem-initializer} list, the compiler will now initialize class members
+in declaration order, not in the order in which you specify them.
+Also, the compiler enforces the rule that non-static @code{const}
+and reference members must be initialized with a @i{mem-initializer}
+list when their class does not have a constructor.
+
+@b{Section 12.8}, @i{Copying Class Objects}.  The compiler generates
+default copy constructors correctly, and supplies default assignment
+operators compatible with user-defined ones.
+
+@b{Section 13.4}, @i{Overloaded Operators}.  An overloaded operator may
+no longer have default arguments.
+
+@b{Section 13.4.4}, @i{Function Call}.  An overloaded @samp{operator ()}
+must be a non-static member function.
+
+@b{Section 13.4.5}, @i{Subscripting}.  An overloaded @samp{operator []}
+must be a non-static member function.
+
+@b{Section 13.4.6}, @i{Class Member Access}.  An overloaded @samp{operator ->}
+must be a non-static member function.
+
+@b{Section 13.4.7}, @i{Increment and Decrement}.  The compiler will now
+make sure a postfix @samp{@w{operator ++}} or @samp{@w{operator --}} has an
+@code{int} as its second argument.
+
+
+@node Encoding
+@chapter Name Encoding in @sc{gnu} C++
+
+@c FIXME!! rewrite name encoding section
+@c ...to give complete rules rather than diffs from ARM.
+@c To avoid plagiarism, invent some different way of structuring the
+@c description of the rules than what ARM uses.
+
+@cindex mangling
+@cindex name encoding
+@cindex encoding information in names
+In order to support its strong typing rules and the ability to provide
+function overloading, the C++ programming language @dfn{encodes}
+information about functions and objects, so that conflicts across object
+files can be detected during linking. @footnote{This encoding is also
+sometimes called, whimsically enough, @dfn{mangling}; the corresponding
+decoding is sometimes called @dfn{demangling}.} These rules tend to be
+unique to each individual implementation of C++.
+
+The scheme detailed in the commentary for 7.2.1 of @cite{The Annotated
+Reference Manual} offers a description of a possible implementation
+which happens to closely resemble the @code{cfront} compiler.  The
+design used in @sc{gnu} C++ differs from this model in a number of ways:
+
+@itemize @bullet
+@item
+In addition to the basic types @code{void}, @code{char}, @code{short},
+@code{int}, @code{long}, @code{float}, @code{double}, and @code{long
+double}, @sc{gnu} C++ supports two additional types: @code{wchar_t}, the wide
+character type, and @code{long long} (if the host supports it).  The
+encodings for these are @samp{w} and @samp{x} respectively.
+
+@item
+According to the @sc{arm}, qualified names (e.g., @samp{foo::bar::baz}) are
+encoded with a leading @samp{Q}.  Followed by the number of
+qualifications (in this case, three) and the respective names, this
+might be encoded as @samp{Q33foo3bar3baz}.  @sc{gnu} C++ adds a leading
+underscore to the list, producing @samp{_Q33foo3bar3baz}.
+ 
+@item
+The operator @samp{*=} is encoded as @samp{__aml}, not @samp{__amu}, to
+match the normal @samp{*} operator, which is encoded as @samp{__ml}.
+
+@c XXX left out ->(), __wr
+@item
+In addition to the normal operators, @sc{gnu} C++ also offers the minimum and
+maximum operators @samp{>?} and @samp{<?}, encoded as @samp{__mx} and
+@samp{__mn}, and the conditional operator @samp{?:}, encoded as @samp{__cn}.
+
+@cindex destructors, encoding of
+@cindex constructors, encoding of
+@item
+Constructors are encoded as simply @samp{__@var{name}}, where @var{name}
+is the encoded name (e.g., @code{3foo} for the @code{foo} class
+constructor).  Destructors are encoded as two leading underscores
+separated by either a period or a dollar sign, depending on the
+capabilities of the local host, followed by the encoded name.  For
+example, the destructor @samp{foo::~foo} is encoded as @samp{_$_3foo}.
+
+@item
+Virtual tables are encoded with a prefix of @samp{_vt}, rather than
+@samp{__vtbl}.  The names of their classes are separated by dollar signs
+(or periods), and not encoded as normal: the virtual table for
+@code{foo} is @samp{__vt$foo}, and the table for @code{foo::bar} is
+named @samp{__vt$foo$bar}.
+
+@item
+Static members are encoded as a leading underscore, followed by the
+encoded name of the class in which they appear, a separating dollar sign
+or period, and finally the unencoded name of the variable.  For example,
+if the class @code{foo} contains a static member @samp{bar}, its
+encoding would be @samp{_3foo$bar}.
+
+@item
+@sc{gnu} C++ is not as aggressive as other compilers when it comes to always
+generating @samp{Fv} for functions with no arguments.  In particular,
+the compiler does not add the sequence to conversion operators.  The
+function @samp{foo::bar()} is encoded as @samp{bar__3foo}, not
+@samp{bar__3fooFv}.
+
+@item
+The argument list for methods is not prefixed by a leading @samp{F}; it
+is considered implied.
+
+@item
+@sc{gnu} C++ approaches the task of saving space in encodings
+differently from that noted in the @sc{arm}.  It does use the
+@samp{T@var{n}} and @samp{N@var{x}@var{y}} codes to signify copying the
+@var{n}th argument's type, and making the next @var{x} arguments be the
+type of the @var{y}th argument, respectively.  However, the values for
+@var{n} and @var{y} begin at zero with @sc{gnu} C++, whereas the
+@sc{arm} describes them as starting at one.  For the function @samp{foo
+(bartype, bartype)}, @sc{gnu} C++ uses @samp{foo__7bartypeT0}, while
+compilers following the @sc{arm} example generate @samp{foo__7bartypeT1}.
+
+@c Note it loses on `foo (int, int, int, int, int)'.
+@item
+@sc{gnu} C++ does not bother using the space-saving methods for types whose
+encoding is a single character (like an integer, encoded as @samp{i}).
+This is useful in the most common cases (two @code{int}s would result in
+using three letters, instead of just @samp{ii}).
+@end itemize
+
+@c @node Cfront
+@c @chapter @code{cfront} Compared to @sc{gnu} C++
+@c 
+@c 
+@c FIXME!! Fill in.  Consider points in the following:
+@c 
+@c @display
+@c Date: Thu, 2 Jan 92 21:35:20 EST
+@c From: raeburn@@cygnus.com
+@c Message-Id: <9201030235.AA10999@@cambridge.cygnus.com>
+@c To: mrs@@charlie.secs.csun.edu
+@c Cc: g++@@cygnus.com
+@c Subject: Re: ARM and GNU C++ incompatabilities
+@c 
+@c Along with that, we should probably describe how g++ differs from
+@c cfront, in ways that the users will notice.  (E.g., cfront supposedly
+@c allows "free (new char[10])"; does g++?  How do the template
+@c implementations differ?  "New" placement syntax?)
+@c @end display
+@c
+@c XXX For next revision.
+@c
+@c GNU C++:
+@c * supports expanding inline functions in many situations,
+@c   including those which have static objects, use `for' statements,
+@c   and other situations.  Part of this versatility is due to is
+@c   ability to not always generate temporaries for assignments.
+@c * deliberately allows divide by 0 and mod 0, since [according
+@c   to Wilson] there are actually situations where you'd like to allow
+@c   such things.  Note on most systems it will cause some sort of trap
+@c   or bus error.  Cfront considers it an error.
+@c * does [appear to] support nested classes within templates.
+@c * conversion functions among baseclasses are all usable by
+@c   a class that's derived from all of those bases.
+@c * sizeof works even when the class is defined within its ()'s
+@c * conditional expressions work with member fns and pointers to
+@c    members.
+@c * can handle non-trivial declarations of variables within switch
+@c   statements.
+@c
+@c Cfront:

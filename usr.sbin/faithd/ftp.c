@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/faithd/ftp.c,v 1.2 2000/02/10 19:42:42 shin Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libfetch/Makefile,v 1.14 2000/01/14 07:57:29 rgrimes Exp $
 
 MAINTAINER=	des@freebsd.org
 LIB=		fetch

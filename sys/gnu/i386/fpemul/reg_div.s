@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/reg_div.s,v 1.9 1999/08/28 00:42:56 peter Exp $
  *
  */
 

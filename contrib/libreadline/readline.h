@@ -20,7 +20,7 @@
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/readline.h,v 1.9 2000/01/14 18:57:33 bde Exp $ */
 
 #if !defined (_READLINE_H_)
 #define _READLINE_H_

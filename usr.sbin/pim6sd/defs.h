@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/defs.h,v 1.1 2000/01/28 05:10:36 shin Exp $
  */
 /*
  *  Questions concerning this software should be directed to

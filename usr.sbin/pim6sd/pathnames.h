@@ -30,7 +30,7 @@
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/pathnames.h,v 1.2 2000/02/15 18:33:21 shin Exp $
  */
 /*
  *  Questions concerning this software should be directed to

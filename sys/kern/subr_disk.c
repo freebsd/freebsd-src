@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_disk.c,v 1.20 2000/03/09 12:40:41 bde Exp $
  *
  */
 

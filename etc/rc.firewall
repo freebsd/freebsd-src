@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.firewall,v 1.30 2000/02/06 19:24:37 paul Exp $
 
 # Suck in the configuration variables.
 if [ -r /etc/defaults/rc.conf ]; then

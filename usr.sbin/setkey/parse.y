@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/setkey/parse.y,v 1.1 2000/01/06 12:40:51 shin Exp $
  */
 /* KAME $Id: parse.y,v 1.7 1999/10/27 17:08:57 sakane Exp $ */
 

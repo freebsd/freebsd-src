@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_sysctl.c,v 1.92 1999/12/01 02:25:10 green Exp $
  */
 
 #include "opt_compat.h"

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_prf.c,v 1.61 1999/08/28 00:46:18 peter Exp $
  */
 
 #include <sys/param.h>

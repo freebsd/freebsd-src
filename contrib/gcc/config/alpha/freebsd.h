@@ -22,7 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    This was taken from the NetBSD configuration, and modified
    for FreeBSD/Alpha by Hidetoshi Shimokawa <simokawa@FreeBSD.ORG> */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/alpha/freebsd.h,v 1.9 1999/12/19 06:42:23 obrien Exp $ */
 
 
 /* Make gcc agree with <machine/ansi.h> */

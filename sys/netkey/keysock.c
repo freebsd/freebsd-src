@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netkey/keysock.c,v 1.1 1999/12/22 19:13:36 shin Exp $
  */
 
 /* KAME @(#)$Id: keysock.c,v 1.2 1999/08/16 19:30:36 shin Exp $ */

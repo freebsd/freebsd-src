@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/tlsb/zs_tlsb.c,v 1.25 2000/01/29 16:57:03 mjacob Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ibcs2/ibcs2.sh,v 1.9 1999/08/28 00:47:15 peter Exp $
 
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH

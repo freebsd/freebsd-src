@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libtacplus/taclib.c,v 1.2 2000/01/17 04:26:09 jdp Exp $
  */
 
 #include <sys/types.h>

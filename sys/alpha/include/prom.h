@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/prom.h,v 1.5 1999/12/29 04:27:59 peter Exp $
  */
 
 #ifndef	ASSEMBLER

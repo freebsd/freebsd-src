@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_sframe.c,v 1.12 1999/12/13 21:25:27 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer2/i4b_sframe.c,v 1.6 1999/12/14 20:48:28 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:04:17 1999]
  *

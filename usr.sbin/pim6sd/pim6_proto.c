@@ -86,7 +86,7 @@
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/pim6_proto.c,v 1.1 2000/01/28 05:10:42 shin Exp $
  */
 /*
  *  Questions concerning this software should be directed to

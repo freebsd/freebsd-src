@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.end.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.end.c,v 1.4 1999/11/16 10:26:36 marcel Exp $ */
 
 #include "hack.h"
 #include <stdio.h>

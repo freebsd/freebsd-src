@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ktrace.h,v 1.19 1999/12/29 04:24:43 peter Exp $
  */
 
 #ifndef _SYS_KTRACE_H_

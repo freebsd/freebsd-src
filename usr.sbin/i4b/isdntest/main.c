@@ -29,7 +29,7 @@
  *
  *	$Id: main.c,v 1.15 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntest/main.c,v 1.7 1999/12/14 21:07:48 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:55:19 1999]
  *

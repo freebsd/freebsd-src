@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pnpinfo/Makefile,v 1.4 1999/08/28 01:18:08 peter Exp $
 
 PROG=	pnpinfo
 

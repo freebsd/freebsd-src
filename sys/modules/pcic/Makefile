@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pcic/Makefile,v 1.13 1999/12/19 05:49:56 imp Exp $
 
 .PATH:  ${.CURDIR}/../../dev/pcic
 KMOD=   pcic

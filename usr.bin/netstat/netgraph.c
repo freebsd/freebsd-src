@@ -31,7 +31,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/netstat/netgraph.c,v 1.3 1999/10/24 02:58:39 dillon Exp $
  */
 
 #ifndef lint

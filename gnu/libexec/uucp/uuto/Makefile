@@ -1,5 +1,5 @@
 # Makefile for uuto
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uuto/Makefile,v 1.10 1999/08/27 23:34:04 peter Exp $
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/boot/Makefile.inc,v 1.5 1999/08/28 00:50:12 peter Exp $
 
 BINDIR?=	/usr/mdec
 CFLAGS+=	-aout

@@ -7,7 +7,7 @@
 .\" also contains translated version of .Dt macros (.DtL).
 .\" Current translation: Russian (ru_RU.KOI8-R)
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/locale/koi8-r,v 1.1 1999/09/11 19:49:21 ache Exp $
 .\"
 .\" Localized (russian) .Sh macro version for troff
 .\" Original code derived from mdoc/doc-ditroff

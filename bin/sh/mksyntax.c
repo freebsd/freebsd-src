@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/mksyntax.c,v 1.14 1999/12/15 11:46:32 cracauer Exp $";
 #endif /* not lint */
 
 /*

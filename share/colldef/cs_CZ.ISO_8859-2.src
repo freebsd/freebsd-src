@@ -1,7 +1,7 @@
 # Latin2 (for Czech; partially according to CSN 97 6030)
 # by Rudolf Cejka <cejkar@dcse.fee.vutbr.cz>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/cs_CZ.ISO_8859-2.src,v 1.1 1999/12/21 23:57:19 ache Exp $
 #
 charmap map.ISO_8859-2
 substitute <ss> with "ss"

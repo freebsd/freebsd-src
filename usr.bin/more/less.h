@@ -33,7 +33,7 @@
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/more/less.h,v 1.6 1999/09/03 22:31:15 hoek Exp $
  */
 
 #define MAXVARLENGTH	(20)

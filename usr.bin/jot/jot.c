@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/jot/jot.c,v 1.13 2000/01/06 15:37:37 sheldonh Exp $";
 #endif /* not lint */
 
 /*

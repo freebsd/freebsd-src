@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/vmbuf.h,v 1.1 2000/01/28 05:10:51 shin Exp $
  */
 /* YIPS @(#)$Id: vmbuf.h,v 1.1 1999/10/29 09:04:55 jinmei Exp $ */
 

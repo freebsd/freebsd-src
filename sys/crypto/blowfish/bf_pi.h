@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/blowfish/bf_pi.h,v 1.1 1999/12/22 19:13:08 shin Exp $
  */
 
 static BF_KEY bf_init= {

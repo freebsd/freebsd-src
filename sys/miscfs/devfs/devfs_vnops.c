@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/devfs/devfs_vnops.c,v 1.90 2000/01/10 12:04:17 phk Exp $
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$FreeBSD$
+# @(#)$FreeBSD: src/usr.bin/file/Makefile,v 1.13 1999/08/28 01:00:54 peter Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.

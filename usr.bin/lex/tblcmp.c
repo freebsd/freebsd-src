@@ -27,7 +27,7 @@
  */
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/tblcmp.c,v 2.11 94/11/05 17:08:28 vern Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/tblcmp.c,v 1.5 1999/10/27 07:56:47 obrien Exp $ */
 
 #include "flexdef.h"
 

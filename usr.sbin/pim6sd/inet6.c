@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/inet6.c,v 1.1 2000/01/28 05:10:37 shin Exp $
  */
 /*
  *  Questions concerning this software should be directed to

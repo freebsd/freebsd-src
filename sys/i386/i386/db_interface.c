@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/db_interface.c,v 1.48 2000/01/11 14:53:56 yokota Exp $
  */
 
 /*

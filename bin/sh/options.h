@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/options.h,v 1.9 1999/08/27 23:15:21 peter Exp $
  */
 
 struct shparam {

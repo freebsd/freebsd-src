@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_mroute.c,v 1.2 2000/01/28 12:17:48 shin Exp $
  */
 
 /*	BSDI ip_mroute.c,v 2.10 1996/11/14 00:29:52 jch Exp	*/

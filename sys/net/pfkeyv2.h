@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/pfkeyv2.h,v 1.4 2000/01/15 05:06:14 shin Exp $
  */
 
 /* $Id: keyv2.h,v 1.1.6.1.6.4 1999/06/08 05:33:39 itojun Exp $ */

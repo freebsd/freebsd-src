@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/cdldr/cdldr.s,v 1.1 2000/01/27 21:21:00 jhb Exp $
 
 #
 # This simple program is a preloader for the normal boot3 loader.  It is simply

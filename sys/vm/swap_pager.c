@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/swap_pager.c,v 1.130 1999/12/28 07:30:54 peter Exp $
  */
 
 #include <sys/param.h>

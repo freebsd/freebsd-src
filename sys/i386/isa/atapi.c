@@ -13,7 +13,7 @@
  *
  * Version 1.9, Mon Oct  9 22:34:47 MSK 1995
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/atapi.c,v 1.36 1999/12/03 12:56:19 nyan Exp $
  */
 
 /*

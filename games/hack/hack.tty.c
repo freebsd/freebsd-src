@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)hack.tty.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/hack/hack.tty.c,v 1.6 1999/11/30 03:48:53 billf Exp $";
 #endif /* not lint */
 
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */

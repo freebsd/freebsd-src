@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/cast128/cast128.c,v 1.1 1999/12/22 19:13:10 shin Exp $
  */
 
 #include <sys/param.h>

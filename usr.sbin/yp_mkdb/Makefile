@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/yp_mkdb/Makefile,v 1.5 1999/08/28 01:21:03 peter Exp $
 
 PROG=	yp_mkdb
 SRCS=	yp_mkdb.c yp_dblookup.c yp_dbwrite.c

@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" applications.
-# $FreeBSD$
+# $FreeBSD: src/etc/hosts.allow,v 1.8 2000/02/17 04:52:23 jkh Exp $
 #
 # NOTE: The hosts.deny file is no longer used.
 #       Instead, put both 'allow' and 'deny' rules in the hosts.allow file.

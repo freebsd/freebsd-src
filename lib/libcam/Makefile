@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libcam/Makefile,v 1.6 2000/01/21 20:11:40 mjacob Exp $
 
 MAINTAINER=ken@FreeBSD.ORG
 

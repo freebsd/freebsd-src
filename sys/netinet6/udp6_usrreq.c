@@ -60,7 +60,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/udp6_usrreq.c,v 1.6 2000/01/18 09:02:19 shin Exp $
  */
 
 #include "opt_ipsec.h"

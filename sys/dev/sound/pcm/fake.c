@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/fake.c,v 1.4 2000/01/29 18:48:30 peter Exp $
  */
 
 #include <dev/sound/pcm/sound.h>

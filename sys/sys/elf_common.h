@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/elf_common.h,v 1.5 1999/08/28 00:51:42 peter Exp $
  */
 
 #ifndef _SYS_ELF_COMMON_H_

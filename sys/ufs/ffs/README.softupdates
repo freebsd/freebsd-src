@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/ufs/ffs/README.softupdates,v 1.7 1999/12/03 00:40:31 billf Exp $
 
 For legal reasons the two active files for using Soft Updates are in
 /usr/src/sys/contrib/softupdates. To enable the feature in your kernel,

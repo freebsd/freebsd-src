@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/talk/talk.c,v 1.7 1999/08/28 01:06:15 peter Exp $";
 #endif /* not lint */
 
 #include "talk.h"

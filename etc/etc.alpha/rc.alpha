@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.alpha/rc.alpha,v 1.7 1999/12/15 14:27:59 gallatin Exp $
 #	Do alpha specific processing
 #
 

@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/install.sh,v 1.3 1999/12/15 18:08:56 marcel Exp $
 
 # parse install's options and ignore them completely.
 # XXX - not all options are recognised.

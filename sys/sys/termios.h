@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/termios.h,v 1.13 1999/12/29 04:24:48 peter Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_

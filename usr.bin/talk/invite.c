@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/talk/invite.c,v 1.6 1999/08/28 01:06:13 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>

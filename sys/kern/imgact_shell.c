@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/imgact_shell.c,v 1.21 2000/02/15 08:49:57 cracauer Exp $
  */
 
 #include <sys/param.h>

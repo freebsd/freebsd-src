@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/linux/linux_locore.s,v 1.5 1999/10/11 20:33:10 luoqi Exp $ */
 
 #include "linux_assym.h"			/* system definitions */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libipsec/test-policy.c,v 1.2 2000/03/09 14:57:15 shin Exp $
  */
 
 #include <sys/types.h>

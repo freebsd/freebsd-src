@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adv_isa.c,v 1.14 2000/01/17 12:49:54 nyan Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/usbd/Makefile,v 1.4 1999/11/21 17:44:42 n_hibma Exp $
 
 PROG=	usbd
 MAN8=	usbd.8

@@ -13,7 +13,7 @@
  *
  * Version 1.9, Mon Oct  9 22:34:47 MSK 1995
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/atapi.c,v 1.5 1999/12/03 12:56:21 nyan Exp $
  */
 
 /*

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/md5.h,v 1.1 1999/12/22 19:13:05 shin Exp $
  */
 
 #ifndef _NETINET6_MD5_H_

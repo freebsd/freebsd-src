@@ -36,7 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/usr.bin/find/function.c,v 1.22 2000/02/05 18:42:34 joe Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

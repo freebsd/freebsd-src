@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/setkey/setkey.c,v 1.1 2000/01/06 12:40:52 shin Exp $
  */
 /* KAME $Id: setkey.c,v 1.5 1999/10/26 09:39:37 sakane Exp $ */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/cdldr/Makefile,v 1.1 2000/01/27 21:21:00 jhb Exp $
 
 MAINTAINER=jhb@FreeBSD.org
 

@@ -37,7 +37,7 @@ static char * const copyright =
 static char * const rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #else
 static char * const rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ed/main.c,v 1.14 1999/08/27 23:14:14 peter Exp $";
 #endif
 #endif /* not lint */
 

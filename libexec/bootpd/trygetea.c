@@ -1,7 +1,7 @@
 /*
  * trygetea.c - test program for getether.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/trygetea.c,v 1.5 1999/08/28 00:09:19 peter Exp $
  */
 
 #include <sys/types.h>

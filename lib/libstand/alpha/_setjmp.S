@@ -1,5 +1,5 @@
 /*	$NetBSD: _setjmp.S,v 1.2 1996/10/17 03:08:03 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/alpha/_setjmp.S,v 1.2 1999/11/24 13:54:46 peter Exp $ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.

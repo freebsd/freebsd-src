@@ -26,7 +26,7 @@
 # BUGS: a) There is no documentation (this is arguably a feature).
 #       b) There is no "map" command.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/more/default.morerc,v 1.2 1999/12/26 02:39:25 hoek Exp $
 #
 
 # The "deftog" is required to initialize more(1).

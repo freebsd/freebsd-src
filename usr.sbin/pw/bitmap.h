@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pw/bitmap.h,v 1.4 1999/08/28 01:19:16 peter Exp $
  */
 
 #ifndef _BITMAP_H_

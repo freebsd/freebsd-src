@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/setkey/test-pfkey.c,v 1.1 2000/01/06 12:40:53 shin Exp $
  */
 /* KAME $Id: test-pfkey.c,v 1.2 1999/10/26 08:09:17 itojun Exp $ */
 

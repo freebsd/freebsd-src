@@ -28,7 +28,7 @@
  */
 /* $Id: pccbb.c,v 1.12 1999/09/07 17:38:17 gehenna Exp $ */
 /* FreeBSD/newconfig version UCHIYAMA Yasushi 1999 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/pccbb.c,v 1.1 1999/11/18 07:14:53 imp Exp $ */
 
 #define CBB_DEBUG
 #undef SHOW_REGS

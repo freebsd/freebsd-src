@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/disklabe.h,v 1.8 1999/12/29 04:32:50 peter Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libreadline/Makefile.inc,v 1.4 1999/09/29 15:18:26 marcel Exp $
 
 SHLIB_MAJOR= 4
 SHLIB_MINOR= 0

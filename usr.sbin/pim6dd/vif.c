@@ -44,7 +44,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6dd/vif.c,v 1.1 2000/01/28 05:10:27 shin Exp $
  */
 
 #include "defs.h"

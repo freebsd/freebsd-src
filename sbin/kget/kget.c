@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/kget/kget.c,v 1.4 1999/09/03 06:01:01 mdodd Exp $
  */
 
 #include <stdio.h>

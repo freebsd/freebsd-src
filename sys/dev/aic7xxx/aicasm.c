@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm.c,v 1.23 1999/08/28 00:41:25 peter Exp $
  */
 #include <sys/types.h>
 #include <sys/mman.h>

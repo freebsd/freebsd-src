@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/xinstall/Makefile,v 1.11 2000/02/05 18:42:35 joe Exp $
 
 PROG=	xinstall
 SRCS=	setflags.c xinstall.c

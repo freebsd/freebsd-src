@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)stat_flags.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/setflags.c,v 1.15 2000/02/22 08:13:07 ru Exp $";
 #endif
 #endif /* not lint */
 

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc	5.8 (Berkeley) 8/5/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/tmac.doc,v 1.4 1999/09/22 22:36:16 phantom Exp $
 .\" Modified by jjc@jclark.com as follows: the doc-* files are assumed to be
 .\" installed as mdoc/doc-* rather than tmac.doc-* (the filename
 .\" `tmac.doc-common' would be too long); when using groff, the doc-* files

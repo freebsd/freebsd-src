@@ -3,7 +3,7 @@
  * Built on Fri Jan 28 20:29:13 2000 by wpaul@eedept
  * OS: FreeBSD 3.2-RELEASE
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/ti_fw2.h,v 1.6 2000/02/10 00:37:48 wpaul Exp $
  */
 static int tigon2FwReleaseMajor = 0xc;
 static int tigon2FwReleaseMinor = 0x3;

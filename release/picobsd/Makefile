@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/Makefile,v 1.2 2000/02/04 07:26:22 kris Exp $
 #
 # Top level Makefile for PicoBSD
 

@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/wm_sqrt.s,v 1.9 1999/08/28 00:43:00 peter Exp $
  *
  */
 

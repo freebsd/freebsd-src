@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netkey/key_var.h,v 1.2 1999/12/22 19:13:36 shin Exp $
  */
 
 #ifndef _NETKEY_KEY_VAR_H_

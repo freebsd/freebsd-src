@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/svr4/svr4_ipc.c,v 1.5 1999/12/08 10:51:16 newton Exp $
  *	Derived from:
  *	$NetBSD: svr4_ipc.c,v 1.7 1998/10/19 22:43:00 tron Exp $	*/
 

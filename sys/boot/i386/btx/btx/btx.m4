@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btx/btx.m4,v 1.2 1999/08/28 00:40:04 peter Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

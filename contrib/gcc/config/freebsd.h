@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.  */
    Adapted from /usr/src/contrib/gcc/config/i386/freebsd.h & 
    egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/freebsd.h,v 1.25 2000/01/27 23:12:38 obrien Exp $ */
 
 
 /* Don't assume anything about the header files.  */

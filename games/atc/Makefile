@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/atc/Makefile,v 1.14 2000/02/25 10:23:19 mph Exp $
 
 PROG=	atc
 CFLAGS+=-DBSD -I${.CURDIR} -I.

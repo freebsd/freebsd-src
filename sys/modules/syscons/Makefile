@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/syscons/Makefile,v 1.11 1999/10/02 03:56:40 nsayer Exp $
 
 SUBDIR =
 SUBDIR += apm

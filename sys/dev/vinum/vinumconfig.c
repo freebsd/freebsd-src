@@ -46,7 +46,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumconfig.c,v 1.28 1999/12/29 07:39:16 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumconfig.c,v 1.32 2000/02/29 06:08:33 grog Exp $
  */
 
 #define STATIC static

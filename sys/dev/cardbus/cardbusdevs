@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/cardbus/cardbusdevs,v 1.1 1999/11/18 07:21:50 imp Exp $
 
 /*
  * Copyright (C) 1999  Hayakawa Koichi.

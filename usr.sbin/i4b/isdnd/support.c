@@ -29,7 +29,7 @@
  *
  *	$Id: support.c,v 1.63 1999/12/13 21:25:25 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/support.c,v 1.6 1999/12/14 21:07:32 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:49:05 1999]
  *

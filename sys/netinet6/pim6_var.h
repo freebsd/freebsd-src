@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/pim6_var.h,v 1.2 1999/12/29 04:46:05 peter Exp $
  */
 /* $Id: pim6_var.h,v 1.2 1999/08/01 15:58:13 itojun Exp $ */
 

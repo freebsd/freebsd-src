@@ -16,7 +16,7 @@ versions, except that this permission notice may be included in
 translations approved by the Free Software Foundation instead of in
 the original English.
 
-	$FreeBSD$
+	$FreeBSD: src/contrib/groff/troff/troff.man,v 1.3 2000/01/12 10:26:36 asmodai Exp $
 
 ..
 .\" define a string tx for the TeX logo

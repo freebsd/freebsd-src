@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/isa/isa.c,v 1.19 1999/10/12 21:35:41 dfr Exp $
  */
 
 #include <sys/param.h>

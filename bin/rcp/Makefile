@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/bin/rcp/Makefile,v 1.16 2000/02/24 21:21:15 markm Exp $
 
 PROG=	rcp
 SRCS=	rcp.c util.c

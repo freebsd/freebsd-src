@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/net/floppy.tree/etc/rc.serial,v 1.3 1999/08/28 01:33:43 peter Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:

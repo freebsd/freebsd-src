@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)tags.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/more/tags.c,v 1.8 1999/09/10 23:40:39 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

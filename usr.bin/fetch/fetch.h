@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/fetch/fetch.h,v 1.10 2000/03/08 13:02:10 cracauer Exp $
  */
 
 #ifndef fetch_h

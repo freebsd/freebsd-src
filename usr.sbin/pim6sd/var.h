@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/var.h,v 1.1 2000/01/28 05:10:50 shin Exp $
  */
 /* YIPS @(#)$Id: var.h,v 1.1 1999/10/29 09:04:54 jinmei Exp $ */
 

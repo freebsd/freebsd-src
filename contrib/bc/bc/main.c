@@ -24,7 +24,7 @@
                 Western Washington University
                 Bellingham, WA 98226-9062
 
-$FreeBSD$
+$FreeBSD: src/contrib/bc/bc/main.c,v 1.4 2000/01/16 10:10:15 obrien Exp $
        
 *************************************************************************/
 

@@ -5,7 +5,7 @@
 #
 # Some of this will/should/may be eventually merged into default.morerc.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/more/less.morerc,v 1.1 1999/09/03 22:31:15 hoek Exp $
 #
 
 # magic value indicating we should use ${sc_height}

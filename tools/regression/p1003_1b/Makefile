@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/p1003_1b/Makefile,v 1.1 2000/02/16 14:28:39 dufault Exp $
 
 PROG=p1003_1b
 

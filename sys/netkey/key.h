@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netkey/key.h,v 1.5 1999/12/29 04:46:11 peter Exp $
  */
 
 /* $Id: key.h,v 1.1.6.1.6.1 1999/05/17 17:03:14 itojun Exp $ */

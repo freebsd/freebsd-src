@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/x2p/Makefile.inc,v 1.5 1999/09/25 06:59:10 markm Exp $
 #
 
 PERL5SRC=	${.CURDIR}/../../../../../contrib/perl5

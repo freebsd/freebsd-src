@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ukbd.c,v 1.24 2000/01/20 13:24:28 yokota Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

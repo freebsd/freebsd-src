@@ -1,5 +1,5 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
-#       $FreeBSD$
+#       $FreeBSD: src/usr.sbin/pim6dd/Makefile,v 1.1 2000/01/28 05:10:17 shin Exp $
 
 PROG=   pim6dd
 MAN5=	pim6dd.conf.5

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/group,v 1.19 1999/08/27 23:23:41 peter Exp $
 #
 wheel:*:0:root
 daemon:*:1:daemon

@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/interp_backslash.c,v 1.4 1999/08/28 00:39:47 peter Exp $
  *
  * Routine for doing backslash elimination.
  */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/csh/pathnames.h,v 1.6 1999/08/27 23:13:49 peter Exp $
  */
 
 #define	_PATH_BIN		"/bin"

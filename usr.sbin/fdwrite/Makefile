@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/fdwrite/Makefile,v 1.5 1999/08/28 01:16:14 peter Exp $
 #
 #
 

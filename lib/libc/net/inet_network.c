@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/inet_network.c,v 1.6 1999/11/04 04:30:44 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdmatch/Makefile,v 1.2 1999/08/28 01:20:12 peter Exp $
 #
 
 MAINTAINER=markm@FreeBSD.org

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/bin/ed/POSIX,v 1.7 1999/08/27 23:14:12 peter Exp $
 
 This version of ed(1) is not strictly POSIX compliant, as described in
 the POSIX 1003.2 document.  The following is a summary of the omissions,

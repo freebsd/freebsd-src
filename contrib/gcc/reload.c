@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/reload.c,v 1.4 1999/10/27 09:23:37 obrien Exp $ */
 
 
 /* This file contains subroutines used only from the file reload1.c.

@@ -3,7 +3,7 @@
 
 # ATM networking startup script
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.atm,v 1.6 2000/02/15 13:21:43 phk Exp $
 
 #
 # Initial interface configuration.

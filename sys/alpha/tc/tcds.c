@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcds.c,v 1.6 1999/12/03 08:40:56 mdodd Exp $ */
 /* from $NetBSD: tcds.c,v 1.25 1998/05/26 23:43:05 thorpej Exp $ */
 
 /*-

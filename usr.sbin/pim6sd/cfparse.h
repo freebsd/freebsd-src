@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/cfparse.h,v 1.1 2000/01/28 05:10:33 shin Exp $
  */
 #if defined(YIPS_DEBUG)
 #  define DP(str) YIPSDEBUG(DEBUG_CONF, cfdebug_print(str, yytext, yyleng))

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/getcap.c,v 1.11 2000/01/27 23:06:16 jasone Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

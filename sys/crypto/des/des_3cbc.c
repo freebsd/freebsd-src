@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/des/des_3cbc.c,v 1.1 1999/12/22 19:13:11 shin Exp $
  */
 /*
  * based on sys/crypto/des/des_cbc.c, rewrote by Tomomi Suzuki

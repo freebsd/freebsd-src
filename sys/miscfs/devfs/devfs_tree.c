@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/devfs/devfs_tree.c,v 1.66 1999/11/21 12:38:18 phk Exp $
  */
 
 

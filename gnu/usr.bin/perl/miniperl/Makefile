@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/miniperl/Makefile,v 1.11 2000/01/29 14:18:02 markm Exp $
 #
 
 PROG=	miniperl

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ldconfig/ldconfig.h,v 1.2 1999/08/28 00:13:21 peter Exp $
  */
 
 #ifndef LDCONFIG_H

@@ -63,7 +63,7 @@
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: pim6.c,v 1.3 1999/10/26 08:39:19 itojun Exp $
- *  $FreeBSD$
+ *  $FreeBSD: src/usr.sbin/pim6dd/pim6.c,v 1.1 2000/01/28 05:10:22 shin Exp $
  */
 
 #include "defs.h"

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/460.status-mail-rejects,v 1.8 1999/08/27 23:24:05 peter Exp $
 #
 
 if [ -d /etc/mail -a -f /var/log/maillog ]; then

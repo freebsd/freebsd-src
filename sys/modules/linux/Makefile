@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.34 2000/01/09 10:04:53 bde Exp $
 
 .PATH:	${.CURDIR}/../../${MACHINE_ARCH}/linux
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/add/Makefile,v 1.11 1999/08/28 01:17:54 peter Exp $
 
 PROG= pkg_add
 

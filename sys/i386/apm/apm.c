@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/apm/apm.c,v 1.114 2000/02/06 14:57:05 n_hibma Exp $
  */
 
 #include <sys/param.h>

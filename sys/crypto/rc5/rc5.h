@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/rc5/rc5.h,v 1.1 1999/12/22 19:13:14 shin Exp $
  */
 
 #ifndef _RFC2040_RC5_H_

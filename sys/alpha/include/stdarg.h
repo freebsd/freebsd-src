@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/stdarg.h,v 1.2 1999/08/28 00:38:52 peter Exp $ */
 /* From: NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp */
 
 /*-

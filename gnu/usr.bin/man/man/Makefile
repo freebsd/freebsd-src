@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/man/Makefile,v 1.27 1999/08/27 23:36:12 peter Exp $
 #
 
 PROG=	man

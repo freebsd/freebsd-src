@@ -59,7 +59,7 @@
 # Kurt Windisch (kurtw@antc.uoregon.edu)
 #
 # $Id: Makefile,v 1.2 1999/09/13 01:23:22 jinmei Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pim6sd/mtrace6/Makefile,v 1.1 2000/01/28 05:10:52 shin Exp $
 #
 #
 #Part of this program has been derived from PIM sparse-mode pimd.

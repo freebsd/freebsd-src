@@ -20,7 +20,7 @@
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;
-; $FreeBSD$
+; $FreeBSD: src/sys/svr4/syscalls.master,v 1.6 1999/12/08 10:51:17 newton Exp $
 ;
 #include <sys/types.h>
 #include <sys/sysent.h>

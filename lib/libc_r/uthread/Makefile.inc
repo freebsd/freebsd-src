@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc_r/uthread/Makefile.inc,v 1.23 2000/01/27 23:06:57 jasone Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread

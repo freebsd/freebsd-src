@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_pager.h,v 1.24 1999/12/29 04:55:11 peter Exp $
  */
 
 /*

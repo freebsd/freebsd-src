@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.powerpc,v 1.2 1999/12/17 15:50:45 marcel Exp $
 #
 
 SRCS+=		cofflink.c	\

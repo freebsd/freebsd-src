@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mlx/mlxreg.h,v 1.5 1999/12/22 01:21:27 msmith Exp $
  */
 
 #define MLX_CFG_BASE0   0x10		/* first region */

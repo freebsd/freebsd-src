@@ -38,7 +38,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ep/if_ep.c,v 1.95 2000/01/15 05:21:43 mdodd Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

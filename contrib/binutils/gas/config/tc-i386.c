@@ -19,7 +19,7 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/gas/config/tc-i386.c,v 1.4 2000/03/08 12:58:03 cracauer Exp $ */
 
 /*
   Intel 80386 machine specific gas.

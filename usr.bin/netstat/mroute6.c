@@ -64,7 +64,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mroute.c	8.2 (Berkeley) 4/28/95
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/netstat/mroute6.c,v 1.1 2000/01/28 05:10:56 shin Exp $
  */
 
 #include <sys/param.h>

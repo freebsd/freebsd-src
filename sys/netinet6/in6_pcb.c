@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/in6_pcb.c,v 1.10 2000/01/16 18:00:06 shin Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/in6_pcb.c,v 1.10 2000/01/16 18:00:06 shin Exp $
  */
 
 #include "opt_ipsec.h"

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_rq.h,v 1.4 2000/01/14 19:54:38 bde Exp $
  */
 #ifndef _NETNCP_NCP_RQ_H_
 #define _NETNCP_NCP_RQ_H_

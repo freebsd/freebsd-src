@@ -39,7 +39,7 @@
  *
  *	$Id: i4b_avm_fritz_pci.c,v 1.3 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_avm_fritz_pci.c,v 1.6 1999/12/14 20:48:18 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:59:04 1999]
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/info/Makefile,v 1.11 1999/08/28 01:18:02 peter Exp $
 
 PROG= pkg_info
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib

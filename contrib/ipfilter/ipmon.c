@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ipfilter/ipmon.c,v 1.5 2000/02/10 03:17:42 peter Exp $ */
 /*
  * Copyright (C) 1993-1998 by Darren Reed.
  *

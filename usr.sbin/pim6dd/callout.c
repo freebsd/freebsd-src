@@ -9,7 +9,7 @@
  *
  * callout.c,v 3.8.4.5 1997/05/16 20:18:25 fenner Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6dd/callout.c,v 1.1 2000/01/28 05:10:17 shin Exp $
  */
 
 #include "defs.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_proc.c,v 1.63 2000/02/08 19:54:15 phk Exp $
  */
 
 #include <sys/param.h>

@@ -44,7 +44,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/des/spr.h,v 1.1 1999/12/22 19:13:13 shin Exp $
  */
 
 static const DES_LONG des_SPtrans[8][64]={

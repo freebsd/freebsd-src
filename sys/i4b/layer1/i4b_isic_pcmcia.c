@@ -35,7 +35,7 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_isic_pcmcia.c,v 1.10 1999/10/29 17:28:09 imp Exp $
  *
  *      last edit-date: [Mon Apr 26 10:52:57 1999]
  *

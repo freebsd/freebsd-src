@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/dev/oltr/trlldbm.c,v 1.3 1999/08/28 02:16:26 peter Exp $
  *
  *	Copyright (c) 1997
  *	OLICOM A/S

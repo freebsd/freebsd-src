@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/make/str.c,v 1.12 1999/09/11 13:08:01 hoek Exp $";
 #endif
 #endif /* not lint */
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/trap.c,v 1.147 2000/03/02 22:03:39 dufault Exp $
  */
 
 /*

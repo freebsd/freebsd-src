@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vi/Makefile,v 1.27 1999/09/04 10:27:12 markm Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.

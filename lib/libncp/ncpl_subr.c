@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ncpl_subr.c,v 1.3 2000/01/01 14:21:31 bp Exp $
  */
 
 #include <sys/param.h>

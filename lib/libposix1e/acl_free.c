@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libposix1e/acl_free.c,v 1.1 2000/01/15 19:44:23 rwatson Exp $
  */
 /*
  * acl_free -- free ACL objects from user memory

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_callin_rcsid[] = "$FreeBSD$";
+const char _uuconf_callin_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/callin.c,v 1.7 1999/08/27 23:33:15 peter Exp $";
 #endif
 
 #include <errno.h>

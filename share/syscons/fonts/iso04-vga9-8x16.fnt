@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/fonts/iso04-vga9-8x16.fnt,v 1.1 2000/01/08 18:27:59 ache Exp $
 # Use with iso-8859-4_to_cp437.scm screen map
 begin 644 iso04-vga9-8x16
 M``!^PYF9\^?GY__GYWX````````8&'[;V-C8VWX8&`````!WW,S,SL[,S-QW

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libipsec/ipsec_strerror.c,v 1.1 2000/01/06 12:40:33 shin Exp $
  */
 
 #include <sys/types.h>

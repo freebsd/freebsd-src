@@ -44,7 +44,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/des/sk.h,v 1.1 1999/12/22 19:13:12 shin Exp $
  */
 
 static const DES_LONG des_skb[8][64]={

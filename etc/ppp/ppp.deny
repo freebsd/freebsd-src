@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/ppp/ppp.deny,v 1.3 1999/08/27 23:24:08 peter Exp $
 #
 # list of users disallowed any pppd access via 'system
 # password login'.

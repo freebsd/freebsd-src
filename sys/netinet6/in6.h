@@ -60,7 +60,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/in6.h,v 1.7 2000/03/12 20:27:26 shin Exp $
  */
 
 #ifndef	_NETINET6_IN6_H_

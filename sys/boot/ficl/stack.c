@@ -6,7 +6,7 @@
 ** 
 *******************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/stack.c,v 1.3 1999/09/29 04:43:07 dcs Exp $ */
 
 #ifdef TESTMAIN
 #include <stdlib.h>

@@ -55,7 +55,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/rbootd/rbootd.c,v 1.11 1999/08/28 00:09:45 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 /*
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_ftp_pxy.c,v 1.11 2000/02/10 21:29:10 guido Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/in6_gif.h,v 1.2 2000/01/15 05:20:39 shin Exp $
  */
 
 #ifndef _NETINET6_IN6_GIF_H_

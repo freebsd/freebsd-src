@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/traceroute6/traceroute6.c,v 1.4 2000/02/24 19:06:05 shin Exp $
  */
 
 /*-

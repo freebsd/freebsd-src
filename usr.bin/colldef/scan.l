@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/colldef/scan.l,v 1.11 1999/10/03 01:21:33 ache Exp $
  */
 
 #include <ctype.h>

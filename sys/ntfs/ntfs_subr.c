@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ntfs/ntfs_subr.c,v 1.7 1999/12/03 20:37:39 semenu Exp $
  */
 
 #include <sys/param.h>

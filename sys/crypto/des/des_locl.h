@@ -44,7 +44,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/des/des_locl.h,v 1.2 1999/12/29 04:54:33 peter Exp $
  */
 /* WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
  *

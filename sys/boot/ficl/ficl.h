@@ -27,7 +27,7 @@
 ** send me email at the address above. 
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/ficl.h,v 1.11 2000/01/28 03:59:12 dcs Exp $ */
 
 #if !defined (__FICL_H__)
 #define __FICL_H__

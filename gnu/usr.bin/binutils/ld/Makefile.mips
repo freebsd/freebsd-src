@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.mips,v 1.5 1999/11/07 06:01:35 jb Exp $
 #
 
 .if	${MACHINE_ARCH} == "mipseb"

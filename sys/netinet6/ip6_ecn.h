@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ip_ecn.h,v 1.2 1999/08/19 12:57:44 itojun Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_ecn.h,v 1.2 1999/12/29 04:46:04 peter Exp $
  */
 /*
  * ECN consideration on tunnel ingress/egress operation.

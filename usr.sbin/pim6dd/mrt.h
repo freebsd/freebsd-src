@@ -49,7 +49,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6dd/mrt.h,v 1.1 2000/01/28 05:10:21 shin Exp $
  */
 
 #define	MRTF_SPT                0x0001	/* iif toward source                */

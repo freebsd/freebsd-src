@@ -19,7 +19,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/gencode.c,v 1.8 2000/03/04 23:57:39 fenner Exp $
  */
 #ifndef lint
 static const char rcsid[] =

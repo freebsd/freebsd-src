@@ -12,7 +12,7 @@
  *
  * Snoop stuff.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_snoop.c,v 1.45 1999/11/18 06:39:47 peter Exp $
  */
 
 #include "snp.h"

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_fxpreg.h,v 1.18 1999/09/30 19:03:11 gallatin Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086

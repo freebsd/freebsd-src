@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)random.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/random.c,v 1.2 1999/08/28 00:05:33 peter Exp $
  */
 
 #include <sys/libkern.h>

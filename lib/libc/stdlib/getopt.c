@@ -35,7 +35,7 @@
 #if 0
 static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
 #endif
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/stdlib/getopt.c,v 1.2 1999/12/17 01:52:15 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

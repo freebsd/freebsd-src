@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/ipl.h,v 1.12 2000/02/17 18:37:43 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_

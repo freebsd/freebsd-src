@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.i386,v 1.8 1999/12/17 15:50:44 marcel Exp $
 #
 
 .if	${TARGET_ARCH} == "i386"

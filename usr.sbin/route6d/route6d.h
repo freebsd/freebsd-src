@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/route6d/route6d.h,v 1.1 1999/12/28 02:37:09 shin Exp $
  */
 
 /* not yet in use

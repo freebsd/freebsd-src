@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/newsyslog/newsyslog.c,v 1.25 1999/08/28 01:17:27 peter Exp $";
 #endif /* not lint */
 
 #define OSF

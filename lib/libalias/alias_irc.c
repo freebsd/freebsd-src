@@ -20,7 +20,7 @@
              local/global/function naming conventions
              withing the packet alising module.
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_irc.c,v 1.5 1999/08/29 23:17:04 billf Exp $
 */
 
 /* Includes */

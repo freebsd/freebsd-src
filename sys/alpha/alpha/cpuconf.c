@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/cpuconf.c,v 1.6 1999/12/01 15:24:58 gallatin Exp $ */
 /*	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $	*/
 
 /*

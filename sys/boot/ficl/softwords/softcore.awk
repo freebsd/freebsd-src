@@ -1,7 +1,7 @@
 #!/usr/bin/awk -f
 # Convert forth source files to a giant C string
 # Joe Abley <jabley@patho.gen.nz>, 12 January 1999
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ficl/softwords/softcore.awk,v 1.3 1999/09/29 10:58:43 dcs Exp $
 
 BEGIN \
 {

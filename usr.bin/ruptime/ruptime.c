@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/ruptime/ruptime.c,v 1.12 1999/08/28 01:05:27 peter Exp $ */
 
 #ifndef lint
 static char copyright[] =

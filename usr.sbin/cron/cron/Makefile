@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/cron/cron/Makefile,v 1.12 1999/08/28 01:15:49 peter Exp $
 
 PROG=	cron
 SRCS=	cron.c database.c do_command.c job.c user.c popen.c

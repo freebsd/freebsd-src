@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/mount_msdos/mount_msdos.c,v 1.19 2000/01/08 16:47:55 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

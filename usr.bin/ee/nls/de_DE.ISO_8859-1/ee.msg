@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $FreeBSD$
+$ $FreeBSD: src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.6 1999/08/28 01:00:35 peter Exp $
 $ 
 $set 1
 $quote "

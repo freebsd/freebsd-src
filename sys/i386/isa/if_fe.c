@@ -21,7 +21,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_fe.c,v 1.58 1999/10/25 17:04:17 wpaul Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x

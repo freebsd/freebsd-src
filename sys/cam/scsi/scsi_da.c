@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_da.c,v 1.42 2000/01/17 06:27:37 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"

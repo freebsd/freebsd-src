@@ -2,7 +2,7 @@
 #
 # Read in /etc/sysctl.conf and set things accordingly
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.sysctl,v 1.4 2000/01/16 18:12:41 chris Exp $
 if [ -f /etc/sysctl.conf ]; then
 	sed '
 		/^[  	]*#/d

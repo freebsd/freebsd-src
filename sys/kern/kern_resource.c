@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_resource.c,v 1.55 2000/02/15 09:02:07 phk Exp $
  */
 
 #include "opt_compat.h"

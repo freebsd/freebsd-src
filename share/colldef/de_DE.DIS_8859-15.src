@@ -1,6 +1,6 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/de_DE.DIS_8859-15.src,v 1.4 1999/08/28 00:59:46 peter Exp $
 #
 charmap map.DIS_8859-15
 substitute <ss> with "ss"

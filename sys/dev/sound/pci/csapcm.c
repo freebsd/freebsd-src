@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/csapcm.c,v 1.8 2000/01/23 07:04:02 tanimura Exp $
  */
 
 #include <sys/soundcard.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/ldconfig/Makefile,v 1.15 1999/08/28 00:13:20 peter Exp $
 
 PROG=	ldconfig
 SRCS=	elfhints.c ldconfig.c shlib.c support.c

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mii/Makefile,v 1.11 2000/01/28 11:26:31 bde Exp $
 
 .PATH:	${.CURDIR}/../../dev/mii
 KMOD	= miibus

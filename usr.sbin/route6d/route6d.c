@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/route6d/route6d.c,v 1.2 2000/01/07 10:02:40 shin Exp $
  */
 
 #ifndef	lint

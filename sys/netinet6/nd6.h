@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/nd6.h,v 1.2 1999/12/07 17:39:15 shin Exp $
  */
 
 #ifndef _NETINET6_ND6_H_

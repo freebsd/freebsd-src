@@ -1,5 +1,5 @@
 /* rnd.c - version 1.0.2 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/rnd.c,v 1.5 1999/11/16 10:26:38 marcel Exp $ */
 
 #include <stdlib.h>
 

@@ -8,7 +8,7 @@
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
 /*static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.3.2.18 2000/01/27 08:51:30 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/netinet/ip_state.c,v 1.13 2000/02/10 21:29:11 guido Exp $";
 #endif
 
 #include <sys/errno.h>

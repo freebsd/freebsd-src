@@ -17,7 +17,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/expr.h,v 1.6 1999/08/27 23:34:14 peter Exp $
  */
 
 

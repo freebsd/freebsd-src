@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_xxx.c,v 1.15 1999/09/25 18:24:24 phk Exp $
  */
 
 /*

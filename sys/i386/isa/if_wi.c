@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_wi.c,v 1.18 2000/02/02 17:59:12 wpaul Exp $
  */
 
 /*
@@ -107,7 +107,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/i386/isa/if_wi.c,v 1.18 2000/02/02 17:59:12 wpaul Exp $";
 #endif
 
 #ifdef foo

@@ -1,6 +1,6 @@
 # icelandic (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/is_IS.DIS_8859-15.src,v 1.2 1999/08/28 00:59:47 peter Exp $
 #
 charmap map.DIS_8859-15
 order \

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cgetc.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/trek/cgetc.c,v 1.2 1999/11/30 03:49:44 billf Exp $";
 #endif /* not lint */
 
 # include	<stdio.h>

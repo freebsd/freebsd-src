@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_mib.c,v 1.8 1999/08/28 00:48:19 peter Exp $
  */
 
 #include <sys/param.h>

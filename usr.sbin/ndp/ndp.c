@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ndp/ndp.c,v 1.2 2000/03/11 20:57:31 shin Exp $
  */
 /*
  * Copyright (c) 1984, 1993

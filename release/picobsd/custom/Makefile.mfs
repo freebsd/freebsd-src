@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/custom/Makefile.mfs,v 1.3 1999/12/20 02:16:07 grog Exp $
 #
 
 DESTDIR?=${MFS_MOUNTPOINT}

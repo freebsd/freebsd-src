@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/isa/ppcreg.h,v 1.10 2000/01/14 00:18:06 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H

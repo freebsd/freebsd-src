@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bktr/bktr_tuner.c,v 1.5 2000/01/24 14:00:21 roger Exp $ */
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)

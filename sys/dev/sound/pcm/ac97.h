@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/ac97.h,v 1.3 2000/01/18 17:13:34 cg Exp $
  */
 
 typedef u_int32_t (ac97_read)(void *devinfo, int regno);

@@ -1,4 +1,4 @@
-;	$FreeBSD$
+;	$FreeBSD: src/sys/alpha/osf1/syscalls.master,v 1.1 1999/12/14 22:35:34 gallatin Exp $
 
 ;       @(#)syscalls.master     8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from OSF1).

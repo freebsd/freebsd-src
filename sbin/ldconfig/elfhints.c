@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ldconfig/elfhints.c,v 1.3 2000/01/21 02:15:27 jdp Exp $
  */
 
 #include <sys/param.h>
