@@ -2123,7 +2123,7 @@ SECTIONS
       *(.text)
       _etext = .;
     @}
-  _bdata = (. + 3) & ~ 4;
+  _bdata = (. + 3) & ~ 3;
   .data : @{ *(.data) @}
 @}
 @end smallexample
