@@ -1179,9 +1179,6 @@ SetStoppedTimeout(struct cmdargs const *arg)
   return -1;
 }
 
-#define ismask(x) \
-  (*x == '0' && strlen(x) == 4 && strspn(x+1, "0123456789.") == 3)
-
 static int
 SetServer(struct cmdargs const *arg)
 {
@@ -1189,6 +1186,7 @@ SetServer(struct cmdargs const *arg)
 
   if (arg->argc > arg->argn && arg->argc < arg->argn+4) {
     const char *port, *passwd, *mask;
+    int mlen;
 
     /* What's what ? */
     port = arg->argv[arg->argn];
@@ -1198,8 +1196,13 @@ SetServer(struct cmdargs const *arg)
     } else if (arg->argc == arg->argn + 3) {
       passwd = arg->argv[arg->argn+1];
       mask = arg->argv[arg->argn+2];
-      if (!ismask(mask))
+      mlen = strlen(mask);
+      if (mlen == 0 || mlen > 4 || strspn(mask, "01234567") != mlen ||
+          (mlen == 4 && *mask != '0')) {
+        log_Printf(LogWARN, "%s %s: %s: Invalid mask\n",
+                   arg->argv[arg->argn - 2], arg->argv[arg->argn - 1], mask);
         return -1;
+      }
     } else if (strcasecmp(port, "none") == 0) {
       if (server_Close(arg->bundle))
         log_Printf(LogPHASE, "Disabled server port.\n");
@@ -1214,15 +1217,10 @@ SetServer(struct cmdargs const *arg)
       mode_t imask;
       char *ptr, name[LINE_LEN + 12];
 
-      if (mask != NULL) {
-	unsigned m;
-
-	if (sscanf(mask, "%o", &m) == 1)
-	  imask = m;
-        else
-          return -1;
-      } else
+      if (mask == NULL)
         imask = (mode_t)-1;
+      else for (imask = mlen = 0; mask[mlen]; mlen++)
+        imask = (imask * 8) + mask[mlen] - '0';
 
       ptr = strstr(port, "%d");
       if (ptr) {

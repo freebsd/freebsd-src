@@ -4499,10 +4499,7 @@ If you wish to specify a local domain socket,
 .Ar LocalName
 must be specified as an absolute file name, otherwise it is assumed
 to be the name or number of a TCP port.  You must specify the octal umask
-that should be used with local domain sockets as a four character octal
-number beginning with
-.Sq 0 .
-Refer to
+to be used with a local domain socket.  Refer to
 .Xr umask 2
 for umask details.  Refer to
 .Xr services 5
