@@ -101,7 +101,7 @@ static void
 rts_init(void)
 {
 
-	rtsintrq.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&rtsintrq, IFQ_MAXLEN);
 	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, NETISR_MPSAFE);
 }
