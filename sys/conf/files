@@ -300,6 +300,7 @@ dev/acpica/Osd/OsdSchedule.c	optional acpi
 dev/acpica/Osd/OsdStream.c	optional acpi
 dev/acpica/Osd/OsdSynch.c	optional acpi
 dev/acpica/Osd/OsdTable.c	optional acpi
+dev/acpica/acpi_snc.c		optional acpi_snc acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/adlink/adlink.c	optional adlink
 dev/advansys/adv_eisa.c	optional adv eisa
@@ -1269,6 +1270,11 @@ net/zlib.c		optional crypto
 net/zlib.c		optional geom_uzip
 net80211/ieee80211.c	optional wlan
 net80211/ieee80211_crypto.c	optional wlan
+net80211/ieee80211_crypto_ccmp.c	optional wlan_ccmp
+net80211/ieee80211_crypto_none.c	optional wlan
+net80211/ieee80211_crypto_tkip.c	optional wlan_tkip
+net80211/ieee80211_crypto_wep.c	optional wlan_wep
+net80211/ieee80211_freebsd.c	optional wlan
 net80211/ieee80211_input.c	optional wlan
 net80211/ieee80211_ioctl.c	optional wlan
 net80211/ieee80211_node.c	optional wlan
