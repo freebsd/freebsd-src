@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 18, 2003
-.Dt CT 4
+.Dt CT 4 i386
 .Os
 .Sh NAME
 .Nm ct
@@ -63,8 +63,7 @@ For adapters with SMIT transfer mode to enable SMIT transfer:
 .Cd hint.ct.0.flags="0x40000"
 .Cd hint.ct.0.maddr="0xdc000"
 .Pp
-.Ar Flag
-meaning:
+Flags meaning:
 .Bl -tag -offset indent -compact -width 0x000000
 .It 0x00000
 DMA transfer mode for an NEC PC-9801-55, -92 (or
@@ -83,6 +82,7 @@ SMIT transfer mode (for supported adapters only)
 .It 0x50000
 bus-master transfer mode for a Logitec LHA-20x series,
 ICM IF-2766, IF-2766ET, IF-2767 or IF-2769
+.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -123,18 +123,26 @@ host adapters.
 .Xr scsi 4
 .Sh NOTES
 Historically, the driver for the Cronyx Tau WAN adapters was
-ct.
-This device name was changed to ctau to avoid conflicts
-with this pc98 ct driver.
-The network device name for ctau
-is 'ct'.
+.Dq ct .
+This device name was changed to
+.Dq ctau
+to avoid conflicts
+with this pc98
+.Nm
+driver.
+The network device name for
+.Xr ctau 4
+is
+.Dq Li ct .
 Please see
 .Xr ctau 4
 for the details for that device.
 .Sh HISTORY
 The
 .Nm
-device driver has been developed for NetBSD/pc98 and ported for
+device driver has been developed for
+.Nx Ns /pc98
+and ported for
 .Fx .
 It first appeared in
 .Fx 4.4 .
