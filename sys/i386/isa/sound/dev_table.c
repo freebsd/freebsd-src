@@ -46,7 +46,7 @@ snd_find_driver (int type)
 				 */
 }
 
-long
+static long
 sndtable_init (long mem_start)
 {
   int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
@@ -154,96 +154,6 @@ sndtable_get_cardcount (void)
 {
   return num_audiodevs + num_mixers + num_synths + num_midis;
 }
-
-#ifdef linux
-void
-sound_setup (char *str, int *ints)
-{
-  int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
-
-  /*
-     * First disable all drivers
-   */
-
-  for (i = 0; i < n; i++)
-    snd_installed_cards[i].enabled = 0;
-
-  if (ints[0] == 0 || ints[1] == 0)
-    return;
-  /*
-     * Then enable them one by time
-   */
-
-  for (i = 1; i <= ints[0]; i++)
-    {
-      int             card_type, ioaddr, irq, dma, ptr, j;
-      unsigned int    val;
-
-      val = (unsigned int) ints[i];
-
-      card_type = (val & 0x0ff00000) >> 20;
-
-      if (card_type > 127)
-	{
-	  /*
-	   * Add any future extensions here
-	   */
-	  return;
-	}
-
-      ioaddr = (val & 0x000fff00) >> 8;
-      irq = (val & 0x000000f0) >> 4;
-      dma = (val & 0x0000000f);
-
-      ptr = -1;
-      for (j = 0; j < n && ptr == -1; j++)
-	if (snd_installed_cards[j].card_type == card_type &&
-	    !snd_installed_cards[j].enabled)	/*
-						 * Not already found
-						 */
-	  ptr = j;
-
-      if (ptr == -1)
-	printk ("Sound: Invalid setup parameter 0x%08x\n", val);
-      else
-	{
-	  snd_installed_cards[ptr].enabled = 1;
-	  snd_installed_cards[ptr].config.io_base = ioaddr;
-	  snd_installed_cards[ptr].config.irq = irq;
-	  snd_installed_cards[ptr].config.dma = dma;
-	}
-    }
-}
-
-#else
-void
-sound_chconf (int card_type, int ioaddr, int irq, int dma)
-{
-  int             i, n = sizeof (snd_installed_cards) / sizeof (struct card_info);
-
-  int             ptr, j;
-
-  ptr = -1;
-  for (j = 0; j < n && ptr == -1; j++)
-    if (snd_installed_cards[j].card_type == card_type &&
-	!snd_installed_cards[j].enabled)	/*
-						 * Not already found
-						 */
-      ptr = j;
-
-  if (ptr != -1)
-    {
-      snd_installed_cards[ptr].enabled = 1;
-      if (ioaddr)
-	snd_installed_cards[ptr].config.io_base = ioaddr;
-      if (irq)
-	snd_installed_cards[ptr].config.irq = irq;
-      if (dma)
-	snd_installed_cards[ptr].config.dma = dma;
-    }
-}
-
-#endif
 
 struct address_info *
 sound_getconf (int card_type)

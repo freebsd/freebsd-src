@@ -31,10 +31,10 @@
 #include <machine/ultrasound.h>
 #include "gus_hw.h"
 
-extern unsigned char gus_look8 __P((int reg));
-extern unsigned short gus_read16 __P((int reg));
-extern void gus_write_addr __P((int reg, unsigned long address, int is16bit));
-extern void gus_write16 __P((int reg, unsigned int data));
+static unsigned char gus_look8 __P((int reg));
+static unsigned short gus_read16 __P((int reg));
+static void gus_write_addr __P((int reg, unsigned long address, int is16bit));
+static void gus_write16 __P((int reg, unsigned int data));
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
@@ -83,17 +83,17 @@ extern int      gus_base;
 extern int      gus_irq, gus_dma;
 static long     gus_mem_size = 0;
 static long     free_mem_ptr = 0;
-       int	gus_busy[MAX_AUDIO_DEV], gus_dspnum=0;
+static int	gus_busy[MAX_AUDIO_DEV], gus_dspnum=0;
 static int	gus_dma_read=0;
 static int      nr_voices = 0;
-       int      gus_devnum = 0;
+static int      gus_devnum = 0;
 static int      volume_base, volume_scale, volume_method;
 static int      gus_recmask = SOUND_MASK_MIC;
 static int      recording_active = 0;
 static int      only_read_access = 0;
 
 int             gus_wave_volume = 60;
-int             gus_pcm_volume = 80;
+static int      gus_pcm_volume = 80;
 int             have_gus_max = 0;
 static int      gus_line_vol = 100, gus_mic_vol = 0;
 static unsigned char mix_image = 0x00;
@@ -135,7 +135,7 @@ static int      pcm_current_intrflag;
 static char    *gus_copy_buf;
 #endif
 
-struct voice_info voices[32];
+static struct voice_info voices[32];
 
 static int      freq_div_table[] =
 {
@@ -262,7 +262,7 @@ gus_write8 (int reg, unsigned int data)
   RESTORE_INTR (flags);
 }
 
-unsigned char
+static unsigned char
 gus_read8 (int reg)
 {				/* Reads from an indirect register (8 bit). Offset 0x80. */
   unsigned long   flags;
@@ -276,7 +276,7 @@ gus_read8 (int reg)
   return val;
 }
 
-unsigned char
+static unsigned char
 gus_look8 (int reg)
 {				/* Reads from an indirect register (8 bit). No additional offset. */
   unsigned long   flags;
@@ -290,7 +290,7 @@ gus_look8 (int reg)
   return val;
 }
 
-void
+static void
 gus_write16 (int reg, unsigned int data)
 {				/* Writes to an indirect register (16 bit) */
   unsigned long   flags;
@@ -305,7 +305,7 @@ gus_write16 (int reg, unsigned int data)
   RESTORE_INTR (flags);
 }
 
-unsigned short
+static unsigned short
 gus_read16 (int reg)
 {				/* Reads from an indirect register (16 bit). Offset 0x80. */
   unsigned long   flags;
@@ -323,7 +323,7 @@ gus_read16 (int reg)
   return ((hi << 8) & 0xff00) | lo;
 }
 
-void
+static void
 gus_write_addr (int reg, unsigned long address, int is16bit)
 {				/* Writes an 24 bit memory address */
   unsigned long   hold_address;
