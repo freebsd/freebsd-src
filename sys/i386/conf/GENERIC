@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.71 1996/06/16 20:04:44 joerg Exp $
+#	$Id: GENERIC,v 1.72 1996/06/30 09:39:29 joerg Exp $
 #
 
 machine		"i386"
@@ -74,7 +74,6 @@ device		cd0	#Only need one of these, the code dynamically grows
 
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
-device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
 
 controller	matcd0	at isa? port 0x230 bio
 
@@ -105,12 +104,9 @@ options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
-device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
-device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
 
 device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
-device		lpt2	at isa? port? tty
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 
 device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
@@ -131,7 +127,6 @@ device fe0 at isa? port 0x300 net irq ? vector feintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
-device lnc1 at isa? port 0x300 net irq 10 drq 0 vector lncintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
