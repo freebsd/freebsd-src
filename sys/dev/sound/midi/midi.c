@@ -273,8 +273,6 @@ midiopen(dev_t i_dev, int flags, int mode, struct proc * p)
 {
 	int ret;
 
-	MIDI_DROP_GIANT_NOSWITCH();
-
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
 		ret = midi_open(i_dev, flags, mode, p);
@@ -287,8 +285,6 @@ midiopen(dev_t i_dev, int flags, int mode, struct proc * p)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -296,8 +292,6 @@ static int
 midiclose(dev_t i_dev, int flags, int mode, struct proc * p)
 {
 	int ret;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
@@ -311,8 +305,6 @@ midiclose(dev_t i_dev, int flags, int mode, struct proc * p)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -320,8 +312,6 @@ static int
 midiread(dev_t i_dev, struct uio * buf, int flag)
 {
 	int ret;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
@@ -335,8 +325,6 @@ midiread(dev_t i_dev, struct uio * buf, int flag)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -344,8 +332,6 @@ static int
 midiwrite(dev_t i_dev, struct uio * buf, int flag)
 {
 	int ret;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
@@ -356,8 +342,6 @@ midiwrite(dev_t i_dev, struct uio * buf, int flag)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -365,8 +349,6 @@ static int
 midiioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
 	int ret;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
@@ -377,8 +359,6 @@ midiioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 		break;
 	}
 
-	MIDI_PICKUP_GIANT();
-
 	return (ret);
 }
 
@@ -386,8 +366,6 @@ static int
 midipoll(dev_t i_dev, int events, struct proc * p)
 {
 	int ret;
-
-	MIDI_DROP_GIANT_NOSWITCH();
 
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_MIDIN:
@@ -397,8 +375,6 @@ midipoll(dev_t i_dev, int events, struct proc * p)
 		ret = ENXIO;
 		break;
 	}
-
-	MIDI_PICKUP_GIANT();
 
 	return (ret);
 }
@@ -503,9 +479,6 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 {
 	int dev, unit, len, ret;
 	mididev_info *d ;
-#if defined(MIDI_OUTOFGIANT)
-	char *buf2; /* XXX Until uiomove(9) becomes MP-safe. */
-#endif /* MIDI_OUTOFGIANT */
 
 	dev = minor(i_dev);
 
@@ -516,14 +489,6 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 		return (ENXIO);
 
 	ret = 0;
-
-#if defined(MIDI_OUTOFGIANT)
-	mtx_lock(&Giant);
-	buf2 = malloc(buf->uio_resid, M_DEVBUF, M_WAITOK);
-	mtx_unlock(&Giant);
-	if (buf2 == NULL)
-		return (ENOMEM);
-#endif /* MIDI_OUTOFGIANT */
 
 	mtx_lock(&d->flagqueue_mtx);
 
@@ -536,15 +501,8 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 	if ((d->flags & MIDI_F_NBIO) != 0 && d->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
 	else {
-#if defined(MIDI_OUTOFGIANT)
-		len = buf->uio_resid;
-		if ((d->flags & MIDI_F_NBIO) != 0 && len > d->midi_dbuf_in.rl)
-			len = d->midi_dbuf_in.rl;
-		ret = midibuf_seqread(&d->midi_dbuf_in, buf2, len, &d->flagqueue_mtx);
-#else
 		len = buf->uio_resid;
 		ret = midibuf_uioread(&d->midi_dbuf_in, buf, len, &d->flagqueue_mtx);
-#endif /* MIDI_OUTOFGIANT */
 		if (ret < 0)
 			ret = -ret;
 		else
@@ -552,14 +510,6 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 	}
 
 	mtx_unlock(&d->flagqueue_mtx);
-
-#if defined(MIDI_OUTOFGIANT)
-	mtx_lock(&Giant);
-	if (ret == 0)
-		uiomove((caddr_t)buf2, len, buf);
-	free(buf2, M_DEVBUF);
-	mtx_unlock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 
 	return (ret);
 }
@@ -569,10 +519,6 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 {
 	int dev, unit, len, ret;
 	mididev_info *d;
-#if defined(MIDI_OUTOFGIANT)
-	char *buf2, *p; /* XXX Until uiomove(9) becomes MP-safe. */
-	int resid;
-#endif /* MIDI_OUTOFGIANT */
 
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
@@ -584,22 +530,6 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 
 	ret = 0;
 
-#if defined(MIDI_OUTOFGIANT)
-	resid = buf->uio_resid;
-	mtx_lock(&d->flagqueue_mtx);
-	if (resid > d->midi_dbuf_out.fl &&
-	    (d->flags & MIDI_F_NBIO))
-		resid = d->midi_dbuf_out.fl;
-	mtx_unlock(&d->flagqueue_mtx);
-	mtx_lock(&Giant);
-	buf2 = p = malloc(resid, M_DEVBUF, M_WAITOK);
-	if (buf2 == NULL) {
-		mtx_unlock(&Giant);
-		return (ENOMEM);
-	}
-	ret = uiomove((caddr_t)buf2, resid, buf);
-#endif /* MIDI_OUTOFGIANT */
-
 	mtx_lock(&d->flagqueue_mtx);
 
 	/* Have we got the data to write? */
@@ -608,19 +538,11 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 		d->callback(d, MIDI_CB_START | MIDI_CB_WR);
 		ret = EAGAIN;
 	} else {
-#if defined(MIDI_OUTOFGIANT)
-		len = resid - (p - buf2);
-#else
 		len = buf->uio_resid;
-#endif /* MIDI_OUTOFGIANT */
 		if (len > d->midi_dbuf_out.fl &&
 		    (d->flags & MIDI_F_NBIO))
 			len = d->midi_dbuf_out.fl;
-#if defined(MIDI_OUTOFGIANT)
-		ret = midibuf_seqwrite(&d->midi_dbuf_out, p, len, &d->flagqueue_mtx);
-#else
 		ret = midibuf_uiowrite(&d->midi_dbuf_out, buf, len, &d->flagqueue_mtx);
-#endif /* MIDI_OUTOFGIANT */
 		if (ret < 0)
 			ret = -ret;
 		else {
@@ -631,12 +553,6 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 	}
 
 	mtx_unlock(&d->flagqueue_mtx);
-
-#if defined(MIDI_OUTOFGIANT)
-	mtx_lock(&Giant);
-	free(buf2, M_DEVBUF);
-	mtx_unlock(&Giant);
-#endif /* MIDI_OUTOFGIANT */
 
 	return (ret);
 }
