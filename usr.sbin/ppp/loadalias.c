@@ -23,16 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: loadalias.c,v 1.12 1997/12/21 12:11:06 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
 
-#include <alias.h>
+#include <dirent.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -45,7 +46,7 @@
 #include "defs.h"
 #include "vars.h"
 
-#define _PATH_ALIAS "/usr/lib/libalias.so." ## __libalias_version
+#define _PATH_ALIAS_PREFIX "/usr/lib/libalias.so.2."
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
 #define entry(a) { off(a), "_" #a }
@@ -76,24 +77,72 @@ loadAliasHandlers(struct aliasHandlers * h)
   const char *env;
   int i;
 
-  path = _PATH_ALIAS;
-  env = getenv("_PATH_ALIAS");
+  path = _PATH_ALIAS_PREFIX;
+  env = getenv("_PATH_ALIAS_PREFIX");
   if (env)
     if (ID0realuid() == 0)
       path = env;
     else
-      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)\n", env);
+      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
+                " value (%s)\n", env);
 
   dl = dlopen(path, RTLD_LAZY);
   if (dl == (void *) 0) {
-    LogPrintf(LogWARN, "_PATH_ALIAS (%s): Invalid lib: %s\n",
-	      path, dlerror());
-    return -1;
+    /* Look for _PATH_ALIAS_PREFIX with any number appended */
+    int plen;
+
+    plen = strlen(path);
+    if (plen && plen < MAXPATHLEN - 1 && path[plen-1] == '.') {
+      DIR *d;
+      char p[MAXPATHLEN], *fix;
+      char *file, *dir;
+
+      strcpy(p, path);
+      if ((file = strrchr(p, '/')) != NULL) {
+        fix = file;
+        *file++ = '\0';
+        dir = p;
+      } else {
+        fix = NULL;
+        file = p;
+        dir = ".";
+      }
+      if ((d = opendir(dir))) {
+        struct dirent *entry;
+        int flen;
+        char *end;
+        long maxver, ver;
+
+        if (fix)
+          *fix = '/';
+        maxver = -1;
+        flen = strlen(file);
+        while ((entry = readdir(d)))
+          if (entry->d_namlen > flen && !strncmp(entry->d_name, file, flen)) {
+            ver = strtol(entry->d_name + flen, &end, 10);
+            strcpy(p + plen, entry->d_name + flen);
+            if (ver >= 0 && *end == '\0' && ver > maxver &&
+                access(p, R_OK) == 0)
+              maxver = ver;
+          }
+        closedir(d);
+
+        if (maxver > -1) {
+          sprintf(p + plen, "%ld", maxver);
+          dl = dlopen(p, RTLD_LAZY);
+        }
+      }
+    }
+    if (dl == (void *) 0) {
+      LogPrintf(LogWARN, "_PATH_ALIAS_PREFIX (%s*): Invalid lib: %s\n",
+	        path, dlerror());
+      return -1;
+    }
   }
   for (i = 0; map[i].name; i++) {
     *(void **) ((char *) h + map[i].offset) = dlsym(dl, map[i].name);
     if (*(void **) ((char *) h + map[i].offset) == (void *) 0) {
-      LogPrintf(LogWARN, "_PATH_ALIAS (%s): %s: %s\n", path,
+      LogPrintf(LogWARN, "_PATH_ALIAS (%s*): %s: %s\n", path,
 		map[i].name, dlerror());
       (void) dlclose(dl);
       dl = (void *) 0;
