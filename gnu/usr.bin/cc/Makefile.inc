@@ -4,7 +4,7 @@
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
-GCCDIR=		${.CURDIR}/../../../../contrib/gcc
+GCCDIR=		${.CURDIR}/../../../../contrib/gcc.295
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 

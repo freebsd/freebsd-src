@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-OBJCDIR=${.CURDIR}/../../../contrib/libobjc
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
+OBJCDIR=${.CURDIR}/../../../contrib/libobjc.295
+GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
 
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
