@@ -50,7 +50,6 @@ struct shminfo	shminfo;
 struct seminfo	seminfo;
 struct msginfo	msginfo;
 
-int	semconfig __P((int,...));
 void	usage __P((void));
 
 static struct nlist symbols[] = {
@@ -406,11 +405,6 @@ main(argc, argv)
 			    seminfo.semaem);
 		}
 		if (display & SEMINFO) {
-			if (semconfig(SEM_CONFIG_FREEZE) != 0) {
-				perror("semconfig");
-				fprintf(stderr,
-				    "Can't lock semaphore facility - winging it...\n");
-			}
 			kvm_read(kd, symbols[X_SEMA].n_value, &sema, sizeof(sema));
 			xsema = malloc(sizeof(struct semid_ds) * seminfo.semmni);
 			kvm_read(kd, (u_long) sema, xsema, sizeof(struct semid_ds) * seminfo.semmni);
@@ -458,8 +452,6 @@ main(argc, argv)
 					printf("\n");
 				}
 			}
-
-			(void) semconfig(SEM_CONFIG_THAW);
 
 			printf("\n");
 		}
