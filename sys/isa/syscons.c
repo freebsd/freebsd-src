@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.178 1996/10/09 15:24:21 bde Exp $
+ *  $Id: syscons.c,v 1.179 1996/10/15 20:27:07 sos Exp $
  */
 
 #include "sc.h"
@@ -138,7 +138,9 @@ static  u_short 	mouse_or_mask[16] = {
 			};
 
 static void    		none_saver(int blank) { }
-void    		(*current_saver) __P((int blank)) = none_saver;
+void    		(*current_saver)(int blank) = none_saver;
+int  			(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
+					 int flag, struct proc *p) = NULL;
 
 /* OS specific stuff */
 #ifdef not_yet_done
@@ -393,7 +395,9 @@ scattach(struct isa_device *dev)
     bcopyw(buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
     scp->cursor_pos = scp->cursor_oldpos =
 	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
-    scp->mouse_pos = scp->mouse_oldpos = scp->scr_buf;
+    scp->mouse_pos = scp->mouse_oldpos = 
+	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
+	    		scp->mouse_xpos/8);
 
     /* initialize history buffer & pointers */
     scp->history_head = scp->history_pos = scp->history =
@@ -576,7 +580,7 @@ scintr(int unit)
 	(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
 	break;
     case NOKEY: /* nothing there */
-	break;
+	return;
     case FKEY:  /* function key, return string */
 	if (cp = get_fstr((u_int)c, (u_int *)&len)) {
 	    while (len-- >  0)
@@ -592,6 +596,10 @@ scintr(int unit)
 	(*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
 	(*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
 	break;
+    }
+    if (cur_console->status & MOUSE_ENABLED) {
+	cur_console->status &= ~MOUSE_VISIBLE;
+	remove_mouse_image(cur_console);
     }
 }
 
@@ -617,6 +625,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     if (!tp)
 	return ENXIO;
     scp = get_scr_stat(tp->t_dev);
+
+    /* If there is a user_ioctl function call that first */
+    if (sc_user_ioctl) {
+	if (error = (*sc_user_ioctl)(dev, cmd, data, flag, p))
+	    return error;
+    }
 
     switch (cmd) {  		/* process console hardware related ioctl's */
 
@@ -711,7 +725,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case MOUSE_SHOW:
 	    if (!(scp->status & MOUSE_ENABLED)) {
-		scp->status |= MOUSE_ENABLED;
+		scp->status |= (MOUSE_ENABLED | MOUSE_VISIBLE);
 		scp->mouse_oldpos = scp->mouse_pos;
 		mark_all(scp);
 	    }
@@ -721,7 +735,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case MOUSE_HIDE:
 	    if (scp->status & MOUSE_ENABLED) {
-		scp->status &= ~MOUSE_ENABLED;
+		scp->status &= ~(MOUSE_ENABLED | MOUSE_VISIBLE);
 		mark_all(scp);
 	    }
 	    else
@@ -749,6 +763,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case MOUSE_ACTION:
 	    /* this should maybe only be settable from /dev/consolectl SOS */
 	    /* send out mouse event on /dev/sysmouse */
+	    if (cur_console->status & MOUSE_ENABLED)
+	    	cur_console->status |= MOUSE_VISIBLE;
 	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
 		u_char buf[5];
 		int i;
@@ -1438,7 +1454,7 @@ scrn_timer()
 	}
 
 	/* update "pseudo" mouse pointer image */
-	if ((scp->status & MOUSE_ENABLED) && crtc_vga) {
+	if ((scp->status & MOUSE_VISIBLE) && crtc_vga) {
 	    /* did mouse move since last time ? */
 	    if (scp->status & MOUSE_MOVED) {
 		/* do we need to remove old mouse pointer image ? */
@@ -2317,9 +2333,12 @@ static scr_stat
 
     scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(scp);
-    scp->scr_buf = scp->cursor_pos = scp->cursor_oldpos = scp->mouse_pos =
+    scp->scr_buf = scp->cursor_pos = scp->cursor_oldpos =
 	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
+    scp->mouse_pos = scp->mouse_oldpos = 
+	scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
+			scp->mouse_xpos/8);
     scp->history_head = scp->history_pos = scp->history =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
@@ -2339,7 +2358,7 @@ init_scp(scr_stat *scp)
     scp->font_size = FONT_16;
     scp->xsize = COL;
     scp->ysize = ROW;
-    scp->start = COL * ROW;
+    scp->start = scp->xsize * scp->ysize;
     scp->end = 0;
     scp->term.esc = 0;
     scp->term.attr_mask = NORMAL_ATTR;
@@ -2350,7 +2369,8 @@ init_scp(scr_stat *scp)
     scp->border = BG_BLACK;
     scp->cursor_start = *(char *)pa_to_va(0x461);
     scp->cursor_end = *(char *)pa_to_va(0x460);
-    scp->mouse_xpos = scp->mouse_ypos = 0;
+    scp->mouse_xpos = scp->xsize*8/2;
+    scp->mouse_ypos = scp->ysize*scp->font_size/2;
     scp->mouse_cut_start = scp->mouse_cut_end = NULL;
     scp->mouse_signal = 0;
     scp->mouse_pid = 0;
@@ -3253,7 +3273,7 @@ set_destructive_cursor(scr_stat *scp)
 	address = (caddr_t)VIDEOMEM + 0x4000;
     }
 
-    if (scp->status & MOUSE_ENABLED) {
+    if (scp->status & MOUSE_VISIBLE) {
 	if ((scp->cursor_saveunder & 0xff) == 0xd0)
     	    bcopyw(&scp->mouse_cursor[0], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd1)
@@ -3305,7 +3325,7 @@ set_mouse_pos(scr_stat *scp)
     	scp->mouse_pos = scp->scr_buf + 
 	    ((scp->mouse_ypos/scp->font_size)*scp->xsize + scp->mouse_xpos/8);
 
-	if ((scp->status & MOUSE_ENABLED) && (scp->status & MOUSE_CUTTING)) {
+	if ((scp->status & MOUSE_VISIBLE) && (scp->status & MOUSE_CUTTING)) {
 	    u_short *ptr;
 	    int i = 0;
 
@@ -3332,7 +3352,7 @@ mouse_cut_start(scr_stat *scp)
 {
     int i;
 
-    if (scp->status & MOUSE_ENABLED) {
+    if (scp->status & MOUSE_VISIBLE) {
 	if (scp->mouse_pos == scp->mouse_cut_start &&
 	    scp->mouse_cut_start == scp->mouse_cut_end) {
 	    cut_buffer[0] = 0x00;
@@ -3357,7 +3377,7 @@ mouse_cut_start(scr_stat *scp)
 static void
 mouse_cut_end(scr_stat *scp) 
 {
-    if (scp->status & MOUSE_ENABLED) {
+    if (scp->status & MOUSE_VISIBLE) {
 	scp->status &= ~MOUSE_CUTTING;
     }
 }
@@ -3365,7 +3385,7 @@ mouse_cut_end(scr_stat *scp)
 static void
 mouse_paste(scr_stat *scp) 
 {
-    if (scp->status & MOUSE_ENABLED) {
+    if (scp->status & MOUSE_VISIBLE) {
 	struct tty *tp;
 	u_char *ptr = cut_buffer;
 
