@@ -362,7 +362,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *p;
-	char name[BUFSIZ], descr[BUFSIZ], *fmt;
+	char name[BUFSIZ], *fmt;
 	int qoid[CTL_MAXNAME+2];
 	int i;
 	size_t j, len;
