@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.66 1998/07/29 17:38:14 bde Exp $
+ * $Id: vfs_cluster.c,v 1.67 1998/08/06 08:33:18 dfr Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -798,11 +798,13 @@ cluster_wbuild(vp, size, start_lbn, len)
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
 
+			s = splbio();
 			--numdirtybuffers;
 			tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
 			tbp->b_flags |= B_ASYNC;
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
 			++tbp->b_vp->v_numoutput;
+			splx(s);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 				tbp, b_cluster.cluster_entry);
 		}

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.104 1998/06/01 10:59:23 peter Exp $
+ * $Id: nfs_vnops.c,v 1.105 1998/07/04 20:45:37 julian Exp $
  */
 
 
@@ -2853,6 +2853,7 @@ again:
 			    vfs_unbusy_pages(bp);
 			    brelse(bp);
 			} else {
+			    s = splbio();	/* XXX check this positionning */
 			    vp->v_numoutput++;
 			    bp->b_flags |= B_ASYNC;
 			    if (bp->b_flags & B_DELWRI) {
@@ -2861,7 +2862,6 @@ again:
 					vfs_bio_need_satisfy();
 				}
 			    }
-			    s = splbio();	/* XXX check this positionning */
 			    bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
 			    reassignbuf(bp, vp);
