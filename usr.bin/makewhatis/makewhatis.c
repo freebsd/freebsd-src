@@ -608,10 +608,12 @@ process_mdoc_line(char *line)
 			next = ++line;
 			for (;;) {
 				next = strchr(next, '"');
-				if (next == NULL || *next != '"')
+				if (next == NULL)
 					break;
 				strcpy(next, &next[1]);
 				line_end--;
+				if (*next != '"')
+					break;
 				next++;
 			}
 		} else
