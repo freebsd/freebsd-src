@@ -651,7 +651,7 @@ dvloop:
  */
 		fp = (struct fw_pkt *)(it->stproc->buf);
 /* XXX: Parameter relies on NTSC type DV video */
-		tmpsync = 3072 * 8000 * 100 / 2997;
+		tmpsync = (u_int64_t)3072 * 8000 * 100 / 2997;
 		tmpsync *= it->dvsync;
 		dvsync = tmpsync;
 		dvsync %= 0xc00;

@@ -402,6 +402,12 @@ struct fw_pkt{
 			u_int32_t dest_lo;
 			u_int16_t extcode;
 			u_int16_t len;
+#define FW_LREQ_MSKSWAP	1
+#define FW_LREQ_CMPSWAP	2
+#define FW_LREQ_FTADD	3
+#define FW_LREQ_LTADD	4
+#define FW_LREQ_BDADD	5
+#define FW_LREQ_WRADD	6
 			u_int32_t payload[0];
 		}lreq;
 		struct {

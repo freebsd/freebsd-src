@@ -105,10 +105,27 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Ricoh R5C552");
 		return 0;
 	}
+	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
+	    (pci_get_device(dev) == FW_DEVICE_PANGEA)) {
+		device_set_desc(dev, "Apple Pangea");
+		return 0;
+	}
+	if ((pci_get_vendor(dev) == FW_VENDORID_APPLE) &&
+	    (pci_get_device(dev) == FW_DEVICE_UNINORTH)) {
+		device_set_desc(dev, "Apple UniNorth");
+		return 0;
+	}
+	if ((pci_get_vendor(dev) == FW_VENDORID_LUCENT) &&
+	    (pci_get_device(dev) == FW_DEVICE_FW322)) {
+		device_set_desc(dev, "Lucent FW322/323");
+		return 0;
+	}
 #endif
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 			&& pci_get_subclass(dev) == PCIS_SERIALBUS_FW
 			&& pci_get_progif(dev) == PCI_INTERFACE_OHCI) {
+		printf("XXXfw: vendid=%x, dev=%x\n", pci_get_vendor(dev),
+			pci_get_device(dev));
 		device_set_desc(dev, "1394 Open Host Controller Interface");
 		return 0;
 	}
