@@ -304,6 +304,7 @@ extern const char *if_name(struct ifnet *);
 #define if_addrlist	if_addrhead
 #define if_list		if_link
 
+#define HAVE_PPSRATECHECK
 #define WITH_CONVERT_AND_STRIP_IP_LEN
 
 #if 1				/* at this moment, all OSes do this */
