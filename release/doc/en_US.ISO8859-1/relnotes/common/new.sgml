@@ -101,6 +101,9 @@
     <para arch="i386,pc98">Initial support has been added for
       FireWire devices (see &man.firewire.4;).</para>
 
+    <para arch="i386,pc98">The ubsa driver has been added to support
+      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
+
     <para>The &man.uftdi.4; driver, to support FTDI USB-to-serial
       devices, has been added.</para>
 
@@ -116,7 +119,8 @@
     <sect3>
       <title>Boot Loaders</title>
 
-      <para></para>
+      <para arch="i386,pc98">The PC98 bootloader now has support for
+        booting from SCSI MO media.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -228,6 +232,10 @@
       values of POSIX or X/Open path or system configuration
       variables.</para>
 
+    <para>&man.make.1; now supports a <option>-C</option> flag to
+      change to a given directory before building its
+      target(s).</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
@@ -238,6 +246,10 @@
     <para>The &man.pathchk.1; utility, which checks pathnames for
       validity or portability between POSIX systems, has been
       added.</para>
+
+    <para>&man.rarpd.8; now accepts a <option>-t</option> flag to
+      specify an alternative directory to
+      <filename>/tftpboot</filename>.</para>
 
     <para>The base64 capabilities of &man.uuencode.1; and
       &man.uudecode.1; can now be automatically enabled by invoking
