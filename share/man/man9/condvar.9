@@ -121,14 +121,6 @@ All waiters must pass the same
 .Fa mp
 in conjunction with
 .Fa cvp .
-A thread must hold
-.Fa mp
-while calling
-.Fn cv_signal ,
-.Fn cv_broadcast ,
-or
-.Fn cv_broadcastpri
-even though it isn't passed as an argument.
 .Pp
 When
 .Fn cv_wait ,
