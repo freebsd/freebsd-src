@@ -31,6 +31,8 @@
 #ifndef _GEOM_GEOM_STATS_H_
 #define _GEOM_GEOM_STATS_H_
 
+#define GEOM_STATS_DEVICE	"geom.stats"
+
 /*
  * A g_stat contains the statistics we collect on consumers and
  * providers.
