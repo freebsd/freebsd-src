@@ -287,7 +287,6 @@ acpi_ec_attach(device_t dev)
     ACPI_BUFFER			*bufp;
     UINT32			*param;
     ACPI_STATUS			Status;
-    struct acpi_object_list	*args;
 
     FUNCTION_TRACE(__FUNCTION__);
 
@@ -302,6 +301,7 @@ acpi_ec_attach(device_t dev)
     /*
      * Evaluate resources
      */
+    DEBUG_PRINT(TRACE_RESOURCES, ("parsing EC resources\n"));
     acpi_parse_resources(sc->ec_dev, sc->ec_handle, &acpi_res_parse_set);
 
     /* 
@@ -331,19 +331,11 @@ acpi_ec_attach(device_t dev)
      * Evaluate the _GPE method to find the GPE bit used by the EC to signal
      * status (SCI).
      */
-    if ((bufp = acpi_AllocBuffer(16)) == NULL)
-	return_VALUE(ENOMEM);
-    if ((Status = AcpiEvaluateObject(sc->ec_handle, "_GPE", NULL, bufp)) != AE_OK) {
-	device_printf(dev, "can't evaluate _GPE method - %s\n", acpi_strerror(Status));
+    DEBUG_PRINT(TRACE_RESOURCES, ("attaching GPE\n"));
+    if ((Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit)) != AE_OK) {
+	device_printf(dev, "can't evaluate _GPE - %s\n", acpi_strerror(Status));
 	return_VALUE(ENXIO);
     }
-    param = (UINT32 *)bufp->Pointer;
-    if (param[0] != ACPI_TYPE_NUMBER) {
-	device_printf(dev, "_GPE method returned bad result\n");
-	return_VALUE(ENXIO);
-    }
-    sc->ec_gpebit = param[1];
-    AcpiOsFree(bufp);
 
     /*
      * Install a handler for this EC's GPE bit.  Note that EC SCIs are 
@@ -362,31 +354,17 @@ acpi_ec_attach(device_t dev)
     /* 
      * Install address space handler
      */
+    DEBUG_PRINT(TRACE_RESOURCES, ("attaching address space handler\n"));
+#if 0
+    AcpiDbgLayer = ALL_COMPONENTS;
+    AcpiDbgLevel = ACPI_ALL | TRACE_ALL | VERBOSE_ALL;
+#endif
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ADDRESS_SPACE_EC, 
-						 &EcSpaceHandler, &EcSpaceSetup, sc)) != AE_OK) {
+						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler - %s\n", acpi_strerror(Status));
 	return_VALUE(ENXIO);
     }
-
-    /*
-     * Evaluate _REG to indicate that the region is now available.
-     */
-    if ((args = acpi_AllocObjectList(2)) == NULL)
-	return_VALUE(ENOMEM);
-    args->object[0].Type = ACPI_TYPE_NUMBER;
-    args->object[0].Number.Value = ADDRESS_SPACE_EC;
-    args->object[1].Type = ACPI_TYPE_NUMBER;
-    args->object[1].Number.Value = 1;
-    Status = AcpiEvaluateObject(sc->ec_handle, "_REG", (ACPI_OBJECT_LIST *)args, NULL);
-    AcpiOsFree(args);
-    /*
-     * If evaluation failed for some reason other than that the method didn't
-     * exist, that's bad and we should not attach.
-     */
-    if ((Status != AE_OK) && (Status != AE_NOT_FOUND)) {
-	device_printf(dev, "can't evaluate _REG method - %s\n", acpi_strerror(Status));
-	return_VALUE(ENXIO);
-    }
+    DEBUG_PRINT(TRACE_RESOURCES, ("attach complete\n"));
 
     return_VALUE(0);
 }
@@ -447,6 +425,7 @@ EcGpeQueryHandler(void *Context)
 	    printf("EcGpeQueryHandler:EnableEvent Failed\n");
     return_VOID;
 }
+
 static void EcGpeHandler(void *Context)
 {
 	struct acpi_ec_softc *sc = Context;
@@ -477,12 +456,15 @@ static void EcGpeHandler(void *Context)
 static ACPI_STATUS
 EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionContext)
 {
+
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Just pass the context through, there's nothing to do here.
      */
     *RegionContext = Context;
 
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static ACPI_STATUS
@@ -493,7 +475,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
     ACPI_STATUS			Status = AE_OK;
     EC_REQUEST			EcRequest;
 
-    FUNCTION_TRACE_U32(__FUNCTION__, Address);
+    FUNCTION_TRACE_U32(__FUNCTION__, (UINT32)Address);
 
     if ((Address > 0xFF) || (width != 8) || (Value == NULL) || (Context == NULL))
         return_ACPI_STATUS(AE_BAD_PARAMETER);
