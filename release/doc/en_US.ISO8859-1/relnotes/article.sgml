@@ -562,8 +562,8 @@
       This allows writing to DVD-RAM, PD and similar drives that probe
       as CD devices.  Note that change affects only random-access
       writeable devices, not sequential-only writeable devices such as
-      CD-R drives, which are supported by &man.cdrecord.1; in the Ports
-      Collection. &merged;</para>
+      CD-R drives, which are supported by &man.cdrecord.1; (a part of 
+      <port>sysutils/cdrtools</port> in the Ports Collection. &merged;</para>
 
       <para>The &man.vinum.4; volume manager has received some bug fixes and
       enhancements.</para>
@@ -660,7 +660,7 @@
 
       <para arch="i386">smbfs (CIFS) support in kernel has been added.
       The corresponding userland filesystem mount utility can be found 
-      in the <filename>net/smbfs</filename> port in the &os; Ports 
+      in the <port>net/smbfs</port> port in the &os; Ports 
       Collection. &merged;</para>
 
       <para>For consistency, the fdesc, fifo, null, msdos, portal,
