@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	libbsnmp modules
+SUBDIR=	libbsnmp
 
 .include <bsd.subdir.mk>
