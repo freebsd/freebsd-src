@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <sys/kdb.h>
 #include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpufunc.h>
@@ -102,6 +103,8 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	boolean_t	trace_thread = FALSE;
 	int	scp_offset;
 
+	if (kdb_frame == NULL)
+		return;
 	while ((c = *cp++) != 0) {
 		if (c == 'u')
 			kernel_only = FALSE;
@@ -110,7 +113,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	}
 
 	if (!have_addr)
-		frame = (u_int32_t *)(DDB_REGS->tf_r11);
+		frame = (u_int32_t *)(kdb_frame->tf_r11);
 	else {
 		if (trace_thread) {
 			struct proc *p;
@@ -157,7 +160,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 
 		db_printsym(scp, DB_STGY_PROC);
 		db_printf("\n\t");
-		pc = ddb_regs.tf_pc;
+		pc = kdb_frame->tf_pc;
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		if (sym == C_DB_SYM_NULL) {
 			value = 0;
@@ -242,9 +245,15 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
 	return (0);
 }
-void
-db_print_backtrace(void)
+int
+db_trace_thread(struct thread *thr, int count)
 {
 
 	db_stack_trace_cmd((db_expr_t)__builtin_frame_address(0), 1, -1, NULL);
+	return (0);
+}
+
+void
+db_trace_self(void)
+{
 }

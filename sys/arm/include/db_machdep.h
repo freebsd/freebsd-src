@@ -40,18 +40,14 @@
 typedef vm_offset_t	db_addr_t;
 typedef int		db_expr_t;
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
-
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_pc)
+#define	PC_REGS()	((db_addr_t)kdb_thrctx->un_32.pcb32_pc)
 
 #define	BKPT_INST	(KERNEL_BREAKPOINT)
 #define	BKPT_SIZE	(INSN_SIZE)
 #define	BKPT_SET(inst)	(BKPT_INST)
 
 #define	BKPT_SKIP do {							\
-	ddb_regs.tf_pc -= BKPT_SIZE; \
+	kdb_frame->tf_pc -= BKPT_SIZE; \
 } while (0)
 
 #define	db_clear_single_step(regs)
