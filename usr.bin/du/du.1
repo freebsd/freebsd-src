@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
-.\"	$Id$
+.\"	$Id: du.1,v 1.5 1996/08/29 18:05:49 wosch Exp $
 .\"
 .Dd April 1, 1994
 .Dt DU 1
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm du
 .Op Fl H | Fl L | Fl P
-.Op Fl a | Fl s
+.Op Fl a | s | d Ar depth
 .Op Fl x
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -68,6 +68,10 @@ All symbolic links are followed.
 No symbolic links are followed.
 .It Fl a
 Display an entry for each file in the file hierarchy.
+.It Fl d Ar depth
+Displays all directories only
+.Ar depth
+directories deep.
 .It Fl k
 Report in 1024-byte (1-Kbyte) blocks rather than the default.  Note that
 this overrides the

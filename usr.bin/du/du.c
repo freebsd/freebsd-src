@@ -66,14 +66,15 @@ main(argc, argv)
 	FTS *fts;
 	FTSENT *p;
 	long blocksize;
-	int ftsoptions, listdirs, listfiles;
-	int Hflag, Lflag, Pflag, aflag, ch, notused, rval, sflag;
+	int ftsoptions, listdirs, listfiles, depth;
+	int Hflag, Lflag, Pflag, aflag, ch, notused, rval, sflag, dflag;
 	char **save;
 
 	save = argv;
-	Hflag = Lflag = Pflag = aflag = sflag = 0;
+	Hflag = Lflag = Pflag = aflag = sflag = dflag = 0;
+	depth = INT_MAX;
 	ftsoptions = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPaksx")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPad:ksx")) != EOF)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -98,6 +99,14 @@ main(argc, argv)
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;
+			break;
+		case 'd':
+			dflag = 1;
+			depth=atoi(optarg);
+			if(errno == ERANGE) {
+				(void)fprintf(stderr, "Invalid argument to option d: %s", optarg);
+				usage();
+			}
 			break;
 		case '?':
 		default:
@@ -126,12 +135,17 @@ main(argc, argv)
 	}
 
 	if (aflag) {
-		if (sflag)
+		if (sflag || dflag)
 			usage();
 		listdirs = listfiles = 1;
-	} else if (sflag)
+	} else if (sflag) {
+		if (dflag)
+			usage();
 		listdirs = listfiles = 0;
-	else {
+	} else if (dflag) {
+		listfiles = 0;
+		listdirs = 1;
+	} else {
 		listfiles = 0;
 		listdirs = 1;
 	}
@@ -160,7 +174,8 @@ main(argc, argv)
 			 * or directories and this is post-order of the
 			 * root of a traversal, display the total.
 			 */
-			if (listdirs || !listfiles && !p->fts_level)
+			if ((p->fts_level <= depth && listdirs) || 
+                            (!listfiles && !p->fts_level))
 				(void)printf("%ld\t%s\n",
 				    howmany(p->fts_number, blocksize),
 				    p->fts_path);
@@ -227,6 +242,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s] [-k] [-x] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-k] [-x] [file ...]\n");
 	exit(1);
 }
