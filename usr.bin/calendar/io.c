@@ -334,7 +334,7 @@ closecal(fp)
 			_exit(1);
 		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
-		    "\"Reminder Service\"", "-f", "root", NULL);
+		    "\"Reminder Service\"", NULL);
 		(void)fprintf(stderr,
 		    "calendar: %s: %s.\n", _PATH_SENDMAIL, strerror(errno));
 		_exit(1);
