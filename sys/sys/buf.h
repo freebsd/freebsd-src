@@ -373,6 +373,14 @@ BUF_REFCNT(struct buf *bp)
 {
 	int s, ret;
 
+	/*
+	 * When the system is panicing, the lock manager grants all lock
+	 * requests whether or not the lock is available. To avoid "unlocked
+	 * buffer" panics after a crash, we just claim that all buffers
+	 * are locked when cleaning up after a system panic.
+	 */
+	if (panicstr != NULL)
+		return (1);
 	s = splbio();
 	ret = lockcount(&(bp)->b_lock);
 	splx(s);
