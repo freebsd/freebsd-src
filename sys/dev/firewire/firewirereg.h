@@ -284,8 +284,8 @@ struct fw_xfer{
 	void (*retry_req) __P((struct fw_xfer *));
 	union{
 		void (*hand) __P((struct fw_xfer *));
-
 	} act;
+#if 0
 	union{
 		struct {
 			struct fw_device *device;
@@ -294,6 +294,7 @@ struct fw_xfer{
 			struct stch *channel;
 		} stream;
 	} mode;
+#endif
 	struct {
 		u_int16_t len, off;
 		caddr_t buf;
