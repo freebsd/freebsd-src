@@ -23,6 +23,7 @@ sed	-e '/	pci$/d' \
 	-e '/	ncr/d' \
 	-e '/	sym/d' \
 	-e '/	de/d' \
+	-e '/	em/d' \
 	-e '/	fxp/d' \
 	-e '/	tx/d' \
 	-e '/	txp/d' \
