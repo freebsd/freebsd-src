@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.29 1998/01/20 22:47:34 brian Exp $
+ * $Id: ccp.c,v 1.30 1998/01/21 02:15:10 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -418,9 +418,9 @@ CompdInput(u_short *proto, struct mbuf *m)
     /* Send another REQ and put the packet in the bit bucket */
     LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
     FsmOutput(&CcpFsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
-    pfree(m);
   } else if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
     return (*algorithm[in_algorithm]->i.Read)(proto, m);
+  pfree(m);
   return NULL;
 }
 
