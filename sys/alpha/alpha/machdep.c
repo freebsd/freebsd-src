@@ -662,6 +662,9 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	preload_metadata = (caddr_t)bootinfo.modptr;
 	kern_envp = bootinfo.envp;
 
+	/* Do basic tuning, hz etc */
+	init_param();
+
 	/*
 	 * Initalize the (temporary) bootstrap console interface, so
 	 * we can use printf until the VM system starts being setup.
