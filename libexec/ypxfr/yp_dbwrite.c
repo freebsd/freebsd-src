@@ -28,26 +28,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
- *
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <string.h>
-#include <limits.h>
-#include <unistd.h>
-#include <db.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <paths.h>
-#include <rpcsvc/yp.h>
-#include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
-#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <db.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <rpcsvc/yp.h>
+#include "ypxfr_extern.h"
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 
