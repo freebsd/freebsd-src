@@ -11,6 +11,9 @@ CFLAGS+=		-mno-fp-regs
 CFLAGS+=		-mpreferred-stack-boundary=2
 .endif
 .ifmake testmain
+.if HAVE_PNP
+CFLAGS+=			-DHAVE_PNP
+.endif
 CFLAGS+=			-DTESTMAIN -D_TESTMAIN
 SRCS+=				testmain.c
 PROG=			testmain
