@@ -2167,8 +2167,6 @@ out:
     if (error) {
 	if (cr != NULL)
 	    ciss_release_request(cr);
-	if ((bufp != NULL) && (*bufp == NULL) && (buf != NULL))
-	    free(buf, CISS_MALLOC_CLASS);
     } else {
 	*crp = cr;
 	if ((bufp != NULL) && (*bufp == NULL) && (buf != NULL))
@@ -3545,7 +3543,8 @@ ciss_notify_hotplug(struct ciss_softc *sc, struct ciss_notify *cn)
 	     * Mark the device offline so that it'll start producing selection
 	     * timeouts to the upper layer.
 	     */
-	    sc->ciss_physical[bus][target].cp_online = 0;
+	    if ((bus >= 0) && (target >= 0))
+		sc->ciss_physical[bus][target].cp_online = 0;
 	} else {
 	    /*
 	     * Rescan the physical lun list for new items
