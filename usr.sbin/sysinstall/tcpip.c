@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.17 1995/05/26 19:28:06 jkh Exp $
+ * $Id: tcpip.c,v 1.18 1995/05/26 20:31:01 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -468,7 +468,7 @@ tcpStartPPP(Device *devp)
     int fd;
     FILE *fp;
     char *val;
-    char myaddr[16];
+    char myaddr[16], provider[16];
     char netmask[16];
 
     fd = open("/dev/ttyv2", O_RDWR);
@@ -486,11 +486,16 @@ tcpStartPPP(Device *devp)
     }
     fprintf(fp, "default:\n");
     fprintf(fp, " set device %s\n", devp->devname);
-    val = msgGetInput("115200", "Enter baud rate for your modem - this can be higher\nthan the actual maximum data rate since most modems can talk\nat one speed to the host (us) and at another speed to the remote end.\nIf you're not sure what to put here, just select the default.");
+    val = msgGetInput("115200",
+"Enter baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
     if (!val)
 	val = "115200";
     fprintf(fp, " set speed %s\n", val);
-    val = msgGetInput("0", "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
+    if (getenv(VAR_GATEWAY))
+	strcpy(provider, getenv(VAR_GATEWAY));
+    else
+	strcpy(provider, "0");
+    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
     if (!val)
 	val = "0";
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
