@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: slstat.c,v 1.6.2.1 1996/11/05 20:17:27 phk Exp $";
+	"$Id: slstat.c,v 1.6.2.2 1996/11/12 09:11:51 phk Exp $";
 #endif
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@ static const char rcsid[] =
 #include <net/slcompress.h>
 #include <net/if_slvar.h>
 
-static	void usage __P((const char *argv0));
+static	void usage __P((void));
 static	void intpr __P((void));
 static	void catchalarm __P((int));
 
@@ -86,10 +86,10 @@ main(argc, argv)
 		case 'i':
 			interval = atoi(optarg);
 			if (interval <= 0)
-				usage(argv[0]);
+				usage();
 			break;
 		default:
-			usage(argv[0]);
+			usage();
 		}
 	}
 	if (optind >= argc)
@@ -97,14 +97,14 @@ main(argc, argv)
 	else if (isdigit(argv[optind][0])) {
 		unit = atoi(argv[optind]);
 		if (unit < 0)
-			usage(argv[0]);
+			usage();
 		sprintf(interface, INTERFACE_PREFIX, unit);
 	} else if (strncmp(argv[optind], "sl", 2) == 0
 		  && isdigit(argv[optind][2])
 		  && sscanf(argv[optind], "sl%d", &unit) == 1) {
 		strncpy(interface, argv[optind], IFNAMSIZ);
 	} else
-		usage(argv[0]);
+		usage();
 
 	name[0] = CTL_NET;
 	name[1] = PF_LINK;
@@ -143,10 +143,9 @@ main(argc, argv)
 #define AMT (sizeof(*sc) - 2 * sizeof(sc->sc_comp.tstate))
 
 static void
-usage(argv0)
-	const char *argv0;
+usage()
 {
-	fprintf(stderr, "usage: %s [-i interval] [-vr] [unit]\n", argv0);
+	fprintf(stderr, "usage: slstat [-i interval] [-vr] [unit]\n");
 	exit(1);
 }
 
