@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id: strip.c,v 1.2 1994/09/03 12:58:05 csgr Exp $";
+static char RCSid[] = "$Id: strip.c,v 1.3 1994/09/08 12:27:08 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -99,10 +99,14 @@ main(argc, argv)
 		if ((fd = open(fn, O_RDWR)) < 0 ||
 		    (nb = read(fd, &head, sizeof(EXEC))) == -1) {
 			err(0, "%s: %s", fn, strerror(errno));
+			if (fd >= 0 && close(fd))
+				err(0, "%s: %s", fn, strerror(errno));
 			continue;
 		}
 		if (nb != sizeof(EXEC) || N_BADMAG(head)) {
 			err(0, "%s: %s", fn, strerror(EFTYPE));
+			if (close(fd))
+				err(0, "%s: %s", fn, strerror(errno));
 			continue;
 		}
 		sfcn(fn, fd, &head);
