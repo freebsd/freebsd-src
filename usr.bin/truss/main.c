@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
+#include <sys/types.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 
 #include <err.h>
 #include <errno.h>
@@ -304,8 +306,11 @@ START_TRACE:
   } while (pfs.why != S_EXIT);
   fflush(trussinfo->outfile);
   if (sigexit) {
-    if (sigexit == SIGQUIT)
-      exit(sigexit);
+    struct rlimit rlp;
+
+    rlp.rlim_cur = 0;
+    rlp.rlim_max = 0;
+    setrlimit(RLIMIT_CORE, &rlp);
     (void) signal(sigexit, SIG_DFL);
     (void) kill(getpid(), sigexit);
   }
