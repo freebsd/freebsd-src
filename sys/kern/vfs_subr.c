@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.129 1998/02/05 03:32:11 dyson Exp $
+ * $Id: vfs_subr.c,v 1.130 1998/02/06 12:13:31 eivind Exp $
  */
 
 /*
@@ -919,7 +919,8 @@ vget(vp, flags, p)
 		   (vp->v_type == VREG) &&
 		   ((vp->v_object == NULL) ||
 			(vp->v_object->flags & OBJ_DEAD))) {
-		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
+		vfs_object_create(vp, curproc, curproc->p_ucred,
+		    VOP_ISLOCKED(vp));
 		simple_lock(&vp->v_interlock);
 	}
 	if (flags & LK_TYPE_MASK) {
