@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.35 1995/11/16 08:35:16 jkh Exp $
+ * $Id: disks.c,v 1.31.2.36 1995/12/11 16:30:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -581,7 +581,6 @@ diskPartitionEditor(char *str)
 int
 diskPartitionWrite(char *str)
 {
-    extern u_char boot1[], boot2[];
     Device **devs;
     char *cp;
     int i;
