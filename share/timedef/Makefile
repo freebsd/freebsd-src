@@ -20,6 +20,7 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		it_IT.ISO_8859-1 \
 		ko_KR.EUC        \
 		la_LN.ISO_8859-1 \
+		lt_LT.ISO_8859-4 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
 		pl_PL.ISO_8859-2 \
