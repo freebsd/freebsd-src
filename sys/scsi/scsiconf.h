@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.16 1995/01/31 11:41:45 dufault Exp $
+ *	$Id: scsiconf.h,v 1.17 1995/02/14 06:17:23 phk Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -29,6 +29,7 @@ typedef	unsigned char 		u_int8;
 
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_all.h>
+#include <scsi/scsi_driver.h>
 
 /* Minor number fields:
  *
@@ -140,21 +141,130 @@ struct scsi_adapter
 #define	AD_INF_MAX_CMDS		0x000000FF
 /* 24 bits of other adapter characteristics go here */
 
+/* Don't poke around inside of "scsi_data".  Each low level
+ * driver has its own definition for it.
+ */
+struct scsi_data;
+
+struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
+struct scsi_xfer;
 /*
  * These entry points are called by the low-end drivers to get services from
  * whatever high-end drivers they are attached to.  Each device type has one
  * of these statically allocated.
+ *
+ * XXX dufault@hda.com: Each adapter driver has a scsi_device structure
+ *     that I don't think should be there.
+ *     This structure should be rearranged and cleaned up once the
+ *     instance down in the adapter drivers is removed.
  */
+
 struct scsi_device
 {
-/*  4*/	errval	(*err_handler)(); /* returns -1 to say err processing complete */
-/*  8*/	void	(*start)();
+/*  4*/	errval	(*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
+											* err processing complete */
+/*	8*/	void	(*start)(u_int32 unit);
 /* 12*/	int32	(*async)();
 /* 16*/	int32	(*done)();	/* returns -1 to say done processing complete */
 /* 20*/	char	*name;		/* name of device type */
 /* 24*/	u_int32 flags;		/* device type dependent flags */
 /* 32*/	int32	spare[2];
+
+/* 36*/ int32	link_flags;		/* Flags OR'd into sc_link at attach time */
+/* 40*/ errval  (*attach)(struct scsi_link *sc_link);
+/* 44*/ int (*open)(dev_t dev, int flags);
+/* 48*/ int sizeof_scsi_data;
+/* 52*/ int type;					/* Type of device this supports */
+/* 56*/ int	(*getunit)(dev_t dev);
+/* 60*/ dev_t  (*setunit)(dev_t dev, int unit);
+
+/* 64*/ errval (*dev_open)(dev_t dev, int flags, struct scsi_link *sc_link);
+/* 68*/ errval (*dev_ioctl)(dev_t dev, int cmd, caddr_t arg, int mode,
+         struct scsi_link *sc_link);
+/* 72*/ errval (*dev_close)(dev_t dev, struct scsi_link *sc_link);
+/* 76*/ void (*dev_strategy)(struct buf *bp, struct scsi_link *sc_link);
+
+	/* Not initialized after this */
+
+#define SCSI_LINK(DEV, UNIT) ( \
+	(struct scsi_link *)(extend_get((DEV)->links, (UNIT))) \
+	)
+
+#define SCSI_DATA(DEV, UNIT) ( \
+	(SCSI_LINK((DEV), (UNIT)) ? \
+	(SCSI_LINK((DEV), (UNIT))->sd) : \
+	(struct scsi_data *)0) \
+	)
+
+/* 80*/ struct extend_array *links;
+
+/* 84*/ int free_unit;
+/* 88*/ struct scsi_device *next;	/* Next in list in the registry. */
 };
+
+/* SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
+ * name.
+ */
+#define SCSI_DEVICE_ENTRIES(NAME)	\
+errval NAME##attach(struct scsi_link *sc_link);	\
+extern struct scsi_device NAME##_switch;	\
+void NAME##init(void)	\
+{	\
+	scsi_device_register(&NAME##_switch);	\
+}	\
+errval NAME##open(dev_t dev, int flags)	\
+{	\
+	return scsi_open(dev, flags, &NAME##_switch);	\
+}	\
+errval NAME##ioctl(dev_t dev, int cmd, caddr_t addr, int flag)	\
+{	\
+	return scsi_ioctl(dev, cmd, addr, flag, &NAME##_switch);	\
+}	\
+errval NAME##close(dev_t dev)	\
+{	\
+	return scsi_close(dev, &NAME##_switch);	\
+}	\
+void NAME##minphys(struct buf *bp)	\
+{	\
+	scsi_minphys(bp, &NAME##_switch);	\
+} \
+void NAME##strategy(struct buf *bp)	\
+{	\
+	scsi_strategy(bp, &NAME##_switch);	\
+}
+
+#ifdef KERNEL
+/* Configuration tables for config.
+ */
+/* A unit, type, etc can be SCCONF_ANY to indicate it is a '?'
+ *  in the config.
+ */
+#define SCCONF_UNSPEC -1
+#define SCCONF_ANY -2
+
+struct isa_driver;
+struct scsi_ctlr_config
+{
+	int bus;
+	char *driver;
+	int unit;
+};
+
+struct scsi_device_config
+{
+	char *name;		/* SCSI device name (sd, st, etc) */
+	int unit;		/* desired device unit */
+	int cunit;		/* Controller unit */
+	int target;		/* SCSI ID (target) */
+	int lun;		/* SCSI lun */
+	int flags;		/* Flags from config */
+};
+
+extern void (*scsi_tinit[])(void);
+extern struct scsi_ctlr_config scsi_cinit[];
+extern struct scsi_device_config scsi_dinit[];
+
+#endif
 
 #ifdef NEW_SCSICONF
 /*
@@ -222,13 +332,24 @@ struct scsi_link
 /* 28*/	void *	fordriver;		/* for private use by the driver */
 /* 32*/	void *  devmodes;		/* device specific mode tables */
 /* 36*/ dev_t	dev;			/* Device major number (character) */
-/* 40+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
+/* 40*/	struct	scsi_data *sd;	/* Device data structure */
+/* 44+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
 };
-#define	SDEV_MEDIA_LOADED 	0x01	/* device figures are still valid */
-#define	SDEV_WAITING	 	0x02	/* a process is waiting for this */
-#define	SDEV_OPEN	 	0x04	/* at least 1 open session */
-#define SDEV_BOUNCE		0x08	/* unit requires DMA bounce buffer */
-#define	SDEV_DBX		0xF0	/* debuging flags (scsi_debug.h) */	
+#define	SDEV_MEDIA_LOADED 	0x00000001	/* device figures are still valid */
+#define	SDEV_WAITING	 	0x00000002	/* a process is waiting for this */
+#define	SDEV_OPEN	 		0x00000004	/* at least 1 open session */
+
+/* XXX dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
+ * in an sc_link structure to indicate that this host adapter requires
+ * ISA DMA bounce buffers.  I think eventually the link structure should
+ * be associated only with the type drive and not the adapter driver,
+ * and the bounce flag should be in something associated with the
+ * adapter driver.
+ */
+#define SDEV_BOUNCE			0x00000008	/* unit requires DMA bounce buffer */
+
+#define	SDEV_DBX			0x000000F0	/* debuging flags (scsi_debug.h) */	
+#define SDEV_ONCE_ONLY		0x00010000	/* unit can only be opened once */
 
 /*
  * One of these is allocated and filled in for each scsi bus.
@@ -313,6 +434,8 @@ struct scsi_xfer
 #define	XS_LENGTH 0x09	/* Illegal length (over/under run)	*/
 
 #ifdef KERNEL
+char * scsi_type_long_name(int type);
+char * scsi_type_name(int type);
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
 struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
 void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
@@ -330,11 +453,11 @@ errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
 			u_int32 datalen, u_int32 retries,
 			u_int32 timeout, struct buf *bp,
 			u_int32 flags);
-errval	scsi_do_ioctl __P((dev_t dev, struct scsi_link *sc_link, int cmd, caddr_t addr, int f));
+errval	scsi_do_ioctl __P((dev_t dev,
+			int cmd, caddr_t addr, int f, struct scsi_link *sc_link));
 
 struct scsi_link *scsi_link_get __P((int bus, int targ, int lun));
-
-dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev)));
+dev_t scsi_dev_lookup __P((int (*opener)(dev_t dev, int flags)));
 
 int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
 
@@ -349,8 +472,10 @@ int32	scsi_3btoi __P((u_char *bytes));
 
 extern void sc_print_addr(struct scsi_link *);
 
-extern int scsi_externalize(struct scsi_link *, void *, size_t *);
-extern int scsi_internalize(struct scsi_link *, void **, size_t *);
+extern	int scsi_externalize(struct scsi_link *, void *, size_t *);
+
+void	scsi_device_register(struct scsi_device *sd);
+
 extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
 #endif

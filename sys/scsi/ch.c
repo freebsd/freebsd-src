@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.12 1995/01/08 13:38:29 dufault Exp $
+ *      $Id: ch.c,v 1.13 1995/01/19 21:02:54 ats Exp $
  */
 
 #include	<sys/types.h>
@@ -26,37 +26,14 @@
 
 static errval ch_mode_sense(u_int32, u_int32);
 
-struct scsi_xfer ch_scsi_xfer[NCH];
-u_int32 ch_xfer_block_wait[NCH];
-
-#define PAGESIZ 	4096
-#define STQSIZE		4
 #define	CHRETRIES	2
 
 #define MODE(z)		(  (minor(z) & 0x0F) )
 
 #define ESUCCESS 0
 
-errval  chopen();
-errval  chattach();
-
-/*
- * This driver is so simple it uses all the default services
- */
-struct scsi_device ch_switch =
-{
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    "ch",
-    0,
-    0, 0
-};
-
-struct ch_data {
+struct scsi_data {
 	u_int32 flags;
-	struct scsi_link *sc_link;	/* all the inter level info */
 	u_int16 chmo;			/* Offset of first CHM */
 	u_int16 chms;			/* No. of CHM */
 	u_int16 slots;			/* No. of Storage Elements */
@@ -70,32 +47,55 @@ struct ch_data {
 	u_int16 lsterr;			/* details of lasterror */
 	u_char  stor;			/* posible Storage locations */
 	u_int32 initialized;
-} ch_data[NCH];
+};
+
+static int chunit(dev_t dev) { return CHUNIT(dev); }
+static dev_t chsetunit(dev_t dev, int unit) { return CHSETUNIT(dev, unit); }
+
+errval ch_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+		struct scsi_link *sc_link);
+errval ch_close(dev_t dev, struct scsi_link *sc_link);
+
+SCSI_DEVICE_ENTRIES(ch)
+
+struct scsi_device ch_switch =
+{
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    "ch",
+    0,
+	{0, 0},
+	0,				/* Link flags */
+	chattach,
+	chopen,
+    sizeof(struct scsi_data),
+	T_CHANGER,
+	chunit,
+	chsetunit,
+	ch_open,
+	ch_ioctl,
+	ch_close,
+	0,
+};
 
 #define CH_OPEN		0x01
 #define CH_KNOWN	0x02
-
-static u_int32 next_ch_unit = 0;
-
-static int
-ch_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
-{
-	dev_detach(kdc);
-	FREE(kdc, M_TEMP);
-	return 0;
-}
 
 static int
 ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
 	       size_t len)
 {
-	return scsi_externalize(ch_data[kdc->kdc_unit].sc_link, userp, &len);
+	return scsi_externalize(SCSI_LINK(&ch_switch, kdc->kdc_unit),
+	userp, &len);
 }
 
 static struct kern_devconf kdc_ch_template = {
 	0, 0, 0,		/* filled in by dev_attach */
 	"ch", 0, MDDC_SCSI,
-	ch_externalize, 0, ch_goaway, SCSI_EXTERNALLEN,
+	ch_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
 	&kdc_scbus0,		/* parent */
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
@@ -119,28 +119,14 @@ ch_registerdev(int unit)
  * a device suitable for this driver.
  */
 errval 
-chattach(sc_link)
-	struct scsi_link *sc_link;
+chattach(struct scsi_link *sc_link)
 {
 	u_int32 unit, i, stat;
 	unsigned char *tbl;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("chattach: "));
-	/*
-	 * Check we have the resources for another drive
-	 */
-	unit = next_ch_unit++;
-	if (unit >= NCH) {
-		printf("Too many scsi changers..(%d > %d) reconfigure kernel\n", (unit + 1), NCH);
-		return (0);
-	}
-	/*
-	 * Store information needed to contact our base driver
-	 */
-	ch_data[unit].sc_link = sc_link;
-	sc_link->device = &ch_switch;
-	sc_link->dev_unit = unit;
-	sc_link->dev = CHSETUNIT(scsi_dev_lookup(chopen), unit);
+	struct scsi_data *ch = sc_link->sd;
+
+	unit = sc_link->dev_unit;
 
 	/*
 	 * Use the subdriver to request information regarding
@@ -148,59 +134,46 @@ chattach(sc_link)
 	 * request must specify this.
 	 */
 	if ((ch_mode_sense(unit, SCSI_NOSLEEP | SCSI_NOMASK /*| SCSI_SILENT */ ))) {
-		printf("ch%d: scsi changer :- offline\n", unit);
+		printf("scsi changer :- offline\n");
 		stat = CH_OPEN;
 	} else {
-		printf("ch%d: scsi changer, %d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
-		    unit, ch_data[unit].slots, ch_data[unit].drives, ch_data[unit].chms, ch_data[unit].imexs);
+		printf("scsi changer, %d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
+		    ch->slots, ch->drives, ch->chms, ch->imexs);
 		stat = CH_KNOWN;
 	}
-	ch_data[unit].initialized = 1;
+	ch->initialized = 1;
 	ch_registerdev(unit);
 
-	return 1;
-				/* XXX ??? is this the right return val? */
+	return 0;
 }
 
 /*
  *    open the device.
  */
 errval 
-chopen(dev)
-	dev_t dev;
+ch_open(dev_t dev, int flags, struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, mode;
-	struct scsi_link *sc_link;
+	struct scsi_data *cd;
 
 	unit = CHUNIT(dev);
 	mode = MODE(dev);
 
-	/*
-	 * Check the unit is legal 
-	 */
-	if (unit >= NCH) {
-		printf("ch%d: ch %d  > %d\n", unit, unit, NCH);
-		errcode = ENXIO;
-		return (errcode);
-	}
+	cd = sc_link->sd;
 	/*
 	 * Only allow one at a time
 	 */
-	if (ch_data[unit].flags & CH_OPEN) {
+	if (cd->flags & CH_OPEN) {
 		printf("ch%d: already open\n", unit);
 		return EBUSY;
 	}
 	/*
 	 * Make sure the device has been initialised
 	 */
-	if (!ch_data[unit].initialized)
+	if (!cd->initialized)
 		return (ENXIO);
 
-	sc_link = ch_data[unit].sc_link;
-
-	SC_DEBUG(sc_link, SDEV_DB1, ("chopen: dev=0x%x (unit %d (of %d))\n"
-		,dev, unit, NCH));
 	/*
 	 * Catch any unit attention errors.
 	 */
@@ -223,7 +196,7 @@ chopen(dev)
 		sc_link->flags &= ~SDEV_OPEN;
 		return (errcode);
 	}
-	ch_data[unit].flags = CH_OPEN;
+	cd->flags = CH_OPEN;
 	return 0;
 }
 
@@ -232,18 +205,9 @@ chopen(dev)
  * occurence of an open device
  */
 errval 
-chclose(dev)
-	dev_t dev;
+ch_close(dev_t dev, struct scsi_link *sc_link)
 {
-	unsigned char unit, mode;
-	struct scsi_link *sc_link;
-
-	unit = CHUNIT(dev);
-	mode = MODE(dev);
-	sc_link = ch_data[unit].sc_link;
-
-	SC_DEBUG(sc_link, SDEV_DB1, ("Closing device"));
-	ch_data[unit].flags = 0;
+	sc_link->sd->flags = 0;
 	sc_link->flags &= ~SDEV_OPEN;
 	return (0);
 }
@@ -253,11 +217,8 @@ chclose(dev)
  * Knows about the internals of this device
  */
 errval 
-chioctl(dev, cmd, arg, mode)
-	dev_t   dev;
-	u_int32 cmd;
-	caddr_t arg;
-	int mode;
+ch_ioctl(dev_t dev, int cmd, caddr_t arg, int mode,
+struct scsi_link *sc_link)
 {
 	/* struct ch_cmd_buf *args; */
 	union scsi_cmd *scsi_cmd;
@@ -267,14 +228,14 @@ chioctl(dev, cmd, arg, mode)
 	unsigned char unit;
 	u_int32 number, flags;
 	errval  ret;
-	struct scsi_link *sc_link;
+	struct scsi_data *cd;
 
 	/*
 	 * Find the device that the user is talking about
 	 */
 	flags = 0;		/* give error messages, act on errors etc. */
 	unit = CHUNIT(dev);
-	sc_link = ch_data[unit].sc_link;
+	cd = sc_link->sd;
 
 	switch ((int)cmd) {
 	case CHIOOP:{
@@ -284,15 +245,15 @@ chioctl(dev, cmd, arg, mode)
 
 			switch ((short) (ch->ch_op)) {
 			case CHGETPARAM:
-				ch->u.getparam.chmo = ch_data[unit].chmo;
-				ch->u.getparam.chms = ch_data[unit].chms;
-				ch->u.getparam.sloto = ch_data[unit].sloto;
-				ch->u.getparam.slots = ch_data[unit].slots;
-				ch->u.getparam.imexo = ch_data[unit].imexo;
-				ch->u.getparam.imexs = ch_data[unit].imexs;
-				ch->u.getparam.driveo = ch_data[unit].driveo;
-				ch->u.getparam.drives = ch_data[unit].drives;
-				ch->u.getparam.rot = ch_data[unit].rot;
+				ch->u.getparam.chmo = cd->chmo;
+				ch->u.getparam.chms = cd->chms;
+				ch->u.getparam.sloto = cd->sloto;
+				ch->u.getparam.slots = cd->slots;
+				ch->u.getparam.imexo = cd->imexo;
+				ch->u.getparam.imexs = cd->imexs;
+				ch->u.getparam.driveo = cd->driveo;
+				ch->u.getparam.drives = cd->drives;
+				ch->u.getparam.rot = cd->rot;
 				ch->result = 0;
 				return 0;
 				break;
@@ -313,7 +274,7 @@ chioctl(dev, cmd, arg, mode)
 			}
 		}
 	default:
-		return scsi_do_ioctl(dev, sc_link, cmd, arg, mode);
+		return scsi_do_ioctl(dev, cmd, arg, mode, sc_link);
 	}
 	return (ret ? ESUCCESS : EIO);
 }
@@ -328,6 +289,10 @@ ch_getelem(unit, stat, type, from, data, flags)
 	struct scsi_read_element_status scsi_cmd;
 	char    elbuf[32];
 	errval  ret;
+	struct scsi_link *sc_link;
+
+	if ((sc_link = SCSI_LINK(&ch_switch, unit)) == 0)
+		return ENXIO;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = READ_ELEMENT_STATUS;
@@ -337,7 +302,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 	scsi_cmd.number_of_elements[1] = 1;
 	scsi_cmd.allocation_length[2] = 32;
 
-	if ((ret = scsi_scsi_cmd(ch_data[unit].sc_link,
+	if ((ret = scsi_scsi_cmd(sc_link,
 		    (struct scsi_generic *) &scsi_cmd,
 		    sizeof(scsi_cmd),
 		    (u_char *) elbuf,
@@ -346,7 +311,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 		    100000,
 		    NULL,
 		    SCSI_DATA_IN | flags) != ESUCCESS)) {
-		*stat = ch_data[unit].lsterr;
+		*stat = sc_link->sd->lsterr;
 		bcopy(elbuf + 16, data, 16);
 		return ret;
 	}
@@ -361,6 +326,10 @@ ch_move(unit, stat, chm, from, to, flags)
 {
 	struct scsi_move_medium scsi_cmd;
 	errval  ret;
+	struct scsi_link *sc_link;
+
+	if ((sc_link = SCSI_LINK(&ch_switch, unit)) == 0)
+		return ENXIO;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = MOVE_MEDIUM;
@@ -371,7 +340,7 @@ ch_move(unit, stat, chm, from, to, flags)
 	scsi_cmd.destination_address[0] = (to >> 8) & 0xff;
 	scsi_cmd.destination_address[1] = to & 0xff;
 	scsi_cmd.invert = (chm & CH_INVERT) ? 1 : 0;
-	if ((ret = scsi_scsi_cmd(ch_data[unit].sc_link,
+	if ((ret = scsi_scsi_cmd(sc_link,
 		    (struct scsi_generic *) &scsi_cmd,
 		    sizeof(scsi_cmd),
 		    NULL,
@@ -380,7 +349,7 @@ ch_move(unit, stat, chm, from, to, flags)
 		    100000,
 		    NULL,
 		    flags) != ESUCCESS)) {
-		*stat = ch_data[unit].lsterr;
+		*stat = sc_link->sd->lsterr;
 		return ret;
 	}
 	return ret;
@@ -393,6 +362,10 @@ ch_position(unit, stat, chm, to, flags)
 {
 	struct scsi_position_to_element scsi_cmd;
 	errval  ret;
+	struct scsi_link *sc_link;
+
+	if ((sc_link = SCSI_LINK(&ch_switch, unit)) == 0)
+		return ENXIO;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = POSITION_TO_ELEMENT;
@@ -401,7 +374,7 @@ ch_position(unit, stat, chm, to, flags)
 	scsi_cmd.source_address[0] = (to >> 8) & 0xff;
 	scsi_cmd.source_address[1] = to & 0xff;
 	scsi_cmd.invert = (chm & CH_INVERT) ? 1 : 0;
-	if ((ret = scsi_scsi_cmd(ch_data[unit].sc_link,
+	if ((ret = scsi_scsi_cmd(sc_link,
 		    (struct scsi_generic *) &scsi_cmd,
 		    sizeof(scsi_cmd),
 		    NULL,
@@ -410,7 +383,7 @@ ch_position(unit, stat, chm, to, flags)
 		    100000,
 		    NULL,
 		    flags) != ESUCCESS)) {
-		*stat = ch_data[unit].lsterr;
+		*stat = sc_link->sd->lsterr;
 		return ret;
 	}
 	return ret;
@@ -438,7 +411,13 @@ ch_mode_sense(unit, flags)
 	u_char *b;
 	int32   i, l;
 	errval  errcode;
-	struct scsi_link *sc_link = ch_data[unit].sc_link;
+	struct scsi_data *cd;
+	struct scsi_link *sc_link;
+
+	if ((sc_link = SCSI_LINK(&ch_switch, unit)) == 0)
+		return ENXIO;
+
+	cd = sc_link->sd;
 
 	/*
 	 * First check if we have it all loaded
@@ -494,22 +473,22 @@ ch_mode_sense(unit, flags)
 		u_char *bb = b;
 		switch ((int)pc) {
 		case 0x1d:
-			ch_data[unit].chmo = p2copy(bb);
-			ch_data[unit].chms = p2copy(bb);
-			ch_data[unit].sloto = p2copy(bb);
-			ch_data[unit].slots = p2copy(bb);
-			ch_data[unit].imexo = p2copy(bb);
-			ch_data[unit].imexs = p2copy(bb);
-			ch_data[unit].driveo = p2copy(bb);
-			ch_data[unit].drives = p2copy(bb);
+			cd->chmo = p2copy(bb);
+			cd->chms = p2copy(bb);
+			cd->sloto = p2copy(bb);
+			cd->slots = p2copy(bb);
+			cd->imexo = p2copy(bb);
+			cd->imexs = p2copy(bb);
+			cd->driveo = p2copy(bb);
+			cd->drives = p2copy(bb);
 			break;
 		case 0x1e:
-			ch_data[unit].rot = (*b) & 1;
+			cd->rot = (*b) & 1;
 			break;
 		case 0x1f:
-			ch_data[unit].stor = *b & 0xf;
+			cd->stor = *b & 0xf;
 			bb += 2;
-			ch_data[unit].stor = p4copy(bb);
+			cd->stor = p4copy(bb);
 			break;
 		default:
 			break;
@@ -519,10 +498,10 @@ ch_mode_sense(unit, flags)
 	}
 	SC_DEBUG(sc_link, SDEV_DB2,
 	    (" cht(%d-%d)slot(%d-%d)imex(%d-%d)cts(%d-%d) %s rotate\n",
-		ch_data[unit].chmo, ch_data[unit].chms,
-		ch_data[unit].sloto, ch_data[unit].slots,
-		ch_data[unit].imexo, ch_data[unit].imexs,
-		ch_data[unit].driveo, ch_data[unit].drives,
-		ch_data[unit].rot ? "can" : "can't"));
+		cd->chmo, cd->chms,
+		cd->sloto, cd->slots,
+		cd->imexo, cd->imexs,
+		cd->driveo, cd->drives,
+		cd->rot ? "can" : "can't"));
 	return (0);
 }
