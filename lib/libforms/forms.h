@@ -1,84 +1,95 @@
-#define FORM_NO_KEYS 12
-#define FORM_LEFT 0
-#define FORM_RIGHT 1
-#define FORM_UP 2
-#define FORM_DOWN 3
-#define FORM_NEXT 4
-#define FORM_EXIT 5
-#define FORM_FIELD_HOME 6
-#define FORM_FIELD_END 7
-#define FORM_FIELD_LEFT 8
-#define FORM_FIELD_RIGHT 9
-#define FORM_FIELD_BACKSPACE 10
-#define FORM_FIELD_DELETE 11
+/*
+ * Copyright (c) 1995 Paul Richards. 
+ *
+ * All rights reserved.
+ *
+ * This software may be used, modified, copied, distributed, and
+ * sold, in both source and binary form provided that the above
+ * copyright and these terms are retained, verbatim, as the first
+ * lines of this file.  Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with
+ * its use.
+ */
 
-/* Attribute values */
-#define FORM_DEFAULT_ATTR 0
-#define FORM_SELECTED_ATTR 0
+#include <ncurses.h>
 
-/* Field types */
-#define FORM_FTYPE_INPUT 0
-#define FORM_FTYPE_MENU 1
-#define FORM_FTYPE_BUTTON 2
-#define FORM_FTYPE_TEXT 3
+#define F_END 0
+#define F_TEXT 1
+#define F_ACTION 2
+#define F_INPUT 3
+#define F_MENU 4
 
-#define MAX_FIELD_SIZE 80
+#define F_DEFATTR 0
+#define F_SELATTR A_REVERSE
 
+#define F_DONE 1
+#define F_CANCEL -1
 
 struct form {
-	int x;
+	int no_fields;
+	int current_field;
+	struct field *field;
+	int nlines;
+	int ncols;
 	int y;
-	int height;
-	int width;
-	struct field *fields;
-};
-
-extern struct form *form;
-
-struct input_field {
-	int y_prompt;
-	int x_prompt;
-	int prompt_width;
-	int prompt_attr;
-	char *prompt;
-	int y_field;
-	int x_field;
-	int field_width;
-	int max_field_width;
-	int field_attr;
-	char *field;
+	int x;
+	WINDOW *window;
 };
 
 struct text_field {
-	int y;
-	int x;
-	int attr;
 	char *text;
 };
 
-struct field {
-	int field_id;
-	int type;
-	union {
-		struct input_field input;
-		struct text_field text;
-#ifdef notyet
-		struct menu_field menu
-		struct button_field button;
-#endif
-	} entry;
-	struct field *link;
-	struct field *next;
-	struct field *up;
-	struct field *down;
-	struct field *left;
-	struct field *right;
+struct action_field {
+	char *text;
+	void (* fn)();
 };
 
-extern unsigned int keymap[FORM_NO_KEYS];
+struct input_field {
+	int lbl_flag;
+	char *label;
+	char *input;
+};
 
-int init_forms();
-int edit_line(WINDOW *window, struct field *);
-int edit_form(struct form *);
-void refresh_form(WINDOW *, struct form *);
-struct field *find_link(int);
+struct menu_field {
+	int no_options;
+	int selected;
+	char **options;
+};
+
+struct help_link {
+};
+
+struct field {
+	int type;
+	int y;
+	int x;
+	int disp_width;
+	int width;
+	int attr;
+	int next;
+	int up;
+	int down;
+	int left;
+	int right;
+	union {
+		struct text_field *text;
+		struct action_field *action;
+		struct input_field *input;
+		struct menu_field *menu;
+	}field;
+	/*
+	struct help_link help;
+	*/
+};
+
+/* Externally visible keymap table for user-definable keymaps */
+extern unsigned int keymap[];
+
+/* Externally visible function declarations */
+int update_form(struct form *);
+int initfrm(struct form *);
+void endfrm(struct form *);
+void exit_form(void);
+void cancel_form(void);
