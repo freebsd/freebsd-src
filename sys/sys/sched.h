@@ -108,11 +108,11 @@ sched_unpin(void)
 
 /* temporarily here */
 void schedinit(void);
-void sched_destroyproc(struct proc *p);
 void sched_init_concurrency(struct ksegrp *kg);
 void sched_set_concurrency(struct ksegrp *kg, int cuncurrency);
 void sched_schedinit(void);
 void sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td);
 void sched_thread_exit(struct thread *td);
 void sched_newthread(struct thread *td);
+
 #endif /* !_SYS_SCHED_H_ */
