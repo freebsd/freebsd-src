@@ -31,9 +31,10 @@
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 
-#include <sys/cdefs.h>
-    
-__FBSDID("$FreeBSD$");
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <sys/types.h>
 
