@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.8 1996/03/10 07:11:45 gibbs Exp $
+ *      $Id: bt.c,v 1.9 1996/03/31 18:19:50 gibbs Exp $
  */
 
 /*
@@ -1306,6 +1306,8 @@ bt_scsi_cmd(xs)
 		seg = 0;
 #ifdef	TFS
 		if (flags & SCSI_DATA_UIO) {
+			struct iovec *iovp;
+
 			iovp = ((struct uio *) xs->data)->uio_iov;
 			datalen = ((struct uio *) xs->data)->uio_iovcnt;
 			xs->datalen = 0;
