@@ -32,11 +32,11 @@
 # when going to single-user mode.
 console	none				unknown	off secure
 #
-screen	"/usr/libexec/getty Pc"		cons25	on  secure
-ttya	"/usr/libexec/getty 3wire.9600"	cons25	off secure
-ttyb	"/usr/libexec/getty 3wire.9600"	cons25	off secure
-ttyz0	"/usr/libexec/getty 3wire.9600"	cons25	off secure
-ttyz1	"/usr/libexec/getty 3wire.9600"	cons25	off secure
+screen	"/usr/libexec/getty Pc"		vt100	on  secure
+ttya	"/usr/libexec/getty 3wire.9600"	vt100	off secure
+ttyb	"/usr/libexec/getty 3wire.9600"	vt100	off secure
+ttyz0	"/usr/libexec/getty 3wire.9600"	vt100	off secure
+ttyz1	"/usr/libexec/getty 3wire.9600"	vt100	off secure
 #
 #ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
