@@ -341,6 +341,8 @@ end_final (filename)
 
       ASM_OUTPUT_ALIGN (asm_out_file, align);
 
+      fprintf(asm_out_file,".stabs \"bbset\", 25, 0, 0, LPBX0\n");
+
       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, "LPBX", 0);
       /* zero word */
       assemble_integer (const0_rtx, UNITS_PER_WORD, 1);
@@ -914,6 +916,9 @@ final_start_function (first, file, optimize)
     leaf_renumber_regs (first);
 #endif
 
+  if (profile_block_flag)
+    add_bb (file);
+
   /* The Sun386i and perhaps other machines don't work right
      if the profiling code comes after the prologue.  */
 #ifdef PROFILE_BEFORE_PROLOGUE
@@ -971,14 +976,18 @@ static void
 profile_function (file)
      FILE *file;
 {
+#ifndef NO_PROFILE_DATA
   int align = MIN (BIGGEST_ALIGNMENT, POINTER_SIZE);
+#endif /* not NO_PROFILE_DATA */
   int sval = current_function_returns_struct;
   int cxt = current_function_needs_context;
 
+#ifndef NO_PROFILE_DATA
   data_section ();
   ASM_OUTPUT_ALIGN (file, floor_log2 (align / BITS_PER_UNIT));
   ASM_OUTPUT_INTERNAL_LABEL (file, "LP", profile_label_no);
   assemble_integer (const0_rtx, POINTER_SIZE / BITS_PER_UNIT, 1);
+#endif /* not NO_PROFILE_DATA */
 
   text_section ();
 
@@ -1065,6 +1074,9 @@ final_end_function (first, file, optimize)
      code to restore the stack frame and return to the caller.  */
   FUNCTION_EPILOGUE (file, get_frame_size ());
 #endif
+
+  if (profile_block_flag)
+    add_bb (file);
 
 #ifdef SDB_DEBUGGING_INFO
   if (write_symbols == SDB_DEBUG)
