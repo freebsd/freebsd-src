@@ -18,6 +18,10 @@ sed	-e '/pty/d' \
 	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/maxusers/d' \
+	-e '/MFS/d' \
+	-e '/NFS_ROOT/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/atapist/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 echo "options  NETGRAPH"
@@ -41,6 +45,25 @@ sed	-e '/pty/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/maxusers/d' \
+	-e '/MFS/d' \
+	-e '/NFS_ROOT/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/atapist/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/vpo/d' \
+	-e '/uhci/d' \
+	-e '/ohci/d' \
+	-e '/usb/d' \
+	-e '/ugen/d' \
+	-e '/uhid/d' \
+	-e '/ukbd/d' \
+	-e '/ulpt/d' \
+	-e '/umass/d' \
+	-e '/ums/d' \
+	-e '/aue/d' \
+	-e '/cue/d' \
+	-e '/kue/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 fi
 
