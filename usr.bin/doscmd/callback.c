@@ -1,8 +1,7 @@
-/* No copyright?!
-**
-** $FreeBSD$
-*/
+/* No copyright?! */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/queue.h>
 #include "doscmd.h"

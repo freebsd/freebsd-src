@@ -1,8 +1,10 @@
 /*
 ** No copyright?!
-**
-** $FreeBSD$
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "doscmd.h"
 
 static void

@@ -28,9 +28,10 @@
  * SUCH DAMAGE.
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -248,8 +249,8 @@ console_init()
     int fd;
     caddr_t addr;
 
-    if ((fd = open("/dev/vga", 2)) < 0) {
-	perror("/dev/vga");
+    if ((fd = open(_PATH_DEV "vga", 2)) < 0) {
+	perror(_PATH_DEV "vga");
 	quit(1);
     }
     addr = mmap((caddr_t)0xA0000, 5 * 64 * 1024,
