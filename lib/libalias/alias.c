@@ -134,6 +134,7 @@
 #define CUSEEME_PORT_NUMBER 7648
 #define RTSP_CONTROL_PORT_NUMBER_1 554
 #define RTSP_CONTROL_PORT_NUMBER_2 7070
+#define TFTP_PORT_NUMBER 69
 #define PPTP_CONTROL_PORT_NUMBER 1723
 
 
@@ -837,6 +838,14 @@ UdpAliasOut(struct ip *pip)
 	      || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER)
 	    AliasHandleUdpNbtNS(pip, link, &pip->ip_src, &ud->uh_sport,
 				&alias_address, &alias_port);
+/*
+ * We don't know in advance what TID the TFTP server will choose,
+ * so we create a wilcard link (destination port is unspecified)
+ * that will match any TID from a given destination.
+ */
+	else if (ntohs(ud->uh_dport) == TFTP_PORT_NUMBER)
+	    FindRtspOut(pip->ip_src, pip->ip_dst,
+			ud->uh_sport, alias_port, IPPROTO_UDP);
 
 /* If UDP checksum is not zero, adjust since source port is */
 /* being aliased and source address is being altered        */
