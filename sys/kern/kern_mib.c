@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.14 1998/03/04 10:25:50 dufault Exp $
+ * $Id: kern_mib.c,v 1.15 1998/03/28 11:49:52 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,6 @@
 #include <sys/proc.h>
 #include <sys/unistd.h>
 
-#include <machine/cpu.h>
 #if defined(SMP)
 #include <machine/smp.h>
 #endif
