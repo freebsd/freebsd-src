@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1994/08/27 09:52:30 csgr Exp $
+# $Id: Makefile,v 1.3 1996/01/08 09:17:39 peter Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -37,8 +37,8 @@ beforeinstall:
 
 parse.c parse.h: parse.y
 	$(YACC) -d $(.CURDIR)/parse.y
-	mv y.tab.c parse.c
-	mv y.tab.h parse.h
+	mv -f y.tab.c parse.c
+	mv -f y.tab.h parse.h
 
 .if exists(/usr/bin/lex)
 scan.o:	parse.c

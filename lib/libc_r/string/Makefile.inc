@@ -1,4 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
+#	$Id: $
 
 .PATH: ${.CURDIR}/../libc/${MACHINE}/string ${.CURDIR}/../libc/string
 
@@ -16,12 +17,12 @@ OBJS+=	bzero.o
 bzero.o: memset.c
 	${CC} -DBZERO ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 bzero.po: memset.c
 	${CC} -DBZERO ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 .endif
 
 # If no machine specific memmove(3), build one out of bcopy(3).
@@ -30,12 +31,12 @@ OBJS+=	memmove.o
 memmove.o: bcopy.c
 	${CC} -DMEMMOVE ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 memmove.po: bcopy.c
 	${CC} -DMEMMOVE ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 .endif
 
 # If no machine specific memcpy(3), build one out of bcopy(3).
@@ -44,12 +45,12 @@ OBJS+=	memcpy.o
 memcpy.o: bcopy.c
 	${CC} -DMEMCOPY ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 memcpy.po: bcopy.c
 	${CC} -DMEMCOPY ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 .endif
 
 # If no machine specific strchr(3), build one out of index(3).
@@ -58,12 +59,12 @@ OBJS+=	strchr.o
 strchr.o: index.c
 	${CC} -DSTRCHR ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 strchr.po: index.c
 	${CC} -DSTRCHR ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 .endif
 
 # If no machine specific strrchr(3), build one out of rindex(3).
@@ -72,10 +73,10 @@ OBJS+=	strrchr.o
 strrchr.o: rindex.c
 	${CC} -DSTRRCHR ${CFLAGS} -c ${.ALLSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 
 strrchr.po: rindex.c
 	${CC} -DSTRRCHR ${CFLAGS} -c -p ${.ALLSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
-	@mv a.out ${.TARGET}
+	@mv -f a.out ${.TARGET}
 .endif
