@@ -66,6 +66,13 @@ struct wi_counters {
 #define WI_RID_DEFLT_CRYPT_KEYS	0xFCB0
 #define WI_RID_TX_CRYPT_KEY	0xFCB1
 #define WI_RID_WEP_AVAIL	0xFD4F
+#define WI_RID_P2_TX_CRYPT_KEY	0xFC23
+#define WI_RID_P2_CRYPT_KEY0	0xFC24
+#define WI_RID_P2_CRYPT_KEY1	0xFC25
+#define WI_RID_P2_CRYPT_KEY2	0xFC26
+#define WI_RID_P2_CRYPT_KEY3	0xFC27
+#define WI_RID_P2_ENCRYPTION	0xFC28
+#define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
 struct wi_key {
 	u_int16_t		wi_keylen;
 	u_int8_t		wi_keydat[14];
@@ -118,6 +125,7 @@ struct wi_softc	{
 #endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
+	int			wi_prism2;	/* set to 1 if it uses a Prism II chip */
 };
 
 #define	WI_LOCK(_sc)		mtx_enter(&(_sc)->wi_mtx, MTX_DEF)

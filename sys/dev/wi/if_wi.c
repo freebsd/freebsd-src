@@ -231,9 +231,33 @@ static int wi_pccard_attach(device_t dev)
 	struct wi_ltv_gen	gen;
 	struct ifnet		*ifp;
 	int			error;
+	u_int32_t		flags;
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
+
+	/*
+	 *	XXX: quick hack to support Prism II chip.
+	 *	Currently, we need to set a flags in pccard.conf to specify
+	 *	which type chip is used.
+	 *
+	 *	We need to replace this code in a future.
+	 *	It is better to use CIS than using a flag.
+	 */
+	flags = device_get_flags(dev);
+#define	WI_FLAGS_PRISM2	0x10000
+	if (flags & WI_FLAGS_PRISM2) {
+		sc->wi_prism2 = 1;
+		if (bootverbose) {
+			device_printf(dev, "found PrismII chip\n");
+		}
+	}
+	else {
+		sc->wi_prism2 = 0;
+		if (bootverbose) {
+			device_printf(dev, "found Lucent chip\n");
+		}
+	}
 
 	error = wi_alloc(dev);
 	if (error) {
@@ -319,6 +343,12 @@ static int wi_pccard_attach(device_t dev)
 	gen.wi_len = 2;
 	wi_read_record(sc, &gen);
 	sc->wi_has_wep = gen.wi_val;
+
+	if (bootverbose) {
+		device_printf(sc->dev,
+				__FUNCTION__ ":wi_has_wep = %d\n",
+				sc->wi_has_wep);
+	}
 
 	bzero((char *)&sc->wi_stats, sizeof(sc->wi_stats));
 
@@ -589,7 +619,21 @@ static int wi_cmd(sc, cmd, val)
 {
 	int			i, s = 0;
 
+	/* wait for the busy bit to clear */
+	for (i = 0; i < WI_TIMEOUT; i++) {
+		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY)) {
+			break;
+		}
+		DELAY(10*1000);	/* 10 m sec */
+	}
+
+	if (i == WI_TIMEOUT) {
+		return(ETIMEDOUT);
+	}
+
 	CSR_WRITE_2(sc, WI_PARAM0, val);
+	CSR_WRITE_2(sc, WI_PARAM1, 0);
+	CSR_WRITE_2(sc, WI_PARAM2, 0);
 	CSR_WRITE_2(sc, WI_COMMAND, cmd);
 
 	for (i = 0; i < WI_TIMEOUT; i++) {
@@ -621,11 +665,12 @@ static int wi_cmd(sc, cmd, val)
 static void wi_reset(sc)
 	struct wi_softc		*sc;
 {
-	wi_cmd(sc, WI_CMD_INI, 0);
-	DELAY(100000);
-	wi_cmd(sc, WI_CMD_INI, 0);
-	DELAY(100000);
 #ifdef foo
+	wi_cmd(sc, WI_CMD_INI, 0);
+	DELAY(100000);
+	wi_cmd(sc, WI_CMD_INI, 0);
+#endif
+	DELAY(100000);
 	if (wi_cmd(sc, WI_CMD_INI, 0))
 		device_printf(sc->dev, "init failed\n");
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
@@ -633,7 +678,7 @@ static void wi_reset(sc)
 
 	/* Calibrate timer. */
 	WI_SETVAL(WI_RID_TICK_TIME, 8);
-#endif
+
 	return;
 }
 
@@ -646,6 +691,23 @@ static int wi_read_record(sc, ltv)
 {
 	u_int16_t		*ptr;
 	int			i, len, code;
+	struct wi_ltv_gen	*oltv, p2ltv;
+
+	oltv = ltv;
+	if (sc->wi_prism2) {
+		switch (ltv->wi_type) {
+		case WI_RID_ENCRYPTION:
+			p2ltv.wi_type = WI_RID_P2_ENCRYPTION;
+			p2ltv.wi_len = 2;
+			ltv = &p2ltv;
+			break;
+		case WI_RID_TX_CRYPT_KEY:
+			p2ltv.wi_type = WI_RID_P2_TX_CRYPT_KEY;
+			p2ltv.wi_len = 2;
+			ltv = &p2ltv;
+			break;
+		}
+	}
 
 	/* Tell the NIC to enter record read mode. */
 	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_READ, ltv->wi_type))
@@ -675,6 +737,35 @@ static int wi_read_record(sc, ltv)
 	for (i = 0; i < ltv->wi_len - 1; i++)
 		ptr[i] = CSR_READ_2(sc, WI_DATA1);
 
+	if (sc->wi_prism2) {
+		switch (oltv->wi_type) {
+		case WI_RID_TX_RATE:
+		case WI_RID_CUR_TX_RATE:
+			switch (ltv->wi_val) {
+			case 1: oltv->wi_val = 1; break;
+			case 2: oltv->wi_val = 2; break;
+			case 3:	oltv->wi_val = 6; break;
+			case 4: oltv->wi_val = 5; break;
+			case 7: oltv->wi_val = 7; break;
+			case 8: oltv->wi_val = 11; break;
+			case 15: oltv->wi_val = 3; break;
+			default: oltv->wi_val = 0x100 + ltv->wi_val; break;
+			}
+			break;
+		case WI_RID_ENCRYPTION:
+			oltv->wi_len = 2;
+			if (ltv->wi_val & 0x01)
+				oltv->wi_val = 1;
+			else
+				oltv->wi_val = 0;
+			break;
+		case WI_RID_TX_CRYPT_KEY:
+			oltv->wi_len = 2;
+			oltv->wi_val = ltv->wi_val;
+			break;
+		}
+	}
+
 	return(0);
 }
 
@@ -687,6 +778,59 @@ static int wi_write_record(sc, ltv)
 {
 	u_int16_t		*ptr;
 	int			i;
+	struct wi_ltv_gen	p2ltv;
+
+	if (sc->wi_prism2) {
+		switch (ltv->wi_type) {
+		case WI_RID_TX_RATE:
+			p2ltv.wi_type = WI_RID_TX_RATE;
+			p2ltv.wi_len = 2;
+			switch (ltv->wi_val) {
+			case 1: p2ltv.wi_val = 1; break;
+			case 2: p2ltv.wi_val = 2; break;
+			case 3:	p2ltv.wi_val = 15; break;
+			case 5: p2ltv.wi_val = 4; break;
+			case 6: p2ltv.wi_val = 3; break;
+			case 7: p2ltv.wi_val = 7; break;
+			case 11: p2ltv.wi_val = 8; break;
+			default: return EINVAL;
+			}
+			ltv = &p2ltv;
+			break;
+		case WI_RID_ENCRYPTION:
+			p2ltv.wi_type = WI_RID_P2_ENCRYPTION;
+			p2ltv.wi_len = 2;
+			if (ltv->wi_val)
+				p2ltv.wi_val = 0x03;
+			else
+				p2ltv.wi_val = 0x90;
+			ltv = &p2ltv;
+			break;
+		case WI_RID_TX_CRYPT_KEY:
+			p2ltv.wi_type = WI_RID_P2_TX_CRYPT_KEY;
+			p2ltv.wi_len = 2;
+			p2ltv.wi_val = ltv->wi_val;
+			ltv = &p2ltv;
+			break;
+		case WI_RID_DEFLT_CRYPT_KEYS:
+		    {
+			int error;
+			struct wi_ltv_str	ws;
+			struct wi_ltv_keys	*wk = (struct wi_ltv_keys *)ltv;
+			for (i = 0; i < 4; i++) {
+				ws.wi_len = 4;
+				ws.wi_type = WI_RID_P2_CRYPT_KEY0 + i;
+				memcpy(ws.wi_str, &wk->wi_keys[i].wi_keydat, 5);
+				ws.wi_str[5] = '\0';
+				error = wi_write_record(sc,
+				    (struct wi_ltv_gen *)&ws);
+				if (error)
+					return error;
+			}
+			return 0;
+		    }
+		}
+	}
 
 	if (wi_seek(sc, ltv->wi_type, 0, WI_BAP1))
 		return(EIO);
@@ -1362,7 +1506,8 @@ static int wi_alloc(dev)
 
 	rid = 0;
 	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					0, ~0, 1, RF_ACTIVE);
+				0, ~0, (1 << 6),
+				rman_make_alignment_flags(1 << 6) | RF_ACTIVE);
 	if (!sc->iobase) {
 		device_printf(dev, "No I/O space?!\n");
 		return (ENXIO);
