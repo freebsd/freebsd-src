@@ -735,7 +735,15 @@ cpu_halt(void)
 void
 cpu_idle(void)
 {
-	/* Insert code to halt (until next interrupt) for the idle loop */
+	/* TODO: Insert code to halt (until next interrupt) */
+
+#ifdef INVARIANTS
+	if ((mfmsr() & PSL_EE) != PSL_EE) {
+		struct thread *td = curthread;
+		printf("td crit %x\n", td->td_md.md_savecrit);
+		panic("ints disabled in idleproc!");
+	}
+#endif
 }
 
 /*
