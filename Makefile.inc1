@@ -264,7 +264,9 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Running ${SUP}"
 	@echo "--------------------------------------------------------------"
+.if defined(SUPFILE)
 	@${SUP} ${SUPFLAGS} ${SUPFILE}
+.endif
 .if defined(SUPFILE1)
 	@${SUP} ${SUPFLAGS} ${SUPFILE1}
 .endif
