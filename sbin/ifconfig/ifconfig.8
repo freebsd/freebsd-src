@@ -72,12 +72,14 @@
 .Op Fl u
 .Op Fl C
 .Sh DESCRIPTION
-.Nm Ifconfig
-is used to assign an address
+The
+.Nm
+utility is used to assign an address
 to a network interface and/or configure
 network interface parameters.
-.Nm Ifconfig
-must be used at boot time to define the network address
+The
+.Nm
+utility must be used at boot time to define the network address
 of each interface present on a machine; it may also be used at
 a later time to redefine an interface's address
 or other operating parameters.
@@ -255,7 +257,7 @@ This action does not automatically disable routes using the interface.
 .It Cm eui64
 (Inet6 only.)
 Fill interface index
-.Pq lowermost 64bit of an IPv6 address
+(lowermost 64bit of an IPv6 address)
 automatically.
 .\" .It Cm ipdst
 .\" This is used to specify an Internet host who is willing to receive
@@ -599,6 +601,12 @@ capabilities of the adaptor.
 It may be specified either as a plain
 string or as a string of hexadecimal digits proceeded by
 .Ql 0x .
+For maximum portability, hex keys are recommended;
+the mapping of text keys to WEP encryption is usually driver-specific.
+In particular, the
+.Tn Windows
+drivers do this mapping differently to
+.Fx .
 A key may be cleared by setting it to
 .Ql - .
 If WEP is supported then there are at least four keys.
@@ -647,8 +655,9 @@ Included for
 compatibility.
 .El
 .Pp
-.Nm Ifconfig
-displays the current configuration for a network interface
+The
+.Nm
+utility displays the current configuration for a network interface
 when no optional parameters are supplied.
 If a protocol family is specified,
 .Nm
@@ -725,5 +734,5 @@ So, such manual deletions are strongly discouraged.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
