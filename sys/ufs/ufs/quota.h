@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.1 (Berkeley) 6/11/93
- * $Id: quota.h,v 1.2 1994/08/02 07:54:51 davidg Exp $
+ * $Id: quota.h,v 1.3 1994/08/21 07:16:16 paul Exp $
  */
 
 #ifndef _UFS_UFS_QUOTA_
@@ -179,16 +179,9 @@ struct ufsmount;
 struct vnode;
 __BEGIN_DECLS
 int	chkdq __P((struct inode *, long, struct ucred *, int));
-int	chkdqchg __P((struct inode *, long, struct ucred *, int));
 int	chkiq __P((struct inode *, long, struct ucred *, int));
-int	chkiqchg __P((struct inode *, long, struct ucred *, int));
-void	dqflush __P((struct vnode *));
-int	dqget __P((struct vnode *,
-	    u_long, struct ufsmount *, int, struct dquot **));
 void	dqinit __P((void));
-void	dqref __P((struct dquot *));
 void	dqrele __P((struct vnode *, struct dquot *));
-int	dqsync __P((struct vnode *, struct dquot *));
 int	getinoquota __P((struct inode *));
 int	getquota __P((struct mount *, u_long, int, caddr_t));
 int	qsync __P((struct mount *mp));
@@ -199,10 +192,5 @@ int	setuse __P((struct mount *, u_long, int, caddr_t));
 int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
 __END_DECLS
 
-#ifdef DIAGNOSTIC
-__BEGIN_DECLS
-void	chkdquot __P((struct inode *));
-__END_DECLS
-#endif
 
 #endif /* _QUOTA_ */
