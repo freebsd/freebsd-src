@@ -49,11 +49,13 @@ static const char rcsid[] =
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
-#include <unistd.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <timeconv.h>
+#include <unistd.h>
 
 #include "dump.h"
 
@@ -388,8 +390,6 @@ searchdir(
 void
 dumpino(union dinode *dp, ino_t ino)
 {
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
 	int ind_level, cnt;
 	off_t size;
 	char buf[TP_BSIZE];
@@ -705,11 +705,11 @@ loop:
 		goto loop;
 	}
 	if (cnt == -1)
-		msg("read error from %s: %s: [block %qd]: count=%d\n",
-			disk, strerror(errno), blkno, size);
+		msg("read error from %s: %s: [block %jd]: count=%d\n",
+			disk, strerror(errno), (intmax_t)blkno, size);
 	else
-		msg("short read error from %s: [block %qd]: count=%d, got=%d\n",
-			disk, blkno, size, cnt);
+		msg("short read error from %s: [block %jd]: count=%d, got=%d\n",
+			disk, (intmax_t)blkno, size, cnt);
 	if (++breaderrors > BREADEMAX) {
 		msg("More than %d block read errors from %s\n",
 			BREADEMAX, disk);
@@ -730,11 +730,11 @@ loop:
 		    ((off_t)blkno << dev_bshift))) == dev_bsize)
 			continue;
 		if (cnt == -1) {
-			msg("read error from %s: %s: [sector %qd]: count=%d\n",
-				disk, strerror(errno), blkno, dev_bsize);
+			msg("read error from %s: %s: [sector %jd]: count=%ld\n",
+			    disk, strerror(errno), (intmax_t)blkno, dev_bsize);
 			continue;
 		}
-		msg("short read error from %s: [sector %qd]: count=%d, got=%d\n",
-			disk, blkno, dev_bsize, cnt);
+		msg("short read from %s: [sector %jd]: count=%ld, got=%d\n",
+		    disk, (intmax_t)blkno, dev_bsize, cnt);
 	}
 }
