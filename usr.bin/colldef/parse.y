@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
@@ -297,9 +296,9 @@ main(int ac, char **av)
 	int ch;
 
 #ifdef COLLATE_DEBUG
-	while((ch = getopt(ac, av, ":do:I:")) != EOF) {
+	while((ch = getopt(ac, av, ":do:I:")) != -1) {
 #else
-	while((ch = getopt(ac, av, ":o:I:")) != EOF) {
+	while((ch = getopt(ac, av, ":o:I:")) != -1) {
 #endif
 		switch (ch)
 		{
