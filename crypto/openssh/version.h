@@ -1,5 +1,5 @@
-/* $OpenBSD: version.h,v 1.40 2004/02/23 15:16:46 markus Exp $ */
 /* $FreeBSD$ */
+/* $OpenBSD: version.h,v 1.40 2004/02/23 15:16:46 markus Exp $ */
 
 #ifndef SSH_VERSION
 

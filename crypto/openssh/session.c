@@ -202,6 +202,7 @@ display_loginmsg(void)
 		printf("%s\n", (char *)buffer_ptr(&loginmsg));
 		buffer_clear(&loginmsg);
 	}
+	fflush(stdout);
 }
 
 void
@@ -491,6 +492,13 @@ do_exec_no_pty(Session *s, const char *command)
 	/* We are the parent.  Close the child sides of the socket pairs. */
 	close(inout[0]);
 	close(err[0]);
+
+	/*
+	 * Clear loginmsg, since it's the child's responsibility to display
+	 * it to the user, otherwise multiple sessions may accumulate
+	 * multiple copies of the login messages.
+	 */
+	buffer_clear(&loginmsg);
 
 	/*
 	 * Enter the interactive session.  Note: server_loop must be able to
@@ -1116,9 +1124,9 @@ do_setup_env(Session *s, const char *shell)
 	}
 #endif
 #ifdef KRB5
-	if (s->authctxt->krb5_ticket_file)
+	if (s->authctxt->krb5_ccname)
 		child_set_env(&env, &envsize, "KRB5CCNAME",
-		    s->authctxt->krb5_ticket_file);
+		    s->authctxt->krb5_ccname);
 #endif
 #ifdef USE_PAM
 	/*

@@ -74,13 +74,6 @@ auth_password(Authctxt *authctxt, const char *password)
 	if (*password == '\0' && options.permit_empty_passwd == 0)
 		return 0;
 
-#if defined(HAVE_OSF_SIA)
-	/*
-	 * XXX: any reason this is before krb?  could be moved to
-	 * sys_auth_passwd()?  -dt
-	 */
-	return auth_sia_password(authctxt, password) && ok;
-#endif
 #ifdef KRB5
 	if (options.kerberos_authentication == 1) {
 		int ret = auth_krb5_password(authctxt, password);
