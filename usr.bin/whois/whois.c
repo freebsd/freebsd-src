@@ -213,12 +213,17 @@ whois(name, res, flags)
 	size_t len;
 	int s, nomatch;
 
-	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (s < 0) {
-		err(EX_OSERR, "socket");
+	for (; res; res = res->ai_next) {
+		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if (s < 0) {
+			continue;
+		}
+		if (connect(s, res->ai_addr, res->ai_addrlen) == 0) {
+			break;
+		}
+		close(s);
 	}
-
-	if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
+	if (res == NULL) {
 		err(EX_OSERR, "connect");
 	}
 
