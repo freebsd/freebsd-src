@@ -45,6 +45,7 @@
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -283,7 +284,7 @@ trap(struct trapframe *tf)
 			}
 			if (debugger_on_signal &&
 			    (sig == 4 || sig == 10 || sig == 11))
-				Debugger("trapsig");
+				kdb_enter("trapsig");
 			trapsignal(td, sig, tf->tf_type);
 		}
 
@@ -296,11 +297,19 @@ trap(struct trapframe *tf)
 		KASSERT((tf->tf_type & T_KERNEL) != 0,
 		    ("trap: kernel trap isn't"));
 
+#ifdef KDB
+		if (kdb_active) {
+			kdb_reenter();
+			return;
+		}
+#endif
+
 		switch (tf->tf_type & ~T_KERNEL) {
-#ifdef DDB
+#ifdef KDB
 		case T_BREAKPOINT:
 		case T_KSTACK_FAULT:
-			error = (kdb_trap(tf) == 0);
+			error = (kdb_trap(tf->tf_type, 0, tf) == 0);
+			TF_DONE(tf);
 			break;
 #ifdef notyet
 		case T_PA_WATCHPOINT:
