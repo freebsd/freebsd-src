@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*	$NetBSD: scsi_changer.h,v 1.11 1998/02/13 08:28:32 enami Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
  *
@@ -41,7 +41,7 @@
  * SCSI changer interface description
  */
 
-/*
+/*-
  * Partially derived from software written by Stefan Grefen
  * (grefen@goofy.zdv.uni-mainz.de soon grefen@convex.com)
  * based on the SCSI System by written Julian Elischer (julian@tfs.com)

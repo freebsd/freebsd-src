@@ -2,7 +2,7 @@
 /*	$NecBSD: scsi_dvcfg.h,v 1.4 1998/03/14 07:05:06 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 
-/*
+/*-
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1994, 1995, 1996, 1997, 1998
  *	NetBSD/pc98 porting staff. All rights reserved.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Mark Newton
  * All rights reserved.
  *

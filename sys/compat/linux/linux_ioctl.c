@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
