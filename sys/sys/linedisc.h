@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.35 1997/09/14 02:25:40 peter Exp $
+ * $Id: conf.h,v 1.36 1997/09/27 13:39:46 kato Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -228,10 +228,8 @@ l_write_t	l_nowrite;
 
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw **old));
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
-void	cdevsw_make __P((struct bdevsw *from));
 void	bdevsw_add_generic __P((int bdev, int cdev, struct bdevsw *bdevsw));
 dev_t	chrtoblk __P((dev_t dev));
-int	isdisk __P((dev_t dev, int type));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 void	setconf __P((void));
