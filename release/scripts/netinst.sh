@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.17 1994/12/05 00:40:25 jkh Exp $
+# $Id: netinst.sh,v 1.1 1995/01/14 07:41:52 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -19,7 +19,7 @@ else
 fi
 
 # Grab the miscellaneous functions.
-. /stand/miscfuncs.sh
+. /stand/scripts/miscfuncs.sh
 
 network_set_defaults()
 {
@@ -111,9 +111,6 @@ network_setup_serial()
 	if dialog --title "Dial" --yesno \
 	  "Do you need to dial the phone or otherwise talk to the modem?" \
 	  -1 -1; then
-		mkdir -p /var/log
-		touch -f /var/log/aculog	> /dev/null 2>&1
-		chmod 666 /var/log/aculog	> /dev/null 2>&1
 		confirm \
 "You may now dialog with your modem and set up the connection.
 Be sure to disable DTR sensitivity (usually with AT&D0) or the

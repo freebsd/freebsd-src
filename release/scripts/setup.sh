@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.1 1995/01/14 10:28:20 jkh Exp $
+# $Id: setup.sh,v 1.1 1995/01/14 13:34:37 jkh Exp $
 
 if [ "${_SETUP_LOADED_}" = "yes" ]; then
         error "Error, $0 loaded more than once!"
@@ -23,7 +23,7 @@ else
 fi
 
 # Grab the miscellaneous functions.
-. /stand/miscfuncs.sh
+. /stand/scripts/miscfuncs.sh
 
 setup()
 {
@@ -34,7 +34,7 @@ setup()
 development workstation usage.  Please select one of the
 following options.  When you are finished setting up your\n\
 system, select \"done\".  To invoke this configuration tool \n\
-again, type \`/stand/setup.sh\'." -1 -1 5 \
+again, type \`/stand/scripts/setup.sh\'." -1 -1 5 \
 "help" "Help!  What does all this mean?" \
 "tzsetup" "Configure your system's time zone" \
 "network" "Configure basic networking parameters" \
@@ -60,11 +60,11 @@ again, type \`/stand/setup.sh\'." -1 -1 5 \
 	;;
 
 	user)
-		sh /stand/adduser.sh -i
+		sh /stand/scripts/adduser.sh -i
 	;;
 
 	guest)
-		sh /stand/adduser.sh
+		sh /stand/scripts/adduser.sh
 	;;
 
 	done)
