@@ -52,7 +52,6 @@ static const char rcsid[] =
 #include "y.tab.h"
 
 static void do_header(char *, int);
-static void do_count(char *);
 static char *toheader(char *);
 static char *tomacro(char *);
 
@@ -73,11 +72,8 @@ headers(void)
 						dp->d_type |= DEVDONE;
 				}
 			}
-			if (fl->f_flags & NEED_COUNT) {
-				if (match)
-printf("warning: static limits for %s are set\n", fl->f_needs);
-				do_count(fl->f_needs);
-			}
+			if (fl->f_flags & NEED_COUNT)
+				do_header(fl->f_needs, match);
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
@@ -89,14 +85,14 @@ printf("warning: static limits for %s are set\n", fl->f_needs);
 	}
 }
 
-/*
- * count all the devices of a certain type and recurse to count
- * whatever the device is connected to
- */
 static void
-do_count(char *dev)
+do_header(char *dev, int match)
 {
+	char *file, *name, *inw;
+	struct file_list *fl, *fl_head, *tflp;
 	struct device *dp;
+	FILE *inf, *outf;
+	int inc, oldcount;
 	int count, hicount;
 
 	/*
@@ -111,19 +107,10 @@ do_count(char *dev)
 			break;
 		}
 	}
-	do_header(dev, count);
-}
-
-static void
-do_header(char *dev, int count)
-{
-	char *file, *name, *inw;
-	struct file_list *fl, *fl_head, *tflp;
-	FILE *inf, *outf;
-	int inc, oldcount;
-
 	file = toheader(dev);
 	name = tomacro(dev);
+	if (match)
+		printf("Note: static unit limits for %s are set (%s = %d)\n", dev, name, count);
 	remember(file);
 	inf = fopen(file, "r");
 	oldcount = -1;
