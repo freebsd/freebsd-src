@@ -1118,6 +1118,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		child_set_env(&env, &envsize, "TZ", getenv("TZ"));
 
 	/* Set custom environment options from RSA authentication. */
+	if (!options.use_login) {
 	while (custom_environment) {
 		struct envstring *ce = custom_environment;
 		char *s = ce->s;
@@ -1130,6 +1131,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 		custom_environment = ce->next;
 		xfree(ce->s);
 		xfree(ce);
+	}
 	}
 
 	snprintf(buf, sizeof buf, "%.50s %d %d",
