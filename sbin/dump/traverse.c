@@ -347,12 +347,15 @@ searchdir(ino, blkno, size, filesize, tapesize, nodump)
 			ip = getino(dp->d_ino);
 			if (TSTINO(dp->d_ino, dumpinomap)) {
 				CLRINO(dp->d_ino, dumpinomap);
-				CLRINO(dp->d_ino, usedinomap);
 				*tapesize -= blockest(ip);
 			}
-			/* Add back to dumpdirmap to propagate nodump. */
+			/*
+			 * Add back to dumpdirmap and remove from usedinomap
+			 * to propagate nodump.
+			 */
 			if ((ip->di_mode & IFMT) == IFDIR) {
 				SETINO(dp->d_ino, dumpdirmap);
+				CLRINO(dp->d_ino, usedinomap);
 				ret |= HASSUBDIRS;
 			}
 		} else {
