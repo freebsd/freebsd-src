@@ -107,7 +107,6 @@ vpo_probe(device_t dev)
 	int error;
 
 	vpo = DEVTOSOFTC(dev);
-	bzero(vpo, sizeof(struct vpo_data));
 
 	/* vpo dependent initialisation */
 	vpo->vpo_unit = device_get_unit(dev);

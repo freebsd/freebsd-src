@@ -356,7 +356,6 @@ lpt_probe(device_t dev)
 	struct lpt_data *sc;
 	
 	sc = DEVTOSOFTC(dev);
-	bzero(sc, sizeof(struct lpt_data));
 
 	/*
 	 * Now, try to detect the printer.

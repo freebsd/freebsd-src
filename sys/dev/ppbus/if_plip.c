@@ -201,7 +201,6 @@ lp_probe(device_t dev)
 	uintptr_t irq;
 
 	lp = DEVTOSOFTC(dev);
-	bzero(lp, sizeof(struct lp_data));
 
 	/* retrieve the ppbus irq */
 	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
