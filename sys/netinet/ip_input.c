@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.85 1998/05/25 10:37:45 julian Exp $
+ * $Id: ip_input.c,v 1.86 1998/06/05 22:39:55 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -362,22 +362,15 @@ tooshort:
 #ifdef IPDIVERT
 		u_short port;
 
-#ifdef IPFW_DIVERT_OLDRESTART
-		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, ip_divert_ignore, &m);
-		ip_divert_ignore = 0;
-#else
-		ip_divert_in_cookie = 0;
-		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL,
-					ip_divert_out_cookie, &m);
-		ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_OLDRESTART */
+		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie, &m);
 		if (port) {			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
 		}
 #else
+		int	dummy;
 		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, 0, &m)) {
+		if ((*ip_fw_chk_ptr)(&ip, hlen, NULL, &dummy, &m)) {
 			m_freem(m);
 			m = NULL;
 		}
@@ -503,6 +496,7 @@ ours:
 				ipstat.ips_toosmall++;
 #ifdef IPDIVERT
 				frag_divert_port = 0;
+				ip_divert_cookie = 0;
 #endif
 				return;
 			}
@@ -602,11 +596,6 @@ found:
 		goto bad;
 	}
 
-	/* Don't let packets divert themselves */
-	if (ip->ip_p == IPPROTO_DIVERT) {
-		ipstat.ips_noproto++;
-		goto bad;
-	}
 #endif
 
 	/*
@@ -682,9 +671,7 @@ ip_reass(ip, fp, where)
 		fp->ipq_dst = ((struct ip *)ip)->ip_dst;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
-#ifndef IPFW_DIVERT_OLDRESTART
 		fp->ipq_div_cookie = 0;
-#endif /* IPFW_DIVERT_OLDRESTART */
 #endif
 		q = (struct ipasfrag *)fp;
 		goto insert;
@@ -741,11 +728,10 @@ insert:
 	 */
 	if (frag_divert_port != 0) {
 		fp->ipq_divert = frag_divert_port;
-#ifndef IPFW_DIVERT_OLDRESTART
-		fp->ipq_div_cookie = ip_divert_in_cookie;
-#endif /* IPFW_DIVERT_OLDRESTART */
+		fp->ipq_div_cookie = ip_divert_cookie;
 	}
 	frag_divert_port = 0;
+	ip_divert_cookie = 0;
 #endif
 
 	/*
@@ -789,12 +775,10 @@ insert:
 
 #ifdef IPDIVERT
 	/*
-	 * Record divert port for packet, if any
+	 * extract divert port for packet, if any
 	 */
 	frag_divert_port = fp->ipq_divert;
-#ifndef IPFW_DIVERT_OLDRESTART
-	ip_divert_in_cookie = fp->ipq_div_cookie;
-#endif /* IPFW_DIVERT_OLDRESTART */
+	ip_divert_cookie = fp->ipq_div_cookie;
 #endif
 
 	/*
