@@ -188,125 +188,181 @@ bus_space_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 #define	__BUS_DEBUG_ACCESS(h, o, desc, sz)
 #endif
 
-#define	bus_space_read_1(t, h, o) ({					\
-	__BUS_DEBUG_ACCESS((h), (o), "read", 1);			\
-	lduba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-})
+static __inline uint8_t
+bus_space_read_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_2(t, h, o) ({					\
-	__BUS_DEBUG_ACCESS((h), (o), "read", 2);			\
-	lduha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-})
+	__BUS_DEBUG_ACCESS(h, o, "read", 1);
+	return (lduba_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+}
 
-#define	bus_space_read_4(t, h, o) ({					\
-	__BUS_DEBUG_ACCESS((h), (o), "read", 4);			\
-	lduwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-})
+static __inline uint16_t
+bus_space_read_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_8(t, h, o) ({					\
-	__BUS_DEBUG_ACCESS((h), (o), "read", 8);			\
-	ldxa_nc((caddr_t)(h) + (o), bus_type_asi[(t)->type]);		\
-})
+	__BUS_DEBUG_ACCESS(h, o, "read", 2);
+	return (lduha_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+}
 
-#define	bus_space_read_multi_1(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int8_t *p = (u_int8_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_1(t, h, o);			\
-} while (0)
+static __inline uint32_t
+bus_space_read_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_multi_2(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int16_t *p = (u_int16_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_2(t, h, o);			\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "read", 4);
+	return (lduwa_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+}
 
-#define	bus_space_read_multi_4(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int32_t *p = (u_int32_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_4(t, h, o);			\
-} while (0)
+static __inline uint64_t
+bus_space_read_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_multi_8(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int64_t *p = (u_int64_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_8(t, h, o);			\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "read", 8);
+	return (ldxa_nc((caddr_t)(h + o), bus_type_asi[t->type]));
+}
 
-#define	bus_space_write_1(t, h, o, v) do {				\
-	__BUS_DEBUG_ACCESS((h), (o), "write", 1);			\
-	stba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
-} while (0)
+static __inline void
+bus_space_read_multi_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint8_t *a, size_t c)
+{
 
-#define	bus_space_write_2(t, h, o, v) do {				\
-	__BUS_DEBUG_ACCESS((h), (o), "write", 2);			\
-	stha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_1(t, h, o);
+}
 
-#define	bus_space_write_4(t, h, o, v) do {				\
-	__BUS_DEBUG_ACCESS((h), (o), "write", 4);			\
-	stwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
-} while (0)
+static __inline void
+bus_space_read_multi_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint16_t *a, size_t c)
+{
 
-#define	bus_space_write_8(t, h, o, v) do {				\
-	__BUS_DEBUG_ACCESS((h), (o), "write", 8);			\
-	stxa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_2(t, h, o);
+}
 
-#define	bus_space_write_multi_1(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int8_t *p = (u_int8_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_1(t, h, o, *p++);			\
-} while (0)
+static __inline void
+bus_space_read_multi_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint32_t *a, size_t c)
+{
 
-#define bus_space_write_multi_2(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int16_t *p = (u_int16_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_2(t, h, o, *p++);			\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_4(t, h, o);
+}
 
-#define bus_space_write_multi_4(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int32_t *p = (u_int32_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_4(t, h, o, *p++);			\
-} while (0)
+static __inline void
+bus_space_read_multi_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint64_t *a, size_t c)
+{
 
-#define bus_space_write_multi_8(t, h, o, a, c) do {			\
-	int i = c;							\
-	u_int64_t *p = (u_int64_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_8(t, h, o, *p++);			\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_8(t, h, o);
+}
 
-#define bus_space_set_multi_1(t, h, o, v, c) do {			\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_1(t, h, o, v);				\
-} while (0)
+static __inline void
+bus_space_write_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint8_t v)
+{
 
-#define bus_space_set_multi_2(t, h, o, v, c) do {			\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_2(t, h, o, v);				\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "write", 1);
+	stba_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+}
 
-#define bus_space_set_multi_4(t, h, o, v, c) do {			\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_4(t, h, o, v);				\
-} while (0)
+static __inline void
+bus_space_write_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint16_t v)
+{
 
-#define bus_space_set_multi_8(t, h, o, v, c) do {			\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_8(t, h, o, v);				\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "write", 2);
+	stha_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint32_t v)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "write", 4);
+	stwa_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint64_t v)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "write", 8);
+	stxa_nc((caddr_t)(h + o), bus_type_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_multi_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint8_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_1(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint16_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_2(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint32_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_4(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint64_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_8(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_set_multi_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint8_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_1(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint16_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_2(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint32_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_4(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint64_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_8(t, h, o, v);
+}
 
 static __inline void
 bus_space_read_region_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
@@ -436,125 +492,181 @@ bus_space_copy_region_8(bus_space_tag_t t, bus_space_handle_t h1,
 	    bus_space_write_8(t, h1, o1, bus_space_read_8(t, h2, o2));
 }
 
-#define	bus_space_read_stream_1(t, h, o) ({				\
-	__BUS_DEBUG_ACCESS((h), (o), "read stream", 1);			\
-	lduba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-})
+static __inline uint8_t
+bus_space_read_stream_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_stream_2(t, h, o) ({				\
-	__BUS_DEBUG_ACCESS((h), (o), "read stream", 2);			\
-	lduha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-})
+	__BUS_DEBUG_ACCESS(h, o, "read stream", 1);
+	return (lduba_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+}
 
-#define	bus_space_read_stream_4(t, h, o) ({				\
-	__BUS_DEBUG_ACCESS((h), (o), "read stream", 4);			\
-	lduwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-})
+static __inline uint16_t
+bus_space_read_stream_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_stream_8(t, h, o) ({				\
-	__BUS_DEBUG_ACCESS((h), (o), "read stream", 8);			\
-	ldxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-})
+	__BUS_DEBUG_ACCESS(h, o, "read stream", 2);
+	return (lduha_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+}
 
-#define	bus_space_read_multi_stream_1(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int8_t *p = (u_int8_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_stream_1(t, h, o);		\
-} while (0)
+static __inline uint32_t
+bus_space_read_stream_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_multi_stream_2(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int16_t *p = (u_int16_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_stream_2(t, h, o);		\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "read stream", 4);
+	return (lduwa_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+}
 
-#define	bus_space_read_multi_stream_4(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int32_t *p = (u_int32_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_stream_4(t, h, o);		\
-} while (0)
+static __inline uint64_t
+bus_space_read_stream_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)
+{
 
-#define	bus_space_read_multi_stream_8(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int64_t *p = (u_int64_t *)a;					\
-	while (i-- > 0)							\
-		*p++ = bus_space_read_stream_8(t, h, o);		\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "read stream", 8);
+	return (ldxa_nc((caddr_t)(h + o), bus_stream_asi[t->type]));
+}
 
-#define	bus_space_write_stream_1(t, h, o, v) do {			\
-	__BUS_DEBUG_ACCESS((h), (o), "write stream", 1);		\
-	stba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
-} while (0)
+static __inline void
+bus_space_read_multi_stream_1(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint8_t *a, size_t c)
+{
 
-#define	bus_space_write_stream_2(t, h, o, v) do {			\
-	__BUS_DEBUG_ACCESS((h), (o), "write stream", 2);		\
-	stha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_stream_1(t, h, o);
+}
 
-#define	bus_space_write_stream_4(t, h, o, v) do {			\
-	__BUS_DEBUG_ACCESS((h), (o), "write stream", 4);		\
-	stwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
-} while (0)
+static __inline void
+bus_space_read_multi_stream_2(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint16_t *a, size_t c)
+{
 
-#define	bus_space_write_stream_8(t, h, o, v) do {			\
-	__BUS_DEBUG_ACCESS((h), (o), "write stream", 8);		\
-	stxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_stream_2(t, h, o);
+}
 
-#define	bus_space_write_multi_stream_1(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int8_t *p = (u_int8_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_stream_1(t, h, o, *p++);		\
-} while (0)
+static __inline void
+bus_space_read_multi_stream_4(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint32_t *a, size_t c)
+{
 
-#define bus_space_write_multi_stream_2(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int16_t *p = (u_int16_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_stream_2(t, h, o, *p++);		\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_stream_4(t, h, o);
+}
 
-#define bus_space_write_multi_stream_4(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int32_t *p = (u_int32_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_stream_4(t, h, o, *p++);		\
-} while (0)
+static __inline void
+bus_space_read_multi_stream_8(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint64_t *a, size_t c)
+{
 
-#define bus_space_write_multi_stream_8(t, h, o, a, c) do {		\
-	int i = c;							\
-	u_int64_t *p = (u_int64_t *)a;					\
-	while (i-- > 0)							\
-		bus_space_write_stream_8(t, h, o, *p++);		\
-} while (0)
+	while (c-- > 0)
+		*a++ = bus_space_read_stream_8(t, h, o);
+}
 
-#define bus_space_set_multi_stream_1(t, h, o, v, c) do {		\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_stream_1(t, h, o, v);			\
-} while (0)
+static __inline void
+bus_space_write_stream_1(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint8_t v)
+{
 
-#define bus_space_set_multi_stream_2(t, h, o, v, c) do {		\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_stream_2(t, h, o, v);			\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "write stream", 1);
+	stba_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+}
 
-#define bus_space_set_multi_stream_4(t, h, o, v, c) do {		\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_stream_4(t, h, o, v);			\
-} while (0)
+static __inline void
+bus_space_write_stream_2(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint16_t v)
+{
 
-#define bus_space_set_multi_stream_8(t, h, o, v, c) do {		\
-	int i = c;							\
-	while (i-- > 0)							\
-		bus_space_write_stream_8(t, h, o, v);			\
-} while (0)
+	__BUS_DEBUG_ACCESS(h, o, "write stream", 2);
+	stha_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_stream_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint32_t v)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "write stream", 4);
+	stwa_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_stream_8(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
+    uint64_t v)
+{
+
+	__BUS_DEBUG_ACCESS(h, o, "write stream", 8);
+	stxa_nc((caddr_t)(h + o), bus_stream_asi[t->type], v);
+}
+
+static __inline void
+bus_space_write_multi_stream_1(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint8_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_1(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_stream_2(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint16_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_2(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_stream_4(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint32_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_4(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_write_multi_stream_8(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint64_t *a, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_8(t, h, o, *a++);
+}
+
+static __inline void
+bus_space_set_multi_stream_1(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint8_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_1(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_stream_2(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint16_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_2(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_stream_4(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint32_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_4(t, h, o, v);
+}
+
+static __inline void
+bus_space_set_multi_stream_8(bus_space_tag_t t, bus_space_handle_t h,
+    bus_size_t o, uint64_t v, size_t c)
+{
+
+	while (c-- > 0)
+		bus_space_write_stream_8(t, h, o, v);
+}
 
 static __inline void
 bus_space_read_region_stream_1(bus_space_tag_t t, bus_space_handle_t h,
