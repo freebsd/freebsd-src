@@ -29,26 +29,49 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)Master	8.2 (Berkeley) 5/24/94
+.\"	@(#)appen.A	8.1 (Berkeley) 6/8/93
 .\"
-.ds Ln Screen Package
-.so macros
-.so c_macros
-.so intro.0
-.pn 3
+.ie t .oh '\*(Ln Appendix A''PS1:19-%'
+.eh 'PS1:19-%''\*(Ln Appendix A'
+.el .he ''\fIAppendix A\fR''
 .bp
-.so intro.1
-.so intro.2.tbl
-.so intro.3
-.so intro.4
-.so intro.5
-.so intro.6
-.bp
-.so appen.A
-.pn 2
-.oh '\*(Ln''PSD:19-%'
-.eh 'PSD:19-%''\*(Ln'
-.bp
-.bi Contents
-.sp
-.xp
+.(x
+.ti 0
+.b "Appendix A"
+.)x
+.sh 1 "Examples" 1
+.pp
+Here we present a few examples
+of how to use the package.
+They attempt to be representative,
+though not comprehensive.  Further examples can be found in the games section
+of the source tree and in various utilities that use the screen such as 
+.i systat(1) .
+.pp
+The following examples are intended to demonstrate
+the basic structure of a program
+using the package.  An additional, more comprehensive, program can be found in
+the source code in the 
+\fIexamples\fP subdirectory.
+.sh 2 "Simple Character Output"
+.pp
+This program demonstrates how to set up a window and output characters to it.
+Also, it demonstrates how one might control the output to the window.  If
+you run this program, you will get a demonstration of the character output
+chracteristics discussed in the above Character Output section.
+.(l I
+.so ex1.gr
+.)l
+.sh 2 "Twinkle"
+.pp
+This is a moderately simple program which prints
+patterns on the screen.
+It switches between patterns of asterisks,
+putting them on one by one in random order,
+and then taking them off in the same fashion.
+It is more efficient to write this
+using only the motion optimization,
+as is demonstrated below.
+.(l I
+.so twinkle1.gr
+.)l
