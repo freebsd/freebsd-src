@@ -54,17 +54,23 @@ static struct cdevsw snp_cdevsw =
 
 static struct snoop snoopsw[NSNP];
 
-static struct tty	*devtotty __P((dev_t dev));
+static struct tty	*snpdevtotty __P((dev_t dev));
 static int		snp_detach __P((struct snoop *snp));
 
 static struct tty *
-devtotty (dev)
+snpdevtotty (dev)
 	dev_t		dev;
 {
-	if (major(dev) > nchrdev)
-		return (NULL);		/* no such device available */
+	struct cdevsw	*cdp;
+	int		maj;
 
-	return (*cdevsw[major(dev)]->d_devtotty)(dev);
+	maj = major(dev);
+	if ((u_int)maj >= nchrdev)
+		return (NULL);
+	cdp = cdevsw[maj];
+	if (cdp == NULL)
+		return (NULL);
+	return ((*cdp->d_devtotty)(dev));
 }
 
 #define SNP_INPUT_BUF	5	/* This is even too  much,the maximal
@@ -404,7 +410,7 @@ snpioctl(dev, cmd, data, flags, p)
 		if (tdev == -1)
 			return (snpdown(snp));
 
-		tp = devtotty(tdev);
+		tp = snpdevtotty(tdev);
 		if (!tp)
 			return (EINVAL);
 
