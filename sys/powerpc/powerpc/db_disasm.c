@@ -717,8 +717,7 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 		LI = LI << 8;
 		LI = LI >> 6;
 		LI += loc;
-		db_symstr(pstr, LI, DB_STGY_ANY);
-		pstr += strlen(pstr);
+		pstr += sprintf (pstr, "0x%x, ", LI);
 		func &= ~Op_LI;
 	}
 	switch (func & Op_SIMM) {
@@ -739,6 +738,7 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 		pstr += sprintf(pstr, "0x%x", IMM);
 		break;
 	default:
+		break;
 	}
 	if (func & Op_BD) {
 		u_int BD;

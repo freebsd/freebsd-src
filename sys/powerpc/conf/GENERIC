@@ -57,7 +57,7 @@ options		SYSVSEM			#SYSV-style semaphores
 #options	_KPOSIX_PRIORITY_SCHEDULING
 
 # Debugging for use in -current
-#options		DDB			#Enable the kernel debugger
+options		DDB			#Enable the kernel debugger
 options		INVARIANTS		#Enable calls of extra sanity checking
 options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 options		WITNESS			#Enable checks to detect deadlocks and cycles
