@@ -131,18 +131,15 @@ time_t mktime __P((struct tm *));
 size_t strftime __P((char *, size_t, const char *, const struct tm *));
 time_t time __P((time_t *));
 
-#ifdef	_THREAD_SAFE
-char *asctime_r __P((const struct tm *, char *));
-char *ctime_r __P((const time_t *, char *));
-struct tm *gmtime_r __P((const time_t *, struct tm *));
-struct tm *localtime_r __P((const time_t *, struct tm *));
-#endif
-
 #ifndef _ANSI_SOURCE
 void tzset __P((void));
 #endif /* not ANSI */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+char *asctime_r __P((const struct tm *, char *));
+char *ctime_r __P((const time_t *, char *));
+struct tm *gmtime_r __P((const time_t *, struct tm *));
+struct tm *localtime_r __P((const time_t *, struct tm *));
 char *strptime __P((const char *, const char *, struct tm *));
 char *timezone __P((int, int));
 void tzsetwall __P((void));
