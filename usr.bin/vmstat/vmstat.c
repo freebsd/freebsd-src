@@ -600,6 +600,10 @@ dosum()
 	(void)printf("%9u software interrupts\n", sum.v_soft);
 	(void)printf("%9u traps\n", sum.v_trap);
 	(void)printf("%9u system calls\n", sum.v_syscall);
+	(void)printf("%9u kernel threads created\n", sum.v_kthreads);
+	(void)printf("%9u  fork() calls\n", sum.v_forks);
+	(void)printf("%9u vfork() calls\n", sum.v_vforks);
+	(void)printf("%9u rfork() calls\n", sum.v_rforks);
 	(void)printf("%9u swap pager pageins\n", sum.v_swapin);
 	(void)printf("%9u swap pager pages paged in\n", sum.v_swappgsin);
 	(void)printf("%9u swap pager pageouts\n", sum.v_swapout);
@@ -617,6 +621,10 @@ dosum()
 	(void)printf("%9u zero fill pages prezeroed\n", sum.v_ozfod);
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
+	(void)printf("%9u pages affected by kernel thread creation\n", sum.v_kthreadpages);
+	(void)printf("%9u pages affected by  fork()\n", sum.v_forkpages);
+	(void)printf("%9u pages affected by vfork()\n", sum.v_vforkpages);
+	(void)printf("%9u pages affected by rfork()\n", sum.v_rforkpages);
 	(void)printf("%9u pages freed\n", sum.v_tfree);
 	(void)printf("%9u pages freed by daemon\n", sum.v_dfree);
 	(void)printf("%9u pages freed by exiting processes\n", sum.v_pfree);
