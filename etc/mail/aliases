@@ -24,8 +24,10 @@ postmaster: root
 
 # General redirections for pseudo accounts
 bin:	root
+bind:	root
 daemon:	root
 games:	root
+kmem:	root
 man:	root
 news:	root
 nobody:	root
@@ -33,6 +35,7 @@ operator: root
 pop:	root
 system:	root
 toor:	root
+tty:	root
 usenet: news
 uucp:	root
 xten:	root
