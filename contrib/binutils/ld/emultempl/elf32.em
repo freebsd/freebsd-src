@@ -169,7 +169,7 @@ if [ "x${host}" = "x${target}" ] ; then
 /*
  * Read the system search path the FreeBSD way rather than like Linux.
  */
-#include <elf.h>
+#include <elf-hints.h>
 
 static boolean gld${EMULATION_NAME}_check_ld_elf_hints
   PARAMS ((const char *, int));
