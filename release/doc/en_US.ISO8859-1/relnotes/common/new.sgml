@@ -353,11 +353,12 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para arch="i386">The &man.aac.4; driver has been updated from &os;
-      -CURRENT.  This update includes proper handling of commands
+      <para arch="i386">The &man.aac.4; driver has been updated
+      to include proper handling of commands
       initiated by the adapter, addition/removal of disk devices,
-      crashdump functionality, and &man.ioctl.2; command necessary for
-      the management CLI.</para>
+      crashdump functionality, and &man.ioctl.2; commands necessary for
+      the management CLI.  This driver is now fully qualified and
+      sanctioned by Adaptec.</para>
 
       <para>The &man.ata.4; driver now supports a wider variety of
       chipsets, as listed in the Hardware Notes.</para>
