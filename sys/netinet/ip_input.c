@@ -110,6 +110,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute,
     CTLFLAG_RW, &ip_acceptsourceroute, 0, 
     "Enable accepting source routed IP packets");
 
+int		ip_doopts = 1;	/* 0 = ignore, 1 = process, 2 = reject */
+SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_RW,
+    &ip_doopts, 0, "Enable IP options processing ([LS]SRR, RR, TS)");
+
 static int	ip_keepfaith = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
@@ -1286,6 +1290,15 @@ ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
 	struct in_addr *sin, dst;
 	n_time ntime;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
+
+	/* ignore or reject packets with IP options */
+	if (ip_doopts == 0)
+		return 0;
+	else if (ip_doopts == 2) {
+		type = ICMP_UNREACH;
+		code = ICMP_UNREACH_FILTER_PROHIB;
+		goto bad;
+	}
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);

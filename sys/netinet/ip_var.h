@@ -147,6 +147,7 @@ extern u_short	ip_id;				/* ip packet ctr, for ids */
 #endif
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
+extern int	ip_doopts;			/* process or ignore IP options */
 #ifdef IPSTEALTH
 extern int	ipstealth;			/* stealth forwarding */
 #endif
