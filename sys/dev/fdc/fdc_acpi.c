@@ -127,14 +127,26 @@ fdc_acpi_attach(device_t dev)
 	 */
 	bus = device_get_parent(dev);
 	if (ACPI_SUCCESS(ACPI_EVALUATE_OBJECT(bus, dev, "_FDE", NULL, &buf))) {
-		/*
-		 * In violation of the spec, systems including the ASUS K8V
-		 * return a package of five integers instead of a buffer of
-		 * five 32-bit integers.
-		 */
-		fde = (uint32_t *)buf.Pointer;
-		pkg = (ACPI_OBJECT *)buf.Pointer;
-		if (pkg->Type == ACPI_TYPE_PACKAGE) {
+		obj = pkg = (ACPI_OBJECT *)buf.Pointer;
+		switch (obj->Type) {
+		case ACPI_TYPE_BUFFER:
+			/*
+			 * The spec says _FDE should be a buffer of five
+			 * 32-bit integers.
+			 */
+			fde = (uint32_t *)obj->Buffer.Pointer;
+			if (obj->Buffer.Length < 20) {
+				device_printf(dev, "_FDE too small\n");
+				error = ENXIO;
+				goto out;
+			}
+			break;
+		case ACPI_TYPE_PACKAGE:
+			/*
+			 * In violation of the spec, systems including the ASUS
+			 * K8V return a package of five integers instead of a
+			 * buffer of five 32-bit integers.
+			 */
 			fde = malloc(pkg->Package.Count * sizeof(uint32_t),
 			    M_TEMP, M_NOWAIT | M_ZERO);
 			if (fde == NULL) {
@@ -146,6 +158,11 @@ fdc_acpi_attach(device_t dev)
 				if (obj->Type == ACPI_TYPE_INTEGER)
 					fde[i] = (uint32_t)obj->Integer.Value;
 			}
+			break;
+		default:
+			device_printf(dev, "invalid _FDE type %d\n", obj->Type);
+			error = ENXIO;
+			goto out;
 		}
 		error = fdc_acpi_probe_children(bus, dev, fde);
 		if (pkg->Type == ACPI_TYPE_PACKAGE)
