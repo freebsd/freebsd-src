@@ -21,7 +21,7 @@
  */
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_mkupdate.c,v 1.26 2001/05/29 05:49:47 marka Exp $";
+static const char rcsid[] = "$Id: res_mkupdate.c,v 1.27.8.1 2003/06/02 04:56:28 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -302,7 +302,7 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 
 			if (!getword_str(buf2, sizeof buf2, &startp, endp))
 				return (-1);
-			n = dn_comp(buf2, cp, buflen, dnptrs, lastdnptr);
+			n = dn_comp(buf2, cp, buflen, NULL, NULL);
 			if (n < 0)
 				return (-1);
 			cp += n;
@@ -482,8 +482,10 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 				char *ulendp;
 				u_int32_t ottl;
 
+				errno = 0;
 				ottl = strtoul(buf2, &ulendp, 10);
-				if (ulendp != NULL && *ulendp != '\0')
+				if (errno != 0 ||
+				    (ulendp != NULL && *ulendp != '\0'))
 					return (-1);
 				ShrinkBuffer(INT32SZ);
 				PUTLONG(ottl, cp);
@@ -572,7 +574,7 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 			/* next name */
 			if (!getword_str(buf2, sizeof buf2, &startp, endp))
 				return (-1);
-			n = dn_comp(buf2, cp, buflen, dnptrs, lastdnptr);
+			n = dn_comp(buf2, cp, buflen, NULL, NULL);
 			if (n < 0)
 				return (-1);
 			cp += n;
@@ -635,6 +637,62 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 			ShrinkBuffer(NS_IN6ADDRSZ);
 			memcpy(cp, &in6a, NS_IN6ADDRSZ);
 			cp += NS_IN6ADDRSZ;
+			break;
+		case ns_t_naptr:
+			/* Order Preference Flags Service Replacement Regexp */
+			/* Order */
+			n = getnum_str(&startp, endp);
+			if (n < 0 || n > 65535)
+				return (-1);
+			ShrinkBuffer(INT16SZ);
+			PUTSHORT(n, cp);
+			/* Preference */
+			n = getnum_str(&startp, endp);
+			if (n < 0 || n > 65535)
+				return (-1);
+			ShrinkBuffer(INT16SZ);
+			PUTSHORT(n, cp);
+			/* Flags */
+			if ((n = getstr_str(buf2, sizeof buf2,
+					&startp, endp)) < 0) {
+				return (-1);
+			}
+			if (n > 255)
+				return (-1);
+			ShrinkBuffer(n+1);
+			*cp++ = n;
+			memcpy(cp, buf2, n);
+			cp += n;
+			/* Service Classes */
+			if ((n = getstr_str(buf2, sizeof buf2,
+					&startp, endp)) < 0) {
+				return (-1);
+			}
+			if (n > 255)
+				return (-1);
+			ShrinkBuffer(n+1);
+			*cp++ = n;
+			memcpy(cp, buf2, n);
+			cp += n;
+			/* Pattern */
+			if ((n = getstr_str(buf2, sizeof buf2,
+					&startp, endp)) < 0) {
+				return (-1);
+			}
+			if (n > 255)
+				return (-1);
+			ShrinkBuffer(n+1);
+			*cp++ = n;
+			memcpy(cp, buf2, n);
+			cp += n;
+			/* Replacement */
+			if (!getword_str(buf2, sizeof buf2, &startp, endp))
+				return (-1);
+			n = dn_comp(buf2, cp, buflen, NULL, NULL);
+			if (n < 0)
+				return (-1);
+			cp += n;
+			ShrinkBuffer(n);
 			break;
 		default:
 			return (-1);
@@ -807,7 +865,7 @@ gethexnum_str(u_char **startpp, u_char *endp) {
 }
 
 /*
- * Get a whitespace delimited base 16 number from a string (not file) into buf
+ * Get a whitespace delimited base 10 number from a string (not file) into buf
  * update the start pointer to point after the number in the string.
  */
 static int

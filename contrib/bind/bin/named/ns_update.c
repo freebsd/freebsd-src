@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_update.c,v 8.104 2002/05/18 01:02:59 marka Exp $";
+static const char rcsid[] = "$Id: ns_update.c,v 8.106 2002/07/19 22:44:07 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -1211,7 +1211,7 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 	 */
 
 	if (!ip_addr_or_key_allowed(zp->z_update_acl, from.sin_addr, in_key)) {
-		ns_notice(ns_log_security,
+		ns_notice(ns_log_update_security,
 			  "denied update from %s for \"%s\" %s",
 			  sin_ntoa(from), *dname ? dname : ".", p_class(class));
 		nameserIncr(from.sin_addr, nssRcvdUUpd);
@@ -2638,8 +2638,10 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 						err++;
 						break;
 					}
+					errno = 0;
 					n = strtoul(buf, &cp, 10);
-					if (n > 0xffff || *cp != '\0') {
+					if (errno != 0 || n > 0xffff ||
+					    *cp != '\0') {
 						err++;
 						break;
 					}

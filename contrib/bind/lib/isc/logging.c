@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 8.31 2001/06/18 14:44:03 marka Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.32 2003/01/02 00:35:42 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -282,6 +282,10 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 	log_channel chan;
 	struct timeval tv;
 	struct tm *local_tm;
+#ifdef HAVE_TIME_R
+	struct tm tm_tmp;
+#endif
+	time_t tt;
 	const char *category_name;
 	const char *level_str;
 	char time_buf[256];
@@ -313,10 +317,11 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 	if (gettimeofday(&tv, NULL) < 0) {
 		syslog(LOG_INFO, "gettimeofday failed in log_vwrite()");
 	} else {
+		tt = tv.tv_sec;
 #ifdef HAVE_TIME_R
-		localtime_r((time_t *)&tv.tv_sec, &local_tm);
+		local_tm = localtime_r(&tt, &tm_tmp);
 #else
-		local_tm = localtime((time_t *)&tv.tv_sec);
+		local_tm = localtime(&tt);
 #endif
 		if (local_tm != NULL) {
 			sprintf(time_buf, "%02d-%s-%4d %02d:%02d:%02d.%03ld ",

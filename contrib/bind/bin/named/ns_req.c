@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.169.2.1 2002/11/14 13:02:48 marka Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.175.6.2 2003/06/02 09:56:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -563,8 +563,9 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		ns_name_rollback(cp, (const u_char **)dnptrs,
 				 (const u_char **)dnptrs_end);
 		if (opt > 0) {
-			n = ns_add_opt(msg, cp, buflen_orig, 0,
-				       rcode, EDNS_MESSAGE_SZ, 0, NULL, 0);
+			n = ns_add_opt(msg, cp, buflen_orig, 0, rcode,
+				       server_options->edns_udp_size,
+				       0, NULL, 0);
 			if (n < 0) {
 				hp->qdcount = htons(0);
 				goto sign_again;
@@ -604,8 +605,9 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		msglen += n;
 		if (opt > 0) {
 			buflen += opt_size;
-			n = ns_add_opt(msg, cp, msglen + buflen, 0,
-				       rcode, EDNS_MESSAGE_SZ, 0, NULL, 0);
+			n = ns_add_opt(msg, cp, msglen + buflen, 0, rcode,
+				       server_options->edns_udp_size,
+				       0, NULL, 0);
 			INSIST(n > 0);
 			cp += n;
 			buflen -= n;
@@ -856,6 +858,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	DST_KEY *in_key = (in_tsig != NULL) ? in_tsig->key : NULL;
 	int access_class;
 	int adjustlen = 0;
+	int pass = 0;
+	char tsig_keyname_mesg[15+MAXDNAME] = "";
+	int glueok;
 
 	nameserIncr(from.sin_addr, nssRcvdQ);
 
@@ -900,7 +905,6 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		return (Finish);
 	}
 	*cpp += n;
-	answers = *cpp;
 	if (*cpp + 2 * INT16SZ > eom) {
 		ns_debug(ns_log_default, 1,
 			 "FORMERR Query message length short");
@@ -1017,6 +1021,7 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 #endif /*QRYLOG*/
 
  try_again:
+	pass++;
 	foundname = 0;
 	ns_debug(ns_log_default, 1, "req: nlookup(%s) id %d type=%d class=%d",
 		 dname, ntohs(hp->id), type, class);
@@ -1303,13 +1308,19 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 			return (Refuse);
 		}
 
-		if (type == ns_t_ixfr) { 
-		    ns_info(ns_log_security, "approved %s from %s for \"%s\"",
-		    	(ixfr_found) ? p_type(type) : "IXFR/AXFR", 
-			sin_ntoa(from), *dname ? dname : ".");
-		} else
-		    ns_info(ns_log_security, "approved %s from %s for \"%s\"",
-		    	p_type(type), sin_ntoa(from), *dname ? dname : ".");
+		if (in_key != NULL)
+			sprintf(tsig_keyname_mesg, " (TSIG key \"%s\")",
+				in_key->dk_key_name);
+
+		if (type == ns_t_ixfr)
+			ns_info(ns_log_security, "approved %s from %s for \"%s\"%s",
+				(ixfr_found) ? p_type(type) : "IXFR/AXFR", 
+				sin_ntoa(from), *dname ? dname : ".",
+				tsig_keyname_mesg);
+		else
+			ns_info(ns_log_security, "approved %s from %s for \"%s\"%s",
+				p_type(type), sin_ntoa(from), *dname ? dname : ".",
+				tsig_keyname_mesg);
 	}
 
 	/*
@@ -1354,7 +1365,7 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		    (dp->d_class == class)) {
 #ifdef RETURNSOA
 			n = finddata(np, class, T_SOA, hp, &dname,
-				     buflenp, &count);
+				     buflenp, &count, pass, 1);
 			if (n != 0) {
 				if (count) {
 					*cpp += n;
@@ -1392,8 +1403,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	 * If not NXDOMAIN, the NOERROR_NODATA record might be
 	 * anywhere in the chain.  Have to go through the grind.
 	 */
-
-	n = finddata(np, class, type, hp, &dname, buflenp, &count);
+	glueok = !NS_OPTION_P(OPTION_NORECURSE);
+	n = finddata(np, class, type, hp, &dname, buflenp, &count, pass,
+		     glueok);
 	if (n == 0) {
 		/*
 		 * NO data available.  Refuse transfer requests, or
@@ -1509,7 +1521,8 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		ns_debug(ns_log_default, 3, "req: leaving (%s, rcode %d)",
 			 dname, hp->rcode);
 		if (class != C_ANY) {
-			hp->aa = 1;
+			if (!cname)
+				hp->aa = 1;
 			if (np && (!foundname || !founddata)) {
 				n = doaddauth(hp, *cpp, *buflenp, np, nsp[0]);
 				*cpp += n;
@@ -2323,9 +2336,9 @@ doaddinfo(HEADER *hp, u_char *msg, int msglen) {
 loop:
 	for (ap = addinfo, i = 0; i < addcount; ap++, i++) {
 		int     auth = 0,
+			drop = 0,
 			founda = 0,
 			foundaaaa = 0,
-			founda6 = 0,
 			foundcname = 0,
 			save_count = count,
 			save_msglen = msglen;
@@ -2353,12 +2366,11 @@ loop:
 			if (dp->d_class != ap->a_class)
 				continue;
 			if (dp->d_rcode == NXDOMAIN) {
-				founda = founda6 = foundaaaa = 1;
+				founda = foundaaaa = 1;
 				continue;
 			}
 			switch (dp->d_type) {
 			case ns_t_a: founda = 1; break;
-			case ns_t_a6: founda6 = 1; break;
 			case ns_t_aaaa: foundaaaa = 1; break;
 			}
 			if (!dp->d_rcode && dp->d_type == T_CNAME) {
@@ -2366,8 +2378,7 @@ loop:
 				break;
 			}
 			if (auth == 0 && ap->a_type == T_A &&
-			    (dp->d_type == ns_t_a || dp->d_type == ns_t_a6 ||
-			     dp->d_type == ns_t_aaaa) &&
+			    (dp->d_type == ns_t_a || dp->d_type == ns_t_aaaa) &&
 			    (zones[dp->d_zone].z_type == z_master ||
 			     zones[dp->d_zone].z_type == z_slave))
 				auth = 1;
@@ -2385,8 +2396,7 @@ loop:
 			} 
 			if (ap->a_type == T_A &&
 			    !match(dp, (int)ap->a_class, T_A) &&
-			    !match(dp, (int)ap->a_class, T_AAAA) &&
-			    !match(dp, (int)ap->a_class, ns_t_a6)) {
+			    !match(dp, (int)ap->a_class, T_AAAA)) {
 				continue;
 			}
 			if (ap->a_type == T_KEY &&
@@ -2396,6 +2406,8 @@ loop:
 			    !match(dp, (int)ap->a_class, T_SRV))
 				continue;
 			if (dp->d_rcode)
+				continue;
+			if (drop)
 				continue;
 			/*
 			 *  Should be smart and eliminate duplicate
@@ -2426,7 +2438,14 @@ loop:
 				cp = save_cp;
 				msglen = save_msglen;
 				count = save_count;
-				break;
+				/*
+				 * Continue processing list to prevent
+				 * unnecessary fetches for glue.
+				 * Prevent partial RRsets being sent by
+				 * setting drop.
+				 */
+				drop = 1;
+				continue;
 			}
 			ns_debug(ns_log_default, 5,
 				 "addinfo: adding address data n = %d", n);
@@ -2446,10 +2465,6 @@ loop:
 				(void) sysquery(ap->a_dname, (int)ap->a_class,
 						ns_t_aaaa, NULL, NULL, 0,
 						ns_port, QUERY, 0);
-			if (!founda6 && !auth)
-				(void) sysquery(ap->a_dname, (int)ap->a_class,
-						ns_t_a6, NULL, NULL, 0, ns_port,
-						QUERY, 0);
 		}
 		if (foundcname) {
 			if (!haveComplained(nhash(ap->a_dname),

@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent.c,v 1.15 2001/05/29 05:48:49 marka Exp $";
+static const char rcsid[] = "$Id: getnetgrent.c,v 1.16.6.1 2003/06/02 06:06:58 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -47,8 +47,11 @@ static struct net_data *init(void);
 
 /* Public */
 
+#ifndef SETNETGRENT_ARGS
+#define SETNETGRENT_ARGS const char *netgroup
+#endif
 void
-setnetgrent(const char *netgroup) {
+setnetgrent(SETNETGRENT_ARGS) {
 	struct net_data *net_data = init();
 
 	setnetgrent_p(netgroup, net_data);
@@ -61,19 +64,31 @@ endnetgrent(void) {
 	endnetgrent_p(net_data);
 }
 
+#ifndef INNETGR_ARGS
+#define INNETGR_ARGS const char *netgroup, const char *host, \
+		     const char *user, const char *domain
+#endif
 int
-innetgr(const char *netgroup, const char *host,
-	const char *user, const char *domain) {
+innetgr(INNETGR_ARGS) {
 	struct net_data *net_data = init();
 
 	return (innetgr_p(netgroup, host, user, domain, net_data));
 }
 
 int
-getnetgrent(const char **host, const char **user, const char **domain) {
+getnetgrent(char **host, char **user, char **domain) {
 	struct net_data *net_data = init();
+	const char *ch, *cu, *cd;
+	int ret;
 
-	return (getnetgrent_p(host, user, domain, net_data));
+	ret = getnetgrent_p(&ch, &cu, &cd, net_data);
+	if (ret != 1)
+		return (ret);
+
+	DE_CONST(ch, *host);
+	DE_CONST(cu, *user);
+	DE_CONST(cd, *domain);
+	return (ret);
 }
 
 /* Shared private. */

@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.39 2002/06/27 03:56:32 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.42.6.1 2003/06/02 09:24:40 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -95,7 +95,7 @@ static const char rcsid[] = "$Id: dns_ho.c,v 1.39 2002/06/27 03:56:32 marka Exp 
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
-#define MAXPACKET (1024*64)
+#define MAXPACKET (65535)	/* Maximum TCP message size */
 
 #define BOUNDS_CHECK(ptr, count) \
 	if ((ptr) + (count) > eom) { \
@@ -172,15 +172,6 @@ static struct hostent *	gethostans(struct irs_ho *this,
 				   const struct addrinfo *pai);
 static int add_hostent(struct pvt *pvt, char *bp, char **hap,
 		       struct addrinfo *ai);
-static const u_char * ar_head(const u_char *, int, const u_char *,
-			      const u_char *, struct pvt *,
-			      int (*)(const char *));
-static struct addrinfo * a6_expand(const u_char *, const u_char *, int,
-				   const u_char *, const u_char *,
-				   const struct in6_addr *, int,
-				   const struct addrinfo *,
-				   struct pvt *, int (*)(const char *), int *);
-static const char *dname_subst(const char *, const char *, const char *);
 static int		init(struct irs_ho *this);
 
 /* Exports. */
@@ -257,21 +248,19 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 	char tmp[NS_MAXDNAME];
 	const char *cp;
 	struct addrinfo ai;
-	struct dns_res_target *q, *q2, *p;
+	struct dns_res_target *q, *p;
 	int querystate = RESQRY_FAIL;
 
 	if (init(this) == -1)
 		return (NULL);
 
 	q = memget(sizeof(*q));
-	q2 = memget(sizeof(*q2));
-	if (q == NULL || q2 == NULL) {
+	if (q == NULL) {
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		errno = ENOMEM;
 		goto cleanup;
 	}
 	memset(q, 0, sizeof(q));
-	memset(q2, 0, sizeof(q2));
 
 	switch (af) {
 	case AF_INET:
@@ -285,21 +274,10 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 	case AF_INET6:
 		size = IN6ADDRSZ;
 		q->qclass = C_IN;
-		q->qtype = ns_t_a6;
+		q->qtype = T_AAAA;
 		q->answer = q->qbuf.buf;
 		q->anslen = sizeof(q->qbuf);
-		q->next = q2;
-#ifdef RES_USE_A6
-		if ((pvt->res->options & RES_USE_A6) == 0)
-			q->action = RESTGT_IGNORE;
-		else
-#endif
-			q->action = RESTGT_DOALWAYS;
-		q2->qclass = C_IN;
-		q2->qtype = T_AAAA;
-		q2->answer = q2->qbuf.buf;
-		q2->anslen = sizeof(q2->qbuf);
-		q2->action = RESTGT_AFTERFAILURE;
+		q->action = RESTGT_DOALWAYS;
 		break;
 	default:
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
@@ -349,8 +327,6 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
  cleanup:
 	if (q != NULL)
 		memput(q, sizeof(*q));
-	if (q2 != NULL)
-		memput(q2, sizeof(*q2));
 	return(hp);
 }
 
@@ -363,7 +339,7 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 	struct hostent *hp = NULL;
 	struct addrinfo ai;
 	struct dns_res_target *q, *q2, *p;
-	int n, size;
+	int n, size, i;
 	int querystate = RESQRY_FAIL;
 	
 	if (init(this) == -1)
@@ -440,20 +416,36 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		if (q->action != RESTGT_IGNORE) {
 			qp = q->qname;
 			for (n = IN6ADDRSZ - 1; n >= 0; n--) {
-				qp += SPRINTF((qp, "%x.%x.",
+				i = SPRINTF((qp, "%x.%x.",
 					       uaddr[n] & 0xf,
 					       (uaddr[n] >> 4) & 0xf));
+				if (i < 0)
+					abort();
+				qp += i;
 			}
+#ifdef HAVE_STRLCAT
+			strlcat(q->qname, res_get_nibblesuffix(pvt->res),
+			    sizeof(q->qname));
+#else
 			strcpy(qp, res_get_nibblesuffix(pvt->res));
+#endif
 		}
 		if (q2->action != RESTGT_IGNORE) {
 			qp = q2->qname;
 			for (n = IN6ADDRSZ - 1; n >= 0; n--) {
-				qp += SPRINTF((qp, "%x.%x.",
+				i = SPRINTF((qp, "%x.%x.",
 					       uaddr[n] & 0xf,
 					       (uaddr[n] >> 4) & 0xf));
+				if (i < 0)
+					abort();
+				qp += i;
 			}
+#ifdef HAVE_STRLCAT
+			strlcat(q->qname, res_get_nibblesuffix2(pvt->res),
+			    sizeof(q->qname));
+#else
 			strcpy(qp, res_get_nibblesuffix2(pvt->res));
+#endif
 		}
 		break;
 	default:
@@ -563,7 +555,7 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 	int n;
 	char tmp[NS_MAXDNAME];
 	const char *cp;
-	struct dns_res_target *q, *q2, *q3, *p;
+	struct dns_res_target *q, *q2, *p;
 	struct addrinfo sentinel, *cur;
 	int querystate = RESQRY_FAIL;
 
@@ -575,42 +567,28 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 
 	q = memget(sizeof(*q));
 	q2 = memget(sizeof(*q2));
-	q3 = memget(sizeof(*q3));
-	if (q == NULL || q2 == NULL || q3 == NULL) {
+	if (q == NULL || q2 == NULL) {
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		errno = ENOMEM;
 		goto cleanup;
 	}
 	memset(q, 0, sizeof(q2));
 	memset(q2, 0, sizeof(q2));
-	memset(q3, 0, sizeof(q3));
 
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
 		q->qclass = C_IN;
-		q->qtype = ns_t_a6;
+		q->qtype = T_AAAA;
 		q->answer = q->qbuf.buf;
 		q->anslen = sizeof(q->qbuf);
 		q->next = q2;
-#ifdef RES_USE_A6
-		if ((pvt->res->options & RES_USE_A6) == 0)
-			q->action = RESTGT_IGNORE;
-		else
-#endif
-			q->action = RESTGT_DOALWAYS;
+		q->action = RESTGT_DOALWAYS;
 		q2->qclass = C_IN;
-		q2->qtype = T_AAAA;
+		q2->qtype = T_A;
 		q2->answer = q2->qbuf.buf;
 		q2->anslen = sizeof(q2->qbuf);
-		q2->next = q3;
-		/* try AAAA only when A6 query fails */
-		q2->action = RESTGT_AFTERFAILURE;
-		q3->qclass = C_IN;
-		q3->qtype = T_A;
-		q3->answer = q3->qbuf.buf;
-		q3->anslen = sizeof(q3->qbuf);
-		q3->action = RESTGT_DOALWAYS;
+		q2->action = RESTGT_DOALWAYS;
 		break;
 	case AF_INET:
 		q->qclass = C_IN;
@@ -621,21 +599,10 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		break;
 	case AF_INET6:
 		q->qclass = C_IN;
-		q->qtype = ns_t_a6;
+		q->qtype = T_AAAA;
 		q->answer = q->qbuf.buf;
 		q->anslen = sizeof(q->qbuf);
-		q->next = q2;
-#ifdef RES_USE_A6
-		if ((pvt->res->options & RES_USE_A6) == 0)
-			q->action = RESTGT_IGNORE;
-		else
-#endif
-			q->action = RESTGT_DOALWAYS;
-		q2->qclass = C_IN;
-		q2->qtype = T_AAAA;
-		q2->answer = q2->qbuf.buf;
-		q2->anslen = sizeof(q2->qbuf);
-		q2->action = RESTGT_AFTERFAILURE;
+		q->action = RESTGT_DOALWAYS;
 		break;
 	default:
 		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY); /* better error? */
@@ -688,373 +655,7 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		memput(q, sizeof(*q));
 	if (q2 != NULL)
 		memput(q2, sizeof(*q2));
-	if (q3 != NULL)
-		memput(q3, sizeof(*q3));
 	return(sentinel.ai_next);
-}
-
-static const u_char *
-ar_head(cp, count, msg, eom, pvt, name_ok)
-	const u_char *cp, *msg, *eom;
-	int count;
-	struct pvt *pvt;
-	int (*name_ok)(const char *);
-{
-	int n;
-	char buf[1024];	/* XXX */
-
-	while (count-- > 0 && cp < eom) {
-		n = dn_expand(msg, eom, cp, buf, sizeof(buf));
-		if (n < 0 || !maybe_ok(pvt->res, buf, name_ok))
-			goto end;
-		cp += n;			/* name */
-		if (cp + 3 * INT16SZ + INT32SZ >= eom)
-			goto end;
- 		cp += INT16SZ;			/* type */
- 		cp += INT16SZ + INT32SZ;	/* class, TTL */
-		n = ns_get16(cp);
-		cp += n + INT16SZ;		/* len */
-	}
-	return(cp);
-
-  end:
-	return(eom);		/* XXX */
-}
-
-/* XXX: too many arguments */
-static struct addrinfo *
-a6_expand(const u_char *ansbuf, const u_char *a6p,
-	  int a6len, const u_char *arp, const u_char *eom,
-	  const struct in6_addr *in6, int plen, const struct addrinfo *pai,
-	  struct pvt *pvt, int (*name_ok)(const char *), int *errorp)
-{
-	struct in6_addr a;
-	int n, pbyte, plen1, pbyte1, error = 0;
-	const u_char *cp;
-	struct addrinfo sentinel, *cur;
-	char pname[1024], buf[1024]; /* XXX */
-
-	*errorp = NETDB_SUCCESS;
-	memset(&sentinel, 0, sizeof(sentinel));
-	cur = &sentinel;
-
-	/*
-	 * Validate A6 parameters.
-	 */
-	if (a6len == 0) { /* an A6 record must contain at least 1 byte. */
-		error = NO_RECOVERY;
-		goto bad;
-	}
-	/* prefix length check. */
-	if ((plen1 = *a6p) > 128) {
-		error = NO_RECOVERY;
-		goto bad;
-	}
-	if (plen1 > plen) {
-		/*
-		 * New length must not be greater than old one.
-		 * Ignore the record as specified in RFC 2874
-		 * Section 3.1.2.
-		 */
-		return(NULL); /* just ignore. */
-	}
-	/* boundary check for new plen and prefix addr */
-	pbyte1 = (plen1 & ~7) / 8;
-	if ((int)sizeof(struct in6_addr) - pbyte1 > a6len - 1) {
-		error = NO_RECOVERY;
-		goto bad;
-	}
-
-	/*
-	 * merge the new prefix portion.
-	 * <--- plen(bits) --->
-	 * <--- pbyte ---><-b->
-	 * 000000000000000pppppxxxxxxxxxxx(= in6, 0: unknown, x: known, p: pad)
-	 *           PP++++++++(+ should be merged. P: padding, must be 0)
-	 * <-- plen1-->
-	 * <-pbyte1->
-	 *           ^a6p+1
-	 * The result should be:
-	 * 0000000000PP++++++++xxxxxxxxxxx(= a)
-	 */
-	pbyte = (plen & ~7) / 8;
-	a = *in6;
-	if (pbyte > pbyte1) {
-		/* N.B. the case of "pbyte1 == 128" is implicitly excluded. */
-		int b = plen % 8; /* = the length of "pp..." above */
-		u_char c_hi, c_lo;
-
-		memcpy(&a.s6_addr[pbyte1], a6p + 1, pbyte - pbyte1);
-		if (b > 0) {
-			c_hi = a6p[pbyte - pbyte1 + 1];
-			c_lo = in6->s6_addr[pbyte];
-			a.s6_addr[pbyte] =
-				(c_hi & (0xff << (8 - b))) |
-				((0x00ff >> b) & c_lo);
-		}
-	}
-
-#if 0				/* for debug */
-	if ((pvt->res->options & RES_DEBUG) != 0) {
-		u_char ntopbuf[INET6_ADDRSTRLEN];
-
-		inet_ntop(AF_INET6, &a, ntopbuf, sizeof(ntopbuf));
-		printf("a6_expand: %s\\%d\n", ntopbuf, plen1);
-	}
-#endif
-
-	if (plen1 == 0) {
-		/* Here is the end of A6 chain. make addrinfo, then return. */
-		return(addr2addrinfo(pai, (const char *)&a));
-	}
-
-	/*
-	 * Expand the new prefix name. Since the prefix name must not be
-	 * compressed (RFC 2874 Section 3.1.1), we could use ns_name_ntop()
-	 * here if it had a stricter boundary check.
-	 */
-	cp = a6p + 1 + (sizeof(*in6) - pbyte1);
-	n = dn_expand(ansbuf, eom, cp, pname, sizeof(pname));
-	if (n < 0 || !maybe_ok(pvt->res, pname, name_ok)) {
-		error = NO_RECOVERY;
-		goto bad;
-	}
-	if (cp + n != a6p + a6len) { /* length mismatch */
-		error = NO_RECOVERY;
-		goto bad;
-	}
-
-	/*
-	 * we need (more) additional section records, but no one is
-	 * available, which possibly means a malformed answer.
-	 */
-	if (arp == NULL) {
-		error = NO_RECOVERY; /* we can't resolve the chain. */
-		goto bad;
-	}
-
-	/*
-	 * Loop thru the rest of the buffer, searching for the next A6 record
-	 * that has the same owner name as the prefix name. If found, then
-	 * recursively call this function to expand the whole A6 chain.
-	 */
-	plen = plen1;
-	for (cp = arp; cp != NULL && cp < eom; cp += n) {
-		int class, type;
-
-		n = dn_expand(ansbuf, eom, cp, buf, sizeof(buf));
-		if (n < 0 || !maybe_ok(pvt->res, buf, name_ok)) {
-			error = NO_RECOVERY;
-			goto bad;
-		}
-		cp += n;			/* name */
-		if (cp + 3 * INT16SZ + INT32SZ > eom) {
-			error = NO_RECOVERY;
-			goto bad;
-		}
-		type = ns_get16(cp);
-		cp += INT16SZ;			/* type */
-		class = ns_get16(cp);
-		cp += INT16SZ + INT32SZ;	/* class, TTL */
-		n = ns_get16(cp);
-		cp += INT16SZ;			/* len */
-		if (cp + n > eom) {
-			error = NO_RECOVERY;
-			goto bad;
-		}
-		if (class != C_IN || type != ns_t_a6) {
-			/* we are only interested in A6 records. skip others */
-			continue;
-		}
-
-		if (ns_samename(buf, pname) != 1) {
-			continue;
-		}
-
-		/* Proceed to the next record in the chain. */
-		cur->ai_next = a6_expand(ansbuf, cp, n, cp + n, eom,
-					 (const struct in6_addr *)&a,
-					 plen, pai, pvt, name_ok, &error);
-		if (error != NETDB_SUCCESS)
-			goto bad;
-		while (cur && cur->ai_next)
-			cur = cur->ai_next;
-	}
-
-	return(sentinel.ai_next);
-
-  bad:
-	*errorp = error;
-	if (sentinel.ai_next)
-		freeaddrinfo(sentinel.ai_next);
-	return(NULL);
-}
-
-static const char *
-dname_subst(const char *qname0, const char *owner0, const char *target) {
-	char owner[MAXDNAME];
-	static char qname[MAXDNAME];
-	const char blabelhead[] = "\\[x"; /* we can assume hex strings */
-	int qlen, olen;
-	int bufsiz = sizeof(qname);
-
-	/* make local copies, which are canonicalized. */
-	if (ns_makecanon(qname0, qname, sizeof(qname)) < 0 ||
-	    ns_makecanon(owner0, owner, sizeof(owner)) < 0)
-		return(NULL);
-	qlen = strlen(qname);
-	olen = strlen(owner);
-	/* from now on, do not refer to qname0 nor owner0. */
-
-	/*
-	 * check if QNAME is a subdomain of OWNER.
-	 * XXX: currently, we only handle the following two cases:
-	 *      (A) none of the labels are bitlabels, or
-	 *      (B) both of the head labels are bitlabels (and the following
-	 *          labels are NOT bitlabels).
-	 * If we pass the check, then subtract the remaining part from QNAME.
-	 * ex. (A) qname=www.foo.com,owner=foo.com => new qname=www.
-	 *     (B) qname=\[x3ffe0501/32].foo.com,owner=\[x3ffe/16].foo.com
-	 *                                  => new qname=\[x0501/16].
-	 */
-	if (ns_samedomain(qname, owner)) { /* check (A) */
-		/* at this point, qlen must not be smaller than olen */
-		qname[qlen - olen] = 0;
-		bufsiz -= (qlen - olen);
-	} else {		/* check (B) */
-		char *parent0, *parent1;
-		/* the following 3 have enough size to store 1 bitlabel */
-		u_char qlabel[64], olabel[64], newlabel[64];
-		int qlabellen, olabellen;
-
-		if (strncmp(qname, blabelhead, 3) != 0 ||
-		    strncmp(owner, blabelhead, 3) != 0)
-			return(NULL);
-		/*
-		 * Both two begin with bitlabels. The succeeding parts
-		 * must exact match.
-		 */
-		if ((parent0 = strchr(qname, '.')) == NULL ||
-		    (parent1 = strchr(owner, '.')) == NULL)
-			return(NULL);
-
-		/* ns_samename allows names to begin with '.' */
-		if (ns_samename(parent0, parent1) != 1)
-			return(NULL);
-
-		/* cut the upper domain parts off. */
-		*(parent0 + 1) = 0;
-		*(parent1 + 1) = 0;
-		/* convert the textual form into binary one. */
-		if (ns_name_pton(qname, qlabel, sizeof(qlabel)) < 0 ||
-		    ns_name_pton(owner, olabel, sizeof(olabel)) < 0)
-			return(NULL);
-		if ((qlabellen = *(qlabel + 1)) == 0)
-			qlabellen = 256;
-		if ((olabellen = *(olabel + 1)) == 0)
-			olabellen = 256;
-		if (olabellen > qlabellen)
-			return(NULL); /* owner does not contain qname. */
-		else {
-			int qplen = (qlabellen + 7) / 8;
-			int oplen = (olabellen + 7) / 8;
-			int sft = olabellen % 8;
-			int nllen, n;
-			u_char *qp, *op, *np;
-
-			/* skip ELT and Count. */
-			qp = qlabel + 2;
-			op = olabel + 2;
-
-			/* check if olabel is a "subdomain" of qlabel. */
-			if (memcmp(qp, op, oplen - 1) != 0)
-				return(NULL);
-			if (sft > 0) {
-				/* compare trailing bits (between 1 and 7) */
-				if ((qp[qplen - 1] & (0xff << sft)) !=
-				    op[qplen - 1])
-					return(NULL);
-			}
-
-			/* OK, get remaining bits from qlabel. */
-			np = newlabel;
-			if (olabellen == qlabellen) {
-				/*
-				 * Two names (including bitlabels) are exactly
-				 * same. Discard the whole names.
-				 * XXX: ns_samename() above should exclude
-				 * this case...
-				 */
-				qname[0] = 0;
-				goto maketarget;
-			}
-			*np++ = 0x41; /* XXX hardcoding */
-			*np++ = nllen = (qlabellen - olabellen);
-			if (sft == 0) {
-				/*
-				 * No alignment issue. can just use memcpy.
-				 * Note that the "else" part below contains
-				 * this case. We separate the two cases just
-				 * for efficiency.
-				 * We assume that ns_name_pton above ensures
-				 * QP does not contain trailing garbages.
-				 */
-				memcpy(np, qp + oplen, qplen - oplen);
-				np += qplen - oplen;
-				*np = 0;
-			} else {
-				/*
-				 * copy the lower (8-SFT) bits of QP to the
-				 * upper (8-SFT) bits of NP, then copy the
-				 * upper SFT bits of QP+1 to the lower SFT bits
-				 * of NP, and so on...
-				 * if QP is       xxxyyyyy zzzwww..., then
-				 *    NP would be yyyyyzzz ...
-				 * Again, we assume QP does not contain
-				 * trailing garbages.
-				 */
-				qp += (oplen - 1);
-				while (nllen > 0) {
-					*np = (*qp << sft) & 0xff;
-					if ((nllen -= (8 - sft)) <= 0)
-						break; /* done */
-					qp++;
-					*np |= ((*qp >> sft) & 0xff);
-					np++;
-					nllen -= sft;
-				}
-				*++np = 0;
-			}
-
-			/*
-			 * make a new bitlabel with the remaining bits.
-			 * Note that there's no buffer boundary issue, since
-			 * qlabel, olabel, and newlabel all have the same size.
-			 * ns_name_ntop() must not return 0, since we have
-			 * a non-empty bitlabel.
-			 */
-			if ((n = ns_name_ntop(newlabel, qname, sizeof(qname)))
-			     <= 0)
-				return(NULL);
-			bufsiz -= n;
-			if (qname[n - 1] != '.') { /* XXX no trailing dot */
-				qname[n - 1] = '.';
-				qname[n] = 0;
-				bufsiz--;
-			}
-
-		}
-	}
-
-  maketarget:
-	/*
-	 * Finally, append the remaining part (maybe empty) to the new target.
-	 */
-	if (bufsiz < (int)strlen(target)) /* bufsiz takes care of the \0. */
-		return(NULL);
-	strcat(qname, target);
-
-	return((const char *)qname);
 }
 
 static void
@@ -1092,7 +693,6 @@ gethostans(struct irs_ho *this,
 	char *bp, *ep, **ap, **hap;
 	char tbuf[MAXDNAME+1];
 	struct addrinfo sentinel, *cur, ai;
-	const u_char *arp = NULL;
 
 	if (pai == NULL) abort();
 	if (ret_aip != NULL)
@@ -1103,7 +703,6 @@ gethostans(struct irs_ho *this,
 	tname = qname;
 	eom = ansbuf + anslen;
 	switch (qtype) {
-	case ns_t_a6:
 	case T_A:
 	case T_AAAA:
 	case T_ANY:	/* use T_ANY only for T_A/T_AAAA lookup */
@@ -1148,8 +747,7 @@ gethostans(struct irs_ho *this,
 		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 		return (NULL);
 	}
-	if (qtype == T_A || qtype == T_AAAA ||
-	    qtype == ns_t_a6 || qtype == T_ANY) {
+	if (qtype == T_A || qtype == T_AAAA || qtype == T_ANY) {
 		/* res_nsend() has already verified that the query name is the
 		 * same as the one we sent; this just gets the expanded name
 		 * (i.e., with the succeeding search-domain tacked on).
@@ -1193,8 +791,8 @@ gethostans(struct irs_ho *this,
 			continue;
 		}
 		eor = cp + n;
-		if ((qtype == T_A || qtype == T_AAAA || qtype == ns_t_a6 ||
-		     qtype == T_ANY) && type == T_CNAME) {
+		if ((qtype == T_A || qtype == T_AAAA || qtype == T_ANY) &&
+		    type == T_CNAME) {
 			if (haveanswer) {
 				int level = LOG_CRIT;
 #ifdef LOG_SECURITY
@@ -1222,56 +820,14 @@ gethostans(struct irs_ho *this,
 				had_error++;
 				continue;
 			}
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, tbuf, ep - bp);
+#else
 			strcpy(bp, tbuf);
+#endif
 			pvt->host.h_name = bp;
 			hname = bp;
 			bp += n;
-			continue;
-		}
-		if (type == ns_t_dname) {
-			const char *t0, *t;
-
-			/*
-			 * just replace the query target; do not update the
-			 * alias list. (Or should we?)
-			 */
-			t0 = (qtype == T_PTR) ? tname : hname;
-
-			n = dn_expand(ansbuf, eor, cp, tbuf, sizeof(tbuf));
-			if (n < 0 || !maybe_dnok(pvt->res, tbuf)) {
-				had_error++;
-				continue;
-			}
-#ifdef RES_USE_DNAME
-			if ((pvt ->res->options & RES_USE_DNAME) == 0) {
-				cp += n;
-				continue;
-			}
-#endif
-			if ((t = dname_subst(t0, bp, tbuf)) == NULL) {
-				cp += n;
-				continue;
-			}
-#if 0				/* for debug */
-			if ((pvt->res->options & RES_DEBUG) != 0) {
-				printf("DNAME owner=%s, target=%s, next=%s\n",
-				       bp, tbuf, t);
-			}
-#endif
-			cp += n;
-
-			n = strlen(t) + 1; /* for the \0 */
-			if (n > (ep - bp)) {
-				had_error++;
-				continue;
-			}
-			strcpy(bp, t);
-			if (qtype == T_PTR)
-				tname = bp;
-			else
-				hname = bp;
-			bp += n;
-
 			continue;
 		}
 		if (qtype == T_PTR && type == T_CNAME) {
@@ -1300,14 +856,17 @@ gethostans(struct irs_ho *this,
 				had_error++;
 				continue;
 			}
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, tbuf, ep - bp);
+#else
 			strcpy(bp, tbuf);
+#endif
 			tname = bp;
 			bp += n;
 			continue;
 		}
 		if (qtype == T_ANY) {
-			if (!(type == T_A || type == T_AAAA ||
-			      type == ns_t_a6)) {
+			if (!(type == T_A || type == T_AAAA)) {
 				cp += n;
 				continue;
 			}
@@ -1346,66 +905,6 @@ gethostans(struct irs_ho *this,
 				bp += n;
 			}
 			break;
-		case ns_t_a6: {
-			struct in6_addr in6;
-			struct addrinfo ai;
-
-#ifdef RES_USE_A6
-			if ((pvt->res->options & RES_USE_A6) == 0) {
-				cp += n;
-				continue;
-			}
-#endif
-
-			if (ns_samename(hname, bp) != 1) {
-				cp += n;
-				continue;
-			}
-
-			/*
-			 * search for the top of the additional section.
-			 * once found, keep it for the case where we have
-			 * more than one A6 record.
-			 * XXX: however, we may not need this part.
-			 */
-			if (arp == NULL && arcount > 0) {
-				int nscount = ntohs(hp->nscount);
-
-				arp = ar_head(cp + n, nscount + ancount - 1,
-					      ansbuf, eom, pvt, name_ok);
-			}
-
-			/* recursively collect the whole A6 chain */
-			ai = *pai; /* XXX: we can't override constant pai */
-			ai.ai_family = AF_INET6;
-			memset(&in6, 0, sizeof(in6)); /* just for safety */
-			cur->ai_next = a6_expand(ansbuf, cp, n, arp, eom,
-						 &in6, 128,
-						 (const struct addrinfo *)&ai,
-						 pvt, name_ok, &error);
-			if (error != NETDB_SUCCESS) {
-#ifdef DEBUG
-				/* in this case, cur->ai_next must be NULL. */
-				if (cur->ai_next != NULL)
-					abort();
-#endif
-				had_error++;
-				continue;
-			}
-
-			/*
-			 * We don't bother even if cur->ai_next is NULL unless
-			 * the expansion failed by a fatal error. The list
-			 * can be NULL if the given A6 is incomplete, but we
-			 * may have another complete A6 chain in this answer.
-			 * See the last paragraph of RFC 2874 Section 3.1.4. 
- 			 */
-			if (cur->ai_next == NULL) {
-				cp += n;
-				continue; /* no error, no answer */
-			}
-			goto convertinfo;
-		} /* FALLTHROUGH */
 		case T_A:
 		case T_AAAA:
 			if (ns_samename(hname, bp) != 1) {
@@ -1430,7 +929,6 @@ gethostans(struct irs_ho *this,
 			if (cur->ai_next == NULL)
 				had_error++;
 
-		  convertinfo:	/* convert addrinfo into hostent form */
 			if (!haveanswer) {
 				int nn;
 
@@ -1471,7 +969,7 @@ gethostans(struct irs_ho *this,
 						continue;
 					if (hap < &pvt->h_addr_ptrs[MAXADDRS-1])
 						hap++;
-
+					*hap = NULL;
 					bp += m;
 				}
 
@@ -1498,7 +996,11 @@ gethostans(struct irs_ho *this,
 				n = strlen(qname) + 1;	/* for the \0 */
 				if (n > (ep - bp) || n >= MAXHOSTNAMELEN)
 					goto no_recovery;
+#ifdef HAVE_STRLCPY
+				strlcpy(bp, qname, ep - bp);
+#else
 				strcpy(bp, qname);
+#endif
 				pvt->host.h_name = bp;
 				bp += n;
 			}

@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 
 #include <netdb.h>
 #include <resolv.h>

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_srvr.c,v 8.25 2001/05/29 05:49:27 marka Exp $";
+static const char rcsid[] = "$Id: ctl_srvr.c,v 8.26 2002/07/08 05:10:25 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -252,7 +252,7 @@ ctl_server(evContext lev, const struct sockaddr *sap, size_t sap_len,
 		     &ctx->acID) < 0) {
 		save_errno = errno;
 		(*ctx->logger)(ctl_error, "%s: evListen(fd %d): %s",
-			       me, (void *)ctx->sock, strerror(errno));
+			       me, ctx->sock, strerror(errno));
 		close(ctx->sock);
 		memput(ctx, sizeof *ctx);
 		errno = save_errno;

@@ -1,5 +1,5 @@
 #ifdef CYLINK_DSS
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/cylink_link.c,v 1.9 2001/05/29 05:48:05 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/cylink_link.c,v 1.10 2002/12/03 05:26:49 marka Exp $";
 
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -662,6 +662,8 @@ memcpyend(void *dest, const void *src, size_t n, size_t size) {
 }
 
 #else 
+#define	dst_cylink_init	__dst_cylink_init
+
 int
 dst_cylink_init() 
 {

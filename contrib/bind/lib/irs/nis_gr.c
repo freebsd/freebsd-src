@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_gr.c,v 1.21 2001/05/29 05:49:12 marka Exp $";
+static const char rcsid[] = "$Id: nis_gr.c,v 1.22 2002/07/08 06:26:11 marka Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -286,7 +286,7 @@ makegroupent(struct irs_gr *this) {
 		goto cleanup;
 	*cp++ = '\0';
 
-	errno = -1;
+	errno = 0;
 	t = strtoul(cp, NULL, 10);
 	if (errno == ERANGE)
 		goto cleanup;

@@ -1,6 +1,6 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.80 2002/05/24 03:05:01 marka Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.81.8.1 2003/06/02 09:56:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -158,6 +158,7 @@ int yyparse();
 %token			T_MAX_NCACHE_TTL T_HAS_OLD_CLIENTS T_RFC2308_TYPE1
 %token			T_LAME_TTL T_MIN_ROOTS
 %token			T_TREAT_CR_AS_SPACE
+%token			T_EDNS_UDP_SIZE
 
 /* Items used for the "logging" statement: */
 %token			T_LOGGING T_CATEGORY T_CHANNEL T_SEVERITY T_DYNAMIC
@@ -609,6 +610,16 @@ option: /* Empty */
 		if ($2 >= 1)
 			current_options->minroots = $2;
 	}
+	|
+	| T_EDNS_UDP_SIZE L_NUMBER
+	{
+		if ($2 < 512)
+			current_options->edns_udp_size = 512;
+		else if ($2 > EDNS_MESSAGE_SZ)
+			current_options->edns_udp_size = EDNS_MESSAGE_SZ;
+		else
+			current_options->edns_udp_size = $2;
+	}
 	| error
 	;
 
@@ -711,6 +722,7 @@ ordering_type: /* nothing */
 		}
 		(void)freestr($2);
 	}
+	;
 
 ordering_name: /* nothing */
 	{
@@ -726,7 +738,7 @@ ordering_name: /* nothing */
 		}
 		/* XXX Should do any more name validation here? */
 	}
-
+	;
 
 rrset_ordering_element: ordering_class ordering_type ordering_name T_ORDER L_STRING
 	{
@@ -749,7 +761,7 @@ rrset_ordering_element: ordering_class ordering_type ordering_name T_ORDER L_STR
 			$$ = new_rrset_order_element($1, $2, $3, o);
 		}
 	}
-
+	;
 	
 transfer_format: T_ONE_ANSWER
 	{
@@ -1434,7 +1446,7 @@ key_list: key_list_element L_EOS
 	| error
 	;
 
-dummy_key_list_element: key_ref;
+dummy_key_list_element: key_ref { /* empty */ } ;
 
 dummy_key_list: dummy_key_list_element L_EOS
 	| dummy_key_list dummy_key_list_element L_EOS

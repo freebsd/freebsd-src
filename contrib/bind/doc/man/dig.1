@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.\" $Id: dig.1,v 8.9 2002/06/18 01:53:43 marka Exp $
+.\" $Id: dig.1,v 8.11 2003/04/03 05:52:34 marka Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -246,7 +246,7 @@ one can simply
 .It Fl x Ar IPv6-address
 Convenient form to specify inverse address mapping.
 Instead of 
-.Dq Ic dig 1.0.0.0.0.0.0.0.0.0.0.0. 0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa ,
+.Dq Ic dig 1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa ,
 one can simply 
 .Dq Ic dig -x ::1 .
 .It Fl f Ar file
@@ -685,7 +685,7 @@ authored by Andrew Cherenson.
 .Sh BUGS
 .Ic Dig
 has a serious case of "creeping featurism" -- the result of
-considering several potential uses during it's development.  It would
+considering several potential uses during its development.  It would
 probably benefit from a rigorous diet.  Similarly, the print flags
 and granularity of the items they specify make evident their
 rather ad hoc genesis.

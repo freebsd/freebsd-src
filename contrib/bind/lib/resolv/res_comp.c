@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_comp.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_comp.c,v 8.15 1999/10/13 16:39:39 vixie Exp $";
+static const char rcsid[] = "$Id: res_comp.c,v 8.16 2002/08/07 03:47:34 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -86,10 +86,10 @@ static const char rcsid[] = "$Id: res_comp.c,v 8.15 1999/10/13 16:39:39 vixie Ex
 #include "port_after.h"
 
 /*
- * Expand compressed domain name 'comp_dn' to full domain name.
+ * Expand compressed domain name 'src' to full domain name.
  * 'msg' is a pointer to the begining of the message,
- * 'eomorig' points to the first location after the message,
- * 'exp_dn' is a pointer to a buffer of size 'length' for the result.
+ * 'eom' points to the first location after the message,
+ * 'dst' is a pointer to a buffer of size 'dstsiz' for the result.
  * Return size of compressed name or -1 if there was an error.
  */
 int

@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: eventlib.c,v 1.46 2001/11/01 05:35:48 marka Exp $";
+static const char rcsid[] = "$Id: eventlib.c,v 1.48 2002/07/17 07:37:34 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -291,12 +291,12 @@ evGetNext(evContext opaqueCtx, evEvent *opaqueEv, int options) {
 			}
 
 			evPrintf(ctx, 4,
-				"pselect(%d, 0x%lx, 0x%lx, 0x%lx, %d.%09ld)\n",
+				"pselect(%d, 0x%lx, 0x%lx, 0x%lx, %ld.%09ld)\n",
 				 ctx->fdMax+1,
 				 (u_long)ctx->rdLast.fds_bits[0],
 				 (u_long)ctx->wrLast.fds_bits[0],
 				 (u_long)ctx->exLast.fds_bits[0],
-				 tp ? tp->tv_sec : -1,
+				 tp ? (long)tp->tv_sec : -1L,
 				 tp ? tp->tv_nsec : -1);
 
 			/* XXX should predict system's earliness and adjust. */
@@ -463,7 +463,7 @@ evDispatch(evContext opaqueCtx, evEvent opaqueEv) {
 		evAccept *this = ev->u.accept.this;
 
 		evPrintf(ctx, 5,
-			"Dispatch.Accept: fd %d -> %d, func %#x, uap %#x\n",
+			"Dispatch.Accept: fd %d -> %d, func %p, uap %p\n",
 			 this->conn->fd, this->fd,
 			 this->conn->func, this->conn->uap);
 		errno = this->ioErrno;
@@ -480,7 +480,7 @@ evDispatch(evContext opaqueCtx, evEvent opaqueEv) {
 		int eventmask = ev->u.file.eventmask;
 
 		evPrintf(ctx, 5,
-			"Dispatch.File: fd %d, mask 0x%x, func %#x, uap %#x\n",
+			"Dispatch.File: fd %d, mask 0x%x, func %p, uap %p\n",
 			 this->fd, this->eventmask, this->func, this->uap);
 		(this->func)(opaqueCtx, this->uap, this->fd, eventmask);
 #ifdef EVENTLIB_TIME_CHECKS
@@ -492,7 +492,7 @@ evDispatch(evContext opaqueCtx, evEvent opaqueEv) {
 		evStream *this = ev->u.stream.this;
 
 		evPrintf(ctx, 5,
-			 "Dispatch.Stream: fd %d, func %#x, uap %#x\n",
+			 "Dispatch.Stream: fd %d, func %p, uap %p\n",
 			 this->fd, this->func, this->uap);
 		errno = this->ioErrno;
 		(this->func)(opaqueCtx, this->uap, this->fd, this->ioDone);
@@ -504,7 +504,7 @@ evDispatch(evContext opaqueCtx, evEvent opaqueEv) {
 	    case Timer: {
 		evTimer *this = ev->u.timer.this;
 
-		evPrintf(ctx, 5, "Dispatch.Timer: func %#x, uap %#x\n",
+		evPrintf(ctx, 5, "Dispatch.Timer: func %p, uap %p\n",
 			 this->func, this->uap);
 		(this->func)(opaqueCtx, this->uap, this->due, this->inter);
 #ifdef EVENTLIB_TIME_CHECKS
@@ -516,7 +516,7 @@ evDispatch(evContext opaqueCtx, evEvent opaqueEv) {
 		evWait *this = ev->u.wait.this;
 
 		evPrintf(ctx, 5,
-			 "Dispatch.Wait: tag %#x, func %#x, uap %#x\n",
+			 "Dispatch.Wait: tag %p, func %p, uap %p\n",
 			 this->tag, this->func, this->uap);
 		(this->func)(opaqueCtx, this->uap, this->tag);
 #ifdef EVENTLIB_TIME_CHECKS

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.136 2002/06/26 03:27:20 marka Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.137.8.1 2003/06/02 05:34:25 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -134,7 +134,7 @@ static void		startxfer(struct zoneinfo *),
 			abortxfer(struct zoneinfo *),
 			purge_z_2(struct hashbuf *, int);
 static int		purge_nonglue_2(const char *, struct hashbuf *,
-					int, int, int);
+					int, int, int, int);
 
 #ifndef HAVE_SPAWNXFER
 static pid_t		spawnxfer(char **, struct zoneinfo *);
@@ -181,7 +181,7 @@ zone_maint(struct zoneinfo *zp) {
 			if ((zp->z_flags & Z_NOTIFY) != 0)
 				ns_stopnotify(zp->z_origin, zp->z_class);
 			/* calls purge_zone */
-			do_reload(zp->z_origin, zp->z_type, zp->z_class, 0);
+			do_reload(zp, 0);
 			/* reset zone state */
 			if (!haveComplained((u_long)zp, (u_long)stale)) {
 				ns_notice(ns_log_default,
@@ -906,7 +906,7 @@ startxfer(struct zoneinfo *zp) {
 		last = &buffer[sizeof buffer - 1]; /* leave room for \0 */
 		for (i = 0; i < argc; i++) {
 			len = strlen(argv[i]);
-			if (curr + len + 1 >= last) {
+			if (len + 1 >= last - curr) {
 				ns_debug(ns_log_xfer_in, 1,
 					 "xfer args debug printout truncated");
 				break;
@@ -1215,7 +1215,7 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 		zp->z_xferpid = 0;
 		ns_need(main_need_tryxfer);
 	}
-	do_reload(zp->z_origin, zp->z_type, zp->z_class, 1);
+	do_reload(zp, 1);
 	ns_notice(ns_log_config, "%s zone \"%s\" (%s) %s",
 		  zoneTypeString(zp->z_type), zp->z_origin,
 		  p_class(zp->z_class), verb);
@@ -1228,16 +1228,29 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 }
 
 int
-purge_nonglue(const char *dname, struct hashbuf *htp, int class, int log) {
+purge_nonglue(struct zoneinfo *zp, struct hashbuf *htp, int log) {
+	const char *dname = zp->z_origin;
 	const char *fname;
 	struct namebuf *np;
 	struct hashbuf *phtp = htp;
 	int root_zone = 0;
 	int errs = 0;
+	int zone = zp - zones;
+	struct databuf *pdp, *dp;
+	int class = zp->z_class;
 
-	ns_debug(ns_log_default, 1, "purge_zone(%s,%d)", dname, class);
+	ns_debug(ns_log_default, 1, "purge_nonglue(%s/%d)", dname, class);
 	if ((np = nlookup(dname, &phtp, &fname, 0)) && dname == fname &&
 	    !ns_wildcard(NAME(*np))) {
+
+		for (pdp = NULL, dp = np->n_data; dp != NULL; (void)NULL) {
+			if (dp->d_class == class && dp->d_zone != zone)
+				dp = rm_datum(dp, np, pdp, NULL);
+			else {
+				pdp = dp;
+				dp = dp->d_next;
+			}
+		}
 
 		if (*dname == '\0')
 			root_zone = 1;
@@ -1249,7 +1262,7 @@ purge_nonglue(const char *dname, struct hashbuf *htp, int class, int log) {
 				h = htp;
 			else
 				h = np->n_hash;
-			errs += purge_nonglue_2(dname, h, class, 0, log);
+			errs += purge_nonglue_2(dname, h, class, 0, log, zone);
 			if (h->h_cnt == 0 && !root_zone) {
 				rm_hash(np->n_hash);
 				np->n_hash = NULL;
@@ -1290,7 +1303,7 @@ valid_glue(struct databuf *dp, char *name, int belowcut) {
 
 static int
 purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
-	        int belowcut, int log)
+	        int belowcut, int log, int zone)
 {
 	struct databuf *dp, *pdp;
 	struct namebuf *np, *pnp, *npn;
@@ -1315,10 +1328,16 @@ purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
 				for (pdp = NULL, dp = np->n_data;
 				     dp != NULL;
 				     (void)NULL) {
-					if (dp->d_class == class &&
-					    zonecut &&
+					int delete = 0;
+					if (!zonecut &&
+					    dp->d_class == class &&
+					    dp->d_zone != zone)
+						delete = 1;
+					if (zonecut &&
+					    dp->d_class == class &&
 					    !valid_glue(dp, name, belowcut)) {
-						if (log)
+						if (log &&
+						    dp->d_zone == zone) {
 						    ns_error(ns_log_load,
 	        "zone: %s/%s: non-glue record %s bottom of zone: %s/%s",
 							 *dname ? dname : ".",
@@ -1327,11 +1346,14 @@ purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
 								    "at",
 							 *name ? name : ".",
 							 p_type(dp->d_type));
+							errs++;
+						}
+						delete = 1;
+					}
+					if (delete)
 						dp = rm_datum(dp, np, pdp, 
 							      NULL);
-						if (log)
-							errs++;
-					} else {
+					else {
 						pdp = dp;
 						dp = dp->d_next;
 					}
@@ -1346,7 +1368,7 @@ purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
 								class,
 								zonecut || 
 								belowcut,
-								log);
+								log, zone);
 
 					/* if now empty, free it */
 					if (np->n_hash->h_cnt == 0) {
@@ -1369,18 +1391,20 @@ purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
 }
 
 void
-purge_zone(const char *dname, struct hashbuf *htp, int class) {
+purge_zone(struct zoneinfo *zp, struct hashbuf *htp) {
 	const char *fname;
 	struct databuf *dp, *pdp;
 	struct namebuf *np;
 	struct hashbuf *phtp = htp;
 	int root_zone = 0;
+	int zone = zp - zones;
+	char *dname = zp->z_origin;
 
-	ns_debug(ns_log_default, 1, "purge_zone(%s,%d)", dname, class);
+	ns_debug(ns_log_default, 1, "purge_zone(%s)", dname);
 	if ((np = nlookup(dname, &phtp, &fname, 0)) && dname == fname &&
 	    !ns_wildcard(NAME(*np))) {
 		for (pdp = NULL, dp = np->n_data; dp != NULL; (void)NULL) {
-			if (dp->d_class == class)
+			if (dp->d_zone == zone)
 				dp = rm_datum(dp, np, pdp, NULL);
 			else {
 				pdp = dp;
@@ -1398,7 +1422,7 @@ purge_zone(const char *dname, struct hashbuf *htp, int class) {
 				h = htp;
 			else
 				h = np->n_hash;
-			purge_z_2(h, class);
+			purge_z_2(h, zone);
 			if (h->h_cnt == 0 && !root_zone) {
 				rm_hash(np->n_hash);
 				np->n_hash = NULL;
@@ -1411,10 +1435,7 @@ purge_zone(const char *dname, struct hashbuf *htp, int class) {
 }
 
 static void
-purge_z_2(htp, class)
-	struct hashbuf *htp;
-	int class;
-{
+purge_z_2(struct hashbuf *htp, int zone) {
 	struct databuf *dp, *pdp;
 	struct namebuf *np, *pnp, *npn;
 	struct namebuf **npp, **nppend;
@@ -1422,27 +1443,25 @@ purge_z_2(htp, class)
 	nppend = htp->h_tab + htp->h_size;
 	for (npp = htp->h_tab; npp < nppend; npp++) {
 		for (pnp = NULL, np = *npp; np != NULL; np = npn) {
-			if (!bottom_of_zone(np->n_data, class)) {
-				for (pdp = NULL, dp = np->n_data;
-				     dp != NULL;
-				     (void)NULL) {
-					if (dp->d_class == class)
-						dp = rm_datum(dp, np, pdp, 
-							      NULL);
-					else {
-						pdp = dp;
-						dp = dp->d_next;
-					}
+			for (pdp = NULL, dp = np->n_data;
+			     dp != NULL;
+			     (void)NULL) {
+				if (dp->d_zone == zone)
+					dp = rm_datum(dp, np, pdp, 
+						      NULL);
+				else {
+					pdp = dp;
+					dp = dp->d_next;
 				}
-				if (np->n_hash) {
-					/* call recursively to rm subdomains */
-					purge_z_2(np->n_hash, class);
+			}
+			if (np->n_hash) {
+				/* call recursively to rm subdomains */
+				purge_z_2(np->n_hash, zone);
 
-					/* if now empty, free it */
-					if (np->n_hash->h_cnt == 0) {
-						rm_hash(np->n_hash);
-						np->n_hash = NULL;
-					}
+				/* if now empty, free it */
+				if (np->n_hash->h_cnt == 0) {
+					rm_hash(np->n_hash);
+					np->n_hash = NULL;
 				}
 			}
 
@@ -1804,12 +1823,12 @@ loadxfer(void) {
 				isixfr = ISIXFR;
 			} else {
 				tmpnom = zp->z_source;
-				purge_zone(zp->z_origin, hashtab, zp->z_class);
+				purge_zone(zp, hashtab);
 				isixfr = ISNOTIXFR;
 			}
 			if (zp->z_xferpid == XFER_ISAXFRIXFR) {
 				tmpnom= zp->z_source;
-				purge_zone(zp->z_origin, hashtab, zp->z_class);
+				purge_zone(zp, hashtab);
 				isixfr = ISNOTIXFR;
 			}
 
@@ -1892,7 +1911,7 @@ reload_master(struct zoneinfo *zp) {
 	     (zp->z_flags & Z_NEED_DUMP) != 0))
 		(void) zonedump(zp, ISNOTIXFR);
 #endif
-	purge_zone(zp->z_origin, hashtab, zp->z_class);
+	purge_zone(zp, hashtab);
 	ns_debug(ns_log_config, 1, "reloading zone");
 #ifdef BIND_UPDATE
 	if ((zp->z_flags & Z_DYNAMIC) != 0) {

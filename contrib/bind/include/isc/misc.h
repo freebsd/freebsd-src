@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: misc.h,v 8.5 2001/06/18 06:40:43 marka Exp $
+ * $Id: misc.h,v 8.5.10.1 2003/06/02 06:04:03 marka Exp $
  */
 
 #ifndef _ISC_MISC_H
@@ -27,7 +27,7 @@
 #define	bitncmp		__bitncmp
 /*#define isc_movefile	__isc_movefile */
 
-extern int		bitncmp(const void *l, const void *r, int n);
+extern int		bitncmp(const void *, const void *, int);
 extern int		isc_movefile(const char *, const char *);
 
 extern int		isc_gethexstring(unsigned char *, size_t, int, FILE *,

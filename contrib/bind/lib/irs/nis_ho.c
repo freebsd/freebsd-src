@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_ho.c,v 1.18 2001/06/18 14:44:00 marka Exp $";
+static const char rcsid[] = "$Id: nis_ho.c,v 1.18.10.1 2003/06/02 05:50:57 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -87,6 +87,9 @@ static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
 static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
 static /*const*/ char hosts_byname[] = "hosts.byname";
 static /*const*/ char hosts_byaddr[] = "hosts.byaddr";
+static /*const*/ char ipnode_byname[] = "ipnode.byname";
+static /*const*/ char ipnode_byaddr[] = "ipnode.byaddr";
+static /*const*/ char yp_multi[] = "YP_MULTI_";
 
 /* Forwards */
 
@@ -186,9 +189,32 @@ ho_byname2(struct irs_ho *this, const char *name, int af) {
 		return (NULL);
 
 	nisfree(pvt, do_val);
-	DE_CONST(name, tmp);
-	r = yp_match(pvt->nis_domain, hosts_byname, tmp,
+
+	strcpy(pvt->hostbuf, yp_multi);
+	strncat(pvt->hostbuf, name, sizeof(pvt->hostbuf) - sizeof(yp_multi));
+	pvt->hostbuf[sizeof(pvt->hostbuf) - 1] = '\0';
+	for (r = sizeof(yp_multi) - 1; pvt->hostbuf[r] != '\0'; r++)
+		if (isupper((unsigned char)pvt->hostbuf[r]))
+			tolower(pvt->hostbuf[r]);
+
+	tmp = pvt->hostbuf;
+	r = yp_match(pvt->nis_domain, ipnode_byname, tmp,
 		     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
+	if (r != 0) {
+		tmp = pvt->hostbuf + sizeof(yp_multi) - 1;
+		r = yp_match(pvt->nis_domain, ipnode_byname, tmp,
+			     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
+	}
+	if (r != 0) {
+		tmp = pvt->hostbuf;
+		r = yp_match(pvt->nis_domain, hosts_byname, tmp,
+			     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
+	}
+	if (r != 0) {
+		tmp = pvt->hostbuf + sizeof(yp_multi) - 1;
+		r = yp_match(pvt->nis_domain, hosts_byname, tmp,
+			     strlen(tmp), &pvt->curval_data, &pvt->curval_len);
+	}
 	if (r != 0) {
 		RES_SET_H_ERRNO(pvt->res, HOST_NOT_FOUND);
 		return (NULL);
@@ -220,8 +246,11 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af) {
 		return (NULL);
 	}
 	nisfree(pvt, do_val);
-	r = yp_match(pvt->nis_domain, hosts_byaddr, tmp, strlen(tmp),
+	r = yp_match(pvt->nis_domain, ipnode_byaddr, tmp, strlen(tmp),
 		     &pvt->curval_data, &pvt->curval_len);
+	if (r != 0)
+		r = yp_match(pvt->nis_domain, hosts_byaddr, tmp, strlen(tmp),
+			     &pvt->curval_data, &pvt->curval_len);
 	if (r != 0) {
 		RES_SET_H_ERRNO(pvt->res, HOST_NOT_FOUND);
 		return (NULL);
@@ -382,12 +411,35 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 
 /* Private */
 
+/*
+ipnodes:
+::1             localhost
+127.0.0.1       localhost
+1.2.3.4         FOO bar
+1.2.6.4         FOO bar
+1.2.6.5         host
+
+ipnodes.byname:
+YP_MULTI_localhost ::1,127.0.0.1        localhost
+YP_MULTI_foo 1.2.3.4,1.2.6.4    FOO bar
+YP_MULTI_bar 1.2.3.4,1.2.6.4    FOO bar
+host 1.2.6.5    host
+
+hosts.byname:
+localhost 127.0.0.1     localhost
+host 1.2.6.5    host
+YP_MULTI_foo 1.2.3.4,1.2.6.4    FOO bar
+YP_MULTI_bar 1.2.3.4,1.2.6.4    FOO bar
+*/
+
 static struct hostent *
 makehostent(struct irs_ho *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	static const char spaces[] = " \t";
-	char *cp, **q, *p;
-	int af, len;
+	char *cp, **q, *p, *comma, *ap;
+	int af = 0, len = 0;
+	int multi = 0;
+	int addr = 0;
 
 	p = pvt->curval_data;
 	if ((cp = strpbrk(p, "#\n")) != NULL)
@@ -395,25 +447,40 @@ makehostent(struct irs_ho *this) {
 	if (!(cp = strpbrk(p, spaces)))
 		return (NULL);
 	*cp++ = '\0';
-	if ((pvt->res->options & RES_USE_INET6) &&
-	    inet_pton(AF_INET6, p, pvt->host_addr) > 0) {
-		af = AF_INET6;
-		len = IN6ADDRSZ;
-	} else if (inet_pton(AF_INET, p, pvt->host_addr) > 0) {
-		if (pvt->res->options & RES_USE_INET6) {
-			map_v4v6_address((char*)pvt->host_addr,
-					 (char*)pvt->host_addr);
+	ap = pvt->hostbuf;
+	do {
+		if ((comma = strchr(p, ',')) != NULL) {
+			*comma++ = '\0';
+			multi = 1;
+		}
+		if ((ap + IN6ADDRSZ) > (pvt->hostbuf + sizeof(pvt->hostbuf)))
+			break;
+		if ((pvt->res->options & RES_USE_INET6) &&
+		    inet_pton(AF_INET6, p, ap) > 0) {
 			af = AF_INET6;
 			len = IN6ADDRSZ;
+		} else if (inet_pton(AF_INET, p, pvt->host_addr) > 0) {
+			if (pvt->res->options & RES_USE_INET6) {
+				map_v4v6_address((char*)pvt->host_addr, ap);
+				af = AF_INET6;
+				len = IN6ADDRSZ;
+			} else {
+				af = AF_INET;
+				len = INADDRSZ;
+			}
 		} else {
-			af = AF_INET;
-			len = INADDRSZ;
+			if (!multi)
+				return (NULL);
+			continue;
 		}
-	} else {
+		if (addr < MAXADDRS) {
+			pvt->h_addr_ptrs[addr++] = ap;
+			pvt->h_addr_ptrs[addr] = NULL;
+			ap += len;
+		}
+	} while ((p = comma) != NULL);
+	if (ap == pvt->hostbuf)
 		return (NULL);
-	}
-	pvt->h_addr_ptrs[0] = (char *)pvt->host_addr;
-	pvt->h_addr_ptrs[1] = NULL;
 	pvt->host.h_addr_list = pvt->h_addr_ptrs;
 	pvt->host.h_length = len;
 	pvt->host.h_addrtype = af;

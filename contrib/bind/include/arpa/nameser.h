@@ -49,7 +49,7 @@
  */
 
 /*
- *	$Id: nameser.h,v 8.47 2002/04/30 03:43:53 marka Exp $
+ *	$Id: nameser.h,v 8.48.8.2 2003/06/02 09:24:40 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -78,8 +78,9 @@
 /*
  * Define constants based on RFC 883, RFC 1034, RFC 1035
  */
-#define NS_PACKETSZ	512	/* maximum packet size */
+#define NS_PACKETSZ	512	/* default UDP packet size */
 #define NS_MAXDNAME	1025	/* maximum domain name */
+#define NS_MAXMSG	65535	/* maximum message size */
 #define NS_MAXCDNAME	255	/* maximum compressed domain name */
 #define NS_MAXLABEL	63	/* maximum length of domain label */
 #define NS_HFIXEDSZ	12	/* #/bytes of fixed data in header */
@@ -294,6 +295,7 @@ typedef enum __ns_type {
 	ns_t_dname = 39,	/* Non-terminal DNAME (for IPv6) */
 	ns_t_sink = 40,		/* Kitchen sink (experimentatl) */
 	ns_t_opt = 41,		/* EDNS0 option (meta-RR) */
+	ns_t_apl = 42,		/* Address prefix list (RFC 3123) */
 	ns_t_tkey = 249,	/* Transaction key */
 	ns_t_tsig = 250,	/* Transaction signature. */
 	ns_t_ixfr = 251,	/* Incremental zone transfer. */
@@ -398,7 +400,7 @@ typedef enum __ns_cert_types {
 
 /* Signatures */
 #define	NS_MD5RSA_MIN_BITS	 512	/* Size of a mod or exp in bits */
-#define	NS_MD5RSA_MAX_BITS	2552
+#define	NS_MD5RSA_MAX_BITS	4096
 	/* Total of binary mod and exp */
 #define	NS_MD5RSA_MAX_BYTES	((NS_MD5RSA_MAX_BITS+7/8)*2+3)
 	/* Max length of text sig block */

@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irp.h,v 8.1 1999/01/18 07:46:46 vixie Exp $
+ * $Id: irp.h,v 8.1.20.3 2003/06/02 08:20:37 marka Exp $
  */
 
 #ifndef _IRP_H_INCLUDED
@@ -84,16 +84,20 @@
 
 struct irp_p;
 
-char   *irs_irp_read_body(struct irp_p *pvt, size_t *size);
-int	irs_irp_read_response(struct irp_p *pvt, char *text, size_t len);
-void	irs_irp_disconnect(struct irp_p *pvt);
-int	irs_irp_connect(struct irp_p *pvt);
-int	irs_irp_is_connected(struct irp_p *pvt);
-int	irs_irp_connection_setup(struct irp_p *cxndata, int *warned);
-int	irs_irp_send_command(struct irp_p *pvt, const char *fmt, ...);
-int	irs_irp_get_full_response(struct irp_p *pvt, int *code, char *text,
-				  size_t textlen, char **body,
-				  size_t *bodylen);
-int	irs_irp_read_line(struct irp_p *pvt, char *buffer, int len);
+char   *irs_irp_read_body(struct irp_p *, size_t *);
+int	irs_irp_read_response(struct irp_p *, char *, size_t);
+void	irs_irp_disconnect(struct irp_p *);
+int	irs_irp_connect(struct irp_p *);
+int	irs_irp_is_connected(struct irp_p *);
+int	irs_irp_connection_setup(struct irp_p *, int *);
+#ifdef __GNUC__
+int	irs_irp_send_command(struct irp_p *, const char *, ...)
+			     __attribute__((__format__(__printf__, 2, 3)));
+#else
+int	irs_irp_send_command(struct irp_p *, const char *, ...);
+#endif
+int	irs_irp_get_full_response(struct irp_p *, int *, char *, size_t,
+				  char **, size_t *);
+int	irs_irp_read_line(struct irp_p *, char *, int);
 
 #endif

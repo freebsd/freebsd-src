@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_gr.c,v 1.25 2001/06/07 02:12:26 marka Exp $";
+static const char rcsid[] = "$Id: gen_gr.c,v 1.26 2002/07/18 02:07:44 marka Exp $";
 #endif
 
 /* Imports */
@@ -324,7 +324,7 @@ gr_res_set(struct irs_gr *this, struct __res_state *res,
 static void
 grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	char *cp, **m, **p, *oldmembuf;
+	char *cp, **m, **p, *oldmembuf, *ep;
 	int n, ndst, nnew;
 	size_t used;
 
@@ -379,6 +379,7 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		/* No harm done, no work done. */
 		return;
 	}
+	ep = cp + used + n;
 	if (used != 0)
 		memcpy(cp, pvt->membuf, used);
 	oldmembuf = pvt->membuf;
@@ -400,7 +401,11 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		if (isnew(pvt->group.gr_mem, *m)) {
 			*p++ = cp;
 			*p = NULL;
+#ifdef HAVE_STRLCPY
+			strlcpy(cp, *m, ep - cp);
+#else
 			strcpy(cp, *m);
+#endif
 			cp += strlen(cp) + 1;
 		}
 	if (preserve) {
@@ -410,10 +415,18 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 				       (pvt->group.gr_passwd - oldmembuf);
 	} else {
 		pvt->group.gr_name = cp;
+#ifdef HAVE_STRLCPY
+		strlcpy(cp, src->gr_name, ep - cp);
+#else
 		strcpy(cp, src->gr_name);
+#endif
 		cp += strlen(src->gr_name) + 1;
 		pvt->group.gr_passwd = cp;
+#ifdef HAVE_STRLCPY
+		strlcpy(cp, src->gr_passwd, ep - cp);
+#else
 		strcpy(cp, src->gr_passwd);
+#endif
 		cp += strlen(src->gr_passwd) + 1;
 	}
 	if (oldmembuf != NULL)

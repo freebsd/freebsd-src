@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.27 2002/05/22 04:06:57 marka Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.29.8.2 2003/06/02 09:24:39 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -112,7 +112,7 @@ ServerTable server[MAXSERVERS];
 
 typedef union {
     HEADER qb1;
-    u_char qb2[64*1024];
+    u_char qb2[NS_MAXMSG];
 } querybuf;
 
 typedef union {
@@ -150,14 +150,14 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
     register const u_char	*cp;
     querybuf		answer;
     char		**aliasPtr;
-    u_char		*eom, *bp;
+    u_char		*eom, *bp, *ep;
     char		**addrPtr;
     int			*lenPtr;
     int			*typePtr;
     char		*namePtr;
     char		*dnamePtr;
     int			type, class;
-    int			qdcount, ancount, arcount, nscount, buflen;
+    int			qdcount, ancount, arcount, nscount;
     int			origClass = 0;
     int			numAliases = 0;
     int			numAddresses = 0;
@@ -212,9 +212,9 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
     }
 
 
-    bp	   = hostbuf;
-    buflen = sizeof(hostbuf);
-    cp	   = (u_char *) &answer + HFIXEDSZ;
+    bp = hostbuf;
+    ep = hostbuf + sizeof(hostbuf);
+    cp = (u_char *) &answer + HFIXEDSZ;
 
     /* Skip over question section. */
     while (qdcount-- > 0) {
@@ -257,7 +257,7 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 	    printedAnswers = TRUE;
 	} else {
 	    while (--ancount >= 0 && cp < eom) {
-		n = dn_expand(answer.qb2, eom, cp, (char *)bp, buflen);
+		n = dn_expand(answer.qb2, eom, cp, (char *)bp, ep - bp);
 		if (n < 0)
 		    return(ERROR);
 		cp += n;
@@ -282,13 +282,12 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 		    host_aliases_len[numAliases] = s;
 		    numAliases++;
 		    bp += s;
-		    buflen -= s;
 		    continue;
 		} else if (type == T_PTR) {
 		    /*
 		     *  Found a "pointer" to the real name.
 		     */
-		    n = dn_expand(answer.qb2, eom, cp, (char *)bp, buflen);
+		    n = dn_expand(answer.qb2, eom, cp, (char *)bp, ep - bp);
 		    if (n < 0) {
 			cp += n;
 			continue;
@@ -328,7 +327,7 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 			memcpy(hostPtr->name, bp, s);
 		    }
 		}
-		bp += (((u_long)bp) % sizeof(align));
+		bp += (((size_t)bp) % sizeof(align));
 
 		if (bp + dlen >= &hostbuf[sizeof(hostbuf)]) {
 		    if (res.options & RES_DEBUG) {
@@ -468,7 +467,7 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 	     *  that serve the requested domain.
 	     */
 
-	    n = dn_expand(answer.qb2, eom, cp, (char *)bp, buflen);
+	    n = dn_expand(answer.qb2, eom, cp, (char *)bp, ep - bp);
 	    if (n < 0) {
 		return(ERROR);
 	    }
@@ -491,7 +490,7 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 	    } else {
 		Boolean	found;
 
-		n = dn_expand(answer.qb2, eom, cp, (char *)bp, buflen);
+		n = dn_expand(answer.qb2, eom, cp, (char *)bp, ep - bp);
 		if (n < 0) {
 		    return(ERROR);
 		}
@@ -547,7 +546,7 @@ GetAnswer(union res_sockaddr_union *nsAddrPtr, int queryType,
 	}
     } else {
 	while (--arcount >= 0 && cp < eom) {
-	    n = dn_expand(answer.qb2, eom, cp, (char *)bp, buflen);
+	    n = dn_expand(answer.qb2, eom, cp, (char *)bp, ep - bp);
 	    if (n < 0) {
 		break;
 	    }
@@ -945,7 +944,7 @@ GetHostInfoByAddr(union res_sockaddr_union *nsAddrPtr,
 		      p[9] & 0xf, (p[9] >> 4) & 0xf,
 		      p[8] & 0xf, (p[8] >> 4) & 0xf,
 		      p[7] & 0xf, (p[7] >> 4) & 0xf,
-		      p[6] & 0xf, (p[4] >> 4) & 0xf,
+		      p[6] & 0xf, (p[6] >> 4) & 0xf,
 		      p[5] & 0xf, (p[5] >> 4) & 0xf,
 		      p[4] & 0xf, (p[4] >> 4) & 0xf,
 		      p[3] & 0xf, (p[3] >> 4) & 0xf,
@@ -965,7 +964,7 @@ GetHostInfoByAddr(union res_sockaddr_union *nsAddrPtr,
 		      p[9] & 0xf, (p[9] >> 4) & 0xf,
 		      p[8] & 0xf, (p[8] >> 4) & 0xf,
 		      p[7] & 0xf, (p[7] >> 4) & 0xf,
-		      p[6] & 0xf, (p[4] >> 4) & 0xf,
+		      p[6] & 0xf, (p[6] >> 4) & 0xf,
 		      p[5] & 0xf, (p[5] >> 4) & 0xf,
 		      p[4] & 0xf, (p[4] >> 4) & 0xf,
 		      p[3] & 0xf, (p[3] >> 4) & 0xf,
@@ -1018,7 +1017,7 @@ GetHostInfoByAddr(union res_sockaddr_union *nsAddrPtr,
     n = GetAnswer(nsAddrPtr, T_PTR, (char *) &buf, n, 1, hostPtr, 1, 0);
     if (n == SUCCESS) {
 	hostPtr->addrList = (AddrInfo **)Calloc(2, sizeof(AddrInfo *));
-	hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo *));
+	hostPtr->addrList[0] = (AddrInfo *)Calloc(1, sizeof(AddrInfo));
 	hostPtr->addrList[0]->addr = Calloc(16, sizeof(char));
 	memcpy(hostPtr->addrList[0]->addr, p, 16);
 	hostPtr->addrList[0]->addrType = AF_INET6;

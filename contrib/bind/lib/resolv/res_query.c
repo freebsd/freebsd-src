@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_query.c,v 8.23 2001/09/24 13:50:29 marka Exp $";
+static const char rcsid[] = "$Id: res_query.c,v 8.24 2003/01/31 15:25:58 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -167,8 +167,11 @@ again:
 	if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 #ifdef DEBUG
 		if (statp->options & RES_DEBUG)
-			printf(";; rcode = %d, ancount=%d\n", hp->rcode,
-			    ntohs(hp->ancount));
+			printf(";; rcode = (%s), counts = an:%d ns:%d ar:%d\n",
+			       p_rcode(hp->rcode),
+			       ntohs(hp->ancount),
+			       ntohs(hp->nscount),
+			       ntohs(hp->arcount));
 #endif
 		switch (hp->rcode) {
 		case NXDOMAIN:

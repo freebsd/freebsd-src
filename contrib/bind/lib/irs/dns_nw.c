@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.23 2002/06/26 07:42:06 marka Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.25 2002/07/18 02:07:43 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -349,7 +349,12 @@ get1101answer(struct irs_nw *this,
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
+#ifdef HAVE_STRLCPY
+			strlcpy(bp, name, ep - bp);
+			pvt->net.n_name = bp;
+#else
 			pvt->net.n_name = strcpy(bp, name);
+#endif
 			bp += n;
 		}
 		break;
@@ -522,37 +527,37 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 static int
 make1101inaddr(const u_char *net, int bits, char *name, int size) {
 	int n, m;
+	char *ep;
+
+	ep = name + size;
 
 	/* Zero fill any whole bytes left out of the prefix. */
 	for (n = (32 - bits) / 8; n > 0; n--) {
-		if (size < (int)(sizeof "0."))
+		if (ep - name < (int)(sizeof "0."))
 			goto emsgsize;
 		m = SPRINTF((name, "0."));
 		name += m;
-		size -= m;
 	}
 
 	/* Format the partial byte, if any, within the prefix. */
 	if ((n = bits % 8) != 0) {
-		if (size < (int)(sizeof "255."))
+		if (ep - name < (int)(sizeof "255."))
 			goto emsgsize;
 		m = SPRINTF((name, "%u.",
 			     net[bits / 8] & ~((1 << (8 - n)) - 1)));
 		name += m;
-		size -= m;
 	}
 
 	/* Format the whole bytes within the prefix. */
 	for (n = bits / 8; n > 0; n--) {
-		if (size < (int)(sizeof "255."))
+		if (ep - name < (int)(sizeof "255."))
 			goto emsgsize;
 		m = SPRINTF((name, "%u.", net[n - 1]));
 		name += m;
-		size -= m;
 	}
 
 	/* Add the static text. */
-	if (size < (int)(sizeof "in-addr.arpa"))
+	if (ep - name < (int)(sizeof "in-addr.arpa"))
 		goto emsgsize;
 	(void) SPRINTF((name, "in-addr.arpa"));
 	return (0);

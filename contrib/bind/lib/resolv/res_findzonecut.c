@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 8.16 2002/04/12 06:27:46 marka Exp $";
+static const char rcsid[] = "$Id: res_findzonecut.c,v 8.17.6.2 2003/06/02 09:24:40 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -49,18 +49,20 @@ static const char rcsid[] = "$Id: res_findzonecut.c,v 8.16 2002/04/12 06:27:46 m
 
 typedef struct rr_a {
 	LINK(struct rr_a)	link;
-	union res_sockaddr_union		addr;
+	union res_sockaddr_union addr;
 } rr_a;
 typedef LIST(rr_a) rrset_a;
 
 typedef struct rr_ns {
 	LINK(struct rr_ns)	link;
 	const char *		name;
-	int			have_v4;
-	int			have_v6;
+	unsigned int		flags;
 	rrset_a			addrs;
 } rr_ns;
 typedef LIST(rr_ns) rrset_ns;
+
+#define	RR_NS_HAVE_V4		0x01
+#define	RR_NS_HAVE_V6		0x02
 
 /* Forward. */
 
@@ -149,7 +151,8 @@ static void	res_dprintf(const char *, ...) ISC_FORMAT_PRINTF(1, 2);
 
 int
 res_findzonecut(res_state statp, const char *dname, ns_class class, int opts,
-		char *zname, size_t zsize, struct in_addr *addrs, int naddrs) {
+		char *zname, size_t zsize, struct in_addr *addrs, int naddrs)
+{
 	int result, i;
 	union res_sockaddr_union *u;
 
@@ -267,7 +270,7 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 	rrset_ns *nsrrsp)
 {
 	char tname[NS_MAXDNAME];
-	u_char resp[NS_PACKETSZ];
+	u_char *resp = NULL;
 	int n, i, ancount, nscount;
 	ns_sect sect;
 	ns_msg msg;
@@ -279,8 +282,12 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 
 	/* First canonicalize dname (exactly one unescaped trailing "."). */
 	if (ns_makecanon(dname, tname, sizeof tname) < 0)
-		return (-1);
+		goto cleanup;
 	dname = tname;
+
+	resp = malloc(NS_MAXMSG);
+	if (resp == NULL)
+		goto cleanup;
 
 	/* Now grovel the subdomains, hunting for an SOA answer or auth. */
 	for (;;) {
@@ -293,7 +300,7 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 		if (n < 0) {
 			DPRINTF(("get_soa: do_query('%s', %s) failed (%d)",
 				 dname, p_class(class), n));
-			return (-1);
+			goto cleanup;
 		}
 		if (n > 0) {
 			DPRINTF(("get_soa: CNAME or DNAME found"));
@@ -318,7 +325,7 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 			if (ns_parserr(&msg, sect, i, &rr) < 0) {
 				DPRINTF(("get_soa: ns_parserr(%s, %d) failed",
 					 p_section(sect, ns_o_query), i));
-				return (-1);
+				goto cleanup;
 			}
 			if (ns_rr_type(rr) == ns_t_cname ||
 			    ns_rr_type(rr) == ns_t_dname)
@@ -330,19 +337,23 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 			switch (sect) {
 			case ns_s_an:
 				if (ns_samedomain(dname, t) == 0) {
-					DPRINTF(("get_soa: ns_samedomain('%s', '%s') == 0",
-						 dname, t));
+					DPRINTF(
+				    ("get_soa: ns_samedomain('%s', '%s') == 0",
+						dname, t)
+						);
 					errno = EPROTOTYPE;
-					return (-1);
+					goto cleanup;
 				}
 				break;
 			case ns_s_ns:
 				if (ns_samename(dname, t) == 1 ||
 				    ns_samedomain(dname, t) == 0) {
-					DPRINTF(("get_soa: ns_samename() || !ns_samedomain('%s', '%s')",
-						 dname, t));
+					DPRINTF(
+		       ("get_soa: ns_samename() || !ns_samedomain('%s', '%s')",
+						dname, t)
+						);
 					errno = EPROTOTYPE;
-					return (-1);
+					goto cleanup;
 				}
 				break;
 			default:
@@ -352,21 +363,23 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 				DPRINTF(("get_soa: zname(%d) too small (%d)",
 					 zsize, strlen(t) + 1));
 				errno = EMSGSIZE;
-				return (-1);
+				goto cleanup;
 			}
 			strcpy(zname, t);
 			rdata = ns_rr_rdata(rr);
 			rdlen = ns_rr_rdlen(rr);
 			if (ns_name_uncompress(resp, ns_msg_end(msg), rdata,
 					       mname, msize) < 0) {
-				DPRINTF(("get_soa: ns_name_uncompress failed"));
-				return (-1);
+				DPRINTF(("get_soa: ns_name_uncompress failed")
+					);
+				goto cleanup;
 			}
 			if (save_ns(statp, &msg, ns_s_ns,
 				    zname, class, opts, nsrrsp) < 0) {
 				DPRINTF(("get_soa: save_ns failed"));
-				return (-1);
+				goto cleanup;
 			}
+			free(resp);
 			return (0);
 		}
 
@@ -379,13 +392,16 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 			if (*dname == '\\')
 				if (*++dname == '\0') {
 					errno = EMSGSIZE;
-					return (-1);
+					goto cleanup;
 				}
 			dname++;
 		}
 	}
 	DPRINTF(("get_soa: out of labels"));
 	errno = EDESTADDRREQ;
+ cleanup:
+	if (resp != NULL)
+		free(resp);
 	return (-1);
 }
 
@@ -393,15 +409,20 @@ static int
 get_ns(res_state statp, const char *zname, ns_class class, int opts,
       rrset_ns *nsrrsp)
 {
-	u_char resp[NS_PACKETSZ];
+	u_char *resp;
 	ns_msg msg;
 	int n;
+
+	resp = malloc(NS_MAXMSG);
+	if (resp == NULL)
+		return (-1);
 
 	/* Go and get the NS RRs for this zone. */
 	n = do_query(statp, zname, class, ns_t_ns, resp, &msg);
 	if (n != 0) {
 		DPRINTF(("get_ns: do_query('%s', %s) failed (%d)",
 			 zname, p_class(class), n));
+		free(resp);
 		return (-1);
 	}
 
@@ -409,31 +430,38 @@ get_ns(res_state statp, const char *zname, ns_class class, int opts,
 	if (save_ns(statp, &msg, ns_s_an, zname, class, opts, nsrrsp) < 0) {
 		DPRINTF(("get_ns save_ns('%s', %s) failed",
 			 zname, p_class(class)));
+		free(resp);
 		return (-1);
 	}
 
+	free(resp);
 	return (0);
 }
 
 static int
 get_glue(res_state statp, ns_class class, int opts, rrset_ns *nsrrsp) {
 	rr_ns *nsrr, *nsrr_n;
+	u_char *resp;
+
+	resp = malloc(NS_MAXMSG);
+	if (resp == NULL)
+		return(-1);
 
 	/* Go and get the A RRs for each empty NS RR on our list. */
 	for (nsrr = HEAD(*nsrrsp); nsrr != NULL; nsrr = nsrr_n) {
-		u_char resp[NS_PACKETSZ];
 		ns_msg msg;
 		int n;
 
 		nsrr_n = NEXT(nsrr, link);
 
-		if (!nsrr->have_v4) {
+		if ((nsrr->flags & RR_NS_HAVE_V4) == 0) {
 			n = do_query(statp, nsrr->name, class, ns_t_a,
 				     resp, &msg);
 			if (n < 0) {
-				DPRINTF(("get_glue: do_query('%s', %s') failed",
-					 nsrr->name, p_class(class)));
-				return (-1);
+				DPRINTF(
+				       ("get_glue: do_query('%s', %s') failed",
+					nsrr->name, p_class(class)));
+				goto cleanup;
 			}
 			if (n > 0) {
 				DPRINTF((
@@ -444,17 +472,18 @@ get_glue(res_state statp, ns_class class, int opts, rrset_ns *nsrrsp) {
 				   opts, nsrr) < 0) {
 				DPRINTF(("get_glue: save_r('%s', %s) failed",
 					 nsrr->name, p_class(class)));
-				return (-1);
+				goto cleanup;
 			}
 		}
 
-		if (!nsrr->have_v6) {
+		if ((nsrr->flags & RR_NS_HAVE_V6) == 0) {
 			n = do_query(statp, nsrr->name, class, ns_t_aaaa,
 				     resp, &msg);
 			if (n < 0) {
-				DPRINTF(("get_glue: do_query('%s', %s') failed",
-					 nsrr->name, p_class(class)));
-				return (-1);
+				DPRINTF(
+				       ("get_glue: do_query('%s', %s') failed",
+					nsrr->name, p_class(class)));
+				goto cleanup;
 			}
 			if (n > 0) {
 				DPRINTF((
@@ -465,7 +494,7 @@ get_glue(res_state statp, ns_class class, int opts, rrset_ns *nsrrsp) {
 				   opts, nsrr) < 0) {
 				DPRINTF(("get_glue: save_r('%s', %s) failed",
 					 nsrr->name, p_class(class)));
-				return (-1);
+				goto cleanup;
 			}
 		}
 
@@ -476,7 +505,12 @@ get_glue(res_state statp, ns_class class, int opts, rrset_ns *nsrrsp) {
 			free_nsrr(nsrrsp, nsrr);
 		}
 	}
+	free(resp);
 	return (0);
+
+ cleanup:
+	free(resp);
+	return (-1);
 }
 
 static int
@@ -514,7 +548,8 @@ save_ns(res_state statp, ns_msg *msg, ns_sect sect,
 			if (ns_name_uncompress(ns_msg_base(*msg),
 					       ns_msg_end(*msg), rdata,
 					       tname, sizeof tname) < 0) {
-				DPRINTF(("save_ns: ns_name_uncompress failed"));
+				DPRINTF(("save_ns: ns_name_uncompress failed")
+					);
 				free(nsrr);
 				return (-1);
 			}
@@ -526,8 +561,7 @@ save_ns(res_state statp, ns_msg *msg, ns_sect sect,
 			}
 			INIT_LINK(nsrr, link);
 			INIT_LIST(nsrr->addrs);
-			nsrr->have_v4 = 0;
-			nsrr->have_v6 = 0;
+			nsrr->flags = 0;
 			APPEND(*nsrrsp, nsrr, link);
 		}
 		if (save_a(statp, msg, ns_s_ar,
@@ -556,7 +590,8 @@ save_a(res_state statp, ns_msg *msg, ns_sect sect,
 				 p_section(sect, ns_o_query), i));
 			return (-1);
 		}
-		if ((ns_rr_type(rr) != ns_t_a && ns_rr_type(rr) != ns_t_aaaa) ||
+		if ((ns_rr_type(rr) != ns_t_a &&
+		     ns_rr_type(rr) != ns_t_aaaa) ||
 		    ns_rr_class(rr) != class ||
 		    ns_samename(ns_rr_name(rr), owner) != 1 ||
 		    ns_rr_rdlen(rr) != NS_INADDRSZ)
@@ -581,7 +616,7 @@ save_a(res_state statp, ns_msg *msg, ns_sect sect,
 			memcpy(&arr->addr.sin.sin_addr, ns_rr_rdata(rr),
 			       NS_INADDRSZ);
 			arr->addr.sin.sin_port = htons(NAMESERVER_PORT);
-			nsrr->have_v4 = 1;
+			nsrr->flags |= RR_NS_HAVE_V4;
 			break;
 		case ns_t_aaaa:
 			arr->addr.sin6.sin6_family = AF_INET6;
@@ -590,7 +625,7 @@ save_a(res_state statp, ns_msg *msg, ns_sect sect,
 #endif
 			memcpy(&arr->addr.sin6.sin6_addr, ns_rr_rdata(rr), 16);
 			arr->addr.sin.sin_port = htons(NAMESERVER_PORT);
-			nsrr->have_v6 = 1;
+			nsrr->flags |= RR_NS_HAVE_V6;
 			break;
 		default:
 			abort();
@@ -646,7 +681,7 @@ do_query(res_state statp, const char *dname, ns_class class, ns_type qtype,
 		DPRINTF(("do_query: res_nmkquery failed"));
 		return (-1);
 	}
-	n = res_nsend(statp, req, n, resp, NS_PACKETSZ);
+	n = res_nsend(statp, req, n, resp, NS_MAXMSG);
 	if (n < 0) {
 		DPRINTF(("do_query: res_nsend failed"));
 		return (-1);

@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 8.29 2002/05/31 06:05:31 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 8.32 2003/04/03 06:31:10 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -161,6 +161,7 @@ __res_vinit(res_state statp, int preinit) {
 	char *net;
 #endif
 	int dots;
+	union res_sockaddr_union u[2];
 
 	if (!preinit) {
 		statp->retrans = RES_TIMEOUT;
@@ -172,17 +173,32 @@ __res_vinit(res_state statp, int preinit) {
 	if ((statp->options & RES_INIT) != 0)
 		res_ndestroy(statp);
 
+	memset(u, 0, sizeof(u));
 #ifdef USELOOPBACK
-	statp->nsaddr.sin_addr = inet_makeaddr(IN_LOOPBACKNET, 1);
+	u[nserv].sin.sin_addr = inet_makeaddr(IN_LOOPBACKNET, 1);
 #else
-	statp->nsaddr.sin_addr.s_addr = INADDR_ANY;
+	u[nserv].sin.sin_addr.s_addr = INADDR_ANY;
 #endif
-	statp->nsaddr.sin_family = AF_INET;
-	statp->nsaddr.sin_port = htons(NAMESERVER_PORT);
+	u[nserv].sin.sin_family = AF_INET;
+	u[nserv].sin.sin_port = htons(NAMESERVER_PORT);
 #ifdef HAVE_SA_LEN
-	statp->nsaddr.sin_len = sizeof(struct sockaddr_in);
+	u[nserv].sin.sin_len = sizeof(struct sockaddr_in);
 #endif
-	statp->nscount = 1;
+	nserv++;
+#ifdef HAS_INET6_STRUCTS
+#ifdef USELOOPBACK
+	u[nserv].sin6.sin6_addr = in6addr_loopback;
+#else
+	u[nserv].sin6.sin6_addr = in6addr_any;
+#endif
+	u[nserv].sin6.sin6_family = AF_INET6;
+	u[nserv].sin6.sin6_port = htons(NAMESERVER_PORT);
+#ifdef HAVE_SA_LEN
+	u[nserv].sin6.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+	nserv++;
+#endif
+	statp->nscount = 0;
 	statp->ndots = 1;
 	statp->pfcode = 0;
 	statp->_vcsock = -1;
@@ -196,11 +212,11 @@ __res_vinit(res_state statp, int preinit) {
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
-		strcpy(statp->_u._ext.ext->bsuffix, "ip6.arpa");
 	}
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
+	res_setservers(statp, u, nserv);
 
 	/* Allow user to override the local domain definition */
 	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
@@ -242,6 +258,7 @@ __res_vinit(res_state statp, int preinit) {
 	(line[sizeof(name) - 1] == ' ' || \
 	 line[sizeof(name) - 1] == '\t'))
 
+	nserv = 0;
 	if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
 	    /* read the config file */
 	    while (fgets(buf, sizeof(buf), fp) != NULL) {
@@ -507,9 +524,6 @@ res_setoptions(res_state statp, const char *options, const char *source)
 			statp->options |= RES_USE_EDNS0;
 		}
 #endif
-		else if (!strncmp(cp, "a6", sizeof("a6") - 1)) {
-			statp->options |= RES_USE_A6;
-		}
 		else if (!strncmp(cp, "dname", sizeof("dname") - 1)) {
 			statp->options |= RES_USE_DNAME;
 		}
@@ -528,14 +542,6 @@ res_setoptions(res_state statp, const char *options, const char *source)
 			i = MIN(strcspn(cp, " \t"), sizeof(ext->nsuffix2) - 1);
 			strncpy(ext->nsuffix2, cp, i);
 			ext->nsuffix2[i] = '\0';
-		}
-		else if (!strncmp(cp, "bitstring:", sizeof("bitstring:") - 1)) {
-			if (ext == NULL)
-				goto skip;
-			cp += sizeof("bitstring:") - 1;
-			i = MIN(strcspn(cp, " \t"), sizeof(ext->bsuffix) - 1);
-			strncpy(ext->bsuffix, cp, i);
-			ext->bsuffix[i] = '\0';
 		}
 		else if (!strncmp(cp, "v6revmode:", sizeof("v6revmode:") - 1)) {
 			cp += sizeof("v6revmode:") - 1;
@@ -626,13 +632,6 @@ res_get_nibblesuffix2(res_state statp) {
 	if (statp->_u._ext.ext)
 		return (statp->_u._ext.ext->nsuffix2);
 	return ("ip6.int");
-}
-
-const char *
-res_get_bitstringsuffix(res_state statp) {
-	if (statp->_u._ext.ext)
-		return (statp->_u._ext.ext->bsuffix);
-	return ("ip6.arpa");
 }
 
 void

@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irpmarshall.h,v 8.2 2001/05/29 05:47:10 marka Exp $
+ * $Id: irpmarshall.h,v 8.2.10.1 2003/06/02 06:04:03 marka Exp $
  */
 
 #ifndef _IRPMARSHALL_H_INCLUDED
@@ -45,24 +45,23 @@
 		       (x == AF_INET6 ? "AF_INET6" : "UNKNOWN"))
 
 /* See comment below on usage */
-int irp_marshall_pw(const struct passwd *pw, char **buffer, size_t *len);
-int irp_unmarshall_pw(struct passwd *pw, char *buffer);
-int irp_marshall_gr(const struct group *gr, char **buffer, size_t *len);
-int irp_unmarshall_gr(struct group *gr, char *buffer);
-int irp_marshall_sv(const struct servent *sv, char **buffer, size_t *len);
-int irp_unmarshall_sv(struct servent *sv, char *buffer);
-int irp_marshall_pr(struct protoent *pr, char **buffer, size_t *len);
-int irp_unmarshall_pr(struct protoent *pr, char *buffer);
-int irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len);
-int irp_unmarshall_ho(struct hostent *ho, char *buffer);
-int irp_marshall_ng(const char *host, const char *user, const char *domain,
-		    char **buffer, size_t *len);
-int irp_unmarshall_ng(const char **host, const char **user,
-		      const char **domain, char *buffer);
-int irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len);
-int irp_unmarshall_nw(struct nwent *ne, char *buffer);
-int irp_marshall_ne(struct netent *ne, char **buffer, size_t *len);
-int irp_unmarshall_ne(struct netent *ne, char *buffer);
+int irp_marshall_pw(const struct passwd *, char **, size_t *);
+int irp_unmarshall_pw(struct passwd *, char *);
+int irp_marshall_gr(const struct group *, char **, size_t *);
+int irp_unmarshall_gr(struct group *, char *);
+int irp_marshall_sv(const struct servent *, char **, size_t *);
+int irp_unmarshall_sv(struct servent *, char *);
+int irp_marshall_pr(struct protoent *, char **, size_t *);
+int irp_unmarshall_pr(struct protoent *, char *);
+int irp_marshall_ho(struct hostent *, char **, size_t *);
+int irp_unmarshall_ho(struct hostent *, char *);
+int irp_marshall_ng(const char *, const char *, const char *,
+		    char **, size_t *);
+int irp_unmarshall_ng(const char **, const char **, const char **, char *);
+int irp_marshall_nw(struct nwent *, char **, size_t *);
+int irp_unmarshall_nw(struct nwent *, char *);
+int irp_marshall_ne(struct netent *, char **, size_t *);
+int irp_unmarshall_ne(struct netent *, char *);
 
 /*
  * Functions to marshall and unmarshall various system data structures. We

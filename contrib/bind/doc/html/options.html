@@ -70,6 +70,7 @@ options {
   [ <A HREF="#sortlist">sortlist</A> { <VAR>address_match_list</VAR> }; ]
   [ rrset-order { <VAR>order_spec</VAR> ; [ <VAR>order_spec</VAR> ; ... ] }; ]
   [ preferred-glue ( A | AAAA ); ]
+  [ edns-udp-size <VAR>number</VAR>; ]
 };
 </PRE>
 <HR>
@@ -819,6 +820,16 @@ the answer to a priming query.  This can be achieved by setting
 <CODE>preferred-glue A;</CODE> which will add A records before other types
 in the additional section.
 
+<H4>EDNS</H4>
+
+Some firewalls fail to pass EDNS/UDP messages that are larger than
+certain size, 512 or the UDP reassembly buffer.  To allow EDNS to
+work across such firewalls it is necessary to advertise a EDNS
+buffer size that is small enough to not trigger failures.
+<CODE>edns-udp-size</CODE> can be use to adjust the advertised size.
+Values less than 512 will be increased to 512 and values greater than
+4096 will be truncated to 4096.
+
 <H4>Tuning</H4>
 
 <DL>
@@ -847,7 +858,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.49 2002/09/09 00:19:17 marka Exp $
+Last Updated: $Id: options.html,v 1.49.6.1 2003/06/02 09:56:33 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>

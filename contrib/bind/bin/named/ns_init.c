@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_init.c	4.38 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: ns_init.c,v 8.76 2001/12/19 01:41:51 marka Exp $";
+static const char rcsid[] = "$Id: ns_init.c,v 8.77 2002/08/20 04:27:23 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -107,6 +107,7 @@ static const char rcsid[] = "$Id: ns_init.c,v 8.76 2001/12/19 01:41:51 marka Exp
 #ifdef DEBUG
 static void		content_zone(int, int);
 #endif
+static void		purgeandload(struct zoneinfo *zp);
 
 /*
  * Set new refresh time for zone.  Use a random number in the last half of
@@ -237,7 +238,7 @@ zoneinit(struct zoneinfo *zp) {
 	result = stat(zp->z_source, &sb);
 	if (result != -1) {
 		ns_stopxfrs(zp);
-		purge_zone(zp->z_origin, hashtab, zp->z_class);
+		purge_zone(zp, hashtab);
 	}
 	if (result == -1 ||
 	    db_load(zp->z_source, zp->z_origin, zp, NULL, ISNOTIXFR))
@@ -265,8 +266,11 @@ zoneinit(struct zoneinfo *zp) {
  * delegation to that child when it was first loaded.
  */
 void
-do_reload(const char *domain, int type, int class, int mark) {
+do_reload(struct zoneinfo *ozp, int mark) {
 	struct zoneinfo *zp;
+	const char *domain = ozp->z_origin;
+	int type = ozp->z_type;
+	int class = ozp->z_class;
 
 	ns_debug(ns_log_config, 1, "do_reload: %s %d %d %d", 
 		 *domain ? domain : ".", type, class, mark);
@@ -295,9 +299,9 @@ do_reload(const char *domain, int type, int class, int mark) {
 	 */
 	ns_stopxfrs(zp);
 	if (type == z_hint || (type == z_stub && *domain == 0))
-		purge_zone(domain, fcachetab, class);
+		purge_zone(ozp, fcachetab);
 	else
-		purge_zone(domain, hashtab, class);
+		purge_zone(ozp, hashtab);
 
 	/*
 	 * Reload
@@ -326,7 +330,7 @@ do_reload(const char *domain, int type, int class, int mark) {
 			domain = "";	/* root zone */
 
 		zp = find_zone(domain, class);
-		if (zp != NULL) {
+		if (zp != NULL && zp->z_type != Z_HINT) {
 			ns_debug(ns_log_config, 1, "do_reload: matched %s",
 				 *domain ? domain : ".");
 			if (mark)
@@ -338,7 +342,7 @@ do_reload(const char *domain, int type, int class, int mark) {
 	}
 }
 
-void
+static void
 purgeandload(struct zoneinfo *zp) {
 
 #ifdef BIND_UPDATE
@@ -355,9 +359,9 @@ purgeandload(struct zoneinfo *zp) {
 	ns_stopxfrs(zp);
 
 	if (zp->z_type == Z_HINT)
-		purge_zone(zp->z_origin, fcachetab, zp->z_class);
+		purge_zone(zp, fcachetab);
 	else
-		purge_zone(zp->z_origin, hashtab, zp->z_class);
+		purge_zone(zp, hashtab);
 
 	zp->z_flags &= ~Z_AUTH;
 
@@ -563,10 +567,9 @@ ns_shutdown() {
 		if (zp->z_type) {
 			if (zp->z_type != z_hint && zp->z_type != z_cache) {
 				ns_stopxfrs(zp);
-				purge_zone(zp->z_origin, hashtab, zp->z_class);
+				purge_zone(zp, hashtab);
 			} else if (zp->z_type == z_hint)
-				purge_zone(zp->z_origin, fcachetab,
-					   zp->z_class);
+				purge_zone(zp, fcachetab);
 			free_zone_contents(zp, 1);
 		}
 	}

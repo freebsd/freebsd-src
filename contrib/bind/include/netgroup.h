@@ -1,17 +1,19 @@
 #ifndef netgroup_h
 #define netgroup_h
 
-int getnetgrent(const char **machinep, const char **userp,
-		const char **domainp);
+/*
+ * The standard is crazy.  These values "belong" to getnetgrent() and
+ * shouldn't be altered by the caller.
+ */
+int getnetgrent __P((/* const */ char **, /* const */ char **,
+		     /* const */ char **));
 
-int getnetgrent_r(char **machinep, char **userp, char **domainp,
-		  char *buffer, int buflen);
+int getnetgrent_r __P((char **, char **, char **, char *, int));
 
-void setnetgrent(const char *netgroup);
+void setnetgrent __P((const char *));
 
-void endnetgrent(void);
+void endnetgrent __P((void));
 
-int innetgr(const char *netgroup, const char *machine,
-	    const char *user, const char *domain);
+int innetgr __P((const char *, const char *, const char *, const char *));
 
 #endif
