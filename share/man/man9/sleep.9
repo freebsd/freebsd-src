@@ -100,16 +100,16 @@ includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
 not checked.  Returns 0 if awakened,
-.Dv EWOULDBLOCK
+.Er EWOULDBLOCK
 if the timeout expires.  If
 .Dv PCATCH
 is set and a signal needs to be delivered,
-.Dv ERESTART
+.Er ERESTART
 is returned if the current system call should be restarted if
 possible, and
-.Dv EINTR
+.Er EINTR
 is returned if the system call should be interrupted by the signal
-.Pq return Dv EINTR .
+.Pq return Er EINTR .
 .Pp
 .Nm Msleep
 is a variation on tsleep.  The parameter

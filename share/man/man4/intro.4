@@ -86,7 +86,7 @@ devices, but cannot be accessed since the corresponding device node is
 still missing.  In the first case, any attempt to reference the device
 through the device node will result in an error, returned by the upper
 layers of the kernel, usually
-.Ql ENXIO .
+.Er ENXIO .
 In the second case, the device node needs to be created before the
 driver and its device will be usable.
 .Pp

@@ -116,7 +116,9 @@ NUL, is returned in
 .Sh RETURN VALUES
 The
 .Nm
-functions return 0 on success or EFAULT if a bad address is encountered.
+functions return 0 on success or
+.Er EFAULT
+if a bad address is encountered.
 In addition, the
 .Fn copystr ,
 and
@@ -124,7 +126,9 @@ and
 .\" .Fn copyinstr ,
 .\" and
 .\" .Fn copyoutstr
-functions return ENAMETOOLONG if the string is longer than
+functions return
+.Er ENAMETOOLONG
+if the string is longer than
 .Pa len
 bytes.
 .Sh SEE ALSO

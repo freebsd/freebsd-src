@@ -147,7 +147,8 @@ Set resolution value from selector switch.
 The driver must be in an
 open though untouched state otherwise the request will fail and
 .Xr errno 2
-is set to EBUSY.
+is set to
+.Er EBUSY .
 .It GSC_SWIDTH int
 Set the 
 .Em width
@@ -213,12 +214,14 @@ Since the buffer
 size limit is (currently) 0x3000 bytes the maximum number of lines
 allowed will vary with the width of each line.
 This upper limit is
-checked before it overwrites the current value and pases an ENOMEM in
-the
+checked before it overwrites the current value and pases an
+.Er ENOMEM
+in the
 .Xr errno 2 
 variable.
 However, since the bitmap width can change
-after a buffer length was selected a read request may fail with ENOMEM
+after a buffer length was selected a read request may fail with
+.Er ENOMEM
 if the buffer length turns out too high.
 It is generally wise to
 choose long buffers rather than go save in order to obtain better
@@ -232,7 +235,8 @@ handy scanner is a human/computer interface timeout values are usually
 higher than those of a flat scanner.
 Default is 15 seconds.
 After
-timeout is reached the read operation will fail with EBUSY.
+timeout is reached the read operation will fail with
+.Er EBUSY .
 Note that
 the timeout timer starts anew for each buffer to be read and thus does
 not cause you to scan faster for longer images.
