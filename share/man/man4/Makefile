@@ -164,6 +164,7 @@ MAN=	aac.4 \
 	tun.4 \
 	twe.4 \
 	txp.4 \
+	ucom.4 \
 	udp.4 \
 	ugen.4 \
 	uhci.4 \
@@ -174,9 +175,11 @@ MAN=	aac.4 \
 	umass.4 \
 	ums.4 \
 	unix.4 \
+	uplcom.4 \
 	urio.4 \
 	usb.4 \
 	uscanner.4 \
+	uvscom.4 \
 	vga.4 \
 	vinum.4 \
 	vlan.4 \
