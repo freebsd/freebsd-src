@@ -524,6 +524,7 @@ struct ste_softc {
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;
+	u_int8_t		ste_one_phy;
 };
 
 struct ste_mii_frame {
