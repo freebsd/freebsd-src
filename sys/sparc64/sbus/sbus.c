@@ -419,7 +419,7 @@ sbus_probe(device_t dev)
 	 * DMA pointer will be translated by the first page of the IOTSB.
 	 * To detect bugs we'll allocate and ignore the first entry.
 	 */
-	iommu_init(name, &sc->sc_is, 0, -1, 1);
+	iommu_init(name, &sc->sc_is, 2, -1, 1);
 
 	/* Enable the over-temperature and power-fail intrrupts. */
 	rid = 0;
