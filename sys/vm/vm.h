@@ -70,15 +70,4 @@ struct vm_page;
 typedef struct vm_page *vm_page_t;
 #endif
 
-/*
- *	MACH VM locking type mappings to kernel types
- */
-#include <sys/lock.h>
-typedef struct simplelock	simple_lock_data_t;
-typedef struct simplelock	*simple_lock_t;
-#if 0
-typedef struct lock		lock_data_t;
-typedef struct lock		*lock_t;
-#endif
-
 #endif				/* VM_H */
