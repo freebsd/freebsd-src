@@ -51,10 +51,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "vt.h"
 #include "opt_ddb.h"
-
-#if NVT > 0
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
@@ -2529,8 +2526,5 @@ scrollback_restore_screen(void)
 	if (scrollback_savedscreen)
 		bcopy(scrollback_savedscreen, vsp->Crtat, scrnsv_size);
 }
- 
-
-#endif	/* NVT > 0 */
 
 /* ------------------------------- EOF -------------------------------------*/
