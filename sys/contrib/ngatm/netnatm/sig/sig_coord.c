@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/sig/sig_coord.c,v 1.11 2004/07/08 08:22:20 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_coord.c,v 1.12 2004/08/05 07:11:01 brandt Exp $
  *
  * Coordinator
  */
@@ -40,7 +40,7 @@
 #include <netnatm/sig/unipriv.h>
 #include <netnatm/sig/unimkmsg.h>
 
-#define STR(S) [S] #S
+#define STR(S) [S] = #S
 static const char *const cunames[] = {
 	STR(CU_STAT0),
 	STR(CU_STAT1),
@@ -48,7 +48,7 @@ static const char *const cunames[] = {
 	STR(CU_STAT3),
 };
 
-#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME]	"SIG"#NAME,
+#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME] =	"SIG"#NAME,
 static const char *const coord_sigs[] = {
 	DEF_COORD_SIGS
 };

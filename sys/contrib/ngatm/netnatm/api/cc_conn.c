@@ -31,7 +31,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: libunimsg/netnatm/api/cc_conn.c,v 1.1 2004/07/08 08:21:49 brandt Exp $
+ * $Begemot: libunimsg/netnatm/api/cc_conn.c,v 1.2 2004/07/16 18:45:11 brandt Exp $
  *
  * ATM API as defined per af-saa-0108
  *
@@ -139,7 +139,7 @@ cc_send_uni(struct ccconn *conn, u_int op, struct uni_msg *msg)
 	if (r == NULL) {
 		if (msg != NULL)
 			uni_msg_destroy(msg);
-		cc_conn_log(conn, "no memory for cookie");
+		cc_conn_log(conn, "no memory for cookie op=%u", op);
 		return;
 	}
 

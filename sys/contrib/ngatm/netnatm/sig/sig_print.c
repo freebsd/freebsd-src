@@ -27,7 +27,7 @@
  * Author: Hartmut Brandt <harti@freebsd.org>
  *         Kendy Kutzner <kutzner@fokus.fraunhofer.de>
  *
- * $Begemot: libunimsg/netnatm/sig/sig_print.c,v 1.5 2004/07/08 08:22:22 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_print.c,v 1.6 2004/08/05 07:11:02 brandt Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@ const char *
 uni_strerr(u_int err)
 {
 	static const char *const errstr[] = {
-#define DEF(NAME, VAL, STR) [UNIAPI_##NAME] STR,
+#define DEF(NAME, VAL, STR) [UNIAPI_##NAME] = STR,
 UNIAPI_DEF_ERRORS(DEF)
 #undef DEF
 	};
@@ -69,7 +69,7 @@ UNIAPI_DEF_ERRORS(DEF)
 	return (errstr[err]);
 }
 
-#define D(M) [M] #M
+#define D(M) [M] = #M
 static const char *const msgs[] = {
 	D(UNIAPI_ERROR),
 	D(UNIAPI_CALL_CREATED),

@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/sig/sig_call.c,v 1.64 2004/07/08 08:22:19 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_call.c,v 1.65 2004/08/05 07:11:00 brandt Exp $
  *
  * Call instance handling
  *
@@ -51,7 +51,7 @@ static enum call_state state_compat(struct call *, enum uni_callstate);
 static void respond_drop_party_ack(struct call *, struct uni_ie_epref *, u_int);
 
 
-#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME]	"SIG"#NAME,
+#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME] =	"SIG"#NAME,
 static const char *const call_sigs[] = {
 	DEF_CALL_SIGS
 };
@@ -65,27 +65,27 @@ TIMER_FUNC_CALL(t313, t313_func)
 TIMER_FUNC_CALL(t322, t322_func)
 
 const struct callstates callstates[] = {
-	[CALLST_NULL]	{ "NU0",	UNI_CALLSTATE_U0 },
-	[CALLST_U1]	{ "U1",		UNI_CALLSTATE_U1 },
-	[CALLST_U3]	{ "U3",		UNI_CALLSTATE_U3 },
-	[CALLST_U4]	{ "U4",		UNI_CALLSTATE_U4 },
-	[CALLST_U6]	{ "U6",		UNI_CALLSTATE_U6 },
-	[CALLST_U7]	{ "U7",		UNI_CALLSTATE_U7 },
-	[CALLST_U8]	{ "U8",		UNI_CALLSTATE_U8 },
-	[CALLST_U9]	{ "U9",		UNI_CALLSTATE_U9 },
-	[CALLST_U10]	{ "U10",	UNI_CALLSTATE_U10 },
-	[CALLST_U11]	{ "U11",	UNI_CALLSTATE_U11 },
-	[CALLST_U12]	{ "U12",	UNI_CALLSTATE_U12 },
-	[CALLST_N1]	{ "N1",		UNI_CALLSTATE_N1 },
-	[CALLST_N3]	{ "N3",		UNI_CALLSTATE_N3 },
-	[CALLST_N4]	{ "N4",		UNI_CALLSTATE_N4 },
-	[CALLST_N6]	{ "N6",		UNI_CALLSTATE_N6 },
-	[CALLST_N7]	{ "N7",		UNI_CALLSTATE_N7 },
-	[CALLST_N8]	{ "N8",		UNI_CALLSTATE_N8 },
-	[CALLST_N9]	{ "N9",		UNI_CALLSTATE_N9 },
-	[CALLST_N10]	{ "N10",	UNI_CALLSTATE_N10 },
-	[CALLST_N11]	{ "N11",	UNI_CALLSTATE_N11 },
-	[CALLST_N12]	{ "N12",	UNI_CALLSTATE_N12 },
+	[CALLST_NULL] =	{ "NU0",	UNI_CALLSTATE_U0 },
+	[CALLST_U1] =	{ "U1",		UNI_CALLSTATE_U1 },
+	[CALLST_U3] =	{ "U3",		UNI_CALLSTATE_U3 },
+	[CALLST_U4] =	{ "U4",		UNI_CALLSTATE_U4 },
+	[CALLST_U6] =	{ "U6",		UNI_CALLSTATE_U6 },
+	[CALLST_U7] =	{ "U7",		UNI_CALLSTATE_U7 },
+	[CALLST_U8] =	{ "U8",		UNI_CALLSTATE_U8 },
+	[CALLST_U9] =	{ "U9",		UNI_CALLSTATE_U9 },
+	[CALLST_U10] =	{ "U10",	UNI_CALLSTATE_U10 },
+	[CALLST_U11] =	{ "U11",	UNI_CALLSTATE_U11 },
+	[CALLST_U12] =	{ "U12",	UNI_CALLSTATE_U12 },
+	[CALLST_N1] =	{ "N1",		UNI_CALLSTATE_N1 },
+	[CALLST_N3] =	{ "N3",		UNI_CALLSTATE_N3 },
+	[CALLST_N4] =	{ "N4",		UNI_CALLSTATE_N4 },
+	[CALLST_N6] =	{ "N6",		UNI_CALLSTATE_N6 },
+	[CALLST_N7] =	{ "N7",		UNI_CALLSTATE_N7 },
+	[CALLST_N8] =	{ "N8",		UNI_CALLSTATE_N8 },
+	[CALLST_N9] =	{ "N9",		UNI_CALLSTATE_N9 },
+	[CALLST_N10] =	{ "N10",	UNI_CALLSTATE_N10 },
+	[CALLST_N11] =	{ "N11",	UNI_CALLSTATE_N11 },
+	[CALLST_N12] =	{ "N12",	UNI_CALLSTATE_N12 },
 };
 
 static void unx_send_add_party_rej(struct call *c, struct uni_all *u);
