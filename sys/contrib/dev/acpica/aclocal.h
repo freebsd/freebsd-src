@@ -1050,7 +1050,8 @@ typedef struct acpi_debug_print_info
     UINT32                      Component; \
     UINT32                      Line; \
     char                        Module[ACPI_MAX_MODULE_NAME]; \
-    UINT8                       AllocType;
+    UINT8                       AllocType; \
+    UINT8                       Padding[3];
 
 typedef struct acpi_debug_mem_header
 {
