@@ -74,7 +74,7 @@
  * end of kinfo_proc.  It may need to be overridden on a platform-specific
  * basis as new fields are added.
  */
-#define	KI_NSPARE	17
+#define	KI_NSPARE	16
 
 #ifdef __alpha__
 #define	KINFO_PROC_SIZE	912
@@ -84,7 +84,7 @@
 #endif
 #ifdef __arm__
 #undef KI_NSPARE			/* Fewer spare longs on this arch */
-#define	KI_NSPARE	16
+#define	KI_NSPARE	15
 #define	KINFO_PROC_SIZE	648
 #endif
 #ifdef __ia64__
@@ -92,7 +92,7 @@
 #endif
 #ifdef __i386__
 #undef KI_NSPARE			/* Fewer spare longs on this arch */
-#define	KI_NSPARE	16
+#define	KI_NSPARE	15
 #define	KINFO_PROC_SIZE	648
 #endif
 #ifdef __powerpc__
@@ -186,6 +186,7 @@ struct kinfo_proc {
 	struct	timeval ki_childutime;	/* user time used by children */
 	lwpid_t	ki_tid;			/* XXXKSE thread id */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
+	void	*ki_udata;		/* User convenience pointer */
 	long	ki_spare[KI_NSPARE];	/* spare room for later growth */
 };
 void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
