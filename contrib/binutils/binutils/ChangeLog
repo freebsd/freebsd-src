@@ -1,3 +1,29 @@
+2002-11-07  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in (LINGUAS): Add 'da'.
+	* configure: Regenerate.
+	* po/da.po: New Danish translation.
+
+2002-10-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	* po/binutils.pot: Regenerated.
+
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-10-21  Alan Modra  <amodra@bigpond.net.au>
+	* bucomm.c (list_supported_targets): Use bfd_target_list.
+
+	2002-10-09  Daniel Jacobowitz  <drow@mvista.com>
+	* readelf.c (display_debug_info): Ignore empty .rela.debug_info
+	sections.  Allow relocations against the absolute symbol.  Don't
+	use the value in compunit.cu_abbrev_offset if we found a RELA
+	relocation.
+
+2002-10-21  Svein E. Seldal  <Svein.Seldal@solidas.com>
+
+	* objdump.c (dump_data): Correct addr_offset for opb != 1.
+
 2002-09-23  Daniel Jacobowitz  <drow@mvista.com>
 
 	Merge from mainline:
@@ -33,7 +59,7 @@
 	* po/fr.po: Updated French translation.
 
 2002-07-24  Nick Clifton  <nickc@redhat.com>
-	
+
 	* po/es.po: Updated Spanish translation.
 
 2002-07-23  Daniel Jacobowitz  <drow@mvista.com>
@@ -151,7 +177,7 @@
 2002-06-18  Elias Athanasopoulos  <eathan@otenet.gr>
 
 	* nm.c (print_size_symbols): Remove assignment, which makes
-	the symbol's size equal to its value when --size-sort is 
+	the symbol's size equal to its value when --size-sort is
 	used.
 
 2002-06-18  Dave Brolley  <brolley@redhat.com>
@@ -211,7 +237,7 @@
 	DW_CFA_def_cfa_sf and DW_CFA_def_cfa_offset_sf.
 
 2002-06-07  Elias Athanasopoulos  <eathan@otenet.gr>
-	
+
 	* nm.c: When computing size of symbols for an ELF target use the
 	internal size field.
 
@@ -428,8 +454,8 @@
 	bfd_find_nearest_line is non-NULL.
 
 2002-04-25  Elena Zannoni <ezannoni@redhat.com>
-    
-        * readelf.c (get_AT_name): Handle DW_AT_GNU_vector.
+
+	* readelf.c (get_AT_name): Handle DW_AT_GNU_vector.
 
 2002-04-24  Christian Groessler <chris@groessler.org>
 
@@ -455,11 +481,11 @@
 
 2002-04-15  Eric Kohl <ekohl@rz-online.de>
 
-	* rcparse.y: Allow two to five parameter in FONT statement of 
+	* rcparse.y: Allow two to five parameter in FONT statement of
 	DIALOGEX resources.
 	* resbin.c (bin_to_res_dialog): Fixed read/write code for dialogex
 	resource data.
-        (res_to_bin_dialog): Likewise.
+	(res_to_bin_dialog): Likewise.
 	* windres.h: Added misssing charset variable to dialog_ex
 	structure.
 
@@ -469,7 +495,7 @@
 
 2002-04-09  Bernd Herd <info@herdsoft.com>
 
-	* rcparse.y: CLASS definitions in DIALOG resources 
+	* rcparse.y: CLASS definitions in DIALOG resources
 	are quoted.
 	Fix typo in BEDIT warning.
 	Don't add default dialog style when explicit style specified.
@@ -582,10 +608,10 @@
 
 2002-02-18  Timothy Daly  <remote_bob@yahoo.com>
 
-	* readelf.c (dump_relocations): Display 2nd and 3rd reloc 
-	types for 64-bit MIPS.  Narrow some fields for 80-char 
+	* readelf.c (dump_relocations): Display 2nd and 3rd reloc
+	types for 64-bit MIPS.  Narrow some fields for 80-char
 	output.
-	(dump_relocations): Change spelling from 'unrecognised' 
+	(dump_relocations): Change spelling from 'unrecognised'
 	to 'unrecognized'.
 	(decode_ARM_machine_flags): Likewise.
 	(parse_args): Likewise.
@@ -712,7 +738,7 @@
 	(main): Accept -H as an alias for --help.
 	* objcopy.c (strip_main): Accept -H as an alias for --help.
 	* objdump.c (main): Accept -v as an alias for --verbose.
-        * readelf.c (usage): Adjust format to match style used in
+	* readelf.c (usage): Adjust format to match style used in
 	other binutils.
 	* size.c (usage): Update text to provide verbose description
 	of the command line options.
@@ -764,9 +790,9 @@
 2002-01-15  Nick Clifton  <nickc@cambridge.redhat.com>
 
 	* objcopy.c (copy_usage): Use "options" instead of "switches".
-        (strip_usage): Use "options" instead of "switches".
+	(strip_usage): Use "options" instead of "switches".
 	* doc/binutils.texi (dlltool):  Refer to "options" instead of
-        "switches".
+	"switches".
 
 2002-01-14  Richard Earnshaw  <rearnsha@arm.com>
 
@@ -1367,9 +1393,9 @@
 
 2001-08-03  John Healy  <jhealy@redhat.com>
 
-        Patch suggested by Frank Eigler <fche@redhat.com>.
-        * objdump.c (disassemble_data): Fill in section member of the
-        disasm_info structure.
+	Patch suggested by Frank Eigler <fche@redhat.com>.
+	* objdump.c (disassemble_data): Fill in section member of the
+	disasm_info structure.
 
 2001-08-03  Tom Walsh  <tom@cyberiansoftware.com>
 
@@ -1387,18 +1413,18 @@
 
 2001-07-31  Nick Clifton  <nickc@cambridge.redhat.com>
 
-        * objcopy.c: Fix formatting.
-        (section_rename): New structure.
-        (OPTION_RENAME_SECTION): New switch.
-        (copy_usage): Document new switch.
-        (add_section_rename): New function: Add a node to the section
-        rename list.
-        (find_section_rename): New function: Find the new name and
-        flags for a section.
-        (setup_section): Call find_section_name to determine the name
-        of the output section.
-        (copy_main): Handle OPTION_RENAME_SECTION.
-        * binutils.texi: Document new switch.
+	* objcopy.c: Fix formatting.
+	(section_rename): New structure.
+	(OPTION_RENAME_SECTION): New switch.
+	(copy_usage): Document new switch.
+	(add_section_rename): New function: Add a node to the section
+	rename list.
+	(find_section_rename): New function: Find the new name and
+	flags for a section.
+	(setup_section): Call find_section_name to determine the name
+	of the output section.
+	(copy_main): Handle OPTION_RENAME_SECTION.
+	* binutils.texi: Document new switch.
 	* NEWS: Mention new switch.
 
 2001-07-30  Nick Clifton  <nickc@cambridge.redhat.com>
@@ -1562,23 +1588,23 @@
 
 2001-06-18  H.J. Lu <hjl@gnu.org> & Nick Clifton <nickc@redhat.com>
 
-        * Makefile.am: Move documentation into doc subdirectory.
-        * Makefile.in: Regenerated.
+	* Makefile.am: Move documentation into doc subdirectory.
+	* Makefile.in: Regenerated.
 	* binutils.texi: Move into doc subdirectory.
-        * addr2line.1: Removed.
-        * ar.1: Likewise.
-        * dlltool.1: Likewise.
-        * nlmconv.1: Likewise.
-        * nm.1: Likewise.
-        * objcopy.1: Likewise.
-        * objdump.1: Likewise.
-        * ranlib.1: Likewise.
-        * readelf.1: Likewise.
-        * size.1: Likewise.
-        * strings.1: Likewise.
-        * strip.1: Likewise.
-        * windres.1: Likewise.
-        * cxxfilt.man: Likewise.
+	* addr2line.1: Removed.
+	* ar.1: Likewise.
+	* dlltool.1: Likewise.
+	* nlmconv.1: Likewise.
+	* nm.1: Likewise.
+	* objcopy.1: Likewise.
+	* objdump.1: Likewise.
+	* ranlib.1: Likewise.
+	* readelf.1: Likewise.
+	* size.1: Likewise.
+	* strings.1: Likewise.
+	* strip.1: Likewise.
+	* windres.1: Likewise.
+	* cxxfilt.man: Likewise.
 	* doc: New Directory.
 	* doc/Makefile.am: New file.
 	* doc/Makefile.in: Generate.
@@ -1646,7 +1672,7 @@
 
 2001-04-27  Johan Rydberg  <jrydberg@opencores.org>
 
-        * NEWS: Announce support for OpenRISC.
+	* NEWS: Announce support for OpenRISC.
 
 2001-04-17  Danny Smith  <dannysmith@users.sourceforge.net>
 

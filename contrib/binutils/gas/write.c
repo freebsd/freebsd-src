@@ -881,7 +881,8 @@ adjust_reloc_syms (abfd, sec, xxx)
 
 	/* Never adjust a reloc against local symbol in a merge section
 	   with non-zero addend.  */
-	if ((symsec->flags & SEC_MERGE) && fixp->fx_offset)
+	if ((symsec->flags & SEC_MERGE) != 0
+	    && (fixp->fx_offset != 0 || fixp->fx_subsy != NULL))
 	  {
 	    symbol_mark_used_in_reloc (fixp->fx_addsy);
 	    goto done;

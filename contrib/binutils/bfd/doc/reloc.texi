@@ -804,6 +804,9 @@ MIPS ELF relocations.
 @deffnx {} BFD_RELOC_386_RELATIVE
 @deffnx {} BFD_RELOC_386_GOTOFF
 @deffnx {} BFD_RELOC_386_GOTPC
+@deffnx {} BFD_RELOC_386_TLS_TPOFF
+@deffnx {} BFD_RELOC_386_TLS_IE
+@deffnx {} BFD_RELOC_386_TLS_GOTIE
 @deffnx {} BFD_RELOC_386_TLS_LE
 @deffnx {} BFD_RELOC_386_TLS_GD
 @deffnx {} BFD_RELOC_386_TLS_LDM

@@ -22,36 +22,37 @@ case "$target" in
     ;;
 esac
 
-if [ "x${host}" = "x${target}" ]; then
+# Treat a host that matches the target with the possible exception of "64"
+# and "v7", "v8", "v9" in the name as if it were native.
+if test `echo "$host" | sed -e 's/64//;s/v[789]//'` \
+ = `echo "$target" | sed -e 's/64//;s/v[789]//'`; then
   case " $EMULATION_LIBPATH " in
     *" ${EMULATION_NAME} "*)
-      # Native, and default or emulation requesting LIB_PATH.
+      LIB_PATH=${libdir}
+      for lib in ${NATIVE_LIB_DIRS}; do
+	case :${LIB_PATH}: in
+	  *:${lib}:*) ;;
+	  *) LIB_PATH=${LIB_PATH}:${lib} ;;
+	esac
+      done
 
       # Linux and Solaris modify the default library search path
       # to first include a 64-bit specific directory.  It's put
       # in slightly different places on the two systems.
       case "$target" in
-        sparc*-linux*)
-          suffix=64 ;;
-        sparc*-solaris*)
-          suffix=/sparcv9 ;;
+	sparc*-linux*)
+	  suffix=64 ;;
+	sparc*-solaris*)
+	  suffix=/sparcv9 ;;
       esac
 
-      if [ -n "${suffix}" ]; then
-
-	LIB_PATH=/lib${suffix}:/lib
-	LIB_PATH=${LIB_PATH}:/usr/lib${suffix}:/usr/lib
-	if [ -n "${NATIVE_LIB_DIRS}" ]; then
-	  LIB_PATH=${LIB_PATH}:`echo ${NATIVE_LIB_DIRS} | sed s_:_${suffix}:_g`${suffix}:${NATIVE_LIB_DIRS}
-	fi
-	if [ "${libdir}" != /usr/lib ]; then
-	  LIB_PATH=${LIB_PATH}:${libdir}${suffix}:${libdir}
-	fi
-	if [ "${libdir}" != /usr/local/lib ]; then
-	  LIB_PATH=${LIB_PATH}:/usr/local/lib${suffix}:/usr/local/lib
-	fi
-
-      fi
-    ;;
+      # Look for 64 bit target libraries in /lib64, /usr/lib64 etc., first
+      # on Linux and /lib/sparcv9, /usr/lib/sparcv9 etc. on Solaris.
+      if [ -n "$suffix" ]; then
+	case "$EMULATION_NAME" in
+	  *64*)
+	    LIB_PATH=`echo ${LIB_PATH}: | sed -e s,:,$suffix:,g`$LIB_PATH ;;
+	esac
+      fi ;;
   esac
 fi

@@ -1986,6 +1986,7 @@ xcoff_link_add_symbols (abfd, info)
 		      && h->descriptor == NULL)
 		    {
 		      struct xcoff_link_hash_entry *hds;
+		      struct bfd_link_hash_entry *bh;
 
 		      hds = xcoff_link_hash_lookup (xcoff_hash_table (info),
 						    h->root.root.string + 1,
@@ -1994,13 +1995,14 @@ xcoff_link_add_symbols (abfd, info)
 			goto error_return;
 		      if (hds->root.type == bfd_link_hash_new)
 			{
+			  bh = &hds->root;
 			  if (! (_bfd_generic_link_add_one_symbol
 				 (info, abfd, hds->root.root.string,
 				  (flagword) 0, bfd_und_section_ptr,
 				  (bfd_vma) 0, (const char *) NULL, false,
-				  true,
-				  (struct bfd_link_hash_entry **) &hds)))
+				  true, &bh)))
 			    goto error_return;
+			  hds = (struct xcoff_link_hash_entry *) bh;
 			}
 		      hds->flags |= XCOFF_DESCRIPTOR;
 		      BFD_ASSERT ((hds->flags & XCOFF_CALLED) == 0

@@ -626,11 +626,11 @@ memory_spec_list:
 	;
 
 
-memory_spec: 		NAME
-			{ region = lang_memory_region_lookup($1); }
+memory_spec: 	NAME
+		{ region = lang_memory_region_lookup($1); }
 		attributes_opt ':'
 		origin_spec opt_comma length_spec
-
+		{}
 	;
 
 origin_spec:
@@ -845,6 +845,7 @@ section:	NAME 		{ ldlex_expression(); }
 		  lang_leave_output_section_statement ($14, $11, $13, $12);
 		}
 		opt_comma
+		{}
 	|	OVERLAY
 			{ ldlex_expression (); }
 		opt_exp_without_type opt_nocrossrefs opt_at

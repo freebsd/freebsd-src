@@ -15,30 +15,27 @@ NO_SMALL_DATA=yes
 if [ "x${host}" = "x${target}" ]; then
   case " $EMULATION_LIBPATH " in
     *" ${EMULATION_NAME} "*)
-      # Native, and default or emulation requesting LIB_PATH.
+      LIB_PATH=${libdir}
+      for lib in ${NATIVE_LIB_DIRS}; do
+	case :${LIB_PATH}: in
+	  *:${lib}:*) ;;
+	  *) LIB_PATH=${LIB_PATH}:${lib} ;;
+	esac
+      done
 
       # Linux modify the default library search path to first include
       # a 64-bit specific directory.
       case "$target" in
-        x86_64*-linux*)
-          suffix=64 ;;
+	x86_64*-linux*)
+	  suffix=64 ;;
       esac
 
-      if [ -n "${suffix}" ]; then
-
-	LIB_PATH=/lib${suffix}:/lib
-	LIB_PATH=${LIB_PATH}:/usr/lib${suffix}:/usr/lib
-	if [ -n "${NATIVE_LIB_DIRS}" ]; then
-	  LIB_PATH=${LIB_PATH}:`echo ${NATIVE_LIB_DIRS} | sed s_:_${suffix}:_g`${suffix}:${NATIVE_LIB_DIRS}
-	fi
-	if [ "${libdir}" != /usr/lib ]; then
-	  LIB_PATH=${LIB_PATH}:${libdir}${suffix}:${libdir}
-	fi
-	if [ "${libdir}" != /usr/local/lib ]; then
-	  LIB_PATH=${LIB_PATH}:/usr/local/lib${suffix}:/usr/local/lib
-	fi
-
-      fi
-    ;;
+      # Look for 64 bit target libraries in /lib64, /usr/lib64 etc., first.
+      if [ -n "$suffix" ]; then
+	case "$EMULATION_NAME" in
+	  *64*)
+	    LIB_PATH=`echo ${LIB_PATH}: | sed -e s,:,$suffix:,g`$LIB_PATH ;;
+	esac
+      fi ;;
   esac
 fi

@@ -414,7 +414,7 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 	    /* 64-bit .eh_frame is not supported.  */
 	    goto free_no_table;
 	  buf += 4;
-	  if ((buf - ehbuf) + hdr.length > sec->_raw_size)
+	  if ((bfd_size_type) (buf - ehbuf) + hdr.length > sec->_raw_size)
 	    /* CIE/FDE not contained fully in this .eh_frame input section.  */
 	    goto free_no_table;
 
