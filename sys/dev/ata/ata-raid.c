@@ -107,7 +107,7 @@ ar_probe(struct ad_softc *adp) {
 }
 
 void
-ar_attach()
+atar_attach()
 {
     struct ar_softc *raid;
     dev_t dev;

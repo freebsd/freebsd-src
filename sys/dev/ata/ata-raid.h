@@ -206,5 +206,5 @@ struct promise_raid_conf {
 } __attribute__((packed));
 
 int ar_probe(struct ad_softc *);
-void ar_attach(void);
+void atar_attach(void);
 
