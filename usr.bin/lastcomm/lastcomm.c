@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *  $Id: $
  */
 
 #ifndef lint
@@ -63,6 +65,16 @@ int	 requested __P((char *[], struct acct *));
 void	 usage __P((void));
 char	*user_from_uid();
 
+#define AC_UTIME 1 /* user */
+#define AC_STIME 2 /* system */
+#define AC_ETIME 4 /* elapsed */
+#define AC_CTIME 8 /* user + system time, default */
+
+#define AC_BTIME 16 /* starting time */
+#define AC_FTIME 32 /* exit time (starting time + elapsed time )*/
+
+#define AC_HZ ((double)AHZ)
+
 int
 main(argc, argv)
 	int argc;
@@ -76,17 +88,46 @@ main(argc, argv)
 	time_t t;
 	int ch;
 	char *acctfile;
+	int time = 0;
 
 	acctfile = _PATH_ACCT;
-	while ((ch = getopt(argc, argv, "f:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:usecSE")) != EOF)
 		switch((char)ch) {
 		case 'f':
 			acctfile = optarg;
 			break;
+
+		case 'u': 
+			time |= AC_UTIME; /* user time */
+			break;
+		case 's':
+			time |= AC_STIME; /* system time */
+			break;
+		case 'e':
+			time |= AC_ETIME; /* elapsed time */
+			break;
+        	case 'c':
+                        time |= AC_CTIME; /* user + system time */
+			break;
+
+        	case 'S':
+                        time |= AC_BTIME; /* starting time */
+			break;
+        	case 'E':
+			/* exit time (starting time + elapsed time )*/
+                        time |= AC_FTIME; 
+			break;
+
 		case '?':
 		default:
 			usage();
 		}
+
+	/* default user + system time and starting time */
+	if (!time) {
+	    time = AC_CTIME | AC_BTIME;
+	}
+
 	argc -= optind;
 	argv += optind;
 
@@ -134,15 +175,50 @@ main(argc, argv)
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		t = expand(ab.ac_utime) + expand(ab.ac_stime);
-		(void)printf("%-*.*s %-7s %-*s %-*s %6.2f secs %.16s\n",
-			fldsiz(acct, ac_comm), fldsiz(acct, ac_comm),
-			ab.ac_comm, flagbits(ab.ac_flag),
-			UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
-			UT_LINESIZE, getdev(ab.ac_tty),
-			t / (double)AHZ, ctime(&ab.ac_btime));
-	}
-	exit(0);
+		(void)printf("%-*s %-7s %-*s %-*s ",
+			     fldsiz(acct, ac_comm), ab.ac_comm,
+			     flagbits(ab.ac_flag),
+			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
+			     UT_LINESIZE, getdev(ab.ac_tty));
+		
+		
+		/* user + system time */
+		if (time & AC_CTIME) {
+			(void)printf("%6.2f secs ", 
+				     (expand(ab.ac_utime) + 
+				      expand(ab.ac_stime))/AC_HZ);
+		}
+		
+		/* usr time */
+		if (time & AC_UTIME) {
+			(void)printf("%6.2f us ", expand(ab.ac_utime)/AC_HZ);
+		}
+		
+		/* system time */
+		if (time & AC_STIME) {
+			(void)printf("%6.2f sy ", expand(ab.ac_stime)/AC_HZ);
+		}
+		
+		/* elapsed time */
+		if (time & AC_ETIME) {
+			(void)printf("%8.2f es ", expand(ab.ac_etime)/AC_HZ);
+		}
+		
+		/* starting time */
+		if (time & AC_BTIME) {
+			(void)printf("%.16s ", ctime(&ab.ac_btime));
+		}
+		
+		/* exit time (starting time + elapsed time )*/
+		if (time & AC_FTIME) {
+			t = ab.ac_btime;
+			t += (time_t)(expand(ab.ac_etime)/AC_HZ);
+			(void)printf("%.16s ", 
+				     ctime(&t));
+		}
+		printf("\n");
+ 	}
+ 	exit(0);
 }
 
 time_t
@@ -218,6 +294,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "lastcomm [ -f file ] [command ...] [user ...] [tty ...]\n");
+	    "lastcomm [-EScesu] [ -f file ] [command ...] [user ...] [tty ...]\n");
 	exit(1);
 }
