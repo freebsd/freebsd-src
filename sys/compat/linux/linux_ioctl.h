@@ -32,6 +32,13 @@
 #define	_LINUX_IOCTL_H_
 
 /*
+ * NVIDIA driver
+ */
+
+#define	LINUX_IOCTL_NVIDIA_MIN	0x4600
+#define	LINUX_IOCTL_NVIDIA_MAX	0x46ff
+
+/*
  * disk
  */
 #define	LINUX_BLKROSET		0x125d
