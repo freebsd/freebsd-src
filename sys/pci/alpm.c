@@ -174,12 +174,11 @@ alpm_probe(device_t dev)
 static int
 alpm_attach(device_t dev)
 {
-	int rid, unit;
+	int rid;
 	u_int32_t l;
 	struct alpm_softc *alpm;
 
 	alpm = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	/* Unlock SMBIO base register access */
 	l = pci_read_config(dev, ATPC, 1);
