@@ -155,133 +155,174 @@ struct ata_dmaentry {
 
 /* ATA/ATAPI device parameter information */
 struct ata_params {
-    u_int8_t    cmdsize         :2;             /* packet command size */
-#define         ATAPI_PSIZE_12          0       /* 12 bytes */
-#define         ATAPI_PSIZE_16          1       /* 16 bytes */
+/*000*/	u_int16_t	packet_size	:2;	/* packet command size */
+#define ATAPI_PSIZE_12			0	/* 12 bytes */
+#define ATAPI_PSIZE_16			1	/* 16 bytes */
 
-    u_int8_t                    :3;
-    u_int8_t    drqtype         :2;             /* DRQ type */
-#define         ATAPI_DRQT_MPROC        0       /* cpu    3 ms delay */
-#define         ATAPI_DRQT_INTR         1       /* intr  10 ms delay */
-#define         ATAPI_DRQT_ACCEL        2       /* accel 50 us delay */
+    	u_int16_t	incomplete	:1;
+    	u_int16_t			:2;
+    	u_int16_t	drq_type	:2;	/* DRQ type */
+#define ATAPI_DRQT_MPROC		0	/* cpu	  3 ms delay */
+#define ATAPI_DRQT_INTR			1	/* intr	 10 ms delay */
+#define ATAPI_DRQT_ACCEL		2	/* accel 50 us delay */
 
-    u_int8_t    removable       :1;             /* device is removable */
-    u_int8_t    device_type     :5;             /* device type */
-#define         ATAPI_TYPE_DIRECT       0       /* disk/floppy */
-#define         ATAPI_TYPE_TAPE         1       /* streaming tape */
-#define         ATAPI_TYPE_CDROM        5       /* CD-ROM device */
-#define         ATAPI_TYPE_OPTICAL      7       /* optical disk */
+    	u_int16_t	removable	:1;	/* device is removable */
+    	u_int16_t	type		:5;	/* device type */
+#define ATAPI_TYPE_DIRECT		0	/* disk/floppy */
+#define ATAPI_TYPE_TAPE			1	/* streaming tape */
+#define ATAPI_TYPE_CDROM		5	/* CD-ROM device */
+#define ATAPI_TYPE_OPTICAL		7	/* optical disk */
 
-    u_int8_t                    :1;
-    u_int8_t    proto           :2;             /* command protocol */
-#define         ATAPI_PROTO_ATAPI       2
+    	u_int16_t			:2;
+    	u_int16_t	cmd_protocol	:1;	/* command protocol */
+#define ATA_PROTO_ATA			0
+#define ATA_PROTO_ATAPI			1
 
-    u_int16_t	cylinders;			/* number of cylinders */
-    u_int16_t	reserved2;
-    u_int16_t	heads;				/* # heads */
-    u_int16_t	unfbytespertrk;			/* # unformatted bytes/track */
-    u_int16_t	unfbytes;			/* # unformatted bytes/sector */
-    u_int16_t	sectors;			/* # sectors/track */
-    u_int16_t	vendorunique0[3];
-    u_int8_t	serial[20];			/* serial number */
-    u_int16_t	buffertype;			/* buffer type */
-#define ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
-#define ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
-#define ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
+/*001*/	u_int16_t	cylinders;		/* # of cylinders */
+	u_int16_t	reserved2;
+/*003*/	u_int16_t	heads;			/* # heads */
+	u_int16_t	obsolete4;
+	u_int16_t	obsolete5;
+/*006*/	u_int16_t	sectors;		/* # sectors/track */
+/*007*/	u_int16_t	vendor7[3];
+/*010*/	u_int8_t	serial[20];		/* serial number */
+	u_int16_t	retired20;
+	u_int16_t	retired21;
+	u_int16_t	obsolete22;
+/*023*/	u_int8_t	revision[8];		/* firmware revision */
+/*027*/	u_int8_t	model[40];		/* model name */
+/*047*/	u_int16_t	sectors_intr:8;		/* sectors per interrupt */
+	u_int16_t	:8;
 
-    u_int16_t	buffersize;			/* buf size, 512-byte units */
-    u_int16_t	necc;				/* ecc bytes appended */
-    u_int8_t	revision[8];			/* firmware revision */
-    u_int8_t	model[40];			/* model name */
-    u_int8_t	nsecperint;			/* sectors per interrupt */
-    u_int8_t	vendorunique1;
-    u_int16_t	usedmovsd;			/* double word read/write? */
+/*048*/	u_int16_t	usedmovsd;		/* double word read/write? */
+/*049*/	u_int16_t	retired49:8;
+	u_int16_t	support_dma	:1;	/* DMA supported */
+	u_int16_t	support_lba	:1;	/* LBA supported */
+	u_int16_t	disable_iordy	:1;	/* IORDY may be disabled */
+	u_int16_t	support_iordy	:1;	/* IORDY supported */
+	u_int16_t	softreset	:1;	/* needs softreset when busy */
+	u_int16_t	stdby_ovlap	:1;	/* standby/overlap supported */
+	u_int16_t	support_queueing:1;	/* supports queuing overlap */
+	u_int16_t	support_idma	:1;	/* interleaved DMA supported */
 
-    u_int8_t	vendorcap;			/* vendor capabilities */
-    u_int8_t	dmaflag		:1;		/* DMA supported - always 1 */
-    u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
-    u_int8_t	iordydis	:1;		/* IORDY may be disabled */
-    u_int8_t	iordyflag	:1;		/* IORDY supported */
-    u_int8_t	softreset	:1;		/* needs softreset when busy */
-    u_int8_t	stdby_ovlap	:1;		/* standby/overlap supported */
-    u_int8_t	queueing	:1;		/* supports queuing overlap */
-    u_int8_t	idmaflag	:1;		/* interleaved DMA supported */
-    u_int16_t	capvalidate;			/* validation for above */
+/*050*/	u_int16_t	device_stdby_min:1;
+	u_int16_t	:13;
+	u_int16_t	capability_one:1;
+	u_int16_t	capability_zero:1;
 
-    u_int8_t	vendorunique3;
-    u_int8_t	opiomode;			/* PIO modes 0-2 */
-    u_int8_t	vendorunique4;
-    u_int8_t	odmamode;			/* old DMA modes, not ATA-3 */
+/*051*/	u_int16_t	vendor51:8;
+	u_int16_t	retired_piomode:8;	/* PIO modes 0-2 */
+/*052*/	u_int16_t	vendor52:8;
+	u_int16_t	retired_dmamode:8;	/* DMA modes, not ATA-3 */
+/*053*/	u_int16_t	atavalid;		/* fields valid */
+#define ATA_FLAG_54_58			1	/* words 54-58 valid */
+#define ATA_FLAG_64_70			2	/* words 64-70 valid */
+#define ATA_FLAG_88			4	/* word 88 valid */
 
-    u_int16_t	atavalid;			/* fields valid */
-#define		ATA_FLAG_54_58	      1		/* words 54-58 valid */
-#define		ATA_FLAG_64_70	      2		/* words 64-70 valid */
-#define		ATA_FLAG_88	      4		/* word 88 valid */
+	u_int16_t	obsolete54[5];
+/*059*/	u_int16_t	multi_count:8;
+	u_int16_t	multi_valid:1;
+	u_int16_t	:7;
 
-    u_int16_t	currcyls;
-    u_int16_t	currheads;
-    u_int16_t	currsectors;
-    u_int16_t	currsize0;
-    u_int16_t	currsize1;
-    u_int8_t	currmultsect;
-    u_int8_t	multsectvalid;
-    u_int32_t	lbasize;
+/*060*/	u_int32_t	lba_size;	
+	u_int16_t	obsolete62;
+/*063*/	u_int16_t	mwdmamodes;		/* multiword DMA modes */ 
+/*064*/	u_int16_t	apiomodes;		/* advanced PIO modes */ 
 
-    u_int16_t	sdmamodes;			/* singleword DMA modes */ 
-    u_int16_t	wdmamodes;			/* multiword DMA modes */ 
-    u_int16_t	apiomodes;			/* advanced PIO modes */ 
+/*065*/	u_int16_t	mwdmamin;		/* min. M/W DMA time/word ns */
+/*066*/	u_int16_t	mwdmarec;		/* rec. M/W DMA time ns */
+/*067*/	u_int16_t	pioblind;		/* min. PIO cycle w/o flow */
+/*068*/	u_int16_t	pioiordy;		/* min. PIO cycle IORDY flow */
+	u_int16_t	reserved69;
+	u_int16_t	reserved70;
+/*071*/	u_int16_t	rlsovlap;		/* rel time (us) for overlap */
+/*072*/	u_int16_t	rlsservice;		/* rel time (us) for service */
+	u_int16_t	reserved73;
+	u_int16_t	reserved74;
 
-    u_int16_t	mwdmamin;			/* min. M/W DMA time/word ns */
-    u_int16_t	mwdmarec;			/* rec. M/W DMA time ns */
-    u_int16_t	pioblind;			/* min. PIO cycle w/o flow */
-    u_int16_t	pioiordy;			/* min. PIO cycle IORDY flow */
+/*075*/	u_int16_t	queuelen:5;
+	u_int16_t	:11;
 
-    u_int16_t	reserved69;
-    u_int16_t	reserved70;
-    u_int16_t	rlsovlap;			/* rel time (us) for overlap */
-    u_int16_t	rlsservice;			/* rel time (us) for service */
-    u_int16_t	reserved73;
-    u_int16_t	reserved74;
-    u_int16_t	queuelen:5;
-    u_int16_t	:11;
-    u_int16_t	reserved76;
-    u_int16_t	reserved77;
-    u_int16_t	reserved78;
-    u_int16_t	reserved79;
-    u_int16_t	versmajor;
-    u_int16_t	versminor;
-    u_int16_t	featsupp1;	/* 82 */
-    u_int16_t	supmicrocode:1;
-    u_int16_t	supqueued:1;
-    u_int16_t	supcfa:1;
-    u_int16_t	supapm:1;
-    u_int16_t	suprmsn:1;
-    u_int16_t	:11;
-    u_int16_t	featsupp3;	/* 84 */
-    u_int16_t	featenab1;	/* 85 */
-    u_int16_t	enabmicrocode:1;
-    u_int16_t	enabqueued:1;
-    u_int16_t	enabcfa:1;
-    u_int16_t	enabapm:1;
-    u_int16_t	enabrmsn:1;
-    u_int16_t	:11;
-    u_int16_t	featenab3;	/* 87 */
-    u_int16_t	udmamodes;			/* UltraDMA modes */
-    u_int16_t	erasetime;
-    u_int16_t	enherasetime;
-    u_int16_t	apmlevel;
-    u_int16_t	masterpasswdrev;
-    u_int16_t	masterhwres	:8;
-    u_int16_t	slavehwres	:5;
-    u_int16_t	cblid		:1;
-    u_int16_t	reserved93_1415	:2;
-    u_int16_t	reserved94[32];
-    u_int16_t	rmvstat;
-    u_int16_t	securstat;
-    u_int16_t	reserved129[30];
-    u_int16_t	cfapwrmode;
-    u_int16_t	reserved161[84];
-    u_int16_t	integrity;
+	u_int16_t	reserved76;
+	u_int16_t	reserved77;
+	u_int16_t	reserved78;
+	u_int16_t	reserved79;
+/*080*/	u_int16_t	version_major;
+/*081*/	u_int16_t	version_minor;
+	struct {
+/*082/085*/ u_int16_t	smart:1;
+	    u_int16_t	security:1;
+	    u_int16_t	removable:1;
+	    u_int16_t	power_mngt:1;
+	    u_int16_t	packet:1;
+	    u_int16_t	write_cache:1;
+	    u_int16_t	look_ahead:1;
+	    u_int16_t	release_irq:1;
+	    u_int16_t	service_irq:1;
+	    u_int16_t	reset:1;
+	    u_int16_t	protected:1;
+	    u_int16_t	:1;
+	    u_int16_t	write_buffer:1;
+	    u_int16_t	read_buffer:1;
+	    u_int16_t	nop:1;
+	    u_int16_t	:1;
+
+/*083/086*/ u_int16_t	microcode:1;
+	    u_int16_t	queued:1;
+	    u_int16_t	cfa:1;
+	    u_int16_t	apm:1;
+	    u_int16_t	notify:1;
+	    u_int16_t	standby:1;
+	    u_int16_t	spinup:1;
+	    u_int16_t	:1;
+	    u_int16_t	max_security:1;
+	    u_int16_t	auto_acoustic:1;
+	    u_int16_t	address48:1;
+	    u_int16_t	config_overlay:1;
+	    u_int16_t	flush_cache:1;
+	    u_int16_t	flush_cache48:1;
+	    u_int16_t	support_one:1;
+	    u_int16_t	support_zero:1;
+
+/*084/087*/ u_int16_t	smart_error_log:1;
+	    u_int16_t	smart_self_test:1;
+	    u_int16_t	media_serial_no:1;
+	    u_int16_t	media_card_pass:1;
+	    u_int16_t	streaming:1;
+	    u_int16_t	logging:1;
+	    u_int16_t	:8;
+	    u_int16_t	extended_one:1;
+	    u_int16_t	extended_zero:1;
+	} support, enabled;
+
+/*088*/	u_int16_t	udmamodes;		/* UltraDMA modes */
+/*089*/	u_int16_t	erase_time;
+/*090*/	u_int16_t	enhanced_erase_time;
+/*091*/	u_int16_t	apm_value;
+/*092*/	u_int16_t	master_passwd_revision;
+
+/*093*/	u_int16_t	hwres_master	:8;
+	u_int16_t	hwres_slave	:5;
+	u_int16_t	hwres_cblid	:1;
+	u_int16_t	hwres_valid:2;
+
+/*094*/	u_int16_t	current_acoustic:8;
+	u_int16_t	vendor_acoustic:8;
+
+/*095*/	u_int16_t	stream_min_req_size;
+/*096*/	u_int16_t	stream_transfer_time;
+/*097*/	u_int16_t	stream_access_latency;
+/*098*/	u_int32_t	stream_granularity;
+/*100*/	u_int64_t	lba_size48;
+	u_int16_t	reserved104[23];
+/*127*/	u_int16_t	removable_status;
+/*128*/	u_int16_t	security_status;
+	u_int16_t	reserved129[31];
+/*160*/	u_int16_t	cfa_powermode1;
+	u_int16_t	reserved161[14];
+/*176*/	u_int16_t	media_serial[30];
+	u_int16_t	reserved206[49];
+/*255*/	u_int16_t	integrity;
 };
 
 /* structure describing an ATA device */
@@ -332,14 +373,17 @@ struct ata_softc {
     u_int8_t			status;		/* last controller status */
     u_int8_t			error;		/* last controller error */
     int				active;		/* active processing request */
-#define		ATA_IDLE		0x0
-#define		ATA_IMMEDIATE		0x1
-#define		ATA_WAIT_INTR		0x2
-#define		ATA_WAIT_READY		0x3
-#define		ATA_ACTIVE		0x4
-#define		ATA_ACTIVE_ATA		0x5
-#define		ATA_ACTIVE_ATAPI	0x6
-#define		ATA_REINITING		0x7
+#define		ATA_IDLE		0x0000
+#define		ATA_IMMEDIATE		0x0001
+#define		ATA_WAIT_INTR		0x0002
+#define		ATA_WAIT_READY		0x0004
+#define		ATA_WAIT_MASK		0x0007
+#define		ATA_USE_CHS		0x0008
+#define		ATA_ACTIVE		0x0010
+#define		ATA_ACTIVE_ATA		0x0020
+#define		ATA_ACTIVE_ATAPI	0x0040
+#define		ATA_REINITING		0x0080
+
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -354,12 +398,11 @@ void ata_start(struct ata_softc *);
 void ata_reset(struct ata_softc *, int *);
 int ata_reinit(struct ata_softc *);
 int ata_wait(struct ata_softc *, int, u_int8_t);
-int ata_command(struct ata_softc *, int, u_int8_t, u_int16_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t, int);
+int ata_command(struct ata_softc *, int, u_int8_t, u_int64_t, u_int16_t, u_int8_t, int);
 int ata_printf(struct ata_softc *, int, const char *, ...) __printflike(3, 4);
 int ata_get_lun(u_int32_t *);
 void ata_free_lun(u_int32_t *, int);
 char *ata_mode2str(int);
-int ata_pio2mode(int);
 int ata_pmode(struct ata_params *);
 int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);
