@@ -72,8 +72,7 @@ aha_isa_probe(device_t dev)
 	/*
 	 * find unit and check we have that many defined
 	 */
-	struct	aha_softc **sc = device_get_softc(dev);
-	struct	aha_softc *aha;
+	struct	aha_softc *aha = device_get_softc(dev);
 	int	port_index;
 	int	max_port_index;
 	int	error;
@@ -82,8 +81,6 @@ aha_isa_probe(device_t dev)
 	int	port_rid;
 	int	drq;
 	int	irq;
-
-	aha = NULL;
 
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aha_ids) == ENXIO)
@@ -123,14 +120,8 @@ aha_isa_probe(device_t dev)
 			continue;
 
 		/* Allocate a softc for use during probing */
-		aha = aha_alloc(device_get_unit(dev), rman_get_bustag(port_res),
+		aha_alloc(aha, device_get_unit(dev), rman_get_bustag(port_res),
 		    rman_get_bushandle(port_res));
-
-		if (aha == NULL) {
-			bus_release_resource(dev, SYS_RES_IOPORT, port_rid, 
-			    port_res);
-			break;
-		}
 
 		/* See if there is really a card present */
 		if (aha_probe(aha) || aha_fetch_adapter_info(aha)) {
@@ -185,9 +176,6 @@ aha_isa_probe(device_t dev)
 		if (error)
 			return error;
 
-		*sc = aha;
-		aha_unit++;
-
 		return (0);
 	}
 
@@ -200,15 +188,13 @@ aha_isa_probe(device_t dev)
 static int
 aha_isa_attach(device_t dev)
 {
-	struct	aha_softc **sc = device_get_softc(dev);
-	struct	aha_softc *aha;
+	struct	aha_softc *aha = device_get_softc(dev);
 	bus_dma_filter_t *filter;
 	void		 *filter_arg;
 	bus_addr_t	 lowaddr;
 	void		 *ih;
 	int		 error;
 
-	aha = *sc;
 	aha->portrid = 0;
 	aha->port = bus_alloc_resource(dev, SYS_RES_IOPORT, &aha->portrid,
 	    0, ~0, AHA_NREGS, RF_ACTIVE);
@@ -304,7 +290,7 @@ aha_isa_attach(device_t dev)
 static int
 aha_isa_detach(device_t dev)
 {
-	struct aha_softc *aha = *(struct aha_softc **) device_get_softc(dev);
+	struct aha_softc *aha = (struct aha_softc *)device_get_softc(dev);
 	int error;
 
 	error = bus_teardown_intr(dev, aha->irq, aha->ih);
@@ -344,7 +330,7 @@ static device_method_t aha_isa_methods[] = {
 static driver_t aha_isa_driver = {
 	"aha",
 	aha_isa_methods,
-	sizeof(struct aha_softc*),
+	sizeof(struct aha_softc),
 };
 
 static devclass_t aha_devclass;
