@@ -1075,7 +1075,7 @@ setifname(const char *val, int dummy __unused, int s,
 "\20MULTICAST\21POLLING\23MONITOR\24STATICARP"
 
 #define	IFCAPBITS \
-"\003\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU"
+"\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU"
 
 /*
  * Print the status of the interface.  If an address family was
