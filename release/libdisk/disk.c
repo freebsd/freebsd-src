@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.16 1995/05/04 07:00:54 phk Exp $
+ * $Id: disk.c,v 1.17 1995/05/06 03:28:29 phk Exp $
  *
  */
 
@@ -53,6 +53,7 @@ Int_Open_Disk(char *name, u_long size)
 	struct disk *d;
 	struct dos_partition *dp;
 	void *p;
+	u_long offset = 0;
 
 	strcpy(device,"/dev/r");
 	strcat(device,name);
@@ -94,8 +95,10 @@ Int_Open_Disk(char *name, u_long size)
 		if (dp->dp_start+dp->dp_size >= size) continue;
 		if (!dp->dp_size) continue;
 
-		if (dp->dp_typ == DOSPTYP_ONTRACK)
+		if (dp->dp_typ == DOSPTYP_ONTRACK) {
 			d->flags |= DISK_ON_TRACK;
+			offset = 63;
+		}
 			
 	}
 	free(p);
@@ -109,7 +112,7 @@ Int_Open_Disk(char *name, u_long size)
 	if (dl.d_ntracks && dl.d_nsectors)
 		d->bios_cyl = size/(dl.d_ntracks*dl.d_nsectors);
 
-	if (Add_Chunk(d, 0, size, name,whole,0,0))
+	if (Add_Chunk(d, -offset, size, name,whole,0,0))
 		warn("Failed to add 'whole' chunk");
 
 	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
@@ -119,6 +122,7 @@ Int_Open_Disk(char *name, u_long size)
 		int subtype=0;
 		if (! ds.dss_slices[i].ds_size)
 			continue;
+		ds.dss_slices[i].ds_offset -= offset;
 		sprintf(sname,"%ss%d",name,i-1);
 		subtype = ds.dss_slices[i].ds_type;
 		switch (ds.dss_slices[i].ds_type) {
@@ -126,6 +130,7 @@ Int_Open_Disk(char *name, u_long size)
 				ce = freebsd;
 				break;
 			case 0x1:
+			case 0x6:
 			case 0x4:
 				ce = fat;
 				break;

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.9 1995/05/07 01:25:22 jkh Exp $
+ * $Id: chunk.c,v 1.10 1995/05/07 01:28:16 jkh Exp $
  *
  */
 
@@ -173,7 +173,7 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 }
 
 int
-Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
+Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 	int subtype, u_long flags)
 {
 	struct chunk *c1,*c2,ct;
@@ -264,7 +264,7 @@ Print_Chunk(struct chunk *c1,int offset)
 	for(;i<offset;i++) putchar('-');
 	putchar('>');
 	for(;i<10;i++) putchar(' ');
-	printf("%p %8lu %8lu %8lu %-8s %-8s 0x%02x ",
+	printf("%p %8ld %8lu %8lu %-8s %-8s 0x%02x ",
 		c1, c1->offset, c1->size, c1->end, c1->name, 
 		chunk_n[c1->type],c1->subtype);
 	if (c1->flags & CHUNK_ALIGN) putchar('=');
