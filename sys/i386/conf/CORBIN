@@ -12,7 +12,7 @@ maxusers	16
 options		"i486"
 
 options		INET,GATEWAY
-options		MULTICAST,MROUTING
+#options		MULTICAST,MROUTING
 options		FFS
 options		MFS
 options		NFS
