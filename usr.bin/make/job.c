@@ -297,7 +297,6 @@ static sig_atomic_t interrupted;
 
 static void JobPassSig(int);
 static int JobPrintCommand(void *, void *);
-static int JobSaveCommand(void *, void *);
 static void JobClose(Job *);
 static void JobFinish(Job *, int *);
 static void JobExec(Job *, char **);
@@ -635,35 +634,6 @@ JobPrintCommand(void *cmdp, void *jobp)
 
 /*-
  *-----------------------------------------------------------------------
- * JobSaveCommand --
- *	Save a command to be executed when everything else is done.
- *	Callback function for JobFinish...
- *
- * Results:
- *	Always returns 0
- *
- * Side Effects:
- *	The command is tacked onto the end of postCommands's commands list.
- *
- *-----------------------------------------------------------------------
- */
-static int
-JobSaveCommand(void *cmd, void *gn)
-{
-    Buffer	*buf;
-    char	*str;
-
-    buf = Var_Subst(NULL, cmd, gn, FALSE);
-    str = Buf_GetAll(buf, NULL);
-    Buf_Destroy(buf, FALSE);
-
-    Lst_AtEnd(&postCommands->commands, str);
-    return (0);
-}
-
-
-/*-
- *-----------------------------------------------------------------------
  * JobClose --
  *	Called to close both input and output pipes when a job is finished.
  *
@@ -722,6 +692,7 @@ static void
 JobFinish(Job *job, int *status)
 {
     Boolean 	 done;
+    LstNode	*ln;
 
     if ((WIFEXITED(*status) &&
 	 (((WEXITSTATUS(*status) != 0) && !(job->flags & JOB_IGNERR)))) ||
@@ -906,10 +877,11 @@ JobFinish(Job *job, int *status)
 	 * the parents. In addition, any saved commands for the node are placed
 	 * on the .END target.
 	 */
-	if (job->tailCmds != NULL) {
-	    Lst_ForEachFrom(&job->node->commands, job->tailCmds,
-		JobSaveCommand, job->node);
+	for (ln = job->tailCmds; ln != NULL; ln = LST_NEXT(ln)) {
+	    Lst_AtEnd(&postCommands->commands,
+		Buf_Peel(Var_Subst(NULL, Lst_Datum(ln), job->node, FALSE)));
 	}
+
 	job->node->made = MADE;
 	Make_Update(job->node);
 	free(job);
@@ -1584,9 +1556,10 @@ JobStart(GNode *gn, int flags, Job *previous)
 	 */
 	if (cmdsOK) {
 	    if (aborting == 0) {
-		if (job->tailCmds != NULL) {
-		    Lst_ForEachFrom(&job->node->commands, job->tailCmds,
-			JobSaveCommand, job->node);
+		for (ln = job->tailCmds; ln != NULL; ln = LST_NEXT(ln)) {
+		    Lst_AtEnd(&postCommands->commands,
+			Buf_Peel(Var_Subst(NULL, Lst_Datum(ln), job->node,
+			FALSE)));
 		}
 		job->node->made = MADE;
 		Make_Update(job->node);
