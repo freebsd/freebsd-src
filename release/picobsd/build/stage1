@@ -8,6 +8,10 @@
 
 set -e	# abort in case of untested errors
 
+# if you include the floppy tree in the mfs, you
+# can boot from the image via diskless.
+INCLUDE_FLOPPY_IN_MFS="yes"
+
 # By default, /tmp should exist.
 #
 MFS_NAME=fs.PICOBSD
@@ -127,37 +131,6 @@ populate_mfs() {
 		> /dev/null || fail $? makedevs
     fi
 
-    MFS_RC=mfs_tree/etc/rc
-    if [ ! -f ${MFS_RC} ] ; then # no private version. use generic mfs.rc
-	MFS_RC=${BUILDDIR}/../${MFS_RC}
-    fi
-    if [ "${INIT}" = "oinit" ] ; then
-	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/oinit.rc
-    else
-	cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > ${MFS_MOUNTPOINT}/etc/rc
-	fname=mfs_tree/etc/login.conf
-	if [ ! -f ${fname} ] ; then
-	    fname=${BUILDDIR}/../${fname}
-	fi
-	cp ${fname} ${MFS_MOUNTPOINT}/etc/login.conf
-    fi
-
-    if [ "${TYPE}" = "dial" ] ; then
-	for i in login dialup; do
-	    cp lang/${i}.${LANGUAGE} ${MFS_MOUNTPOINT}/stand/${i}
-	done
-	ln -s /stand/reboot ${MFS_MOUNTPOINT}/stand/shutdown
-	(cd ../help;\
-	rm -rf tmp_hlp;\
-	mkdir tmp_hlp;\
-	for i in `ls *.hlp.${LANGUAGE}`; do \
-	    cp $i tmp_hlp/`basename $i .hlp.${LANGUAGE}`;\
-	done;\
-	cd tmp_hlp;\
-	ar -cru help.a *;\
-	cp help.a ${MFS_MOUNTPOINT}/help.a)
-    fi
-
     echo "-> Making and installing crunch1..."
     cd crunch1
     make -f ../../build/Makefile.crunch "SRC=${SRC}" && \
@@ -169,9 +142,21 @@ populate_mfs() {
 	echo "creating host key for sshd"
 	ssh-keygen -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
     fi
-    cp -Rp ../mfs_tree/stand/update ${MFS_MOUNTPOINT}/stand/update
 
-    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
+    # copy mfs tree
+    if [ -d ${BUILDDIR}/../${TYPE}/mfs_tree ]; then
+	# we have a type-specific mfs tree
+	MFS_TREE=${BUILDDIR}/../${TYPE}/mfs_tree
+    else # normal case, use the default mfs tree
+	MFS_TREE=${BUILDDIR}/../mfs_tree
+    fi
+    (cd ${MFS_TREE} ; tar -cf - --exclude CVS . ) | \
+	    (cd ${MFS_MOUNTPOINT} ; tar xvf - )
+
+    if [ "${INCLUDE_FLOPPY_IN_MFS}" = "yes" ]; then
+	cp -Rp ${BUILDDIR}/floppy.tree/* ${MFS_MOUNTPOINT}/fd
+    fi
+    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root . )
     df -ik ${MFS_MOUNTPOINT}
     umount ${MFS_MOUNTPOINT}
     fsck -p /dev/rvn${VNUM}c
@@ -223,6 +208,19 @@ do_floppy() {
     kgzip -o kernel.gz kernel
     cp -p kernel.gz ${MFS_MOUNTPOINT}/kernel
 
+    # now transfer the floppy tree
+    cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
+    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
+    rm -rf floppy.tree || true # cleanup
+
+    df -ik ${MFS_MOUNTPOINT} | colrm 70 > .build.reply
+    umount ${MFS_MOUNTPOINT}
+    rm -rf ${MFS_MOUNTPOINT}
+    vnconfig -u /dev/rvn${VNUM}
+    rm kernel.gz ${MFS_NAME}
+}
+
+populate_floppy_fs() {
     echo "==> Populating floppy filesystem..."
 
     # Configuration files are first copied to a local tree, then
@@ -245,12 +243,12 @@ do_floppy() {
     srcdir=${BUILDDIR}/../${TYPE}/floppy.tree
     if [ -d ${srcdir} ] ; then
 	echo "-> update with private files:"
-	(cd ${srcdir} ; tar cf - --exclude CVS . ) | \
+	(cd ${srcdir} ; tar -cf - --exclude CVS . ) | \
 	    (cd floppy.tree ; tar xvf - )
     fi
     if [ -d ${srcdir}.${SITE} ] ; then
 	echo "-> update with site-specific (${SITE}) files:"
-	(cd ${srcdir}.${SITE} ; tar cf - --exclude CVS . ) | \
+	(cd ${srcdir}.${SITE} ; tar -cf - --exclude CVS . ) | \
 	    (cd floppy.tree ; tar xvf - )
     fi
     files="motd"
@@ -271,20 +269,11 @@ do_floppy() {
     fi
     # gzip returns an error if it fails to compress some file
     gzip -9 floppy.tree/etc/* || true
-
-    # now transfer the floppy tree
-    cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
-    rm -rf floppy.tree || true # cleanup
-    (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
-
-    df -ik ${MFS_MOUNTPOINT} | colrm 70 > .build.reply
-    umount ${MFS_MOUNTPOINT}
-    rm -rf ${MFS_MOUNTPOINT}
-    vnconfig -u /dev/rvn${VNUM}
-    rm kernel.gz ${MFS_NAME}
 }
+
 
 do_kernel
 create_mfs
-populate_mfs
-do_floppy
+populate_floppy_fs	# things which go into floppy
+populate_mfs		# things which go into mfs
+do_floppy # copies everything into the floppy
