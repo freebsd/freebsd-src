@@ -31,13 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_types.h#8 $
+ * $P4: //depot/projects/openpam/include/security/pam_types.h#9 $
  */
 
 #ifndef _PAM_TYPES_H_INCLUDED
 #define _PAM_TYPES_H_INCLUDED
 
-#include <sys/types.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
