@@ -659,9 +659,7 @@ hpfs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(vp);
 
-	printf("tag %s, ino 0x%x", vp->v_tag, hp->h_no);
-	lockmgr_printinfo(&hp->h_lock);
-	printf("\n");
+	printf("ino 0x%x\n", hp->h_no);
 	return (0);
 }
 

@@ -845,11 +845,8 @@ int smbfs_print (ap)
 		printf("no smbnode data\n");
 		return (0);
 	}
-	printf("tag %s, name = %s, parent = %p, opencount = %d",
-	    vp->v_tag, np->n_name, np->n_parent ? SMBTOV(np->n_parent) : NULL,
-	    np->n_opencount);
-	lockmgr_printinfo(&vp->v_lock);
-	printf("\n");
+	printf("name = %s, parent = %p, opencount = %d\n", np->n_name,
+	    np->n_parent ? SMBTOV(np->n_parent) : NULL, np->n_opencount);
 	return (0);
 }
 

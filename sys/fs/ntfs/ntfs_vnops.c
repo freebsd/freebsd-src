@@ -74,7 +74,6 @@ static int	ntfs_read(struct vop_read_args *);
 static int	ntfs_write(struct vop_write_args *ap);
 static int	ntfs_getattr(struct vop_getattr_args *ap);
 static int	ntfs_inactive(struct vop_inactive_args *ap);
-static int	ntfs_print(struct vop_print_args *ap);
 static int	ntfs_reclaim(struct vop_reclaim_args *ap);
 static int	ntfs_strategy(struct vop_strategy_args *ap);
 static int	ntfs_access(struct vop_access_args *ap);
@@ -237,15 +236,6 @@ ntfs_reclaim(ap)
 	ntfs_ntput(ip);
 	vp->v_data = NULL;
 
-	return (0);
-}
-
-static int
-ntfs_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
 	return (0);
 }
 
@@ -745,7 +735,7 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_getattr_desc, (vop_t *)ntfs_getattr },
 	{ &vop_inactive_desc, (vop_t *)ntfs_inactive },
 	{ &vop_reclaim_desc, (vop_t *)ntfs_reclaim },
-	{ &vop_print_desc, (vop_t *)ntfs_print },
+	{ &vop_print_desc, (vop_t *)vop_null },
 	{ &vop_pathconf_desc, ntfs_pathconf },
 
 	{ &vop_islocked_desc, (vop_t *)vop_stdislocked },

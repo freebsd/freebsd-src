@@ -563,8 +563,6 @@ fifo_print(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
-
-	printf("tag %s", ap->a_vp->v_tag);
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);

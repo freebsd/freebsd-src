@@ -2617,9 +2617,9 @@ vprint(label, vp)
 		printf("%s: %p: ", label, (void *)vp);
 	else
 		printf("%p: ", (void *)vp);
-	printf("type %s, usecount %d, writecount %d, refcount %d,",
-	    typename[vp->v_type], vp->v_usecount, vp->v_writecount,
-	    vp->v_holdcnt);
+	printf("tag %s, type %s, usecount %d, writecount %d, refcount %d,",
+	    vp->v_tag, typename[vp->v_type], vp->v_usecount,
+	    vp->v_writecount, vp->v_holdcnt);
 	buf[0] = '\0';
 	if (vp->v_vflag & VV_ROOT)
 		strcat(buf, "|VV_ROOT");
@@ -2640,11 +2640,11 @@ vprint(label, vp)
 	if (vp->v_vflag & VV_OBJBUF)
 		strcat(buf, "|VV_OBJBUF");
 	if (buf[0] != '\0')
-		printf(" flags (%s)", &buf[1]);
-	if (vp->v_data == NULL) {
-		printf("\n");
-	} else {
-		printf("\n\t");
+		printf(" flags (%s),", &buf[1]);
+	lockmgr_printinfo(&vp->v_lock);
+	printf("\n");
+	if (vp->v_data != NULL) {
+		printf("\t");
 		VOP_PRINT(vp);
 	}
 }

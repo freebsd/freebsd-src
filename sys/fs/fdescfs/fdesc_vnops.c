@@ -76,7 +76,6 @@ static int	fdesc_getattr(struct vop_getattr_args *ap);
 static int	fdesc_inactive(struct vop_inactive_args *ap);
 static int	fdesc_lookup(struct vop_lookup_args *ap);
 static int	fdesc_open(struct vop_open_args *ap);
-static int	fdesc_print(struct vop_print_args *ap);
 static int	fdesc_readdir(struct vop_readdir_args *ap);
 static int	fdesc_reclaim(struct vop_reclaim_args *ap);
 static int	fdesc_poll(struct vop_poll_args *ap);
@@ -536,21 +535,6 @@ fdesc_reclaim(ap)
 	return (0);
 }
 
-/*
- * Print out the contents of a /dev/fd vnode.
- */
-/* ARGSUSED */
-static int
-fdesc_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag %s, fdesc vnode\n", ap->a_vp->v_tag);
-	return (0);
-}
-
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) vop_null },
@@ -560,7 +544,7 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) fdesc_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) fdesc_poll },
-	{ &vop_print_desc,		(vop_t *) fdesc_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
