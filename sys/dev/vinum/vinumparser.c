@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.19 2000/02/19 06:53:09 grog Exp grog $
+ * $Id: vinumparser.c,v 1.20 2000/04/22 05:32:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -125,9 +125,9 @@ struct _keywords keywords[] =
 #ifndef _KERNEL						    /* for vinum(8) only */
 #ifdef VINUMDEBUG
     keypair(debug),
+#endif
     keypair(stripe),
     keypair(mirror),
-#endif
 #endif
     keypair(attach),
     keypair(detach),
