@@ -428,13 +428,12 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch, int mkdev)
     	struct snddev_channel *sce, *tmp, *after;
     	int unit = device_get_unit(d->dev);
 
-	snd_mtxlock(d->lock);
-
 	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!sce) {
-		snd_mtxunlock(d->lock);
 		return ENOMEM;
 	}
+
+	snd_mtxlock(d->lock);
 
 	sce->channel = ch;
 	if (SLIST_EMPTY(&d->channels)) {
