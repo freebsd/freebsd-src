@@ -313,6 +313,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 {
 	struct proc *p;
 	struct ksegrp *kg;
+	struct kse *ke;
 
 	p = td->td_proc;
 	/* Only UTS can do the syscall */ 
@@ -327,13 +328,15 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 		PROC_UNLOCK(p);
 		return (EDEADLK);
 	}
-	if ((p->p_numthreads == 1) && (p->p_numksegrps == 1)) {
-		/* XXXSKE what if >1 KSE? check.... */
+	ke = td->td_kse;
+	if (p->p_numthreads == 1) {
+		ke->ke_flags &= ~KEF_DOUPCALL;
+		ke->ke_mailbox = NULL;
 		p->p_flag &= ~P_KSES;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
-		td->td_kse->ke_flags |= KEF_EXIT;
+		ke->ke_flags |= KEF_EXIT;
 		thread_exit();
 		/* NOTREACHED */
 	}
