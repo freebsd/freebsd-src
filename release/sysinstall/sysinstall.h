@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.33 1997/05/05 06:41:36 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.34 1997/05/22 04:10:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,7 +131,7 @@
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
 #define VAR_NFS_SECURE			"nfsSecure"
-#define VAR_NFS_SERVER			"nfs_server"
+#define VAR_NFS_SERVER			"nfs_server_enable"
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NOVELL			"novell"
 #define VAR_NTPDATE			"ntpdate"
