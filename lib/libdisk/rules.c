@@ -200,8 +200,6 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
  * Rule#4:
  *	Max seven 'part' as children of 'freebsd'
  *	Max one CHUNK_IS_ROOT child per 'freebsd'
- *	If Bad144, space for table must exist.
- *	If Bad144 & root, bad144 table must be inside 1024
  */
 void
 Rule_004(struct disk *d, struct chunk *c, char *msg)
@@ -215,14 +213,8 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != part)
 			continue;
-		if (c1->flags & CHUNK_IS_ROOT) {
+		if (c1->flags & CHUNK_IS_ROOT)
 			k++;
-#ifndef PC98
-			if (c1->flags & CHUNK_PAST_1024)
-				sprintf(msg+strlen(msg),
-	    "Root filesystem extends past cylinder 1024, and cannot be booted from\n");
-#endif
-		}
 		i++;
 	}
 	if (i > 7) {
@@ -247,13 +239,6 @@ Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 		Check_Chunk(d,c->part,msg);
 	if (c->next)
 		Check_Chunk(d,c->next,msg);
-
-#ifndef PC98
-	if (c->end >= 1024*d->bios_hd*d->bios_sect)
-		c->flags |= CHUNK_PAST_1024;
-	else
-		c->flags &= ~CHUNK_PAST_1024;
-#endif
 }
 
 char *
@@ -276,15 +261,6 @@ ChunkCanBeRoot(struct chunk *c)
 	char msg[BUFSIZ];
 
 	*msg = '\0';
-#ifndef PC98
-	if (c->flags & CHUNK_PAST_1024) {
-		strcat(msg,
-"The root partition must end before cylinder 1024 seen from\n");
-		strcat(msg,
-"the BIOS' point of view, or it cannot be booted from.\n");
-		return strdup(msg);
-	}
-#endif
 	for (c1=d->chunks->part;;) {
 		for (; c1; c1=c1->next)
 			if (c1->offset <= c->offset && c1->end >= c->end)
