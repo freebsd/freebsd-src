@@ -7,7 +7,7 @@
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
  *
- *	$Id$
+ *	$Id: getether.c,v 1.7 1997/02/22 14:21:05 peter Exp $
  */
 
 #include <sys/types.h>
@@ -195,7 +195,7 @@ getether(ifname, eap)
 	char *enaddr;
 	int unit = -1;				/* which unit to attach */
 
-	sprintf(devname, "/dev/%s", ifname);
+	snprintf(devname, sizeof(devname), "/dev/%s", ifname);
 	fd = open(devname, 2);
 	if (fd < 0) {
 		/* Try without the trailing digit. */
