@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.30 1995/06/09 11:51:21 jkh Exp $
+ * $Id: dist.c,v 1.35.2.31 1995/06/09 12:19:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -175,7 +175,7 @@ distSetXDeveloper(char *str)
     distReset(NULL);
     Dists = _DIST_DEVELOPER | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86Dists = DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
@@ -336,21 +336,7 @@ distExtract(char *parent, Distribution *me)
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
-	/* Optimize the single-chunk case */
-	if (numchunks == 1) {
-	    snprintf(buf, 512, "%s/%s.aa", path, dist);
-	    if (isDebug())
-		msgDebug("Trying for single-piece: %s\n", buf);
-	    fd = (*mediaDevice->get)(mediaDevice, buf, dist_attr);
-	    if (fd < 0)
-		return FALSE;
-	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    status = mediaExtractDist(me[i].my_dir, fd);
-	    (*mediaDevice->close)(mediaDevice, fd);
-	    goto done;
-	}
-
-	/* We have multiple chunks, go pick them up */
+	/* We have one or more chunks, go pick them up */
 	mediaExtractDistBegin(me[i].my_dir, &fd2, &zpid, &cpid);
 	dialog_clear();
 	for (chunk = 0; chunk < numchunks; chunk++) {
@@ -395,9 +381,12 @@ distExtract(char *parent, Distribution *me)
 	    if (OptFlags & OPT_NO_CONFIRM)
 		status = TRUE;
 	    else {
-		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-		if (status && !msgYesNo("Would you like to clear all distributions from the parent\ngroup of %s?", path))
-		    *(me[i].my_mask) = 0;
+		if (me[i].my_dist) {
+		    msgConfirm("Unable to transfer all components of the %s distribution.\nIf this is a CDROM install, it may be because export restrictions prohibit\nDES code from being shipped from the U.S.  Try to get this code from a\nlocal FTP site instead!");
+		    status = TRUE;
+		}
+		else
+		    status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to try to retrieve it again?", me[i].my_name, mediaDevice->name);
 	    }
 	}
 	/* Extract was successful, remove ourselves from further consideration */
@@ -422,7 +411,7 @@ distExtractAll(void)
 
     /* Anything left? */
     if (Dists)
-	msgConfirm("Couldn't extract all of the dists.  Residue: %0x", Dists);
+	msgConfirm("Couldn't extract all of the distributions.  This may\nbe because the specified distributions are not available from the\ninstallation media you've chosen (residue: %0x)", Dists);
 
     /* Close up shop and go home */
     (*mediaDevice->shutdown)(mediaDevice);
