@@ -10,5 +10,6 @@ SRCS=	00macs.me 00title.me intro.me ns.me types.me \
 	setup.me manage.me build.me ack.me
 
 MACROS=	-me
+USE_TBL=yes
 
 .include <bsd.doc.mk>
