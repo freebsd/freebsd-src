@@ -109,20 +109,13 @@ static vfs_sync_t nfs_sync;
  * nfs vfs operations.
  */
 static struct vfsops nfs_vfsops = {
-	nfs_mount,
-	vfs_stdstart,
-	nfs_unmount,
-	nfs_root,
-	vfs_stdquotactl,
-	nfs_statfs,
-	nfs_sync,
-	vfs_stdvget,
-	vfs_stdfhtovp,		/* shouldn't happen */
-	vfs_stdcheckexp,
-	vfs_stdvptofh,		/* shouldn't happen */
-	nfs_init,
-	nfs_uninit,
-	vfs_stdextattrctl,
+	.vfs_init =		nfs_init,
+	.vfs_mount =		nfs_mount,
+	.vfs_root =		nfs_root,
+	.vfs_statfs =		nfs_statfs,
+	.vfs_sync =		nfs_sync,
+	.vfs_uninit =		nfs_uninit,
+	.vfs_unmount =		nfs_unmount,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 

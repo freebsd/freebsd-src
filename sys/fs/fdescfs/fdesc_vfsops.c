@@ -58,13 +58,10 @@
 
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
-static int	fdesc_mount(struct mount *mp, struct nameidata *ndp,
-				 struct thread *td);
-static int	fdesc_unmount(struct mount *mp, int mntflags,
-				   struct thread *td);
-static int	fdesc_statfs(struct mount *mp, struct statfs *sbp,
-				  struct thread *td);
-  
+static vfs_nmount_t	fdesc_mount;
+static vfs_unmount_t	fdesc_unmount;
+static vfs_statfs_t	fdesc_statfs;
+
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
@@ -207,21 +204,11 @@ fdesc_statfs(mp, sbp, td)
 }
 
 static struct vfsops fdesc_vfsops = {
-	NULL,
-	vfs_stdstart,
-	fdesc_unmount,
-	fdesc_root,
-	vfs_stdquotactl,
-	fdesc_statfs,
-	vfs_stdnosync,
-	vfs_stdvget,
-	vfs_stdfhtovp,
-	vfs_stdcheckexp,
-	vfs_stdvptofh,
-	fdesc_init,
-	vfs_stduninit,
-	vfs_stdextattrctl,
-	fdesc_mount,
+	.vfs_init =		fdesc_init,
+	.vfs_nmount =		fdesc_mount,
+	.vfs_root =		fdesc_root,
+	.vfs_statfs =		fdesc_statfs,
+	.vfs_unmount =		fdesc_unmount,
 };
 
 VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC);

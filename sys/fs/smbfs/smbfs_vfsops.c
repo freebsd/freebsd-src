@@ -76,32 +76,25 @@ SYSCTL_INT(_vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "
 
 static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
 
-
-static int smbfs_mount(struct mount *, char *, caddr_t,
-			struct nameidata *, struct thread *);
-static int smbfs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *);
-static int smbfs_root(struct mount *, struct vnode **);
-static int smbfs_start(struct mount *, int, struct thread *);
-static int smbfs_statfs(struct mount *, struct statfs *, struct thread *);
-static int smbfs_unmount(struct mount *, int, struct thread *);
-static int smbfs_init(struct vfsconf *vfsp);
-static int smbfs_uninit(struct vfsconf *vfsp);
+static vfs_init_t       smbfs_init;
+static vfs_uninit_t     smbfs_uninit;
+static vfs_mount_t      smbfs_mount;
+static vfs_start_t      smbfs_start;
+static vfs_root_t       smbfs_root;
+static vfs_quotactl_t   smbfs_quotactl;
+static vfs_statfs_t     smbfs_statfs;
+static vfs_unmount_t    smbfs_unmount;
 
 static struct vfsops smbfs_vfsops = {
-	smbfs_mount,
-	smbfs_start,
-	smbfs_unmount,
-	smbfs_root,
-	smbfs_quotactl,
-	smbfs_statfs,
-	vfs_stdsync,
-	vfs_stdvget,
-	vfs_stdfhtovp,		/* shouldn't happen */
-	vfs_stdcheckexp,
-	vfs_stdvptofh,		/* shouldn't happen */
-	smbfs_init,
-	smbfs_uninit,
-	vfs_stdextattrctl
+	.vfs_init =		smbfs_init,
+	.vfs_mount =		smbfs_mount,
+	.vfs_quotactl =		smbfs_quotactl,
+	.vfs_root =		smbfs_root,
+	.vfs_start =		smbfs_start,
+	.vfs_statfs =		smbfs_statfs,
+	.vfs_sync =		vfs_stdsync,
+	.vfs_uninit =		smbfs_uninit,
+	.vfs_unmount =		smbfs_unmount,
 };
 
 
