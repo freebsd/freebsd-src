@@ -36,6 +36,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
 
+#include "opt_bdg.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,6 +64,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#ifdef DEV_CARP
+#include <netinet/in_var.h>
+#include <netinet/ip_carp.h>
+#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -75,7 +81,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/endian.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
 

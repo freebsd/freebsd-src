@@ -1669,6 +1669,8 @@ em_local_timer(void *arg)
 static void
 em_print_link_status(struct adapter * adapter)
 {
+	struct ifnet *ifp = &adapter->interface_data.ac_if;
+
 	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_LU) {
 		if (adapter->link_active == 0) {
 			em_get_speed_and_duplex(&adapter->hw, 
@@ -1681,6 +1683,11 @@ em_print_link_status(struct adapter * adapter)
 				"Full Duplex" : "Half Duplex"));
 			adapter->link_active = 1;
 			adapter->smartspeed = 0;
+			ifp->if_link_state = LINK_STATE_UP;
+#ifdef DEV_CARP
+			if (ifp->if_carp)
+				carp_carpdev_state(ifp->if_carp);
+#endif
 		}
 	} else {
 		if (adapter->link_active == 1) {
@@ -1688,6 +1695,11 @@ em_print_link_status(struct adapter * adapter)
 			adapter->link_duplex = 0;
 			printf("em%d: Link is Down\n", adapter->unit);
 			adapter->link_active = 0;
+			ifp->if_link_state = LINK_STATE_DOWN;
+#ifdef DEV_CARP
+			if (ifp->if_carp)
+				carp_carpdev_state(ifp->if_carp);
+#endif
 		}
 	}
 
