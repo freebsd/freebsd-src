@@ -6,8 +6,10 @@ SRCS=   authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 	cipher.c compat.c compress.c crc32.c deattack.c \
 	hostfile.c log.c match.c mpaux.c nchan.c packet.c readpass.c \
 	rsa.c tildexpand.c ttymodes.c uidswap.c xmalloc.c atomicio.c \
-	key.c dispatch.c dsa.c kex.c hmac.c uuencode.c util.c \
-	cli.c rijndael.c version.c
+	key.c dispatch.c kex.c mac.c uuencode.c misc.c \
+	cli.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c kexgex.c \
+	version.c
+
 
 NOPIC=		yes
 INTERNALLIB=	yes
@@ -26,11 +28,6 @@ CFLAGS+= -DKRB4
 	((${MAKE_KERBEROS5} == "yes") || (${MAKE_KERBEROS5} == "YES"))
 CFLAGS+= -DKRB5
 .endif # MAKE_KERBEROS5
-
-CFLAGS+= -DSKEY
-DPADD+=	${LIBOPIE}
-LDADD+= -lopie
-SRCS+=	auth-skey.c auth2-skey.c
 
 .include <bsd.lib.mk>
 
