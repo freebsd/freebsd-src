@@ -67,6 +67,7 @@ LIBMYTINFO?=	"don't use LIBMYTINFO, use LIBNCURSES"
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
+LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
