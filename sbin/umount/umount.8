@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
-.\"	$Id$
+.\"	$Id: umount.8,v 1.4 1997/08/20 11:40:13 steve Exp $
 .\"
 .Dd May 8, 1995
 .Dt UMOUNT 8
@@ -39,7 +39,7 @@
 .Nm umount
 .Nd unmount filesystems
 .Sh SYNOPSIS
-.Nm
+.Nm umount
 .Op Fl fv
 .Ar special \&| node
 .Nm umount
@@ -86,7 +86,9 @@ This option implies the
 .Fl A
 option and, unless otherwise specified with the
 .Fl t
-option, will only unmount NFS filesystems.
+option, will only unmount
+.Tn NFS
+filesystems.
 .It Fl t Ar type
 Is used to indicate the actions should only be taken on
 filesystems of the specified type.
