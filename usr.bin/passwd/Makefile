@@ -11,13 +11,17 @@ CFLAGS+=-DCRYPT -DYP -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
 	-I${.CURDIR}/../../usr.bin/chpass \
 	-I${.CURDIR}/../../gnu/usr.sbin/yppasswdd
 
-LINKS= ${BINDIR}/passwd ${BINDIR}/yppasswd
-LINKS+= ${BINDIR}/passwd ${BINDIR}/ypchfn
-LINKS+= ${BINDIR}/passwd ${BINDIR}/ypchsh
-LINKS+= ${BINDIR}/passwd ${BINDIR}/ypchpass
-
 BINOWN=	root
 BINMODE=4555
+BINDIR= /usr/bin
 INSTALLFLAGS=-fschg
+
+afterinstall: symlinks
+
+symlinks: passwd
+	ln -sf ${BINDIR}/passwd ${BINDIR}/yppasswd
+	ln -sf ${BINDIR}/passwd ${BINDIR}/ypchsh
+	ln -sf ${BINDIR}/passwd ${BINDIR}/ypshfn
+	ln -sf ${BINDIR}/passwd ${BINDIR}/ypchpass
 
 .include <bsd.prog.mk>
