@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.24 1997/01/12 07:05:07 peter Exp $
+# $Id: bsd.info.mk,v 1.25 1997/01/12 07:15:24 peter Exp $
 
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
@@ -71,7 +71,7 @@ depend: _SUBDIR
 clean: _SUBDIR
 	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
-.if !defined(NOINFO)
+.if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
 	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${IFILES} ${DESTDIR}${INFODIR}
