@@ -44,6 +44,7 @@
  */
 
 #include "opt_bootp.h"
+#include "opt_compat.h"
 #include "opt_nfsroot.h"
 
 #include <sys/syscall.h>
@@ -416,6 +417,7 @@ NON_GPROF_ENTRY(sigcode)
 	int	$0x80				/* enter kernel with args */
 0:	jmp	0b
 
+#ifdef COMPAT_43
 	ALIGN_TEXT
 osigcode:
 	call	*SIGF_HANDLER(%esp)		/* call signal handler */
@@ -425,11 +427,11 @@ osigcode:
 	jne	9f
 	movl	SC_GS(%eax),%gs			/* restore %gs */
 9:
-	movl	$0x01d516,SC_TRAPNO(%eax)	/* magic: 0ldSiG */
-	movl	$SYS_sigreturn,%eax
+	movl	$SYS_osigreturn,%eax
 	pushl	%eax				/* junk to fake return addr. */
 	int	$0x80				/* enter kernel with args */
 0:	jmp	0b
+#endif /* COMPAT_43 */
 
 	ALIGN_TEXT
 esigcode:
@@ -438,8 +440,10 @@ esigcode:
 	.globl	szsigcode, szosigcode
 szsigcode:
 	.long	esigcode-sigcode
+#ifdef COMPAT_43
 szosigcode:
 	.long	esigcode-osigcode
+#endif
 	.text
 
 /**********************************************************************
