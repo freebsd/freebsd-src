@@ -238,6 +238,9 @@ forms of DOS attacks, glob(3) now allows specification of a limit on
 the number of pathname matches it will return.  ftpd(8) now uses this
 feature (see security advisory FreeBSD-SA-01:33).
 
+Initial sequence numbers in TCP are more thoroughly randomized, using
+an algorithm obtained from OpenBSD.
+
 A number of programs have had output formatting strings corrected so
 as to reduce the risk of vulnerabilities.
 
@@ -500,6 +503,8 @@ it should bind.  This option may be specified multiple times and is
 typically necessary for multi-homed hosts.
 
 GNATS has been updated to 3.113.
+
+tail(1) now has the ability to work on files longer than 2GB.
 
 
 2. Supported Configurations
