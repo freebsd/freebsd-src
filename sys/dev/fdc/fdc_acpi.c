@@ -104,7 +104,6 @@ fdc_acpi_attach(device_t dev)
 	/* Get our softc and use the same accessor as ISA. */
 	sc = device_get_softc(dev);
 	sc->fdc_dev = dev;
-	sc->flags |= FDC_ISPNP;
 
 	/* Initialize variables and get a temporary buffer for _FDE. */
 	error = ENXIO;
