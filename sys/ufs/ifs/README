@@ -1,0 +1,109 @@
+
+$FreeBSD$
+
+ifs- inode filesystem
+--
+
+
+ifs is the beginning of a little experiment - to remove the namespace
+from ffs. FFS is a good generic filesystem, however in high volume
+activities today (eg web, mail, cache, news) one thing causes a rather
+huge resource drain - the namespace.
+
+Having to maintain the directory structures means wasting a lot of
+disk IO and/or memory. Since most applications these days have their
+own database containing object->ufs namespace mappings, we can effectively
+bypass namespace together and talk instead to just inodes.
+
+This is a big big hack(1), but its also a start. It should speed up news
+servers and cache servers quite a bit - since the time spent in open()
+and unlink() is drastically reduced - however, it is nowhere near
+optimal. We'll cover that shortly.
+
+(1) not hack as evil and ugly, hack as in non-optimal solution. The
+    optimal solution hasn't quite presented itself yet. :-)
+
+
+
+How it works:
+--
+
+Basically ifs is a copy of ffs, overriding some vfs/vnops. (Yes, hack.)
+I didn't see the need in duplicating all of sys/ufs/ffs to get this
+off the ground.
+
+File creation is done through a special file - 'newfile' . When newfile
+is called, the system allocates and returns an inode. Note that newfile
+is done in a cloning fashion:
+
+fd = open("newfile", O_CREAT|O_RDWR, 0644);
+fstat(fd, &st);
+
+printf("new file is %d\n", (int)st.st_ino); 
+
+Once you have created a file, you can open() and unlink() it by its returned
+inode number retrieved from the stat call, ie:
+
+fd = open("5", O_RDWR);
+
+The creation permissions depend entirely if you have write access to the
+root directory of the filesystem.
+
+
+Why its nowhere near optimal
+--
+
+When doing file allocation in FFS, it tries to reduce the disk seeks by
+allocating new files inside the cylinder group of the parent directory, if
+possible.  In this scheme, we've had to drop that. Files are allocated
+sequentially, filling up cylinder groups as we go along. Its not very optimal,
+more research will have to be done into how cylinder group locality can be
+bought back into this. (It entirely depends upon the benefits here..)
+
+Allowing create by inode number requires quite a bit of code rewrite, and in
+the test applications here I didn't need it. Maybe in the next phase I might
+look at allowing create by inode number, feedback, please.
+
+SOFTUPDATES will *NOT* work here - especially in unlink() where I've just
+taken a large axe to it. I've tried to keep as much of the softupdates call
+stubs in as much as possible, but I haven't looked at the softupdates code.
+My reasoning was that because there's no directory metadata anymore,
+softupdates isn't as important. Besides, fsck's are so damn quick ..
+
+Extras
+--
+
+I've taken the liberty of applying a large axe to bits of fsck - stripping out
+namespace checks. As far as I can *TELL*, its close, however, I'd like it if
+someone fsck clued poked me back on what I missed.
+
+There's also a modified copy of mount that will mount a fs type 'ifs'. Again,
+its just the normal mount with s/"ufs"/"ifs"/g, async/noatime/etc mount
+options work just as normal.
+
+I haven't supplied an ifs 'newfs' - use FFS newfs to create a blank drive.
+That creates the root directory, which you still do DEFINITELY need.
+However, ifs updates on the drive will not update directory entries in '.'.
+There is a 1:1 mapping between the inode numbers in open()/stat() and the
+inodes on disk. You don't get access to inodes 0-2. They don't show up
+in a readdir. I'll work on making 2 avaliable, but since the current ufs/ffs
+code assumes things are locked against the root inode which is 2 ..
+
+You can find these utilities in src/sbin/mount_ifs and src/sbin/fsck_ifs .
+Yes, this means that you can tie in ifs partitions in your bootup
+sequence.
+
+TODO:
+--
+
+* Implement cookies for NFS
+
+  (Realise that this is a huge hack which uses the existing UFS/FFS code.
+   Therefore its nowhere near as optimal as it could be, and things aren't
+   as easy to add as one might think. Especially 'fake' files. :-)
+
+
+
+--
+Adrian Chadd
+<adrianFreeBSD.org>
