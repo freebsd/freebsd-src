@@ -463,7 +463,6 @@ static int
 spec_xstrategy(struct vnode *vp, struct buf *bp)
 {
 	struct mount *mp;
-	int error;
 	struct cdevsw *dsw;
 	struct thread *td = curthread;
 	
@@ -480,25 +479,6 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 		msleep(&strategy_mtx, &strategy_mtx,
 		    PPAUSE | PCATCH | PDROP, "ioslow",
 		    td->td_ksegrp->kg_nice);
-	}
-	if (bp->b_iocmd == BIO_WRITE) {
-		if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
-		    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
-		    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
-			panic("spec_strategy: bad I/O");
-		bp->b_flags &= ~B_VALIDSUSPWRT;
-		if (LIST_FIRST(&bp->b_dep) != NULL)
-			buf_start(bp);
-		mp_fixme("This should require the vnode lock.");
-		if ((vp->v_vflag & VV_COPYONWRITE) &&
-		    vp->v_rdev->si_copyonwrite &&
-		    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
-		    error != EOPNOTSUPP) {
-			bp->b_io.bio_error = error;
-			bp->b_io.bio_flags |= BIO_ERROR;
-			biodone(&bp->b_io);
-			return (0);
-		}
 	}
 	/*
 	 * Collect statistics on synchronous and asynchronous read
