@@ -1007,7 +1007,6 @@ isp_fibre_init(isp)
 #else
 	fcp->isp_fwoptions = 0;
 #endif
-
 	fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 	/*
 	 * If this is a 2100 < revision 5, we have to turn off FAIRNESS.
@@ -1059,7 +1058,7 @@ isp_fibre_init(isp)
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 	icbp->icb_hardaddr = loopid;
-	icbp->icb_logintime = 30;	/* 30 second login timeout */
+	icbp->icb_logintime = 60;	/* 60 second login timeout */
 
 	if (fcp->isp_nodewwn) {
 		u_int64_t pn;
@@ -1332,7 +1331,6 @@ isp_fclink_test(isp, waitdelay)
 	CFGPRINTF("%s: Loop ID %d, ALPA 0x%x Loop State 0x%x topology %s\n",
 	    isp->isp_name, fcp->isp_loopid, fcp->isp_alpa, fcp->isp_loopstate,
 	    tname);
-	fcp->loop_seen_once = 1;
 	return (0);
 }
 
@@ -1394,6 +1392,7 @@ isp_pdb_sync(isp, target)
 	 * FL_PORT_ID times).
 	 */
 	tport = fcp->tport;
+
 	/*
 	 * make sure the temp port database is clean...
 	 */
@@ -1466,7 +1465,7 @@ isp_pdb_sync(isp, target)
 		 * use) and then compare it to our saved database which
 		 * never shifts.
 		 */
-		if (isp_same_lportdb(lp, &fcp->portdb[target])) {
+		if (target >= 0 && isp_same_lportdb(lp, &fcp->portdb[target])) {
 			lp->valid = 1;
 		}
 	}
@@ -1758,6 +1757,12 @@ isp_pdb_sync(isp, target)
 		isp_mboxcmd(isp, &mbs);
 	}
 #endif
+	/*
+	 * If we get here, we've for sure seen not only a valid loop
+	 * but know what is or isn't on it, so mark this for usage
+	 * in ispscsicmd.
+	 */
+	fcp->loop_seen_once = 1;
 	return (0);
 }
 
@@ -1908,11 +1913,17 @@ ispscsicmd(xs)
 		 * If our loop state is such that we haven't yet received
 		 * a "Port Database Changed" notification (after a LIP or
 		 * a Loop Reset or firmware initialization), then defer
-		 * sending commands for a little while.
+		 * sending commands for a little while, but only if we've
+		 * seen a valid loop at one point (otherwise we can get
+		 * stuck at initialization time).
 		 */
 		if (fcp->isp_loopstate < LOOP_PDB_RCVD) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
-			return (CMD_RQLATER);
+			if (fcp->loop_seen_once) {
+				return (CMD_RQLATER);
+			} else {
+				return (CMD_COMPLETE);
+			}
 		}
 
 		/*
@@ -2192,12 +2203,25 @@ isp_control(isp, ctl, arg)
 
 	case ISPCTL_FCLINK_TEST:
 		return (isp_fclink_test(isp, FC_FW_READY_DELAY));
-#ifdef	ISP_TARGET_MODE
-	case ISPCTL_ENABLE_LUN:
-		return (isp_modify_lun, 1, arg));
 
-	case ISPCTL_MODIFY_LUN:
-		return (isp_modify_lun, 0, arg));
+	case ISPCTL_PDB_SYNC:
+		return (isp_pdb_sync(isp, -1));
+
+#ifdef	ISP_TARGET_MODE
+	case ISPCTL_TOGGLE_TMODE:
+		if (IS_SCSI(isp)) {
+			int ena = *(int *)arg;
+			mbs.param[0] = MBOX_ENABLE_TARGET_MODE;
+			mbs.param[1] = (ena)? ENABLE_TARGET_FLAG : 0;
+			isp_mboxcmd(isp, &mbs);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				PRINTF("%s: cannot %sable target mode (0x%x)\n",
+				    isp->isp_name, ena? "en" : "dis",
+				    mbs.param[0]);
+				break;
+			}
+		}
+		return (0);
 #endif
 	}
 	return (-1);
@@ -2289,12 +2313,12 @@ isp_intr(arg)
 		MemoryBarrier();
 		/*
 		 * Do any appropriate unswizzling of what the Qlogic f/w has
-		 * written into memory so it makes sense to us.
+		 * written into memory so it makes sense to us. This is a
+		 * per-platform thing.
 		 */
 		ISP_UNSWIZZLE_RESPONSE(isp, sp);
 		if (sp->req_header.rqs_entry_type != RQSTYPE_RESPONSE) {
 			if (isp_handle_other_response(isp, sp, &optr) == 0) {
-				ISP_WRITE(isp, INMAILBOX5, optr);
 				continue;
 			}
 			/*
@@ -2303,7 +2327,6 @@ isp_intr(arg)
 			 * not, something bad has happened.
 			 */
 			if (sp->req_header.rqs_entry_type != RQSTYPE_REQUEST) {
-				ISP_WRITE(isp, INMAILBOX5, optr);
 				PRINTF("%s: not RESPONSE in RESPONSE Queue "
 				    "(type 0x%x) @ idx %d (next %d)\n",
 				    isp->isp_name,
@@ -2506,7 +2529,7 @@ isp_parse_async(isp, mbox)
 	case ASYNC_BUS_RESET:
 		isp->isp_sendmarker = (1 << bus);
 #ifdef	ISP_TARGET_MODE
-		isp_target_async(isp, bus, ASYNC_BUS_RESET);
+		isp_target_async(isp, bus, mbox);
 #endif
 		isp_async(isp, ISPASYNC_BUS_RESET, &bus);
 		break;
@@ -2540,7 +2563,7 @@ isp_parse_async(isp, mbox)
 		    isp->isp_name, bus);
 		isp->isp_sendmarker = (1 << bus);
 #ifdef	ISP_TARGET_MODE
-		isp_target_async(isp, bus, ASYNC_TIMEOUT_RESET);
+		isp_target_async(isp, bus, mbox);
 #endif
 		break;
 
@@ -2548,7 +2571,7 @@ isp_parse_async(isp, mbox)
 		PRINTF("%s: device reset on bus %d\n", isp->isp_name, bus);
 		isp->isp_sendmarker = 1 << bus;
 #ifdef	ISP_TARGET_MODE
-		isp_target_async(isp, bus, ASYNC_DEVICE_RESET);
+		isp_target_async(isp, bus, mbox);
 #endif
 		break;
 
@@ -2626,6 +2649,9 @@ isp_parse_async(isp, mbox)
 		isp->isp_sendmarker = 1;
 		isp_mark_getpdb_all(isp);
 		IDPRINTF(1, ("%s: LIP occurred\n", isp->isp_name));
+#ifdef	ISP_TARGET_MODE
+		isp_target_async(isp, bus, mbox);
+#endif
 		break;
 
 	case ASYNC_LOOP_UP:
@@ -2634,6 +2660,9 @@ isp_parse_async(isp, mbox)
 		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_LIP_RCVD;
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_UP, NULL);
+#ifdef	ISP_TARGET_MODE
+		isp_target_async(isp, bus, mbox);
+#endif
 		break;
 
 	case ASYNC_LOOP_DOWN:
@@ -2642,6 +2671,9 @@ isp_parse_async(isp, mbox)
 		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_NIL;
 		isp_mark_getpdb_all(isp);
 		isp_async(isp, ISPASYNC_LOOP_DOWN, NULL);
+#ifdef	ISP_TARGET_MODE
+		isp_target_async(isp, bus, mbox);
+#endif
 		break;
 
 	case ASYNC_LOOP_RESET:
@@ -2651,7 +2683,7 @@ isp_parse_async(isp, mbox)
 		isp_mark_getpdb_all(isp);
 		PRINTF("%s: Loop RESET\n", isp->isp_name);
 #ifdef	ISP_TARGET_MODE
-		isp_target_async(isp, bus, ASYNC_LOOP_RESET);
+		isp_target_async(isp, bus, mbox);
 #endif
 		break;
 
@@ -2692,7 +2724,7 @@ isp_handle_other_response(isp, sp, optrp)
 {
 	switch (sp->req_header.rqs_entry_type) {
 	case RQSTYPE_ATIO:
-	case RQSTYPE_CTIO0:
+	case RQSTYPE_CTIO:
 	case RQSTYPE_ENABLE_LUN:
 	case RQSTYPE_MODIFY_LUN:
 	case RQSTYPE_NOTIFY:
@@ -2702,7 +2734,7 @@ isp_handle_other_response(isp, sp, optrp)
 	case RQSTYPE_CTIO2:
 	case RQSTYPE_CTIO3:
 #ifdef	ISP_TARGET_MODE
-		return (isp_target_entry(isp, sp));
+		return (isp_target_notify(isp, sp, optrp));
 #else
 		/* FALLTHROUGH */
 #endif
@@ -3094,7 +3126,7 @@ static u_int8_t mbpcnt[] = {
 	MAKNIB(0, 0),	/* 0x52: */
 	MAKNIB(0, 0),	/* 0x53: */
 	MAKNIB(8, 0),	/* 0x54: MBOX_EXEC_COMMAND_IOCB_A64 */
-	MAKNIB(0, 0),	/* 0x55: */
+	MAKNIB(2, 1),	/* 0x55: MBOX_ENABLE_TARGET_MODE */
 	MAKNIB(0, 0),	/* 0x56: */
 	MAKNIB(0, 0),	/* 0x57: */
 	MAKNIB(0, 0),	/* 0x58: */
