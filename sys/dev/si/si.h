@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.2 1995/08/13 15:17:56 peter Exp $
+ *	$Id: si.h,v 1.3 1995/08/22 00:42:07 peter Exp $
  */
 
 /*
@@ -411,16 +411,6 @@ struct si_port {
 /*
  * Extensive debugging stuff - manipulated using siconfig(8)
  */
-#ifdef	KERNEL
-#ifdef SI_DEBUG
-static void si_dprintf();
-static char *si_mctl2str();
-#define	DPRINT(x)	si_dprintf x
-#else
-#define	DPRINT(x)	/* void */
-#endif
-#endif
-
 #define	DBG_ENTRY		0x00000001
 #define	DBG_DRAIN		0x00000002
 #define	DBG_OPEN		0x00000004
@@ -533,4 +523,3 @@ struct si_pstat {
 		(u_int)((cmd)&0xff) <= IOCTL_MAX)
 
 #define	CONTROLDEV	"/dev/si_control"
-
