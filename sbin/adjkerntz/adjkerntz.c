@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: adjkerntz.c,v 1.20 1997/06/10 11:01:13 charnier Exp $
+ *		$Id: adjkerntz.c,v 1.21 1998/02/25 09:40:21 ache Exp $
  */
 
 #ifndef lint
@@ -175,7 +175,7 @@ recalculate:
 		 * middle of the nonexistent hour means 3:30 am.
 		 */
 		syslog(LOG_WARNING,
-		"Warning: nonexistent %s time.",
+		"Warning: nonexistent %s time, try to run later.",
 			utcsec == -1 && localsec == -1 ? "UTC time and local" :
 			utcsec == -1 ? "UTC" : "local");
 		if (!sleep_mode) {
@@ -229,7 +229,7 @@ recalculate:
 			 * but perhaps we never get here.
 			 */
 			syslog(LOG_WARNING,
-				"Warning: nonexistent final %s time.",
+				"Warning: nonexistent final %s time, try to run later.",
 				utcsec == -1 && localsec == -1 ? "UTC time and local" :
 				utcsec == -1 ? "UTC" : "local");
 			if (!sleep_mode) {
