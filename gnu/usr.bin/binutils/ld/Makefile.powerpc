@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+TARGET_TUPLE=	powerpc-unknown-freebsd
+
 .if ${TARGET_ARCH} == "powerpc"
-HOST=	powerpc-unknown-freebsd
+HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf_powerpc\"
-CFLAGS+= -DTARGET=\"powerpc-unknown-freebsd\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _powerpc_path=	\"/usr/lib\"
 .else
 _powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
@@ -61,27 +63,27 @@ CLEANFILES+=	eelf32ppc.c		\
 eelf32ppc.c: emulparams/elf32ppc.sh emultempl/elf32.em scripttempl/elfppc.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    ${_powerpc_path} ${HOST} powerpc-unknown-freebsd \
-	    powerpc-unknown-freebsd elf32ppc "" elf32ppc
+	    ${_powerpc_path} ${HOST} ${TARGET_TUPLE} \
+	    ${TARGET_TUPLE} elf32ppc "" elf32ppc
 
 eppcmacos.c: emulparams/ppcmacos.sh emultempl/aix.em scripttempl/aix.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/powerpc_macos/usr/lib ${HOST} \
-	    powerpc-unknown-freebsdmacos \
-	    powerpc-unknown-freebsdmacos ppcmacos "" ppcmacos
+	    ${TARGET_TUPLE}macos \
+	    ${TARGET_TUPLE}macos ppcmacos "" ppcmacos
 
 eppcnw.c: emulparams/ppcnw.sh emultempl/elf32.em scripttempl/nw.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/powerpc_nw/usr/lib ${HOST} powerpc-unknown-freebsdnw \
-	    powerpc-unknown-freebsdnw ppcnw "" ppcnw
+	    /usr/cross/powerpc_nw/usr/lib ${HOST} ${TARGET_TUPLE}nw \
+	    ${TARGET_TUPLE}nw ppcnw "" ppcnw
 
 eppcpe.c: emulparams/ppcpe.sh emultempl/pe.em scripttempl/ppcpe.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/powerpc_pe/usr/lib ${HOST} powerpc-unknown-freebsdpe \
-	    powerpc-unknown-freebsdpe ppcpe "" ppcpe
+	    /usr/cross/powerpc_pe/usr/lib ${HOST} ${TARGET_TUPLE}pe \
+	    ${TARGET_TUPLE}pe ppcpe "" ppcpe
 
 eaixrs6.c: emulparams/aixrs6.sh emultempl/aix.em scripttempl/aix.sc \
     genscripts.sh stringify.sed
