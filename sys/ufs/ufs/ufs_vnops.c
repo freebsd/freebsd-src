@@ -331,7 +331,7 @@ ufs_access(ap)
 	}
 
 	/* If immutable bit set, nobody gets to write it. */
-	if ((mode & VWRITE) && (ip->i_flags & IMMUTABLE))
+	if ((mode & VWRITE) && (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
 		return (EPERM);
 
 	/* Otherwise, user id 0 always gets access. */
@@ -454,6 +454,12 @@ ufs_setattr(ap)
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) &&
 			    securelevel > 0)
 				return (EPERM);
+			/* Snapshot flag cannot be set or cleared */
+			if (((vap->va_flags & SF_SNAPSHOT) != 0 &&
+			     (ip->i_flags & SF_SNAPSHOT) == 0) ||
+			    ((vap->va_flags & SF_SNAPSHOT) == 0 &&
+			     (ip->i_flags & SF_SNAPSHOT) != 0))
+				return (EPERM);
 			ip->i_flags = vap->va_flags;
 		} else {
 			if (ip->i_flags
@@ -491,6 +497,8 @@ ufs_setattr(ap)
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
+			if ((ip->i_flags & SF_SNAPSHOT) != 0)
+				return (EPERM);
 			break;
 		default:
 			break;
@@ -498,10 +506,11 @@ ufs_setattr(ap)
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, p)) != 0)
 			return (error);
 	}
-	ip = VTOI(vp);
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
+		if ((ip->i_flags & SF_SNAPSHOT) != 0)
+			return (EPERM);
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser_xxx(cred, p, PRISON_ROOT)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
@@ -528,6 +537,9 @@ ufs_setattr(ap)
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
+		if ((ip->i_flags & SF_SNAPSHOT) != 0 && (vap->va_mode &
+		   (S_IXUSR | S_IWUSR | S_IXGRP | S_IWGRP | S_IXOTH | S_IWOTH)))
+			return (EPERM);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, p);
 	}
 	VN_KNOTE(vp, NOTE_ATTRIB);
@@ -702,8 +714,6 @@ ufs_remove(ap)
 	int error;
 
 	ip = VTOI(vp);
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
-		ffs_snapremove(vp);
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(dvp)->i_flags & APPEND)) {
 		error = EPERM;

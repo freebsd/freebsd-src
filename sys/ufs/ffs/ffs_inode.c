@@ -45,6 +45,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/stat.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -174,6 +175,8 @@ ffs_truncate(vp, length, flags, cred, p)
 	if (error)
 		return (error);
 #endif
+	if ((oip->i_flags & SF_SNAPSHOT) != 0)
+		ffs_snapremove(ovp);
 	ovp->v_lasta = ovp->v_clen = ovp->v_cstart = ovp->v_lastw = 0;
 	if (DOINGSOFTDEP(ovp)) {
 		if (length > 0) {
