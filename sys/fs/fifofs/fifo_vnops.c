@@ -116,6 +116,7 @@ struct vop_vector fifo_specops = {
 	.vop_open =		fifo_open,
 	.vop_pathconf =		fifo_pathconf,
 	.vop_print =		fifo_print,
+	.vop_read =		VOP_PANIC,
 	.vop_readdir =		VOP_PANIC,
 	.vop_readlink =		VOP_PANIC,
 	.vop_reallocblks =	VOP_PANIC,
@@ -125,6 +126,7 @@ struct vop_vector fifo_specops = {
 	.vop_rmdir =		VOP_PANIC,
 	.vop_setattr =		VOP_EBADF,
 	.vop_symlink =		VOP_PANIC,
+	.vop_write =		VOP_PANIC,
 };
 
 struct mtx fifo_mtx;
