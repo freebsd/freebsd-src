@@ -45,7 +45,10 @@
  */
 #include <inttypes.h>  /* For int64_t, etc. */
 
+#if __FreeBSD__ > 4
 #define HAVE_POSIX_ACL 1
+#endif
+
 #define HAVE_CHFLAGS 1
 #define HAVE_LUTIMES 1
 #define HAVE_LCHMOD 1
