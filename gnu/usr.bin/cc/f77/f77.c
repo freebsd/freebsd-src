@@ -1,7 +1,8 @@
 /* f77 driver dervied from g++.c by Jonas Olsson */
+/* converted from gcc-2.6.x(?) derivative to 2.7.2.1 by Peter Wemm */
 
 /* G++ preliminary semantic processing for the compiler driver.
-   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995 Free Software Foundation, Inc.
    Contributed by Brendan Kehoe (brendan@cygnus.com).
 
 This file is part of GNU CC.
@@ -18,7 +19,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 /* This program is a wrapper to the main `gcc' driver.  For GNU C++,
    we need to do two special things: a) append `-lg++' in situations
@@ -41,7 +43,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #include <stdio.h>
 #include <sys/types.h>
+#if !defined(_WIN32)
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
+#else
+#include <process.h>
+#endif
 
 /* Defined to the name of the compiler; if using a cross compiler, the
    Makefile should compile this file with the proper name
@@ -56,6 +62,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define MATHLIB		(1<<2)
 /* This bit is set if they did `-lf2c'.  */
 #define F2CLIB		(1<<3)
+
+#ifndef MATH_LIBRARY
+#define MATH_LIBRARY "-lm"
+#endif
 
 /* On MSDOS, write temp files in current dir
    because there's no place else we can expect to use.  */
@@ -82,15 +92,45 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-extern int errno, sys_nerr;
-#if defined(bsd4_4) || defined(__NetBSD__)
+#ifndef errno
+extern int errno;
+#endif
+
+extern int sys_nerr;
+#ifndef HAVE_STRERROR
+#if defined(bsd4_4)
 extern const char *const sys_errlist[];
 #else
 extern char *sys_errlist[];
 #endif
+#else
+extern char *strerror();
+#endif
 
 /* Name with which this program was invoked.  */
 static char *programname;
+
+char *
+my_strerror(e)
+     int e;
+{
+
+#ifdef HAVE_STRERROR
+  return strerror(e);
+
+#else
+
+  static char buffer[30];
+  if (!e)
+    return "";
+
+  if (e > 0 && e < sys_nerr)
+    return sys_errlist[e];
+
+  sprintf (buffer, "Unknown error %d", e);
+  return buffer;
+#endif
+}
 
 #ifdef HAVE_VPRINTF
 /* Output an error message and exit */
@@ -206,13 +246,7 @@ static void
 pfatal_with_name (name)
      char *name;
 {
-  char *s;
-
-  if (errno < sys_nerr)
-    s = concat ("%s: ", sys_errlist[errno], "");
-  else
-    s = "cannot open %s";
-  fatal (s, name);
+  fatal (concat ("%s: ", my_strerror (errno), ""), name);
 }
 
 #ifdef __MSDOS__
@@ -257,7 +291,7 @@ choose_temp_base ()
   base = choose_temp_base_try ("/usr/tmp", base);
   base = choose_temp_base_try ("/tmp", base);
 
-  /* If all else fails, use the current directory! */
+  /* If all else fails, use the current directory! */  
   if (base == (char *)0)
     base = "./";
 
@@ -282,7 +316,7 @@ perror_exec (name)
 
   if (errno < sys_nerr)
     s = concat ("installation problem, cannot exec %s: ",
-		sys_errlist[errno], "");
+		my_strerror( errno ), "");
   else
     s = "installation problem, cannot exec %s";
   error (s, name);
@@ -324,7 +358,7 @@ run_dos (program, argv)
   i = system (scmd);
 
   remove (rf);
-
+  
   if (i == -1)
     perror_exec (program);
 }
@@ -339,9 +373,9 @@ main (argc, argv)
   register char *p;
   int verbose = 0;
 
-  /* This will be NULL if we encounter a situation where we should not
-     link in libf2c.  */
-  char *library = "-lf2c";
+  /* This will be 0 if we encounter a situation where we should not
+     link in libf2c  */
+  int library = 1;
 
   /* Used to track options that take arguments, so we don't go wrapping
      those with -xf2c/-xnone.  */
@@ -360,18 +394,19 @@ main (argc, argv)
   int saw_speclang = 0;
 
   /* Non-zero if we saw `-lm' or `-lmath' on the command line.  */
-  int saw_math = 0;
+  char *saw_math = 0;
 
-  /* The number of arguments being added to what's in argv.  By
-     default it's one new argument (adding `-lf2c').  We use this
-     to track the number of times we've inserted -xf2c/-xnone as well.  */
-  int added = 2;
+  /* The number of arguments being added to what's in argv, other than
+     libraries.  We use this to track the number of times we've inserted
+     -xf2c/-xnone.  */
+  int added = 0;
 
   /* An array used to flag each argument that needs a bit set for
      LANGSPEC or MATHLIB.  */
   int *args;
 
   p = argv[0] + strlen (argv[0]);
+
   while (p != argv[0] && p[-1] != '/')
     --p;
   programname = p;
@@ -410,10 +445,9 @@ main (argc, argv)
 
       if (argv[i][0] == '-')
 	{
-	  if (strcmp (argv[i], "-nostdlib") == 0)
+	  if (library != 0 && strcmp (argv[i], "-nostdlib") == 0)
 	    {
-	      added--;
-	      library = NULL;
+	      library = 0;
 	    }
 	  else if (strcmp (argv[i], "-lm") == 0
 		   || strcmp (argv[i], "-lmath") == 0)
@@ -424,9 +458,8 @@ main (argc, argv)
 	      if (argc == 2)
 		{
 		  /* If they only gave us `-v', don't try to link
-		     in libf2c.  */
-		  added--;
-		  library = NULL;
+		     in libf2c.  */ 
+		  library = 0;
 		}
 	    }
 	  else if (strncmp (argv[i], "-x", 2) == 0)
@@ -435,14 +468,13 @@ main (argc, argv)
 		     && (char *)strchr ("bBVDUoeTuIYmLiA", argv[i][1]) != NULL)
 		    || strcmp (argv[i], "-Tdata") == 0))
 	    quote = argv[i];
-	  else if (((argv[i][2] == '\0'
+	  else if (library != 0 && ((argv[i][2] == '\0'
 		     && (char *) strchr ("cSEM", argv[i][1]) != NULL)
 		    || strcmp (argv[i], "-MM") == 0))
 	    {
 	      /* Don't specify libraries if we won't link, since that would
 		 cause a warning.  */
-	      added--;
-	      library = NULL;
+	      library = 0;
 	    }
 	  else
 	    /* Pass other options through.  */
@@ -450,7 +482,7 @@ main (argc, argv)
 	}
       else
 	{
-	  int len;
+	  int len; 
 
 	  if (saw_speclang)
 	    continue;
@@ -471,21 +503,20 @@ main (argc, argv)
   if (quote)
     fatal ("argument to `%s' missing\n", quote);
 
-  if (added)
+  if (added || library)
     {
-      arglist = (char **) malloc ((argc + added + 1) * sizeof (char *));
+      arglist = (char **) malloc ((argc + added + 4) * sizeof (char *));
 
       for (i = 1, j = 1; i < argc; i++, j++)
 	{
 	  arglist[j] = argv[i];
 
-	  /* Make sure -lf2c is before the math library, since libg++
+	  /* Make sure -lf2c is before the math library, since libf2c
 	     itself uses those math routines.  */
 	  if (!saw_math && (args[i] & MATHLIB) && library)
 	    {
-	      saw_math = 1;
-	      arglist[j] = library;
-	      arglist[++j] = argv[i];
+	      --j;
+	      saw_math = argv[i];
 	    }
 	  /* ljo: We want .i and .c treated as C, so don't do anything */
 #if 0
@@ -505,10 +536,13 @@ main (argc, argv)
 	}
 
       /* Add `-lf2c' if we haven't already done so.  */
-      if (library && !saw_math){
-	arglist[j++] = library;
-	arglist[j++] = "-lm";
-      }
+      if (library)
+	arglist[j++] = "-lf2c";
+      if (saw_math)
+	arglist[j++] = saw_math;
+      else if (library)
+	arglist[j++] = MATH_LIBRARY;
+
       arglist[j] = NULL;
     }
   else
@@ -526,15 +560,15 @@ main (argc, argv)
 	fprintf (stderr, " %s", arglist[i]);
       fprintf (stderr, "\n");
     }
-#ifndef OS2
+#if !defined(OS2) && !defined (_WIN32)
 #ifdef __MSDOS__
   run_dos (gcc, arglist);
 #else /* !__MSDOS__ */
   if (execvp (gcc, arglist) < 0)
     pfatal_with_name (gcc);
 #endif /* __MSDOS__ */
-#else /* OS2 */
-  if (spawnvp (gcc, arglist) < 0)
+#else /* OS2 or _WIN32 */
+  if (spawnvp (1, gcc, arglist) < 0)
     pfatal_with_name (gcc);
 #endif
 
