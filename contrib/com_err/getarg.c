@@ -34,6 +34,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
+ *
+ * $FreeBSD$
  */
 
 #if 0
@@ -43,6 +45,7 @@ RCSID("$Id: getarg.c,v 1.25 1998/11/22 09:45:05 assar Exp $");
 #include <sys/ttycom.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "getarg.h"
 
 #define ISFLAG(X) ((X).type == arg_flag || (X).type == arg_negative_flag)
