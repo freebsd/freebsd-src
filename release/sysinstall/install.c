@@ -48,6 +48,7 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>
+#include <ufs/ufs/ufsmount.h>
 
 static void	create_termcap(void);
 static void	fixit_common(void);
@@ -446,8 +447,6 @@ installExpress(dialogMenuItem *self)
 	/* Give user the option of one last configuration spree */
 	installConfigure();
     }
-    /* Now write out any changes .. */
-    configSysconfig("/etc/sysconfig");
     return i | DITEM_RESTORE;
 }
 
@@ -601,9 +600,6 @@ installNovice(dialogMenuItem *self)
     /* Give user the option of one last configuration spree */
     installConfigure();
 
-    /* Now write out any changes .. */
-    configSysconfig("/etc/sysconfig");
-
     return DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
 
@@ -617,9 +613,6 @@ installCustomCommit(dialogMenuItem *self)
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
 	/* Give user the option of one last configuration spree */
 	installConfigure();
-
-	/* Now write out any changes .. */
-	configSysconfig("/etc/sysconfig");
 	return i;
     }
     else
