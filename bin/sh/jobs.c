@@ -971,7 +971,6 @@ stoppedjobs()
 
 STATIC char *cmdnextc;
 STATIC int cmdnleft;
-STATIC void cmdtxt(), cmdputs();
 #define MAXCMDTEXT	200
 
 char *

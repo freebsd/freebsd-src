@@ -67,9 +67,6 @@ static const char rcsid[] =
 
 #undef eflag
 
-extern char **argptr;		/* argument list for builtin command */
-
-
 /*
  * The read builtin.  The -r option causes backslashes to be treated like
  * ordinary characters.
@@ -105,7 +102,7 @@ readcmd(argc, argv)
 	while ((i = nextopt("erp:t:")) != '\0') {
 		switch(i) {
 		case 'p':
-			prompt = optarg;
+			prompt = shoptarg;
 			break;
 		case 'e':
 			break;
@@ -113,8 +110,8 @@ readcmd(argc, argv)
 			rflag = 1;
 			break;
 		case 't':
-			tv.tv_sec = strtol(optarg, &tvptr, 0);
-			if (tvptr == optarg)
+			tv.tv_sec = strtol(shoptarg, &tvptr, 0);
+			if (tvptr == shoptarg)
 				error("timeout value");
 			switch(*tvptr) {
 			case 0:

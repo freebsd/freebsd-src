@@ -77,7 +77,7 @@ extern char nullstr[1];		/* null string */
 
 
 #ifdef DEBUG
-#define TRACE(param)	trace param
+#define TRACE(param)	sh_trace param
 #else
 #define TRACE(param)
 #endif
