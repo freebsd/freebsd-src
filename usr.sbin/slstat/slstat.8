@@ -31,111 +31,110 @@
 .\"
 .\"	@(#)slstat.8	6.8 (Berkeley) 6/20/91
 .\"
-.TH SLSTAT 8 "June 20, 1991"
-.UC 4
-.SH NAME
-slstat \- report serial line IP statistics
-.SH SYNOPSIS
-.nf
-.ft B
-slstat  [ \-i interval ] [ \-v ] [ \-r ] [ unit ] [ system ] [ core ]
-.ft R
-.fi
-.SH DESCRIPTION
-.I Slstat
+.Dd June 20, 1991
+.Dt SLSTAT 8
+.Os BSD 4
+.Sh NAME
+.Nm slstat
+.Nd report serial line IP statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar interval
+.Op Fl vr
+.Op Ar unit
+.Op Ar system
+.Op Ar core
+.Sh DESCRIPTION
+.Nm Slstat
 reports certain kernel statistics kept about serial line internet
 protocol traffic.
-.PP
+.Pp
 The options are as follows:
-.TP
-\-i
+.Bl -tag -width indent
+.It Fl i
 Repeat the display indefinitely every
-.I interval
+.Ar interval
 seconds.
 If no
-.I interval
+.Ar interval
 is specified, the default is 5 seconds.
-.TP
-\-v
+.It Fl v
 Verbose display of extra fields of information.
-.TP
-\-r
+.It Fl r
 Display all values in rate per second that amount per interval.
-.TP
-unit
-is a single digit specifying the slip interface. The default unit is
-.I 0
+.It Ar unit
+Is a single digit specifying the slip interface. The default unit is
+.Sy 0
 for interface
-.I sl0.
-.TP
-system
-Extract the name list from the specified system instead of the default, /kernel.
-.TP
-core
+.Sy sl0 .
+.It Ar system
+Extract the name list from the specified
+.Ar system
+instead of the default,
+.Pa /kernel .
+.It Ar core
 Extract values associated with the name list from the specified
-core instead of the default, /dev/kmem.
-.PP
+.Ar core 
+instead of the default, 
+.Pa /dev/kmem .
+.El
+.Pp
 By default,
-.I vmstat
+.Nm
 displays the following information:
-.PP
-.TP
-in
+.Pp
+.Bl -tag -width indent
+.It in
 bytes received
-.TP
-out
+.It out
 bytes sent
-.TP
-pack
+.It pack
 packets received or sent
-.TP
-comp
+.It comp
 compressed packets received or sent
-.TP
-uncomp
+.It uncomp
 uncompressed packets received or sent
-.TP
-unknwn
+.It unknwn
 inbound packets of unknown type
-.TP
-toss
+.It toss
 inbound packets tossed because of error
-.TP
-other
+.It other
 all other inbound or outbound ip packets
-.TP
-err
+.It err
 input or output errors
-.TP
-search
+.It search
 searches for connection state
-.TP
-miss
+.It miss
 times we could not find a connection state
-.TP
-coll
+.It coll
 collisions with end of clists.
 If you get many collisions (more than one or two
 a day) you probably do not have enough clists
-and you should increase "nclist" in param.c.
-.SH EXAMPLES
-The command ``slstat -i 5'' will print what the system is doing every five
+and you should increase 
+.Dv nclist
+in param.c.
+.El
+.Sh EXAMPLES
+The command:
+.Dl slstat -i 5
+will print what the system is doing every five
 seconds.
-.SH FILES
-.ta \w'/dev/kmem  'u
-/kernel	default kernel namelist
-.br
-/dev/kmem	default memory file
-.SH SEE ALSO
-.IR fstat (1),
-.IR netstat (1),
-.IR nfsstat (1),
-.IR ps (1),
-.IR systat (1),
-.IR iostat (8),
-.IR pstat (8)
-.sp
+.Sh FILES
+.Bl -tag -width /dev/kmemxxxx -compact
+.It Pa /kernel
+default kernel namelist
+.It Pa /dev/kmem
+default memory file
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr ps 1 ,
+.Xr ststat 1 ,
+.Xr iostat 8 ,
+.Xr pstat 8 ,
+.Xr pppstats 8
+.Pp
 The sections starting with ``Interpreting system activity'' in
-.IR "Installing and Operating 4.3BSD" .
-.SH BUGS
-
+.%T "Installing and Operating 4.3BSD" .
