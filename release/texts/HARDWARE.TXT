@@ -463,6 +463,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
   Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+  Racore 8165 10/100baseTX
+  Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
