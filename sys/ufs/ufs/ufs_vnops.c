@@ -1099,7 +1099,7 @@ abortit:
 		 * root). This implements append-only directories.
 		 */
 		if ((dp->i_mode & S_ISTXT) &&
-		    suser_xxx(tcnp->cn_cred, NULL, 0) &&
+		    suser_xxx(tcnp->cn_cred, NULL, PRISON_ROOT) &&
 		    tcnp->cn_cred->cr_uid != dp->i_uid &&
 		    xp->i_uid != tcnp->cn_cred->cr_uid) {
 			error = EPERM;
@@ -2128,7 +2128,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_xxx(cnp->cn_cred, 0, 0))
+	    suser_xxx(cnp->cn_cred, NULL, PRISON_ROOT))
 		ip->i_mode &= ~ISGID;
 
 	if (cnp->cn_flags & ISWHITEOUT)
