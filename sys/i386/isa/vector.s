@@ -284,12 +284,12 @@ _intrcnt_stray:	.space	4	/* total count of stray interrupts */
 _intrcnt_actv:	.space	NR_REAL_INT_HANDLERS * 4	/* active interrupts */
 	.globl	_intrcnt_pend
 _intrcnt_pend:	.space	NR_REAL_INT_HANDLERS * 4	/* pending interrupts */
+	.globl	_eintrcnt
+_eintrcnt:			/* used by vmstat to calc size of table */
 	.globl	_intrcnt_spl
 _intrcnt_spl:	.space	32 * 4	/* XXX 32 should not be hard coded ? */
 	.globl	_intrcnt_show
 _intrcnt_show:	.space	8 * 4	/* XXX 16 should not be hard coded ? */
-	.globl	_eintrcnt
-_eintrcnt:			/* used by vmstat to calc size of table */
 
 /*
  * Build the interrupt name table for vmstat
@@ -325,6 +325,7 @@ _intrnames:
 	.asciz	"name pend"
 
 	BUILD_VECTORS
+_eintrnames:
 
 /*
  * now the spl names
@@ -373,4 +374,3 @@ _intrnames:
 	.asciz	"mask6"
 	.asciz	"mask7"
 	
-_eintrnames:
