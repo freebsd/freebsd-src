@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 147 $
+ *              $Revision: 148 $
  *
  *****************************************************************************/
 
@@ -673,14 +673,14 @@ AcpiExStoreObjectToNode (
 
     default:
 
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Storing %s (%p) directly into node (%p), no implicit conversion\n",
+            AcpiUtGetTypeName (SourceDesc->Common.Type), SourceDesc, Node));
+
         /* No conversions for all other types.  Just attach the source object */
 
         Status = AcpiNsAttachObject (Node, SourceDesc, SourceDesc->Common.Type);
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Store %s into %s via Attach only\n",
-            AcpiUtGetTypeName (SourceDesc->Common.Type),
-            AcpiUtGetTypeName (SourceDesc->Common.Type)));
         break;
     }
 

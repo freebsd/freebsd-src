@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 89 $
+ *              $Revision: 93 $
  *
  ******************************************************************************/
 
@@ -134,12 +134,10 @@
  *
  * PARAMETERS:  Handle              - Object handle (optional)
  *              *Pathname           - Object pathname (optional)
- *              **Params            - List of parameters to pass to
- *                                    method, terminated by NULL.
- *                                    Params itself may be NULL
- *                                    if no parameters are being
- *                                    passed.
- *              *ReturnObject       - Where to put method's return value (if
+ *              **ExternalParams    - List of parameters to pass to method, 
+ *                                    terminated by NULL.  May be NULL
+ *                                    if no parameters are being passed.
+ *              *ReturnBuffer       - Where to put method's return value (if
  *                                    any).  If NULL, no value is returned.
  *
  * RETURN:      Status
@@ -154,83 +152,54 @@ ACPI_STATUS
 AcpiEvaluateObject (
     ACPI_HANDLE             Handle,
     ACPI_STRING             Pathname,
-    ACPI_OBJECT_LIST        *ParamObjects,
+    ACPI_OBJECT_LIST        *ExternalParams,
     ACPI_BUFFER             *ReturnBuffer)
 {
     ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT     **ParamPtr = NULL;
-    ACPI_OPERAND_OBJECT     *ReturnObj = NULL;
-    ACPI_OPERAND_OBJECT     *ObjectPtr = NULL;
+    ACPI_OPERAND_OBJECT     **InternalParams = NULL;
+    ACPI_OPERAND_OBJECT     *InternalReturnObj = NULL;
     UINT32                  BufferSpaceNeeded;
     UINT32                  UserBufferLength;
-    UINT32                  Count;
     UINT32                  i;
-    UINT32                  ParamLength;
-    UINT32                  ObjectLength;
 
 
     FUNCTION_TRACE ("AcpiEvaluateObject");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /*
      * If there are parameters to be passed to the object
      * (which must be a control method), the external objects
      * must be converted to internal objects
      */
-    if (ParamObjects && ParamObjects->Count)
+    if (ExternalParams && ExternalParams->Count)
     {
         /*
          * Allocate a new parameter block for the internal objects
          * Add 1 to count to allow for null terminated internal list
          */
-        Count           = ParamObjects->Count;
-        ParamLength     = (Count + 1) * sizeof (void *);
-        ObjectLength    = Count * sizeof (ACPI_OPERAND_OBJECT);
-
-        ParamPtr = ACPI_MEM_CALLOCATE (ParamLength +    /* Parameter List part */
-                                    ObjectLength);      /* Actual objects */
-        if (!ParamPtr)
+        InternalParams = ACPI_MEM_CALLOCATE ((ExternalParams->Count + 1) * sizeof (void *));
+        if (!InternalParams)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        ObjectPtr = (ACPI_OPERAND_OBJECT  *) ((UINT8 *) ParamPtr +
-                        ParamLength);
-
-        /*
-         * Init the param array of pointers and NULL terminate
-         * the list
-         */
-        for (i = 0; i < Count; i++)
-        {
-            ParamPtr[i] = &ObjectPtr[i];
-            AcpiUtInitStaticObject (&ObjectPtr[i]);
-        }
-        ParamPtr[Count] = NULL;
 
         /*
          * Convert each external object in the list to an
          * internal object
          */
-        for (i = 0; i < Count; i++)
+        for (i = 0; i < ExternalParams->Count; i++)
         {
-            Status = AcpiUtCopyEobjectToIobject (&ParamObjects->Pointer[i],
-                                                ParamPtr[i]);
+            Status = AcpiUtCopyEobjectToIobject (&ExternalParams->Pointer[i],
+                                                &InternalParams[i]);
 
             if (ACPI_FAILURE (Status))
             {
-                AcpiUtDeleteInternalObjectList (ParamPtr);
+                AcpiUtDeleteInternalObjectList (InternalParams);
                 return_ACPI_STATUS (Status);
             }
         }
+        InternalParams[ExternalParams->Count] = NULL;
     }
 
 
@@ -246,7 +215,7 @@ AcpiEvaluateObject (
         /*
          *  The path is fully qualified, just evaluate by name
          */
-        Status = AcpiNsEvaluateByName (Pathname, ParamPtr, &ReturnObj);
+        Status = AcpiNsEvaluateByName (Pathname, InternalParams, &InternalReturnObj);
     }
 
     else if (!Handle)
@@ -282,7 +251,7 @@ AcpiEvaluateObject (
              * The null pathname case means the handle is for
              * the actual object to be evaluated
              */
-            Status = AcpiNsEvaluateByHandle (Handle, ParamPtr, &ReturnObj);
+            Status = AcpiNsEvaluateByHandle (Handle, InternalParams, &InternalReturnObj);
         }
 
         else
@@ -290,8 +259,8 @@ AcpiEvaluateObject (
            /*
             * Both a Handle and a relative Pathname
             */
-            Status = AcpiNsEvaluateRelative (Handle, Pathname, ParamPtr,
-                                                &ReturnObj);
+            Status = AcpiNsEvaluateRelative (Handle, Pathname, InternalParams,
+                                                &InternalReturnObj);
         }
     }
 
@@ -306,9 +275,9 @@ AcpiEvaluateObject (
         UserBufferLength = ReturnBuffer->Length;
         ReturnBuffer->Length = 0;
 
-        if (ReturnObj)
+        if (InternalReturnObj)
         {
-            if (VALID_DESCRIPTOR_TYPE (ReturnObj, ACPI_DESC_TYPE_NAMED))
+            if (VALID_DESCRIPTOR_TYPE (InternalReturnObj, ACPI_DESC_TYPE_NAMED))
             {
                 /*
                  * If we got an Node as a return object,
@@ -322,7 +291,7 @@ AcpiEvaluateObject (
                  * types at a later date if necessary.
                  */
                 Status = AE_TYPE;
-                ReturnObj = NULL;   /* No need to delete an Node */
+                InternalReturnObj = NULL;   /* No need to delete an Node */
             }
 
             if (ACPI_SUCCESS (Status))
@@ -331,7 +300,7 @@ AcpiEvaluateObject (
                  * Find out how large a buffer is needed
                  * to contain the returned object
                  */
-                Status = AcpiUtGetObjectSize (ReturnObj,
+                Status = AcpiUtGetObjectSize (InternalReturnObj,
                                                 &BufferSpaceNeeded);
                 if (ACPI_SUCCESS (Status))
                 {
@@ -359,7 +328,7 @@ AcpiEvaluateObject (
                         /*
                          *  We have enough space for the object, build it
                          */
-                        Status = AcpiUtCopyIobjectToEobject (ReturnObj,
+                        Status = AcpiUtCopyIobjectToEobject (InternalReturnObj,
                                         ReturnBuffer);
                         ReturnBuffer->Length = BufferSpaceNeeded;
                     }
@@ -371,23 +340,23 @@ AcpiEvaluateObject (
 
     /* Delete the return and parameter objects */
 
-    if (ReturnObj)
+    if (InternalReturnObj)
     {
         /*
          * Delete the internal return object. (Or at least
          * decrement the reference count by one)
          */
-        AcpiUtRemoveReference (ReturnObj);
+        AcpiUtRemoveReference (InternalReturnObj);
     }
 
     /*
      * Free the input parameter list (if we created one),
      */
-    if (ParamPtr)
+    if (InternalParams)
     {
         /* Free the allocated parameter block */
 
-        AcpiUtDeleteInternalObjectList (ParamPtr);
+        AcpiUtDeleteInternalObjectList (InternalParams);
     }
 
     return_ACPI_STATUS (Status);
@@ -424,14 +393,6 @@ AcpiGetNextObject (
     ACPI_NAMESPACE_NODE     *ParentNode = NULL;
     ACPI_NAMESPACE_NODE     *ChildNode = NULL;
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     /* Parameter validation */
 
@@ -513,16 +474,7 @@ AcpiGetType (
     ACPI_OBJECT_TYPE        *RetType)
 {
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_STATUS             Status;
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     /* Parameter Validation */
 
@@ -582,14 +534,6 @@ AcpiGetParent (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status = AE_OK;
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
 
     if (!RetHandle)
     {
@@ -681,14 +625,6 @@ AcpiWalkNamespace (
     FUNCTION_TRACE ("AcpiWalkNamespace");
 
 
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
     /* Parameter validation */
 
     if ((Type > ACPI_TYPE_MAX)  ||
@@ -705,11 +641,9 @@ AcpiWalkNamespace (
      * must be allowed to make Acpi calls itself.
      */
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
-    Status = AcpiNsWalkNamespace ((ACPI_OBJECT_TYPE8) Type,
-                                    StartObject, MaxDepth,
-                                    NS_WALK_UNLOCK,
-                                    UserFunction, Context,
-                                    ReturnValue);
+    Status = AcpiNsWalkNamespace ((ACPI_OBJECT_TYPE8) Type, StartObject, 
+                    MaxDepth, NS_WALK_UNLOCK, UserFunction, Context, 
+                    ReturnValue);
 
     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
@@ -836,14 +770,6 @@ AcpiGetDevices (
 
     FUNCTION_TRACE ("AcpiGetDevices");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /* Parameter validation */
 

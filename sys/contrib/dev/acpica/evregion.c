@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 109 $
+ *              $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -217,8 +217,6 @@ AcpiEvExecuteRegMethod (
     UINT32                  Function)
 {
     ACPI_OPERAND_OBJECT    *Params[3];
-    ACPI_OPERAND_OBJECT     SpaceIdDesc;
-    ACPI_OPERAND_OBJECT     FunctionDesc;
     ACPI_STATUS             Status;
 
 
@@ -239,30 +237,37 @@ AcpiEvExecuteRegMethod (
      *          0 for disconnecting the handler
      *          Passed as a parameter
      */
-    AcpiUtInitStaticObject (&SpaceIdDesc);
-    AcpiUtInitStaticObject (&FunctionDesc);
+    Params[0] = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    if (!Params[0])
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
 
-    /*
-     *  Method requires two parameters.
-     */
-    Params [0] = &SpaceIdDesc;
-    Params [1] = &FunctionDesc;
-    Params [2] = NULL;
+    Params[1] = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+    if (!Params[1])
+    {
+        AcpiUtRemoveReference (Params[0]);
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Params[2] = NULL;
 
     /*
      *  Set up the parameter objects
      */
-    SpaceIdDesc.Common.Type    = ACPI_TYPE_INTEGER;
-    SpaceIdDesc.Integer.Value  = RegionObj->Region.SpaceId;
-
-    FunctionDesc.Common.Type   = ACPI_TYPE_INTEGER;
-    FunctionDesc.Integer.Value = Function;
+    Params[0]->Integer.Value  = RegionObj->Region.SpaceId;
+    Params[1]->Integer.Value = Function;
 
     /*
      *  Execute the method, no return value
      */
     DEBUG_EXEC(AcpiUtDisplayInitPathname (RegionObj->Region.Extra->Extra.Method_REG, "  [Method]"));
     Status = AcpiNsEvaluateByHandle (RegionObj->Region.Extra->Extra.Method_REG, Params, NULL);
+
+
+    AcpiUtRemoveReference (Params[0]);
+    AcpiUtRemoveReference (Params[1]);
+
     return_ACPI_STATUS (Status);
 }
 

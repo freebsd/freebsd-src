@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 5 $
+ *       $Revision: 8 $
  *
  *****************************************************************************/
 
@@ -142,46 +142,51 @@ typedef struct acpi_walk_state
     UINT8                   DataType;                           /* To differentiate various internal objs MUST BE FIRST!*/\
     ACPI_OWNER_ID           OwnerId;                            /* Owner of objects created during the walk */
     BOOLEAN                 LastPredicate;                      /* Result of last predicate */
+    UINT8                   CurrentResult;                      /* */
     UINT8                   NextOpInfo;                         /* Info about NextOp */
     UINT8                   NumOperands;                        /* Stack pointer for Operands[] array */
-    UINT8                   CurrentResult;                      /* */
+    UINT8                   ReturnUsed;
+    UINT8                   WalkType;
+    UINT16                  CurrentSyncLevel;                   /* Mutex Sync (nested acquire) level */
+    UINT16                  Opcode;                             /* Current AML opcode */
+    UINT32                  ArgCount;                           /* push for fixed or var args */
+    UINT32                  AmlOffset;
+    UINT32                  ArgTypes;
+    UINT32                  MethodBreakpoint;                   /* For single stepping */
+    UINT32                  ParseFlags;
+    UINT32                  PrevArgTypes;
 
-    struct acpi_walk_state  *Next;                              /* Next WalkState in list */
+
+    UINT8                   *AmlLastWhile;
+    struct acpi_node        Arguments[MTH_NUM_ARGS];            /* Control method arguments */
+    union acpi_operand_obj  **CallerReturnDesc;
+    ACPI_GENERIC_STATE      *ControlState;                      /* List of control states (nested IFs) */
+    struct acpi_node        LocalVariables[MTH_NUM_LOCALS];     /* Control method locals */
+    struct acpi_node        *MethodCallNode;                    /* Called method Node*/
+    ACPI_PARSE_OBJECT       *MethodCallOp;                      /* MethodCall Op if running a method */
+    union acpi_operand_obj  *MethodDesc;                        /* Method descriptor if running a method */
+    struct acpi_node        *MethodNode;                        /* Method Node if running a method */
+    ACPI_PARSE_OBJECT       *Op;                                /* Current parser op */
+    union acpi_operand_obj  *Operands[OBJ_NUM_OPERANDS+1];      /* Operands passed to the interpreter (+1 for NULL terminator) */
+    const ACPI_OPCODE_INFO  *OpInfo;                            /* Info on current opcode */
     ACPI_PARSE_OBJECT       *Origin;                            /* Start of walk [Obsolete] */
+    union acpi_operand_obj  **Params;
+    ACPI_PARSE_STATE        ParserState;                        /* Current state of parser */
+    union acpi_operand_obj  *ResultObj;
+    ACPI_GENERIC_STATE      *Results;                           /* Stack of accumulated results */
+    union acpi_operand_obj  *ReturnDesc;                        /* Return object, if any */
+    ACPI_GENERIC_STATE      *ScopeInfo;                         /* Stack of nested scopes */
 
 /* TBD: Obsolete with removal of WALK procedure ? */
     ACPI_PARSE_OBJECT       *PrevOp;                            /* Last op that was processed */
     ACPI_PARSE_OBJECT       *NextOp;                            /* next op to be processed */
 
 
-    ACPI_GENERIC_STATE      *Results;                           /* Stack of accumulated results */
-    ACPI_GENERIC_STATE      *ControlState;                      /* List of control states (nested IFs) */
-    ACPI_GENERIC_STATE      *ScopeInfo;                         /* Stack of nested scopes */
-    ACPI_PARSE_STATE        *ParserState;                       /* Current state of parser */
-    UINT8                   *AmlLastWhile;
-    const ACPI_OPCODE_INFO  *OpInfo;                            /* Info on current opcode */
     ACPI_PARSE_DOWNWARDS    DescendingCallback;
     ACPI_PARSE_UPWARDS      AscendingCallback;
-
-    union acpi_operand_obj  *ReturnDesc;                        /* Return object, if any */
-    union acpi_operand_obj  *MethodDesc;                        /* Method descriptor if running a method */
-    struct acpi_node        *MethodNode;                        /* Method Node if running a method */
-    ACPI_PARSE_OBJECT       *MethodCallOp;                      /* MethodCall Op if running a method */
-    struct acpi_node        *MethodCallNode;                    /* Called method Node*/
-    union acpi_operand_obj  *Operands[OBJ_NUM_OPERANDS];        /* Operands passed to the interpreter */
-    struct acpi_node        Arguments[MTH_NUM_ARGS];            /* Control method arguments */
-    struct acpi_node        LocalVariables[MTH_NUM_LOCALS];     /* Control method locals */
     struct acpi_walk_list   *WalkList;
-    UINT32                  ParseFlags;
-    UINT8                   WalkType;
-    UINT8                   ReturnUsed;
-    UINT16                  Opcode;                             /* Current AML opcode */
-    UINT32                  PrevArgTypes;
-    UINT16                  CurrentSyncLevel;                   /* Mutex Sync (nested acquire) level */
+    struct acpi_walk_state  *Next;                              /* Next WalkState in list */
 
-    /* Debug support */
-
-    UINT32                  MethodBreakpoint;
 
 
 } ACPI_WALK_STATE;

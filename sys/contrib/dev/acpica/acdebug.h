@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 47 $
+ *       $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -126,7 +126,7 @@
 
 extern int                      optind;
 extern NATIVE_CHAR              *optarg;
-extern UINT8                    *AmlPtr;
+extern UINT8                    *AmlStart;
 extern UINT32                   AmlLength;
 
 extern BOOLEAN                  AcpiGbl_DbOpt_tables;
@@ -148,6 +148,7 @@ extern NATIVE_CHAR              *AcpiGbl_DbDisasmIndent;
 extern UINT8                    AcpiGbl_DbOutputFlags;
 extern UINT32                   AcpiGbl_DbDebugLevel;
 extern UINT32                   AcpiGbl_DbConsoleDebugLevel;
+extern ACPI_TABLE_HEADER        *AcpiGbl_DbTablePtr;
 
 /*
  * Statistic globals
@@ -208,6 +209,10 @@ typedef struct ArgumentInfo
 
 int
 AcpiDbInitialize (
+    void);
+
+void
+AcpiDbTerminate (
     void);
 
 ACPI_STATUS

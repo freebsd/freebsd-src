@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pswalk - Parser routines to walk parsed op tree(s)
- *              $Revision: 56 $
+ *              $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -181,7 +181,11 @@ AcpiPsGetNextWalkOp (
         Next    = Op->Next;
         Parent  = Op->Parent;
 
-        Status = AscendingCallback (WalkState, Op);
+        WalkState->Op     = Op;
+        WalkState->OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
+        WalkState->Opcode = Op->Opcode;
+
+        Status = AscendingCallback (WalkState);
 
         /*
          * If we are back to the starting point, the walk is complete.
@@ -241,7 +245,11 @@ AcpiPsGetNextWalkOp (
         GrandParent = Parent->Parent;
         Next        = Parent->Next;
 
-        Status = AscendingCallback (WalkState, Parent);
+        WalkState->Op     = Parent;
+        WalkState->OpInfo = AcpiPsGetOpcodeInfo (Parent->Opcode);
+        WalkState->Opcode = Parent->Opcode;
+
+        Status = AscendingCallback (WalkState);
 
         /*
          * If we are back to the starting point, the walk is complete.
@@ -305,11 +313,10 @@ AcpiPsGetNextWalkOp (
 
 static ACPI_STATUS
 AcpiPsDeleteCompletedOp (
-    ACPI_WALK_STATE         *State,
-    ACPI_PARSE_OBJECT       *Op)
+    ACPI_WALK_STATE         *WalkState)
 {
 
-    AcpiPsFreeOp (Op);
+    AcpiPsFreeOp (WalkState->Op);
     return (AE_OK);
 }
 
@@ -354,7 +361,6 @@ AcpiPsDeleteParseTree (
         return_VOID;
     }
 
-    WalkState->ParserState          = NULL;
     WalkState->ParseFlags           = 0;
     WalkState->DescendingCallback   = NULL;
     WalkState->AscendingCallback    = NULL;

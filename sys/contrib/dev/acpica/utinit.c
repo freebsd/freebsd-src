@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 101 $
+ *              $Revision: 102 $
  *
  *****************************************************************************/
 
@@ -350,7 +350,7 @@ AcpiUtSubsystemShutdown (void)
     /* Debug only - display leftover memory allocation, if any */
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
-    AcpiUtDumpCurrentAllocations (ACPI_UINT32_MAX, NULL);
+    AcpiUtDumpAllocations (ACPI_UINT32_MAX, NULL);
 #endif
 
     return_ACPI_STATUS (AE_OK);

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -140,7 +140,7 @@
  *              Value               - Pointer to in or out value
  *              HandlerContext      - Pointer to Handler's context
  *              RegionContext       - Pointer to context specific to the
- *                                      accessed region
+ *                                    accessed region
  *
  * RETURN:      Status
  *
@@ -222,7 +222,7 @@ AcpiExSystemMemorySpaceHandler (
             return_ACPI_STATUS (Status);
         }
 
-        /* TBD: should these pointers go to 64-bit in all cases ? */
+        /* Save the physical address and mapping size */
 
         MemInfo->MappedPhysicalAddress = Address;
         MemInfo->MappedLength = SYSMEM_REGION_WINDOW_SIZE;
@@ -307,7 +307,7 @@ AcpiExSystemMemorySpaceHandler (
  *              Value               - Pointer to in or out value
  *              HandlerContext      - Pointer to Handler's context
  *              RegionContext       - Pointer to context specific to the
- *                                      accessed region
+ *                                    accessed region
  *
  * RETURN:      Status
  *
@@ -371,7 +371,7 @@ AcpiExSystemIoSpaceHandler (
  *              Value               - Pointer to in or out value
  *              HandlerContext      - Pointer to Handler's context
  *              RegionContext       - Pointer to context specific to the
- *                                      accessed region
+ *                                    accessed region
  *
  * RETURN:      Status
  *
@@ -437,6 +437,80 @@ AcpiExPciConfigSpaceHandler (
         Status = AE_BAD_PARAMETER;
         break;
     }
+
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExCmosSpaceHandler
+ *
+ * PARAMETERS:  Function            - Read or Write operation
+ *              Address             - Where in the space to read or write
+ *              BitWidth            - Field width in bits (8, 16, or 32)
+ *              Value               - Pointer to in or out value
+ *              HandlerContext      - Pointer to Handler's context
+ *              RegionContext       - Pointer to context specific to the
+ *                                    accessed region
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Handler for the CMOS address space (Op Region)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiExCmosSpaceHandler (
+    UINT32                  Function,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  BitWidth,
+    UINT32                  *Value,
+    void                    *HandlerContext,
+    void                    *RegionContext)
+{
+    ACPI_STATUS             Status = AE_OK;
+
+
+    FUNCTION_TRACE ("ExCmosSpaceHandler");
+
+
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExPciBarSpaceHandler
+ *
+ * PARAMETERS:  Function            - Read or Write operation
+ *              Address             - Where in the space to read or write
+ *              BitWidth            - Field width in bits (8, 16, or 32)
+ *              Value               - Pointer to in or out value
+ *              HandlerContext      - Pointer to Handler's context
+ *              RegionContext       - Pointer to context specific to the
+ *                                    accessed region
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Handler for the PCI BarTarget address space (Op Region)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiExPciBarSpaceHandler (
+    UINT32                  Function,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  BitWidth,
+    UINT32                  *Value,
+    void                    *HandlerContext,
+    void                    *RegionContext)
+{
+    ACPI_STATUS             Status = AE_OK;
+
+
+    FUNCTION_TRACE ("ExPciBarSpaceHandler");
+
 
     return_ACPI_STATUS (Status);
 }

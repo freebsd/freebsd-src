@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 72 $
+ *              $Revision: 73 $
  *
  ******************************************************************************/
 
@@ -916,6 +916,7 @@ AcpiDsMapNamedOpcodeToDataType (
         DataType = ACPI_TYPE_EVENT;
         break;
 
+    case AML_DATA_REGION_OP:
     case AML_REGION_OP:
         DataType = ACPI_TYPE_REGION;
         break;

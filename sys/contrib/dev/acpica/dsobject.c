@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 74 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -214,16 +214,15 @@ AcpiDsInitOneObject (
          * Always parse methods to detect errors, we may delete
          * the parse tree below
          */
-
         Status = AcpiDsParseMethod (ObjHandle);
-
-        /* TBD: [Errors] what do we do with an error? */
-
         if (ACPI_FAILURE (Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] parse failed! %s\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] - parse failure, %s\n",
                 ObjHandle, &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name,
                 AcpiFormatException (Status)));
+
+            /* This parse failed, but we will continue parsing more methods */
+
             break;
         }
 
@@ -448,6 +447,12 @@ AcpiDsInitObjectFromOp (
     case ACPI_TYPE_STRING:
         ObjDesc->String.Pointer = Op->Value.String;
         ObjDesc->String.Length = STRLEN (Op->Value.String);
+
+        /* 
+         * The string is contained in the ACPI table, don't ever try
+         * to delete it
+         */
+        ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;   
         break;
 
 
@@ -476,60 +481,6 @@ AcpiDsInitObjectFromOp (
             ObjDesc->Reference.Offset = Opcode - AML_ARG_OP;
             break;
 
-
-#ifdef INTEGER_CONST__
-        case OPTYPE_CONSTANT:
-
-            /* TBD: Why is the DEBUG object a CONSTANT? */
-
-            if (Op->Opcode == AML_DEBUG_OP)
-            {
-                break;
-            }
-
-            /* Reference object no longer needed */
-
-            AcpiUtRemoveReference (ObjDesc);
-
-            /* Create/Init a new Integer object */
-
-            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
-            if (!ObjDesc)
-            {
-                return_ACPI_STATUS (AE_NO_MEMORY);
-            }
-
-            /*
-             * Decode constants here.  Turn them into real integer objects
-             * that are initialized to the value of the constant.
-             */
-            switch (Op->Opcode)
-            {
-            case AML_ONE_OP:
-                ObjDesc->Integer.Value = 1;
-                break;
-
-            case AML_ONES_OP:
-                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
-                break;
-
-            case AML_REVISION_OP:
-                ObjDesc->Integer.Value = ACPI_CA_VERSION;
-                break;
-
-            case AML_ZERO_OP:
-                ObjDesc->Integer.Flags |= AOPOBJ_ZERO_CONST;
-                ObjDesc->Integer.Value = 0;
-                break;
-
-            default:
-                ObjDesc->Integer.Value = 0;
-                break;
-            }
-
-            *RetObjDesc = ObjDesc;
-            break;
-#endif
 
         default: /* Constants, Literals, etc.. */
 

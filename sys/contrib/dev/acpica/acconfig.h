@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 69 $
+ *       $Revision: 71 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION             0x20010831
+#define ACPI_CA_VERSION             0x20010920
 
 
 /* Maximum objects in the various object caches */
@@ -169,7 +169,7 @@
 
 /* Max reference count (for debug only) */
 
-#define MAX_REFERENCE_COUNT         0x200
+#define MAX_REFERENCE_COUNT         0x400
 
 
 /* Size of cached memory mapping for system memory operation region */

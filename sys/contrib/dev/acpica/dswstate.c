@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 50 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -479,6 +479,7 @@ AcpiDsResultStackPush (
         return (AE_NO_MEMORY);
     }
 
+    State->Common.DataType  = ACPI_DESC_TYPE_STATE_RESULT;
     AcpiUtPushGenericState (&WalkState->Results, State);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Results=%p State=%p\n",
@@ -613,6 +614,7 @@ AcpiDsObjStackPush (
 }
 
 
+#if 0
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsObjStackPopObject
@@ -672,7 +674,7 @@ AcpiDsObjStackPopObject (
 
     return (AE_OK);
 }
-
+#endif
 
 /*******************************************************************************
  *
@@ -868,7 +870,7 @@ AcpiDsGetCurrentWalkState (
  *
  ******************************************************************************/
 
-static void
+void
 AcpiDsPushWalkState (
     ACPI_WALK_STATE         *WalkState,
     ACPI_WALK_LIST          *WalkList)
@@ -982,10 +984,109 @@ AcpiDsCreateWalkState (
 
     /* Put the new state at the head of the walk list */
 
-    AcpiDsPushWalkState (WalkState, WalkList);
+    if (WalkList)
+    {
+        AcpiDsPushWalkState (WalkState, WalkList);
+    }
 
     return_PTR (WalkState);
 }
+
+
+#ifndef _ACPI_ASL_COMPILER
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsInitAmlWalk
+ *
+ * PARAMETERS:  WalkState       - New state to be initialized
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Initialize a walk state for a pass 1 or 2 parse tree walk
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDsInitAmlWalk (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_NAMESPACE_NODE     *MethodNode,
+    UINT8                   *AmlStart,
+    UINT32                  AmlLength,
+    ACPI_OPERAND_OBJECT     **Params,
+    ACPI_OPERAND_OBJECT     **ReturnObjDesc,
+    UINT32                  PassNumber)
+{
+    ACPI_STATUS             Status;
+    ACPI_PARSE_STATE        *ParserState = &WalkState->ParserState;
+
+
+    FUNCTION_TRACE ("DsInitAmlWalk");
+
+
+    WalkState->ParserState.Aml      =
+    WalkState->ParserState.AmlStart = AmlStart;
+    WalkState->ParserState.AmlEnd   =
+    WalkState->ParserState.PkgEnd   = AmlStart + AmlLength;
+
+    /* The NextOp of the NextWalk will be the beginning of the method */
+    /* TBD: [Restructure] -- obsolete? */
+
+    WalkState->NextOp               = NULL;
+    WalkState->Params               = Params;
+    WalkState->CallerReturnDesc     = ReturnObjDesc;
+
+    Status = AcpiPsInitScope (&WalkState->ParserState, Op);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    if (MethodNode)
+    {
+        WalkState->ParserState.StartNode    = MethodNode;
+        WalkState->WalkType                 = WALK_METHOD;
+        WalkState->MethodNode               = MethodNode;
+        WalkState->MethodDesc               = AcpiNsGetAttachedObject (MethodNode);
+
+
+        /* Push start scope on scope stack and make it current  */
+
+        Status = AcpiDsScopeStackPush (MethodNode, ACPI_TYPE_METHOD, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+        /* Init the method arguments */
+
+        AcpiDsMethodDataInitArgs (Params, MTH_NUM_ARGS, WalkState);
+    }
+    
+    else
+    {
+        /* Setup the current scope */
+
+        ParserState->StartNode = ParserState->StartOp->Node;
+        if (ParserState->StartNode)
+        {
+            /* Push start scope on scope stack and make it current  */
+
+            Status = AcpiDsScopeStackPush (ParserState->StartNode,
+                            ParserState->StartNode->Type, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+        }
+    }
+
+    AcpiDsInitCallbacks (WalkState, PassNumber);
+
+    return_ACPI_STATUS (AE_OK);
+}
+#endif
+
 
 
 /*******************************************************************************
@@ -1022,7 +1123,12 @@ AcpiDsDeleteWalkState (
     }
 
 
-    /* Always must free any linked control states */
+    if (WalkState->ParserState.Scope)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p walk still has a scope list\n", WalkState));
+    }
+
+   /* Always must free any linked control states */
 
     while (WalkState->ControlState)
     {

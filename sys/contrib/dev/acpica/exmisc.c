@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 83 $
+ *              $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -134,9 +134,7 @@
  *
  * FUNCTION:    AcpiExTriadic
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
- *              WalkState           - Current walk state
- *              ReturnDesc          - Where to store the return object
+ * PARAMETERS:  WalkState           - Current walk state
  *
  * RETURN:      Status
  *
@@ -148,14 +146,13 @@
 
 ACPI_STATUS
 AcpiExTriadic (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc)
+    ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
     ACPI_OPERAND_OBJECT     *TmpDesc;
     ACPI_SIGNAL_FATAL_INFO  *Fatal;
+    UINT32                  Temp;
     ACPI_STATUS             Status = AE_OK;
 
 
@@ -167,7 +164,7 @@ AcpiExTriadic (
 #define ResDesc             Operand[2]
 
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
 
     case AML_FATAL_OP:
@@ -183,8 +180,8 @@ AcpiExTriadic (
         Fatal = ACPI_MEM_ALLOCATE (sizeof (ACPI_SIGNAL_FATAL_INFO));
         if (Fatal)
         {
-            Fatal->Type = (UINT32) ObjDesc1->Integer.Value;
-            Fatal->Code = (UINT32) ObjDesc2->Integer.Value;
+            Fatal->Type     = (UINT32) ObjDesc1->Integer.Value;
+            Fatal->Code     = (UINT32) ObjDesc2->Integer.Value;
             Fatal->Argument = (UINT32) ResDesc->Integer.Value;
         }
 
@@ -196,15 +193,65 @@ AcpiExTriadic (
         /* Might return while OS is shutting down */
 
         ACPI_MEM_FREE (Fatal);
+        AcpiUtRemoveReference (Operand[2]);
         break;
 
 
     case AML_MID_OP:
 
-        /* DefMid       := MidOp Source Index  Length Result */
+        /* DefMid       := MidOp  (0)Source (1)Index (2)Length (3)Result */
 
-        /* Create the internal return object (string or buffer) */
+        /* 
+         * Create the return object.  The Source operand is guaranteed to be
+         * either a String or a Buffer, so just use its type.
+         */
+        RetDesc = AcpiUtCreateInternalObject (ObjDesc1->Common.Type);
+        if (!RetDesc)
+        {
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
 
+        /*
+         * If the index is beyond the length of the String/Buffer, or if the
+         * requested length is zero, return a zero-length String/Buffer
+         */
+        if ((Operand[1]->Integer.Value < ObjDesc1->String.Length) &&
+            (Operand[2]->Integer.Value > 0))
+        {
+            /* Truncate request if larger than the actual String/Buffer */
+
+            if (((UINT32) Operand[1]->Integer.Value + (UINT32) Operand[2]->Integer.Value) >
+                ObjDesc1->String.Length)
+            {
+                Temp = ObjDesc1->String.Length - (UINT32) Operand[1]->Integer.Value;
+            }
+            else
+            {
+                Temp = (UINT32) Operand[2]->Integer.Value;
+            }
+
+            /* Allocate a new buffer for the String/Buffer */
+
+            RetDesc->String.Pointer = ACPI_MEM_CALLOCATE (Temp + 1);
+            if (!RetDesc->String.Pointer)
+            {
+                Status = AE_NO_MEMORY;
+                goto Cleanup;
+            }
+
+            /* Copy the portion requested */
+
+            MEMCPY (RetDesc->String.Pointer, 
+                    ObjDesc1->String.Pointer + (UINT32) Operand[1]->Integer.Value,
+                    Temp);
+
+            /* Set the length of the new String/Buffer */
+
+            RetDesc->String.Length = Temp;
+        }
+
+        Status = AcpiExStore (RetDesc, Operand[3], WalkState);
         break;
 
 
@@ -314,7 +361,7 @@ Cleanup:
 
     /* Set the return object and exit */
 
-    *ReturnDesc = RetDesc;
+    WalkState->ResultObj = RetDesc;
     return_ACPI_STATUS (Status);
 }
 
@@ -323,9 +370,7 @@ Cleanup:
  *
  * FUNCTION:    AcpiExHexadic
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
- *              WalkState           - Current walk state
- *              ReturnDesc          - Where to store the return object
+ * PARAMETERS:  WalkState           - Current walk state
  *
  * RETURN:      Status
  *
@@ -335,9 +380,7 @@ Cleanup:
 
 ACPI_STATUS
 AcpiExHexadic (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc)
+    ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
@@ -357,7 +400,7 @@ AcpiExHexadic (
 
 
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
 
         case AML_MATCH_OP:
@@ -416,9 +459,8 @@ AcpiExHexadic (
              *      "continue" (proceed to next iteration of enclosing
              *          "for" loop) signifies a non-match.
              */
-            switch (Op1Desc->Integer.Value)
+            switch ((NATIVE_UINT) Op1Desc->Integer.Value)
             {
-
             case MATCH_MTR:   /* always true */
 
                 break;
@@ -480,9 +522,8 @@ AcpiExHexadic (
             }
 
 
-            switch(Op2Desc->Integer.Value)
+            switch ((NATIVE_UINT) Op2Desc->Integer.Value)
             {
-
             case MATCH_MTR:
 
                 break;
@@ -581,6 +622,6 @@ Cleanup:
 
     /* Set the return object and exit */
 
-    *ReturnDesc = RetDesc;
+    WalkState->ResultObj = RetDesc;
     return_ACPI_STATUS (Status);
 }

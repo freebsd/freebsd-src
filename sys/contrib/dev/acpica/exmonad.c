@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmonad - ACPI AML execution for monadic (1 operand) operators
- *              $Revision: 110 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -216,7 +216,7 @@ Cleanup:
  *
  * FUNCTION:    AcpiExMonadic1
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
+ * PARAMETERS:  WalkState           - Current state (contains AML opcode)
  *
  * RETURN:      Status
  *
@@ -227,7 +227,6 @@ Cleanup:
 
 ACPI_STATUS
 AcpiExMonadic1 (
-    UINT16                  Opcode,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
@@ -239,60 +238,45 @@ AcpiExMonadic1 (
 
     /* Examine the opcode */
 
-    switch (Opcode)
+    switch (WalkState->Opcode)  
     {
-
-    /*  DefRelease  :=  ReleaseOp   MutexObject */
-
-    case AML_RELEASE_OP:
+    case AML_RELEASE_OP:    /*  Release (MutexObject) */
 
         Status = AcpiExReleaseMutex (ObjDesc, WalkState);
         break;
 
 
-    /*  DefReset    :=  ResetOp     AcpiEventObject */
-
-    case AML_RESET_OP:
+    case AML_RESET_OP:      /*  Reset (EventObject) */
 
         Status = AcpiExSystemResetEvent (ObjDesc);
         break;
 
 
-    /*  DefSignal   :=  SignalOp    AcpiEventObject */
-
-    case AML_SIGNAL_OP:
+    case AML_SIGNAL_OP:     /*  Signal (EventObject) */
 
         Status = AcpiExSystemSignalEvent (ObjDesc);
         break;
 
 
-    /*  DefSleep    :=  SleepOp     MsecTime    */
-
-    case AML_SLEEP_OP:
+    case AML_SLEEP_OP:      /*  Sleep (MsecTime) */
 
         AcpiExSystemDoSuspend ((UINT32) ObjDesc->Integer.Value);
         break;
 
 
-    /*  DefStall    :=  StallOp     UsecTime    */
-
-    case AML_STALL_OP:
+    case AML_STALL_OP:      /*  Stall (UsecTime) */
 
         AcpiExSystemDoStall ((UINT32) ObjDesc->Integer.Value);
         break;
 
 
-    /*  Unknown opcode  */
-
-    default:
+    default:                /*  Unknown opcode  */
 
         REPORT_ERROR (("AcpiExMonadic1: Unknown monadic opcode %X\n",
-            Opcode));
+            WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         break;
-
-    } /* switch */
-
+    }
 
 
     /* Always delete the operand */
@@ -307,7 +291,7 @@ AcpiExMonadic1 (
  *
  * FUNCTION:    AcpiExMonadic2R
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
+ * PARAMETERS:  WalkState           - Current state (contains AML opcode)
  *
  * RETURN:      Status
  *
@@ -318,15 +302,13 @@ AcpiExMonadic1 (
 
 ACPI_STATUS
 AcpiExMonadic2R (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc)
+    ACPI_WALK_STATE         *WalkState)
 {
+    ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
     ACPI_OPERAND_OBJECT     *RetDesc2 = NULL;
-    UINT32                  ResVal;
-    ACPI_STATUS             Status = AE_OK;
+    UINT32                  Temp32;
     UINT32                  i;
     UINT32                  j;
     ACPI_INTEGER            Digit;
@@ -339,7 +321,7 @@ AcpiExMonadic2R (
 
     /* Create a return object of type NUMBER for most opcodes */
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
     case AML_BIT_NOT_OP:
     case AML_FIND_SET_LEFT_BIT_OP:
@@ -359,19 +341,17 @@ AcpiExMonadic2R (
     }
 
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
-    /*  DefNot  :=  NotOp   Operand Result  */
 
-    case AML_BIT_NOT_OP:
+    case AML_BIT_NOT_OP:            /* Not (Operand, Result)  */
 
         RetDesc->Integer.Value = ~ObjDesc->Integer.Value;
         break;
 
 
-    /*  DefFindSetLeftBit   :=  FindSetLeftBitOp    Operand Result  */
+    case AML_FIND_SET_LEFT_BIT_OP:  /* FindSetLeftBit (Operand, Result) */
 
-    case AML_FIND_SET_LEFT_BIT_OP:
 
         RetDesc->Integer.Value = ObjDesc->Integer.Value;
 
@@ -379,39 +359,36 @@ AcpiExMonadic2R (
          * Acpi specification describes Integer type as a little
          * endian unsigned value, so this boundary condition is valid.
          */
-        for (ResVal = 0; RetDesc->Integer.Value && ResVal < ACPI_INTEGER_BIT_SIZE; ++ResVal)
+        for (Temp32 = 0; RetDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
         {
             RetDesc->Integer.Value >>= 1;
         }
 
-        RetDesc->Integer.Value = ResVal;
+        RetDesc->Integer.Value = Temp32;
         break;
 
 
-    /*  DefFindSetRightBit  :=  FindSetRightBitOp   Operand Result  */
+    case AML_FIND_SET_RIGHT_BIT_OP: /* FindSetRightBit (Operand, Result)  */
 
-    case AML_FIND_SET_RIGHT_BIT_OP:
 
         RetDesc->Integer.Value = ObjDesc->Integer.Value;
 
         /*
-         * Acpi specification describes Integer type as a little
+         * The Acpi specification describes Integer type as a little
          * endian unsigned value, so this boundary condition is valid.
          */
-        for (ResVal = 0; RetDesc->Integer.Value && ResVal < ACPI_INTEGER_BIT_SIZE; ++ResVal)
+        for (Temp32 = 0; RetDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
         {
             RetDesc->Integer.Value <<= 1;
         }
 
         /* Since returns must be 1-based, subtract from 33 (65) */
 
-        RetDesc->Integer.Value = ResVal == 0 ? 0 : (ACPI_INTEGER_BIT_SIZE + 1) - ResVal;
+        RetDesc->Integer.Value = Temp32 == 0 ? 0 : (ACPI_INTEGER_BIT_SIZE + 1) - Temp32;
         break;
 
 
-    /*  DefFromBDC  :=  FromBCDOp   BCDValue    Result  */
-
-    case AML_FROM_BCD_OP:
+    case AML_FROM_BCD_OP:           /* FromBcd (BCDValue, Result)  */
 
         /*
          * The 64-bit ACPI integer can hold 16 4-bit BCD integers
@@ -448,10 +425,7 @@ AcpiExMonadic2R (
         break;
 
 
-    /*  DefToBDC    :=  ToBCDOp Operand Result  */
-
-    case AML_TO_BCD_OP:
-
+    case AML_TO_BCD_OP:             /* ToBcd (Operand, Result)  */
 
         if (ObjDesc->Integer.Value > ACPI_MAX_BCD_VALUE)
         {
@@ -466,25 +440,24 @@ AcpiExMonadic2R (
         {
             /* Divide by nth factor of 10 */
 
+            Temp32 = 0;
             Digit = ObjDesc->Integer.Value;
             for (j = 0; j < i; j++)
             {
-                Digit = ACPI_DIVIDE (Digit, 10);
+                AcpiUtShortDivide (&Digit, 10, &Digit, &Temp32);
             }
 
-            /* Create the BCD digit */
+            /* Create the BCD digit from the remainder above */
 
             if (Digit > 0)
             {
-                RetDesc->Integer.Value += (ACPI_MODULO (Digit, 10) << (i * 4));
+                RetDesc->Integer.Value += (Temp32 << (i * 4));
             }
         }
         break;
 
 
-    /*  DefCondRefOf        :=  CondRefOfOp     SourceObject    Result  */
-
-    case AML_COND_REF_OF_OP:
+    case AML_COND_REF_OF_OP:        /* CondRefOf (SourceObject, Result)  */
 
         /*
          * This op is a little strange because the internal return value is
@@ -524,17 +497,14 @@ AcpiExMonadic2R (
         break;
 
 
-    case AML_STORE_OP:
+    case AML_STORE_OP:              /* Store (Source, Target) */
 
         /*
          * A store operand is typically a number, string, buffer or lvalue
-         * TBD: [Unhandled] What about a store to a package?
-         */
-
-        /*
-         * Do the store, and be careful about deleting the source object,
+         * Be careful about deleting the source object,
          * since the object itself may have been stored.
          */
+        Temp32 = ObjDesc->Common.ReferenceCount;
         Status = AcpiExStore (ObjDesc, ResDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
@@ -544,73 +514,78 @@ AcpiExMonadic2R (
             return_ACPI_STATUS (Status);
         }
 
+#if 0
+        if ((ObjDesc->Common.ReferenceCount > Temp32) &&
+            (!AcpiDsIsResultUsed (WalkState->Op, WalkState)))
+        {
+            ObjDesc->Common.ReferenceCount++;
+        }
+#endif
+
         /*
          * Normally, we would remove a reference on the ObjDesc parameter;
          * But since it is being used as the internal return object
          * (meaning we would normally increment it), the two cancel out,
          * and we simply don't do anything.
          */
-        *ReturnDesc = ObjDesc;
+        WalkState->ResultObj = ObjDesc;
         return_ACPI_STATUS (Status);
-        break;
-
-
-    case AML_DEBUG_OP:
-
-        /* Reference, returning an Reference */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "DebugOp should never get here!\n"));
-        return_ACPI_STATUS (AE_OK);
         break;
 
 
     /*
      * ACPI 2.0 Opcodes
      */
-    case AML_TO_DECSTRING_OP:
+    case AML_TO_DECSTRING_OP:       /* ToDecimalString (Data, Result) */
+
         Status = AcpiExConvertToString (ObjDesc, &RetDesc, 10, ACPI_UINT32_MAX, WalkState);
         break;
 
 
-    case AML_TO_HEXSTRING_OP:
+    case AML_TO_HEXSTRING_OP:       /* ToHexString (Data, Result) */
+
         Status = AcpiExConvertToString (ObjDesc, &RetDesc, 16, ACPI_UINT32_MAX, WalkState);
         break;
 
-    case AML_TO_BUFFER_OP:
+
+    case AML_TO_BUFFER_OP:          /* ToBuffer (Data, Result) */
+
         Status = AcpiExConvertToBuffer (ObjDesc, &RetDesc, WalkState);
         break;
 
-    case AML_TO_INTEGER_OP:
+
+    case AML_TO_INTEGER_OP:         /* ToInteger (Data, Result) */
+
         Status = AcpiExConvertToInteger (ObjDesc, &RetDesc, WalkState);
         break;
 
 
     /*
-     * These are obsolete opcodes
+     * These are two obsolete opcodes
      */
+    case AML_SHIFT_LEFT_BIT_OP:     /*  ShiftLeftBit (Source, BitNum)  */
+    case AML_SHIFT_RIGHT_BIT_OP:    /*  ShiftRightBit (Source, BitNum) */
 
-    /*  DefShiftLeftBit     :=  ShiftLeftBitOp      Source          BitNum  */
-    /*  DefShiftRightBit    :=  ShiftRightBitOp     Source          BitNum  */
-
-    case AML_SHIFT_LEFT_BIT_OP:
-    case AML_SHIFT_RIGHT_BIT_OP:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s is unimplemented\n",
-                        AcpiPsGetOpcodeName (Opcode)));
+                        AcpiPsGetOpcodeName (WalkState->Opcode)));
         Status = AE_SUPPORT;
         goto Cleanup;
         break;
 
 
-    default:
+    default:                        /* Unknown opcode */
 
         REPORT_ERROR (("AcpiExMonadic2R: Unknown monadic opcode %X\n",
-            Opcode));
+            WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
 
 
+    /*
+     * Store the return value computed above into the result object 
+     */
     Status = AcpiExStore (RetDesc, ResDesc, WalkState);
 
 
@@ -633,7 +608,7 @@ Cleanup:
 
     /* Set the return object and exit */
 
-    *ReturnDesc = RetDesc;
+    WalkState->ResultObj = RetDesc;
     return_ACPI_STATUS (Status);
 }
 
@@ -642,7 +617,7 @@ Cleanup:
  *
  * FUNCTION:    AcpiExMonadic2
  *
- * PARAMETERS:  Opcode              - The opcode to be executed
+ * PARAMETERS:  WalkState           - Current state (contains AML opcode)
  *
  * RETURN:      Status
  *
@@ -654,9 +629,7 @@ Cleanup:
 
 ACPI_STATUS
 AcpiExMonadic2 (
-    UINT16                  Opcode,
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_OPERAND_OBJECT     **ReturnDesc)
+    ACPI_WALK_STATE         *WalkState)
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *TmpDesc;
@@ -673,12 +646,10 @@ AcpiExMonadic2 (
 
     /* Get the operand and decode the opcode */
 
-    switch (Opcode)
+    switch (WalkState->Opcode)
     {
 
-    /*  DefLNot :=  LNotOp  Operand */
-
-    case AML_LNOT_OP:
+    case AML_LNOT_OP:               /* LNot (Operand) */
 
         RetDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!RetDesc)
@@ -691,11 +662,8 @@ AcpiExMonadic2 (
         break;
 
 
-    /*  DefDecrement    :=  DecrementOp Target  */
-    /*  DefIncrement    :=  IncrementOp Target  */
-
-    case AML_DECREMENT_OP:
-    case AML_INCREMENT_OP:
+    case AML_DECREMENT_OP:          /* Decrement (Operand)  */
+    case AML_INCREMENT_OP:          /* Increment (Operand)  */
 
         /*
          * Since we are expecting an Reference on the top of the stack, it
@@ -730,20 +698,20 @@ AcpiExMonadic2 (
 
         /*
          * Convert the RetDesc Reference to a Number
-         * (This deletes the original RetDesc)
+         * (This deletes the original RetDesc object)
          */
         Status = AcpiExResolveOperands (AML_LNOT_OP, &RetDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s: bad operand(s) %s\n",
-                AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
+                AcpiPsGetOpcodeName (WalkState->Opcode), AcpiFormatException(Status)));
 
             goto Cleanup;
         }
 
         /* Do the actual increment or decrement */
 
-        if (AML_INCREMENT_OP == Opcode)
+        if (AML_INCREMENT_OP == WalkState->Opcode)
         {
             RetDesc->Integer.Value++;
         }
@@ -763,9 +731,7 @@ AcpiExMonadic2 (
         break;
 
 
-    /*  DefObjectType   :=  ObjectTypeOp    SourceObject    */
-
-    case AML_TYPE_OP:
+    case AML_TYPE_OP:               /* ObjectType (SourceObject) */
 
         if (INTERNAL_TYPE_REFERENCE == ObjDesc->Common.Type)
         {
@@ -778,6 +744,7 @@ AcpiExMonadic2 (
             case AML_ZERO_OP:
             case AML_ONE_OP:
             case AML_ONES_OP:
+            case AML_REVISION_OP:
 
                 /* Constants are of type Number */
 
@@ -787,7 +754,7 @@ AcpiExMonadic2 (
 
             case AML_DEBUG_OP:
 
-                /* Per 1.0b spec, Debug object is of type DebugObject */
+                /* Per 1.0b spec, Debug object is of type "DebugObject" */
 
                 Type = ACPI_TYPE_DEBUG_OBJECT;
                 break;
@@ -861,9 +828,7 @@ AcpiExMonadic2 (
         break;
 
 
-    /*  DefSizeOf   :=  SizeOfOp    SourceObject    */
-
-    case AML_SIZE_OF_OP:
+    case AML_SIZE_OF_OP:            /* SizeOf (SourceObject)  */
 
         if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_NAMED))
         {
@@ -926,9 +891,7 @@ AcpiExMonadic2 (
         break;
 
 
-    /*  DefRefOf    :=  RefOfOp     SourceObject    */
-
-    case AML_REF_OF_OP:
+    case AML_REF_OF_OP:             /* RefOf (SourceObject) */
 
         Status = AcpiExGetObjectReference (ObjDesc, &RetDesc, WalkState);
         if (ACPI_FAILURE (Status))
@@ -938,10 +901,7 @@ AcpiExMonadic2 (
         break;
 
 
-    /*  DefDerefOf  :=  DerefOfOp   ObjReference    */
-
-    case AML_DEREF_OF_OP:
-
+    case AML_DEREF_OF_OP:           /* DerefOf (ObjReference) */
 
         /* Check for a method local or argument */
 
@@ -1095,7 +1055,7 @@ AcpiExMonadic2 (
     default:
 
         REPORT_ERROR (("AcpiExMonadic2: Unknown monadic opcode %X\n",
-            Opcode));
+            WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
         goto Cleanup;
     }
@@ -1117,7 +1077,7 @@ Cleanup:
         RetDesc = NULL;
     }
 
-    *ReturnDesc = RetDesc;
+    WalkState->ResultObj = RetDesc;
     return_ACPI_STATUS (Status);
 }
 
