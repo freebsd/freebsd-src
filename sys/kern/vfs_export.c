@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.184 1999/01/28 00:57:47 dillon Exp $
+ * $Id: vfs_subr.c,v 1.185 1999/01/29 23:18:49 dillon Exp $
  */
 
 /*
@@ -2555,7 +2555,13 @@ retry:
 			 * cause any problems (yet).
 			 */
 			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
+		} else {
+			goto retn;
 		}
+		/*
+		 * Dereference the reference we just created.  This assumes
+		 * that the object is associated with the vp.
+		 */
 		object->ref_count--;
 		vp->v_usecount--;
 	} else {
@@ -2567,8 +2573,8 @@ retry:
 		}
 	}
 
-	if (vp->v_object)
-		vp->v_flag |= VOBJBUF;
+	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
+	vp->v_flag |= VOBJBUF;
 
 retn:
 	return error;
