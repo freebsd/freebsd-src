@@ -114,7 +114,7 @@ main(int ac, char *av[])
 	char	name[NG_NODESIZ];
 	int	interactive = isatty(0) && isatty(1);
 	FILE	*fp = NULL;
-	int	ch, size, rtn = 0;
+	int	ch, rtn = 0;
 
 	/* Set default node name */
 	snprintf(name, sizeof(name), "ngctl%d", getpid());
@@ -146,9 +146,7 @@ main(int ac, char *av[])
 	/* Create a new socket node */
 	if (NgMkSockNode(name, &csock, &dsock) < 0)
 		err(EX_OSERR, "can't create node");
-	size = 128 * 1024;
-	if (setsockopt(csock, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) == -1)
-		err(1, "setsockopt");
+
 	/* Do commands as requested */
 	if (ac == 0) {
 		if (fp != NULL) {
