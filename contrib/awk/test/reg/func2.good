@@ -1,0 +1,2 @@
+gawk: reg/func2.awk:2: fatal: function `dummy' called with space between name and (,
+or used in other expression context
