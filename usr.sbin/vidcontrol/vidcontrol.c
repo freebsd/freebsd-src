@@ -43,6 +43,10 @@ static const char rcsid[] =
 #include "path.h"
 #include "decode.h"
 
+#define _VESA_800x600_DFL_COLS 80
+#define _VESA_800x600_DFL_ROWS 25
+#define _VESA_800x600_DFL_FNSZ 16
+
 char 	legal_colors[16][16] = {
 	"black", "blue", "green", "cyan",
 	"red", "magenta", "brown", "white",
@@ -51,6 +55,8 @@ char 	legal_colors[16][16] = {
 };
 int 	hex = 0;
 int 	number;
+int	vesa_cols = _VESA_800x600_DFL_COLS;
+int	vesa_rows = _VESA_800x600_DFL_ROWS;
 char 	letter;
 struct 	vid_info info;
 
@@ -61,8 +67,8 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
 "                  [-i adapter | mode] [-L] [-M char] [-m on|off]",
-"                  [-f size file] [-s number] [-t N|off] [-x] [mode]",
-"                  [fgcol [bgcol]] [show]");
+"                  [-f size file] [-s number] [-t N|off] [-x] [-g geometry]", 
+"                  [mode] [fgcol [bgcol]] [show]");
 	exit(1);
 }
 
@@ -317,9 +323,25 @@ video_mode(int argc, char **argv, int *index)
 		if (ioctl(0, mode, NULL) < 0)
 			warn("cannot set videomode");
 		if (mode == SW_VESA_800x600) {
-			size[0] = 80;	/* columns */
-			size[1] = 25;	/* rows */
-			size[2] = 16;	/* font size */
+			/* columns */
+			if ((vesa_cols * 8 > 800) || (vesa_cols <= 0)) {
+				warnx("incorrect number of columns: %d",
+				      vesa_cols);
+				size[0] = _VESA_800x600_DFL_COLS;
+			} else {
+				size[0] = vesa_cols;
+			}
+			/* rows */
+			if ((vesa_rows * _VESA_800x600_DFL_FNSZ > 600) ||
+			    (vesa_rows <=0)) {
+				warnx("incorrect number of rows: %d",
+				      vesa_rows);
+				size[1] = _VESA_800x600_DFL_ROWS;
+			} else {
+				size[1] = vesa_rows;
+			}
+			/* font size */
+			size[2] = _VESA_800x600_DFL_FNSZ;
 			if (ioctl(0, KDRASTER, size)) {
 				ioerr = errno;
 				if (cur_mode >= M_VESA_BASE)
@@ -573,7 +595,7 @@ main(int argc, char **argv)
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:i:l:LM:m:r:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:g:i:l:LM:m:r:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_border_color(optarg);
@@ -587,6 +609,13 @@ main(int argc, char **argv)
 			case 'f':
 				load_font(optarg,
 					nextarg(argc, argv, &optind, 'f'));
+				break;
+			case 'g':
+				if (sscanf(optarg, "%dx%d", &vesa_cols,
+					   &vesa_rows) != 2) {
+					warnx("incorrect geometry: %s", optarg);
+					usage();
+				}
 				break;
 			case 'i':
 				show_info(optarg);

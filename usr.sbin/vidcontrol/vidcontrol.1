@@ -26,6 +26,7 @@
 .Op Fl c Ar appearance
 .Op Fl d
 .Op Fl f Ar size Ar file
+.Op Fl g Ar geometry
 .Op Fl i Cm adapter | mode
 .Op Fl l Ar screen_map
 .Op Fl L
@@ -160,6 +161,18 @@ and
 .Sx EXAMPLES
 below and the man page for
 .Xr syscons 4 .
+.It Fl g Ar geometry
+Set the
+.Ar geometry
+of the text mode for the modes with selectable
+geometry.  Currently only raster modes, such as
+.Ar VESA_800x600 ,
+support this option.
+See also
+.Sx Video Mode Support
+and
+.Sx EXAMPLES
+below.
 .It Fl s Ar number
 Set the current vty to
 .Ar number .
@@ -288,6 +301,11 @@ option if the file is found in
 .Pp
 The above command will load
 .Pa /usr/share/syscons/scrnmaps/iso-8859-1_to_cp437.scm .
+.Pp
+The following command will set-up a 100x37 raster text mode (useful for
+some LCD models):
+.Pp
+.Dl vidcontrol -g 100x37 VESA_800x600
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr vidfont 1 ,
