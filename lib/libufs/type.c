@@ -39,12 +39,17 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <fcntl.h>
+#include <fstab.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <libufs.h>
+
+/* Internally, track the 'name' value, it's ours. */
+#define	MINE_NAME	0x01
 
 struct uufsd *
 ufs_disk_ctor(const char *name)
@@ -96,19 +101,42 @@ ufs_disk_close(struct uufsd *disk)
 		free(disk->d_inoblock);
 		disk->d_inoblock = NULL;
 	}
+	if (disk->d_mine & MINE_NAME) {
+		free((char *)(uintptr_t)disk->d_name);
+		disk->d_name = NULL;
+	}
 	return 0;
 }
 
 int
 ufs_disk_fillout(struct uufsd *disk, const char *name)
 {
+	struct stat st;
+	struct fstab *fs;
+	const char *oname;
+	char dev[MAXPATHLEN];
 	int fd;
 
 	ERROR(disk, NULL);
 
+	oname = name;
+	fs = getfsfile(name);
+	if (fs != NULL)
+		name = fs->fs_spec;
+again:	if (stat(name, &st) < 0) {
+		if (*name != '/') {
+			if (*name == 'r')
+				name++;
+			snprintf(dev, sizeof(dev), "%s%s", _PATH_DEV, name);
+			name = dev;
+			goto again;
+		}
+		ERROR(disk, "could not find special device");
+		return -1;
+	}
 	fd = open(name, O_RDONLY);
 	if (fd == -1) {
-		ERROR(disk, "failed to open disk for reading");
+		ERROR(disk, "could not open special device");
 		return -1;
 	}
 
@@ -117,9 +145,19 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	disk->d_inoblock = NULL;
 	disk->d_inomin = 0;
 	disk->d_inomax = 0;
-	disk->d_name = name;
+	disk->d_mine = 0;
 	disk->d_ufs = 0;
 	disk->d_error = NULL;
+
+	if (oname != name) {
+		name = strdup(name);
+		if (name == NULL) {
+			ERROR(disk, "could not allocate memory for disk name");
+			return -1;
+		}
+		disk->d_mine |= MINE_NAME;
+	}
+	disk->d_name = name;
 
 	if (sbread(disk) == -1) {
 		ERROR(disk, "could not read superblock to fill out disk");
