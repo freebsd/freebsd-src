@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
         .weak CNAME(ntohl)
         .set CNAME(ntohl),CNAME(__ntohl)
 ENTRY(__ntohl)
-	movl	4(%esp),%eax
-	xchgb	%al,%ah
-	roll	$16,%eax
-	xchgb	%al,%ah
+	movl	%edi,%eax
+	bswap	%eax
 	ret
