@@ -250,7 +250,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <sect4>
+	<title>IPFilter</title>
+
+	<para><application>IPFilter</application> has been updated to
+	  3.4.27.</para>
+
+      </sect4>
+
+      <sect4 arch="i386">
+	<title>isdn4bsd</title>
+
+	<para>The &man.ifpi2.4; driver for supporting the AVM
+	  Fritz!Card PCI version 2 controller has been added.</para>
+
+      </sect4>
     </sect3>
   </sect2>
   <sect2 id="security">
