@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.66 1997/02/22 09:35:52 peter Exp $
+ *      $Id: aha1542.c,v 1.67 1997/03/23 04:39:26 bde Exp $
  */
 
 /*
@@ -42,6 +42,7 @@
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #ifdef	KERNEL
 #include <sys/kernel.h>
