@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/09/08 20:36:58 jfieber Exp $
+#	$Id: Makefile,v 1.5 1996/11/15 07:39:42 jkh Exp $
 
 SUBDIR= FreeBSD ISO transpec
 FILES=	CATALOG
@@ -11,7 +11,7 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 		${DESTDIR}${BINDIR}/${.CURDIR:T}
 
-distribute:
+afterdistribute:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
 		${DISTDIR}/${DISTRIBUTION}${BINDIR}/${.CURDIR:T}
 
