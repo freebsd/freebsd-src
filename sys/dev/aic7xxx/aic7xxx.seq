@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.38 1996/05/30 07:18:39 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.39 1996/05/30 14:31:08 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -274,9 +274,9 @@ ultra_b:
 set_sxfrctl0:
 	mov	SXFRCTL0,SINDEX
 
-	mvi	SCSISEQ,ENAUTOATNP		/*
-						 * ATN on parity errors
-						 * for "in" phases
+	mov	SCSISEQ,ALLZEROS		/*
+						 * Don't allow (re)selections
+						 * until after the next busfree.
 						 */
 	mvi	CLRSINT1,CLRBUSFREE
 	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
