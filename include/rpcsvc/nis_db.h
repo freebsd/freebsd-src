@@ -25,6 +25,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	$Id$
  */
 
 /*
@@ -78,7 +80,7 @@ enum db_action {
 	DB_FIRST = 3,
 	DB_NEXT = 4,
 	DB_ALL = 5,
-	DB_RESET_NEXT = 6,
+	DB_RESET_NEXT = 6
 };
 typedef enum db_action db_action;
 
