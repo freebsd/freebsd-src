@@ -1,5 +1,5 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.96 2002/10/12 13:18:42 mheinen Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.97 2002/10/12 15:58:39 ue Exp $
   basiert auf: 1.22.2.300
 -->
 
@@ -194,15 +194,15 @@
       <procedure>
 	<step>
 	  <para>In der Konfigurationsdatei f&uuml;r den
-	    angepa&szlig;ten Kernel mu&szlig; die (undokumentierte)
-	    Option <literal>options IPFW2</literal> stehen.</para>
+	    angepa&szlig;ten Kernel mu&szlig; der (undokumentierte)
+	    Eintrag <literal>options IPFW2</literal> stehen.</para>
 	</step>
 
 	<step>
 	  <para>Beim Compilieren und Installieren von
 	    <filename>libalias</filename> und &man.ipfw.8; mu&szlig;
 	    &man.make.1; mit der Option
-	    <option>-DIPFW2</option></para>
+	    <option>-DIPFW2</option> aufgerufen werden.</para>
 	</step>
       </procedure>
 
@@ -213,12 +213,12 @@
       <para>Der Timeout, nach dessen Ablauf &man.tcp.4; ein Paket
 	erneut versendet, kann jetzt mit den beiden sysctl-Variablen
 	<varname>net.inet.tcp.rexmit_min</varname> und
-	<varname>net.inet.tcp.rexmit_slop</varname>.  Der Standardwert
-	wurde von einer Sekunde auf 200 Millisekunden (&auml;hnlich dem
-	Default bei Linux), um besser auf Aussetzer bei interaktiven
-	Verbindungen und Ausf&auml;lle bei unzuverl&auml;ssigen
-	schnellen Verbindungen (drahtlose Netzwerke) reagieren zu
-	k&ouml;nnen.</para>
+	<varname>net.inet.tcp.rexmit_slop</varname> konfiguriert
+	werden.  Der Standardwert wurde von einer Sekunde auf 200
+	Millisekunden reduziert (&auml;hnlich dem Default bei Linux),
+	um besser auf Aussetzer bei interaktiven Verbindungen und
+	Ausf&auml;lle bei unzuverl&auml;ssigen schnellen Verbindungen
+	(drahtlose Netzwerke) reagieren zu k&ouml;nnen.</para>
 
       <para>Das &man.tcp.4; Protokoll ist jetzt in der Lage, die
 	Anzahl der ausstehenden Pakete dynamisch anzupassen, um die
@@ -404,7 +404,7 @@
 
     <para>Mit &man.daemon.8; steht jetzt ein &uuml;ber die
       Kommandozeile benutzbares Programm zur Nutzung von
-      &man.daemon.3;, zur Verf&uuml;gung.  Das Programm l&ouml;st die
+      &man.daemon.3; zur Verf&uuml;gung.  Das Programm l&ouml;st die
       Verbindung zum kontrollierenden Terminal und startet dann das
       auf der Kommandozeile &uuml;bergebene Programm.  Dadurch
       k&ouml;nnen Sie beliebige Programme als Daemon-Proze&szlig;
