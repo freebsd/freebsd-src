@@ -592,6 +592,8 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_sc.sc_ds = regs->tf_ds;
 	sf.sf_sc.sc_ss = regs->tf_ss;
 	sf.sf_sc.sc_es = regs->tf_es;
+	sf.sf_sc.sc_fs = rfs();
+	sf.sf_sc.sc_gs = rgs();
 	sf.sf_sc.sc_isp = regs->tf_isp;
 
 	/*
@@ -656,6 +658,8 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
+	load_fs(_udatasel);
+	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
