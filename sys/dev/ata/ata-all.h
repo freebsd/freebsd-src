@@ -312,8 +312,7 @@ struct ata_softc {
 #define		ATA_ATAPI_DMA_RO	0x02
 #define		ATA_USE_16BIT		0x04
 #define		ATA_NO_SLAVE		0x08
-#define		ATA_ATTACHED		0x10
-#define		ATA_QUEUED		0x20
+#define		ATA_QUEUED		0x10
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -324,14 +323,14 @@ struct ata_softc {
     u_int8_t			status;		/* last controller status */
     u_int8_t			error;		/* last controller error */
     int				active;		/* active processing request */
-#define		ATA_IDLE		0x0
-#define		ATA_IMMEDIATE		0x1
-#define		ATA_WAIT_INTR		0x2
-#define		ATA_WAIT_READY		0x3
-#define		ATA_ACTIVE		0x4
-#define		ATA_ACTIVE_ATA		0x5
-#define		ATA_ACTIVE_ATAPI	0x6
-#define		ATA_REINITING		0x7
+#define		ATA_IDLE		0x0000
+#define		ATA_IMMEDIATE		0x0001
+#define		ATA_WAIT_INTR		0x0002
+#define		ATA_WAIT_READY		0x0004
+#define		ATA_ACTIVE		0x0008
+#define		ATA_ACTIVE_ATA		0x0010
+#define		ATA_ACTIVE_ATAPI	0x0020
+#define		ATA_REINITING		0x0040
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -348,7 +347,7 @@ int ata_detach(device_t);
 int ata_resume(device_t);
 
 void ata_start(struct ata_softc *);
-void ata_reset(struct ata_softc *, int *);
+void ata_reset(struct ata_softc *);
 int ata_reinit(struct ata_softc *);
 int ata_wait(struct ata_softc *, int, u_int8_t);
 int ata_command(struct ata_softc *, int, u_int8_t, u_int16_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t, int);
@@ -370,6 +369,7 @@ void ata_dmastart(struct ata_softc *, int, struct ata_dmaentry *, int);
 int ata_dmastatus(struct ata_softc *);
 int ata_dmadone(struct ata_softc *);
 
+/* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \
 	bus_space_read_1(rman_get_bustag((res)), \
 			 rman_get_bushandle((res)), (offset))

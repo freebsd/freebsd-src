@@ -167,6 +167,8 @@ struct cappage {
     u_int8_t			:3;
     u_int16_t	max_write_speed;	/* max raw data rate in bytes/1000 */
     u_int16_t	cur_write_speed;	/* current data rate in bytes/1000  */
+    u_int16_t	copy_protect_rev;
+    u_int16_t	reserved4;
 };
 
 /* CDROM Changer mechanism status structure */
@@ -298,7 +300,7 @@ struct acd_softc {
     int				flags;		/* device state flags */
 #define 	F_LOCKED		0x0001	/* this unit is locked */
 
-    struct bio_queue_head	bio_queue;	/* Queue of i/o requests */
+    struct bio_queue_head	queue;		/* queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
     struct {
 	u_int32_t	volsize;		/* volume size in blocks */
