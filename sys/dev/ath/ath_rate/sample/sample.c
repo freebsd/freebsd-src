@@ -118,7 +118,7 @@ static __inline int size_to_bin(int size)
 {
 	int x = 0;
 	for (x = 0; x < NUM_PACKET_SIZE_BINS; x++) {
-		if (size < packet_size_bins[x]) {
+		if (size <= packet_size_bins[x]) {
 			return x;
 		}
 	}
