@@ -694,6 +694,7 @@ geom/geom_mbr.c	optional geom
 geom/geom_mbrext.c	optional geom
 geom/geom_slice.c	optional geom
 geom/geom_subr.c	optional geom
+geom/geom_sunlabel.c	optional geom
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs file system"
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
