@@ -2,7 +2,7 @@
 #
 # Greek/ISO 8859-7 (backward compatible with ASCII)
 #
-charmap map.ISO_8859-7
+charmap map.ISO8859-7
 order \
 # controls
 	<NU>;...;<US>;<PA>;...;<AC>;\
