@@ -31,7 +31,7 @@
  */
 
 static char *id =
-	"@(#)ispcvt.c, 3.20, Last Edit-Date: [Mon Dec 19 14:15:37 1994]";
+	"@(#)ispcvt.c, 3.20, Last Edit-Date: [Sun Feb 19 13:17:57 1995]";
 
 /*---------------------------------------------------------------------------*
  *
@@ -43,7 +43,8 @@ static char *id =
  *	-hm	PCVT_PCBURST
  *	-hm	new ioctl VGAPCVTINFO
  *	-hm	new CONF_ values for 3.10
- *	-hm	new CONF_ values for 3.20 
+ *	-hm	new CONF_ values for 3.20
+ *	-hm	removed PCVT_FAKE_SYSCONS10
  *
  *---------------------------------------------------------------------------*/
 
@@ -225,22 +226,19 @@ char *argv[];
 		fprintf(stderr,"PCVT_USL_VT_COMPAT   = %s\n",
 			(pcvtinfo.compile_opts & CONF_USL_VT_COMPAT) ? "ON" : "OFF");
 	
-		fprintf(stderr,"PCVT_FAKE_SYSCONS10  = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_FAKE_SYSCONS10) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_INHIBIT_NUMLOCK = %s\n",
+		fprintf(stderr,"PCVT_INHIBIT_NUMLOCK = %s\t\t",
 			(pcvtinfo.compile_opts & CONF_INHIBIT_NUMLOCK) ? "ON" : "OFF");
 
-		fprintf(stderr,"PCVT_META_ESC        = %s\t\t",
+		fprintf(stderr,"PCVT_META_ESC        = %s\n",
 			(pcvtinfo.compile_opts & CONF_META_ESC) ? "ON" : "OFF");
 
-		fprintf(stderr,"PCVT_NOFASTSCROLL    = %s\n",
+		fprintf(stderr,"PCVT_NOFASTSCROLL    = %s\t\t",
 			(pcvtinfo.compile_opts & CONF_NOFASTSCROLL) ? "ON" : "OFF");
 
-		fprintf(stderr,"PCVT_SLOW_INTERRUPT  = %s\t\t",
+		fprintf(stderr,"PCVT_SLOW_INTERRUPT  = %s\n",
 			(pcvtinfo.compile_opts & CONF_SLOW_INTERRUPT) ? "ON" : "OFF");
 
-		fprintf(stderr,"PCVT_KBD_FIFO        = %s\n",
+		fprintf(stderr,"PCVT_KBD_FIFO        = %s\t\t",
 			(pcvtinfo.compile_opts & CONF_KBD_FIFO) ? "ON" : "OFF");
 
 		fprintf(stderr,"PCVT_NO_LED_UPDATE   = %s\n\n",
