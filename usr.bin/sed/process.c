@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)process.c	8.6 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: process.c,v 1.5.2.1 1997/08/12 06:36:13 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -240,7 +240,7 @@ redirect:
 				if (pd)
 					break;
 				for (p = ps, len = psl; --len; ++p)
-					*p = cp->u.y[*p];
+					*p = cp->u.y[(unsigned char)*p];
 				break;
 			case ':':
 			case '}':

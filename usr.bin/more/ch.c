@@ -394,8 +394,8 @@ ch_init(want_nbufs, keep)
 		 * If we don't have ANY, then quit.
 		 * Otherwise, just report the error and return.
 		 */
-		(void)sprintf(message, "cannot allocate %d buffers",
-		    want_nbufs - nbufs);
+		(void)snprintf(message, sizeof(message),
+		    "cannot allocate %d buffers", want_nbufs - nbufs);
 		error(message);
 		if (nbufs == 0)
 			quit();

@@ -374,8 +374,8 @@ jump_back(n)
 		while ((c = ch_forw_get()) != '\n')
 			if (c == EOI) {
 				char message[40];
-				(void)sprintf(message, "File has only %d lines",
-				    nlines - 1);
+				(void)snprintf(message, sizeof(message),
+				    "File has only %d lines", nlines - 1);
 				error(message);
 				return;
 			}

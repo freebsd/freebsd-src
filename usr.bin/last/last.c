@@ -75,7 +75,7 @@ ARG	*arglist;				/* head of linked list */
 LIST_HEAD(ttylisthead, ttytab) ttylist;
 
 struct ttytab {
-	long	logout;				/* log out time */
+	time_t	logout;				/* log out time */
 	char	tty[UT_LINESIZE + 1];		/* terminal name */
 	LIST_ENTRY(ttytab) list;
 };
@@ -180,7 +180,8 @@ wtmp()
 	struct utmp	*bp;			/* current structure */
 	struct ttytab	*tt, *ttx;		/* ttylist entry */
 	struct stat	stb;			/* stat of file for size */
-	long	bl, delta;			/* time difference */
+	long	bl;
+	time_t	delta;				/* time difference */
 	int	bytes, wfd;
 	char    *crmsg;
 	char ct[80];
@@ -319,8 +320,8 @@ wtmp()
 		}
 	}
 	tm = localtime(&buf[0].ut_time);
-	(void) strftime(ct, sizeof(ct), "%c", tm);
-	printf("\nwtmp begins %10.10s %5.5s \n", ct, ct + 11);
+	(void) strftime(ct, sizeof(ct), "\nwtmp begins %c\n", tm);
+	printf(ct);
 }
 
 /*

@@ -109,7 +109,7 @@ print_addr(addr)
 	int i;
 
 	printf("addr = %lx, port = %o, family = %o zero = ",
-		addr.sin_addr.s_addr, addr.sin_port, addr.sin_family);
+		(u_long)addr.sin_addr.s_addr, addr.sin_port, addr.sin_family);
 	for (i = 0; i<8;i++)
 	printf("%o ", (int)addr.sin_zero[i]);
 	putchar('\n');

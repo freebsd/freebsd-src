@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.9.2.3 1997/08/29 05:29:38 imp Exp $";
+	"$Id: mt.c,v 1.9.2.4 1997/09/15 09:20:54 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -415,8 +415,8 @@ getblksiz(int bs)
 void
 st_status(struct mtget *bp)
 {
-	printf("Present Mode:   Density = %-12s Blocksize %s\n",
-	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz));
+	printf("Present Mode:   Density = %-12s Blocksize %s Comp %d\n",
+	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz), (int)bp->mt_comp);
 	printf("---------available modes---------\n");
 	printf("Mode 0:         Density = %-12s Blocksize %s\n",
 	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0));

@@ -57,6 +57,7 @@ extern int sc_height;
 extern int sc_window;
 extern int curr_ac;
 extern int ac;
+extern char **av;
 extern int quitting;
 extern int scroll;
 extern int screen_trashed;	/* The screen has been overwritten */
@@ -185,19 +186,21 @@ prompt()
 		putstr(current_name);
 		putstr(":");
 		if (!ispipe) {
-			(void)sprintf(pbuf, " file %d/%d", curr_ac + 1, ac);
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " file %d/%d", curr_ac + 1, ac);
 			putstr(pbuf);
 		}
 		if (linenums) {
-			(void)sprintf(pbuf, " line %d", currline(BOTTOM));
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " line %d", currline(BOTTOM));
 			putstr(pbuf);
 		}
 		if ((pos = position(BOTTOM)) != NULL_POSITION) {
-			(void)sprintf(pbuf, " byte %qd", pos);
+			(void)snprintf(pbuf, sizeof(pbuf), " byte %qd", pos);
 			putstr(pbuf);
 			if (!ispipe && (len = ch_length())) {
-				(void)sprintf(pbuf, "/%qd pct %qd%%",
-				    len, ((100 * pos) / len));
+				(void)snprintf(pbuf, sizeof(pbuf),
+				    "/%qd pct %qd%%", len, ((100 * pos) / len));
 				putstr(pbuf);
 			}
 		}
@@ -218,7 +221,8 @@ prompt()
 		else if (!ispipe &&
 		    (pos = position(BOTTOM)) != NULL_POSITION &&
 		    (len = ch_length())) {
-			(void)sprintf(pbuf, " (%qd%%)", ((100 * pos) / len));
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " (%qd%%)", ((100 * pos) / len));
 			putstr(pbuf);
 		}
 		so_exit();
@@ -508,6 +512,10 @@ again:		if (sigs)
 			    number, wsearch);
 			break;
 		case A_HELP:			/* help */
+			if (ac > 0 && !strcmp(_PATH_HELPFILE, av[curr_ac])) {
+				error("Already viewing help.");
+				break;
+			}
 			lower_left();
 			clear_eol();
 			putstr("help");
@@ -620,16 +628,16 @@ editfile()
 			dolinenumber = 0;
 	}
 	if (dolinenumber && (c = currline(MIDDLE)))
-		(void)sprintf(buf, "%s +%d %s", editor, c, current_file);
+		(void)snprintf(buf, sizeof(buf),
+		    "%s +%d %s", editor, c, current_file);
 	else
-		(void)sprintf(buf, "%s %s", editor, current_file);
+		(void)snprintf(buf, sizeof(buf), "%s %s", editor, current_file);
 	lsystem(buf);
 }
 
 showlist()
 {
 	extern int sc_width;
-	extern char **av;
 	register int indx, width;
 	int len;
 	char *p;
