@@ -181,12 +181,8 @@ ofwd_probe_devs(void)
 static int
 ofwd_init(void)
 {
-#ifdef __sparc64__
 	/* Short-circuit the device probing, since it takes too long. */
 	return 0;
-#else
-	return ofwd_init_devs();
-#endif
 }
 
 static int
