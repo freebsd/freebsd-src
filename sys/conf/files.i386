@@ -91,6 +91,7 @@ contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
+#dev/ar/if_ar_isa.c		optional	ar isa
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
@@ -105,6 +106,7 @@ dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
+dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
@@ -216,12 +218,10 @@ i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			count		gsc
-i386/isa/if_ar.c		optional	ar
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
-i386/isa/if_sr.c		count		sr
 i386/isa/if_wl.c		count		wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
