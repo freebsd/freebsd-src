@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis
+ * Copyright (c) 1999, 2000 Hellmuth Michaelis
  *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
@@ -42,7 +42,7 @@
  *	pcvt_out.c	VT220 Terminal Emulator
  *	---------------------------------------
  *
- *	Last Edit-Date: [Mon Dec 27 14:07:39 1999]
+ *	Last Edit-Date: [Sun Mar 26 10:43:40 2000]
  *
  * $FreeBSD$
  *
@@ -63,11 +63,10 @@ extern u_short csd_supplemental[];
 
 static void write_char (struct video_state *svsp, int attrib, int ch);
 static void check_scroll ( struct video_state *svsp );
-static void hp_entry ( U_char ch, struct video_state *svsp );
+static void hp_entry ( int ch, struct video_state *svsp );
 static void vt_coldinit ( void );
 static void wrfkl ( int num, u_char *string, struct video_state *svsp );
 static void writefkl ( int num, u_char *string, struct video_state *svsp );
-
 static int check_scrollback ( struct video_state *svsp );
 
 /*---------------------------------------------------------------------------*
@@ -133,7 +132,7 @@ u_short	attrib, ch;		/* XXX inefficient interface */
  *	emulator main entry
  *---------------------------------------------------------------------------*/
 void
-sput (u_char *s, U_char kernel, int len, int page)
+sput (u_char *s, int kernel, int len, int page)
 {
     register struct video_state *svsp;
     u_short	attrib;
@@ -1196,13 +1195,13 @@ vt_coldinit(void)
 				      filllen);
 		}
 
-#if PCVT_USL_VT_COMPAT
+#ifdef XSERVER
 		svsp->smode.mode = VT_AUTO;
 		svsp->smode.relsig = svsp->smode.acqsig =
 			svsp->smode.frsig = 0;
 		svsp->proc = 0;
 		svsp->pid = svsp->vt_status = 0;
-#endif /* PCVT_USL_VT_COMPAT */
+#endif /* XSERVER */
 
 	}
 
@@ -1372,6 +1371,9 @@ check_scroll(struct video_state *svsp)
         }
 }
 
+/*---------------------------------------------------------------------------*
+ *
+ *---------------------------------------------------------------------------*/
 static int
 check_scrollback(struct video_state *svsp)
 {
@@ -1583,11 +1585,8 @@ set_emulation_mode(struct video_state *svsp, int mode)
 		svsp->scrr_end = svsp->scrr_len - 1;
 	}
 
-#if PCVT_SIGWINCH
 	if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
 		pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
-#endif /* PCVT_SIGWINCH */
-
 }
 
 /*---------------------------------------------------------------------------*
@@ -1871,10 +1870,8 @@ vt_col(struct video_state *svsp, int cols)
 			(cols == SCR_COL80)? 720: 1056;
 		svsp->vs_tty->t_winsize.ws_ypixel = 400;
 
-#if PCVT_SIGWINCH
 		if(svsp->vs_tty->t_pgrp)
 			pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
-#endif /* PCVT_SIGWINCH */
 	}
 
 	reallocate_scrollbuffer(svsp, svsp->scrollback_pages);
@@ -1950,7 +1947,7 @@ clr_parms(struct video_state *svsp)
  *---------------------------------------------------------------------------*/
 
 static void
-hp_entry(U_char ch, struct video_state *svsp)
+hp_entry(int ch, struct video_state *svsp)
 {
 	switch(svsp->hp_state)
 	{
