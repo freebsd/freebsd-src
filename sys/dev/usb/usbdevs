@@ -272,6 +272,7 @@ product APC UPSPRO500		0x0002	Back-UPS Pro 500
 
 /* Anchor products */
 product ANCHOR EZUSB		0x2131	EZUSB
+product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	USB ethernet controller engine
