@@ -3,9 +3,9 @@
 .include "${.CURDIR}/../../Makefile.inc0"
 
 RELTOP:= ../${RELTOP}
-
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
+PROG=	as
 MAN=	doc/as.1
 SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	cond.c dwarf2dbg.c ecoff.c expr.c flonum-copy.c flonum-konst.c \
@@ -13,7 +13,7 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	input-scrub.c listing.c literal.c macro.c messages.c \
 	output-file.c read.c sb.c stabs.c \
 	subsegs.c symbols.c write.c depend.c ehopt.c
-CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR}
+CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR} -I${.CURDIR}/..
 CFLAGS+= -DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
 NOSHARED?=	yes
 DPADD=	${RELTOP}/libbfd/libbfd.a
