@@ -302,6 +302,10 @@
     used to artificially reduce the memory size of a machine for
     testing (or other purposes). &merged;</para>
 
+    <para>An &man.eaccess.2; system call has been added, similar to
+    &man.access.2; except that the former uses effective credentials
+    rather than real credentials.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -833,6 +837,10 @@
       <literal>UFS_DIRHASH</literal> kernel option, it improves the speed
       of operations on very large directories at the expense of some
       memory. &merged;</para>
+
+      <para>The virtual memory subsystem now backs UFS directory
+      memory requirements by default (this behavior is controlled via
+      the <varname>vfs.vmiodirenable</varname> sysctl variable.</para>
     </sect3>
 
     <sect3>
@@ -1692,7 +1700,7 @@
     authentication.</para>
 
     <para>&man.wall.1; now supports a <option>-g</option> flag to
-    write a message to all users of a given group.</para>
+    write a message to all users of a given group. &merged;</para>
 
     <para>The new <varname>CPUTYPE</varname>
     <filename>make.conf</filename> variable controls the compilation
@@ -1927,16 +1935,16 @@
 
     <para>&man.route.8; is now more verbose when changing indirect
     routes, in the case of a gateway route that is the same route as
-    the one being modified.</para>
+    the one being modified. &merged;</para>
 
     <para>&man.route.8; now uses
     <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
     syntax instead of 
     <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax, for compatibility with &man.netstat.1;.</para>
+    syntax, for compatibility with &man.netstat.1;. &merged;</para>
 
     <para>&man.route.8; can now create <quote>proxy only</quote>
-    published ARP entries.</para>
+    published ARP entries. &merged;</para>
 
     <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
     environment variable, if set, to specify the location of temporary
