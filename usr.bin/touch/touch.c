@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -54,6 +58,7 @@ static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <time.h>
 #include <unistd.h>
 
+int	main __P((int, char *[]));
 int	rw __P((char *, struct stat *, int));
 void	stime_arg1 __P((char *, struct timeval *));
 void	stime_arg2 __P((char *, int, struct timeval *));
