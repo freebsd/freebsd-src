@@ -31,12 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#20 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#22 $
  */
 
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -50,14 +51,12 @@
 #include "openpam_impl.h"
 
 int openpam_ttyconv_timeout = 0;
-static jmp_buf jmpenv;
-static int timed_out;
 
 static void
 timeout(int sig)
 {
-	timed_out = 1;
-	longjmp(jmpenv, sig);
+
+	(void)sig;
 }
 
 static char *
@@ -67,7 +66,10 @@ prompt(const char *msg)
 	struct sigaction action, saved_action;
 	sigset_t saved_sigset, sigset;
 	unsigned int saved_alarm;
+	int eof, error, fd, timed_out;
 	size_t len;
+	char *retval;
+	char ch;
 
 	sigemptyset(&sigset);
 	sigaddset(&sigset, SIGINT);
@@ -78,25 +80,51 @@ prompt(const char *msg)
 	sigemptyset(&action.sa_mask);
 	sigaction(SIGALRM, &action, &saved_action);
 	fputs(msg, stdout);
+	fflush(stdout);
+#ifdef HAVE_FPURGE
+	fpurge(stdin);
+#endif
+	fd = fileno(stdin);
 	buf[0] = '\0';
 	timed_out = 0;
+	eof = error = timed_out = 0;
 	saved_alarm = alarm(openpam_ttyconv_timeout);
-	if (setjmp(jmpenv) == 0)
-		fgets(buf, sizeof buf, stdin);
-	else
-		fputs(" timeout!\n", stderr);
+	ch = '\0';
+	for (len = 0; ch != '\n' && !eof && !error; ++len) {
+		switch (read(fd, &ch, 1)) {
+		case 1:
+			if (len < PAM_MAX_RESP_SIZE - 1) {
+				buf[len + 1] = '\0';
+				buf[len] = ch;
+			}
+			break;
+		case 0:
+			eof = 1;
+			break;
+		default:
+			error = errno;
+			break;
+		}
+	}
 	alarm(0);
 	sigaction(SIGALRM, &saved_action, NULL);
 	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
 	alarm(saved_alarm);
-	if (timed_out || ferror(stdin) || feof(stdin))
+	if (error == EINTR)
+		fputs(" timeout!", stderr);
+	if (error || eof) {
+		fputs("\n", stderr);
+		memset(buf, 0, sizeof(buf));
 		return (NULL);
+	}
 	/* trim trailing whitespace */
 	for (len = strlen(buf); len > 0; --len)
 		if (!isspace(buf[len - 1]))
 			break;
 	buf[len] = '\0';
-	return (strdup(buf));
+	retval = strdup(buf);
+	memset(buf, 0, sizeof(buf));
+	return (retval);
 }
 
 static char *
@@ -179,7 +207,10 @@ openpam_ttyconv(int n,
 	RETURNC(PAM_SUCCESS);
  fail:
 	while (i)
-		FREE(resp[--i]);
+		if (resp[--i]->resp) {
+			memset(resp[i]->resp, 0, strlen(resp[i]->resp));
+			FREE(resp[i]->resp);
+		}
 	FREE(*resp);
 	RETURNC(PAM_CONV_ERR);
 }

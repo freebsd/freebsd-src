@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd June 1, 2003
+.Dd July 15, 2003
 .Dt PAM_GET_AUTHTOK 3
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
-.Ft int
+.Ft "int"
 .Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
 .Sh DESCRIPTION
 The
@@ -123,9 +123,10 @@ function is an OpenPAM extension.
 .Sh AUTHORS
 The
 .Nm
-function and this manual page were developed for the FreeBSD Project
-by ThinkSec AS and Network Associates Laboratories, the Security
-Research Division of Network Associates, Inc.  under DARPA/SPAWAR
-contract N66001-01-C-8035
+function and this manual page were developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.  under
+DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

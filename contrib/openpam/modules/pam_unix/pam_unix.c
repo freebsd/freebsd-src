@@ -31,8 +31,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#5 $
+ * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#6 $
  */
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include <sys/param.h>
 
@@ -42,8 +46,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __GLIBC__
-#include <crypt.h>
+#ifdef HAVE_CRYPT_H
+# include <crypt.h>
 #endif
 
 #include <security/pam_modules.h>

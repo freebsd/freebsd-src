@@ -17,7 +17,7 @@ or indirectly, with patches, criticism, suggestions, or ideas:
 	Dmitry V. Levin <ldv@altlinux.org>
 	Eric Melville <eric@freebsd.org>
 	Gary Winiger <Gary.Winiger@sun.com>
-	Joe Marcus Clarke <marcus@marcuscom.com>
+	Joe Marcus Clarke <marcus@freebsd.org>
 	Juli Mallett <jmallett@freebsd.org>
 	Mark Murray <markm@freebsd.org>
 	Mike Petullo <mike@flyn.org>
@@ -27,4 +27,4 @@ or indirectly, with patches, criticism, suggestions, or ideas:
 	Solar Designer <solar@openwall.com>
 	Takanori Saneto <sanewo@ba2.so-net.ne.jp>
 
-$P4: //depot/projects/openpam/CREDITS#8 $
+$P4: //depot/projects/openpam/CREDITS#9 $
