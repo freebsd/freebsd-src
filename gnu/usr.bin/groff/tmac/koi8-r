@@ -120,6 +120,15 @@
 .as doc-str-Rv-std0 " а код ошибки сохраняется в глобальной
 .as doc-str-Rv-std0 " переменной \*[doc-Va-font]errno\f[P].
 .
+.\" локализация .Ex
+.ds doc-str-Ex-std-prefix "Утилита
+.ds doc-str-Ex-std-suffix "возвращает\~0 в случае успешного завершения
+.as doc-str-Ex-std-suffix " и\~>0 в случае возникновения ошибки.
+.
+.ds doc-str-Ex-stds-prefix "Утилиты
+.ds doc-str-Ex-stds-suffix "возвращают\~0 в случае успешного завершения
+.as doc-str-Ex-stds-suffix " и\~>0 в случае возникновения ошибки.
+.
 .\" локализация .Ar
 .ds doc-str-Ar-default "файл\ .\|.\|.
 .
