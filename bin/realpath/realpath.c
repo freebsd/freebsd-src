@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
@@ -49,9 +49,10 @@ main(int argc, char *argv[])
 	char buf[PATH_MAX];
 	char *p;
 
-	if (argc == 1)
-		p = getcwd(NULL, 0);
-	else if (argc == 2) {
+	if (argc == 1) {
+		if ((p = getcwd(NULL, 0)) == NULL)
+			err(1, "getcwd()");
+	} else if (argc == 2) {
 		if ((p = realpath(argv[1], buf)) == NULL)
 			err(1, "%s", argv[1]);
 	} else
