@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.26 1997/04/07 07:16:06 peter Exp $
+ * $Id: vm_map.h,v 1.27 1997/08/05 00:01:58 dyson Exp $
  */
 
 /*
@@ -193,8 +193,12 @@ typedef struct {
 		&(map)->ref_lock, curproc); \
 	(map)->timestamp++; \
 }
+
 #ifdef DIAGNOSTIC
+/* #define MAP_LOCK_DIAGNOSTIC 1 */
+#ifdef MAP_LOCK_DIAGNOSTIC
 #define	vm_map_lock(map) { \
+	printf ("locking map LK_EXCLUSIVE: 0x%x\n", map); \
 	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
 		panic("vm_map_lock: failed to get lock"); \
 	} \
@@ -202,16 +206,65 @@ typedef struct {
 }
 #else
 #define	vm_map_lock(map) { \
+	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
+		panic("vm_map_lock: failed to get lock"); \
+	} \
+	(map)->timestamp++; \
+}
+#endif
+#else
+#define	vm_map_lock(map) { \
 	lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc); \
 	(map)->timestamp++; \
 }
 #endif /* DIAGNOSTIC */
+
+#if defined(MAP_LOCK_DIAGNOSTIC)
 #define	vm_map_unlock(map) \
-		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+	do { \
+		printf ("locking map LK_RELEASE: 0x%x\n", map); \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
+	} while (0);
 #define	vm_map_lock_read(map) \
-		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc)
+	do { \
+		printf ("locking map LK_SHARED: 0x%x\n", map); \
+		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); \
+	} while (0);
 #define	vm_map_unlock_read(map) \
-		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+	do { \
+		printf ("locking map LK_RELEASE: 0x%x\n", map); \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
+	} while (0);
+#else
+#define	vm_map_unlock(map) \
+	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc);
+#define	vm_map_lock_read(map) \
+	lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); 
+#define	vm_map_unlock_read(map) \
+	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc);
+#endif
+
+static __inline__ int
+_vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
+#if defined(MAP_LOCK_DIAGNOSTIC)
+	printf("locking map LK_EXCLUPGRADE: 0x%x\n", map); 
+#endif
+	return lockmgr(&(map)->lock, LK_EXCLUPGRADE, (void *)0, p);
+}
+
+#define vm_map_lock_upgrade(map) _vm_map_lock_upgrade(map, curproc)
+
+#if defined(MAP_LOCK_DIAGNOSTIC)
+#define vm_map_lock_downgrade(map) \
+	do { \
+		printf ("locking map LK_DOWNGRADE: 0x%x\n", map); \
+		lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc); \
+	} while (0);
+#else
+#define vm_map_lock_downgrade(map) \
+	lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc);
+#endif
+
 #define vm_map_set_recursive(map) { \
 	simple_lock(&(map)->lock.lk_interlock); \
 	(map)->lock.lk_flags |= LK_CANRECURSE; \
@@ -222,6 +275,7 @@ typedef struct {
 	(map)->lock.lk_flags &= ~LK_CANRECURSE; \
 	simple_unlock(&(map)->lock.lk_interlock); \
 }
+
 /*
  *	Functions implemented as macros
  */
