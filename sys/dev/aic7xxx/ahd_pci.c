@@ -28,16 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#13 $
- *
- * $FreeBSD$
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#17 $
  */
 
-#include <dev/aic7xxx/aic79xx_osm.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	AHD_PCI_IOADDR0 PCIR_MAPS	/* Primary I/O BAR */
-#define	AHD_PCI_MEMADDR (PCIR_MAPS + 4) /* Mem I/O Address */
-#define	AHD_PCI_IOADDR1 (PCIR_MAPS + 12)/* Secondary I/O BAR */
+#include <dev/aic7xxx/aic79xx_osm.h>
 
 static int ahd_pci_probe(device_t dev);
 static int ahd_pci_attach(device_t dev);
@@ -112,7 +109,7 @@ ahd_pci_attach(device_t dev)
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
+	error = aic_dma_tag_create(ahd, /*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   (ahd->flags & AHD_39BIT_ADDRESSING)
 				   ? 0x7FFFFFFFFF
@@ -153,7 +150,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 	int	regs_id2;
 	int	allow_memio;
 
-	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	command = aic_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	regs = NULL;
 	regs2 = NULL;
 	regs_type = 0;
@@ -195,15 +192,15 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 				device_printf(ahd->dev_softc,
 				       "PCI Device %d:%d:%d failed memory "
 				       "mapped test.  Using PIO.\n",
-				       ahd_get_pci_bus(ahd->dev_softc),
-				       ahd_get_pci_slot(ahd->dev_softc),
-				       ahd_get_pci_function(ahd->dev_softc));
+				       aic_get_pci_bus(ahd->dev_softc),
+				       aic_get_pci_slot(ahd->dev_softc),
+				       aic_get_pci_function(ahd->dev_softc));
 				bus_release_resource(ahd->dev_softc, regs_type,
 						     regs_id, regs);
 				regs = NULL;
 			} else {
 				command &= ~PCIM_CMD_PORTEN;
-				ahd_pci_write_config(ahd->dev_softc,
+				aic_pci_write_config(ahd->dev_softc,
 						     PCIR_COMMAND,
 						     command, /*bytes*/1);
 			}
@@ -234,7 +231,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 		ahd->tags[1] = rman_get_bustag(regs2);
 		ahd->bshs[1] = rman_get_bushandle(regs2);
 		command &= ~PCIM_CMD_MEMEN;
-		ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND,
+		aic_pci_write_config(ahd->dev_softc, PCIR_COMMAND,
 				     command, /*bytes*/1);
 		ahd->platform_data->regs_res_type[1] = regs_type;
 		ahd->platform_data->regs_res_id[1] = regs_id2;
@@ -259,39 +256,4 @@ ahd_pci_map_int(struct ahd_softc *ahd)
 		return (ENOMEM);
 	ahd->platform_data->irq_res_type = SYS_RES_IRQ;
 	return (ahd_map_int(ahd));
-}
-
-void
-ahd_power_state_change(struct ahd_softc *ahd, ahd_power_state new_state)
-{
-	uint32_t cap;
-	u_int cap_offset;
-
-	/*
-	 * Traverse the capability list looking for
-	 * the power management capability.
-	 */
-	cap = 0;
-	cap_offset = ahd_pci_read_config(ahd->dev_softc,
-					 PCIR_CAP_PTR, /*bytes*/1);
-	while (cap_offset != 0) {
-
-		cap = ahd_pci_read_config(ahd->dev_softc,
-					  cap_offset, /*bytes*/4);
-		if ((cap & 0xFF) == 1
-		 && ((cap >> 16) & 0x3) > 0) {
-			uint32_t pm_control;
-
-			pm_control = ahd_pci_read_config(ahd->dev_softc,
-							 cap_offset + 4,
-							 /*bytes*/2);
-			pm_control &= ~0x3;
-			pm_control |= new_state;
-			ahd_pci_write_config(ahd->dev_softc,
-					     cap_offset + 4,
-					     pm_control, /*bytes*/2);
-			break;
-		}
-		cap_offset = (cap >> 8) & 0xFF;
-	}
 }

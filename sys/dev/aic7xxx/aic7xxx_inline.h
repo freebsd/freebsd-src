@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#43 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_inline.h#47 $
  *
  * $FreeBSD$
  */
@@ -196,7 +196,7 @@ ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index)
 static __inline void
 ahc_sync_scb(struct ahc_softc *ahc, struct scb *scb, int op)
 {
-	ahc_dmamap_sync(ahc, ahc->scb_data->hscb_dmat,
+	aic_dmamap_sync(ahc, ahc->scb_data->hscb_dmat,
 			ahc->scb_data->hscb_dmamap,
 			/*offset*/(scb->hscb - ahc->hscbs) * sizeof(*scb->hscb),
 			/*len*/sizeof(*scb->hscb), op);
@@ -208,7 +208,7 @@ ahc_sync_sglist(struct ahc_softc *ahc, struct scb *scb, int op)
 	if (scb->sg_count == 0)
 		return;
 
-	ahc_dmamap_sync(ahc, ahc->scb_data->sg_dmat, scb->sg_map->sg_dmamap,
+	aic_dmamap_sync(ahc, ahc->scb_data->sg_dmat, scb->sg_map->sg_dmamap,
 			/*offset*/(scb->sg_list - scb->sg_map->sg_vaddr)
 				* sizeof(struct ahc_dma_seg),
 			/*len*/sizeof(struct ahc_dma_seg) * scb->sg_count, op);
@@ -272,7 +272,7 @@ ahc_update_residual(struct ahc_softc *ahc, struct scb *scb)
 {
 	uint32_t sgptr;
 
-	sgptr = ahc_le32toh(scb->hscb->sgptr);
+	sgptr = aic_le32toh(scb->hscb->sgptr);
 	if ((sgptr & SG_RESID_VALID) != 0)
 		ahc_calc_residual(ahc, scb);
 }
@@ -383,13 +383,13 @@ ahc_free_scb(struct ahc_softc *ahc, struct scb *scb)
 	hscb = scb->hscb;
 	/* Clean up for the next user */
 	ahc->scb_data->scbindex[hscb->tag] = NULL;
-	scb->flags = SCB_FREE;
+	scb->flags = SCB_FLAG_NONE;
 	hscb->control = 0;
 
 	SLIST_INSERT_HEAD(&ahc->scb_data->free_scbs, scb, links.sle);
 
 	/* Notify the OSM that a resource is now available. */
-	ahc_platform_scb_free(ahc, scb);
+	aic_platform_scb_free(ahc, scb);
 }
 
 static __inline struct scb *
@@ -427,7 +427,7 @@ ahc_swap_with_next_hscb(struct ahc_softc *ahc, struct scb *scb)
 	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
 	if ((scb->flags & SCB_CDB32_PTR) != 0) {
 		q_hscb->shared_data.cdb_ptr =
-		    ahc_htole32(ahc_hscb_busaddr(ahc, q_hscb->tag)
+		    aic_htole32(ahc_hscb_busaddr(ahc, q_hscb->tag)
 			      + offsetof(struct hardware_scb, cdb32));
 	}
 	q_hscb->tag = saved_tag;
@@ -458,7 +458,7 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	 * Setup data "oddness".
 	 */
 	scb->hscb->lun &= LID;
-	if (ahc_get_transfer_length(scb) & 0x1)
+	if (aic_get_transfer_length(scb) & 0x1)
 		scb->hscb->lun |= SCB_XFERLEN_ODD;
 
 	/*
@@ -512,7 +512,7 @@ static __inline int	ahc_intr(struct ahc_softc *ahc);
 static __inline void
 ahc_sync_qoutfifo(struct ahc_softc *ahc, int op)
 {
-	ahc_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
+	aic_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
 			/*offset*/0, /*len*/256, op);
 }
 
@@ -521,7 +521,7 @@ ahc_sync_tqinfifo(struct ahc_softc *ahc, int op)
 {
 #ifdef AHC_TARGET_MODE
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
-		ahc_dmamap_sync(ahc, ahc->shared_data_dmat,
+		aic_dmamap_sync(ahc, ahc->shared_data_dmat,
 				ahc->shared_data_dmamap,
 				ahc_targetcmd_offset(ahc, 0),
 				sizeof(struct target_cmd) * AHC_TMODE_CMDS,
@@ -542,7 +542,7 @@ ahc_check_cmdcmpltqueues(struct ahc_softc *ahc)
 	u_int retval;
 
 	retval = 0;
-	ahc_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
+	aic_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
 			/*offset*/ahc->qoutfifonext, /*len*/1,
 			BUS_DMASYNC_POSTREAD);
 	if (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL)
@@ -550,7 +550,7 @@ ahc_check_cmdcmpltqueues(struct ahc_softc *ahc)
 #ifdef AHC_TARGET_MODE
 	if ((ahc->flags & AHC_TARGETROLE) != 0
 	 && (ahc->flags & AHC_TQINFIFO_BLOCKED) == 0) {
-		ahc_dmamap_sync(ahc, ahc->shared_data_dmat,
+		aic_dmamap_sync(ahc, ahc->shared_data_dmat,
 				ahc->shared_data_dmamap,
 				ahc_targetcmd_offset(ahc, ahc->tqinfifofnext),
 				/*len*/sizeof(struct target_cmd),
@@ -593,7 +593,7 @@ ahc_intr(struct ahc_softc *ahc)
 	}
 
 	if ((intstat & INT_PEND) == 0) {
-#if AHC_PCI_CONFIG > 0
+#if AIC_PCI_CONFIG > 0
 		if (ahc->unsolicited_ints > 500) {
 			ahc->unsolicited_ints = 0;
 			if ((ahc->chip & AHC_PCI) != 0

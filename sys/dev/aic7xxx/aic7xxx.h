@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#79 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#85 $
  *
  * $FreeBSD$
  */
@@ -243,7 +243,7 @@ typedef enum {
 	 */
 	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE|AHC_ULTRA,
 	AHC_AIC7860_FE	= AHC_AIC7850_FE,
-	AHC_AIC7870_FE	= AHC_TARGETMODE,
+	AHC_AIC7870_FE	= AHC_TARGETMODE|AHC_AUTOPAUSE,
 	AHC_AIC7880_FE	= AHC_AIC7870_FE|AHC_ULTRA,
 	/*
 	 * Although we have space for both the initiator and
@@ -366,7 +366,8 @@ typedef enum {
 	AHC_SCB_CONFIG_USED   = 0x4000000, /* No SEEPROM but SCB2 had info. */
 	AHC_NO_BIOS_INIT      = 0x8000000, /* No BIOS left over settings. */
 	AHC_DISABLE_PCI_PERR  = 0x10000000,
-	AHC_HAS_TERM_LOGIC    = 0x20000000
+	AHC_HAS_TERM_LOGIC    = 0x20000000,
+	AHC_SHUTDOWN_RECOVERY = 0x40000000 /* Terminate recovery thread. */
 } ahc_flag;
 
 /************************* Hardware  SCB Definition ***************************/
@@ -411,6 +412,7 @@ struct target_data {
 	uint8_t  initiator_tag;		/* Initiator's transaction tag */
 };
 
+#define MAX_CDB_LEN 16
 struct hardware_scb {
 /*0*/	union {
 		/*
@@ -530,7 +532,7 @@ struct sg_map_node {
  * The current state of this SCB.
  */
 typedef enum {
-	SCB_FREE		= 0x0000,
+	SCB_FLAG_NONE		= 0x0000,
 	SCB_OTHERTCL_TIMEOUT	= 0x0002,/*
 					  * Another device was active
 					  * during the first timeout for
@@ -560,11 +562,15 @@ typedef enum {
 					  * to report the error.
 					  */
 	SCB_TARGET_SCB		= 0x2000,
-	SCB_SILENT		= 0x4000 /*
+	SCB_SILENT		= 0x4000,/*
 					  * Be quiet about transmission type
 					  * errors.  They are expected and we
 					  * don't want to upset the user.  This
 					  * flag is typically used during DV.
+					  */
+	SCB_TIMEDOUT		= 0x8000 /*
+					  * SCB has timed out and is on the
+					  * timedout list.
 					  */
 } scb_flag;
 
@@ -575,7 +581,8 @@ struct scb {
 		TAILQ_ENTRY(scb)  tqe;
 	} links;
 	LIST_ENTRY(scb)		  pending_links;
-	ahc_io_ctx_t		  io_ctx;
+	LIST_ENTRY(scb)		  timedout_links;
+	aic_io_ctx_t		  io_ctx;
 	struct ahc_softc	 *ahc_softc;
 	scb_flag		  flags;
 #ifndef __linux__
@@ -929,6 +936,11 @@ struct ahc_softc {
 	LIST_HEAD(, scb)	  pending_scbs;
 
 	/*
+	 * SCBs whose timeout routine has been called.
+	 */
+	LIST_HEAD(, scb)	  timedout_scbs;
+
+	/*
 	 * Counting lock for deferring the release of additional
 	 * untagged transactions from the untagged_queues.  When
 	 * the lock is decremented to 0, all queues in the
@@ -958,7 +970,7 @@ struct ahc_softc {
 	/*
 	 * Platform specific device information.
 	 */
-	ahc_dev_softc_t		  dev_softc;
+	aic_dev_softc_t		  dev_softc;
 
 	/*
 	 * Bus specific device information.
@@ -1135,6 +1147,9 @@ struct ahc_devinfo {
 };
 
 /****************************** PCI Structures ********************************/
+#define	AHC_PCI_IOADDR  PCIR_BAR(0)	/* I/O Address */
+#define	AHC_PCI_MEMADDR PCIR_BAR(1)	/* Mem I/O Address */
+
 typedef int (ahc_device_setup_t)(struct ahc_softc *);
 
 struct ahc_pci_identity {
@@ -1167,7 +1182,7 @@ void			ahc_busy_tcl(struct ahc_softc *ahc,
 				     u_int tcl, u_int busyid);
 
 /***************************** PCI Front End *********************************/
-struct ahc_pci_identity	*ahc_find_pci_device(ahc_dev_softc_t);
+struct ahc_pci_identity	*ahc_find_pci_device(aic_dev_softc_t);
 int			 ahc_pci_config(struct ahc_softc *,
 					struct ahc_pci_identity *);
 int			 ahc_pci_test_register_access(struct ahc_softc *);
@@ -1231,7 +1246,7 @@ int			ahc_search_qinfifo(struct ahc_softc *ahc, int target,
 					   role_t role, uint32_t status,
 					   ahc_search_action action);
 int			ahc_search_untagged_queues(struct ahc_softc *ahc,
-						   ahc_io_ctx_t ctx,
+						   aic_io_ctx_t ctx,
 						   int target, char channel,
 						   int lun, uint32_t status,
 						   ahc_search_action action);
@@ -1248,6 +1263,8 @@ int			ahc_abort_scbs(struct ahc_softc *ahc, int target,
 void			ahc_restart(struct ahc_softc *ahc);
 void			ahc_calc_residual(struct ahc_softc *ahc,
 					  struct scb *scb);
+void			ahc_timeout(struct scb *scb);
+void			ahc_recover_commands(struct ahc_softc *ahc);
 /*************************** Utility Functions ********************************/
 struct ahc_phase_table_entry*
 			ahc_lookup_phase_entry(int phase);
