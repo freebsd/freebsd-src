@@ -543,6 +543,7 @@ kern/subr_module.c	standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
 kern/subr_blist.c	standard
+kern/subr_sbuf.c	standard
 kern/subr_scanf.c	standard
 kern/subr_taskqueue.c	standard
 kern/subr_xxx.c		standard

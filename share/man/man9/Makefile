@@ -41,7 +41,8 @@ MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_generic_shutdown.9 \
 	bus_alloc_resource.9 bus_release_resource.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
-	VOP_SETEXTATTR.9 acl.9 extattr.9 sysctl_add_oid.9 sysctl_ctx_init.9
+	VOP_SETEXTATTR.9 acl.9 extattr.9 \
+	sbuf.9 sysctl_add_oid.9 sysctl_ctx_init.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
@@ -125,5 +126,18 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_del.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_find.9
+
+MLINKS+=sbuf.9 sbuf_new.9
+MLINKS+=sbuf.9 sbuf_clear.9
+MLINKS+=sbuf.9 sbuf_setpos.9
+MLINKS+=sbuf.9 sbuf_cat.9
+MLINKS+=sbuf.9 sbuf_cpy.9
+MLINKS+=sbuf.9 sbuf_printf.9
+MLINKS+=sbuf.9 sbuf_putc.9
+MLINKS+=sbuf.9 sbuf_overflowed.9
+MLINKS+=sbuf.9 sbuf_finish.9
+MLINKS+=sbuf.9 sbuf_data.9
+MLINKS+=sbuf.9 sbuf_len.9
+MLINKS+=sbuf.9 sbuf_delete.9
 
 .include <bsd.prog.mk>
