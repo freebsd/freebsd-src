@@ -571,10 +571,6 @@ ad_interrupt(struct ad_request *request)
     struct ad_softc *adp = request->softc;
     int dma_stat = 0;
 
-#ifdef ATA_FLUSHCACHE_ON 
-    if (request->flags & ADR_F_FLUSHCACHE)
-	goto finish;
-#endif
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
 	dma_stat = ata_dmadone(adp->device->channel);

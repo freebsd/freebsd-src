@@ -43,7 +43,6 @@ struct ad_request {
 #define		ADR_F_DMA_USED		0x0004
 #define		ADR_F_QUEUED		0x0008
 #define		ADR_F_FORCE_PIO		0x0010
-#define		ADR_F_FLUSHCACHE	0x0020
 
     caddr_t			data;		/* pointer to data buf */
     struct bio			*bp;		/* associated bio ptr */
