@@ -603,7 +603,6 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
-			movw %%ax,(%1)				\n\
 			movw %%ax,(%2)				\n\
 			loop 1b"				:
 		    "=S" (addr), "=c" (count)			:
