@@ -46,6 +46,25 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
+#if 0
+#define PFS_TRACE(foo) \
+	do { \
+		printf("pseudofs: %s(): ", __FUNCTION__); \
+		printf foo ; \
+		printf("\n"); \
+	} while (0)
+#define PFS_RETURN(err) \
+	do { \
+		printf("pseudofs: %s(): returning %d\n", __FUNCTION__, err); \
+		return (err); \
+	} while (0)
+#else
+#define PFS_TRACE(foo) \
+	do { /* nothing */ } while (0)
+#define PFS_RETURN(err) \
+	return (err)
+#endif
+
 /*
  * Verify permissions
  */
@@ -53,8 +72,12 @@ static int
 pfs_access(struct vop_access_args *va)
 {
 	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
 	struct vattr vattr;
 	int error;
+	
+	PFS_TRACE((pn->pn_name));
 	
 	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
@@ -83,10 +106,13 @@ pfs_getattr(struct vop_getattr_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct vattr *vap = va->a_vap;
+	struct proc *proc;
+	int error = 0;
 
+	PFS_TRACE((pn->pn_name));
+	
 	VATTR_NULL(vap);
 	vap->va_type = vn->v_type;
-	vap->va_mode = pn->pn_mode;
 	vap->va_fileid = pn->pn_fileno;
 	vap->va_flags = 0;
 	vap->va_blocksize = PAGE_SIZE;
@@ -95,10 +121,40 @@ pfs_getattr(struct vop_getattr_args *va)
 	vap->va_nlink = 1;
 	nanotime(&vap->va_ctime);
 	vap->va_atime = vap->va_mtime = vap->va_ctime;
-	vap->va_uid = pn->pn_uid;
-	vap->va_gid = pn->pn_gid;
 
-	return (0);
+	switch (pn->pn_type) {
+	case pfstype_procdir:
+		/* XXX needs p_cansee */
+	case pfstype_root:
+	case pfstype_dir:
+		vap->va_mode = 0555;
+		break;
+	case pfstype_file:
+		vap->va_mode = 0444;
+		break;
+	case pfstype_symlink:
+		vap->va_mode = 0777;
+		break;
+	default:
+		printf("shouldn't be here!\n");
+		vap->va_mode = 0;
+		break;
+	}
+
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+			PFS_RETURN (ENOENT);
+		vap->va_uid = proc->p_ucred->cr_ruid;
+		vap->va_gid = proc->p_ucred->cr_rgid;
+		if (pn->pn_attr != NULL)
+			error = (pn->pn_attr)(curthread, proc, pn, vap);
+		PROC_UNLOCK(proc);
+	} else {
+		vap->va_uid = 0;
+		vap->va_gid = 0;
+	}
+		
+	PFS_RETURN (error);
 }
 
 /*
@@ -113,20 +169,34 @@ pfs_lookup(struct vop_lookup_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
+	struct proc *proc;
 	pid_t pid = pvd->pvd_pid;
 	char *pname;
 	int error, i, namelen;
 
-	if (vn->v_type != VDIR)
-		return (ENOTDIR);
+	PFS_TRACE(("%.*s", (int)cnp->cn_namelen, cnp->cn_nameptr));
 	
-	/* don't support CREATE, RENAME or DELETE */
-	if (cnp->cn_nameiop != LOOKUP)
-		return (EROFS);
+	if (vn->v_type != VDIR)
+		PFS_RETURN (ENOTDIR);
+	
+	/*
+	 * Don't support DELETE or RENAME.  CREATE is supported so
+	 * that O_CREAT will work, but the lookup will still fail if
+	 * the file does not exist.
+	 */
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+		return (EOPNOTSUPP);
 
-	/* shortcut */
+	/* shortcut: check if the name is too long */
 	if (cnp->cn_namelen >= PFS_NAMELEN)
-		return (ENOENT);
+		PFS_RETURN (ENOENT);
+
+	/* check that owner process exists */
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+		        PFS_RETURN (ENOENT);
+		PROC_UNLOCK(proc);
+	}
 	
 	/* self */
 	namelen = cnp->cn_namelen;
@@ -141,7 +211,7 @@ pfs_lookup(struct vop_lookup_args *va)
 	/* parent */
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (pd->pn_type == pfstype_root)
-			return (EIO);
+			PFS_RETURN (EIO);
 		KASSERT(pd->pn_parent, ("non-root directory has no parent"));
 		/*
 		 * This one is tricky.  Descendents of procdir nodes
@@ -154,7 +224,10 @@ pfs_lookup(struct vop_lookup_args *va)
 		 */
 		if (pd->pn_type == pfstype_procdir)
 			pid = NO_PID;
-		return pfs_vncache_alloc(vn->v_mount, vpp, pd->pn_parent, pid);
+		error = pfs_vncache_alloc(vn->v_mount, vpp, pd->pn_parent, pid);
+		if (error)
+			PFS_RETURN (error);
+		goto got_vnode;
 	}
 
 	/* named node */
@@ -181,11 +254,11 @@ pfs_lookup(struct vop_lookup_args *va)
 		pn->pn_parent = pd;
 	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
-		return error;
+		PFS_RETURN (error);
  got_vnode:
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
-	return (0);
+	PFS_RETURN (0);
 }
 
 /*
@@ -194,8 +267,24 @@ pfs_lookup(struct vop_lookup_args *va)
 static int
 pfs_open(struct vop_open_args *va)
 {
-	/* XXX */
-	return (0);
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct proc *proc;
+	int error;
+
+	PFS_TRACE((pn->pn_name));
+	
+	error = 0;
+	if (pvd->pvd_pid != NO_PID) {
+		if ((proc = pfind(pvd->pvd_pid)) == NULL)
+		        return (ENOENT);
+		if (p_cansee(va->a_td->td_proc, proc) != 0)
+			error = ENOENT;
+		PROC_UNLOCK(proc);
+	}
+
+	return (error);
 }
 
 /*
@@ -213,6 +302,8 @@ pfs_read(struct vop_read_args *va)
 	char *ps;
 	int error, xlen;
 
+	PFS_TRACE((pn->pn_name));
+	
 	if (vn->v_type != VREG)
 		return (EINVAL);
 
@@ -305,6 +396,8 @@ pfs_readdir(struct vop_readdir_args *va)
 	off_t offset;
 	int error, i, resid;
 
+	PFS_TRACE((pd->pn_name));
+	
 	if (vn->v_type != VDIR)
 		return (ENOTDIR);
 	uio = va->a_uio;
@@ -389,6 +482,8 @@ pfs_readlink(struct vop_readlink_args *va)
 	struct sbuf sb;
 	int error, xlen;
 
+	PFS_TRACE((pn->pn_name));
+	
 	if (vn->v_type != VLNK)
 		return (EINVAL);
 
@@ -454,8 +549,11 @@ pfs_write(struct vop_read_args *va)
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
 	struct proc *proc = NULL;
+	struct sbuf sb;
 	int error;
 
+	PFS_TRACE((pn->pn_name));
+	
 	if (vn->v_type != VREG)
 		return (EINVAL);
 
@@ -475,19 +573,25 @@ pfs_write(struct vop_read_args *va)
 			PRELE(proc);
 		return (error);
 	}
+
+	sbuf_uionew(&sb, uio, &error);
+	if (error)
+		return (error);
 	
-	/*
-	 * We currently don't support non-raw writers.  It's not very
-	 * hard to do, but it probably requires further changes to the
-	 * sbuf API.
-	 */
-	return (EIO);
+	error = (pn->pn_func)(curthread, proc, pn, &sb, uio);
+
+	if (proc != NULL)
+		PRELE(proc);
+	
+	sbuf_delete(&sb);
+	return (error);
 }
 
 /*
  * Dummy operations */
-static int pfs_erofs(void *va)		{ return (EROFS); }
+static int pfs_badop(void *va)		{ return (EOPNOTSUPP); }
 #if 0
+static int pfs_erofs(void *va)		{ return (EROFS); }
 static int pfs_null(void *va)		{ return (0); }
 #endif
 
@@ -499,21 +603,22 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *)vop_defaultop	},
 	{ &vop_access_desc,		(vop_t *)pfs_access	},
 	{ &vop_close_desc,		(vop_t *)pfs_close	},
-	{ &vop_create_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_create_desc,		(vop_t *)pfs_badop	},
 	{ &vop_getattr_desc,		(vop_t *)pfs_getattr	},
-	{ &vop_link_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_link_desc,		(vop_t *)pfs_badop	},
 	{ &vop_lookup_desc,		(vop_t *)pfs_lookup	},
-	{ &vop_mkdir_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_mkdir_desc,		(vop_t *)pfs_badop	},
+	{ &vop_mknod_desc,		(vop_t *)pfs_badop	},
 	{ &vop_open_desc,		(vop_t *)pfs_open	},
 	{ &vop_read_desc,		(vop_t *)pfs_read	},
 	{ &vop_readdir_desc,		(vop_t *)pfs_readdir	},
 	{ &vop_readlink_desc,		(vop_t *)pfs_readlink	},
 	{ &vop_reclaim_desc,		(vop_t *)pfs_reclaim	},
-	{ &vop_remove_desc,		(vop_t *)pfs_erofs	},
-	{ &vop_rename_desc,		(vop_t *)pfs_erofs	},
-	{ &vop_rmdir_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_remove_desc,		(vop_t *)pfs_badop	},
+	{ &vop_rename_desc,		(vop_t *)pfs_badop	},
+	{ &vop_rmdir_desc,		(vop_t *)pfs_badop	},
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
-	{ &vop_symlink_desc,		(vop_t *)pfs_erofs	},
+	{ &vop_symlink_desc,		(vop_t *)pfs_badop	},
 	{ &vop_write_desc,		(vop_t *)pfs_write	},
 	/* XXX I've probably forgotten a few that need pfs_erofs */
 	{ NULL,				(vop_t *)NULL		}
@@ -523,4 +628,3 @@ static struct vnodeopv_desc pfs_vnodeop_opv_desc =
 	{ &pfs_vnodeop_p, pfs_vnodeop_entries };
 
 VNODEOP_SET(pfs_vnodeop_opv_desc);
-
