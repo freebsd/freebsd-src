@@ -27,7 +27,7 @@
 .\"
 .Dd March 30, 2000
 .Dt SETEXTATTR 8
-.Os FreeBSD 5.0
+.Os
 .Sh NAME
 .Nm setextattr
 .Nd set a named extended attribute
@@ -54,7 +54,6 @@ In order for
 to succeed, the attribute service must be available on the file system,
 and appropriate privilege may be required.
 .Sh EXAMPLES
-.Pp
 .Dl # setextattr md5 /kernel `md5 -q /kernel`
 .Pp
 Set the
