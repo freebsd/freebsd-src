@@ -439,7 +439,11 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 			     "unimplemented Address64 resource\n"));
 	    break;
 	case ACPI_RSTYPE_EXT_IRQ:
-	    /* XXX special handling? */
+	    if (res->Data.ExtendedIrq.ProducerConsumer != ACPI_CONSUMER) {
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+		    "ignored ExtIRQ producer\n"));
+		break;
+	    }
 	    set->set_irq(dev, context,res->Data.ExtendedIrq.Interrupts,
 		res->Data.ExtendedIrq.NumberOfInterrupts,
 		res->Data.ExtendedIrq.EdgeLevel,
