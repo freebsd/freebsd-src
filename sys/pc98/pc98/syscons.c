@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.65 1997/12/06 13:25:01 bde Exp $
+ *  $Id: syscons.c,v 1.66 1997/12/09 11:58:02 kato Exp $
  */
 
 #include "sc.h"
@@ -1601,6 +1601,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
        	if (!crtc_vga)
 	    return ENXIO;
 	scp->xsize = 80;
+	if (scp->history != NULL)
+	    i = imax(scp->history_size / scp->xsize 
+		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
+	else
+	    i = 0;
 	switch (cmd & 0xff) {
 	    case M_PC98_80x25:
 		scp->ysize = 25;
@@ -1613,61 +1618,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	default:
 		return EINVAL;
 	}
-	scp->mode = cmd & 0xff;
-	free(scp->scr_buf, M_DEVBUF); 
-	scp->scr_buf = (u_short *)
-	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-	scp->cursor_pos = scp->cursor_oldpos =
-	    scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
-    	scp->mouse_pos = scp->mouse_oldpos = 
-	    scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-	    scp->mouse_xpos/8);
-	free(scp->atr_buf, M_DEVBUF); 
-	scp->atr_buf = (u_short *)
-		malloc(scp->xsize*scp->ysize*sizeof(u_short),M_DEVBUF, M_WAITOK);
-	scp->cursor_atr = 
-	    scp->atr_buf + scp->xpos + scp->ypos * scp->xsize;
-	free(cut_buffer, M_DEVBUF);
-    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
-	cut_buffer[0] = 0x00;
-	usp = scp->history;
-	scp->history = NULL;
-	if (usp != NULL) {
-	    free(usp, M_DEVBUF);
-	    extra_history_size += i;
-	}
-#ifdef PC98
-	atr_usp = scp->his_atr;
-	scp->his_atr = NULL;
-	if (atr_usp != NULL)
-	    free(atr_usp, M_DEVBUF);
-#endif
-	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
-	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
-				M_DEVBUF, M_NOWAIT);
-	if (usp != NULL)
-	    bzero(usp, scp->history_size * sizeof(u_short));
-	scp->history_head = scp->history_pos = usp;
-	scp->history = usp;
-#ifdef PC98
-	atr_usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
-				M_DEVBUF, M_NOWAIT);
-	if (atr_usp != NULL)
-	    bzero(atr_usp, scp->history_size * sizeof(u_short));
-	scp->his_atr_head = scp->his_atr_pos = atr_usp;
-	scp->his_atr = atr_usp;
-#endif
-	if (scp == cur_console)
-	    set_mode(scp);
-	scp->status &= ~UNKNOWN_MODE;
-	clear_screen(scp);
-	if (tp->t_winsize.ws_col != scp->xsize 
-	    || tp->t_winsize.ws_row != scp->ysize) {
-	    tp->t_winsize.ws_col = scp->xsize;
-	    tp->t_winsize.ws_row = scp->ysize;
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
-	}
-	return 0; 
 #else	/* IBM-PC */
     /* VGA TEXT MODES */
     case SW_VGA_C40x25:
@@ -1729,15 +1679,23 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
             scp->ysize = mp[1] + rows_offset;
 	    break;
 	}
+#endif
 	scp->mode = cmd & 0xff;
-	free(scp->scr_buf, M_DEVBUF);
+	free(scp->scr_buf, M_DEVBUF); 
 	scp->scr_buf = (u_short *)
 	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-    	scp->cursor_pos = scp->cursor_oldpos =
+	scp->cursor_pos = scp->cursor_oldpos =
 	    scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
     	scp->mouse_pos = scp->mouse_oldpos = 
 	    scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
 	    scp->mouse_xpos/8);
+#ifdef	PC98
+	free(scp->atr_buf, M_DEVBUF); 
+	scp->atr_buf = (u_short *)
+		malloc(scp->xsize*scp->ysize*sizeof(u_short),M_DEVBUF, M_WAITOK);
+	scp->cursor_atr = 
+	    scp->atr_buf + scp->xpos + scp->ypos * scp->xsize;
+#endif
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
@@ -1747,6 +1705,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    free(usp, M_DEVBUF);
 	    extra_history_size += i;
 	}
+#ifdef PC98
+	atr_usp = scp->his_atr;
+	scp->his_atr = NULL;
+	if (atr_usp != NULL)
+	    free(atr_usp, M_DEVBUF);
+#endif
 	scp->history_size = imax(SC_HISTORY_SIZE, scp->ysize) * scp->xsize;
 	usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
 				M_DEVBUF, M_NOWAIT);
@@ -1754,6 +1718,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    bzero(usp, scp->history_size * sizeof(u_short));
 	scp->history_head = scp->history_pos = usp;
 	scp->history = usp;
+#ifdef PC98
+	atr_usp = (u_short *)malloc(scp->history_size * sizeof(u_short), 
+				M_DEVBUF, M_NOWAIT);
+	if (atr_usp != NULL)
+	    bzero(atr_usp, scp->history_size * sizeof(u_short));
+	scp->his_atr_head = scp->his_atr_pos = atr_usp;
+	scp->his_atr = atr_usp;
+#endif
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -1766,7 +1738,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
 	}
 	return 0;
-
+#ifndef	PC98
     /* GRAPHICS MODES */
     case SW_BG320:     case SW_BG640:
     case SW_CG320:     case SW_CG320_D:   case SW_CG640_E:
