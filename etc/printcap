@@ -3,38 +3,48 @@
 
 #
 # This enables a simple local "raw" printer, hooked up to the first
-# parallel port.  No kind of filtering is done, so everything you
-# pass to the "lpr" command will be printed unmodified.
+# parallel port.  No kind of filtering is done, so everything you pass
+# to the "lpr" command will be printed unmodified.
 #
-# Remember, for further print queues you're going to add, you have to
-# chose different spool directories (the "sd" capability below),
+# Remember, for further print queues you're going to add, you have
+# to choose different spool directories (the "sd" capability below),
 # otherwise you will greatly confuse lpd.
 #
 # For some advanced printing, have a look at the "apsfilter" package.
 # It plugs into the lpd system, allowing you to print a variety of
 # different file types by converting everything to PostScript(tm)
-# format.  If you don't have a PostScript(tm) printer, don't panic,
-# but do also install the "ghostscript" package.
+# format.  For more information about apsfilter visit
 #
-# Do also refer to section 7 (Printing) of the handbook.  A local copy
-# can be found under /usr/share/doc/handbook/handbook.{html,latin1}.
+#	     http://www.apsfilter.org/
 #
-# Banner pages are now suppressed by default.  Remove the :sh:
-# capability to turn them back on.
+# If you don't have a PostScript(tm) printer, don't panic, but do
+# also install the latest "ghostscript" package for best printer support.
 #
-lp|local line printer:\
-	:sh:\
-	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:
+# Do also refer to the "printing" section of the handbook.  
+#
+#	http://www.freebsd.org/handbook/printing.html
+#
+# A local copy can be found under
+#
+#	/usr/share/doc/handbook/handbook.{html,latin1}.
+#
+# Banner pages are now suppressed by default.  Remove the :sh: capability
+# to turn them back on.
+#
+#lp|local line printer:\
+#	:sh:\
+#	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:
 #
 # Sample remote printer.  The physical printer is on machine "lphost".
-# NB: you cannot perform any kind of local filtering directly.  If
-# you need local filters (e.g. LF -> CR-LF conversion for HP printers),
-# create a filter script that recursively calls lpd with another -P
-# argument after filtering.
+# You can perform any kind of local filtering directly.  If you need
+# local filters (e.g. LF -> CR-LF conversion for HP printers), create
+# a filter script that sends the proper escape sequence to the printer
+# and then concatenates stdin to stdout.
 #
 #remote|sample remote printer:\
 #	:sh:\
-#	:rm=lphost:sd=/var/spool/output/lphost:lf=/var/log/lpd-errs:
+#	:rm=lphost:sd=/var/spool/output/lphost:lf=/var/log/lpd-errs:\
+#	:if=/usr/local/libexec/if-script:
 #
 # Simple Russian printer with hardware CP866 character set, output filter
 # used for KOI8-R -> CP866 conversion
