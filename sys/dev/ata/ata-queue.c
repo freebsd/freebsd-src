@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/ata.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/sema.h>
@@ -87,9 +88,7 @@ ata_queue_request(struct ata_request *request)
 
 	ATA_DEBUG_RQ(request, "queued");
 
-	/* should we skip start to avoid lock recursion ? */
-	if (!(request->flags & ATA_R_SKIPSTART))
-	    ata_start(request->device->channel);
+	ata_start(request->device->channel);
     }
 
     /* if this is a requeued request callback/sleep has been setup */
@@ -162,13 +161,14 @@ ata_start(struct ata_channel *ch)
 	return;
 
     /* lock the ATA HW for this request */
+    mtx_lock(&ch->queue_mtx);
     ch->locking(ch, ATA_LF_LOCK);
     if (!ATA_LOCK_CH(ch, ATA_ACTIVE)) {
+	mtx_unlock(&ch->queue_mtx);
 	return;
     }
 
     /* if we dont have any work, ask the subdriver(s) */
-    mtx_lock(&ch->queue_mtx);
     if (TAILQ_EMPTY(&ch->ata_queue)) {
 	mtx_unlock(&ch->queue_mtx);
 	if (ch->device[MASTER].start)
@@ -189,17 +189,20 @@ ata_start(struct ata_channel *ch)
 		timeout((timeout_t*)ata_timeout, request, request->timeout*hz);
 	}
 
-	/* kick HW into action */
+	/* kick HW into action and wait for interrupt if it flies*/
 	if (ch->hw.transaction(request) == ATA_OP_CONTINUES)
 	    return;
-
-	ata_finish(request);
     }
-    else
-	mtx_unlock(&ch->queue_mtx);
 
+    /* unlock ATA channel HW */
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
+
+    /* if we have a request here it failed and should be completed */
+    if (request)
+	ata_finish(request);
+    else
+	mtx_unlock(&ch->queue_mtx);
 }
 
 void
@@ -212,14 +215,18 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
-	TASK_INIT(&request->task, 0, ata_completed, request);
-	taskqueue_enqueue(taskqueue_swi, &request->task);
+	if (request->bio)
+	    bio_taskqueue(request->bio, (bio_task_t *)ata_completed, request);
+	else {
+	    TASK_INIT(&request->task, 0, ata_completed, request);
+	    taskqueue_enqueue(taskqueue_swi, &request->task);
+	}
     }
 }
 
 /* current command finished, clean up and return result */
 static void
-ata_completed(void *context, int pending)
+ata_completed(void *context, int dummy)
 {
     struct ata_request *request = (struct ata_request *)context;
     struct ata_channel *channel = request->device->channel;
@@ -231,7 +238,7 @@ ata_completed(void *context, int pending)
 
 	/* if retries still permit, reinject this request */
 	if (request->retries-- > 0) {
-	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_SKIPSTART);
+	    request->flags &= ~ATA_R_TIMEOUT;
 	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 	    ata_queue_request(request);
 	    return;
@@ -269,7 +276,6 @@ ata_completed(void *context, int pending)
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
 		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 		printf("\n");
-		request->flags &= ~ATA_R_SKIPSTART;
 		request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 		ata_queue_request(request);
 		return;
