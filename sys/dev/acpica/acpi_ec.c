@@ -155,6 +155,75 @@
 #define _COMPONENT	ACPI_EC
 MODULE_NAME("EC")
 
+/*
+ * EC_COMMAND:
+ * -----------
+ */
+typedef UINT8				EC_COMMAND;
+
+#define EC_COMMAND_UNKNOWN		((EC_COMMAND) 0x00)
+#define EC_COMMAND_READ			((EC_COMMAND) 0x80)
+#define EC_COMMAND_WRITE		((EC_COMMAND) 0x81)
+#define EC_COMMAND_BURST_ENABLE		((EC_COMMAND) 0x82)
+#define EC_COMMAND_BURST_DISABLE	((EC_COMMAND) 0x83)
+#define EC_COMMAND_QUERY		((EC_COMMAND) 0x84)
+
+/* 
+ * EC_STATUS:
+ * ----------
+ * The encoding of the EC status register is illustrated below.
+ * Note that a set bit (1) indicates the property is TRUE
+ * (e.g. if bit 0 is set then the output buffer is full).
+ * +-+-+-+-+-+-+-+-+
+ * |7|6|5|4|3|2|1|0|	
+ * +-+-+-+-+-+-+-+-+
+ *  | | | | | | | |
+ *  | | | | | | | +- Output Buffer Full?
+ *  | | | | | | +--- Input Buffer Full?
+ *  | | | | | +----- <reserved>
+ *  | | | | +------- Data Register is Command Byte?
+ *  | | | +--------- Burst Mode Enabled?
+ *  | | +----------- SCI Event?
+ *  | +------------- SMI Event?
+ *  +--------------- <Reserved>
+ *
+ */
+typedef UINT8				EC_STATUS;
+
+#define EC_FLAG_OUTPUT_BUFFER		((EC_STATUS) 0x01)
+#define EC_FLAG_INPUT_BUFFER		((EC_STATUS) 0x02)
+#define EC_FLAG_BURST_MODE		((EC_STATUS) 0x10)
+#define EC_FLAG_SCI			((EC_STATUS) 0x20)
+
+/*
+ * EC_EVENT:
+ * ---------
+ */
+typedef UINT8				EC_EVENT;
+
+#define EC_EVENT_UNKNOWN		((EC_EVENT) 0x00)
+#define EC_EVENT_OUTPUT_BUFFER_FULL	((EC_EVENT) 0x01)
+#define EC_EVENT_INPUT_BUFFER_EMPTY	((EC_EVENT) 0x02)
+#define EC_EVENT_SCI			((EC_EVENT) 0x20)
+
+/*
+ * Register access primitives
+ */
+#define EC_GET_DATA(sc)							\
+	bus_space_read_1((sc)->ec_data_tag, (sc)->ec_data_handle, 0)
+
+#define EC_SET_DATA(sc, v)						\
+	bus_space_write_1((sc)->ec_data_tag, (sc)->ec_data_handle, 0, (v))
+
+#define EC_GET_CSR(sc)							\
+	bus_space_read_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0)
+
+#define EC_SET_CSR(sc, v)						\
+	bus_space_write_1((sc)->ec_csr_tag, (sc)->ec_csr_handle, 0, (v))
+
+/*
+ * Driver softc.
+ */
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
@@ -582,7 +651,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
      *
      * XXX it is not clear why we read the CSR twice.
      */
-    AcpiOsSleepUsec(1);
+    AcpiOsStall(1);
     EcStatus = EC_GET_CSR(sc);
 
     /*
@@ -602,7 +671,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
             !(EcStatus & EC_FLAG_INPUT_BUFFER))
 	    return(AE_OK);
 	
-	AcpiOsSleepUsec(10);
+	AcpiOsStall(10);
     }
 
     return(AE_ERROR);
