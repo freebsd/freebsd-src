@@ -206,9 +206,9 @@ INCSDIR=	${INCLUDEDIR}/openssl
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
 	@echo "Removing stale symlinks."
-	rm -f ${INCLUDEDIR}/des.h
+	rm -f ${DESTDIR}${INCLUDEDIR}/des.h
 .for symlink in ${OLDSYMLINKS}
-	rm -f ${LIBDIR}/${symlink}
+	rm -f ${DESTDIR}${LIBDIR}/${symlink}
 .endfor
 
 .include <bsd.lib.mk>
