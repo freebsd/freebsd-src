@@ -504,7 +504,7 @@ Make_Update(GNode *cgn)
      */
     cpref = Var_Value(PREFIX, cgn, &ptr);
     for (ln = Lst_First(&cgn->iParents); ln != NULL; ln = Lst_Succ(ln)) {
-	pgn = Lst_Datum (ln);
+	pgn = Lst_Datum(ln);
 	if (pgn->make) {
 	    Var_Set(IMPSRC, cname, pgn);
 	    Var_Set(PREFIX, cpref, pgn);

@@ -194,7 +194,7 @@ Targ_FindNode(const char *name, int flags)
 	he = Hash_CreateEntry(&targets, name, &isNew);
 	if (isNew) {
 	    gn = Targ_NewGN(name);
-	    Hash_SetValue (he, gn);
+	    Hash_SetValue(he, gn);
 	    Lst_AtEnd(&allTargets, gn);
 	}
     } else {
@@ -392,7 +392,7 @@ Targ_FmtTime(time_t modtime)
 
     parts = localtime(&modtime);
 
-    strftime(buf, sizeof buf, "%H:%M:%S %b %d, %Y", parts);
+    strftime(buf, sizeof(buf), "%H:%M:%S %b %d, %Y", parts);
     buf[sizeof(buf) - 1] = '\0';
     return (buf);
 }
