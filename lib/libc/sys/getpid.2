@@ -53,8 +53,12 @@
 returns
 the process ID of
 the calling process.
-The ID is guaranteed to be unique and is
-useful for constructing temporary file names.
+Though the ID is guaranteed to be unique, it should
+.Em NOT
+be used for constructing temporary file names, for
+security reasons; see
+.Xr mkstemp 3
+instead.
 .Pp
 .Fn Getppid
 returns the process ID of the parent
