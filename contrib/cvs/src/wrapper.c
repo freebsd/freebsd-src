@@ -387,7 +387,7 @@ wrap_name_has (name,has)
     char *temp;
 
     for(x=0;x<count;++x)
-	if (fnmatch (wrap_list[x]->wildCard, name, 0) == 0){
+	if (CVS_FNMATCH (wrap_list[x]->wildCard, name, 0) == 0){
 	    switch(has){
 	    case WRAP_TOCVS:
 		temp=wrap_list[x]->tocvsFilter;
@@ -418,7 +418,7 @@ wrap_matching_entry (name)
     int x,count=wrap_count+wrap_saved_count;
 
     for(x=0;x<count;++x)
-	if (fnmatch (wrap_list[x]->wildCard, name, 0) == 0)
+	if (CVS_FNMATCH (wrap_list[x]->wildCard, name, 0) == 0)
 	    return wrap_list[x];
     return (WrapperEntry *)NULL;
 }

@@ -53,6 +53,9 @@ rules.
    ----------   -------
    namespace    RCS library done at Silicon Graphics Inc. (SGI) in 1996
                 (a modified RCS 5.7--not sure it has any other name).
+   dead         A set of RCS patches developed by Rich Pixley at
+                Cygnus.  These were for CVS, and predated the current
+                CVS death support, which does not require RCS changes.
 
 The rules regarding keyword expansion are not documented along with
 the rest of the RCS file format; they are documented in the co(1)
