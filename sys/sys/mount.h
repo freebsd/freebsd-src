@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.47 1997/09/27 13:39:49 kato Exp $
+ *	$Id: mount.h,v 1.48 1997/10/12 20:26:02 phk Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -78,7 +78,7 @@ struct statfs {
 	fsid_t	f_fsid;			/* file system id */
 	uid_t	f_owner;		/* user that mounted the filesystem */
 	int	f_type;			/* type of filesystem (see below) */
-	int	f_flags;		/* copy of mount flags */
+	int	f_flags;		/* copy of mount exported flags */
 	long	f_spare[2];		/* spare for later */
 	char	f_fstypename[MFSNAMELEN]; /* fs type name */
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
@@ -146,7 +146,8 @@ struct mount {
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
-	int		mnt_flag;		/* flags */
+	int		mnt_flag;		/* exported flags */
+	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	qaddr_t		mnt_data;		/* private data */
@@ -165,7 +166,7 @@ struct mount {
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
-#define	MNT_NOATIME	0x10000000	/* Disable update of file access times */
+#define	MNT_NOATIME	0x10000000	/* Disable update of file access time */
 #define	MNT_NOCLUSTERR	0x40000000	/* Disable cluster read */
 #define	MNT_NOCLUSTERW	0x80000000	/* Disable cluster read */
 
@@ -194,7 +195,8 @@ struct mount {
 			 MNT_NODEV|MNT_UNION|MNT_ASYNC|MNT_EXRDONLY| \
 			 MNT_EXPORTED|MNT_DEFEXPORTED|MNT_EXPORTANON| \
 			 MNT_EXKERB|MNT_LOCAL|MNT_USER|MNT_QUOTA|MNT_ROOTFS| \
-			 MNT_NOATIME|MNT_NOCLUSTERR|MNT_NOCLUSTERW)
+			 MNT_NOATIME|MNT_NOCLUSTERR|MNT_NOCLUSTERW \
+				/* | MNT_EXPUBLIC */)
 
 /*
  * External filesystem control flags.
@@ -210,9 +212,9 @@ struct mount {
  * past the mount point.  This keeps the subtree stable during mounts
  * and unmounts.
  */
-#define MNT_UNMOUNT	0x01000000	/* unmount in progress */
-#define	MNT_MWAIT	0x02000000	/* waiting for unmount to finish */
-#define MNT_WANTRDWR	0x04000000	/* upgrade to read/write requested */
+#define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
+#define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
+#define MNTK_WANTRDWR	0x04000000	/* upgrade to read/write requested */
 
 /*
  * Sysctl CTL_VFS definitions.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.50 1997/10/28 14:06:23 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.51 1997/10/28 15:59:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -562,6 +562,7 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 		return (error);
 	}
 
+	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
 	nam = dup_sockaddr((struct sockaddr *)sin, 1);
 	if (error = mountnfs(args, mp, nam, which, path, vpp)) {
