@@ -33,20 +33,19 @@
 /*
  * defines for older EISA controllers (IDA, IDA-2, IAES, SMART)
  */
-#define R_EISA_INT_MASK			0xC89
-#define R_EISA_LOCAL_MASK		0xC8C
-#define R_EISA_LOCAL_DOORBELL		0xC8D
-#define R_EISA_SYSTEM_MASK		0xC8E
-#define R_EISA_SYSTEM_DOORBELL		0xC8F
-#define R_EISA_LIST_ADDR		0xC90
-#define R_EISA_LIST_LEN			0xC94
-#define R_EISA_TAG			0xC97
-#define R_EISA_COMPLETE_ADDR		0xC98
-#define R_EISA_LIST_STATUS		0xC9E
+#define R_EISA_INT_MASK			0x01
+#define R_EISA_LOCAL_MASK		0x04
+#define R_EISA_LOCAL_DOORBELL		0x05
+#define R_EISA_SYSTEM_MASK		0x06
+#define R_EISA_SYSTEM_DOORBELL		0x07
+#define R_EISA_LIST_ADDR		0x08
+#define R_EISA_LIST_LEN			0x0c
+#define R_EISA_TAG			0x0f
+#define R_EISA_COMPLETE_ADDR		0x10
+#define R_EISA_LIST_STATUS		0x16
 
 #define EISA_CHANNEL_BUSY		0x01
 #define EISA_CHANNEL_CLEAR		0x02
-
 
 /*
  * board register offsets for SMART-2 controllers
@@ -63,7 +62,6 @@
 #define INT_DISABLE	0x00
 #define INT_ENABLE	0x01
 
-
 /*
  * board offsets for the 42xx series
  */
@@ -78,7 +76,6 @@
 #define INT_ENABLE_42XX			0x00
 #define INT_DISABLE_42XX		0x08
 #define STATUS_42XX_INT_PENDING		0x08
-
 
 /*
  * return status codes
