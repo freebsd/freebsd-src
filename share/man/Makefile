@@ -6,5 +6,5 @@ SUBDIR=	man1 man3 man4 man5 man7 man8
 makedb:
 	makewhatis ${DESTDIR}${BINDIR}/man
 
-.include <bsd.subdir.mk>
 .include "${.CURDIR}/../Makefile.inc"
+.include <bsd.subdir.mk>
