@@ -324,6 +324,10 @@ SUBDIR+=ufs
 SUBDIR=${MODULES_OVERRIDE}
 .endif
 
+# pcic -- currently broken and being worked on out of tree.
+# oldcard -- specialized use for debugging only.
+# owi -- totally unsupported for debugging only.
+
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
