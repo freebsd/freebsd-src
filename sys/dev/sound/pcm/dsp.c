@@ -387,9 +387,9 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 
     	case SNDCTL_DSP_SETFMT:	/* sets _one_ format */
 		splx(s);
-		if (wrch) chn_setformat(wrch, *arg_i);
-		if (rdch) chn_setformat(rdch, *arg_i);
-		*arg_i = wrch? wrch->format : rdch->format;
+		if (wrch) chn_setformat(wrch, (*arg_i) | (wrch->format & AFMT_STEREO));
+		if (rdch) chn_setformat(rdch, (*arg_i) | (rdch->format & AFMT_STEREO));
+		*arg_i = (wrch? wrch->format: rdch->format) & ~AFMT_STEREO;
 		break;
 
     	case SNDCTL_DSP_SUBDIVIDE:
