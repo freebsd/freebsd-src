@@ -49,7 +49,7 @@ Berkeley, CA 94720
 .FS
 This work was sponsored by the Defense Advanced Research Projects Agency
 (DoD), monitored by the Naval Electronics Systems
-Command under contract No. N00039-84-C-0089, and by the Italian CSELT 
+Command under contract No. N00039-84-C-0089, and by the Italian CSELT
 Corporation.
 The views and conclusions contained in this document are those of the
 authors and should not be interpreted as representing official policies,
@@ -59,59 +59,59 @@ of the US Government, or of CSELT.
 .LP
 .OH 'The Berkeley UNIX Time Synchronization Protocol''SMM:12-%'
 .EH 'SMM:12-%''The Berkeley UNIX Time Synchronization Protocol'
-.SH 
+.SH
 Introduction
 .PP
-The Time Synchronization Protocol (TSP) 
+The Time Synchronization Protocol (TSP)
 has been designed for specific use by the program \fItimed\fP,
-a local area network clock synchronizer for 
+a local area network clock synchronizer for
 the UNIX 4.3BSD operating
 system.
 Timed is built on the DARPA UDP protocol [4] and
 is based on a master slave scheme.
 .PP
 TSP serves a dual purpose.
-First, it supports messages for the synchronization of the clocks 
+First, it supports messages for the synchronization of the clocks
 of the various hosts in a local area network.
 Second, it supports messages for the election that occurs
 among slave time daemons when, for any reason, the master disappears.
-The synchronization mechanism and the election procedure 
-employed by the program timed are described 
+The synchronization mechanism and the election procedure
+employed by the program timed are described
 in other documents [1,2,3].
 .PP
-Briefly, the synchronization software, which works in a 
+Briefly, the synchronization software, which works in a
 local area network, consists of a collection of \fItime daemons\fP
 (one per machine) and is based on a master-slave
 structure.
-The present implementation keeps processor clocks synchronized 
+The present implementation keeps processor clocks synchronized
 within 20 milliseconds.
 A \fImaster time daemon\fP measures the time
-difference between the clock of the machine on which it 
+difference between the clock of the machine on which it
 is running and those of all other machines.  The current implementation
 uses ICMP \fITime Stamp Requests\fP [5] to measure the clock difference
 between machines.
-The master computes the \fInetwork time\fP as the average of the 
+The master computes the \fInetwork time\fP as the average of the
 times provided by nonfaulty clocks.\**
 .FS
-A clock is considered to be faulty when its value 
+A clock is considered to be faulty when its value
 is more than a small specified
-interval apart from the majority of the clocks 
+interval apart from the majority of the clocks
 of the machines on the same network.
 See [1,2] for more details.
 .FE
 It then sends to each \fIslave time daemon\fP the
 correction that should be performed on the clock of its machine.
 This process is repeated periodically.
-Since the correction is expressed as a time difference rather than an 
+Since the correction is expressed as a time difference rather than an
 absolute time, transmission delays do not interfere with synchronization.
 When a machine comes up and joins the network,
 it starts a slave time daemon, which
 will ask the master for the correct time and will reset the machine's clock
 before any user activity can begin.
-The time daemons therefore maintain a single network time in spite of 
-the drift of clocks away from each other. 
+The time daemons therefore maintain a single network time in spite of
+the drift of clocks away from each other.
 .PP
-Additionally, a time daemon on gateway machines may run as 
+Additionally, a time daemon on gateway machines may run as
 a \fIsubmaster\fP.
 A submaster time daemon functions as a slave on one network that
 already has a master and as master on other networks.
@@ -145,7 +145,7 @@ implemented, but will only point out when
 a message type requires a reliable transport mechanism.
 .PP
 The message format in TSP is the same for all message types;
-however, in some instances, one or more fields are not used. 
+however, in some instances, one or more fields are not used.
 The next section describes the message format.
 The following sections describe
 in detail the different message types, their use and the contents
@@ -171,12 +171,12 @@ Eight bytes of packet specific data.  This field contains two 4 byte time
 values, a one byte hop count, or may be unused depending on the type
 of the packet.
 .IP 5)
-A zero-terminated string of up to 256 \s-2ASCII\s+2 characters with the name of 
+A zero-terminated string of up to 256 \s-2ASCII\s+2 characters with the name of
 the machine sending the message.
 .PP
 The following charts describe the message types,
 show their fields, and explain their usages.
-For the purpose of the following discussion, a time daemon can 
+For the purpose of the following discussion, a time daemon can
 be considered to be in
 one of three states: slave, master, or candidate for election to master.
 Also, the term \fIbroadcast\fP refers to
@@ -189,10 +189,10 @@ Adjtime Message
 Type: TSP_ADJTIME (1)
 .sp 1
 .PP
-The master sends this message to a slave to communicate 
-the difference between 
+The master sends this message to a slave to communicate
+the difference between
 the clock of the slave and
-the network time the master has just computed. 
+the network time the master has just computed.
 The slave will accordingly
 adjust the time of its machine.
 This message requires an acknowledgment.
@@ -253,7 +253,7 @@ Master Active Message
 Type: TSP_MASTERUP (6)
 .sp 1
 .PP
-The master broadcasts this message to 
+The master broadcasts this message to
 solicit the names of the active slaves.
 Slaves will reply with a Slave Active message.
 .sp 1
@@ -314,7 +314,7 @@ When two or more masters reply to a Master Request message, the slave
 uses this message to inform one of them that more than one master exists.
 .sp 1
 .SH
-Conflict Resolution Message 
+Conflict Resolution Message
 .so unused
 .LP
 Type: TSP_RESOLVE (12)
@@ -331,7 +331,7 @@ Type: TSP_QUIT (13)
 .sp 1
 .PP
 This message is sent by the master in three different contexts:
-1) to a candidate that broadcasts an Master Candidature message,
+1) to a candidate that broadcasts a Master Candidature message,
 2) to another master when notified of its existence,
 3) to another master if a loop is detected.
 In all cases, the recipient time daemon will become a slave.
@@ -413,7 +413,7 @@ Type: TSP_MSITEREQ (20)
 .PP
 A local time daemon broadcasts this message to find the location
 of the master.
-It then uses the Acknowledgement message to 
+It then uses the Acknowledgement message to
 communicate this location to \fItimedc\fP.
 .sp 1
 .SH
@@ -442,14 +442,14 @@ it knows that a loop exists and tries to correct the problem.
 .SH
 References
 .IP 1.
-R. Gusella and S. Zatti, 
+R. Gusella and S. Zatti,
 \fITEMPO: A Network Time Controller for Distributed Berkeley UNIX System\fP,
 USENIX Summer Conference Proceedings, Salt Lake City, June 1984.
 .IP 2.
 R. Gusella and S. Zatti, \fIClock Synchronization in a Local Area Network\fP,
 University of California, Berkeley, Technical Report, \fIto appear\fP.
 .IP 3.
-R. Gusella and S. Zatti, 
+R. Gusella and S. Zatti,
 \fIAn Election Algorithm for a Distributed Clock Synchronization Program\fP,
 University of California, Berkeley, CS Technical Report #275, Dec. 1985.
 .IP 4.

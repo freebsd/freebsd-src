@@ -389,7 +389,7 @@ getconfig(intface)
 			addr = (char *)agetstr(entbuf, &bp);
 			if (addr == NULL) {
 				syslog(LOG_ERR,
-				       "<%s> need %s as an prefix for "
+				       "<%s> need %s as a prefix for "
 				       "interface %s",
 				       __FUNCTION__, entbuf, intface);
 				exit(1);
@@ -503,7 +503,7 @@ getconfig(intface)
 		addr = (char *)agetstr(entbuf, &bp);
 		if (addr == NULL) {
 			syslog(LOG_ERR,
-			       "<%s> need %s as an route for "
+			       "<%s> need %s as a route for "
 			       "interface %s",
 			       __FUNCTION__, entbuf, intface);
 			exit(1);

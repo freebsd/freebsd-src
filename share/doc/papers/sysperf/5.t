@@ -31,6 +31,8 @@
 .\"
 .\"	@(#)5.t	5.1 (Berkeley) 4/17/91
 .\"
+.\" $FreeBSD$
+.\"
 .ds RH Functional Extensions
 .NH
 Functional Extensions
@@ -69,7 +71,7 @@ The organization of network interfaces has been
 reworked to more cleanly support multiple
 network protocols.  Network interfaces no longer
 contain a host's address on that network; instead
-each interface contains a pointer to a list of addresses 
+each interface contains a pointer to a list of addresses
 assigned to that interface.  This permits a single
 interface to support, for example, Internet protocols
 at the same time as XNS protocols.
@@ -80,7 +82,7 @@ for 10 megabyte/second Ethernet\(dg
 \(dg Ethernet is a trademark of Xerox.
 .FE
 has been made more flexible by allowing hosts to
-act as an ``clearing house'' for hosts that do
+act as a ``clearing house'' for hosts that do
 not support ARP.  In addition, system managers have
 more control over the contents of the ARP translation
 cache and may interactively interrogate and modify
@@ -100,7 +102,7 @@ Number of File Descriptors
 .PP
 To allow full use of the many descriptor based services available,
 the previous hard limit of 30 open files per process has been relaxed.
-The changes entailed generalizing \fIselect\fP to handle arrays of 
+The changes entailed generalizing \fIselect\fP to handle arrays of
 32-bit words, removing the dependency on file descriptors from
 the page table entries,
 and limiting most of the linear scans of a process's file table.
@@ -169,7 +171,7 @@ Users could not write their own return from exceptions;
 Many existing programs depend on interrupted system calls.
 The restartable system call semantics of 4.2BSD signals caused
 many of these programs to break.
-To simplify porting of programs from inferior versions of 
+To simplify porting of programs from inferior versions of
 .UX
 the \fIsigvec\fP system call has been extended so that
 programmers may specify that system calls are not to be
@@ -179,14 +181,14 @@ System Logging
 .PP
 A system logging facility has been added
 that sends kernel messages to the
-syslog daemon for logging in /usr/adm/messages and possibly for 
+syslog daemon for logging in /usr/adm/messages and possibly for
 printing on the system console.
 The revised scheme for logging messages
 eliminates the time lag in updating the messages file,
 unifies the format of kernel messages,
 provides a finer granularity of control over the messages
 that get printed on the console,
-and eliminates the degradation in response during the printing of 
+and eliminates the degradation in response during the printing of
 low-priority kernel messages.
 Recoverable system errors and common resource limitations are logged
 using this facility.

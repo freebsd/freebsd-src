@@ -2,8 +2,9 @@
 #
 # Copyright (c) March 1998 Wolfram Schneider <wosch@FreeBSD.org>
 #
-# create an Message-ID, In-Reply-To look(1) index database
+# create a Message-ID, In-Reply-To look(1) index database
 #
+# $FreeBSD$
 
 
 TMPDIR=/var/tmp; export TMPDIR
@@ -25,7 +26,7 @@ all ()
 current ()
 {
     ( cd $archive || exit 1
-    find current/freebsd-* current/cvs-* -type f | 
+    find current/freebsd-* current/cvs-* -type f |
 	mid-master-index 1 mid-index $dbout/mid-current
     )
 }
@@ -35,7 +36,7 @@ if [ $# -le 0 ]; then
 	exit 1
 fi
 
-for db 
+for db
 do
 	case $db in
 		current) current;;

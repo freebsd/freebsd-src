@@ -2023,7 +2023,7 @@ cvtcon(op_t op, int arg, type_t *tp, val_t *nv, val_t *v)
 			 * to be significant bits. Loss of significant bits
 			 * means that at least on of the bits was set in an
 			 * unsigned type or that at least one, but not all of
-			 * the bits was set in an signed type.
+			 * the bits was set in a signed type.
 			 * Loss of significant bits means that it is not
 			 * possible, also not with necessary casts, to convert
 			 * back to the original type. A example for a

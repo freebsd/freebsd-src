@@ -636,7 +636,7 @@ fsm_rtermack(f)
 
 
 /*
- * fsm_rcoderej - Receive an Code-Reject.
+ * fsm_rcoderej - Receive a Code-Reject.
  */
 static void
 fsm_rcoderej(f, inp, len)

@@ -67,7 +67,7 @@ __RCSID("@(#) $FreeBSD$");
  * Local variables
  */
 /*
- * Stack commands with arg1 containing an buffer pointer
+ * Stack commands with arg1 containing a buffer pointer
  */
 static u_char	sscop_buf1[] = {
 		0,

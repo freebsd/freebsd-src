@@ -2056,7 +2056,7 @@ static	struct script script0 = {
 }/*-------------------------< DISCONNECT >---------------*/,{
 	/*
 	**	If QUIRK_AUTOSAVE is set,
-	**	do an "save pointer" operation.
+	**	do a "save pointer" operation.
 	*/
 	SCR_FROM_REG (QU_REG),
 		0,

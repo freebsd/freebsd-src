@@ -569,7 +569,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
 
 	/*
-	 * Add an devstat entry for this device.
+	 * Add a devstat entry for this device.
 	 */
 	devstat_add_entry(&cs->device_stats, "ccd", cs->sc_unit,
 			  ccg->ccg_secsize, DEVSTAT_ALL_SUPPORTED,

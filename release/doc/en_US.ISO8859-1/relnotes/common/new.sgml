@@ -3321,7 +3321,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.rand.3; has been improved to provide less biased
       results.</para>
 
-    <para role="historic">&man.rc.8; now has an framework for handling dependencies
+    <para role="historic">&man.rc.8; now has a framework for handling dependencies
       between &man.rc.conf.5; variables. &merged;</para>
 
     <para role="historic">&man.rc.8; now deletes all non-directory files in

@@ -35,6 +35,7 @@
 #if defined(__RCSID) && !defined(lint)
 __RCSID("$NetBSD: init.c,v 1.9 2001/09/18 18:15:54 wiz Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
@@ -171,7 +172,7 @@ pushinit(void)
 		if (istk->i_type->t_tspec != ARRAY)
 			lerror("pushinit() 2");
 		istk->i_type->t_dim++;
-		/* from now its an complete type */
+		/* from now its a complete type */
 		setcompl(istk->i_type, 0);
 	}
 

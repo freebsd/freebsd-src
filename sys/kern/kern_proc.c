@@ -615,7 +615,7 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 #endif /* DDB */
 
 /*
- * Fill in an kinfo_proc structure for the specified process.
+ * Fill in a kinfo_proc structure for the specified process.
  * Must be called with the target process locked.
  */
 void

@@ -3745,7 +3745,7 @@ static int stli_clrportstats(stliport_t *portp, caddr_t data)
 /*****************************************************************************/
 
 /*
- *	Code to handle an "staliomem" read and write operations. This device
+ *	Code to handle a "staliomem" read and write operations. This device
  *	is the contents of the board shared memory. It is used for down
  *	loading the slave image (and debugging :-)
  */

@@ -579,7 +579,7 @@ hpfs_setattr(ap)
 }
 
 /*
- * Last reference to an node.  If necessary, write or delete it.
+ * Last reference to a node.  If necessary, write or delete it.
  */
 int
 hpfs_inactive(ap)

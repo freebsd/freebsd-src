@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 #
-# ypinit.sh - setup an master or slave server.
+# ypinit.sh - setup a master or slave server.
 # (Taken from OpenBSD and modified for FreeBSD.)
 #
 DOMAINNAME=/bin/domainname
@@ -180,7 +180,7 @@ __notice1
 	esac
 
 	if [ -d "${YP_DIR}/${DOMAIN}" ]; then
-		echo ""	
+		echo ""
 		echo -n "Can we destroy the existing ${YP_DIR}/${DOMAIN} and its contents? [y/n: n]  "
 		read KILL
 
@@ -203,7 +203,6 @@ __notice1
 			echo "OK, please clean it up by hand and start again.  Bye"
 			exit 0
 		fi
-	
 	fi
 
 	if ! mkdir "${YP_DIR}/${DOMAIN}"; then
@@ -261,7 +260,6 @@ LIST_OK="NO"
 
 while [ "${LIST_OK}" = "NO" ];
 do
-	
 	if [ "${SERVERTYPE}" = "MASTER" ];
 	then
 		HOST_LIST="${HOST}"
@@ -300,8 +298,8 @@ do
 		echo "Update the list of hosts running YP servers in domain ${DOMAIN}."
 		echo "Master for this domain is ${MASTER_NAME}."
 		echo ""
-		echo "First verify old servers, type \\ to remove a server." 
-		echo "Then add new servers, one per line. When done type a <control D>." 
+		echo "First verify old servers, type \\ to remove a server."
+		echo "Then add new servers, one per line. When done type a <control D>."
 		echo ""
 		echo "	master server   :  ${HOST}"
 		if [ "${NEW_LIST}" != "" ]; then
@@ -358,13 +356,12 @@ if [ $? -ne 0 ]; then
 	echo "" 1>&2
 	echo "Couldn't build yp data base ${YP_DIR}/${DOMAIN}/ypservers." 1>&2
 	ERROR_EXISTS="YES"
-	if [ "${ERROR_EXIT}" = "YES" ]; then 
+	if [ "${ERROR_EXIT}" = "YES" ]; then
 		exit 1
 	fi
 fi
 
 if [ "${SERVERTYPE}" = "MASTER" ]; then
-	
 	CUR_PWD=`pwd`
 	cd ${YP_DIR}
 	echo "Running ${YP_DIR}/Makefile..."
@@ -372,7 +369,7 @@ if [ "${SERVERTYPE}" = "MASTER" ]; then
 		echo "" 1>&2
 		echo "Error running Makefile." 1>&2
 		ERROR_EXISTS="YES"
-		if [ "${ERROR_EXIT}" = "YES" ]; then 
+		if [ "${ERROR_EXIT}" = "YES" ]; then
 			exit 1
 		fi
 	fi
@@ -386,5 +383,4 @@ if [ "${SERVERTYPE}" = "MASTER" ]; then
 	else
 		echo "${HOST} has been setup as an YP master server without any errors. "
 	fi
-
 fi

@@ -233,7 +233,7 @@ Here is the README file from the previous version of compress (2.0):
 >Here is the README that I sent with my first posting:
 >
 >>Enclosed is a modified version of compress.c, along with scripts to make it
->>run identically to pack(1), unpack(1), an pcat(1).  Here is what I
+>>run identically to pack(1), unpack(1), and pcat(1).  Here is what I
 >>(petsd!joe) and a colleague (petsd!peora!srd) did:
 >>
 >>1. Removed VAX dependencies.
