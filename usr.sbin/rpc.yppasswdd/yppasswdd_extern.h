@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_extern.h,v 1.5 1996/02/24 21:41:36 wpaul Exp $
+ *	$Id: yppasswdd_extern.h,v 1.6 1996/06/03 03:22:36 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -38,6 +38,9 @@
 #include <rpc/rpc.h>
 #include <pwd.h>
 #include <err.h>
+#include <rpcsvc/yp.h>
+#include "yp_extern.h"
+#include "ypxfr_extern.h"
 
 #ifndef YPLIBDIR
 #define YPLIBDIR "/usr/libexec/"
@@ -66,9 +69,6 @@ extern int	no_chfn;
 extern int	allow_additions;
 extern int	multidomain;
 extern int	resvport;
+extern int	inplace;
 extern int	verbose;
 extern int	_rpc_dtablesize __P((void));
-extern void	yp_error __P((const char *, ...));
-extern void	load_securenets __P(( void ));
-extern int      yp_access __P((const char *, const struct svc_req * ));
-extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, int));
