@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.3 1994/08/02 07:53:08 davidg Exp $
+ * $Id: kernel.h,v 1.4 1994/08/21 04:41:48 paul Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -50,7 +50,7 @@ extern char hostname[MAXHOSTNAMELEN];
 extern int hostnamelen;
 extern char domainname[MAXHOSTNAMELEN];
 extern int domainnamelen;
-
+extern char kernelname[MAXPATHLEN];
 
 /* 1.2 */
 extern volatile struct timeval mono_time;
