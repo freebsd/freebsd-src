@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.11 1994/10/23 21:27:53 wollman Exp $
+ *      $Id: ch.c,v 1.12 1995/01/08 13:38:29 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -37,6 +37,7 @@ u_int32 ch_xfer_block_wait[NCH];
 
 #define ESUCCESS 0
 
+errval  chopen();
 errval  chattach();
 
 /*
