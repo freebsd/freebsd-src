@@ -44,8 +44,6 @@ static char rcsid[] =
 #include "var.h"
 #include "mystring.h"
 
-char *malloc();
-
 struct var *
 var_set1(head, name, v)
 struct var **head;
