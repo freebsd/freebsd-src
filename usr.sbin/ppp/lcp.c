@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.31 1997/09/21 23:01:34 brian Exp $
+ * $Id: lcp.c,v 1.32 1997/09/22 02:51:24 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -291,7 +291,7 @@ LcpSendConfigReq(struct fsm * fp)
     break;
   case PROTO_CHAP:
     PutConfValue(&cp, cftypes, TY_AUTHPROTO, 5, lcp->want_auth);
-    *cp++ = 5;			/* Use MD5 */
+    *cp++ = VarEncMD4 ? 0x80 : 0x05;			/* Use MD4/MD5 */
     break;
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
@@ -510,10 +510,11 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
 	    goto reqreject;
 	  }
-	  if (Acceptable(ConfChap) && cp[4] == 5) {
+	  if (Acceptable(ConfChap) && (cp[4] == 5 || cp[4] == 0x80)) {
 	    LcpInfo.his_auth = proto;
 	    bcopy(cp, ackp, length);
 	    ackp += length;
+	    VarEncMD4 = cp[4] == 0x80;
 	  } else if (Acceptable(ConfPap)) {
 	    *nakp++ = *cp;
 	    *nakp++ = 4;
