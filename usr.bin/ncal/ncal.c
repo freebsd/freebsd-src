@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$	
+ *	$Id: ncal.c,v 1.1.1.1 1997/12/15 20:35:22 helbig Exp $	
  */
 #include <calendar.h>
 #include <err.h>
@@ -136,7 +136,7 @@ char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 		 " 350 351 352 353 354 355 356 357 358 359"
 		 " 360 361 362 363 364 365 366";
 
-int     flag_weeks;		/* user wants weekdays */
+int     flag_weeks;		/* user wants number of week */
 int     nswitch;		/* user defined switch date */
 int	nswitchb;		/* switch date for backward compatibility */
 
@@ -698,7 +698,8 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 }
 
 /* Put the local names of weekdays into the wds */
-void mkweekdays(struct weekdays *wds)
+void
+mkweekdays(struct weekdays *wds)
 {
 	int i;
 	struct tm tm;
@@ -708,6 +709,7 @@ void mkweekdays(struct weekdays *wds)
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
 		strftime(wds->names[i], 4, "%a", &tm);
+		wds->names[i][2] = ' '; 
 	}
 }
 
