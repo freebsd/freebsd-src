@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.13 1995/10/31 21:17:59 joerg Exp $
+ * $Id: nfs.h,v 1.14 1995/11/21 12:54:38 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -527,10 +527,12 @@ int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 int	nfssvc_addsock __P((struct file *,struct mbuf *));
 void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 int	nfsrv_dorec __P((struct nfssvc_sock *,struct nfsd *,struct nfsrv_descript **));
+void	nfsrv_cleancache __P((void));
 int	nfsrv_getcache __P((struct nfsrv_descript *,struct nfssvc_sock *,struct mbuf **));
 void	nfsrv_updatecache __P((struct nfsrv_descript *,int,struct mbuf *));
 int	mountnfs __P((struct nfs_args *,struct mount *,struct mbuf *,char *,char *,struct vnode **));
 int	nfs_connect __P((struct nfsmount *,struct nfsreq *));
+void	nfs_disconnect __P((struct nfsmount *nmp));
 int	nfs_getattrcache __P((struct vnode *,struct vattr *));
 int	nfsm_strtmbuf __P((struct mbuf **,char **,char *,long));
 int	nfs_bioread __P((struct vnode *,struct uio *,int,struct ucred *));
@@ -539,16 +541,68 @@ void	nfsrv_init __P((int));
 void	nfs_clearcommit __P((struct mount *));
 int	nfsrv_errmap __P((struct nfsrv_descript *, int));
 void	nfsrvw_coalesce __P((struct nfsrv_descript *,struct nfsrv_descript *));
+void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
 void	nfsrvw_sort __P((gid_t [],int));
 void	nfsrv_setcred __P((struct ucred *,struct ucred *));
 int	nfs_writebp __P((struct buf *,int));
 int	nfsrv_vput __P(( struct vnode * ));
 int	nfsrv_vrele __P(( struct vnode * ));
 int	nfsrv_vmio __P(( struct vnode * ));
+void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
 int	nfsrv_writegather __P((struct nfsrv_descript **, struct nfssvc_sock *,
 			       struct proc *, struct mbuf **));
 int	nfs_fsinfo __P((struct nfsmount *, struct vnode *, struct ucred *,
 			struct proc *p));
+
+int	nfsrv3_access __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			   struct proc *procp, struct mbuf **mrq));
+int	nfsrv_commit __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_create __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_fsinfo __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_getattr __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			   struct proc *procp, struct mbuf **mrq));
+int	nfsrv_link __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			struct proc *procp, struct mbuf **mrq));
+int	nfsrv_lookup __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_mkdir __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			 struct proc *procp, struct mbuf **mrq));
+int	nfsrv_mknod __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			 struct proc *procp, struct mbuf **mrq));
+int	nfsrv_noop __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			struct proc *procp, struct mbuf **mrq));
+int	nfsrv_null __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			struct proc *procp, struct mbuf **mrq));
+int	nfsrv_pathconf __P((struct nfsrv_descript *nfsd,
+			    struct nfssvc_sock *slp, struct proc *procp,
+			    struct mbuf **mrq));
+int	nfsrv_read __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			struct proc *procp, struct mbuf **mrq));
+int	nfsrv_readdir __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			   struct proc *procp, struct mbuf **mrq));
+int	nfsrv_readdirplus __P((struct nfsrv_descript *nfsd,
+			       struct nfssvc_sock *slp, struct proc *procp,
+			       struct mbuf **mrq));
+int	nfsrv_readlink __P((struct nfsrv_descript *nfsd,
+			    struct nfssvc_sock *slp, struct proc *procp,
+			    struct mbuf **mrq));
+int	nfsrv_remove __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_rename __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_rmdir __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			 struct proc *procp, struct mbuf **mrq));
+int	nfsrv_setattr __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			   struct proc *procp, struct mbuf **mrq));
+int	nfsrv_statfs __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_symlink __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			   struct proc *procp, struct mbuf **mrq));
+int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
+			 struct proc *procp, struct mbuf **mrq));
 
 #endif	/* KERNEL */
 

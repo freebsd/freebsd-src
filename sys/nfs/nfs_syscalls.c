@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.9 1995/11/14 05:16:37 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.10 1995/11/21 15:51:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -93,9 +93,6 @@ static int notstarted = 1;
 static int modify_flag = 0;
 static struct nfsdrt nfsdrt;
 
-extern void	nfsrv_cleancache __P((void));
-extern void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
-extern void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
 extern void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
 
 #define	TRUE	1
