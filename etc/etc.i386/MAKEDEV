@@ -47,7 +47,6 @@
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
 #	mlxd*   Mylex DAC960 RAID
-#	od*	optical disks
 #	scd*	Sony CD-ROM disks
 #	sd*	SCSI disk, antiquated, use da* instead
 #	vn*	vnode disks
@@ -222,7 +221,6 @@ all)
 	sh MAKEDEV std					# standard
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
-	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
@@ -313,7 +311,7 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; blk=30; chr=116;;
@@ -324,7 +322,6 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|od*s*|sd*s*|vn*s*|wd*s*|w
 	ida*s*) name=ida; blk=29; chr=109;;
 	md*s*) name=md; blk=22;  chr=95;;
 	mlxd*s*) name=mlxd; blk=27; chr=131;;
-	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
 	wd*s*) name=wd; blk=0;  chr=3;;
