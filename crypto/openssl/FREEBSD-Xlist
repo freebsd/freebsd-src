@@ -8,6 +8,7 @@ INSTALL.WCE
 MacOS/
 VMS/
 *.com
+*.bak
 *.def
 *.mak
 */*.bat
@@ -22,7 +23,12 @@ crypto/buildinf.h
 crypto/dso/dso_vms.c
 crypto/dso/dso_win32.c
 crypto/threads/solaris.sh
+diffs.*
+do_patch.sh
+fips/
 ms/
+op
+os2/
 rsaref/
 shlib/Makefile.hpux10-cc
 shlib/hpux10-cc.sh
@@ -36,4 +42,5 @@ shlib/sco5-shared.sh
 shlib/svr5-shared-gcc.sh
 shlib/svr5-shared-installed
 shlib/svr5-shared.sh
+test/fips_aes_data
 util/cygwin.sh
