@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.42 1995/10/31 18:41:49 phk Exp $
+ *      $Id: aic7xxx.c,v 1.43 1995/11/04 14:43:26 bde Exp $
  */
 /*
  * TODO:
@@ -44,6 +44,7 @@
 #include <machine/clock.h>
 #include <i386/scsi/aic7xxx.h>
 #include <i386/scsi/93cx6.h>
+#include <dev/aic7xxx/aic7xxx_reg.h>
 
 #define PAGESIZ 4096
 
@@ -57,7 +58,6 @@
 
 struct ahc_data *ahcdata[NAHC];
 
-static int     ahc_init __P((int unit));
 static void	ahc_loadseq __P((u_long iobase));
 static int32	ahc_scsi_cmd();
 static timeout_t ahc_timeout;
@@ -82,15 +82,8 @@ struct  scb	*ahc_scb_phys_kv();
 static int	ahc_poll __P((int unit, int wait));
 static u_int32	ahc_adapter_info();
 
-int  ahc_unit = 0;
+u_long  ahc_unit = 0;
 
-/* Different debugging levels */
-#define AHC_SHOWMISC	0x0001
-#define AHC_SHOWCMDS	0x0002
-#define AHC_SHOWSCBS	0x0004
-#define AHC_SHOWABORTS	0x0008
-#define AHC_SHOWSENSE	0x0010
-#define AHC_DEBUG 
 static int     ahc_debug = AHC_SHOWABORTS;
 
 /**** bit definitions for SCSIDEF ****/
@@ -125,500 +118,6 @@ static struct scsi_device ahc_dev =
     0,
     { 0, 0 }
 };
-
-
-/*
- * All of these should be in a separate header file shared by the sequencer
- * code and the kernel level driver.  The only catch is that we would need to
- * add an additional 0xc00 offset when using them in the kernel driver.  The
- * aic7770 assembler must be modified to allow include files as well.  All
- * page numbers refer to the Adaptec AIC-7770 Data Book availible from
- * Adaptec's Technical Documents Department 1-800-934-2766
- */
-
-/* -------------------- AIC-7770 offset definitions ----------------------- */
-
-/*
- * SCSI Sequence Control (p. 3-11).
- * Each bit, when set starts a specific SCSI sequence on the bus
- */
-#define SCSISEQ			0xc00ul
-#define		TEMODEO		0x80
-#define		ENSELO		0x40
-#define		ENSELI		0x20
-#define		ENRSELI		0x10
-#define		ENAUTOATNO	0x08
-#define		ENAUTOATNI	0x04
-#define		ENAUTOATNP	0x02
-#define		SCSIRSTO	0x01
-
-/*
- * SCSI Transfer Control 0 Register (pp. 3-13).
- * Controls the SCSI module data path.
- */
-#define	SXFRCTL0		0xc01ul
-#define		DFON		0x80
-#define		DFPEXP		0x40
-#define		ULTRAEN		0x20
-#define		CLRSTCNT	0x10
-#define		SPIOEN		0x08
-#define		SCAMEN		0x04
-#define		CLRCHN		0x02
-/*  UNUSED			0x01 */
-
-/*
- * SCSI Transfer Control 1 Register (pp. 3-14,15).
- * Controls the SCSI module data path.
- */
-#define	SXFRCTL1		0xc02ul
-#define		BITBUCKET	0x80
-#define		SWRAPEN		0x40
-#define		ENSPCHK		0x20
-#define		STIMESEL	0x18
-#define		ENSTIMER	0x04
-#define		ACTNEGEN	0x02
-#define		STPWEN		0x01	/* Powered Termination */
-
-/*
- * SCSI Interrrupt Mode 1 (pp. 3-28,29).
- * Set bits in this register enable the corresponding
- * interrupt source.
- */
-#define	SIMODE1			0xc11ul
-#define		ENSELTIMO	0x80
-#define		ENATNTARG	0x40
-#define		ENSCSIRST	0x20
-#define		ENPHASEMIS	0x10
-#define		ENBUSFREE	0x08
-#define		ENSCSIPERR	0x04
-#define		ENPHASECHG	0x02
-#define		ENREQINIT	0x01
-
-/*
- * SCSI Control Signal Read Register (p. 3-15).
- * Reads the actual state of the SCSI bus pins
- */
-#define SCSISIGI		0xc03ul
-#define		CDI		0x80
-#define		IOI		0x40
-#define		MSGI		0x20
-#define		ATNI		0x10
-#define		SELI		0x08
-#define		BSYI		0x04
-#define		REQI		0x02
-#define		ACKI		0x01
-
-/*
- * SCSI Contol Signal Write Register (p. 3-16).
- * Writing to this register modifies the control signals on the bus.  Only
- * those signals that are allowed in the current mode (Initiator/Target) are
- * asserted.
- */
-#define SCSISIGO		0xc03ul
-#define		CDO		0x80
-#define		IOO		0x40
-#define		MSGO		0x20
-#define		ATNO		0x10
-#define		SELO		0x08
-#define		BSYO		0x04
-#define		REQO		0x02
-#define		ACKO		0x01
-
-/* 
- * SCSI Rate Control (p. 3-17).
- * Contents of this register determine the Synchronous SCSI data transfer
- * rate and the maximum synchronous Req/Ack offset.  An offset of 0 in the
- * SOFS (3:0) bits disables synchronous data transfers.  Any offset value
- * greater than 0 enables synchronous transfers.
- */
-#define SCSIRATE		0xc04ul
-#define WIDEXFER		0x80		/* Wide transfer control */
-#define SXFR			0x70		/* Sync transfer rate */
-#define SOFS			0x0f		/* Sync offset */
-
-/*
- * SCSI ID (p. 3-18).
- * Contains the ID of the board and the current target on the
- * selected channel
- */
-#define SCSIID			0xc05ul
-#define		TID		0xf0		/* Target ID mask */
-#define		OID		0x0f		/* Our ID mask */
-
-/*
- * SCSI Transfer Count (pp. 3-19,20)
- * These registers count down the number of bytes transfered
- * across the SCSI bus.  The counter is decremented only once
- * the data has been safely transfered.  SDONE in SSTAT0 is
- * set when STCNT goes to 0
- */ 
-#define STCNT			0xc08ul
-
-/*
- * SCSI Status 0 (p. 3-21)
- * Contains one set of SCSI Interrupt codes
- * These are most likely of interest to the sequencer
- */
-#define SSTAT0			0xc0bul
-#define		TARGET		0x80		/* Board is a target */
-#define		SELDO		0x40		/* Selection Done */
-#define		SELDI		0x20		/* Board has been selected */
-#define		SELINGO		0x10		/* Selection In Progress */
-#define		SWRAP		0x08		/* 24bit counter wrap */
-#define		SDONE		0x04		/* STCNT = 0x000000 */
-#define		SPIORDY		0x02		/* SCSI PIO Ready */
-#define		DMADONE		0x01		/* DMA transfer completed */
-
-/*
- * Clear SCSI Interrupt 1 (p. 3-23)
- * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT1.
- */
-#define CLRSINT1		0xc0cul
-#define		CLRSELTIMEO	0x80
-#define		CLRATNO		0x40
-#define		CLRSCSIRSTI	0x20
-/*  UNUSED			0x10 */
-#define		CLRBUSFREE	0x08
-#define		CLRSCSIPERR	0x04
-#define		CLRPHASECHG	0x02
-#define		CLRREQINIT	0x01
-
-/*
- * SCSI Status 1 (p. 3-24)
- * These interrupt bits are of interest to the kernel driver
- */
-#define SSTAT1			0xc0cul
-#define		SELTO		0x80
-#define		ATNTARG 	0x40
-#define		SCSIRSTI	0x20
-#define		PHASEMIS	0x10
-#define		BUSFREE		0x08
-#define		SCSIPERR	0x04
-#define		PHASECHG	0x02
-#define		REQINIT		0x01
-
-/*
- * SCSI/Host Address (p. 3-30)
- * These registers hold the host address for the byte about to be
- * transfered on the SCSI bus.  They are counted up in the same
- * manner as STCNT is counted down.  SHADDR should always be used
- * to determine the address of the last byte transfered since HADDR
- * can be squewed by write ahead.
- */
-#define	SHADDR			0xc14ul
-
-/*
- * Selection/Reselection ID (p. 3-31)
- * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
- * device did not set its own ID.
- */
-#define SELID			0xc19ul
-#define		SELID_MASK	0xf0
-#define		ONEBIT		0x08
-/*  UNUSED			0x07 */
-
-/*
- * SCSI Block Control (p. 3-32)
- * Controls Bus type and channel selection.  In a twin channel configuration
- * addresses 0x00-0x1e are gated to the appropriate channel based on this
- * register.  SELWIDE allows for the coexistence of 8bit and 16bit devices
- * on a wide bus.
- */
-#define SBLKCTL			0xc1ful
-/*  UNUSED			0xc0 */
-#define		AUTOFLUSHDIS	0x20
-/*  UNUSED			0x10 */
-#define		SELBUSB		0x08
-/*  UNUSED			0x04 */
-#define		SELWIDE		0x02
-/*  UNUSED			0x01 */
-
-/*
- * Sequencer Control (p. 3-33)
- * Error detection mode and speed configuration
- */
-#define SEQCTL			0xc60ul
-#define		PERRORDIS	0x80
-#define		PAUSEDIS	0x40
-#define		FAILDIS		0x20
-#define 	FASTMODE	0x10
-#define		BRKADRINTEN	0x08
-#define		STEP		0x04
-#define		SEQRESET	0x02
-#define		LOADRAM		0x01
-
-/*
- * Sequencer RAM Data (p. 3-34)
- * Single byte window into the Scratch Ram area starting at the address
- * specified by SEQADDR0 and SEQADDR1.  To write a full word, simply write
- * four bytes in sucessesion.  The SEQADDRs will increment after the most
- * significant byte is written
- */
-#define SEQRAM			0xc61ul
-
-/*
- * Sequencer Address Registers (p. 3-35)
- * Only the first bit of SEQADDR1 holds addressing information
- */
-#define SEQADDR0		0xc62ul
-#define SEQADDR1		0xc63ul
-#define 	SEQADDR1_MASK	0x01
-
-/*
- * Accumulator
- * We cheat by passing arguments in the Accumulator up to the kernel driver
- */
-#define ACCUM			0xc64ul
-
-#define SINDEX			0xc65ul
-
-/*
- * Board Control (p. 3-43)
- */
-#define BCTL			0xc84ul
-/*   RSVD			0xf0 */
-#define		ACE		0x08	/* Support for external processors */
-/*   RSVD			0x06 */
-#define		ENABLE		0x01
-
-/*
- * Bus On/Off Time (p. 3-44)
- */
-#define BUSTIME			0xc85ul
-#define		BOFF		0xf0
-#define		BON		0x0f
-
-/*
- * Bus Speed (p. 3-45)
- */
-#define	BUSSPD			0xc86ul
-#define		DFTHRSH		0xc0
-#define		STBOFF		0x38
-#define		STBON		0x07
-
-/*
- * Host Control (p. 3-47) R/W
- * Overal host control of the device.
- */
-#define HCNTRL			0xc87ul
-/*    UNUSED			0x80 */
-#define		POWRDN		0x40
-/*    UNUSED			0x20 */
-#define		SWINT		0x10
-#define		IRQMS		0x08
-#define		PAUSE		0x04
-#define		INTEN		0x02
-#define		CHIPRST		0x01
-
-/*
- * Host Address (p. 3-48)
- * This register contains the address of the byte about
- * to be transfered across the host bus.
- */
-#define HADDR			0xc88ul
-/*
- * SCB Pointer (p. 3-49)
- * Gate one of the four SCBs into the SCBARRAY window.
- */
-#define SCBPTR			0xc90ul
-
-/*
- * Interrupt Status (p. 3-50)
- * Status for system interrupts
- */
-#define INTSTAT			0xc91ul
-#define		SEQINT_MASK	0xf0		/* SEQINT Status Codes */
-#define			BAD_PHASE	0x00
-#define			SEND_REJECT	0x10
-#define			NO_IDENT	0x20
-#define			NO_MATCH	0x30
-#define			MSG_SDTR	0x40
-#define			MSG_WDTR	0x50
-#define			MSG_REJECT	0x60
-#define			BAD_STATUS	0x70
-#define			RESIDUAL	0x80
-#define			ABORT_TAG	0x90
-#define			AWAITING_MSG	0xa0
-#define			IMMEDDONE	0xb0
-#define 	BRKADRINT 0x08
-#define		SCSIINT	  0x04
-#define		CMDCMPLT  0x02
-#define		SEQINT    0x01
-#define		INT_PEND  (BRKADRINT | SEQINT | SCSIINT | CMDCMPLT)
-
-/*
- * Hard Error (p. 3-53)
- * Reporting of catastrophic errors.  You usually cannot recover from
- * these without a full board reset.
- */
-#define ERROR			0xc92ul
-/*    UNUSED			0xf0 */
-#define		PARERR		0x08
-#define		ILLOPCODE	0x04
-#define		ILLSADDR	0x02
-#define		ILLHADDR	0x01
-
-/*
- * Clear Interrupt Status (p. 3-52)
- */
-#define CLRINT			0xc92ul
-#define		CLRBRKADRINT	0x08
-#define		CLRSCSIINT      0x04
-#define		CLRCMDINT 	0x02
-#define		CLRSEQINT 	0x01
-
-/*
- * SCB Auto Increment (p. 3-59)
- * Byte offset into the SCB Array and an optional bit to allow auto
- * incrementing of the address during download and upload operations
- */
-#define SCBCNT			0xc9aul
-#define		SCBAUTO		0x80
-#define		SCBCNT_MASK	0x1f
-
-/*
- * Queue In FIFO (p. 3-60)
- * Input queue for queued SCBs (commands that the seqencer has yet to start)
- */
-#define QINFIFO			0xc9bul
-
-/*
- * Queue In Count (p. 3-60)
- * Number of queued SCBs
- */
-#define QINCNT			0xc9cul
-
-/*
- * Queue Out FIFO (p. 3-61)
- * Queue of SCBs that have completed and await the host
- */
-#define QOUTFIFO		0xc9dul
-
-/*
- * Queue Out Count (p. 3-61)
- * Number of queued SCBs in the Out FIFO
- */
-#define QOUTCNT			0xc9eul
-
-#define SCBARRAY		0xca0ul
-
-/* ---------------- END AIC-7770 Register Definitions ----------------- */
-
-/* --------------------- AIC-7870-only definitions -------------------- */
-
-#define DSPCISTATUS		0xc86ul
-
-/*
- * Serial EEPROM Control (p. 4-92 in 7870 Databook)
- * Controls the reading and writing of an external serial 1-bit
- * EEPROM Device.  In order to access the serial EEPROM, you must
- * first set the SEEMS bit that generates a request to the memory
- * port for access to the serial EEPROM device.  When the memory
- * port is not busy servicing another request, it reconfigures
- * to allow access to the serial EEPROM.  When this happens, SEERDY
- * gets set high to verify that the memory port access has been
- * granted.  
- *
- * After successful arbitration for the memory port, the SEECS bit of 
- * the SEECTL register is connected to the chip select.  The SEECK, 
- * SEEDO, and SEEDI are connected to the clock, data out, and data in 
- * lines respectively.  The SEERDY bit of SEECTL is useful in that it 
- * gives us an 800 nsec timer.  After a write to the SEECTL register, 
- * the SEERDY goes high 800 nsec later.  The one exception to this is 
- * when we first request access to the memory port.  The SEERDY goes 
- * high to signify that access has been granted and, for this case, has 
- * no implied timing.
- *
- * See 93cx6.c for detailed information on the protocol necessary to 
- * read the serial EEPROM.
- */
-#define SEECTL			0xc1eul
-#define		EXTARBACK	0x80
-#define		EXTARBREQ	0x40
-#define		SEEMS		0x20
-#define		SEERDY		0x10
-#define		SEECS		0x08
-#define		SEECK		0x04
-#define		SEEDO		0x02
-#define		SEEDI		0x01
-
-/* ---------------------- Scratch RAM Offsets ------------------------- */
-/* These offsets are either to values that are initialized by the board's
- * BIOS or are specified by the Linux sequencer code.  If I can figure out
- * how to read the EISA configuration info at probe time, the cards could
- * be run without BIOS support installed
- */
-
-/*
- * 1 byte per target starting at this address for configuration values
- */
-#define HA_TARG_SCRATCH		0xc20ul
-
-/*
- * The sequencer will stick the frist byte of any rejected message here so
- * we can see what is getting thrown away.
- */
-#define HA_REJBYTE		0xc31ul
-
-/*
- * Bit vector of targets that have disconnection disabled.
- */
-#define	HA_DISC_DSB		0xc32ul
-
-/*
- * Length of pending message
- */
-#define HA_MSG_LEN		0xc34ul
-
-/*
- * message body
- */
-#define HA_MSG_START		0xc35ul	/* outgoing message body */
-
-/*
- * These are offsets into the card's scratch ram.  Some of the values are
- * specified in the AHA2742 technical reference manual and are initialized
- * by the BIOS at boot time.
- */
-#define HA_ARG_1		0xc4aul
-#define HA_RETURN_1		0xc4aul
-#define		SEND_SENSE	0x80
-#define		SEND_WDTR	0x80
-#define		SEND_SDTR	0x80
-#define		SEND_REJ	0x40
-
-#define	SG_COUNT		0xc4dul
-#define	SG_NEXT			0xc4eul
-#define HA_SIGSTATE		0xc4bul
-
-#define HA_SCBCOUNT		0xc52ul
-#define HA_FLAGS		0xc53ul
-#define		SINGLE_BUS	0x00
-#define		TWIN_BUS	0x01
-#define		WIDE_BUS	0x02
-#define		ACTIVE_MSG	0x20
-#define		IDENTIFY_SEEN	0x40
-#define		RESELECTING	0x80
-
-#define	HA_ACTIVE0		0xc54ul
-#define	HA_ACTIVE1		0xc55ul
-#define	SAVED_TCL		0xc56ul
-#define WAITING_SCBH		0xc57ul
-#define WAITING_SCBT		0xc58ul
-
-#define HA_SCSICONF		0xc5aul
-#define INTDEF			0xc5cul
-#define HA_HOSTCONF		0xc5dul
-
-#define HA_274_BIOSCTRL		0xc5ful
-#define BIOSMODE		0x30
-#define BIOSDISABLED		0x30
-
-#define MSG_ABORT		0x06
-#define MSG_BUS_DEVICE_RESET	0x0c
-#define	BUS_8_BIT		0x00
-#define BUS_16_BIT		0x01
-#define BUS_32_BIT		0x02
 
 /*
  * Define the format of the SEEPROM registers (16 bits).
@@ -797,12 +296,16 @@ static int ahc_num_syncrates =
 	sizeof(ahc_syncrates) / sizeof(ahc_syncrates[0]);
 
 /*
- * Check if the device can be found at the port given
- * and if so, determine configuration and set it up for further work.
+ * Allocate a controller structures for a new device and initialize it.
+ * ahc_reset should be called before now since we assume that the card
+ * is paused.
+ *
+ * Sticking the ahc structure into the ahcdata array is an artifact of the
+ * need to index by unit.  As soon as the upper level scsi code passes
+ * pointers instead of units down to us, this will go away.
  */
-
-int
-ahcprobe(unit, iobase, type, flags)
+struct ahc_data *
+ahc_alloc(unit, iobase, type, flags)
 	int unit;
 	u_long iobase;
 	ahc_type type;
@@ -826,34 +329,59 @@ ahcprobe(unit, iobase, type, flags)
 
         if (ahcdata[unit]) {
                 printf("ahc%d: memory already allocated\n", unit);
-                return 0;
+                return NULL;
         }
         ahc = malloc(sizeof(struct ahc_data), M_TEMP, M_NOWAIT);
         if (!ahc) {
                 printf("ahc%d: cannot malloc!\n", unit);
-                return 0;
+                return NULL;
         }
         bzero(ahc, sizeof(struct ahc_data));
         ahcdata[unit] = ahc;
+        ahc->unit = unit;
         ahc->baseport = iobase;
 	ahc->type = type;
 	ahc->flags = flags;
+	ahc->unpause = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
+	ahc->pause = ahc->unpause | PAUSE;
 
-        /*
-         * Try to initialize a unit at this location
-         * reset the AIC-7770, read its registers,
-         * and fill in the dev structure accordingly
-         */
-
-        if (ahc_init(unit) != 0) {
-                ahcdata[unit] = NULL;
-                free(ahc, M_TEMP);
-                return (0);
-        }
-
-        return (1);
+        return (ahc);
 }
 
+void
+ahc_free(ahc)
+     struct ahc_data *ahc;
+{
+	ahcdata[ahc->unit] = NULL;
+	free(ahc, M_DEVBUF);
+	return;
+}
+
+void
+ahc_reset(iobase)
+     u_long iobase;
+{
+        u_char hcntrl;
+	int wait;
+
+	/* Retain the IRQ type accross the chip reset */
+	hcntrl = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
+	outb(HCNTRL + iobase, CHIPRST | PAUSE);
+	/*
+	 * Ensure that the reset has finished
+	 */
+	wait = 1000;
+	while (wait--) {
+		DELAY(1000);
+		if(!(inb(HCNTRL + iobase) & CHIPRST))
+			break;
+	}
+	if(wait == 0) {
+		printf("ahc at 0x%x: WARNING - Failed chip reset!  "
+		       "Trying to initialize anyway.\n", iobase);
+	}
+	outb(HCNTRL + iobase, hcntrl | PAUSE);
+}
 
 /*
  * Look up the valid period to SCSIRATE conversion in our table.
@@ -877,9 +405,9 @@ ahc_scsirate(scsirate, period, offset, unit, target )
 			if (ahc->type & AHC_ULTRA) {
 				if (!(ahc_syncrates[i].sxfr & ULTRA_SXFR)) {
 					printf("ahc%d: target %d requests "
-					       "%sMB/s transfers, but adapter "
+					       "%sMHz transfers, but adapter "
 					       "in Ultra mode can only sync at "
-					       "10MB/s or above\n", unit, 
+					       "10MHz or above\n", unit, 
 					       target, ahc_syncrates[i].rate);
 					break; /* Use Async */
 				}
@@ -898,7 +426,7 @@ ahc_scsirate(scsirate, period, offset, unit, target )
 			}
                         *scsirate = (ahc_syncrates[i].sxfr) | (offset & 0x0f);
 			if(bootverbose) {
-				printf("ahc%d: target %d synchronous at %sMB/s,"
+				printf("ahc%d: target %d synchronous at %sMHz,"
 				       " offset = 0x%x\n", unit, target,
 					ahc_syncrates[i].rate, offset );
 			}
@@ -1051,25 +579,28 @@ void ahc_add_waiting_scb (iobase, scb, where)
 /*
  * Catch an interrupt from the adaptor
  */
-static int
-ahc_intr(unit)
-	int	unit;
+int
+ahcintr(arg)
+        void *arg;
 {
 	int     intstat;
+	int	unit;
 	u_char	status;
-        struct ahc_data *ahc = ahcdata[unit];
-        u_long	iobase = ahc->baseport;
+        u_long	iobase;
 	struct scb *scb = NULL;
 	struct scsi_xfer *xs = NULL;
+	struct ahc_data *ahc = (struct ahc_data *)arg;
 
+	unit = ahc->unit;
+	iobase = ahc->baseport;
         intstat = inb(INTSTAT + iobase);
-
 	/*
 	 * Is this interrupt for me? or for
 	 * someone who is sharing my interrupt
 	 */
 	if (!(intstat & INT_PEND))
 		return 0;
+
         if (intstat & BRKADRINT) {
 		/* We upset the sequencer :-( */
 
@@ -1695,17 +1226,12 @@ cmdcomplete:
 }
 
 void
-ahcintr(unit)
-	int unit;
+ahc_eisa_intr(arg)
+	void *arg;
 {
-	ahc_intr(unit);
-}
-
-int
-ahc_pci_intr(vunit)
-	void *vunit;
-{
-	return (ahc_intr((int)vunit));
+/*	printf("Foo\n");
+	DELAY(10000000);*/
+	ahcintr(arg);
 }
 
 static int
@@ -1810,19 +1336,18 @@ ahc_done(unit, scb)
 /*
  * Start the board, ready for normal operation
  */
-static int
+int
 ahc_init(unit)
 	int      unit;
 {
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf, sblkctl, i, host_id;
-	int     intdef, max_targ = 15, wait, have_seeprom = 0;
+	int     intdef, max_targ = 15, have_seeprom = 0;
 	int	bios_disabled = 0;
 	struct seeprom_config sc;
 	/*
-	 * Assume we have a board at this stage
-	 * Find out the configured interupt and the card type.
+	 * Assume we have a board at this stage and it has been reset.
 	 */
 
 #ifdef AHC_DEBUG
@@ -1833,26 +1358,6 @@ ahc_init(unit)
 	if(bootverbose)
 		printf("ahc%d: reading board settings\n", unit);
 
-	/* Save the IRQ type before we do a chip reset */
-
-	ahc->unpause = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
-	ahc->pause = ahc->unpause | PAUSE;
-	outb(HCNTRL + iobase, CHIPRST | ahc->pause);
-	/*
-	 * Ensure that the reset has finished
-	 */
-	wait = 1000;
-	while (wait--) {
-		DELAY(1000);
-		if(!(inb(HCNTRL + iobase) & CHIPRST))
-			break;
-	}
-	if(wait == 0) {
-		printf("ahc%d: WARNING - Failed chip reset!  "
-		       "Trying to initialize anyway.\n", unit);
-		/* Forcibly clear CHIPRST */
-		outb(HCNTRL + iobase, ahc->pause);
-	}
 	switch( ahc->type ) {
 	   case AHC_AIC7770:
 	   case AHC_274:
@@ -1884,7 +1389,7 @@ ahc_init(unit)
 	   case AHC_394:
 	   case AHC_294U:
 	   case AHC_294:
-		host_id = 0x07;  /* default to SCSI ID 7 for 7850 */
+		host_id = 0x07;  /* defat to SCSI ID 7 for 7850 */
 		if (ahc->type & AHC_AIC7870) {
 			unsigned short *scarray = (u_short *)&sc;
 			unsigned short  checksum = 0;
@@ -2021,6 +1526,8 @@ ahc_init(unit)
 		else
 			printf("aic7770 <= Rev C, ");
 	}
+	else if(ahc->type & AHC_AIC7880)
+		printf("aic7880, ");
 	else if(ahc->type & AHC_AIC7850)
 		printf("aic7850, ");
 	else
@@ -2052,37 +1559,6 @@ ahc_init(unit)
 		else
 			printf("ahc%d: Using Edge Triggered Interrupts\n",
 				unit);
-	}
-	if(!(ahc->type & AHC_AIC78X0)){
-	/*
-	 * The AIC78X0 cards are PCI, so we get their interrupt from the PCI
-	 * BIOS.
-	 */
-
-		intdef = inb(INTDEF + iobase);
-		switch (intdef & 0xf) {
-		case 9:
-			ahc->vect = 9;
-			break;
-		case 10:
-			ahc->vect = 10;
-			break;
-		case 11:
-			ahc->vect = 11;
-			break;
-		case 12:
-			ahc->vect = 12;
-			break;
-		case 14:
-			ahc->vect = 14;
-			break;
-		case 15:
-			ahc->vect = 15;
-			break;
-		default:
-			printf("illegal irq setting\n");
-			return (EIO);
-		}
 	}
 
 	/* Set the SCSI Id, SXFRCTL0, SXFRCTL1, and SIMODE1, for both channels*/
@@ -2630,7 +2106,7 @@ ahc_poll(int unit, int wait)
                 printf("ahc%d: board not responding\n", unit);
                 return (EIO);
         }
-	ahcintr(unit);
+	ahcintr((void *)ahc);
         return (0);
 }
 
