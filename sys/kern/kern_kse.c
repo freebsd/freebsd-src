@@ -382,6 +382,30 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 	thread_link(td, kg);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct kse_switchin_args {
+	const struct __mcontext *mcp;
+	long val;
+	long *loc;
+};
+#endif
+
+int
+kse_switchin(struct thread *td, struct kse_switchin_args *uap)
+{
+	mcontext_t mc;
+	int error;
+
+	error = (uap->mcp == NULL) ? EINVAL : 0;
+	if (!error)
+		error = copyin(uap->mcp, &mc, sizeof(mc));
+	if (!error)
+		error = set_mcontext(td, &mc);
+	if (!error && uap->loc != NULL)
+		suword(uap->loc, uap->val);
+	return ((error == 0) ? EJUSTRETURN : error);
+}
+
 /*
 struct kse_thr_interrupt_args {
 	struct kse_thr_mailbox * tmbx;
