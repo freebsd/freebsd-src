@@ -100,7 +100,7 @@ pkg_do(char *pkg)
 	/* Is it an ftp://foo.bar.baz/file.t[bg]z specification? */
 	if (isURL(pkg)) {
 	    if (!(Home = fileGetURL(NULL, pkg))) {
-		warnx("unable to fetch `%s' by URL", pkg);
+		warnx("unable to fetch '%s' by URL", pkg);
 		return 1;
 	    }
 	    where_to = Home;
@@ -108,7 +108,7 @@ pkg_do(char *pkg)
 	    cfile = fopen(CONTENTS_FNAME, "r");
 	    if (!cfile) {
 		warnx(
-		"unable to open table of contents file `%s' - not a package?",
+		"unable to open table of contents file '%s' - not a package?",
 		CONTENTS_FNAME);
 		goto bomb;
 	    }
@@ -141,14 +141,14 @@ pkg_do(char *pkg)
 		setenv("_TOP", Home, 1);
 	    if (unpack(pkg_fullname, extract)) {
 		warnx(
-	"unable to extract table of contents file from `%s' - not a package?",
+	"unable to extract table of contents file from '%s' - not a package?",
 		pkg_fullname);
 		goto bomb;
 	    }
 	    cfile = fopen(CONTENTS_FNAME, "r");
 	    if (!cfile) {
 		warnx(
-	"unable to open table of contents file `%s' - not a package?",
+	"unable to open table of contents file '%s' - not a package?",
 		CONTENTS_FNAME);
 		goto bomb;
 	    }
@@ -166,7 +166,7 @@ pkg_do(char *pkg)
 			    printf("Desired prefix of %s does not exist, creating..\n", p->name);
 			vsystem("mkdir -p %s", p->name);
 			if (chdir(p->name) == -1) {
-			    warn("unable to change directory to `%s'", p->name);
+			    warn("unable to change directory to '%s'", p->name);
 			    goto bomb;
 			}
 		    }
@@ -175,7 +175,7 @@ pkg_do(char *pkg)
 		}
 		else {
 		    warnx(
-		"no prefix specified in `%s' - this is a bad package!",
+		"no prefix specified in '%s' - this is a bad package!",
 			pkg_fullname);
 		    goto bomb;
 		}
@@ -203,7 +203,7 @@ pkg_do(char *pkg)
 	    /* Finally unpack the whole mess.  If extract is null we
 	       already + did so so don't bother doing it again. */
 	    if (extract && unpack(pkg_fullname, NULL)) {
-		warnx("unable to extract `%s'!", pkg_fullname);
+		warnx("unable to extract '%s'!", pkg_fullname);
 		goto bomb;
 	    }
 	}
@@ -277,7 +277,7 @@ pkg_do(char *pkg)
 			if (Verbose)
 			    printf("Loading it from %s.\n", cp);
 			if (vsystem("pkg_add %s'%s'", Verbose ? "-v " : "", cp)) {
-			    warnx("autoload of dependency `%s' failed%s",
+			    warnx("autoload of dependency '%s' failed%s",
 				cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)
 				++code;
@@ -300,13 +300,13 @@ pkg_do(char *pkg)
 			    ++code;
 		    }
 		    else if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
-			warnx("pkg_add of dependency `%s' failed%s",
+			warnx("pkg_add of dependency '%s' failed%s",
 				p->name, Force ? " (proceeding anyway)" : "!");
 			if (!Force)
 			    ++code;
 		    }
 		    else if (Verbose)
-			printf("\t`%s' loaded successfully.\n", p->name);
+			printf("\t'%s' loaded successfully.\n", p->name);
 		    /* Nuke the temporary playpen */
 		    leave_playpen();
 		}
