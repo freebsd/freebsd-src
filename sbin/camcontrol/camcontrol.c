@@ -2001,16 +2001,16 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_getdev) - sizeof(struct ccb_hdr));
 
-	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+	ccb->ccb_h.func_code = XPT_GDEV_STATS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending XPT_GDEV_TYPE CCB");
+		perror("error sending XPT_GDEV_STATS CCB");
 		retval = 1;
 		goto tagcontrol_bailout;
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_GDEV_TYPE CCB failed, status %#x",
+		warnx("XPT_GDEV_STATS CCB failed, status %#x",
 		      ccb->ccb_h.status);
 		retval = 1;
 		goto tagcontrol_bailout;
@@ -2018,26 +2018,26 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 
 	if (arglist & CAM_ARG_VERBOSE) {
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "dev_openings  %d\n", ccb->cgd.dev_openings);
+		fprintf(stdout, "dev_openings  %d\n", ccb->cgds.dev_openings);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "dev_active    %d\n", ccb->cgd.dev_active);
+		fprintf(stdout, "dev_active    %d\n", ccb->cgds.dev_active);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "devq_openings %d\n", ccb->cgd.devq_openings);
+		fprintf(stdout, "devq_openings %d\n", ccb->cgds.devq_openings);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "devq_queued   %d\n", ccb->cgd.devq_queued);
+		fprintf(stdout, "devq_queued   %d\n", ccb->cgds.devq_queued);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "held          %d\n", ccb->cgd.held);
+		fprintf(stdout, "held          %d\n", ccb->cgds.held);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "mintags       %d\n", ccb->cgd.mintags);
+		fprintf(stdout, "mintags       %d\n", ccb->cgds.mintags);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "maxtags       %d\n", ccb->cgd.maxtags);
+		fprintf(stdout, "maxtags       %d\n", ccb->cgds.maxtags);
 	} else {
 		if (quiet == 0) {
 			fprintf(stdout, "%s", pathstr);
 			fprintf(stdout, "device openings: ");
 		}
-		fprintf(stdout, "%d\n", ccb->cgd.dev_openings +
-			ccb->cgd.dev_active);
+		fprintf(stdout, "%d\n", ccb->cgds.dev_openings +
+			ccb->cgds.dev_active);
 	}
 
 tagcontrol_bailout:
