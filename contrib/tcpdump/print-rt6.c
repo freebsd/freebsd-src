@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rt6.c,v 1.17 2000/12/13 07:57:05 itojun Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rt6.c,v 1.18 2001/06/15 22:17:34 fenner Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -61,12 +61,6 @@ rt6_print(register const u_char *bp, register const u_char *bp2)
 
 	/* 'ep' points to the end of available data. */
 	ep = snapend;
-
-#if 0
-	printf("%s > %s: ",
-	       ip6addr_string(&ip->ip6_src),
-	       ip6addr_string(&ip->ip6_dst));
-#endif
 
 	TCHECK(dp->ip6r_segleft);
 
