@@ -45,9 +45,11 @@
 #include <string.h>
 #include <strings.h>
 #include <libgen.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <libgeom.h>
 
 #include <geom/gate/g_gate.h>
@@ -259,6 +261,7 @@ static void
 show_config(struct ggeom *gp, int verbose)
 {
 	struct gprovider *pp;
+	char buf[5];
 
 	pp = LIST_FIRST(&gp->lg_provider);
 	if (pp == NULL)
@@ -274,7 +277,9 @@ show_config(struct ggeom *gp, int verbose)
 	printf("queue_count: %s\n", get_conf(gp, "queue_count"));
 	printf(" queue_size: %s\n", get_conf(gp, "queue_size"));
 	printf(" references: %s\n", get_conf(gp, "ref"));
-	printf("  mediasize: %jd\n", pp->lg_mediasize);
+	humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	printf("  mediasize: %jd (%s)\n", (intmax_t)pp->lg_mediasize, buf);
 	printf(" sectorsize: %u\n", pp->lg_sectorsize);
 	printf("       mode: %s\n", pp->lg_mode);
 	printf("\n");
