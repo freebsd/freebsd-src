@@ -81,14 +81,10 @@ quit(s)
 }
 
 struct rt_addrinfo info;
-/* Sleazy use of local variables throughout file, warning!!!! */
+/* XXX Sleazy use of local variables throughout file, warning!!!! */
 #define netmask	info.rti_info[RTAX_NETMASK]
 #define ifaaddr	info.rti_info[RTAX_IFA]
 #define brdaddr	info.rti_info[RTAX_BRD]
-
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
 void
 rt_xaddrs(cp, cplim, rtinfo)
@@ -103,7 +99,7 @@ rt_xaddrs(cp, cplim, rtinfo)
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;
 		rtinfo->rti_info[i] = sa = (struct sockaddr *)cp;
-		ADVANCE(cp, sa);
+		cp += SA_SIZE(sa);
 	}
 }
 
