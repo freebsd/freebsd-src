@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.42 1996/06/17 23:04:24 jkh Exp $
+ * $Id: tcpip.c,v 1.43 1996/07/02 01:03:55 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -522,8 +522,10 @@ netHook(dialogMenuItem *self)
 
     devs = deviceFind(self->prompt, DEVICE_TYPE_NETWORK);
     if (devs) {
-	tcpOpenDialog(devs[0]);
-	mediaDevice = devs[0];
+	if (DITEM_STATUS(tcpOpenDialog(devs[0])) != DITEM_FAILURE)
+	    mediaDevice = devs[0];
+	else
+	    devs = NULL;
     }
     return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
@@ -545,8 +547,10 @@ tcpDeviceSelect(void)
     }
     else if (cnt == 1 || (!RunningAsInit && !Fake)) {
 	/* If we're running in user mode, assume network already up */
-	if (RunningAsInit)
-	    tcpOpenDialog(devs[0]);
+	if (RunningAsInit) {
+	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
+		return FALSE;
+	}
 	else
 	    msgDebug("Running multi-user, assuming that the network is already up\n");
 	mediaDevice = devs[0];

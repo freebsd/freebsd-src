@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.71 1996/07/05 08:36:00 jkh Exp $
+ * $Id: sysinstall.h,v 1.72 1996/07/08 08:54:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,7 +58,7 @@
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
-#define MAX_FTP_RETRIES		"4"	/* How many times to beat our heads against the wall */
+#define IO_ERROR		-2	/* Status code for I/O error rather than normal EOF */
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
@@ -90,11 +90,9 @@
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
 #define VAR_FTP_DIR			"ftpDirectory"
-#define VAR_FTP_ONERROR			"ftpOnError"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
 #define VAR_FTP_PORT			"ftpPort"
-#define VAR_FTP_RETRIES			"ftpRetryCount"
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_FTP_HOST			"ftpHost"
@@ -507,7 +505,6 @@ extern int	mediaSetFTPActive(dialogMenuItem *self);
 extern int	mediaSetFTPPassive(dialogMenuItem *self);
 extern int	mediaSetUFS(dialogMenuItem *self);
 extern int	mediaSetNFS(dialogMenuItem *self);
-extern int	mediaSetFtpOnError(dialogMenuItem *self);
 extern int	mediaSetFtpUserPass(dialogMenuItem *self);
 extern int	mediaSetCPIOVerbosity(dialogMenuItem *self);
 extern int	mediaGetType(dialogMenuItem *self);
