@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460 1999/01/20 23:24:06 jkh Exp $
+#	$Id: Makefile,v 1.461 1999/01/25 04:57:07 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -72,20 +72,17 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 BOOTSIZE=		1440
-BOOTMFSSIZE=		1440
 FIXITSIZE=		1440
 BOOTINODE=		80000
 MFSINODE=		8000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
-BOOTMFSLABEL=		minimum
 FIXITLABEL=		fd1440
 
 # overrides.
 .if ${MACHINE_ARCH} == "alpha"
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
-BOOTMFSLABEL=		minimum2
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -436,7 +433,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
-	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
@@ -448,8 +445,8 @@ release.8: write_mfs_in_kernel dumpnlist
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	@sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
-		${BOOTMFSSIZE} ${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
-	@gzip -vc mfsroot > mfsroot.gz
+		${BOOTSIZE} ${RD}/mfsfd ${MFSINODE} ${BOOTLABEL}
+	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
@@ -670,30 +667,16 @@ doMFSKERN:
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
 .if defined(_MFSKERN)
-	@echo "Getting symbols from ${RD}/image.${FSIMAGE}/kernel for mfsroot"
-	@vnconfig /dev/${VNDEVICE} mfsroot
-	@mkdir -p /tmp/mnt_xx
-	@mount /dev/${VNDEVICE} /tmp/mnt_xx
-	@./dumpnlist ${RD}/image.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
-	@umount /tmp/mnt_xx
-	@vnconfig -u /dev/${VNDEVICE}
-	@rmdir /tmp/mnt_xx
 	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 .endif
-	@gzip -v ${RD}/image.${FSIMAGE}/kernel
+	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-.if defined(_MFSKERN)
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
-		${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/image.${FSIMAGE} \
-		${BOOTINODE} ${BOOTMFSLABEL}
-.else
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BOOTLABEL}
-.endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
 .include <bsd.prog.mk>
