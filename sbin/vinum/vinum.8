@@ -83,6 +83,8 @@ List information about volume manager state.
 .in
 .Cd init
 .Op Fl v
+.Op Fl w
+.Ar plex
 .in +1i
 .\" XXX
 Initialize a plex by writing zeroes to all its subdisks.
@@ -269,20 +271,11 @@ and
 .Fl V
 options.
 .Bl -hang
-.It Cd -v
+.It Fl f
 The
-.Nm -v
-option can be used with any command to request more detailed information.
-.It Cd -V
-The
-.Nm -V
-option can be used with any command to request more detailed information than
-the
-.Nm -v
-option provides.
-.It Cd -f
-The
-.Nm -f
+.Fl f
+.if t (``force'')
+.if n ("force")
 option overrides safety checks.  Use with extreme care.  This option is for
 emergency use only.  For example, the command
 .Bd -unfilled -offset indent
@@ -290,12 +283,12 @@ rm -f myvolume
 .Ed
 .Pp
 removes
-.Nm myvolume
+.Ar myvolume
 even if it is open.  Any subsequent access to the volume will almost certainly
 cause a panic.
-.It Cd -r
+.It Fl r
 The
-.Nm -r
+.Fl r
 .if t (``recursive'')
 .if n ("recursive")
 option is used by the list commands to display information not
@@ -303,13 +296,39 @@ only about the specified objects, but also about subordinate objects.  For
 example, in conjnction with the
 .Nm lv
 command, the
-.Nm -r
+.Fl r
 option will also show information about the plexes and subdisks belonging to the
 volume.
-.It Cd -s
+.It Fl s
 The
-.Nm -s
+.Fl s
+.if t (``statistics'')
+.if n ("statistics")
 option is used by the list commands to display statistical information.
+.It Fl v
+The
+.Fl v
+.if t (``verbose'')
+.if n ("verbose")
+option can be used with any command to request more detailed information.
+.It Fl V
+The
+.Fl V
+.if t (``Very verbose'')
+.if n ("Very verbose")
+option can be used with any command to request more detailed information than
+the
+.Fl v
+option provides.
+.It Fl w
+The
+.Fl w
+.if t (``wait'')
+.if n ("wait")
+option tells
+.Nm
+to wait for completion of commands which normally run in the background, such as
+.Nm init .
 .El
 .Pp
 .Ss COMMANDS IN DETAIL
@@ -588,17 +607,20 @@ and represents the data written to a RAID-5 parity stripe after calculating
 parity.
 .El
 .\" XXX
-.It Nm init Ar plex
+.It Nm init Op Fl w
+.Ar plex
 .Pp
 .Nm
 .Ar init
 initializes a plex by writing zeroes to all its subdisks.  This is the only way
 to ensure consistent data in a plex.  You must perform this initialization
 before using a RAID-5 plex.  It is also recommended for other new plexes.
-.Pp
 .Nm
 initializes all subdisks of a plex in parallel.  Since this operation can take a
-long time, it is performed in the background.
+long time, it is normally performed in the background.  If you want to wait for
+completion of the command, use the
+.Fl w
+(wait) option.
 .Nm
 prints a console message when the initialization is complete.
 .It Nm label
