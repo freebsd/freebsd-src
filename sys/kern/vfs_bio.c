@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.60 1995/08/28 09:18:53 julian Exp $
+ * $Id: vfs_bio.c,v 1.61 1995/09/03 19:56:14 dyson Exp $
  */
 
 /*
@@ -346,7 +346,7 @@ bdwrite(struct buf * bp)
 	 * the bmap then...  So, this is important to do.
 	 */
 	if( bp->b_lblkno == bp->b_blkno) {
-		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL);
+		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
 
 	/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.5 1994/10/06 21:06:40 davidg Exp $
+ * $Id: dead_vnops.c,v 1.6 1994/10/08 22:37:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -301,12 +301,13 @@ dead_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 
 	if (!chkvnlock(ap->a_vp))
 		return (EIO);
-	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp));
+	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp, ap->a_runb));
 }
 
 /*

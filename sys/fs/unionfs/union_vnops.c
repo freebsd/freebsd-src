@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.10 1995/08/01 18:50:53 davidg Exp $
+ * $Id: union_vnops.c,v 1.11 1995/08/17 11:53:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1337,6 +1337,7 @@ union_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 	int error;
@@ -1347,7 +1348,7 @@ union_bmap(ap)
 		VOP_LOCK(vp);
 	else
 		FIXUP(VTOUNION(ap->a_vp));
-	error = VOP_BMAP(vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp);
+	error = VOP_BMAP(vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp, ap->a_runb);
 	if (dolock)
 		VOP_UNLOCK(vp);
 

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.43 1995/07/09 06:58:03 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.44 1995/07/13 08:48:47 davidg Exp $
  */
 
 /*
@@ -207,7 +207,7 @@ vnode_pager_haspage(object, offset, before, after)
 		 * requested page.
 		 */
 		while (TRUE) {
-			err = VOP_BMAP(vp, startblock, (struct vnode **) 0, &bn, &run);
+			err = VOP_BMAP(vp, startblock, (struct vnode **) 0, &bn, &run, NULL);
 			if (err || bn == -1) {
 				if (startblock < reqblock) {
 					startblock++;
@@ -229,7 +229,7 @@ vnode_pager_haspage(object, offset, before, after)
 		}
 	}
 
-	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn, after);
+	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn, after, NULL);
 	if (err)
 		return TRUE;
 	return ((long) bn < 0 ? FALSE : TRUE);
@@ -379,7 +379,7 @@ vnode_pager_addr(vp, address, run)
 	vblock = address / bsize;
 	voffset = address % bsize;
 
-	err = VOP_BMAP(vp, vblock, &rtvp, &block, run);
+	err = VOP_BMAP(vp, vblock, &rtvp, &block, run, NULL);
 
 	if (err || (block == -1))
 		rtaddress = -1;
@@ -427,7 +427,7 @@ vnode_pager_input_smlfs(object, m)
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 
-	VOP_BMAP(vp, 0, &dp, 0, 0);
+	VOP_BMAP(vp, 0, &dp, 0, NULL, NULL);
 
 	kva = vm_pager_map_page(m);
 
@@ -583,7 +583,7 @@ vnode_pager_getpages(object, m, count, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (VOP_BMAP(vp, 0, &dp, 0, 0)) {
+	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
 				vnode_pager_freepage(m[i]);

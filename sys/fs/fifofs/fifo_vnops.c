@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.8 1995/03/16 18:13:13 bde Exp $
+ * $Id: fifo_vnops.c,v 1.10 1995/08/06 16:14:21 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -362,6 +362,8 @@ fifo_bmap(ap)
 		daddr_t  a_bn;
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 
@@ -371,6 +373,8 @@ fifo_bmap(ap)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
 	return (0);
 }
 
