@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.62 1998/03/18 20:52:28 dg Exp $
+ *	$Id: cy.c,v 1.63 1998/06/07 17:10:16 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -597,27 +597,27 @@ cyattach_common(cy_iobase, cy_align)
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyc%n%n", adapter,
+		UID_ROOT, GID_WHEEL, 0600, "ttyc%r%r", adapter,
 		unit % CY_MAX_PORTS);
 	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
 		unit | CONTROL_INIT_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttyic%n%n", adapter,
+		UID_ROOT, GID_WHEEL, 0600, "ttyic%r%r", adapter,
 		unit % CY_MAX_PORTS);
 	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
 		unit | CONTROL_LOCK_STATE, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, "ttylc%n%n", adapter,
+		UID_ROOT, GID_WHEEL, 0600, "ttylc%r%r", adapter,
 		unit % CY_MAX_PORTS);
 	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuac%n%n", adapter,
+		UID_UUCP, GID_DIALER, 0660, "cuac%r%r", adapter,
 		unit % CY_MAX_PORTS);
 	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cuaic%n%n", adapter,
+		UID_UUCP, GID_DIALER, 0660, "cuaic%r%r", adapter,
 		unit % CY_MAX_PORTS);
 	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
-		UID_UUCP, GID_DIALER, 0660, "cualc%n%n", adapter,
+		UID_UUCP, GID_DIALER, 0660, "cualc%r%r", adapter,
 		unit % CY_MAX_PORTS);
 #endif
 		}

@@ -363,7 +363,7 @@ pcattach(struct isa_device *dev)
 	for(vt = 0; vt < MAXCONS; vt++) {
           pcvt_devfs_token[vt] = 
 		devfs_add_devswf(&pcdevsw, vt,
-                                 DV_CHR, 0, 0, 0600, "ttyv%n", vt );
+                                 DV_CHR, 0, 0, 0600, "ttyv%r", vt );
 	}
 #endif DEVFS
 #endif /* PCVT_FREEBSD > 205 */
