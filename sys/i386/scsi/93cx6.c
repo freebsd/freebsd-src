@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.4 1995/11/20 12:14:02 phk Exp $
+ *      $Id: 93cx6.c,v 1.5 1996/05/30 07:19:54 gibbs Exp $
  */
 
 /*
@@ -55,8 +55,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if defined(__FreeBSD__)
 #include <machine/clock.h>
 #include <i386/scsi/93cx6.h>
+#elif defined(__NetBSD__)
+#include <machine/bus.h>
+#include <dev/ic/smc93cx6var.h>
+#endif
 
 /*
  * Right now, we only have to read the SEEPROM.  But we make it easier to
@@ -67,12 +72,11 @@ static struct seeprom_cmd {
  	unsigned char bits[3];
 } seeprom_read = {3, {1, 1, 0}};
 
-
 /*
  * Wait for the SEERDY to go high; about 800 ns.
  */
-#define CLOCK_PULSE(p, rdy)			\
-	while ((inb(p) & rdy) == 0) {		\
+#define CLOCK_PULSE(sd, rdy)			\
+	while ((SEEPROM_INB(sd) & rdy) == 0) {		\
 		;  /* Do nothing */		\
 	}
 
@@ -80,56 +84,56 @@ static struct seeprom_cmd {
  * Read the serial EEPROM and returns 1 if successful and 0 if
  * not successful.
  */
-int read_seeprom (u_long   offset,
-		  u_short *buf,
-		  u_int	   start_addr,
-		  int      count,
-		  u_short  CS,   /* chip select */
-		  u_short  CK,   /* clock */
-		  u_short  DO,   /* data out */
-		  u_short  DI,   /* data in */
-		  u_short  RDY,  /* ready */
-		  u_short  MS    /* mode select */)
+int
+read_seeprom(sd, buf, start_addr, count)
+	struct seeprom_descriptor *sd;
+	u_int16_t *buf;
+#if defined(__FreeBSD__)
+	u_int start_addr;
+	int count;
+#elif defined(__NetBSD__)
+	bus_io_size_t start_addr;
+	bus_io_size_t count;
+#endif
 {
 	int i = 0, k = 0;
-	unsigned char temp;
+	u_int16_t v;
+	u_int8_t temp;
 
 	/*
 	 * Read the requested registers of the seeprom.  The loop
 	 * will range from 0 to count-1.
 	 */
-	for (k = start_addr; k < count + start_addr; k = k + 1) {
+	for (k = start_addr; k < count + start_addr; k++) {
 		/* Send chip select for one clock cycle. */
-		outb(offset, MS | CK | CS);
-		CLOCK_PULSE(offset, RDY);
+		temp = sd->sd_MS ^ sd->sd_CS;
+		SEEPROM_OUTB(sd, temp ^ sd->sd_CK);
+		CLOCK_PULSE(sd, sd->sd_RDY);
 
 		/*
 		 * Now we're ready to send the read command followed by the
 		 * address of the 16-bit register we want to read.
 		 */
-		for (i = 0; i < seeprom_read.len; i = i + 1) {
-			if (seeprom_read.bits[i])
-				temp = MS | CS | DO;
-			else
-				temp = MS | CS;
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
-			temp = temp ^ CK;
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
+		for (i = 0; i < seeprom_read.len; i++) {
+			if (seeprom_read.bits[i] != 0)
+				temp ^= sd->sd_DO;
+			SEEPROM_OUTB(sd, temp);
+			CLOCK_PULSE(sd, sd->sd_RDY);
+			SEEPROM_OUTB(sd, temp ^ sd->sd_CK);
+			CLOCK_PULSE(sd, sd->sd_RDY);
+			if (seeprom_read.bits[i] != 0)
+				temp ^= sd->sd_DO;
 		}
 		/* Send the 6 bit address (MSB first, LSB last). */
-		for (i = 5; i >= 0; i = i - 1) {
-			/* k is the address, i is the bit */
-			if (k & (1 << i))
-				temp = MS | CS | DO;
-			else
-				temp =  MS | CS;
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
-			temp = temp ^ CK;
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
+		for (i = 5; i >= 0; i--) {
+			if ((k & (1 << i)) != 0)
+				temp ^= sd->sd_DO;
+			SEEPROM_OUTB(sd, temp);
+			CLOCK_PULSE(sd, sd->sd_RDY);
+			SEEPROM_OUTB(sd, temp ^ sd->sd_CK);
+			CLOCK_PULSE(sd, sd->sd_RDY);
+			if ((k & (1 << i)) != 0)
+				temp ^= sd->sd_DO;
 		}
 
 		/*
@@ -138,27 +142,27 @@ int read_seeprom (u_long   offset,
 		 * with bit 0 (LSB).  The initial 0 will be shifted off the
 		 * top of our word as we let the loop run from 0 to 16.
 		 */
-		for (i = 0; i <= 16; i = i + 1) {
-			temp = MS | CS;
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
-			temp = temp ^ CK;
-			if (inb(offset) & DI)
-				buf[k - start_addr] = 
-					(buf[k - start_addr] << 1) | 0x1;
-			else
-				buf[k - start_addr] = (buf[k - start_addr]<< 1);
-			outb(offset, temp);
-			CLOCK_PULSE(offset, RDY);
+		v = 0;
+		for (i = 16; i >= 0; i--) {
+			SEEPROM_OUTB(sd, temp);
+			CLOCK_PULSE(sd, sd->sd_RDY);
+			v <<= 1;
+			if (SEEPROM_INB(sd) & sd->sd_DI)
+				v |= 1;
+			SEEPROM_OUTB(sd, temp ^ sd->sd_CK);
+			CLOCK_PULSE(sd, sd->sd_RDY);
 		}
 
+		buf[k - start_addr] = v;
+
 		/* Reset the chip select for the next command cycle. */
-		outb(offset, MS);
-		CLOCK_PULSE(offset, RDY);
-		outb(offset, MS | CK);
-		CLOCK_PULSE(offset, RDY);
-		outb(offset, MS);
-		CLOCK_PULSE(offset, RDY);
+		temp = sd->sd_MS;
+		SEEPROM_OUTB(sd, temp);
+		CLOCK_PULSE(sd, sd->sd_RDY);
+		SEEPROM_OUTB(sd, temp ^ sd->sd_CK);
+		CLOCK_PULSE(sd, sd->sd_RDY);
+		SEEPROM_OUTB(sd, temp);
+		CLOCK_PULSE(sd, sd->sd_RDY);
 	}
 #if 0
 	printf ("Serial EEPROM:");
