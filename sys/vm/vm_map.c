@@ -1981,14 +1981,12 @@ vm_map_clean(
 		if (object && invalidate &&
 		    ((object->type == OBJT_VNODE) ||
 		     (object->type == OBJT_DEVICE))) {
-			vm_object_reference(object);
-			vm_object_lock(object);
+			VM_OBJECT_LOCK(object);
 			vm_object_page_remove(object,
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
 			    FALSE);
-			vm_object_unlock(object);
-			vm_object_deallocate(object);
+			VM_OBJECT_UNLOCK(object);
                 }
 		start += size;
 	}
