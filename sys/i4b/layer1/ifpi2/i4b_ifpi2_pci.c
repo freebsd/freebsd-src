@@ -748,7 +748,7 @@ avma1pp2_hscx_intr(int h_chan, u_int stat, struct l1_softc *sc)
 				if(sc->sc_trace & TRACE_B_RX)
 				{
 					i4b_trace_hdr_t hdr;
-					hdr.unit = L0IFPIUNIT(sc->sc_unit);
+					hdr.unit = L0IFPI2UNIT(sc->sc_unit);
 					hdr.type = (h_chan == HSCX_CH_A ? TRC_CH_B1 : TRC_CH_B2);
 					hdr.dir = FROM_NT;
 					hdr.count = ++sc->sc_trace_bcount;
@@ -795,7 +795,7 @@ avma1pp2_hscx_intr(int h_chan, u_int stat, struct l1_softc *sc)
 					  if(sc->sc_trace & TRACE_B_RX)
 					  {
 							i4b_trace_hdr_t hdr;
-							hdr.unit = L0IFPIUNIT(sc->sc_unit);
+							hdr.unit = L0IFPI2UNIT(sc->sc_unit);
 							hdr.type = (h_chan == HSCX_CH_A ? TRC_CH_B1 : TRC_CH_B2);
 							hdr.dir = FROM_NT;
 							hdr.count = ++sc->sc_trace_bcount;
@@ -899,7 +899,7 @@ avma1pp2_hscx_intr(int h_chan, u_int stat, struct l1_softc *sc)
 				if(sc->sc_trace & TRACE_B_TX)
 				{
 					i4b_trace_hdr_t hdr;
-					hdr.unit = L0IFPIUNIT(sc->sc_unit);
+					hdr.unit = L0IFPI2UNIT(sc->sc_unit);
 					hdr.type = (h_chan == HSCX_CH_A ? TRC_CH_B1 : TRC_CH_B2);
 					hdr.dir = FROM_TE;
 					hdr.count = ++sc->sc_trace_bcount;
@@ -1164,7 +1164,7 @@ avma1pp2_bchannel_start(int unit, int h_chan)
 	if(sc->sc_trace & TRACE_B_TX)	/* if trace, send mbuf to trace dev */
 	{
 		i4b_trace_hdr_t hdr;
-		hdr.unit = L0IFPIUNIT(sc->sc_unit);
+		hdr.unit = L0IFPI2UNIT(sc->sc_unit);
 		hdr.type = (h_chan == HSCX_CH_A ? TRC_CH_B1 : TRC_CH_B2);
 		hdr.dir = FROM_TE;
 		hdr.count = ++sc->sc_trace_bcount;
@@ -1348,7 +1348,7 @@ avma1pp2_hscx_fifo(l1_bchan_state_t *chan, struct l1_softc *sc)
 				if(sc->sc_trace & TRACE_B_TX)
 				{
 					i4b_trace_hdr_t hdr;
-					hdr.unit = L0IFPIUNIT(sc->sc_unit);
+					hdr.unit = L0IFPI2UNIT(sc->sc_unit);
 					hdr.type = (chan->channel == HSCX_CH_A ? TRC_CH_B1 : TRC_CH_B2);
 					hdr.dir = FROM_TE;
 					hdr.count = ++sc->sc_trace_bcount;

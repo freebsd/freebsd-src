@@ -116,7 +116,7 @@ ifpi2_ph_data_req(int unit, struct mbuf *m, int freeflag)
 			if(sc->sc_trace & TRACE_D_TX)
 			{
 				i4b_trace_hdr_t hdr;
-				hdr.unit = L0IFPIUNIT(unit);
+				hdr.unit = L0IFPI2UNIT(unit);
 				hdr.type = TRC_CH_D;
 				hdr.dir = FROM_TE;
 				hdr.count = ++sc->sc_trace_dcount;
@@ -139,7 +139,7 @@ ifpi2_ph_data_req(int unit, struct mbuf *m, int freeflag)
 	if(sc->sc_trace & TRACE_D_TX)
 	{
 		i4b_trace_hdr_t hdr;
-		hdr.unit = L0IFPIUNIT(unit);
+		hdr.unit = L0IFPI2UNIT(unit);
 		hdr.type = TRC_CH_D;
 		hdr.dir = FROM_TE;
 		hdr.count = ++sc->sc_trace_dcount;
