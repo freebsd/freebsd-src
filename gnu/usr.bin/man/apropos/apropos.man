@@ -32,10 +32,16 @@ of system commands for keywords and displays the result on the
 standard output.
 .Nm whatis
 displays only complete word matches. 
-.Sh RETURN VALUES
+.Pp
+.Ar keyword
+really is an extended regular expression, please read
+.Xr grep 1
+manual page for more information about its format.
+.Sh DIAGNOSTICS
 The 
 .Nm
 utility exits 0 on success, and 1 if no keyword matched.
 .Sh SEE ALSO
+.Xr grep 1 ,
 .Xr makewhatis 1 ,
 .Xr man 1
