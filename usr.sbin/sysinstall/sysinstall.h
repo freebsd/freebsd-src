@@ -666,7 +666,7 @@ extern void	mediaShutdownTape(Device *dev);
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
 extern int	tcpMenuSelect(dialogMenuItem *self);
-extern Boolean	tcpDeviceSelect(void);
+extern Device	*tcpDeviceSelect(void);
 
 /* termcap.c */
 extern int	set_termcap(void);
