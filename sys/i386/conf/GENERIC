@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.139 1998/12/27 13:40:55 phk Exp $
+#	$Id: GENERIC,v 1.140 1998/12/27 13:55:47 sos Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -108,7 +108,14 @@ controller	matcd0	at isa? port 0x230 bio
 
 device		scd0	at isa? port 0x230 bio
 
+# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port IO_KBD conflicts tty irq 1
+# Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
+#device		vt0	at isa? port IO_KBD conflicts tty irq 1
+#options		XSERVER			# support for X server
+#options		FAT_CURSOR		# start with block cursor
+# If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
+#options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
 device		npx0	at isa? port IO_NPX irq 13
 
