@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
@@ -62,6 +64,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 #include <signal.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <err.h>
 #include "pathnames.h"
 
 /*
@@ -107,7 +110,6 @@ int	getasciilabel	__P((FILE *, struct disklabel *));
 int	checklabel	__P((struct disklabel *));
 void	setbootflag	__P((struct disklabel *));
 void	Warning		(char *, ...);
-void	Perror		__P((char *));
 void	usage		__P((void));
 extern	u_short dkcksum __P((struct disklabel *));
 struct disklabel * getvirginlabel __P((void));
@@ -245,7 +247,7 @@ main(argc, argv)
 		f = open(specname, op == READ ? O_RDONLY : O_RDWR);
 	}
 	if (f < 0)
-		Perror(specname);
+		err(4, "%s", specname);
 
 	switch(op) {
 
@@ -259,7 +261,7 @@ main(argc, argv)
 	case NOWRITE:
 		flag = 0;
 		if (ioctl(f, DIOCWLABEL, (char *)&flag) < 0)
-			Perror("ioctl DIOCWLABEL");
+			err(4, "ioctl DIOCWLABEL");
 		break;
 
 	case READ:
@@ -281,7 +283,7 @@ main(argc, argv)
 			usage();
 		lp = makebootarea(bootarea, &lab, f);
 		if (!(t = fopen(argv[1], "r")))
-			Perror(argv[1]);
+			err(4, "%s", argv[1]);
 		if (getasciilabel(t, lp))
 			error = writelabel(f, bootarea, lp);
 		break;
@@ -303,7 +305,7 @@ main(argc, argv)
 	case WRITEABLE:
 		flag = 1;
 		if (ioctl(f, DIOCWLABEL, (char *)&flag) < 0)
-			Perror("ioctl DIOCWLABEL");
+			err(4, "ioctl DIOCWLABEL");
 		break;
 
 #if NUMBOOT > 0
@@ -506,7 +508,7 @@ readlabel(f)
 
 	if (rflag) {
 		if (read(f, bootarea, BBSIZE) < BBSIZE)
-			Perror(specname);
+			err(4, "%s", specname);
 		for (lp = (struct disklabel *)bootarea;
 		    lp <= (struct disklabel *)(bootarea + BBSIZE - sizeof(*lp));
 		    lp = (struct disklabel *)((char *)lp + 16))
@@ -524,7 +526,7 @@ readlabel(f)
 	} else {
 		lp = &lab;
 		if (ioctl(f, DIOCGDINFO, lp) < 0)
-			Perror("ioctl DIOCGDINFO");
+			err(4, "ioctl DIOCGDINFO");
 	}
 	return (lp);
 }
@@ -570,7 +572,7 @@ makebootarea(boot, dp, f)
 	if (!installboot) {
 		if (rflag) {
 			if (read(f, boot, BBSIZE) < BBSIZE)
-				Perror(specname);
+				err(4, "%s", specname);
 			bzero((char *)lp, sizeof *lp);
 		}
 		return (lp);
@@ -630,7 +632,7 @@ makebootarea(boot, dp, f)
 	 */
 	b = open(xxboot, O_RDONLY);
 	if (b < 0)
-		Perror(xxboot);
+		err(4, "%s", xxboot);
 #if NUMBOOT > 1
 #ifdef __i386__
 	/*
@@ -641,11 +643,11 @@ makebootarea(boot, dp, f)
 	 * the xxboot provides a template.)
 	 */
 	if ((tmpbuf = (char *)malloc((int)dp->d_secsize)) == 0)
-		Perror(xxboot);
+		err(4, "%s", xxboot);
 	memcpy((void *)tmpbuf, (void *)boot, (int)dp->d_secsize);
 #endif /* i386 */
 	if (read(b, boot, (int)dp->d_secsize) < 0)
-		Perror(xxboot);
+		err(4, "%s", xxboot);
 	(void)close(b);
 #ifdef __i386__
 	for (i = DOSPARTOFF, found = 0;
@@ -660,13 +662,13 @@ makebootarea(boot, dp, f)
 #endif /* i386 */
 	b = open(bootxx, O_RDONLY);
 	if (b < 0)
-		Perror(bootxx);
+		err(4, "%s", bootxx);
 	if (read(b, &boot[dp->d_secsize],
 		 (int)(dp->d_bbsize-dp->d_secsize)) < 0)
-		Perror(bootxx);
+		err(4, "%s", bootxx);
 #else
 	if (read(b, boot, (int)dp->d_bbsize) < 0)
-		Perror(xxboot);
+		err(4, "%s", xxboot);
 	(void)fstat(b, &sb);
 	bootsize = (int)sb.st_size - dp->d_bbsize;
 	if (bootsize > 0) {
@@ -674,10 +676,10 @@ makebootarea(boot, dp, f)
 		bootsize = (bootsize + dp->d_secsize-1) & ~(dp->d_secsize-1);
 		bootbuf = (char *)malloc((size_t)bootsize);
 		if (bootbuf == 0)
-			Perror(xxboot);
+			err(4, "%s", xxboot);
 		if (read(b, bootbuf, bootsize) < 0) {
 			free(bootbuf);
-			Perror(xxboot);
+			err(4, "%s", xxboot);
 		}
 	}
 #endif
@@ -1333,11 +1335,11 @@ getvirginlabel(void)
 	}
 	(void)snprintf(namebuf, BBSIZE, "%sr%s", _PATH_DEV, dkname);
 	if ((f = open(namebuf, O_RDONLY, 0)) == -1) {
-		Perror("open()");
+		err(4, "open()");
 		return (NULL);
 	}
 	if (ioctl(f, DIOCGDINFO, &lab) < 0) {
-		Perror("ioctl DIOCGDINFO");
+		err(4, "ioctl DIOCGDINFO");
 		close(f);
 		return (NULL);
 	}
@@ -1405,51 +1407,46 @@ Warning(char *fmt, ...)
 }
 
 void
-Perror(str)
-	char *str;
-{
-	fputs("disklabel: ", stderr); perror(str);
-	exit(4);
-}
-
-void
 usage()
 {
 #if NUMBOOT > 0
-	fprintf(stderr,
-"%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n%s\n\t%s\n",
-"usage: disklabel [-r] disk",
-		"(to read label)",
-"or disklabel -w [-r] disk type [ packid ]",
-		"(to write label with existing boot program)",
-"or disklabel -e [-r] disk",
-		"(to edit label)",
-"or disklabel -R [-r] disk protofile",
-		"(to restore label with existing boot program)",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		"usage: disklabel [-r] disk",
+		"\t\t(to read label)",
+		"       disklabel -w [-r] disk type [ packid ]",
+		"\t\t(to write label with existing boot program)",
+		"       disklabel -e [-r] disk",
+		"\t\t(to edit label)",
+		"       disklabel -R [-r] disk protofile",
+		"\t\t(to restore label with existing boot program)",
 #if NUMBOOT > 1
-"or disklabel -B [ -b boot1 [ -s boot2 ] ] disk [ type ]",
-		"(to install boot program with existing label)",
-"or disklabel -w -B [ -b boot1 [ -s boot2 ] ] disk type [ packid ]",
-		"(to write label and boot program)",
-"or disklabel -R -B [ -b boot1 [ -s boot2 ] ] disk protofile [ type ]",
-		"(to restore label and boot program)",
+		"       disklabel -B [ -b boot1 [ -s boot2 ] ] disk [ type ]",
+		"\t\t(to install boot program with existing label)",
+		"       disklabel -w -B [ -b boot1 [ -s boot2 ] ] disk type [ packid ]",
+		"\t\t(to write label and boot program)",
+		"       disklabel -R -B [ -b boot1 [ -s boot2 ] ] disk protofile [ type ]",
+		"\t\t(to restore label and boot program)",
 #else
-"or disklabel -B [ -b bootprog ] disk [ type ]",
-		"(to install boot program with existing on-disk label)",
-"or disklabel -w -B [ -b bootprog ] disk type [ packid ]",
-		"(to write label and install boot program)",
-"or disklabel -R -B [ -b bootprog ] disk protofile [ type ]",
-		"(to restore label and install boot program)",
+		"       disklabel -B [ -b bootprog ] disk [ type ]",
+		"\t\t(to install boot program with existing on-disk label)",
+		"       disklabel -w -B [ -b bootprog ] disk type [ packid ]",
+		"\t\t(to write label and install boot program)",
+		"       disklabel -R -B [ -b bootprog ] disk protofile [ type ]",
+		"\t\t(to restore label and install boot program)",
 #endif
-"or disklabel [-NW] disk",
-		"(to write disable/enable label)");
+		"       disklabel [-NW] disk",
+		"\t\t(to write disable/enable label)");
 #else
-	fprintf(stderr, "%-43s%s\n%-43s%s\n%-43s%s\n%-43s%s\n%-43s%s\n",
-"usage: disklabel [-r] disk", "(to read label)",
-"or disklabel -w [-r] disk type [ packid ]", "(to write label)",
-"or disklabel -e [-r] disk", "(to edit label)",
-"or disklabel -R [-r] disk protofile", "(to restore label)",
-"or disklabel [-NW] disk", "(to write disable/enable label)");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		"usage: disklabel [-r] disk", "(to read label)",
+		"       disklabel -w [-r] disk type [ packid ]",
+		"\t\t(to write label)",
+		"       disklabel -e [-r] disk",
+		"\t\t(to edit label)",
+		"       disklabel -R [-r] disk protofile",
+		"\t\t(to restore label)",
+		"       disklabel [-NW] disk",
+		"\t\t(to write disable/enable label)");
 #endif
 	exit(1);
 }
