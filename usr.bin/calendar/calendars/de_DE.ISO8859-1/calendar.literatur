@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _de_DE_ISO_8859_1_literatur_
-#define _de_DE_ISO_8859_1_literatur_
+#ifndef _de_DE_ISO8859_1_literatur_
+#define _de_DE_ISO8859_1_literatur_
 
-LANG=de_DE.ISO_8859-1
+LANG=de_DE.ISO8859-1
 
 /* Schriftsteller 
 
@@ -33,4 +33,4 @@ LANG=de_DE.ISO_8859-1
 08/31	Hitler stellt Frankfurter Zeitung ein, 1943
 11/01	Frankfurter Allgemeine Zeitung in Leben gerufen, 1949
 
-#endif /* !_de_DE_ISO_8859_1_literatur_ */
+#endif /* !_de_DE_ISO8859_1_literatur_ */

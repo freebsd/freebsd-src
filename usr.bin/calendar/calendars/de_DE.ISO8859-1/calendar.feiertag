@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _de_DE_ISO_8859_1_feiertag_
-#define _de_DE_ISO_8859_1_feiertag_
+#ifndef _de_DE_ISO8859_1_feiertag_
+#define _de_DE_ISO8859_1_feiertag_
 
-LANG=de_DE.ISO_8859-1
+LANG=de_DE.ISO8859-1
 
 /* arbeitsfreie staatliche Feiertage */
 01/01	Neujahr
@@ -39,4 +39,4 @@ Easter+39	Christi Himmelfahrt
 /* Blumenverkäufer */
 May Sun+2 	Muttertag
 
-#endif /*! _de_DE_ISO_8859_1_feiertag_ */
+#endif /*! _de_DE_ISO8859_1_feiertag_ */
