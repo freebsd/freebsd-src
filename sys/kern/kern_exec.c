@@ -551,7 +551,7 @@ exec_map_first_page(imgp)
 	vm_page_wire(ma[0]);
 	vm_page_wakeup(ma[0]);
 
-	pmap_kenter((vm_offset_t) imgp->image_header, VM_PAGE_TO_PHYS(ma[0]));
+	pmap_qenter((vm_offset_t)imgp->image_header, ma, 1);
 	imgp->firstpage = ma[0];
 
 	return 0;
@@ -564,7 +564,7 @@ exec_unmap_first_page(imgp)
 	GIANT_REQUIRED;
 
 	if (imgp->firstpage) {
-		pmap_kremove((vm_offset_t) imgp->image_header);
+		pmap_qremove((vm_offset_t)imgp->image_header, 1);
 		vm_page_unwire(imgp->firstpage, 1);
 		imgp->firstpage = NULL;
 	}
