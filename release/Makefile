@@ -739,6 +739,7 @@ release.9:
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
+	@strip -x ${RD}/mfsfd/modules/*.ko
 .endif
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
