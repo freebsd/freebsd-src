@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
+ *	$Id: boot2.c,v 1.2 1998/10/13 17:41:06 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@
 #define DRV_MASK	0x7f
 
 #define MAJ_WD		0
-#define MAJ_WFD		1
+#define MAJ_WFD 	1
 #define MAJ_FD		2
 #define MAJ_DA		4
 
@@ -313,7 +313,7 @@ parse(char *arg)
 		if (q - arg != 2)
 		    return -1;
 		for (i = 0; arg[0] != dev_nm[i][0] ||
-		     arg[1] != dev_nm[i][1]; i++)
+			    arg[1] != dev_nm[i][1]; i++)
 		    if (i == NDEV - 1)
 			return -1;
 		dsk.type = i;
@@ -322,8 +322,9 @@ parse(char *arg)
 		    return -1;
 		dsk.unit = *arg - '0';
 		arg += 2;
+		dsk.slice = WHOLE_DISK_SLICE;
 		if (arg[1] == ',') {
-		    if (*arg < '0' || *arg > '4')
+		    if (*arg < '0' || *arg > '0' + NDOSPART)
 			return -1;
 		    if ((dsk.slice = *arg - '0'))
 			dsk.slice++;
@@ -502,17 +503,23 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	if (!sec)
 	    sec = malloc(DEV_BSIZE);
 	dsk.start = 0;
+	if (drvread(sec, DOSBBSECTOR, 1))
+	    return -1;
+	dp = (void *)(sec + DOSPARTOFF);
 	sl = dsk.slice;
+	if (sl < BASE_SLICE) {
+	    for (i = 0; i < NDOSPART; i++)
+		if (dp[i].dp_typ == DOSPTYP_386BSD &&
+		    (dp[i].dp_flag & 0x80 || sl < BASE_SLICE)) {
+		    sl = BASE_SLICE + i;
+		    if (dp[i].dp_flag & 0x80 ||
+			dsk.slice == COMPATIBILITY_SLICE)
+			break;
+		}
+	    if (dsk.slice == WHOLE_DISK_SLICE)
+		dsk.slice = sl;
+	}
 	if (sl != WHOLE_DISK_SLICE) {
-	    if (drvread(sec, DOSBBSECTOR, 1))
-		return -1;
-	    dp = (void *)(sec + DOSPARTOFF);
-	    if (sl == COMPATIBILITY_SLICE)
-		for (i = 0; i < NDOSPART; i++)
-		    if (dp[i].dp_typ == DOSPTYP_386BSD &&
-			(dp[i].dp_flag & 0x80 ||
-			 sl == COMPATIBILITY_SLICE))
-			sl = BASE_SLICE + i;
 	    if (sl != COMPATIBILITY_SLICE)
 		dp += sl - BASE_SLICE;
 	    if (dp->dp_typ != DOSPTYP_386BSD) {
@@ -521,17 +528,17 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	    }
 	    dsk.start = dp->dp_start;
 	}
-        if (drvread(sec, dsk.start + LABELSECTOR, 1))
+	if (drvread(sec, dsk.start + LABELSECTOR, 1))
 		return -1;
 	d = (void *)(sec + LABELOFFSET);
 	if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
 	    if (dsk.part != RAW_PART) {
-	        printf("Invalid %s\n", "label");
-	        return -1;
+		printf("Invalid %s\n", "label");
+		return -1;
 	    }
 	} else {
 	    if (!dsk.init) {
-	        if (d->d_type == DTYPE_SCSI)
+		if (d->d_type == DTYPE_SCSI)
 		    dsk.type = MAJ_DA;
 		dsk.init++;
 	    }
