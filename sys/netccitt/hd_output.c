@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_output.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hd_output.c,v 1.2 1994/08/02 07:47:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,39 @@
  *      by the input and control routines of the HDLC layer.
  */
 
+void
+hd_start (hdp)
+register struct hdcb *hdp;
+{
+	register struct mbuf *m;
+
+	/* 
+	 * The iframe is only transmitted if all these conditions are FALSE.
+	 * The iframe remains queued (hdp->hd_txq) however and will be
+	 * transmitted as soon as these conditions are cleared.
+	 */
+
+	while (!(hdp->hd_condition & (TIMER_RECOVERY_CONDITION | REMOTE_RNR_CONDITION | REJ_CONDITION))) {
+		if (hdp->hd_vs == (hdp->hd_lastrxnr + hdp->hd_xcp->xc_lwsize) % MODULUS) {
+
+			/* We have now exceeded the  maximum  number  of 
+			   outstanding iframes. Therefore,  we must wait 
+			   until  at least  one is acknowledged if this 
+			   condition  is not  turned off before we are
+			   requested to write another iframe. */
+			hdp->hd_window_condition++;
+			break;
+		}
+
+		/* hd_remove top iframe from transmit queue. */
+		if ((m = hd_remove (&hdp->hd_txq)) == NULL)
+			break;
+
+		hd_send_iframe (hdp, m, POLLOFF);
+	}
+}
+
+void
 hd_output (hdp, m0)
 register struct hdcb *hdp;
 struct mbuf *m0;
@@ -100,37 +133,6 @@ struct mbuf *m0;
 	hd_start (hdp);
 }
 
-hd_start (hdp)
-register struct hdcb *hdp;
-{
-	register struct mbuf *m;
-
-	/* 
-	 * The iframe is only transmitted if all these conditions are FALSE.
-	 * The iframe remains queued (hdp->hd_txq) however and will be
-	 * transmitted as soon as these conditions are cleared.
-	 */
-
-	while (!(hdp->hd_condition & (TIMER_RECOVERY_CONDITION | REMOTE_RNR_CONDITION | REJ_CONDITION))) {
-		if (hdp->hd_vs == (hdp->hd_lastrxnr + hdp->hd_xcp->xc_lwsize) % MODULUS) {
-
-			/* We have now exceeded the  maximum  number  of 
-			   outstanding iframes. Therefore,  we must wait 
-			   until  at least  one is acknowledged if this 
-			   condition  is not  turned off before we are
-			   requested to write another iframe. */
-			hdp->hd_window_condition++;
-			break;
-		}
-
-		/* hd_remove top iframe from transmit queue. */
-		if ((m = hd_remove (&hdp->hd_txq)) == NULL)
-			break;
-
-		hd_send_iframe (hdp, m, POLLOFF);
-	}
-}
-
 /* 
  *  This procedure is passed a buffer descriptor for an iframe. It builds
  *  the rest of the control part of the frame and then writes it out.  It
@@ -141,6 +143,7 @@ register struct hdcb *hdp;
  *       of old frames is required.
  */
 
+void
 hd_send_iframe (hdp, buf, poll_bit)
 register struct hdcb *hdp;
 register struct mbuf *buf;
@@ -192,6 +195,7 @@ int poll_bit;
 	SET_TIMER (hdp);
 }
 
+void
 hd_ifoutput(hdp, m)
 register struct mbuf *m;
 register struct hdcb *hdp;
@@ -222,6 +226,7 @@ register struct hdcb *hdp;
  *  received an acknowledgement for a iframe.
  */
 
+void
 hd_resend_iframe (hdp)
 register struct hdcb *hdp;
 {
