@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.29 1997/04/14 23:48:17 brian Exp $
+.\" $Id: ppp.8,v 1.30 1997/04/21 01:01:56 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1032,7 +1032,7 @@ ISPs.
 
 .Nm
 is able to generate the following log info into
-.Pa /var/log/ppp.log :
+.Pa /var/log/ppp.tun0.log :
 
 .Bl -column SMMMMMM -offset indent -compat
 .It Li Phase	Phase transition log output
@@ -1110,7 +1110,7 @@ A file to check when
 .Nm
 establishes a network level connection.
 
-.Pa /var/log/ppp.log
+.Pa /var/log/ppp.tun0.log
 Logging and debugging information file.
 
 .Pa /var/spool/lock/Lck..* 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.7 1997/02/22 16:10:26 peter Exp $
+ * $Id: log.c,v 1.8 1997/03/13 14:53:53 brian Exp $
  *
  */
 #include "defs.h"
@@ -42,7 +42,7 @@
 static FILE *logfile;
 #endif
 static char logbuff[2000];
-static char *logptr;
+char *logptr;
 static struct mbuf *logtop;
 static struct mbuf *lognext;
 static int  logcnt;
@@ -62,12 +62,16 @@ ListLog()
 }
 
 int
-LogOpen()
+LogOpen(tunno)
+int tunno;
 {
 #ifdef USELOGFILE
-  logfile = fopen(LOGFILE, "a");
+  char buf[80];
+
+  sprintf(buf, LOGFILE,	tunno);
+  logfile = fopen(buf, "a");
   if (logfile == NULL) {
-    fprintf(stderr, "can't open %s.\r\n", LOGFILE);
+    fprintf(stderr, "can't open	%s.\r\n", buf);
     return(1);
   }
 #endif
@@ -122,6 +126,7 @@ LogClose()
 #ifdef USELOGFILE
   fclose(logfile);
 #endif
+  logptr = NULL;
 }
 
 #ifdef NO_VSPRINTF
@@ -285,12 +290,14 @@ void
 LogReOpen( sig )
 int sig;
 {
-  FILE *nlogfile;
-
 #ifdef USELOGFILE
-  nlogfile = fopen(LOGFILE, "a");
+  FILE *nlogfile;
+  char buf[80];
+
+  sprintf(buf, LOGFILE,	tunno);
+  nlogfile = fopen(buf,	"a");
   if (nlogfile == NULL) {
-    LogPrintf(~0,"can't re-open %s.\r\n", LOGFILE);
+    LogPrintf(~0,"can't	re-open	%s.\r\n", buf);
   }
   else {
     LogPrintf(~0,"log file closed due to signal %d.\r\n",sig);
