@@ -157,11 +157,9 @@ struct wi_softc	{
 	struct wi_sigcache	wi_sigcache[MAXWICACHE];
 	int			wi_nextitem;
 #endif
-#ifdef WI_HOSTAP
 	struct wihap_info	wi_hostap_info;
 	u_int32_t		wi_icv;
 	int			wi_icv_flag;
-#endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
 	int			wi_nic_type;
