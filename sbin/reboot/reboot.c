@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 	}
 
 	if (kflag) {
-		fd = open("/boot/nextkernel", O_WRONLY | O_CREAT, 0444);
+		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT, 0444);
 		if (fd > -1) {
 			(void)write(fd, "kernel=\"", 8L);
 			(void)write(fd, kernel, strlen(kernel));
