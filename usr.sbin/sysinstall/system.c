@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.14 1995/05/18 09:02:02 jkh Exp $
+ * $Id: system.c,v 1.15 1995/05/18 15:29:46 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -244,6 +244,7 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    setterm(color);
 	    init_acs();
 	    cbreak(); noecho();
+	    dialog_clear();
 	}
 	else {
 	    setenv("TERM", mono, 1);
@@ -252,6 +253,7 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    setterm(mono);
 	    init_acs();
 	    cbreak(); noecho();
+	    dialog_clear();
 	}
     }
 }
