@@ -515,9 +515,9 @@ raidctlioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 			    (caddr_t) specific_buf,
 			    k_cfg->layoutSpecificSize);
 			if (retcode) {
-				RF_Free(k_cfg, sizeof(RF_Config_t));
 				RF_Free(specific_buf, 
 					k_cfg->layoutSpecificSize);
+				RF_Free(k_cfg, sizeof(RF_Config_t));
 				rf_printf(2, "raidctlioctl: retcode=%d "
 					"copyin.2\n", retcode);
 				return (retcode);
