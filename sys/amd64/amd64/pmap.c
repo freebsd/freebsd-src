@@ -196,13 +196,11 @@ int pmap_pagedaemon_waken;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
-static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
  */
-static pt_entry_t *pt_crashdumpmap;
 static caddr_t crashdumpmap;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
@@ -441,7 +439,7 @@ pmap_bootstrap(firstaddr)
 	vm_paddr_t *firstaddr;
 {
 	vm_offset_t va;
-	pt_entry_t *pte;
+	pt_entry_t *pte, *unused;
 
 	avail_start = *firstaddr;
 
@@ -493,14 +491,12 @@ pmap_bootstrap(firstaddr)
 	/*
 	 * Crashdump maps.
 	 */
-	SYSMAP(caddr_t, pt_crashdumpmap, crashdumpmap, MAXDUMPPGS);
+	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
 
 	/*
 	 * msgbufp is used to map the system message buffer.
-	 * XXX msgbufmap is not used.
 	 */
-	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
-	       atop(round_page(MSGBUF_SIZE)))
+	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
 
 	virtual_avail = va;
 

@@ -216,17 +216,15 @@ int pmap_pagedaemon_waken;
  * All those kernel PT submaps that BSD is so fond of
  */
 pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP2, *CMAP3, *ptmmap;
+static pt_entry_t *CMAP2, *CMAP3;
 caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2, CADDR3;
 static struct mtx CMAPCADDR12_lock;
-static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp = 0;
 
 /*
  * Crashdump maps.
  */
-static pt_entry_t *pt_crashdumpmap;
 static caddr_t crashdumpmap;
 
 #ifdef SMP
@@ -308,7 +306,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_paddr_t loadaddr;
 {
 	vm_offset_t va;
-	pt_entry_t *pte;
+	pt_entry_t *pte, *unused;
 	int i;
 
 	/*
@@ -368,20 +366,17 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/*
 	 * Crashdump maps.
 	 */
-	SYSMAP(caddr_t, pt_crashdumpmap, crashdumpmap, MAXDUMPPGS);
+	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
 
 	/*
 	 * ptvmmap is used for reading arbitrary physical pages via /dev/mem.
-	 * XXX ptmmap is not used.
 	 */
-	SYSMAP(caddr_t, ptmmap, ptvmmap, 1)
+	SYSMAP(caddr_t, unused, ptvmmap, 1)
 
 	/*
 	 * msgbufp is used to map the system message buffer.
-	 * XXX msgbufmap is not used.
 	 */
-	SYSMAP(struct msgbuf *, msgbufmap, msgbufp,
-	       atop(round_page(MSGBUF_SIZE)))
+	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
 
 	/*
 	 * ptemap is used for pmap_pte_quick
