@@ -275,7 +275,10 @@ memguard_unguard(void *addr, int numpgs)
  * vsetmgfifo() sets a reference in an underlying page for the specified
  * virtual address to an appropriate memguard_fifo_pool.
  *
- * These routines are very similar to those defined by UMA in uma_int.h
+ * These routines are very similar to those defined by UMA in uma_int.h.
+ * The difference is that these routines store the mgfifo in one of the
+ * page's fields that is unused when the page is wired rather than the
+ * object field, which is used.
  */
 static struct memguard_fifo *
 vtomgfifo(vm_offset_t va)
@@ -284,14 +287,9 @@ vtomgfifo(vm_offset_t va)
 	struct memguard_fifo *mgfifo;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	mgfifo = (struct memguard_fifo *)p->object;
-
-	/*
-	 * We use PG_SLAB, just like UMA does, even though we stash a
-	 * reference to a memguard_fifo, and not a slab.
-	 */
-	if ((p->flags & PG_SLAB) == 0)
-		panic("MEMGUARD: Expected memguard_fifo reference to be set!");
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page in vtomgfifo!"));
+	mgfifo = (struct memguard_fifo *)p->pageq.tqe_next;
 	return mgfifo;
 }
 
@@ -301,12 +299,9 @@ vsetmgfifo(vm_offset_t va, struct memguard_fifo *mgfifo)
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = (vm_object_t)mgfifo;
-	/*
-	 * We use PG_SLAB, just like UMA does, even though we stash a reference
-	 * to a memguard_fifo, and not a slab.
-	 */
-	p->flags |= PG_SLAB;
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page in vsetmgfifo!"));
+	p->pageq.tqe_next = (vm_page_t)mgfifo;
 }
 
 static void vclrmgfifo(vm_offset_t va)
@@ -314,6 +309,7 @@ static void vclrmgfifo(vm_offset_t va)
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = NULL;
-	p->flags &= ~PG_SLAB;
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page in vclrmgfifo!"));
+	p->pageq.tqe_next = NULL;
 }
