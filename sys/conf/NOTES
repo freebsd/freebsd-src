@@ -403,9 +403,9 @@ options 	COMPILING_LINT
 options 	UCONSOLE
 
 # XXX - this doesn't belong here either
-options 	USERCONFIG		#boot -c editor
-options 	INTRO_USERCONFIG	#imply -c and show intro screen
-options 	VISUAL_USERCONFIG	#visual boot -c editor
+#options 	USERCONFIG		#boot -c editor
+#options 	INTRO_USERCONFIG	#imply -c and show intro screen
+#options 	VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
 # NETWORKING OPTIONS
