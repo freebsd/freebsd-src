@@ -8,7 +8,7 @@
 BEGIN \
 {
   state = 0;
-  first = 0;
+  first = -1;
   ind = 0;
 }
 
