@@ -161,6 +161,11 @@ upgrade_checks:
 	if ! make -m ${.CURDIR}/share/mk -Dnotdef test >/dev/null 2>&1; then \
 		make make; \
 	fi
+	@cd ${.CURDIR}; \
+	if make -V .CURDIR:C/.// 2>&1 >/dev/null | \
+	    grep -q "Unknown modifier 'C'"; then \
+		make make; \
+	fi
 
 #
 # A simple test target used as part of the test to see if make supports
