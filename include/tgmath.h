@@ -57,14 +57,15 @@
 #define	__tg_type3(e1, e2, e3, t)					\
 	(__tg_type(e1, t) || __tg_type(e2, t) || __tg_type(e3, t))
 #define	__tg_type_corr(e1, e2, e3, t)					\
-	(__tg_type3(e1, e2, e3, t) || __tg_type3(e1, e2, e3, t complex))
+	(__tg_type3(e1, e2, e3, t) || __tg_type3(e1, e2, e3, t _Complex))
 #define	__tg_integer(e1, e2, e3)					\
 	(((__typeof__(e1))1.5 == 1) || ((__typeof__(e2))1.5 == 1) ||	\
 	    ((__typeof__(e3))1.5 == 1))
 #define	__tg_is_complex(e1, e2, e3)					\
-	(__tg_type3(e1, e2, e3, float complex) ||			\
-	    __tg_type3(e1, e2, e3, double complex) ||			\
-	    __tg_type3(e1, e2, e3, long double complex))
+	(__tg_type3(e1, e2, e3, float _Complex) ||			\
+	    __tg_type3(e1, e2, e3, double _Complex) ||			\
+	    __tg_type3(e1, e2, e3, long double _Complex)) ||		\
+	    __tg_type3(e1, e2, e3, __typeof__(_Complex_I))
 
 #define	__tg_impl_simple(x, y, z, fn, fnf, fnl, ...)			\
 	__builtin_choose_expr(__tg_type_corr(x, y, z, long double),	\
@@ -143,7 +144,7 @@
 #define	logb(x)		__tg_simple(x, logb)
 #define	lrint(x)	__tg_simple(x, lrint)
 #define	lround(x)	__tg_simple(x, lround)
-#define	nextbyint(x)	__tg_simple(x, nextbyint)
+#define	nearbyint(x)	__tg_simple(x, nearbyint)
 #define	nextafter(x, y)	__tg_simple2(x, y, nextafter)
 #define	nexttoward(x, y) __tg_simplev(x, nexttoward, x, y)
 #define	remainder(x, y)	__tg_simple2(x, y, remainder)
