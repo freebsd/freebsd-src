@@ -1,8 +1,8 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.2.2.10 2002/12/07 20:28:56 ue Exp $
-basiert auf: 1.1.2.12
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.2.2.11 2003/02/17 06:59:02 ue Exp $
+basiert auf: 1.1.2.13
 
 install.sgml
 
@@ -884,18 +884,15 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
             l&ouml;schen, indem Sie auf die Gr&ouml;&szlig;e der
             Partition achten).</para>
 
-          <para><application>FIPS</application> kann die FAT32 und
-            VFAT Partitionen, die von neueren Version von Windows 95
-            benutzt werden, nicht bearbeiten.  F&uuml;r diese
-            Partitionen brauchen Sie ein kommerzielles Programm wie
-            <application>Partition Magic</application>.</para>
-<!--
-Was soll mir denn das sagen???? ue
-Sorry, but this is just the breaks if you've got a Windows partition
-hogging your whole disk and you don't want to reinstall from
-scratch.</para>
--->
-        </answer>
+	  <para><application>FIPS</application> kann nicht f&uuml;r
+	    NTFS Partitionen benutzt werden.  F&uuml;r diese
+	    Partitionen brauchen Sie ein kommerzielles Programm wie
+	    <application>Partition Magic</application>.  Es mag zwar
+	    hart klingen, aber das ist halt der Preis, den Sie zahlen
+	    n&uuml;ssen, wenn eine Windows Partition Ihre gesamte
+	    Festplatte belegt und Sie nicht alles neu installieren
+	    wollen.</para>
+	</answer>
       </qandaentry>
 
       <qandaentry>
