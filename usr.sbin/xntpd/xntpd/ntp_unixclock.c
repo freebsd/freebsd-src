@@ -40,6 +40,12 @@
 #undef hz
 #endif /* RS6000 */
 
+#ifdef HAVE_SYSCTL
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#endif
+
 extern int debug;
 /*
  * These routines (init_systime, get_systime, step_systime, adj_systime)
@@ -176,6 +182,27 @@ init_systime()
 	L_CLR(&sys_clock_offset);
 }
 
+#if defined(HAVE_SYSCTL) && defined(KERN_CLOCKRATE)
+static void
+clock_parms(tickadj, tick)
+	u_long *tickadj;
+	u_long *tick;
+{
+	int mib[2];
+	size_t len;
+	struct clockinfo x;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_CLOCKRATE;
+	len = sizeof(x);
+	if (sysctl(mib, 2, &x, &len, NULL, 0) == -1) {
+		syslog(LOG_NOTICE, "sysctl(KERN_CLOCKRATE) failed: %m");
+		exit(3);
+	}
+	*tickadj = x.tickadj;
+	*tick = x.tick;
+}
+#else
 #ifdef HAVE_LIBKVM
 /*
  * clock_parms - return the local clock tickadj and tick parameters
@@ -604,3 +631,4 @@ clock_parms(tickadj, tick)
   *tick    = (u_long)txc.tick;
 }
 #endif /* SYS_LINUX */
+#endif
