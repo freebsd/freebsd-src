@@ -119,7 +119,7 @@ This can happen normally when host hardware addresses change,
 or when a mobile node arrives or leaves the local subnet.
 It can also indicate a problem with proxy ARP.
 This message can only be issued if the sysctl
-.Dv net.link.ether.inet.log_arp_movements
+.Va net.link.ether.inet.log_arp_movements
 is set to 1, which is the system's default behaviour.
 .Pp
 .Em "arpresolve: can't allocate llinfo for %d.%d.%d.%d" :
@@ -135,7 +135,7 @@ It can also occur if an entry already exists in the ARP cache for the IP
 address above, and the cable has been disconnected from if0, then reconnected
 to if1.
 This message can only be issued if the sysctl
-.Dv net.link.ether.inet.log_arp_wrong_iface
+.Va net.link.ether.inet.log_arp_wrong_iface
 is set to 1, which is the system's default behaviour.
 .Sh SEE ALSO
 .Xr inet 4 ,
