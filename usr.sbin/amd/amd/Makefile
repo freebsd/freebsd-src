@@ -7,7 +7,7 @@ SRCS=	afs_ops.c am_ops.c clock.c util.c xutil.c \
 	efs_ops.c mapc.c info_file.c info_hes.c \
 	info_ndbm.c info_passwd.c info_nis.c \
 	info_union.c map.c srvr_afs.c srvr_nfs.c \
-	mntfs.c misc_rpc.c mount_fs.c mount_xdr.c \
+	mntfs.c misc_rpc.c mount.h mount_fs.c mount_xdr.c \
 	mtab.c mtab_bsd.c nfs_ops.c nfs_prot.h nfs_prot_svc.c \
 	nfs_start.c nfs_subr.c nfs_prot_xdr.c opts.c \
 	pfs_ops.c rpc_fwd.c sched.c sfs_ops.c amq_svc.c \
@@ -31,12 +31,10 @@ NFS_PROT_X= ${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 vers.${PROG}.c: ${SRCS:.c=.o}
 	@d=${.CURDIR}/ sh ${.CURDIR}/../config/newvers.sh ${PROG} ${MACHINE} ${OS}
 
-afs_ops.o host_ops.o nfs_ops.o srvr_nfs.o: mount.h
-
 mount.h: ${MOUNT_X}
 	${RPCCOM} -h -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
-mount_xdr.c: mount.h ${MOUNT_X}
+mount_xdr.c: ${MOUNT_X}
 	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
 nfs_prot.h: ${NFS_PROT_X}
