@@ -841,8 +841,8 @@ pr_pack(buf, cc, from, tv)
 #else
 			tp = (struct timeval *)icp->icmp_data;
 #endif
-			/* Avoid unaligned data: */
-			memcpy(&tv1,tp,sizeof(tv1));
+			/* Avoid unaligned data (cannot use memcpy) */
+			bcopy(tp, &tv1, sizeof(tv1));
 			tvsub(tv, &tv1);
  			triptime = ((double)tv->tv_sec) * 1000.0 +
  			    ((double)tv->tv_usec) / 1000.0;
