@@ -48,7 +48,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
@@ -220,7 +220,7 @@ USB_ATTACH(ulpt)
 
 #if 0
 /*
- * This code is disabled because for some mysterious it causes
+ * This code is disabled because for some mysterious reason it causes
  * printing not to work.  But only sometimes, and mostly with
  * UHCI and less often with OHCI.  *sigh*
  */
