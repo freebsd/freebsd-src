@@ -377,7 +377,10 @@ pmap_init(phys_start, phys_end)
 void
 pmap_init2()
 {
-	pv_entry_max = PMAP_SHPGPERPROC * maxproc + vm_page_array_size;
+	int shpgperproc = PMAP_SHPGPERPROC;
+
+	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
+	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
 }
