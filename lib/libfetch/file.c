@@ -24,9 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -51,7 +52,7 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
     if (f == NULL)
 	_fetch_syserr();
 
-    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+    if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 	fclose(f);
 	_fetch_syserr();
     }
@@ -78,7 +79,7 @@ fetchPutFile(struct url *u, const char *flags)
     if (f == NULL)
 	_fetch_syserr();
     
-    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+    if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 	fclose(f);
 	_fetch_syserr();
     }
@@ -104,20 +105,20 @@ _fetch_stat_file(const char *fn, struct url_stat *us)
 }
 
 int
-fetchStatFile(struct url *u, struct url_stat *us, const char *flags)
+fetchStatFile(struct url *u, struct url_stat *us, const char *flags __unused)
 {
     return _fetch_stat_file(u->doc, us);
 }
 
 struct url_ent *
-fetchListFile(struct url *u, const char *flags)
+fetchListFile(struct url *u, const char *flags __unused)
 {
     DIR *dir;
     struct dirent *de;
     struct url_stat us;
     struct url_ent *ue;
     int size, len;
-    char fn[MAXPATHLEN], *p;
+    char fn[PATH_MAX], *p;
     int l;
 
     if ((dir = opendir(u->doc)) == NULL) {

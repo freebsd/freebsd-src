@@ -55,7 +55,7 @@ struct url_stat {
 };
 
 struct url_ent {
-    char	 name[MAXPATHLEN];
+    char	 name[PATH_MAX];
     struct url_stat stat;
 };
 
@@ -125,11 +125,18 @@ struct url	*fetchMakeURL(const char *, const char *, int,
 struct url	*fetchParseURL(const char *);
 void		 fetchFreeURL(struct url *);
 
+/* Authentication */
+typedef int (*auth_t)(struct url *);
+extern auth_t	 fetchAuthMethod;
+
 /* Last error code */
 extern int	 fetchLastErrCode;
 #define MAXERRSTRING 256
 extern char	 fetchLastErrString[MAXERRSTRING];
 extern int	 fetchTimeout;
 extern int	 fetchRestartCalls;
+
+/* Extra verbosity */
+extern int	 fetchDebug;
 
 #endif

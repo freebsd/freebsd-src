@@ -24,9 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -343,9 +344,12 @@ _fetch_putln(int fd, const char *str, size_t len)
     iov[0].iov_len = len;
     iov[1].iov_base = (char *)ENDL;
     iov[1].iov_len = sizeof ENDL;
+    len += sizeof ENDL;
     wlen = writev(fd, iov, 2);
+    if (wlen < 0 || (size_t)wlen != len)
+	return -1;
     DEBUG(fprintf(stderr, "\033[1m>>> %s\n\033[m", str));
-    return (wlen != len);
+    return 0;
 }
 
 
@@ -353,7 +357,7 @@ _fetch_putln(int fd, const char *str, size_t len)
 
 int
 _fetch_add_entry(struct url_ent **p, int *size, int *len,
-		 const char *name, struct url_stat *stat)
+		 const char *name, struct url_stat *us)
 {
     struct url_ent *tmp;
 
@@ -381,8 +385,8 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
     }
 
     tmp = *p + *len;
-    snprintf(tmp->name, MAXPATHLEN, "%s", name);
-    bcopy(stat, &tmp->stat, sizeof *stat);
+    snprintf(tmp->name, PATH_MAX, "%s", name);
+    bcopy(us, &tmp->stat, sizeof *us);
 
     (*len)++;
     (++tmp)->name[0] = 0;

@@ -24,9 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -39,11 +40,12 @@
 #include "fetch.h"
 #include "common.h"
 
-
+auth_t	 fetchAuthMethod;
 int	 fetchLastErrCode;
 char	 fetchLastErrString[MAXERRSTRING];
 int	 fetchTimeout;
 int	 fetchRestartCalls = 1;
+int	 fetchDebug;
 
 
 /*** Local data **************************************************************/
@@ -307,7 +309,7 @@ fetchParseURL(const char *URL)
 
     /* scheme name */
     if ((p = strstr(URL, ":/"))) {
-	snprintf(u->scheme, URL_SCHEMELEN+1, "%.*s", p - URL, URL);
+	snprintf(u->scheme, URL_SCHEMELEN+1, "%.*s", (int)(p - URL), URL);
 	URL = ++p;
 	/*
 	 * Only one slash: no host, leave slash as part of document
@@ -318,7 +320,9 @@ fetchParseURL(const char *URL)
     } else {
 	p = URL;
     }
-    if (!*URL || *URL == '/')
+    if (!*URL || *URL == '/' || *URL == '.' ||
+	(u->scheme[0] == '\0' &&
+    	    strchr(URL, '/') == NULL && strchr(URL, ':') == NULL))
 	goto nohost;
 
     p = strpbrk(URL, "/@");
@@ -335,8 +339,10 @@ fetchParseURL(const char *URL)
 		    u->pwd[i++] = *q;
 	
 	p++;
-    } else p = URL;
-    
+    } else {
+	p = URL;
+    }
+
     /* hostname */
 #ifdef INET6
     if (*p == '[' && (q = strchr(p + 1, ']')) != NULL &&
