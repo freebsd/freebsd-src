@@ -91,6 +91,8 @@ int	 klogin __P((struct passwd *, char *, char *, char *));
 extern void login __P((struct utmp *));
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
+#define	DEFAULT_RETRIES	3
+#define	DEFAULT_BACKOFF	10
 
 /*
  * This bounds the time given to login.  Not a define so it can
@@ -108,7 +110,7 @@ int	authok;
 
 struct	passwd *pwd;
 int	failures;
-char	term[64], *envinit[1], *hostname, *username, *tty;
+char	*term, *envinit[1], *hostname, *username, *tty;
 
 int
 main(argc, argv)
@@ -308,9 +310,15 @@ main(argc, argv)
 		if (authok == 0)
 #endif
 		if (pwd && !rval && rootlogin && !rootterm(tty)) {
+			/*
+			 * Fall through to standard failure message
+			 * and standard backoff behaviour
+			 */
+			#if 0
 			(void)fprintf(stderr,
 			    "%s login refused on this terminal.\n",
 			    pwd->pw_name);
+			#endif
 			if (hostname)
 				syslog(LOG_NOTICE,
 				    "LOGIN %s REFUSED FROM %s ON TTY %s",
@@ -319,17 +327,17 @@ main(argc, argv)
 				syslog(LOG_NOTICE,
 				    "LOGIN %s REFUSED ON TTY %s",
 				     pwd->pw_name, tty);
+			#if 0
 			continue;
-		}
-
-		if (pwd && !rval)
+			#endif
+		} else  if (pwd && !rval)
 			break;
 
 		(void)printf("Login incorrect\n");
 		failures++;
 		/* we allow 10 tries, but after 3 we start backing off */
-		if (++cnt > 3) {
-			if (cnt >= 10) {
+		if (++cnt > DEFAULT_BACKOFF) {
+			if (cnt >= DEFAULT_RETRIES) {
 				badlogin(username);
 				sleepexit(1);
 			}
@@ -404,13 +412,14 @@ main(argc, argv)
 	if (*pwd->pw_shell == '\0')
 		pwd->pw_shell = _PATH_BSHELL;
 
+	term = getenv("TERM");
 	/* Destroy environment unless user has requested its preservation. */
 	if (!pflag)
 		environ = envinit;
 	(void)setenv("HOME", pwd->pw_dir, 1);
 	(void)setenv("SHELL", pwd->pw_shell, 1);
-	if (term[0] == '\0')
-		(void)strncpy(term, stypeof(tty), sizeof(term));
+	if (term == NULL || *term == '\0')
+		term = stypeof(tty);
 	(void)setenv("TERM", term, 0);
 	(void)setenv("LOGNAME", pwd->pw_name, 1);
 	(void)setenv("USER", pwd->pw_name, 1);
