@@ -56,7 +56,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <machine/cpu.h>
-#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <i386/linux/linux.h>
