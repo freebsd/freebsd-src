@@ -103,6 +103,7 @@
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <ctype.h>
@@ -142,8 +143,9 @@ int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
 /* local function declarations */
 static void usage(void);
 static void phdr(int signo);
-static void devstats(int perf_select);
+static void devstats(int perf_select,double etime, int havelast);
 static void cpustats(void);
+static void getsysctl(const char *, void *, size_t);
 
 static void
 usage(void)
@@ -170,7 +172,7 @@ main(int argc, char **argv)
 	struct devstat_match *matches;
 	int num_matches = 0;
         char errbuf[_POSIX2_LINE_MAX];
-	kvm_t	 *kd;
+	kvm_t *kd = NULL;
 	int hz, stathz;
 	int headercount;
 	long generation;
@@ -179,6 +181,8 @@ main(int argc, char **argv)
 	long select_generation;
 	char **specified_devices;
 	devstat_select_mode select_mode;
+	int use_kvm, havelast = 0;
+	struct clockinfo clkinfo;
 
 	matches = NULL;
 	maxshowdevs = 3;
@@ -224,8 +228,8 @@ main(int argc, char **argv)
 				break;
 			case 't':
 				tflag++;
-				if (buildmatch(optarg, &matches, 
-					       &num_matches) != 0)
+				if (devstat_buildmatch(optarg, &matches, 
+						       &num_matches) != 0)
 					errx(1, "%s", devstat_errbuf);
 				break;
 			case 'T':
@@ -247,19 +251,32 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (nlistf != NULL || memf != NULL)
-		setgid(getgid());
+	if (nlistf == NULL && memf == NULL) {
+		use_kvm = 0;
+		getsysctl("kern.clockrate", &clkinfo, sizeof(clkinfo));
+		hz = clkinfo.hz;
+	} else {
+		use_kvm = 1;
+		kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+		
+		if (kd == 0)
+			errx(1, "kvm_openfiles: %s", errbuf);
+		
+		if (kvm_nlist(kd, namelist) == -1)
+			errx(1, "kvm_nlist: %s", kvm_geterr(kd));
+
+		(void)nlread(X_HZ, hz);
+		(void)nlread(X_STATHZ, stathz);
+		if (stathz)
+			hz = stathz;
+	}
 
 	/*
 	 * Make sure that the userland devstat version matches the kernel
 	 * devstat version.  If not, exit and print a message informing 
 	 * the user of his mistake.
 	 */
-	if (checkversion() < 0)
+	if (devstat_checkversion(kd) < 0)
 		errx(1, "%s", devstat_errbuf);
 
 	/*
@@ -282,7 +299,7 @@ main(int argc, char **argv)
 	}
 
 	/* find out how many devices we have */
-	if ((num_devices = getnumdevs()) < 0)
+	if ((num_devices = devstat_getnumdevs(kd)) < 0)
 		err(1, "can't get number of devices");
 
 	if ((cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo))) ==
@@ -299,7 +316,7 @@ main(int argc, char **argv)
 	 * changed here, since it almost certainly has.  We only look for
 	 * errors.
 	 */
-	if (getdevs(&cur) == -1)
+	if (devstat_getdevs(kd, &cur) == -1)
 		errx(1, "%s", devstat_errbuf);
 
 	num_devices = cur.dinfo->numdevs;
@@ -336,12 +353,12 @@ main(int argc, char **argv)
 	 * device list has changed, so we don't look for return values of 0
 	 * or 1.  If we get back -1, though, there is an error.
 	 */
-	if (selectdevs(&dev_select, &num_selected,
-		       &num_selections, &select_generation,
-		       generation, cur.dinfo->devices, num_devices,
-		       matches, num_matches,
-		       specified_devices, num_devices_specified,
-		       select_mode, maxshowdevs, hflag) == -1)
+	if (devstat_selectdevs(&dev_select, &num_selected,
+			       &num_selections, &select_generation, generation,
+			       cur.dinfo->devices, num_devices, matches,
+			       num_matches, specified_devices,
+			       num_devices_specified, select_mode, maxshowdevs,
+			       hflag) == -1)
 		errx(1, "%s", devstat_errbuf);
 
 	/*
@@ -382,19 +399,6 @@ main(int argc, char **argv)
 	if ((wflag > 0) && (cflag == 0))
 		count = -1;
 
-	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-
-	if (kd == 0)
-		errx(1, "kvm_openfiles: %s", errbuf);
-
-	if (kvm_nlist(kd, namelist) == -1)
-		errx(1, "kvm_nlist: %s", kvm_geterr(kd));
-
-	(void)nlread(X_HZ, hz);
-	(void)nlread(X_STATHZ, stathz);
-	if (stathz)
-		hz = stathz;
-
 	/*
 	 * If the user stops the program (control-Z) and then resumes it,
 	 * print out the header again.
@@ -410,12 +414,21 @@ main(int argc, char **argv)
 			phdr(0);
 			headercount = 20;
 		}
-		(void)kvm_read(kd, namelist[X_TK_NIN].n_value,
-		    &cur.tk_nin, sizeof(cur.tk_nin));
-		(void)kvm_read(kd, namelist[X_TK_NOUT].n_value,
-		    &cur.tk_nout, sizeof(cur.tk_nout));
-		(void)kvm_read(kd, namelist[X_CP_TIME].n_value,
-		    cur.cp_time, sizeof(cur.cp_time));
+		if (use_kvm) {
+			(void)kvm_read(kd, namelist[X_TK_NIN].n_value,
+			    &cur.tk_nin, sizeof(cur.tk_nin));
+			(void)kvm_read(kd, namelist[X_TK_NOUT].n_value,
+			    &cur.tk_nout, sizeof(cur.tk_nout));
+			(void)kvm_read(kd, namelist[X_CP_TIME].n_value,
+			    cur.cp_time, sizeof(cur.cp_time));
+		} else {
+			getsysctl("kern.tty_nin", &cur.tk_nin,
+			    sizeof(cur.tk_nin));
+			getsysctl("kern.tty_nout", &cur.tk_nout,
+			    sizeof(cur.tk_nout));
+			getsysctl("kern.cp_time", &cur.cp_time,
+			    sizeof(cur.cp_time));
+		}
 
 		tmp_dinfo = last.dinfo;
 		last.dinfo = cur.dinfo;
@@ -425,12 +438,12 @@ main(int argc, char **argv)
 
 		/*
 		 * Here what we want to do is refresh our device stats.
-		 * getdevs() returns 1 when the device list has changed.
+		 * devstat_getdevs() returns 1 when the device list has changed.
 		 * If the device list has changed, we want to go through
 		 * the selection process again, in case a device that we
 		 * were previously displaying has gone away.
 		 */
-		switch (getdevs(&cur)) {
+		switch (devstat_getdevs(kd, &cur)) {
 		case -1:
 			errx(1, "%s", devstat_errbuf);
 			break;
@@ -439,13 +452,17 @@ main(int argc, char **argv)
 
 			num_devices = cur.dinfo->numdevs;
 			generation = cur.dinfo->generation;
-			retval = selectdevs(&dev_select, &num_selected,
-					    &num_selections, &select_generation,
-					    generation, cur.dinfo->devices,
-					    num_devices, matches, num_matches,
-					    specified_devices,
-					    num_devices_specified,
-					    select_mode, maxshowdevs, hflag);
+			retval = devstat_selectdevs(&dev_select, &num_selected,
+						    &num_selections,
+						    &select_generation,
+						    generation,
+						    cur.dinfo->devices,
+						    num_devices, matches,
+						    num_matches,
+						    specified_devices,
+						    num_devices_specified,
+						    select_mode, maxshowdevs,
+						    hflag);
 			switch(retval) {
 			case -1:
 				errx(1, "%s", devstat_errbuf);
@@ -470,13 +487,17 @@ main(int argc, char **argv)
 		 */
 		if (hflag > 0) {
 			int retval;
-			retval = selectdevs(&dev_select, &num_selected,
-					    &num_selections, &select_generation,
-					    generation, cur.dinfo->devices,
-					    num_devices, matches, num_matches,
-					    specified_devices,
-					    num_devices_specified,
-					    select_mode, maxshowdevs, hflag);
+			retval = devstat_selectdevs(&dev_select, &num_selected,
+						    &num_selections,
+						    &select_generation,
+						    generation,
+						    cur.dinfo->devices,
+						    num_devices, matches,
+						    num_matches,
+						    specified_devices,
+						    num_devices_specified,
+						    select_mode, maxshowdevs,
+						    hflag);
 			switch(retval) {
 			case -1:
 				errx(1,"%s", devstat_errbuf);
@@ -505,13 +526,13 @@ main(int argc, char **argv)
 			X(cp_time);
 			etime += cur.cp_time[i];
 		}
+		etime /= (float)hz;
 		if (etime == 0.0)
 			etime = 1.0;
-		etime /= (float)hz;
 		if ((dflag == 0) || (Tflag > 0))
 			printf("%4.0f%5.0f", cur.tk_nin / etime, 
 				cur.tk_nout/etime);
-		devstats(hflag);
+		devstats(hflag, etime, havelast);
 		if ((dflag == 0) || (Cflag > 0))
 			cpustats();
 		printf("\n");
@@ -521,6 +542,7 @@ main(int argc, char **argv)
 			break;
 
 		sleep(waittime);
+		havelast = 1;
 	}
 
 	exit(0);
@@ -583,7 +605,7 @@ phdr(int signo)
 }
 
 static void
-devstats(int perf_select)
+devstats(int perf_select, double etime, int havelast)
 {
 	register int dn;
 	long double transfers_per_second;
@@ -597,7 +619,11 @@ devstats(int perf_select)
 	 * Calculate elapsed time up front, since it's the same for all
 	 * devices.
 	 */
-	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
+	if (havelast)
+		busy_seconds = devstat_compute_etime(cur.busy_time,
+						     last.busy_time);
+	else
+		busy_seconds = etime;
 
 	for (dn = 0; dn < num_devices; dn++) {
 		int di;
@@ -608,12 +634,17 @@ devstats(int perf_select)
 
 		di = dev_select[dn].position;
 
-		if (compute_stats(&cur.dinfo->devices[di],
-				  &last.dinfo->devices[di], busy_seconds,
-				  &total_bytes, &total_transfers,
-				  &total_blocks, &kb_per_transfer,
-				  &transfers_per_second, &mb_per_second, 
-				  &blocks_per_second, &ms_per_transaction)!= 0)
+		if (devstat_compute_statistics(&cur.dinfo->devices[di],
+		    havelast ? &last.dinfo->devices[di] : NULL, busy_seconds,
+		    DSM_TOTAL_BYTES, &total_bytes,
+		    DSM_TOTAL_TRANSFERS, &total_transfers,
+		    DSM_TOTAL_BLOCKS, &total_blocks,
+		    DSM_KB_PER_TRANSFER, &kb_per_transfer,
+		    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+		    DSM_MB_PER_SECOND, &mb_per_second, 
+		    DSM_BLOCKS_PER_SECOND, &blocks_per_second,
+		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
+		    DSM_NONE) != 0)
 			errx(1, "%s", devstat_errbuf);
 
 		if (perf_select != 0) {
@@ -676,4 +707,16 @@ cpustats(void)
 	for (state = 0; state < CPUSTATES; ++state)
 		printf("%3.0f",
 		       100. * cur.cp_time[state] / (time ? time : 1));
+}
+
+static void
+getsysctl(const char *name, void *ptr, size_t len)
+{
+	size_t nlen = len;
+	
+	if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1)
+		err(1, "sysctl(%s...) failed", name);
+	if (nlen != len)
+		errx(1, "sysctl(%s...): expected %lu, got %lu", name,
+		     (unsigned long)len, (unsigned long)nlen);
 }
