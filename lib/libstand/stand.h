@@ -65,6 +65,7 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/stat.h>
+#include <sys/dirent.h>
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args); getchar();}
@@ -109,6 +110,7 @@ struct fs_ops {
 			    size_t size, size_t *resid);
     off_t	(*fo_seek)(struct open_file *f, off_t offset, int where);
     int		(*fo_stat)(struct open_file *f, struct stat *sb);
+    int		(*fo_readdir)(struct open_file *f, struct dirent *d);
 };
 
 /*
@@ -120,6 +122,7 @@ extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
 extern struct fs_ops zipfs_fsops;
 extern struct fs_ops dosfs_fsops;
+extern struct fs_ops ext2fs_fsops;
 
 /* where values for lseek(2) */
 #define	SEEK_SET	0	/* set file offset to offset */
@@ -138,7 +141,13 @@ struct devsw {
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
     void	(*dv_print)(int verbose);	/* print device information */
+    void	(*dv_cleanup)();
 };
+
+/*
+ * libstand-supplied device switch
+ */
+extern struct devsw netdev;
 
 extern int errno;
 
@@ -220,6 +229,7 @@ extern ssize_t	read(int, void *, size_t);
 extern ssize_t	write(int, void *, size_t);
 extern off_t	lseek(int, off_t, int);
 extern int	stat(const char *, struct stat *);
+extern struct	dirent *readdirfd(int);
 
 extern void	srandom(u_long seed);
 extern u_long	random(void);
@@ -311,6 +321,8 @@ extern int	null_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 extern int	null_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 extern off_t	null_seek(struct open_file *f, off_t offset, int where);
 extern int	null_stat(struct open_file *f, struct stat *sb);
+extern int	null_readdir(struct open_file *f, struct dirent *d);
+
 
 /* 
  * Machine dependent functions and data, must be provided or stubbed by 
