@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.122 1995/04/22 03:58:46 wpaul Exp $
+ *	$Id: machdep.c,v 1.123 1995/05/11 00:12:54 wollman Exp $
  */
 
 #include "npx.h"
@@ -403,7 +403,6 @@ setup_netisrs(struct linker_set *ls)
 
 	for(i = 0; ls->ls_items[i]; i++) {
 		nit = (const struct netisrtab *)ls->ls_items[i];
-		printf("setup_netisrs %d\n", nit->nit_num);
 		netisrs[nit->nit_num] = nit->nit_isr;
 	}
 }
