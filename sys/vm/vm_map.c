@@ -80,6 +80,7 @@
 #include <sys/resourcevar.h>
 #include <sys/sysent.h>
 #include <sys/stdint.h>
+#include <sys/shm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -284,6 +285,13 @@ static __inline void
 vmspace_dofree(struct vmspace *vm)
 {
 	CTR1(KTR_VM, "vmspace_free: %p", vm);
+
+	/*
+	 * Make sure any SysV shm is freed, it might not have been in
+	 * exit1().
+	 */
+	shmexit(vm);
+
 	/*
 	 * Lock the map, to wait out all other references to it.
 	 * Delete all of the mappings and pages they hold, then call
