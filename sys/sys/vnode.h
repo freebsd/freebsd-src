@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.31 1996/03/03 18:51:33 peter Exp $
+ * $Id: vnode.h,v 1.32 1996/03/29 06:39:39 davidg Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -229,6 +229,7 @@ void	vhold __P((struct vnode *));
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
+extern	int extravnodes;		/* extra vnodes to allocate at boot */
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
