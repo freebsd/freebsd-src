@@ -80,9 +80,10 @@ struct my_item {
 .Ed
 .Pp
 Alternatively they should assume those entries corrupted
-after each allocation. After the first allocation of an item,
-it will have been cleared to zeroes, however subsequent allocations 
-will retain the contents as of the last free, with the exception of the 
+after each allocation.
+After the first allocation of an item,
+it will have been cleared to zeroes, however subsequent allocations
+will retain the contents as of the last free, with the exception of the
 fields mentioned above.
 .Pp
 Zones are created in one of two fashions, depending how far along the
