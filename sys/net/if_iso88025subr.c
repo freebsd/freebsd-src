@@ -408,6 +408,10 @@ iso88025_input(struct ifnet *ifp, struct iso88025_header *th, struct mbuf *m)
 		break;
 
 	case ETHERTYPE_ARP:
+		if (ifp->if_flags & IFF_NOARP) {
+			m_freem(m);
+			return;
+		}
 		schednetisr(NETISR_ARP);
 		inq = &arpintrq;
                 break;
