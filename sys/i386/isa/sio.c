@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.216 1998/10/22 05:58:40 bde Exp $
+ *	$Id: sio.c,v 1.217 1998/11/22 09:41:12 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2037,11 +2037,9 @@ comparam(tp, t)
 	int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
-	int		error;
 	Port_t		iobase;
 	int		s;
 	int		unit;
-	int		txtimeout;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
@@ -2107,53 +2105,7 @@ comparam(tp, t)
 		outb(iobase + com_fifo, com->fifo_image);
 	}
 
-	/*
-	 * Some UARTs lock up if the divisor latch registers are selected
-	 * while the UART is doing output (they refuse to transmit anything
-	 * more until given a hard reset).  Fix this by stopping filling
-	 * the device buffers and waiting for them to drain.  Reading the
-	 * line status port outside of siointr1() might lose an output
-	 * interrupt, but this will be fixed by (re)starting output.
-	 */
-	disable_intr();
-retry:
-	com->state &= ~CS_TTGO;
-	txtimeout = tp->t_timeout;
-	enable_intr();
-	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
-	       != (LSR_TSRE | LSR_TXRDY)) {
-		tp->t_state |= TS_SO_OCOMPLETE;
-		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
-				 "siotx", hz / 100);
-		if (   txtimeout != 0
-		    && (!error || error	== EAGAIN)
-		    && (txtimeout -= hz	/ 100) <= 0
-		   )
-			error = EIO;
-		if (com->gone)
-			error = ENODEV;
-		if (error != 0 && error != EAGAIN) {
-			if (!(tp->t_state & TS_TTSTOP)) {
-				disable_intr();
-				com->state |= CS_TTGO;
-				enable_intr();
-			}
-			splx(s);
-			return (error);
-		}
-	}
-
 	disable_intr();		/* very important while com_data is hidden */
-
-	/*
-	 * XXX - clearing CS_TTGO is not sufficient to stop further output,
-	 * because siopoll() calls comstart() which usually sets it again
-	 * because TS_TTSTOP is clear.  Setting TS_TTSTOP would not be
-	 * sufficient, for similar reasons.
-	 */
-	if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
-	    != (LSR_TSRE | LSR_TXRDY))
-		goto retry;
 
 	if (divisor != 0) {
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
@@ -2346,7 +2298,6 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
@@ -2362,7 +2313,6 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
