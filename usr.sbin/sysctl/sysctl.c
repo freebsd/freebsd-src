@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
+#if 0
+static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
+#endif
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.10 1996/04/10 00:53:22 smpatel Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -48,12 +50,13 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <err.h>
+#include <unistd.h>
 
 static int	Aflag, aflag, nflag, wflag, Xflag, bflag;
 
@@ -67,20 +70,17 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage:\n%s",
-	    "\tsysctl [-bnX] variable ...\n"
-	    "\tsysctl [-bnX] -w variable=value ...\n"
-	    "\tsysctl [-bnX] -a\n"
-	    "\tsysctl [-bnX] -A\n"
-		);
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: sysctl [-bnX] variable ...",
+		"       sysctl [-bnX] -w variable=value ...",
+		"       sysctl [-bnX] -a",
+		"       sysctl [-bnX] -A");
 	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind;
 	int ch;
 	setbuf(stdout,0);
 	setbuf(stderr,0);
@@ -127,10 +127,8 @@ parse(char *string)
 	bufp = buf;
 	snprintf(buf, BUFSIZ, "%s", string);
 	if ((cp = strchr(string, '=')) != NULL) {
-		if (!wflag) {
-			fprintf(stderr, "Must specify -w to set variables\n");
-			exit(2);
-		}
+		if (!wflag)
+			errx(2, "must specify -w to set variables");
 		*strchr(buf, '=') = '\0';
 		*cp++ = '\0';
 		while (isspace(*cp))
@@ -144,10 +142,10 @@ parse(char *string)
 	len = name2oid(bufp, mib);
 
 	if (len < 0) 
-		errx(1, "Unknown oid '%s'", bufp);
+		errx(1, "unknown oid '%s'", bufp);
 
 	if (oidfmt(mib, len, 0, &kind))
-		err(1, "Couldn't find format of oid '%s'", bufp);
+		err(1, "couldn't find format of oid '%s'", bufp);
 
 	if (!wflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -190,16 +188,16 @@ parse(char *string)
 				putchar('\n');
 			switch (errno) {
 			case EOPNOTSUPP:
-				errx(1, "%s: value is not available\n", 
+				errx(1, "%s: value is not available", 
 					string);
 			case ENOTDIR:
-				errx(1, "%s: specification is incomplete\n", 
+				errx(1, "%s: specification is incomplete", 
 					string);
 			case ENOMEM:
-				errx(1, "%s: type is unknown to this program\n", 
+				errx(1, "%s: type is unknown to this program", 
 					string);
 			default:
-				perror(string);
+				warn("%s", string);
 				return;
 			}
 		}
@@ -221,7 +219,7 @@ S_clockinfo(int l2, void *p)
 {
 	struct clockinfo *ci = (struct clockinfo*)p;
 	if (l2 != sizeof *ci)
-		err(-1, "S_clockinfo %d != %d", l2, sizeof *ci);
+		err(1, "S_clockinfo %d != %d", l2, sizeof *ci);
 	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
 		ci->hz, ci->tick, ci->profhz, ci->stathz);
 	return (0);
@@ -233,7 +231,7 @@ S_loadavg(int l2, void *p)
 	struct loadavg *tv = (struct loadavg*)p;
 
 	if (l2 != sizeof *tv)
-		err(-1, "S_loadavg %d != %d", l2, sizeof *tv);
+		err(1, "S_loadavg %d != %d", l2, sizeof *tv);
 
 	printf("{ %.2f %.2f %.2f }",
 		(double)tv->ldavg[0]/(double)tv->fscale,
@@ -249,7 +247,7 @@ S_timeval(int l2, void *p)
 	char *p1, *p2;
 
 	if (l2 != sizeof *tv)
-		err(-1, "S_timeval %d != %d", l2, sizeof *tv);
+		err(1, "S_timeval %d != %d", l2, sizeof *tv);
 	printf("{ sec = %ld, usec = %ld } ",
 		tv->tv_sec, tv->tv_usec);
 	p1 = strdup(ctime(&tv->tv_sec));
@@ -265,7 +263,7 @@ T_dev_t(int l2, void *p)
 {
 	dev_t *d = (dev_t *)p;
 	if (l2 != sizeof *d)
-		err(-1, "T_dev_T %d != %d", l2, sizeof *d);
+		err(1, "T_dev_T %d != %d", l2, sizeof *d);
 	printf("{ major = %d, minor = %d }",
 		major(*d), minor(*d));
 	return (0);
@@ -311,7 +309,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 	j = sizeof buf;
 	i = sysctl(qoid, len + 2, buf, &j, 0, 0);
 	if (i)
-		err(-1, "sysctl fmt %d %d %d", i, j, errno);
+		err(1, "sysctl fmt %d %d %d", i, j, errno);
 
 	if (kind)
 		*kind = *(u_int *)buf;
@@ -362,7 +360,7 @@ show_var(int *oid, int nlen)
 	j = sizeof buf;
 	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
 	if (i || !j)
-		err(-1, "sysctl fmt %d %d %d", i, j, errno);
+		err(1, "sysctl fmt %d %d %d", i, j, errno);
 
 	kind = *(u_int *)buf;
 
@@ -372,7 +370,7 @@ show_var(int *oid, int nlen)
 	j = sizeof name;
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
-		err(-1, "sysctl name %d %d %d", i, j, errno);
+		err(1, "sysctl name %d %d %d", i, j, errno);
 
 	p = val;
 	switch (*fmt) {
@@ -442,7 +440,7 @@ sysctl_all (int *oid, int len)
 			if (errno == ENOENT)
 				return 0;
 			else
-				err(-1, "sysctl(getnext) %d %d", j, l2);
+				err(1, "sysctl(getnext) %d %d", j, l2);
 
 		l2 /= sizeof (int);
 

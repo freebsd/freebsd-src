@@ -32,23 +32,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pathconf.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id: pathconf.c,v 1.3 1997/10/20 12:53:53 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define PC_NAMES { \
 	{ 0, 0 }, \
@@ -75,13 +81,16 @@ struct list pclist = { pcnames, PC_MAXID };
 
 int	Aflag, aflag, nflag, wflag, stdinflag;
 
+int findname __P((char *, char *, char**, struct list *));
+void listall __P((char *, struct list *));
+void parse __P((char *, char *, int));
+static void usage __P((void));
+
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	char *path;
 	int ch;
 
@@ -127,6 +136,7 @@ main(argc, argv)
 /*
  * List all variables known to the system.
  */
+void
 listall(path, lp)
 	char *path;
 	struct list *lp;
@@ -146,6 +156,7 @@ listall(path, lp)
  * Parse a name into an index.
  * Lookup and print out the attribute if it exists.
  */
+void
 parse(pathname, string, flags)
 	char *pathname;
 	char *string;
@@ -159,7 +170,7 @@ parse(pathname, string, flags)
 	if ((indx = findname(string, "top", &bufp, &pclist)) == -1)
 		return;
 	if (bufp) {
-		fprintf(stderr, "name %s in %s is unknown\n", *bufp, string);
+		warnx("name %s in %s is unknown", *bufp, string);
 		return;
 	}
 	if (stdinflag)
@@ -171,18 +182,16 @@ parse(pathname, string, flags)
 			return;
 		switch (errno) {
 		case EOPNOTSUPP:
-			fprintf(stderr, "%s: value is not available\n", string);
+			warnx("%s: value is not available", string);
 			return;
 		case ENOTDIR:
-			fprintf(stderr, "%s: specification is incomplete\n",
-			    string);
+			warnx("%s: specification is incomplete", string);
 			return;
 		case ENOMEM:
-			fprintf(stderr, "%s: type is unknown to this program\n",
-			    string);
+			warnx("%s: type is unknown to this program", string);
 			return;
 		default:
-			perror(string);
+			warn("%s", string);
 			return;
 		}
 	}
@@ -194,6 +203,7 @@ parse(pathname, string, flags)
 /*
  * Scan a list of names searching for a particular name.
  */
+int
 findname(string, level, bufp, namelist)
 	char *string;
 	char *level;
@@ -204,7 +214,7 @@ findname(string, level, bufp, namelist)
 	int i;
 
 	if (namelist->list == 0 || (name = strsep(bufp, ".")) == NULL) {
-		fprintf(stderr, "%s: incomplete specification\n", string);
+		warnx("%s: incomplete specification", string);
 		return (-1);
 	}
 	for (i = 0; i < namelist->size; i++)
@@ -212,18 +222,19 @@ findname(string, level, bufp, namelist)
 		    strcmp(name, namelist->list[i].ctl_name) == 0)
 			break;
 	if (i == namelist->size) {
-		fprintf(stderr, "%s level name %s in %s is invalid\n",
-		    level, name, string);
+		warnx("%s level name %s in %s is invalid", level, name, string);
 		return (-1);
 	}
 	return (i);
 }
 
+static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n",
-	    "pathname [-n] variable ...",
-	    "pathname [-n] -a", "pathname [-n] -A");
+	(void)fprintf(stderr, "%s\n%s\n%s\n",
+		"usage: pathname [-n] variable ...",
+		"       pathname [-n] -a",
+		"       pathname [-n] -A");
 	exit(1);
 }
