@@ -394,23 +394,19 @@ struct kevent_args {
 int
 kevent(struct thread *td, struct kevent_args *uap)
 {
-	struct filedesc *fdp;
 	struct kevent *kevp;
 	struct kqueue *kq;
-	struct file *fp = NULL;
+	struct file *fp;
 	struct timespec ts;
 	int i, n, nerrors, error;
 
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
-        if (((u_int)uap->fd) >= fdp->fd_nfiles ||
-            (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
-	    (fp->f_type != DTYPE_KQUEUE)) {
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		goto done;
+	if (fp->f_type != DTYPE_KQUEUE) {
 		error = EBADF;
 		goto done;
 	}
-	fhold(fp);
-
 	if (uap->timeout != NULL) {
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
