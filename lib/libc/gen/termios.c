@@ -83,13 +83,7 @@ tcsetattr(fd, opt, t)
 }
 
 int
-#if __STDC__
 tcsetpgrp(int fd, pid_t pgrp)
-#else
-tcsetpgrp(fd, pgrp)
-	int fd;
-	pid_t pgrp;
-#endif
 {
 	int s;
 

@@ -42,25 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include <limits.h>
 #include <stdio.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include "local.h"
 
-#if __STDC__
 int
 snprintf(char *str, size_t n, char const *fmt, ...)
-#else
-int
-snprintf(str, n, fmt, va_alist)
-	char *str;
-	size_t n;
-	char *fmt;
-	va_dcl
-#endif
 {
 	size_t on;
 	int ret;
@@ -72,11 +59,7 @@ snprintf(str, n, fmt, va_alist)
 		n--;
 	if (n > INT_MAX)
 		n = INT_MAX;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;

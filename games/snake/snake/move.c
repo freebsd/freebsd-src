@@ -96,11 +96,7 @@ static const char rcsid[] =
  ******************************************************************************/
 
 #include <errno.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <string.h>
 #include <termcap.h>
 #include <unistd.h>
@@ -399,46 +395,25 @@ pch(c)
 }
 
 void
-#if __STDC__
 apr(struct point *ps, const char *fmt, ...)
-#else
-apr(ps, fmt, va_alist)
-	struct point *ps;
-	char *fmt;
-	va_dcl
-#endif
 {
 	struct point p;
 	va_list ap;
 
 	p.line = ps->line+1; p.col = ps->col+1;
 	move(&p);
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsprintf(str, fmt, ap);
 	va_end(ap);
 	pstring(str);
 }
 
 void
-#if __STDC__
 pr(const char *fmt, ...)
-#else
-pr(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void)vsprintf(str, fmt, ap);
 	va_end(ap);
 	pstring(str);

@@ -77,12 +77,7 @@ struct sgttyb orig, new;
 struct ltchars olttyc, nlttyc;
 #endif
 struct point *point();
-#if __STDC__
 void	apr(struct point *, const char *, ...) __printflike(2, 3);
 void	pr(const char *, ...) __printflike(1, 2);
-#else
-void	apr();
-void	pr();
-#endif
 
 #define	same(s1, s2)	((s1)->line == (s2)->line && (s1)->col == (s2)->col)

@@ -212,18 +212,8 @@ _nsdbtput(dbt)
 
 
 int
-#if __STDC__
 nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	    const char *method, const ns_src defaults[], ...)
-#else
-nsdispatch(retval, disp_tab, database, method, defaults, va_alist)
-	void		*retval;
-	const ns_dtab	 disp_tab[];
-	const char	*database;
-	const char	*method;
-	const ns_src	 defaults[];
-	va_dcl
-#endif
 {
 	va_list		 ap;
 	int		 i, curdisp, result;
@@ -250,11 +240,7 @@ nsdispatch(retval, disp_tab, database, method, defaults, va_alist)
 				break;
 		result = 0;
 		if (disp_tab[curdisp].callback) {
-#if __STDC__
 			va_start(ap, defaults);
-#else
-			va_start(ap);
-#endif
 			result = disp_tab[curdisp].callback(retval,
 			    disp_tab[curdisp].cb_data, ap);
 			va_end(ap);

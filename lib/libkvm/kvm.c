@@ -81,11 +81,7 @@ kvm_geterr(kd)
 	return (kd->errbuf);
 }
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 /*
  * Report an error using printf style arguments.  "program" is kd->program
@@ -94,22 +90,11 @@ kvm_geterr(kd)
  * generate tons of error messages when trying to access bogus pointers).
  */
 void
-#if __STDC__
 _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
-#else
-_kvm_err(kd, program, fmt, va_alist)
-	kvm_t *kd;
-	char *program, *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
-#ifdef __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (program != NULL) {
 		(void)fprintf(stderr, "%s: ", program);
 		(void)vfprintf(stderr, fmt, ap);
@@ -122,23 +107,12 @@ _kvm_err(kd, program, fmt, va_alist)
 }
 
 void
-#if __STDC__
 _kvm_syserr(kvm_t *kd, const char *program, const char *fmt, ...)
-#else
-_kvm_syserr(kd, program, fmt, va_alist)
-	kvm_t *kd;
-	char *program, *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 	int n;
 
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	if (program != NULL) {
 		(void)fprintf(stderr, "%s: ", program);
 		(void)vfprintf(stderr, fmt, ap);

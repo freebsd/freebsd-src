@@ -40,12 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-#ifdef __STDC__
 setrgid(gid_t rgid)
-#else
-setrgid(rgid)
-	int rgid;
-#endif
 {
 
 	return (setregid(rgid, -1));

@@ -45,13 +45,7 @@ __FBSDID("$FreeBSD$");
  * Backwards-compatible killpg().
  */
 int
-#if __STDC__
 killpg(pid_t pgid, int sig)
-#else
-killpg(pgid, sig)
-	pid_t pgid;
-	int sig;
-#endif
 {
 	if (pgid == 1) {
 		errno = ESRCH;

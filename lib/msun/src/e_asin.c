@@ -48,11 +48,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
 huge =  1.000e+300,
 pio2_hi =  1.57079632679489655800e+00, /* 0x3FF921FB, 0x54442D18 */
@@ -70,12 +66,8 @@ qS2 =  2.02094576023350569471e+00, /* 0x40002AE5, 0x9C598AC8 */
 qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
-#ifdef __STDC__
-	double __generic___ieee754_asin(double x)
-#else
-	double __generic___ieee754_asin(x)
-	double x;
-#endif
+double
+__generic___ieee754_asin(double x)
 {
 	double t=0.0,w,p,q,c,r,s;
 	int32_t hx,ix;

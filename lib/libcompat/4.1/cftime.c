@@ -39,14 +39,7 @@
 #define MAXLEN 1000		/* just a guess, only the user knows... */
 
 int
-#if __STDC__
 cftime(char *s, char *format, const time_t *clock)
-#else
-cftime(s, format, clock)
-     char *s;
-     char *format;
-     time_t *clock;
-#endif
 {
 	return strftime(s, MAXLEN, format? format: "%C", localtime(clock));
 }

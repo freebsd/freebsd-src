@@ -35,24 +35,11 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double one = 1.0, huge = 1e300;
-#else
-static double one = 1.0, huge = 1e300;
-#endif
-
-#ifdef __STDC__
 static const double zero = 0.0;
-#else
-static double zero = 0.0;
-#endif
 
-#ifdef __STDC__
-	double __ieee754_atanh(double x)
-#else
-	double __ieee754_atanh(x)
-	double x;
-#endif
+double
+__ieee754_atanh(double x)
 {
 	double t;
 	int32_t hx,ix;

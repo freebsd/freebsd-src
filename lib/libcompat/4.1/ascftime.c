@@ -39,14 +39,7 @@
 #define MAXLEN 1000		/* just a guess, only the user knows... */
 
 int
-#if __STDC__
 ascftime(char *s, const char *format, const struct tm *tmptr)
-#else
-ascftime(s, format, tmptr)
-     char *s;
-     char *format;
-     struct tm *tmptr;
-#endif
 {
 	return strftime(s, MAXLEN, format? format: "%C", tmptr);
 }

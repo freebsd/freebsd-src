@@ -24,12 +24,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
-	double __ieee754_gamma_r(double x, int *signgamp)
-#else
-	double __ieee754_gamma_r(x,signgamp)
-	double x; int *signgamp;
-#endif
+double
+__ieee754_gamma_r(double x, int *signgamp)
 {
 	return __ieee754_lgamma_r(x,signgamp);
 }
