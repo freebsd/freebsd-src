@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.21 1995/12/17 21:12:13 phk Exp $
+ * $Id: nfs_bio.c,v 1.22 1996/01/24 18:52:18 mpp Exp $
  */
 
 #include <sys/param.h>
@@ -250,6 +250,7 @@ again:
 			return (EINTR);
 		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_flags |= B_READ;
+			bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
 			not_readin = 0;
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
