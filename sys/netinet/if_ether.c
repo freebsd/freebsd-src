@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.31 1996/06/13 02:54:19 davidg Exp $
+ * $Id: if_ether.c,v 1.32 1996/06/20 22:53:08 fenner Exp $
  */
 
 /*
@@ -218,10 +218,12 @@ arp_rtrequest(req, rt, sa)
 			ETHER_MAP_IP_MULTICAST(&SIN(rt_key(rt))->sin_addr,
 					       LLADDR(SDL(gate)));
 			SDL(gate)->sdl_alen = 6;
+			rt->rt_expire = 0;
 		}
 		if (in_broadcast(SIN(rt_key(rt))->sin_addr, rt->rt_ifp)) {
 			memcpy(LLADDR(SDL(gate)), etherbroadcastaddr, 6);
 			SDL(gate)->sdl_alen = 6;
+			rt->rt_expire = 0;
 		}
 
 		if (SIN(rt_key(rt))->sin_addr.s_addr ==
