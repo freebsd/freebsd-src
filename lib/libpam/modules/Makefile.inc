@@ -9,6 +9,7 @@ SHLIB_NAME?=	${LIB}.so.${SHLIB_MAJOR}
 CFLAGS+=	-I${PAMDIR}/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 WARNS?=		4
+NO_WERROR=	yes
 
 # This is nasty.
 # For the static case, libpam.a depends on the modules.
