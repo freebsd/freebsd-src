@@ -33,7 +33,7 @@
 #ifndef lint
 static char ocopyright[] =
 "$FreeBSD$\n"
-"$Id: dhclient.c,v 1.129.2.18 2004/06/10 17:59:12 dhankins Exp $ Copyright (c) 2004 Internet Systems Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.129.2.19 2004/07/10 00:11:16 dhankins Exp $ Copyright (c) 2004 Internet Systems Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
