@@ -53,6 +53,7 @@ static volatile int workers_stop = 0;
 static double max_random_sleep = 1.0;
 static char **randwords;
 static size_t nrandwords;
+static const struct addrinfo *hints, hintipv4only = { .ai_family = AF_INET };
 
 /*
  * We don't have good random(3)-type functions that are thread-safe,
@@ -89,13 +90,20 @@ randomsleep(double max_sleep_sec)
  * Start looking up arbitrary hostnames and record the successes/failures.
  * Between lookups, sleep a random amount of time to make sure threads
  * stay well out of synchronization.
+ *
+ * Host name:	part		probability
+ *		----		-----------
+ *		www.		1/2
+ *		random word	always, equal
+ *		random word	1/3, equal
+ *		.(net|com|org)	equal
  */
 static void *
 work(void *arg)
 {
 	struct worker *w = arg;
 
-	/* Turn off domain name list searching. */
+	/* Turn off domain name list searching as much as possible. */
 	if (_res.options & RES_INIT || res_init() == 0)
 		_res.options &= ~RES_DNSRCH;
 	do {
@@ -115,7 +123,7 @@ work(void *arg)
 		    suffixes[my_arc4random_r() % nsuffixes]) == -1)
 			continue;
 		(void)clock_gettime(CLOCK_REALTIME, &ts_begintime);
-		error = getaddrinfo(hostname, NULL, NULL, &res);
+		error = getaddrinfo(hostname, NULL, hints, &res);
 		(void)clock_gettime(CLOCK_REALTIME, &ts_total);
 		ts_total.tv_sec -= ts_begintime.tv_sec;
 		ts_total.tv_nsec -= ts_begintime.tv_nsec;
@@ -188,8 +196,11 @@ main(int argc, char **argv) {
 	printf("%s: threaded stress-tester for getaddrinfo(3)\n",
 	    getprogname());
 	printf("(c) 2004 Brian Feldman <green@FreeBSD.org>\n");
-	while ((ch = getopt(argc, argv, "s:t:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "4s:t:w:")) != -1) {
 		switch (ch) {
+		case '4':
+			hints = &hintipv4only;
+			break;
 		case 's':
 			max_random_sleep = strtod(optarg, &send);
 			if (*send != '\0')
@@ -205,8 +216,8 @@ main(int argc, char **argv) {
 			break;
 		default:
 usage:
-			fprintf(stderr, "usage: %s [-s sleep] [-t threads] "
-			    "[-w wordfile]\n", getprogname());
+			fprintf(stderr, "usage: %s [-4] [-s sleep] "
+			    "[-t threads] [-w wordfile]\n", getprogname());
 			exit(2);
 		}
 	}
