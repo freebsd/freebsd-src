@@ -478,7 +478,7 @@ ArchStatMember (archive, member, hash)
     Arch	  *ar;	      /* Archive descriptor */
     Hash_Entry	  *he;	      /* Entry containing member's description */
     struct ar_hdr arh;        /* archive-member header for reading archive */
-    char	  memName[MAXPATHLEN+1];
+    char	  memName[MAXPATHLEN];
     	    	    	    /* Current member name while hashing. */
 
     /*
@@ -760,7 +760,7 @@ ArchSVR4Entry(ar, name, size, arch)
     }
 
     (void) strncpy(name, &ar->fnametab[entry], MAXPATHLEN);
-    name[MAXPATHLEN] = '\0';
+    name[MAXPATHLEN - 1] = '\0';
     return 1;
 }
 #endif
