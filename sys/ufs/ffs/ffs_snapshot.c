@@ -1759,9 +1759,9 @@ ffs_copyonwrite(devvp, bp)
 	struct thread *td = curthread;
 	struct fs *fs;
 	struct inode *ip;
-	struct vnode *vp;
+	struct vnode *vp = 0;
 	ufs2_daddr_t lbn, blkno;
-	int lower, upper, mid, indiroff, error = 0;
+	int lower, upper, mid, indiroff, snapshot_locked = 0, error = 0;
 
 	if (td->td_proc->p_flag & P_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
@@ -1769,8 +1769,6 @@ ffs_copyonwrite(devvp, bp)
 	ip = TAILQ_FIRST(snaphead);
 	fs = ip->i_fs;
 	lbn = fragstoblks(fs, dbtofsb(fs, bp->b_blkno));
-	vp = ITOV(ip);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	TAILQ_FOREACH(ip, snaphead, i_nextsnap) {
 		vp = ITOV(ip);
 		/*
@@ -1781,6 +1779,7 @@ ffs_copyonwrite(devvp, bp)
 		 */
 		if (bp->b_vp == vp)
 			continue;
+	retry:
 		/*
 		 * First check to see if it is in the preallocated list.
 		 * By doing this check we avoid several potential deadlocks.
@@ -1799,10 +1798,10 @@ ffs_copyonwrite(devvp, bp)
 		if (lower <= upper)
 			continue;
 		/*
-		 * Check to see if block needs to be copied. Because
-		 * all snapshots on a filesystem share a single lock,
-		 * we ensure that we will never be in competition with
-		 * another process to allocate a block.
+		 * Check to see if block needs to be copied. We do not have
+		 * to hold the snapshot lock while doing this lookup as it
+		 * will never require any additional allocations for the
+		 * snapshot inode.
 		 */
 		if (lbn < NDADDR) {
 			blkno = DIP(ip, i_db[lbn]);
@@ -1827,10 +1826,19 @@ ffs_copyonwrite(devvp, bp)
 		if (blkno != 0)
 			continue;
 		/*
-		 * Allocate the block into which to do the copy. Note that this
-		 * allocation will never require any additional allocations for
-		 * the snapshot inode.
+		 * Allocate the block into which to do the copy. Since
+		 * multiple processes may all try to copy the same block,
+		 * we have to recheck our need to do a copy if we sleep
+		 * waiting for the lock.
+		 *
+		 * Because all snapshots on a filesystem share a single
+		 * lock, we ensure that we will never be in competition
+		 * with another process to allocate a block.
 		 */
+		if (snapshot_locked == 0 &&
+		    vn_lock(vp, LK_EXCLUSIVE | LK_SLEEPFAIL, td) != 0)
+			goto retry;
+		snapshot_locked = 1;
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
@@ -1886,7 +1894,8 @@ ffs_copyonwrite(devvp, bp)
 		if (dopersistence && VTOI(vp)->i_effnlink > 0)
 			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, td);
 	}
-	VOP_UNLOCK(vp, 0, td);
+	if (snapshot_locked)
+		VOP_UNLOCK(vp, 0, td);
 	return (error);
 }
 
