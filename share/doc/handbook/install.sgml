@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.7 1995/08/25 23:51:08 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.8 1995/08/26 03:09:12 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -6,7 +6,7 @@
 -->
 <chapt><heading>Installing FreeBSD<label id="install"></heading>
 
-    <sect>MS-DOS user's Questions and Answers
+    <sect><heading>MS-DOS user's Questions and Answers</heading>
 
       <p><bf>Help!  I have no space!  Do I need to delete
 	  everything first?</bf>
@@ -63,7 +63,7 @@
 
 
 
-    <sect>Supported Configurations<label id="install:hw">
+    <sect><heading>Supported Configurations<label id="install:hw"></heading>
 
       <p>FreeBSD currently runs on a wide variety of ISA, VLB,
 	EISA and PCI bus based PC's, ranging from 386sx to
@@ -81,7 +81,7 @@
 	configurations may very well work, and we have simply not
 	received any indication of this.
 
-      <sect1>Disk Controllers
+      <sect1><heading>Disk Controllers</heading>
 
 	<p>
 	  <itemize>
@@ -171,7 +171,7 @@
 	  difficulty.
 
 
-      <sect1>Ethernet cards
+      <sect1><heading>Ethernet cards</heading>
 
 	<p>
 	  <itemize>
@@ -211,7 +211,7 @@
 	      Semiconductor are also supported.
 	  </itemize>
 
-      <sect1>Misc
+      <sect1><heading>Miscellaneous devices</heading>
 
 	<p>
 	  <itemize>
@@ -246,13 +246,13 @@
 	  materializing.  Details will be posted as the situation
 	  develops.
 
-    <sect>Preparing for the installation</heading>
+    <sect><heading>Preparing for the installation</heading>
 
       <p>There are a number of different methods by which FreeBSD
 	can be installed.  The following describes what
 	preparation needs to be done for each type.
 
-      <sect1>Before installing from CDROM
+      <sect1><heading>Before installing from CDROM</heading>
 
 	<p>If your CDROM is of an unsupported type, such as an
 	  IDE CDROM, then please skip to section 2.3: MS-DOS
@@ -297,7 +297,7 @@
 	  on a more writable media! 
 
 
-      <sect1>Before installing from Floppy</heading>
+      <sect1><heading>Before installing from Floppy</heading>
 
 	<p>If you must install from floppy disks, either due to
 	  unsupported hardware or just because you enjoy doing
@@ -339,7 +339,7 @@
 	  that.
 
 
-      <sect1>Before installing from a MS-DOS partition</heading>
+      <sect1><heading>Before installing from a MS-DOS partition</heading>
 
 	<p>To prepare for installation from an MS-DOS partition,
 	  copy the files from the distribution into a directory
@@ -371,7 +371,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	  which would copy all the subdirectories of 
           <tt>E:&bsol;DISTS</tt> to <tt>C:&bsol;FREEBSD</tt>.
 
-      <sect1>Before installing from QIC/SCSI Tape</heading>
+      <sect1><heading>Before installing from QIC/SCSI Tape</heading>
 
 	<p>Installing from tape is probably the easiest method,
 	  short of an on-line install using FTP or a CDROM
@@ -398,7 +398,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	  tape.
 
 
-<sect1>Before installing over a network</heading>
+<sect1><heading>Before installing over a network</heading>
 
       <p>You can do network installations over 3 types of
 	communications links:
@@ -462,7 +462,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	Once you have a network link of some sort working, the
 	installation can continue over NFS or FTP.
 
-	<sect2>Preparing for NFS installation
+	<sect2><heading>Preparing for NFS installation</heading>
 
 	  <p>NFS installation is fairly straight-forward: Simply
 	    copy the FreeBSD distribution files you're interested
@@ -494,7 +494,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	    properly!
 
 
-	<sect2>Preparing for FTP Installation
+	<sect2><heading>Preparing for FTP Installation</heading>
 
 	  <p>FTP installation may be done from any mirror site
 	    containing a reasonably up-to-date version of FreeBSD
@@ -521,7 +521,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	    the Options menu to select Active mode transfers.
 
 
-    <sect>Installing FreeBSD
+    <sect><heading>Installing FreeBSD</heading>
 
       <p>Once you've taken note of the appropriate
 	preinstallation steps, you should be able to install
@@ -577,7 +577,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 
 	</enum>
 
-      <sect1>The installation menu
+      <sect1><heading>The installation menu</heading>
 
 	<p>You can do anything you like in this menu without
 	  altering your system <em>except</em> for "Commit",
