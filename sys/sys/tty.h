@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.16 1995/04/01 11:58:27 ache Exp $
+ * $Id: tty.h,v 1.17 1995/04/11 17:53:14 ache Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -110,8 +110,14 @@ struct tty {
 #define	TTIPRI	25			/* Sleep priority for tty reads. */
 #define	TTOPRI	26			/* Sleep priority for tty writes. */
 
-#define	TTMASK	15
+/*
+ * User data unfortunately has to be copied through buffers on the way to
+ * and from clists.  The buffers are on the stack so their sizes must be
+ * fairly small.
+ */
+#define	IBUFSIZ	384			/* Should be >= max value of MIN. */
 #define	OBUFSIZ	100
+
 #define	TTYHOG	1024
 
 #ifdef KERNEL
@@ -216,7 +222,6 @@ int	 nullmodem __P((struct tty *tp, int flag));
 int	 tputchar __P((int c, struct tty *tp));
 int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
-int	 ttnread __P((struct tty *));
 void	 ttrstrt __P((void *tp));
 int	 ttyselect __P((struct tty *tp, int rw, struct proc *p));
 int	 ttselect __P((dev_t dev, int rw, struct proc *p));
