@@ -232,7 +232,7 @@ kernel-reinstall kernel-reinstall.debug:
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
 
-.if !defined(NO_MODULES) && exists($S/modules)
+.if !defined(MODULES_WITH_WORLD) && exists($S/modules)
 all:	modules
 depend: modules-depend
 clean:  modules-clean
