@@ -1093,6 +1093,8 @@ ginad		634/tcp
 ginad		634/udp
 ldaps		636/tcp    sldap #ldap protocol over TLS/SSL
 ldaps		636/udp    sldap
+aodv		654/tdp    #Ad-Hoc On-Demand Distance Vector Routing Protocol
+aodv		654/udp    #Ad-Hoc On-Demand Distance Vector Routing Protocol
 mdqs		666/tcp
 mdqs		666/udp
 #PROBLEMS!===============================================
