@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.26 1998/12/10 02:35:55 archie Exp $";
+	"$Id: main.c,v 1.27 1999/04/07 09:27:56 grog Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -224,7 +224,7 @@ main(argc, argv)
 static void
 usage()
 {
-		fprintf(stderr, "usage: config [-gpr] sysname\n");
+		fprintf(stderr, "usage: config [-gprs] sysname\n");
 		exit(1);
 }
 
