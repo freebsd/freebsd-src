@@ -14,7 +14,6 @@ LIBACU=${.CURDIR}/../libacu/libacu.a
 .endif
 
 PROG=	tip
-CFLAGS+=-DUSE_PERROR
 DPADD=	$(LIBACU)
 LDADD=	$(LIBACU) -lutil
 LINKS=	${BINDIR}/tip
