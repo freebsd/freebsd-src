@@ -360,8 +360,6 @@ int
 ftime_start()
 #endif
 {
-	char *pt;
-
 	if (ftab != NULL)
 		return(0);
  	if ((ftab = (FTM **)calloc(F_TAB_SZ, sizeof(FTM *))) == NULL) {
@@ -373,16 +371,14 @@ ftime_start()
 	 * get random name and create temporary scratch file, unlink name
 	 * so it will get removed on exit
 	 */
-	if ((pt = tempnam((char *)NULL, (char *)NULL)) == NULL)
-		return(-1);
-	(void)unlink(pt);
-
-	if ((ffd = open(pt, O_RDWR | O_CREAT,  S_IRWXU)) < 0) {
-		sys_warn(1, errno, "Unable to open temporary file: %s", pt);
+	memcpy(tempbase, _TFILE_BASE, sizeof(_TFILE_BASE));
+	if ((ffd = mkstemp(tempfile)) < 0) {
+		sys_warn(1, errno, "Unable to create temporary file: %s",
+		    tempfile);
 		return(-1);
 	}
+	(void)unlink(tempfile);
 
-	(void)unlink(pt);
 	return(0);
 }
 
@@ -1210,22 +1206,19 @@ int
 dir_start()
 #endif
 {
-	char *pt;
-
 	if (dirfd != -1)
 		return(0);
-	if ((pt = tempnam((char *)NULL, (char *)NULL)) == NULL)
-		return(-1);
 
 	/*
 	 * unlink the file so it goes away at termination by itself
 	 */
-	(void)unlink(pt);
-	if ((dirfd = open(pt, O_RDWR|O_CREAT, 0600)) >= 0) {
-		(void)unlink(pt);
+	memcpy(tempbase, _TFILE_BASE, sizeof(_TFILE_BASE));
+	if ((dirfd = mkstemp(tempfile)) >= 0) {
+		(void)unlink(tempfile);
 		return(0);
 	}
-	pax_warn(1, "Unable to create temporary file for directory times: %s", pt);
+	pax_warn(1, "Unable to create temporary file for directory times: %s",
+	    tempfile);
 	return(-1);
 }
 

@@ -237,3 +237,4 @@ typedef struct oplist {
 #define HEX	16
 #define OCT	8
 #define _PAX_	1
+#define _TFILE_BASE	"paxXXXXXXXXXX"
