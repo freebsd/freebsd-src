@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.151 1996/11/30 15:03:05 bde Exp $
+ *	$Id: sio.c,v 1.152 1996/11/30 15:19:19 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2123,6 +2123,10 @@ siostop(tp, rw)
 		return;
 	disable_intr();
 	if (rw & FWRITE) {
+		if (com->hasfifo)
+			/* XXX does this flush everything? */
+			outb(com->iobase + com_fifo,
+			     FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2131,13 +2135,15 @@ siostop(tp, rw)
 		com->tp->t_state &= ~TS_BUSY;
 	}
 	if (rw & FREAD) {
+		if (com->hasfifo)
+			/* XXX does this flush everything? */
+			outb(com->iobase + com_fifo,
+			     FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
 	enable_intr();
 	comstart(tp);
-
-	/* XXX should clear h/w fifos too. */
 }
 
 static struct tty *
