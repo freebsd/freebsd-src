@@ -83,6 +83,45 @@ CTASSERT(sizeof(((struct mbuf0_chunk *)NULL)->storage) >= MBUF0_SIZE);
 CTASSERT(sizeof(((struct mbuf1_chunk *)NULL)->storage) >= MBUF1_SIZE);
 CTASSERT(sizeof(struct tpd) <= HE_TPD_SIZE);
 
+static void hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group);
+
+/*
+ * Free an external mbuf to a list. We use atomic functions so that
+ * we don't need a mutex for the list.
+ */
+static __inline void
+hatm_ext_free(struct mbufx_free **list, struct mbufx_free *buf)
+{
+	for (;;) {
+		buf->link = *list;
+		if (atomic_cmpset_ptr(list, buf->link, buf))
+			break;
+	}
+}
+
+static __inline struct mbufx_free *
+hatm_ext_alloc(struct hatm_softc *sc, u_int g)
+{
+	struct mbufx_free *buf;
+
+	for (;;) {
+		if ((buf = sc->mbuf_list[g]) == NULL)
+			break;
+		if (atomic_cmpset_ptr(&sc->mbuf_list[g], buf, buf->link))
+			break;
+	}
+	if (buf == NULL) {
+		hatm_mbuf_page_alloc(sc, g);
+		for (;;) {
+			if ((buf = sc->mbuf_list[g]) == NULL)
+				break;
+			if (atomic_cmpset_ptr(&sc->mbuf_list[g], buf, buf->link))
+				break;
+		}
+	}
+	return (buf);
+}
+
 /*
  * Either the queue treshold was crossed or a TPD with the INTR bit set
  * was transmitted.
@@ -141,7 +180,6 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 	if ((pg = malloc(MBUF_ALLOC_SIZE, M_DEVBUF, M_NOWAIT)) == NULL)
 		return;
 	bzero(pg->hdr.card, sizeof(pg->hdr.card));
-	bzero(pg->hdr.used, sizeof(pg->hdr.used));
 
 	err = bus_dmamap_create(sc->mbuf_tag, 0, &pg->hdr.map);
 	if (err != 0) {
@@ -172,8 +210,8 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF0_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
-			SLIST_INSERT_HEAD(&sc->mbuf0_list,
-			    (struct mbufx_free *)c, link);
+			hatm_ext_free(&sc->mbuf_list[0],
+			    (struct mbufx_free *)c);
 		}
 	} else {
 		struct mbuf1_chunk *c;
@@ -185,8 +223,8 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF1_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
-			SLIST_INSERT_HEAD(&sc->mbuf1_list,
-			    (struct mbufx_free *)c, link);
+			hatm_ext_free(&sc->mbuf_list[1],
+			    (struct mbufx_free *)c);
 		}
 	}
 	sc->mbuf_npages++;
@@ -201,10 +239,7 @@ hatm_mbuf0_free(void *buf, void *args)
 	struct hatm_softc *sc = args;
 	struct mbuf0_chunk *c = buf;
 
-	mtx_lock(&sc->mbuf0_mtx);
-	SLIST_INSERT_HEAD(&sc->mbuf0_list, (struct mbufx_free *)c, link);
-	MBUF_CLR_BIT(sc->mbuf_pages[c->hdr.pageno]->hdr.used, c->hdr.chunkno);
-	mtx_unlock(&sc->mbuf0_mtx);
+	hatm_ext_free(&sc->mbuf_list[0], (struct mbufx_free *)c);
 }
 static void
 hatm_mbuf1_free(void *buf, void *args)
@@ -212,10 +247,7 @@ hatm_mbuf1_free(void *buf, void *args)
 	struct hatm_softc *sc = args;
 	struct mbuf1_chunk *c = buf;
 
-	mtx_lock(&sc->mbuf1_mtx);
-	SLIST_INSERT_HEAD(&sc->mbuf1_list, (struct mbufx_free *)c, link);
-	MBUF_CLR_BIT(sc->mbuf_pages[c->hdr.pageno]->hdr.used, c->hdr.chunkno);
-	mtx_unlock(&sc->mbuf1_mtx);
+	hatm_ext_free(&sc->mbuf_list[1], (struct mbufx_free *)c);
 }
 
 /*
@@ -231,19 +263,11 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 	if (group == 0) {
 		struct mbuf0_chunk *buf0;
 
-		mtx_lock(&sc->mbuf0_mtx);
-		if ((cf = SLIST_FIRST(&sc->mbuf0_list)) == NULL) {
-			hatm_mbuf_page_alloc(sc, group);
-			if ((cf = SLIST_FIRST(&sc->mbuf0_list)) == NULL) {
-				mtx_unlock(&sc->mbuf0_mtx);
-				return (-1);
-			}
-		}
-		SLIST_REMOVE_HEAD(&sc->mbuf0_list, link);
+		if ((cf = hatm_ext_alloc(sc, 0)) == NULL)
+			return (-1);
 		buf0 = (struct mbuf0_chunk *)cf;
 		pg = sc->mbuf_pages[buf0->hdr.pageno];
 		MBUF_SET_BIT(pg->hdr.card, buf0->hdr.chunkno);
-		mtx_unlock(&sc->mbuf0_mtx);
 
 		m_extadd(m, (caddr_t)buf0, MBUF0_SIZE, hatm_mbuf0_free, sc,
 		    M_PKTHDR, EXT_NET_DRV);
@@ -255,19 +279,11 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 	} else if (group == 1) {
 		struct mbuf1_chunk *buf1;
 
-		mtx_lock(&sc->mbuf1_mtx);
-		if ((cf = SLIST_FIRST(&sc->mbuf1_list)) == NULL) {
-			hatm_mbuf_page_alloc(sc, group);
-			if ((cf = SLIST_FIRST(&sc->mbuf1_list)) == NULL) {
-				mtx_unlock(&sc->mbuf1_mtx);
-				return (-1);
-			}
-		}
-		SLIST_REMOVE_HEAD(&sc->mbuf1_list, link);
+		if ((cf = hatm_ext_alloc(sc, 1)) == NULL)
+			return (-1);
 		buf1 = (struct mbuf1_chunk *)cf;
 		pg = sc->mbuf_pages[buf1->hdr.pageno];
 		MBUF_SET_BIT(pg->hdr.card, buf1->hdr.chunkno);
-		mtx_unlock(&sc->mbuf1_mtx);
 
 		m_extadd(m, (caddr_t)buf1, MBUF1_SIZE, hatm_mbuf1_free, sc,
 		    M_PKTHDR, EXT_NET_DRV);
@@ -431,7 +447,6 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 		m = c1->hdr.mbuf;
 	}
 	MBUF_CLR_BIT(sc->mbuf_pages[pageno]->hdr.card, chunkno);
-	MBUF_SET_BIT(sc->mbuf_pages[pageno]->hdr.used, chunkno);
 
 	bus_dmamap_sync(sc->mbuf_tag, sc->mbuf_pages[pageno]->hdr.map,
 	    BUS_DMASYNC_POSTREAD);
