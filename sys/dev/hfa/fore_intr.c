@@ -157,13 +157,8 @@ fore_intr(arg)
 		/*
 		 * Clear the device interrupt
 		 */
-		switch (fup->fu_config.ac_device) {
-
-		case DEV_FORE_PCA200E:
+		if (fup->fu_config.ac_device == DEV_FORE_PCA200E)
 			PCA200E_HCR_SET(*fup->fu_ctlreg, PCA200E_CLR_HBUS_INT);
-			break;
-
-		}
 		aap->aali_intr_sent = CP_WRITE(0);
 
 		/*
