@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.37 1997/06/22 15:47:11 peter Exp $
+ * $Id: vm_kern.c,v 1.38 1997/08/02 14:33:26 bde Exp $
  */
 
 /*
@@ -443,6 +443,7 @@ kmem_init(start, end)
 	vm_map_lock(m);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;
+	kernel_map->system_map = 1;
 	(void) vm_map_insert(m, NULL, (vm_offset_t) 0,
 	    VM_MIN_KERNEL_ADDRESS, start, VM_PROT_ALL, VM_PROT_ALL, 0);
 	/* ... and ending with the completion of the above `insert' */

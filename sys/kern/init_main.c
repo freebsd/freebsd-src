@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.65 1997/06/22 16:04:09 peter Exp $
+ * $Id: init_main.c,v 1.66 1997/07/10 11:44:42 davidn Exp $
  */
 
 #include "opt_rlimit.h"
@@ -317,6 +317,11 @@ proc0_init(dummy)
 	 * Initialize sleep queue hash table
 	 */
 	sleepinit();
+
+	/*
+	 * additional VM structures
+	 */
+	vm_init2();
 
 	/*
 	 * Create process 0 (the swapper).

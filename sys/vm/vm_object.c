@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.93 1997/06/22 03:00:24 dyson Exp $
+ * $Id: vm_object.c,v 1.94 1997/06/22 15:47:16 peter Exp $
  */
 
 /*
@@ -92,7 +92,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-static void	_vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
 static void	vm_object_qcollapse __P((vm_object_t object));
 #ifdef not_used
 static void	vm_object_deactivate_pages __P((vm_object_t));
@@ -142,7 +141,7 @@ static long object_collapses;
 static long object_bypasses;
 static int next_index;
 
-static void
+void
 _vm_object_allocate(type, size, object)
 	objtype_t type;
 	vm_size_t size;
