@@ -29,6 +29,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <machine/sal.h>
+#include <machine/smp.h>
+
+void os_boot_rendez(void);
 
 struct ia64_fdesc {
 	u_int64_t	func;
@@ -40,7 +43,6 @@ static sal_entry_t	fake_sal;
 
 extern u_int64_t	ia64_pal_entry;
 sal_entry_t		*ia64_sal_entry = fake_sal;
-u_int64_t		ia64_sal_wakeup;
 
 static struct ia64_sal_result
 fake_sal(u_int64_t a1, u_int64_t a2, u_int64_t a3, u_int64_t a4,
@@ -86,23 +88,28 @@ ia64_sal_init(struct sal_system_table *saltab)
 			ia64_sal_entry = (sal_entry_t *) &sal_fdesc;
 			break;
 		}
-#ifdef SMP
 		case 5: {
 			struct sal_ap_wakeup_descriptor *dp;
+			struct ia64_sal_result sal;
+			int ipi;
 
 			dp = (struct sal_ap_wakeup_descriptor*)p;
 			KASSERT(dp->sale_mechanism == 0,
 			    ("Unsupported AP wake-up mechanism"));
-			ia64_sal_wakeup = dp->sale_vector;
 			if (bootverbose)
 				printf("SMP: AP wake-up vector: 0x%lx\n",
-				    ia64_sal_wakeup);
-			/*
-			 * Register OS_BOOT_RENDEZ using SAL_SET_VECTORS
-			 */
+				    dp->sale_vector);
+			for (ipi = 0; ipi < IPI_COUNT; ipi++)
+				mp_ipi_vector[ipi] = dp->sale_vector + ipi;
+
+			sal = ia64_sal_entry(SAL_SET_VECTORS,
+			    SAL_OS_BOOT_RENDEZ,
+			    ia64_tpa((vm_offset_t)os_boot_rendez), 0, 0,
+			    0, 0, 0);
+
+			mp_hardware = 1;
 			break;
 		}
-#endif
 		}
 		p += sizes[*p];
 	}

@@ -28,96 +28,71 @@
 
 #include "acpi.h"
 
+void cpu_mp_add(uint, uint, uint);
+struct sapic *sapic_create(int, int, u_int64_t);
+
 #pragma pack(1)
 
-#define APIC_INTERRUPT_SOURCE_OVERRIDE 2
-#define APIC_NMI		3
-#define APIC_LOCAL_APIC_NMI	4
-#define APIC_LOCAL_APIC_OVERRIDE 5
-#define APIC_IO_SAPIC		6
-#define APIC_LOCAL_SAPIC	7
-#define APIC_PLATFORM_INTERRUPT	8
+#define	APIC_INTERRUPT_SOURCE_OVERRIDE	2
+#define	APIC_NMI			3
+#define	APIC_LOCAL_APIC_NMI		4
+#define	APIC_LOCAL_APIC_OVERRIDE	5
+#define	APIC_IO_SAPIC			6
+#define	APIC_LOCAL_SAPIC		7
+#define	APIC_PLATFORM_INTERRUPT		8
  
- 
-typedef struct  /* Interrupt Source Override */
+typedef struct	/* Interrupt Source Override */
 {
-    APIC_HEADER             header;
-    UINT8                   Bus;
-    UINT8                   Source;
-    UINT32                  GlobalSystemInterrupt;
-    UINT16                  Flags;
+	APIC_HEADER	header;
+	UINT8		Bus;
+	UINT8		Source;
+	UINT32		GlobalSystemInterrupt;
+	UINT16		Flags;
 } INTERRUPT_SOURCE_OVERRIDE;
 
-typedef struct  /* IO SAPIC */
+typedef struct	/* IO SAPIC */
 {
-    APIC_HEADER             header;
-    UINT8                   IoSapicId;              /* I/O SAPIC ID */
-    UINT8                   Reserved;               /* reserved - must be zero */
-    UINT32                  Vector;                 /* interrupt vector index where INTI
-                                                     * lines start */
-    UINT64                  IoSapicAddress;         /* SAPIC's physical address */
-
+	APIC_HEADER	header;
+	UINT8		IoSapicId;		/* I/O SAPIC ID */
+	UINT8		Reserved;		/* reserved - must be zero */
+	UINT32		Vector;			/* interrupt base */
+	UINT64		IoSapicAddress;		/* SAPIC's physical address */
 } IO_SAPIC;
-
 
 typedef struct  /* LOCAL SAPIC */
 {
-    APIC_HEADER             header;
-    UINT16                  ProcessorId;            /* ACPI processor id */
-    UINT16                  ProcessorEnabled: 1;    /* Processor is usable if set */
-    UINT16                  Reserved1       : 15;
-    UINT8                   LocalSapicId;           /* processor's local SAPIC id */
-    UINT8                   LocalSapicEid;          /* processor's local SAPIC eid */
-
+	APIC_HEADER	header;
+	UINT8		ProcessorId;		/* ACPI processor id */
+	UINT8		LocalSapicId;		/* Processor local SAPIC id */
+	UINT8		LocalSapicEid;		/* Processor local SAPIC eid */
+	UINT8		Reserved;
+	UINT32		Reserved1: 16;
+	UINT32		ProcessorEnabled: 1;
+	UINT32		Reserved2: 15;
 } LOCAL_SAPIC;
-
 
 typedef struct  /* PLATFORM INTERRUPT SOURCE */
 {
-    APIC_HEADER             header;
-    UINT16                  Polarity   : 2;         /* Polarity of input signal */
-    UINT16                  TriggerMode: 2;         /* Trigger mode of input signal */
-    UINT16                  Reserved1  : 12;
-    UINT8                   InterruptType;          /* 1-PMI, 2-INIT, 3-Error */
-    UINT8                   ProcessorId;            /* Processor ID of destination */
-    UINT8                   ProcessorEid;           /* Processor EID of destination */
-    UINT8                   IoSapicVector;          /* Value for redirection table */
-    UINT32                  GlobalSystemInterrupt;  /* Global System Interrupt */
-    UINT32                  Reserved2;
-
+	APIC_HEADER	header;
+	UINT16		Polarity   : 2;		/* Polarity of input signal */
+	UINT16		TriggerMode: 2;		/* Trigger mode of input signal */
+	UINT16		Reserved1  : 12;
+	UINT8		InterruptType;		/* 1-PMI, 2-INIT, 3-Error */
+	UINT8		ProcessorId;		/* Processor ID of destination */
+	UINT8		ProcessorEid;		/* Processor EID of destination */
+	UINT8		IoSapicVector;		/* Value for redirection table */
+	UINT32		GlobalSystemInterrupt;	/* Global System Interrupt */
+	UINT32		Reserved2;
 } PLATFORM_INTERRUPT_SOURCE;
- 
 
 #pragma pack()
-
-static void
-parse_local_apic(PROCESSOR_APIC *apic)
-{
-	if (bootverbose) {
-		printf("\t\tProcessorId=0x%x, APIC Id=0x%x",
-		    apic->ProcessorApicId, apic->LocalApicId);
-		if (!apic->ProcessorEnabled)
-			printf(" (disabled)");
-		printf("\n");
-	}
-}
-
-static void
-parse_io_apic(IO_APIC *apic)
-{
-	if (bootverbose)
-		printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
-		    apic->IoApicId, apic->Vector, apic->IoApicAddress);
-}
 
 static void
 parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *override)
 {
 	if (bootverbose)
-		printf("\t\tBus=%d, Source=%d, Irq=0x%x\n",
-		       override->Bus,
-		       override->Source,
-		       override->GlobalSystemInterrupt);
+		printf("\t\tBus=%d, Source=%d, Irq=0x%x\n", override->Bus,
+		    override->Source, override->GlobalSystemInterrupt);
 }
 
 static void
@@ -125,9 +100,7 @@ parse_io_sapic(IO_SAPIC *sapic)
 {
 	if (bootverbose)
 		printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
-		       sapic->IoSapicId,
-		       sapic->Vector,
-		       sapic->IoSapicAddress);
+		    sapic->IoSapicId, sapic->Vector, sapic->IoSapicAddress);
 	sapic_create(sapic->IoSapicId, sapic->Vector, sapic->IoSapicAddress);
 }
 
@@ -142,6 +115,11 @@ parse_local_sapic(LOCAL_SAPIC *sapic)
 			printf(" (disabled)");
 		printf("\n");
 	}
+#ifdef SMP
+	if (sapic->ProcessorEnabled)
+		cpu_mp_add(sapic->ProcessorId, sapic->LocalSapicId,
+		    sapic->LocalSapicEid);
+#endif
 }
 
 static void
@@ -149,13 +127,10 @@ parse_platform_interrupt(PLATFORM_INTERRUPT_SOURCE *source)
 {
 	if (bootverbose)
 		printf("\t\tPolarity=%d, TriggerMode=%d, Id=0x%x, "
-		       "Eid=0x%x, Vector=0x%x, Irq=%d\n",
-		       source->Polarity,
-		       source->TriggerMode,
-		       source->ProcessorId,
-		       source->ProcessorEid,
-		       source->IoSapicVector,
-		       source->GlobalSystemInterrupt);
+		    "Eid=0x%x, Vector=0x%x, Irq=%d\n", source->Polarity,
+		    source->TriggerMode, source->ProcessorId,
+		    source->ProcessorEid, source->IoSapicVector,
+		    source->GlobalSystemInterrupt);
 }
 
 static void
@@ -177,13 +152,11 @@ parse_madt(APIC_TABLE *madt)
 		case APIC_PROC:
 			if (bootverbose)
 				printf("Local APIC entry\n");
-			parse_local_apic((PROCESSOR_APIC *) head);
 			break;
 
 		case APIC_IO:
 			if (bootverbose)
 				printf("I/O APIC entry\n");
-			parse_io_apic((IO_APIC *) head);
 			break;
 
 		case APIC_INTERRUPT_SOURCE_OVERRIDE:
@@ -202,6 +175,7 @@ parse_madt(APIC_TABLE *madt)
 			if (bootverbose)
 				printf("Local APIC NMI entry\n");
 			break;
+
 
 		case APIC_LOCAL_APIC_OVERRIDE:
 			if (bootverbose)
@@ -238,28 +212,32 @@ parse_madt(APIC_TABLE *madt)
 }
 
 void
-ia64_parse_xsdt(XSDT_DESCRIPTOR *xsdt)
+ia64_probe_sapics(void)
 {
-	int			i, count;
+	ACPI_PHYSICAL_ADDRESS	rsdp_phys;
+	RSDP_DESCRIPTOR		*rsdp;
+	XSDT_DESCRIPTOR		*xsdt;
 	ACPI_TABLE_HEADER	*table;
+	int			i, count;
 
-	/*
-	 * First find the MADT.
-	 */
-	count = (UINT64 *) ((char *) xsdt + xsdt->Header.Length)
-		- &xsdt->TableOffsetEntry[0];
+	if (AcpiOsGetRootPointer(0, &rsdp_phys) != AE_OK)
+		return;
+
+	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_phys);
+	xsdt = (XSDT_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
+
+	count = (UINT64 *)((char *)xsdt + xsdt->Header.Length)
+	    - xsdt->TableOffsetEntry;
 	for (i = 0; i < count; i++) {
 		table = (ACPI_TABLE_HEADER *)
 			IA64_PHYS_TO_RR7(xsdt->TableOffsetEntry[i]);
+
 		if (bootverbose)
-			printf("Table '%c%c%c%c' at %p\n",
-			       table->Signature[0],
-			       table->Signature[1],
-			       table->Signature[2],
-			       table->Signature[3],
-			       table);
-		if (!strncmp(table->Signature, APIC_SIG, 4)) {
+			printf("Table '%c%c%c%c' at %p\n", table->Signature[0],
+			    table->Signature[1], table->Signature[2],
+			    table->Signature[3], table);
+
+		if (!strncmp(table->Signature, APIC_SIG, 4))
 			parse_madt((APIC_TABLE *) table);
-		}
 	}
 }
