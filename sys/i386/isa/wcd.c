@@ -796,7 +796,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			e = toc->tab + (toc->hdr.ending_track + 1 -
 					toc->hdr.starting_track) + 1;
 			while (--e >= toc->tab)
-				lba2msf (e->addr.lba, &e->addr.msf.minute,
+				lba2msf (ntohl(e->addr.lba), &e->addr.msf.minute,
 				    &e->addr.msf.second, &e->addr.msf.frame);
 		}
 		return copyout (toc->tab + starting_track -
@@ -820,14 +820,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		if (t->flags & F_DEBUG)
 			wcd_dump (t->lun, "subchan", &t->subchan, sizeof t->subchan);
 
-		abslba = ntohl (t->subchan.abslba);
-		rellba = ntohl (t->subchan.rellba);
+		abslba = t->subchan.abslba;
+		rellba = t->subchan.rellba;
 		if (args->address_format == CD_MSF_FORMAT) {
-			lba2msf (abslba,
+			lba2msf (ntohl(abslba),
 				&data.what.position.absaddr.msf.minute,
 				&data.what.position.absaddr.msf.second,
 				&data.what.position.absaddr.msf.frame);
-			lba2msf (rellba,
+			lba2msf (ntohl(rellba),
 				&data.what.position.reladdr.msf.minute,
 				&data.what.position.reladdr.msf.second,
 				&data.what.position.reladdr.msf.frame);
@@ -876,8 +876,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		t2 = args->end_track - t->toc.hdr.starting_track;
 		if (t1 < 0 || t2 < 0)
 			return (EINVAL);
-		start = t->toc.tab[t1].addr.lba;
-		len = t->toc.tab[t2].addr.lba - start;
+		start = ntohl(t->toc.tab[t1].addr.lba);
+		len = ntohl(t->toc.tab[t2].addr.lba) - start;
 
 		return wcd_request_wait (t, ATAPI_PLAY_BIG, 0,
 			start >> 24 & 0xff, start >> 16 & 0xff,
@@ -1012,14 +1012,12 @@ err:            bzero (&t->toc, sizeof (t->toc));
 		goto err;
 
 	t->toc.hdr.len = ntohs (t->toc.hdr.len);
-	for (i=0; i<ntracks; i++)
-		t->toc.tab[i].addr.lba = ntohl (t->toc.tab[i].addr.lba);
 
 	/* make fake leadout entry */
 	t->toc.tab[ntracks].control = t->toc.tab[ntracks-1].control;
 	t->toc.tab[ntracks].addr_type = t->toc.tab[ntracks-1].addr_type;
 	t->toc.tab[ntracks].track = 170; /* magic */
-	t->toc.tab[ntracks].addr.lba = t->toc.hdr.len;
+	t->toc.tab[ntracks].addr.lba = htonl(t->toc.hdr.len);
 
 	/* Read disc capacity. */
 	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
