@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
 
+#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/filio.h>
