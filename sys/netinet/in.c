@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.10 1995/03/16 18:14:50 bde Exp $
+ * $Id: in.c,v 1.11 1995/03/23 18:14:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -202,12 +202,19 @@ in_control(so, cmd, data, ifp)
 
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
-		if (ifra->ifra_addr.sin_family == AF_INET)
-		    for (oia = ia; ia; ia = ia->ia_next) {
-			if (ia->ia_ifp == ifp  &&
-			    ia->ia_addr.sin_addr.s_addr ==
-				ifra->ifra_addr.sin_addr.s_addr)
-			    break;
+		if (ifra->ifra_addr.sin_family == AF_INET) {
+			for (oia = ia; ia; ia = ia->ia_next) {
+				if (ia->ia_ifp == ifp  &&
+				    ia->ia_addr.sin_addr.s_addr ==
+				    ifra->ifra_addr.sin_addr.s_addr)
+					break;
+			}
+			if ((ifp->if_flags & IFF_POINTOPOINT) 
+			    && (cmd == SIOCAIFADDR)
+			    && (ifra->ifra_dstaddr.sin_addr.s_addr
+				== INADDR_ANY)) {
+				return EADDRNOTAVAIL;
+			}
 		}
 		if (cmd == SIOCDIFADDR && ia == 0)
 			return (EADDRNOTAVAIL);
