@@ -29,6 +29,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,6 +39,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -325,6 +327,13 @@ again:
 		cookies = NULL;
 	}
 
+#ifdef MAC
+	/*
+	 * Do directory search MAC check using non-cached credentials.
+	 */
+	if ((error = mac_check_vnode_readdir(td->td_proc->p_ucred, vp))
+		goto out;
+#endif /* MAC */
 	if ((error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies,
 		 &cookies)))
 		goto out;
