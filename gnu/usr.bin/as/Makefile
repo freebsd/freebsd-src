@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.15 1998/08/31 20:48:13 jb Exp $
+#	$Id: Makefile,v 1.16 1998/09/07 05:45:23 jb Exp $
 
 .include "config/Makefile.$(MACHINE_ARCH)"
 
@@ -31,8 +31,6 @@ CFLAGS+=	-I$(.CURDIR) ${ADDINCLUDE} -I$(.CURDIR)/config \
 CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 
 .PATH: $(.CURDIR)/config
-
-SUBDIR+= doc
 
 targ-cpu.h: Makefile config/Makefile.$(MACHINE_ARCH) $(.CURDIR)/config/tc-$(gas_target).h
 	@cmp -s $(.CURDIR)/config/tc-$(gas_target).h targ-cpu.h || \
