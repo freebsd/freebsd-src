@@ -71,7 +71,7 @@ sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 * Check if the kernel needs to be advised of a change
 		 * in signal action:
 		 */
-		if (act != NULL && sig != SIGVTALRM && sig != SIGCHLD &&
+		if (act != NULL && sig != _SCHED_SIGNAL && sig != SIGCHLD &&
 		    sig != SIGINFO) {
 			/* Initialise the global signal action structure: */
 			gact.sa_mask = act->sa_mask;

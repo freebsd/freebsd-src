@@ -52,11 +52,24 @@ pthread_detach(pthread_t pthread)
 		/* Flag the thread as detached: */
 		pthread->attr.flags |= PTHREAD_DETACHED;
 
+		/*
+		 * Guard against preemption by a scheduling signal.
+		 * A change of thread state modifies the waiting
+		 * and priority queues.
+		 */
+		_thread_kern_sched_defer();
+
 		/* Enter a loop to bring all threads off the join queue: */
 		while ((next_thread = _thread_queue_deq(&pthread->join_queue)) != NULL) {
 			/* Make the thread run: */
 			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
 		}
+
+		/*
+		 * Reenable preemption and yield if a scheduling signal
+		 * occurred while in the critical region.
+		 */
+		_thread_kern_sched_undefer();
 	} else
 		/* Return an error: */
 		rval = EINVAL;
