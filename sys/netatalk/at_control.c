@@ -520,7 +520,7 @@ at_ifinit( ifp, aa, sat )
 		 * start off the probes as an asynchronous activity.
 		 * though why wait 200mSec?
 		 */
-		timeout( aarpprobe, (caddr_t)ifp, hz / 5 );
+		aa->aa_ch = timeout( aarpprobe, (caddr_t)ifp, hz / 5 );
 		if ( tsleep( aa, PPAUSE|PCATCH, "at_ifinit", 0 )) {
 		    /*
 		     * theoretically we shouldn't time out here

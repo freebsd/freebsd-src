@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.25 1997/08/12 05:22:54 kjc Exp $
+ * $Id: if_spppsubr.c,v 1.26 1997/09/02 01:18:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -265,6 +265,7 @@ static const char *sppp_phase_name(enum ppp_phase phase);
 static const char *sppp_proto_name(u_short proto);
 
 static void sppp_keepalive(void *dummy);
+static struct callout_handle keepalive_ch;
 static void sppp_qflush(struct ifqueue *ifq);
 
 static void sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst);
@@ -627,7 +628,7 @@ sppp_attach(struct ifnet *ifp)
 
 	/* Initialize keepalive handler. */
 	if (! spppq)
-		timeout (sppp_keepalive, 0, hz * 10);
+		keepalive_ch = timeout (sppp_keepalive, 0, hz * 10);
 
 	/* Insert new entry into the keepalive list. */
 	sp->pp_next = spppq;
@@ -664,10 +665,10 @@ sppp_detach(struct ifnet *ifp)
 
 	/* Stop keepalive handler. */
 	if (! spppq)
-		untimeout (sppp_keepalive, 0);
+		untimeout (sppp_keepalive, 0, keepalive_ch);
 
 	for (i = 0; i < IDX_COUNT; i++)
-		untimeout((cps[i])->TO, (void *)sp);
+		untimeout((cps[i])->TO, (void *)sp, sp->ch[i]);
 }
 
 /*
@@ -1522,7 +1523,8 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		case STATE_STOPPING:
 			sppp_cp_send(sp, cp->proto, TERM_REQ, ++sp->pp_seq,
 				     0, 0);
-			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+			sp->ch[cp->protoidx] = timeout(cp->TO, (void *)sp,
+						       sp->lcp.timeout);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
@@ -1532,7 +1534,8 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 			break;
 		case STATE_ACK_SENT:
 			(cp->scr)(sp);
-			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+			sp->ch[cp->protoidx] = timeout(cp->TO, (void *)sp,
+						       sp->lcp.timeout);
 			break;
 		}
 
@@ -1548,7 +1551,7 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 {
 	sp->state[cp->protoidx] = newstate;
 
-	untimeout(cp->TO, (void *)sp);
+	untimeout(cp->TO, (void *)sp, sp->ch[cp->protoidx]);
 	switch (newstate) {
 	case STATE_INITIAL:
 	case STATE_STARTING:
@@ -1561,7 +1564,8 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
-		timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+		sp->ch[cp->protoidx]  = timeout(cp->TO, (void *)sp,
+						sp->lcp.timeout);
 		break;
 	}
 }
@@ -1581,6 +1585,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_LCP] = 0;
 	sp->lcp.protos = 0;
 	sp->lcp.mru = sp->lcp.their_mru = PP_MTU;
+	callout_handle_init(&sp->ch[IDX_LCP]);
 	
 	/*
 	 * Initialize counters and timeout values.  Note that we don't
@@ -2111,6 +2116,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->ipcp.flags = 0;
 	sp->state[IDX_IPCP] = STATE_INITIAL;
 	sp->fail_counter[IDX_IPCP] = 0;
+	callout_handle_init(&sp->ch[IDX_IPCP]);
 }
 
 static void
@@ -2577,7 +2583,7 @@ sppp_keepalive(void *dummy)
 		}
 	}
 	splx(s);
-	timeout(sppp_keepalive, 0, hz * 10);
+	keepalive_ch = timeout(sppp_keepalive, 0, hz * 10);
 }
 
 /*

@@ -16,7 +16,7 @@
  *
  * From: Version 1.7, Wed Jun  7 22:12:02 MSD 1995
  *
- * $Id: if_sppp.h,v 1.5 1997/05/19 22:03:08 joerg Exp $
+ * $Id: if_sppp.h,v 1.6 1997/05/22 22:15:39 joerg Exp $
  */
 
 #ifndef _NET_IF_HDLC_H_
@@ -75,6 +75,7 @@ struct sppp {
 	u_char  confid[IDX_COUNT];	/* id of last configuration request */
 	int	rst_counter[IDX_COUNT];	/* restart counter */
 	int	fail_counter[IDX_COUNT]; /* negotiation failure counter */
+	struct	callout_handle ch[IDX_COUNT];
 	struct slcp lcp;        /* LCP params */
 	struct sipcp ipcp;      /* IPCP params */
 	/*

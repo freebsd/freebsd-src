@@ -218,7 +218,7 @@ pccard_remove_controller(struct slot_ctrl *cp)
 		if (sp->ctrl == cp) {
 			pccard_slots[sp->slot] = 0;
 			if (sp->insert_seq)
-				untimeout(inserted, (void *)sp);
+				untimeout(inserted, (void *)sp, sp->insert_ch);
 			/*
 			 * Unload the drivers attached to this slot.
 			 */
@@ -318,7 +318,7 @@ disable_slot(struct slot *sp)
 		}
 	}
 	/* Power off the slot 1/2 second after remove of the card */
-	timeout(power_off_slot, (caddr_t)sp, hz / 2);
+	sp->poff_ch = timeout(power_off_slot, (caddr_t)sp, hz / 2);
 	sp->pwr_off_pending = 1;
 
 	/* De-activate all contexts.  */
@@ -626,9 +626,10 @@ inserted(void *arg)
 	 */
 	sp->pwr.vcc = 50;
 	sp->pwr.vpp = 0;
-	untimeout(power_off_slot, (caddr_t)sp);
-	if (sp->pwr_off_pending)
+	if (sp->pwr_off_pending) {
+		untimeout(power_off_slot, (caddr_t)sp, sp->poff_ch);
 		sp->ctrl->disable(sp);
+	}
 	sp->pwr_off_pending = 0;
 	sp->ctrl->power(sp);
 	printf("Card inserted, slot %d\n", sp->slot);
@@ -663,7 +664,7 @@ pccard_event(struct slot *sp, enum card_event event)
 
 	if (sp->insert_seq) {
 		sp->insert_seq = 0;
-		untimeout(inserted, (void *)sp);
+		untimeout(inserted, (void *)sp, sp->insert_ch);
 	}
 	switch(event) {
 	case card_removed:
@@ -686,7 +687,7 @@ pccard_event(struct slot *sp, enum card_event event)
 		break;
 	case card_inserted:
 		sp->insert_seq = 1;
-		timeout(inserted, (void *)sp, hz/4);
+		sp->insert_ch = timeout(inserted, (void *)sp, hz/4);
 		if (beepok)
 			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
 		beepok = 0;

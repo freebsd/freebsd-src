@@ -64,13 +64,16 @@ u_char	aarp_org_code[ 3 ] = {
     0x00, 0x00, 0x00,
 };
 
+static struct callout_handle aarptimer_ch =
+    CALLOUT_HANDLE_INITIALIZER(&aarptimer_ch);
+
 static void
 aarptimer(void *ignored)
 {
     struct aarptab	*aat;
     int			i, s;
 
-    timeout( aarptimer, (caddr_t)0, AARPT_AGE * hz );
+    aarptimer_ch = timeout( aarptimer, (caddr_t)0, AARPT_AGE * hz );
     aat = aarptab;
     for ( i = 0; i < AARPTAB_SIZE; i++, aat++ ) {
 	if ( aat->aat_flags == 0 || ( aat->aat_flags & ATF_PERM ))
@@ -362,7 +365,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 	     * probed for the same address we'd like to use. Change the
 	     * address we're probing for.
 	     */
-	    untimeout( aarpprobe, ac );
+	    untimeout( aarpprobe, ac, aa->aa_ch );
 	    wakeup( aa );
 	    m_freem( m );
 	    return;
@@ -488,7 +491,7 @@ aarptnew( addr )
 
     if ( first ) {
 	first = 0;
-	timeout( aarptimer, (caddr_t)0, hz );
+	aarptimer_ch = timeout( aarptimer, (caddr_t)0, hz );
     }
     aat = &aarptab[ AARPTAB_HASH( *addr ) * AARPTAB_BSIZ ];
     for ( n = 0; n < AARPTAB_BSIZ; n++, aat++ ) {
@@ -547,7 +550,7 @@ aarpprobe( void *arg )
 	wakeup( aa );
 	return;
     } else {
-	timeout( aarpprobe, (caddr_t)ac, hz / 5 );
+	aa->aa_ch = timeout( aarpprobe, (caddr_t)ac, hz / 5 );
     }
 
     if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
@@ -612,7 +615,7 @@ aarp_clean(void)
     struct aarptab	*aat;
     int			i;
 
-    untimeout( aarptimer, 0 );
+    untimeout( aarptimer, 0, aarptimer_ch );
     for ( i = 0, aat = aarptab; i < AARPTAB_SIZE; i++, aat++ ) {
 	if ( aat->aat_hold ) {
 	    m_freem( aat->aat_hold );
