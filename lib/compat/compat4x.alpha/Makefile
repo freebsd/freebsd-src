@@ -6,6 +6,7 @@ LIBCOMPATDIR=	${LIBDIR}/compat
 
 LIBS=	\
 	libcrypto.so.1 \
+	libfetch.so.2 \
 	libssl.so.1
 
 CLEANFILES+=	${LIBS}
