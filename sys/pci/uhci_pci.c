@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.7 1999/05/01 23:30:06 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.8 1999/05/08 21:59:42 dfr Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -78,14 +78,15 @@
 #define PCI_UHCI_VENDORID_INTEL		0x8086
 #define PCI_UHCI_VENDORID_VIA		0x1106
 
-#define PCI_UHCI_DEVICEID_PIIX3         0x70208086ul
-static const char *uhci_device_piix3	= "Intel 82371SB (PIIX3) USB Host Controller";
-#define PCI_UHCI_DEVICEID_PIIX4         0x71128086ul
-#define PCI_UHCI_DEVICEID_PIIX4E        0x71128086ul    /* no separate step */
-static const char *uhci_device_piix4	= "Intel 82371AB/EB (PIIX4) USB Host Controller";
-#define PCI_UHCI_DEVICEID_VT83C572	0x30381106ul
-static const char *uhci_device_vt83c572	= "VIA 83C572 USB Host Controller";
-static const char *uhci_device_generic	= "UHCI (generic) USB Controller";
+#define PCI_UHCI_DEVICEID_PIIX3         0x70208086
+static const char *uhci_device_piix3	= "Intel 82371SB (PIIX3) USB controller";
+#define PCI_UHCI_DEVICEID_PIIX4         0x71128086
+#define PCI_UHCI_DEVICEID_PIIX4E        0x71128086    /* no separate stepping */
+static const char *uhci_device_piix4	= "Intel 82371AB/EB (PIIX4) USB controller";
+#define PCI_UHCI_DEVICEID_VT83C572	0x30381106
+static const char *uhci_device_vt83c572	= "VIA 83C572 USB controller";
+
+static const char *uhci_device_generic	= "UHCI (generic) USB controller";
 
 #define PCI_UHCI_BASE_REG               0x20
 
