@@ -23,10 +23,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: readcis.h,v 1.3 1996/04/18 04:25:16 nate Exp $
  */
 
-#define	MAXSTR	20
+#define	CIS_MAXSTR	20
 struct tuple {
 	struct tuple *next;
 	unsigned char code;
@@ -111,10 +111,10 @@ struct cis_config {
  */
 struct cis {
 	struct tuple_list *tlist;
-	char    manuf[MAXSTR];
-	char    vers[MAXSTR];
-	char    add_info1[MAXSTR];
-	char    add_info2[MAXSTR];
+	char    manuf[CIS_MAXSTR];
+	char    vers[CIS_MAXSTR];
+	char    add_info1[CIS_MAXSTR];
+	char    add_info2[CIS_MAXSTR];
 	unsigned char maj_v, min_v;
 	unsigned char last_config;
 	unsigned char ccrs;
