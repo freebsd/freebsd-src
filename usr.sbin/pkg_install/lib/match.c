@@ -40,6 +40,7 @@ struct store {
 };
 
 static int rex_match(const char *, const char *);
+struct store *storecreate(struct store *);
 static int storeappend(struct store *, const char *);
 static int fname_cmp(const FTSENT **, const FTSENT **);
 
@@ -65,22 +66,12 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     FTSENT *f;
     Boolean *lmatched;
 
+    store = storecreate(store);
     if (store == NULL) {
-	store = malloc(sizeof *store);
-	if (store == NULL) {
-	    warnx("%s(): malloc() failed", __FUNCTION__);
-	    if (retval != NULL)
-		*retval = 1;
-	    return NULL;
-	}
-	store->currlen = 0;
-	store->store = NULL;
-    } else
-	if (store->store != NULL)
-	    /* Free previously allocated memory */
-	    for (i = 0; store->store[i] != NULL; i++)
-		free(store->store[i]);
-    store->used = 0;
+	if (retval != NULL)
+	    *retval = 1;
+	return NULL;
+    }
 
     if (retval != NULL)
 	*retval = 0;
@@ -165,6 +156,101 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 }
 
 /*
+ * Synopsis is similar to matchinstalled(), but use origin
+ * as a key for matching packages.
+ */
+char **
+matchbyorigin(const char *origin, int *retval)
+{
+    char **installed;
+    int i;
+    static struct store *store = NULL;
+
+    store = storecreate(store);
+    if (store == NULL) {
+	if (retval != NULL)
+	    *retval = 1;
+	return NULL;
+    }
+
+    if (retval != NULL)
+	*retval = 0;
+
+    installed = matchinstalled(MATCH_ALL, NULL, retval);
+    if (installed == NULL)
+	return NULL;
+
+    for (i = 0; installed[i] != NULL; i++) {
+	FILE *fp;
+	char *cp, tmp[PATH_MAX];
+	int cmd;
+
+	snprintf(tmp, PATH_MAX, "%s/%s", LOG_DIR, installed[i]);
+	/*
+	 * SPECIAL CASE: ignore empty dirs, since we can can see them
+	 * during port installation.
+	 */
+	if (isemptydir(tmp))
+	    continue;
+	snprintf(tmp, PATH_MAX, "%s/%s", tmp, CONTENTS_FNAME);
+	fp = fopen(tmp, "r");
+	if (fp == NULL) {
+	    warn("%s", tmp);
+	    if (retval != NULL)
+		*retval = 1;
+	    return NULL;
+	}
+
+	cmd = -1;
+	while (fgets(tmp, sizeof(tmp), fp)) {
+	    int len = strlen(tmp);
+
+	    while (len && isspace(tmp[len - 1]))
+		tmp[--len] = '\0';
+	    if (!len)
+		continue;
+	    cp = tmp;
+	    if (tmp[0] != CMD_CHAR)
+		continue;
+	    cmd = plist_cmd(tmp + 1, &cp);
+	    if (cmd == PLIST_ORIGIN) {
+		if (strcmp(origin, cp) == 0)
+		    storeappend(store, installed[i]);
+		break;
+	    }
+	}
+	if (cmd != PLIST_ORIGIN)
+	    warnx("package %s has no origin recorded", installed[i]);
+	fclose(fp);
+    }
+
+    if (store->used == 0)
+	return NULL;
+    else
+	return store->store;
+}
+
+/*
+ * Return TRUE if the specified package is installed,
+ * or FALSE otherwise.
+ */
+int
+isinstalledpkg(const char *name)
+{
+    char buf[FILENAME_MAX];
+
+    snprintf(buf, sizeof(buf), "%s/%s", LOG_DIR, name);
+    if (!isdir(buf) || access(buf, R_OK) == FAIL)
+	return FALSE;
+
+    snprintf(buf, sizeof(buf), "%s/%s", buf, CONTENTS_FNAME);
+    if (!isfile(buf) || access(buf, R_OK) == FAIL)
+	return FALSE;
+
+    return TRUE;
+}
+
+/*
  * Returns 1 if specified pkgname matches RE pattern.
  * Otherwise returns 0 if doesn't match or -1 if RE
  * engine reported an error (usually invalid syntax).
@@ -196,6 +282,37 @@ rex_match(const char *pattern, const char *pkgname)
     return retval;
 }
 
+/*
+ * Create an empty store, optionally deallocating
+ * any previously allocated space if store != NULL.
+ */
+struct store *
+storecreate(struct store *store)
+{
+    int i;
+
+    if (store == NULL) {
+	store = malloc(sizeof *store);
+	if (store == NULL) {
+	    warnx("%s(): malloc() failed", __func__);
+	    return NULL;
+	}
+	store->currlen = 0;
+	store->store = NULL;
+    } else if (store->store != NULL) {
+	    /* Free previously allocated memory */
+	    for (i = 0; store->store[i] != NULL; i++)
+		free(store->store[i]);
+	    store->store[0] = NULL;
+    }
+    store->used = 0;
+
+    return store;
+}
+
+/*
+ * Append specified element to the provided store.
+ */
 static int
 storeappend(struct store *store, const char *item)
 {

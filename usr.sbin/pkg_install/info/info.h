@@ -63,6 +63,7 @@ extern Boolean Quiet;
 extern char *InfoPrefix;
 extern char PlayPen[];
 extern char *CheckPkg;
+extern char *LookUpOrigin;
 extern match_t MatchType;
 extern struct which_head *whead;
 

@@ -148,7 +148,21 @@ Set the initial package dependency list to
 This is assumed to be a whitespace separated list of package names
 and is meant as a convenient shorthand for specifying multiple
 .Cm @pkgdep
-directives in the packing list (see PACKING LIST DETAILS section below).
+directives in the packing list (see
+.Sx "PACKING LIST DETAILS"
+section below).
+Each argiment from the
+.Ar pkgs
+list could be in the form
+.Ar pkgname Ns Op : Ns Ar pkgorigin ,
+where optional
+.Ar pkgorigin
+element denotes origin of each dependency from the list and it is
+recorded into the packing list along with the
+.Ar pkgname
+using
+.Cm @comment
+directive.
 .It Fl p Ar prefix
 Set
 .Ar prefix
