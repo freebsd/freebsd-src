@@ -83,30 +83,6 @@ static int	dofileread __P((struct thread *, struct file *, int, void *,
 static int	dofilewrite __P((struct thread *, struct file *, int,
 		    const void *, size_t, off_t, int));
 
-struct file*
-holdfp(fdp, fd, flag)
-	struct filedesc* fdp;
-	int fd, flag;
-{
-	struct file* fp;
-
-	FILEDESC_LOCK(fdp);
-	if (((u_int)fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL) {
-		FILEDESC_UNLOCK(fdp);
-		return (NULL);
-	}
-	FILE_LOCK(fp);
-	FILEDESC_UNLOCK(fdp);
-	if ((fp->f_flag & flag) == 0) {
-		FILE_UNLOCK(fp);
-		return (NULL);
-	}
-	fp->f_count++;
-	FILE_UNLOCK(fp);
-	return (fp);
-}
-
 /*
  * Read system call.
  */
@@ -161,9 +137,8 @@ pread(td, uap)
 	struct file *fp;
 	int error;
 
-	fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget_read(td, uap->fd, &fp)) != 0)
+		return (error);
 	mtx_lock(&Giant);
 	if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
