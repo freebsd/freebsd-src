@@ -85,6 +85,48 @@ enum ppp_phase {
 	PHASE_AUTHENTICATE, PHASE_NETWORK
 };
 
+#define PP_MTU          1500    /* default/minimal MRU */
+#define PP_MAX_MRU	2048	/* maximal MRU we want to negotiate */
+
+/*
+ * This is a cut down struct sppp (see below) that can easily be
+ * exported to/ imported from userland without the need to include
+ * dozens of kernel-internal header files.  It is used by the
+ * SPPPIO[GS]DEFS ioctl commands below.
+ */
+struct sppp_parms {
+	enum ppp_phase pp_phase;	/* phase we're currently in */
+	int	enable_vj;		/* VJ header compression enabled */
+	struct slcp lcp;		/* LCP params */
+	struct sipcp ipcp;		/* IPCP params */
+	struct sipcp ipv6cp;		/* IPv6CP params */
+	struct sauth myauth;		/* auth params, i'm peer */
+	struct sauth hisauth;		/* auth params, i'm authenticator */
+};
+
+/*
+ * Definitions to pass struct sppp_parms data down into the kernel
+ * using the SIOC[SG]IFGENERIC ioctl interface.
+ *
+ * In order to use this, create a struct spppreq, fill in the cmd
+ * field with SPPPIOGDEFS, and put the address of this structure into
+ * the ifr_data portion of a struct ifreq.  Pass this struct to a
+ * SIOCGIFGENERIC ioctl.  Then replace the cmd field by SPPPIOSDEFS,
+ * modify the defs field as desired, and pass the struct ifreq now
+ * to a SIOCSIFGENERIC ioctl.
+ */
+
+#define SPPPIOGDEFS  ((caddr_t)(('S' << 24) + (1 << 16) +\
+	sizeof(struct sppp_parms)))
+#define SPPPIOSDEFS  ((caddr_t)(('S' << 24) + (2 << 16) +\
+	sizeof(struct sppp_parms)))
+
+struct spppreq {
+	int	cmd;
+	struct sppp_parms defs;
+};
+
+#ifdef _KERNEL
 struct sppp {
 	/* NB: pp_if _must_ be first */
 	struct  ifnet pp_if;    /* network interface data */
@@ -143,36 +185,12 @@ struct sppp {
 	int     pp_loweri;
 };
 
+/* bits for pp_flags */
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
 				/* 0x04 was PP_TIMO */
 #define PP_CALLIN	0x08	/* we are being called */
 #define PP_NEEDAUTH	0x10	/* remote requested authentication */
 
-
-#define PP_MTU          1500    /* default/minimal MRU */
-#define PP_MAX_MRU	2048	/* maximal MRU we want to negotiate */
-
-/*
- * Definitions to pass struct sppp data down into the kernel using the
- * SIOC[SG]IFGENERIC ioctl interface.
- *
- * In order to use this, create a struct spppreq, fill in the cmd
- * field with SPPPIOGDEFS, and put the address of this structure into
- * the ifr_data portion of a struct ifreq.  Pass this struct to a
- * SIOCGIFGENERIC ioctl.  Then replace the cmd field by SPPPIOCDEFS,
- * modify the defs field as desired, and pass the struct ifreq now
- * to a SIOCSIFGENERIC ioctl.
- */
-
-#define SPPPIOGDEFS  ((caddr_t)(('S' << 24) + (1 << 16) + sizeof(struct sppp)))
-#define SPPPIOSDEFS  ((caddr_t)(('S' << 24) + (2 << 16) + sizeof(struct sppp)))
-
-struct spppreq {
-	int	cmd;
-	struct sppp defs;
-};
-
-#ifdef _KERNEL
 void sppp_attach (struct ifnet *ifp);
 void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);
