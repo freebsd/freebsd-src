@@ -1,0 +1,124 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+#jaan
+#veebr
+#märts
+#apr
+#mai
+#juuni
+#juuli
+#aug
+#sept
+#okt
+#nov
+#dets
+#
+# For now, we'll be forced to 3 chars long month name abbreviations.
+# Authoritative sources say that Estonian language can not use three
+# chars long month name abbreviations. We'll be forced to numeric
+# representation until current implementation deficiency will be fixed.
+#
+01 
+02 
+03 
+04 
+05 
+06 
+07 
+08 
+09 
+10 
+11 
+12 
+#
+# Long month names
+#
+jaanuar
+veebruar
+märts
+aprill
+mai
+juuni
+juuli
+august
+september
+oktoober
+november
+detsember
+#
+# Short weekday names
+# (padded with a space to conform with other languages)
+P  
+E  
+T  
+K  
+N  
+R  
+L  
+#
+# Long weekday names
+#
+pühapäev
+esmaspäev
+teisipäev
+kolmapäev
+neljapäev
+reede
+laupäev
+#
+# t_fmt
+#
+%H:%M:%S
+#
+# d_fmt
+#
+%d.%m.%Y
+#
+# c_fmt
+#
+%a, %d. %b %Y. %T
+#
+# am
+#
+  
+#
+# pm
+#
+  
+#
+# d_t_fmt
+#
+%A, %d. %B %Y. %T %Z
+#
+# Long months names (alternative)
+#
+jaanuar
+veebruar
+märts
+aprill
+mai
+juuni
+juuli
+august
+september
+oktoober
+november
+detsember
+#
+# Ef_fmt
+#
+%e. %b
+#
+# EF_fmt
+#
+%e. %B
+#
+# ampm_fmt
+#
+
+#EOF

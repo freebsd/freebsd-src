@@ -9,6 +9,7 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		el_GR.ISO_8859-7 \
 		es_ES.ISO_8859-15 \
 		es_ES.ISO_8859-1 \
+		et_EE.ISO_8859-15 \
 		is_IS.ISO_8859-15 \
 		is_IS.ISO_8859-1 \
 		la_LN.ASCII      \
@@ -53,6 +54,7 @@ de_DE.ISO_8859-1.out:   map.ISO_8859-1
 el_GR.ISO_8859-7.out:   map.ISO_8859-7
 es_ES.ISO_8859-15.out:  map.ISO_8859-15
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
+et_EE.ISO_8859-15.out:	map.ISO_8859-15
 is_IS.ISO_8859-15.out:  map.ISO_8859-15
 is_IS.ISO_8859-1.out:   map.ISO_8859-1
 la_LN.ISO_8859-15.out:  map.ISO_8859-15
