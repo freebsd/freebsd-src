@@ -21,10 +21,6 @@ WARNS?= 3
 WARNS?=	6
 .endif
 
-# I'm not yet ready for a shared version of this library, as
-# there are a couple of API changes still in the works.
-NOPIC=	1
-
 INCS=	archive.h archive_entry.h
 
 # Note: archive.h does need to be listed here, since it's built
