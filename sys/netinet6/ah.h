@@ -73,8 +73,8 @@ struct ah_algorithm {
 	int keymax;	/* in bits */
 	const char *name;
 	int (*init) __P((struct ah_algorithm_state *, struct secasvar *));
-	void (*update) __P((struct ah_algorithm_state *, caddr_t, size_t));
-	void (*result) __P((struct ah_algorithm_state *, caddr_t, size_t));
+	void (*update) __P((struct ah_algorithm_state *, u_int8_t *, size_t));
+	void (*result) __P((struct ah_algorithm_state *, u_int8_t *, size_t));
 };
 
 #define	AH_MAXSUMSIZE	16
@@ -87,7 +87,7 @@ extern int ah_hdrlen __P((struct secasvar *));
 extern size_t ah_hdrsiz __P((struct ipsecrequest *));
 extern void ah4_input __P((struct mbuf *, int));
 extern int ah4_output __P((struct mbuf *, struct ipsecrequest *));
-extern int ah4_calccksum __P((struct mbuf *, caddr_t, size_t,
+extern int ah4_calccksum __P((struct mbuf *, u_int8_t *, size_t,
 	const struct ah_algorithm *, struct secasvar *));
 #endif /* _KERNEL */
 
