@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD=	lomac_plm
-SRCS=	kernel_plm.c
+SRCS=	vnode_if.h kernel_plm.c
 NOMAN=	yes
 CFLAGS+=	-I${.CURDIR}/../../../contrib/lomac
 
