@@ -750,5 +750,5 @@ struct pr_usrreqs rip6_usrreqs = {
 	pru_connect2_notsupp, in6_control, rip6_detach, rip6_disconnect,
 	pru_listen_notsupp, in6_setpeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, rip6_send, pru_sense_null, rip6_shutdown,
-	in6_setsockaddr, sosend, soreceive, sopoll
+	in6_setsockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
 };

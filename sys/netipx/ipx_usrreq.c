@@ -92,7 +92,7 @@ struct	pr_usrreqs ipx_usrreqs = {
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll
+	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
 };
 
 struct	pr_usrreqs ripx_usrreqs = {
@@ -100,7 +100,7 @@ struct	pr_usrreqs ripx_usrreqs = {
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll
+	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
 };
 
 /*

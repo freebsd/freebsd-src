@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/file.h>
 #include <sys/namei.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 
 #include <security/mac/mac_internal.h>
@@ -77,12 +79,14 @@ TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
 
 #ifdef MAC_DEBUG
 static unsigned int nmacmbufs, nmacifnets, nmacbpfdescs, nmacsockets,
-    nmacipqs;
+    nmacinpcbs, nmacipqs;
 
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mbufs, CTLFLAG_RD,
     &nmacmbufs, 0, "number of mbufs in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ifnets, CTLFLAG_RD,
     &nmacifnets, 0, "number of ifnets in use");
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, inpcbs, CTLFLAG_RD,
+    &nmacinpcbs, 0, "number of inpcbs in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipqs, CTLFLAG_RD,
     &nmacipqs, 0, "number of ipqs in use");
 SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, bpfdescs, CTLFLAG_RD,
@@ -137,6 +141,35 @@ mac_init_ifnet(struct ifnet *ifp)
 {
 
 	ifp->if_label = mac_ifnet_label_alloc();
+}
+
+static struct label *
+mac_inpcb_label_alloc(int flag)
+{
+	struct label *label;
+	int error;
+
+	label = mac_labelzone_alloc(flag);
+	if (label == NULL)
+		return (NULL);
+	MAC_CHECK(init_inpcb_label, label, flag);
+	if (error) {
+		MAC_PERFORM(destroy_inpcb_label, label);
+		mac_labelzone_free(label);
+		return (NULL);
+	}
+	MAC_DEBUG_COUNTER_INC(&nmacinpcbs);
+	return (label);
+}
+
+int
+mac_init_inpcb(struct inpcb *inp, int flag)
+{
+
+	inp->inp_label = mac_inpcb_label_alloc(flag);
+	if (inp->inp_label == NULL)
+		return (ENOMEM);
+	return (0);
 }
 
 static struct label *
@@ -308,6 +341,23 @@ mac_destroy_ifnet(struct ifnet *ifp)
 }
 
 static void
+mac_inpcb_label_free(struct label *label)
+{
+
+	MAC_PERFORM(destroy_inpcb_label, label);
+	mac_labelzone_free(label);
+	MAC_DEBUG_COUNTER_DEC(&nmacinpcbs);
+}
+
+void
+mac_destroy_inpcb(struct inpcb *inp)
+{
+
+	mac_inpcb_label_free(inp->inp_label);
+	inp->inp_label = NULL;
+}
+
+static void
 mac_ipq_label_free(struct label *label)
 {
 
@@ -444,6 +494,14 @@ mac_create_ifnet(struct ifnet *ifnet)
 {
 
 	MAC_PERFORM(create_ifnet, ifnet, ifnet->if_label);
+}
+
+void
+mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp)
+{
+
+	MAC_PERFORM(create_inpcb_from_socket, so, so->so_label, inp,
+	    inp->inp_label);
 }
 
 void
@@ -689,6 +747,24 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 }
 
 int
+mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m)
+{
+	struct label *label;
+	int error;
+
+	M_ASSERTPKTHDR(m);
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	label = mbuf_to_label(m);
+
+	MAC_CHECK(check_inpcb_deliver, inp, inp->inp_label, m, label);
+
+	return (error);
+}
+
+int
 mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
     struct sockaddr *sockaddr)
 {
@@ -889,6 +965,15 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	return (0);
 }
 
+void
+mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
+{
+
+	/* XXX: assert socket lock. */
+	INP_LOCK_ASSERT(inp);
+	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
+}
+
 int
 mac_socket_label_set(struct ucred *cred, struct socket *so,
     struct label *label)
@@ -900,6 +985,16 @@ mac_socket_label_set(struct ucred *cred, struct socket *so,
 		return (error);
 
 	mac_relabel_socket(cred, so, label);
+
+	/*
+	 * If the protocol has expressed interest in socket layer changes,
+	 * such as if it needs to propagate changes to a cached pcb
+	 * label from the socket, notify it of the label change while
+	 * holding the socket lock.
+	 */
+	if (so->so_proto->pr_usrreqs->pru_sosetlabel != NULL)
+		(so->so_proto->pr_usrreqs->pru_sosetlabel)(so);
+
 	return (0);
 }
 

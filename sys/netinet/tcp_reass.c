@@ -683,11 +683,11 @@ findpcb:
 	else
 		tiwin = th->th_win;
 
-	so = inp->inp_socket;
 #ifdef MAC
-	if (mac_check_socket_deliver(so, m))
+	if (mac_check_inpcb_deliver(inp, m))
 		goto drop;
 #endif
+	so = inp->inp_socket;
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG) {
 		ostate = tp->t_state;
