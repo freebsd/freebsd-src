@@ -229,12 +229,11 @@ checkdirty(int fs, struct bootblock *boot)
 		goto err;
 	}
 
-	if (buffer[0] == boot->Media && buffer[1] == 0xff &&
-	    buffer[2] == 0xff &&
-	    ((boot->ClustMask == CLUST16_MASK && buffer[3] == 0x7f) ||
-	    (boot->ClustMask == CLUST32_MASK && buffer[3] == 0x0f &&
-	    buffer[4] == 0xff && buffer[5] == 0xff && buffer[6] == 0xff &&
-	    buffer[7] == 0x07)))
+	if (buffer[0] == boot->Media && buffer[1] == 0xff && buffer[2] == 0xff
+	    && ((boot->ClustMask == CLUST16_MASK && buffer[3] == 0x7f)
+		|| (boot->ClustMask == CLUST32_MASK && buffer[3] == 0x0f
+		    && buffer[4] == 0xff && buffer[5] == 0xff
+		    && buffer[6] == 0xff && buffer[7] == 0x07)))
 		ret = 0;
 	else
 		ret = 1;
