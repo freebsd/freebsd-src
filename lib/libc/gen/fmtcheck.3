@@ -46,8 +46,8 @@
 .Fn fmtcheck "const char *fmt_suspect" "const char *fmt_default"
 .Sh DESCRIPTION
 The
-.Nm
-function scans
+.Fn fmtcheck
+scans
 .Fa fmt_suspect
 and
 .Fa fmt_default
@@ -68,8 +68,8 @@ it is useful or necessary to use a user-supplied format string with no
 guarantee that the format string matches the specified parameters.
 .Pp
 The
-.Nm
-function was designed to be used in these cases, as in:
+.Fn fmtcheck
+was designed to be used in these cases, as in:
 .Bd -literal -offset indent
 printf(fmtcheck(user_format, standard_format), arg1, arg2);
 .Ed
@@ -81,9 +81,15 @@ instead of a digit string).  Also, any text other than the format specifiers
 is completely ignored.
 .Pp
 Note that the formats may be quite different as long as they accept the
-same parameters.  For example, ".Dq %p %o %30s %#llx %-10.*e %n" is
-compatible with "This number %lu %d%% and string %s has %qd numbers
-and %.*g floats (%n)."  However, "%o" is not equivalent to "%lx" because
+same parameters.  For example,
+.Qq Li "%p %o %30s %#llx %-10.*e %n"
+is compatible with
+.Qq Li "This number %lu %d%% and string %s has %qd numbers and %.*g floats (%n)" .
+However,
+.Qq Li %o
+is not equivalent to
+.Qq Li %lx
+because
 the first requires an integer and the second requires a long.
 .Sh RETURN VALUES
 If
@@ -91,8 +97,8 @@ If
 is a valid format and consumes the same argument types as
 .Fa fmt_default ,
 then the
-.Nm
-function will return
+.Fn fmtcheck
+will return
 .Fa fmt_suspect .
 Otherwise, it will return
 .Fa fmt_default .
