@@ -365,6 +365,11 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       u_char *q;
       int i;
 
+      if (args[sc->offset] == 0) {
+	      asprintf(&tmp, "NULL");
+	      break;
+      }
+
       /* yuck: get ss_len */
       if (get_struct(fd, (void *)args[sc->offset], (void *)&ss,
 	sizeof(ss.ss_len) + sizeof(ss.ss_family)) == -1)
