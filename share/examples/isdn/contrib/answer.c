@@ -74,7 +74,7 @@ void readFromPhone (char *path)
 
 void usage (void)
 {
-	fprintf(stderr,"Usage: answer -D device -d destination -s source\n");
+	fprintf(stderr,"usage: answer -D device -d destination -s source\n");
 	exit(1); 
 }
 

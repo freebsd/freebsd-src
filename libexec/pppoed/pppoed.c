@@ -71,7 +71,7 @@ static int ReceivedSignal;
 static int
 usage(const char *prog)
 {
-  fprintf(stderr, "Usage: %s [-Fd] [-P pidfile] [-a name] [-e exec | -l label]"
+  fprintf(stderr, "usage: %s [-Fd] [-P pidfile] [-a name] [-e exec | -l label]"
           " [-p provider] interface\n", prog);
   return EX_USAGE;
 }

@@ -31,7 +31,7 @@ trap "rm $sysdcl $syscompat $syscompatdcl $sysent $sysinc $sysarg" 0
 touch $sysdcl $syscompat $syscompatdcl $sysent $sysinc $sysarg
 
 case $# in
-    0)	echo "Usage: $0 input-file <config-file>" 1>&2
+    0)	echo "usage: $0 input-file <config-file>" 1>&2
 	exit 1
 	;;
 esac

@@ -54,7 +54,7 @@ main(int argc, char *argv[])
 	const char *localename;
 
 	if (argc != 2) {
-		(void)fprintf(stderr, "Usage: localeck <locale_name>\n");
+		(void)fprintf(stderr, "usage: localeck <locale_name>\n");
 		exit(1);
 	}
 

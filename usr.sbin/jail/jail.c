@@ -30,7 +30,7 @@ main(int argc, char **argv)
 	struct in_addr in;
 
 	if (argc < 5) 
-		errx(1, "Usage: %s path hostname ip-number command ...\n",
+		errx(1, "usage: %s path hostname ip-number command ...\n",
 		    argv[0]);
 	i = chdir(argv[1]);
 	if (i)

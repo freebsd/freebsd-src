@@ -28,7 +28,7 @@
 # 
 
 if ($#ARGV != 2) {
-    print STDERR "Usage: driver-copy.pl config_file src_ko_dir dst_ko_dir\n";
+    print STDERR "usage: driver-copy.pl config_file src_ko_dir dst_ko_dir\n";
     exit 1;
 }
 

@@ -1499,7 +1499,7 @@ progping(char *netid, int argc, char **argv)
 static void
 usage()
 {
-	fprintf(stderr, "Usage: rpcinfo [-m | -s] [host]\n");
+	fprintf(stderr, "usage: rpcinfo [-m | -s] [host]\n");
 #ifdef PORTMAP
 	fprintf(stderr, "       rpcinfo -p [host]\n");
 #endif

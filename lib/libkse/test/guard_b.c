@@ -92,7 +92,7 @@ main(int argc, char **argv)
 	struct args	args;
 
 	if (argc != 3) {
-		fprintf(stderr, "Usage: guard_b <stacksize> <guardsize>\n");
+		fprintf(stderr, "usage: guard_b <stacksize> <guardsize>\n");
 		exit(1);
 	}
 	fprintf(stderr, "Test begin\n");
