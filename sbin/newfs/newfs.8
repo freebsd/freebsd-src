@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
-.\"	$Id: newfs.8,v 1.17 1998/09/11 07:08:49 grog Exp $
+.\"	$Id: newfs.8,v 1.18 1998/09/29 23:20:04 grog Exp $
 .\"
 .Dd May 3, 1995
 .Dt NEWFS 8
@@ -305,7 +305,7 @@ man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
 .Pp
-.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/sd0s1b /tmp
+.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/da0s1b /tmp
 .Pp
 Mount a 64 MB large memory file system on /tmp, with
 .Xr mount 8
