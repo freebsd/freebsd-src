@@ -87,11 +87,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&ip_gif_ttl,	0, "");
 
 int
-in_gif_output(ifp, family, m, rt)
+in_gif_output(ifp, family, m)
 	struct ifnet	*ifp;
 	int		family;
 	struct mbuf	*m;
-	struct rtentry *rt;
 {
 	struct gif_softc *sc = (struct gif_softc*)ifp;
 	struct sockaddr_in *dst = (struct sockaddr_in *)&sc->gif_ro.ro_dst;
