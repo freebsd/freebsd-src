@@ -1,6 +1,11 @@
 .\"-
-.\" Copyright (c) 1999, 2000, 2001, 2003 Robert N. M. Watson
+.\" Copyright (c) 2003 Network Associates Technology, Inc.
 .\" All rights reserved.
+
+.\" This software was developed for the FreeBSD Project in part by Network
+.\" Associates Laboratories, the Security Research Division of Network
+.\" Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+.\" as part of the DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,29 +30,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 1999
+.Dd June 5, 2003
 .Os
-.Dt VOP_GETEXTATTR 9
+.Dt VOP_LISTEXTATTR 9
 .Sh NAME
-.Nm VOP_GETEXTATTR
-.Nd retrieve named extended attribute from a vnode
+.Nm VOP_LISTEXTATTR
+.Nd retrieve a list of named extended attribute from a vnode
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .In sys/extattr.h
 .Ft int
-.Fo VOP_GETEXTATTR
+.Fo VOP_LISTEXTATTR
 .Fa "struct vnode *vp"
 .Fa "int attrnamespace"
-.Fa "const char *name"
 .Fa "struct uio *uio"
 .Fa "size_t *size"
 .Fa "struct ucred *cred"
 .Fa "struct thread *td"
 .Fc
 .Sh DESCRIPTION
-This vnode call may be used to retrieve a specific named extended attribute
-from a file or directory.
+This vnode call may be used to retrieve a list of named extended attributes
+from a specified namespace on a file or directory.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa attrnamespace"
@@ -56,15 +60,13 @@ the vnode of the file or directory
 .It Fa attrnamespace
 integer constant indicating which extended attribute namespace the attribute
 name is present in
-.It Fa name
-pointer to a null-terminated character string containing the attribute name
 .It Fa uio
 the location of the data to be read
 .It Fa size
 if not
 .Dv NULL ,
-on return it will contain the number of bytes required to read all of the
-attribute data.
+on return it will contain the number of bytes required to read the list.
+The resulting data will be a ASCII nul-separted list of strings.
 In most cases
 .Fa uio
 will be
@@ -95,11 +97,9 @@ More information on extended attributes may be found in
 The vnode will be locked on entry and should remain locked on return.
 .Sh RETURN VALUES
 On success, zero will be returned, and the uio structure will be updated to
-reflect data read.  Otherwise, an appropriate error code is returned.
+reflect the list read.  Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
-.It Bq Er ENOATTR
-The requested attribute was not defined for this vnode.
 .It Bq Er EACCES
 The the caller does not have the appropriate privilege.
 .It Bq Er ENXIO
@@ -111,22 +111,16 @@ Sufficient memory is not available to fulfill the request.
 The uio structure refers to an invalid userspace address.
 .It Bq Er EINVAL
 The
-.Fa name ,
-.Fa namespace,
+.Fa namespace
 or
 .Fa uio
 argument is invalid.
 .It Bq Er EOPNOTSUPP
 The file system does not support
-.Fn VOP_GETEXTATTR .
+.Fn VOP_LISTEXTATTR .
 .El
 .Sh SEE ALSO
 .Xr extattr 9 ,
 .Xr vnode 9 ,
-.Xr VOP_LISTEXTATTR 9
+.Xr VOP_GETEXTATTR 9
 .Xr VOP_SETEXTATTR 9
-.Sh BUGS
-By passing in the empty string as the attribute name, some file systems
-will return a list of defined names on the target vnode for the
-requested namespace.
-This is a bad API, and will be replaced by an explicit VOP.
