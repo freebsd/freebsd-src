@@ -597,15 +597,16 @@ again:
 
 #ifdef KTRACE
 	/*
-	 * Copy traceflag and tracefile if enabled.  If not inherited,
-	 * these were zeroed above but we still could have a trace race
-	 * so make sure p2's p_tracep is NULL.
+	 * Copy traceflag and tracefile if enabled.
 	 */
-	if ((p1->p_traceflag & KTRFAC_INHERIT) && p2->p_tracep == NULL) {
+	mtx_lock(&ktrace_mtx);
+	KASSERT(p2->p_tracep == NULL, ("new process has a ktrace vnode"));
+	if (p1->p_traceflag & KTRFAC_INHERIT) {
 		p2->p_traceflag = p1->p_traceflag;
 		if ((p2->p_tracep = p1->p_tracep) != NULL)
 			VREF(p2->p_tracep);
 	}
+	mtx_unlock(&ktrace_mtx);
 #endif
 
 	/*
@@ -861,9 +862,8 @@ fork_return(td, frame)
 
 	userret(td, frame, 0);
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_SYSRET)) {
-		ktrsysret(td->td_proc->p_tracep, SYS_fork, 0, 0);
-	}
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(SYS_fork, 0, 0);
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
