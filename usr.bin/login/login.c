@@ -410,12 +410,21 @@ main(int argc, char *argv[])
 	 * user sets them otherwise, this can cause the chown to fail.
 	 * Since it isn't clear that flags are useful on character
 	 * devices, we just clear them.
+	 *
+	 * We don't log in the case of EOPNOTSUPP because dev might be
+	 * on NFS, which doesn't support chflags.
+	 *
+	 * We don't log in the EROFS because that means that /dev is on
+	 * a read only file system and we assume that the permissions there
+	 * are sane.
 	 */
-	if (ttyn != tname && chflags(ttyn, 0) && errno != EOPNOTSUPP)
-		syslog(LOG_ERR, "chflags(%s): %m", ttyn);
+	if (ttyn != tname && chflags(ttyn, 0))
+		if (errno != EOPNOTSUPP && errno != EROFS)
+			syslog(LOG_ERR, "chflags(%s): %m", ttyn);
 	if (ttyn != tname && chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
-		syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+		if (errno != EROFS)
+			syslog(LOG_ERR, "chmod(%s): %m", ttyn);
 
 	/*
 	 * Exclude cons/vt/ptys only, assume dialup otherwise
