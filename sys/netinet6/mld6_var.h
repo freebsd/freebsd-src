@@ -35,7 +35,7 @@
 
 #ifdef _KERNEL
 
-#define MLD6_RANDOM_DELAY(X) (random() % (X) + 1)
+#define MLD6_RANDOM_DELAY(X) (arc4random() % (X) + 1)
 
 /*
  * States for MLD stop-listening processing

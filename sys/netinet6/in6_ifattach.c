@@ -140,7 +140,6 @@ generate_tmp_ifid(seed0, seed1, ret)
 	MD5_CTX ctxt;
 	u_int8_t seed[16], digest[16], nullbuf[8];
 	u_int32_t val32;
-	struct timeval tv;
 
 	/* If there's no hisotry, start with a random seed. */
 	bzero(nullbuf, sizeof(nullbuf));
@@ -148,8 +147,7 @@ generate_tmp_ifid(seed0, seed1, ret)
 		int i;
 
 		for (i = 0; i < 2; i++) {
-			microtime(&tv);
-			val32 = random() ^ tv.tv_usec;
+			val32 = arc4random();
 			bcopy(&val32, seed + sizeof(val32) * i, sizeof(val32));
 		}
 	} else
@@ -191,8 +189,7 @@ generate_tmp_ifid(seed0, seed1, ret)
 		log(LOG_INFO,
 		    "generate_tmp_ifid: computed MD5 value is zero.\n");
 
-		microtime(&tv);
-		val32 = random() ^ tv.tv_usec;
+		val32 = arc4random();
 		val32 = 1 + (val32 % (0xffffffff - 1));
 	}
 
