@@ -69,12 +69,9 @@ ${PROG}.help:	help.common help.efi
 	    > ${.TARGET}
 
 beforeinstall:
-.if exists(${.OBJDIR}/loader.help)
+.if exists(${.OBJDIR}/${PROG}.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.OBJDIR}/${PROG}.help ${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/${PROG}.help ${DESTDIR}/boot
 .endif
 
 # Other fragments still to be brought in from ../Makfile.booters?
