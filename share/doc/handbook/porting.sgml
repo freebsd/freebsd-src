@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $
+ # $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -864,20 +864,39 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
       <sect3>
 	<heading>PREFIX</heading>
 	<p>Do try to make your port install relative to
-	  <tt>&dollar;{PREFIX}</tt> in your Makefiles.  This will
-	  normally be set to <tt>/usr/local</tt>, or
-	  <tt>/usr/X11R6</tt> if <tt>&dollar;{USE_IMAKE}</tt> or
-	  <tt>&dollar;{USE_X11}</tt> is set, though it can be
-	  reassigned in your Makefile or in the users environment, if
-	  need be.
+	  <tt>&dollar;{PREFIX}</tt>.  (The value of this variable will be
+	  set to <tt>&dollar;{LOCALBASE}</tt> (default
+	  <tt>/usr/local</tt>), unless <tt>&dollar;{USE_IMAKE}</tt> or
+	  <tt>&dollar;{USE_X11}</tt> is set, in which case it will be
+	  <tt>&dollar;{X11BASE}</tt> (default <tt>/usr/X11R6</tt>).)
 
-	<p>Not hard-coding <tt>/usr/local</tt> anywhere in your
-	  installation will make the port much more flexible and cater
-	  to the needs of other sites.  Note that this doesn't count
-	  for package `packing list' files since they have their own
-	  scheme for relocating themselves and can be left independent
-	  of <tt>&dollar;{PREFIX}</tt> unless the package is one that
-	  hard-codes itself to a compiled-in location.
+	<p>Not hard-coding `<tt>/usr/local</tt>' or `<tt>/usr/X11R6</tt>'
+	  anywhere in the source will make the port much more flexible and
+	  able to cater to the needs of other sites.  For X ports that use
+	  imake, this is automatic; otherwise, this can often be done by
+	  simply replacing the occurrences of `<tt>/usr/local</tt>' (or
+	  `<tt>/usr/X11R6</tt>' for X ports that don't use imake) in the
+	  various scripts/Makefiles in the port to read
+	  `<tt>&dollar;{PREFIX}</tt>', as this variable is automatically
+	  passed down to every stage of the build and install processes.
+
+	<p>The variable <tt>&dollar;{PREFIX}</tt> can be reassigned in your
+	  Makefile or in the user's environment.  However, it is strongly
+	  discouraged for individual ports to set this variable explicitly
+	  in the Makefiles.  (If your port is an X port but doesn't use
+	  imake, set <tt>USE_X11=yes</tt>; this is quite different from
+	  setting <tt>PREFIX=/usr/X11R6</tt>.)
+
+	<p>Also, refer to programs/files from other ports with the
+	  variables mentioned above, not explicit pathnames.  For instance,
+	  if your port requires a macro <tt>PAGER</tt> to be the full
+	  pathname of <tt>less</tt>, use the compiler flag:
+	  `<tt>-DPAGER=\"&dollar;{PREFIX}/bin/less\"</tt>' (or
+	  `<tt>-DPAGER=\"&dollar;{LOCALBASE}/bin/less\"</tt>' if this is an
+	  X port), instead of `<tt>-DPAGER=\"/usr/local/bin/less\"</tt>'.
+	  This way it will have a better chance of working if the system
+	  administrator has moved the whole `/usr/local' tree somewhere
+	  else.
 
       <sect3>
       <heading>Subdirectories</heading>
@@ -958,7 +977,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.16 1996/03/21 14:15:01 asami Exp $
+ # $Id: porting.sgml,v 1.17 1996/03/25 09:35:25 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
