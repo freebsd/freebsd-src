@@ -1,11 +1,13 @@
 #
-#	$Id: Makefile,v 1.109 1996/11/01 19:03:33 adam Exp $
+#	$Id: Makefile,v 1.109.2.1 1996/11/28 21:43:35 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
+#	-DALLLANG to build documentation for all languages
+#	  (where available -- see share/doc/Makefile)
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
