@@ -1,5 +1,5 @@
 This is the top level of the FreeBSD source directory.  This file
-was last revised on: $Id: README,v 1.12 1998/06/30 08:08:05 jkh Exp $
+was last revised on: $Id: README,v 1.13 1998/09/13 09:38:34 markm Exp $
 
 For copyright information, please see the file COPYRIGHT in this
 directory (additional copyright information also exists for some
@@ -50,8 +50,6 @@ kerberosIV	Kerberos package.
 lib		System libraries.
 
 libexec		System daemons.
-
-lkm		Loadable Kernel Modules.
 
 release		Release building Makefile & associated tools.
 
