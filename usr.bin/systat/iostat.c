@@ -147,6 +147,8 @@ fetchiostat()
 	tmp_dinfo = last.dinfo;
 	last.dinfo = cur.dinfo;
 	cur.dinfo = tmp_dinfo;
+
+	last.snap_time = cur.snap_time;
          
 	/*
 	 * Here what we want to do is refresh our device stats.
