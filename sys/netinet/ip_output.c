@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.70 1998/06/06 20:45:28 julian Exp $
+ *	$Id: ip_output.c,v 1.71 1998/06/06 21:49:17 julian Exp $
  */
 
 #define _IP_VHL
@@ -1320,13 +1320,13 @@ ip_mloopback(ifp, m, dst, hlen)
 		 * in-place).  Yet another option is using the
 		 * protosw directly to deliver the looped back
 		 * packet.  For the moment, we'll err on the side
-		 * of safety by continuing to abuse looutput().
+		 * of safety by using if_simloop().
 		 */
 #ifdef notdef
 		copym->m_pkthdr.rcvif = ifp;
-		ip_input(copym)
+		ip_input(copym);
 #else
-		(void) looutput(ifp, copym, (struct sockaddr *)dst, NULL);
+		if_simloop(ifp, copym, (struct sockaddr *)dst, 0);
 #endif
 	}
 }

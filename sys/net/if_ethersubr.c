@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.47 1998/03/30 09:51:39 phk Exp $
+ * $Id: if_ethersubr.c,v 1.48 1998/05/19 14:04:02 dg Exp $
  */
 
 #include "opt_atalk.h"
@@ -130,13 +130,9 @@ ether_output(ifp, m0, dst, rt0)
  	u_char edst[6];
 	register struct mbuf *m = m0;
 	register struct rtentry *rt;
-	struct mbuf *mcopy = (struct mbuf *)0;
 	register struct ether_header *eh;
-	int off, len = m->m_pkthdr.len;
+	int off, len = m->m_pkthdr.len, loop_copy = 0;
 	struct arpcom *ac = (struct arpcom *)ifp;
-#ifdef NETATALK
-	struct at_ifaddr *aa;
-#endif NETATALK
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
@@ -166,86 +162,33 @@ ether_output(ifp, m0, dst, rt0)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
 	switch (dst->sa_family) {
-
 #ifdef INET
 	case AF_INET:
 		if (!arpresolve(ac, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		off = m->m_pkthdr.len - m->m_len;
 		type = htons(ETHERTYPE_IP);
 		break;
 #endif
 #ifdef IPX
 	case AF_IPX:
-		{
-		struct ifaddr *ia;
-
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-
-		for(ia = ifp->if_addrhead.tqh_first; ia != 0;
-		    ia = ia->ifa_link.tqe_next) {
-			if(ia->ifa_addr->sa_family == AF_IPX &&
-			    !bcmp((caddr_t)edst,
-				  (caddr_t)&((struct ipx_ifaddr *)ia)->ia_addr.sipx_addr.x_host,
-				  sizeof(edst)) )
-				return (looutput(ifp, m, dst, rt));
-			}
-
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
-		}
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK:
-	    {
-		struct sockaddr_at *sat = (struct sockaddr_at *)dst;
+	  {
+	    struct at_ifaddr *aa;
 
-		/*
-		 * super hack..
-		 * Most of this loopback code should move into the appletalk
-		 * code, but it's here for now.. remember to move it! [JRE]
-		 * This may not get the same interface we started with,
-		 * fix asap. XXX
-		 */
-		aa = at_ifawithnet( sat );
-		if (aa == NULL) {
-			goto bad;
-		}
-		if( aa->aa_ifa.ifa_ifp != ifp ) {
-			(*aa->aa_ifa.ifa_ifp->if_output)(aa->aa_ifa.ifa_ifp,
-							m,dst,rt);
-		}
-		if (((sat->sat_addr.s_net == ATADDR_ANYNET)
-		  && (sat->sat_addr.s_node == ATADDR_ANYNODE))
-		|| ((sat->sat_addr.s_net == aa->aa_addr.sat_addr.s_net )
-		  && (sat->sat_addr.s_node == aa->aa_addr.sat_addr.s_node))) {
-			(void) looutput(ifp, m, dst, rt);
-			return(0);
-		}
-
-        	if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst)) {
-#ifdef NETATALKDEBUG
-                	extern char *prsockaddr(struct sockaddr *);
-                	printf("aarpresolv: failed for %s\n", prsockaddr(dst));
-#endif /* NETATALKDEBUG */
-                	return (0);
-        	}
-
-		/*
-		 * If broadcasting on a simplex interface, loopback a copy
-		 */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
+	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL) {
+		    goto bad;
 	    }
+	    if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst))
+		    return (0);
 	    /*
-	     * In the phase 2 case, we need to prepend an mbuf for the llc header.
+	     * In the phase 2 case, need to prepend an mbuf for the llc header.
 	     * Since we must preserve the value of m, which is passed to us by
 	     * value, we m_copy() the first mbuf, and use it for our llc header.
 	     */
@@ -264,6 +207,7 @@ ether_output(ifp, m0, dst, rt0)
 		type = htons(ETHERTYPE_AT);
 	    }
 	    break;
+	  }
 #endif NETATALK
 #ifdef NS
 	case AF_NS:
@@ -312,10 +256,6 @@ ether_output(ifp, m0, dst, rt0)
 				IF_ENQUEUE(inq, m2);
 			splx(s);
 		}
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX)){
-			mcopy = m_copy(m, 0, (int)M_COPYALL);
-		}
 		break;
 #endif /* NS */
 #ifdef	ISO
@@ -334,17 +274,6 @@ ether_output(ifp, m0, dst, rt0)
 		/* If broadcasting on a simplex interface, loopback a copy */
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
-		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX) &&
-		    (mcopy = m_copy(m, 0, (int)M_COPYALL))) {
-			M_PREPEND(mcopy, sizeof (*eh), M_DONTWAIT);
-			if (mcopy) {
-				eh = mtod(mcopy, struct ether_header *);
-				bcopy((caddr_t)edst,
-				      (caddr_t)eh->ether_dhost, sizeof (edst));
-				bcopy((caddr_t)ac->ac_enaddr,
-				      (caddr_t)eh->ether_shost, sizeof (edst));
-			}
-		}
 		M_PREPEND(m, 3, M_DONTWAIT);
 		if (m == NULL)
 			return (0);
@@ -370,20 +299,10 @@ ether_output(ifp, m0, dst, rt0)
 
 		if (sdl && sdl->sdl_family == AF_LINK
 		    && sdl->sdl_alen > 0) {
-			bcopy(LLADDR(sdl), (char *)edst,
-				sizeof(edst));
+			bcopy(LLADDR(sdl), (char *)edst, sizeof(edst));
 		} else goto bad; /* Not a link interface ? Funny ... */
-		if ((ifp->if_flags & IFF_SIMPLEX) && (*edst & 1) &&
-		    (mcopy = m_copy(m, 0, (int)M_COPYALL))) {
-			M_PREPEND(mcopy, sizeof (*eh), M_DONTWAIT);
-			if (mcopy) {
-				eh = mtod(mcopy, struct ether_header *);
-				bcopy((caddr_t)edst,
-				      (caddr_t)eh->ether_dhost, sizeof (edst));
-				bcopy((caddr_t)ac->ac_enaddr,
-				      (caddr_t)eh->ether_shost, sizeof (edst));
-			}
-		}
+		if (*edst & 1)
+			loop_copy = 1;
 		type = htons(m->m_pkthdr.len);
 #ifdef LLC_DEBUG
 		{
@@ -414,9 +333,6 @@ ether_output(ifp, m0, dst, rt0)
 		senderr(EAFNOSUPPORT);
 	}
 
-
-	if (mcopy)
-		(void) looutput(ifp, mcopy, dst, rt);
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
@@ -430,6 +346,28 @@ ether_output(ifp, m0, dst, rt0)
  	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
  	(void)memcpy(eh->ether_shost, ac->ac_enaddr,
 	    sizeof(eh->ether_shost));
+
+	/*
+	 * If a simplex interface, and the packet is being sent to our
+	 * Ethernet address or a broadcast address, loopback a copy.
+	 * XXX To make a simplex device behave exactly like a duplex
+	 * device, we should copy in the case of sending to our own
+	 * ethernet address (thus letting the original actually appear
+	 * on the wire). However, we don't do that here for security
+	 * reasons and compatibility with the original behavior.
+	 */
+	if (ifp->if_flags & IFF_SIMPLEX) {
+		if ((m->m_flags & M_BCAST) || loop_copy) {
+			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+
+			(void) if_simloop(ifp, n, dst, ETHER_HDR_LEN);
+		} else if (bcmp(eh->ether_dhost,
+		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
+			(void) if_simloop(ifp, m, dst, ETHER_HDR_LEN);
+			return(0);	/* XXX */
+		}
+	}
+
 	s = splimp();
 	/*
 	 * Queue message on interface, and start output if interface
