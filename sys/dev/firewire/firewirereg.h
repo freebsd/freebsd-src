@@ -47,8 +47,10 @@ typedef	struct proc fw_proc;
 struct fw_device{
 	u_int16_t dst;
 	struct fw_eui64 eui;
+#if 0
 	u_int32_t spec;
 	u_int32_t ver;
+#endif
 	u_int8_t speed;
 	u_int8_t maxrec;
 	u_int8_t nport;

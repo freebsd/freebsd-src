@@ -89,6 +89,7 @@ struct fw_reg_req_t{
 	unsigned long data;
 };
 
+#define MAXREC(x)	(2 << (x))
 #define FWPMAX_S400 (2048 + 20)	/* MAXREC plus space for control data */
 #define FWMAXQUEUE 128
 

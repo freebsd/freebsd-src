@@ -106,7 +106,6 @@ static device_method_t firewire_methods[] = {
 	{ 0, 0 }
 };
 char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
-u_int maxrec[6]={512,1024,2048,4096,8192,0};
 
 #define MAX_GAPHOP  16
 u_int gap_cnt[] = {1, 1, 4, 6, 9, 12, 14, 17,
@@ -332,7 +331,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	struct tcode_info *info;
 
 	if(xfer == NULL) return EINVAL;
-	if(xfer->send.len > fc->maxrec){
+	if(xfer->send.len > MAXREC(fc->maxrec)){
 		printf("send.len > maxrec\n");
 		return EINVAL;
 	}
@@ -1631,22 +1630,23 @@ fw_attach_dev(struct firewire_comm *fc)
 	device_t *devlistp;
 	int devcnt;
 	struct firewire_dev_comm *fdc;
+	u_int32_t spec, ver;
 
 	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
 			fwdev = TAILQ_NEXT(fwdev, link)){
 		if(fwdev->status == FWDEVINIT){
-			fwdev->spec = getcsrdata(fwdev, CSRKEY_SPEC);
-			if(fwdev->spec == 0)
+			spec = getcsrdata(fwdev, CSRKEY_SPEC);
+			if(spec == 0)
 				continue;
-			fwdev->ver = getcsrdata(fwdev, CSRKEY_VER);
-			if(fwdev->ver == 0)
+			ver = getcsrdata(fwdev, CSRKEY_VER);
+			if(ver == 0)
 				continue;
 			fwdev->maxrec = (fwdev->csrrom[2] >> 12) & 0xf;
 
 			device_printf(fc->bdev, "Device ");
-			switch(fwdev->spec){
+			switch(spec){
 			case CSRVAL_ANSIT10:
-				switch(fwdev->ver){
+				switch(ver){
 				case CSRVAL_T10SBP2:
 					printf("SBP-II");
 					break;
@@ -1655,7 +1655,7 @@ fw_attach_dev(struct firewire_comm *fc)
 				}
 				break;
 			case CSRVAL_1394TA:
-				switch(fwdev->ver){
+				switch(ver){
 				case CSR_PROTAVC:
 					printf("AV/C");
 					break;
