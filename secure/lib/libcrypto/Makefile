@@ -307,34 +307,41 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 	ssl/SSL_CTX_free.pod ssl/SSL_CTX_get_ex_new_index.pod \
 	ssl/SSL_CTX_get_verify_mode.pod \
 	ssl/SSL_CTX_load_verify_locations.pod ssl/SSL_CTX_new.pod \
-	ssl/SSL_CTX_sess_set_cache_size.pod \
-	ssl/SSL_CTX_sess_set_get_cb.pod ssl/SSL_CTX_sessions.pod \
-	ssl/SSL_CTX_set_cipher_list.pod \
+	ssl/SSL_CTX_sess_set_cache_size.pod ssl/SSL_CTX_sess_set_get_cb.pod \
+	ssl/SSL_CTX_sessions.pod ssl/SSL_CTX_set_cipher_list.pod \
 	ssl/SSL_CTX_set_client_CA_list.pod \
-	ssl/SSL_CTX_set_default_passwd_cb.pod \
-	ssl/SSL_CTX_set_options.pod \
+	ssl/SSL_CTX_set_default_passwd_cb.pod ssl/SSL_CTX_set_options.pod\
 	ssl/SSL_CTX_set_session_cache_mode.pod \
 	ssl/SSL_CTX_set_session_id_context.pod \
-	ssl/SSL_CTX_set_ssl_version.pod ssl/SSL_CTX_set_timeout.pod \
-	ssl/SSL_CTX_set_verify.pod ssl/SSL_CTX_use_certificate.pod \
-	ssl/SSL_SESSION_free.pod ssl/SSL_SESSION_get_ex_new_index.pod \
-	ssl/SSL_SESSION_get_time.pod ssl/SSL_accept.pod \
-	ssl/SSL_clear.pod ssl/SSL_connect.pod ssl/SSL_free.pod \
-	ssl/SSL_get_ciphers.pod ssl/SSL_get_client_CA_list.pod \
-	ssl/SSL_get_current_cipher.pod ssl/SSL_get_error.pod \
-	ssl/SSL_get_ex_data_X509_STORE_CTX_idx.pod \
+	ssl/SSL_CTX_set_ssl_version.pod \
+	ssl/SSL_CTX_set_timeout.pod ssl/SSL_CTX_set_verify.pod \
+	ssl/SSL_CTX_use_certificate.pod ssl/SSL_SESSION_free.pod \
+	ssl/SSL_SESSION_get_ex_new_index.pod \
+	ssl/SSL_SESSION_get_time.pod \
+	ssl/SSL_accept.pod ssl/SSL_clear.pod ssl/SSL_connect.pod \
+	ssl/SSL_free.pod ssl/SSL_get_ciphers.pod \
+	ssl/SSL_get_client_CA_list.pod ssl/SSL_get_current_cipher.pod \
+	ssl/SSL_get_error.pod ssl/SSL_get_ex_data_X509_STORE_CTX_idx.pod \
 	ssl/SSL_get_ex_new_index.pod ssl/SSL_get_fd.pod \
-	ssl/SSL_get_peer_cert_chain.pod \
-	ssl/SSL_get_peer_certificate.pod ssl/SSL_get_rbio.pod \
-	ssl/SSL_get_session.pod ssl/SSL_get_verify_result.pod \
-	ssl/SSL_library_init.pod ssl/SSL_load_client_CA_file.pod \
-	ssl/SSL_new.pod ssl/SSL_pending.pod ssl/SSL_read.pod \
-	ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod ssl/SSL_set_session.pod \
-	ssl/SSL_set_verify_result.pod ssl/SSL_shutdown.pod \
-	ssl/SSL_write.pod ssl/d2i_SSL_SESSION.pod ssl/ssl.pod \
-	ssl/SSL_CTX_sess_number.pod ssl/SSL_CTX_set_mode.pod \
+	ssl/SSL_get_peer_cert_chain.pod ssl/SSL_get_peer_certificate.pod \
+	ssl/SSL_get_rbio.pod ssl/SSL_get_session.pod \
+	ssl/SSL_get_verify_result.pod ssl/SSL_library_init.pod \
+	ssl/SSL_load_client_CA_file.pod ssl/SSL_new.pod ssl/SSL_pending.pod \
+	ssl/SSL_read.pod ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod \
+	ssl/SSL_set_session.pod ssl/SSL_set_verify_result.pod \
+	ssl/SSL_shutdown.pod ssl/SSL_write.pod ssl/d2i_SSL_SESSION.pod \
+	ssl/ssl.pod ssl/SSL_CTX_sess_number.pod ssl/SSL_CTX_set_mode.pod \
 	ssl/SSL_get_version.pod ssl/SSL_set_connect_state.pod \
-	ssl/SSL_set_shutdown.pod
+	ssl/SSL_set_shutdown.pod ssl/SSL_alert_type_string.pod \
+	ssl/SSL_COMP_add_compression_method.pod ssl/SSL_CTX_ctrl.pod \
+	ssl/SSL_CTX_set_cert_store.pod \
+	ssl/SSL_CTX_set_cert_verify_callback.pod \
+	ssl/SSL_CTX_set_info_callback.pod ssl/SSL_CTX_set_quiet_shutdown.pod \
+	ssl/SSL_CTX_set_tmp_dh_callback.pod \
+	ssl/SSL_CTX_set_tmp_rsa_callback.pod ssl/SSL_get_default_timeout.pod \
+	ssl/SSL_get_SSL_CTX.pod ssl/SSL_rstate_string.pod \
+	ssl/SSL_session_reused.pod ssl/SSL_state_string.pod \
+	ssl/SSL_want.pod
 
 .if defined(WANT_OPENSSL_MANPAGES)
 .for section in 1 3
