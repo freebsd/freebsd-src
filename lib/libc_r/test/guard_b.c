@@ -71,7 +71,7 @@ recurse(void *args)
 	 */
 	if (parms->top - (void *)&top != FRAME_SIZE * parms->cur) {
 		fprintf(stderr, "Stack size (%d) != expected (%d), frame %d\n",
-		    parms->top - (void *)&top, FRAME_SIZE * parms->cur,
+		    (int)(parms->top - (void *)&top), FRAME_SIZE * parms->cur,
 		    parms->cur);
 	}
 
