@@ -75,7 +75,8 @@ __stdcall static ndis_status ntoskrnl_ansi_to_unicode(ndis_unicode_string *,
 	ndis_ansi_string *, uint8_t);
 __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
-__stdcall static uint32_t ntoskrnl_iofcalldriver(void *, void *);
+__stdcall static uint32_t ntoskrnl_iofcalldriver(/*void *, void * */ void);
+__stdcall static void ntoskrnl_iofcompletereq(/*void *, uint8_t*/ void);
 __stdcall static uint32_t ntoskrnl_waitforobj(void *, uint32_t,
 	uint32_t, uint8_t, void *);
 __stdcall static void ntoskrnl_initevent(void *, uint32_t, uint8_t);
@@ -131,6 +132,7 @@ __stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
 	uint32_t, uint32_t *);
 static int atoi (const char *);
 static long atol (const char *);
+__stdcall static uint8_t ntoskrnl_wdmver(uint8_t, uint8_t);
 __stdcall static void dummy(void);
 
 static struct mtx *ntoskrnl_interlock;
@@ -253,11 +255,25 @@ ntoskrnl_iobuildsynchfsdreq(func, dobj, buf, len, off, event, status)
 }
 	
 __stdcall static uint32_t
-ntoskrnl_iofcalldriver(dobj, irp)
+ntoskrnl_iofcalldriver(/*dobj, irp*/)
+{
 	void			*dobj;
 	void			*irp;
-{
+
+	__asm__ __volatile__ ("" : "=c" (dobj), "=d" (irp));
+
 	return(0);
+}
+
+__stdcall static void
+ntoskrnl_iofcompletereq(/*irp, prioboost*/)
+{
+	void			*irp;
+	uint8_t			prioboost;
+
+	__asm__ __volatile__ ("" : "=c" (irp), "=d" (prioboost));
+
+	return;
 }
 
 __stdcall static uint32_t
@@ -821,6 +837,16 @@ atol(str)
 	return strtol(str, (char **)NULL, 10);
 }
 
+__stdcall static uint8_t
+ntoskrnl_wdmver(major, minor)
+	uint8_t			major;
+	uint8_t			minor;
+{
+	if (major == WDM_MAJOR && minor == WDM_MINOR_WINXP)
+		return(TRUE);
+	return(FALSE);
+}
+
 __stdcall static void
 dummy()
 {
@@ -841,6 +867,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlFreeUnicodeString",	(FUNC)ntoskrnl_free_unicode_string },
 	{ "RtlUnicodeStringToInteger",	(FUNC)ntoskrnl_unicode_to_int },
 	{ "sprintf",			(FUNC)sprintf },
+	{ "vsprintf",			(FUNC)vsprintf },
 	{ "DbgPrint",			(FUNC)printf },
 	{ "strncmp",			(FUNC)strncmp },
 	{ "strcmp",			(FUNC)strcmp },
@@ -850,6 +877,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "memcpy",			(FUNC)memcpy },
 	{ "memset",			(FUNC)memset },
 	{ "IofCallDriver",		(FUNC)ntoskrnl_iofcalldriver },
+	{ "IofCompleteRequest",		(FUNC)ntoskrnl_iofcompletereq },
 	{ "IoBuildSynchronousFsdRequest", (FUNC)ntoskrnl_iobuildsynchfsdreq },
 	{ "KeWaitForSingleObject",	(FUNC)ntoskrnl_waitforobj },
 	{ "KeInitializeEvent",		(FUNC)ntoskrnl_initevent },
@@ -886,6 +914,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
 	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
 	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_init_lock },
+	{ "IoIsWdmVersionAvailable",	(FUNC)ntoskrnl_wdmver },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
