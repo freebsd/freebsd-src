@@ -58,8 +58,8 @@ struct sc_chinfo {
 	struct sc_info	*parent;
 	pcm_channel	*channel;
 	snd_dbuf	*buffer;
+	u_int32_t	fmt, spd;
 	int		dir;
-	int		fmt, spd;
 	int		dma_active, dma_was_active;
 };
 
