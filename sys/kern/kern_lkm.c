@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.57 1998/10/16 03:55:00 peter Exp $
+ * $Id: kern_lkm.c,v 1.58 1998/10/25 17:44:51 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -648,17 +648,8 @@ _lkm_vfs(lkmtp, cmd)
 		vfsp->vfc_next = vfc;
 		vfc->vfc_next = NULL;
 
-		/* like in vfs_op_init */
-		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
-			struct vnodeopv_desc *opv = (struct vnodeopv_desc *)
-				args->lkm_vnodeops->ls_items[i];
-			*(opv->opv_desc_vector_p) = NULL;
-		}
-		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
-			struct vnodeopv_desc *opv = (struct vnodeopv_desc *)
-				args->lkm_vnodeops->ls_items[i];
-			vfs_opv_init(opv);
-		}
+		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
+			vfs_add_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
 
 		/*
 		 * Call init function for this VFS...
@@ -693,6 +684,9 @@ _lkm_vfs(lkmtp, cmd)
 		}
 
 		prev_vfsp->vfc_next = vfsp->vfc_next;
+
+		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
+			vfs_rm_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
 
 		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
 			l = &sysctl__vfs;
