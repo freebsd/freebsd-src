@@ -1267,7 +1267,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			    MIN(desc->data_increment, 32);
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-			  ("Buffer command: data %x: datacnt %d\n",
+			  ("Buffer command: data %p: datacnt %d\n",
 			   (intptr_t)desc->data, desc->data_increment));
 		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
 				  periph_links.tqe);
