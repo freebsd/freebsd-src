@@ -145,7 +145,7 @@ ia64_mca_save_state(int type)
 		oidp->oid_name = name;
 		oidp->oid_handler = mca_sysctl_handler;
 		oidp->oid_fmt = "S,MCA";
-		oidp->descr = "Error record";
+		oidp->oid_descr = "Error record";
 
 		sysctl_register_oid(oidp);
 
