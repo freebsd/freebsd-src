@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.13 1997/03/10 03:04:05 hanai Exp $ -->
+<!-- $Id: install.sgml,v 1.14 1997/04/01 02:38:01 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.53 -->
 
@@ -234,7 +234,7 @@ Boot:
 
 	    <item>DEC EtherWORKS III ネットワークインタフェースカード (DE203, DE204, DE205)
 	    <item>DEC EtherWORKS II ネットワークインタフェースカード (DE200, DE201, DE202, DE422)
-	    <item>DEC DC21140/DC21141/DC21140 ベースのネットワークインタフェースカード:
+	    <item>DEC DC21040/DC21041/DC21140 ベースのネットワークインタフェースカード:
 		<itemize>
 		<item>ASUS		PCI-L101-TB
 		<item>Accton		ENI1203
