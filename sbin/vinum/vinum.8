@@ -430,7 +430,8 @@ subdisk: in other words, the offset is the numerical position of the subdisk
 multiplied by the stripe size.
 For example, in a plex with stripe size 271k,
 the first subdisk will have offset 0, the second offset 271k, the third 542k,
-etc.\&  This calculation ignores parity blocks in RAID-5 plexes.
+etc.
+This calculation ignores parity blocks in RAID-5 plexes.
 .El
 .Pp
 .It Xo
@@ -1154,9 +1155,11 @@ to the plex name.
 .\".It Xo
 .\".Ic replace
 .\".Ar drive newdrive
-.\"Move all the subdisks from the specified drive onto the new drive.  This will
+.\"Move all the subdisks from the specified drive onto the new drive.
+.\"This will
 .\"attempt to recover those subdisks that can be recovered, and create the others
-.\"from scratch.  If the new drive lacks the space for this operation, as many
+.\"from scratch.
+.\"If the new drive lacks the space for this operation, as many
 .\"subdisks as possible will be fitted onto the drive, and the rest will be left on
 .\"the original drive.
 .Pp
@@ -1272,13 +1275,16 @@ the configuration.
 .\".Ic set
 .\"sets the state of the specified object to one of the valid states (see
 .\".Sx OBJECT STATES
-.\"below).  Normally
+.\"below).
+.\"Normally
 .\".Nm
-.\"performs a large amount of consistency checking before making the change.  The
+.\"performs a large amount of consistency checking before making the change.
+.\"The
 .\".Fl f
 .\"option tells
 .\".Nm
-.\"to omit this checking and perform the change anyway.  Use this option with great
+.\"to omit this checking and perform the change anyway.
+.\"Use this option with great
 .\"care: it can result in total loss of data on a volume.
 .Pp
 .It Ic setdaemon Op Ar value
