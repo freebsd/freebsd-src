@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.21 1994/02/27 21:51:05 phk Exp $
+ *	$Id: conf.c,v 1.22 1994/03/02 20:28:28 guido Exp $
  */
 
 #include "param.h"
@@ -206,6 +206,7 @@ struct bdevsw	bdevsw[] =
 	  cddump,	cdsize,		0 },
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  mcddump,	mcdsize,	0 },
+	{ 0, } /* block major 8 is reserved for local use */
 /*
  * If you need a bdev major number, please contact the FreeBSD team
  * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
@@ -592,6 +593,7 @@ struct cdevsw	cdevsw[] =
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
 	  ukioctl,	nostop,		nullreset,	NULL,	/* unknown */
 	  seltrue,	nommap,		NULL },			/* scsi */
+	{ 0, } /* character device 32 is reserved for local use */
 /*
  * If you need a cdev major number, please contact the FreeBSD team
  * by sending mail to `freebsd-hackers@freefall.cdrom.com'.
