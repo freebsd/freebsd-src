@@ -28,7 +28,7 @@ struct bundle;
 struct ccp;
 struct cmdargs;
 
-/* Device types */
+/* Device types (don't use zero, it'll be confused with NULL in physical2iov */
 #define I4B_DEVICE	1
 #define TTY_DEVICE	2
 #define TCP_DEVICE	3
@@ -59,8 +59,7 @@ struct device {
   void (*destroy)(struct physical *);
   ssize_t (*read)(struct physical *, void *, size_t);
   ssize_t (*write)(struct physical *, const void *, size_t);
-  void (*device2iov)(struct device *, struct iovec *, int *, int, int *,
-                     int *, pid_t);
+  void (*device2iov)(struct device *, struct iovec *, int *, int, int *, int *);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
 };
@@ -134,7 +133,8 @@ extern void physical_Destroy(struct physical *);
 extern struct physical *iov2physical(struct datalink *, struct iovec *, int *,
                                      int, int, int *, int *);
 extern int physical2iov(struct physical *, struct iovec *, int *, int, int *,
-                        int *, pid_t);
+                        int *);
+extern const char *physical_LockedDevice(struct physical *);
 extern void physical_ChangedPid(struct physical *, pid_t);
 
 extern int physical_IsSync(struct physical *);

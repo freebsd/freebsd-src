@@ -1337,7 +1337,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
 
 int
 datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
-             int *auxfd, int *nauxfd, pid_t newpid)
+             int *auxfd, int *nauxfd)
 {
   /* If `dl' is NULL, we're allocating before a Fromiov() */
   int link_fd;
@@ -1359,14 +1359,13 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     return -1;
   }
 
-  iov[*niov].iov_base = dl ? dl : malloc(sizeof *dl);
+  iov[*niov].iov_base = (void *)dl;
   iov[(*niov)++].iov_len = sizeof *dl;
-  iov[*niov].iov_base =
-    dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
+  iov[*niov].iov_base = dl ? realloc(dl->name, DATALINK_MAXNAME) : NULL;
   iov[(*niov)++].iov_len = DATALINK_MAXNAME;
 
   link_fd = physical2iov(dl ? dl->physical : NULL, iov, niov, maxiov, auxfd,
-                         nauxfd, newpid);
+                         nauxfd);
 
   if (link_fd == -1 && dl) {
     free(dl->name);
