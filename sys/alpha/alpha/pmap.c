@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.3 1998/07/12 16:13:54 dfr Exp $
+ *	$Id: pmap.c,v 1.4 1998/07/15 20:07:33 dfr Exp $
  */
 
 /*
@@ -214,8 +214,8 @@ pmap_break(void)
 #define ALPHA_L1SIZE		(1L << ALPHA_L1SHIFT)
 #define ALPHA_L2SIZE		(1L << ALPHA_L2SHIFT)
 
-#define alpha_l1trunc(va)	((va) & (ALPHA_L1SIZE-1))
-#define alpha_l2trunc(va)	((va) & (ALPHA_L2SIZE-1))
+#define alpha_l1trunc(va)	((va) & ~(ALPHA_L1SIZE-1))
+#define alpha_l2trunc(va)	((va) & ~(ALPHA_L2SIZE-1))
 
 /*
  * Get PDEs and PTEs for user/kernel address space
@@ -1761,7 +1761,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t va;
+	vm_offset_t va, nva1, nva2;
 
 	if (pmap == NULL)
 		return;
@@ -1769,8 +1769,29 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	for (va = sva; va < eva; va += PAGE_SIZE)
-		pmap_remove_page(pmap, va);
+	/*
+	 * special handling of removing one page.  a very
+	 * common operation and easy to short circuit some
+	 * code.
+	 */
+	if (sva + PAGE_SIZE == eva) {
+		pmap_remove_page(pmap, sva);
+		return;
+	}
+
+	for (va = sva; va < eva; va = nva1) {
+		nva1 = alpha_l1trunc(va + ALPHA_L1SIZE - 1);
+		if (!pmap_pte_v(pmap_lev1pte(pmap, va)))
+			continue;
+
+		for (; va < eva && va < nva1; va = nva2) {
+			nva2 = alpha_l2trunc(va + ALPHA_L2SIZE - 1);
+			if (!pmap_pte_v(pmap_lev2pte(pmap, va)))
+				continue;
+			for (; va < eva && va < nva2; va += PAGE_SIZE)
+				pmap_remove_page(pmap, va);
+		}
+	}
 }
 
 /*
@@ -2102,7 +2123,7 @@ retry:
 			 * If the level 2 page table is mapped, we just increment
 			 * the hold count, and activate it.
 			 */
-			if (l2pte) {
+			if (l2pte && pmap_pte_v(l2pte)) {
 				if (pmap->pm_ptphint &&
 					(pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
