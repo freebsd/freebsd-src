@@ -77,6 +77,7 @@ static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <net/slip.h>
+#include <net/if.h>
 
 #include <stdio.h>
 #include <errno.h>
@@ -88,6 +89,7 @@ static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
 #include "pathnames.h"
 
 int	unit;
+int	slip_mode;
 speed_t speed;
 int	uid;
 int     keepal;
@@ -96,6 +98,17 @@ int     slunit;
 char	loginargs[BUFSIZ];
 char	loginfile[MAXPATHLEN];
 char	loginname[BUFSIZ];
+
+struct slip_modes {
+	char	*sm_name;
+	int	sm_or_flag;
+	int	sm_and_flag;
+}	 modes[] = {
+	"normal",	0        , 0        ,
+	"compress",	IFF_LINK0, IFF_LINK2,
+	"noicmp",	IFF_LINK1, 0        ,
+	"autocomp",	IFF_LINK2, IFF_LINK0,
+};
 
 void
 findid(name)
@@ -133,6 +146,18 @@ findid(name)
 			continue;
 
 		(void) fclose(fp);
+
+		slip_mode = 0;
+		for (i = 0; i < n - 4; i++) {
+			for (j = 0; j < sizeof(modes)/sizeof(struct slip_modes);
+				j++) {
+				if (strcmp(modes[j].sm_name, slopt[i]) == 0) {
+					slip_mode |= (modes[j].sm_or_flag);
+					slip_mode &= ~(modes[j].sm_and_flag);
+					break;
+				}
+			}
+		}
 
 		/*
 		 * we've found the guy we're looking for -- see if
@@ -258,6 +283,40 @@ hup_handler(s)
 	exit(1);
 	/* NOTREACHED */
 }
+
+
+/* Modify the slip line mode and add any compression or no-icmp flags. */
+void line_flags(unit)
+	int unit;
+{
+	struct ifreq ifr;
+	int s;
+
+	/* open a socket as the handle to the interface */
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		syslog(LOG_ERR, "socket: %m");
+		exit(1);
+	}
+	sprintf(ifr.ifr_name, "sl%d", unit);
+
+	/* get the flags for the interface */
+	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+		syslog(LOG_ERR, "ioctl (SIOCGIFFLAGS): %m");
+		exit(1);
+        }
+
+	/* Assert any compression or no-icmp flags. */
+#define SLMASK (~(IFF_LINK0 | IFF_LINK1 | IFF_LINK2))
+	ifr.ifr_flags &= SLMASK;
+	ifr.ifr_flags |= slip_mode;
+	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
+		syslog(LOG_ERR, "ioctl (SIOCSIFFLAGS): %m");
+		exit(1);
+	}
+        close(s);
+}
+
 
 main(argc, argv)
 	int argc;
@@ -385,6 +444,9 @@ main(argc, argv)
 		       loginname, s, loginfile);
 		exit(6);
 	}
+
+	/* Handle any compression or no-icmp flags. */
+	line_flags(unit);
 
 	/* reset uid to users' to allow the user to give a signal. */
 	seteuid(uid);
