@@ -142,15 +142,75 @@ struct acpi_device {
 #define ACPI_IVAR_MAGIC		0x101
 #define ACPI_IVAR_PRIVATE	0x102
 
-extern ACPI_HANDLE	acpi_get_handle(device_t dev);
-extern int		acpi_set_handle(device_t dev, ACPI_HANDLE h);
-extern int		acpi_get_magic(device_t dev);
-extern int		acpi_set_magic(device_t dev, int m);
-extern void *		acpi_get_private(device_t dev);
-extern int		acpi_set_private(device_t dev, void *p);
-extern ACPI_OBJECT_TYPE	acpi_get_type(device_t dev);
-struct resource *	acpi_bus_alloc_gas(device_t dev, int *rid,
-					   ACPI_GENERIC_ADDRESS *gas);
+static __inline ACPI_HANDLE
+acpi_get_handle(device_t dev)
+{
+    uintptr_t up;
+
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, &up))
+	return (NULL);
+    return ((ACPI_HANDLE)up);
+}
+
+static __inline int
+acpi_set_handle(device_t dev, ACPI_HANDLE h)
+{
+    uintptr_t up;
+
+    up = (uintptr_t)h;
+    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, up));
+}
+
+static __inline int
+acpi_get_magic(device_t dev)
+{
+    uintptr_t up;
+
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, &up))
+	return(0);
+    return ((int)up);
+}
+
+static __inline int
+acpi_set_magic(device_t dev, int m)
+{
+    uintptr_t up;
+
+    up = (uintptr_t)m;
+    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, up));
+}
+
+static __inline void *
+acpi_get_private(device_t dev)
+{
+    uintptr_t up;
+
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, &up))
+	return (NULL);
+    return ((void *)up);
+}
+
+static __inline int
+acpi_set_private(device_t dev, void *p)
+{
+    uintptr_t up;
+
+    up = (uintptr_t)p;
+    return (BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, up));
+}
+
+static __inline ACPI_OBJECT_TYPE
+acpi_get_type(device_t dev)
+{
+    ACPI_HANDLE		h;
+    ACPI_OBJECT_TYPE	t;
+
+    if ((h = acpi_get_handle(dev)) == NULL)
+	return (ACPI_TYPE_NOT_FOUND);
+    if (AcpiGetType(h, &t) != AE_OK)
+	return (ACPI_TYPE_NOT_FOUND);
+    return (t);
+}
 
 #ifdef ACPI_DEBUGGER
 extern void		acpi_EnterDebugger(void);
@@ -196,6 +256,8 @@ extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
 extern void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 					uint8_t notify);
+struct resource *	acpi_bus_alloc_gas(device_t dev, int *rid,
+					   ACPI_GENERIC_ADDRESS *gas);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
