@@ -39,6 +39,7 @@
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -178,6 +179,13 @@ bind(td, uap)
 		goto done2;
 	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
 		goto done1;
+#ifdef MAC
+	error = mac_check_socket_bind(td->td_ucred, so, sa);
+	if (error) {
+		FREE(sa, M_SONAME);
+		goto done1;
+	}
+#endif
 	error = sobind(so, sa, td);
 	FREE(sa, M_SONAME);
 done1:
@@ -204,7 +212,15 @@ listen(td, uap)
 
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
+#ifdef MAC
+		error = mac_check_socket_listen(td->td_ucred, so);
+		if (error)
+			goto done;
+#endif
 		error = solisten(so, uap->backlog, td);
+#ifdef MAC
+done:
+#endif
 		fputsock(so);
 	}
 	mtx_unlock(&Giant);
@@ -438,6 +454,11 @@ connect(td, uap)
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
 		goto done1;
+#ifdef MAC
+	error = mac_check_socket_connect(td->td_ucred, so, sa);
+	if (error)
+		goto bad;
+#endif
 	error = soconnect(so, sa, td);
 	if (error)
 		goto bad;
