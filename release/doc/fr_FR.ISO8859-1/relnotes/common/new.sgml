@@ -905,6 +905,140 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <sect3>
       <title>Disques et Stockage</title>
 
+      <para arch="i386">Le support des cartes de la famille Adaptec FSA 
+      des contrtoleurs RAID PCI-SCSI a été ajouté sous la forme du 
+      gestionnaire de périphériques &man.aac.4;. Ce gestionnaire
+      gére correctement les commandes suivantes initiées par la carte, 
+      ajout/retrait des disques, la fonction de "crashdump" et les
+      commandes &man.ioctl.2; nécessaires pour la gestion CLI. Ce 
+      gestionnaire a été vérifié par Adaptec.&merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ahc.4; a reçu
+      de nombreuses modifications, corrections de bogues et améliorations.
+      Parmi les différentes améliorations il dispose d'une meilleur
+      compatibilité avec les puces en mode <quote>RAID Port</quote>
+      et les systèmes comportant des cartes AAA et/ou ARO, et 
+      des améliorations de la performance. Des bogues ont été fixés,
+      comme celui qui figeait les controleurs Ultra2/U160. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.asr.4;
+      permettant de supporter les cartes controleurs Adaptec SCSI RAID
+      et les familles DPT SmartRAID V et VI, a été ajouté.&merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.asr.4; 
+      supporte maintenant les controleurs RAID  Adaptec 2000S et
+      2005S Zero-Channel. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; supporte maintenant
+      les controleurs ATA100. En plus il supporte maintenant
+      les puces ServerWorks ROSB4 ATA33, CMD 648 ATA66 et CMD 649 ATA100
+      et Cyrix 5530. &merged;</para>
+
+      <para>Pour une configuration plus fexible, les différentes options
+      du gestionnaire &man.ata.4; sont maintenant modifiables via
+      le gestionnaire de démarrage, plutot que au niveau du fichier
+      de configuration du noyau.&merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; supporte 
+      maintenant le mécanisme de marquage de file, qui est activable
+      via la variable de démarrage <varname>hw.ata.tags</varname>. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; supporte 
+      maintenant les <quote>pseudo</quote> controleurs RAID ATA comme
+      les controleurs Promise Fasttrak et  HighPoint HPT370.&merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; supporte maintenant
+      un grand nombre de puces SiS, listé dans les Notes Matérielles. &merged;</para>
+
+      <para>La fonctionnalité BurnProof(TM), disponible sur les
+      graveurs de CDROM ATAPI et maintenant disponible.&merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; supporte 
+      dispose du support d'adressage 48-bit. Les périphériques
+      de plus de 137GB sont maintenant supportés. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.ata.4; est maintenant
+      corrigé pour les systèmes utilisant les puces VIA 82C686B Southbridge,
+      qui entrainait une corruption des données. &merged;</para>
+
+      <para>Les erreurs de récupération CAM ont été mises à jour.</para>
+
+      <para>Le gestionnaire de périphériques &man.cd.4; supporte maintenant
+      les écritures. Cela permet d'écrire sur les DVD-RAM, PD et 
+      d'autres lecteurs qui sont signalés comme des périphériques CD.
+      Notez que cette modification affecte uniquement les périphériques
+      a accès en écriture aléatoire, et pas les périphériques a accès
+      en écriture séquentielle comme les lecteurs CD-R, qui sont eux 
+      supportés par &man.cdrecord.1; (via 
+      <filename role="package">sysutils/cdrtools</filename> de la 
+      collection des Ports. &merged;</para>
+
+      <para arch="i386">Le gestionnaire ciss, pour les périphériques
+      utilisant l'interface standard d'accès SCSI-3, a été ajouté. Le
+      gestionnaire supporte la famille des controleurs RAID Compaq 
+      SmartRAID 5* (5300, 532, 5i)&merged;</para>
+
+      <para>Le gestionnaire de périphériques de disquette &man.fdc.4; a
+      subit de nombreuses améliorations. La sélection de la densité
+      est maintenant automatique; le gestionnaire est aussi plus
+      souple sur la selection de la densité de différents sous-
+      périphériques.</para>
+
+      <para>Le gestionnaire de périphériques de disque ida, supporte
+      maintenant la focntion de "crashdump". &merged;</para>
+
+      <para arch="i386">Le gestionnaire de périphériques iir a été ajouté
+      pour supporter les controleurs RAID intégrés d'Intel, et les controleurs
+      Vortex ICP.</para>
+
+      <para arch="alpha">Le bogue qui ne permettait pas
+      d'attacher certains lecteurs de CDROM lorsqu'ils étaient
+      connectés sur une carte SCSI gérée par &man.isp.4; a été
+      corrigé.. &merged;</para>
+
+      <para>Le gestionnaire de périphériques &man.isp.4; permet
+      maintenant de découvrir de façon pro-active les 
+      changements de  topologie Fibre Channel.</para>
+
+      <para>Le gestionnaire de périphériques &man.isp.4; supporte
+       maintenant le mode cible pour les cartes SCSI Qlogic, dont
+       les cartes Ultra2 et Ultra3 et les cartes double bus..</para>
+
+      <para>Le gestionnaire de périphériques &man.isp.4; supporte 
+      maintenant les cartes PCI Qlogic 2300 et 2312 Fibre 
+      Channel.&merged;</para>
+
+      <para>&man.md.4;, le gestionnaire de périphériques de disque
+      mémoire, comporte maintenant les fonctionnalités de &man.vn.4;
+      Les périphériques &man.md.4; peuvent maintenant etre configurés
+      via &man.mdconfig.8;. &man.vn.4; a été retiré. Le système
+      de fichiers mémoire (MFS) a été retiré aussi..</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.mly.4; 
+      pour les controleurs  Mylex PCI to SCSI
+      AccelRAID et eXtremeRAID comportant un micro-code 6.X ou supérieur
+      a été ajouté. &merged;</para>
+
+      <para arch="i386">Les gestionnaires de périphériques ncv, nsp et stg ont 
+      été portés depuis le code NetBSD/pc98. Ils supportent les cartes controleurs
+      NCR 53C50 /Workbit Ninja SCSI-3 / TMC 18C30, et les cartes basées sur les
+      controleurs 18C50 PC-Card/ISA SCSI. Ces trois gestionnaires peuvent etre
+      compilés et chargés en modules. &merged;</para>
+
+      <para>Différents problèmes dans la gestion des erreurs de  &man.sa.4; 
+      ont été corrigés, de meme que le problème <quote>tape drive spinning indefinitely
+      upon &man.mt.1; <option>stat</option></quote> .</para>
+
+      <para arch="i386">Le gestionnaire de périphériques &man.twe.4; 
+      3ware ATA RAID a été ajouté. &merged;</para>
+
+      <para>Le gestionnaire de volume &man.vinum.4; a reçu des corrections de bogues
+      et des améliorations.</para>
+
+      <para>La compatibilité des gestionnaires de périphériques &man.wd.4; a été retirée
+      des gestionnaires de périphériques &man.ata.4;. &merged;</para>
+
+
       <para></para>
     </sect3>
 
