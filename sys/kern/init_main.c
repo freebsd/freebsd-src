@@ -406,6 +406,7 @@ proc0_init(void *dummy __unused)
 	siginit(&proc0);
 
 	/* Create the file descriptor table. */
+	/* XXX this duplicates part of fdinit() */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;
 	p->p_fdtol = NULL;
@@ -415,6 +416,7 @@ proc0_init(void *dummy __unused)
 	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;
 	fdp->fd_fd.fd_ofileflags = fdp->fd_dfileflags;
 	fdp->fd_fd.fd_nfiles = NDFILE;
+	fdp->fd_fd.fd_map = fdp->fd_dmap;
 
 	/* Create the limits structures. */
 	p->p_limit = &limit0;

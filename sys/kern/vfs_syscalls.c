@@ -998,6 +998,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[indx] == fp) {
 			fdp->fd_ofiles[indx] = NULL;
+			fdunused(fdp, indx);
 			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
 		} else {
@@ -1093,6 +1094,7 @@ bad:
 	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[indx] == fp) {
 		fdp->fd_ofiles[indx] = NULL;
+		fdunused(fdp, indx);
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
 	} else {
@@ -3982,6 +3984,7 @@ fhopen(td, uap)
 			FILEDESC_LOCK(fdp);
 			if (fdp->fd_ofiles[indx] == fp) {
 				fdp->fd_ofiles[indx] = NULL;
+				fdunused(fdp, indx);
 				FILEDESC_UNLOCK(fdp);
 				fdrop(fp, td);
 			} else {
