@@ -145,6 +145,7 @@ g_new_consumer(struct g_geom *gp)
 	cp = g_malloc(sizeof *cp, M_ZERO);
 	cp->protect = 0x020016602;
 	cp->geom = gp;
+	cp->stat.id = cp;
 	LIST_INSERT_HEAD(&gp->consumer, cp, consumer);
 	return(cp);
 }
@@ -184,6 +185,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	LIST_INIT(&pp->consumers);
 	pp->error = ENXIO;
 	pp->geom = gp;
+	pp->stat.id = pp;
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
 	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
@@ -327,7 +329,7 @@ g_detach(struct g_consumer *cp)
 	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
 	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
 	KASSERT(cp->ace == 0, ("detach but nonzero ace"));
-	KASSERT(cp->biocount == 0, ("detach but nonzero biocount"));
+	KASSERT(cp->stat.nop == cp->stat.nend, ("detach with active requests"));
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
 	cp->provider = NULL;
@@ -499,8 +501,8 @@ g_std_done(struct bio *bp)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
 	g_destroy_bio(bp);
-	bp2->bio_children--;	/* XXX: atomic ? */
-	if (bp2->bio_children == 0)
+	bp2->bio_inbed++;
+	if (bp2->bio_children == bp2->bio_inbed)
 		g_io_deliver(bp2, bp2->bio_error);
 }
 

@@ -59,8 +59,8 @@ static void
 g_confdot_consumer(struct sbuf *sb, struct g_consumer *cp)
 {
 
-	sbuf_printf(sb, "z%p [label=\"r%dw%de%d\\nbio #%d\"];\n",
-	    cp, cp->acr, cp->acw, cp->ace, cp->biocount);
+	sbuf_printf(sb, "z%p [label=\"r%dw%de%d\"];\n",
+	    cp, cp->acr, cp->acw, cp->ace);
 	if (cp->provider)
 		sbuf_printf(sb, "z%p -> z%p;\n", cp, cp->provider);
 }
