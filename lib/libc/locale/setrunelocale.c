@@ -32,9 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <rune.h>
 #include <errno.h>
@@ -45,12 +46,12 @@
 #include <unistd.h>
 #include "setlocale.h"
 
-extern int		_none_init __P((_RuneLocale *));
-extern int		_UTF2_init __P((_RuneLocale *));
-extern int		_EUC_init __P((_RuneLocale *));
-extern int		_BIG5_init __P((_RuneLocale *));
-extern int		_MSKanji_init __P((_RuneLocale *));
-extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
+extern int		_none_init(_RuneLocale *);
+extern int		_UTF2_init(_RuneLocale *);
+extern int		_EUC_init(_RuneLocale *);
+extern int		_BIG5_init(_RuneLocale *);
+extern int		_MSKanji_init(_RuneLocale *);
+extern _RuneLocale      *_Read_RuneMagi(FILE *);
 
 int
 setrunelocale(encoding)
@@ -60,15 +61,19 @@ setrunelocale(encoding)
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 
-	if (!encoding || strlen(encoding) > ENCODING_LEN)
-	    return(EFAULT);
+	if (!encoding || !*encoding || strlen(encoding) > ENCODING_LEN ||
+	    (encoding[0] == '.' &&
+	     (encoding[1] == '\0' ||
+	      (encoding[1] == '.' && encoding[2] == '\0'))) ||
+	    strchr(encoding, '/') != NULL)
+		return (EINVAL);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
-		return(0);
+		return (0);
 	}
 
 	if (_PathLocale == NULL) {
@@ -81,7 +86,7 @@ setrunelocale(encoding)
 			) {
 			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
 			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
-				return(EFAULT);
+				return (ENAMETOOLONG);
 			_PathLocale = strdup(p);
 			if (_PathLocale == NULL)
 				return (errno);
@@ -95,27 +100,27 @@ setrunelocale(encoding)
 	(void) strcat(name, "/LC_CTYPE");
 
 	if ((fp = fopen(name, "r")) == NULL)
-		return(ENOENT);
+		return (errno);
 
 	if ((rl = _Read_RuneMagi(fp)) == 0) {
 		fclose(fp);
-		return(EFTYPE);
+		return (EFTYPE);
 	}
 	fclose(fp);
 
 	if (!rl->encoding[0])
-		return(EINVAL);
+		return (EFTYPE);
 	else if (!strcmp(rl->encoding, "NONE"))
-		return(_none_init(rl));
+		return (_none_init(rl));
 	else if (!strcmp(rl->encoding, "UTF2"))
-		return(_UTF2_init(rl));
+		return (_UTF2_init(rl));
 	else if (!strcmp(rl->encoding, "EUC"))
-		return(_EUC_init(rl));
+		return (_EUC_init(rl));
 	else if (!strcmp(rl->encoding, "BIG5"))
-		return(_BIG5_init(rl));
+		return (_BIG5_init(rl));
 	else if (!strcmp(rl->encoding, "MSKanji"))
-		return(_MSKanji_init(rl));
+		return (_MSKanji_init(rl));
 	else
-		return(EINVAL);
+		return (EFTYPE);
 }
 
