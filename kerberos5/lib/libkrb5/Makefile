@@ -112,8 +112,8 @@ SRCS=	\
 	heim_err.c \
 	heim_err.h
 
-INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
-	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h k524_err.h
+INCS=	krb5.h ${.CURDIR}/../../include/krb5-types.h \
+	krb5-protos.h heim_err.h krb5_err.h k524_err.h
 
 MAN=                                           \
        krb5.3                                  \

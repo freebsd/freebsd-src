@@ -13,8 +13,4 @@ SRCS=		bzlib.c blocksort.c compress.c crctable.c decompress.c \
 INCS=		bzlib.h
 CFLAGS+=	-I${BZ2DIR}
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${BZ2DIR}/bzlib.h \
-	    ${DESTDIR}/usr/include
-
 .include <bsd.lib.mk>

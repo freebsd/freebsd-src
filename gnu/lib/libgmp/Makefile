@@ -137,9 +137,7 @@ mpz mpf mpq:
 
 CLEANDIRS+=	mpz mpf mpq
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${GMPDIR}/gmp.h ${DESTDIR}/usr/include
+INCS=		gmp.h
 
 .include "Makefile.inc"
 .include <bsd.lib.mk>

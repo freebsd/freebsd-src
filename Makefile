@@ -94,12 +94,13 @@
 # order, but that's not important.
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
-	cleandepend cleandir depend distribute everything hierarchy includes \
-	install installcheck installkernel installmost installworld kernel \
-	libraries lint maninstall mk most obj objlink regress \
-	reinstallkernel rerelease tags update
+	cleandepend cleandir depend distribute everything \
+	hierarchy install installcheck installkernel \
+	reinstallkernel installmost installworld kernel \
+	libraries lint maninstall \
+	mk most obj objlink regress rerelease tags update
 
-BITGTS=	files
+BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin

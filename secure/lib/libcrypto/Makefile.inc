@@ -32,10 +32,6 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 HDRS+= idea/idea.h
 .endif
 
-.for h in ${HDRS}
-CRYPTO_HDRS+= ${LCRYPTO_SRC}/${h}
-.endfor
-
 SRCS+=		buildinf.h openssl/opensslconf.h openssl/evp.h
 CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/evp.h
 CLEANDIRS+=	openssl
@@ -49,17 +45,16 @@ buildinf.h:
 	echo "#endif" ) > ${.TARGET}
 
 #	XXX:  The openssl/ dependencies are not correct, in that a change in
-#	any of ${CRYPTO_HDRS} ${EXTRA_HDRS} will no repopulate openssl/.
+#	any of ${HDRS} ${EXTRA_HDRS} will no repopulate openssl/.
 #	This deficiency will be fixed in a later commit.
-
-.ORDER:	openssl/opensslconf.h openssl/evp.h
 
 openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
-	${INSTALL} ${COPY} -m 444 ${CRYPTO_HDRS} ${EXTRA_HDRS} openssl
+	${INSTALL} -C -m 444 ${HDRS:S;^;${LCRYPTO_SRC}/;} ${EXTRA_HDRS} openssl
 
 openssl/evp.h: ${LCRYPTO_SRC}/evp/evp.h
+	mkdir -p openssl
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
 .else

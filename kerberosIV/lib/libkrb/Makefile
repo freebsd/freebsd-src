@@ -30,6 +30,7 @@ SRCS=		check_time.c cr_err_reply.c create_auth_reply.c \
 		strcasecmp.c strlcat.c strlcpy.c strdup.c strncasecmp.c \
 		strnlen.c strtok_r.c swab.c ${KRBOBJDIR}/krb_err.c \
 		${KRBOBJDIR}/krb_err.h protos.h
+INCS=		krb.h klog.h krb-protos.h prot.h ${KRBOBJDIR}/krb_err.h
 MAN=		${KRB4DIR}/man/kerberos.3 \
 		${KRB4DIR}/man/krb_realmofhost.3 \
 		${KRB4DIR}/man/krb_sendauth.3 \
@@ -60,10 +61,6 @@ MLINKS=		kerberos.3 krb_mk_req.3 \
 		tf_util.3 tf_get_pinst.3 \
 		tf_util.3 tf_get_cred.3 \
 		tf_util.3 tf_close.3
-
-INCLUDES=	${KRB4DIR}/lib/krb/krb.h ${KRB4DIR}/lib/krb/klog.h \
-		${KRB4DIR}/lib/krb/krb-protos.h \
-		${KRB4DIR}/lib/krb/prot.h ${KRBOBJDIR}/krb_err.h
 
 .include <bsd.lib.mk>
 

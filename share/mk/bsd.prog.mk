@@ -148,6 +148,7 @@ _SCRIPTSINS_${script:T}: ${script}
 .endif
 
 .include <bsd.files.mk>
+.include <bsd.incs.mk>
 .include <bsd.links.mk>
 
 .if !defined(NOMAN)

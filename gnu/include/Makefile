@@ -1,9 +1,6 @@
 # $FreeBSD$
 
 NOOBJ=	noobj
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/values.h \
-		${DESTDIR}/usr/include
+INCS=	values.h
 
 .include <bsd.prog.mk>

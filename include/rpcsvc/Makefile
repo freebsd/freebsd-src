@@ -17,16 +17,11 @@ HFILES= yp_prot.h ypclnt.h nis_db.h nis_tags.h nislib.h
 
 CLEANFILES+= ${HDRS}
 
-all: ${HDRS}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HFILES:S;^;${.CURDIR}/;} \
-		${XFILES:S;^;${.CURDIR}/;} \
-		${HDRS} \
-		${DESTDIR}/usr/include/rpcsvc
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 key_prot.h \
-		${DESTDIR}/usr/include/rpc
+INCSGROUPS=	INCS RPCHDRS
+INCS=		${HFILES} ${XFILES} ${HDRS}
+INCSDIR=	${INCLUDEDIR}/rpcsvc
+RPCHDRS=	key_prot.h
+RPCHDRSDIR=	${INCLUDEDIR}/rpc
 
 .x.h:
 	${RPCCOM} -h -DWANT_NFS3 ${.IMPSRC} -o ${.TARGET}

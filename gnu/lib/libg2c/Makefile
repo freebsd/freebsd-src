@@ -117,8 +117,6 @@ ${E77OBJS:.o=.po}: f2cext.c
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/g2c.h \
-	    ${DESTDIR}/usr/include
+INCS=	g2c.h
 
 .include <bsd.lib.mk>

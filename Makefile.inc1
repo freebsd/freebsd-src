@@ -225,8 +225,8 @@ USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/share/groff_font/devutf8 \
 		usr/share/tmac/mdoc usr/share/tmac/mm
 
-INCDIRS=	arpa g++/std isc objc protocols readline rpc rpcsvc openssl \
-		security ss
+INCDIRS=	arpa dev fs g++/std isc isofs libmilter objc openssl \
+		protocols readline rpc rpcsvc security ufs
 
 #
 # buildworld
@@ -280,7 +280,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} SHARED=copies includes
+	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
@@ -526,14 +526,9 @@ most:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin;		${MAKE} all
-	cd ${.CURDIR}/sbin;		${MAKE} all
-	cd ${.CURDIR}/libexec;		${MAKE} all
-	cd ${.CURDIR}/usr.bin;		${MAKE} all
-	cd ${.CURDIR}/usr.sbin;		${MAKE} all
-	cd ${.CURDIR}/gnu/libexec;	${MAKE} all
-	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} all
-	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} all
+.for _dir in bin sbin libexec usr.bin usr.sbin gnu/libexec gnu/usr.bin gnu/usr.sbin
+	cd ${.CURDIR}/${_dir};		${MAKE} DIRPRFX=${_dir}/ all
+.endfor
 
 #
 # installmost
@@ -545,14 +540,9 @@ installmost:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin;		${MAKE} install
-	cd ${.CURDIR}/sbin;		${MAKE} install
-	cd ${.CURDIR}/libexec;		${MAKE} install
-	cd ${.CURDIR}/usr.bin;		${MAKE} install
-	cd ${.CURDIR}/usr.sbin;		${MAKE} install
-	cd ${.CURDIR}/gnu/libexec;	${MAKE} install
-	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} install
-	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} install
+.for _dir in bin sbin libexec usr.bin usr.sbin gnu/libexec gnu/usr.bin gnu/usr.sbin
+	cd ${.CURDIR}/${_dir};		${MAKE} DIRPRFX=${_dir}/ install
+.endfor
 
 #
 # ------------------------------------------------------------------------
@@ -577,10 +567,10 @@ bootstrap-tools:
     usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
-		${MAKE} obj; \
-		${MAKE} depend; \
-		${MAKE} all; \
-		${MAKE} DESTDIR=${MAKEOBJDIRPREFIX} install
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
+		${MAKE} DIRPRFX=${_tool}/ all; \
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
 #
@@ -617,7 +607,7 @@ build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_perl} ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
     usr.bin/awk usr.bin/file
-	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
+	cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 
 #
@@ -635,10 +625,10 @@ cross-tools:
 .for _tool in ${_btxld} ${_elf2exe} usr.bin/genassym \
     usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
-		${MAKE} obj; \
-		${MAKE} depend; \
-		${MAKE} all; \
-		${MAKE} DESTDIR=${MAKEOBJDIRPREFIX} install
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
+		${MAKE} DIRPRFX=${_tool}/ all; \
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
 #
@@ -646,87 +636,6 @@ cross-tools:
 #
 hierarchy:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-
-#
-# includes - possibly generate and install the include files.
-#
-includes:
-	cd ${.CURDIR}/include;			${MAKE} -B all install
-	cd ${.CURDIR}/gnu/include;		${MAKE} install
-	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libreadline/readline;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-.if exists(${.CURDIR}/secure/lib/libcrypto)
-	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
-.endif
-.if exists(${.CURDIR}/secure/lib/libssl)
-	cd ${.CURDIR}/secure/lib/libssl;	${MAKE} beforeinstall
-.endif
-.endif
-.if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib/libacl;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkadm;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkafs;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkdb;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkrb;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libtelnet; ${MAKE} beforeinstall
-.elif exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib/libtelnet;	${MAKE} beforeinstall
-.else
-	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
-.endif
-.if exists(${.CURDIR}/kerberos5) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS5)
-	cd ${.CURDIR}/kerberos5/lib/libasn1;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libhdb;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkadm5clnt;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkadm5srv;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkafs5;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkrb5;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libsl;		${MAKE} beforeinstall
-.endif
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
-	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
-.endif
-	cd ${.CURDIR}/gnu/lib/csu;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libatm;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libdevstat;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libc;			${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcam;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libfetch;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncp;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libnetgraph;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libusbhid;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
-	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -797,13 +706,13 @@ libraries:
     lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
-		${MAKE} depend; \
-		${MAKE} all; \
-		${MAKE} install
+		${MAKE} DIRPRFX=${_lib}/ depend; \
+		${MAKE} DIRPRFX=${_lib}/ all; \
+		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
-.for __target in clean cleandepend cleandir depend obj
+.for __target in clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
 	@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
