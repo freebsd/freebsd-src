@@ -77,6 +77,10 @@ random_yarrow_deinit_harvester(void)
  * not do anything slow in here!
  * Implemented as in indirect call to allow non-inclusion of
  * the entropy device.
+ *
+ * XXXRW: get_cyclecount() is cheap on most modern hardware, where cycle
+ * counters are built in, but on older hardware it will do a real time clock
+ * read which can be quite expensive.
  */
 void
 random_harvest(void *entropy, u_int count, u_int bits, u_int frac,
