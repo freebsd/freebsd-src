@@ -931,11 +931,7 @@
         tabset
         ..
         tmac
-            locale
-            ..
             mdoc
-                locale
-                ..
             ..
             mm
             ..
