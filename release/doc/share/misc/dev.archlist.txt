@@ -55,6 +55,7 @@ ciss	i386,amd64
 cm	i386
 cp	i386,pc98
 ct	pc98
+ctau	i386
 cue	i386,pc98,amd64
 cx	i386
 dc	i386,pc98,alpha,sparc64,amd64
@@ -100,6 +101,7 @@ txp	i386,pc98,alpha,amd64
 ubsa	i386,pc98,amd64
 udav	i386,pc98,amd64
 uftdi	i386,pc98,amd64
+uhci	i386,pc98,alpha,ia64,amd64
 umodem	i386,pc98,amd64
 uplcom	i386,pc98,amd64
 uscanner	i386,pc98,amd64
