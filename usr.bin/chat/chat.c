@@ -78,7 +78,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chat.c,v 1.10 1997/12/29 00:08:52 alex Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.11 1998/03/21 20:47:04 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -1411,6 +1411,16 @@ register char *string;
     alarmed   = 0;
     return (0);
 }
+
+/*
+ * Gross kludge to handle Solaris versions >= 2.6 having usleep.
+ */
+#ifdef SOL2
+#include <sys/param.h>
+#if MAXUID > 65536		/* then this is Solaris 2.6 or later */
+#undef NO_USLEEP
+#endif
+#endif /* SOL2 */
 
 #ifdef NO_USLEEP
 #include <sys/types.h>
