@@ -279,6 +279,9 @@ struct	cmd {
 	{ "nwkey",	NEXTARG,	set80211nwkey },	/* NetBSD */
 	{ "-nwkey",	0,		set80211wep },		/* NetBSD */
 #endif
+#ifdef USE_MAC
+	{ "mac",	NEXTARG,	setifmac },
+#endif
 	{ "rxcsum",	IFCAP_RXCSUM,	setifcap },
 	{ "-rxcsum",	-IFCAP_RXCSUM,	setifcap },
 	{ "txcsum",	IFCAP_TXCSUM,	setifcap },
@@ -365,6 +368,9 @@ struct	afswtch {
 #endif
 #ifdef USE_IEEE80211
 	{ "ieee80211", AF_UNSPEC, ieee80211_status, NULL, NULL, },  /* XXX not real!! */
+#endif
+#ifdef USE_MAC
+	{ "mac", AF_UNSPEC, mac_status, NULL, NULL, },
 #endif
 #endif
 	{ 0,	0,	    0,		0 }
@@ -1144,6 +1150,10 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 #ifdef USE_IEEE80211
 	if (allfamilies || afp->af_status == ieee80211_status)
 		ieee80211_status(s, NULL);
+#endif
+#ifdef USE_MAC
+	if (allfamilies || afp->af_status == mac_status)
+		mac_status(s, NULL);
 #endif
 	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
