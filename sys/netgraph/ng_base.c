@@ -599,7 +599,7 @@ ng_findname(node_p this, const char *name)
 	LIST_FOREACH(node, &nodelist, nodes) {
 		if (((node->name != NULL)
 		&& (strcmp(node->name, name) == 0))
-		&& (node->flags & NG_INVALID) == 0))
+		&& (node->flags & NG_INVALID) == 0)
 			break;
 	}
 	return (node);
