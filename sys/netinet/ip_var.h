@@ -162,7 +162,6 @@ int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	 ip_drain(void);
 int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags, int sw_csum);
-void	 ip_forward_cacheinval(void);
 void	 ip_freemoptions(struct ip_moptions *);
 void	 ip_init(void);
 extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
@@ -171,7 +170,7 @@ int	 ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
 struct in_ifaddr *
-	 ip_rtaddr(struct in_addr, struct route *);
+	 ip_rtaddr(struct in_addr);
 void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
 		struct mbuf *);
 void	 ip_slowtimo(void);

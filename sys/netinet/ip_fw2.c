@@ -1160,7 +1160,6 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	struct mbuf *m;
 	struct ip *ip;
 	struct tcphdr *tcp;
-	struct route sro;	/* fake route */
 
 	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 	if (m == 0)
@@ -1226,12 +1225,8 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	 */
 	ip->ip_ttl = ip_defttl;
 	ip->ip_len = m->m_pkthdr.len;
-	bzero (&sro, sizeof (sro));
-	ip_rtaddr(ip->ip_dst, &sro);
 	m->m_flags |= M_SKIP_FIREWALL;
-	ip_output(m, NULL, &sro, 0, NULL, NULL);
-	if (sro.ro_rt)
-		RTFREE(sro.ro_rt);
+	ip_output(m, NULL, NULL, 0, NULL, NULL);
 }
 
 /*

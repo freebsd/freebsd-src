@@ -134,13 +134,6 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		}
 	}
 
-	/*
-	 * If the new route created successfully, and we are forwarding,
-	 * flush any cached routes to avoid using a stale value.
-	 */
-	if (ret != NULL && ipforwarding)
-		ip_forward_cacheinval();
-
 	return ret;
 }
 
