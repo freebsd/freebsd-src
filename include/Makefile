@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.58 1997/06/05 21:20:58 jkh Exp $
+#	$Id: Makefile,v 1.59 1997/06/25 08:04:51 msmith Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -109,9 +109,9 @@ symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS} ${LNOHEADERDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
-	ln -s /sys/$i ${DESTDIR}/usr/include/$i
+	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
-	ln -s /sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
+	ln -s ../../sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
 
 .include <bsd.prog.mk>
