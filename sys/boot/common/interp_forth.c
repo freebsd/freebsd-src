@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.9 1999/01/04 18:39:24 peter Exp $
+ *	$Id: interp_forth.c,v 1.10 1999/01/22 23:50:14 msmith Exp $
  */
 
 #include <sys/param.h>		/* to pick up __FreeBSD_version */
@@ -66,6 +66,7 @@ bf_command(FICL_VM *vm)
     int				len;
     struct bootblk_command	**cmdp;
     bootblk_cmd_t		*cmd;
+    int				nstrings, i;
     int				argc, result;
     char			**argv;
 
@@ -80,18 +81,42 @@ bf_command(FICL_VM *vm)
     }
     if (cmd == NULL)
 	panic("callout for unknown command '%s'", name);
+   
+    /* Check whether we have been compiled or are being interpreted */
+    if (stackPopINT32(vm->pStack)) {
+	/*
+	 * Get parameters from stack, in the format:
+	 * an un ... a2 u2 a1 u1 n --
+	 * Where n is the number of strings, a/u are pairs of
+	 * address/size for strings, and they will be concatenated
+	 * in LIFO order.
+	 */
+	nstrings = stackPopINT32(vm->pStack);
+	for (i = 0, len = 0; i < nstrings; i++)
+	    len += stackFetch(vm->pStack, i * 2).i + 1;
+	line = malloc(strlen(name) + len + 1);
+	strcpy(line, name);
+
+	if (nstrings)
+	    for (i = 0; i < nstrings; i++) {
+		len = stackPopINT32(vm->pStack);
+		cp = stackPopPtr(vm->pStack);
+		strcat(line, " ");
+		strncat(line, cp, len);
+	    }
+    } else {
+	/* Get remainder of invocation */
+	tail = vmGetInBuf(vm);
+	for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
+	    ;
     
-    /* Get remainder of invocation */
-    tail = vmGetInBuf(vm);
-    for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
-	;
-    
-    line = malloc(strlen(name) + len + 2);
-    strcpy(line, name);
-    if (len > 0) {
-	strcat(line, " ");
-	strncat(line, tail, len);
-	vmUpdateTib(vm, tail + len);
+	line = malloc(strlen(name) + len + 2);
+	strcpy(line, name);
+	if (len > 0) {
+	    strcat(line, " ");
+	    strncat(line, tail, len);
+	    vmUpdateTib(vm, tail + len);
+	}
     }
     DEBUG("cmd '%s'", line);
     
@@ -119,6 +144,73 @@ bf_command(FICL_VM *vm)
 }
 
 /*
+ * Replace a word definition (a builtin command) with another
+ * one that:
+ *
+ *        - Throw error results instead of returning them on the stack
+ *        - Pass a flag indicating whether the word was compiled or is
+ *          being interpreted.
+ *
+ * There is one major problem with builtins that cannot be overcome
+ * in anyway, except by outlawing it, such as done below. We want
+ * builtins to behave differently depending on whether they have been
+ * compiled or they are being interpreted. Notice that this is *not*
+ * the current state. For example:
+ *
+ * : example ls ; immediate
+ * : problem example ;
+ * example
+ *
+ * Notice that the current state is different in the two invocations
+ * of "example", but, in both cases, "ls" has been *compiled in*, which
+ * is what we really want.
+ *
+ * The problem arises when you tick the builtin. For example:
+ *
+ * : example-1 ['] ls postpone literal ; immediate
+ * : example-2 example-1 execute ; immediate
+ * : problem example-2 ;
+ * example-2
+ *
+ * We have no way, when we get EXECUTEd, of knowing what our behavior
+ * should be. Thus, our only alternative is to "outlaw" this. See RFI
+ * 0007, and ANS Forth Standard's appendix D, item 6.7.
+ *
+ * The problem is compounded by the fact that ' builtin CATCH is valid
+ * and desirable. The only solution is to create an intermediary word.
+ * For example:
+ *
+ * : my-ls ls ;
+ * : example ['] my-ls catch ;
+ *
+ * As the this definition is particularly tricky, and it's side effects
+ * must be well understood by those playing with it, I'll be heavy on
+ * the comments.
+ *
+ * (if you edit this definition, pay attention to trailing spaces after
+ *  each word -- I warned you! :-) )
+ */
+#define BUILTIN_CONSTRUCTOR \
+": builtin: "		\
+  ">in @ "		/* save the tib index pointer */ \
+  "' "			/* get next word's xt */ \
+  "swap >in ! "		/* point again to next word */ \
+  "create "		/* create a new definition of the next word */ \
+  ", "			/* save previous definition's xt */ \
+  "immediate "		/* make the new definition an immediate word */ \
+			\
+  "does> "		/* Now, the *new* definition will: */ \
+  "state @ if "		/* if in compiling state: */ \
+    "1 postpone literal "	/* pass 1 flag to indicate compile */ \
+    "@ compile, "		/* compile in previous definition */ \
+    "postpone throw "		/* throw stack-returned result */ \
+  "else "		/* if in interpreting state: */ \
+    "0 swap "			/* pass 0 flag to indicate interpret */ \
+    "@ execute "		/* call previous definition */ \
+    "throw "			/* throw stack-returned result */ \
+  "then ; "
+
+/*
  * Initialise the Forth interpreter, create all our commands as words.
  */
 void
@@ -131,8 +223,8 @@ bf_init(void)
     ficlInitSystem(4000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
-    /* Builtin word "creator" */
-    ficlExec(bf_vm, ": builtin: >in @ ' swap >in ! create , does> @ execute throw ;", -1);
+    /* Builtin constructor word  */
+    ficlExec(bf_vm, BUILTIN_CONSTRUCTOR, -1);
 
     /* make all commands appear as Forth words */
     SET_FOREACH(cmdp, Xcommand_set) {
