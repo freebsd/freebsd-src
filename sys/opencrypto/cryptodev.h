@@ -176,8 +176,9 @@ struct crypt_kop {
 #define CIOCASYMFEAT	_IOR('c', 105, u_int32_t)
 
 struct cryptotstat {
-	u_int32_t	acc;		/* total accumulated time (usecs) */
-	u_int32_t	max;		/* max time (usecs) */
+	struct timespec	acc;		/* total accumulated time */
+	struct timespec	min;		/* max time */
+	struct timespec	max;		/* max time */
 	u_int32_t	count;		/* number of observations */
 };
 
@@ -269,7 +270,7 @@ struct cryptop {
 	int (*crp_callback)(struct cryptop *); /* Callback function */
 
 	caddr_t		crp_mac;
-	struct timeval	crp_tstamp;	/* performance time stamp */
+	struct timespec	crp_tstamp;	/* performance time stamp */
 };
 
 #define CRYPTO_BUF_CONTIG	0x0
