@@ -446,7 +446,7 @@ struct scsi_low_softc {
 	/* interface functions */
 	struct scsi_low_funcs *sl_funcs;
 
-#if	defined(i386)
+#if	defined(__i386__)
 	u_int sl_irq;		/* XXX */
 #endif	/* i386 */
 #ifdef __FreeBSD__
