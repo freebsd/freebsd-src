@@ -240,7 +240,7 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	w = strlen(p);
 	if (w > bsdtar->u_width)
 		bsdtar->u_width = w;
-	fprintf(out, "%-*s", (int)bsdtar->u_width, p);
+	fprintf(out, "%-*s ", (int)bsdtar->u_width, p);
 
 	/* Use gname if it's present, else gid. */
 	p = archive_entry_gname(entry);
