@@ -100,9 +100,9 @@ main(argc, argv)
 	errno = 0;
 	niceness += getpriority(PRIO_PROCESS, 0);
 	if (errno)
-		err(1, "getpriority");
-	if (setpriority(PRIO_PROCESS, 0, (int)niceness))
-		err(1, "setpriority");
+		warn("getpriority");
+	else if (setpriority(PRIO_PROCESS, 0, (int)niceness))
+		warn("setpriority");
 	execvp(*argv, argv);
 	err(errno == ENOENT ? 127 : 126, "%s", *argv);
 }
