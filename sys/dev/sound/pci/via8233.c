@@ -53,6 +53,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define VIA8233_REV_ID_8233	0x30
 #define VIA8233_REV_ID_8233A	0x40
 #define VIA8233_REV_ID_8235	0x50
+#define VIA8233_REV_ID_8237	0x60
 
 #define SEGS_PER_CHAN	2			/* Segments per channel */
 #define NDXSCHANS	4			/* No of DXS channels */
@@ -634,6 +635,9 @@ via_probe(device_t dev)
 			return 0;
 		case VIA8233_REV_ID_8235:
 			device_set_desc(dev, "VIA VT8235");
+			return 0;
+		case VIA8233_REV_ID_8237:
+			device_set_desc(dev, "VIA VT8237");
 			return 0;
 		default:
 			device_set_desc(dev, "VIA VT8233X");	/* Unknown */
