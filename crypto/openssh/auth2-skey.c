@@ -1,4 +1,5 @@
 #include "includes.h"
+RCSID("$FreeBSD$");
 RCSID("$OpenBSD: auth2-skey.c,v 1.1 2000/10/11 20:14:38 markus Exp $");
 
 #include "ssh.h"
@@ -27,8 +28,8 @@ void
 send_userauth_into_request(Authctxt *authctxt, int echo)
 {
 	int retval = -1;
-	struct skey skey;
-	char challenge[SKEY_MAX_CHALLENGE];
+	struct opie skey;
+	char challenge[OPIE_CHALLENGE_MAX + 1];
 	char *fake;
 
 	if (authctxt->user == NULL)
@@ -36,7 +37,7 @@ send_userauth_into_request(Authctxt *authctxt, int echo)
 
 	/* get skey challenge */
 	if (authctxt->valid)
-		retval = skeychallenge(&skey, authctxt->user, challenge);
+		retval = opiechallenge(&skey, authctxt->user, challenge);
 
 	if (retval == -1) {
 		fake = skey_fake_keyinfo(authctxt->user);
@@ -87,8 +88,8 @@ input_userauth_info_response(int type, int plen, void *ctxt)
 		} else {
 			/* verify skey response */
 			if (authctxt->valid &&
-			    skey_haskey(authctxt->pw->pw_name) == 0 &&
-			    skey_passcheck(authctxt->pw->pw_name, resp) != -1) {
+			    opie_haskey(authctxt->pw->pw_name) == 0 &&
+			    opie_passverify(authctxt->pw->pw_name, resp) != -1) {
 				authenticated = 1;
 			} else {
 				authenticated = 0;

@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.78 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.79 2000/09/17 15:52:51 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -173,6 +173,7 @@ ssh_create_socket(uid_t original_real_uid, int privileged, int family)
 
 /*
  * Opens a TCP/IP connection to the remote server on the given host.
+ * The canonical host name used to connect will be returned in *host.
  * The address of the remote host will be returned in hostaddr.
  * If port is 0, the default port will be used.  If anonymous is zero,
  * a privileged port will be allocated to make the connection.
@@ -183,7 +184,7 @@ ssh_create_socket(uid_t original_real_uid, int privileged, int family)
  * the daemon.
  */
 int
-ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
+ssh_connect(char **host, struct sockaddr_storage * hostaddr,
 	    u_short port, int connection_attempts,
 	    int anonymous, uid_t original_real_uid,
 	    const char *proxy_command)
@@ -208,16 +209,17 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	}
 	/* If a proxy command is given, connect using it. */
 	if (proxy_command != NULL)
-		return ssh_proxy_connect(host, port, original_real_uid, proxy_command);
+		return ssh_proxy_connect(*host, port, original_real_uid, proxy_command);
 
 	/* No proxy command. */
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = IPv4or6;
 	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_CANONNAME;
 	snprintf(strport, sizeof strport, "%d", port);
-	if ((gaierr = getaddrinfo(host, strport, &hints, &aitop)) != 0)
-		fatal("%s: %.100s: %s", __progname, host,
+	if ((gaierr = getaddrinfo(*host, strport, &hints, &aitop)) != 0)
+		fatal("%s: %.100s: %s", __progname, *host,
 		    gai_strerror(gaierr));
 
 	/*
@@ -241,7 +243,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 				continue;
 			}
 			debug("Connecting to %.200s [%.100s] port %s.",
-				host, ntop, strport);
+				ai->ai_canonname, ntop, strport);
 
 			/* Create a socket for connecting. */
 			sock = ssh_create_socket(original_real_uid,
@@ -273,8 +275,11 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 				close(sock);
 			}
 		}
-		if (ai)
+		if (ai) {
+			if (ai->ai_canonname != NULL)
+				*host = xstrdup(ai->ai_canonname);
 			break;	/* Successful connection. */
+		}
 
 		/* Sleep a moment before retrying. */
 		sleep(1);
@@ -437,8 +442,10 @@ read_yes_or_no(const char *prompt, int defval)
 			retval = defval;
 		if (strcmp(buf, "yes") == 0)
 			retval = 1;
-		if (strcmp(buf, "no") == 0)
+		else if (strcmp(buf, "no") == 0)
 			retval = 0;
+		else
+			fprintf(stderr, "Please type 'yes' or 'no'.\n");
 
 		if (retval != -1) {
 			if (f != stdin)

@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rh-rsa.c,v 1.16 2000/09/07 21:13:36 markus Exp $");
+RCSID("$OpenBSD: auth-rh-rsa.c,v 1.17 2000/10/03 18:03:03 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
@@ -40,9 +40,9 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user, RSA *client_host_key
 	HostStatus host_status;
 	Key *client_key, *found;
 
-	debug("Trying rhosts with RSA host authentication for %.100s", client_user);
+	debug("Trying rhosts with RSA host authentication for client user %.100s", client_user);
 
-	if (client_host_key == NULL)
+	if (pw == NULL || client_host_key == NULL)
 		return 0;
 
 	/* Check if we would accept it using rhosts authentication. */
