@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.39 1997/06/03 09:42:36 dfr Exp $
+ * $Id: nfs_bio.c,v 1.40 1997/06/06 08:12:17 dfr Exp $
  */
 
 
@@ -1074,6 +1074,7 @@ nfs_doio(bp, cr, p)
     		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
+			++numdirtybuffers;
 			bp->b_flags |= B_DELWRI;
 
 		/*
