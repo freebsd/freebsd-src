@@ -77,10 +77,10 @@
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 #include <sys/sx.h>
-#include <sys/vnode.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
