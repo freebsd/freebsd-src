@@ -124,7 +124,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
 		cdevsw = devsw(dev);
 		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
-			tbuf.stat_mode &= ~S_IFCHR;
+			tbuf.stat_mode &= ~S_IFMT;
 			tbuf.stat_mode |= S_IFBLK;
 
 			/* XXX this may not be quite right */
