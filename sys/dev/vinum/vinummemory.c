@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinummemory.c,v 1.22 1999/10/12 04:35:48 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -45,9 +46,10 @@ void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
+int rqinfo_size = RQINFO_SIZE;				    /* for debugger */
 
 #ifdef __i386__						    /* check for validity */
-void 
+void
 LongJmp(jmp_buf buf, int retval)
 {
 /*
@@ -55,14 +57,14 @@ LongJmp(jmp_buf buf, int retval)
    * This is what's in i386/i386/support.s:
    * ENTRY(longjmp)
    *    movl    4(%esp),%eax
-   *    movl    (%eax),%ebx                      restore ebx 
-   *    movl    4(%eax),%esp                     restore esp 
-   *    movl    8(%eax),%ebp                     restore ebp 
-   *    movl    12(%eax),%esi                    restore esi 
-   *    movl    16(%eax),%edi                    restore edi 
-   *    movl    20(%eax),%edx                    get rta 
-   *    movl    %edx,(%esp)                      put in return frame 
-   *    xorl    %eax,%eax                        return(1); 
+   *    movl    (%eax),%ebx                      restore ebx
+   *    movl    4(%eax),%esp                     restore esp
+   *    movl    8(%eax),%ebp                     restore ebp
+   *    movl    12(%eax),%esi                    restore esi
+   *    movl    16(%eax),%edi                    restore edi
+   *    movl    20(%eax),%edx                    get rta
+   *    movl    %edx,(%esp)                      put in return frame
+   *    xorl    %eax,%eax                        return(1);
    *    incl    %eax
    *    ret
    *
@@ -103,7 +105,7 @@ basename(char *file)
 #endif
 #endif
 
-void 
+void
 expand_table(void **table, int oldsize, int newsize)
 {
     if (newsize > oldsize) {
@@ -127,24 +129,26 @@ int highwater = 0;					    /* highest index ever allocated */
 struct mc malloced[MALLOCENTRIES];
 
 #define FREECOUNT 64
+int freecount = FREECOUNT;				    /* for debugger */
 int lastfree = 0;
 struct mc freeinfo[FREECOUNT];
 
 int total_malloced;
 static int mallocseq = 0;
 
-caddr_t 
+caddr_t
 MMalloc(int size, char *file, int line)
 {
+    int s;
     caddr_t result;
     int i;
-    int s;
 
     if (malloccount >= MALLOCENTRIES) {			    /* too many */
 	log(LOG_ERR, "vinum: can't allocate table space to trace memory allocation");
 	return 0;					    /* can't continue */
     }
-    result = malloc(size, M_DEVBUF, M_WAITOK);
+    /* Wait for malloc if we can */
+    result = malloc(size, M_DEVBUF, intr_nesting_level == 0 ? M_WAITOK : M_NOWAIT);
     if (result == NULL)
 	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
@@ -164,7 +168,8 @@ MMalloc(int size, char *file, int line)
 	    malloced[i].size = size;
 	    malloced[i].line = line;
 	    malloced[i].address = result;
-	    bcopy(f, malloced[i].file, min(strlen(f) + 1, 16));
+	    bcopy(f, malloced[lastfree].file, min(strlen(f), MCFILENAMELEN - 1));
+	    malloced[lastfree].file[MCFILENAMELEN - 1] = '\0';
 	}
 	if (malloccount > highwater)
 	    highwater = malloccount;
@@ -173,11 +178,11 @@ MMalloc(int size, char *file, int line)
     return result;
 }
 
-void 
+void
 FFree(void *mem, char *file, int line)
 {
-    int i;
     int s;
+    int i;
 
     s = splhigh();
     for (i = 0; i < malloccount; i++) {
@@ -199,7 +204,8 @@ FFree(void *mem, char *file, int line)
 		freeinfo[lastfree].size = malloced[i].size;
 		freeinfo[lastfree].line = line;
 		freeinfo[lastfree].address = mem;
-		bcopy(f, freeinfo[lastfree].file, min(strlen(f) + 1, 16));
+		bcopy(f, freeinfo[lastfree].file, min(strlen(f), MCFILENAMELEN - 1));
+		freeinfo[lastfree].file[MCFILENAMELEN - 1] = '\0';
 		if (++lastfree == FREECOUNT)
 		    lastfree = 0;
 	    }
@@ -214,7 +220,7 @@ FFree(void *mem, char *file, int line)
     Debugger("Free");
 }
 
-void 
+void
 vinum_meminfo(caddr_t data)
 {
     struct meminfo *m = (struct meminfo *) data;
@@ -225,7 +231,7 @@ vinum_meminfo(caddr_t data)
     m->highwater = highwater;
 }
 
-int 
+int
 vinum_mallocinfo(caddr_t data)
 {
     struct mc *m = (struct mc *) data;
@@ -237,16 +243,16 @@ vinum_mallocinfo(caddr_t data)
     m->size = malloced[ent].size;
     m->line = malloced[ent].line;
     m->seq = malloced[ent].seq;
-    bcopy(malloced[ent].file, m->file, 16);
+    bcopy(malloced[ent].file, m->file, MCFILENAMELEN);
     return 0;
 }
 
 /*
  * return the nth request trace buffer entry.  This
  * is indexed back from the current entry (which
- * has index 0) 
+ * has index 0)
  */
-int 
+int
 vinum_rqinfo(caddr_t data)
 {
     struct rqinfo *rq = (struct rqinfo *) data;
