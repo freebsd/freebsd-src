@@ -40,7 +40,13 @@
 .Sh SYNOPSIS
 .In sys/alq.h
 .Ft int
-.Fn alq_open "struct alq **app" "const char *file" "int size" "int count"
+.Fo alq_open
+.Fa "struct alq **app"
+.Fa "const char *file"
+.Fa "struct ucred *cred"
+.Fa "int size"
+.Fa "int count"
+.Fc
 .Ft int
 .Fn alq_write "struct alq *alq" "void *data" "int waitok"
 .Ft void
@@ -90,10 +96,12 @@ Behaviour is undefined if this field is modified.
 The
 .Fn alq_open
 function creates a new logging queue.
-.Pp
 The
 .Fa file
 argument is the name of the file to open for logging.
+The argument
+.Fa cred
+specifies the credentials to use when opening the file.
 The size of each entry in the queue is determined by
 .Fa size .
 The
@@ -176,6 +184,17 @@ functions; by using these functions separately, a call
 to
 .Fn bcopy
 can be avoided for performance critical code paths.
+.Sh LOCKING
+Each asynchronous queue is protected by a spin mutex.
+.Pp
+Functions
+.Fn alq_flush ,
+.Fn alq_open
+and
+.Fn alq_post
+may attempt to acquire an internal sleep mutex, and should
+consequently not be used in contexts where sleeping is
+not allowed.
 .Sh RETURN VALUES
 The
 .Fn alq_open
