@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.60 1995/02/09 11:59:40 jkh Exp $
+ *	$Id: conf.c,v 1.61 1995/02/11 05:54:04 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -406,6 +406,23 @@ extern struct	tty pt_tty[];
 #define	ptcselect	nxselect
 #define	ptsstop		nullstop
 #endif
+
+
+#include "snp.h"
+#if NSNP > 0
+d_open_t	snpopen;
+d_close_t	snpclose;
+d_rdwr_t	snpread;
+d_select_t	snpselect;
+d_ioctl_t	snpioctl;
+#else
+#define snpopen		nxopen
+#define snpclose	nxclose
+#define snpread		nxread
+#define snpioctl	nxioctl
+#define	snpselect	nxselect
+#endif
+
 
 /* /dev/klog */
 d_open_t	logopen;
@@ -970,6 +987,9 @@ struct cdevsw	cdevsw[] =
 	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
 	  tunioctl,     nostop,         nullreset,      NULL,   /* tunnel */
 	  tunselect,    nommap,         NULL },
+	{ snpopen,	snpclose,	snpread,	nowrite,	/*53*/
+	  snpioctl,	nostop,		nullreset,	NULL,	/* snoop */
+	  snpselect,	nommap,		NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
