@@ -162,13 +162,15 @@ struct carp_if {
 #define	CARP_LOCK(cif)		mtx_lock(&(cif)->vhif_mtx)
 #define	CARP_UNLOCK(cif)	mtx_unlock(&(cif)->vhif_mtx)
 
-#define	CARP_LOG(...)					\
+#define	CARP_LOG(...)	do {				\
 	if (carp_opts[CARPCTL_LOG] > 0)			\
 		log(LOG_INFO, __VA_ARGS__);		\
+} while (0)
 
-#define	CARP_DEBUG(...)					\
+#define	CARP_DEBUG(...)	do {				\
 	if (carp_opts[CARPCTL_LOG] > 1)			\
 		log(LOG_DEBUG, __VA_ARGS__);		\
+} while (0)
 
 void	carp_hmac_prepare(struct carp_softc *);
 void	carp_hmac_generate(struct carp_softc *, u_int32_t *,
