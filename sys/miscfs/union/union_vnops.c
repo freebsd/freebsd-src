@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.24 1997/04/15 12:56:57 kato Exp $
+ * $Id: union_vnops.c,v 1.25 1997/04/16 03:08:34 kato Exp $
  */
 
 #include <sys/param.h>
@@ -276,7 +276,7 @@ union_lookup(ap)
 			 * dun->un_uppervp locked currently--so we get it
 			 * locked here (don't set the UN_ULOCK flag).
 			 */
-			VOP_LOCK(dvp, 0, p);
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, p);
 		}
 
 		/*if (uppervp == upperdvp)
