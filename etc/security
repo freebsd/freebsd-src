@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.7 1995/01/14 13:23:50 ats Exp $
+#	$Id: security,v 1.8 1995/05/27 01:37:44 ache Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 
@@ -27,6 +27,10 @@ while test $# -ge 1; do
 	find $mount -xdev \( -perm -u+s -or -perm -g+s \) | sort
 done | xargs -n 20 ls -lgTd > $TMP
 
+if [ ! -f $LOG/setuid.today ] ; then
+	echo "no $LOG/setuid.today"
+	cp $TMP $LOG/setuid.today
+fi
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
 	echo "$host setuid/device diffs:"
 	diff -b $LOG/setuid.today $TMP
