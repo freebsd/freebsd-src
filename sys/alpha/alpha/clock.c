@@ -121,7 +121,7 @@ static struct timecounter alpha_timecounter = {
  	~0u,			/* counter_mask */
 	0,			/* frequency */
 	"alpha",		/* name */
-	800			/* quality */
+	800,			/* quality */
 };
 
 static struct timecounter i8254_timecounter = {
