@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.48.2.6 1997/01/29 21:46:13 jkh Exp $
+ * $Id: package.c,v 1.48.2.7 1997/02/14 21:24:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,8 +131,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
 		int seconds;
 
-		if (isDebug())
-		    msgDebug("Just read %d bytes from media device.\n", i);
 		tot += i;
 		/* Print statistics about how we're doing */
 		(void) gettimeofday(&stop, (struct timezone *)0);
@@ -177,15 +175,13 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
     }
     else {
-	msgDebug("pkg_extract: get returned NULL\n");
 	dialog_clear_norefresh();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"
 		      "No package add will be done.", name);
-	else {
+	else
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
-	}
 	ret = DITEM_FAILURE | DITEM_RESTORE;
     }
     return ret;
