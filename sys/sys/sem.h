@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.15 1998/07/15 02:32:32 bde Exp $ */
+/* $Id: sem.h,v 1.16 1998/12/14 08:34:55 dillon Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -140,8 +140,10 @@ extern struct seminfo	seminfo;
 #define SEMOPM	100		/* max # of operations per semop call */
 #endif
 
+#define SEM_ALIGN(bytes)	(((bytes) + 15) & ~15)
+
 /* actual size of an undo structure */
-#define SEMUSZ	(offsetof(struct sem_undo, un_ent[SEMUME]))
+#define SEMUSZ	SEM_ALIGN(offsetof(struct sem_undo, un_ent[SEMUME]))
 
 extern struct semid_ds *sema;	/* semaphore id pool */
 extern struct sem *sem;		/* semaphore pool */
