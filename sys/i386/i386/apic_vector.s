@@ -81,13 +81,13 @@ IDTVEC(vec_name) ;							\
 	mov	%ax, %es ;						\
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
 	mov	%ax, %fs ;						\
+	FAKE_MCOUNT(13*4(%esp)) ;					\
 	movl	lapic, %edx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
-	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX avoid double count */	\
 	pushl	%eax ;		/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	addl	$4, %esp ;	/* discard parameter */			\
