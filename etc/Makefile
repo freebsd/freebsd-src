@@ -143,12 +143,12 @@ distribution:
 .endif
 
 distrib-dirs:
-	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
+	mtree -deLU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -deLU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -deLU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	mtree -deLU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
-	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
+	mtree -deLU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/libdata/perl/5.6.0/mach
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
