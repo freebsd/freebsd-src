@@ -55,14 +55,6 @@ static const char rcsid[] =
 #include <netinet/in_var.h>
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-#ifdef ISO
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#endif
 #include <arpa/inet.h>
 
 #include <signal.h>
@@ -163,12 +155,6 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		struct in6_ifaddr in6;
 #endif
 		struct ipx_ifaddr ipx;
-#ifdef NS
-		struct ns_ifaddr ns;
-#endif
-#ifdef ISO
-		struct iso_ifaddr iso;
-#endif
 	} ifaddr;
 	u_long ifaddraddr;
 	u_long ifaddrfound;
@@ -347,23 +333,6 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 				printf("atalk:%-12.12s ",atalk_print(sa,0x10) );
 				printf("%-11.11s  ",atalk_print(sa,0x0b) );
 				break;
-#ifdef NS
-			case AF_NS:
-				{
-				struct sockaddr_ns *sns =
-					(struct sockaddr_ns *)sa;
-				u_long net;
-				char netnum[10];
-
-				*(union ns_net *) &net = sns->sns_addr.x_net;
-				sprintf(netnum, "%lxH", ntohl(net));
-				upHex(netnum);
-				printf("ns:%-10s ", netnum);
-				printf("%-17s ",
-				    ns_phost((struct sockaddr *)sns));
-				}
-				break;
-#endif
 			case AF_LINK:
 				{
 				struct sockaddr_dl *sdl =

@@ -71,103 +71,69 @@ static const char rcsid[] =
 static struct nlist nl[] = {
 #define	N_IFNET		0
 	{ "_ifnet" },
-#define	N_IMP		1
-	{ "_imp_softc" },
-#define	N_RTSTAT	2
+#define	N_RTSTAT	1
 	{ "_rtstat" },
-#define	N_UNIXSW	3
-	{ "_localsw" },
-#define N_IDP		4
-	{ "_nspcb"},
-#define N_IDPSTAT	5
-	{ "_idpstat"},
-#define N_SPPSTAT	6
-	{ "_spp_istat"},
-#define N_NSERR		7
-	{ "_ns_errstat"},
-#define	N_CLNPSTAT	8
-	{ "_clnp_stat"},
-#define	IN_NOTUSED	9
-	{ "_tp_inpcb" },
-#define	ISO_TP		10
-	{ "_tp_refinfo" },
-#define	N_TPSTAT	11
-	{ "_tp_stat" },
-#define	N_ESISSTAT	12
-	{ "_esis_stat"},
-#define N_NIMP		13
-	{ "_nimp"},
-#define N_RTREE		14
+#define N_RTREE		2
 	{ "_rt_tables"},
-#define N_CLTP		15
-	{ "_cltb"},
-#define N_CLTPSTAT	16
-	{ "_cltpstat"},
-#define	N_NFILE		17
-	{ "_nfile" },
-#define	N_FILE		18
-	{ "_file" },
-#define N_MRTSTAT	19
+#define N_MRTSTAT	3
 	{ "_mrtstat" },
-#define N_MFCTABLE	20
+#define N_MFCTABLE	4
 	{ "_mfctable" },
-#define N_VIFTABLE	21
+#define N_VIFTABLE	5
 	{ "_viftable" },
-#define N_IPX		22
+#define N_IPX		6
 	{ "_ipxpcb"},
-#define N_IPXSTAT	23
+#define N_IPXSTAT	7
 	{ "_ipxstat"},
-#define N_SPXSTAT	24
+#define N_SPXSTAT	8
 	{ "_spx_istat"},
-#define N_DDPSTAT	25
+#define N_DDPSTAT	9
 	{ "_ddpstat"},
-#define N_DDPCB		26
+#define N_DDPCB		10
 	{ "_ddpcb"},
-#define N_NGSOCKS	27
+#define N_NGSOCKS	11
 	{ "_ngsocklist"},
-#define N_IP6STAT	28
+#define N_IP6STAT	12
 	{ "_ip6stat" },
-#define N_ICMP6STAT	29
+#define N_ICMP6STAT	13
 	{ "_icmp6stat" },
-#define N_IPSECSTAT	30
+#define N_IPSECSTAT	14
 	{ "_ipsecstat" },
-#define N_IPSEC6STAT	31
+#define N_IPSEC6STAT	15
 	{ "_ipsec6stat" },
-#define N_PIM6STAT	32
+#define N_PIM6STAT	16
 	{ "_pim6stat" },
-#define N_MRT6PROTO	33
-	{ "_ip6_mrtproto" },
-#define N_MRT6STAT	34
+#define N_MRT6STAT	17
 	{ "_mrt6stat" },
-#define N_MF6CTABLE	35
+#define N_MF6CTABLE	18
 	{ "_mf6ctable" },
-#define N_MIF6TABLE	36
+#define N_MIF6TABLE	19
 	{ "_mif6table" },
-#define N_PFKEYSTAT	37
+#define N_PFKEYSTAT	20
 	{ "_pfkeystat" },
-#define N_MBSTAT	38
+#define N_MBSTAT	21
 	{ "_mbstat" },
-#define N_MBTYPES	39
+#define N_MBTYPES	22
 	{ "_mbtypes" },
-#define N_NMBCLUSTERS	40
+#define N_NMBCLUSTERS	23
 	{ "_nmbclusters" },
-#define N_NMBUFS	41
+#define N_NMBUFS	24
 	{ "_nmbufs" },
-#define	N_MBHI		42
+#define	N_MBHI		25
 	{ "_mbuf_hiwm" },
-#define	N_CLHI		43
+#define	N_CLHI		26
 	{ "_clust_hiwm" },
-#define	N_NCPUS		44
+#define	N_NCPUS		27
 	{ "_smp_cpus" },
-#define	N_PAGESZ	45
+#define	N_PAGESZ	28
 	{ "_pagesize" },
-#define	N_MBPSTAT	46
+#define	N_MBPSTAT	29
 	{ "_mb_statpcpu" },
-#define	N_RTTRASH	47
+#define	N_RTTRASH	30
 	{ "_rttrash" },
-#define	N_MBLO		48
+#define	N_MBLO		31
 	{ "_mbuf_lowm" },
-#define	N_CLLO		49
+#define	N_CLLO		32
 	{ "_clust_lowm" },
 	{ "" },
 };
@@ -267,34 +233,6 @@ struct protox ipxprotox[] = {
 	  0,		NULL,		0,	0 }
 };
 
-#ifdef NS
-struct protox nsprotox[] = {
-	{ N_IDP,	N_IDPSTAT,	1,	nsprotopr,
-	  idp_stats,	NULL,		"idp" },
-	{ N_IDP,	N_SPPSTAT,	1,	nsprotopr,
-	  spp_stats,	NULL,		"spp" },
-	{ -1,		N_NSERR,	1,	0,
-	  nserr_stats,	NULL,		"ns_err" },
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0 }
-};
-#endif
-
-#ifdef ISO
-struct protox isoprotox[] = {
-	{ ISO_TP,	N_TPSTAT,	1,	iso_protopr,
-	  tp_stats,	NULL,		"tp" },
-	{ N_CLTP,	N_CLTPSTAT,	1,	iso_protopr,
-	  cltp_stats,	NULL,		"cltp" },
-	{ -1,		N_CLNPSTAT,	1,	 0,
-	  clnp_stats,	NULL,		"clnp"},
-	{ -1,		N_ESISSTAT,	1,	 0,
-	  esis_stats,	NULL,		"esis"},
-	{ -1,		-1,		0,	0,
-	  0,		NULL,		0 }
-};
-#endif
-
 struct protox *protoprotox[] = {
 					 protox,
 #ifdef INET6
@@ -303,14 +241,7 @@ struct protox *protoprotox[] = {
 #ifdef IPSEC
 					 pfkeyprotox,
 #endif
-					 ipxprotox, atalkprotox,
-#ifdef NS
-					 nsprotox, 
-#endif
-#ifdef ISO
-					 isoprotox, 
-#endif
-					 NULL };
+					 ipxprotox, atalkprotox, NULL };
 
 static void printproto (struct protox *, const char *);
 static void usage (void);
@@ -367,11 +298,6 @@ main(int argc, char *argv[])
 			dflag = 1;
 			break;
 		case 'f':
-#ifdef NS
-			if (strcmp(optarg, "ns") == 0)
-				af = AF_NS;
-			else
-#endif
 			if (strcmp(optarg, "ipx") == 0)
 				af = AF_IPX;
 			else if (strcmp(optarg, "inet") == 0)
@@ -391,10 +317,6 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "ng") == 0
 			    || strcmp(optarg, "netgraph") == 0)
 				af = AF_NETGRAPH;
-#ifdef ISO
-			else if (strcmp(optarg, "iso") == 0)
-				af = AF_ISO;
-#endif
 			else if (strcmp(optarg, "link") == 0)
 				af = AF_LINK;
 			else {
@@ -593,16 +515,6 @@ main(int argc, char *argv[])
 	if (af == AF_NETGRAPH || af == AF_UNSPEC)
 		for (tp = netgraphprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
-#ifdef NS
-	if (af == AF_NS || af == AF_UNSPEC)
-		for (tp = nsprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
-#endif
-#ifdef ISO
-	if (af == AF_ISO || af == AF_UNSPEC)
-		for (tp = isoprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
-#endif
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !Lflag && !sflag)
 		unixpr();
 	exit(0);
