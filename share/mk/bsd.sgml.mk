@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.1 1995/09/08 19:23:19 jfieber Exp $
+#	$Id: bsd.sgml.mk,v 1.3 1995/09/10 21:49:24 jfieber Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -19,7 +19,7 @@ VOLUME?=	${.CURDIR:T}
 DOC?=		${.CURDIR:T}
 BINDIR?=	/usr/share/doc
 SRCDIR?=	${.CURDIR}
-DISTRIBUTION?=	doc
+DISTRIBUTION?=	bin
 SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
