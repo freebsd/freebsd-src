@@ -48,6 +48,9 @@ Table of contents:
 The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
 (10/100/1000) adapters.
 
+The fxp(4) driver now requires a "device miibus" entry in the kernel
+configuration file.
+
 
 1.2. SECURITY FIXES
 -------------------
