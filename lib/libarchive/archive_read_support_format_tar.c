@@ -1519,7 +1519,7 @@ static size_t
 UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
-        wchar_t lbound, wch;
+        int lbound, wch;
 
         if (s == NULL)
                 /* Reset to initial shift state (no-op) */
@@ -1601,7 +1601,11 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
                 errno = EILSEQ;
                 return ((size_t)-1);
         }
-        if (pwc != NULL)
-                *pwc = wch;
+        if (pwc != NULL) {
+		if (wch < WCHAR_MAX)
+			*pwc = (wchar_t)wch;
+		else
+			*pwc = '?';
+	}
         return (wch == L'\0' ? 0 : len);
 }
