@@ -135,7 +135,10 @@ execve(td, uap)
 	int (*img_first)(struct image_params *);
 	struct pargs *oldargs, *newargs = NULL;
 	struct procsig *oldprocsig, *newprocsig;
-	struct vnode *tracevp = NULL, *textvp = NULL;
+#ifdef KTRACE
+	struct vnode *tracevp = NULL;
+#endif
+	struct vnode *textvp = NULL;
 
 	imgp = &image_params;
 
@@ -369,11 +372,15 @@ interpret:
 		 * we do not regain any tracing during a possible block.
 		 */
 		setsugid(p);
+#ifdef KTRACE
 		if (p->p_tracep && suser_cred(oldcred, PRISON_ROOT)) {
+			mtx_lock(&ktrace_mtx);
 			p->p_traceflag = 0;
 			tracevp = p->p_tracep;
 			p->p_tracep = NULL;
+			mtx_unlock(&ktrace_mtx);
 		}
+#endif
 		/* Make sure file descriptors 0..2 are in use.  */
 		error = fdcheckstd(td);
 		if (error != 0)
@@ -475,8 +482,10 @@ interpret:
 	 */
 	if (textvp != NULL)
 		vrele(textvp);
+#ifdef KTRACE
 	if (tracevp != NULL)
 		vrele(tracevp);
+#endif
 	pargs_drop(oldargs);
 
 exec_fail_dealloc:
