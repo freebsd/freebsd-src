@@ -238,7 +238,7 @@ chownerr(file)
 	char *file;
 {
 	static int euid = -1, ngroups = -1;
-	int groups[NGROUPS];
+	gid_t groups[NGROUPS];
 
 	/* Check for chown without being root. */
 	if (errno != EPERM ||
