@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.4 1996/05/26 18:01:16 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.5 1996/06/15 09:58:43 davidg Exp $
  */
 
 /*
@@ -544,12 +544,9 @@ rescan1:
 		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
 
-#if defined(VM_DIAGNOSE)
 		if ((m->flags & PG_INACTIVE) == 0) {
-			printf("vm_pageout_scan: page not inactive?\n");
-			break;
+			goto rescan1;
 		}
-#endif
 
 		/*
 		 * dont mess with busy pages
@@ -591,9 +588,6 @@ rescan1:
 					vm_page_cache(m);
 				}
 				++pages_freed;
-			} else {
-				m = next;
-				continue;
 			}
 		} else if (maxlaunder > 0) {
 			int written;
@@ -611,8 +605,6 @@ rescan1:
 					vm_object_unlock(object);
 					if (object->flags & OBJ_WRITEABLE)
 						++vnodes_skipped;
-					if (!(next->flags & PG_INACTIVE))
-						goto rescan0;
 					m = next;
 					continue;
 				}
@@ -635,13 +627,6 @@ rescan1:
 				break;
 			}
 			maxlaunder -= written;
-			/*
-			 * if the next page has been re-activated, start
-			 * scanning again
-			 */
-			if ((next->flags & PG_INACTIVE) == 0) {
-				goto rescan1;
-			}
 		}
 		m = next;
 	}
@@ -661,6 +646,7 @@ rescan1:
 			page_shortage = 1;
 		}
 	}
+rescan_active:
 	maxscan = MAXSCAN;
 	pcount = cnt.v_active_count;
 	m = vm_page_queue_active.tqh_first;
@@ -668,6 +654,9 @@ rescan1:
 
 		cnt.v_pdpages++;
 		next = m->pageq.tqe_next;
+
+		if ((m->flags & PG_ACTIVE) == 0)
+			goto rescan_active;
 
 		/*
 		 * Don't deactivate pages that are busy.
@@ -912,6 +901,7 @@ vm_daemon()
 			swapout_threads();
 			vm_pageout_req_swapout = 0;
 		}
+#if 0
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
@@ -957,28 +947,7 @@ vm_daemon()
 				    (vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
 			}
 		}
+#endif
 	}
-
-	/*
-	 * we remove cached objects that have no RSS...
-	 */
-restart:
-	vm_object_cache_lock();
-	object = vm_object_cached_list.tqh_first;
-	while (object) {
-		vm_object_cache_unlock();
-		/*
-		 * if there are no resident pages -- get rid of the object
-		 */
-		if (object->resident_page_count == 0) {
-			if (object != vm_object_lookup(object->pager))
-				panic("vm_object_cache_trim: I'm sooo confused.");
-			pager_cache(object, FALSE);
-			goto restart;
-		}
-		object = object->cached_list.tqe_next;
-		vm_object_cache_lock();
-	}
-	vm_object_cache_unlock();
 }
 #endif /* !NO_SWAPPING */
