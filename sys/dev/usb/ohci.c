@@ -1001,7 +1001,6 @@ ohci_freex(struct usbd_bus *bus, usbd_xfer_handle xfer)
 /*
  * Shut down the controller when the system is going down.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 void
 ohci_shutdown(void *v)
 {
@@ -1031,9 +1030,7 @@ ohci_power(int why, void *v)
 #endif
 
 	s = splhardusb();
-	switch (why) {
-	case PWR_SUSPEND:
-	case PWR_STANDBY:
+	if (why != PWR_RESUME) {
 		sc->sc_bus.use_polling++;
 		ctl = OREAD4(sc, OHCI_CONTROL) & ~OHCI_HCFS_MASK;
 		if (sc->sc_control == 0) {
@@ -1048,8 +1045,7 @@ ohci_power(int why, void *v)
 		OWRITE4(sc, OHCI_CONTROL, ctl);
 		usb_delay_ms(&sc->sc_bus, USB_RESUME_WAIT);
 		sc->sc_bus.use_polling--;
-		break;
-	case PWR_RESUME:
+	} else {
 		sc->sc_bus.use_polling++;
 		/* Some broken BIOSes do not recover these values */
 		OWRITE4(sc, OHCI_HCCA, DMAADDR(&sc->sc_hccadma, 0));
@@ -1070,15 +1066,9 @@ ohci_power(int why, void *v)
 		usb_delay_ms(&sc->sc_bus, USB_RESUME_RECOVERY);
 		sc->sc_control = sc->sc_intre = 0;
 		sc->sc_bus.use_polling--;
-		break;
-	case PWR_SOFTSUSPEND:
-	case PWR_SOFTSTANDBY:
-	case PWR_SOFTRESUME:
-		break;
 	}
 	splx(s);
 }
-#endif
 
 #ifdef USB_DEBUG
 void

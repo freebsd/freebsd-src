@@ -119,6 +119,44 @@ static const char *ohci_device_generic = "OHCI (generic) USB controller";
 
 static int ohci_pci_attach(device_t self);
 static int ohci_pci_detach(device_t self);
+static int ohci_pci_suspend(device_t self);
+static int ohci_pci_resume(device_t self);
+
+static int
+ohci_pci_suspend(device_t self)
+{
+	ohci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_suspend(self);
+	if (err)
+		return err;
+	ohci_power(PWR_SUSPEND, sc);
+
+	return 0;
+}
+
+static int
+ohci_pci_resume(device_t self)
+{
+	ohci_softc_t *sc = device_get_softc(self);
+	u_int32_t reg, int_line;
+
+	if (pci_get_powerstate(self) != PCI_POWERSTATE_D0) {
+                device_printf(self, "chip is in D%d mode "
+                        "-- setting to D0\n", pci_get_powerstate(self));
+                reg = pci_read_config(self, PCI_CBMEM, 4);
+                int_line = pci_read_config(self, PCIR_INTLINE, 4);
+                pci_set_powerstate(self, PCI_POWERSTATE_D0);
+                pci_write_config(self, PCI_CBMEM, reg, 4);
+                pci_write_config(self, PCIR_INTLINE, int_line, 4);
+	}
+
+	ohci_power(PWR_RESUME, sc);
+	bus_generic_resume(self);
+
+	return 0;
+}
 
 static const char *
 ohci_pci_match(device_t self)
@@ -310,6 +348,8 @@ static device_method_t ohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ohci_pci_probe),
 	DEVMETHOD(device_attach, ohci_pci_attach),
+	DEVMETHOD(device_suspend, ohci_pci_suspend),
+	DEVMETHOD(device_resume, ohci_pci_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
