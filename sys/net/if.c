@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.63 1998/12/04 22:54:52 archie Exp $
+ *	$Id: if.c,v 1.64 1998/12/16 18:30:42 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -87,8 +87,11 @@ ifinit(dummy)
 	register struct ifnet *ifp;
 
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-		if (ifp->if_snd.ifq_maxlen == 0)
+		if (ifp->if_snd.ifq_maxlen == 0) {
+			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
+			    ifp->if_name, ifp->if_unit);
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
+		}
 	if_slowtimo(0);
 }
 
