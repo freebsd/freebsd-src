@@ -144,24 +144,24 @@ retry:
 
 		/*
 		 * Kill off the other threads. This requires
-		 * Some co-operation from other parts of the kernel
-		 * so it may not be instant.
-		 * With this state set:
-		 * Any thread entering the kernel from userspace will
+		 * some co-operation from other parts of the kernel
+		 * so it may not be instantaneous.  With this state set
+		 * any thread entering the kernel from userspace will
 		 * thread_exit() in trap().  Any thread attempting to
-		 * sleep will return immediatly with EINTR or EWOULDBLOCK,
-		 * which will hopefully force them to back out to userland,
-		 * freeing resources as they go, and anything attempting
+		 * sleep will return immediately with EINTR or EWOULDBLOCK
+		 * which will hopefully force them to back out to userland
+		 * freeing resources as they go.  Any thread attempting
 		 * to return to userland will thread_exit() from userret().
-		 * thread_exit() will unsuspend us when the last other
-		 * thread exits.
+		 * thread_exit() will unsuspend us when the last of the
+		 * other threads exits.
 		 * If there is already a thread singler after resumption,
-		 * calling thread_single will fail, in the case, we just
+		 * calling thread_single will fail; in that case, we just
 		 * re-check all suspension request, the thread should
 		 * either be suspended there or exit.
 		 */
 		if (thread_single(SINGLE_EXIT))
 			goto retry;
+
 		/*
 		 * All other activity in this process is now stopped.
 		 * Threading support has been turned off.
@@ -193,7 +193,7 @@ retry:
 
 	/*
 	 * Check if any loadable modules need anything done at process exit.
-	 * e.g. SYSV IPC stuff
+	 * E.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
 	EVENTHANDLER_INVOKE(process_exit, p);
