@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.4 (Berkeley) 5/8/95
- * $Id: lfs_balloc.c,v 1.10 1997/02/22 09:47:17 peter Exp $
+ * $Id: lfs_balloc.c,v 1.11 1997/03/23 00:45:10 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -40,6 +40,10 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h> 
+#include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -50,6 +54,9 @@
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
+
+static int lfs_fragextend(struct vnode *vp, int osize, int nsize, daddr_t lbn,
+	struct buf **bpp);
 
 int
 lfs_balloc(vp, offset, iosize, lbn, bpp)
@@ -203,6 +210,7 @@ lfs_balloc(vp, offset, iosize, lbn, bpp)
 	return (0);
 }
 
+static int
 lfs_fragextend(vp, osize, nsize, lbn, bpp)
 	struct vnode *vp;
 	int osize;
