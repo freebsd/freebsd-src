@@ -30,13 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.35 1996/05/03 21:01:00 phk Exp $
+ *	$Id: support.s,v 1.36 1996/05/31 01:08:03 peter Exp $
  */
 
 #include "assym.s"				/* system definitions */
 #include "errno.h"				/* error return codes */
 #include "machine/asmacros.h"			/* miscellaneous asm macros */
 #include "machine/cputypes.h"			/* types of CPUs */
+#include "machine/specialreg.h"
 
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10
@@ -453,6 +454,21 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	/* bcopy(%esi, %edi, %ebx) */
 3:
 	movl	%ebx,%ecx
+#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+	cmpl	$1024,%ecx
+	jbe	slow_copyout
+
+#if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
+	cmpl	$CPUCLASS_586,_cpu_class
+	jne	slow_copyout
+#endif /* I386_CPU || I486_CPU || I686_CPU */
+
+	call	fastmove
+	jmp	done_copyout
+
+	ALIGN_TEXT
+slow_copyout:
+#endif /* I586_CPU && I586_FAST_BCOPY */
 	shrl	$2,%ecx
 	cld
 	rep
@@ -500,6 +516,21 @@ ENTRY(copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
+#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+	cmpl	$1024,%ecx
+	jbe	slow_copyin
+
+#if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
+	cmpl	$CPUCLASS_586,_cpu_class
+	jne	slow_copyin
+#endif /* I386_CPU || I486_CPU || I686_CPU */
+
+	call	fastmove
+	jmp	done_copyin
+
+	ALIGN_TEXT
+slow_copyin:
+#endif /* I586_CPU && I586_FAST_BCOPY */
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -510,6 +541,10 @@ ENTRY(copyin)
 	rep
 	movsb
 
+#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+	ALIGN_TEXT
+done_copyin:
+#endif /* I586_CPU && I586_FAST_BCOPY */
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
@@ -525,6 +560,161 @@ copyin_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
+
+#if defined(I586_CPU) && defined(I586_FAST_BCOPY)
+/* fastmove(src, dst, len)
+	src in %esi
+	dst in %edi
+	len in %ecx
+	uses %eax and %edx for tmp. storage
+ */
+	ALIGN_TEXT
+fastmove:
+	cmpl	$63,%ecx
+	jbe	8f
+
+	testl	$7,%esi	/* check if src addr is multiple of 8 */
+	jnz	8f
+
+	testl	$7,%edi	/* check if dst addr is multiple of 8 */
+	jnz	8f
+
+	pushl	%ebp
+	movl	%esp,%ebp
+	subl	$PCB_SAVEFPU_SIZE,%esp
+
+/* if (npxproc != NULL) { */
+	cmpl	$0,_npxproc
+	je	6f
+/*    fnsave(&curpcb->pcb_savefpu); */
+	movl	_curpcb,%eax
+	fnsave	PCB_SAVEFPU(%eax)
+/*   npxproc = NULL; */
+	movl	$0,_npxproc
+/* } */
+6:
+/* now we own the FPU. */
+
+/*
+ * The process' FP state is saved in the pcb, but if we get
+ * switched, the cpu_switch() will store our FP state in the
+ * pcb.  It should be possible to avoid all the copying for
+ * this, e.g., by setting a flag to tell cpu_switch() to
+ * save the state somewhere else.
+ */
+/* tmp = curpcb->pcb_savefpu; */
+	pushl	%edi
+	pushl	%esi
+	pushl	%ecx
+	leal	-PCB_SAVEFPU_SIZE(%ebp),%edi
+	movl	_curpcb,%esi
+	addl	$PCB_SAVEFPU,%esi
+	cld
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
+	rep
+	movsl
+	popl	%ecx
+	popl	%esi
+	popl	%edi
+/* stop_emulating(); */
+	clts
+/* npxproc = curproc; */
+	movl	_curproc,%eax
+	movl	%eax,_npxproc
+4:
+	pushl	%ecx
+	cmpl	$1792,%ecx
+	jbe	2f
+	movl	$1792,%ecx
+2:
+	subl	%ecx,0(%esp)
+	cmpl	$256,%ecx
+	jb	5f
+	pushl	%esi
+	pushl	%ecx
+	ALIGN_TEXT
+3:
+	movl	0(%esi),%eax
+	movl	32(%esi),%eax
+	movl	64(%esi),%eax
+	movl	96(%esi),%eax
+	movl	128(%esi),%eax
+	movl	160(%esi),%eax
+	movl	192(%esi),%eax
+	movl	224(%esi),%eax
+	addl	$256,%esi
+	subl	$256,%ecx
+	cmpl	$256,%ecx
+	jae	3b
+	popl	%ecx
+	popl	%esi
+5:
+	ALIGN_TEXT
+7:
+	fildq	0(%esi)
+	fildq	8(%esi)
+	fildq	16(%esi)
+	fildq	24(%esi)
+	fildq	32(%esi)
+	fildq	40(%esi)
+	fildq	48(%esi)
+	fildq	56(%esi)
+	fistpq	56(%edi)
+	fistpq	48(%edi)
+	fistpq	40(%edi)
+	fistpq	32(%edi)
+	fistpq	24(%edi)
+	fistpq	16(%edi)
+	fistpq	8(%edi)
+	fistpq	0(%edi)
+	addl	$-64,%ecx
+	addl	$64,%esi
+	addl	$64,%edi
+	cmpl	$63,%ecx
+	ja	7b
+	popl	%eax
+	addl	%eax,%ecx
+	cmpl	$64,%ecx
+	jae	4b
+	
+/* curpcb->pcb_savefpu = tmp; */
+	pushl	%edi
+	pushl	%esi
+	pushl	%ecx
+	movl	_curpcb,%edi
+	addl	$PCB_SAVEFPU,%edi
+	leal	-PCB_SAVEFPU_SIZE(%ebp),%esi
+	cld
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
+	rep
+	movsl
+	popl	%ecx
+	popl	%esi
+	popl	%edi
+
+/* start_emulating(); */
+	smsw	%ax
+	orb	$CR0_TS,%al
+	lmsw	%ax
+/* npxproc = NULL; */
+	movl	$0,_npxproc
+	movl	%ebp,%esp
+	popl	%ebp
+	
+	ALIGN_TEXT
+8:
+	movb	%cl,%al
+	shrl	$2,%ecx				/* copy longword-wise */
+	cld
+	rep
+	movsl
+	movb	%al,%cl
+	andb	$3,%cl				/* copy remaining bytes */
+	rep
+	movsb
+
+	ret
+#endif /* I586_CPU && I586_FAST_BCOPY */
 
 /*
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
