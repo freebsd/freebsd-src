@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ttymsg.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ttymsg.c,v 1.2 1998/03/23 07:47:31 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -68,7 +68,7 @@ ttymsg(iov, iovcnt, line, tmout)
 	static char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
 	register int cnt, fd, left, wret;
-	struct iovec localiov[6];
+	struct iovec localiov[7];
 	int forked = 0;
 
 	if (iovcnt > sizeof(localiov) / sizeof(localiov[0]))
