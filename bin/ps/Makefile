@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
-#	$Id: Makefile,v 1.5 1995/04/15 03:31:19 davidg Exp $
+#	$Id: Makefile,v 1.6 1995/10/25 15:07:38 torstenb Exp $
 
 PROG=	ps
 SRCS=	fmt.c keyword.c nlist.c print.c ps.c
-CFLAGS+=-I/sys
+CFLAGS+=-I${.CURDIR}/../../sys
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
 BINGRP=	kmem
