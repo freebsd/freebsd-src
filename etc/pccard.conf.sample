@@ -735,12 +735,14 @@ card "SiliconTech,Inc" "16MB Compact PC Card"
 card "Adaptec, Inc." "APA-1460 SCSI Host Adapter"
 	config	0x9 "aic0" ?
 	insert	logger -t pccard:$device -s Adaptec Slim SCSI inserted
+	insert	camcontrol rescan $device
 	remove	logger -t pccard:$device -s Adaptec Slim SCSI removed
 
 # NewMedia Bustoaster SCSI
 card "New Media" "SCSI"
 	config	0x22 "aic0" ?
 	insert	logger -t pccard:$device -s New Media Bus Toaster inserted
+	insert	camcontrol rescan $device
 	remove	logger -t pccard:$device -s New Media Bus Toaster removed
 
 # REX5535AC, REX5535X SCSI
