@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.50 1997/06/20 07:04:43 jkh Exp $
+ * $Id: install.c,v 1.134.2.51 1997/06/21 15:47:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -517,12 +517,6 @@ installNovice(dialogMenuItem *self)
     }
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
-		  "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
-		  "machines can use NETBUI transport for disk and printer sharing."))
-	configSamba(self);
-
-    dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
 	variable_set2("gateway", "YES");
@@ -992,7 +986,6 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_NFS_SECURE,		"YES");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
-    variable_set2(VAR_SAMBA_PKG,		PACKAGE_SAMBA);
     variable_set2(VAR_GATED_PKG,		PACKAGE_GATED);
     variable_set2(VAR_PCNFSD_PKG,		PACKAGE_PCNFSD);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
