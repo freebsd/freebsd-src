@@ -268,13 +268,36 @@ s/\$//g
 			for (i = 5; i <= NF; i++)
 				comment = comment " " $i
 	}
-	# if the "MPSAFE" keyword is found, note it and shift the line
-	mpsafe = ""
-	$2 == "MPSAFE" {
-		for (i = 2; i <= NF; i++)
-			$i = $(i + 1);
-		NF -= 1;
-		mpsafe = "SYF_MPSAFE | "
+
+	# The 'M' type prefix
+	#
+	{
+		mpsafe = "SYF_MPSAFE | ";
+		if ($2 == "MSTD") {
+			$2 = "STD";
+		} else if ($2 == "MNODEF") {
+			$2 = "NODEF";
+		} else if ($2 == "MNOARGS") {
+			$2 = "NOARGS";
+		} else if ($2 == "MNOPROTO") {
+			$2 = "NOPROTO";
+		} else if ($2 == "MNOIMPL") {
+			$2 = "NOIMPL";
+		} else if ($2 == "MNOSTD") {
+			$2 = "NOSTD";
+		} else if ($2 == "MCOMPAT") {
+			$2 = "COMPAT";
+		} else if ($2 == "MCPT_NOA") {
+			$2 = "CPT_NOA";
+		} else if ($2 == "MLIBCOMPAT") {
+			$2 = "LIBCOMPAT";
+		} else if ($2 == "MOBSOL") {
+			$2 = "OBSOL";
+		} else if ($2 == "MUNIMPL") {
+			$2 = "UNIMPL";
+		} else {
+			mpsafe = "";
+		}
 	}
 	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
 	    || $2 == "NOIMPL" || $2 == "NOSTD" {

@@ -603,7 +603,6 @@ restart:
 		goto out;
 	}
 
-	mtx_lock(&Giant);
 	/* Translate fault for emulators (e.g. Linux) */
 	if (*p->p_sysent->sv_transtrap)
 		i = (*p->p_sysent->sv_transtrap)(i, type);
@@ -619,11 +618,10 @@ restart:
 		uprintf("\n");
 	}
 #endif
-	mtx_unlock(&Giant);
 
 user:
 	userret(p, &frame, sticks);
-	if (mtx_owned(&Giant))
+	if (mtx_owned(&Giant))	/* XXX why would Giant be owned here? */
 		mtx_unlock(&Giant);
 out:
 	return;
@@ -1034,9 +1032,10 @@ syscall(frame)
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame.tf_cs) != SEL_UPL) {
-		mtx_lock(&Giant);
+		mtx_lock(&Giant);	/* try to stabilize the system XXX */
 		panic("syscall");
 		/* NOT REACHED */
+		mtx_unlock(&Giant);
 	}
 #endif
 
@@ -1047,11 +1046,9 @@ syscall(frame)
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
-		 * The prep code is not MP aware.
+		 * The prep code is MP aware.
 		 */
-		mtx_lock(&Giant);
 		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
-		mtx_unlock(&Giant);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
@@ -1084,11 +1081,10 @@ syscall(frame)
 	narg = callp->sy_narg & SYF_ARGMASK;
 
 	/*
-	 * copyin is MP aware, but the tracing code is not
+	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
 	 */
 	if (params && (i = narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
-		mtx_lock(&Giant);
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
 			ktrsyscall(p->p_tracep, code, narg, args);
@@ -1110,8 +1106,6 @@ syscall(frame)
 	 * we are ktracing
 	 */
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
@@ -1157,8 +1151,6 @@ bad:
 	 * Traced syscall.
 	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
 	}
@@ -1170,17 +1162,18 @@ bad:
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
 #endif
 
 	/*
-	 * Release Giant if we had to get it
+	 * Release Giant if we previously set it.  Do not
+	 * release based on mtx_owned() - we want to catch
+	 * broken syscalls.
 	 */
-	if (mtx_owned(&Giant))
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 		mtx_unlock(&Giant);
+	}
 
 	/*
 	 * This works because errno is findable through the
@@ -1198,3 +1191,4 @@ bad:
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
+
