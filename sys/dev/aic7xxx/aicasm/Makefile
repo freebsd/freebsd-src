@@ -21,7 +21,7 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -I/usr/include -I.
+CFLAGS+= -I/usr/include -I. -I../../../dev/aic7xxx/aicasm
 NOMAN=	noman
 
 .ifdef DEBUG
