@@ -136,8 +136,8 @@ div_init(void)
 }
 
 /*
- * IPPROTO_DIVERT is not a real IP protocol; don't allow any packets
- * with that protocol number to enter the system from the outside.
+ * IPPROTO_DIVERT is not in the real IP protocol number space; this
+ * function should never be called.  Just in case, drop any packets.
  */
 void
 div_input(struct mbuf *m, int off)

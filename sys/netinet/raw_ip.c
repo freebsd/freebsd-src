@@ -493,11 +493,14 @@ rip_ctlinput(cmd, sa, vip)
 
 u_long	rip_sendspace = RIPSNDQ;
 u_long	rip_recvspace = RIPRCVQ;
+int	rip_olddiverterror = 1;
 
 SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
 SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
+SYSCTL_INT(_net_inet_raw, OID_AUTO, olddiverterror, CTLFLAG_RW,
+    &rip_olddiverterror, 0, "Return an error when creating an 'old' DIVERT socket");
 
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
@@ -510,6 +513,15 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 		panic("rip_attach");
 	if (td && (error = suser(td)) != 0)
 		return error;
+
+	if (proto >= IPPROTO_MAX || proto < 0)
+		return EPROTONOSUPPORT;
+
+	/* To be removed before 5.2 */
+	if (rip_olddiverterror && proto == IPPROTO_OLD_DIVERT) {
+		printf("Old IPDIVERT program needs to be recompiled, or new IP proto 254 user needs sysctl net.inet.raw.olddiverterror=0\n");
+		return EPROTONOSUPPORT;
+	}
 
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
