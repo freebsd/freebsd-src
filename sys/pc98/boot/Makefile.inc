@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.2 1998/03/14 02:29:24 kato Exp $
 
 .if exists(${.CURDIR}/../../../../include)
 CFLAGS+=	-nostdinc -I${.CURDIR}/../../../../include
@@ -17,4 +17,4 @@ ${OBJS}: machine
 
 beforedepend: machine
 machine:
-	ln -s ${.CURDIR}/../../include ${.OBJDIR}/machine
+	ln -s ${.CURDIR}/../../../i386/include ${.OBJDIR}/machine
