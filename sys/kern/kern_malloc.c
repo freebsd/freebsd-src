@@ -122,10 +122,6 @@ struct freelist {
  *
  *	If M_NOWAIT is set, this routine will not block and return NULL if
  *	the allocation fails.
- *
- *	If M_ASLEEP is set (M_NOWAIT must also be set), this routine
- *	will have the side effect of calling asleep() if it returns NULL,
- *	allowing the parent to await() at some future time.
  */
 void *
 malloc(size, type, flags)
@@ -156,11 +152,6 @@ malloc(size, type, flags)
 	s = splmem();
 	mtx_lock(&malloc_mtx);
 	while (ksp->ks_memuse >= ksp->ks_limit) {
-		if (flags & M_ASLEEP) {
-			if (ksp->ks_limblocks < 65535)
-				ksp->ks_limblocks++;
-			asleep((caddr_t)ksp, PSWP+2, type->ks_shortdesc, 0);
-		}
 		if (flags & M_NOWAIT) {
 			splx(s);
 			mtx_unlock(&malloc_mtx);
