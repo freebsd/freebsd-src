@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.2 1994/08/02 07:54:28 davidg Exp $
+ * $Id: lfs.h,v 1.3 1994/08/21 07:16:08 paul Exp $
  */
 
 #ifndef _UFS_LFS_LFS_H_
@@ -271,12 +271,18 @@ struct segsum {
 #define	LFS_SEGENTRY(SP, F, IN, BP) {					\
 	int _e;								\
 	VTOI((F)->lfs_ivnode)->i_flag |= IN_ACCESS;			\
-	if (_e = bread((F)->lfs_ivnode,					\
+	_e = bread((F)->lfs_ivnode,					\
 	    ((IN) >> (F)->lfs_sushift) + (F)->lfs_cleansz,		\
-	    (F)->lfs_bsize, NOCRED, &(BP)))				\
+	    (F)->lfs_bsize, NOCRED, &(BP));				\
+	if (_e)								\
 		panic("lfs: ifile read: %d", _e);			\
 	(SP) = (SEGUSE *)(BP)->b_data + ((IN) & (F)->lfs_sepb - 1);	\
 }
+#ifdef CC_WALL
+/* The above                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ * looks like a potential bug to me.
+ */
+#endif
 
 /* 
  * Determine if there is enough room currently available to write db
