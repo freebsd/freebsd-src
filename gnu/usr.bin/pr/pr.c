@@ -94,6 +94,17 @@
    -w width	Set the page width to WIDTH characters. */
 
 
+#ifdef HAVE_CONFIG_H
+#if defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
+#include "config.h"
+#endif
+#endif
+
 #include <stdio.h>
 #include <getopt.h>
 #include <sys/types.h>
@@ -426,15 +437,15 @@ static int *clump_buff;
 static int truncate_lines = FALSE;
 
 /* If non-zero, display usage information and exit.  */
-static int flag_help;
+static int show_help;
 
-/* If non-zero, print the version on standard error.  */
-static int flag_version;
+/* If non-zero, print the version on standard output then exit.  */
+static int show_version;
 
 static struct option const long_options[] =
 {
-  {"help", no_argument, &flag_help, 1},
-  {"version", no_argument, &flag_version, 1},
+  {"help", no_argument, &show_help, 1},
+  {"version", no_argument, &show_version, 1},
   {0, 0, 0, 0}
 };
 
@@ -469,7 +480,9 @@ main (argc, argv)
   program_name = argv[0];
 
   n_files = 0;
-  file_names = (char **) xmalloc ((argc - 1) * sizeof (char *));
+  file_names = (argc > 1
+		? (char **) xmalloc ((argc - 1) * sizeof (char *))
+		: NULL);
 
   while (1)
     {
@@ -486,7 +499,7 @@ main (argc, argv)
 	      if (!ISDIGIT (*s))
 		{
 		  error (0, 0, "`+' requires a numeric argument");
-		  usage ();
+		  usage (2);
 		}
 	      /* FIXME: use strtol */
 	      first_page_number = atoi (s);
@@ -591,7 +604,7 @@ main (argc, argv)
 		  fprintf (stderr, "\
 %s: extra characters in the argument to the `-s' option: `%s'\n",
 			   program_name, s);
-		  usage ();
+		  usage (2);
 		}
 	    }
 	  break;
@@ -605,19 +618,19 @@ main (argc, argv)
 	  chars_per_line = atoi (optarg);
 	  break;
 	default:
-	  usage ();
+	  usage (2);
 	  break;
 	}
     }
 
-  if (flag_version)
+  if (show_version)
     {
-      fprintf (stderr, "%s\n", version_string);
+      printf ("%s\n", version_string);
       exit (0);
     }
 
-  if (flag_help)
-    usage ();
+  if (show_help)
+    usage (0);
 
   if (parallel_files && explicit_columns)
     error (1, 0,
@@ -682,7 +695,7 @@ getoptarg (arg, switch_char, character, number)
 	  fprintf (stderr, "\
 %s: extra characters in the argument to the `-%c' option: `%s'\n",
 		   program_name, switch_char, arg);
-	  usage ();
+	  usage (2);
 	}
     }
 }
@@ -1863,13 +1876,45 @@ cleanup ()
 /* Complain, print a usage message, and die. */
 
 static void
-usage ()
+usage (status)
+     int status;
 {
-  fprintf (stderr, "\
-Usage: %s [+PAGE] [-COLUMN] [-abcdfFmrtv] [-e[in-tab-char[in-tab-width]]]\n\
-       [-h header] [-i[out-tab-char[out-tab-width]]] [-l page-length]\n\
-       [-n[number-separator[digits]]] [-o left-margin]\n\
-       [-s[column-separator]] [-w page-width] [--help] [--version] [file...]\n",
-	   program_name);
-  exit (2);
+  if (status != 0)
+    fprintf (stderr, "Try `%s --help' for more information.\n",
+	     program_name);
+  else
+    {
+      printf ("\
+Usage: %s [OPTION]... [FILE]...\n\
+",
+	      program_name);
+      printf ("\
+\n\
+  +PAGE             begin printing with page PAGE\n\
+  -COLUMN           produce COLUMN-column output and print columns down\n\
+  -F, -f            simulate formfeed with newlines on output\n\
+  -a                print columns across rather than down\n\
+  -b                balance columns on the last page\n\
+  -c                use hat notation (^G) and octal backslash notation\n\
+  -d                double space the output\n\
+  -e[CHAR[WIDTH]]   expand input CHARs (TABs) to tab WIDTH (8)\n\
+  -h HEADER         use HEADER instead of filename in page headers\n\
+  -i[CHAR[WIDTH]]   replace spaces with CHARs (TABs) to tab WIDTH (8)\n\
+  -l PAGE_LENGTH    set the page length to PAGE_LENGTH (66) lines\n\
+  -m                print all files in parallel, one in each column\n\
+  -n[SEP[DIGITS]]   number lines, use DIGITS (5) digits, then SEP (TAB)\n\
+  -o MARGIN         offset each line with MARGIN spaces (do not affect -w)\n\
+  -r                inhibit warning when a file cannot be opened\n\
+  -s[SEP]           separate columns by character SEP (TAB)\n\
+  -t                inhibit 5-line page headers and trailers\n\
+  -v                use octal backslash notation\n\
+  -w PAGE_WIDTH     set page width to PAGE_WIDTH (72) columns\n\
+      --help        display this help and exit\n\
+      --version     output version information and exit\n\
+\n\
+-t implied by -l N when N < 10.  Without -s, columns are separated by\n\
+spaces.  With no FILE, or when FILE is -, read standard input.\n\
+");
+    }
+  exit (status);
 }
