@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.9 1999/03/24 12:43:39 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.10 1999/03/26 14:15:59 luigi Exp $
  */
 
 /*
@@ -598,38 +598,39 @@ ip_dn_init(void)
 
 #ifdef DUMMYNET_MODULE
 
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_MISC(dummynet);
+#include <sys/module.h>
 
 static ip_dn_ctl_t *old_dn_ctl_ptr ;
 
 static int
-dummynet_load(struct lkm_table *lkmtp, int cmd)
+dummynet_modevent(module_t mod, int type, void *data)
 {
-	int s=splnet();
-	old_dn_ctl_ptr = ip_dn_ctl_ptr;
-	ip_dn_init();
-	splx(s);
+	int s;
+
+	switch (type) {
+	case MOD_LOAD:
+		s = splnet();
+		old_dn_ctl_ptr = ip_dn_ctl_ptr;
+		ip_dn_init();
+		splx(s);
+		break;
+	case MOD_UNLOAD:
+		s = splnet();
+		ip_dn_ctl_ptr = old_dn_ctl_ptr;
+		splx(s);
+		dummynet_flush();
+		printf("DUMMYNET unloaded\n");
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
-static int
-dummynet_unload(struct lkm_table *lkmtp, int cmd)
-{
-	int s=splnet();
-	ip_dn_ctl_ptr =  old_dn_ctl_ptr;
-	splx(s);
-	dummynet_flush();
-	printf("DUMMYNET unloaded\n");
-	return 0;
-}
-
-int
-dummynet_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-    DISPATCH(lkmtp, cmd, ver, dummynet_load, dummynet_unload, lkm_nullcmd);
-}
+static moduledata_t dummynet_mod = {
+	"dummynet",
+	dummynet_modevent,
+	NULL
+};
+DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
 #endif
