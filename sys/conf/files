@@ -88,8 +88,10 @@ contrib/dev/acpica/Subsystem/Events/evxfregn.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwacpi.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwgpe.c	optional acpica
 contrib/dev/acpica/Subsystem/Hardware/hwregs.c	optional acpica
-contrib/dev/acpica/Subsystem/Hardware/hwxface.c	optional acpica
+contrib/dev/acpica/Subsystem/Hardware/hwsleep.c	optional acpica
+contrib/dev/acpica/Subsystem/Hardware/hwtimer.c	optional acpica
 contrib/dev/acpica/Subsystem/Interpreter/amconfig.c	optional acpica
+contrib/dev/acpica/Subsystem/Interpreter/amconvrt.c	optional acpica
 contrib/dev/acpica/Subsystem/Interpreter/amcreate.c	optional acpica
 contrib/dev/acpica/Subsystem/Interpreter/amdump.c	optional acpica
 contrib/dev/acpica/Subsystem/Interpreter/amdyadic.c	optional acpica
@@ -185,14 +187,14 @@ dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
 dev/acpica/acpi.c		optional acpica
 dev/acpica/acpi_acad.c		optional acpica
-dev/acpica/acpi_apic.c		optional acpica
+#dev/acpica/acpi_apic.c		optional acpica
 dev/acpica/acpi_button.c	optional acpica
 dev/acpica/acpi_cmbat.c		optional acpica
 dev/acpica/acpi_ec.c		optional acpica
 dev/acpica/acpi_isa.c		optional acpica isa
 dev/acpica/acpi_lid.c		optional acpica
 dev/acpica/acpi_pcib.c		optional acpica pci
-dev/acpica/acpi_processor.c	optional acpica
+#dev/acpica/acpi_processor.c	optional acpica
 dev/acpica/acpi_resource.c	optional acpica
 dev/acpica/acpi_thermal.c	optional acpica
 dev/acpica/acpi_timer.c		optional acpica
