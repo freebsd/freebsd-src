@@ -1622,6 +1622,7 @@ gotit:
 	/*
 	 * Check to see if we need to initialize more inodes.
 	 */
+	ibp = NULL;
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
 	    ipref + INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
@@ -1634,12 +1635,13 @@ gotit:
 			dp2->di_gen = arc4random() / 2 + 1;
 			dp2++;
 		}
-		bawrite(ibp);
 		cgp->cg_initediblk += INOPB(fs);
 	}
 	if (fs->fs_active != 0)
 		atomic_clear_int(&ACTIVECGNUM(fs, cg), ACTIVECGOFF(cg));
 	bdwrite(bp);
+	if (ibp != NULL)
+		bawrite(ibp);
 	return (cg * fs->fs_ipg + ipref);
 }
 
