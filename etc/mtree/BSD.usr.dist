@@ -311,6 +311,8 @@
             ..
             ibcs2
             ..
+            ipfilter
+            ..
             ipfw
             ..
             isdn
