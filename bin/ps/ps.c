@@ -86,8 +86,10 @@ int	totwidth;		/* calculated width of requested variables */
 static int needuser, needcomm, needenv;
 #if defined(LAZY_PS)
 static int forceuread=0;
+#define PS_ARGS	"aCcefghjLlM:mN:O:o:p:rSTt:U:uvwx"
 #else
 static int forceuread=1;
+#define PS_ARGS	"aCceghjLlM:mN:O:o:p:rSTt:U:uvwx"
 #endif
 
 enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
@@ -124,9 +126,9 @@ main(argc, argv)
 	dev_t ttydev;
 	pid_t pid;
 	uid_t *uids;
-	int all, ch, flag, i, fmt, lineno, nentries, dropgid;
+	int all, ch, flag, i, fmt, lineno, nentries, nocludge, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
-	char *nlistf, *memf, errbuf[_POSIX2_LINE_MAX];
+	char *cp, *nlistf, *memf, errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
 
@@ -138,8 +140,25 @@ main(argc, argv)
 	else
 		termwidth = ws.ws_col - 1;
 
-	if (argc > 1)
-		argv[1] = kludge_oldps_options(argv[1]);
+	/*
+	 * Don't apply a kludge if the first argument is an option taking an
+	 * argument
+	 */
+	if (argc > 1) {
+		nocludge = 0;
+		if (argv[1][0] == '-') {
+			for (cp = PS_ARGS; *cp != '\0'; cp++) {
+				if (*cp != ':')
+					continue;
+				if (*(cp - 1) == argv[1][1]) {
+					nocludge = 1;
+					break;
+				}
+			}
+		}
+		if (nocludge == 0)
+			argv[1] = kludge_oldps_options(argv[1]);
+	}
 
 	all = fmt = prtheader = wflag = xflg = 0;
 	pid = -1;
@@ -148,12 +167,7 @@ main(argc, argv)
 	ttydev = NODEV;
 	dropgid = 0;
 	memf = nlistf = _PATH_DEVNULL;
-	while ((ch = getopt(argc, argv,
-#if defined(LAZY_PS)
-	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvwx")) != -1)
-#else
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvwx")) != -1)
-#endif
+	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch((char)ch) {
 		case 'a':
 			all = 1;
