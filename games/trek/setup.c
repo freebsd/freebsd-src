@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+# include       <stdlib.h>
 # include	"trek.h"
 # include	"getpar.h"
 
@@ -104,7 +105,7 @@ setup()
 		d = 0;
 		for (i = 0; Game.passwd[i]; i++)
 			d += Game.passwd[i] << i;
-		srand(d);
+		srandom(d);
 	}
 	Param.bases = Now.bases = ranf(6 - Game.skill) + 2;
 	if (Game.skill == 6)
