@@ -2339,23 +2339,30 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 		 */
 		if (pte->pte_d)
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
-		/*
-		 * Modified by someone
-		 */
-		else if (pmap_is_modified(m))
-			val |= MINCORE_MODIFIED_OTHER;
+		else {
+			/*
+			 * Modified by someone
+			 */
+			vm_page_lock_queues();
+			if (pmap_is_modified(m))
+				val |= MINCORE_MODIFIED_OTHER;
+			vm_page_unlock_queues();
+		}
 		/*
 		 * Referenced by us
 		 */
 		if (pte->pte_a)
 			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
-
-		/*
-		 * Referenced by someone
-		 */
-		else if (pmap_ts_referenced(m)) {
-			val |= MINCORE_REFERENCED_OTHER;
-			vm_page_flag_set(m, PG_REFERENCED);
+		else {
+			/*
+			 * Referenced by someone
+			 */
+			vm_page_lock_queues();
+			if (pmap_ts_referenced(m)) {
+				val |= MINCORE_REFERENCED_OTHER;
+				vm_page_flag_set(m, PG_REFERENCED);
+			}
+			vm_page_unlock_queues();
 		}
 	} 
 	return val;
