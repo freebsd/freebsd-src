@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *
@@ -8,12 +10,11 @@
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <dirent.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include "ss_internal.h"
 #include "copyright.h"
-
-extern int errno;
 
 void ss_help (argc, argv, sci_idx, info_ptr)
     int argc;
