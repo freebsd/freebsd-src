@@ -67,7 +67,7 @@ static void	aac_get_bus_info(struct aac_softc *sc);
 
 /* Command Processing */
 static void	aac_timeout(struct aac_softc *sc);
-static int	aac_start(struct aac_command *cm);
+static int	aac_map_command(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_bio_complete(struct aac_command *cm);
@@ -75,11 +75,12 @@ static int	aac_wait_command(struct aac_command *cm, int timeout);
 static void	aac_command_thread(struct aac_softc *sc);
 
 /* Command Buffer Management */
+static void	aac_map_command_sg(void *arg, bus_dma_segment_t *segs,
+				   int nseg, int error);
 static void	aac_map_command_helper(void *arg, bus_dma_segment_t *segs,
 				       int nseg, int error);
 static int	aac_alloc_commands(struct aac_softc *sc);
 static void	aac_free_commands(struct aac_softc *sc);
-static void	aac_map_command(struct aac_command *cm);
 static void	aac_unmap_command(struct aac_command *cm);
 
 /* Hardware Interface */
@@ -667,6 +668,9 @@ aac_startio(struct aac_softc *sc)
 
 	debug_called(2);
 
+	if (sc->flags & AAC_QUEUE_FRZN)
+		return;
+
 	for (;;) {
 		/*
 		 * Try to get a command that's been put off for lack of 
@@ -686,7 +690,7 @@ aac_startio(struct aac_softc *sc)
 			break;
 
 		/* try to give the command to the controller */
-		if (aac_start(cm) == EBUSY) {
+		if (aac_map_command(cm) == EBUSY) {
 			/* put it on the ready queue for later */
 			aac_requeue_ready(cm);
 			break;
@@ -699,7 +703,7 @@ aac_startio(struct aac_softc *sc)
  * last moment when possible.
  */
 static int
-aac_start(struct aac_command *cm)
+aac_map_command(struct aac_command *cm)
 {
 	struct aac_softc *sc;
 	int error;
@@ -707,22 +711,23 @@ aac_start(struct aac_command *cm)
 	debug_called(2);
 
 	sc = cm->cm_sc;
+	error = 0;
 
-	/* get the command mapped */
-	aac_map_command(cm);
+	/* don't map more than once */
+	if (cm->cm_flags & AAC_CMD_MAPPED)
+		return (0);
 
-	/* Fix up the address values in the FIB.  Use the command array index
-	 * instead of a pointer since these fields are only 32 bits.  Shift
-	 * the SenderFibAddress over to make room for the fast response bit.
-	 */
-	cm->cm_fib->Header.SenderFibAddress = (cm->cm_index << 1);
-	cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
-
-	/* save a pointer to the command for speedy reverse-lookup */
-	cm->cm_fib->Header.SenderData = cm->cm_index;
-	/* put the FIB on the outbound queue */
-	error = aac_enqueue_fib(sc, cm->cm_queue, cm);
-	return(error);
+	if (cm->cm_datalen != 0) {
+		error = bus_dmamap_load(sc->aac_buffer_dmat, cm->cm_datamap,
+					cm->cm_data, cm->cm_datalen,
+					aac_map_command_sg, cm, 0);
+		if (error == EINPROGRESS) {
+			debug(1, "freezing queue\n");
+			sc->flags |= AAC_QUEUE_FRZN;
+			error = 0;
+		}
+	}
+	return (error);
 }
 
 /*
@@ -859,6 +864,7 @@ aac_complete(void *context, int pending)
 	}
 
 	/* see if we can start some more I/O */
+	sc->flags &= ~AAC_QUEUE_FRZN;
 	aac_startio(sc);
 
 	AAC_LOCK_RELEASE(&sc->aac_io_lock);
@@ -1158,9 +1164,10 @@ aac_alloc_commands(struct aac_softc *sc)
 		return (ENOMEM);
 	}
 
-	bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs, 
-			AAC_FIB_COUNT * sizeof(struct aac_fib),
-			aac_map_command_helper, &fibphys, 0);
+	/* Ignore errors since this doesn't bounce */
+	(void)bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs, 
+			      AAC_FIB_COUNT * sizeof(struct aac_fib),
+			      aac_map_command_helper, &fibphys, 0);
 
 	/* initialise constant fields in the command structure */
 	bzero(fm->aac_fibs, AAC_FIB_COUNT * sizeof(struct aac_fib));
@@ -1227,6 +1234,7 @@ aac_free_commands(struct aac_softc *sc)
 static void
 aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
+	struct aac_softc *sc;
 	struct aac_command *cm;
 	struct aac_fib *fib;
 	int i;
@@ -1234,6 +1242,7 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	debug_called(3);
 
 	cm = (struct aac_command *)arg;
+	sc = cm->cm_sc;
 	fib = cm->cm_fib;
 
 	/* copy into the FIB */
@@ -1260,37 +1269,30 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			fib->Header.Size += nseg*sizeof(struct aac_sg_entry64);
 		}
 	}
-}
 
-/*
- * Map a command into controller-visible space.
- */
-static void
-aac_map_command(struct aac_command *cm)
-{
-	struct aac_softc *sc;
+	/* Fix up the address values in the FIB.  Use the command array index
+	 * instead of a pointer since these fields are only 32 bits.  Shift
+	 * the SenderFibAddress over to make room for the fast response bit.
+	 */
+	cm->cm_fib->Header.SenderFibAddress = (cm->cm_index << 1);
+	cm->cm_fib->Header.ReceiverFibAddress = cm->cm_fibphys;
 
-	debug_called(2);
+	/* save a pointer to the command for speedy reverse-lookup */
+	cm->cm_fib->Header.SenderData = cm->cm_index;
 
-	sc = cm->cm_sc;
-
-	/* don't map more than once */
-	if (cm->cm_flags & AAC_CMD_MAPPED)
-		return;
-
-	if (cm->cm_datalen != 0) {
-		bus_dmamap_load(sc->aac_buffer_dmat, cm->cm_datamap,
-				cm->cm_data, cm->cm_datalen,
-				aac_map_command_sg, cm, 0);
-
-		if (cm->cm_flags & AAC_CMD_DATAIN)
-			bus_dmamap_sync(sc->aac_buffer_dmat, cm->cm_datamap,
-					BUS_DMASYNC_PREREAD);
-		if (cm->cm_flags & AAC_CMD_DATAOUT)
-			bus_dmamap_sync(sc->aac_buffer_dmat, cm->cm_datamap,
-					BUS_DMASYNC_PREWRITE);
-	}
+	if (cm->cm_flags & AAC_CMD_DATAIN)
+		bus_dmamap_sync(sc->aac_buffer_dmat, cm->cm_datamap,
+				BUS_DMASYNC_PREREAD);
+	if (cm->cm_flags & AAC_CMD_DATAOUT)
+		bus_dmamap_sync(sc->aac_buffer_dmat, cm->cm_datamap,
+				BUS_DMASYNC_PREWRITE);
 	cm->cm_flags |= AAC_CMD_MAPPED;
+
+	/* put the FIB on the outbound queue */
+	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY)
+		aac_requeue_ready(cm);
+
+	return;
 }
 
 /*
@@ -1386,7 +1388,8 @@ aac_check_firmware(struct aac_softc *sc)
 		sc->flags |= AAC_FLAGS_4GB_WINDOW;
 	if (options & AAC_SUPPORTED_NONDASD)
 		sc->flags |= AAC_FLAGS_ENABLE_CAM;
-	if ((options & AAC_SUPPORTED_SGMAP_HOST64) != 0 && (sizeof(bus_addr_t) > 4)) {
+	if ((options & AAC_SUPPORTED_SGMAP_HOST64) != 0
+	     && (sizeof(bus_addr_t) > 4)) {
 		device_printf(sc->aac_dev, "Enabling 64-bit address support\n");
 		sc->flags |= AAC_FLAGS_SG_64BIT;
 	}
@@ -1510,7 +1513,7 @@ aac_init(struct aac_softc *sc)
 	 * XXX If the padding is not needed, can it be put to use instead
 	 * of ignored?
 	 */
-	bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
+	(void)bus_dmamap_load(sc->aac_common_dmat, sc->aac_common_dmamap,
 			sc->aac_common, 8192 + sizeof(*sc->aac_common),
 			aac_common_map, sc, 0);
 
