@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uucpd.c,v 1.10 1997/03/25 09:52:38 davidn Exp $
+ *	$Id: uucpd.c,v 1.11 1997/04/01 20:39:59 joerg Exp $
  */
 
 #ifndef lint
@@ -164,7 +164,7 @@ void doit(struct sockaddr_in *sinp)
 	 * 4. Password is incorrect
 	 */
 	if (pw != NULL && strcmp(pw->pw_shell, _PATH_UUCICO) == 0 &&
-	    pw->pw_expire && time(NULL) >= pw->pw_expire)
+	    (!pw->pw_expire || time(NULL) >= pw->pw_expire))
 		pwdok = 1;
 	/* always ask for passwords to deter account guessing */
 	if (!pwdok || (pw->pw_passwd && *pw->pw_passwd != '\0')) {
