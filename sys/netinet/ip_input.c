@@ -1068,8 +1068,7 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	 */
 	for (; q != NULL && ip->ip_off + ip->ip_len > GETIP(q)->ip_off;
 	     q = nq) {
-		i = (ip->ip_off + ip->ip_len) -
-		    GETIP(q)->ip_off;
+		i = (ip->ip_off + ip->ip_len) - GETIP(q)->ip_off;
 		if (i < GETIP(q)->ip_len) {
 			GETIP(q)->ip_len -= i;
 			GETIP(q)->ip_off += i;
@@ -1255,8 +1254,7 @@ ip_slowtimo()
 	 */
 	if (maxnipq > 0 && nipq > maxnipq) {
 		for (i = 0; i < IPREASS_NHASH; i++) {
-			while (nipq > maxnipq &&
-				!TAILQ_EMPTY(&ipq[i])) {
+			while (nipq > maxnipq && !TAILQ_EMPTY(&ipq[i])) {
 				ipstat.ips_fragdropped +=
 				    TAILQ_FIRST(&ipq[i])->ipq_nfrags;
 				ip_freef(&ipq[i], TAILQ_FIRST(&ipq[i]));
