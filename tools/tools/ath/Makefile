@@ -26,20 +26,26 @@
 #
 BINDIR=	/usr/local/bin
 
-ALL=	athstats 80211stats 80211watch
+ALL=	athstats 80211stats 80211watch athdebug 80211debug
 
 all:	${ALL}
 
 athstats: athstats.c
-	${CC} -o athstats athstats.c -lkvm
+	${CC} -o athstats athstats.c
+athdebug: athdebug.c
+	${CC} -o athdebug athdebug.c
 80211stats: 80211stats.c
 	${CC} -o 80211stats 80211stats.c
 80211watch: 80211watch.c
 	${CC} -o 80211watch 80211watch.c
+80211debug: 80211debug.c
+	${CC} -o 80211debug 80211debug.c
 install: ${ALL}
-	install -g kmem -m 2755 athstats ${DESTDIR}${BINDIR}
+	install athstats ${DESTDIR}${BINDIR}
 	install 80211stats ${DESTDIR}${BINDIR}
 	install 80211watch ${DESTDIR}${BINDIR}
+	install 80211debug ${DESTDIR}${BINDIR}
+	install athdebug ${DESTDIR}${BINDIR}
 
 clean:
 	rm -f ${ALL} core a.out
