@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.42 1997/09/16 18:36:04 joerg Exp $
+ *	$Id: in_proto.c,v 1.43 1997/10/28 15:58:43 bde Exp $
  */
+
+#include "opt_ipdivert.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
