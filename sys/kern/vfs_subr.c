@@ -1725,15 +1725,20 @@ sched_sync(void)
 				vn_finished_write(mp);
 				continue;
 			}
+			/*
+			 * We use vhold in case the vnode does not
+			 * successfully sync.  vhold prevents the vnode from
+			 * going away when we unlock the sync_mtx so that
+			 * we can acquire the vnode interlock.
+			 */
+			vholdl(vp);
 			mtx_unlock(&sync_mtx);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 			(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
 			VOP_UNLOCK(vp, 0, td);
 			vn_finished_write(mp);
-			mtx_lock(&sync_mtx);
-			if (LIST_FIRST(slp) == vp) {
-				VI_LOCK(vp);
-				mtx_unlock(&sync_mtx);
+			VI_LOCK(vp);
+			if ((vp->v_iflag | VI_ONWORKLST) != 0) {
 				/*
 				 * Put us back on the worklist.  The worklist
 				 * routine will remove us from our current
@@ -1741,9 +1746,10 @@ sched_sync(void)
 				 * position.
 				 */
 				vn_syncer_add_to_worklist(vp, syncdelay);
-				VI_UNLOCK(vp);
-				mtx_lock(&sync_mtx);
 			}
+			vdropl(vp);
+			VI_UNLOCK(vp);
+			mtx_lock(&sync_mtx);
 		}
 		mtx_unlock(&sync_mtx);
 
