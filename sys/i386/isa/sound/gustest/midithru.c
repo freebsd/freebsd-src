@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <sys/soundcard.h>
+#include <machine/soundcard.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
