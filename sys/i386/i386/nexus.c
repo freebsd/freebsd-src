@@ -122,12 +122,6 @@ static devclass_t nexus_devclass;
 
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
-#ifdef APIC_IO
-#define LASTIRQ	(NINTR - 1)
-#else
-#define LASTIRQ 15
-#endif
-
 static int
 nexus_probe(device_t dev)
 {
@@ -140,15 +134,24 @@ nexus_probe(device_t dev)
 	 * multi-ISA-bus systems.  PCI interrupts are routed to the ISA
 	 * component, so in a way, PCI can be a partial child of an ISA bus(!).
 	 * APIC interrupts are global though.
+	 * In the non-APIC case, disallow the use of IRQ 2.
 	 */
 	irq_rman.rm_start = 0;
-	irq_rman.rm_end = LASTIRQ;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
+#ifdef APIC_IO
+	irq_rman.rm_end = APIC_INTMAPSIZE - 1;
 	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman, 0, 1)
-	    || rman_manage_region(&irq_rman, 3, LASTIRQ))
+	    || rman_manage_region(&irq_rman,
+				  irq_rman.rm_start, irq_rman.rm_end))
 		panic("nexus_probe irq_rman");
+#else
+	irq_rman.rm_end = 15;
+	if (rman_init(&irq_rman)
+	    || rman_manage_region(&irq_rman, irq_rman.rm_start, 1)
+	    || rman_manage_region(&irq_rman, 3, irq_rman.rm_end))
+		panic("nexus_probe irq_rman");
+#endif
 
 	/*
 	 * ISA DMA on PCI systems is implemented in the ISA part of each
