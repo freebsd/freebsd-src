@@ -625,7 +625,7 @@ mtx_init(struct mtx *m, const char *description, int opts)
 	struct lock_object *lock;
 
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
-	    MTX_SLEEPABLE | MTX_NOWITNESS)) == 0);
+	    MTX_SLEEPABLE | MTX_NOWITNESS | MTX_DUPOK)) == 0);
 
 #ifdef MUTEX_DEBUG
 	/* Diagnostic and error correction */
@@ -649,6 +649,8 @@ mtx_init(struct mtx *m, const char *description, int opts)
 		lock->lo_flags |= LO_SLEEPABLE;
 	if ((opts & MTX_NOWITNESS) == 0)
 		lock->lo_flags |= LO_WITNESS;
+	if (opts & MTX_DUPOK)
+		lock->lo_flags |= LO_DUPOK;
 
 	m->mtx_lock = MTX_UNOWNED;
 	TAILQ_INIT(&m->mtx_blocked);
