@@ -35,6 +35,8 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)lexi.c	8.1 (Berkeley) 6/6/93";
+static const char rcsid[] =
+  "@(#)$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -58,7 +60,7 @@ struct templ {
     int         rwcode;
 };
 
-struct templ specials[100] =
+struct templ specials[1000] =
 {
     "switch", 1,
     "case", 2,
@@ -88,6 +90,8 @@ struct templ specials[100] =
     "else", 6,
     "do", 6,
     "sizeof", 7,
+    "const", 9,
+    "volatile", 9,
     0, 0
 };
 
@@ -257,18 +261,27 @@ lexi()
 		return (casestmt);
 
 	    case 3:		/* a "struct" */
-		if (ps.p_l_follow)
-		    break;	/* inside parens: cast */
+		/*
+		 * Next time around, we may want to know that we have had a
+		 * 'struct'
+		 */
 		l_struct = true;
 
 		/*
-		 * Next time around, we will want to know that we have had a
-		 * 'struct'
+		 * Fall through to test for a cast, function prototype or
+		 * sizeof().
 		 */
 	    case 4:		/* one of the declaration keywords */
 		if (ps.p_l_follow) {
 		    ps.cast_mask |= 1 << ps.p_l_follow;
-		    break;	/* inside parens: cast */
+
+		    /*
+		     * Forget that we saw `struct' if we're in a sizeof().
+		     */
+		    if (ps.sizeof_mask)
+			l_struct = false;
+
+		    break;	/* inside parens: cast, prototype or sizeof() */
 		}
 		last_code = decl;
 		return (decl);
