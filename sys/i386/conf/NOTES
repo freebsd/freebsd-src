@@ -453,6 +453,9 @@ device		acpi_asus
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
 
+# ACPI Sony extra (LCD brightness)
+device		acpi_sony
+
 # ACPI Toshiba Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_toshiba
 
