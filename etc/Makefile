@@ -9,7 +9,7 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	motd modems networks newsyslog.conf \
-	pam.conf pccard.conf.sample phones pim6dd.conf pim6sd.conf \
+	pam.conf phones pim6dd.conf pim6sd.conf \
 	printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.isdn \
 	rc.network rc.network6 rc.pccard rc.serial rc.shutdown rc.sysctl \
