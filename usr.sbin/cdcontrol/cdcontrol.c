@@ -486,7 +486,7 @@ int read_toc_entrys (int len)
 	struct ioc_read_toc_entry t;
 
 	t.address_format = CD_MSF_FORMAT;
-	t.starting_track = 1;
+	t.starting_track = 0;
 	t.data_len = len;
 	t.data = toc_buffer;
 	return ioctl (fd, CDIOREADTOCENTRYS, (char *) &t);
