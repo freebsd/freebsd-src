@@ -72,6 +72,12 @@
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
+#include <setjmp.h>
+
+static jmp_buf *db_nofault = 0;
+extern jmp_buf	db_jmpbuf;
+
+extern void	gdb_handle_exception __P((db_regs_t *, int, int));
 
 extern label_t	*db_recover;
 
@@ -142,10 +148,11 @@ ddbprinttrap(a0, a1, a2, entry)
  *  ddb_trap - field a kernel trap
  */
 int
-ddb_trap(a0, a1, a2, entry, regs)
+kdb_trap(a0, a1, a2, entry, regs)
 	unsigned long a0, a1, a2, entry;
 	db_regs_t *regs;
 {
+	int ddb_mode = !(boothowto & RB_GDB);
 	int s;
 
 	/*
@@ -158,26 +165,21 @@ ddb_trap(a0, a1, a2, entry, regs)
 	if (entry != ALPHA_KENTRY_IF ||
 	    (a0 != ALPHA_IF_CODE_BUGCHK && a0 != ALPHA_IF_CODE_BPT
 		&& a0 != ALPHA_IF_CODE_GENTRAP)) {
-		db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
-		    regs->tf_regs[FRAME_PC]);
-		ddbprinttrap(a0, a1, a2, entry);
-#if 0
-		if (db_recover != 0) {
+		if (ddb_mode) {
+			db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
+				  regs->tf_regs[FRAME_PC]);
+			ddbprinttrap(a0, a1, a2, entry);
 			/*
-			 * XXX Sould longjump back into command loop!
+			 * Tell caller "We did NOT handle the trap."
+			 * Caller should panic, or whatever.
 			 */
-			db_printf("Faulted in DDB; continuing...\n");
-			alpha_pal_halt();		/* XXX */
-			db_error("Faulted in DDB; continuing...\n");
-			/* NOTREACHED */
+			return (0);
 		}
-#endif
-
-		/*
-		 * Tell caller "We did NOT handle the trap."
-		 * Caller should panic, or whatever.
-		 */
-		return (0);
+		if (db_nofault) {
+			jmp_buf *no_fault = db_nofault;
+			db_nofault = 0;
+			longjmp(*no_fault, 1);
+		}
 	}
 
 	/*
@@ -191,7 +193,10 @@ ddb_trap(a0, a1, a2, entry, regs)
 	db_active++;
 	cnpollc(TRUE);		/* Set polling mode, unblank video */
 
-	db_trap(entry, a0);	/* Where the work happens */
+	if (ddb_mode)
+	    db_trap(entry, a0);	/* Where the work happens */
+	else
+	    gdb_handle_exception(&ddb_regs, entry, a0);
 
 	cnpollc(FALSE);		/* Resume interrupt mode */
 	db_active--;
@@ -217,9 +222,13 @@ db_read_bytes(addr, size, data)
 {
 	register char	*src;
 
+	db_nofault = &db_jmpbuf;
+
 	src = (char *)addr;
 	while (size-- > 0)
 		*data++ = *src++;
+
+	db_nofault = 0;
 }
 
 /*
@@ -233,10 +242,14 @@ db_write_bytes(addr, size, data)
 {
 	register char	*dst;
 
+	db_nofault = &db_jmpbuf;
+
 	dst = (char *)addr;
 	while (size-- > 0)
 		*dst++ = *data++;
 	alpha_pal_imb();
+
+	db_nofault = 0;
 }
 
 void
