@@ -262,12 +262,12 @@ readline(FILE *fp, char *buf, int max)
 int
 index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *rdeps)
 {
-    char line[1024];
-    char junk[256];
+    char line[2048];
+    char junk[511];
     char *cp;
     int i;
 
-    i = readline(fp, line, 1024);
+    i = readline(fp, line, sizeof line);
     if (i <= 0)
 	return EOF;
     cp = line;
@@ -282,18 +282,18 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
     if (index(cp, '|'))
 	copy_to_sep(rdeps, cp, '|');
     else
-	strncpy(rdeps, cp, 510);
+	strncpy(rdeps, cp, 1023);
     return 0;
 }
 
 int
 index_read(FILE *fp, PkgNodePtr papa)
 {
-    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[511];
+    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[1024];
     PkgNodePtr i;
 
     while (index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
-	char *cp, *cp2, tmp[511];
+	char *cp, *cp2, tmp[1024];
 	IndexEntryPtr idx;
 
 	idx = new_index(name, pathto, prefix, comment, descr, maint, deps);
