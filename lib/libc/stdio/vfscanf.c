@@ -140,7 +140,6 @@ __svfscanf(FILE *fp, const char *fmt0, va_list ap)
 	char buf[BUF];		/* buffer for numeric and mb conversions */
 	wchar_t *wcp;		/* handy wide character pointer */
 	wchar_t *wcp0;		/* saves original value of wcp */
-	mbstate_t mbs;		/* multibyte conversion state */
 	size_t nconv;		/* length of multibyte sequence converted */
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
@@ -367,8 +366,7 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					memset(&mbs, 0, sizeof(mbs));
-					nconv = mbrtowc(wcp, buf, n, &mbs);
+					nconv = mbrtowc(wcp, buf, n, NULL);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
@@ -447,8 +445,7 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					memset(&mbs, 0, sizeof(mbs));
-					nconv = mbrtowc(wcp, buf, n, &mbs);
+					nconv = mbrtowc(wcp, buf, n, NULL);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
@@ -548,8 +545,7 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					memset(&mbs, 0, sizeof(mbs));
-					nconv = mbrtowc(wcp, buf, n, &mbs);
+					nconv = mbrtowc(wcp, buf, n, NULL);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
