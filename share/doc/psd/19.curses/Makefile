@@ -23,7 +23,7 @@ CLEANFILES+=win_st.gr twinkle2.gr life.gr appen.A.tbl ${DOC}.${PRINTER}+ \
 #
 
 # Don't re-run vgrind unless you want to patch the output files.
-VFONT=	/usr/libexec/vfontedpr
+VFONT=	/usr/bin/vfontedpr
 .c.gr:
 	${VFONT} ${.IMPSRC} | grep -v "^'wh" > ${.TARGET}
 
