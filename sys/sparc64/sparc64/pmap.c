@@ -216,14 +216,32 @@ static int om_cmp(const void *a, const void *b);
 static int
 mr_cmp(const void *a, const void *b)
 {
-	return ((const struct mem_region *)a)->mr_start -
-	    ((const struct mem_region *)b)->mr_start;
+	const struct mem_region *mra;
+	const struct mem_region *mrb;
+
+	mra = a;
+	mrb = b;
+	if (mra->mr_start < mrb->mr_start)
+		return (-1);
+	else if (mra->mr_start > mrb->mr_start)
+		return (1);
+	else
+		return (0);
 }
 static int
 om_cmp(const void *a, const void *b)
 {
-	return ((const struct ofw_map *)a)->om_start -
-	    ((const struct ofw_map *)b)->om_start;
+	const struct ofw_map *oma;
+	const struct ofw_map *omb;
+
+	oma = a;
+	omb = b;
+	if (oma->om_start < omb->om_start)
+		return (-1);
+	else if (oma->om_start > omb->om_start)
+		return (1);
+	else
+		return (0);
 }
 
 /*
