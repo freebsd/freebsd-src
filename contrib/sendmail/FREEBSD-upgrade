@@ -70,6 +70,7 @@ infrastructure in FreeBSD:
 	share/examples/etc/make.conf (HEAD)
 	share/man/man5/make.conf.5
 	share/man/man5/rc.conf.5
+	share/man/man7/hier.7
 	share/man/man8/Makefile
 	share/man/man8/rc.sendmail.8
 	share/mk/bsd.libnames.mk
