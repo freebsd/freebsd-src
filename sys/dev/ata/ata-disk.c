@@ -39,10 +39,10 @@
 #include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
-#include <sys/conf.h>
 #include <sys/stat.h>
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -60,7 +60,7 @@ static d_dump_t         addump;
 
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
-	/* close */	noclose,
+	/* close */	nullclose,
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	noioctl,
