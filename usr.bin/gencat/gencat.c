@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,7 +137,7 @@ main(int argc, char *argv[])
 static void
 writeIfChanged(char *fname, int lang, int orConsts)
 {
-    char	tmpname[32];
+    char	tmpname[] = _PATH_TMP"/gencat.XXXXXX";
     char	buf[BUFSIZ], tbuf[BUFSIZ], *cptr, *tptr;
     int		fd, tfd;
     int		diff = FALSE;
@@ -153,9 +154,8 @@ writeIfChanged(char *fname, int lang, int orConsts)
     }
 
     /* If it does exist, create a temp file for now */
-    sprintf(tmpname, "/tmp/gencat.%d", (int) getpid());
-    if ((tfd = open(tmpname, O_RDWR|O_CREAT, 0666)) < 0)
-		errx(1, "unable to open temporary file: %s", tmpname);
+    if ((tfd = mkstemp(tmpname)) < 0)
+		err(1, "mkstemp");
     unlink(tmpname);
 
     /* Write to the temp file and rewind */
