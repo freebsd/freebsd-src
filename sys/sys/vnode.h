@@ -555,7 +555,7 @@ int	spec_vnoperate __P((struct vop_generic_args *));
 int	speedup_syncer __P((void));
 int	textvp_fullpath __P((struct proc *p, char **retbuf, char **retfreebuf));
 int	vaccess __P((enum vtype type, mode_t file_mode, uid_t uid, gid_t gid,
-	    mode_t acc_mode, struct ucred *cred));
+	    mode_t acc_mode, struct ucred *cred, int *privused));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));

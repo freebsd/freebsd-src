@@ -798,7 +798,7 @@ hpfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, hp->h_mode, hp->h_uid, hp->h_gid,
-	    ap->a_mode, ap->a_cred));
+	    ap->a_mode, ap->a_cred, NULL));
 }
 
 /*
