@@ -93,8 +93,6 @@ _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
-		_init_tls();
 
 #ifdef GCRT
 	atexit(_mcleanup);
