@@ -62,10 +62,6 @@
 #include <sys/aio.h>
 #include <sys/jail.h>
 
-#ifdef COMPAT_43
-#include <machine/reg.h>
-#include <machine/psl.h>
-#endif
 #include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 #include <vm/vm.h>
@@ -367,13 +363,6 @@ exit1(p, rv)
 }
 
 #ifdef COMPAT_43
-#if defined(hp300) || defined(luna68k)
-#include <machine/frame.h>
-#define GETPS(rp)	((struct frame *)(rp))->f_sr
-#else
-#define GETPS(rp)	(rp)[PS]
-#endif
-
 int
 owait(p, uap)
 	struct proc *p;
@@ -383,18 +372,8 @@ owait(p, uap)
 {
 	struct wait_args w;
 
-#ifdef PSL_ALLCC
-	if ((GETPS(p->p_md.md_regs) & PSL_ALLCC) != PSL_ALLCC) {
-		w.options = 0;
-		w.rusage = NULL;
-	} else {
-		w.options = p->p_md.md_regs[R0];
-		w.rusage = (struct rusage *)p->p_md.md_regs[R1];
-	}
-#else
 	w.options = 0;
 	w.rusage = NULL;
-#endif
 	w.pid = WAIT_ANY;
 	w.status = NULL;
 	return (wait1(p, &w, 1));
