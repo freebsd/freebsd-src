@@ -188,11 +188,11 @@ sub spawn($@) {
 	die("child: exec(): $!\n");
     }
     if (waitpid($pid, 0) == -1) {
-	return warning("waitpid(): $!");
+	return warning("waitpid(): $!\n");
     } elsif ($? & 0xff) {
-	return warning("$cmd caught signal", $? & 0x7f);
+	return warning("$cmd caught signal ", $? & 0x7f, "\n");
     } elsif ($? >> 8) {
-	return warning("$cmd returned exit code", $? >> 8);
+	return warning("$cmd returned exit code ", $? >> 8, "\n");
     }
     return 1;
 }
