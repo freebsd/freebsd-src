@@ -393,16 +393,10 @@ release.3:
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
-#
-# NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
-# Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
-# It also prevents ls linking against termcap by disabling color support.
-# See /usr/src/bin/ls/Makefile.
 release.4:
 	@mkdir -p /stand
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
-	export RELEASE_BUILD_FIXIT=noway ; \
 	for j in ${CRUNCH_TARGETS} ; do \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
@@ -410,8 +404,7 @@ release.4:
 		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
 		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
 		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
-		  ${MAKE} -f $${j}_crunch.mk subclean all \
-		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
+		  ${MAKE} -f $${j}_crunch.mk subclean all && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done

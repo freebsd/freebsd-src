@@ -22,7 +22,7 @@ crunch: crunch1.mk
 	@cp crunch1.c build/
 	@(cd build && env MAKEOBJDIRPREFIX=${COMMOBJ} \
 	    ${MAKE} -f ../crunch1.mk -DNOPAM all \
-	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT") #2>&1 >/dev/null
+	    "CFLAGS=${CFLAGS} -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT") #2>&1 >/dev/null
 
 clean:
 	rm -rf build
