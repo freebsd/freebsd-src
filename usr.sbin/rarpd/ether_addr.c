@@ -10,7 +10,7 @@
  *
  * Have a party.
  *
- *	$Id: ether_addr.c,v 1.2 1995/03/03 22:20:15 wpaul Exp $
+ *	$Id: ether_addr.c,v 1.4 1995/03/05 22:03:58 wpaul Exp $
  */
 
 
@@ -119,13 +119,18 @@ int ether_ntohost(hostname, e)
 				return(1);
 			ether_a = ether_ntoa(e);
 			if (yp_match(yp_domain, "ethers.byaddr", ether_a,
-				strlen(ether_a), &result, &resultlen))
+				strlen(ether_a), &result, &resultlen)) {
+				free(result);
 				return(1);
+			}
 			if (!ether_line(result, &local_ether, &local_host)) {
 				strcpy(hostname, (char *)&local_host);
+				free(result);
 				return(0);
-			} else
+			} else {
+				free(result);
 				return(1);
+			}
 		}
 		if (!ether_line(&buf, &local_ether, &local_host)) {
 			if (!bcmp((char *)&local_ether.octet[0],
@@ -167,14 +172,19 @@ int ether_hostton(hostname, e)
 			if (yp_get_default_domain(&yp_domain))
 				return(1);
 			if (yp_match(yp_domain, "ethers.byname", hostname,
-				strlen(hostname), &result, &resultlen))
+				strlen(hostname), &result, &resultlen)) {
+				free(result);
 				return(1);
+			}
 			if (!ether_line(result, &local_ether, &local_host)) {
 				bcopy((char *)&local_ether.octet[0],
 					(char *)&e->octet[0], 6);
+				free(result);
 				return(0);
-			} else
+			} else {
+				free(result);
 				return(1);
+			}
 		}
 		if (!ether_line(&buf, &local_ether, &local_host)) {
 			if (!strcmp(hostname, (char *)&local_host)) {
