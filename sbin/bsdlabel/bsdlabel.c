@@ -125,6 +125,12 @@ static int	allfields;	/* present all fields in edit */
 static char const *xxboot;	/* primary boot */
 
 static off_t mbroffset;
+#ifndef LABELSECTOR
+#define LABELSECTOR -1
+#endif
+#ifndef LABELOFFSET
+#define LABELOFFSET -1
+#endif
 static int labelsoffset = LABELSECTOR;
 static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
@@ -211,6 +217,8 @@ main(int argc, char *argv[])
 
 	if (argc < 1)
 		usage();
+	if (labelsoffset < 0 || labeloffset < 0)
+		errx(1, "a -m <architecture> option must be specified");
 
 	/* Figure out the names of the thing we're working on */
 	if (argv[0][0] != '/') {
