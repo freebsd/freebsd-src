@@ -1,12 +1,8 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double erf();
-double G77_derf_0 (x) doublereal *x;
-#else
-extern double erf(double);
-double G77_derf_0 (doublereal *x)
-#endif
+extern double erf (double);
+double
+G77_derf_0 (doublereal * x)
 {
-return( erf(*x) );
+  return (erf (*x));
 }

@@ -22,17 +22,13 @@ Boston, MA 02111-1307, USA.  */
 #include "f2c.h"
 #include "fio.h"
 
-#ifdef KR_headers
-integer G77_fnum_0 (lunit)
-     integer *lunit;
-#else
-integer G77_fnum_0 (integer *lunit)
-#endif
+integer
+G77_fnum_0 (integer * lunit)
 {
-  if (*lunit>=MXUNIT || *lunit<0)
-    err(1,101,"fnum");
+  if (*lunit >= MXUNIT || *lunit < 0)
+    err (1, 101, "fnum");
   /* f__units is a table of descriptions for the unit numbers (defined
      in io.h).  Use file descriptor (ufd) and fileno rather than udev
      field since udev is unix specific */
-  return fileno(f__units[*lunit].ufd);
+  return fileno (f__units[*lunit].ufd);
 }

@@ -39,16 +39,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* may need sys/time.h & long arg for stime (bsd, svr1-3) */
 
-#ifdef KR_headers
-/* Character */ void G77_ctime_0 (chtime, Lchtime, xstime)
-     char *chtime;
-     longint * xstime;
-     ftnlen Lchtime;
-#else
-/* Character */ void G77_ctime_0 (char *chtime, const ftnlen Lchtime, longint * xstime)
-#endif
+/* Character */ void
+G77_ctime_0 (char *chtime, const ftnlen Lchtime, longint * xstime)
 {
-  int i, l;
   int s_copy ();
   time_t stime = *xstime;
 
