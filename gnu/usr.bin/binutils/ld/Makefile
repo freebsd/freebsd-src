@@ -17,7 +17,7 @@ elf-hints.h:
 		ln -sf ${.CURDIR}/../../../../include/${.TARGET} .
 .endif
 
-CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
+CFLAGS+=	-DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+=	-I${SRCDIR}/ld -I${SRCDIR}/bfd
 CFLAGS+=	-DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
 NOSHARED?=	yes
