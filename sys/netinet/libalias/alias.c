@@ -78,6 +78,7 @@
 
     See HISTORY file for additional revisions.
 
+    $FreeBSD$
 */
 
 #include <stdio.h>
