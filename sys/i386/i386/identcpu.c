@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.13 1998/01/03 08:51:29 obrien Exp $
+ *	$Id: identcpu.c,v 1.7.2.14 1998/01/25 15:40:28 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -662,6 +662,8 @@ void
 finishidentcpu(void)
 {
 	int	isblue = 0;
+	u_char	ccr3;
+	u_long	regs[4];
 
 	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		if (cpu == CPU_486) {
@@ -717,11 +719,18 @@ finishidentcpu(void)
 			default:
 				/* M2 and later CPUs are treated as M2. */
 				cpu = CPU_M2;
+
 				/*
-				 * XXX
-				 * Execute cpuid instrunction here and fix cpu_id and
-				 * cpu_feature variables.
+				 * enable cpuid instruction.
 				 */
+				ccr3 = read_cyrix_reg(CCR3);
+				write_cyrix_reg(CCR3, CCR3_MAPEN0);
+				write_cyrix_reg(CCR4, read_cyrix_reg(CCR4) | CCR4_CPUID);
+				write_cyrix_reg(CCR3, ccr3);
+
+				do_cpuid(1, regs);
+				cpu_id = regs[0];	/* eax */
+				cpu_feature = regs[3];	/* edx */
 				break;
 			}
 		}
