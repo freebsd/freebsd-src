@@ -100,7 +100,7 @@ all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
 .for lang in ${LOCALES}
-	-rm -rf ${LOCALEDIR}/${lang}/LC_MESSAGES
+	rm -rf ${LOCALEDIR}/${lang}/LC_MESSAGES
 	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_MESSAGES
 .endfor
