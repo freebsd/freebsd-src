@@ -1788,17 +1788,17 @@ retry_lookup:
 				VM_WAIT;
 				goto retry_lookup;
 			}
+			vm_page_lock_queues();
 			vm_page_wakeup(pg);
 		} else {
-			if (vm_page_sleep_busy(pg, TRUE, "sfpbsy"))
+			vm_page_lock_queues();
+			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
 				goto retry_lookup;
 			/*
 		 	 * Wire the page so it does not get ripped out from
 			 * under us.
 			 */
-			vm_page_lock_queues();
 			vm_page_wire(pg);
-			vm_page_unlock_queues();
 		}
 
 		/*
@@ -1813,6 +1813,7 @@ retry_lookup:
 			 * completes.
 			 */
 			vm_page_io_start(pg);
+			vm_page_unlock_queues();
 
 			/*
 			 * Get the page from backing store.
@@ -1824,10 +1825,10 @@ retry_lookup:
 			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
 			    td->td_ucred, NULL, td);
 			VOP_UNLOCK(vp, 0, td);
+			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
 			if (error) {
-				vm_page_lock_queues();
 				vm_page_unwire(pg, 0);
 				/*
 				 * See if anyone else might know about this page.
@@ -1844,7 +1845,7 @@ retry_lookup:
 				goto done;
 			}
 		}
-
+		vm_page_unlock_queues();
 
 		/*
 		 * Get a sendfile buf. We usually wait as long as necessary,
