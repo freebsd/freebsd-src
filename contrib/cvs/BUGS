@@ -15,6 +15,16 @@ similar file for the unix-like operating systems (not yet, at least).
 This file also might contain some platform-specific bugs.
 
 
+* Exporting binary files on non-unix clients with "cvs export" does
+not work.  The workaround is to use "cvs checkout" instead.  If you
+are thinking of fixing this, check out the comment "For cvs export,
+assume it is a text file." in client.c.
+
+
+* Wrappers do not work client/server, and there are a variety of other
+bugs and annoyances with wrappers.
+
+
 * Some people have reported seeing the message "dying gasps from %s
 unexpected" (where %s is the name of your server) when using
 client/server CVS.  One person reported that this had to do with using

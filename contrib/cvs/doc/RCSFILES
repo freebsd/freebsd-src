@@ -37,6 +37,23 @@ for more information on them.  CVS also sets the RCS state to "dead"
 to indicate that a file does not exist in a given revision (this is
 stored just as any other RCS state is).
 
+The RCS file format allows quite a variety of extensions to be added
+in a compatible manner by use of the "newphrase" feature documented in
+rcsfile.5.  We won't try to document extensions not used by CVS in any
+detail, but we will briefly list them.  Each occurrence of a newphrase
+begins with an identifier, which is what we list here.  Future
+designers of extensions are strongly encouraged to pick
+non-conflicting identifiers.  Note that newphrase occurs several
+places in the RCS grammar, and a given extension may not be legal in
+all locations.  However, it seems better to reserve a particular
+identifier for all locations, to avoid confusion and complicated
+rules.
+
+   Identifier   Used by
+   ----------   -------
+   namespace    RCS library done at Silicon Graphics Inc. (SGI) in 1996
+                (a modified RCS 5.7--not sure it has any other name).
+
 The rules regarding keyword expansion are not documented along with
 the rest of the RCS file format; they are documented in the co(1)
 manpage in the RCS 5.7 distribution.  See also the "Keyword

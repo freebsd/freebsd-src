@@ -1,3 +1,45 @@
+Thu May 22 09:25:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add comment about yet another way
+	to produce a "cannot open CVS/Entries for reading" error.
+
+Tue May 20 17:54:55 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add item about EINVAL in rename.
+
+Mon May 19 00:21:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Keywords in imports): New node.
+	(Tracking sources): Add comment about what a "vendor" is.
+
+	* cvs.texinfo (Keyword substitution): Where it refers to RCS
+	having a certain behavior, rewrite to not pass the buck like
+	that.  Saying "RCS file" is still OK; that is a legit CVS
+	concept.  A few other minor edits.
+
+Sun May 18 10:24:57 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* RCSFILES: Add list of known newphrase extensions.
+
+	* cvs.texinfo (From other version control systems): Fix typo
+	("systesm" -> "systems").
+
+	* cvs.texinfo (Exit status): New node.
+	(diff): Replace text on exit status with an xref to that node.
+	The previous text documented a behavior which CVS no longer
+	implements.
+	(user-defined logging, commitinfo, verifymsg, Error messages):
+	Add index entries for "exit status, of <something which CVS invokes>".
+
+	* cvs.texinfo (Administrative files): Add comment concerning
+	writing triggers and particularly performance issues.
+
+	* cvs.texinfo (rtag options, tag options): Don't discuss what old
+	versions did with respect to the behavior now controlled by -F; we
+	don't try to document old versions here.  Add comments concerning
+	how -F should be documented.  Add index entries for "renaming
+	tags" and such pointing to "tag -F".
+
 Wed May 14 12:16:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (Binary files): Add text and comment about
