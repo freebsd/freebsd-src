@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#13 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#14 $
  *
  * $FreeBSD$
  */
@@ -108,12 +108,11 @@ struct scb_platform_data;
 
 /*
  * The maximum number of supported luns.
- * Although the identify message only supports 64 luns in SPI3, you
- * can have 2^64 luns when information unit transfers are enabled.
- * The max we can do sanely given the 8bit nature of the RISC engine
- * on these chips is 256.
+ * The identify message only supports 64 luns in SPI3.
+ * You can have 2^64 luns when information unit transfers are enabled,
+ * but it is doubtful this driver will ever support IUTs.
  */
-#define AHC_NUM_LUNS 256
+#define AHC_NUM_LUNS 64
 
 /*
  * The maximum transfer per S/G segment.
@@ -311,7 +310,8 @@ typedef enum {
 					   * stored in SCB space rather
 					   * than SRAM.
 					   */
-	AHC_BIOS_ENABLED	= 0x80000
+	AHC_BIOS_ENABLED	= 0x80000,
+	AHC_ALL_INTERRUPTS	= 0x100000
 } ahc_flag;
 
 /*
@@ -648,8 +648,8 @@ struct ahc_initiator_tinfo {
  * negotiation is the same regardless of role.
  */
 struct tmode_tstate {
-	struct tmode_lstate*		enabled_luns[64]; /* NULL == disabled */
-	struct ahc_initiator_tinfo	transinfo[16];
+	struct tmode_lstate*		enabled_luns[AHC_NUM_LUNS];
+	struct ahc_initiator_tinfo	transinfo[AHC_NUM_TARGETS];
 
 	/*
 	 * Per initiator state bitmasks.
@@ -809,6 +809,27 @@ typedef enum {
 /*********************** Software Configuration Structure *********************/
 TAILQ_HEAD(scb_tailq, scb);
 
+struct ahc_suspend_state {
+	uint8_t		scsiseq;
+	uint8_t		sxfrctl0;
+	uint8_t		sxfrctl1;
+	/* scsiid */
+	uint8_t		optionmode;
+	uint8_t		simode0;
+	uint8_t		simode1;
+	uint8_t		seltimer;
+	uint8_t		seqctl;
+	uint8_t		dscommand0;
+	uint8_t		dspcistatus;
+	/* hsmailbox */
+	uint8_t		crccontrol1;
+	uint8_t		scbbaddr;
+	/* Host and sequencer SCB counts */
+	uint8_t		dff_thrsh;
+	uint8_t		*scratch_ram;
+	uint8_t		*btt;
+};
+
 struct ahc_softc {
 	bus_space_tag_t           tag;
 	bus_space_handle_t        bsh;
@@ -839,7 +860,7 @@ struct ahc_softc {
 	 * target.  The driver only allows a single untagged
 	 * transaction per target.
 	 */
-	struct scb_tailq	  untagged_queues[16];
+	struct scb_tailq	  untagged_queues[AHC_NUM_TARGETS];
 
 	/*
 	 * Platform specific data.
@@ -857,7 +878,7 @@ struct ahc_softc {
 	 * As an initiator, we keep one target entry for our initiator
 	 * ID to store our sync/wide transfer settings.
 	 */
-	struct tmode_tstate*	  enabled_targets[16];
+	struct tmode_tstate*	  enabled_targets[AHC_NUM_TARGETS];
 
 	/*
 	 * The black hole device responsible for handling requests for
@@ -945,6 +966,9 @@ struct ahc_softc {
 	 */
 	bus_addr_t		  dma_bug_buf;
 
+	/* Information saved through suspend/resume cycles */
+	struct ahc_suspend_state  suspend_state;
+
 	/* Number of enabled target mode device on this card */
 	u_int			  enabled_luns;
 
@@ -997,7 +1021,7 @@ struct ahc_pci_identity {
 	ahc_device_setup_t	*setup;
 };
 extern struct ahc_pci_identity ahc_pci_ident_table [];
-extern const int ahc_num_pci_devs;
+extern const u_int ahc_num_pci_devs;
 
 /***************************** VL/EISA Declarations ***************************/
 struct aic7770_identity {
@@ -1014,6 +1038,10 @@ extern const int ahc_num_aic7770_devs;
 
 /*************************** Function Declarations ****************************/
 /******************************************************************************/
+u_int			ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl);
+void			ahc_unbusy_tcl(struct ahc_softc *ahc, u_int tcl);
+void			ahc_busy_tcl(struct ahc_softc *ahc,
+				     u_int tcl, u_int busyid);
 
 /***************************** PCI Front End *********************************/
 struct ahc_pci_identity	*ahc_find_pci_device(ahc_dev_softc_t);
@@ -1043,6 +1071,9 @@ int			 ahc_softc_init(struct ahc_softc *,
 					struct ahc_probe_config*);
 void			 ahc_controller_info(struct ahc_softc *ahc, char *buf);
 int			 ahc_init(struct ahc_softc *ahc);
+void			 ahc_pause_and_flushwork(struct ahc_softc *ahc);
+int			 ahc_suspend(struct ahc_softc *ahc); 
+int			 ahc_resume(struct ahc_softc *ahc);
 void			 ahc_softc_insert(struct ahc_softc *);
 void			 ahc_set_unit(struct ahc_softc *, int);
 void			 ahc_set_name(struct ahc_softc *, char *);
@@ -1101,6 +1132,10 @@ void			ahc_validate_width(struct ahc_softc *ahc,
 					   struct ahc_initiator_tinfo *tinfo,
 					   u_int *bus_width,
 					   role_t role);
+void			ahc_update_target_msg_request(struct ahc_softc *ahc,
+					struct ahc_devinfo *dinfo,
+					struct ahc_initiator_tinfo *tinfo,
+					int force, int paused);
 void			ahc_set_width(struct ahc_softc *ahc,
 				      struct ahc_devinfo *devinfo,
 				      u_int width, u_int type, int paused);

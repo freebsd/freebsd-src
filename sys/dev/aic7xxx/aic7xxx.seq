@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#14 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#15 $
  *
  * $FreeBSD$
  */
@@ -884,7 +884,16 @@ ultra2_dma_loop:
 		 * completes or the target changes phase.
 		 */
 		test	SG_CACHE_SHADOW, LAST_SEG_DONE jnz ultra2_dmafinish;
-		test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+		if ((ahc->flags & AHC_TARGETROLE) != 0) {
+			 /*
+			  * As a target, we control the phases,
+			  * so ignore PHASEMIS.
+			  */
+			test	SSTAT0, TARGET jnz ultra2_dma_loop;
+		}
+		if ((ahc->flags & AHC_INITIATORROLE) != 0) {
+			test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+		}
 
 ultra2_dmafinish:
 		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
