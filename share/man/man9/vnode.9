@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: vnode.9,v 1.2 1997/03/22 22:47:31 mpp Exp $
+.\" $Id: vnode.9,v 1.3 1997/04/13 14:49:11 bde Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -104,39 +104,60 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define	VROOT	0x0001	/* root of its file system */
-#define	VTEXT	0x0002	/* vnode is a pure text prototype */
-#define	VSYSTEM	0x0004	/* vnode being used by kernel */
-#define	VOLOCK	0x0008	/* vnode is locked waiting for an object */
-#define	VOWANT	0x0010	/* a process is waiting for VOLOCK */
-#define	VXLOCK	0x0100	/* vnode is locked to change underlying type */
-#define	VXWANT	0x0200	/* process is waiting for vnode */
-#define	VBWAIT	0x0400	/* waiting for output to complete */
-#define	VALIASED 0x0800	/* vnode has an alias */
-#define	VDIROP	0x1000	/* LFS: vnode is involved in a directory op */
-#define	VVMIO	0x2000	/* VMIO flag */
-#define	VNINACT	0x4000	/* LFS: skip ufs_inactive() in lfs_vunref */
-#define	VAGE	0x8000	/* Insert vnode at head of free list */
+#define	VROOT	0x00001	/* root of its file system */
+#define	VTEXT	0x00002	/* vnode is a pure text prototype */
+#define	VSYSTEM	0x00004	/* vnode being used by kernel */
+#define	VOLOCK	0x00008	/* vnode is locked waiting for an object */
+#define	VOWANT	0x00010	/* a process is waiting for VOLOCK */
+#define	VXLOCK	0x00100	/* vnode is locked to change underlying type */
+#define	VXWANT	0x00200	/* process is waiting for vnode */
+#define	VBWAIT	0x00400	/* waiting for output to complete */
+#define	VALIASED	0x00800	/* vnode has an alias */
+#define	VDIROP	0x01000	/* LFS: vnode is involved in a directory op */
+#define	VVMIO	0x02000	/* VMIO flag */
+#define	VNINACT	0x04000	/* LFS: skip ufs_inactive() in lfs_vunref */
+#define	VAGE	0x08000	/* Insert vnode at head of free list */
+#define VOLOCK	0x10000	/* vnode is locked waiting for an object */
+#define VOWANT	0x20000	/* a process is waiting for VOLOCK */
+#define VDOOMED	0x40000	/* This vnode is being recycled */
+#define VFREE	0x80000	/* This vnode is on the freelist */
+
+
 .Ed
 .Sh DESCRIPTION
 The vnode is the focus of all file activity in UNIX.  There is a
 unique vnode allocated for each active file, each current directory,
 each mounted-on file, text file, and the root.
 .Pp
-Each vnode has two reference counts,
-.Dv v_usecount
+Each vnode has three reference counts,
+.Dv v_usecount ,
+.Dv v_holdcnt
 and
 .Dv v_writecount .
 The first is the number of clients within the kernel which are
 using this vnode.  This count is maintained by
 .Xr vref 9 ,
-.Xr vrele 9 and
+.Xr vrele 9 
+and
 .Xr vput 9 .
-When the
+The second is the number of clients withing the kernel who veto
+the recycling of this vnode.  This count is
+maintained by
+.Xr vhold 9 
+and
+.Xr vdrop 9 .
+When both the
 .Dv v_usecount
-of a vnode reaches zero then the vnode may be reused for another
-file, possibly in another filesystem.
-The second is a count of the number of clients which are writing into
+and the
+.Dv v_holdcnt
+of a vnode reaches zero then the vnode will be put on the freelist
+and may be reused for another file, possibly in another filesystem.
+The transistion to and from the freelist is handled by
+.Xr getnetvnode 9 ,
+.Xr vfree 9 
+and
+.Xr vbusy 9 .
+The third is a count of the number of clients which are writing into
 the file.  It is maintained by the
 .Xr open 2
 and
