@@ -858,7 +858,11 @@
     advisory FreeBSD-SA-01:33). &merged;</para>
 
     <para>Initial sequence numbers in TCP are more thoroughly
-    randomized (see security advisory FreeBSD-SA-01:39). &merged;</para>
+    randomized (see security advisory FreeBSD-SA-01:39).  Due to some
+    possible compatability issues, the behavior of this security fix
+    can be enabled or disabled via the 
+    <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl 
+    variable.&merged;</para>
 
     <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
     and <varname>net.inet.ip.maxfragpackets</varname> sysctl
@@ -1149,6 +1153,9 @@
     this feature is controlled by the
     <varname>background_fsck</varname> option in &man.rc.conf.5;.</para>
 
+    <para>A new &man.fsck.msdosfs.8; utility has been added to check
+    the consistency of MS-DOS filesystems.</para>
+
     <para>Catching up with most other network utilities in the base
     system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
     &man.logger.1; are now all IPv6-capable. &merged;</para>
@@ -1355,6 +1362,10 @@
 
     <para>The <option>-T</option> to &man.dump.8; no longer swallows
     an extra argument. &merged;</para>
+
+    <para>&man.dump.8; has a new <option>-D</option> option, allowing
+    the path to the <filename>/etc/dumpdates</filename> file to be
+    changed.</para>
 
     <para>&man.split.1; now has the ability to split a file longer
     than 2GB. &merged;</para>
@@ -1646,7 +1657,8 @@
       5.2-20010512.</para>
 
       <para>The <application>OPIE</application> one-time-password suite
-      has been updated to 2.32. &merged;</para>
+      has been updated to 2.32. &merged;  It has completely replaced
+      the functionality of <application>S/Key</application>.</para>
 
       <para><application>Perl</application> has been updated to version
       5.6.0.</para>
