@@ -1,7 +1,7 @@
 /*
  * Implementation of a simple Target Mode SCSI Proccessor Target driver for CAM.
  *
- * Copyright (c) 1998 Justin T. Gibbs.
+ * Copyright (c) 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.5 1998/12/15 08:15:15 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.6 1998/12/17 00:03:14 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -1439,16 +1439,20 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				break;
 			}
 
-			if (desc->bp != NULL)
-				panic("targ%d: desc->bp should be NULL", 
-				      periph->unit_number);
-
 			/* Queue us up for another buffer */
 			if (atio->cdb_io.cdb_bytes[0] == SEND) {
+				if (desc->bp != NULL)
+					TAILQ_INSERT_HEAD(
+						&softc->snd_buf_queue.queue,
+						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->snd_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
 			} else {
+				if (desc->bp != NULL)
+					TAILQ_INSERT_HEAD(
+						&softc->rcv_buf_queue.queue,
+						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->rcv_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
