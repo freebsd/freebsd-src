@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 DISTRIBUTION?=	krb5
+NOLINT=		true
 
 .if !defined(INCLUDEOBJDIR)
 
