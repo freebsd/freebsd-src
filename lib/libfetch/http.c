@@ -84,6 +84,7 @@ extern char *__progname;
 
 #define HTTP_OK		200
 #define HTTP_PARTIAL	206
+#define HTTP_MOVED	302
 
 struct cookie
 {
@@ -412,6 +413,21 @@ ouch:
 }
 
 /*
+ * Check a header line
+ */
+char *
+_http_match(char *str, char *hdr)
+{
+    while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
+	/* nothing */;
+    if (*str || *hdr != ':')
+	return NULL;
+    while (*hdr && isspace(*++hdr))
+	/* nothing */;
+    return hdr;
+}
+
+/*
  * Send a HEAD or GET request
  */
 int
@@ -477,33 +493,20 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
 }
 
 /*
- * Check a header line
- */
-char *
-_http_match(char *str, char *hdr)
-{
-    while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
-	/* nothing */;
-    if (*str || *hdr != ':')
-	return NULL;
-    while (*hdr && isspace(*++hdr))
-	/* nothing */;
-    return hdr;
-}
-
-/*
  * Retrieve a file by HTTP
  */
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int e, enc = ENC_NONE, i;
+    int e, enc = ENC_NONE, i, noredirect;
     struct cookie *c;
     char *ln, *p, *q;
     FILE *f, *cf;
     size_t len;
     off_t pos = 0;
 
+    noredirect = (flags && strchr(flags, 'A'));
+    
     /* allocate cookie */
     if ((c = calloc(1, sizeof *c)) == NULL)
 	return NULL;
@@ -516,9 +519,8 @@ fetchGetHTTP(struct url *URL, char *flags)
     c->real_f = f;
 
     e = _http_request(f, "GET", URL, flags);
-    
-    /* add code to handle redirects later */
-    if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)) {
+    if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)
+	&& (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
 	goto fouch;
     }
@@ -533,7 +535,22 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    --len;
 	ln[len] = '\0'; /* XXX */
 	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
-	if ((p = _http_match("Transfer-Encoding", ln)) != NULL) {
+	if ((p = _http_match("Location", ln)) != NULL) {
+	    struct url *url;
+	    
+	    for (q = p; *q && !isspace(*q); q++)
+		/* VOID */ ;
+	    *q = 0;
+	    if ((url = fetchParseURL(p)) == NULL)
+		goto fouch;
+	    url->offset = URL->offset;
+	    url->length = URL->length;
+	    DEBUG(fprintf(stderr, "location:  [\033[1m%s\033[m]\n", p));
+	    cf = fetchGetHTTP(url, flags);
+	    fetchFreeURL(url);
+	    fclose(f);
+	    return cf;
+	} else if ((p = _http_match("Transfer-Encoding", ln)) != NULL) {
 	    for (q = p; *q && !isspace(*q); q++)
 		/* VOID */ ;
 	    *q = 0;
@@ -599,10 +616,12 @@ fetchPutHTTP(struct url *URL, char *flags)
 int
 fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    int e;
+    int e, noredirect;
     size_t len;
-    char *ln, *p;
+    char *ln, *p, *q;
     FILE *f;
+
+    noredirect = (flags && strchr(flags, 'A'));
     
     us->size = -1;
     us->atime = us->mtime = 0;
@@ -611,7 +630,8 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
     if ((f = _http_connect(URL, flags)) == NULL)
 	return -1;
 
-    if ((e = _http_request(f, "HEAD", URL, flags)) != HTTP_OK) {
+    e = _http_request(f, "HEAD", URL, flags);
+    if (e != HTTP_OK && (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
 	goto ouch;
     }
@@ -625,7 +645,22 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 	    --len;
 	ln[len] = '\0'; /* XXX */
 	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
-	if ((p = _http_match("Last-Modified", ln)) != NULL) {
+	if ((p = _http_match("Location", ln)) != NULL) {
+	    struct url *url;
+	    
+	    for (q = p; *q && !isspace(*q); q++)
+		/* VOID */ ;
+	    *q = 0;
+	    if ((url = fetchParseURL(p)) == NULL)
+		goto ouch;
+	    url->offset = URL->offset;
+	    url->length = URL->length;
+	    DEBUG(fprintf(stderr, "location:  [\033[1m%s\033[m]\n", p));
+	    e = fetchStatHTTP(url, us, flags);
+	    fetchFreeURL(url);
+	    fclose(f);
+	    return e;
+	} else if ((p = _http_match("Last-Modified", ln)) != NULL) {
 	    struct tm tm;
 	    char locale[64];
 
