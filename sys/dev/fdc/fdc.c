@@ -1627,7 +1627,8 @@ fdc_intr(void *xfdc)
 /*
  * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
  */
-static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
+static int
+fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 {
 	u_char *cptr = (u_char *)addr;
 
@@ -2220,10 +2221,7 @@ fdbiodone(struct bio *bp)
 }
 
 static int
-fdformat(dev, finfo, p)
-	dev_t dev;
-	struct fd_formb *finfo;
-	struct proc *p;
+fdformat(dev_t dev, struct fd_formb *finfo, struct proc *p)
 {
  	fdu_t	fdu;
  	fd_p	fd;
@@ -2291,12 +2289,7 @@ fdformat(dev, finfo, p)
  */
 
 static int
-fdioctl(dev, cmd, addr, flag, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t addr;
-	int flag;
-	struct proc *p;
+fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
  	fdu_t	fdu = FDUNIT(minor(dev));
  	fd_p	fd = devclass_get_softc(fd_devclass, fdu);
@@ -2400,20 +2393,3 @@ fdioctl(dev, cmd, addr, flag, p)
 	}
 	return (error);
 }
-
-/*
- * Hello emacs, these are the
- * Local Variables:
- *  c-indent-level:               8
- *  c-continued-statement-offset: 8
- *  c-continued-brace-offset:     0
- *  c-brace-offset:              -8
- *  c-brace-imaginary-offset:     0
- *  c-argdecl-indent:             8
- *  c-label-offset:              -8
- *  c++-hanging-braces:           1
- *  c++-access-specifier-offset: -8
- *  c++-empty-arglist-indent:     8
- *  c++-friend-offset:            0
- * End:
- */
