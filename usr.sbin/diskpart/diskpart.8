@@ -68,17 +68,13 @@ with the
 option.
 .El
 .Pp
-On disks that use
-.Xr bad144 8
-type of
-bad-sector forwarding,
+On disks that use bad-sector forwarding,
 space is normally left in the last partition on the disk
 for a bad sector forwarding table, although this space
 is not reflected in the tables produced.  The space reserved
 is one track for the replicated copies of the table and
 sufficient tracks to hold a pool of 126 sectors to which bad sectors
-are mapped.  For more information, see 
-.Xr bad144 8 .
+are mapped.
 The
 .Fl s
 option is intended for other controllers which reserve some space at the end
@@ -128,7 +124,6 @@ If an unknown disk type is specified,
 will prompt for the required disk geometry information.
 .Sh SEE ALSO
 .Xr disktab 5 ,
-.Xr bad144 8
 .Sh BUGS
 Most default partition sizes are based on historical artifacts
 (like the RP06), and may result in unsatisfactory layouts.
