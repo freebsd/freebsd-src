@@ -280,6 +280,7 @@ addump(dev_t dev)
 	    if (request.flags & AR_F_ERROR)
 		return EIO;
 	    request.donecount += request.currentsize;
+	    request.bytecount -= request.currentsize;
 	    DELAY(20);
 	}
 
