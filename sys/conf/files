@@ -190,6 +190,20 @@ dev/mlx/mlx.c		optional mlx
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
+power_if.o		optional pccard					\
+	dependency	"power_if.c power_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+power_if.c		optional pccard					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/pccard/power_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"power_if.c"
+power_if.h		optional pccard					\
+	dependency	"$S/kern/makedevops.pl $S/dev/pccard/power_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/pccard/power_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"power_if.h"
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/pdq.c		optional fea
@@ -279,6 +293,7 @@ dev/vinum/vinumstate.c		optional vinum
 dev/vinum/vinumutil.c		optional vinum
 dev/vn/vn.c			optional vn
 dev/vx/if_vx.c			optional vx
+#dev/xe/if_xe.c			optional xe
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
