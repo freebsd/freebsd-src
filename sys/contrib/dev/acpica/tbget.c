@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 79 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -225,8 +225,10 @@ AcpiTbGetTableHeader (
                                     (void **) &Header);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_ERROR (("Could not map memory at %p for length %X\n",
-                Address->Pointer.Physical, sizeof (ACPI_TABLE_HEADER)));
+            ACPI_REPORT_ERROR (("Could not map memory at %8.8X%8.8X for length %X\n",
+                ACPI_HIDWORD (Address->Pointer.Physical), 
+                ACPI_LODWORD (Address->Pointer.Physical), 
+                sizeof (ACPI_TABLE_HEADER)));
             return_ACPI_STATUS (Status);
         }
 
@@ -447,8 +449,10 @@ AcpiTbGetThisTable (
                                     (void **) &FullTable);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_REPORT_ERROR (("Could not map memory for table [%4.4s] at %p for length %X\n",
-                Header->Signature, Address->Pointer.Physical, Header->Length));
+            ACPI_REPORT_ERROR (("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
+                Header->Signature,
+                ACPI_HIDWORD (Address->Pointer.Physical), 
+                ACPI_LODWORD (Address->Pointer.Physical), Header->Length));
             return (Status);
         }
 

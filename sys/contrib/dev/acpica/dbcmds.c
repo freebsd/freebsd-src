@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -283,7 +283,8 @@ AcpiDbDisplayTableInfo (
         if (AcpiGbl_AcpiTables[i].Pointer)
         {
             AcpiOsPrintf ("%s at %p length %X\n", AcpiGbl_AcpiTableData[i].Name,
-                        AcpiGbl_AcpiTables[i].Pointer, AcpiGbl_AcpiTables[i].Length);
+                        AcpiGbl_AcpiTables[i].Pointer, 
+                        (UINT32) AcpiGbl_AcpiTables[i].Length);
         }
     }
 }
@@ -785,7 +786,7 @@ AcpiDbWalkForSpecificObjects (
         return (AE_OK);
     }
 
-    AcpiOsPrintf ("%32s", Buffer.Pointer);
+    AcpiOsPrintf ("%32s", (char *) Buffer.Pointer);
     ACPI_MEM_FREE (Buffer.Pointer);
 
 
@@ -796,11 +797,14 @@ AcpiDbWalkForSpecificObjects (
         switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
         {
         case ACPI_TYPE_METHOD:
-            AcpiOsPrintf ("  #Args %d  Concurrency %X", ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
+            AcpiOsPrintf ("  #Args %d  Concurrency %X", 
+                    ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
             break;
 
         case ACPI_TYPE_INTEGER:
-            AcpiOsPrintf ("  Value %X", ObjDesc->Integer.Value);
+            AcpiOsPrintf ("  Value %8.8X%8.8X", 
+                    ACPI_HIDWORD (ObjDesc->Integer.Value),
+                    ACPI_LODWORD (ObjDesc->Integer.Value));
             break;
 
         case ACPI_TYPE_STRING:
@@ -808,7 +812,11 @@ AcpiDbWalkForSpecificObjects (
             break;
 
         case ACPI_TYPE_REGION:
-            AcpiOsPrintf ("  SpaceId %X Address %X Length %X", ObjDesc->Region.SpaceId, ObjDesc->Region.Address, ObjDesc->Region.Length);
+            AcpiOsPrintf ("  SpaceId %X Length %X Address %8.8X%8.8X", 
+                    ObjDesc->Region.SpaceId,
+                    ObjDesc->Region.Length,
+                    ACPI_HIDWORD (ObjDesc->Region.Address),
+                    ACPI_LODWORD (ObjDesc->Region.Address));
             break;
 
         case ACPI_TYPE_PACKAGE:
@@ -928,7 +936,7 @@ AcpiDbWalkAndMatchName (
     }
     else
     {
-        AcpiOsPrintf ("%32s (%p) - %s\n", Buffer.Pointer, ObjHandle,
+        AcpiOsPrintf ("%32s (%p) - %s\n", (char *) Buffer.Pointer, ObjHandle,
             AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjHandle)->Type));
         ACPI_MEM_FREE (Buffer.Pointer);
     }
