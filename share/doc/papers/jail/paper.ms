@@ -355,7 +355,7 @@ long as the file flags permit this.
 permit this.
 .IP
 \(bu Binding reserved TCP and UDP port numbers on the jails IP address is
-permitted.  (Attempts to bind TCP and UDP ports using IN_ADDRANY will be
+permitted.  (Attempts to bind TCP and UDP ports using INADDR_ANY will be
 redirected to the jails IP address.)
 .IP
 \(bu Functions which operate on the uid/gid space are all permitted since they
