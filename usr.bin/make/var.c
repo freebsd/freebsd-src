@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.10 1997/09/29 03:53:53 imp Exp $
+ *	$Id: var.c,v 1.13 1999/07/31 20:53:02 hoek Exp $
  */
 
 #ifndef lint
@@ -166,6 +166,7 @@ static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarNoMatch __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSubstitute __P((char *, Boolean, Buffer, ClientData));
+static char *VarQuote __P((char *));
 static char *VarModify __P((char *, Boolean (*)(char *, Boolean, Buffer,
 						ClientData),
 			    ClientData));
@@ -217,6 +218,7 @@ VarFind (name, ctxt, flags)
 				 * FIND_ENV set means to look in the
 				 * environment */
 {
+    Boolean		localCheckEnvFirst;
     LstNode         	var;
     Var		  	*v;
 
@@ -255,6 +257,20 @@ VarFind (name, ctxt, flags)
 				name = TARGET;
 			break;
 		}
+
+    /*
+     * Note whether this is one of the specific variables we were told through
+     * the -E flag to use environment-variable-override for.
+     */
+    if (Lst_Find (envFirstVars, (ClientData)name,
+		  (int (*)(ClientData, ClientData)) strcmp) != NILLNODE)
+    {
+	localCheckEnvFirst = TRUE;
+    }
+    else {
+	localCheckEnvFirst = FALSE;
+    }
+
     /*
      * First look for the variable in the given context. If it's not there,
      * look for it in VAR_CMD, VAR_GLOBAL and the environment, in that order,
@@ -265,8 +281,8 @@ VarFind (name, ctxt, flags)
     if ((var == NILLNODE) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
 	var = Lst_Find (VAR_CMD->context, (ClientData)name, VarCmp);
     }
-    if (!checkEnvFirst && (var == NILLNODE) && (flags & FIND_GLOBAL) &&
-	(ctxt != VAR_GLOBAL))
+    if ((var == NILLNODE) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
+	!checkEnvFirst && !localCheckEnvFirst)
     {
 	var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
     }
@@ -286,8 +302,8 @@ VarFind (name, ctxt, flags)
 
 	    v->flags = VAR_FROM_ENV;
 	    return (v);
-	} else if (checkEnvFirst && (flags & FIND_GLOBAL) &&
-		   (ctxt != VAR_GLOBAL))
+	} else if ((checkEnvFirst || localCheckEnvFirst) &&
+		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
 	{
 	    var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
 	    if (var == NILLNODE) {
@@ -1072,6 +1088,40 @@ VarModify (str, modProc, datum)
 
 /*-
  *-----------------------------------------------------------------------
+ * VarQuote --
+ *	Quote shell meta-characters in the string
+ *
+ * Results:
+ *	The quoted string
+ *
+ * Side Effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------
+ */
+static char *
+VarQuote(str)
+	char *str;
+{
+
+    Buffer  	  buf;
+    /* This should cover most shells :-( */
+    static char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
+
+    buf = Buf_Init (MAKE_BSIZE);
+    for (; *str; str++) {
+	if (strchr(meta, *str) != NULL)
+	    Buf_AddByte(buf, (Byte)'\\');
+	Buf_AddByte(buf, (Byte)*str);
+    }
+    Buf_AddByte(buf, (Byte) '\0');
+    str = (char *)Buf_GetAll (buf, (int *)NULL);
+    Buf_Destroy (buf, FALSE);
+    return str;
+}
+
+/*-
+ *-----------------------------------------------------------------------
  * Var_Parse --
  *	Given the start of a variable invocation, extract the variable
  *	name and find its value, then modify it according to the
@@ -1613,6 +1663,14 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    free(pattern.rhs);
 		    break;
 		}
+		case 'Q':
+		    if (tstr[1] == endc || tstr[1] == ':') {
+			newStr = VarQuote (str);
+			cp = tstr + 1;
+			termc = *cp;
+			break;
+		    }
+		    /*FALLTHRU*/
 		case 'T':
 		    if (tstr[1] == endc || tstr[1] == ':') {
 			newStr = VarModify (str, VarTail, (ClientData)0);
