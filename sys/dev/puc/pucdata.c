@@ -702,6 +702,29 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
 	    },
 	},
+	/*
+	 * VScom (Titan?) PCI-800L.  More modern variant of the
+	 * PCI-800.  Uses 6 discrete 16550 UARTs, plus another
+	 * two of them obviously implemented as macro cells in
+	 * the ASIC.  This causes the weird port access pattern
+	 * below, where two of the IO port ranges each access
+	 * one of the ASIC UARTs, and a block of IO addresses
+	 * access the external UARTs.
+	 */
+	{   "Titan VScom PCI-800L",
+	    {   0x14d2, 0x8080, 0x14d2, 0x8080  },
+	    {   0xffff, 0xffff, 0xffff, 0xffff  },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x08, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x10, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x18, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x20, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x20, 0x28, COM_FREQ * 8 },
+	    },
+	},
 
 	/* NEC PK-UG-X001 K56flex PCI Modem card.
 	   NEC MARTH bridge chip and Rockwell RCVDL56ACF/SP using. */
@@ -833,6 +856,15 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* Oxford Semiconductor OX12PCI840 PCI Parallel port */
+	{   "Qxford Semiconductor OX12PCI840 Parallel port",
+		{   0x1415, 0x8403, 0,      0       },
+		{   0xffff, 0xffff, 0,      0 },
+		{
+		    { PUC_PORT_TYPE_LPT, 0x10, 0x00, 0x00 },
+		},
+	},
+
 	/* NetMos 2S1P PCI 16C650 : 2S, 1P */
 	{   "NetMos NM9835 Dual UART and 1284 Printer port",
 	    {	0x9710,	0x9835,	0,	0	},
@@ -880,6 +912,30 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x3f8, COM_FREQ },
 		{ PUC_PORT_TYPE_LPT, 0x10, 0x000, 0x00 },
 	    },
+	},
+
+	/* Moxa Technologies Co., Ltd. PCI I/O Card 4S RS232 */
+	{   "Moxa Technologies, Smartio C104H/PCI",
+	    {   0x1393, 0x1040, 0,      0       },
+	    {   0xffff, 0xffff, 0,      0,      },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x10, COM_FREQ * 8 },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x18, COM_FREQ * 8 },
+	    },
+	},
+
+	/* Moxa Technologies Co., Ltd. PCI I/O Card 4S RS232 */
+	{   "Moxa Technologies, Smartio CP-104UL/PCI",
+		{   0x1393, 0x1041, 0,      0       },
+		{   0xffff, 0xffff, 0,      0,      },
+		{
+			{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
+			{ PUC_PORT_TYPE_COM, 0x18, 0x08, COM_FREQ * 8 },
+			{ PUC_PORT_TYPE_COM, 0x18, 0x10, COM_FREQ * 8 },
+			{ PUC_PORT_TYPE_COM, 0x18, 0x18, COM_FREQ * 8 },
+		},
 	},
 
 	/* Moxa Technologies Co., Ltd. PCI I/O Card 4S RS232/422/485 */
@@ -966,6 +1022,38 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x1c, 0x08, COM_FREQ },
 	    },
+	},
+
+	{   "IC Book Labs Ironclad x8 Lite",
+	    {   0xb00c, 0x041c, 0,      0       },
+	    {   0xffff, 0xffff, 0,      0       },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+	    },
+	    PUC_ILR_TYPE_DIGI, { 0x07 },
+	},
+
+	{   "IC Book Labs Ironclad x8 Pro",
+	    {   0xb00c, 0x051c, 0,      0       },
+	    {   0xffff, 0xffff, 0,      0       },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+	    },
+	    PUC_ILR_TYPE_DIGI, { 0x07 },
 	},
 
 	{   "IC Book Labs Dreadnought x16 Lite",
