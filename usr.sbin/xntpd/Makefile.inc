@@ -1,3 +1,6 @@
+.if !defined(BEEN_HERE)
+BEEN_HERE=1
+
 DEFS_LOCAL=-DREFCLOCK -DPARSE -DUDP_WILDCARD_DELIVERY
 NTPDEFS=   -DSYS_FREEBSD -DSYS_44BSD
 AUTHDEFS=  -DMD5
@@ -9,4 +12,6 @@ BINDIR?= /usr/sbin
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../../secure/usr.sbin/xntpd/lib)
 AUTHDEFS+=	-DDES
+.endif
+
 .endif
