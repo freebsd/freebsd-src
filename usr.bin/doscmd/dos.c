@@ -31,7 +31,7 @@
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
  *
- * $Id: dos.c,v 1.3 1998/07/02 05:12:52 imp Exp $
+ * $Id: dos.c,v 1.4 1998/07/16 23:54:23 imp Exp $
  */
 
 #include "doscmd.h"
@@ -704,6 +704,21 @@ int21_1a(regcontext_t *REGS)
 {
     debug(D_FILE_OPS, "set dta to %x:%x\n", R_DS, R_DX);
     disk_transfer_addr = N_GETVEC(R_DS, R_DX);
+    return(0);
+}
+
+/*
+** 21:23
+**
+** Get file size for fcb
+** DS:DX -> unopened FCB, no wildcards.
+** pcb random record field filled in with number of records, rounded up.
+*/
+static int
+int21_23(regcontext_t *REGS)
+{
+    debug(D_HALF, "Returning failure from get file size for fcb 21:23\n");
+    R_AL = 0xff;
     return(0);
 }
 
@@ -1471,6 +1486,19 @@ int21_44_1(regcontext_t *REGS)
 {
     debug(D_FILE_OPS, "ioctl set device info %d flags %x (ignored)\n",
 	  R_BX, R_DX);
+    return(0);
+}
+
+/*
+** 21:44:7
+**
+** Get output status
+*/
+static int
+int21_44_7(regcontext_t *REGS)
+{
+    /* XXX Should really check to see if BX is open or not */
+    R_AX = 0xFF;
     return(0);
 }
 
@@ -2276,6 +2304,7 @@ static struct intfunc_table int21_table [] = {
     { 0x1b,	IFT_NOSUBFUNC,	int21_free,	"get allocation for default drive"},
     { 0x1c,	IFT_NOSUBFUNC,	int21_free,	"get allocation for specific drive"},
     { 0x1f,	IFT_NOSUBFUNC,	int21_NOFUNC,	"get DPB for current drive"},
+    { 0x23,	IFT_NOSUBFUNC,	int21_23,	"Get file size (old)"},
     { 0x25,	IFT_NOSUBFUNC,	int21_25,	"set interrupt vector"},
     { 0x26,	IFT_NOSUBFUNC,	int21_26,	"create new PSP"},
     { 0x2a,	IFT_NOSUBFUNC,	int21_2a,	"get date"},
@@ -2308,6 +2337,7 @@ static struct intfunc_table int21_table [] = {
     { 0x43,	IFT_NOSUBFUNC,	int21_43,	"get/set file attributes"},
     { 0x44,	0x00,		int21_44_0,	"ioctl(get)"},
     { 0x44,	0x01,		int21_44_1,	"ioctl(set)"},
+    { 0x44,	0x07,		int21_44_7,	"ioctl(Check output status)"},
     { 0x44,	0x08,		int21_44_8,	"ioctl(test removable)"},
     { 0x44,	0x09,		int21_44_9,	"ioctl(test remote)"},
     { 0x45,	IFT_NOSUBFUNC,	int21_45,	"dup"},
@@ -2449,7 +2479,9 @@ int21(regcontext_t *REGS)
     index = intfunc_find(int21_table, int21_fastlookup, R_AH, R_AL);
 
     if (index == -1) {			/* no matching functions */
-	unknown_int2(0x21, R_AL, REGS);
+	unknown_int3(0x21, R_AH, R_AL, REGS);
+	R_FLAGS |= PSL_C;               /* Flag an error */
+        R_AX = 0xff;
 	return;
     }
 
