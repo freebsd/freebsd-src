@@ -107,6 +107,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <geom/geom.h>
+
 /*
  * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
  * pages per allocation.  We recommend you stick with the default of 8.
@@ -143,6 +145,7 @@ typedef	int32_t	swblk_t;	/*
 
 struct swdevt;
 typedef void sw_strategy_t(struct buf *bp, struct swdevt *sw);
+typedef void sw_close_t(struct thread *td, struct swdevt *sw);
 
 /*
  * Swap device table
@@ -152,12 +155,14 @@ struct swdevt {
 	int	sw_nblks;
 	int     sw_used;
 	udev_t	sw_udev;
+	struct vnode *sw_vp;
 	void	*sw_id;
 	swblk_t	sw_first;
 	swblk_t	sw_end;
 	struct blist *sw_blist;
 	TAILQ_ENTRY(swdevt)	sw_list;
 	sw_strategy_t		*sw_strategy;
+	sw_close_t		*sw_close;
 };
 
 #define	SW_CLOSING	0x04
@@ -258,7 +263,7 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax,
 static void	swp_sizecheck(void);
 static void	swp_pager_sync_iodone(struct buf *bp);
 static void	swp_pager_async_iodone(struct buf *bp);
-static int	swapondev(struct thread *, struct vnode *);
+static int	swapongeom(struct thread *, struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
 
 /*
@@ -2000,59 +2005,6 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 }
 
 /*
- *	swapdev_strategy:
- *
- *	Perform swap strategy interleave device selection.
- *
- *	The bp is expected to be locked and *not* B_DONE on call.
- */
-static void
-swapdev_strategy(struct buf *bp, struct swdevt *sp)
-{
-	int s;
-	struct vnode *vp, *vp2;
-
-	bp->b_dev = NODEV;
-	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
-
-	vp2 = sp->sw_id;
-	vhold(vp2);
-	s = splvm();
-	if (bp->b_iocmd == BIO_WRITE) {
-		vp = bp->b_vp;
-		if (vp) {
-			VI_LOCK(vp);
-			vp->v_numoutput--;
-			if ((vp->v_iflag & VI_BWAIT) && vp->v_numoutput <= 0) {
-				vp->v_iflag &= ~VI_BWAIT;
-				wakeup(&vp->v_numoutput);
-			}
-			VI_UNLOCK(vp);
-		}
-		VI_LOCK(vp2);
-		vp2->v_numoutput++;
-		VI_UNLOCK(vp2);
-	}
-	bp->b_vp = vp2;
-	splx(s);
-	VOP_STRATEGY(vp2, bp);
-	return;
-}
-
-static void
-swapdev_devstrategy(struct buf *bp, struct swdevt *sp)
-{
-	struct vnode *vp;
-
-	vp = sp->sw_id;
-	bp->b_dev = vp->v_rdev;
-	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
-
-	VOP_SPECSTRATEGY(vp, bp);
-	return;
-}
-
-/*
  * System call swapon(name) enables swapping on device name,
  * which must be in the swdevsw.  Return EBUSY
  * if already swapping on this device.
@@ -2102,7 +2054,7 @@ swapon(struct thread *td, struct swapon_args *uap)
 	vp = nd.ni_vp;
 
 	if (vn_isdisk(vp, &error)) {
-		error = swapondev(td, vp);
+		error = swapongeom(td, vp);
 	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 	    (error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) == 0) {
@@ -2124,7 +2076,7 @@ done2:
 }
 
 static void
-swaponsomething(void *vp, u_long nblks, sw_strategy_t *strategy, udev_t udev)
+swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, udev_t udev)
 {
 	struct swdevt *sp;
 	swblk_t dvbase;
@@ -2164,7 +2116,8 @@ swaponsomething(void *vp, u_long nblks, sw_strategy_t *strategy, udev_t udev)
 	nblks = dbtoc(nblks);
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
-	sp->sw_id = vp;
+	sp->sw_vp = vp;
+	sp->sw_id = id;
 	sp->sw_udev = udev;
 	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
@@ -2172,6 +2125,7 @@ swaponsomething(void *vp, u_long nblks, sw_strategy_t *strategy, udev_t udev)
 	sp->sw_first = dvbase;
 	sp->sw_end = dvbase + nblks;
 	sp->sw_strategy = strategy;
+	sp->sw_close = close;
 
 	sp->sw_blist = blist_create(nblks);
 	/*
@@ -2188,88 +2142,14 @@ swaponsomething(void *vp, u_long nblks, sw_strategy_t *strategy, udev_t udev)
 	swap_pager_full = 0;
 }
 
-
-static int
-swapondev(struct thread *td, struct vnode *vp)
-{
-	struct swdevt *sp;
-	int error;
-	off_t mediasize;
-	u_long nblks;
-
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (sp->sw_id == vp) {
-			mtx_unlock(&sw_dev_mtx);
-			return (EBUSY);
-		}
-	}
-	mtx_unlock(&sw_dev_mtx);
-    
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-#ifdef MAC
-	error = mac_check_system_swapon(td->td_ucred, vp);
-	if (error == 0)
-#endif
-		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, -1);
-	(void) VOP_UNLOCK(vp, 0, td);
-	if (error)
-		return (error);
-
-	error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
-		    FREAD, td->td_ucred, td);
-	if (error == 0)
-		    nblks = mediasize / DEV_BSIZE;
-	else {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
-		return (ENXIO);
-	}
-	
-	/*
-	 * XXX: We should also check that the sectorsize makes sense
-	 * XXX: it should be a power of two, no larger than the page size.
-	 */
-
-	swaponsomething(vp, nblks, swapdev_devstrategy, dev2udev(vp->v_rdev));
-	return (0);
-}
-
-
-static int
-swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
-{
-	struct swdevt *sp;
-	int error;
-
-	if (nblks == 0)
-		return (ENXIO);
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (sp->sw_id == vp) {
-			mtx_unlock(&sw_dev_mtx);
-			return (EBUSY);
-		}
-	}
-	mtx_unlock(&sw_dev_mtx);
-    
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-#ifdef MAC
-	error = mac_check_system_swapon(td->td_ucred, vp);
-	if (error == 0)
-#endif
-		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, -1);
-	(void) VOP_UNLOCK(vp, 0, td);
-	if (error)
-		return (error);
-
-	swaponsomething(vp, nblks, swapdev_strategy, NOUDEV);
-	return (0);
-}
-
 /*
  * SYSCALL: swapoff(devname)
  *
  * Disable swapping on the given device.
+ *
+ * XXX: Badly designed system call: it should use a device index
+ * rather than filename as specification.  We keep sw_vp around
+ * only to make this work.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct swapoff_args {
@@ -2309,7 +2189,7 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (sp->sw_id == vp)
+		if (sp->sw_vp == vp)
 			goto found;
 	}
 	mtx_unlock(&sw_dev_mtx);
@@ -2356,8 +2236,7 @@ found:
 #endif /* !NO_SWAPPING */
 	swap_pager_swapoff(sp, &sp->sw_used);
 
-	VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
-	vrele(vp);
+	sp->sw_close(td, sp);
 	sp->sw_id = NULL;
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
@@ -2462,4 +2341,241 @@ vmspace_swap_count(struct vmspace *vmspace)
 		}
 	}
 	return (count);
+}
+
+/*
+ * GEOM backend
+ *
+ * Swapping onto disk devices.
+ *
+ */
+
+static struct g_class g_swap_class = {
+	.name = "SWAP",
+};
+
+DECLARE_GEOM_CLASS(g_swap_class, g_class);
+
+
+static void
+swapgeom_done(struct bio *bp2)
+{
+	struct buf *bp;
+
+	bp = bp2->bio_caller2;
+	if (bp2->bio_error)
+		bp->b_ioflags |= BIO_ERROR;
+	mtx_lock(&Giant);
+	bufdone(bp);
+	mtx_unlock(&Giant);
+	g_destroy_bio(bp2);
+}
+
+static void
+swapgeom_strategy(struct buf *bp, struct swdevt *sp)
+{
+	struct bio *bio;
+	struct g_consumer *cp;
+
+	cp = sp->sw_id;
+	if (cp == NULL) {
+		bp->b_error = ENXIO;
+		bp->b_ioflags |= BIO_ERROR;
+		bufdone(bp);
+		return;
+	}
+	bio = g_clone_bio(&bp->b_io);
+	bio->bio_caller2 = bp;
+	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
+	bio->bio_length = bp->b_bcount;
+	bio->bio_done = swapgeom_done;
+	g_io_request(bio, cp);
+	return;
+}
+
+static void
+swapgeom_orphan(struct g_consumer *cp)
+{
+	struct swdevt *sp;
+
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list)
+		if (sp->sw_id == cp)
+			sp->sw_id = NULL;
+	mtx_unlock(&sw_dev_mtx);
+}
+
+static void
+swapgeom_close_ev(void *arg, int flags)
+{
+	struct g_consumer *cp;
+
+	cp = arg;
+	g_access_rel(cp, -1, -1, -1);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+}
+
+static void
+swapgeom_close(struct thread *td, struct swdevt *sw)
+{
+
+	/* XXX: direct call when Giant untangled */
+	g_waitfor_event(swapgeom_close_ev, sw->sw_id, M_WAITOK, NULL);
+}
+
+
+struct swh0h0 {
+	dev_t	dev;
+	struct vnode *vp;
+	int	error;
+};
+
+static void
+swapongeom_ev(void *arg, int flags)
+{
+	struct swh0h0 *swh;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	static struct g_geom *gp;
+	struct swdevt *sp;
+	u_long nblks;
+	int error;
+
+	swh = arg;
+	swh->error = 0;
+	pp = g_dev_getprovider(swh->dev);
+	if (pp == NULL) {
+		swh->error = ENODEV;
+		return;
+	}
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		cp = sp->sw_id;
+		if (cp != NULL && cp->provider == pp) {
+			mtx_unlock(&sw_dev_mtx);
+			swh->error = EBUSY;
+			return;
+		}
+	}
+	mtx_unlock(&sw_dev_mtx);
+	if (gp == NULL) {
+		gp = g_new_geomf(&g_swap_class, "swap", NULL);
+		gp->orphan = swapgeom_orphan;
+	}
+	cp = g_new_consumer(gp);
+	g_attach(cp, pp);
+	error = g_access_rel(cp, 1, 1, 1);
+	if (error) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		swh->error = error;
+		return;
+	}
+	nblks = pp->mediasize / DEV_BSIZE;
+	swaponsomething(swh->vp, cp, nblks, swapgeom_strategy,
+	    swapgeom_close, dev2udev(swh->dev));
+	swh->error = 0;
+	return;
+}
+
+static int
+swapongeom(struct thread *td, struct vnode *vp)
+{
+	int error;
+	struct swh0h0 swh;
+
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+
+	swh.dev = vp->v_rdev;
+	swh.vp = vp;
+	swh.error = 0;
+	/* XXX: direct call when Giant untangled */
+	error = g_waitfor_event(swapongeom_ev, &swh, M_WAITOK, NULL);
+	if (!error)
+		error = swh.error;
+	VOP_UNLOCK(vp, 0, td);
+	return (error);
+}
+
+/*
+ * VNODE backend
+ *
+ * This is used mainly for network filesystem (read: probably only tested
+ * with NFS) swapfiles.
+ *
+ */
+
+static void
+swapdev_strategy(struct buf *bp, struct swdevt *sp)
+{
+	int s;
+	struct vnode *vp, *vp2;
+
+	bp->b_dev = NODEV;
+	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
+
+	vp2 = sp->sw_id;
+	vhold(vp2);
+	s = splvm();
+	if (bp->b_iocmd == BIO_WRITE) {
+		vp = bp->b_vp;
+		if (vp) {
+			VI_LOCK(vp);
+			vp->v_numoutput--;
+			if ((vp->v_iflag & VI_BWAIT) && vp->v_numoutput <= 0) {
+				vp->v_iflag &= ~VI_BWAIT;
+				wakeup(&vp->v_numoutput);
+			}
+			VI_UNLOCK(vp);
+		}
+		VI_LOCK(vp2);
+		vp2->v_numoutput++;
+		VI_UNLOCK(vp2);
+	}
+	bp->b_vp = vp2;
+	splx(s);
+	VOP_STRATEGY(vp2, bp);
+	return;
+}
+
+static void
+swapdev_close(struct thread *td, struct swdevt *sp)
+{
+
+	VOP_CLOSE(sp->sw_vp, FREAD | FWRITE, td->td_ucred, td);
+	vrele(sp->sw_vp);
+}
+
+
+static int
+swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
+{
+	struct swdevt *sp;
+	int error;
+
+	if (nblks == 0)
+		return (ENXIO);
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (sp->sw_id == vp) {
+			mtx_unlock(&sw_dev_mtx);
+			return (EBUSY);
+		}
+	}
+	mtx_unlock(&sw_dev_mtx);
+    
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef MAC
+	error = mac_check_system_swapon(td->td_ucred, vp);
+	if (error == 0)
+#endif
+		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, -1);
+	(void) VOP_UNLOCK(vp, 0, td);
+	if (error)
+		return (error);
+
+	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
+	    NOUDEV);
+	return (0);
 }
