@@ -61,7 +61,7 @@ static char *ipsec_dump_ipsecrequest __P((char *, size_t,
 	struct sadb_x_ipsecrequest *, size_t));
 static int set_addresses __P((char *, size_t, struct sockaddr *,
 	struct sockaddr *));
-static char *set_address __P((char *, size_t, struct sockaddr *));
+static char *set_address(char *, size_t, struct sockaddr *);
 
 /*
  * policy is sadb_x_policy buffer.

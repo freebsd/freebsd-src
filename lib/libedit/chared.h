@@ -154,7 +154,7 @@ protected int	 c_hpos(EditLine *);
 
 protected int	 ch_init(EditLine *);
 protected void	 ch_reset(EditLine *);
-protected int	 ch_enlargebufs	__P((EditLine *, size_t));
+protected int	 ch_enlargebufs(EditLine *, size_t);
 protected void	 ch_end(EditLine *);
 
 #endif /* _h_el_chared */

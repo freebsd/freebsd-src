@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <libutil.h>
 
-static int isescaped __P((const char *, const char *, int));
+static int isescaped(const char *, const char *, int);
 
 /* isescaped():
  *	Return true if the character in *p that belongs to a string
@@ -199,7 +199,7 @@ fparseln(fp, size, lineno, str, flags)
 
 #ifdef TEST
 
-int main __P((int, char **));
+int main(int, char **);
 
 int
 main(argc, argv)

@@ -81,39 +81,39 @@ typedef struct harp_timer	Harp_timer;
  */
 
 /* atm_addr.c */
-extern int		get_hex_atm_addr __P((char *, u_char *, int));
-extern char		*format_atm_addr __P((Atm_addr *));
+extern int		get_hex_atm_addr(char *, u_char *, int);
+extern char		*format_atm_addr(Atm_addr *);
 
 /* cache_key.c */
 extern void		scsp_cache_key __P((Atm_addr *,
 				struct in_addr  *, int, char *));
 
 /* ioctl_subr.c */
-extern int		do_info_ioctl __P((struct atminfreq *, int));
+extern int		do_info_ioctl(struct atminfreq *, int);
 extern int		get_vcc_info __P((char *,
 				struct air_vcc_rsp **));
 extern int		get_subnet_mask __P((char *,
 				struct sockaddr_in *));
-extern int		get_mtu __P((char *));
-extern int		verify_nif_name __P((char *));
-extern int		get_cfg_info __P((char *, struct air_cfg_rsp **));
-extern int		get_intf_info __P((char *, struct air_int_rsp **));
-extern int		get_netif_info __P((char *, struct air_netif_rsp **));
+extern int		get_mtu(char *);
+extern int		verify_nif_name(char *);
+extern int		get_cfg_info(char *, struct air_cfg_rsp **);
+extern int		get_intf_info(char *, struct air_int_rsp **);
+extern int		get_netif_info(char *, struct air_netif_rsp **);
 
 /* ip_addr.c */
-extern struct sockaddr_in	*get_ip_addr __P((char *));
-extern char		*format_ip_addr __P((struct in_addr *));
+extern struct sockaddr_in	*get_ip_addr(char *);
+extern char		*format_ip_addr(struct in_addr *);
 
 /* ip_checksum.c */
-extern short		ip_checksum __P((char *, int));
+extern short		ip_checksum(char *, int);
 
 /* timer.c */
 extern Harp_timer	*harp_timer_head;
 extern int		harp_timer_exec;
-extern void		timer_proc __P(());
-extern int		init_timer __P(());
-extern int		block_timer __P(());
-extern void		enable_timer __P((int));
+extern void		timer_proc();
+extern int		init_timer();
+extern int		block_timer();
+extern void		enable_timer(int);
 
 
 #endif	/* _HARP_LIBHARP_H */

@@ -78,11 +78,11 @@ __FBSDID("$FreeBSD$");
  *	Maximum observed error < 4ulp in 1,000,000 trials.
  */
 
-static double neg_gam __P((double));
-static double small_gam __P((double));
-static double smaller_gam __P((double));
-static struct Double large_gam __P((double));
-static struct Double ratfun_gam __P((double, double));
+static double neg_gam(double);
+static double small_gam(double);
+static double smaller_gam(double);
+static struct Double large_gam(double);
+static struct Double ratfun_gam(double, double);
 
 /*
  * Rational approximation, A0 + x*x*P(x)/Q(x), on the interval

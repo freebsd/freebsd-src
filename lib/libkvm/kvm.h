@@ -73,24 +73,24 @@ struct kvm_swap {
 #define SWIF_DEV_PREFIX	0x0002
 
 __BEGIN_DECLS
-int	  kvm_close __P((kvm_t *));
-char	**kvm_getargv __P((kvm_t *, const struct kinfo_proc *, int));
-char	**kvm_getenvv __P((kvm_t *, const struct kinfo_proc *, int));
-char	 *kvm_geterr __P((kvm_t *));
-char	 *kvm_getfiles __P((kvm_t *, int, int, int *));
-int	  kvm_getloadavg __P((kvm_t *, double [], int));
+int	  kvm_close(kvm_t *);
+char	**kvm_getargv(kvm_t *, const struct kinfo_proc *, int);
+char	**kvm_getenvv(kvm_t *, const struct kinfo_proc *, int);
+char	 *kvm_geterr(kvm_t *);
+char	 *kvm_getfiles(kvm_t *, int, int, int *);
+int	  kvm_getloadavg(kvm_t *, double [], int);
 struct kinfo_proc *
-	  kvm_getprocs __P((kvm_t *, int, int, int *));
-int	  kvm_getswapinfo __P((kvm_t *, struct kvm_swap *, int, int));
-int	  kvm_nlist __P((kvm_t *, struct nlist *));
+	  kvm_getprocs(kvm_t *, int, int, int *);
+int	  kvm_getswapinfo(kvm_t *, struct kvm_swap *, int, int);
+int	  kvm_nlist(kvm_t *, struct nlist *);
 kvm_t	 *kvm_open
-	    __P((const char *, const char *, const char *, int, const char *));
+(const char *, const char *, const char *, int, const char *);
 kvm_t	 *kvm_openfiles
-	    __P((const char *, const char *, const char *, int, char *));
-ssize_t	  kvm_read __P((kvm_t *, unsigned long, void *, size_t));
+(const char *, const char *, const char *, int, char *);
+ssize_t	  kvm_read(kvm_t *, unsigned long, void *, size_t);
 ssize_t	  kvm_uread
-	    __P((kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t));
-ssize_t	  kvm_write __P((kvm_t *, unsigned long, const void *, size_t));
+(kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t);
+ssize_t	  kvm_write(kvm_t *, unsigned long, const void *, size_t);
 __END_DECLS
 
 #endif /* !_KVM_H_ */
