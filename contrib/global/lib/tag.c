@@ -31,11 +31,16 @@
  *	tag.c					20-Oct-97
  *
  */
+#include <ctype.h>
+#include <string.h>
+
 #include "dbio.h"
 #include "die.h"
 #include "gtagsopen.h"
-#include "tag.h"
 #include "locatestring.h"
+#include "tab.h"
+#include "tag.h"
+
 
 static DBIO	*dbio;
 static int	opened;
@@ -73,7 +78,7 @@ char	*path;
 	}
 }
 void
-tagclose()
+tagclose(void)
 {
 	db_close(dbio);
 	opened = 0;
