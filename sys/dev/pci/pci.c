@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.83 1998/06/07 17:12:42 dfr Exp $
+ * $Id: pci.c,v 1.84 1998/07/22 08:40:46 dfr Exp $
  *
  */
 
@@ -199,7 +199,7 @@ pci_fixancient(pcicfgregs *cfg)
 		return;
 
 	/* PCI to PCI bridges use header type 1 */
-	if (cfg->class == PCIC_BRIDGE && cfg->subclass == PCIS_BRIDGE_PCI)
+	if (cfg->baseclass == PCIC_BRIDGE && cfg->subclass == PCIS_BRIDGE_PCI)
 		cfg->hdrtype = 1;
 }
 
@@ -326,7 +326,7 @@ pci_readcfg(pcicfgregs *probe)
 		cfg->device		= pci_cfgread(cfg, PCIR_DEVICE, 2);
 		cfg->cmdreg		= pci_cfgread(cfg, PCIR_COMMAND, 2);
 		cfg->statreg		= pci_cfgread(cfg, PCIR_STATUS, 2);
-		cfg->class		= pci_cfgread(cfg, PCIR_CLASS, 1);
+		cfg->baseclass		= pci_cfgread(cfg, PCIR_CLASS, 1);
 		cfg->subclass		= pci_cfgread(cfg, PCIR_SUBCLASS, 1);
 		cfg->progif		= pci_cfgread(cfg, PCIR_PROGIF, 1);
 		cfg->revid		= pci_cfgread(cfg, PCIR_REVID, 1);
@@ -402,7 +402,8 @@ pci_addcfg(pcicfgregs *cfg)
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
 		       cfg->vendor, cfg->device, cfg->revid);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
-		       cfg->class, cfg->subclass, cfg->progif, cfg->hdrtype, cfg->mfdev);
+		       cfg->baseclass, cfg->subclass, cfg->progif,
+		       cfg->hdrtype, cfg->mfdev);
 #ifdef PCI_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
 		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
