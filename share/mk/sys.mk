@@ -37,7 +37,7 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
-CFLAGS		?=	-O2 -pipe
+CFLAGS		?=	-O2 -fno-strict-aliasing -pipe
 .endif
 
 CXX		?=	c++
