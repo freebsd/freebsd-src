@@ -94,10 +94,6 @@ telrcv()
 		if ((&ptyobuf[BUFSIZ] - pfrontp) < 2)
 			break;
 		c = *netip++ & 0377, ncc--;
-#ifdef	ENCRYPTION
-		if (decrypt_input)
-			c = (*decrypt_input)(c);
-#endif	/* ENCRYPTION */
 		switch (state) {
 
 		case TS_CR:
@@ -126,10 +122,6 @@ telrcv()
 			 */
 			if ((c == '\r') && his_state_is_wont(TELOPT_BINARY)) {
 				int nc = *netip;
-#ifdef	ENCRYPTION
-				if (decrypt_input)
-					nc = (*decrypt_input)(nc & 0xff);
-#endif	/* ENCRYPTION */
 #ifdef	LINEMODE
 				/*
 				 * If we are operating in linemode,
@@ -142,10 +134,6 @@ telrcv()
 				} else
 #endif
 				{
-#ifdef	ENCRYPTION
-					if (decrypt_input)
-						(void)(*decrypt_input)(-1);
-#endif	/* ENCRYPTION */
 					state = TS_CR;
 				}
 			}
@@ -464,9 +452,6 @@ extern void auth_request();
 #ifdef	LINEMODE
 extern void doclientstat();
 #endif
-#ifdef	ENCRYPTION
-extern void encrypt_send_support();
-#endif	/* ENCRYPTION */
 
 	void
 willoption(option)
@@ -580,12 +565,6 @@ willoption(option)
 			break;
 #endif
 
-#ifdef	ENCRYPTION
-		case TELOPT_ENCRYPT:
-			func = encrypt_send_support;
-			changeok++;
-			break;
-#endif	/* ENCRYPTION */
 
 		default:
 			break;
@@ -645,11 +624,6 @@ willoption(option)
 			break;
 #endif
 
-#ifdef	ENCRYPTION
-		case TELOPT_ENCRYPT:
-			func = encrypt_send_support;
-			break;
-#endif	/* ENCRYPTION */
 		case TELOPT_LFLOW:
 			func = flowstat;
 			break;
@@ -940,11 +914,6 @@ dooption(option)
 			/* NOT REACHED */
 			break;
 
-#ifdef	ENCRYPTION
-		case TELOPT_ENCRYPT:
-			changeok++;
-			break;
-#endif	/* ENCRYPTION */
 		case TELOPT_LINEMODE:
 		case TELOPT_TTYPE:
 		case TELOPT_NAWS:
@@ -1464,49 +1433,6 @@ suboption()
 	}
 	break;
 #endif
-#ifdef	ENCRYPTION
-    case TELOPT_ENCRYPT:
-	if (SB_EOF())
-		break;
-	switch(SB_GET()) {
-	case ENCRYPT_SUPPORT:
-		encrypt_support(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_IS:
-		encrypt_is(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_REPLY:
-		encrypt_reply(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_START:
-		encrypt_start(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_END:
-		encrypt_end();
-		break;
-	case ENCRYPT_REQSTART:
-		encrypt_request_start(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_REQEND:
-		/*
-		 * We can always send an REQEND so that we cannot
-		 * get stuck encrypting.  We should only get this
-		 * if we have been able to get in the correct mode
-		 * anyhow.
-		 */
-		encrypt_request_end();
-		break;
-	case ENCRYPT_ENC_KEYID:
-		encrypt_enc_keyid(subpointer, SB_LEN());
-		break;
-	case ENCRYPT_DEC_KEYID:
-		encrypt_dec_keyid(subpointer, SB_LEN());
-		break;
-	default:
-		break;
-	}
-	break;
-#endif	/* ENCRYPTION */
 
     default:
 	break;

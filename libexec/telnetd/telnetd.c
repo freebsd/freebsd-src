@@ -143,9 +143,6 @@ char valid_opts[] = {
 #ifdef DIAGNOSTICS
 	'D', ':',
 #endif
-#ifdef	ENCRYPTION
-	'e', ':',
-#endif
 #if	defined(CRAY) && defined(NEWINIT)
 	'I', ':',
 #endif
@@ -176,9 +173,6 @@ main(argc, argv)
 	pfrontp = pbackp = ptyobuf;
 	netip = netibuf;
 	nfrontp = nbackp = netobuf;
-#ifdef	ENCRYPTION
-	nclearto = 0;
-#endif	/* ENCRYPTION */
 
 	progname = *argv;
 
@@ -258,17 +252,6 @@ main(argc, argv)
 			break;
 #endif /* DIAGNOSTICS */
 
-#ifdef	ENCRYPTION
-		case 'e':
-			if (strcmp(optarg, "debug") == 0) {
-				extern int encrypt_debug_mode;
-				encrypt_debug_mode = 1;
-				break;
-			}
-			usage();
-			/* NOTREACHED */
-			break;
-#endif	/* ENCRYPTION */
 
 		case 'h':
 			hostinfo = 0;
@@ -605,18 +588,12 @@ getterminaltype(name)
     }
 #endif
 
-#ifdef	ENCRYPTION
-    send_will(TELOPT_ENCRYPT, 1);
-#endif	/* ENCRYPTION */
     send_do(TELOPT_TTYPE, 1);
     send_do(TELOPT_TSPEED, 1);
     send_do(TELOPT_XDISPLOC, 1);
     send_do(TELOPT_NEW_ENVIRON, 1);
     send_do(TELOPT_OLD_ENVIRON, 1);
     while (
-#ifdef	ENCRYPTION
-	   his_do_dont_is_changing(TELOPT_ENCRYPT) ||
-#endif	/* ENCRYPTION */
 	   his_will_wont_is_changing(TELOPT_TTYPE) ||
 	   his_will_wont_is_changing(TELOPT_TSPEED) ||
 	   his_will_wont_is_changing(TELOPT_XDISPLOC) ||
@@ -624,15 +601,6 @@ getterminaltype(name)
 	   his_will_wont_is_changing(TELOPT_OLD_ENVIRON)) {
 	ttloop();
     }
-#ifdef	ENCRYPTION
-    /*
-     * Wait for the negotiation of what type of encryption we can
-     * send with.  If autoencrypt is not set, this will just return.
-     */
-    if (his_state_is_will(TELOPT_ENCRYPT)) {
-	encrypt_wait();
-    }
-#endif	/* ENCRYPTION */
     if (his_state_is_will(TELOPT_TSPEED)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_TSPEED, TELQUAL_SEND, IAC, SE };
@@ -854,7 +822,7 @@ doit(who)
 	(void) gethostname(host_name, sizeof (host_name));
 	hostname = host_name;
 
-#if	defined(AUTHENTICATION) || defined(ENCRYPTION)
+#if	defined(AUTHENTICATION)
 	auth_encrypt_init(hostname, host, "TELNETD", 1);
 #endif
 
