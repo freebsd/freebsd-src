@@ -32,7 +32,7 @@ case "$daily_status_security_enable" in
 	esac
 
 	periodic security
-	rc=$?;;
+	rc=3;;
 
     *)  rc=0;;
 esac
