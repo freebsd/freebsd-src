@@ -11,6 +11,16 @@ KRB4DIR=	${.CURDIR}/../../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
 
+CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
+
+.if defined(KRB5_KRB4_COMPAT)
+CFLAGS+=-DKRB5_KRB4_COMPAT
+.endif
+
+.if defined(USE_INET6)
+CFLAGS+=-DINET6
+.endif
+
 .if exists(${.OBJDIR}/../../include)
 INCLUDEOBJDIR=	${.OBJDIR}/../../include
 .else
@@ -81,16 +91,6 @@ KDB5OBJDIR=	${.CURDIR}/../../lib/libkdb5
 SLOBJDIR=	${.OBJDIR}/../../lib/libsl
 .else
 SLOBJDIR=	${.CURDIR}/../../lib/libsl
-.endif
-
-CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
-
-.if defined(KRB5_KRB4_COMPAT)
-CFLAGS+=-DKRB5_KRB4_COMPAT
-.endif
-
-.if defined(INET6)
-CFLAGS+=-DINET6
 .endif
 
 COMPILE_ET=     compile_et
