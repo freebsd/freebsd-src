@@ -121,7 +121,7 @@ main(int argc, char *argv[])
 				--optind;
 			goto done;
 		case 'v':
-			vflag = 1;
+			vflag++;
 			break;
 		case '?':
 		default:
@@ -208,8 +208,24 @@ done:	argv += optind;
 			warn("%s", p->fts_path);
 			rval = 1;
 		} else {
-		    	if (vflag)
-				(void)printf("%s\n", p->fts_accpath);
+			if (vflag) {
+				(void)printf("%s", p->fts_accpath);
+
+				if (vflag > 1) {
+					char m1[12], m2[12];
+
+					strmode(p->fts_statp->st_mode, m1);
+					strmode((p->fts_statp->st_mode &
+					    S_IFMT) | newmode, m2);
+
+					(void)printf(": 0%o [%s] -> 0%o [%s]",
+					    p->fts_statp->st_mode, m1,
+					    (p->fts_statp->st_mode & S_IFMT) |
+					    newmode, m2);
+				}
+				(void)printf("\n");
+			}
+
 		}
 	}
 	if (errno)
