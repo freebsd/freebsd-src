@@ -149,9 +149,8 @@ device		npx0	at nexus? port IO_NPX irq 8
 device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#device		card0
-#device		pcic0	at isa?
-#device		pcic1	at isa?
+device		card0
+device		pcic0	at isa? irq 6 port 0x3e0
 
 # Serial (COM) ports
 #
@@ -219,7 +218,7 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #
 # DP8390 NIC
 #
-# ed0: generic driver
+# ed0: generic driver/EtherEZ98
 # ed1: LANEED LD-BDN
 # ed2: EGY-98
 # ed3: LGY-98
@@ -229,15 +228,11 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed7: LA-98
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
-#
-# MB86960A NIC
-#
-# fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
-# fe1: C-NET(98)P2/C-NET(9N)E
-#
-# FE_8BIT_SUPPORT is needed to support LAC-98
+# ed10: EC/EP-98X
+# ed11: SIU-98-D
 #
 #device ed0 at isa? port 0x00d0 irq 6
+##device ed0 at isa? port 0x10d0 irq 6 iomem 0xc8000    # SMC EtherEZ98
 #device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
 #device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
 #device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
@@ -247,28 +242,38 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #device ed6 at isa? port 0x0770 irq 6 flags 0x800000
 #device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
 #device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+#device ed10 at isa? port 0x00d0 irq 3 flags 0xd10000
 #device ed11 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
-
+#
+# MB86960A NIC
+#
+# fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
+# fe1: C-NET(98)P2/C-NET(9N)E
+#
+# FE_8BIT_SUPPORT is needed to support LAC-98
+#
 options 	FE_8BIT_SUPPORT		# LAC-98 support
+device		fe0	at isa? port 0x00d0 irq 3
+device		fe1	at isa? port 0x73d0 irq 5
 
-device fe0 at isa? port 0x00d0 irq 3
-device fe1 at isa? port 0x73d0 irq 5
-device lnc0 at isa? port 0x03d0 irq 6
-
-# NOTE: This removes the isa attachment so that the pccard unit numbers
-# come out right.
-device		ep0 at isa? port 0x40d0 irq 3
+device		ep0	at isa? port 0x40d0 irq 3
+device		lnc0	at isa? port 0x03d0 irq 6
 
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed
 # and resources will always be dynamically assigned by the pccard code.
 #device		wi0
+
 # Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
 # work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
 # mode (the factory default). If you set the switches on your ISA
 # card for a manually chosen I/O address and IRQ, you must specify
 # those paremeters here.
 # device	an0
+
+# requires PCCARD (PCMCIA) support to be activated
+device		sn0
+#device		xe0	at isa? port? irq ?
 
 #device	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
@@ -304,6 +309,7 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt0		# Printer
 #device		umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
+# USB Ethernet
 #device		aue0		# ADMtek USB ethernet
 #device		cue0		# CATC USB ethernet
 #device		kue0		# Kawasaki LSI USB ethernet
