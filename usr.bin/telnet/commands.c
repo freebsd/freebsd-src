@@ -2234,7 +2234,7 @@ tn(argc, argv)
 		tos = tp->t_tos;
 # endif
 	    if (tos < 0)
-		tos = 020;	/* Low Delay bit */
+		tos = IPTOS_LOWDELAY;
 	    if (tos
 		&& (setsockopt(net, IPPROTO_IP, IP_TOS,
 		    (char *)&tos, sizeof(int)) < 0)
