@@ -39,6 +39,7 @@
 static char sccsid[] = "@(#)option.c	8.2 (Berkeley) 4/16/94";
 */
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -138,8 +139,7 @@ static OPTION const options[] = {
  *	this switch stuff.
  */
 PLAN *
-find_create(argvp)
-	char ***argvp;
+find_create(char ***argvp)
 {
 	OPTION *p;
 	PLAN *new;
@@ -157,8 +157,7 @@ find_create(argvp)
 }
 
 OPTION *
-lookup_option(name)
-	const char *name;
+lookup_option(const char *name)
 {
 	OPTION tmp;
 
@@ -168,8 +167,7 @@ lookup_option(name)
 }
 
 int
-typecompare(a, b)
-	const void *a, *b;
+typecompare(const void *a, const void *b)
 {
 	return (strcmp(((const OPTION *)a)->name, ((const OPTION *)b)->name));
 }

@@ -114,3 +114,6 @@ exec_f	f_user;
 extern int ftsoptions, isdeprecated, isdepth, isoutput, issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;
+extern time_t now;
+extern int dotfd;
+extern FTS *tree;
