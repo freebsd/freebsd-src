@@ -457,7 +457,7 @@ get_dir(char *dirname, char *fmask, DirList **dir, int *n)
 		if ((S_IFMT & status.st_mode) == S_IFLNK) {  /* handle links */
 		    (*dir)[i].link = TRUE;
 		    stat(dire[j]->d_name, &status);
-		    nb = readlink(dire[j]->d_name, buf, sizeof(dire[j]->d_name) - 1);
+		    nb = readlink(dire[j]->d_name, buf, sizeof(buf) - 1);
 		    if (nb == -1) {
 			printf("get_dir(): Error reading link: %s\n", dire[j]->d_name);
 			exit(-1);
