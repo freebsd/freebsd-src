@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.55 1999/02/14 13:56:15 des Exp $
+#	$Id: Makefile.pc98,v 1.56 1999/03/02 14:01:33 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -59,7 +59,7 @@ CFLAGS+=	-elf
 CFLAGS+=	-aout
 .endif
 
-LOAD_ADDRESS?=	F0100000
+LOAD_ADDRESS?=	C0100000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
 CFLAGS+=	-malign-functions=4
