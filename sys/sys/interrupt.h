@@ -29,6 +29,24 @@
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
 
+/*
+ * Describe a hardware interrupt handler.
+ *
+ * Multiple interrupt handlers for a specific vector can be chained
+ * together via the 'next' pointer.
+ */
+
+struct ithd;
+
+struct intrec {
+	driver_intr_t	*handler;	/* code address of handler */
+	void		*argument;	/* argument to pass to handler */
+	enum intr_type	flags;		/* flag bits (sys/bus.h) */
+	char		*name;		/* name of handler */
+	struct ithd	*ithd;		/* handler we're connected to */
+	struct intrec	*next;		/* next handler for this irq */
+};
+
 typedef void swihand_t __P((void));
 
 void	register_swi __P((int intr, swihand_t *handler));
@@ -36,6 +54,7 @@ void	swi_dispatcher __P((int intr));
 swihand_t swi_generic;
 swihand_t swi_null;
 void	unregister_swi __P((int intr, swihand_t *handler));
+int	ithread_priority __P((int flags));
 
 extern swihand_t *ihandlers[];
 
