@@ -457,7 +457,7 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 	u_int32_t id;
 
 	id = read_config(bus, slot, func, PCIR_DEVVENDOR, 4);
-	if (id == 0xffff)
+	if (id == 0xffffffff)
 		return (0);
 
 	switch (id) {
@@ -488,19 +488,19 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 		switch (slot) {
 		case 0x12:
 			/* Intel 82454NX PXB#0, Bus#A */
-			*busnum = read_config(bus, 0, func, 0xd0, 1);
+			*busnum = read_config(bus, 0x10, func, 0xd0, 1);
 			break;
 		case 0x13:
 			/* Intel 82454NX PXB#0, Bus#B */
-			*busnum = read_config(bus, 0, func, 0xd1, 1) + 1;
+			*busnum = read_config(bus, 0x10, func, 0xd1, 1) + 1;
 			break;
 		case 0x14:
 			/* Intel 82454NX PXB#1, Bus#A */
-			*busnum = read_config(bus, 0, func, 0xd3, 1);
+			*busnum = read_config(bus, 0x10, func, 0xd3, 1);
 			break;
 		case 0x15:
 			/* Intel 82454NX PXB#1, Bus#B */
-			*busnum = read_config(bus, 0, func, 0xd4, 1) + 1;
+			*busnum = read_config(bus, 0x10, func, 0xd4, 1) + 1;
 			break;
 		}
 		break;
