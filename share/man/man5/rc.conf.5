@@ -119,7 +119,7 @@ at boot time or on
 insertion of the card (e.g. "inet 192.168.1.1 netmask 255.255.255.0"
 for a fixed address or "DHCP" for a DHCP client).
 .It Va pccard_beep
-.Pq Vt integer
+.Pq Vt int
 If 0,
 set the PCCARD controller to silent mode.
 If 1,
@@ -823,7 +823,7 @@ these are the flags to pass to the
 .Xr nfsiod 8
 daemon.
 .It Va nfs_access_cache
-.Pq Vt integer
+.Pq Vt int
 If
 .Va nfs_client_enable
 is set to
@@ -873,7 +873,7 @@ If set to
 .Dq YES ,
 provide NFS services only on a secure port.
 .It Va nfs_bufpackets
-.Pq Vt integer
+.Pq Vt int
 If set to a number, indicates the number of packets worth of
 socket buffer space to reserve on an NFS client.  If set to
 .Dq DEFAULT ,
