@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.4 1998/12/14 05:47:25 dillon Exp $
+ *	$Id: ahc_pci.c,v 1.5 1998/12/15 08:23:10 gibbs Exp $
  */
 
 #include <pci.h>
@@ -226,22 +226,22 @@ ahc_pci_probe (pcici_t tag, pcidi_t type)
 static void
 ahc_pci_attach(pcici_t config_id, int unit)
 {
-	u_int16_t io_port;
-	struct	  ahc_softc *ahc;
-	u_int32_t id;
-	u_int32_t command;
+	pci_port_t	 io_port;
+	struct		 ahc_softc *ahc;
+	u_int32_t	 id;
+	u_int32_t	 command;
 	struct scb_data *shared_scb_data;
 	int opri;
-	ahc_chip    ahc_t = AHC_NONE;
-	ahc_feature ahc_fe = AHC_FENONE;
-	ahc_flag    ahc_f = AHC_FNONE;
-	vm_offset_t vaddr;
-	vm_offset_t paddr;
-	u_int8_t    our_id = 0;
-	u_int8_t    sxfrctl1;
-	u_int8_t    scsiseq;
-	int	    error;
-	char	    channel;
+	ahc_chip	 ahc_t = AHC_NONE;
+	ahc_feature	 ahc_fe = AHC_FENONE;
+	ahc_flag	 ahc_f = AHC_FNONE;
+	vm_offset_t	 vaddr;
+	vm_offset_t	 paddr;
+	u_int		 our_id = 0;
+	u_int		 sxfrctl1;
+	u_int		 scsiseq;
+	int		 error;
+	char		 channel;
 
 	if (config_id->func == 1)
 		channel = 'B';
@@ -780,11 +780,6 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 			}
 			ahc_outb(ahc, TARG_SCSIRATE + i, scsirate);
 		}
-		ahc_outb(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
-		ahc_outb(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
-		ahc_outb(ahc, ULTRA_ENB, ahc->ultraenb & 0xff);
-		ahc_outb(ahc, ULTRA_ENB + 1, (ahc->ultraenb >> 8) & 0xff);
-
 		ahc->our_id = sc.brtime_id & CFSCSIID;
 
 		scsi_conf = (ahc->our_id & 0x7);
@@ -804,6 +799,10 @@ check_extport(struct ahc_softc *ahc, u_int8_t *sxfrctl1)
 		}
 		/* Set SCSICONF info */
 		ahc_outb(ahc, SCSICONF, scsi_conf);
+		ahc_outb(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
+		ahc_outb(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
+		ahc_outb(ahc, ULTRA_ENB, ahc->ultraenb & 0xff);
+		ahc_outb(ahc, ULTRA_ENB + 1, (ahc->ultraenb >> 8) & 0xff);
 	}
 
 	if ((ahc->features & AHC_SPIOCAP) != 0) {
