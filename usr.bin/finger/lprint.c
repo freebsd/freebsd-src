@@ -36,10 +36,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lprint.c,v 1.5.2.1 1997/07/03 07:12:38 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -49,9 +49,9 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <time.h>
 #include <db.h>
+#include <err.h>
 #include <pwd.h>
 #include <utmp.h>
-#include <err.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -77,6 +77,7 @@ lflag_print()
 	extern int pplan;
 	register PERSON *pn;
 	register int sflag, r;
+	PERSON *tmp;
 	DBT data, key;
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
@@ -85,7 +86,8 @@ lflag_print()
 			err(1, "db seq");
 		if (r == 1)
 			break;
-		pn = *(PERSON **)data.data;
+		memmove(&tmp, data.data, sizeof tmp);
+		pn = tmp;
 		if (sflag != R_FIRST)
 			putchar('\n');
 		lprint(pn);
@@ -316,7 +318,8 @@ show_text(directory, file_name, header)
 		if (cnt <= 1) {
 			(void)printf("%s: ", header);
 			for (p = tbuf, cnt = nr; cnt--; ++p)
-				vputc(lastc = *p);
+				if (*p != '\r')
+					vputc(lastc = *p);
 			if (lastc != '\n')
 				(void)putchar('\n');
 			(void)close(fd);
@@ -329,7 +332,8 @@ show_text(directory, file_name, header)
 		return(0);
 	(void)printf("%s:\n", header);
 	while ((ch = getc(fp)) != EOF)
-		vputc(lastc = ch);
+		if (ch != '\r')
+			vputc(lastc = ch);
 	if (lastc != '\n')
 		(void)putchar('\n');
 	(void)fclose(fp);

@@ -52,10 +52,10 @@ static char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)finger.c	8.2 (Berkeley) 9/30/93";
+static char sccsid[] = "@(#)finger.c	8.5 (Berkeley) 5/4/95";
 #else
 static const char rcsid[] =
-	"$Id: finger.c,v 1.9.2.1 1997/07/03 07:12:38 charnier Exp $";
+	"$Id: finger.c,v 1.9.2.2 1997/08/29 05:29:11 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -74,17 +74,21 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>
-#include <fcntl.h>
-#include <time.h>
-#include <pwd.h>
-#include <utmp.h>
+
+#include <db.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <utmp.h>
 #include <db.h>
 #include <locale.h>
+
 #include "finger.h"
 
 DB *db;
@@ -105,7 +109,7 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "lmpshoT")) !=  -1)
+	while ((ch = getopt(argc, argv, "lmpshoT")) != -1)
 		switch(ch) {
 		case 'l':
 			lflag = 1;		/* long format */
@@ -198,7 +202,7 @@ main(argc, argv)
 			lflag_print();
 		else
 			sflag_print();
-	exit(0);
+	return (0);
 }
 
 static void
@@ -229,12 +233,15 @@ loginlist()
 	}
 	if (db && lflag)
 		for (sflag = R_FIRST;; sflag = R_NEXT) {
+			PERSON *tmp;
+
 			r = (*db->seq)(db, &key, &data, sflag);
 			if (r == -1)
 				err(1, "db seq");
 			if (r == 1)
 				break;
-			enter_lastlog(*(PERSON **)data.data);
+			memmove(&tmp, data.data, sizeof tmp);
+			enter_lastlog(tmp);
 		}
 }
 
@@ -273,12 +280,12 @@ userlist(argc, argv)
 	 */
 	if (mflag)
 		for (p = argv; *p; ++p)
-			if ((pw = getpwnam(*p)) && !hide(pw))
+			if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
 				enter_person(pw);
 			else
 				warnx("%s: no such user", *p);
 	else {
-		while (pw = getpwent()) {
+		while ((pw = getpwent()) != NULL) {
 			for (p = argv, ip = used; *p; ++p, ++ip)
 				if (match(pw, *p) && !hide(pw)) {
 					enter_person(pw);
@@ -315,11 +322,14 @@ net:	for (p = nargv; *p;) {
 	}
 	if (db)
 		for (sflag = R_FIRST;; sflag = R_NEXT) {
+			PERSON *tmp;
+
 			r = (*db->seq)(db, &key, &data, sflag);
 			if (r == -1)
 				err(1, "db seq");
 			if (r == 1)
 				break;
-			enter_lastlog(*(PERSON **)data.data);
+			memmove(&tmp, data.data, sizeof tmp);
+			enter_lastlog(tmp);
 		}
 }
