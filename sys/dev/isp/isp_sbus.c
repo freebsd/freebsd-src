@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/resource.h>
 #include <machine/bus.h>
-#include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 #include <dev/ofw/openfirm.h>
+#include <machine/ofw_machdep.h>
 #include <sparc64/sbus/sbusvar.h>
 
 #include <dev/isp/isp_freebsd.h>
