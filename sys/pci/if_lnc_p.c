@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.6 1998/07/20 17:33:01 msmith Exp $
+ *	$Id: if_lnc_p.c,v 1.10 1999/05/10 22:39:37 paul Exp $
  */
 
 #include "pci.h"
@@ -72,17 +72,24 @@ lnc_pci_attach(config_id, unit)
 	int	unit;
 {
 	unsigned iobase;
+	unsigned data;	/* scratch to make this device a bus master*/
 	void *lnc; /* device specific data for interrupt handler ... */
-
-	/* pci_map_port correctly initializes bridge chips -- tvf */
 
 	if ( !pci_map_port(config_id,PCI_MAP_REG_START,(u_short *)&iobase) )
 	    printf("lnc%d: pci_port_map_attach failed?!\n",unit);
 
+
+	/* Make this device a bus master.  This was implictly done by 
+	   pci_map_port under 2.2.x -- tvf */
+
+	data = pci_cfgread(config_id, PCIR_COMMAND, 4);
+	data |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
+	pci_cfgwrite(config_id, PCIR_COMMAND, data, 4);
+
 	lnc = lnc_attach_ne2100_pci(unit, iobase);
+
 	if (!lnc)
 		return;
-
 	if(!(pci_map_int(config_id, lncintr_sc, (void *)lnc, &net_imask))) {
 		free (lnc, M_DEVBUF);
 		return;
