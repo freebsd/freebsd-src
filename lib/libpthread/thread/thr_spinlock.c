@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_spinlock.c,v 1.1 1998/04/29 09:59:28 jb Exp $
+ * $Id: uthread_spinlock.c,v 1.2 1998/05/05 21:47:58 jb Exp $
  *
  */
 
@@ -37,6 +37,7 @@
 #include <sched.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <string.h>
 #include "spinlock.h"
 #include "pthread_private.h"
 
@@ -47,15 +48,25 @@
  * assumes that the lock will be available very soon.
  */
 void
-_spinlock(volatile long *lck)
+_spinlock(volatile long * volatile lck)
 {
 	do {
 		/*
 		 * Allow other threads to run if the lock is not
 		 * available:
 		 */
-		while (*lck != 0)
+		while (*lck != 0) {
+			/* Check if already locked by the running thread: */
+			if (*lck == (long) _thread_run) {
+				char str[40];
+				snprintf(str,sizeof(str),"Warning: Thread %p attempted to lock %p which it had already locked!\n",_thread_run,lck);
+				_thread_sys_write(2,str,strlen(str));
+				return;
+			}
+
+			/* Give up the time slice: */
 			sched_yield();
+		}
 
 	/*
 	 * Try to grab the lock and loop if another thread grabs
