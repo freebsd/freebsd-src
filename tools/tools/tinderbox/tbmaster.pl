@@ -39,11 +39,11 @@ my $VERSION	= "2.3";
 my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
-my $config;			# Name of current config
+my @configs;			# Names of requested configations
 my $dump;			# Dump configuration and exit
 my $etcdir;			# Configuration directory
 
-my %CONFIG = (
+my %INITIAL_CONFIG = (
     'BRANCHES'	=> [ 'CURRENT' ],
     'COMMENT'	=> '',
     'CVSUP'	=> '',
@@ -62,6 +62,7 @@ my %CONFIG = (
     'TARGETS'	=> [ 'update', 'world' ],
     'TINDERBOX'	=> '%%HOME%%/tinderbox',
 );
+my %CONFIG;
 
 ###
 ### Perform variable expansion
@@ -79,6 +80,14 @@ sub expand($) {
 	# nothing
     }
     return ($key =~ m/[A-Z]/) ? $str : lc($str);
+}
+
+###
+### Reset the configuration to initial values
+###
+sub clearconf() {
+
+    %CONFIG = %INITIAL_CONFIG;
 }
 
 ###
@@ -335,6 +344,9 @@ $COPYRIGHT
 Usage:
   $0 [options] [parameters]
 
+Options:
+  -d, --dump                    Dump the processed configuration
+
 Parameters:
   -c, --config=FILE             Configuration name
   -e, --etcdir=DIR              Configuration directory
@@ -346,46 +358,12 @@ Report bugs to <des\@freebsd.org>.
 }
 
 ###
-### Main
+### Main loop
 ###
-MAIN:{
-    # Set defaults
-    $ENV{'PATH'} = "/usr/bin:/usr/sbin:/bin:/sbin";
-    $config = `uname -n`;
-    chomp($config);
-    $config =~ s/^(\w+)(\..*)?/$1/;
-    $CONFIG{'HOSTNAME'} = `/usr/bin/uname -n`;
-    if ($CONFIG{'HOSTNAME'} =~ m/^([0-9a-z-]+(?:\.[0-9a-z-]+)*)$/) {
-	$CONFIG{'HOSTNAME'} = $1;
-    } else {
-	$CONFIG{'HOSTNAME'} = 'unknown';
-    }
-    if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
-	$CONFIG{'HOME'} = $1;
-	$etcdir = "$1/etc";
-	$ENV{'PATH'} = "$1/bin:$ENV{'PATH'}"
-	    if (-d "$1/bin");
-    }
+sub tbmaster($) {
+    my $config = shift;
 
-    # Get options
-    {Getopt::Long::Configure("auto_abbrev", "bundling");}
-    GetOptions(
-	"c|config=s"	        => \$config,
-	"d|dump"		=> \$dump,
-	"e|etcdir=s"		=> \$etcdir,
-	) or usage();
-    if (@ARGV) {
-	usage();
-    }
-
-    if (defined($etcdir)) {
-	if ($etcdir !~ m/^([\w\/\.-]+)$/) {
-	    die("invalid etcdir\n");
-	}
-	$etcdir = $1;
-	chdir($etcdir)
-	    or die("$etcdir: $!\n");
-    }
+    clearconf();
     readconf('default.rc');
     readconf("$config.rc")
 	or die("$config.rc: $!\n");
@@ -404,7 +382,7 @@ MAIN:{
 	    }
 	    print("\n");
 	}
-	exit(0);
+	return;
     }
 
     if (!length(expand('TINDERBOX')) || !-x expand('TINDERBOX')) {
@@ -427,4 +405,58 @@ MAIN:{
 	    tinderbox($branch, $arch, $machine);
 	}
     }
+}
+
+###
+### Main
+###
+MAIN:{
+    # Set defaults
+    $ENV{'PATH'} = "/usr/bin:/usr/sbin:/bin:/sbin";
+    $INITIAL_CONFIG{'HOSTNAME'} = `/usr/bin/uname -n`;
+    if ($INITIAL_CONFIG{'HOSTNAME'} =~ m/^([0-9a-z-]+(?:\.[0-9a-z-]+)*)$/) {
+	$INITIAL_CONFIG{'HOSTNAME'} = $1;
+    } else {
+	$INITIAL_CONFIG{'HOSTNAME'} = 'unknown';
+    }
+    if ($ENV{'HOME'} =~ m/^((?:\/[\w\.-]+)+)\/*$/) {
+	$INITIAL_CONFIG{'HOME'} = $1;
+	$etcdir = "$1/etc";
+	$ENV{'PATH'} = "$1/bin:$ENV{'PATH'}"
+	    if (-d "$1/bin");
+    }
+
+    # Get options
+    {Getopt::Long::Configure("auto_abbrev", "bundling");}
+    GetOptions(
+	"c|config=s"	        => \@configs,
+	"d|dump"		=> \$dump,
+	"e|etcdir=s"		=> \$etcdir,
+	) or usage();
+    if (@ARGV) {
+	usage();
+    }
+
+    # Check options
+    if (@configs) {
+	@configs = split(/,/, join(',', @configs));
+    } else {
+	$configs[0] = `/usr/bin/uname -n`;
+	chomp($configs[0]);
+	$configs[0] =~ s/^(\w+)(\..*)?/$1/;
+    }
+    if (defined($etcdir)) {
+	if ($etcdir !~ m/^([\w\/\.-]+)$/) {
+	    die("invalid etcdir\n");
+	}
+	$etcdir = $1;
+	chdir($etcdir)
+	    or die("$etcdir: $!\n");
+    }
+
+    # Run all specified or implied configurations
+    foreach my $config (@configs) {
+	tbmaster($config);
+    }
+    exit(0);
 }
