@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.122 1997/04/30 16:02:03 bde Exp $
+#	$Id: Makefile,v 1.123 1997/05/03 02:51:58 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -33,6 +33,7 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
+.MAKEFLAGS:=	${.MAKEFLAGS} -m ${.CURDIR}/share/mk
 
 # Put initial settings here.
 SUBDIR=
@@ -155,11 +156,6 @@ world:
 	cd ${.CURDIR} && ${MAKE} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding /usr/share/mk"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} mk
-	@echo
-	@echo "--------------------------------------------------------------"
 	@echo " Cleaning up the source tree"
 	@echo "--------------------------------------------------------------"
 .if defined(NOCLEAN)
@@ -248,11 +244,6 @@ reinstall:
 	@echo " Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} hierarchy
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding /usr/share/mk"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} mk
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Installing everything.."
@@ -357,12 +348,6 @@ installmost:
 #
 hierarchy:
 	cd ${.CURDIR}/etc &&		${MAKE} distrib-dirs
-
-#
-# mk - update the /usr/share/mk makefiles.
-#
-mk:
-	cd ${.CURDIR}/share/mk &&	${MAKE} install
 
 #
 # bootstrap - [re]build tools needed to run the actual build, this includes
