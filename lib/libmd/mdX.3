@@ -28,11 +28,11 @@
 .Ft void
 .Fn MDXFinal "unsigned char digest[16]" "MDX_CTX *context"
 .Ft "char *"
-.Fn MDXEnd "MDX_CTX *context"
+.Fn MDXEnd "MDX_CTX *context" "char *buf"
 .Ft "char *"
-.Fn MDXFile "char *filename"
+.Fn MDXFile "char *filename" "char *buf"
 .Ft "char *"
-.Fn MDXData "unsigned char *data" "unsigned int len"
+.Fn MDXData "unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The MDX functions calculate a 128-bit cryptographic checksum (digest)
 for any number of input bytes.  A cryptographic checksum is a one-way
@@ -59,28 +59,37 @@ and finally extract the result using
 .Fn MDXFinal .
 
 .Fn MDXEnd
-is identical to 
+is a wrapper for
 .Fn MDXFinal ,
-except the return is in ASCII-HEX in a 
-string allocated with
-.Xr malloc 3 .
+which converts the return value to a 33 character (incl terminating NULL)
+ascii string which represents the 128 bits in hexadecimal.
 
 .Fn MDXFile
-calculates the digest of a file, and returns the ASCII-HEX result.
+calculates the digest of a file, and uses 
+.Fn MDXFinal
+to return the result.
 In case the file cannot be opened, NULL is returned.
 
 .Fn MDXData
-calculates the digest of a chunk of data in memory, and returns the ASCII-HEX
-result.
+calculates the digest of a chunk of data in memory, and uses
+.Fn MDXFinal
+to return the result.
 
 When using
 .Fn MDXEnd ,
 .Fn MDXFile
-and
+or
 .Fn MDXData ,
-the returned string must be explicitly deallocated using
+the 
+.Ar buf
+argument can be NULL, in which case the returned string is allocated with
+.Xr malloc 3
+and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
+If the 
+.Ar buf
+argument isn't NULL it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
 .Xr md2 3 ,
 .Xr md4 3 ,
@@ -111,6 +120,6 @@ No method is known to exist which finds two files having the same hash value,
 nor to find a file with a specific hash value.
 There is on the other hand no guarantee that such a method doesn't exist.
 
-MD2 can only be used for Privacy Enhanced Mail.
+MD2 has only been released for use in Privacy Enhanced eMail.
 Use MD4 or MD5 if that isn't what you're doing.
 .Sh COPYRIGHT
