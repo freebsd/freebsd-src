@@ -251,7 +251,7 @@ udp_input(m, off, proto)
 #endif
 		LIST_FOREACH(inp, &udb, inp_list) {
 #ifdef INET6
-			if ((inp->inp_vflag & INP_IPV4) == NULL)
+			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
 			if (inp->inp_lport != uh->uh_dport)

@@ -1161,10 +1161,10 @@ ip6_ctloutput(so, sopt)
 				struct mbuf *m;
 
 				error = soopt_getm(sopt, &m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				error = soopt_mcopyin(sopt, m); /* XXX */
-				if (error != NULL)
+				if (error != 0)
 					break;
 				return (ip6_pcbopts(&in6p->in6p_outputopts,
 						    m, so, sopt));
@@ -2100,7 +2100,7 @@ ip6_mloopback(ifp, m, dst)
 
 	copym = m_copy(m, 0, M_COPYALL);
 	if (copym != NULL) {
-		(void)if_simloop(ifp, copym, (struct sockaddr *)dst, NULL);
+		(void)if_simloop(ifp, copym, (struct sockaddr *)dst, 0);
 	}
 }
 
