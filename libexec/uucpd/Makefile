@@ -2,7 +2,6 @@
 
 PROG=	uucpd
 NOMAN=	noman
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
-CFLAGS+=	-DBSDINETD -DBSD42
+LDADD=  -lcrypt -lutil
+DPADD=  ${LIBCRYPT} ${LIBUTIL}
 .include <bsd.prog.mk>
