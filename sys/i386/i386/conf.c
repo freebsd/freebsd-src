@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.65 1995/02/15 08:19:31 jkh Exp $
+ *	$Id: conf.c,v 1.66 1995/02/15 12:01:24 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -858,17 +858,6 @@ d_ioctl_t nnicioctl;
 #define nnicioctl       nxioctl
 #endif
 
-#include "snic.h"
-#if NSNIC > 0
-d_open_t snicopen;
-d_close_t snicclose;
-d_ioctl_t snicioctl;
-#else
-#define snicopen	nxopen
-#define snicclose	nxclose
-#define snicioctl	nxioctl
-#endif
-
 #include "isdn.h"
 #if NISDN > 0
 d_open_t isdnopen;
@@ -1099,12 +1088,12 @@ struct cdevsw	cdevsw[] =
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	NULL,	/* itel */
 	  seltrue,	nommap,		NULL },
-	{ snicopen,	snicclose,	noread,		nowrite,	/*58*/
-	  snicioctl,	nostop,		nullreset,	NULL,	/* snic */
-	  seltrue,	nommap,		NULL },
-	{ ispyopen,     ispyclose,      ispyread,       nowrite,	/*59*/
-	  ispyioctl,    nostop,         nullreset,      NULL,   /* ispy */
-	  seltrue,      nommap,         NULL },
+	{ nxopen,	nxclose,	nxread,		nxwrite,	/*58*/
+	  nxioctl,	nxstop,		nxreset,	NULL,	/* unused */
+	  seltrue,	nxmmap,		NULL },
+	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
+	  ispyioctl,	nostop,		nullreset,	NULL,	/* ispy */
+	  seltrue,	nommap,         NULL },
 	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
 	  nnicioctl,	nostop,		nullreset,	NULL,	/* nnic */
 	  seltrue,	nommap,		NULL },
