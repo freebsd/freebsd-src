@@ -43,12 +43,12 @@ extattr_namespace_to_string(int attrnamespace, char **string)
 
 	switch(attrnamespace) {
 	case EXTATTR_NAMESPACE_USER:
-		if (*string != NULL)
+		if (string != NULL)
 			*string = strdup(EXTATTR_NAMESPACE_USER_STRING);
 		return (0);
 
 	case EXTATTR_NAMESPACE_SYSTEM:
-		if (*string != NULL)
+		if (string != NULL)
 			*string = strdup(EXTATTR_NAMESPACE_SYSTEM_STRING);
 		return (0);
 
