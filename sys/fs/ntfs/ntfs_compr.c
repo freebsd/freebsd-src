@@ -35,10 +35,6 @@
 #include <sys/mount.h>
 #include <sys/file.h>
 
-#if defined(__NetBSD__)
-#include <miscfs/specfs/specdev.h>
-#endif
-
 #include <fs/ntfs/ntfs.h>
 #include <fs/ntfs/ntfs_compr.h>
 

@@ -42,29 +42,23 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#if defined(__NetBSD__)
-#include <vm/vm_prot.h>
-#endif
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-
-#if defined(__NetBSD__)
-#include <miscfs/specfs/specdev.h>
-#endif
 
 #include <fs/hpfs/hpfs.h>
 #include <fs/hpfs/hpfsmount.h>
 #include <fs/hpfs/hpfs_subr.h>
 
-#if defined(__FreeBSD__)
 MALLOC_DEFINE(M_HPFSMNT, "HPFS mount", "HPFS mount structure");
 MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 
+/* XXXKSE */
 #define	a_p	a_td
 #define	cn_proc	cn_thread
 #define	proc	thread
-#endif
+
+struct sockaddr;
 
 static int	hpfs_root __P((struct mount *, struct vnode **));
 static int	hpfs_statfs __P((struct mount *, struct statfs *,
@@ -77,97 +71,21 @@ static int	hpfs_mountfs __P((register struct vnode *, struct mount *,
 static int	hpfs_vptofh __P((struct vnode *, struct fid *));
 static int	hpfs_fhtovp __P((struct mount *, struct fid *,
 				 struct vnode **));
-
-#if !defined(__FreeBSD__)
-static int	hpfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
-				   struct proc *));
-static int	hpfs_start __P((struct mount *, int, struct proc *));
-static int	hpfs_sync __P((struct mount *, int, struct ucred *,
-			       struct proc *));
-#endif
-
-#if defined(__FreeBSD__)
-struct sockaddr;
 static int	hpfs_mount __P((struct mount *, char *, caddr_t,
 				struct nameidata *, struct thread *));
 static int	hpfs_init __P((struct vfsconf *));
 static int	hpfs_uninit __P((struct vfsconf *));
-#else /* defined(__NetBSD__) */
-static int	hpfs_mount __P((struct mount *, const char *, void *,
-				struct nameidata *, struct proc *));
-static void	hpfs_init __P((void));
-static int	hpfs_mountroot __P((void));
-static int	hpfs_sysctl __P((int *, u_int, void *, size_t *, void *,
-				 size_t, struct proc *));
-static int	hpfs_checkexp __P((struct mount *, struct mbuf *,
-				   int *, struct ucred **));
-#endif
 
-#if !defined(__FreeBSD__)
-/*ARGSUSED*/
-static int
-hpfs_checkexp(mp, nam, exflagsp, credanonp)
-	register struct mount *mp;
-	struct mbuf *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-	register struct netcred *np;
-	register struct hpfsmount *hpm = VFSTOHPFS(mp);
-
-	/*
-	 * Get the export permission structure for this <mp, client> tuple.
-	 */
-	np = vfs_export_lookup(mp, &hpm->hpm_export, nam);
-	if (np == NULL)
-		return (EACCES);
-
-	*exflagsp = np->netc_exflags;
-	*credanonp = &np->netc_anon;
-	return (0);
-}
-#endif
-
-#if !defined(__FreeBSD__)
-/*ARGSUSED*/
-static int
-hpfs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
-{
-	return (EINVAL);
-}
-
-static int
-hpfs_mountroot()
-{
-	return (EINVAL);
-}
-#endif
-
-#if defined(__FreeBSD__)
 static int
 hpfs_init (
 	struct vfsconf *vcp )
-#else /* defined(__NetBSD__) */
-static void
-hpfs_init ()
-#endif
 {
 	dprintf(("hpfs_init():\n"));
 	
 	hpfs_hphashinit();
-#if defined(__FreeBSD__)
 	return 0;
-#endif
 }
 
-#if defined(__FreeBSD__)
 static int
 hpfs_uninit (vfsp)
 	struct vfsconf *vfsp;
@@ -175,18 +93,12 @@ hpfs_uninit (vfsp)
 	hpfs_hphashdestroy();
 	return 0;;
 }
-#endif
 
 static int
 hpfs_mount ( 
 	struct mount *mp,
-#if defined(__FreeBSD__)
 	char *path,
 	caddr_t data,
-#else /* defined(__NetBSD__) */
-	const char *path,
-	void *data,
-#endif
 	struct nameidata *ndp,
 	struct proc *p )
 {
@@ -219,11 +131,7 @@ hpfs_mount (
 
 		if (args.fspec == 0) {
 			dprintf(("export 0x%x\n",args.export.ex_flags));
-#if defined(__FreeBSD__)
 			err = vfs_export(mp, &args.export);
-#else /* defined(__NetBSD__) */
-			err = vfs_export(mp, &hpmp->hpm_export, &args.export);
-#endif
 			if (err) {
 				printf("hpfs_mount: vfs_export failed %d\n",
 					err);
@@ -250,19 +158,8 @@ hpfs_mount (
 
 	devvp = ndp->ni_vp;
 
-#if defined(__FreeBSD__)
 	if (!vn_isdisk(devvp, &err)) 
 		goto error_2;
-#else /* defined(__NetBSD__) */
-	if (devvp->v_type != VBLK) {
-		err = ENOTBLK;
-		goto error_2;
-	}
-	if (major(devvp->v_rdev) >= nblkdev) {
-		err = ENXIO;
-		goto error_2;
-	}
-#endif
 
 	/*
 	 ********************
@@ -341,20 +238,14 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	if (error)
 		return (error);
 	ncount = vcount(devvp);
-#if defined(__FreeBSD__)
 	if (devvp->v_object)
 		ncount -= 1;
-#endif
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 
-#if defined(__FreeBSD__)
 	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = vinvalbuf(devvp, V_SAVE, p->td_proc->p_ucred, p, 0, 0);
 	VOP__UNLOCK(devvp, 0, p);
-#else
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
-#endif
 	if (error)
 		return (error);
 
@@ -426,13 +317,8 @@ hpfs_mountfs(devvp, mp, argsp, p)
 
 	vput(vp);
 
-#if defined(__FreeBSD__)
 	mp->mnt_stat.f_fsid.val[0] = (long)dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
-#else
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
-	mp->mnt_stat.f_fsid.val[1] = makefstype(MOUNT_HPFS);
-#endif
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
 	devvp->v_rdev->si_mountpoint = mp;
@@ -442,25 +328,10 @@ failed:
 	if (bp)
 		brelse (bp);
 	mp->mnt_data = (qaddr_t)NULL;
-#if defined(__FreeBSD__)
 	devvp->v_rdev->si_mountpoint = NULL;
-#else
-	devvp->v_specflags &= ~SI_MOUNTEDON;
-#endif
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
 	return (error);
 }
-
-#if !defined(__FreeBSD__)
-static int
-hpfs_start (
-	struct mount *mp,
-	int flags,
-	struct proc *p )
-{
-	return (0);
-}
-#endif
 
 static int
 hpfs_unmount( 
@@ -487,11 +358,7 @@ hpfs_unmount(
 		return (error);
 	}
 
-#if defined(__FreeBSD__)
 	hpmp->hpm_devvp->v_rdev->si_mountpoint = NULL;
-#else
-	hpmp->hpm_devvp->v_specflags &= ~SI_MOUNTEDON;
-#endif
 
 	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, p, 0, 0);
 	error = VOP_CLOSE(hpmp->hpm_devvp, ronly ? FREAD : FREAD|FWRITE,
@@ -538,11 +405,7 @@ hpfs_statfs(
 	dprintf(("hpfs_statfs(): HPFS%d.%d\n",
 		hpmp->hpm_su.su_hpfsver, hpmp->hpm_su.su_fnctver));
 
-#if defined(__FreeBSD__)
 	sbp->f_type = mp->mnt_vfc->vfc_typenum;
-#else /* defined(__NetBSD__) */
-	sbp->f_type = 0;
-#endif
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
 	sbp->f_blocks = hpmp->hpm_su.su_btotal;
@@ -559,30 +422,6 @@ hpfs_statfs(
 	
 	return (0);
 }
-
-#if !defined(__FreeBSD__)
-static int
-hpfs_sync (
-	struct mount *mp,
-	int waitfor,
-	struct ucred *cred,
-	struct proc *p)
-{
-	return (0);
-}
-
-static int
-hpfs_quotactl ( 
-	struct mount *mp,
-	int cmds,
-	uid_t uid,
-	caddr_t arg,
-	struct proc *p)
-{
-	printf("hpfs_quotactl():\n");
-	return (EOPNOTSUPP);
-}
-#endif
 
 /*ARGSUSED*/
 static int
@@ -632,11 +471,7 @@ hpfs_vget(
 	struct vnode *vp;
 	struct hpfsnode *hp;
 	struct buf *bp;
-#if defined(__FreeBSD__)
 	struct thread *p = curthread;	/* XXX */
-#else
-	struct proc *p = curproc;	/* XXX */
-#endif
 	int error;
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
@@ -735,7 +570,6 @@ hpfs_vget(
 	return (0);
 }
 
-#if defined(__FreeBSD__)
 static struct vfsops hpfs_vfsops = {
 	hpfs_mount,
 	vfs_stdstart,
@@ -753,30 +587,3 @@ static struct vfsops hpfs_vfsops = {
 	vfs_stdextattrctl,
 };
 VFS_SET(hpfs_vfsops, hpfs, 0);
-#else /* defined(__NetBSD__) */
-extern struct vnodeopv_desc hpfs_vnodeop_opv_desc;
-
-struct vnodeopv_desc *hpfs_vnodeopv_descs[] = {
-	&hpfs_vnodeop_opv_desc,
-	NULL,
-};
-
-struct vfsops hpfs_vfsops = {
-	MOUNT_HPFS,
-	hpfs_mount,
-	hpfs_start,
-	hpfs_unmount,
-	hpfs_root,
-	hpfs_quotactl,
-	hpfs_statfs,
-	hpfs_sync,
-	hpfs_vget,
-	hpfs_fhtovp,
-	hpfs_vptofh,
-	hpfs_init,
-	hpfs_sysctl,
-	hpfs_mountroot,
-	hpfs_checkexp,
-	hpfs_vnodeopv_descs,
-};
-#endif
