@@ -249,8 +249,8 @@ VarSYSVMatch(const char *word, Boolean addSpace, Buffer *buf, void *patp)
 
     addSpace = TRUE;
 
-    if ((ptr = Str_SYSVMatch(word, pat->lhs, &len)) != NULL)
-	Str_SYSVSubst(buf, pat->rhs, ptr, len);
+    if ((ptr = Str_SYSVMatch(word, Buf_Data(pat->lhs), &len)) != NULL)
+	Str_SYSVSubst(buf, Buf_Data(pat->rhs), ptr, len);
     else
 	Buf_Append(buf, word);
 
@@ -318,24 +318,23 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 	 * and if none of them fits, perform the general substitution case.
 	 */
 	if ((pattern->flags & VAR_MATCH_START) &&
-	    (strncmp(word, pattern->lhs, pattern->leftLen) == 0)) {
+	    (strncmp(word, Buf_Data(pattern->lhs), Buf_Size(pattern->lhs)) == 0)) {
 		/*
 		 * Anchored at start and beginning of word matches pattern
 		 */
 		if ((pattern->flags & VAR_MATCH_END) &&
-		    (wordLen == pattern->leftLen)) {
+		    (wordLen == Buf_Size(pattern->lhs))) {
 			/*
 			 * Also anchored at end and matches to the end (word
 			 * is same length as pattern) add space and rhs only
 			 * if rhs is non-null.
 			 */
-			if (pattern->rightLen != 0) {
+			if (Buf_Size(pattern->rhs) != 0) {
 			    if (addSpace) {
 				Buf_AddByte(buf, (Byte)' ');
 			    }
 			    addSpace = TRUE;
-			    Buf_AddBytes(buf, pattern->rightLen,
-					 (Byte *)pattern->rhs);
+			    Buf_AppendBuf(buf, pattern->rhs);
 			}
 		} else if (pattern->flags & VAR_MATCH_END) {
 		    /*
@@ -346,15 +345,15 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 		    /*
 		     * Matches at start but need to copy in trailing characters
 		     */
-		    if ((pattern->rightLen + wordLen - pattern->leftLen) != 0){
+		    if ((Buf_Size(pattern->rhs) + wordLen - Buf_Size(pattern->lhs)) != 0){
 			if (addSpace) {
 			    Buf_AddByte(buf, (Byte)' ');
 			}
 			addSpace = TRUE;
 		    }
-		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
-		    Buf_AddBytes(buf, wordLen - pattern->leftLen,
-				 (const Byte *)(word + pattern->leftLen));
+		    Buf_AppendBuf(buf, pattern->rhs);
+		    Buf_AddBytes(buf, wordLen - Buf_Size(pattern->lhs),
+				 (word + Buf_Size(pattern->lhs)));
 		}
 	} else if (pattern->flags & VAR_MATCH_START) {
 	    /*
@@ -368,23 +367,23 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 	     * that because the $ will be left at the end of the lhs, we have
 	     * to use strncmp.
 	     */
-	    cp = word + (wordLen - pattern->leftLen);
+	    cp = word + (wordLen - Buf_Size(pattern->lhs));
 	    if ((cp >= word) &&
-		(strncmp(cp, pattern->lhs, pattern->leftLen) == 0)) {
+		(strncmp(cp, Buf_Data(pattern->lhs), Buf_Size(pattern->lhs)) == 0)) {
 		/*
 		 * Match found. If we will place characters in the buffer,
 		 * add a space before hand as indicated by addSpace, then
 		 * stuff in the initial, unmatched part of the word followed
 		 * by the right-hand-side.
 		 */
-		if (((cp - word) + pattern->rightLen) != 0) {
+		if (((cp - word) + Buf_Size(pattern->rhs)) != 0) {
 		    if (addSpace) {
 			Buf_AddByte(buf, (Byte)' ');
 		    }
 		    addSpace = TRUE;
 		}
 		Buf_AppendRange(buf, word, cp);
-		Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
+		Buf_AppendBuf(buf, pattern->rhs);
 	    } else {
 		/*
 		 * Had to match at end and didn't. Copy entire word.
@@ -409,16 +408,16 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 	    done = FALSE;
 	    origSize = Buf_Size(buf);
 	    while (!done) {
-		cp = strstr(word, pattern->lhs);
+		cp = strstr(word, Buf_Data(pattern->lhs));
 		if (cp != NULL) {
-		    if (addSpace && (((cp - word) + pattern->rightLen) != 0)){
+		    if (addSpace && (((cp - word) + Buf_Size(pattern->rhs)) != 0)){
 			Buf_AddByte(buf, (Byte)' ');
 			addSpace = FALSE;
 		    }
 		    Buf_AppendRange(buf, word, cp);
-		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
-		    wordLen -= (cp - word) + pattern->leftLen;
-		    word = cp + pattern->leftLen;
+		    Buf_AppendBuf(buf, pattern->rhs);
+		    wordLen -= (cp - word) + Buf_Size(pattern->lhs);
+		    word = cp + Buf_Size(pattern->lhs);
 		    if (wordLen == 0 || (pattern->flags & VAR_SUB_GLOBAL) == 0){
 			done = TRUE;
 		    }
@@ -502,7 +501,7 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 	    Buf_AddBytes(buf, pat->matches[0].rm_so, (const Byte *)wp);
 	}
 
-	for (rp = pat->rhs; *rp; rp++) {
+	for (rp = Buf_Data(pat->rhs); *rp; rp++) {
 	    if ((*rp == '\\') && ((rp[1] == '&') || (rp[1] == '\\'))) {
 		MAYBE_ADD_SPACE();
 		Buf_AddByte(buf, (Byte)rp[1]);

@@ -681,9 +681,8 @@ SortIncreasing(const void *l, const void *r)
  *	None.
  *-----------------------------------------------------------------------
  */
-static char *
-VarGetPattern(VarParser *vp, int delim, int *flags,
-    size_t *length, VarPattern *patt)
+static Buffer *
+VarGetPattern(VarParser *vp, int delim, int *flags, VarPattern *patt)
 {
 	Buffer		*buf;
 
@@ -696,11 +695,7 @@ VarGetPattern(VarParser *vp, int delim, int *flags,
 	 */
 	while (*vp->ptr != '\0') {
 		if (*vp->ptr == delim) {
-			char   *result;
-
-			result = (char *)Buf_GetAll(buf, length);
-			Buf_Destroy(buf, FALSE);
-			return (result);
+			return (buf);
 
 		} else if ((vp->ptr[0] == '\\') &&
 		    ((vp->ptr[1] == delim) ||
@@ -743,7 +738,7 @@ VarGetPattern(VarParser *vp, int delim, int *flags,
 				vp->ptr += len;
 			}
 		} else if (vp->ptr[0] == '&' && patt != NULL) {
-			Buf_AddBytes(buf, patt->leftLen, (Byte *)patt->lhs);
+			Buf_AppendBuf(buf, patt->lhs);
 			vp->ptr++;
 		} else {
 			Buf_AddByte(buf, (Byte)vp->ptr[0]);
@@ -751,9 +746,6 @@ VarGetPattern(VarParser *vp, int delim, int *flags,
 		}
 	}
 
-	if (length != NULL) {
-		*length = 0;
-	}
 	Buf_Destroy(buf, TRUE);
 	return (NULL);
 }
@@ -927,7 +919,7 @@ modifier_S(VarParser *vp, const char value[], Var *v)
 		vp->ptr++;
 	}
 
-	patt.lhs = VarGetPattern(vp, delim, &patt.flags, &patt.leftLen, NULL);
+	patt.lhs = VarGetPattern(vp, delim, &patt.flags, NULL);
 	if (patt.lhs == NULL) {
 		/*
 		 * LHS didn't end with the delim, complain and exit.
@@ -938,7 +930,7 @@ modifier_S(VarParser *vp, const char value[], Var *v)
 
 	vp->ptr++;	/* consume 2nd delim */
 
-	patt.rhs = VarGetPattern(vp, delim, NULL, &patt.rightLen, &patt);
+	patt.rhs = VarGetPattern(vp, delim, NULL, &patt);
 	if (patt.rhs == NULL) {
 		/*
 		 * RHS didn't end with the delim, complain and exit.
@@ -965,7 +957,7 @@ modifier_S(VarParser *vp, const char value[], Var *v)
 	 * can only contain the 3 bits we're interested in so we don't have
 	 * to mask unrelated bits. We can test for equality.
 	 */
-	if (patt.leftLen == 0 && patt.flags == VAR_SUB_GLOBAL)
+	if (Buf_Size(patt.lhs) == 0 && patt.flags == VAR_SUB_GLOBAL)
 		Fatal("Global substitution of the empty string");
 
 	newValue = VarModify(value, VarSubstitute, &patt);
@@ -995,7 +987,7 @@ modifier_C(VarParser *vp, char value[], Var *v)
 
 	vp->ptr++;		/* consume 1st delim */
 
-	patt.lhs = VarGetPattern(vp, delim, NULL, NULL, NULL);
+	patt.lhs = VarGetPattern(vp, delim, NULL, NULL);
 	if (patt.lhs == NULL) {
 		Fatal("Unclosed substitution for %s (%c missing)",
 		     v->name, delim);
@@ -1003,7 +995,7 @@ modifier_C(VarParser *vp, char value[], Var *v)
 
 	vp->ptr++;		/* consume 2st delim */
 
-	patt.rhs = VarGetPattern(vp, delim, NULL, NULL, NULL);
+	patt.rhs = VarGetPattern(vp, delim, NULL, NULL);
 	if (patt.rhs == NULL) {
 		Fatal("Unclosed substitution for %s (%c missing)",
 		     v->name, delim);
@@ -1024,7 +1016,7 @@ modifier_C(VarParser *vp, char value[], Var *v)
 		break;
 	}
 
-	error = regcomp(&patt.re, patt.lhs, REG_EXTENDED);
+	error = regcomp(&patt.re, Buf_Data(patt.lhs), REG_EXTENDED);
 	if (error) {
 		VarREError(error, &patt.re, "RE substitution error");
 		free(patt.rhs);
@@ -1091,14 +1083,14 @@ sysVvarsub(VarParser *vp, char startc, Var *v, const char value[])
 		/*
 		 * Now we break this sucker into the lhs and rhs.
 		 */
-		patt.lhs = VarGetPattern(vp, '=', &patt.flags, &patt.leftLen, NULL);
+		patt.lhs = VarGetPattern(vp, '=', &patt.flags, NULL);
 		if (patt.lhs == NULL) {
 			Fatal("Unclosed substitution for %s (%c missing)",
 			      v->name, '=');
 		}
 		vp->ptr++;	/* consume '=' */
 
-		patt.rhs = VarGetPattern(vp, endc, NULL, &patt.rightLen, &patt);
+		patt.rhs = VarGetPattern(vp, endc, NULL, &patt);
 		if (patt.rhs == NULL) {
 			Fatal("Unclosed substitution for %s (%c missing)",
 			      v->name, endc);
