@@ -11,15 +11,20 @@
  */
 
 #include <sys/libkern.h>
+#include <sys/time.h>
+#include <sys/random.h>
 
-#define	ARC4_MAXRUNS 64
+#define	ARC4_MAXRUNS 16384
+#define	ARC4_RESEED_SECONDS 300
+#define	ARC4_KEYBYTES 32 /* 256 bit key */
 
 static u_int8_t arc4_i, arc4_j;
 static int arc4_initialized = 0;
 static int arc4_numruns = 0;
 static u_int8_t arc4_sbox[256];
+static struct timeval arc4_tv_nextreseed;
 
-extern u_int read_random (void *, u_int);
+static u_int8_t arc4_randbyte(void);
 
 static __inline void
 arc4_swap(u_int8_t *a, u_int8_t *b)
@@ -40,7 +45,9 @@ arc4_randomstir (void)
 	u_int8_t key[256];
 	int r, n;
 
-	r = read_random(key, sizeof(key));
+	/* Reseed from random device.  This technically isn't
+	   reseeding, as we're not throwing away the old state. */
+	r = read_random_unlimited(key, ARC4_KEYBYTES);
 	/* if r == 0 || -1, just use what was on the stack */
 	if (r > 0)
 	{
@@ -53,6 +60,11 @@ arc4_randomstir (void)
 		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
 		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
 	}
+
+	/* Reset for next reseed cycle. */
+	getmicrotime(&arc4_tv_nextreseed);
+	arc4_tv_nextreseed.tv_sec += ARC4_RESEED_SECONDS;
+	arc4_numruns = 0;
 }
 
 /*
@@ -69,6 +81,15 @@ arc4_init(void)
 
 	arc4_randomstir();
 	arc4_initialized = 1;
+
+	/* Now, throw away the first N words out output, as suggested
+	 * in the paper "Weaknesses in the Key Scheduling Algorithm
+	 * of RC4" by Fluher, Mantin, and Shamir.
+	 *
+	 * (N = 256 in our case.)
+	 */
+	for (n = 0; n < 256*4; n++)
+		arc4_randbyte();
 }
 
 /*
@@ -92,14 +113,19 @@ u_int32_t
 arc4random(void)
 {
 	u_int32_t ret;
+	struct timeval tv_now;
 
 	/* Initialize array if needed. */
 	if (!arc4_initialized)
 		arc4_init();
-	if (++arc4_numruns > ARC4_MAXRUNS)
+
+	/* Get current time. */
+	getmicrotime(&tv_now);
+	
+	if ((++arc4_numruns > ARC4_MAXRUNS) || 
+	    (tv_now.tv_sec > arc4_tv_nextreseed.tv_sec))
 	{
 		arc4_randomstir();
-		arc4_numruns = 0;
 	}
 
 	ret = arc4_randbyte();
