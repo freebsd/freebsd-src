@@ -1226,7 +1226,7 @@ variable current_conf_files
 
 : load_kernel  ( -- ) ( throws: abort )
   s" load ${kernel} ${kernel_options}" ['] evaluate catch
-  if s" echo Unable to load kernel: ${kernel_name}" evaluate abort then
+  if s" echo Unable to load kernel: ${kernel}" evaluate abort then
 ;
 
 : read-password { size | buf len -- }
