@@ -1016,12 +1016,14 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
+	VM_OBJECT_LOCK(pmap->pm_pteobj);
 	pml4pg = vm_page_grab(pmap->pm_pteobj, NUPDE + NUPDPE + NUPML4E,
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	vm_page_lock_queues();
 	vm_page_flag_clear(pml4pg, PG_BUSY);
 	pml4pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
 
@@ -1067,12 +1069,17 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_pindex_t ptepindex;
 {
 	vm_page_t m, pdppg, pdpg;
+	int is_object_locked;
 
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
+	if (!(is_object_locked = VM_OBJECT_LOCKED(pmap->pm_pteobj)))
+		VM_OBJECT_LOCK(pmap->pm_pteobj);
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1161,17 +1168,13 @@ _pmap_allocpte(pmap, ptepindex)
 		*pd = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V | PG_A | PG_M;
 	}
 
-	/*
-	 * Try to use the new mapping, but if we cannot, then
-	 * do it with the routine that maps the page explicitly.
-	 */
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
 	vm_page_lock_queues();
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
+	if (!is_object_locked)
+		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	return m;
 }
