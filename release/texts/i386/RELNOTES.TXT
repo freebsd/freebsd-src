@@ -64,6 +64,11 @@ modified by raycontrol(8).
 Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
 been added, in the form of the aac(4) driver.
 
+Linksys Fast Ethernet PCCARD cards supported by the ed(4) driver now
+require the addition of flag 0x80000 to their config line in
+pccard.conf(5).  This flag is not optional.  These Linksys cards will
+not be recognized without it.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -110,6 +115,16 @@ lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
 OpenSSH has been upgraded to 2.3.0.  This version adds support for the
 Rijndael encryption algorithm.
+
+syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
+default), which can be used to log /dev/console output.
+
+cdcontrol(1) now uses the CDROM environment variable to pick a default
+device.
+
+All packages and ports now contain an "origin" directive, which makes
+it easier for programs like pkg_version(1) to determine the directory
+from which a package was built.
 
 
 2. Supported Configurations

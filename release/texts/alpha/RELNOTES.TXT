@@ -108,6 +108,16 @@ removed.
 
 lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
+syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
+default), which can be used to log /dev/console output.
+
+cdcontrol(1) now uses the CDROM environment variable to pick a default
+device.
+
+All packages and ports now contain an "origin" directive, which makes
+it easier for programs like pkg_version(1) to determine the directory
+from which a package was built.
+
 
 2. Supported Configurations
 ---------------------------
