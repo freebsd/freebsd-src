@@ -177,6 +177,6 @@ _thread_sig_wrapper(int sig, siginfo_t *info, void *context)
         /* Restore the thread's flags, and make it runnable */
 	_thread_critical_enter(curthread);
 	curthread->flags = psd.psd_flags;
-	PTHREAD_NEW_STATE(curthread, PS_RUNNING);
+	PTHREAD_SET_STATE(curthread, PS_RUNNING);
 	_thread_critical_exit(curthread);
 }
