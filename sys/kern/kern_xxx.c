@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.12 1995/08/06 19:45:34 joerg Exp $
+ * $Id: kern_xxx.c,v 1.13 1995/08/20 04:42:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -166,8 +166,6 @@ oquota()
 void
 shutdown_nice(void)
 {
-	register struct proc *p;
-
 	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
 		psignal(initproc, SIGINT);
