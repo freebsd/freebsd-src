@@ -5,7 +5,7 @@ CFLAGS+= -DIEEE_drem -DNON_ANSI_RW_MODES -DNON_UNIX_STDIO -DPedantic -I${.CURDIR
 
 MISC =	Version.c main.c s_rnge.c abort_.c getarg_.c iargc_.c getenv_.c\
 	signal_.c s_stop.c s_paus.c system_.c cabs.c\
-	derf_.c derfc_.c erf_.c erfc_.c sig_die.c F77_aloc.c
+	derf_.c derfc_.c erf_.c erfc_.c sig_die.c F77_aloc.c exit.c
 POW =	pow_ci.c pow_dd.c pow_di.c pow_hh.c pow_ii.c  pow_ri.c pow_zi.c pow_zz.c
 CX =	c_abs.c c_cos.c c_div.c c_exp.c c_log.c c_sin.c c_sqrt.c
 DCX =	z_cos.c z_div.c z_exp.c z_log.c z_sin.c z_sqrt.c
