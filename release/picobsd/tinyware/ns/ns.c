@@ -69,6 +69,7 @@
 
 char *progname;
 int iflag = 0;
+int lflag = 0;			/* print cpu load info */
 int rflag = 0;
 int sflag = 0;
 int pflag = 0;
@@ -82,7 +83,7 @@ extern int optind;
 void
 usage()
 {
-	fprintf(stderr, "\n%s [-nmrsi] [-p proto] [-w wait]\n", progname);
+	fprintf(stderr, "\n%s [-nmrsil] [-p proto] [-w wait]\n", progname);
 #ifdef BRIDGING
 	fprintf(stderr, "  proto: {ip|tcp|udp|icmp|bdg}\n\n");
 #else
@@ -886,7 +887,7 @@ main(int argc, char *argv[])
 
 	progname = argv[0];
 
-	while ((c = getopt(argc, argv, "dimnrsp:w:")) != -1) {
+	while ((c = getopt(argc, argv, "dilmnrsp:w:")) != -1) {
 		have_flags++ ;
 		switch (c) {
 		case 'd': /* print deltas in stats every w seconds */
@@ -905,6 +906,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			mflag++;
+			break;
+		case 'l':
+			lflag++;
 			break;
 		case 's':
 			sflag++;
@@ -940,6 +944,7 @@ again:
 		printf("\033[H%s", ctime(&t.tv_sec));
 	}
 	print_routing(proto);
+	print_load_stats();
 	stats(proto);
 	if (wflag) {
 		sleep(wflag);
@@ -947,6 +952,45 @@ again:
 	}
 	exit(0);
 }
+
+int
+print_load_stats(void)
+{
+	static u_int32_t cp_time[5];
+	u_int32_t new_cp_time[5];
+	int l;
+	int shz;
+	static int stathz ;
+
+	if (!lflag || !wflag)
+		return 0;
+	l = sizeof(new_cp_time) ;
+	bzero(new_cp_time, l);
+	if (sysctlbyname("kern.cp_time", new_cp_time, &l, NULL, 0) < 0) {
+		warn("sysctl: retrieving cp_time length");
+		return 0;
+	}
+	if (stathz == 0) {
+		struct clockinfo ci;
+
+		bzero (&ci, sizeof(ci));
+		l = sizeof(ci) ;
+		if (sysctlbyname("kern.clockrate", &ci, &l, NULL, 0) < 0) {
+			warn("sysctl: retrieving clockinfo length");
+			return 0;
+		}
+		stathz = ci.stathz ;
+		bcopy(new_cp_time, cp_time, sizeof(cp_time));
+	}
+	shz = stathz * wflag ;
+	if (shz == 0)
+		shz = 1;
+#define X(i)   ( (double)(new_cp_time[i] - cp_time[i])*100/shz )
+	printf("\nUSER %5.2f%% NICE %5.2f%% SYS %5.2f%% "
+			"INTR %5.2f%% IDLE %5.2f%%\n",
+		X(0), X(1), X(2), X(3), X(4) );
+	bcopy(new_cp_time, cp_time, sizeof(cp_time));
+}              
 
 #ifdef BRIDGING
 /* print bridge statistics */
