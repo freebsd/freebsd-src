@@ -298,6 +298,7 @@ struct thread {
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
 	sigset_t	*td_waitset;	/* (c) Wait set for sigwait */
 	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
+	u_int		td_generation;	/* (k) Enable detection of preemption */
 
 #define	td_endzero td_base_pri
 
