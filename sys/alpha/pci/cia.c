@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.2 1998/07/12 16:17:53 dfr Exp $
+ *	$Id: cia.c,v 1.3 1998/07/22 08:32:17 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,7 @@
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
 #include <machine/bwx.h>
+#include <machine/swiz.h>
 #include <machine/intr.h>
 #include <machine/cpuconf.h>
 
@@ -42,6 +43,7 @@
 
 static devclass_t	cia_devclass;
 static device_t		cia0;		/* XXX only one for now */
+static u_int32_t	cia_hae_mem;
 
 extern void eb164_intr_enable(int irq);
 extern void eb164_intr_disable(int irq);
@@ -124,41 +126,41 @@ static u_int8_t
 cia_bwx_inb(u_int32_t port)
 {
 	alpha_mb();
-	return ldbu(KV(CIA_EV56_BWIO + port));
+	return ldbu(KV(CIA_EV56_BWIO+BWX_EV56_INT1 + port));
 }
 
 static u_int16_t
 cia_bwx_inw(u_int32_t port)
 {
 	alpha_mb();
-	return ldwu(KV(CIA_EV56_BWIO + port));
+	return ldwu(KV(CIA_EV56_BWIO+BWX_EV56_INT2 + port));
 }
 
 static u_int32_t
 cia_bwx_inl(u_int32_t port)
 {
 	alpha_mb();
-	return ldl(KV(CIA_EV56_BWIO + port));
+	return ldl(KV(CIA_EV56_BWIO+BWX_EV56_INT4 + port));
 }
 
 static void
 cia_bwx_outb(u_int32_t port, u_int8_t data)
 {
-	stb(KV(CIA_EV56_BWIO + port), data);
+	stb(KV(CIA_EV56_BWIO+BWX_EV56_INT1 + port), data);
 	alpha_wmb();
 }
 
 static void
 cia_bwx_outw(u_int32_t port, u_int16_t data)
 {
-	stw(KV(CIA_EV56_BWIO + port), data);
+	stw(KV(CIA_EV56_BWIO+BWX_EV56_INT2 + port), data);
 	alpha_wmb();
 }
 
 static void
 cia_bwx_outl(u_int32_t port, u_int32_t data)
 {
-	stl(KV(CIA_EV56_BWIO + port), data);
+	stl(KV(CIA_EV56_BWIO+BWX_EV56_INT4 + port), data);
 	alpha_wmb();
 }
 
@@ -166,51 +168,46 @@ static u_int8_t
 cia_bwx_readb(u_int32_t pa)
 {
 	alpha_mb();
-	return ldbu(KV(CIA_EV56_BWMEM + pa));
+	return ldbu(KV(CIA_EV56_BWMEM+BWX_EV56_INT1 + pa));
 }
 
 static u_int16_t
 cia_bwx_readw(u_int32_t pa)
 {
 	alpha_mb();
-	return ldwu(KV(CIA_EV56_BWMEM + pa));
+	return ldwu(KV(CIA_EV56_BWMEM+BWX_EV56_INT2 + pa));
 }
 
 static u_int32_t
 cia_bwx_readl(u_int32_t pa)
 {
 	alpha_mb();
-	return ldl(KV(CIA_EV56_BWMEM + pa));
+	return ldl(KV(CIA_EV56_BWMEM+BWX_EV56_INT4 + pa));
 }
 
 static void
 cia_bwx_writeb(u_int32_t pa, u_int8_t data)
 {
-	stb(KV(CIA_EV56_BWMEM + pa), data);
+	stb(KV(CIA_EV56_BWMEM+BWX_EV56_INT1 + pa), data);
 	alpha_wmb();
 }
 
 static void
 cia_bwx_writew(u_int32_t pa, u_int16_t data)
 {
-	stw(KV(CIA_EV56_BWMEM + pa), data);
+	stw(KV(CIA_EV56_BWMEM+BWX_EV56_INT2 + pa), data);
 	alpha_wmb();
 }
 
 static void
 cia_bwx_writel(u_int32_t pa, u_int32_t data)
 {
-	stl(KV(CIA_EV56_BWMEM + pa), data);
+	stl(KV(CIA_EV56_BWMEM+BWX_EV56_INT4 + pa), data);
 	alpha_wmb();
 }
 
 static int
 cia_bwx_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-static int
-cia_swiz_maxdevs(u_int b)
 {
 	return 12;		/* XXX */
 }
@@ -225,7 +222,7 @@ cia_bwx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	alpha_mb();
 	if (badaddr((caddr_t)va, 1)) return ~0;
-	return ldbu(va);
+	return ldbu(va+BWX_EV56_INT1);
 }
 
 static u_int16_t
@@ -234,7 +231,7 @@ cia_bwx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	alpha_mb();
 	if (badaddr((caddr_t)va, 2)) return ~0;
-	return ldwu(va);
+	return ldwu(va+BWX_EV56_INT2);
 }
 
 static u_int32_t
@@ -243,7 +240,7 @@ cia_bwx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	alpha_mb();
 	if (badaddr((caddr_t)va, 4)) return ~0;
-	return ldl(va);
+	return ldl(va+BWX_EV56_INT4);
 }
 
 static void
@@ -251,7 +248,7 @@ cia_bwx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 1)) return;
-	stb(va, data);
+	stb(va+BWX_EV56_INT1, data);
 	alpha_wmb();
 }
 
@@ -260,7 +257,7 @@ cia_bwx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 2)) return;
-	stw(va, data);
+	stw(va+BWX_EV56_INT2, data);
 	alpha_wmb();
 }
 
@@ -269,40 +266,9 @@ cia_bwx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 4)) return;
-	stl(va, data);
+	stl(va+BWX_EV56_INT4, data);
 	alpha_wmb();
 }
-
-#define SPARSE_READ(o)			(*(u_int32_t*) (o))
-#define SPARSE_WRITE(o, d)		(*(u_int32_t*) (o) = (d))
-
-#define SPARSE_BYTE_OFFSET(o)		(((o) << 5) | (0 << 3))
-#define SPARSE_WORD_OFFSET(o)		(((o) << 5) | (1 << 3))
-#define SPARSE_LONG_OFFSET(o)		(((o) << 5) | (3 << 3))
-
-#define SPARSE_BYTE_EXTRACT(o, d)	((d) >> (8*((o) & 3)))
-#define SPARSE_WORD_EXTRACT(o, d)	((d) >> (8*((o) & 2)))
-
-#define SPARSE_BYTE_INSERT(o, d)	((d) << (8*((o) & 3)))
-#define SPARSE_WORD_INSERT(o, d)	((d) << (8*((o) & 2)))
-
-#define SPARSE_READ_BYTE(base, o)	\
-	SPARSE_BYTE_EXTRACT(o, SPARSE_READ(base + SPARSE_BYTE_OFFSET(o)))
-
-#define SPARSE_READ_WORD(base, o)	\
-	SPARSE_WORD_EXTRACT(o, SPARSE_READ(base + SPARSE_WORD_OFFSET(o)))
-
-#define SPARSE_READ_LONG(base, o)	\
-	SPARSE_READ(base + SPARSE_LONG_OFFSET(o))
-
-#define SPARSE_WRITE_BYTE(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_BYTE_OFFSET(o), SPARSE_BYTE_INSERT(o, d))
-
-#define SPARSE_WRITE_WORD(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_WORD_OFFSET(o), SPARSE_WORD_INSERT(o, d))
-
-#define SPARSE_WRITE_LONG(base, o, d)	\
-	SPARSE_WRITE(base + SPARSE_LONG_OFFSET(o), d)
 
 static u_int8_t
 cia_swiz_inb(u_int32_t port)
@@ -346,10 +312,29 @@ cia_swiz_outl(u_int32_t port, u_int32_t data)
 	alpha_wmb();
 }
 
+static __inline void
+cia_swiz_set_hae_mem(u_int32_t pa)
+{
+    /* Only bother with region 1 */
+#define REG1 (7 << 29)
+    if ((cia_hae_mem & REG1) != (pa & REG1)) {
+	/*
+	 * Seems fairly paranoid but this is what Linux does...
+	 */
+	int s = splhigh();
+	cia_hae_mem = (cia_hae_mem & ~REG1) | (pa & REG1);
+	REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
+	alpha_mb();
+	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
+	splx(s);
+    }
+}
+
 static u_int8_t
 cia_swiz_readb(u_int32_t pa)
 {
 	alpha_mb();
+	cia_swiz_set_hae_mem(pa);
 	return SPARSE_READ_BYTE(KV(CIA_PCI_SMEM1), pa);
 }
 
@@ -357,6 +342,7 @@ static u_int16_t
 cia_swiz_readw(u_int32_t pa)
 {
 	alpha_mb();
+	cia_swiz_set_hae_mem(pa);
 	return SPARSE_READ_WORD(KV(CIA_PCI_SMEM1), pa);
 }
 
@@ -364,28 +350,38 @@ static u_int32_t
 cia_swiz_readl(u_int32_t pa)
 {
 	alpha_mb();
+	cia_swiz_set_hae_mem(pa);
 	return SPARSE_READ_LONG(KV(CIA_PCI_SMEM1), pa);
 }
 
 static void
 cia_swiz_writeb(u_int32_t pa, u_int8_t data)
 {
-	SPARSE_WRITE_BYTE(KV(CIA_PCI_SIO1), pa, data);
+	cia_swiz_set_hae_mem(pa);
+	SPARSE_WRITE_BYTE(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
 }
 
 static void
 cia_swiz_writew(u_int32_t pa, u_int16_t data)
 {
-	SPARSE_WRITE_WORD(KV(CIA_PCI_SIO1), pa, data);
+	cia_swiz_set_hae_mem(pa);
+	SPARSE_WRITE_WORD(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
 }
 
 static void
 cia_swiz_writel(u_int32_t pa, u_int32_t data)
 {
-	SPARSE_WRITE_LONG(KV(CIA_PCI_SIO1), pa, data);
+	cia_swiz_set_hae_mem(pa);
+	SPARSE_WRITE_LONG(KV(CIA_PCI_SMEM1), pa, data);
 	alpha_wmb();
+}
+
+static int
+cia_swiz_maxdevs(u_int b)
+{
+	return 12;		/* XXX */
 }
 
 #define CIA_SWIZ_CFGOFF(b, s, f, r) \
@@ -394,60 +390,54 @@ cia_swiz_writel(u_int32_t pa, u_int32_t data)
 static u_int8_t
 cia_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
 	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_BYTE_OFFSET(off)), 1)) return ~0;
-	return SPARSE_READ_BYTE(sc->cfg0_base, off);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_BYTE_OFFSET(off)), 1)) return ~0;
+	return SPARSE_READ_BYTE(KV(CIA_PCI_CONF), off);
 }
 
 static u_int16_t
 cia_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
 	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_WORD_OFFSET(off)), 2)) return ~0;
-	return SPARSE_READ_WORD(sc->cfg0_base, off);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_WORD_OFFSET(off)), 2)) return ~0;
+	return SPARSE_READ_WORD(KV(CIA_PCI_CONF), off);
 }
 
 static u_int32_t
 cia_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
 	alpha_mb();
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_LONG_OFFSET(off)), 4)) return ~0;
-	return SPARSE_READ_LONG(sc->cfg0_base, off);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_LONG_OFFSET(off)), 4)) return ~0;
+	return SPARSE_READ_LONG(KV(CIA_PCI_CONF), off);
 }
 
 static void
 cia_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_BYTE_OFFSET(off)), 1)) return;
-	SPARSE_WRITE_BYTE(sc->cfg0_base, off, data);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_BYTE_OFFSET(off)), 1)) return;
+	SPARSE_WRITE_BYTE(KV(CIA_PCI_CONF), off, data);
 	alpha_wmb();
 }
 
 static void
 cia_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_WORD_OFFSET(off)), 2)) return;
-	SPARSE_WRITE_WORD(sc->cfg0_base, off, data);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_WORD_OFFSET(off)), 2)) return;
+	SPARSE_WRITE_WORD(KV(CIA_PCI_CONF), off, data);
 	alpha_wmb();
 }
 
 static void
 cia_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
-	struct cia_softc* sc = CIA_SOFTC(cia0);
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);
-	if (badaddr((caddr_t)(sc->cfg0_base + SPARSE_LONG_OFFSET(off)), 4)) return;
-	SPARSE_WRITE_LONG(sc->cfg0_base, off, data);
+	if (badaddr((caddr_t)(KV(CIA_PCI_CONF) + SPARSE_LONG_OFFSET(off)), 4)) return;
+	SPARSE_WRITE_LONG(KV(CIA_PCI_CONF), off, data);
 	alpha_wmb();
 }
 
@@ -489,6 +479,7 @@ cia_init()
 		chipset = cia_swiz_chipset;
 	else
 		chipset = cia_bwx_chipset;
+	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
 }
 
 static int
@@ -512,13 +503,13 @@ cia_attach(device_t dev)
 	cia_init();
 	chipset.bridge = dev;
 
-	if(alpha_amask(ALPHA_AMASK_BWX) == 0){
+	if (alpha_amask(ALPHA_AMASK_BWX) == 0) {
 		sc->dmem_base = CIA_EV56_BWMEM;
 		sc->smem_base = CIA_PCI_SMEM1;
 		sc->io_base = CIA_EV56_BWIO;
 		sc->cfg0_base = CIA_EV56_BWCONF0;
 		sc->cfg1_base = CIA_EV56_BWCONF1;
-	}else {
+	} else {
 		sc->dmem_base = CIA_PCI_DENSE;
 		sc->smem_base = CIA_PCI_SMEM1;
 		sc->io_base = CIA_PCI_SIO1;
