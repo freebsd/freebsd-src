@@ -49,6 +49,7 @@
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
 #ifndef __alpha__
@@ -140,6 +141,46 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_LINGER);
 	}
 	return (-1);
+}
+
+static int
+linux_to_bsd_msg_flags(int flags)
+{
+	int ret_flags = 0;
+
+	if (flags & LINUX_MSG_OOB)
+		ret_flags |= MSG_OOB;
+	if (flags & LINUX_MSG_PEEK)
+		ret_flags |= MSG_PEEK;
+	if (flags & LINUX_MSG_DONTROUTE)
+		ret_flags |= MSG_DONTROUTE;
+	if (flags & LINUX_MSG_CTRUNC)
+		ret_flags |= MSG_CTRUNC;
+	if (flags & LINUX_MSG_TRUNC)
+		ret_flags |= MSG_TRUNC;
+	if (flags & LINUX_MSG_DONTWAIT)
+		ret_flags |= MSG_DONTWAIT;
+	if (flags & LINUX_MSG_EOR)
+		ret_flags |= MSG_EOR;
+	if (flags & LINUX_MSG_WAITALL)
+		ret_flags |= MSG_WAITALL;
+#if 0 /* not handled */
+	if (flags & LINUX_MSG_PROXY)
+		;
+	if (flags & LINUX_MSG_FIN)
+		;
+	if (flags & LINUX_MSG_SYN)
+		;
+	if (flags & LINUX_MSG_CONFIRM)
+		;
+	if (flags & LINUX_MSG_RST)
+		;
+	if (flags & LINUX_MSG_ERRQUEUE)
+		;
+	if (flags & LINUX_MSG_NOSIGNAL)
+		;
+#endif
+	return ret_flags;
 }
 
 /* Return 0 if IP_HDRINCL is set for the given socket. */
@@ -701,10 +742,36 @@ linux_recvfrom(struct proc *p, struct linux_recvfrom_args *args)
 	bsd_args.s = linux_args.s;
 	bsd_args.buf = linux_args.buf;
 	bsd_args.len = linux_args.len;
-	bsd_args.flags = linux_args.flags;
+	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
 	bsd_args.from = linux_args.from;
 	bsd_args.fromlenaddr = linux_args.fromlen;
 	return (orecvfrom(p, &bsd_args));
+}
+
+struct linux_recvmsg_args {
+	int s;
+	struct msghdr *msg;
+	int flags;
+};
+
+static int
+linux_recvmsg(struct proc *p, struct linux_recvmsg_args *args)
+{
+	struct linux_recvmsg_args linux_args;
+	struct recvmsg_args /* {
+		int	s;
+		struct	msghdr *msg;
+		int	flags;
+	} */ bsd_args;
+	int error;
+
+	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
+		return (error);
+
+	bsd_args.s = linux_args.s;
+	bsd_args.msg = linux_args.msg;
+	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
+	return (recvmsg(p, &bsd_args));
 }
 
 struct linux_shutdown_args {
@@ -905,7 +972,7 @@ linux_socketcall(struct proc *p, struct linux_socketcall_args *args)
 			return (sendmsg(p, args->args));
 		} while (0);
 	case LINUX_RECVMSG:
-		return (recvmsg(p, args->args));
+		return (linux_recvmsg(p, args->args));
 	}
 
 	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
