@@ -1,0 +1,375 @@
+Sat Nov 11 13:43:17 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Modified options by changing macro TOTAL_POSITIONS to GET_CHARSET_SIZE
+          and SET_CHARSET_SIZE.  These two routines now either return
+          the total charset size *or* the length of the largest keyword
+          if the user specifies the -k'*' (ALLCHARS) option.  This change
+          cleans up client code.
+
+Fri Nov 10 15:21:19 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Made sure to explicitly initialize perfect.fewest_collisions to
+          0.
+
+Wed Nov  1 21:39:54 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Upgraded the version number to 2.0, reflecting all the 
+          major recent changes!
+
+        * Rearranged code so that fewer source lines are greater than 80 columns. 
+
+        * Cleaned up some loose ends noticed by Nels Olson.
+          1.  Removed `if (collisions <= perfect.fewest_collisions)'
+              from affects_prev () since it was superfluous.
+          2.  Removed the fields best_char_value and best_asso_value
+              from PERFECT.  There were also unnecessary.
+          3.  Fixed a braino in boolarray.c's bool_array_reset ()
+              function.  Since iteration numbers can never be zero
+              the `if (bool_array.iteration_number++ == 0)' must be
+              `if (++bool_array.iteration_number == 0).'
+          4.  Broke the -h help options string into 3 pieces.  This
+              should silence broken C compilers for a while!
+          5.  Modified `report_error ()' so that it correctly handled
+              "%%".
+
+Tue Oct 31 23:01:11 1989  Doug Schmidt  (schmidt at siam.ics.uci.edu)
+
+        * It is important to note that -D no longer enables -S.
+          There is a good reason for this change, which will become
+          manifested in the next release... (suspense!).
+
+        * Made some subtle changes to print_switch so that if finally
+          seems to work correctly.  Needs more stress testing, however...
+
+Mon Oct 30 15:06:59 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Made a major change to the keylist.c's print_switch () function.
+          The user can now specify the number of switch statements to generate
+          via an argument to the -S option, i.e., -S1 means `generate 1
+          switch statement with all keywords in it,' -S2 means generate
+          2 switch statements with 1/2 the elements in each one, etc.
+          Hopefully this will fix the problem with C compilers not being
+          able to generate code for giant switch statements (but don't
+          hold your breath!)
+
+        * Changed keylist.c's length () function to keyword_list_length ().
+          Also put an extern decl for this function and max_key_length ()
+          into the keylist.h file (don't know why it wasn't already there...).
+
+Sun Oct 29 08:55:29 1989  Doug Schmidt  (schmidt at siam.ics.uci.edu)
+
+        * Added a feature to main.c that prints out the starting wall-clock
+          time before the program begins and prints out the ending wall-clock
+          time when the program is finished.
+
+        * Added the GATHER_STATISTICS code in hashtable.c so we can
+          keep track of how well double hashing is doing.  Eventually,
+          GATHER_STATISTICS will be added so that all instrumentation
+          code can be conditionally compiled in.
+
+        * Modified xmalloc.c's buffered_malloc () routine so that it
+          rounded the SIZE byte requests up to the correct alignment
+          size for the target machine.
+
+Sat Oct 28 11:17:36 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Fixed a stupid bug in keylist.c's print_switch () routine.  This
+          was necessary to make sure the generated switch statement worked
+          correctly when *both* `natural,' i.e., static links and dynamic
+          links, i.e., unresolved duplicates, hash to the same value.
+
+        * Modified LIST_NODE so that the char *char_set field is redeclared
+          as char char_set[1] and placed at the bottom of the struct.  This
+          enables us to play the old `variable-length string in the struct
+          trick' (third time I fell for it this week, chief!).  The
+          main purpose of this is to remove n calls to buffered_malloc,
+          where n is the number of keywords.
+
+        * Added a new function to xmalloc.c called buffered_malloc.  This
+          reduces the number of calls to malloc by grabbing large chunks
+          of memory and doling them out in small pieces.  Almost all uses
+          of xmalloc were replaced with calls to buffered_malloc ().
+
+        * Modified boolarray.c's bool_array_destroy () function so that
+          it now frees the bool_array.storage_array when it is no longer
+          needed.  Since this array is generally very large it makes sense
+          to return the memory to the freelist when it is no longer in use.
+
+        * Changed the interface to hash_table_init.  This function is
+          now passed a pointer to a power-of-two sized buffer that serves
+          as storage for the hash table.  Although this weakens information
+          hiding a little bit it greatly reduces dynamic memory fragmentation,
+          since we can now obtain the memory via a call to alloca, rather
+          than malloc.  This change modified keylist.c's read_keys () calling
+          interface.
+
+        * Since alloca is now being used more aggressively a conditional
+          compilation section was added to the init_all () routine in main.c.
+          Taken from GNU GCC, this code gets rid of any avoidable limit
+          on stack size so that alloca does not fail.  It is only used
+          if the -DRLIMIT_STACK symbol is defined when gperf is compiled.
+
+        * Moved the `destructor' for bool_array from destroy_all () in 
+          main.c into perfect_generate () in perfect.c.  This enables
+          us to get free up the large dynamic memory as soon as it is no
+          longer necessary.  Also moved the hash_table destructor from
+          destroy_all into read_keys () from keylist.c.  This accomplishes
+          the same purpose, i.e., we can free up the space immediately.
+
+        * Added warnings in option.c so that user's would be informed
+          that -r superceeds -i on the command-line.
+          
+        * Rewrote affects_prev () from perfect.c.  First, the code structure
+          was cleaned up considerably (removing the need for a dreaded
+          goto!).  Secondly, a major change occurred so that affects_prev ()
+          returns FALSE (success) when fewest_hits gets down to whatever
+          it was after inserting the previous key (instead of waiting for
+          it to reach 0).  In other words, it stops trying if it can
+          resolve the new collisions added by a key, even if there are
+          still other old, unresolved collisions.  This modification was
+          suggested by Nels Olson and seems to *greatly* increase the
+          speed of gperf for large keyfiles.  Thanks Nels!
+
+        * In a similar vein, inside the change () routine from perfect.c
+          the variable `perfect.fewest_collisions is no longer initialized
+          with the length of the keyword list.  Instead it starts out at
+          0 and is incremented by 1 every time change () is called.
+          The rationale for this behavior is that there are times when a
+          collision causes the number of duplicates (collisions) to
+          increase by a large amount when it would presumably just have
+          gone up by 1 if none of the asso_values were changed.  That is,
+          at the beginning of change(), you could initialize fewest_hits
+          to 1+(previous value of fewest_hits) instead of to the number of
+          keys.  Thanks again, Nels.
+
+        * Replaced alloca with xmalloc in perfect.c's change () function.
+          This should eliminate some overhead at the expense of a little
+          extra memory that is never reclaimed.
+
+        * Renamed perfect.c's merge_sets () to compute_disjoint_union ()
+          to reflect the change in behavior.
+
+Fri Oct 27 10:12:27 1989  Doug Schmidt  (schmidt at crimee.ics.uci.edu)
+
+        * Added the -e option so users can supply a string containing
+          the characters used to separate keywords from their attributes.
+          The default behavior is ",\n".
+
+        * Removed the char *uniq_set field from LIST_NODE and modified
+          uses of uniq_set in perfect.c and keylist.c.  Due to changes
+          to perfect.c's merge_set () described below this field was
+          no longer necessary, and its removal makes the program
+          smaller and potentially faster.
+          
+        * Added lots of changes/fixes suggested by Nels Olson
+          (umls.UUCP!olson@mis.ucsf.edu).  In particular:
+          1.  Changed BOOL_ARRAY so that it would dynamically create
+              an array of unsigned shorts rather than ints if the 
+              LO_CAL symbol was defined during program compilation.
+              This cuts the amount of dynamic memory usage in half,
+              which is important for large keyfile input.
+          2.  Added some additional debugging statements that print extra
+              info to stderr when the -d option is enabled.
+          3.  Fixed a really stupid bug in the print_switch () from keylist.c.
+              A right paren was placed at the wrong location.  
+          4.  Fixed a subtle problem with printing case values when keylinks
+              appear.  The logic failed to account for the fact that there
+              can be keylinks *and* regular node info also!
+          5.  Finally split the huge help string into two parts.  This keeps
+              breaking compilers with static limits on the length of tokens...
+          6.  Modified the -j option so that -j 0 means `try random values
+              when searching for a way to resolve collisions.'
+          7.  Added a field `num_done' to the PERFECT struct.  This is used
+              to report information collected when trying to resolve
+              hash collisions.
+          8.  Modified the merge_sets algorithm to perform a disjoint
+              union of two multisets.  This ensures that subsequent
+              processing in perfect.c function affect_prev () doesn't
+              waste time trying to change an associated value that is
+              shared between two conflicting keywords.
+          9.  Modified affects_prev so that it doesn't try random jump
+              values unless the -j 0 option is enabled.
+          10. Fixed a silly bug in perfect.c change ().
+              This problem caused gperf to seg fault when
+              the -k* option was given and the keyfile file had long
+              keywords.
+          11. Changed the behavior of keylist.c's read_keys () routine
+              so that it would honor -D unequivocally, i.e., it doesn't
+              try to turn off dup handling if the user requests it, even
+              if there are no immediate links in the keyfile input.
+
+Mon Oct 16 19:58:08 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Fixed a number of small bugs kindly brought to my attention by
+          Adam de Boor (bsw!adam@uunet.UU.NET).  Thanks Adam!  In particular,
+          changed the behavior for the -a (ANSI) option so that the
+          generated prototypes use int rather than size_t for the LEN 
+          parameter.  It was too ugly having to #include <stddef.h> all
+          over the place...
+
+        * Added a majorly neat hack to Bool_Array, suggested by rfg.
+          The basic idea was to throw away the Ullman array technique.
+          The Ullman array was used to remove the need to reinitialize all 
+          the Bool_Array elements to zero everytime we needed to determine
+          whether there were duplicate hash values in the keyword list.  
+          The current trick uses an `iteration number' scheme, which takes
+          about 1/3 the space and reduces the overall program running a 
+          time by about 20 percent for large input!  The hack works as 
+          follows:
+          
+          1. Dynamically allocate 1 boolean array of size k.
+          2. Initialize the boolean array to zeros, and consider the first
+             iteration to be iteration 1.
+          2. Then on all subsequent iterations we `reset' the bool array by
+             kicking the iteration count by 1. 
+          3. When it comes time to check whether a hash value is currently
+             in the boolean array we simply check its index location.  If
+             the value stored there is *not* equal to the current iteration
+             number then the item is clearly *not* in the set.  In that
+             case we assign the iteration number to that array's index
+             location for future reference.  Otherwise, if the item at
+             the index location *is* equal to the iteration number we've
+             found a duplicate.  No muss, no fuss!
+
+Thu Oct 12 18:08:43 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Updated the version number to 1.9.
+
+        * Added support for the -C option.  This makes the contents of
+          all generated tables `readonly'.
+
+        * Changed the handling of generated switches so that there is
+          only one call to str[n]?cmp.  This *greatly* reduces the size of
+          the generated assembly code on all compilers I've seen.
+
+        * Fixed a subtle bug that occurred when the -l and -S option
+          was given.  Code produced looked something like:
+
+          if (len != key_len || !strcmp (s1, resword->name)) return resword;
+
+          which doesn't make any sense.  Clearly, this should be:
+
+          if (len == key_len && !strcmp (s1, resword->name)) return resword;
+
+Sat Sep 30 12:55:24 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Fixed a stupid bug in Key_List::print_hash_function that manifested
+          itself if the `-k$' option was given (i.e., only use the key[length]
+          character in the hash function).
+
+Mon Jul 24 17:09:46 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Fixed a bug in PRINT_MIN_MAX that resulted in MAX_INT being printed
+          for the MIN_KEY_LEN if there was only 1 keyword in the input file
+          (yeah, that's a pretty unlikely occurrence, I agree!).
+
+        * Fixed PRINT_HASH_FUNCTION and PRINT_LOOKUP_FUNCTION in keylist.c
+          so that the generated functions take an unsigned int length argument.
+          If -a is enabled the prototype is (const char *str, size_t len).
+
+Fri Jul 21 13:06:15 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Fixed a horrible typo in PRINT_KEYWORD_TABLE in keylist.cc
+          that prevented links from being printed correctly.
+
+Sun Jul  9 17:53:28 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Changed the ./tests subdirectory Makefile so that it 
+          uses $(CC) instead of gcc.
+
+Sun Jul  2 12:14:04 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Moved comment handling from keylist.c to readline.c.  This
+          simplifies the code and reduces the number of malloc calls.
+
+        * Fixed a number of subtle bugs that occurred when -S was
+          combined with various and sundry options.
+
+        * Added the -G option, that makes the generated keyword table
+          a global static variable, rather than hiding it inside
+          the lookup function.  This allows other functions to directly
+          access the contents in this table.
+
+Sat Jul  1 10:12:21 1989  Doug Schmidt  (schmidt at crimee.ics.uci.edu)
+
+        * Added the "#" feature, that allows comments inside the keyword
+          list from the input file.
+          
+        * Also added the -H option (user can give the name of the hash
+          function) and the -T option (prevents the transfer of the type decl
+          to the output file, which is useful if the type is already defined
+          elsewhere).
+
+Fri Jun 30 18:22:35 1989  Doug Schmidt  (schmidt at crimee.ics.uci.edu)
+
+        * Added Adam de Boor's changes.  Created an UNSET_OPTION macro.
+
+Sat Jun 17 10:56:00 1989  Doug Schmidt  (schmidt at glacier.ics.uci.edu)
+
+        * Modified option.h and option.c so that all mixed operations
+          between integers and enumerals are cast correctly to int.
+          This prevents errors in some brain-damaged C compilers.
+
+Fri Jun 16 14:13:15 1989  Doug Schmidt  (schmidt at crimee.ics.uci.edu)
+
+        * Modified the -f (FAST) option.  This now takes an argument.
+          The argument corresponds to the number of iterations used
+          to resolve collisions.  -f 0 uses the length of the
+          keyword list (which is what -f did before).  This makes
+          life much easier when dealing with large keyword files.
+
+Wed Jun  7 23:07:13 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Updated to version 1.8 in preparation to release to Doug Lea
+          and FSF.
+
+        * Added the -c (comparison) option.  Enabling this
+          will use the strncmp function for string comparisons.
+          The default is to use strcmp.
+
+Tue Jun  6 16:32:09 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Fixed another stupid typo in xmalloc.c (XMALLOC).  I accidentally
+          left the ANSI-fied prototype in place.  This obviously
+          fails on old-style C compilers.
+
+        * Fixed stupid typos in PRINT_SWITCH from the keylist.c.  This
+          caused the -D option to produce incorrect output when used
+          in conjunction with -p and -t.
+          
+        * Replaced the use of STRCMP with STRNCMP for the generated
+          C output code.          
+
+Fri Jun  2 23:16:01 1989  Doug Schmidt  (schmidt at trinite.ics.uci.edu)
+
+        * Added a new function (XMALLOC) and file (xmalloc.c).  All
+          calls to MALLOC were replaced by calls to XMALLOC.  This 
+          will complain when virtual memory runs out (don't laugh, 
+          this has happened!)
+
+Thu Jun  1 21:10:10 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Fixed a typo in options.c that prevented the -f option
+          from being given on the command-line.
+
+Wed May  3 17:48:02 1989  Doug Schmidt  (schmidt at zola.ics.uci.edu)
+
+        * Updated to version 1.7.  This reflects the recent major changes
+          and the new C port.
+
+        * Fixed a typo in perfect.c perfect_destroy that prevented the actual 
+          maximum hash table size from being printed.
+
+        * Added support for the -f option.  This generates the perfect
+          hash function ``fast.''  It reduces the execution time of
+          gperf, at the cost of minimizing the range of hash values.
+
+Tue May  2 16:23:29 1989  Doug Schmidt  (schmidt at crimee.ics.uci.edu)
+
+        * Enabled the diagnostics dump if the debugging option is enabled.
+        
+        * Removed all calls to FREE (silly to do this at program termination).
+
+        * Ported gperf to C.  From now on both K&R C and GNU G++ versions
+          will be supported.
+
