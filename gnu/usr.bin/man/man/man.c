@@ -1597,6 +1597,11 @@ man (name)
 	      snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
 	      if (is_directory (buf))
 		l_found = try_section (buf, section, name, glob);
+	      if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
+		snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+		if (is_directory (buf))
+		  l_found = try_section (buf, section, name, glob);
+	      }
 	    }
 	    locale_opts = NULL;
 	  }
@@ -1634,6 +1639,11 @@ man (name)
 		  snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
 		  if (is_directory (buf))
 		    l_found = try_section (buf, *sp, name, glob);
+		  if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
+		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+		    if (is_directory (buf))
+		      l_found = try_section (buf, *sp, name, glob);
+		  }
 		}
 		locale_opts = NULL;
 	      }
