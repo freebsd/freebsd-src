@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.108 1997/08/26 18:10:33 peter Exp $
+ *	$Id: trap.c,v 1.109 1997/08/28 14:36:54 jlemon Exp $
  */
 
 /*
@@ -725,8 +725,10 @@ trap_fatal(frame)
         		frame->tf_eflags & PSL_VM ? "vm86" :
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
-	printf("cpuid = %d\n", cpuid);
-	printf("lapic.id = %d\n", lapic.id);
+	/* three seperate prints in case of a trap on an unmapped page */
+	printf("mp_lock = %08x; ", mp_lock);
+	printf("cpuid = %d; ", cpuid);
+	printf("lapic.id = %08x\n", lapic.id);
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%x\n", eva);
@@ -771,9 +773,6 @@ trap_fatal(frame)
 	} else {
 		printf("Idle\n");
 	}
-#ifdef SMP
-	printf("mp_lock                 = %08x\n", mp_lock);
-#endif
 	printf("interrupt mask		= ");
 	if ((cpl & net_imask) == net_imask)
 		printf("net ");
@@ -828,8 +827,10 @@ dblfault_handler()
 	printf("esp = 0x%x\n", common_tss.tss_esp);
 	printf("ebp = 0x%x\n", common_tss.tss_ebp);
 #ifdef SMP
-	printf("cpuid = %d\n", cpuid);
-	printf("lapic.id = %d\n", lapic.id);
+	/* three seperate prints in case of a trap on an unmapped page */
+	printf("mp_lock = %08x; ", mp_lock);
+	printf("cpuid = %d; ", cpuid);
+	printf("lapic.id = %08x\n", lapic.id);
 #endif
 	panic("double fault");
 }
