@@ -57,8 +57,7 @@ char realm[];
   server_parm.admin_addr.sin_family = AF_INET;
   if ((hp = gethostbyname(hostname)) == NULL)
       return KADM_NO_HOSTNAME;
-  bcopy(hp->h_addr, (char *) &server_parm.admin_addr.sin_addr.s_addr,
-	hp->h_length);
+  server_parm.admin_addr.sin_addr.s_addr = INADDR_ANY;
   server_parm.admin_addr.sin_port = sep->s_port;
 				/* setting up the database */
   if (kdb_get_master_key((inter==1),server_parm.master_key,
