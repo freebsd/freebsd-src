@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.44 1996/09/11 19:53:45 phk Exp $
+ **      $Id: userconfig.c,v 1.45 1996/09/13 06:48:21 bde Exp $
  **/
 
 /**
@@ -119,13 +119,14 @@
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
+#define putchar(x)	cnputc(x)
+#define getchar()	cngetc()
+
 #ifdef VISUAL_USERCONFIG
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
 
 
-#define putchar(x)	cnputc(x)
-#define getchar()	cngetc()
 
 
 #ifndef FALSE
@@ -2153,7 +2154,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.44 1996/09/11 19:53:45 phk Exp $
+ *      $Id: userconfig.c,v 1.45 1996/09/13 06:48:21 bde Exp $
  */
 
 #include "scbus.h"
@@ -2496,7 +2497,10 @@ lsdevtab(struct isa_device *dt)
 
 	if (lineno >= 23) {
 		printf("<More> ");
-		(void)cngetc();
+		if (getchar() == 'q') {
+			printf("quit\n");
+			return;
+		}
 		printf("\n");
 		lineno = 0;
 	}
@@ -2566,7 +2570,7 @@ cngets(char *input, int maxin)
     int c, nchars = 0;
 
     while (1) {
-	c = cngetc();
+	c = getchar();
 	/* Treat ^H or ^? as backspace */
 	if ((c == '\010' || c == '\177')) {
 	    	if (nchars) {
