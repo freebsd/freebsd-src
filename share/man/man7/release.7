@@ -98,8 +98,8 @@ the intermediate output of the previous
 .It Cm floppies
 Generate a new set of boot and fixit floppies.
 This will call the
-.Cm release.5 ,
-.Cm release.9 ,
+.Cm release.4 ,
+.Cm release.8 ,
 .Cm floppies.1 ,
 .Cm floppies.2 ,
 and
@@ -121,28 +121,24 @@ to build the directory hierarchy for the system.
 .It Cm release.2
 Installs the system into the distribution directories.
 .It Cm release.3
-Builds and installs into the
-.Dq base
-distribution non-crypto versions of some tools.
-.It Cm release.4
 Makes and installs the
 .Pa GENERIC
 kernel as well as any other kernels listed in
 .Va KERNELS .
-.It Cm release.5
+.It Cm release.4
 Uses
 .Xr crunchgen 1
 to build
 .Dq crunched
 binaries to live on the installation floppies.
-.It Cm release.6
+.It Cm release.5
 Builds synthetic distributions, and cleans up the previously built
 distribution trees.
-.It Cm release.7
+.It Cm release.6
 Creates tarballs of the assembled distribution trees.
-.It Cm release.8
+.It Cm release.7
 Makes source distributions.
-.It Cm release.9
+.It Cm release.8
 Creates the MFS root file systems.
 .It Cm floppies.1
 Creates the boot and kernel floppies.
