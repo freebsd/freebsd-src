@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.64 1998/05/02 21:57:46 brian Exp $
+ * $Id: modem.c,v 1.77.2.65 1998/05/03 11:24:16 brian Exp $
  *
  *  TODO:
  */
@@ -633,6 +633,9 @@ int
 modem_Speed(struct physical *modem)
 {
   struct termios rstio;
+
+  if (!physical_IsATTY(modem))
+    return 115200;
 
   tcgetattr(modem->fd, &rstio);
   return (SpeedToInt(cfgetispeed(&rstio)));

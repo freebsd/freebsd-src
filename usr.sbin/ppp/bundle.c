@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.69 1998/05/02 21:57:42 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.70 1998/05/03 22:13:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -216,7 +216,8 @@ bundle_LayerUp(void *v, struct fsm *fp)
       struct datalink *dl;
 
       for (dl = bundle->links, speed = 0; dl; dl = dl->next)
-        speed += modem_Speed(dl->physical);
+        if (dl->state == DATALINK_OPEN)
+          speed += modem_Speed(dl->physical);
       if (speed)
         tun_configure(bundle, bundle->ncp.mp.peer_mrru, speed);
     } else
@@ -838,8 +839,9 @@ bundle_ShowLinks(struct cmdargs const *arg)
 
   for (dl = arg->bundle->links; dl; dl = dl->next) {
     prompt_Printf(arg->prompt, "Name: %s [%s]", dl->name, datalink_State(dl));
-    if (dl->physical->link.throughput.rolling)
-      prompt_Printf(arg->prompt, " (%d bytes/sec)",
+    if (dl->physical->link.throughput.rolling && dl->state == DATALINK_OPEN)
+      prompt_Printf(arg->prompt, " (weight %d, %d bytes/sec)",
+                    dl->mp.weight,
                     dl->physical->link.throughput.OctetsPerSecond);
     prompt_Printf(arg->prompt, "\n");
   }
