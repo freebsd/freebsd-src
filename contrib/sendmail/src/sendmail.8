@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.51.2.1 2003/05/20 16:38:15 gshapiro Exp $
+.\"     $Id: sendmail.8,v 8.51.2.3 2003/12/01 17:02:00 ca Exp $
 .\"
-.TH SENDMAIL 8 "$Date: 2003/05/20 16:38:15 $"
+.TH SENDMAIL 8 "$Date: 2003/12/01 17:02:00 $"
 .SH NAME
 sendmail
 \- an electronic mail transport agent
@@ -150,11 +150,32 @@ users or mailing lists.
 .BI \-C file
 Use alternate configuration file.
 .B Sendmail
-refuses to run as root if an alternate configuration file is specified.
+gives up any enhanced (set-user-ID or set-group-ID) privileges
+if an alternate configuration file is specified.
 .TP
-.BI \-d X
-Set debugging value to
-.IR X .
+.BI \-d category . level...
+Set the debugging flag for
+.I category
+to
+.IR level .
+.I Category
+is either an integer or a name specifying the topic, and
+.I level
+an integer specifying the level of debugging output desired.
+Higher levels generally mean more output.
+More than one flag can be specified by separating them with commas.
+A list of numeric debugging categories can be found in the TRACEFLAGS file
+in the sendmail source distribution.
+.br
+The option
+.B \-d0.1
+prints the version of
+.B sendmail
+and the options it was compiled with.
+.br
+Most other categories are only useful with, and documented in,
+.BR sendmail 's
+source code.
 .ne 1i
 .TP
 .BI \-F fullname
