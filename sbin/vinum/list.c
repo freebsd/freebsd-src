@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.30 2001/01/14 11:42:19 grog Exp $
+ * $Id: list.c,v 1.25 2000/12/20 03:38:43 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -56,9 +56,9 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
-#include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <dev/vinum/request.h>
+/* #include <dev/vinum/vinumhdr.h> */
 #include <devstat.h>
 
 /*
@@ -207,7 +207,7 @@ vinum_ldi(int driveno, int recurse)
 		}
 	    }
 	} else if (!sflag) {
-	    printf("D %-21s State: %s\tDevice %s\tAvail: %lld/%lld MB",
+	    printf("D %-21s State: %s\t%s\tA: %lld/%lld MB",
 		drive.label.name,
 		drive_state(drive.state),
 		drive.devicename,
@@ -273,7 +273,7 @@ vinum_ld(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -398,7 +398,7 @@ vinum_lv(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     if (argc == 0)
@@ -565,7 +565,7 @@ vinum_lp(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -590,6 +590,8 @@ vinum_lsi(int sdno, int recurse)
 
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
+	get_drive_info(&drive, sd.driveno);
+
 	if (vflag) {
 	    printf("Subdisk %s:\n\t\tSize: %16lld bytes (%lld MB)\n\t\tState: %s\n",
 		sd.name,
@@ -648,7 +650,6 @@ vinum_lsi(int sdno, int recurse)
 		    roughlength(sd.init_blocksize, 0),
 		    sd.init_interval);
 	    }
-	    get_drive_info(&drive, sd.driveno);
 	    if (sd.driveoffset < 0)
 		printf("\t\tDrive %s (%s), no offset\n",
 		    drive.label.name,
@@ -677,12 +678,8 @@ vinum_lsi(int sdno, int recurse)
 		printf("S %-21s State: %s\t",
 		    sd.name,
 		    sd_state(sd.state));
-	    if (sd.plexno == -1)
-		printf("(detached)\t");
-	    else
-		printf("PO: %s ",
-		    &(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]);	/* what a kludge! */
-	    printf("Size: %s\n",
+	    printf("D: %-12s Size: %s\n",
+		drive.label.name,
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	    if (sd.state == sd_reviving) {
 		if (sd.reviver == 0)
@@ -764,11 +761,11 @@ vinum_ls(int argc, char *argv[], char *argv0[])
     int sdno;
 
     /* Structures to read kernel data into */
-    struct _vinum_conf vinum_conf;
+    struct __vinum_conf vinum_conf;
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -793,7 +790,7 @@ void
 listconfig()
 {
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     printf("%d drives:\n", vinum_conf.drives_used);
@@ -841,12 +838,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 #endif
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     printf("Flags: 0x%x\n", vinum_conf.flags);
     if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
-	vinum_perror("Can't get information");
+	perror("Can't get information");
 	return;
     }
     printf("Total of %d blocks malloced, total memory: %d\nMaximum allocs: %8d, malloc table at 0x%08x\n",
@@ -862,7 +859,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	for (i = 0; i < meminfo.mallocs; i++) {
 	    malloced.seq = i;
 	    if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
-		vinum_perror("Can't get information");
+		perror("Can't get information");
 		return;
 	    }
 	    if (!(i & 63))
@@ -881,7 +878,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
 	    *((int *) &rq) = i;
 	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
-		vinum_perror("Can't get information");
+		perror("Can't get information");
 		return;
 	    }
 	    /* Compress devminor into something printable. */
@@ -1061,13 +1058,13 @@ printconfig(FILE * of, char *comment)
     struct utsname uname_s;
     time_t now;
     int i;
-    struct volume vol;
-    struct plex plex;
-    struct sd sd;
-    struct drive drive;
+    struct _volume vol;
+    struct _plex plex;
+    struct _sd sd;
+    struct _drive drive;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     uname(&uname_s);					    /* get our system name */
@@ -1158,7 +1155,7 @@ list_defective_objects()
     int heading_needed = 1;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	vinum_perror("Can't get vinum config");
+	perror("Can't get vinum config");
 	return;
     }
     for (o = 0; o < vinum_conf.drives_allocated; o++) {
@@ -1237,7 +1234,7 @@ vinum_dumpconfig(int argc, char *argv[], char *argv0[])
 
 	tokens = 0;					    /* no tokens yet */
 	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
-	    vinum_perror("Can't get device list");
+	    perror("Can't get device list");
 	    return;
 	}
 	namelist[0] = '\0';				    /* start with empty namelist */
@@ -1298,7 +1295,8 @@ dumpconfig(char *part)
 	    continue;
 	}
 	if (ioctl(driveno, DIOCGDINFO, &label) < 0) {
-	    fprintf(stderr, "Can't get label from %s: %s (%d)\n", partname, strerror(errno), errno);
+	    if ((errno != EINVAL) || vflag)
+		fprintf(stderr, "Can't get label from %s: %s (%d)\n", partname, strerror(errno), errno);
 	    continue;
 	}
 	for (partition = 'a'; partition < 'i'; partition++) {
@@ -1425,6 +1423,20 @@ check_drive(char *devicename)
 	return 1;
     }
     return 0;
+}
+
+int
+checkupdates()
+{
+    int options;
+
+    if (ioctl(superdev, VINUM_GETDAEMON, &options) < 0)
+	fprintf(stderr, "Can't get daemon options: %s (%d)\n", strerror(errno), errno);
+    if (options & daemon_noupdate) {
+	fprintf(stderr, "*** Warning: configuration updates are disabled. ***\n");
+	return 1;
+    } else
+	return 0;
 }
 
 /* Local Variables: */
