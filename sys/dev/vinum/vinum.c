@@ -495,13 +495,22 @@ vinumclose(dev_t dev,
     case VINUM_PLEX_TYPE:
 	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
-	/* FALLTHROUGH */
+	index = Plexno (dev);
+	if (index >= vinum_conf.plexes_allocated)	    /* no such plex */
+	  return ENXIO;
+	PLEX [index].flags &= ~VF_OPEN;			    /* no longer open */
+	return 0;
 
     case VINUM_SD_TYPE:
 	if ((Volno(dev) >= vinum_conf.volumes_allocated) || /* no such volume */
 	    (Plexno(dev) >= vinum_conf.plexes_allocated))   /* or no such plex */
 	    return ENXIO;				    /* no such device */
-	/* FALLTHROUGH */
+	index = Sdno (dev);
+	if (index >= vinum_conf.subdisks_allocated)	    /* no such sd */
+	  return ENXIO;
+	SD [index].flags &= ~VF_OPEN;			    /* no longer open */
+	return 0;
+
 
     default:
 	return ENODEV;					    /* don't know what to do with these */
