@@ -970,14 +970,13 @@ out:
     switch (flags) {
     case ATA_WAIT_INTR:
 	scp->active |= ATA_WAIT_INTR;
-	asleep((caddr_t)scp, PRIBIO, "atacmd", 10 * hz);
 	ATA_OUTB(scp->r_io, ATA_CMD, command);
 
 	/* enable interrupt */
 	if (scp->flags & ATA_QUEUED)
 	    ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
 
-	if (await(PRIBIO, 10 * hz)) {
+	if (tsleep((caddr_t)scp, PRIBIO, "atacmd", 10 * hz) != 0) {
 	    ata_printf(scp, device, "ata_command: timeout waiting for intr\n");
 	    scp->active &= ~ATA_WAIT_INTR;
 	    error = -1;
