@@ -17,7 +17,7 @@
  *              New eject algorithm.
  *              Some code style reformatting.
  *
- * $Id: cdcontrol.c,v 1.11 1996/02/09 00:22:17 ache Exp $
+ * $Id: cdcontrol.c,v 1.12 1996/02/09 01:16:23 ache Exp $
  */
 
 #include <ctype.h>
@@ -703,7 +703,8 @@ int pstatus (char *arg)
 	if (rc >= 0) {
 		printf("Media catalog is %sactive",
 		ss.data->what.media_catalog.mc_valid ? "": "in");
-		if (ss.data->what.media_catalog.mc_number[0])
+		if (ss.data->what.media_catalog.mc_valid &&
+		    ss.data->what.media_catalog.mc_number[0])
 			printf(", number \"%.15s\"",
 			       ss.data->what.media_catalog.mc_number);
 		putchar('\n');
