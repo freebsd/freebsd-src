@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.3 1995/05/31 10:17:22 jkh Exp $
+ * $Id: config.c,v 1.15.2.4 1995/05/31 21:19:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -331,18 +331,20 @@ configPackages(char *str)
 
     onCD = FALSE;
     i = -1;
-    if (!mediaDevice || mediaDevice->type != DEVICE_TYPE_CDROM) {
-	if (getpid() == 1) {
-	    if (!mediaSetCDROM(NULL))
-		onCD = FALSE;
-	    else
-		onCD = TRUE;
-	}
-	else
+    /* If we're running as init, we know that a CD in the drive is probably ours */
+    if (RunningAsInit) {
+	if (!mediaSetCDROM(NULL))
 	    onCD = FALSE;
+	else {
+	    onCD = TRUE;
+	    if (mediaDevice->init)
+		if (!*(mediaDevice->init)(mediaDevice))
+		    onCD = FALSE;
+	}
     }
-    else if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM)
-	onCD = TRUE;
+    else
+	onCD = FALSE;
+
     if (onCD) {
 	if (!(pid = fork())) {
 	    execl("/stand/sh", "sh", "-c", "pkg_manage /cdrom/packages", (char *)NULL);
