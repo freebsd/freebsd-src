@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.83 1996/01/06 23:58:03 davidg Exp $
+ * $Id: vfs_bio.c,v 1.84 1996/01/19 03:58:08 dyson Exp $
  */
 
 /*
@@ -1017,7 +1017,7 @@ loop:
 		if (doingvmio) {
 			bp->b_flags |= (B_VMIO | B_CACHE);
 #if defined(VFS_BIO_DEBUG)
-			if (vp->v_type != VREG)
+			if (vp->v_type != VREG && vp->v_type != VBLK)
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
 #endif
 		} else {
