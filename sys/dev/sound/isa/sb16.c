@@ -1259,6 +1259,10 @@ sbpnp_probe(device_t dev)
     	u_int32_t logical_id = isa_get_logicalid(dev);
 
     	switch(logical_id) {
+    	case 0x01000000: /* @@@0001 */
+    		s = "Avance Asound 100";
+		break;
+
     	case 0x01100000: /* @@@1001 */
     		s = "Avance Asound 110";
 		break;
