@@ -950,97 +950,66 @@ struct l_itimerval {
 	l_timeval it_value;
 };
 
+#define	B2L_ITIMERVAL(bip, lip) 					\
+	(bip)->it_interval.tv_sec = (lip)->it_interval.tv_sec;		\
+	(bip)->it_interval.tv_usec = (lip)->it_interval.tv_usec;	\
+	(bip)->it_value.tv_sec = (lip)->it_value.tv_sec;		\
+	(bip)->it_value.tv_usec = (lip)->it_value.tv_usec;
+
 int
 linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 {
 	int error;
-	caddr_t sg;
-	struct l_itimerval *lp, *lop, ls;
-	struct itimerval *p = NULL, *op = NULL, s;
+	struct l_itimerval ls;
+	struct itimerval aitv, oitv;
 
 #ifdef DEBUG
 	if (ldebug(setitimer))
 		printf(ARGS(setitimer, "%p, %p"),
 		    (void *)uap->itv, (void *)uap->oitv);
 #endif
-	lp = uap->itv;
-	if (lp != NULL) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->itv = (struct l_itimerval *)p;
-		error = copyin(lp, &ls, sizeof(ls));
-		if (error != 0)
-			return (error);
-		s.it_interval.tv_sec = ls.it_interval.tv_sec;
-		s.it_interval.tv_usec = ls.it_interval.tv_usec;
-		s.it_value.tv_sec = ls.it_value.tv_sec;
-		s.it_value.tv_usec = ls.it_value.tv_usec;
-		error = copyout(&s, p, sizeof(s));
-		if (error != 0)
-			return (error);
-#ifdef DEBUG
-		if (ldebug(setitimer)) {
-			printf("setitimer: value: sec: %ld, usec: %ld\n",
-			    s.it_value.tv_sec, s.it_value.tv_usec);
-			printf("setitimer: interval: sec: %ld, usec: %ld\n",
-			    s.it_interval.tv_sec, s.it_interval.tv_usec);
-		}
-#endif
+
+	if (uap->itv == NULL) {
+		uap->itv = uap->oitv;
+		return (linux_getitimer(td, (struct linux_getitimer_args *)uap));
 	}
-	lop = uap->oitv;
-	if (lop != NULL) {
-		sg = stackgap_init();
-		op = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->oitv = (struct l_itimerval *)op;
-	}
-	error = setitimer(td, (struct setitimer_args *) uap);
+
+	error = copyin(uap->itv, &ls, sizeof(ls));
 	if (error != 0)
 		return (error);
-	if (lop != NULL) {
-		error = copyin(op, &s, sizeof(s));
-		if (error != 0)
-			return (error);
-		ls.it_interval.tv_sec = s.it_interval.tv_sec;
-		ls.it_interval.tv_usec = s.it_interval.tv_usec;
-		ls.it_value.tv_sec = s.it_value.tv_sec;
-		ls.it_value.tv_usec = s.it_value.tv_usec;
-		error = copyout(&ls, lop, sizeof(ls));
+	B2L_ITIMERVAL(&aitv, &ls);
+#ifdef DEBUG
+	if (ldebug(setitimer)) {
+		printf("setitimer: value: sec: %ld, usec: %ld\n",
+		    aitv.it_value.tv_sec, aitv.it_value.tv_usec);
+		printf("setitimer: interval: sec: %ld, usec: %ld\n",
+		    aitv.it_interval.tv_sec, aitv.it_interval.tv_usec);
 	}
-	return (error);
+#endif
+	error = kern_setitimer(td, uap->which, &aitv, &oitv);
+	if (error != 0 || uap->oitv == NULL)
+		return (error);
+	B2L_ITIMERVAL(&ls, &oitv);
+
+	return (copyout(&ls, uap->oitv, sizeof(ls)));
 }
 
 int
 linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 {
 	int error;
-	caddr_t sg;
-	struct l_itimerval *lp, ls;
-	struct itimerval *p = NULL, s;
+	struct l_itimerval ls;
+	struct itimerval aitv;
 
 #ifdef DEBUG
 	if (ldebug(getitimer))
 		printf(ARGS(getitimer, "%p"), (void *)uap->itv);
 #endif
-	lp = uap->itv;
-	if (lp != NULL) {
-		sg = stackgap_init();
-		p = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->itv = (struct l_itimerval *)p;
-	}
-	error = getitimer(td, (struct getitimer_args *) uap);
+	error = kern_getitimer(td, uap->which, &aitv);
 	if (error != 0)
 		return (error);
-	if (lp != NULL) {
-		error = copyin(p, &s, sizeof(s));
-		if (error != 0)
-			return (error);
-		ls.it_interval.tv_sec = s.it_interval.tv_sec;
-		ls.it_interval.tv_usec = s.it_interval.tv_usec;
-		ls.it_value.tv_sec = s.it_value.tv_sec;
-		ls.it_value.tv_usec = s.it_value.tv_usec;
-		error = copyout(&ls, lp, sizeof(ls));
-	}
-	return (error);
+	B2L_ITIMERVAL(&ls, &aitv);
+	return (copyout(&ls, uap->itv, sizeof(ls)));
 }
 
 #ifndef __alpha__
