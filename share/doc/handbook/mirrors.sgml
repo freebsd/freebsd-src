@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.35 1996/06/27 06:33:02 markm Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.36 1996/08/04 22:41:09 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -487,7 +487,7 @@ for this domain.
 
 </descrip>
 
-
+<label id="mirrors-ctm">
 <p>CTM/FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain CTM via
       anonymous FTP, please try to use a site near you.
