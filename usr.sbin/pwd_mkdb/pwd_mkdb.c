@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.27 1998/09/29 20:01:21 dt Exp $";
+	"$Id: pwd_mkdb.c,v 1.28 1998/12/12 16:08:41 foxfair Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -109,6 +109,7 @@ main(argc, argv)
 	char *username;
 	u_int method, methoduid;
 	int Cflag;
+	int nblock = 0;
 
 	Cflag = 0;
 	strcpy(prefix, _PATH_PWD);
@@ -132,6 +133,9 @@ main(argc, argv)
 			username = optarg;
 			break;
 		case 'v':                       /* backward compatible */
+			break;
+		case 'N':			/* do not wait for lock	*/
+			nblock = LOCK_NB;
 			break;
 		default:
 			usage();
@@ -158,9 +162,30 @@ main(argc, argv)
 	(void)umask(0);
 
 	pname = *argv;
-	/* Open the original password file */
-	if (!(fp = fopen(pname, "r")))
-		error(pname);
+
+	/*
+	 * Open and lock the original password file.  We have to check
+	 * the hardlink count after we get the lock to handle any potential
+	 * unlink/rename race.
+	 *
+	 * This lock is necessary when someone runs pwd_mkdb manually, directly
+	 * on master.passwd, to handle the case where a user might try to
+	 * change his password while pwd_mkdb is running. 
+	 */
+	for (;;) {
+		struct stat st;
+
+		if (!(fp = fopen(pname, "r")))
+			error(pname);
+		if (flock(fileno(fp), LOCK_EX|nblock) < 0)
+			error("flock");
+		if (fstat(fileno(fp), &st) < 0)
+			error(pname);
+		if (st.st_nlink != 0)
+			break;
+		fclose(fp);
+		fp = NULL;
+	}
 
 	/* check only if password database is valid */
 	if (Cflag) {
@@ -431,8 +456,6 @@ main(argc, argv)
 
 	/* Set master.passwd permissions, in case caller forgot. */
 	(void)fchmod(fileno(fp), S_IRUSR|S_IWUSR);
-	if (fclose(fp) == EOF)
-		error("close fp");
 
 	/* Install as the real password files. */
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
@@ -454,6 +477,13 @@ main(argc, argv)
 	 */
 	(void)snprintf(buf, sizeof(buf), "%s/%s", prefix, _MASTERPASSWD);
 	mv(pname, buf);
+
+	/*
+	 * Close locked password file after rename()
+	 */
+	if (fclose(fp) == EOF)
+		error("close fp");
+
 	exit(0);
 }
 
