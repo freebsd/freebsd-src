@@ -106,3 +106,4 @@ mem_modevent(module_t mod __unused, int type, void *data __unused)
 }
 
 DEV_MODULE(mem, mem_modevent, NULL);
+MODULE_VERSION(mem, 1);

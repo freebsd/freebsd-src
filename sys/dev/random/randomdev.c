@@ -227,3 +227,4 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 }
 
 DEV_MODULE(random, random_modevent, NULL);
+MODULE_VERSION(random, 1);
