@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.129 1997/05/22 00:17:11 jkh Exp $
+ * $Id: sysinstall.h,v 1.130 1997/05/22 21:26:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,6 +96,7 @@
 #define VAR_CPIO_VERBOSITY		"cpioVerbose"
 #define VAR_DEBUG			"debug"
 #define VAR_DISK			"disk"
+#define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_DES			"distDES"
 #define VAR_DIST_SRC			"distSRC"
@@ -133,8 +134,10 @@
 #define VAR_NFS_SECURE			"nfsSecure"
 #define VAR_NFS_SERVER			"nfs_server_enable"
 #define VAR_NO_CONFIRM			"noConfirm"
+#define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define VAR_NTPDATE			"ntpdate"
+#define VAR_PARTITION			"partition"
 #define VAR_PCNFSD			"pcnfsd"
 #define VAR_PCNFSD_PKG			"pcnfsd_pkg"
 #define VAR_PKG_TMPDIR			"PKG_TMPDIR"
@@ -412,6 +415,7 @@ extern int	configFstab(void);
 extern void	configEnvironmentRC_conf(char *config);
 extern void	configEnvironmentResolv(char *config);
 extern void	configRC_conf(char *config);
+extern int	configRC(dialogMenuItem *self);
 extern int	configRegister(dialogMenuItem *self);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
@@ -460,7 +464,7 @@ extern int	dispatchCommand(char *command);
 /* dist.c */
 extern int	distReset(dialogMenuItem *self);
 extern int	distConfig(dialogMenuItem *self);
-extern int	distSetCustom(char *str);
+extern int	distSetCustom(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
 extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);

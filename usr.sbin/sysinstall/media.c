@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.82 1997/03/11 16:43:56 jkh Exp $
+ * $Id: media.c,v 1.83 1997/03/19 10:09:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -295,8 +295,9 @@ mediaSetFTP(dialogMenuItem *self)
     mediaClose();
     cp = variable_get(VAR_FTP_PATH);
     /* If we've been through here before ... */
-    if (networkDev && cp && msgYesNo("Re-use old FTP site selection values?"))
-	cp = NULL;
+    if (!variable_get(VAR_NONINTERACTIVE))
+	if (networkDev && cp && msgYesNo("Re-use old FTP site selection values?"))
+	    cp = NULL;
 
     if (!cp) {
 	dialog_clear_norefresh();

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.96 1997/05/27 16:41:47 jkh Exp $
+ * $Id: config.c,v 1.97 1997/05/30 01:03:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -353,6 +353,14 @@ configEnvironmentResolv(char *config)
 	}
 	free(lines[i]);
     }
+}
+
+/* Version of below for dispatch routines */
+int
+configRC(dialogMenuItem *unused)
+{
+    configRC_conf("/etc/rc.conf");
+    return DITEM_SUCCESS;
 }
 
 /*
