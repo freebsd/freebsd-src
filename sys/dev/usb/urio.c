@@ -76,10 +76,10 @@
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/rio500_usb.h>
 
-#ifdef URIO_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uriodebug) logprintf x
 #define DPRINTFN(n,x)	if (uriodebug>(n)) logprintf x
-int	uriodebug = 100;
+int	uriodebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, urio, CTLFLAG_RW,
 	   &uriodebug, 0, "urio debug level");
 #else
