@@ -154,7 +154,7 @@ and lowercase means that the behavior is not set, or off.
 .Bl -tag -width indent
 .It A
 All warnings (except for the warning about unknown
-flags being set), and failure to allocate memory become fatal.
+flags being set) become fatal.
 The process will call
 .Xr abort 3
 in these cases.
@@ -372,10 +372,6 @@ The allocation functions were compiled with
 .Dq EXTRA_SANITY
 defined, and an error was found during the additional error checking.
 Consult the source code for further information.
-.It "allocation failed
-If the
-.Dq A
-option is specified it is a fatal error for an allocation function to fail.
 .It "mmap(2) failed, check limits
 This most likely means that the system is dangerously overloaded or that
 the process' limits are incorrectly specified.
