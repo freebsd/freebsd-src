@@ -264,6 +264,8 @@ struct smb_vc {
 	u_short		vc_mid;		/* multiplex id */
 	struct smb_sopt	vc_sopt;	/* server options */
 	int		vc_txmax;	/* max tx/rx packet size */
+	int		vc_rxmax;	/* max readx data size */
+	int		vc_wxmax;	/* max writex data size */
 	struct smbiod *	vc_iod;
 	struct smb_slock vc_stlock;
 };
