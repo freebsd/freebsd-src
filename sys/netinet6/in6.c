@@ -420,14 +420,14 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSSCOPE6:
 		if (!privileged)
 			return (EPERM);
-		return (scope6_set(ifp, ifr->ifr_ifru.ifru_scope_id));
-		break;
+		return (scope6_set(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6:
-		return (scope6_get(ifp, ifr->ifr_ifru.ifru_scope_id));
-		break;
+		return (scope6_get(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6DEF:
-		return (scope6_get_default(ifr->ifr_ifru.ifru_scope_id));
-		break;
+		return (scope6_get_default((struct scope6_id *)
+		    ifr->ifr_ifru.ifru_scope_id));
 	}
 
 	switch (cmd) {
@@ -560,28 +560,19 @@ in6_control(so, cmd, data, ifp, td)
 		break;
 
 	case SIOCGIFSTAT_IN6:
-		if (ifp == NULL)
-			return EINVAL;
-		if (in6_ifstat == NULL || ifp->if_index >= in6_ifstatmax
-		 || in6_ifstat[ifp->if_index] == NULL) {
-			/* return EAFNOSUPPORT? */
-			bzero(&ifr->ifr_ifru.ifru_stat,
-			    sizeof(ifr->ifr_ifru.ifru_stat));
-		} else
-			ifr->ifr_ifru.ifru_stat = *in6_ifstat[ifp->if_index];
+		bzero(&ifr->ifr_ifru.ifru_stat,
+		    sizeof(ifr->ifr_ifru.ifru_stat));
+		ifr->ifr_ifru.ifru_stat =
+		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->in6_ifstat;
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
 		if (ifp == NULL)
 			return EINVAL;
-		if (icmp6_ifstat == NULL || ifp->if_index >= icmp6_ifstatmax ||
-		    icmp6_ifstat[ifp->if_index] == NULL) {
-			/* return EAFNOSUPPORT? */
-			bzero(&ifr->ifr_ifru.ifru_stat,
-			    sizeof(ifr->ifr_ifru.ifru_icmp6stat));
-		} else
-			ifr->ifr_ifru.ifru_icmp6stat =
-				*icmp6_ifstat[ifp->if_index];
+		bzero(&ifr->ifr_ifru.ifru_stat,
+		    sizeof(ifr->ifr_ifru.ifru_icmp6stat));
+		ifr->ifr_ifru.ifru_icmp6stat =
+		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->icmp6_ifstat;
 		break;
 
 	case SIOCGIFALIFETIME_IN6:
@@ -1108,13 +1099,6 @@ in6_update_ifa(ifp, ifra, ia)
 			time_second + ia->ia6_lifetime.ia6t_pltime;
 	} else
 		ia->ia6_lifetime.ia6t_preferred = 0;
-
-	/*
-	 * make sure to initialize ND6 information.  this is to workaround
-	 * issues with interfaces with IPv6 addresses, which have never brought
-	 * up.  We are assuming that it is safe to nd6_ifattach multiple times.
-	 */
-	nd6_ifattach(ifp);
 
 	/*
 	 * Perform DAD, if needed.
@@ -2341,12 +2325,49 @@ in6_setmaxmtu()
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		if ((ifp->if_flags & IFF_LOOPBACK) == 0 &&
-		    nd_ifinfo[ifp->if_index].linkmtu > maxmtu)
-			maxmtu =  nd_ifinfo[ifp->if_index].linkmtu;
+		    ND_IFINFO(ifp)->linkmtu > maxmtu)
+			maxmtu =  ND_IFINFO(ifp)->linkmtu;
 	}
 	IFNET_RUNLOCK();
 	if (maxmtu)	     /* update only when maxmtu is positive */
 		in6_maxmtu = maxmtu;
+}
+
+void *
+in6_domifattach(ifp)
+	struct ifnet *ifp;
+{
+	struct in6_ifextra *ext;
+
+	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
+	bzero(ext, sizeof(*ext));
+
+	ext->in6_ifstat = (struct in6_ifstat *)malloc(sizeof(struct in6_ifstat),
+	    M_IFADDR, M_WAITOK);
+	bzero(ext->in6_ifstat, sizeof(*ext->in6_ifstat));
+
+	ext->icmp6_ifstat =
+	    (struct icmp6_ifstat *)malloc(sizeof(struct icmp6_ifstat),
+	    M_IFADDR, M_WAITOK);
+	bzero(ext->icmp6_ifstat, sizeof(*ext->icmp6_ifstat));
+
+	ext->nd_ifinfo = nd6_ifattach(ifp);
+	ext->scope6_id = scope6_ifattach(ifp);
+	return ext;
+}
+
+void
+in6_domifdetach(ifp, aux)
+	struct ifnet *ifp;
+	void *aux;
+{
+	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
+
+	scope6_ifdetach(ext->scope6_id);
+	nd6_ifdetach(ext->nd_ifinfo);
+	free(ext->in6_ifstat, M_IFADDR);
+	free(ext->icmp6_ifstat, M_IFADDR);
+	free(ext, M_IFADDR);
 }
 
 /*

@@ -54,6 +54,7 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/domain.h>
 #include <sys/jail.h>
 #include <machine/stdarg.h>
 
@@ -78,6 +79,8 @@
 #include <netinet/if_ether.h>
 #endif
 
+static void	if_attachdomain(void *);
+static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_grow(void);
 static void	if_init(void *);
@@ -442,8 +445,46 @@ if_attach(ifp)
 	}
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
 
+	if (domains)
+		if_attachdomain1(ifp);
+
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+}
+
+static void
+if_attachdomain(dummy)
+	void *dummy;
+{
+	struct ifnet *ifp;
+	int s;
+
+	s = splnet();
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
+		if_attachdomain1(ifp);
+	splx(s);
+}
+SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
+    if_attachdomain, NULL);
+
+static void
+if_attachdomain1(ifp)
+	struct ifnet *ifp;
+{
+	struct domain *dp;
+	int s;
+
+	s = splnet();
+
+	/* address family dependent data region */
+	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if (dp->dom_ifattach)
+			ifp->if_afdata[dp->dom_family] =
+			    (*dp->dom_ifattach)(ifp);
+	}
+
+	splx(s);
 }
 
 /*
@@ -458,6 +499,7 @@ if_detach(ifp)
 	struct radix_node_head	*rnh;
 	int s;
 	int i;
+	struct domain *dp;
 
 	/*
 	 * Remove routes and flush queues.
@@ -537,6 +579,12 @@ if_detach(ifp)
 
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
+			(*dp->dom_ifdetach)(ifp,
+			    ifp->if_afdata[dp->dom_family]);
+	}
 
 #ifdef MAC
 	mac_destroy_ifnet(ifp);
