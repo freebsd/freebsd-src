@@ -108,11 +108,10 @@ ah4_input(m, off)
 	const struct ah_algorithm *algo;
 	size_t siz;
 	size_t siz1;
-	u_char *cksum;
+	u_int8_t cksum[AH_MAXSUMSIZE];
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
 	size_t hlen;
-	int proto;
 	size_t stripsiz = 0;
 
 #ifndef PULLDOWN_TEST
@@ -127,11 +126,9 @@ ah4_input(m, off)
 	}
 
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
 	ah = (struct ah *)(((caddr_t)ip) + off);
 #else
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
 	IP6_EXTHDR_GET(ah, struct ah *, m, off, sizeof(struct newah));
 	if (ah == NULL) {
 		ipseclog((LOG_DEBUG, "IPv4 AH input: can't pullup;"
@@ -227,6 +224,12 @@ ah4_input(m, off)
 		ipsecstat.in_inval++;
 		goto fail;
 	}
+	if (siz1 > sizeof(cksum)) {
+		ipseclog((LOG_NOTICE, "sum length too large: %s\n",
+		    ipsec4_logpacketstr(ip, spi)));
+		ipsecstat.in_inval++;
+		goto fail;
+	}
 
 #ifndef PULLDOWN_TEST
 	if (m->m_len < off + sizeof(struct ah) + sizoff + siz1) {
@@ -270,22 +273,14 @@ ah4_input(m, off)
 	 * alright, it seems sane.  now we are going to check the
 	 * cryptographic checksum.
 	 */
-	cksum = malloc(siz1, M_TEMP, M_NOWAIT);
-	if (!cksum) {
-		ipseclog((LOG_DEBUG, "IPv4 AH input: "
-		    "couldn't alloc temporary region for cksum\n"));
-		ipsecstat.in_inval++;
-		goto fail;
-	}
-	
+
 	/*
 	 * some of IP header fields are flipped to the host endian.
 	 * convert them back to network endian.  VERY stupid.
 	 */
 	ip->ip_len = htons(ip->ip_len + hlen);
 	ip->ip_off = htons(ip->ip_off);
-	if (ah4_calccksum(m, (caddr_t)cksum, siz1, algo, sav)) {
-		free(cksum, M_TEMP);
+	if (ah4_calccksum(m, cksum, siz1, algo, sav)) {
 		ipsecstat.in_inval++;
 		goto fail;
 	}
@@ -311,13 +306,10 @@ ah4_input(m, off)
 		ipseclog((LOG_WARNING,
 		    "checksum mismatch in IPv4 AH input: %s %s\n",
 		    ipsec4_logpacketstr(ip, spi), ipsec_logsastr(sav)));
-		free(cksum, M_TEMP);
 		ipsecstat.in_ahauthfail++;
 		goto fail;
 	}
     }
-
-	free(cksum, M_TEMP);
 
 	m->m_flags |= M_AUTHIPHDR;
 	m->m_flags |= M_AUTHIPDGM;
@@ -573,7 +565,7 @@ ah6_input(mp, offp, proto)
 	const struct ah_algorithm *algo;
 	size_t siz;
 	size_t siz1;
-	u_char *cksum;
+	u_int8_t cksum[AH_MAXSUMSIZE];
 	struct secasvar *sav = NULL;
 	u_int16_t nxt;
 	size_t stripsiz = 0;
@@ -662,6 +654,13 @@ ah6_input(mp, offp, proto)
 		ipsec6stat.in_inval++;
 		goto fail;
 	}
+	if (siz1 > sizeof(cksum)) {
+		ipseclog((LOG_NOTICE, "sum length too large: %s\n",
+		    ipsec6_logpacketstr(ip6, spi)));
+		ipsec6stat.in_inval++;
+		goto fail;
+	}
+
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct ah) + sizoff + siz1, IPPROTO_DONE);
 #else
@@ -696,16 +695,8 @@ ah6_input(mp, offp, proto)
 	 * alright, it seems sane.  now we are going to check the
 	 * cryptographic checksum.
 	 */
-	cksum = malloc(siz1, M_TEMP, M_NOWAIT);
-	if (!cksum) {
-		ipseclog((LOG_DEBUG, "IPv6 AH input: "
-		    "couldn't alloc temporary region for cksum\n"));
-		ipsec6stat.in_inval++;
-		goto fail;
-	}
-	
-	if (ah6_calccksum(m, (caddr_t)cksum, siz1, algo, sav)) {
-		free(cksum, M_TEMP);
+
+	if (ah6_calccksum(m, cksum, siz1, algo, sav)) {
 		ipsec6stat.in_inval++;
 		goto fail;
 	}
@@ -726,13 +717,10 @@ ah6_input(mp, offp, proto)
 		ipseclog((LOG_WARNING,
 		    "checksum mismatch in IPv6 AH input: %s %s\n",
 		    ipsec6_logpacketstr(ip6, spi), ipsec_logsastr(sav)));
-		free(cksum, M_TEMP);
 		ipsec6stat.in_ahauthfail++;
 		goto fail;
 	}
     }
-
-	free(cksum, M_TEMP);
 
 	m->m_flags |= M_AUTHIPHDR;
 	m->m_flags |= M_AUTHIPDGM;
@@ -862,7 +850,7 @@ ah6_input(mp, offp, proto)
 		/*
 		 * strip off AH.
 		 */
-		char *prvnxtp;
+		u_int8_t *prvnxtp;
 
 		/*
 		 * Copy the value of the next header field of AH to the
