@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.134 1998/09/26 14:29:59 dfr Exp $
+**  $Id: ncr.c,v 1.135 1998/09/26 14:37:49 dfr Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.134 1998/09/26 14:29:59 dfr Exp $\n";
+	"\n$Id: ncr.c,v 1.135 1998/09/26 14:37:49 dfr Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5807,11 +5807,11 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	};
 
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
-		printf ("OCMD=%x\nTBLP=%lx OLEN=%x OADR=%x\n",
+		printf ("OCMD=%x\nTBLP=%p OLEN=%lx OADR=%lx\n",
 			(unsigned) (READSCRIPT_OFF(vdsp_base, vdsp_off) >> 24),
-			(u_long) tblp,
-			(unsigned) olen,
-			(unsigned) oadr);
+			(void *) tblp,
+			(u_long) olen,
+			(u_long) oadr);
 	};
 
 	/*
