@@ -406,3 +406,30 @@ dev_stdclone(char *name, char **namep, char *stem, int *unit)
 		return (2);
 	return (1);
 }
+
+/*
+ * Helper sysctl for devname(3).  We're given a {u}dev_t and return
+ * the name, if any, registered by the device driver.
+ */
+static int
+sysctl_devname(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	udev_t ud;
+	dev_t dev;
+
+	error = SYSCTL_IN(req, &ud, sizeof (ud));
+	if (error)
+		return (error);
+	dev = makedev(umajor(ud), uminor(ud));
+	if (dev->si_name[0] == '\0')
+		error = ENOENT;
+	else
+		error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);
+	freedev(dev);
+	return (error);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	NULL, 0, sysctl_devname, "", "devname(3) handler");
+	
