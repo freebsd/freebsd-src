@@ -78,8 +78,8 @@ struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
 
 /* control hooks for ipfw and dummynet */
-ip_fw_ctl_t *ip_fw_ctl_ptr;
-ip_dn_ctl_t *ip_dn_ctl_ptr;
+ip_fw_ctl_t *ip_fw_ctl_ptr = NULL;
+ip_dn_ctl_t *ip_dn_ctl_ptr = NULL;
 
 /*
  * hooks for multicast routing. They all default to NULL,
@@ -358,14 +358,14 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_GET:
 		case IP_FW_TABLE_GETSIZE:
 		case IP_FW_TABLE_LIST:
-			if (IPFW_LOADED)
+			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
 
 		case IP_DUMMYNET_GET:
-			if (DUMMYNET_LOADED)
+			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
@@ -414,7 +414,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_ADD:
 		case IP_FW_TABLE_DEL:
 		case IP_FW_TABLE_FLUSH:
-			if (IPFW_LOADED)
+			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
@@ -423,7 +423,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
-			if (DUMMYNET_LOADED)
+			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT ;

@@ -629,9 +629,11 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Run packet through ipfw processing, if enabled */
+#if 0
 	if (priv->conf.ipfw[linkNum] && fw_enable && ip_fw_chk_ptr != NULL) {
 		/* XXX not implemented yet */
 	}
+#endif
 
 	/*
 	 * If unicast and destination host known, deliver to host's link,

@@ -429,7 +429,9 @@ tcp_input(m, off0)
 	struct tcpopt to;		/* options in this segment */
 	struct rmxp_tao tao;		/* our TAO cache entry */
 	int headlocked = 0;
-	struct sockaddr_in *next_hop = NULL;
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
+#endif
 	int rstreason; /* For badport_bandlim accounting purposes */
 
 	struct ip6_hdr *ip6 = NULL;
@@ -449,8 +451,6 @@ tcp_input(m, off0)
 	short ostate = 0;
 #endif
 
-	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
-	next_hop = m_claim_next(m, PACKET_TAG_IPFORWARD);
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
@@ -611,17 +611,24 @@ tcp_input(m, off0)
 	INP_INFO_WLOCK(&tcbinfo);
 	headlocked = 1;
 findpcb:
-	/* IPFIREWALL_FORWARD section */
-	if (next_hop != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
+#ifdef IPFIREWALL_FORWARD
+	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
+	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+
+	if (fwd_tag != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
+		struct sockaddr_in *next_hop;
+
+		next_hop = (struct sockaddr_in *)(fwd_tag+1);
 		/*
 		 * Transparently forwarded. Pretend to be the destination.
 		 * already got one like this?
 		 */
-		inp = in_pcblookup_hash(&tcbinfo, ip->ip_src, th->th_sport,
+		inp = in_pcblookup_hash(&tcbinfo,
+					ip->ip_src, th->th_sport,
 					ip->ip_dst, th->th_dport,
 					0, m->m_pkthdr.rcvif);
 		if (!inp) {
-			/* It's new.  Try find the ambushing socket. */
+			/* It's new.  Try to find the ambushing socket. */
 			inp = in_pcblookup_hash(&tcbinfo,
 						ip->ip_src, th->th_sport,
 						next_hop->sin_addr,
@@ -630,7 +637,10 @@ findpcb:
 						    th->th_dport,
 						1, m->m_pkthdr.rcvif);
 		}
+		/* Remove the tag from the packet.  We don't need it anymore. */
+		m_tag_delete(m, fwd_tag);
 	} else {
+#endif /* IPFIREWALL_FORWARD */
 		if (isipv6) {
 #ifdef INET6
 			inp = in6_pcblookup_hash(&tcbinfo,
@@ -643,7 +653,9 @@ findpcb:
 						ip->ip_src, th->th_sport,
 						ip->ip_dst, th->th_dport,
 						1, m->m_pkthdr.rcvif);
+#ifdef IPFIREWALL_FORWARD
 	}
+#endif /* IPFIREWALL_FORWARD */
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef INET6

@@ -156,9 +156,6 @@ static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable,
-    CTLFLAG_RW | CTLFLAG_SECURE3,
-    &fw_enable, 0, "Enable ipfw");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step, CTLFLAG_RW,
     &autoinc_step, 0, "Rule number autincrement step");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
@@ -275,10 +272,6 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive, CTLFLAG_RW,
 
 #endif /* SYSCTL_NODE */
 
-
-static ip_fw_chk_t	ipfw_chk;
-
-ip_dn_ruledel_t *ip_dn_ruledel_ptr = NULL;	/* hook into dummynet */
 
 /*
  * This macro maps an ip pointer into a layer3 header pointer of type T
@@ -1653,7 +1646,7 @@ check_uidgid(ipfw_insn_u32 *insn,
  *		  16 bits as a dummynet pipe number instead of diverting
  */
 
-static int
+int
 ipfw_chk(struct ip_fw_args *args)
 {
 	/*
@@ -3348,7 +3341,7 @@ done:
 	callout_reset(&ipfw_timeout, dyn_keepalive_period*hz, ipfw_tick, NULL);
 }
 
-static int
+int
 ipfw_init(void)
 {
 	struct ip_fw default_rule;
@@ -3384,7 +3377,13 @@ ipfw_init(void)
 
 	ip_fw_default_rule = layer3_chain.rules;
 	printf("ipfw2 initialized, divert %s, "
-		"rule-based forwarding enabled, default to %s, logging ",
+		"rule-based forwarding "
+#ifdef IPFIREWALL_FORWARD
+		"enabled, "
+#else
+		"disabled, "
+#endif
+		"default to %s, logging ",
 #ifdef IPDIVERT
 		"enabled",
 #else
@@ -3406,22 +3405,23 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    verbose_limit);
 
-	ip_fw_chk_ptr = ipfw_chk;
+	init_tables();
 	ip_fw_ctl_ptr = ipfw_ctl;
+	ip_fw_chk_ptr = ipfw_chk;
 	callout_reset(&ipfw_timeout, hz, ipfw_tick, NULL);
 
 	return (0);
 }
 
-static void
+void
 ipfw_destroy(void)
 {
 	struct ip_fw *reap;
 
-	IPFW_LOCK(&layer3_chain);
-	callout_stop(&ipfw_timeout);
 	ip_fw_chk_ptr = NULL;
 	ip_fw_ctl_ptr = NULL;
+	IPFW_LOCK(&layer3_chain);
+	callout_stop(&ipfw_timeout);
 	layer3_chain.reap = NULL;
 	free_chain(&layer3_chain, 1 /* kill default rule */);
 	reap = layer3_chain.reap, layer3_chain.reap = NULL;
@@ -3433,42 +3433,5 @@ ipfw_destroy(void)
 	IPFW_LOCK_DESTROY(&layer3_chain);
 	printf("IP firewall unloaded\n");
 }
-
-static int
-ipfw_modevent(module_t mod, int type, void *unused)
-{
-	int err = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		if (IPFW_LOADED) {
-			printf("IP firewall already loaded\n");
-			err = EEXIST;
-		} else {
-			err = ipfw_init();
-		}
-		break;
-
-	case MOD_UNLOAD:
-		ipfw_destroy();
-		err = 0;
-		break;
-	default:
-		return EOPNOTSUPP;
-		break;
-	}
-	return err;
-}
-
-static moduledata_t ipfwmod = {
-	"ipfw",
-	ipfw_modevent,
-	0
-};
-DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-MODULE_VERSION(ipfw, 1);
-
-/* Must be run after route_init(). */
-SYSINIT(ipfw, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, init_tables, 0)
 
 #endif /* IPFW2 */

@@ -76,9 +76,6 @@
  */
 
 #include "opt_ipfw.h"
-#include "opt_ipdn.h"
-#include "opt_ipdivert.h"
-#include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
 #include "opt_pfil_hooks.h"
 
@@ -106,10 +103,6 @@
 #include <netinet/ip_icmp.h>
 
 #include <machine/in_cksum.h>
-
-#include <netinet/ip_fw.h>
-#include <netinet/ip_divert.h>
-#include <netinet/ip_dummynet.h>
 
 static int ipfastforward_active = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
@@ -163,20 +156,18 @@ ip_fastforward(struct mbuf *m)
 {
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
-#ifdef IPDIVERT
-	struct ip *tip;
-	struct mbuf *clone = NULL;
-#endif
 	struct route ro;
 	struct sockaddr_in *dst = NULL;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa = NULL;
 	struct ifnet *ifp;
-	struct ip_fw_args args;
 	struct in_addr odest, dest;
 	u_short sum, ip_len;
 	int error = 0;
-	int hlen, ipfw, mtu;
+	int hlen, mtu;
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
+#endif
 
 	/*
 	 * Are we active and forwarding packets?
@@ -375,92 +366,6 @@ ip_fastforward(struct mbuf *m)
 
 	ip = mtod(m, struct ip *);	/* m may have changed by pfil hook */
 	dest.s_addr = ip->ip_dst.s_addr;
-#endif
-
-	/*
-	 * Run through ipfw for input packets
-	 */
-	if (fw_enable && IPFW_LOADED) {
-		bzero(&args, sizeof(args));
-		args.m = m;
-
-		ipfw = ip_fw_chk_ptr(&args);
-		m = args.m;
-
-		M_ASSERTVALID(m);
-		M_ASSERTPKTHDR(m);
-
-		/*
-		 * Packet denied, drop it
-		 */
-		if ((ipfw & IP_FW_PORT_DENY_FLAG) || m == NULL)
-			goto drop;
-		/*
-		 * Send packet to the appropriate pipe
-		 */
-		if (DUMMYNET_LOADED && (ipfw & IP_FW_PORT_DYNT_FLAG) != 0) {
-			ip_dn_io_ptr(m, ipfw & 0xffff, DN_TO_IP_IN, &args);
-			return 1;
-		}
-#ifdef IPDIVERT
-		/*
-		 * Divert packet
-		 */
-		if (ipfw != 0 && (ipfw & IP_FW_PORT_DYNT_FLAG) == 0) {
-			/*
-			 * See if this is a fragment
-			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK))
-				goto droptoours;
-			/*
-			 * Tee packet
-			 */
-			if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-				clone = divert_clone(m);
-			else
-				clone = m;
-			if (clone == NULL)
-				goto passin;
-
-			/*
-			 * Delayed checksums are not compatible
-			 */
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				in_delayed_cksum(m);
-				m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-			}
-			/*
-			 * Restore packet header fields to original values
-			 */
-			tip = mtod(m, struct ip *);
-			tip->ip_len = htons(tip->ip_len);
-			tip->ip_off = htons(tip->ip_off);
-			/*
-			 * Deliver packet to divert input routine
-			 */
-			divert_packet(m, 0);
-			/*
-			 * If this was not tee, we are done
-			 */
-			m = clone;
-			if ((ipfw & IP_FW_PORT_TEE_FLAG) == 0)
-				return 1;
-			/* Continue if it was tee */
-			goto passin;
-		}
-#endif
-		if (ipfw == 0 && args.next_hop != NULL) {
-			dest.s_addr = args.next_hop->sin_addr.s_addr;
-			goto passin;
-		}
-		/*
-		 * Let through or not?
-		 */
-		if (ipfw != 0)
-			goto drop;
-	}
-passin:
-	ip = mtod(m, struct ip *);	/* if m changed during fw processing */
 
 	/*
 	 * Destination address changed?
@@ -475,6 +380,15 @@ passin:
 		 * Go on with new destination address
 		 */
 	}
+#ifdef IPFIREWALL_FORWARD
+	if (m->m_flags & M_FASTFWD_OURS) {
+		/*
+		 * ipfw changed it for a local address on this host.
+		 */
+		goto forwardlocal;
+	}
+#endif /* IPFIREWALL_FORWARD */
+#endif /* PFIL_HOOKS */
 
 	/*
 	 * Step 4: decrement TTL and look up route
@@ -528,123 +442,32 @@ passin:
 
 	ip = mtod(m, struct ip *);
 	dest.s_addr = ip->ip_dst.s_addr;
-#endif
-	if (fw_enable && IPFW_LOADED && !args.next_hop) {
-		bzero(&args, sizeof(args));
-		args.m = m;
-		args.oif = ifp;
-
-		ipfw = ip_fw_chk_ptr(&args);
-		m = args.m;
-
-		M_ASSERTVALID(m);
-		M_ASSERTPKTHDR(m);
-
-		if ((ipfw & IP_FW_PORT_DENY_FLAG) || m == NULL)
-			goto drop;
-
-		if (DUMMYNET_LOADED && (ipfw & IP_FW_PORT_DYNT_FLAG) != 0) {
-			/*
-			 * XXX note: if the ifp or rt entry are deleted
-			 * while a pkt is in dummynet, we are in trouble!
-			 */
-			args.ro = &ro;		/* dummynet does not save it */
-			args.dst = dst;
-
-			ip_dn_io_ptr(m, ipfw & 0xffff, DN_TO_IP_OUT, &args);
-			goto consumed;
-		}
-#ifdef IPDIVERT
-		if (ipfw != 0 && (ipfw & IP_FW_PORT_DYNT_FLAG) == 0) {
-			/*
-			 * See if this is a fragment
-			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK))
-				goto droptoours;
-			/*
-			 * Tee packet
-			 */
-			if ((ipfw & IP_FW_PORT_TEE_FLAG) != 0)
-				clone = divert_clone(m);
-			else
-				clone = m;
-			if (clone == NULL)
-				goto passout;
-
-			/*
-			 * Delayed checksums are not compatible with divert
-			 */
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				in_delayed_cksum(m);
-				m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-			}
-			/*
-			 * Restore packet header fields to original values
-			 */
-			tip = mtod(m, struct ip *);
-			tip->ip_len = htons(tip->ip_len);
-			tip->ip_off = htons(tip->ip_off);
-			/*
-			 * Deliver packet to divert input routine
-			 */
-			divert_packet(m, 0);
-			/*
-			 * If this was not tee, we are done
-			 */
-			m = clone;
-			if ((ipfw & IP_FW_PORT_TEE_FLAG) == 0) {
-				goto consumed;
-			}
-			/* Continue if it was tee */
-			goto passout;
-		}
-#endif
-		if (ipfw == 0 && args.next_hop != NULL) {
-			dest.s_addr = args.next_hop->sin_addr.s_addr;
-			goto passout;
-		}
-		/*
-		 * Let through or not?
-		 */
-		if (ipfw != 0)
-			goto drop;
-	}
-passout:
-	ip = mtod(m, struct ip *);
 
 	/*
 	 * Destination address changed?
 	 */
+#ifndef IPFIREWALL_FORWARD
 	if (odest.s_addr != dest.s_addr) {
+#else
+	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (odest.s_addr != dest.s_addr || fwd_tag != NULL) {
+#endif /* IPFIREWALL_FORWARD */
 		/*
 		 * Is it now for a local address on this host?
 		 */
+#ifndef IPFIREWALL_FORWARD
 		if (in_localip(dest)) {
+#else
+		if (in_localip(dest) || m->m_flags & M_FASTFWD_OURS) {
+#endif /* IPFIREWALL_FORWARD */
 forwardlocal:
-			if (args.next_hop) {
-				struct m_tag *mtag = m_tag_get(
-				    PACKET_TAG_IPFORWARD,
-				    sizeof(struct sockaddr_in *),
-				    M_NOWAIT);
-				if (mtag == NULL) {
-					goto drop;
-				}
-				*(struct sockaddr_in **)(mtag+1) =
-				    args.next_hop;
-				m_tag_prepend(m, mtag);
-			}
-#ifdef IPDIVERT
-droptoours:	/* Used for DIVERT */
-#endif
 			/* for ip_input */
 			m->m_flags |= M_FASTFWD_OURS;
-
-			/* ip still points to the real packet */
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
 
 			/*
-			 * Return packet for processing by ip_input
+			 * Return packet for processing by ip_input()
 			 */
 			if (ro.ro_rt)
 				RTFREE(ro.ro_rt);
@@ -653,11 +476,20 @@ droptoours:	/* Used for DIVERT */
 		/*
 		 * Redo route lookup with new destination address
 		 */
+#ifdef IPFIREWALL_FORWARD
+		if (fwd_tag) {
+			if (!in_localip(ip->ip_src) && !in_localaddr(ip->ip_dst))
+				dest.s_addr = ((struct sockaddr_in *)(fwd_tag+1))->sin_addr.s_addr;
+				//bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
+			m_tag_delete(m, fwd_tag);
+		}
+#endif /* IPFIREWALL_FORWARD */
 		RTFREE(ro.ro_rt);
 		if ((dst = ip_findroute(&ro, dest, m)) == NULL)
 			return 1;	/* icmp unreach already sent */
 		ifp = ro.ro_rt->rt_ifp;
 	}
+#endif /* PFIL_HOOKS */
 
 	/*
 	 * Step 6: send off the packet
