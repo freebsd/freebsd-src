@@ -26,6 +26,7 @@
 #   include "cxreg.h"
 #else
 #   include <sys/param.h>
+#   include <sys/systm.h>
 #   include <sys/socket.h>
 #   include <net/if.h>
 #   include <vm/vm.h>
