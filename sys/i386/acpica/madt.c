@@ -495,10 +495,10 @@ madt_parse_apics(APIC_HEADER *entry, void *arg __unused)
 }
 
 /*
- * Determine properties of an interrupt source.  Note that for ACPI,
- * these are only used for ISA interrupts, so we assume ISA bus values
+ * Determine properties of an interrupt source.  Note that for ACPI these
+ * functions are only used for ISA interrupts, so we assume ISA bus values
  * (Active Hi, Edge Triggered) for conforming values except for the ACPI
- * SCI for which we use Active Lo, Level Triggered..
+ * SCI for which we use Active Lo, Level Triggered.
  */
 static enum intr_polarity
 interrupt_polarity(UINT16 Polarity, UINT8 Source)
