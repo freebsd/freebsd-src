@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.16 1998/03/22 05:33:00 peter Exp $";
+static char rcsid[] = "$Id: main.c,v 1.17 1998/06/20 18:02:12 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -548,6 +548,7 @@ main(argc, argv)
 	 * incoming events (reply, timeout, etc.).
 	 */
 	syslog(LOG_NOTICE, "Connect: %s <--> %s", ifname, devnam);
+	stime = time((time_t *) NULL);
 	lcp_lowerup(0);
 	lcp_open(0);		/* Start protocol */
 	for (phase = PHASE_ESTABLISH; phase != PHASE_DEAD; ) {
