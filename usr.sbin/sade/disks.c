@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.32 1995/09/18 16:52:23 peter Exp $
+ * $Id: disks.c,v 1.33 1995/12/07 10:33:39 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -519,10 +519,6 @@ partitionHook(char *str)
 	    dialog_clear();
 	    msgConfirm("Unable to find disk %s!", str);
 	    return 0;
-	}
-	else if (devs[1]) {
-	    dialog_clear();
-	    msgConfirm("Bizarre multiple match for %s!", str);
 	}
 	devs[0]->enabled = TRUE;
 	diskPartition(devs[0], (Disk *)devs[0]->private);

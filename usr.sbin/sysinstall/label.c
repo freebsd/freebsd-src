@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.33 1995/09/18 16:52:28 peter Exp $
+ * $Id: label.c,v 1.34 1995/12/07 10:33:54 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,10 +108,6 @@ labelHook(char *str)
 	    msgConfirm("Unable to find disk %s!", str);
 	    return 0;
 	}
-	else if (devs[1]) {
-	    dialog_clear();
-	    msgConfirm("Bizarre multiple match for %s!", str);
-	}
 	devs[0]->enabled = TRUE;
 	str = cp;
     }
@@ -137,7 +133,8 @@ diskLabelEditor(char *str)
 	return RET_FAIL;
     }
     else if (cnt == 1 || variable_get(DISK_SELECTED)) {
-	devs[0]->enabled = TRUE;
+	if (cnt == 1)
+	    devs[0]->enabled = TRUE;
 	if (str && !strcmp(str, "script"))
 	    i = scriptLabel(str);
 	else
