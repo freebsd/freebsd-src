@@ -34,9 +34,8 @@
 # Disks:
 #	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
-#	as*	"SCSI" disk/tape/CDROM drives
-#	sd*	"NEW type scsi disks"
-#	cd*	"NEW type cdrom disks"
+#	sd*	"scsi disks"
+#	cd*	"cdrom disks"
 #
 # Console ports:
 #	pc*	devices for stock pccons
@@ -63,7 +62,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id: MAKEDEV,v 1.7 1993/09/06 03:00:38 jkh Exp $
+#	$Id: MAKEDEV,v 1.8 1993/09/14 21:42:14 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -103,18 +102,25 @@ std)
 	chmod 666 fd/*
 	;;
 
+
+# Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
-	umask 2;
-	rm -f wt0 rwt0
-	mknod wt0 	b 3 0;	chown root.operator wt0
-	mknod rwt0	c 10 0;	chown root.operator rwt0
+	umask 2 ; u=`expr $i : '..\(.*\)'`
+	if [ x$u = x ]; then u=0; fi
+	rm -f rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
+	mknod rwt${u}   c 10 `expr  0 + $u`     # 150 megabytes
+	mknod nrwt${u}  c 10 `expr  4 + $u`
+	mknod rwt${u}a  c 10 `expr  8 + $u`     # 120 megabytes
+	mknod nrwt${u}a c 10 `expr 12 + $u`
+	mknod rwt${u}b  c 10 `expr 16 + $u`     # 60 megabytes
+	mknod nrwt${u}b c 10 `expr 20 + $u`
+	chown root.operator rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
 	umask 77;
 	;;
 
-as*|fd*|sd*|wd*)
+fd*|sd*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	as*) name=as; blk=4; chr=13;;
 	fd*) name=fd; blk=2; chr=9;;
 	sd*) name=sd; blk=4; chr=13;;
 	wd*) name=wd; blk=0; chr=3;;
