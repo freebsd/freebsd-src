@@ -1,6 +1,4 @@
-#	$Id$
-
-CPLUSPLUSLIB=	cpluspluslib
+#	$Id: Makefile.inc,v 1.8 1997/02/22 15:05:31 peter Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
