@@ -633,7 +633,7 @@
 	    <filename>/sbin/nologin</filename> to
 	    <filename>/usr/sbin/nologin</filename>.  Because a number
 	    of pseudo-users have &man.nologin.8; as their login shell,
-	    this changes generate additional differences in
+	    this change generates additional differences in
 	    <filename>/etc/passwd</filename>.</para>
 
         </listitem>
