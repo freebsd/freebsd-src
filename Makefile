@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.53 1995/04/27 11:25:48 jkh Exp $
+#	$Id: Makefile,v 1.54 1995/05/05 18:00:30 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -289,6 +289,10 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/eBones/krb && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(usr.sbin/pcvt/keycap)
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap && \
+		 ${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
 tools:
