@@ -33,7 +33,7 @@
 #define LOGIN_MECLASS		"me"
 #define LOGIN_DEFSTYLE		"passwd"
 #define LOGIN_DEFSERVICE	"login"
-#define	LOGIN_DEFUMASK		022
+#define LOGIN_DEFUMASK		022
 #define LOGIN_DEFPRI		0
 #define _PATH_LOGIN_CONF	"/etc/login.conf"
 #define _FILE_LOGIN_CONF	".login_conf"
@@ -47,7 +47,7 @@
 #define LOGIN_SETUMASK		0x0020		/* set umask, obviously */
 #define LOGIN_SETUSER		0x0040		/* set user (via setuid) */
 #define LOGIN_SETENV		0x0080		/* set user environment */
-#define	LOGIN_SETALL		0x00ff		/* set everything */
+#define LOGIN_SETALL		0x00ff		/* set everything */
 
 #define BI_AUTH		"authorize"		/* accepted authentication */
 #define BI_REJECT	"reject"		/* rejected authentication */
@@ -65,7 +65,7 @@
 #define AUTH_SILENT		0x08		/* silent rejection */
 #define AUTH_CHALLENGE		0x10		/* a chellenge was given */
 
-#define	AUTH_ALLOW		(AUTH_OKAY | AUTH_ROOTOKAY | AUTH_SECURE)
+#define AUTH_ALLOW		(AUTH_OKAY | AUTH_ROOTOKAY | AUTH_SECURE)
 
 typedef struct login_cap {
     char    *lc_class;
