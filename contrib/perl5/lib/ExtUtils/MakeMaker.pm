@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 BEGIN {require 5.002;} # MakeMaker 5.17 was the last MakeMaker that was compatible with perl5.001m
 
 package ExtUtils::MakeMaker;
@@ -326,7 +328,6 @@ sub full_setup {
 
 	   INST_BIN 1 INST_EXE 1 INST_LIB 1 INST_ARCHLIB 1 INST_SCRIPT
 	   1 MAP_TARGET 1 INST_MAN1DIR 1 INST_MAN3DIR 1 PERL_SRC 1
-	   PERL 1 FULLPERL 1
 
 	  );
 
