@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_trig.c,v 1.3 1994/04/29 21:16:25 gclarkii Exp $
+ *    $Id: fpu_trig.c,v 1.4 1994/06/10 07:44:27 rich Exp $
  *
  */
 
@@ -72,6 +72,8 @@
 #include "status_w.h"
 #include "reg_constant.h"
 #include "control_w.h"
+
+static void convert_l2reg(long *arg, FPU_REG * dest);
 
 static int
 trig_arg(FPU_REG * X)
@@ -104,7 +106,7 @@ trig_arg(FPU_REG * X)
 
 
 /* Convert a long to register */
-void
+static void
 convert_l2reg(long *arg, FPU_REG * dest)
 {
 	long    num = *arg;

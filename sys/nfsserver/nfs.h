@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.14 1995/11/21 12:54:38 bde Exp $
+ * $Id: nfs.h,v 1.15 1995/12/03 10:02:41 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -502,8 +502,6 @@ int	nfsm_disct __P((struct mbuf **,caddr_t *,int,int,caddr_t *));
 void	nfsm_srvfattr __P((struct nfsrv_descript *,struct vattr *,struct nfs_fattr *));
 void	nfsm_srvwcc __P((struct nfsrv_descript *,int,struct vattr *,int,struct vattr *,struct mbuf **,char **));
 void	nfsm_srvpostopattr __P((struct nfsrv_descript *,int,struct vattr *,struct mbuf **,char **));
-int	nfsrv_fhtovp __P((fhandle_t *,int,struct vnode **,struct ucred *,struct nfssvc_sock *,struct mbuf *,int *,int));
-int	nfsrv_access __P((struct vnode *,int,struct ucred *,int,struct proc *));
 int	netaddr_match __P((int,union nethostaddr *,struct mbuf *));
 int	nfs_request __P((struct vnode *,struct mbuf *,int,struct proc *,struct ucred *,struct mbuf **,struct mbuf **,caddr_t *));
 int	nfs_loadattrcache __P((struct vnode **,struct mbuf **,caddr_t *,struct vattr *));
@@ -511,26 +509,19 @@ int	nfs_namei __P((struct nameidata *,fhandle_t *,int,struct nfssvc_sock *,struc
 void	nfsm_adj __P((struct mbuf *,int,int));
 int	nfsm_mbuftouio __P((struct mbuf **,struct uio *,int,caddr_t *));
 void	nfsrv_initcache __P((void));
-int	nfs_rcvlock __P((struct nfsreq *));
-void	nfs_rcvunlock __P((int *flagp));
 int	nfs_getauth __P((struct nfsmount *,struct nfsreq *,struct ucred *,char **,int *,char *,int *,NFSKERBKEY_T));
 int	nfs_getnickauth __P((struct nfsmount *,struct ucred *,char **,int *,char *,int));
 int	nfs_savenickauth __P((struct nfsmount *,struct ucred *,int,NFSKERBKEY_T,struct mbuf **,char **,struct mbuf *));
-int	nfs_msg __P((struct proc *,char *,char *));
 int	nfs_adv __P((struct mbuf **,caddr_t *,int,int));
-int	nfsrv_getstream __P((struct nfssvc_sock *,int));
 void	nfs_nhinit __P((void));
 void	nfs_timer __P((void*));
 u_long nfs_hash __P((nfsfh_t *,int));
-int	nfssvc_iod __P((struct proc *));
-int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
-int	nfssvc_addsock __P((struct file *,struct mbuf *));
 void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 int	nfsrv_dorec __P((struct nfssvc_sock *,struct nfsd *,struct nfsrv_descript **));
 void	nfsrv_cleancache __P((void));
 int	nfsrv_getcache __P((struct nfsrv_descript *,struct nfssvc_sock *,struct mbuf **));
+int	nfs_init __P((void));
 void	nfsrv_updatecache __P((struct nfsrv_descript *,int,struct mbuf *));
-int	mountnfs __P((struct nfs_args *,struct mount *,struct mbuf *,char *,char *,struct vnode **));
 int	nfs_connect __P((struct nfsmount *,struct nfsreq *));
 void	nfs_disconnect __P((struct nfsmount *nmp));
 int	nfs_getattrcache __P((struct vnode *,struct vattr *));
@@ -540,7 +531,6 @@ int	nfsm_uiotombuf __P((struct uio *,struct mbuf **,int,caddr_t *));
 void	nfsrv_init __P((int));
 void	nfs_clearcommit __P((struct mount *));
 int	nfsrv_errmap __P((struct nfsrv_descript *, int));
-void	nfsrvw_coalesce __P((struct nfsrv_descript *,struct nfsrv_descript *));
 void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
 void	nfsrvw_sort __P((gid_t [],int));
 void	nfsrv_setcred __P((struct ucred *,struct ucred *));
@@ -560,6 +550,9 @@ int	nfsrv_commit __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			  struct proc *procp, struct mbuf **mrq));
 int	nfsrv_create __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			  struct proc *procp, struct mbuf **mrq));
+int	nfsrv_fhtovp __P((fhandle_t *,int,struct vnode **,
+			struct ucred *,struct nfssvc_sock *,struct mbuf *,
+			int *,int));
 int	nfsrv_fsinfo __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			  struct proc *procp, struct mbuf **mrq));
 int	nfsrv_getattr __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
@@ -603,6 +596,7 @@ int	nfsrv_symlink __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			   struct proc *procp, struct mbuf **mrq));
 int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
+
 
 #endif	/* KERNEL */
 

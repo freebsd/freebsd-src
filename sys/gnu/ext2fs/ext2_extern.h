@@ -65,28 +65,14 @@ int	ext2_blkatoff __P((struct vop_blkatoff_args *));
 void	ext2_blkfree __P((struct inode *, daddr_t, long));
 daddr_t	ext2_blkpref __P((struct inode *, daddr_t, int, daddr_t *, daddr_t));
 int	ext2_bmap __P((struct vop_bmap_args *));
-int	ext2_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
-	    struct vnode **, int *, struct ucred **));
-int	ext2_fsync __P((struct vop_fsync_args *));
 int	ext2_init __P((void));
-int	ext2_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct proc *));
-int	ext2_mountfs __P((struct vnode *, struct mount *, struct proc *));
-int	ext2_mountroot __P((void));
-int	ext2_read __P((struct vop_read_args *));
 int	ext2_reallocblks __P((struct vop_reallocblks_args *));
 int	ext2_reclaim __P((struct vop_reclaim_args *));
 void	ext2_setblock __P((struct ext2_sb_info *, u_char *, daddr_t));
-int	ext2_statfs __P((struct mount *, struct statfs *, struct proc *));
-int	ext2_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int	ext2_truncate __P((struct vop_truncate_args *));
-int	ext2_unmount __P((struct mount *, int, struct proc *));
 int	ext2_update __P((struct vop_update_args *));
 int	ext2_valloc __P((struct vop_valloc_args *));
 int	ext2_vfree __P((struct vop_vfree_args *));
-int	ext2_vget __P((struct mount *, ino_t, struct vnode **));
-int	ext2_vptofh __P((struct vnode *, struct fid *));
-int	ext2_write __P((struct vop_write_args *));
 int 	ext2_lookup __P((struct vop_lookup_args *));
 int 	ext2_readdir __P((struct vop_readdir_args *));
 void	ext2_print_dinode __P((struct dinode *));
@@ -111,9 +97,6 @@ unsigned long ext2_count_free __P((struct buf *map, unsigned int numchars));
 void	ext2_free_blocks (struct mount * mp, unsigned long block,
 		       unsigned long count);
 void	ext2_free_inode (struct inode * inode);
-int	ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
-int	ext2_reload __P((struct mount *mountp, struct ucred *cred,
-			struct proc *p));
 void	ext2_ei2di __P((struct ext2_inode *ei, struct dinode *di));
 void	ext2_di2ei __P((struct dinode *di, struct ext2_inode *ei));
 void	mark_buffer_dirty __P((struct buf *bh));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.7 1995/09/06 05:41:16 dyson Exp $
+ * $Id: ffs_extern.h,v 1.8 1995/11/09 08:14:04 bde Exp $
  */
 
 struct buf;
@@ -62,14 +62,10 @@ int	ffs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, long [], int));
-int	ffs_fsync __P((struct vop_fsync_args *));
 int	ffs_init __P((void));
 int	ffs_isblock __P((struct fs *, u_char *, daddr_t));
-int	ffs_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct proc *));
 int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	ffs_mountroot __P((void));
-int	ffs_read __P((struct vop_read_args *));
 int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
 	    daddr_t, daddr_t, int, int, struct ucred *, struct buf **));
@@ -84,8 +80,6 @@ int	ffs_valloc __P((struct vop_valloc_args *));
 int	ffs_vfree __P((struct vop_vfree_args *));
 int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
-int	ffs_write __P((struct vop_write_args *));
-int	ffs_getpages __P((struct vop_getpages_args *));
 
 #ifdef DIAGNOSTIC
 void	ffs_checkoverlap __P((struct buf *, struct inode *));

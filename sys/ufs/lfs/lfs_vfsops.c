@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.11 1995/03/19 14:29:20 davidg Exp $
+ * $Id: lfs_vfsops.c,v 1.12 1995/08/28 09:19:12 julian Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,16 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-int lfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
+static int lfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+	    struct vnode **, int *, struct ucred **));
+static int lfs_mount __P((struct mount *, char *, caddr_t,
+		struct nameidata *, struct proc *));
+static int lfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
+static int lfs_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int lfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
+static int lfs_unmount __P((struct mount *, int, struct proc *));
+static int lfs_vget __P((struct mount *, ino_t, struct vnode **));
+static int lfs_vptofh __P((struct vnode *, struct fid *));
 
 struct vfsops lfs_vfsops = {
 	lfs_mount,
@@ -118,7 +127,7 @@ VFS_SET(lfs_vfsops, lfs, MOUNT_LFS, 0);
  *
  *		Root mounts are not currently supported.
  */
-int
+static int
 lfs_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -253,7 +262,7 @@ success:
  * Common code for mount and mountroot
  * LFS specific
  */
-int
+static int
 lfs_mountfs(devvp, mp, p)
 	register struct vnode *devvp;
 	struct mount *mp;
@@ -380,7 +389,7 @@ out:
 /*
  * unmount system call
  */
-int
+static int
 lfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -439,7 +448,7 @@ lfs_unmount(mp, mntflags, p)
 /*
  * Get file system statistics.
  */
-int
+static int
 lfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -478,7 +487,7 @@ lfs_statfs(mp, sbp, p)
  *
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
-int
+static int
 lfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -500,7 +509,7 @@ lfs_sync(mp, waitfor, cred, p)
  * in core, read it in from the specified device.  Return the inode locked.
  * Detection and handling of mount points must be done by the calling routine.
  */
-int
+static int
 lfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -606,7 +615,7 @@ lfs_vget(mp, ino, vpp)
  * what is the relationship between my generational number and the NFS
  * generational number.
  */
-int
+static int
 lfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
@@ -627,7 +636,7 @@ lfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
-int
+static int
 lfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

@@ -79,9 +79,13 @@
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
 
+static int ext2_fsync __P((struct vop_fsync_args *));
+static int ext2_read __P((struct vop_read_args *));
+static int ext2_write __P((struct vop_write_args *));
+
 /* Global vfs data structures for ufs. */
 vop_t **ext2_vnodeop_p;
-struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)ext2_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
@@ -126,11 +130,11 @@ struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
+static struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
 	{ &ext2_vnodeop_p, ext2_vnodeop_entries };
 
 vop_t **ext2_specop_p;
-struct vnodeopv_entry_desc ext2_specop_entries[] = {
+static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
@@ -175,11 +179,11 @@ struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ext2fs_specop_opv_desc =
+static struct vnodeopv_desc ext2fs_specop_opv_desc =
 	{ &ext2_specop_p, ext2_specop_entries };
 
 vop_t **ext2_fifoop_p;
-struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
+static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
@@ -224,7 +228,7 @@ struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ext2fs_fifoop_opv_desc =
+static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	{ &ext2_fifoop_p, ext2_fifoop_entries };
 
 #if defined(__FreeBSD__)
@@ -238,9 +242,9 @@ struct vnodeopv_desc ext2fs_fifoop_opv_desc =
  */
 #ifdef DEBUG
 #include <sys/sysctl.h>
-int doclusterread = 1;
+static int doclusterread = 1;
 SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
-int doclusterwrite = 1;
+static int doclusterwrite = 1;
 SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
 #endif
 
@@ -261,7 +265,7 @@ SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
  * Synch an open file.
  */
 /* ARGSUSED */
-int
+static int
 ext2_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;

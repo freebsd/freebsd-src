@@ -72,9 +72,23 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
-int ext2_sbupdate __P((struct ufsmount *, int));
+static int ext2_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+	    struct vnode **, int *, struct ucred **));
+static int ext2_flushfiles __P((struct mount *mp, int flags, struct proc *p));
+static int ext2_mount __P((struct mount *,
+	    char *, caddr_t, struct nameidata *, struct proc *));
+static int ext2_mountfs __P((struct vnode *, struct mount *, struct proc *));
+static int ext2_mountroot __P((void));
+static int ext2_reload __P((struct mount *mountp, struct ucred *cred,
+			struct proc *p));
+static int ext2_sbupdate __P((struct ufsmount *, int));
+static int ext2_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int ext2_sync __P((struct mount *, int, struct ucred *, struct proc *));
+static int ext2_unmount __P((struct mount *, int, struct proc *));
+static int ext2_vget __P((struct mount *, ino_t, struct vnode **));
+static int ext2_vptofh __P((struct vnode *, struct fid *));
 
-struct vfsops ext2fs_vfsops = {
+static struct vfsops ext2fs_vfsops = {
 	ext2_mount,
 	ufs_start,		/* empty function */
 	ext2_unmount,
@@ -96,7 +110,7 @@ VFS_SET(ext2fs_vfsops, ext2fs, MOUNT_EXT2FS, 0);
 
 extern u_long nextgennumber;
 #ifdef __FreeBSD__
-int ext2fs_inode_hash_lock;
+static int ext2fs_inode_hash_lock;
 #endif
 
 /*
@@ -110,7 +124,7 @@ static int	compute_sb_data __P((struct vnode * devvp,
 				     struct ext2_super_block * es,
 				     struct ext2_sb_info * fs));
 
-int
+static int
 ext2_mountroot()
 {
 #if !defined(__FreeBSD__)
@@ -173,7 +187,7 @@ ext2_mountroot()
  *
  * mount system call
  */
-int
+static int
 ext2_mount(mp, path, data, ndp, p)
 	register struct mount *mp;	
 	char *path;
@@ -431,7 +445,7 @@ static int compute_sb_data(devvp, es, fs)
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
  */
-int
+static int
 ext2_reload(mountp, cred, p)
 	register struct mount *mountp;
 	struct ucred *cred;
@@ -524,7 +538,7 @@ loop:
 /*
  * Common code for mount and mountroot
  */
-int
+static int
 ext2_mountfs(devvp, mp, p)
 	register struct vnode *devvp;
 	struct mount *mp;
@@ -651,7 +665,7 @@ out:
 /*
  * unmount system call
  */
-int
+static int
 ext2_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -702,7 +716,7 @@ ext2_unmount(mp, mntflags, p)
 /*
  * Flush out all the files in a filesystem.
  */
-int
+static int
 ext2_flushfiles(mp, flags, p)
 	register struct mount *mp;
 	int flags;
@@ -743,7 +757,7 @@ ext2_flushfiles(mp, flags, p)
  * Get file system statistics.
  * taken from ext2/super.c ext2_statfs
  */
-int
+static int
 ext2_statfs(mp, sbp, p)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -798,7 +812,7 @@ ext2_statfs(mp, sbp, p)
  *
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
-int
+static int
 ext2_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -876,7 +890,7 @@ loop:
  * return the inode locked.  Detection and handling of mount points must be
  * done by the calling routine.
  */
-int
+static int
 ext2_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -1034,7 +1048,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
  * - check that the given client host has export rights and return
  *   those rights via. exflagsp and credanonp
  */
-int
+static int
 ext2_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
@@ -1058,7 +1072,7 @@ ext2_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
-int
+static int
 ext2_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -1077,7 +1091,7 @@ ext2_vptofh(vp, fhp)
 /*
  * Write a superblock and associated information back to disk.
  */
-int
+static int
 ext2_sbupdate(mp, waitfor)
 	struct ufsmount *mp;
 	int waitfor;

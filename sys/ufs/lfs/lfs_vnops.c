@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.15 1995/11/09 08:14:15 bde Exp $
+ * $Id: lfs_vnops.c,v 1.16 1995/12/07 12:47:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -68,9 +68,17 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
+static int	 lfs_close __P((struct vop_close_args *));
+static int	 lfs_fsync __P((struct vop_fsync_args *));
+static int	 lfs_getattr __P((struct vop_getattr_args *));
+static int	 lfs_inactive __P((struct vop_inactive_args *));
+static int	 lfs_read __P((struct vop_read_args *));
+static int	 lfs_write __P((struct vop_write_args *));
+
+
 /* Global vfs data structures for lfs. */
 vop_t **lfs_vnodeop_p;
-struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)ufs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
@@ -114,11 +122,11 @@ struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc lfs_vnodeop_opv_desc =
+static struct vnodeopv_desc lfs_vnodeop_opv_desc =
 	{ &lfs_vnodeop_p, lfs_vnodeop_entries };
 
 vop_t **lfs_specop_p;
-struct vnodeopv_entry_desc lfs_specop_entries[] = {
+static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
@@ -162,11 +170,11 @@ struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc lfs_specop_opv_desc =
+static struct vnodeopv_desc lfs_specop_opv_desc =
 	{ &lfs_specop_p, lfs_specop_entries };
 
 vop_t **lfs_fifoop_p;
-struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
+static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
@@ -210,7 +218,7 @@ struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)lfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc lfs_fifoop_opv_desc =
+static struct vnodeopv_desc lfs_fifoop_opv_desc =
 	{ &lfs_fifoop_p, lfs_fifoop_entries };
 
 VNODEOP_SET(lfs_vnodeop_opv_desc);
@@ -225,7 +233,7 @@ VNODEOP_SET(lfs_fifoop_opv_desc);
  * Synch an open file.
  */
 /* ARGSUSED */
-int
+static int
 lfs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -265,155 +273,9 @@ lfs_fsync(ap)
 
 #define	MARK_VNODE(dvp)	(dvp)->v_flag |= VDIROP
 
-int
-lfs_symlink(ap)
-	struct vop_symlink_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-		char *a_target;
-	} */ *ap;
-{
-	int ret;
 
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	ret = ufs_symlink(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_mknod(ap)
-	struct vop_mknod_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	ret = ufs_mknod(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_create(ap)
-	struct vop_create_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	ret = ufs_create(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_mkdir(ap)
-	struct vop_mkdir_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	ret = ufs_mkdir(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_remove(ap)
-	struct vop_remove_args /* {
-		struct vnode *a_dvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	MARK_VNODE(ap->a_vp);
-	ret = ufs_remove(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_rmdir(ap)
-	struct vop_rmdir_args /* {
-		struct vnodeop_desc *a_desc;
-		struct vnode *a_dvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_dvp)->i_lfs);
-	MARK_VNODE(ap->a_dvp);
-	MARK_VNODE(ap->a_vp);
-	ret = ufs_rmdir(ap);
-	SET_ENDOP(VTOI(ap->a_dvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_link(ap)
-	struct vop_link_args /* {
-		struct vnode *a_tdvp;
-		struct vnode *a_vp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_tdvp)->i_lfs);
-	MARK_VNODE(ap->a_tdvp);
-	ret = ufs_link(ap);
-	SET_ENDOP(VTOI(ap->a_tdvp)->i_lfs);
-	return (ret);
-}
-
-int
-lfs_rename(ap)
-	struct vop_rename_args  /* {
-		struct vnode *a_fdvp;
-		struct vnode *a_fvp;
-		struct componentname *a_fcnp;
-		struct vnode *a_tdvp;
-		struct vnode *a_tvp;
-		struct componentname *a_tcnp;
-	} */ *ap;
-{
-	int ret;
-
-	SET_DIROP(VTOI(ap->a_fdvp)->i_lfs);
-	MARK_VNODE(ap->a_fdvp);
-	MARK_VNODE(ap->a_tdvp);
-	ret = ufs_rename(ap);
-	SET_ENDOP(VTOI(ap->a_fdvp)->i_lfs);
-	return (ret);
-}
 /* XXX hack to avoid calling ITIMES in getattr */
-int
+static int
 lfs_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -461,7 +323,7 @@ lfs_getattr(ap)
  * count.
  */
 /* ARGSUSED */
-int
+static int
 lfs_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -487,7 +349,7 @@ lfs_close(ap)
  * Stub inactive routine that avoids calling ufs_inactive in some cases.
  */
 
-int
+static int
 lfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;

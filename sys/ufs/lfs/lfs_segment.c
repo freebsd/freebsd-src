@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.14 1995/09/04 00:21:01 dyson Exp $
+ * $Id: lfs_segment.c,v 1.15 1995/12/03 11:16:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -61,18 +61,18 @@
 #include <ufs/lfs/lfs_extern.h>
 
 extern int	count_lock_queue __P((void));
-extern caddr_t	lfs_alloc_buffer __P((int size));
-extern void	lfs_reclaim_buffers __P((void));
+static caddr_t	lfs_alloc_buffer __P((int size));
+static void	lfs_reclaim_buffers __P((void));
 
 #define MAX_ACTIVE	10
 #define MAX_IO_BUFS 256
 #define MAX_IO_SIZE (1024*512)
-int lfs_total_io_size;
-int lfs_total_io_count;
-volatile int lfs_total_free_count;
-int lfs_free_needed;
-int lfs_in_buffer_reclaim;
-struct lfs_freebuf {
+static int lfs_total_io_size;
+static int lfs_total_io_count;
+static volatile int lfs_total_free_count;
+static int lfs_free_needed;
+static int lfs_in_buffer_reclaim;
+static struct lfs_freebuf {
 	int	size;
 	caddr_t	address;
 } lfs_freebufs[MAX_IO_BUFS];
@@ -88,7 +88,7 @@ lfs_free_buffer( caddr_t address, int size) {
 	}
 }
 
-void
+static void
 lfs_reclaim_buffers() {
 	int i,s;
 	int reclaimed = 0;
@@ -114,7 +114,7 @@ lfs_reclaim_buffers() {
 	}
 }
 
-caddr_t
+static caddr_t
 lfs_alloc_buffer(int size) {
 	int s;
 	caddr_t rtval;
@@ -145,19 +145,19 @@ lfs_alloc_buffer(int size) {
 	((fs)->lfs_dbpseg - ((fs)->lfs_offset - (fs)->lfs_curseg) > \
 	1 << (fs)->lfs_fsbtodb)
 
-void	 lfs_callback __P((struct buf *));
-void	 lfs_gather __P((struct lfs *, struct segment *,
+static void lfs_callback __P((struct buf *));
+static void lfs_gather __P((struct lfs *, struct segment *,
 	     struct vnode *, int (*) __P((struct lfs *, struct buf *))));
 void	 lfs_iset __P((struct inode *, daddr_t, time_t));
-int	 lfs_match_data __P((struct lfs *, struct buf *));
-int	 lfs_match_dindir __P((struct lfs *, struct buf *));
-int	 lfs_match_indir __P((struct lfs *, struct buf *));
-int	 lfs_match_tindir __P((struct lfs *, struct buf *));
-void	 lfs_newseg __P((struct lfs *));
-void	 lfs_shellsort __P((struct buf **, daddr_t *, register int));
-void	 lfs_supercallback __P((struct buf *));
-void	 lfs_writefile __P((struct lfs *, struct segment *, struct vnode *));
-void	 lfs_writevnodes __P((struct lfs *fs, struct mount *mp,
+static int lfs_match_data __P((struct lfs *, struct buf *));
+static int lfs_match_dindir __P((struct lfs *, struct buf *));
+static int lfs_match_indir __P((struct lfs *, struct buf *));
+static int lfs_match_tindir __P((struct lfs *, struct buf *));
+static void lfs_newseg __P((struct lfs *));
+static void lfs_shellsort __P((struct buf **, daddr_t *, register int));
+static void lfs_supercallback __P((struct buf *));
+static void lfs_writefile __P((struct lfs *, struct segment *, struct vnode *));
+static void lfs_writevnodes __P((struct lfs *fs, struct mount *mp,
 	    struct segment *sp, int dirops));
 
 /* Statistics Counters */
@@ -233,7 +233,7 @@ lfs_vflush(vp)
 	return (0);
 }
 
-void
+static void
 lfs_writevnodes(fs, mp, sp, op)
 	struct lfs *fs;
 	struct mount *mp;
@@ -402,7 +402,7 @@ redo:
 /*
  * Write the dirty blocks associated with a vnode.
  */
-void
+static void
 lfs_writefile(fs, sp, vp)
 	struct lfs *fs;
 	struct segment *sp;
@@ -594,7 +594,7 @@ lfs_gatherblock(sp, bp, sptr)
 	return(0);
 }
 
-void
+static void
 lfs_gather(fs, sp, vp, match)
 	struct lfs *fs;
 	struct segment *sp;
@@ -784,7 +784,7 @@ lfs_initseg(fs)
 /*
  * Return the next segment to write.
  */
-void
+static void
 lfs_newseg(fs)
 	struct lfs *fs;
 {
@@ -1028,7 +1028,7 @@ lfs_writesuper(fs)
  * Logical block number match routines used when traversing the dirty block
  * chain.
  */
-int
+static int
 lfs_match_data(fs, bp)
 	struct lfs *fs;
 	struct buf *bp;
@@ -1036,7 +1036,7 @@ lfs_match_data(fs, bp)
 	return (bp->b_lblkno >= 0);
 }
 
-int
+static int
 lfs_match_indir(fs, bp)
 	struct lfs *fs;
 	struct buf *bp;
@@ -1047,7 +1047,7 @@ lfs_match_indir(fs, bp)
 	return (lbn < 0 && (-lbn - NDADDR) % NINDIR(fs) == 0);
 }
 
-int
+static int
 lfs_match_dindir(fs, bp)
 	struct lfs *fs;
 	struct buf *bp;
@@ -1058,7 +1058,7 @@ lfs_match_dindir(fs, bp)
 	return (lbn < 0 && (-lbn - NDADDR) % NINDIR(fs) == 1);
 }
 
-int
+static int
 lfs_match_tindir(fs, bp)
 	struct lfs *fs;
 	struct buf *bp;
@@ -1096,7 +1096,7 @@ lfs_newbuf(vp, daddr, size)
 	return (bp);
 }
 
-void
+static void
 lfs_callback(bp)
 	struct buf *bp;
 {
@@ -1115,7 +1115,7 @@ lfs_callback(bp)
 
 }
 
-void
+static void
 lfs_supercallback(bp)
 	struct buf *bp;
 {
@@ -1137,7 +1137,7 @@ lfs_supercallback(bp)
  * of logical block numbers to a unsigned in this routine so that the
  * negative block numbers (meta data blocks) sort AFTER the data blocks.
  */
-void
+static void
 lfs_shellsort(bp_array, lb_array, nmemb)
 	struct buf **bp_array;
 	daddr_t *lb_array;

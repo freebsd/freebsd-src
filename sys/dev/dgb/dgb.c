@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.12 1995/12/10 15:54:01 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.13 1995/12/10 20:54:21 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -37,6 +37,7 @@
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
@@ -157,9 +158,9 @@ struct dgb_softc {
 	};
 	
 
-struct dgb_softc dgb_softc[NDGB];
-struct dgb_p dgb_ports[NDGBPORTS];
-struct tty dgb_tty[NDGBPORTS];
+static struct dgb_softc dgb_softc[NDGB];
+static struct dgb_p dgb_ports[NDGBPORTS];
+static struct tty dgb_tty[NDGBPORTS];
 
 /*
  * The public functions in the com module ought to be declared in a com-driver
@@ -167,8 +168,8 @@ struct tty dgb_tty[NDGBPORTS];
  */
 
 /* Interrupt handling entry points. */
-void	dgbintr		__P((int unit));
-void	dgbpoll		__P((void *unit_c));
+static void	dgbintr		__P((int unit));
+static void	dgbpoll		__P((void *unit_c));
 
 /* Device switch entry points. */
 #define	dgbreset	noreset
@@ -235,11 +236,10 @@ static	struct speedtab dgbspeedtab[] = {
 	-1,	-1
 };
 
-#ifdef DEBUG
-	int dgbdebug=1;
-#else
-	int dgbdebug=0;
-#endif
+static int dgbdebug=0;
+SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW,
+	&dgbdebug, 0, "");
+
 
 static int polltimeout=0;
 
@@ -1178,7 +1178,8 @@ dgbwrite(dev, uio, flag)
 	return error;
 }
 
-void dgbpoll(unit_c)
+static void
+dgbpoll(unit_c)
 	void *unit_c;
 {
 	int unit=(int)unit_c;
@@ -1399,7 +1400,7 @@ void dgbpoll(unit_c)
 	timeout(dgbpoll, unit_c, hz/25);
 }
 
-void
+static void
 dgbintr(unit)
 	int	unit;
 {

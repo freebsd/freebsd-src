@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.20 1995/12/03 11:16:21 bde Exp $
+ * $Id: ffs_alloc.c,v 1.21 1995/12/15 03:36:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <vm/vm.h>
@@ -59,7 +60,9 @@ typedef long	allocfcn_t __P((struct inode *ip, int cg, daddr_t bpref,
 
 static daddr_t	ffs_alloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_alloccgblk __P((struct fs *, struct cg *, daddr_t));
+#ifdef notyet
 static daddr_t	ffs_clusteralloc __P((struct inode *, int, daddr_t, int));
+#endif
 static ino_t	ffs_dirpref __P((struct fs *));
 static daddr_t	ffs_fragextend __P((struct inode *, int, long, int, int));
 static void	ffs_fserr __P((struct fs *, u_int, char *));
@@ -68,7 +71,7 @@ static u_long	ffs_hashalloc
 static ino_t	ffs_nodealloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_mapsearch __P((struct fs *, struct cg *, daddr_t, int));
 
-void		ffs_clusteracct	__P((struct fs *, struct cg *, daddr_t, int));
+static void	ffs_clusteracct	__P((struct fs *, struct cg *, daddr_t, int));
 
 /*
  * Allocate a block in the file system.
@@ -325,11 +328,8 @@ nospace:
  * Note that the error return is not reflected back to the user. Rather
  * the previous block allocation will be used.
  */
-#include <sys/sysctl.h>
-int doasyncfree = 1;
-#ifdef DEBUG
-SYSCTL_INT(_debug, 14, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
-#endif
+static int doasyncfree = 1;
+SYSCTL_INT(_debug, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 int
 ffs_reallocblks(ap)
 	struct vop_reallocblks_args /* {
@@ -337,7 +337,7 @@ ffs_reallocblks(ap)
 		struct cluster_save *a_buflist;
 	} */ *ap;
 {
-#if 1
+#if !defined (not_yes)
 	return (ENOSPC);
 #else
 	struct fs *fs;
@@ -1006,6 +1006,7 @@ gotit:
 	return (cgp->cg_cgx * fs->fs_fpg + bno);
 }
 
+#ifdef notyet
 /*
  * Determine whether a cluster can be allocated.
  *
@@ -1094,6 +1095,7 @@ fail:
 	brelse(bp);
 	return (0);
 }
+#endif
 
 /*
  * Determine whether an inode can be allocated.
@@ -1415,7 +1417,7 @@ ffs_mapsearch(fs, cgp, bpref, allocsiz)
  *
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
-void
+static void
 ffs_clusteracct(fs, cgp, blkno, cnt)
 	struct fs *fs;
 	struct cg *cgp;

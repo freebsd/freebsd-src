@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.12 1995/12/08 11:12:47 julian Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.13 1995/12/08 23:19:30 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.12 1995/12/08 11:12:47 juli
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.13  1995/12/08  23:19:30  phk
+ * Julian forgot to make the *devsw structures static.
+ *
  * Revision 1.12  1995/12/08  11:12:47  julian
  * Pass 3 of the great devsw changes
  * most devsw referenced functions are now static, as they are
@@ -133,18 +136,18 @@ extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
 
 static old_spy= 0;
 
-extern int	nnicattach __P((struct isa_device *is));
-extern int	nnicprobe __P((struct isa_device *is));
-extern int	nnic_accept __P((int cn, int an, int rea));
-extern int	nnic_connect __P((int cn, int ap, int b_channel, int inf_mask,
+static int	nnicattach __P((struct isa_device *is));
+static int	nnicprobe __P((struct isa_device *is));
+static int	nnic_accept __P((int cn, int an, int rea));
+static int	nnic_connect __P((int cn, int ap, int b_channel, int inf_mask,
 				  int out_serv, int out_serv_add,
 				  int src_subadr, unsigned ad_len,
 				  char *dest_addr, int spv));
-extern int	nnic_disconnect __P((int cn, int rea));
-extern int	nnic_listen __P((int cn, int ap, int inf_mask,
+static int	nnic_disconnect __P((int cn, int rea));
+static int	nnic_listen __P((int cn, int ap, int inf_mask,
 				 int subadr_mask, int si_mask, int spv));
-extern int	nnic_output __P((int cn));
-extern int	nnic_state __P((int cn));
+static int	nnic_output __P((int cn));
+static int	nnic_state __P((int cn));
 
 static	d_open_t	nnicopen;
 static	d_close_t	nnicclose;
@@ -181,7 +184,7 @@ typedef struct
 	char           *more_b;
 }               chan_t;
 
-struct nnic_softc
+static struct nnic_softc
 {
 	dpr_type       *sc_dpr;	/* card RAM virtual memory base */
 	u_short         sc_vector;	/* interrupt vector 		 */
@@ -213,7 +216,7 @@ static int	sel_b3_prot_req __P((int unit, int mb, u_short pl,
 				     ncpd_t *ncpd));
 static void	up_intr __P((unsigned unit, struct nnic_softc *sc));
 
-int
+static int
 nnicprobe(struct isa_device * is)
 {
 	register struct nnic_softc *sc = &nnic_sc[is->id_unit & 127];
@@ -262,7 +265,7 @@ nnic_reset(struct nnic_softc *sc, int reset)
 /*
  * nnicattach() Install device
  */
-int
+static int
 nnicattach(struct isa_device * is)
 {
 	struct nnic_softc *sc;
@@ -364,7 +367,7 @@ badstate(mbx_type * mbx, int n, int mb, dpr_type *dpr)
 	printf("\n");
 }
 
-int
+static int
 nnic_state(int cn)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
@@ -384,7 +387,7 @@ nnic_state(int cn)
 	return(0);
 }
 
-int
+static int
 nnic_output(int cn)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
@@ -504,7 +507,7 @@ con_b3_resp(int unit, int mb, u_short ncci, u_short pl, u_char reject)
 	return(en_q(unit, mb | BD_CONN_B3_RSP,0, pl, l, buf));
 }
 
-int
+static int
 nnic_connect(int cn, int ap, int b_channel, int inf_mask, int out_serv
 	    ,int out_serv_add, int src_subadr, unsigned ad_len
 	    ,char *dest_addr, int spv)
@@ -527,7 +530,7 @@ nnic_connect(int cn, int ap, int b_channel, int inf_mask, int out_serv
 	return (en_q(isdn_ctrl[cn].unit, DD_CONN_REQ, 0, MK_APPL(ap), ad_len + 10, buf));
 }
 
-int
+static int
 nnic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask, int spv)
 {
 	u_short         sbuf[4];
@@ -540,7 +543,7 @@ nnic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask, int spv)
 	return (en_q(isdn_ctrl[cn].unit, DD_LISTEN_REQ, 0, MK_APPL(ap), 8, (u_char *) sbuf));
 }
 
-int
+static int
 nnic_disconnect(int cn, int rea)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
@@ -568,7 +571,7 @@ nnic_disconnect(int cn, int rea)
 	return(err);
 }
 
-int
+static int
 nnic_accept(int cn, int an, int rea)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];

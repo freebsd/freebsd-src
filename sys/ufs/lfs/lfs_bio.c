@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id: lfs_bio.c,v 1.6 1995/08/11 11:31:16 davidg Exp $
+ * $Id: lfs_bio.c,v 1.7 1995/12/03 11:16:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,7 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-extern void	lfs_flush __P((void));
+static void	lfs_flush __P((void));
 
 /*
  * LFS block write function.
@@ -61,7 +61,7 @@ extern void	lfs_flush __P((void));
  */
 int	lfs_allclean_wakeup;		/* Cleaner wakeup address. */
 int	locked_queue_count;		/* XXX Count of locked-down buffers. */
-int	lfs_writing;			/* Set if already kicked off a writer
+static int lfs_writing;			/* Set if already kicked off a writer
 					   because of buffer space */
 /*
 #define WRITE_THRESHHOLD	((nbuf >> 2) - 10)
@@ -133,7 +133,7 @@ lfs_bwrite(ap)
  * buffers, so we can't have more than a single file system.  To make this
  * work for multiple file systems, put the count into the mount structure.
  */
-void
+static void
 lfs_flush()
 {
 	register struct mount *mp;
