@@ -252,8 +252,10 @@ LOCALDIR=		/usr/local/bin
 # ia64 is different enough that we want our own doFS.sh.
 .if ${TARGET_ARCH} == "ia64"
 DOFS_SH=	${.CURDIR}/ia64/doFS.sh
+.elif ${TARGET} != ${MACHINE}
+DOFS_SH=	${.CURDIR}/scripts/doFS.sh ${TARGET}
 .else
-DOFS_SH=	${.CURDIR}/scripts/doFS.sh
+DOFS_SH=	${.CURDIR}/scripts/doFS.sh ""
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
@@ -726,7 +728,7 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
-	sh -e ${DOFS_SH} -s mfsroot ${RD} ${MNT} \
+	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
@@ -753,7 +755,7 @@ release.9:
 		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
 	fi
 .endif
-	sh -e ${DOFS_SH} -s mfsroot ${RD} ${MNT} \
+	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
 	@mkdir -p ${RD}/mfsroot
