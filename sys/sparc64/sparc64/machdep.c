@@ -461,7 +461,9 @@ struct sigreturn_args {
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
+	struct trapframe *tf;
 	struct proc *p;
+	mcontext_t *mc;
 	ucontext_t uc;
 
 	p = td->td_proc;
@@ -476,9 +478,12 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 		return (EFAULT);
 	}
 
-	if (!TSTATE_SECURE(uc.uc_mcontext.mc_tstate))
+	mc = &uc.uc_mcontext;
+	tf = td->td_frame;
+	if (!TSTATE_SECURE(mc->mc_tstate))
 		return (EINVAL);
-	bcopy(&uc.uc_mcontext, td->td_frame, sizeof(*td->td_frame));
+	mc->mc_wstate = tf->tf_wstate;
+	bcopy(mc, tf, sizeof(*tf));
 
 	PROC_LOCK(p);
 	p->p_sigmask = uc.uc_sigmask;
@@ -487,8 +492,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	PROC_UNLOCK(p);
 
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
-	    td, td->td_frame->tf_tpc, td->td_frame->tf_sp,
-	    td->td_frame->tf_tstate);
+	    td, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
 	return (EJUSTRETURN);
 }
 

@@ -51,6 +51,7 @@ typedef struct __mcontext mcontext_t;
 #define	mc_tpc          mc_in[1]
 #define	mc_tstate       mc_in[2]
 #define	mc_y            mc_in[4]
+#define	mc_wstate	mc_in[5]
 
 #define	_MC_VERSION_SHIFT	0
 #define	_MC_VERSION_BITS	32
