@@ -3,16 +3,16 @@
 # stdio sources
 .PATH: ${.CURDIR}/stdio
 
-SRCS+=	clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c fgetc.c \
-	fgetln.c fgetpos.c fgets.c fileno.c findfp.c flags.c fopen.c \
+SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
+	fgetc.c fgetln.c fgetpos.c fgets.c fileno.c findfp.c flags.c fopen.c \
 	fprintf.c fpurge.c fputc.c fputs.c fread.c freopen.c fscanf.c \
 	fseek.c fsetpos.c ftell.c funopen.c fvwrite.c fwalk.c fwrite.c \
 	getc.c getchar.c gets.c getw.c makebuf.c mktemp.c perror.c \
 	printf.c putc.c putchar.c puts.c putw.c refill.c remove.c rewind.c \
 	rget.c scanf.c setbuf.c setbuffer.c setvbuf.c snprintf.c sprintf.c \
-	sscanf.c stdio.c tempnam.c tmpfile.c tmpnam.c ungetc.c vfprintf.c \
-	vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c vsscanf.c \
-	wbuf.c wsetup.c
+	sscanf.c stdio.c tempnam.c tmpfile.c tmpnam.c ungetc.c vasprintf.c \
+	vfprintf.c vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
+	vsscanf.c wbuf.c wsetup.c
 
 MAN3+=	stdio/fclose.3 stdio/ferror.3 stdio/fflush.3 stdio/fgetln.3 \
 	stdio/fgets.3 stdio/fopen.3 stdio/fputs.3 stdio/fread.3 stdio/fseek.3 \
