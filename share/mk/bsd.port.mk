@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.150 1995/04/24 10:41:51 asami Exp $
+# $Id: bsd.port.mk,v 1.151 1995/04/28 15:40:37 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -193,6 +193,7 @@ CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 INSTALL_COOKIE?=	${WRKDIR}/.install_done
 BUILD_COOKIE?=		${WRKDIR}/.build_done
 PATCH_COOKIE?=		${WRKDIR}/.patch_done
+PACKAGE_COOKIE?=	${WRKDIR}/.package_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
@@ -882,17 +883,30 @@ package-depends:
 # Build a package
 
 .if !target(package)
-package: install
+package: install ${PACKAGE_COOKIE}
+
+${PACKAGE_COOKIE}:
 .if target(pre-package)
 	@${MAKE} ${.MAKEFLAGS} pre-package
 .endif
 	@${MAKE} ${.MAKEFLAGS} do-package
+	@${TOUCH} ${TOUCH_FLAGS} ${PACKAGE_COOKIE}
 .endif
 
-# Build a package but don't check the cookie for installation
+# Build a package but don't check the package cookie
 
 .if !target(repackage)
-repackage:
+repackage: pre-repackage package
+
+pre-repackage:
+	@rm -f ${PACKAGE_COOKIE}
+.endif
+
+# Build a package but don't check the cookie for installation, also don't
+# install package cookie
+
+.if !target(package-noinstall)
+package-noinstall:
 .if target(pre-package)
 	@${MAKE} ${.MAKEFLAGS} pre-package
 .endif
@@ -915,18 +929,34 @@ do-package:
 		fi; \
 		${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; \
 		if [ -d ${PACKAGES} ]; then \
-			rm -f ${PACKAGES}/*/${PKGNAME}${PKG_SUFX}; \
-			for cat in ${CATEGORIES}; do \
-				if [ ! -d ${PACKAGES}/$$cat ]; then \
-					if ! mkdir -p ${PACKAGES}/$$cat; then \
-						${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
-						exit 1; \
-					fi; \
-				fi; \
-				ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
-			done; \
+			${MAKE} ${.MAKEFLAGS} package-links; \
 		fi; \
 	fi
+.endif
+
+.if !target(package-links)
+package-links:
+	@${MAKE} ${.MAKEFLAGS} delete-package-links
+	@for cat in ${CATEGORIES}; do \
+		if [ ! -d ${PACKAGES}/$$cat ]; then \
+			if ! mkdir -p ${PACKAGES}/$$cat; then \
+				${ECHO_MSG} ">> Can't create directory ${PACKAGES}/$$cat."; \
+				exit 1; \
+			fi; \
+		fi; \
+		ln -s ../${PKGREPOSITORYSUBDIR}/${PKGNAME}${PKG_SUFX} ${PACKAGES}/$$cat; \
+	done;
+.endif
+
+.if !target(delete-package-links)
+delete-package-links:
+	@rm -f ${PACKAGES}/*/${PKGNAME}${PKG_SUFX};
+.endif
+
+.if !target(delete-package)
+delete-package:
+	@${MAKE} ${.MAKEFLAGS} delete-package-links
+	@rm -f ${PKGFILE}
 .endif
 
 ################################################################
