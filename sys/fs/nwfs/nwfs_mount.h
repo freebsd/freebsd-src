@@ -39,7 +39,7 @@
 #endif
 
 #define NWFS_VERMAJ	1
-#define NWFS_VERMIN	3200
+#define NWFS_VERMIN	3300
 #define NWFS_VERSION	(NWFS_VERMAJ*100000 + NWFS_VERMIN)
 
 /* Values for flags */
