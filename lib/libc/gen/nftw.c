@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftw.c,v 1.4 2004/07/07 16:05:23 millert Exp $	*/
+/*	$OpenBSD: nftw.c,v 1.4 2004/07/07 16:05:23 millert Exp $	*/
 
 /*
  * Copyright (c) 2003, 2004 Todd C. Miller <Todd.Miller@courtesan.com>
@@ -22,7 +22,7 @@
 
 #if 0
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$OpenBSD: ftw.c,v 1.4 2004/07/07 16:05:23 millert Exp $";
+static const char rcsid[] = "$OpenBSD: nftw.c,v 1.4 2004/07/07 16:05:23 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 #endif
 
@@ -37,13 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 
 int
-ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
-    int nfds)
+nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
+     struct FTW *), int nfds, int ftwflags)
 {
 	char * const paths[2] = { (char *)path, NULL };
+	struct FTW ftw;
 	FTSENT *cur;
 	FTS *ftsp;
-	int error = 0, fnflag, sverrno;
+	int error = 0, ftsflags, fnflag, postorder, sverrno;
 
 	/* XXX - nfds is currently unused */
 	if (nfds < 1 || nfds > OPEN_MAX) {
@@ -51,31 +52,47 @@ ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
 		return (-1);
 	}
 
-	ftsp = fts_open(paths, FTS_LOGICAL | FTS_COMFOLLOW | FTS_NOCHDIR, NULL);
+	ftsflags = FTS_COMFOLLOW;
+	if (!(ftwflags & FTW_CHDIR))
+		ftsflags |= FTS_NOCHDIR;
+	if (ftwflags & FTW_MOUNT)
+		ftsflags |= FTS_XDEV;
+	if (ftwflags & FTW_PHYS)
+		ftsflags |= FTS_PHYSICAL;
+	else
+		ftsflags |= FTS_LOGICAL;
+	postorder = (ftwflags & FTW_DEPTH) != 0;
+	ftsp = fts_open(paths, ftsflags, NULL);
 	if (ftsp == NULL)
 		return (-1);
 	while ((cur = fts_read(ftsp)) != NULL) {
 		switch (cur->fts_info) {
 		case FTS_D:
+			if (postorder)
+				continue;
 			fnflag = FTW_D;
 			break;
 		case FTS_DNR:
 			fnflag = FTW_DNR;
 			break;
 		case FTS_DP:
-			/* we only visit in preorder */
-			continue;
+			if (!postorder)
+				continue;
+			fnflag = FTW_DP;
+			break;
 		case FTS_F:
 		case FTS_DEFAULT:
 			fnflag = FTW_F;
 			break;
 		case FTS_NS:
 		case FTS_NSOK:
-		case FTS_SLNONE:
 			fnflag = FTW_NS;
 			break;
 		case FTS_SL:
 			fnflag = FTW_SL;
+			break;
+		case FTS_SLNONE:
+			fnflag = FTW_SLN;
 			break;
 		case FTS_DC:
 			errno = ELOOP;
@@ -84,7 +101,9 @@ ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
 			error = -1;
 			goto done;
 		}
-		error = fn(cur->fts_path, cur->fts_statp, fnflag);
+		ftw.base = cur->fts_pathlen - cur->fts_namelen;
+		ftw.level = cur->fts_level;
+		error = fn(cur->fts_path, cur->fts_statp, fnflag, &ftw);
 		if (error != 0)
 			break;
 	}

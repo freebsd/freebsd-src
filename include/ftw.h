@@ -1,107 +1,62 @@
+/*	$OpenBSD: ftw.h,v 1.1 2003/07/21 21:13:18 millert Exp $	*/
+
 /*
- * Copyright (c) 2003 by Joel Baker.
- * All rights reserved.
+ * Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Author nor the names of any contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Sponsored in part by the Defense Advanced Research Projects
+ * Agency (DARPA) and Air Force Research Laboratory, Air Force
+ * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  *
  * $FreeBSD$
  */
 
-#ifndef _FTW_H
-#define _FTW_H
+#ifndef	_FTW_H
+#define	_FTW_H
 
+#include <sys/types.h>
 #include <sys/stat.h>
 
-__BEGIN_DECLS
+/*
+ * Valid flags for the 3rd argument to the function that is passed as the
+ * second argument to ftw(3) and nftw(3).  Say it three times fast!
+ */
+#define	FTW_F		0	/* File.  */
+#define	FTW_D		1	/* Directory.  */
+#define	FTW_DNR		2	/* Directory without read permission.  */
+#define	FTW_DP		3	/* Directory with subdirectories visited.  */
+#define	FTW_NS		4	/* Unknown type; stat() failed.  */
+#define	FTW_SL		5	/* Symbolic link.  */
+#define	FTW_SLN		6	/* Sym link that names a nonexistent file.  */
 
-/* Enumerated values for 'flag' when calling [n]ftw */
-
-enum {
-    FTW_D,   /* Directories */
-    FTW_DNR, /* Unreadable directory */
-    FTW_F,   /* Regular files */
-    FTW_SL,  /* Symbolic link */
-    FTW_NS,  /* stat(2) failed */
-
-#if __XSI_VISIBLE /* X/Open */
-
-/* Flags for nftw only */
-
-    FTW_DP, /* Directory, subdirs visited */
-    FTW_SLN, /* Dangling symlink */
-
-#endif /* __XSI_VISIBLE */
-};
-
-#if __XSI_VISIBLE /* X/Open */
-
-/* Enumerated values for 'flags' when calling nftw */
-
-enum {
-    FTW_CHDIR = 1, /* Do a chdir(2) when entering a directory */
-    FTW_DEPTH = 2, /* Report files first (before directory) */
-    FTW_MOUNT = 4, /* Single filesystem */
-    FTW_PHYS  = 8  /* Physical walk; ignore symlinks */
-};
-
-#define FTW_PHYS FTW_PHYS
-#define FTW_MOUNT FTW_MOUNT
-#define FTW_CHDIR FTW_CHDIR
-#define FTW_DEPTH FTW_DEPTH
-
-/* FTW struct for callbacks from nftw */
+/*
+ * Flags for use as the 4th argument to nftw(3).  These may be ORed together.
+ */
+#define	FTW_PHYS	0x01	/* Physical walk, don't follow sym links.  */
+#define	FTW_MOUNT	0x02	/* The walk does not cross a mount point.  */
+#define	FTW_DEPTH	0x04	/* Subdirs visited before the dir itself. */
+#define	FTW_CHDIR	0x08	/* Change to a directory before reading it. */
 
 struct FTW {
-    int base;
-    int level;
+	int base;
+	int level;
 };
 
-#endif /* __XSI_VISIBLE */
-
-/* Typecasts for callback functions */
-
-typedef int (*__ftw_func_t) \
-    (const char *file, const struct stat *status, int flag);
-
-/* ftw: walk a directory tree, calling a function for each element */
-
-extern int ftw (const char *dir, __ftw_func_t func, int descr);
-
-#if __XSI_VISIBLE /* X/Open */
-
-typedef int (*__nftw_func_t) \
-    (const char *file, const struct stat *status, int flag, struct FTW *detail);
-
-/* nftw: walk a directory tree, calling a function for each element; much
- * like ftw, but with behavior flags and minty freshness.
- */
-
-extern int nftw (const char *dir, __nftw_func_t func, int descr, int flags);
-
-#endif /* __XSI_VISIBLE */
-
+__BEGIN_DECLS
+int	ftw(const char *, int (*)(const char *, const struct stat *, int), int);
+int	nftw(const char *, int (*)(const char *, const struct stat *, int,
+	    struct FTW *), int, int);
 __END_DECLS
 
-#endif /* _FTW_H */
+#endif	/* !_FTW_H */
