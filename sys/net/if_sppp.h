@@ -16,7 +16,7 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.6 1997/05/22 22:15:39 joerg Exp $
+ * $Id: if_sppp.h,v 1.8 1997/10/11 11:25:20 joerg Exp $
  */
 
 #ifndef _NET_IF_HDLC_H_
@@ -152,7 +152,7 @@ struct spppreq {
 void sppp_attach (struct ifnet *ifp);
 void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);
-int sppp_ioctl (struct ifnet *ifp, int cmd, void *data);
+int sppp_ioctl (struct ifnet *ifp, u_long cmd, void *data);
 struct mbuf *sppp_dequeue (struct ifnet *ifp);
 struct mbuf *sppp_pick(struct ifnet *ifp);
 int sppp_isempty (struct ifnet *ifp);
