@@ -128,6 +128,7 @@ MAN4=	aac.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
+	sn.4 \
 	snp.4 \
 	splash.4 \
 	sppp.4 \
