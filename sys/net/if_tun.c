@@ -17,10 +17,12 @@
  */
 
 #include "opt_inet.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -436,8 +438,19 @@ tunoutput(
 	struct rtentry *rt)
 {
 	struct tun_softc *tp = ifp->if_softc;
+#ifdef MAC
+	int error;
+#endif
 
 	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);
+
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m0);
+	if (error) {
+		m_freem(m0);
+		return (error);
+	}
+#endif
 
 	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
 		TUNDEBUG ("%s%d: not ready 0%o\n", ifp->if_name,
@@ -735,6 +748,9 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 
 	top->m_pkthdr.len = tlen;
 	top->m_pkthdr.rcvif = ifp;
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, top);
+#endif
 
 	if (ifp->if_bpf) {
 		if (tp->tun_flags & TUN_IFHEAD) {
