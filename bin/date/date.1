@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.12 1997/04/16 05:59:20 danny Exp $
+.\"	$Id: date.1,v 1.13 1997/08/04 03:37:05 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -48,8 +48,9 @@
 .Op Fl t Ar minutes_west
 .Op Fl nu
 .Op Cm + Ns Ar format
-.Op Fl DWMY Ar [+|-]val
-.Op [[[[yy]mm]dd]hh]mm[\&.ss]
+.Op Fl v Ar [+|-]val[ymwdHM]
+.Ar ...
+.Op [[[[yy]mm]dd]HH]MM[\&.ss]
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
@@ -98,8 +99,8 @@ by future calls to
 Display or set the date in
 .Tn UCT
 (universal) time.
-.It Fl DWMY
-Adjust the month day, week day, month or year according to
+.It Fl v
+Adjust the minute, hour, month day, week day, month or year according to
 .Ar val .
 If
 .Ar val
@@ -108,9 +109,22 @@ or backwards according to the remaining string, otherwise the relevent
 part of the date is set.  The date can be adjusted as many times as
 required using these flags.  Flags are processed in the order given.
 .Pp
-Month days are in the range 1-31, week days are in the range 0-6
-(sun-sat), months are in the range 1-12 (jan-dec) and years are in
-the range 80-38 or 1980-2038.
+Minutes are in the range 0-59, hours are in the range 1-12, month days
+are in the range 1-31, week days are in the range 0-6 (sun-sat), months
+are in the range 1-12 (jan-dec) and years are in the range 80-38 or
+1980-2038.
+.Pp
+If
+.Ar val
+is numeric, one of either
+.Ar y ,
+.Ar m ,
+.Ar w ,
+.Ar d ,
+.Ar H
+or
+.Ar M
+must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
 number.  If a name is used with the plus (or minus) sign, the date
@@ -172,7 +186,7 @@ TIME: 13:36:16
 .Pp
 The command:
 .Bd -literal -offset indent
-date -M1 -Y+1
+date -v1m -v+1y
 .Ed
 .Pp
 will display:
@@ -184,7 +198,7 @@ Sun Jan  4 03:15:24 GMT 1998
 .Pp
 The command:
 .Bd -literal -offset indent
-date -D1 -M3 -Y0 -D-1
+date -v1d -v3m -v0y -v-1d
 .Ed
 .Pp
 will display the last day of February in the year 2000:
@@ -194,7 +208,7 @@ Tue Feb 29 03:18:00 GMT 2000
 .Pp
 The command:
 .Bd -literal -offset indent
-date -D1 -M+1 -D-1 -W-fri
+date -v1d -v+1m -v-1d -v-fri
 .Ed
 .Pp
 will display the last friday of the month:
