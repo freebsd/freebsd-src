@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.31 1997/04/28 10:34:41 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.32 1997/05/05 05:17:50 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,6 +144,7 @@
 #define VAR_RELNAME			"releaseName"
 #define VAR_ROOT_SIZE			"rootSize"
 #define VAR_ROUTER			"router"
+#define VAR_ROUTER_ENABLE		"router_enable"
 #define VAR_ROUTERFLAGS			"routerflags"
 #define VAR_SAMBA_PKG			"samba_pkg"
 #define VAR_SERIAL_SPEED		"serialSpeed"
