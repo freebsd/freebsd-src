@@ -23,6 +23,9 @@
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .\" HISTORY
 .\" $Log: sup.1,v $
+.\" Revision 1.2  1995/12/26 05:03:02  peter
+.\" Apply ports/net/sup/patches/patch-aa...
+.\"
 .\" Revision 1.1.1.1  1995/12/26 04:54:46  peter
 .\" Import the unmodified version of the sup that we are using.
 .\" The heritage of this version is not clear.  It appears to be NetBSD
@@ -721,8 +724,10 @@ to use a different parent directory for the files in this release.
 .I list=<listname>
 to specify the list of files in the release.
 .I scan=<scanfile>
-must be used in multi-release collections that are scanned to keep
-the scan files for the different releases separate.
+tells supscan to generate 
+.B scanfile
+for this release.  Supscan will only generate scan files for releases that specify
+a scanfile or for collections that do not have a releases file.
 .I host=<hostfile>
 to allow different host restrictions for this release.
 .I next=<release>
@@ -730,7 +735,7 @@ used to chain releases together. This has the effect of making one release
 be a combination of serveral other releases. If the same file appears in
 more than one chained release, the first one found will be used.
 If these files are not specified for a release the default names:
-prefix,list,scan and host will be used.
+prefix, list and host will be used.
 .TP
 .B scan
 This file, created by
@@ -936,7 +941,7 @@ file containing the name of the prefix directory
 for a collection
 .TP
 <\fIbase-directory\fR>\fB/sup/\fR<\fIcollection\fR>\fB/scan
-scan file for a collection
+default scan file for a collection if no release file exists
 .TP
 \fB/usr/\fR<\fIcollection\fR>
 default base directory for a file collection

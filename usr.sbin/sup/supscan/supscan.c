@@ -25,20 +25,27 @@
 /*
  * supscan -- SUP Scan File Builder
  *
- * Usage: supscan [ -v ] collection [ basedir ]
+ * Usage: supscan [ -v ] collection [ -r release ] [ basedir ]
  *	  supscan [ -v ] -f dirfile
  *	  supscan [ -v ] -s
- *	-f	"file" -- use dirfile instead of system coll.dir
- *	-s	"system" -- perform scan for system supfile
- *	-v	"verbose" -- print messages as you go
- *	collection	-- name of the desired collection if not -s
- *	basedir		-- name of the base directory, if not
- *			   the default or recorded in coll.dir
- *	dirfile		-- name of replacement for system coll.dir.
+ *	-f	"file"     -- use dirfile instead of system coll.dir
+ *	-r	"release"  -- scan only the specified release. Multiple
+ *			      releases can be specified.
+ *	-s	"system"   -- perform scan for system supfile
+ *	-v	"verbose"  -- print messages as you go
+ *	collection	   -- name of the desired collection if not -s
+ *	basedir		   -- name of the base directory, if not
+ *			      the default or recorded in coll.dir
+ *	dirfile		   -- name of replacement for system coll.dir.
  *
  **********************************************************************
  * HISTORY
  * $Log: supscan.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:48  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:35  jkh
  * Current sup with compression support.
  *
@@ -158,6 +165,8 @@ COLLECTION *firstC;			/* collection list pointer */
 char *collname;				/* collection name */
 char *basedir;				/* base directory name */
 char *prefix;				/* collection pathname prefix */
+char **releases = NULL;			/* releases to scan */
+int  numreleases = 0;			/* size of releases  */
 long lasttime = 0;			/* time of last upgrade */
 long scantime;				/* time of this scan */
 int newonly = FALSE;			/* new files only */
@@ -190,7 +199,8 @@ char **argv;
 			ctime (&scantime));
 		(void) fflush (stdout);
 		if (!setjmp (sjbuf)) {
-			makescanlists (); /* record names in scan files */
+			/* record names in scan files */
+			makescanlists (releases);
 			scantime = time ((long *)NULL);
 			printf ("SUP Scan for %s completed at %s",collname,
 				ctime (&scantime));
@@ -215,9 +225,19 @@ char **argv;
 
 usage ()
 {
-	fprintf (stderr,"Usage: supscan [ -v ] collection [ basedir ]\n");
-	fprintf (stderr,"       supscan [ -v ] -f dirfile\n");
-	fprintf (stderr,"       supscan [ -v ] -s\n");
+	fprintf(stderr,"Usage: supscan [ -v ] [ -r release ] collection [ basedir ]\n"
+		"       supscan [ -v ] [ -r release ] -f dirfile\n"
+		"       supscan [ -v ] [ -r release ] -s\n"
+		"       supscan [ -v ] [ -r release ] -s\n"
+		"        -f \"file\"    -- use dirfile instead of system coll.dir\n"
+		"        -r \"release\" -- scan only the specified release. Multiple\n"
+		"                        releases can be specified.\n"
+		"        -s \"system\"  -- perform scan for system supfile\n"
+		"        -v \"verbose\" -- print messages as you go\n" 
+		"        collection   -- name of the desired collection if not -s\n"
+		"        basedir      -- name of the base directory, if not\n"
+		"                        the default or recorded in coll.dir\n"
+		"        dirfile      -- name of replacement for system coll.dir.\n");
 	exit (1);
 }
 
@@ -243,6 +263,23 @@ char **argv;
 			--argc;
 			argv++;
 			filename = argv[1];
+			break;
+		case 'r':
+			if (argc == 2)
+				usage ();
+			--argc;
+			argv++;
+			if (argv[1][0] == '-')
+				usage ();
+			numreleases++;
+			releases = (char **)realloc(releases,
+					   sizeof(*releases) * (numreleases+1));
+			if (!releases) {
+				fprintf(stderr,"supscan: cannot malloc!\n");
+				exit(1);
+			}
+			releases[numreleases - 1] = argv[1];
+			releases[numreleases] = NULL;
 			break;
 		case 'v':
 			trace = TRUE;
