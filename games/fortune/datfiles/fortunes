@@ -2902,7 +2902,7 @@ Any philosophy that can be put in a nutshell belongs there.
 %
 Any problem in computer science can be solved with another layer
 of indirection.
-	-- David Wheeler
+		-- David Wheeler
 %
 Any small object that is accidentally dropped will hide under a larger
 object.
@@ -5592,16 +5592,13 @@ FreeBSD: Have you had your fairings today?
 %
 FreeBSD: It's 3am at night.  Do you know where your fairings are?
 %
+FreeBSD: putting the horse before the cart since 1992.
+		-- Warner Losh
+%
 FreeBSD Trivia:
 	Did you know that successive security officers take
 control by beheading their predecessor?
-
-	-- Robert Watson
-	   February 2003, FreeBSD-CVS Mailing List
-%
-FreeBSD: putting the horse before the cart since 1992.
-
-	-- Warner Losh
+		-- Robert Watson
 %
 Fresco's Discovery:
 	If you knew what you were doing you'd probably be bored.
@@ -10370,8 +10367,7 @@ is from the wrong kind of tree."
 %
 "Not to mention the fact that most of the good code for PC minix seems
 to have been written by Bruce Evans."
-		-- Linus Torvalds
-		   January 1992, comp.os.minix
+		-- Linus Torvalds, comp.os.minix, Jan. 1992
 %
 Notes for a ballet, "The Spell": ... Suddenly Sigmund hears the flutter
 of wings, and a group of wild swans flies across the moon ... Sigmund
