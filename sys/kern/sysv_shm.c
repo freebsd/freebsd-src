@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.34 1998/02/09 06:09:25 eivind Exp $ */
+/*	$Id: sysv_shm.c,v 1.35 1998/03/30 09:50:46 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -145,6 +145,7 @@ shm_deallocate_segment(shmseg)
 	size_t size;
 
 	shm_handle = shmseg->shm_internal;
+	shm_handle->shm_object->shadow_count--;
 	vm_object_deallocate(shm_handle->shm_object);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
@@ -503,6 +504,9 @@ shmget_allocate_segment(p, uap, mode)
 	shm_handle->shm_object =
 		vm_pager_allocate(OBJT_SWAP, 0, OFF_TO_IDX(size),
 			VM_PROT_DEFAULT, 0);
+	shm_handle->shm_object->shadow_count++;
+	shm_handle->shm_object->flags &= ~OBJ_ONEMAPPING;
+
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = cred->cr_gid;
