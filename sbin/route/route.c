@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.16 1996/10/27 17:42:14 fenner Exp $";
+	"$Id: route.c,v 1.16.2.1 1996/11/05 20:09:33 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1021,7 +1021,7 @@ ns_print(sns)
 	struct ns_addr work;
 	union { union ns_net net_e; u_long long_e; } net;
 	u_short port;
-	static char mybuf[50], cport[10], chost[25];
+	static char mybuf[50+MAXHOSTNAMELEN], cport[10], chost[25];
 	char *host = "";
 	register char *p;
 	register u_char *q;
@@ -1054,7 +1054,8 @@ ns_print(sns)
 	else
 		*cport = 0;
 
-	(void) sprintf(mybuf,"%lxH.%s%s", (unsigned long)ntohl(net.long_e),
+	(void) snprintf(mybuf, sizeof(mybuf), "%lxH.%s%s", 
+                    (unsigned long)ntohl(net.long_e),
 		       host, cport);
 	return (mybuf);
 }
