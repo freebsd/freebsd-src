@@ -2781,6 +2781,7 @@ add(int ac, char *av[])
 	 * various flags used to record that we entered some fields.
 	 */
 	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
+	size_t len;
 
 	int i;
 
@@ -2962,6 +2963,12 @@ add(int ac, char *av[])
 				errx(EX_DATAERR, "logamount must be positive");
 			c->max_log = l;
 			ac--; av++;
+		} else {
+			len = sizeof(c->max_log);
+			if (sysctlbyname("net.inet.ip.fw.verbose_limit",
+			    &c->max_log, &len, NULL, 0) == -1)
+				errx(1, "sysctlbyname(\"%s\")",
+				    "net.inet.ip.fw.verbose_limit");
 		}
 		cmd = next_cmd(cmd);
 	}
