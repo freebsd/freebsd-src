@@ -110,6 +110,7 @@ int	editit(void);
 char	*skip(char *);
 char	*word(char *);
 int	getasciilabel(FILE *, struct disklabel *);
+int	getasciipartspec(char *, struct disklabel *, int, int);
 int	checklabel(struct disklabel *);
 void	setbootflag(struct disklabel *);
 void	Warning(const char *, ...) __printflike(1, 2);
@@ -965,8 +966,10 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			for (; cpp < &dktypenames[DKMAXTYPES]; cpp++)
 				if (*cpp && streq(*cpp, tp)) {
 					lp->d_type = cpp - dktypenames;
-					goto next;
+					break;
 				}
+			if (cpp < &dktypenames[DKMAXTYPES])
+				continue;
 			v = atoi(tp);
 			if ((unsigned)v >= DKMAXTYPES)
 				fprintf(stderr, "line %d:%s %d\n", lineno,
@@ -1142,35 +1145,51 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			continue;
 		}
 		/* the ':' was removed above */
-		if ('a' <= *cp && *cp <= MAX_PART && cp[1] == '\0') {
-			part = *cp - 'a';
-			if (part >= lp->d_npartitions) {
-				fprintf(stderr,
-				    "line %d: partition name out of range a-%c: %s\n",
-				    lineno, 'a' + lp->d_npartitions - 1, cp);
-				errors++;
-				continue;
-			}
-			pp = &lp->d_partitions[part];
-			part_set[part] = 1;
-#define NXTNUM(n) { \
+		if (*cp < 'a' || *cp > MAX_PART || cp[1] != '\0') {
+			fprintf(stderr,
+			    "line %d: %s: Unknown disklabel field\n", lineno,
+			    cp);
+			errors++;
+			continue;
+		}
+
+		/* Process a partition specification line. */
+		part = *cp - 'a';
+		if (part >= lp->d_npartitions) {
+			fprintf(stderr,
+			    "line %d: partition name out of range a-%c: %s\n",
+			    lineno, 'a' + lp->d_npartitions - 1, cp);
+			errors++;
+			continue;
+		}
+		part_set[part] = 1;
+
+		if (getasciipartspec(tp, lp, part, lineno) != 0) {
+			errors++;
+			break;
+		}
+	}
+	errors += checklabel(lp);
+	return (errors == 0);
+}
+
+#define NXTNUM(n) do { \
 	if (tp == NULL) { \
 		fprintf(stderr, "line %d: too few numeric fields\n", lineno); \
-		errors++; \
-		break; \
+		return (1); \
 	} else { \
 		cp = tp, tp = word(cp); \
 		if (tp == NULL) \
 			tp = cp; \
 		(n) = atoi(cp); \
 	} \
-     }
+} while (0)
+
 /* retain 1 character following number */
-#define NXTWORD(w,n) { \
+#define NXTWORD(w,n) do { \
 	if (tp == NULL) { \
 		fprintf(stderr, "line %d: too few numeric fields\n", lineno); \
-		errors++; \
-		break; \
+		return (1); \
 	} else { \
 	        char *tmp; \
 		cp = tp, tp = word(cp); \
@@ -1179,120 +1198,109 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	        (n) = strtol(cp,&tmp,10); \
 		if (tmp) (w) = *tmp; \
 	} \
-     }
-			v = 0;
-			NXTWORD(part_size_type[part],v);
-			if (v < 0 || (v == 0 && part_size_type[part] != '*')) {
-				fprintf(stderr,
-				    "line %d: %s: bad partition size\n",
-				    lineno, cp);
-				errors++;
-				break;
-			} else {
-				pp->p_size = v;
+} while (0)
 
-				v = 0;
-				NXTWORD(part_offset_type[part],v);
-				if (v < 0 || (v == 0 && 
-				    part_offset_type[part] != '*' &&
-				    part_offset_type[part] != '\0')) {
-					fprintf(stderr,
-					    "line %d: %s: bad partition offset\n",
-					    lineno, cp);
-					errors++;
-					break;
-				} else {
-					pp->p_offset = v;
-					cp = tp, tp = word(cp);
-					cpp = fstypenames;
-					for (; cpp < &fstypenames[FSMAXTYPES]; cpp++)
-						if (*cpp && streq(*cpp, cp)) {
-							pp->p_fstype = cpp -
-							    fstypenames;
-							goto gottype;
-						}
-					if (isdigit(*cp))
-						v = atoi(cp);
-					else
-						v = FSMAXTYPES;
-					if ((unsigned)v >= FSMAXTYPES) {
-						fprintf(stderr,
-						    "line %d: Warning, unknown "
-						    "filesystem type %s\n",
-						    lineno, cp);
-						v = FS_UNUSED;
-					}
-					pp->p_fstype = v;
-				gottype:;
-					/*
-					 * Note: NXTNUM will break us out of the
-					 * switch only!
-					 */
-					switch (pp->p_fstype) {
-					case FS_UNUSED:
-						/*
-						 * allow us to accept defaults for 
-						 * fsize/frag/cpg
-						 */
-						if (tp) {
-							NXTNUM(pp->p_fsize);
-							if (pp->p_fsize == 0)
-								break;
-							NXTNUM(v);
-							pp->p_frag = v / pp->p_fsize;
-						}
-						/* else default to 0's */
-						break;
+/*
+ * Read a partition line into partition `part' in the specified disklabel.
+ * Return 0 on success, 1 on failure.
+ */
+int
+getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
+{
+	struct partition *pp;
+	char *cp;
+	char **cpp;
+	int v;
 
-					/* These happen to be the same */
-					case FS_BSDFFS:
-					case FS_BSDLFS:
-						if (tp) {
-							NXTNUM(pp->p_fsize);
-							if (pp->p_fsize == 0)
-								break;
-							NXTNUM(v);
-							pp->p_frag = v / pp->p_fsize;
-							NXTNUM(pp->p_cpg);
-						} else {
-							/* 
-							 * FIX! poor attempt at
-							 * adaptive
-							 */
-							/* 1 GB */
-							if (pp->p_size < 1*1024*1024*1024/lp->d_secsize) {
-/* FIX!  These are too low, but are traditional */
-								pp->p_fsize = DEFAULT_NEWFS_BLOCK;
-								pp->p_frag  = (unsigned char) DEFAULT_NEWFS_FRAG;
-								pp->p_cpg   = DEFAULT_NEWFS_CPG;
-							} else {
-								pp->p_fsize = BIG_NEWFS_BLOCK;
-								pp->p_frag  = (unsigned char) BIG_NEWFS_FRAG;
-								pp->p_cpg   = BIG_NEWFS_CPG;
-							}
-						}
-						break;
-					default:
-						break;
-					}
+	pp = &lp->d_partitions[part];
+	cp = NULL;
 
-					/* 
-					 * note: we may not have 
-					 * gotten all the entries for
-					 * the fs though if we didn't,
-					 * errors will be set. 
-					 */
-				}
-			}
-			continue;
-		}
-		fprintf(stderr, "line %d: %s: Unknown disklabel field\n",
-		    lineno, cp);
-		errors++;
-	next:;
+	v = 0;
+	NXTWORD(part_size_type[part],v);
+	if (v < 0 || (v == 0 && part_size_type[part] != '*')) {
+		fprintf(stderr, "line %d: %s: bad partition size\n", lineno,
+		    cp);
+		return (1);
 	}
-	errors += checklabel(lp);
-	return (errors == 0);
+	pp->p_size = v;
+
+	v = 0;
+	NXTWORD(part_offset_type[part],v);
+	if (v < 0 || (v == 0 && part_offset_type[part] != '*' &&
+	    part_offset_type[part] != '\0')) {
+		fprintf(stderr, "line %d: %s: bad partition offset\n", lineno,
+		    cp);
+		return (1);
+	}
+	pp->p_offset = v;
+	cp = tp, tp = word(cp);
+	for (cpp = fstypenames; cpp < &fstypenames[FSMAXTYPES]; cpp++)
+		if (*cpp && streq(*cpp, cp))
+			break;
+	if (*cpp != NULL) {
+		pp->p_fstype = cpp - fstypenames;
+	} else {
+		if (isdigit(*cp))
+			v = atoi(cp);
+		else
+			v = FSMAXTYPES;
+		if ((unsigned)v >= FSMAXTYPES) {
+			fprintf(stderr,
+			    "line %d: Warning, unknown filesystem type %s\n",
+			    lineno, cp);
+			v = FS_UNUSED;
+		}
+		pp->p_fstype = v;
+	}
+
+	switch (pp->p_fstype) {
+	case FS_UNUSED:
+		/*
+		 * allow us to accept defaults for
+		 * fsize/frag/cpg
+		 */
+		if (tp) {
+			NXTNUM(pp->p_fsize);
+			if (pp->p_fsize == 0)
+				break;
+			NXTNUM(v);
+			pp->p_frag = v / pp->p_fsize;
+		}
+		/* else default to 0's */
+		break;
+
+	/* These happen to be the same */
+	case FS_BSDFFS:
+	case FS_BSDLFS:
+		if (tp) {
+			NXTNUM(pp->p_fsize);
+			if (pp->p_fsize == 0)
+				break;
+			NXTNUM(v);
+			pp->p_frag = v / pp->p_fsize;
+			NXTNUM(pp->p_cpg);
+		} else {
+			/*
+			 * FIX! poor attempt at adaptive
+			 */
+			/* 1 GB */
+			if (pp->p_size < 1024*1024*1024 / lp->d_secsize) {
+				/*
+				 * FIX! These are too low, but are traditional
+				 */
+				pp->p_fsize = DEFAULT_NEWFS_BLOCK;
+				pp->p_frag = (unsigned char) DEFAULT_NEWFS_FRAG;
+				pp->p_cpg = DEFAULT_NEWFS_CPG;
+			} else {
+				pp->p_fsize = BIG_NEWFS_BLOCK;
+				pp->p_frag = (unsigned char) BIG_NEWFS_FRAG;
+				pp->p_cpg = BIG_NEWFS_CPG;
+			}
+		}
+	default:
+		break;
+	}
+	return (0);
 }
 
 /*
