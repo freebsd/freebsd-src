@@ -2,7 +2,7 @@
 /*
  * Parser for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
- * Copyright (c) 1997 Justin T. Gibbs.
+ * Copyright (c) 1997-1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -29,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_gram.y,v 1.3 1997/09/03 03:44:40 gibbs Exp $
+ *      $Id: aicasm_gram.y,v 1.4 1997/09/27 19:37:28 gibbs Exp $
  */
 
 #include <stdio.h>
@@ -56,7 +53,6 @@ static symbol_ref_t sindex;
 static int instruction_ptr;
 static int sram_or_scb_offset;
 static int download_constant_count;
-static patch_t *cur_patch;
 
 static void process_bitmask __P((int mask_type, symbol_t *sym, int mask));
 static void initialize_symbol __P((symbol_t *symbol));
@@ -118,11 +114,13 @@ static int  is_download_const __P((expression_t *immed));
 
 %token <str> T_PATH
 
+%token <sym> T_CEXPR
+
 %token T_EOF T_INCLUDE 
 
 %token <value> T_SHR T_SHL T_ROR T_ROL
 
-%token <value> T_MVI T_MOV T_CLR
+%token <value> T_MVI T_MOV T_CLR T_BMOV
 
 %token <value> T_JMP T_JC T_JNC T_JE T_JNE T_JNZ T_JZ T_CALL
 
@@ -150,7 +148,7 @@ static int  is_download_const __P((expression_t *immed));
 
 %token T_NL
 
-%token T_IF T_ELSE T_ENDIF
+%token T_IF T_ELSE T_ELSE_IF T_ENDIF
 
 %type <sym_ref> reg_symbol address destination source opt_source
 
@@ -670,64 +668,89 @@ address:
 ;
 
 conditional:
-	T_IF
+	T_IF T_CEXPR '{'
 	{
-		if (cur_patch != NULL) {
-			stop("Nested .if directive", EX_DATAERR);
+		scope_t *new_scope;
+
+		add_conditional($2);
+		new_scope = scope_alloc();
+		new_scope->type = SCOPE_IF;
+		new_scope->begin_addr = instruction_ptr;
+		new_scope->func_num = $2->info.condinfo->func_num;
+	}
+|	T_ELSE T_IF T_CEXPR '{'
+	{
+		scope_t *new_scope;
+		scope_t *scope_context;
+		scope_t *last_scope;
+
+		/*
+		 * Ensure that the previous scope is either an
+		 * if or and else if.
+		 */
+		scope_context = SLIST_FIRST(&scope_stack);
+		last_scope = TAILQ_LAST(&scope_context->inner_scope,
+					scope_tailq);
+		if (last_scope == NULL
+		 || last_scope->type == T_ELSE) {
+
+			stop("'else if' without leading 'if'", EX_DATAERR);
 			/* NOTREACHED */
 		}
-		cur_patch = patch_alloc();
-		cur_patch->begin = instruction_ptr;
-	}
-	option_list
-;
-
-conditional:
-	T_ELSE
-	{
-		patch_t *next_patch;
-
-		if (cur_patch == NULL) {
-			stop(".else outsize of .if", EX_DATAERR);
-			/* NOTREACHED */
-		}
-		cur_patch->end = instruction_ptr;
-		next_patch = patch_alloc();
-		next_patch->options = cur_patch->options;
-		next_patch->negative = cur_patch->negative ? FALSE : TRUE;
-		cur_patch = next_patch;
-		cur_patch->begin = instruction_ptr;
-	}
-;
-
-conditional:
-	T_ENDIF
-	{
-		if (cur_patch == NULL) {
-			stop(".endif outsize of .if", EX_DATAERR);
-			/* NOTREACHED */
-		}
-		cur_patch->end = instruction_ptr;
-		cur_patch = NULL;
-	}
-;
-
-option_list:
-	'(' option_symbol_list ')'
-|	'!' option_list
-	{
-		cur_patch->negative = cur_patch->negative ? FALSE : TRUE;
-	}
-;
-
-option_symbol_list:
-	T_SYMBOL
-	{
-		add_conditional($1);
-	}
-|	option_list '|' T_SYMBOL
-	{
 		add_conditional($3);
+		new_scope = scope_alloc();
+		new_scope->type = SCOPE_ELSE_IF;
+		new_scope->begin_addr = instruction_ptr;
+		new_scope->func_num = $3->info.condinfo->func_num;
+	}
+|	T_ELSE '{'
+	{
+		scope_t *new_scope;
+		scope_t *scope_context;
+		scope_t *last_scope;
+
+		/*
+		 * Ensure that the previous scope is either an
+		 * if or and else if.
+		 */
+		scope_context = SLIST_FIRST(&scope_stack);
+		last_scope = TAILQ_LAST(&scope_context->inner_scope,
+					scope_tailq);
+		if (last_scope == NULL
+		 || last_scope->type == SCOPE_ELSE) {
+
+			stop("'else' without leading 'if'", EX_DATAERR);
+			/* NOTREACHED */
+		}
+		new_scope = scope_alloc();
+		new_scope->type = SCOPE_ELSE;
+		new_scope->begin_addr = instruction_ptr;
+	}
+;
+
+conditional:
+	'}'
+	{
+		scope_t *scope_context;
+		scope_t *last_scope;
+
+		scope_context = SLIST_FIRST(&scope_stack);
+		if (scope_context->type == SCOPE_ROOT) {
+			stop("Unexpected '}' encountered", EX_DATAERR);
+			/* NOTREACHED */
+		}
+
+		scope_context->end_addr = instruction_ptr;
+
+		/* Pop the scope */
+		SLIST_REMOVE_HEAD(&scope_stack, scope_stack_links);
+
+		process_scope(scope_context);
+
+		if (SLIST_FIRST(&scope_stack) == NULL) {
+			stop("Unexpected '}' encountered", EX_DATAERR);
+			/* NOTREACHED */
+		}
 	}
 ;
 
@@ -800,6 +823,13 @@ code:
 
 		make_expression(&immed, 1);
 		format_1_instr(AIC_OP_ADD, &$2, &immed, &allones, $3);
+	}
+;
+
+code:
+	T_BMOV destination ',' source ',' immediate ret ';'
+	{
+		format_1_instr(AIC_OP_BMOV, &$2, &$6, &$4, $7);
 	}
 ;
 
@@ -1118,7 +1148,8 @@ format_1_instr(opcode, dest, immed, src, ret)
 	/* Allocate sequencer space for the instruction and fill it out */
 	instr = seq_alloc();
 	f1_instr = &instr->format.format1;
-	f1_instr->opcode_ret = (opcode << 1) | (ret ? RETURN_BIT : 0);
+	f1_instr->ret = ret ? 1 : 0;
+	f1_instr->opcode = opcode;
 	f1_instr->destination = dest->symbol->info.rinfo->address
 			      + dest->offset;
 	f1_instr->source = src->symbol->info.rinfo->address
@@ -1126,7 +1157,7 @@ format_1_instr(opcode, dest, immed, src, ret)
 	f1_instr->immediate = immed->value;
 
 	if (is_download_const(immed))
-		f1_instr->opcode_ret |= DOWNLOAD_CONST_IMMEDIATE;
+		f1_instr->parity = 1;
 
 	symlist_free(&immed->referenced_syms);
 	instruction_ptr++;
@@ -1154,7 +1185,8 @@ format_2_instr(opcode, dest, places, src, ret)
 	/* Allocate sequencer space for the instruction and fill it out */
 	instr = seq_alloc();
 	f2_instr = &instr->format.format2;
-	f2_instr->opcode_ret = (AIC_OP_ROL << 1) | (ret ? RETURN_BIT : 0);
+	f2_instr->ret = ret ? 1 : 0;
+	f2_instr->opcode = AIC_OP_ROL;
 	f2_instr->destination = dest->symbol->info.rinfo->address
 			      + dest->offset;
 	f2_instr->source = src->symbol->info.rinfo->address
@@ -1225,15 +1257,14 @@ format_3_instr(opcode, src, immed, address)
 		instr->patch_label = address->symbol;
 	} else
 		addr = address->symbol->info.linfo->address + address->offset;
-	f3_instr->opcode_addr = (opcode << 1)
-			      | ((addr >> 8) & 0x01);
-	f3_instr->address = addr & 0xff;
+	f3_instr->opcode = opcode;
+	f3_instr->address = addr;
 	f3_instr->source = src->symbol->info.rinfo->address
 			 + src->offset;
 	f3_instr->immediate = immed->value;
 
 	if (is_download_const(immed))
-		f3_instr->opcode_addr |= DOWNLOAD_CONST_IMMEDIATE;
+		f3_instr->parity = 1;
 
 	symlist_free(&immed->referenced_syms);
 	instruction_ptr++;
@@ -1326,19 +1357,38 @@ static void
 add_conditional(symbol)
 	symbol_t *symbol;
 {
-	static int numoptions = 1;
+	static int numfuncs;
 
-	if (symbol->type == UNINITIALIZED) {
-		symbol->type = CONDITIONAL;
-		initialize_symbol(symbol);
-		symbol->info.condinfo->value = 0x01 << numoptions++;
-		symlist_add(&patch_options, symbol, SYMLIST_INSERT_HEAD);
-	} else if (symbol->type != CONDITIONAL) {
-		stop("Conditional symbol mirrors other symbol",
+	if (numfuncs == 0) {
+		/* add a special conditional, "0" */
+		symbol_t *false_func;
+
+		false_func = symtable_get("0");
+		if (false_func->type != UNINITIALIZED) {
+			stop("Conditional expression '0' "
+			     "conflicts with a symbol", EX_DATAERR);
+			/* NOTREACHED */
+		}
+		false_func->type = CONDITIONAL;
+		initialize_symbol(false_func);
+		false_func->info.condinfo->func_num = numfuncs++;
+		symlist_add(&patch_functions, false_func, SYMLIST_INSERT_HEAD);
+	}
+
+	/* This condition has occurred before */
+	if (symbol->type == CONDITIONAL)
+		return;
+
+	if (symbol->type != UNINITIALIZED) {
+		stop("Conditional expression conflicts with a symbol",
 		     EX_DATAERR);
 		/* NOTREACHED */
 	}
-	cur_patch->options |= symbol->info.condinfo->value;
+
+	symbol->type = CONDITIONAL;
+	initialize_symbol(symbol);
+	symbol->info.condinfo->func_num = numfuncs++;
+	symlist_add(&patch_functions, symbol, SYMLIST_INSERT_HEAD);
 }
 
 void
