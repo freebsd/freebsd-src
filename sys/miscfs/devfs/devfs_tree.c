@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.29 1996/08/13 19:48:40 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.30 1996/09/10 08:27:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -17,6 +17,8 @@
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure		*/
 #include <sys/devfsext.h>
+
+#include <machine/stdarg.h>
 
 #include <miscfs/devfs/devfsdefs.h>
 
