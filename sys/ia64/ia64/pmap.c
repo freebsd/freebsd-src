@@ -374,6 +374,7 @@ pmap_bootstrap()
 		kptdir[i] = (struct ia64_lpte *) pmap_steal_memory(PAGE_SIZE);
 	}
 	nkpt = NKPT;
+	kernel_vm_end = NKPT * PAGE_SIZE * NKPTEPG + VM_MIN_KERNEL_ADDRESS;
 
 	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
@@ -448,8 +449,8 @@ pmap_bootstrap()
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;"
 			 :: "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
-	virtual_avail = IA64_RR_BASE(5);
-	virtual_end = IA64_RR_BASE(6)-1;
+	virtual_avail = VM_MIN_KERNEL_ADDRESS;
+	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
 	 * Initialize protection array.
@@ -919,40 +920,31 @@ pmap_growkernel(vm_offset_t addr)
 	struct ia64_lpte *ptepage;
 	vm_page_t nkpg;
 
-	if (kernel_vm_end == 0) {
-		kernel_vm_end = nkpt * PAGE_SIZE * NKPTEPG
-			+ IA64_RR_BASE(5);
-	}
-	addr = (addr + PAGE_SIZE * NKPTEPG) & ~(PAGE_SIZE * NKPTEPG - 1);
-	while (kernel_vm_end < addr) {
-		if (kptdir[KPTE_DIR_INDEX(kernel_vm_end)]) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NKPTEPG)
-				& ~(PAGE_SIZE * NKPTEPG - 1);
-			continue;
-		}
+	if (kernel_vm_end >= addr)
+		return;
 
-		/*
-		 * We could handle more by increasing the size of kptdir.
-		 */
+	critical_enter();
+
+	while (kernel_vm_end < addr) {
+		/* We could handle more by increasing the size of kptdir. */
 		if (nkpt == MAXKPT)
 			panic("pmap_growkernel: out of kernel address space");
 
-		/*
-		 * This index is bogus, but out of the way
-		 */
 		nkpg = vm_page_alloc(NULL, nkpt,
 		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
-		nkpt++;
 		ptepage = (struct ia64_lpte *)
-			IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
+		    IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
 		bzero(ptepage, PAGE_SIZE);
 		kptdir[KPTE_DIR_INDEX(kernel_vm_end)] = ptepage;
 
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NKPTEPG) & ~(PAGE_SIZE * NKPTEPG - 1);
+		nkpt++;
+		kernel_vm_end += PAGE_SIZE * NKPTEPG;
 	}
+
+	critical_exit();
 }
 
 /***************************************************
