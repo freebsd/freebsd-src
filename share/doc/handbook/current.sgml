@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.19 1997/02/22 12:58:16 peter Exp $ -->
+<!-- $Id: current.sgml,v 1.20 1997/05/02 14:15:34 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1997/02/22 12:58:16 $
+Last updated: $Date: 1997/05/02 14:15:34 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,
@@ -113,11 +113,11 @@ subscribe cvs-all
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
-        <item>  Use the CMU <ref id="sup" name="sup"> program (Software Update
-	     Protocol).
+        <item>  Use the <ref id="cvsup" name="cvsup"> program with
+	    <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/standard-supfile" name="this supfile">.
             This is the second most recommended method, since it allows 
 	    you to grab the entire collection once and then only what has
-            changed from then on.  Many people run sup from cron
+            changed from then on.  Many people run cvsup from cron
             and keep their sources up-to-date automatically.
 
         <item>  Use ftp.  The source tree for FreeBSD-current is always
@@ -139,7 +139,7 @@ subscribe cvs-all
     </enum>
 
     <item>  Essentially, if you need rapid on-demand access to the source and
-    communications bandwidth is not a consideration, use sup or ftp.
+    communications bandwidth is not a consideration, use cvsup or ftp.
     Otherwise, use CTM.
 
     <item>  If you are grabbing the sources to run, and not just look at,
