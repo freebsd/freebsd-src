@@ -69,7 +69,7 @@ struct carg
 	LIST_ENTRY(carg)  list;
 };
 
-extern LIST_HEAD(cargs, carg) arglist;
+LIST_HEAD(cargs, carg);
 
 struct userconf
 {
