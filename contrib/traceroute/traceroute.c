@@ -834,7 +834,7 @@ main(int argc, char **argv)
 					precis = 3;
 				Printf("  %.*f ms", precis, T);
 				if (i == -2) {
-#ifdef ARCHAIC
+#ifndef ARCHAIC
 					ip = (struct ip *)packet;
 					if (ip->ip_ttl <= 1)
 						Printf(" !");
