@@ -426,7 +426,7 @@ dovmstat(interval, reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf("%6ld%6ld ",
+		(void)printf("%8ld%6ld ",
 		    pgtok(total.t_avm), pgtok(total.t_free));
 		(void)printf("%4lu ", rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -465,13 +465,13 @@ printhdr()
 {
 	register int i;
 
-	(void)printf(" procs   memory     page%*s", 20, "");
+	(void)printf(" procs      memory     page%*s", 20, "");
 	if (ndrives > 1)
 		(void)printf("disks %*s  faults      cpu\n",
 		   ndrives * 3 - 6, "");
 	else
 		(void)printf("%*s  faults      cpu\n", ndrives * 3, "");
-	(void)printf(" r b w   avm   fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
 			(void)printf("%c%c ", dr_name[i][0],
