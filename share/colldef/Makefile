@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1997/03/01 00:28:05 wosch Exp $
+# $Id: Makefile,v 1.9 1997/03/25 16:50:05 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -21,7 +21,7 @@ COLLDEF=${.CURDIR}/../colldef
 .endif
 
 ASCIILINKS = \
-	ko_KR.EUC ja_JP.EUC
+	ko_KR.EUC ja_JP.EUC ja_JP.SJIS
 
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
