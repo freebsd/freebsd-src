@@ -150,7 +150,7 @@ static struct malloc_type *memtype[] = {
  */
 static	void softdep_error(char *, int);
 static	void drain_output(struct vnode *, int);
-static	int getdirtybuf(struct buf **, int);
+static	struct buf *getdirtybuf(struct buf **, struct mtx *, int);
 static	void clear_remove(struct thread *);
 static	void clear_inodedeps(struct thread *);
 static	int flush_pagedep_deps(struct vnode *, struct mount *,
@@ -326,7 +326,7 @@ interlocked_sleep(lk, op, ident, mtx, flags, wmesg, timo)
 		retval = msleep(ident, mtx, flags, wmesg, timo);
 		break;
 	case LOCKBUF:
-		retval = BUF_LOCK((struct buf *)ident, flags, NULL);
+		retval = BUF_LOCK((struct buf *)ident, flags, mtx);
 		break;
 	default:
 		panic("interlocked_sleep: unknown operation");
@@ -2062,16 +2062,15 @@ softdep_setup_freeblocks(ip, length, flags)
 	 */
 	vp = ITOV(ip);
 	ACQUIRE_LOCK(&lk);
+	VI_LOCK(vp);
 	drain_output(vp, 1);
 restart:
-	VI_LOCK(vp);
 	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs) {
 		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & IO_NORMAL) == 0 &&
 		      (bp->b_xflags & BX_ALTDATA) == 0))
 			continue;
-		VI_UNLOCK(vp);
-		if (getdirtybuf(&bp, MNT_WAIT) == 0)
+		if ((bp = getdirtybuf(&bp, VI_MTX(vp), MNT_WAIT)) == NULL)
 			goto restart;
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
@@ -2079,6 +2078,7 @@ restart:
 		FREE_LOCK(&lk);
 		brelse(bp);
 		ACQUIRE_LOCK(&lk);
+		VI_LOCK(vp);
 		goto restart;
 	}
 	VI_UNLOCK(vp);
@@ -2564,6 +2564,7 @@ indir_trunc(freeblks, dbn, level, lbn, countp)
 	 * Otherwise we have to read the blocks in from the disk.
 	 */
 	ACQUIRE_LOCK(&lk);
+	/* XXX Buf not locked! */
 	if ((bp = incore(freeblks->fb_devvp, dbn)) != NULL &&
 	    (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		if (wk->wk_type != D_INDIRDEP ||
@@ -4632,7 +4633,8 @@ softdep_update_inodeblock(ip, bp, waitfor)
 {
 	struct inodedep *inodedep;
 	struct worklist *wk;
-	int error, gotit;
+	struct buf *ibp;
+	int error;
 
 	/*
 	 * If the effective link count is not equal to the actual link
@@ -4692,10 +4694,9 @@ softdep_update_inodeblock(ip, bp, waitfor)
 		FREE_LOCK(&lk);
 		return;
 	}
-	gotit = getdirtybuf(&inodedep->id_buf, MNT_WAIT);
+	ibp = getdirtybuf(&inodedep->id_buf, NULL, MNT_WAIT);
 	FREE_LOCK(&lk);
-	if (gotit &&
-	    (error = BUF_WRITE(inodedep->id_buf)) != 0)
+	if (ibp && (error = BUF_WRITE(ibp)) != 0)
 		softdep_error("softdep_update_inodeblock: bwrite", error);
 	if ((inodedep->id_state & DEPCOMPLETE) == 0)
 		panic("softdep_update_inodeblock: update failed");
@@ -4921,8 +4922,8 @@ softdep_fsync_mountdev(vp)
 		VI_LOCK(vp);
 		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	}
-	VI_UNLOCK(vp);
 	drain_output(vp, 1);
+	VI_UNLOCK(vp);
 	FREE_LOCK(&lk);
 }
 
@@ -4991,13 +4992,15 @@ top:
 	 * We must wait for any I/O in progress to finish so that
 	 * all potential buffers on the dirty list will be visible.
 	 */
+	VI_LOCK(vp);
 	drain_output(vp, 1);
-	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
+	bp = getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd),
+	    VI_MTX(vp), MNT_WAIT);
+	if (bp == NULL) {
+		VI_UNLOCK(vp);
 		FREE_LOCK(&lk);
 		return (0);
 	}
-	mp_fixme("The locking is somewhat complicated nonexistant here.");
-	bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	/* While syncing snapshots, we must allow recursive lookups */
 	bp->b_lock.lk_flags |= LK_CANRECURSE;
 loop:
@@ -5012,8 +5015,8 @@ loop:
 			adp = WK_ALLOCDIRECT(wk);
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
-			nbp = adp->ad_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			nbp = getdirtybuf(&adp->ad_buf, NULL, waitfor);
+			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
@@ -5028,8 +5031,8 @@ loop:
 			aip = WK_ALLOCINDIR(wk);
 			if (aip->ai_state & DEPCOMPLETE)
 				continue;
-			nbp = aip->ai_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			nbp = getdirtybuf(&aip->ai_buf, NULL, waitfor);
+			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
@@ -5046,8 +5049,8 @@ loop:
 			LIST_FOREACH(aip, &WK_INDIRDEP(wk)->ir_deplisthd, ai_next) {
 				if (aip->ai_state & DEPCOMPLETE)
 					continue;
-				nbp = aip->ai_buf;
-				if (getdirtybuf(&nbp, MNT_WAIT) == 0)
+				nbp = getdirtybuf(&aip->ai_buf, NULL, MNT_WAIT);
+				if (nbp == NULL)
 					goto restart;
 				FREE_LOCK(&lk);
 				if ((error = BUF_WRITE(nbp)) != 0) {
@@ -5095,8 +5098,8 @@ loop:
 			 * been sync'ed, this dependency can show up. So,
 			 * rather than panic, just flush it.
 			 */
-			nbp = WK_MKDIR(wk)->md_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			nbp = getdirtybuf(&WK_MKDIR(wk)->md_buf, NULL, waitfor);
+			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
@@ -5115,8 +5118,9 @@ loop:
 			 * been sync'ed, this dependency can show up. So,
 			 * rather than panic, just flush it.
 			 */
-			nbp = WK_BMSAFEMAP(wk)->sm_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			nbp = getdirtybuf(&WK_BMSAFEMAP(wk)->sm_buf,
+			    NULL, waitfor);
+			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
@@ -5140,8 +5144,10 @@ loop:
 		bawrite(bp);
 		return (error);
 	}
-	(void) getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), MNT_WAIT);
-	nbp = TAILQ_NEXT(bp, b_vnbufs);
+	VI_LOCK(vp);
+	nbp = getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), VI_MTX(vp), MNT_WAIT);
+	if (nbp == NULL)
+		VI_UNLOCK(vp);
 	FREE_LOCK(&lk);
 	bp->b_lock.lk_flags &= ~LK_CANRECURSE;
 	bawrite(bp);
@@ -5169,11 +5175,14 @@ loop:
 	 * We must wait for any I/O in progress to finish so that
 	 * all potential buffers on the dirty list will be visible.
 	 */
+	VI_LOCK(vp);
 	drain_output(vp, 1);
 	if (TAILQ_FIRST(&vp->v_dirtyblkhd) == NULL) {
+		VI_UNLOCK(vp);
 		FREE_LOCK(&lk);
 		return (0);
 	}
+	VI_UNLOCK(vp);
 
 	FREE_LOCK(&lk);
 	/*
@@ -5259,8 +5268,8 @@ flush_deplist(listhead, waitfor, errorp)
 	TAILQ_FOREACH(adp, listhead, ad_next) {
 		if (adp->ad_state & DEPCOMPLETE)
 			continue;
-		bp = adp->ad_buf;
-		if (getdirtybuf(&bp, waitfor) == 0) {
+		bp = getdirtybuf(&adp->ad_buf, NULL, waitfor);
+		if (bp == NULL) {
 			if (waitfor == MNT_NOWAIT)
 				continue;
 			return (1);
@@ -5293,7 +5302,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct ufsmount *ump;
 	struct diradd *dap;
 	struct vnode *vp;
-	int gotit, error = 0;
+	int error = 0;
 	struct buf *bp;
 	ino_t inum;
 
@@ -5340,7 +5349,9 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 				vput(vp);
 				break;
 			}
+			VI_LOCK(vp);
 			drain_output(vp, 0);
+			VI_UNLOCK(vp);
 			vput(vp);
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -5372,10 +5383,9 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * push them to disk.
 		 */
 		if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-			gotit = getdirtybuf(&inodedep->id_buf, MNT_WAIT);
+			bp = getdirtybuf(&inodedep->id_buf, NULL, MNT_WAIT);
 			FREE_LOCK(&lk);
-			if (gotit &&
-			    (error = BUF_WRITE(inodedep->id_buf)) != 0)
+			if (bp && (error = BUF_WRITE(bp)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			if (dap != LIST_FIRST(diraddhdp))
@@ -5614,7 +5624,9 @@ clear_remove(td)
 			}
 			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
 				softdep_error("clear_remove: fsync", error);
+			VI_LOCK(vp);
 			drain_output(vp, 0);
+			VI_UNLOCK(vp);
 			vput(vp);
 			vn_finished_write(mp);
 			return;
@@ -5691,7 +5703,9 @@ clear_inodedeps(td)
 		} else {
 			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
 				softdep_error("clear_inodedeps: fsync2", error);
+			VI_LOCK(vp);
 			drain_output(vp, 0);
+			VI_UNLOCK(vp);
 		}
 		vput(vp);
 		vn_finished_write(mp);
@@ -5791,11 +5805,13 @@ out:
 /*
  * Acquire exclusive access to a buffer.
  * Must be called with splbio blocked.
- * Return 1 if buffer was acquired.
+ * Return acquired buffer or NULL on failure.  mtx, if provided, will be
+ * released on success but held on failure.
  */
-static int
-getdirtybuf(bpp, waitfor)
+static struct buf *
+getdirtybuf(bpp, mtx, waitfor)
 	struct buf **bpp;
+	struct mtx *mtx;
 	int waitfor;
 {
 	struct buf *bp;
@@ -5809,27 +5825,33 @@ getdirtybuf(bpp, waitfor)
 	for (;;) {
 		if ((bp = *bpp) == NULL)
 			return (0);
-		VI_LOCK(bp->b_vp);
+		if (bp->b_vp == NULL)
+			backtrace();
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
-			if ((bp->b_vflags & BV_BKGRDINPROG) == 0) {
-				VI_UNLOCK(bp->b_vp);
+			if ((bp->b_vflags & BV_BKGRDINPROG) == 0)
 				break;
-			}
 			BUF_UNLOCK(bp);
-			if (waitfor != MNT_WAIT) {
-				VI_UNLOCK(bp->b_vp);
-				return (0);
-			}
+			if (waitfor != MNT_WAIT)
+				return (NULL);
+			/*
+			 * The mtx argument must be bp->b_vp's mutex in
+			 * this case.
+			 */
+			ASSERT_VI_LOCKED(bp->b_vp, "getdirtybuf");
 			bp->b_vflags |= BV_BKGRDWAIT;
-			interlocked_sleep(&lk, SLEEP, &bp->b_xflags,
-			    VI_MTX(bp->b_vp), PRIBIO|PDROP, "getbuf", 0);
+			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, mtx,
+			    PRIBIO, "getbuf", 0);
 			continue;
 		}
-		VI_UNLOCK(bp->b_vp);
 		if (waitfor != MNT_WAIT)
-			return (0);
-		error = interlocked_sleep(&lk, LOCKBUF, bp, NULL, 
-		    LK_EXCLUSIVE | LK_SLEEPFAIL, 0, 0);
+			return (NULL);
+		if (mtx) {
+			error = interlocked_sleep(&lk, LOCKBUF, bp, mtx,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, 0, 0);
+			mtx_lock(mtx);
+		} else
+			error = interlocked_sleep(&lk, LOCKBUF, bp, NULL,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL, 0, 0);
 		if (error != ENOLCK) {
 			FREE_LOCK(&lk);
 			panic("getdirtybuf: inconsistent lock");
@@ -5837,31 +5859,33 @@ getdirtybuf(bpp, waitfor)
 	}
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		BUF_UNLOCK(bp);
-		return (0);
+		return (NULL);
 	}
+	if (mtx)
+		mtx_unlock(mtx);
 	bremfree(bp);
-	return (1);
+	return (bp);
 }
 
 /*
  * Wait for pending output on a vnode to complete.
- * Must be called with vnode locked.
+ * Must be called with vnode lock and interlock locked.
  */
 static void
 drain_output(vp, islocked)
 	struct vnode *vp;
 	int islocked;
 {
+	ASSERT_VOP_LOCKED(vp, "drain_output");
+	ASSERT_VI_LOCKED(vp, "drain_output");
 
 	if (!islocked)
 		ACQUIRE_LOCK(&lk);
-	VI_LOCK(vp);
 	while (vp->v_numoutput) {
 		vp->v_iflag |= VI_BWAIT;
 		interlocked_sleep(&lk, SLEEP, (caddr_t)&vp->v_numoutput, 
 		    VI_MTX(vp), PRIBIO + 1, "drainvp", 0);
 	}
-	VI_UNLOCK(vp);
 	if (!islocked)
 		FREE_LOCK(&lk);
 }
