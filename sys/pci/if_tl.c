@@ -1517,7 +1517,10 @@ static int tl_attach_phy(sc)
 #ifdef TL_BACKGROUND_AUTONEG
 		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
 #else
-		tl_autoneg(sc, TL_FLAG_FORCEDELAY, 1);
+		if (cold)
+			tl_autoneg(sc, TL_FLAG_FORCEDELAY, 1);
+		else
+			tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
 #endif
 	}
 
