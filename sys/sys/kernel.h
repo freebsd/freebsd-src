@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kernel.h,v 1.25 1997/02/22 09:45:25 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -60,7 +60,7 @@ extern char kernelname[MAXPATHLEN];
 extern volatile struct timeval mono_time;
 extern struct timeval boottime;
 extern struct timeval runtime;
-extern volatile struct timeval time;
+extern struct timeval time;		/* nonvolatile at ipl >= splclock() */
 extern struct timezone tz;			/* XXX */
 
 extern int tick;			/* usec per tick (1000000 / hz) */
