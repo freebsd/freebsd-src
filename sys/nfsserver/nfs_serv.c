@@ -3845,7 +3845,7 @@ again:
 			xfer = nlen;
 			cp = dp->d_name;
 			while (xfer > 0) {
-				nfsm_clget;
+				nfsm_clget_nolock;
 				if ((bp + xfer) > be)
 					tsiz = be - bp;
 				else
