@@ -49,7 +49,7 @@
 .Op Fl t Ar minutes_west
 .Op Fl v Ns Ar [+|-]val Ns Op ymwdHMS
 .Ar ...
-.Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
+.Op Fl f Ar fmt Ar date | [[[[[cc]yy]mm]dd]HH]MM[\&.ss]
 .Op Cm + Ns Ar format
 .Sh DESCRIPTION
 .Nm Date
@@ -74,7 +74,7 @@ Use
 .Ar fmt
 as the format string to parse the date provided rather than using
 the default
-.Ar [[[[yy]mm]dd]HH]MM[.ss]
+.Ar [[[[[cc]yy]mm]dd]HH]MM[.ss]
 format.  Parsing is done using
 .Xr strptime 3 .
 .It Fl j
@@ -168,6 +168,8 @@ a value for setting the system's notion of the current date and time.
 The canonical representation for setting the date and time is:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
+.It Ar cc
+Century (either 19 or 20) prepended to the abbreviated year.
 .It Ar yy
 Year in abbreviated form (e.g. 89 for 1989, 06 for 2006).
 .It Ar mm
