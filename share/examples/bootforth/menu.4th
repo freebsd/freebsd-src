@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id$
+\ $Id: menu.4th,v 1.1 1998/12/22 12:15:45 abial Exp $
 
 : title
 	f_single
@@ -22,11 +22,33 @@
 	me
 ;
 
+: tkey	( d -- flag | char )
+	seconds +
+	begin 1 while
+	    dup seconds u< if
+		drop
+		-1
+		exit
+	    then
+	    key? if
+		drop
+		key
+		exit
+	    then
+	repeat
+;
+
 : prompt
 	14 fg
 	20 11 at-xy
 	." Enter your option (1,2,3): "
-	key
+	10 tkey
+	dup 32 = if
+	    drop key
+	then
+	dup 0< if
+	    drop 49
+	then
 	dup emit
 	me
 ;
