@@ -13,19 +13,20 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rh-rsa.c,v 1.17 2000/10/03 18:03:03 markus Exp $");
+RCSID("$OpenBSD: auth-rh-rsa.c,v 1.23 2001/04/06 21:00:04 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
-#include "ssh.h"
 #include "xmalloc.h"
 #include "uidswap.h"
+#include "log.h"
 #include "servconf.h"
-
-#include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include "key.h"
 #include "hostfile.h"
+#include "pathnames.h"
+#include "auth.h"
+#include "tildexpand.h"
+#include "canohost.h"
 
 /*
  * Tries to authenticate the user using the .rhosts file and the host using
@@ -49,26 +50,27 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user, RSA *client_host_key
 	if (!auth_rhosts(pw, client_user))
 		return 0;
 
-	canonical_hostname = get_canonical_hostname();
+	canonical_hostname = get_canonical_hostname(
+	    options.reverse_mapping_check);
 
 	debug("Rhosts RSA authentication: canonical host %.900s", canonical_hostname);
 
 	/* wrap the RSA key into a 'generic' key */
-	client_key = key_new(KEY_RSA);
+	client_key = key_new(KEY_RSA1);
 	BN_copy(client_key->rsa->e, client_host_key->e);
 	BN_copy(client_key->rsa->n, client_host_key->n);
-	found = key_new(KEY_RSA);
+	found = key_new(KEY_RSA1);
 
 	/* Check if we know the host and its host key. */
-	host_status = check_host_in_hostfile(SSH_SYSTEM_HOSTFILE, canonical_hostname,
-	    client_key, found);
+	host_status = check_host_in_hostfile(_PATH_SSH_SYSTEM_HOSTFILE, canonical_hostname,
+	    client_key, found, NULL);
 
 	/* Check user host file unless ignored. */
 	if (host_status != HOST_OK && !options.ignore_user_known_hosts) {
 		struct stat st;
-		char *user_hostfile = tilde_expand_filename(SSH_USER_HOSTFILE, pw->pw_uid);
+		char *user_hostfile = tilde_expand_filename(_PATH_SSH_USER_HOSTFILE, pw->pw_uid);
 		/*
-		 * Check file permissions of SSH_USER_HOSTFILE, auth_rsa()
+		 * Check file permissions of _PATH_SSH_USER_HOSTFILE, auth_rsa()
 		 * did already check pw->pw_dir, but there is a race XXX
 		 */
 		if (options.strict_modes &&
@@ -79,9 +81,9 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user, RSA *client_host_key
 			    pw->pw_name, user_hostfile);
 		} else {
 			/* XXX race between stat and the following open() */
-			temporarily_use_uid(pw->pw_uid);
+			temporarily_use_uid(pw);
 			host_status = check_host_in_hostfile(user_hostfile, canonical_hostname,
-			    client_key, found);
+			    client_key, found, NULL);
 			restore_uid();
 		}
 		xfree(user_hostfile);

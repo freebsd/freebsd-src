@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /* RCSID("$FreeBSD$"); */
-/* RCSID("$OpenBSD: compat.h,v 1.11 2000/10/14 12:16:56 markus Exp $"); */
+/* RCSID("$OpenBSD: compat.h,v 1.23 2001/04/12 19:15:24 markus Exp $"); */
 
 #ifndef COMPAT_H
 #define COMPAT_H
@@ -32,17 +32,29 @@
 #define	SSH_PROTO_1_PREFERRED	0x02
 #define	SSH_PROTO_2		0x04
 
-#define SSH_BUG_SIGBLOB		0x01
-#define SSH_BUG_PUBKEYAUTH	0x02
-#define SSH_BUG_HMAC		0x04
-#define SSH_BUG_X11FWD		0x08
-#define SSH_OLD_SESSIONID	0x10
-#define SSH_BUG_IGNOREMSG	0x20
+#define SSH_BUG_SIGBLOB		0x0001
+#define SSH_BUG_PKSERVICE	0x0002
+#define SSH_BUG_HMAC		0x0004
+#define SSH_BUG_X11FWD		0x0008
+#define SSH_OLD_SESSIONID	0x0010
+#define SSH_BUG_PKAUTH		0x0020
+#define SSH_BUG_DEBUG		0x0040
+#define SSH_BUG_BANNER		0x0080
+#define SSH_BUG_IGNOREMSG	0x0100
+#define SSH_BUG_PKOK		0x0200
+#define SSH_BUG_PASSWORDPAD	0x0400
+#define SSH_BUG_SCANNER		0x0800
+#define SSH_BUG_BIGENDIANAES	0x1000
+#define SSH_BUG_RSASIGMD5	0x2000
+#define SSH_OLD_DHGEX		0x4000
+#define SSH_BUG_NOREKEY		0x8000
+#define SSH_BUG_HBSERVICE	0x10000
 
 void    enable_compat13(void);
 void    enable_compat20(void);
 void    compat_datafellows(const char *s);
 int	proto_spec(const char *spec);
+char	*compat_cipher_proposal(char *cipher_prop);
 extern int compat13;
 extern int compat20;
 extern int datafellows;
