@@ -575,6 +575,9 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 
 	restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
 
+	/* Make sure this signal isn't still in the pending set: */
+	sigdelset(&pthread->sigpend, sig);
+
 	/*
 	 * Process according to thread state:
 	 */
