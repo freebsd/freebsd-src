@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <machine/bat.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/reg.h>
