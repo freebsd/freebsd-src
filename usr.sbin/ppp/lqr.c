@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqm.c,v 1.22.2.8 1998/02/16 00:00:27 brian Exp $
+ * $Id: lqr.c,v 1.22.2.9 1998/03/13 00:44:10 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -213,7 +213,7 @@ StartLqm(struct lcp *lcp)
          sizeof physical->hdlc.lqm.lqr.peer);
 
   physical->hdlc.lqm.method = LQM_ECHO;
-  if (Enabled(ConfLqr))
+  if (Enabled(ConfLqr) && !REJECTED(lcp, TY_QUALPROTO))
     physical->hdlc.lqm.method |= LQM_LQR;
   StopTimer(&physical->hdlc.lqm.timer);
 
