@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.4 1997/02/05 13:27:21 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.5 1997/02/06 14:54:20 kato Exp $
  */
 
 /*
@@ -2039,6 +2039,9 @@ ed_probe_CNET98(isa_dev)
 	u_long  j; 
 	u_char  cmd,sum;
 	u_char  tmp,tmp_s,tmp_e;
+
+	if ((isa_dev->id_maddr == 0) || (isa_dev->id_msize == 0))
+		return 0;
 
 	sc->vendor         = ED_VENDOR_MISC;	 /* vendor name          */
 	sc->type_str       = "CNET98";           /* board name           */
