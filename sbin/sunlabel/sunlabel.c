@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
+ * Copyright (c) 2004 Joerg Wunsch.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,16 +92,26 @@ __FBSDID("$FreeBSD$");
 
 static int bflag;
 static int Bflag;
+static int cflag;
 static int eflag;
+static int hflag;
 static int nflag;
 static int Rflag;
 static int wflag;
+
+static off_t mediasize;
+static uint32_t sectorsize;
+
+struct tags {
+	const char *name;
+	unsigned int id;
+};
 
 static int check_label(struct sun_disklabel *sl);
 static void read_label(struct sun_disklabel *sl, const char *disk);
 static void write_label(struct sun_disklabel *sl, const char *disk,
     const char *bootpath);
-static int edit_label(struct sun_disklabel *sl, const char *disk,
+static void edit_label(struct sun_disklabel *sl, const char *disk,
     const char *bootpath);
 static int parse_label(struct sun_disklabel *sl, const char *file);
 static void print_label(struct sun_disklabel *sl, const char *disk, FILE *out);
@@ -108,9 +119,40 @@ static void print_label(struct sun_disklabel *sl, const char *disk, FILE *out);
 static int parse_size(struct sun_disklabel *sl, int part, char *size);
 static int parse_offset(struct sun_disklabel *sl, int part, char *offset);
 
+static const char *flagname(unsigned int tag);
+static const char *tagname(unsigned int tag);
+static unsigned int parse_flag(struct sun_disklabel *sl, int part,
+			       const char *flag);
+static unsigned int parse_tag(struct sun_disklabel *sl, int part,
+			      const char *tag);
+static const char *make_h_number(uintmax_t u);
+
 static void usage(void);
 
 extern char *__progname;
+
+static struct tags knowntags[] = {
+	{ "unassigned",	VTOC_UNASSIGNED },
+	{ "boot",	VTOC_BOOT },
+	{ "root",	VTOC_ROOT },
+	{ "swap",	VTOC_SWAP },
+	{ "usr",	VTOC_USR },
+	{ "backup",	VTOC_BACKUP },
+	{ "stand",	VTOC_STAND },
+	{ "var",	VTOC_VAR },
+	{ "home",	VTOC_HOME },
+	{ "altsctr",	VTOC_ALTSCTR },
+	{ "cache",	VTOC_CACHE },
+	{ "VxVM_pub",	VTOC_VXVM_PUB },
+	{ "VxVM_priv",	VTOC_VXVM_PRIV },
+};
+
+static struct tags knownflags[] = {
+	{ "wm", 0 },
+	{ "wu", VTOC_UNMNT },
+	{ "rm", VTOC_RONLY },
+	{ "ru", VTOC_UNMNT | VTOC_RONLY },
+};
 
 /*
  * Disk label editor for sun disklabels.
@@ -125,7 +167,7 @@ main(int ac, char **av)
 	int ch;
 
 	bootpath = _PATH_BOOT; 
-	while ((ch = getopt(ac, av, "b:BenrRw")) != -1)
+	while ((ch = getopt(ac, av, "b:BcehnrRw")) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = 1;
@@ -134,8 +176,14 @@ main(int ac, char **av)
 		case 'B':
 			Bflag = 1;
 			break;
+		case 'c':
+			cflag = 1;
+			break;
 		case 'e':
 			eflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -159,6 +207,8 @@ main(int ac, char **av)
 		usage();
 	if (eflag && (Rflag || wflag))
 		usage();
+	if (eflag)
+		hflag = 0;
 	ac -= optind;
 	av += optind;
 	if (ac == 0)
@@ -180,8 +230,7 @@ main(int ac, char **av)
 		read_label(&sl, disk);
 		if (sl.sl_magic != SUN_DKMAGIC)
 			errx(1, "%s%s has no sun disklabel", _PATH_DEV, disk);
-		while (edit_label(&sl, disk, bootpath) != 0)
-			;
+		edit_label(&sl, disk, bootpath);
 	} else if (Rflag) {
 		if (ac != 2)
 			usage();
@@ -212,14 +261,22 @@ check_label(struct sun_disklabel *sl)
 	uint64_t start;
 	uint64_t oend;
 	uint64_t end;
+	int havevtoc;
+	int warnonly;
 	int i;
 	int j;
+
+	havevtoc = sl->sl_vtoc_sane == SUN_VTOC_SANE;
 
 	nsectors = sl->sl_ncylinders * sl->sl_ntracks * sl->sl_nsectors;
 	if (sl->sl_part[SUN_RAWPART].sdkp_cyloffset != 0 ||
 	    sl->sl_part[SUN_RAWPART].sdkp_nsectors != nsectors) {
 		warnx("partition c is incorrect, must start at 0 and cover "
 		    "whole disk");
+		return (1);
+	}
+	if (havevtoc && sl->sl_vtoc_map[2].svtoc_tag != VTOC_BACKUP) {
+		warnx("partition c must have tag \"backup\"");
 		return (1);
 	}
 	for (i = 0; i < SUN_NPART; i++) {
@@ -233,7 +290,22 @@ check_label(struct sun_disklabel *sl)
 			    'a' + i);
 			return (1);
 		}
+		if (havevtoc) {
+			if (sl->sl_vtoc_map[i].svtoc_tag == VTOC_BACKUP) {
+				warnx("only partition c is allowed to have "
+				      "tag \"backup\"");
+				return (1);
+			}
+		}
 		for (j = 0; j < SUN_NPART; j++) {
+			/* 
+			 * Overlaps for unmountable partitions are
+			 * non-fatal but will be warned anyway.
+			 */
+			warnonly = havevtoc &&
+				((sl->sl_vtoc_map[i].svtoc_flag & VTOC_UNMNT) != 0 ||
+				 (sl->sl_vtoc_map[j].svtoc_flag & VTOC_UNMNT) != 0);
+
 			if (j == 2 || j == i ||
 			    sl->sl_part[j].sdkp_nsectors == 0)
 				continue;
@@ -245,7 +317,8 @@ check_label(struct sun_disklabel *sl)
 			    (end > ostart && end < oend)) {
 				warnx("partition %c overlaps partition %c",
 				    'a' + i, 'a' + j);
-				return (1);
+				if (!warnonly)
+					return (1);
 			}
 		}
 	}
@@ -256,10 +329,8 @@ static void
 read_label(struct sun_disklabel *sl, const char *disk)
 {
 	char path[MAXPATHLEN];
-	uint32_t sectorsize;
 	uint32_t fwsectors;
 	uint32_t fwheads;
-	off_t mediasize;
 	char buf[SUN_SIZE];
 	int fd, error;
 
@@ -269,12 +340,17 @@ read_label(struct sun_disklabel *sl, const char *disk)
 	if (read(fd, buf, sizeof(buf)) != sizeof(buf))
 		err(1, "read");
 	error = sunlabel_dec(buf, sl);
+	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
+		if (error)
+			err(1, "%s: ioctl(DIOCGMEDIASIZE) failed", disk);
+	if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) != 0) {
+		if (error)
+			err(1, "%s: DIOCGSECTORSIZE failed", disk);
+		else
+			sectorsize = 512;
+	}
 	if (error) {
 		bzero(sl, sizeof(*sl));
-		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
-			err(1, "%s: ioctl(DIOCGMEDIASIZE) failed", disk);
-		if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) != 0)
-			err(1, "%s: DIOCGSECTORSIZE failed", disk);
 		if (ioctl(fd, DIOCGFWSECTORS, &fwsectors) != 0)
 			fwsectors = 63;
 		if (ioctl(fd, DIOCGFWHEADS, &fwheads) != 0) {
@@ -401,7 +477,7 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 	exit(0);
 }
 
-static int
+static void
 edit_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 {
 	char tmpfil[] = _PATH_TMPFILE;
@@ -419,39 +495,41 @@ edit_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 		err(1, "fdopen");
 	print_label(sl, disk, fp);
 	fflush(fp);
-	if ((pid = fork()) < 0)
-		err(1, "fork");
-	if (pid == 0) {
-		if ((editor = getenv("EDITOR")) == NULL)
-			editor = _PATH_VI;
-		execlp(editor, editor, tmpfil, (char *)NULL);
-		err(1, "execlp %s", editor);
-	}
-	status = 0;
-	while ((r = wait(&status)) > 0 && r != pid)
-		;
-	if (WIFEXITED(status)) {
-		if (parse_label(sl, tmpfil) == 0) {
-			fclose(fp);
-			unlink(tmpfil);
-			write_label(sl, disk, bootpath);
-			return (0);
+	for (;;) {
+		if ((pid = fork()) < 0)
+			err(1, "fork");
+		if (pid == 0) {
+			if ((editor = getenv("EDITOR")) == NULL)
+				editor = _PATH_VI;
+			execlp(editor, editor, tmpfil, (char *)NULL);
+			err(1, "execlp %s", editor);
 		}
-		printf("re-edit the label? [y]: ");
-		fflush(stdout);
-		c = getchar();
-		if (c != EOF && c != '\n')
-			while (getchar() != '\n')
-				;
-		if  (c == 'n') {
-			fclose(fp);
-			unlink(tmpfil);
-			return (0);
+		status = 0;
+		while ((r = wait(&status)) > 0 && r != pid)
+			;
+		if (WIFEXITED(status)) {
+			if (parse_label(sl, tmpfil) == 0) {
+				fclose(fp);
+				unlink(tmpfil);
+				write_label(sl, disk, bootpath);
+				return;
+			}
+			printf("re-edit the label? [y]: ");
+			fflush(stdout);
+			c = getchar();
+			if (c != EOF && c != '\n')
+				while (getchar() != '\n')
+					;
+			if  (c == 'n') {
+				fclose(fp);
+				unlink(tmpfil);
+				return;
+			}
 		}
 	}
 	fclose(fp);
 	unlink(tmpfil);
-	return (1);
+	return;
 }
 
 static int
@@ -459,16 +537,25 @@ parse_label(struct sun_disklabel *sl, const char *file)
 {
 	char offset[32];
 	char size[32];
+	char flag[32];
+	char tag[32];
 	char buf[128];
+	char text[128];
+	struct sun_disklabel sl1;
 	char *bp;
+	const char *what;
 	uint8_t part;
 	FILE *fp;
 	int line;
+	int rv;
+	int wantvtoc;
+	unsigned alt, cyl, hd, nr, sec;
 
-	line = 0;
+	line = wantvtoc = 0;
 	if ((fp = fopen(file, "r")) == NULL)
 		err(1, "fopen");
-	bzero(sl->sl_part, sizeof(sl->sl_part));
+	sl1 = *sl;
+	bzero(&sl1.sl_part, sizeof(sl1.sl_part));
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		/*
 		 * In order to recognize a partition entry, we search
@@ -483,21 +570,104 @@ parse_label(struct sun_disklabel *sl, const char *file)
 		 */
 		for (bp = buf; isspace(*bp); bp++)
 			;
+		if (strncmp(bp, "text:", strlen("text:")) == 0) {
+			bp += strlen("text:");
+			rv = sscanf(bp,
+				    " %s cyl %u alt %u hd %u sec %u",
+				    text, &cyl, &alt, &hd, &sec);
+			if (rv != 5) {
+				warnx("%s, line %d: text label does not "
+				      "contain required fields",
+				      file, line + 1);
+				fclose(fp);
+				return (1);
+			}
+			if (alt != 2) {
+				warnx("%s, line %d: # alt must be equal 2",
+				      file, line + 1);
+				fclose(fp);
+				return (1);
+			}
+			if (cyl == 0 || cyl > USHRT_MAX) {
+				what = "cyl";
+				nr = cyl;
+			unreasonable:
+				warnx("%s, line %d: # %s %d unreasonable",
+				      file, line + 1, what, nr);
+				fclose(fp);
+				return (1);
+			}
+			if (hd == 0 || hd > USHRT_MAX) {
+				what = "hd";
+				nr = hd;
+				goto unreasonable;
+			}
+			if (sec == 0 || sec > USHRT_MAX) {
+				what = "sec";
+				nr = sec;
+				goto unreasonable;
+			}
+			if (mediasize == 0)
+				warnx("unit size unknown, no sector count "
+				      "check could be done");
+			else if ((uintmax_t)(cyl + alt) * sec * hd >
+				 (uintmax_t)mediasize / sectorsize) {
+				warnx("%s, line %d: sector count %ju exceeds "
+				      "unit size %ju",
+				      file, line + 1,
+				      (uintmax_t)(cyl + alt) * sec * hd,
+				      (uintmax_t)mediasize / sectorsize);
+				fclose(fp);
+				return (1);
+			}
+			sl1.sl_pcylinders = cyl + alt;
+			sl1.sl_ncylinders = cyl;
+			sl1.sl_acylinders = alt;
+			sl1.sl_nsectors = sec;
+			sl1.sl_ntracks = hd;
+			memset(sl1.sl_text, 0, sizeof(sl1.sl_text));
+			snprintf(sl1.sl_text, sizeof(sl1.sl_text),
+				 "%s cyl %u alt %u hd %u sec %u",
+				 text, cyl, alt, hd, sec);
+			continue;
+		}
 		if (strlen(bp) < 2 || bp[1] != ':') {
 			line++;
 			continue;
 		}
-		if (sscanf(bp, "%c: %s %s\n", &part, size, offset) != 3 ||
-		    parse_size(sl, part - 'a', size) ||
-		    parse_offset(sl, part - 'a', offset)) {
+		rv = sscanf(bp, "%c: %30s %30s %30s %30s",
+			    &part, size, offset, tag, flag);
+		if (rv < 3) {
+		syntaxerr:
 			warnx("%s: syntax error on line %d",
 			    file, line + 1);
 			fclose(fp);
 			return (1);
 		}
+		if (parse_size(&sl1, part - 'a', size) ||
+		    parse_offset(&sl1, part - 'a', offset))
+			goto syntaxerr;
+		if (rv > 3) {
+			wantvtoc = 1;
+			if (rv == 5 && parse_flag(&sl1, part - 'a', flag))
+				goto syntaxerr;
+			if (parse_tag(&sl1, part - 'a', tag))
+				goto syntaxerr;
+		}
 		line++;
 	}
 	fclose(fp);
+	if (wantvtoc) {
+		sl1.sl_vtoc_sane = SUN_VTOC_SANE;
+		sl1.sl_vtoc_vers = SUN_VTOC_VERSION;
+		sl1.sl_vtoc_nparts = SUN_NPART;
+	} else {
+		sl1.sl_vtoc_sane = 0;
+		sl1.sl_vtoc_vers = 0;
+		sl1.sl_vtoc_nparts = 0;
+		bzero(&sl1.sl_vtoc_map, sizeof(sl1.sl_vtoc_map));
+	}
+	*sl = sl1;
 	return (check_label(sl));
 }
 
@@ -522,17 +692,23 @@ parse_size(struct sun_disklabel *sl, int part, char *size)
 				nsectors += sl->sl_part[i].sdkp_nsectors;
 			}
 			n = total - nsectors;
+		} else if (p[1] == '\0' && (p[0] == 'C' || p[0] == 'c')) {
+			n = n * sl->sl_ntracks * sl->sl_nsectors;
 		} else if (p[1] == '\0' && (p[0] == 'K' || p[0] == 'k')) {
 			n = roundup((n * 1024) / 512,
 			    sl->sl_ntracks * sl->sl_nsectors);
 		} else if (p[1] == '\0' && (p[0] == 'M' || p[0] == 'm')) {
 			n = roundup((n * 1024 * 1024) / 512,
 			    sl->sl_ntracks * sl->sl_nsectors);
+		} else if (p[1] == '\0' && (p[0] == 'S' || p[0] == 's')) {
+			/* size in sectors, no action neded */
 		} else if (p[1] == '\0' && (p[0] == 'G' || p[0] == 'g')) {
 			n = roundup((n * 1024 * 1024 * 1024) / 512,
 			    sl->sl_ntracks * sl->sl_nsectors);
 		} else
 			return (-1);
+	} else if (cflag) {
+		n = n * sl->sl_ntracks * sl->sl_nsectors;
 	}
 	sl->sl_part[part].sdkp_nsectors = n;
 	return (0);
@@ -567,34 +743,83 @@ static void
 print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 {
 	int i;
+	int havevtoc;
+	uintmax_t secpercyl;
+
+	havevtoc = sl->sl_vtoc_sane == SUN_VTOC_SANE;
+	secpercyl = sl->sl_nsectors * sl->sl_ntracks;
 
 	fprintf(out,
 "# /dev/%s:\n"
 "text: %s\n"
-"bytes/sectors: 512\n"
-"sectors/cylinder: %d\n"
-"sectors/unit: %d\n"
-"\n"
-"%d partitions:\n"
-"#\n"
-"# Size is in sectors, use %%dK, %%dM or %%dG to specify in kilobytes,\n"
-"# megabytes or gigabytes respectively, or '*' to specify rest of disk.\n"
-"# Offset is in cylinders, use '*' to calculate offsets automatically.\n"
-"#\n"
-"#    size       offset\n"
-"#    ---------- ----------\n",
+"bytes/sectors: %d\n"
+"sectors/cylinder: %ju\n",
 	    disk,
 	    sl->sl_text,
-	    sl->sl_nsectors * sl->sl_ntracks,
-	    sl->sl_nsectors * sl->sl_ntracks * sl->sl_ncylinders,
+	    sectorsize,
+	    secpercyl);
+	if (eflag)
+		fprintf(out,
+			"# max sectors/unit (including alt cylinders): %ju\n",
+			(uintmax_t)mediasize / sectorsize);
+	fprintf(out,
+"sectors/unit: %ju\n"
+"\n"
+"%d partitions:\n"
+"#\n",
+	    secpercyl * sl->sl_ncylinders,
 	    SUN_NPART);
+	if (!hflag) {
+		fprintf(out, "# Size is in %s.", cflag? "cylinders": "sectors");
+		if (eflag)
+			fprintf(out,
+"  Use %%d%c, %%dK, %%dM or %%dG to specify in %s,\n"
+"# kilobytes, megabytes or gigabytes respectively, or '*' to specify rest of\n"
+"# disk.\n",
+				cflag? 's': 'c',
+				cflag? "sectors": "cylinders");
+		else
+			putc('\n', out);
+		fprintf(out, "# Offset is in cylinders.");
+		if (eflag)
+			fprintf(out,
+"  Use '*' to calculate offsets automatically.\n"
+"#\n");
+		else
+			putc('\n', out);
+	}
+	if (havevtoc)
+		fprintf(out,
+"#    size       offset      tag         flag\n"
+"#    ---------- ----------  ----------  ----\n"
+			);
+	else
+		fprintf(out,
+"#    size       offset\n"
+"#    ---------- ----------\n"
+			);
+
 	for (i = 0; i < SUN_NPART; i++) {
 		if (sl->sl_part[i].sdkp_nsectors == 0)
 			continue;
-		fprintf(out, "  %c: %10u %10u\n",
-		    'a' + i,	
-		    sl->sl_part[i].sdkp_nsectors,
-		    sl->sl_part[i].sdkp_cyloffset);
+		if (hflag) {
+			fprintf(out, "  %c: %10s",
+				'a' + i,
+				make_h_number(sl->sl_part[i].sdkp_nsectors * 512));
+			fprintf(out, " %10s",
+				make_h_number(sl->sl_part[i].sdkp_cyloffset *
+					      512 * secpercyl));
+		} else {
+			fprintf(out, "  %c: %10ju %10u",
+				'a' + i,
+				sl->sl_part[i].sdkp_nsectors / (cflag? secpercyl: 1),
+				sl->sl_part[i].sdkp_cyloffset);
+		}
+		if (havevtoc)
+			fprintf(out, " %11s %5s",
+				tagname(sl->sl_vtoc_map[i].svtoc_tag),
+				flagname(sl->sl_vtoc_map[i].svtoc_flag));
+		putc('\n', out);
 	}
 }
 
@@ -603,13 +828,13 @@ usage(void)
 {
 
 	fprintf(stderr, "usage:"
-"\t%s [-r] disk\n"
+"\t%s [-r] [-c | -h] disk\n"
 "\t\t(to read label)\n"
 "\t%s -B [-b boot1] [-n] disk\n"
 "\t\t(to install boot program only)\n"
-"\t%s -R [-B [-b boot1]] [-r] [-n] disk protofile\n"
+"\t%s -R [-B [-b boot1]] [-r] [-n] [-c] disk protofile\n"
 "\t\t(to restore label)\n"
-"\t%s -e [-B [-b boot1]] [-r] [-n] disk\n"
+"\t%s -e [-B [-b boot1]] [-r] [-n] [-c] disk\n"
 "\t\t(to edit label)\n"
 "\t%s -w [-B [-b boot1]] [-r] [-n] disk type\n"
 "\t\t(to write default label)\n",
@@ -619,4 +844,118 @@ usage(void)
 	     __progname,
 	     __progname);
 	exit(1);
+}
+
+/*
+ * Return VTOC tag and flag names for tag or flag ID, resp.
+ */
+static const char *
+tagname(unsigned int tag)
+{
+	static char buf[32];
+	size_t i;
+	struct tags *tp;
+
+	for (i = 0, tp = knowntags;
+	     i < sizeof(knowntags) / sizeof(struct tags);
+	     i++, tp++)
+		if (tp->id == tag)
+			return (tp->name);
+
+	sprintf(buf, "%u", tag);
+
+	return (buf);
+}
+
+static const char *
+flagname(unsigned int flag)
+{
+	static char buf[32];
+	size_t i;
+	struct tags *tp;
+
+	for (i = 0, tp = knownflags;
+	     i < sizeof(knownflags) / sizeof(struct tags);
+	     i++, tp++)
+		if (tp->id == flag)
+			return (tp->name);
+
+	sprintf(buf, "%u", flag);
+
+	return (buf);
+}
+
+static unsigned int
+parse_tag(struct sun_disklabel *sl, int part, const char *tag)
+{
+	struct tags *tp;
+	char *endp;
+	size_t i;
+	unsigned long l;
+
+	for (i = 0, tp = knowntags;
+	     i < sizeof(knowntags) / sizeof(struct tags);
+	     i++, tp++)
+		if (strcmp(tp->name, tag) == 0) {
+			sl->sl_vtoc_map[part].svtoc_tag = (uint16_t)tp->id;
+			return (0);
+		}
+
+	l = strtoul(tag, &endp, 0);
+	if (*tag != '\0' && *endp == '\0') {
+		sl->sl_vtoc_map[part].svtoc_tag = (uint16_t)l;
+		return (0);
+	}
+
+	return (-1);
+}
+
+static unsigned int
+parse_flag(struct sun_disklabel *sl, int part, const char *flag)
+{
+	struct tags *tp;
+	char *endp;
+	size_t i;
+	unsigned long l;
+
+	for (i = 0, tp = knownflags;
+	     i < sizeof(knownflags) / sizeof(struct tags);
+	     i++, tp++)
+		if (strcmp(tp->name, flag) == 0) {
+			sl->sl_vtoc_map[part].svtoc_flag = (uint16_t)tp->id;
+			return (0);
+		}
+
+	l = strtoul(flag, &endp, 0);
+	if (*flag != '\0' && *endp == '\0') {
+		sl->sl_vtoc_map[part].svtoc_flag = (uint16_t)l;
+		return (0);
+	}
+
+	return (-1);
+}
+
+/*
+ * Convert argument into `human readable' byte number form.
+ */
+static const char *
+make_h_number(uintmax_t u)
+{
+	static char buf[32];
+	double d;
+
+	if (u == 0) {
+		strcpy(buf, "0B");
+	} else if (u > 2000000000UL) {
+		d = (double)u / 1e9;
+		sprintf(buf, "%.1fG", d);
+	} else if (u > 2000000UL) {
+		d = (double)u / 1e6;
+		sprintf(buf, "%.1fM", d);
+	} else {
+		d = (double)u / 1e3;
+		sprintf(buf, "%.1fK", d);
+	}
+
+	return (buf);
 }
