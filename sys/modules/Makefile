@@ -167,6 +167,7 @@ SUBDIR+=3dfx \
 	elink \
 	em \
 	ep \
+	ex \
 	fe \
 	fpu \
 	gnufpu \
