@@ -176,7 +176,6 @@ struct aiocblist {
         struct	buf *bp;		/* Buffer pointer */
         struct	proc *userproc;		/* User process */ /* Not td! */
         struct	file *fd_file;		/* Pointer to file structure */ 
-	struct	aiothreadlist *jobaiothread;  /* AIO process descriptor */
         struct	aio_liojob *lio;	/* Optional lio job */
         struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
 	struct	klist klist;		/* list of knotes */
@@ -686,7 +685,6 @@ aio_process(struct aiocblist *aiocbe)
 {
 	struct filedesc *fdp;
 	struct thread *td;
-	struct proc *userp;
 	struct proc *mycp;
 	struct aiocb *cb;
 	struct file *fp;
@@ -695,11 +693,9 @@ aio_process(struct aiocblist *aiocbe)
 	unsigned int fd;
 	int cnt;
 	int error;
-	off_t offset;
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
 
-	userp = aiocbe->userproc;
 	td = curthread;
 	mycp = td->td_proc;
 	cb = &aiocbe->uaiocb;
@@ -719,7 +715,7 @@ aio_process(struct aiocblist *aiocbe)
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_offset = offset = cb->aio_offset;
+	auio.uio_offset = cb->aio_offset;
 	auio.uio_resid = cb->aio_nbytes;
 	cnt = cb->aio_nbytes;
 	auio.uio_segflg = UIO_USERSPACE;
@@ -728,10 +724,9 @@ aio_process(struct aiocblist *aiocbe)
 	inblock_st = mycp->p_stats->p_ru.ru_inblock;
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
 	/*
-	 * Temporarily bump the ref count while reading to avoid the
-	 * descriptor being ripped out from under us.
+	 * _aio_aqueue() acquires a reference to the file that is
+	 * released in aio_free_entry().
 	 */
-	fhold(fp);
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
 		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, td);
@@ -739,7 +734,6 @@ aio_process(struct aiocblist *aiocbe)
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	}
-	fdrop(fp, td);
 	inblock_end = mycp->p_stats->p_ru.ru_inblock;
 	oublock_end = mycp->p_stats->p_ru.ru_oublock;
 
@@ -750,9 +744,9 @@ aio_process(struct aiocblist *aiocbe)
 		if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)
 			error = 0;
 		if ((error == EPIPE) && (cb->aio_lio_opcode == LIO_WRITE)) {
-			PROC_LOCK(userp);
-			psignal(userp, SIGPIPE);
-			PROC_UNLOCK(userp);
+			PROC_LOCK(aiocbe->userproc);
+			psignal(aiocbe->userproc, SIGPIPE);
+			PROC_UNLOCK(aiocbe->userproc);
 		}
 	}
 
@@ -915,7 +909,6 @@ aio_daemon(void *uproc)
 			ki->kaio_active_count++;
 
 			/* Do the I/O function. */
-			aiocbe->jobaiothread = aiop;
 			aio_process(aiocbe);
 
 			/* Decrement the active job count. */
