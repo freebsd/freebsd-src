@@ -82,6 +82,7 @@
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
+static int	issignal(struct thread *p);
 static int	sigprop(int sig);
 static void	stop(struct proc *);
 static void	tdsigwakeup(struct thread *td, int sig, sig_t action);
@@ -1886,7 +1887,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
  *	while (sig = cursig(curthread))
  *		postsig(sig);
  */
-int
+static int
 issignal(td)
 	struct thread *td;
 {

@@ -238,7 +238,6 @@ extern struct mtx	sigio_lock;
 int	cursig(struct thread *td);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig);
-int	issignal(struct thread *p);
 void	killproc(struct proc *p, char *why);
 void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
