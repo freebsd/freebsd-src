@@ -178,11 +178,18 @@ void
 platform_not_configured(int cputype)
 {
 	struct cpuinit *cpu;
+	int cpuidx;
 
+	cputype = hwrpb->rpb_type;
+
+	if (cputype < 1)
+		cputype *= -1;
+	
 	if (cputype >= API_ST_BASE) {
-		cputype -= API_ST_BASE;
+		cpuidx = cputype - API_ST_BASE;
 		cpu = api_cpuinit;
 	} else {
+		cpuidx = cputype;
 		cpu = cpuinit;
 	}
 
@@ -190,7 +197,7 @@ platform_not_configured(int cputype)
 	printf("Support for system type %d is not present in this kernel.\n",
 	    cputype);
 	printf("Please build a kernel with \"options %s\" and reboot.\n",
-	    cpu[cputype].option);
+	    cpu[cpuidx].option);
 	printf("\n");   
 	panic("platform not configured\n");
 }
@@ -199,6 +206,11 @@ void
 platform_not_supported(int cputype)
 {
 	const char *typestr;
+
+	cputype = hwrpb->rpb_type;
+
+	if (cputype < 1)
+		cputype *= -1;
 
 	if (cputype >= ncpuinit)
 		typestr = "???";
