@@ -10,8 +10,6 @@ INSTALL_ONLY_COMPRESSED?=
 
 JADEFLAGS+=	-V %generate-article-toc%
 
-NO_TIDY?=YES
-
 # SGML content
 SRCS+=	article.sgml
 SRCS+=	../common/relnotes.ent

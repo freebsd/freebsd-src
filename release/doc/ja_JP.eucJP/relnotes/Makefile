@@ -1,10 +1,11 @@
 # $FreeBSD$
-# Original revision: 1.3
+# Original revision: 1.4
 
 RELN_ROOT?= ${.CURDIR}/../..
 
 SUBDIR = alpha
 SUBDIR+= i386
+SUBDIR+= pc98
 SUBDIR+= sparc64
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
