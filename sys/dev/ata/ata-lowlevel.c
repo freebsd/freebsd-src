@@ -543,7 +543,7 @@ ata_reset(struct ata_channel *ch)
 			   "stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
 			   stat0, err, lsb, msb);
 	    if (!(stat0 & ATA_S_BUSY)) {
-		if (err == ATA_E_ILI) {
+		if ((err & 0x7f) == ATA_E_ILI) {
 		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_MASTER;
 		    }
@@ -568,7 +568,7 @@ ata_reset(struct ata_channel *ch)
 			   " stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
 			   stat1, err, lsb, msb);
 	    if (!(stat1 & ATA_S_BUSY)) {
-		if (err == ATA_E_ILI) {
+		if ((err & 0x7f) == ATA_E_ILI) {
 		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_SLAVE;
 		    }
