@@ -323,6 +323,7 @@ Alignvol(volatile void *ptr) {
 	return (volatile void *)l;
 }
 
+#if 0
 static __inline void
 ie_ack(volatile struct ie_sys_ctl_block *scb,
 				  u_int mask, int unit,
@@ -330,3 +331,4 @@ ie_ack(volatile struct ie_sys_ctl_block *scb,
 	scb->ie_command = scb->ie_status & mask;
 	(*ca)(unit);
 }
+#endif
