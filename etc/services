@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.14 1995/08/29 19:29:36 wollman Exp $
+#	$Id: services,v 1.15 1995/09/15 22:02:06 gibbs Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -40,6 +40,8 @@ ftp-data	 20/tcp	   #File Transfer [Default Data]
 ftp-data	 20/udp	   #File Transfer [Default Data]
 ftp		 21/tcp	   #File Transfer [Control]
 ftp		 21/udp	   #File Transfer [Control]
+ssh		 22/tcp    #Secure Shell Login
+ssh		 22/udp    #Secure Shell Login
 telnet		 23/tcp
 telnet		 23/udp
 #		 24/tcp	   any private mail system
