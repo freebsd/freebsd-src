@@ -111,7 +111,6 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	if (vector == 0) {
 		vector = ib->ib_inta;
 		printf("ExtINT interrupt: vector=%ld\n", vector);
-		goto out;	/* XXX */
 	}
 
 	if (vector == 255) {/* clock interrupt */
@@ -177,7 +176,6 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		ia64_dispatch_intr(framep, vector);
 	}
 
- out:
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
 }
 
@@ -267,6 +265,7 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 	struct ia64_intr *i;
 	int errcode;
 	int vector = irq + IA64_HARDWARE_IRQ_BASE;
+	char *intrname;
 
 	/*
 	 * XXX - Can we have more than one device on a vector?  If so, we have
@@ -284,7 +283,17 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 		i = malloc(sizeof(struct ia64_intr), M_DEVBUF, M_NOWAIT);
 		if (i == NULL)
 			return ENOMEM;
-		i->cntp = cntp;
+		if (cntp == NULL)
+			i->cntp = intrcnt + irq + INTRCNT_ISA_IRQ;
+		else
+			i->cntp = cntp;
+		if (name != NULL && *name != '\0') {
+			/* XXX needs abstraction. Too error phrone. */
+			intrname = intrnames + (irq + INTRCNT_ISA_IRQ) *
+			    INTRNAME_LEN;
+			memset(intrname, ' ', INTRNAME_LEN - 1);
+			bcopy(name, intrname, strlen(name));
+		}
 		errcode = ithread_create(&i->ithd, vector, 0, 0,
 					 ia64_send_eoi, "intr:");
 		if (errcode) {
