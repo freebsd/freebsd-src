@@ -1,3 +1,5 @@
+#	$Id$
+
 SHELL=	/bin/sh
 ED=	../obj/ed
 

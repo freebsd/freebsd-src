@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/1/94
+ *	$Id$
  */
 
 typedef struct {

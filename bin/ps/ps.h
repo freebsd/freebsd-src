@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ps.h	8.1 (Berkeley) 5/31/93
+ *	$Id$
  */
 
 #define	UNLIMITED	0	/* unlimited terminal width */
