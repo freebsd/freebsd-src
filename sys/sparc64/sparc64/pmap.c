@@ -305,41 +305,30 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 	physmem = btoc(physsz);
 
+	/*
+	 * Calculate the size of kernel virtual memory, and the size and mask
+	 * for the kernel tsb.
+	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
 
 	/*
-	 * Get the available physical memory ranges from /memory/reg. These
-	 * are only used for kernel dumps, but it may not be wise to do prom
-	 * calls in that situation.
-	 */
-	if ((sz = OF_getproplen(pmem, "reg")) == -1)
-		panic("pmap_bootstrap: getproplen /memory/reg");
-	if (sizeof(sparc64_memreg) < sz)
-		panic("pmap_bootstrap: sparc64_memreg too small");
-	if (OF_getprop(pmem, "reg", sparc64_memreg, sz) == -1)
-		panic("pmap_bootstrap: getprop /memory/reg");
-	sparc64_nmemreg = sz / sizeof(*sparc64_memreg);
-
-	/*
-	 * Set the start and end of kva.  The kernel is loaded at the first
-	 * available 4 meg super page, so round up to the end of the page.
-	 */
-	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
-	virtual_end = vm_max_kernel_address;
-	kernel_vm_end = vm_max_kernel_address;
-
-	/*
-	 * Allocate the kernel tsb.
+	 * Allocate the kernel tsb and lock it in the tlb.
 	 */
 	pa = pmap_bootstrap_alloc(tsb_kernel_size);
 	if (pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
 	tsb_kernel_phys = pa;
-	tsb_kernel = (struct tte *)virtual_avail;
-	virtual_avail += tsb_kernel_size;
+	tsb_kernel = (struct tte *)(VM_MIN_KERNEL_ADDRESS - tsb_kernel_size);
+	pmap_map_tsb();
+	bzero(tsb_kernel, tsb_kernel_size);
+
+	/*
+	 * Allocate the message buffer.
+	 */
+	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
 
 	/*
 	 * Patch the virtual address and the tsb mask into the trap table.
@@ -373,12 +362,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	PATCH(tl1_dmmu_prot_patch_2);
 	
 	/*
-	 * Lock it in the tlb.
-	 */
-	pmap_map_tsb();
-	bzero(tsb_kernel, tsb_kernel_size);
-
-	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
 	 * pmap_kextract() will work for them.
 	 */
@@ -392,6 +375,26 @@ pmap_bootstrap(vm_offset_t ekva)
 			    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
 		}
 	}
+
+	/*
+	 * Set the start and end of kva.  The kernel is loaded at the first
+	 * available 4 meg super page, so round up to the end of the page.
+	 */
+	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
+	virtual_end = vm_max_kernel_address;
+	kernel_vm_end = vm_max_kernel_address;
+
+	/*
+	 * Allocate virtual address space for the message buffer.
+	 */
+	msgbufp = (struct msgbuf *)virtual_avail;
+	virtual_avail += round_page(MSGBUF_SIZE);
+
+	/*
+	 * Allocate virtual address space to map pages during a kernel dump.
+	 */
+	crashdumpmap = virtual_avail;
+	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it into
@@ -411,9 +414,13 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Allocate the message buffer.
+	 * Calculate the first and last available physical addresses.
 	 */
-	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
+	avail_start = phys_avail[0];
+	for (i = 0; phys_avail[i + 2] != 0; i += 2)
+		;
+	avail_end = phys_avail[i + 1];
+	Maxmem = sparc64_btop(avail_end);
 
 	/*
 	 * Add the prom mappings to the kernel tsb.
@@ -452,25 +459,17 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Calculate the first and last available physical addresses.
+	 * Get the available physical memory ranges from /memory/reg. These
+	 * are only used for kernel dumps, but it may not be wise to do prom
+	 * calls in that situation.
 	 */
-	avail_start = phys_avail[0];
-	for (i = 0; phys_avail[i + 2] != 0; i += 2)
-		;
-	avail_end = phys_avail[i + 1];
-	Maxmem = sparc64_btop(avail_end);
-
-	/*
-	 * Allocate virtual address space for the message buffer.
-	 */
-	msgbufp = (struct msgbuf *)virtual_avail;
-	virtual_avail += round_page(MSGBUF_SIZE);
-
-	/*
-	 * Allocate virtual address space to map pages during a kernel dump.
-	 */
-	crashdumpmap = virtual_avail;
-	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
+	if ((sz = OF_getproplen(pmem, "reg")) == -1)
+		panic("pmap_bootstrap: getproplen /memory/reg");
+	if (sizeof(sparc64_memreg) < sz)
+		panic("pmap_bootstrap: sparc64_memreg too small");
+	if (OF_getprop(pmem, "reg", sparc64_memreg, sz) == -1)
+		panic("pmap_bootstrap: getprop /memory/reg");
+	sparc64_nmemreg = sz / sizeof(*sparc64_memreg);
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
