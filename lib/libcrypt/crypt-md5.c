@@ -75,8 +75,10 @@ crypt_md5(pw, salt)
 
 #ifdef __PIC__
 	libmd = dlopen("libmd.so", RTLD_NOW);
-	if (libmd == NULL)
+	if (libmd == NULL) {
+		warnx("libcrypt-md5: dlopen(libmd.so): %s\n", dlerror());
 		return NULL;
+	}
 	dl_MD5Init = dlsym(libmd, "MD5Init");
 	if (dl_MD5Init == NULL) {
 		warnx("libcrypt-md5: looking for MD5Init: %s\n", dlerror());
