@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-#define PTM_MAJOR	6	/* pseudo tty master major */
-#define PTS_MAJOR	5	/* pseudo tty slave major */
 #define PTM_PREFIX	"pty"	/* pseudo tty master naming convention */
 #define PTS_PREFIX	"tty"	/* pseudo tty slave naming convention */
 
@@ -77,7 +75,6 @@ __FBSDID("$FreeBSD$");
  * The bounds checking may be unnecessary but it does eliminate doubt.
  */
 #define ISPTM(x)	(S_ISCHR((x).st_mode) && 			\
-			 major((x).st_rdev) == PTM_MAJOR &&		\
 			 minor((x).st_rdev) >= 0 &&			\
 			 minor((x).st_rdev) < PT_MAX)
 
