@@ -75,9 +75,9 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
-	    int shmflg, int wantrem);
+	    int shmflg);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
-	    size_t *bufsz, int wantrem);
+	    size_t *bufsz);
 int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
