@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.72 1996/05/24 05:19:15 dyson Exp $
+ * $Id: vm_pageout.c,v 1.73 1996/05/26 07:52:09 dyson Exp $
  */
 
 /*
@@ -321,7 +321,6 @@ vm_pageout_flush(mc, count, sync)
 	    ((sync || (object == kernel_object)) ? TRUE : FALSE),
 	    pageout_status);
 
-
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
@@ -517,10 +516,9 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 static int
 vm_pageout_scan()
 {
-	vm_page_t m;
-	int page_shortage, maxscan, maxlaunder, pcount;
+	vm_page_t m, next;
+	int page_shortage, addl_page_shortage, maxscan, maxlaunder, pcount;
 	int pages_freed;
-	vm_page_t next;
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
 	vm_object_t object;
@@ -530,7 +528,6 @@ vm_pageout_scan()
 	int i;
 	int s;
 
-	pages_freed = 0;
 
 
 	/*
@@ -540,38 +537,40 @@ vm_pageout_scan()
 	 * them.
 	 */
 
-rescan0:
+	pages_freed = 0;
+
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
-
-rescan1:
+rescan0:
+	addl_page_shortage = 0;
 	maxscan = cnt.v_inactive_count;
-	m = TAILQ_FIRST(&vm_page_queue_inactive);
-	while ((m != NULL) && (maxscan-- > 0) &&
-	    ((cnt.v_cache_count + cnt.v_free_count) <
-		(cnt.v_cache_min + cnt.v_free_target))) {
-		vm_page_t next;
+	for( m = TAILQ_FIRST(&vm_page_queue_inactive);
+
+		(m != NULL) && (maxscan-- > 0) &&
+			((cnt.v_cache_count + cnt.v_free_count) <
+			(cnt.v_cache_min + cnt.v_free_target));
+
+		m = next) {
 
 		cnt.v_pdpages++;
+
+		if (m->queue != PQ_INACTIVE)
+			goto rescan0;
+
 		next = TAILQ_NEXT(m, pageq);
 
-		if (m->queue != PQ_INACTIVE) {
-			printf("vm_pageout_scan: page not inactive?\n");
-			break;
+		if (m->hold_count) {
+			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+			addl_page_shortage++;
+			continue;
 		}
-
 		/*
 		 * Dont mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
 		if (m->busy || (m->flags & PG_BUSY)) {
-			m = next;
-			continue;
-		}
-		if (m->hold_count) {
-			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
-			m = next;
+			addl_page_shortage++;
 			continue;
 		}
 
@@ -587,7 +586,6 @@ rescan1:
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 			vm_page_activate(m);
-			m = next;
 			continue;
 		}
 
@@ -612,23 +610,44 @@ rescan1:
 			if (object->flags & OBJ_DEAD) {
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
-				m = next;
 				continue;
 			}
 
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) || vget(vp, 1)) {
-					if (m->queue == PQ_INACTIVE) {
+					if ((m->queue == PQ_INACTIVE) &&
+						(m->hold_count == 0) &&
+						(m->busy == 0) &&
+						(m->flags & PG_BUSY) == 0) {
 						TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 						TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 					}
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						++vnodes_skipped;
-					if (next->queue != PQ_INACTIVE) {
-						goto rescan0;
-					}
-					m = next;
+					continue;
+				}
+
+				if (m->queue != PQ_INACTIVE) {
+					if (object->flags & OBJ_MIGHTBEDIRTY)
+						++vnodes_skipped;
+					vput(vp);
+					continue;
+				}
+	
+				if (m->busy || (m->flags & PG_BUSY)) {
+					TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+					TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+					vput(vp);
+					continue;
+				}
+
+				if (m->hold_count) {
+					TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+					TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+					if (object->flags & OBJ_MIGHTBEDIRTY)
+						++vnodes_skipped;
+					vput(vp);
 					continue;
 				}
 			}
@@ -644,20 +663,8 @@ rescan1:
 			if (vp)
 				vput(vp);
 
-			if (!next) {
-				break;
-			}
 			maxlaunder -= written;
-			/*
-			 * if the next page has been re-activated, start
-			 * scanning again
-			 */
-			if (next->queue != PQ_INACTIVE) {
-				vm_pager_sync();
-				goto rescan1;
-			}
 		}
-		m = next;
 	}
 
 	/*
@@ -666,7 +673,7 @@ rescan1:
 	 * inactive.
 	 */
 
-	page_shortage = cnt.v_inactive_target -
+	page_shortage = (cnt.v_inactive_target + cnt.v_cache_min) -
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
 	if (page_shortage <= 0) {
 		if (pages_freed == 0) {
@@ -674,6 +681,11 @@ rescan1:
 		} else {
 			page_shortage = 1;
 		}
+	}
+	if (addl_page_shortage) {
+		if (page_shortage < 0)
+			page_shortage = 0;
+		page_shortage += addl_page_shortage;
 	}
 
 	pcount = cnt.v_active_count;
@@ -812,6 +824,36 @@ rescan1:
 	return force_wakeup;
 }
 
+static int
+vm_pageout_free_page_calc(count)
+vm_size_t count;
+{
+	if (count < cnt.v_page_count)
+		 return 0;
+	/*
+	 * free_reserved needs to include enough for the largest swap pager
+	 * structures plus enough for any pv_entry structs when paging.
+	 */
+	if (cnt.v_page_count > 1024)
+		cnt.v_free_min = 4 + (cnt.v_page_count - 1024) / 200;
+	else
+		cnt.v_free_min = 4;
+	cnt.v_pageout_free_min = 2 + VM_PAGEOUT_PAGE_COUNT
+		+ cnt.v_interrupt_free_min;
+	cnt.v_free_reserved = cnt.v_pageout_free_min + (count / 1024);
+	cnt.v_free_min += cnt.v_free_reserved;
+	return 1;
+}
+
+
+int
+vm_pageout_free_pages(object, add)
+vm_object_t object;
+int add;
+{
+	return vm_pageout_free_page_calc(object->size);
+}
+
 /*
  *	vm_pageout is the high level pageout daemon.
  */
@@ -826,19 +868,12 @@ vm_pageout()
 
 	cnt.v_interrupt_free_min = 2;
 
-	if (cnt.v_page_count > 1024)
-		cnt.v_free_min = 4 + (cnt.v_page_count - 1024) / 200;
-	else
-		cnt.v_free_min = 4;
+	vm_pageout_free_page_calc(cnt.v_page_count);
 	/*
 	 * free_reserved needs to include enough for the largest swap pager
 	 * structures plus enough for any pv_entry structs when paging.
 	 */
-	cnt.v_pageout_free_min = 6 + cnt.v_page_count / 1024 +
-				cnt.v_interrupt_free_min;
-	cnt.v_free_reserved = cnt.v_pageout_free_min + 6;
 	cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
-	cnt.v_free_min += cnt.v_free_reserved;
 
 	if (cnt.v_free_count > 1024) {
 		cnt.v_cache_max = (cnt.v_free_count - 1024) / 2;
@@ -864,23 +899,23 @@ vm_pageout()
 		int s = splvm();
 		if (!vm_pages_needed ||
 			((cnt.v_free_count >= cnt.v_free_reserved) &&
-			 (cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min))) {
+			 ((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min))) {
 			vm_pages_needed = 0;
 			tsleep(&vm_pages_needed, PVM, "psleep", 0);
 		} else if (!vm_pages_needed) {
 			tsleep(&vm_pages_needed, PVM, "psleep", hz/3);
 		}
+		inactive_target =
+			(cnt.v_page_count - cnt.v_wire_count) / 4;
+		if (inactive_target < 2*cnt.v_free_min)
+			inactive_target = 2*cnt.v_free_min;
+		cnt.v_inactive_target = inactive_target;
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
 		vm_pages_needed = 0;
 		splx(s);
 		vm_pager_sync();
 		vm_pageout_scan();
-		inactive_target =
-			(cnt.v_page_count - cnt.v_wire_count) / 4;
-		if (inactive_target < 2*cnt.v_free_min)
-			inactive_target = 2*cnt.v_free_min;
-		cnt.v_inactive_target = inactive_target;
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
 	}
