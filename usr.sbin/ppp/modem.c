@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.75 1998/01/20 22:47:42 brian Exp $
+ * $Id: modem.c,v 1.76 1998/01/21 02:15:22 brian Exp $
  *
  *  TODO:
  */
@@ -403,8 +403,11 @@ LockModem(void)
   if (lockfile != NULL) {
     fprintf(lockfile, "tun%d\n", tunno);
     fclose(lockfile);
-  } else
+  }
+#ifndef RELEASE_CRUNCH
+  else
     LogPrintf(LogALERT, "Warning: Can't create %s: %s\n", fn, strerror(errno));
+#endif
 
   return 0;
 }
@@ -416,8 +419,12 @@ UnlockModem(void)
     return;
 
   snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
+#ifndef RELEASE_CRUNCH
   if (ID0unlink(fn) == -1)
     LogPrintf(LogALERT, "Warning: Can't remove %s: %s\n", fn, strerror(errno));
+#else
+  ID0unlink(fn);
+#endif
 
   if (!(mode & MODE_DIRECT) && ID0uu_unlock(VarBaseDevice) == -1)
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
