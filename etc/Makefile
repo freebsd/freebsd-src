@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.163 1997/11/09 14:24:24 brian Exp $
+#	$Id: Makefile,v 1.164 1998/05/07 23:42:24 ache Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -11,7 +11,7 @@ BIN1=   aliases amd.map crontab csh.cshrc csh.login csh.logout dm.conf \
 	rc rc.conf rc.firewall rc.local rc.network rc.pccard rc.serial \
 	rc.shutdown etc.${MACHINE}/rc.${MACHINE} \
 	remote security services shells \
-	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
+	syslog.conf etc.${MACHINE}/ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
