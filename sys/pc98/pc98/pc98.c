@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.5 1997/02/11 14:24:49 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.6 1997/02/13 12:26:42 kato Exp $
  */
 
 /*
@@ -67,6 +67,7 @@
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
 #ifdef PC98
+#include <machine/cpufunc.h>
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/epsonio.h>
@@ -734,9 +735,9 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	/* translate to physical */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
 
-#ifdef CYRIX_5X86
-	asm("wbinvd");		/* wbinvd (WB cache flush) */
-#endif
+	if (need_pre_dma_flush)
+		wbinvd();		/* wbinvd (WB cache flush) */
+
 
 #ifndef PC98
 	if ((chan & 4) == 0) {
@@ -814,12 +815,11 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {
-#if defined(CYRIX_486DLC) || defined(IBM_486SLC)
 	if (flags & B_READ) {
 		/* cache flush only after reading 92/12/9 by A.Kojima */
-		asm("	.byte 0x0f,0x08");	/* invd (cache flush) */
+		if (need_post_dma_flush)
+			invd();
 	}
-#endif
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)

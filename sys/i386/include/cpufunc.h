@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.58 1996/09/28 22:37:57 dyson Exp $
+ *	$Id: cpufunc.h,v 1.59 1996/09/29 18:35:07 bde Exp $
  */
 
 /*
@@ -196,6 +196,12 @@ insl(u_int port, void *addr, size_t cnt)
 }
 
 static __inline void
+invd(void)
+{
+	__asm __volatile("invd");
+}
+
+static __inline void
 invlpg(u_int addr)
 {
 	__asm __volatile("invlpg (%0)" : : "r" (addr) : "memory");
@@ -339,6 +345,12 @@ setbits(volatile unsigned *addr, u_int bits)
 }
 
 static __inline void
+wbinvd(void)
+{
+	__asm __volatile("wbinvd");
+}
+
+static __inline void
 write_eflags(u_long ef)
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
@@ -360,6 +372,7 @@ u_long	inl		__P((u_int port));
 void	insb		__P((u_int port, void *addr, size_t cnt));
 void	insl		__P((u_int port, void *addr, size_t cnt));
 void	insw		__P((u_int port, void *addr, size_t cnt));
+void	invd		__P((void));
 void	invlpg		__P((u_int addr));
 void	invltlb		__P((void));
 u_short	inw		__P((u_int port));
@@ -376,6 +389,7 @@ quad_t	rdpmc		__P((u_int pmc));
 quad_t	rdtsc		__P((void));
 u_long	read_eflags	__P((void));
 void	setbits		__P((volatile unsigned *addr, u_int bits));
+void	wbinvd		__P((void));
 void	write_eflags	__P((u_long ef));
 void	wrmsr		__P((u_int msr, quad_t newval));
 

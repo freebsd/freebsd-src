@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.9 1996/07/01 18:12:24 bde Exp $
+ *	$Id: md_var.h,v 1.10 1996/10/31 00:57:27 julian Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -41,6 +41,7 @@ extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	u_long	cpu_feature;
 extern	u_long	cpu_high;
 extern	u_long	cpu_id;
+extern	u_long	cyrix_did;
 extern	char	cpu_vendor[];
 extern	char	etext[];
 extern	char	kstack[];
@@ -71,5 +72,10 @@ void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
+
+#ifdef PC98
+extern int need_pre_dma_flush;
+extern int need_post_dma_flush;
+#endif
 
 #endif /* !_MACHINE_MD_VAR_H_ */

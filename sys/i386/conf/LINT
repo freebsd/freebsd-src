@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.21 1997/05/11 18:01:22 tegge Exp $
+#	$Id: LINT,v 1.286.2.22 1997/06/06 12:24:18 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -11,16 +11,10 @@
 
 #
 # This directive is mandatory; it defines the architecture to be
-# configured for; in this case, the 386 family.  You must also specify
-# at least one CPU (the one you intend to run on); deleting the
-# specification for CPUs you don't need to use may make parts of the
-# system run faster.  This is especially true removing I386_CPU.
+# configured for; in this case, the 386 family based IBM-PC and
+# compatibles.
 #
 machine		"i386"
-cpu		"I386_CPU"
-cpu		"I486_CPU"
-cpu		"I586_CPU"		# aka Pentium(tm)
-cpu		"I686_CPU"		# aka Pentium Pro(tm)
 
 # 
 # This is the ``identification'' of the kernel.  Usually this should
@@ -60,17 +54,6 @@ options		OPEN_MAX=128
 options		"MAXDSIZ=(256*1024*1024)"
 options		"DFLDSIZ=(256*1024*1024)"
 
-#
-# A math emulator is mandatory if you wish to run on hardware which
-# does not have a floating-point processor.  Pick either the original,
-# bogus (but freely-distributable) math emulator, or a much more
-# fully-featured but GPL-licensed emulator taken from Linux.
-#
-options		MATH_EMULATE		#Support for x87 emulation
-# Don't enable both of these in a real config.
-options		GPL_MATH_EMULATE	#Support for x87 emulation via
-					#new math emulator 
-
 # When this is set, be extra conservative in various parts of the kernel
 # and choose functionality over speed (on the widest variety of systems).
 #
@@ -93,6 +76,94 @@ options         INCLUDE_CONFIG_FILE     # Include this file in kernel
 #    dump device here is not recommended.  Use dumpon(8).
 #
 config		kernel	root on wd0 dumps on wd0
+
+
+#####################################################################
+# CPU OPTIONS
+
+#
+# You must specify at least one CPU (the one you intend to run on);
+# deleting the specification for CPUs you don't need to use may make
+# parts of the system run faster.  This is especially true removing
+# I386_CPU.
+#
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"		# aka Pentium(tm)
+cpu		"I686_CPU"		# aka Pentium Pro(tm)
+
+#
+# Options for CPU features.
+#
+# CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
+# BlueLightning CPU.  It works only with Cyrix FPU, and this option
+# should not be used with Intel FPU.
+#
+# CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning 
+# CPU if CPU supports it. The default is double-clock mode on
+# BlueLightning CPU box.  
+#
+# CPU_BTB_EN enables branch target buffer on Cyrix 5x86 (NOTE 1).
+#
+# CPU_DISABLE_5X86_LSSER disables load store serialize (i.e. enables
+# reorder).  This option should not be used if you use memory mapped
+# I/O device(s). 
+#
+# CPU_FASTER_5X86_FPU enables faster FPU exception handler.
+#
+# CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
+# for i386 machines. 
+# CPU_IORT defines I/O clock delay time (NOTE 1).  Default vaules of
+# I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
+# (no clock delay).
+#
+# CPU_LOOP_EN prevents flushing the prefetch buffer if the destination
+# of a jump is already present in the prefetch buffer on Cyrix 5x86(NOTE
+# 1). 
+#
+# CPU_RSTK_EN enables return stack on Cyrix 5x86 (NOTE 1).
+#
+# CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
+# enters suspend mode following execution of HALT instruction.
+#
+# CYRIX_CACHE_WORKS enables CPU cache on Cyrix 486 CPUs with cache
+# flush at hold state.
+#
+# CYRIX_CACHE_REALLY_WORKS enables (1) CPU cache on Cyrix 486 CPUs
+# without cache flush at hold state, and (2) write-back CPU cache on
+# Cyrix 6x86 whose revision < 2.7 (NOTE 2).
+#
+# NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
+# CPU_LOOP_ENand CPU_RSTK_EN should no be used becasue of CPU bugs.
+# These options may crash your system. 
+#
+# NOTE 2: If CYRIX_CACHE_REALLY_WORKS is not set, CPU cache is enabled
+# in write-through mode when revision < 2.7.  If revision of Cyrix
+# 6x86 >= 2.7, CPU cache is always enabled in write-back mode.
+#
+options		"CPU_BLUELIGHTNING_FPU_OP_CACHE"
+options		"CPU_BLUELIGHTNING_3X"
+options		"CPU_BTB_EN"
+options		"CPU_DISABLE_5X86_LSSER"
+options		"CPU_FASTER_5X86_FPU"
+options		"CPU_I486_ON_386"
+options		"CPU_IORT"
+options		"CPU_LOOP_EN"
+options		"CPU_RSTK_EN"
+options		"CPU_SUSP_HLT"
+options		"CYRIX_CACHE_WORKS"
+options		"CYRIX_CACHE_REALLY_WORKS"
+
+#
+# A math emulator is mandatory if you wish to run on hardware which
+# does not have a floating-point processor.  Pick either the original,
+# bogus (but freely-distributable) math emulator, or a much more
+# fully-featured but GPL-licensed emulator taken from Linux.
+#
+options		MATH_EMULATE		#Support for x87 emulation
+# Don't enable both of these in a real config.
+options		GPL_MATH_EMULATE	#Support for x87 emulation via
+					#new math emulator 
 
 
 #####################################################################

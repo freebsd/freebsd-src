@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.9 1997/02/14 05:37:48 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.10 1997/04/03 06:37:46 davidg Exp $
  */
 
 #include "npx.h"
@@ -126,12 +126,19 @@ extern int ptrace_single_step __P((struct proc *p));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
-extern void identifycpu(void);	/* XXX header file */
+extern void printcpuinfo(void);	/* XXX header file */
 extern void earlysetcpuclass(void);	/* same header file */
+extern void finishidentcpu(void);
+extern void panicifcpuunsupported(void);
+extern void initializecpu(void);
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
+#ifdef PC98
+int	need_pre_dma_flush;		/* If 1, use wbinvd befor DMA transfer. */
+int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
+#endif
 
 #ifdef BOUNCE_BUFFERS
 extern char *bouncememory;
@@ -215,7 +222,8 @@ cpu_startup(dummy)
 	printf(version);
 	earlysetcpuclass();
 	startrtclock();
-	identifycpu();
+	printcpuinfo();
+	panicifcpuunsupported();
 #ifdef PERFMON
 	perfmon_init();
 #endif
@@ -1039,7 +1047,7 @@ init386(first)
 	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #else
 	setidt(14, &IDTVEC(page),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -1074,6 +1082,10 @@ init386(first)
 	if (boothowto & RB_KDB)
 		Debugger("Boot flags requested debugger");
 #endif
+
+	finishidentcpu();	/* Final stage of CPU initialization */
+	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	initializecpu();	/* Initialize CPU registers */
 
 #ifdef PC98
 	pc98_getmemsize();

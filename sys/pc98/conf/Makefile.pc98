@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.7.2.1 1996/11/09 21:12:38 phk Exp $
+#	$Id: Makefile.pc98,v 1.7.2.2 1997/02/14 05:35:07 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -58,7 +58,7 @@ DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
-SYSTEM_SFILES= ${PC98}/i386/locore.s
+SYSTEM_SFILES= ${I386}/i386/locore.s
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
 SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
@@ -89,7 +89,7 @@ clean:
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
-#	  ${PC98}/i386/Locore.c ${CFILES} ioconf.c param.c | \
+#	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
@@ -101,7 +101,7 @@ symbols.sort: ${I386}/i386/symbols.raw
 	grep -v '^#' ${I386}/i386/symbols.raw \
 	    | sed 's/^	//' | sort -u > symbols.sort
 
-locore.o: ${PC98}/i386/locore.s assym.s
+locore.o: ${I386}/i386/locore.s assym.s
 	${NORMAL_S}
 
 # everything potentially depends on the Makefile since everything potentially
