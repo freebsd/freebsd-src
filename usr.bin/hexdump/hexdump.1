@@ -35,11 +35,20 @@
 .Dt HEXDUMP 1
 .Os
 .Sh NAME
-.Nm hexdump
+.Nm hexdump, hd
 .Nd ascii, decimal, hexadecimal, octal dump
 .Sh SYNOPSIS
 .Nm hexdump
 .Op Fl bcCdovx
+.Op Fl e Ar format_string
+.Op Fl f Ar format_file
+.Op Fl n Ar length
+.Bk -words
+.Op Fl s Ar skip
+.Ek
+.Ar file  ...
+.Nm hd
+.Op Fl bcdovx
 .Op Fl e Ar format_string
 .Op Fl f Ar format_file
 .Op Fl n Ar length
@@ -69,6 +78,10 @@ data per line.
 Display the input offset in hexadecimal, followed by sixteen
 space-separated, two column, hexadecimal bytes, followed by the
 same sixteen bytes in %_p format enclosed in ``|'' characters.
+.Pp
+Calling the command
+.Nm hd
+implies this option.
 .It Fl d
 .Em Two-byte decimal display.
 Display the input offset in hexadecimal, followed by eight

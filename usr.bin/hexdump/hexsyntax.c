@@ -56,6 +56,14 @@ newsyntax(argc, argvp)
 	char *p, **argv;
 
 	argv = *argvp;
+	if ((p = rindex(argv[0], 'h')) != NULL &&
+	    strcmp(p, "hd") == 0) {
+		/* "Canonical" format, implies -C. */
+		add("\"%08.8_Ax\n\"");
+		add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \"");
+		add(" 8/1 \"%02x \" ");
+		add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
+	}
 	while ((ch = getopt(argc, argv, "bcCde:f:n:os:vx")) != EOF)
 		switch (ch) {
 		case 'b':
@@ -68,8 +76,9 @@ newsyntax(argc, argvp)
 			break;
 		case 'C':
 			add("\"%08.8_Ax\n\"");
-			add("\"%08.8_ax \" 16/1 \"%02x \" ");
-			add("\" |\" 16/1 \"%_p\" \"|\\n\"");
+			add("\"%08.8_ax  \" 8/1 \"%02x \" \"  \"");
+			add(" 8/1 \"%02x \" ");
+			add("\"  |\" 16/1 \"%_p\" \"|\\n\"");
 			break;
 		case 'd':
 			add("\"%07.7_Ax\n\"");
@@ -127,6 +136,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-"hexdump: [-bcdovx] [-e fmt] [-f fmt_file] [-n length] [-s skip] [file ...]\n");
+"hexdump: [-bcCdovx] [-e fmt] [-f fmt_file] [-n length] [-s skip] [file ...]\n");
 	exit(1);
 }
