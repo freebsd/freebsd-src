@@ -543,12 +543,16 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	struct mount *mp;
 	struct sockaddr *nam;
 	int error;
+	int didalloc = 0;
 
 	mp = *mpp;
 
-	if (!mp && (error = vfs_rootmountalloc("nfs", path, &mp))) {
-		printf("nfs_mountroot: NFS not configured");
-		return (error);
+	if (mp == NULL) {
+		if ((error = vfs_rootmountalloc("nfs", path, &mp)) != 0) {
+			printf("nfs_mountroot: NFS not configured");
+			return (error);
+		}
+		didalloc = 1;
 	}
 
 	mp->mnt_kern_flag = 0;
@@ -559,7 +563,8 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
-		free(mp, M_MOUNT);
+		if (didalloc)
+			free(mp, M_MOUNT);
 		FREE(nam, M_SONAME);
 		return (error);
 	}
