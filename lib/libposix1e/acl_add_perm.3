@@ -30,48 +30,38 @@
 .Os
 .Sh NAME
 .Nm acl_add_perm
-.Nd Add permissions to a permission set
+.Nd add permissions to a permission set
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
 .Ft int
-.Fn acl_add_perm "acl_permset_t permset_d, acl_perm_t perm"
+.Fn acl_add_perm "acl_permset_t permset_d" "acl_perm_t perm"
 .Sh DESCRIPTION
 .Fn acl_add_perm
 is a POSIX.1e call that adds the permission contained in
-.Ar perm
+.Fa perm
 to the permission set
-.Ar permset_d .
+.Fa permset_d .
 .Pp
 Note: it is not considered an error to attempt to add permissions
 that already exist in the permission set.
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_add_perm
 .Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_add_perm
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar permset_d
+.Fa permset_d
 is not a valid descriptor for a permission set within an ACL entry.
 Argument
-.Ar perm
+.Fa perm
 does not contain a valid
-.Ar acl_perm_t
+.Vt acl_perm_t
 value.
 .El
 .Sh SEE ALSO

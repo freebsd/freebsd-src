@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_get_permset
-.Nd Retrieve permset from an ACL entry
+.Nd retrieve permission set from an ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,32 +41,21 @@
 .Sh DESCRIPTION
 .Fn acl_get_permset
 is a POSIX.1e call that returns via
-.Ar permset_p
+.Fa permset_p
 a descriptor to the permission set in the ACL entry
-.Ar entry_d .
+.Fa entry_d .
 Subsequent operations using the returned permission set operate
 on the permission set within the ACL entry.
-.Ar perm .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_get_permset
 .Sh ERRORS
-If the following condition occurs, the
+The
 .Fn acl_get_permset
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
+.Fa entry_d
 is not a valid descriptor for an ACL entry.
 .El
 .Sh SEE ALSO
