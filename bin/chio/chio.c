@@ -1,5 +1,3 @@
-/*	$Id: chio.c,v 1.3 1997/06/06 06:32:09 charnier Exp $	*/
-
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
@@ -32,13 +30,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-#include <sys/ioctl.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/chio.h> 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

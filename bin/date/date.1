@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.22 1997/12/11 02:38:55 brian Exp $
+.\"	$Id: date.1,v 1.23 1998/04/20 21:06:38 rnordier Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -52,7 +52,7 @@
 .Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
 .Op Cm + Ns Ar format
 .Sh DESCRIPTION
-.Nm
+.Nm Date
 displays the current date and time when invoked without arguments.
 Providing arguments will format the date and time in a user-defined
 way or set the date.
@@ -84,12 +84,12 @@ is used to synchronize the clocks on groups of machines.
 By default, if
 .Xr timed
 is running,
-.Nm date
+.Nm
 will set the time on all of the machines in the local group.
 The
 .Fl n
 option stops
-.Nm date
+.Nm
 from setting the time for other than the current machine.
 .It Fl r
 Print out the date and time in
@@ -118,8 +118,8 @@ part of the date is set.  The date can be adjusted as many times as
 required using these flags.  Flags are processed in the order given.
 .Pp
 Minutes are in the range 0-59, hours are in the range 1-12, month days
-are in the range 1-31, week days are in the range 0-6 (sun-sat), months
-are in the range 1-12 (jan-dec) and years are in the range 80-38 or
+are in the range 1-31, week days are in the range 0-6 (Sun-Sat), months
+are in the range 1-12 (Jan-Dec) and years are in the range 80-38 or
 1980-2038.
 .Pp
 If
@@ -250,7 +250,7 @@ is affected by the following environment variables:
 .It Ev TZ
 The timezone to use when displaying dates.
 The normal format is a pathname relative to
-.Dq Pa /usr/share/zoneinfo .
+.Pa /usr/share/zoneinfo .
 For example, the command
 .Dq TZ=America/Los_Angeles date
 displays the current time in California.
@@ -261,9 +261,9 @@ for more information.
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
 .It Pa /var/log/wtmp
-A record of date resets and time changes.
+a record of date resets and time changes
 .It Pa /var/log/messages
-A record of the user setting the time.
+a record of the user setting the time
 .El
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,
@@ -285,14 +285,14 @@ Occasionally, when
 synchronizes the time on many hosts, the setting of a new time value may
 require more than a few seconds.
 On these occasions,
-.Nm date
+.Nm
 prints:
 .Ql Network time being set .
 The message
 .Ql Communication error with timed
 occurs when the communication
 between
-.Nm date
+.Nm
 and
 .Xr timed
 fails.
@@ -313,7 +313,7 @@ will be running on
 .Tn GMT .
 .Sh STANDARDS
 The
-.Nm date
+.Nm
 command is expected to be compatible with
 .St -p1003.2 .
 .Sh HISTORY

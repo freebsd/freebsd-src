@@ -36,23 +36,19 @@
 static char sccsid[] = "@(#)file.c	8.2 (Berkeley) 3/19/94";
 #else
 static const char rcsid[] =
-	"$Id: file.c,v 1.7 1997/08/07 21:42:08 steve Exp $";
+	"$Id: file.c,v 1.8 1998/02/01 17:11:01 steve Exp $";
 #endif
 #endif /* not lint */
 
 #ifdef FILEC
 
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <termios.h>
 #include <dirent.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <unistd.h>
-#ifndef SHORT_STRINGS
-#include <string.h>
-#endif /* SHORT_STRINGS */
 #if __STDC__
 # include <stdarg.h>
 #else

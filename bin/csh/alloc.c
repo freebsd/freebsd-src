@@ -36,11 +36,10 @@
 static char sccsid[] = "@(#)alloc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: alloc.c,v 1.6 1997/02/22 14:01:37 peter Exp $";
+	"$Id: alloc.c,v 1.7 1997/08/07 21:42:01 steve Exp $";
 #endif
 #endif /* not lint */
 
-#include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
 #if __STDC__
