@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.9 1998/03/23 20:52:57 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.2.7 1998/03/23 21:32:10 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -94,6 +94,9 @@ define(`confFORWARD_PATH', `/var/forward/$u')dnl
 
 LOCAL_CONFIG
 Cw localhost freefall.freebsd.org
+
+# file containing local IP addresses
+F{LocalIP}	/etc/mail/LocalIP
 
 Kdenyip hash -o -a.REJECT /etc/mail/denyip.db
 Kfakenames hash -o -a.REJECT /etc/mail/fakenames.db
@@ -181,22 +184,32 @@ Scheck_rcpt
 # "Rcpt To: xxx", of SMTP conversation
 #       may or may not have "<" ">" and or RFC-822 comments.
 #	let ruleset 3 clean this up for us.
+#
 # mail must NOT be addressed "fakenames"--BEGIN
 R$*			$: <$1> $>3 $1
 R<$*> $+ < @ $+ >	$: <$1> $(fakenames $2 $: OK $)
 R$+.REJECT		$#error $: 521 $1
 R<$*> $*		$: $1
 # mail must NOT be addressed "fakenames"--END
+#
 # mail must come from or go to this machine or machines we allow to relay--BEGIN
-# R$*			$: $>Parse0 $>3 $1
-# R$+ < @ $* . > $*	$: $1 < @ $2 >
-# R$+ < @ $=w>		$@ OK
-# R$+ < @ $* $=R>	$@ OK
-# R$*			$: $(dequote "" $&{client_name} $)
-# R$=w			$@ OK
-# R$* $=R		$@ OK
-# R$@			$@ OK
-# R$*			$#error $: "550 Relaying Denied"
-# mail must come from or go to this mahcine or machines we allow to relay--BEGIN
-R$*			$@ OK
-
+# from http://www.informatik.uni-kiel.de/%7Eca/email/check.html#check_rcpt
+R$+			$: $(dequote "" $&{client_addr} $) $| $1
+R0 $| $*		$@ ok
+R$={LocalIP}$* $| $*	$@ ok
+# not local, check rcpt
+R$* $| $*		$: $>3 $2
+# remove local part, maybe repeatedly
+R$+			$:$>removelocal $1
+# still something left?
+R$*<@$+>$*		$#error $@ 5.7.1 $: 550 we do not relay
+#
+Sremovelocal
+# remove RelayTo part (maybe repeatedly)
+# R$*<@$*$={RelayTo}.>$*	$>3 $1 $4
+R$*<@$=w.>$*		$: $>removelocal $>3 $1 $3
+R$*<@$*>$*		$@ $1<@$2>$3
+# dequote local part
+R$-			$: $>3 $(dequote $1 $)
+R$*<@$*>$*		$: $>removelocal $1<@$2>$3
+# mail must come from or go to this machine or machines we allow to relay--END
