@@ -323,8 +323,93 @@ init_AMD_Elan_sc520(void)
 	tc_init(&elan_timecounter);
 }
 
-static d_ioctl_t elan_ioctl;
-static d_mmap_t elan_mmap;
+static void
+elan_watchdog(void *foo __unused, u_int spec, int *error)
+{
+	u_int u, v;
+	static u_int cur;
+
+	u = spec & WD_INTERVAL;
+	if (spec && u <= 35) {
+		u = imax(u - 5, 24);
+		v = 2 << (u - 24);
+		v |= 0xc000;
+
+		/*
+		 * There is a bug in some silicon which prevents us from
+		 * writing to the WDTMRCTL register if the GP echo mode is
+		 * enabled.  GP echo mode on the other hand is desirable
+		 * for other reasons.  Save and restore the GP echo mode
+		 * around our hardware tom-foolery.
+		 */
+		u = elan_mmcr->GPECHO;
+		elan_mmcr->GPECHO = 0;
+		if (v != cur) {
+			/* Clear the ENB bit */
+			elan_mmcr->WDTMRCTL = 0x3333;
+			elan_mmcr->WDTMRCTL = 0xcccc;
+			elan_mmcr->WDTMRCTL = 0;
+
+			/* Set new value */
+			elan_mmcr->WDTMRCTL = 0x3333;
+			elan_mmcr->WDTMRCTL = 0xcccc;
+			elan_mmcr->WDTMRCTL = v;
+			cur = v;
+		} else {
+			/* Just reset timer */
+			elan_mmcr->WDTMRCTL = 0xaaaa;
+			elan_mmcr->WDTMRCTL = 0x5555;
+		}
+		elan_mmcr->GPECHO = u;
+		*error = 0;
+		return;
+	} else {
+		u = elan_mmcr->GPECHO;
+		elan_mmcr->GPECHO = 0;
+		elan_mmcr->WDTMRCTL = 0x3333;
+		elan_mmcr->WDTMRCTL = 0xcccc;
+		elan_mmcr->WDTMRCTL = 0x4080;
+		elan_mmcr->WDTMRCTL = u;
+		elan_mmcr->GPECHO = u;
+		cur = 0;
+		return;
+	}
+}
+
+static int
+elan_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+{
+
+	if (offset >= 0x1000) 
+		return (-1);
+	*paddr = 0xfffef000;
+	return (0);
+}
+static int
+elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
+{
+	int error;
+
+	error = ENOIOCTL;
+
+#ifdef CPU_ELAN_PPS
+	if (pps_a != 0)
+		error = pps_ioctl(cmd, arg, &elan_pps);
+	/*
+	 * We only want to incur the overhead of the PPS polling if we
+	 * are actually asked to timestamp.
+	 */
+	if (elan_pps.ppsparam.mode & PPS_CAPTUREASSERT) {
+		elan_timecounter.tc_poll_pps = elan_poll_pps;
+	} else {
+		elan_timecounter.tc_poll_pps = NULL;
+	}
+	if (error != ENOIOCTL)
+		return (error);
+#endif
+
+	return(error);
+}
 
 static struct cdevsw elan_cdevsw = {
 	.d_version =	D_VERSION,
@@ -365,109 +450,9 @@ elan_drvinit(void)
 	/* We don't know which pins are available so enable them all */
 	strcpy(gpio_config, "................................");
 #endif /* CPU_SOEKRIS */
+
+	EVENTHANDLER_REGISTER(watchdog_list, elan_watchdog, NULL, 0);
 }
 
 SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, elan_drvinit, NULL);
-
-static int
-elan_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
-{
-
-	if (offset >= 0x1000) 
-		return (-1);
-	*paddr = 0xfffef000;
-	return (0);
-}
-
-static int
-elan_watchdog(u_int spec)
-{
-	u_int u, v;
-	static u_int cur;
-
-	if (spec & ~__WD_LEGAL)
-		return (EINVAL);
-	switch (spec & (WD_ACTIVE|WD_PASSIVE)) {
-	case WD_ACTIVE:
-		u = spec & WD_INTERVAL;
-		if (u > 35)
-			return (EINVAL);
-		u = imax(u - 5, 24);
-		v = 2 << (u - 24);
-		v |= 0xc000;
-
-		/*
-		 * There is a bug in some silicon which prevents us from
-		 * writing to the WDTMRCTL register if the GP echo mode is
-		 * enabled.  GP echo mode on the other hand is desirable
-		 * for other reasons.  Save and restore the GP echo mode
-		 * around our hardware tom-foolery.
-		 */
-		u = elan_mmcr->GPECHO;
-		elan_mmcr->GPECHO = 0;
-		if (v != cur) {
-			/* Clear the ENB bit */
-			elan_mmcr->WDTMRCTL = 0x3333;
-			elan_mmcr->WDTMRCTL = 0xcccc;
-			elan_mmcr->WDTMRCTL = 0;
-
-			/* Set new value */
-			elan_mmcr->WDTMRCTL = 0x3333;
-			elan_mmcr->WDTMRCTL = 0xcccc;
-			elan_mmcr->WDTMRCTL = v;
-			cur = v;
-		} else {
-			/* Just reset timer */
-			elan_mmcr->WDTMRCTL = 0xaaaa;
-			elan_mmcr->WDTMRCTL = 0x5555;
-		}
-		elan_mmcr->GPECHO = u;
-		return (0);
-	case WD_PASSIVE:
-		return (EOPNOTSUPP);
-	case 0:
-		u = elan_mmcr->GPECHO;
-		elan_mmcr->GPECHO = 0;
-		elan_mmcr->WDTMRCTL = 0x3333;
-		elan_mmcr->WDTMRCTL = 0xcccc;
-		elan_mmcr->WDTMRCTL = 0x4080;
-		elan_mmcr->WDTMRCTL = u;
-		elan_mmcr->GPECHO = u;
-		cur = 0;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-
-}
-
-static int
-elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
-{
-	int error;
-
-	error = ENOTTY;
-
-#ifdef CPU_ELAN_PPS
-	if (pps_a != 0)
-		error = pps_ioctl(cmd, arg, &elan_pps);
-	/*
-	 * We only want to incur the overhead of the PPS polling if we
-	 * are actually asked to timestamp.
-	 */
-	if (elan_pps.ppsparam.mode & PPS_CAPTUREASSERT) {
-		elan_timecounter.tc_poll_pps = elan_poll_pps;
-	} else {
-		elan_timecounter.tc_poll_pps = NULL;
-	}
-	if (error != ENOTTY)
-		return (error);
-#endif
-
-	if (cmd == WDIOCPATPAT)
-		return elan_watchdog(*((u_int*)arg));
-
-	/* Other future ioctl handling here */
-	return(error);
-}
 
