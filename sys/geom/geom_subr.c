@@ -558,33 +558,15 @@ g_detach(struct g_consumer *cp)
 	redo_rank(cp->geom);
 }
 
-
 /*
- * g_access_abs()
- *
- * Access-check with absolute new values:  Just fall through
- * and use the relative version.
- */
-int
-g_access_abs(struct g_consumer *cp, int acr, int acw, int ace)
-{
-
-	g_topology_assert();
-	return(g_access_rel(cp,
-		acr - cp->acr,
-		acw - cp->acw,
-		ace - cp->ace));
-}
-
-/*
- * g_access_rel()
+ * g_access()
  *
  * Access-check with delta values.  The question asked is "can provider
  * "cp" change the access counters by the relative amounts dc[rwe] ?"
  */
 
 int
-g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
+g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
 	int pr,pw,pe;
@@ -592,7 +574,7 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 	pp = cp->provider;
 
-	g_trace(G_T_ACCESS, "g_access_rel(%p(%s), %d, %d, %d)",
+	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)",
 	    cp, pp->name, dcr, dcw, dce);
 
 	g_topology_assert();
