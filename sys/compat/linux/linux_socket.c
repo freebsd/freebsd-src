@@ -1011,7 +1011,8 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	if (error)
 		return (error);
 
-	if (bsd_args.msg->msg_control != NULL) {
+	if (bsd_args.msg->msg_control != NULL &&
+	    bsd_args.msg->msg_controllen > 0) {
 		cmsg = (struct cmsghdr*)bsd_args.msg->msg_control;
 		cmsg->cmsg_level = bsd_to_linux_sockopt_level(cmsg->cmsg_level);
 	}
