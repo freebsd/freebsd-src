@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: leave.c,v 1.2 1997/07/21 12:04:31 charnier Exp $";
+	"$Id: leave.c,v 1.3 1998/01/06 17:27:09 helbig Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -152,7 +152,8 @@ doalarm(secs)
 		exit(0);
 	}
 	sleep((u_int)2);		/* let parent print set message */
-	secs -= 2;
+	if (secs >= 2)
+		secs -= 2;
 
 	/*
 	 * if write fails, we've lost the terminal through someone else
