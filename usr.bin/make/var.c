@@ -928,60 +928,65 @@ ParseModifier(const char input[], char tstr[],
 	while (*tstr != endc) {
 	    char	*newStr;    /* New value to return */
 	    char	termc;	    /* Character which terminated scan */
+	    Boolean	readonly = FALSE;
 
 	    DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, rw_str));
 	    switch (*tstr) {
 		case 'N':
 		case 'M':
 		{
-		    char    *pattern;
-		    char    *cp2;
-		    Boolean copy;
+			const char	*cur;
+			const char	*end;
+			char		*patt;
+			char		*ptr;
 
-		    copy = FALSE;
-		    for (cp = tstr + 1;
-			 *cp != '\0' && *cp != ':' && *cp != endc;
-			 cp++)
-		    {
-			if (*cp == '\\' && (cp[1] == ':' || cp[1] == endc)) {
-			    copy = TRUE;
-			    cp++;
+			readonly = TRUE;
+
+			for (cur = tstr + 1; *cur != '\0'; cur++) {
+				if (cur[0] == endc) {
+					break;
+				} else if (cur[0] == ':') {
+					break;
+				} else if ((cur[0] == '\\') &&
+					   (cur[1] == ':' || cur[1] == endc)) {
+					cur++;
+				}
 			}
-		    }
-		    termc = *cp;
-		    *cp = '\0';
-		    if (copy) {
+			end = cur;
+
 			/*
 			 * Need to compress the \:'s out of the pattern, so
 			 * allocate enough room to hold the uncompressed
-			 * pattern (note that cp started at tstr+1, so
-			 * cp - tstr takes the null byte into account) and
+			 * pattern (note that cur started at tstr+1, so
+			 * cur - tstr takes the null byte into account) and
 			 * compress the pattern into the space.
 			 */
-			pattern = emalloc(cp - tstr);
-			for (cp2 = pattern, cp = tstr + 1;
-			     *cp != '\0';
-			     cp++, cp2++)
-			{
-			    if ((*cp == '\\') &&
-				(cp[1] == ':' || cp[1] == endc)) {
-				    cp++;
-			    }
-			    *cp2 = *cp;
+			patt = emalloc(cur - tstr);
+			ptr = patt;
+			for (cur = tstr + 1; cur != end; cur++) {
+				if ((cur[0] == '\\') &&
+				    (cur[1] == ':' || cur[1] == endc)) {
+					cur++;
+				}
+				*ptr = *cur;
+				ptr++;
 			}
-			*cp2 = '\0';
-		    } else {
-			pattern = &tstr[1];
-		    }
-		    if (*tstr == 'M' || *tstr == 'm') {
-			newStr = VarModify(rw_str, VarMatch, pattern);
-		    } else {
-			newStr = VarModify(rw_str, VarNoMatch, pattern);
-		    }
-		    if (copy) {
-			free(pattern);
-		    }
-		    break;
+			*ptr = '\0';
+
+			if (*tstr == 'M' || *tstr == 'm') {
+				newStr = VarModify(rw_str, VarMatch, patt);
+			} else {
+				newStr = VarModify(rw_str, VarNoMatch, patt);
+			}
+			free(patt);
+
+			/* skip over next modifier */
+			if (*end == ':') {
+				tstr = end + 1;
+			} else {
+				tstr = end;
+			}
+			break;
 		}
 		case 'S':
 		{
@@ -1425,25 +1430,30 @@ ParseModifier(const char input[], char tstr[],
 		    }
 		}
 	    }
-	    DEBUGF(VAR, ("Result is \"%s\"\n", newStr));
 
+	    DEBUGF(VAR, ("Result is \"%s\"\n", newStr));
 	    if (*freePtr) {
-		free(rw_str);
+		    free(rw_str);
 	    }
 	    rw_str = newStr;
 	    if (rw_str != var_Error) {
-		*freePtr = TRUE;
+		    *freePtr = TRUE;
 	    } else {
-		*freePtr = FALSE;
+		    *freePtr = FALSE;
 	    }
-	    if (termc == '\0') {
-		Error("Unclosed variable specification for %s", v->name);
-	    } else if (termc == ':') {
-		*cp++ = termc;
-	    } else {
-		*cp = termc;
+
+	    if (readonly == FALSE) {
+		    if (termc == '\0') {
+			    Error("Unclosed variable specification for %s",
+				  v->name);
+		    } else if (termc == ':') {
+			    *cp = termc;
+			    cp++;
+		    } else {
+			    *cp = termc;
+		    }
+		    tstr = cp;
 	    }
-	    tstr = cp;
 	}
 
 	if (v->flags & VAR_FROM_ENV) {
