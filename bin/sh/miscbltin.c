@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.6 1996/09/03 13:35:10 peter Exp $
+ *	$Id: miscbltin.c,v 1.7 1996/09/03 14:15:54 peter Exp $
  */
 
 #ifndef lint
@@ -356,11 +356,11 @@ ulimitcmd(argc, argv)
 
 			if (l->units)
 				snprintf(optbuf, sizeof(optbuf),
-					"%s (%s, -%c) ", l->name, l->units, l->option);
+					"(%s, -%c) ", l->units, l->option);
 			else
 				snprintf(optbuf, sizeof(optbuf),
-					"%s (-%c) ", l->name, l->option);
-			out1fmt("%32s ", optbuf);
+					"(-%c) ", l->option);
+			out1fmt("%-18s %18s ", l->name, optbuf);
 			if (val == RLIM_INFINITY)
 				out1fmt("unlimited\n");
 			else
