@@ -68,40 +68,55 @@ __fdnlist(fd, list)
 	register int fd;
 	register struct nlist *list;
 {
-	register struct nlist *p, *s;
-	register caddr_t strtab;
+	register struct nlist *p, *symtab;
+	register caddr_t strtab, a_out_mmap;
 	register off_t stroff, symoff;
 	register u_long symsize;
-	register int nent, cc;
+	register int nent;
 	size_t strsize;
 	struct nlist nbuf[1024];
-	struct exec exec;
+	struct exec * exec;
 	struct stat st;
 
-	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
-	    read(fd, &exec, sizeof(exec)) != sizeof(exec) ||
-	    N_BADMAG(exec) || fstat(fd, &st) < 0)
+	/* check that file is at least as large as struct exec! */
+	if ((fstat(fd, &st) < 0) || (st.st_size < sizeof(struct exec)))
 		return (-1);
 
-	symoff = N_SYMOFF(exec);
-	symsize = exec.a_syms;
-	stroff = symoff + symsize;
-
 	/* Check for files too large to mmap. */
-	if (st.st_size - stroff > SIZE_T_MAX) {
+	if (st.st_size > SIZE_T_MAX) {
 		errno = EFBIG;
 		return (-1);
 	}
+
 	/*
-	 * Map string table into our address space.  This gives us
-	 * an easy way to randomly access all the strings, without
-	 * making the memory allocation permanent as with malloc/free
-	 * (i.e., munmap will return it to the system).
+	 * Map the whole a.out file into our address space.
+	 * We then find the string table withing this area.
+	 * We do not just mmap the string table, as it probably
+	 * does not start at a page boundary - we save ourselves a
+	 * lot of nastiness by mmapping the whole file.
+	 *
+	 * This gives us an easy way to randomly access all the strings, 
+	 * without making the memory allocation permanent as with 
+	 * malloc/free (i.e., munmap will return it to the system).
 	 */
-	strsize = st.st_size - stroff;
-	strtab = mmap(NULL, (size_t)strsize, PROT_READ, 0, fd, stroff);
-	if (strtab == (char *)-1)
+	a_out_mmap = mmap(NULL, (size_t)st.st_size, PROT_READ, 0, fd, (off_t)0);
+	if (a_out_mmap == (char *)-1)
 		return (-1);
+
+	exec = (struct exec *)a_out_mmap;
+	if (N_BADMAG(*exec)) {
+		munmap(a_out_mmap, (size_t)st.st_size);
+		return (-1);
+	}
+
+	symoff = N_SYMOFF(*exec);
+	symsize = exec->a_syms;
+	stroff = symoff + symsize;
+
+	/* find the string table in our mmapped area */
+	strtab = a_out_mmap + stroff;
+	symtab = (struct nlist *)(a_out_mmap + symoff);
+
 	/*
 	 * clean out any left-over information for all valid entries.
 	 * Type and value defined to be 0 if not found; historical
@@ -120,30 +135,26 @@ __fdnlist(fd, list)
 		p->n_value = 0;
 		++nent;
 	}
-	if (lseek(fd, symoff, SEEK_SET) == -1)
-		return (-1);
 
 	while (symsize > 0) {
-		cc = MIN(symsize, sizeof(nbuf));
-		if (read(fd, nbuf, cc) != cc)
-			break;
-		symsize -= cc;
-		for (s = nbuf; cc > 0; ++s, cc -= sizeof(*s)) {
-			register int soff = s->n_un.n_strx;
+		register int soff;
 
-			if (soff == 0 || (s->n_type & N_STAB) != 0)
-				continue;
+		symsize-= sizeof(struct nlist);
+		soff = symtab->n_un.n_strx;
+
+
+		if (soff != 0 && (symtab->n_type & N_STAB) == 0)
 			for (p = list; !ISLAST(p); p++)
 				if (!strcmp(&strtab[soff], p->n_un.n_name)) {
-					p->n_value = s->n_value;
-					p->n_type = s->n_type;
-					p->n_desc = s->n_desc;
-					p->n_other = s->n_other;
+					p->n_value = symtab->n_value;
+					p->n_type = symtab->n_type;
+					p->n_desc = symtab->n_desc;
+					p->n_other = symtab->n_other;
 					if (--nent <= 0)
 						break;
 				}
-		}
+		symtab++;
 	}
-	munmap(strtab, strsize);
+	munmap(a_out_mmap, (size_t)st.st_size);
 	return (nent);
 }
