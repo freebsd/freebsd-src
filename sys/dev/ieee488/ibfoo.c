@@ -235,7 +235,7 @@ gpib_ib_timeout(void *arg)
 		KASSERT(u->dmachan >= 0, ("Bogus dmachan = %d", u->dmachan));
 		upd7210_wr(u, IMR1, 0);
 		upd7210_wr(u, IMR2, 0);
-		ib->mode = IDLE;
+		ib->mode = BUSY;
 		wakeup(&ib->buflen);
 	}
 	if (ib->mode > BUSY) {
@@ -254,7 +254,7 @@ gpib_ib_timeout(void *arg)
 		}
 	}
 	if (ib->mode != IDLE)
-		callout_reset(&ib->callout, hz / 100, gpib_ib_timeout, arg);
+		callout_reset(&ib->callout, hz / 5, gpib_ib_timeout, arg);
 	mtx_unlock(&u->mutex);
 }
 
@@ -362,8 +362,6 @@ pio_odata(struct upd7210 *u, u_char *data, int len)
 	ib->buf = data;
 	ib->buflen = len;
 	upd7210_wr(u, IMR1, IXR1_DO);
-
-	gpib_ib_irq(u, 1);
 
 	gpib_ib_wait_xfer(u, ib);
 
@@ -576,8 +574,8 @@ ibrd(struct ibfoo *ib)
 		config_eos(ib->u, ib->h);
 		ib->rdh = ib->h;
 		ib->wrh = NULL;
-		upd7210_goto_standby(ib->u);
 	}
+	upd7210_goto_standby(ib->u);
 	dp = ib->ap->buffer;
 	bc = ib->ap->cnt;
 	error = 0;
@@ -596,6 +594,7 @@ ibrd(struct ibfoo *ib)
 		bc -= i;
 		dp += i;
 	}
+	upd7210_take_ctrl_async(ib->u);
 	free(bp, M_IBFOO);
 	return (error);
 }
@@ -677,11 +676,12 @@ ibwrt(struct ibfoo *ib)
 		i = pio_cmd(ib->u, buf, i);
 		ib->rdh = NULL;
 		ib->wrh = ib->h;
-		upd7210_goto_standby(ib->u);
 		config_eos(ib->u, ib->h);
 	}
+	upd7210_goto_standby(ib->u);
 	ib->doeoi = ib->h->eot;
 	i = pio_odata(ib->u, bp, ib->ap->cnt);
+	upd7210_take_ctrl_async(ib->u);
 	ib->ap->__ibcnt = i;
 	free(bp, M_IBFOO);
 	return (0);
@@ -975,7 +975,7 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	ib->h = h;
 	ib->mode = BUSY;
 	ib->deadline = deadline;
-	callout_reset(&ib->callout, hz / 100, gpib_ib_timeout, u);
+	callout_reset(&ib->callout, hz / 5, gpib_ib_timeout, u);
 
 	error = ih->func(ib);
 
