@@ -932,15 +932,20 @@ get_params()
 	error = ioctl(fd, DIOCGFWSECTORS, &u);
 	if (error == 0)
 		sectors = dos_sectors = u;
+	else
+		sectors = dos_sectors = 63;
+
 	error = ioctl(fd, DIOCGFWHEADS, &u);
 	if (error == 0)
 		heads = dos_heads = u;
+	else
+		heads = dos_heads = 255;
 
 	dos_cylsecs = cylsecs = heads * sectors;
 	disksecs = cyls * heads * sectors;
 
 	error = ioctl(fd, DIOCGSECTORSIZE, &u);
-	if (error != 0)
+	if (error != 0 || u == 0)
 		u = 512;
 #ifdef PC98
 	secsize = u;
