@@ -575,6 +575,24 @@ initializecpu(void)
 				init_mendocino();
 				break;
 			}
+		} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+#if defined(I686_CPU) && defined(CPU_ATHLON_SSE_HACK)
+			/*
+			 * Sometimes the BIOS doesn't enable SSE instructions.
+			 * According to AMD document 20734, the mobile
+			 * Duron, the (mobile) Athlon 4 and the Athlon MP
+			 * support SSE. These correspond to cpu_id 0x66X
+			 * or 0x67X.
+			 */
+			if ((cpu_feature & CPUID_XMM) == 0 &&
+			    ((cpu_id & ~0xf) == 0x660 ||
+			     (cpu_id & ~0xf) == 0x670)) {
+				u_int regs[4];
+				wrmsr(0xC0010015, rdmsr(0xC0010015) & ~0x08000);
+				do_cpuid(1, regs);
+				cpu_feature = regs[3];
+			}
+#endif
 		}
 		break;
 #endif
