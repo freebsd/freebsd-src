@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modstat.c,v 1.1 1994/08/19 12:14:06 davidg Exp $
+ *	$Id: modstat.c,v 1.2 1995/04/18 02:19:17 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -61,8 +61,7 @@ static char *type_names[] = {
 	"DEV",
 	"STRMOD",
 	"EXEC",
-	"MISC",
-	"UNKNOWN"
+	"MISC"
 };
 
 int
