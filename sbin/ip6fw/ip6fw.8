@@ -222,16 +222,20 @@ If the kernel was compiled with
 .Dv IP6FIREWALL_VERBOSE ,
 then when a packet matches a rule with the
 .Dq log
-keyword a message will be printed on the console.
-If the kernel was compiled with the
+keyword or a clear/resetlog is performed, a message will be logged to
+.Xr syslogd 8 ,
+or, if that fails, to the console.  If the kernel was compiled with the
 .Dv IP6FIREWALL_VERBOSE_LIMIT
 option, then logging will cease after the number of packets
 specified by the option are received for that particular
-chain entry.  Logging may then be re-enabled by clearing
+chain entry.
+When this limit is reached, the limit and rule number will be logged.
+Logging may then be re-enabled by clearing
 the packet counter for that entry.
 .Pp
-Console logging and the log limit are adjustable dynamically
-through the
+The
+.Xr syslogd 8
+logging and the default log limit are adjustable dynamically through the
 .Xr sysctl 8
 interface.
 .Pp
