@@ -616,7 +616,7 @@ cd9660_fhtovp(mp, fhp, vpp)
 		return (ESTALE);
 	}
 	*vpp = nvp;
-	vnode_create_vobject(*vpp, 0, curthread);
+	vnode_create_vobject(*vpp, ip->i_size, curthread);
 	return (0);
 }
 
