@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1 1995/10/26 21:28:19 julian Exp $
+ *	$Id: main.c,v 1.2 1995/10/27 10:48:28 julian Exp $
  */
 
 #ifndef lint
@@ -227,10 +227,10 @@ main(argc, argv)
 
 		if(select(nfds, &fdvar, (fd_set *)NULL, (fd_set *)NULL, 
 		   (struct timeval *)NULL) < 0) {
-			if(errno != EINTR) {
-				perror("during select");
-				exit(1);
-			}
+			if(errno == EINTR)
+				continue;
+			perror("during select");
+			exit(1);
 		}
 
 		if(FD_ISSET(ripsock, &fdvar))
