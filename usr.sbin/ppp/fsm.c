@@ -879,6 +879,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       case ST_CLOSED:
       case ST_CLOSING:
         NewState(fp, ST_CLOSED);
+        break;
       default:
         NewState(fp, ST_STOPPED);
         break;
