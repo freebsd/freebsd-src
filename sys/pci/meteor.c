@@ -33,6 +33,9 @@
 	8/21/95		Release
 	8/23/95		On advice from Stefan Esser, added volatile to PCI
 			memory pointers to remove PCI caching .
+	8/29/95		Fixes suggested by Bruce Evans.
+			meteor_mmap should return -1 on error rather than 0.
+			unit # > NMETEOR should be unit # >= NMETEOR.
 */
 
 #include "meteor.h"
@@ -557,7 +560,7 @@ static	void	met_attach(pcici_t tag, int unit)
 	meteor_reg_t *mtr;
 	vm_offset_t buf;
 
-	if (unit > NMETEOR) {
+	if (unit >= NMETEOR) {
 		printf("meteor_attach: mx%d: invalid unit number\n");
         	return ;
 	}
@@ -634,7 +637,7 @@ meteor_open(dev_t dev, int flag)
 	int	i;
 
 	unit = UNIT(minor(dev));
-	if (unit > NMETEOR)	/* unit out of range */
+	if (unit >= NMETEOR)	/* unit out of range */
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
@@ -668,7 +671,7 @@ meteor_close(dev_t dev, int flag)
 	int	temp;
 
 	unit = UNIT(minor(dev));
-	if (unit > NMETEOR)	/* unit out of range */
+	if (unit >= NMETEOR)	/* unit out of range */
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
@@ -735,7 +738,7 @@ meteor_read(dev_t dev, struct uio *uio)
 	int	count;
 
 	unit = UNIT(minor(dev));
-	if (unit > NMETEOR)	/* unit out of range */
+	if (unit >= NMETEOR)	/* unit out of range */
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
@@ -788,7 +791,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 
 	if (!arg) return(EINVAL);
 	unit = UNIT(minor(dev));
-	if (unit > NMETEOR)	/* unit out of range */
+	if (unit >= NMETEOR)	/* unit out of range */
 		return(ENXIO);
 
 	mtr = &(meteor[unit]);
@@ -1224,17 +1227,17 @@ meteor_mmap(dev_t dev, int offset, int nprot)
 	meteor_reg_t *mtr;
 
 	unit = UNIT(minor(dev));
-	if (unit > NMETEOR)		/* at this point could this happen? */
-		return(0);
+	if (unit >= NMETEOR)
+		return(-1);
 
 	mtr = &(meteor[unit]);
 
 
 	if(nprot & PROT_EXEC)
-		return 0;
+		return -1;
 
 	if(offset >= mtr->alloc_pages * PAGE_SIZE)
-		return 0;
+		return -1;
 
 	return i386_btop((vtophys(mtr->bigbuf) + offset));
 }
