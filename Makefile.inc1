@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.28 1998/10/10 11:16:08 kato Exp $
+#	$Id: Makefile.inc1,v 1.29 1998/10/10 19:56:59 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -642,6 +642,8 @@ lib-tools:
 #
 # libcom_err must be built before libss.
 # libcrypt and libmd must be built before libskey.
+# libm must be built before libf2c, libg++ and libstdc++
+# libmd must be built before libatm and libopie
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
@@ -884,12 +886,14 @@ legacy-build:
 	cd ${.CURDIR}/libexec/rtld-aout; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
+.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy lkms"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lkm; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
+.endif
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
@@ -930,11 +934,13 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
 	@echo
+.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy lkms"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lkm; ${MAKE} -DNOMAN install
 	@echo
+.endif
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
