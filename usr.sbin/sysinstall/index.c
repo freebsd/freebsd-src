@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.35 1996/06/14 14:33:53 jkh Exp $
+ * $Id: index.c,v 1.36 1996/06/25 04:28:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 
 /* Macros and magic values */
 #define MAX_MENU	12
-#define _MAX_DESC	60
+#define _MAX_DESC	55
 
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
 
