@@ -468,8 +468,7 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 			 * disable after writing.
 			 */
 			flag = 1;
-			if (ioctl(f, DIOCWLABEL, &flag) < 0)
-				warn("ioctl DIOCWLABEL");
+			(void)ioctl(f, DIOCWLABEL, &flag);
 			if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 				warn("write");
 				return (1);
