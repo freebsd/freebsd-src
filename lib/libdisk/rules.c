@@ -242,6 +242,7 @@ Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 
 	switch (platform) {
 	case p_i386:
+	case p_amd64:
 		Rule_000(d, c, msg);
 		Rule_001(d, c, msg);
 		Rule_002(d, c, msg);

@@ -138,7 +138,7 @@ int
 Fixup_Names(struct disk *d)
 {
 	struct chunk *c1, *c2;
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 	struct chunk *c3;
 	int j;
 #endif
@@ -149,7 +149,7 @@ Fixup_Names(struct disk *d)
 			continue;
 		if (strcmp(c2->name, "X"))
 			continue;
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__ia64__) || defined(__amd64__)
 		c2->oname = malloc(12);
 		if (!c2->oname)
 			return -1;
