@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.54 1995/12/29 00:30:06 peter Exp $
+ *      $Id: aha1542.c,v 1.55 1996/01/07 19:22:33 gibbs Exp $
  */
 
 /*
@@ -323,7 +323,7 @@ static struct aha_data {
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
-static u_int32	aha_adapter_info __P((int unit));
+static u_int32_t	aha_adapter_info __P((int unit));
 static int	ahaattach __P((struct isa_device *dev));
 static int	aha_bus_speed_check __P((struct aha_data *aha, int speed));
 #ifdef notyet
@@ -344,7 +344,7 @@ static int	aha_poll __P((struct aha_data *aha, struct scsi_xfer *xs,
 			      struct aha_ccb *ccb));
 static int	ahaprobe __P((struct isa_device *dev));
 static void	aha_registerdev __P((struct isa_device *id));
-static int32	aha_scsi_cmd __P((struct scsi_xfer *xs));
+static int32_t	aha_scsi_cmd __P((struct scsi_xfer *xs));
 static int	aha_set_bus_speed __P((struct aha_data *aha));
 static timeout_t
 		aha_timeout;
@@ -681,7 +681,7 @@ ahaattach(dev)
  * Return some information to the caller about the adapter and its
  * capabilities.
  */
-static u_int32
+static u_int32_t
 aha_adapter_info(unit)
 	int     unit;
 {
@@ -1386,7 +1386,7 @@ static int physcontig(int kv, int len)
  * the data address. Also needs the unit, target
  * and lu
  */
-static int32
+static int32_t
 aha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
