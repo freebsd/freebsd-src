@@ -80,6 +80,8 @@ g_bsd_ledec_partition(u_char *ptr, struct partition *d)
 static void
 g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
 {
+	int i;
+
 	d->d_magic = g_dec_le4(ptr + 0);
 	d->d_type = g_dec_le2(ptr + 4);
 	d->d_subtype = g_dec_le2(ptr + 6);
@@ -116,14 +118,8 @@ g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
 	d->d_npartitions = g_dec_le2(ptr + 138);
 	d->d_bbsize = g_dec_le4(ptr + 140);
 	d->d_sbsize = g_dec_le4(ptr + 144);
-	g_bsd_ledec_partition(ptr + 148, &d->d_partitions[0]);
-	g_bsd_ledec_partition(ptr + 164, &d->d_partitions[1]);
-	g_bsd_ledec_partition(ptr + 180, &d->d_partitions[2]);
-	g_bsd_ledec_partition(ptr + 196, &d->d_partitions[3]);
-	g_bsd_ledec_partition(ptr + 212, &d->d_partitions[4]);
-	g_bsd_ledec_partition(ptr + 228, &d->d_partitions[5]);
-	g_bsd_ledec_partition(ptr + 244, &d->d_partitions[6]);
-	g_bsd_ledec_partition(ptr + 260, &d->d_partitions[7]);
+	for (i = 0; i < MAXPARTITIONS; i++)
+		g_bsd_ledec_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
 }
 
 #if 0
@@ -141,6 +137,8 @@ g_bsd_leenc_partition(u_char *ptr, struct partition *d)
 static void
 g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
 {
+	int i;
+
 	g_enc_le4(ptr + 0, d->d_magic);
 	g_enc_le2(ptr + 4, d->d_type);
 	g_enc_le2(ptr + 6, d->d_subtype);
@@ -177,14 +175,8 @@ g_bsd_leenc_disklabel(u_char *ptr, struct disklabel *d)
 	g_enc_le2(ptr + 138, d->d_npartitions);
 	g_enc_le4(ptr + 140, d->d_bbsize);
 	g_enc_le4(ptr + 144, d->d_sbsize);
-	g_bsd_leenc_partition(ptr + 148, &d->d_partitions[0]);
-	g_bsd_leenc_partition(ptr + 164, &d->d_partitions[1]);
-	g_bsd_leenc_partition(ptr + 180, &d->d_partitions[2]);
-	g_bsd_leenc_partition(ptr + 196, &d->d_partitions[3]);
-	g_bsd_leenc_partition(ptr + 212, &d->d_partitions[4]);
-	g_bsd_leenc_partition(ptr + 228, &d->d_partitions[5]);
-	g_bsd_leenc_partition(ptr + 244, &d->d_partitions[6]);
-	g_bsd_leenc_partition(ptr + 260, &d->d_partitions[7]);
+	for (i = 0; i < MAXPARTITIONS; i++)
+		g_bsd_leenc_partition(ptr + 148 + 16 * i, &d->d_partitions[i]);
 }
 
 #endif
