@@ -47,6 +47,7 @@ MAN=	archive_entry.3					\
 	archive_util.3					\
 	archive_write.3					\
 	libarchive.3					\
+	libarchive-formats.5				\
 	tar.5
 
 MLINKS+=	archive_entry.3 archive_entry_clear.3
