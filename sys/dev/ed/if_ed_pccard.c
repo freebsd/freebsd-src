@@ -70,6 +70,16 @@ MODULE_DEPEND(ed, miibus, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
 
 /*
+ * PC Cards should be using a network specific FUNCE in the CIS to
+ * communicate their MAC address to the driver.  However, there are a
+ * large number of NE-2000ish PC Cards that don't do this.  Nearly all
+ * of them store the MAC address at a fixed offset into attribute
+ * memory, without any reference at all appearing in the CIS.  And
+ * nearly all of those store it at the same location.
+ */
+#define ED_DEFAULT_MAC_OFFSET	0xff0
+
+/*
  *      PC-Card (PCMCIA) specific code.
  */
 static int	ed_pccard_match(device_t);
@@ -233,7 +243,7 @@ ed_pccard_attach(device_t dev)
 	int i;
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
-	u_char ether_addr[ETHER_ADDR_LEN];
+	u_char enaddr[ETHER_ADDR_LEN];
 	const struct ed_product *pp;
 	
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
@@ -263,18 +273,37 @@ ed_pccard_attach(device_t dev)
 	 * now.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
-		pccard_get_ether(dev, ether_addr);
+		pccard_get_ether(dev, enaddr);
+		if (bootverbose)
+			device_printf(dev, "CIS MAC %6D\n", enaddr, ":");
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
-			sum |= ether_addr[i];
+			sum |= enaddr[i];
 		if (sum == 0 && pp->flags & NE2000DVF_ENADDR) {
 			for (i = 0; i < ETHER_ADDR_LEN; i++) {
 				ed_pccard_memread(dev, pp->enoff + i * 2,
-				    ether_addr + i);
-				sum |= ether_addr[i];
+				    enaddr + i);
+				sum |= enaddr[i];
 			}
+			if (bootverbose)
+				device_printf(dev, "Hint MAC %6D\n", enaddr,
+				    ":");
 		}
-		if (sum)
-			bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+		if (sum == 0) {
+			for (i = 0; i < ETHER_ADDR_LEN; i++) {
+				ed_pccard_memread(dev, ED_DEFAULT_MAC_OFFSET +
+				    i * 2, enaddr + i);
+				sum |= enaddr[i];
+			}
+			if (bootverbose)
+				device_printf(dev, "Fallback MAC %6D\n",
+				    enaddr, ":");
+		}
+		if (sum == 0) {
+			device_printf(dev, "Cannot extract MAC address.\n");
+			ed_release_resources(dev);
+			return (ENXIO);
+		}
+		bcopy(enaddr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	}
 
 	error = ed_attach(dev);
