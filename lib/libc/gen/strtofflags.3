@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft char *
-.Fn fflagstostr "u_long flags" "char *def"
+.Fn fflagstostr "u_long flags"
 .Ft int
 .Fn strtofflags "char **stringp" "u_long *setp" "u_long *clrp"
 .Sh DESCRIPTION
@@ -52,9 +52,7 @@ The
 .Fn fflagstostr
 function returns a comma separated string of the file flags represented by
 .Fa flags .
-If no flags are set the string
-.Fa def
-is returned instead.
+If no flags are set a zero length string is returned.
 .Pp
 The
 .Fn strtofflags

@@ -76,12 +76,11 @@ static struct {
 /*
  * fflagstostr --
  *	Convert file flags to a comma-separated string.  If no flags
- *	are set, return the default string.
+ *	are set, return the empty string.
  */
 char *
-fflagstostr(flags, def)
+fflagstostr(flags)
 	u_long flags;
-	char *def;
 {
 	static char string[128];
 	char *sp, *dp;
@@ -100,7 +99,7 @@ fflagstostr(flags, def)
 		}
 	}
 	*dp = '\0';
-	return (dp == string && def != NULL ? def : string);
+	return (string);
 }
 
 /*
