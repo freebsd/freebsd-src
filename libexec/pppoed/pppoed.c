@@ -403,6 +403,12 @@ Spawn(const char *prog, const char *acname, const char *provider,
           case NGM_PPPOE_FAIL:		msg = "FAIL";		break;
           case NGM_PPPOE_CLOSE:		msg = "CLOSE";		break;
           case NGM_PPPOE_GET_STATUS:	msg = "GET_STATUS";	break;
+          case NGM_PPPOE_ACNAME:
+            msg = "ACNAME";
+            if (setenv("ACNAME", sts->hook, 1) != 0)
+              syslog(LOG_WARNING, "setenv: cannot set ACNAME=%s: %m",
+                     sts->hook);
+            break;
           default:
             snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
             msg = unknown;
