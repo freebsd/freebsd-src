@@ -108,8 +108,8 @@ int	locking, lockrest, debugonly;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
 uid_t	uid;
-int	atalk_aton __P((const char *, struct at_addr *));
-char	*atalk_ntoa __P((struct at_addr));
+int	atalk_aton(const char *, struct at_addr *);
+char	*atalk_ntoa(struct at_addr);
 const char	*routename(), *netname();
 void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
@@ -117,7 +117,7 @@ int	getaddr(), rtmsg(), x25_makemask();
 int	prefixlen();
 extern	char *iso_ntoa();
 
-void usage __P((const char *)) __dead2;
+void usage(const char *) __dead2;
 
 void
 usage(cp)

@@ -81,10 +81,10 @@ struct list pclist = { pcnames, PC_MAXID };
 
 int	Aflag, aflag, nflag, wflag, stdinflag;
 
-int findname __P((char *, char *, char**, struct list *));
-void listall __P((char *, struct list *));
-void parse __P((char *, char *, int));
-static void usage __P((void));
+int findname(char *, char *, char**, struct list *);
+void listall(char *, struct list *);
+void parse(char *, char *, int);
+static void usage(void);
 
 int
 main(argc, argv)

@@ -76,12 +76,12 @@ union {
 int fi;
 long dev_bsize = 1;
 
-void bwrite __P((daddr_t, const char *, int));
-int bread __P((daddr_t, char *, int));
-void getsb __P((struct fs *, const char *));
-void putsb __P((struct fs *, const char *, int));
-void usage __P((void));
-void printfs __P((void));
+void bwrite(daddr_t, const char *, int);
+int bread(daddr_t, char *, int);
+void getsb(struct fs *, const char *);
+void putsb(struct fs *, const char *, int);
+void usage(void);
+void printfs(void);
 
 int
 main(argc, argv)
