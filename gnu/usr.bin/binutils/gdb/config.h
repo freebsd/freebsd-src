@@ -434,7 +434,7 @@
 #define HAVE_LC_MESSAGES 1
 
 /* Define to 1 if NLS is requested */
-#define ENABLE_NLS 1
+/* #define ENABLE_NLS 1 */
 
 /* Define as 1 if you have gettext and don't want to use GNU gettext. */
 /* #undef HAVE_GETTEXT */
