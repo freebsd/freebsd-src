@@ -67,6 +67,11 @@ The modes currently recognized are:
 .Ar VGA_80x30 ,
 .Ar VGA_80x50 ,
 .Ar VGA_80x60 ,
+.Ar VGA_90x25 ,
+.Ar VGA_90x30 ,
+.Ar VGA_90x43 ,
+.Ar VGA_90x50 ,
+.Ar VGA_90x60 ,
 .Ar EGA_80x25 ,
 .Ar EGA_80x43 ,
 .Ar VESA_132x25 ,
@@ -193,6 +198,11 @@ option.
 The VESA BIOS support must be linked to the kernel
 or loaded as a KLD module if you wish to use VESA video modes
 or 132 column modes
+.Pq see Xr vga 4 .
+.Pp
+You need to compile your kernel with the
+.Ar VGA_WIDTH90
+option if you wish to use VGA 90 column modes
 .Pq see Xr vga 4 .
 .Pp
 Video modes other than 25 and 30 line modes may require specific size of font.
