@@ -23,18 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kern_opt.c,v 1.4 1997/02/28 10:14:24 bde Exp $
  */
 
 #include "opt_defunct.h"
-
-#ifdef ARP_PROXYALL
-#warning "obsolete option ARP_PROXYALL - use `sysctl -w net.link.ether.inet.proxyall=1'"
-#endif
-
-#ifdef CHILD_MAX
-#warning "obsolete option CHILD_MAX - use /etc/login.conf"
-#endif
 
 #ifdef EXTRAVNODES
 #warning "obsolete option EXTRAVNODES - use `sysctl -w kern.maxvnodes=value'"
@@ -42,8 +34,4 @@
 
 #ifdef GATEWAY
 #warning "obsolete option GATEWAY - use `sysctl -w net.inet.ip.forwarding=1'"
-#endif
-
-#ifdef OPEN_MAX
-#warning "obsolete option OPEN_MAX - use /etc/login.conf"
 #endif
