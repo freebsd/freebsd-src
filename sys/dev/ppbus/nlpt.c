@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.4 1997/08/28 11:12:08 msmith Exp $
+ *	$Id: nlpt.c,v 1.5 1997/08/29 00:30:11 msmith Exp $
  */
 
 /*
@@ -663,7 +663,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
-		sc->sc_cp = sc->sc_inbuf->b_un.b_addr ;
+		sc->sc_cp = sc->sc_inbuf->b_data ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
 		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {

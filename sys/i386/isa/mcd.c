@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.94 1997/09/21 21:41:26 gibbs Exp $
+ *	$Id: mcd.c,v 1.95 1997/11/07 08:52:40 phk Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1131,7 +1131,7 @@ retry_read:
 					RDELAY_WAITREAD-mbx->count);
 			got_it:
 				/* data is ready */
-				addr	= bp->b_un.b_addr + mbx->skip;
+				addr	= bp->b_data + mbx->skip;
 
 				outb(port+mcd_ctl2,0x04);	/* XXX */
 				for (i=0; i<mbx->sz; i++)

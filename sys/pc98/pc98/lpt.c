@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.13 1997/07/21 13:11:06 kato Exp $
+ *	$Id: lpt.c,v 1.14 1997/09/02 10:11:04 kato Exp $
  */
 
 /*
@@ -758,7 +758,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
-		sc->sc_cp = sc->sc_inbuf->b_un.b_addr ;
+		sc->sc_cp = sc->sc_inbuf->b_data ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
 		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
