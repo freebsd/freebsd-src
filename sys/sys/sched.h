@@ -35,32 +35,43 @@
 int	sched_rr_interval(void);
 int	sched_runnable(void);
 
+/* 
+ * Proc related scheduling hooks.
+ */
+void	sched_exit(struct proc *p, struct proc *child);
+void	sched_fork(struct proc *p, struct proc *child);
+
 /*
  * KSE Groups contain scheduling priority information.  They record the
  * behavior of groups of KSEs and threads.
  */
-void	sched_exit(struct ksegrp *kg, struct ksegrp *child);
-void	sched_fork(struct ksegrp *kg, struct ksegrp *child);
+void	sched_class(struct ksegrp *kg, int class);
+void	sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child);
+void	sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child);
 void	sched_nice(struct ksegrp *kg, int nice);
-void	sched_prio(struct thread *td, u_char prio);
-void	sched_userret(struct thread *td);
 
 /*
  * Threads are switched in and out, block on resources, and have temporary
  * priorities inherited from their ksegs.
  */
-void	sched_clock(struct thread *td);
+void	sched_exit_thread(struct thread *td, struct thread *child);
+void	sched_fork_thread(struct thread *td, struct thread *child);
+void	sched_prio(struct thread *td, u_char prio);
 void	sched_sleep(struct thread *td, u_char prio);
 void	sched_switchin(struct thread *td);
 void	sched_switchout(struct thread *td);
+void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
 
 /*
  * KSEs are moved on and off of run queues.
  */
 void	sched_add(struct kse *ke);
-void	sched_rem(struct kse *ke);
 struct kse *sched_choose(void);
+void	sched_clock(struct kse *ke);
+void	sched_exit_kse(struct kse *ke, struct kse *child);
+void	sched_fork_kse(struct kse *ke, struct kse *child);
+void	sched_rem(struct kse *ke);
 
 /*
  * and they use up cpu time.
