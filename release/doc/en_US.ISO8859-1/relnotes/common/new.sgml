@@ -412,6 +412,14 @@ hw.pcic.irq="0"</programlisting>
     <para>A race condition in &man.rmuser.8; that briefly exposed a
     world-readable <filename>/etc/master.passwd</filename> has been
     fixed (see security advisory FreeBSD-SA-01:59).</para>
+
+    <para>All non-<username>root</username>-owned binaries in standard
+    system paths now have the <literal>schg</literal> flag set to
+    prevent exploit vectors when run by &man.cron.8;, by
+    <username>root</username>, or by a user other then the one owning
+    the binary.  In addition, &man.uustat.1; is now run via
+    <filename>/etc/periodic/daily/410.status-uucp</filename> as
+    <username>uucp</username>, not <username>root</username>.</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
@@ -674,6 +682,24 @@ hw.pcic.irq="0"</programlisting>
 
       <para><application>libpcap</application> has been updated to
       0.6.2.</para>
+
+      <sect4>
+        <title>CVSup</title>
+
+	<para><application>CVSup</application>, a frequently used
+	utility in the &os; Ports Collection, was formerly installable
+	using several ports and packages.  The
+	<port>net/cvsup-bin</port> and <port>net/cvsupd-bin</port>
+	ports/packages are no longer necessary or available; the
+	<port>net/cvsup</port> port should be used instead.</para>
+
+	<para><application>CVSup</application> has been updated to
+	16.1_3, which is available in the &os; Ports Collection as
+	<port>net/cvsup</port>.  This update fixes a long-standing
+	(but only recently encountered) bug which affects the
+	timestamps on all files after Sun Sep 9 01:46:40 UTC 2001
+	(1,000,000,000 seconds after the UNIX epoch).</para>
+      </sect4>
 
       <sect4 id="kame-userland">
         <title>KAME</title>
