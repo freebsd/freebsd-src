@@ -2,8 +2,12 @@
 #	$Id: Makefile,v 1.8 1996/05/07 23:14:17 wosch Exp $
 
 PROG=		expr
-SRCS=		expr.y
-CLEANFILES+=	expr.c expr.tab.h
+SRCS=		expr.c
+CLEANFILES+=	expr.c y.tab.h
+
+expr.c:
+	${YACC} -d ${.IMPSRC}
+	mv -f y.tab.c expr.c
 
 .include <bsd.prog.mk>
 
