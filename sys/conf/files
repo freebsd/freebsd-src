@@ -282,7 +282,8 @@ nfs/nfs_vnops.c		optional nfs_client
 nfs/nfs_vnops.c		optional nfs_server
 pccard/pccard.c		optional crd
 pccard/pcic.c		optional pcic device-driver
-pci/aic7870.c		optional ahc device-driver
+pci/aic7870.c		optional ahc device-driver			\
+	dependency	"aic7xxx_reg.h $S/pci/aic7870.c"
 pci/bt9xx.c		optional bt device-driver
 pci/if_de.c		optional de device-driver
 pci/if_fxp.c		optional fxp device-driver

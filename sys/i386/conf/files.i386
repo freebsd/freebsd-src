@@ -1,23 +1,26 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.98.4.11 1996/06/25 20:19:01 markm Exp $
+#	$Id: files.i386,v 1.98.4.12 1996/11/04 22:15:55 guido Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
-	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
-	compile-with	"${CC} -Wall -o $@ $>"				   \
+	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
+	compile-with	"cd $S/dev/aic7xxx; make BINDIR=${.CURDIR} all install" \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
-aic7xxx_seq.h			optional	ahc	device-driver	   \
-	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"   \
+#
+aic7xxx_{seq,reg}.h		optional	ahc	device-driver	   \
+	compile-with	"./aic7xxx_asm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
-	clean		"aic7xxx_seq.h"					   \
-	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm" 
+	clean		"aic7xxx_{seq,reg}.h"				   \
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} aic7xxx_asm"
+#
 i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/eisa/3c5x9.c		optional	ep	device-driver
-i386/eisa/aic7770.c		optional	ahc	device-driver
+i386/eisa/aic7770.c		optional	ahc	device-driver	   \
+	dependency	"aic7xxx_reg.h $S/i386/eisa/aic7770.c"
 i386/eisa/aha1742.c		optional	ahb	device-driver
 i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
@@ -181,7 +184,7 @@ i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
+	dependency	"aic7xxx_{reg,seq}.h"
 i386/scsi/bt.c			optional	bt	device-driver
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
