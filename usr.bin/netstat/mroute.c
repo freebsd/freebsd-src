@@ -43,7 +43,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 /*
- * Print DVMRP multicast routing structures and statistics.
+ * Print multicast routing structures and statistics.
  *
  * MROUTING 1.0
  */
@@ -80,16 +80,35 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	int banner_printed;
 	int saved_numeric_addr;
 	vifi_t maxvif = 0;
+	size_t len;
 
-	if (mfcaddr == 0 || vifaddr == 0) {
-		printf("No IPv4 multicast routing compiled into this system.\n");
-		return;
+	len = sizeof(mfctable);
+	if (sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL, 0) < 0) {
+		warn("sysctl: net.inet.ip.mfctable");
+		/* Compatability with older kernels - candidate for removal */
+		if (mfcaddr == 0) {
+			printf("No IPv4 multicast routing compiled into this system.\n");
+			return;
+		}
+
+		kread(mfcaddr, (char *)mfctable, sizeof(mfctable));
+	}
+
+	len = sizeof(viftable);
+	if (sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL, 0) < 0) {
+		warn("sysctl: net.inet.ip.viftable");
+		/* Compatability with older kernels - candidate for removal */
+		if (vifaddr == 0) {
+			printf("No IPv4 multicast routing compiled into this system.\n");
+			return;
+		}
+
+		kread(vifaddr, (char *)viftable, sizeof(viftable));
 	}
 
 	saved_numeric_addr = numeric_addr;
 	numeric_addr = 1;
 
-	kread(vifaddr, (char *)&viftable, sizeof(viftable));
 	banner_printed = 0;
 	for (vifi = 0, v = viftable; vifi < MAXVIFS; ++vifi, ++v) {
 		if (v->v_lcl_addr.s_addr == 0)
@@ -115,7 +134,6 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	if (!banner_printed)
 		printf("\nVirtual Interface Table is empty\n");
 
-	kread(mfcaddr, (char *)&mfctable, sizeof(mfctable));
 	banner_printed = 0;
 	for (i = 0; i < MFCTBLSIZ; ++i) {
 		m = mfctable[i];
