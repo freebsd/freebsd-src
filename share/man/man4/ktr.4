@@ -32,6 +32,7 @@
 .Nd kernel tracing facility
 .Sh SYNOPSIS
 .Cd options KTR
+.Cd options ALQ
 .Cd options KTR_ALQ
 .Cd options KTR_COMPILE=(KTR_LOCK|KTR_INTR|KTR_PROC)
 .Cd options KTR_CPUMASK=0x3
@@ -145,6 +146,9 @@ option can be used to log
 entries to disk for post analysis using the
 .Xr ktrdump 8
 utility.
+This option depends on the
+.Dv ALQ
+option.
 Due to the potentially high volume of trace messages the trace mask should be
 selected carefully.
 This feature is configured through a group of sysctls.
@@ -187,6 +191,7 @@ records the number of entries that have currently been written to disk.
 .El
 .Sh SEE ALSO
 .Xr ktrdump 8 ,
+.Xr alq 9 ,
 .Xr ktr 9
 .Sh HISTORY
 The KTR kernel tracing facility first appeared in
