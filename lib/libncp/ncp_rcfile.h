@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_RCFILE_H_
-#define _NCP_RCFILE_H_
+#ifndef _NETNCP_NCP_RCFILE_H_
+#define _NETNCP_NCP_RCFILE_H_
 #include <sys/queue.h>
 
 struct rckey {
@@ -54,11 +54,15 @@ struct rcfile {
 	FILE			*rf_f;
 };
 
-int  rc_open(char *filename,char *mode,struct rcfile **rcfile);
-int  rc_close(struct rcfile *rcp);
-int  rc_getstringptr(struct rcfile *rcp,char *section, char *key,char **dest);
-int  rc_getstring(struct rcfile *rcp,char *section, char *key,int maxlen,char *dest);
-int  rc_getint(struct rcfile *rcp,char *section, char *key,int *value);
-int  rc_getbool(struct rcfile *rcp,char *section, char *key,int *value);
+__BEGIN_DECLS
 
-#endif	/* _NCP_RCFILE_H_ */
+int  rc_open(char *, char *,struct rcfile **);
+int  rc_close(struct rcfile *);
+int  rc_getstringptr(struct rcfile *, char *, char *, char **);
+int  rc_getstring(struct rcfile *, char *, char *, int, char *);
+int  rc_getint(struct rcfile *, char *, char *, int *);
+int  rc_getbool(struct rcfile *, char *, char *, int *);
+
+__END_DECLS
+
+#endif	/* _NETNCP_NCP_RCFILE_H_ */

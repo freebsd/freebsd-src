@@ -44,7 +44,7 @@
 #include <nwfs/nwfs.h>
 
 int
-ncp_read(int connid, ncp_fh *fh, off_t offset, size_t count, char *target) {
+ncp_read(NWCONN_HANDLE connid, ncp_fh *fh, off_t offset, size_t count, char *target) {
 	int result;
 	struct ncp_rw rwrq;
 	DECLARE_RQ;
@@ -62,7 +62,7 @@ ncp_read(int connid, ncp_fh *fh, off_t offset, size_t count, char *target) {
 }
 
 int
-ncp_write(int connid, ncp_fh *fh, off_t offset, size_t count, char *source)
+ncp_write(NWCONN_HANDLE connid, ncp_fh *fh, off_t offset, size_t count, char *source)
 {
 	int result;
 	struct ncp_rw rwrq;

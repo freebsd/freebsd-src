@@ -32,12 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NCP_NCP_FILE_H_
-#define _NCP_NCP_FILE_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef _NETNCP_NCP_FILE_H_
+#define _NETNCP_NCP_FILE_H_
 
 typedef struct {
    nuint32  sequence;
@@ -64,29 +60,23 @@ typedef struct {
    nuint8   reserved3 [16];
 } __attribute__((packed)) NWDELETED_INFO;
 
-int	ncp_AllocTempDirHandle(char *path, NWDIR_HANDLE *pdh);
-int	ncp_DeallocateDirHandle(NWDIR_HANDLE dh);
-int	ncp_GetNSEntryInfo(NWDIR_HANDLE dh, struct nw_entry_info *fi, int *ns);
+__BEGIN_DECLS
 
-NWCCODE	ncp_ScanNSEntryInfo(NWCONN_HANDLE cH, nuint8 namSpc, nuint16 attrs,
-	SEARCH_SEQUENCE *seq, pnstr8 searchPattern, nuint32 retInfoMask, 
-	NW_ENTRY_INFO *entryInfo);
+int	ncp_AllocTempDirHandle(char *, NWDIR_HANDLE *);
+int	ncp_DeallocateDirHandle(NWDIR_HANDLE);
+int	ncp_GetNSEntryInfo(NWDIR_HANDLE, struct nw_entry_info *, int *);
 
-NWCCODE ncp_PurgeDeletedFile(NWCONN_HANDLE cH, nuint32 iterHandle, 
-	nuint32 volNum, nuint32 dirBase, nuint8 ns);
+NWCCODE	ncp_ScanNSEntryInfo(NWCONN_HANDLE, nuint8, nuint16,
+	SEARCH_SEQUENCE *, pnstr8, nuint32, NW_ENTRY_INFO *);
 
-NWCCODE NWRecoverDeletedFile(NWCONN_HANDLE conn, NWDIR_HANDLE dirHandle,
-	nuint32 iterHandle, 
-	nuint32 volNum, nuint32 dirBase, 
-	pnstr8  delFileName, pnstr8 rcvrFileName);
+NWCCODE ncp_PurgeDeletedFile(NWCONN_HANDLE, nuint32, nuint32, nuint32, nuint8);
 
-NWCCODE ncp_ScanForDeletedFiles(NWCONN_HANDLE cH, pnuint32 iterHandle, 
-	pnuint32 volNum, pnuint32 dirBase, nuint8 ns,
-	NWDELETED_INFO *entryInfo);
+NWCCODE NWRecoverDeletedFile(NWCONN_HANDLE, NWDIR_HANDLE,
+	nuint32, nuint32, nuint32, pnstr8, pnstr8);
 
+NWCCODE ncp_ScanForDeletedFiles(NWCONN_HANDLE, pnuint32, pnuint32, pnuint32,
+	nuint8,	NWDELETED_INFO *);
 
-#ifdef __cplusplus
-}
-#endif
+__END_DECLS
 
 #endif /* _NCP_NCP_FILE_ */
