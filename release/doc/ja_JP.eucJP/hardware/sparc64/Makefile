@@ -1,5 +1,5 @@
 # $FreeBSD$
-# Original revision: 1.1
+# Original revision: 1.2
 
 RELN_ROOT?= ${.CURDIR}/../../..
 
@@ -13,7 +13,6 @@ JADEFLAGS+=	-V %generate-article-toc%
 # SGML content
 SRCS+=	article.sgml 
 SRCS+=	proc-sparc64.sgml 
-SRCS+=	dev-sparc64.sgml 
 SRCS+=	../common/hw.ent
 SRCS+=	../common/artheader.sgml
 
