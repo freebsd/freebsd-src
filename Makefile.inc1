@@ -378,6 +378,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 .for _kernel in ${BUILDKERNELS}
 	@echo "===> ${_kernel}"
+	mkdir -p ${KRNLOBJDIR}
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
