@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.4 1995/09/19 10:23:38 jkh Exp $
+#	$Id: rc,v 1.66.4.5 1995/09/19 12:09:01 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -232,8 +232,8 @@ if [ "X${pcnfsd}" = X"YES" -a -x /usr/local/libexec/rpc.pcnfsd ]; then
 	echo -n ' rpc.pcnfsd'; /usr/local/libexec/rpc.pcnfsd &
 fi
 
-if [ "X${apache_httpd}" = X"YES" -a -x /usr/local/www/server/httpd ]; then
-	echo -n ' apache httpd'; /usr/local/www/server/httpd &
+if [ "X${apache_httpd}" = X"YES" -a -x /usr/local/sbin/httpd ]; then
+	echo -n ' apache httpd'; /usr/local/sbin/httpd &
 fi
 
 # Kerberos runs ONLY on the Kerberos server machine
