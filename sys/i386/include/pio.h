@@ -3,41 +3,10 @@
  * Copyright (c) 1990 Carnegie-Mellon University
  * All rights reserved.  The CMU software License Agreement specifies
  * the terms and conditions for use and redistribution.
+ *
+ *	from: Mach, unknown, 386BSD patch kit
+ *	$Id$
  */
-/* 
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00158
- * --------------------         -----   ----------------------
- *
- * 27 May 93	Rodney W. Grimes	Added #ifndef around inb so that the
- *					clash with cpufunc.h does not cause
- *					a compile warning.. this is a hack.
- *					All of this needs cleaned up at 0.1.5
- *
- * HISTORY
- * $Log: pio.h,v $
- * Revision 1.1  1992/05/27  00:48:30  balsup
- * machkern/cor merge
- *
- * Revision 1.1  1991/10/10  20:11:39  balsup
- * Initial revision
- *
- * Revision 2.2  91/04/02  11:52:29  mbj
- * 	[90/08/14            mg32]
- * 
- * 	Now we know how types are factor in.
- * 	Cleaned up a bunch: eliminated ({ for output and flushed unused
- * 	output variables.
- * 	[90/08/14            rvb]
- * 
- * 	This is how its done in gcc:
- * 		Created.
- * 	[90/03/26            rvb]
- * 
- */
-
 
 #define inl(y) \
 ({ unsigned long _tmp__; \

@@ -22,42 +22,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log:	db_machdep.h,v $
- * Revision 2.8  92/02/19  15:07:56  elf
- * 	Added db_thread_fp_used.
- * 	[92/02/19            rpd]
- * 
- * Revision 2.7  91/10/09  16:06:28  af
- * 	 Revision 2.6.3.1  91/10/05  13:10:32  jeffreyh
- * 	 	Added access and task name macros.
- * 	 	[91/08/29            tak]
- * 
- * Revision 2.6.3.1  91/10/05  13:10:32  jeffreyh
- * 	Added access and task name macros.
- * 	[91/08/29            tak]
- * 
- * Revision 2.6  91/05/14  16:05:58  mrt
- * 	Correcting copyright
  *
- * Revision 2.5  91/02/05  17:11:17  mrt
- * 	Changed to new Mach copyright
- * 	[91/02/01  17:31:24  mrt]
- * 
- * Revision 2.4  91/01/08  15:10:16  rpd
- * 	Added dummy inst_load/inst_store macros.
- * 	[90/12/11            rpd]
- * 
- * Revision 2.3  90/10/25  14:44:49  rwd
- * 	Added watchpoint support.
- * 	[90/10/18            rpd]
- * 
- * Revision 2.2  90/08/27  21:56:15  dbg
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
 
 #ifndef	_I386_DB_MACHDEP_H_

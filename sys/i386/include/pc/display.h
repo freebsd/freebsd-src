@@ -1,5 +1,7 @@
 /*
  * IBM PC display definitions
+ *
+ *	$Id$
  */
 
 /* Color attributes for foreground text */

@@ -30,15 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- *
+ *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*

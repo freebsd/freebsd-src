@@ -33,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)trap.h	5.4 (Berkeley) 5/9/91
+ *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*
