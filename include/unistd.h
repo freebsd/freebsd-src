@@ -489,7 +489,10 @@ int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
 char	*mkdtemp(char *);
+#ifndef	_MKNOD_DECLARED
 int	 mknod(const char *, mode_t, dev_t);
+#define	_MKNOD_DECLARED
+#endif
 #ifndef _MKSTEMP_DECLARED
 int	 mkstemp(char *);
 #define	_MKSTEMP_DECLARED
