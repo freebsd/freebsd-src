@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.7 1995/04/29 11:36:47 jkh Exp $
+ * $Id: subr_log.c,v 1.8 1995/05/30 08:05:52 rgrimes Exp $
  */
 
 /*
@@ -73,19 +73,6 @@ logopen(dev, flags, mode, p)
 		return (EBUSY);
 	log_open = 1;
 	logsoftc.sc_pgid = p->p_pid;		/* signal process only */
-	/*
-	 * Potential race here with putchar() but since putchar should be
-	 * called by autoconf, msg_magic should be initialized by the time
-	 * we get here.
-	 */
-	if (mbp->msg_magic != MSG_MAGIC) {
-		register int i;
-
-		mbp->msg_magic = MSG_MAGIC;
-		mbp->msg_bufx = mbp->msg_bufr = 0;
-		for (i=0; i < MSG_BSIZE; i++)
-			mbp->msg_bufc[i] = 0;
-	}
 	return (0);
 }
 
@@ -142,7 +129,7 @@ logread(dev, uio, flag)
 		if (error)
 			break;
 		mbp->msg_bufr += l;
-		if (mbp->msg_bufr < 0 || mbp->msg_bufr >= MSG_BSIZE)
+		if (mbp->msg_bufr >= MSG_BSIZE)
 			mbp->msg_bufr = 0;
 	}
 	return (error);
