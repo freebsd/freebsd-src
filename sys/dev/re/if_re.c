@@ -1252,7 +1252,7 @@ re_detach(dev)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
-	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
+	KASSERT(mtx_initialized(&sc->rl_mtx), ("re mutex not initialized"));
 
 	attached = device_is_attached(dev);
 	/* These should only be active if attach succeeded */
@@ -1733,7 +1733,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK_ASSERT(sc);
-	
+
 	if (!(ifp->if_capenable & IFCAP_POLLING)) {
 		ether_poll_deregister(ifp);
 		cmd = POLL_DEREGISTER;
