@@ -7,18 +7,24 @@ LIBS=	\
 	libc_r.so.4 \
 	libcrypto.so.1 \
 	libcrypto.so.2 \
+	libdevstat.so.2 \
 	libedit.so.3 \
 	libfetch.so.2 \
 	libgmp.so.3 \
+	libmp.so.3 \
 	libpam.so.1 \
 	libperl.so.3 \
+	libposix1e.so.2 \
+	libskey.so.2 \
 	libssl.so.1 \
 	libssl.so.2 \
 	libstdc++.so.3 \
 	libusb.so.0 \
+	libusbhid.so.0 \
 	pam_cleartext_pass_ok.so \
 	pam_deny.so \
 	pam_opie.so \
+	pam_opieaccess.so \
 	pam_permit.so \
 	pam_radius.so \
 	pam_skey.so \
