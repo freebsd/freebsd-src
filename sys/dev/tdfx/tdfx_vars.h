@@ -39,7 +39,6 @@
 
 #include <sys/memrange.h>
 #include <sys/param.h>
-#include <sys/bus_private.h>
 #include <sys/bus.h>
 #include <sys/cdefs.h>
 
