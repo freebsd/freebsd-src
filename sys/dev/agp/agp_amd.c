@@ -162,6 +162,8 @@ agp_amd_match(device_t dev)
 		return NULL;
 
 	switch (pci_get_devid(dev)) {
+	case 0x700e1022:
+		return ("AMD 761 host to AGP bridge");
 	case 0x70061022:
 		return ("AMD 751 host to AGP bridge");
 	};
