@@ -15,12 +15,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)uxpds.m4	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)uxpds.m4	8.10 (Berkeley) 10/6/1998')
 
 define(`confDEF_GROUP_ID', `6')
-define(`ALIAS_FILE', /usr/ucblib/aliases)dnl
-ifdef(`HELP_FILE',,`define(`HELP_FILE', /usr/ucblib/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /usr/ucblib/sendmail.st)')dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/ucblib/aliases'))dnl
+ifdef(`HELP_FILE',,`define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/ucblib/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',,`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/ucblib/sendmail.st'))')dnl
 define(`LOCAL_MAILER_PATH', `/usr/ucblib/binmail')dnl
 define(`LOCAL_MAILER_FLAGS', `rmn9')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl

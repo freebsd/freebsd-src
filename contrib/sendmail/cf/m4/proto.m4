@@ -12,12 +12,12 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.223 (Berkeley) 6/30/98')
+VERSIONID(`@(#)proto.m4	8.237 (Berkeley) 12/17/1998')
 
 MAILER(local)dnl
 
 # level 8 config file format
-V8/Berkeley
+V8/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
 divert(-1)
 
 # do some sanity checking
@@ -220,7 +220,7 @@ ifdef(`_NULL_CLIENT_ONLY_', `dnl', `
 _OPTION(AliasWait, `confALIAS_WAIT', 5m)
 
 # location of alias file
-_OPTION(AliasFile, `ALIAS_FILE', /etc/aliases)
+_OPTION(AliasFile, `ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', /etc/mail/aliases, /etc/aliases))
 ')
 # minimum number of free blocks on filesystem
 _OPTION(MinFreeBlocks, `confMIN_FREE_BLOCKS', 100)
@@ -244,7 +244,7 @@ _OPTION(DeliveryMode, `confDELIVERY_MODE', background)
 _OPTION(AutoRebuildAliases, `confAUTO_REBUILD')
 
 # error message header/file
-_OPTION(ErrorHeader, `confERROR_MESSAGE', /etc/sendmail.oE)
+_OPTION(ErrorHeader, `confERROR_MESSAGE', ifdef(`_USE_ETC_MAIL_', /etc/mail/error-header, /etc/sendmail.oE))
 
 # error mode
 _OPTION(ErrorMode, `confERROR_MODE', print)
@@ -262,7 +262,7 @@ _OPTION(MatchGECOS, `confMATCH_GECOS')
 _OPTION(MaxHopCount, `confMAX_HOP', 17)
 
 # location of help file
-O HelpFile=ifdef(`HELP_FILE', HELP_FILE, /usr/lib/sendmail.hf)
+O HelpFile=ifdef(`HELP_FILE', HELP_FILE, ifdef(`_USE_ETC_MAIL_', /etc/mail/helpfile, /usr/lib/sendmail.hf))
 
 # ignore dots as terminators in incoming messages?
 _OPTION(IgnoreDots, `confIGNORE_DOTS')
@@ -351,7 +351,7 @@ _OPTION(DontPruneRoutes, `confDONT_PRUNE_ROUTES')
 _OPTION(SuperSafe, `confSAFE_QUEUE')
 
 # status file
-O StatusFile=ifdef(`STATUS_FILE', `STATUS_FILE', /etc/sendmail.st)
+O StatusFile=ifdef(`STATUS_FILE', `STATUS_FILE', ifdef(`_USE_ETC_MAIL_', /etc/mail/statistics, /etc/sendmail.st))
 
 # time zone handling:
 #  if undefined, use system default
@@ -365,7 +365,7 @@ ifelse(confTIME_ZONE, `USE_SYSTEM', `#O TimeZoneSpec=',
 _OPTION(DefaultUser, `confDEF_USER_ID', mailnull)
 
 # list of locations of user database file (null means no lookup)
-_OPTION(UserDatabaseSpec, `confUSERDB_SPEC', /etc/userdb)
+_OPTION(UserDatabaseSpec, `confUSERDB_SPEC', ifdef(`_USE_ETC_MAIL_', /etc/mail/userdb, /etc/userdb))
 
 # fallback MX host
 _OPTION(FallbackMXhost, `confFALLBACK_MX', fall.back.host.net)
@@ -407,7 +407,7 @@ _OPTION(MinQueueAge, `confMIN_QUEUE_AGE', 30m)
 _OPTION(DefaultCharSet, `confDEF_CHAR_SET', iso-8859-1)
 
 # service switch file (ignored on Solaris, Ultrix, OSF/1, others)
-_OPTION(ServiceSwitchFile, `confSERVICE_SWITCH_FILE', /etc/service.switch)
+_OPTION(ServiceSwitchFile, `confSERVICE_SWITCH_FILE', ifdef(`_USE_ETC_MAIL_', /etc/mail/service.switch, /etc/service.switch))
 
 # hosts file (normally /etc/hosts)
 _OPTION(HostsFile, `confHOSTS_FILE', /etc/hosts)
@@ -466,6 +466,19 @@ _OPTION(MaxRecipientsPerMessage, `confMAX_RCPTS_PER_MESSAGE', 100)
 # shall we get local names from our installed interfaces?
 _OPTION(DontProbeInterfaces, `confDONT_PROBE_INTERFACES')
 
+ifdef(`confTRUSTED_USER',
+`# Trusted user for file ownership and starting the daemon
+O TrustedUser=confTRUSTED_USER
+')
+ifdef(`confCONTROL_SOCKET_NAME',
+`# Control socket for daemon management
+O ControlSocketName=confCONTROL_SOCKET_NAME
+')
+ifdef(`confMAX_MIME_HEADER_LENGTH',
+`# Maximum MIME header length to protect MUAs
+O MaxMimeHeaderLength=confMAX_MIME_HEADER_LENGTH
+')
+
 ###########################
 #   Message precedences   #
 ###########################
@@ -481,7 +494,7 @@ Pjunk=-100
 #####################
 
 # this is equivalent to setting class "t"
-ifdef(`_USE_CT_FILE_', `', `#')Ft`'ifdef(`confCT_FILE', confCT_FILE, `/etc/sendmail.ct')
+ifdef(`_USE_CT_FILE_', `', `#')Ft`'ifdef(`confCT_FILE', confCT_FILE, ifdef(`_USE_ETC_MAIL_', `/etc/mail/trusted-users', `/etc/sendmail.ct'))
 Troot
 Tdaemon
 ifdef(`_NO_UUCP_', `dnl', `Tuucp')
@@ -827,7 +840,7 @@ R$* < @ $* > $*		$: $>95 < $S > $1 < @ $2 > $3	glue on smarthost name
 # deal with other remote names
 ifdef(`_MAILER_smtp_',
 `R$* < @$* > $*		$#_SMTP_ $@ $2 $: $1 < @ $2 > $3		user@host.domain',
-`R$* < @$* > $*		$#error $@ 5.1.2 $: "Unrecognized host name" $2')
+`R$* < @$* > $*		$#error $@ 5.1.2 $: "Unrecognized host name " $2')
 
 # handle locally delivered names
 R$=L			$#_LOCAL_ $: @ $1			special local names
@@ -965,7 +978,7 @@ ifdef(`_MASQUERADE_ENVELOPE_',
 S98
 undivert(3)dnl
 
-ifelse(confDELIVERY_MODE, defer, `errprint(`WARNING: Antispam rules not available in deferred delivery mode.')')
+ifelse(substr(confDELIVERY_MODE,0,1), `d', `errprint(`WARNING: Antispam rules not available in deferred delivery mode.')')
 ifdef(`ACCESS_TABLE', `dnl
 ######################################################################
 ###  LookUpDomain -- search for domain in access database
@@ -999,6 +1012,24 @@ R<$*> <$+> <$+> <$*>	$@ <$1> <$4>',
 `dnl')
 
 ######################################################################
+###  CanonAddr --	Convert an address into a standard form for
+###			relay checking.  Route address syntax is
+###			crudely converted into a %-hack address.
+###
+###	Parameters:
+###		$1 -- full recipient address
+###
+###	Returns:
+###		parsed address, not in source route form
+######################################################################
+
+SCanonAddr
+R$*			$: $>Parse0 $>3 $1	make domain canonical
+R< @ $+ > : $* @ $*	< @ $1 > : $2 % $3	change @ to % in src route
+R$* < @ $+ > : $* : $*	$3 $1 < @ $2 > : $4	change to % hack.
+R$* < @ $+ > : $*	$3 $1 < @ $2 >
+
+######################################################################
 ###  ParseRecipient --	Strip off hosts in $=R as well as possibly
 ###			$* $=m or the access database.
 ###			Check user portion for host separators.
@@ -1011,27 +1042,35 @@ R<$*> <$+> <$+> <$*>	$@ <$1> <$4>',
 ######################################################################
 
 SParseRecipient
-R$*			$: <?> $>Parse0 $>3 $1
-R<?> $* < @ $* . >	<?> $1 < @ $2 >		strip trailing dots
-R<?> $- < @ $* >	$: <?> $(dequote $1 $) < @ $2 >		dequote local part
+R$*				$: <?> $>CanonAddr $1
+R<?> $* < @ $* . >		<?> $1 < @ $2 >			strip trailing dots
+R<?> $- < @ $* >		$: <?> $(dequote $1 $) < @ $2 >	dequote local part
 
 # if no $=O character, no host in the user portion, we are done
-R<?> $* $=O $* < @ $* >	$: <NO> $1 $2 $3 < @ $4>
-R<?> $*			$@ $1
+R<?> $* $=O $* < @ $* >		$: <NO> $1 $2 $3 < @ $4>
+R<?> $*				$@ $1
 
 ifdef(`_RELAY_ENTIRE_DOMAIN_', `dnl
 # if we relay, check username portion for user%host so host can be checked also
-R<NO> $* < @ $* $=m >	$: <RELAY> $1 < @ $2 $3 >', `dnl')
+R<NO> $* < @ $* $=m >		$: <RELAY> $1 < @ $2 $3 >', `dnl')
+
+ifdef(`_RELAY_MX_SERVED_', `dnl
+R<NO> $* < @ $+ >		$: <MX> < : $(mxserved $2 $) : > < $1 < @$2 > >
+R<MX> < : $* <TEMP> : > $*	$#error $@ 4.7.1 $: "450 Can not check MX records for recipient host " $1
+R<MX> < $* : $=w. : $* > < $+ >	$: <RELAY> $4
+R<MX> < : $* : > < $+ >		$: <NO> $2', `dnl')
+
 ifdef(`_RELAY_HOSTS_ONLY_',
-`R<NO> $* < @ $=R >	$: <RELAY> $1 < @ $2 >
+`R<NO> $* < @ $=R >		$: <RELAY> $1 < @ $2 >
 ifdef(`ACCESS_TABLE', `dnl
-R<NO> $* < @ $* >	$: <$(access $2 $: NO $)> $1 < @ $2 >',`dnl')',
-`R<NO> $* < @ $* $=R >	$: <RELAY> $1 < @ $2 $3 >
+R<NO> $* < @ $+ >		$: <$(access $2 $: NO $)> $1 < @ $2 >',`dnl')',
+`R<NO> $* < @ $* $=R >		$: <RELAY> $1 < @ $2 $3 >
 ifdef(`ACCESS_TABLE', `dnl
-R<NO> $* < @ $* >	$: $>LookUpDomain <$2> <NO> <$1 < @ $2 >>
-R<$+> <$+>		$: <$1> $2',`dnl')')
-R<RELAY> $* < @ $* >	$@ $>ParseRecipient $1
-R<$-> $*		$@ $2
+R<NO> $* < @ $+ >		$: $>LookUpDomain <$2> <NO> <$1 < @ $2 >>
+R<$+> <$+>			$: <$1> $2',`dnl')')
+
+R<RELAY> $* < @ $* >		$@ $>ParseRecipient $1
+R<$-> $*			$@ $2
 
 ######################################################################
 ###  check_relay -- check hostname/address on SMTP startup
@@ -1051,19 +1090,20 @@ R< $* > $*		$: $2
 
 ifdef(`ACCESS_TABLE', `dnl
 R$+ $| $+		$: $>LookUpDomain < $1 > <?> < $2 >
-R<?> < $+ >		$: $>LookUpAddress < $1 > <OK> < $1 >
-R<OK> < $* >		$: $1
-R<RELAY> < $* >		$: $1
+R<?> < $+ >		$: $>LookUpAddress < $1 > <?> < $1 >
+R<?> < $+ >		$: $1
+R<OK> < $* >		$@ OK
+R<RELAY> < $* >		$@ RELAY
 R<REJECT> $*		$#error $@ 5.7.1 $: "ifdef(`confREJECT_MSG', `confREJECT_MSG', `550 Access denied')"
 R<DISCARD> $*		$#discard $: discard
 R<$+> $*		$#error $@ 5.7.1 $: $1', `dnl')
 
 ifdef(`_RBL_', `dnl
-# MAPS project checks -- http://maps.vix.com/
+# DNS based IP address spam lists
 R$*			$: $&{client_addr}
 R$-.$-.$-.$-		$: $(host $4.$3.$2.$1._RBL_. $: OK $)
 ROK			$@ OK
-R$+			$#error $@ 5.7.1 $: "Mail from " $&{client_addr} " refused; see http://maps.vix.com/rbl/"',
+R$+			$#error $@ 5.7.1 $: "Mail from " $&{client_addr} " refused by blackhole site _RBL_"',
 `dnl')
 
 ######################################################################
@@ -1083,8 +1123,8 @@ R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
 R<>			$@ <OK>
-R$*			$: <?> $>Parse0 $>3 $1		make domain canonical
-R<?> $* < @ $+ . > $*	<?> $1 < @ $2 > $3		strip trailing dots
+R$*			$: <?> $>CanonAddr $1
+R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
 R<?> $* < $* $=P > $*	$: <OK> $1 < @ $2 $3 > $4
 ifdef(`_ACCEPT_UNRESOLVABLE_DOMAINS_',
@@ -1158,9 +1198,20 @@ R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
 ifdef(`_LOOSE_RELAY_CHECK_',`dnl
-R$*			$: $>Parse0 $>3 $1
+R$*			$: $>CanonAddr $1
 R$* < @ $* . >		$1 < @ $2 >			strip trailing dots',
 `R$*			$: $>ParseRecipient $1		strip relayable hosts')
+
+ifdef(`_BESTMX_IS_LOCAL_',`dnl
+ifelse(_BESTMX_IS_LOCAL_, `', `dnl
+# unlimited bestmx
+R$* < @ $* > $*			$: $1 < @ $2 @@ $(bestmx $2 $) > $3',
+`dnl
+# limit bestmx to $=B
+R$* < @ $* $=B > $*		$: $1 < @ $2 $3 . @@ $(bestmx $2 $3 $) > $4')
+R$* $=O $* < @ $* @@ $=w . > $*	$@ $>Basic_check_rcpt $1 $2 $3
+R$* < @ $* @@ $=w . > $*	$: $1 < @ $3 > $4
+R$* < @ $* @@ $* > $*		$: $1 < @ $2 > $4')
 
 ifdef(`_BLACKLIST_RCPT_',`dnl
 ifdef(`ACCESS_TABLE', `dnl
@@ -1201,12 +1252,12 @@ ifdef(`_RELAY_MX_SERVED_', `dnl
 R$+ < @ $* >		$: < : $(mxserved $2 $) : > $1 < @ $2 >
 R< : $* <TEMP> : > $*	$#error $@ 4.7.1 $: "450 Can not check MX records for recipient host " $1
 R<$* : $=w . : $*> $*	$@ OK
-R<$*> $*			$: $2',
+R< : $* : > $*		$: $2',
 `dnl')
 
 # check for local user (i.e. unqualified address)
 R$*			$: <?> $1
-R<?> $+ < @ $+ >	$: <REMOTE> $1 < @ $2 >
+R<?> $* < @ $+ >	$: <REMOTE> $1 < @ $2 >
 # local user is ok
 R<?> $+			$@ OK
 R<$+> $*		$: $2
@@ -1248,7 +1299,7 @@ R$=w			$@ OK			... and see if it is local
 
 ifdef(`_RELAY_LOCAL_FROM_', `dnl
 # anything with a local FROM is ok
-R$*			$: $1 $| $>Parse0 $>3 $&f
+R$*			$: $1 $| $>CanonAddr $&f
 R$* $| $+ < @ $=w . >	$@ OK			FROM local
 R$* $| $*		$: $1
 ', `dnl')

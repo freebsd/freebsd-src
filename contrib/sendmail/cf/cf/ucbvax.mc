@@ -21,7 +21,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)ucbvax.mc	8.11 (Berkeley) 5/19/98')
+VERSIONID(`@(#)ucbvax.mc	8.11 (Berkeley) 5/19/1998')
 OSTYPE(bsd4.3)
 DOMAIN(CS.Berkeley.EDU)
 MASQUERADE_AS(CS.Berkeley.EDU)

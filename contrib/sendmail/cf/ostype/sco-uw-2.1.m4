@@ -12,11 +12,11 @@ divert(-1)
 #	Contributed by Christopher Durham <chrisdu@SCO.COM> of SCO.
 #
 divert(0)
-VERSIONID(`@(#)sco-uw-2.1.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)sco-uw-2.1.m4	8.7 (Berkeley) 10/6/1998')
 
-define(`ALIAS_FILE', /usr/lib/mail/aliases)dnl
-ifdef(`HELP_FILE',,`define(`HELP_FILE', /usr/ucblib/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /usr/ucblib/sendmail.st)')dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/mail/aliases'))dnl
+ifdef(`HELP_FILE',,`define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/ucblib/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',,`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/ucblib/sendmail.st'))')dnl
 define(`LOCAL_MAILER_PATH', `/usr/bin/rmail')dnl
 define(`LOCAL_MAILER_FLAGS', `fhCEn9')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl

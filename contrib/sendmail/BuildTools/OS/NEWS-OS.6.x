@@ -1,4 +1,4 @@
-#	@(#)NEWS-OS.6.x	8.8	(Berkeley)	3/12/98
+#	@(#)NEWS-OS.6.x	8.8	(Berkeley)	3/12/1998
 define(`confCC', `/bin/cc')
 define(`confBEFORE', `sysexits.h ndbm.o')
 define(`confMAPDEF', `-DNDBM -DNIS')

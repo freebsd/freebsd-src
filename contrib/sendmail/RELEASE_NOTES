@@ -1,10 +1,186 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.9.1.1 (Berkeley) 7/2/98
+	     @(#)RELEASE_NOTES	8.9.2.4 (Berkeley) 12/29/1998
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.9.2/8.9.2	98/12/30
+	SECURITY: Remove five second sleep on accepting daemon connections
+		due to an accept() failure.  This sleep could be used
+		for a denial of service attack.
+	Do not silently ignore queue files with names which are too long.
+		Patch from Bryan Costales of InfoBeat, Inc.
+	Do not store failures closing an SMTP session in persistent
+		host status.  Reported by Graeme Hewson of Oracle
+		Corporation UK.
+	Allow symbolic link forward files if they are in safe directories.
+		Problem noted by Andreas Schott of the Max Planck Society.
+	Missing columns in a text map could cause a segmentation fault.
+		Fix from David Lee of the University of Durham.
+	Note that for 8.9.X, PrivacyFlags=goaway also includes the
+		noetrn flag.  This is scheduled to change in a future
+		version of sendmail.  Problem noted by Theo Van Dinter of
+		Chrysalis Symbolic Designa and Alan Brown of Manawatu
+		Internet Services.
+	When trying to do host canonification in a Wildcard MX
+		environment, try an MX lookup of the hostname without the
+		default domain appended.  Problem noted by Olaf Seibert of
+		Polderland Language & Speech Technology.
+	Reject SMTP RCPT To: commands with only comments (i.e.
+		'RCPT TO: (comment)'.  Problem noted by Earle Ake of
+		Hassler Communication Systems Technology, Inc.
+	Handle any number of %s in the LDAP filter spec.  Patch from
+		Per Hedeland of Ericsson.
+	Clear ldapx open timeouts even if the map open failed to prevent
+		a segmentation fault.  Patch from Wayne Knowles of the
+		National Institute of Water & Atmospheric Research Ltd.
+	Do not syslog envelope clone messages when using address
+		verification (-bv).  Problem noted by Kari Hurtta of the
+		Finnish Meteorological Institute.
+	Continue to perform queue runs while in daemon mode even if the
+		daemon is rejecting connections due to a disk full
+		condition.  Problem noted by JR Oldroyd of TerraNet
+		Internet Services.
+	Include full filename on installation of the sendmail.hf file
+		in case the $HFDIR directory does not exist.  Problem
+		noted by Josef Svitak of Montana State University.
+	Close all maps when exiting the process with one exception.
+        	Berkeley DB can use internal shared memory locking for
+        	its memory pool.  Closing a map opened by another process
+        	will interfere with the shared memory and locks of the
+        	parent process leaving things in a bad state.  For
+		Berkeley DB, only close the map if the current process
+		is also the one that opened the map, otherwise only close
+		the map file descriptor.  Thanks to Yoseff Francus of
+		Collective Technologies for volunteering his system for
+		extended testing.
+	Avoid null pointer dereference on XDEBUG output for SMTP reply
+		failures.  Problem noted by Carlos Canau of EUnet Portugal.
+	On mailq and hoststat listings being piped to another program, such
+		as more, if the pipe closes (i.e. the user quits more),
+		stop sending output and exit.  Patch from Allan E Johannesen
+		of Worcester Polytechnic Institute.
+	In accordance with the documentation, LDAP map lookup failures
+		are now considered temporary failures instead of permanent
+		failures unless the -t flag is used in the map definition.
+		Problem noted by Booker Bense of Stanford University and
+		Eric C. Hagberg of Morgan Stanley.
+	Fix by one error reporting on long alias names.  Problem noted by
+		H. Paul Hammann of the Missouri Research and Education
+		Network.
+	Fix DontBlameSendmail=IncludeFileInUnsafeDirPath behavior.  Problem
+		noted by Barry S. Finkel of Argonne National Laboratory.
+	When automatically converting from 8 bit to quoted printable MIME,
+		be careful not to miss a multi-part boundary if that
+		boundary is preceded by a boundary-like line.  Problem
+		noted by Andreas Raschle of Ansid Inc.  Fix from
+		Kari Hurtta of the Finnish Meteorological Institute.
+	Avoid bogus reporting of "LMTP tobuf overflow" when the buffer
+		has enough space for the additional address.  Problem
+		noted by Steve Cliffe of the University of Wollongong.
+	Fix DontBlameSendmail=FileDeliveryToSymlinks behavior.  Problem
+		noted by Alex Vorobiev of Swarthmore College.
+	If the check_compat ruleset resolves to the $#discard mailer,
+		discard the current recipient.  Unlike check_relay,
+		check_mail, and check_rcpt, the entire envelope is not
+		discarded.  Problem noted by RZ D. Rahlfs.  Fix from
+		Claus Assmann of Christian-Albrechts-University of Kiel.
+	Avoid segmentation fault when reading ServiceSwitch files with
+		bogus formatting.  Patch from Kari Hurtta of the Finnish
+		Meteorological Institute.
+	Support Berkeley DB 2.6.4 API change.
+	OP.ME: Pages weren't properly output on duplexed printers.  Fix
+		from Matthew Black of CSU Long Beach.
+	Portability:
+		Apple Rhapsody from Wilfredo Sanchez of Apple Computer, Inc.
+		Avoid a clash with IRIX 6.2 getopt.h and the UserDatabase
+			option structure.  Problem noted by Ashley M.
+			Kirchner of Photo Craft Laboratories, Inc.
+		Break out IP address to hostname translation for
+			reading network interface addresses into
+			class 'w'.  Patch from John Kennedy of
+			Cal State University, Chico.
+		AIX 4.x use -qstrict with -O3 to prevent the optimized
+			from changing the semantics of the compiled
+			program.  From Simon Travaglia of the
+			University of Waikato, New Zealand.
+		FreeBSD 2.2.2 and later support setusercontext().  From
+			Peter Wemm of DIALix.
+		FreeBSD 3.x fix from Peter Wemm of DIALix.
+		IRIX 5.x has a syslog buffer size of 512 bytes.  From
+			Nao NINOMIYA of Utsunomiya University.
+		IRIX 6.5 64-bit Build support.
+		LDAP Version 3 support from John Beck and Ravi Iyer
+			of Sun Microsystems.
+		Linux does not implement seteuid() properly.  From
+			John Kennedy of Cal State University, Chico.
+		Linux timezone type was set improperly.  From Takeshi Itoh
+			of Bits Co., Ltd.
+		NCR MP-RAS 3.x needs -lresolv for confLIBS.  From
+			Tom J. Moore of NCR.
+		NeXT 4.x correction to man page path.  From J. P. McCann
+			of E I A.
+		System V Rel 5.x (a.k.a Unixware7 w/o BSD-Compatibility Libs)
+			from Paul Gampe of the Asia Pacific Network
+			Information Center.
+		ULTRIX now requires an optimization limit of 970 from
+			Allan E Johannesen of Worcester Polytechnic
+			Institute.
+		Fix extern declaration for sm_dopr().  Fix from Henk
+			van Oers of Algemeen Nederlands Persbureau.
+	CONFIG: Catch @hostname,user@anotherhost.domain as relaying.
+		Problem noted by Mark Rogov of AirMedia, Inc.  Fix from
+		Claus Assmann of Christian-Albrechts-University of Kiel.
+	CONFIG: Do not refer to http://maps.vix.com/ on RBL rejections as
+		there are multiple RBL's available and the MAPS RBL may
+		not be the one in use.  Suggested by Alan Brown of
+		Manawatu Internet Services.
+	CONFIG: Properly strip route addresses (i.e. @host1:user@host2)
+		when stripping down a recipient address to check for
+		relaying.  Patch from Claus Assmann of
+		Christian-Albrechts-University of Kiel and Neil W Rickert
+		of Northern Illinois University.
+	CONFIG: Allow the access database to override RBL lookups.  Patch
+		from Claus Assmann of Christian-Albrechts-University of
+		Kiel.
+	CONFIG: UnixWare 7 support from Phillip P. Porch of The Porch
+		Dot Com.
+	CONFIG: Fixed check for deferred delivery mode warning.  Patch
+		from Claus Assmann of Christian-Albrechts-University of
+                Kiel and Per Hedeland of Ericsson.
+	CONFIG: If a recipient using % addressing is used, e.g.
+		user%site@othersite, and othersite's MX records are now
+		checked for local hosts if FEATURE(relay_based_on_MX) is
+		used.  Problem noted by Alexander Litvin of Lucky Net Ltd.
+		Patch from Alexander Litvin of Lucky Net Ltd and
+		Claus Assmann of Christian-Albrechts-University of Kiel.
+	MAIL.LOCAL: Prevent warning messages from appearing in the LMTP
+		stream.  Do not allow more than one response per recipient.
+	MAIL.LOCAL: Handle routed addresses properly when using LMTP.  Fix
+		from John Beck of Sun Microsystems.
+	MAIL.LOCAL: Properly check for CRLF when using LMTP.  Fix from
+		John Beck of Sun Microsystems.
+	MAIL.LOCAL: Substitute MAILER-DAEMON for the LMTP empty sender in
+		the envelope From header.
+	MAIL.LOCAL: Accept underscores in hostnames in LMTP mode.
+		Problem noted by Glenn A. Malling of Syracuse University.
+	MAILSTATS: Document msgsrej and msgsdis fields in the man page.
+		Problem noted by Richard Wong of Princeton University.
+	MAKEMAP: Build group list so group writable files are allowed with
+		the -s flag.  Problem noted by Curt Sampson of Internet
+		Portal Services, Inc.
+	PRALIASES: Automatically handle alias files created without the
+		NULL byte at the end of the key.  Patch from John Beck of
+		Sun Microsystems.
+	PRALIASES: Support Berkeley DB 2.6.4 API change.
+	New Files:
+		BuildTools/OS/IRIX64.6.5
+		BuildTools/OS/UnixWare.5.i386
+		cf/cf/unixware7.m4
+		contrib/smcontrol.pl
+		src/control.c
 
 8.9.1/8.9.1	98/07/02
 	If both an OS specific site configuration file and a generic
@@ -88,6 +264,8 @@ summary of the changes in that release.
 	RMAIL: Do not install rmail by default, require 'make force-install'
 		as this rmail isn't the same as others.  Suggested by
 		Kari Hurtta of the Finnish Meteorological Institute.
+	New Files:
+		BuildTools/OS/DomainOS.10.4
 
 8.9.0/8.9.0	98/05/19
 	SECURITY: To prevent users from reading files not normally

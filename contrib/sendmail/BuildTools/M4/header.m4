@@ -8,7 +8,7 @@
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	@(#)header.m4	8.14	(Berkeley)	5/19/98
+#	@(#)header.m4	8.14	(Berkeley)	5/19/1998
 #
 changecom(^A)
 undefine(`format')

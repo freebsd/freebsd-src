@@ -21,7 +21,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)huginn.cs.mc	8.12 (Berkeley) 5/19/98')
+VERSIONID(`@(#)huginn.cs.mc	8.12 (Berkeley) 5/19/1998')
 OSTYPE(hpux9)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MASQUERADE_AS(CS.Berkeley.EDU)dnl

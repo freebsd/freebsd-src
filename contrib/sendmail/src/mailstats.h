@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)mailstats.h	8.8 (Berkeley) 5/19/98
+ *	@(#)mailstats.h	8.8 (Berkeley) 5/19/1998
  */
 
 #define STAT_VERSION	2

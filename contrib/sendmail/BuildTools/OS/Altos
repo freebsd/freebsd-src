@@ -1,4 +1,4 @@
-#	@(#)Altos	8.6	(Berkeley)	2/19/98
+#	@(#)Altos	8.6	(Berkeley)	2/19/1998
 define(`confCC', `gcc')
 define(`confENVDEF', `-DALTOS_SYSTEM_V ')
 define(`confLIBS', `-lsocket -lrpc')

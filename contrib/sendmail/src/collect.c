@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.89 (Berkeley) 6/4/98";
+static char sccsid[] = "@(#)collect.c	8.91 (Berkeley) 8/19/1998";
 #endif /* not lint */
 
 # include <errno.h>
@@ -81,7 +81,6 @@ collect(fp, smtpmode, hdrp, e)
 	char dfname[MAXQFNAME];
 	char bufbuf[MAXLINE];
 	extern bool isheader __P((char *));
-	extern void eatheader __P((ENVELOPE *, bool));
 	extern void tferror __P((FILE *volatile, ENVELOPE *));
 
 	headeronly = hdrp != NULL;
@@ -101,7 +100,7 @@ collect(fp, smtpmode, hdrp, e)
 		{
 			syserr("Cannot create %s", dfname);
 			e->e_flags |= EF_NO_BODY_RETN;
-			finis();
+			finis(TRUE, ExitStat);
 		}
 		if (fstat(fileno(tf), &stbuf) < 0)
 			e->e_dfino = -1;
@@ -159,8 +158,6 @@ collect(fp, smtpmode, hdrp, e)
 
 	for (;;)
 	{
-		extern int chompheader __P((char *, bool, HDR **, ENVELOPE *));
-
 		if (tTd(30, 35))
 			printf("top, istate=%d, mstate=%d\n", istate, mstate);
 		for (;;)
@@ -414,7 +411,7 @@ readerr:
 	{
 		tferror(tf, e);
 		flush_errors(TRUE);
-		finis();
+		finis(TRUE, ExitStat);
 	}
 
 	/* An EOF when running SMTP is an error */
@@ -456,7 +453,7 @@ readerr:
 		/* and don't try to deliver the partial message either */
 		if (InChild)
 			ExitStat = EX_QUIT;
-		finis();
+		finis(TRUE, ExitStat);
 	}
 
 	/*
@@ -504,7 +501,6 @@ readerr:
 		/* no valid recipient headers */
 		register ADDRESS *q;
 		char *hdr = NULL;
-		extern void addheader __P((char *, char *, HDR **));
 
 		/* create an Apparently-To: field */
 		/*    that or reject the message.... */
@@ -577,7 +573,7 @@ readerr:
 	{
 		/* we haven't acked receipt yet, so just chuck this */
 		syserr("Cannot reopen %s", dfname);
-		finis();
+		finis(TRUE, ExitStat);
 	}
 }
 

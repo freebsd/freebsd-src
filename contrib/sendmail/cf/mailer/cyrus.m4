@@ -47,7 +47,7 @@ POPDIVERT
 ###   Cyrus Mailer specification               ###
 ##################################################
 
-VERSIONID(`@(#)cyrus.m4	8.9 (Carnegie Mellon) 5/19/98')
+VERSIONID(`@(#)cyrus.m4	8.9 (Carnegie Mellon) 5/19/1998')
 
 Mcyrus,		P=CYRUS_MAILER_PATH, F=CONCAT(`lsDFMnPq', CYRUS_MAILER_FLAGS), S=10, R=20/40, T=X-Unix,
 		ifdef(`CYRUS_MAILER_MAX', `M=CYRUS_MAILER_MAX, ')U=CYRUS_MAILER_USER,

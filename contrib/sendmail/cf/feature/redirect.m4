@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)redirect.m4	8.10 (Berkeley) 5/19/98')
+VERSIONID(`@(#)redirect.m4	8.10 (Berkeley) 5/19/1998')
 divert(-1)
 
 

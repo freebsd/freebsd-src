@@ -1,4 +1,4 @@
-#	@(#)NEWS-OS.4.x	8.6	(Berkeley)	3/12/98
+#	@(#)NEWS-OS.4.x	8.6	(Berkeley)	3/12/1998
 define(`confBEFORE', `limits.h')
 define(`confMAPDEF', `-DNDBM')
 define(`confLIBS', `-lmld')

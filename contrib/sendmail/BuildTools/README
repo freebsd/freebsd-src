@@ -107,4 +107,4 @@ confUBINGRP	    bin			The group for user-executable binaries.
 confUBINMODE	    555			The mode for user-executable binaries.
 
 
-@(#)README	8.22 (Berkeley) 6/30/98
+@(#)README	8.22 (Berkeley) 6/30/1998

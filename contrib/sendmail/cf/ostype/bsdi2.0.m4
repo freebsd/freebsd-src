@@ -12,5 +12,5 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bsdi2.0.m4	8.6 (Berkeley) 5/19/98')dnl
+VERSIONID(`@(#)bsdi2.0.m4	8.6 (Berkeley) 5/19/1998')dnl
 include(_CF_DIR_`'ostype/bsd4.4.m4)dnl

@@ -12,7 +12,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)mailertable.m4	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)mailertable.m4	8.10 (Berkeley) 10/6/1998')
 divert(-1)
 
-define(`MAILER_TABLE', ifelse(_ARG_, `', DATABASE_MAP_TYPE` -o /etc/mailertable', `_ARG_'))dnl
+define(`MAILER_TABLE', ifelse(_ARG_, `',
+			      ifdef(`_USE_ETC_MAIL_',
+				    DATABASE_MAP_TYPE` -o /etc/mail/mailertable',
+				    DATABASE_MAP_TYPE` -o /etc/mailertable'),
+			      `_ARG_'))dnl

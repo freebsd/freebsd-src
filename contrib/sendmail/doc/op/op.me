@@ -8,7 +8,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)op.me	8.129 (Berkeley) 6/29/98
+.\"	@(#)op.me	8.134 (Berkeley) 9/16/1998
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -46,7 +46,7 @@ Eric Allman
 Sendmail, Inc.
 eric@Sendmail.COM
 .sp
-Version 8.129
+Version 8.134
 .sp
 For Sendmail Version 8.9
 .)l
@@ -259,7 +259,7 @@ program.
 For now, see the file BuildTools/README for details.)
 .sh 3 "Tweaking the Makefile"
 .pp
-.b "XXX This should all be in the Site Configuration File section."
+.\" .b "XXX This should all be in the Site Configuration File section."
 .i Sendmail
 supports two different formats
 for the local (on disk) version of databases,
@@ -1157,7 +1157,7 @@ does not use the native service switch in this release.
 .)f
 .pp
 If the underlying operating system does not support a service switch
-(e.g., SunOS, HP-UX, BSD)
+(e.g., SunOS 4.X, HP-UX, BSD)
 then
 .i sendmail
 will provide a stub implementation.
@@ -2083,6 +2083,8 @@ The timeout waiting for a reply to an IDENT query
 .(f
 \**On some systems the default is zero to turn the protocol off entirely.
 .)f
+.ip fileopen
+The timeout for opening .forward and :include: files [60s, none].
 .ip hoststatus
 How long status information about a host
 (e.g., host down)
@@ -2731,7 +2733,7 @@ although system routines may use other services
 service for user name lookups by
 .i getpwname ).
 .pp
-However, some systems (such as SunOS)
+However, some systems (such as SunOS 4.X)
 will do DNS lookups
 regardless of the setting of the service switch entry.
 In particular, the system routine
@@ -2823,7 +2825,7 @@ it will not assume that all names match.
 .pp
 To completely turn off all name server access
 on systems without service switch support
-(such as SunOS)
+(such as SunOS 4.X)
 you will have to recompile with
 \-DNAMED_BIND=0
 and remove \-lresolv from the list of libraries to be searched
@@ -3674,7 +3676,7 @@ will be
 or whatever is appropriate for the receiving mailer.
 .ip $h
 The recipient host.
-This is set in ruleset 0 from the $# field of a parsed address.
+This is set in ruleset 0 from the $@ field of a parsed address.
 .ip $i
 The queue id,
 e.g.,
@@ -3788,6 +3790,9 @@ The IP address of the SMTP client.
 Defined in the SMTP server only.
 .ip ${client_name}
 The host name of the SMTP client.
+This may be the client's bracketed IP address
+in the form [ nnn.nnn.nnn.nnn ] if the client's
+IP address is not resolvable.
 Defined in the SMTP server only.
 .ip ${client_port}
 The port number of the SMTP client.
@@ -4599,6 +4604,7 @@ or may be two ids separated by a slash;
 if so, the first rewriting set is applied to envelope
 addresses
 and the second is applied to headers.
+Setting any value zero disables corresponding mailer-specific rewriting.
 .pp
 The Directory
 is actually a colon-separated path of directories to try.
@@ -6123,7 +6129,7 @@ For example,
 as of this writing
 version 8 config files
 (specifically, 8.9)
-used version level 7 configurations.
+used version level 8 configurations.
 .pp
 .q Old
 configuration files are defined as version level one.
@@ -6217,6 +6223,10 @@ flag (use 250 instead of 252 return value for
 .sm "SMTP VRFY"
 commands)
 was assumed.
+.pp
+Version level eight configuration files allow
+.b $#
+on the left hand side of ruleset lines.
 .pp
 The
 .b V
@@ -6516,7 +6526,7 @@ if used, it is substituted by the substring matches, delimited by
 .b $|
 or the string specified with the the
 .b \-d
-flag.  The flags availble for the map are
+flag.  The flags available for the map are
 .(b
 -n	not
 -f	case sensitive
@@ -6529,7 +6539,8 @@ flag.  The flags availble for the map are
 	replace/discard value
 .)b
 The
-.b \-s flag can include an optional parameter which can be used
+.b \-s
+flag can include an optional parameter which can be used
 to select the substrings in the result of the lookup.  For example,
 .(b
 -s1,3,4
@@ -8178,7 +8189,7 @@ Temporary versions of the qf files,
 used during queue file rebuild.
 .ip /var/spool/mqueue/xf*
 A transcript of the current session.
-.if e \
+.if o \
 \{\
 .	bp
 .	rs
@@ -8202,7 +8213,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.129
+.\"Version 8.134
 .\".ce 0
 .bp 3
 .ce
@@ -8224,3 +8235,12 @@ TABLE OF CONTENTS
 .rm ef
 .rm of
 .xp
+.if o \
+\{\
+.	bp
+.	rs
+.	sp |4i
+.	ce 2
+This page intentionally left blank;
+replace it with a blank sheet for double-sided output.
+.\}

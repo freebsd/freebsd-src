@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.14	(Berkeley)	6/4/98
+#	@(#)Makefile.m4	8.15	(Berkeley)	7/12/1998
 #
 
 # C compiler
@@ -34,7 +34,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of mailstats binary (usually /usr/sbin or /usr/etc)
-BINDIR=	${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
+SBINDIR=${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -82,7 +82,7 @@ mailstats.${MAN8SRC}: mailstats.8
 install: install-mailstats install-docs
 
 install-mailstats: mailstats
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} mailstats ${BINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} mailstats ${SBINDIR}
 
 install-docs: mailstats.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

@@ -11,6 +11,6 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)EECS.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)EECS.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/1998')
 DOMAIN(Berkeley.EDU)dnl
 MASQUERADE_AS(EECS.Berkeley.EDU)dnl

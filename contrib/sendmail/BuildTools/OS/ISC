@@ -1,4 +1,4 @@
-#	@(#)ISC	8.5	(Berkeley)	3/12/98
+#	@(#)ISC	8.5	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-DISC_UNIX -D_POSIX_SOURCE -D_SYSV3 ')
 define(`confLIBS', `-lyp -lrpc -lndbm -linet -lcposix')

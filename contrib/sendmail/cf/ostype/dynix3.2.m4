@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)dynix3.2.m4	8.9 (Berkeley) 5/19/98')
-define(`ALIAS_FILE', /usr/lib/aliases)dnl
+VERSIONID(`@(#)dynix3.2.m4	8.10 (Berkeley) 10/6/1998')
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/aliases'))dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 define(`confEBINDIR', `/usr/lib')dnl

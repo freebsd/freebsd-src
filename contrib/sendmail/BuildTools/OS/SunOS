@@ -1,4 +1,4 @@
-#	@(#)SunOS	8.6	(Berkeley)	3/12/98
+#	@(#)SunOS	8.6	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confLDOPTS', `-Bstatic')
 define(`confMBINDIR', `/usr/lib')
