@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 #include <string.h>
 #include <wchar.h>
+#include "mblocal.h"
 
 /*
  * Emulate the deprecated 4.4BSD sgetrune() function in terms of
