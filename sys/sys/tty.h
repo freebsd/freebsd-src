@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.13 1995/03/16 18:16:33 bde Exp $
+ * $Id: tty.h,v 1.14 1995/03/28 07:57:38 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -172,8 +172,10 @@ struct speedtab {
 #define	TTY_CHARMASK	0x000000ff	/* Character mask */
 #define	TTY_QUOTE	0x00000100	/* Character quoted */
 #define	TTY_ERRORMASK	0xff000000	/* Error mask */
-#define	TTY_FE		0x01000000	/* Framing error or BREAK condition */
+#define	TTY_FE		0x01000000	/* Framing error */
 #define	TTY_PE		0x02000000	/* Parity error */
+#define	TTY_OE		0x04000000	/* Overrun error */
+#define	TTY_BI		0x08000000	/* Break condition */
 
 /* Is tp controlling terminal for p? */
 #define	isctty(p, tp)							\
