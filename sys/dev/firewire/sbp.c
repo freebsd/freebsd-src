@@ -2218,10 +2218,10 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 		}
 SBP_DEBUG(1)
 		printf("%s:%d:%d:%d:XPT_CALC_GEOMETRY: "
-			"Volume size = %lld\n",
+			"Volume size = %jd\n",
 			device_get_nameunit(sbp->fd.dev), cam_sim_path(sbp->sim),
 			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			(u_int64_t)ccg->volume_size);
+			(uintmax_t)ccg->volume_size);
 END_DEBUG
 
 		size_mb = ccg->volume_size
