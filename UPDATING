@@ -17,6 +17,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040621:
+	On 20040524, the /etc/rc.d/nsswitch script was modified to
+	automatically create /etc/nsswitch.conf on startup if it did
+	not already exist.  Unfortunately, an error in the man page
+	was carried over to the script, resulting in incorrect
+	nsswitch settings.  The simplest remedy is to remove both
+	/etc/nsswitch.conf and /etc/host.conf; they will be recreated
+	during the next reboot.
+
 20040614:
 	The return value of sema_timedwait(9) has been changed to
 	make it consistent with cv_timedwait(9).  Be sure to recompile
