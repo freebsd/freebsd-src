@@ -1,6 +1,5 @@
-/*	$NetBSD: ibcs2_misc.c,v 1.6 1995/05/01 19:33:17 mycroft Exp $	*/
-
 /*
+ * Copyright (c) 1995 Steven Wallace
  * Copyright (c) 1994, 1995 Scott Bartram
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -45,6 +44,8 @@
  * from: Header: sun_misc.c,v 1.16 93/04/07 02:46:27 torek Exp 
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
+ *
+ * $Id$
  */
 
 /*
@@ -153,6 +154,8 @@ ibcs2_ulimit(p, uap, retval)
 	}
 }
 
+#define IBCS2_WSTOPPED       0177
+#define IBCS2_STOPCODE(sig)  ((sig) << 8 | IBCS2_WSTOPPED)
 int
 ibcs2_wait(p, uap, retval)
 	struct proc *p;
@@ -178,9 +181,26 @@ ibcs2_wait(p, uap, retval)
 	}
 	if ((error = wait4(p, &w4, retval)) != 0)
 		return error;
-	if (SCARG(&w4, status))		/* this is real iBCS brain-damage */
-		return copyin((caddr_t)SCARG(&w4, status), (caddr_t)&retval[1],
-			      sizeof(SCARG(&w4, status)));
+	if (SCARG(&w4, status))	{	/* this is real iBCS brain-damage */
+		error = copyin((caddr_t)SCARG(&w4, status), (caddr_t)&status,
+			       sizeof(SCARG(&w4, status)));
+		if(error)
+		  return error;
+
+		/* convert status/signal result */
+		if(WIFSTOPPED(status))
+			status =
+			  IBCS2_STOPCODE(bsd_to_ibcs2_sig[WSTOPSIG(status)]);
+		else if(WIFSIGNALED(status))
+			status = bsd_to_ibcs2_sig[WTERMSIG(status)];
+		/* else exit status -- identical */
+
+		/* record result/status */
+		retval[1] = status;
+		return copyout((caddr_t)&status, (caddr_t)SCARG(&w4, status),
+			       sizeof(SCARG(&w4, status)));
+	}
+
 	return 0;
 }
 
