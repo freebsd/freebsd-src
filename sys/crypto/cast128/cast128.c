@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: cast128.c,v 1.4 2000/11/06 13:58:08 itojun Exp $	*/
+/*	$KAME: cast128.c,v 1.5 2001/11/27 09:47:32 sakane Exp $	*/
 
 /*
  * heavily modified by Tomomi Suzuki <suzuki@grelot.elec.ryukoku.ac.jp>
@@ -55,9 +55,22 @@ static u_int32_t S8[];
 /*
  * Step 1
  */
-void set_cast128_subkey(u_int32_t *subkey, u_int8_t *key)
+void set_cast128_subkey(u_int32_t *subkey, u_int8_t *key0, int keylen)
 {
 	u_int32_t buf[8]; /* for x0x1x2x3, x4x5x6x7 ..., z0z1z2z3, ... */
+	u_int32_t key[16];
+	int i;
+
+	/*
+	 * the key has to be initilized.  should it be logged when the key
+	 * length is more than 16 bytes ?  anyway, ignore it at this moment.
+	 */
+	if (keylen > 16)
+		keylen = 16;
+	for (i = 0; i < keylen; i++)
+		key[i] = key0[i];
+	while (i < 16)
+		key[i++] = 0;
 
 	buf[0] = (key[ 0] << 24) | (key[ 1] << 16) | (key[ 2] << 8)
 		| key[ 3];
