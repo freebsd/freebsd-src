@@ -35,9 +35,9 @@
 .Op Fl L
 .Op Fl M Ar char
 .Op Fl m Cm on | off
-.Op Fl r Ar foreground Ar background
 .Op Fl p
 .Op Fl P
+.Op Fl r Ar foreground Ar background
 .Op Fl s Ar number
 .Op Fl t Ar N | Cm off
 .Op Fl x
@@ -157,7 +157,8 @@ below and the man page for
 Set the
 .Ar geometry
 of the text mode for the modes with selectable
-geometry.  Currently only raster modes, such as
+geometry.
+Currently only raster modes, such as
 .Ar VESA_800x600 ,
 support this option.
 See also
@@ -192,7 +193,8 @@ Capture the current contents of the video buffer corresponding
 to the terminal device referred to by standard input.
 .Nm
 writes contents of the video buffer to the standard
-output in a raw binary format. For details about that
+output in a raw binary format.
+For details about that
 format see
 .Sx Format of Video Buffer Dump
 below.
@@ -267,7 +269,8 @@ If you want to use the raster text mode
 .Ar VESA_800x600 ,
 you need to recompile your kernel with the
 .Dv SC_PIXEL_MODE
-option.  See
+option.
+See
 .Xr syscons 4
 for more details on this kernel option.
 .Ss Format of Video Buffer Dump
@@ -283,7 +286,8 @@ writes version and additional information to the standard
 output, followed by the contents of the terminal device.
 .Pp
 PC video memory is typically arranged in two byte tuples,
-one per character position.  In each tuple, the first byte
+one per character position.
+In each tuple, the first byte
 will be the character code, and the second byte is the
 character's color attribute.
 .Pp
@@ -395,7 +399,7 @@ option.
 .Pp 
 See 
 .Xr rc.conf 5
-for more details. 
+for more details.
 .Ss Driver Configuration
 The video card driver may let you change default configuration
 options, such as the default font, so that you do not need to set up
@@ -467,7 +471,7 @@ to the standard output in the human readable format:
 .Xr vga 4 ,
 .Xr rc.conf 5 ,
 .Xr kldload 8 ,
-.Xr moused 8
+.Xr moused 8 ,
 .Xr watch 8
 .Pp
 The various
@@ -478,3 +482,4 @@ category of the
 .Em "Ports Collection" .
 .Sh AUTHORS
 .An S\(/oren Schmidt Aq sos@FreeBSD.org
+.An Nik Clayton Aq nik@FreeBSD.ORG
