@@ -172,8 +172,8 @@ get_list(list)
 		if (!stop || !start)
 			errx(1, "[-cf] list: values may not include zero");
 		if (stop > _POSIX2_LINE_MAX)
-			errx(1, "[-cf] list: %d too large (max %d)",
-			    stop, _POSIX2_LINE_MAX);
+			errx(1, "[-cf] list: %ld too large (max %d)",
+			    (long)stop, _POSIX2_LINE_MAX);
 		if (maxval < stop)
 			maxval = stop;
 		for (pos = positions + start; start++ <= stop; *pos++ = 1);
@@ -223,7 +223,7 @@ c_cut(fp, fname)
 void
 f_cut(fp, fname)
 	FILE *fp;
-	const char *fname;
+	const char *fname __unused;
 {
 	int ch, field, isdelim;
 	char *pos, *p, sep;
