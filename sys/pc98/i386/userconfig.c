@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.59 1998/11/06 08:08:05 kato Exp $
+ **      $Id: userconfig.c,v 1.60 1998/12/05 09:22:05 kato Exp $
  **/
 
 /**
@@ -158,7 +158,7 @@ getchar(void)
 {
     static const char	*asp;
     static int		assize;		/* use of int for -ve magic value */
-    static int		autocheck = 0, signon = 0;
+    static int		autocheck = 0;
     caddr_t		autoentry, autoattr;
     int			c;
     static int		intro = 0;
@@ -2473,7 +2473,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.59 1998/11/06 08:08:05 kato Exp $
+ *      $Id: userconfig.c,v 1.60 1998/12/05 09:22:05 kato Exp $
  */
 
 #include "scbus.h"
