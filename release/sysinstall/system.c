@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.5 1995/05/31 23:08:31 jkh Exp $
+ * $Id: system.c,v 1.43.2.6 1995/05/31 23:51:15 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -158,7 +158,7 @@ systemHelpFile(char *file, char *buf)
     char *cp;
     static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
     static char oldlang[64];
-    static char *default_lang = "en_US.ISO8859-1";
+    char extract[64], *default_lang = "en_US.ISO8859-1";
     int i;
 
     if (!file)
@@ -175,12 +175,13 @@ systemHelpFile(char *file, char *buf)
 	    unlink(oldfile);
 	    rmdir(oldlang);
 	}
-	strcpy(oldfile,buf);
-	strcpy(oldlang,cp);
-	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", buf);
+	strcpy(oldfile, buf);
+	strcpy(oldlang, cp);
+	snprintf(extract, 64, "%s/%s", cp, file);
+	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", extract);
 	if (file_readable(buf))
 	    return buf;
-	if (!strcmp(cp, default_lang))
+	if (cp == default_lang)
 	    break;
 	cp = default_lang;
     }
