@@ -69,5 +69,7 @@ vsnprintf(str, n, fmt, ap)
 	ret = __vfprintf(&f, fmt, ap);
 	if (on > 0)
 		*f._p = '\0';
+	if (str == NULL)
+		free(f._bf._base);
 	return (ret);
 }

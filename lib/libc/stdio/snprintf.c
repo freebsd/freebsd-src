@@ -87,5 +87,7 @@ snprintf(str, n, fmt, va_alist)
 	if (on > 0)
 		*f._p = '\0';
 	va_end(ap);
+	if (str == NULL)
+		free(f._bf._base);
 	return (ret);
 }
