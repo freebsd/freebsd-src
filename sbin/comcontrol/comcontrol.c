@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+static void usage(void);
+
 static void
 usage()
 {
