@@ -150,6 +150,7 @@ struct aiocblist {
         int	jobflags;
         int	jobstate;
         int	inputcharge, outputcharge;
+	struct	callout_handle timeouthandle;
         struct	buf *bp;		/* Buffer pointer */
         struct	proc *userproc;		/* User process */
         struct	file *fd_file;		/* Pointer to file structure */ 
