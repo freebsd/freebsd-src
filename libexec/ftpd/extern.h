@@ -47,7 +47,7 @@ void    ftpd_logwtmp(char *, char *, struct sockaddr *addr);
 int	ftpd_pclose(FILE *);
 FILE   *ftpd_popen(char *, char *);
 char   *getline(char *, int, FILE *);
-void	lreply(int, const char *, ...);
+void	lreply(int, const char *, ...) __printflike(2, 3);
 void	makedir(char *);
 void	nack(char *);
 void	pass(char *);
@@ -58,7 +58,7 @@ void	pwd(void);
 void	removedir(char *);
 void	renamecmd(char *, char *);
 char   *renamefrom(char *);
-void	reply(int, const char *, ...);
+void	reply(int, const char *, ...) __printflike(2, 3);
 void	retrieve(char *, char *);
 void	send_file_list(char *);
 #ifdef OLD_SETPROCTITLE
