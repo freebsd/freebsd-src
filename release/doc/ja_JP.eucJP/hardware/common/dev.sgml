@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.122
+        Original revision: 1.124
 -->
 
 <sect1>
@@ -246,7 +246,7 @@
       </itemizedlist>
     </para>
     
-    <para arch="pc98">NEC PC-9801-55, 92 およびその互換 C-Bus SCSI インターフェイス (bs ドライバ)
+    <para arch="pc98">NEC PC-9801-55, 92 およびその互換 C-Bus SCSI インタフェース (bs ドライバ)
       <itemizedlist>
         <listitem>
           <para>NEC PC-9801-55, 92 およびその互換機器</para>
@@ -274,14 +274,14 @@
           </note>
         </listitem>
         <listitem>
-          <para>ELECOM Bus-master SCSI インターフェイス</para>
+          <para>ELECOM Bus-master SCSI インタフェース</para>
           <note>
             <para>バスマスタ転送モードにはカーネル設定に "flags 0x30000"
 	      が必要.</para>
           </note>
         </listitem>
         <listitem>
-          <para>すべての SMIT 転送式 SCSI インターフェイス</para>
+          <para>すべての SMIT 転送式 SCSI インタフェース</para>
           <note>
             <para>SMIT 転送モードにはカーネル設定に "flags 0x40000" が必要.
 	    </para>
@@ -764,31 +764,58 @@
       </itemizedlist>
     </para>
     
-    <para arch="i386">パラレル-SCSI インターフェイス (&man.vpo.4; ドライバ)
+    <para arch="i386">パラレル-SCSI インタフェース (&man.vpo.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>AIC 7110 SCSI コントローラ (Iomega ZIP ドライブに内蔵されているもの)</para>
         </listitem>
         <listitem>
-	  <para>Iomega Jaz Traveller インターフェイス</para>
+	  <para>Iomega Jaz Traveller インタフェース</para>
         </listitem>
         <listitem>
-	  <para>Iomega MatchMaker SCSI インターフェイス (Iomega
+	  <para>Iomega MatchMaker SCSI インタフェース (Iomega
             ZIP+ ドライブに内蔵されているもの)</para>
         </listitem>
       </itemizedlist>
     </para>
 
+    <para arch="i386">Compaq Intelligent ディスクアレイコントローラ
+      (&man.ida.4; ドライバ)
+
+      <itemizedlist>
+       <listitem>
+         <para>Compaq SMART アレイ 221</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq 内蔵 SMART アレイコントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART アレイ 4200, 4250ES コントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART アレイ 3200, 3100ES コントローラ</para>
+       </listitem>
+
+       <listitem>
+         <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E, および
+           SMART コントローラ</para>
+       </listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Command Interface for SCSI-3 を利用する
-      SCSI アダプタ (ciss ドライバ)
+      SCSI アダプタ (&man.ciss.4; ドライバ)
       <itemizedlist>
 	<listitem>
-	  <para>Compaq Smart Array 5* シリーズ (5300, 5i, 532)</para>
+	  <para>Compaq Smart アレイ 5* シリーズ (5300, 5i, 532)</para>
 	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel Integrated RAID コントローラ (iir ドライバ)
+    <para arch="i386">Intel 内蔵 RAID コントローラ (&man.iir.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Intel RAID コントローラ SRCMR</para>
@@ -800,11 +827,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
+    <para arch="i386">Promise SuperTrak ATA RAID コントローラ (&man.pst.4;
     ドライバ)
       <itemizedlist>
 	<listitem>
-	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
+	  <para>Promise SuperTrak SX6000 ATA RAID コントローラ</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -821,8 +848,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">PCI SCSI host adapters using the Tekram
-	TRM-S1040 SCSI chipset (trm ドライバ)
+    <para arch="i386">Tekram TRM-S1040 SCSI チップセットベースの
+       PCI SCSI ホストアダプタ (&man.trm.4; ドライバ)
       <itemizedlist>
 	<listitem>
 	  <para>Tekram DC395U/UW/F</para>
@@ -847,14 +874,14 @@
     <para>現時点で、以下の CD-ROM 型システムに対応しています。
       <itemizedlist>
         <listitem>
-          <para>SCSI インターフェイス (これには ProAudio Spectrum,
+          <para>SCSI インタフェース (これには ProAudio Spectrum,
             SoundBlaster SCSI が含まれます) (&man.cd.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Sony 専用インターフェイス (すべてのモデル) (&man.scd.4;)</para>
+	  <para>Sony 専用インタフェース (すべてのモデル) (&man.scd.4;)</para>
 	</listitem>
 	<listitem>
-	  <para>ATAPI IDE インターフェイス (&man.acd.4;)</para>
+	  <para>ATAPI IDE インタフェース (&man.acd.4;)</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -892,7 +919,7 @@
     <para arch="i386">以下のデバイスは現在保守されていないものです。
       <itemizedlist>
         <listitem>
-	  <para>Mitsumi 専用 CD-ROM インターフェイス (すべてのモデル)
+	  <para>Mitsumi 専用 CD-ROM インタフェース (すべてのモデル)
             (&man.mcd.4;)</para>
 	</listitem>
       </itemizedlist>
@@ -900,7 +927,7 @@
 
   </sect2>
   <sect2 id="ethernet">
-    <title>Ethernet インターフェイス</title>
+    <title>Ethernet インタフェース</title>
 
     <para arch="i386,pc98,alpha">Adaptec AIC-6915 Fast Ethernet コントローラチップベースの
       Adaptec Duralink PCI Fast Ethernet アダプタ
@@ -1077,7 +1104,7 @@
 	  <para>RealTek 8029</para>
         </listitem>
         <listitem arch="i386,alpha">
-	  <para>SMC Elite 16 WD8013 Ethernet インターフェイス</para>
+	  <para>SMC Elite 16 WD8013 Ethernet インタフェース</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>SMC Elite Ultra</para>
@@ -1815,22 +1842,22 @@
 	  <para>Intel InBusiness 10/100 PCI Network アダプタ</para>
         </listitem>
         <listitem>
-	  <para>Intel PRO/100+ Management アダプタ</para>
+	  <para>Intel PRO/100+ マネージメントアダプタ</para>
         </listitem>
         <listitem>
-          <para>Intel Pro/100 VE Desktop Adapter</para>
+          <para>Intel Pro/100 VE デスクトップアダプタ</para>
         </listitem>
         <listitem>
-          <para>Intel Pro/100 M Desktop Adapter</para>
+          <para>Intel Pro/100 M デスクトップアダプタ</para>
         </listitem>
         <listitem>
-          <para>Intel Pro/100 S Desktop, Server and Dual-Port Server Adapters</para>
+          <para>Intel Pro/100 S デスクトップ、サーバ、デュアルポートサーバアダプタ</para>
         </listitem>
         <listitem>
-          <para>On-board Ethernet NICs on many Intel motherboards.</para>
+          <para>多くの Intel 製マザーボードに内蔵されている Ethernet NIC</para>
         </listitem>
         <listitem arch="pc98">
-          <para>NEC PC-9821Ra20, Rv20, Xv13, Xv20 internal 100Base-TX
+          <para>NEC PC-9821Ra20, Rv20, Xv13, Xv20 内蔵 100Base-TX
           (PCI)</para>
         </listitem>
         <listitem arch="pc98">
@@ -2134,13 +2161,13 @@
   </sect2>
 
   <sect2>
-    <title>FDDI インターフェイス</title>
+    <title>FDDI インタフェース</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; ドライバ)</para>
   </sect2>
 
   <sect2>
-    <title>ATM インターフェイス</title>
+    <title>ATM インタフェース</title>
     <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI アダプタ (hea ドライバ)</para>
     <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI アダプタ (hfa ドライバ)</para>
     <para arch="i386,pc98">&os; の ATM サポートは、次のシグナリングプロトコルに対応しています。
@@ -2198,7 +2225,7 @@
   </sect2>
 
   <sect2>
-    <title>無線ネットワークインターフェイス</title>
+    <title>無線ネットワークインタフェース</title>
     
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
       ISA/radio LAN カード (&man.wl.4; ドライバ)</para>
@@ -2384,6 +2411,29 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">DEC <quote>Tulip</quote> Fast Ethernet コントローラ
+       (&man.lmc.4; ドライバ) ベースの LAN Media Corp WAN アダプタ
+
+      <itemizedlist>
+        <listitem>
+         <para>LMC1000 同期式シリアルインタフェースアダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC1200 T1/E1 WAN アダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC5200 高速同期式インタフェース
+           (HSSI: High Speed Synchronous Interface) アダプタ</para>
+        </listitem>
+
+        <listitem>
+         <para>LMC5245 DS3 WAN アダプタ</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
   </sect2>
 
   <sect2>
@@ -2407,7 +2457,7 @@
   </sect2>
 
   <sect2>
-    <title>ISDN インターフェイス</title>
+    <title>ISDN インタフェース</title>
     <para arch="i386">AcerISDN P10 ISA PnP (実験段階)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
     <para arch="i386">ASUSCOM P-IN100-ST-D (およびその他の Winbond W6692 ベースのカード)</para>
@@ -2451,7 +2501,7 @@
     </para>
     <para arch="i386">Compaq Microcom 610 ISDN (Compaq PSB2222I シリーズ) ISA PnP</para>
     <para arch="i386">Dr. Neuhaus Niccy Go@ およびその互換品</para>
-    <para arch="i386">Dynalink IS64PPH and IS64PPH+</para>
+    <para arch="i386">Dynalink IS64PPH, IS64PPH+</para>
     <para arch="i386">Eicon Diehl DIVA 2.0 および 2.02</para>
     <para arch="i386">ELSA
       <itemizedlist>
@@ -2501,7 +2551,7 @@
   </sect2>
 
   <sect2>
-    <title>シリアルインターフェイス</title>
+    <title>シリアルインタフェース</title>
     <para arch="i386,alpha,ia64"><quote>PC に標準で搭載されている</quote>
       8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
 
@@ -2655,7 +2705,7 @@
         <para>カーネルコンフィグファイルに "flags 0x14000?01" が必要</para>
       </note>
 
-    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 and AIWA B98-02 (&man.sio.4; ドライバ)</para>
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000, AIWA B98-02 (&man.sio.4; ドライバ)</para>
       <note arch="pc98">
         <para>カーネルコンフィグファイルに "flags 0x15000?01" が必要</para>
       </note>
@@ -2856,7 +2906,7 @@
 
     <note arch="alpha,i386,pc98">
       <para>USB Ethernet アダプタは <link linkend="ethernet">
-          Ethernet インターフェイス</link>の節にまとめられています。</para>
+          Ethernet インタフェース</link>の節にまとめられています。</para>
     </note>
 
     <note arch="alpha,i386,pc98">
@@ -3048,7 +3098,7 @@
     <para arch="i386,pc98">Serial devices
       <itemizedlist>
         <listitem>
-	  <para>Belkin F5U103 and F5U120 (ubsa ドライバ)</para>
+	  <para>Belkin F5U103, F5U120 (ubsa ドライバ)</para>
         </listitem>
         <listitem>
 	  <para>e-Tek Labs Kwik232 (ubsa ドライバ)</para>
@@ -3106,8 +3156,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">Handspring Visor and other PalmOS
-      devices (&man.uvisor.4; ドライバ)
+    <para arch="i386,pc98">Handspring Visor および、その他の PalmOS デバイス
+      (&man.uvisor.4; ドライバ)
       <itemizedlist>
         <listitem>
 	  <para>Handspring Visor</para>
@@ -3116,46 +3166,46 @@
 	  <para>Palm M125, M500, M505</para>
         </listitem>
         <listitem>
-	  <para>Sony Clie 4.0 and 4.1</para>
+	  <para>Sony Clie 4.0, 4.1</para>
         </listitem>
       </itemizedlist>
     </para>
  </sect2>
 
   <sect2 id="firewire">
-    <title>IEEE 1394 (Firewire) Devices</title>
+    <title>IEEE 1394 (FireWire) デバイス</title>
 
-    <para arch="i386,pc98,powerpc">Host Controllers (&man.fwohci.4;
+    <para arch="i386,pc98,powerpc">ホストコントローラ (&man.fwohci.4;
       ドライバ)
 
       <itemizedlist>
         <listitem>
-	  <para>Ricoh R5C552 chipset</para>
+	  <para>Ricoh R5C552 チップセット</para>
         </listitem>
         <listitem>
-	  <para>Sony CX3022 chipset</para>
+	  <para>Sony CX3022 チップセット</para>
         </listitem>
         <listitem>
-	  <para>TI TSB12LV22, LV23, 26 and TSB43AA22 chipsets</para>
+	  <para>TI TSB12LV22, LV23, 26, TSB43AA22 チップセット</para>
         </listitem>
         <listitem>
-	  <para>uPD72861 chipset</para>
+	  <para>uPD72861 チップセット</para>
         </listitem>
         <listitem>
-	  <para>VIA VT6306 chipset</para>
+	  <para>VIA VT6306 チップセット</para>
         </listitem>
       </itemizedlist>
 
       </para>
 
-    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; ドライバ)
+    <para arch="i386,pc98,powerpc">ストレージ (&man.sbp.4; ドライバ)
 
       <itemizedlist>
 	<listitem>
           <para>Apple iPod</para>
 	</listitem>
 	<listitem>
-          <para>Apple Macintosh G4 (target mode)</para>
+          <para>Apple Macintosh G4 (ターゲットモード)</para>
 	</listitem>
       </itemizedlist>
 
