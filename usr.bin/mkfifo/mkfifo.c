@@ -42,29 +42,41 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mkfifo.c	8.2 (Berkeley) 1/5/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkfifo.c,v 1.3 1997/07/24 07:02:55 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#define	BASEMODE	S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | \
+			S_IROTH | S_IWOTH
+
 static void usage __P((void));
+
+static int f_mode;
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
+	char *modestr;
+	void *modep;
+	mode_t fifomode;
 	int ch, exitval;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
+	while ((ch = getopt(argc, argv, "m:")) != -1)
 		switch(ch) {
+		case 'm':
+			f_mode = 1;
+			modestr = optarg;
+			break;
 		case '?':
 		default:
 			usage();
@@ -74,8 +86,21 @@ main(argc, argv)
 	if (argv[0] == NULL)
 		usage();
 
+	if (f_mode) {
+		umask(0);
+		errno = 0;
+		if ((modep = setmode(modestr)) == NULL) {
+			if (errno)
+				err(1, "setmode");
+			errx(1, "invalid file mode: %s", modestr);
+		}
+		fifomode = getmode(modep, BASEMODE);
+	} else {
+		fifomode = BASEMODE;
+	}
+
 	for (exitval = 0; *argv != NULL; ++argv)
-		if (mkfifo(*argv, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+		if (mkfifo(*argv, fifomode) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
 		}
@@ -85,6 +110,6 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: mkfifo fifoname ...\n");
+	(void)fprintf(stderr, "usage: mkfifo [-m mode] fifo_name ...\n");
 	exit(1);
 }
