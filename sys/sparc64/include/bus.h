@@ -75,16 +75,14 @@
 #ifndef	_MACHINE_BUS_H_
 #define	_MACHINE_BUS_H_
 
+#include "opt_bus.h"
+#ifdef BUS_SPACE_DEBUG
+#include <sys/ktr.h>
+#endif
+
 #include <machine/types.h>
 #include <machine/cpufunc.h>
-
-/*
- * Debug hooks
- */
-
-#define	BSDB_ACCESS	0x01
-
-extern int bus_space_debug;
+#include <machine/upa.h>
 
 /*
  * UPA and SBUS spaces are non-cached and big endian
@@ -92,7 +90,6 @@ extern int bus_space_debug;
  *
  * PCI spaces are non-cached and little endian
  */
-
 #define	UPA_BUS_SPACE		0
 #define	SBUS_BUS_SPACE		1
 #define	PCI_CONFIG_BUS_SPACE	2
@@ -144,8 +141,8 @@ struct bus_space_tag {
  * Helpers
  */
 int		sparc64_bus_mem_map __P((
-				bus_type_t,
-				bus_addr_t,
+				bus_space_tag_t,
+				bus_space_handle_t,
 				bus_size_t,
 				int,			/*flags*/
 				vm_offset_t,		/*preferred vaddr*/
@@ -157,7 +154,7 @@ bus_space_handle_t	sparc64_fake_bustag __P((
 				int,
 				bus_addr_t,
 				struct bus_space_tag *));
-    
+
 /*
  * Bus space function prototypes.
  */
@@ -200,6 +197,20 @@ bus_space_barrier(t, h, o, s, f)
 #define	BUS_SPACE_BARRIER_READ		0x01	/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE		0x02	/* force write barrier */
 
+#ifdef BUS_SPACE_DEBUG
+#define	KTR_BUS				KTR_CT2
+#define	BUS_HANDLE_MIN			UPA_MEMSTART
+#define	__BUS_DEBUG_ACCESS(h, o, desc, sz) do {				\
+	CTR4(KTR_BUS, "bus space: %s %d: handle %#lx, offset %#lx",	\
+	    (desc), (sz), (h), (o));					\
+	if ((h) + (o) < BUS_HANDLE_MIN)					\
+		panic("bus space access at %#lx out of range",		\
+		    (h) + (o));						\
+} while (0)
+#else
+#define	__BUS_DEBUG_ACCESS(h, o, desc, sz)
+#endif
+
 /*
  *	u_intN_t bus_space_read_N __P((bus_space_tag_t tag,
  *	    bus_space_handle_t bsh, bus_size_t offset));
@@ -207,55 +218,25 @@ bus_space_barrier(t, h, o, s, f)
  * Read a 1, 2, 4, or 8 byte quantity from bus space
  * described by tag/handle/offset.
  */
-#ifndef BUS_SPACE_DEBUG
-#define	bus_space_read_1(t, h, o)					\
-	    lduba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type])
-
-#define	bus_space_read_2(t, h, o)					\
-	    lduha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type])
-
-#define	bus_space_read_4(t, h, o)					\
-	    lduwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type])
-
-#define	bus_space_read_8(t, h, o)					\
-	    ldxa_nc((caddr_t)(h) + (o), bus_type_asi[(t)->type])
-#else
 #define	bus_space_read_1(t, h, o) ({					\
-	unsigned char __bv =				      		\
-	    lduba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr1(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (unsigned int) __bv);		\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read", 1);			\
+	lduba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_2(t, h, o) ({					\
-	unsigned short __bv =				      		\
-	    lduha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr2(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (unsigned int)__bv);		\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read", 2);			\
+	lduha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_4(t, h, o) ({					\
-	unsigned int __bv =				      		\
-	    lduwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr4(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], __bv);				\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read", 4);			\
+	lduwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_8(t, h, o) ({					\
-	u_int64_t __bv =				      		\
-	    ldxa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr8(%llx + %llx, %x) -> %llx\n", (u_int64_t)(h),	\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], __bv);				\
-	__bv; })
-#endif
+	__BUS_DEBUG_ACCESS((h), (o), "read", 8);			\
+	ldxa_nc((caddr_t)(h) + (o), bus_type_asi[(t)->type]);		\
+})
 
 /*
  *	void bus_space_read_multi_N __P((bus_space_tag_t tag,
@@ -301,51 +282,25 @@ bus_space_barrier(t, h, o, s, f)
  * Write the 1, 2, 4, or 8 byte value `value' to bus space
  * described by tag/handle/offset.
  */
-#ifndef BUS_SPACE_DEBUG
-#define	bus_space_write_1(t, h, o, v)					\
-	stba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v))
-
-#define	bus_space_write_2(t, h, o, v)					\
-	stha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v))
-
-#define	bus_space_write_4(t, h, o, v)					\
-	stwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v))
-
-#define	bus_space_write_8(t, h, o, v)					\
-	stxa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v))
-#else
 #define	bus_space_write_1(t, h, o, v) do {				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw1(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (unsigned int) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write", 1);			\
 	stba_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
 } while (0)
 
 #define	bus_space_write_2(t, h, o, v) do {				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw2(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (unsigned int) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write", 2);			\
 	stha_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
 } while (0)
 
 #define	bus_space_write_4(t, h, o, v) do {				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw4(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (unsigned int) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write", 4);			\
 	stwa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
 } while (0)
 
 #define	bus_space_write_8(t, h, o, v) do {				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw8(%llx + %llx, %x) <- %llx\n", (u_int64_t)(h),	\
-		(u_int64_t)(o),						\
-		bus_type_asi[(t)->type], (u_int64_t) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write", 8);			\
 	stxa_nc((caddr_t)((h) + (o)), bus_type_asi[(t)->type], (v));	\
 } while (0)
-#endif
 
 /*
  *	void bus_space_write_multi_N __P((bus_space_tag_t tag,
@@ -713,55 +668,25 @@ bus_space_copy_region_8(t, h1, o1, h2, o2, c)
  * Read a 1, 2, 4, or 8 byte quantity from bus space
  * described by tag/handle/offset.
  */
-#ifndef BUS_SPACE_DEBUG
-#define	bus_space_read_stream_1(t, h, o)				\
-	    lduba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type])
-
-#define	bus_space_read_stream_2(t, h, o)				\
-	    lduha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type])
-
-#define	bus_space_read_stream_4(t, h, o)				\
-	    lduwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type])
-
-#define	bus_space_read_stream_8(t, h, o)				\
-	    ldxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type])
-#else
 #define	bus_space_read_stream_1(t, h, o) ({				\
-	unsigned char __bv =				      		\
-	    lduba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr1(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (unsigned int) __bv);	\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read stream", 1);			\
+	lduba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_stream_2(t, h, o) ({				\
-	unsigned short __bv =				      		\
-	    lduha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr2(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (unsigned int)__bv);		\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read stream", 2);			\
+	lduha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_stream_4(t, h, o) ({				\
-	unsigned int __bv =				      		\
-	    lduwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr4(%llx + %llx, %x) -> %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], __bv);			\
-	__bv; })
+	__BUS_DEBUG_ACCESS((h), (o), "read stream", 4);			\
+	lduwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
+})
 
 #define	bus_space_read_stream_8(t, h, o) ({				\
-	u_int64_t __bv =				      		\
-	    ldxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsr8(%llx + %llx, %x) -> %llx\n", (u_int64_t)(h),	\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], __bv);			\
-	__bv; })
-#endif
+	__BUS_DEBUG_ACCESS((h), (o), "read stream", 8);			\
+	ldxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type]);	\
+})
 
 /*
  *	void bus_space_read_multi_stream_N __P((bus_space_tag_t tag,
@@ -807,51 +732,25 @@ bus_space_copy_region_8(t, h1, o1, h2, o2, c)
  * Write the 1, 2, 4, or 8 byte value `value' to bus space
  * described by tag/handle/offset.
  */
-#ifndef BUS_SPACE_DEBUG
-#define	bus_space_write_stream_1(t, h, o, v)				\
-	stba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v))
-
-#define	bus_space_write_stream_2(t, h, o, v)				\
-	stha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v))
-
-#define	bus_space_write_stream_4(t, h, o, v)				\
-	stwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v))
-
-#define	bus_space_write_stream_8(t, h, o, v)				\
-	stxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v))
-#else
 #define	bus_space_write_stream_1(t, h, o, v) do {			\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw1(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (unsigned int) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write stream", 1);		\
 	stba_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
 } while (0)
 
 #define	bus_space_write_stream_2(t, h, o, v) do {			\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw2(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (unsigned int) v);		\
+	__BUS_DEBUG_ACCESS((h), (o), "write stream", 2);		\
 	stha_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
 } while (0)
 
-#define	bus_space_write_stream_4(t, h, o, v) ({				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw4(%llx + %llx, %x) <- %x\n", (u_int64_t)(h),		\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (unsigned int) v);		\
+#define	bus_space_write_stream_4(t, h, o, v) do {			\
+	__BUS_DEBUG_ACCESS((h), (o), "write stream", 4);		\
 	stwa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
 } while (0)
 
-#define	bus_space_write_stream_8(t, h, o, v) ({				\
-	if (bus_space_debug & BSDB_ACCESS)				\
-	printf("bsw8(%llx + %llx, %x) <- %llx\n", (u_int64_t)(h),	\
-		(u_int64_t)(o),						\
-		bus_stream_asi[(t)->type], (u_int64_t) v);		\
+#define	bus_space_write_stream_8(t, h, o, v) do {			\
+	__BUS_DEBUG_ACCESS((h), (o), "write stream", 8);		\
 	stxa_nc((caddr_t)((h) + (o)), bus_stream_asi[(t)->type], (v));	\
 } while (0)
-#endif
 
 /*
  *	void bus_space_write_multi_stream_N __P((bus_space_tag_t tag,
@@ -1216,10 +1115,7 @@ bus_space_copy_region_stream_8(t, h1, o1, h2, o2, c)
 	    bus_space_write_stream_8(t, h1, o1, bus_space_read_8(t, h2, o2));
 }
 
-#define BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
-
 /* Back-compat functions for old ISA drivers */
-
 extern bus_space_tag_t isa_io_bt;
 extern bus_space_handle_t isa_io_hdl;
 extern bus_space_tag_t isa_mem_bt;
@@ -1228,15 +1124,7 @@ extern bus_space_handle_t isa_mem_hdl;
 #define inb(o)		bus_space_read_1(isa_io_bt, isa_io_hdl, o)
 #define inw(o)		bus_space_read_2(isa_io_bt, isa_io_hdl, o)
 #define inl(o)		bus_space_read_4(isa_io_bt, isa_io_hdl, o)
-#if 0
-#define outb(o, v) do {							\
-	printf("outb used at %s:%d, address 0x%x -> 0x%lx\n",		\
-	    __func__, __LINE__, o, (unsigned long)isa_io_hdl + o);	\
-	bus_space_write_1(isa_io_bt, isa_io_hdl, o, v);			\
-} while (0)
-#else
-#define outb(o, v) bus_space_write_1(isa_io_bt, isa_io_hdl, o, v)
-#endif
+#define outb(o, v)	bus_space_write_1(isa_io_bt, isa_io_hdl, o, v)
 #define outw(o, v)	bus_space_write_2(isa_io_bt, isa_io_hdl, o, v)
 #define outl(o, v)	bus_space_write_4(isa_io_bt, isa_io_hdl, o, v)
 
@@ -1290,7 +1178,7 @@ memsetw(void *d, int val, size_t size)
 #define	BUS_DMA_ALLOCNOW	0x002	/* perform resource allocation now */
 #define	BUS_DMAMEM_NOSYNC	0x004	/* map memory to not require sync */
 #define	BUS_DMA_NOWRITE		0x008
-#define	BUS_DMA_BUS1		0x010	
+#define	BUS_DMA_BUS1		0x010
 #define	BUS_DMA_BUS2		0x020
 #define	BUS_DMA_BUS3		0x040
 #define	BUS_DMA_BUS4		0x080

@@ -496,19 +496,21 @@ struct bus_dma_tag nexus_dmatag = {
  * Helpers to map/unmap bus memory
  */
 int
-sparc64_bus_mem_map(bus_type_t iospace, bus_addr_t addr,
+sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t size, int flags, vm_offset_t vaddr, void **hp)
 {
+	vm_offset_t addr;
 	vm_offset_t v;
 	vm_offset_t pa;
 	u_long pm_flags;
 
+	addr = (vm_offset_t)handle;
 	size = round_page(size);
 	if (size == 0) {
 		printf("sparc64_bus_map: zero size\n");
 		return (EINVAL);
 	}
-	switch (iospace) {
+	switch (tag->type) {
 	case PCI_CONFIG_BUS_SPACE:
 	case PCI_IO_BUS_SPACE:
 	case PCI_MEMORY_BUS_SPACE:
