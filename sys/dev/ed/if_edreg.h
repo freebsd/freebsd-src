@@ -1114,7 +1114,8 @@ struct ed_ring	{
 #define ED_CHIP_TYPE_DP8390	0x00
 #define ED_CHIP_TYPE_WD790	0x01
 #define ED_CHIP_TYPE_AX88190	0x02
-#define ED_CHIP_TYPE_DL100XX	0x03
+#define ED_CHIP_TYPE_DL10019	0x03
+#define ED_CHIP_TYPE_DL10022	0x04
 
 /*
  * AX88190 configuration status register.
@@ -1158,6 +1159,7 @@ struct ed_ring	{
 #define ED_DLINK_MII_RESET2	0x08
 
 #define ED_DLINK_MII_DATATIN	0x10
-#define ED_DLINK_MII_DIROUT	0x20
+#define ED_DLINK_MII_DIROUT_22	0x20
+#define ED_DLINK_MII_DIROUT_19	0x10
 #define ED_DLINK_MII_DATAOUT	0x40
 #define ED_DLINK_MII_CLK	0x80
