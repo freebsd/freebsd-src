@@ -6,8 +6,8 @@
 SUBDIR=	accton amd arp chown chroot dbsym dev_mkdb diskpart \
 	edquota inetd kbdcontrol kgmon kvm_mkdb lpr mtree portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rwhod sendmail \
-	sliplogin sysctl syslogd traceroute trpt vidcontrol vipw \
-	ypbind yppoll ypset
+	sliplogin sysctl syslogd tcpdump traceroute trpt xntpd vidcontrol \
+	vipw ypbind yppoll ypset
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
