@@ -475,15 +475,18 @@ The
 sysctl determines whether or not the TCP implementation should attempt
 to detect dead TCP connections by intermittently delivering "keepalives"
 on the connection.
-By default, this is only enabled when an application requests it.
-For servers with many network clients and simultaneous connections, we
-recommend that this setting be turned on (set to 1).
-This may be particularly relevent on systems accessed by users
-operating over dialups, as users often disconnect their modems without
-closing active connections.
+By default, this is enabled for all applications; by setting this
+sysctl to 0, only applications that specifically request keepalives
+will use them.
+In most environments, TCP keepalives will improve the management of
+system state by expiring dead TCP connections, particularly for
+systems serving dialup users who may not always terminate individual
+TCP connections before disconnecting from the network.
 However, in some environments, temporary network outages may be
-incorrectly identified as dead sessions, resulting unexpectedly
+incorrectly identified as dead sessions, resulting in unexpectedly
 terminated TCP connections.
+In such environments, setting the sysctl to 0 may reduce the occurrence of
+TCP session disconnections.
 .Pp
 The
 .Va kern.ipc.somaxconn
