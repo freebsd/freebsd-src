@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.15 1995/12/02 17:11:11 bde Exp $
+ * $Id: if_loop.c,v 1.16 1995/12/09 20:47:13 phk Exp $
  */
 
 /*
@@ -223,9 +223,16 @@ lortrequest(cmd, rt, sa)
 	struct rtentry *rt;
 	struct sockaddr *sa;
 {
-
-	if (rt)
-		rt->rt_rmx.rmx_mtu = LOMTU;
+	if (rt) {
+		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu; /* for ISO */
+		/*
+		 * For optimal performance, the send and receive buffers
+		 * should be at least twice the MTU plus a little more for
+		 * overhead.
+		 */
+		rt->rt_rmx.rmx_recvpipe = 
+			rt->rt_rmx.rmx_sendpipe = 3 * LOMTU;
+	}
 }
 
 /*
@@ -247,8 +254,7 @@ loioctl(ifp, cmd, data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifa = (struct ifaddr *)data;
-		if (ifa != 0 && ifa->ifa_addr->sa_family == AF_ISO)
-			ifa->ifa_rtrequest = lortrequest;
+		ifa->ifa_rtrequest = lortrequest;
 		/*
 		 * Everything else is done at a higher level.
 		 */
