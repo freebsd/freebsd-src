@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -60,13 +61,13 @@ static	d_ioctl_t	ata_ioctl;
 static struct cdevsw ata_cdevsw = {  
 	.d_ioctl =	ata_ioctl,
 	.d_name =	"ata",
-	.d_maj =	159,
 };
 
 /* prototypes */
 static void ata_shutdown(void *, int);
 static int ata_getparam(struct ata_device *, u_int8_t);
 static void ata_identify_devices(struct ata_channel *);
+static void ata_fail_requests(struct ata_channel *ch,struct ata_device *device);
 static void ata_boot_attach(void);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
@@ -77,6 +78,7 @@ static void ata_init(void);
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
+uma_zone_t ata_zone;
 int ata_wc = 1;	 
 
 /* local vars */
@@ -122,6 +124,10 @@ ata_probe(device_t dev)
     bzero(&ch->queue_mtx, sizeof(struct mtx));
     mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
     TAILQ_INIT(&ch->ata_queue);
+
+    mtx_init(&ch->request_lock, "ATA completion lock", MTX_DEF, 0);
+    TAILQ_INIT(&ch->complete_tqh);
+    TASK_INIT(&ch->task, 0, ata_completed, ch);
 
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
@@ -175,7 +181,6 @@ int
 ata_detach(device_t dev)
 {
     struct ata_channel *ch;
-    struct ata_request *request;
  
     if (!dev || !(ch = device_get_softc(dev)) || !ch->r_irq)
 	return ENXIO;
@@ -190,16 +195,9 @@ ata_detach(device_t dev)
 #endif
 
     /* fail outstanding requests on this channel */
-    mtx_lock(&ch->queue_mtx);
-    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
-	TAILQ_REMOVE(&ch->ata_queue, request, chain);
-	request->status = ATA_S_ERROR;
-	mtx_unlock(&ch->queue_mtx);
-	ata_finish(request);
-	mtx_lock(&ch->queue_mtx);
-    }
-    mtx_unlock(&ch->queue_mtx);
+    ata_fail_requests(ch, NULL);
 
+    /* flush cache and powerdown device */
     if (ch->device[MASTER].param) {
 	if (ch->device[MASTER].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	    ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
@@ -237,12 +235,17 @@ ata_reinit(struct ata_channel *ch)
 	return ENXIO;
 
     /* reset the HW */
-    ata_printf(ch, -1, "resetting devices ..\n");
+    if (bootverbose)
+	ata_printf(ch, -1, "reiniting channel ..\n");
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
+    ch->flags |= ATA_IMMEDIATE_MODE;
     ch->running = NULL;
     devices = ch->devices;
     ch->hw.reset(ch);
     ATA_UNLOCK_CH(ch);
+
+    if (bootverbose)
+	ata_printf(ch, -1, "resetting done ..\n");
 
     /* detach what left the channel during reset */
     if ((misdev = devices & ~ch->devices)) {
@@ -250,29 +253,33 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[MASTER].detach) {
 	    if (request && (request->device == &ch->device[MASTER])) {
 		request->result = ENXIO;
-		request->flags |= ATA_R_DONE;
 		if (request->callback)
 		    (request->callback)(request);
 		else
-        	    wakeup(request);
+        	    sema_post(&request->done);
 	    }
 	    ch->device[MASTER].detach(&ch->device[MASTER]);
+	    ata_fail_requests(ch, &ch->device[MASTER]);
+	    free(ch->device[MASTER].param, M_ATA);
+	    ch->device[MASTER].param = NULL;
 	}
 	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
 	    ch->device[SLAVE].detach) {
 	    if (request && (request->device == &ch->device[SLAVE])) {
 		request->result = ENXIO;
-		request->flags |= ATA_R_DONE;
 		if (request->callback)
 		    (request->callback)(request);
 		else
-        	    wakeup(request);
+        	    sema_post(&request->done);
 	    }
 	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
+	    ata_fail_requests(ch, &ch->device[SLAVE]);
+	    free(ch->device[SLAVE].param, M_ATA);
+	    ch->device[SLAVE].param = NULL;
 	}
     }
-
-    /* identify whats present on this channel now */
+    
+    /* identify what is present on the channel now */
     ata_identify_devices(ch);
 
     /* attach new devices that appeared during reset */
@@ -285,17 +292,26 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[SLAVE].attach(&ch->device[SLAVE]);
     }
 
-    /* restore transfermode on devices */
-    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))
+    /* restore device config and transfermode on devices */
+    if (ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) {
+	if (ch->device[MASTER].config)
+	    ch->device[MASTER].config(&ch->device[MASTER]);
 	ch->device[MASTER].setmode(&ch->device[MASTER],ch->device[MASTER].mode);
-    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))
+    }
+    if (ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) {
+	if (ch->device[SLAVE].config)
+	    ch->device[SLAVE].config(&ch->device[SLAVE]);
 	ch->device[SLAVE].setmode(&ch->device[SLAVE], ch->device[SLAVE].mode);
+    }
 
 #ifdef DEV_ATAPICAM
     atapi_cam_reinit_bus(ch);
 #endif
 
-    printf("done\n");
+    if (bootverbose)
+	ata_printf(ch, -1, "device config done ..\n");
+    ch->flags &= ~ATA_IMMEDIATE_MODE;
+    ata_start(ch);
     return 0;
 }
 
@@ -543,41 +559,34 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 static int 
 ata_getparam(struct ata_device *atadev, u_int8_t command)
 {
-    struct ata_params *atacap;
     struct ata_request *request;
     int error = ENOMEM;
 
-    if (atadev->param)
-	atacap = atadev->param;
-    else
-	atacap = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
-    if (atacap) {
+    if (!atadev->param)
+	atadev->param = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
+    if (atadev->param) {
 	request = ata_alloc_request(); 
 	if (request) {
 	    request->device = atadev;
 	    request->u.ata.command = command;
-	    request->flags = (ATA_R_READ | ATA_R_QUIET);
-	    request->data = (caddr_t)atacap;
+	    request->flags = (ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_QUIET);
+	    request->data = (caddr_t)atadev->param;
 	    request->timeout = 2;
 	    request->retries = 3;
 	    request->bytecount = sizeof(struct ata_params);
 	    request->transfersize = DEV_BSIZE;
-	    while (request->retries) {
+	    while (request->retries > 0 ) {
 		ata_queue_request(request);
 		if (!(error = request->result))
 		    break;
-		request->flags &= ~ATA_R_QUIET;
 		request->retries--;
+		request->flags |= ATA_R_REQUEUE;
 	    }
 	    ata_free_request(request);
 	}
-	if (!isprint(atacap->model[0]) || !isprint(atacap->model[1]))
-	    error = ENXIO;
-	if (error) {
-	    atadev->param = NULL;
-	    free(atacap, M_ATA);
-	}
-	else {
+	if (!error && (isprint(atadev->param->model[0]) ||
+		       isprint(atadev->param->model[1]))) {
+	    struct ata_params *atacap = atadev->param;
 #if BYTE_ORDER == BIG_ENDIAN
 	    int16_t *ptr;
 
@@ -598,13 +607,20 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	    bswap(atacap->serial, sizeof(atacap->serial));
 	    btrim(atacap->serial, sizeof(atacap->serial));
 	    bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
-	    atadev->param = atacap;
 	    if (bootverbose)
 		ata_prtdev(atadev,
 			   "pio=0x%02x wdma=0x%02x udma=0x%02x cable=%spin\n",
 			   ata_pmode(atacap), ata_wmode(atacap),
 			   ata_umode(atacap),
 			   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
+	}
+	else {
+	    if (!error)
+		error = ENXIO;
+	    if (atadev->param) {
+		free(atadev->param, M_ATA);
+		atadev->param = NULL;
+	    }
 	}
     }
     return error;
@@ -692,6 +708,24 @@ ata_identify_devices(struct ata_channel *ch)
 	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma) 
 	    ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_DMA_MAX);
     }
+}
+
+static void
+ata_fail_requests(struct ata_channel *ch, struct ata_device *device)
+{
+    struct ata_request *request;
+
+    mtx_lock(&ch->queue_mtx);
+    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
+	if (device == NULL || request->device == device) {
+	    TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	    request->result = ENXIO;
+	    mtx_unlock(&ch->queue_mtx);
+	    ata_finish(request);
+	    mtx_lock(&ch->queue_mtx);
+	}
+    }
+    mtx_unlock(&ch->queue_mtx);
 }
 
 static void 
@@ -964,16 +998,19 @@ ata_init(void)
 	printf("ata: malloc of delayed attach hook failed\n");
 	return;
     }
-
     ata_delayed_attach->ich_func = (void*)ata_boot_attach;
     if (config_intrhook_establish(ata_delayed_attach) != 0) {
 	printf("ata: config_intrhook_establish failed\n");
 	free(ata_delayed_attach, M_TEMP);
     }
-    /* Register a handler to flush write caches on shutdown */
+
+    /* register handler to flush write caches on shutdown */
     if ((EVENTHANDLER_REGISTER(shutdown_post_sync, ata_shutdown,
 			       NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 	printf("ata: shutdown event registration failed!\n");
 
+    /* init our UMA zone for ATA requests */
+    ata_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
+			   NULL, NULL, NULL, NULL, 0, 0);
 }
 SYSINIT(atadev, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cdio.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>
@@ -343,7 +345,7 @@ afd_start(struct ata_device *atadev)
     ccb[8] = count;
 
     if (!(request = ata_alloc_request())) {
-	biofinish(bp, NULL, EIO);
+	biofinish(bp, NULL, ENOMEM);
 	return;
     }
     request->device = atadev;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,29 +182,46 @@ struct ata_request {
     u_int32_t			donecount;	/* bytes transferred */
     caddr_t			data;		/* pointer to data buf */
     int				flags;
-#define		ATA_R_DONE		0x0001
-#define		ATA_R_CONTROL		0x0002
-#define		ATA_R_READ		0x0004
-#define		ATA_R_WRITE		0x0008
+#define		ATA_R_CONTROL		0x0001
+#define		ATA_R_READ		0x0002
+#define		ATA_R_WRITE		0x0004
+#define		ATA_R_DMA		0x0008
 
 #define		ATA_R_ATAPI		0x0010
 #define		ATA_R_QUIET		0x0020
-#define		ATA_R_DMA		0x0040
+#define		ATA_R_INTR_SEEN		0x0040
+#define		ATA_R_TIMEOUT		0x0080
 
 #define		ATA_R_ORDERED		0x0100
-#define		ATA_R_AT_HEAD		0x0200
+#define		ATA_R_IMMEDIATE		0x0200
 #define		ATA_R_REQUEUE		0x0400
 #define		ATA_R_SKIPSTART		0x0800
 
+#define		ATA_R_DEBUG		0x1000
+
     void			(*callback)(struct ata_request *request);
+    struct sema			done;		/* request done sema */
     int				retries;	/* retry count */
     int				timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int				result;		/* result error code */
-    struct task			task;		/* task management */
     TAILQ_ENTRY(ata_request)	sequence;	/* sequence management */
     TAILQ_ENTRY(ata_request)	chain;		/* list management */
+    TAILQ_ENTRY(ata_request)	request_link;
 };
+
+/* define this for debugging request processing */
+#if 0
+#define ATA_DEBUG_RQ(request, string) \
+    { \
+    if (request->flags & ATA_R_DEBUG) \
+        ata_prtdev(request->device, "req=%08x %s " string "\n", \
+                   (u_int)request, ata_cmd2str(request)); \
+    }
+#else
+#define ATA_DEBUG_RQ(request, string)
+#endif
+
 
 /* structure describing an ATA/ATAPI device */
 struct ata_device {
@@ -218,6 +235,7 @@ struct ata_device {
     void			*softc;		/* ptr to softc for device */
     void			(*attach)(struct ata_device *atadev);
     void			(*detach)(struct ata_device *atadev);
+    void			(*config)(struct ata_device *atadev);
     void			(*start)(struct ata_device *atadev);
     int				flags;
 #define		ATA_D_USE_CHS		0x0001
@@ -289,6 +307,7 @@ struct ata_channel {
 #define		ATA_USE_PC98GEOM	0x04
 #define		ATA_ATAPI_DMA_RO	0x08
 #define		ATA_48BIT_ACTIVE	0x10
+#define		ATA_IMMEDIATE_MODE	0x20
 
     struct ata_device		device[2];	/* devices on this channel */
 #define		MASTER			0x00
@@ -305,13 +324,18 @@ struct ata_channel {
 #define		ATA_ACTIVE		0x0001
 #define		ATA_CONTROL		0x0002
 
+    void (*reset)(struct ata_channel *);
     void (*locking)(struct ata_channel *, int);
 #define		ATA_LF_LOCK		0x0001
 #define		ATA_LF_UNLOCK		0x0002
 
-    struct mtx			queue_mtx;
+    struct mtx			queue_mtx;	/* queue lock */
     TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
     void			*running;	/* currently running request */
+
+    struct task			task;		/* task management */
+    struct mtx			request_lock;	/* queue lock */
+    TAILQ_HEAD(,ata_request)	complete_tqh;
 };
 
 /* ATAPI request sense structure */
@@ -345,7 +369,6 @@ struct atapi_sense {
 
 /* externs */
 extern devclass_t ata_devclass;
-extern struct intr_config_hook *ata_delayed_attach;
 extern int ata_wc;
  
 /* public prototypes */
@@ -371,13 +394,12 @@ int ata_limit_mode(struct ata_device *atadev, int mode, int maxmode);
 /* ata-queue.c: */
 int ata_reinit(struct ata_channel *ch);
 void ata_start(struct ata_channel *ch);
-struct ata_request *ata_alloc_request(void);
-void ata_free_request(struct ata_request *request);
 int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
 int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
 void ata_finish(struct ata_request *request);
 char *ata_cmd2str(struct ata_request *request);
+void ata_completed(void *context, int pending);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(struct ata_channel *ch);
@@ -390,6 +412,11 @@ void ast_attach(struct ata_device *atadev);
 void atapi_cam_attach_bus(struct ata_channel *ch);
 void atapi_cam_detach_bus(struct ata_channel *ch);
 void atapi_cam_reinit_bus(struct ata_channel *ch);
+
+/* macros for alloc/free of ata_requests */
+extern uma_zone_t ata_zone;
+#define ata_alloc_request() uma_zalloc(ata_zone, M_NOWAIT | M_ZERO)
+#define ata_free_request(request) uma_zfree(ata_zone, request)
 
 /* macros for locking a channel */
 #define ATA_LOCK_CH(ch, value) \

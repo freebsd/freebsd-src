@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
-#include <sys/mutex.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <geom/geom.h>
 #include <dev/ata/ata-all.h>
@@ -451,7 +452,6 @@ acd_describe(struct acd_softc *cdp)
 	       (cdp->device->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(cdp->device->mode) );
     }
-
 }
 
 static __inline void 
@@ -1139,7 +1139,7 @@ acd_start(struct ata_device *atadev)
     ccb[8] = count;
 
     if (!(request = ata_alloc_request())) {
-	g_io_deliver(bp, EIO);
+	g_io_deliver(bp, ENOMEM);
 	return;
     }
     request->device = atadev;
@@ -1335,9 +1335,9 @@ acd_select_slot(struct acd_softc *cdp)
 		       cdp->changer_info->current_slot, 0, 0, 0, 0, 0, 0, 0 };
 
     /* unload the current media from player */
-    if (!(request = ata_alloc_request())) {
+    if (!(request = ata_alloc_request()))
 	return;
-    }
+
     request->device = cdp->device;
     request->driver = cdp;
     bcopy(ccb, request->u.atapi.ccb,
@@ -1345,7 +1345,7 @@ acd_select_slot(struct acd_softc *cdp)
 	  ATA_PROTO_ATAPI_12 ? 16 : 12);
     request->timeout = 30;
     request->callback = acd_unload_done;
-    request->flags |= (ATA_R_ATAPI | ATA_R_AT_HEAD);
+    request->flags |= (ATA_R_ATAPI | ATA_R_IMMEDIATE);
     ata_queue_request(request);
 }
 

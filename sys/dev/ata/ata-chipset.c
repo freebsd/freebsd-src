@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -99,6 +101,7 @@ static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
 static int ata_sii_chipinit(device_t);
 static int ata_sii_mio_allocate(device_t, struct ata_channel *);
+static void ata_sii_reset(struct ata_channel *);
 static void ata_sii_intr(void *);
 static void ata_cmd_intr(void *);
 static void ata_cmd_old_intr(void *);
@@ -1582,7 +1585,8 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+    {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,	 ATA_SA150, "SiI 3114" },
+     { ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
@@ -1622,6 +1626,7 @@ ata_sii_chipinit(device_t dev)
 	    device_printf(dev, "unable to setup interrupt\n");
 	    return ENXIO;
 	}
+
 	rid = 0x24;
 	if (!(ctlr->r_io2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 					       0, ~0, 1, RF_ACTIVE)))
@@ -1636,10 +1641,14 @@ ata_sii_chipinit(device_t dev)
 			      ctlr->chip->text);
 	}
 
+	if (ctlr->chip->cfg2 & SII4CH)
+	    ctlr->channels = 4;
+
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
 	/* setup chipset defaults as BIOS might not */
+#if 0
 	pci_write_config(dev, 0xa2, 0x328a, 2);
 	pci_write_config(dev, 0xa4, 0x328a328a, 4);
 	pci_write_config(dev, 0xa8, 0x22082208, 4);
@@ -1648,12 +1657,10 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0xe4, 0x328a328a, 4);
 	pci_write_config(dev, 0xe8, 0x22082208, 4);
 	pci_write_config(dev, 0xec, 0x40094009, 4);
-
+#endif
 	ctlr->allocate = ata_sii_mio_allocate;
-	if (ctlr->chip->max_dma >= ATA_SA150) {
+	if (ctlr->chip->max_dma >= ATA_SA150)
 	    ctlr->setmode = ata_sata_setmode;
-	    ctlr->locking = ata_serialize;
-	}
 	else
 	    ctlr->setmode = ata_sii_setmode;
     }
@@ -1683,30 +1690,45 @@ static int
 ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
     for (i = ATA_DATA; i <= ATA_STATUS; i++) {
 	ch->r_io[i].res = ctlr->r_io2;
-	ch->r_io[i].offset = 0x80 + i + (ch->unit << 6);
+	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 9);
     }
     ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
-    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (ch->unit << 6);
+    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (unit01 << 6) + (unit10 << 9);
     ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (ch->unit << 3);
+    ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (ch->unit << 3);
+    ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (ch->unit << 3);
+    ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (unit01 << 3) + (unit10 << 9);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
-    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (ch->unit << 6);
+    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 9);
+    ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_io2;
+    ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 9);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
 
     if (ctlr->chip->max_dma >= ATA_SA150)
 	ch->flags |= ATA_NO_SLAVE;
+
     ctlr->dmainit(ch);
     if (ctlr->chip->cfg2 & SIIBUG)
 	ch->dma->boundary = 8 * 1024;
+
+    ch->reset = ata_sii_reset;
+
     return 0;
+}
+
+static void
+ata_sii_reset(struct ata_channel *ch)
+{
+    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000001);
+    DELAY(25000);
+    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_1, 0x00000000);
 }
 
 static void
@@ -1724,8 +1746,7 @@ ata_sii_intr(void *data)
 	    if (ch->dma) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
-		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
-		    ATA_BMSTAT_INTERRUPT)
+		if (!(bmstat & ATA_BMSTAT_INTERRUPT))
 		    continue;
 		ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 		DELAY(1);
@@ -1802,14 +1823,16 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->max_dma < ATA_UDMA2) {
+    if (ctlr->chip->cfg2 & SIISETCLK) {
+	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x79, 1) &
+				 (atadev->channel->unit ? 0x02 : 0x01))) {
+	    ata_prtdev(atadev,
+		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
+	    mode = ATA_UDMA2;
+	}
+    }
+    else
 	mode = ata_check_80pin(atadev, mode);
-    }
-    else if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x79, 1) &
-				  (atadev->channel->unit ? 0x02 : 0x01))) {
-	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
-	mode = ATA_UDMA2;
-    }
 
     error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 
@@ -1918,28 +1941,11 @@ ata_sis_ident(device_t dev)
      { ATA_SIS963,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 963" }, /* south */
      { ATA_SIS962,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 962" }, /* south */
 
-     { ATA_SIS755,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 755" }, /* ext south */
-     { ATA_SIS752,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 752" }, /* unknown */
-     { ATA_SIS751,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 751" }, /* unknown */
-     { ATA_SIS750,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 750" }, /* unknown */
-     { ATA_SIS748,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 748" }, /* unknown */
-     { ATA_SIS746,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 746" }, /* ext south */
      { ATA_SIS745,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 745" }, /* 1chip */
-     { ATA_SIS740,  0x00, SIS_SOUTH, 0, ATA_UDMA5, "SiS 740" }, /* ext south */
      { ATA_SIS735,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 735" }, /* 1chip */
      { ATA_SIS733,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 733" }, /* 1chip */
      { ATA_SIS730,  0x00, SIS100OLD, 0, ATA_UDMA5, "SiS 730" }, /* 1chip */
 
-     { ATA_SIS661,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 661" }, /* ext south */
-     { ATA_SIS658,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 658" }, /* ext south */
-     { ATA_SIS655,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 655" }, /* ext south */
-     { ATA_SIS652,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 652" }, /* unknown */
-     { ATA_SIS651,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 651" }, /* ext south */
-     { ATA_SIS650,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 650" }, /* ext south */
-     { ATA_SIS648,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 648" }, /* ext south */
-     { ATA_SIS646,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645DX"},/* ext south */
-     { ATA_SIS645,  0x00, SIS_SOUTH, 0, ATA_UDMA6, "SiS 645" }, /* ext south */
-     { ATA_SIS640,  0x00, SIS_SOUTH, 0, ATA_UDMA4, "SiS 640" }, /* ext south */
      { ATA_SIS635,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 635" }, /* 1chip */
      { ATA_SIS633,  0x00, SIS100NEW, 0, ATA_UDMA5, "SiS 633" }, /* unknown */
      { ATA_SIS630,  0x30, SIS100OLD, 0, ATA_UDMA5, "SiS 630S"}, /* 1chip */
@@ -1951,29 +1957,33 @@ ata_sis_ident(device_t dev)
      { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "SiS 530" },
 
      { ATA_SIS5513, 0xc2, SIS33,     0, ATA_UDMA2, "SiS 5513" },
-     { ATA_SIS5513, 0x00, SIS33,     0, ATA_WDMA2, "SiS 5513" },
+     { ATA_SIS5513, 0x00, SIS33,     1, ATA_WDMA2, "SiS 5513" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
     if (!(idx = ata_find_chip(dev, ids, -pci_get_slot(dev)))) 
 	return ENXIO;
 
-    if (idx->cfg1 == SIS_SOUTH) {
+    if (idx->cfg2) {
 	pci_write_config(dev, 0x57, pci_read_config(dev, 0x57, 1) & 0x7f, 1);
 	if (pci_read_config(dev, 0x00, 4) == ATA_SIS5518) {
 	    idx->cfg1 = SIS133NEW;
-	    sprintf(buffer, "SiS 96X %s controller",ata_mode2str(idx->max_dma));
+	    idx->max_dma = ATA_UDMA6;
+	    sprintf(buffer, "SiS 962/963 %s controller",
+		    ata_mode2str(idx->max_dma));
 	}
 	else {
 	    struct ata_chip_id id[] =
 		{{ ATA_SISSOUTH, 0x10, 0, 0, ATA_UDMA6, "SiS 961" },
 		 { 0, 0, 0, 0, 0, 0 }};
 
-	    if (ata_find_chip(dev, id, pci_get_slot(dev)))
+	    if (ata_find_chip(dev, id, pci_get_slot(dev))) {
 		idx->cfg1 = SIS133OLD;
+		idx->max_dma = ATA_UDMA6;
+	    }
 	    else {
-		idx->max_dma = ATA_UDMA5;
 		idx->cfg1 = SIS100NEW;
+		idx->max_dma = ATA_UDMA5;
 	    }
 	    sprintf(buffer, "SiS 961 %s controller",ata_mode2str(idx->max_dma));
 	}
@@ -2124,12 +2134,12 @@ ata_via_ident(device_t dev)
      { ATA_VIA8237,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8237" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
-    {{ ATA_VIA8237,   0x00, 0x00,   0x00,   ATA_SA150, "VIA 8237" },
+    {{ ATA_VIA8237_1, 0x00, 0x00,   0x00,   ATA_SA150, "VIA 8237" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
     if (pci_get_devid(dev) == ATA_VIA82C571) {
-	if (!(idx = ata_find_chip(dev, ids, pci_get_slot(dev)))) 
+	if (!(idx = ata_find_chip(dev, ids, -99))) 
 	    return ENXIO;
     }
     else {
