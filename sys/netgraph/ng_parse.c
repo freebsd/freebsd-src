@@ -648,7 +648,7 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 	const char *s, int *off, const u_char *const start,
 	u_char *const buf, int *buflen)
 {
-	const struct ng_parse_fixedsstring_info *const fi = type->info;
+	const struct ng_parse_fixedstring_info *const fi = type->info;
 	char *sval;
 	int len;
 
@@ -669,7 +669,7 @@ static int
 ng_fixedstring_unparse(const struct ng_parse_type *type,
 	const u_char *data, int *off, char *cbuf, int cbuflen)
 {
-	const struct ng_parse_fixedsstring_info *const fi = type->info;
+	const struct ng_parse_fixedstring_info *const fi = type->info;
 	int error, temp = *off;
 
 	if ((error = ng_string_unparse(type, data, &temp, cbuf, cbuflen)) != 0)
@@ -682,7 +682,7 @@ static int
 ng_fixedstring_getDefault(const struct ng_parse_type *type,
 	const u_char *const start, u_char *buf, int *buflen)
 {
-	const struct ng_parse_fixedsstring_info *const fi = type->info;
+	const struct ng_parse_fixedstring_info *const fi = type->info;
 
 	if (*buflen < fi->bufSize)
 		return (ERANGE);
@@ -701,7 +701,7 @@ const struct ng_parse_type ng_parse_fixedstring_type = {
 	NULL
 };
 
-const struct ng_parse_fixedsstring_info ng_parse_nodebuf_info = {
+const struct ng_parse_fixedstring_info ng_parse_nodebuf_info = {
 	NG_NODELEN + 1
 };
 const struct ng_parse_type ng_parse_nodebuf_type = {
@@ -709,7 +709,7 @@ const struct ng_parse_type ng_parse_nodebuf_type = {
 	&ng_parse_nodebuf_info
 };
 
-const struct ng_parse_fixedsstring_info ng_parse_hookbuf_info = {
+const struct ng_parse_fixedstring_info ng_parse_hookbuf_info = {
 	NG_HOOKLEN + 1
 };
 const struct ng_parse_type ng_parse_hookbuf_type = {
@@ -717,7 +717,7 @@ const struct ng_parse_type ng_parse_hookbuf_type = {
 	&ng_parse_hookbuf_info
 };
 
-const struct ng_parse_fixedsstring_info ng_parse_pathbuf_info = {
+const struct ng_parse_fixedstring_info ng_parse_pathbuf_info = {
 	NG_PATHLEN + 1
 };
 const struct ng_parse_type ng_parse_pathbuf_type = {
@@ -725,7 +725,7 @@ const struct ng_parse_type ng_parse_pathbuf_type = {
 	&ng_parse_pathbuf_info
 };
 
-const struct ng_parse_fixedsstring_info ng_parse_typebuf_info = {
+const struct ng_parse_fixedstring_info ng_parse_typebuf_info = {
 	NG_TYPELEN + 1
 };
 const struct ng_parse_type ng_parse_typebuf_type = {
@@ -733,7 +733,7 @@ const struct ng_parse_type ng_parse_typebuf_type = {
 	&ng_parse_typebuf_info
 };
 
-const struct ng_parse_fixedsstring_info ng_parse_cmdbuf_info = {
+const struct ng_parse_fixedstring_info ng_parse_cmdbuf_info = {
 	NG_CMDSTRLEN + 1
 };
 const struct ng_parse_type ng_parse_cmdbuf_type = {
