@@ -1400,8 +1400,6 @@ usb_free_device(usbd_device_handle dev)
 		free(dev->cdesc, M_USB);
 	if (dev->subdevs != NULL)
 		free(dev->subdevs, M_USB);
-	if (dev->ifacenums != NULL)
-		free(dev->ifacenums, M_USB);
 	free(dev, M_USB);
 }
 
