@@ -49,6 +49,10 @@
 .Op Ar temp
 .Op Ar pub
 .Nm arp
+.Fl S Ar hostname ether_addr
+.Op Ar temp
+.Op Ar pub
+.Nm arp
 .Fl f Ar filename
 .Sh DESCRIPTION
 The
@@ -95,6 +99,14 @@ server,
 responding to requests for 
 .Ar hostname
 even though the host address is not its own.
+In this case the ether_addr can be given as `auto''
+in which case the interfaces on this host will be examined,
+and if one of them is found to occupy the same subnet, its
+ether_addr will be used.
+.It Fl S Ar hostname ether_addr
+Is just like
+.Fl s
+except any existing arp entry for this host will be deleted first.
 .It Fl f
 Causes the file
 .Ar filename
