@@ -488,16 +488,16 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 /*
  * asleep() - async sleep call.  Place process on wait queue and return 
- * immediately without blocking.  The process stays runnable until mawait() 
+ * immediately without blocking.  The process stays runnable until await() 
  * is called.  If ident is NULL, remove process from wait queue if it is still
  * on one.
  *
  * Only the most recent sleep condition is effective when making successive
  * calls to asleep() or when calling msleep().
  *
- * The timeout, if any, is not initiated until mawait() is called.  The sleep
+ * The timeout, if any, is not initiated until await() is called.  The sleep
  * priority, signal, and timeout is specified in the asleep() call but may be
- * overriden in the mawait() call.
+ * overriden in the await() call.
  *
  * <<<<<<<< EXPERIMENTAL, UNTESTED >>>>>>>>>>
  */
@@ -532,27 +532,24 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 }
 
 /*
- * mawait() - wait for async condition to occur.   The process blocks until
+ * await() - wait for async condition to occur.   The process blocks until
  * wakeup() is called on the most recent asleep() address.  If wakeup is called
- * prior to mawait(), mawait() winds up being a NOP.
+ * prior to await(), await() winds up being a NOP.
  *
- * If mawait() is called more then once (without an intervening asleep() call),
- * mawait() is still effectively a NOP but it calls mi_switch() to give other
+ * If await() is called more then once (without an intervening asleep() call),
+ * await() is still effectively a NOP but it calls mi_switch() to give other
  * processes some cpu before returning.  The process is left runnable.
  *
  * <<<<<<<< EXPERIMENTAL, UNTESTED >>>>>>>>>>
  */
 
 int
-mawait(struct mtx *mtx, int priority, int timo)
+await(int priority, int timo)
 {
 	struct proc *p = curproc;
 	int rval = 0;
-	WITNESS_SAVE_DECL(mtx);
 
-	WITNESS_SLEEP(0, &mtx->mtx_object);
-	KASSERT(timo > 0 || mtx_owned(&Giant) || mtx != NULL,
-	    ("sleeping without a mutex"));
+	WITNESS_SLEEP(0, NULL);
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
@@ -561,19 +558,10 @@ mawait(struct mtx *mtx, int priority, int timo)
 		 * don't run any other procs or panic below,
 		 * in case this is the idle process and already asleep.
 		 */
-		if (mtx != NULL && priority & PDROP)
-			mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		mtx_unlock_spin(&sched_lock);
 		return (0);
 	}
 	DROP_GIANT_NOSWITCH();
-	if (mtx != NULL) {
-		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-		WITNESS_SAVE(&mtx->mtx_object, mtx);
-		mtx_unlock_flags(mtx, MTX_NOSWITCH);
-		if (priority & PDROP)
-			mtx = NULL;
-	}
 
 	if (p->p_wchan != NULL) {
 		int sig;
@@ -584,7 +572,7 @@ mawait(struct mtx *mtx, int priority, int timo)
 			ktrcsw(p->p_tracep, 1, 0);
 #endif
 		/*
-		 * The call to mawait() can override defaults specified in
+		 * The call to await() can override defaults specified in
 		 * the original asleep().
 		 */
 		if (priority < 0)
@@ -647,7 +635,7 @@ mawait(struct mtx *mtx, int priority, int timo)
 #endif
 	} else {
 		/*
-		 * If as_priority is 0, mawait() has been called without an 
+		 * If as_priority is 0, await() has been called without an 
 		 * intervening asleep().  We are still effectively a NOP, 
 		 * but we call mi_switch() for safety.
 		 */
@@ -660,24 +648,20 @@ mawait(struct mtx *mtx, int priority, int timo)
 	}
 
 	/*
-	 * clear p_asleep.as_priority as an indication that mawait() has been
-	 * called.  If mawait() is called again without an intervening asleep(),
-	 * mawait() is still effectively a NOP but the above mi_switch() code
+	 * clear p_asleep.as_priority as an indication that await() has been
+	 * called.  If await() is called again without an intervening asleep(),
+	 * await() is still effectively a NOP but the above mi_switch() code
 	 * is triggered as a safety.
 	 */
 	if (rval == 0)
 		p->p_asleep.as_priority = 0;
 
 	PICKUP_GIANT();
-	if (mtx != NULL) {
-		mtx_lock(mtx);
-		WITNESS_RESTORE(&mtx->mtx_object, mtx);
-	}
 	return (rval);
 }
 
 /*
- * Implement timeout for msleep or asleep()/mawait()
+ * Implement timeout for msleep or asleep()/await()
  *
  * If process hasn't been awakened (wchan non-zero),
  * set timeout flag and undo the sleep.  If proc
