@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crt1.c,v 1.3 1999/01/07 20:18:18 steve Exp $
+ *      $Id: crt1.c,v 1.4 1999/01/19 06:58:31 simokawa Exp $
  */
 
 #ifndef __GNUC__
@@ -39,21 +39,8 @@
 
 #include <stdlib.h>
 
-#include <sys/exec.h>
-#include <sys/syscall.h>
-#include <rtld.h>
-
-const Obj_Entry *__mainprog_obj;
-
-extern int		__syscall (int, ...);
-#define	_exit(v)	__syscall(SYS_exit, (v))
-#define	write(fd, s, n)	__syscall(SYS_write, (fd), (s), (n))
-
-#define _FATAL(str)				\
-	do {					\
-		write(2, str, sizeof(str));	\
-		_exit(1);			\
-	} while (0)
+struct Struct_Obj_Entry;
+struct ps_strings;
 
 #pragma weak _DYNAMIC
 extern int _DYNAMIC;
@@ -69,7 +56,7 @@ char *__progname = "";
 void
 _start(char **ap,
 	void (*cleanup)(void),			/* from shared loader */
-	const Obj_Entry *obj,			/* from shared loader */
+	struct Struct_Obj_Entry *obj,		/* from shared loader */
 	struct ps_strings *ps_strings)
 {
 	int argc;
@@ -88,15 +75,8 @@ _start(char **ap,
 				__progname = s + 1;
 	}
 
-	if (&_DYNAMIC != NULL) {
-		if ((obj == NULL) || (obj->magic != RTLD_MAGIC))
-			_FATAL("Corrupt Obj_Entry pointer in GOT");
-		if (obj->version != RTLD_VERSION)
-			_FATAL("Dynamic linker version mismatch");
-
-		__mainprog_obj = obj;
+	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	}
 
 	atexit(_fini);
 	_init();
