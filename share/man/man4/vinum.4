@@ -35,7 +35,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.3 1998/11/03 07:02:58 grog Exp $
+.\" $Id: vinum.4,v 1.7 1998/11/05 01:28:56 grog Exp grog $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
@@ -56,7 +56,8 @@ It provides device-independent logical disks, called \fIvolumes\fP.  Volumes are
 not restricted to the size of any disk on the system.
 .It
 The volumes consist of one or more \fIplexes\fP, each of which contain the
-entire address space of a volume.  Multiple plexes can be used for
+entire address space of a volume.  This represents an implementation of RAID-1
+(mirroring).  Multiple plexes can also be used for
 .\" XXX What about sparse plexes?  Do we want them?
 .if t .sp
 .Bl -bullet
@@ -137,10 +138,7 @@ offers automatic startup.  Unlike UNIX file systems,
 .Nm
 volumes contain all the configuration information needed to ensure that they are
 started correctly when the subsystem is enabled.  This is also a significant
-advantage over the 
-.if t Veritas\ (tm
-.if n Veritas(tm)
-File System.  This feature regards the presence
+advantage over the Veritas\(tm File System.  This feature regards the presence
 of the volumes.  It does not mean that the volumes will be mounted
 automatically, since the standard startup procedures with
 .Pa /etc/fstab 
@@ -159,7 +157,7 @@ to issue an error message and terminate.
 is currently available in two versions: a freely available version which does
 not contain RAID-5 functionality, and a full version including RAID-5
 functionality, which is available from Cybernet Systems
-Inc. (\f(CWhttp://www.cybernet.com\fP).
+Inc. (http://www.cybernet.com\fR).
 .Sh RUNNING VINUM
 The freely available version of the
 .Nm
