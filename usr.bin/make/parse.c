@@ -287,8 +287,7 @@ Parse_Error(int type, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fprintf(stderr, "\"%s\", line %d: ",
-	    curFile.fname, curFile.lineno);
+	fprintf(stderr, "\"%s\", line %d: ", curFile.fname, curFile.lineno);
 	if (type == PARSE_WARNING)
 		fprintf(stderr, "warning: ");
 	vfprintf(stderr, fmt, ap);
@@ -803,7 +802,7 @@ ParseDoDependency(char *line)
 		 * Have word in line. Get or create its node and stick it at
 		 * the end of the targets list
 		 */
-		if ((specType == Not) && (*line != '\0')) {
+		if (specType == Not && *line != '\0') {
 
 			/* target names to be found and added to targets list */
 			Lst curTargs = Lst_Initializer(curTargs);
@@ -856,7 +855,7 @@ ParseDoDependency(char *line)
 		if (specType != Not && specType != ExPath) {
 			Boolean warnFlag = FALSE;
 
-			while ((*cp != '!') && (*cp != ':') && *cp) {
+			while (*cp != '!' && *cp != ':' && *cp) {
 				if (*cp != ' ' && *cp != '\t') {
 					warnFlag = TRUE;
 				}
@@ -872,7 +871,7 @@ ParseDoDependency(char *line)
 			}
 		}
 		line = cp;
-	} while ((*line != '!') && (*line != ':') && *line);
+	} while (*line != '!' && *line != ':' && *line);
 
 	if (!Lst_IsEmpty(&targets)) {
 		switch (specType) {
@@ -978,16 +977,16 @@ ParseDoDependency(char *line)
 		}
 		*line = '\0';
 
-	} else if ((specType == NotParallel) || (specType == SingleShell)) {
+	} else if (specType == NotParallel || specType == SingleShell) {
 		*line = '\0';
 	}
 
 	/*
 	* NOW GO FOR THE SOURCES
 	*/
-	if ((specType == Suffixes) || (specType == ExPath) ||
-	    (specType == Includes) || (specType == Libs) ||
-	    (specType == Null)) {
+	if (specType == Suffixes || specType == ExPath ||
+	    specType == Includes || specType == Libs ||
+	    specType == Null) {
 		while (*line) {
 			/*
 			 * If the target was one that doesn't take files as its
@@ -1154,12 +1153,12 @@ Parse_IsVar(char *line)
 
 	int level = 0;
 #define	ISEQOPERATOR(c) \
-	(((c) == '+') || ((c) == ':') || ((c) == '?') || ((c) == '!'))
+	((c) == '+' || (c) == ':' || (c) == '?' || (c) == '!')
 
 	/*
 	 * Skip to variable name
 	 */
-	for (; (*line == ' ') || (*line == '\t'); line++)
+	for (; *line == ' ' || *line == '\t'; line++)
 		continue;
 
 	for (; *line != '=' || level != 0; line++) {
@@ -1275,7 +1274,7 @@ Parse_DoVar(char *line, GNode *ctxt)
 	/*
 	 * Skip to variable name
 	 */
-	while ((*line == ' ') || (*line == '\t')) {
+	while (*line == ' ' || *line == '\t') {
 		line++;
 	}
 
@@ -1554,11 +1553,11 @@ ParseDoInclude(char *file)
 	/*
 	 * Skip to delimiter character so we know where to look
 	 */
-	while ((*file == ' ') || (*file == '\t')) {
+	while (*file == ' ' || *file == '\t') {
 		file++;
 	}
 
-	if ((*file != '"') && (*file != '<')) {
+	if (*file != '"' && *file != '<') {
 		Parse_Error(PARSE_FATAL,
 		    ".include filename must be delimited by '\"' or '<'");
 		return;
@@ -1765,7 +1764,7 @@ ParseTraditionalInclude(char *file)
 	/*
 	 * Skip over whitespace
 	 */
-	while ((*file == ' ') || (*file == '\t')) {
+	while (*file == ' ' || *file == '\t') {
 		file++;
 	}
 
@@ -2070,8 +2069,8 @@ ParseReadLine(void)
 		lastc = c;
 		buf = Buf_Init(MAKE_BSIZE);
 
-		while (((c = ParseReadc()) != '\n' || (lastc == '\\')) &&
-		    (c != EOF)) {
+		while (((c = ParseReadc()) != '\n' || lastc == '\\') &&
+		    c != EOF) {
   test_char:
 			switch (c) {
 			  case '\n':
@@ -2379,7 +2378,7 @@ Parse_File(char *name, FILE *stream)
 
 					for (cp2 = cp;
 					    !isspace((unsigned char)*cp2) &&
-					   (*cp2 != '\0'); cp2++) {
+					   *cp2 != '\0'; cp2++) {
 						continue;
 					}
 
@@ -2475,7 +2474,7 @@ Parse_File(char *name, FILE *stream)
 				 */
 				cp = line;
 				if (isspace((unsigned char)line[0])) {
-					while ((*cp != '\0') &&
+					while (*cp != '\0' &&
 					    isspace((unsigned char)*cp)) {
 						cp++;
 					}
