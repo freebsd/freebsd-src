@@ -216,7 +216,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(&(sc->sc_if), &m0);
+		BPF_MTAP(&(sc->sc_if), &m0);
 	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
@@ -311,7 +311,7 @@ gre_mobile_input(m, va_alist)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(&(sc->sc_if), &m0);
+		BPF_MTAP(&(sc->sc_if), &m0);
 	}
 
 	m->m_pkthdr.rcvif = &sc->sc_if;
