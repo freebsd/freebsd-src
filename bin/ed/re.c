@@ -41,10 +41,10 @@ const char *errmsg = "";
 pattern_t *
 get_compiled_pattern(void)
 {
-	static pattern_t *exp = NULL;
+	static pattern_t *expr = NULL;
 	static char error[1024];
 
-	char *exps;
+	char *exprs;
 	char delimiter;
 	int n;
 
@@ -52,27 +52,27 @@ get_compiled_pattern(void)
 		errmsg = "invalid pattern delimiter";
 		return NULL;
 	} else if (delimiter == '\n' || *++ibufp == '\n' || *ibufp == delimiter) {
-		if (!exp)
+		if (!expr)
 			errmsg = "no previous pattern";
-		return exp;
-	} else if ((exps = extract_pattern(delimiter)) == NULL)
+		return expr;
+	} else if ((exprs = extract_pattern(delimiter)) == NULL)
 		return NULL;
 	/* buffer alloc'd && not reserved */
-	if (exp && !patlock)
-		regfree(exp);
-	else if ((exp = (pattern_t *) malloc(sizeof(pattern_t))) == NULL) {
+	if (expr && !patlock)
+		regfree(expr);
+	else if ((expr = (pattern_t *) malloc(sizeof(pattern_t))) == NULL) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		errmsg = "out of memory";
 		return NULL;
 	}
 	patlock = 0;
-	if ((n = regcomp(exp, exps, 0))) {
-		regerror(n, exp, error, sizeof error);
+	if ((n = regcomp(expr, exprs, 0))) {
+		regerror(n, expr, error, sizeof error);
 		errmsg = error;
-		free(exp);
-		return exp = NULL;
+		free(expr);
+		return expr = NULL;
 	}
-	return exp;
+	return expr;
 }
 
 
