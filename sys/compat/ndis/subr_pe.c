@@ -61,15 +61,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/ndis/pe_var.h>
-#ifdef _KERNEL
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-#include <compat/ndis/resource_var.h>
-#include <compat/ndis/ntoskrnl_var.h>
-#include <compat/ndis/ndis_var.h>
-#endif
 
 static u_int32_t pe_functbl_match(image_patch_table *, char *);
 
@@ -465,7 +456,6 @@ pe_get_import_descriptor(imgbase, desc, module)
 	return (ENOENT);
 }
 
-#ifdef _KERNEL
 int
 pe_get_messagetable(imgbase, md)
 	vm_offset_t		imgbase;
@@ -513,17 +503,17 @@ pe_get_messagetable(imgbase, md)
 }
 
 int
-pe_get_message(imgbase, id, str, len)
+pe_get_message(imgbase, id, str, len, flags)
 	vm_offset_t		imgbase;
 	uint32_t		id;
 	char			**str;
 	int			*len;
+	uint16_t		*flags;
 {
 	message_resource_data	*md = NULL;
 	message_resource_block	*mb;
 	message_resource_entry	*me;
-	int			i;
-	char			m[1024], *msg;
+	uint32_t		i;
 
 	pe_get_messagetable(imgbase, &md);
 
@@ -540,14 +530,9 @@ pe_get_message(imgbase, id, str, len)
 			for (i = id - mb->mrb_lowid; i > 0; i--)
 				me = (message_resource_entry *)((uintptr_t)me +
 				    me->mre_len);
-			if (me->mre_flags == MESSAGE_RESOURCE_UNICODE) {
-				msg = m;
-				ndis_unicode_to_ascii((uint16_t *)me->mre_text,
-				    me->mre_len, &msg);
-				*str = m;
-			} else
-				*str = me->mre_text;
+			*str = me->mre_text;
 			*len = me->mre_len;
+			*flags = me->mre_flags;
 			return(0);
 		}
 		mb++;
@@ -555,7 +540,6 @@ pe_get_message(imgbase, id, str, len)
 
 	return(ENOENT);
 }
-#endif
 
 /*
  * Find the function that matches a particular name. This doesn't
