@@ -290,7 +290,7 @@ rlines(fp, off, sbp)
 	if ((start = mmap(NULL, (size_t)size,
 	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
 		ierr();
-		return;
+		exit(1);
 	}
 
 	/* Last char is special, ignore whether newline or not. */
