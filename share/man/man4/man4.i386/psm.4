@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: psm.4,v 1.11 1998/01/24 12:14:13 yokota Exp $
+.\" $Id: psm.4,v 1.12 1998/03/12 07:30:36 charnier Exp $
 .\"
 .Dd December 3, 1997
 .Dt PSM 4 i386
@@ -40,7 +40,7 @@ PS/2 mouse style pointing device driver
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
 .Cd "options" \&"KBDIO_DEBUG=N\&"
-.Cd "device psm0 at isa? port" \&"IO_KBD\&" conflicts tty irq 12 vector psmintr
+.Cd "device psm0 at isa? port IO_KBD conflicts tty irq 12"
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,7 +48,7 @@ driver provides support for the PS/2 mouse style pointing device.
 Currently there can be only one 
 .Nm
 device node in the system.
-.Em port \&"IO_KBD\&"
+.Em port IO_KBD
 and
 .Em conflicts
 are required, 
@@ -570,15 +570,14 @@ movement counts as described in
 .El
 .Sh EXAMPLE
 .Dl "options" \&"PSM_HOOKAPM\&"
-.Dl "device psm0 at isa? port" \&"IO_KBD\&" conflicts tty irq 12 vector psmintr
+.Dl "device psm0 at isa? port IO_KBD conflicts tty irq 12"
 .Pp
 Add the
 .Nm
 driver to the kernel with the optional code to stimulate the pointing device
 after the `resume' event.
 .Pp
-.Dl "device psm0 at isa? port" \&"IO_KBD\&" conflicts tty flags 0x024 irq 12
-.Dl vector psmintr
+.Dl "device psm0 at isa? port IO_KBD conflicts tty flags 0x024 irq 12"
 .Pp
 Set the device resolution high (4) and the acceleration factor to 2.
 .Sh DIAGNOSTICS
