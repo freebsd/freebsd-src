@@ -638,7 +638,7 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if (suser_xxx(cred, NULL, 0) && (ouid != uid || ogid != gid))
+	if (suser_xxx(cred, NULL, PRISON_ROOT) && (ouid != uid || ogid != gid))
 		ip->i_mode &= ~(ISUID | ISGID);
 	return (0);
 }
