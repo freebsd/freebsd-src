@@ -410,7 +410,11 @@ if_attach(struct ifnet *ifp)
 	 * create a Link Level name for this device
 	 */
 	namelen = strlen(ifp->if_xname);
-	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
+	/*
+	 * Always save enough space for any possiable name so we can do
+	 * a rename in place later.
+	 */
+	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
 	socksize = masklen + ifp->if_addrlen;
 	if (socksize < sizeof(*sdl))
 		socksize = sizeof(*sdl);
@@ -731,16 +735,15 @@ if_clone_destroy(const char *name)
 	int bytoff, bitoff;
 	int unit;
 
-	ifc = if_clone_lookup(name, &unit);
-	if (ifc == NULL)
-		return (EINVAL);
-
-	if (unit < ifc->ifc_minifs)
-		return (EINVAL);
-
 	ifp = ifunit(name);
 	if (ifp == NULL)
 		return (ENXIO);
+
+	unit = ifp->if_dunit;
+
+	ifc = if_clone_lookup(ifp->if_dname, NULL);
+	if (ifc == NULL)
+		return (EINVAL);
 
 	if (ifc->ifc_destroy == NULL)
 		return (EOPNOTSUPP);
@@ -1226,25 +1229,11 @@ if_slowtimo(void *arg)
 struct ifnet *
 ifunit(const char *name)
 {
-	char namebuf[IFNAMSIZ + sizeof("net")];	/* XXX net_cdevsw.d_name */
 	struct ifnet *ifp;
-	dev_t dev;
 
-	/*
-	 * Now search all the interfaces for this name/number
-	 */
-
-	/*
-	 * XXX
-	 * Devices should really be known as /dev/fooN, not /dev/net/fooN.
-	 */
-	snprintf(namebuf, sizeof(namebuf), "%s/%s", net_cdevsw.d_name, name);
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		dev = ifdev_byindex(ifp->if_index);
-		if (strcmp(devtoname(dev), namebuf) == 0)
-			break;
-		if (dev_named(dev, name))
+		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
 			break;
 	}
 	IFNET_RUNLOCK();
@@ -1287,6 +1276,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	struct ifstat *ifs;
 	int error = 0;
 	int new_flags;
+	size_t namelen, onamelen;
+	char new_name[IFNAMSIZ];
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -1368,6 +1361,46 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = mac_ioctl_ifnet_set(td->td_ucred, ifr, ifp);
 		break;
 #endif
+
+	case SIOCSIFNAME:
+		error = suser(td);
+		if (error)
+			return (error);
+		error = copyinstr(ifr->ifr_data, new_name, IFNAMSIZ, NULL);
+		if (error)
+			return (error);
+		if (ifunit(new_name) != NULL)
+			return (EEXIST);
+		
+		/* Announce the departure of the interface. */
+		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+
+		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		IFA_LOCK(ifa);
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		namelen = strlen(new_name);
+		onamelen = sdl->sdl_nlen;
+		/*
+		 * Move the address if needed.  This is safe because we
+		 * allocate space for a name of length IFNAMSIZ when we
+		 * create this in if_attach().
+		 */
+		if (namelen != onamelen) {
+			bcopy(sdl->sdl_data + onamelen,
+			    sdl->sdl_data + namelen, sdl->sdl_alen);
+		}
+		bcopy(new_name, sdl->sdl_data, namelen);
+		sdl->sdl_nlen = namelen;
+		sdl = (struct sockaddr_dl *)ifa->ifa_netmask;
+		bzero(sdl->sdl_data, onamelen);
+		while (namelen != 0)
+			sdl->sdl_data[--namelen] = 0xff;
+		IFA_UNLOCK(ifa);
+
+		/* Announce the return of the interface. */
+		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+		break;
 
 	case SIOCSIFMETRIC:
 		error = suser(td);
