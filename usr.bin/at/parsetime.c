@@ -103,6 +103,18 @@ struct {
     { "oct", OCT,0 },
     { "nov", NOV,0 },
     { "dec", DEC,0 },
+    { "january", JAN,0 },
+    { "february", FEB,0 },
+    { "march", MAR,0 },
+    { "april", APR,0 },
+    { "may", MAY,0 },
+    { "june", JUN,0 },
+    { "july", JUL,0 },
+    { "august", AUG,0 },
+    { "september", SEP,0 },
+    { "october", OCT,0 },
+    { "november", NOV,0 },
+    { "december", DEC,0 },
     { "sunday", SUN, 0 },
     { "sun", SUN, 0 },
     { "monday", MON, 0 },
@@ -131,7 +143,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.11 1997/06/24 06:26:32 charnier Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.12 1998/05/05 01:53:15 alex Exp $";
 
 /* Local functions */
 
