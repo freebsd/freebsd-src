@@ -87,6 +87,42 @@ struct	save87 {
 	u_char	sv_pad[64];	/* padding; used by emulators */
 };
 
+struct  envxmm {
+	u_int16_t	en_cw;		/* control word (16bits) */
+	u_int16_t	en_sw;		/* status word (16bits) */
+	u_int16_t	en_tw;		/* tag word (16bits) */
+	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
+	u_int32_t	en_fip;		/* floating point instruction pointer */
+	u_int16_t	en_fcs;		/* floating code segment selector */
+	u_int16_t	en_pad0;	/* padding */
+	u_int32_t	en_foo;		/* floating operand offset */
+	u_int16_t	en_fos;		/* floating operand segment selector */
+	u_int16_t	en_pad1;	/* padding */
+	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
+	u_int32_t	en_pad2;	/* padding */
+};
+
+/* Contents of each SSE extended accumulator */
+struct  xmmacc {
+	u_char	xmm_bytes[16];
+};
+
+struct  savexmm {
+	struct	envxmm	sv_env;
+	struct {
+		struct fpacc87	fp_acc;
+		u_char		fp_pad[6];      /* padding */
+	} sv_fp[8];
+	struct xmmacc	sv_xmm[8];
+	u_long sv_ex_sw;	/* status word for last exception */
+	u_char sv_pad[220];
+} __attribute__((aligned(16)));
+
+union	savefpu {
+	struct	save87	sv_87;
+	struct	savexmm	sv_xmm;
+};
+
 /*
  * The hardware default control word for i387's and later coprocessors is
  * 0x37F, giving:
@@ -114,7 +150,7 @@ extern struct proc *npxproc;
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));
 void	npxinit __P((int control));
-void	npxsave __P((struct save87 *addr));
+void	npxsave __P((union savefpu *addr));
 #endif
 
 #endif /* !_MACHINE_NPX_H_ */

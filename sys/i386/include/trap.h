@@ -65,7 +65,8 @@
 #define	T_SEGNPFLT	26	/* segment not present fault */
 #define	T_STKFLT	27	/* stack fault */
 #define	T_MCHK		28	/* machine check trap */
-#define	T_RESERVED	29	/* reserved (unknown) */
+#define	T_XMMFLT	29	/* SIMD floating-point exception */
+#define	T_RESERVED	30	/* reserved (unknown) */
 
 /* XXX most of the following codes aren't used, but could be. */
 

@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -61,7 +62,13 @@ static void init_6x86(void);
 static void	init_6x86MX(void);
 static void	init_ppro(void);
 static void	init_mendocino(void);
+void	enable_sse(void);
 #endif
+
+int	hw_instruction_sse = 0;
+SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
+	   &hw_instruction_sse, 0,
+	   "SIMD/MMX2 instructions available in CPU");
 
 #ifdef I486_CPU
 /*
@@ -501,6 +508,20 @@ init_mendocino(void)
 #endif /* CPU_PPRO2CELERON */
 }
 	
+/*
+ * Initialize CR4 (Control register 4) to enable SSE instructions.
+ */
+void
+enable_sse(void)
+{
+#if defined(CPU_ENABLE_SSE)
+	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
+		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
+		cpu_fxsr = hw_instruction_sse = 1;
+	}
+#endif
+}
+
 #endif /* I686_CPU */
 
 void
@@ -550,6 +571,9 @@ initializecpu(void)
 	default:
 		break;
 	}
+#ifdef I686_CPU
+	enable_sse();
+#endif
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*

@@ -35,6 +35,7 @@
  * $FreeBSD$
  */
 
+#include "opt_cpu.h"
 #include "opt_debug_npx.h"
 #include "opt_math_emulate.h"
 #include "opt_npx.h"
@@ -101,6 +102,8 @@
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
+#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
+#define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -116,10 +119,22 @@ void	fnstcw		__P((caddr_t addr));
 void	fnstsw		__P((caddr_t addr));
 void	fp_divide_by_0	__P((void));
 void	frstor		__P((caddr_t addr));
+void	fxsave		__P((caddr_t addr));
+void	fxrstor		__P((caddr_t addr));
 void	start_emulating	__P((void));
 void	stop_emulating	__P((void));
 
 #endif	/* __GNUC__ */
+
+#ifdef CPU_ENABLE_SSE
+#define GET_FPU_EXSW_PTR(pcb) \
+	(cpu_fxsr ? \
+		&(pcb)->pcb_save.sv_xmm.sv_ex_sw : \
+		&(pcb)->pcb_save.sv_87.sv_ex_sw)
+#else /* CPU_ENABLE_SSE */
+#define GET_FPU_EXSW_PTR(pcb) \
+	(&(pcb)->pcb_save.sv_87.sv_ex_sw)
+#endif /* CPU_ENABLE_SSE */
 
 typedef u_char bool_t;
 
@@ -128,6 +143,8 @@ static	int	npx_attach	__P((device_t dev));
 static	void	npx_identify	__P((driver_t *driver, device_t parent));
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
+static	void	fpusave		__P((union savefpu *));
+static	void	fpurstor	__P((union savefpu *));
 #ifdef I586_CPU
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
@@ -524,7 +541,7 @@ void
 npxinit(control)
 	u_short control;
 {
-	struct save87 dummy;
+	static union savefpu dummy;
 
 	if (!npx_exists)
 		return;
@@ -537,7 +554,7 @@ npxinit(control)
 	stop_emulating();
 	fldcw(&control);
 	if (curpcb != NULL)
-		fnsave(&curpcb->pcb_savefpu);
+		fpusave(&curpcb->pcb_save);
 	start_emulating();
 }
 
@@ -550,13 +567,13 @@ npxexit(p)
 {
 
 	if (p == npxproc)
-		npxsave(&curpcb->pcb_savefpu);
+		npxsave(&curpcb->pcb_save);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
 
-		masked_exceptions = curpcb->pcb_savefpu.sv_env.en_cw
-				    & curpcb->pcb_savefpu.sv_env.en_sw & 0x7f;
+		masked_exceptions = curpcb->pcb_save.sv_87.sv_env.en_cw
+				    & curpcb->pcb_save.sv_87.sv_env.en_sw & 0x7f;
 		/*
 		 * Log exceptions that would have trapped with the old
 		 * control word (overflow, divide by 0, and invalid operand).
@@ -764,6 +781,7 @@ npx_intr(dummy)
 	int code;
 	u_short control;
 	struct intrframe *frame;
+	u_long *exstat;
 
 	if (npxproc == NULL || !npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
@@ -776,12 +794,13 @@ npx_intr(dummy)
 		panic("npxintr from non-current process");
 	}
 
+	exstat = GET_FPU_EXSW_PTR(curpcb);
 #ifdef PC98
 	outb(0xf8, 0);	
 #else
 	outb(0xf0, 0);
 #endif
-	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
+	fnstsw(exstat);
 	fnstcw(&control);
 	fnclex();
 
@@ -807,8 +826,7 @@ npx_intr(dummy)
 		 * this exception.
 		 */
 		code = 
-		    fpetable[(curpcb->pcb_savefpu.sv_ex_sw & ~control & 0x3f) |
-			(curpcb->pcb_savefpu.sv_ex_sw & 0x40)];
+		    fpetable[(*exstat & ~control & 0x3f) | (*exstat & 0x40)];
 		trapsignal(curproc, SIGFPE, code);
 	} else {
 		/*
@@ -839,6 +857,8 @@ npx_intr(dummy)
 int
 npxdna()
 {
+	u_long *exstat;
+
 	if (!npx_exists)
 		return (0);
 	if (npxproc != NULL) {
@@ -851,7 +871,8 @@ npxdna()
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	npxproc = curproc;
-	curpcb->pcb_savefpu.sv_ex_sw = 0;
+	exstat = GET_FPU_EXSW_PTR(curpcb);
+	*exstat = 0;
 	/*
 	 * The following frstor may cause an IRQ13 when the state being
 	 * restored has a pending error.  The error will appear to have been
@@ -864,7 +885,7 @@ npxdna()
 	 * fnsave are broken, so our treatment breaks fnclex if it is the
 	 * first FPU instruction after a context switch.
 	 */
-	frstor(&curpcb->pcb_savefpu);
+	fpurstor(&curpcb->pcb_save);
 
 	return (1);
 }
@@ -879,17 +900,18 @@ npxdna()
  */
 void
 npxsave(addr)
-	struct save87 *addr;
+	union savefpu *addr;
 {
-#ifdef SMP
+#if defined(SMP) || defined(CPU_ENABLE_SSE)
 
 	stop_emulating();
-	fnsave(addr);
+	fpusave(addr);
+
 	/* fnop(); */
 	start_emulating();
 	npxproc = NULL;
 
-#else /* SMP */
+#else /* SMP or CPU_ENABLE_SSE */
 
 	u_char	icu1_mask;
 	u_char	icu2_mask;
@@ -942,6 +964,28 @@ npxsave(addr)
 	enable_intr();		/* back to usual state */
 
 #endif /* SMP */
+}
+
+static void
+fpusave(addr)
+      union savefpu *addr;
+{
+
+	if (!cpu_fxsr)
+		fnsave(addr);
+	else
+		fxsave(addr);
+}
+
+static void
+fpurstor(addr)
+      union savefpu *addr;
+{
+
+	if (!cpu_fxsr)
+		frstor(addr);
+	else
+		fxrstor(addr);
 }
 
 #ifdef I586_CPU
