@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.27 1998/03/03 22:56:28 tegge Exp $
+ *	$Id: apic_vector.s,v 1.28 1998/03/05 21:45:53 tegge Exp $
  */
 
 
@@ -372,11 +372,12 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 1: ;						/* active */		\
 	APIC_ITRACE(apic_itrace_active, irq_num, APIC_ITRACE_ACTIVE) ;	\
+	MASK_IRQ(irq_num) ;						\
+	EOI_IRQ(irq_num) ;						\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
-	MASK_IRQ(irq_num) ;						\
-	EOI_IRQ(irq_num) ;						\
+	lock ;								\
 	btsl	$(irq_num), iactive ;		/* still active */	\
 	jnc	0b ;				/* retry */		\
 	POP_FRAME ;							\
@@ -477,11 +478,12 @@ __CONCAT(Xresume,irq_num): ;						\
 	ALIGN_TEXT ;							\
 1: ;						/* active  */		\
 	APIC_ITRACE(apic_itrace_active, irq_num, APIC_ITRACE_ACTIVE) ;	\
+	MASK_IRQ(irq_num) ;						\
+	EOI_IRQ(irq_num) ;						\
 	AVCPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
 	AVCPL_UNLOCK ;							\
-	MASK_IRQ(irq_num) ;						\
-	EOI_IRQ(irq_num) ;						\
+	lock ;								\
 	btsl	$(irq_num), iactive ;		/* still active */	\
 	jnc	0b ;				/* retry */		\
 	POP_FRAME ;							\
@@ -662,7 +664,6 @@ _Xcpuast:
 	movl	_cpl, %eax
 #endif
 	pushl	%eax
-	lock
 	orl	$SWI_AST_PENDING, _ipending
 	AVCPL_UNLOCK
 	lock
