@@ -293,6 +293,7 @@ main(int argc, char **argv)
 			bsdtar->option_stdout = 1;
 			break;
 		case 'o': /* SUSv2; note that GNU -o conflicts */
+			bsdtar->option_no_owner = 1;
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* -l in GNU tar */
@@ -409,6 +410,12 @@ main(int argc, char **argv)
 		only_mode(bsdtar, mode, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
 		only_mode(bsdtar, mode, "--nodump", "cru");
+	if (bsdtar->option_no_owner) {
+		only_mode(bsdtar, mode, "-o", "xc");
+		/* Warn about nonsensical -co combination, but ignore it. */
+		if (mode == 'c')
+			bsdtar_warnc(bsdtar, 0, "-o is incompatible with -c");
+	}
 	if (bsdtar->option_no_subdirs)
 		only_mode(bsdtar, mode, "-n", "cru");
 	if (bsdtar->option_stdout)
