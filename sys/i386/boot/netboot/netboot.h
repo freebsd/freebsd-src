@@ -22,7 +22,7 @@ Author: Martin Renters
 #define ESC		0x1B
 
 #ifndef DEFAULT_BOOTFILE
-#define DEFAULT_BOOTFILE	"kernel"
+#define DEFAULT_BOOTFILE	"/kernel"
 #endif
 
 #ifndef MAX_TFTP_RETRIES
