@@ -1,7 +1,11 @@
 # $FreeBSD$
 
 # BIND version number
-CFLAGS+=	-DVERSION='"9.3.0"'
+.if defined(BIND_DIR) && exists(${BIND_DIR}/version)
+.include	"${BIND_DIR}/version"
+BIND_VERSION=	${MAJORVER}.${MINORVER}.${PATCHVER}${RELEASETYPE}${RELEASEVER}
+CFLAGS+=	-DVERSION='"${BIND_VERSION}"'
+.endif
 
 CFLAGS+=	-DHAVE_CONFIG_H
 
