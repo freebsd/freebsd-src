@@ -44,7 +44,7 @@ set damage 0
 set changes 0
 
 source $argv
-exec sh -c "date -u '+%y%m%d%H%M%S $argv'" >> ${CTMSW}/log
+exec sh -c "date -u '+%Y%m%d%H%M%S $argv'" >> ${CTMSW}/log
 
 if {$CTMtmp == ""} {
     set CTMtmp $CTMSW/../tmp/${CTMname}_${CTMsuff}
