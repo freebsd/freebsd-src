@@ -1830,7 +1830,7 @@ pmap_collect()
 	for(i = 0; i < vm_page_array_size; i++) {
 		m = &vm_page_array[i];
 		if (m->wire_count || m->hold_count || m->busy ||
-		    (m->flags & PG_BUSY))
+		    (m->flags & (PG_BUSY | PG_UNMANAGED)))
 			continue;
 		pmap_remove_all(m);
 	}
