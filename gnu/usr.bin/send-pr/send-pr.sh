@@ -133,7 +133,7 @@ MACHINE=`[ -f /bin/machine ] && /bin/machine`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
 USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [-s severity]
-       [-c address] [--version]"
+       [-c address] [-a file] [--version]"
 REMOVE=
 BATCH=
 CC=
@@ -357,6 +357,8 @@ X-GNATS-Notify:
 >Fix:
 
 	$FIX_C
+$ATTACHED_FILES
+
 __EOF__
 
     done
