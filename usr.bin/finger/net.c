@@ -116,7 +116,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 	struct iovec iov[3];
 	struct msghdr msg;
 	static char slash_w[] = "/W ";
-	static char neteol[] = "\n\r";
+	static char neteol[] = "\r\n";
 
 	s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 	if (s < 0) {
