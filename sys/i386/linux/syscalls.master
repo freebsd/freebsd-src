@@ -202,7 +202,7 @@
 129	STD	LINUX	{ int linux_delete_module(void); }
 130	STD	LINUX	{ int linux_get_kernel_syms(void); }
 131	STD	LINUX	{ int linux_quotactl(void); }
-132	STD	LINUX	{ int linux_getpgid(l_pid_t pid); }
+132	NOPROTO	LINUX	{ int getpgid(int pid); }
 133	NOPROTO	LINUX	{ int fchdir(int fd); }
 134	STD	LINUX	{ int linux_bdflush(void); }
 135	STD	LINUX	{ int linux_sysfs(l_int option, l_ulong arg1, \
