@@ -43,10 +43,9 @@
 #define FLAGS_IN_SCHEDQ	\
 	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
 
-#pragma weak	_exit=__exit
 #pragma weak	pthread_exit=_pthread_exit
 
-void __exit(int status)
+void _exit(int status)
 {
 	int		flags;
 	int             i;
@@ -79,7 +78,7 @@ void __exit(int status)
 	}
 
 	/* Call the _exit syscall: */
-	__sys__exit(status);
+	__sys_exit(status);
 }
 
 void
@@ -104,7 +103,7 @@ _thread_exit(char *fname, int lineno, char *string)
 #if defined(_PTHREADS_INVARIANTS)
 	abort();
 #else
-	_exit(1);
+	__sys_exit(1);
 #endif
 }
 

@@ -1281,8 +1281,8 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 
-/* #include <aio.h> */
-#ifdef _AIO_H_
+/* #include <sys/aio.h> */
+#ifdef _SYS_AIO_H_
 int	__sys_aio_suspend(const struct aiocb **, int, const struct timespec);
 #endif
 
@@ -1349,7 +1349,7 @@ int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 long    __sys_fpathconf(int, int);
 ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
-void	__sys__exit(int);
+void	__sys_exit(int);
 #endif
 
 /* #include <fcntl.h> */
