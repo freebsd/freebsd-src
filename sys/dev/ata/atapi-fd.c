@@ -91,9 +91,12 @@ afdattach(struct atapi_softc *atp)
 	ata_printf(atp->controller, atp->unit, "out of memory\n");
 	return -1;
     }
-    bioq_init(&fdp->queue);
+
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
+    sprintf(name, "afd%d", fdp->lun);
+    ata_set_name(atp->controller, atp->unit, name);
+    bioq_init(&fdp->queue);
 
     if (afd_sense(fdp)) {
 	free(fdp, M_AFD);
@@ -114,8 +117,6 @@ afdattach(struct atapi_softc *atp)
     fdp->dev = dev;
     fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     fdp->atp->driver = fdp;
-    sprintf(name, "afd%d", fdp->lun);
-    ata_set_name(atp->controller, atp->unit, name);
     afd_describe(fdp);
     return 0;
 }

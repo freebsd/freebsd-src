@@ -98,14 +98,19 @@ astattach(struct atapi_softc *atp)
 	cdevsw_add(&ast_cdevsw);
 	ast_cdev_done = 1;
     }
+
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
 	ata_printf(atp->controller, atp->unit, "out of memory\n");
 	return -1;
     }
-    bioq_init(&stp->queue);
+
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
+    sprintf(name, "ast%d", stp->lun);
+    ata_set_name(atp->controller, atp->unit, name);
+    bioq_init(&stp->queue);
+
     if (ast_sense(stp)) {
 	free(stp, M_AST);
 	return -1;
@@ -127,6 +132,7 @@ astattach(struct atapi_softc *atp)
 	ast_mode_select(stp, &identify, sizeof(identify));
 	ast_read_position(stp, 0, &position);
     }
+
     devstat_add_entry(&stp->stats, "ast", stp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
@@ -143,8 +149,6 @@ astattach(struct atapi_softc *atp)
     stp->dev2 = dev;
     stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     stp->atp->driver = stp;
-    sprintf(name, "ast%d", stp->lun);
-    ata_set_name(atp->controller, atp->unit, name);
     ast_describe(stp);
     return 0;
 }

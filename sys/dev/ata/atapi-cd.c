@@ -119,6 +119,9 @@ acdattach(struct atapi_softc *atp)
 	return -1;
     }
 
+    sprintf(name, "acd%d", cdp->lun);
+    ata_set_name(atp->controller, atp->unit, name);
+
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
 	if (!(error = acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
@@ -182,6 +185,8 @@ acdattach(struct atapi_softc *atp)
 	    }
 	    sprintf(name, "acd%d-%d", cdp->lun, 
 		    cdp->lun + cdp->changer_info->slots - 1);
+	    ata_free_name(atp->controller, atp->unit);
+	    ata_set_name(atp->controller, atp->unit, name);
 	    devstat_add_entry(cdp->stats, name, tmpcdp->lun, DEV_BSIZE,
 			      DEVSTAT_NO_ORDERED_TAGS,
 			      DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
@@ -194,8 +199,6 @@ acdattach(struct atapi_softc *atp)
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
-       	sprintf(name, "acd%d", cdp->lun);
-	ata_set_name(atp->controller, atp->unit, name);
     }
     cdp->atp->driver = cdp;
     acd_describe(cdp);
@@ -318,7 +321,7 @@ acd_describe(struct acd_softc *cdp)
 		   device_get_unit(cdp->atp->controller->dev),
 		   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave");
 
-	ata_printf(cdp->atp->controller, cdp->atp->unit, "");
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "%s", "");
 	if (cdp->cap.cur_read_speed) {
 	    printf("read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
 	    if (cdp->cap.max_read_speed) 
