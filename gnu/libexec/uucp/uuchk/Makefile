@@ -1,5 +1,5 @@
 # Makefile for uuchk
-# $FreeBSD$
+# $Id$
 
 BINDIR=		$(sbindir)
 

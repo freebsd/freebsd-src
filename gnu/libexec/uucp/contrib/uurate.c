@@ -84,6 +84,15 @@
  *        get knowledge of
  */
 /* $Log: uurate.c,v $
+ * Revision 1.5  1997/01/14 05:48:22  jkh
+ * Make the long-awaited change from $Id$ to $Id$
+ *
+ * This will make a number of things easier in the future, as well as (finally!)
+ * avoiding the Id-smashing problem which has plagued developers for so long.
+ *
+ * Boy, I'm glad we're not using sup anymore.  This update would have been
+ * insane otherwise.
+ *
  * Revision 1.4  1995/08/19 21:24:38  ache
  * Commit delta: current -> 1.06 + FreeBSD configuration
  *
@@ -142,7 +151,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"

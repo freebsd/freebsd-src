@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_fresys_rcsid[] = "$FreeBSD$";
+const char _uuconf_fresys_rcsid[] = "$Id$";
 #endif
 
 /* Free the memory allocated for a system.  */
