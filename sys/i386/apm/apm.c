@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.73 1998/07/06 06:29:03 imp Exp $
+ *	$Id: apm.c,v 1.74 1998/09/28 03:41:12 jlemon Exp $
  */
 
 #include "opt_devfs.h"
@@ -29,6 +29,7 @@
 #endif /*DEVFS*/
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/reboot.h>
 #include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
@@ -245,12 +246,13 @@ apm_display(int newstate)
 /*
  * Turn off the entire system.
  */
-void
-apm_power_off(void)
+static void
+apm_power_off(int howto, void *junk)
 {
 	u_long eax, ebx, ecx, edx;
 
-	if (!apm_softc.active)
+	/* Not halting, or not active */
+	if (!(howto & RB_HALT) || !apm_softc.active)
 		return;
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
@@ -902,6 +904,9 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	apm_event_enable();
+
+	/* Power the system off using APM */
+	at_shutdown_pri(apm_power_off, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_LAST);
 
 	sc->initialized = 1;
 

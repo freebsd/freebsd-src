@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.76 1998/09/15 10:07:26 gibbs Exp $
+ * $Id: systm.h,v 1.77 1998/10/09 01:44:09 msmith Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -267,10 +267,14 @@ int	rm_at_fork __P((forklist_fn function));
 #define	SHUTDOWN_PRE_SYNC	0
 #define	SHUTDOWN_POST_SYNC	1
 #define	SHUTDOWN_FINAL		2
+#define	SHUTDOWN_PRI_FIRST	0
+#define	SHUTDOWN_PRI_DEFAULT	10000
+#define	SHUTDOWN_PRI_LAST	20000
 
 typedef void (*bootlist_fn) __P((int, void *));
 
 int	at_shutdown __P((bootlist_fn function, void *arg, int position));
+int	at_shutdown_pri __P((bootlist_fn function, void *arg, int position, int pri));
 int	rm_at_shutdown __P((bootlist_fn function, void *arg));
 
 /*
