@@ -296,18 +296,17 @@ s_read(struct indir *ip, off_t offset)
 
 /*
  * Write a given sector, prune the tree if the value is 0
- * If the new value is different from the old, return the old value.
  */
 
 static int
-s_write(struct indir *ip, off_t offset, uintptr_t ptr, uintptr_t *old)
+s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 {
 	struct indir *cip, *lip[10];
 	int idx, li;
 	uintptr_t up;
 
 	if (md_debug > 1)
-		printf("s_write(%lld, %p, %p)\n", offset, (void *)ptr, old);
+		printf("s_write(%lld, %p)\n", offset, (void *)ptr);
 	up = 0;
 	li = 0;
 	cip = ip;
@@ -333,8 +332,6 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr, uintptr_t *old)
 		/* leafnode */
 		idx = offset & NMASK;
 		up = cip->array[idx];
-		if (old != NULL && up != ptr)
-			*old = up;
 		if (up != 0)
 			cip->used--;
 		cip->array[idx] = ptr;
@@ -415,18 +412,19 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 	dst = bp->bio_data;
 	error = 0;
 	while (nsec--) {
-		osp = 0;
+		osp = s_read(sc->indir, secno);
 		if (bp->bio_cmd == BIO_DELETE) {
-			error = s_write(sc->indir, secno, 0, &osp);
+			if (osp != 0)
+				error = s_write(sc->indir, secno, 0);
 		} else if (bp->bio_cmd == BIO_READ) {
-			sp = s_read(sc->indir, secno);
-			if (sp == 0)
+			if (osp == 0)
 				bzero(dst, sc->secsize);
-			else if (sp <= 255)
+			else if (osp <= 255)
 				for (i = 0; i < sc->secsize; i++)
-					dst[i] = sp;
+					dst[i] = osp;
 			else
-				bcopy((void *)sp, dst, sc->secsize);
+				bcopy((void *)osp, dst, sc->secsize);
+			osp = 0;
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
 				uc = dst[0];
@@ -438,18 +436,20 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 				uc = 0;
 			}
 			if (i == sc->secsize) {
-				error = s_write(sc->indir, secno, uc, &osp);
+				if (osp != uc)
+					error = s_write(sc->indir, secno, uc);
 			} else {
-				sp = s_read(sc->indir, secno);
-				if (sp <= 255)
+				if (osp <= 255) {
 					sp = (uintptr_t) uma_zalloc(
 					    sc->uma, M_NOWAIT);
-				if (sp == 0) {
-					error = ENOMEM;
+					if (sp == 0) {
+						error = ENOSPC;
+						break;
+					}
+					error = s_write(sc->indir, secno, sp);
 				} else {
-					bcopy(dst, (void *)sp, sc->secsize);
-					error = s_write(sc->indir, secno, 
-					    sp, &osp);
+					bcopy(dst, (void *)osp, sc->secsize);
+					osp = 0;
 				}
 			}
 		} else {
@@ -726,7 +726,7 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		for (u = 0; u < sc->nsect; u++) {
 			sp = (uintptr_t) uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
 			if (sp != 0)
-				error = s_write(sc->indir, u, sp, NULL);
+				error = s_write(sc->indir, u, sp);
 			else
 				error = ENOMEM;
 			if (error)
