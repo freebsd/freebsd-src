@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.23 1995/05/30 08:13:09 rgrimes Exp $
+**  $Id: pci.c,v 1.24 1995/06/28 15:59:04 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1516,7 +1516,7 @@ void not_supported (pcici_t tag, u_long type)
 	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
 		printf(", class=%s", majclasses[data]);
 
-	printf (" [not supported]\n");
+	printf (" [no driver assigned]\n");
 
 	for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
 		data = pcibus->pb_read (tag, reg);
