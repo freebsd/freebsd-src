@@ -341,14 +341,14 @@ mmap(td, uap)
 		 * permission although we opened it without asking
 		 * for it, bail out.
 		 */
-		if ((flags & MAP_SHARED) != 0 || vp->v_type == VCHR) {
+		if ((flags & MAP_SHARED) != 0) {
 			if ((fp->f_flag & FWRITE) != 0) {
 				maxprot |= VM_PROT_WRITE;
 			} else if ((prot & PROT_WRITE) != 0) {
 				error = EACCES;
 				goto done;
 			}
-		} else {
+		} else if (vp->v_type != VCHR || (fp->f_flag & FWRITE) != 0) {
 			maxprot |= VM_PROT_WRITE;
 		}
 		handle = (void *)vp;
@@ -1113,6 +1113,11 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		/*
 		 * cdevs does not provide private mappings of any kind.
 		 */
+		if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+		    (prot & PROT_WRITE) != 0) {
+			error = EACCES;
+			goto done;
+		}
 		/*
 		 * However, for XIG X server to continue to work,
 		 * we should allow the superuser to do it anyway.
