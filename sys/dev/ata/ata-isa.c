@@ -64,7 +64,7 @@ ata_isa_lock(struct ata_channel *ch, int type)
 static void
 ata_isa_setmode(struct ata_device *atadev, int mode)
 {
-    atadev->mode = min(mode, ATA_PIO_MAX);
+    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 }
 
 static int
