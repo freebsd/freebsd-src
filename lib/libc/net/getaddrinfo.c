@@ -1460,7 +1460,7 @@ _dns_getaddrinfo(pai, hostname, res)
 		free(buf2);
 		return EAI_NODATA;
 	}
-	ai = getanswer(&buf, q.n, q.name, q.qtype, pai);
+	ai = getanswer(buf, q.n, q.name, q.qtype, pai);
 	if (ai) {
 		cur->ai_next = ai;
 		while (cur && cur->ai_next)
