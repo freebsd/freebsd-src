@@ -123,7 +123,7 @@ ofwd_open(dev_t dev, int flags, int fmt, struct thread *td)
 	sc->ofwd_disk.d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
 	/* XXX: probably don't need the next two */
 	sc->ofwd_disk.d_fwsectors = 33554432;
-	sc->ofwd_disk.d_fwheads = 1
+	sc->ofwd_disk.d_fwheads = 1;
 
 	sc->ofwd_flags |= OFWD_OPEN;
 	return (0);
