@@ -116,3 +116,25 @@ If the clustering code wants to widen a request which writes to
 sector#53 of the slice, it can calculate how many bytes till the end of
 the stripe as:
 	stripewith - (53 * sectorsize + stripeoffset) % stripewidth.
+-----------------------------------------------------------------------
+
+#include file usage:
+
+                 geom.h|geom_int.h|geom_ext.h|geom_ctl.h|libgeom.h
+----------------+------+----------+----------+----------+--------+
+geom class      |      |          |          |          |        |
+implementation  |   X  |          |          |          |        |
+----------------+------+----------+----------+----------+--------+
+geom kernel     |      |          |          |          |        |
+infrastructure  |   X  |      X   |  X       |    X     |        |
+----------------+------+----------+----------+----------+--------+
+libgeom         |      |          |          |          |        |
+implementation  |      |          |  X       |    X     |  X     |
+----------------+------+----------+----------+----------+--------+
+geom aware      |      |          |          |          |        |
+application     |      |          |          |    X     |  X     |
+----------------+------+----------+----------+----------+--------+
+
+geom_slice.h is special in that it documents a "library" for implementing
+a specific kind of class, and consequently does not appear in the above
+matrix.
