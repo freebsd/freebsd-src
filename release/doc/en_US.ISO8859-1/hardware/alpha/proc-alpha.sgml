@@ -42,6 +42,11 @@
       Compaq used more or less interchangeably. Now that Compaq has acquired 
       Digital Equipment it would be more correct to refer to Compaq only.</para>
     </note>
+
+    <note>
+      <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
+      Lower case input is also acceptible to SRM.
+    </note>
   </sect2>
 
   <sect2>
@@ -370,10 +375,8 @@
       <para>The kernel configuration file for a NoName kernel must
       contain:</para>
 
-      <programlisting>
-	options	DEC_AXPPCI_33           
-	cpu	EV4
-      </programlisting>
+      <programlisting>options	DEC_AXPPCI_33           
+cpu	EV4</programlisting>
 
     </sect3>
 
@@ -494,9 +497,7 @@
       kernel configuration file as follows for the Crystal CS4231
       chip:</para>
 
-      <programlisting>
-        device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15
-      </programlisting>
+      <programlisting>device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15</programlisting>
 
       <para>I have not yet been successful in getting my Multia with
       the AD1848 to play any sound.</para>
@@ -544,12 +545,10 @@
       the connector. Something to check before buying one.</para>
 
       <para>The kernel configuration file for a Multia kernel must
-      contain:</para>
+      contain:
 
-      <programlisting>
-	options	DEC_AXPPCI_33
-	cpu	EV4
-      </programlisting>
+      <programlisting>options	DEC_AXPPCI_33
+cpu	EV4</programlisting></para>
 
       <para>Recommended reading on Multia can be found at 
       <ulink url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
@@ -581,8 +580,8 @@
       in general systems are named like PWS[433,500,600]a[u].
 
       <para>There was also a Miata model with a special CPU cooling
-      system by Kryotech. The Kryotech has a special cooling system in a 
-      different enclosure.</para>
+      system by Kryotech. The Kryotech has a special cooling system 
+      and is housed in a different enclosure.</para>
 
       <para>Features:
         <itemizedlist>
@@ -691,33 +690,31 @@
 
       <para>The complete command is:
 
-        <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
-      </para>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen></para>
 
-      <para>For example:</para>
+      <para>For example:
 
-<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override 88c15333</userinput></screen>
+<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE 88c15333</userinput></screen></para>
 
-      <para>The most radical approach is to use:</para>
+      <para>The most radical approach is to use:
 
-<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override -1</userinput></screen>
+<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE -1</userinput></screen></para>
 
       <para>This disables PCI ID checking altogether, so that you
       can install any PCI card without its ID getting
       checked. For this to work you need a reasonable current SRM version.
-      <caution><para>Do this on your own risk.</para></caution></para>
+      <important><para>Do this on your own risk.</para></important></para>
 
       <para>The kernel reports it when it sees a buggy Pyxis chip:
 <screen>Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
 Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
-Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen>
-      </para>
+Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen></para>
+
       <para>A MiataGL probes as:
-A
 <screen>Jan  3 12:22:32 miata /kernel: cia0: Pyxis, pass 1
 Jan  3 12:22:32 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
-Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen>
-      </para>
+Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen></para>
+
       <para>MiataGL does not have the DMA problems of the MX5. PCI
       cards that make the MX5 SRM choke when installed in the 64bit
       slots are accepted without problems by the MiataGL SRM.</para>
@@ -747,10 +744,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
       putting
-      <programlisting>
-	device pcm0
-	device sbc0
-      </programlisting>
+      <programlisting>	device	pcm0
+	device	sbc0</programlisting>
       in your kernel configuration file.</para>
 
       <para>in case your Miata has the optional cache board
@@ -769,27 +764,25 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
       <para>If you experience SRM errors like 
 
-      <screen>ERROR:  scancode 0xa3 not supported on PCXAL</screen> 
+      <screen>ERROR: scancode 0xa3 not supported on PCXAL</screen> 
 
       after halting &os; you should update your SRM firmware to V7.2-1 or
       later. This SRM version is first available on the Firmware
       Update CD V5.7, or on <ulink
-      url="http://www.compaq.com/">http://www.compaq.com/</ulink> The
+      url="http://www.compaq.com/">http://www.compaq.com/</ulink> This SRM
       problem is fixed on both Miata MX5 and Miata GL.</para>
 
       <para>USB is supported by &os; 4.1 and later.</para>
 
       <para>Disconnect the power cord before dismantling the
       machine, the soft-power switch keeps part of the logic powered
-      even when the machine is switched off.</para>
+      <emphasis>even</emphasis> when the machine is switched off.</para>
 
       <para>The kernel configuration file for a Miata kernel must
       contain:
-      <programlisting>
-	options	DEC_ST550               
-	cpu	EV5
-      </programlisting></para>
 
+      <programlisting>options	DEC_ST550               
+cpu	EV5</programlisting></para>
     </sect3>
 
     <sect3>
@@ -1094,18 +1087,14 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
       <para>For the DEC3000/[4-9]00 series machines the kernel config
       file must contain:
-      <programlisting>
-	options	DEC_3000_500           
-	cpu	EV4
-      </programlisting>
+      <programlisting>options	DEC_3000_500           
+cpu	EV4</programlisting>
       </para>
 
       <para>For the DEC3000/300 (<quote>Pelican</quote>) machines the
       kernel config file must contain:
-      <programlisting>
-	options	DEC_3000_300            
-	cpu	EV4
-      </programlisting>
+      <programlisting>options	DEC_3000_300            
+cpu	EV4</programlisting>
       </para>
     </sect3>
 
@@ -1195,10 +1184,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       boot from.</para>
 
       <para>For the EB64+ class machines the kernel config file must contain:
-      <programlisting>
-	options         DEC_EB64PLUS            
-	cpu		EV4
-      </programlisting></para>
+      <programlisting>options         DEC_EB64PLUS            
+cpu		EV4</programlisting></para>
 
    </sect3>
 
@@ -1317,10 +1304,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
       <para>For the EB164 class machines the kernel config file must 
       contain:
-	<programlisting>
-          options         DEC_EB164
-          cpu             EV5
-        </programlisting></para>
+	<programlisting>options         DEC_EB164
+cpu             EV5</programlisting></para>
     </sect3>
 
     <sect3>
@@ -1337,18 +1322,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
         <para>21064 or 21064A CPU at speeds of 166 up to 333 MHz</para>
       </listitem>
       <listitem>
-        <para>DECchip 21071-AA (core logic chip-set) consisting of:
-	<itemizedlist>
-          <listitem>
-	    <para>Cache/memory controller (one 21071-CA chip)</para>
-	  </listitem>
-	  <listitem>
-            <para>PCI interface (one 21071-DA chip)</para>
-	  </listitem>
-	  <listitem>
-            <para>Data path (two 21071-BA chips)</para>
-	  </listitem>
-	</itemizedlist></para>
+        <para>DECchip 21071-AA core logic chip-set</para>
       </listitem>
       <listitem>
         <para>Bcache / L2 cache: 512 Kbytes (200 and 400 series) or 2048KBytes (250 series)</para>
@@ -1419,9 +1393,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
     <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
     you have the following line in your kernel config file:
-    <programlisting>
-      device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
-    </programlisting></para>
+    <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting></para>
 
     <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
     This means that as soon as you plug a cable onto the external SCSI 
@@ -1431,17 +1403,16 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
     <para>AlphaStation 400 series have an SRM variable that controls 
     termination. In case you have external SCSI devices connected you 
-    must set this SRM variable using &gt;&gt;&gt; 
-    <userinput> set control_scsi_term external
-    </userinput>. If only internal SCSI devices are present use: 
-    &gt;&gt;&gt;<userinput> set control_scsi_term internal</userinput></para>
+    must set this SRM variable using <prompt>&gt;&gt;&gt; </prompt>
+    <userinput> SET CONTROL_SCSI_TERM EXTERNAL</userinput>. 
+    If only internal SCSI devices are present use: 
+    <prompt>&gt;&gt;&gt;</prompt>
+    <userinput> SET CONTROL_SCSI_TERM INTERNAL</userinput></para>
 
     <para>For the AlphaStation-[24][05]00 machines the kernel config file 
     must contain:
-    <programlisting>
-	options	DEC_2100_A50
-	cpu	EV4
-    </programlisting></para>
+    <programlisting>options	DEC_2100_A50
+cpu	EV4</programlisting></para>
     </sect3>
 
     <sect3>
@@ -1463,19 +1434,29 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <listitem>
         <para>21171 or 21172 (Alcor) core logic chip-set</para>
       </listitem>
-      <listitem>
-        <para>cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
-	 4 Mb L3 / Bcache (AS600 at 300 MHz)
-	 2 or 8 Mb L3 / Bcache (8 Mb on 500 MHz version only)
-         2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)</para>
+      <listitem><para>Cache:
+        <itemizedlist>
+          <listitem>
+            <para>2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)</para>
+          </listitem>
+          <listitem>
+	    <para>4 Mb L3 / Bcache (AS600 at 300 MHz)</para>
+          </listitem>
+          <listitem>
+            <para>2 or 8 Mb L3 / Bcache (8 Mb on 500 MHz version only)</para>
+          </listitem>
+          <listitem>
+            <para>2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)</para>
+          </listitem>
+        </itemizedlist></para>
       </listitem>
       <listitem>
-        <para>memory bus: 256 bits
+        <para>memory buswidth: 256 bits
       </listitem>
       <listitem><para>AS500 memory:
 	  <itemizedlist>
 	    <listitem>
-	      <para>industry standard 8 byte wide buffered DIMMs</para>
+	      <para>industry standard 72 bit wide buffered DIMMs</para>
             </listitem>
             <listitem>
               <para>8 DIMM slots</para>
@@ -1559,8 +1540,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
     </para>
 
     <para>In AS500 DIMMs are installed in sets of 4, in 'physically 
-    interleaved' layout. So, a bank of 4 DIMMs is *not* 4 physically 
-    adjacent DIMMs!</para>
+    interleaved' layout. So, a bank of 4 DIMMs is <emphasis>not</emphasis>
+    4 physically adjacent DIMMs.</para>
 
     <para>In AS600 the memory SIMMs are placed onto two memory daughter 
     cards. SIMMs are installed in sets of 8. Both memory daughter cards must 
@@ -1570,7 +1551,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
     PCI expansion card containing the SCSI adapters) does not allow I/O port 
     mapping, therefore all devices behind it must use memory mapping. If you 
     have problems getting the Qlogic SCSI adapters to work, add the following 
-    option to /boot/loader.rc: 
+    option to <filename>/boot/loader.rc</filename>: 
 
     <programlisting>set isp_mem_map=0xff</programlisting> 
         
@@ -1579,104 +1560,127 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
 
     <para>For the AlphaStation-[56]00 machines the kernel config file 
     must contain:
-    <programlisting>
-	options	DEC_KN20AA 
-	cpu	EV5
-    </programlisting></para>
+    <programlisting>options	DEC_KN20AA 
+cpu	EV5</programlisting></para>
 
     </sect3>
 
     <sect3>
-      <title>AlphaServer 1000 (<quote>Mikasa</quote>), 1000A (<quote>Noritake</quote>) and 800</title>
+      <title>AlphaServer 1000 (<quote>Mikasa</quote>), 
+      1000A (<quote>Noritake</quote>) and 800</title>
 
-<programlisting>
-The AlphaServer 1000 and 800 range of machines is aimed as departmental servers.
-They come in quite some variations in packaging and mainboard/cpu. Generally
-speaking there are 21064 (EV4) CPU based machines and 21164 (EV5) based
-ones. The CPU is on a daughter card, and the type of CPU (EV4 or EV5) must
-match the mainboard in use. AlphaServer 800 is a much smaller mini tower
-case, it lacks the StorageWorks SCSI hot-plug chassis. The main difference
-between AS1000 and AS1000A is that AS1000A has 7 PCI slots whereas AS1000
-only has 3 PCI slots and has EISA slots instead. AS800 with an EV5/400 MHz
-CPU was later re-branded as a DIGITAL Server 3300[R], AS800 with an EV5/500 MHz
-CPU was later re-branded as a DIGITAL Server 3305[R].
+      <para>The AlphaServer 1000 and 800 range of machines are intended as 
+      departmental servers. They come in quite some variations in packaging 
+      and mainboard/cpu. Generally speaking there are 21064 (EV4) CPU based 
+      machines and 21164 (EV5) based ones. The CPU is on a daughter card, and 
+      the type of CPU (EV4 or EV5) must match the mainboard in use.</para>
 
-Features:
-- 21064 EV4[5] CPU at 200, 233 or 266 MHz
-  21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)
-- cache:
-- memory bus: 128 bit with ECC
-- memory:
-	AS1000[A]-systems:
-          Use 72pin 36 bit Fast Page Mode SIMMs, 70ns or better
-	  16 or 20 SIMM slots
-	  max memory is 1 Gb
-	  uses ECC
-	AS800:
-	  Uses SDRAM DIMMs.
-- embedded VGA (on some mainboard models)
-- expansion: 
-	3 PCI, 2 EISA, 1 64-bit PCI/EISA combo (AS800)
-  	7 PCI, 2 EISA (AS1000A)
- 	2 PCI, 1 EISA/PCI, 7 EISA (AS1000)
-- embedded SCSI based on Symbios 810 [AS1000] or Qlogic 1020 [AS1000A]
-	
-Box:
-AS1000 based machines come in multiple boxes. Floor standing, rack-mount,
-with or without StorageWorks SCSI chassis etc. The electronics are the
-same.
+      <para>AlphaServer 800 has a much smaller mini tower case, it lacks the 
+      StorageWorks SCSI hot-plug chassis. The main difference between AS1000 
+      and AS1000A is that AS1000A has 7 PCI slots whereas AS1000 only has 3 
+      PCI slots and has EISA slots instead.</para>
 
-Memory:
-  AS1000-systems:
-  All EV4 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets 
-  of 5. The fifth SIMM is used for ECC.
-  All EV5 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets 
-  of 4. The ECC is done based on the 4 extra bits per SIMM (4 bits out of 36).
-  The EV5 mainboards have 16 SIMM slots, the EV4 mainboards have 20 slots.
+      <para>AS800 with an EV5/400 MHz CPU was later re-branded to become a 
+      <quote>DIGITAL Server 3300[R]</quote>, AS800 with an EV5/500 MHz 
+      CPU was later re-branded to become a <quote>DIGITAL Server 3305[R]</quote>.
+      </para>
 
-  AS800:
-  Uses DIMMs in sets of 4. DIMM installation must start in slots marked 
-  bank 0. A bank is four physically adjacent slots. The biggest size DIMMs
-  must be installed in bank 0 in case 2 banks of different DIMM sizes are
-  used. Max memory size is 2Gb.
+      <para>Features:
+      <itemizedlist>
+       <listitem>
+        <para>21064 EV4[5] CPU at 200, 233 or 266 MHz
+        21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)</para>
+       </listitem>
+       <listitem>
+         <itemizedlist>
+          <listitem>
+           <para>memory buswidth: 128 bit with ECC</para>
+          </listitem>
+          <listitem>
+           <para>AS1000[A]-systems:
+             Use 72pin 36 bit Fast Page Mode SIMMs, 70ns or better
+             16 or 20 SIMM slots, max memory is 1 Gb
+	     uses ECC</para>
+          </listitem>
+	  <listitem>
+	   <para>AS800: Uses SDRAM DIMMs</para>
+	  </listitem>
+         </itemizedlist>
+       </listitem>
+       <listitem>
+        <para>embedded VGA (on some mainboard models)</para>
+       </listitem>
+       <listitem>
+        <para>3 PCI, 2 EISA, 1 64-bit PCI/EISA combo (AS800)</para>
+       </listitem>
+       <listitem>
+        <para>7 PCI, 2 EISA (AS1000A)</para>
+       </listitem>
+       <listitem>
+        <para>2 PCI, 1 EISA/PCI, 7 EISA (AS1000)</para>
+       </listitem>
+       <listitem>
+        <para>embedded SCSI based on Symbios 810 [AS1000] or 
+        Qlogic 1020 [AS1000A]</para>
+       </listitem>
+      </itemizedlist></para>
 
-Console:
-The AS1000/800 are somewhat stubborn when it comes to serial
-consoles. They need &gt;&gt;&gt; SET CONSOLE SERIAL before they go for
-a serial console. Pulling the keyboard from the machine is not sufficient,
-like it is on most other Alpha models. Going back to a graphical console
-needs &gt;&gt;&gt; SET CONSOLE GRAPHICS at the serial console.
+      <para>AS1000 based machines come in multiple enclosure types. Floor 
+      standing, rack-mount, with or without StorageWorks SCSI chassis etc. 
+      The electronics are the same.</para>
 
-SCSI:
-For AS800 you want to check if your Ultra-Wide SCSI is indeed in Ultra mode.
-This can be done using the EEROMCFG.EXE utility that is on the Firmware 
-Upgrade CDROM. 
-  
-For the AlphaServer1000/1000A/800 machines the kernel config file must contain:
-	options         DEC_1000A
-	cpu		EV4		# depends on the CPU model installed
-	cpu		EV5		# depends on the CPU model installed
-</programlisting>
+      <para>AS1000-systems: All EV4 based machines use standard PS/2 style 
+      36 bit 72pin SIMMs in sets of 5. The fifth SIMM is used for ECC.
+      All EV5 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets 
+      of 4. The ECC is done based on the 4 extra bits per SIMM 
+      (4 bits out of 36). The EV5 mainboards have 16 SIMM slots, 
+      the EV4 mainboards have 20 slots.</para>
+
+      <para> AS800 machines use DIMMs in sets of 4. DIMM installation must 
+      start in slots marked bank 0. A bank is four physically adjacent slots. 
+      The biggest size DIMMs must be installed in bank 0 in case 2 banks 
+      of different DIMM sizes are used. Max memory size is 2Gb.</para>
+
+      <para>The AS1000/800 are somewhat stubborn when it comes to serial
+      consoles. They need &gt;&gt;&gt; SET CONSOLE SERIAL before they go for
+      a serial console. Pulling the keyboard from the machine is not sufficient,
+      like it is on most other Alpha models. Going back to a graphical console
+      needs &gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput> at 
+      the serial console.</para>
+
+      <para>For AS800 you want to check if your Ultra-Wide SCSI is indeed 
+      in Ultra mode. This can be done using the EEROMCFG.EXE utility that is 
+      on the Console Firmware Upgrade CDROM.</para>
+ 
+      <para>For the AlphaServer1000/1000A/800 machines the kernel config 
+      file must contain:
+
+      <programlisting>options	DEC_1000A
+cpu	EV4	# depends on the CPU model installed
+cpu	EV5	# depends on the CPU model installed</programlisting>
+      </para>
+
     </sect3>
 
     <sect3>
-      <title>DS10/VS10/XP900 (<quote>Webbrick</quote>) / XP1000 (<quote>Monet</quote>) / DS10L
-      (<quote>Slate</quote>)</title>
+      <title>DS10/VS10/XP900 (<quote>Webbrick</quote>) / XP1000 
+      (<quote>Monet</quote>) / DS10L (<quote>Slate</quote>)</title>
 
-<programlisting>
-Webbrick and Monet are high performance workstations/servers based on the
-EV6 CPU and the Tsunami chipset. Tsunami is also used in much higher-end 
-systems and as such has plenty of performance to offer. DS10, VS10 and XP900
-are different names for essentially the same system. The difference are the 
-software and options that are supported. DS10L is a DS10 based machine in a 1U 
-high rackmount enclosure. DS10L is intended for ISPs and for HPTC clusters
-(e.g. Beowulf).
+      <para>Webbrick and Monet are high performance workstations/servers 
+      based on the EV6 CPU and the Tsunami chipset. Tsunami is also used in 
+      much higher-end systems and as such has plenty of performance to offer. 
+      DS10, VS10 and XP900 are different names for essentially the same system. 
+      The differences are the software and options that are supported. DS10L 
+      is a DS10 based machine in a 1U high rackmount enclosure. DS10L is 
+      intended for ISPs and for HPTC clusters (e.g. Beowulf)</para>
 
-Monet has, by 1999 standards, *stunning* (the words of a satisfied
-user) memory and I/O system bandwidth.
+      <para>Monet has, by 1999 standards, *stunning* (the words of a satisfied
+      user) memory and I/O system bandwidth.</para>
 
-** Webbrick / Slate
+      <sect4>
+        <title><quote>Webbrick / Slate</quote></title>
 
+<para>
 Features:
 - 21264 EV6 CPU at 466 MHz
 - L2 / Bcache: 2MB, ECC protected
@@ -1698,52 +1702,53 @@ Features:
 - 1x parallel port
 - 2x USB
 - PS/2 keyboard & mouse port        
+</para>
 
-Power:
-The system has a smart power controller. This means that parts of the system
-remain powered when it is switched off (like an ATX-style PC power supply).
-Before servicing the machine remove the power cord.
+      <para>The system has a smart power controller. This means that parts 
+      of the system remain powered when it is switched off (like an ATX-style 
+      PC power supply). Before servicing the machine remove the 
+      power cord.</para>
 
-Case:
-Webbrick is shipped in a desktop-style case similar to the older 21164
-"Maverick" workstations but which offers much better access to        
-components. If you intend to build a farm you can rackmount them in a
-19-inch rack; they are 3U high. Slate is 1U high but has only one PCI slot.
+      <para>Webbrick is shipped in a desktop-style case similar to the older 
+      21164 "Maverick" workstations but this case offers much better access 
+      to the components. If you intend to build a farm you can rackmount them 
+      in a 19-inch rack; they are 3U high. Slate is 1U high but has only 
+      one PCI slot.</para>
 
-Memory:
-DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note that 
-DIMM pairs are not installed in adjacent DIMM sockets but rather physically
-interleaved. DIMM sizes of 32, 64, 128, 256 and 512 Mbytes are supported.
+      <para>DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note 
+      that DIMM pairs are not installed in adjacent DIMM sockets but rather 
+      physically interleaved. DIMM sizes of 32, 64, 128, 256 and 512 Mbytes 
+      are supported.</para>
 
-When 2 pairs of identical-sized DIMMs are installed DS10 will use memory 
-interleaving for higher performance. DS10L, which has only 2 DIMM slots cannot 
-do interleaving.
+      <para>When 2 pairs of identical-sized DIMMs are installed DS10 will 
+      use memory interleaving for increased performance. DS10L, which has 
+      only 2 DIMM slots cannot do interleaving.</para>
 
-SCSI:
-Starting with SRM firmware version 5.9 you can boot from Adaptec 2940-series
-adapters in addition to the usual set of Qlogic and Symbios/NCR adapters. 
+      <para>Starting with SRM firmware version 5.9 you can boot from 
+      Adaptec 2940-series adapters in addition to the usual set of Qlogic 
+      and Symbios/NCR adapters.</para>
 
-EIDE:
-The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
-&os; works just fine using EIDE disks on Webbrick. DS10 has 2 IDE 
-interfaces on the mainboard.
+      <para>The base model comes with a FUJITSU 9.5GB ATA disk as its boot 
+      device. &os; works just fine using EIDE disks on Webbrick. DS10 has 
+      2 IDE interfaces on the mainboard. Machines destined for Tru64 Unix or 
+      VMS are standard equipped with Qlogic-driven Ultra-SCSI disks</para>
 
-Expansion:
-On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 5V variants.
+      <para>On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 
+      5V variants.</para>
 
-USB:
-Is supported in &os; 4.1 and later.
+      <para>The USB interfaces are supported in &os; 4.1 and later.</para>
 
-The kernel config file must contain:
-	options         DEC_ST6600    
-	cpu		EV5
+      <para>The kernel config file must contain:
+      <programlisting>options	DEC_ST6600    
+cpu	EV5</programlisting></para>
 
-Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
-</programlisting>
-    </sect3>
+      <note><para>Contrary to expectation there is no <literal>cpu EV6</literal>
+      defined for inclusion in the kernel config file. 
+      The <literal>cpu EV5</literal> is mandatory to keep &man.config.8; 
+      happy.</para></note>
+    </sect4>
 
-    <sect3>
+    <sect4>
       <title><quote>Monet</quote></title>
 
 <programlisting>
@@ -1780,52 +1785,54 @@ Features:
 - graphics options: ELSA Gloria Synergy or DEC/Compaq PowerStorm 3D
 	            accelerator cards
 
-Case:
-Monet is housed in a mini-tower like enclosure quite similar to the Miata
-box.
-
-SCSI:
-The on-board Qlogic UW-SCSI chip supports up to 4 internal devices. There is
-no external connector for the on-board SCSI.
-
-Memory:
-For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 DIMMs for
-all CPU speeds. DIMMs are installed in sets of 4, starting with the 
-DIMM slots marked '0'. Memory capacity is max 4 Gb. 
-DIMMs are installed 'physically interleaved', note the markings of the
-slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs live
-on the CPU daughter-card. Note that the system uses ECC RAM so you need DIMMs
-with 72 bits (not the PC-class 64 bit DIMMs)
-
-EIDE:
-Is usable / bootable for system disk so &os; can be rooted on an EIDE
-disk. Although the Cypress chip has potential for 2 EIDE channels Monet uses
-only one of them.
-
-USB:
-If you experience problems trying to use the USB interface please check if
-the SRM variable "usb_enable" is set to "on". You can change this by
-performing: "set usb_enable on" at the SRM &gt;&gt;&gt; prompt.
-
-Expansion caveats:
-- Don't try to use Symbios-chip based SCSI adapters in the PCI slots
-connected to hose 1. There is a not-yet-found &os; bug that prevents this
-from working correctly. 
-- Not all VGA cards will work behind the PCI-PCI bridge (so in slots 4 & 5). 
-Only cards that implement VGA-legacy addressing correctly will work. Workaround 
-is to put the VGA card 'before' the bridge.
-
-Sound:
-The sound chip is not currently supported with &os;. There is work in
-progress in this area.
-
-The kernel config file must contain:
-	options         DEC_ST6600    
-	cpu		EV5
-
-Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 </programlisting>
+
+       <para>Monet is housed in a mini-tower like enclosure quite similar 
+       to the Miata box.</para>
+
+       <para>The on-board Qlogic UW-SCSI chip supports up to 4 internal 
+       devices. There is no external connector for the on-board SCSI.</para>
+
+       <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
+       DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
+       with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
+       DIMMs are installed 'physically interleaved', note the markings of the
+       slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
+       live on the CPU daughter-card. Note that the system uses ECC RAM so you 
+       need DIMMs with 72 bits (not the generic PC-class 64 bit DIMMs)</para>
+
+       <para>The EIDE interface is usable / SRM bootable so &os; can be rooted 
+       on an EIDE disk. Although the Cypress chip has potential for 2 
+       EIDE channels Monet uses only one of them.</para>
+
+       <para>The USB interface is supported by &os;.If you experience 
+       problems trying to use the USB interface please check if
+       the SRM variable "usb_enable" is set to "on". You can change this by
+       performing: <prompt>&gt;&gt;&gt;</prompt> 
+       <userinput>SET USB_ENABLE ON</userinput></para>
+
+       <important><para>Don&quot;t try to use Symbios-chip based SCSI adapters in the 
+       PCI slots connected to hose 1. There is a not-yet-found &os; bug 
+       that prevents this from working correctly.</para></important>
+
+       <important><para>Not all VGA cards will work behind the PCI-PCI bridge (so 
+       in slots 4 and 5). Only cards that implement VGA-legacy addressing 
+       correctly will work. Workaround is to put the VGA card 
+       <quote>before</quote> the bridge.</para></important>
+
+       <para>The sound chip is not currently supported with &os;. There 
+       is work in progress in this area.</para>
+  
+       <para>The kernel config file must contain:
+       <programlisting>options	DEC_ST6600    
+cpu	EV5</programlisting></para>
+
+       <note><para>Contrary to expectation there is no 
+       <literal>cpu EV6</literal> defined for inclusion in the kernel 
+       config file. The <literal>cpu EV5</literal> is mandatory to 
+       keep &man.config.8; happy.</para></note>
+
+     </sect4>
     </sect3>
 
     <sect3>
@@ -1901,14 +1908,14 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
       <para>The kernel config file must contain:
 
-<programlisting>options         DEC_ST6600    
+      <programlisting>options         DEC_ST6600    
 cpu		EV5</programlisting>
       </para>
 
-      <para>Contrary to expectation there is no <literal>cpu
-      EV6</literal> defined for inclusion in the kernel config
-      file. The <literal>cpu EV5</literal> is mandatory to keep
-      &man.config.8; happy.</para>
+      <note><para>Contrary to expectation there is no <literal>cpu EV6</literal>
+      defined for inclusion in the kernel config file. 
+      The <literal>cpu EV5</literal> is mandatory to keep &man.config.8; 
+      happy.</para></note>
     </sect3>
 
     <sect3>
@@ -1962,8 +1969,8 @@ cpu		EV5</programlisting>
 
       <para>The kernel config file must contain:
 
-<programlisting>options         DEC_ST6600    
-cpu		EV5</programlisting>
+      <programlisting>options	DEC_ST6600    
+cpu	EV5</programlisting>
       </para>
 
       <para>Contrary to expectation there is no <literal>cpu
@@ -1976,18 +1983,18 @@ cpu		EV5</programlisting>
       <title>AlphaServer 2000 (<quote>DemiSable</quote>), 2100
       (<quote>Sable</quote>), 2100A (<quote>Lynx</quote>)</title>
 
-<programlisting>
-The AlphaServer 2[01]00 machines are aimed as departmental servers.
-This is medium iron, not a hobbyist system. These are multi-CPU machines, 
-up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be installed. 
-Both floor-standing and 19&quot; rackmount boxes exist. Rackmount variations have
-different numbers of I/O expansion slots, different max number of CPUs and
-different maximum memory size. Some of the boxes come with an integral
-StorageWorks shelf to house hot-swap SCSI disks. There was an upgrade program
-available to convert your Sable machine into a Lynx by swapping the
-I/O backplane (the C-bus backplane remains). CPU upgrades were available 
-as well.
+      <para>The AlphaServer 2[01]00 machines are intended as departmental 
+      servers. This is medium iron. They are multi-CPU machines, up to 2 
+      CPUs (AS2000) or 4 CPUs (2100[A]) can be installed. Both floor-standing 
+      and 19&quot; rackmount boxes exist. Rackmount variations have
+      different numbers of I/O expansion slots, different max number 
+      of CPUs and different maximum memory size. Some of the boxes come 
+      with an integral StorageWorks shelf to house hot-swap SCSI disks. 
+      There was an upgrade program available to convert your Sable 
+      machine into a Lynx by swapping the I/O backplane (the C-bus 
+      backplane remains). CPU upgrades were available as well.</para>
 
+<programlisting>
 Features:
 - 21064 EV4[5] CPU[s] at 200, 233, 275 MHz
 - 21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz
@@ -1997,60 +2004,69 @@ Features:
 - 2 serial ports
 - 1 parallel port
 - PS/2 style keyboard & mouse port
+</programlisting>
 
-NOTE: Lynx support is currently flagged as experimental due to lack of
-      testing / test hardware.
+      <para>The CPUs spec-ed as 200 MHz are in reality running at 
+      190 MHz. Maximum number of CPUs is 4. All CPUs must be of the 
+      same type/speed.</para>
 
-CPU:
-The CPUs spec-ed as 200 MHz are in reality running at 190 MHz. Maximum
-number of CPUs is 4. All CPUs must be of the same type/speed. 
+      <para>If any of the processors are ever marked as failed, they will
+      remain marked as failed even after they have been replaced (or reseated) 
+      until you issue the command <userinput>clear_error all</userinput>
+      on the SRM console and power-cycle the machine.  This may be true 
+      for other modules (IO and memory) as well, but it has not been verified.
+      </para>
 
-If any of the processors are ever marked as failed, they will
-remain marked as failed even after they have been replaced (or reseated) 
-until you issue the command 'clear_error all' on the SRM console and 
-power-cycle the machine.  This may be true for other modules (IO and memory) 
-as well, but it has not been verified.
+      <para>The machines use dedicated memory boards. These boards live on 
+      a 128 bit C-bus shared with the CPU boards. DemiSable supports up 
+      to 1Gb, Sable up to 2Gb. One of the memory bus slots can either 
+      hold a CPU or a memory card. A 4 CPU machine can have a maximum of 
+      2 memory boards.</para>
 
-Memory:
-The machines use dedicated memory boards. These boards live on a 128 bit 
-C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
-to 2Gb. One of the memory bus slots can either hold a CPU or a memory card.
-A 4 CPU machine can have a maximum of 2 memory boards.
+      <para>Some memory board models house SIMMs. These are called SIMM 
+      carriers. There are also memory modules that have soldered-on memory 
+      chips instead of SIMMs. These are called <quote>flat memory 
+      modules</quote>.</para>
 
-Some memory board modules house SIMMs. These are called SIMM carriers.
-There are also memory modules that have soldered-on memory chips 
-instead of SIMMs. These are called 'flat memory modules'.
+      <para>SIMM boards are used in sets of eight 72-pin 36 bit FPM 
+      memory of 70ns or faster. SIMM types supported are 1Mb x36 bit 
+      (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board can house 
+      4 banks of SIMMs. SIMM sizes can not be mixed on a single memory 
+      board. The first memory module must be filled with SIMMs before 
+      starting to fill the next memory module. Note that the spacing 
+      between the slots is not that big, so make sure your SIMMs fit 
+      physically (before buying them..)</para>
 
-SIMM boards are used in sets of eight 72-pin 36 bit FPM memory of 70ns 
-or faster. SIMM types supported are 1Mb x36 bit (4 Mbyte) and 4Mb x36 
-bit (16 Mbyte). Each memory board can house 4 banks of SIMMs. SIMM 
-sizes can not be mixed on a single memory board. The first memory 
-module must be filled with SIMMs before starting to fill the next 
-memory module. Note that the spacing between the slots is not that 
-big, so make sure your SIMMs fit physically (before buying them..)
+      <para>Both Lynx and Sable are somewhat stubborn when it comes to serial
+      consoles. They need <prompt>&gt;&gt;&gt;</prompt> <userinput>
+      SET CONSOLE SERIAL</userinput> before they go for a serial console. 
+      Pulling the keyboard from the machine is not sufficient, like it is 
+      on many other Alpha models. Going back to a graphical console needs 
+      <prompt>&gt;&gt;&gt;</prompt> <userinput>SET CONSOLE GRAPHICS
+      </userinput> at the serial console. On Lynx keep the VGA card in 
+      one of the primary PCI slots. EISA VGA cards are not slot sensitive.
+      </para>
 
-Console:
-Both Lynx and Sable are somewhat stubborn when it comes to serial
-consoles. They need &gt;&gt;&gt; SET CONSOLE SERIAL before they go for
-a serial console. Pulling the keyboard from the machine is not sufficient,
-like it is on most other Alpha models. Going back to a graphical console
-needs &gt;&gt;&gt; SET CONSOLE GRAPHICS at the serial console. On Lynx keep the
-VGA card in one of the primary PCI slots.
+      <para>The machines are equipped with a small OCP 
+      (Operator Control Panel) LCD screen. On this screen the self-test 
+      messages are displayed during system initialization. You can put 
+      your own little text there by using the SRM: 
+      <prompt>&gt;&gt;&gt;</prompt> <userinput>SET OCP_TEXT "FreeBSD"
+      </userinput> is the recommended setting.
 
-The machines are equipped with a small OCP (Operator Control Panel) LCD
-screen. On this screen the self-test messages are displayed during system
-initialization. You can put your own little text there by using the SRM:
-&gt;&gt;&gt; SET OCP_TEXT "FreeBSD"
+      <para>The SRM <prompt>&gt;&gt;&gt;</prompt> <userinput>SHOW FRU
+      </userinput>command produces an overview of your configuration
+      with module serial numbers, hardware revisions and error log counts.
+      </para>
 
-The SRM &gt;&gt;&gt; SHOW FRU command produces an overview of your configuration
-with module serial numbers, hardware revisions and error log counts.
+      <para>Both Sable, DemiSable and Lynx have Symbios 810 based 
+      Fast SCSI on-board. Check if it is set to Fast SCSI speed 
+      by <prompt>&gt;&gt;&gt;</prompt> <userinput>SHOW PKA0_FAST.
+      </userinput>. If set to 1 it is negotiating for Fast speeds. 
+      <prompt>&gt;&gt;&gt;</prompt> <userinput>SET PKA0_FAST 1
+      </userinput>enables Fast SCSI speeds.</para>
 
-Embedded SCSI:
-Both Sable, DemiSable and Lynx have Symbios 810 based Fast SCSI on-board.
-Check if it is set to Fast SCSI speed by &gt;&gt;&gt; SHOW PKA0_FAST. If set to
-1 it is negotiating for Fast speeds. &gt;&gt;&gt; SET PKA0_FAST 1 enables Fast
-speeds.
-
+<programlisting>
 Internal disk storage:
 AS2100[A] come equipped with a StorageWorks 7 slot SCSI cage. A second cage
 can be added inside the cabinet. AS2000 has a single 7 slot SCSI cage,
@@ -2465,37 +2481,39 @@ Features:
 - embedded dual Intel 82559 10/100Mbit Ethernet
 - embedded Symbios 53C1000 Ultra160 SCSI controller
 - expansion: 2 64 bit PCI slots (2/3 length)
-
-Console:
-SRM console code comes standard with the CS20. The SRM lives in 2Mbytes of
-flash ROM. 
-
-Memory:
-The CS20 needs ECC capable DIMMs. Note that it uses *buffered* DIMMs.
-
-Monitoring:
-The CS20 has an I2C based internal monitoring system for things like
-temperature, fans, voltages etc. The I2C also supports 'wake on LAN'.
-
-Expansion:
-Each PCI slot is connected to it's own independent PCI bus on the Tsunami.
-
-EIDE:
-The embedded Ultra DMA EIDE ports are bootable by the SRM console.
-
-Disks:
-The CS20 has an embedded slim-line IDE CD drive. There is a front-accessible
-bay for a 1&quot; high 3.5&quot; SCSI hard-disk drive with SCA connector.
-
-Note that there is no floppy disk drive (or a connector to add one).
-
-The kernel config file must contain:
-        options         DEC_ST6600
-        cpu             EV5
-
-Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
-kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy. 
 </programlisting>
+
+      <para>SRM console code comes standard with the CS20. The SRM 
+      lives in 2Mbytes of flash ROM.</para>
+
+      <para>The CS20 needs ECC capable DIMMs. Note that it 
+      uses *buffered* DIMMs.</para>
+
+      <para>The CS20 has an I2C based internal monitoring system for things 
+      like temperature, fans, voltages etc. The I2C also supports 
+      <quote>wake on LAN</quote>.</para>
+
+      <para>Each PCI slot is connected to it's own independent PCI bus 
+      on the Tsunami.</para>
+
+      <para>The embedded Ultra DMA EIDE ports are bootable by the 
+      SRM console.</para>
+
+      <para>The CS20 has an embedded slim-line IDE CD drive. There is 
+      a front-accessible bay for a 1&quot; high 3.5&quot; SCSI hard-disk 
+      drive with SCA connector.</para>
+
+      <para>Note that there is no floppy disk drive (or a connector to 
+      add one).</para>
+
+      <para>The kernel config file must contain:
+      <programlisting>options	DEC_ST6600
+cpu	EV5</programlisting></para>
+
+      <para>Contrary to expectation there is no <literal>cpu
+      EV6</literal> defined for inclusion in the kernel config
+      file. The <literal>cpu EV5</literal> is mandatory to keep
+      &man.config.8; happy.</para>
     </sect3>
   </sect2>
 
