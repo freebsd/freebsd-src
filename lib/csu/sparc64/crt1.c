@@ -47,8 +47,6 @@ struct ps_strings;
 extern int _DYNAMIC;
 #pragma weak _DYNAMIC
 
-typedef void (*fptr)(void);
-
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
