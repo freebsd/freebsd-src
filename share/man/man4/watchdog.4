@@ -54,7 +54,9 @@ responds to a single ioctl call, WDIOCPATPAT.
 The ioctl call takes an argument which consists of a timeout value
 specified as an integer power of two nanoseconds.
 .Pp
-The WD_ACTIVE flag signals that the watchdog will be kept from 
+The
+.Dv WD_ACTIVE
+flag signals that the watchdog will be kept from 
 timing out from userland, for instance by the
 .Xr watchdogd 8
 daemon.
@@ -66,7 +68,7 @@ watchdog implementations support the request.
 If the ioctl fails, for instance if no watchdog supports the timeout
 length, all watchdogs are disabled and must be explicitly reenabled.
 .Sh SEE ALSO
-.Xr watchdogd 8
+.Xr watchdogd 8 ,
 .Xr watchdog 9
 .Sh HISTORY
 The
