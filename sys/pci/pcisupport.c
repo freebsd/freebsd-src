@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.67 1998/05/08 07:56:48 bde Exp $
+**  $Id: pcisupport.c,v 1.68 1998/05/11 01:05:54 dyson Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1088,6 +1088,7 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 			type = "SVGA controller";
 		}
 
+#if 0
 		reqmapmem = PCI_MAPMEM;
 		for (i = 0; i < tag->nummaps; i++) {
 			pcimap *m = &tag->map[i];
@@ -1103,6 +1104,7 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 				pmap_setdevram(m->base, (1 << m->ln2size));
 			}
 		}
+#endif
 
 #if defined(i386)
 		pmap_setvidram();
