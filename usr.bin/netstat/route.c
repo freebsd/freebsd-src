@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.10 1996/01/14 23:42:19 peter Exp $";
+	"$Id: route.c,v 1.11 1996/01/15 02:18:35 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,7 +54,9 @@ static const char rcsid[] =
 
 #include <netipx/ipx.h>
 
+#ifdef NS
 #include <netns/ns.h>
+#endif
 
 #include <sys/sysctl.h>
 
@@ -174,9 +176,11 @@ pr_family(af)
 	case AF_IPX:
 		afname = "IPX";
 		break;
+#ifdef NS
 	case AF_NS:
 		afname = "XNS";
 		break;
+#endif
 	case AF_ISO:
 		afname = "ISO";
 		break;
@@ -407,9 +411,11 @@ p_sockaddr(sa, mask, flags, width)
 		break;
 	    }
 
+#ifdef NS
 	case AF_NS:
 		cp = ns_print(sa);
 		break;
+#endif
 
 	case AF_LINK:
 	    {
@@ -794,6 +800,7 @@ static	union ipx_net ipx_zeronet;
 	return(p);
 }
 
+#ifdef NS
 short ns_nullh[] = {0,0,0};
 short ns_bh[] = {-1,-1,-1};
 
@@ -861,6 +868,7 @@ ns_phost(sa)
 	if (strncmp("0H.", p, 3) == 0) p += 3;
 	return(p);
 }
+#endif
 
 void
 upHex(p0)
