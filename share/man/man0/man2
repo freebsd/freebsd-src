@@ -1,4 +1,4 @@
-/usr/src/lib/libc/sys/intro.2
+/usr/src/lib/libc/sys/_exit.2
 /usr/src/lib/libc/sys/accept.2
 /usr/src/lib/libc/sys/access.2
 /usr/src/lib/libc/sys/acct.2
@@ -15,7 +15,6 @@
 /usr/src/lib/libc/compat-43/creat.2
 /usr/src/lib/libc/sys/dup.2
 /usr/src/lib/libc/sys/execve.2
-/usr/src/lib/libc/sys/_exit.2
 /usr/src/lib/libc/sys/fcntl.2
 /usr/src/lib/libc/sys/flock.2
 /usr/src/lib/libc/sys/fork.2
@@ -38,6 +37,8 @@
 /usr/src/lib/libc/sys/getsockopt.2
 /usr/src/lib/libc/sys/gettimeofday.2
 /usr/src/lib/libc/sys/getuid.2
+/usr/src/lib/libc/i386/sys/i386_get_ldt.2
+/usr/src/lib/libc/sys/intro.2
 /usr/src/lib/libc/sys/ioctl.2
 /usr/src/lib/libc/sys/kill.2
 /usr/src/lib/libc/compat-43/killpg.2
@@ -61,7 +62,6 @@
 /usr/src/lib/libc/sys/pathconf.2
 /usr/src/lib/libc/sys/pipe.2
 /usr/src/lib/libc/sys/profil.2
-/usr/src/lib/libc/sys/ptrace.2
 /usr/src/lib/libc/sys/quotactl.2
 /usr/src/lib/libc/sys/read.2
 /usr/src/lib/libc/sys/readlink.2
@@ -70,6 +70,8 @@
 /usr/src/lib/libc/sys/rename.2
 /usr/src/lib/libc/sys/revoke.2
 /usr/src/lib/libc/sys/rmdir.2
+/usr/src/lib/libc/sys/rtprio.2
+/usr/src/usr.sbin/rtprio/rtprio.2
 /usr/src/lib/libc/sys/select.2
 /usr/src/lib/libc/sys/send.2
 /usr/src/lib/libc/sys/setgroups.2
