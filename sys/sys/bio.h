@@ -83,11 +83,15 @@ struct bio {
 	struct	iodone_chain *bio_done_chain;
 };
 
+/* bio_cmd */
 #define BIO_READ	1
 #define BIO_WRITE	2
 #define BIO_DELETE	4
 #define BIO_FORMAT	8
+#define BIO_CMD1	0x40000000	/* Available for local hacks */
+#define BIO_CMD2	0x80000000	/* Available for local hacks */
 
+/* bio_flags */
 #define BIO_ERROR	0x00000001
 #define BIO_ORDERED	0x00000002
 #define BIO_DONE	0x00000004
