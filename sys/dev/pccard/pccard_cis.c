@@ -207,7 +207,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					u_int cksum, sum;
 					int i;
 
-					*((u_int16_t *) & offset) =
+					offset = (uint16_t)
 					    pccard_tuple_read_2(&tuple, 0);
 					length = pccard_tuple_read_2(&tuple, 2);
 					cksum = pccard_tuple_read_1(&tuple, 4);
