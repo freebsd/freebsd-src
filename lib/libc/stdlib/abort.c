@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 void (*__cleanup)();
 
+/* XXX - why are these declarations here? */
 extern int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
 extern int	__sys_sigaction(int, const struct sigaction *,
 		    struct sigaction *);
@@ -55,22 +56,23 @@ abort()
 	struct sigaction act;
 
 	/*
-	 * POSIX requires we flush stdio buffers on abort
+	 * POSIX requires we flush stdio buffers on abort.
+	 * XXX ISO C requires that abort() be async-signal-safe.
 	 */
 	if (__cleanup)
 		(*__cleanup)();
 
 	sigfillset(&act.sa_mask);
 	/*
-	 * don't block SIGABRT to give any handler a chance; we ignore
-	 * any errors -- X311J doesn't allow abort to return anyway.
+	 * Don't block SIGABRT to give any handler a chance; we ignore
+	 * any errors -- ISO C doesn't allow abort to return anyway.
 	 */
 	sigdelset(&act.sa_mask, SIGABRT);
 	(void)__sys_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
 	(void)kill(getpid(), SIGABRT);
 
 	/*
-	 * if SIGABRT ignored, or caught and the handler returns, do
+	 * If SIGABRT was ignored, or caught and the handler returns, do
 	 * it again, only harder.
 	 */
 	act.sa_handler = SIG_DFL;
