@@ -1,12 +1,15 @@
-# $Id: secure-supfile,v 1.2 1996/09/29 11:26:32 markm Exp $
+# $Id$
 #
-# This file contains all of the "CVSup collections" that comprise the FreeBSD
-# International secure distribution from the current (new and experimental)
-# branch.  CVSup (CVS Update Protocol) allows you to syncronize your system
-# sources with the latest secure source distribution easily and efficiently
-# (far more so than with sup, which CVSup is aimed at replacing).  If you're
-# running CVSup interactively, and are currently using an X display server,
-# you should run CVSup as follows to keep your secure source tree up-to-date:
+# This file contains all of the "CVSup collections" that make up the
+# source tree of the FreeBSD-current international secure distribution.
+# If you are outside the USA or Canada, use this file.
+#
+# CVSup (CVS Update Protocol) allows you to download the latest CVS
+# tree (or any branch of development therefrom) to your system easily
+# and efficiently (far more so than with sup, which CVSup is aimed
+# at replacing).  If you're running CVSup interactively, and are
+# currently using an X display server, you should run CVSup as follows
+# to keep your CVS tree up-to-date:
 #
 #	cvsup secure-supfile
 #
@@ -15,27 +18,35 @@
 #
 #	cvsup -g -L 2 secure-supfile
 #
-# If your network link is ISDN or slower, you'll save time by using
-# compression.  Either add the "-z" option to the cvsup command line,
-# or add the "compress" keyword to each collection in this supfile.
-#
-# You may want to change some of the settings in this file to better
+# You may wish to change some of the settings in this file to better
 # suit your system:
 #
-# base=/usr	
-#		base specifies the root where CVSup will store information
+# base=/usr
+#		This specifies the root where CVSup will store information
 #		about the collections you have transferred to your system.
 #		A setting of "/usr" will generate this information in
 #		/usr/sup.  Even if you are CVSupping a large number of
 #		collections, you will be hard pressed to generate more than
-#		~1MB of data in this directory.
+#		~1MB of data in this directory.  You can override the
+#		"base" setting on the command line with cvsup's "-b base"
+#		option.  This directory must exist in order to run CVSup.
 #
 # prefix=/usr
-#		prefix specifies where to place the requested files.  A
-#		setting of "/usr" will place the all of the files
-#		requested in /usr/src (ie /usr/src/eBones, /usr/src/secure).
-#		The directory that is the prefix must exist in order for
-#		CVSup to transfer files successfully.
+#		This specifies where to place the requested files.  A
+#		setting of "/usr" will place all of the files requested
+#		in "/usr/src" (i.e., "/usr/src/eBones" and "/usr/src/secure").
+#		The prefix directory must exist in order to run CVSup.
 
-src-eBones release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
-src-secure release=cvs host=cvsup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+# Defaults that apply to all the collections
+*default host=cvsup.internat.FreeBSD.org
+*default base=/usr
+*default prefix=/usr
+*default release=cvs tag=.
+*default delete use-rel-suffix
+
+# If your network link is a T1 or faster, comment out the following line.
+*default compress
+
+## The international secure collections.
+src-eBones
+src-secure

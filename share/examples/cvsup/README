@@ -1,11 +1,39 @@
-The example supfiles contained in this directory all obtain their sources 
-from cvsup.freebsd.org.  In order to reduce the load on that host, 
-please try and use one of the alternate sup servers listed below.
+# $Id$
 
-USA:
+This directory contains sample "supfiles" for obtaining and updating
+the FreeBSD sources via the Internet.  These supfiles will work
+with CVSup version 14.0 or later.
+
+To maintain the sources for the FreeBSD-current release, use these files:
+
+    standard-supfile		Main source tree
+
+    secure-supfile		International secure distribution
+				(outside USA and Canada)
+
+    ports-supfile		Ports collection
+
+To maintain the sources for the FreeBSD-stable release, use these files:
+
+    stable-supfile		Main source tree
+
+    secure-stable-supfile	International secure distribution
+				(outside USA and Canada)
+
+To maintain a copy of the CVS repository containing all versions of
+FreeBSD, use these files:
+
+    cvs-supfile			Main source tree and ports collection
+
+    secure-cvs-supfile		International secure distribution
+				(outside USA and Canada)
+
+The supfiles contained in this directory all obtain their updates
+from cvsup.freebsd.org.  In order to reduce the load on that host,
+please use one of the alternate CVSup servers listed below.
+
+    USA:
 	cvsup2.freebsd.org
 
-
-The Netherlands:
-
+    The Netherlands:
 	cvsup.nl.freebsd.org
