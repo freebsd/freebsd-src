@@ -31,33 +31,35 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
+static const char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcdif[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <termios.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 void	obsolete __P((char *[]));
-void	report __P((char *, int, u_int));
+void	report __P((const char *, int, u_int));
 void	usage __P((void));
 
 struct termios mode, oldmode;
@@ -78,7 +80,8 @@ main(argc, argv)
 	struct winsize win;
 #endif
 	int ch, noinit, noset, quiet, Sflag, sflag, showterm, usingupper;
-	char *p, *tcapbuf, *ttype;
+	char *p, *tcapbuf;
+	const char *ttype;
 
 	if (tcgetattr(STDERR_FILENO, &mode) < 0)
 		err(1, "standard error");
@@ -240,7 +243,7 @@ main(argc, argv)
  */
 void
 report(name, which, def)
-	char *name;
+	const char *name;
 	int which;
 	u_int def;
 {
@@ -280,13 +283,13 @@ obsolete(argv)
 			continue;
 		switch(argv[0][1]) {
 		case 'e':
-			argv[0] = "-e^H";
+			argv[0] = strdup("-e^H");
 			break;
 		case 'i':
-			argv[0] = "-i^C";
+			argv[0] = strdup("-i^C");
 			break;
 		case 'k':
-			argv[0] = "-k^U";
+			argv[0] = strdup("-k^U");
 			break;
 		}
 	}
