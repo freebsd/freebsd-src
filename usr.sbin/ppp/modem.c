@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.62 1998/05/01 19:22:19 brian Exp $
+ * $Id: modem.c,v 1.77.2.63 1998/05/01 19:25:25 brian Exp $
  *
  *  TODO:
  */
@@ -38,6 +38,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/uio.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
@@ -906,26 +907,11 @@ modem_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 struct physical *
-modem_FromBinary(struct datalink *dl, int fd)
+iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
 {
-  struct physical *p = (struct physical *)malloc(sizeof(struct physical));
-  int got;
+  struct physical *p;
 
-  /*
-   * We expect:
-   *  .----------.
-   *  | physical |
-   *  `----------'
-   */
-
-  got = fullread(fd, p, sizeof *p);
-  if (got != sizeof *p) {
-    log_Printf(LogWARN, "Cannot receive physical"
-              " (got %d bytes, not %d)\n", got, sizeof *p);
-    close(fd);
-    free(p);
-    return NULL;
-  }
+  p = (struct physical *)iov[(*niov)++].iov_base;
   p->link.name = dl->name;
   throughput_init(&p->link.throughput);
   memset(&p->Timer, '\0', sizeof p->Timer);
@@ -970,7 +956,7 @@ modem_FromBinary(struct datalink *dl, int fd)
     lqr_Start(&p->link.lcp);
   hdlc_StartTimer(&p->hdlc);
 
-  p->fd = fd;		/* Now talk down it :-) */
+  p->fd = fd;
   throughput_start(&p->link.throughput, "modem throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
   /* Don't need a modem timer.... */
@@ -980,36 +966,31 @@ modem_FromBinary(struct datalink *dl, int fd)
 }
 
 int
-modem_ToBinary(struct physical *p, int fd)
+modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
 {
-  int link_fd;
-
-  /*
-   * We send:
-   *  .----------.
-   *  | physical |
-   *  `----------'
-   */
-
-  hdlc_StopTimer(&p->hdlc);
-  lqr_StopTimer(p);
-  timer_Stop(&p->link.lcp.fsm.FsmTimer);
-  timer_Stop(&p->link.ccp.fsm.FsmTimer);
-  timer_Stop(&p->link.lcp.fsm.OpenTimer);
-  timer_Stop(&p->link.ccp.fsm.OpenTimer);
-  timer_Stop(&p->link.lcp.fsm.StoppedTimer);
-  timer_Stop(&p->link.ccp.fsm.StoppedTimer);
-  timer_Stop(&p->Timer);
-  timer_Stop(&p->link.throughput.Timer);
-
-  if (fd != -1 && write(fd, p, sizeof *p) != sizeof *p) {
-    log_Printf(LogERROR, "Failed sending physical\n");
-    close(fd);
-    fd = -1;
+  if (p) {
+    hdlc_StopTimer(&p->hdlc);
+    lqr_StopTimer(p);
+    timer_Stop(&p->link.lcp.fsm.FsmTimer);
+    timer_Stop(&p->link.ccp.fsm.FsmTimer);
+    timer_Stop(&p->link.lcp.fsm.OpenTimer);
+    timer_Stop(&p->link.ccp.fsm.OpenTimer);
+    timer_Stop(&p->link.lcp.fsm.StoppedTimer);
+    timer_Stop(&p->link.ccp.fsm.StoppedTimer);
+    timer_Stop(&p->Timer);
+    timer_Stop(&p->link.throughput.Timer);
   }
 
-  link_fd = p->fd;
-  free(p);
+  if (*niov >= maxiov) {
+    log_Printf(LogERROR, "ToBinary: No room for physical !\n");
+    if (p)
+      free(p);
+    return -1;
+  }
 
-  return link_fd;
+  iov[*niov].iov_base = p ? p : malloc(sizeof *p);
+  iov[*niov].iov_len = sizeof *p;
+  (*niov)++;
+
+  return p ? p->fd : 0;
 }

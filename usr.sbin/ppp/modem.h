@@ -15,11 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.16.2.15 1998/04/10 13:19:14 brian Exp $
+ * $Id: modem.h,v 1.16.2.16 1998/04/30 23:53:50 brian Exp $
  *
  *	TODO:
  */
 
+struct iovec;
 struct datalink;
 struct physical;
 struct bundle;
@@ -36,5 +37,6 @@ extern int modem_ShowStatus(struct cmdargs const *);
 extern void modem_Close(struct physical *);
 extern void modem_Offline(struct physical *);
 extern void modem_Destroy(struct physical *);
-extern struct physical *modem_FromBinary(struct datalink *, int);
-extern int modem_ToBinary(struct physical *, int fd);
+extern struct physical *iov2modem(struct datalink *, struct iovec *, int *,
+                                  int, int);
+extern int modem2iov(struct physical *, struct iovec *, int *, int);

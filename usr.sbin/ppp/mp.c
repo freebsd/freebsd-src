@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.18 1998/04/30 23:53:51 brian Exp $
+ *	$Id: mp.c,v 1.1.2.19 1998/05/01 19:25:27 brian Exp $
  */
 
 #include <sys/types.h>
@@ -200,7 +200,6 @@ int
 mp_Up(struct mp *mp, struct datalink *dl)
 {
   struct lcp *lcp = &dl->physical->link.lcp;
-  int fd;
 
   if (mp->active) {
     /* We're adding a link - do a last validation on our parameters */
@@ -239,16 +238,15 @@ mp_Up(struct mp *mp, struct datalink *dl)
      * Now we create our server socket.
      * If it already exists, join it.  Otherwise, create and own it
      */
-    fd = mpserver_Open(&mp->server, &mp->peer);
-    if (fd >= 0) {
+    switch (mpserver_Open(&mp->server, &mp->peer)) {
+    case MPSERVER_CONNECTED:
       log_Printf(LogPHASE, "mp: Transfer link on %s\n",
                 mp->server.socket.sun_path);
-      mp->server.send.dl = dl;
-      mp->server.send.fd = fd;
+      mp->server.send.dl = dl;		/* Defer 'till it's safe to send */
       return MP_LINKSENT;
-    } else if (!mpserver_IsOpen(&mp->server))
+    case MPSERVER_FAILED:
       return MP_FAILED;
-    else {
+    case MPSERVER_LISTENING:
       log_Printf(LogPHASE, "mp: Listening on %s\n", mp->server.socket.sun_path);
       log_Printf(LogPHASE, "    First link: %s\n", dl->name);
 
@@ -260,6 +258,7 @@ mp_Up(struct mp *mp, struct datalink *dl)
       fsm_Open(&mp->link.ccp.fsm);
 
       mp->active = 1;
+      break;
     }
   }
 
@@ -787,12 +786,12 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   struct mpserver *s = descriptor2mpserver(d);
 
   if (s->send.dl != NULL) {
-    bundle_SendDatalink(s->send.dl, s->send.fd);
+    /* We've connect()ed */
+    bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
     s->send.dl = NULL;
-    s->send.fd = -1;
-  }
-
-  if (r && s->fd >= 0) {
+    close(s->fd);
+    s->fd = -1;
+  } else if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
     FD_SET(s->fd, r);
@@ -822,10 +821,10 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     return;
   }
 
-  if (in.sa_family != AF_LOCAL)		/* ??? */
-    close(fd);
-  else
-    bundle_ReceiveDatalink(bundle, fd);
+  if (in.sa_family == AF_LOCAL)		/* ??? */
+    bundle_ReceiveDatalink(bundle, fd, (struct sockaddr_un *)&in);
+
+  close(fd);
 }
 
 static void
@@ -845,7 +844,6 @@ mpserver_Init(struct mpserver *s)
   s->desc.Read = mpserver_Read;
   s->desc.Write = mpserver_Write;
   s->send.dl = NULL;
-  s->send.fd = -1;
   s->fd = -1;
   memset(&s->socket, '\0', sizeof s->socket);
 }
@@ -853,7 +851,7 @@ mpserver_Init(struct mpserver *s)
 int
 mpserver_Open(struct mpserver *s, struct peerid *peer)
 {
-  int f, l, fd;
+  int f, l;
   mode_t mask;
 
   if (s->fd != -1) {
@@ -875,7 +873,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   s->fd = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s->fd < 0) {
     log_Printf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
-    return -1;
+    return MPSERVER_FAILED;
   }
 
   setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, (struct sockaddr *)&s->socket,
@@ -888,7 +886,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
       umask(mask);
       close(s->fd);
       s->fd = -1;
-      return -1;
+      return MPSERVER_FAILED;
     }
     umask(mask);
     if (ID0connect_un(s->fd, &s->socket) < 0) {
@@ -898,13 +896,11 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
         log_Printf(LogPHASE, "          Has the previous server died badly ?\n");
       close(s->fd);
       s->fd = -1;
-      return -1;
+      return MPSERVER_FAILED;
     }
 
     /* Donate our link to the other guy */
-    fd = s->fd;
-    s->fd = -1;
-    return fd;
+    return MPSERVER_CONNECTED;
   }
 
   /* Listen for other ppp invocations that want to donate links */
@@ -914,19 +910,18 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
     mpserver_Close(s);
   }
 
-  return -1;
+  return MPSERVER_LISTENING;
 }
 
 void
 mpserver_Close(struct mpserver *s)
 {
   if (s->send.dl != NULL) {
-    bundle_SendDatalink(s->send.dl, s->send.fd);
+    bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
     s->send.dl = NULL;
-    s->send.fd = -1;
-  }
-
-  if (s->fd >= 0) {
+    close(s->fd);
+    s->fd = -1;
+  } else if (s->fd >= 0) {
     close(s->fd);
     if (ID0unlink(s->socket.sun_path) == -1)
       log_Printf(LogERROR, "%s: Failed to remove: %s\n", s->socket.sun_path,

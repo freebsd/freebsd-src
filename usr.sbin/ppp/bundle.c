@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.67 1998/05/01 19:22:09 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.68 1998/05/01 19:23:55 brian Exp $
  */
 
 #include <sys/types.h>
@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -80,6 +81,10 @@
 #include "chat.h"
 #include "datalink.h"
 #include "ip.h"
+
+#define SCATTER_SEGMENTS 4	/* version, datalink, name, physical */
+#define SOCKET_OVERHEAD	100	/* additional buffer space for large */
+                                /* {recv,send}msg() calls            */
 
 static const char *PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
@@ -1087,43 +1092,68 @@ bundle_GetLabel(struct bundle *bundle)
 }
 
 void
-bundle_ReceiveDatalink(struct bundle *bundle, int fd)
+bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 {
+  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)];
+  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  struct msghdr msg;
+  struct iovec iov[SCATTER_SEGMENTS];
   struct datalink *dl, *ndl;
-  u_char *buf;
-  int get, got, vlen;
-
-  /*
-   * We expect:
-   *  .---------.---------.--------------.
-   *  | ver len | Version | datalink len |
-   *  `---------'---------'--------------'
-   * We then pass the rest of the stream to datalink.
-   */
+  int niov, link_fd, expect, f;
 
   log_Printf(LogPHASE, "Receiving datalink\n");
 
-  vlen = strlen(Version);
-  get = sizeof(int) * 2 + vlen;
-  buf = (u_char *)malloc(get);
-  got = fullread(fd, buf, get);
-  if (got != get) {
-    log_Printf(LogWARN, "Cannot receive datalink header"
-              " (got %d bytes, not %d)\n", got, get);
-    close(fd);
-    free(buf);
+  /* Create our scatter/gather array */
+  niov = 1;
+  iov[0].iov_len = strlen(Version) + 1;
+  iov[0].iov_base = (char *)malloc(iov[0].iov_len);
+  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov) == -1)
     return;
-  }
-  if (*(int *)buf != vlen || *(int *)(buf + sizeof(int) + vlen) != sizeof *dl ||
-      memcmp(buf + sizeof(int), Version, vlen)) {
-    log_Printf(LogWARN, "Cannot receive datalink, incorrect version\n");
-    close(fd);
-    free(buf);
-    return;
-  }
-  free(buf);
 
-  ndl = datalink_FromBinary(bundle, fd);
+  for (f = expect = 0; f < niov; f++)
+    expect += iov[f].iov_len;
+
+  /* Set up our message */
+  cmsg->cmsg_len = sizeof cmsgbuf;
+  cmsg->cmsg_level = SOL_SOCKET;
+  cmsg->cmsg_type = SCM_RIGHTS;
+
+  memset(&msg, '\0', sizeof msg);
+  msg.msg_name = (caddr_t)sun;
+  msg.msg_namelen = sizeof *sun;
+  msg.msg_iov = iov;
+  msg.msg_iovlen = niov;
+  msg.msg_control = cmsgbuf;
+  msg.msg_controllen = sizeof cmsgbuf;
+
+  log_Printf(LogDEBUG, "Expecting %d scatter/gather bytes\n", expect);
+  f = expect + 100;
+  setsockopt(s, SOL_SOCKET, SO_RCVBUF, &f, sizeof f);
+  if ((f = recvmsg(s, &msg, MSG_WAITALL)) != expect) {
+    if (f == -1)
+      log_Printf(LogERROR, "Failed recvmsg: %s\n", strerror(errno));
+    else
+      log_Printf(LogERROR, "Failed recvmsg: Got %d, not %d\n", f, expect);
+    while (niov--)
+      free(iov[niov].iov_base);
+    return;
+  }
+
+  /* We've successfully received an open file descriptor through our socket */
+  link_fd = *(int *)CMSG_DATA(cmsg);
+
+  if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
+    log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
+               " (\"%.*s\", not \"%s\")\n", (int)iov[0].iov_len,
+               iov[0].iov_base, Version);
+    close(link_fd);
+    while (niov--)
+      free(iov[niov].iov_base);
+    return;
+  }
+
+  niov = 1;
+  ndl = iov2datalink(bundle, iov, &niov, sizeof iov / sizeof *iov, link_fd);
   if (ndl) {
     /* Make sure the name is unique ! */
     do {
@@ -1140,24 +1170,22 @@ bundle_ReceiveDatalink(struct bundle *bundle, int fd)
     log_Printf(LogPHASE, "%s: Created in %s state\n",
               ndl->name, datalink_State(ndl));
     datalink_AuthOk(ndl);
-  }
+  } else
+    close(link_fd);
+
+  free(iov[0].iov_base);
 }
 
 void
-bundle_SendDatalink(struct datalink *dl, int ppp_fd)
+bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 {
-  int len, link_fd, err, nfd, flags;
+  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)];  /* pass ppp_fd */
+  struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
+  struct msghdr msg;
+  struct iovec iov[SCATTER_SEGMENTS];
+  int niov, link_fd, f, expect;
   struct datalink **pdl;
   struct bundle *bundle = dl->bundle;
-  char procname[100];
-
-  /*
-   * We send:
-   *  .---------.---------.--------------.
-   *  | ver len | Version | datalink len |
-   *  `---------'---------'--------------'
-   * We then pass the rest of the stream to datalink.
-   */
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
 
@@ -1169,70 +1197,39 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
       break;
     }
 
-  /* Write our bit of the data */
-  err = 0;
-  len = strlen(Version);
-  if (write(ppp_fd, &len, sizeof len) != sizeof len)
-    err++;
-  if (write(ppp_fd, Version, len) != len)
-    err++;
-  len = sizeof(struct datalink);
-  if (write(ppp_fd, &len, sizeof len) != sizeof len)
-    err++;
+  /* Build our scatter/gather array */
+  iov[0].iov_len = strlen(Version) + 1;
+  iov[0].iov_base = strdup(Version);
+  niov = 1;
 
-  if (err) {
-    log_Printf(LogERROR, "Failed sending version\n");
-    close(ppp_fd);
-    ppp_fd = -1;
-  }
-
-  link_fd = datalink_ToBinary(dl, ppp_fd);
+  link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov);
 
   if (link_fd != -1) {
-    switch (fork()) {
-      case 0:
-        timer_TermService();
+    cmsg->cmsg_len = sizeof cmsgbuf;
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    *(int *)CMSG_DATA(cmsg) = link_fd;
 
-        ppp_fd = fcntl(ppp_fd, F_DUPFD, 3);
-        link_fd = fcntl(link_fd, F_DUPFD, 3);
-        nfd = dup2(open(_PATH_DEVNULL, O_WRONLY), STDERR_FILENO);
-        fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
+    memset(&msg, '\0', sizeof msg);
+    msg.msg_name = (caddr_t)sun;
+    msg.msg_namelen = sizeof *sun;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = niov;
+    msg.msg_control = cmsgbuf;
+    msg.msg_controllen = sizeof cmsgbuf;
 
-        setsid();
-        setuid(geteuid());
+    for (f = expect = 0; f < niov; f++)
+      expect += iov[f].iov_len;
 
-        flags = fcntl(ppp_fd, F_GETFL, 0);
-        fcntl(ppp_fd, F_SETFL, flags & ~O_NONBLOCK);
-        flags = fcntl(link_fd, F_GETFL, 0);
-        fcntl(link_fd, F_SETFL, flags & ~O_NONBLOCK);
+    log_Printf(LogDEBUG, "Sending %d bytes in scatter/gather array\n", expect);
 
-        switch (fork()) {
-          case 0:
-            dup2(ppp_fd, STDIN_FILENO);
-            dup2(link_fd, STDOUT_FILENO);
-            snprintf(procname, sizeof procname, "%s -> %s",
-                     dl->name, *dl->physical->name.base ?
-                     dl->physical->name.base : "network");
-            execl(CATPROG, procname, NULL);
-            log_Printf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
-            break;
-          case -1:
-            break;
-          default:
-            dup2(link_fd, STDIN_FILENO);
-            dup2(ppp_fd, STDOUT_FILENO);
-            snprintf(procname, sizeof procname, "%s <- %s",
-                     dl->name, *dl->physical->name.base ?
-                     dl->physical->name.base : "network");
-            execl(CATPROG, procname, NULL);
-            log_Printf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
-            break;
-        }
-        exit(1);
-        break;
-      case -1:
-        log_Printf(LogERROR, "fork: %s\n", strerror(errno));
-        break;
-    }
+    f = expect + SOCKET_OVERHEAD;
+    setsockopt(s, SOL_SOCKET, SO_SNDBUF, &f, sizeof f);
+    if (sendmsg(s, &msg, 0) == -1)
+      log_Printf(LogERROR, "Failed sendmsg: %s\n", strerror(errno));
+    close(link_fd);
   }
+
+  while (niov--)
+    free(iov[niov].iov_base);
 }

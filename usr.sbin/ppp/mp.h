@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.9 1998/04/30 23:53:52 brian Exp $
+ *	$Id: mp.h,v 1.1.2.10 1998/05/01 19:25:28 brian Exp $
  */
 
 struct mbuf;
@@ -44,6 +44,10 @@ struct datalink;
 #define MP_ADDED	2	/* We've added the link to our MP */
 #define MP_FAILED	3	/* No go */
 
+#define MPSERVER_CONNECTED	0
+#define MPSERVER_LISTENING	1
+#define MPSERVER_FAILED		2
+
 struct enddisc {
   u_char class;
   char address[50];
@@ -57,12 +61,11 @@ struct peerid {
 
 struct mpserver {
   struct descriptor desc;
-  int fd;			/* listen()ing here */
+  int fd;			/* listen()ing or connect()ing here */
   struct sockaddr_un socket;	/* On this socket */
 
   struct {
-    struct datalink *dl;	/* Send this datalink through */
-    int fd;			/* this descriptor when it's safe */
+    struct datalink *dl;	/* Send this datalink */
   } send;			/* (in UpdateSet()) */
 };
 

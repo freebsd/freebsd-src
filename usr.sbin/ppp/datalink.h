@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.20 1998/04/30 23:53:33 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.21 1998/05/01 19:24:24 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -36,6 +36,9 @@
 #define DATALINK_AUTH    (7)
 #define DATALINK_OPEN    (8)
 
+#define DATALINK_MAXNAME (20)
+
+struct iovec;
 struct prompt;
 struct physical;
 struct bundle;
@@ -105,8 +108,9 @@ struct datalink {
 
 extern struct datalink *datalink_Create(const char *name, struct bundle *, int);
 extern struct datalink *datalink_Clone(struct datalink *, const char *);
-extern struct datalink *datalink_FromBinary(struct bundle *, int);
-extern int datalink_ToBinary(struct datalink *, int);
+extern struct datalink *iov2datalink(struct bundle *, struct iovec *, int *,
+                                     int, int);
+extern int datalink2iov(struct datalink *, struct iovec *, int *, int);
 extern struct datalink *datalink_Destroy(struct datalink *);
 extern void datalink_GotAuthname(struct datalink *, const char *, int);
 extern void datalink_Up(struct datalink *, int, int);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.33 1998/04/28 01:25:05 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.34 1998/04/30 23:53:22 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -44,6 +44,7 @@
 
 #define Enabled(b, o) ((b)->cfg.opt & (o))
 
+struct sockaddr_un;
 struct datalink;
 struct physical;
 struct link;
@@ -139,5 +140,5 @@ extern void bundle_DatalinkRemove(struct bundle *, struct datalink *);
 extern void bundle_CleanDatalinks(struct bundle *);
 extern void bundle_SetLabel(struct bundle *, const char *);
 extern const char *bundle_GetLabel(struct bundle *);
-extern void bundle_SendDatalink(struct datalink *, int);
-extern void bundle_ReceiveDatalink(struct bundle *, int);
+extern void bundle_SendDatalink(struct datalink *, int, struct sockaddr_un *);
+extern void bundle_ReceiveDatalink(struct bundle *, int, struct sockaddr_un *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.52 1998/05/01 19:20:01 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.53 1998/05/01 19:24:23 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -916,49 +917,22 @@ datalink_State(struct datalink *dl)
 }
 
 struct datalink *
-datalink_FromBinary(struct bundle *bundle, int fd)
+iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
+             int fd)
 {
-  struct datalink *dl = (struct datalink *)malloc(sizeof(struct datalink));
+  struct datalink *dl;
   u_int retry;
-  int got, get;
 
-  /*
-   * We expect:
-   *  .----------.----------.------.--------------.
-   *  | datalink | name len | name | physical len |
-   *  `----------'----------'------'--------------'
-   * We then pass the rest of the stream to physical.
-   */
+  dl = (struct datalink *)iov[(*niov)++].iov_base;
+  dl->name = iov[*niov].iov_base;
 
-  got = fullread(fd, dl, sizeof *dl);
-  if (got != sizeof *dl) {
-    log_Printf(LogWARN, "Cannot receive datalink"
-              " (got %d bytes, not %d)\n", got, sizeof *dl);
-    close(fd);
-    free(dl);
-    return NULL;
+  if (dl->name[DATALINK_MAXNAME-1]) {
+    dl->name[DATALINK_MAXNAME-1] = '\0';
+    if (strlen(dl->name) == DATALINK_MAXNAME - 1)
+      log_Printf(LogWARN, "Datalink name truncated to \"%s\"\n", dl->name);
   }
-
-  got = fullread(fd, &get, sizeof get);
-  if (got != sizeof get) {
-    log_Printf(LogWARN, "Cannot receive name length"
-              " (got %d bytes, not %d)\n", got, sizeof get);
-    close(fd);
-    free(dl);
-    return NULL;
-  }
-
-  dl->name = (char *)malloc(get + 1);
-  got = fullread(fd, dl->name, get);
-  if (got != get) {
-    log_Printf(LogWARN, "Cannot receive name"
-              " (got %d bytes, not %d)\n", got, get);
-    close(fd);
-    free(dl->name);
-    free(dl);
-    return NULL;
-  }
-  dl->name[get] = '\0';
+  dl->name = strdup(dl->name);
+  free(iov[(*niov)++].iov_base);
 
   dl->desc.type = DATALINK_DESCRIPTOR;
   dl->desc.next = NULL;
@@ -993,15 +967,9 @@ datalink_FromBinary(struct bundle *bundle, int fd)
   auth_Init(&dl->chap.auth);
   dl->chap.auth.cfg.fsmretry = retry;
 
-  got = fullread(fd, &get, sizeof get);
-  if (got != sizeof get) {
-    log_Printf(LogWARN, "Cannot receive physical length"
-              " (got %d bytes, not %d)\n", got, sizeof get);
-    close(fd);
-    free(dl->name);
-    free(dl);
-    dl = NULL;
-  } else if ((dl->physical = modem_FromBinary(dl, fd)) == NULL) {
+  dl->physical = iov2modem(dl, iov, niov, maxiov, fd);
+
+  if (!dl->physical) {
     free(dl->name);
     free(dl);
     dl = NULL;
@@ -1012,47 +980,38 @@ datalink_FromBinary(struct bundle *bundle, int fd)
 }
 
 int
-datalink_ToBinary(struct datalink *dl, int fd)
+datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov)
 {
-  int len, link_fd;
+  /* If `dl' is NULL, we're allocating before a Fromiov() */
+  int link_fd;
 
-  /*
-   * We send:
-   *  .----------.----------.------.--------------.
-   *  | datalink | name len | name | physical len |
-   *  `----------'----------'------'--------------'
-   */
-
-  timer_Stop(&dl->dial_timer);
-  timer_Stop(&dl->pap.authtimer);
-  timer_Stop(&dl->chap.auth.authtimer);
-
-  if (fd != -1) {
-    int err;
-
-    err = 0;
-    if (write(fd, dl, sizeof *dl) != sizeof *dl)
-      err++;
-    len = strlen(dl->name);
-    if (write(fd, &len, sizeof(int)) != sizeof(int))
-      err++;
-    if (write(fd, dl->name, len) != len)
-      err++;
-    len = sizeof(struct physical);
-    if (write(fd, &len, sizeof(int)) != sizeof(int))
-      err++;
-
-    if (err) {
-      log_Printf(LogERROR, "Failed sending datalink\n");
-      close(fd);
-      fd = -1;
-    }
+  if (dl) {
+    timer_Stop(&dl->dial_timer);
+    timer_Stop(&dl->pap.authtimer);
+    timer_Stop(&dl->chap.auth.authtimer);
   }
 
-  link_fd = modem_ToBinary(dl->physical, fd);
+  if (*niov >= maxiov - 1) {
+    log_Printf(LogERROR, "Toiov: No room for datalink !\n");
+    if (dl) {
+      free(dl->name);
+      free(dl);
+    }
+    return -1;
+  }
 
-  free(dl->name);
-  free(dl);
+  iov[*niov].iov_base = dl ? dl : malloc(sizeof *dl);
+  iov[(*niov)++].iov_len = sizeof *dl;
+  iov[*niov].iov_base =
+    dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
+  iov[(*niov)++].iov_len = DATALINK_MAXNAME;
+
+  link_fd = modem2iov(dl ? dl->physical : NULL, iov, niov, maxiov);
+
+  if (link_fd == -1 && dl) {
+    free(dl->name);
+    free(dl);
+  }
 
   return link_fd;
 }
