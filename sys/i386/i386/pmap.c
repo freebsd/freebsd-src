@@ -261,6 +261,7 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static int _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static int pmap_unuse_pt(pmap_t, vm_offset_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
@@ -1000,55 +1001,49 @@ pmap_qremove(vm_offset_t sva, int count)
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
-static int 
-_pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
-{
-
-	while (vm_page_sleep_if_busy(m, FALSE, "pmuwpt"))
-		vm_page_lock_queues();
-
-	if (m->hold_count == 0) {
-		vm_offset_t pteva;
-		/*
-		 * unmap the page table page
-		 */
-		pmap->pm_pdir[m->pindex] = 0;
-		--pmap->pm_stats.resident_count;
-		/*
-		 * We never unwire a kernel page table page, making a
-		 * check for the kernel_pmap unnecessary.
-		 */
-		if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)) {
-			/*
-			 * Do an invltlb to make the invalidated mapping
-			 * take effect immediately.
-			 */
-			pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);
-			pmap_invalidate_page(pmap, pteva);
-		}
-
-		/*
-		 * If the page is finally unwired, simply free it.
-		 */
-		--m->wire_count;
-		if (m->wire_count == 0) {
-			vm_page_busy(m);
-			vm_page_free_zero(m);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
-		return 1;
-	}
-	return 0;
-}
-
 static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 {
+
 	vm_page_unhold(m);
 	if (m->hold_count == 0)
 		return _pmap_unwire_pte_hold(pmap, m);
 	else
 		return 0;
+}
+
+static int 
+_pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
+{
+	vm_offset_t pteva;
+
+	/*
+	 * unmap the page table page
+	 */
+	pmap->pm_pdir[m->pindex] = 0;
+	--pmap->pm_stats.resident_count;
+	/*
+	 * We never unwire a kernel page table page, making a
+	 * check for the kernel_pmap unnecessary.
+	 */
+	if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)) {
+		/*
+		 * Do an invltlb to make the invalidated mapping
+		 * take effect immediately.
+		 */
+		pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);
+		pmap_invalidate_page(pmap, pteva);
+	}
+
+	/*
+	 * If the page is finally unwired, simply free it.
+	 */
+	--m->wire_count;
+	if (m->wire_count == 0) {
+		vm_page_free_zero(m);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+	}
+	return 1;
 }
 
 /*

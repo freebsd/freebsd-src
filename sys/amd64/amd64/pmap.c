@@ -215,6 +215,7 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex);
+static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 
@@ -964,87 +965,76 @@ pmap_qremove(vm_offset_t sva, int count)
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
-static int 
-_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
-{
-
-	while (vm_page_sleep_if_busy(m, FALSE, "pmuwpt"))
-		vm_page_lock_queues();
-
-	if (m->hold_count == 0) {
-		vm_offset_t pteva;
-
-		/*
-		 * unmap the page table page
-		 */
-		if (m->pindex >= (NUPDE + NUPDPE)) {
-			/* PDP page */
-			pml4_entry_t *pml4;
-			pml4 = pmap_pml4e(pmap, va);
-			pteva = (vm_offset_t) PDPmap + amd64_ptob(m->pindex - (NUPDE + NUPDPE));
-			*pml4 = 0;
-		} else if (m->pindex >= NUPDE) {
-			/* PD page */
-			pdp_entry_t *pdp;
-			pdp = pmap_pdpe(pmap, va);
-			pteva = (vm_offset_t) PDmap + amd64_ptob(m->pindex - NUPDE);
-			*pdp = 0;
-		} else {
-			/* PTE page */
-			pd_entry_t *pd;
-			pd = pmap_pde(pmap, va);
-			pteva = (vm_offset_t) PTmap + amd64_ptob(m->pindex);
-			*pd = 0;
-		}
-		--pmap->pm_stats.resident_count;
-		if (m->pindex < NUPDE) {
-			/* We just released a PT, unhold the matching PD */
-			vm_page_t pdpg;
-
-			pdpg = PHYS_TO_VM_PAGE(*pmap_pdpe(pmap, va) & PG_FRAME);
-			vm_page_unhold(pdpg);
-			if (pdpg->hold_count == 0)
-				_pmap_unwire_pte_hold(pmap, va, pdpg);
-		}
-		if (m->pindex >= NUPDE && m->pindex < (NUPDE + NUPDPE)) {
-			/* We just released a PD, unhold the matching PDP */
-			vm_page_t pdppg;
-
-			pdppg = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, va) & PG_FRAME);
-			vm_page_unhold(pdppg);
-			if (pdppg->hold_count == 0)
-				_pmap_unwire_pte_hold(pmap, va, pdppg);
-		}
-		if (pmap_is_current(pmap)) {
-			/*
-			 * Do an invltlb to make the invalidated mapping
-			 * take effect immediately.
-			 */
-			pmap_invalidate_page(pmap, pteva);
-		}
-
-		/*
-		 * If the page is finally unwired, simply free it.
-		 */
-		--m->wire_count;
-		if (m->wire_count == 0) {
-			vm_page_busy(m);
-			vm_page_free_zero(m);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
-		return 1;
-	}
-	return 0;
-}
-
 static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
+
 	vm_page_unhold(m);
 	if (m->hold_count == 0)
 		return _pmap_unwire_pte_hold(pmap, va, m);
 	else
 		return 0;
+}
+
+static int 
+_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	vm_offset_t pteva;
+
+	/*
+	 * unmap the page table page
+	 */
+	if (m->pindex >= (NUPDE + NUPDPE)) {
+		/* PDP page */
+		pml4_entry_t *pml4;
+		pml4 = pmap_pml4e(pmap, va);
+		pteva = (vm_offset_t) PDPmap + amd64_ptob(m->pindex - (NUPDE + NUPDPE));
+		*pml4 = 0;
+	} else if (m->pindex >= NUPDE) {
+		/* PD page */
+		pdp_entry_t *pdp;
+		pdp = pmap_pdpe(pmap, va);
+		pteva = (vm_offset_t) PDmap + amd64_ptob(m->pindex - NUPDE);
+		*pdp = 0;
+	} else {
+		/* PTE page */
+		pd_entry_t *pd;
+		pd = pmap_pde(pmap, va);
+		pteva = (vm_offset_t) PTmap + amd64_ptob(m->pindex);
+		*pd = 0;
+	}
+	--pmap->pm_stats.resident_count;
+	if (m->pindex < NUPDE) {
+		/* We just released a PT, unhold the matching PD */
+		vm_page_t pdpg;
+
+		pdpg = PHYS_TO_VM_PAGE(*pmap_pdpe(pmap, va) & PG_FRAME);
+		pmap_unwire_pte_hold(pmap, va, pdpg);
+	}
+	if (m->pindex >= NUPDE && m->pindex < (NUPDE + NUPDPE)) {
+		/* We just released a PD, unhold the matching PDP */
+		vm_page_t pdppg;
+
+		pdppg = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, va) & PG_FRAME);
+		pmap_unwire_pte_hold(pmap, va, pdppg);
+	}
+	if (pmap_is_current(pmap)) {
+		/*
+		 * Do an invltlb to make the invalidated mapping
+		 * take effect immediately.
+		 */
+		pmap_invalidate_page(pmap, pteva);
+	}
+
+	/*
+	 * If the page is finally unwired, simply free it.
+	 */
+	--m->wire_count;
+	if (m->wire_count == 0) {
+		vm_page_free_zero(m);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+	}
+	return 1;
 }
 
 /*
