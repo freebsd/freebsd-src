@@ -454,6 +454,7 @@ Suff_ClearSuffixes(void)
 {
 
     Lst_Concat(suffClean, sufflist, LST_CONCLINK);
+    free(sufflist);
     sufflist = Lst_Init();
     sNum = 1;
     suffNull = emptySuff;
@@ -2079,6 +2080,8 @@ sfnd_return:
 
     Lst_Concat(slst, srcs, LST_CONCLINK);
     Lst_Concat(slst, targs, LST_CONCLINK);
+    free(srcs);
+    free(targs);
 }
 
 /*-
