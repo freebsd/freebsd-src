@@ -82,15 +82,87 @@
 CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
 
 ih_func_t *intr_handlers[PIL_MAX];
+u_int16_t	pil_countp[PIL_MAX];
+
 struct	intr_vector intr_vectors[IV_MAX];
-
 u_long	intr_stray_count[IV_MAX];
+u_int16_t	intr_countp[IV_MAX];
 
+char *pil_names[] = {
+	"stray",
+	"low",		/* PIL_LOW */
+	"ithrd",	/* PIL_ITHREAD */
+	"rndzvs",	/* PIL_RENDEZVOUS */
+	"ast",		/* PIL_AST */
+	"stop",		/* PIL_STOP */
+	"stray", "stray", "stray", "stray", "stray", "stray", "stray",
+	"fast",		/* PIL_FAST */
+	"tick",		/* PIL_TICK */
+};
+	
 /* protect the intr_vectors table */
 static struct	mtx intr_table_lock;
 
 static void intr_stray_level(struct trapframe *tf);
 static void intr_stray_vector(void *cookie);
+
+/*
+ * not MPSAFE
+ */
+static void
+update_intrname(int vec, const char *name, int ispil)
+{
+	char buf[32];
+	char *cp;
+	int off, name_index;
+
+	if (intrnames[0] == '\0') {
+		/* for bitbucket */
+		if (bootverbose)
+			printf("initalizing intr_countp\n");
+		off = sprintf(intrnames, "???") + 1;
+
+		off += sprintf(intrnames + off, "stray") + 1;
+		for (name_index = 0; name_index < IV_MAX; name_index++)
+			intr_countp[name_index] = 1;
+
+		off += sprintf(intrnames + off, "pil") + 1;
+		for (name_index = 0; name_index < PIL_MAX; name_index++)
+			pil_countp[name_index] = 2;
+	}
+
+	if (name == NULL)
+		name = "???";
+
+	if (snprintf(buf, sizeof(buf), "%s %s%d", name, ispil ? "pil" : "vec",
+	    vec) >= sizeof(buf))
+		goto use_bitbucket;
+
+	/*
+	 * Search for `buf' in `intrnames'.  In the usual case when it is
+	 * not found, append it to the end if there is enough space (the \0
+	 * terminator for the previous string, if any, becomes a separator).
+	 */
+	for (cp = intrnames, name_index = 0; cp != eintrnames &&
+	    name_index < IV_MAX; cp += strlen(cp) + 1, name_index++) {
+		if (*cp == '\0') {
+			if (strlen(buf) >= eintrnames - cp)
+				break;
+			strcpy(cp, buf);
+			goto found;
+		}
+		if (strcmp(cp, buf) == 0)
+			goto found;
+	}
+
+use_bitbucket:
+	name_index = 0;
+found:
+	if (!ispil)
+		intr_countp[vec] = name_index;
+	else
+		pil_countp[vec] = name_index;
+}
 
 void
 intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
@@ -104,6 +176,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 		intr_vectors[vec].iv_pri = pri;
 		intr_vectors[vec].iv_vec = vec;
 	}
+	update_intrname(pri, pil_names[pri], 1);
 	intr_handlers[pri] = ihf;
 	intr_restore(ps);
 }
@@ -222,7 +295,9 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		intr_setup(PIL_FAST, intr_fast, vec, handler, arg);
 
 	intr_stray_count[vec] = 0;
-	/* XXX: name is not yet used. */
+
+	update_intrname(vec, name, 0);
+
 	return (0);
 }
 
