@@ -165,12 +165,9 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 				/* Unlock the condition variable structure: */
 				_SPINUNLOCK(&(*cond)->lock);
 			} else {
-				/* Unlock the condition variable structure: */
-				_SPINUNLOCK(&(*cond)->lock);
-
 				/* Schedule the next thread: */
-				_thread_kern_sched_state(PS_COND_WAIT,
-				    __FILE__, __LINE__);
+				_thread_kern_sched_state_unlock(PS_COND_WAIT,
+				    &(*cond)->lock, __FILE__, __LINE__);
 
 				/* Lock the mutex: */
 				rval = pthread_mutex_lock(mutex);
@@ -241,12 +238,9 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				/* Unlock the condition variable structure: */
 				_SPINUNLOCK(&(*cond)->lock);
 			} else {
-				/* Unlock the condition variable structure: */
-				_SPINUNLOCK(&(*cond)->lock);
-
 				/* Schedule the next thread: */
-				_thread_kern_sched_state(PS_COND_WAIT,
-				    __FILE__, __LINE__);
+				_thread_kern_sched_state_unlock(PS_COND_WAIT,
+				    &(*cond)->lock, __FILE__, __LINE__);
 
 				/* Lock the mutex: */
 				if ((rval = pthread_mutex_lock(mutex)) != 0) {
