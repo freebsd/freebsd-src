@@ -579,9 +579,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	s = splnet();
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp)) {
-			if (!showallsockets && socheckproc(inp->inp_socket,
-			    curthread->td_proc))
+		if (inp->inp_gencnt <= gencnt) {
+			if (cr_cansee(req->p->p_ucred,
+			    inp->inp_socket->so_cred))
 				continue;
 			inp_list[i++] = inp;
 		}
