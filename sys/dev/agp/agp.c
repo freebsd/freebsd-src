@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/agpio.h>
 #include <sys/lock.h>
-#include <sys/lockmgr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
@@ -251,7 +250,7 @@ agp_generic_attach(device_t dev)
 	 * The lock is used to prevent re-entry to
 	 * agp_generic_bind_memory() since that function can sleep.
 	 */
-	lockinit(&sc->as_lock, PZERO|PCATCH, "agplk", 0, 0);
+	mtx_init(&sc->as_lock, "agp lock", NULL, MTX_DEF);
 
 	/*
 	 * Initialise stuff for the userland device.
@@ -275,8 +274,7 @@ agp_generic_detach(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
 	bus_release_resource(dev, SYS_RES_MEMORY, AGP_APBASE, sc->as_aperture);
-	lockmgr(&sc->as_lock, LK_DRAIN, 0, curthread);
-	lockdestroy(&sc->as_lock);
+	mtx_destroy(&sc->as_lock);
 	destroy_dev(sc->as_devnode);
 	agp_flush_cache();
 	return 0;
@@ -489,11 +487,11 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	vm_page_t m;
 	int error;
 
-	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curthread);
+	mtx_lock(&sc->as_lock);
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
-		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+		mtx_unlock(&sc->as_lock);
 		return EINVAL;
 	}
 	
@@ -502,7 +500,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	    || offset + mem->am_size > AGP_GET_APERTURE(dev)) {
 		device_printf(dev, "binding memory at bad offset %#x\n",
 			      (int) offset);
-		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+		mtx_unlock(&sc->as_lock);
 		return EINVAL;
 	}
 
@@ -559,7 +557,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 					vm_page_unlock_queues();
 				}
 				VM_OBJECT_UNLOCK(mem->am_obj);
-				lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+				mtx_unlock(&sc->as_lock);
 				return error;
 			}
 		}
@@ -582,7 +580,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	mem->am_offset = offset;
 	mem->am_is_bound = 1;
 
-	lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+	mtx_unlock(&sc->as_lock);
 
 	return 0;
 }
@@ -594,11 +592,11 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	vm_page_t m;
 	int i;
 
-	lockmgr(&sc->as_lock, LK_EXCLUSIVE, 0, curthread);
+	mtx_lock(&sc->as_lock);
 
 	if (!mem->am_is_bound) {
 		device_printf(dev, "memory is not bound\n");
-		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+		mtx_unlock(&sc->as_lock);
 		return EINVAL;
 	}
 
@@ -624,7 +622,7 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	mem->am_offset = 0;
 	mem->am_is_bound = 0;
 
-	lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
+	mtx_unlock(&sc->as_lock);
 
 	return 0;
 }

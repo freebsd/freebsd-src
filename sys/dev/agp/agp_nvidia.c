@@ -45,7 +45,6 @@
 #endif
 
 #if __FreeBSD_version > 500000
-#include <sys/lockmgr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #endif
