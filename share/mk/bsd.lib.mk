@@ -176,13 +176,6 @@ _LIBS=lib${LIB}.a
 .endif
 .endif
 
-LINTOBJS+= ${SRCS:M*.c:C/\..+$/.ln/}
-
-.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
-LINTLIB=llib-l${LIB}.ln
-_LIBS+=${LINTLIB}
-.endif
-
 .if defined(SHLIB_NAME)
 _LIBS+=${SHLIB_NAME}
 .endif
@@ -196,6 +189,13 @@ PICFLAG=-fPIC
 .else
 PICFLAG=-fpic
 .endif
+.endif
+
+LINTOBJS+= ${SRCS:M*.c:C/\..+$/.ln/}
+
+.if defined(WANT_LINT) && defined(LIB) && defined(LINTOBJS) && !empty(LINTOBJS)
+LINTLIB=llib-l${LIB}.ln
+_LIBS+=${LINTLIB}
 .endif
 
 .if !defined(NOMAN)
