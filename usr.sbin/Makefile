@@ -195,12 +195,11 @@ _atm=		atm
 #_bsnmpd=	bsnmpd
 .endif
 
-.if !defined(NO_BIND) && !defined(NOCRYPT)
+.if !defined(NO_BIND)
+.if !defined(NOCRYPT)
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
-
-.if !defined(NO_BIND)
 _named=			named
 _named.reload=		named.reload
 _named-checkconf=	named-checkconf
