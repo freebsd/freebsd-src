@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.78 1998/05/09 13:52:10 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.79 1998/05/09 14:44:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1151,15 +1151,23 @@ bundle_GenPhysType(struct bundle *bundle)
     bundle->phys_type |= dl->physical->type;
 }
 
-void
+int
 bundle_DatalinkClone(struct bundle *bundle, struct datalink *dl,
                      const char *name)
 {
-  struct datalink *ndl = datalink_Clone(dl, name);
+  struct datalink *ndl;
 
-  ndl->next = dl->next;
-  dl->next = ndl;
-  bundle_GenPhysType(bundle);
+  ndl = bundle2datalink(bundle, name);
+  if (!ndl) {
+    ndl = datalink_Clone(dl, name);
+    ndl->next = dl->next;
+    dl->next = ndl;
+    bundle_GenPhysType(bundle);
+    return 1;
+  }
+
+  log_Printf(LogWARN, "Clone: %s: name already exists\n", ndl->name);
+  return 0;
 }
 
 void

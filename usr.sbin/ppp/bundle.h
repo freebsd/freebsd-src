@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.37 1998/05/06 18:50:04 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.38 1998/05/06 23:50:02 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -144,8 +144,8 @@ extern void bundle_WriteTermPrompt(struct bundle *, struct datalink *,
                                    const char *, int);
 extern void bundle_SetTtyCommandMode(struct bundle *, struct datalink *);
 
-extern void bundle_DatalinkClone(struct bundle *, struct datalink *,
-                                 const char *);
+extern int bundle_DatalinkClone(struct bundle *, struct datalink *,
+                                const char *);
 extern void bundle_DatalinkRemove(struct bundle *, struct datalink *);
 extern void bundle_CleanDatalinks(struct bundle *);
 extern void bundle_SetLabel(struct bundle *, const char *);
