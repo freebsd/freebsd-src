@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992, 1993 Eugene W. Stark
+ * Copyright (c) 1992, 1993, 1995 Eugene W. Stark
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,22 +56,11 @@
  */
 
 /*
- * 386BSD Device Driver for X-10 POWERHOUSE (tm)
+ * FreeBSD Device Driver for X-10 POWERHOUSE (tm)
  * Two-Way Power Line Interface, Model #TW523
  *
  * written by Eugene W. Stark (stark@cs.sunysb.edu)
  * December 2, 1992
- *
- * REVISION HISTORY
- *
- * Date		Who		What
- * 12/2/92	stark		Initial Release
- * 2/7/93	stark		Minor upgrades to timing code
- * 3/4/93	stark		Updated to use high-res. "microtime" routines
- * 5/9/93	stark		Minor changes to console error reporting
- * 10/30/93	stark		Clean-up for FreeBSD release
- * 3/14/93	stark		Clean-up for FreeBSD-1.1 release
- * 9/17/94	stark		Upgrade to FreeBSD-2.0
  *
  * NOTES:
  *
@@ -108,7 +97,7 @@
  * by an IBM PC under MS-DOS (not useful to me other than to verify that
  * the unit worked).  I suggest saving money and buying the bare TW523
  * rather than the TW523 development kit (what I bought), because if you
- * are running 386BSD you don't really care about the DOS binaries.
+ * are running FreeBSD you don't really care about the DOS binaries.
  * 
  * The interface to the TW-523 consists of four wires on the RJ-11 connector,
  * which are jumpered to somewhat more wires on the DB-25 connector, which
