@@ -1,0 +1,8 @@
+Xgdb*geometry: 580x874-0+28
+Xgdb*src*scrollVertical: whenneeded
+Xgdb*src*scrollHorizontal: whenneeded
+Xgdb*src*wrap: never
+Xgdb*src*editType: read
+Xgdb*frame.buttons.allowResize: true
+Xgdb*frame.buttons.skipAdjust: true
+Xgdb*frame*showGrip: false
