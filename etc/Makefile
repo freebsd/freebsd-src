@@ -31,6 +31,7 @@ FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD RELNOTES.FreeBSD ${COPYRIGHT}
 # Floppy drive name and files for building FreeBSD Floppies
 FLOPPY?=	fd0
 MOUNT?=		/mnt
+FLOPPY_TYPE?=	floppy5
 #
 MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
@@ -184,8 +185,10 @@ kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 	        ${DESTDIR}/386bsd.GENERICBT)
 
 kcopy-floppy:
-	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
-	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space r${FLOPPY}a floppy5
+	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
+		/usr/mdec/fdboot /usr/mdec/bootfd
+	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space \
+		r${FLOPPY}a ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}a ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
@@ -225,8 +228,10 @@ kcopy-bt-floppy:
 		>${RELEASEDIR}/floppies/kcopy-bt-floppy.gz
 
 filesystem-floppy:
-	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
-	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space r${FLOPPY}a floppy5
+	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
+		/usr/mdec/fdboot /usr/mdec/bootfd
+	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
+		r${FLOPPY}a ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}a ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
@@ -258,8 +263,10 @@ filesystem-floppy:
 		>${RELEASEDIR}/floppies/filesystem-floppy.gz
 
 cpio-floppy:
-	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
-	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space r${FLOPPY}a floppy5
+	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
+		/usr/mdec/fdboot /usr/mdec/bootfd
+	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
+			r${FLOPPY}a ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}a ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
