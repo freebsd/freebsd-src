@@ -57,12 +57,6 @@ MAN+=	pthread_attr.3 \
 	pthread_suspend_np.3 \
 	pthread_switch_add_np.3 \
 	pthread_testcancel.3 \
-	sem_destroy.3 \
-	sem_getvalue.3 \
-	sem_init.3 \
-	sem_open.3 \
-	sem_post.3 \
-	sem_wait.3 \
 	sigwait.3
 
 MLINKS+= \
@@ -105,7 +99,4 @@ MLINKS+= \
 	pthread_schedparam.3 pthread_setschedparam.3 \
 	pthread_switch_add_np.3 pthread_switch_delete_np.3 \
 	pthread_testcancel.3 pthread_setcancelstate.3 \
-	pthread_testcancel.3 pthread_setcanceltype.3 \
-	sem_open.3 sem_close.3 \
-	sem_open.3 sem_unlink.3 \
-	sem_wait.3 sem_trywait.3
+	pthread_testcancel.3 pthread_setcanceltype.3
