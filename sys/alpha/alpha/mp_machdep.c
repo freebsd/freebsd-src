@@ -301,6 +301,11 @@ cpu_mp_probe(void)
 
 	/* XXX: Need to check for valid platforms here. */
 
+	boot_cpu_id = PCPU_GET(cpuid);
+	KASSERT(boot_cpu_id == hwrpb->rpb_primary_cpu_id,
+	    ("cpu_mp_probe() called on non-primary CPU"));
+	all_cpus = 1 << boot_cpu_id;
+
 	mp_ncpus = 1;
 
 	/* Make sure we have at least one secondary CPU. */
@@ -324,16 +329,12 @@ cpu_mp_probe(void)
 }
 
 void
-cpu_mp_start()
+cpu_mp_start(void)
 {
 	int i;
 
 	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 
-	boot_cpu_id = PCPU_GET(cpuid);
-	KASSERT(boot_cpu_id == hwrpb->rpb_primary_cpu_id,
-	    ("mp_start() called on non-primary CPU"));
-	all_cpus = 1 << boot_cpu_id;
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		struct pcs *pcsp;
 

@@ -50,7 +50,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 static struct mbpstat **mbpstat;
-static int num_objs, ncpu;
+static int num_objs;
 #define	GENLST	(num_objs - 1)
 
 /* XXX: mbtypes stats temporarily disabled. */
@@ -150,8 +150,11 @@ showmbufs()
 	 * Print total number of free mbufs.
 	 */
 	totfree = mbpstat[GENLST]->mb_mbfree; 
-	for (i = 0; i < ncpu; i++)
+	for (i = 0; i < (num_objs - 1); i++) {
+		if (mbpstat[i]->mb_active == 0)
+			continue;
 		totfree += mbpstat[i]->mb_mbfree;
+	}
 	j = 0;	/* XXX */
 	if (totfree > 0) {
 		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
@@ -189,12 +192,6 @@ initmbufs()
 	}
 	nmbtypes = mbtypeslen / sizeof(*m_mbtypes);
 #endif
-	len = sizeof(int);
-	if (sysctlbyname("kern.smp.cpus", &ncpu, &len, NULL, 0) < 0 &&
-	    sysctlbyname("hw.ncpu", &ncpu, &len, NULL, 0) < 0) {
-		error("sysctl getting number of cpus");
-		return 0;
-	}
 	if (sysctlbyname("kern.ipc.mb_statpcpu", NULL, &len, NULL, 0) < 0) {
 		error("sysctl getting mbpstat total size failed");
 		return 0;

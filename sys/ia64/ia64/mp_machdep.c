@@ -71,6 +71,7 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
 int
 cpu_mp_probe()
 {
+	all_cpus = 1;	/* Needed for MB init code */
 	return (0);
 }
 
