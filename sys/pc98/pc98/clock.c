@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.29 1997/07/21 13:12:01 kato Exp $
+ *	$Id: clock.c,v 1.30 1997/07/23 11:28:39 kato Exp $
  */
 
 /*
@@ -70,7 +70,7 @@
 #include <machine/ipl.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
-#include <machine/smptests.h>		/** TEST_ALTTIMER, APIC_PIN0_TIMER */
+#include <machine/smptests.h>		/** NEW_STRATEGY (,SMP_TIMER_NC) */
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
@@ -1164,6 +1164,10 @@ cpu_initclocks()
 #ifdef APIC_IO
 
 #ifdef NEW_STRATEGY
+#ifdef SMP_TIMER_NC
+#error 'options SMP_TIMER_NC' no longer used, remove & reconfig.
+#endif	/** XXX SMP_TIMER_NC */
+
 	/* 1st look for ExtInt on pin 0 */
 	if (apic_int_type(0, 0) == 3) {
 		/*
@@ -1172,7 +1176,7 @@ cpu_initclocks()
 		 *   reset; prog 4 bytes, single ICU, edge triggered
 		 */
 		outb(IO_ICU1, 0x13);
-		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
+		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector (unused) */
 		outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
 		outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
 		outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
@@ -1182,14 +1186,14 @@ cpu_initclocks()
 			panic("8254 redirect via APIC pin0 impossible!");
 
 		x = 0;
-		/** if (bootverbose */
+		/* XXX if (bootverbose) */
 			printf("APIC_IO: routing 8254 via 8259 on pin 0\n");
 	}
 
 	/* failing that, look for 8254 on pin 2 */
 	else if (isa_apic_pin(0) == 2) {
 		x = 2;
-		/** if (bootverbose */
+		/* XXX if (bootverbose) */
 			printf("APIC_IO: routing 8254 via pin 2\n");
 	}
 
@@ -1197,7 +1201,34 @@ cpu_initclocks()
 	else 
 		panic("neither pin 0 or pin 2 works for 8254");
 
-	/* setup the vectors for the chosen method */
+#else /** NEW_STRATEGY */
+
+	/* 8254 is traditionally on ISA IRQ0 */
+#if defined(SMP_TIMER_NC)
+	x = -1;
+#else
+	x = isa_apic_pin(0);
+#endif	/** XXX SMP_TIMER_NC */
+
+	if (x < 0) {
+		/* bummer, attempt to redirect thru the 8259 */
+		if (bootverbose)
+			printf("APIC missing 8254 connection\n");
+
+		/* allow 8254 timer to INTerrupt 8259 */
+		x = inb(IO_ICU1 + 1);		/* current mask in 8259 */
+		x &= ~1;			/* clear 8254 timer mask */
+		outb(IO_ICU1 + 1, x);		/* write new mask */
+
+		/* program IO APIC for type 3 INT on INT0 */
+		if (ext_int_setup(0, 0) < 0)
+			panic("8254 redirect impossible!");
+		x = 0;				/* 8259 is on 0 */
+	}
+
+#endif /** NEW_STRATEGY */
+
+	/* setup the vectors */
 	vec[x] = (u_int)vec8254;
 	Xintr8254 = (u_int)ivectors[x];
 	mask8254 = (1 << x);
@@ -1207,75 +1238,13 @@ cpu_initclocks()
 		      /* unit */ 0);
 	INTREN(mask8254);
 
-#else /** NEW_STRATEGY */
-
-#ifdef APIC_PIN0_TIMER
-	/*
-	 * Allow 8254 timer to INTerrupt 8259:
-	 *  re-initialize master 8259:
-	 *   reset; prog 4 bytes, single ICU, edge triggered
-	 */
-	outb(IO_ICU1, 0x13);
-	outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
-	outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
-	outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
-	outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
-
-	/* program IO APIC for type 3 INT on INT0 */
-	if (ext_int_setup(0, 0) < 0)
-		panic("8254 redirect via APIC pin0 impossible!");
-
-	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
-		      /* unit */ 0);
-	INTREN(APIC_IRQ0);
-#else /* APIC_PIN0_TIMER */
-	/* 8254 is traditionally on ISA IRQ0 */
-	if ((x = isa_apic_pin(0)) < 0) {
-		/* bummer, attempt to redirect thru the 8259 */
-		if (bootverbose)
-			printf("APIC missing 8254 connection\n");
-
-		/* allow 8254 timer to INTerrupt 8259 */
-#ifdef TEST_ALTTIMER
-		/*
-		 * re-initialize master 8259:
-		 * reset; prog 4 bytes, single ICU, edge triggered
-		 */
-		outb(IO_ICU1, 0x13);
-		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
-		outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
-		outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
-
-		outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
-#else
-		x = inb(IO_ICU1 + 1);		/* current mask in 8259 */
-		x &= ~1;			/* clear 8254 timer mask */
-		outb(IO_ICU1 + 1, x);		/* write new mask */
-#endif /* TEST_ALTTIMER */
-
-		/* program IO APIC for type 3 INT on INT0 */
-		if (ext_int_setup(0, 0) < 0)
-			panic("8254 redirect impossible!");
-		x = 0;				/* 8259 is on 0 */
-	}
-
-	vec[x] = (u_int)vec8254;
-	Xintr8254 = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
-	mask8254 = (1 << x);
-	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
-		      /* unit */ 0);
-	INTREN(mask8254);
-#endif /* APIC_PIN0_TIMER */
-
-#endif /** NEW_STRATEGY */
-
 #else /* APIC_IO */
+
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
 		      /* unit */ 0);
 	INTREN(IRQ0);
+
 #endif /* APIC_IO */
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
