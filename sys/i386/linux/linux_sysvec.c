@@ -37,14 +37,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
-#include <sys/signalvar.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
@@ -66,6 +68,15 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #else
 #define SHELLMAGIC      0x2321
 #endif
+
+/*
+ * Allow the sendsig functions to use the ldebug() facility
+ * even though they are not syscalls themselves. Map them
+ * to syscall 0. This is slightly less bogus than using
+ * ldebug(sigreturn).
+ */
+#define	LINUX_SYS_linux_rt_sendsig	0
+#define	LINUX_SYS_linux_sendsig		0
 
 extern char linux_sigcode[];
 extern int linux_szsigcode;
@@ -192,34 +203,34 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 extern int _ucodesel, _udatasel;
-extern unsigned long _linux_sznonrtsigcode;
+extern unsigned long linux_sznonrtsigcode;
 
 static void
 linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
-	struct linux_rt_sigframe *fp, frame;
+	struct l_rt_sigframe *fp, frame;
 	int oonstack;
 
 	regs = p->p_md.md_regs;
 	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_rt_sendsig(%p, %d, %p, %lu)\n",
-	    (long)p->p_pid, catcher, sig, (void*)mask, code);
+	if (ldebug(rt_sendsig))
+		printf(ARGS(rt_sendsig, "%p, %d, %p, %lu"),
+		    catcher, sig, (void*)mask, code);
 #endif
 	/*
 	 * Allocate space for the signal handler context.
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
-		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
+		fp = (struct l_rt_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	} else {
-		fp = (struct linux_rt_sigframe *)regs->tf_esp - 1;
-	}
+	} else
+		fp = (struct l_rt_sigframe *)regs->tf_esp - 1;
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -227,7 +238,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct linux_rt_sigframe), 
+	    !useracc((caddr_t)fp, sizeof (struct l_rt_sigframe), 
 	    VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -238,8 +249,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 #ifdef DEBUG
-		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, SS_ONSTACK: 0x%x ",
-	    (long)p->p_pid, fp, p->p_sigstk.ss_flags & SS_ONSTACK);
+		if (ldebug(rt_sendsig))
+			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
+			    fp, oonstack);
 #endif
 		psignal(p, SIGILL);
 		return;
@@ -269,9 +281,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
 	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
-	frame.sf_sc.uc_stack.ss_flags =
-	    bsd_to_linux_sigaltstack(p->p_sigstk.ss_flags);
 	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
+	frame.sf_sc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
@@ -296,9 +308,10 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
-	    (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,  p->p_sigstk.ss_sp, 
-	    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
+	if (ldebug(rt_sendsig))
+		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		    frame.sf_sc.uc_stack.ss_flags, p->p_sigstk.ss_sp,
+		    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
@@ -315,13 +328,12 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) + 
-	    _linux_sznonrtsigcode;
+	    linux_sznonrtsigcode;
 	regs->tf_eflags &= ~PSL_VM;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -342,8 +354,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
-	struct linux_sigframe *fp, frame;
-	linux_sigset_t lmask;
+	struct l_sigframe *fp, frame;
+	l_sigset_t lmask;
 	int oonstack, i;
 
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
@@ -356,8 +368,9 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
-	    (long)p->p_pid, catcher, sig, (void*)mask, code);
+	if (ldebug(sendsig))
+		printf(ARGS(sendsig, "%p, %d, %p, %lu"),
+		    catcher, sig, (void*)mask, code);
 #endif
 
 	/*
@@ -365,12 +378,11 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
-		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
+		fp = (struct l_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct l_sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	} else {
-		fp = (struct linux_sigframe *)regs->tf_esp - 1;
-	}
+	} else
+		fp = (struct l_sigframe *)regs->tf_esp - 1;
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -378,7 +390,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct linux_sigframe), 
+	    !useracc((caddr_t)fp, sizeof (struct l_sigframe), 
 	    VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -427,11 +439,11 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
 
-	bzero(&frame.sf_fpstate, sizeof(struct linux_fpstate));
+	bzero(&frame.sf_fpstate, sizeof(struct l_fpstate));
 
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		frame.sf_extramask[i] = lmask.__bits[i+1];
-	
+
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -451,7 +463,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -470,16 +481,16 @@ linux_sigreturn(p, args)
 	struct proc *p;
 	struct linux_sigreturn_args *args;
 {
-	struct linux_sigframe frame;
+	struct l_sigframe frame;
 	register struct trapframe *regs;
-	linux_sigset_t lmask;
+	l_sigset_t lmask;
 	int eflags, i;
 
 	regs = p->p_md.md_regs;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->sfp);
+	if (ldebug(sigreturn))
+		printf(ARGS(sigreturn, "%p"), (void *)args->sfp);
 #endif
 	/*
 	 * The trampoline code hands us the sigframe.
@@ -565,9 +576,9 @@ linux_rt_sigreturn(p, args)
 	struct linux_rt_sigreturn_args *args;
 {
 	struct sigaltstack_args sasargs;
-	struct linux_ucontext 	 uc;
-	struct linux_sigcontext *context;
-	linux_stack_t *lss;
+	struct l_ucontext uc;
+	struct l_sigcontext *context;
+	l_stack_t *lss;
 	stack_t *ss;
 	register struct trapframe *regs;
 	int eflags;
@@ -576,8 +587,8 @@ linux_rt_sigreturn(p, args)
 	regs = p->p_md.md_regs;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_rt_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->ucp);
+	if (ldebug(rt_sigreturn))
+		printf(ARGS(rt_sigreturn, "%p"), (void *)args->ucp);
 #endif
 	/*
 	 * The trampoline code hands us the ucontext.
@@ -620,7 +631,7 @@ linux_rt_sigreturn(p, args)
 	}
 
 	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-	SIGSETOLD(p->p_sigmask, context->sc_mask);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
 
 	/*
@@ -643,7 +654,6 @@ linux_rt_sigreturn(p, args)
 	regs->tf_esp    = context->sc_esp_at_signal;
 	regs->tf_ss     = context->sc_ss;
 
-
 	/*
 	 * call sigaltstack & ignore results..
 	 */
@@ -654,8 +664,9 @@ linux_rt_sigreturn(p, args)
 	ss->ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigret  flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
-	    (long)p->p_pid, ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
+	if (ldebug(rt_sigreturn))
+		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		    ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
 #endif
 	sasargs.ss = ss;
 	sasargs.oss = NULL;
@@ -795,40 +806,43 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		     ++brandinfo)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
-		if (error)
-			printf("cannot insert Linux elf brand handler\n");
-		else {
-			linux_ioctl_register_handlers(&linux_ioctl_handler_set);
+		if (error == 0) {
+			linux_ioctl_register_handlers(
+				&linux_ioctl_handler_set);
 			if (bootverbose)
-				printf("Linux-ELF exec handler installed\n");
-		}
+				printf("Linux ELF exec handler installed\n");
+		} else
+			printf("cannot insert Linux ELF brand handler\n");
 		break;
 	case MOD_UNLOAD:
-		linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		     ++brandinfo)
 			if (elf_brand_inuse(*brandinfo))
 				error = EBUSY;
-
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
 			     *brandinfo != NULL; ++brandinfo)
 				if (elf_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
-		if (error)
+		if (error == 0) {
+			linux_ioctl_unregister_handlers(
+				&linux_ioctl_handler_set);
+			if (bootverbose)
+				printf("Linux ELF exec handler removed\n");
+		} else
 			printf("Could not deinstall ELF interpreter entry\n");
-		else if (bootverbose)
-			printf("Linux-elf exec handler removed\n");
 		break;
 	default:
 		break;
 	}
 	return error;
 }
+
 static moduledata_t linux_elf_mod = {
 	"linuxelf",
 	linux_elf_modevent,
 	0
 };
+
 DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

@@ -34,44 +34,17 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_util.h>
 
-#define DUMMY(s) 							\
-int									\
-linux_ ## s(struct proc *p, struct linux_ ## s ## _args *args)		\
-{									\
-	return (unsupported_msg(p, #s));				\
-}									\
-struct __hack
-
-static int
-unsupported_msg(struct proc *p, const char *fname)
-{
-	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
-	       fname, (long)p->p_pid);
-	return (ENOSYS);
-}
-
-DUMMY(setup);
-DUMMY(break);
 DUMMY(stat);
 DUMMY(mount);
-DUMMY(umount);
 DUMMY(stime);
 DUMMY(ptrace);
 DUMMY(fstat);
-DUMMY(stty);
-DUMMY(gtty);
-DUMMY(ftime);
-DUMMY(prof);
-DUMMY(umount2);
-DUMMY(lock);
-DUMMY(mpx);
-DUMMY(ulimit);
 DUMMY(olduname);
-DUMMY(ksyslog);
+DUMMY(syslog);
 DUMMY(uname);
 DUMMY(vhangup);
-DUMMY(idle);
 DUMMY(vm86old);
 DUMMY(swapoff);
 DUMMY(adjtimex);
@@ -82,16 +55,9 @@ DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
-DUMMY(afs_syscall);
-DUMMY(setfsuid);
-DUMMY(setfsgid);
-DUMMY(getsid);
-DUMMY(sysctl);
-DUMMY(getresuid);
 DUMMY(vm86);
 DUMMY(query_module);
 DUMMY(nfsservctl);
-DUMMY(getresgid);
 DUMMY(prctl);
 DUMMY(rt_sigpending);
 DUMMY(rt_sigtimedwait);
@@ -99,12 +65,11 @@ DUMMY(rt_sigqueueinfo);
 DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
-DUMMY(getpmsg);
-DUMMY(putpmsg);
-DUMMY(ugetrlimit);
 DUMMY(mmap2);
 DUMMY(truncate64);
 DUMMY(ftruncate64);
-DUMMY(stat64);
-DUMMY(lstat64);
-DUMMY(fstat64);
+DUMMY(setfsuid);
+DUMMY(setfsgid);
+DUMMY(pivot_root);
+DUMMY(mincore);
+DUMMY(madvise);

@@ -29,13 +29,14 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
-#include <sys/sysproto.h>
-#include <sys/systm.h>
-#include <sys/unistd.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sysproto.h>
+#include <sys/unistd.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
@@ -43,7 +44,6 @@
 #include <machine/sysarch.h>
 
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
@@ -53,24 +53,24 @@
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
-struct linux_descriptor {
-	unsigned int  entry_number;
-	unsigned long base_addr;
-	unsigned int  limit;
-	unsigned int  seg_32bit:1;
-	unsigned int  contents:2;
-	unsigned int  read_exec_only:1;
-	unsigned int  limit_in_pages:1;
-	unsigned int  seg_not_present:1;
-	unsigned int  useable:1;
+struct l_descriptor {
+	l_uint		entry_number;
+	l_ulong		base_addr;
+	l_uint		limit;
+	l_uint		seg_32bit:1;
+	l_uint		contents:2;
+	l_uint		read_exec_only:1;
+	l_uint		limit_in_pages:1;
+	l_uint		seg_not_present:1;
+	l_uint		useable:1;
 };
 
-struct linux_select_argv {
-	int nfds;
-	fd_set *readfds;
-	fd_set *writefds;
-	fd_set *exceptfds;
-	struct timeval *timeout;
+struct l_old_select_argv {
+	l_int		nfds;
+	l_fd_set	*readfds;
+	l_fd_set	*writefds;
+	l_fd_set	*exceptfds;
+	struct l_timeval	*timeout;
 };
 
 int
@@ -107,8 +107,8 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
-        printf("Linux-emul(%d): execve(%s)\n", 
-	    p->p_pid, args->path);
+	if (ldebug(execve))
+		printf(ARGS(execve, "%s"), args->path);
 #endif
 
 	bsd.fname = args->path;
@@ -117,50 +117,142 @@ linux_execve(struct proc *p, struct linux_execve_args *args)
 	return (execve(p, &bsd));
 }
 
+struct l_ipc_kludge {
+	struct l_msgbuf *msgp;
+	l_long msgtyp;
+};
+
 int
 linux_ipc(struct proc *p, struct linux_ipc_args *args)
 {
-	switch (args->what) {
-	case LINUX_SEMOP:
-		return (linux_semop(p, args));
-	case LINUX_SEMGET:
-		return (linux_semget(p, args));
-	case LINUX_SEMCTL:
-		return (linux_semctl(p, args));
-	case LINUX_MSGSND:
-		return (linux_msgsnd(p, args));
-	case LINUX_MSGRCV:
-		return (linux_msgrcv(p, args));
-	case LINUX_MSGGET:
-		return (linux_msgget(p, args));
-	case LINUX_MSGCTL:
-		return (linux_msgctl(p, args));
-	case LINUX_SHMAT:
-		return (linux_shmat(p, args));
-	case LINUX_SHMDT:
-		return (linux_shmdt(p, args));
-	case LINUX_SHMGET:
-		return (linux_shmget(p, args));
-	case LINUX_SHMCTL:
-		return (linux_shmctl(p, args));
+
+	switch (args->what & 0xFFFF) {
+	case LINUX_SEMOP: {
+		struct linux_semop_args a;
+
+		a.semid = args->arg1;
+		a.tsops = args->ptr;
+		a.nsops = args->arg2;
+		return (linux_semop(p, &a));
+	}
+	case LINUX_SEMGET: {
+		struct linux_semget_args a;
+
+		a.key = args->arg1;
+		a.nsems = args->arg2;
+		a.semflg = args->arg3;
+		return (linux_semget(p, &a));
+	}
+	case LINUX_SEMCTL: {
+		struct linux_semctl_args a;
+		int error;
+
+		a.semid = args->arg1;
+		a.semnum = args->arg2;
+		a.cmd = args->arg3;
+		error = copyin((caddr_t)args->ptr, &a.arg, sizeof(a.arg));
+		if (error)
+			return (error);
+		return (linux_semctl(p, &a));
+	}
+	case LINUX_MSGSND: {
+		struct linux_msgsnd_args a;
+
+		a.msqid = args->arg1;
+		a.msgp = args->ptr;
+		a.msgsz = args->arg2;
+		a.msgflg = args->arg3;
+		return (linux_msgsnd(p, &a));
+	}
+	case LINUX_MSGRCV: {
+		struct linux_msgrcv_args a;
+
+		a.msqid = args->arg1;
+		a.msgsz = args->arg2;
+		a.msgflg = args->arg3;
+		if ((args->what >> 16) == 0) {
+			struct l_ipc_kludge tmp;
+			int error;
+
+			if (args->ptr == NULL)
+				return (EINVAL);
+			error = copyin((caddr_t)args->ptr, &tmp, sizeof(tmp));
+			if (error)
+				return (error);
+			a.msgp = tmp.msgp;
+			a.msgtyp = tmp.msgtyp;
+		} else {
+			a.msgp = args->ptr;
+			a.msgtyp = args->arg5;
+		}
+		return (linux_msgrcv(p, &a));
+	}
+	case LINUX_MSGGET: {
+		struct linux_msgget_args a;
+
+		a.key = args->arg1;
+		a.msgflg = args->arg2;
+		return (linux_msgget(p, &a));
+	}
+	case LINUX_MSGCTL: {
+		struct linux_msgctl_args a;
+
+		a.msqid = args->arg1;
+		a.cmd = args->arg2;
+		a.buf = args->ptr;
+		return (linux_msgctl(p, &a));
+	}
+	case LINUX_SHMAT: {
+		struct linux_shmat_args a;
+
+		a.shmid = args->arg1;
+		a.shmaddr = args->ptr;
+		a.shmflg = args->arg2;
+		a.raddr = (l_ulong *)args->arg3;
+		return (linux_shmat(p, &a));
+	}
+	case LINUX_SHMDT: {
+		struct linux_shmdt_args a;
+
+		a.shmaddr = args->ptr;
+		return (linux_shmdt(p, &a));
+	}
+	case LINUX_SHMGET: {
+		struct linux_shmget_args a;
+
+		a.key = args->arg1;
+		a.size = args->arg2;
+		a.shmflg = args->arg3;
+		return (linux_shmget(p, &a));
+	}
+	case LINUX_SHMCTL: {
+		struct linux_shmctl_args a;
+
+		a.shmid = args->arg1;
+		a.cmd = args->arg2;
+		a.buf = args->ptr;
+		return (linux_shmctl(p, &a));
+	}
+	default:
+		break;
 	}
 
-	uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
-	return (ENOSYS);
+	return (EINVAL);
 }
 
 int
-linux_select(struct proc *p, struct linux_select_args *args)
+linux_old_select(struct proc *p, struct linux_old_select_args *args)
 {
-	struct linux_select_argv linux_args;
-	struct linux_newselect_args newsel;
+	struct l_old_select_argv linux_args;
+	struct linux_select_args newsel;
 	int error;
 
-#ifdef SELECT_DEBUG
-	printf("Linux-emul(%ld): select(%x)\n", (long)p->p_pid, args->ptr);
+#ifdef DEBUG
+	if (ldebug(old_select))
+		printf(ARGS(old_select, "%x"), args->ptr);
 #endif
 
-	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
+	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
 
@@ -169,7 +261,7 @@ linux_select(struct proc *p, struct linux_select_args *args)
 	newsel.writefds = linux_args.writefds;
 	newsel.exceptfds = linux_args.exceptfds;
 	newsel.timeout = linux_args.timeout;
-	return (linux_newselect(p, &newsel));
+	return (linux_select(p, &newsel));
 }
 
 int
@@ -178,7 +270,8 @@ linux_fork(struct proc *p, struct linux_fork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): fork()\n", (long)p->p_pid);
+	if (ldebug(fork))
+		printf(ARGS(fork, ""));
 #endif
 
 	if ((error = fork(p, (struct fork_args *)args)) != 0)
@@ -195,7 +288,8 @@ linux_vfork(struct proc *p, struct linux_vfork_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): vfork()\n", (long)p->p_pid);
+	if (ldebug(vfork))
+		printf(ARGS(vfork, ""));
 #endif
 
 	if ((error = vfork(p, (struct vfork_args *)args)) != 0)
@@ -222,12 +316,12 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	struct rfork_args rf_args;
 
 #ifdef DEBUG
-	if (args->flags & CLONE_PID)
-		printf("linux_clone(%ld): CLONE_PID not yet supported\n",
-		    (long)p->p_pid);
-	printf("linux_clone(%ld): invoked with flags %x and stack %x\n",
-	    (long)p->p_pid, (unsigned int)args->flags,
-	    (unsigned int)args->stack);
+	if (ldebug(clone)) {
+		printf(ARGS(clone, "flags %x, stack %x"), 
+		    (unsigned int)args->flags, (unsigned int)args->stack);
+		if (args->flags & CLONE_PID)
+			printf(LMSG("CLONE_PID not yet supported"));
+	}
 #endif
 
 	if (!args->stack)
@@ -265,21 +359,22 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
 	p2->p_md.md_regs->tf_esp = (unsigned int)args->stack;
 
 #ifdef DEBUG
-	printf ("linux_clone(%ld): successful rfork to %ld\n", (long)p->p_pid,
-	    (long)p2->p_pid);
+	if (ldebug(clone))
+		printf(LMSG("clone: successful rfork to %ld"),
+		    (long)p2->p_pid);
 #endif
 
 	return (0);
 }
 
 /* XXX move */
-struct linux_mmap_argv {
-	linux_caddr_t addr;
-	int len;
-	int prot;
-	int flags;
-	int fd;
-	int pos;
+struct l_mmap_argv {
+	l_caddr_t	addr;
+	l_int		len;
+	l_int		prot;
+	l_int		flags;
+	l_int		fd;
+	l_int		pos;
 };
 
 #define STACK_SIZE  (2 * 1024 * 1024)
@@ -298,16 +393,17 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 		off_t pos;
 	} */ bsd_args;
 	int error;
-	struct linux_mmap_argv linux_args;
+	struct l_mmap_argv linux_args;
 
-	error = copyin(args->ptr, &linux_args, sizeof(linux_args));
+	error = copyin((caddr_t)args->ptr, &linux_args, sizeof(linux_args));
 	if (error)
 		return (error);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mmap(%p, %d, %d, 0x%08x, %d, %d)",
-	    (long)p->p_pid, (void *)linux_args.addr, linux_args.len,
-	    linux_args.prot, linux_args.flags, linux_args.fd, linux_args.pos);
+	if (ldebug(mmap))
+		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
+		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
+		    linux_args.flags, linux_args.fd, linux_args.pos);
 #endif
 
 	bsd_args.flags = 0;
@@ -395,9 +491,10 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args)
 	bsd_args.pad = 0;
 
 #ifdef DEBUG
-	printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n", (void *)bsd_args.addr,
-	    bsd_args.len, bsd_args.prot, bsd_args.flags, bsd_args.fd,
-	    (int)bsd_args.pos);
+	if (ldebug(mmap))
+		printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n",
+		    (void *)bsd_args.addr, bsd_args.len, bsd_args.prot,
+		    bsd_args.flags, bsd_args.fd, (int)bsd_args.pos);
 #endif
 
 	return (mmap(p, &bsd_args));
@@ -410,7 +507,8 @@ linux_pipe(struct proc *p, struct linux_pipe_args *args)
 	int reg_edx;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): pipe(*)\n", (long)p->p_pid);
+	if (ldebug(pipe))
+		printf(ARGS(pipe, "*"));
 #endif
 
 	reg_edx = p->p_retval[1];
@@ -473,7 +571,7 @@ linux_modify_ldt(p, uap)
 	caddr_t sg;
 	struct sysarch_args args;
 	struct i386_ldt_args *ldt;
-	struct linux_descriptor ld;
+	struct l_descriptor ld;
 	union descriptor *desc;
 
 	sg = stackgap_init();
@@ -537,17 +635,19 @@ linux_modify_ldt(p, uap)
 int
 linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
 {
-	linux_osigaction_t osa;
-	linux_sigaction_t act, oact;
+	l_osigaction_t osa;
+	l_sigaction_t act, oact;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigaction(%d, %p, %p)\n", (long)p->p_pid,
-	       args->sig, (void *)args->nsa, (void *)args->osa);
+	if (ldebug(sigaction))
+		printf(ARGS(sigaction, "%d, %p, %p"),
+		    args->sig, (void *)args->nsa, (void *)args->osa);
 #endif
 
 	if (args->nsa != NULL) {
-		error = copyin(args->nsa, &osa, sizeof(linux_osigaction_t));
+		error = copyin((caddr_t)args->nsa, &osa,
+		    sizeof(l_osigaction_t));
 		if (error)
 			return (error);
 		act.lsa_handler = osa.lsa_handler;
@@ -565,7 +665,8 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
 		osa.lsa_flags = oact.lsa_flags;
 		osa.lsa_restorer = oact.lsa_restorer;
 		osa.lsa_mask = oact.lsa_mask.__bits[0];
-		error = copyout(&osa, args->osa, sizeof(linux_osigaction_t));
+		error = copyout(&osa, (caddr_t)args->osa,
+		    sizeof(l_osigaction_t));
 	}
 
 	return (error);
@@ -581,12 +682,12 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
 {
 	struct sigsuspend_args bsd;
 	sigset_t *sigmask;
-	linux_sigset_t mask;
+	l_sigset_t mask;
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigsuspend(%08lx)\n",
-	       (long)p->p_pid, (unsigned long)args->mask);
+	if (ldebug(sigsuspend))
+		printf(ARGS(sigsuspend, "%08lx"), (unsigned long)args->mask);
 #endif
 
 	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
@@ -602,21 +703,22 @@ linux_rt_sigsuspend(p, uap)
 	struct proc *p;
 	struct linux_rt_sigsuspend_args *uap;
 {
-	linux_sigset_t lmask;
+	l_sigset_t lmask;
 	sigset_t *bmask;
 	struct sigsuspend_args bsd;
 	caddr_t sg = stackgap_init();
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
-	       (void *)uap->newset, uap->sigsetsize);
+	if (ldebug(rt_sigsuspend))
+		printf(ARGS(rt_sigsuspend, "%p, %d"),
+		    (void *)uap->newset, uap->sigsetsize);
 #endif
 
-	if (uap->sigsetsize != sizeof(linux_sigset_t))
+	if (uap->sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
 
-	error = copyin(uap->newset, &lmask, sizeof(linux_sigset_t));
+	error = copyin(uap->newset, &lmask, sizeof(l_sigset_t));
 	if (error)
 		return (error);
 
@@ -634,7 +736,8 @@ linux_pause(struct proc *p, struct linux_pause_args *args)
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): pause()\n", p->p_pid);
+	if (ldebug(pause))
+		printf(ARGS(pause, ""));
 #endif
 
 	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
@@ -644,25 +747,23 @@ linux_pause(struct proc *p, struct linux_pause_args *args)
 }
 
 int
-linux_sigaltstack(p, uap)
-	struct proc *p;
-	struct linux_sigaltstack_args *uap;
+linux_sigaltstack(struct proc *p, struct linux_sigaltstack_args *uap)
 {
 	struct sigaltstack_args bsd;
 	stack_t *ss, *oss;
-	linux_stack_t lss;
+	l_stack_t lss;
 	int error;
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
-	    (long)p->p_pid, uap->uss, uap->uoss);
+	if (ldebug(sigaltstack))
+		printf(ARGS(sigaltstack, "%p, %p"), uap->uss, uap->uoss);
 #endif
 
 	if (uap->uss == NULL) {
 		ss = NULL;
 	} else {
-		error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
+		error = copyin(uap->uss, &lss, sizeof(l_stack_t));
 		if (error)
 			return (error);
 
@@ -683,7 +784,7 @@ linux_sigaltstack(p, uap)
 		lss.ss_sp = oss->ss_sp;
 		lss.ss_size = oss->ss_size;
 		lss.ss_flags = bsd_to_linux_sigaltstack(oss->ss_flags);
-		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
+		error = copyout(&lss, uap->uoss, sizeof(l_stack_t));
 	}
 
 	return (error);

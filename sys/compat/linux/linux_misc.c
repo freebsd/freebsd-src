@@ -32,25 +32,27 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/mman.h>
-#include <sys/proc.h>
-#include <sys/blist.h>
 #include <sys/fcntl.h>
 #include <sys/imgact_aout.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/resource.h>
+#include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/blist.h>
+#include <sys/reboot.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/time.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
-#include <sys/time.h>
-#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -72,11 +74,7 @@
 #include <posix4/sched.h>
 
 #include <machine/../linux/linux.h>
-#ifdef __alpha__
-#include <linux_proto.h>
-#else
 #include <machine/../linux/linux_proto.h>
-#endif
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
@@ -87,87 +85,79 @@
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
 #endif
 
-struct linux_rlimit {
-	unsigned long rlim_cur;
-	unsigned long rlim_max;
-};
-
 #ifndef __alpha__
-static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
-{ RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
-  RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
-  RLIMIT_MEMLOCK, -1
+static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
+	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
+	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
+	RLIMIT_MEMLOCK, -1
 };
 #endif /*!__alpha__*/
 
-struct linux_sysinfo {
-     long uptime;              /* Seconds since boot */
-     unsigned long loads[3];   /* 1, 5, and 15 minute load averages */
-     unsigned long totalram;   /* Total usable main memory size */
-     unsigned long freeram;    /* Available memory size */
-     unsigned long sharedram;  /* Amount of shared memory */
-     unsigned long bufferram;  /* Memory used by buffers */
-     unsigned long totalswap;  /* Total swap space size */
-     unsigned long freeswap;   /* swap space still available */
-     unsigned short procs;     /* Number of current processes */
-     char _f[22];              /* Pads structure to 64 bytes */
+struct l_sysinfo {
+	l_long		uptime;		/* Seconds since boot */
+	l_ulong		loads[3];	/* 1, 5, and 15 minute load averages */
+	l_ulong		totalram;	/* Total usable main memory size */
+	l_ulong		freeram;	/* Available memory size */
+	l_ulong		sharedram;	/* Amount of shared memory */
+	l_ulong		bufferram;	/* Memory used by buffers */
+	l_ulong		totalswap;	/* Total swap space size */
+	l_ulong		freeswap;	/* swap space still available */
+	l_ushort	procs;		/* Number of current processes */
+	char		_f[22];		/* Pads structure to 64 bytes */
 };
-
 #ifndef __alpha__
 int
 linux_sysinfo(struct proc *p, struct linux_sysinfo_args *args)
 {
-     struct linux_sysinfo sysinfo;
-     vm_object_t object;
-     int i;
-     struct timespec ts;
+	struct l_sysinfo sysinfo;
+	vm_object_t object;
+	int i;
+	struct timespec ts;
 
-     /* Uptime is copied out of print_uptime() procedure in kern_shutdown.c */
-     getnanouptime(&ts);
-     i = 0;
-     if (ts.tv_sec >= 86400) {
-          ts.tv_sec %= 86400;
-          i = 1;
-     }
-     if (i || ts.tv_sec >= 3600) {
-          ts.tv_sec %= 3600;
-          i = 1;
-     }
-     if (i || ts.tv_sec >= 60) {
-          ts.tv_sec %= 60;
-          i = 1;
-     }
-     sysinfo.uptime=ts.tv_sec;
+	/* Uptime is copied out of print_uptime() in kern_shutdown.c */
+	getnanouptime(&ts);
+	i = 0;
+	if (ts.tv_sec >= 86400) {
+		ts.tv_sec %= 86400;
+		i = 1;
+	}
+	if (i || ts.tv_sec >= 3600) {
+		ts.tv_sec %= 3600;
+		i = 1;
+	}
+	if (i || ts.tv_sec >= 60) {
+		ts.tv_sec %= 60;
+		i = 1;
+	}
+	sysinfo.uptime=ts.tv_sec;
 
-     /* Use the information from the mib to get our load averages */
-     for (i = 0; i < 3; i++)
-          sysinfo.loads[i] = averunnable.ldavg[i];
+	/* Use the information from the mib to get our load averages */
+	for (i = 0; i < 3; i++)
+		sysinfo.loads[i] = averunnable.ldavg[i];
 
-     sysinfo.totalram = physmem * PAGE_SIZE;
-     sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
+	sysinfo.totalram = physmem * PAGE_SIZE;
+	sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
 
-     sysinfo.sharedram = 0;
-     for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
-          object = TAILQ_NEXT(object, object_list))
-               if (object->shadow_count > 1)
-                    sysinfo.sharedram += object->resident_page_count;
+	sysinfo.sharedram = 0;
+	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
+	     object = TAILQ_NEXT(object, object_list))
+		if (object->shadow_count > 1)
+			sysinfo.sharedram += object->resident_page_count;
 
-     sysinfo.sharedram *= PAGE_SIZE;
+	sysinfo.sharedram *= PAGE_SIZE;
+	sysinfo.bufferram = 0;
 
-     sysinfo.bufferram = 0;
+	if (swapblist == NULL) {
+		sysinfo.totalswap= 0;
+		sysinfo.freeswap = 0;
+	} else {
+		sysinfo.totalswap = swapblist->bl_blocks * 1024;
+		sysinfo.freeswap = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	}
 
-     if (swapblist == NULL) {
-          sysinfo.totalswap= 0;
-          sysinfo.freeswap = 0;
-     } else {
-          sysinfo.totalswap = swapblist->bl_blocks * 1024;
-          sysinfo.freeswap = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
-     }
+	sysinfo.procs = 20; /* Hack */
 
-     sysinfo.procs = 20; /* Hack */
-
-     return copyout((caddr_t)&sysinfo, (caddr_t)args->info,
-               sizeof(struct linux_sysinfo));
+	return copyout(&sysinfo, (caddr_t)args->info, sizeof(sysinfo));
 }
 #endif /*!__alpha__*/
 
@@ -175,462 +165,403 @@ linux_sysinfo(struct proc *p, struct linux_sysinfo_args *args)
 int
 linux_alarm(struct proc *p, struct linux_alarm_args *args)
 {
-    struct itimerval it, old_it;
-    struct timeval tv;
-    int s;
+	struct itimerval it, old_it;
+	struct timeval tv;
+	int s;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): alarm(%u)\n", (long)p->p_pid, args->secs);
+	if (ldebug(alarm))
+		printf(ARGS(alarm, "%u"), args->secs);
 #endif
-    if (args->secs > 100000000)
-	return EINVAL;
-    it.it_value.tv_sec = (long)args->secs;
-    it.it_value.tv_usec = 0;
-    it.it_interval.tv_sec = 0;
-    it.it_interval.tv_usec = 0;
-    s = splsoftclock();
-    old_it = p->p_realtimer;
-    getmicrouptime(&tv);
-    if (timevalisset(&old_it.it_value))
-	untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-    if (it.it_value.tv_sec != 0) {
-	p->p_ithandle = timeout(realitexpire, (caddr_t)p, tvtohz(&it.it_value));
-	timevaladd(&it.it_value, &tv);
-    }
-    p->p_realtimer = it;
-    splx(s);
-    if (timevalcmp(&old_it.it_value, &tv, >)) {
-	timevalsub(&old_it.it_value, &tv);
-	if (old_it.it_value.tv_usec != 0)
-	    old_it.it_value.tv_sec++;
-	p->p_retval[0] = old_it.it_value.tv_sec;
-    }
-    return 0;
+
+	if (args->secs > 100000000)
+		return EINVAL;
+
+	it.it_value.tv_sec = (long)args->secs;
+	it.it_value.tv_usec = 0;
+	it.it_interval.tv_sec = 0;
+	it.it_interval.tv_usec = 0;
+	s = splsoftclock();
+	old_it = p->p_realtimer;
+	getmicrouptime(&tv);
+	if (timevalisset(&old_it.it_value))
+		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+	if (it.it_value.tv_sec != 0) {
+		p->p_ithandle = timeout(realitexpire, (caddr_t)p,
+		    tvtohz(&it.it_value));
+		timevaladd(&it.it_value, &tv);
+	}
+	p->p_realtimer = it;
+	splx(s);
+	if (timevalcmp(&old_it.it_value, &tv, >)) {
+		timevalsub(&old_it.it_value, &tv);
+		if (old_it.it_value.tv_usec != 0)
+			old_it.it_value.tv_sec++;
+		p->p_retval[0] = old_it.it_value.tv_sec;
+	}
+	return 0;
 }
 #endif /*!__alpha__*/
 
 int
 linux_brk(struct proc *p, struct linux_brk_args *args)
 {
-#if 0
-    struct vmspace *vm = p->p_vmspace;
-    vm_offset_t new, old;
-    int error;
-
-    if ((vm_offset_t)args->dsend < (vm_offset_t)vm->vm_daddr)
-	return EINVAL;
-    if (((caddr_t)args->dsend - (caddr_t)vm->vm_daddr)
-	> p->p_rlimit[RLIMIT_DATA].rlim_cur)
-	return ENOMEM;
-
-    old = round_page((vm_offset_t)vm->vm_daddr) + ctob(vm->vm_dsize);
-    new = round_page((vm_offset_t)args->dsend);
-    p->p_retval[0] = old;
-    if ((new-old) > 0) {
-	if (swap_pager_full)
-	    return ENOMEM;
-	error = vm_map_find(&vm->vm_map, NULL, 0, &old, (new-old), FALSE,
-			VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-	    return error;
-	vm->vm_dsize += btoc((new-old));
-	p->p_retval[0] = (int)(vm->vm_daddr + ctob(vm->vm_dsize));
-    }
-    return 0;
-#else
-    struct vmspace *vm = p->p_vmspace;
-    vm_offset_t new, old;
-    struct obreak_args /* {
-	char * nsize;
-    } */ tmp;
+	struct vmspace *vm = p->p_vmspace;
+	vm_offset_t new, old;
+	struct obreak_args /* {
+		char * nsize;
+	} */ tmp;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): brk(%p)\n", (long)p->p_pid, (void *)args->dsend);
+	if (ldebug(brk))
+		printf(ARGS(brk, "%p"), (void *)args->dsend);
 #endif
-    old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
-    new = (vm_offset_t)args->dsend;
-    tmp.nsize = (char *) new;
-    if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp))
-	p->p_retval[0] = (long)new;
-    else
-	p->p_retval[0] = (long)old;
+	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
+	new = (vm_offset_t)args->dsend;
+	tmp.nsize = (char *) new;
+	if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp))
+		p->p_retval[0] = (long)new;
+	else
+		p->p_retval[0] = (long)old;
 
-    return 0;
-#endif
+	return 0;
 }
 
 int
 linux_uselib(struct proc *p, struct linux_uselib_args *args)
 {
-    struct nameidata ni;
-    struct vnode *vp;
-    struct exec *a_out;
-    struct vattr attr;
-    vm_offset_t vmaddr;
-    unsigned long file_offset;
-    vm_offset_t buffer;
-    unsigned long bss_size;
-    int error;
-    caddr_t sg;
-    int locked;
+	struct nameidata ni;
+	struct vnode *vp;
+	struct exec *a_out;
+	struct vattr attr;
+	vm_offset_t vmaddr;
+	unsigned long file_offset;
+	vm_offset_t buffer;
+	unsigned long bss_size;
+	int error;
+	caddr_t sg;
+	int locked;
 
-    sg = stackgap_init();
-    CHECKALTEXIST(p, &sg, args->library);
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->library);
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): uselib(%s)\n", (long)p->p_pid, args->library);
+	if (ldebug(uselib))
+		printf(ARGS(uselib, "%s"), args->library);
 #endif
 
-    a_out = NULL;
-    locked = 0;
-    vp = NULL;
+	a_out = NULL;
+	locked = 0;
+	vp = NULL;
 
-    NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, args->library, p);
-    error = namei(&ni);
-    if (error)
-	goto cleanup;
+	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_USERSPACE, args->library, p);
+	error = namei(&ni);
+	if (error)
+		goto cleanup;
 
-    vp = ni.ni_vp;
-    /*
-     * XXX This looks like a bogus check - a LOCKLEAF namei should not succeed
-     * without returning a vnode.
-     */
-    if (vp == NULL) {
-	error = ENOEXEC;	/* ?? */
-	goto cleanup;
-    }
-    NDFREE(&ni, NDF_ONLY_PNBUF);
+	vp = ni.ni_vp;
+	/*
+	 * XXX - This looks like a bogus check. A LOCKLEAF namei should not
+	 * succeed without returning a vnode.
+	 */
+	if (vp == NULL) {
+		error = ENOEXEC;	/* ?? */
+		goto cleanup;
+	}
+	NDFREE(&ni, NDF_ONLY_PNBUF);
 
-    /*
-     * From here on down, we have a locked vnode that must be unlocked.
-     */
-    locked++;
+	/*
+	 * From here on down, we have a locked vnode that must be unlocked.
+	 */
+	locked++;
 
-    /*
-     * Writable?
-     */
-    if (vp->v_writecount) {
-	error = ETXTBSY;
-	goto cleanup;
-    }
+	/* Writable? */
+	if (vp->v_writecount) {
+		error = ETXTBSY;
+		goto cleanup;
+	}
 
-    /*
-     * Executable?
-     */
-    error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
-    if (error)
-	goto cleanup;
+	/* Executable? */
+	error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
+	if (error)
+		goto cleanup;
 
-    if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
-	((attr.va_mode & 0111) == 0) ||
-	(attr.va_type != VREG)) {
-	    error = ENOEXEC;
-	    goto cleanup;
-    }
+	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
+	    ((attr.va_mode & 0111) == 0) || (attr.va_type != VREG)) {
+		error = ENOEXEC;
+		goto cleanup;
+	}
 
-    /*
-     * Sensible size?
-     */
-    if (attr.va_size == 0) {
-	error = ENOEXEC;
-	goto cleanup;
-    }
+	/* Sensible size? */
+	if (attr.va_size == 0) {
+		error = ENOEXEC;
+		goto cleanup;
+	}
 
-    /*
-     * Can we access it?
-     */
-    error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
-    if (error)
-	goto cleanup;
+	/* Can we access it? */
+	error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
+	if (error)
+		goto cleanup;
 
-    error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
-    if (error)
-	goto cleanup;
+	error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
+	if (error)
+		goto cleanup;
 
-    /*
-     * Lock no longer needed
-     */
-    VOP_UNLOCK(vp, 0, p);
-    locked = 0;
+	/*
+	 * Lock no longer needed
+	 */
+	VOP_UNLOCK(vp, 0, p);
+	locked = 0;
 
-    /*
-     * Pull in executable header into kernel_map
-     */
-    error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
-	    	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp, 0);
-    if (error)
-	goto cleanup;
+	/* Pull in executable header into kernel_map */
+	error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
+	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp, 0);
+	if (error)
+		goto cleanup;
 
-    /*
-     * Is it a Linux binary ?
-     */
-    if (((a_out->a_magic >> 16) & 0xff) != 0x64) {
-	error = ENOEXEC;
-	goto cleanup;
-    }
+	/* Is it a Linux binary ? */
+	if (((a_out->a_magic >> 16) & 0xff) != 0x64) {
+		error = ENOEXEC;
+		goto cleanup;
+	}
 
-    /* While we are here, we should REALLY do some more checks */
+	/*
+	 * While we are here, we should REALLY do some more checks
+	 */
 
-    /*
-     * Set file/virtual offset based on a.out variant.
-     */
-    switch ((int)(a_out->a_magic & 0xffff)) {
-    case 0413:	/* ZMAGIC */
-	file_offset = 1024;
-	break;
-    case 0314:	/* QMAGIC */
-	file_offset = 0;
-	break;
-    default:
-	error = ENOEXEC;
-	goto cleanup;
-    }
+	/* Set file/virtual offset based on a.out variant. */
+	switch ((int)(a_out->a_magic & 0xffff)) {
+	case 0413:	/* ZMAGIC */
+		file_offset = 1024;
+		break;
+	case 0314:	/* QMAGIC */
+		file_offset = 0;
+		break;
+	default:
+		error = ENOEXEC;
+		goto cleanup;
+	}
 
-    bss_size = round_page(a_out->a_bss);
+	bss_size = round_page(a_out->a_bss);
 
-    /*
-     * Check various fields in header for validity/bounds.
-     */
-    if (a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK) {
-	error = ENOEXEC;
-	goto cleanup;
-    }
+	/* Check various fields in header for validity/bounds. */
+	if (a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK) {
+		error = ENOEXEC;
+		goto cleanup;
+	}
 
-    /* text + data can't exceed file size */
-    if (a_out->a_data + a_out->a_text > attr.va_size) {
-	error = EFAULT;
-	goto cleanup;
-    }
+	/* text + data can't exceed file size */
+	if (a_out->a_data + a_out->a_text > attr.va_size) {
+		error = EFAULT;
+		goto cleanup;
+	}
 
-    /*
-     * text/data/bss must not exceed limits
-     * XXX: this is not complete. it should check current usage PLUS
-     * the resources needed by this library.
-     */
-    if (a_out->a_text > maxtsiz ||
-	a_out->a_data + bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
-	error = ENOMEM;
-	goto cleanup;
-    }
+	/*
+	 * text/data/bss must not exceed limits
+	 * XXX - this is not complete. it should check current usage PLUS
+	 * the resources needed by this library.
+	 */
+	if (a_out->a_text > maxtsiz ||
+	    a_out->a_data + bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
+		error = ENOMEM;
+		goto cleanup;
+	}
 
-    /*
-     * prevent more writers
-     */
-    vp->v_flag |= VTEXT;
+	/* prevent more writers */
+	vp->v_flag |= VTEXT;
 
-    /*
-     * Check if file_offset page aligned,.
-     * Currently we cannot handle misalinged file offsets,
-     * and so we read in the entire image (what a waste).
-     */
-    if (file_offset & PAGE_MASK) {
+	/*
+	 * Check if file_offset page aligned. Currently we cannot handle
+	 * misalinged file offsets, and so we read in the entire image
+	 * (what a waste).
+	 */
+	if (file_offset & PAGE_MASK) {
 #ifdef DEBUG
-printf("uselib: Non page aligned binary %lu\n", file_offset);
+		printf("uselib: Non page aligned binary %lu\n", file_offset);
 #endif
-	/*
-	 * Map text+data read/write/execute
-	 */
+		/* Map text+data read/write/execute */
 
-	/* a_entry is the load address and is page aligned */
-	vmaddr = trunc_page(a_out->a_entry);
+		/* a_entry is the load address and is page aligned */
+		vmaddr = trunc_page(a_out->a_entry);
 
-	/* get anon user mapping, read+write+execute */
-	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    a_out->a_text + a_out->a_data, FALSE,
-			    VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-	    goto cleanup;
+		/* get anon user mapping, read+write+execute */
+		error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0,
+		    &vmaddr, a_out->a_text + a_out->a_data, FALSE, VM_PROT_ALL,
+		    VM_PROT_ALL, 0);
+		if (error)
+			goto cleanup;
 
-	/* map file into kernel_map */
-	error = vm_mmap(kernel_map, &buffer,
-			round_page(a_out->a_text + a_out->a_data + file_offset),
-		   	VM_PROT_READ, VM_PROT_READ, 0,
-			(caddr_t)vp, trunc_page(file_offset));
-	if (error)
-	    goto cleanup;
+		/* map file into kernel_map */
+		error = vm_mmap(kernel_map, &buffer,
+		    round_page(a_out->a_text + a_out->a_data + file_offset),
+		    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp,
+		    trunc_page(file_offset));
+		if (error)
+			goto cleanup;
 
-	/* copy from kernel VM space to user space */
-	error = copyout((caddr_t)(void *)(uintptr_t)(buffer + file_offset),
-			(caddr_t)vmaddr, a_out->a_text + a_out->a_data);
+		/* copy from kernel VM space to user space */
+		error = copyout((caddr_t)(uintptr_t)(buffer + file_offset),
+		    (caddr_t)vmaddr, a_out->a_text + a_out->a_data);
 
-	/* release temporary kernel space */
-	vm_map_remove(kernel_map, buffer,
-		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
+		/* release temporary kernel space */
+		vm_map_remove(kernel_map, buffer, buffer +
+		    round_page(a_out->a_text + a_out->a_data + file_offset));
 
-	if (error)
-	    goto cleanup;
-    }
-    else {
+		if (error)
+			goto cleanup;
+	} else {
 #ifdef DEBUG
-printf("uselib: Page aligned binary %lu\n", file_offset);
+		printf("uselib: Page aligned binary %lu\n", file_offset);
 #endif
-	/*
-	 * for QMAGIC, a_entry is 20 bytes beyond the load address
-	 * to skip the executable header
-	 */
-	vmaddr = trunc_page(a_out->a_entry);
+		/*
+		 * for QMAGIC, a_entry is 20 bytes beyond the load address
+		 * to skip the executable header
+		 */
+		vmaddr = trunc_page(a_out->a_entry);
 
-	/*
-	 * Map it all into the process's space as a single copy-on-write
-	 * "data" segment.
-	 */
-	error = vm_mmap(&p->p_vmspace->vm_map, &vmaddr,
-		   	a_out->a_text + a_out->a_data,
-			VM_PROT_ALL, VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-			(caddr_t)vp, file_offset);
-	if (error)
-	    goto cleanup;
-    }
+		/*
+		 * Map it all into the process's space as a single
+		 * copy-on-write "data" segment.
+		 */
+		error = vm_mmap(&p->p_vmspace->vm_map, &vmaddr,
+		    a_out->a_text + a_out->a_data, VM_PROT_ALL, VM_PROT_ALL,
+		    MAP_PRIVATE | MAP_FIXED, (caddr_t)vp, file_offset);
+		if (error)
+			goto cleanup;
+	}
 #ifdef DEBUG
-printf("mem=%08lx = %08lx %08lx\n", vmaddr, ((long*)vmaddr)[0], ((long*)vmaddr)[1]);
+	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long*)vmaddr)[0],
+	    ((long*)vmaddr)[1]);
 #endif
-    if (bss_size != 0) {
-        /*
-	 * Calculate BSS start address
-	 */
-	vmaddr = trunc_page(a_out->a_entry) + a_out->a_text + a_out->a_data;
+	if (bss_size != 0) {
+		/* Calculate BSS start address */
+		vmaddr = trunc_page(a_out->a_entry) + a_out->a_text +
+		    a_out->a_data;
 
-	/*
-	 * allocate some 'anon' space
-	 */
-	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
-			    bss_size, FALSE,
-			    VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-	    goto cleanup;
-    }
+		/* allocate some 'anon' space */
+		error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0,
+		    &vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		if (error)
+			goto cleanup;
+	}
 
 cleanup:
-    /*
-     * Unlock vnode if needed
-     */
-    if (locked)
-	VOP_UNLOCK(vp, 0, p);
+	/* Unlock vnode if needed */
+	if (locked)
+		VOP_UNLOCK(vp, 0, p);
 
-    /*
-     * Release the kernel mapping.
-     */
-    if (a_out)
-	vm_map_remove(kernel_map, (vm_offset_t)a_out, (vm_offset_t)a_out + PAGE_SIZE);
+	/* Release the kernel mapping. */
+	if (a_out)
+		vm_map_remove(kernel_map, (vm_offset_t)a_out,
+		    (vm_offset_t)a_out + PAGE_SIZE);
 
-    return error;
+	return error;
 }
 
 int
-linux_newselect(struct proc *p, struct linux_newselect_args *args)
+linux_select(struct proc *p, struct linux_select_args *args)
 {
-    struct select_args bsa;
-    struct timeval tv0, tv1, utv, *tvp;
-    caddr_t sg;
-    int error;
+	struct select_args bsa;
+	struct timeval tv0, tv1, utv, *tvp;
+	caddr_t sg;
+	int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): newselect(%d, %p, %p, %p, %p)\n",
-  	(long)p->p_pid, args->nfds, (void *)args->readfds,
-	(void *)args->writefds, (void *)args->exceptfds,
-	(void *)args->timeout);
-#endif
-    error = 0;
-    bsa.nd = args->nfds;
-    bsa.in = args->readfds;
-    bsa.ou = args->writefds;
-    bsa.ex = args->exceptfds;
-    bsa.tv = args->timeout;
-
-    /*
-     * Store current time for computation of the amount of
-     * time left.
-     */
-    if (args->timeout) {
-	if ((error = copyin(args->timeout, &utv, sizeof(utv))))
-	    goto select_out;
-#ifdef DEBUG
-	printf("Linux-emul(%ld): incoming timeout (%ld/%ld)\n",
-	    (long)p->p_pid, utv.tv_sec, utv.tv_usec);
-#endif
-	if (itimerfix(&utv)) {
-	    /*
-	     * The timeval was invalid.  Convert it to something
-	     * valid that will act as it does under Linux.
-	     */
-	    sg = stackgap_init();
-	    tvp = stackgap_alloc(&sg, sizeof(utv));
-	    utv.tv_sec += utv.tv_usec / 1000000;
-	    utv.tv_usec %= 1000000;
-	    if (utv.tv_usec < 0) {
-		utv.tv_sec -= 1;
-		utv.tv_usec += 1000000;
-	    }
-	    if (utv.tv_sec < 0)
-		timevalclear(&utv);
-	    if ((error = copyout(&utv, tvp, sizeof(utv))))
-		goto select_out;
-	    bsa.tv = tvp;
-	}
-	microtime(&tv0);
-    }
-
-    error = select(p, &bsa);
-#ifdef DEBUG
-    printf("Linux-emul(%ld): real select returns %d\n", (long)p->p_pid, error);
+	if (ldebug(select))
+		printf(ARGS(select, "%d, %p, %p, %p, %p"), args->nfds,
+		    (void *)args->readfds, (void *)args->writefds,
+		    (void *)args->exceptfds, (void *)args->timeout);
 #endif
 
-    if (error) {
+	error = 0;
+	bsa.nd = args->nfds;
+	bsa.in = args->readfds;
+	bsa.ou = args->writefds;
+	bsa.ex = args->exceptfds;
+	bsa.tv = (struct timeval *)args->timeout;
+
 	/*
-	 * See fs/select.c in the Linux kernel.  Without this,
-	 * Maelstrom doesn't work.
+	 * Store current time for computation of the amount of
+	 * time left.
 	 */
-	if (error == ERESTART)
-	    error = EINTR;
-	goto select_out;
-    }
-
-    if (args->timeout) {
-	if (p->p_retval[0]) {
-	    /*
-	     * Compute how much time was left of the timeout,
-	     * by subtracting the current time and the time
-	     * before we started the call, and subtracting
-	     * that result from the user-supplied value.
-	     */
-	    microtime(&tv1);
-	    timevalsub(&tv1, &tv0);
-	    timevalsub(&utv, &tv1);
-	    if (utv.tv_sec < 0)
-		timevalclear(&utv);
-	} else
-	    timevalclear(&utv);
+	if (args->timeout) {
+		if ((error = copyin((caddr_t)args->timeout, &utv,
+		    sizeof(utv))))
+			goto select_out;
 #ifdef DEBUG
-	printf("Linux-emul(%ld): outgoing timeout (%ld/%ld)\n",
-	    (long)p->p_pid, utv.tv_sec, utv.tv_usec);
+		if (ldebug(select))
+			printf(LMSG("incoming timeout (%ld/%ld)"),
+			    utv.tv_sec, utv.tv_usec);
 #endif
-	if ((error = copyout(&utv, args->timeout, sizeof(utv))))
-	    goto select_out;
-    }
+
+		if (itimerfix(&utv)) {
+			/*
+			 * The timeval was invalid.  Convert it to something
+			 * valid that will act as it does under Linux.
+			 */
+			sg = stackgap_init();
+			tvp = stackgap_alloc(&sg, sizeof(utv));
+			utv.tv_sec += utv.tv_usec / 1000000;
+			utv.tv_usec %= 1000000;
+			if (utv.tv_usec < 0) {
+				utv.tv_sec -= 1;
+				utv.tv_usec += 1000000;
+			}
+			if (utv.tv_sec < 0)
+				timevalclear(&utv);
+			if ((error = copyout(&utv, tvp, sizeof(utv))))
+				goto select_out;
+			bsa.tv = tvp;
+		}
+		microtime(&tv0);
+	}
+
+	error = select(p, &bsa);
+#ifdef DEBUG
+	if (ldebug(select))
+		printf(LMSG("real select returns %d"), error);
+#endif
+	if (error) {
+		/*
+		 * See fs/select.c in the Linux kernel.  Without this,
+		 * Maelstrom doesn't work.
+		 */
+		if (error == ERESTART)
+			error = EINTR;
+		goto select_out;
+	}
+
+	if (args->timeout) {
+		if (p->p_retval[0]) {
+			/*
+			 * Compute how much time was left of the timeout,
+			 * by subtracting the current time and the time
+			 * before we started the call, and subtracting
+			 * that result from the user-supplied value.
+			 */
+			microtime(&tv1);
+			timevalsub(&tv1, &tv0);
+			timevalsub(&utv, &tv1);
+			if (utv.tv_sec < 0)
+				timevalclear(&utv);
+		} else
+			timevalclear(&utv);
+#ifdef DEBUG
+		if (ldebug(select))
+			printf(LMSG("outgoing timeout (%ld/%ld)"),
+			    utv.tv_sec, utv.tv_usec);
+#endif
+		if ((error = copyout(&utv, (caddr_t)args->timeout,
+		    sizeof(utv))))
+			goto select_out;
+	}
 
 select_out:
 #ifdef DEBUG
-    printf("Linux-emul(%ld): newselect_out -> %d\n", (long)p->p_pid, error);
+	if (ldebug(select))
+		printf(LMSG("select_out -> %d"), error);
 #endif
-    return error;
-}
-
-int
-linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
-{
-    struct proc *curp;
-
-#ifdef DEBUG
-    printf("Linux-emul(%ld): getpgid(%d)\n", (long)p->p_pid, args->pid);
-#endif
-    if (args->pid != p->p_pid) {
-	if (!(curp = pfind(args->pid)))
-	    return ESRCH;
-    }
-    else
-	curp = p;
-    p->p_retval[0] = curp->p_pgid;
-    return 0;
+	return error;
 }
 
 int     
@@ -643,11 +574,12 @@ linux_mremap(struct proc *p, struct linux_mremap_args *args)
 	int error = 0;
  
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mremap(%p, %08lx, %08lx, %08lx)\n",
-	    (long)p->p_pid, (void *)args->addr, 
-	    (unsigned long)args->old_len, 
-	    (unsigned long)args->new_len,
-	    (unsigned long)args->flags);
+	if (ldebug(mremap))
+		printf(ARGS(mremap, "%p, %08lx, %08lx, %08lx"),
+		    (void *)args->addr, 
+		    (unsigned long)args->old_len, 
+		    (unsigned long)args->new_len,
+		    (unsigned long)args->flags);
 #endif
 	args->new_len = round_page(args->new_len);
 	args->old_len = round_page(args->old_len);
@@ -658,7 +590,7 @@ linux_mremap(struct proc *p, struct linux_mremap_args *args)
 	}
 
 	if (args->new_len < args->old_len) {
-		bsd_args.addr = args->addr + args->new_len;
+		bsd_args.addr = (caddr_t)(args->addr + args->new_len);
 		bsd_args.len = args->old_len - args->new_len;
 		error = munmap(p, &bsd_args);
 	}
@@ -672,7 +604,7 @@ linux_msync(struct proc *p, struct linux_msync_args *args)
 {
 	struct msync_args bsd_args;
 
-	bsd_args.addr = args->addr;
+	bsd_args.addr = (caddr_t)args->addr;
 	bsd_args.len = args->len;
 	bsd_args.flags = 0;	/* XXX ignore */
 
@@ -683,27 +615,29 @@ linux_msync(struct proc *p, struct linux_msync_args *args)
 int
 linux_time(struct proc *p, struct linux_time_args *args)
 {
-    struct timeval tv;
-    linux_time_t tm;
-    int error;
+	struct timeval tv;
+	l_time_t tm;
+	int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): time(*)\n", (long)p->p_pid);
+	if (ldebug(time))
+		printf(ARGS(time, "*"));
 #endif
-    microtime(&tv);
-    tm = tv.tv_sec;
-    if (args->tm && (error = copyout(&tm, args->tm, sizeof(linux_time_t))))
-	return error;
-    p->p_retval[0] = tm;
-    return 0;
+
+	microtime(&tv);
+	tm = tv.tv_sec;
+	if (args->tm && (error = copyout(&tm, (caddr_t)args->tm, sizeof(tm))))
+		return error;
+	p->p_retval[0] = tm;
+	return 0;
 }
 #endif	/*!__alpha__*/
 
-struct linux_times_argv {
-    long    tms_utime;
-    long    tms_stime;
-    long    tms_cutime;
-    long    tms_cstime;
+struct l_times_argv {
+	l_long		tms_utime;
+	l_long		tms_stime;
+	l_long		tms_cutime;
+	l_long		tms_cstime;
 };
 
 #ifdef __alpha__
@@ -717,45 +651,47 @@ struct linux_times_argv {
 int
 linux_times(struct proc *p, struct linux_times_args *args)
 {
-    struct timeval tv;
-    struct linux_times_argv tms;
-    struct rusage ru;
-    int error;
+	struct timeval tv;
+	struct l_times_argv tms;
+	struct rusage ru;
+	int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): times(*)\n", (long)p->p_pid);
+	if (ldebug(times))
+		printf(ARGS(times, "*"));
 #endif
-    calcru(p, &ru.ru_utime, &ru.ru_stime, NULL);
 
-    tms.tms_utime = CONVTCK(ru.ru_utime);
-    tms.tms_stime = CONVTCK(ru.ru_stime);
+	calcru(p, &ru.ru_utime, &ru.ru_stime, NULL);
 
-    tms.tms_cutime = CONVTCK(p->p_stats->p_cru.ru_utime);
-    tms.tms_cstime = CONVTCK(p->p_stats->p_cru.ru_stime);
+	tms.tms_utime = CONVTCK(ru.ru_utime);
+	tms.tms_stime = CONVTCK(ru.ru_stime);
 
-    if ((error = copyout((caddr_t)&tms, (caddr_t)args->buf,
-	    	    sizeof(struct linux_times_argv))))
-	return error;
+	tms.tms_cutime = CONVTCK(p->p_stats->p_cru.ru_utime);
+	tms.tms_cstime = CONVTCK(p->p_stats->p_cru.ru_stime);
 
-    microuptime(&tv);
-    p->p_retval[0] = (int)CONVTCK(tv);
-    return 0;
+	if ((error = copyout(&tms, (caddr_t)args->buf, sizeof(tms))))
+		return error;
+
+	microuptime(&tv);
+	p->p_retval[0] = (int)CONVTCK(tv);
+	return 0;
 }
 
 int
 linux_newuname(struct proc *p, struct linux_newuname_args *args)
 {
-	struct linux_new_utsname utsname;
+	struct l_new_utsname utsname;
 	char *osrelease, *osname;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): newuname(*)\n", (long)p->p_pid);
+	if (ldebug(newuname))
+		printf(ARGS(newuname, "*"));
 #endif
 
 	osname = linux_get_osname(p);
 	osrelease = linux_get_osrelease(p);
 
-	bzero(&utsname, sizeof(struct linux_new_utsname));
+	bzero(&utsname, sizeof(utsname));
 	strncpy(utsname.sysname, osname, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.nodename, hostname, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.release, osrelease, LINUX_MAX_UTSNAME-1);
@@ -763,53 +699,56 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
 	strncpy(utsname.machine, machine, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME-1);
 
-	return (copyout((caddr_t)&utsname, (caddr_t)args->buf,
-			sizeof(struct linux_new_utsname)));
+	return (copyout(&utsname, (caddr_t)args->buf, sizeof(utsname)));
 }
 
-struct linux_utimbuf {
-	linux_time_t l_actime;
-	linux_time_t l_modtime;
+#if defined(__i386__)
+struct l_utimbuf {
+	l_time_t l_actime;
+	l_time_t l_modtime;
 };
 
 int
 linux_utime(struct proc *p, struct linux_utime_args *args)
 {
-    struct utimes_args /* {
-	char	*path;
-	struct	timeval *tptr;
-    } */ bsdutimes;
-    struct timeval tv[2], *tvp;
-    struct linux_utimbuf lut;
-    int error;
-    caddr_t sg;
+	struct utimes_args /* {
+		char	*path;
+		struct	timeval *tptr;
+	} */ bsdutimes;
+	struct timeval tv[2], *tvp;
+	struct l_utimbuf lut;
+	int error;
+	caddr_t sg;
 
-    sg = stackgap_init();
-    CHECKALTEXIST(p, &sg, args->fname);
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->fname);
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): utime(%s, *)\n", (long)p->p_pid, args->fname);
+	if (ldebug(utime))
+		printf(ARGS(utime, "%s, *"), args->fname);
 #endif
-    if (args->times) {
-	if ((error = copyin(args->times, &lut, sizeof lut)))
-	    return error;
-	tv[0].tv_sec = lut.l_actime;
-	tv[0].tv_usec = 0;
-	tv[1].tv_sec = lut.l_modtime;
-	tv[1].tv_usec = 0;
-	/* so that utimes can copyin */
-	tvp = (struct timeval *)stackgap_alloc(&sg, sizeof(tv));
-	if (tvp == NULL)
-		return (ENAMETOOLONG);
-	if ((error = copyout(tv, tvp, sizeof(tv))))
-	    return error;
-	bsdutimes.tptr = tvp;
-    } else
-	bsdutimes.tptr = NULL;
 
-    bsdutimes.path = args->fname;
-    return utimes(p, &bsdutimes);
+	if (args->times) {
+		if ((error = copyin((caddr_t)args->times, &lut, sizeof lut)))
+			return error;
+		tv[0].tv_sec = lut.l_actime;
+		tv[0].tv_usec = 0;
+		tv[1].tv_sec = lut.l_modtime;
+		tv[1].tv_usec = 0;
+		/* so that utimes can copyin */
+		tvp = (struct timeval *)stackgap_alloc(&sg, sizeof(tv));
+		if (tvp == NULL)
+			return (ENAMETOOLONG);
+		if ((error = copyout(tv, tvp, sizeof(tv))))
+			return error;
+		bsdutimes.tptr = tvp;
+	} else
+		bsdutimes.tptr = NULL;
+
+	bsdutimes.path = args->fname;
+	return utimes(p, &bsdutimes);
 }
+#endif /* __i386__ */
 
 #define __WCLONE 0x80000000
 
@@ -817,41 +756,45 @@ linux_utime(struct proc *p, struct linux_utime_args *args)
 int
 linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 {
-    struct wait_args /* {
-	int pid;
-	int *status;
-	int options;
-	struct	rusage *rusage;
-    } */ tmp;
-    int error, tmpstat;
+	struct wait_args /* {
+		int pid;
+		int *status;
+		int options;
+		struct	rusage *rusage;
+	} */ tmp;
+	int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): waitpid(%d, %p, %d)\n",
-	(long)p->p_pid, args->pid, (void *)args->status, args->options);
+	if (ldebug(waitpid))
+		printf(ARGS(waitpid, "%d, %p, %d"),
+		    args->pid, (void *)args->status, args->options);
 #endif
-    tmp.pid = args->pid;
-    tmp.status = args->status;
-    tmp.options = (args->options & (WNOHANG | WUNTRACED));
-    /* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-    if (args->options & __WCLONE)
-	tmp.options |= WLINUXCLONE;
-    tmp.rusage = NULL;
 
-    if ((error = wait4(p, &tmp)) != 0)
-	return error;
+	tmp.pid = args->pid;
+	tmp.status = args->status;
+	tmp.options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		tmp.options |= WLINUXCLONE;
+	tmp.rusage = NULL;
 
-    if (args->status) {
-	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
-	    return error;
-	tmpstat &= 0xffff;
-	if (WIFSIGNALED(tmpstat))
-	    tmpstat = (tmpstat & 0xffffff80) |
-		      BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-	else if (WIFSTOPPED(tmpstat))
-	    tmpstat = (tmpstat & 0xffff00ff) |
-		      (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-	return copyout(&tmpstat, args->status, sizeof(int));
-    } else
+	if ((error = wait4(p, &tmp)) != 0)
+		return error;
+
+	if (args->status) {
+		if ((error = copyin((caddr_t)args->status, &tmpstat,
+		    sizeof(int))) != 0)
+			return error;
+		tmpstat &= 0xffff;
+		if (WIFSIGNALED(tmpstat))
+			tmpstat = (tmpstat & 0xffffff80) |
+			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
+		else if (WIFSTOPPED(tmpstat))
+			tmpstat = (tmpstat & 0xffff00ff) |
+			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+		return copyout(&tmpstat, (caddr_t)args->status, sizeof(int));
+	}
+
 	return 0;
 }
 #endif	/*!__alpha__*/
@@ -859,44 +802,48 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
 int
 linux_wait4(struct proc *p, struct linux_wait4_args *args)
 {
-    struct wait_args /* {
-	int pid;
-	int *status;
-	int options;
-	struct	rusage *rusage;
-    } */ tmp;
-    int error, tmpstat;
+	struct wait_args /* {
+		int pid;
+		int *status;
+		int options;
+		struct	rusage *rusage;
+	} */ tmp;
+	int error, tmpstat;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): wait4(%d, %p, %d, %p)\n",
-	(long)p->p_pid, args->pid, (void *)args->status, args->options,
-	(void *)args->rusage);
+	if (ldebug(wait4))
+		printf(ARGS(wait4, "%d, %p, %d, %p"),
+		    args->pid, (void *)args->status, args->options,
+		    (void *)args->rusage);
 #endif
-    tmp.pid = args->pid;
-    tmp.status = args->status;
-    tmp.options = (args->options & (WNOHANG | WUNTRACED));
-    /* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-    if (args->options & __WCLONE)
-	tmp.options |= WLINUXCLONE;
-    tmp.rusage = args->rusage;
 
-    if ((error = wait4(p, &tmp)) != 0)
-	return error;
+	tmp.pid = args->pid;
+	tmp.status = args->status;
+	tmp.options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		tmp.options |= WLINUXCLONE;
+	tmp.rusage = (struct rusage *)args->rusage;
 
-    SIGDELSET(p->p_siglist, SIGCHLD);
+	if ((error = wait4(p, &tmp)) != 0)
+		return error;
 
-    if (args->status) {
-	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
-	    return error;
-	tmpstat &= 0xffff;
-	if (WIFSIGNALED(tmpstat))
-	    tmpstat = (tmpstat & 0xffffff80) |
-		  BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-	else if (WIFSTOPPED(tmpstat))
-	    tmpstat = (tmpstat & 0xffff00ff) |
-		  (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-	return copyout(&tmpstat, args->status, sizeof(int));
-    } else
+	SIGDELSET(p->p_siglist, SIGCHLD);
+
+	if (args->status) {
+		if ((error = copyin((caddr_t)args->status, &tmpstat,
+		    sizeof(int))) != 0)
+			return error;
+		tmpstat &= 0xffff;
+		if (WIFSIGNALED(tmpstat))
+			tmpstat = (tmpstat & 0xffffff80) |
+			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
+		else if (WIFSTOPPED(tmpstat))
+			tmpstat = (tmpstat & 0xffff00ff) |
+			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+		return copyout(&tmpstat, (caddr_t)args->status, sizeof(int));
+	}
+
 	return 0;
 }
 
@@ -912,8 +859,9 @@ linux_mknod(struct proc *p, struct linux_mknod_args *args)
 	CHECKALTCREAT(p, &sg, args->path);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): mknod(%s, %d, %d)\n",
-	   (long)p->p_pid, args->path, args->mode, args->dev);
+	if (ldebug(mknod))
+		printf(ARGS(mknod, "%s, %d, %d"),
+		    args->path, args->mode, args->dev);
 #endif
 
 	if (args->mode & S_IFIFO) {
@@ -935,8 +883,8 @@ int
 linux_personality(struct proc *p, struct linux_personality_args *args)
 {
 #ifdef DEBUG
-	printf("Linux-emul(%ld): personality(%d)\n",
-	   (long)p->p_pid, args->per);
+	if (ldebug(personality))
+		printf(ARGS(personality, "%d"), args->per);
 #endif
 #ifndef __alpha__
 	if (args->per != 0)
@@ -959,21 +907,23 @@ linux_setitimer(struct proc *p, struct linux_setitimer_args *args)
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): setitimer(%p, %p)\n",
-	    (long)p->p_pid, (void *)args->itv, (void *)args->oitv);
+	if (ldebug(setitimer))
+		printf(ARGS(setitimer, "%p, %p"),
+		    (void *)args->itv, (void *)args->oitv);
 #endif
 	bsa.which = args->which;
-	bsa.itv = args->itv;
-	bsa.oitv = args->oitv;
+	bsa.itv = (struct itimerval *)args->itv;
+	bsa.oitv = (struct itimerval *)args->oitv;
 	if (args->itv) {
-	    if ((error = copyin((caddr_t)args->itv, (caddr_t)&foo,
-			sizeof(foo))))
+	    if ((error = copyin((caddr_t)args->itv, &foo, sizeof(foo))))
 		return error;
 #ifdef DEBUG
-	    printf("setitimer: value: sec: %ld, usec: %ld\n",
-		foo.it_value.tv_sec, foo.it_value.tv_usec);
-	    printf("setitimer: interval: sec: %ld, usec: %ld\n",
-		foo.it_interval.tv_sec, foo.it_interval.tv_usec);
+	    if (ldebug(setitimer)) {
+	        printf("setitimer: value: sec: %ld, usec: %ld\n",
+		    foo.it_value.tv_sec, foo.it_value.tv_usec);
+	        printf("setitimer: interval: sec: %ld, usec: %ld\n",
+		    foo.it_interval.tv_sec, foo.it_interval.tv_usec);
+	    }
 #endif
 	}
 	return setitimer(p, &bsa);
@@ -984,11 +934,11 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 {
 	struct getitimer_args bsa;
 #ifdef DEBUG
-	printf("Linux-emul(%ld): getitimer(%p)\n",
-	    (long)p->p_pid, (void *)args->itv);
+	if (ldebug(getitimer))
+		printf(ARGS(getitimer, "%p"), (void *)args->itv);
 #endif
 	bsa.which = args->which;
-	bsa.itv = args->itv;
+	bsa.itv = (struct itimerval *)args->itv;
 	return getitimer(p, &bsa);
 }
 
@@ -1006,17 +956,15 @@ linux_nice(struct proc *p, struct linux_nice_args *args)
 #endif	/*!__alpha__*/
 
 int
-linux_setgroups(p, uap)
-	struct proc *p;
-	struct linux_setgroups_args *uap;
+linux_setgroups(struct proc *p, struct linux_setgroups_args *args)
 {
-	struct pcred *pc;
-	linux_gid_t linux_gidset[NGROUPS];
+	struct ucred *newcred, *oldcred;
+	l_gid_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int ngrp, error;
 
-	pc = p->p_cred;
-	ngrp = uap->gidsetsize;
+	ngrp = args->gidsetsize;
+	oldcred = p->p_ucred;
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -1024,22 +972,22 @@ linux_setgroups(p, uap)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser(p)) != 0)
+	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		return (error);
 
 	if (ngrp >= NGROUPS)
 		return (EINVAL);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
+	newcred = crdup(oldcred);
 	if (ngrp > 0) {
-		error = copyin((caddr_t)uap->gidset, (caddr_t)linux_gidset,
-			       ngrp * sizeof(linux_gid_t));
+		error = copyin((caddr_t)args->grouplist, linux_gidset,
+			       ngrp * sizeof(l_gid_t));
 		if (error)
 			return (error);
 
-		pc->pc_ucred->cr_ngroups = ngrp + 1;
+		newcred->cr_ngroups = ngrp + 1;
 
-		bsd_gidset = pc->pc_ucred->cr_groups;
+		bsd_gidset = newcred->cr_groups;
 		ngrp--;
 		while (ngrp >= 0) {
 			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
@@ -1047,25 +995,25 @@ linux_setgroups(p, uap)
 		}
 	}
 	else
-		pc->pc_ucred->cr_ngroups = 1;
+		newcred->cr_ngroups = 1;
 
 	setsugid(p);
+	p->p_ucred = newcred;
+	crfree(oldcred);
 	return (0);
 }
 
 int
-linux_getgroups(p, uap)
-	struct proc *p;
-	struct linux_getgroups_args *uap;
+linux_getgroups(struct proc *p, struct linux_getgroups_args *args)
 {
-	struct pcred *pc;
-	linux_gid_t linux_gidset[NGROUPS];
+	struct ucred *cred;
+	l_gid_t linux_gidset[NGROUPS];
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
-	pc = p->p_cred;
-	bsd_gidset = pc->pc_ucred->cr_groups;
-	bsd_gidsetsz = pc->pc_ucred->cr_ngroups - 1;
+	cred = p->p_ucred;
+	bsd_gidset = cred->cr_groups;
+	bsd_gidsetsz = cred->cr_ngroups - 1;
 
 	/*
 	 * cr_groups[0] holds egid. Returning the whole set
@@ -1073,7 +1021,7 @@ linux_getgroups(p, uap)
 	 * to prevent that.
 	 */
 
-	if ((ngrp = uap->gidsetsize) == 0) {
+	if ((ngrp = args->gidsetsize) == 0) {
 		p->p_retval[0] = bsd_gidsetsz;
 		return (0);
 	}
@@ -1087,8 +1035,8 @@ linux_getgroups(p, uap)
 		ngrp++;
 	}
 
-	if ((error = copyout((caddr_t)linux_gidset, (caddr_t)uap->gidset,
-	    ngrp * sizeof(linux_gid_t))))
+	if ((error = copyout(linux_gidset, (caddr_t)args->grouplist,
+	    ngrp * sizeof(l_gid_t))))
 		return (error);
 
 	p->p_retval[0] = ngrp;
@@ -1097,28 +1045,27 @@ linux_getgroups(p, uap)
 
 #ifndef __alpha__
 int
-linux_setrlimit(p, uap)
-	struct proc *p;
-	struct linux_setrlimit_args *uap;
+linux_setrlimit(struct proc *p, struct linux_setrlimit_args *args)
 {
 	struct __setrlimit_args bsd;
-	struct linux_rlimit rlim;
+	struct l_rlimit rlim;
 	int error;
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): setrlimit(%d, %p)\n", (long)p->p_pid,
-	    uap->resource, (void *)uap->rlim);
+	if (ldebug(setrlimit))
+		printf(ARGS(setrlimit, "%d, %p"),
+		    args->resource, (void *)args->rlim);
 #endif
 
-	if (uap->resource >= LINUX_RLIM_NLIMITS)
+	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
 
-	bsd.which = linux_to_bsd_resource[uap->resource];
+	bsd.which = linux_to_bsd_resource[args->resource];
 	if (bsd.which == -1)
 		return (EINVAL);
 
-	error = copyin(uap->rlim, &rlim, sizeof(rlim));
+	error = copyin((caddr_t)args->rlim, &rlim, sizeof(rlim));
 	if (error)
 		return (error);
 
@@ -1129,24 +1076,23 @@ linux_setrlimit(p, uap)
 }
 
 int
-linux_getrlimit(p, uap)
-	struct proc *p;
-	struct linux_getrlimit_args *uap;
+linux_old_getrlimit(struct proc *p, struct linux_old_getrlimit_args *args)
 {
 	struct __getrlimit_args bsd;
-	struct linux_rlimit rlim;
+	struct l_rlimit rlim;
 	int error;
 	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): getrlimit(%d, %p)\n", (long)p->p_pid,
-	    uap->resource, (void *)uap->rlim);
+	if (ldebug(old_getrlimit))
+		printf(ARGS(old_getrlimit, "%d, %p"),
+		    args->resource, (void *)args->rlim);
 #endif
 
-	if (uap->resource >= LINUX_RLIM_NLIMITS)
+	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
 
-	bsd.which = linux_to_bsd_resource[uap->resource];
+	bsd.which = linux_to_bsd_resource[args->resource];
 	if (bsd.which == -1)
 		return (EINVAL);
 
@@ -1161,23 +1107,54 @@ linux_getrlimit(p, uap)
 	rlim.rlim_max = (unsigned long)bsd.rlp->rlim_max;
 	if (rlim.rlim_max == ULONG_MAX)
 		rlim.rlim_max = LONG_MAX;
-	return (copyout(&rlim, uap->rlim, sizeof(rlim)));
+	return (copyout(&rlim, (caddr_t)args->rlim, sizeof(rlim)));
+}
+
+int
+linux_getrlimit(struct proc *p, struct linux_getrlimit_args *args)
+{
+	struct __getrlimit_args bsd;
+	struct l_rlimit rlim;
+	int error;
+	caddr_t sg = stackgap_init();
+
+#ifdef DEBUG
+	if (ldebug(getrlimit))
+		printf(ARGS(getrlimit, "%d, %p"),
+		    args->resource, (void *)args->rlim);
+#endif
+
+	if (args->resource >= LINUX_RLIM_NLIMITS)
+		return (EINVAL);
+
+	bsd.which = linux_to_bsd_resource[args->resource];
+	if (bsd.which == -1)
+		return (EINVAL);
+
+	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
+	error = getrlimit(p, &bsd);
+	if (error)
+		return (error);
+
+	rlim.rlim_cur = (l_ulong)bsd.rlp->rlim_cur;
+	rlim.rlim_max = (l_ulong)bsd.rlp->rlim_max;
+	return (copyout(&rlim, (caddr_t)args->rlim, sizeof(rlim)));
 }
 #endif /*!__alpha__*/
 
 int
-linux_sched_setscheduler(p, uap)
-	struct proc *p;
-	struct linux_sched_setscheduler_args *uap;
+linux_sched_setscheduler(struct proc *p,
+    struct linux_sched_setscheduler_args *args)
 {
 	struct sched_setscheduler_args bsd;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sched_setscheduler(%d, %d, %p)\n",
-	    (long)p->p_pid, uap->pid, uap->policy, (const void *)uap->param);
+	if (ldebug(sched_setscheduler))
+		printf(ARGS(sched_setscheduler, "%d, %d, %p"),
+		    args->pid, args->policy, (const void *)args->param);
 #endif
 
-	switch (uap->policy) {
+	switch (args->policy) {
 	case LINUX_SCHED_OTHER:
 		bsd.policy = SCHED_OTHER;
 		break;
@@ -1191,25 +1168,24 @@ linux_sched_setscheduler(p, uap)
 		return EINVAL;
 	}
 
-	bsd.pid = uap->pid;
-	bsd.param = uap->param;
+	bsd.pid = args->pid;
+	bsd.param = (struct sched_param *)args->param;
 	return sched_setscheduler(p, &bsd);
 }
 
 int
-linux_sched_getscheduler(p, uap)
-	struct proc *p;
-	struct linux_sched_getscheduler_args *uap;
+linux_sched_getscheduler(struct proc *p,
+    struct linux_sched_getscheduler_args *args)
 {
 	struct sched_getscheduler_args bsd;
 	int error;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sched_getscheduler(%d)\n",
-	       (long)p->p_pid, uap->pid);
+	if (ldebug(sched_getscheduler))
+		printf(ARGS(sched_getscheduler, "%d"), args->pid);
 #endif
 
-	bsd.pid = uap->pid;
+	bsd.pid = args->pid;
 	error = sched_getscheduler(p, &bsd);
 
 	switch (p->p_retval[0]) {
@@ -1228,18 +1204,17 @@ linux_sched_getscheduler(p, uap)
 }
 
 int
-linux_sched_get_priority_max(p, uap)
-	struct proc *p;
-	struct linux_sched_get_priority_max_args *uap;
+linux_sched_get_priority_max(struct proc *p,
+    struct linux_sched_get_priority_max_args *args)
 {
 	struct sched_get_priority_max_args bsd;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sched_get_priority_max(%d)\n",
-	    (long)p->p_pid, uap->policy);
+	if (ldebug(sched_get_priority_max))
+		printf(ARGS(sched_get_priority_max, "%d"), args->policy);
 #endif
 
-	switch (uap->policy) {
+	switch (args->policy) {
 	case LINUX_SCHED_OTHER:
 		bsd.policy = SCHED_OTHER;
 		break;
@@ -1256,18 +1231,17 @@ linux_sched_get_priority_max(p, uap)
 }
 
 int
-linux_sched_get_priority_min(p, uap)
-	struct proc *p;
-	struct linux_sched_get_priority_min_args *uap;
+linux_sched_get_priority_min(struct proc *p,
+    struct linux_sched_get_priority_min_args *args)
 {
 	struct sched_get_priority_min_args bsd;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): sched_get_priority_min(%d)\n",
-	    (long)p->p_pid, uap->policy);
+	if (ldebug(sched_get_priority_min))
+		printf(ARGS(sched_get_priority_min, "%d"), args->policy);
 #endif
 
-	switch (uap->policy) {
+	switch (args->policy) {
 	case LINUX_SCHED_OTHER:
 		bsd.policy = SCHED_OTHER;
 		break;
@@ -1281,4 +1255,67 @@ linux_sched_get_priority_min(p, uap)
 		return EINVAL;
 	}
 	return sched_get_priority_min(p, &bsd);
+}
+
+#define REBOOT_CAD_ON	0x89abcdef
+#define REBOOT_CAD_OFF	0
+#define REBOOT_HALT	0xcdef0123
+
+int
+linux_reboot(struct proc *p, struct linux_reboot_args *args)
+{
+	struct reboot_args bsd_args;
+
+#ifdef DEBUG
+	if (ldebug(reboot))
+		printf(ARGS(reboot, "0x%x"), args->cmd);
+#endif
+	if (args->cmd == REBOOT_CAD_ON || args->cmd == REBOOT_CAD_OFF)
+		return (0);
+	bsd_args.opt = (args->cmd == REBOOT_HALT) ? RB_HALT : 0;
+	return (reboot(p, &bsd_args));
+}
+
+/*
+ * The FreeBSD native getpid(2), getgid(2) and getuid(2) also modify
+ * p->p_retval[1] when COMPAT_43 or COMPAT_SUNOS is defined. This
+ * globbers registers that are assumed to be preserved. The following
+ * lightweight syscalls fixes this. See also linux_getgid16() and
+ * linux_getuid16() in linux_uid16.c.
+ *
+ * linux_getpid() - MP SAFE
+ * linux_getgid() - MP SAFE
+ * linux_getuid() - MP SAFE
+ */
+
+int
+linux_getpid(struct proc *p, struct linux_getpid_args *args)
+{
+
+	p->p_retval[0] = p->p_pid;
+	return (0);
+}
+
+int
+linux_getgid(struct proc *p, struct linux_getgid_args *args)
+{
+
+	p->p_retval[0] = p->p_cred->p_rgid;
+	return (0);
+}
+
+int
+linux_getuid(struct proc *p, struct linux_getuid_args *args)
+{
+
+	p->p_retval[0] = p->p_cred->p_ruid;
+	return (0);
+}
+
+int
+linux_getsid(struct proc *p, struct linux_getsid_args *args)
+{
+	struct getsid_args bsd;
+	bsd.pid = args->pid;
+	return getsid(p, &bsd);
 }

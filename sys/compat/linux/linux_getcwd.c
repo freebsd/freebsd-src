@@ -56,11 +56,7 @@
 #include <ufs/ufs/dir.h>	/* XXX only for DIRBLKSIZ */
 
 #include <machine/../linux/linux.h>
-#ifdef __alpha__
-#include <linux_proto.h>
-#else
 #include <machine/../linux/linux_proto.h>
-#endif
 #include <compat/linux/linux_util.h>
 
 static int
