@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.12 1999/05/15 05:49:21 grog Exp $
+ * $Id: vinumrevive.c,v 1.7 1999/02/28 02:12:18 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -146,6 +146,8 @@ revive_block(int sdno)
 
 	bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	    /* create the device number */
 	bp->b_flags = B_ORDERED;			    /* and make this an ordered write */
+	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
+	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_resid = 0x0;
 	bp->b_blkno = sd->revived;			    /* write it to here */
 	sdio(bp);					    /* perform the I/O */
