@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 200.backup-passwd,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 200.backup-passwd,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
 #
 bak=/var/backups
 
@@ -31,5 +31,11 @@ if [ -f /etc/master.passwd -o -f /etc/group ] ; then
 	diff $bak/group.bak /etc/group
 	mv $bak/group.bak $bak/group.bak2
 	cp -p /etc/group $bak/group.bak
+    fi
+
+    if [ -f /etc/group ] ; then
+        echo ""
+	echo "Verifying group file syntax:"
+        chkgrp /etc/group
     fi
 fi
