@@ -128,7 +128,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				    TAILQ_FIRST(&proc.p_threads));
 				return (-1);
 			}
-			if (proc.p_flag & P_SA == 0) {
+			if ((proc.p_flag & P_SA) == 0) {
 				if (KREAD(kd,
 				    (u_long)TAILQ_FIRST(&proc.p_ksegrps),
 				    &mkg)) {
