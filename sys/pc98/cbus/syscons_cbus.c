@@ -74,12 +74,6 @@ scattach(device_t dev)
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
-static int
-scresume(device_t dev)
-{
-	return sc_resume_unit(device_get_unit(dev));
-}
-
 int
 sc_max_unit(void)
 {
@@ -205,7 +199,6 @@ static device_method_t sc_methods[] = {
 	DEVMETHOD(device_identify,	scidentify),
 	DEVMETHOD(device_probe,         scprobe),
 	DEVMETHOD(device_attach,        scattach),
-	DEVMETHOD(device_resume,        scresume),
 	{ 0, 0 }
 };
 
