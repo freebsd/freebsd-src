@@ -3553,13 +3553,13 @@ vfs_bio_clrbuf(struct buf *bp)
 		}
 		ea = sa = bp->b_data;
 		for(i=0;i<bp->b_npages;i++,sa=ea) {
-			if (bp->b_pages[i] == bogus_page)
-				continue;
-			j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
 			ea = (caddr_t)trunc_page((vm_offset_t)sa + PAGE_SIZE);
 			ea = (caddr_t)(vm_offset_t)ulmin(
 			    (u_long)(vm_offset_t)ea,
 			    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
+			if (bp->b_pages[i] == bogus_page)
+				continue;
+			j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
 			mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
 			VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 			if ((bp->b_pages[i]->valid & mask) == mask)
