@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.71 1996/09/10 02:26:28 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.72 1996/09/20 15:07:39 bde Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -239,6 +239,8 @@
         info
         ..
         isdn
+	..
+	libg++
         ..
         locale
 	    da_DK.ISO_8859-1
