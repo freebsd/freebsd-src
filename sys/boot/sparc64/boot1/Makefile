@@ -9,7 +9,7 @@ BINMODE=	444
 
 BOOTBLOCKBASE=	0x4000
 
-CFLAGS=	-W -Wall -I../../ -I../../common/ -Os -ffreestanding -mno-app-regs \
+CFLAGS=	-W -Wall -Wno-unused -I../../ -I../../common/ -Os -ffreestanding \
 	-mcmodel=medlow
 
 boot1.elf: _start.o boot1.o
