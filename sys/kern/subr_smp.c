@@ -123,8 +123,8 @@ forward_signal(struct thread *td)
 	int id;
 
 	/*
-	 * signotify() has already set TDF_ASTPENDING and PS_NEEDSIGCHECK on
-	 * this process, so all we need to do is poke it if it is currently
+	 * signotify() has already set TDF_ASTPENDING and TDF_NEEDSIGCHECK on
+	 * this thread, so all we need to do is poke it if it is currently
 	 * executing so that it executes ast().
 	 */
 	mtx_assert(&sched_lock, MA_OWNED);

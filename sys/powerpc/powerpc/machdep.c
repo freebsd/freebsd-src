@@ -538,9 +538,9 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	p->p_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	td->td_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	/*

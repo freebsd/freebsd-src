@@ -73,7 +73,7 @@ getcontext(struct thread *td, struct getcontext_args *uap)
 		ret = EINVAL;
 	else {
 		get_mcontext(td, &uc.uc_mcontext);
-		uc.uc_sigmask = td->td_proc->p_sigmask;
+		uc.uc_sigmask = td->td_sigmask;
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
@@ -97,7 +97,7 @@ setcontext(struct thread *td, struct setcontext_args *uap)
 			if (ret == 0) {
 				SIG_CANTMASK(uc.uc_sigmask);
 				PROC_LOCK(td->td_proc);
-				td->td_proc->p_sigmask = uc.uc_sigmask;
+				td->td_sigmask = uc.uc_sigmask;
 				PROC_UNLOCK(td->td_proc);
 			}
 		}
@@ -115,7 +115,7 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 		ret = EINVAL;
 	else {
 		get_mcontext(td, &uc.uc_mcontext);
-		uc.uc_sigmask = td->td_proc->p_sigmask;
+		uc.uc_sigmask = td->td_sigmask;
 		ret = copyout(&uc, uap->oucp, UC_COPY_SIZE);
 		if (ret == 0) {
 			ret = copyin(uap->ucp, &uc, UC_COPY_SIZE);
@@ -124,7 +124,7 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 				if (ret == 0) {
 					SIG_CANTMASK(uc.uc_sigmask);
 					PROC_LOCK(td->td_proc);
-					td->td_proc->p_sigmask = uc.uc_sigmask;
+					td->td_sigmask = uc.uc_sigmask;
 					PROC_UNLOCK(td->td_proc);
 				}
 			}

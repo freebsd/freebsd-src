@@ -217,6 +217,7 @@ exit1(struct thread *td, int rv)
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	SIGEMPTYSET(p->p_siglist);
+	SIGEMPTYSET(td->td_siglist);
 	if (timevalisset(&p->p_realtimer.it_value))
 		callout_stop(&p->p_itcallout);
 	PROC_UNLOCK(p);
