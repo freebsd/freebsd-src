@@ -271,6 +271,27 @@ For example, the file might contain:
 .Pp
 .Dl 10.0.0.1:/etc
 .Pp
+Alternativly, if the server contains several independent roots, the file
+might contain:
+.Pp
+.Dl 10.0.0.1:/usr/diskless/4.7-RELEASE/etc
+.Pp
+This would work, but if you copied
+.Pa /usr/diskless/4.7-RELEASE
+to
+.Pa /usr/diskless/4.8-RELEASE
+and upgraded the installation, you would need to modify the
+.Pa diskless_remount
+files to reflect that move.
+To avoid that, paths in
+.Pa diskless_remount
+files begining with
+.Pa /
+have the actual path of the client's root prepended to them so the file
+could instead contain:
+.Pp
+.Dl /etc
+.Pp
 The
 .Nm
 scripts create memory file systems to hold the overriden
