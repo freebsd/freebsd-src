@@ -39,7 +39,9 @@
 .Nm
 .Fl r
 .Sh DESCRIPTION
+The
 .Nm
+utility
 displays or modifies the search path used by the kernel when loading modules
 using the
 .Xr kldload 8
@@ -56,7 +58,7 @@ Do not display a diagnostic message if a path specified for adding is
 already present in the search path, or if a path specified for removing
 is not present in the search path.
 This may be useful in startup/shutdown scripts for adding a path to
-a filesystem which is still not mounted, or in shutdown scripts for
+a file system which is still not mounted, or in shutdown scripts for
 unconditionally removing a path that may have been added during startup.
 .It Fl i
 Add the specified paths to the beginning of the search path, not to the end.
