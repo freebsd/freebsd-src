@@ -1682,7 +1682,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 	struct buf *bp;
 	ufs1_daddr_t fragno, cgbno;
 	ufs2_daddr_t cgblkno;
-	int i, error, cg, blk, frags, bbase;
+	int i, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
 	dev_t dev;
 
@@ -1719,7 +1719,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 		ffs_fserr(fs, inum, "bad block");
 		return;
 	}
-	if ((error = bread(devvp, cgblkno, (int)fs->fs_cgsize, NOCRED, &bp))) {
+	if (bread(devvp, cgblkno, (int)fs->fs_cgsize, NOCRED, &bp)) {
 		brelse(bp);
 		return;
 	}
@@ -1944,7 +1944,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	struct cg *cgp;
 	struct buf *bp;
 	ufs2_daddr_t cgbno;
-	int error, ret, cg;
+	int ret, cg;
 	u_int8_t *inosused;
 
 	cg = ino_to_cg(fs, ino);
@@ -1957,7 +1957,7 @@ ffs_checkfreefile(fs, devvp, ino)
 	}
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		return (1);
-	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
+	if (bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp)) {
 		brelse(bp);
 		return (1);
 	}
