@@ -241,10 +241,19 @@ jailed(cred)
 /*
  * Return the correct hostname for the passed credential.
  */
-const char *
-getcredhostname(cred)
+void
+getcredhostname(cred, buf, size)
 	struct ucred *cred;
+	char *buf;
+	size_t size;
 {
 
-	return (jailed(cred) ? cred->cr_prison->pr_host : hostname);
+	if (jailed(cred)) {
+		mtx_lock(&cred->cr_prison->pr_mtx);
+		strncpy(buf, cred->cr_prison->pr_host, size);
+		mtx_unlock(&cred->cr_prison->pr_mtx);
+	}
+	else
+		strncpy(buf, hostname, size);
+	buf[size - 1] = '\0';
 }
