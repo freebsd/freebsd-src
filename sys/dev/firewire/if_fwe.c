@@ -60,7 +60,6 @@
 
 #define FWEDEBUG	if (fwedebug) if_printf
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
-#define RX_MAX_QUEUE	FWMAXQUEUE
 
 /* network interface */
 static void fwe_start __P((struct ifnet *));
@@ -74,16 +73,23 @@ static void fwe_as_input __P((struct fw_xferq *));
 static int fwedebug = 0;
 static int stream_ch = 1;
 static int tx_speed = 2;
+static int rx_queue_len = FWMAXQUEUE;
 
 MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
-	"Ethernet Emulation Subsystem");
+	"Ethernet emulation subsystem");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RW, &stream_ch, 0,
 	"Stream channel to use");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RW, &tx_speed, 0,
-	"Transmission Speed");
+	"Transmission speed");
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
+	0, "Length of the receive queue");
+
+TUNABLE_INT("hw.firewire.fwe.stream_ch", &stream_ch);
+TUNABLE_INT("hw.firewire.fwe.tx_speed", &tx_speed);
+TUNABLE_INT("hw.firewire.fwe.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
 #define FWE_POLL_REGISTER(func, fwe, ifp)			\
@@ -318,7 +324,7 @@ found:
 		/* register fwe_input handler */
 		xferq->sc = (caddr_t) fwe;
 		xferq->hand = fwe_as_input;
-		xferq->bnchunk = RX_MAX_QUEUE;
+		xferq->bnchunk = rx_queue_len;
 		xferq->bnpacket = 1;
 		xferq->psize = MCLBYTES;
 		xferq->queued = 0;
