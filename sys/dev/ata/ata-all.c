@@ -283,7 +283,8 @@ ata_pci_match(device_t dev)
 	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
-	if (ata_find_dev(dev, 0x06861106, 0x40))
+	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x30741106, 0))
 	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
 	    return "VIA 82C686 ATA66 controller";
@@ -327,6 +328,10 @@ ata_pci_match(device_t dev)
     case 0x0d30105a:
     case 0x4d30105a:
 	return "Promise ATA100 controller";
+
+    case 0x4d68105a:
+    case 0x6268105a:
+	return "Promise TX2 ATA100 controller";
 
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
@@ -424,14 +429,14 @@ ata_pci_attach(device_t dev)
 			 (pci_read_config(dev, 0x53, 1) & ~0x01) | 0x02, 1);
 	break;
 
-    case 0x4d38105a: /* Promise 66 & 100 need their clock changed */
+    case 0x4d38105a: /* Promise 66 & 100 (before TX2) need the clock changed */
     case 0x4d30105a:
     case 0x0d30105a:
 	outb(rman_get_start(sc->bmio) + 0x11, 
 	     inb(rman_get_start(sc->bmio) + 0x11) | 0x0a);
 	/* FALLTHROUGH */
 
-    case 0x4d33105a: /* Promise (all) need burst mode to be turned on */
+    case 0x4d33105a: /* Promise (before TX2) need burst mode turned on */
 	outb(rman_get_start(sc->bmio) + 0x1f,
 	     inb(rman_get_start(sc->bmio) + 0x1f) | 0x01);
 	break;
@@ -482,11 +487,12 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	
-	/* prepare for ATA-66 on the 82C686 and rev 0x12 and newer 82C596's */
-	if (ata_find_dev(dev, 0x06861106, 0) || 
+	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
+	if ((ata_find_dev(dev, 0x06861106, 0) &&
+	     !ata_find_dev(dev, 0x06861106, 0x40)) ||
 	    ata_find_dev(dev, 0x05961106, 0x12)) {
 	    pci_write_config(dev, 0x50, 
-			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
+			     pci_read_config(dev, 0x50, 4) | 0x030b030b, 4);   
 	}
 	break;
 
@@ -607,8 +613,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    int irq = (channel == 0 ? 14 : 15);
 
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				      SYS_RES_IRQ, rid,
-				      irq, irq, 1, flags & ~RF_SHAREABLE);
+				      SYS_RES_IRQ, rid, irq, irq, 1, flags);
 #endif
 	} else {
 	    /* primary and secondary channels share the same interrupt */
@@ -1120,6 +1125,8 @@ ata_intr(void *data)
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
+    case 0x4d68105a:	/* Promise TX2 ATA100 */
+    case 0x6268105a:	/* Promise TX2v2 ATA100 */
 	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
 	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return;

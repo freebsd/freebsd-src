@@ -627,7 +627,7 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
 static int
 ast_rewind(struct ast_softc *stp)
 {
-    int8_t ccb[16] = { ATAPI_REWIND, 0x01, 0, 0, 0, 0, 0, 0,
+    int8_t ccb[16] = { ATAPI_REZERO, 0x01, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 

@@ -832,17 +832,31 @@ ad_tagsupported(struct ad_softc *adp)
     const char *drives[] = {"IBM-DPTA", "IBM-DTLA", NULL};
     int i = 0;
 
-    /* Promise controllers doesn't work with tagged queuing */
-    if ((adp->controller->chiptype & 0x0000ffff) == 0x0000105a)
+    switch (adp->controller->chiptype) {
+    case 0x4d33105a: /* Promises before TX2 doesn't work with tagged queuing */
+    case 0x4d38105a:
+    case 0x0d30105a:  
+    case 0x4d30105a:  
 	return 0;
+    }
 
-    /* check that drive has tags enabled, and is one we know works */
-    if (AD_PARAM->supqueued && AD_PARAM->enabqueued) {
+    /* check that drive does DMA, has tags enabled, and is one we know works */
+    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA &&
+	AD_PARAM->supqueued && AD_PARAM->enabqueued) {
 	while (drives[i] != NULL) {
 	    if (!strncmp(AD_PARAM->model, drives[i], strlen(drives[i])))
 		return 1;
 	    i++;
 	}
+	/* 
+	 * check IBM's new obscure way of naming drives 
+	 * we want "IC" (IBM CORP) and "AT" or "AV" (ATA interface)
+	 * but doesn't care about the other info (size, capacity etc)
+	 */
+	if (!strncmp(AD_PARAM->model, "IC", 2) &&
+	    (!strncmp(AD_PARAM->model + 8, "AT", 2) ||
+	     !strncmp(AD_PARAM->model + 8, "AV", 2)))
+		return 1;
     }
     return 0;
 }
