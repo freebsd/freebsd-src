@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.24 1996/04/23 01:29:21 jkh Exp $
+ * $Id: index.c,v 1.25 1996/04/28 03:27:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 
 /* Macros and magic values */
 #define MAX_MENU	13
-#define _MAX_DESC	62
+#define _MAX_DESC	60
 
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
 
@@ -356,11 +356,11 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 	    continue;
 
 	/* If tp == NULL, we're looking for an exact package match */
-	if (!tp && !strcmp(p->name, str))
+	if (!tp && !strncmp(p->name, str, strlen(str)))
 	    return p;
 
 	/* If tp, we're looking for both a package and a pointer to the place it's in */
-	if (tp && !strcmp(p->name, str)) {
+	if (tp && !strncmp(p->name, str, strlen(str))) {
 	    *tp = top;
 	    return p;
 	}
@@ -402,10 +402,10 @@ pkg_fire(dialogMenuItem *self)
 	    *np = *kp;
 	    np->next = plist->kids;
 	    plist->kids = np;
-	    msgInfo("%s added to selection list", kp->name);
+	    msgInfo("Added %s to selection list", kp->name);
 	}
 	else if (sp) {
-	    msgInfo("Removing %s from selection list", kp->name);
+	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
     }
@@ -455,7 +455,6 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	return DITEM_LEAVE_MENU;
     }
 
-    dialog_clear();
     while (1) {
 	n = 0;
 	curr = max = 0;
@@ -474,6 +473,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	/* NULL delimiter so item_free() knows when to stop later */
 	nitems = item_add(nitems, NULL, NULL, NULL, NULL, NULL, NULL, 0, &curr, &max);
 
+	dialog_clear();
 	if (hasPackages)
 	    rval = dialog_checklist(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, -n, nitems, NULL);
 	else	/* It's a categories menu */
@@ -499,11 +499,12 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	    }
 	    continue;
 	}
-	dialog_clear();
-	items_free(nitems, &curr, &max);
-	restorescr(w);
-	return rval ? DITEM_FAILURE : DITEM_SUCCESS;
+	else if (!rval && hasPackages)
+	    continue;
     }
+    items_free(nitems, &curr, &max);
+    restorescr(w);
+    return rval ? DITEM_FAILURE : DITEM_SUCCESS;
 }
 
 int
