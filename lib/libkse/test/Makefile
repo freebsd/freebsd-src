@@ -20,7 +20,7 @@ BTESTS := hello_b.c
 PDTESTS :=
 
 # Sequence mode tests written in perl.
-PSTESTS :=
+PSTESTS := propagate_s.pl
 
 # Munge the file lists to their final executable names (strip the .c).
 CDTESTS := $(CDTESTS:R)
