@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -56,12 +60,12 @@ static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include <limits.h>
-#include <locale.h>
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,13 +92,13 @@ int dflag, fflag;
 
 char    *binary_search __P((unsigned char *, unsigned char *, unsigned char *));
 int      compare __P((unsigned char *, unsigned char *, unsigned char *));
-void	 err __P((const char *fmt, ...));
 char    *linear_search __P((unsigned char *, unsigned char *, unsigned char *));
 int      look __P((unsigned char *, unsigned char *, unsigned char *));
 void     print_from __P((unsigned char *, unsigned char *, unsigned char *));
 
 static void usage __P((void));
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -142,16 +146,17 @@ main(argc, argv)
 		*++p = '\0';
 
 	if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
-		err("%s: %s", file, strerror(errno));
+		err(2, "%s", file);
 	if (sb.st_size > SIZE_T_MAX)
-		err("%s: %s", file, strerror(EFBIG));
+		errx(2, "%s: %s", file, strerror(EFBIG));
 	if ((front = mmap(NULL,
 	    (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
-		err("%s: %s", file, strerror(errno));
+		err(2, "%s", file);
 	back = front + sb.st_size;
 	exit(look(string, front, back));
 }
 
+int
 look(string, front, back)
 	unsigned char *string, *front, *back;
 {
@@ -284,9 +289,9 @@ print_from(string, front, back)
 	for (; front < back && compare(string, front, back) == EQUAL; ++front) {
 		for (; front < back && *front != '\n'; ++front)
 			if (putchar(*front) == EOF)
-				err("stdout: %s", strerror(errno));
+				err(2, "stdout");
 		if (putchar('\n') == EOF)
-			err("stdout: %s", strerror(errno));
+			err(2, "stdout");
 	}
 }
 
@@ -331,33 +336,4 @@ usage()
 {
 	(void)fprintf(stderr, "usage: look [-df] [-t char] string [file]\n");
 	exit(2);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "look: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(2);
-	/* NOTREACHED */
 }
