@@ -9,7 +9,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: config.c,v 1.11 1998/01/16 07:17:41 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -125,6 +125,7 @@ config_vifs_from_kernel()
 	v->uv_subnetmask  = mask;
 	v->uv_subnetbcast = subnet | ~mask;
 	strncpy(v->uv_name, ifr.ifr_name, IFNAMSIZ);
+	v->uv_name[IFNAMSIZ-1] = '\0';
 	v->uv_groups      = NULL;
 	v->uv_neighbors   = NULL;
 	v->uv_acl         = NULL;

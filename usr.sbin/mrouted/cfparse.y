@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id$
+ * $Id: cfparse.y,v 1.7 1997/02/22 16:06:48 peter Exp $
  */
 #include <stdio.h>
 #ifdef __STDC__
@@ -128,6 +128,7 @@ stmt	: error
 				inet_fmt($2, s1));
 
 			strncpy(ffr.ifr_name, ifr->ifr_name, IFNAMSIZ);
+			ffr.ifr_name[IFNAMSIZ-1]='\0';
 			if (ioctl(udp_socket, SIOCGIFFLAGS, (char *)&ffr)<0)
 			    fatal("ioctl SIOCGIFFLAGS on %s",ffr.ifr_name);
 			if (ffr.ifr_flags & IFF_LOOPBACK)
@@ -166,6 +167,7 @@ stmt	: error
 			v->uv_subnetmask= 0;
 			v->uv_subnetbcast= 0;
 			strncpy(v->uv_name, ffr.ifr_name, IFNAMSIZ);
+			v->uv_name[IFNAMSIZ-1]='\0';
 			v->uv_groups	= NULL;
 			v->uv_neighbors	= NULL;
 			v->uv_acl	= NULL;
