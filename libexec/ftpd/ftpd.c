@@ -2499,7 +2499,7 @@ makedir(char *name)
 
 	LOGCMD("mkdir", name);
 	if (guest && noguestmkd)
-		reply(550, "%s: permission denied.", name);
+		reply(550, "Operation not permitted.");
 	else if (mkdir(name, 0777) < 0)
 		perror_reply(550, name);
 	else {
