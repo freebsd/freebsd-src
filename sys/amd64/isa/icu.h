@@ -45,24 +45,6 @@
 #ifndef _I386_ISA_ICU_H_
 #define	_I386_ISA_ICU_H_
 
-#ifndef	LOCORE
-
-/*
- * Note:
- *	Most of the SMP equivilants of the icu macros are coded
- *	elsewhere in an MP-safe fashion.
- *	In particular note that the 'imen' variable is opaque.
- *	DO NOT access imen directly, use INTREN()/INTRDIS().
- */
-
-void	INTREN(u_int);
-void	INTRDIS(u_int);
-
-extern	unsigned imen;		/* interrupt mask enable */
-
-#endif /* LOCORE */
-
-
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
  */
@@ -125,9 +107,9 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	OCW2_R		0x80		/* EOI mode */
 
 /* Operation control word type 3.  Bit 3 (0x08) must be set. Even address. */
-#define	OCW3_RIS	0x01
-#define	OCW3_RR		0x02
-#define	OCW3_P		0x04
+#define	OCW3_RIS	0x01		/* 1 = read IS, 0 = read IR */
+#define	OCW3_RR		0x02		/* register read */
+#define	OCW3_P		0x04		/* poll mode command */
 /* 0x08 must be 1 to select OCW3 vs OCW2 */
 #define	OCW3_SEL	0x08		/* must be 1 */
 /* 0x10 must be 0 to select OCW3 vs ICW1 */
@@ -139,14 +121,13 @@ extern	unsigned imen;		/* interrupt mask enable */
  */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
 #define	ICU_LEN		16		/* 32-47 are ISA interrupts */
-#define	HWI_MASK	0xffff		/* bits for h/w interrupts */
-#define	NHWI		16
-
 #define	ICU_IMR_OFFSET	1
 #define	ICU_SLAVEID	2
 #define	ICU_EOI		(OCW2_EOI)	/* non-specific EOI */
-#define	ICU_SETPRI	(OCW2_R | OCW2_SL) /* set rotation priority */
 
-#define	INTRCNT_COUNT	(1 + ICU_LEN + 2 * ICU_LEN)
+#ifndef LOCORE
+void	atpic_handle_intr(void *cookie, struct intrframe iframe);
+void	atpic_startup(void);
+#endif
 
 #endif /* !_I386_ISA_ICU_H_ */
