@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-KMOD		= twe
-SRCS		= twe.c twe_disk.c device_if.h bus_if.h pci_if.h
-.PATH:		${.CURDIR}/../../dev/twe
+.PATH:	${.CURDIR}/../../dev/twe
+KMOD=	twe
+SRCS=	bus_if.h device_if.h pci_if.h twe.c twe_disk.c
 
 .include <bsd.kmod.mk>
