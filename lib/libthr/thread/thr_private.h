@@ -146,7 +146,6 @@
 	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
 
-
 /*
  * TailQ initialization values.
  */
@@ -368,6 +367,22 @@ extern int _pthread_page_size;
  */
 #define	GET_CURRENT_TOD(tv)	gettimeofday(&(tv), NULL)
 
+struct pthread_barrierattr {
+	int ba_pshared;
+};
+
+/*
+ * POSIX Threads barrier object.
+ * Lock order:
+ *	1. pthread_barrier
+ *	2. pthread
+ */
+struct pthread_barrier {
+	TAILQ_HEAD(barrq_head, pthread) b_barrq;
+	struct umtx b_lock;
+	int	    b_total;
+	int	    b_subtotal;
+};
 
 struct pthread_rwlockattr {
 	int		pshared;
@@ -388,6 +403,7 @@ enum pthread_state {
 	PS_RUNNING,
 	PS_MUTEX_WAIT,
 	PS_COND_WAIT,
+	PS_BARRIER_WAIT,
 	PS_SLEEP_WAIT,	/* XXX We need to wrap syscalls to set this state */
 	PS_WAIT_WAIT,
 	PS_JOIN,
@@ -535,6 +551,7 @@ struct pthread {
 	int		flags;
 #define PTHREAD_FLAGS_PRIVATE	0x0001
 #define PTHREAD_EXITING		0x0002
+#define PTHREAD_FLAGS_BARR_REL	0x0004	/* has been released from barrier */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
 #define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
