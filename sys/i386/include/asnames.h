@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.22 1998/05/17 18:53:08 tegge Exp $
+ * $Id: asnames.h,v 1.23 1998/08/11 15:08:12 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -347,6 +347,7 @@
 #define _swi_generic			swi_generic
 #define _swi_null			swi_null
 #define _swi_vm				swi_vm
+#define _switchtime			switchtime
 #define _syscall			syscall
 #define _szsigcode			szsigcode
 #define _time				time
