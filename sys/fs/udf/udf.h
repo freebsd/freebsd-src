@@ -52,7 +52,6 @@ struct udf_mnt {
 	uint32_t		part_start;
 	uint32_t		part_len;
 	uint64_t		root_id;
-	struct vnode		*root_vp;
 	struct long_ad		root_icb;
 	LIST_HEAD(udf_hash_lh, udf_node)	*hashtbl;
 	u_long			hashsz;
