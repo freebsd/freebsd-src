@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static char rcsid[] =
-	"$Id: strip.c,v 1.6.2.1 1997/08/13 06:37:16 charnier Exp $";
+	"$Id: strip.c,v 1.6.2.2 1997/08/29 05:29:56 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -83,7 +83,7 @@ main(argc, argv)
 	char *fn;
 
 	sfcn = s_sym;
-	while ((ch = getopt(argc, argv, "dx")) !=  -1)
+	while ((ch = getopt(argc, argv, "dx")) != -1)
 		switch(ch) {
                 case 'x':
                         xflag = 1;
@@ -188,7 +188,7 @@ s_stab(fn, fd, ep)
 
 	/* Map the file. */
 	if ((ep = (EXEC *)mmap(NULL, (size_t)sb.st_size,
-	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)0)) == (EXEC *)-1) {
+	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)0)) == (EXEC *)MAP_FAILED) {
 		warn("%s", fn);
 		err_val = 1;
 		return;
