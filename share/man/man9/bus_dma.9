@@ -394,11 +394,13 @@ with
 Are as follows:
 .Bl -tag -width "BUS_DMA_ALLOCNOW" -compact
 .It Dv BUS_DMA_ALLOCNOW
-Allocate the resources necessary to guarantee that all map load
-operations associated with this tag will not block.
+Pre-allocate enough resources to handle at least one map load operation on
+this tag without blocking.
 If sufficient resources are not available,
 .Er ENOMEM
 is returned.
+This should not be used for tags that will not be directly associated with
+a map.
 .El
 .It Fa lockfunc
 Optional lock manipulation function (may be NULL) to be called when busdma
@@ -503,10 +505,8 @@ The status of the mapping has been delivered to the callback.
 The mapping has been deferred for lack of resources.
 The callback will be called as soon as resources are available.
 Callbacks are serviced in FIFO order.
-DMA maps created from DMA tags that are allocated with
-the
-.Dv BUS_DMA_ALLOCNOW
-flag will never return this status for a load operation.
+To ensure that ordering is guaranteed, all subsequent load requests will also
+be deferred until all callbacks have been processed.
 .It Er EINVAL
 The load request was invalid.
 The callback has not, and will not be called.
