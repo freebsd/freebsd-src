@@ -163,7 +163,7 @@ extract()
 	#from there...
 	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
 	/tmp/cat "$@"* | /tmp/gunzip | (cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
-	rm -f /bin/cat /tmp/gunzip /tmp/tar
+	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
 }
 configure()
