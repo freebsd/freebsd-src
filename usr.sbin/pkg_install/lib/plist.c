@@ -390,7 +390,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	case PLIST_FILE:
 	    last_file = p->name;
 	    sprintf(tmp, "%s/%s", Where, p->name);
-	    if (isdir(tmp) && fexists(tmp)) {
+	    if (isdir(tmp) && fexists(tmp) && !issymlink(tmp)) {
 		warnx("cannot delete specified file `%s' - it is a directory!\n"
 	   "this packing list is incorrect - ignoring delete request", tmp);
 	    }
@@ -477,7 +477,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
 	    return 1;
     }
-    else if (isdir(dir)) {
+    else if (isdir(dir) && !issymlink(dir)) {
 	if (RMDIR(dir) && !ign_err)
 	    return 1;
     }
