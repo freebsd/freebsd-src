@@ -35,7 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -44,6 +49,7 @@ static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
 #include <db.h>
 #include <pwd.h>
 #include <utmp.h>
+#include <err.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -51,7 +57,6 @@ static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
-#include <errno.h>
 #include "finger.h"
 
 static void	 find_idle_and_ttywrite __P((WHERE *));
@@ -113,7 +118,7 @@ enter_lastlog(pn)
 	    (long)pn->uid * sizeof(ll) ||
 	    read(fd, (char *)&ll, sizeof(ll)) != sizeof(ll)) {
 			/* as if never logged in */
-			ll.ll_line[0] = ll.ll_host[0] = NULL;
+			ll.ll_line[0] = ll.ll_host[0] = '\0';
 			ll.ll_time = 0;
 		}
 	if ((w = pn->whead) == NULL)
@@ -170,7 +175,7 @@ enter_person(pw)
 
 	if (db == NULL &&
 	    (db = dbopen(NULL, O_RDWR, 0, DB_BTREE, NULL)) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 
 	key.data = pw->pw_name;
 	key.size = strlen(pw->pw_name);
@@ -180,7 +185,7 @@ enter_person(pw)
 		return(*(PERSON **)data.data);
 	default:
 	case -1:
-		err("db get: %s", strerror(errno));
+		err(1, "db get");
 		/* NOTREACHED */
 	case 1:
 		++entries;
@@ -191,7 +196,7 @@ enter_person(pw)
 		data.size = sizeof(PERSON *);
 		data.data = &pn;
 		if ((*db->put)(db, &key, &data, 0))
-			err("%s", strerror(errno));
+			err(1, NULL);
 		return(pn);
 	}
 }
@@ -228,7 +233,7 @@ palloc()
 	PERSON *p;
 
 	if ((p = malloc((u_int) sizeof(PERSON))) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	return(p);
 }
 
@@ -239,7 +244,7 @@ walloc(pn)
 	register WHERE *w;
 
 	if ((w = malloc((u_int) sizeof(WHERE))) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	if (pn->whead == NULL)
 		pn->whead = pn->wtail = w;
 	else {
@@ -309,8 +314,7 @@ find_idle_and_ttywrite(w)
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_DEV, w->tty);
 	if (stat(tbuf, &sb) < 0) {
-		(void)fprintf(stderr,
-		    "finger: %s: %s\n", tbuf, strerror(errno));
+		warn("%s", tbuf);
 		return;
 	}
 	w->idletime = now < sb.st_atime ? 0 : now - sb.st_atime;
@@ -363,43 +367,13 @@ userinfo(pn, pw)
 	pn->mailrecv = -1;		/* -1 == not_valid */
 	if (stat(tbuf, &sb) < 0) {
 		if (errno != ENOENT) {
-			(void)fprintf(stderr,
-			    "finger: %s: %s\n", tbuf, strerror(errno));
+			warn("%s", tbuf);
 			return;
 		}
 	} else if (sb.st_size != 0) {
 		pn->mailrecv = sb.st_mtime;
 		pn->mailread = sb.st_atime;
 	}
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "finger: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
 
 /*
@@ -411,7 +385,6 @@ int
 hide(pw)
 	struct passwd *pw;
 {
-	int fd;
 	char buf[MAXPATHLEN+1];
 
 	if (!pw->pw_dir)
