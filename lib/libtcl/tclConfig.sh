@@ -69,7 +69,7 @@ TCL_LD_SEARCH_FLAGS=''
 TCL_COMPAT_OBJS=''
 
 # Name of the ranlib program to use.
-TCL_RANLIB=':'
+TCL_RANLIB='ranlib'
 
 # String to pass to linker to pick up the Tcl library from its
 # build directory.
