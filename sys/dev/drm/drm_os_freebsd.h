@@ -178,7 +178,7 @@ typedef void			irqreturn_t;
 
 #define DRM_GET_PRIV_WITH_RETURN(_priv, _filp)			\
 do {								\
-	if (_filp != (DRMFILE)DRM_CURRENTPID) {			\
+	if (_filp != (DRMFILE)(intptr_t)DRM_CURRENTPID) {	\
 		DRM_ERROR("filp doesn't match curproc\n");	\
 		return EINVAL;					\
 	}							\
@@ -291,6 +291,12 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 #define DRM_READMEMORYBARRIER()		alpha_mb();
 #define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
 #define DRM_MEMORYBARRIER()		alpha_mb();
+#elif defined(__amd64__)
+#define DRM_READMEMORYBARRIER()		__asm __volatile( \
+					"lock; addl $0,0(%%rsp)" : : : "memory");
+#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
+#define DRM_MEMORYBARRIER()		__asm __volatile( \
+					"lock; addl $0,0(%%rsp)" : : : "memory");
 #endif
 
 #define PAGE_ALIGN(addr) round_page(addr)
