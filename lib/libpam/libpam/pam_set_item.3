@@ -57,37 +57,37 @@ authentication parameters, or
 .Dq items .
 Each item is identified by an integer constant.
 The following items are defined:
-.Bl -tag -width "PAM_OLDAUTHTOK"
-.It PAM_SERVICE
-.Pq string
+.Bl -tag -width ".Dv PAM_USER_PROMPT"
+.It Dv PAM_SERVICE
+(string)
 The name of the requesting service.
-.It PAM_USER
-.Pq string
+.It Dv PAM_USER
+(string)
 The name of the user the application wants to authenticate.
-.It PAM_USER_PROMPT
-.Pq string
+.It Dv PAM_USER_PROMPT
+(string)
 The string which will be used to prompt the user for an authentication
 token.
-.It PAM_TTY
-.Pq string
+.It Dv PAM_TTY
+(string)
 The name of the current terminal (for terminal-oriented applications)
 or display (for X11 applications).
-.It PAM_RUSER
-.Pq string
+.It Dv PAM_RUSER
+(string)
 The name of the requesting user.
-.It PAM_RHOST
-.Pq string
+.It Dv PAM_RHOST
+(string)
 The name of the host the requesting user is logging in from.
-.It PAM_AUTHTOK
-.Pq opaque
+.It Dv PAM_AUTHTOK
+(opaque)
 The current authentication token.
 This item is only accessible from PAM modules.
-.It PAM_OLDAUTHTOK
-.Pq opaque
+.It Dv PAM_OLDAUTHTOK
+(opaque)
 The expired authentication token.
 This item is only accessible from PAM modules.
-.It PAM_CONV
-.Pq Vt struct pam_conv
+.It Dv PAM_CONV
+.Pq Vt "struct pam_conv"
 The current conversation function.
 The
 .Vt pam_conv
@@ -101,7 +101,7 @@ struct pam_conv {
     void *appdata_ptr;
 };
 .Ed
-.It PAM_FAIL_DELAY
+.It Dv PAM_FAIL_DELAY
 .Pq Vt delay_fn
 A pointer to a callback function that should be called when a module
 wants to introduce a delay after a failed authentication to discourage
@@ -113,14 +113,14 @@ The
 and
 .Fn pam_get_item
 functions return one of the following values:
-.Bl -tag -width "PAM_SYSTEM_ERR"
-.It PAM_SUCCESS
+.Bl -tag -width ".Dv PAM_SYSTEM_ERR"
+.It Dv PAM_SUCCESS
 The operation succeeded.
-.It PAM_SYSTEM_ERR
+.It Dv PAM_SYSTEM_ERR
 The
 .Fa pamh
 argument was invalid.
-.It PAM_BUF_ERR
+.It Dv PAM_BUF_ERR
 A call to
 .Xr malloc 3
 failed, or the
@@ -129,23 +129,28 @@ argument to
 .Fn pam_get_item
 was
 .Dv NULL .
-.It PAM_BAD_ITEM
-The specified item does not exist or is not accessible to the caller.
+.It Dv PAM_BAD_ITEM
+The specified
+.Fa item
+does not exist or is not accessible to the caller.
 .El
 .Pp
 The
 .Xr pam_strerror 3
 function can be used to translate these return codes to descriptive
 messages.
-.Sh CONFORMING TO
-DCE-RFC 86.0, October 1995.
+.Sh SEE ALSO
+.Xr pam_start 3 ,
+.Xr pam_strerror 3 ,
+.Xr pam 8
+.Sh STANDARDS
+.Rs
+.%T "DCE-RFC 86.0"
+.%D "October 1995"
+.Re
 .Pp
 Note: the
 .Dv PAM_USER_PROMPT
 and
 .Dv PAM_FAIL_DELAY
 items are non-standard extensions.
-.Sh SEE ALSO
-.Xr pam 8 ,
-.Xr pam_start 3 ,
-.Xr pam_strerror 3
