@@ -104,6 +104,7 @@
 # Code segment.
 #
 		.globl start
+		.code16
 start:						# Start of code
 #
 # BTX header.
@@ -121,116 +122,115 @@ btx_hdr:	.byte 0xeb			# Machine ID
 # Initialization routine.
 #
 init:		cli				# Disable interrupts
-		xorl %eax,%eax			# Zero/segment
-		movl %ax,%ss			# Set up
-		movwir(MEM_ESP0,_sp)		#  stack
-		movl %ax,%es			# Address
-		movl %ax,%ds			#  data
-		pushw $0x2			# Clear
-		popfw				#  flags
+		xor %ax,%ax			# Zero/segment
+		mov %ax,%ss			# Set up
+		mov $MEM_ESP0,%sp		#  stack
+		mov %ax,%es			# Address
+		mov %ax,%ds			#  data
+		pushl $0x2			# Clear
+		popfl				#  flags
 #
 # Initialize memory.
 #
-		movwir(MEM_IDT,_di)		# Memory to initialize
-		movwir((MEM_ORG-MEM_IDT)/2,_cx) # Words to zero
-		pushl %edi			# Save
+		mov $MEM_IDT,%di		# Memory to initialize
+		mov $(MEM_ORG-MEM_IDT)/2,%cx	# Words to zero
+		push %di			# Save
 		rep				# Zero-fill
-		stosl				#  memory
-		popl %edi			# Restore
+		stosw				#  memory
+		pop %di				# Restore
 #
 # Create IDT.
 #
-		movwir(idtctl,_si)		# Control string
+		mov $idtctl,%si			# Control string
 init.1: 	lodsb				# Get entry
-		cwde				#  count
-		xchgl %eax,%ecx 		#  as word
-		jecxz init.4			# If done
+		cbw				#  count
+		xchg %ax,%cx			#  as word
+		jcxz init.4			# If done
 		lodsb				# Get segment
-		xchgl %eax,%edx 		#  P:DPL:type
-		lodsl				# Get control
-		xchgl %eax,%ebx 		#  set
-		lodsl				# Get handler offset
-		movb $SEL_SCODE,%dh		# Segment selector
-init.2: 	shrl %ebx			# Handle this int?
+		xchg %ax,%dx	 		#  P:DPL:type
+		lodsw				# Get control
+		xchg %ax,%bx			#  set
+		lodsw				# Get handler offset
+		mov $SEL_SCODE,%dh		# Segment selector
+init.2: 	shr %bx				# Handle this int?
 		jnc init.3			# No
-		movwr0(_ax,_di_)		# Set handler offset
-		movbr1(_dh,0x2,_di_)		#  and selector
-		movbr1(_dl,0x5,_di_)		# Set P:DPL:type
-		addwia(0x4)			# Next handler
-init.3: 	leaw1r(0x8,_di_,_di)		# Next entry
+		mov %ax,(%di)			# Set handler offset
+		mov %dh,0x2(%di)		#  and selector
+		mov %dl,0x5(%di)		# Set P:DPL:type
+		add $0x4,%ax			# Next handler
+init.3: 	lea 0x8(%di),%di		# Next entry
 		loop init.2			# Till set done
 		jmp init.1			# Continue
 #
 # Initialize TSS.
 #
-init.4: 	movbi1(_ESP0H,TSS_ESP0+1,_di_)	# Set ESP0
-		movbi1(SEL_SDATA,TSS_SS0,_di_)	# Set SS0
-		movbi1(_ESP1H,TSS_ESP1+1,_di_)	# Set ESP1
-		movbi1(_TSSIO,TSS_MAP,_di_)	# Set I/O bit map base
+init.4: 	movb $_ESP0H,TSS_ESP0+1(%di)	# Set ESP0
+		movb $SEL_SDATA,TSS_SS0(%di)	# Set SS0
+		movb $_ESP1H,TSS_ESP1+1(%di)	# Set ESP1
+		movb $_TSSIO,TSS_MAP(%di)	# Set I/O bit map base
 ifdef(`PAGING',`
 #
 # Create page directory.
 #
-		xorw %dx,%dx			# Page
-		movb $PAG_SIZ>>0x8,%dh		#  size
-		xorw %ax,%ax			# Zero
-		movwir(MEM_DIR,_di)		# Page directory
-		movb $PAG_CNT>>0xa,%cl		# Entries
-		movwir(MEM_TBL|0x7,_ax) 	# First entry
-init.5: 	stosw				# Write entry
-		addl %edx,%eax			# To next
+		xor %edx,%edx			# Page
+		mov $PAG_SIZ>>0x8,%dh		#  size
+		xor %eax,%eax			# Zero
+		mov $MEM_DIR,%di		# Page directory
+		mov $PAG_CNT>>0xa,%cl		# Entries
+		mov $MEM_TBL|0x7,%ax	 	# First entry
+init.5: 	stosl				# Write entry
+		add %dx,%ax			# To next
 		loop init.5			# Till done
 #
 # Create page tables.
 #
-		movwir(MEM_TBL,_di)		# Page table
-		movb $PAG_CNT>>0x8,%ch		# Entries
-		xorl %eax,%eax			# Start address
-init.6: 	movb $0x7,%al			# Set U:W:P flags
-		cmpwmr(btx_hdr+0x8,_cx) 	# Standard user page?
+		mov $MEM_TBL,%di		# Page table
+		mov $PAG_CNT>>0x8,%ch		# Entries
+		xor %ax,%ax			# Start address
+init.6: 	mov $0x7,%al			# Set U:W:P flags
+		cmp btx_hdr+0x8,%cx	 	# Standard user page?
 		jb init.7			# Yes
-		cmpwir(PAG_CNT-MEM_BTX>>0xc,_cx)# BTX memory?
+		cmp $PAG_CNT-MEM_BTX>>0xc,%cx	# BTX memory?
 		jae init.7			# No or first page
-		andb $~0x2,%al			# Clear W flag
-		cmpwir(PAG_CNT-MEM_USR>>0xc,_cx)# User page zero?
+		and $~0x2,%al			# Clear W flag
+		cmp $PAG_CNT-MEM_USR>>0xc,%cx	# User page zero?
 		jne init.7			# No
-		tstbim(0x80,btx_hdr+0x7)	# Unmap it?
+		testb $0x80,btx_hdr+0x7		# Unmap it?
 		jz init.7			# No
-		andb $~0x1,%al			# Clear P flag
-init.7: 	stosw				# Set entry
-		addw %dx,%ax			# Next address
+		and $~0x1,%al			# Clear P flag
+init.7: 	stosl				# Set entry
+		add %edx,%eax			# Next address
 		loop init.6			# Till done
 ')
 #
 # Bring up the system.
 #
-		movwir(0x2820,_bx)		# Set protected mode
-		callwi(setpic)			#  IRQ offsets
-		lidtwm(idtdesc) 		# Set IDT
+		mov $0x2820,%bx			# Set protected mode
+		callw setpic			#  IRQ offsets
+		lidt idtdesc	 		# Set IDT
 ifdef(`PAGING',`
-		xorw %ax,%ax			# Set base
-		movb $MEM_DIR>>0x8,%ah		#  of page
-		movl %eax,%cr3			#  directory
+		xor %eax,%eax			# Set base
+		mov $MEM_DIR>>0x8,%ah		#  of page
+		mov %eax,%cr3			#  directory
 ')
-		lgdtwm(gdtdesc) 		# Set GDT
-		movl %cr0,%eax			# Switch to
+		lgdt gdtdesc	 		# Set GDT
+		mov %cr0,%eax			# Switch to protected
 ifdef(`PAGING',`
-		o16				#  protected mode
-		orl $0x80000001,%eax            #  and enable paging
+		or $0x80000001,%eax             #  mode and enable paging
 ',`
-		o16				#  protected mode
-		orl $0x01,%eax			# 
+		or $0x01,%eax			#  mode
 ')
-		movl %eax,%cr0			#  
-		jmpfwi(SEL_SCODE,init.8)	# To 32-bit code
+		mov %eax,%cr0			#  
+		ljmp $SEL_SCODE,$init.8		# To 32-bit code
+		.code32
 init.8: 	xorl %ecx,%ecx			# Zero
 		movb $SEL_SDATA,%cl		# To 32-bit
-		movl %cx,%ss			#  stack
+		movw %cx,%ss			#  stack
 #
 # Launch user task.
 #
 		movb $SEL_TSS,%cl		# Set task
-		ltrl %ecx			#  register
+		ltr %cx				#  register
 		movl $MEM_USR,%edx		# User base address
 		movzwl %ss:BDA_MEM,%eax 	# Get free memory
 .`ifdef' PC98
@@ -245,8 +245,8 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		movb $SEL_UDATA,%cl		# User data selector
 		pushl %ecx			# Set SS
 		pushl %eax			# Set ESP
-		pushl $0x202			# Set flags (IF set)
-		pushl $SEL_UCODE		# Set CS
+		push $0x202			# Set flags (IF set)
+		push $SEL_UCODE			# Set CS
 		pushl btx_hdr+0xc		# Set EIP
 		pushl %ecx			# Set GS
 		pushl %ecx			# Set FS
@@ -254,7 +254,7 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		pushl %ecx			# Set ES
 		pushl %edx			# Set EAX
 		movb $0x7,%cl			# Set remaining
-init.9:		pushb $0x0			#  general
+init.9:		push $0x0			#  general
 		loop init.9			#  registers
 		popa				#  and initialize
 		popl %es			# Initialize
@@ -282,35 +282,35 @@ ifdef(`PAGING',`
 #
 # To 16 bits.
 #
-		o16				# Reload
-		jmpfwi(SEL_RCODE,exit.1)	#  CS
-exit.1: 	movb $SEL_RDATA,%cl		# 16-bit selector
-		movl %cx,%ss			# Reload SS
-		movl %cx,%ds			# Load
-		movl %cx,%es			#  remaining
-		movl %cx,%fs			#  segment
-		movl %cx,%gs			#  registers
+		ljmpw $SEL_RCODE,$exit.1	# Reload CS
+		.code16
+exit.1: 	mov $SEL_RDATA,%cl		# 16-bit selector
+		mov %cx,%ss			# Reload SS
+		mov %cx,%ds			# Load
+		mov %cx,%es			#  remaining
+		mov %cx,%fs			#  segment
+		mov %cx,%gs			#  registers
 #
 # To real-address mode.
 #
-		decl %eax			# Switch to
-		movl %eax,%cr0			#  real mode
-		jmpfwi(0x0,exit.2)		# Reload CS
-exit.2: 	xorl %eax,%eax			# Real mode segment
-		movl %ax,%ss			# Reload SS
-		movl %ax,%ds			# Address data
+		dec %ax				# Switch to
+		mov %eax,%cr0			#  real mode
+		ljmp $0x0,$exit.2		# Reload CS
+exit.2: 	xor %ax,%ax			# Real mode segment
+		mov %ax,%ss			# Reload SS
+		mov %ax,%ds			# Address data
 .`ifdef' PC98
-		movwir(0x1008,_bx)		# Set real mode
+		mov $0x1008,%bx			# Set real mode
 .else
-		movwir(0x7008,_bx)		# Set real mode
+		mov $0x7008,%bx			# Set real mode
 .endif
-		callwi(setpic)			#  IRQ offsets
-		lidtwm(ivtdesc) 		# Set IVT
+		callw setpic			#  IRQ offsets
+		lidt ivtdesc	 		# Set IVT
 #
 # Reboot or await reset.
 #
 		sti				# Enable interrupts
-		tstbim(0x1,btx_hdr+0x7)		# Reboot?
+		testb $0x1,btx_hdr+0x7		# Reboot?
 exit.3:		jz exit.3			# No
 .`ifdef' PC98
 		movb $0xa0,%al
@@ -319,19 +319,17 @@ exit.3:		jz exit.3			# No
 		outb %al,$0xf0
 exit.4:		jmp exit.4
 .else
-		.code16
 		movw $0x1234, BDA_BOOT		# Do a warm boot
-		jmpfwi(0xffff,0x0)		# reboot the machine
-		.code32
+		ljmp $0xffff,$0x0		# reboot the machine
 .endif
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
 #
 .`ifdef' PC98
-setpic: 	inb $0x02,%al			# Save master
-		pushl %eax			#  IMR
-		inb $0x0a,%al			# Save slave
-		pushl %eax			#  IMR
+setpic: 	in $0x02,%al			# Save master
+		push %ax			#  IMR
+		in $0x0a,%al			# Save slave
+		push %ax			#  IMR
 		movb $0x11,%al			# ICW1 to
 		outb %al,$0x00			#  master,
 		outb %al,$0x08			#  slave
@@ -347,15 +345,15 @@ setpic: 	inb $0x02,%al			# Save master
 		outb %al,$0x02			#  master,
 		movb $0x9,%al			# ICW4 to
 		outb %al,$0x0a			#  slave
-		popl %eax			# Restore slave
+		pop %ax				# Restore slave
 		outb %al,$0x0a			#  IMR
-		popl %eax			# Restore master
+		pop %ax				# Restore master
 		outb %al,$0x02			#  IMR
 .else
-setpic: 	inb $0x21,%al			# Save master
-		pushl %eax			#  IMR
-		inb $0xa1,%al			# Save slave
-		pushl %eax			#  IMR
+setpic: 	in $0x21,%al			# Save master
+		push %ax			#  IMR
+		in $0xa1,%al			# Save slave
+		push %ax			#  IMR
 		movb $0x11,%al			# ICW1 to
 		outb %al,$0x20			#  master,
 		outb %al,$0xa0			#  slave
@@ -370,12 +368,13 @@ setpic: 	inb $0x21,%al			# Save master
 		movb $0x1,%al			# ICW4 to
 		outb %al,$0x21			#  master,
 		outb %al,$0xa1			#  slave
-		popl %eax			# Restore slave
+		pop %ax				# Restore slave
 		outb %al,$0xa1			#  IMR
-		popl %eax			# Restore master
+		pop %ax				# Restore master
 		outb %al,$0x21			#  IMR
 .endif
-		ret				# To caller
+		retw				# To caller
+		.code32
 #
 # Initiate return from V86 mode to user mode.
 #
@@ -383,33 +382,33 @@ inthlt: 	hlt				# To supervisor mode
 #
 # Exception jump table.
 #
-intx00: 	pushb $0x0			# Int 0x0: #DE
+intx00: 	push $0x0			# Int 0x0: #DE
 		jmp ex_noc			# Divide error
-		pushb $0x1			# Int 0x1: #DB
+		push $0x1			# Int 0x1: #DB
 		jmp ex_noc			# Debug
-		pushb $0x3			# Int 0x3: #BP
+		push $0x3			# Int 0x3: #BP
 		jmp ex_noc			# Breakpoint
-		pushb $0x4			# Int 0x4: #OF
+		push $0x4			# Int 0x4: #OF
 		jmp ex_noc			# Overflow
-		pushb $0x5			# Int 0x5: #BR
+		push $0x5			# Int 0x5: #BR
 		jmp ex_noc			# BOUND range exceeded
-		pushb $0x6			# Int 0x6: #UD
+		push $0x6			# Int 0x6: #UD
 		jmp ex_noc			# Invalid opcode
-		pushb $0x7			# Int 0x7: #NM
+		push $0x7			# Int 0x7: #NM
 		jmp ex_noc			# Device not available
-		pushb $0x8			# Int 0x8: #DF
+		push $0x8			# Int 0x8: #DF
 		jmp except			# Double fault
-		pushb $0xa			# Int 0xa: #TS
+		push $0xa			# Int 0xa: #TS
 		jmp except			# Invalid TSS
-		pushb $0xb			# Int 0xb: #NP
+		push $0xb			# Int 0xb: #NP
 		jmp except			# Segment not present
-		pushb $0xc			# Int 0xc: #SS
+		push $0xc			# Int 0xc: #SS
 		jmp except			# Stack segment fault
-		pushb $0xd			# Int 0xd: #GP
+		push $0xd			# Int 0xd: #GP
 		jmp ex_v86			# General protection
-		pushb $0xe			# Int 0xe: #PF
+		push $0xe			# Int 0xe: #PF
 		jmp except			# Page fault
-intx10: 	pushb $0x10			# Int 0x10: #MF
+intx10: 	push $0x10			# Int 0x10: #MF
 		jmp ex_noc			# Floating-point error
 #
 # Handle #GP exception.
@@ -446,7 +445,7 @@ except: 	cld				# String ops inc
 except.1:	pushl 0x50(%esp,1)		# Set GS, FS, DS, ES
 		decb %al			#  (if V86 mode), and
 		jne except.1			#  SS, ESP
-except.2:	pushl $SEL_SDATA		# Set up
+except.2:	push $SEL_SDATA			# Set up
 		popl %ds			#  to
 		pushl %ds			#  address
 		popl %es			#  data
@@ -620,7 +619,7 @@ v86sti: 	orb $0x2,0x31(%ebp)		# Set IF
 v86pushf:	subl %ecx,%ebx			# Adjust SP
 		cmpb $0x4,%cl			# 32-bit
 		je v86pushf.1			# Yes
-		o16				# 16-bit
+		data16				# 16-bit
 v86pushf.1:	movl %edx,(%ebx)		# Save flags
 		jmp v86mon.6			# Finish up
 #
@@ -637,7 +636,7 @@ v86iret:	movzwl (%ebx),%esi		# Load V86 IP
 v86popf:	cmpb $0x4,%cl			# 32-bit?
 		je v86popf.1			# Yes
 		movl %edx,%eax			# Initialize
-		o16				# 16-bit
+		data16				# 16-bit
 v86popf.1:	movl (%ebx),%eax		# Load flags
 		addl %ecx,%ebx			# Adjust SP
 		andl $V86_FLG,%eax		# Merge
@@ -736,60 +735,60 @@ v86intn.3:	subl %edi,%esi			# From
 		movzwl 0x2(%eax),%edi		# Load CS
 		movl %edi,0x2c(%ebp)		# Save CS
 		xorl %edi,%edi			# No ESI adjustment
-		andb $~0x3,%dh			# Clear IF and TF
+		andb $~0x1,%dh			# Clear TF
 		jmp v86mon.5			# Finish up
 #
 # Hardware interrupt jump table.
 #
-intx20: 	pushb $0x8			# Int 0x20: IRQ0
+intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x8
-		pushb $0x9			# Int 0x21: IRQ1
+		push $0x9			# Int 0x21: IRQ1
 		jmp int_hw			# V86 int 0x9
-		pushb $0xa			# Int 0x22: IRQ2
+		push $0xa			# Int 0x22: IRQ2
 		jmp int_hw			# V86 int 0xa
-		pushb $0xb			# Int 0x23: IRQ3
+		push $0xb			# Int 0x23: IRQ3
 		jmp int_hw			# V86 int 0xb
-		pushb $0xc			# Int 0x24: IRQ4
+		push $0xc			# Int 0x24: IRQ4
 		jmp int_hw			# V86 int 0xc
-		pushb $0xd			# Int 0x25: IRQ5
+		push $0xd			# Int 0x25: IRQ5
 		jmp int_hw			# V86 int 0xd
-		pushb $0xe			# Int 0x26: IRQ6
+		push $0xe			# Int 0x26: IRQ6
 		jmp int_hw			# V86 int 0xe
-		pushb $0xf			# Int 0x27: IRQ7
+		push $0xf			# Int 0x27: IRQ7
 		jmp int_hw			# V86 int 0xf
 .`ifdef' PC98
-		pushb $0x10			# Int 0x28: IRQ8
+		push $0x10			# Int 0x28: IRQ8
 		jmp int_hw			# V86 int 0x10
-		pushb $0x11			# Int 0x29: IRQ9
+		push $0x11			# Int 0x29: IRQ9
 		jmp int_hw			# V86 int 0x11
-		pushb $0x12			# Int 0x2a: IRQ10
+		push $0x12			# Int 0x2a: IRQ10
 		jmp int_hw			# V86 int 0x12
-		pushb $0x13			# Int 0x2b: IRQ11
+		push $0x13			# Int 0x2b: IRQ11
 		jmp int_hw			# V86 int 0x13
-		pushb $0x14			# Int 0x2c: IRQ12
+		push $0x14			# Int 0x2c: IRQ12
 		jmp int_hw			# V86 int 0x14
-		pushb $0x15			# Int 0x2d: IRQ13
+		push $0x15			# Int 0x2d: IRQ13
 		jmp int_hw			# V86 int 0x15
-		pushb $0x16			# Int 0x2e: IRQ14
+		push $0x16			# Int 0x2e: IRQ14
 		jmp int_hw			# V86 int 0x16
-		pushb $0x17			# Int 0x2f: IRQ15
+		push $0x17			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x17
 .else
-		pushb $0x70			# Int 0x28: IRQ8
+		push $0x70			# Int 0x28: IRQ8
 		jmp int_hw			# V86 int 0x70
-		pushb $0x71			# Int 0x29: IRQ9
+		push $0x71			# Int 0x29: IRQ9
 		jmp int_hw			# V86 int 0x71
-		pushb $0x72			# Int 0x2a: IRQ10
+		push $0x72			# Int 0x2a: IRQ10
 		jmp int_hw			# V86 int 0x72
-		pushb $0x73			# Int 0x2b: IRQ11
+		push $0x73			# Int 0x2b: IRQ11
 		jmp int_hw			# V86 int 0x73
-		pushb $0x74			# Int 0x2c: IRQ12
+		push $0x74			# Int 0x2c: IRQ12
 		jmp int_hw			# V86 int 0x74
-		pushb $0x75			# Int 0x2d: IRQ13
+		push $0x75			# Int 0x2d: IRQ13
 		jmp int_hw			# V86 int 0x75
-		pushb $0x76			# Int 0x2e: IRQ14
+		push $0x76			# Int 0x2e: IRQ14
 		jmp int_hw			# V86 int 0x76
-		pushb $0x77			# Int 0x2f: IRQ15
+		push $0x77			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x77
 .endif
 #
@@ -839,7 +838,7 @@ intusr: 	std				# String ops dec
 		pushl %fs			#  and
 		pushl %ds			#  point
 		pushl %es			#  to them
-		pushb $SEL_SDATA		# Set up
+		push $SEL_SDATA			# Set up
 		popl %ds			#  to
 		pushl %ds			#  address
 		popl %es			#  data
@@ -898,7 +897,7 @@ intusr.4:	shrl $0x4,%eax			# Gives segment
 		stosl				# Set ESP
 		xchgl %eax,%ecx 		# Get flags
 		btsl $0x11,%eax 		# Set VM
-		andb $~0x3,%ah			# Clear IF and TF
+		andb $~0x1,%ah			# Clear TF
 		stosl				# Set EFL
 		xchgl %eax,%ebp 		# Get int no/address
 		testb $0x1,%dl			# Address?
@@ -969,7 +968,7 @@ dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 		pushl %ds			# Save
 		testb $0x2,0x52(%ebx)		# V86 mode?
 		jnz dump.3			# Yes
-		verrl 0x4(%esi) 		# Readable selector?
+		verr 0x4(%esi)	 		# Readable selector?
 		jnz dump.3			# No
 		ldsl (%esi),%esi		# Load pointer
 		jmp dump.4			# Join common code
