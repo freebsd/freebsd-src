@@ -112,8 +112,9 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <i386/include/cpufunc.h>
-#include <i386/include/clock.h>
+
+#include <machine/clock.h>
+#include <machine/cpufunc.h>
 
 #ifdef ATAPI_MODULE
 #   define ATAPI_STATIC

@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id:$
+ * $Id: if_fe.c,v 1.12 1996/03/17 08:36:36 jkh Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -133,14 +133,12 @@
 #include <pccard/card.h>
 #include <pccard/slot.h>
 #include <pccard/driver.h>
+
+#include <machine/laptops.h>
 #endif /* NCRD > 0 */
 
 #include <i386/isa/ic/mb86960.h>
 #include <i386/isa/if_fereg.h>
-
-#if NCRD > 0
-#include <i386/include/laptops.h>
-#endif /* NCRD > 0 */
 
 /*
  * This version of fe is an ISA device driver.
