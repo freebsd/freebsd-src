@@ -219,7 +219,7 @@ loop:
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "extfsn", 0);
+			tsleep(&vp->v_numoutput, PRIBIO + 1, "e2fsyn", 0);
 		}
 #if DIAGNOSTIC
 		if (vp->v_dirtyblkhd.lh_first) {
