@@ -116,6 +116,9 @@
 /* inter-CPU rendezvous */
 #define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 122)	/* 0x9A */
 
+/* lazy pmap release */
+#define XLAZYPMAP_OFFSET	(ICU_OFFSET + 123)	/* 0x9B */
+
 /* IPI to generate an additional software trap at the target CPU */
 /* XXX in the middle of the interrupt range, overlapping IRQ48 */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)	/* 0x50 */
@@ -206,7 +209,8 @@ inthand_t
 	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint,	/* handle APIC "spurious INTs" */
-	Xrendezvous;	/* handle CPU rendezvous */
+	Xrendezvous,	/* handle CPU rendezvous */
+	Xlazypmap;	/* handle lazy pmap release */
 
 #ifdef TEST_TEST1
 inthand_t

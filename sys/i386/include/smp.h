@@ -56,6 +56,7 @@ extern int current_postcode;  /** XXX currently in mp_machdep.c */
 #define	IPI_INVLTLB		XINVLTLB_OFFSET
 #define	IPI_INVLPG		XINVLPG_OFFSET
 #define	IPI_INVLRNG		XINVLRNG_OFFSET
+#define	IPI_LAZYPMAP		XLAZYPMAP_OFFSET
 #define	IPI_RENDEZVOUS		XRENDEZVOUS_OFFSET
 #define	IPI_AST			XCPUAST_OFFSET
 #define	IPI_STOP		XCPUSTOP_OFFSET

@@ -357,7 +357,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	/* ok, now grab sched_lock and enter the scheduler */
 	mtx_lock_spin(&sched_lock);
-	cpu_throw();	/* doesn't return */
+	cpu_throw(NULL, choosethread());	/* doesn't return */
 }
 
 void

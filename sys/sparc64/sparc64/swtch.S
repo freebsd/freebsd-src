@@ -36,31 +36,29 @@
 
 #include "assym.s"
 
+/*
+ * void cpu_throw(struct thread *old, struct thread *new)
+ */
 ENTRY(cpu_throw)
 	save	%sp, -CCFSZ, %sp
-	call	choosethread
-	 ldx	[PCPU(CURTHREAD)], %l0
 	flushw
-	b,a	%xcc, .Lsw1
-	 nop
+	mov	%i0, %l0
+	ba	%xcc, .Lsw1
+	 mov	%i1, %o0
 END(cpu_throw)
 
+/*
+ * void cpu_switch(struct thread *old, struct thread *new)
+ */
 ENTRY(cpu_switch)
-	/*
-	 * Choose a new thread.  If its the same as the current one, do
-	 * nothing.
-	 */
 	save	%sp, -CCFSZ, %sp
-	call	choosethread
-	 ldx	[PCPU(CURTHREAD)], %l0
-	cmp	%l0, %o0
-	be,a,pn	%xcc, 4f
-	 nop
-	ldx	[%l0 + TD_PCB], %l1
+	mov	%i0, %l0
+	mov	%i1, %o0
 
 	/*
 	 * If the current thread was using floating point, save its context.
 	 */
+	ldx	[%l0 + TD_PCB], %l1
 	ldx	[%l0 + TD_FRAME], %l2
 	ldx	[%l2 + TF_FPRS], %l3
 	andcc	%l3, FPRS_FEF, %g0
