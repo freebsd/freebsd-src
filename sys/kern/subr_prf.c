@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.57 1999/07/14 17:37:53 peter Exp $
+ * $Id: subr_prf.c,v 1.58 1999/07/24 09:34:12 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -599,7 +599,11 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			base = 10;
 			goto number;
 		case 'l':
-			lflag = 1;
+			if (lflag) {
+				lflag = 0;
+				qflag = 1;
+			} else
+				lflag = 1;
 			goto reswitch;
 		case 'o':
 			if (qflag)
