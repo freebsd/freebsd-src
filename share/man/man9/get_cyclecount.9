@@ -25,7 +25,7 @@
 .\"    $FreeBSD$
 .\"
 .Dd November 20, 2000
-.Dt get_cyclecounter 9
+.Dt GET_CYCLECOUNTER 9
 .Os
 .Sh NAME
 .Nm get_cyclecounter
@@ -76,7 +76,8 @@ processors all use the
 register.
 .Pp
 The
-.Tn Alpha processors use the
+.Tn Alpha
+processors use the
 .Li PCC
 register.
 .Pp
@@ -89,9 +90,9 @@ register.
 .Xr nanotime 9
 .Sh HISTORY
 The
-.Nm 
+.Fn get_cyclecounter
 function first appeared in
-.Fx 5.0
+.Fx 5.0 .
 .Sh AUTHORS
 This manual page was written by
 .An Mark Murray Aq markm@FreeBSD.org .
