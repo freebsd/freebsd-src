@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.20 1995/09/27 00:46:15 jmz Exp $ -->
+<!-- $Id: contrib.sgml,v 1.21 1995/09/28 17:01:06 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -192,7 +192,7 @@
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Torsten Blum &lt;torstenb@FreeBSD.ORG&gt;
-	  <item>Ugen J.S.Antsilevich &lt;ugen@NetVision.net.il&gt;
+	  <item>Ugen J.S.Antsilevich &lt;ugen@latte.WorldBank.org&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
 	  <item>Wolfgang Stanglmeier &lt;wolf@kintaro.cologne.de&gt;
 	  <item>Wolfram Schneider &lt;wosch@cs.tu-berlin.de&gt;
