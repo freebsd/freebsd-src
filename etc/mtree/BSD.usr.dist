@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.10 1994/03/18 11:46:12 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.11 1994/03/19 22:18:22 jkh Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -96,24 +96,24 @@ share	type=dir uname=bin gname=bin mode=0755
 
 	/set type=file uname=bin gname=bin mode=0755
 	man	type=dir uname=bin gname=bin mode=0755
-		cat1	type=dir uname=man gname=bin mode=0775
+		cat1	type=dir uname=man gname=bin mode=0755
 		..
-		cat2	type=dir uname=man gname=bin mode=0775
+		cat2	type=dir uname=man gname=bin mode=0755
 		..
-		cat3	type=dir uname=man gname=bin mode=0775
+		cat3	type=dir uname=man gname=bin mode=0755
 		..
-		cat4	type=dir uname=man gname=bin mode=0775
-			i386	type=dir uname=man gname=bin mode=0775
+		cat4	type=dir uname=man gname=bin mode=0755
+			i386	type=dir uname=man gname=bin mode=0755
 			..
 		..
-		cat5	type=dir uname=man gname=bin mode=0775
+		cat5	type=dir uname=man gname=bin mode=0755
 		..
-		cat6	type=dir uname=man gname=bin mode=0775
+		cat6	type=dir uname=man gname=bin mode=0755
 		..
-		cat7	type=dir uname=man gname=bin mode=0775
+		cat7	type=dir uname=man gname=bin mode=0755
 		..
-		cat8	type=dir uname=man gname=bin mode=0775
-			i386	type=dir uname=man gname=bin mode=0775
+		cat8	type=dir uname=man gname=bin mode=0755
+			i386	type=dir uname=man gname=bin mode=0755
 			..
 		..
 		man1	type=dir uname=bin gname=bin mode=0755
