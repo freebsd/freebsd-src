@@ -2464,7 +2464,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			/* fetch sense data */
 			DPRINTF(UDMASS_SCSI,("%s: Fetching %db sense data\n",
 				USBDEVNAME(sc->sc_dev),
-				sc->cam_scsi_sense.length));
+				csio->sense_len));
 
 			/* the rest of the command was filled in at attach */
 			sc->cam_scsi_sense.length = csio->sense_len;
