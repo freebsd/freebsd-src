@@ -1134,8 +1134,20 @@ int main(argc, argv)
 	void			*arg = NULL;
 	char			*p = argv[0];
 
+	/* Get the interface name */
+	opterr = 0;
+	ch = getopt(argc, argv, "i:");
+	if (ch == 'i') {
+		iface = optarg;
+	} else {
+		iface = "an0";
+		optreset = 1;
+		optind = 1;
+	}
+	opterr = 1;
+
 	while ((ch = getopt(argc, argv,
-	    "i:ANISCTht:a:o:s:n:v:d:j:b:c:r:p:w:m:l:QZ")) != -1) {
+	    "ANISCTht:a:o:s:n:v:d:j:b:c:r:p:w:m:l:QZ")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1150,9 +1162,6 @@ int main(argc, argv)
 #else
 			errx(1, "ANCACHE not available");
 #endif
-			break;
-		case 'i':
-			iface = optarg;
 			break;
 		case 'A':
 			act = ACT_DUMPAP;
