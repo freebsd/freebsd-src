@@ -17,14 +17,10 @@ crunch:
 
 
 clean:
-	rm  -f *.o *.stub *.lo *_stub.c *.mk \
-		crunch.cache \
-		crunch.mk \
-		crunch.c \
-		crunch1* \
-		crunch \
-		.tmp_* \
-		*.gz
+	if [ -f crunch1.mk ]; then \
+		make -f crunch1.mk realclean ; \
+	fi ;
+	rm  -f crunch1*
 
 install: 
 	cp crunch1 ${MFS_MOUNTPOINT}/stand/crunch

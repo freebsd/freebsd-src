@@ -5,9 +5,17 @@
 #
 set -e
 
-TARGETS="dial net isp router bridge"
+# Get a list of targets.
+TARGETS=""
+for i in ../* ; do
+    if [ -d $i -a -f $i/PICOBSD ] ; then
+	TARGETS="$TARGETS `basename $i`"
+    fi
+done
+
 if [ $# -lt 1 ]; then
-    echo "What to clean? Possible targets are ${TARGETS} or 'all'"
+    echo "What to clean?"
+    echo "Possible targets are:${TARGETS} or 'all'"
     exit 1
 fi
 
@@ -27,16 +35,12 @@ rm -f kernel kernel.gz fs.PICOBSD *.o *core *.db \
 cd ..
 rm -rf help/tmp_hlp
 echo "===================== $0 tools started ===================="
-for i in `ls -d tinyware/[a-z]*` ; do
-	(cd ${i}; \
-	if [ -f Makefile ]; then \
-		make clean && make cleandepend;\
-	fi)
-done
 for j in $list ; do
 	echo "===================== $0 $j started ======================"
 	(cd ${j}/crunch1; \
-	make -f ../../build/Makefile.crunch clean ; \
-	)
+	if [ -f crunch1.mk ]; then \
+		make -f crunch1.mk realclean ; \
+	fi ; \
+	make -f ../../build/Makefile.crunch clean)
 	echo "=============== $0 $j completed successfuly =============="
 done
