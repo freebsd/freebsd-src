@@ -12,6 +12,7 @@
 %token	BIO
 %token	BUS
 %token	CAM
+%token	HA
 %token	COMMA
 %token	CONFIG
 %token	CONFLICTS
@@ -631,6 +632,8 @@ Info:
 	      = { cur.d_mask = "bio"; } |
 	CAM 
 	      = { cur.d_mask = "cam"; } |
+	HA 
+	      = { cur.d_mask = "ha"; } |
 	NET 
 	      = { cur.d_mask = "net"; } |
 	FLAGS NUMBER
