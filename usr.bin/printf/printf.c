@@ -56,6 +56,10 @@ static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #ifdef SHELL
 #define main printfcmd
 #include "bltin/bltin.h"
+#else
+#define	warnx1(a, b, c)		warnx(a)
+#define	warnx2(a, b, c)		warnx(a, b)
+#define	warnx3(a, b, c)		warnx(a, b, c)
 #endif
 
 #define PF(f, func) { \
@@ -136,7 +140,7 @@ next:		for (start = fmt;; ++fmt) {
 			if (!*fmt) {
 				/* avoid infinite loop */
 				if (end == 1) {
-					warnx("missing format character",
+					warnx1("missing format character",
 					    NULL, NULL);
 					return (1);
 				}
@@ -186,7 +190,7 @@ next:		for (start = fmt;; ++fmt) {
 		} else
 			precision = 0;
 		if (!*fmt) {
-			warnx("missing format character", NULL, NULL);
+			warnx1("missing format character", NULL, NULL);
 			return (1);
 		}
 
@@ -227,7 +231,7 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		default:
-			warnx("illegal format character %c",  convch, NULL);
+			warnx2("illegal format character %c", convch, NULL);
 			return (1);
 		}
 		*fmt = nextch;
@@ -338,7 +342,7 @@ getint(ip)
 	if (getlong(&val))
 		return (1);
 	if (val > INT_MAX) {
-		warnx("%s: %s", *gargv, strerror(ERANGE));
+		warnx3("%s: %s", *gargv, strerror(ERANGE));
 		return (1);
 	}
 	*ip = val;
@@ -360,16 +364,16 @@ getlong(lp)
 		errno = 0;
 		val = strtol(*gargv, &ep, 0);
 		if (*ep != '\0') {
-			warnx("%s: illegal number", *gargv, NULL);
+			warnx2("%s: illegal number", *gargv, NULL);
 			return (1);
 		}
 		if (errno == ERANGE)
 			if (val == LONG_MAX) {
-				warnx("%s: %s", *gargv, strerror(ERANGE));
+				warnx3("%s: %s", *gargv, strerror(ERANGE));
 				return (1);
 			}
 			if (val == LONG_MIN) {
-				warnx("%s: %s", *gargv, strerror(ERANGE));
+				warnx3("%s: %s", *gargv, strerror(ERANGE));
 				return (1);
 			}
 
