@@ -338,7 +338,7 @@ dropwithreset:
 
 drop:
 bad:
-	if (cb == 0 || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
+	if (cb == NULL || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
             traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
 	m_freem(m);
@@ -1658,7 +1658,7 @@ spx_close(cb)
 	}
 	m_free(dtom(cb->s_ipx));
 	FREE(cb, M_PCB);
-	ipxp->ipxp_pcb = 0;
+	ipxp->ipxp_pcb = NULL;
 	soisdisconnected(so);
 	ipx_pcbdetach(ipxp);
 	spxstat.spxs_closed++;
