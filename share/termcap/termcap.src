@@ -604,7 +604,7 @@ iq140|soroc140|Soroc IQ140 with inverse & dim:\
 	:up=^K:do=^J:le=^H:nd=^L:ho=^^:ta=\Ei:ma=^Kk^Jj^Hh^Ll^^h:am:bs:\
 	:co#80:li#24:ei=:im=:kb=^H:kh=^^:ku=^K:kd=^J:kl=^H:kr=^L:\
 	:k0=^AI:k1=^A@:k2=^AA:k3=^AB:k4=^AC:k5=^AD:k6=^AE:k7=^AF:\
-	:k8=^AG:k9=^AH:se=\E:so=\E:us=\E):ue=\E(:
+	:k8=^AG:k9=^AH:se=\E^?:so=\E^?:us=\E):ue=\E(:
 # tec is untested, and taken from CB/Unix virtual terminal driver.
 # Upper case terminal, uses lower case for control sequences!!!
 # The driver shows the C ~ operator used on CM coordinates.
@@ -2301,7 +2301,7 @@ hp700-wy|HP700/41 emulating wyse30:\
 	:co#80:cr=^M:ct=\E0:cv=\E[%+ :dc=\EW:dl=\ER:do=^V:ei=\Er:\
 	:ho=^^:if=/usr/share/tabset/hp700-wy:ll=^^^K:mi:ms:nd=^L:nl=^J:pt:\
 	:im=\Eq:is=\E~"\EC\Er\E(\EG0^C\E`9\E`1:kb=^?:kd=^V:\
-	:kh=^^:kl=^H:ko=cl,ho,ce,bt,ta,im,ei,ce,cd:kr=:ku=:le=^H:li#24:\
+	:kh=^^:kl=^H:ko=cl,ho,ce,bt,ta,im,ei,ce,cd:kr=^L:ku=^K:le=^H:li#24:\
 	:rs=\E~"\EC\Er\E(\EG0^C\E`9\E`1:se=10\EG0:sg#1:so=10\EG4:sr=\Ej:\
 	:st=\E1:ue=10\EG0:up=^K:ug#1:us=10\EG8:
 # # --------------------------------
@@ -3304,7 +3304,7 @@ kt7|kimtron model kt-7:\
 appleII|apple ii plus:vs=\024\103\066:ve=\024\103\062:\
 	:am:co#80:ce=\035:li#24:cl=\014:bs:nd=\034:up=\037:ho=\E\031:pt:\
 	:cd=\013:so=\017:se=\016:cm=\036%r%+ %+ :is=\024T1\016:do=^J:kd=^J:\
-	:vb=\024G1\024T1:kr=:
+	:vb=\024G1\024T1:kr=^U:
 #  Gary Ford 21NOV83
 #  New version from ee178aci%sdcc7@SDCSVAX.ARPA  Fri Oct 11 21:27:00 1985
 apple-80|apple II with smarterm 80 col:\
@@ -3361,7 +3361,7 @@ ibmcx|ibmcpcx:\
 	:tc=ibmx:
 kaypro|kaypro2|kaypro II:\
 	:am:bs:cm=\E=%+ %+ :cl=1^Z:co#80:ho=^^:li#24:ma=^K^P:nd=^L:up=^K:\
-	:kr=:kl=^H:ku=:kd=^J:
+	:kr=^L:kl=^H:ku=^K:kd=^J:
 # From Suk Lee ..!{decvax,linus,allegra,ihnp4}!utcsrgv!spoo
 trs100|Radio Shack Model 100:\
 	:am:bs:le=^H:li#8:co#40:ku=^^:kd=^_:kl=^]:kr=^\:up=\EA:\
@@ -3422,7 +3422,7 @@ yterm10|yterm 1.0 UCB ascii.kbd:\
 	:am:bs:cd=^K:ce=^]:cl=^L:cm=^^%r%+ %+ :co#80:EP:ho=^Y:li#24:nd=^\:pt:\
 	:rc=\E8:sc=\E7:so=\E[7m:se=\E[m:up=^_:us=\E[4m:ue=\E[m:\
 	:is=^O\E[7i\E[m\E[?7h\E[?3g\r\EHY0  for \EHYTERM 1.\EH0 with A\EHSCII.KBD\EH 9-13-84\EH        \EH        \EH        \EH        \EH\n:\
-	:ku=^K:kd=^J:kl=^H:kr=^L:kh=^^:ma=h\012jklH:\
+	:ku=^K:kd=^J:kl=^H:kr=^L:kh=^^:ma=^Hh\012j^Kk^Ll^^H:\
 	:k0=\E0:k1=\E1:k2=\E2:k3=\E3:k4=\E4:k5=\E5:k6=\E6:k7=\E7:k8=\E8:k9=\E9:\
 	:vs=^O\E[7i\E[m\E[?7h\E[?3g\r\EHY0      \EH        \EH        \EH        \EH        \EH        \EH        \EH        \EH        \EH\r:
 # YTERM varient version 1.1.  (gts 9-13-84)  Version 1.1 has :xn:.
