@@ -647,8 +647,16 @@ main(int argc, char **argv)
 	make_menus();
 
 	init_dialog();
+	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
+			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
+			  "please choose NO here!", 7, 72))
+		system("rm -f /etc/wall_cmos_clock");
+	else
+		system("touch /etc/wall_cmos_clock");
+	dialog_clear_norefresh();
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 
 		    NCONTINENTS, -NCONTINENTS, continents, 0, NULL, NULL);
+	dialog_clear();
 	end_dialog();
 	return 0;
 }
