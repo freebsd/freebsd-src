@@ -12,8 +12,10 @@
  * all derivative works or modified versions.
  *
  * Version 1.6, Wed May 31 16:03:20 MSD 1995
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #if defined (MSDOS) || defined (__MSDOS__)
 #   include <string.h>
 #   include <dos.h>

@@ -46,9 +46,10 @@
  * What documentation exists is thanks to Andrew Tridge, and his page at
  * http://samba.org/picturebook/ Special thanks also to Ian Dowse, who
  * also provided sample code upon which this driver was based.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -10,9 +10,11 @@
  * University of Guelph makes no representations about the suitability of
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
  * the X386 port, courtesy of
