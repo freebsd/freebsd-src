@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.4 1998/07/15 20:12:54 dfr Exp $
+#	$Id: Makefile.alpha,v 1.5 1998/07/22 08:23:26 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -43,7 +43,7 @@ INCLUDES+= -I/usr/include
 .endif
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h -U__NetBSD__
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs -Wa,-mev56
-LOAD_ADDRESS?=	0xfffffc0000230000
+LOAD_ADDRESS?=	0xfffffc0000300000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
 CFLAGS+=	-malign-functions=4
