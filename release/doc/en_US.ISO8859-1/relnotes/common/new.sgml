@@ -1778,7 +1778,7 @@
 
     <para>The timezone database has been updated from
       <filename>tzdata2003a</filename> to
-      <filename>tzdata2004a</filename>.</para>
+      <filename>tzdata2004e</filename>.</para>
 
     <para><application>zlib</application> has been updated
       from version 1.1.4 to version 1.2.1.</para>
