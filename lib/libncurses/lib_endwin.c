@@ -27,6 +27,9 @@ endwin()
 
 	SP->_endwin = TRUE;
 
+	if (change_scroll_region)
+		putp(tparm(change_scroll_region, 0, lines - 1));
+
 	mvcur(-1, -1, lines - 1, 0);
 
 	if (exit_ca_mode)
