@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.18 1999/01/05 20:24:28 msmith Exp $
+ *	$Id: kern_linker.c,v 1.19 1999/01/17 17:58:52 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -664,8 +664,10 @@ kldunload(struct proc* p, struct kldunload_args* uap)
 	    error = EBUSY;
 	    goto out;
 	}
-	lf->userrefs--;
 	error = linker_file_unload(lf);
+	if (error)
+	    goto out;
+	lf->userrefs--;
     } else
 	error = ENOENT;
 
