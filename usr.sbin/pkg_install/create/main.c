@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -14,11 +9,14 @@ static const char rcsid[] =
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <err.h>
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvyf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:b:";
+static char Options[] = "YNOhjvyzf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:b:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -39,7 +37,7 @@ char	*InstalledPkg	= NULL;
 char	PlayPen[FILENAME_MAX];
 int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
-int	UseBzip2	= FALSE;
+enum zipper	Zipper	= GZIP;
 
 static void usage __P((void));
 
@@ -137,7 +135,12 @@ main(int argc, char **argv)
 	    break;
 
 	case 'y':
-	    UseBzip2 = TRUE;
+	case 'j':
+	    Zipper = BZIP2;
+	    break;
+
+	case 'z':
+	    Zipper = GZIP;
 	    break;
 
 	case 'b':

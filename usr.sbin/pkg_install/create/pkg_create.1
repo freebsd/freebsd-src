@@ -31,7 +31,7 @@
 .Nd a utility for creating software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl YNOhvy
+.Op Fl YNOhjvyz
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
 .Op Fl f Ar contents
@@ -260,20 +260,27 @@ as location of the port from which package has been created in the
 .Em "Ports Collection" .
 It should be in the form
 .Pa MASTERCATEGORY/PORTDIR .
-.It Fl y
+.It Fl j
 Use
 .Xr bzip2 1
 utility to compress package tarball instead of
 .Xr gzip 1 .
-Please note that this option is no-op if format of the resulting
+Please note that this option is a NO-OP if format of the resulting
 archive is explicitly specified by the recognizeable suffix of
 .Ar pkg-filename .
 Currently
 .Nm
 recognizes the following suffixes:
-.Pa .tgz , .tar
+.Pa .tgz , .tar , .tbz
 and
 .Pa .tbz2 .
+.It Fl y
+Compatibility synonym for
+.Fl j .
+.It Fl z
+Use
+.Xr gzip 1
+utility to compress package tarball.
 .It Fl b Ar pkg-name
 Create package file from a locally installed package named
 .Ar pkg-name .
