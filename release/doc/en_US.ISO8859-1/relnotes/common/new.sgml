@@ -355,6 +355,9 @@
     <para>The <literal>PARANOID</literal> hostname checking in
     <application>tcp_wrappers</application> now works as advertised
     (see security advisory FreeBSD-SA-01:56).</para>
+
+    <para>A local root exploit in &man.sendmail.8; has been closed
+    (see security advisory FreeBSD-SA-01:57).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
