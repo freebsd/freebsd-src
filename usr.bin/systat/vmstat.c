@@ -330,7 +330,7 @@ labelkre()
 	mvprintw(NAMEIROW, NAMEICOL, "Namei         Name-cache    Dir-cache");
 	mvprintw(NAMEIROW + 1, NAMEICOL,
 		"    Calls     hits    %%     hits    %%");
-	mvprintw(DISKROW, DISKCOL, "Discs");
+	mvprintw(DISKROW, DISKCOL, "Disks");
 	mvprintw(DISKROW + 1, DISKCOL, "KB/t");
 	mvprintw(DISKROW + 2, DISKCOL, "tps");
 	mvprintw(DISKROW + 3, DISKCOL, "MB/s");
