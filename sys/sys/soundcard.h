@@ -88,6 +88,7 @@
 #define SNDCARD_MAUI           23
 #define SNDCARD_PSEUDO_MSS     24
 #define SNDCARD_AWE32           25
+#define SNDCARD_NSS            26
 
 #include <sys/types.h>
 #ifndef _IOWR
@@ -648,7 +649,7 @@ struct sbi_instrument {
 };
 
 struct synth_info {	/* Read only */
-	char	name[30];
+	char	name[33];
 	int	device;		/* 0-N. INITIALIZE BEFORE CALLING */
 	int	synth_type;
 #define SYNTH_TYPE_FM			0

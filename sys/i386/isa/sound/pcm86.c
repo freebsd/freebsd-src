@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pcm86.c,v 1.5 1998/12/04 22:54:50 archie Exp $
+ * $Id: pcm86.c,v 1.7 1999/01/01 08:18:06 peter Exp $
  */
 
 /*
@@ -40,7 +40,7 @@
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#if !defined(EXCLUDE_PCM86) && !defined(EXCLUDE_AUDIO)
+#if !defined(EXCLUDE_NSS) && !defined(EXCLUDE_AUDIO)
 
 
 /*
@@ -68,9 +68,9 @@
  * Switches for debugging and experiments
  */
 
-/* #define PCM86_DEBUG */
+/* #define NSS_DEBUG */
 
-#ifdef PCM86_DEBUG
+#ifdef NSS_DEBUG
 # ifdef DEB
 #  undef DEB
 # endif
@@ -121,6 +121,7 @@ static struct {
     int			acc;
     int			last_l;
     int			last_r;
+    sound_os_info       *osp;
 } pcm_s;
 
 static struct {
@@ -129,7 +130,7 @@ static struct {
 } tmpbuf;
 
 static int my_dev = 0;
-static char pcm_initialized = NO;
+static char nss_initialized = NO;
 
 /* 86-board supports only the following rates. */
 static int rates_tbl[8] = {
@@ -223,17 +224,17 @@ static pcm_data linear2ulaw[256] = {
  * Prototypes
  */
 
-static int pcm86_detect(struct address_info *);
+static int nss_detect(struct address_info *);
 
-static int pcm86_open(int, int);
-static void pcm86_close(int);
-static void pcm86_output_block(int, unsigned long, int, int, int);
-static void pcm86_start_input(int, unsigned long, int, int, int);
-static int pcm86_ioctl(int, unsigned int, unsigned int, int);
-static int pcm86_prepare_for_input(int, int, int);
-static int pcm86_prepare_for_output(int, int, int);
-static void pcm86_reset(int);
-static void pcm86_halt_xfer(int);
+static int nss_open(int, int);
+static void nss_close(int);
+static void nss_output_block(int, unsigned long, int, int, int);
+static void nss_start_input(int, unsigned long, int, int, int);
+static int nss_ioctl(int, u_int, ioctl_arg, int);
+static int nss_prepare_for_input(int, int, int);
+static int nss_prepare_for_output(int, int, int);
+static void nss_reset(int);
+static void nss_halt_xfer(int);
 
 static void dsp73_send_command(unsigned char);
 static void dsp73_send_data(unsigned char);
@@ -270,31 +271,31 @@ static void fifo_recv_mono_ulaw(pcm_data *, int);
 static void fifo_recv_mono_8(pcm_data *, int, int);
 static void fifo_recv_mono_16le(pcm_data *, int, int);
 static void fifo_recv_mono_16be(pcm_data *, int, int);
-static void pcm_stop(void);
-static void pcm_init(void);
+static void nss_stop(void);
+static void nss_init(void);
 
 
 /*
  * Identity
  */
 
-static struct audio_operations pcm86_operations =
+static struct audio_operations nss_operations =
 {
     "PC-9801-86 SoundBoard", /* filled in properly by auto configuration */
-    NOTHING_SPECIAL,
+    DMA_DISABLE,
     ( AFMT_MU_LAW |
       AFMT_U8 | AFMT_S16_LE | AFMT_S16_BE |
       AFMT_S8 | AFMT_U16_LE | AFMT_U16_BE ),
     NULL,
-    pcm86_open,
-    pcm86_close,
-    pcm86_output_block,
-    pcm86_start_input,
-    pcm86_ioctl,
-    pcm86_prepare_for_input,
-    pcm86_prepare_for_output,
-    pcm86_reset,
-    pcm86_halt_xfer,
+    nss_open,
+    nss_close,
+    nss_output_block,
+    nss_start_input,
+    nss_ioctl,
+    nss_prepare_for_input,
+    nss_prepare_for_output,
+    nss_reset,
+    nss_halt_xfer,
     NULL,
     NULL
 };
@@ -525,11 +526,11 @@ fifo_output_block(void)
 	count = fifo_send(pcm_s.pdma_buf, chunksize);
     } else {
 	/* ??? something wrong... */
-	printk("pcm0: chunkcount overrun\n");
+	printf("nss0: chunkcount overrun\n");
 	chunksize = count = 0;
     }
 
-    if (((audio_devs[my_dev]->dmap->qlen < 2) && (pcm_s.pdma_chunkcount == 0))
+    if (((audio_devs[my_dev]->dmap_out->qlen < 2) && (pcm_s.pdma_chunkcount == 0))
 	|| (count < pcm_s.intr_size)) {
 	/* The sent chunk seems to be the last one. */
 	fifo_sendtrailer(pcm_s.intr_size);
@@ -571,8 +572,8 @@ fifo_send(pcm_data *buf, int count)
     tmpbuf.size = r;
 
     rslt = ((cnt / length) * pcm_s.chipspeed / pcm_s.speed) * pcm_s.bytes * 2;
-#ifdef PCM86_DEBUG
-    printk("fifo_send(): %d bytes sent\n", rslt);
+#ifdef NSS_DEBUG
+    printf("fifo_send(): %d bytes sent\n", rslt);
 #endif
     return rslt;
 }
@@ -588,8 +589,8 @@ fifo_sendtrailer(int count)
 	outb(pcm_s.iobase + 12, 0);
     pcm_s.intr_trailer = YES;
 
-#ifdef PCM86_DEBUG
-    printk("fifo_sendtrailer(): %d bytes sent\n", count);
+#ifdef NSS_DEBUG
+    printf("fifo_sendtrailer(): %d bytes sent\n", count);
 #endif
 }
 
@@ -1099,7 +1100,7 @@ fifo_input_block(void)
 	pcm_s.pdma_count -= chunksize;
     } else
 	/* ??? something wrong... */
-	printk("pcm0: chunkcount overrun\n");
+	printf("nss0: chunkcount overrun\n");
 }
 
 
@@ -1125,8 +1126,8 @@ fifo_recv(pcm_data *buf, int count)
 	tmpbuf.size -= count;
     }
 
-#ifdef PCM86_DEBUG
-    printk("fifo_recv(): %d bytes received\n",
+#ifdef NSS_DEBUG
+    printf("fifo_recv(): %d bytes received\n",
 	   ((count / (pcm_s.bytes << pcm_s.stereo)) * pcm_s.chipspeed
 	    / pcm_s.speed) * pcm_s.bytes * 2);
 #endif
@@ -1725,7 +1726,7 @@ fifo_recv_mono_16be(pcm_data *buf, int count, int uflag)
 
 
 static void
-pcm_stop(void)
+nss_stop(void)
 {
     fifo_stop();		/* stop FIFO */
     fifo_reset();		/* reset FIFO buffer */
@@ -1738,15 +1739,15 @@ pcm_stop(void)
     pcm_s.last_l = 0;
     pcm_s.last_r = 0;
 
-    DEB(printk("pcm_stop\n"));
+    DEB(printf("nss_stop\n"));
 }
 
 
 static void
-pcm_init(void)
+nss_init(void)
 {
     /* Initialize registers on the board. */
-    pcm_stop();
+    nss_stop();
     if (pcm_s.board_type == PC980173_FAMILY)
 	dsp73_init();
 
@@ -1755,7 +1756,7 @@ pcm_init(void)
 
     /* Initialize driver's status. */
     pcm_s.opened = NO;
-    pcm_initialized = YES;
+    nss_initialized = YES;
 }
 
 
@@ -1764,52 +1765,67 @@ pcm_init(void)
  */
 
 int
-probe_pcm86(struct address_info *hw_config)
+probe_nss(struct address_info *hw_config)
 {
-    return pcm86_detect(hw_config);
+    return nss_detect(hw_config);
 }
 
 
-long
-attach_pcm86(long mem_start, struct address_info *hw_config)
+void
+attach_nss(struct address_info *hw_config)
 {
     if (pcm_s.board_type == NO_SUPPORTED_BOARD)
-	return mem_start;
+	return ;
 
     /* Initialize the board. */
-    pcm_init();
+    nss_init();
 
-    printk("pcm0: <%s>", pcm86_operations.name);
+    conf_printf(nss_operations.name, hw_config);
 
     if (num_audiodevs < MAX_AUDIO_DEV) {
 	my_dev = num_audiodevs++;
-	audio_devs[my_dev] = &pcm86_operations;
-	audio_devs[my_dev]->buffcount = DSP_BUFFCOUNT;
+	audio_devs[my_dev] = &nss_operations;
+	/*	audio_devs[my_dev]->buffcount = DSP_BUFFCOUNT; */
 	audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
-#ifdef PCM86_DEBUG
-	printk("\nbuffsize = %d", DSP_BUFFSIZE);
+#ifdef NSS_DEBUG
+	printf("\nbuffsize = %d", DSP_BUFFSIZE);
 #endif
     } else
-	printk("pcm0: Too many PCM devices available");
+	printf("nss0: Too many PCM devices available");
 
-    return mem_start;
+    return ;
 }
 
 
 static int
-pcm86_detect(struct address_info *hw_config)
+nss_detect(struct address_info *hw_config)
 {
     int opna_iobase = 0x188, irq = 12, i;
     unsigned char tmp;
 
     if (hw_config->io_base == -1) {
-	printf("pcm0: iobase not specified. Assume default port(0x%x)\n",
+	printf("nss0: iobase not specified. Assume default port(0x%x)\n",
 	       PCM86_IOBASE);
 	hw_config->io_base = PCM86_IOBASE;
     }
     pcm_s.iobase = hw_config->io_base;
 
     /* auto configuration */
+    tmp = (inb(pcm_s.iobase) & 0xf0) >> 4;
+    if (tmp == 0x07) {
+      /* 
+       * Remap MATE-X PCM Sound ID register (0xA460 -> 0xB460)
+       * to avoid corrision with 86 Sound System.
+       */
+      /*
+      printf("nss0: Found MATE-X PCM Sound ID\n");
+      printf("nss0: Remaped 0xa460 to 0xb460\n");
+       */
+      outb(0xc24, 0xe1);
+      outb(0xc2b, 0x60);
+      outb(0xc2d, 0xb4);
+    }
+
     tmp = inb(pcm_s.iobase) & 0xfc;
     switch ((tmp & 0xf0) >> 4) {
     case 2:
@@ -1890,34 +1906,36 @@ pcm86_detect(struct address_info *hw_config)
     outb(opna_iobase + 2, 0x30);
 
     /* Ok.  Detection finished. */
-    snprintf(pcm86_operations.name, sizeof(pcm86_operations.name),
+    snprintf(nss_operations.name, sizeof(nss_operations.name),
 	"%s", board_name[pcm_s.board_type]);
-    pcm_initialized = NO;
+    nss_initialized = NO;
     pcm_s.irq = irq;
 
     if ((hw_config->irq > 0) && (hw_config->irq != irq))
-	printf("pcm0: change irq %d -> %d\n", hw_config->irq, irq);
+	printf("nss0: change irq %d -> %d\n", hw_config->irq, irq);
     hw_config->irq = irq;
+
+    pcm_s.osp = hw_config->osp;
 
     return YES;
 }
 
 
 static int
-pcm86_open(int dev, int mode)
+nss_open(int dev, int mode)
 {
     int err;
 
-    if (!pcm_initialized)
-	return RET_ERROR(ENXIO);
+    if (!nss_initialized)
+	return -(ENXIO);
 
     if (pcm_s.intr_busy || pcm_s.opened)
-	return RET_ERROR(EBUSY);
+	return -(EBUSY);
 
-    if ((err = snd_set_irq_handler(pcm_s.irq, pcmintr, "PC-9801-73/86")) < 0)
+    if ((err = snd_set_irq_handler(pcm_s.irq, nssintr, pcm_s.osp)) < 0)
 	return err;
 
-    pcm_stop();
+    nss_stop();
 
     tmpbuf.size = 0;
     pcm_s.intr_mode = IMODE_NONE;
@@ -1928,42 +1946,42 @@ pcm86_open(int dev, int mode)
 
 
 static void
-pcm86_close(int dev)
+nss_close(int dev)
 {
-    snd_release_irq(pcm_s.irq);
+  /* snd_release_irq(pcm_s.irq); */
 
     pcm_s.opened = NO;
 }
 
 
 static void
-pcm86_output_block(int dev, unsigned long buf, int count, int intrflag,
+nss_output_block(int dev, unsigned long buf, int count, int intrflag,
 		   int dma_restart)
 {
     unsigned long flags, cnt;
     int maxchunksize;
 
-#ifdef PCM86_DEBUG
-    printk("pcm86_output_block():");
-    if (audio_devs[dev]->dmap->flags & DMA_BUSY)
-	printk(" DMA_BUSY");
-    if (audio_devs[dev]->dmap->flags & DMA_RESTART)
-	printk(" DMA_RESTART");
-    if (audio_devs[dev]->dmap->flags & DMA_ACTIVE)
-	printk(" DMA_ACTIVE");
-    if (audio_devs[dev]->dmap->flags & DMA_STARTED)
-	printk(" DMA_STARTED");
-    if (audio_devs[dev]->dmap->flags & DMA_ALLOC_DONE)
-	printk(" DMA_ALLOC_DONE");
-    printk("\n");
+#ifdef NSS_DEBUG
+    printf("nss_output_block():");
+    if (audio_devs[dev]->dmap_out->flags & DMA_BUSY)
+	printf(" DMA_BUSY");
+    if (audio_devs[dev]->dmap_out->flags & DMA_RESTART)
+	printf(" DMA_RESTART");
+    if (audio_devs[dev]->dmap_out->flags & DMA_ACTIVE)
+	printf(" DMA_ACTIVE");
+    if (audio_devs[dev]->dmap_out->flags & DMA_STARTED)
+	printf(" DMA_STARTED");
+    if (audio_devs[dev]->dmap_out->flags & DMA_ALLOC_DONE)
+	printf(" DMA_ALLOC_DONE");
+    printf("\n");
 #endif
 
 #if 0
     DISABLE_INTR(flags);
 #endif
 
-#ifdef PCM86_DEBUG
-    printk("pcm86_output_block(): count = %d, intrsize= %d\n",
+#ifdef NSS_DEBUG
+    printf("nss_output_block(): count = %d, intrsize= %d\n",
 	   count, pcm_s.intr_size);
 #endif
 
@@ -2004,25 +2022,25 @@ pcm86_output_block(int dev, unsigned long buf, int count, int intrflag,
 
 
 static void
-pcm86_start_input(int dev, unsigned long buf, int count, int intrflag,
+nss_start_input(int dev, unsigned long buf, int count, int intrflag,
 		  int dma_restart)
 {
     unsigned long flags, cnt;
     int maxchunksize;
 
-#ifdef PCM86_DEBUG
-    printk("pcm86_start_input():");
-    if (audio_devs[dev]->dmap->flags & DMA_BUSY)
-	printk(" DMA_BUSY");
-    if (audio_devs[dev]->dmap->flags & DMA_RESTART)
-	printk(" DMA_RESTART");
-    if (audio_devs[dev]->dmap->flags & DMA_ACTIVE)
-	printk(" DMA_ACTIVE");
-    if (audio_devs[dev]->dmap->flags & DMA_STARTED)
-	printk(" DMA_STARTED");
-    if (audio_devs[dev]->dmap->flags & DMA_ALLOC_DONE)
-	printk(" DMA_ALLOC_DONE");
-    printk("\n");
+#ifdef NSS_DEBUG
+    printf("nss_start_input():");
+    if (audio_devs[dev]->dmap_in->flags & DMA_BUSY)
+	printf(" DMA_BUSY");
+    if (audio_devs[dev]->dmap_in->flags & DMA_RESTART)
+	printf(" DMA_RESTART");
+    if (audio_devs[dev]->dmap_in->flags & DMA_ACTIVE)
+	printf(" DMA_ACTIVE");
+    if (audio_devs[dev]->dmap_in->flags & DMA_STARTED)
+	printf(" DMA_STARTED");
+    if (audio_devs[dev]->dmap_in->flags & DMA_ALLOC_DONE)
+	printf(" DMA_ALLOC_DONE");
+    printf("\n");
 #endif
 
 #if 0
@@ -2031,8 +2049,8 @@ pcm86_start_input(int dev, unsigned long buf, int count, int intrflag,
 
     pcm_s.intr_size = PCM86_INTRSIZE_IN;
 
-#ifdef PCM86_DEBUG
-    printk("pcm86_start_input(): count = %d, intrsize= %d\n",
+#ifdef NSS_DEBUG
+    printf("nss_start_input(): count = %d, intrsize= %d\n",
 	   count, pcm_s.intr_size);
 #endif
 
@@ -2056,52 +2074,52 @@ pcm86_start_input(int dev, unsigned long buf, int count, int intrflag,
 
 
 static int
-pcm86_ioctl(int dev, unsigned int cmd, unsigned int arg, int local)
+nss_ioctl(int dev, u_int cmd, ioctl_arg arg, int local)
 {
     switch (cmd) {
     case SOUND_PCM_WRITE_RATE:
 	if (local)
-	    return set_speed(arg);
-	return IOCTL_OUT(arg, set_speed(IOCTL_IN(arg)));
+	    return set_speed((int) arg);
+	return *(int *) arg = set_speed((*(int *) arg));
 
     case SOUND_PCM_READ_RATE:
 	if (local)
 	    return pcm_s.speed;
-	return IOCTL_OUT(arg, pcm_s.speed);
+	return *(int *) arg = pcm_s.speed;
 
     case SNDCTL_DSP_STEREO:
 	if (local)
-	    return set_stereo(arg);
-	return IOCTL_OUT(arg, set_stereo(IOCTL_IN(arg)));
+	    return set_stereo((int) arg);
+	return *(int *) arg = set_stereo((*(int *) arg));
 
     case SOUND_PCM_WRITE_CHANNELS:
 	if (local)
-	    return set_stereo(arg - 1) + 1;
-	return IOCTL_OUT(arg, set_stereo(IOCTL_IN(arg) - 1) + 1);
+	    return set_stereo((int) arg - 1) + 1;
+	return *(int *) arg = set_stereo((*(int *) arg) - 1) + 1;
 
     case SOUND_PCM_READ_CHANNELS:
 	if (local)
 	    return pcm_s.stereo + 1;
-	return IOCTL_OUT(arg, pcm_s.stereo + 1);
+	return *(int *) arg = pcm_s.stereo + 1;
 
     case SNDCTL_DSP_SETFMT:
 	if (local)
-	    return set_format(arg);
-	return IOCTL_OUT(arg, set_format(IOCTL_IN(arg)));
+	    return set_format((int) arg);
+	return *(int *) arg = set_format((*(int *) arg));
 
     case SOUND_PCM_READ_BITS:
 	if (local)
 	    return pcm_s.bytes * 8;
-	return IOCTL_OUT(arg, pcm_s.bytes * 8);
+	return *(int *) arg = pcm_s.bytes * 8;
     }
 
     /* Invalid ioctl request */
-    return RET_ERROR(EINVAL);
+    return -(EINVAL);
 }
 
 
 static int
-pcm86_prepare_for_input(int dev, int bufsize, int nbufs)
+nss_prepare_for_input(int dev, int bufsize, int nbufs)
 {
     pcm_s.intr_size = PCM86_INTRSIZE_IN;
     pcm_s.intr_mode = IMODE_NONE;
@@ -2109,14 +2127,14 @@ pcm86_prepare_for_input(int dev, int bufsize, int nbufs)
     pcm_s.last_l = 0;
     pcm_s.last_r = 0;
 
-    DEB(printk("pcm86_prepare_for_input\n"));
+    DEB(printf("nss_prepare_for_input\n"));
 
     return 0;
 }
 
 
 static int
-pcm86_prepare_for_output(int dev, int bufsize, int nbufs)
+nss_prepare_for_output(int dev, int bufsize, int nbufs)
 {
     pcm_s.intr_size = PCM86_INTRSIZE_OUT;
     pcm_s.intr_mode = IMODE_NONE;
@@ -2124,30 +2142,30 @@ pcm86_prepare_for_output(int dev, int bufsize, int nbufs)
     pcm_s.last_l = 0;
     pcm_s.last_r = 0;
 
-    DEB(printk("pcm86_prepare_for_output\n"));
+    DEB(printf("nss_prepare_for_output\n"));
 
     return 0;
 }
 
 
 static void
-pcm86_reset(int dev)
+nss_reset(int dev)
 {
-    pcm_stop();
+    nss_stop();
 }
 
 
 static void
-pcm86_halt_xfer(int dev)
+nss_halt_xfer(int dev)
 {
-    pcm_stop();
+    nss_stop();
 
-    DEB(printk("pcm86_halt_xfer\n"));
+    DEB(printf("nss_halt_xfer\n"));
 }
 
 
 void
-pcmintr(int unit)
+nssintr(int unit)
 {
     unsigned char tmp;
 
@@ -2157,7 +2175,7 @@ pcmintr(int unit)
     switch(pcm_s.intr_mode) {
     case IMODE_OUTPUT:
 	if (pcm_s.intr_trailer) {
-	    DEB(printk("pcmintr(): fifo_reset\n"));
+	    DEB(printf("nssintr(): fifo_reset\n"));
 	    fifo_reset();
 	    pcm_s.intr_trailer = NO;
 	    pcm_s.intr_busy = NO;
@@ -2183,12 +2201,12 @@ pcmintr(int unit)
 	break;
 
     default:
-	pcm_stop();
-	printk("pcm0: unexpected interrupt\n");
+	nss_stop();
+	printf("nss0: unexpected interrupt\n");
     }
 }
 
 
-#endif	/* EXCLUDE_PCM86, EXCLUDE_AUDIO */
+#endif	/* EXCLUDE_NSS, EXCLUDE_AUDIO */
 
 #endif	/* CONFIGURE_SOUNDCARD */

@@ -101,6 +101,11 @@
 #define CONFIG_YM3812
 #endif
 
+#include "nss.h"
+#if NNSS != 0
+#define CONFIG_NSS
+#endif
+
 #define ALLOW_POLL
 
 /* #undef  CONFIG_PAS */
