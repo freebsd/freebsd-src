@@ -699,7 +699,7 @@ static int sk_newbuf(sc_if, c, m)
 
 		/* Attach the buffer to the mbuf */
 		MEXTADD(m_new, buf, SK_JLEN, sk_jfree,
-		    (struct sk_if_softc *)sc_if); 
+		    (struct sk_if_softc *)sc_if, 0, EXT_NET_DRV); 
 		m_new->m_data = (void *)buf;
 		m_new->m_pkthdr.len = m_new->m_len = SK_JLEN;
 	} else {
