@@ -1259,7 +1259,7 @@ again:
 				 * we consider the rule a non-match.
 				 */
 				if (f->fw_nports != 0 ||
-				    f->fw_tcpf != f->fw_tcpnf)
+				    f->fw_ipflg & IP_FW_IF_TCPMSK)
 					continue;
 
 				break;
