@@ -23,6 +23,10 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    extract the pc (JB_PC) that we will land at.  The pc is copied into ADDR.
    This routine returns true on success */
 
+/* $FreeBSD$ */
+
+#include <sys/types.h>
+
 #define GET_LONGJMP_TARGET(ADDR) get_longjmp_target(ADDR)
 extern int
 get_longjmp_target PARAMS ((CORE_ADDR *));
@@ -36,7 +40,7 @@ get_longjmp_target PARAMS ((CORE_ADDR *));
 extern CORE_ADDR alpha_u_regs_offset();
 #define U_REGS_OFFSET alpha_u_regs_offset()
 
-#define PTRACE_ARG3_TYPE char*
+#define PTRACE_ARG3_TYPE caddr_t
 
 /* ptrace transfers longs, the ptrace man page is lying.  */
 
