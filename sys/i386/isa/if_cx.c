@@ -128,7 +128,7 @@ static char cxdescription [80];
 struct kern_devconf kdc_cx [NCX] = { {
 	0, 0, 0, "cx", 0, { MDDT_ISA, 0, "net" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
-	DC_IDLE, cxdescription,
+	DC_IDLE, cxdescription, DC_CLS_SERIAL
 } };
 #endif
 

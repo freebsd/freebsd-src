@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.6 1995/03/01 22:30:47 dufault Exp $
+ * $Id: aic6360.c,v 1.7 1995/03/28 07:55:24 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -756,8 +756,9 @@ static struct kern_devconf kdc_aic[NAIC] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always busy */
-	"Adaptec AIC-6360 SCSI host adapter chipset"
+	DC_UNCONFIGURED,	/* start out in unconfig state */
+	"Adaptec AIC-6360 SCSI host adapter chipset",
+	DC_CLS_MISC		/* host adapters aren't special */
 } };
 
 static inline void
@@ -818,6 +819,9 @@ aicprobe(parent, self, aux)
 	bzero(aic, sizeof(struct aic_data));
 	aicdata[unit] = aic;
 	aic->iobase = dev->id_iobase;
+#ifndef DEV_LKM
+	aic_registerdev(dev);
+#endif /* not DEV_LKM */
 
 	if (aic_find(aic) != 0) {
 		aicdata[unit] = NULL;
@@ -825,7 +829,6 @@ aicprobe(parent, self, aux)
 		return 0;
 	}
 	aicunit++;
-	aic_registerdev(dev);
 	return 0x20;
 #else
 #ifdef NEWCONFIG
@@ -963,6 +966,7 @@ aicattach(parent, self, aux)
 	/*
 	 * ask the adapter what subunits are present
 	 */
+	kdc_aic[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(&(aic->sc_link));
 
 	return 1;

@@ -76,8 +76,9 @@ static struct kern_devconf kdc_wds[NWDS] = { {
   isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
   &kdc_isa0,
   0,
-  DC_BUSY,
-  "Western Digital WD-7000 SCSI host adapter"
+  DC_UNCONFIGURED,		/* state */
+  "Western Digital WD-7000 SCSI host adapter",
+  DC_CLS_MISC			/* class */
 } };
 
 struct scsi_device wds_dev =
@@ -258,8 +259,14 @@ wdsprobe(struct isa_device *dev)
   if(wdsunit > NWDS)
     return 0;
 
-  dev->id_unit = wdsunit;
+  dev->id_unit = wdsunit;	/* XXX WRONG! */
   wds[wdsunit].addr = dev->id_iobase;
+
+  if(dev->id_unit)
+    kdc_wds[dev->id_unit] = kdc_wds[0];
+  kdc_wds[dev->id_unit].kdc_unit = dev->id_unit;
+  kdc_wds[dev->id_unit].kdc_parentdata = dev;
+  dev_attach(&kdc_wds[dev->id_unit]);
 
   if(wds_init(dev) != 0)
     return 0;
@@ -621,18 +628,14 @@ wdsattach(struct isa_device *dev)
 
   printf("wds%d: using %d bytes for dma buffer\n",unit,BUFSIZ);
 
-  if(dev->id_unit)
-    kdc_wds[dev->id_unit] = kdc_wds[0];
-  kdc_wds[dev->id_unit].kdc_unit = dev->id_unit;
-  kdc_wds[dev->id_unit].kdc_parentdata = dev;
-  dev_attach(&kdc_wds[dev->id_unit]);
-
   wds[unit].sc_link.adapter_unit = unit;
   wds[unit].sc_link.adapter_targ = 7;
   wds[unit].sc_link.adapter = &wds_switch;
   wds[unit].sc_link.device = &wds_dev;
   wds[unit].sc_link.flags = SDEV_BOUNCE;
   
+  kdc_wds[unit].kdc_state = DC_BUSY;
+
   scsi_attachdevs(&wds[unit].sc_link);
 
   return 1;

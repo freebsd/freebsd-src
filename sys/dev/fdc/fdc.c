@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.55 1995/03/26 19:28:18 rgrimes Exp $
+ *	$Id: fd.c,v 1.56 1995/04/06 07:20:15 rgrimes Exp $
  *
  */
 
@@ -101,7 +101,8 @@ static struct kern_devconf kdc_fd[NFD] = { {
 	0,			/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
-	"floppy disk"
+	"floppy disk",
+	DC_CLS_DISK		/* class */
 } };
 
 struct kern_devconf kdc_fdc[NFDC] = { {
@@ -111,7 +112,8 @@ struct kern_devconf kdc_fdc[NFDC] = { {
 	0,			/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
-	"floppy disk/tape controller"
+	"floppy disk/tape controller",
+	DC_CLS_MISC		/* class */
 } };
 
 static inline void
@@ -522,6 +524,10 @@ fdprobe(struct isa_device *dev)
 	fdcdevs[fdcu] = dev;
 	fdc_data[fdcu].baseport = dev->id_iobase;
 
+#ifndef DEV_LKM
+	fdc_registerdev(dev);
+#endif
+
 	/* First - lets reset the floppy controller */
 	outb(dev->id_iobase+FDOUT, 0);
 	DELAY(100);
@@ -552,8 +558,6 @@ fdattach(struct isa_device *dev)
 	int	fdsu, st0, st3, i, unithasfd;
 	struct isa_device *fdup;
 	int ic_type = 0;
-
-	fdc_registerdev(dev);
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
@@ -619,14 +623,20 @@ fdattach(struct isa_device *dev)
 			case 0x80:
 				printf("NEC 765\n");
 				fdc->fdct = FDC_NE765;
+				kdc_fdc[fdcu].kdc_description =
+					"NEC 765 floppy disk/tape controller";
 				break;
 			case 0x81:
 				printf("Intel 82077\n");
 				fdc->fdct = FDC_I82077;
+				kdc_fdc[fdcu].kdc_description =
+					"Intel 82077 floppy disk/tape controller";
 				break;
 			case 0x90:
 				printf("NEC 72065B\n");
 				fdc->fdct = FDC_NE72065;
+				kdc_fdc[fdcu].kdc_description =
+					"NEC 72065B floppy disk/tape controller";
 				break;
 			default:
 				printf("unknown IC type %02x\n", ic_type);
@@ -685,33 +695,43 @@ fdattach(struct isa_device *dev)
 		fd->options = 0;
 		printf("fd%d: ", fdsu, fdu);
 		
+		fd_registerdev(fdcu, fdu);
 		switch (fdt) {
 		case RTCFDT_12M:
 			printf("1.2MB 5.25in\n");
 			fd->type = FD_1200;
+			kdc_fd[fdu].kdc_description = 
+				"1.2MB (1200K) 5.25in floppy disk drive";
 			break;
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
+			kdc_fd[fdu].kdc_description =
+				"1.44MB (1440K) 3.5in floppy disk drive";
 			break;
 		case RTCFDT_288M:
 			printf("2.88MB 3.5in - 1.44MB mode\n");
 			fd->type = FD_1440;
+			kdc_fd[fdu].kdc_description =
+				"2.88MB (2880K) 3.5in floppy disk drive in 1.44 mode";
 			break;
 		case RTCFDT_360K:
 			printf("360KB 5.25in\n");
 			fd->type = FD_360;
+			kdc_fd[fdu].kdc_description =
+				"360KB 5.25in floppy disk drive";
 			break;
 		case RTCFDT_720K:
 			printf("720KB 3.5in\n");
 			fd->type = FD_720;
+			kdc_fd[fdu].kdc_description =
+				"720KB 3.5in floppy disk drive";
 			break;
 		default:
 			printf("unknown\n");
 			fd->type = NO_TYPE;
 			break;
 		}
-		fd_registerdev(fdcu, fdu);
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);

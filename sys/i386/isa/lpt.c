@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.26 1995/02/26 21:41:41 phk Exp $
+ *	$Id: lpt.c,v 1.27 1995/03/16 18:12:03 bde Exp $
  */
 
 /*
@@ -262,8 +262,9 @@ static struct kern_devconf kdc_lpt[NLPT] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-	"Parallel printer adapter"
+	DC_UNCONFIGURED,	/* state */
+	"Parallel printer adapter",
+	DC_CLS_PARALLEL | DC_CLS_NETIF /* class */
 } };
 
 static inline void
@@ -353,6 +354,8 @@ lptprobe(struct isa_device *dvp)
 	u_char		mask;
 	int		i;
 
+	lpt_registerdev(dvp);
+
 	/*
 	 * Make sure there is some way for lptopen to see that
 	 * the port is not configured
@@ -429,8 +432,7 @@ lptattach(struct isa_device *isdp)
 	}
 	lprintf("irq %x\n", sc->sc_irq);
 
-	lpt_registerdev(isdp);
-
+	kdc_lpt[isdp->id_unit].kdc_state = DC_IDLE;
 	return (1);
 }
 
@@ -524,6 +526,7 @@ lptopen(dev_t dev, int flag)
 	outb(port+lpt_control, sc->sc_control);
 
 	sc->sc_state = OPEN;
+	kdc_lpt[unit].kdc_state = DC_BUSY;
 	sc->sc_inbuf = geteblk(BUFSIZE);
 	sc->sc_xfercnt = 0;
 	splx(s);
@@ -579,6 +582,7 @@ lptclose(dev_t dev, int flag)
 		goto end_close;
 
 	sc->sc_state &= ~OPEN;
+	kdc_lpt[minor(dev)].kdc_state = DC_IDLE;
 
 	/* if the last write was interrupted, don't complete it */
 	if((!(sc->sc_state  & INTERRUPTED)) && (sc->sc_irq & LP_USE_IRQ))
