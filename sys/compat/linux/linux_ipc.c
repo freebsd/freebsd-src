@@ -153,7 +153,7 @@ bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct linux_shmid_ds *lsp)
 }
 
 int
-linux_semop(struct proc *p, struct linux_ipc_args *args)
+linux_semop(struct proc *p, struct linux_semop_args *args)
 {
 	struct semop_args /* {
 	int	semid;
@@ -168,7 +168,7 @@ linux_semop(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_semget(struct proc *p, struct linux_ipc_args *args)
+linux_semget(struct proc *p, struct linux_semget_args *args)
 {
 	struct semget_args /* {
 	key_t	key;
@@ -183,7 +183,7 @@ linux_semget(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_semctl(struct proc *p, struct linux_ipc_args *args)
+linux_semctl(struct proc *p, struct linux_semctl_args *args)
 {
 	struct linux_semid_ds	linux_semid;
 	struct semid_ds	bsd_semid;
@@ -264,14 +264,14 @@ linux_semctl(struct proc *p, struct linux_ipc_args *args)
 	case LINUX_SETALL:
 		/* FALLTHROUGH */
 	default:
-		uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
+		uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->arg3);
 		return EINVAL;
 	}
 	return __semctl(p, &bsd_args);
 }
 
 int
-linux_msgsnd(struct proc *p, struct linux_ipc_args *args)
+linux_msgsnd(struct proc *p, struct linux_msgsnd_args *args)
 {
     struct msgsnd_args /* {
 	int     msqid;   
@@ -288,7 +288,7 @@ linux_msgsnd(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_msgrcv(struct proc *p, struct linux_ipc_args *args)
+linux_msgrcv(struct proc *p, struct linux_msgrcv_args *args)
 {
     struct msgrcv_args /* {     
         int 	msqid;   
@@ -307,7 +307,7 @@ linux_msgrcv(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_msgget(struct proc *p, struct linux_ipc_args *args)
+linux_msgget(struct proc *p, struct linux_msgget_args *args)
 {
     struct msgget_args /* {
 	key_t	key;
@@ -320,7 +320,7 @@ linux_msgget(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_msgctl(struct proc *p, struct linux_ipc_args *args)
+linux_msgctl(struct proc *p, struct linux_msgctl_args *args)
 {
     struct msgctl_args /* {
 	int     msqid; 
@@ -337,7 +337,7 @@ linux_msgctl(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_shmat(struct proc *p, struct linux_ipc_args *args)
+linux_shmat(struct proc *p, struct linux_shmat_args *args)
 {
     struct shmat_args /* {
 	int shmid;
@@ -351,14 +351,16 @@ linux_shmat(struct proc *p, struct linux_ipc_args *args)
     bsd_args.shmflg = args->arg2;
     if ((error = shmat(p, &bsd_args)))
 	return error;
+#ifdef __i386__
     if ((error = copyout(p->p_retval, (caddr_t)args->arg3, sizeof(int))))
 	return error;
     p->p_retval[0] = 0;
+#endif
     return 0;
 }
 
 int
-linux_shmdt(struct proc *p, struct linux_ipc_args *args)
+linux_shmdt(struct proc *p, struct linux_shmdt_args *args)
 {
     struct shmdt_args /* {
 	void *shmaddr;
@@ -369,7 +371,7 @@ linux_shmdt(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_shmget(struct proc *p, struct linux_ipc_args *args)
+linux_shmget(struct proc *p, struct linux_shmget_args *args)
 {
     struct shmget_args /* {
 	key_t key;
@@ -384,7 +386,7 @@ linux_shmget(struct proc *p, struct linux_ipc_args *args)
 }
 
 int
-linux_shmctl(struct proc *p, struct linux_ipc_args *args)
+linux_shmctl(struct proc *p, struct linux_shmctl_args *args)
 {
     struct shmid_ds bsd_shmid;
     struct linux_shmid_ds linux_shmid;
@@ -445,7 +447,7 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args)
     case LINUX_SHM_LOCK:
     case LINUX_SHM_UNLOCK:
     default:
-	uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
+	uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->arg2);
 	return EINVAL;
     }
 }
