@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.15 1997/03/27 20:00:48 guido Exp $";
+	"$Id: mountd.c,v 1.16 1997/03/29 03:32:49 imp Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -254,10 +254,10 @@ main(argc, argv)
 {
 	SVCXPRT *udptransp, *tcptransp;
 	int c;
+	int mib[3];
 #ifdef __FreeBSD__
 	struct vfsconf vfc;
 	int error;
-	int mib[3];
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -321,8 +321,8 @@ main(argc, argv)
 	mib[0] = CTL_VFS;
 	mib[1] = MOUNT_NFS;
 	mib[2] = NFS_NFSPRIVPORT;
-	if (sysctl(mib, 3, NULL, NULL,
-	    &resvport_only, sizeof(resvport_only)) != 0) {
+	if (sysctl(mib, 3, NULL, NULL, &resvport_only,
+	    sizeof(resvport_only)) != 0 && errno != ENOENT) {
 		syslog(LOG_ERR, "sysctl: %m");
 		exit(1);
 	}
