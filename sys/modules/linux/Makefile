@@ -10,7 +10,9 @@ SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
 	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
 	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
+.if exists(${DESTDIR}/usr/share/man/man8)
 MAN8=	linux.8
+.endif
 
 .if ${MACHINE_ARCH} != "alpha"
 SRCS+=  imgact_linux.c linux_ipc.c
@@ -35,8 +37,10 @@ linux_genassym.o:	linux_genassym.c linux.h @ machine
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
 
+.if exists(${DESTDIR}/usr/bin)
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/linux.sh ${DESTDIR}/usr/sbin/linux
+.endif
 
 .include <bsd.kmod.mk>
