@@ -1764,7 +1764,6 @@ createlog(const struct conf_entry *ent)
 			failed = fchown(fd, ent->uid, ent->gid);
 			if (failed)
 				err(1, "can't fchown temp file %s", tempfile);
-			(void) close(fd);
 		}
 	}
 
