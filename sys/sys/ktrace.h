@@ -158,20 +158,20 @@ struct ktr_csw {
 #define KTRFAC_ACTIVE	0x20000000	/* ktrace logging in progress, ignore */
 
 #ifdef	_KERNEL
-void	ktrnamei __P((struct vnode *,char *));
-void	ktrcsw __P((struct vnode *,int,int));
-void	ktrpsig __P((struct vnode *, int, sig_t, sigset_t *, int));
-void	ktrgenio __P((struct vnode *, int, enum uio_rw, struct uio *, int));
-void	ktrsyscall __P((struct vnode *, int, int narg, register_t args[]));
-void	ktrsysret __P((struct vnode *, int, int, register_t));
+void	ktrnamei(struct vnode *,char *);
+void	ktrcsw(struct vnode *,int,int);
+void	ktrpsig(struct vnode *, int, sig_t, sigset_t *, int);
+void	ktrgenio(struct vnode *, int, enum uio_rw, struct uio *, int);
+void	ktrsyscall(struct vnode *, int, int narg, register_t args[]);
+void	ktrsysret(struct vnode *, int, int, register_t);
 
 #else
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	ktrace __P((const char *, int, int, pid_t));
-int	utrace __P((const void *, size_t));
+int	ktrace(const char *, int, int, pid_t);
+int	utrace(const void *, size_t);
 __END_DECLS
 
 #endif

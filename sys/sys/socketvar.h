@@ -111,7 +111,7 @@ struct socket {
 #define SB_AIO		0x80		/* AIO operations queued */
 #define SB_KNOTE	0x100		/* kernel note attached */
 
-	void	(*so_upcall) __P((struct socket *, void *, int));
+	void	(*so_upcall)(struct socket *, void *, int);
 	void	*so_upcallarg;
 	struct	ucred *so_cred;		/* user credentials */
 	/* NB: generation count must not be first; easiest to make it last. */
@@ -304,11 +304,11 @@ struct sf_buf {
 struct accept_filter {
 	char	accf_name[16];
 	void	(*accf_callback)
-		__P((struct socket *so, void *arg, int waitflag));
+		(struct socket *so, void *arg, int waitflag);
 	void *	(*accf_create)
-		__P((struct socket *so, char *arg));
+		(struct socket *so, char *arg);
 	void	(*accf_destroy)
-		__P((struct socket *so));
+		(struct socket *so);
 	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
 };
 
@@ -335,103 +335,103 @@ struct knote;
 /*
  * File operations on sockets.
  */
-int	soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags, struct thread *td));
-int	soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags, struct thread *td));
-int	soo_close __P((struct file *fp, struct thread *td));
-int	soo_ioctl __P((struct file *fp, u_long cmd, caddr_t data,
-	    struct thread *td));
-int	soo_poll __P((struct file *fp, int events, struct ucred *cred,
-	    struct thread *td));
-int	soo_stat __P((struct file *fp, struct stat *ub, struct thread *td));
-int	sokqfilter __P((struct file *fp, struct knote *kn));
+int	soo_read(struct file *fp, struct uio *uio, struct ucred *cred,
+	    int flags, struct thread *td);
+int	soo_write(struct file *fp, struct uio *uio, struct ucred *cred,
+	    int flags, struct thread *td);
+int	soo_close(struct file *fp, struct thread *td);
+int	soo_ioctl(struct file *fp, u_long cmd, caddr_t data,
+	    struct thread *td);
+int	soo_poll(struct file *fp, int events, struct ucred *cred,
+	    struct thread *td);
+int	soo_stat(struct file *fp, struct stat *ub, struct thread *td);
+int	sokqfilter(struct file *fp, struct knote *kn);
 
 /*
  * From uipc_socket and friends
  */
-struct	sockaddr *dup_sockaddr __P((struct sockaddr *sa, int canwait));
-int	sockargs __P((struct mbuf **mp, caddr_t buf, int buflen, int type));
-int	getsockaddr __P((struct sockaddr **namp, caddr_t uaddr, size_t len));
-void	sbappend __P((struct sockbuf *sb, struct mbuf *m));
-int	sbappendaddr __P((struct sockbuf *sb, struct sockaddr *asa,
-	    struct mbuf *m0, struct mbuf *control));
-int	sbappendcontrol __P((struct sockbuf *sb, struct mbuf *m0,
-	    struct mbuf *control));
-void	sbappendrecord __P((struct sockbuf *sb, struct mbuf *m0));
-void	sbcheck __P((struct sockbuf *sb));
-void	sbcompress __P((struct sockbuf *sb, struct mbuf *m, struct mbuf *n));
+struct	sockaddr *dup_sockaddr(struct sockaddr *sa, int canwait);
+int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
+int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
+void	sbappend(struct sockbuf *sb, struct mbuf *m);
+int	sbappendaddr(struct sockbuf *sb, struct sockaddr *asa,
+	    struct mbuf *m0, struct mbuf *control);
+int	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
+	    struct mbuf *control);
+void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
+void	sbcheck(struct sockbuf *sb);
+void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
-	sbcreatecontrol __P((caddr_t p, int size, int type, int level));
-void	sbdrop __P((struct sockbuf *sb, int len));
-void	sbdroprecord __P((struct sockbuf *sb));
-void	sbflush __P((struct sockbuf *sb));
-void	sbinsertoob __P((struct sockbuf *sb, struct mbuf *m0));
-void	sbrelease __P((struct sockbuf *sb, struct socket *so));
-int	sbreserve __P((struct sockbuf *sb, u_long cc, struct socket *so,
-		       struct thread *td));
-void	sbtoxsockbuf __P((struct sockbuf *sb, struct xsockbuf *xsb));
-int	sbwait __P((struct sockbuf *sb));
-int	sb_lock __P((struct sockbuf *sb));
-int	soabort __P((struct socket *so));
-int	soaccept __P((struct socket *so, struct sockaddr **nam));
-struct	socket *soalloc __P((int waitok));
-int	sobind __P((struct socket *so, struct sockaddr *nam, struct thread *td));
-void	socantrcvmore __P((struct socket *so));
-void	socantsendmore __P((struct socket *so));
-int	soclose __P((struct socket *so));
-int	soconnect __P((struct socket *so, struct sockaddr *nam, struct thread *td));
-int	soconnect2 __P((struct socket *so1, struct socket *so2));
-int	socreate __P((int dom, struct socket **aso, int type, int proto,
-	    struct ucred *cred, struct thread *td));
-int	sodisconnect __P((struct socket *so));
-void	sofree __P((struct socket *so));
-int	sogetopt __P((struct socket *so, struct sockopt *sopt));
-void	sohasoutofband __P((struct socket *so));
-void	soisconnected __P((struct socket *so));
-void	soisconnecting __P((struct socket *so));
-void	soisdisconnected __P((struct socket *so));
-void	soisdisconnecting __P((struct socket *so));
-int	solisten __P((struct socket *so, int backlog, struct thread *td));
+	sbcreatecontrol(caddr_t p, int size, int type, int level);
+void	sbdrop(struct sockbuf *sb, int len);
+void	sbdroprecord(struct sockbuf *sb);
+void	sbflush(struct sockbuf *sb);
+void	sbinsertoob(struct sockbuf *sb, struct mbuf *m0);
+void	sbrelease(struct sockbuf *sb, struct socket *so);
+int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
+		       struct thread *td);
+void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
+int	sbwait(struct sockbuf *sb);
+int	sb_lock(struct sockbuf *sb);
+int	soabort(struct socket *so);
+int	soaccept(struct socket *so, struct sockaddr **nam);
+struct	socket *soalloc(int waitok);
+int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
+void	socantrcvmore(struct socket *so);
+void	socantsendmore(struct socket *so);
+int	soclose(struct socket *so);
+int	soconnect(struct socket *so, struct sockaddr *nam, struct thread *td);
+int	soconnect2(struct socket *so1, struct socket *so2);
+int	socreate(int dom, struct socket **aso, int type, int proto,
+	    struct ucred *cred, struct thread *td);
+int	sodisconnect(struct socket *so);
+void	sofree(struct socket *so);
+int	sogetopt(struct socket *so, struct sockopt *sopt);
+void	sohasoutofband(struct socket *so);
+void	soisconnected(struct socket *so);
+void	soisconnecting(struct socket *so);
+void	soisdisconnected(struct socket *so);
+void	soisdisconnecting(struct socket *so);
+int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *
-	sodropablereq __P((struct socket *head));
+	sodropablereq(struct socket *head);
 struct socket *
-	sonewconn __P((struct socket *head, int connstatus));
-int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
-			 size_t minlen));
-int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
+	sonewconn(struct socket *head, int connstatus);
+int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len,
+			 size_t minlen);
+int	sooptcopyout(struct sockopt *sopt, void *buf, size_t len);
 
 /* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
-int	soopt_getm __P((struct sockopt *sopt, struct mbuf **mp));
-int	soopt_mcopyin __P((struct sockopt *sopt, struct mbuf *m));
-int	soopt_mcopyout __P((struct sockopt *sopt, struct mbuf *m));
+int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);
+int	soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
+int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
 
-int	sopoll __P((struct socket *so, int events, struct ucred *cred,
-		    struct thread *td));
-int	soreceive __P((struct socket *so, struct sockaddr **paddr,
+int	sopoll(struct socket *so, int events, struct ucred *cred,
+		    struct thread *td);
+int	soreceive(struct socket *so, struct sockaddr **paddr,
 		       struct uio *uio, struct mbuf **mp0,
-		       struct mbuf **controlp, int *flagsp));
-int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
-void	sorflush __P((struct socket *so));
-int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
+		       struct mbuf **controlp, int *flagsp);
+int	soreserve(struct socket *so, u_long sndcc, u_long rcvcc);
+void	sorflush(struct socket *so);
+int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		    struct mbuf *top, struct mbuf *control, int flags,
-		    struct thread *td));
-int	sosetopt __P((struct socket *so, struct sockopt *sopt));
-int	soshutdown __P((struct socket *so, int how));
-void	sotoxsocket __P((struct socket *so, struct xsocket *xso));
-void	sowakeup __P((struct socket *so, struct sockbuf *sb));
+		    struct thread *td);
+int	sosetopt(struct socket *so, struct sockopt *sopt);
+int	soshutdown(struct socket *so, int how);
+void	sotoxsocket(struct socket *so, struct xsocket *xso);
+void	sowakeup(struct socket *so, struct sockbuf *sb);
 
 /* accept filter functions */
-int	accept_filt_add __P((struct accept_filter *filt));
-int	accept_filt_del __P((char *name));
-struct accept_filter *	accept_filt_get __P((char *name));
+int	accept_filt_add(struct accept_filter *filt);
+int	accept_filt_del(char *name);
+struct accept_filter *	accept_filt_get(char *name);
 #ifdef ACCEPT_FILTER_MOD
-int accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
+int accept_filt_generic_mod_event(module_t mod, int event, void *data);
 SYSCTL_DECL(_net_inet_accf);
 #endif /* ACCEPT_FILTER_MOD */
 
-int	socheckuid __P((struct socket *so, uid_t uid));
-int	socheckproc __P((struct socket *so, struct proc *p));
+int	socheckuid(struct socket *so, uid_t uid);
+int	socheckproc(struct socket *so, struct proc *p);
 
 #endif /* _KERNEL */
 

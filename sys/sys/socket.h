@@ -441,25 +441,25 @@ struct sf_hdtr {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	accept __P((int, struct sockaddr *, socklen_t *));
-int	bind __P((int, const struct sockaddr *, socklen_t));
-int	connect __P((int, const struct sockaddr *, socklen_t));
-int	getpeername __P((int, struct sockaddr *, socklen_t *));
-int	getsockname __P((int, struct sockaddr *, socklen_t *));
-int	getsockopt __P((int, int, int, void *, socklen_t *));
-int	listen __P((int, int));
-ssize_t	recv __P((int, void *, size_t, int));
-ssize_t	recvfrom __P((int, void *, size_t, int, struct sockaddr *, socklen_t *));
-ssize_t	recvmsg __P((int, struct msghdr *, int));
-ssize_t	send __P((int, const void *, size_t, int));
-ssize_t	sendto __P((int, const void *,
-	    size_t, int, const struct sockaddr *, socklen_t));
-ssize_t	sendmsg __P((int, const struct msghdr *, int));
-int	sendfile __P((int, int, off_t, size_t, struct sf_hdtr *, off_t *, int));
-int	setsockopt __P((int, int, int, const void *, socklen_t));
-int	shutdown __P((int, int));
-int	socket __P((int, int, int));
-int	socketpair __P((int, int, int, int *));
+int	accept(int, struct sockaddr *, socklen_t *);
+int	bind(int, const struct sockaddr *, socklen_t);
+int	connect(int, const struct sockaddr *, socklen_t);
+int	getpeername(int, struct sockaddr *, socklen_t *);
+int	getsockname(int, struct sockaddr *, socklen_t *);
+int	getsockopt(int, int, int, void *, socklen_t *);
+int	listen(int, int);
+ssize_t	recv(int, void *, size_t, int);
+ssize_t	recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t	recvmsg(int, struct msghdr *, int);
+ssize_t	send(int, const void *, size_t, int);
+ssize_t	sendto(int, const void *,
+	    size_t, int, const struct sockaddr *, socklen_t);
+ssize_t	sendmsg(int, const struct msghdr *, int);
+int	sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+int	setsockopt(int, int, int, const void *, socklen_t);
+int	shutdown(int, int);
+int	socket(int, int, int);
+int	socketpair(int, int, int, int *);
 __END_DECLS
 
 #endif /* !_KERNEL */

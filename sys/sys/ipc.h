@@ -86,7 +86,7 @@ struct ipc_perm {
 struct thread;
 struct proc;
 
-int	ipcperm __P((struct thread *, struct ipc_perm *, int));
+int	ipcperm(struct thread *, struct ipc_perm *, int);
 extern void (*shmfork_hook)(struct proc *, struct proc *);
 extern void (*shmexit_hook)(struct proc *);
 
@@ -97,7 +97,7 @@ extern void (*shmexit_hook)(struct proc *);
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-key_t	ftok __P((const char *, int));
+key_t	ftok(const char *, int);
 __END_DECLS
 
 #endif /* _KERNEL */

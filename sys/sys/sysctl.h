@@ -601,9 +601,9 @@ int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
-int	sysctlbyname __P((const char *, void *, size_t *, void *, size_t));
-int	sysctlnametomib __P((const char *, int *, size_t *));
+int	sysctl(int *, u_int, void *, size_t *, void *, size_t);
+int	sysctlbyname(const char *, void *, size_t *, void *, size_t);
+int	sysctlnametomib(const char *, int *, size_t *);
 __END_DECLS
 #endif	/* _KERNEL */
 

@@ -73,14 +73,14 @@ typedef struct {
 
 struct osigaction {
 	union {
-		void    (*__sa_handler) __P((int));
-		void    (*__sa_sigaction) __P((int, osiginfo_t *, void *));
+		void    (*__sa_handler)(int);
+		void    (*__sa_sigaction)(int, osiginfo_t *, void *);
 	} __sigaction_u;		/* signal handler */
 	osigset_t	sa_mask;	/* signal mask to apply */
 	int		sa_flags;	/* see signal options below */
 };
 
-typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
+typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
 #endif /* _KERNEL */
 
 /* additional signal action values, used only temporarily/internally */
@@ -200,22 +200,22 @@ extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
  * Machine-independent functions:
  */
 int	CURSIG(struct proc *p);
-void	execsigs __P((struct proc *p));
-void	gsignal __P((int pgid, int sig));
-int	issignal __P((struct proc *p));
-void	killproc __P((struct proc *p, char *why));
-void	pgsigio __P((struct sigio *, int signum, int checkctty));
-void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
-void	postsig __P((int sig));
-void	psignal __P((struct proc *p, int sig));
-void	sigexit __P((struct thread *td, int signum)) __dead2;
-void	siginit __P((struct proc *p));
-void	trapsignal __P((struct proc *p, int sig, u_long code));
+void	execsigs(struct proc *p);
+void	gsignal(int pgid, int sig);
+int	issignal(struct proc *p);
+void	killproc(struct proc *p, char *why);
+void	pgsigio(struct sigio *, int signum, int checkctty);
+void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
+void	postsig(int sig);
+void	psignal(struct proc *p, int sig);
+void	sigexit(struct thread *td, int signum) __dead2;
+void	siginit(struct proc *p);
+void	trapsignal(struct proc *p, int sig, u_long code);
 
 /*
  * Machine-dependent functions:
  */
-void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
+void	sendsig(sig_t action, int sig, sigset_t *retmask, u_long code);
 
 #endif /* _KERNEL */
 

@@ -123,11 +123,11 @@ typedef struct acl_t_struct *acl_t;
 MALLOC_DECLARE(M_ACL);
 #endif
 
-acl_perm_t	acl_posix1e_mode_to_perm __P((acl_tag_t tag, mode_t mode));
-struct acl_entry	acl_posix1e_mode_to_entry __P((acl_tag_t tag, uid_t uid,
-    gid_t gid, mode_t mode));
-mode_t	acl_posix1e_perms_to_mode __P((struct acl_entry *acl_user_obj_entry,
-    struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry));
+acl_perm_t	acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode);
+struct acl_entry	acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid,
+    gid_t gid, mode_t mode);
+mode_t	acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
+    struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry);
 int	acl_posix1e_check(struct acl *acl);
 
 #else /* !_KERNEL */

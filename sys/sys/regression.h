@@ -32,7 +32,7 @@
 /*
  * System calls associated with regression testing functions in kernel.
  */
-int	__setugid __P ((int _flag));
+int	__setugid(int _flag);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_REGRESSION_H */

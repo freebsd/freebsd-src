@@ -167,7 +167,7 @@ struct kinfo_proc {
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	long	ki_spare[22];		/* spare constants */
 };
-void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
+void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */

@@ -90,11 +90,11 @@ struct tty {
 	struct	termios t_termios;	/* Termios state. */
 	struct	winsize t_winsize;	/* Window size. */
 					/* Start output. */
-	void	(*t_oproc) __P((struct tty *));
+	void	(*t_oproc)(struct tty *);
 					/* Stop output. */
-	void	(*t_stop) __P((struct tty *, int));
+	void	(*t_stop)(struct tty *, int);
 					/* Set hardware state. */
-	int	(*t_param) __P((struct tty *, struct termios *));
+	int	(*t_param)(struct tty *, struct termios *);
 	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
 	int	t_column;		/* Tty output column. */
 	int	t_rocount, t_rocol;	/* Tty. */
@@ -231,51 +231,51 @@ MALLOC_DECLARE(M_TTYS);
 #endif
 extern	struct tty *constty;	/* Temporary virtual console. */
 
-int	 b_to_q __P((char *cp, int cc, struct clist *q));
-void	 catq __P((struct clist *from, struct clist *to));
-void	 clist_alloc_cblocks __P((struct clist *q, int ccmax, int ccres));
-void	 clist_free_cblocks __P((struct clist *q));
-int	 getc __P((struct clist *q));
-void	 ndflush __P((struct clist *q, int cc));
-char	*nextc __P((struct clist *q, char *cp, int *c));
-void	 nottystop __P((struct tty *tp, int rw));
-int	 putc __P((int c, struct clist *q));
-int	 q_to_b __P((struct clist *q, char *cp, int cc));
-void	 termioschars __P((struct termios *t));
-int	 tputchar __P((int c, struct tty *tp));
-int	 ttcompat __P((struct tty *tp, u_long com, caddr_t data, int flag));
-int	 ttioctl __P((struct tty *tp, u_long com, void *data, int flag));
-int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
-void	 ttrstrt __P((void *tp));
-int	 ttsetcompat __P((struct tty *tp, u_long *com, caddr_t data,
-	    struct termios *term));
-void	 ttsetwater __P((struct tty *tp));
-int	 ttspeedtab __P((int speed, struct speedtab *table));
-int	 ttstart __P((struct tty *tp));
-void	 ttwakeup __P((struct tty *tp));
-int	 ttwrite __P((struct tty *tp, struct uio *uio, int flag));
-void	 ttwwakeup __P((struct tty *tp));
-void	 ttyblock __P((struct tty *tp));
-void	 ttychars __P((struct tty *tp));
-int	 ttycheckoutq __P((struct tty *tp, int wait));
-int	 ttyclose __P((struct tty *tp));
-void	 ttyflush __P((struct tty *tp, int rw));
-void	 ttyfree __P((struct tty *tp));
-void	 ttyinfo __P((struct tty *tp));
-int	 ttyinput __P((int c, struct tty *tp));
-int	 ttykqfilter __P((dev_t dev, struct knote *kn));
-int	 ttylclose __P((struct tty *tp, int flag));
-struct tty *ttymalloc __P((struct tty *tp));
-int	 ttymodem __P((struct tty *tp, int flag));
-int	 ttyopen __P((dev_t device, struct tty *tp));
-int	 ttypoll __P((dev_t dev, int events, struct thread *td));
-int	 ttyread __P((dev_t dev, struct uio *uio, int flag));
-void	 ttyregister __P((struct tty *tp));
-int	 ttysleep __P((struct tty *tp, void *chan, int pri, char *wmesg,
-	    int timeout));
-int	 ttywait __P((struct tty *tp));
-int	 ttywrite __P((dev_t dev, struct uio *uio, int flag));
-int	 unputc __P((struct clist *q));
+int	 b_to_q(char *cp, int cc, struct clist *q);
+void	 catq(struct clist *from, struct clist *to);
+void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
+void	 clist_free_cblocks(struct clist *q);
+int	 getc(struct clist *q);
+void	 ndflush(struct clist *q, int cc);
+char	*nextc(struct clist *q, char *cp, int *c);
+void	 nottystop(struct tty *tp, int rw);
+int	 putc(int c, struct clist *q);
+int	 q_to_b(struct clist *q, char *cp, int cc);
+void	 termioschars(struct termios *t);
+int	 tputchar(int c, struct tty *tp);
+int	 ttcompat(struct tty *tp, u_long com, caddr_t data, int flag);
+int	 ttioctl(struct tty *tp, u_long com, void *data, int flag);
+int	 ttread(struct tty *tp, struct uio *uio, int flag);
+void	 ttrstrt(void *tp);
+int	 ttsetcompat(struct tty *tp, u_long *com, caddr_t data,
+	    struct termios *term);
+void	 ttsetwater(struct tty *tp);
+int	 ttspeedtab(int speed, struct speedtab *table);
+int	 ttstart(struct tty *tp);
+void	 ttwakeup(struct tty *tp);
+int	 ttwrite(struct tty *tp, struct uio *uio, int flag);
+void	 ttwwakeup(struct tty *tp);
+void	 ttyblock(struct tty *tp);
+void	 ttychars(struct tty *tp);
+int	 ttycheckoutq(struct tty *tp, int wait);
+int	 ttyclose(struct tty *tp);
+void	 ttyflush(struct tty *tp, int rw);
+void	 ttyfree(struct tty *tp);
+void	 ttyinfo(struct tty *tp);
+int	 ttyinput(int c, struct tty *tp);
+int	 ttykqfilter(dev_t dev, struct knote *kn);
+int	 ttylclose(struct tty *tp, int flag);
+struct tty *ttymalloc(struct tty *tp);
+int	 ttymodem(struct tty *tp, int flag);
+int	 ttyopen(dev_t device, struct tty *tp);
+int	 ttypoll(dev_t dev, int events, struct thread *td);
+int	 ttyread(dev_t dev, struct uio *uio, int flag);
+void	 ttyregister(struct tty *tp);
+int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg,
+	    int timeout);
+int	 ttywait(struct tty *tp);
+int	 ttywrite(dev_t dev, struct uio *uio, int flag);
+int	 unputc(struct clist *q);
 
 #endif /* _KERNEL */
 

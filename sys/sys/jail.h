@@ -22,7 +22,7 @@ struct jail {
 
 #ifndef _KERNEL
 
-int jail __P((struct jail *));
+int jail(struct jail *);
 
 #else /* _KERNEL */
 
@@ -67,15 +67,15 @@ extern int	jail_sysvipc_allowed;
  */
 struct ucred;
 struct sockaddr;
-int jailed __P((struct ucred *cred));
-void getcredhostname __P((struct ucred *cred, char *, size_t));
-int prison_check __P((struct ucred *cred1, struct ucred *cred2));
-void prison_free __P((struct prison *pr));
-u_int32_t prison_getip __P((struct ucred *cred));
-void prison_hold __P((struct prison *pr));
-int prison_if __P((struct ucred *cred, struct sockaddr *sa));
-int prison_ip __P((struct ucred *cred, int flag, u_int32_t *ip));
-void prison_remote_ip __P((struct ucred *cred, int flags, u_int32_t *ip));
+int jailed(struct ucred *cred);
+void getcredhostname(struct ucred *cred, char *, size_t);
+int prison_check(struct ucred *cred1, struct ucred *cred2);
+void prison_free(struct prison *pr);
+u_int32_t prison_getip(struct ucred *cred);
+void prison_hold(struct prison *pr);
+int prison_if(struct ucred *cred, struct sockaddr *sa);
+int prison_ip(struct ucred *cred, int flag, u_int32_t *ip);
+void prison_remote_ip(struct ucred *cred, int flags, u_int32_t *ip);
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */

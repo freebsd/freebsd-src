@@ -65,8 +65,8 @@
  */
 
 struct timecounter;
-typedef unsigned timecounter_get_t __P((struct timecounter *));
-typedef void timecounter_pps_t __P((struct timecounter *));
+typedef unsigned timecounter_get_t(struct timecounter *);
+typedef void timecounter_pps_t(struct timecounter *);
 
 struct timecounter {
 	/* These fields must be initialized by the driver. */
@@ -93,10 +93,10 @@ struct timecounter {
 #ifdef _KERNEL
 extern struct timecounter *volatile timecounter;
 
-void	tc_init __P((struct timecounter *tc));
-void	tc_setclock __P((struct timespec *ts));
-void	tc_windup __P((void));
-void	tc_update __P((struct timecounter *tc));
+void	tc_init(struct timecounter *tc);
+void	tc_setclock(struct timespec *ts);
+void	tc_windup(void);
+void	tc_update(struct timecounter *tc);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_TIMETC_H_ */

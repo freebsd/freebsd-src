@@ -199,25 +199,25 @@ struct lock {
 void dumplockinfo(struct lock *lkp);
 struct thread;
 
-void	lockinit __P((struct lock *, int prio, const char *wmesg,
-			int timo, int flags));
-void	lockdestroy __P((struct lock *));
+void	lockinit(struct lock *, int prio, const char *wmesg,
+			int timo, int flags);
+void	lockdestroy(struct lock *);
 
 #ifdef DEBUG_LOCKS
-int	debuglockmgr __P((struct lock *, u_int flags,
+int	debuglockmgr(struct lock *, u_int flags,
 			struct mtx *, struct thread *p,
 			const char *,
 			const char *,
-			int));
+			int);
 #define lockmgr(lockp, flags, slockp, proc) \
 	debuglockmgr((lockp), (flags), (slockp), (proc), \
 	    "lockmgr", __FILE__, __LINE__)
 #else
-int	lockmgr __P((struct lock *, u_int flags,
-			struct mtx *, struct thread *p));
+int	lockmgr(struct lock *, u_int flags,
+			struct mtx *, struct thread *p);
 #endif
-void	lockmgr_printinfo __P((struct lock *));
-int	lockstatus __P((struct lock *, struct thread *));
-int	lockcount __P((struct lock *));
+void	lockmgr_printinfo(struct lock *);
+int	lockstatus(struct lock *, struct thread *);
+int	lockcount(struct lock *);
 
 #endif /* !_SYS_LOCKMGR_H_ */

@@ -109,19 +109,19 @@ extern char 	eintrnames[];	/* end of intrnames[] */
 extern u_long 	intrcnt[];	/* counts for for each device and stray */
 extern char 	intrnames[];	/* string table containing device names */
 
-int	ithread_create __P((struct ithd **ithread, int vector, int flags,
-	    void (*disable)(int), void (*enable)(int), const char *fmt, ...))
+int	ithread_create(struct ithd **ithread, int vector, int flags,
+	    void (*disable)(int), void (*enable)(int), const char *fmt, ...)
 	    __printflike(6, 7);
-int	ithread_destroy __P((struct ithd *ithread));
-u_char	ithread_priority __P((enum intr_type flags));
-int	ithread_add_handler __P((struct ithd *ithread, const char *name,
+int	ithread_destroy(struct ithd *ithread);
+u_char	ithread_priority(enum intr_type flags);
+int	ithread_add_handler(struct ithd *ithread, const char *name,
 	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
-	    void **cookiep));
-int	ithread_remove_handler __P((void *cookie));
-int	ithread_schedule __P((struct ithd *ithread, int do_switch));
-int     swi_add __P((struct ithd **ithdp, const char *name,
+	    void **cookiep);
+int	ithread_remove_handler(void *cookie);
+int	ithread_schedule(struct ithd *ithread, int do_switch);
+int     swi_add(struct ithd **ithdp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
-	    void **cookiep));
-void	swi_sched __P((void *cookie, int flags));
+	    void **cookiep);
+void	swi_sched(void *cookie, int flags);
 
 #endif

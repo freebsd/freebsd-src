@@ -43,13 +43,13 @@
 #define	_MACHINE_CONS_H_
 
 struct consdev;
-typedef	void	cn_probe_t __P((struct consdev *));
-typedef	void	cn_init_t __P((struct consdev *));
-typedef	void	cn_term_t __P((struct consdev *));
-typedef	int	cn_getc_t __P((dev_t));
-typedef	int	cn_checkc_t __P((dev_t));
-typedef	void	cn_putc_t __P((dev_t, int));
-typedef	void	cn_dbctl_t __P((dev_t, int));
+typedef	void	cn_probe_t(struct consdev *);
+typedef	void	cn_init_t(struct consdev *);
+typedef	void	cn_term_t(struct consdev *);
+typedef	int	cn_getc_t(dev_t);
+typedef	int	cn_checkc_t(dev_t);
+typedef	void	cn_putc_t(dev_t, int);
+typedef	void	cn_dbctl_t(dev_t, int);
 
 struct consdev {
 	cn_probe_t	*cn_probe;
