@@ -484,7 +484,7 @@ ndis_attach(dev)
 	/* Do media setup */
 	if (sc->ndis_80211) {
 		struct ieee80211com	*ic = (void *)ifp;
-		ndis_80211_rates/*_ex*/	rates;
+		ndis_80211_rates_ex	rates;
 		struct ndis_80211_nettype_list *ntl;
 		uint32_t		arg;
 		int			r;
@@ -601,10 +601,14 @@ nonettypes:
 		 * we detect turbo modes, though?
 		 */
 		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11B)) {
-			TESTSETRATE(IEEE80211_MODE_11B, 2);
-			TESTSETRATE(IEEE80211_MODE_11B, 4);
-			TESTSETRATE(IEEE80211_MODE_11B, 11);
-			TESTSETRATE(IEEE80211_MODE_11B, 22);
+			TESTSETRATE(IEEE80211_MODE_11B,
+			    IEEE80211_RATE_BASIC|2);
+			TESTSETRATE(IEEE80211_MODE_11B,
+			    IEEE80211_RATE_BASIC|4);
+			TESTSETRATE(IEEE80211_MODE_11B,
+			    IEEE80211_RATE_BASIC|11);
+			TESTSETRATE(IEEE80211_MODE_11B,
+			    IEEE80211_RATE_BASIC|22);
 		}
 		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11G)) {
 			TESTSETRATE(IEEE80211_MODE_11G, 47);
@@ -630,7 +634,8 @@ nonettypes:
 				chanflag |= IEEE80211_CHAN_G;
 			if (i <= 14)
 				chanflag |= IEEE80211_CHAN_B;
-			if (i > 14)
+			if (ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates &&
+			    i > 14)
 				chanflag = IEEE80211_CHAN_A;
 			if (chanflag == 0)
 				break;
@@ -1533,7 +1538,6 @@ ndis_setstate_80211(sc)
 		device_printf(sc->ndis_dev, "unknown mode: %d\n",
 		    ic->ic_curmode);
 	}
-#endif
 
 	if (arg) {
 		len = sizeof(arg);
@@ -1543,6 +1547,7 @@ ndis_setstate_80211(sc)
 			device_printf (sc->ndis_dev,
 			    "set nettype failed: %d\n", rval);
 	}
+#endif
 
 	len = sizeof(config);
 	bzero((char *)&config, len);
