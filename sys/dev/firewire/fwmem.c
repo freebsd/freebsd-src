@@ -241,6 +241,9 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
 	struct fw_eui64 *eui;
 
+	if (dev->si_drv1 != NULL)
+		return (EBUSY);
+
 	eui = (struct fw_eui64 *)malloc(sizeof(struct fw_eui64),
 							M_FW, M_WAITOK);
 	if (eui == NULL)
@@ -255,6 +258,8 @@ int
 fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
 {
 	free(dev->si_drv1, M_FW);
+	dev->si_drv1 = NULL;
+
 	return (0);
 }
 
