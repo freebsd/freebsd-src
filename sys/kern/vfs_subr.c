@@ -440,7 +440,8 @@ vop_lock_post(void *ap, int rc)
 	a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
-	ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
+	if (rc == 0)
+		ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
 }
 
 void
