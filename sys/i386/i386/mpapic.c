@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.31 1998/05/17 17:32:10 tegge Exp $
+ *	$Id: mpapic.c,v 1.32 1998/09/06 22:41:40 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -303,12 +303,14 @@ trigger(int apic, int pin, u_int32_t * flags)
 			printf("EISA INTCONTROL = %08x\n", intcontrol);
 		}
 
+		/* Use ELCR settings to determine level or edge mode */
+		level = (intcontrol >> eirq) & 1;
+
 		/*
-		 * EISA IRQ's are identical to ISA irq's, regardless of
-		 * whether they are edge or level since they go through
-		 * the level/polarity converter gadget.
+		 * Note that on older Neptune chipset based systems, any
+		 * pci interrupts often show up here and in the ELCR as well
+		 * as level sensitive interrupts attributed to the EISA bus.
 		 */
-		level = 0;
 
 		if (level)
 			*flags |= IOART_TRGRLVL;
@@ -338,8 +340,6 @@ static void
 polarity(int apic, int pin, u_int32_t * flags, int level)
 {
 	int     id;
-	int     eirq;
-	int     pol;
 
 	switch (apic_polarity(apic, pin)) {
 
@@ -368,25 +368,8 @@ polarity(int apic, int pin, u_int32_t * flags, int level)
 		return;
 
 	case EISA:
-		eirq = apic_src_bus_irq(apic, pin);
-		if (eirq < 0 || eirq > 15) {
-			printf("EISA POL: IRQ %d??\n", eirq);
-			goto bad;
-		}
-		/* XXX EISA IRQ's are identical to ISA irq's, regardless of
-		 * whether they are edge or level since they go through the
-		 * level/polarity converter gadget. */
-
-		if (level == 1)			/* XXX Always false */
-			pol = 0;		/* if level, active low */
-		else
-			pol = 1;		/* if edge, high edge */
-
-		if (pol == 0)
-			*flags |= IOART_INTALO;
-		else
-			*flags &= ~IOART_INTALO;
-
+		/* polarity converter always gives active high */
+		*flags &= ~IOART_INTALO;
 		return;
 
 	case PCI:
