@@ -78,18 +78,9 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/if_media.h>
 
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#endif
-
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
