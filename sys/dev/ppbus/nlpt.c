@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.7 1998/01/24 02:54:05 eivind Exp $
+ *	$Id: nlpt.c,v 1.8 1998/06/07 17:09:48 dfr Exp $
  */
 
 /*
@@ -134,7 +134,7 @@ DATA_SET(ppbdriver_set, nlptdriver);
 #define	OBUSY		(1<<3)	/* printer is busy doing output */
 #define LPTOUT		(1<<4)	/* timeout while not selected */
 #define TOUT		(1<<5)	/* timeout while not selected */
-#define INIT		(1<<6)	/* waiting to initialize for open */
+#define LPTINIT		(1<<6)	/* waiting to initialize for open */
 #define INTERRUPTED	(1<<7)	/* write call was interrupted */
 
 #define HAVEBUS		(1<<8)	/* the driver owns the bus */
@@ -168,15 +168,25 @@ static struct cdevsw nlpt_cdevsw =
 static int
 lpt_request_ppbus(struct lpt_data *sc, int how)
 {
-	sc->sc_state |= HAVEBUS;
-	return (ppb_request_bus(&sc->lpt_dev, how));
+	int error;
+
+	/* we have the bus only if the request succeded */
+	if ((error = ppb_request_bus(&sc->lpt_dev, how)) == 0)
+		sc->sc_state |= HAVEBUS;
+
+	return (error);
 }
 
 static int
 lpt_release_ppbus(struct lpt_data *sc)
 {
-	sc->sc_state &= ~HAVEBUS;
-	return (ppb_release_bus(&sc->lpt_dev));
+	int error;
+
+	/* we do not have the bus only if the request succeded */
+	if ((error = ppb_release_bus(&sc->lpt_dev)) == 0)
+		sc->sc_state &= ~HAVEBUS;
+
+	return (error);
 }
 
 /*
@@ -316,6 +326,7 @@ nlptprobe(struct ppb_data *ppb)
 	 * ppbus dependent initialisation.
 	 */
 	sc->lpt_dev.id_unit = sc->lpt_unit;
+	sc->lpt_dev.name = nlptdriver.name;
 	sc->lpt_dev.ppb = ppb;
 	sc->lpt_dev.intr = nlptintr;
 
@@ -401,19 +412,6 @@ nlptout(void *arg)
 	 * Avoid possible hangs do to missed interrupts
 	 */
 	if (sc->sc_xfercnt) {
-		/* if we cannot allocate the bus NOW, retry later */
-		if ((sc->sc_state & HAVEBUS) == 0 &&
-			lpt_request_ppbus (sc, PPB_DONTWAIT)) {
-
-			sc->sc_backoff++;
-			if (sc->sc_backoff > hz/LPTOUTMAX)
-				sc->sc_backoff =
-					sc->sc_backoff > hz/LPTOUTMAX;
-			timeout(nlptout, (caddr_t)sc,
-				sc->sc_backoff);
-			return;
-		}
-
 		pl = spltty();
 		nlptintr(sc->lpt_unit);
 		splx(pl);
@@ -447,7 +445,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		nlprintf(LPT_NAME ": still open %x\n", sc->sc_state);
 		return(EBUSY);
 	} else
-		sc->sc_state |= INIT;
+		sc->sc_state |= LPTINIT;
 
 	sc->sc_flags = LPTFLAGS(minor(dev));
 
@@ -457,7 +455,9 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return(0);
 	}
 
-	if (lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	/* request the ppbus only if we don't have it already */
+	if ((sc->sc_state & HAVEBUS) == 0 &&
+			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
 	s = spltty();
@@ -523,7 +523,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	sc->sc_xfercnt = 0;
 	splx(s);
 
-	/* release the bus, nlptout() will try to allocate it later */
+	/* release the ppbus */
 	lpt_release_ppbus(sc);
 
 	/* only use timeout if using interrupt */
@@ -572,9 +572,10 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 	brelse(sc->sc_inbuf);
 
+end_close:
+	/* release the bus anyway */
 	lpt_release_ppbus(sc);
 
-end_close:
 	sc->sc_state = 0;
 	sc->sc_xfercnt = 0;
 	nlprintf("closed.\n");
@@ -660,7 +661,9 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 		return(EPERM);
 	}
 
-	if (lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	/* request the ppbus only if we don't have it already */
+	if ((sc->sc_state & HAVEBUS) == 0 &&
+			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
 	sc->sc_state &= ~INTERRUPTED;
@@ -691,12 +694,15 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 			nlprintf("p");
 
 			err = nlpt_pushbytes(sc);
-			lpt_release_ppbus(sc);
 
 			if (err)
 				return(err);
 		}
 	}
+
+	/* we have not been interrupted, release the ppbus */
+	lpt_release_ppbus(sc);
+
 	return(0);
 }
 
@@ -713,6 +719,10 @@ nlptintr(int unit)
 	struct lpt_data *sc = lptdata[unit];
 	int sts;
 	int i;
+	
+	/* we must own the bus to use it */
+	if ((sc->sc_state & HAVEBUS) == 0)
+		return;
 
 	/*
 	 * Is printer online and ready for output?
@@ -744,7 +754,6 @@ nlptintr(int unit)
 		 * Wakeup is not done if write call was interrupted.
 		 */
 		sc->sc_state &= ~OBUSY;
-		lpt_release_ppbus(sc);
 
 		if(!(sc->sc_state & INTERRUPTED))
 			wakeup((caddr_t)sc);
