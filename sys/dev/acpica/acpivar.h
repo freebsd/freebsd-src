@@ -233,6 +233,7 @@ extern BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
 extern ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 					      ACPI_HANDLE *result);
+extern uint32_t		acpi_TimerDelta(uint32_t end, uint32_t start);
 extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
 extern ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
 						    UINT32 *number);

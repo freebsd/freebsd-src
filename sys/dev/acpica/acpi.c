@@ -1372,6 +1372,21 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
     }
 }
 
+/* Find the difference between two PM tick counts. */
+uint32_t
+acpi_TimerDelta(uint32_t end, uint32_t start)
+{
+    uint32_t delta;
+
+    if (end >= start)
+	delta = end - start;
+    else if (AcpiGbl_FADT->TmrValExt == 0)
+	delta = (((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF);
+    else
+	delta = ((0xFFFFFFFF - start) + end + 1);
+    return (delta);
+}
+
 /*
  * Allocate a buffer with a preset data size.
  */

@@ -160,7 +160,6 @@ static void	acpi_cpu_startup_cx(void);
 static void	acpi_cpu_throttle_set(uint32_t speed);
 static void	acpi_cpu_idle(void);
 static void	acpi_cpu_c1(void);
-static void	acpi_pm_ticksub(uint32_t *end, const uint32_t *start);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_throttle_sysctl(SYSCTL_HANDLER_ARGS);
@@ -875,7 +874,7 @@ acpi_cpu_idle()
     }
 
     /* Find the actual time asleep in microseconds, minus overhead. */
-    acpi_pm_ticksub(&end_time, &start_time);
+    end_time = acpi_TimerDelta(end_time, start_time);
     asleep = PM_USEC(end_time) - cx_next->trans_lat;
 
     /* Record statistics */
@@ -913,18 +912,6 @@ acpi_cpu_c1()
 #else
     __asm __volatile("sti; hlt");
 #endif
-}
-
-/* Find the difference between two PM tick counts. */
-static void
-acpi_pm_ticksub(uint32_t *end, const uint32_t *start)
-{
-    if (*end >= *start)
-	*end = *end - *start;
-    else if (AcpiGbl_FADT->TmrValExt == 0)
-	*end = (((0x00FFFFFF - *start) + *end + 1) & 0x00FFFFFF);
-    else
-	*end = ((0xFFFFFFFF - *start) + *end + 1);
 }
 
 /*
