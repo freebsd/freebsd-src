@@ -10,7 +10,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	MD5.9 MODULE_DEPEND.9 MODULE_VERSION.9 \
 	SYSCALL_MODULE.9 \
 	VFS.9 VFS_CHECKEXP.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 \
-	VFS_QUOTACTL.9 VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 \
+	VFS_QUOTACTL.9 VFS_ROOT.9 VFS_SET.9 VFS_START.9 VFS_STATFS.9 \
 	VFS_SYNC.9 VFS_UNMOUNT.9 VFS_VGET.9 VFS_VPTOFH.9 VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 VOP_ADVLOCK.9 VOP_ATTRIB.9 VOP_BWRITE.9 \
 	VOP_CREATE.9 VOP_FSYNC.9 VOP_GETACL.9 VOP_GETEXTATTR.9 \
@@ -59,8 +59,12 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
 	ucred.9 uidinfo.9 uio.9 \
 	vaccess.9 vaccess_acl_posix1e.9 \
-	vcount.9 vfs_busy.9 vfs_mount.9 vfs_timestamp.9 vfs_unbusy.9 \
-	vfs_unmountall.9 vget.9 vgone.9 vhold.9 vinvalbuf.9 \
+	vcount.9 \
+	vfs_busy.9 vfs_getnewfsid.9 vfs_getvfs.9 \
+	vfs_mount.9 vfs_mountedon.9  vfs_rootmountalloc.9 \
+	vfs_timestamp.9 vfs_unbusy.9 vfs_unmountall.9 \
+	vfsconf.9 \
+	vget.9 vgone.9 vhold.9 vinvalbuf.9 \
 	vflush.9 \
 	vm_page_alloc.9 vm_page_bits.9 vm_page_cache.9 \
 	vm_page_copy.9 vm_page_deactivate.9 vm_page_dontneed.9 \
@@ -189,6 +193,9 @@ MLINKS+=timeout.9 callout_stop.9 timeout.9 callout_reset.9
 MLINKS+=uidinfo.9 uihashinit.9 uidinfo.9 uifind.9
 MLINKS+=uidinfo.9 uihold.9 uidinfo.9 uifree.9
 MLINKS+=uio.9 uiomove.9
+MLINKS+=vfsconf.9 vfs_modevent.9
+MLINKS+=vfsconf.9 vfs_register.9
+MLINKS+=vfsconf.9 vfs_unregister.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9
 MLINKS+=vm_page_bits.9 vm_page_set_validclean.9
