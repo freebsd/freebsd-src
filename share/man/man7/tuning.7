@@ -366,6 +366,54 @@ rather then later, eating more swap and disk bandwidth.  In a small system
 this option will have a detrimental effect but in a large system that is
 already doing moderate paging this option allows the VM system to stage
 whole processes into and out of memory more easily.
+.Sh BOOT-TIME SYSCTL TUNING
+Some sysctls may not be tunable at runtime because the memory allocations
+they perform must occur early in the boot process.  To change these sysctls,
+you must set their value in
+.Xr loader.conf 5
+and reboot the system.
+.Pp
+The
+.Em kern.maxusers
+sysctl defaults to an incredibly low value.  For most modern machines,
+you probably want to increase this value to 64, 128, or 256.  We do not
+recommend going above 256 unless you need a huge number of file descriptors.
+Network buffers are also affected but can be controlled with a separate
+kernel option.  Do not increase maxusers just to get more network mbufs.
+Systems older than FreeBSD 4.4 do not have this sysctl and require that
+the kernel config option maxusers be set instead.
+.Pp
+.Em kern.ipc.nmbclusters
+may be adjusted to increase the number of network mbufs the system is
+willing to allocate.  Each cluster represents approximately 2K of memory,
+so a value of 1024 represents 2M of kernel memory reserved for network
+buffers.  You can do a simple calculation to figure out how many you need.
+If you have a web server which maxes out at 1000 simultaneous connections,
+and each connection eats a 16K receive and 16K send buffer, you need
+approximate 32MB worth of network buffers to deal with it.  A good rule of
+thumb is to multiply by 2, so 32MBx2 = 64MB/2K = 32768.  So for this case
+you would want to set nmbclusters to 32768.  We recommend values between
+1024 and 4096 for machines with moderates amount of memory, and between 4096
+and 32768 for machines with greater amounts of memory.  Under no circumstances
+should you specify an arbitrarily high value for this parameter, it could
+lead to a boot-time crash.  The -m option to
+.Xr netstat 1
+may be used to observe network cluster use.
+Older versions of FreeBSD do not have this sysctl and require that the
+kernel config option NMBCLUSTERS be set instead.
+.Pp
+More and more programs are using the
+.Fn sendfile
+system call to transmit files over the network.  The
+.Em kern.ipc.nsfbufs
+sysctl controls the number of filesystem buffers
+.Fn sendfile
+is allowed to use to perform its work.  This parameter nominally scales
+with
+.Em maxusers
+so you should not need to mess with this parameter except under extreme
+circumstances.
+.Pp
 .Sh KERNEL CONFIG TUNING
 There are a number of kernel options that you may have to fiddle with in
 a large scale system.  In order to change these options you need to be
@@ -378,43 +426,6 @@ things like
 .Em INET6
 and drivers you don't have will reduce the size of your kernel, sometimes
 by a megabyte or more, leaving more memory available for applications.
-.Pp
-The
-.Em maxusers
-kernel option defaults to an incredibly low value.  For most modern machines,
-you probably want to increase this value to 64, 128, or 256.  We do not
-recommend going above 256 unless you need a huge number of file descriptors.
-Network buffers are also affected but can be controlled with a separate
-kernel option.  Do not increase maxusers just to get more network mbufs.
-.Pp
-.Em NMBCLUSTERS
-may be adjusted to increase the number of network mbufs the system is
-willing to allocate.  Each cluster represents approximately 2K of memory,
-so a value of 1024 represents 2M of kernel memory reserved for network
-buffers.  You can do a simple calculation to figure out how many you need.
-If you have a web server which maxes out at 1000 simultaneous connections,
-and each connection eats a 16K receive and 16K send buffer, you need
-approximate 32MB worth of network buffers to deal with it.  A good rule of
-thumb is to multiply by 2, so 32MBx2 = 64MB/2K = 32768.  So for this case
-you would want to se NMBCLUSTERS to 32768.  We recommend values between
-1024 and 4096 for machines with moderates amount of memory, and between 4096
-and 32768 for machines with greater amounts of memory.  Under no circumstances
-should you specify an arbitrarily high value for this parameter, it could
-lead to a boot-time crash.  The -m option to
-.Xr netstat 1
-may be used to observe network cluster use.
-.Pp
-More and more programs are using the
-.Fn sendfile
-system call to transmit files over the network.  The
-.Em NSFBUFS
-kernel parameter controls the number of filesystem buffers
-.Fn sendfile
-is allowed to use to perform its work.  This parameter nominally scales
-with
-.Em maxusers
-so you should not need to mess with this parameter except under extreme
-circumstances.
 .Pp
 .Em SCSI_DELAY
 and
