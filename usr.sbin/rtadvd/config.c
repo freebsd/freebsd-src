@@ -513,6 +513,7 @@ init_prefix(struct in6_prefixreq *ipr)
 		       "This should not happen if I am router", __FUNCTION__,
 		       inet_ntop(AF_INET6, &ipr->ipr_prefix.sin6_addr, ntopbuf,
 				 sizeof(ntopbuf)), ipr->ipr_origin);
+		close(s);
 		return 1;
 	}
 
