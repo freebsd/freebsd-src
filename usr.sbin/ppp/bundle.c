@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.61 1998/04/24 19:15:57 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.62 1998/04/25 10:48:45 brian Exp $
  */
 
 #include <sys/types.h>
@@ -419,13 +419,6 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 }
 
 
-#define MAX_TUN 256
-/*
- * MAX_TUN is set at 256 because that is the largest minor number
- * we can use (certainly with mknod(1) anyway).  The search for a
- * device aborts when it reaches the first `Device not configured'
- * (ENXIO) or the third `No such file or directory' (ENOENT) error.
- */
 struct bundle *
 bundle_Create(const char *prefix, struct prompt *prompt, int type)
 {
@@ -440,24 +433,24 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
 
   err = ENOENT;
   enoentcount = 0;
-  for (bundle.unit = 0; bundle.unit <= MAX_TUN; bundle.unit++) {
+  for (bundle.unit = 0; ; bundle.unit++) {
     snprintf(bundle.dev, sizeof bundle.dev, "%s%d", prefix, bundle.unit);
     bundle.tun_fd = ID0open(bundle.dev, O_RDWR);
     if (bundle.tun_fd >= 0)
       break;
-    if (errno == ENXIO) {
-      bundle.unit = MAX_TUN;
+    else if (errno == ENXIO) {
       err = errno;
+      break;
     } else if (errno == ENOENT) {
       if (++enoentcount > 2)
-	bundle.unit = MAX_TUN;
+	break;
     } else
       err = errno;
   }
 
-  if (bundle.unit > MAX_TUN) {
-    prompt_Printf(prompt, "No tunnel device is available (%s).\n",
-                  strerror(err));
+  if (bundle.tun_fd < 0) {
+    LogPrintf(LogWARN, "No available tunnel devices found (%s).\n",
+              strerror(err));
     return NULL;
   }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.71 1998/04/24 19:15:59 brian Exp $
+ * $Id: command.c,v 1.131.2.72 1998/04/25 10:48:53 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -509,7 +509,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/24 19:15:59 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/25 10:48:53 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -805,7 +805,9 @@ OpenCommand(struct cmdargs const *arg)
            !strcasecmp(arg->argv[arg->argn], "ccp")) {
     struct fsm *fp = &ChooseLink(arg)->ccp.fsm;
 
-    if (fp->state != ST_OPENED) {
+    if (fp->link->lcp.fsm.state != ST_OPENED)
+      LogPrintf(LogWARN, "open: LCP must be open before opening CCP\n");
+    else if (fp->state != ST_OPENED) {
       FsmUp(fp);
       FsmOpen(fp);
     }
