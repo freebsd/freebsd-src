@@ -209,6 +209,11 @@ network_pass1() {
 
 	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
+		if ifconfig ${interface} | grep -s UP,; then
+			# Interface is already up, so ignore it.
+			continue;
+		fi
+
 		if [ -r /etc/start_if.${ifn} ]; then
 			. /etc/start_if.${ifn}
 			eval showstat_$ifn=1
