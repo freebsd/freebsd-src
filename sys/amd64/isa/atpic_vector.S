@@ -40,8 +40,6 @@
  * master and slave interrupt controllers.
  */
 
-#include "opt_auto_eoi.h"
-
 #include <machine/asmacros.h>
 #include <i386/isa/icu.h>
 #ifdef PC98
