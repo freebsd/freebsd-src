@@ -173,7 +173,7 @@ distrib-dirs:
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO_8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/locale; \
-	set - `cat ${.CURDIR}/locale.alias`; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.alias`; \
 	while [ $$# -gt 0 ] ; \
 	do \
 		rm -rf "$$1"; \
@@ -181,7 +181,7 @@ distrib-dirs:
 		shift; shift; \
 	done
 	cd ${DESTDIR}/usr/share/nls; \
-	set - `cat ${.CURDIR}/locale.alias`; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.alias`; \
 	while [ $$# -gt 0 ] ; \
 	do \
 		rm -rf "$$1"; \
