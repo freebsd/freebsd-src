@@ -114,10 +114,10 @@ void	 qsort(void *, size_t, size_t,
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
-double	 strtod(const char *, char **);
-long	 strtol(const char *, char **, int);
+double	 strtod(const char *__restrict, char **__restrict);
+long	 strtol(const char *__restrict, char **__restrict, int);
 unsigned long
-	 strtoul(const char *, char **, int);
+	 strtoul(const char *__restrict, char **__restrict, int);
 int	 system(const char *);
 
 int	 mblen(const char *, size_t);
@@ -198,13 +198,13 @@ void	 srandomdev(void);
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 long long	 
-	 strtoll(const char *, char **, int);
+	 strtoll(const char *__restrict, char **__restrict, int);
 #endif
 __int64_t	 strtoq(const char *, char **, int);
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 unsigned long long
-	 strtoull(const char *, char **, int);
+	 strtoull(const char *__restrict, char **__restrict, int);
 #endif
 __uint64_t
 	 strtouq(const char *, char **, int);

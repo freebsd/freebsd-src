@@ -45,10 +45,7 @@ __FBSDID("$FreeBSD$");
  * Convert a string to a quad integer.
  */
 quad_t
-strtoq(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
+strtoq(const char *nptr, char **endptr, int base)
 {
 
 	return strtoll(nptr, endptr, base);

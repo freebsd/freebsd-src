@@ -49,10 +49,7 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 intmax_t
-strtoimax(nptr, endptr, base)
-	const char *nptr;
-	char **endptr;
-	int base;
+strtoimax(const char *__restrict nptr, char **__restrict endptr, int base)
 {
 	const char *s;
 	uintmax_t acc;
