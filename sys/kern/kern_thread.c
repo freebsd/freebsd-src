@@ -301,8 +301,6 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 					abortsleep(td2);
 			}	
 			mtx_unlock_spin(&sched_lock);
-			td->td_retval[0] = 0;
-			td->td_retval[1] = 0;
 			return (0);
 		}
 	}
@@ -410,8 +408,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 				if (!TD_IS_IDLE(td2)) {
 					/* Return silently if no longer idle */
 					PROC_UNLOCK(p);
-				        td->td_retval[0] = 0;
-       					td->td_retval[1] = 0;
 					return (0);
 				}
 				break;
@@ -439,8 +435,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		TD_CLR_IDLE(td2);
 		setrunnable(td2);
 		mtx_unlock_spin(&sched_lock);
-	        td->td_retval[0] = 0;
-       		td->td_retval[1] = 0;
 		return (0);
 	}	
 	mtx_unlock_spin(&sched_lock);
@@ -566,9 +560,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	/*
 	 * Fill out the KSE-mode specific fields of the new kse.
 	 */
-
-	td->td_retval[0] = 0;
-	td->td_retval[1] = 0;
 	return (0);
 }
 
