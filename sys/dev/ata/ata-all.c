@@ -437,8 +437,8 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	ata_queue_request(request);
 
-	if (request->error)
-	    iocmd->u.request.error = request->error;
+	if (request->result)
+	    iocmd->u.request.error = request->result;
 	else {
 	    if (iocmd->u.request.flags & ATA_CMD_READ)
 		error = copyout(buf,
