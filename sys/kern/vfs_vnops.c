@@ -619,13 +619,14 @@ debug_vn_lock(vp, flags, p, filename, line)
 #endif
 {
 	int error;
-	
+
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			mtx_lock(&vp->v_interlock);
 		if ((vp->v_flag & VXLOCK) && vp->v_vxproc != curproc) {
 			vp->v_flag |= VXWANT;
-			msleep(vp, &vp->v_interlock, PINOD, "vn_lock", 0);
+			msleep(vp, &vp->v_interlock, PINOD | PDROP,
+			    "vn_lock", 0);
 			error = ENOENT;
 		} else {
 			if (vp->v_vxproc != NULL)
