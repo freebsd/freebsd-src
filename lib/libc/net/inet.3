@@ -119,10 +119,17 @@ numbers, respectively.
 .Pp
 The function
 .Fn inet_ntop
-converts an address from network format (usually a
+converts an address
+.Fa *src
+from network format
+(usually a
 .Ft struct in_addr
 or some other binary form, in network byte order) to presentation format
 (suitable for external display purposes).
+The
+.Fa size
+argument specifies the size, in bytes, of the buffer
+.Fa *dst .
 It returns NULL if a system error occurs (in which case,
 .Va errno
 will have been set), or it returns a pointer to the destination string.
@@ -226,6 +233,18 @@ is returned by
 and
 .Fn inet_network
 for malformed requests.
+.Sh ERRORS
+The
+.Fn inet_ntop
+call fails if:
+.Bl -tag -width Er
+.It Bq Er ENOSPC
+.Fa size
+was not large enough to store the presentation form of the address.
+.It Bq Er EAFNOSUPPORT
+.Fa *src
+was not an AF_INET or AF_INET6 family address.
+.El
 .Sh SEE ALSO
 .Xr addr2ascii 3 ,
 .Xr byteorder 3 ,
