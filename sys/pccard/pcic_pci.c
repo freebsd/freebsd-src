@@ -73,11 +73,25 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
  * routing doesn't work.  It is purposely vague and undocumented
  * at the moment.
  */
-static int pcic_intr_path = (int) pcic_iw_pci;
+static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
-SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD,
-    &pcic_intr_path, (int) pcic_iw_pci,
-    "Which path to send the interrupts over. 1 -- isa, 2 -- pci");
+
+static int
+sysctl_hw_pcic_intr_path(SYSCTL_HANDLER_ARGS)
+{
+	char type[4];
+	int error;
+
+	if (pcic_intr_path == pcic_iw_isa)
+		strcpy(type, "isa");
+	else
+		strcpy(type, "pci");
+	error = sysctl_handle_string(oidp, type, sizeof(type), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw_pcic, OID_AUTO, intr_path, CTLTYPE_STRING | CTLFLAG_RD, 0, 0,
+    sysctl_hw_pcic_intr_path, "A", "Which path to send the interrupts over.");
 
 static int pcic_init_routing = 0;
 TUNABLE_INT("hw.pcic.init_routing", &pcic_init_routing);
