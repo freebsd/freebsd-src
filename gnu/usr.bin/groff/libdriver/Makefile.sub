@@ -1,0 +1,3 @@
+LIB=driver
+OBJS=input.o printer.o
+CCSRCS=input.cc printer.cc

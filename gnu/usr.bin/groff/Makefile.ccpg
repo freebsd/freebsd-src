@@ -1,0 +1,26 @@
+# Makefile.ccpg
+MAKEFILEPARTS=$(srcdir)/../Makefile.comm ../Makefile.cfg \
+  $(srcdir)/Makefile.sub $(srcdir)/../Makefile.ccpg $(srcdir)/Makefile.dep
+
+all: $(PROG) $(MANPAGES)
+
+$(PROG): $(OBJS) $(XLIBS)
+	$(LINK.cc) -o $@ $(OBJS) $(XLIBS) $(CCLIBS) $(LIBS) $(MLIB)
+
+install_bin: install_prog
+install_prog: $(PROG)
+install_data: install_man
+install_man: $(MANPAGES)
+uninstall_sub: uninstall_prog uninstall_man
+depend: depend_src
+depend.temp: $(GENSRCS) $(YTABC)
+distfiles: $(YTABC)
+TAGS: TAGS_src
+TAGS_src: $(CCSRCS) $(CSRCS) $(GRAM) $(HDRS)
+Makefile: $(MAKEFILEPARTS)
+
+pure: $(PROG).pure
+
+$(PROG).pure: $(OBJS) $(XLIBS)
+	$(PURIFY) $(PURIFYCCFLAGS) \
+	  $(LINK.cc) -o $@ $(OBJS) $(XLIBS) $(CCLIBS) $(LIBS) $(MLIB)
