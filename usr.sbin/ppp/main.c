@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.24 1996/12/12 14:39:45 jkh Exp $
+ * $Id: main.c,v 1.25 1996/12/19 00:41:42 nate Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -74,6 +74,7 @@ static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
 int TermMode;
 static int server;
+static pid_t BGPid = 0;
 struct sockaddr_in ifsin;
 char pid_filename[128];
 
@@ -159,6 +160,8 @@ int excode;
   sleep(1);
   if (mode & MODE_AUTO) {
     DeleteIfRoutes(1);
+  }
+  if (mode & (MODE_AUTO | MODE_BACKGROUND)) {
     unlink(pid_filename);
   }
   OsInterfaceDown(1);
@@ -180,19 +183,30 @@ int signo;
 	LogClose();
 	abort();
   }
-  LogPrintf(LOG_PHASE_BIT, "Signal %d, hangup.\n", signo);
-  Cleanup(EX_HANGUP);
+  if (BGPid) {
+      kill (BGPid, SIGHUP);
+      exit (EX_HANGUP);
+  }
+  else {
+      LogPrintf(LOG_PHASE_BIT, "Signal %d, hangup.\n", signo);
+      Cleanup(EX_HANGUP);
+  }
 }
 
 static void
 CloseSession(signo)
 int signo;
 {
-  LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
-  LcpClose();
-  Cleanup(EX_TERM);
+   if (BGPid) {
+     kill (BGPid, SIGINT);
+     exit (EX_TERM);
+   }
+   else {
+     LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
+     LcpClose();
+     Cleanup(EX_TERM);
+   }
 }
-
 
 static void
 TerminalCont()
@@ -217,7 +231,7 @@ void
 Usage()
 {
   fprintf(stderr,
-          "Usage: ppp [-auto | -direct | -dedicated | -ddial ] [ -alias ] [system]\n");
+          "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ] [ -alias ] [system]\n");
   exit(EX_START);
 }
 
@@ -232,6 +246,8 @@ ProcessArgs(int argc, char **argv)
     cp = *argv + 1;
     if (strcmp(cp, "auto") == 0)
       mode |= MODE_AUTO;
+    else if (strcmp(cp, "background") == 0)
+      mode |= MODE_BACKGROUND;
     else if (strcmp(cp, "direct") == 0)
       mode |= MODE_DIRECT;
     else if (strcmp(cp, "dedicated") == 0)
@@ -308,7 +324,7 @@ char **argv;
     exit(EX_START);
   }
 
-  if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED))
+  if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     printf("Interactive mode\n");
@@ -318,6 +334,12 @@ char **argv;
     if (dstsystem == NULL) {
       fprintf(stderr,
               "Destination system must be specified in auto or ddial mode.\n");
+      exit(EX_START);
+    }
+  } else if (mode & MODE_BACKGROUND) {
+    printf("Background mode\n");
+    if (dstsystem == NULL) {
+      fprintf(stderr, "Destination system must be specified in background mode.\n");
       exit(EX_START);
     }
   }
@@ -370,36 +392,61 @@ char **argv;
 #endif
 
   if (!(mode & MODE_INTER)) {
-     int port = SERVER_PORT + tunno;
-    /*
-     *  Create server socket and listen at there.
-     */
-    server = socket(PF_INET, SOCK_STREAM, 0);
-    if (server < 0) {
-      perror("socket");
-      Cleanup(EX_SOCK);
+    int port = SERVER_PORT + tunno;
+    if (mode & MODE_BACKGROUND) {
+      if (pipe (BGFiledes)) {
+	perror("pipe");
+	Cleanup(EX_SOCK);
+      }
+      server = -1;
     }
-    ifsin.sin_family = AF_INET;
-    ifsin.sin_addr.s_addr = INADDR_ANY;
-    ifsin.sin_port = htons(port);
-    if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
-      perror("bind");
-      if (errno == EADDRINUSE)
-	fprintf(stderr, "Wait for a while, then try again.\n");
-      Cleanup(EX_SOCK);
+    else {
+      /*
+       *  Create server socket and listen at there.
+       */
+      server = socket(PF_INET, SOCK_STREAM, 0);
+      if (server < 0) {
+	perror("socket");
+	Cleanup(EX_SOCK);
+      }
+      ifsin.sin_family = AF_INET;
+      ifsin.sin_addr.s_addr = INADDR_ANY;
+      ifsin.sin_port = htons(port);
+      if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
+	perror("bind");
+	if (errno == EADDRINUSE)
+	  fprintf(stderr, "Wait for a while, then try again.\n");
+	Cleanup(EX_SOCK);
+      }
+      listen(server, 5);
     }
-    listen(server, 5);
 
     DupLog();
     if (!(mode & MODE_DIRECT)) {
       int fd;
       char pid[32];
+      pid_t bgpid;
 
-      if (fork())
-        exit(0);
+      bgpid = fork ();
+      if (bgpid == -1) {
+	perror ("fork");
+	Cleanup (EX_SOCK);
+      }
+      if (bgpid) {
+	char c = EX_NORMAL;
 
-      snprintf(pid_filename, sizeof (pid_filename), "%s/PPP.%s",
-		  _PATH_VARRUN, dstsystem);
+	if (mode & MODE_BACKGROUND) {
+	  /* Wait for our child to close its pipe before we exit. */
+	  BGPid = bgpid;
+	  read (BGFiledes[0], &c, 1);
+	  if (c == EX_NORMAL)
+	    LogPrintf (LOG_CHAT, "PPP enabled.\n");
+	}
+        exit(c);
+      }
+
+      snprintf(pid_filename, sizeof (pid_filename), "%s/ppp.tun%d.pid",
+		  _PATH_VARRUN, tunno);
       unlink(pid_filename);
       sprintf(pid, "%d\n", (int)getpid());
 
@@ -409,7 +456,8 @@ char **argv;
 	  close(fd);
       }
     }
-    LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
+    if (server > 0)
+	LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
     if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
 #else
@@ -444,7 +492,7 @@ char **argv;
 }
 
 /*
- *  Turn into packet mode, where we speek PPP.
+ *  Turn into packet mode, where we speak PPP.
  */
 void
 PacketMode()

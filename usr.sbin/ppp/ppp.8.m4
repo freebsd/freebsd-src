@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.21 1996/12/12 14:39:47 jkh Exp $
+.\" $Id: ppp.8,v 1.22 1996/12/22 17:09:15 jkh Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -9,7 +9,7 @@
 Point to Point Protocol (aka iijppp) 
 .Sh SYNOPSIS
 .Nm
-.Op Fl auto | ddial | direct | dedicated 
+.Op Fl auto | background | ddial | direct | dedicated 
 .Op Fl alias
 .Op Ar system
 .Sh DESCRIPTION
@@ -33,7 +33,7 @@ easily enter commands to establish the connection with the remote end, check
 the status of connection and close the connection.  All functions can
 also be optionally password protected for security.
 
-.It Supports both manual and automatic dialing. 
+.It Supports both manual and automatic dialing.
 Interactive mode has a
 .Dq term
 command which enables you to talk to your modem directly.  When your
@@ -69,11 +69,17 @@ host acts as a masquerading gateway.  IP addresses as well as TCP and
 UDP port numbers are aliased for outgoing packets and de-aliased for
 returning packets.
 
+.It Supports background PPP connections.
+In background mode, if
+.Nm
+successfully establishes the connection, it will become a daemon.
+Otherwise, it will exit with an error.
+
 .It Supports server-side PPP connections.
 Can act as server which accepts incoming
 .Em PPP
-connections. 
- 
+connections.
+
 .It Supports PAP and CHAP authentication.
 
 .It Supports Proxy Arp.
@@ -85,7 +91,7 @@ connection.
 .It Supports packet filtering.
 User can define four kinds of filters:
 .Em ifilter
-for incoming packets, 
+for incoming packets,
 .Em ofilter
 for outgoing packets,
 .Em dfilter
@@ -100,14 +106,14 @@ to check the packet flow over the
 .Em PPP
 link.
 
-.It Supports PPP over TCP capability. 
+.It Supports PPP over TCP capability.
 
 
-.It Supports IETF draft Predictor-1 compression.  
+.It Supports IETF draft Predictor-1 compression.
 .Nm
 supports not only VJ-compression but also Predictor-1 compression.
 Normally, a modem has built-in compression (e.g. v42.bis) and the system
-may receive higher data rates from it as a result of such compression. 
+may receive higher data rates from it as a result of such compression.
 While this is generally a good thing in most other situations, this
 higher speed data imposes a penalty on the system by increasing the
 number of serial interrupts the system has to process in talking to the
@@ -140,7 +146,7 @@ following line in your kernel configuration file:
 
 .Dl pseudo-device   tun             1
 
-You should set the numeric field to the maximum number of 
+You should set the numeric field to the maximum number of
 .Em PPP
 connections you wish to support.
 
@@ -152,7 +158,7 @@ If it doesn't exist, you can create it by running "MAKEDEV tun0"
 
 .Sh MANUAL DIALING
 
-% 
+%
 .Nm
 User Process PPP written by Toshiharu OHNO.
 
@@ -163,7 +169,7 @@ anything except run the quit and help commands *
 
 ppp on "your hostname"> help
   passwd  : Password for security
-  quit    : Quit the PPP program    
+  quit    : Quit the PPP program
   help    : Display this message
 
 ppp on tama> pass <password>
@@ -304,6 +310,39 @@ connection is established.  See the provided example which adds a
 default route.  The string HISADDR represents the IP address of the
 remote peer.
 
+.Sh BACKGROUND DIALING
+
+If you want to establish a connection using
+.Nm ppp non-interactively (such as from a
+.Xr crontab(5)
+entry or an
+.Xr at(1)
+script) you should use the
+.Fl background
+option.  You must also specify the destination label in
+.Pa /etc/ppp/ppp.conf
+to use.
+
+When
+.Fl background
+is specified,
+.Nm
+attempts to establish the connection.  If this attempt fails,
+.Nm ppp
+exits immediately with a non-zero exit code.
+
+If it succeeds, then
+.Nm ppp
+becomes a daemon, and returns an exit status of zero to its caller.
+The daemon exits automatically if the connection is dropped by the
+remote system, or it receives a HUP or TERM signal.
+
+The file
+.Pa /var/run/ppp.tun0.pid
+contains the process id number of the
+.Nm ppp
+program that is using the tunnel device tun0.
+
 .Sh DIAL ON DEMAND
 
 To play with demand dialing, you must use the
@@ -336,7 +375,7 @@ configuration by using the diagnostic port as follows:
     Connected to localhost.spec.co.jp.
     Escape character is '^]'.
     User Process PPP. Written by Toshiharu OHNO.
-    Working as auto mode. 
+    Working as auto mode.
     PPP on tama> show ipcp
     what ?
     PPP on tama> pass xxxx
@@ -447,11 +486,11 @@ set filter-name rule-no action [src_addr/src_width] [dst_addr/dst_width]
 .Sq filter-name
 should be one of ifilter, ofilter, or dfilter.
 .It
-There are two actions: 
+There are two actions:
 .Sq permit
 and
 .Sq deny .
-If a given packet 
+If a given packet
 matches the rule, the associated action is taken immediately.
 .It
 .Sq src_width
@@ -495,7 +534,7 @@ To handle an incoming
 connection request, follow these steps:
 
 .Bl -enum
-.It 
+.It
 Make sure the modem and (optionally)
 .Pa /etc/rc.serial
 is configured correctly.
@@ -526,7 +565,7 @@ ppp:xxxx:66:66:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
 .Ed
 
 .It
-Create a 
+Create a
 .Pa /usr/local/bin/ppplogin
 file with the following contents:
 .Bd -literal -offset indent
@@ -612,7 +651,7 @@ commands.
 .Dl ppp ON tama> set timeout 600
 
 The timeout period is measured in seconds, the  default values for which
-are timeout = 180 or 3 min, lqrtimer = 30sec and retrytimer = 3sec. 
+are timeout = 180 or 3 min, lqrtimer = 30sec and retrytimer = 3sec.
 To disable the idle timer function,
 use the command
 .Dq set timeout 0 .
@@ -648,7 +687,7 @@ uses IPCP to negotiate IP addresses. Each side of the connection
 specifies the IP address that it's willing to use, and if the requested
 IP address is acceptable then
 .Nm
-returns ACK to the requester.  Otherwise, 
+returns ACK to the requester.  Otherwise,
 .Nm
 returns NAK to suggest that the peer use a different IP address. When
 both sides of the connection agree to accept the received request (and
@@ -692,7 +731,7 @@ My interface netmask will be 255.255.255.0.
 .It
 This is all fine when each side has a pre-determined IP address, however
 it is often the case that one side is acting as a server which controls
-all IP addresses and the other side should obey the direction from it. 
+all IP addresses and the other side should obey the direction from it.
 .El
 
 In order to allow more flexible behavior, `ifaddr' variable allows the
@@ -708,7 +747,7 @@ the IP address.  The above example signifies that:
 I'd like to use 192.244.177.38 as my address if it is possible, but I'll
 also accept any IP address between 192.244.177.0 and 192.244.177.255.
 
-.It 
+.It
 I'd like to make him use 192.244.177.2 as his own address, but I'll also
 permit him to use any IP address between 192.244.176.0 and
 192.244.191.255.
@@ -862,6 +901,9 @@ tty port locking file.
 
 .Pa /var/run/PPP.system
 Holds the pid for ppp -auto system.
+
+.Pa /var/run/ppp.tun0.pid
+The process id (pid) of the ppp program connected to the ppp0 device.
 
 .Pa /etc/services
 Get port number if port number is using service name.

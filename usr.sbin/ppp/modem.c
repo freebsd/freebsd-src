@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24 1996/05/11 20:48:36 phk Exp $
+ * $Id: modem.c,v 1.25 1996/12/22 17:09:14 jkh Exp $
  *
  *  TODO:
  */
@@ -724,6 +724,7 @@ int
 DialModem()
 {
   char ScriptBuffer[200];
+  int excode = 0;
 
   strcpy(ScriptBuffer, VarDialScript);
   if (DoChat(ScriptBuffer) > 0) {
@@ -735,16 +736,25 @@ DialModem()
 	fprintf(stderr, "login OK!\n");
       return(1);
     } else {
-      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+      if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
 	fprintf(stderr, "login failed.\n");
+        excode = EX_NOLOGIN;
+      }
     }
     ModemTimeout();	/* Dummy call to check modem status */
   }
   else {
-    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+    if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
       fprintf(stderr, "dial failed.\n");
+      excode = EX_NODIAL;
+    }
   }
   HangupModem(0);
+  if (mode & MODE_BACKGROUND) {
+      extern void Cleanup();
+      CloseModem();
+      Cleanup(excode);
+  } 
   return(0);
 }
 
