@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <rpc/rpc.h>
+#include <rpc/xdr.h>
+#include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 
 #include <netinet/in.h>
@@ -47,10 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
-#include <rpcsvc/yp.h>
-struct dom_binding{};
 
 #define ERR_USAGE	1	/* bad arguments - display 'usage' message */
 #define ERR_NOSUCHHOST	2	/* no such host */
@@ -61,7 +60,7 @@ struct dom_binding{};
 extern bool_t xdr_domainname();
 
 struct ypalias {
-	const char *alias, *name;
+	char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
@@ -109,7 +108,8 @@ bind_host(char *dom, struct sockaddr_in *lsin)
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	r = clnt_call(client, YPBINDPROC_DOMAIN,
-		xdr_domainname, &dom, xdr_ypbind_resp, &ypbr, tv);
+		(xdrproc_t)xdr_domainname, &dom,
+		(xdrproc_t)xdr_ypbind_resp, &ypbr, tv);
 	if (r != RPC_SUCCESS) {
 		warnx("can't clnt_call: %s", yperr_string(YPERR_YPBIND));
 		clnt_destroy(client);
@@ -117,14 +117,14 @@ bind_host(char *dom, struct sockaddr_in *lsin)
 	} else {
 		if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
 			warnx("can't yp_bind: reason: %s",
-				ypbinderr_string(ypbr.ypbind_resp_u.ypbind_error));
+				ypbinderr_string(ypbr.ypbind_respbody.ypbind_error));
 			clnt_destroy(client);
 			return (r);
 		}
 	}
 	clnt_destroy(client);
 
-	ss_addr = *(struct in_addr *)ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
+	ss_addr = ypbr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr;
 	/*printf("%08x\n", ss_addr);*/
 	hent = gethostbyaddr((char *)&ss_addr, sizeof(ss_addr), AF_INET);
 	if (hent)
@@ -138,7 +138,7 @@ int
 main(int argc, char *argv[])
 {
 	char *domnam = NULL, *master;
-	const char *map = NULL;
+	char *map = NULL;
 	struct ypmaplist *ypml, *y;
 	struct hostent *hent;
 	struct sockaddr_in lsin;
@@ -229,18 +229,18 @@ main(int argc, char *argv[])
 	case 0:
 		for (y = ypml; y;) {
 			ypml = y;
-			r = yp_master(domnam, ypml->map, &master);
+			r = yp_master(domnam, ypml->ypml_name, &master);
 			switch (r) {
 			case 0:
-				printf("%s %s\n", ypml->map, master);
+				printf("%s %s\n", ypml->ypml_name, master);
 				free(master);
 				break;
 			default:
 				warnx("can't find the master of %s: reason: %s",
-					ypml->map, yperr_string(r));
+					ypml->ypml_name, yperr_string(r));
 				break;
 			}
-			y = ypml->next;
+			y = ypml->ypml_next;
 			free(ypml);
 		}
 		break;
