@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,9 +72,11 @@
 
 /* SETUP */
 
-#define MSG_SETUP_LEN		18	/* without number strings ! */
+#define MSG_SETUP_LEN		12	/* without called party,	*/
+					/*	calling party and	*/
+					/*	keypad facility !	*/
 
-#define IEI_BEARERCAP_LEN	2	/* 2 octetts lenght */
+#define IEI_BEARERCAP_LEN	2	/* 2 octetts length */
 
 #define IT_CAP_SPEECH		0x80	/* BC: information xfer capability */
 #define IT_CAP_UNR_DIG_INFO	0x88	/* BC: information xfer capability */

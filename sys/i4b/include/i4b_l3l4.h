@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -240,7 +240,8 @@ typedef struct
 	int	isdntxdelay;		/* isdn tx delay after connect	*/
 
 	u_char	display[DISPLAY_MAX];	/* display information element	*/
-	char	datetime[DATETIME_MAX];	/* date/time information element*/	
+	char	datetime[DATETIME_MAX];	/* date/time information element*/
+	u_char	keypad[KEYPAD_MAX];	/* keypad facility		*/	
 } call_desc_t;
 
 extern call_desc_t call_desc[N_CALL_DESC];

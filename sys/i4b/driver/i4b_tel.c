@@ -42,13 +42,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/ioccom.h>
 #include <sys/poll.h>
-#else
-#include <sys/ioctl.h>
-#include <sys/fcntl.h>
-#endif
 
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -58,25 +53,13 @@
 #include <net/if.h>
 #include <sys/tty.h>
 
-#ifdef __FreeBSD__
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
-#endif /* __FreeBSD__ */
 
-#ifdef __bsdi__
-#include <sys/device.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_tel_ioctl.h>
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_tel_ioctl.h>
-#include <i4b/i4b_debug.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
@@ -151,37 +134,13 @@ static unsigned char u2a_tab[];
 static unsigned char bitreverse[];
 static u_char sinetab[];
 
-#ifndef __FreeBSD__
-#define	PDEVSTATIC	/* - not static - */
-PDEVSTATIC void i4btelattach __P((void));
-
-#ifdef __bsdi__
-PDEVSTATIC int i4btelioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
-#else
-PDEVSTATIC int i4btelioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
-#endif
-
-int i4btelopen __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4btelclose __P((dev_t dev, int flag, int fmt, struct proc *p));
-int i4btelread __P((dev_t dev, struct uio *uio, int ioflag));
-int i4btelwrite __P((dev_t dev, struct uio * uio, int ioflag));
-
-#ifdef OS_USES_POLL
-int i4btelpoll	__P((dev_t dev, int events, struct proc *p));
-#else
-int i4btelsel __P((dev_t dev, int rw, struct proc *p));
-#endif
-
-#endif /* ! __FreeBSD__ */
-
-#if BSD > 199306 && defined(__FreeBSD__)
-
 #define PDEVSTATIC	static
+
 PDEVSTATIC d_open_t	i4btelopen;
-PDEVSTATIC d_close_t i4btelclose;
-PDEVSTATIC d_read_t i4btelread;
-PDEVSTATIC d_read_t i4btelwrite;
-PDEVSTATIC d_ioctl_t i4btelioctl;
+PDEVSTATIC d_close_t	i4btelclose;
+PDEVSTATIC d_read_t	i4btelread;
+PDEVSTATIC d_read_t	i4btelwrite;
+PDEVSTATIC d_ioctl_t	i4btelioctl;
 
 #ifdef OS_USES_POLL
 PDEVSTATIC d_poll_t i4btelpoll;
@@ -231,50 +190,11 @@ i4btelinit(void *unused)
 SYSINIT(i4bteldev, SI_SUB_DRIVERS,
 	SI_ORDER_MIDDLE+CDEV_MAJOR, &i4btelinit, NULL);
 
-#endif /* BSD > 199306 && defined(__FreeBSD__) */
-
-#ifdef __bsdi__
-
-int i4btelsel(dev_t dev, int rw, struct proc *p);
-int i4btelmatch(struct device *parent, struct cfdata *cf, void *aux);
-void dummy_i4btelattach(struct device*, struct device *, void *);
-
-#define CDEV_MAJOR 62
-
-static struct cfdriver i4btelcd =
-	{ NULL, "i4btel", i4btelmatch, dummy_i4btelattach, DV_DULL,
-	  sizeof(struct cfdriver) };
-struct devsw i4btelsw = 
-	{ &i4btelcd,
-	  i4btelopen,	i4btelclose,	i4btelread,	i4btelwrite,
-	  i4btelioctl,	i4btelsel,	nommap,		nostrat,
-	  nodump,	nopsize,	0,		nostop
-};
-
-int
-i4btelmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	NDBGL4(L4_TELDBG, "aux=0x%x", aux);	
-	return 1;
-}
-
-void
-dummy_i4btelattach(struct device *parent, struct device *self, void *aux)
-{
-	NDBGL4(L4_TELDBG, "aux=0x%x", aux);
-}
-
-#endif /* __bsdi__ */
-
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC void
-#ifdef __FreeBSD__
 i4btelattach(void *dummy)
-#else
-i4btelattach()
-#endif
 {
 	int i, j;
 
@@ -290,7 +210,6 @@ i4btelattach()
 			tel_sc[i][j].wcvttab = 0;
 			tel_sc[i][j].result = 0;
 
-#if defined(__FreeBSD__)
 			switch(j)
 			{
 				case FUNCTEL:	/* normal i4btel device */
@@ -305,7 +224,6 @@ i4btelattach()
 						0600, "i4bteld%d", i);
 					break;
 			}
-#endif
 		}
 		tel_init_linktab(i);		
 	}
@@ -387,13 +305,7 @@ i4btelclose(dev_t dev, int flag, int fmt, struct proc *p)
  *	i4btelioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-#if defined(__FreeBSD__)
 i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
-#elif defined(__bsdi__)
-i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
-#else
-i4btelioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
-#endif
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -541,6 +453,7 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 			sc->devstate |= ST_RDWAITDATA;
 
 			NDBGL4(L4_TELDBG, "i4btel%d, queue empty!", unit);
+
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 			if((error = msleep((caddr_t) &sc->isdn_linktab->rx_queue,
 					&sc->isdn_linktab->rx_queue->ifq_mtx,
@@ -676,6 +589,7 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 		      (sc->devstate & ST_ISOPEN))
 		{
 			sc->devstate |= ST_WRWAITEMPTY;
+
 #if defined (__FreeBSD__) && __FreeBSD__ > 4	
 			if((error = msleep((caddr_t) &sc->isdn_linktab->tx_queue,
 					&sc->isdn_linktab->tx_queue->ifq_mtx,
@@ -722,6 +636,7 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 				/* always reverse bitorder to line */
 				mtod(m,u_char *)[i] = bitreverse[mtod(m,u_char *)[i]];
 			}
+
 #if defined (__FreeBSD__) && __FreeBSD__ > 4			
 			(void) IF_HANDOFF(sc->isdn_linktab->tx_queue, m, NULL);
 #else
@@ -750,6 +665,10 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 		else if(cmdbuf[0] == CMD_HUP)
 		{
 			i4b_l4_drvrdisc(BDRV_TEL, unit);
+		}
+		else if(cmdbuf[0] == CMD_KEYP)
+		{
+			i4b_l4_keypad(BDRV_TEL, unit, len-1, &cmdbuf[1]);
 		}
 	}
 	else
