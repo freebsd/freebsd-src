@@ -3766,6 +3766,7 @@ ipfw_main(int oldac, char **oldav)
 	/*
 	 * optional: pipe or queue
 	 */
+	do_pipe = 0;
 	if (!strncmp(*av, "pipe", strlen(*av)))
 		do_pipe = 1;
 	else if (!strncmp(*av, "queue", strlen(*av)))
