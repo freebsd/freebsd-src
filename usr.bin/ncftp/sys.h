@@ -328,7 +328,22 @@ extern int errno;
 #	ifdef __alpha    /* DEC OSF/1 */
 #		define GETCWDSIZET 1
 #	endif
+#	ifndef System
+#		define System "DEC OSF/1"
+#	endif
 #endif
+
+#ifdef DELL
+#	ifndef System
+#		define System "DELL SVR4 Issue 2.2"
+#	endif
+#	ifndef HAS_DOMAINNAME
+#		define HAS_DOMAINNAME 1
+#	endif
+#	ifndef LINGER
+#		define LINGER   /* SVR4/386 Streams TCP/IP bug on close */
+#	endif
+#endif	/* DELL */
 
 /* -------------------------------------------------------------------- */
 
@@ -410,6 +425,20 @@ extern int errno;
 #       define HAS_GETCWD 1
 #       define U_WAIT 1
 #	define NO_CONST 1       /* avoid prototype conflict */
+#endif
+
+#ifdef __NetBSD__
+#	define System "NetBSD"
+#	define GZCAT "/usr/bin/zcat"
+#       define HERROR 1
+#	define TERMIOS 1
+#       define HAS_GETCWD 1
+#	define HAS_DOMAINNAME 1
+#       define U_WAIT 1
+#	define GETCWDSIZET 1
+#	define NO_CONST 1       /* avoid prototype conflict */
+#	include <sys/types.h>
+#	include <sys/param.h>
 #endif
 
 #ifdef BSD
