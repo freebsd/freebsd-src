@@ -275,7 +275,6 @@ vm_init2(void)
 #endif
 	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	pmap_init2();
-	vm_object_init2();
 }
 
 static __inline void
