@@ -471,6 +471,12 @@
       <para arch="i386">The &man.el.4; driver can now be loaded as a
       module.</para>
 
+      <para arch="i386">The &man.em.4; driver has been added to
+      support NICs based on the Intel 82542, 82543, and 82544 Gigabit
+      Ethernet controller chips.  The driver supports transmit/receive
+      checksum offload and jumbo frames on 82543 and 82544-based
+      adapters.</para>
+
       <para>The &man.faith.4; device is now loadable, unloadable, and
       clonable.</para>
 
@@ -586,6 +592,18 @@
       protocol or routing) can be performed on these devices.  The
       <varname>SIOCGIFCONF</varname> ioctl may be performed on the
       special <filename>/dev/network</filename> node.</para>
+
+      <para arch="i386">Selected network drivers now implement a
+      semi-polling mode, which makes systems much more resilient to
+      attacks and overloads.  To enable polling, the following options
+      are required in a kernel configuration file:
+
+      <programlisting>options DEVICE_POLLING
+options HZ=1000 # not compulsory but strongly recommended</programlisting>
+
+      The <varname>kern.polling.enable</varname> sysctl variable will
+      then activate polling mode.  The devices initially supporting
+      polling are &man.dc.4;, &man.fxp.4;, and &man.sis.4;. &merged;</para>
     </sect3>
 
     <sect3>
@@ -767,6 +785,9 @@
       <para>The &man.ata.4; driver now has support for ATA
       <quote>pseudo</quote> RAID controllers as the Promise Fasttrak and
       HighPoint HPT370 controllers. &merged;</para>
+
+      <para>The &man.ata.4; driver now supports a wider variety of SiS
+      chipsets, as listed in the Hardware Notes.</para>
 
       <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
       supported. &merged;</para>
@@ -1320,6 +1341,12 @@
 
     <para>A security hole in the form of a buffer overflow in the
     &man.semop.2; system call has been closed. &merged;</para>
+
+    <para>A security hole in <application>OpenSSH</application>,
+    involving the <literal>UseLogin yes</literal> setting, has been
+    closed (note that the default for this setting is
+    <literal>UseLogin no</literal>). &merged;</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
