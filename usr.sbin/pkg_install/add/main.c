@@ -44,7 +44,7 @@ char	*Directory	= NULL;
 char	FirstPen[FILENAME_MAX];
 add_mode_t AddMode	= NORMAL;
 
-#define MAX_PKGS	20
+#define MAX_PKGS	200
 char	pkgnames[MAX_PKGS][MAXPATHLEN];
 char	*pkgs[MAX_PKGS];
 
