@@ -239,7 +239,6 @@ SUBDIR+=aic \
 	hea \
 	hfa \
 	iir \
-	lomac \
 	mly \
 	netgraph \
 	pccard \
@@ -260,7 +259,6 @@ SUBDIR+=aic \
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=linprocfs \
 	linux \
-	lomac \
 	osf1 \
 	sound \
 	sppp \
