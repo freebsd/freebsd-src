@@ -475,7 +475,7 @@ random_ioctl(dev, cmd, data, flags, p)
 	 * about how easily the randomness might be guessed.
 	 */
 	error = suser(p);
-	if (error != 0)
+	if (error != 0 && cmd != FIONBIO && cmd != FIOASYNC)
 		return (error);
 
 	/*
