@@ -1094,17 +1094,17 @@ static void
 mac_mls_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 {
 	struct mac_mls *dest;
-	int level;
+	int type;
 
 	dest = SLOT(ifnetlabel);
 
 	if (ifnet->if_type == IFT_LOOP)
-		level = MAC_MLS_TYPE_EQUAL;
+		type = MAC_MLS_TYPE_EQUAL;
 	else
-		level = MAC_MLS_TYPE_LOW;
+		type = MAC_MLS_TYPE_LOW;
 
-	mac_mls_set_single(dest, level, 0, NULL);
-	mac_mls_set_range(dest, level, 0, NULL, level, 0, NULL);
+	mac_mls_set_single(dest, type, 0, NULL);
+	mac_mls_set_range(dest, type, 0, NULL, type, 0, NULL);
 }
 
 static void
