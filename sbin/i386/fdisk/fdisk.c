@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/disklabel.h>
 #include <stdio.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -53,7 +54,12 @@ static char lbuf[LBUF];
 
 #define SECSIZE 512
 
-char *disk = "/dev/rwd0d";
+const char *disk;
+const char *disks[] =
+{
+  "/dev/rwd0", "/dev/rsd0", "/dev/rod0", 0
+};
+
 char *name;
 
 struct disklabel disklabel;		/* disk parameters */
@@ -174,7 +180,7 @@ struct part_type
 main(argc, argv)
 char **argv;
 {
-int	i;
+	int	i;
 
 	name = *argv;
 	{register char *cp = name;
@@ -215,10 +221,41 @@ int	i;
 	}
 
 	if (argc > 0)
-		disk = argv[0];
+	{
+		static char realname[12];
 
-	if (open_disk(u_flag) < 0)
-		exit(1);
+		if(strncmp(argv[0], "/dev", 4) == 0)
+			disk = argv[0];
+		else
+		{
+			snprintf(realname, 12, "/dev/r%s", argv[0]);
+			disk = realname;
+		}
+		
+		if (open_disk(u_flag) < 0)
+		{
+			fprintf(stderr, "Cannot open disk %s (%s)\n",
+				disk, sys_errlist[errno]);
+			exit(1);
+		}
+	}
+	else
+	{
+		int i, rv;
+
+		for(i = 0; disks[i]; i++)
+		{
+			disk = disks[i];
+			rv = open_disk(u_flag);
+			if(rv != -2) break;
+		}
+		if(rv < 0)
+		{
+			fprintf(stderr, "Cannot open any disk (%s)\n",
+				sys_errlist[errno]);
+			exit(1);
+		}
+	}
 
 	printf("******* Working on device %s *******\n",disk);
 	if(u_flag)
@@ -255,7 +292,7 @@ int	i;
 	exit(0);
 
 usage:
-	printf("fdisk {-a|-i|-r} {disk}\n");
+	printf("fdisk {-a|-i|-u} [-{0,1,2,3}] [disk]\n");
 }
 
 print_s0(which)
@@ -465,6 +502,8 @@ struct stat 	st;
 		fprintf(stderr,"%s: Device %s is not character special\n",
 			name, disk);
 	if ((fd = open(disk, a_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+		if(errno == ENXIO)
+			return -2;
 		fprintf(stderr,"%s: Can't open device %s\n", name, disk);
 		return -1;
 	}
@@ -543,14 +582,18 @@ write_s0()
 	 * sector 0. (e.g. empty disk)
 	 */
 	flag = 1;
+#ifdef NOT_NOW
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
 		perror("ioctl DIOCWLABEL");
+#endif
 	if (write_disk(0, (char *) mboot.bootinst) == -1) {
 		fprintf(stderr, "%s: Can't write fdisk partition table\n",
 			name);
 		return -1;
 	flag = 0;
+#ifdef NOT_NOW
 	(void) ioctl(fd, DIOCWLABEL, &flag);
+#endif
 	}
 }
 
