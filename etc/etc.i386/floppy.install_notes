@@ -1,4 +1,4 @@
-                INSTALLATION INSTRUCTIONS FOR FreeBSD 1.0 GAMMA
+                INSTALLATION INSTRUCTIONS FOR FreeBSD 1.0 EPSILON
 
 Welcome to FreeBSD!  This document has been put together in an effort
 to make initial installation of the system as easy as possible.
@@ -146,4 +146,4 @@ to make initial installation of the system as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.8 1993/09/13 07:26:39 alm Exp $
+End of $Id: floppy.install_notes,v 1.9 1993/09/13 07:53:28 rgrimes Exp $
