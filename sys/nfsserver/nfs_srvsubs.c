@@ -1510,7 +1510,6 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	tocp = cnp->cn_pnbuf;
 	md = *mdp;
 	rem = mtod(md, caddr_t) + md->m_len - fromcp;
-	cnp->cn_hash = 0;
 	for (i = 0; i < len; i++) {
 		while (rem == 0) {
 			md = md->m_next;
@@ -1525,7 +1524,6 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			error = EACCES;
 			goto out;
 		}
-		cnp->cn_hash += (unsigned char)*fromcp;
 		*tocp++ = *fromcp++;
 		rem--;
 	}

@@ -297,16 +297,14 @@ dirloop:
 	/*
 	 * Search a new directory.
 	 *
-	 * The cn_hash value is for use by vfs_cache.
 	 * The last component of the filename is left accessible via
 	 * cnp->cn_nameptr for callers that need the name. Callers needing
 	 * the name set the SAVENAME flag. When done, they assume
 	 * responsibility for freeing the pathname buffer.
 	 */
 	cnp->cn_consume = 0;
-	cnp->cn_hash = 0;
 	for (cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
-		cnp->cn_hash += (unsigned char)*cp;
+		continue;
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
 	if (cnp->cn_namelen > NAME_MAX) {
 		error = ENAMETOOLONG;
@@ -601,17 +599,12 @@ relookup(dvp, vpp, cnp)
 	/*
 	 * Search a new directory.
 	 *
-	 * The cn_hash value is for use by vfs_cache.
 	 * The last component of the filename is left accessible via
 	 * cnp->cn_nameptr for callers that need the name. Callers needing
 	 * the name set the SAVENAME flag. When done, they assume
 	 * responsibility for freeing the pathname buffer.
 	 */
 #ifdef NAMEI_DIAGNOSTIC
-	for (newhash = 0, cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
-		newhash += (unsigned char)*cp;
-	if (newhash != cnp->cn_hash)
-		panic("relookup: bad hash");
 	if (cnp->cn_namelen != cp - cnp->cn_nameptr)
 		panic ("relookup: bad len");
 	if (*cp != 0)

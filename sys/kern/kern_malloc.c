@@ -55,7 +55,7 @@
 #include <machine/cpu.h>
 #endif
 
-MALLOC_DEFINE(M_CACHE, "namecache", "Dynamically allocated cache entries");
+MALLOC_DEFINE(M_CACHE, "cache", "Various Dynamically allocated caches");
 MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
 

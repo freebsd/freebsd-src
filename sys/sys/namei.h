@@ -89,7 +89,6 @@ struct nameidata {
 		char	*cn_pnbuf;	/* pathname buffer */
 		char	*cn_nameptr;	/* pointer to looked up name */
 		long	cn_namelen;	/* length of looked up component */
-		u_long	cn_hash;	/* hash value of looked up name */
 		long	cn_consume;	/* chars to consume in lookup() */
 	} ni_cnd;
 };
@@ -153,22 +152,6 @@ struct nameidata {
 	(ndp)->ni_cnd.cn_proc = p; \
 }
 #endif
-
-/*
- * This structure describes the elements in the cache of recent
- * names looked up by namei.
- */
-
-struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
-	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
-	struct	vnode *nc_dvp;		/* vnode of parent of name */
-	struct	vnode *nc_vp;		/* vnode the name refers to */
-	u_char	nc_flag;		/* flag bits */
-	u_char	nc_nlen;		/* length of name */
-	char	nc_name[0];		/* segment name */
-};
 
 #ifdef KERNEL
 

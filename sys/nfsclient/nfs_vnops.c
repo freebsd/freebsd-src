@@ -2373,10 +2373,6 @@ nfs_readdirplusrpc(vp, uiop, cred)
 				dp->d_type =
 				    IFTODT(VTTOIF(np->n_vattr.va_type));
 				ndp->ni_vp = newvp;
-				cnp->cn_hash = 0;
-				for (cp = cnp->cn_nameptr, i = 1; i <= len;
-				    i++, cp++)
-				    cnp->cn_hash += (unsigned char)*cp;
 			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 			    }
 			} else {
