@@ -48,9 +48,10 @@ suitable for gas to consume.
 #include "config.h"
 #include "bin-bugs.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
+#include "getopt.h"
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -66,6 +67,7 @@ extern char *malloc ();
 #include "sb.h"
 #include "macro.h"
 #include "asintl.h"
+#include "xregex.h"
 
 char *program_version = "1.2";
 
@@ -227,6 +229,8 @@ static void hash_add_to_string_table PARAMS ((hash_table *, sb *, sb *, int));
 static void hash_add_to_int_table PARAMS ((hash_table *, sb *, int));
 static hash_entry *hash_lookup PARAMS ((hash_table *, sb *));
 static void checkconst PARAMS ((int, exp_t *));
+static int is_flonum PARAMS ((int, sb *));
+static int chew_flonum PARAMS ((int, sb *, sb *));
 static int sb_strtol PARAMS ((int, sb *, int, int *));
 static int level_0 PARAMS ((int, sb *, exp_t *));
 static int level_1 PARAMS ((int, sb *, exp_t *));
@@ -520,6 +524,62 @@ checkconst (op, term)
     {
       ERROR ((stderr, _("the %c operator cannot take non-absolute arguments.\n"), op));
     }
+}
+
+/* Chew the flonum from the string starting at idx.  Adjust idx to
+   point to the next character after the flonum.  */
+
+static int
+chew_flonum (idx, string, out)
+     int idx;
+     sb *string;
+     sb *out;
+{
+  sb buf;
+  regex_t reg;
+  regmatch_t match;
+
+  /* Duplicate and null terminate `string'.  */
+  sb_new (&buf);
+  sb_add_sb (&buf, string);
+  sb_add_char (&buf, '\0');
+
+  if (regcomp (&reg, "([0-9]*\\.[0-9]+([eE][+-]?[0-9]+)?)", REG_EXTENDED) != 0)
+    return idx;
+  if (regexec (&reg, &buf.ptr[idx], 1, &match, 0) != 0)
+    return idx;
+
+  /* Copy the match to the output.  */
+  assert (match.rm_eo >= match.rm_so);
+  sb_add_buffer (out, &buf.ptr[idx], match.rm_eo - match.rm_so);
+
+  sb_kill (&buf);
+  regfree (&reg);
+  idx += match.rm_eo;
+  return idx;
+}
+
+static int
+is_flonum (idx, string)
+     int idx;
+     sb *string;
+{
+  sb buf;
+  regex_t reg;
+  int rc;
+
+  /* Duplicate and null terminate `string'.  */
+  sb_new (&buf);
+  sb_add_sb (&buf, string);
+  sb_add_char (&buf, '\0');
+
+  if (regcomp (&reg, "^[0-9]*\\.[0-9]+([eE][+-]?[0-9]+)?", REG_EXTENDED) != 0)
+    return 0;
+
+  rc = regexec (&reg, &buf.ptr[idx], 0, NULL, 0);
+  sb_kill (&buf);
+  regfree (&reg);
+  return (rc == 0);
 }
 
 /* Turn the number in string at idx into a number of base, fill in
@@ -1131,6 +1191,10 @@ change_base (idx, in, out)
 	      sb_add_char (out, in->ptr[idx]);
 	      idx++;
 	    }
+	}
+      else if (is_flonum (idx, in))
+	{
+	  idx = chew_flonum (idx, in, out);
 	}
       else if (ISDIGIT (in->ptr[idx]))
 	{

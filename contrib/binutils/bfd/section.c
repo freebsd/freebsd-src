@@ -230,12 +230,6 @@ CODE_FRAGMENT
 .     standard data.  *}
 .#define SEC_CONSTRUCTOR 0x100
 .
-.  {* The section is a constructor, and should be placed at the
-.     end of the text, data, or bss section(?).  *}
-.#define SEC_CONSTRUCTOR_TEXT 0x1100
-.#define SEC_CONSTRUCTOR_DATA 0x2100
-.#define SEC_CONSTRUCTOR_BSS  0x3100
-.
 .  {* The section has contents - a data section could be
 .     <<SEC_ALLOC>> | <<SEC_HAS_CONTENTS>>; a debug section could be
 .     <<SEC_HAS_CONTENTS>>  *}
@@ -255,6 +249,9 @@ CODE_FRAGMENT
 .     allow the back end to control what the linker does with
 .     sections.  *}
 .#define SEC_COFF_SHARED_LIBRARY 0x800
+.
+.  {* The section contains thread local data.  *}
+.#define SEC_THREAD_LOCAL 0x1000
 .
 .  {* The section has GOT references.  This flag is only for the
 .     linker, and is currently only used by the elf32-hppa back end.
@@ -801,7 +798,7 @@ bfd_get_unique_section_name (abfd, templat, count)
   sname = bfd_malloc ((bfd_size_type) len + 8);
   if (sname == NULL)
     return NULL;
-  strcpy (sname, templat);
+  memcpy (sname, templat, len);
   num = 1;
   if (count != NULL)
     num = *count;
@@ -1304,77 +1301,57 @@ SYNOPSIS
 
 DESCRIPTION
 	Remove @var{section} from the output.  If the output section
-	becomes empty, remove it from the output bfd.  @var{info} may
-	be NULL; if it is not, it is used to decide whether the output
-	section is empty.
+	becomes empty, remove it from the output bfd.
+
+	This function won't actually do anything except twiddle flags
+	if called too late in the linking process, when it's not safe
+	to remove sections.
 */
 void
 _bfd_strip_section_from_output (info, s)
      struct bfd_link_info *info;
      asection *s;
 {
-  asection **spp, *os;
-  struct bfd_link_order *p, *pp;
-  boolean keep_os;
-
-  /* Excise the input section from the link order.
-
-     FIXME: For all calls that I can see to this function, the link
-     orders have not yet been set up.  So why are we checking them? --
-     Ian */
-  os = s->output_section;
-
-  /* Handle a section that wasn't output.  */
-  if (os == NULL)
-    return;
-
-  for (p = os->link_order_head, pp = NULL; p != NULL; pp = p, p = p->next)
-    if (p->type == bfd_indirect_link_order
-	&& p->u.indirect.section == s)
-      {
-	if (pp)
-	  pp->next = p->next;
-	else
-	  os->link_order_head = p->next;
-	if (!p->next)
-	  os->link_order_tail = pp;
-	break;
-      }
-
-  keep_os = os->link_order_head != NULL;
-
-  if (! keep_os && info != NULL)
-    {
-      bfd *abfd;
-      for (abfd = info->input_bfds; abfd != NULL; abfd = abfd->link_next)
-	{
-	  asection *is;
-	  for (is = abfd->sections; is != NULL; is = is->next)
-	    {
-	      if (is != s && is->output_section == os
-		  && (is->flags & SEC_EXCLUDE) == 0)
-		break;
-	    }
-	  if (is != NULL)
-	    break;
-	}
-      if (abfd != NULL)
-	keep_os = true;
-    }
-
-  /* If the output section is empty, remove it too.  Careful about sections
-     that have been discarded in the link script -- they are mapped to
-     bfd_abs_section, which has no owner.  */
-  if (!keep_os && os->owner != NULL)
-    {
-      for (spp = &os->owner->sections; *spp; spp = &(*spp)->next)
-	if (*spp == os)
-	  {
-	    bfd_section_list_remove (os->owner, spp);
-	    os->owner->section_count--;
-	    break;
-	  }
-    }
+  asection *os;
+  asection *is;
+  bfd *abfd;
 
   s->flags |= SEC_EXCLUDE;
+
+  /* If the section wasn't assigned to an output section, or the
+     section has been discarded by the linker script, there's nothing
+     more to do.  */
+  os = s->output_section;
+  if (os == NULL || os->owner == NULL)
+    return;
+
+  /* If the output section has other (non-excluded) input sections, we
+     can't remove it.  */
+  for (abfd = info->input_bfds; abfd != NULL; abfd = abfd->link_next)
+    for (is = abfd->sections; is != NULL; is = is->next)
+      if (is->output_section == os && (is->flags & SEC_EXCLUDE) == 0)
+	return;
+
+  /* If the output section is empty, flag it for removal too.
+     See ldlang.c:strip_excluded_output_sections for the action.  */
+  os->flags |= SEC_EXCLUDE;
+}
+
+/*
+FUNCTION
+	bfd_generic_discard_group
+
+SYNOPSIS
+	boolean bfd_generic_discard_group (bfd *abfd, asection *group);
+
+DESCRIPTION
+	Remove all members of @var{group} from the output.
+*/
+
+boolean
+bfd_generic_discard_group (abfd, group)
+     bfd *abfd ATTRIBUTE_UNUSED;
+     asection *group ATTRIBUTE_UNUSED;
+{
+  return true;
 }

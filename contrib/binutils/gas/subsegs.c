@@ -652,7 +652,7 @@ subsegs_print_statistics (file)
 	  count++;
 	}
       fprintf (file, "\n");
-      fprintf (file, "\t%p %-10s\t%10d frags\n", frchp,
+      fprintf (file, "\t%p %-10s\t%10d frags\n", (void *) frchp,
 	       segment_name (frchp->frch_seg), count);
     }
 }

@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "NM 1"
-.TH NM 1 "2002-05-14" "binutils-2.12.1" "GNU Development Tools"
+.TH NM 1 "2002-08-05" "binutils-2.12.91" "GNU Development Tools"
 .UC
 .SH "NAME"
 nm \- list symbols from object files
@@ -137,7 +137,8 @@ nm \- list symbols from object files
 .IX Header "SYNOPSIS"
 nm [\fB\-a\fR|\fB\-\-debug\-syms\fR] [\fB\-g\fR|\fB\-\-extern\-only\fR]
    [\fB\-B\fR] [\fB\-C\fR|\fB\-\-demangle\fR[=\fIstyle\fR]] [\fB\-D\fR|\fB\-\-dynamic\fR]
-   [\fB\-s\fR|\fB\-\-print\-armap\fR] [\fB\-A\fR|\fB\-o\fR|\fB\-\-print\-file\-name\fR]
+   [\fB\-S\fR|\fB\-\-print\-size\fR] [\fB\-s\fR|\fB\-\-print\-armap\fR]
+   [\fB\-A\fR|\fB\-o\fR|\fB\-\-print\-file\-name\fR]
    [\fB\-n\fR|\fB\-v\fR|\fB\-\-numeric\-sort\fR] [\fB\-p\fR|\fB\-\-no\-sort\fR]
    [\fB\-r\fR|\fB\-\-reverse\-sort\fR] [\fB\-\-size\-sort\fR] [\fB\-u\fR|\fB\-\-undefined\-only\fR]
    [\fB\-t\fR \fIradix\fR|\fB\-\-radix=\fR\fIradix\fR] [\fB\-P\fR|\fB\-\-portability\fR]
@@ -343,6 +344,13 @@ encountered.
 .PD
 Use the \s-1POSIX\s0.2 standard output format instead of the default format.
 Equivalent to \fB\-f posix\fR.
+.IP "\fB\-S\fR" 4
+.IX Item "-S"
+.PD 0
+.IP "\fB\-\-print\-size\fR" 4
+.IX Item "--print-size"
+.PD
+Print size of defined symbols for the \f(CW\*(C`bsd\*(C'\fR output format.
 .IP "\fB\-s\fR" 4
 .IX Item "-s"
 .PD 0

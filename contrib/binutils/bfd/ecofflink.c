@@ -1,5 +1,5 @@
 /* Routines to link ECOFF debugging information.
-   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>.
 
@@ -1314,12 +1314,12 @@ bfd_ecoff_debug_externals (abfd, debug, swap, relocateable, get_extr,
       sym_ptr = *sym_ptr_ptr;
 
       /* Get the external symbol information.  */
-      if ((*get_extr) (sym_ptr, &esym) == false)
+      if (! (*get_extr) (sym_ptr, &esym))
 	continue;
 
       /* If we're producing an executable, move common symbols into
 	 bss.  */
-      if (relocateable == false)
+      if (! relocateable)
 	{
 	  if (esym.asym.sc == scCommon)
 	    esym.asym.sc = scBss;
@@ -1376,20 +1376,18 @@ bfd_ecoff_debug_one_external (abfd, debug, swap, name, esym)
   if ((size_t) (debug->ssext_end - debug->ssext)
       < symhdr->issExtMax + namelen + 1)
     {
-      if (ecoff_add_bytes ((char **) &debug->ssext,
-			   (char **) &debug->ssext_end,
-			   symhdr->issExtMax + namelen + 1)
-	  == false)
+      if (! ecoff_add_bytes ((char **) &debug->ssext,
+			     (char **) &debug->ssext_end,
+			     symhdr->issExtMax + namelen + 1))
 	return false;
     }
   if ((size_t) ((char *) debug->external_ext_end
 		- (char *) debug->external_ext)
       < (symhdr->iextMax + 1) * external_ext_size)
     {
-      if (ecoff_add_bytes ((char **) &debug->external_ext,
-			   (char **) &debug->external_ext_end,
-			   (symhdr->iextMax + 1) * (size_t) external_ext_size)
-	  == false)
+      if (! ecoff_add_bytes ((char **) &debug->external_ext,
+			     (char **) &debug->external_ext_end,
+			     (symhdr->iextMax + 1) * (size_t) external_ext_size))
 	return false;
     }
 
@@ -1650,11 +1648,10 @@ ecoff_write_shuffle (abfd, swap, shuffle, space)
       bfd_byte *s;
 
       i = swap->debug_align - (total & (swap->debug_align - 1));
-      s = (bfd_byte *) bfd_malloc ((bfd_size_type) i);
+      s = (bfd_byte *) bfd_zmalloc ((bfd_size_type) i);
       if (s == NULL && i != 0)
 	return false;
 
-      memset ((PTR) s, 0, i);
       if (bfd_bwrite ((PTR) s, (bfd_size_type) i, abfd) != i)
 	{
 	  free (s);
@@ -1736,10 +1733,10 @@ bfd_ecoff_write_accumulated_debug (handle, abfd, debug, swap, info, where)
 	  bfd_byte *s;
 
 	  i = swap->debug_align - (total & (swap->debug_align - 1));
-	  s = (bfd_byte *) bfd_malloc ((bfd_size_type) i);
+	  s = (bfd_byte *) bfd_zmalloc ((bfd_size_type) i);
 	  if (s == NULL && i != 0)
 	    goto error_return;
-	  memset ((PTR) s, 0, i);
+
 	  if (bfd_bwrite ((PTR) s, (bfd_size_type) i, abfd) != i)
 	    {
 	      free (s);
@@ -1761,10 +1758,10 @@ bfd_ecoff_write_accumulated_debug (handle, abfd, debug, swap, info, where)
 
       i = (swap->debug_align
 	   - (debug->symbolic_header.issExtMax & (swap->debug_align - 1)));
-      s = (bfd_byte *) bfd_malloc ((bfd_size_type) i);
+      s = (bfd_byte *) bfd_zmalloc ((bfd_size_type) i);
       if (s == NULL && i != 0)
 	goto error_return;
-      memset ((PTR) s, 0, i);
+
       if (bfd_bwrite ((PTR) s, (bfd_size_type) i, abfd) != i)
 	{
 	  free (s);

@@ -26,12 +26,12 @@
 
    All debugging information is preserved */
 
-#include <bfd.h>
+#include "bfd.h"
 #include "bucomm.h"
 #include "sysroff.h"
 #include "coffgrok.h"
-#include <libiberty.h>
-#include <getopt.h>
+#include "libiberty.h"
+#include "getopt.h"
 
 #include "coff/internal.h"
 #include "../bfd/libcoff.h"
@@ -104,7 +104,7 @@ static int debug = 0;
 static int quick = 0;
 static int noprescan = 0;
 static struct coff_ofile *tree;
-/* Obsolete ?? 
+/* Obsolete ??
    static int absolute_p;
  */
 
@@ -923,7 +923,7 @@ walk_tree_type_1 (sfile, symbol, type, nest)
     }
 }
 
-/* Obsolete ? 
+/* Obsolete ?
    static void
    dty_start ()
    {
@@ -1632,17 +1632,17 @@ wr_cs ()
     0x80,			/* IT */
     0x21,			/* RL */
     0x00,			/* number of chars in variable length part */
-    0x80,			/* hd */ 
-    0x00,			/* hs */ 
-    0x80,			/* un */ 
-    0x00,			/* us */ 
-    0x80,			/* sc */ 
-    0x00,			/* ss */ 
-    0x80,			/* er */ 
-    0x80,			/* ed */ 
-    0x80,			/* sh */ 
-    0x80,			/* ob */ 
-    0x80,			/* rl */ 
+    0x80,			/* hd */
+    0x00,			/* hs */
+    0x80,			/* un */
+    0x00,			/* us */
+    0x80,			/* sc */
+    0x00,			/* ss */
+    0x80,			/* er */
+    0x80,			/* ed */
+    0x80,			/* sh */
+    0x80,			/* ob */
+    0x80,			/* rl */
     0x80,			/* du */
     0x80,			/* dps */
     0x80,			/* dsy */
@@ -1886,7 +1886,7 @@ wr_unit_info (ptr)
       p2 = ftell (file);
       fseek (file, p1, SEEK_SET);
       wr_un (ptr, sfile, first, nsecs);
-      fseek (file, p2, SEEK_SET); 
+      fseek (file, p2, SEEK_SET);
       wr_er (ptr, sfile, first);
       wr_ed (ptr, sfile, first);
       first = 0;

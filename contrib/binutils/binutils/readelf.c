@@ -56,7 +56,9 @@
 #include "elf/cris.h"
 #include "elf/d10v.h"
 #include "elf/d30v.h"
+#include "elf/dlx.h"
 #include "elf/fr30.h"
+#include "elf/frv.h"
 #include "elf/h8.h"
 #include "elf/hppa.h"
 #include "elf/i386.h"
@@ -65,6 +67,7 @@
 #include "elf/ia64.h"
 #include "elf/m32r.h"
 #include "elf/m68k.h"
+#include "elf/m68hc11.h"
 #include "elf/mcore.h"
 #include "elf/mips.h"
 #include "elf/mmix.h"
@@ -77,6 +80,7 @@
 #include "elf/sh.h"
 #include "elf/sparc.h"
 #include "elf/v850.h"
+#include "elf/vax.h"
 #include "elf/x86-64.h"
 #include "elf/xstormy16.h"
 
@@ -260,6 +264,7 @@ static int		  process_corefile_note_segment  PARAMS ((FILE *, bfd_vma, bfd_vma))
 static int		  process_corefile_note_segments PARAMS ((FILE *));
 static int		  process_corefile_contents	 PARAMS ((FILE *));
 static int		  process_arch_specific		 PARAMS ((FILE *));
+static int		  process_gnu_liblist		 PARAMS ((FILE *));
 
 typedef int Elf32_Word;
 
@@ -521,7 +526,7 @@ print_vma (vma, mode)
 
 /* Display a symbol on stdout.  If do_wide is not true then
    format the symbol to be at most WIDTH characters,
-   truhncating as necessary.  If WIDTH is negative then
+   truncating as necessary.  If WIDTH is negative then
    format the string to be exactly - WIDTH characters,
    truncating or padding as necessary.  */
 
@@ -534,7 +539,7 @@ print_symbol (width, symbol)
     printf (symbol);
   else if (width < 0)
     printf ("%-*.*s", width, width, symbol);
-  else 
+  else
     printf ("%-.*s", width, symbol);
 }
 
@@ -601,6 +606,7 @@ guess_is_rela (e_machine)
     case EM_386:
     case EM_486:
     case EM_960:
+    case EM_DLX:
     case EM_OPENRISC:
     case EM_OR32:
     case EM_M32R:
@@ -631,6 +637,7 @@ guess_is_rela (e_machine)
     case EM_CYGNUS_MN10300:
     case EM_FR30:
     case EM_CYGNUS_FR30:
+    case EM_CYGNUS_FRV:
     case EM_SH:
     case EM_ALPHA:
     case EM_MCORE:
@@ -644,6 +651,7 @@ guess_is_rela (e_machine)
     case EM_S390_OLD:
     case EM_MMIX:
     case EM_XSTORMY16:
+    case EM_VAX:
       return TRUE;
 
     case EM_MMA:
@@ -663,7 +671,6 @@ guess_is_rela (e_machine)
     case EM_68HC05:
     case EM_SVX:
     case EM_ST19:
-    case EM_VAX:
     default:
       warn (_("Don't know about relocations on this machine architecture\n"));
       return FALSE;
@@ -911,7 +918,7 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	}
       else
 	{
-	  if (elf_header.e_machine == EM_MIPS) 
+	  if (elf_header.e_machine == EM_MIPS)
 	    {
 	      type  = ELF64_MIPS_R_TYPE (info);
 	      type2 = ELF64_MIPS_R_TYPE2 (info);
@@ -971,6 +978,11 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	  rtype = elf_i386_reloc_type (type);
 	  break;
 
+        case EM_68HC11:
+        case EM_68HC12:
+          rtype = elf_m68hc11_reloc_type (type);
+          break;
+
 	case EM_68K:
 	  rtype = elf_m68k_reloc_type (type);
 	  break;
@@ -1006,6 +1018,10 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	  rtype = elf_d30v_reloc_type (type);
 	  break;
 
+	case EM_DLX:
+	  rtype = elf_dlx_reloc_type (type);
+	  break;
+
 	case EM_SH:
 	  rtype = elf_sh_reloc_type (type);
 	  break;
@@ -1025,6 +1041,10 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	  rtype = elf_fr30_reloc_type (type);
 	  break;
 
+        case EM_CYGNUS_FRV:
+          rtype = elf_frv_reloc_type (type);
+          break;
+
 	case EM_MCORE:
 	  rtype = elf_mcore_reloc_type (type);
 	  break;
@@ -1041,7 +1061,7 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
 	  rtype = elf_mips_reloc_type (type);
-	  if (!is_32bit_elf) 
+	  if (!is_32bit_elf)
 	    {
 	      rtype2 = elf_mips_reloc_type (type2);
 	      rtype3 = elf_mips_reloc_type (type3);
@@ -1095,13 +1115,17 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	  rtype = elf_x86_64_reloc_type (type);
 	  break;
 
-        case EM_S390_OLD:
-        case EM_S390:
-          rtype = elf_s390_reloc_type (type);
-          break;
+	case EM_S390_OLD:
+	case EM_S390:
+	  rtype = elf_s390_reloc_type (type);
+	  break;
 
 	case EM_XSTORMY16:
 	  rtype = elf_xstormy16_reloc_type (type);
+	  break;
+
+	case EM_VAX:
+	  rtype = elf_vax_reloc_type (type);
 	  break;
 	}
 
@@ -1151,7 +1175,7 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 
       putchar ('\n');
 
-      if (! is_32bit_elf && elf_header.e_machine == EM_MIPS) 
+      if (! is_32bit_elf && elf_header.e_machine == EM_MIPS)
 	{
 	  printf ("                    Type2: ");
 
@@ -1175,7 +1199,7 @@ dump_relocations (file, rel_offset, rel_size, symtab, nsyms, strtab, is_rela)
 	  else
 	    printf ("%-17.17s", rtype3);
 
-          putchar ('\n');
+	  putchar ('\n');
 	}
     }
 
@@ -1365,6 +1389,12 @@ get_dynamic_type (type)
     case DT_USED:	return "USED";
     case DT_FILTER:	return "FILTER";
 
+    case DT_GNU_PRELINKED: return "GNU_PRELINKED";
+    case DT_GNU_CONFLICT: return "GNU_CONFLICT";
+    case DT_GNU_CONFLICTSZ: return "GNU_CONFLICTSZ";
+    case DT_GNU_LIBLIST: return "GNU_LIBLIST";
+    case DT_GNU_LIBLISTSZ: return "GNU_LIBLISTSZ";
+
     default:
       if ((type >= DT_LOPROC) && (type <= DT_HIPROC))
 	{
@@ -1502,6 +1532,7 @@ get_machine_name (e_machine)
     case EM_MN10200:		return "mn10200";
     case EM_CYGNUS_FR30:
     case EM_FR30:		return "Fujitsu FR30";
+    case EM_CYGNUS_FRV:	        return "Fujitsu FR-V";
     case EM_PJ_OLD:
     case EM_PJ:                 return "picoJava";
     case EM_MMA:		return "Fujitsu Multimedia Accelerator";
@@ -1537,6 +1568,7 @@ get_machine_name (e_machine)
     case EM_XSTORMY16:		return "Sanyo Xstormy16 CPU core";
     case EM_OPENRISC:
     case EM_OR32:		return "OpenRISC";
+    case EM_DLX:		return "OpenDLX";
     default:
       sprintf (buff, _("<unknown>: %x"), e_machine);
       return buff;
@@ -1705,12 +1737,12 @@ get_machine_flags (e_flags, e_machine)
 	  decode_ARM_machine_flags (e_flags, buf);
 	  break;
 
-        case EM_68K:
-          if (e_flags & EF_CPU32)
-            strcat (buf, ", cpu32");
+	case EM_68K:
+	  if (e_flags & EF_CPU32)
+	    strcat (buf, ", cpu32");
 	  if (e_flags & EF_M68000)
 	    strcat (buf, ", m68000");
-          break;
+	  break;
 
 	case EM_PPC:
 	  if (e_flags & EF_PPC_EMB)
@@ -1901,6 +1933,15 @@ get_machine_flags (e_flags, e_machine)
 	  if ((e_flags & EF_IA_64_ABSOLUTE))
 	    strcat (buf, ", absolute");
 	  break;
+
+	case EM_VAX:
+	  if ((e_flags & EF_VAX_NONPIC))
+	    strcat (buf, ", non-PIC");
+	  if ((e_flags & EF_VAX_DFLOAT))
+	    strcat (buf, ", D-Float");
+	  if ((e_flags & EF_VAX_GFLOAT))
+	    strcat (buf, ", G-Float");
+	  break;
 	}
     }
 
@@ -1987,6 +2028,7 @@ get_segment_type (p_type)
     case PT_NOTE:       return "NOTE";
     case PT_SHLIB:      return "SHLIB";
     case PT_PHDR:       return "PHDR";
+    case PT_TLS:	return "TLS";
 
     case PT_GNU_EH_FRAME:
 			return "GNU_EH_FRAME";
@@ -2159,6 +2201,7 @@ get_section_type_name (sh_type)
     case 0x6ffffffc:	        return "VERDEF";
     case 0x7ffffffd:		return "AUXILIARY";
     case 0x7fffffff:		return "FILTER";
+    case SHT_GNU_LIBLIST:	return "GNU_LIBLIST";
 
     default:
       if ((sh_type >= SHT_LOPROC) && (sh_type <= SHT_HIPROC))
@@ -2198,6 +2241,8 @@ get_section_type_name (sh_type)
     }
 }
 
+#define OPTION_DEBUG_DUMP	512
+
 struct option options [] =
 {
   {"all",              no_argument, 0, 'a'},
@@ -2217,7 +2262,7 @@ struct option options [] =
   {"version-info",     no_argument, 0, 'V'},
   {"use-dynamic",      no_argument, 0, 'D'},
   {"hex-dump",         required_argument, 0, 'x'},
-  {"debug-dump",       optional_argument, 0, 'w'},
+  {"debug-dump",       optional_argument, 0, OPTION_DEBUG_DUMP},
   {"unwind",	       no_argument, 0, 'u'},
 #ifdef SUPPORT_DISASSEMBLY
   {"instruction-dump", required_argument, 0, 'i'},
@@ -2252,7 +2297,8 @@ usage ()
   -A --arch-specific     Display architecture specific information (if any).\n\
   -D --use-dynamic       Use the dynamic section info when displaying symbols\n\
   -x --hex-dump=<number> Dump the contents of section <number>\n\
-  -w --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]\n\
+  -w[liaprmfFso] or\n\
+  --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]\n\
                          Display the contents of DWARF2 debug sections\n"));
 #ifdef SUPPORT_DISASSEMBLY
   fprintf (stdout, _("\
@@ -2392,7 +2438,7 @@ parse_args (argc, argv)
 	  else
 	    {
 	      unsigned int index = 0;
-	      
+
 	      do_debugging = 0;
 
 	      while (optarg[index])
@@ -2443,11 +2489,93 @@ parse_args (argc, argv)
 		  case 'O':
 		    do_debug_loc = 1;
 		    break;
-		    
+
 		  default:
 		    warn (_("Unrecognized debug option '%s'\n"), optarg);
 		    break;
 		  }
+	    }
+	  break;
+	case OPTION_DEBUG_DUMP:
+	  do_dump ++;
+	  if (optarg == 0)
+	    do_debugging = 1;
+	  else
+	    {
+	      const char *debug_dump_opt[]
+		= { "line", "info", "abbrev", "pubnames", "ranges",
+		    "macro", "frames", "frames-interp", "str", "loc", NULL };
+	      unsigned int index;
+	      const char *p;
+
+	      do_debugging = 0;
+
+	      p = optarg;
+	      while (*p)
+		{
+		  for (index = 0; debug_dump_opt[index]; index++)
+		    {
+		      size_t len = strlen (debug_dump_opt[index]);
+
+		      if (strncmp (p, debug_dump_opt[index], len) == 0
+			  && (p[len] == ',' || p[len] == '\0'))
+			{
+			  switch (p[0])
+			    {
+			    case 'i':
+			      do_debug_info = 1;
+			      break;
+
+			    case 'a':
+			      do_debug_abbrevs = 1;
+			      break;
+
+			    case 'l':
+			      if (p[1] == 'i')
+				do_debug_lines = 1;
+			      else
+				do_debug_loc = 1;
+			      break;
+
+			    case 'p':
+			      do_debug_pubnames = 1;
+			      break;
+
+			    case 'r':
+			      do_debug_aranges = 1;
+			      break;
+
+			    case 'f':
+			      if (len > 6)
+				do_debug_frames_interp = 1;
+			      do_debug_frames = 1;
+			      break;
+
+			    case 'm':
+			      do_debug_macinfo = 1;
+			      break;
+
+			    case 's':
+			      do_debug_str = 1;
+			      break;
+			    }
+
+			  p += len;
+			  break;
+			}
+		    }
+
+		  if (debug_dump_opt[index] == NULL)
+		    {
+		      warn (_("Unrecognized debug option '%s'\n"), p);
+		      p = strchr (p, ',');
+		      if (p == NULL)
+			break;
+		    }
+
+		  if (*p == ',')
+		    p++;
+		}
 	    }
 	  break;
 #ifdef SUPPORT_DISASSEMBLY
@@ -2763,8 +2891,10 @@ process_program_headers (file)
 
   if (do_segments)
     {
-      printf
-	(_("\nProgram Header%s:\n"), elf_header.e_phnum > 1 ? "s" : "");
+      if (elf_header.e_phnum > 1)
+	printf (_("\nProgram Headers:\n"));
+      else
+	printf (_("\nProgram Headers:\n"));
 
       if (is_32bit_elf)
 	printf
@@ -3202,6 +3332,7 @@ get_elf_section_flags (sh_flags)
 	case SHF_LINK_ORDER:       strcat (buff, "L"); break;
 	case SHF_OS_NONCONFORMING: strcat (buff, "O"); break;
 	case SHF_GROUP:            strcat (buff, "G"); break;
+	case SHF_TLS:		   strcat (buff, "T"); break;
 
 	default:
 	  if (flag & SHF_MASKOS)
@@ -3340,7 +3471,10 @@ process_section_headers (file)
   if (! do_sections)
     return 1;
 
-  printf (_("\nSection Header%s:\n"), elf_header.e_shnum > 1 ? "s" : "");
+  if (elf_header.e_shnum > 1)
+    printf (_("\nSection Headers:\n"));
+  else
+    printf (_("\nSection Header:\n"));
 
   if (is_32bit_elf)
     printf
@@ -3425,13 +3559,13 @@ process_section_headers (file)
 	{
 	  putchar (' ');
 	  print_vma (section->sh_addr, LONG_HEX);
- 	  if ((long) section->sh_offset == section->sh_offset)
- 	    printf ("  %8.8lx", (unsigned long) section->sh_offset);
- 	  else
- 	    {
- 	      printf ("  ");
- 	      print_vma (section->sh_offset, LONG_HEX);
- 	    }
+	  if ((long) section->sh_offset == section->sh_offset)
+	    printf ("  %8.8lx", (unsigned long) section->sh_offset);
+	  else
+	    {
+	      printf ("  ");
+	      print_vma (section->sh_offset, LONG_HEX);
+	    }
 	  printf ("\n       ");
 	  print_vma (section->sh_size, LONG_HEX);
 	  printf ("  ");
@@ -3546,7 +3680,7 @@ process_relocs (file)
 	      if (string_table == NULL)
 		printf ("%d", section->sh_name);
 	      else
-		printf ("'%s'", SECTION_NAME (section));
+		printf (_("'%s'"), SECTION_NAME (section));
 
 	      printf (_(" at offset 0x%lx contains %lu entries:\n"),
 		 rel_offset, (unsigned long) (rel_size / section->sh_entsize));
@@ -3979,7 +4113,7 @@ process_unwind (file)
 	  if (string_table == NULL)
 	    printf ("%d", unwsec->sh_name);
 	  else
-	    printf ("'%s'", SECTION_NAME (unwsec));
+	    printf (_("'%s'"), SECTION_NAME (unwsec));
 	}
       else
 	{
@@ -3993,7 +4127,7 @@ process_unwind (file)
 	  if (string_table == NULL)
 	    printf ("%d", unwsec->sh_name);
 	  else
-	    printf ("'%s'", SECTION_NAME (unwsec));
+	    printf (_("'%s'"), SECTION_NAME (unwsec));
 
 	  printf (_(" at offset 0x%lx contains %lu entries:\n"),
 		  (unsigned long) unwsec->sh_offset,
@@ -4242,7 +4376,10 @@ static const char *
 get_dynamic_flags (flags)
      bfd_vma flags;
 {
-  static char buff [64];
+  static char buff [128];
+  char *p = buff;
+
+  *p = '\0';
   while (flags)
     {
       bfd_vma flag;
@@ -4250,14 +4387,20 @@ get_dynamic_flags (flags)
       flag = flags & - flags;
       flags &= ~ flag;
 
+      if (p != buff)
+	*p++ = ' ';
+
       switch (flag)
 	{
-	case DF_ORIGIN:   strcat (buff, "ORIGIN "); break;
-	case DF_SYMBOLIC: strcat (buff, "SYMBOLIC "); break;
-	case DF_TEXTREL:  strcat (buff, "TEXTREL "); break;
-	case DF_BIND_NOW: strcat (buff, "BIND_NOW "); break;
-	default:          strcat (buff, "unknown "); break;
+	case DF_ORIGIN:   strcpy (p, "ORIGIN"); break;
+	case DF_SYMBOLIC: strcpy (p, "SYMBOLIC"); break;
+	case DF_TEXTREL:  strcpy (p, "TEXTREL"); break;
+	case DF_BIND_NOW: strcpy (p, "BIND_NOW"); break;
+	case DF_STATIC_TLS: strcpy (p, "STATIC_TLS"); break;
+	default:          strcpy (p, "unknown"); break;
 	}
+
+      p = strchr (p, '\0');
     }
   return buff;
 }
@@ -4443,7 +4586,7 @@ process_dynamic_segment (file)
 	{
 	case DT_FLAGS:
 	  if (do_dynamic)
-	    printf ("%s", get_dynamic_flags (entry->d_un.d_val));
+	    puts (get_dynamic_flags (entry->d_un.d_val));
 	  break;
 
 	case DT_AUXILIARY:
@@ -4705,6 +4848,8 @@ process_dynamic_segment (file)
 	case DT_MOVESZ	:
 	case DT_INIT_ARRAYSZ:
 	case DT_FINI_ARRAYSZ:
+	case DT_GNU_CONFLICTSZ:
+	case DT_GNU_LIBLISTSZ:
 	  if (do_dynamic)
 	    {
 	      print_vma (entry->d_un.d_val, UNSIGNED);
@@ -4751,6 +4896,20 @@ process_dynamic_segment (file)
 
 	case DT_BIND_NOW:
 	  /* The value of this entry is ignored.  */
+	  break;
+
+	case DT_GNU_PRELINKED:
+	  if (do_dynamic)
+	    {
+	      struct tm * tmp;
+	      time_t time = entry->d_un.d_val;
+
+	      tmp = gmtime (&time);
+	      printf ("%04u-%02u-%02uT%02u:%02u:%02u\n",
+		      tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday,
+		      tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+
+	    }
 	  break;
 
 	default:
@@ -5252,6 +5411,7 @@ get_symbol_type (type)
     case STT_SECTION:  return "SECTION";
     case STT_FILE:     return "FILE";
     case STT_COMMON:   return "COMMON";
+    case STT_TLS:      return "TLS";
     default:
       if (type >= STT_LOPROC && type <= STT_HIPROC)
 	{
@@ -6169,12 +6329,12 @@ display_debug_lines (section, start, file)
 	      state_machine_regs.line += adv;
 	      printf (_(" and Line by %d to %d\n"),
 		      adv, state_machine_regs.line);
-	    } 
-	  else switch (op_code) 
+	    }
+	  else switch (op_code)
 	    {
 	    case DW_LNS_extended_op:
 	      data += process_extended_line_op (data, info.li_default_is_stmt,
-                                                debug_line_pointer_size);
+						debug_line_pointer_size);
 	      break;
 
 	    case DW_LNS_copy:
@@ -6243,17 +6403,17 @@ display_debug_lines (section, start, file)
 	    case DW_LNS_set_prologue_end:
 	      printf (_("  Set prologue_end to true\n"));
 	      break;
-	      
+
 	    case DW_LNS_set_epilogue_begin:
 	      printf (_("  Set epilogue_begin to true\n"));
 	      break;
-	      
+
 	    case DW_LNS_set_isa:
 	      adv = read_leb128 (data, & bytes_read, 0);
 	      data += bytes_read;
 	      printf (_("  Set ISA to %d\n"), adv);
 	      break;
-	      
+
 	    default:
 	      printf (_("  Unknown opcode %d with operands: "), op_code);
 	      {
@@ -7252,7 +7412,7 @@ display_debug_loc (section, start, file)
   unsigned long bytes;
   unsigned char *section_begin = start;
   bfd_vma addr;
-  
+
   addr = section->sh_addr;
   bytes = section->sh_size;
   section_end = start + bytes;
@@ -7274,7 +7434,7 @@ display_debug_loc (section, start, file)
 
       while (1)
 	{
-          /* Normally, the lists in  the debug_loc section are related to a
+	  /* Normally, the lists in  the debug_loc section are related to a
 	     given compilation unit, and thus, we would use the
 	     pointer size of that compilation unit.  However, since we are
 	     displaying it seperately here, we either have to store
@@ -7285,20 +7445,20 @@ display_debug_loc (section, start, file)
 	  start += debug_line_pointer_size;
 	  end = byte_get (start, debug_line_pointer_size);
 	  start += debug_line_pointer_size;
-	  
+
 	  if (begin == 0 && end == 0)
 	    break;
-	  
+
 	  begin += addr;
 	  end += addr;
-	  
+
 	  length = byte_get (start, 2);
 	  start += 2;
-	  
+
 	  printf ("    %8.8lx %8.8lx %8.8lx (", offset, begin, end);
 	  decode_location_expression (start, debug_line_pointer_size, length);
 	  printf (")\n");
-	  
+
 	  start += length;
 	}
       printf ("\n");
@@ -7485,7 +7645,7 @@ read_and_display_attr_value (attribute, form, data, cu_offset, pointer_size)
       data += bytes_read;
       printf (" %s", get_FORM_name (form));
       return read_and_display_attr_value (attribute, form, data, cu_offset,
-                                          pointer_size);
+					  pointer_size);
     }
 
   switch (form)
@@ -7734,7 +7894,7 @@ read_and_display_attr (attribute, form, data, cu_offset, pointer_size)
 {
   printf ("     %-18s:", get_AT_name (attribute));
   data = read_and_display_attr_value (attribute, form, data, cu_offset,
-                                      pointer_size);
+				      pointer_size);
   printf ("\n");
   return data;
 }
@@ -8373,102 +8533,107 @@ display_debug_frames (section, start, file)
 	 about to interpret instructions for the chunk.  */
 
       if (do_debug_frames_interp)
-      {
-	/* Start by making a pass over the chunk, allocating storage
-           and taking note of what registers are used.  */
-	unsigned char * tmp = start;
+	{
+	  /* Start by making a pass over the chunk, allocating storage
+	     and taking note of what registers are used.  */
+	  unsigned char * tmp = start;
 
-	while (start < block_end)
-	  {
-	    unsigned op, opa;
-	    unsigned long reg;
+	  while (start < block_end)
+	    {
+	      unsigned op, opa;
+	      unsigned long reg;
 
-	    op = * start ++;
-	    opa = op & 0x3f;
-	    if (op & 0xc0)
-	      op &= 0xc0;
+	      op = * start ++;
+	      opa = op & 0x3f;
+	      if (op & 0xc0)
+		op &= 0xc0;
 
-	    /* Warning: if you add any more cases to this switch, be
-	       sure to add them to the corresponding switch below.  */
-	    switch (op)
-	      {
-	      case DW_CFA_advance_loc:
-		break;
-	      case DW_CFA_offset:
-		LEB ();
-		frame_need_space (fc, opa);
-		fc->col_type[opa] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_restore:
-		frame_need_space (fc, opa);
-		fc->col_type[opa] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_set_loc:
-		start += encoded_ptr_size;
-		break;
-	      case DW_CFA_advance_loc1:
-		start += 1;
-		break;
-	      case DW_CFA_advance_loc2:
-		start += 2;
-		break;
-	      case DW_CFA_advance_loc4:
-		start += 4;
-		break;
-	      case DW_CFA_offset_extended:
-		reg = LEB (); LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_restore_extended:
-		reg = LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_undefined:
-		reg = LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_same_value:
-		reg = LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_register:
-		reg = LEB (); LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
-		break;
-	      case DW_CFA_def_cfa:
-		LEB (); LEB ();
-		break;
-	      case DW_CFA_def_cfa_register:
-		LEB ();
-		break;
-	      case DW_CFA_def_cfa_offset:
-		LEB ();
-		break;
-#ifndef DW_CFA_GNU_args_size
-#define DW_CFA_GNU_args_size 0x2e
-#endif
-	      case DW_CFA_GNU_args_size:
-		LEB ();
-		break;
-#ifndef DW_CFA_GNU_negative_offset_extended
-#define DW_CFA_GNU_negative_offset_extended 0x2f
-#endif
-	      case DW_CFA_GNU_negative_offset_extended:
-		reg = LEB (); LEB ();
-		frame_need_space (fc, reg);
-		fc->col_type[reg] = DW_CFA_undefined;
+	      /* Warning: if you add any more cases to this switch, be
+	         sure to add them to the corresponding switch below.  */
+	      switch (op)
+		{
+		case DW_CFA_advance_loc:
+		  break;
+		case DW_CFA_offset:
+		  LEB ();
+		  frame_need_space (fc, opa);
+		  fc->col_type[opa] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_restore:
+		  frame_need_space (fc, opa);
+		  fc->col_type[opa] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_set_loc:
+		  start += encoded_ptr_size;
+		  break;
+		case DW_CFA_advance_loc1:
+		  start += 1;
+		  break;
+		case DW_CFA_advance_loc2:
+		  start += 2;
+		  break;
+		case DW_CFA_advance_loc4:
+		  start += 4;
+		  break;
+		case DW_CFA_offset_extended:
+		  reg = LEB (); LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_restore_extended:
+		  reg = LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_undefined:
+		  reg = LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_same_value:
+		  reg = LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_register:
+		  reg = LEB (); LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_def_cfa:
+		  LEB (); LEB ();
+		  break;
+		case DW_CFA_def_cfa_register:
+		  LEB ();
+		  break;
+		case DW_CFA_def_cfa_offset:
+		  LEB ();
+		  break;
+		case DW_CFA_offset_extended_sf:
+		  reg = LEB (); SLEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
+		  break;
+		case DW_CFA_def_cfa_sf:
+		  LEB (); SLEB ();
+		  break;
+		case DW_CFA_def_cfa_offset_sf:
+		  SLEB ();
+		  break;
+		case DW_CFA_GNU_args_size:
+		  LEB ();
+		  break;
+		case DW_CFA_GNU_negative_offset_extended:
+		  reg = LEB (); LEB ();
+		  frame_need_space (fc, reg);
+		  fc->col_type[reg] = DW_CFA_undefined;
 
-	      default:
-		break;
-	      }
-	  }
-	start = tmp;
-      }
+		default:
+		  break;
+		}
+	    }
+	  start = tmp;
+	}
 
       /* Now we know what registers are used, make a second pass over
          the chunk, this time actually printing out the info.  */
@@ -8485,16 +8650,16 @@ display_debug_frames (section, start, file)
 	  if (op & 0xc0)
 	    op &= 0xc0;
 
-	    /* Warning: if you add any more cases to this switch, be
-	       sure to add them to the corresponding switch above.  */
+	  /* Warning: if you add any more cases to this switch, be
+	     sure to add them to the corresponding switch above.  */
 	  switch (op)
 	    {
 	    case DW_CFA_advance_loc:
 	      if (do_debug_frames_interp)
-	        frame_display_row (fc, &need_col_headers, &max_regs);
+		frame_display_row (fc, &need_col_headers, &max_regs);
 	      else
-	        printf ("  DW_CFA_advance_loc: %d to %08lx\n",
-		        opa * fc->code_factor,
+		printf ("  DW_CFA_advance_loc: %d to %08lx\n",
+			opa * fc->code_factor,
 			fc->pc_begin + opa * fc->code_factor);
 	      fc->pc_begin += opa * fc->code_factor;
 	      break;
@@ -8502,7 +8667,7 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_offset:
 	      roffs = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_offset: r%d at cfa%+ld\n",
+		printf ("  DW_CFA_offset: r%d at cfa%+ld\n",
 			opa, roffs * fc->data_factor);
 	      fc->col_type[opa] = DW_CFA_offset;
 	      fc->col_offset[opa] = roffs * fc->data_factor;
@@ -8510,7 +8675,7 @@ display_debug_frames (section, start, file)
 
 	    case DW_CFA_restore:
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_restore: r%d\n", opa);
+		printf ("  DW_CFA_restore: r%d\n", opa);
 	      fc->col_type[opa] = cie->col_type[opa];
 	      fc->col_offset[opa] = cie->col_offset[opa];
 	      break;
@@ -8519,19 +8684,19 @@ display_debug_frames (section, start, file)
 	      vma = byte_get (start, encoded_ptr_size);
 	      start += encoded_ptr_size;
 	      if (do_debug_frames_interp)
-	        frame_display_row (fc, &need_col_headers, &max_regs);
+		frame_display_row (fc, &need_col_headers, &max_regs);
 	      else
-	        printf ("  DW_CFA_set_loc: %08lx\n", (unsigned long)vma);
+		printf ("  DW_CFA_set_loc: %08lx\n", (unsigned long)vma);
 	      fc->pc_begin = vma;
 	      break;
 
 	    case DW_CFA_advance_loc1:
 	      ofs = byte_get (start, 1); start += 1;
 	      if (do_debug_frames_interp)
-	        frame_display_row (fc, &need_col_headers, &max_regs);
+		frame_display_row (fc, &need_col_headers, &max_regs);
 	      else
-	        printf ("  DW_CFA_advance_loc1: %ld to %08lx\n",
-		        ofs * fc->code_factor,
+		printf ("  DW_CFA_advance_loc1: %ld to %08lx\n",
+			ofs * fc->code_factor,
 			fc->pc_begin + ofs * fc->code_factor);
 	      fc->pc_begin += ofs * fc->code_factor;
 	      break;
@@ -8539,10 +8704,10 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_advance_loc2:
 	      ofs = byte_get (start, 2); start += 2;
 	      if (do_debug_frames_interp)
-	        frame_display_row (fc, &need_col_headers, &max_regs);
+		frame_display_row (fc, &need_col_headers, &max_regs);
 	      else
-	        printf ("  DW_CFA_advance_loc2: %ld to %08lx\n",
-		        ofs * fc->code_factor,
+		printf ("  DW_CFA_advance_loc2: %ld to %08lx\n",
+			ofs * fc->code_factor,
 			fc->pc_begin + ofs * fc->code_factor);
 	      fc->pc_begin += ofs * fc->code_factor;
 	      break;
@@ -8550,10 +8715,10 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_advance_loc4:
 	      ofs = byte_get (start, 4); start += 4;
 	      if (do_debug_frames_interp)
-	        frame_display_row (fc, &need_col_headers, &max_regs);
+		frame_display_row (fc, &need_col_headers, &max_regs);
 	      else
-	        printf ("  DW_CFA_advance_loc4: %ld to %08lx\n",
-		        ofs * fc->code_factor,
+		printf ("  DW_CFA_advance_loc4: %ld to %08lx\n",
+			ofs * fc->code_factor,
 			fc->pc_begin + ofs * fc->code_factor);
 	      fc->pc_begin += ofs * fc->code_factor;
 	      break;
@@ -8571,7 +8736,7 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_restore_extended:
 	      reg = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_restore_extended: r%ld\n", reg);
+		printf ("  DW_CFA_restore_extended: r%ld\n", reg);
 	      fc->col_type[reg] = cie->col_type[reg];
 	      fc->col_offset[reg] = cie->col_offset[reg];
 	      break;
@@ -8579,7 +8744,7 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_undefined:
 	      reg = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_undefined: r%ld\n", reg);
+		printf ("  DW_CFA_undefined: r%ld\n", reg);
 	      fc->col_type[reg] = DW_CFA_undefined;
 	      fc->col_offset[reg] = 0;
 	      break;
@@ -8587,7 +8752,7 @@ display_debug_frames (section, start, file)
 	    case DW_CFA_same_value:
 	      reg = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_same_value: r%ld\n", reg);
+		printf ("  DW_CFA_same_value: r%ld\n", reg);
 	      fc->col_type[reg] = DW_CFA_same_value;
 	      fc->col_offset[reg] = 0;
 	      break;
@@ -8596,14 +8761,14 @@ display_debug_frames (section, start, file)
 	      reg = LEB ();
 	      roffs = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_register: r%ld\n", reg);
+		printf ("  DW_CFA_register: r%ld\n", reg);
 	      fc->col_type[reg] = DW_CFA_register;
 	      fc->col_offset[reg] = roffs;
 	      break;
 
 	    case DW_CFA_remember_state:
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_remember_state\n");
+		printf ("  DW_CFA_remember_state\n");
 	      rs = (Frame_Chunk *) xmalloc (sizeof (Frame_Chunk));
 	      rs->ncols = fc->ncols;
 	      rs->col_type = (short int *) xmalloc (rs->ncols * sizeof (short int));
@@ -8616,7 +8781,7 @@ display_debug_frames (section, start, file)
 
 	    case DW_CFA_restore_state:
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_restore_state\n");
+		printf ("  DW_CFA_restore_state\n");
 	      rs = remembered_state;
 	      remembered_state = rs->next;
 	      frame_need_space (fc, rs->ncols-1);
@@ -8631,39 +8796,61 @@ display_debug_frames (section, start, file)
 	      fc->cfa_reg = LEB ();
 	      fc->cfa_offset = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_def_cfa: r%d ofs %d\n",
+		printf ("  DW_CFA_def_cfa: r%d ofs %d\n",
 			fc->cfa_reg, fc->cfa_offset);
 	      break;
 
 	    case DW_CFA_def_cfa_register:
 	      fc->cfa_reg = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_def_cfa_reg: r%d\n", fc->cfa_reg);
+		printf ("  DW_CFA_def_cfa_reg: r%d\n", fc->cfa_reg);
 	      break;
 
 	    case DW_CFA_def_cfa_offset:
 	      fc->cfa_offset = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_def_cfa_offset: %d\n", fc->cfa_offset);
+		printf ("  DW_CFA_def_cfa_offset: %d\n", fc->cfa_offset);
 	      break;
 
 	    case DW_CFA_nop:
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_nop\n");
+		printf ("  DW_CFA_nop\n");
 	      break;
 
-#ifndef DW_CFA_GNU_window_save
-#define DW_CFA_GNU_window_save 0x2d
-#endif
+	    case DW_CFA_offset_extended_sf:
+	      reg = LEB ();
+	      l = SLEB ();
+	      frame_need_space (fc, reg);
+	      if (! do_debug_frames_interp)
+		printf ("  DW_CFA_offset_extended_sf: r%ld at cfa%+ld\n",
+			reg, l * fc->data_factor);
+	      fc->col_type[reg] = DW_CFA_offset;
+	      fc->col_offset[reg] = l * fc->data_factor;
+	      break;
+
+	    case DW_CFA_def_cfa_sf:
+	      fc->cfa_reg = LEB ();
+	      fc->cfa_offset = SLEB ();
+	      if (! do_debug_frames_interp)
+		printf ("  DW_CFA_def_cfa_sf: r%d ofs %d\n",
+			fc->cfa_reg, fc->cfa_offset);
+	      break;
+
+	    case DW_CFA_def_cfa_offset_sf:
+	      fc->cfa_offset = SLEB ();
+	      if (! do_debug_frames_interp)
+		printf ("  DW_CFA_def_cfa_offset_sf: %d\n", fc->cfa_offset);
+	      break;
+
 	    case DW_CFA_GNU_window_save:
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_GNU_window_save\n");
+		printf ("  DW_CFA_GNU_window_save\n");
 	      break;
 
 	    case DW_CFA_GNU_args_size:
 	      ul = LEB ();
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_GNU_args_size: %ld\n", ul);
+		printf ("  DW_CFA_GNU_args_size: %ld\n", ul);
 	      break;
 
 	    case DW_CFA_GNU_negative_offset_extended:
@@ -8671,10 +8858,21 @@ display_debug_frames (section, start, file)
 	      l = - LEB ();
 	      frame_need_space (fc, reg);
 	      if (! do_debug_frames_interp)
-	        printf ("  DW_CFA_GNU_negative_offset_extended: r%ld at cfa%+ld\n",
+		printf ("  DW_CFA_GNU_negative_offset_extended: r%ld at cfa%+ld\n",
 			reg, l * fc->data_factor);
 	      fc->col_type[reg] = DW_CFA_offset;
 	      fc->col_offset[reg] = l * fc->data_factor;
+	      break;
+
+	    /* FIXME: How do we handle these? */
+	    case DW_CFA_def_cfa_expression:
+	      fprintf (stderr, "unsupported DW_CFA_def_cfa_expression\n");
+	      start = block_end;
+	      break;
+
+	    case DW_CFA_expression:
+	      fprintf (stderr, "unsupported DW_CFA_expression\n");
+	      start = block_end;
 	      break;
 
 	    default:
@@ -8684,7 +8882,7 @@ display_debug_frames (section, start, file)
 	}
 
       if (do_debug_frames_interp)
-        frame_display_row (fc, &need_col_headers, &max_regs);
+	frame_display_row (fc, &need_col_headers, &max_regs);
 
       start = block_end;
     }
@@ -8823,11 +9021,11 @@ process_section_contents (file)
       int       j;
 
       if (section->sh_size == 0)
-        continue;
+	continue;
 
       /* See if there is some pre-scan operation for this section.  */
       for (j = NUM_ELEM (debug_displays); j--;)
-        if (strcmp (debug_displays[j].name, name) == 0)
+	if (strcmp (debug_displays[j].name, name) == 0)
 	  {
 	    if (debug_displays[j].prescan != NULL)
 	      {
@@ -8845,8 +9043,8 @@ process_section_contents (file)
 		free (start);
 	      }
 
-            break;
-          }
+	    break;
+	  }
     }
 
   for (i = 0, section = section_headers;
@@ -9215,7 +9413,7 @@ process_mips_specific (file)
 
       if (dynamic_symbols == NULL)
 	{
-	  error (_("conflict list with without table"));
+	  error (_("conflict list found without a dynamic symbol table"));
 	  return 0;
 	}
 
@@ -9280,6 +9478,86 @@ process_mips_specific (file)
   return 1;
 }
 
+static int
+process_gnu_liblist (file)
+     FILE * file;
+{
+  Elf_Internal_Shdr * section, * string_sec;
+  Elf32_External_Lib * elib;
+  char * strtab;
+  size_t cnt;
+  unsigned i;
+
+  if (! do_arch)
+    return 0;
+
+  for (i = 0, section = section_headers;
+       i < elf_header.e_shnum;
+       i++, section ++)
+    {
+      switch (section->sh_type)
+	{
+	case SHT_GNU_LIBLIST:
+	  elib = ((Elf32_External_Lib *)
+		 get_data (NULL, file, section->sh_offset, section->sh_size,
+			   _("liblist")));
+
+	  if (elib == NULL)
+	    break;
+	  string_sec = SECTION_HEADER (section->sh_link);
+
+	  strtab = (char *) get_data (NULL, file, string_sec->sh_offset,
+				      string_sec->sh_size,
+				      _("liblist string table"));
+
+	  if (strtab == NULL
+	      || section->sh_entsize != sizeof (Elf32_External_Lib))
+	    {
+	      free (elib);
+	      break;
+	    }
+
+	  printf (_("\nLibrary list section '%s' contains %lu entries:\n"),
+		  SECTION_NAME (section),
+		  (long) (section->sh_size / sizeof (Elf32_External_Lib)));
+
+	  puts ("     Library              Time Stamp          Checksum   Version Flags");
+
+	  for (cnt = 0; cnt < section->sh_size / sizeof (Elf32_External_Lib);
+	       ++cnt)
+	    {
+	      Elf32_Lib liblist;
+	      time_t time;
+	      char timebuf[20];
+	      struct tm * tmp;
+
+	      liblist.l_name = BYTE_GET (elib[cnt].l_name);
+	      time = BYTE_GET (elib[cnt].l_time_stamp);
+	      liblist.l_checksum = BYTE_GET (elib[cnt].l_checksum);
+	      liblist.l_version = BYTE_GET (elib[cnt].l_version);
+	      liblist.l_flags = BYTE_GET (elib[cnt].l_flags);
+
+	      tmp = gmtime (&time);
+	      sprintf (timebuf, "%04u-%02u-%02uT%02u:%02u:%02u",
+		       tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday,
+		       tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+
+	      printf ("%3lu: ", (unsigned long) cnt);
+	      if (do_wide)
+		printf ("%-20s", strtab + liblist.l_name);
+	      else
+		printf ("%-20.20s", strtab + liblist.l_name);
+	      printf (" %s %#010lx %-7ld %-7ld\n", timebuf, liblist.l_checksum,
+		      liblist.l_version, liblist.l_flags);
+	    }
+
+	  free (elib);
+	}
+    }
+
+  return 1;
+}
+
 static const char *
 get_note_type (e_type)
      unsigned e_type;
@@ -9298,7 +9576,7 @@ get_note_type (e_type)
     case NT_PSINFO:	return _("NT_PSINFO (psinfo structure)");
     case NT_LWPSTATUS:	return _("NT_LWPSTATUS (lwpstatus_t structure)");
     case NT_LWPSINFO:	return _("NT_LWPSINFO (lwpsinfo_t structure)");
-    case NT_WIN32PSTATUS: return _("NT_WIN32PSTATUS (win32_pstatus strcuture)");
+    case NT_WIN32PSTATUS: return _("NT_WIN32PSTATUS (win32_pstatus structure)");
     default:
       sprintf (buff, _("Unknown note type: (0x%08x)"), e_type);
       return buff;
@@ -9374,7 +9652,7 @@ get_netbsd_elfcore_note_type (e_type)
    If the value of namesz is zero, there is no name present.  */
 static int
 process_note (pnote)
-  Elf32_Internal_Note * pnote;
+     Elf32_Internal_Note * pnote;
 {
   const char *nt;
 
@@ -9649,12 +9927,15 @@ get_file_header (file)
       elf_header.e_shstrndx  = BYTE_GET (ehdr64.e_shstrndx);
     }
 
-  /* There may be some extensions in the first section header.  Don't
-     bomb if we can't read it.  */
-  if (is_32bit_elf)
-    get_32bit_section_headers (file, 1);
-  else
-    get_64bit_section_headers (file, 1);
+  if (elf_header.e_shoff)
+    {
+      /* There may be some extensions in the first section header.  Don't
+	 bomb if we can't read it.  */
+      if (is_32bit_elf)
+	get_32bit_section_headers (file, 1);
+      else
+	get_64bit_section_headers (file, 1);
+    }
 
   return 1;
 }
@@ -9723,6 +10004,8 @@ process_file (file_name)
   process_section_contents (file);
 
   process_corefile_contents (file);
+
+  process_gnu_liblist (file);
 
   process_arch_specific (file);
 

@@ -1,19 +1,71 @@
-2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+2002-07-09  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
 
-	Merge from mainline
-	2002-04-11  Alan Modra  <amodra@bigpond.net.au>
+	* mips.h (INSN_MIPS16): New define.
+
+2002-07-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* i386.h: Remove IgnoreSize from movsx and movzx.
+
+2002-06-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* a29k.h: Replace CONST with const.
+	(CONST): Don't define.
+	* convex.h: Replace CONST with const.
+	(CONST): Don't define.
+	* dlx.h: Replace CONST with const.
+	* or32.h (CONST): Don't define.
+
+2002-05-30  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips.h (OP_SH_ALN, OP_MASK_ALN, OP_SH_VSEL, OP_MASK_VSEL)
+	(MDMX_FMTSEL_IMM_QH, MDMX_FMTSEL_IMM_OB, MDMX_FMTSEL_VEC_QH)
+	(MDMX_FMTSEL_VEC_OB, INSN_READ_MDMX_ACC, INSN_WRITE_MDMX_ACC)
+	(INSN_MDMX): New constants, for MDMX support.
+	(opcode character list): Add "O", "Q", "X", "Y", and "Z" for MDMX.
+
+2002-05-28  Kuang Hwa Lin <kuang@sbcglobal.net>
+
+	* dlx.h: New file.
+
+2002-05-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* ia64.h: Use #include "" instead of <> for local header files.
+	* sparc.h: Likewise.
+
+2002-05-22  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* mips.h: Add M_DROL, M_DROL_I, M_DROR, M_DROR_I macro cases.
+
+2002-05-17  Andrey Volkov  <avolkov@sources.redhat.com>
+
+        * h8300.h: Corrected defs of all control regs 
+	and eepmov instr.
+		      
+2002-04-11  Alan Modra  <amodra@bigpond.net.au>
+
 	* i386.h: Add intel mode cmpsd and movsd.
 	Put them before SSE2 insns, so that rep prefix works.
+
+2002-03-15  Chris G. Demetriou  <cgd@broadcom.com>
+
+	* mips.h (INSN_MIPS3D): New definition used to mark MIPS-3D
+	instructions.
+	(OPCODE_IS_MEMBER): Adjust comments to indicate that ASE bit masks
+	may be passed along with the ISA bitmask.
+
+2002-03-05  Paul Koning  <pkoning@equallogic.com>
+
+	* pdp11.h: Add format codes for float instruction formats.
 
 2002-02-25  Alan Modra  <amodra@bigpond.net.au>
 
 	* ppc.h (PPC_OPCODE_POWER4, PPC_OPCODE_NOPOWER4): Define.
 
-Mon Feb 18 17:26:10 CET 2002  Jan Hubicka  <jh@suse.cz>
+Mon Feb 18 17:31:48 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* i386.h (push,pop): Fix Reg64 to WordReg to allow 16bit operands.
 
-Fri Feb 15 15:16:40 CET 2002  Jan Hubicka  <jh@suse.cz>
+Mon Feb 11 12:53:19 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* i386.h (push,pop): Allow 16bit operands in 64bit mode.
 	(xchg): Fix.

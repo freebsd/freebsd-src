@@ -717,13 +717,13 @@ sunos_link_hash_table_create (abfd)
   struct sunos_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct sunos_link_hash_table);
 
-  ret = (struct sunos_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct sunos_link_hash_table *) bfd_malloc (amt);
   if (ret == (struct sunos_link_hash_table *) NULL)
     return (struct bfd_link_hash_table *) NULL;
   if (! NAME(aout,link_hash_table_init) (&ret->root, abfd,
 					 sunos_link_hash_newfunc))
     {
-      bfd_release (abfd, ret);
+      free (ret);
       return (struct bfd_link_hash_table *) NULL;
     }
 
@@ -1434,10 +1434,9 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
       s = bfd_get_section_by_name (dynobj, ".hash");
       BFD_ASSERT (s != NULL);
       hashalloc = (dynsymcount + bucketcount - 1) * HASH_ENTRY_SIZE;
-      s->contents = (bfd_byte *) bfd_alloc (dynobj, hashalloc);
+      s->contents = (bfd_byte *) bfd_zalloc (dynobj, hashalloc);
       if (s->contents == NULL && dynsymcount > 0)
 	return false;
-      memset (s->contents, 0, (size_t) hashalloc);
       for (i = 0; i < bucketcount; i++)
 	PUT_WORD (output_bfd, (bfd_vma) -1, s->contents + i * HASH_ENTRY_SIZE);
       s->_raw_size = bucketcount * HASH_ENTRY_SIZE;

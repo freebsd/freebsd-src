@@ -77,6 +77,8 @@ enum special_section
 
 enum reloc_func
   {
+    FUNC_DTP_MODULE,
+    FUNC_DTP_RELATIVE,
     FUNC_FPTR_RELATIVE,
     FUNC_GP_RELATIVE,
     FUNC_LT_RELATIVE,
@@ -84,8 +86,12 @@ enum reloc_func
     FUNC_PLT_RELATIVE,
     FUNC_SEC_RELATIVE,
     FUNC_SEG_RELATIVE,
+    FUNC_TP_RELATIVE,
     FUNC_LTV_RELATIVE,
     FUNC_LT_FPTR_RELATIVE,
+    FUNC_LT_DTP_MODULE,
+    FUNC_LT_DTP_RELATIVE,
+    FUNC_LT_TP_RELATIVE,
     FUNC_IPLT_RELOC,
   };
 
@@ -476,6 +482,8 @@ static struct
 pseudo_func[] =
   {
     /* reloc pseudo functions (these must come first!):  */
+    { "dtpmod",	PSEUDO_FUNC_RELOC, { 0 } },
+    { "dtprel",	PSEUDO_FUNC_RELOC, { 0 } },
     { "fptr",	PSEUDO_FUNC_RELOC, { 0 } },
     { "gprel",	PSEUDO_FUNC_RELOC, { 0 } },
     { "ltoff",	PSEUDO_FUNC_RELOC, { 0 } },
@@ -483,8 +491,12 @@ pseudo_func[] =
     { "pltoff",	PSEUDO_FUNC_RELOC, { 0 } },
     { "secrel",	PSEUDO_FUNC_RELOC, { 0 } },
     { "segrel",	PSEUDO_FUNC_RELOC, { 0 } },
+    { "tprel",	PSEUDO_FUNC_RELOC, { 0 } },
     { "ltv",	PSEUDO_FUNC_RELOC, { 0 } },
     { "", 0, { 0 } },	/* placeholder for FUNC_LT_FPTR_RELATIVE */
+    { "", 0, { 0 } },	/* placeholder for FUNC_LT_DTP_MODULE */
+    { "", 0, { 0 } },	/* placeholder for FUNC_LT_DTP_RELATIVE */
+    { "", 0, { 0 } },	/* placeholder for FUNC_LT_TP_RELATIVE */
     { "iplt",	PSEUDO_FUNC_RELOC, { 0 } },
 
     /* mbtype4 constants:  */
@@ -880,7 +892,7 @@ static void free_saved_prologue_counts PARAMS ((void));
 /* Build the unwind section name by appending the (possibly stripped)
    text section NAME to the unwind PREFIX.  The resulting string
    pointer is assigned to RESULT.  The string is allocated on the
-   stack, so this must be a macro... */
+   stack, so this must be a macro...  */
 #define make_unw_section_name(special, text_name, result)		   \
   {									   \
     const char *_prefix = special_section_name[special];		   \
@@ -943,7 +955,7 @@ ia64_elf_section_letter (letter, ptr_msg)
   if (letter == 's')
     return SHF_IA_64_SHORT;
 
-  *ptr_msg = _("Bad .section directive: want a,s,w,x,M,S in string");
+  *ptr_msg = _("Bad .section directive: want a,s,w,x,M,S,G,T in string");
   return 0;
 }
 
@@ -961,11 +973,11 @@ ia64_elf_section_flags (flags, attr, type)
 
 int
 ia64_elf_section_type (str, len)
-	const char *str;
-	size_t len;
+     const char *str;
+     size_t len;
 {
 #define STREQ(s) ((len == sizeof (s) - 1) && (strncmp (str, s, sizeof (s) - 1) == 0))
-  
+
   if (STREQ (ELF_STRING_ia64_unwind_info))
     return SHT_PROGBITS;
 
@@ -980,10 +992,10 @@ ia64_elf_section_type (str, len)
 
   if (STREQ ("init_array"))
     return SHT_INIT_ARRAY;
-  
+
   if (STREQ ("fini_array"))
     return SHT_FINI_ARRAY;
-  
+
   return -1;
 #undef STREQ
 }
@@ -2821,12 +2833,12 @@ setup_unwind_header (int size, unsigned char **mem)
   if (x != 0)
     extra = md.pointer_size - x;
 
-  /* Add 8 for the header + a pointer for the 
+  /* Add 8 for the header + a pointer for the
      personality offset.  */
   *mem = xmalloc (size + extra + 8 + md.pointer_size);
 
   /* Clear the padding area and personality.  */
-  memset (*mem + 8 + size, 0 , extra + md.pointer_size);
+  memset (*mem + 8 + size, 0, extra + md.pointer_size);
 
   /* Initialize the header area.  */
   if (unwind.personality_routine)
@@ -3288,7 +3300,7 @@ generate_unwind_image (text_name)
       /* Add the personality address to the image.  */
       if (unwind.personality_routine != 0)
 	{
-	  exp.X_op  = O_symbol;
+	  exp.X_op = O_symbol;
 	  exp.X_add_symbol = unwind.personality_routine;
 	  exp.X_add_number = 0;
 
@@ -3299,7 +3311,7 @@ generate_unwind_image (text_name)
 	      else
 		reloc = BFD_RELOC_IA64_LTOFF_FPTR32MSB;
 	    }
-          else
+	  else
 	    {
 	      if (md.flags & EF_IA_64_ABI64)
 		reloc = BFD_RELOC_IA64_LTOFF_FPTR64LSB;
@@ -3308,7 +3320,7 @@ generate_unwind_image (text_name)
 	    }
 
 	  fix_new_exp (frag_now, frag_now_fix () - md.pointer_size,
-		       md.pointer_size, & exp, 0, reloc);
+		       md.pointer_size, &exp, 0, reloc);
 	  unwind.personality_routine = 0;
 	}
     }
@@ -3771,7 +3783,7 @@ save_prologue_count (lbl, count)
     lpc->prologue_count = count;
   else
     {
-      label_prologue_count * new_lpc = xmalloc (sizeof (* new_lpc));
+      label_prologue_count *new_lpc = xmalloc (sizeof (* new_lpc));
 
       new_lpc->next = unwind.saved_prologue_counts;
       new_lpc->label_number = lbl;
@@ -3783,8 +3795,8 @@ save_prologue_count (lbl, count)
 static void
 free_saved_prologue_counts ()
 {
-  label_prologue_count * lpc = unwind.saved_prologue_counts;
-  label_prologue_count * next;
+  label_prologue_count *lpc = unwind.saved_prologue_counts;
+  label_prologue_count *next;
 
   while (lpc != NULL)
     {
@@ -4020,7 +4032,7 @@ dot_endp (dummy)
 	    lets GNU ld support programs with multiple segments
 	    containing unwind info (as might be the case for certain
 	    embedded applications).
-	    
+
 	(c) An error is issued if there would be a name clash.
   */
   text_name = segment_name (saved_seg);
@@ -4060,7 +4072,7 @@ dot_endp (dummy)
       where = frag_now_fix () - (3 * md.pointer_size);
       bytes_per_address = bfd_arch_bits_per_address (stdoutput) / 8;
 
-      /* Issue the values of  a) Proc Begin, b) Proc End, c) Unwind Record. */
+      /* Issue the values of  a) Proc Begin, b) Proc End, c) Unwind Record.  */
       e.X_op = O_pseudo_fixup;
       e.X_op_symbol = pseudo_func[FUNC_SEG_RELATIVE].u.sym;
       e.X_add_number = 0;
@@ -5137,7 +5149,7 @@ operand_match (idesc, index, e)
 
     case IA64_OPND_R3_2:
       if (e->X_op == O_register && e->X_add_number >= REG_GR)
-	{ 
+	{
 	  if (e->X_add_number < REG_GR + 4)
 	    return OPERAND_MATCH;
 	  else if (e->X_add_number < REG_GR + 128)
@@ -5807,7 +5819,7 @@ errata_nop_necessary_p (slot, insn_unit)
 		  && strncmp (idesc->name, "ptr", 3) != 0
 		  && strncmp (idesc->name, "ptc", 3) != 0
 		  && strncmp (idesc->name, "probe", 5) != 0)
-	      return 0;
+		return 0;
 	    }
 	  if (prev_group->g_reg_set_conditionally[regno])
 	    return 1;
@@ -6199,12 +6211,12 @@ emit_one_bundle ()
 	  continue;		/* try next slot */
 	}
 
-	{
-	  bfd_vma addr;
+      {
+	bfd_vma addr;
 
-	  addr = frag_now->fr_address + frag_now_fix () - 16 + i;
-	  dwarf2_gen_line_info (addr, &md.slot[curr].debug_line);
-	}
+	addr = frag_now->fr_address + frag_now_fix () - 16 + i;
+	dwarf2_gen_line_info (addr, &md.slot[curr].debug_line);
+      }
 
       if (errata_nop_necessary_p (md.slot + curr, insn_unit))
 	as_warn (_("Additional NOP may be necessary to workaround Itanium processor A/B step errata"));
@@ -6494,6 +6506,14 @@ md_begin ()
   bfd_set_section_alignment (stdoutput, text_section, 4);
 
   target_big_endian = TARGET_BYTES_BIG_ENDIAN;
+  pseudo_func[FUNC_DTP_MODULE].u.sym =
+    symbol_new (".<dtpmod>", undefined_section, FUNC_DTP_MODULE,
+		&zero_address_frag);
+
+  pseudo_func[FUNC_DTP_RELATIVE].u.sym =
+    symbol_new (".<dtprel>", undefined_section, FUNC_DTP_RELATIVE,
+		&zero_address_frag);
+
   pseudo_func[FUNC_FPTR_RELATIVE].u.sym =
     symbol_new (".<fptr>", undefined_section, FUNC_FPTR_RELATIVE,
 		&zero_address_frag);
@@ -6522,12 +6542,28 @@ md_begin ()
     symbol_new (".<segrel>", undefined_section, FUNC_SEG_RELATIVE,
 		&zero_address_frag);
 
+  pseudo_func[FUNC_TP_RELATIVE].u.sym =
+    symbol_new (".<tprel>", undefined_section, FUNC_TP_RELATIVE,
+		&zero_address_frag);
+
   pseudo_func[FUNC_LTV_RELATIVE].u.sym =
     symbol_new (".<ltv>", undefined_section, FUNC_LTV_RELATIVE,
 		&zero_address_frag);
 
   pseudo_func[FUNC_LT_FPTR_RELATIVE].u.sym =
     symbol_new (".<ltoff.fptr>", undefined_section, FUNC_LT_FPTR_RELATIVE,
+		&zero_address_frag);
+
+  pseudo_func[FUNC_LT_DTP_MODULE].u.sym =
+    symbol_new (".<ltoff.dtpmod>", undefined_section, FUNC_LT_DTP_MODULE,
+		&zero_address_frag);
+
+  pseudo_func[FUNC_LT_DTP_RELATIVE].u.sym =
+    symbol_new (".<ltoff.dptrel>", undefined_section, FUNC_LT_DTP_RELATIVE,
+		&zero_address_frag);
+
+  pseudo_func[FUNC_LT_TP_RELATIVE].u.sym =
+    symbol_new (".<ltoff.tprel>", undefined_section, FUNC_LT_TP_RELATIVE,
 		&zero_address_frag);
 
   pseudo_func[FUNC_IPLT_RELOC].u.sym =
@@ -7459,7 +7495,7 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	    }
 	  else
 	    {
-	      for (i = idesc->num_outputs;i < NELEMS (idesc->operands); i++)
+	      for (i = idesc->num_outputs; i < NELEMS (idesc->operands); i++)
 		if (idesc->operands[i] == IA64_OPND_B1
 		    || idesc->operands[i] == IA64_OPND_B2)
 		  {
@@ -7981,7 +8017,7 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	      && idesc->operands[0] == IA64_OPND_PR)
 	    {
 	      mask = CURR_SLOT.opnd[2].X_add_number;
-	      if (mask & ((valueT) 1<<16))
+	      if (mask & ((valueT) 1 << 16))
 		for (i = 16; i < 63; i++)
 		  {
 		    specs[count] = tmpl;
@@ -8472,13 +8508,13 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	  specs[count++] = tmpl;
 	}
       else if (note == 7)
-        {
-          valueT mask = 0;
-          if (idesc->operands[2] == IA64_OPND_IMM17)
-            mask = CURR_SLOT.opnd[2].X_add_number;
-          if (mask & ((valueT) 1 << 63))
+	{
+	  valueT mask = 0;
+	  if (idesc->operands[2] == IA64_OPND_IMM17)
+	    mask = CURR_SLOT.opnd[2].X_add_number;
+	  if (mask & ((valueT) 1 << 63))
 	    specs[count++] = tmpl;
-        }
+	}
       else if (note == 11)
 	{
 	  if ((idesc->operands[0] == IA64_OPND_P1
@@ -8500,8 +8536,8 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 	{
 	  if (rsrc_write)
 	    {
-              int p1 = CURR_SLOT.opnd[0].X_add_number - REG_P;
-              int p2 = CURR_SLOT.opnd[1].X_add_number - REG_P;
+	      int p1 = CURR_SLOT.opnd[0].X_add_number - REG_P;
+	      int p2 = CURR_SLOT.opnd[1].X_add_number - REG_P;
 	      int or_andcm = strstr (idesc->name, "or.andcm") != NULL;
 	      int and_orcm = strstr (idesc->name, "and.orcm") != NULL;
 
@@ -8509,7 +8545,7 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 		  && (idesc->operands[0] == IA64_OPND_P1
 		      || idesc->operands[0] == IA64_OPND_P2))
 		{
-                  specs[count] = tmpl;
+		  specs[count] = tmpl;
 		  specs[count++].cmp_type =
 		    (or_andcm ? CMP_OR : (and_orcm ? CMP_AND : CMP_NONE));
 		}
@@ -8517,7 +8553,7 @@ dep->name, idesc->name, (rsrc_write?"write":"read"), note)
 		  && (idesc->operands[1] == IA64_OPND_P1
 		      || idesc->operands[1] == IA64_OPND_P2))
 		{
-                  specs[count] = tmpl;
+		  specs[count] = tmpl;
 		  specs[count++].cmp_type =
 		    (or_andcm ? CMP_AND : (and_orcm ? CMP_OR : CMP_NONE));
 		}
@@ -8756,8 +8792,8 @@ add_qp_mutex (mask)
 
 static int
 has_suffix_p (name, suffix)
-      const char *name;
-      const char *suffix;
+     const char *name;
+     const char *suffix;
 {
   size_t namelen = strlen (name);
   size_t sufflen = strlen (suffix);
@@ -9826,11 +9862,22 @@ md_operand (e)
 		  as_bad ("Not a symbolic expression");
 		  goto err;
 		}
-	      if (S_GET_VALUE (e->X_op_symbol) == FUNC_FPTR_RELATIVE
-		  && i == FUNC_LT_RELATIVE)
-		i = FUNC_LT_FPTR_RELATIVE;
-	      else
+	      if (i != FUNC_LT_RELATIVE)
 		{
+		  as_bad ("Illegal combination of relocation functions");
+		  goto err;
+		}
+	      switch (S_GET_VALUE (e->X_op_symbol))
+		{
+		case FUNC_FPTR_RELATIVE:
+		  i = FUNC_LT_FPTR_RELATIVE; break;
+		case FUNC_DTP_MODULE:
+		  i = FUNC_LT_DTP_MODULE; break;
+		case FUNC_DTP_RELATIVE:
+		  i = FUNC_LT_DTP_RELATIVE; break;
+		case FUNC_TP_RELATIVE:
+		  i = FUNC_LT_TP_RELATIVE; break;
+		default:
 		  as_bad ("Illegal combination of relocation functions");
 		  goto err;
 		}
@@ -9986,26 +10033,27 @@ ia64_cons_fix_new (f, where, nbytes, exp)
       break;
 
     case 8:
-      /* In 32-bit mode, data8 could mean function descriptors too. */
+      /* In 32-bit mode, data8 could mean function descriptors too.  */
       if (exp->X_op == O_pseudo_fixup
-          && exp->X_op_symbol
-          && S_GET_VALUE (exp->X_op_symbol) == FUNC_IPLT_RELOC
-          && !(md.flags & EF_IA_64_ABI64))
-        {
-          if (target_big_endian)
-            code = BFD_RELOC_IA64_IPLTMSB;
-          else
-            code = BFD_RELOC_IA64_IPLTLSB;
-          exp->X_op = O_symbol;
-          break;
-        }
-       else {
-         if (target_big_endian)
-	   code = BFD_RELOC_IA64_DIR64MSB;
-         else
-	   code = BFD_RELOC_IA64_DIR64LSB;
-         break;
-       }
+	  && exp->X_op_symbol
+	  && S_GET_VALUE (exp->X_op_symbol) == FUNC_IPLT_RELOC
+	  && !(md.flags & EF_IA_64_ABI64))
+	{
+	  if (target_big_endian)
+	    code = BFD_RELOC_IA64_IPLTMSB;
+	  else
+	    code = BFD_RELOC_IA64_IPLTLSB;
+	  exp->X_op = O_symbol;
+	  break;
+	}
+      else
+	{
+	  if (target_big_endian)
+	    code = BFD_RELOC_IA64_DIR64MSB;
+	  else
+	    code = BFD_RELOC_IA64_DIR64LSB;
+	  break;
+	}
 
     case 16:
       if (exp->X_op == O_pseudo_fixup
@@ -10162,8 +10210,66 @@ ia64_gen_real_reloc_type (sym, r_type)
 	}
       break;
 
-    case  FUNC_IPLT_RELOC:
-        break;
+    case FUNC_TP_RELATIVE:
+      switch (r_type)
+	{
+	case BFD_RELOC_IA64_IMM14:
+	  new = BFD_RELOC_IA64_TPREL14; break;
+	case BFD_RELOC_IA64_IMM22:
+	  new = BFD_RELOC_IA64_TPREL22; break;
+	case BFD_RELOC_IA64_IMM64:
+	  new = BFD_RELOC_IA64_TPREL64I; break;
+	default:
+	  break;
+	}
+      break;
+
+    case FUNC_LT_TP_RELATIVE:
+      switch (r_type)
+	{
+	case BFD_RELOC_IA64_IMM22:
+	  new = BFD_RELOC_IA64_LTOFF_TPREL22; break;
+	default:
+	  break;
+	}
+      break;
+
+    case FUNC_LT_DTP_MODULE:
+      switch (r_type)
+	{
+	case BFD_RELOC_IA64_IMM22:
+	  new = BFD_RELOC_IA64_LTOFF_DTPMOD22; break;
+	default:
+	  break;
+	}
+      break;
+
+    case FUNC_DTP_RELATIVE:
+      switch (r_type)
+	{
+	case BFD_RELOC_IA64_IMM14:
+	  new = BFD_RELOC_IA64_DTPREL14; break;
+	case BFD_RELOC_IA64_IMM22:
+	  new = BFD_RELOC_IA64_DTPREL22; break;
+	case BFD_RELOC_IA64_IMM64:
+	  new = BFD_RELOC_IA64_DTPREL64I; break;
+	default:
+	  break;
+	}
+      break;
+
+    case FUNC_LT_DTP_RELATIVE:
+      switch (r_type)
+	{
+	case BFD_RELOC_IA64_IMM22:
+	  new = BFD_RELOC_IA64_LTOFF_DTPREL22; break;
+	default:
+	  break;
+	}
+      break;
+
+    case FUNC_IPLT_RELOC:
+      break;
 
     default:
       abort ();
@@ -10267,11 +10373,11 @@ fix_insn (fix, odesc, value)
 void
 md_apply_fix3 (fix, valP, seg)
      fixS *fix;
-     valueT * valP;
+     valueT *valP;
      segT seg ATTRIBUTE_UNUSED;
 {
   char *fixpos;
-  valueT value = * valP;
+  valueT value = *valP;
   int adjust = 0;
 
   fixpos = fix->fx_frag->fr_literal + fix->fx_where;

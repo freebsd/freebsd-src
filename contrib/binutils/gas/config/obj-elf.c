@@ -1,6 +1,6 @@
 /* ELF object file format
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -24,6 +24,7 @@
 #include "safe-ctype.h"
 #include "subsegs.h"
 #include "obstack.h"
+#include "struc-symbol.h"
 
 #ifndef ECOFF_DEBUGGING
 #define ECOFF_DEBUGGING 0
@@ -61,6 +62,7 @@ static void adjust_stab_sections PARAMS ((bfd *, asection *, PTR));
 static void build_group_lists PARAMS ((bfd *, asection *, PTR));
 static int elf_separate_stab_sections PARAMS ((void));
 static void elf_init_stab_section PARAMS ((segT));
+static symbolS *elf_common PARAMS ((int));
 
 #ifdef NEED_ECOFF_DEBUG
 static boolean elf_get_extr PARAMS ((asymbol *, EXTR *));
@@ -76,7 +78,7 @@ static void obj_elf_weak PARAMS ((int));
 static void obj_elf_local PARAMS ((int));
 static void obj_elf_visibility PARAMS ((int));
 static void obj_elf_change_section
-  PARAMS ((const char *, int, int, int, const char *, int));
+  PARAMS ((const char *, int, int, int, const char *, int, int));
 static int obj_elf_parse_section_letters PARAMS ((char *, size_t));
 static int obj_elf_section_word PARAMS ((char *, size_t));
 static char *obj_elf_section_name PARAMS ((void));
@@ -84,6 +86,7 @@ static int obj_elf_section_type PARAMS ((char *, size_t));
 static void obj_elf_symver PARAMS ((int));
 static void obj_elf_subsection PARAMS ((int));
 static void obj_elf_popsection PARAMS ((int));
+static void obj_elf_tls_common PARAMS ((int));
 
 static const pseudo_typeS elf_pseudo_table[] =
 {
@@ -129,6 +132,8 @@ static const pseudo_typeS elf_pseudo_table[] =
   /* We need to trap the section changing calls to handle .previous.  */
   {"data", obj_elf_data, 0},
   {"text", obj_elf_text, 0},
+
+  {"tls_common", obj_elf_tls_common, 0},
 
   /* End sentinel.  */
   {NULL, NULL, 0},
@@ -280,8 +285,8 @@ elf_file_symbol (s)
 #endif
 }
 
-void
-obj_elf_common (is_common)
+static symbolS *
+elf_common (is_common)
      int is_common;
 {
   char *name;
@@ -294,7 +299,7 @@ obj_elf_common (is_common)
   if (flag_mri && is_common)
     {
       s_mri_common (0);
-      return;
+      return NULL;
     }
 
   name = input_line_pointer;
@@ -307,14 +312,14 @@ obj_elf_common (is_common)
     {
       as_bad (_("expected comma after symbol-name"));
       ignore_rest_of_line ();
-      return;
+      return NULL;
     }
   input_line_pointer++;		/* skip ',' */
   if ((temp = get_absolute_expression ()) < 0)
     {
       as_bad (_(".COMMon length (%d.) <0! Ignored."), temp);
       ignore_rest_of_line ();
-      return;
+      return NULL;
     }
   size = temp;
   *p = 0;
@@ -324,7 +329,7 @@ obj_elf_common (is_common)
     {
       as_bad (_("symbol `%s' is already defined"), S_GET_NAME (symbolP));
       ignore_rest_of_line ();
-      return;
+      return NULL;
     }
   if (S_GET_VALUE (symbolP) != 0)
     {
@@ -374,7 +379,7 @@ obj_elf_common (is_common)
 		{
 		  as_bad (_("common alignment not a power of 2"));
 		  ignore_rest_of_line ();
-		  return;
+		  return NULL;
 		}
 	    }
 	  else
@@ -426,7 +431,7 @@ obj_elf_common (is_common)
   symbol_get_bfdsym (symbolP)->flags |= BSF_OBJECT;
 
   demand_empty_rest_of_line ();
-  return;
+  return symbolP;
 
   {
   bad_common_segment:
@@ -439,8 +444,25 @@ obj_elf_common (is_common)
     *p = c;
     input_line_pointer = p;
     ignore_rest_of_line ();
-    return;
+    return NULL;
   }
+}
+
+void
+obj_elf_common (is_common)
+     int is_common;
+{
+  elf_common (is_common);
+}
+
+static void
+obj_elf_tls_common (ignore)
+     int ignore ATTRIBUTE_UNUSED;
+{
+  symbolS *symbolP = elf_common (0);
+
+  if (symbolP)
+    symbol_get_bfdsym (symbolP)->flags |= BSF_THREAD_LOCAL;
 }
 
 static void
@@ -594,6 +616,8 @@ static struct special_section const special_sections[] =
   { ".note",	SHT_NOTE,	0				},
   { ".rodata",	SHT_PROGBITS,	SHF_ALLOC			},
   { ".rodata1",	SHT_PROGBITS,	SHF_ALLOC			},
+  { ".tbss",	SHT_NOBITS,	SHF_ALLOC + SHF_WRITE + SHF_TLS	},
+  { ".tdata",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE + SHF_TLS	},
   { ".text",	SHT_PROGBITS,	SHF_ALLOC + SHF_EXECINSTR	},
 #if 0
   /* FIXME: The current gcc, as of 2002-03-03, will emit
@@ -608,13 +632,13 @@ static struct special_section const special_sections[] =
 	.section .init_array
 
    */
-  { ".init_array",SHT_INIT_ARRAY, SHF_ALLOC + SHF_WRITE         }, 
+  { ".init_array",SHT_INIT_ARRAY, SHF_ALLOC + SHF_WRITE         },
   { ".fini_array",SHT_FINI_ARRAY, SHF_ALLOC + SHF_WRITE         },
-  { ".preinit_array",SHT_PREINIT_ARRAY, SHF_ALLOC + SHF_WRITE   }, 
+  { ".preinit_array",SHT_PREINIT_ARRAY, SHF_ALLOC + SHF_WRITE   },
 #else
-  { ".init_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE         }, 
+  { ".init_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE         },
   { ".fini_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE         },
-  { ".preinit_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE   }, 
+  { ".preinit_array",SHT_PROGBITS, SHF_ALLOC + SHF_WRITE   },
 #endif
 
 #ifdef ELF_TC_SPECIAL_SECTIONS
@@ -641,12 +665,13 @@ static struct special_section const special_sections[] =
 };
 
 static void
-obj_elf_change_section (name, type, attr, entsize, group_name, push)
+obj_elf_change_section (name, type, attr, entsize, group_name, linkonce, push)
      const char *name;
      int type;
      int attr;
      int entsize;
      const char *group_name;
+     int linkonce;
      int push;
 {
   asection *old_sec;
@@ -717,7 +742,8 @@ obj_elf_change_section (name, type, attr, entsize, group_name, push)
 	   | (((attr & SHF_ALLOC) && type != SHT_NOBITS) ? SEC_LOAD : 0)
 	   | ((attr & SHF_EXECINSTR) ? SEC_CODE : 0)
 	   | ((attr & SHF_MERGE) ? SEC_MERGE : 0)
-	   | ((attr & SHF_STRINGS) ? SEC_STRINGS : 0));
+	   | ((attr & SHF_STRINGS) ? SEC_STRINGS : 0)
+	   | ((attr & SHF_TLS) ? SEC_THREAD_LOCAL : 0));
 #ifdef md_elf_section_flags
   flags = md_elf_section_flags (flags, attr, type);
 #endif
@@ -734,6 +760,7 @@ obj_elf_change_section (name, type, attr, entsize, group_name, push)
       if (flags & SEC_MERGE)
 	sec->entsize = entsize;
       elf_group_name (sec) = group_name;
+      elf_linkonce_p (sec) = linkonce;
 
       /* Add a symbol for this section to the symbol table.  */
       secsym = symbol_find (name);
@@ -747,14 +774,16 @@ obj_elf_change_section (name, type, attr, entsize, group_name, push)
       /* If section attributes are specified the second time we see a
 	 particular section, then check that they are the same as we
 	 saw the first time.  */
-      if ((old_sec->flags ^ flags)
-	  & (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
-	     | SEC_EXCLUDE | SEC_SORT_ENTRIES | SEC_MERGE | SEC_STRINGS))
+      if (((old_sec->flags ^ flags)
+	   & (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
+	      | SEC_EXCLUDE | SEC_SORT_ENTRIES | SEC_MERGE | SEC_STRINGS
+	      | SEC_THREAD_LOCAL))
+	  || linkonce != elf_linkonce_p (sec))
 	as_warn (_("ignoring changed section attributes for %s"), name);
-      else if ((flags & SEC_MERGE) && old_sec->entsize != (unsigned) entsize)
+      if ((flags & SEC_MERGE) && old_sec->entsize != (unsigned) entsize)
 	as_warn (_("ignoring changed section entity size for %s"), name);
-      else if ((attr & SHF_GROUP) != 0
-	       && strcmp (elf_group_name (old_sec), group_name) != 0)
+      if ((attr & SHF_GROUP) != 0
+	  && strcmp (elf_group_name (old_sec), group_name) != 0)
 	as_warn (_("ignoring new section group for %s"), name);
     }
 
@@ -792,6 +821,9 @@ obj_elf_parse_section_letters (str, len)
 	case 'G':
 	  attr |= SHF_GROUP;
 	  break;
+	case 'T':
+	  attr |= SHF_TLS;
+	  break;
 	/* Compatibility.  */
 	case 'm':
 	  if (*(str - 1) == 'a')
@@ -806,7 +838,7 @@ obj_elf_parse_section_letters (str, len)
 	    }
 	default:
 	  {
-	    char *bad_msg = _("unrecognized .section attribute: want a,w,x,M,S,G");
+	    char *bad_msg = _("unrecognized .section attribute: want a,w,x,M,S,G,T");
 #ifdef md_elf_section_letter
 	    int md_attr = md_elf_section_letter (*str, &bad_msg);
 	    if (md_attr >= 0)
@@ -919,6 +951,7 @@ obj_elf_section (push)
   char *name, *group_name, *beg;
   int type, attr, dummy;
   int entsize;
+  int linkonce;
 
 #ifndef TC_I370
   if (flag_mri)
@@ -949,6 +982,7 @@ obj_elf_section (push)
   attr = 0;
   group_name = NULL;
   entsize = 0;
+  linkonce = 0;
 
   if (*input_line_pointer == ',')
     {
@@ -1022,6 +1056,13 @@ obj_elf_section (push)
 	      group_name = obj_elf_section_name ();
 	      if (group_name == NULL)
 		attr &= ~SHF_GROUP;
+	      else if (strncmp (input_line_pointer, ",comdat", 7) == 0)
+		{
+		  input_line_pointer += 7;
+		  linkonce = 1;
+		}
+	      else if (strncmp (name, ".gnu.linkonce", 13) == 0)
+		linkonce = 1;
 	    }
 	  else if ((attr & SHF_GROUP) != 0)
 	    {
@@ -1057,7 +1098,7 @@ obj_elf_section (push)
 
   demand_empty_rest_of_line ();
 
-  obj_elf_change_section (name, type, attr, entsize, group_name, push);
+  obj_elf_change_section (name, type, attr, entsize, group_name, linkonce, push);
 }
 
 /* Change to the .data section.  */
@@ -1984,11 +2025,37 @@ elf_frob_file ()
   for (i = 0; i < list.num_group; i++)
     {
       const char *group_name = elf_group_name (list.head[i]);
+      const char *sec_name;
       asection *s;
       flagword flags;
+      struct symbol *sy;
+      int has_sym;
 
-      s = subseg_force_new (group_name, 0);
       flags = SEC_READONLY | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_GROUP;
+      for (s = list.head[i]; s != NULL; s = elf_next_in_group (s))
+	if (elf_linkonce_p (s) != ((flags & SEC_LINK_ONCE) != 0))
+	  {
+	    flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+	    if (s != list.head[i])
+	      {
+		as_warn (_("assuming all members of group `%s' are COMDAT"),
+			 group_name);
+		break;
+	      }
+	  }
+
+      sec_name = group_name;
+      sy = symbol_find_exact (group_name);
+      has_sym = 0;
+      if (sy != NULL
+	  && (sy == symbol_lastP
+	      || (sy->sy_next != NULL
+		  && sy->sy_next->sy_previous == sy)))
+	{
+	  has_sym = 1;
+	  sec_name = ".group";
+	}
+      s = subseg_force_new (sec_name, 0);
       if (s == NULL
 	  || !bfd_set_section_flags (stdoutput, s, flags)
 	  || !bfd_set_section_alignment (stdoutput, s, 2))
@@ -1999,6 +2066,8 @@ elf_frob_file ()
 
       /* Pass a pointer to the first section in this group.  */
       elf_next_in_group (s) = list.head[i];
+      if (has_sym)
+	elf_group_id (s) = sy->bsym;
 
       s->_raw_size = 4 * (list.elt_count[i] + 1);
       s->contents = frag_more (s->_raw_size);

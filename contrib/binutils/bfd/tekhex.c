@@ -1,5 +1,5 @@
 /* BFD backend for Extended Tektronix Hex Format  objects.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
@@ -242,7 +242,7 @@ tekhex_init ()
   static boolean inited = false;
   int val;
 
-  if (inited == false)
+  if (! inited)
     {
       inited = true;
       hex_init ();
@@ -354,17 +354,13 @@ find_chunk (abfd, vma)
     }
   if (!d)
     {
-      char *sname = bfd_alloc (abfd, (bfd_size_type) 12);
-
       /* No chunk for this address, so make one up */
       d = ((struct data_struct *)
-	   bfd_alloc (abfd, (bfd_size_type) sizeof (struct data_struct)));
+	   bfd_zalloc (abfd, (bfd_size_type) sizeof (struct data_struct)));
 
-      if (!sname || !d)
+      if (!d)
 	return NULL;
 
-      memset (d->chunk_init, 0, CHUNK_MASK + 1);
-      memset (d->chunk_data, 0, CHUNK_MASK + 1);
       d->next = abfd->tdata.tekhex_data->data;
       d->vma = vma;
       abfd->tdata.tekhex_data->data = d;
@@ -489,7 +485,7 @@ pass_over (abfd, func)
   /* To the front of the file */
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
     abort ();
-  while (eof == false)
+  while (! eof)
     {
       char buffer[MAXCHUNK];
       char *src = buffer;
@@ -681,7 +677,7 @@ tekhex_set_section_contents (abfd, section, locationp, offset, bytes_to_do)
      bfd_size_type bytes_to_do;
 {
 
-  if (abfd->output_has_begun == false)
+  if (! abfd->output_has_begun)
     {
       /* The first time around, allocate enough sections to hold all the chunks */
       asection *s = abfd->sections;
@@ -1005,8 +1001,11 @@ tekhex_print_symbol (abfd, filep, symbol, how)
 #define tekhex_bfd_relax_section bfd_generic_relax_section
 #define tekhex_bfd_gc_sections bfd_generic_gc_sections
 #define tekhex_bfd_merge_sections bfd_generic_merge_sections
+#define tekhex_bfd_discard_group bfd_generic_discard_group
 #define tekhex_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
+#define tekhex_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define tekhex_bfd_link_add_symbols _bfd_generic_link_add_symbols
+#define tekhex_bfd_link_just_syms _bfd_generic_link_just_syms
 #define tekhex_bfd_final_link _bfd_generic_final_link
 #define tekhex_bfd_link_split_section _bfd_generic_link_split_section
 

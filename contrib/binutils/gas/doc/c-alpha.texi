@@ -55,13 +55,17 @@ The following processor names are recognized:
 @code{21164a},
 @code{21164pc},
 @code{21264},
+@code{21264a},
+@code{21264b},
 @code{ev4},
 @code{ev5},
 @code{lca45},
 @code{ev5},
 @code{ev56},
 @code{pca56},
-@code{ev6}.
+@code{ev6},
+@code{ev67},
+@code{ev68}.
 The special name @code{all} may be used to allow the assembler to accept
 instructions valid for any Alpha processor.
 
@@ -216,6 +220,19 @@ beq  $27,is_undef   !lituse_addr!1
 jsr  $26,($27),foo  !lituse_jsr!1
 @end example
 
+@item !lituse_tlsgd!@var{N}
+Used with a register branch format instruction to indicate that the
+literal is the call to @code{__tls_get_addr} used to compute the 
+address of the thread-local storage variable whose descriptor was
+loaded with @code{!tlsgd!@var{N}}.
+
+@item !lituse_tlsldm!@var{N}
+Used with a register branch format instruction to indicate that the
+literal is the call to @code{__tls_get_addr} used to compute the 
+address of the base of the thread-local storage block for the current
+module.  The descriptor for the module must have been loaded with
+@code{!tlsldm!@var{N}}.
+
 @item !gpdisp!@var{N}
 Used with @code{ldah} and @code{lda} to load the GP from the current
 address, a-la the @code{ldgp} macro.  The source register for the
@@ -248,6 +265,47 @@ target address.  The referenced symbol must have the same GP as the
 source object file, and it must be declared to either not use @code{$27}
 or perform a standard GP load in the first two instructions via the
 @code{.prologue} directive.
+
+@item !tlsgd
+@itemx !tlsgd!@var{N}
+Used with an @code{lda} instruction to load the address of a TLS
+descriptor for a symbol in the GOT.
+
+The sequence number @var{N} is optional, and if present it used to
+pair the descriptor load with both the @code{literal} loading the
+address of the @code{__tls_get_addr} function and the @code{lituse_tlsgd}
+marking the call to that function.
+
+For proper relaxation, both the @code{tlsgd}, @code{literal} and
+@code{lituse} relocations must be in the same extended basic block.
+That is, the relocation with the lowest address must be executed
+first at runtime.
+
+@item !tlsldm
+@itemx !tlsldm!@var{N}
+Used with an @code{lda} instruction to load the address of a TLS
+descriptor for the current module in the GOT.
+
+Similar in other respects to @code{tlsgd}.
+
+@item !gotdtprel
+Used with an @code{ldq} instruction to load the offset of the TLS
+symbol within its module's thread-local storage block.  Also known
+as the dynamic thread pointer offset or dtp-relative offset.
+
+@item !dtprelhi
+@itemx !dtprello
+@itemx !dtprel
+Like @code{gprel} relocations except they compute dtp-relative offsets.
+
+@item !gottprel
+Used with an @code{ldq} instruction to load the offset of the TLS
+symbol from the thread pointer.  Also known as the tp-relative offset.
+
+@item !tprelhi
+@itemx !tprello
+@itemx !tprel
+Like @code{gprel} relocations except they compute tp-relative offsets.
 @end table
 
 @node Alpha Floating Point

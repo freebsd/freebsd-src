@@ -7,6 +7,7 @@ typedef union {
   int number;
 } yystype;
 # define YYSTYPE yystype
+# define YYSTYPE_IS_TRIVIAL 1
 #endif
 # define	NAME	257
 # define	LIBRARY	258

@@ -1,3 +1,101 @@
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* acinclude.m4: Allow for PWDCMD to override hardcoded pwd.
+
+2002-05-13  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* mh-apollo68: remove unused HDEFINES setting.
+	* mh-dgux: remove unused HDEFINES setting.
+	* mh-dgux386: remove unused HDEFINES setting, duplicate RANLIB=true.
+
+2002-04-29  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* config/mh-cxux: remove dead code
+	* config/mh-dgux386: remove dead code
+	* config/mh-hp300: remove dead code
+	* config/mh-hpux: remove dead code
+	* config/mh-hpux8: remove dead code
+	* config/mh-irix5: remove dead code
+	* config/mh-irix6: remove dead code
+	* config/mh-ncr3000: remove dead code
+	* config/mh-ncrsvr43: remove dead code
+	* config/mh-necv4: remove dead code
+	* config/mh-sco: remove dead code
+	* config/mh-solaris: remove dead code
+	* config/mh-sysv: remove dead code
+	* config/mh-sysv4: remove dead code
+	* config/mh-sysv5: remove dead code
+	* config/mh-irix4: remove, contains only dead code
+
+	* config/mt-armpic: Delete.
+	* config/mt-elfalphapic: Delete.
+	* config/mt-i370pic: Delete.
+	* config/mt-ia64pic: Delete.
+	* config/mt-m68kpic: Delete.
+	* config/mt-papic: Delete.
+	* config/mt-ppcpic: Delete.
+	* config/mt-s390pic: Delete.
+	* config/mt-sparcpic: Delete.
+	* config/mt-x86pic: Delete.
+
+2002-04-19  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* mh-a68bsd: clean out dead code
+	* mh-apollo68: clean out dead code
+	* mh-cxux: clean out dead code
+	* mh-decstation: clean out dead code
+	* mh-dgux: clean out dead code
+	* mh-dgux386: clean out dead code
+	* mh-hp300: clean out dead code
+	* mh-hpux: clean out dead code
+	* mh-hpux8: clean out dead code
+	* mh-interix: clean out dead code
+	* mh-irix4: clean out dead code
+	* mh-lynxrs6k: clean out dead code
+	* mh-mingw32: clean out dead code
+	* mh-ncr3000: clean out dead code
+	* mh-ncrsvr43: clean out dead code
+	* mh-necv4: clean out dead code
+	* mh-openedition: clean out dead code
+	* mh-riscos: clean out dead code
+	* mh-sco: clean out dead code
+	* mh-sysv4: clean out dead code
+	* mh-lynxos: removed, contained only dead code
+	* mh-vaxult2: removed, contained only dead code
+	* mh-sun3: removed, contained only dead code
+
+2002-04-15  Keith Seitz  <keiths@redhat.com>
+
+	* acinclude.m4 (CYG_AC_PATH_TCLCONFIG): Search the win/ directory,
+	too.
+	(CYG_AC_PATH_TKCONFIG): Likewise.
+
+2001-10-07  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* acinclude.m4: Fix spelling error of "separate" as "seperate".
+
+2001-05-22  Jason Merrill  <jason_merrill@redhat.com>
+
+	* mt-linux (CXXFLAGS_FOR_TARGET): Lose -fvtable-thunks.
+
+2001-01-27  Richard Henderson  <rth@redhat.com>
+
+	* mt-alphaieee: New file.
+
+2001-01-02  Laurynas Biveinis  <lauras@softhome.net>
+
+	* mh-djgpp: do not set CFLAGS.
+
+2000-08-04  Mark Elbrecht  <snowball3@bigfoot.com>
+
+	* mh-djgpp: Conditionally set 'target_alias' to djgpp. Conditionally
+	modify 'gcc_version'.
+
+2000-07-21  Andrew Haley  <aph@cygnus.com>
+
+	* mh-ia64pic: New file.
+	* mt-ia64pic: New file.	
+
 2001-02-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
 
 	* mh-s390pic: New file.

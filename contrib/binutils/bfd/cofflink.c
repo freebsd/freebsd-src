@@ -119,13 +119,13 @@ _bfd_coff_link_hash_table_create (abfd)
   struct coff_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct coff_link_hash_table);
 
-  ret = (struct coff_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct coff_link_hash_table *) bfd_malloc (amt);
   if (ret == NULL)
     return NULL;
   if (! _bfd_coff_link_hash_table_init (ret, abfd,
 					_bfd_coff_link_hash_newfunc))
     {
-      bfd_release (abfd, ret);
+      free (ret);
       return (struct bfd_link_hash_table *) NULL;
     }
   return &ret->root;
@@ -342,12 +342,10 @@ coff_link_add_symbols (abfd, info)
   /* We keep a list of the linker hash table entries that correspond
      to particular symbols.  */
   amt = symcount * sizeof (struct coff_link_hash_entry *);
-  sym_hash = (struct coff_link_hash_entry **) bfd_alloc (abfd, amt);
+  sym_hash = (struct coff_link_hash_entry **) bfd_zalloc (abfd, amt);
   if (sym_hash == NULL && symcount != 0)
     goto error_return;
   obj_coff_sym_hashes (abfd) = sym_hash;
-  memset (sym_hash, 0,
-	  (size_t) symcount * sizeof (struct coff_link_hash_entry *));
 
   symesz = bfd_coff_symesz (abfd);
   BFD_ASSERT (symesz == bfd_coff_auxesz (abfd));
@@ -759,6 +757,10 @@ _bfd_coff_final_link (abfd, info)
 	  o->flags |= SEC_RELOC;
 	  o->rel_filepos = rel_filepos;
 	  rel_filepos += o->reloc_count * relsz;
+	  /* In PE COFF, if there are at least 0xffff relocations an
+	     extra relocation will be written out to encode the count.  */
+	  if (obj_pe (abfd) && o->reloc_count >= 0xffff)
+	    rel_filepos += relsz;
 	}
 
       if (bfd_coff_long_section_names (abfd)

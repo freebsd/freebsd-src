@@ -28,10 +28,17 @@
 
 #define TARGET_ARCH			bfd_arch_alpha
 
+#ifdef TE_FreeBSD
+#define ELF_TARGET_FORMAT	"elf64-alpha-freebsd"
+#endif
+#ifndef ELF_TARGET_FORMAT
+#define ELF_TARGET_FORMAT	"elf64-alpha"
+#endif
+
 #define TARGET_FORMAT (OUTPUT_FLAVOR == bfd_target_ecoff_flavour	\
 		       ? "ecoff-littlealpha"				\
 		       : OUTPUT_FLAVOR == bfd_target_elf_flavour	\
-		       ? "elf64-alpha"					\
+		       ? ELF_TARGET_FORMAT				\
 		       : OUTPUT_FLAVOR == bfd_target_evax_flavour	\
 		       ? "vms-alpha"					\
 		       : "unknown-format")

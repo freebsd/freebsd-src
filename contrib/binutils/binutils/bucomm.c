@@ -1,5 +1,5 @@
 /* bucomm.c -- Bin Utils COMmon code.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -42,9 +42,9 @@ char *program_name;
 
 void
 bfd_nonfatal (string)
-     CONST char *string;
+     const char *string;
 {
-  CONST char *errmsg = bfd_errmsg (bfd_get_error ());
+  const char *errmsg = bfd_errmsg (bfd_get_error ());
 
   if (string)
     fprintf (stderr, "%s: %s: %s\n", program_name, string, errmsg);
@@ -54,7 +54,7 @@ bfd_nonfatal (string)
 
 void
 bfd_fatal (string)
-     CONST char *string;
+     const char *string;
 {
   bfd_nonfatal (string);
   xexit (1);
@@ -178,7 +178,7 @@ print_arelt_descr (file, abfd, verbose)
 	  char modebuf[11];
 	  char timebuf[40];
 	  time_t when = buf.st_mtime;
-	  CONST char *ctime_result = (CONST char *) ctime (&when);
+	  const char *ctime_result = (const char *) ctime (&when);
 
 	  /* POSIX format:  skip weekday and seconds from ctime output.  */
 	  sprintf (timebuf, "%.12s %.4s", ctime_result + 4, ctime_result + 20);
@@ -257,7 +257,7 @@ parse_vma (s, arg)
   const char *end;
 
   ret = bfd_scan_vma (s, &end, 0);
-  
+
   if (*end != '\0')
     fatal (_("%s: bad number: %s"), arg, s);
 

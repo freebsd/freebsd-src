@@ -716,6 +716,21 @@ Like BFD_RELOC_23_PCREL_S2, except that the source and target must
 share a common GP, and the target address is adjusted for 
 STO_ALPHA_STD_GPLOAD.
 @end deffn
+@deffn {} BFD_RELOC_ALPHA_TLSGD
+@deffnx {} BFD_RELOC_ALPHA_TLSLDM
+@deffnx {} BFD_RELOC_ALPHA_DTPMOD64
+@deffnx {} BFD_RELOC_ALPHA_GOTDTPREL16
+@deffnx {} BFD_RELOC_ALPHA_DTPREL64
+@deffnx {} BFD_RELOC_ALPHA_DTPREL_HI16
+@deffnx {} BFD_RELOC_ALPHA_DTPREL_LO16
+@deffnx {} BFD_RELOC_ALPHA_DTPREL16
+@deffnx {} BFD_RELOC_ALPHA_GOTTPREL16
+@deffnx {} BFD_RELOC_ALPHA_TPREL64
+@deffnx {} BFD_RELOC_ALPHA_TPREL_HI16
+@deffnx {} BFD_RELOC_ALPHA_TPREL_LO16
+@deffnx {} BFD_RELOC_ALPHA_TPREL16
+Alpha thread-local storage relocations.
+@end deffn
 @deffn {} BFD_RELOC_MIPS_JMP
 Bits 27..2 of the relocation address shifted right 2 bits;
 simple reloc otherwise.
@@ -768,6 +783,17 @@ Relocation against a MIPS literal section.
 @deffnx {} BFD_RELOC_MIPS_REL16
 @deffnx {} BFD_RELOC_MIPS_RELGOT
 @deffnx {} BFD_RELOC_MIPS_JALR
+@deffn {} BFD_RELOC_FRV_LABEL16
+@deffnx {} BFD_RELOC_FRV_LABEL24
+@deffnx {} BFD_RELOC_FRV_LO16
+@deffnx {} BFD_RELOC_FRV_HI16
+@deffnx {} BFD_RELOC_FRV_GPREL12
+@deffnx {} BFD_RELOC_FRV_GPRELU12
+@deffnx {} BFD_RELOC_FRV_GPREL32
+@deffnx {} BFD_RELOC_FRV_GPRELHI
+@deffnx {} BFD_RELOC_FRV_GPRELLO
+Fujitsu Frv Relocations.
+@end deffn
 MIPS ELF relocations.
 @end deffn
 @deffn {} BFD_RELOC_386_GOT32
@@ -778,6 +804,15 @@ MIPS ELF relocations.
 @deffnx {} BFD_RELOC_386_RELATIVE
 @deffnx {} BFD_RELOC_386_GOTOFF
 @deffnx {} BFD_RELOC_386_GOTPC
+@deffnx {} BFD_RELOC_386_TLS_LE
+@deffnx {} BFD_RELOC_386_TLS_GD
+@deffnx {} BFD_RELOC_386_TLS_LDM
+@deffnx {} BFD_RELOC_386_TLS_LDO_32
+@deffnx {} BFD_RELOC_386_TLS_IE_32
+@deffnx {} BFD_RELOC_386_TLS_LE_32
+@deffnx {} BFD_RELOC_386_TLS_DTPMOD32
+@deffnx {} BFD_RELOC_386_TLS_DTPOFF32
+@deffnx {} BFD_RELOC_386_TLS_TPOFF32
 i386/elf relocations
 @end deffn
 @deffn {} BFD_RELOC_X86_64_GOT32
@@ -1082,6 +1117,15 @@ This is a 32-bit absolute reloc.
 @end deffn
 @deffn {} BFD_RELOC_D30V_32_PCREL
 This is a 32-bit pc-relative reloc.
+@end deffn
+@deffn {} BFD_RELOC_DLX_HI16_S
+DLX relocs
+@end deffn
+@deffn {} BFD_RELOC_DLX_LO16
+DLX relocs
+@end deffn
+@deffn {} BFD_RELOC_DLX_JMP26
+DLX relocs
 @end deffn
 @deffn {} BFD_RELOC_M32R_24
 Mitsubishi M32R relocs.
@@ -1488,12 +1532,25 @@ this offset in the reloc's section offset.
 @deffnx {} BFD_RELOC_IA64_IPLTMSB
 @deffnx {} BFD_RELOC_IA64_IPLTLSB
 @deffnx {} BFD_RELOC_IA64_COPY
-@deffnx {} BFD_RELOC_IA64_TPREL22
-@deffnx {} BFD_RELOC_IA64_TPREL64MSB
-@deffnx {} BFD_RELOC_IA64_TPREL64LSB
-@deffnx {} BFD_RELOC_IA64_LTOFF_TP22
 @deffnx {} BFD_RELOC_IA64_LTOFF22X
 @deffnx {} BFD_RELOC_IA64_LDXMOV
+@deffnx {} BFD_RELOC_IA64_TPREL14
+@deffnx {} BFD_RELOC_IA64_TPREL22
+@deffnx {} BFD_RELOC_IA64_TPREL64I
+@deffnx {} BFD_RELOC_IA64_TPREL64MSB
+@deffnx {} BFD_RELOC_IA64_TPREL64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_TPREL22
+@deffnx {} BFD_RELOC_IA64_DTPMOD64MSB
+@deffnx {} BFD_RELOC_IA64_DTPMOD64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_DTPMOD22
+@deffnx {} BFD_RELOC_IA64_DTPREL14
+@deffnx {} BFD_RELOC_IA64_DTPREL22
+@deffnx {} BFD_RELOC_IA64_DTPREL64I
+@deffnx {} BFD_RELOC_IA64_DTPREL32MSB
+@deffnx {} BFD_RELOC_IA64_DTPREL32LSB
+@deffnx {} BFD_RELOC_IA64_DTPREL64MSB
+@deffnx {} BFD_RELOC_IA64_DTPREL64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_DTPREL22
 Intel IA64 Relocations.
 @end deffn
 @deffn {} BFD_RELOC_M68HC11_HI8
@@ -1592,6 +1649,11 @@ H8 elf Relocations.
 @deffnx {} BFD_RELOC_XSTORMY16_24
 @deffnx {} BFD_RELOC_XSTORMY16_FPTR16
 Sony Xstormy16 Relocations.
+@end deffn
+@deffn {} BFD_RELOC_VAX_GLOB_DAT
+@deffnx {} BFD_RELOC_VAX_JMP_SLOT
+@deffnx {} BFD_RELOC_VAX_RELATIVE
+Relocations used by VAX ELF.
 @end deffn
 
 @example

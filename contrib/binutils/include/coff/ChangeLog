@@ -1,3 +1,7 @@
+2002-03-18  Tom Rix  <trix@redhat.com>
+
+	* rs6k64.h: Add U64_TOCMAGIC, AIX 5 64 bit magic number.
+
 2002-02-01  Tom Rix  <trix@redhat.com>
 
 	* xcoff.h: Conditionally support <aiaff> for pre AIX 4.3.

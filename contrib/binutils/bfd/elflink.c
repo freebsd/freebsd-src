@@ -278,11 +278,13 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
 	}
       else
 	{
-	  alc = bfd_malloc ((bfd_size_type) (p - name + 1));
+	  size_t len = p - name + 1;
+
+	  alc = bfd_malloc ((bfd_size_type) len);
 	  if (alc == NULL)
 	    return false;
-	  strncpy (alc, name, (size_t) (p - name));
-	  alc[p - name] = '\0';
+	  memcpy (alc, name, len - 1);
+	  alc[len - 1] = '\0';
 	  name = alc;
 	  copy = true;
 	}
@@ -298,6 +300,98 @@ _bfd_elf_link_record_dynamic_symbol (info, h)
     }
 
   return true;
+}
+
+/* Record a new local dynamic symbol.  Returns 0 on failure, 1 on
+   success, and 2 on a failure caused by attempting to record a symbol
+   in a discarded section, eg. a discarded link-once section symbol.  */
+
+int
+elf_link_record_local_dynamic_symbol (info, input_bfd, input_indx)
+     struct bfd_link_info *info;
+     bfd *input_bfd;
+     long input_indx;
+{
+  bfd_size_type amt;
+  struct elf_link_local_dynamic_entry *entry;
+  struct elf_link_hash_table *eht;
+  struct elf_strtab_hash *dynstr;
+  unsigned long dynstr_index;
+  char *name;
+  Elf_External_Sym_Shndx eshndx;
+  char esym[sizeof (Elf64_External_Sym)];
+
+  if (! is_elf_hash_table (info))
+    return 0;
+
+  /* See if the entry exists already.  */
+  for (entry = elf_hash_table (info)->dynlocal; entry ; entry = entry->next)
+    if (entry->input_bfd == input_bfd && entry->input_indx == input_indx)
+      return 1;
+
+  amt = sizeof (*entry);
+  entry = (struct elf_link_local_dynamic_entry *) bfd_alloc (input_bfd, amt);
+  if (entry == NULL)
+    return 0;
+
+  /* Go find the symbol, so that we can find it's name.  */
+  if (!bfd_elf_get_elf_syms (input_bfd, &elf_tdata (input_bfd)->symtab_hdr,
+			     (size_t) 1, (size_t) input_indx,
+			     &entry->isym, esym, &eshndx))
+    {
+      bfd_release (input_bfd, entry);
+      return 0;
+    }
+
+  if (entry->isym.st_shndx != SHN_UNDEF
+      && (entry->isym.st_shndx < SHN_LORESERVE
+	  || entry->isym.st_shndx > SHN_HIRESERVE))
+    {
+      asection *s;
+
+      s = bfd_section_from_elf_index (input_bfd, entry->isym.st_shndx);
+      if (s == NULL || bfd_is_abs_section (s->output_section))
+	{
+	  /* We can still bfd_release here as nothing has done another
+	     bfd_alloc.  We can't do this later in this function.  */
+	  bfd_release (input_bfd, entry);
+	  return 2;
+	}
+    }
+
+  name = (bfd_elf_string_from_elf_section
+	  (input_bfd, elf_tdata (input_bfd)->symtab_hdr.sh_link,
+	   entry->isym.st_name));
+
+  dynstr = elf_hash_table (info)->dynstr;
+  if (dynstr == NULL)
+    {
+      /* Create a strtab to hold the dynamic symbol names.  */
+      elf_hash_table (info)->dynstr = dynstr = _bfd_elf_strtab_init ();
+      if (dynstr == NULL)
+	return 0;
+    }
+
+  dynstr_index = _bfd_elf_strtab_add (dynstr, name, false);
+  if (dynstr_index == (unsigned long) -1)
+    return 0;
+  entry->isym.st_name = dynstr_index;
+
+  eht = elf_hash_table (info);
+
+  entry->next = eht->dynlocal;
+  eht->dynlocal = entry;
+  entry->input_bfd = input_bfd;
+  entry->input_indx = input_indx;
+  eht->dynsymcount++;
+
+  /* Whatever binding the symbol had before, it's now local.  */
+  entry->isym.st_info
+    = ELF_ST_INFO (STB_LOCAL, ELF_ST_TYPE (entry->isym.st_info));
+
+  /* The dynindx will be set at the end of size_dynamic_sections.  */
+
+  return 1;
 }
 
 /* Return the dynindex of a local dynamic symbol.  */
@@ -355,7 +449,8 @@ _bfd_elf_link_renumber_dynsyms (output_bfd, info)
     {
       asection *p;
       for (p = output_bfd->sections; p ; p = p->next)
-	elf_section_data (p)->dynindx = ++dynsymcount;
+	if ((p->flags & SEC_EXCLUDE) == 0)
+	  elf_section_data (p)->dynindx = ++dynsymcount;
     }
 
   if (elf_hash_table (info)->dynlocal)

@@ -50,7 +50,8 @@ powerpc_compatible (a,b)
 
 const bfd_arch_info_type bfd_powerpc_archs[] =
 {
-#if BFD_DEFAULT_TARGET_SIZE == 64 /* default arch must come first.  */
+#if BFD_DEFAULT_TARGET_SIZE == 64
+  /* Default arch must come first.  */
   {
     64,	/* 64 bits in a word */
     64,	/* 64 bits in an address */
@@ -65,6 +66,8 @@ const bfd_arch_info_type bfd_powerpc_archs[] =
     bfd_default_scan,
     &bfd_powerpc_archs[1]
   },
+  /* elf32-ppc:ppc_elf_object_p relies on the default 32 bit arch
+     being immediately after the 64 bit default.  */
   {
     32,	/* 32 bits in a word */
     32,	/* 32 bits in an address */
@@ -80,6 +83,7 @@ const bfd_arch_info_type bfd_powerpc_archs[] =
     &bfd_powerpc_archs[2],
   },
 #else
+  /* Default arch must come first.  */
   {
     32,	/* 32 bits in a word */
     32,	/* 32 bits in an address */
@@ -94,6 +98,8 @@ const bfd_arch_info_type bfd_powerpc_archs[] =
     bfd_default_scan,
     &bfd_powerpc_archs[1],
   },
+  /* elf64-ppc:ppc64_elf_object_p relies on the default 64 bit arch
+     being immediately after the 32 bit default.  */
   {
     64,	/* 64 bits in a word */
     64,	/* 64 bits in an address */

@@ -1,5 +1,5 @@
 /* Definitions for opcode table for the sparc.
-   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2002
    Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler, GDB, the GNU debugger, and
@@ -20,7 +20,7 @@ along with GAS or GDB; see the file COPYING.	If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
 
 /* The SPARC opcode table (and other related data) is defined in
    the opcodes library in sparc-opc.c.  If you change anything here, make

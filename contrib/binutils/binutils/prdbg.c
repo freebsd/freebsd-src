@@ -693,7 +693,6 @@ pr_range_type (p, lower, upper)
 
 /* Make an array type.  */
 
-/*ARGSUSED*/
 static boolean
 pr_array_type (p, lower, upper, stringp)
      PTR p;
@@ -747,7 +746,6 @@ pr_array_type (p, lower, upper, stringp)
 
 /* Make a set type.  */
 
-/*ARGSUSED*/
 static boolean
 pr_set_type (p, bitstringp)
      PTR p;
@@ -1598,7 +1596,6 @@ pr_typdef (p, name)
 /* Output a tag.  The tag should already be in the string on the
    stack, so all we have to do here is print it out.  */
 
-/*ARGSUSED*/
 static boolean
 pr_tag (p, name)
      PTR p;
@@ -1853,7 +1850,6 @@ pr_end_block (p, addr)
 
 /* Finish writing out a function.  */
 
-/*ARGSUSED*/
 static boolean
 pr_end_function (p)
      PTR p ATTRIBUTE_UNUSED;

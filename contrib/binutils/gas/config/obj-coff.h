@@ -294,9 +294,9 @@ extern void SA_SET_SYM_ENDNDX PARAMS ((symbolS *, symbolS *));
 #define SA_SET_SCN_NLINNO(s,v)	(SYM_AUXENT (s)->x_scn.x_nlinno=(v))
 
 /* Internal use only definitions. SF_ stands for symbol flags.
-  
+
    These values can be assigned to sy_symbol.ost_flags field of a symbolS.
-  
+
    You'll break i960 if you shift the SYSPROC bits anywhere else.  for
    more on the balname/callname hack, see tc-i960.h.  b.out is done
    differently.  */
@@ -582,9 +582,9 @@ typedef struct
 #define SA_SET_SCN_NLINNO(s,v)	(SYM_AUXENT (s)->x_scn.x_nlinno=(v))
 
 /* Internal use only definitions. SF_ stands for symbol flags.
-  
+
    These values can be assigned to sy_symbol.ost_flags field of a symbolS.
-  
+
    You'll break i960 if you shift the SYSPROC bits anywhere else.  for
    more on the balname/callname hack, see tc-i960.h.  b.out is done
    differently.  */

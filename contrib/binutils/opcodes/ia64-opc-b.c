@@ -32,6 +32,7 @@
 #define bPr(x)		(((ia64_insn) ((x) & 0x3f)) << 0)
 #define bWha(x)		(((ia64_insn) ((x) & 0x3)) << 33)
 #define bWhb(x)		(((ia64_insn) ((x) & 0x3)) << 3)
+#define bWhc(x)		(((ia64_insn) ((x) & 0x7)) << 32)
 #define bX6(x)		(((ia64_insn) ((x) & 0x3f)) << 27)
 
 #define mBtype		bBtype (-1)
@@ -41,11 +42,14 @@
 #define mPr		bPr (-1)
 #define mWha		bWha (-1)
 #define mWhb		bWhb (-1)
+#define mWhc		bWhc (-1)
 #define mX6		bX6 (-1)
 
 #define OpX6(a,b) 	(bOp (a) | bX6 (b)), (mOp | mX6)
 #define OpPaWhaD(a,b,c,d) \
 	(bOp (a) | bPa (b) | bWha (c) | bD (d)), (mOp | mPa | mWha | mD)
+#define OpPaWhcD(a,b,c,d) \
+	(bOp (a) | bPa (b) | bWhc (c) | bD (d)), (mOp | mPa | mWhc | mD)
 #define OpBtypePaWhaD(a,b,c,d,e) \
 	(bOp (a) | bBtype (b) | bPa (c) | bWha (d) | bD (e)), \
 	(mOp | mBtype | mPa | mWha | mD)
@@ -188,30 +192,30 @@ struct ia64_opcode ia64_opcodes_b[] =
 
     {"break.b",		B0, OpX6 (0, 0x00), {IMMU21}},
 
-    {"br.call.sptk.few",	B, OpPaWhaD (1, 0, 0, 0), {B1, B2}},
-    {"br.call.sptk",		B, OpPaWhaD (1, 0, 0, 0), {B1, B2}, PSEUDO},
-    {"br.call.sptk.few.clr",	B, OpPaWhaD (1, 0, 0, 1), {B1, B2}},
-    {"br.call.sptk.clr",	B, OpPaWhaD (1, 0, 0, 1), {B1, B2}, PSEUDO},
-    {"br.call.spnt.few",	B, OpPaWhaD (1, 0, 1, 0), {B1, B2}},
-    {"br.call.spnt",		B, OpPaWhaD (1, 0, 1, 0), {B1, B2}, PSEUDO},
-    {"br.call.spnt.few.clr",	B, OpPaWhaD (1, 0, 1, 1), {B1, B2}},
-    {"br.call.spnt.clr",	B, OpPaWhaD (1, 0, 1, 1), {B1, B2}, PSEUDO},
-    {"br.call.dptk.few",	B, OpPaWhaD (1, 0, 2, 0), {B1, B2}},
-    {"br.call.dptk",		B, OpPaWhaD (1, 0, 2, 0), {B1, B2}, PSEUDO},
-    {"br.call.dptk.few.clr",	B, OpPaWhaD (1, 0, 2, 1), {B1, B2}},
-    {"br.call.dptk.clr",	B, OpPaWhaD (1, 0, 2, 1), {B1, B2}, PSEUDO},
-    {"br.call.dpnt.few",	B, OpPaWhaD (1, 0, 3, 0), {B1, B2}},
-    {"br.call.dpnt",		B, OpPaWhaD (1, 0, 3, 0), {B1, B2}, PSEUDO},
-    {"br.call.dpnt.few.clr",	B, OpPaWhaD (1, 0, 3, 1), {B1, B2}},
-    {"br.call.dpnt.clr",	B, OpPaWhaD (1, 0, 3, 1), {B1, B2}, PSEUDO},
-    {"br.call.sptk.many",	B, OpPaWhaD (1, 1, 0, 0), {B1, B2}},
-    {"br.call.sptk.many.clr",	B, OpPaWhaD (1, 1, 0, 1), {B1, B2}},
-    {"br.call.spnt.many",	B, OpPaWhaD (1, 1, 1, 0), {B1, B2}},
-    {"br.call.spnt.many.clr",	B, OpPaWhaD (1, 1, 1, 1), {B1, B2}},
-    {"br.call.dptk.many",	B, OpPaWhaD (1, 1, 2, 0), {B1, B2}},
-    {"br.call.dptk.many.clr",	B, OpPaWhaD (1, 1, 2, 1), {B1, B2}},
-    {"br.call.dpnt.many",	B, OpPaWhaD (1, 1, 3, 0), {B1, B2}},
-    {"br.call.dpnt.many.clr",	B, OpPaWhaD (1, 1, 3, 1), {B1, B2}},
+    {"br.call.sptk.few",	B, OpPaWhcD (1, 0, 1, 0), {B1, B2}},
+    {"br.call.sptk",		B, OpPaWhcD (1, 0, 1, 0), {B1, B2}, PSEUDO},
+    {"br.call.sptk.few.clr",	B, OpPaWhcD (1, 0, 1, 1), {B1, B2}},
+    {"br.call.sptk.clr",	B, OpPaWhcD (1, 0, 1, 1), {B1, B2}, PSEUDO},
+    {"br.call.spnt.few",	B, OpPaWhcD (1, 0, 3, 0), {B1, B2}},
+    {"br.call.spnt",		B, OpPaWhcD (1, 0, 3, 0), {B1, B2}, PSEUDO},
+    {"br.call.spnt.few.clr",	B, OpPaWhcD (1, 0, 3, 1), {B1, B2}},
+    {"br.call.spnt.clr",	B, OpPaWhcD (1, 0, 3, 1), {B1, B2}, PSEUDO},
+    {"br.call.dptk.few",	B, OpPaWhcD (1, 0, 5, 0), {B1, B2}},
+    {"br.call.dptk",		B, OpPaWhcD (1, 0, 5, 0), {B1, B2}, PSEUDO},
+    {"br.call.dptk.few.clr",	B, OpPaWhcD (1, 0, 5, 1), {B1, B2}},
+    {"br.call.dptk.clr",	B, OpPaWhcD (1, 0, 5, 1), {B1, B2}, PSEUDO},
+    {"br.call.dpnt.few",	B, OpPaWhcD (1, 0, 7, 0), {B1, B2}},
+    {"br.call.dpnt",		B, OpPaWhcD (1, 0, 7, 0), {B1, B2}, PSEUDO},
+    {"br.call.dpnt.few.clr",	B, OpPaWhcD (1, 0, 7, 1), {B1, B2}},
+    {"br.call.dpnt.clr",	B, OpPaWhcD (1, 0, 7, 1), {B1, B2}, PSEUDO},
+    {"br.call.sptk.many",	B, OpPaWhcD (1, 1, 1, 0), {B1, B2}},
+    {"br.call.sptk.many.clr",	B, OpPaWhcD (1, 1, 1, 1), {B1, B2}},
+    {"br.call.spnt.many",	B, OpPaWhcD (1, 1, 3, 0), {B1, B2}},
+    {"br.call.spnt.many.clr",	B, OpPaWhcD (1, 1, 3, 1), {B1, B2}},
+    {"br.call.dptk.many",	B, OpPaWhcD (1, 1, 5, 0), {B1, B2}},
+    {"br.call.dptk.many.clr",	B, OpPaWhcD (1, 1, 5, 1), {B1, B2}},
+    {"br.call.dpnt.many",	B, OpPaWhcD (1, 1, 7, 0), {B1, B2}},
+    {"br.call.dpnt.many.clr",	B, OpPaWhcD (1, 1, 7, 1), {B1, B2}},
 
 #define BRP(a,b,c) \
       B0, OpX6IhWhb (2, a, b, c), {B2, TAG13}, NO_PRED
@@ -470,6 +474,7 @@ struct ia64_opcode ia64_opcodes_b[] =
 #undef bPr
 #undef bWha
 #undef bWhb
+#undef bWhc
 #undef bX6
 #undef mBtype
 #undef mD
@@ -478,9 +483,11 @@ struct ia64_opcode ia64_opcodes_b[] =
 #undef mPr
 #undef mWha
 #undef mWhb
+#undef mWhc
 #undef mX6
 #undef OpX6
 #undef OpPaWhaD
+#undef OpPaWhcD
 #undef OpBtypePaWhaD
 #undef OpBtypePaWhaDPr
 #undef OpX6BtypePaWhaD

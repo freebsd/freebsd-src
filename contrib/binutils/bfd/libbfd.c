@@ -1353,8 +1353,8 @@ _bfd_generic_get_section_contents_in_window (abfd, section, w, offset, count)
       return bfd_get_section_contents (abfd, section, w->data, offset, count);
     }
   if (offset + count > section->_raw_size
-      || (bfd_get_file_window (abfd, section->filepos + offset, count, w, true)
-	  == false))
+      || ! bfd_get_file_window (abfd, section->filepos + offset, count, w,
+				true))
     return false;
   return true;
 #else

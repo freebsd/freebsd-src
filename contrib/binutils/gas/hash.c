@@ -1,6 +1,6 @@
 /* hash.c -- gas hash table code
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -546,19 +546,9 @@ char *
 what (description)
      char *description;
 {
-  char *retval;
-  char *malloc ();
-
   printf ("   %s : ", description);
   gets (answer);
-  /* Will one day clean up answer here.  */
-  retval = malloc (strlen (answer) + 1);
-  if (!retval)
-    {
-      error ("room");
-    }
-  (void) strcpy (retval, answer);
-  return (retval);
+  return xstrdup (answer);
 }
 
 void

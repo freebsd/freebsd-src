@@ -170,8 +170,8 @@ ldemul_recognized_file (entry)
 
 char *
 ldemul_choose_target (argc, argv)
-      int argc;
-      char **argv;
+     int argc;
+     char **argv;
 {
   return ld_emulation->choose_target (argc, argv);
 }
@@ -307,4 +307,13 @@ ldemul_find_potential_libraries (name, entry)
     return ld_emulation->find_potential_libraries (name, entry);
 
   return 0;
+}
+
+struct bfd_elf_version_expr *
+ldemul_new_vers_pattern (entry)
+     struct bfd_elf_version_expr *entry;
+{
+  if (ld_emulation->new_vers_pattern)
+    entry = (*ld_emulation->new_vers_pattern) (entry);
+  return entry;
 }

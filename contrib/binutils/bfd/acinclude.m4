@@ -123,3 +123,27 @@ ifelse(yes,no,[
 AC_DEFUN([CY_WITH_NLS],)
 AC_SUBST(INTLLIBS)
 ])
+
+AC_DEFUN([AM_INSTALL_LIBBFD],
+[AC_MSG_CHECKING([whether to install libbfd])
+  AC_ARG_ENABLE(install-libbfd,
+[  --install-libbfd controls installation of libbfd and related headers],
+      install_libbfd_p=$enableval,
+      if test "${host}" = "${target}" -o "$enable_shared" = "yes"; then
+        install_libbfd_p=yes
+      else
+        install_libbfd_p=no
+      fi)
+  AC_MSG_RESULT($install_libbfd_p)
+  AM_CONDITIONAL(INSTALL_LIBBFD, test $install_libbfd_p = yes)
+  # libbfd.a is a host library containing target dependent code
+  bfdlibdir='$(libdir)'
+  bfdincludedir='$(includedir)'
+  if test "${host}" != "${target}"; then
+    bfdlibdir='$(exec_prefix)/$(host_alias)/$(target_alias)/lib'
+    bfdincludedir='$(exec_prefix)/$(host_alias)/$(target_alias)/include'
+  fi
+  AC_SUBST(bfdlibdir)
+  AC_SUBST(bfdincludedir)
+]
+)

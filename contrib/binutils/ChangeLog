@@ -1,7 +1,679 @@
+2002-07-11  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Remove two redundant tests.
+
+2002-07-11  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* configure.in (mips*-*-irix6*o32): Enable stabs.
+
+2002-07-08  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Don't build grez.
+	* Makefile.in: Ditto.
+
+	* Makefile.in: Remove references to bsp, cygmon, libstub.
+	* configure.in: Ditto.
+
+	* configure.in: Remove leftover reference to gdbtest.
+
+2002-07-08  Phil Edwards  <pme@gcc.gnu.org>
+
+	* configure.in (gxx_include_dir):  Change to match versioned
+	C++ headers if --enable-version-specific-runtime-libs is used.
+
+2002-07-04  Steve Ellcey  <sje@cup.hp.com>
+
+	* ltcf-cxx.sh (hpux*): Modify to support ia64-*-hpux*.
+
+2002-07-03  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Make --without-x work.
+
+2002-07-03  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* contrib: New directory.  Created to contain a copy of the
+	texi2pod.pl script so that it is in the same place as the version in 
+	the FSF GCC sources.
+
+2002-07-02  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* configure.in: Rearrange target Makefile fragment collection.
+
+	* Makefile.in: Don't try to build gdbtest, tgas, ispell, inet, or
+	cvs[src].
+	* configure.in: Ditto.
+
+2002-07-01  Nathanael Nerode <neroden@gcc.gnu.org>
+
+	* Makefile.in: Eliminate 'apache' targets.
+	* configure.in: Eliminate 'apache' targets.
+
+	* configure.in: Eliminate redundant tests.  Reorganize.
+
+	* Makefile.in: Eliminate last reference to LIBGCC1_TEST.
+
+	* config-ml.in: Eliminate references to Cygnus configure.
+
+	* Makefile.in: Eliminate references to building emacs.
+
+2002-07-01  Denis Chertykov  <denisc@overta.ru>
+
+	* configure.in: Add support for ip2k.
+
+2002-06-24  Ben Elliston  <bje@redhat.com>
+
+	* configure.in (host_tools): Remove cgen.
+
+	* Makefile.in (all-cgen): Remove; runs from its source directory.
+	(check-cgen, install-cgen, clean-cgen): Likewise.
+	(all-opcodes): No not depend on all-cgen.
+	(all-sim): Likewise.
+
+2002-06-22  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: Fix AIX configury bug.
+
+2002-06-19  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: Replace ${topsrcdir} with ${srcdir}.
+
+	* configure.in: Move definition of libstdcxx_flags right above
+	usage, rather than way earlier.
+
+	* configure.in: Pull definition of is_cross_compiler earlier.
+
+	* configure.in: Rearrange a little.
+
+	* configure.in: Remove references to librx.
+	* Makefile.in: Remove references to librx.
+
+2002-06-19  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: Eliminate ${gasdir} variable.
+
+2002-06-18  Dave Brolley  <brolley@redhat.com>
+
+	* configure.in: Add support for frv.
+	* config.sub: Add support for frv.
+
+2002-06-12  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (CFLAGS_FOR_TARGET): Add -O2.
+
+2002-06-08  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (vax-*-netbsd*): Re-enable gas.
+
+2002-05-31  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* Makefile.in: Replace HOST_PREFIX, HOST_PREFIX_1 with BUILD_PREFIX,
+	BUILD_PREFIX_1, to correct nomenclature.
+	* configure: Likewise.
+
+	* Makefile.in: Eliminate version-specific references to tcl8.1, tk8.1.
+	* configure.in: Eliminate version-specific references to tcl8.1, tk8.1.
+
+2002-05-31  Olaf Hering  <olh@suse.de>
+
+	* config-ml.in: Propogate DESTDIR also.
+
+2002-05-29  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in (vax-*-netbsd*): Don't build gas for this
+	platform.
+
+2002-05-28  Marek Michalkiewicz  <marekm@amelek.gda.pl>
+
+	* configure.in (noconfigdirs): Don't compile libiberty, libstdcxx
+	and libgcj for AVR.
+
+2002-05-28  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config.sub: Add DLX target.
+
+2002-05-22  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config.guess: Update to 2002-05-22 version.
+	* config.sub: Likewise.
+
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Makefile.in: Allow for PWDCMD to override hardcoded pwd.
+	* config-ml.in: Likewise.
+	* configure: Likewise.
+	* configure.in: Likewise.
+
+2002-05-13  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: Simplify makefile fragment collection.
+
+	* configure.in: Remove code to build emacs.
+
+	* configure.in : Remove --srcdir argument from targargs and buildargs
+	(it's always overridden in the Makefile anyway).  Rearrange a bit.
+
+	* configure: Move some logic to configure.in.
+	* configure.in: Move some logic from configure.
+
+2002-05-07  Jeff Johnston  <jjohnstn@redhat.com>
+
+	* COPYING.LIBGLOSS: New file.
+
+2002-05-07  Federico G. Schwindt <fgsch@olimpo.com.br>
+
+	* Makefile.in: Honour DESTDIR.
+
+2002-05-05  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (noconfigdirs): Don't disable libgcj on
+	sparc64-*-solaris* and sparcv9-*-solaris*.
+
+2002-05-03  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in: Revert 2002-04-18's patch; fixed in libjava.
+
+2002-05-03  Thomas Fitzsimmons  <fitzsim@redhat.com>
+
+	* configure.in (FLAGS_FOR_TARGET): Do not add
+	-B$$r/$(TARGET_SUBDIR)/newlib/ when compiling newlib natively
+	on i[3456]86-*-linux*.
+
+2002-05-01  Thomas Fitzsimmons  <fitzsim@redhat.com>
+
+	* configure.in (noconfigdirs): Replace [ ] with test.
+
+	* configure.in (noconfigdirs): Do not add target-newlib if
+	target == i[3456]86-*-linux*, and host == target.
+
+2002-04-29  Mark Mitchell  <mark@codesourcery.com>
+
+	* config.guess: Updated to 2002-04-26's version.
+	* config.sub: Updated to 2002-04-26's version.
+
+2002-04-29  Nathanael Nerode  <neroden@doctormoo.dyndns.org>
+
+	* configure.in: delete reference to absent file
+
+	* configure.in: replace '[' with 'test'
+
+	* configure.in: Eliminate references to gash.
+	* Makefile.in: Eliminate references to gash.
+
+	* configure.in: remove useless references to 'pic' makefile fragments.
+
+	* configure.in: (*-*-windows*) Finish removing.
+
+	* configure.in: Eliminate redundant test for libgui.
+
+2002-04-26  Joel Sherrill  <joel@OARcorp.com>
+
+	* configure.in (h8300*-*-rtems*): Disable libf2c and libgcj.
+	(sparc-*-elf*, sparc64-*-elf*): Disable libgcj.
+
+2002-04-19  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: remove references to dead files
+
+2002-04-18  Tom Tromey  <tromey@redhat.com>
+
+	* configure.in: Disallow configuring libgcj when it is already
+	installed and we're using Solaris 2.8 linker.  Do enable libgcj on
+	Solaris 2.8 by default.  For PR libgcj/6158.
+
+2002-04-17  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in:  Move default CC setting out of config/mh-* fragments
+	directly into here.
+
+2002-04-17  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* configure.in: don't even try to configure or make a subdirectory
+	if there's no configure script for it.
+
+2002-04-15  Mark Mitchell  <mark@codesourcery.com>
+
+	* MAINTAINERS: Remove chill maintainers.
+	* Makefile.in (CHILLFLAGS): Remove.
+	(CHILL_LIB): Remove.
+	(TARGET_CONFIGDIRS): Remove libchill.
+	(CHILL_FOR_TARGET): Remove.
+	(BASE_FLAGS_TO_PASS): Don't pass CHILLFLAGS, CHILL_FOR_TARGET, or
+	CHILL_LIB.
+	(CONFIGURE_TARGET_MODULES): Remove configure-target-libchill.
+	(CHECK_TARGET_MODULES): Likewise.
+	(INSTALL_TARGET_MODULES): Likewise.
+	(CLEAN_TARGET_MODULES): Likewise.
+	(configure-target-libchill): Remove.
+	(all-target-libchill): Remove.
+	* configure.in (target_libs): Remove target-libchill.
+	Do not compute CHILL_FOR_TARGET.
+	* libchill: Remove directory.
+	
+2002-04-15  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.in, configure.in, configure: Sync with gcc, entries
+	follow...
+
+2002-04-08  Tom Tromey  <tromey@redhat.com>
+
+	* configure.in: Add FLAGS_FOR_TARGET to GCJ_FOR_TARGET.
+	Fixes PR libgcj/6068.
+
+2002-03-30  Krister Walfridsson  <cato@df.lth.se>
+
+	* configure.in (i*86-*-netbsdelf*): Don't disable libgcj.
+
+2002-03-27  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* configure.in (alpha*-dec-osf*): Enable libgcj.
+
+2002-03-24  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	Fix for: PR bootstrap/3591, target/5676
+	* configure.in (mcore-pe): Disable the configuration of
+	libstdc++-v3 since exceptions are not supported.
+
+2002-03-20  Anthony Green  <green@redhat.com>
+
+	* configure.in: Enable libgcj for xscale-elf target.
+
+2002-02-28  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (libstdcxx_flags): Don't add libstdc++-v3 flags for
+	libjava.
+	(CXX_FOR_TARGET): Explain why -shared-libgcc here.
+
+2002-02-22  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (CXX_FOR_TARGET): Add -shared-libgcc for
+	libstdc++-v3 and libjava.
+
+2002-02-11  Adam Megacz <adam@xwt.org>
+
+	* gcc/Makefile.in: Removed libstdc++-v3 dependancy for libjava and
+	boehm-gc
+
+2002-02-09  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config.guess: Updated to 2002-01-30's version.
+	* config.sub: Updated to 2002-02-01's version.
+	Contribute sh64-elf.
+	2000-12-01  Alexandre Oliva  <aoliva@redhat.com>
+	* configure.in: Added sh64-*-*.
+
+2002-01-17  H.J. Lu <hjl@gnu.org>
+
+	* Makefile.in (all-fastjar): Also depend on all-libiberty.
+	(all-target-fastjar): Also depend on all-target-libiberty.
+
+Wed Dec  5 07:33:45 2001  Douglas B. Rupp  <rupp@gnat.com>
+
+	* configure, configure.in: Use temp file for long sed commands.
+
+2001-11-14  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* configure.in (noconfigdirs) [h8300*-*-*, h8500-*-*]: Disable
+	libf2c.
+
+2001-11-03  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* configure.in (noconfigdirs) [mmix-*-*]: Disable libgcj.
+
+2001-10-11  Hans-Peter Nilsson  <hp@axis.com>
+
+	* configure.in (noconfigdirs) [cris-*-*]: Disable libgcj.
+
+2001-10-02  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* configure: Handle temporary files securely using mkdir.
+
+2001-09-26  Will Cohen <wcohen@redhat.com>
+
+	* configure.in (*-*-linux*): Disable configuration of target-newlib
+	and target-libgloss.
+
+2001-09-26  Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in (EXTRA_TARGET_FLAGS): Pass RANLIB_FOR_TARGET for
+	RANLIB.
+
+2001-08-11  Graham Stott  <grahams@redhat.com>
+
+	* Makefile.in (check-c++): Add missing semicolon.
+
+2001-07-25  Andrew Haley  <aph@cambridge.redhat.com>
+
+	* configure.in (sh-*-linux*): New.
+
+2001-07-12  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* configure.in (noconfigdirs): Don't compile libiberty, libstdcxx
+	and libgcj on m68hc11/m68hc12.
+
+2001-06-27  H.J. Lu  (hjl@gnu.org)
+
+	* Makefile (CFLAGS_FOR_BUILD): New.
+	(EXTRA_GCC_FLAGS): Add CFLAGS_FOR_BUILD.
+
+2001-06-01  Hans-Peter Nilsson  <hp@axis.com>
+
+	* configure.in (libstdcxx_flags): Do not try to execute
+	libstdc++-v3/testsuite_flags until it exists.
+
+2001-05-18  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* configure.in (libstdcxx_flags): Remove reference to libstdc++.INC.
+
+2001-05-09  Jeffrey Oldham  <oldham@codesourcery.com>
+
+	* ltcf-cxx.sh: Add -nostdlib to IRIX 6 archive_cmds.
+
+Mon Apr 23 09:15:03 2001  Anthony Green  <green@redhat.com>
+
+	* configure.in: Move *-chorusos target case to the proper switch.
+	Disable libgcj.
+
+2001-04-13  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	* Makefile.in (STAGE1_CFLAGS): Pass down.
+
+2001-04-13  Alan Modra  <amodra@one.net.au>
+
+	* config.guess: Add hppa64-linux support.  Note for next import that
+	this is already in the master file.
+	* configure.in: Likewise.  Accept `parisc' alias for `hppa'.
+
+2001-03-22  Colin Howell  <chowell@redhat.com>
+
+	* Makefile.in (DO_X): Do not backslash single-quotes in
+	backquotes (two places).
+
+2001-03-18  Laurynas Biveinis  <lauras@softhome.net>
+
+	* Makefile.in (DO_X): Quote nested quotes.
+
+2001-03-15  Laurynas Biveinis  <lauras@softhome.net>
+
+	* Makefile.in (DO_X): Use double quotes for quoting
+	"RANLIB=$${RANLIB}".
+
+2001-03-09  Nicola Pero <n.pero@mi.flashnet.it>
+
+	* configure.in: Only use `lang_requires' for languages athat are
+	actually enabled.
+
+2001-03-07  Tom Tromey  <tromey@redhat.com>
+
+	* configure.in: Allow config-lang.in to set `lang_requires' to list
+	of other required languages.
+
+2001-03-06  Laurynas Biveinis  <lauras@softhome.net>
+
+	* Makefile.in: Remove RANLIB definition. Use RANLIB
+	in RANLIB_FOR_TARGET, EXTRA_HOST_FLAGS, EXTRA_TARGET_FLAGS,
+	EXTRA_GCC_FLAGS, $(DO_X) targets only when the RANLIB is set.
+
+2001-02-28  Benjamin Kosnik  <bkoz@redhat.com>
+	    Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in (check-c++): Use tabs, not spaces.
+
+2001-02-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* Makefile.in (check-c++): New rule.
+
+	* configure.in (target_libs): Remove libg++.
+	(noconfigdirs): Remove libg++.
+	(noconfigdirs): Same.
+	(noconfigdirs): Same.
+	(noconfigdirs): Same.
+
+	* config-ml.in: Remove libg++ references.
+
+	* Makefile.in (TARGET_CONFIGDIRS): Remove libio, libstdc++, libg++.
+	(ALL_TARGET_MODULES): Same.
+	(configure-target-libg++): Remove.
+	(all-target-libg++): Remove.
+	(configure-target-libio): Remove.
+	(all-target-libio): Remove.
+	(check-target-libio): Remove.
+	(.PHONY): Remove.
+	(libg++.tar.bz2): Remove.
+	(all-target-cygmon): Remove libio.
+	(all-target-libstdc++): Remove.
+	(configure-target-libstdc++): Remove.
+	(TARGET_LIB_PATH): Remove libstdc++.
+	(ALL_GCC_CXX): Remove libstdc++.
+	(all-target-gperf): Correct.
+
+2001-02-15  Anthony Green  <green@redhat.com>
+
+	* configure: Introduce GCJ_FOR_TARGET.
+	* configure.in: Ditto.
+	* Makefile.in: Ditto.
+
+2001-02-08  Chandrakala Chavva <cchavva@redhat.com>
+
+	* configure.in: for *-chorusos, don't config target-newlib and
+	target-libgloss.
+
+2001-02-04  Mark Mitchell  <mark@codesourcery.com>
+
+	Remove V2 C++ library.
+	* configure.in: Remove --enable-libstdcxx_v3 support.
+
+2001-01-27  Richard Henderson  <rth@redhat.com>
+
+	* configure.in (target_makefile_frag) [alpha*-*]: Use mt-alphaieee.
+
+2001-01-26  Tom Tromey  <tromey@redhat.com>
+
+	* configure.in: Allow libgcj to be built on Sparc Solaris.
+
+2001-01-23  Bryce McKinlay  <bryce@albatross.co.nz>
+
+	* configure.in: Enable libgcj on several additional platforms.
+
+2001-01-22  Bryce McKinlay  <bryce@albatross.co.nz>
+
+	* configure.in: Enable libgcj for linux targets.
+
+2001-01-09  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (CONFIGURE_TARGET_MODULES): Pass back configuration
+	failures of subdirectories.
+
+2001-01-02  Laurynas Biveinis  <lauras@softhome.net>
+
+	* configure: handle DOS-style absolute paths.
+
+2001-01-02  Laurynas Biveinis  <lauras@softhome.net>
+
+	* configure.in: remove supported directories from $noconfigdirs for DJGPP.
+
+2000-12-18  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* Makefile.in (BASE_FLAGS_TO_PASS): Alphabetize.
+	(libstdcxx_incdir): Pass down.
+	* config.if: Remove expired bits for cxx_interface, add stub.
+	(libstdcxx_incdir): Add variable for g++ include directory.
+	* configure.in (gxx_include_dir): Use it.
+
+2000-12-15  Andreas Jaeger  <aj@suse.de>
+
+	* configure.in: Handle lang_dirs.
+
+2000-12-13  Anthony Green  <green@redhat.com>
+
+	* configure.in: Disable libgcj for any target not specifically
+	listed.  Disable libgcj for x86 and Alpha Linux until compatible
+	with g++ abi.
+
+2000-12-13  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (local-distclean): Also remove fastjar.
+
+2000-12-10  Anthony Green  <green@redhat.com>
+
+	* configure.in: Define libgcj.  Disable libgcj target libraries for
+	most targets.
+
+2000-12-09  Alexandre Petit-Bianco  <apbianco@cygnus.com>
+
+	* configure.in (target_libs): Revert 2000-12-08 patch.
+	(noconfigdirs): Added target-libjava.
+
+2000-12-09  Laurynas Biveinis  <lauras@softhome.net>
+
+	* Makefile.in: handle DOS-style absolute paths.
+
+2000-12-08  Alexandre Petit-Bianco  <apbianco@cygnus.com>
+
+	* Makefile.in (TARGET_CONFIGDIRS): Wrong place. Removed note about
+	libjava.
+	* configure.in (target_libs): Removed `target-libjava'.
+
+2000-12-08  Alexandre Petit-Bianco  <apbianco@cygnus.com>
+
+	* Makefile.in (TARGET_CONFIGDIRS): Added note about libjava.
+	(ALL_MODULES): Added fastjar.
+	(NATIVE_CHECK_MODULES, INSTALL_MODULES, CLEAN_MODULES): Likewise.
+	(all-target-libjava): all-fastjar replaces all-zip.
+	(all-fastjar): Added.
+	(configure-target-fastjar, all-target-fastjar): Likewise.
+	* configure.in (host_tools): Added fastjar.
+
+2000-12-07  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (local-distclean): Remove leftover built files.
+
+2000-11-16  Fred Fish  <fnf@be.com>
+
+	* configure.in (enable_libstdcxx_v3): Fix typo,
+	libstd++ -> libstdc++.
+
+2000-11-13  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* configure: Provide the original toplevel configure arguments
+	(including $0) to subprocesses in the environment rather than
+	through gcc/configargs.h.
+
+2000-11-12  Mark Mitchell  <mark@codesourcery.com>
+
+	* configure: Turn on libstdc++ V3 by default.
+
+2000-10-16  Michael Meissner  <meissner@redhat.com>
+
+	* configure (gcc/configargs.h): Only create if there is a build GCC
+	directory created.
+
+2000-10-05  Phil Edwards  <pme@gcc.gnu.org>
+
+	* configure: Save configure arguments to gcc/configargs.h.
+
+2000-10-04  Andris Pavenis  <pavenis@latnet.lv>
+
+	* Makefile.in (bootstrap): avoid recursion if subdir missing
+	(cross): ditto
+	(do-proto-toplev): ditto
+
+Wed Sep 13 11:11:29 2000  Jeffrey A Law  (law@cygnus.com)
+
+	* configure.in: Do not build byacc for hppa64.  Provide paths to the
+	X11 libraries for hppa64.
+
+2000-09-02  Anthony Green  <green@cygnus.com>
+
+	* Makefile.in (all-gcc): Depend on all-zlib.
+	(CLEAN_MODULES): Add clean-zlib.
+	(ALL_MODULES): Add all-zlib.
+	* configure.in (host_libs): Add zlib.
+
+2000-08-25  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (FLAGS_FOR_TARGET): Use $target_configdirs and
+	$targargs to tell whether newlib is going to be built.
+
+	* configure.in [disable-libstdcxx-v3] (libstdcxx_flags): Search
+	$$r/TARGET_SUBDIR/libio for _G_config.h.
+
+2000-08-14  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* configure.in (libstdcxx_flags): Remove -isystem $$s/libio/stdio.
+
+	* configure: Make enable_threads and enable_shared defaults
+	explicit.  Substitute enable_threads into generated Makefiles.
+	* configure.in: Accept *-*-linux* not just *-*-linux-gnu*.
+	* libtool.m4: Accept *-*-linux* not just *-*-linux-gnu*.
+
+2000-08-02  Manfred Hollstein  <manfredh@redhat.com>
+
+	* configure.in: Re-enable all references to libg++ and librx.
+
+2002-04-09  Loren James Rittle  <rittle@labs.mot.com>
+	
+	* configure.in: Add *-*-freebsd* configurations.
+
+2002-04-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* Makefile.in (do-tar-bz2): Delete rule.  Replace with ...
+	(do-tar, do-bz2): New rules.
+	(taz): Update.  Replace do-tar-bz2 with do-tar and do-bz2.
+	(gdb-tar): New rule.
+	(gdb-taz): Rewrite.  Use gdb-tar and do-bz2.
+	(insight_dejagnu.tar): New rule.
+	(insight.tar): New rule.
+	(gdb+dejagnu.tar): New rule.
+	(gdb.tar): New rule.
+
+2002-04-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* MAINTAINERS: Update dejagnu/
+
+2002-03-16  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ltmain.sh (relink_command): Fix typo in previous change.
+
+2002-03-15  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ltmain.sh (taglist): Initialized.  Don't let `CC' tag out of it.
+	(relink_command): Added --tag flags.
+	(mode=install): If relinking fails; error out.
+
+2002-03-12  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.in (NOTPARALLEL): New.  Use it instead of explicit
+	.NOTPARALLEL tag.
+	(do-check): Rename from check.
+	(check): Allow parallel check.
+
+2002-03-11  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.in (.NOTPARALLEL): Add fake tag.
+
+2002-03-07  H.J. Lu  (hjl@gnu.org)
+
+	* configure.in: Enable gprof for mips*-*-linux*.
+
+2002-02-28  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in (libstdcxx_flags): Don't add libstdc++-v3 flags for
+	libjava.
+	(CXX_FOR_TARGET): Add -shared-libgcc for libstdc++-v3 and libjava.
+
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	* texinfo/texinfo.tex: Update to version 2002-02-14.08.
+
 2002-02-23  Daniel Jacobowitz  <drow@mvista.com>
 
 	* config.guess: Import from master sources, rev 1.232.
 	* config.sub: Import from master sources, rev 1.246.
+
+2002-02-23  Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in (MAKEINFO): Don't assume makeinfo will be built just
+	because its Makefile is there; test for the executable instead.
 
 2002-02-09  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -11,8 +683,8 @@
 
 2002-02-04  Jeff Johnston  <jjohnstn@redhat.com>
 
-        * COPYING.NEWLIB: Remove advertising clause from
-        Berkeley and Red Hat licenses.
+	* COPYING.NEWLIB: Remove advertising clause from
+	Berkeley and Red Hat licenses.
 
 2002-02-01  Mo DeJong  <supermo@bayarea.net>
 
@@ -88,7 +760,7 @@
 2001-12-05  Laurent Guerby  <guerby@acm.org>
 
 	* MAINTAINERS: gcc adopts symlink-tree, refer more to
-        libiberty.
+	libiberty.
 
 	Import this patch from gcc:
 	
@@ -154,7 +826,7 @@
 
 2001-11-12  Hans-Peter Nilsson  <hp@bitrange.com>
 
-        * COPYING.NEWLIB: Add BSD-style license/copyright blurb for my work.
+	* COPYING.NEWLIB: Add BSD-style license/copyright blurb for my work.
 
 2001-11-08  Phil Edwards  <pedwards@disaster.jaj.com>
 
@@ -442,7 +1114,7 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2001-01-07  Andreas Jaeger  <aj@suse.de>
 
-        * config.sub, config.guess: Update from subversions.
+	* config.sub, config.guess: Update from subversions.
 
 2000-12-12  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -486,8 +1158,8 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2000-10-30  Stephane Carrez  <stcarrez@worldnet.fr>
 
-        * configure.in (noconfigdirs): Don't compile some
-        of the libraries for 68HC11 & 68hc12 targets.
+	* configure.in (noconfigdirs): Don't compile some
+	of the libraries for 68HC11 & 68hc12 targets.
 
 2000-09-30  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -650,7 +1322,7 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2000-07-01  Koundinya K  <kk@ddeorg.soft.net>
 
-        * ltconfig: Add support for mips-dde-sysv4.2MP
+	* ltconfig: Add support for mips-dde-sysv4.2MP
 
 2000-06-28  Corinna Vinschen  <vinschen@cygnus.com>
 
@@ -678,12 +1350,12 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 
 20000-05-21  H.J. Lu  (hjl@gnu.org)
 
-        * Makefile.in (CC_FOR_TARGET): Make sure as/ld in the gcc
-        directory are used if they exist. Make sure
-        $(build_tooldir)/include is searched for header files,
-        $(build_tooldir)/lib/ for library files.
+	* Makefile.in (CC_FOR_TARGET): Make sure as/ld in the gcc
+	directory are used if they exist. Make sure
+	$(build_tooldir)/include is searched for header files,
+	$(build_tooldir)/lib/ for library files.
 	(GCC_FOR_TARGET): Likewise.
-        (CXX_FOR_TARGET): Likewise.
+	(CXX_FOR_TARGET): Likewise.
 
 2000-05-18  Jeffrey A Law  (law@cygnus.com)
 
@@ -731,7 +1403,7 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 2000-05-08  Eli Zaretskii  <eliz@is.elta.co.il>
 
 	* djunpack.bat: Change the Sed script to replace @V@ in fnchange.lst
-        with the version name.
+	with the version name.
 
 2000-05-01  Benjamin Kosnik  <bkoz@cygnus.com>
 
@@ -750,8 +1422,8 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2000-04-16  Dave Pitts  <dpitts@cozx.com>
 
-        * config.sub (case $basic_machine): Change default for "ibm-*"
-        to "openedition".
+	* config.sub (case $basic_machine): Change default for "ibm-*"
+	to "openedition".
 
 2000-04-12  Andrew Cagney  <cagney@b1.cygnus.com>
 
@@ -772,13 +1444,13 @@ Fri Jun  8 11:14:02 2001  Andrew Cagney  <cagney@b1.cygnus.com>
 	* configure (warn_cflags): Delete.
 
 2000-04-05  Benjamin Kosnik  <bkoz@cygnus.com>
-            Martin v. Loewis  <martin@loewis.home.cs.tu-berlin.de>
+	    Martin v. Loewis  <martin@loewis.home.cs.tu-berlin.de>
 
-        * configure.in (enable_libstdcxx_v3): Add.
-        (target_libs): Add bits here to switch between libstdc++-v2 and
-        libstdc++-v3.
-        * config.if: And this file too.
-        * Makefile.in: Add libstdc++-v3 targets.
+	* configure.in (enable_libstdcxx_v3): Add.
+	(target_libs): Add bits here to switch between libstdc++-v2 and
+	libstdc++-v3.
+	* config.if: And this file too.
+	* Makefile.in: Add libstdc++-v3 targets.
 
 2000-04-05  Michael Meissner  <meissner@redhat.com>
 
@@ -959,15 +1631,15 @@ Tue Jun 22 23:45:18 1999  Tom Tromey  <tromey@cygnus.com>
 	(configure-target-boehm-gc): New target.
 	(configure-target-qthreads): New target.
 
-        * configure.in (target_libs): Added target-qthreads.
-        * Makefile.in (ALL_TARGET_MODULES): Added qthreads.
-        (CONFIGURE_TARGET_MODULES): Likewise.
-        (CHECK_TARGET_MODULES): Likewise.
-        (INSTALL_TARGET_MODULES): Likewise.
-        (CLEAN_TARGET_MODULES): Likewise.
-        (all-target-qthreads): New target.
-        (configure-target-libjava): Depend on configure-target-qthreads.
-        (all-target-libjava): Depend on all-target-qthreads.
+	* configure.in (target_libs): Added target-qthreads.
+	* Makefile.in (ALL_TARGET_MODULES): Added qthreads.
+	(CONFIGURE_TARGET_MODULES): Likewise.
+	(CHECK_TARGET_MODULES): Likewise.
+	(INSTALL_TARGET_MODULES): Likewise.
+	(CLEAN_TARGET_MODULES): Likewise.
+	(all-target-qthreads): New target.
+	(configure-target-libjava): Depend on configure-target-qthreads.
+	(all-target-libjava): Depend on all-target-qthreads.
 
 	* Makefile.in (ALL_TARGET_MODULES): Added libjava, boehm-gc.
 	(CONFIGURE_TARGET_MODULES): Likewise.
@@ -1055,7 +1727,7 @@ Thu Jul  8 12:32:23 1999  John David Anglin <dave@hiauly1.hia.nrc.ca>
 	Bad merge removed these two changes.
 
 Tue Apr 13 22:50:54 1999  Donn Terry (donn@interix.com)
-                          Martin Heller (Ing.-Buero_Heller@t-online.de)
+	                  Martin Heller (Ing.-Buero_Heller@t-online.de)
 
 	* config.guess (interix Alpha): Add.
 
@@ -1112,7 +1784,7 @@ Fri Apr  2 15:11:32 1999  H.J. Lu  (hjl@gnu.org)
 
 1999-03-21  Ben Elliston  <bje@cygnus.com>
 
-        * config.guess: Correct typo for detecting ELF on FreeBSD.
+	* config.guess: Correct typo for detecting ELF on FreeBSD.
 
 Thu Mar 18 00:17:50 1999  Mark Elbrecht <snowball3@usa.net>
 
@@ -1222,8 +1894,8 @@ Wed Mar 10 17:39:09 1999  Drew Moseley  <dmoseley@cygnus.com>
 
 1999-02-02  Catherine Moore  <clm@cygnus.com>
 
-        * config.sub (oabi):  Recognize.
-        * configure.in (arm-*-oabi):  Handle.
+	* config.sub (oabi):  Recognize.
+	* configure.in (arm-*-oabi):  Handle.
 
 1999-01-30  Robert Lipe  (robertlipe@usa.net)
 
@@ -1311,8 +1983,8 @@ Wed Nov 18 20:13:29 1998  Christopher Faylor <cgf@cygnus.com>
 
 1998-11-17  Geoffrey Noer  <noer@cygnus.com>
 
-        * Makefile.in: modify CC_FOR_TARGET and CXX_FOR_TARGET so that
-        they include winsup/include when it's a cygwin target.
+	* Makefile.in: modify CC_FOR_TARGET and CXX_FOR_TARGET so that
+	they include winsup/include when it's a cygwin target.
 
 1998-11-12  Tom Tromey  <tromey@cygnus.com>
 
@@ -1338,7 +2010,7 @@ Wed Nov 18 20:13:29 1998  Christopher Faylor <cgf@cygnus.com>
 
 1998-11-02  Geoffrey Noer  <noer@cygnus.com>
 
-        * configure.in: drop "32" from config/mh-cygwin32.  Check
+	* configure.in: drop "32" from config/mh-cygwin32.  Check
 	cygwin* instead of cygwin32*.
 	* config.sub: Check cygwin* instead of cygwin32*.
 
@@ -1935,7 +2607,7 @@ Fri Mar  6 00:14:55 1998  Franz Sirl <Franz.Sirl-kernel@lauterbach.com>
 
 Mon Feb 23 15:09:18 1998  Bruno Haible <bruno@linuix.mathematik.uni-karlsruhe.de
 
-        * config.sub (sco5): Fix typo.
+	* config.sub (sco5): Fix typo.
 
 Mon Feb 23 14:46:06 1998  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -2247,10 +2919,10 @@ Sat Nov  8 14:42:59 1997  Michael Meissner  <meissner@cygnus.com>
 
 Fri Nov  7 10:34:09 1997  Rob Savoye  <rob@darkstar.cygnus.com>
 
-        * include/libiberty.h: Add extern "C" { so it can be used with C++
-        progrms.
-        * include/remote-sim.h:  Add extern "C" { so it can be used with C++
-        programs.
+	* include/libiberty.h: Add extern "C" { so it can be used with C++
+	progrms.
+	* include/remote-sim.h:  Add extern "C" { so it can be used with C++
+	programs.
 
 Thu Oct 30 11:09:29 1997  Michael Meissner  <meissner@cygnus.com>
 
@@ -2374,7 +3046,7 @@ Sun Sep  7 15:55:28 1997  Gavin Koch  <gavin@cygnus.com>
 
 Fri Sep  5 16:11:28 1997  Joel Sherrill  (joel@OARcorp.com)
 
-        * configure.in (*-*-rtems*): Do not build libgloss for rtems.
+	* configure.in (*-*-rtems*): Do not build libgloss for rtems.
 
 Fri Sep  5 12:27:17 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -2442,7 +3114,7 @@ Thu Aug 14 14:42:17 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* configure: When handling a Canadian Cross, handle YACC as well as
 	BISON.  Just set BISON to bison.  When setting YACC, prefer bison.
-        * Makefile.in (all-bison): Depend upon all-texinfo.
+	* Makefile.in (all-bison): Depend upon all-texinfo.
 
 Tue Aug 12 20:09:48 1997  Jason Merrill  <jason@yorick.cygnus.com>
 
@@ -2775,7 +3447,7 @@ Tue Apr  1 16:28:50 1997  Klaus Kaempf  <kkaempf@progis.de>
 
 Mon Mar 31 16:26:55 1997  Joel Sherrill  <joel@oarcorp.com>
 
-        * configure.in (hppa1.1-*-rtems*): New target, like hppa-*-*elf*.
+	* configure.in (hppa1.1-*-rtems*): New target, like hppa-*-*elf*.
 
 Sun Mar 30 12:38:27 1997  Fred Fish  <fnf@cygnus.com>
 
@@ -3127,11 +3799,11 @@ Wed Oct  9 17:24:59 1996  Per Bothner  <bothner@deneb.cygnus.com>
 	* config.guess:  Merge from FSF.
 
 	1996-09-12  Richard Stallman  <rms@ethanol.gnu.ai.mit.edu>
-        * config.guess: Use pc instead of unknown, for pc clone systems.
-        Change linux to linux-gnu.
+	* config.guess: Use pc instead of unknown, for pc clone systems.
+	Change linux to linux-gnu.
 
 	Mon Jul 15 23:51:11 1996  Karl Heuer  <kwzh@gnu.ai.mit.edu>
-        * config.guess: Avoid non-portable tr syntax.
+	* config.guess: Avoid non-portable tr syntax.
 
 Wed Oct  9 06:06:46 1996  Jeffrey A Law  (law@cygnus.com)
 
@@ -3405,9 +4077,9 @@ Mon Jun 24 15:01:12 1996  Joel Sherrill  <joel@merlin.gcs.redstone.army.mil>
 
 Sun Jun 23 22:41:54 1996  Geoffrey Noer  <noer@cygnus.com>
 
-        * configure.in: enable dosrel for cygwin32-hosted builds,
-                remove diff from the list of things not buildable
-                via Canadian Cross
+	* configure.in: enable dosrel for cygwin32-hosted builds,
+	        remove diff from the list of things not buildable
+	        via Canadian Cross
 
 Sat Jun 22 11:39:01 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
@@ -3609,8 +4281,8 @@ Thu Mar 28 14:11:11 1996  Tom Tromey  <tromey@creche.cygnus.com>
 
 Tue Mar 26 21:18:50 1996  Andrew Cagney  <cagney@kremvax.highland.com.au>
 
-        * configure (--enable-*): Handle quoted option lists such as
-        --enable-sim-cflags='-g0 -O' better.
+	* configure (--enable-*): Handle quoted option lists such as
+	--enable-sim-cflags='-g0 -O' better.
 
 Thu Mar 21 11:53:08 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 
@@ -4611,7 +5283,7 @@ Fri Apr 14 15:21:17 1995  Doug Evans  <dje@chestnut.cygnus.com>
 Wed Apr 12 16:06:01 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
 
 	* test-build.mk: Enable building of shared libraries on IRIX 5 and
-        OSF/1.  Fix compiler flags.
+	OSF/1.  Fix compiler flags.
 	* build-all.mk: Support Linux and OSF/1 3.0.  Fix compiler flags.
 
 Tue Apr 11 18:55:40 1995  Doug Evans  <dje@canuck.cygnus.com>
@@ -5045,21 +5717,21 @@ Fri Aug 26 13:05:27 1994  Per Bothner  (bothner@kalessin.cygnus.com)
 	Thu Aug 25 20:28:51 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
 
 	* config.guess (Pyramid*:OSx*:*:*): New case.
-        (PATH): Add /.attbin at end for finding uname.
-        (dummy.c): Handle i860-alliant-bsd.  Follow whitespace conventions.
+	(PATH): Add /.attbin at end for finding uname.
+	(dummy.c): Handle i860-alliant-bsd.  Follow whitespace conventions.
 
 	Wed Aug 17 18:21:02 1994  Tor Egge  (tegge@pvv.unit.no)
 
-        * config.guess (M88*:DolphinOS:*:*): New case.
+	* config.guess (M88*:DolphinOS:*:*): New case.
 
 	Thu Aug 11 17:00:13 1994  Stan Cox  (coxs@dg-rtp.dg.com)
 
-        * config.guess (AViiON:dgux:*:*): Use TARGET_BINARY_INTERFACE
-        to select whether to use ELF or COFF.
+	* config.guess (AViiON:dgux:*:*): Use TARGET_BINARY_INTERFACE
+	to select whether to use ELF or COFF.
 
 	Sun Jul 24 16:20:53 1994  Richard Stallman  <rms@mole.gnu.ai.mit.edu>
 
-        * config.guess: Recognize i860-stardent-sysv and i860-unknown-sysv.
+	* config.guess: Recognize i860-stardent-sysv and i860-unknown-sysv.
 
 	Sun May  1 10:23:10 1994  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
 
@@ -5398,7 +6070,7 @@ Thu Apr 14 23:33:17 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 Wed Apr 13 15:14:52 1994  Bill Cox  (bill@cygnus.com)
 
 	* configure: Make file links cleanly even if Lynx fails on
-          an NFS symlink (at least fail cleanly).
+	  an NFS symlink (at least fail cleanly).
 
 Mon Apr 11 10:58:56 1994  Jim Wilson  (wilson@sphagnum.cygnus.com)
 
@@ -5551,7 +6223,7 @@ Sat Feb  5 01:00:33 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 Wed Feb  2 13:57:57 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
 
-        * Makefile.in:  Avoid bug in losing hpux sed.
+	* Makefile.in:  Avoid bug in losing hpux sed.
 
 Wed Feb  2 14:53:05 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
@@ -6986,8 +7658,8 @@ Thu Oct 29 00:12:41 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 	ranlib.
 
 	* configure: also define $(host_canonical) and
-        $(target_canonical), which are the full, canonical names for the
-        given host and target
+	$(target_canonical), which are the full, canonical names for the
+	given host and target
 
 Sun Nov  1 16:38:17 1992  Per Bothner  (bothner@cygnus.com)
 
@@ -7135,7 +7807,7 @@ Mon Aug 24 14:05:14 1992  Ian Lance Taylor  (ian@cygnus.com)
 
 Tue Aug 11 23:13:17 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
-        * COPYING: new file, GPL v2
+	* COPYING: new file, GPL v2
 
 Tue Aug  4 01:12:43 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
