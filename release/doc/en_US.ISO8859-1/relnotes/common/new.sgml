@@ -408,7 +408,7 @@
 	for large (&gt; 4GB) files.  This support is partial in that
 	it will refuse to create large files on filesystems that have
 	not been upgraded to <literal>EXT2_DYN_REV</literal> or that
-	don not have the
+	do not have the
 	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal> flag set
 	in the superblock.</para>
 
