@@ -151,6 +151,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	ufs2_daddr_t count, blocksreleased = 0, datablocks;
 	struct fs *fs;
 	struct buf *bp;
+	struct ufsmount *ump;
 	int needextclean, softdepslowdown, extblocks;
 	int offset, size, level, nblocks;
 	int i, error, allerror;
@@ -158,6 +159,8 @@ ffs_truncate(vp, length, flags, cred, td)
 
 	oip = VTOI(ovp);
 	fs = oip->i_fs;
+	ump = oip->i_ump;
+
 	if (length < 0)
 		return (EINVAL);
 	/*
@@ -211,7 +214,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			for (i = 0; i < NXADDR; i++) {
 				if (oldblks[i] == 0)
 					continue;
-				ffs_blkfree(fs, oip->i_devvp, oldblks[i],
+				ffs_blkfree(ump, fs, oip->i_devvp, oldblks[i],
 				    sblksize(fs, osize, i), oip->i_number);
 			}
 		}
@@ -264,8 +267,10 @@ ffs_truncate(vp, length, flags, cred, td)
 			 */
 			if ((error = VOP_FSYNC(ovp, MNT_WAIT, td)) != 0)
 				return (error);
+			UFS_LOCK(ump);
 			if (oip->i_flag & IN_SPACECOUNTED)
 				fs->fs_pendingblocks -= datablocks;
+			UFS_UNLOCK(ump);
 		} else {
 #ifdef QUOTA
 			(void) chkdq(oip, -datablocks, NOCRED, 0);
@@ -415,8 +420,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			blocksreleased += count;
 			if (lastiblock[level] < 0) {
 				DIP_SET(oip, i_ib[level], 0);
-				ffs_blkfree(fs, oip->i_devvp, bn, fs->fs_bsize,
-				    oip->i_number);
+				ffs_blkfree(ump, fs, oip->i_devvp, bn,
+				    fs->fs_bsize, oip->i_number);
 				blocksreleased += nblocks;
 			}
 		}
@@ -435,7 +440,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			continue;
 		DIP_SET(oip, i_db[i], 0);
 		bsize = blksize(fs, oip, i);
-		ffs_blkfree(fs, oip->i_devvp, bn, bsize, oip->i_number);
+		ffs_blkfree(ump, fs, oip->i_devvp, bn, bsize, oip->i_number);
 		blocksreleased += btodb(bsize);
 	}
 	if (lastblock < 0)
@@ -466,8 +471,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * required for the storage we're keeping.
 			 */
 			bn += numfrags(fs, newspace);
-			ffs_blkfree(fs, oip->i_devvp, bn, oldspace - newspace,
-			    oip->i_number);
+			ffs_blkfree(ump, fs, oip->i_devvp, bn,
+			    oldspace - newspace, oip->i_number);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -609,7 +614,8 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
-		ffs_blkfree(fs, ip->i_devvp, nb, fs->fs_bsize, ip->i_number);
+		ffs_blkfree(ip->i_ump, fs, ip->i_devvp, nb, fs->fs_bsize,
+		    ip->i_number);
 		blocksreleased += nblocks;
 	}
 
