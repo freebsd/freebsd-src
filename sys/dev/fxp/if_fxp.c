@@ -161,6 +161,10 @@ static struct fxp_ident fxp_ident_table[] = {
     { 0x1038,		"Intel Pro/100 Ethernet" },
     { 0x1039,		"Intel Pro/100 Ethernet" },
     { 0x103A,		"Intel Pro/100 Ethernet" },
+    { 0x103B,		"Intel Pro/100 Ethernet" },
+    { 0x103C,		"Intel Pro/100 Ethernet" },
+    { 0x103D,		"Intel Pro/100 Ethernet" },
+    { 0x103E,		"Intel Pro/100 Ethernet" },
     { 0,		NULL },
 };
 
