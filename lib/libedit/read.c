@@ -438,8 +438,8 @@ el_gets(el, nread)
 	}
     }
 
-    (void) tty_cookedmode(el);	/* make sure the tty is set up correctly */
     term__flush();		/* flush any buffered output */
+    (void) tty_cookedmode(el);	/* make sure the tty is set up correctly */
     if (el->el_flags & HANDLE_SIGNALS)
 	sig_clr(el);
     if (nread)
