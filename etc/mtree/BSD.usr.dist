@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.94 1997/08/01 13:16:40 phk Exp $
+#	$Id: BSD.usr.dist,v 1.95 1997/08/12 15:54:05 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -200,8 +200,6 @@
                 ..
                 sort
                 ..
-            ..
-            sup
             ..
             worm
             ..
