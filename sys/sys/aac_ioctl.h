@@ -142,7 +142,7 @@ union aac_statrequest {
 
 #define FSACTL_PROBE_CONTAINERS		_IO('9', 83)	/* Just guessing */
 
-
+#ifdef _KERNEL
 /*
  * Support for faking the "miniport" version.
  */
@@ -177,3 +177,4 @@ struct aac_query_disk {
 	char		diskDeviceName[10];
 	u_int32_t	UnMapped;
 };
+#endif
