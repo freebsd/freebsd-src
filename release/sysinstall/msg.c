@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.7 1995/05/07 03:38:01 jkh Exp $
+ * $Id: msg.c,v 1.8 1995/05/07 05:58:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,9 +53,8 @@ msgYap(char *fmt, ...)
     int attrs;
 
     errstr = (char *)safe_malloc(FILENAME_MAX);
-    errstr[0] = '\0';
     va_start(args, fmt);
-    vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
@@ -74,9 +73,8 @@ msgInfo(char *fmt, ...)
     int attrs;
 
     errstr = (char *)safe_malloc(FILENAME_MAX);
-    errstr[0] = '\0';
     va_start(args, fmt);
-    vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_NORMAL);
@@ -240,3 +238,18 @@ msgGetInput(char *buf, char *fmt, ...)
 	return NULL;
 }
 
+/* Write something to the debugging port */
+void
+msgDebug(char *fmt, ...)
+{
+    va_list args;
+    char *dbg;
+
+    dbg = (char *)safe_malloc(FILENAME_MAX);
+    strcpy(dbg, "DEBUG: ");
+    va_start(args, fmt);
+    vsnprintf((char *)(dbg + strlen(dbg)), FILENAME_MAX, fmt, args);
+    va_end(args);
+    write(DebugFD, dbg, strlen(dbg));
+    free(dbg);
+}

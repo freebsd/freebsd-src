@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.6 1995/05/06 09:34:22 jkh Exp $
+ * $Id: system.c,v 1.7 1995/05/07 03:38:03 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -269,10 +269,11 @@ vsystem(char *fmt, ...)
     cmd = (char *)malloc(FILENAME_MAX);
     cmd[0] = '\0';
     va_start(args, fmt);
-    vsnprintf((char *)(cmd + strlen(cmd)), FILENAME_MAX, fmt, args);
+    vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
     msgNotify("Executing command: %s", cmd);
     i = system(cmd);
+    msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
 }
