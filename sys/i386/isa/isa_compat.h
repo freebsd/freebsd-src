@@ -164,7 +164,7 @@ static struct old_isa_driver old_drivers[] = {
 	{ INTR_TYPE_TTY, &gscdriver },
 #endif
 #if NCY > 0
-	{ INTR_TYPE_TTY, &cydriver },
+	{ INTR_TYPE_TTY | INTR_TYPE_FAST, &cydriver },
 #endif
 #if NDGB > 0
 	{ INTR_TYPE_TTY, &dgbdriver },
