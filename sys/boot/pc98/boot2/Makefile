@@ -47,7 +47,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 # SCSI and have BIOS drive number (da_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes da(0,a) correspond to 1:da(0,a) instead of 0:da(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
+CLEANFILES+=	boot.nohdr boot.strip boot.ldr boot1 boot2 sizetest
 LDFLAGS+=	-N -Ttext 0 -nostdlib -e start
 NOSHARED=	YES
 NOMAN=
@@ -68,6 +68,9 @@ boot.nohdr:	boot
 	objcopy -S -O binary boot boot.nohdr
 	ls -l boot.nohdr
 
+boot.ldr:	boot.nohdr
+	dd if=boot.nohdr of=boot.ldr bs=8192 count=1 conv=sync
+
 boot1:		boot.nohdr
 	dd if=boot.nohdr of=boot1 bs=512 count=1
 
@@ -80,9 +83,11 @@ boot2:		boot.nohdr
 		exit 2 ; \
 	fi
 
-all:		boot1 boot2
+all:		boot.ldr boot1 boot2
 
 install:
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		boot.ldr ${DESTDIR}${BINDIR}/boot
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		boot1 boot2 ${DESTDIR}${BINDIR}
 
