@@ -66,7 +66,7 @@ main(argc, argv)
 	int ch, howto, lflag, nflag, qflag, sverrno;
 	char *p, *user;
 
-	if (!strcmp((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
+	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
 		dohalt = 1;
 		howto = RB_HALT;
 	} else
