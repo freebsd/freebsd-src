@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.144 1999/05/15 18:20:19 obrien Exp $
+ **      $Id: userconfig.c,v 1.145 1999/05/21 04:37:30 wpaul Exp $
  **/
 
 /**
@@ -843,7 +843,7 @@ savelist(DEV_LIST *list, int active)
 {
     struct isa_device	*id_p,*id_pn;
     struct isa_driver	*isa_drv;
-    char *name = list->device->id_driver->name;
+    char *name;
 
     while (list)
     {
@@ -859,6 +859,7 @@ savelist(DEV_LIST *list, int active)
 	    {						/* look on the list for it */
 		if (id_p->id_id == list->device->id_id) 
 		{
+		    name = list->device->id_driver->name;
 		    id_pn = id_p->id_next;
 		    isa_drv = id_p->id_driver;
 		    if (isa_drv && isa_drv->name)
@@ -878,6 +879,7 @@ savelist(DEV_LIST *list, int active)
 	    }
 	    if (!id_pn)					/* not already on the list */
 	    {
+		name = list->device->id_driver->name;
 		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 		bcopy(list->device,id_pn,sizeof(struct isa_device));
 		save_resource(list->device);
@@ -2540,7 +2542,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.144 1999/05/15 18:20:19 obrien Exp $
+ *      $Id: userconfig.c,v 1.145 1999/05/21 04:37:30 wpaul Exp $
  */
 
 #include "scbus.h"
