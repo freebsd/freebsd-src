@@ -503,6 +503,7 @@ struct proc {
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
+#define	PS_NEEDSIGCHK	0x02000	/* Process may need signal delivery. */
 
 /* flags kept in td_flags */
 #define	TDF_ONRUNQ	0x00001	/* This KE is on a run queue */
@@ -564,15 +565,6 @@ sigonstack(size_t sp)
 #endif
 	    : 0);
 }
-
-/*
- * Notify the current process (p) that it has a signal pending,
- * process as soon as possible.
- */
-#define	signotify(ke) do {						\
-	mtx_assert(&sched_lock, MA_OWNED);				\
-	(ke)->ke_flags |= KEF_ASTPENDING;				\
-} while (0)
 
 /* Handy macro to determine if p1 can mangle p2. */
 #define	PRISON_CHECK(p1, p2) \

@@ -555,6 +555,7 @@ linux_sigreturn(td, args)
 	PROC_LOCK(p);
 	linux_to_bsd_sigset(&lmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 
 	/*
@@ -654,6 +655,7 @@ linux_rt_sigreturn(td, args)
 	PROC_LOCK(p);
 	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 
 	/*
