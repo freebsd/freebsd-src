@@ -141,8 +141,8 @@ usb_config_descriptor_t *ugen_get_cdesc __P((struct ugen_softc *sc, int index,
 usbd_status ugen_set_interface __P((struct ugen_softc *, int, int));
 int ugen_get_alt_index __P((struct ugen_softc *sc, int ifaceidx));
 
-#define UGENUNIT(n) (((n) >> 4) & 0xf)
-#define UGENENDPOINT(n) ((n) & 0xf)
+#define UGENUNIT(n) ((minor(n) >> 4) & 0xf)
+#define UGENENDPOINT(n) (minor(n) & 0xf)
 
 USB_DECLARE_DRIVER(ugen);
 

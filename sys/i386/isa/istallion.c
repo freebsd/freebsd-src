@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.25 1999/04/27 11:15:05 phk Exp $
+ * $Id: istallion.c,v 1.26 1999/04/28 10:52:35 dt Exp $
  */
 
 /*****************************************************************************/
@@ -504,8 +504,8 @@ static char	*stli_brdnames[] = {
  *	the device number. This gives us plenty of minor numbers to play
  *	with...
  */
-#define	MKDEV2BRD(m)	(((m) & 0x00700000) >> 20)
-#define	MKDEV2PORT(m)	(((m) & 0x1f) | (((m) & 0x00010000) >> 11))
+#define	MKDEV2BRD(m)	((minor(m) & 0x00700000) >> 20)
+#define	MKDEV2PORT(m)	((minor(m) & 0x1f) | ((minor(m) & 0x00010000) >> 11))
 
 /*
  *	Define some handy local macros...
@@ -941,7 +941,7 @@ STATIC int stliopen(dev_t dev, int flag, int mode, struct proc *p)
 /*
  *	Firstly check if the supplied device number is a valid device.
  */
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(0);
 
 	portp = stli_dev2port(dev);
@@ -1065,7 +1065,7 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 		(unsigned long) dev, flag, mode, (void *) p);
 #endif
 
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(0);
 
 	portp = stli_dev2port(dev);
@@ -1093,7 +1093,7 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 		(void *) uiop, flag);
 #endif
 
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
 
 	portp = stli_dev2port(dev);
@@ -1150,7 +1150,7 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 		(void *) uiop, flag);
 #endif
 
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
 
 	portp = stli_dev2port(dev);
@@ -1176,8 +1176,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		(unsigned long) dev, cmd, (void *) data, flag, (void *) p);
 #endif
 
-	dev = minor(dev);
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(stli_memioctl(dev, cmd, data, flag, p));
 
 	portp = stli_dev2port(dev);
@@ -1191,12 +1190,12 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 /*
  *	First up handle ioctls on the control devices.
  */
-	if (dev & STL_CTRLDEV) {
-		if ((dev & STL_CTRLDEV) == STL_CTRLINIT)
-			localtios = (dev & STL_CALLOUTDEV) ?
+	if (minor(dev) & STL_CTRLDEV) {
+		if ((minor(dev) & STL_CTRLDEV) == STL_CTRLINIT)
+			localtios = (minor(dev) & STL_CALLOUTDEV) ?
 				&portp->initouttios : &portp->initintios;
-		else if ((dev & STL_CTRLDEV) == STL_CTRLLOCK)
-			localtios = (dev & STL_CALLOUTDEV) ?
+		else if ((minor(dev) & STL_CTRLDEV) == STL_CTRLLOCK)
+			localtios = (minor(dev) & STL_CALLOUTDEV) ?
 				&portp->lockouttios : &portp->lockintios;
 		else
 			return(ENODEV);
@@ -1245,7 +1244,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
  */
 	if ((cmd == TIOCSETA) || (cmd == TIOCSETAW) || (cmd == TIOCSETAF)) {
 		newtios = (struct termios *) data;
-		localtios = (dev & STL_CALLOUTDEV) ? &portp->lockouttios :
+		localtios = (minor(dev) & STL_CALLOUTDEV) ? &portp->lockouttios :
 			 &portp->lockintios;
 
 		newtios->c_iflag = (tp->t_iflag & localtios->c_iflag) |
@@ -3783,7 +3782,7 @@ STATIC int stli_memrw(dev_t dev, struct uio *uiop, int flag)
 		(int) uiop, flag);
 #endif
 
-	brdnr = dev & 0x7;
+	brdnr = minor(dev) & 0x7;
 	brdp = stli_brds[brdnr];
 	if (brdp == (stlibrd_t *) NULL)
 		return(ENODEV);
@@ -3831,7 +3830,7 @@ static int stli_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		(unsigned long) dev, cmd, (void *) data, flag);
 #endif
 
-	brdnr = dev & 0x7;
+	brdnr = minor(dev) & 0x7;
 	brdp = stli_brds[brdnr];
 	if (brdp == (stlibrd_t *) NULL)
 		return(ENODEV);

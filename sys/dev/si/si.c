@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.82 1999/04/28 10:52:52 dt Exp $
+ *	$Id: si.c,v 1.83 1999/05/02 20:35:44 peter Exp $
  */
 
 #ifndef lint
@@ -2751,8 +2751,8 @@ si_dprintf(pp, flags, fmt, va_alist)
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
 		if (pp != NULL)
 			printf("%ci%d(%d): ", 's',
-				(int)SI_CARD(pp->sp_tty->t_dev),
-				(int)SI_PORT(pp->sp_tty->t_dev));
+				(int)SI_CARD(minor(pp->sp_tty->t_dev)),
+				(int)SI_PORT(minor(pp->sp_tty->t_dev)));
 		va_start(ap, fmt);
 		vprintf(fmt, ap);
 		va_end(ap);

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.28 1999/04/28 10:52:57 dt Exp $
+ * $Id: stallion.c,v 1.29 1999/05/06 18:44:05 peter Exp $
  */
 
 /*****************************************************************************/
@@ -416,8 +416,8 @@ static int	stl_cd1400clkdivs[] = {
  *	the device number. This gives us plenty of minor numbers to play
  *	with...
  */
-#define	MKDEV2BRD(m)	(((m) & 0x00700000) >> 20)
-#define	MKDEV2PORT(m)	(((m) & 0x1f) | (((m) & 0x00010000) >> 11))
+#define	MKDEV2BRD(m)	((minor(m) & 0x00700000) >> 20)
+#define	MKDEV2PORT(m)	((minor(m) & 0x1f) | ((minor(m) & 0x00010000) >> 11))
 
 /*
  *	Define some handy local macros...
@@ -773,7 +773,7 @@ STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 /*
  *	Firstly check if the supplied device number is a valid device.
  */
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(0);
 
 	portp = stl_dev2port(dev);
@@ -885,7 +885,7 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 		flag, mode, (void *) p);
 #endif
 
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(0);
 
 	portp = stl_dev2port(dev);
@@ -988,8 +988,7 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		(unsigned long) dev, cmd, (void *) data, flag, (void *) p);
 #endif
 
-	dev = minor(dev);
-	if (dev & STL_MEMDEV)
+	if (minor(dev) & STL_MEMDEV)
 		return(stl_memioctl(dev, cmd, data, flag, p));
 
 	portp = stl_dev2port(dev);
@@ -1001,12 +1000,12 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 /*
  *	First up handle ioctls on the control devices.
  */
-	if (dev & STL_CTRLDEV) {
-		if ((dev & STL_CTRLDEV) == STL_CTRLINIT)
-			localtios = (dev & STL_CALLOUTDEV) ?
+	if (minor(dev) & STL_CTRLDEV) {
+		if ((minor(dev) & STL_CTRLDEV) == STL_CTRLINIT)
+			localtios = (minor(dev) & STL_CALLOUTDEV) ?
 				&portp->initouttios : &portp->initintios;
-		else if ((dev & STL_CTRLDEV) == STL_CTRLLOCK)
-			localtios = (dev & STL_CALLOUTDEV) ?
+		else if ((minor(dev) & STL_CTRLDEV) == STL_CTRLLOCK)
+			localtios = (minor(dev) & STL_CALLOUTDEV) ?
 				&portp->lockouttios : &portp->lockintios;
 		else
 			return(ENODEV);
@@ -1055,8 +1054,8 @@ STATIC int stlioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
  */
 	if ((cmd == TIOCSETA) || (cmd == TIOCSETAW) || (cmd == TIOCSETAF)) {
 		newtios = (struct termios *) data;
-		localtios = (dev & STL_CALLOUTDEV) ? &portp->lockouttios :
-			 &portp->lockintios;
+		localtios = (minor(dev) & STL_CALLOUTDEV) ? 
+			&portp->lockouttios : &portp->lockintios;
 
 		newtios->c_iflag = (tp->t_iflag & localtios->c_iflag) |
 			(newtios->c_iflag & ~localtios->c_iflag);
@@ -3103,7 +3102,7 @@ static int stl_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		(unsigned long) dev, cmd, (void *) data, flag);
 #endif
 
-	brdnr = dev & 0x7;
+	brdnr = minor(dev) & 0x7;
 	brdp = stl_brds[brdnr];
 	if (brdp == (stlbrd_t *) NULL)
 		return(ENODEV);

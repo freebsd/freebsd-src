@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.37 1999/03/23 04:08:42 grog Exp $
+ * $Id: disklabel.h,v 1.38 1999/04/03 07:21:14 bde Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -419,12 +419,27 @@ struct dos_partition {
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
 				(((unit) & 0x1f) << 3) | (part))
-#define	dkmodpart(dev, part)	(((dev) & ~(dev_t)7) | (part))
-#define	dkmodslice(dev, slice)	(((dev) & ~(dev_t)0x1f0000) | ((slice) << 16))
+static __inline dev_t
+dkmodpart(dev_t dev, int part)
+{
+	return (makedev(major(dev), (minor(dev) & ~7) | part));
+}
+
+static __inline dev_t
+dkmodslice(dev_t dev, int slice)
+{
+	return (makedev(major(dev), (minor(dev) & ~0x1f0000) | (slice << 16)));
+}
+
 #define	dkpart(dev)		(minor(dev) & 7)
 #define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
 #define	dktype(dev)       	((minor(dev) >> 25) & 0x7f)
-#define	dkunit(dev)		((((dev) >> 16) & 0x1e0) | (((dev) >> 3) & 0x1f))
+
+static __inline u_int
+dkunit(dev_t dev)
+{
+	return (((minor(dev) >> 16) & 0x1e0) | ((minor(dev) >> 3) & 0x1f));
+}
 
 #ifdef KERNEL
 
