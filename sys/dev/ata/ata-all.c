@@ -40,6 +40,7 @@
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/devicestat.h>
+#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
@@ -1007,9 +1008,9 @@ ata_command(struct ata_device *atadev, u_int8_t command,
     int error = 0;
 #ifdef ATA_DEBUG
     ata_prtdev(atadev, "ata_command: addr=%04lx, cmd=%02x, "
-	       "lba=%lld, count=%d, feature=%d, flags=%02x\n",
+	       "lba=%jd, count=%d, feature=%d, flags=%02x\n",
 	       rman_get_start(atadev->channel->r_io), 
-	       command, (long long)lba, count, feature, flags);
+	       command, (intmax_t)lba, count, feature, flags);
 #endif
 
     /* select device */

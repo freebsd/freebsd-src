@@ -40,6 +40,7 @@
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
+#include <sys/stdint.h>
 #include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
@@ -291,8 +292,8 @@ astclose(dev_t dev, int flags, int fmt, struct thread *td)
 
     stp->flags &= F_CTL_WARN;
 #ifdef AST_DEBUG
-    ata_prtdev(stp->device, "%llu total bytes transferred\n",
-	(unsigned long long)ast_total);
+    ata_prtdev(stp->device, "%ju total bytes transferred\n",
+	(uintmax_t)ast_total);
 #endif
     return 0;
 }
