@@ -15,14 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: lcp.h,v 1.2 1995/02/26 12:17:36 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _LCP_H_
 #define _LPC_H_
-#include "cdefs.h"
+#include <sys/cdefs.h>
 
 struct lcpstate {
   u_long  his_mru;

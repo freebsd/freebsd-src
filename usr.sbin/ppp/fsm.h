@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: fsm.h,v 1.2 1995/02/26 12:17:28 amurai Exp $
  *
  *	TODO:
  */
@@ -26,7 +26,7 @@
 #include "defs.h"
 #include <netinet/in.h>
 #include "timeout.h"
-#include "cdefs.h"
+#include <sys/cdefs.h>
 
 /*
  *  State of machine

@@ -15,14 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
+ * $Id: timeout.h,v 1.2 1995/02/26 12:18:00 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _TIMEOUT_H_
 #define	_TIMEOUT_H_
-#include "cdefs.h"
+#include <sys/cdefs.h>
 
 #define	TICKUNIT	100000			/* Unit in usec */
 #define	SECTICKS	(1000000/TICKUNIT)
