@@ -34,7 +34,7 @@ nfsclient_start()
 	#
 
 	if [ -n "${nfs_access_cache}" ]; then
-		echo -n " NFS access cache time=${nfs_access_cache}"
+		echo "NFS access cache time=${nfs_access_cache}"
 		sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
 	fi
 	if [ -n "${nfs_bufpackets}" ]; then
