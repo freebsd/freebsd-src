@@ -80,7 +80,6 @@ static driver_t rlphy_driver = {
 DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
 
 int	rlphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	rlphy_reset __P((struct mii_softc *));
 
 static int rlphy_probe(dev)
 	device_t		dev;
@@ -151,7 +150,7 @@ static int rlphy_attach(dev)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    BMCR_LOOP|BMCR_S100);
 
-	rlphy_reset(sc);
+	mii_phy_reset(sc);
 
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
@@ -268,18 +267,4 @@ rlphy_service(sc, mii, cmd)
 		sc->mii_active = mii->mii_media_active;
 	}
 	return (0);
-}
-
-void
-rlphy_reset(sc)
-	struct mii_softc *sc;
-{
-
-	mii_phy_reset(sc);
-
-	/*
-	 * XXX RealTek PHY doesn't set the BMCR properly after
-	 * XXX reset, which breaks autonegotiation.
-	 */
-	PHY_WRITE(sc, MII_BMCR, BMCR_S100|BMCR_AUTOEN|BMCR_FDX);
 }
