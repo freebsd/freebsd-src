@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.57 1998/05/30 16:33:56 peter Exp $
+ * $Id: nfs_bio.c,v 1.58 1998/06/01 11:32:53 peter Exp $
  */
 
 
@@ -523,7 +523,7 @@ again:
 		    && uio->uio_offset >= np->n_direofoffset) {
 		    return (0);
 		}
-		lbn = uio->uio_offset / NFS_DIRBLKSIZ;
+		lbn = (uoff_t)uio->uio_offset / NFS_DIRBLKSIZ;
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, p);
 		if (!bp)
