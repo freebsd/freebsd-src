@@ -126,6 +126,7 @@ struct ugen_endpoint {
 		usbd_xfer_handle xfer;
 		int err;
 		int len;
+		int maxlen;
 		void *buf;
 		int datardy;
 	} bulkreq;
@@ -421,7 +422,7 @@ ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	for (dir = OUT; dir <= IN; dir++) {
 		if (flag & (dir == OUT ? FWRITE : FREAD)) {
 			sce = &sc->sc_endpoints[endpt][dir];
-			if (sce == 0 || sce->edesc == 0)
+			if (sce->edesc == 0)
 				return (ENXIO);
 		}
 	}
@@ -480,18 +481,18 @@ ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 			if (isize == 0)	/* shouldn't happen */
 				return (EINVAL);
 			sce->bulkreq.buf = malloc(isize, M_USBDEV, M_WAITOK);
-			if (sce->bulkreq.buf == 0)
-				return (ENOMEM);
+			DPRINTFN(5, ("ugenopen: bulk endpt=%d,isize=%d\n",
+				     endpt, isize));
 			sce->bulkreq.xfer = usbd_alloc_xfer(sc->sc_udev);
 			if (sce->bulkreq.xfer == 0) {
 				free(sce->bulkreq.buf, M_USBDEV);
 				return (ENOMEM);
 			}
-			sce->bulkreq.len = isize;
+			sce->bulkreq.maxlen = isize;
 			sce->bulkreq.err = 0;
 			sce->bulkreq.datardy = 0;
 			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
-			    sce->bulkreq.buf, sce->bulkreq.len,
+			    sce->bulkreq.buf, sce->bulkreq.maxlen,
 			    sce->state & UGEN_SHORT_OK ?
 			    USBD_SHORT_XFER_OK : 0, sce->timeout,
 			    ugen_rdcb);
@@ -587,7 +588,7 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		if (!(flag & (dir == OUT ? FWRITE : FREAD)))
 			continue;
 		sce = &sc->sc_endpoints[endpt][dir];
-		if (sce == NULL || sce->pipeh == NULL)
+		if (sce->pipeh == NULL)
 			continue;
 		DPRINTFN(5, ("ugenclose: endpt=%d dir=%d sce=%p\n",
 			     endpt, dir, sce));
@@ -680,9 +681,6 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	if (endpt == USB_CONTROL_ENDPOINT)
 		return (ENODEV);
 
-	if (sce == NULL)
-		return (EINVAL);
-
 	if (sce->edesc == NULL) {
 		printf("ugenread: no edesc\n");
 		return (EIO);
@@ -756,7 +754,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 
 			sce->bulkreq.datardy = 0;
 			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
-			    sce->bulkreq.buf, sce->bulkreq.len,
+			    sce->bulkreq.buf, sce->bulkreq.maxlen,
 			    sce->state & UGEN_SHORT_OK ?
 			    USBD_SHORT_XFER_OK : 0, sce->timeout, ugen_rdcb);
 			usbd_transfer(sce->bulkreq.xfer);
@@ -844,9 +842,6 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 
 	if (endpt == USB_CONTROL_ENDPOINT)
 		return (ENODEV);
-
-	if (sce == NULL)
-		return (EINVAL);
 
 	if (sce->edesc == NULL) {
 		printf("ugenwrite: no edesc\n");
@@ -963,7 +958,7 @@ USB_DETACH(ugen)
 	for (i = 0; i < USB_MAX_ENDPOINTS; i++) {
 		for (dir = OUT; dir <= IN; dir++) {
 			sce = &sc->sc_endpoints[i][dir];
-			if (sce && sce->pipeh)
+			if (sce->pipeh)
 				usbd_abort_pipe(sce->pipeh);
 			/* cancel async bulk transfer */
 			if (sce->bulkreq.xfer != NULL)
@@ -1240,8 +1235,6 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		if (endpt == USB_CONTROL_ENDPOINT)
 			return (EINVAL);
 		sce = &sc->sc_endpoints[endpt][IN];
-		if (sce == NULL)
-			return (EINVAL);
 
 		if (sce->pipeh == NULL) {
 			printf("ugenioctl: USB_SET_SHORT_XFER, no pipe\n");
@@ -1252,11 +1245,22 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			sce->state |= UGEN_SHORT_OK;
 		else
 			sce->state &= ~UGEN_SHORT_OK;
+		/*
+		 * If this is a bulk data pipe awaiting data, then we
+		 * need to restart the current operation with the new
+		 * short transfer status set.
+		 */
+		if (sce->bulkreq.xfer != NULL && sce->bulkreq.datardy == 0) {
+			usbd_abort_pipe(sce->pipeh);
+			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
+			    sce->bulkreq.buf, sce->bulkreq.maxlen,
+			    sce->state & UGEN_SHORT_OK ?
+			    USBD_SHORT_XFER_OK : 0, sce->timeout, ugen_rdcb);
+			usbd_transfer(sce->bulkreq.xfer);
+		}
 		return (0);
 	case USB_SET_TIMEOUT:
 		sce = &sc->sc_endpoints[endpt][IN];
-		if (sce == NULL)
-			return (EINVAL);
 		sce->timeout = *(int *)addr;
 		return (0);
 	default:
@@ -1508,8 +1512,6 @@ ugenpoll(struct cdev *dev, int events, usb_proc_ptr p)
 
 	/* XXX always IN */
 	sce = &sc->sc_endpoints[UGENENDPOINT(dev)][IN];
-	if (sce == NULL)
-		return (EINVAL);
 
 	if (!sce->edesc) {
 		printf("ugenpoll: no edesc\n");
