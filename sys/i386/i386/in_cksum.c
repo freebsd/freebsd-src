@@ -32,12 +32,14 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.6 1994/08/13 03:49:39 wollman Exp $
+ *	$Id: in_cksum.c,v 1.7 1995/05/30 07:59:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+
+extern int	in_cksum __P((struct mbuf *m, int len));
 
 /*
  * Checksum routine for Internet Protocol family headers.
