@@ -371,8 +371,10 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 		bzero(&newke->ke_startzero, RANGEOF(struct kse,
 		      ke_startzero, ke_endzero));
 		mtx_lock_spin(&sched_lock);
+#if 0
 		bcopy(&td->td_kse->ke_startcopy, &newke->ke_startcopy,
 		      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
+#endif
 	} else {
 		/*
 		 * We are switching to KSEs so just
