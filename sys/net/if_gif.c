@@ -377,12 +377,12 @@ gif_output(ifp, m, dst, rt)
 	switch (sc->gif_psrc->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = in_gif_output(ifp, dst->sa_family, m, rt);
+		error = in_gif_output(ifp, dst->sa_family, m);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = in6_gif_output(ifp, dst->sa_family, m, rt);
+		error = in6_gif_output(ifp, dst->sa_family, m);
 		break;
 #endif
 	default:
