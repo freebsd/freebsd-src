@@ -252,7 +252,9 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 {
 	int isr;
 	u_int16_t etype = ETHERTYPE_IP;		/* default */
+#ifdef NATM
 	int s;
+#endif
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
