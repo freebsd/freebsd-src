@@ -729,7 +729,7 @@ sbflush(sb)
 		sbdrop(sb, (int)sb->sb_cc);
 	}
 	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
-		panic("sbflush: cc %ld || mb %p || mbcnt %ld", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
+		panic("sbflush: cc %u || mb %p || mbcnt %u", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
 }
 
 /*
