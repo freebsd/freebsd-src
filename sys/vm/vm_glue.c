@@ -485,7 +485,6 @@ int action;
 {
 	struct proc *p;
 	struct ksegrp *kg;
-	struct thread *td;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
 	int didswap = 0;
