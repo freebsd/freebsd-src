@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.8 2001/09/18 14:55:52 espie Exp $
+#	$OpenBSD: Makefile,v 1.10 2002/04/26 13:13:41 espie Exp $
 # $FreeBSD$
 
 # -DEXTENDED 
