@@ -1217,6 +1217,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_rsp0 = thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
+	/* Ensure the stack is aligned to 16 bytes */
+	common_tss.tss_rsp0 &= ~0xF;
 
 	/* doublefault stack space, runs on ist1 */
 	common_tss.tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
@@ -1434,7 +1436,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
-
 	PROC_LOCK(curthread->td_proc);
 	mcp->mc_onstack = sigonstack(tp->tf_rsp);
 	PROC_UNLOCK(curthread->td_proc);
@@ -1486,66 +1487,42 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		return (EINVAL);
 	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
 	    (tp->tf_rflags & ~PSL_USERCHANGE);
-	if ((ret = set_fpcontext(td, mcp)) == 0) {
-		tp->tf_r15 = mcp->mc_r15;
-		tp->tf_r14 = mcp->mc_r14;
-		tp->tf_r13 = mcp->mc_r13;
-		tp->tf_r12 = mcp->mc_r12;
-		tp->tf_r11 = mcp->mc_r11;
-		tp->tf_r10 = mcp->mc_r10;
-		tp->tf_r9  = mcp->mc_r9;
-		tp->tf_r8  = mcp->mc_r8;
-		tp->tf_rdi = mcp->mc_rdi;
-		tp->tf_rsi = mcp->mc_rsi;
-		tp->tf_rbp = mcp->mc_rbp;
-		tp->tf_rbx = mcp->mc_rbx;
-		tp->tf_rdx = mcp->mc_rdx;
-		tp->tf_rcx = mcp->mc_rcx;
-		tp->tf_rax = mcp->mc_rax;
-		tp->tf_rip = mcp->mc_rip;
-		tp->tf_rflags = rflags;
-		tp->tf_rsp = mcp->mc_rsp;
-		tp->tf_ss = mcp->mc_ss;
-		ret = 0;
-	}
-	return (ret);
+	ret = set_fpcontext(td, mcp);
+	if (ret != 0)
+		return (ret);
+	tp->tf_r15 = mcp->mc_r15;
+	tp->tf_r14 = mcp->mc_r14;
+	tp->tf_r13 = mcp->mc_r13;
+	tp->tf_r12 = mcp->mc_r12;
+	tp->tf_r11 = mcp->mc_r11;
+	tp->tf_r10 = mcp->mc_r10;
+	tp->tf_r9  = mcp->mc_r9;
+	tp->tf_r8  = mcp->mc_r8;
+	tp->tf_rdi = mcp->mc_rdi;
+	tp->tf_rsi = mcp->mc_rsi;
+	tp->tf_rbp = mcp->mc_rbp;
+	tp->tf_rbx = mcp->mc_rbx;
+	tp->tf_rdx = mcp->mc_rdx;
+	tp->tf_rcx = mcp->mc_rcx;
+	tp->tf_rax = mcp->mc_rax;
+	tp->tf_rip = mcp->mc_rip;
+	tp->tf_rflags = rflags;
+	tp->tf_rsp = mcp->mc_rsp;
+	tp->tf_ss = mcp->mc_ss;
+	return (0);
 }
 
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
-	struct savefpu *addr;
 
-	/*
-	 * XXX mc_fpstate might be misaligned, since its declaration is not
-	 * unportabilized using __attribute__((aligned(16))) like the
-	 * declaration of struct savemm, and anyway, alignment doesn't work
-	 * for auto variables since we don't use gcc's pessimal stack
-	 * alignment.  Work around this by abusing the spare fields after
-	 * mcp->mc_fpstate.
-	 *
-	 * XXX unpessimize most cases by only aligning when fxsave might be
-	 * called, although this requires knowing too much about
-	 * npxgetregs()'s internals.
-	 */
-	addr = (struct savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) && ((uintptr_t)(void *)addr & 0xF)) {
-		do
-			addr = (void *)((char *)addr + 4);
-		while ((uintptr_t)(void *)addr & 0xF);
-	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
-	if (addr != (struct savefpu *)&mcp->mc_fpstate) {
-		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
-		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	}
+	mcp->mc_ownedfp = npxgetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = npxformat();
 }
 
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
-	struct savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
@@ -1556,25 +1533,12 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/* XXX align as above. */
-		addr = (struct savefpu *)&mcp->mc_fpstate;
-		if (td == PCPU_GET(fpcurthread) &&
-		    ((uintptr_t)(void *)addr & 0xF)) {
-			do
-				addr = (void *)((char *)addr + 4);
-			while ((uintptr_t)(void *)addr & 0xF);
-			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
-		}
 		/*
 		 * XXX we violate the dubious requirement that npxsetregs()
 		 * be called with interrupts disabled.
+		 * XXX obsolete on trap-16 systems?
 		 */
-		npxsetregs(td, addr);
-		/*
-		 * Don't bother putting things back where they were in the
-		 * misaligned case, since we know that the caller won't use
-		 * them again.
-		 */
+		npxsetregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);
