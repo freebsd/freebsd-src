@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.1 1998/07/05 12:10:10 dfr Exp $ */
+/* $Id: dec_eb164.c,v 1.2 1998/07/12 16:07:43 dfr Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -40,6 +40,10 @@
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
+#include <machine/clock.h>
+
+#include "sio.h"
+#include "sc.h"
 
 #ifndef CONSPEED
 #define CONSPEED TTYDEF_SPEED
@@ -48,6 +52,8 @@ static int comcnrate = CONSPEED;
 
 void dec_eb164_init __P((void));
 static void dec_eb164_cons_init __P((void));
+extern void eb164_intr_enable(int irq);
+extern void eb164_intr_disable(int irq);
 
 void
 dec_eb164_init()
@@ -61,22 +67,21 @@ dec_eb164_init()
 
 	platform.iobus = "cia";
 	platform.cons_init = dec_eb164_cons_init;
+	platform.pci_intr_map = NULL;
+	platform.pci_intr_disable = eb164_intr_disable;
+	platform.pci_intr_enable = eb164_intr_enable;
 }
 
 static void
 dec_eb164_cons_init()
 {
-	cia_init();
-#ifdef DDB
-	siocnattach(0x3f8, 57600);
-#endif
-#if 0
 	struct ctb *ctb;
-	struct cia_config *ccp;
-	extern struct cia_config cia_configuration;
 
-	ccp = &cia_configuration;
-	cia_init(ccp, 0);
+	cia_init();
+
+#ifdef DDB
+	siogdbattach(0x2f8, 57600);
+#endif
 
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
@@ -92,26 +97,17 @@ dec_eb164_cons_init()
 			 */
 			DELAY(160000000 / comcnrate);
 
-			if(comcnattach(&ccp->cc_iot, 0x3f8, comcnrate,
-			    COM_FREQ,
-			    (TTYDEF_CFLAG & ~(CSIZE | PARENB)) | CS8))
+			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
 			break;
 		}
 
 	case 3:
-#if	NPCKBD > 0
 		/* display console ... */
 		/* XXX */
-		(void) pckbc_cnattach(&ccp->cc_iot, PCKBC_KBD_SLOT);
-
-		if ((ctb->ctb_turboslot & 0xffff) == 0)
-			isa_display_console(&ccp->cc_iot, &ccp->cc_memt);
-		else
-			pci_display_console(&ccp->cc_iot, &ccp->cc_memt,
-			    &ccp->cc_pc, (ctb->ctb_turboslot >> 8) & 0xff,
-			    ctb->ctb_turboslot & 0xff, 0);
+#if NSC > 0
+		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
 #endif
@@ -124,5 +120,4 @@ dec_eb164_cons_init()
 		panic("consinit: unknown console type %d\n",
 		    ctb->ctb_term_type);
 	}
-#endif
 }
