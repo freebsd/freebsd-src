@@ -282,4 +282,13 @@ softdep_releasefile(ip)
 
 	panic("softdep_releasefile called");
 }
+
+int
+softdep_request_cleanup(fs, vp)
+	struct fs *fs;
+	struct vnode *vp;
+{
+
+	return (0);
+}
 #endif	/* SOFTUPDATES not configured in */
