@@ -741,7 +741,7 @@ main(int argc, char **argv)
 	} else if (!strcmp(argv[1], "setkey")) {
 		action = ACT_SETKEY;
 		doopen = 1;
-		opts = "n:l:L:p:P:";
+		opts = "l:L:n:p:P:";
 	} else if (!strcmp(argv[1], "destroy")) {
 		action = ACT_DESTROY;
 		doopen = 1;
@@ -749,7 +749,7 @@ main(int argc, char **argv)
 	} else if (!strcmp(argv[1], "nuke")) {
 		action = ACT_NUKE;
 		doopen = 1;
-		opts = "l:p:n:";
+		opts = "l:n:p:";
 	} else {
 		usage("Unknown sub command\n");
 	}
@@ -781,18 +781,19 @@ main(int argc, char **argv)
 		case 'L':
 			L_opt = optarg;
 			break;
+		case 'n':
+			n_opt = strtoul(optarg, &q, 0);
+			if (!*optarg || *q)
+				usage("-n argument not numeric\n");
+			if (n_opt < -1 || n_opt > G_BDE_MAXKEYS)
+				usage("-n argument out of range\n");
+			break;
 		case 'p':
 			p_opt = optarg;
 			break;
 		case 'P':
 			P_opt = optarg;
 			break;
-		case 'n':
-			n_opt = strtoul(optarg, &q, 0);
-			if (!*optarg || *q)
-				usage("-n argument not numeric\n");
-			if (n_opt < -1 || n_opt > G_BDE_MAXKEYS)
-				usage("-n argument out of range\n"); break;
 		default:
 			usage("Invalid option\n");
 		}
