@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.24 1998/04/06 08:26:08 phk Exp $
+ * $Id: time.h,v 1.25 1998/04/23 00:11:32 eivind Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -158,7 +158,7 @@ struct timecounter {
 #ifdef KERNEL
 
 /* Operations on timespecs */
-#define	timespecclear(tvp)	(tvp)->tv_sec = (tvp)->tv_nsec = 0
+#define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
 #define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
 #define	timespeccmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
@@ -198,10 +198,7 @@ struct timecounter {
 
 #ifndef KERNEL			/* NetBSD/OpenBSD compatable interfaces */
 
-#define	timerclear(tvp)							\
-	do {								\
-		(tvp)->tv_sec = (tvp)->tv_usec = 0;			\
-	} while(0)
+#define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
 #define	timercmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
