@@ -932,8 +932,8 @@
   <sect2>
     <title>ATM Interfaces</title>
 
-    <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI
-    Adapters (hea driver)</para>
+    <para arch="i386,pc98">Midway-based ATM interfaces (&man.en.4;
+      driver)</para>
 
     <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
       Adapters (hfa and &man.fatm.4; drivers)</para>
@@ -995,11 +995,6 @@
 	  <para>SMC 90c26, 90c56, and 90c66 in 90c56 compatability mode</para>
 	</listitem>
       </itemizedlist>
-    </para>
-
-    <para arch="i386">LAN Media Corp WAN adapters based on the DEC
-      <quote>Tulip</quote> Fast Ethernet controller (&man.lmc.4;
-      driver)
     </para>
 
   </sect2>
@@ -1147,7 +1142,7 @@
 
     <para arch="i386">STB 4 port card using shared IRQ</para>
 
-    <para arch="i386">DigiBoard intelligent serial cards (&man.dgb.4; driver)
+    <para arch="i386">DigiBoard intelligent serial cards (digi driver)
     </para>
 
     <para arch="i386,ia64,amd64">PCI-Based multi-port serial boards (&man.puc.4;
@@ -1462,7 +1457,6 @@
     <para arch="i386">Connectix QuickCam</para>
     <para arch="i386">Cortex1 frame grabber (ctx driver)</para>
     <para arch="i386">Creative Labs Video Spigot frame grabber (spigot driver)</para>
-    <para arch="i386">Matrox Meteor Video frame grabber (&man.meteor.4; driver)</para>
   </sect2>
 
   <sect2 id="usb">
@@ -1797,7 +1791,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386">Loran-C receiver (Dave Mills experimental hardware, loran driver).</para>
+
     <para arch="i386,pc98,alpha,ia64,amd64">Pointing devices including:
       <itemizedlist>
         <listitem arch="i386,pc98,amd64">
