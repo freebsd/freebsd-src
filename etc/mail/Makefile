@@ -157,10 +157,18 @@ install:	${INSTALL_CF}
 
 start:
 	(. /etc/defaults/rc.conf; source_rc_confs; \
-	   if [ "$${sendmail_enable}" = "YES" -a -r /etc/mail/sendmail.cf ];\
-	   then \
-	     ${SENDMAIL} $${sendmail_flags}; \
-	   fi \
+	case "$${sendmail_enable}" in \
+	[Yy][Ee][Ss]) \
+		/usr/sbin/sendmail $${sendmail_flags} \
+		;; \
+	*) \
+		case "$${sendmail_outbound_enable}" in \
+		[Yy][Ee][Ss]) \
+			/usr/sbin/sendmail $${sendmail_outbound_flags} \
+			;; \
+		esac \
+		;; \
+	esac \
 	)
 
 stop:
