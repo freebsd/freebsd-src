@@ -54,7 +54,7 @@ u_int g_mirror_debug = 0;
 TUNABLE_INT("kern.geom.mirror.debug", &g_mirror_debug);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
     "Debug level");
-static u_int g_mirror_timeout = 8;
+static u_int g_mirror_timeout = 4;
 TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
@@ -392,6 +392,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_sync.ds_consumer = NULL;
 	disk->d_sync.ds_offset = md->md_sync_offset;
 	disk->d_sync.ds_offset_done = md->md_sync_offset;
+	disk->d_sync.ds_resync = -1;
 	disk->d_sync.ds_syncid = md->md_syncid;
 	if (errorp != NULL)
 		*errorp = 0;
@@ -952,6 +953,9 @@ g_mirror_sync_request(struct bio *bp)
 		return;
 	    }
 	case BIO_WRITE:
+	    {
+		struct g_mirror_disk_sync *sync;
+
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
 			    "Synchronization request failed (error=%d).",
@@ -964,17 +968,20 @@ g_mirror_sync_request(struct bio *bp)
 			return;
 		}
 		G_MIRROR_LOGREQ(3, bp, "Synchronization request finished.");
-		disk->d_sync.ds_offset_done = bp->bio_offset + bp->bio_length;
+		sync = &disk->d_sync;
+		sync->ds_offset_done = bp->bio_offset + bp->bio_length;
 		g_destroy_bio(bp);
-		if (disk->d_sync.ds_offset_done == sc->sc_provider->mediasize) {
+		if (sync->ds_resync != -1)
+			break;
+		if (sync->ds_offset_done == sc->sc_provider->mediasize) {
 			/*
 			 * Disk up-to-date, activate it.
 			 */
 			g_mirror_event_send(disk, G_MIRROR_DISK_STATE_ACTIVE,
 			    G_MIRROR_EVENT_DONTWAIT);
 			return;
-		} else if ((disk->d_sync.ds_offset_done %
-		    (G_MIRROR_SYNC_BLOCK_SIZE * 100)) == 0) {
+		} else if (sync->ds_offset_done %
+		    (G_MIRROR_SYNC_BLOCK_SIZE * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -984,6 +991,7 @@ g_mirror_sync_request(struct bio *bp)
 			g_topology_unlock();
 		}
 		return;
+	    }
 	default:
 		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
 		    bp->bio_cmd, sc->sc_name));
@@ -1205,6 +1213,7 @@ g_mirror_register_request(struct bio *bp)
 	case BIO_DELETE:
 	    {
 		struct g_mirror_disk *disk;
+		struct g_mirror_disk_sync *sync;
 		struct bio_queue_head queue;
 		struct g_consumer *cp;
 		struct bio *cbp;
@@ -1215,12 +1224,21 @@ g_mirror_register_request(struct bio *bp)
 		 */
 		bioq_init(&queue);
 		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			sync = &disk->d_sync;
 			switch (disk->d_state) {
 			case G_MIRROR_DISK_STATE_ACTIVE:
 				break;
 			case G_MIRROR_DISK_STATE_SYNCHRONIZING:
-				if (bp->bio_offset >= disk->d_sync.ds_offset)
+				if (bp->bio_offset >= sync->ds_offset)
 					continue;
+				else if (bp->bio_offset + bp->bio_length >
+				    sync->ds_offset_done &&
+				    (bp->bio_offset < sync->ds_resync ||
+				     sync->ds_resync == -1)) {
+					sync->ds_resync = bp->bio_offset -
+					    (bp->bio_offset %
+					    G_MIRROR_SYNC_BLOCK_SIZE);
+				}
 				break;
 			default:
 				continue;
@@ -1238,29 +1256,20 @@ g_mirror_register_request(struct bio *bp)
 				return;
 			}
 			bioq_insert_tail(&queue, cbp);
-		}
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-			switch (disk->d_state) {
-			case G_MIRROR_DISK_STATE_ACTIVE:
-				break;
-			case G_MIRROR_DISK_STATE_SYNCHRONIZING:
-				if (bp->bio_offset >= disk->d_sync.ds_offset)
-					continue;
-				break;
-			default:
-				continue;
-			}
-			cbp = bioq_first(&queue);
-			KASSERT(cbp != NULL, ("NULL cbp! (device %s).",
-			    sc->sc_name));
-			bioq_remove(&queue, cbp);
-			cp = disk->d_consumer;
 			cbp->bio_done = g_mirror_done;
+			cp = disk->d_consumer;
+			cbp->bio_caller1 = cp;
 			cbp->bio_to = cp->provider;
-			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 			KASSERT(cp->acw > 0 && cp->ace > 0,
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+		}
+		for (cbp = bioq_first(&queue); cbp != NULL;
+		    cbp = bioq_first(&queue)) {
+			bioq_remove(&queue, cbp);
+			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
+			cp = cbp->bio_caller1;
+			cbp->bio_caller1 = NULL;
 			g_io_request(cbp, cp);
 		}
 		/*
@@ -1339,6 +1348,7 @@ g_mirror_worker(void *arg)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
+	struct g_mirror_disk_sync *sync;
 	struct g_mirror_event *ep;
 	struct bio *bp;
 	u_int nreqs;
@@ -1420,13 +1430,17 @@ g_mirror_worker(void *arg)
 				    G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 					continue;
 				}
-				if (disk->d_sync.ds_offset >=
+				sync = &disk->d_sync;
+				if (sync->ds_offset >=
 				    sc->sc_provider->mediasize) {
 					continue;
 				}
-				if (disk->d_sync.ds_offset >
-				    disk->d_sync.ds_offset_done) {
+				if (sync->ds_offset > sync->ds_offset_done)
 					continue;
+				if (sync->ds_resync != -1) {
+					sync->ds_offset = sync->ds_resync;
+					sync->ds_offset_done = sync->ds_resync;
+					sync->ds_resync = -1;
 				}
 				g_mirror_sync_one(disk);
 			}
@@ -2491,9 +2505,6 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_MIRROR_DEBUG(2, "Tasting %s.", pp->name);
-	/* Skip providers with 0 sectorsize. */
-	if (pp->sectorsize == 0)
-		return (NULL);
 
 	gp = g_new_geomf(mp, "mirror:taste");
 	/*
