@@ -71,7 +71,7 @@ static const char rcsid[] =
 #define	FLOATING_POINT
 
 static int	__sprint __P((FILE *, struct __suio *));
-static int	__sbprintf __P((FILE *, const char *, va_list));
+static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
 static char *	__ultoa __P((u_long, char *, int, int, char *));
 static char *	__uqtoa __P((u_quad_t, char *, int, int, char *));
 static void	__find_arguments __P((const char *, va_list, void ***));

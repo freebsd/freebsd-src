@@ -150,11 +150,11 @@ int			cam_get_device(const char *path, char *dev_name,
 /*
  * Buffer encoding/decoding routines, from the old SCSI library.
  */
-int csio_decode(struct ccb_scsiio *csio, char *fmt, ...);
+int csio_decode(struct ccb_scsiio *csio, char *fmt, ...) __printflike(2, 3);
 int csio_decode_visit(struct ccb_scsiio *csio, char *fmt,
 		      void (*arg_put)(void *, int, void *, int, char *),
 		      void *puthook);
-int buff_decode(u_int8_t *buff, size_t len, char *fmt, ...);
+int buff_decode(u_int8_t *buff, size_t len, char *fmt, ...) __printflike(3, 4);
 int buff_decode_visit(u_int8_t *buff, size_t len, char *fmt,
 		      void (*arg_put)(void *, int, void *, int, char *),
 		      void *puthook);
@@ -166,7 +166,7 @@ int csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 		     int timeout, char *cmd_spec,
 		     int (*arg_get)(void *hook, char *field_name),
 		     void *gethook);
-int csio_encode(struct ccb_scsiio *csio, char *fmt, ...);
+int csio_encode(struct ccb_scsiio *csio, char *fmt, ...) __printflike(2, 3);
 int buff_encode_visit(u_int8_t *buff, size_t len, char *fmt,
 		      int (*arg_get)(void *hook, char *field_name),
 		      void *gethook);
