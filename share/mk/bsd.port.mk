@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.30 1994/09/10 22:26:47 jkh Exp $
+# $Id: bsd.port.mk,v 1.31 1994/09/11 12:01:05 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -83,7 +83,6 @@
 PORTSDIR?=		/usr/ports
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
-HOME
 WRKDIR?=		${.CURDIR}/work
 .if defined(NO_WRKSUBDIR)
 WRKSRC?=		${WRKDIR}
