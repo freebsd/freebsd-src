@@ -243,7 +243,7 @@ struct namelist {
 
 /* Structure used for NGM_LISTTYPES */
 struct typeinfo {
-	char		typename[NG_TYPELEN + 1];	/* name of type */
+	char		type_name[NG_TYPELEN + 1];	/* name of type */
 	u_int32_t	numnodes;			/* number alive */
 };
 
