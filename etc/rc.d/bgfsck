@@ -5,7 +5,7 @@
 
 # PROVIDE: bgfsck
 # REQUIRE: cron devfs
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

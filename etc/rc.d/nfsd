@@ -6,7 +6,7 @@
 
 # PROVIDE: nfsd
 # REQUIRE: mountd
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

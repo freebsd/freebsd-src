@@ -6,7 +6,7 @@
 # PROVIDE: ipfw
 # REQUIRE: ppp-user
 # BEFORE: NETWORKING
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 . /etc/network.subr
