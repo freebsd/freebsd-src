@@ -91,8 +91,8 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		hardclock((struct clockframe *)framep);
-		setdelayed();
+		handleclock(framep);
+
 		/* divide hz (1024) by 8 to get stathz (128) */
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
