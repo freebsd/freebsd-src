@@ -202,6 +202,23 @@ it loads the traced process' floating-point registers from the
 .Aq Pa machine/reg.h )
 pointed to by
 .Fa addr .
+.It Dv PT_GETDBREGS
+This request reads the traced process' debug registers into
+the
+.Dq Li "struct dbreg"
+(defined in
+.Aq Pa machine/reg.h )
+pointed to by
+.Fa addr .
+.It Dv PT_SETDBREGS
+This request is the converse of
+.Dv PT_GETDBREGS ;
+it loads the traced process' debug registers from the
+.Dq Li "struct dbreg"
+(defined in
+.Aq Pa machine/reg.h )
+pointed to by
+.Fa addr .
 .El
 .Sh RETURN VALUES
 Some requests can cause
@@ -250,8 +267,10 @@ was neither 0 nor a legal signal number.
 .Dv PT_GETREGS ,
 .Dv PT_SETREGS ,
 .Dv PT_GETFPREGS ,
+.Dv PT_SETFPREGS ,
+.Dv PT_GETDBREGS ,
 or
-.Dv PT_SETFPREGS
+.Dv PT_SETDBREGS
 was attempted on a process with no valid register set.  (This is
 normally true only of system processes.)
 .El
