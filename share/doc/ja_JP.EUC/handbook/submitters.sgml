@@ -1,6 +1,6 @@
-<!-- $Id: submitters.sgml,v 1.8 1997/03/03 04:51:24 hanai Exp $ -->
+<!-- $Id: submitters.sgml,v 1.9 1997/04/30 06:43:05 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.52 -->
+<!-- Original revision: 1.53 -->
 
 <chapt><heading>FreeBSD への貢献<label id="submitters"></heading>
 
@@ -562,7 +562,7 @@ FreeBSD がサポートするすべてのコンポーネントのテストラボを設置しよう
 
 <sect2><heading>インターネットアクセスの寄付</heading>
 
-<p>私たちは常に FTP, WWW や sup の新しいミラーサイトを募集しています. 
+<p>私たちは常に FTP, WWW や cvsup の新しいミラーサイトを募集しています. 
 ミラーサイトになりたい場合には <url url="mailto:admin@FreeBSD.ORG"
 name="the FreeBSD project administrators"> にコンタクトを取って, 詳し
 い情報を手に入れてください.
