@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.38 1998/02/20 16:14:37 jkh Exp $
+#	$Id: Makefile,v 1.39 1998/03/13 19:34:40 jb Exp $
 
-SUBDIR= bc bison cc cpio cvs dc dialog diff diff3 genclass gperf \
-	grep gzip man patch ptx rcs sdiff send-pr \
+SUBDIR= awk bc bison cc cpio cvs dc dialog diff diff3 genclass gperf \
+	grep groff gzip man patch ptx rcs sdiff send-pr \
 	sort tar texinfo
 
 .if ${BINFORMAT} == "elf"
@@ -9,7 +9,7 @@ SUBDIR+= binutils
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=as awk gdb groff ld
+SUBDIR+=as gdb ld
 
 .if !defined(NOPERL) && exists(${.CURDIR}/perl)
 SUBDIR+=perl
