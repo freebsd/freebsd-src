@@ -44,21 +44,26 @@
 #include <machine/tss.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/pnp.h>
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
 
 /* exported lookup results */
 struct bios32_SDentry		PCIbios = {entry : 0};
-static struct SMBIOS_table	*SMBIOStable = 0;
-static struct DMI_table		*DMItable = 0;
+struct SMBIOS_table		*SMBIOStable = 0;
+struct PnPBIOS_table		*PnPBIOStable = 0;
 
 static u_int			bios32_SDCI = 0;
 
-static void			bios32_init(void *junk);
-
 /* start fairly early */
+static void			bios32_init(void *junk);
 SYSINIT(bios32, SI_SUB_CPU, SI_ORDER_ANY, bios32_init, NULL);
+
+static void	pnpbios_scan(void);
+static char 	*pnp_eisaformat(u_int8_t *data);
+
 
 /*
  * bios32_init
@@ -71,7 +76,7 @@ bios32_init(void *junk)
     u_long			sigaddr;
     struct bios32_SDheader	*sdh;
     struct SMBIOS_table		*sbt;
-    struct DMI_table		*dmit;
+    struct PnPBIOS_table	*pt;
     u_int8_t			ck, *cv;
     int				i;
     
@@ -92,16 +97,16 @@ bios32_init(void *junk)
 	if ((ck == 0) && (sdh->entry < (BIOS_START + BIOS_SIZE))) {
 	    bios32_SDCI = BIOS_PADDRTOVADDR(sdh->entry);
 	    if (bootverbose) {
-		printf("Found BIOS32 Service Directory header at %p\n", sdh);
-		printf("Entry = 0x%x (%x)  Rev = %d  Len = %d\n", 
+		printf("bios32: Found BIOS32 Service Directory header at %p\n", sdh);
+		printf("bios32: Entry = 0x%x (%x)  Rev = %d  Len = %d\n", 
 		       sdh->entry, bios32_SDCI, sdh->revision, sdh->len);
 	    }
 	    /* See if there's a PCI BIOS entrypoint here */
 	    PCIbios.ident.id = 0x49435024;	/* PCI systems should have this */
 	    if (!bios32_SDlookup(&PCIbios) && bootverbose)
-		printf("PCI BIOS entry at 0x%x\n", PCIbios.entry);
+		printf("pcibios: PCI BIOS entry at 0x%x\n", PCIbios.entry);
 	} else {
-	    printf("Bad BIOS32 Service Directory!\n");
+	    printf("bios32: Bad BIOS32 Service Directory\n");
 	}
     }
 
@@ -119,48 +124,52 @@ bios32_init(void *junk)
 	/* if checksum is OK, we have action */
 	if (ck == 0) {
 	    SMBIOStable = sbt;		/* save reference */
-	    DMItable = &sbt->dmi;	/* contained within */
 	    if (bootverbose) {
-		printf("SMIBIOS header at %p\n", sbt);
-		printf("Version %d.%d\n", sbt->major, sbt->minor);
-		printf("Table at 0x%x, %d entries, %d bytes, largest entry %d bytes\n",
+		printf("smbios: SMBIOS header at %p\n", sbt);
+		printf("smbios: Version %d.%d\n", sbt->major, sbt->minor);
+		printf("smbios: Table at 0x%x, %d entries, %d bytes, largest entry %d bytes\n",
 		       sbt->dmi.st_base, (int)sbt->dmi.st_entries, (int)sbt->dmi.st_size,
 		       (int)sbt->st_maxsize);
 	    }
 	} else {
-	    printf("Bad SMBIOS table checksum!\n");
+	    printf("smbios: Bad SMBIOS table checksum\n");
 	}
 	
     }
 
-    /* look for the DMI signature */
-    if ((sigaddr = bios_sigsearch(0, "_DMI_", 5, 16, 0)) != 0) {
+    /*
+     * PnP BIOS
+     */
+    if ((sigaddr = bios_sigsearch(0, "$PnP", 4, 16, 0)) != 0) {
 
 	/* get a virtual pointer to the structure */
-	dmit = (struct DMI_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
-	for (cv = (u_int8_t *)dmit, ck = 0, i = 0; i < 15; i++) {
+	pt = (struct PnPBIOS_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
+	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < pt->len; i++) {
 	    ck += cv[i];
 	}
-	/* if checksum is OK, we have action */
+	/* If checksum is OK, enable use of the entrypoint */
 	if (ck == 0) {
-	    DMItable = dmit;		/* save reference */
+	    PnPBIOStable = pt;
 	    if (bootverbose) {
-		printf("DMI header at %p\n", dmit);
-		printf("Version %d.%d\n", (dmit->bcd_revision >> 4),
-		       (dmit->bcd_revision & 0x0f));
-		printf("Table at 0x%x, %d entries, %d bytes\n",
-		       dmit->st_base, (int)dmit->st_entries,
-		       (int)dmit->st_size);
+		printf("pnpbios: Found PnP BIOS data at %p\n", pt);
+		printf("pnpbios: Entry = %x:%x  Rev = %d.%d\n", 
+		       pt->pmentrybase, pt->pmentryoffset, pt->version >> 4, pt->version & 0xf);
+		if ((pt->control & 0x3) == 0x01)
+		    printf("pnpbios: Event flag at %x\n", pt->evflagaddr);
+		if (pt->oemdevid != 0)
+		    printf("pnpbios: OEM ID %x\n", pt->oemdevid);
+		
 	    }
+	    pnpbios_scan();
 	} else {
-	    printf("Bad DMI table checksum!\n");
+	    printf("pnpbios: Bad PnP BIOS data checksum\n");
 	}
     }
+
     if (bootverbose) {
 	    /* look for other know signatures */
 	    printf("Other BIOS signatures found:\n");
 	    printf("ACPI: %08x\n", bios_sigsearch(0, "RST PTR", 8, 16, 0));
-	    printf("$PnP: %08x\n", bios_sigsearch(0, "$PnP", 4, 16, 0));
     }
 }
 
@@ -364,6 +373,9 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    /* FALLTHROUGH */
 	case 'D':			/* 16-bit selector */
 	case 'C':			/* 16-bit selector */
+	    stack -= 2;
+	    break;
+	    
 	case 's':			/* 16-bit integer */
 	    i = va_arg(ap, u_short);
 	    stack -= 2;
@@ -422,19 +434,16 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    break;
 
 	case 'U':			/* 16-bit selector */
-	    i = va_arg(ap, u_short);
 	    *(u_short *)stack = GSEL(GBIOSUTIL_SEL, SEL_KPL);
 	    stack += 2;
 	    break;
 
 	case 'D':			/* 16-bit selector */
-	    i = va_arg(ap, u_short);
 	    *(u_short *)stack = GSEL(GBIOSDATA_SEL, SEL_KPL);
 	    stack += 2;
 	    break;
 
 	case 'C':			/* 16-bit selector */
-	    i = va_arg(ap, u_short);
 	    *(u_short *)stack = GSEL(GBIOSCODE16_SEL, SEL_KPL);
 	    stack += 2;
 	    break;
@@ -470,4 +479,152 @@ bios16(struct bios_args *args, char *fmt, ...)
     invltlb();
 
     return (i);
+}
+
+/*
+ * PnP BIOS interface; enumerate devices only known to the system
+ * BIOS and save information about them for later use.
+ */
+
+struct pnp_sysdev 
+{
+    u_int16_t	size;
+    u_int8_t	handle;
+    u_int32_t	devid;
+    u_int8_t	type[3];
+    u_int16_t	attrib;
+#define PNPATTR_NODISABLE	(1<<0)	/* can't be disabled */
+#define PNPATTR_NOCONFIG	(1<<1)	/* can't be configured */
+#define PNPATTR_OUTPUT		(1<<2)	/* can be primary output */
+#define PNPATTR_INPUT		(1<<3)	/* can be primary input */
+#define PNPATTR_BOOTABLE	(1<<4)	/* can be booted from */
+#define PNPATTR_DOCK		(1<<5)	/* is a docking station */
+#define PNPATTR_REMOVEABLE	(1<<6)	/* device is removeable */
+#define PNPATTR_CONFIG_STATIC	0x00
+#define PNPATTR_CONFIG_DYNAMIC	0x07
+#define PNPATTR_CONFIG_DYNONLY	0x17
+    /* device-specific data comes here */
+    u_int8_t	devdata[0];
+} __attribute__ ((packed));
+
+/* We have to cluster arguments within a 64k range for the bios16 call */
+struct pnp_sysdevargs
+{
+    u_int16_t	next;
+    struct pnp_sysdev node;
+};
+
+/*
+ * Quiz the PnP BIOS, build a list of PNP IDs and resource data.
+ */
+static void
+pnpbios_scan(void)
+{
+    struct PnPBIOS_table	*pt = PnPBIOStable;
+    struct bios_args		args;
+    struct pnp_sysdev		*pd;
+    struct pnp_sysdevargs	*pda;
+    u_int16_t			ndevs, bigdev;
+    int				error, currdev;
+    u_int8_t			*devnodebuf, tag;
+    u_int32_t			*devid, *compid;
+    int				idx, left;
+        
+    /* no PnP BIOS information */
+    if (pt == NULL)
+	return;
+    
+    bzero(&args, sizeof(args));
+    args.seg.code16.base = BIOS_PADDRTOVADDR(pt->pmentrybase);
+    args.seg.code16.limit = 0xffff;		/* XXX ? */
+    args.seg.data.base = BIOS_PADDRTOVADDR(pt->pmdataseg);
+    args.seg.data.limit = 0xffff;
+    args.entry = pt->pmentryoffset;
+    
+    if ((error = bios16(&args, PNP_COUNT_DEVNODES, &ndevs, &bigdev)) || (args.r.eax & 0xff))
+	printf("pnpbios: error %d/%x getting device count/size limit\n", error, args.r.eax);
+    if (bootverbose)
+	printf("pnpbios: %d devices, largest %d bytes\n", ndevs, bigdev);
+
+    devnodebuf = malloc(bigdev + (sizeof(struct pnp_sysdevargs) - sizeof(struct pnp_sysdev)),
+			M_DEVBUF, M_NOWAIT);
+    pda = (struct pnp_sysdevargs *)devnodebuf;
+    pd = &pda->node;
+
+    for (currdev = 0, left = ndevs; (currdev != 0xff) && (left > 0); left--) {
+
+	bzero(pd, bigdev);
+	pda->next = currdev;
+	/* get current configuration */
+	if ((error = bios16(&args, PNP_GET_DEVNODE, &pda->next, &pda->node, (u_int16_t)1))) {
+	    printf("pnpbios: error %d making BIOS16 call\n", error);
+	    break;
+	}
+	if ((error = (args.r.eax & 0xff))) {
+	    if (bootverbose)
+		printf("pnpbios: %s 0x%x fetching node %d\n", error & 0x80 ? "error" : "warning", error, currdev);
+	    if (error & 0x80) 
+		break;
+	}
+	currdev = pda->next;
+	if (pd->size < sizeof(struct pnp_sysdev)) {
+	    printf("pnpbios: bogus system node data, aborting scan\n");
+	    break;
+	}
+	
+	/* Find device IDs */
+	devid = &pd->devid;
+	compid = NULL;
+
+	/* look for a compatible device ID too */
+	left = pd->size - sizeof(struct pnp_sysdev);
+	idx = 0;
+	while (idx < left) {
+	    tag = pd->devdata[idx++];
+	    if (PNP_RES_TYPE(tag) == 0) {
+		/* Small resource */
+		switch (PNP_SRES_NUM(tag)) {
+		case COMP_DEVICE_ID:
+		    compid = (u_int32_t *)(pd->devdata + idx);
+		    if (bootverbose)
+			printf("pnpbios: node %d compat ID 0x%08x\n", pd->handle, *compid);
+		    /* FALLTHROUGH */
+		case END_TAG:
+		    idx = left;
+		    break;
+		default:
+		    idx += PNP_SRES_LEN(tag);
+		    break;
+		}
+	    } else
+		/* Large resource, skip it */
+		idx += *(u_int16_t *)(pd->devdata + idx) + 2;
+	}
+	if (bootverbose) {
+	    printf("pnpbios: handle %d device ID %s (%08x)", 
+		   pd->handle, pnp_eisaformat((u_int8_t *)devid), *devid);
+	    if (compid != NULL)
+		printf(" compat ID %s (%08x)",
+		       pnp_eisaformat((u_int8_t *)compid), *compid);
+	    printf("\n");
+	}
+    }
+}
+
+/* XXX should be somewhere else */
+static char *
+pnp_eisaformat(u_int8_t *data)
+{
+    static char idbuf[8];
+    const char  hextoascii[] = "0123456789abcdef";
+
+    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+    idbuf[2] = '@' + (data[1] & 0x1f);
+    idbuf[3] = hextoascii[(data[2] >> 4)];
+    idbuf[4] = hextoascii[(data[2] & 0xf)];
+    idbuf[5] = hextoascii[(data[3] >> 4)];
+    idbuf[6] = hextoascii[(data[3] & 0xf)];
+    idbuf[7] = 0;
+    return(idbuf);
 }
