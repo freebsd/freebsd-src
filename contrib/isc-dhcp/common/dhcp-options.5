@@ -1,0 +1,451 @@
+.\"	dhcp-options.5
+.\"
+.\" Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of The Internet Software Consortium nor the names
+.\"    of its contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+.\" LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+.\" USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This software has been written for the Internet Software Consortium
+.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+.\" Enterprises.  To learn more about the Internet Software Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.TH dhcpd-options 5
+.SH NAME
+dhcp-options - Dynamic Host Configuration Protocol options
+.SH DESCRIPTION
+The Dynamic Host Configuration protocol allows the client to receive
+.B options
+from the DHCP server describing the network configuration and various
+services that are available on the network.   When configuring
+.B dhcpd(8)
+or
+.B dhclient(8) ,
+options must often be declared.   The syntax for declaring options,
+and the names and formats of the options that can be declared, are
+documented here.
+.SH REFERENCE: OPTION STATEMENTS
+.PP
+DHCP \fIoption\fR statements always start with the \fIoption\fR
+keyword, followed by an option name, followed by option data.  The
+option names and data formats are described below.   It is not
+necessary to exhaustively specify all DHCP options - only those
+options which are needed by clients must be specified.
+.PP
+Option data comes in a variety of formats, as defined below:
+.PP
+The
+.B ip-address
+data type can be entered either as an explicit IP
+address (e.g., 239.254.197.10) or as a domain name (e.g.,
+haagen.isc.org).  When entering a domain name, be sure that that
+domain name resolves to a single IP address.
+.PP
+The
+.B int32
+data type specifies a signed 32-bit integer.   The 
+.B uint32
+data type specifies an unsigned 32-bit integer.   The 
+.B int16
+and
+.B uint16
+data types specify signed and unsigned 16-bit integers.   The 
+.B int8
+and
+.B uint8
+data types specify signed and unsigned 8-bit integers.
+Unsigned 8-bit integers are also sometimes referred to as octets.
+.PP
+The
+.B string
+data type specifies an NVT ASCII string, which must be
+enclosed in double quotes - for example, to specify a domain-name
+option, the syntax would be
+.nf
+.sp 1
+	option domain-name "isc.org";
+.fi
+.PP
+The
+.B flag
+data type specifies a boolean value.   Booleans can be either true or
+false (or on or off, if that makes more sense to you).
+.PP
+The
+.B data-string
+data type specifies either an NVT ASCII string
+enclosed in double quotes, or a series of octets specified in
+hexadecimal, seperated by colons.   For example:
+.nf
+.sp 1
+	option client-identifier "CLIENT-FOO";
+or
+	option client-identifier 43:4c:49:45:54:2d:46:4f:4f;
+.fi
+.PP
+The documentation for the various options mentioned below is taken
+from the latest IETF draft document on DHCP options.   Options which
+are not listed by name may be defined by the name option-\fInnn\fR,
+where \fInnn\fI is the decimal number of the option code.   These
+options may be followed either by a string, enclosed in quotes, or by
+a series of octets, expressed as two-digit hexadecimal numbers seperated
+by colons.   For example:
+.PP
+.nf
+	option option-133 "my-option-133-text";
+	option option-129 1:54:c9:2b:47;
+.fi
+.PP
+Because dhcpd does not know the format of these undefined option codes,
+no checking is done to ensure the correctness of the entered data.
+.PP
+The standard options are:
+.PP
+ \fBoption subnet-mask\fR \fIip-address\fR\fB;\fR
+.PP
+The subnet mask option specifies the client's subnet mask as per RFC
+950.  If no subnet mask option is provided anywhere in scope, as a
+last resort dhcpd will use the subnet mask from the subnet declaration
+for the network on which an address is being assigned.  However,
+.I any
+subnet-mask option declaration that is in scope for the address being
+assigned will override the subnet mask specified in the subnet
+declaration.
+.PP
+ \fBoption time-offset\fR \fIint32\fR\fB;\fR
+.PP
+The time-offset option specifies the offset of the client's subnet in
+seconds from Coordinated Universal Time (UTC).
+.PP
+ \fBoption routers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The routers option specifies a list of IP addresses for routers on the
+client's subnet.  Routers should be listed in order of preference.
+.PP
+ \fBoption time-servers\fR \fIip-address [, \fIip-address\fR ... ]\fB;\fR
+.PP
+The time-server option specifies a list of RFC 868 time servers
+available to the client.  Servers should be listed in order of
+preference.
+.PP
+ \fBoption\fR \fBien116-name-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ];
+.PP
+The ien116-name-servers option specifies a list of IEN 116 name servers
+available to the client.  Servers should be listed in order of
+preference.
+.PP
+ \fBoption\fR \fBdomain-name-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The domain-name-servers option specifies a list of Domain Name System
+(STD 13, RFC 1035) name servers available to the client.  Servers
+should be listed in order of preference.
+.PP
+ \fBoption\fR \fBlog-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The log-server option specifies a list of MIT-LCS UDP log servers
+available to the client.  Servers should be listed in order of
+preference.
+.PP
+ \fBoption\fR \fBcookie-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The cookie server option specifies a list of RFC 865 cookie
+servers available to the client.  Servers should be listed in order
+of preference.
+.PP
+ \fBoption\fR \fBlpr-servers\fR \fIip-address \fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The LPR server option specifies a list of RFC 1179 line printer
+servers available to the client.  Servers should be listed in order
+of preference.
+.PP
+ \fBoption\fR \fBimpress-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The impress-server option specifies a list of Imagen Impress servers
+available to the client.  Servers should be listed in order of
+preference.
+.PP
+ \fBoption\fR \fBresource-location-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of RFC 887 Resource Location
+servers available to the client.  Servers should be listed in order
+of preference.
+.PP
+ \fBoption\fR \fBhost-name\fR \fIstring\fR\fB;\fR
+.PP
+This option specifies the name of the client.  The name may or may
+not be qualified with the local domain name (it is preferable to use
+the domain-name option to specify the domain name).  See RFC 1035 for
+character set restrictions.
+.PP
+ \fBoption\fR \fBboot-size\fR \fIuint16\fR\fB;\fR
+.PP
+This option specifies the length in 512-octet blocks of the default
+boot image for the client.
+.PP
+ \fBoption\fR \fBmerit-dump\fR \fIstring\fR\fB;\fR
+.PP
+This option specifies the path-name of a file to which the client's
+core image should be dumped in the event the client crashes.  The
+path is formatted as a character string consisting of characters from
+the NVT ASCII character set.
+.PP
+ \fBoption\fR \fBdomain-name\fR \fIstring\fR\fB;\fR
+.PP
+This option specifies the domain name that client should use when
+resolving hostnames via the Domain Name System.
+.PP
+ \fBoption\fR \fBswap-server\fR \fIip-address\fR\fB;\fR
+.PP
+This specifies the IP address of the client's swap server.
+.PP
+ \fBoption\fR \fBroot-path\fR \fIstring\fB;\fR\fR
+.PP
+This option specifies the path-name that contains the client's root
+disk.  The path is formatted as a character string consisting of
+characters from the NVT ASCII character set.
+.PP
+ \fBoption\fR \fBip-forwarding\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether the client should configure its IP
+layer for packet forwarding.  A value of 0 means disable IP
+forwarding, and a value of 1 means enable IP forwarding.
+.PP
+ \fBoption\fR \fBnon-local-source-routing\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether the client should configure its IP
+layer to allow forwarding of datagrams with non-local source routes
+(see Section 3.3.5 of [4] for a discussion of this topic).  A value
+of 0 means disallow forwarding of such datagrams, and a value of 1
+means allow forwarding.
+.PP
+ \fBoption\fR \fBpolicy-filter\fR \fIip-address ip-address\fR [\fB,\fR \fIip-address ip-address\fR ... ]\fB;\fR
+.PP
+This option specifies policy filters for non-local source routing.
+The filters consist of a list of IP addresses and masks which specify
+destination/mask pairs with which to filter incoming source routes.
+.PP
+Any source routed datagram whose next-hop address does not match one
+of the filters should be discarded by the client.
+.PP
+See STD 3 (RFC1122) for further information.
+.PP
+ \fBoption\fR \fBmax-dgram-reassembly\fR \fIuint16\fR\fB;\fR
+.PP
+This option specifies the maximum size datagram that the client
+should be prepared to reassemble.  The minimum value legal value is
+576.
+.PP
+ \fBoption\fR \fBdefault-ip-ttl\fR \fIuint8;\fR
+.PP
+This option specifies the default time-to-live that the client should
+use on outgoing datagrams.
+.PP
+ \fBoption\fR \fBpath-mtu-aging-timeout\fR \fIuint32\fR\fB;\fR
+.PP
+This option specifies the timeout (in seconds) to use when aging Path
+MTU values discovered by the mechanism defined in RFC 1191.
+.PP
+ \fBoption\fR \fBpath-mtu-plateau-table\fR \fIuint16\fR [\fB,\fR \fIuint16\fR ... ]\fB;\fR
+.PP
+This option specifies a table of MTU sizes to use when performing
+Path MTU Discovery as defined in RFC 1191.  The table is formatted as
+a list of 16-bit unsigned integers, ordered from smallest to largest.
+The minimum MTU value cannot be smaller than 68.
+.PP
+ \fBoption\fR \fBinterface-mtu\fR \fIuint16\fR\fB;\fR
+.PP
+This option specifies the MTU to use on this interface.   The minimum
+legal value for the MTU is 68.
+.PP
+ \fBoption\fR \fBall-subnets-local\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client may assume that all
+subnets of the IP network to which the client is connected use the
+same MTU as the subnet of that network to which the client is
+directly connected.  A value of 1 indicates that all subnets share
+the same MTU.  A value of 0 means that the client should assume that
+some subnets of the directly connected network may have smaller MTUs.
+.PP
+ \fBoption\fR \fBbroadcast-address\fR \fIip-address\fR\fB;\fR
+.PP
+This option specifies the broadcast address in use on the client's
+subnet.  Legal values for broadcast addresses are specified in
+section 3.2.1.3 of STD 3 (RFC1122).
+.PP
+ \fBoption\fR \fBperform-mask-discovery\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client should perform subnet
+mask discovery using ICMP.  A value of 0 indicates that the client
+should not perform mask discovery.  A value of 1 means that the
+client should perform mask discovery.
+.PP
+ \fBoption\fR \fBmask-supplier\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client should respond to
+subnet mask requests using ICMP.  A value of 0 indicates that the
+client should not respond.  A value of 1 means that the client should
+respond.
+.PP
+ \fBoption\fR \fBrouter-discovery\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client should solicit
+routers using the Router Discovery mechanism defined in RFC 1256.
+A value of 0 indicates that the client should not perform
+router discovery.  A value of 1 means that the client should perform
+router discovery.
+.PP
+ \fBoption\fR \fBrouter-solicitation-address\fR \fIip-address\fR\fB;\fR
+.PP
+This option specifies the address to which the client should transmit
+router solicitation requests.
+.PP
+ \fBoption\fR \fBstatic-routes\fR \fIip-address ip-address\fR [\fB,\fR \fIip-address ip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of static routes that the client should
+install in its routing cache.  If multiple routes to the same
+destination are specified, they are listed in descending order of
+priority.
+.PP
+The routes consist of a list of IP address pairs.  The first address
+is the destination address, and the second address is the router for
+the destination.
+.PP
+The default route (0.0.0.0) is an illegal destination for a static
+route.  To specify the default route, use the
+.B routers
+option.
+.PP
+ \fBoption\fR \fBtrailer-encapsulation\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client should negotiate the
+use of trailers (RFC 893 [14]) when using the ARP protocol.  A value
+of 0 indicates that the client should not attempt to use trailers.  A
+value of 1 means that the client should attempt to use trailers.
+.PP
+ \fBoption\fR \fBarp-cache-timeout\fR \fIuint32\fR\fB;\fR
+.PP
+This option specifies the timeout in seconds for ARP cache entries.
+.PP
+ \fBoption\fR \fBieee802-3-encapsulation\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies whether or not the client should use Ethernet
+Version 2 (RFC 894) or IEEE 802.3 (RFC 1042) encapsulation if the
+interface is an Ethernet.  A value of 0 indicates that the client
+should use RFC 894 encapsulation.  A value of 1 means that the client
+should use RFC 1042 encapsulation.
+.PP
+ \fBoption\fR \fBdefault-tcp-ttl\fR \fIuint8\fR\fB;\fR
+.PP
+This option specifies the default TTL that the client should use when
+sending TCP segments.  The minimum value is 1.
+.PP
+ \fBoption\fR \fBtcp-keepalive-interval\fR \fIuint32\fR\fB;\fR
+.PP
+This option specifies the interval (in seconds) that the client TCP
+should wait before sending a keepalive message on a TCP connection.
+The time is specified as a 32-bit unsigned integer.  A value of zero
+indicates that the client should not generate keepalive messages on
+connections unless specifically requested by an application.
+.PP
+ \fBoption\fR \fBtcp-keepalive-garbage\fR \fIflag\fR\fB;\fR
+.PP
+This option specifies the whether or not the client should send TCP
+keepalive messages with a octet of garbage for compatibility with
+older implementations.  A value of 0 indicates that a garbage octet
+should not be sent. A value of 1 indicates that a garbage octet
+should be sent.
+.PP
+ \fBoption\fR \fBnis-domain\fR \fIstring\fR\fB;\fR
+.PP
+This option specifies the name of the client's NIS (Sun Network
+Information Services) domain.  The domain is formatted as a character
+string consisting of characters from the NVT ASCII character set.
+.PP
+ \fBoption\fR \fBnis-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of IP addresses indicating NIS servers
+available to the client.  Servers should be listed in order of
+preference.
+.PP
+ \fBoption\fR \fBntp-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of IP addresses indicating NTP (RFC 1035)
+servers available to the client.  Servers should be listed in order
+of preference.
+.PP
+ \fBoption\fR \fBnetbios-name-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The NetBIOS name server (NBNS) option specifies a list of RFC
+1001/1002 NBNS name servers listed in order of preference.
+.PP
+ \fBoption\fR \fBnetbios-dd-server\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+The NetBIOS datagram distribution server (NBDD) option specifies a
+list of RFC 1001/1002 NBDD servers listed in order of preference.
+.PP
+ \fBoption\fR \fBnetbios-node-type\fR \fIuint8\fR\fB;\fR
+.PP
+The NetBIOS node type option allows NetBIOS over TCP/IP clients which
+are configurable to be configured as described in RFC 1001/1002.  The
+value is specified as a single octet which identifies the client type.
+A value of 1 corresponds to a NetBIOS B-node; a value of 2 corresponds
+to a P-node; a value of 4 corresponds to an M-node; a value of 8
+corresponds to an H-node.
+.PP
+ \fBoption\fR \fBnetbios-scope\fR \fIstring\fR\fB;\fR
+.PP
+The NetBIOS scope option specifies the NetBIOS over TCP/IP scope
+parameter for the client as specified in RFC 1001/1002. See RFC1001,
+RFC1002, and RFC1035 for character-set restrictions.
+.PP
+ \fBoption\fR \fBfont-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of X Window System Font servers available
+to the client. Servers should be listed in order of preference.
+.PP
+ \fBoption\fR \fBx-display-manager\fR \fIip-address\fR [\fB,\fR \fIip-address\fR ... ]\fB;\fR
+.PP
+This option specifies a list of systems that are running the X Window
+System Display Manager and are available to the client.  Addresses
+should be listed in order of preference.
+.PP
+ \fBoption\fR \fBdhcp-client-identifier\fR \fIdata-string\fR\fB;\fR
+.PP
+This option can be used to specify the a DHCP client identifier in a
+host declaration, so that dhcpd can find the host record by matching
+against the client identifier.
+.SH SEE ALSO
+dhcpd.conf(5), dhcpd.leases(5), dhclient.conf(5), dhcpd(8),
+dhclient(8), RFC2132, RFC2131.
+.SH AUTHOR
+.B dhcpd(8)
+was written by Ted Lemon <mellon@vix.com>
+under a contract with Vixie Labs.   Funding
+for this project was provided by the Internet Software Corporation.
+Information about the Internet Software Consortium can be found at
+.B http://www.isc.org/isc.
