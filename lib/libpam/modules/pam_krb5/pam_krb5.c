@@ -6,7 +6,7 @@
  *   Copyright (c) Nicolas Williams, 2001. All rights reserved.
  *   Copyright (c) Perot Systems Corporation, 2001. All rights reserved.
  *   Copyright (c) Mark R V Murray, 2001.  All rights reserved.
- *   Copyright (c) Networks Associates Technology, Inc., 2002.
+ *   Copyright (c) Networks Associates Technology, Inc., 2002-2003.
  *       All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by

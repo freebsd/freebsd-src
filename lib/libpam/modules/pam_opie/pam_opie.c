@@ -2,7 +2,7 @@
  * Copyright 2000 James Bloom
  * All rights reserved.
  * Based upon code Copyright 1998 Juniper Networks, Inc.
- * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
