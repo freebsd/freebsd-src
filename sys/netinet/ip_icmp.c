@@ -623,10 +623,23 @@ icmp_reflect(m)
 	    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 	/*
 	 * The following happens if the packet was not addressed to us,
-	 * and was received on an interface with no IP address.
+	 * and was received on an interface with no IP address:
+	 * We find the first AF_INET address on the first non-loopback
+	 * interface.
 	 */
 	if (ia == NULL)
-		ia = TAILQ_FIRST(&in_ifaddrhead);
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
+			if ((ia->ia_ifp->if_flags & IFF_LOOPBACK) == 0)
+				break;
+
+	/*
+	 * If we still didn't find an address, punt.  We could have an
+	 * interface up and (and receiving packets) with no address.
+	 */
+	if (ia == NULL) {
+		m_freem(m);
+		goto done;
+	}
 match:
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
