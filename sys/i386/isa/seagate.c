@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.28 1998/04/15 17:26:17 bde Exp $
+ * $Id: seagate.c,v 1.29 1998/06/21 18:02:40 bde Exp $
  */
 
 /*
@@ -1065,7 +1065,7 @@ int sea_poll (adapter_t *z, scb_t *scb)
 void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 {
 	volatile u_char *data = *pdata;
-	volatile u_long len = *plen;
+	volatile u_int len = *plen;
 
 #ifdef SEA_BLINDTRANSFER
 	if (len && !(len % BLOCK_SIZE)) {
@@ -1112,7 +1112,7 @@ void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 {
 	volatile u_char *data = *pdata;
-	volatile u_long len = *plen;
+	volatile u_int len = *plen;
 
 #ifdef SEA_BLINDTRANSFER
 	if (len && !(len % BLOCK_SIZE)) {

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.44 1998/03/28 13:24:17 bde Exp $
+ * $Id: if_le.c,v 1.45 1998/06/07 17:10:35 dfr Exp $
  */
 
 /*
@@ -286,13 +286,13 @@ static unsigned le_intrs[NLE];
 	 || ((u_short *)a1)[2] == 0xFFFFU)
 
 #define LE_INL(sc, reg) \
-({ u_long data; \
+({ u_int data; \
         __asm __volatile("inl %1, %0": "=a" (data): "d" ((u_short)((sc)->le_iobase + (reg)))); \
         data; })
 
 
 #define LE_OUTL(sc, reg, data) \
-	({__asm __volatile("outl %0, %1"::"a" ((u_long)(data)), "d" ((u_short)((sc)->le_iobase + (reg))));})
+	({__asm __volatile("outl %0, %1"::"a" ((u_int)(data)), "d" ((u_short)((sc)->le_iobase + (reg))));})
 
 #define LE_INW(sc, reg) \
 ({ u_short data; \
