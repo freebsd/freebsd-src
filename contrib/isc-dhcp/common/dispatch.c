@@ -44,12 +44,17 @@
 #ifndef lint
 static char copyright[] =
 "$Id: dispatch.c,v 1.63.2.3 2002/11/17 02:26:57 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
+"$FreeBSD$\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
 
 struct timeout *timeouts;
 static struct timeout *free_timeouts;
+
+#ifdef ENABLE_POLLING_MODE
+extern int polling_interval;
+#endif
 
 void set_time (u_int32_t t)
 {
@@ -95,11 +100,26 @@ struct timeval *process_outstanding_timeouts (struct timeval *tvp)
 void dispatch ()
 {
 	struct timeval tv, *tvp;
+#ifdef ENABLE_POLLING_MODE
+	struct timeval *tvp_new;
+#endif
 	isc_result_t status;
+	TIME cur_time;
 
+	tvp = NULL;
+#ifdef ENABLE_POLLING_MODE
+	tvp_new = NULL;
+#endif
 	/* Wait for a packet or a timeout... XXX */
 	do {
 		tvp = process_outstanding_timeouts (&tv);
+#ifdef ENABLE_POLLING_MODE
+		GET_TIME (&cur_time);
+		add_timeout(cur_time + polling_interval, state_link, 0, 0, 0);
+		tvp_new = process_outstanding_timeouts(&tv);
+		if (tvp != NULL && (tvp -> tv_sec > tvp_new -> tv_sec))
+			tvp = tvp_new;
+#endif /* ENABLE_POLLING_MODE */
 		status = omapi_one_dispatch (0, tvp);
 	} while (status == ISC_R_TIMEDOUT || status == ISC_R_SUCCESS);
 	log_fatal ("omapi_one_dispatch failed: %s -- exiting.",
