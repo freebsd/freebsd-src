@@ -516,41 +516,41 @@ cmi_intr(void *data)
 {
 	struct sc_info *sc = data;
 	u_int32_t intrstat;
+	u_int32_t toclear;
 
 	snd_mtxlock(sc->lock);
 	intrstat = cmi_rd(sc, CMPCI_REG_INTR_STATUS, 4);
-	if ((intrstat & CMPCI_REG_ANY_INTR) == 0) {
-		goto out;
-	}
+	if ((intrstat & CMPCI_REG_ANY_INTR) != 0) {
 
-	/* Disable interrupts */
-	if (intrstat & CMPCI_REG_CH0_INTR) {
-		cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
-	}
+		toclear = 0;
+		if (intrstat & CMPCI_REG_CH0_INTR) {
+			toclear |= CMPCI_REG_CH0_INTR_ENABLE;
+			//cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
+		}
 
-	if (intrstat & CMPCI_REG_CH1_INTR) {
-		cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
-	}
+		if (intrstat & CMPCI_REG_CH1_INTR) {
+			toclear |= CMPCI_REG_CH1_INTR_ENABLE;
+			//cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
+		}
 
-	/* Signal interrupts to channel */
-	if (intrstat & CMPCI_REG_CH0_INTR) {
-		chn_intr(sc->pch.channel);
-	}
+		if (toclear) {
+			cmi_clr4(sc, CMPCI_REG_INTR_CTRL, toclear);
+			snd_mtxunlock(sc->lock);
 
-	if (intrstat & CMPCI_REG_CH1_INTR) {
-		chn_intr(sc->rch.channel);
-	}
+			/* Signal interrupts to channel */
+			if (intrstat & CMPCI_REG_CH0_INTR) {
+				chn_intr(sc->pch.channel);
+			}
 
-	/* Enable interrupts */
-	if (intrstat & CMPCI_REG_CH0_INTR) {
-		cmi_set4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
-	}
+			if (intrstat & CMPCI_REG_CH1_INTR) {
+				chn_intr(sc->rch.channel);
+			}
 
-	if (intrstat & CMPCI_REG_CH1_INTR) {
-		cmi_set4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
-	}
+			snd_mtxlock(sc->lock);
+			cmi_set4(sc, CMPCI_REG_INTR_CTRL, toclear);
 
-out:
+		}
+	}
 	snd_mtxunlock(sc->lock);
 	return;
 }
