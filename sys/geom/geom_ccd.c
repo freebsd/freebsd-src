@@ -1082,9 +1082,9 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
-		printf(" dev %p(u%ld): cbp %p bn %lld addr %p bcnt %ld\n",
+		printf(" dev %p(u%ld): cbp %p bn %jd addr %p bcnt %ld\n",
 		       ci->ci_dev, (unsigned long)(ci-cs->sc_cinfo), cbp, 
-		       (long long)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data, 
+		       (intmax_t)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data, 
 		       cbp->cb_buf.bio_bcount);
 #endif
 	cb[0] = cbp;
@@ -1142,9 +1142,9 @@ ccdiodone(struct bio *ibp)
 	if (ccddebug & CCDB_IO) {
 		printf("ccdiodone: bp %p bcount %ld resid %ld\n",
 		       bp, bp->bio_bcount, bp->bio_resid);
-		printf(" dev %p(u%d), cbp %p bn %lld addr %p bcnt %ld\n",
+		printf(" dev %p(u%d), cbp %p bn %jd addr %p bcnt %ld\n",
 		       cbp->cb_buf.bio_dev, cbp->cb_comp, cbp,
-		       (long long)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data,
+		       (intmax_t)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data,
 		       cbp->cb_buf.bio_bcount);
 	}
 #endif
