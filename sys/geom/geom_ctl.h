@@ -35,27 +35,27 @@
 /*
  * Version number.  Used to check consistency between kernel and libgeom.
  */
-#define GEOM_CTL_VERSION	1
+#define GCTL_VERSION	1
 
 /*
  * Primitives.
  */
-enum geom_ctl_request {
-	GEOM_INVALID_REQUEST = 0,
-	GEOM_CREATE_GEOM,
-	GEOM_NEW_GEOM,
-	GEOM_ATTACH,
-	GEOM_DETACH,
-	GEOM_CREATE_PROVIDER,
-	GEOM_DESTROY_PROVIDER,
-	GEOM_INSERT_GEOM,
-	GEOM_ELIMINATE_GEOM,
-	GEOM_WRITE_META,
-	GEOM_READ_META
+enum gctl_request {
+	GCTL_INVALID_REQUEST = 0,
+	GCTL_CREATE_GEOM,
+	GCTL_DESTROY_GEOM,
+	GCTL_ATTACH,
+	GCTL_DETACH,
+	GCTL_CREATE_PROVIDER,
+	GCTL_DESTROY_PROVIDER,
+	GCTL_INSERT_GEOM,
+	GCTL_ELIMINATE_GEOM,
+	GCTL_WRITE_META,
+	GCTL_READ_META
 };
 
-#ifdef GEOM_CTL_TABLE
-struct geom_ctl_req_table {
+#ifdef GCTL_TABLE
+struct gctl_req_table {
 	int             	class;
 	int             	geom;
 	int             	provider;
@@ -63,24 +63,24 @@ struct geom_ctl_req_table {
 	int             	params;
 	int             	meta;
 	char			*name;
-	enum geom_ctl_request	request;
+	enum gctl_request	request;
 } gcrt[] = {
 /*        Cl Ge Pr Co Pa Me Name                Request			*/
-	{ 1, 1, 1, 0, 1, 0, "create geom",	GEOM_CREATE_GEOM            },
-	{ 1, 1, 0, 0, 1, 0, "new geom",		GEOM_NEW_GEOM               },
-	{ 0, 1, 1, 0, 1, 0, "attach",		GEOM_ATTACH                 },
-	{ 0, 1, 1, 0, 1, 0, "detach",		GEOM_DETACH                 },
-	{ 0, 1, 0, 0, 1, 0, "create provider",	GEOM_CREATE_PROVIDER        },
-	{ 0, 1, 1, 0, 1, 0, "destroy provider",	GEOM_DESTROY_PROVIDER       },
-	{ 1, 1, 1, 0, 1, 0, "insert geom",	GEOM_INSERT_GEOM            },
-	{ 0, 1, 0, 0, 1, 0, "eliminate geom",	GEOM_ELIMINATE_GEOM         },
-	{ 0, 1, 0, 0, 1, 1, "write meta",	GEOM_WRITE_META             },
-	{ 0, 1, 0, 0, 1, 1, "read meta",	GEOM_READ_META              },
+	{ 1, 0, 1, 0, 1, 0, "create geom",	GCTL_CREATE_GEOM            },
+	{ 0, 1, 0, 0, 1, 0, "destroy geom",	GCTL_DESTROY_GEOM           },
+	{ 0, 1, 1, 0, 1, 0, "attach",		GCTL_ATTACH                 },
+	{ 0, 1, 1, 0, 1, 0, "detach",		GCTL_DETACH                 },
+	{ 0, 1, 0, 0, 1, 0, "create provider",	GCTL_CREATE_PROVIDER        },
+	{ 0, 1, 1, 0, 1, 0, "destroy provider",	GCTL_DESTROY_PROVIDER       },
+	{ 1, 1, 1, 0, 1, 0, "insert geom",	GCTL_INSERT_GEOM            },
+	{ 0, 1, 0, 0, 1, 0, "eliminate geom",	GCTL_ELIMINATE_GEOM         },
+	{ 0, 1, 0, 0, 1, 1, "write meta",	GCTL_WRITE_META             },
+	{ 0, 1, 0, 0, 1, 1, "read meta",	GCTL_READ_META              },
 
 	/* Terminator entry */
-	{ 1, 1, 1, 1, 1, 1, "*INVALID*",	GEOM_INVALID_REQUEST        }
+	{ 1, 1, 1, 1, 1, 1, "*INVALID*",	GCTL_INVALID_REQUEST        }
 };
 
-#endif /* GEOM_CTL_TABLE */
+#endif /* GCTL_TABLE */
 
 #endif /* _GEOM_GEOM_CTL_H_ */
