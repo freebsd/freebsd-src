@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.48 1997/10/12 20:26:02 phk Exp $
+ *	$Id: mount.h,v 1.49 1997/11/12 05:42:23 julian Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -146,7 +146,7 @@ struct mount {
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
-	int		mnt_flag;		/* exported flags */
+	int		mnt_flag;		/* flags shared with user */
 	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
@@ -155,9 +155,7 @@ struct mount {
 };
 
 /*
- * Mount flags.
- *
- * Unmount uses MNT_FORCE flag.
+ * User specifiable flags.
  */
 #define	MNT_RDONLY	0x00000001	/* read only filesystem */
 #define	MNT_SYNCHRONOUS	0x00000002	/* file system written synchronously */
@@ -166,12 +164,13 @@ struct mount {
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
+#define	MNT_SUIDDIR	0x00100000	/* Disable cluster read */
 #define	MNT_NOATIME	0x10000000	/* Disable update of file access time */
 #define	MNT_NOCLUSTERR	0x40000000	/* Disable cluster read */
 #define	MNT_NOCLUSTERW	0x80000000	/* Disable cluster read */
 
 /*
- * exported mount flags.
+ * NFS export related mount flags.
  */
 #define	MNT_EXRDONLY	0x00000080	/* exported read only */
 #define	MNT_EXPORTED	0x00000100	/* file system is exported */
@@ -181,7 +180,9 @@ struct mount {
 #define	MNT_EXPUBLIC	0x20000000	/* public export (WebNFS) */
 
 /*
- * Flags set by internal operations.
+ * Flags set by internal operations,
+ * but visible to the user.
+ * XXX some of these are not quite right.. (I've never seen the root flag set)
  */
 #define	MNT_LOCAL	0x00001000	/* filesystem is stored locally */
 #define	MNT_QUOTA	0x00002000	/* quotas are enabled on filesystem */
@@ -190,25 +191,31 @@ struct mount {
 
 /*
  * Mask of flags that are visible to statfs()
+ * XXX I think that this could now become (~(MNT_CMDFLAGS))
+ * but the 'mount' program may need changing to handle this.
+ * XXX MNT_EXPUBLIC is presently left out. I don't know why.
  */
-#define	MNT_VISFLAGMASK	(MNT_RDONLY|MNT_SYNCHRONOUS|MNT_NOEXEC|MNT_NOSUID| \
-			 MNT_NODEV|MNT_UNION|MNT_ASYNC|MNT_EXRDONLY| \
-			 MNT_EXPORTED|MNT_DEFEXPORTED|MNT_EXPORTANON| \
-			 MNT_EXKERB|MNT_LOCAL|MNT_USER|MNT_QUOTA|MNT_ROOTFS| \
-			 MNT_NOATIME|MNT_NOCLUSTERR|MNT_NOCLUSTERW \
-				/* | MNT_EXPUBLIC */)
-
+#define	MNT_VISFLAGMASK	(MNT_RDONLY	| MNT_SYNCHRONOUS | MNT_NOEXEC	| \
+			MNT_NOSUID	| MNT_NODEV	| MNT_UNION	| \
+			MNT_ASYNC	| MNT_EXRDONLY	| MNT_EXPORTED	| \
+			MNT_DEFEXPORTED	| MNT_EXPORTANON| MNT_EXKERB	| \
+			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
+			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
+			MNT_NOCLUSTERW	| MNT_SUIDDIR/*	| MNT_EXPUBLIC */)
 /*
- * External filesystem control flags.
+ * External filesystem command modifier flags.
+ * Unmount can use the MNT_FORCE flag.
+ * XXX These are not STATES and really should be somewhere else.
  */
 #define	MNT_UPDATE	0x00010000	/* not a real mount, just an update */
 #define	MNT_DELEXPORT	0x00020000	/* delete export host lists */
 #define	MNT_RELOAD	0x00040000	/* reload filesystem data */
 #define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
+#define MNT_CMDFLAGS	(MNT_UPDATE|MNT_DELEXPORT|MNT_RELOAD|MNT_FORCE)
 /*
- * Internal filesystem control flags.
+ * Internal filesystem control flags stored in mnt_kern_flag.
  *
- * MNT_UNMOUNT locks the mount entry so that name lookup cannot proceed
+ * MNTK_UNMOUNT locks the mount entry so that name lookup cannot proceed
  * past the mount point.  This keeps the subtree stable during mounts
  * and unmounts.
  */
