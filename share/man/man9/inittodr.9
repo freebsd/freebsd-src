@@ -52,14 +52,14 @@ file system, as given in
 .Fa base .
 How the
 .Fa base
-value is obtained will vary depending on the 
+value is obtained will vary depending on the
 root file system type.
 The heuristics used include:
 .Bl -bullet
 .It
 If the battery-backed clock has a valid time, it is used.
 .\" .It
-.\" If the battery-backed clock does not have a valid time, and 
+.\" If the battery-backed clock does not have a valid time, and
 .\" the time provided in
 .\" .Fa base
 .\" is within reason,
@@ -118,6 +118,6 @@ different.
 The
 .Fx
 implementation should do a better job of validating the time provided in
-.Fa base 
+.Fa base
 when the battery-backed clock is unusable.  Currently it unconditionally
 sets the system clock to this value.

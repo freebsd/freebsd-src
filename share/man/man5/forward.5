@@ -53,7 +53,7 @@ file must be owned by the user the mail is being sent to,
 or by root, and the user's shell must be listed in
 .Pa /etc/shells .
 .Pp
-For example, if a 
+For example, if a
 .Nm .forward
 file contained the following lines:
 .Bd -literal -offset indent
@@ -61,7 +61,7 @@ nobody@FreeBSD.org
 "|/usr/bin/vacation nobody"
 .Ed
 .Pp
-Mail would be forwarded to 
+Mail would be forwarded to
 .Aq nobody@FreeBSD.org
 and to the program
 .Pa /usr/bin/vacation
@@ -72,7 +72,7 @@ If a local user address is prefixed with a backslash
 character, mail is delivered directly to the user's
 mail spool file, bypassing further redirection.
 .Pp
-For example, if user chris had a 
+For example, if user chris had a
 .Nm .forward
 file containing the following lines:
 .Bd -literal -offset indent
@@ -80,7 +80,7 @@ chris@otherhost
 \echris
 .Ed
 .Pp
-One copy of mail would be forwarded to 
+One copy of mail would be forwarded to
 .Ar chris@otherhost
 and another copy would be retained as mail for local user chris.
 .Sh FILES

@@ -73,7 +73,7 @@ to be locked on entry and will leave it locked on return.
 .Xr VOP_CLOSE 9
 expects at least a reference to be associated with the vnode and does not
 care whether the vnode is locked or not.  The lock and reference state is
-left unchanged on return.  Note that 
+left unchanged on return.  Note that
 .Fa vn_close
 expects an unlocked, referenced vnode and will dereference the vnode prior
 to returning.

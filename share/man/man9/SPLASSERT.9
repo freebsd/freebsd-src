@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 In a kernel compiled with both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
-the 
+the
 .Fn SPLASSERT
 macro compares the current spl level of the kernel with the spl
 .Fa level
@@ -51,7 +51,7 @@ If the specified
 .Fa level
 is not active
 .Fn SPLASSERT
-calls the 
+calls the
 .Fn KASSERT
 macro with the
 .Fa msg ,
@@ -59,9 +59,9 @@ terminating the running system.
 .Pp
 In a kernel that does not have both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
-the 
+the
 .Fn SPLASSERT
-macro is defined to be a no-op.  
+macro is defined to be a no-op.
 .Sh EXAMPLES
 The kernel function
 .Fn rtalloc
@@ -79,7 +79,7 @@ rtalloc(ro)
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr KASSERT 9 ,
-.Xr panic 9 
+.Xr panic 9
 .Sh AUTHORS
 This manual page was written by
 .An Jonathan M. Bresler

@@ -1,4 +1,4 @@
-.\" Copyright (c) 1995 FreeBSD Inc. 
+.\" Copyright (c) 1995 FreeBSD Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -120,9 +120,9 @@ macros (ones that have side effects), and the names of macros for
 manifest constants, are all in uppercase.
 The expansions of expression-like macros are either a single token
 or have outer parentheses.
-Put a single tab character between the 
+Put a single tab character between the
 .Ql #define
-and the macro name.  
+and the macro name.
 If a macro is an inline expansion of a function, the function name is
 all in lowercase and the macro has the same name all in uppercase.
 .\" XXX the above conflicts with ANSI style where the names are the
@@ -141,7 +141,7 @@ backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
 .Dq Li do
 loop,
-so that it can safely be used in 
+so that it can safely be used in
 .Dq Li if
 statements.
 Any final statement-terminating semicolon should be
@@ -432,7 +432,7 @@ Casts and sizeof's are not followed by a space.  Note that
 .Xr indent 1
 does not understand this rule.
 .Pp
-NULL is the preferred null pointer constant.  Use NULL instead of 
+NULL is the preferred null pointer constant.  Use NULL instead of
 (type *)0 or (type *)NULL in contexts where the compiler knows the
 type, e.g., in assignments.  Use (type *)NULL in other contexts,
 in particular for all function args.  (Casting is essential for
@@ -583,8 +583,8 @@ or
 .Xr warn 3
 .Sh HISTORY
 This man page is largely based on the src/admin/style/style file from
-the 
-.Tn BSD 
+the
+.Tn BSD
 4.4-Lite2 release, with updates to reflect the current practice and
 desire of the
 .Fx

@@ -11,7 +11,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -131,7 +131,7 @@ sock = socket(PF_INET, SOCK_STREAM, 0);
 
 /* prepare request[] and sin */
 
-err = sendto(sock, request, req_len, MSG_EOF, 
+err = sendto(sock, request, req_len, MSG_EOF,
 	(struct sockaddr *)&sin, sin.sin_len);
 
 /* do something if error */
@@ -143,7 +143,7 @@ close(sock);
 
 .Ed
 .Pp
-Note that, after the 
+Note that, after the
 call to
 .Fn sendto ,
 the socket is now in the same state as if the
@@ -155,7 +155,7 @@ operations to perform on this socket are
 .Xr read 2
 and
 .Xr close 2 .
-(Because the client's 
+(Because the client's
 .Tn TCP
 sender is already shut down, it is not possible to
 .Xr connect 2
@@ -202,7 +202,7 @@ immediately closed.
 .Sh MIB VARIABLES
 The
 .Tn T/TCP
-extensions require the 
+extensions require the
 .Dq Li net.inet.tcp.rfc1644
 MIB variable to be true in order for the appropriate
 .Tn TCP

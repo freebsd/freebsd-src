@@ -20,7 +20,7 @@ MAN=	aac.4 adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
 	splash.4 sppp.4 st.4 ste.4 stf.4 sym.4 syncer.4 syscons.4 sysmouse.4 \
 	tap.4 tcp.4 termios.4 ti.4 tl.4 ttcp.4 tty.4 tun.4 twe.4 udp.4 uhci.4 \
 	ukbd.4 umass.4 ums.4 unix.4 urio.4 usb.4 uscanner.4 vga.4 vinum.4 vn.4 \
-	vpo.4 vr.4 wb.4 wi.4 wx.4 worm.4 wst.4 xl.4 xpt.4 yp.4 zero.4 
+	vpo.4 vr.4 wb.4 wi.4 wx.4 worm.4 wst.4 xl.4 xpt.4 yp.4 zero.4
 
 MLINKS=	ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
 MLINKS+=bktr.4 brooktree.4
@@ -42,7 +42,7 @@ MLINKS+=vpo.4 imm.4
 MLINKS+=yp.4 YP.4 yp.4 NIS.4 yp.4 nis.4
 
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
-SUBDIR=	 man4.i386 
+SUBDIR=	 man4.i386
 .if make(maninstall)
 maninstall:: _SUBDIR
 .endif

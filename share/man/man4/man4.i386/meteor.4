@@ -15,7 +15,7 @@ The
 driver provides support for a PCI
 .Em video
 capture.
-It allows the capture of 24 bit RGB, 16 bit RGB and 16 bit YUV 
+It allows the capture of 24 bit RGB, 16 bit RGB and 16 bit YUV
 output formats.
 .Pp
 .Ss Meteor Driver Installation
@@ -206,7 +206,7 @@ memory into the user process space, and issues either the
 single-capture or the continuous capture call (see:
 .Dv METEORCAPTUR
 .Xr ioctl 2
-call) to load the data into the memory mapped buffer. 
+call) to load the data into the memory mapped buffer.
 .Pp
 As explained in the
 .Dv METEORCAPTUR
@@ -263,20 +263,20 @@ main()
 		exit(1);
 	}
 
-        mmbuf=(char *)mmap((caddr_t)0, SIZE, PROT_READ, 
+        mmbuf=(char *)mmap((caddr_t)0, SIZE, PROT_READ,
 		MAP_SHARED, i, (off_t)0);
 
 #ifdef SINGLE_MODE
 	/* single frame capture */
 	c = METEOR_CAP_SINGLE ;
         ioctl(i, METEORCAPTUR, &c);	/* wait for the frame */
-  
+
 	/* directly access the frame buffer array data in mmbuf */
 #else
 	/* continuous frame capture */
 	c = METEOR_CAP_CONTINOUS ;
         ioctl(i, METEORCAPTUR, &c);	/* returns immediately */
-  
+
 	/* directly access the frame buffer array data in mmbuf */
 
 	c = METEOR_CAP_STOP_CONT ;
@@ -293,7 +293,7 @@ Memory mapped, multi-frame ring buffer synchronize capture.
 This continuous capture mode is synchronized with the application that
 processes up to 32 frames.
 This gives the advantages of both single and
-continuous capture modes. 
+continuous capture modes.
 .Pp
 The kernel notifies the application of a new data by raising an
 application defined signal.
@@ -409,7 +409,7 @@ usr2_catcher()
 	/* add frame processing here */
 	/* deactivate frame */
 	common_mem->active &= ~(1 << (sig_cnt % 16));
-	common_mem->num_active_bufs--; 
+	common_mem->num_active_bufs--;
 
 	/* process next frame on next interrupt */
 	sig_cnt = ((sig_cnt+1) % FRAME_MAX);
@@ -601,7 +601,7 @@ will also attempt to reallocate a new contiguous
 kernel buffer if the new geometry exceeds the old geometry.
 On
 other hand, if the new geometry will fit in the existing buffer,
-the existing buffer is used. 
+the existing buffer is used.
 .Pp
 If
 .Dv METEORSETGEO
@@ -849,7 +849,7 @@ and
 and
 .Dv METEORGCHCV
 are used to set and get the chrominance
-gain control and effects the UV output amplitude. 
+gain control and effects the UV output amplitude.
 .Pp
 If
 .Dv METEORSCHCV
@@ -899,7 +899,7 @@ invalid signed char pointer.
 requests
 .Dv METEORSCOUNT
 and
-.Dv METEORGCOUNT 
+.Dv METEORGCOUNT
 .Pp
 .Dv METEORGCOUNT
 is used to get the count of frame errors, DMA errors and

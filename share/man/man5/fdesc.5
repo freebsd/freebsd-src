@@ -61,7 +61,7 @@ The contents of the mount point are
 .Pa fd ,
 .Pa stderr ,
 .Pa stdin ,
-.Pa stdout 
+.Pa stdout
 and
 .Pa tty .
 .Pp
@@ -107,7 +107,7 @@ fd = fcntl(STDERR_FILENO, F_DUPFD, 0);
 Flags to the
 .Xr open 2
 call other than
-.Dv O_RDONLY , 
+.Dv O_RDONLY ,
 .Dv O_WRONLY
 and
 .Dv O_RDWR
@@ -132,20 +132,20 @@ the real controlling terminal device.
 .Xr mount_fdesc 8
 .Sh HISTORY
 The
-.Nm 
+.Nm
 filesystem first appeared in
 .Bx 4.4 .
-The 
+The
 .Nm
-manual page first appeared in 
+manual page first appeared in
 .Fx 2.2 .
 .Sh AUTHORS
 .An -nosplit
-The 
+The
 .Nm
 manual page was written by
 .An Mike Pritchard Aq mpp@FreeBSD.org ,
-and was based on the 
+and was based on the
 .Xr mount_fdesc 8
 manual page written by
 .An Jan-Simon Pendry .

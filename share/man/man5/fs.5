@@ -153,7 +153,7 @@ struct fs {
 	int32_t	 fs_cpc;	/* cyl per cycle in postbl */
 	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
 	int32_t	 fs_sparecon[50];	/* reserved for future constants */
-	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
+	int32_t	 fs_contigsumsize;	/* size of cluster summary array */
 	int32_t	 fs_maxsymlinklen;/* max length of an internal symlink */
 	int32_t	 fs_inodefmt;	/* format of on-disk inodes */
 	u_int64_t fs_maxfilesize;/* maximum representable file size */
@@ -204,7 +204,7 @@ referenced further unless disaster strikes.
 Addresses stored in inodes are capable of addressing fragments
 of `blocks'. File system blocks of at most size
 .Dv MAXBSIZE
-can 
+can
 be optionally broken into 2, 4, or 8 pieces, each of which is
 addressable; these pieces may be
 .Dv DEV_BSIZE ,
@@ -309,7 +309,7 @@ Note that super-blocks are never more than size
 The path name on which the file system is mounted is maintained in
 .Fa fs_fsmnt .
 .Dv MAXMNTLEN
-defines the amount of space allocated in 
+defines the amount of space allocated in
 the super-block for this name.
 The limit on the amount of summary information per file system
 is defined by
@@ -318,7 +318,7 @@ For a 4096 byte block size, it is currently parameterized for a
 maximum of two million cylinders.
 .Pp
 Per cylinder group information is summarized in blocks allocated
-from the first cylinder group's data blocks. 
+from the first cylinder group's data blocks.
 These blocks are read in from
 .Fa fs_csaddr
 (size

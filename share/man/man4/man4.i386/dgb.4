@@ -60,7 +60,7 @@ default
 = number_of_described_DigiBoard_cards * 16
 .Ed
 .Pp
-If it is less than the actual number of ports 
+If it is less than the actual number of ports
 the system will be able to use only the
 first
 .Dv NDGBPORTS
@@ -111,10 +111,10 @@ This is practical because the
 DigiBoard cards have large input and output buffers (more than 1Kbyte per
 port) and hardware that allows efficiently finding the port that needs
 attention.
-The only problem seen with this policy is slower 
+The only problem seen with this policy is slower
 SLIP and PPP response.
 .Pp
-Each line in the kernel configuration file describes one card, not one port 
+Each line in the kernel configuration file describes one card, not one port
 as in the
 .Xr sio 4
 driver.
@@ -135,7 +135,7 @@ needed.
 The
 .Cm port
 value must be the same
-as the 
+as the
 port
 set on the card by jumpers.
 For PC/Xi cards the same rule is applicable to the
@@ -151,7 +151,7 @@ In fact there are no jumpers to do it.
 Just
 write the address you want as the
 .Cm iomem
-value in kernel config file and the card will be programmed 
+value in kernel config file and the card will be programmed
 to use this address.
 .Pp
 The same range of memory addresses may be used
@@ -289,7 +289,7 @@ start of the source file
 The memory address for the PC/Xe's 8K window is misaligned (it should be
 on an 8K boundary) or outside of the first megabyte.
 .It dgb\fIX\fP: 1st reset failed
-Problems with accessing I/O port of the card, probably 
+Problems with accessing I/O port of the card, probably
 the wrong
 .Cm port
 value is specified in the kernel config file.
@@ -309,11 +309,11 @@ Problems with the on-board BIOS.
 Probably the memory addresses of the
 DigiBoard overlap with some other device or with RAM.
 .It dgb\fIX\fP: FEP code download failed
-Problems with downloading of the Front-End Processor's micro-OS. 
+Problems with downloading of the Front-End Processor's micro-OS.
 Probably the memory addresses of the
 DigiBoard overlap with some other device or with RAM.
 .It dgb\fIX\fP: FEP/OS start failed
-Problems with starting of the Front-End Processor's micro-OS. 
+Problems with starting of the Front-End Processor's micro-OS.
 Probably the memory addresses of the
 DigiBoard overlap with some other device or with RAM.
 .It dgb\fIX\fP: too many ports
@@ -336,7 +336,7 @@ Internal problems in the polling logic of driver.
 .It dgb\fIX\fP: event queue's head or tail is wrong!
 Internal problems in the driver or hardware.
 .It dgb\fIX\fP: port \fIY\fP: got event on nonexisting port
-Some status changed on a port that is physically present but is 
+Some status changed on a port that is physically present but is
 unusable due to misconfiguration.
 .It dgb\fIX\fP: port \fIY\fP: event \fIN\fP mstat \fIM\fP lstat \fIK\fP
 The driver got a strange event from card.
@@ -362,8 +362,8 @@ The
 .Nm
 driver is derived from the
 .Xr sio 4
-driver and the DigiBoard driver from 
-.Tn Linux 
+driver and the DigiBoard driver from
+.Tn Linux
 and is
 .Ud
 .Sh BUGS
@@ -374,7 +374,7 @@ is broken.
 of fixed length of 1/4 s
 is sent anyway.
 .Pp
-There was a bug in implementation of 
+There was a bug in implementation of
 .Xr select 2 .
 It is fixed now but not widely tested yet.
 .Pp

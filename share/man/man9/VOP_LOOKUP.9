@@ -305,7 +305,7 @@ vop_lookup(struct vnode *dvp,
 		*vpp = dvp;
 		return 0;
 	    }
-	    
+
 	    error = VFS_VGET(dvp->v_mount, ..., &vp);
 	    if (error)
 		return error;
