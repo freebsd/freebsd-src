@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.5 1994/10/17 17:47:36 phk Exp $
+ * $Id: nfs_srvcache.c,v 1.6 1995/06/27 11:06:43 dfr Exp $
  */
 
 /*
@@ -66,7 +66,8 @@
 
 extern struct nfsstats nfsstats;
 extern int nfsv2_procid[NFS_NPROCS];
-long numnfsrvcache, desirednfsrvcache = NFSRVCACHESIZ;
+long numnfsrvcache;
+static long desirednfsrvcache = NFSRVCACHESIZ;
 
 #define	NFSRCHASH(xid) \
 	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) & nfsrvhash])
@@ -83,7 +84,7 @@ u_long nfsrvhash;
 /*
  * Static array that defines which nfs rpc's are nonidempotent
  */
-int nonidempotent[NFS_NPROCS] = {
+static int nonidempotent[NFS_NPROCS] = {
 	FALSE,
 	FALSE,
 	TRUE,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: ffs_subr.c,v 1.4 1995/05/30 08:15:00 rgrimes Exp $
+ * $Id: ffs_subr.c,v 1.5 1995/09/04 00:20:55 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 	}
 }
 
-#if defined(KERNEL) && defined(DIAGNOSTIC)
+#if defined(KERNEL) && defined(DIAGNOSTIC) && defined(DDB)
 void
 ffs_checkoverlap(bp, ip)
 	struct buf *bp;

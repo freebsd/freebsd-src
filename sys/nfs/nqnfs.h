@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nqnfs.h,v 1.8 1995/07/29 11:42:23 bde Exp $
+ * $Id: nqnfs.h,v 1.9 1995/11/21 12:54:42 bde Exp $
  */
 
 #ifndef _NFS_NQNFS_H_
@@ -200,7 +200,6 @@ extern u_long nqfhhash;
 #if defined(KERNEL) || defined(_KERNEL)
 void	nqnfs_lease_check __P((struct vnode *, struct proc *, struct ucred *, int));
 void	nqnfs_lease_updatetime __P((int));
-int	nqsrv_cmpnam __P((struct nfssvc_sock *,struct mbuf *,struct nqhost *));
 int	nqsrv_getlease __P((struct vnode *,u_long *,int,struct nfssvc_sock *,struct proc *,struct mbuf *,int *,u_quad_t *,struct ucred *));
 int	nqnfs_getlease __P((struct vnode *,int,struct ucred *,struct proc *));
 int	nqnfs_callback __P((struct nfsmount *,struct mbuf *,struct mbuf *,caddr_t));

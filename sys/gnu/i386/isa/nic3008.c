@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.12 1995/12/08 11:12:45 julian Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.13 1995/12/08 23:19:29 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.12 1995/12/08 11:12:45 juli
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.13  1995/12/08  23:19:29  phk
+ * Julian forgot to make the *devsw structures static.
+ *
  * Revision 1.12  1995/12/08  11:12:45  julian
  * Pass 3 of the great devsw changes
  * most devsw referenced functions are now static, as they are
@@ -138,17 +141,17 @@ extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
 
 static old_spy= 0;
 
-extern int	nicattach __P((struct isa_device *is));
-extern int	nicprobe __P((struct isa_device *is));
-extern int	nic_accept __P((int cn, int an, int rea));
-extern int	nic_connect __P((int cn, int ap, int b_channel, int inf_mask,
+static int	nicattach __P((struct isa_device *is));
+static int	nicprobe __P((struct isa_device *is));
+static int	nic_accept __P((int cn, int an, int rea));
+static int	nic_connect __P((int cn, int ap, int b_channel, int inf_mask,
 				 int out_serv, int out_serv_add,
 				 int src_subadr, unsigned ad_len,
 				 char *dest_addr, int spv));
-extern int	nic_disconnect __P((int cn, int rea));
-extern int	nic_listen __P((int cn, int ap, int inf_mask, int subadr_mask,
+static int	nic_disconnect __P((int cn, int rea));
+static int	nic_listen __P((int cn, int ap, int inf_mask, int subadr_mask,
 				int si_mask, int spv));
-extern int	nic_output __P((int cn));
+static int	nic_output __P((int cn));
 
 static short    bsintr;
 
@@ -183,7 +186,7 @@ typedef struct
 	char           *more_b;
 }               chan_t;
 
-struct nic_softc
+static struct nic_softc
 {
 	dpr_type       *sc_dpr;	/* card RAM virtual memory base */
 	u_short         sc_vector;	/* interrupt vector 		 */
@@ -414,7 +417,7 @@ badstate(mbx_type * mbx, int n, int mb, dpr_type *dpr)
 	printf("\n");
 }
 
-int
+static int
 nic_connect(int cn, int ap, int b_channel, int inf_mask, int out_serv
 	    ,int out_serv_add, int src_subadr, unsigned ad_len
 	    ,char *dest_addr, int spv)
@@ -437,7 +440,7 @@ nic_connect(int cn, int ap, int b_channel, int inf_mask, int out_serv
 	return (en_q_d(&nic_sc[isdn_ctrl[cn].unit], DD_CONN_REQ, MK_APPL(ap), ad_len + 10, buf));
 }
 
-int
+static int
 nic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask, int spv)
 {
 	u_short         sbuf[4];
@@ -448,7 +451,7 @@ nic_listen(int cn, int ap, int inf_mask, int subadr_mask, int si_mask, int spv)
 	return (en_q_d(&nic_sc[isdn_ctrl[cn].unit], DD_LISTEN_REQ, MK_APPL(ap), 8, (u_char *) sbuf));
 }
 
-int
+static int
 nic_disconnect(int cn, int rea)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
@@ -486,7 +489,7 @@ nic_disconnect(int cn, int rea)
 	return(err);
 }
 
-int
+static int
 nic_accept(int cn, int an, int rea)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
@@ -507,7 +510,7 @@ nic_accept(int cn, int an, int rea)
 	return(sel_b2_prot_req(sc, C_CHAN(cn), chan->plci, &appl->dlpd));
 }
 
-int
+static int
 nic_output(int cn)
 {
 	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.11 1995/11/21 15:51:32 bde Exp $
+ * $Id: nfs_socket.c,v 1.12 1995/12/03 10:02:59 bde Exp $
  */
 
 /*
@@ -134,10 +134,14 @@ static int nfs_backoff[8] = { 2, 4, 8, 16, 32, 64, 128, 256, };
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
 
-extern void	nfs_realign __P((struct mbuf *m, int hsiz));
-extern int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
+static int	nfs_msg __P((struct proc *,char *,char *));
+static int	nfs_rcvlock __P((struct nfsreq *));
+static void	nfs_rcvunlock __P((int *flagp));
+static void	nfs_realign __P((struct mbuf *m, int hsiz));
+static int	nfs_receive __P((struct nfsreq *rep, struct mbuf **aname,
 				 struct mbuf **mp));
-extern int	nfs_reconnect __P((struct nfsreq *rep));
+static int	nfs_reconnect __P((struct nfsreq *rep));
+static int	nfsrv_getstream __P((struct nfssvc_sock *,int));
 
 int (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 				    struct nfssvc_sock *slp,
@@ -317,7 +321,7 @@ bad:
  * If this fails the mount point is DEAD!
  * nb: Must be called with the nfs_sndlock() set on the mount point.
  */
-int
+static int
 nfs_reconnect(rep)
 	register struct nfsreq *rep;
 {
@@ -441,7 +445,7 @@ nfs_send(so, nam, top, rep)
  * For SOCK_STREAM we must be very careful to read an entire record once
  * we have read any of it, even if the system call has been interrupted.
  */
-int
+static int
 nfs_receive(rep, aname, mp)
 	register struct nfsreq *rep;
 	struct mbuf **aname;
@@ -1456,7 +1460,7 @@ nfs_sndunlock(flagp)
 	}
 }
 
-int
+static int
 nfs_rcvlock(rep)
 	register struct nfsreq *rep;
 {
@@ -1485,7 +1489,7 @@ nfs_rcvlock(rep)
 /*
  * Unlock the stream socket for others.
  */
-void
+static void
 nfs_rcvunlock(flagp)
 	register int *flagp;
 {
@@ -1503,7 +1507,7 @@ nfs_rcvunlock(flagp)
  * Check for badly aligned mbuf data areas and
  * realign data in an mbuf list by copying the data areas up, as required.
  */
-void
+static void
 nfs_realign(m, hsiz)
 	register struct mbuf *m;
 	int hsiz;
@@ -1708,7 +1712,7 @@ dorecs:
  * stream socket. The "waitflag" argument indicates whether or not it
  * can sleep.
  */
-int
+static int
 nfsrv_getstream(slp, waitflag)
 	register struct nfssvc_sock *slp;
 	int waitflag;
@@ -2142,7 +2146,7 @@ nfsrv_wakenfsd(slp)
 	nfsd_head_flag |= NFSD_CHECKSLP;
 }
 
-int
+static int
 nfs_msg(p, server, msg)
 	struct proc *p;
 	char *server, *msg;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.1 (Berkeley) 6/11/93
- * $Id: mfs_extern.h,v 1.3 1994/08/21 07:16:10 paul Exp $
+ * $Id: mfs_extern.h,v 1.4 1995/08/28 09:19:13 julian Exp $
  */
 
 #ifndef _UFS_MFS_MFS_EXTERN_H_
@@ -46,23 +46,9 @@ struct ucred;
 struct vnode;
 
 __BEGIN_DECLS
-int	mfs_badop __P((void));
-int	mfs_bmap __P((struct vop_bmap_args *));
-int	mfs_close __P((struct vop_close_args *));
 void	mfs_doio __P((struct buf *bp, caddr_t base));
-int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
-int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
-int	mfs_init __P((void));
-int	mfs_ioctl __P((struct vop_ioctl_args *));
-int	mfs_mount __P((struct mount *mp,
-	    char *path, caddr_t data, struct nameidata *ndp, struct proc *p));
 int	mfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	mfs_mountroot __P((void));
-int	mfs_open __P((struct vop_open_args *));
-int	mfs_print __P((struct vop_print_args *)); /* XXX */
-int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
-int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
-int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
 __END_DECLS
 
 #endif

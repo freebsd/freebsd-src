@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.22 1995/12/03 10:03:12 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.23 1995/12/07 12:47:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
@@ -75,18 +76,37 @@ extern int	nfs_mountroot __P((void));
 extern int	nfs_ticks;
 
 struct nfsstats	nfsstats;
+SYSCTL_NODE(_fs, MOUNT_NFS, nfs, CTLFLAG_RW, 0, "NFS filesystem");
+SYSCTL_STRUCT(_fs_nfs, OID_AUTO, nfsstats, CTLFLAG_RD,
+	&nfsstats, nfsstats, "");
 
 static int	nfs_iosize __P((struct nfsmount *nmp));
-static int	nfs_sysctl(int *, u_int, void *, size_t *, void *, size_t,
-			   struct proc *);
+static int	mountnfs __P((struct nfs_args *,struct mount *,
+			struct mbuf *,char *,char *,struct vnode **));
+static int	nfs_mount __P(( struct mount *mp, char *path, caddr_t data,
+			struct nameidata *ndp, struct proc *p));
+static int	nfs_start __P(( struct mount *mp, int flags,
+			struct proc *p));
+static int	nfs_unmount __P(( struct mount *mp, int mntflags,
+			struct proc *p));
+static int	nfs_root __P(( struct mount *mp, struct vnode **vpp));
+static int	nfs_quotactl __P(( struct mount *mp, int cmds, uid_t uid,
+			caddr_t arg, struct proc *p));
+static int	nfs_statfs __P(( struct mount *mp, struct statfs *sbp,
+			struct proc *p));
+static int	nfs_sync __P(( struct mount *mp, int waitfor,
+			struct ucred *cred, struct proc *p));
+static int	nfs_vptofh __P(( struct vnode *vp, struct fid *fhp));
+static int	nfs_fhtovp __P((struct mount *mp, struct fid *fhp,
+			struct mbuf *nam, struct vnode **vpp,
+			int *exflagsp, struct ucred **credanonp));
+static int	nfs_vget __P((struct mount *, ino_t, struct vnode **));
+
 
 /*
  * nfs vfs operations.
  */
-struct vfsops nfs_vfsops = {
-#ifdef __NetBSD__
-	MOUNT_NFS,
-#endif
+static struct vfsops nfs_vfsops = {
 	nfs_mount,
 	nfs_start,
 	nfs_unmount,
@@ -98,13 +118,8 @@ struct vfsops nfs_vfsops = {
 	nfs_fhtovp,
 	nfs_vptofh,
 	nfs_init,
-#ifdef __FreeBSD__
-	nfs_sysctl
-#endif
 };
-#ifdef __FreeBSD__
 VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
-#endif
 
 /*
  * This structure must be filled in by a primary bootstrap or bootstrap
@@ -490,7 +505,7 @@ nfs_mountdiskless(path, which, mountflag, sin, args, vpp)
  * an error after that means that I have to release the mbuf.
  */
 /* ARGSUSED */
-int
+static int
 nfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -532,7 +547,7 @@ nfs_mount(mp, path, data, ndp, p)
 /*
  * Common code for mount and mountroot
  */
-int
+static int
 mountnfs(argp, mp, nam, pth, hst, vpp)
 	register struct nfs_args *argp;
 	register struct mount *mp;
@@ -716,7 +731,7 @@ bad:
 /*
  * unmount system call
  */
-int
+static int
 nfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -793,7 +808,7 @@ nfs_unmount(mp, mntflags, p)
 /*
  * Return root of a filesystem
  */
-int
+static int
 nfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -822,7 +837,7 @@ extern int syncprt;
  * Flush out the buffer cache
  */
 /* ARGSUSED */
-int
+static int
 nfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -862,7 +877,7 @@ loop:
  * Currently unsupported.
  */
 /* ARGSUSED */
-int
+static int
 nfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -876,7 +891,7 @@ nfs_vget(mp, ino, vpp)
  * At this point, this should never happen
  */
 /* ARGSUSED */
-int
+static int
 nfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
@@ -893,7 +908,7 @@ nfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle, should never happen either
  */
 /* ARGSUSED */
-int
+static int
 nfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -906,7 +921,7 @@ nfs_vptofh(vp, fhp)
  * Vfs start routine, a no-op.
  */
 /* ARGSUSED */
-int
+static int
 nfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -920,7 +935,7 @@ nfs_start(mp, flags, p)
  * Do operations associated with quotas, not supported
  */
 /* ARGSUSED */
-int
+static int
 nfs_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -930,48 +945,5 @@ nfs_quotactl(mp, cmd, uid, arg, p)
 {
 
 	return (EOPNOTSUPP);
-}
-
-/*
- * Do that sysctl thang...
- */
-static int
-nfs_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
-	   size_t newlen, struct proc *p)
-{
-	int rv;
-
-	/*
-	 * All names at this level are terminal.
-	 */
-	if(namelen > 1)
-		return ENOTDIR;	/* overloaded */
-
-	switch(name[0]) {
-	case NFS_NFSSTATS:
-		if(!oldp) {
-			*oldlenp = sizeof nfsstats;
-			return 0;
-		}
-
-		if(*oldlenp < sizeof nfsstats) {
-			*oldlenp = sizeof nfsstats;
-			return ENOMEM;
-		}
-
-		rv = copyout(&nfsstats, oldp, sizeof nfsstats);
-		if(rv) return rv;
-
-		if(newp && newlen != sizeof nfsstats)
-			return EINVAL;
-
-		if(newp) {
-			return copyin(newp, &nfsstats, sizeof nfsstats);
-		}
-		return 0;
-
-	default:
-		return EOPNOTSUPP;
-	}
 }
 

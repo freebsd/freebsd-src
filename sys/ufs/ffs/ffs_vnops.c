@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.18 1995/11/14 09:40:06 phk Exp $
+ * $Id: ffs_vnops.c,v 1.19 1995/12/07 12:47:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,9 +67,14 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
+static int	ffs_fsync __P((struct vop_fsync_args *));
+static int	ffs_getpages __P((struct vop_getpages_args *));
+static int	ffs_read __P((struct vop_read_args *));
+static int	ffs_write __P((struct vop_write_args *));
+
 /* Global vfs data structures for ufs. */
 vop_t **ffs_vnodeop_p;
-struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)ufs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
@@ -115,11 +120,11 @@ struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ffs_vnodeop_opv_desc =
+static struct vnodeopv_desc ffs_vnodeop_opv_desc =
 	{ &ffs_vnodeop_p, ffs_vnodeop_entries };
 
 vop_t **ffs_specop_p;
-struct vnodeopv_entry_desc ffs_specop_entries[] = {
+static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
@@ -165,11 +170,11 @@ struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ffs_specop_opv_desc =
+static struct vnodeopv_desc ffs_specop_opv_desc =
 	{ &ffs_specop_p, ffs_specop_entries };
 
 vop_t **ffs_fifoop_p;
-struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
+static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
@@ -214,7 +219,7 @@ struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc ffs_fifoop_opv_desc =
+static struct vnodeopv_desc ffs_fifoop_opv_desc =
 	{ &ffs_fifoop_p, ffs_fifoop_entries };
 
 VNODEOP_SET(ffs_vnodeop_opv_desc);
@@ -242,7 +247,7 @@ SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
  * Synch an open file.
  */
 /* ARGSUSED */
-int
+static int
 ffs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.10 1995/11/21 15:51:34 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.11 1995/12/03 10:03:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -86,14 +86,14 @@ extern int nfsrtton;
 extern struct nfsstats nfsstats;
 extern int nfsrvw_procrastinate;
 struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
-int nuidhash_max = NFS_MAXUIDHASH;
+static int nuidhash_max = NFS_MAXUIDHASH;
 static int nfs_numnfsd = 0;
 int nfsd_waiting = 0;
 static int notstarted = 1;
 static int modify_flag = 0;
 static struct nfsdrt nfsdrt;
 
-extern void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
+static void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
 
 #define	TRUE	1
 #define	FALSE	0
@@ -102,6 +102,9 @@ static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
 static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
+static int	nfssvc_addsock __P((struct file *,struct mbuf *));
+static int	nfssvc_iod __P((struct proc *));
+static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
 
 /*
  * NFS server system calls
@@ -332,7 +335,7 @@ nfssvc(p, uap, retval)
 /*
  * Adds a socket to the list for servicing by nfsds.
  */
-int
+static int
 nfssvc_addsock(fp, mynam)
 	struct file *fp;
 	struct mbuf *mynam;
@@ -422,7 +425,7 @@ nfssvc_addsock(fp, mynam)
  * Called by nfssvc() for nfsds. Just loops around servicing rpc requests
  * until it is killed by a signal.
  */
-int
+static int
 nfssvc_nfsd(nsd, argp, p)
 	struct nfsd_srvargs *nsd;
 	caddr_t argp;
@@ -705,7 +708,7 @@ done:
  * They do read-ahead and write-behind operations on the block I/O cache.
  * Never returns unless it fails or gets killed.
  */
-int
+static int
 nfssvc_iod(p)
 	struct proc *p;
 {
@@ -788,7 +791,7 @@ nfssvc_iod(p)
  * will stop using it and clear ns_flag at the end so that it will not be
  * reassigned during cleanup.
  */
-void
+static void
 nfsrv_zapsock(slp)
 	register struct nfssvc_sock *slp;
 {

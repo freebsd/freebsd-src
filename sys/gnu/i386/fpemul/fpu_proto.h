@@ -1,6 +1,6 @@
 /*
  *
- *    $Id: fpu_proto.h,v 1.3 1995/03/16 18:11:11 bde Exp $
+ *    $Id: fpu_proto.h,v 1.4 1995/12/14 09:50:23 phk Exp $
  *
  */
 
@@ -58,7 +58,6 @@ extern int math_emulate(struct trapframe * info);
 /* fpu_etc.c */
 extern void fp_etc(void);
 /* fpu_trig.c */
-extern void convert_l2reg(long *arg, FPU_REG * dest);
 extern void trig_a(void);
 extern void trig_b(void);
 /* get_address.c */

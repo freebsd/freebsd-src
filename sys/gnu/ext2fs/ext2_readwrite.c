@@ -55,7 +55,7 @@
  * Vnode op for reading.
  */
 /* ARGSUSED */
-int
+static int
 READ(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -159,7 +159,7 @@ READ(ap)
 /*
  * Vnode op for writing.
  */
-int
+static int
 WRITE(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;

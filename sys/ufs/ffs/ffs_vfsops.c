@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.30 1995/12/07 12:47:51 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.31 1995/12/11 04:57:39 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -66,9 +66,11 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 
-int	ffs_sbupdate __P((struct ufsmount *, int));
-int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
-int	ffs_oldfscompat __P((struct fs *));
+static int	ffs_sbupdate __P((struct ufsmount *, int));
+static int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
+static int	ffs_oldfscompat __P((struct fs *));
+static int	ffs_mount __P((struct mount *,
+	    char *, caddr_t, struct nameidata *, struct proc *));
 
 struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -126,7 +128,7 @@ extern u_long nextgennumber;
  *		system call will fail with EFAULT in copyinstr in
  *		namei() if it is a genuine NULL from the user.
  */
-int
+static int
 ffs_mount( mp, path, data, ndp, p)
         register struct mount	*mp;	/* mount struct pointer*/
         char			*path;	/* path to mount point*/
@@ -350,7 +352,7 @@ success:
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
  */
-int
+static int
 ffs_reload(mp, cred, p)
 	register struct mount *mp;
 	struct ucred *cred;
@@ -598,7 +600,7 @@ out:
  *
  * XXX - goes away some day.
  */
-int
+static int
 ffs_oldfscompat(fs)
 	struct fs *fs;
 {
@@ -823,7 +825,7 @@ loop:
  * return the inode locked.  Detection and handling of mount points must be
  * done by the calling routine.
  */
-int ffs_inode_hash_lock;
+static int ffs_inode_hash_lock;
 
 int
 ffs_vget(mp, ino, vpp)
@@ -1005,7 +1007,7 @@ ffs_vptofh(vp, fhp)
 /*
  * Write a superblock and associated information back to disk.
  */
-int
+static int
 ffs_sbupdate(mp, waitfor)
 	struct ufsmount *mp;
 	int waitfor;
