@@ -52,8 +52,9 @@
 
 #define IDA_PCI_MEMADDR		(PCIR_MAPS + 4)		/* Mem I/O Address */
 
-#define IDA_DEVICEID_SMART	0xAE100E11
-#define IDA_DEVICEID_DEC_SMART	0x00461011
+#define IDA_DEVICEID_SMART		0xAE100E11
+#define IDA_DEVICEID_DEC_SMART		0x00461011
+#define IDA_DEVICEID_NCR_53C1510	0x00101000
 
 static int
 ida_v3_fifo_full(struct ida_softc *ida)
@@ -152,6 +153,8 @@ static struct ida_board board_id[] = {
 
 	{ IDA_DEVICEID_DEC_SMART,
 		  "DEC/Compaq Smart Array 4200 controller", &ida_v4_access },
+	{ IDA_DEVICEID_NCR_53C1510,
+		  "NCR/Compaq Integrated Array controller", &ida_v4_access },
 
 	{ 0, "", 0 },
 };
