@@ -3693,11 +3693,11 @@ trm_probe(device_t dev)
 	case PCI_DEVICEID_TRMS1040: 
 		device_set_desc(dev,
 		    "Tekram DC395U/UW/F DC315/U Fast20 Wide SCSI Adapter");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	case PCI_DEVICEID_TRMS2080:
 		device_set_desc(dev,
 		    "Tekram DC395U2D/U2W Fast40 Wide SCSI Adapter");
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 	default:
 		return (ENXIO);
 	}

@@ -199,11 +199,11 @@ ubsec_probe(device_t dev)
 	if (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
 	    (pci_get_device(dev) == PCI_PRODUCT_SUN_5821 ||
 	     pci_get_device(dev) == PCI_PRODUCT_SUN_SCA1K))
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	if (pci_get_vendor(dev) == PCI_VENDOR_BLUESTEEL &&
 	    (pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5501 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5601))
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
 	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5801 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5802 ||
@@ -213,7 +213,7 @@ ubsec_probe(device_t dev)
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5823
 	     ))
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	return (ENXIO);
 }
 

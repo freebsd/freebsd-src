@@ -163,7 +163,7 @@ twe_probe(device_t dev)
 	((pci_get_device(dev) == TWE_DEVICE_ID) || 
 	 (pci_get_device(dev) == TWE_DEVICE_ID_ASIC))) {
 	device_set_desc_copy(dev, TWE_DEVICE_NAME ". Driver version " TWE_DRIVER_VERSION_STRING);
-	return(0);
+	return(BUS_PROBE_DEFAULT);
     }
     return(ENXIO);
 }

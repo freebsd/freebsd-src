@@ -120,25 +120,25 @@ tdfx_probe(device_t dev)
 	/*
 	 * probe routine called on kernel boot to register supported devices. We get
 	 * a device structure to work with, and we can test the VENDOR/DEVICE IDs to
-	 * see if this PCI device is one that we support. Return 0 if yes, ENXIO if
-	 * not.
+	 * see if this PCI device is one that we support. Return BUS_PRROBE_DEFAULT
+	 * if yes, ENXIO if not.
 	 */
 	switch(pci_get_devid(dev)) {
 	case PCI_DEVICE_ALLIANCE_AT3D:
 		device_set_desc(dev, "ProMotion At3D 3D Accelerator");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case PCI_DEVICE_3DFX_VOODOO2:
 		device_set_desc(dev, "3DFX Voodoo II 3D Accelerator");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	/*case PCI_DEVICE_3DFX_BANSHEE:
 		device_set_desc(dev, "3DFX Voodoo Banshee 2D/3D Graphics Accelerator");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case PCI_DEVICE_3DFX_VOODOO3:
 		device_set_desc(dev, "3DFX Voodoo3 2D/3D Graphics Accelerator");
-		return 0;*/
+		return BUS_PROBE_DEFAULT;*/
 	case PCI_DEVICE_3DFX_VOODOO1:
 		device_set_desc(dev, "3DFX Voodoo Graphics 3D Accelerator");
-		return 0;;
+		return BUS_PROBE_DEFAULT;
 	};
 
 	return ENXIO;
