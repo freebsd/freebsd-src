@@ -36,7 +36,7 @@
 
 #define SET_SIZE 5000
 
-typedef unsigned int ITEM_TYPE;
+typedef unsigned long ITEM_TYPE;
 
 typedef struct {
 	ITEM_TYPE val;
