@@ -119,8 +119,8 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/netinet
 .endif
-.if exists(${.CURDIR}/../sys/contrib/lomac)
-	cd ${.CURDIR}/../sys/contrib/lomac; \
+.if exists(${.CURDIR}/../sys/security/lomac)
+	cd ${.CURDIR}/../sys/security/lomac; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 lomac.h \
 		lomacio.h ${DESTDIR}/usr/include/sys
 .endif
