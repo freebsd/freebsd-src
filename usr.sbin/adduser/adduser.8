@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.12.2.3 1997/03/06 07:59:14 mpp Exp $
+.\" $Id: adduser.8,v 1.22 1997/09/01 06:14:16 charnier Exp $
 .\"
-.Dd Jan, 9, 1995
+.Dd January 9, 1995
 .Dt ADDUSER 8
 .Os FreeBSD 2.1
 .Sh NAME
@@ -35,20 +35,35 @@
 .Oo
 .Fl batch Ar username
 .Op Ar group Ns , Ns Op Ar group,...
+.Op Ar class
 .Op Ar fullname 
 .Op Ar password 
 .Oc
+.br
 .Op Fl check_only
+.br
+.Op Fl class Ar login_class
+.br
 .Op Fl config_create
+.br
 .Op Fl dotdir Ar dotdir
+.br
 .Op Fl group Ar login_group
+.br
 .Op Fl h | help
+.br
 .Op Fl home Ar home
+.br
 .Op Fl message Ar message_file
+.br
 .Op Fl noconfig
+.br
 .Op Fl shell Ar shell
+.br
 .Op Fl s | silent | q | quiet
+.br
 .Op Fl uid Ar uid_start
+.br
 .Op Fl v | verbose
 .Sh DESCRIPTION
 .Nm Adduser 
@@ -122,12 +137,14 @@ Parse command line options.
 .El
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Sy -batch username [group[,group]...] [fullname] [password]
+.It Sy -batch username [group[,group]...] [class] [fullname] [password]
 Batch mode.
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
+.It Sy -class Ar login_class
+Set default login class.
 .It Sy -create_config
-Create new config and message file and exit. 
+Create new configuration and message file and exit. 
 .It Sy -dotdir Ar directory
 Copy files from 
 .Ar directory 
@@ -135,7 +152,7 @@ into the
 .Ev HOME
 directory of new users,
 .Ql Pa dot.foo
-files renamed to 
+will be renamed to 
 .Ql Pa .foo .
 Don't copy files if
 .Ar directory 
@@ -202,10 +219,11 @@ $ adduser
 .Pp
 Start adduser in interactive mode.
 .Pp
-$ adduser -batch baerenklau guest,staff,baer 'Teddy II' qwerty7
+$ adduser -batch baerenklau guest,staff,baer '' 'Teddy II' qwerty7
 .Pp
 Create user 'baerenklau' and  login group 'baerenklau'. Invite user 
-baerenklau into groups guest, staff and baer. Realname (fullname) 
+baerenklau into groups guest, staff and baer. Use default login class.
+Realname (fullname)
 is 'Teddy II'. Password is 'qwerty7' (don't use such passwords!). Create
 .Ev HOME
 directory 
@@ -231,6 +249,8 @@ user database
 group database
 .It Pa /etc/shells
 shell database
+.It Pa /etc/login.conf
+login classes database
 .It Pa /etc/adduser.conf
 configuration file for adduser
 .It Pa /etc/adduser.message
@@ -248,6 +268,7 @@ logfile for adduser
 .Xr yp 4 ,
 .Xr aliases 5 ,
 .Xr group 5 ,
+.Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr shells 5 ,
 .Xr addgroup 8 ,
