@@ -72,9 +72,7 @@ char	*host;		/* user's machine name */
 char	*acctfile;	/* accounting information file */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register FILE *p = stdin, *o = stdout;
 	register int i, col;

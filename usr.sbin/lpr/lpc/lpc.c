@@ -82,17 +82,15 @@ static int	margc;
 static char	*margv[MAX_MARGV];
 uid_t		uid, euid;
 
-int			 main __P((int, char *[]));
-static void		 cmdscanner __P((void));
-static struct cmd	*getcmd __P((char *));
-static void		 intr __P((int));
-static void		 makeargv __P((void));
-static int		 ingroup __P((char *));
+int			 main(int _argc, char *_argv[]);
+static void		 cmdscanner(void);
+static struct cmd	*getcmd(const char *_name);
+static void		 intr(int _signo);
+static void		 makeargv(void);
+static int		 ingroup(const char *_grname);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register struct cmd *c;
 
@@ -131,13 +129,13 @@ main(argc, argv)
 }
 
 static void
-intr(signo)
-	int signo;
+intr(int signo __unused)
 {
+	/* (the '__unused' is just to avoid a compile-time warning) */
 	exit(0);
 }
 
-static char *
+static const char *
 lpc_prompt(void)
 {
 	return ("lpc> ");
@@ -147,7 +145,7 @@ lpc_prompt(void)
  * Command parser.
  */
 static void
-cmdscanner()
+cmdscanner(void)
 {
 	register struct cmd *c;
 	static EditLine *el = NULL;
@@ -210,10 +208,9 @@ cmdscanner()
 }
 
 static struct cmd *
-getcmd(name)
-	register char *name;
+getcmd(const char *name)
 {
-	register char *p, *q;
+	register const char *p, *q;
 	register struct cmd *c, *found;
 	register int nmatches, longest;
 
@@ -242,7 +239,7 @@ getcmd(name)
  * Slice a string up into argc/argv.
  */
 static void
-makeargv()
+makeargv(void)
 {
 	register char *cp;
 	register char **argp = margv;
@@ -272,9 +269,7 @@ makeargv()
  * Help command.
  */
 void
-help(argc, argv)
-	int argc;
-	char *argv[];
+help(int argc, char *argv[])
 {
 	register struct cmd *c;
 
@@ -330,8 +325,7 @@ help(argc, argv)
  * return non-zero if the user is a member of the given group
  */
 static int
-ingroup(grname)
-	char *grname;
+ingroup(const char *grname)
 {
 	static struct group *gptr=NULL;
 	static int ngroups = 0;

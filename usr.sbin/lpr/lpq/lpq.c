@@ -77,17 +77,15 @@ int	 users;			/* # of users in user array */
 
 uid_t	uid, euid;
 
-static int ckqueue __P((const struct printer *));
-static void usage __P((void));
-int main __P((int, char **));
+static int	 ckqueue(const struct printer *_pp);
+static void	 usage(void);
+int 		 main(int _argc, char **_argv);
 
 int
-main(argc, argv)
-	int	argc;
-	char	**argv;
+main(int argc, char **argv)
 {
 	int ch, aflag, lflag;
-	char *printer;
+	const char *printer;
 	struct printer myprinter, *pp = &myprinter;
 
 	printer = NULL;
@@ -172,8 +170,7 @@ looperr:
 }
 
 static int
-ckqueue(pp)
-	const struct printer *pp;
+ckqueue(const struct printer *pp)
 {
 	register struct dirent *d;
 	DIR *dirp;
@@ -193,7 +190,7 @@ ckqueue(pp)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: lpq [-a] [-l] [-Pprinter] [user ...] [job ...]\n");

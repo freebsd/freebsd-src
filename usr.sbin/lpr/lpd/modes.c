@@ -47,8 +47,8 @@ static const char rcsid[] =
 
 struct modes {
 	const char *name;
-	const long set;
-	const long unset;
+	const long  set;
+	const long  unset;
 };
 
 /*
@@ -202,9 +202,7 @@ struct modes omodes[] = {
 #define	CHK(name, s)	(*name == s[0] && !strcmp(name, s))
 
 int
-msearch(str, ip)
-	char *str;
-	struct termios *ip;
+msearch(char *str, struct termios *ip)
 {
 	struct modes *mp;
 

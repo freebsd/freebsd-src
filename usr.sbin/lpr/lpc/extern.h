@@ -32,6 +32,8 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 
@@ -40,20 +42,21 @@
 
 
 __BEGIN_DECLS
-void	clean __P((struct printer *));
-void	disable __P((struct printer *));
-void	doabort __P((struct printer *));
-void	down __P((int, char **));
-void	enable __P((struct printer *));
-void	generic __P((void (*) __P((struct printer *)), int, char **));
-void	help __P((int, char **));
-void	quit __P((int, char **));
-void	restart __P((struct printer *));
-void	startcmd __P((struct printer *));
-void	status __P((struct printer *));
-void	stop __P((struct printer *));
-void	topq __P((int, char **));
-void	up __P((struct printer *));
+void	 clean(struct printer *_pp);
+void	 disable(struct printer *_pp);
+void	 doabort(struct printer *_pp);
+void	 down(int _argc, char *_argv[]);
+void	 enable(struct printer *_pp);
+void	 generic(void (*_specificrtn)(struct printer *_pp), int _argc,
+	    char *_argv[]);
+void	 help(int _argc, char *_argv[]);
+void	 quit(int _argc, char *_argv[]);
+void	 restart(struct printer *_pp);
+void	 startcmd(struct printer *_pp);
+void	 status(struct printer *_pp);
+void	 stop(struct printer *_pp);
+void	 topq(int _argc, char *_argv[]);
+void	 up(struct printer *_pp);
 __END_DECLS
 
 extern int NCMDS;

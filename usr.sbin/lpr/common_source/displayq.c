@@ -81,19 +81,17 @@ static int	lflag;		/* long output option */
 static int	rank;		/* order to be printed (-1=none, 0=active) */
 static long	totsize;	/* total print job size in bytes */
 
-static char	*head0 = "Rank   Owner      Job  Files";
-static char	*head1 = "Total Size\n";
+static const char  *head0 = "Rank   Owner      Job  Files";
+static const char  *head1 = "Total Size\n";
 
-static void	alarmhandler __P((int));
-static void	warn __P((const struct printer *pp));
+static void	alarmhandler(int _signo);
+static void	warn(const struct printer *_pp);
 
 /*
  * Display the current state of the queue. Format = 1 if long format.
  */
 void
-displayq(pp, format)
-	struct printer *pp;
-	int format;
+displayq(struct printer *pp, int format)
 {
 	register struct jobqueue *q;
 	register int i, nitems, fd, ret;
@@ -258,8 +256,7 @@ displayq(pp, format)
  * Print a warning message if there is no daemon present.
  */
 static void
-warn(pp)
-	const struct printer *pp;
+warn(const struct printer *pp)
 {
 	if (pp->remote)
 		printf("%s: ", host);
@@ -271,7 +268,7 @@ warn(pp)
  * Print the header for the short listing format
  */
 void
-header()
+header(void)
 {
 	printf(head0);
 	col = strlen(head0)+1;
@@ -280,9 +277,7 @@ header()
 }
 
 void
-inform(pp, cf)
-	const struct printer *pp;
-	char *cf;
+inform(const struct printer *pp, char *cf)
 {
 	register int copycnt;
 	char	 savedname[MAXPATHLEN+1];
@@ -382,8 +377,7 @@ inform(pp, cf)
 }
 
 int
-inlist(name, file)
-	char *name, *file;
+inlist(char *uname, char *cfile)
 {
 	register int *r, n;
 	register char **u, *cp;
@@ -394,12 +388,12 @@ inlist(name, file)
 	 * Check to see if it's in the user list
 	 */
 	for (u = user; u < &user[users]; u++)
-		if (!strcmp(*u, name))
+		if (!strcmp(*u, uname))
 			return(1);
 	/*
 	 * Check the request list
 	 */
-	for (n = 0, cp = file+3; isdigit(*cp); )
+	for (n = 0, cp = cfile+3; isdigit(*cp); )
 		n = n * 10 + (*cp++ - '0');
 	for (r = requ; r < &requ[requests]; r++)
 		if (*r == n && !strcmp(cp, from))
@@ -408,26 +402,23 @@ inlist(name, file)
 }
 
 void
-show(nfile, file, copies)
-	register char *nfile, *file;
-	int copies;
+show(const char *nfile, const char *datafile, int copies)
 {
 	if (strcmp(nfile, " ") == 0)
 		nfile = "(standard input)";
 	if (lflag)
-		ldump(nfile, file, copies);
+		ldump(nfile, datafile, copies);
 	else
-		dump(nfile, file, copies);
+		dump(nfile, datafile, copies);
 }
 
 /*
  * Fill the line with blanks to the specified column
  */
 void
-blankfill(n)
-	register int n;
+blankfill(int tocol)
 {
-	while (col++ < n)
+	while (col++ < tocol)
 		putchar(' ');
 }
 
@@ -435,9 +426,7 @@ blankfill(n)
  * Give the abbreviated dump of the file names
  */
 void
-dump(nfile, file, copies)
-	char *nfile, *file;
-	int copies;
+dump(const char *nfile, const char *datafile, int copies)
 {
 	struct stat lbuf;
 	const char etctmpl[] = ", ...";
@@ -488,7 +477,7 @@ dump(nfile, file, copies)
 	first = 0;
 
 	seteuid(euid);
-	if (*file && !stat(file, &lbuf))
+	if (*datafile && !stat(datafile, &lbuf))
 		totsize += copies * lbuf.st_size;
 	seteuid(uid);
 }
@@ -497,9 +486,7 @@ dump(nfile, file, copies)
  * Print the long info about the file
  */
 void
-ldump(nfile, file, copies)
-	char *nfile, *file;
-	int copies;
+ldump(const char *nfile, const char *datafile, int copies)
 {
 	struct stat lbuf;
 
@@ -508,7 +495,7 @@ ldump(nfile, file, copies)
 		printf("%-2d copies of %-19s", copies, nfile);
 	else
 		printf("%-32s", nfile);
-	if (*file && !stat(file, &lbuf))
+	if (*datafile && !stat(datafile, &lbuf))
 		printf(" %qd bytes", (long long) lbuf.st_size);
 	else
 		printf(" ??? bytes");
@@ -520,11 +507,10 @@ ldump(nfile, file, copies)
  *   update col for screen management
  */
 void
-prank(n)
-	int n;
+prank(int n)
 {
 	char rline[100];
-	static char *r[] = {
+	static const char *r[] = {
 		"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"
 	};
 
@@ -542,8 +528,8 @@ prank(n)
 }
 
 void
-alarmhandler(signo)
-	int signo;
+alarmhandler(int signo __unused)
 {
-	/* ignored */
+	/* the signal is ignored */
+	/* (the '__unused' is just to avoid a compile-time warning) */
 }

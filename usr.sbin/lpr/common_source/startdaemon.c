@@ -60,8 +60,7 @@ extern uid_t	uid, euid;
  */
 
 int
-startdaemon(pp)
-	const struct printer *pp;
+startdaemon(const struct printer *pp)
 {
 	struct sockaddr_un un;
 	register int s, n;
