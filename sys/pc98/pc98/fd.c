@@ -59,6 +59,7 @@
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
+#include <sys/fdcio.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -71,7 +72,6 @@
 #include <sys/rman.h>
 
 #include <machine/clock.h>
-#include <machine/ioctl_fd.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
