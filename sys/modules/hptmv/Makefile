@@ -10,25 +10,12 @@ HPTMV= ${.CURDIR}/../../contrib/dev/hptmv
 KMOD= hptmv
 SRCS= opt_scsi.h opt_cam.h
 SRCS+= bus_if.h device_if.h pci_if.h
-SRCS+= mv.c entry.c vers.c
+SRCS+= mv.c entry.c
 SRCS+= ioctl.c hptproc.c gui_lib.c
-OBJS+= raid.o
+OBJS+= hptmvraid.o
 
-raid.o:	${HPTMV}/i386-elf.raid.o.uu
+hptmvraid.o:	${HPTMV}/i386-elf.raid.o.uu
 	uudecode -p < ${HPTMV}/i386-elf.raid.o.uu > ${.TARGET}
-
-#
-# Driver version number.
-#
-.ifndef DRIVER_VERSION
-DRIVER_VERSION = "1.1"
-.endif
-
-vers.c: mv.o
-	@echo char DRIVER_VERSION[]=\"$(DRIVER_VERSION)\"\; > ${.OBJDIR}/$(.TARGET)
-
-# calculate system pointer size.
-BITS_PER_LONG= 4
 
 #
 # Debug Options:
@@ -55,8 +42,6 @@ DEBUGOPT += -DDEBUG_LEVEL=1
 DEBUGOPT += -DFOR_DEMO
 .endif
 
-CFLAGS+= -D__KERNEL__=1 -DKERNEL=1 -D_KERNEL=1 -D_FREEBSD_=1 ${DEBUGOPT} \
-         -DBITS_PER_LONG=$(BITS_PER_LONG)
+CFLAGS+= ${DEBUGOPT}
 
-CLEANFILES += vers.c
 .include <bsd.kmod.mk>
