@@ -187,7 +187,7 @@ are logged under this setting.
 Setting
 .Dv "FE_DEBUG=3"
 makes all debugging codes be included,
-and set the amount of legged messages maximum.
+and sets the amount of logged messages to the maximum possible.
 Redundant messages such as those reporting usual actions
 or dumping register values
 are logged under this setting.
@@ -198,7 +198,7 @@ The
 .Nm
 driver has some features and limitations
 which depend on adapter hardware models.
-The following is a summary of such dependency.
+The following is a summary of these dependencies.
 .Ss Fujitsu FMV-180 series adapters
 Both automatic IRQ detection and automatic I/O port address detection
 is available with these adapters.
@@ -282,8 +282,8 @@ against the mbuf cluster allocation policy.
 The unnecessarily allocated clusters are freed within short lifetime,
 and it will not affect long term kernel memory usage.
 .Pp
-Although XNS and IPX supports are included in the driver,
-they are never be tested and must have a lot of bugs.
+Although XNS and IPX support is included in the driver,
+it has never been tested and it is expected to have a lot of bugs.
 .Sh AUTHORS, COPYRIGHT AND DISCLAIMER
 The
 .Nm
