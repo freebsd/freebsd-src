@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -165,6 +165,7 @@ main(argc, argv)
     cuddle_else = 1;		/* -ce */
     ps.unindent_displace = 0;	/* -d0 */
     ps.case_indent = 0;		/* -cli0 */
+    format_block_comments = 1;	/* -fcb */
     format_col1_comments = 1;	/* -fc1 */
     procnames_start_line = 1;	/* -psl */
     proc_calls_space = 0;	/* -npcs */
@@ -533,7 +534,9 @@ check_type:
 	    if (ps.cast_mask & (1 << ps.p_l_follow) & ~ps.sizeof_mask) {
 		ps.last_u_d = true;
 		ps.cast_mask &= (1 << ps.p_l_follow) - 1;
-	    }
+		ps.want_blank = false;
+	    } else
+		ps.want_blank = true;
 	    ps.sizeof_mask &= (1 << ps.p_l_follow) - 1;
 	    if (--ps.p_l_follow < 0) {
 		ps.p_l_follow = 0;
@@ -543,7 +546,6 @@ check_type:
 		ps.paren_level = ps.p_l_follow;	/* then indent it */
 
 	    *e_code++ = token[0];
-	    ps.want_blank = true;
 
 	    if (sp_sw && (ps.p_l_follow == 0)) {	/* check for end of if
 							 * (...), or some such */

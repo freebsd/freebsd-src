@@ -35,6 +35,8 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)pr_comment.c	8.1 (Berkeley) 6/6/93";
+static const char rcsid[] =
+  "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -111,10 +113,15 @@ pr_comment()
 	ps.com_col = 1;
     }
     else {
-	if (*buf_ptr == '-' || *buf_ptr == '*') {
-	    ps.box_com = true;	/* a comment with a '-' or '*' immediately
+	if (*buf_ptr == '-' || *buf_ptr == '*' ||
+	    (*buf_ptr == '\n' && !format_block_comments)) {
+	    ps.box_com = true;	/* A comment with a '-' or '*' immediately
 				 * after the /* is assumed to be a boxed
-				 * comment */
+				 * comment. A comment with a newline
+				 * immediately after the /* is assumed to
+				 * be a block comment and is treated as a
+				 * box comment unless format_block_comments
+				 * is nonzero (the default). */
 	    break_delim = 0;
 	}
 	if ( /* ps.bl_line && */ (s_lab == e_lab) && (s_code == e_code)) {
