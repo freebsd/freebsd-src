@@ -318,7 +318,7 @@ main(argc, argv)
 
 	/*
 	 * scan requested variables, noting what structures are needed,
-	 * and adjusting header widths as appropiate.
+	 * and adjusting header widths as appropriate.
 	 */
 	scanvars();
 	/*
