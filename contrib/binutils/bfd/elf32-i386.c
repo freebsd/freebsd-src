@@ -1114,7 +1114,9 @@ elf_i386_adjust_dynamic_symbol (info, h)
       if (h->plt.refcount <= 0
 	  || (! info->shared
 	      && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) == 0
-	      && (h->elf_link_hash_flags & ELF_LINK_HASH_REF_DYNAMIC) == 0))
+	      && (h->elf_link_hash_flags & ELF_LINK_HASH_REF_DYNAMIC) == 0
+	      && h->root.type != bfd_link_hash_undefweak
+	      && h->root.type != bfd_link_hash_undefined))
 	{
 	  /* This case can occur if we saw a PLT32 reloc in an input
 	     file, but the symbol was never referred to by a dynamic
@@ -1504,10 +1506,12 @@ elf_i386_size_dynamic_sections (output_bfd, info)
 		     linker script /DISCARD/, so we'll be discarding
 		     the relocs too.  */
 		}
-	      else
+	      else if (p->count != 0)
 		{
 		  srel = elf_section_data (p->sec)->sreloc;
 		  srel->_raw_size += p->count * sizeof (Elf32_External_Rel);
+		  if ((p->sec->output_section->flags & SEC_READONLY) != 0)
+		    info->flags |= DF_TEXTREL;
 		}
 	    }
 	}
@@ -1629,7 +1633,9 @@ elf_i386_size_dynamic_sections (output_bfd, info)
 
 	  /* If any dynamic relocs apply to a read-only section,
 	     then we need a DT_TEXTREL entry.  */
-	  elf_link_hash_traverse (&htab->elf, readonly_dynrelocs, (PTR) info);
+	  if ((info->flags & DF_TEXTREL) == 0)
+	    elf_link_hash_traverse (&htab->elf, readonly_dynrelocs,
+				    (PTR) info);
 
 	  if ((info->flags & DF_TEXTREL) != 0)
 	    {
@@ -2006,20 +2012,20 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 		 time.  */
 
 	      skip = false;
+	      relocate = false;
 
 	      outrel.r_offset =
 		_bfd_elf_section_offset (output_bfd, info, input_section,
 					 rel->r_offset);
 	      if (outrel.r_offset == (bfd_vma) -1)
 		skip = true;
+	      else if (outrel.r_offset == (bfd_vma) -2)
+		skip = true, relocate = true;
 	      outrel.r_offset += (input_section->output_section->vma
 				  + input_section->output_offset);
 
 	      if (skip)
-		{
-		  memset (&outrel, 0, sizeof outrel);
-		  relocate = false;
-		}
+		memset (&outrel, 0, sizeof outrel);
 	      else if (h != NULL
 		       && h->dynindx != -1
 		       && (r_type == R_386_PC32
@@ -2027,11 +2033,7 @@ elf_i386_relocate_section (output_bfd, info, input_bfd, input_section,
 			   || !info->symbolic
 			   || (h->elf_link_hash_flags
 			       & ELF_LINK_HASH_DEF_REGULAR) == 0))
-
-		{
-		  relocate = false;
-		  outrel.r_info = ELF32_R_INFO (h->dynindx, r_type);
-		}
+		outrel.r_info = ELF32_R_INFO (h->dynindx, r_type);
 	      else
 		{
 		  /* This symbol is local, or marked to become local.  */
