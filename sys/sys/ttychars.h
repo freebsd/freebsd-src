@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttychars.h	8.2 (Berkeley) 1/4/94
- * $Id: ttychars.h,v 1.2 1994/08/02 07:53:55 davidg Exp $
+ * $Id: ttychars.h,v 1.3 1994/08/21 04:42:06 paul Exp $
  */
 
 #ifndef _SYS_TTYCHARS_H_
@@ -42,8 +42,6 @@
  *
  * User visible structures and constants related to terminal handling.
  */
-#ifndef _SYS_TTYCHARS_H_
-#define	_SYS_TTYCHARS_H_
 
 struct ttychars {
 	char	tc_erase;	/* erase last character */
@@ -65,5 +63,3 @@ struct ttychars {
 #include <sys/ttydefaults.h>	/* to pick up character defaults */
 #endif
 #endif /* !_SYS_TTYCHARS_H_ */
-
-#endif
