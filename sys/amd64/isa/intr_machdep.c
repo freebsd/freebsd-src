@@ -34,12 +34,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.14 1998/09/06 22:41:41 tegge Exp $
+ *	$Id: intr_machdep.c,v 1.15 1998/12/04 22:54:46 archie Exp $
  */
 
 #include "opt_auto_eoi.h"
 
 #include <sys/param.h>
+#ifndef SMP
+#include <machine/lock.h>
+#endif
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <machine/ipl.h>

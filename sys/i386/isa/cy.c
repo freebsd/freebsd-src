@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.81 1998/12/19 16:28:57 bde Exp $
+ *	$Id: cy.c,v 1.82 1998/12/24 14:17:57 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -86,6 +86,9 @@
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
+#ifndef SMP
+#include <machine/lock.h>
+#endif
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
