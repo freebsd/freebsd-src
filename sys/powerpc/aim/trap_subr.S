@@ -594,7 +594,7 @@ CNAME(ipkdbsize) = .-CNAME(ipkdblow)
 	bne	cr4,2f;							\
 	lis	3,cpassert@ha;		/* if it is, panic */		\
 	addi	3,3,cpassert@l;						\
-	b	panic;							\
+	b	asm_panic;						\
 2:	lwz	3,PM_SR+0(2);						\
 	mtsr	0,3;			/* restore SR0 */		\
 	lwz	3,PM_SR+4(2);						\
