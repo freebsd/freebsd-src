@@ -71,6 +71,16 @@ struct	frame {
 #define	f_fp	f_in[6]
 #define	f_pc	f_in[7]
 
+/*
+ * Frame used for pcb_wscratch.
+ */
+struct	wsframe {
+	u_long	wsf_local[8];
+	u_long	wsf_in[8];
+	u_long	wsf_sp;
+	u_long	wsf_inuse;
+};
+
 int	kdb_trap(struct trapframe *tf);
 
 #endif /* !_MACHINE_FRAME_H_ */

@@ -63,41 +63,65 @@
 
 #include "assym.s"
 
-#define	SPILL(storer, base, asi) \
-	storer	%l0, [base + F_L0] asi ; \
-	storer	%l1, [base + F_L1] asi ; \
-	storer	%l2, [base + F_L2] asi ; \
-	storer	%l3, [base + F_L3] asi ; \
-	storer	%l4, [base + F_L4] asi ; \
-	storer	%l5, [base + F_L5] asi ; \
-	storer	%l6, [base + F_L6] asi ; \
-	storer	%l7, [base + F_L7] asi ; \
-	storer	%i0, [base + F_I0] asi ; \
-	storer	%i1, [base + F_I1] asi ; \
-	storer	%i2, [base + F_I2] asi ; \
-	storer	%i3, [base + F_I3] asi ; \
-	storer	%i4, [base + F_I4] asi ; \
-	storer	%i5, [base + F_I5] asi ; \
-	storer	%i6, [base + F_I6] asi ; \
-	storer	%i7, [base + F_I7] asi
+/*
+ * This is more or less relatively straight forward, except for the register
+ * window handling, which can get ugly.
+ * There are two situations where this can happen:
+ * - a normal (non spill/fill) trap from user space, where the windows are
+ *   still filled with user data
+ * - a trap in a spill/fill trap handler that spills/fills userland windows
+ * In both cases, the spills of the user data may fault in a way that requires
+ * the C fault handler to be invoked, which needs a register window, so we would
+ * try to spill again... ad infinitum.
+ * The traps in question are dmmu_miss, dmmu_prot (both possibly fatal),
+ * data_access and alignment (fatal).
+ * So, on entry from user space, we set up a special %wstate (to handle a
+ * possible spill triggered by the first save), and later set %otherwin to
+ * split the window between kernel windows and user windows.
+ * The spill handler that is called with this %wstate or %otherwin != 0 spills
+ * to pcb_wscratch, indexed by %cwp, and notes the number of spilled registers
+ * in pcb_ws_inuse. Elements of pcb_wstate that are in use are marked by setting
+ * the wsf_inuse field. When the trap has completed, %otherwin is set so that
+ * user space spills/fills for windows that are still stored in pcb_wscratch are
+ * handled by directly filling from pcb_wscratch or spilling from pcb_wscratch
+ * to user space.
+ */
 
-#define	FILL(loader, base, asi) \
-	loader	[base + F_L0] asi, %l0 ; \
-	loader	[base + F_L1] asi, %l1 ; \
-	loader	[base + F_L2] asi, %l2 ; \
-	loader	[base + F_L3] asi, %l3 ; \
-	loader	[base + F_L4] asi, %l4 ; \
-	loader	[base + F_L5] asi, %l5 ; \
-	loader	[base + F_L6] asi, %l6 ; \
-	loader	[base + F_L7] asi, %l7 ; \
-	loader	[base + F_I0] asi, %i0 ; \
-	loader	[base + F_I1] asi, %i1 ; \
-	loader	[base + F_I2] asi, %i2 ; \
-	loader	[base + F_I3] asi, %i3 ; \
-	loader	[base + F_I4] asi, %i4 ; \
-	loader	[base + F_I5] asi, %i5 ; \
-	loader	[base + F_I6] asi, %i6 ; \
-	loader	[base + F_I7] asi, %i7
+#define	SPILL(storer, base, asi, struct) \
+	storer	%l0, [base + struct ## _L0] asi ; \
+	storer	%l1, [base + struct ## _L1] asi ; \
+	storer	%l2, [base + struct ## _L2] asi ; \
+	storer	%l3, [base + struct ## _L3] asi ; \
+	storer	%l4, [base + struct ## _L4] asi ; \
+	storer	%l5, [base + struct ## _L5] asi ; \
+	storer	%l6, [base + struct ## _L6] asi ; \
+	storer	%l7, [base + struct ## _L7] asi ; \
+	storer	%i0, [base + struct ## _I0] asi ; \
+	storer	%i1, [base + struct ## _I1] asi ; \
+	storer	%i2, [base + struct ## _I2] asi ; \
+	storer	%i3, [base + struct ## _I3] asi ; \
+	storer	%i4, [base + struct ## _I4] asi ; \
+	storer	%i5, [base + struct ## _I5] asi ; \
+	storer	%i6, [base + struct ## _I6] asi ; \
+	storer	%i7, [base + struct ## _I7] asi
+
+#define	FILL(loader, base, asi, struct) \
+	loader	[base + struct ## _L0] asi, %l0 ; \
+	loader	[base + struct ## _L1] asi, %l1 ; \
+	loader	[base + struct ## _L2] asi, %l2 ; \
+	loader	[base + struct ## _L3] asi, %l3 ; \
+	loader	[base + struct ## _L4] asi, %l4 ; \
+	loader	[base + struct ## _L5] asi, %l5 ; \
+	loader	[base + struct ## _L6] asi, %l6 ; \
+	loader	[base + struct ## _L7] asi, %l7 ; \
+	loader	[base + struct ## _I0] asi, %i0 ; \
+	loader	[base + struct ## _I1] asi, %i1 ; \
+	loader	[base + struct ## _I2] asi, %i2 ; \
+	loader	[base + struct ## _I3] asi, %i3 ; \
+	loader	[base + struct ## _I4] asi, %i4 ; \
+	loader	[base + struct ## _I5] asi, %i5 ; \
+	loader	[base + struct ## _I6] asi, %i6 ; \
+	loader	[base + struct ## _I7] asi, %i7
 
 DATA(intrnames)
 	.asciz	"foo"
@@ -135,64 +159,56 @@ DATA(eintrcnt)
 
 	/*
 	 * Split the register window using %otherwin. This is an optimization
-	 * to not have to flush all the register windows.
-	 * We need to use a special spill handler, because we are saving to
-	 * user-supplied addresses.
-	 * XXX:	this is obviously too big.
+	 * to not have to flush all the register windows on kernel entry.
+	 * Set %wstate so that spills go to the pcb; this is valid because there
+	 * is always at least one frame.
+	 * A spill with %wstate == 1 will invoke the same spill handler
+	 * regardless of %otherwin (tl1_spill_1_n and tl1_spill_0_o are the
+	 * same).
+	 * Before the next save (that is, in tl0_trap_*), we finish the
+	 * splitting setup and set %otherwin correctly.
+	 * Note that the alternate %g7 must always be valid in places where we
+	 * could spill.
 	 */
 	.macro	tl0_split_save
 	wrpr	%g0, 1, %wstate
-	/* Make sure we have at least two register windows for our use. */
 	save
-	save
-	wrpr	%g0, 0, %wstate
-	restore
-	rdpr	%canrestore, %l0
-	wrpr	%l0, 0, %otherwin
-	wrpr	%g0, 0, %canrestore
 	.endm
 
 	/*
-	 * Flush out all but one of the user windows to the user's address
-	 * space. The remaining window is saved to the kernel stack later.
+	 * Flush out all but one of the user windows to the pcb register
+	 * window scratch space. At the end of the trap, the windows are
+	 * restored.
 	 */
 	.macro	tl0_flush_save
 	wrpr	%g0, 1, %wstate
+	save
 	flushw
 	wrpr	%g0, 0, %wstate
-	save
 	.endm
 
 	/*
-	 * Setup the kernel stack when faulting from user space. %l6 must be
-	 * used for fp with tl0_trap_flushed.
+	 * Setup the kernel stack when faulting from user space.
 	 */
-	.macro	tl0_setup_stack	tmp1, tmp2, tmp3, fp, sz
+	.macro	tl0_setup_stack	tmp1, sz
 	/* Set up the kernel stack. */
+	setx	UPAGES * PAGE_SIZE - SPOFF - CCFSZ - TF_SIZEOF - \sz, \tmp1, %sp
 	ldx	[PCPU(CURPCB)], \tmp1
-	setx	UPAGES * PAGE_SIZE - SPOFF - CCFSZ, \tmp2, \tmp3
-	mov	%fp, \fp
-	/*
-	 * Fake up the frame pointer of the previous window to point to the
-	 * kernel stack, so that the frame will be saved there. This is needed
-	 * e.g. for fork() (cpu_switch will do the flushw in that case).
-	 */
-	addx	\tmp1, \tmp3, %fp
-	sub	%fp, CCFSZ + TF_SIZEOF + \sz, %sp
+	add	%sp, \tmp1, %sp
 	.endm	
 
 	.macro	tl0_gen		type
-	tl0_flush_save
+	tl0_split_save
 	rdpr	%pil, %o0
-	b	%xcc, tl0_trap_flushed
+	b	%xcc, tl0_trap
 	 mov	\type, %o1
 	.align	32
 	.endm
 
 	.macro	tl0_wide	type
-	tl0_flush_save
+	tl0_split_save
 	rdpr	%pil, %o0
-	b	%xcc, tl0_trap_flushed
+	b	%xcc, tl0_trap
 	 mov	\type, %o1
 	.align	128
 	.endm
@@ -203,8 +219,41 @@ DATA(eintrcnt)
 	.endr
 	.endm
 
+	.macro	tl0_align
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
+	b	%xcc, tl0_sfsr_trap
+	 mov	T_ALIGN, %g4
+	.align	32
+	.endm
+
+/*
+ * This must be called with MMU globals active, otherwise the spill handler
+ * might clobber the globals we use to transfer the sfar and sfsr.
+ */
+ENTRY(tl0_sfsr_trap)
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g1
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g2
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
+
+	tl0_split_save
+	mov	%g1, %l1
+	mov	%g2, %l2
+	mov	%g4, %o1
+	rdpr	%pstate, %l3
+	wrpr	%l3, PSTATE_MG | PSTATE_AG, %pstate
+	tl0_setup_stack	%l0, MF_SIZEOF
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFAR]
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFSR]
+	rdpr	%pil, %o0
+	b	%xcc, tl0_trap_withstack
+	 add	%sp, SPOFF + CCFSZ + TF_SIZEOF, %o2
+END(tl0_sfsr_trap)
+
 	.macro	tl0_intr level, mask, type
-	tl0_flush_save
+	tl0_split_save
 	set	\level, %o3
 	set	\mask, %o2
 	b	%xcc, tl0_intr_call_trap
@@ -213,13 +262,13 @@ DATA(eintrcnt)
 	.endm
 
 /*
- * Actually call tl0_trap_flushed, and do some work that cannot be done in
- * tl0_intr because of space constraints.
+ * Actually call tl0_trap, and do some work that cannot be done in tl0_intr
+ * because of space constraints.
  */
 ENTRY(tl0_intr_call_trap)
 	rdpr	%pil, %o0
 	wrpr	%g0, %o3, %pil
-	b	%xcc, tl0_trap_flushed
+	b	%xcc, tl0_trap
 	 wr	%o2, 0, %asr21
 END(tl0_intr_call_trap)
 
@@ -253,7 +302,6 @@ END(tl0_intr_call_trap)
 
 	.macro	tl0_intr_vector
 	b,a	intr_enqueue
-	 nop
 	.align	32
 	.endm
 
@@ -336,6 +384,7 @@ END(tl0_intr_call_trap)
 2:	add	%g2, STTE_SIZEOF, %g2
 	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
 	bnz	%xcc, 1b
+	 nop
 	b,a	%xcc, immu_miss_user_call_trap
 	.align	128
 	.endm
@@ -375,12 +424,12 @@ ENTRY(immu_miss_user_call_trap)
 	 * Save the mmu registers on the stack, switch to alternate globals,
 	 * and call common trap code.
 	 */
-	tl0_flush_save
-	mov	%g1, %l3
-	rdpr	%pstate, %l0
-	wrpr	%l0, PSTATE_AG | PSTATE_MG, %pstate
-	tl0_setup_stack	%l0, %l1, %l2, %l6, MF_SIZEOF
-	stx	%l3, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
+	tl0_split_save
+	mov	%g1, %l1
+	rdpr	%pstate, %l3
+	wrpr	%l3, PSTATE_AG | PSTATE_MG, %pstate
+	tl0_setup_stack	%l0, MF_SIZEOF
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
 	rdpr	%pil, %o0
 	mov	T_IMMU_MISS, %o1
 	b	%xcc, tl0_trap_withstack
@@ -471,6 +520,7 @@ END(immu_miss_user_call_trap)
 2:	add	%g2, STTE_SIZEOF, %g2
 	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
 	bnz	%xcc, 1b
+	 nop
 	.endm
 
 ENTRY(dmmu_miss_user_set_ref)
@@ -518,7 +568,26 @@ END(dmmu_miss_user_set_ref)
 	.endm
 
 ENTRY(tl0_dmmu_miss_trap)
-	illtrap
+	/*
+	 * Load the tar, sfar and sfsr aren't valid.
+	 */
+	mov	AA_DMMU_TAR, %g1
+	ldxa	[%g1] ASI_DMMU, %g1
+
+	/*
+	 * Save the mmu registers on the stack, switch to alternate globals,
+	 * and call common trap code.
+	 */
+	tl0_split_save
+	mov	%g1, %l1
+	rdpr	%pstate, %l3
+	wrpr	%l3, PSTATE_AG | PSTATE_MG, %pstate
+	tl0_setup_stack	%l0, MF_SIZEOF
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
+	rdpr	%pil, %o0
+	mov	T_DMMU_MISS, %o1
+	b	%xcc, tl0_trap_withstack
+	 add	%sp, SPOFF + CCFSZ + TF_SIZEOF, %o2
 END(tl0_dmmu_miss_trap)
 
 	.macro	dmmu_prot_user
@@ -587,6 +656,7 @@ END(tl0_dmmu_miss_trap)
 2:	add	%g2, STTE_SIZEOF, %g2
 	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
 	bnz	%xcc, 1b
+	 nop
 	.endm
 
 ENTRY(dmmu_prot_user_set_mod)
@@ -633,19 +703,100 @@ END(dmmu_prot_user_set_mod)
 	 * Not in primary tsb, call c code.  Nothing else fits inline.
 	 */
 	b,a	tl0_dmmu_prot_trap
+	.align	128
 	.endm
 
 ENTRY(tl0_dmmu_prot_trap)
-	illtrap
+	/*
+	 * Load the tar, sfar and sfsr.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
+
+	/*
+	 * Save the mmu registers on the stack, switch to alternate globals,
+	 * and call common trap code.
+	 */
+	tl0_split_save
+	mov	%g1, %l1
+	mov	%g2, %l2
+	mov	%g3, %l3
+	rdpr	%pstate, %l4
+	wrpr	%l4, PSTATE_AG | PSTATE_MG, %pstate
+	tl0_setup_stack	%l0, MF_SIZEOF
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFAR]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFSR]
+	rdpr	%pil, %o0
+	mov	T_DMMU_PROT, %o1
+	b	%xcc, tl0_trap_withstack
+	 add	%sp, SPOFF + CCFSZ + TF_SIZEOF, %o2
 END(tl0_dmmu_prot_trap)
 
 	.macro	tl0_spill_0_n
+	ldx	[PCPU(CURPCB)], %g1
+	stx	%g1, [%g1 + PCB_INWINOP]	! something != 0
 	wr	%g0, ASI_AIUP, %asi
-	SPILL(stxa, %sp + SPOFF, %asi)
+	SPILL(stxa, %sp + SPOFF, %asi, F)
+	stx	%g0, [%g1 + PCB_INWINOP]
 	saved
 	retry
 	.align	128
 	.endm
+
+	.macro	tl0_spill_0_o
+	b,a	tl0_spill_frompcb
+	.align	128
+	.endm	
+
+#define LDSTA(tmp, from, to)						\
+	ldx	[from], tmp ;						\
+	stxa	tmp, [to] %asi
+
+/*
+ * A window that was spilled to the pcb during the last trap, was marked with
+ * %otherwin, but was not filled back in again yet. In this case, we need to
+ * spill the data from the pcb directly to user space. Traps while writing to
+ * user space are handled as normally.
+ */
+ENTRY(tl0_spill_frompcb)
+	ldx	[PCPU(CURPCB)], %g1
+	/* We may fault while spilling to user space, prepare for that. */
+	stx	%g1, [%g1 + PCB_INWINOP]	! something != 0
+	rdpr	%cwp, %g2
+	mulx	%g2, WSF_SIZEOF, %g3
+	add	%g1, %g3, %g3
+	ldx	[%g3 + PCB_WSCRATCH + WSF_SP], %g4
+	wr	%g0, ASI_AIUP, %asi
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I0, %g4 + SPOFF + F_I0)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I1, %g4 + SPOFF + F_I1)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I2, %g4 + SPOFF + F_I2)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I3, %g4 + SPOFF + F_I3)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I4, %g4 + SPOFF + F_I4)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I5, %g4 + SPOFF + F_I5)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I6, %g4 + SPOFF + F_I6)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_I7, %g4 + SPOFF + F_I7)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L0, %g4 + SPOFF + F_L0)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L1, %g4 + SPOFF + F_L1)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L2, %g4 + SPOFF + F_L2)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L3, %g4 + SPOFF + F_L3)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L4, %g4 + SPOFF + F_L4)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L5, %g4 + SPOFF + F_L5)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L6, %g4 + SPOFF + F_L6)
+	LDSTA(%g2, %g3 + PCB_WSCRATCH + WSF_L7, %g4 + SPOFF + F_L7)
+	stx	%g0, [%g1 + PCB_INWINOP]
+	/* wscratch window becomes unused. */
+	stx	%g0, [%g3 + WSF_INUSE] 
+	rdpr	%otherwin, %g4
+	sub	%g4, 1, %g4
+	stx	%g4, [%g1 + PCB_WS_INUSE]
+	saved
+	retry
+END(tl0_spill_frompcb)
 
 	.macro	tl0_spill_bad	count
 	.rept	\count
@@ -654,12 +805,31 @@ END(tl0_dmmu_prot_trap)
 	.endm
 
 	.macro	tl0_fill_0_n
+	ldx	[PCPU(CURPCB)], %g1
+	stx	%g1, [%g1 + PCB_INWINOP]	! something != 0
 	wr	%g0, ASI_AIUP, %asi
-	FILL(ldxa, %sp + SPOFF, %asi)
+	FILL(ldxa, %sp + SPOFF, %asi, F)
+	stx	%g0, [%g1 + PCB_INWINOP]
 	restored
 	retry
 	.align	128
 	.endm
+
+	.macro	tl0_fill_0_o
+	ldx	[PCPU(CURPCB)], %g1
+	rdpr	%cwp, %g2
+	mulx	%g2, WSF_SIZEOF, %g3
+	add	%g1, %g3, %g3
+	FILL(ldx, %g3 + PCB_WSCRATCH, EMPTY, WSF)
+	/* wscratch window becomes unused. */
+	stx	%g0, [%g3 + PCB_WSCRATCH + WSF_INUSE] 
+	rdpr	%otherwin, %g4
+	sub	%g4, 1, %g4
+	stx	%g4, [%g1 + PCB_WS_INUSE]
+	restored
+	retry
+	.align	128
+	.endm	
 
 	.macro	tl0_fill_bad	count
 	.rept	\count
@@ -703,26 +873,85 @@ END(tl0_dmmu_prot_trap)
 	.align	32
 	.endm
 
-	.macro	tl1_align
+	.macro	tl1_data_excptn
 	b	%xcc, tl1_sfsr_trap
-	 nop
+	 mov	T_DATA_EXCPTN, %g4
 	.align	32
 	.endm
 
+	.macro	tl1_align
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate	
+	b	%xcc, tl1_sfsr_trap
+	 mov	T_ALIGN, %g4
+	.align	32
+	.endm
+
+/*
+ * Handle traps that require only sfsr and sfar to be saved. %g4 holds the trap
+ * type to be used (T_KERNEL is set if appropriate).
+ * Call with memory globals active.
+ */
 ENTRY(tl1_sfsr_trap)
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g1
-	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
-	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFSR]
+	/* Fall through. */
+END(tl1_sfsr_trap)
+
+/*
+ * Handle traps that require MMU frames to be written. The values for TAR, SFAR
+ * and SFSR are passed in %g1, %g2 and %g3, respectively.
+ * All traps that may happen during spill/fill for user processes should be
+ * handled here.
+ * %g4 contains the trap type, T_KERNEL is set if appropriate.
+ */
+ENTRY(tl1_mmu_trap)
+	/* Handle faults during window spill/fill. */
+	mov	%o1, %g5
+	mov	%o2, %g6
+	rdpr	%pstate, %o1
+	wrpr	%o1, PSTATE_MG | PSTATE_AG, %pstate
+	ldx	[PCPU(CURPCB)], %o2
+	ldx	[%o2 + PCB_INWINOP], %o2
+	rdpr	%pstate, %o1
+	wrpr	%o1, PSTATE_MG | PSTATE_AG, %pstate
+	mov	%g5, %o1
+	brz,pt	%o2, 1f
+	 mov	%g6, %o2
+
+	wrpr	1, %tl		! go to tl 1
+	 rdpr	%tstate, %g5
+	and	%g5, TSTATE_CWP_MASK, %g5
+	wrpr	%g5, %cwp
+	tl0_split_save
+	mov	%g1, %l1
+	mov	%g2, %l2
+	mov	%g3, %l3
+	mov	%g4, %o1
+	rdpr	%pstate, %l4
+	wrpr	%l4, PSTATE_MG | PSTATE_AG, %pstate
+	tl0_setup_stack	%l0, MF_SIZEOF
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFAR]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_SFSR]
 	rdpr	%pil, %o0
-	mov	T_ALIGN | T_KERNEL, %o1
+	b	%xcc, tl0_trap_withstack
+	 add	%sp, SPOFF + CCFSZ + TF_SIZEOF, %o2
+
+1:	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
+	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
+	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
+	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
+	or	%g4, T_KERNEL, %o1
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
+	rdpr	%pil, %o0
 	b	%xcc, tl1_trap
 	 add	%sp, SPOFF + CCFSZ, %o2
-END(tl1_sfsr_trap)
+END(tl1_mmu_trap)
 
 	.macro	tl1_intr level, mask, type
 	save	%sp, -CCFSZ, %sp
@@ -741,7 +970,6 @@ END(tl1_sfsr_trap)
 
 	.macro	tl1_intr_vector
 	b,a	intr_enqueue
-	 nop
 	.align	32
 	.endm
 
@@ -899,12 +1127,7 @@ END(intr_enqueue)
 	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
 
-	/*
-	 * For now just bail.  This might cause a red state exception,
-	 * but oh well.
-	 */
-2:	b	%xcc, call_dmmu_trap
-	 nop
+2:	b,a	%xcc, tl1_dmmu_miss_trap
 	.align	128
 	.endm
 
@@ -914,28 +1137,18 @@ ENTRY(tl1_dmmu_miss_user)
 	 */
 	dmmu_miss_user
 
+	/* Fallthrough. */
+END(tl1_dmmu_miss_user)
+
+ENTRY(tl1_dmmu_miss_trap)
 	/*
 	 * Not in primary tsb, call c code.
-	 */
-call_dmmu_trap:	
-	/*
 	 * Load the tar, sfar and sfsr aren't valid.
 	 */
 	mov	AA_DMMU_TAR, %g1
 	ldxa	[%g1] ASI_DMMU, %g1
-
-	/*
-	 * Save the mmu registers on the stack, switch to alternate globals,
-	 * and call common trap code.
-	 */
-	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
-	rdpr	%pil, %o0
-	mov	T_DMMU_MISS | T_KERNEL, %o1
-	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o2
+	b	%xcc, tl1_mmu_trap
+	 mov	T_DMMU_MISS, %g4
 END(tl1_dmmu_miss_user)
 
 	.macro	tl1_dmmu_prot
@@ -1013,56 +1226,71 @@ ENTRY(tl1_dmmu_prot_user)
 
 	/*
 	 * Not in primary tsb, call c code.
-	 */
-
-	/*
 	 * Load the sfar, sfsr and tar.  Clear the sfsr.
 	 */
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g4
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-	/*
-	 * Save the mmu registers on the stack, switch to alternate globals
-	 * and call common trap code.
-	 */
-	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	stx	%g4, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
-	rdpr	%pil, %o0
-	mov	T_DMMU_PROT | T_KERNEL, %o1
-	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o2
-END(tl1_dmmu_miss_user)
+	b	%xcc, tl1_mmu_trap
+	 mov	T_DMMU_PROT, %g4
+END(tl1_dmmu_prot_user)
 
 	.macro	tl1_spill_0_n
-	SPILL(stx, %sp + SPOFF, EMPTY)
+	SPILL(stx, %sp + SPOFF, EMPTY, F)
 	saved
 	retry
 	.align	128
 	.endm
 
-	/*
-	 * This is used to spill windows that are still occupied with user
-	 * data on kernel entry.
-	 * tl0_spill_0_n is used for that for now; the the trap handler needs
-	 * to distinguish traps that happen while spilling the user windows from
-	 * normal tl1 traps by reading %wstate.
-	 */
 	.macro	tl1_spill_1_n
-	tl0_spill_0_n
+	b,a	tl1_spill_topcb
+	.align	128
 	.endm
 
+	/*
+	 * The following is equivalent to tl1_spill_1_n and is used for
+	 * splitting.
+	 */
 	.macro	tl1_spill_0_o
-	tl1_spill_0_n
+	tl1_spill_1_n
 	.endm
 	
+/*
+ * This is used to spill windows that are still occupied with user
+ * data on kernel entry to the pcb using tl0_flush_save.
+ */
+ENTRY(tl1_spill_topcb)
+	/* Free some globals for our use. */
+	sub	%g6, 32, %g6
+	stx	%g1, [%g6]
+	stx	%g2, [%g6 + 8]
+	stx	%g3, [%g6 + 16]
+	stx	%g4, [%g6 + 24]
+	ldx	[PCPU(CURPCB)], %g1
+	rdpr	%cwp, %g2
+	mulx	%g2, WSF_SIZEOF, %g3
+	add	%g1, %g3, %g3
+	ldx	[%g3 + PCB_WSCRATCH + WSF_INUSE], %g4
+	brnz,pn	%g4, 1f			! window was already spilled to pcb
+	 stx	%g1, [%g3 + PCB_WSCRATCH + WSF_INUSE]	! just write sth. != 0
+	stx	%sp, [%g3 + PCB_WSCRATCH + WSF_SP]
+	SPILL(stx, %g3 + PCB_WSCRATCH, EMPTY, WSF)
+	ldx	[%g1 + PCB_WS_INUSE], %g4
+	add	%g4, 1, %g4
+	stx	%g4, [%g1 + PCB_WS_INUSE]
+1:	ldx	[%g6], %g1
+	ldx	[%g6 + 8], %g2
+	ldx	[%g6 + 16], %g3
+	ldx	[%g6 + 24], %g4
+	add	%g6, 32, %g6
+	saved
+	retry
+END(tl1_spill_topcb)
+
 	.macro	tl1_spill_bad	count
 	.rept	\count
 	tl1_wide T_SPILL
@@ -1070,11 +1298,56 @@ END(tl1_dmmu_miss_user)
 	.endm
 
 	.macro	tl1_fill_0_n
-	FILL(ldx, %sp + SPOFF, EMPTY)
+	FILL(ldx, %sp + SPOFF, EMPTY, F)
 	restored
 	retry
 	.align	128
 	.endm
+
+	.macro	tl1_fill_1_n
+	b,a	tl1_fill_frompcb
+	.align	128
+	.endm
+
+	/* Same as tl1_fill_1_n, used for splitting. */
+	.macro	tl1_fill_0_o
+	tl1_fill_1_n
+	.endm
+
+/*
+ * This is invoked only once when a user process is in the kernel:
+ * to restore the topmost window on user return. We just look up whether
+ * the window at %cwp was already spilled to the pcb (as inducated by the
+ * wsf_inuse flag). If so, we indeed need to fill from the pcb, otherwise the
+ * window is valid and we can just return.
+ */
+ENTRY(tl1_fill_frompcb)
+	/* Free some globals for our use. */
+	sub	%g6, 32, %g6
+	stx	%g1, [%g6]
+	stx	%g2, [%g6 + 8]
+	stx	%g3, [%g6 + 16]
+	stx	%g4, [%g6 + 24]
+	ldx	[PCPU(CURPCB)], %g1
+	rdpr	%cwp, %g2
+	mulx	%g2, WSF_SIZEOF, %g3
+	add	%g1, %g3, %g3
+	ldx	[%g3 + PCB_WSCRATCH + WSF_INUSE], %g4
+	brz,pn	%g4, 1f			! window not spilled and is valid
+	 stx	%g0, [%g3 + PCB_WSCRATCH + WSF_INUSE]
+	FILL(ldx, %g3 + PCB_WSCRATCH, EMPTY, WSF)
+	ldx	[%g1 + PCB_WS_INUSE], %g4
+	sub	%g4, 1, %g4
+	stx	%g4, [%g1 + PCB_WS_INUSE]
+	/* Restore the registers. */
+1:	ldx	[%g6], %g1
+	ldx	[%g6 + 8], %g2
+	ldx	[%g6 + 16], %g3
+	ldx	[%g6 + 24], %g4
+	add	%g6, 32, %g6
+	restored
+	retry
+END(tl1_fill_frompcb)
 
 	.macro	tl1_fill_bad	count
 	.rept	\count
@@ -1083,8 +1356,7 @@ END(tl1_dmmu_miss_user)
 	.endm
 
 	.macro	tl1_breakpoint
-	b	%xcc, tl1_breakpoint_trap
-	 nop
+	b,a	%xcc, tl1_breakpoint_trap
 	.align	32
 	.endm
 
@@ -1150,7 +1422,7 @@ tl0_data_error:
 	tl0_gen		T_DATA_ERROR	! 0x32 data access error
 	tl0_reserved	1		! 0x33 reserved
 tl0_align:
-	tl0_gen		T_ALIGN		! 0x34 memory address not aligned
+	tl0_align			! 0x34 memory address not aligned
 tl0_align_lddf:
 	tl0_gen		T_ALIGN_LDDF	! 0x35 lddf memory address not aligned
 tl0_align_stdf:
@@ -1178,17 +1450,28 @@ tl0_dmmu_prot:
 	tl0_reserved	16		! 0x70-0x7f reserved
 tl0_spill_0_n:
 	tl0_spill_0_n			! 0x80 spill 0 normal
-tl0_spill_bad:
-	tl0_spill_bad	15		! 0x84-0xbf spill normal, other
+tl0_spill_bad_n:
+	tl0_spill_bad	7		! 0x84-0x9f spill normal, other
+tl0_spill_0_o:
+	tl0_spill_0_o			! 0xa0 spill 0 other
+tl0_spill_bad_o:
+	tl0_spill_bad	7		! 0xa4-0xbf spill normal, other
 tl0_fill_0_n:
 	tl0_fill_0_n			! 0xc0 fill 0 normal
-tl0_fill_bad:
-	tl0_fill_bad	15		! 0xc4-0xff fill normal, other
+tl0_fill_bad_n:
+	tl0_fill_bad	7		! 0xc4-0xdf fill normal
+tl0_fill_0_o:
+	tl0_fill_0_o			! 0xe0 fill 0 normal
+tl0_fill_bad_o:
+	tl0_fill_bad	7		! 0xe4-0xff fill other
 tl0_sun_syscall:
 	tl0_reserved	1		! 0x100 sun system call
 tl0_breakpoint:
 	tl0_gen		T_BREAKPOINT	! 0x101 breakpoint
-	tl0_soft	126		! 0x102-0x17f trap instruction
+	tl0_soft	7		! 0x102-0x107 trap instruction
+	tl0_reserved			! 0x109 SVr4 syscall
+	tl0_gen		T_SYSCALL	! 0x109 BSD syscall
+	tl0_soft	118		! 0x110-0x17f trap instruction
 	tl0_reserved	128		! 0x180-0x1ff reserved
 
 tl1_base:
@@ -1229,7 +1512,7 @@ tl1_divide:
 	tl1_gen		T_DIVIDE	! 0x228 division by zero
 	tl1_reserved	7		! 0x229-0x22f reserved
 tl1_data_excptn:
-	tl1_gen		T_DATA_EXCPTN	! 0x230 data access exception
+	tl1_data_excptn			! 0x230 data access exception
 	tl1_reserved	1		! 0x231 reserved
 tl1_data_error:
 	tl1_gen		T_DATA_ERROR	! 0x232 data access error
@@ -1266,30 +1549,48 @@ tl1_spill_0_n:
 tl1_spill_1_n:
 	tl1_spill_1_n			! 0x284 spill 1 normal
 tl1_spill_bad_n:
-	tl1_spill_bad	6		! 0x288-0x29f spill normal, other
+	tl1_spill_bad	6		! 0x288-0x29f spill normal
 tl1_spill_0_o:
 	tl1_spill_0_o			! 0x2a0 spill 0 other
 tl1_spill_bad_o:
-	tl1_spill_bad	7		! 0x2a4-0x2bf spill normal, other
+	tl1_spill_bad	7		! 0x2a8-0x2bf spill other
 tl1_fill_0_n:
 	tl1_fill_0_n			! 0x2c0 fill 0 normal
-tl1_fill_bad:
-	tl1_fill_bad	15		! 0x2c4-0x2ff fill normal, other
+tl1_fill_1_n:
+	tl1_fill_1_n			! 0x2c4 fill 1 normal
+tl1_fill_bad_n:
+	tl1_fill_bad	6		! 0x2c8-0x2df fill normal, other
+tl1_fill_0_o:
+	tl1_fill_0_o			! 0x2e0 fill 0 other
+tl1_fill_bad_o:
+	tl1_fill_bad	7		! 0x2e4-0x2ff fill other
 	tl1_reserved	1		! 0x300 trap instruction
 tl1_breakpoint:
 	tl1_breakpoint			! 0x301 breakpoint
-	tl1_soft	126		! 0x302-0x37f trap instruction
+	tl1_gen		T_RESTOREWP	! 0x302 restore watchpoint (debug)
+	tl1_soft	126		! 0x303-0x37f trap instruction
 	tl1_reserved	128		! 0x380-0x3ff reserved
 
 /*
- * void tl0_trap_flushed(u_long o0, u_long o1, u_long o2, u_long type)
+ * void tl0_trap(u_long o0, u_long o1, u_long o2, u_long type)
  */
-ENTRY(tl0_trap_flushed)
-	tl0_setup_stack	%l0, %l1, %l2, %l6, 0
+ENTRY(tl0_trap)
+	tl0_setup_stack	%l0, 0
 	/* Fallthrough */
-END(tl0_trap_flushed)
+END(tl0_trap)
 
 ENTRY(tl0_trap_withstack)
+	ldx	[PCPU(CURPCB)], %l1
+	rdpr	%cwp, %l2
+	stx	%l2, [%l1 + PCB_CWP]
+	/* Finish setting up splitted windows. */
+	wrpr	%g0, 0, %wstate
+	rdpr	%canrestore, %l0
+	rdpr	%otherwin, %l1
+	add	%l0, %l1, %l0
+	wrpr	%g0, 0, %canrestore
+	wrpr	%l0, %otherwin
+	
 	rdpr	%tstate, %l0
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
@@ -1297,23 +1598,9 @@ ENTRY(tl0_trap_withstack)
 	rdpr	%tnpc, %l2
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 
-	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
-	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
-	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
-	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
-	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
-	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
-	stx	%l6, [%sp + SPOFF + CCFSZ + TF_O6]
-	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
-
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_PIL]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_ARG]
-
 	mov	%g7, %l0
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_AG | PSTATE_IE, %pstate
-	mov	%l0, %g7	/* set up the normal %g7 */
+	rdpr	%pstate, %l1
+	wrpr	%l1, PSTATE_AG, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -1323,6 +1610,24 @@ ENTRY(tl0_trap_withstack)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
+	mov	%l0, %g7	/* set up the normal %g7 */
+
+	rdpr	%pstate, %l1
+	wrpr	%l1, PSTATE_IE, %pstate
+
+	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
+	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
+	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
+	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
+	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
+	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_ARG]
+
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 	
@@ -1330,7 +1635,7 @@ ENTRY(tl0_trap_withstack)
 END(tl0_trap_withstack)
 
 /* Return to tl0 (user process). */
-ENTRY(tl0_ret_flushed)
+ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
 	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
@@ -1340,31 +1645,64 @@ ENTRY(tl0_ret_flushed)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
 
 	rdpr	%pstate, %o0
-	wrpr	%o0, PSTATE_AG | PSTATE_IE, %pstate
+	wrpr	%o0, PSTATE_IE | PSTATE_AG, %pstate
+	mov	%sp, %g1
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
-	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
-	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
-	ldx	[%sp + SPOFF + CCFSZ + TF_O3], %i3
-	ldx	[%sp + SPOFF + CCFSZ + TF_O4], %i4
-	ldx	[%sp + SPOFF + CCFSZ + TF_O5], %i5
-	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %g1
-	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
+	/*
+	 * Restore the user window state.
+	 * Note: whenever we come here, it should be with %canrestore = 0.
+	 */
+	ldx	[PCPU(CURPCB)], %g4
+	ldx	[%g4 + PCB_CWP], %g2
+	wrpr	%g2, %cwp
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+	/*
+	 * Set up window state for restore. If all windows were spilled,
+	 * %otherwin may be 0, so just set %wstate to 1 to invoke a
+	 * special fill handler (fill traps with %wstate == 1 invoke the
+	 * same handler regardless of %otherwin).
+	 */
+	wrpr	%g0, 1, %wstate
+	restore		! This will invoke the otherwin fill handler.
+	wrpr	%g0, 0, %wstate
 
-	wrpr	%l0, 0, %pil
-	wrpr	%l1, 0, %tstate
-	wrpr	%l2, 0, %tpc
-	wrpr	%l3, 0, %tnpc
+	/* Set up window state for return. */
+	ldx	[%g4 + PCB_WS_INUSE], %g2
+	rdpr	%otherwin, %g3
+	sub	%g3, %g2, %g3
+	wrpr	%g2, 0, %otherwin
+	movrlz	%g3, %g0, %g3
+	wrpr	%g3, %canrestore
+	add	%g2, %g3, %g2
+	rdpr	%ver, %g3
+	and	%g3, VER_MAXWIN_MASK, %g3
+	sub	%g3, 1, %g3	! VER.MAXWIN is NWINDOWS - 1.
+	sub	%g3, %g2, %g3
+	wrpr	%g3, %cansave
+	
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O0], %o0
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O1], %o1
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O2], %o2
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O3], %o3
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O4], %o4
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O5], %o5
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O6], %o6
+	ldx	[%g1 + SPOFF + CCFSZ + TF_O7], %o7
 
-	restore
-	mov	%g1, %i6
+	ldx	[%g1 + SPOFF + CCFSZ + TF_PIL], %g2
+	wrpr	%g2, 0, %pil
+	ldx	[%g1 + SPOFF + CCFSZ + TF_TSTATE], %g2
+	andn	%g2, TSTATE_CWP_MASK, %g2
+	rdpr	%cwp, %g3
+	or	%g2, %g3, %g2
+	wrpr	%g2, %tstate
+	ldx	[%g1 + SPOFF + CCFSZ + TF_TPC], %g2
+	wrpr	%g2, 0, %tpc
+	ldx	[%g1 + SPOFF + CCFSZ + TF_TNPC], %g2
+	wrpr	%g2, 0, %tnpc
+
 	retry
-END(tl0_ret_flushed)
+END(tl0_ret)
 
 /*
  * void tl1_trap(u_long o0, u_long o1, u_long o2, u_long type)
@@ -1379,8 +1717,10 @@ ENTRY(tl1_trap)
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 
 	wrpr	%g0, 1, %tl
-	rdpr	%pstate, %l7
-	wrpr	%l7, PSTATE_AG | PSTATE_IE, %pstate
+	/* We may have trapped before %g7 was set up correctly. */
+	mov	%g7, %l3
+	rdpr	%pstate, %l0
+	wrpr	%l0, PSTATE_AG, %pstate
 
 	stx	%o0, [%sp + SPOFF + CCFSZ + TF_PIL]
 	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
@@ -1394,6 +1734,10 @@ ENTRY(tl1_trap)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
+	mov	%l3, %g7
+	rdpr	%pstate, %l0
+	wrpr	%l0, PSTATE_IE, %pstate
+	
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 
@@ -1411,7 +1755,8 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
 
 	rdpr	%pstate, %o0
-	wrpr	%o0, PSTATE_AG | PSTATE_IE, %pstate
+	andn	%o0, PSTATE_IE, %o0
+	wrpr	%o0, 0, %pstate
 
 	wrpr	%l0, 0, %pil
 
@@ -1430,6 +1775,5 @@ ENTRY(fork_trampoline)
 	mov	%l2, %o2
 	call	fork_exit
 	 nop
-	b	%xcc, tl0_ret_flushed
-	 nop
+	b,a	%xcc, tl0_ret
 END(fork_trampoline)
