@@ -42,7 +42,7 @@ _sched_yield(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
-	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+	if (!_kse_isthreaded() || curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		return (__sys_sched_yield());
 
 	/* Reset the accumulated time slice value for the current thread: */
@@ -60,7 +60,8 @@ _pthread_yield(void)
 {
 	struct pthread	*curthread = _get_curthread();
 
-	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+	if (!_kse_isthreaded() ||
+	    curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
 		__sys_sched_yield();
 		return;
 	}
