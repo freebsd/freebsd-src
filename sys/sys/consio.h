@@ -317,6 +317,9 @@ typedef struct vt_mode vtmode_t;
 /* get the index of the vty */
 #define VT_GETINDEX	_IOR('v', 8, int)
 
+/* prevent switching vtys */
+#define VT_LOCKSWITCH	_IOW('v', 9, int)
+
 /*
  * Video mode switching ioctl.  See sys/fbio.h for mode numbers.
  */

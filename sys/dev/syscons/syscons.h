@@ -178,6 +178,7 @@ typedef struct sc_softc {
 #define	SC_SCRN_IDLE	(1 << 5)
 #define	SC_SCRN_BLANKED	(1 << 6)
 #define	SC_SAVER_FAILED	(1 << 7)
+#define	SC_SCRN_VTYLOCK	(1 << 8)
 
 #define	SC_INIT_DONE	(1 << 16)
 #define	SC_SPLASH_SCRN	(1 << 17)
