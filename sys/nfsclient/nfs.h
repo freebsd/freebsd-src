@@ -122,7 +122,7 @@ MALLOC_DECLARE(M_NFSBIGFH);
 MALLOC_DECLARE(M_NFSHASH);
 #endif
 
-extern uma_zone_t nfsmount_zone;
+extern struct uma_zone *nfsmount_zone;
 
 extern struct callout_handle nfs_timer_handle;
 extern struct nfsstats nfsstats;
