@@ -29,7 +29,7 @@ SRCS=	config.h argmatch.c getdate.y getline.c \
 
 config.h: config.h.proto
 	version=`sed < ${CVSDIR}/configure \
-	    -e '/^[ 	]*VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q`; \
+	    -e '/^[ 	]*VERSION=/!d' -e 's/.*=["'\'']\{0,1\}\([^"'\'']*\)["'\'']\{0,1\}/\1/' -e q`; \
 	sed -e "s,@VERSION@,$${version}-FreeBSD,g" \
 	    -e "s,@UMASK_DFLT@,${CVS_UMASK_DFLT},g" \
 	    -e "s,@TMPDIR_DFLT@,${CVS_TMPDIR_DFLT},g" \
