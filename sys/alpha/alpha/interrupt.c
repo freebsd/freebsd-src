@@ -371,11 +371,11 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 	if (ithd == NULL || ithd->it_ih == NULL) {
 		/* first handler for this vector */
 		if (ithd == NULL) {
-			ithd = malloc(sizeof(struct ithd), M_DEVBUF, M_WAITOK);
+			ithd = malloc(sizeof(struct ithd), M_DEVBUF,
+			    M_WAITOK | M_ZERO);
 			if (ithd == NULL)
 				return ENOMEM;
 
-			bzero(ithd, sizeof(struct ithd));
 			ithd->irq = vector;
 			ithd->it_md = i;
 			i->ithd = ithd;
@@ -410,10 +410,9 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 	}
 
 	/* Third, setup the interrupt descriptor for this handler. */
-	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK);
+	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (idesc == NULL)
 		return ENOMEM;
-	bzero(idesc, sizeof(struct intrhand));
 
 	idesc->ih_handler = handler;
 	idesc->ih_argument = arg;
