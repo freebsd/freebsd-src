@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: devices.c,v 1.49.2.11 1997/01/16 01:19:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,7 +42,6 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -82,6 +81,7 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"ex",		"Intel EtherExpress Pro/10 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"			},

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.66.2.3 1997/01/03 06:38:22 jkh Exp $
+ * $FreeBSD$
  *
  * Jordan Hubbard
  *
@@ -46,6 +46,32 @@ handle_intr(int sig)
     else
 	restorescr(save);
 }
+
+/* Simple alarm interface */
+void
+alarm_set(int delay, void (*handler)(int sig))
+{
+    struct sigaction act;
+
+    act.sa_handler = handler;
+    act.sa_flags = 0;
+    act.sa_mask = 0;
+    sigaction(SIGALRM, &act, NULL);
+    alarm(delay);
+}
+
+int
+alarm_clear(void)
+{
+    struct sigaction act;
+    int i = alarm(0);
+
+    act.sa_handler = SIG_DFL;
+    act.sa_flags = 0;
+    act.sa_mask = 0;
+    sigaction(SIGALRM, &act, NULL);
+    return i;
+}   
 
 /* Expand a file into a convenient location, nuking it each time */
 static char *

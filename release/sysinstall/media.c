@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.62.2.7 1996/12/14 22:23:22 jkh Exp $
+ * $Id: media.c,v 1.62.2.8 1997/01/15 04:50:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include <signal.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/param.h>
@@ -105,11 +106,11 @@ mediaSetCDROM(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -146,11 +147,11 @@ mediaSetFloppy(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -185,11 +186,11 @@ mediaSetDOS(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -226,7 +227,7 @@ mediaSetTape(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
@@ -243,7 +244,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /*
@@ -267,10 +268,10 @@ mediaSetFTP(dialogMenuItem *self)
     if (!cp) {
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
-	what = DITEM_RECREATE;
+	what = DITEM_RESTORE;
     }
     if (!cp)
 	return DITEM_FAILURE | what;
@@ -297,9 +298,8 @@ mediaSetFTP(dialogMenuItem *self)
     SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
-    if (RunningAsInit &&
-	(network_init || msgYesNo("You've already done the network configuration once,\n"
-				  "would you like to skip over it now?") != 0)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
 	if (mediaDevice)
 	    mediaDevice->shutdown(mediaDevice);
 	if (!tcpDeviceSelect()) {
@@ -347,7 +347,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
+    ftpDevice.private = RunningAsInit ? mediaDevice : NULL; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
@@ -391,6 +391,7 @@ int
 mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
+    static int network_init = 1;
     char *cp, *idx;
 
     dialog_clear_norefresh();
@@ -405,16 +406,19 @@ mediaSetNFS(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     SAFE_STRCPY(nfsDevice.name, cp);
-    /* str == NULL means we were just called to change NFS paths, not network interfaces */
-    if (!tcpDeviceSelect())
-	return DITEM_FAILURE;
-    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	if (isDebug())
-	    msgDebug("mediaSetNFS: Net device init failed\n");
-	return DITEM_FAILURE;
-    }
     *idx = '\0';
-    if (variable_get(VAR_NAMESERVER)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
+	if (!tcpDeviceSelect())
+	    return DITEM_FAILURE;
+	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    if (isDebug())
+		msgDebug("mediaSetNFS: Net device init failed\n");
+	    return DITEM_FAILURE;
+	}
+    }
+    network_init = 0;
+    if (!RunningAsInit || variable_get(VAR_NAMESERVER)) {
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", cp);
@@ -422,14 +426,13 @@ mediaSetNFS(dialogMenuItem *self)
 	}
 	else
 	    msgNotify("Found DNS entry for %s successfully..", cp);
-
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
     nfsDevice.shutdown = mediaShutdownNFS;
-    nfsDevice.private = mediaDevice;
+    nfsDevice.private = RunningAsInit ? mediaDevice : NULL;
     mediaDevice = &nfsDevice;
     return DITEM_LEAVE_MENU;
 }
@@ -515,6 +518,24 @@ mediaExtractDistEnd(int zpid, int cpid)
     return TRUE;
 }
 
+static void
+media_timeout(int sig)
+{
+    alarm(0);
+}
+
+/* Return the timeout interval */
+int
+mediaTimeout(void)
+{
+    char *cp;
+    int t;
+
+    cp = getenv(VAR_MEDIA_TIMEOUT);
+    if (!cp || !(t = atoi(cp)))
+	t = MEDIA_TIMEOUT;
+    return t;
+}
 
 Boolean
 mediaExtractDist(char *dir, char *dist, FILE *fp)
@@ -522,6 +543,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     int i, j, total, seconds, zpid, cpid, pfd[2], qfd[2];
     char buf[BUFSIZ];
     struct timeval start, stop;
+    struct sigaction new, old;
 
     if (!dir)
 	dir = "/";
@@ -582,9 +604,20 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     total = 0;
     (void)gettimeofday(&start, (struct timezone *)0);
 
+    /* Make ^C fake a sudden timeout */
+    new.sa_handler = media_timeout;
+    new.sa_flags = 0;
+    new.sa_mask = 0;
+    sigaction(SIGINT, &new, &old);
+
+    alarm_set(mediaTimeout(), media_timeout);
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
+	if (!alarm_clear()) {
+	    msgConfirm("Failure to read from media - timeout or user abort.\n");
+	    break;
+	}
 	if (write(qfd[1], buf, i) != i) {
-	    msgDebug("Write error on transfer to cpio process, try of %d bytes\n", i);
+	    msgConfirm("Write error on transfer to cpio process, try of %d bytes\n", i);
 	    break;
 	}
 	else {
@@ -600,7 +633,10 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
 		    total, dist, (total / seconds) / 1024.0);
 	}
+	alarm_set(mediaTimeout(), media_timeout);
     }
+    alarm_clear();
+    sigaction(SIGINT, &old, NULL);	/* restore sigint */
     close(qfd[1]);
 
     i = waitpid(zpid, &j, 0);
@@ -625,7 +661,7 @@ mediaGetType(dialogMenuItem *self)
     int i;
 
     i = dmenuOpenSimple(&MenuMedia, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */

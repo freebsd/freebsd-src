@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: dist.c,v 1.73.2.13 1997/01/15 07:31:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,6 +36,7 @@
 
 #include "sysinstall.h"
 #include <sys/time.h>
+#include <signal.h>
 
 unsigned int Dists;
 unsigned int DESDists;
@@ -269,7 +270,7 @@ distSetDES(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 static int
@@ -300,7 +301,7 @@ distMaybeSetDES(dialogMenuItem *self)
 	else
 	    i = DITEM_FAILURE;
     }
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -316,7 +317,7 @@ distSetSrc(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -336,7 +337,18 @@ distSetXF86(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
+}
+
+/* timeout handler */
+static void
+media_timeout(int sig)
+{
+    if (sig != SIGINT)
+	msgDebug("A media timeout occurred.\n");
+    else
+	msgDebug("User generated interrupt.\n");
+    alarm(0);
 }
 
 static Boolean
@@ -350,6 +362,7 @@ distExtract(char *parent, Distribution *me)
     Attribs *dist_attr;
     WINDOW *w = savescr();
     struct timeval start, stop;
+    struct sigaction old, new;
 
     status = TRUE;
     dialog_clear_norefresh();
@@ -388,15 +401,25 @@ distExtract(char *parent, Distribution *me)
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	if (fp > 0) {
+	    int status;
+
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse(dist_attr, fp)) == DITEM_FAILURE)
+
+	    /* Make ^C fake a sudden timeout */
+	    new.sa_handler = media_timeout;
+	    new.sa_flags = 0;
+	    new.sa_mask = 0;
+	    sigaction(SIGINT, &new, &old);
+
+	    alarm_set(mediaTimeout(), media_timeout);
+	    status = attr_parse(dist_attr, fp);
+	    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
+	    if (!alarm_clear() || DITEM_STATUS(status) == DITEM_FAILURE)
 		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
-		if (isDebug())
-		    msgDebug("Looking for attribute `pieces'\n");
 		tmp = attr_match(dist_attr, "pieces");
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
@@ -445,8 +468,16 @@ distExtract(char *parent, Distribution *me)
 	total = 0;
 	(void)gettimeofday(&start, (struct timezone *)0);
 
-	/* We have one or more chunks, go pick them up */
+	/* We have one or more chunks, initialize unpackers... */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
+
+	/* Make ^C fake a sudden timeout */
+	new.sa_handler = media_timeout;
+	new.sa_flags = 0;
+	new.sa_mask = 0;
+	sigaction(SIGINT, &new, &old);
+
+	/* And go for all the chunks */
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval, last_msg;
 	    char prompt[80];
@@ -464,11 +495,18 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
+
+
 	    while (1) {
 		int seconds;
 
+		alarm_set(mediaTimeout(), media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
-		if (n <= 0)
+		if (!alarm_clear()) {
+		    msgConfirm("Media read error:  Timeout or user abort.");
+		    break;
+		}
+		else if (n <= 0)
 		    break;
 		total += n;
 
@@ -497,6 +535,7 @@ distExtract(char *parent, Distribution *me)
 	    }
 	    fclose(fp);
 	}
+	sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
         goto done;
@@ -522,12 +561,15 @@ distExtract(char *parent, Distribution *me)
 		    status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
 				      "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
+		    dialog_clear();
 		}
 	    }
 	}
 	/* Extract was successful, remove ourselves from further consideration */
 	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
+	else
+	    continue;
     }
     restorescr(w);
     return status;

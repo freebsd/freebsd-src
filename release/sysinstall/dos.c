@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.14 1996/08/23 07:55:58 jkh Exp $
+ * $Id: dos.c,v 1.14.2.1 1996/12/12 11:18:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,8 +60,7 @@ mediaInitDOS(Device *dev)
 	return FALSE;
     }
     DOSMounted = TRUE;
-    if (isDebug())
-	msgDebug("DOS partition %s mounted\n", dev->devname);
+    msgDebug("DOS partition %s mounted\n", dev->devname);
     return TRUE;
 }
 

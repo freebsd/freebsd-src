@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id$
+ * $Id: ftp.c,v 1.18.2.5 1997/01/16 01:19:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,21 +67,28 @@ mediaInitFTP(Device *dev)
     }
 
     /* If we can't initialize the network, bag it! */
-    if (!netdev->init(netdev))
+    if (netdev && !netdev->init(netdev))
 	return FALSE;
 
 try:
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL)
-	return FALSE;
+	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL) {
+	    msgConfirm("Unable to get proper FTP path.  FTP media not initialized.");
+	    if (netdev)
+		netdev->shutdown(netdev);
+	    return FALSE;
+	}
     }
 
     hostname = variable_get(VAR_FTP_HOST);
     dir = variable_get(VAR_FTP_DIR);
-    if (!hostname || !dir)
-	msgFatal("Missing FTP host or directory specification - something's wrong!");
-
+    if (!hostname || !dir) {
+	msgConfirm("Missing FTP host or directory specification.  FTP media not initialized,");
+	if (netdev)
+	    netdev->shutdown(netdev);
+	return FALSE;
+    }
     user = variable_get(VAR_FTP_USER);
     login_name = (!user || !*user) ? "anonymous" : user;
 
@@ -91,10 +98,7 @@ try:
 	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
     msgNotify("Logging in to %s@%s..", login_name, hostname);
     if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
-	if (variable_get(VAR_NO_CONFIRM))
-	    msgNotify("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
-	else
-	    msgConfirm("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
+	msgConfirm("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
 	goto punt;
     }
 
@@ -145,6 +149,8 @@ punt:
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
+    if (netdev)
+	netdev->shutdown(netdev);
     variable_unset(VAR_FTP_PATH);
     return FALSE;
 }
@@ -215,12 +221,11 @@ mediaShutdownFTP(Device *dev)
     if (!ftpInitted)
 	return;
 
-    if (isDebug())
-	msgDebug("FTP shutdown called.  OpenConn = %x\n", OpenConn);
+    msgDebug("FTP shutdown called.  OpenConn = %x\n", OpenConn);
     if (OpenConn != NULL) {
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    /* netdev->shutdown(netdev); */
+    /* if (netdev) netdev->shutdown(netdev); */
     ftpInitted = FALSE;
 }

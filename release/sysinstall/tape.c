@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.13 1996/08/23 07:56:00 jkh Exp $
+ * $Id: tape.c,v 1.13.2.1 1996/12/12 11:18:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,8 +59,11 @@ mediaInitTape(Device *dev)
 
     msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
     Mkdir(dev->private);
-    if (chdir(dev->private))
+    if (chdir(dev->private)) {
+	msgConfirm("Unable to CD to %s before extracting tape!\n"
+		   "Tape media not selected.", dev->private);
 	return FALSE;
+    }
     /* We know the tape is already in the drive, so go for it */
     msgNotify("Attempting to extract from %s...", dev->description);
     if (!strcmp(dev->name, "rft0"))
@@ -73,7 +76,8 @@ mediaInitTape(Device *dev)
 	return TRUE;
     }
     else
-	msgConfirm("Tape extract command failed with status %d!", i);
+	msgConfirm("Tape extract command failed with status %d!\n"
+		   "Unable to use tape media.", i);
     return FALSE;
 }
 

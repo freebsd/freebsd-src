@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.14 1996/12/13 07:55:06 jkh Exp $
+ * $Id: config.c,v 1.51.2.15 1997/01/15 04:50:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -575,7 +575,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 #ifdef NETCON_EXTENTIONS

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.19 1997/01/16 01:19:21 jkh Exp $
+ * $Id: install.c,v 1.134.2.20 1997/01/17 08:53:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -443,25 +443,27 @@ installExpress(dialogMenuItem *self)
 
     if (!Dists) {
 	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     if (!mediaDevice) {
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
+
+    if (!mediaDevice->init(mediaDevice))
+	return DITEM_FAILURE | DITEM_REDRAW;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Give user the option of one last configuration spree */
 	installConfigure();
-
-	/* Now write out any changes .. */
-	configSysconfig("/etc/sysconfig");
     }
-    return i | DITEM_RECREATE;
+    /* Now write out any changes .. */
+    configSysconfig("/etc/sysconfig");
+    return i | DITEM_RESTORE;
 }
 
 /* Novice mode installation */
@@ -495,15 +497,21 @@ installNovice(dialogMenuItem *self)
 
     while (1) {
 	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-	
-	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
+	    return DITEM_FAILURE | DITEM_RESTORE;
+
+	if (Dists)
 	    break;
+
+	if (msgYesNo("No distributions selected.  Revisit the distributions menu?"))
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     if (!mediaDevice && (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice))
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RESTORE;
+
+    if (!mediaDevice->init(mediaDevice))
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
 	dialog_clear_norefresh();
@@ -512,7 +520,7 @@ installNovice(dialogMenuItem *self)
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
-	return i | DITEM_RECREATE;
+	return i | DITEM_RESTORE;
 
     }
     else {
@@ -624,7 +632,7 @@ installNovice(dialogMenuItem *self)
     /* Now write out any changes .. */
     configSysconfig("/etc/sysconfig");
 
-    return DITEM_LEAVE_MENU | DITEM_RECREATE;
+    return DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
 
 /* The version of commit we call from the Install Custom menu */
@@ -668,7 +676,7 @@ installCommit(dialogMenuItem *self)
 	if (!msgYesNo("No distributions are selected for installation!  Do you\n"
 		      "want to do this now?")) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-		return DITEM_FAILURE | DITEM_RECREATE;
+		return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	else
 	    return DITEM_FAILURE | DITEM_RESTORE;
@@ -678,7 +686,7 @@ installCommit(dialogMenuItem *self)
 	if (!msgYesNo("You need to select a media type first.  Do you want\n"
 		      "to do this now?")) {
 	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-		return DITEM_FAILURE | DITEM_RECREATE;
+		return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	else
 		return DITEM_FAILURE | DITEM_RESTORE;
@@ -713,7 +721,7 @@ installCommit(dialogMenuItem *self)
     else
 	i = DITEM_FAILURE;
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 static void
@@ -996,6 +1004,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
+    variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else
