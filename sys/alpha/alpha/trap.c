@@ -421,7 +421,6 @@ trap(a0, a1, a2, entry, framep)
 			}
 	
 			alpha_fpstate_switch(p);
-
 			goto out;
 
 		default:
@@ -510,6 +509,7 @@ trap(a0, a1, a2, entry, framep)
 				break;
 #ifdef DIAGNOSTIC
 			default:		/* XXX gcc -Wuninitialized */
+				mtx_unlock(&Giant);
 				goto dopanic;
 #endif
 			}
@@ -562,12 +562,12 @@ trap(a0, a1, a2, entry, framep)
 			 * we need to reflect that as an access error.
 			 */
 			if (map != kernel_map &&
-			    (caddr_t)va >= vm->vm_maxsaddr
-			    && (caddr_t)va < (caddr_t)USRSTACK) {
+			    (caddr_t)va >= vm->vm_maxsaddr &&
+			    (caddr_t)va < (caddr_t)USRSTACK) {
 				if (rv == KERN_SUCCESS) {
-					unsigned nss;
-	
-					nss = alpha_btop(round_page(USRSTACK - va));
+					unsigned long nss, rp;
+					rp = round_page(USRSTACK - va);
+					nss = alpha_btop(rp);
 					if (nss > vm->vm_ssize)
 						vm->vm_ssize = nss;
 				} else if (rv == KERN_PROTECTION_FAILURE)
@@ -626,13 +626,10 @@ out:
 
 dopanic:
 	printtrap(a0, a1, a2, entry, framep, 1, user);
-
 	/* XXX dump registers */
-
 #ifdef DDB
 	kdb_trap(a0, a1, a2, entry, framep);
 #endif
-
 	panic("trap");
 }
 
