@@ -774,14 +774,28 @@ pmap_deactivate(struct thread *td)
 vm_offset_t
 pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 {
-	TODO;
-	return (0);
+
+	return (va);
 }
 
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 {
-	TODO;
+	struct	pvo_entry *pvo;
+
+	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+
+	if (pvo != NULL) {
+		if (wired) {
+			if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
+				pm->pm_stats.wired_count++;
+			pvo->pvo_vaddr |= PVO_WIRED;
+		} else {
+			if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
+				pm->pm_stats.wired_count--;
+			pvo->pvo_vaddr &= ~PVO_WIRED;
+		}
+	}
 }
 
 void
@@ -934,9 +948,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 }
 
 vm_offset_t
-pmap_extract(pmap_t pmap, vm_offset_t va)
+pmap_extract(pmap_t pm, vm_offset_t va)
 {
-	TODO;
+	struct	pvo_entry *pvo;
+
+	pvo = pmap_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+
+	if (pvo != NULL) {
+		return ((pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF));
+	}
+
 	return (0);
 }
 
@@ -975,8 +996,11 @@ pmap_init2(void)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
-	TODO;
-	return (0);
+
+	if (m->flags & PG_FICTITIOUS)
+		return (FALSE);
+
+	return (pmap_query_bit(m, PTE_CHG));
 }
 
 void
