@@ -21,12 +21,12 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.7 1996/08/21 01:12:11 jkh Exp $
+ * $Id: ftpio.h,v 1.8 1996/09/19 17:28:34 peter Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */
 typedef struct {
-    enum { init, isopen } con_state;
+    enum { init, isopen, quit } con_state;
     int		fd_ctrl;
     int		addrtype;
     char	*host;
