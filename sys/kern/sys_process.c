@@ -321,6 +321,9 @@ struct ptrace_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 ptrace(struct thread *td, struct ptrace_args *uap)
 {
@@ -627,7 +630,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		uio.uio_segflg = UIO_SYSSPACE;	/* i.e.: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_td = td;
+		mtx_lock(&Giant);
 		error = proc_rwmem(p, &uio);
+		mtx_unlock(&Giant);
 		if (uio.uio_resid != 0) {
 			/*
 			 * XXX proc_rwmem() doesn't currently return ENOSPC,
@@ -668,7 +673,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		default:
 			return (EINVAL);
 		}
+		mtx_lock(&Giant);
 		error = proc_rwmem(p, &uio);
+		mtx_unlock(&Giant);
 		piod->piod_len -= uio.uio_resid;
 		return (error);
 
