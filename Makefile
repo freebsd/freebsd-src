@@ -188,7 +188,7 @@ world:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding.. The whole thing"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} all install
+	cd ${.CURDIR} && ${MAKE} depend && ${MAKE} all install
 	cd ${.CURDIR}/share/man && ${MAKE} makedb
 .if target(post-world)
 	@echo
@@ -337,11 +337,11 @@ mk:
 # for the dependency information to be gathered from.
 #
 bootstrap:
-	cd ${.CURDIR}/usr.bin/make && \
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall && \
+	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && \
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} -DNOLIB all install ${CLEANDIR} ${OBJDIR}
 
 #
@@ -351,8 +351,8 @@ bootstrap:
 # XXX should be merged with bootstrap, it's not worth keeeping them seperate
 #
 include-tools:
-	cd ${.CURDIR}/usr.bin/rpcgen && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 
 #
 # includes - possibly generate and install the include files.
@@ -398,22 +398,22 @@ includes:
 # lib-tools - build tools to compile and install the libraries.
 #
 lib-tools:
-	cd ${.CURDIR}/usr.bin/tsort && \
+	cd ${.CURDIR}/usr.bin/tsort && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/ld && \
+	cd ${.CURDIR}/gnu/usr.bin/ld && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/ar && \
+	cd ${.CURDIR}/usr.bin/ar && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/ranlib && \
+	cd ${.CURDIR}/usr.bin/ranlib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/nm && \
+	cd ${.CURDIR}/usr.bin/nm && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex/lib && \
+	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/compile_et && \
+	cd ${.CURDIR}/usr.bin/compile_et && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} && \
 		rm -f /usr/sbin/compile_et
-	cd ${.CURDIR}/usr.bin/mk_cmds && \
+	cd ${.CURDIR}/usr.bin/mk_cmds && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 #
@@ -421,45 +421,45 @@ lib-tools:
 #
 libraries:
 .if exists(lib/libcompat)
-	cd ${.CURDIR}/lib/libcompat && \
+	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
-	cd ${.CURDIR}/lib/libncurses && \
+	cd ${.CURDIR}/lib/libncurses && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
-	cd ${.CURDIR}/lib/libtermcap && \
+	cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
-	cd ${.CURDIR}/lib/csu/i386 && \
+	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(gnu)
-	cd ${.CURDIR}/gnu/lib && \
+	cd ${.CURDIR}/gnu/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
+	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib && \
+	cd ${.CURDIR}/secure/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
-	cd ${.CURDIR}/lib && \
+	cd ${.CURDIR}/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.bin/lex/lib)
-	cd ${.CURDIR}/usr.bin/lex/lib && \
+	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/lib && \
+	cd ${.CURDIR}/eBones/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
-	cd ${.CURDIR}/usr.sbin/pcvt/keycap && \
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 
@@ -468,15 +468,15 @@ libraries:
 # compile and install.
 #
 build-tools:
-	cd ${.CURDIR}/gnu/usr.bin/cc && \
+	cd ${.CURDIR}/gnu/usr.bin/cc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/symorder && \
+	cd ${.CURDIR}/usr.bin/symorder && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/sgmlfmt && \
+	cd ${.CURDIR}/usr.bin/sgmlfmt && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/share/sgml && \
+	cd ${.CURDIR}/share/sgml && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/usr.sbin/zic && \
+	cd ${.CURDIR}/usr.sbin/zic && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 .include <bsd.subdir.mk>
