@@ -1039,8 +1039,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		kse_switchout_thread(curkse, curthread);
 	curkse->k_curthread = NULL;
 
-	kse_wakeup_multi(curkse);
-
 #ifdef DEBUG_THREAD_KERN
 	dump_queues(curkse);
 #endif
@@ -1071,6 +1069,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		 * created thread would be assigned to us (the initial
 		 * kse[g]).
 		 */
+		kse_wakeup_multi(curkse);
 		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 		kse_fini(curkse);
 		/* never returns */
@@ -1106,8 +1105,6 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	curframe = curthread->curframe;
 	curthread->curframe = NULL;
 
-	kse_wakeup_multi(curkse);
-
 	/*
 	 * The thread's current signal frame will only be NULL if it
 	 * is being resumed after being blocked in the kernel.  In
@@ -1130,6 +1127,7 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		    (__sighandler_t *)thr_resume_wrapper);
 	}
 #endif
+	kse_wakeup_multi(curkse);
 	/*
 	 * Continue the thread at its current frame:
 	 */
