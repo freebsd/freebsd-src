@@ -292,6 +292,9 @@ i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			strcpy(cd->dst_telno, mcr->dst_telno);
 			strcpy(cd->src_telno, mcr->src_telno);
 
+			strcpy(cd->dst_subaddr, mcr->dst_subaddr);
+			strcpy(cd->src_subaddr, mcr->src_subaddr);
+
 			if(mcr->keypad[0] != '\0')
 				strcpy(cd->keypad, mcr->keypad);
 			else

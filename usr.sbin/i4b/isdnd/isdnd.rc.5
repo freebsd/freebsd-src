@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Sat Jul 21 13:27:41 2001]
+.\"     last edit-date: [Tue Mar 26 14:35:02 2002]
 .\"
-.Dd July 21, 2001
+.Dd March 26, 2002
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -577,6 +577,15 @@ out to a remote site, the number specified here is put into the
 This keyword is mandatory for the
 .Em ipr
 user-land interfaces.
+.It Li local-subaddr-dialout
+The local subaddress used when the local site dials out.
+When dialing
+out to a remote site, the subaddress specified here is put into the
+.Em "Calling Party Subaddress Information Element" .
+.Pp
+This keyword is mandatory for the
+.Em ipr
+user-land interfaces.
 .It Li local-phone-incoming
 The local telephone number used for verifying the destination of incoming
 calls.
@@ -585,6 +594,19 @@ is the local site which the remote site wants to connect to.
 It is compared
 with the
 .Em "Called Party Number Information Element"
+got from the telephone exchange.
+.Pp
+This keyword is mandatory for the
+.Em ipr
+interfaces.
+.It Li local-subaddr-incoming
+The local subaddress used for verifying the destination of incoming
+calls.
+When a remote site dials in, this subaddress is used to verify that it
+is the local site which the remote site wants to connect to.
+It is compared
+with the
+.Em "Called Party Subaddress Information Element"
 got from the telephone exchange.
 .Pp
 This keyword is mandatory for the
@@ -757,6 +779,17 @@ This keyword is mandatory for the
 interfaces.
 It may be specified more than once to try to dial to several
 numbers until one succeeds.
+.It Li remote-subaddr-dialout
+The remote subaddress used when the local site dials out.
+When dialing
+out to a remote site, the subaddress specified here is put into the
+.Em "Called Party Subaddress Information Element" .
+.Pp
+This keyword is mandatory for the
+.Em ipr
+interfaces.
+It may be specified more than once to linked it to the
+remote-phone-dialout numbers until one succeeds.
 .It Li remote-phone-incoming
 The remote telephone number used to verify an incoming call.
 When a remote site
@@ -765,6 +798,19 @@ which is herewith authorized to connect into the local system.
 This parameter
 is compared against the
 .Em "Calling Party Number Information Element"
+got from the telephone exchange.
+.Pp
+This keyword is mandatory for the ipr interfaces.
+.Pp
+This keyword may have a wildcard parameter '*' to permit anyone dialing in.
+.It Li remote-subaddr-incoming
+The remote subaddress used to verify an incoming call.
+When a remote site
+dials in, this subaddress is used to verify that it is the correct remote site
+which is herewith authorized to connect into the local system.
+This parameter
+is compared against the
+.Em "Calling Party Subaddress Information Element"
 got from the telephone exchange.
 .Pp
 This keyword is mandatory for the ipr interfaces.
@@ -831,6 +877,11 @@ It is used in the
 .Nm isdnd
 daemon to dynamically enable and disable the IP interfaces to avoid excessive
 dialing activities in case of transient failures (such as busy lines).
+This parameter is optional and is set to
+.Em off
+by default.
+.It Li usesubaddr
+is used to enable the use of subaddresses.
 This parameter is optional and is set to
 .Em off
 by default.

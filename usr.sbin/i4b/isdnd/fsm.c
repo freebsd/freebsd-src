@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Jul 21 18:25:48 2001]
+ *      last edit-date: [Tue Mar 26 14:35:56 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -210,7 +210,7 @@ F_DFL(cfg_entry_t *cep)
 	{
 		cep->dial_count++;
 	
-		if(cep->dial_count < cep->dialretries || cep->dialretries == -1) /* Added by FST <mailto:fsteevie@dds.nl> for unlimited dialing (sorry, but I needed it) */
+		if(cep->dial_count < cep->dialretries || cep->dialretries == -1)
 		{
 			/* inside normal retry cycle */
 		
@@ -288,7 +288,7 @@ F_ACBR(cfg_entry_t *cep)
 {	
 	cep->dial_count++;
 
-	if(cep->dial_count < cep->dialretries || cep->dialretries == -1) /* Added by FST <mailto:fsteevie@dds.nl> for unlimited dialing (sorry, but I needed it) */
+	if(cep->dial_count < cep->dialretries || cep->dialretries == -1)
 	{
 		/* inside normal retry cycle */
 	

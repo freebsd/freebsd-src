@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 13:29:19 2001]
+ *      last edit-date: [Tue Mar 26 15:03:59 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -422,7 +422,9 @@ i4b_l3_tx_setup(call_desc_t *cd)
 	u_char *ptr;
 	int len;
 	int slen = strlen(cd->src_telno);
+	int sslen = strlen(cd->src_subaddr);
 	int dlen = strlen(cd->dst_telno);
+	int dslen = strlen(cd->dst_subaddr);
 	int klen = strlen(cd->keypad);	
 
 	/*
@@ -437,7 +439,9 @@ i4b_l3_tx_setup(call_desc_t *cd)
 	len = 	I_FRAME_HDRLEN		+
 		MSG_SETUP_LEN		+
 		(slen ? (3+slen) : 0)	+
+		(sslen ? (3+sslen) : 0)	+
 		(dlen ? (3+dlen) : 0)	+
+		(dslen ? (3+dslen) : 0)	+
 		(klen ? (2+klen) : 0)	+
 		(cd->bprot == BPROT_NONE ? 1 : 0);
 
@@ -521,6 +525,15 @@ i4b_l3_tx_setup(call_desc_t *cd)
 		ptr += slen;
 	}
 
+	if(sslen)
+	{
+		*ptr++ = IEI_CALLINGPS;		/* calling subaddr */
+		*ptr++ = IEI_CALLINGPS_LEN+sslen; /* calling subaddr len */
+		*ptr++ = SUBADDR_TYPE_NSAP;	/* type = NSAP */
+		strncpy(ptr, cd->src_subaddr, sslen);
+		ptr += sslen;
+	}
+
 	if(dlen)
 	{
 		*ptr++ = IEI_CALLEDPN;		/* called party no */
@@ -528,6 +541,15 @@ i4b_l3_tx_setup(call_desc_t *cd)
 		*ptr++ = NUMBER_TYPEPLAN;	/* type of number, number plan id */
 		strncpy(ptr, cd->dst_telno, dlen);
 		ptr += dlen;
+	}
+
+	if(dslen)
+	{	
+		*ptr++ = IEI_CALLEDPS;		/* calling party subaddr */
+		*ptr++ = IEI_CALLEDPS_LEN+dslen;/* calling party subaddr len */
+		*ptr++ = SUBADDR_TYPE_NSAP;	/* type = NSAP */
+		strncpy(ptr, cd->dst_subaddr, dslen);
+		ptr += dslen;
 	}
 	
 	DL_Data_Req(ctrl_desc[cd->controller].unit, m);
