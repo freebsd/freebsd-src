@@ -3178,7 +3178,8 @@ asr_attach (ATTACH_ARGS)
 	/*
 	 *	Generate the device node information
 	 */
-	(void)make_dev(&asr_cdevsw, unit, 0, 0, S_IRWXU, "rasr%d", unit);
+	(void)make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
+	    "rasr%d", unit);
 	ATTACH_RETURN(0);
 } /* asr_attach */
 
