@@ -337,7 +337,7 @@ mac_externalize_ifnet_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(ifnet_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(ifnet, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -348,7 +348,7 @@ mac_externalize_socket_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(socket_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(socket, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -359,7 +359,7 @@ mac_externalize_socket_peer_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(socket_peer_label, label, elements, outbuf, outbuflen);
+	MAC_EXTERNALIZE(socket_peer, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -369,7 +369,7 @@ mac_internalize_ifnet_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(ifnet_label, label, string);
+	MAC_INTERNALIZE(ifnet, label, string);
 
 	return (error);
 }
@@ -379,7 +379,7 @@ mac_internalize_socket_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(socket_label, label, string);
+	MAC_INTERNALIZE(socket, label, string);
 
 	return (error);
 }
