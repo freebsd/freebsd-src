@@ -11,7 +11,7 @@
 _xlint=	xlint
 .endif
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "amd64"
 _gprof=	gprof
 _truss=	truss
 .endif
