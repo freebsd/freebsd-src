@@ -224,7 +224,7 @@
 
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
-      FA312-TX.</para>
+      FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
 
       <para>The &man.tap.4; driver, a virtual Ethernet device driver for
       bridged configurations, has been added. &merged;</para>
