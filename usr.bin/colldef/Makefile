@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/10/22 00:58:41 ache Exp $
+# $Id: Makefile,v 1.6 1995/11/03 14:53:27 ache Exp $
 
 PROG = colldef
 LFLAGS = -8 -i
@@ -7,7 +7,7 @@ CFLAGS += -I. -I${.CURDIR}/../../lib/libc/locale
 SRCS = parse.c scan.c
 LDADD = -ll
 DPADD = ${LIBL}
-CLEANFILES += lex.yy.c parse.c scan.c y.tab.[ch]
+CLEANFILES += parse.c scan.c parse.tab.h
 SUBDIR = data
 
 .include <bsd.prog.mk>
