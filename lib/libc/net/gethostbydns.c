@@ -310,10 +310,11 @@ gethostanswer(answer, anslen, qname, qtype)
 			continue;
 		}
 		if (type != qtype) {
-			syslog(LOG_NOTICE|LOG_AUTH,
+			if (type != T_SIG)
+				syslog(LOG_NOTICE|LOG_AUTH,
 	"gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
-			       qname, p_class(C_IN), p_type(qtype),
-			       p_type(type));
+				       qname, p_class(C_IN), p_type(qtype),
+				       p_type(type));
 			cp += n;
 			continue;		/* XXX - had_error++ ? */
 		}
