@@ -1,0 +1,77 @@
+.TH pbm 5 "27 September 1991"
+.SH NAME
+pbm - portable bitmap file format
+.SH DESCRIPTION
+The portable bitmap format is a lowest common denominator monochrome
+file format.
+.IX "PBM file format"
+It was originally designed to make it reasonable to mail bitmaps
+between different types of machines using the typical stupid network
+mailers we have today.
+Now it serves as the common language of a large family of bitmap
+conversion filters.
+The definition is as follows:
+.IP - 2
+A "magic number" for identifying the file type.
+A pbm file's magic number is the two characters "P1".
+.IX "magic numbers"
+.IP - 2
+Whitespace (blanks, TABs, CRs, LFs).
+.IP - 2
+A width, formatted as ASCII characters in decimal.
+.IP - 2
+Whitespace.
+.IP - 2
+A height, again in ASCII decimal.
+.IP - 2
+Whitespace.
+.IP - 2
+Width * height bits, each either '1' or '0', starting at the top-left
+corner of the bitmap, proceeding in normal English reading order.
+.IP - 2
+The character '1' means black, '0' means white.
+.IP - 2
+Whitespace in the bits section is ignored.
+.IP - 2
+Characters from a "#" to the next end-of-line are ignored (comments).
+.IP - 2
+No line should be longer than 70 characters.
+.PP
+Here is an example of a small bitmap in this format:
+.nf
+P1
+# feep.pbm
+24 7
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 1 1 1 1 0 0 1 1 1 1 0 0 1 1 1 1 0 0 1 1 1 1 0
+0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 1 0
+0 1 1 1 0 0 0 1 1 1 0 0 0 1 1 1 0 0 0 1 1 1 1 0
+0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0
+0 1 0 0 0 0 0 1 1 1 1 0 0 1 1 1 1 0 0 1 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+.fi
+.PP
+Programs that read this format should be as lenient as possible,
+accepting anything that looks remotely like a bitmap.
+.PP
+There is also a variant on the format, available
+by setting the RAWBITS option at compile time.  This variant is
+.IX RAWBITS
+different in the following ways:
+.IP - 2
+The "magic number" is "P4" instead of "P1".
+.IP - 2
+The bits are stored eight per byte, high bit first low bit last.
+.IP - 2
+No whitespace is allowed in the bits section, and only a single character
+of whitespace (typically a newline) is allowed after the height.
+.IP - 2
+The files are eight times smaller and many times faster to read and write.
+.SH AUTHOR
+Copyright (C) 1989, 1991 by Jef Poskanzer.
+.\" Permission to use, copy, modify, and distribute this software and its
+.\" documentation for any purpose and without fee is hereby granted, provided
+.\" that the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation.  This software is provided "as is" without express or
+.\" implied warranty.
