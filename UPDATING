@@ -1071,8 +1071,34 @@ COMMON ITEMS:
 	<reboot>
 
 
-	To upgrade from 4.x-stable to current
-	-------------------------------------
+	To cross-install current onto a separate partition
+	--------------------------------------------------
+	# In this approach we use a separate partition to hold
+	# current's root, 'usr', and 'var' directories.   A partition
+	# holding "/", "/usr" and "/var" should be about 2GB in
+	# size.
+
+	<make sure you have good level 0 dumps>
+	<boot into -stable>
+	make buildworld
+	<maybe newfs current's root partition>
+	<mount current's root partition on directory ${CURRENT_ROOT}>
+	make installworld DESTDIR=${CURRENT_ROOT}
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	cp /usr/src/sys/${ARCH}/conf/GENERIC.hints \
+		${CURRENT_ROOT}/boot/device.hints	# as needed
+	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
+	cd /usr/src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
+	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
+	<reboot into current>
+	<do a "native" rebuild/install as described in the previous section>
+	<maybe install compatibility libraries from /usr/src/lib/compat>
+ 	<reboot>	
+
+
+	To upgrade in-place from 4.x-stable to current 
+	----------------------------------------------
 	# 5.x uses more space than 4.x.  Also, the location of kernel
 	# modules has changed.  If you are installing 5.0 onto a 4.x
 	# system, you'll need about 30MB of free disk space on your /
