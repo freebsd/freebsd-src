@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.18 1995/07/20 16:26:26 wollman Exp $
+#	$Id: sysconfig,v 1.19 1995/08/10 16:25:57 ache Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -157,6 +157,9 @@ savecore=NO
 
 # Set to YES if you want to run Kerberos authentication
 kerberos_server=NO
+
+# If you want this host to be a gateway, set to YES.
+gateway=NO
 
 # Set to YES if you want to run gated
 gated=NO
