@@ -61,8 +61,10 @@ fmtmsg(long class, const char *label, int sev, const char *text,
 		    strlen(env) <= strlen(DFLT_MSGVERB)) {
 			if ((msgverb = strdup(env)) == NULL)
 				return (MM_NOTOK);
-			else if (validmsgverb(msgverb) == 0)
+			else if (validmsgverb(msgverb) == 0) {
+				free(msgverb);
 				goto def;
+			}
 		} else {
 def:
 			if ((msgverb = strdup(DFLT_MSGVERB)) == NULL)
@@ -155,6 +157,11 @@ printfmt(char *msgverb, long class, const char *label, int sev,
 	return (output);
 }
 
+/*
+ * Returns a component of a colon delimited string.  NULL is returned to
+ * indicate that there are no remaining components.  This function must be
+ * called until it returns NULL in order for the local state to be cleared.
+ */
 static char *
 nextcomp(const char *msgverb)
 {
@@ -197,18 +204,15 @@ static int
 validmsgverb(const char *msgverb)
 {
 	char *msgcomp;
-	const char *validcomp;
+	int i, equality;
 
+	equality = 0;
 	while ((msgcomp = nextcomp(msgverb)) != NULL) {
-		if (*msgcomp == '\0')
-			return (0);
-		for (validcomp = *validlist;
-		    validcomp != NULL; validcomp++) {
-			if (strcmp(msgcomp, validcomp) == 0)
-				break;
+		equality--;
+		for (i = 0; validlist[i] != NULL; i++) {
+			if (strcmp(msgcomp, validlist[i]) == 0)
+				equality++;
 		}
-		if (validcomp == NULL)
-			return (0);
 	}
-	return (1);
+	return (!equality);
 }
