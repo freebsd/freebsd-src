@@ -207,16 +207,6 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq))
 		return (0);
 
-	/* If the setting is for a different CPU, switch to it. */
-	cpu_id = PCPU_GET(cpuid);
-	pc = cpu_get_pcpu(dev);
-	KASSERT(pc, ("NULL pcpu for dev %p", dev));
-	if (cpu_id != pc->pc_cpuid) {
-		mtx_lock_spin(&sched_lock);
-		sched_bind(curthread, pc->pc_cpuid);
-		mtx_unlock_spin(&sched_lock);
-	}
-
 	/* First, set the absolute frequency via its driver. */
 	set = &level->abs_set;
 	if (set->dev) {
@@ -224,7 +214,21 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 			error = ENXIO;
 			goto out;
 		}
+
+		/* Bind to the target CPU before switching, if necessary. */
+		cpu_id = PCPU_GET(cpuid);
+		pc = cpu_get_pcpu(set->dev);
+		if (cpu_id != pc->pc_cpuid) {
+			mtx_lock_spin(&sched_lock);
+			sched_bind(curthread, pc->pc_cpuid);
+			mtx_unlock_spin(&sched_lock);
+		}
 		error = CPUFREQ_DRV_SET(set->dev, set);
+		if (cpu_id != pc->pc_cpuid) {
+			mtx_lock_spin(&sched_lock);
+			sched_unbind(curthread);
+			mtx_unlock_spin(&sched_lock);
+		}
 		if (error) {
 			goto out;
 		}
@@ -237,7 +241,21 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 			error = ENXIO;
 			goto out;
 		}
+
+		/* Bind to the target CPU before switching, if necessary. */
+		cpu_id = PCPU_GET(cpuid);
+		pc = cpu_get_pcpu(set->dev);
+		if (cpu_id != pc->pc_cpuid) {
+			mtx_lock_spin(&sched_lock);
+			sched_bind(curthread, pc->pc_cpuid);
+			mtx_unlock_spin(&sched_lock);
+		}
 		error = CPUFREQ_DRV_SET(set->dev, set);
+		if (cpu_id != pc->pc_cpuid) {
+			mtx_lock_spin(&sched_lock);
+			sched_unbind(curthread);
+			mtx_unlock_spin(&sched_lock);
+		}
 		if (error) {
 			/* XXX Back out any successful setting? */
 			goto out;
@@ -266,12 +284,6 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	error = 0;
 
 out:
-	/* If we switched to another CPU, switch back before exiting. */
-	if (cpu_id != pc->pc_cpuid) {
-		mtx_lock_spin(&sched_lock);
-		sched_unbind(curthread);
-		mtx_unlock_spin(&sched_lock);
-	}
 	if (error)
 		device_printf(set->dev, "set freq failed, err %d\n", error);
 	return (error);
@@ -732,7 +744,6 @@ cpufreq_register(device_t dev)
 	 * must offer the same levels and be switched at the same time.
 	 */
 	cpu_dev = device_get_parent(dev);
-	KASSERT(cpu_dev != NULL, ("no parent for %p", dev));
 	if (device_find_child(cpu_dev, "cpufreq", -1))
 		return (0);
 
@@ -761,7 +772,6 @@ cpufreq_unregister(device_t dev)
 	if (error)
 		return (error);
 	cf_dev = devclass_get_device(cpufreq_dc, 0);
-	KASSERT(cf_dev != NULL, ("unregister with no cpufreq dev"));
 	cfcount = 0;
 	for (i = 0; i < devcount; i++) {
 		if (!device_is_attached(devs[i]))
