@@ -1408,4 +1408,19 @@ opencrypto/skipjack.c           optional crypto
 opencrypto/xform.c              optional crypto
 dev/ubsec/ubsec.c		optional ubsec
 dev/hifn/hifn7751.c		optional hifn 
+dev/drm/mga_dma.c	optional mgadrm
+dev/drm/mga_drv.c	optional mgadrm
+dev/drm/mga_irq.c	optional mgadrm
+dev/drm/mga_state.c	optional mgadrm
+dev/drm/mga_warp.c	optional mgadrm
+dev/drm/r128_cce.c	optional r128drm
+dev/drm/r128_drv.c	optional r128drm
+dev/drm/r128_irq.c	optional r128drm
+dev/drm/r128_state.c	optional r128drm
+dev/drm/radeon_cp.c	optional radeondrm
+dev/drm/radeon_drv.c	optional radeondrm
+dev/drm/radeon_irq.c	optional radeondrm
+dev/drm/radeon_mem.c	optional radeondrm
+dev/drm/radeon_state.c	optional radeondrm
+dev/drm/tdfx_drv.c	optional tdfxdrm
 

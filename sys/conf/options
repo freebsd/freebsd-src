@@ -330,6 +330,9 @@ NETGRAPH_TTY		opt_netgraph.h
 NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
 
+# DRM options
+DRM_DEBUG		opt_drm.h
+
 # ATM (HARP version)
 ATM_CORE		opt_atm.h
 ATM_IP			opt_atm.h

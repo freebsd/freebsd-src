@@ -2735,6 +2735,23 @@ pseudo-device	cryptodev	# /dev/crypto for access to h/w
 device		hifn		# Hifn 7951, 7781, etc.
 device		ubsec		# Broadcom 5501, 5601, 58xx
 
+# DRM options:
+# mgadrm:    AGP Matrox G200, G400, G450, G550
+# tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee
+# r128drm:   ATI Rage 128
+# radeondrm: ATI Radeon up to 9000/9100
+# DRM_DEBUG: include debug printfs, very slow
+#
+# mga requires AGP in the kernel, and it is recommended
+# for AGP r128 and radeon cards.
+
+device		mgadrm
+device		"r128drm"
+device		radeondrm
+device		tdfxdrm
+
+options 	DRM_DEBUG
+
 #
 # Embedded system options:
 #
