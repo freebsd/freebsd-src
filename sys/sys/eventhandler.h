@@ -95,7 +95,7 @@ do {										\
     eventhandler_register(&Xeventhandler_list_ ## name, #name, func, arg, priority)
 
 #define EVENTHANDLER_FAST_DEREGISTER(name, tag) \
-    eventhandler_deregister(&Xeventhandler_list ## name, tag)
+    eventhandler_deregister(&Xeventhandler_list_ ## name, tag)
 
 /*
  * Slow handlers are entirely dynamic; lists are created
