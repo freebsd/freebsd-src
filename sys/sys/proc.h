@@ -543,7 +543,7 @@ struct proc {
 	pid_t		p_oppid; 	/* (c + e) Save ppid in ptrace. XXX */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtime;	/* (j) Time swapped in or out. */
-	struct itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
+	struct itimerval p_realtimer;	/* (c) Alarm timer. */
 	struct bintime	p_runtime;	/* (j) Real time. */
 	u_int64_t	p_uu;		/* (j) Previous user time in usec. */
 	u_int64_t	p_su;		/* (j) Previous system time in usec. */

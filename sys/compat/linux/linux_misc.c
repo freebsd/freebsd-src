@@ -164,7 +164,6 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	struct timeval tv;
-	int s;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
@@ -178,7 +177,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
-	s = splsoftclock();
+	PROC_LOCK(td->td_proc);
 	old_it = td->td_proc->p_realtimer;
 	getmicrouptime(&tv);
 	if (timevalisset(&old_it.it_value))
@@ -189,7 +188,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 		timevaladd(&it.it_value, &tv);
 	}
 	td->td_proc->p_realtimer = it;
-	splx(s);
+	PROC_UNLOCK(td->td_proc);
 	if (timevalcmp(&old_it.it_value, &tv, >)) {
 		timevalsub(&old_it.it_value, &tv);
 		if (old_it.it_value.tv_usec != 0)
