@@ -1188,6 +1188,7 @@ pmap_remove_all(vm_page_t m)
 			continue;
 		pm = TTE_GET_PMAP(tp);
 		va = TTE_GET_VA(tp);
+		PMAP_LOCK(pm);
 		if ((tp->tte_data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
 		if ((tp->tte_data & TD_REF) != 0)
@@ -1201,6 +1202,7 @@ pmap_remove_all(vm_page_t m)
 		pm->pm_stats.resident_count--;
 		pmap_cache_remove(m, va);
 		TTE_ZERO(tp);
+		PMAP_UNLOCK(pm);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
