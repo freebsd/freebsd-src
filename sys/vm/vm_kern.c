@@ -89,8 +89,6 @@ vm_map_t kmem_map=0;
 vm_map_t exec_map=0;
 vm_map_t clean_map=0;
 vm_map_t buffer_map=0;
-vm_map_t mb_map=0;
-int mb_map_full=0;
 
 /*
  *	kmem_alloc_pageable:
@@ -331,6 +329,9 @@ kmem_suballoc(parent, min, max, size)
  *
  *	NOTE:  This routine is not supposed to block if M_NOWAIT is set, but
  *	I have not verified that it actually does not block.
+ *
+ *	`map' is ONLY allowed to be kmem_map or one of the mbuf submaps to
+ *	which we never free.
  */
 vm_offset_t
 kmem_malloc(map, size, flags)
@@ -343,9 +344,6 @@ kmem_malloc(map, size, flags)
 	vm_offset_t addr;
 	vm_page_t m;
 	int hadvmlock;
-
-	if (map != kmem_map && map != mb_map)
-		panic("kmem_malloc: map != {kmem,mb}_map");
 
 	hadvmlock = mtx_owned(&vm_mtx);
 	if (!hadvmlock)
@@ -362,9 +360,9 @@ kmem_malloc(map, size, flags)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
-		if (map == mb_map) {
-			mb_map_full = TRUE;
-			printf("Out of mbuf clusters - adjust NMBCLUSTERS or increase maxusers!\n");
+		if (map != kmem_map) {
+			printf("Out of mbuf address space!\n");
+			printf("Consider increasing NMBCLUSTERS\n");
 			goto bad;
 		}
 		if ((flags & M_NOWAIT) == 0)

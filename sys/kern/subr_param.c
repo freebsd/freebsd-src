@@ -64,17 +64,10 @@ int	tickadj = howmany(30000, 60 * HZ);	/* can adjust 30ms in 60s */
 #define MAXFILES (NPROC*2)
 #endif
 int	maxproc = NPROC;			/* maximum # of processes */
-int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
-int	maxfiles = MAXFILES;			/* system wide open files limit */
-int	maxfilesperproc = MAXFILES;		/* per-process open files limit */
+int	maxprocperuid = NPROC-1;		/* max # of procs per user */
+int	maxfiles = MAXFILES;			/* sys. wide open files limit */
+int	maxfilesperproc = MAXFILES;		/* per-proc open files limit */
 int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
-int	mbuf_wait = 32;				/* mbuf sleep time in ticks */
-
-/* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
-#ifndef NSFBUFS
-#define	NSFBUFS (512 + MAXUSERS * 16)
-#endif
-int	nsfbufs = NSFBUFS;
 
 /*
  * These may be set to nonzero here or by patching.
