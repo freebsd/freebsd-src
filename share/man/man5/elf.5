@@ -431,7 +431,7 @@ size (
 ), the
 .Dq extra
 bytes are defined to hold the value 0 and to follow the segment's
-initialised area. The file size may not be larger than the memory size.
+initialized area. The file size may not be larger than the memory size.
 Loadable segment entries in the program header table appear in ascending
 order, sorted on the
 .Sy p_vaddr
@@ -603,7 +603,7 @@ This member specifies the name of the section. Its value is an index
 into the section header string table section, giving the location of
 a null-terminated string.
 .It Dv sh_type
-This member categorises the section's contents and semantics.
+This member categorizes the section's contents and semantics.
 .Pp
 .Bl -tag -width "SHT_PROGBITS" -compact
 .It Dv SHT_NULL
@@ -751,8 +751,8 @@ fixed-size entries.
 Various sections hold program and control information:
 .Bl -tag -width ".shstrtab" -compact
 .It .bss
-This section holds uninitialised data that contributes to the program's
-memory image. By definition, the system initialises the data with zeros
+This section holds uninitialized data that contributes to the program's
+memory image. By definition, the system initializes the data with zeros
 when the program begins to run. This section is of type
 .Sy SHT_NOBITS .
 The attributes types are
@@ -764,7 +764,7 @@ This section holds version control information. This section is of type
 .Sy SHT_PROGBITS .
 No attribute types are used.
 .It .data
-This section holds initialised data that contribute to the program's
+This section holds initialized data that contribute to the program's
 memory image. This section is of type
 .Sy SHT_PROGBITS .
 The attribute types are
@@ -772,7 +772,7 @@ The attribute types are
 and
 .Sy SHF_WRITE .
 .It .data1
-This section holds initialised data that contribute to the program's
+This section holds initialized data that contribute to the program's
 memory image. This section is of type
 .Sy SHT_PROGBITS .
 The attribute types are
@@ -825,12 +825,12 @@ The attribute used is
 .Sy SHF_ALLOC .
 .It .init
 This section holds executable instructions that contribute to the process
-initialisation code. When a program starts to run the system arranges to
+initialization code. When a program starts to run the system arranges to
 execute the code in this section before calling the main program entry point.
 This section is of type
 .Sy SHT_PROGBITS .
 This section holds executable instructions that contribute to the process
-initialisation code. When a program starts to run the system arranges to
+initialization code. When a program starts to run the system arranges to
 execute the code in this section before calling the main program entry point.
 This section is of type
 .Sy SHT_PROGBITS .
