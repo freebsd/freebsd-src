@@ -19,10 +19,12 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 
 #include "config.h"
+#include "system.h"
 #include "tree.h"
-#include <stdio.h>
 #include "cp-tree.h"
 
 void
@@ -66,16 +68,16 @@ print_lang_type (file, node, indent)
      register tree node;
      int indent;
 {
-  if (TREE_CODE (node) == TEMPLATE_TYPE_PARM)
+  if (TREE_CODE (node) == TEMPLATE_TYPE_PARM
+      || TREE_CODE (node) == TEMPLATE_TEMPLATE_PARM)
     {
-      print_node (file, "tinfo", TYPE_VALUES (node), indent + 4);
-      return;
-    }
-
-  if (TREE_CODE (node) == UNINSTANTIATED_P_TYPE)
-    {
-      print_node (file, "template", UPT_TEMPLATE (node), indent + 4);
-      print_node (file, "parameters", UPT_PARMS (node), indent + 4);
+      indent_to (file, indent + 3);
+      fputs ("index ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_IDX (node));
+      fputs (" level ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_LEVEL (node));
+      fputs (" orig_level ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_TYPE_ORIG_LEVEL (node));
       return;
     }
 
@@ -98,10 +100,6 @@ print_lang_type (file, node, indent)
     fputs (" X()", file);
   if (TYPE_HAS_CONVERSION (node))
     fputs (" has-type-conversion", file);
-  if (TYPE_HAS_INT_CONVERSION (node))
-    fputs (" has-int-conversion", file);
-  if (TYPE_HAS_REAL_CONVERSION (node))
-    fputs (" has-float-conversion", file);
   if (TYPE_HAS_INIT_REF (node))
     {
       if (TYPE_HAS_CONST_INIT_REF (node))
@@ -121,10 +119,6 @@ print_lang_type (file, node, indent)
     fputs (" has=", file);
   if (TYPE_HAS_ASSIGN_REF (node))
     fputs (" this=(X&)", file);
-  if (TYPE_OVERLOADS_METHOD_CALL_EXPR (node))
-    fputs (" op->()", file);
-  if (TYPE_GETS_INIT_AGGR (node))
-    fputs (" gets X(X, ...)", file);
   if (TYPE_OVERLOADS_CALL_EXPR (node))
     fputs (" op()", file);
   if (TYPE_OVERLOADS_ARRAY_REF (node))
@@ -158,11 +152,42 @@ print_lang_identifier (file, node, indent)
      tree node;
      int indent;
 {
-  print_node (file, "global", IDENTIFIER_GLOBAL_VALUE (node), indent + 4);
+  print_node (file, "bindings", IDENTIFIER_NAMESPACE_BINDINGS (node), indent + 4);
   print_node (file, "class", IDENTIFIER_CLASS_VALUE (node), indent + 4);
   print_node (file, "local", IDENTIFIER_LOCAL_VALUE (node), indent + 4);
   print_node (file, "label", IDENTIFIER_LABEL_VALUE (node), indent + 4);
   print_node (file, "template", IDENTIFIER_TEMPLATE (node), indent + 4);
   print_node (file, "implicit", IDENTIFIER_IMPLICIT_DECL (node), indent + 4);
   print_node (file, "error locus", IDENTIFIER_ERROR_LOCUS (node), indent + 4);
+}
+
+void
+lang_print_xnode (file, node, indent)
+     FILE *file;
+     tree node;
+     int indent;
+{
+  switch (TREE_CODE (node))
+    {
+    case CPLUS_BINDING:
+      print_node (file, "scope", BINDING_SCOPE (node), indent+4);
+      print_node (file, "value", BINDING_VALUE (node), indent+4);
+      print_node (file, "chain", TREE_CHAIN (node), indent+4);
+      break;
+    case OVERLOAD:
+      print_node (file, "function", OVL_FUNCTION (node), indent+4);
+      print_node (file, "chain", TREE_CHAIN (node), indent+4);
+      break;
+    case TEMPLATE_PARM_INDEX:
+      indent_to (file, indent + 3);
+      fputs ("index ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_IDX (node));
+      fputs (" level ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_LEVEL (node));
+      fputs (" orig_level ", file);
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, TEMPLATE_PARM_ORIG_LEVEL (node));
+      break;
+    default:
+      break;
+    }
 }
