@@ -100,6 +100,7 @@ char	*machinename;
 #define MACHINE_PC98	2
 #define MACHINE_ALPHA	3
 #define MACHINE_IA64	4
+#define MACHINE_POWERPC	5
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
