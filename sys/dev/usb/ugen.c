@@ -54,7 +54,6 @@
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #endif
-#include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/select.h>
