@@ -77,7 +77,8 @@ nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
 static int
 nexus_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-	return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin));
+	return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin,
+	    pci_get_irq(dev)));
 }
 
 static devclass_t	pcib_devclass;

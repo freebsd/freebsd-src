@@ -50,6 +50,6 @@
 int		pci_cfgregopen(void);
 u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
 void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
-int		pci_cfgintr(int bus, int device, int pin);
+int		pci_cfgintr(int bus, int device, int pin, int oldirq);
 int		pci_kill_pcibios(void);
 int		pci_pcibios_active(void);
