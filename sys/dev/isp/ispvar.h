@@ -427,7 +427,7 @@ typedef struct ispsoftc {
  * anything. Basically, it sends a single byte of data (the first byte,
  * which you can set as part of the INITIALIZE CONTROL BLOCK command) for
  * INQUIRY, and sends back QUEUE FULL status for any other command.
- * 
+ *
  */
 #define	ISP_ROLE_NONE		0x0
 #define	ISP_ROLE_INITIATOR	0x1
@@ -643,7 +643,8 @@ typedef enum {
 	ISPASYNC_TARGET_EVENT,		/* target asynchronous event */
 	ISPASYNC_TARGET_ACTION,		/* other target command action */
 	ISPASYNC_CONF_CHANGE,		/* Platform Configuration Change */
-	ISPASYNC_UNHANDLED_RESPONSE	/* Unhandled Response Entry */
+	ISPASYNC_UNHANDLED_RESPONSE,	/* Unhandled Response Entry */
+	ISPASYNC_FW_CRASH		/* Firmware has crashed */
 } ispasync_t;
 int isp_async(struct ispsoftc *, ispasync_t, void *);
 
@@ -669,7 +670,8 @@ void isp_prt(struct ispsoftc *, int level, const char *, ...);
 #define	ISP_LOGDEBUG0	0x10	/* log simple debug messages */
 #define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
-#define	ISP_LOGDEBUG3	0x100	/* log high frequency debug messages */
+#define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
+#define	ISP_LOGDEBUG4	0x100	/* log high frequency debug messages */
 #define	ISP_LOGTDEBUG0	0x200	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x400	/* log intermediate debug messages (target) */
 #define	ISP_LOGTDEBUG2	0x800	/* log all debug messages (target) */
