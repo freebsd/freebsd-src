@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.101 1998/09/30 21:48:11 jkh Exp $
+ * $Id: disks.c,v 1.102 1998/09/30 21:55:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -140,6 +140,7 @@ getBootMgr(char *dname)
     char *cp;
     int i = 0;
 
+#ifndef __alpha__	/* only meaningful on x86 */
     cp = variable_get(VAR_BOOTMGR);
     if (!cp) {
 	/* Figure out what kind of MBR the user wants */
@@ -168,6 +169,7 @@ getBootMgr(char *dname)
 	    break;
 	}
     }
+#endif
     return NULL;
 }
 
