@@ -94,7 +94,6 @@ SUBDIR=	adjkerntz \
 	sysctl \
 	tunefs \
 	umount \
-	${_vinum}
 
 .if !defined(NOATM)
 _atm=		atm
@@ -120,10 +119,6 @@ _pflogd=	pflogd
 .if !defined(NOINET6)
 _ip6fw=		ip6fw
 _ping6=		ping6
-.endif
-
-.if !defined(NO_VINUM)
-_vinum=		vinum
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
