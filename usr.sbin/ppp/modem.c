@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.21 1997/09/19 09:42:03 brian Exp $
+ * $Id: modem.c,v 1.24.2.22 1997/09/21 20:27:46 brian Exp $
  *
  *  TODO:
  */
@@ -31,6 +31,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <time.h>
+#include <paths.h>
 #ifdef __OpenBSD__
 #include <util.h>
 #else
@@ -42,6 +43,7 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
+#include "command.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -428,6 +430,53 @@ OpenConnection(char *host, char *port)
   return (sock);
 }
 
+extern int tunno;
+static char fn[MAXPATHLEN];
+
+int
+LockModem()
+{
+  int res;
+  FILE *lockfile;
+
+  if (*VarDevice != '/')
+    return 0;
+
+  if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
+    if (res == UU_LOCK_INUSE)
+      LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
+    else
+      LogPrintf(LogPHASE, "Modem %s is in use: uu_lock: %s\n",
+                VarDevice, uu_lockerr(res));
+    return (-1);
+  }
+
+  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
+  (void) unlink(fn);
+
+  if ((lockfile = fopen(fn, "w")) != NULL) {
+    fprintf(lockfile, "tun%d\n", tunno);
+    fclose(lockfile);
+  } else
+    LogPrintf(LogALERT, "Warning: Can't create %s: %s\n", fn, strerror(errno));
+
+  return 0;
+}
+
+void
+UnlockModem()
+{
+  if (*VarDevice != '/')
+    return;
+
+  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
+  if (unlink(fn) == -1)
+    LogPrintf(LogALERT, "Warning: Can't remove %s: %s\n", fn, strerror(errno));
+
+  if (uu_unlock(VarBaseDevice) == -1)
+    LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
+}
+
 static struct termios modemios;
 
 int
@@ -436,30 +485,33 @@ OpenModem(int mode)
   struct termios rstio;
   int oldflag;
   char *host, *cp, *port;
-  int res;
 
   if (modem >= 0)
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
-    LogPrintf(LogDEBUG, "OpenModem(direct): Modem is %sa tty\n",
-              isatty(0) ? "" : "not ");
+    if (isatty(0)) {
+      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
+      cp = ttyname(0);
+      SetVariable(0, 1, &cp, VAR_DEVICE);
+      if (LockModem() == -1) {
+        close(0);
+        return -1;
+      }
+    } else {
+      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
+      SetVariable(0, 0, 0, VAR_DEVICE);
+    }
     return modem = 0;
   } else {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
-      if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
-	if (res == UU_LOCK_INUSE)
-	  LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
-	else
-	  LogPrintf(LogPHASE, "Modem %s is in use: uu_lock: %s\n",
-		    VarDevice, uu_lockerr(res));
-	return (-1);
-      }
+      if (LockModem() == -1)
+        return (-1);
       modem = open(VarDevice, O_RDWR | O_NONBLOCK);
       if (modem < 0) {
 	LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
 		  strerror(errno));
-	(void) uu_unlock(VarBaseDevice);
+	UnlockModem();
 	return (-1);
       }
       LogPrintf(LogDEBUG, "OpenModem: Modem is %s\n", VarDevice);
@@ -535,8 +587,8 @@ OpenModem(int mode)
       if (ioctl(modem, TIOCMGET, &mbits)) {
         LogPrintf(LogERROR, "OpenModem: Cannot get modem status: %s\n",
 		  strerror(errno));
-        close(modem);
-	return (modem = -1);
+        CloseModem();
+	return (-1);
       }
     LogPrintf(LogDEBUG, "OpenModem: modem control = %o\n", mbits);
 
@@ -544,8 +596,8 @@ OpenModem(int mode)
     if (oldflag < 0) {
       LogPrintf(LogERROR, "OpenModem: Cannot get modem flags: %s\n",
 		strerror(errno));
-      close(modem);
-      return (modem = -1);
+      CloseModem();
+      return (-1);
     }
     (void) fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
@@ -653,10 +705,8 @@ HangupModem(int flag)
       DoChat(ScriptBuffer);
       tcflush(modem, TCIOFLUSH);
       UnrawModem(modem);
-      close(modem);
+      CloseModem();
     }
-    modem = -1;			/* Mark as modem has closed */
-    (void) uu_unlock(VarBaseDevice);
   } else if (modem >= 0) {
     char ScriptBuffer[200];
 
@@ -678,9 +728,9 @@ CloseModem()
 {
   if (modem >= 0) {
     close(modem);
+    UnlockModem();
     modem = -1;
   }
-  (void) uu_unlock(VarBaseDevice);
 }
 
 /*
