@@ -43,8 +43,8 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <sys/sockio.h>
+#include <sys/soundcard.h>
 
-#include <machine/soundcard.h>
 #include <machine/console.h>
 
 #include <i386/linux/linux.h>
