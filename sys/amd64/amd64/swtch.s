@@ -98,8 +98,7 @@ ENTRY(cpu_switch)
 	movl	%gs,PCB_GS(%edx)
 
 	/* Test if debug registers should be saved. */
-	movb    PCB_FLAGS(%edx),%al
-	andb    $PCB_DBREGS,%al
+	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f                              /* no, skip over */
 	movl    %dr7,%eax                       /* yes, do the save */
 	movl    %eax,PCB_DR7(%edx)
@@ -271,9 +270,8 @@ sw1b:
 cpu_switch_load_gs:
 	movl	PCB_GS(%edx),%gs
 
-	/* Test if debug regisers should be restored. */
-	movb    PCB_FLAGS(%edx),%al
-	andb    $PCB_DBREGS,%al
+	/* Test if debug registers should be restored. */
+	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
 	jz      1f
 
 	/*
