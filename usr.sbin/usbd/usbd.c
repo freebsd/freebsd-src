@@ -911,7 +911,7 @@ process_event_queue(int fd)
 			break;
 		case USB_EVENT_DRIVER_ATTACH:
 			if (verbose)
-				printf("USB_EVENT_DRIVER_DETACH\n");
+				printf("USB_EVENT_DRIVER_ATTACH\n");
 			break;
 		case USB_EVENT_DRIVER_DETACH:
 			if (verbose)
