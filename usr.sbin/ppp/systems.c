@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.24 1997/11/12 15:50:38 brian Exp $
+ * $Id: systems.c,v 1.25 1997/11/12 16:34:51 brian Exp $
  *
  *  TODO:
  */
@@ -298,11 +298,10 @@ ReadSystem(const char *name, const char *file, int doexec)
             InterpretCommand(cp, len, &argc, &argv);
             allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
             if ((!doexec && allowcmd) || (doexec && !allowcmd)) {
-	      LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
 	      olauth = VarLocalAuth;
 	      if (VarLocalAuth == LOCAL_NO_AUTH)
 	        VarLocalAuth = LOCAL_AUTH;
-	      RunCommand(argc, argv, 0);
+	      RunCommand(argc, argv, name);
 	      VarLocalAuth = olauth;
 	    }
 	  } else if (*cp == '#') {
