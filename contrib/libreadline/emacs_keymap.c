@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #if !defined (BUFSIZ)
 #include <stdio.h>
@@ -76,11 +76,7 @@ KEYMAP_ENTRY_ARRAY emacs_standard_keymap = {
   { ISFUNC, rl_insert },	/* & */
   { ISFUNC, rl_insert },	/* ' */
   { ISFUNC, rl_insert },	/* ( */
-#if defined (PAREN_MATCHING)
-  { ISFUNC, rl_insert_close },	/* ) */
-#else
   { ISFUNC, rl_insert },	/* ) */
-#endif /* !PAREN_MATCHING */
   { ISFUNC, rl_insert },	/* * */
   { ISFUNC, rl_insert },	/* + */
   { ISFUNC, rl_insert },	/* , */
@@ -140,11 +136,7 @@ KEYMAP_ENTRY_ARRAY emacs_standard_keymap = {
   /* Some more punctuation. */
   { ISFUNC, rl_insert },	/* [ */
   { ISFUNC, rl_insert },	/* \ */
-#if defined (PAREN_MATCHING)
-  { ISFUNC, rl_insert_close },	/* ] */
-#else
   { ISFUNC, rl_insert },	/* ] */
-#endif /* !PAREN_MATCHING */
   { ISFUNC, rl_insert },	/* ^ */
   { ISFUNC, rl_insert },	/* _ */
   { ISFUNC, rl_insert },	/* ` */
@@ -180,11 +172,7 @@ KEYMAP_ENTRY_ARRAY emacs_standard_keymap = {
   /* Final punctuation. */
   { ISFUNC, rl_insert },	/* { */
   { ISFUNC, rl_insert },	/* | */
-#if defined (PAREN_MATCHING)
-  { ISFUNC, rl_insert_close },	/* } */
-#else
   { ISFUNC, rl_insert },	/* } */
-#endif /* !PAREN_MATCHING */
   { ISFUNC, rl_insert },	/* ~ */
   { ISFUNC, rl_rubout },	/* RUBOUT */
 

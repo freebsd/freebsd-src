@@ -14,6 +14,9 @@
 /* Define if you have the lstat function. */
 #undef HAVE_LSTAT
 
+/* Define if you have the memmove function. */
+#undef HAVE_MEMMOVE
+
 /* Define if you have the putenv function.  */
 #undef HAVE_PUTENV
 

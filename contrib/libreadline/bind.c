@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -42,7 +42,6 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include <signal.h>
 #include <errno.h>
 
 #if !defined (errno)
@@ -58,61 +57,25 @@ extern int errno;
 #include "readline.h"
 #include "history.h"
 
+#include "rlprivate.h"
+#include "rlshell.h"
+#include "xmalloc.h"
+
 #if !defined (strchr) && !defined (__STDC__)
 extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
-extern int _rl_horizontal_scroll_mode;
-extern int _rl_mark_modified_lines;
-extern int _rl_bell_preference;
-extern int _rl_meta_flag;
-extern int _rl_convert_meta_chars_to_ascii;
-extern int _rl_output_meta_chars;
-extern int _rl_complete_show_all;
-extern int _rl_complete_mark_directories;
-extern int _rl_print_completions_horizontally;
-extern int _rl_completion_case_fold;
-extern int _rl_enable_keypad;
-#if defined (PAREN_MATCHING)
-extern int rl_blink_matching_paren;
-#endif /* PAREN_MATCHING */
-#if defined (VISIBLE_STATS)
-extern int rl_visible_stats;
-#endif /* VISIBLE_STATS */
-extern int rl_complete_with_tilde_expansion;
-extern int rl_completion_query_items;
-extern int rl_inhibit_completion;
-extern char *_rl_comment_begin;
-extern unsigned char *_rl_isearch_terminators;
-
-extern int rl_explicit_arg;
-extern int rl_editing_mode;
-extern unsigned char _rl_parsing_conditionalized_out;
-extern Keymap _rl_keymap;
-
-extern char *possible_control_prefixes[], *possible_meta_prefixes[];
-
-/* Functions imported from funmap.c */
-extern char **rl_funmap_names ();
-extern int rl_add_funmap_entry ();
-
-/* Functions imported from util.c */
-extern char *_rl_strindex ();
-
-/* Functions imported from shell.c */
-extern char *get_env_value ();
-
 /* Variables exported by this file. */
 Keymap rl_binding_keymap;
 
-/* Forward declarations */
-void rl_set_keymap_from_edit_mode ();
+static int _rl_read_init_file __P((char *, int));
+static int glean_key_from_name __P((char *));
+static int substring_member_of_array __P((char *, char **));
 
-static int _rl_read_init_file ();
-static int glean_key_from_name ();
-static int substring_member_of_array ();
+static int currently_reading_init_file;
 
-extern char *xmalloc (), *xrealloc ();
+/* used only in this file */
+static int _rl_prefer_visible_bell = 1;
 
 /* **************************************************************** */
 /*								    */
@@ -677,9 +640,16 @@ _rl_read_file (filename, sizep)
       return ((char *)NULL);
     }
 
+#if 0
   buffer[file_size] = '\0';
   if (sizep)
     *sizep = file_size;
+#else
+  buffer[i] = '\0';
+  if (sizep)
+    *sizep = i;
+#endif
+
   return (buffer);
 }
 
@@ -718,6 +688,11 @@ rl_read_init_file (filename)
   if (*filename == 0)
     filename = DEFAULT_INPUTRC;
 
+#if defined (__MSDOS__)
+  if (_rl_read_init_file (filename, 0) == 0)
+    return 0;
+  filename = "~/_inputrc";
+#endif
   return (_rl_read_init_file (filename, 0));
 }
 
@@ -746,6 +721,8 @@ _rl_read_init_file (filename, include_level)
       last_readline_init_file = savestring (filename);
     }
 
+  currently_reading_init_file = 1;
+
   /* Loop over the lines in the file.  Lines that start with `#' are
      comments; all other lines are commands for readline initialization. */
   current_readline_init_lineno = 1;
@@ -755,6 +732,12 @@ _rl_read_init_file (filename, include_level)
     {
       /* Find the end of this line. */
       for (i = 0; line + i != end && line[i] != '\n'; i++);
+
+#if defined (__CYGWIN32__)
+      /* ``Be liberal in what you accept.'' */
+      if (line[i] == '\n' && line[i-1] == '\r')
+	line[i - 1] = '\0';
+#endif
 
       /* Mark end of line. */
       line[i] = '\0';
@@ -776,6 +759,7 @@ _rl_read_init_file (filename, include_level)
     }
 
   free (buffer);
+  currently_reading_init_file = 0;
   return (0);
 }
 
@@ -783,9 +767,11 @@ static void
 _rl_init_file_error (msg)
      char *msg;
 {
-  fprintf (stderr, "readline: %s: line %d: %s\n", current_readline_init_file,
- 		   current_readline_init_lineno,
- 		   msg);
+  if (currently_reading_init_file)
+    fprintf (stderr, "readline: %s: line %d: %s\n", current_readline_init_file,
+		     current_readline_init_lineno, msg);
+  else
+    fprintf (stderr, "readline: %s\n", msg);
 }
 
 /* **************************************************************** */
@@ -1232,154 +1218,273 @@ rl_parse_and_bind (string)
    have one of two values; either "On" or 1 for truth, or "Off" or 0 for
    false. */
 
+#define V_SPECIAL	0x1
+
 static struct {
   char *name;
   int *value;
+  int flags;
 } boolean_varlist [] = {
-#if defined (PAREN_MATCHING)
-  { "blink-matching-paren",	&rl_blink_matching_paren },
-#endif
-  { "completion-ignore-case",	&_rl_completion_case_fold },
-  { "convert-meta",		&_rl_convert_meta_chars_to_ascii },
-  { "disable-completion",	&rl_inhibit_completion },
-  { "enable-keypad",		&_rl_enable_keypad },
-  { "expand-tilde",		&rl_complete_with_tilde_expansion },
-  { "horizontal-scroll-mode",	&_rl_horizontal_scroll_mode },
-  { "input-meta",		&_rl_meta_flag },
-  { "mark-directories",		&_rl_complete_mark_directories },
-  { "mark-modified-lines",	&_rl_mark_modified_lines },
-  { "meta-flag",		&_rl_meta_flag },
-  { "output-meta",		&_rl_output_meta_chars },
-  { "print-completions-horizontally", &_rl_print_completions_horizontally },
-  { "show-all-if-ambiguous",	&_rl_complete_show_all },
+  { "blink-matching-paren",	&rl_blink_matching_paren,	V_SPECIAL },
+  { "completion-ignore-case",	&_rl_completion_case_fold,	0 },
+  { "convert-meta",		&_rl_convert_meta_chars_to_ascii, 0 },
+  { "disable-completion",	&rl_inhibit_completion,		0 },
+  { "enable-keypad",		&_rl_enable_keypad,		0 },
+  { "expand-tilde",		&rl_complete_with_tilde_expansion, 0 },
+  { "horizontal-scroll-mode",	&_rl_horizontal_scroll_mode,	0 },
+  { "input-meta",		&_rl_meta_flag,			0 },
+  { "mark-directories",		&_rl_complete_mark_directories,	0 },
+  { "mark-modified-lines",	&_rl_mark_modified_lines,	0 },
+  { "meta-flag",		&_rl_meta_flag,			0 },
+  { "output-meta",		&_rl_output_meta_chars,		0 },
+  { "prefer-visible-bell",	&_rl_prefer_visible_bell,	V_SPECIAL },
+  { "print-completions-horizontally", &_rl_print_completions_horizontally, 0 },
+  { "show-all-if-ambiguous",	&_rl_complete_show_all,		0 },
 #if defined (VISIBLE_STATS)
-  { "visible-stats",		&rl_visible_stats },
+  { "visible-stats",		&rl_visible_stats,		0 },
 #endif /* VISIBLE_STATS */
   { (char *)NULL, (int *)NULL }
 };
+
+static int
+find_boolean_var (name)
+     char *name;
+{
+  register int i;
+
+  for (i = 0; boolean_varlist[i].name; i++)
+    if (_rl_stricmp (name, boolean_varlist[i].name) == 0)
+      return i;
+  return -1;
+}
+
+/* Hooks for handling special boolean variables, where a
+   function needs to be called or another variable needs
+   to be changed when they're changed. */
+static void
+hack_special_boolean_var (i)
+     int i;
+{
+  char *name;
+
+  name = boolean_varlist[i].name;
+
+  if (_rl_stricmp (name, "blink-matching-paren") == 0)
+    _rl_enable_paren_matching (rl_blink_matching_paren);
+  else if (_rl_stricmp (name, "prefer-visible-bell") == 0)
+    {
+      if (_rl_prefer_visible_bell)
+	_rl_bell_preference = VISIBLE_BELL;
+      else
+	_rl_bell_preference = AUDIBLE_BELL;
+    }
+}
+
+/* These *must* correspond to the array indices for the appropriate
+   string variable.  (Though they're not used right now.) */
+#define V_BELLSTYLE	0
+#define V_COMBEGIN	1
+#define V_EDITMODE	2
+#define V_ISRCHTERM	3
+#define V_KEYMAP	4
+
+#define	V_STRING	1
+#define V_INT		2
+
+/* Forward declarations */
+static int sv_bell_style __P((char *));
+static int sv_combegin __P((char *));
+static int sv_compquery __P((char *));
+static int sv_editmode __P((char *));
+static int sv_isrchterm __P((char *));
+static int sv_keymap __P((char *));
+
+static struct {
+  char *name;
+  int flags;
+  Function *set_func;
+} string_varlist[] = {
+  { "bell-style",	V_STRING,	sv_bell_style },
+  { "comment-begin",	V_STRING,	sv_combegin },
+  { "completion-query-items", V_INT,	sv_compquery },
+  { "editing-mode",	V_STRING,	sv_editmode },
+  { "isearch-terminators", V_STRING,	sv_isrchterm },
+  { "keymap",		V_STRING,	sv_keymap },
+  { (char *)NULL,	0 }
+};
+
+static int
+find_string_var (name)
+     char *name;
+{
+  register int i;
+
+  for (i = 0; string_varlist[i].name; i++)
+    if (_rl_stricmp (name, string_varlist[i].name) == 0)
+      return i;
+  return -1;
+}
+
+/* A boolean value that can appear in a `set variable' command is true if
+   the value is null or empty, `on' (case-insenstive), or "1".  Any other
+   values result in 0 (false). */
+static int
+bool_to_int (value)
+     char *value;
+{
+  return (value == 0 || *value == '\0' ||
+		(_rl_stricmp (value, "on") == 0) ||
+		(value[0] == '1' && value[1] == '\0'));
+}
 
 int
 rl_variable_bind (name, value)
      char *name, *value;
 {
   register int i;
+  int	v;
 
   /* Check for simple variables first. */
-  for (i = 0; boolean_varlist[i].name; i++)
+  i = find_boolean_var (name);
+  if (i >= 0)
     {
-      if (_rl_stricmp (name, boolean_varlist[i].name) == 0)
-	{
-	  /* A variable is TRUE if the "value" is "on", "1" or "". */
-	  *boolean_varlist[i].value = *value == 0 ||
-	  			      _rl_stricmp (value, "on") == 0 ||
-				      (value[0] == '1' && value[1] == '\0');
-	  return 0;
-	}
+      *boolean_varlist[i].value = bool_to_int (value);
+      if (boolean_varlist[i].flags & V_SPECIAL)
+	hack_special_boolean_var (i);
+      return 0;
     }
 
-  /* Not a boolean variable, so check for specials. */
+  i = find_string_var (name);
 
-  /* Editing mode change? */
-  if (_rl_stricmp (name, "editing-mode") == 0)
+  /* For the time being, unknown variable names or string names without a
+     handler function are simply ignored. */
+  if (i < 0 || string_varlist[i].set_func == 0)
+    return 0;
+
+  v = (*string_varlist[i].set_func) (value);
+  return v;
+}
+
+static int
+sv_editmode (value)
+     char *value;
+{
+  if (_rl_strnicmp (value, "vi", 2) == 0)
     {
-      if (_rl_strnicmp (value, "vi", 2) == 0)
-	{
 #if defined (VI_MODE)
-	  _rl_keymap = vi_insertion_keymap;
-	  rl_editing_mode = vi_mode;
+      _rl_keymap = vi_insertion_keymap;
+      rl_editing_mode = vi_mode;
 #endif /* VI_MODE */
-	}
-      else if (_rl_strnicmp (value, "emacs", 5) == 0)
-	{
-	  _rl_keymap = emacs_standard_keymap;
-	  rl_editing_mode = emacs_mode;
-	}
+      return 0;
     }
+  else if (_rl_strnicmp (value, "emacs", 5) == 0)
+    {
+      _rl_keymap = emacs_standard_keymap;
+      rl_editing_mode = emacs_mode;
+      return 0;
+    }
+  return 1;
+}
 
-  /* Comment string change? */
-  else if (_rl_stricmp (name, "comment-begin") == 0)
+static int
+sv_combegin (value)
+     char *value;
+{
+  if (value && *value)
     {
-      if (*value)
-	{
-	  if (_rl_comment_begin)
-	    free (_rl_comment_begin);
+      FREE (_rl_comment_begin);
+      _rl_comment_begin = savestring (value);
+      return 0;
+    }
+  return 1;
+}
 
-	  _rl_comment_begin = savestring (value);
-	}
-    }
-  else if (_rl_stricmp (name, "completion-query-items") == 0)
-    {
-      int nval = 100;
-      if (*value)
-	{
-	  nval = atoi (value);
-	  if (nval < 0)
-	    nval = 0;
-	}
-      rl_completion_query_items = nval;
-    }
-  else if (_rl_stricmp (name, "keymap") == 0)
-    {
-      Keymap kmap;
-      kmap = rl_get_keymap_by_name (value);
-      if (kmap)
-        rl_set_keymap (kmap);
-    }
-  else if (_rl_stricmp (name, "bell-style") == 0)
-    {
-      if (!*value)
-        _rl_bell_preference = AUDIBLE_BELL;
-      else
-        {
-          if (_rl_stricmp (value, "none") == 0 || _rl_stricmp (value, "off") == 0)
-            _rl_bell_preference = NO_BELL;
-          else if (_rl_stricmp (value, "audible") == 0 || _rl_stricmp (value, "on") == 0)
-            _rl_bell_preference = AUDIBLE_BELL;
-          else if (_rl_stricmp (value, "visible") == 0)
-            _rl_bell_preference = VISIBLE_BELL;
-        }
-    }
-  else if (_rl_stricmp (name, "prefer-visible-bell") == 0)
-    {
-      /* Backwards compatibility. */
-      if (*value && (_rl_stricmp (value, "on") == 0 ||
-		     (*value == '1' && !value[1])))
-        _rl_bell_preference = VISIBLE_BELL;
-      else
-        _rl_bell_preference = AUDIBLE_BELL;
-    }
-  else if (_rl_stricmp (name, "isearch-terminators") == 0)
-    {
-      /* Isolate the value and translate it into a character string. */
-      int beg, end;
-      char *v;
+static int
+sv_compquery (value)
+     char *value;
+{
+  int nval = 100;
 
-      v = savestring (value);
-      FREE (_rl_isearch_terminators);
-      if (v[0] == '"' || v[0] == '\'')
-	{
-	  int delim = v[0];
-	  for (beg = end = 1; v[end] && v[end] != delim; end++)
-	    ;
-	}
-      else
-	{
-	  for (beg = end = 0; whitespace (v[end]) == 0; end++)
-	    ;
-	}
-
-      v[end] = '\0';
-      /* The value starts at v + beg.  Translate it into a character string. */
-      _rl_isearch_terminators = (unsigned char *)xmalloc (2 * strlen (v) + 1);
-      rl_translate_keyseq (v + beg, _rl_isearch_terminators, &end);
-      _rl_isearch_terminators[end] = '\0';
-      free (v);
+  if (value && *value)
+    {
+      nval = atoi (value);
+      if (nval < 0)
+	nval = 0;
     }
-      
-  /* For the time being, unknown variable names are simply ignored. */
+  rl_completion_query_items = nval;
   return 0;
 }
 
+static int
+sv_keymap (value)
+     char *value;
+{
+  Keymap kmap;
+
+  kmap = rl_get_keymap_by_name (value);
+  if (kmap)
+    {
+      rl_set_keymap (kmap);
+      return 0;
+    }
+  return 1;
+}
+
+#define _SET_BELL(v)	do { _rl_bell_preference = v; return 0; } while (0)
+
+static int
+sv_bell_style (value)
+     char *value;
+{
+  if (value == 0 || *value == '\0')
+    _SET_BELL (AUDIBLE_BELL);
+  else if (_rl_stricmp (value, "none") == 0 || _rl_stricmp (value, "off") == 0)
+    _SET_BELL (NO_BELL);
+  else if (_rl_stricmp (value, "audible") == 0 || _rl_stricmp (value, "on") == 0)
+    _SET_BELL (AUDIBLE_BELL);
+  else if (_rl_stricmp (value, "visible") == 0)
+    _SET_BELL (VISIBLE_BELL);
+  else
+    return 1;
+}
+#undef _SET_BELL
+
+static int
+sv_isrchterm (value)
+     char *value;
+{
+  int beg, end, delim;
+  char *v;
+
+  if (value == 0)
+    return 1;
+
+  /* Isolate the value and translate it into a character string. */
+  v = savestring (value);
+  FREE (_rl_isearch_terminators);
+  if (v[0] == '"' || v[0] == '\'')
+    {
+      delim = v[0];
+      for (beg = end = 1; v[end] && v[end] != delim; end++)
+	;
+    }
+  else
+    {
+      for (beg = end = 0; whitespace (v[end]) == 0; end++)
+	;
+    }
+
+  v[end] = '\0';
+
+  /* The value starts at v + beg.  Translate it into a character string. */
+  _rl_isearch_terminators = (unsigned char *)xmalloc (2 * strlen (v) + 1);
+  rl_translate_keyseq (v + beg, _rl_isearch_terminators, &end);
+  _rl_isearch_terminators[end] = '\0';
+
+  free (v);
+  return 0;
+}
+      
 /* Return the character which matches NAME.
    For example, `Space' returns ' '. */
 

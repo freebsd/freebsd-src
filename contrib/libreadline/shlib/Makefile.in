@@ -15,7 +15,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
+
 RL_LIBRARY_VERSION = @LIBVERSION@
 RL_LIBRARY_NAME = readline
 
@@ -75,9 +76,9 @@ SHLIB_LIBVERSION = @SHLIB_LIBVERSION@
 SHLIB_STATUS = @SHLIB_STATUS@
 
 # shared library versioning
-SHLIB_MAJOR=		4
+SHLIB_MAJOR=		@SHLIB_MAJOR@
 # shared library systems like SVR4's do not use minor versions
-SHLIB_MINOR=		.0
+SHLIB_MINOR=		.@SHLIB_MINOR@
 
 # For libraries which include headers from other libraries.
 INCLUDES = -I. -I.. -I$(topdir) -I$(includedir)
@@ -112,7 +113,7 @@ CSOURCES = $(topdir)/readline.c $(topdir)/funmap.c $(topdir)/keymaps.c \
 # The header files for this library.
 HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
 	   posixstat.h posixdir.h posixjmp.h tilde.h rlconf.h rltty.h \
-	   ansi_stdlib.h tcap.h
+	   ansi_stdlib.h tcap.h xmalloc.h rlprivate.h rlshell.h
 
 SHARED_HISTOBJ = history.so histexpand.so histfile.so histsearch.so shell.so
 SHARED_TILDEOBJ = tilde.so
@@ -131,7 +132,7 @@ unsupported:
 	@echo "Your system and compiler (${host_os}-${CC}) are not supported by the"
 	@echo "${topdir}/support/shobj-conf script."
 	@echo "If your operating system provides facilities for creating"
-	@echo "shared libraries, please update the script and re-run configure.
+	@echo "shared libraries, please update the script and re-run configure."
 	@echo "Please send the changes you made to bash-maintainers@gnu.org"
 	@echo "for inclusion in future bash and readline releases."
 
@@ -222,6 +223,8 @@ macro.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 macro.so: $(topdir)/tilde.h $(topdir)/history.h
 nls.so: $(topdir)/ansi_stdlib.h
 nls.so: $(topdir)/rldefs.h ${BUILD_DIR}/config.h $(topdir)/rlconf.h
+nls.o: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
+nls.o: $(topdir)/tilde.h $(topdir)/history.h $(topdir)/rlstdc.h  
 parens.so: $(topdir)/rlconf.h ${BUILD_DIR}/config.h
 parens.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 parens.so: $(topdir)/tilde.h
@@ -256,6 +259,54 @@ vi_mode.so: $(topdir)/readline.h $(topdir)/keymaps.h $(topdir)/chardefs.h
 vi_mode.so: $(topdir)/history.h $(topdir)/ansi_stdlib.h $(topdir)/tilde.h
 xmalloc.so: ${BUILD_DIR}/config.h
 xmalloc.so: $(topdir)/ansi_stdlib.h
+
+bind.so: $(topdir)/rlshell.h
+histfile.so: $(topdir)/rlshell.h
+nls.so: $(topdir)/rlshell.h
+readline.so: $(topdir)/rlshell.h
+shell.so: $(topdir)/rlshell.h
+terminal.so: $(topdir)/rlshell.h
+histexpand.so: $(topdir)/rlshell.h
+
+bind.so: $(topdir)/rlprivate.h
+callback.so: $(topdir)/rlprivate.h
+complete.so: $(topdir)/rlprivate.h
+display.so: $(topdir)/rlprivate.h
+input.so: $(topdir)/rlprivate.h
+isearch.so: $(topdir)/rlprivate.h
+kill.so: $(topdir)/rlprivate.h
+macro.so: $(topdir)/rlprivate.h
+nls.so: $(topdir)/rlprivate.h   
+parens.so: $(topdir)/rlprivate.h
+readline.so: $(topdir)/rlprivate.h
+rltty.so: $(topdir)/rlprivate.h 
+search.so: $(topdir)/rlprivate.h
+signals.so: $(topdir)/rlprivate.h
+terminal.so: $(topdir)/rlprivate.h
+undo.so: $(topdir)/rlprivate.h
+util.so: $(topdir)/rlprivate.h
+vi_mode.so: $(topdir)/rlprivate.h
+
+bind.so: $(topdir)/xmalloc.h
+complete.so: $(topdir)/xmalloc.h
+display.so: $(topdir)/xmalloc.h
+funmap.so: $(topdir)/xmalloc.h
+histexpand.so: $(topdir)/xmalloc.h
+histfile.so: $(topdir)/xmalloc.h
+history.so: $(topdir)/xmalloc.h
+input.so: $(topdir)/xmalloc.h
+isearch.so: $(topdir)/xmalloc.h
+keymaps.so: $(topdir)/xmalloc.h
+kill.so: $(topdir)/xmalloc.h
+macro.so: $(topdir)/xmalloc.h
+readline.so: $(topdir)/xmalloc.h
+savestring.so: $(topdir)/xmalloc.h
+search.so: $(topdir)/xmalloc.h
+shell.so: $(topdir)/xmalloc.h
+tilde.so: $(topdir)/xmalloc.h
+tilde.so: $(topdir)/xmalloc.h
+util.so: $(topdir)/xmalloc.h
+vi_mode.so: $(topdir)/xmalloc.h
 
 readline.so: $(topdir)/readline.c
 vi_mode.so: $(topdir)/vi_mode.c

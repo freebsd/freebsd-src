@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -46,17 +46,8 @@
 #include "readline.h"
 #include "history.h"
 
-extern int _rl_last_command_was_kill;
-extern int rl_editing_mode;
-extern int rl_explicit_arg;
-extern Function *rl_last_func;
-
-extern void _rl_init_argument ();
-extern int _rl_set_mark_at_pos ();
-extern void _rl_fix_point ();
-extern void _rl_abort_internal ();
-
-extern char *xmalloc (), *xrealloc ();
+#include "rlprivate.h"
+#include "xmalloc.h"
 
 /* **************************************************************** */
 /*								    */
@@ -385,10 +376,12 @@ int
 rl_kill_region (count, ignore)
      int count, ignore;
 {
-  int r;
+  int r, npoint;
 
+  npoint = (rl_point < rl_mark) ? rl_point : rl_mark;
   r = region_kill_internal (1);
   _rl_fix_point (1);
+  rl_point = npoint;
   return r;
 }
 
@@ -503,7 +496,9 @@ rl_yank_nth_arg_internal (count, ignore, history_skip)
 {
   register HIST_ENTRY *entry;
   char *arg;
-  int i;
+  int i, pos;
+
+  pos = where_history ();
 
   if (history_skip)
     {
@@ -512,16 +507,10 @@ rl_yank_nth_arg_internal (count, ignore, history_skip)
     }
 
   entry = previous_history ();
-  if (entry)
-    {
-      if (history_skip)
-	{
-	  for (i = 0; i < history_skip; i++)
-	    next_history ();
-	}
-      next_history ();
-    }
-  else
+
+  history_set_pos (pos);
+
+  if (entry == 0)
     {
       ding ();
       return -1;

@@ -7,7 +7,7 @@
 
    The Library is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    The Library is distributed in the hope that it will be useful, but
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 /* The goal is to make the implementation transparent, so that you
    don't have to know what data types are used, just what functions
@@ -35,7 +35,7 @@
 #ifndef _MINIX
 #  include <sys/file.h>
 #endif
-#include <sys/stat.h>
+#include "posixstat.h"
 #include <fcntl.h>
 
 #if defined (HAVE_STDLIB_H)
@@ -54,15 +54,19 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
-#if defined (__EMX__)
+
+/* If we're compiling for __EMX__ (OS/2) or __CYGWIN__ (cygwin32 environment
+   on win 95/98/nt), we want to open files with O_BINARY mode so that there
+   is no \n -> \r\n conversion performed.  On other systems, we don't want to
+   mess around with O_BINARY at all, so we ensure that it's defined to 0. */
+#if defined (__EMX__) || defined (__CYGWIN__)
 #  ifndef O_BINARY
 #    define O_BINARY 0
 #  endif
-#else /* !__EMX__ */
-   /* If we're not compiling for __EMX__, we don't want this at all.  Ever. */
+#else /* !__EMX__ && !__CYGWIN__ */
 #  undef O_BINARY
 #  define O_BINARY 0
-#endif /* !__EMX__ */
+#endif /* !__EMX__ && !__CYGWIN__ */
 
 #include <errno.h>
 #if !defined (errno)
@@ -72,10 +76,8 @@ extern int errno;
 #include "history.h"
 #include "histlib.h"
 
-/* Functions imported from shell.c */
-extern char *get_env_value ();
-
-extern char *xmalloc (), *xrealloc ();
+#include "rlshell.h"
+#include "xmalloc.h"
 
 /* Return the string that should be used in the place of this
    filename.  This only matters when you don't specify the
@@ -105,7 +107,11 @@ history_filename (filename)
   return_val = xmalloc (2 + home_len + 8); /* strlen(".history") == 8 */
   strcpy (return_val, home);
   return_val[home_len] = '/';
+#if defined (__MSDOS__)
+  strcpy (return_val + home_len + 1, "_history");
+#else
   strcpy (return_val + home_len + 1, ".history");
+#endif
 
   return (return_val);
 }
@@ -132,7 +138,7 @@ read_history_range (filename, from, to)
 {
   register int line_start, line_end;
   char *input, *buffer;
-  int file, current_line;
+  int file, current_line, chars_read;
   struct stat finfo;
   size_t file_size;
 
@@ -155,11 +161,9 @@ read_history_range (filename, from, to)
     }
 
   buffer = xmalloc (file_size + 1);
-#if 0
-  if (read (file, buffer, file_size) != file_size)
-#else
-  if (read (file, buffer, file_size) < 0)
-#endif
+
+  chars_read = read (file, buffer, file_size);
+  if (chars_read < 0)
     {
   error_and_exit:
       if (file >= 0)
@@ -175,15 +179,15 @@ read_history_range (filename, from, to)
 
   /* Set TO to larger than end of file if negative. */
   if (to < 0)
-    to = file_size;
+    to = chars_read;
 
   /* Start at beginning of file, work to end. */
   line_start = line_end = current_line = 0;
 
   /* Skip lines until we are at FROM. */
-  while (line_start < file_size && current_line < from)
+  while (line_start < chars_read && current_line < from)
     {
-      for (line_end = line_start; line_end < file_size; line_end++)
+      for (line_end = line_start; line_end < chars_read; line_end++)
 	if (buffer[line_end] == '\n')
 	  {
 	    current_line++;
@@ -194,7 +198,7 @@ read_history_range (filename, from, to)
     }
 
   /* If there are lines left to gobble, then gobble them now. */
-  for (line_end = line_start; line_end < file_size; line_end++)
+  for (line_end = line_start; line_end < chars_read; line_end++)
     if (buffer[line_end] == '\n')
       {
 	buffer[line_end] = '\0';
@@ -234,6 +238,10 @@ history_truncate_file (fname, lines)
   file = open (filename, O_RDONLY|O_BINARY, 0666);
 
   if (file == -1 || fstat (file, &finfo) == -1)
+    goto truncate_exit;
+
+  /* Don't try to truncate non-regular files. */
+  if (S_ISREG(finfo.st_mode) == 0)
     goto truncate_exit;
 
   file_size = (size_t)finfo.st_size;
@@ -279,11 +287,11 @@ history_truncate_file (fname, lines)
      truncate to. */
   if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
-      write (file, buffer + i, file_size - i);
+      write (file, buffer + i, chars_read - i);
 
 #if defined (__BEOS__)
       /* BeOS ignores O_TRUNC. */
-      ftruncate (file, file_size - i);
+      ftruncate (file, chars_read - i);
 #endif
 
       close (file);

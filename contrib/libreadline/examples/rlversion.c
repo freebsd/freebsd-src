@@ -2,8 +2,6 @@
  * rlversion -- print out readline's version number
  */
 
-#define READLINE_LIBRARY
-
 #if defined (HAVE_CONFIG_H)
 #  include <config.h>
 #endif
@@ -12,7 +10,11 @@
 #include <sys/types.h>
 #include "posixstat.h"
 
-#include "readline.h"
+#ifdef READLINE_LIBRARY
+#  include "readline.h"
+#else
+#  include <readline/readline.h>
+#endif
 
 main()
 {
