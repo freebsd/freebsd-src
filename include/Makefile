@@ -107,6 +107,7 @@ copies:
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
+	install -d -o ${BINOWN} -g ${BINGRP} -m 755 ${DESTDIR}/usr/include
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .for i in ${LDIRS} ${LSUBDIRS}

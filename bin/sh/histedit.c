@@ -70,7 +70,7 @@ static const char rcsid[] =
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
 int displayhist;
-static FILE *el_in, *el_out;
+static FILE *el_in, *el_out, *el_err;
 
 STATIC char *fc_replace __P((const char *, char *, char *));
 
@@ -105,11 +105,13 @@ histedit()
 			INTOFF;
 			if (el_in == NULL)
 				el_in = fdopen(0, "r");
+			if (el_err == NULL)
+				el_err = fdopen(1, "w");
 			if (el_out == NULL)
 				el_out = fdopen(2, "w");
-			if (el_in == NULL || el_out == NULL)
+			if (el_in == NULL || el_err == NULL || el_out == NULL)
 				goto bad;
-			el = el_init(arg0, el_in, el_out);
+			el = el_init(arg0, el_in, el_out, el_err);
 			if (el != NULL) {
 				if (hist)
 					el_set(el, EL_HIST, history, hist);
@@ -151,12 +153,13 @@ sethistsize(hs)
 	const char *hs;
 {
 	int histsize;
+	HistEvent he;
 
 	if (hist != NULL) {
 		if (hs == NULL || *hs == '\0' ||
 		   (histsize = atoi(hs)) < 0)
 			histsize = 100;
-		history(hist, H_EVENT, histsize);
+		history(hist, &he, H_EVENT, histsize);
 	}
 }
 
@@ -171,9 +174,9 @@ histcmd(argc, argv)
 {
 	int ch;
 	char *editor = NULL;
-	const HistEvent *he;
+	HistEvent he;
 	int lflg = 0, nflg = 0, rflg = 0, sflg = 0;
-	int i;
+	int i, retval;
 	char *firststr, *laststr;
 	int first, last, direction;
 	char *pat = NULL, *repl;	/* ksh "fc old=new" crap */
@@ -339,16 +342,16 @@ histcmd(argc, argv)
 	 * The history interface needs rethinking, as the following
 	 * convolutions will demonstrate.
 	 */
-	history(hist, H_FIRST);
-	he = history(hist, H_NEXT_EVENT, first);
-	for (;he != NULL; he = history(hist, direction)) {
+	history(hist, &he, H_FIRST);
+	retval = history(hist, &he, H_NEXT_EVENT, first);
+	for (;retval != -1; retval = history(hist, &he, direction)) {
 		if (lflg) {
 			if (!nflg)
-				out1fmt("%5d ", he->num);
-			out1str(he->str);
+				out1fmt("%5d ", he.num);
+			out1str(he.str);
 		} else {
 			char *s = pat ?
-			   fc_replace(he->str, pat, repl) : (char *)he->str;
+			   fc_replace(he.str, pat, repl) : (char *)he.str;
 
 			if (sflg) {
 				if (displayhist) {
@@ -360,7 +363,7 @@ histcmd(argc, argv)
 					 *  XXX what about recursive and
 					 *  relative histnums.
 					 */
-					history(hist, H_ENTER, s);
+					history(hist, &he, H_ENTER, s);
 				}
 			} else
 				fputs(s, efp);
@@ -369,7 +372,7 @@ histcmd(argc, argv)
 		 * At end?  (if we were to loose last, we'd sure be
 		 * messed up).
 		 */
-		if (he->num == last)
+		if (he.num == last)
 			break;
 	}
 	if (editor) {
@@ -431,12 +434,12 @@ str_to_event(str, last)
 	char *str;
 	int last;
 {
-	const HistEvent *he;
+	HistEvent he;
 	char *s = str;
 	int relative = 0;
-	int i;
+	int i, retval;
 
-	he = history(hist, H_FIRST);
+	retval = history(hist, &he, H_FIRST);
 	switch (*s) {
 	case '-':
 		relative = 1;
@@ -447,33 +450,33 @@ str_to_event(str, last)
 	if (is_number(s)) {
 		i = atoi(s);
 		if (relative) {
-			while (he != NULL && i--) {
-				he = history(hist, H_NEXT);
+			while (retval != -1 && i--) {
+				retval = history(hist, &he, H_NEXT);
 			}
-			if (he == NULL)
-				he = history(hist, H_LAST);
+			if (retval == -1)
+				retval = history(hist, &he, H_LAST);
 		} else {
-			he = history(hist, H_NEXT_EVENT, i);
-			if (he == NULL) {
+			retval = history(hist, &he, H_NEXT_EVENT, i);
+			if (retval == -1) {
 				/*
 				 * the notion of first and last is
 				 * backwards to that of the history package
 				 */
-				he = history(hist, last ? H_FIRST : H_LAST);
+				retval = history(hist, &he, last ? H_FIRST : H_LAST);
 			}
 		}
-		if (he == NULL)
+		if (retval == -1)
 			error("history number %s not found (internal error)",
 			       str);
 	} else {
 		/*
 		 * pattern
 		 */
-		he = history(hist, H_PREV_STR, str);
-		if (he == NULL)
+		retval = history(hist, &he, H_PREV_STR, str);
+		if (retval == -1)
 			error("history pattern not found: %s", str);
 	}
-	return (he->num);
+	return (he.num);
 }
 #else
 #include "error.h"

@@ -150,6 +150,7 @@ cmdscanner(void)
 	register struct cmd *c;
 	static EditLine *el;
 	static History *hist;
+	HistEvent he;
 	size_t len;
 	int num;
 	const char *bp;
@@ -161,9 +162,9 @@ cmdscanner(void)
 	for (;;) {
 		if (fromatty) {
 			if (!el) {
-				el = el_init("lpc", stdin, stdout);
+				el = el_init("lpc", stdin, stdout, stderr);
 				hist = history_init();
-				history(hist, H_EVENT, 100);
+				history(hist, &he, H_EVENT, 100);
 				el_set(el, EL_HIST, history, hist);
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_PROMPT, lpc_prompt);
@@ -185,7 +186,7 @@ cmdscanner(void)
 			len = (num > MAX_CMDLINE) ? MAX_CMDLINE : num;
 			memcpy(cmdline, bp, len);
 			cmdline[len] = 0; 
-			history(hist, H_ENTER, bp);
+			history(hist, &he, H_ENTER, bp);
 
 		} else {
 			if (fgets(cmdline, MAX_CMDLINE, stdin) == 0)

@@ -273,7 +273,7 @@ Terminal(void *v)
     struct thread_data *td;
     const char *l;
     int len;
-#ifdef __NetBSD__
+#ifndef __OpenBSD__
     HistEvent hev = { 0, "" };
 #endif
 
@@ -287,10 +287,10 @@ Terminal(void *v)
 
     while ((l = SmartGets(td->edit, &len, td->ppp))) {
         if (len > 1)
-#ifdef __NetBSD__
-            history(td->hist, &hev, H_ENTER, l);
-#else
+#ifdef __OpenBSD__
             history(td->hist, H_ENTER, l);
+#else
+            history(td->hist, &hev, H_ENTER, l);
 #endif
         write(td->ppp, l, len);
         if (Receive(td->ppp, REC_SHOW) != 0)
@@ -543,7 +543,7 @@ main(int argc, char **argv)
                 struct thread_data td;
                 const char *env;
                 int size;
-#ifdef __NetBSD__
+#ifndef __OpenBSD__
                 HistEvent hev = { 0, "" };
 #endif
 
@@ -554,12 +554,12 @@ main(int argc, char **argv)
                       size = 20;
                 } else
                     size = 20;
-#ifdef __NetBSD__
-                history(td.hist, &hev, H_SETSIZE, size);
-                td.edit = el_init("pppctl", stdin, stdout, stderr);
-#else
+#ifdef __OpenBSD__
                 history(td.hist, H_EVENT, size);
                 td.edit = el_init("pppctl", stdin, stdout);
+#else
+                history(td.hist, &hev, H_SETSIZE, size);
+                td.edit = el_init("pppctl", stdin, stdout, stderr);
 #endif
                 el_source(td.edit, NULL);
                 el_set(td.edit, EL_PROMPT, GetPrompt);
