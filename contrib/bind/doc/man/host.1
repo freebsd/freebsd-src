@@ -84,7 +84,7 @@ by the domain server.
 The arguments can be either host names or host numbers.  The program
 first attempts to interpret them as host numbers.  If this fails,
 it will treat them as host names.  A host number consists of
-first decimal numbers separated by dots, e.g. 128.6.4.194
+four decimal numbers separated by dots, e.g. 128.6.4.194
 A host name consists of names separated by dots, e.g. topaz.rutgers.edu.  
 Unless the name ends in a dot, the local domain
 is automatically tacked on the end.  Thus, a Rutgers user can say
@@ -253,7 +253,7 @@ listed twice, for arcane reasons.)
 .Dq Fl l 
 is implemented by
 doing a complete zone transfer and then filtering out the information
-the you have asked for.  This command should be used only if it
+that you have asked for.  This command should be used only if it
 is absolutely necessary.
 .Sh CUSTOMIZING HOST NAME LOOKUP
 In general, if the name supplied by the user does not
