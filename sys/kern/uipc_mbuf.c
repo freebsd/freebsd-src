@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.33 1997/12/28 01:01:13 bde Exp $
+ *	$Id: uipc_mbuf.c,v 1.34 1998/02/20 13:37:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -255,10 +255,14 @@ m_retry(i, t)
 #define m_retry(i, t)	(struct mbuf *)0
 	MGET(m, i, t);
 #undef m_retry
-	if (m != NULL)
+	if (m != NULL) {
 		mbstat.m_wait++;
-	else
-		mbstat.m_drops++;
+	} else {
+		if (i == M_DONTWAIT)
+			mbstat.m_drops++;
+		else
+			panic("Out of mbuf clusters");
+	}
 	return (m);
 }
 
@@ -275,10 +279,14 @@ m_retryhdr(i, t)
 #define m_retryhdr(i, t) (struct mbuf *)0
 	MGETHDR(m, i, t);
 #undef m_retryhdr
-	if (m != NULL)
+	if (m != NULL) {
 		mbstat.m_wait++;
-	else
-		mbstat.m_drops++;
+	} else {
+		if (i == M_DONTWAIT)
+			mbstat.m_drops++;
+		else
+			panic("Out of mbuf clusters");
+	}
 	return (m);
 }
 
