@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from BSDI: locore.s,v 1.36.2.15 1999/08/23 22:34:41 cp Exp
+ *	BSDI $Id: locore.s,v 1.36.2.15 1999/08/23 22:34:41 cp Exp $
  */
 /*-
  * Copyright (c) 2001 Jake Burkholder.
@@ -51,8 +51,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include "opt_compat.h"
@@ -67,6 +65,9 @@
 #include <machine/wstate.h>
 
 #include "assym.s"
+#include <machine/asm.h>
+
+__FBSDID("$FreeBSD$");
 
 #define	TSB_KERNEL_MASK	0x0
 #define	TSB_KERNEL	0x0
