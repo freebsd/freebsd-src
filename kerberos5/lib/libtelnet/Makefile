@@ -13,7 +13,7 @@ SRCS+=		kerberos5.c
 #WARNS?=		2
 
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA -I${TELNETDIR}
-CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5
+CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
 
 INCS=		${TELNETDIR}/arpa/telnet.h
 INCDIR=		/usr/include/arpa
