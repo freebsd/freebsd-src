@@ -11,6 +11,7 @@
 # libmd must be built before libatm, libopie, libradius, libskey, and
 # libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
+# libopie must be built before libpam.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
 # libtacplus must be built before libpam.
