@@ -471,11 +471,6 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	u_int size;
 	caddr_t data, memp;
 	int tmp;
-#define STK_PARAMS	128
-	union {
-	    char stkbuf[STK_PARAMS];
-	    long align;
-	} ubuf;
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
@@ -508,40 +503,36 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	 * copied to/from the user's address space.
 	 */
 	size = IOCPARM_LEN(com);
-	if (size > IOCPARM_MAX) {
+	if ((size > IOCPARM_MAX) ||
+	    ((com & (IOC_VOID  | IOC_IN | IOC_OUT)) == 0) ||
+	    ((com & IOC_VOID) && size > 0) ||
+	    ((com & (IOC_IN | IOC_OUT)) && size == 0)) {
 		fdrop(fp, td);
 		mtx_unlock(&Giant);
 		return (ENOTTY);
 	}
 
-	memp = NULL;
-	if (size > sizeof (ubuf.stkbuf)) {
+	if (size > 0) {
 		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else {
-		data = ubuf.stkbuf;
+		memp = NULL;
+		data = (void *)&uap->data;
 	}
-	if (com&IOC_IN) {
-		if (size) {
-			error = copyin(uap->data, data, (u_int)size);
-			if (error) {
-				if (memp)
-					free(memp, M_IOCTLOPS);
-				fdrop(fp, td);
-				mtx_unlock(&Giant);
-				return (error);
-			}
-		} else {
-			*(caddr_t *)data = uap->data;
+	if (com & IOC_IN) {
+		error = copyin(uap->data, data, (u_int)size);
+		if (error) {
+			free(memp, M_IOCTLOPS);
+			fdrop(fp, td);
+			mtx_unlock(&Giant);
+			return (error);
 		}
-	} else if ((com&IOC_OUT) && size) {
+	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
 		 * gets back something deterministic.
 		 */
 		bzero(data, size);
-	} else if (com&IOC_VOID) {
-		*(caddr_t *)data = uap->data;
 	}
 
 	switch (com) {
@@ -576,7 +567,7 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 			error = copyout(data, uap->data, (u_int)size);
 		break;
 	}
-	if (memp)
+	if (memp != NULL)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, td);
 	mtx_unlock(&Giant);
