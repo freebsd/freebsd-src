@@ -2486,6 +2486,8 @@ xterm|vs100|xterm terminal emulator (X window system):\
 xterms|vs100s|xterm terminal emulator (small)(X window system):\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
 	:li#24:tc=xterm:
+xterm-color|xterm-co|xterm with ANSI colors:\
+	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[m:tc=xterm:
 # vs100 emulator using tsim	(from lai@decwrl)
 vs100t|tsim|vs100-tsim:\
 	:bs:cm=\EM%+ %+ :ho=\EH:do=^J:up=^K:cl=\EE:ce=\EL:cs=\ES%+ %+ :\
