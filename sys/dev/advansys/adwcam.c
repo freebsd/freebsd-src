@@ -72,8 +72,6 @@
 #define ccb_acb_ptr spriv_ptr0
 #define ccb_adw_ptr spriv_ptr1
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
 u_long adw_unit;
 
 static __inline cam_status	adwccbstatus(union ccb*);

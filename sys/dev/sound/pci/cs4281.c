@@ -50,9 +50,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Misc */
 
-#define MIN(x,y) (x) < (y) ? (x) : (y)
-#define MAX(x,y) (x) > (y) ? (x) : (y)
-
 #define inline __inline
 
 #ifndef DEB
