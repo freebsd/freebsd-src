@@ -229,9 +229,9 @@ struct login_info *login_info;
 static int match_internet_addr(login_info)
 struct login_info *login_info;
 {
-    char   *tok;
-    long    pattern;
-    long    mask;
+    char *     tok;
+    u_int32_t  pattern;
+    u_int32_t  mask;
     struct in_addr *addrp;
 
     if (login_info->internet_addr == 0)
@@ -249,7 +249,7 @@ struct login_info *login_info;
      */
 
     for (addrp = login_info->internet_addr; addrp->s_addr; addrp++)
-	if (addrp->s_addr != -1 && (addrp->s_addr & mask) == pattern)
+	if (addrp->s_addr != INADDR_NONE && (addrp->s_addr & mask) == pattern)
 	    return (1);
     return (0);
 }
