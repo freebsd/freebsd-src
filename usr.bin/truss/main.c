@@ -71,7 +71,7 @@ extern void i386_linux_syscall_exit(int, int);
 
 int pid = 0;
 int nosigs = 0;
-FILE *outfile = stderr;
+FILE *outfile;
 int Procfd;
 char progtype[50];	/* OS and type of executable */
 
@@ -149,6 +149,7 @@ main(int ac, char **av) {
   char *fname = NULL;
   int sigexit = 0;
 
+  outfile = stdout;
   while ((c = getopt(ac, av, "p:o:S")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
