@@ -169,8 +169,8 @@ struct sbp_ocb {
 	STAILQ_ENTRY(sbp_ocb)	ocb;
 	union ccb	*ccb;
 	bus_addr_t	bus_addr;
-	u_int32_t	orb[8];
-#define IND_PTR_OFFSET	(8*sizeof(u_int32_t))
+	uint32_t	orb[8];
+#define IND_PTR_OFFSET	(8*sizeof(uint32_t))
 	struct ind_ptr  ind_ptr[SBP_IND_MAX];
 	struct sbp_dev	*sdev;
 	int		flags; /* XXX should be removed */
@@ -192,11 +192,11 @@ struct sbp_dev{
 #define SBP_DEV_ATTACHED	5	/* in operation */
 #define SBP_DEV_DEAD		6	/* unavailable unit */
 #define SBP_DEV_RETRY		7	/* unavailable unit */
-	u_int8_t status:4,
+	uint8_t status:4,
 		 timeout:4;
-	u_int8_t type;
-	u_int16_t lun_id;
-	u_int16_t freeze;
+	uint8_t type;
+	uint16_t lun_id;
+	uint16_t freeze;
 #define	ORB_LINK_DEAD		(1 << 0)
 #define	VALID_LUN		(1 << 1)
 #define	ORB_POINTER_ACTIVE	(1 << 2)
@@ -204,7 +204,7 @@ struct sbp_dev{
 #define	ORB_DOORBELL_ACTIVE	(1 << 4)
 #define	ORB_DOORBELL_NEED	(1 << 5)
 #define	ORB_SHORTAGE		(1 << 6)
-	u_int16_t flags;
+	uint16_t flags;
 	struct cam_path *path;
 	struct sbp_target *target;
 	struct fwdma_alloc dma;
@@ -225,7 +225,7 @@ struct sbp_target {
 	struct sbp_dev	**luns;
 	struct sbp_softc *sbp;
 	struct fw_device *fwdev;
-	u_int32_t mgm_hi, mgm_lo;
+	uint32_t mgm_hi, mgm_lo;
 	struct sbp_ocb *mgm_ocb_cur;
 	STAILQ_HEAD(, sbp_ocb) mgm_ocb_queue;
 	struct callout mgm_ocb_timeout;
@@ -549,7 +549,7 @@ END_DEBUG
 			goto next;
 
 		fwdma_malloc(sbp->fd.fc, 
-			/* alignment */ sizeof(u_int32_t),
+			/* alignment */ sizeof(uint32_t),
 			SBP_DMA_SIZE, &sdev->dma, BUS_DMA_NOWAIT);
 		if (sdev->dma.v_addr == NULL) {
 			printf("%s: dma space allocation failed\n",
@@ -1200,7 +1200,7 @@ sbp_orb_pointer(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 	struct fw_pkt *fp;
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("%s: 0x%08x\n", __func__, (u_int32_t)ocb->bus_addr);
+	printf("%s: 0x%08x\n", __func__, (uint32_t)ocb->bus_addr);
 END_DEBUG
 
 	if ((sdev->flags & ORB_POINTER_ACTIVE) != 0) {
@@ -1222,7 +1222,7 @@ END_DEBUG
 	fp->mode.wreqb.extcode = 0;
 	xfer->send.payload[0] = 
 		htonl(((sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS )<< 16));
-	xfer->send.payload[1] = htonl((u_int32_t)ocb->bus_addr);
+	xfer->send.payload[1] = htonl((uint32_t)ocb->bus_addr);
 
 	if(fw_asyreq(xfer->fc, -1, xfer) != 0){
 			sbp_xfer_free(xfer);
@@ -1426,7 +1426,7 @@ start:
 	xfer->send.payload[1] = htonl(ocb->bus_addr & 0xffffffff);
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
-	printf("mgm orb: %08x\n", (u_int32_t)ocb->bus_addr);
+	printf("mgm orb: %08x\n", (uint32_t)ocb->bus_addr);
 END_DEBUG
 
 	fw_asyreq(xfer->fc, -1, xfer);
@@ -1528,7 +1528,7 @@ END_DEBUG
 							| CAM_AUTOSNS_VALID;
 /*
 {
-		u_int8_t j, *tmp;
+		uint8_t j, *tmp;
 		tmp = sense;
 		for( j = 0 ; j < 32 ; j+=8){
 			printf("sense %02x%02x %02x%02x %02x%02x %02x%02x\n", 
@@ -1611,9 +1611,9 @@ sbp_recv1(struct fw_xfer *xfer)
 	struct sbp_status *sbp_status;
 	struct sbp_target *target;
 	int	orb_fun, status_valid0, status_valid, t, l, reset_agent = 0;
-	u_int32_t addr;
+	uint32_t addr;
 /*
-	u_int32_t *ld;
+	uint32_t *ld;
 	ld = xfer->recv.buf;
 printf("sbp %x %d %d %08x %08x %08x %08x\n",
 			xfer->resp, xfer->recv.len, xfer->recv.off, ntohl(ld[0]), ntohl(ld[1]), ntohl(ld[2]), ntohl(ld[3]));
@@ -1823,7 +1823,7 @@ END_DEBUG
 			if(ocb->ccb != NULL){
 				union ccb *ccb;
 /*
-				u_int32_t *ld;
+				uint32_t *ld;
 				ld = ocb->ccb->csio.data_ptr;
 				if(ld != NULL && ocb->ccb->csio.dxfer_len != 0)
 					printf("ptr %08x %08x %08x %08x\n", ld[0], ld[1], ld[2], ld[3]);
@@ -2207,7 +2207,7 @@ sbp_mgm_timeout(void *arg)
 
 	sbp_show_sdev_info(sdev, 2);
 	printf("request timeout(mgm orb:0x%08x) ... ",
-	    (u_int32_t)ocb->bus_addr);
+	    (uint32_t)ocb->bus_addr);
 	target->mgm_ocb_cur = NULL;
 	sbp_free_ocb(sdev, ocb);
 #if 0
@@ -2229,7 +2229,7 @@ sbp_timeout(void *arg)
 
 	sbp_show_sdev_info(sdev, 2);
 	printf("request timeout(cmd orb:0x%08x) ... ",
-	    (u_int32_t)ocb->bus_addr);
+	    (uint32_t)ocb->bus_addr);
 
 	sdev->timeout ++;
 	switch(sdev->timeout) {
@@ -2441,8 +2441,8 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 	{
 		struct ccb_calc_geometry *ccg;
 #if defined(__DragonFly__) || __FreeBSD_version < 501100
-		u_int32_t size_mb;
-		u_int32_t secs_per_cylinder;
+		uint32_t size_mb;
+		uint32_t secs_per_cylinder;
 		int extended = 1;
 #endif
 

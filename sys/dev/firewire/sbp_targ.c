@@ -105,27 +105,27 @@ struct sbp_targ_login {
 	struct sbp_targ_lstate *lstate;
 	struct fw_device *fwdev;
 	struct sbp_login_res loginres;
-	u_int16_t fifo_hi; 
-	u_int16_t last_hi;
-	u_int32_t fifo_lo; 
-	u_int32_t last_lo;
+	uint16_t fifo_hi; 
+	uint16_t last_hi;
+	uint32_t fifo_lo; 
+	uint32_t last_lo;
 	STAILQ_HEAD(, orb_info) orbs;
 	STAILQ_ENTRY(sbp_targ_login) link;
-	u_int16_t hold_sec;
-	u_int16_t id;
-	u_int8_t flags; 
-	u_int8_t spd; 
+	uint16_t hold_sec;
+	uint16_t id;
+	uint8_t flags; 
+	uint8_t spd; 
 	struct callout hold_callout;
 };
 
 struct sbp_targ_lstate {
-	u_int16_t lun;
+	uint16_t lun;
 	struct sbp_targ_softc *sc;
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
 	struct crom_chunk model;
-	u_int32_t flags; 
+	uint32_t flags; 
 	STAILQ_HEAD(, sbp_targ_login) logins;
 };
 
@@ -144,7 +144,7 @@ struct sbp_targ_softc {
 
 struct corb4 {
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t n:1,
+	uint32_t n:1,
 		  rq_fmt:2,
 		  :1,
 		  dir:1,
@@ -154,7 +154,7 @@ struct corb4 {
 		  page_size:3,
 		  data_size:16;
 #else
-	u_int32_t data_size:16,
+	uint32_t data_size:16,
 		  page_size:3,
 		  page_table_present:1,
 		  max_payload:4,
@@ -168,13 +168,13 @@ struct corb4 {
 
 struct morb4 {
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t n:1,
+	uint32_t n:1,
 		  rq_fmt:2,
 		  :9,
 		  fun:4,
 		  id:16;
 #else
-	u_int32_t id:16,
+	uint32_t id:16,
 		  fun:4,
 		  :9,
 		  rq_fmt:2,
@@ -188,7 +188,7 @@ struct orb_info {
 	struct sbp_targ_login *login;
 	union ccb *ccb;
 	struct ccb_accept_tio *atio;
-	u_int8_t state; 
+	uint8_t state; 
 #define ORBI_STATUS_NONE	0
 #define ORBI_STATUS_FETCH	1
 #define ORBI_STATUS_ATIO	2
@@ -196,15 +196,15 @@ struct orb_info {
 #define ORBI_STATUS_STATUS	4
 #define ORBI_STATUS_POINTER	5
 #define ORBI_STATUS_ABORTED	7
-	u_int8_t refcount; 
-	u_int16_t orb_hi;
-	u_int32_t orb_lo;
-	u_int32_t data_hi;
-	u_int32_t data_lo;
+	uint8_t refcount; 
+	uint16_t orb_hi;
+	uint32_t orb_lo;
+	uint32_t data_hi;
+	uint32_t data_lo;
 	struct corb4 orb4;
 	STAILQ_ENTRY(orb_info) link;
-	u_int32_t orb[8];
-	u_int32_t *page_table;
+	uint32_t orb[8];
+	uint32_t *page_table;
 	struct sbp_status status;
 };
 
@@ -214,7 +214,7 @@ static char *orb_fun_name[] = {
 
 static void sbp_targ_recv(struct fw_xfer *);
 static void sbp_targ_fetch_orb(struct sbp_targ_softc *, struct fw_device *,
-    u_int16_t, u_int32_t, struct sbp_targ_login *, int);
+    uint16_t, uint32_t, struct sbp_targ_login *, int);
 
 static void
 sbp_targ_identify(driver_t *driver, device_t parent)
@@ -563,7 +563,7 @@ sbp_targ_free_orbi(struct fw_xfer *xfer)
 
 static void
 sbp_targ_status_FIFO(struct orb_info *orbi,
-    u_int32_t fifo_hi, u_int32_t fifo_lo, int dequeue)
+    uint32_t fifo_hi, uint32_t fifo_lo, int dequeue)
 {
 	struct fw_xfer *xfer;
 
@@ -572,7 +572,7 @@ sbp_targ_status_FIFO(struct orb_info *orbi,
 
 	xfer = fwmem_write_block(orbi->fwdev, (void *)orbi,
 	    /*spd*/2, fifo_hi, fifo_lo,
-	    sizeof(u_int32_t) * (orbi->status.len + 1), (char *)&orbi->status,
+	    sizeof(uint32_t) * (orbi->status.len + 1), (char *)&orbi->status,
 	    sbp_targ_free_orbi);
 
 	if (xfer == NULL) {
@@ -762,7 +762,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 
 static void
 sbp_targ_xfer_buf(struct orb_info *orbi, u_int offset,
-    u_int16_t dst_hi, u_int32_t dst_lo, u_int size,
+    uint16_t dst_hi, uint32_t dst_lo, u_int size,
     void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
@@ -804,7 +804,7 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 	struct orb_info *orbi;
 	union ccb *ccb;
 	u_int i, offset, res, len;
-	u_int32_t t1, t2, *p;
+	uint32_t t1, t2, *p;
 
 	orbi = (struct orb_info *)xfer->sc;
 	ccb = orbi->ccb;
@@ -1092,7 +1092,7 @@ static void
 sbp_targ_cmd_handler(struct fw_xfer *xfer)
 {
 	struct fw_pkt *fp;
-	u_int32_t *orb;
+	uint32_t *orb;
 	struct corb4 *orb4;
 	struct orb_info *orbi;
 	struct ccb_accept_tio *atio;
@@ -1243,7 +1243,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 	struct sbp_targ_lstate *lstate;
 	struct sbp_targ_login *login;
 	struct fw_pkt *fp;
-	u_int32_t *orb;
+	uint32_t *orb;
 	struct morb4 *orb4;
 	struct orb_info *orbi;
 	int i;
@@ -1311,7 +1311,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 
 		login->fifo_hi = orb[6];
 		login->fifo_lo = orb[7];
-		login->loginres.len = htons(sizeof(u_int32_t) * 4);
+		login->loginres.len = htons(sizeof(uint32_t) * 4);
 		login->loginres.id = htons(login->id);
 		login->loginres.cmd_hi = htons(SBP_TARG_BIND_HI);
 		login->loginres.cmd_lo = htonl(SBP_TARG_BIND_LO(login->id));
@@ -1361,7 +1361,7 @@ static void
 sbp_targ_pointer_handler(struct fw_xfer *xfer)
 {
 	struct orb_info *orbi;
-	u_int32_t orb0, orb1;
+	uint32_t orb0, orb1;
 
 	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
@@ -1376,7 +1376,7 @@ sbp_targ_pointer_handler(struct fw_xfer *xfer)
 		goto done;
 	}
 	sbp_targ_fetch_orb(orbi->login->lstate->sc, orbi->fwdev,
-	    (u_int16_t)orb0, orb1, orbi->login, FETCH_CMD);
+	    (uint16_t)orb0, orb1, orbi->login, FETCH_CMD);
 done:
 	free(orbi, M_SBP_TARG);
 	fw_xfer_free(xfer);
@@ -1385,7 +1385,7 @@ done:
 
 static void
 sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
-    u_int16_t orb_hi, u_int32_t orb_lo, struct sbp_targ_login *login,
+    uint16_t orb_hi, uint32_t orb_lo, struct sbp_targ_login *login,
     int mode)
 {
 	struct orb_info *orbi;
@@ -1408,7 +1408,7 @@ sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
 	switch (mode) {
 	case FETCH_MGM:
 		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
-		    sizeof(u_int32_t) * 8, &orbi->orb[0],
+		    sizeof(uint32_t) * 8, &orbi->orb[0],
 		    sbp_targ_mgm_handler);
 		break;
 	case FETCH_CMD:
@@ -1431,7 +1431,7 @@ sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
 		}
 		SLIST_REMOVE_HEAD(&login->lstate->accept_tios, sim_links.sle);
 		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
-		    sizeof(u_int32_t) * 8, &orbi->orb[0],
+		    sizeof(uint32_t) * 8, &orbi->orb[0],
 		    sbp_targ_cmd_handler);
 		STAILQ_INSERT_TAIL(&login->orbs, orbi, link);
 		break;
@@ -1439,7 +1439,7 @@ sbp_targ_fetch_orb(struct sbp_targ_softc *sc, struct fw_device *fwdev,
 		orbi->state = ORBI_STATUS_POINTER;
 		login->flags |= F_LINK_ACTIVE;
 		fwmem_read_block(fwdev, (void *)orbi, /*spd*/2, orb_hi, orb_lo,
-		    sizeof(u_int32_t) * 2, &orbi->orb[0],
+		    sizeof(uint32_t) * 2, &orbi->orb[0],
 		    sbp_targ_pointer_handler);
 		break;
 	default:
@@ -1566,7 +1566,7 @@ sbp_targ_recv(struct fw_xfer *xfer)
 {
 	struct fw_pkt *fp, *sfp;
 	struct fw_device *fwdev;
-	u_int32_t lo;
+	uint32_t lo;
 	int s, rtcode;
 	struct sbp_targ_softc *sc;
 

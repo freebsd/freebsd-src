@@ -127,9 +127,9 @@ struct fw_xfer *
 fwmem_read_quad(
 	struct fw_device *fwdev,
 	caddr_t	sc,
-	u_int8_t spd,
-	u_int16_t dst_hi,
-	u_int32_t dst_lo,
+	uint8_t spd,
+	uint16_t dst_hi,
+	uint32_t dst_lo,
 	void *data,
 	void (*hand)(struct fw_xfer *))
 {
@@ -147,7 +147,7 @@ fwmem_read_quad(
 	fp->mode.rreqq.dest_lo = dst_lo;
 
 	xfer->send.payload = NULL;
-	xfer->recv.payload = (u_int32_t *)data;
+	xfer->recv.payload = (uint32_t *)data;
 
 	if (fwmem_debug)
 		printf("fwmem_read_quad: %d %04x:%08x\n", fwdev->dst,
@@ -164,9 +164,9 @@ struct fw_xfer *
 fwmem_write_quad(
 	struct fw_device *fwdev,
 	caddr_t	sc,
-	u_int8_t spd,
-	u_int16_t dst_hi,
-	u_int32_t dst_lo,
+	uint8_t spd,
+	uint16_t dst_hi,
+	uint32_t dst_lo,
 	void *data,
 	void (*hand)(struct fw_xfer *))
 {
@@ -181,13 +181,13 @@ fwmem_write_quad(
 	fp->mode.wreqq.tcode = FWTCODE_WREQQ;
 	fp->mode.wreqq.dest_hi = dst_hi;
 	fp->mode.wreqq.dest_lo = dst_lo;
-	fp->mode.wreqq.data = *(u_int32_t *)data;
+	fp->mode.wreqq.data = *(uint32_t *)data;
 
 	xfer->send.payload = xfer->recv.payload = NULL;
 
 	if (fwmem_debug)
 		printf("fwmem_write_quad: %d %04x:%08x %08x\n", fwdev->dst,
-			dst_hi, dst_lo, *(u_int32_t *)data);
+			dst_hi, dst_lo, *(uint32_t *)data);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
@@ -200,9 +200,9 @@ struct fw_xfer *
 fwmem_read_block(
 	struct fw_device *fwdev,
 	caddr_t	sc,
-	u_int8_t spd,
-	u_int16_t dst_hi,
-	u_int32_t dst_lo,
+	uint8_t spd,
+	uint16_t dst_hi,
+	uint32_t dst_lo,
 	int len,
 	void *data,
 	void (*hand)(struct fw_xfer *))
@@ -238,9 +238,9 @@ struct fw_xfer *
 fwmem_write_block(
 	struct fw_device *fwdev,
 	caddr_t	sc,
-	u_int8_t spd,
-	u_int16_t dst_hi,
-	u_int32_t dst_lo,
+	uint8_t spd,
+	uint16_t dst_hi,
+	uint32_t dst_lo,
 	int len,
 	void *data,
 	void (*hand)(struct fw_xfer *))
