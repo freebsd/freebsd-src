@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.19 1995/11/20 12:28:21 phk Exp $
+ *	$Id: in.c,v 1.20 1995/12/09 20:43:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -583,7 +583,13 @@ in_broadcast(in, ifp)
 		     /*
 		      * Check for old-style (host 0) broadcast.
 		      */
-		     t == ia->ia_subnet || t == ia->ia_net))
+		     t == ia->ia_subnet || t == ia->ia_net) &&
+		     /*
+		      * Check for an all one subnetmask. These
+		      * only exist when an interface gets a secondary
+		      * address.
+		      */
+		     ia->ia_subnetmask != (u_long)0xffffffff)
 			    return 1;
 	return (0);
 #undef ia
