@@ -44,9 +44,10 @@ static void show_version(const char *, const char *, const char *);
 int
 pkg_perform(char **indexarg)
 {
-    char tmp[PATH_MAX], **pkgs;
+    char tmp[PATH_MAX], **pkgs, *pat[2], **patterns;
     struct index_entry *ie;
     int i, err_cnt = 0;
+    int MatchType;
 
     /*
      * Try to find and open the INDEX. We only check IndexFile != NULL
@@ -62,15 +63,36 @@ pkg_perform(char **indexarg)
     else
 	IndexFile = fopen(tmp, "r");
 
-    /* Get a list of all the installed packages */
-    pkgs = matchinstalled(MATCH_ALL, NULL, &err_cnt);
+    /* Get either a list of matching or all packages */
+    if (MatchName != NULL) {
+	pat[0] = MatchName;
+	pat[1] = NULL;
+	MatchType = MATCH_REGEX;
+	patterns = pat;
+    }
+    else {
+	MatchType = MATCH_ALL;
+	patterns = NULL;
+    }
+    pkgs = matchinstalled(MatchType, patterns, &err_cnt);
+
     if (err_cnt != 0)
 	errx(2, "Unable to find package database directory!");
-    i = -1;
-    while (pkgs[++i] != NULL) {
-	if (MatchName == NULL || strstr(pkgs[i], MatchName))
-	    err_cnt += pkg_do(pkgs[i]);
+    if (pkgs == NULL) {
+	switch (MatchType) {
+	case MATCH_ALL:
+	    warnx("no packages installed");
+	    return (0);
+	case MATCH_REGEX:
+	    warnx("no packages match pattern");
+	    return (1);
+	default:
+	    break;
+	}
     }
+
+    for (i = 0; pkgs[i] != NULL; i++)
+	err_cnt += pkg_do(pkgs[i]);
 
     /* If we opened the INDEX in pkg_do(), clean up. */
     while (!SLIST_EMPTY(&Index)) {
