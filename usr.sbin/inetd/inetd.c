@@ -250,7 +250,7 @@ int	deny_severity;
 int	wrap_ex = 0;
 int	wrap_bi = 0;
 int	debug = 0;
-int	log = 0;
+int	dolog = 0;
 int	maxsock;			/* highest-numbered descriptor */
 fd_set	allsock;
 int	options;
@@ -360,7 +360,7 @@ main(argc, argv)
 			options |= SO_DEBUG;
 			break;
 		case 'l':
-			log = 1;
+			dolog = 1;
 			break;
 		case 'R':
 			getvalue(optarg, &toomany,
@@ -404,12 +404,16 @@ main(argc, argv)
 	 *   getaddrinfo(). But getaddrinfo() requires at least one of
 	 *   hostname or servname is non NULL.
 	 *   So when hostname is NULL, set dummy value to servname.
+	 *   Since getaddrinfo() doesn't accept numeric servname, and
+	 *   we doesn't use ai_socktype of struct addrinfo returned
+	 *   from getaddrinfo(), we set dummy value to ai_socktype.
 	 */
-	servname = (hostname == NULL) ? "discard" /* dummy */ : NULL;
+	servname = (hostname == NULL) ? "0" /* dummy */ : NULL;
 
 	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;	/* dummy */
 	error = getaddrinfo(hostname, servname, &hints, &res);
 	if (error != 0) {
 		syslog(LOG_ERR, "-a %s: %s", hostname, gai_strerror(error));
@@ -467,6 +471,8 @@ main(argc, argv)
 
 	if (argc > 0)
 		CONFIG = argv[0];
+	if (access(CONFIG, R_OK) < 0)
+		syslog(LOG_ERR, "Accessing %s: %m, continuing anyway.", CONFIG);
 	if (debug == 0) {
 		FILE *fp;
 		if (daemon(0, 0) < 0) {
@@ -627,7 +633,7 @@ main(argc, argv)
 			    }
 		    } else
 			    ctrl = sep->se_fd;
-		    if (log && !ISWRAP(sep)) {
+		    if (dolog && !ISWRAP(sep)) {
 			    char pname[INET6_ADDRSTRLEN] = "unknown";
 			    socklen_t sl;
 			    sl = sizeof peermax;
@@ -729,7 +735,7 @@ main(argc, argv)
 				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
-				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
+				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, 0);
 				fromhost(&req);
 				deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
 				allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
@@ -746,7 +752,7 @@ main(argc, argv)
 					_exit(0);
 				    }
 				}
-				if (log) {
+				if (dolog) {
 				    syslog(allow_severity,
 				        "connection from %.500s, service %s (%s%s)",
 					eval_client(&req), service, sep->se_proto,
