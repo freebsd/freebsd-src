@@ -770,8 +770,6 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3cSOHO100-TX OfficeConnect adapter
 
-Toshiba Ethernet cards
-
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
 
