@@ -263,7 +263,7 @@ int main (argc, argv, envp)
 		    /* Init some interface vars, enable polling */
 #ifdef ENABLE_POLLING_MODE
 		    tmp -> forcediscover = 0;
-		    tmp -> linkstate = 0;
+		    tmp -> linkstate = HAVELINK;
 		    tmp -> polling = 1;
 #endif /* ifdef ENABLE_POLLING_MODE */
 
@@ -423,12 +423,13 @@ int main (argc, argv, envp)
 #ifdef __FreeBSD__
 			set_ieee80211 (ip);
 #endif
+#ifdef ENABLE_POLLING_MODE
 			ip -> forcediscover = 0;
 			if (ip -> client -> config -> media != NULL)
 				ip -> havemedia = 1;
 			else
 				ip -> havemedia = 0;
-
+#endif
 			script_init (ip -> client,
 				     "PREINIT", (struct string_list *)0);
 			if (ip -> client -> alias)
@@ -472,8 +473,8 @@ int main (argc, argv, envp)
 				/* Set up a timeout to start the initialization
 				   process. */
 #ifdef ENABLE_POLLING_MODE
-				add_timeout (cur_time + random () % 5,
-					     state_link, client, 0, 0);
+				add_timeout (cur_time + random () % 5 + 2,
+					     state_polling, client, 0, 0);
 #else
 				add_timeout (cur_time + random () % 5,
 					     state_reboot, client, 0, 0);
@@ -1460,9 +1461,6 @@ void send_discover (cpp)
 		}
 	}
 
-	if (interface_active (client -> interface) == NOLINK)
-		return;
-
 	/* If we're supposed to increase the interval, do so.  If it's
 	   currently zero (i.e., we haven't sent any packets yet), set
 	   it to one; otherwise, add to it a random number between
@@ -1529,7 +1527,7 @@ void state_panic (cpp)
 	struct client_lease *loop;
 	struct client_lease *lp;
 
-	if (interface_active (client -> interface) == NOLINK)
+	if (client -> interface -> linkstate == NOLINK)
 		return;
 
 	loop = lp = client -> active;
@@ -1565,7 +1563,7 @@ void state_panic (cpp)
 					  (long)(client -> active -> renewal -
 						 cur_time), "seconds");
 #ifdef ENABLE_POLLING_MODE
-				/* Enable polling for thsi interface */
+				/* Enable polling for this interface */
 				client -> interface -> polling = 1;
 #endif
 				add_timeout (client -> active -> renewal,
@@ -2859,9 +2857,10 @@ void client_location_changed ()
 			      case S_STOPPED:
 				break;
 			}
+#ifndef ENABLE_POLLING_MODE
 			client -> state = S_INIT;
-			if (interface_active (ip) == HAVELINK)
-				state_reboot (client);
+			state_reboot (client);
+#endif
 		}
 	}
 }
@@ -3022,10 +3021,8 @@ isc_result_t dhclient_interface_startup_hook (struct interface_info *interface)
 			client -> state = S_INIT;
 			/* Set up a timeout to start the initialization
 			   process. */
-			if (interface_active (ip) == HAVELINK) {
-				add_timeout (cur_time + random () % 5,
-					     state_reboot, client, 0, 0);
-			}
+			add_timeout (cur_time + random () % 5,
+				     state_reboot, client, 0, 0);
 		}
 	}
 	return ISC_R_SUCCESS;
@@ -3089,8 +3086,9 @@ isc_result_t dhcp_set_control_state (control_object_state_t oldstate,
 		    break;
 
 		  case server_awaken:
-		    if (interface_active (ip) == HAVELINK)
-			    state_reboot (client);
+#ifndef ENABLE_POLLING_MODE
+		    state_reboot (client);
+#endif
 		    break;
 		}
 	    }
@@ -3271,49 +3269,29 @@ interface_active(struct interface_info *ip) {
 			 */
 			if ((IFM_TYPE(ifmr.ifm_active) == IFM_IEEE80211) &&
 			     (ifmr.ifm_status & IFM_ACTIVE)) {
-				if (ip -> havemedia &&
-				    ip -> client -> state != S_BOUND)
-					ip -> forcediscover = 1;
 				return (HAVELINK);
 			}
 		} else {
-			/*
-			 * Media settings can also be possible for normal
-			 * devices. 
-			 */
 			if (ifmr.ifm_status & IFM_ACTIVE) {
-				if (ip -> havemedia &&
-				    ip -> client -> state != S_BOUND)
-					ip -> forcediscover = 1;
 				return (HAVELINK);
 			}
 		}
 		/*
-		 * If dhclient.conf contains media settings, we cannot
-		 * abort if the interface is not set to active mode.
+		 * We really have no link.
 		 */
-		if (ip -> havemedia && ip -> client -> state != S_BOUND)
-			return (HAVELINK);
-	} else {
-		/*
-		 * IFM_AVALID is not set. We cannot check
-		 * the link state. Assume HAVELINK.
-		 */
-		return (HAVELINK);
+		return (NOLINK);
 	}
 	/*
-	 * We really have no link.
+	 * IFM_AVALID is not set. We cannot check
+	 * the link state. Assume HAVELINK.
 	 */
-	return (NOLINK);
 
-#else /* ifdef __FreeBSD__ */
-
+#endif /* Other OSs */
 	/*
 	 * Always return a successful link if the OS
 	 * is not supported.
 	 */
 	return (HAVELINK);
-#endif /* Other OSs */
 }
 
 #ifdef __FreeBSD__
@@ -3362,11 +3340,12 @@ void state_background (cpp)
 }
 
 /* Check the state of the NICs if we have link */
-void state_link (cpp)
+void state_polling (cpp)
         void *cpp;
 {
 	struct interface_info *ip;
 	struct client_state *client;
+	int result;
 
 	for (ip = interfaces; ip; ip = ip -> next) {
 		if (! ip -> polling)
@@ -3380,6 +3359,17 @@ void state_link (cpp)
 		}
 #endif
 
+		result = interface_active (ip);
+		/*
+		 * If dhclient.conf contains media settings, we cannot
+		 * abort if the interface is not set to active mode.
+		 */
+		if (ip -> havemedia && ip -> client -> state != S_BOUND) {
+			if (result == HAVELINK)
+				ip -> forcediscover = 1;
+			result = HAVELINK;
+		}
+
 		/*
 		 * The last status of the interface tells us
 		 * the we've got no link ...
@@ -3389,7 +3379,7 @@ void state_link (cpp)
 			 * ... but we have now link. Let's send
 			 * requests.
 			 */
-			if (interface_active (ip) == HAVELINK) {
+			if (result == HAVELINK) {
 #ifdef DEBUG
 				if (ip -> havemedia)
 					printf ("%s: Trying media settings on interface\n",
@@ -3413,7 +3403,7 @@ void state_link (cpp)
 				ip -> linkstate = HAVELINK;
 			} else {
 #ifdef DEBUG
-				printf ("%s: No Link on interface\n", ip -> name);
+				printf ("%s: No link on interface\n", ip -> name);
 #endif
 				for (client = ip -> client;
 				     client; client = client -> next) {
@@ -3428,7 +3418,7 @@ void state_link (cpp)
 					 */
 					if (client -> state == S_INIT) {
 						add_timeout (cur_time + (polling_interval + 1),
-						             state_link, client, 0, 0);
+						             state_polling, client, 0, 0);
 					}
 			 	}
 				ip -> linkstate = NOLINK;
@@ -3449,7 +3439,7 @@ void state_link (cpp)
 		 * the we previously had link.
 		 */
 		if (ip -> linkstate == HAVELINK && doinitcheck) {
-			if (interface_active (ip) == NOLINK) {
+			if (result == NOLINK) {
 				/*
 				 * We lost link on the interface, or it isn't
 				 * associated anymore.
