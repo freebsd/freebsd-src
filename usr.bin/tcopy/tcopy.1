@@ -101,8 +101,9 @@ otherwise be preserved in a tape-to-tape copy.
 EOD is determined by two sequential EOF marks with no data between.
 There are old systems which typically wrote three EOF's between tape
 files.
+The
 .Nm
-will erroneously stop copying early in this case.
+utility will erroneously stop copying early in this case.
 .It
 When using the copy/verify option \-c
 .Nm
