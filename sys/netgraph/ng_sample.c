@@ -203,7 +203,7 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 	    NG_XXX_HOOK_DLCI_LEADIN, strlen(NG_XXX_HOOK_DLCI_LEADIN)) == 0) {
 		char *eptr;
 
-		cp = name + sizeof(NG_XXX_HOOK_DLCI_LEADIN);
+		cp = name + strlen(NG_XXX_HOOK_DLCI_LEADIN);
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 			return (EINVAL);
 		dlci = (int)strtoul(cp, &eptr, 10);
