@@ -2,28 +2,91 @@
 #
 #	@(#)netstart	5.9 (Berkeley) 3/30/91
 
+# set these to "NO" to turn them off.  otherwise, they're used as flags
 routedflags=-q
-timedflags=YES
+timedflags=
+
+# set the following to "YES" to turn them on
 rwhod=NO
+nfs_server=NO
+nfs_client=NO
+name_server=NO
+gated=NO
+kerberos_server=NO
 
-# myname is my symbolic name
-# my-netmask is specified in /etc/networks
+# /etc/myname contains my symbolic name
 #
-hostname=myname.my.domain
+hostname=`cat /etc/myname`
 hostname $hostname
+if [ -f /etc/defaultdomain ]; then
+	domainname `cat /etc/defaultdomain`
+fi
 
-ifconfig imp0 inet $hostname
-ifconfig ace0 inet $hostname netmask my-netmask
-ifconfig ex0 inet $hostname netmask my-netmask
-ifconfig we0 inet $hostname netmask my-netmask
-ifconfig ne0 inet $hostname netmask my-netmask
+# configure all of the interfaces which we know about.
+# do this by reading /etc/hostname.* files, where * is the name
+# of a given interface.
+#
+# these files are formatted like the following, but with no # at the
+# beginning of the line
+#
+# addr_family hostname netmask broadcast_addr options
+# dest dest_addr
+#
+# addr_family is the address family of the interface, generally inet
+# hostname is the host name that belongs to the interface, in /etc/hosts.
+# netmask is the network mask for the interface.
+# broadcast_addr is the broadcast address for the interface
+# options are misc. options to ifconfig for the interface.
+#
+# dest is simply the string "dest" (no quotes, though) if the interface
+# has a "destination" (i.e. it's a point-to-point link, like SLIP).
+# dest_addr is the hostname of the other end of the link, in /etc/hosts
+#
+# the only required contents of the file are the addr_family field
+# and the hostname.
 
-# for en ethernet interface, load microcode before ifconfig
-# /etc/enpload /dev/enp0ram /etc/enpcode	> /dev/console 2>&1
-ifconfig en0 inet $hostname netmask my-netmask
+(
+    tmp="$IFS"
+    IFS="$IFS."
+    set `echo /etc/hostname.*`
+    IFS=$tmp
+    unset tmp
+
+    while [ $# -ge 2 ] ; do
+        shift            # get rid of "hostname"
+        (
+            read af name mask bcaddr extras
+            read dt dtaddr 
+
+            if [ ! -n "$name" ]; then
+                echo "/etc/hostname.$1: invalid network configuration file"
+                exit
+            fi
+
+	    cmd="ifconfig $1 $af $name "
+	    if [ "${dt}" = "dest" ]; then cmd="$cmd $dtaddr"; fi
+	    if [ -n "$mask" ]; then cmd="$cmd netmask $mask"; fi
+	    if [ -n "$bcaddr" ]; then cmd="$cmd broadcast $bcaddr"; fi
+	    cmd="$cmd $extras"
+
+	    $cmd
+        ) < /etc/hostname.$1
+        shift
+    done
+)
 
 # set the address for the loopback interface
-ifconfig lo0 inet 127.0.0.1
+ifconfig lo0 inet localhost
 
 # use loopback, not the wire
 route add $hostname localhost
+
+# /etc/mygate, if it exists, contains the name of my gateway host
+# that name must be in /etc/hosts.
+if [ -f /etc/mygate ]; then
+	route add default `cat /etc/mygate`
+fi
+
+if [ -f /usr/sbin/ypbind -a -d /var/yp ]; then
+	ypbind;		echo ypbind
+fi
