@@ -2,6 +2,7 @@
  * io.c - input/output routines for Phantasia
  */
 
+#include <string.h>
 #include "include.h"
 
 /************************************************************************
