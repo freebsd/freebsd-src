@@ -172,7 +172,7 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	register struct ucred *cred = td->td_ucred;
 	struct proc *p = td->td_proc;
 	register struct vmspace *vm = p->p_vmspace;
-	caddr_t tempuser;
+	char *tempuser;
 	int             error;
 #ifdef PECOFF_DEBUG
 	struct vm_map  *map;
@@ -187,15 +187,14 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	    M_WAITOK | M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
-	bcopy(td->td_frame,
-	    tempuser + ctob(uarea_pages) +
-	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
-	    sizeof(struct trapframe));
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
 	PROC_UNLOCK(p);
-
+	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+	bcopy(td->td_frame,
+	    tempuser + ctob(uarea_pages) +
+	    ((caddr_t)td->td_frame - (caddr_t)td->td_kstack),
+	    sizeof(struct trapframe));
 #if PECOFF_DEBUG
 	fill_regs(td, &regs);
 	printf("EIP%x\n", regs.r_eip);
@@ -205,7 +204,7 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	ent = &map->header;
 	printf("%p %p %p\n", ent, ent->prev, ent->next);
 #endif
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser,
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t)tempuser,
 	    ctob(uarea_pages + kstack_pages),
 	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
 	    (int *)NULL, td);
