@@ -77,12 +77,12 @@ static void ata_init(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
-struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_zone;
 int ata_wc = 1;
 
 /* local vars */
+static struct intr_config_hook *ata_delayed_attach = NULL;
 static int ata_dma = 1;
 static int atapi_dma = 1;
 
@@ -704,6 +704,12 @@ ata_boot_attach(void)
     struct ata_channel *ch;
     int ctlr;
 
+    if (ata_delayed_attach) {
+	config_intrhook_disestablish(ata_delayed_attach);
+	free(ata_delayed_attach, M_TEMP);
+	ata_delayed_attach = NULL;
+    }
+
     /*
      * run through all ata devices and look for real ATA & ATAPI devices
      * using the hints we found in the early probe, this avoids some of
@@ -724,11 +730,6 @@ ata_boot_attach(void)
 #ifdef DEV_ATARAID
     ata_raid_attach();
 #endif
-    if (ata_delayed_attach) {
-	config_intrhook_disestablish(ata_delayed_attach);
-	free(ata_delayed_attach, M_TEMP);
-	ata_delayed_attach = NULL;
-    }
 }
 
 /*
