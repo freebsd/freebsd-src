@@ -150,10 +150,6 @@ struct uhci_pipe {
 LIST_HEAD(, uhci_intr_info) uhci_ii_free;
 
 static void		uhci_busreset __P((uhci_softc_t *));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-static void		uhci_shutdown __P((void *v));
-static void		uhci_power __P((int, void *));
-#endif
 static usbd_status	uhci_run __P((uhci_softc_t *, int run));
 static uhci_soft_td_t *uhci_alloc_std __P((uhci_softc_t *));
 static void		uhci_free_std __P((uhci_softc_t *, uhci_soft_td_t *));
@@ -543,7 +539,6 @@ uhci_freex(bus, xfer)
 	SIMPLEQ_INSERT_HEAD(&sc->sc_free_xfers, xfer, next);
 }
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 /*
  * Shut down the controller when the system is going down.
  */
@@ -626,7 +621,6 @@ uhci_power(why, v)
 	}
 	splx(s);
 }
-#endif
 
 #ifdef UHCI_DEBUG
 static void

@@ -174,7 +174,11 @@ extern int cold;
 
 static const char *usbrev_str[] = USBREV_STR;
 
-USB_DECLARE_DRIVER(usb);
+USB_DECLARE_DRIVER_INIT(usb,
+			DEVMETHOD(device_suspend, bus_generic_suspend),
+			DEVMETHOD(device_resume, bus_generic_resume),
+			DEVMETHOD(device_shutdown, bus_generic_shutdown)
+			);
 
 USB_MATCH(usb)
 {
