@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.14.2.1 1997/07/28 06:47:29 charnier Exp $";
 #endif /* not lint */
 
 /*-
@@ -832,8 +832,6 @@ ReadMakefile(p, q)
 		Parse_File("(stdin)", stdin);
 		Var_Set("MAKEFILE", "", VAR_GLOBAL);
 	} else {
-		if ((stream = fopen(fname, "r")) != NULL)
-			goto found;
 		/* if we've chdir'd, rebuild the path name */
 		if (curdir != objdir && *fname != '/') {
 			(void)sprintf(path, "%s/%s", curdir, fname);
@@ -841,7 +839,8 @@ ReadMakefile(p, q)
 				fname = path;
 				goto found;
 			}
-		}
+		} else if ((stream = fopen(fname, "r")) != NULL)
+			goto found;
 		/* look in -I and system include directories. */
 		name = Dir_FindFile(fname, parseIncPath);
 		if (!name)
