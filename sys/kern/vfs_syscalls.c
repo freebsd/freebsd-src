@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.39 1995/11/13 08:22:21 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.40 1995/11/14 09:19:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1880,6 +1880,10 @@ rename(p, uap, retval)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	error = namei(&tond);
 	if (error) {
+		/* Translate error code for rename("dir1", "dir2/."). */
+		if (error == EISDIR && fvp->v_type == VDIR)
+			error = EINVAL;
+
 		VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
