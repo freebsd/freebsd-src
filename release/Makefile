@@ -496,7 +496,7 @@ release rerelease:
 	env -i /usr/sbin/chroot `dirname ${_MK}` /`basename ${_MK}`
 
 clean:
-	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] ${EXTRAS}
+	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-8] ${EXTRAS}
 
 fetch-distfiles:
 	@for i in ${DOCPORTS}; do \
