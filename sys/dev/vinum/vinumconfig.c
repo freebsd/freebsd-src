@@ -589,8 +589,8 @@ free_drive(struct drive *drive)
 {
     if (drive->state > drive_referenced) {		    /* real drive */
 	LOCKDRIVE(drive);
-	if (drive->vp != NULL)				    /* device open */
-	    vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
+	if (drive->vp)					    /* it's open, */
+	    close_locked_drive(drive);			    /* close it */
 	if (drive->freelist)
 	    Free(drive->freelist);
 	bzero(drive, sizeof(struct drive));		    /* this also sets drive_unallocated */
