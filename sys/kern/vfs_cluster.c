@@ -716,7 +716,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 * up if the cluster was terminated prematurely--too much
 		 * hassle.
 		 */
-		if (((tbp->b_flags & (B_CLUSTEROK|B_MALLOC)) != B_CLUSTEROK) ||
+		if (((tbp->b_flags & (B_CLUSTEROK | B_MALLOC | B_VMIO)) != 
+		     (B_CLUSTEROK | B_VMIO)) ||
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
