@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.21 1995/02/09 11:13:30 jkh Exp $
+ * $Id: tty.c,v 1.22 1995/02/12 23:01:13 ache Exp $
  */
 
 #include <sys/param.h>
@@ -1005,15 +1005,14 @@ ttywait(tp)
 				break;
 		}
 	}
-	/* If some output still there, kill it */
-	if (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY))
-		ttyflush(tp, FWRITE);
+	if (!error && (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)))
+		error = EIO;
 	splx(s);
 	return (error);
 }
 
 /*
- * Flush after waiting.
+ * Flush if successfully wait.
  */
 int
 ttywflush(tp)
@@ -1021,8 +1020,8 @@ ttywflush(tp)
 {
 	int error;
 
-	error = ttywait(tp);
-	ttyflush(tp, FREAD);
+	if ((error = ttywait(tp)) == 0)
+		ttyflush(tp, FREAD);
 	return (error);
 }
 
