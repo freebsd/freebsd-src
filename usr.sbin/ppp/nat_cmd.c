@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.25 1999/05/12 09:48:39 brian Exp $
+ *	$Id: alias_cmd.c,v 1.26 1999/06/02 15:58:51 brian Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,17 @@ static int StrToPortRange(const char *, u_short *, u_short *, const char *);
 static int StrToAddrAndPort(const char *, struct in_addr *, u_short *,
                             u_short *, const char *);
 
+static void
+lowhigh(u_short *a, u_short *b)
+{
+  if (a > b) {
+    u_short c;
+
+    c = *b;
+    *b = *a;
+    *a = c;
+  }
+}
 
 int
 alias_RedirectPort(struct cmdargs const *arg)
@@ -64,18 +75,17 @@ alias_RedirectPort(struct cmdargs const *arg)
   if (!arg->bundle->AliasEnabled) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
-  } else if (arg->argc == arg->argn + 3) {
+  } else if (arg->argc == arg->argn + 3 || arg->argc == arg->argn + 4) {
     char proto_constant;
     const char *proto;
-    u_short hlocalport;
-    u_short llocalport;
-    u_short haliasport;
-    u_short laliasport;
-    u_short port;
-    int error;
-    struct in_addr local_addr;
-    struct in_addr null_addr;
+    struct in_addr localaddr;
+    u_short hlocalport, llocalport;
+    struct in_addr aliasaddr;
+    u_short haliasport, laliasport;
+    struct in_addr remoteaddr;
+    u_short hremoteport, lremoteport;
     struct alias_link *link;
+    int error;
 
     proto = arg->argv[arg->argn];
     if (strcmp(proto, "tcp") == 0) {
@@ -88,52 +98,71 @@ alias_RedirectPort(struct cmdargs const *arg)
       return -1;
     }
 
-    error = StrToAddrAndPort(arg->argv[arg->argn+1], &local_addr, &llocalport,
+    error = StrToAddrAndPort(arg->argv[arg->argn+1], &localaddr, &llocalport,
                              &hlocalport, proto);
     if (error) {
       prompt_Printf(arg->prompt, "alias port: error reading localaddr:port\n");
       return -1;
     }
+
     error = StrToPortRange(arg->argv[arg->argn+2], &laliasport, &haliasport,
                            proto);
     if (error) {
       prompt_Printf(arg->prompt, "alias port: error reading alias port\n");
       return -1;
     }
-    null_addr.s_addr = INADDR_ANY;
+    aliasaddr.s_addr = INADDR_ANY;
 
-    if (llocalport > hlocalport) {
-      port = llocalport;
-      llocalport = hlocalport;
-      hlocalport = port;
+    if (arg->argc == arg->argn + 4) {
+      error = StrToAddrAndPort(arg->argv[arg->argn+3], &remoteaddr,
+                               &lremoteport, &hremoteport, proto);
+      if (error) {
+        prompt_Printf(arg->prompt, "alias port: error reading "
+                      "remoteaddr:port\n");
+        return -1;
+      }
+    } else {
+      remoteaddr.s_addr = INADDR_ANY;
+      lremoteport = hremoteport = 0;
     }
 
-    if (laliasport > haliasport) {
-      port = laliasport;
-      laliasport = haliasport;
-      haliasport = port;
-    }
+    lowhigh(&llocalport, &hlocalport);
+    lowhigh(&laliasport, &haliasport);
+    lowhigh(&lremoteport, &hremoteport);
 
     if (haliasport - laliasport != hlocalport - llocalport) {
-      prompt_Printf(arg->prompt, "alias port: Port ranges must be equal\n");
+      prompt_Printf(arg->prompt, "alias port: local & alias port ranges "
+                    "are not equal\n");
       return -1;
     }
 
-    for (port = laliasport; port <= haliasport; port++) {
-      link = PacketAliasRedirectPort(local_addr,
-                                     htons(llocalport + (port - laliasport)),
-				     null_addr, 0, null_addr, htons(port),
+    if (hremoteport && hremoteport - lremoteport != hlocalport - llocalport) {
+      prompt_Printf(arg->prompt, "alias port: local & remote port ranges "
+                    "are not equal\n");
+      return -1;
+    }
+
+    while (laliasport <= haliasport) {
+      link = PacketAliasRedirectPort(localaddr, htons(llocalport),
+				     remoteaddr, htons(lremoteport),
+                                     aliasaddr, htons(laliasport),
 				     proto_constant);
 
       if (link == NULL) {
-        prompt_Printf(arg->prompt, "alias port: %d: error %d\n", port, error);
+        prompt_Printf(arg->prompt, "alias port: %d: error %d\n", laliasport,
+                      error);
         return 1;
       }
+      llocalport++;
+      laliasport++;
+      if (hremoteport)
+        lremoteport++;
     }
-  } else
-    return -1;
 
-  return 0;
+    return 0;
+  }
+
+  return -1;
 }
 
 
@@ -145,23 +174,22 @@ alias_RedirectAddr(struct cmdargs const *arg)
     return 1;
   } else if (arg->argc == arg->argn+2) {
     int error;
-    struct in_addr local_addr;
-    struct in_addr alias_addr;
+    struct in_addr localaddr, aliasaddr;
     struct alias_link *link;
 
-    error = StrToAddr(arg->argv[arg->argn], &local_addr);
+    error = StrToAddr(arg->argv[arg->argn], &localaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid local address\n");
       return 1;
     }
-    error = StrToAddr(arg->argv[arg->argn+1], &alias_addr);
+    error = StrToAddr(arg->argv[arg->argn+1], &aliasaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid alias address\n");
       prompt_Printf(arg->prompt, "Usage: alias %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
       return 1;
     }
-    link = PacketAliasRedirectAddr(local_addr, alias_addr);
+    link = PacketAliasRedirectAddr(localaddr, aliasaddr);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
