@@ -176,7 +176,6 @@ static struct cd_quirk_entry cd_quirk_table[] =
 #endif
 
 #define CD_CDEV_MAJOR 15
-#define CD_BDEV_MAJOR 6
 
 static	d_open_t	cdopen;
 static	d_close_t	cdclose;
@@ -265,7 +264,6 @@ static struct cdevsw cd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	CD_BDEV_MAJOR
 };
 static struct cdevsw cddisk_cdevsw;
 

@@ -220,7 +220,6 @@ Static struct cdevsw uscanner_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 #endif
 

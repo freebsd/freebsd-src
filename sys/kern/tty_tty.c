@@ -69,7 +69,6 @@ struct cdevsw ctty_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* bmaj */	-1
 };
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)

@@ -642,7 +642,6 @@ static struct cdevsw loran_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 #endif /* _KERNEL */

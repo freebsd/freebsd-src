@@ -199,7 +199,6 @@ static struct cdevsw wt_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 

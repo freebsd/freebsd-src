@@ -173,7 +173,6 @@ static struct cdevsw pca_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static void pca_continue __P((void));

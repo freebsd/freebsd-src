@@ -62,7 +62,6 @@ static struct cdevsw ast_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TAPE | D_TRACKCLOSE,
-	/* bmaj */	-1
 };
 
 /* prototypes */

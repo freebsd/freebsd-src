@@ -39,7 +39,6 @@ static int fla_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, fladebug, CTLFLAG_RW, &fla_debug, 0, "");
 
 #define CDEV_MAJOR	102
-#define BDEV_MAJOR	28
 
 static d_strategy_t flastrategy;
 static d_open_t flaopen;
@@ -60,7 +59,6 @@ static struct cdevsw fla_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     D_DISK | D_CANFREE,
-        /* bmaj */      BDEV_MAJOR
 };
 static struct cdevsw fladisk_cdevsw;
 

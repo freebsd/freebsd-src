@@ -546,7 +546,6 @@ STATIC struct cdevsw asr_cdevsw = {
         nodump,         /* dump     */
         nopsize,        /* psize    */
         0,              /* flags    */
-        -1              /* bmaj     */
 };
 
 #ifdef ASR_MEASURE_PERFORMANCE

@@ -71,7 +71,6 @@ static struct cdevsw ssc_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static struct tty *ssc_tp = NULL;

@@ -83,7 +83,6 @@ static struct cdevsw fildesc_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static int do_dup __P((struct filedesc *fdp, int old, int new, register_t *retval, struct proc *p));

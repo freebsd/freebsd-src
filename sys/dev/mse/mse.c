@@ -153,7 +153,6 @@ static struct cdevsw mse_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static	void		mseintr __P((void *));

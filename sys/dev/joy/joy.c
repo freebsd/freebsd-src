@@ -93,7 +93,6 @@ static struct cdevsw joy_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 devclass_t joy_devclass;

@@ -69,7 +69,6 @@ static struct cdevsw mlx_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	0,
-		/* bmaj */	-1
 };
 
 devclass_t	mlx_devclass;

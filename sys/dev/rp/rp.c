@@ -583,7 +583,6 @@ struct cdevsw rp_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* bmaj */	-1
 };
 
 static int	rp_num_ports_open = 0;

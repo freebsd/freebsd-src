@@ -58,7 +58,7 @@ struct cdevsw vinum_cdevsw =
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, seltrue, nommap, vinumstrategy,
     "vinum", VINUM_CDEV_MAJOR, vinumdump, vinumsize,
-    D_DISK, VINUM_BDEV_MAJOR
+    D_DISK
 };
 
 /* Called by main() during pseudo-device attachment. */

@@ -87,7 +87,6 @@ static struct cdevsw tun_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static void tun_clone __P((void *arg, char *name, int namelen, dev_t *dev));

@@ -240,7 +240,6 @@ static struct cdevsw tw_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 /*

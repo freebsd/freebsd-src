@@ -425,7 +425,6 @@ static struct cdevsw sa_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
-	/* bmaj */	-1
 };
 
 static struct extend_array *saperiphs;

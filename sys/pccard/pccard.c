@@ -103,7 +103,6 @@ static struct cdevsw crd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 /*
