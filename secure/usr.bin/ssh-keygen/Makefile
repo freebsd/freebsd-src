@@ -8,7 +8,7 @@ BINOWN=	root
 BINMODE=555
 MAN=	ssh-keygen.1
 
-SRCS=	ssh-keygen.c log-client.c
+SRCS=	key.c log-client.c ssh-keygen.c
 
 .include <bsd.prog.mk>
 
