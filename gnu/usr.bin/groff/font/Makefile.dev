@@ -20,20 +20,9 @@ maninstall:
 
 .if !target(install)
 install:
-	-if test ! -d $(DESTDIR)$(DEVICEDIR); then \
-		mkdir $(DESTDIR)$(DEVICEDIR); \
-		chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR); \
-		chmod 755 $(DESTDIR)$(DEVICEDIR); \
-	fi
-	-if test -d $(.CURDIR)/generate; then \
-		if test ! -d $(DESTDIR)$(DEVICEDIR)/generate; then \
-			mkdir $(DESTDIR)$(DEVICEDIR)/generate; \
-			chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR)/generate; \
-			chmod 755 $(DESTDIR)$(DEVICEDIR)/generate; \
-		fi; \
-	fi
-	-for f in $(FONTFILES); do \
-		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$f \
+	for f in $(FONTFILES); do \
+		ff=$$f; test -f $$f || ff=${.CURDIR}/$$f || true; \
+		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$ff \
 			$(DESTDIR)$(DEVICEDIR)/$$f; \
 	done
 .endif
