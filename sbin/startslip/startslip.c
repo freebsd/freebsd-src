@@ -256,7 +256,7 @@ restart:
 		    username, (long)conn_time);
 		sprintf(buf, "LINE=%d %s %s down",
 		diali ? (dialc - 1) % diali : 0,
-		downscript ? downscript : "/sbin/ifconfig" , unitname);
+		downscript ? downscript : _PATH_IFCONFIG , unitname);
 		(void) system(buf);
 		logged_in = 0;
 	}
@@ -458,7 +458,7 @@ restart:
 
 	sprintf(buf, "LINE=%d %s %s up",
 		diali ? (dialc - 1) % diali : 0,
-		upscript ? upscript : "/sbin/ifconfig" , unitname);
+		upscript ? upscript : _PATH_IFCONFIG , unitname);
 	(void) system(buf);
 
 	printd(", ready\n");

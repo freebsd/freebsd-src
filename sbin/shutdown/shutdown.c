@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -60,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include "pathnames.h"
 
 #ifdef DEBUG
 #undef _PATH_NOLOGIN
