@@ -220,15 +220,6 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists || XF86ServerDists || XF86FontDists) {
 	Dists |= DIST_XF86;
-#ifdef __i386__
-	Dists |= DIST_COMPAT22;	/* For certain old X applications */
-#if __FreeBSD__ > 3
-	Dists |= DIST_COMPAT3X;
-#endif
-#endif
-#if __FreeBSD__ > 4
-	Dists |= DIST_COMPAT4X;
-#endif
     }
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, CRYPTO: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
