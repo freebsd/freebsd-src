@@ -21,9 +21,9 @@
 # FreeBSD, Twin, Wide, 2 command per target support, and other optimizations
 # provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
-#	$Id: aic7xxx.seq,v 1.5 1995/01/16 16:31:21 gibbs Exp $
+#	$Id: aic7xxx.seq,v 1.6 1995/01/22 00:46:53 gibbs Exp $
 
-VERSION AIC7XXX_SEQ_VERSION 1.5
+VERSION AIC7XXX_SEQ_VERSION 1.7
 
 SCBMASK		= 0x1f
 
