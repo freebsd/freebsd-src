@@ -9,7 +9,7 @@
 #ifndef _ALPHA_IEEEFP_H_
 #define _ALPHA_IEEEFP_H_
 
-typedef int fp_except;
+typedef int fp_except_t;
 #define	FP_X_INV	(1LL << 1)	/* invalid operation exception */
 #define	FP_X_DZ		(1LL << 2)	/* divide-by-zero exception */
 #define	FP_X_OFL	(1LL << 3)	/* overflow exception */
