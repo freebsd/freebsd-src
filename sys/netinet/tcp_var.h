@@ -130,7 +130,8 @@ struct tcpcb {
 					 * linear switch
 					 */
 	u_long	snd_bandwidth;		/* calculated bandwidth or 0 */
-	tcp_seq	snd_recover;		/* for use in fast recovery */
+	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
+	tcp_seq snd_high;		/* for use in NewReno Fast Recovery */
 
 	u_int	t_maxopd;		/* mss plus options */
 
@@ -174,6 +175,7 @@ struct tcpcb {
 /* experimental */
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
+	tcp_seq	snd_high_prev;		/* snd_high prior to retransmit */
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
 };
 
