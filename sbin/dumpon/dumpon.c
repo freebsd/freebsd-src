@@ -55,10 +55,10 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sysexits.h>
 
-void	usage __P((void)) __dead2;
+void	usage(void) __dead2;
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	int ch, verbose, rv;
 	struct stat stab;
@@ -114,11 +114,11 @@ main(int argc, char **argv)
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: dumpon [-v] special_file\n"
