@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.131 1995/11/28 00:17:30 ache Exp $
+ *  $Id: syscons.c,v 1.132 1995/11/30 03:29:31 ache Exp $
  */
 
 #include "sc.h"
@@ -36,7 +36,7 @@
 #include <sys/conf.h>
 #include <sys/ioctl.h>
 #include <sys/proc.h>
-#include <sys/user.h>
+#include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/callout.h>
@@ -54,6 +54,8 @@
 #include <machine/pc/display.h>
 #include <machine/apm_bios.h>
 #include <machine/random.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

@@ -72,7 +72,7 @@
 #include <sys/conf.h>
 #include <sys/ioctl.h>
 #include <sys/proc.h>
-#include <sys/user.h>
+#include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/callout.h>
@@ -90,7 +90,7 @@
 #include "conf.h"
 #include "ioctl.h"
 #include "proc.h"
-#include "user.h"
+#include "signalvar.h"
 #include "tty.h"
 #include "uio.h"
 #include "callout.h"
@@ -169,10 +169,8 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #endif
-#include <vm/vm_kern.h>
 #else /* PCVT_FREEBSD >= 200 */
 #include "machine/pc/display.h"
-#include "vm/vm_kern.h"
 #endif /* PCVT_FREEBSD >= 200 */
 
 #if PCVT_FREEBSD > 205

@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.6 1995/11/29 10:47:03 julian Exp $
+ *  dgb.c $Id: dgb.c,v 1.7 1995/11/29 14:39:06 julian Exp $
  *
  *  Digiboard driver.
  *
@@ -32,7 +32,6 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/file.h>
@@ -43,6 +42,8 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

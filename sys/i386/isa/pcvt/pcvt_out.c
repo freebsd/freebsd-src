@@ -65,6 +65,7 @@
 #define PCVT_INCLUDE_VT_SELATTR	/* get inline function from pcvt_hdr.h */
 
 #include "pcvt_hdr.h"		/* global include */
+#include <vm/vm.h>
 
 extern u_short csd_ascii[];	/* pcvt_tbl.h */
 extern u_short csd_supplemental[];

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.16 1995/11/29 14:40:45 julian Exp $
+ * $Id: bpf.c,v 1.17 1995/12/02 19:37:19 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -58,7 +58,7 @@
 #include <sys/buf.h>
 #include <sys/time.h>
 #include <sys/proc.h>
-#include <sys/user.h>
+#include <sys/signalvar.h>
 #include <sys/ioctl.h>
 
 #include <sys/file.h>
