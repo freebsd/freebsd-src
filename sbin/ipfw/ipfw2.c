@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <timeconv.h>
 #include <unistd.h>
 #include <sysexits.h>
 
@@ -757,6 +756,9 @@ show_ipfw(struct ip_fw *rule)
 	if (do_time) {
 		if (rule->timestamp) {
 			char timestr[30];
+#if _FreeBSD_version < 500000 /* XXX check */
+#define	_long_to_time(x)	(time_t)(x)
+#endif
 			time_t t = _long_to_time(rule->timestamp);
 
 			strcpy(timestr, ctime(&t));
@@ -1569,8 +1571,6 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		d = (u_int32_t *)&cmd->mask;
 		cmd->o.opcode = O_IP_DST_SET;	/* default */
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + (cmd->o.arg1+31)/32;
-		fprintf(stderr,"-- set size %d cmdlen %d\n",
-			cmd->o.arg1, cmd->o.len );
 		for (i = 0; i < cmd->o.arg1/32 ; i++)
 			d[i] = 0;	/* clear masks */
 

@@ -131,12 +131,12 @@
         implements static network address translation.
 
     Version 3.2: July, 2000 (salander and satoh)
-        Added FindNewPortGroup to get contiguous range of port values.  
+        Added FindNewPortGroup to get contiguous range of port values.
 
         Added QueryUdpTcpIn and QueryUdpTcpOut to look for an aliasing
 	link but not actually add one.
 
-        Added FindRtspOut, which is closely derived from FindUdpTcpOut, 
+        Added FindRtspOut, which is closely derived from FindUdpTcpOut,
 	except that the alias port (from FindNewPortGroup) is provided
 	as input.
 
@@ -333,14 +333,14 @@ struct alias_link                /* Main data structure */
 
 
 
-/* Global Variables 
+/* Global Variables
 
     The global variables listed here are only accessed from
-    within alias_db.c and so are prefixed with the static 
+    within alias_db.c and so are prefixed with the static
     designation.
 */
 
-int packetAliasMode;                 /* Mode flags                      */ 
+int packetAliasMode;                 /* Mode flags                      */
                                      /*        - documented in alias.h  */
 
 static struct in_addr aliasAddress;  /* Address written onto source     */
@@ -388,7 +388,7 @@ static FILE *monitorFile;            /* File descriptor for link        */
 static int newDefaultLink;           /* Indicates if a new aliasing     */
                                      /* link has been created after a   */
                                      /* call to PacketAliasIn/Out().    */
-             
+
 #ifndef NO_FW_PUNCH
 static int fireWallFD = -1;          /* File descriptor to be able to   */
                                      /* control firewall.  Opened by    */
@@ -410,7 +410,7 @@ Lookup table starting points:
                                 incoming packets
     StartPointOut()          -- link table initial search point for
                                 outgoing packets
-    
+
 Miscellaneous:
     SeqDiff()                -- difference between two TCP sequences
     ShowAliasStats()         -- send alias statistics to a monitor file
@@ -462,7 +462,7 @@ StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
     n  = src_addr.s_addr;
     n += dst_addr.s_addr;
     if (link_type != LINK_PPTP) {
-	n += src_port; 
+	n += src_port;
 	n += dst_port;
     }
     n += link_type;
@@ -528,15 +528,15 @@ Link creation and deletion:
     CleanupAliasData()      - remove all link chains from lookup table
     IncrementalCleanup()    - look for stale links in a single chain
     DeleteLink()            - remove link
-    AddLink()               - add link 
-    ReLink()                - change link 
+    AddLink()               - add link
+    ReLink()                - change link
 
 Link search:
     FindLinkOut()           - find link for outgoing packets
     FindLinkIn()            - find link for incoming packets
 
 Port search:
-    FindNewPortGroup()      - find an available group of ports 
+    FindNewPortGroup()      - find an available group of ports
 */
 
 /* Local prototypes */
@@ -598,7 +598,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
    When this parameter is GET_ALIAS_PORT, it indicates to get a randomly
    selected port number.
 */
- 
+
     if (alias_port_param == GET_ALIAS_PORT)
     {
         /*
@@ -664,7 +664,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
         {
             if ((packetAliasMode & PKT_ALIAS_USE_SOCKETS)
              && (link->flags & LINK_PARTIALLY_SPECIFIED)
-	     && ((link->link_type == LINK_TCP) || 
+	     && ((link->link_type == LINK_TCP) ||
 		 (link->link_type == LINK_UDP)))
             {
                 if (GetSocket(port_net, &link->sockfd, link->link_type))
@@ -694,7 +694,7 @@ GetNewPort(struct alias_link *link, int alias_port_param)
 }
 
 
-static u_short 
+static u_short
 GetSocket(u_short port_net, int *sockfd, int link_type)
 {
     int err;
@@ -744,7 +744,7 @@ GetSocket(u_short port_net, int *sockfd, int link_type)
 }
 
 
-/* FindNewPortGroup() returns a base port number for an available        
+/* FindNewPortGroup() returns a base port number for an available
    range of contiguous port numbers. Note that if a port number
    is already in use, that does not mean that it cannot be used by
    another link concurrently.  This is because FindNewPortGroup()
@@ -755,8 +755,8 @@ FindNewPortGroup(struct in_addr  dst_addr,
                  struct in_addr  alias_addr,
                  u_short         src_port,
                  u_short         dst_port,
-                 u_short         port_count, 
-		 u_char          proto, 
+                 u_short         port_count,
+		 u_char          proto,
 		 u_char          align)
 {
     int     i, j;
@@ -813,7 +813,7 @@ FindNewPortGroup(struct in_addr  dst_addr,
 
       struct alias_link *search_result;
 
-      for (j = 0; j < port_count; j++)  
+      for (j = 0; j < port_count; j++)
         if (0 != (search_result = FindLinkIn(dst_addr, alias_addr,
                                         dst_port, htons(port_sys + j),
                                         link_type, 0)))
@@ -886,7 +886,7 @@ IncrementalCleanup(void)
                 {
                     struct tcp_dat *tcp_aux;
 
-                    tcp_aux = link->data.tcp; 
+                    tcp_aux = link->data.tcp;
                     if (tcp_aux->state.in  != ALIAS_TCP_STATE_CONNECTED
                      || tcp_aux->state.out != ALIAS_TCP_STATE_CONNECTED)
                     {
@@ -1113,12 +1113,12 @@ AddLink(struct in_addr  src_addr,
         }
 
     /* Set up pointers for output lookup table */
-        start_point = StartPointOut(src_addr, dst_addr, 
+        start_point = StartPointOut(src_addr, dst_addr,
                                     src_port, dst_port, link_type);
         LIST_INSERT_HEAD(&linkTableOut[start_point], link, list_out);
 
     /* Set up pointers for input lookup table */
-        start_point = StartPointIn(alias_addr, link->alias_port, link_type); 
+        start_point = StartPointIn(alias_addr, link->alias_port, link_type);
         LIST_INSERT_HEAD(&linkTableIn[start_point], link, list_in);
     }
     else
@@ -1290,7 +1290,7 @@ _FindLinkIn(struct in_addr dst_addr,
         if (!(flags & LINK_PARTIALLY_SPECIFIED))
         {
             if (link->alias_addr.s_addr == alias_addr.s_addr
-             && link->alias_port        == alias_port 
+             && link->alias_port        == alias_port
              && link->dst_addr.s_addr   == dst_addr.s_addr
              && link->dst_port          == dst_port
              && link->link_type         == link_type)
@@ -1619,7 +1619,7 @@ FindUdpTcpIn(struct in_addr dst_addr,
 }
 
 
-struct alias_link * 
+struct alias_link *
 FindUdpTcpOut(struct in_addr  src_addr,
               struct in_addr  dst_addr,
               u_short         src_port,
@@ -1751,7 +1751,7 @@ FindPptpInByPeerCallId(struct in_addr dst_addr,
 }
 
 
-struct alias_link * 
+struct alias_link *
 FindRtspOut(struct in_addr  src_addr,
             struct in_addr  dst_addr,
             u_short         src_port,
@@ -1794,7 +1794,7 @@ struct in_addr
 FindOriginalAddress(struct in_addr alias_addr)
 {
     struct alias_link *link;
-    
+
     link = FindLinkIn(nullAddress, alias_addr,
                       0, 0, LINK_ADDR, 0);
     if (link == NULL)
@@ -1827,7 +1827,7 @@ struct in_addr
 FindAliasAddress(struct in_addr original_addr)
 {
     struct alias_link *link;
-    
+
     link = FindLinkOut(original_addr, nullAddress,
                        0, 0, LINK_ADDR, 0);
     if (link == NULL)
@@ -2059,7 +2059,7 @@ GetDeltaAckIn(struct ip *pip, struct alias_link *link)
 /*
 Find out how much the ACK number has been altered for an incoming
 TCP packet.  To do this, a circular list of ACK numbers where the TCP
-packet size was altered is searched. 
+packet size was altered is searched.
 */
 
     int i;
@@ -2110,7 +2110,7 @@ GetDeltaSeqOut(struct ip *pip, struct alias_link *link)
 /*
 Find out how much the sequence number has been altered for an outgoing
 TCP packet.  To do this, a circular list of ACK numbers where the TCP
-packet size was altered is searched. 
+packet size was altered is searched.
 */
 
     int i;
@@ -2402,7 +2402,7 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
 #ifdef DEBUG
     else
     {
-        fprintf(stderr, "PacketAliasRedirectPort(): " 
+        fprintf(stderr, "PacketAliasRedirectPort(): "
                         "call to AddLink() failed\n");
     }
 #endif
@@ -2461,7 +2461,7 @@ PacketAliasRedirectProto(struct in_addr src_addr,
 #ifdef DEBUG
     else
     {
-        fprintf(stderr, "PacketAliasRedirectProto(): " 
+        fprintf(stderr, "PacketAliasRedirectProto(): "
                         "call to AddLink() failed\n");
     }
 #endif
@@ -2487,7 +2487,7 @@ PacketAliasRedirectAddr(struct in_addr src_addr,
 #ifdef DEBUG
     else
     {
-        fprintf(stderr, "PacketAliasRedirectAddr(): " 
+        fprintf(stderr, "PacketAliasRedirectAddr(): "
                         "call to AddLink() failed\n");
     }
 #endif
@@ -2642,6 +2642,78 @@ PacketAliasCheckNewLink(void)
 #include <string.h>
 #include <err.h>
 
+#if IPFW2		/* support for new firewall code */
+/*
+ * helper function, updates the pointer to cmd with the length
+ * of the current command, and also cleans up the first word of
+ * the new command in case it has been clobbered before.
+ */
+static ipfw_insn *
+next_cmd(ipfw_insn *cmd)
+{
+    cmd += F_LEN(cmd);
+    bzero(cmd, sizeof(*cmd));
+    return cmd;
+}
+
+/*
+ * A function to fill simple commands of size 1.
+ * Existing flags are preserved.
+ */
+static ipfw_insn *
+fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int size,
+	 int flags, u_int16_t arg)
+{
+    cmd->opcode = opcode;
+    cmd->len =  ((cmd->len | flags) & (F_NOT | F_OR)) | (size & F_LEN_MASK);
+    cmd->arg1 = arg;
+    return next_cmd(cmd);
+}
+
+static ipfw_insn *
+fill_ip(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int32_t addr)
+{
+    ipfw_insn_ip *cmd = (ipfw_insn_ip *)cmd1;
+
+    cmd->addr.s_addr = addr;
+    return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u32), 0, 0);
+}
+
+static ipfw_insn *
+fill_one_port(ipfw_insn *cmd1, enum ipfw_opcodes opcode, u_int16_t port)
+{
+    ipfw_insn_u16 *cmd = (ipfw_insn_u16 *)cmd1;
+
+    cmd->ports[0] = cmd->ports[1] = port;
+    return fill_cmd(cmd1, opcode, F_INSN_SIZE(ipfw_insn_u16), 0, 0);
+}
+
+static int
+fill_rule(void *buf, int bufsize, int rulenum,
+	enum ipfw_opcodes action, int proto,
+	struct in_addr sa, u_int16_t sp, struct in_addr da, u_int16_t dp)
+{
+    struct ip_fw *rule = (struct ip_fw *)buf;
+    ipfw_insn *cmd = (ipfw_insn *)rule->cmd;
+
+    bzero(buf, bufsize);
+    rule->rulenum = rulenum;
+
+    cmd = fill_cmd(cmd, O_PROTO, F_INSN_SIZE(ipfw_insn), 0, proto);
+    cmd = fill_ip(cmd, O_IP_SRC, sa.s_addr);
+    cmd = fill_one_port(cmd, O_IP_SRCPORT, sp);
+    cmd = fill_ip(cmd, O_IP_DST, da.s_addr);
+    cmd = fill_one_port(cmd, O_IP_DSTPORT, dp);
+
+    rule->act_ofs = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
+    cmd = fill_cmd(cmd, action, F_INSN_SIZE(ipfw_insn), 0, 0);
+
+    rule->cmd_len = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
+
+    return ((void *)cmd - buf);
+}
+#endif /* IPFW2 */
+
 static void ClearAllFWHoles(void);
 
 static int fireWallBaseNum;     /* The first firewall entry free for our use */
@@ -2725,6 +2797,35 @@ PunchFWHole(struct alias_link *link) {
     /* Start next search at next position */
     fireWallActiveNum = fwhole+1;
 
+    /*
+     * generate two rules of the form
+     *
+     *	add fwhole accept tcp from OAddr OPort to DAddr DPort
+     *	add fwhole accept tcp from DAddr DPort to OAddr OPort
+     */
+#if IPFW2
+    if (GetOriginalPort(link) != 0 && GetDestPort(link) != 0) {
+	u_int32_t rulebuf[255];
+	int i;
+
+	i = fill_rule(rulebuf, sizeof(rulebuf), fwhole,
+		O_ACCEPT, IPPROTO_TCP,
+		GetOriginalAddress(link), ntohs(GetOriginalPort(link)),
+		GetDestAddress(link), ntohs(GetDestPort(link)) );
+	r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, rulebuf, i);
+	if (r)
+		err(1, "alias punch inbound(1) setsockopt(IP_FW_ADD)");
+
+	i = fill_rule(rulebuf, sizeof(rulebuf), fwhole,
+		O_ACCEPT, IPPROTO_TCP,
+		GetDestAddress(link), ntohs(GetDestPort(link)),
+		GetOriginalAddress(link), ntohs(GetOriginalPort(link)) );
+	r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, rulebuf, i);
+	if (r)
+		err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
+    }
+#else	/* !IPFW2, old code to generate ipfw rule */
+
     /* Build generic part of the two rules */
     rule.fw_number = fwhole;
     IP_FW_SETNSRCP(&rule, 1);	/* Number of source ports. */
@@ -2760,6 +2861,7 @@ PunchFWHole(struct alias_link *link) {
             err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
 #endif
     }
+#endif /* !IPFW2 */
 /* Indicate hole applied */
     link->data.tcp->fwhole = fwhole;
     fw_setfield(fireWallField, fwhole);
@@ -2773,13 +2875,20 @@ ClearFWHole(struct alias_link *link) {
         int fwhole =  link->data.tcp->fwhole; /* Where is the firewall hole? */
         struct ip_fw rule;
 
-        if (fwhole < 0)
-            return;
+	if (fwhole < 0)
+	    return;
 
-        memset(&rule, 0, sizeof rule);
+        memset(&rule, 0, sizeof rule); /* useless for ipfw2 */
+#if IPFW2
+	while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL,
+		    &fwhole, sizeof fwhole))
+	    ;
+#else /* !IPFW2 */
         rule.fw_number = fwhole;
-        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
+        while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL,
+		    &rule, sizeof rule))
             ;
+#endif /* !IPFW2 */
         fw_clrfield(fireWallField, fwhole);
         link->data.tcp->fwhole = -1;
     }
@@ -2790,15 +2899,21 @@ static void
 ClearAllFWHoles(void) {
     struct ip_fw rule;          /* On-the-fly built rule */
     int i;
-    
+
     if (fireWallFD < 0)
         return;
 
     memset(&rule, 0, sizeof rule);
     for (i = fireWallBaseNum; i < fireWallBaseNum + fireWallNumNums; i++) {
+#if IPFW2
+	int r = i;
+	while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &r, sizeof r))
+	    ;
+#else /* !IPFW2 */
         rule.fw_number = i;
         while (!setsockopt(fireWallFD, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule))
             ;
+#endif /* !IPFW2 */
     }
     memset(fireWallField, 0, fireWallNumNums);
 }
