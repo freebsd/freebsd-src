@@ -12,9 +12,8 @@ SRCS+=	addr2ascii.c ascii2addr.c \
 	inet_pton.c linkaddr.c map_v4v6.c nsap_addr.c \
 	rcmd.c recv.c res_comp.c res_data.c res_debug.c \
 	res_init.c res_mkquery.c res_query.c res_send.c send.c ether_addr.c \
-
+	ns_addr.c ns_ntoa.c
 # iso_addr.c 
-# ns_addr.c ns_ntoa.c
 
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
