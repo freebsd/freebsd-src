@@ -40,6 +40,7 @@ __strong_reference(kse_wakeup, _thr_kse_wakeup);
 __strong_reference(kse_create, _thr_kse_create);
 __strong_reference(kse_thr_interrupt, _thr_kse_thr_interrupt);
 __strong_reference(kse_release, _thr_kse_release);
+__strong_reference(kse_switchin, _thr_kse_switchin);
 
 __strong_reference(sigaction, _thr_sigaction);
 __strong_reference(sigprocmask, _thr_sigprocmask);
