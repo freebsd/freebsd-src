@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: radio1.c,v 1.1 1996/01/01 03:45:29 jkh Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ main(int argc, unsigned char *argv[])
 
   retval = dialog_radiolist("this is dialog_radiolist() in action, test #1",
 			    "this radio menu shows off some of the straight-forward features\n"
-			    "of the new menu system's check & fire dispatch hooks", -1, -1, 3, -3, &menu5, NULL);
+			    "of the new menu system's check & fire dispatch hooks", -1, -1, 3, -3, menu5, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_radiolist was %d (money set to %d)\n", retval, spending);
 

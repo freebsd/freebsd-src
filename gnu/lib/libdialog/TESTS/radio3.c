@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: radio3.c,v 1.1 1996/01/01 03:45:30 jkh Exp $
  */
 
 #include <stdio.h>
@@ -88,7 +88,7 @@ main(int argc, unsigned char *argv[])
 			    "controls at different locations, as well as the `selected' hook which\n"
 			    "lets you follow the traversal of the selection bar as well as what's\n"
 			    "selected.",
-			    -1, -1, 3, -3, &menu5, NULL);
+			    -1, -1, 3, -3, menu5, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_radiolist was %d (money set to %d)\n", retval, spending);
 
