@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.53 1996/07/02 02:07:59 dyson Exp $
+ * $Id: vm_fault.c,v 1.54 1996/07/27 03:23:52 dyson Exp $
  */
 
 /*
@@ -293,7 +293,8 @@ RetryFault:;
 
 			m->flags |= PG_BUSY;
 
-			if (((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (m->valid &&
+				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
@@ -396,17 +397,19 @@ readrest:
 
 			if (rv == VM_PAGER_OK) {
 				/*
+				 * Found the page. Leave it busy while we play
+				 * with it.
+				 */
+
+				/*
 				 * Relookup in case pager changed page. Pager
 				 * is responsible for disposition of old page
 				 * if moved.
 				 */
-				if ((m->object != object) || (m->pindex != pindex) ||
-					(m->flags & PG_TABLED) == 0) {
-					m = vm_page_lookup(object, pindex);
-					if( !m) {
-						UNLOCK_AND_DEALLOCATE;
-						goto RetryFault;
-					}
+				m = vm_page_lookup(object, pindex);
+				if( !m) {
+					UNLOCK_AND_DEALLOCATE;
+					goto RetryFault;
 				}
 
 				hardfault++;
@@ -478,26 +481,9 @@ readrest:
 			}
 			first_m = NULL;
 
-			if ((m->flags & PG_ZERO) == 0) {
-				if (vm_page_zero_count) {
-					vm_page_protect(m, VM_PROT_NONE);
-					PAGE_WAKEUP(m);
-					vm_page_free(m);
-					m = vm_page_alloc(object, pindex, VM_ALLOC_ZERO);
-					if (!m)
-						panic("vm_fault: missing zero page");
-					/*
-					 * This should not be true, but just in case...
-					 */
-					if ((m->flags & PG_ZERO) == 0) {
-						vm_page_zero_fill(m);
-						cnt.v_zfod++;
-					}
-				} else {
-					vm_page_zero_fill(m);
-					cnt.v_zfod++;
-				}
-			}
+			if ((m->flags & PG_ZERO) == 0)
+				vm_page_zero_fill(m);
+			cnt.v_zfod++;
 			break;
 		} else {
 			if (object != first_object) {
