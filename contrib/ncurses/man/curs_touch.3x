@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_touch.3x,v 1.7 2000/07/01 20:08:04 tom Exp $
+.\" $Id: curs_touch.3x,v 1.8 2000/07/08 11:07:57 tom Exp $
 .TH curs_touch 3X ""
 .SH NAME
 \fBtouchwin\fR,
@@ -46,9 +46,9 @@
 .br
 \fBint wtouchln(WINDOW *win, int y, int n, int changed);\fR
 .br
-\fBint is_linetouched(WINDOW *win, int line);\fR
+\fBbool is_linetouched(WINDOW *win, int line);\fR
 .br
-\fBint is_wintouched(WINDOW *win);\fR
+\fBbool is_wintouched(WINDOW *win);\fR
 .br
 .SH DESCRIPTION
 The \fBtouchwin\fR and \fBtouchline\fR routines throw away all

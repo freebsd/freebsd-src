@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,14 +39,15 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_winch.c,v 1.1 1998/11/14 22:06:09 tom Exp $")
+MODULE_ID("$Id: lib_winch.c,v 1.2 2000/07/29 16:41:44 tom Exp $")
 
-chtype winch(WINDOW *win)
+chtype
+winch(WINDOW *win)
 {
-	T((T_CALLED("winch(%p)"), win));
-	if (win != 0) {
-		returnCode(win->_line[win->_cury].text[win->_curx]);
-	} else {
-		returnCode(0);
-	}
+    T((T_CALLED("winch(%p)"), win));
+    if (win != 0) {
+	returnChar(win->_line[win->_cury].text[win->_curx]);
+    } else {
+	returnChar(0);
+    }
 }

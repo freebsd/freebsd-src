@@ -84,7 +84,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_mouse.c,v 1.52 2000/06/29 23:02:26 tom Exp $")
+MODULE_ID("$Id: lib_mouse.c,v 1.55 2000/10/10 00:07:28 Ilya.Zakharevich Exp $")
 
 #define MY_TRACE TRACE_ICALLS|TRACE_IEVENT
 
@@ -130,8 +130,8 @@ _trace_slot(const char *tag)
 
     for (ep = events; ep < events + EV_MAX; ep++)
 	_tracef("mouse event queue slot %ld = %s",
-	    (long) (ep - events),
-	    _tracemouse(ep));
+		(long) (ep - events),
+		_tracemouse(ep));
 }
 #endif
 
@@ -154,7 +154,7 @@ write_event(int down, int button, int x, int y)
     char buf[6];
     unsigned long ignore;
 
-    strcpy(buf, key_mouse);
+    strncpy(buf, key_mouse, 3);	/* should be "\033[M" */
     buf[3] = ' ' + (button - 1) + (down ? 0 : 0x40);
     buf[4] = ' ' + x - LEFT_COL + 1;
     buf[5] = ' ' + y - TOP_ROW + 1;
@@ -169,20 +169,27 @@ mouse_server(unsigned long ignored GCC_UNUSED)
     MOUEVENTINFO mouev;
     HMOU hmou;
     unsigned short mask = MOUSE_BN1_DOWN | MOUSE_BN2_DOWN | MOUSE_BN3_DOWN;
+    int nbuttons = 3;
     int oldstate = 0;
-    char errmess[] = "Unexpected termination of mouse thread\r\n";
-    unsigned long ignore;
+    char err[80];
+    unsigned long rc;
 
     /* open the handle for the mouse */
     if (MouOpen(NULL, &hmou) == 0) {
-
-	if (MouSetEventMask(&mask, hmou) == 0
-	    && MouDrawPtr(hmou) == 0) {
-
+	rc = MouSetEventMask(&mask, hmou);
+	if (rc) {		/* retry with 2 buttons */
+	    mask = MOUSE_BN1_DOWN | MOUSE_BN2_DOWN;
+	    rc = MouSetEventMask(&mask, hmou);
+	    nbuttons = 2;
+	}
+	if (rc == 0 && MouDrawPtr(hmou) == 0) {
 	    for (;;) {
 		/* sit and wait on the event queue */
-		if (MouReadEventQue(&mouev, &fWait, hmou))
+		rc = MouReadEventQue(&mouev, &fWait, hmou);
+		if (rc) {
+		    sprintf(err, "Error reading mouse queue, rc=%lu.\r\n", rc);
 		    break;
+		}
 		if (!mouse_activated)
 		    goto finish;
 
@@ -195,24 +202,27 @@ mouse_server(unsigned long ignored GCC_UNUSED)
 		 */
 		if ((mouev.fs ^ oldstate) & MOUSE_BN1_DOWN)
 		    write_event(mouev.fs & MOUSE_BN1_DOWN,
-			mouse_buttons[1], mouev.col, mouev.row);
+				mouse_buttons[1], mouev.col, mouev.row);
 		if ((mouev.fs ^ oldstate) & MOUSE_BN2_DOWN)
 		    write_event(mouev.fs & MOUSE_BN2_DOWN,
-			mouse_buttons[3], mouev.col, mouev.row);
+				mouse_buttons[3], mouev.col, mouev.row);
 		if ((mouev.fs ^ oldstate) & MOUSE_BN3_DOWN)
 		    write_event(mouev.fs & MOUSE_BN3_DOWN,
-			mouse_buttons[2], mouev.col, mouev.row);
+				mouse_buttons[2], mouev.col, mouev.row);
 
 	      finish:
 		oldstate = mouev.fs;
 	    }
-	}
+	} else
+	    sprintf(err, "Error setting event mask, buttons=%d, rc=%lu.\r\n",
+		    nbuttons, rc);
 
-	DosWrite(2, errmess, strlen(errmess), &ignore);
+	DosWrite(2, err, strlen(err), &rc);
 	MouClose(hmou);
     }
     DosExit(EXIT_THREAD, 0L);
 }
+
 static void
 server_state(const int state)
 {				/* It would be nice to implement pointer-off and stop looping... */
@@ -248,8 +258,10 @@ initialize_mousetype(void)
 	&& strstr(cur_term->type.term_names, "xterm") == 0
 	&& key_mouse) {
 	int handles[2];
+
 	if (pipe(handles) < 0) {
 	    perror("mouse pipe error");
+	    return;
 	} else {
 	    int rc;
 
@@ -270,9 +282,10 @@ initialize_mousetype(void)
 	    setmode(handles[1], O_BINARY);
 	    /* Do not use CRT functions, we may single-threaded. */
 	    rc = DosCreateThread((unsigned long *) &mouse_thread,
-		mouse_server, 0, 0, 8192);
+				 mouse_server, 0, 0, 8192);
 	    if (rc) {
 		printf("mouse thread error %d=%#x", rc, rc);
+		return;
 	    } else {
 		mousetype = M_XTERM;
 		return;
@@ -359,6 +372,23 @@ _nc_mouse_event(SCREEN * sp GCC_UNUSED)
     }
 #endif
 
+#ifdef USE_EMX_MOUSE
+    if (SP->_mouse_fd >= 0
+	&& (_nc_timed_wait(3, 0, (int *) 0) & 2) != 0) {
+	char kbuf[3];
+
+	int i, res = read(M_FD(sp), &kbuf, 3);	/* Eat the prefix */
+	if (res != 3)
+	    printf("Got %d chars instead of 3 for prefix.\n", res);
+	for (i = 0; i < res; i++) {
+	    if (kbuf[i] != key_mouse[i])
+		printf("Got char %d instead of %d for prefix.\n",
+		       (int) kbuf[i], (int) key_mouse[i]);
+	}
+	return TRUE;
+    }
+#endif /* USE_EMX_MOUSE */
+
     /* xterm: never have to query, mouse events are in the keyboard stream */
     return (FALSE);		/* no event waiting */
 }
@@ -419,7 +449,7 @@ _nc_mouse_inline(SCREEN * sp)
 	kbuf[3] = '\0';
 
 	TR(TRACE_IEVENT,
-	    ("_nc_mouse_inline sees the following xterm data: '%s'", kbuf));
+	   ("_nc_mouse_inline sees the following xterm data: '%s'", kbuf));
 
 	eventp->id = 0;		/* there's only one mouse... */
 
@@ -457,8 +487,8 @@ _nc_mouse_inline(SCREEN * sp)
 	     */
 	    eventp->bstate =
 		(BUTTON1_RELEASED |
-		BUTTON2_RELEASED |
-		BUTTON3_RELEASED);
+		 BUTTON2_RELEASED |
+		 BUTTON3_RELEASED);
 	    /*
 	     * ...however, because there are no kinds of mouse events under
 	     * xterm that can intervene between press and release, we can
@@ -488,9 +518,9 @@ _nc_mouse_inline(SCREEN * sp)
 	eventp->x = (kbuf[1] - ' ') - 1;
 	eventp->y = (kbuf[2] - ' ') - 1;
 	TR(MY_TRACE,
-	    ("_nc_mouse_inline: primitive mouse-event %s has slot %ld",
-		_tracemouse(eventp),
-		(long) (eventp - events)));
+	   ("_nc_mouse_inline: primitive mouse-event %s has slot %ld",
+	    _tracemouse(eventp),
+	    (long) (eventp - events)));
 
 	/* bump the next-free pointer into the circular list */
 	eventp = NEXT(eventp);
@@ -514,7 +544,7 @@ mouse_activate(bool on)
 
 	switch (mousetype) {
 	case M_XTERM:
-#ifdef NCURSES_EXT_FUNCS
+#if NCURSES_EXT_FUNCS
 	    keyok(KEY_MOUSE, on);
 #endif
 	    TPUTS_TRACE("xterm mouse initialization");
@@ -598,9 +628,9 @@ _nc_mouse_parse(int runcount)
      */
     if (runcount == 1) {
 	TR(MY_TRACE,
-	    ("_nc_mouse_parse: returning simple mouse event %s at slot %ld",
-		_tracemouse(prev),
-		(long) (prev - events)));
+	   ("_nc_mouse_parse: returning simple mouse event %s at slot %ld",
+	    _tracemouse(prev),
+	    (long) (prev - events)));
 	return (prev->id >= 0)
 	    ? ((prev->bstate & eventmask) ? TRUE : FALSE)
 	    : FALSE;
@@ -616,9 +646,9 @@ _nc_mouse_parse(int runcount)
     if (_nc_tracing & TRACE_IEVENT) {
 	_trace_slot("before mouse press/release merge:");
 	_tracef("_nc_mouse_parse: run starts at %ld, ends at %ld, count %d",
-	    (long) (runp - events),
-	    (long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
-	    runcount);
+		(long) (runp - events),
+		(long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
+		runcount);
     }
 #endif /* TRACE */
 
@@ -664,9 +694,9 @@ _nc_mouse_parse(int runcount)
     if (_nc_tracing & TRACE_IEVENT) {
 	_trace_slot("before mouse click merge:");
 	_tracef("_nc_mouse_parse: run starts at %ld, ends at %ld, count %d",
-	    (long) (runp - events),
-	    (long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
-	    runcount);
+		(long) (runp - events),
+		(long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
+		runcount);
     }
 #endif /* TRACE */
 
@@ -700,7 +730,7 @@ _nc_mouse_parse(int runcount)
 
 		/* merge click events forward */
 		if ((ep->bstate &
-			(BUTTON1_CLICKED | BUTTON2_CLICKED | BUTTON3_CLICKED))
+		     (BUTTON1_CLICKED | BUTTON2_CLICKED | BUTTON3_CLICKED))
 		    && (follower->bstate &
 			(BUTTON1_CLICKED | BUTTON2_CLICKED | BUTTON3_CLICKED))) {
 		    if ((eventmask & BUTTON1_DOUBLE_CLICKED)
@@ -727,9 +757,9 @@ _nc_mouse_parse(int runcount)
 
 		/* merge double-click events forward */
 		if ((ep->bstate &
-			(BUTTON1_DOUBLE_CLICKED
-			    | BUTTON2_DOUBLE_CLICKED
-			    | BUTTON3_DOUBLE_CLICKED))
+		     (BUTTON1_DOUBLE_CLICKED
+		      | BUTTON2_DOUBLE_CLICKED
+		      | BUTTON3_DOUBLE_CLICKED))
 		    && (follower->bstate &
 			(BUTTON1_CLICKED | BUTTON2_CLICKED | BUTTON3_CLICKED))) {
 		    if ((eventmask & BUTTON1_TRIPLE_CLICKED)
@@ -761,9 +791,9 @@ _nc_mouse_parse(int runcount)
     if (_nc_tracing & TRACE_IEVENT) {
 	_trace_slot("before mouse event queue compaction:");
 	_tracef("_nc_mouse_parse: run starts at %ld, ends at %ld, count %d",
-	    (long) (runp - events),
-	    (long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
-	    runcount);
+		(long) (runp - events),
+		(long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
+		runcount);
     }
 #endif /* TRACE */
 
@@ -779,16 +809,16 @@ _nc_mouse_parse(int runcount)
     if (_nc_tracing & TRACE_IEVENT) {
 	_trace_slot("after mouse event queue compaction:");
 	_tracef("_nc_mouse_parse: run starts at %ld, ends at %ld, count %d",
-	    (long) (runp - events),
-	    (long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
-	    runcount);
+		(long) (runp - events),
+		(long) ((eventp - events) + (EV_MAX - 1)) % EV_MAX,
+		runcount);
     }
     for (ep = runp; ep != eventp; ep = NEXT(ep))
 	if (ep->id != INVALID_EVENT)
 	    TR(MY_TRACE,
-		("_nc_mouse_parse: returning composite mouse event %s at slot %ld",
-		    _tracemouse(ep),
-		    (long) (ep - events)));
+	       ("_nc_mouse_parse: returning composite mouse event %s at slot %ld",
+		_tracemouse(ep),
+		(long) (ep - events)));
 #endif /* TRACE */
 
     /* after all this, do we have a valid event? */
@@ -847,8 +877,8 @@ getmouse(MEVENT * aevent)
 	*aevent = *prev;
 
 	TR(TRACE_IEVENT, ("getmouse: returning event %s from slot %ld",
-		_tracemouse(prev),
-		(long) (prev - events)));
+			  _tracemouse(prev),
+			  (long) (prev - events)));
 
 	prev->id = INVALID_EVENT;	/* so the queue slot becomes free */
 	returnCode(OK);
@@ -888,12 +918,12 @@ mousemask(mmask_t newmask, mmask_t * oldmask)
     if (mousetype != M_NONE) {
 	eventmask = newmask &
 	    (BUTTON_ALT | BUTTON_CTRL | BUTTON_SHIFT
-	    | BUTTON1_PRESSED | BUTTON1_RELEASED | BUTTON1_CLICKED
-	    | BUTTON1_DOUBLE_CLICKED | BUTTON1_TRIPLE_CLICKED
-	    | BUTTON2_PRESSED | BUTTON2_RELEASED | BUTTON2_CLICKED
-	    | BUTTON2_DOUBLE_CLICKED | BUTTON2_TRIPLE_CLICKED
-	    | BUTTON3_PRESSED | BUTTON3_RELEASED | BUTTON3_CLICKED
-	    | BUTTON3_DOUBLE_CLICKED | BUTTON3_TRIPLE_CLICKED);
+	     | BUTTON1_PRESSED | BUTTON1_RELEASED | BUTTON1_CLICKED
+	     | BUTTON1_DOUBLE_CLICKED | BUTTON1_TRIPLE_CLICKED
+	     | BUTTON2_PRESSED | BUTTON2_RELEASED | BUTTON2_CLICKED
+	     | BUTTON2_DOUBLE_CLICKED | BUTTON2_TRIPLE_CLICKED
+	     | BUTTON3_PRESSED | BUTTON3_RELEASED | BUTTON3_CLICKED
+	     | BUTTON3_DOUBLE_CLICKED | BUTTON3_TRIPLE_CLICKED);
 
 	mouse_activate(eventmask != 0);
 
@@ -910,9 +940,9 @@ wenclose(const WINDOW *win, int y, int x)
     if (win) {
 	y -= win->_yoffset;
 	return ((win->_begy <= y &&
-		win->_begx <= x &&
-		(win->_begx + win->_maxx) >= x &&
-		(win->_begy + win->_maxy) >= y) ? TRUE : FALSE);
+		 win->_begx <= x &&
+		 (win->_begx + win->_maxx) >= x &&
+		 (win->_begy + win->_maxy) >= y) ? TRUE : FALSE);
     }
     return FALSE;
 }

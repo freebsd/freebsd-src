@@ -42,13 +42,13 @@
 #include <tic.h>		/* for MAX_NAME_SIZE */
 #include <term_entry.h>
 
-#if defined(SVR4_TERMIO) && !defined(_POSIX_SOURCE)
+#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
 #endif
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.59 2000/02/13 01:01:26 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.60 2000/09/02 18:13:12 tom Exp $")
 
 /****************************************************************************
  *
@@ -245,7 +245,7 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
 
     if ((status = _nc_read_entry(tn, filename, tp)) != 1) {
 
-#ifndef PURE_TERMINFO
+#if !PURE_TERMINFO
 	/*
 	 * Try falling back on the termcap file.
 	 * Note:  allowing this call links the entire terminfo/termcap

@@ -101,8 +101,9 @@ char *ttyname(int fd);
 
 #include <curses.h>		/* for bool typedef */
 #include <dump_entry.h>
+#include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 0.41 2000/03/12 00:03:00 tom Exp $")
+MODULE_ID("$Id: tset.c,v 0.47 2000/10/08 01:01:08 tom Exp $")
 
 extern char **environ;
 
@@ -113,9 +114,9 @@ const char *_nc_progname = "tset";
 
 static TTY mode, oldmode;
 
+static bool isreset = FALSE;	/* invoked as reset */
 static int terasechar = -1;	/* new erase character */
 static int intrchar = -1;	/* new interrupt character */
-static int isreset;		/* invoked as reset */
 static int tkillchar = -1;	/* new kill character */
 static int tlines, tcolumns;	/* window size */
 
@@ -233,7 +234,7 @@ typedef struct map {
     const char *porttype;	/* Port type, or "" for any. */
     const char *type;		/* Terminal type to select. */
     int conditional;		/* Baud rate conditionals bitmask. */
-    speed_t speed;		/* Baud rate to compare against. */
+    int speed;			/* Baud rate to compare against. */
 } MAP;
 
 static MAP *cur, *maplist;
@@ -260,10 +261,19 @@ static const SPEEDS speeds[] =
     {"2400", B2400},
     {"4800", B4800},
     {"9600", B9600},
+    /* sgttyb may define up to this point */
+#ifdef B19200
     {"19200", B19200},
+#endif
+#ifdef B38400
     {"38400", B38400},
+#endif
+#ifdef B19200
     {"19200", B19200},
+#endif
+#ifdef B38400
     {"38400", B38400},
+#endif
 #ifdef B19200
     {"19200", B19200},
 #else
@@ -505,10 +515,7 @@ get_termcap_entry(char *userarg)
 	goto map;
 
     if ((ttypath = ttyname(STDERR_FILENO)) != 0) {
-	if ((p = strrchr(ttypath, '/')) != 0)
-	    ++p;
-	else
-	    p = ttypath;
+	p = _nc_basename(ttypath);
 #if HAVE_GETTTYNAM
 	/*
 	 * We have the 4.3BSD library call getttynam(3); that means
@@ -582,15 +589,15 @@ get_termcap_entry(char *userarg)
     }
     /* Find the terminfo entry.  If it doesn't exist, ask the user. */
     while ((rval = setupterm((NCURSES_CONST char *) ttype, STDOUT_FILENO,
-		&errret)) != OK) {
+			     &errret)) != OK) {
 	if (errret == 0) {
 	    (void) fprintf(stderr, "tset: unknown terminal type %s\n",
-		ttype);
+			   ttype);
 	    ttype = 0;
 	} else {
 	    (void) fprintf(stderr,
-		"tset: can't initialize terminal type %s (error %d)\n",
-		ttype, errret);
+			   "tset: can't initialize terminal type %s (error %d)\n",
+			   ttype, errret);
 	    ttype = 0;
 	}
 	ttype = askuser(ttype);
@@ -683,46 +690,46 @@ reset_mode(void)
 
     mode.c_iflag &= ~(IGNBRK | PARMRK | INPCK | ISTRIP | INLCR | IGNCR
 #ifdef IUCLC
-	| IUCLC
+		      | IUCLC
 #endif
 #ifdef IXANY
-	| IXANY
+		      | IXANY
 #endif
-	| IXOFF);
+		      | IXOFF);
 
     mode.c_iflag |= (BRKINT | IGNPAR | ICRNL | IXON
 #ifdef IMAXBEL
-	| IMAXBEL
+		     | IMAXBEL
 #endif
 	);
 
     mode.c_oflag &= ~(0
 #ifdef OLCUC
-	| OLCUC
+		      | OLCUC
 #endif
 #ifdef OCRNL
-	| OCRNL
+		      | OCRNL
 #endif
 #ifdef ONOCR
-	| ONOCR
+		      | ONOCR
 #endif
 #ifdef ONLRET
-	| ONLRET
+		      | ONLRET
 #endif
 #ifdef OFILL
-	| OFILL
+		      | OFILL
 #endif
 #ifdef OFDEL
-	| OFDEL
+		      | OFDEL
 #endif
 #ifdef NLDLY
-	| NLDLY | CRDLY | TABDLY | BSDLY | VTDLY | FFDLY
+		      | NLDLY | CRDLY | TABDLY | BSDLY | VTDLY | FFDLY
 #endif
 	);
 
     mode.c_oflag |= (OPOST
 #ifdef ONLCR
-	| ONLCR
+		     | ONLCR
 #endif
 	);
 
@@ -730,22 +737,22 @@ reset_mode(void)
     mode.c_cflag |= (CS8 | CREAD);
     mode.c_lflag &= ~(ECHONL | NOFLSH
 #ifdef TOSTOP
-	| TOSTOP
+		      | TOSTOP
 #endif
 #ifdef ECHOPTR
-	| ECHOPRT
+		      | ECHOPRT
 #endif
 #ifdef XCASE
-	| XCASE
+		      | XCASE
 #endif
 	);
 
     mode.c_lflag |= (ISIG | ICANON | ECHO | ECHOE | ECHOK
 #ifdef ECHOCTL
-	| ECHOCTL
+		     | ECHOCTL
 #endif
 #ifdef ECHOKE
-	| ECHOKE
+		     | ECHOKE
 #endif
 	);
 #endif
@@ -761,6 +768,7 @@ reset_mode(void)
  * Returns a "good" value for the erase character.  This is loosely based on
  * the BSD4.4 logic.
  */
+#ifdef TERMIOS
 static int
 default_erase(void)
 {
@@ -775,6 +783,7 @@ default_erase(void)
 
     return result;
 }
+#endif
 
 /*
  * Update the values of the erase, interrupt, and kill characters in 'mode'.
@@ -954,10 +963,10 @@ set_tabs()
 /*
  * Tell the user if a control key has been changed from the default value.
  */
+#ifdef TERMIOS
 static void
 report(const char *name, int which, unsigned def)
 {
-#ifdef TERMIOS
     unsigned older, newer;
     char *p;
 
@@ -976,16 +985,16 @@ report(const char *name, int which, unsigned def)
     if (newer == 0177)
 	(void) fprintf(stderr, "delete.\n");
     else if ((p = key_backspace) != 0
-	    && newer == (unsigned char) p[0]
-	&& p[1] == '\0')
+	     && newer == (unsigned char) p[0]
+	     && p[1] == '\0')
 	(void) fprintf(stderr, "backspace.\n");
     else if (newer < 040) {
 	newer ^= 0100;
 	(void) fprintf(stderr, "control-%c (^%c).\n", newer, newer);
     } else
 	(void) fprintf(stderr, "%c.\n", newer);
-#endif
 }
+#endif
 
 /*
  * Convert the obsolete argument forms into something that getopt can handle.
@@ -1025,7 +1034,7 @@ static void
 usage(const char *pname)
 {
     (void) fprintf(stderr,
-	"usage: %s [-IQrs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]\n", pname);
+		   "usage: %s [-IQVrs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]\n", pname);
     exit(EXIT_FAILURE);
 }
 
@@ -1047,32 +1056,24 @@ main(int argc, char **argv)
     const char *p;
     const char *ttype;
 
-#ifdef TERMIOS
-    if (tcgetattr(STDERR_FILENO, &mode) < 0)
+    if (GET_TTY(STDERR_FILENO, &mode) < 0)
 	failed("standard error");
-
     oldmode = mode;
+#ifdef TERMIOS
     ospeed = cfgetospeed(&mode);
 #else
-    if (gtty(STDERR_FILENO, &mode) < 0)
-	failed("standard error");
-
-    oldmode = mode;
     ospeed = mode.sg_ospeed;
 #endif
 
-    if ((p = strrchr(*argv, '/')) != 0)
-	++p;
-    else
-	p = *argv;
-    if (!CaselessCmp(p, "reset")) {
-	isreset = 1;
+    p = _nc_basename(*argv);
+    if (!strcmp(p, PROG_RESET)) {
+	isreset = TRUE;
 	reset_mode();
     }
 
     obsolete(argv);
     noinit = noset = quiet = Sflag = sflag = showterm = 0;
-    while ((ch = getopt(argc, argv, "a:d:e:Ii:k:m:np:qQSrs")) != EOF) {
+    while ((ch = getopt(argc, argv, "a:d:e:Ii:k:m:np:qQSrsV")) != EOF) {
 	switch (ch) {
 	case 'q':		/* display term only */
 	    noset = 1;
@@ -1115,6 +1116,9 @@ main(int argc, char **argv)
 	case 's':		/* output TERM set command */
 	    sflag = 1;
 	    break;
+	case 'V':
+	    puts(curses_version());
+	    return EXIT_SUCCESS;
 	case '?':
 	default:
 	    usage(*argv);
@@ -1170,11 +1174,13 @@ main(int argc, char **argv)
 	 * If erase, kill and interrupt characters could have been
 	 * modified and not -Q, display the changes.
 	 */
+#ifdef TERMIOS
 	if (!quiet) {
 	    report("Erase", VERASE, CERASE);
 	    report("Kill", VKILL, CINTR);
 	    report("Interrupt", VINTR, CKILL);
 	}
+#endif
     }
 
     if (Sflag)
