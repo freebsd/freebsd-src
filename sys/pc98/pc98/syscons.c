@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.11 1997/03/01 10:57:15 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.12 1997/03/04 06:49:40 kato Exp $
  */
 
 #include "sc.h"
@@ -125,6 +125,7 @@ static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
 static  int		sc_port = IO_KBD;
+static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
@@ -236,6 +237,7 @@ static void history_to_screen(scr_stat *scp);
 static int history_up_line(scr_stat *scp);
 static int history_down_line(scr_stat *scp);
 static int mask2attr(struct term_stat *term);
+static void set_keyboard(int command, int data);
 static void update_leds(int which);
 static void set_vgaregs(char *modetable);
 static void set_font_mode(void);
@@ -397,30 +399,37 @@ scprobe(struct isa_device *dev)
 {
 #ifdef PC98
     sc_port = dev->id_iobase;
+    sc_kbdc = kbdc_open(sc_port);
     return(16);
 #else
-    int c;
+    int codeset;
+    int c = -1;
+    int m;
 
     sc_port = dev->id_iobase;
+    sc_kbdc = kbdc_open(sc_port);
+
+    if (!kbdc_lock(sc_kbdc, TRUE)) {
+	/* driver error? */
+	printf("sc%d: unable to lock the controller.\n", dev->id_unit);
+        return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
+    }
 
     /* discard anything left after UserConfig */
-    empty_both_buffers(sc_port, 10);
+    empty_both_buffers(sc_kbdc, 10);
 
     /* save the current keyboard controller command byte */
-    c = -1;
-    if (!write_controller_command(sc_port, KBDC_GET_COMMAND_BYTE)) {
-	/* CONTROLLER ERROR */
-	printf("sc%d: unable to get the current command byte value.\n",
-	    dev->id_unit);
-	goto fail;
-    }
-    c = read_controller_data(sc_port);
+    m = kbdc_get_device_mask(sc_kbdc) & ~KBD_KBD_CONTROL_BITS;
+    c = get_controller_command_byte(sc_kbdc);
     if (c == -1) {
 	/* CONTROLLER ERROR */
 	printf("sc%d: unable to get the current command byte value.\n",
 	    dev->id_unit);
 	goto fail;
     }
+    if (bootverbose)
+	printf("sc%d: the current keyboard controller command byte %04x\n",
+	    dev->id_unit, c);
 #if 0
     /* override the keyboard lock switch */
     c |= KBD_OVERRIDE_KBD_LOCK;
@@ -430,19 +439,40 @@ scprobe(struct isa_device *dev)
      * enable the keyboard port, but disable the keyboard intr. 
      * the aux port (mouse port) is disabled too.
      */
-    if (!set_controller_command_byte(sc_port,
-            c & ~(KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS),
+    if (!set_controller_command_byte(sc_kbdc,
+            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS,
             KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-            | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR 
 	 * there is very little we can do...
 	 */
 	printf("sc%d: unable to set the command byte.\n", dev->id_unit);
 	goto fail;
      }
+
+     /* 
+      * Check if we have an XT keyboard before we attempt to reset it. 
+      * The procedure assumes that the keyboard and the controller have 
+      * been set up properly by BIOS and have not been messed up 
+      * during the boot process.
+      */
+     codeset = -1;
+     if (dev->id_flags & XT_KEYBD)
+	 /* the user says there is a XT keyboard */
+	 codeset = 1;
+#ifdef DETECT_XT_KEYBOARD
+     else if ((c & KBD_TRANSLATION) == 0) {
+	 /* SET_SCANCODE_SET is not always supported; ignore error */
+	 if (send_kbd_command_and_data(sc_kbdc, KBDC_SET_SCANCODE_SET, 0)
+		 == KBD_ACK) 
+	     codeset = read_kbd_data(sc_kbdc);
+     }
+     if (bootverbose)
+         printf("sc%d: keyboard scancode set %d\n", dev->id_unit, codeset);
+#endif /* DETECT_XT_KEYBOARD */
  
      /* reset keyboard hardware */
-     if (!reset_kbd(sc_port)) {
+     if (!reset_kbd(sc_kbdc)) {
         /* KEYBOARD ERROR
 	 * Keyboard reset may fail either because the keyboard doen't exist,
          * or because the keyboard doesn't pass the self-test, or the keyboard 
@@ -452,14 +482,14 @@ scprobe(struct isa_device *dev)
          * test_controller() and test_kbd_port() appear to bring the keyboard
          * controller back (I don't know why and how, though.)
 	 */
-	empty_both_buffers(sc_port, 10);
-	test_controller(sc_port);
-	test_kbd_port(sc_port);
+	empty_both_buffers(sc_kbdc, 10);
+	test_controller(sc_kbdc);
+	test_kbd_port(sc_kbdc);
 	/* We could disable the keyboard port and interrupt... but, 
 	 * the keyboard may still exist (see above). 
 	 */
-	if (bootverbose)
-	    printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
+        if (bootverbose)
+	   printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
 	goto fail;
     }
 
@@ -468,9 +498,9 @@ scprobe(struct isa_device *dev)
      * such as those on the IBM ThinkPad laptop computers can be used
      * with the standard console driver.
      */
-    if (dev->id_flags & XT_KEYBD) {
+    if (codeset == 1) {
 	if (send_kbd_command_and_data(
-	        sc_port, KBDC_SET_SCAN_CODESET, 1) == KBD_ACK) {
+	        sc_kbdc, KBDC_SET_SCANCODE_SET, codeset) == KBD_ACK) {
 	    /* XT kbd doesn't need scan code translation */
 	    c &= ~KBD_TRANSLATION;
 	} else {
@@ -483,8 +513,10 @@ scprobe(struct isa_device *dev)
 	}
     }
     /* enable the keyboard port and intr. */
-    if (!set_controller_command_byte(sc_port, c & ~KBD_KBD_CONTROL_BITS,
-				KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
+    if (!set_controller_command_byte(sc_kbdc, 
+            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK,
+	    (c & (KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK))
+	        | KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
 	/* CONTROLLER ERROR 
 	 * This is serious; we are left with the disabled keyboard intr. 
 	 */
@@ -494,12 +526,17 @@ scprobe(struct isa_device *dev)
     }
 
 succeed: 
+    kbdc_set_device_mask(sc_kbdc, m | KBD_KBD_CONTROL_BITS),
+    kbdc_lock(sc_kbdc, FALSE);
     return (IO_KBDSIZE);
 
 fail:
     if (c != -1)
-	/* try to restore the command byte as before, if possible */
-	set_controller_command_byte(sc_port, c, 0);
+        /* try to restore the command byte as before, if possible */
+        set_controller_command_byte(sc_kbdc, 0xff, c);
+    kbdc_set_device_mask(sc_kbdc, 
+        (dev->id_flags & DETECT_KBD) ? m : m | KBD_KBD_CONTROL_BITS);
+    kbdc_lock(sc_kbdc, FALSE);
     return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
 #endif
 }
@@ -1367,9 +1404,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 #ifndef PC98
 	if (*data & 0x80)
 	    return EINVAL;
-	i = spltty();
-	send_kbd_command_and_data(sc_port, KBDC_SET_TYPEMATIC, *data);
-	splx(i);
+	if (sc_kbdc != NULL) 
+	    set_keyboard(KBDC_SET_TYPEMATIC, *data);
 #endif
 	return 0;
 
@@ -1641,6 +1677,8 @@ sccnprobe(struct consdev *cp)
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLE);
     cp->cn_pri = CN_INTERNAL;
+
+    sc_kbdc = kbdc_open(sc_port);
 }
 
 void
@@ -1739,8 +1777,21 @@ scrn_timer()
      * This ugly hack calls scintr if input is ready for the keyboard
      * and conveniently hides the problem.			XXX
      */
-    if ((inb(sc_port+KBD_STATUS_PORT)&KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
-	scintr(0);
+    /* Try removing anything stuck in the keyboard controller; whether
+     * it's a keyboard scan code or mouse data. `scintr()' doesn't
+     * read the mouse data directly, but `kbdio' routines will, as a
+     * side effect.
+     */
+    if (kbdc_lock(sc_kbdc, TRUE)) {
+	/*
+	 * We have seen the lock flag is not set. Let's reset the flag early;
+	 * otherwise `update_led()' failes which may want the lock 
+	 * during `scintr()'.
+	 */
+	kbdc_lock(sc_kbdc, FALSE);
+	if (kbdc_data_ready(sc_kbdc)) 
+	    scintr(0);
+    }
 
     /* should we just return ? */
     if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
@@ -1979,6 +2030,16 @@ scan_esc(scr_stat *scp, u_char c)
 #endif
 	switch (c) {
 
+	case '7':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case '8':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
+	    break;
+
 	case '[':   /* Start ESC [ sequence */
 	    scp->term.esc = 2;
 	    scp->term.last_param = -1;
@@ -2120,6 +2181,7 @@ scan_esc(scr_stat *scp, u_char c)
     		mark_for_update(scp, scp->cursor_atr - scp->atr_buf);
 #endif
     		mark_for_update(scp, scp->xsize * scp->ysize);
+		remove_cutmarking(scp);
 		break;
 	    case 1: /* clear from beginning of display to cursor */
 #ifdef PC98
@@ -2139,9 +2201,20 @@ scan_esc(scr_stat *scp, u_char c)
 #ifdef PC98
     		mark_for_update(scp, scp->cursor_atr - scp->atr_buf);
 #endif
+		remove_cutmarking(scp);
 		break;
 	    case 2: /* clear entire display */
-		clear_screen(scp);
+#ifdef PC98
+		fillw(scr_map[0x20], scp->scr_buf,
+		      scp->xsize * scp->ysize);
+		fillw(at2pc98(scp->term.cur_color), scp->atr_buf,
+		      scp->xsize * scp->ysize);
+#else
+		fillw(scp->term.cur_color | scr_map[0x20], scp->scr_buf,
+		      scp->xsize * scp->ysize);
+#endif
+		mark_all(scp);
+		remove_cutmarking(scp);
 		break;
 	    }
 	    break;
@@ -2471,6 +2544,16 @@ scan_esc(scr_stat *scp, u_char c)
 		    break;
 		}
 	    }
+	    break;
+
+	case 's':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case 'u':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
 	    break;
 
 	case 'x':
@@ -3054,10 +3137,10 @@ scinit(void)
      * can't be statically initialized.  XXX.
      */
 #ifdef PC98
-     Crtat = (u_short *)TEXT_VRAM;
-     Atrat = (u_short *)TEXT_VRAM + ATTR_OFFSET;
+    Crtat = (u_short *)TEXT_VRAM;
+    Atrat = (u_short *)TEXT_VRAM + ATTR_OFFSET;
 #else
-     Crtat = (u_short *)MONO_BUF;
+    Crtat = (u_short *)MONO_BUF;
     /*
      * If CGA memory seems to work, switch to color.
      */
@@ -3149,6 +3232,7 @@ scinit(void)
     current_default = &user_default;
     console[0] = &main_console;
     init_scp(console[0]);
+    cur_console = console[0];
 
     /* copy screen to temporary buffer */
     bcopyw(Crtat, sc_buffer,
@@ -3162,7 +3246,6 @@ scinit(void)
 #endif
     console[0]->xpos = hw_cursor % COL;
     console[0]->ypos = hw_cursor / COL;
-    cur_console = console[0];
     for (i=1; i<MAXCONS; i++)
 	console[i] = NULL;
     kernel_console.esc = 0;
@@ -3178,21 +3261,6 @@ scinit(void)
     }
 #ifdef PC98
 	scr_map[0x5c] = (u_char)0xfc;	/* for backslash */
-#else
-    /* Save font and palette if VGA */
-    if (crtc_vga) {
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
-	save_palette();
-    }
-
-#ifdef SC_SPLASH_SCREEN
-    /* 
-     * Now put up a graphics image, and maybe cycle a
-     * couble of palette entries for simple animation.
-     */
-    toggle_splash_screen(cur_console);
-#endif
 #endif
 }
 
@@ -3253,6 +3321,8 @@ init_scp(scr_stat *scp)
     scp->font_size = FONT_16;
     scp->xsize = COL;
     scp->ysize = ROW;
+    scp->xpos = scp->ypos = 0;
+    scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
     scp->end = 0;
     scp->term.esc = 0;
@@ -3384,12 +3454,12 @@ scgetc(u_int flags)
 next_code:
     /* first see if there is something in the keyboard port */
     if (flags & SCGETC_NONBLOCK) {
-	c = read_kbd_data_no_wait(sc_port);
+	c = read_kbd_data_no_wait(sc_kbdc);
 	if (c == -1)
 	    return(NOKEY);
     } else {
 	do {
-	    c = read_kbd_data(sc_port);
+	    c = read_kbd_data(sc_kbdc);
 	} while(c == -1);
     }
     scancode = (u_char)c;
@@ -3861,7 +3931,16 @@ next_code:
 		metas = 1;
 		break;
 	    case NEXT:
-		switch_scr(cur_console, (get_scr_num() + 1) % MAXCONS);
+		{
+		int next, this = get_scr_num();
+		for (next = this+1; next != this; next = (next+1)%MAXCONS) {
+		    struct tty *tp = VIRTUAL_TTY(next);
+		    if (tp->t_state & TS_ISOPEN) {
+			switch_scr(cur_console, next);
+			break;
+		    }
+		}
+		}
 		break;
 	    case BTAB:
 		return(BKEY);
@@ -3896,7 +3975,6 @@ toggle_splash_screen(scr_stat *scp)
 	scp->mode = save_mode;
 	scp->status &= ~UNKNOWN_MODE;
 	set_mode(scp);
-	load_palette(palette);
 	toggle = 0;
     }
     else {
@@ -3953,6 +4031,54 @@ mask2attr(struct term_stat *term)
 }
 
 static void
+set_keyboard(int command, int data)
+{
+#ifndef PC98
+    int s;
+    int c;
+
+    if (sc_kbdc == NULL)
+	return;
+
+    /* prevent the timeout routine from polling the keyboard */
+    if (!kbdc_lock(sc_kbdc, TRUE)) 
+	return;
+
+    /* disable the keyboard and mouse interrupt */
+    s = spltty();
+    c = get_controller_command_byte(sc_kbdc);
+    if ((c == -1) 
+	|| !set_controller_command_byte(sc_kbdc, 
+            kbdc_get_device_mask(sc_kbdc),
+            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+	/* CONTROLLER ERROR */
+        kbdc_lock(sc_kbdc, FALSE);
+	splx(s);
+	return;
+    }
+    /* 
+     * Now that the keyboard controller is told not to generate 
+     * the keyboard and mouse interrupts, call `splx()' to allow 
+     * the other tty interrupts. The clock interrupt may also occur, 
+     * but the timeout routine (`scrn_timer()') will be blocked 
+     * by the lock flag set via `kbdc_lock()'
+     */
+    splx(s);
+
+    send_kbd_command_and_data(sc_kbdc, command, data);
+
+    /* restore the interrupts */
+    if (!set_controller_command_byte(sc_kbdc,
+            kbdc_get_device_mask(sc_kbdc),
+	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
+	/* CONTROLLER ERROR */
+    }
+    kbdc_lock(sc_kbdc, FALSE);
+#endif
+}
+
+static void
 update_leds(int which)
 {
 #ifndef PC98
@@ -3967,10 +4093,7 @@ update_leds(int which)
 	    which &= ~CLKED;
     }
 
-    s = spltty();
-    send_kbd_command_and_data(sc_port, KBDC_SET_LEDS,
-			      xlate_leds[which & LED_MASK]);
-    splx(s);
+    set_keyboard(KBDC_SET_LEDS, xlate_leds[which & LED_MASK]);
 #endif
 }
 
@@ -4164,11 +4287,14 @@ set_vgaregs(char *modetable)
 static void
 set_font_mode()
 {
+    int s = splhigh();
+
     /* setup vga for loading fonts (graphics plane mode) */
     inb(crtc_addr+6);           		/* reset flip-flop */
     outb(ATC, 0x10); outb(ATC, 0x01);
     inb(crtc_addr+6);               		/* reset flip-flop */
     outb(ATC, 0x20);            		/* enable palette */
+
 #if SLOW_VGA
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
     outb(TSIDX, 0x04); outb(TSREG, 0x06);
@@ -4182,6 +4308,7 @@ set_font_mode()
     outw(GDCIDX, 0x0005);
     outw(GDCIDX, 0x0506);               /* addr = a0000, 64kb */
 #endif
+    splx(s);
 }
 
 static void
@@ -4345,7 +4472,9 @@ set_destructive_cursor(scr_stat *scp)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
 	    (scp->cursor_start >= scp->font_size && i == scp->font_size - 1))
 	    cursor[i] |= 0xff;
+#if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
+#endif
     set_font_mode();
     bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
@@ -4513,7 +4642,9 @@ draw_mouse_image(scr_stat *scp)
     scp->mouse_oldpos = scp->mouse_pos;
 
     /* wait for vertical retrace to avoid jitter on some videocards */
+#if 1
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
+#endif
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
@@ -4633,6 +4764,13 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	sysbeep(pitch, duration);
     }
 
+    /* Save font and palette if VGA */
+    if (crtc_vga) {
+	copy_font(SAVE, FONT_16, font_16);
+	fonts_loaded = FONT_16;
+	save_palette();
+    }
+
 #ifdef SC_SPLASH_SCREEN
     /* 
      * Now put up a graphics image, and maybe cycle a
@@ -4676,6 +4814,33 @@ blink_screen(scr_stat *scp)
 	    switch_scr(scp, delayed_next_scr - 1);
     }
 }
+
+#ifdef SC_SPLASH_SCREEN
+static void
+toggle_splash_screen(scr_stat *scp)
+{
+    static int toggle = 0;
+    static u_char save_mode;
+    int s = splhigh();
+
+    if (toggle) {
+	scp->mode = save_mode;
+	scp->status &= ~UNKNOWN_MODE;
+	set_mode(scp);
+	load_palette(palette);
+	toggle = 0;
+    }
+    else {
+	save_mode = scp->mode;
+	scp->mode = M_VGA_CG320;
+	scp->status |= UNKNOWN_MODE;
+	set_mode(scp);
+	/* load image */
+	toggle = 1;
+    }
+    splx(s);
+}
+#endif
 
 #if defined(PC98) && defined(LINE30) /* 30line */
 
