@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.6 1999/05/18 11:33:14 yokota Exp $
+ * $Id: atkbdc_isa.c,v 1.7 1999/05/22 15:47:33 dfr Exp $
  */
 
 #include "atkbdc.h"
@@ -96,6 +96,10 @@ atkbdc_probe(device_t dev)
 	int error;
 	int rid;
 	struct resource *port;
+
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	device_set_desc(dev, "keyboard controller (i8042)");
 	rid = 0;

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.7 1999/05/08 21:59:32 dfr Exp $
+ * $Id: vga_isa.c,v 1.8 1999/05/09 16:39:24 peter Exp $
  */
 
 #include "vga.h"
@@ -113,6 +113,10 @@ static int
 isavga_probe(device_t dev)
 {
 	isavga_softc_t *sc;
+
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	device_set_desc(dev, "Generic ISA VGA");
 	sc = device_get_softc(dev);
