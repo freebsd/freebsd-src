@@ -362,18 +362,3 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	vm_page_unlock_queues();
 }
 
-/*
- * quick version of vm_fault
- */
-int
-vm_fault_quick(caddr_t v, int prot)
-{
-	int r;
-
-	if (prot & VM_PROT_WRITE)
-		r = subyte(v, fubyte(v));
-	else
-		r = fubyte(v);
-	return(r);
-}
-

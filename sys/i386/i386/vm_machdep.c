@@ -96,23 +96,6 @@ static volatile u_int	cpu_reset_proxy_active;
 extern int	_ucodesel, _udatasel;
 
 /*
- * quick version of vm_fault
- */
-int
-vm_fault_quick(v, prot)
-	caddr_t v;
-	int prot;
-{
-	int r;
-
-	if (prot & VM_PROT_WRITE)
-		r = subyte(v, fubyte(v));
-	else
-		r = fubyte(v);
-	return(r);
-}
-
-/*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
  * ready to run and return to user mode.
