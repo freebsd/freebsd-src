@@ -263,9 +263,6 @@ Ler1:	LDGP(pv)
 	CALL(do_sir)				/* do the SIR; lowers IPL */
 
 Lchkast:
-	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero*/
-	call_pal PAL_OSF1_swpipl
-
 	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
 	beq	t0, Lrestoreregs		/* no: just return */
 
