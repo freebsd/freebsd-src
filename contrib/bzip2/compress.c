@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -663,10 +663,10 @@ void BZ2_compressBlock ( EState* s, Bool is_last_block )
    /*-- If this is the first block, create the stream header. --*/
    if (s->blockNo == 1) {
       BZ2_bsInitWrite ( s );
-      bsPutUChar ( s, 'B' );
-      bsPutUChar ( s, 'Z' );
-      bsPutUChar ( s, 'h' );
-      bsPutUChar ( s, (UChar)('0' + s->blockSize100k) );
+      bsPutUChar ( s, BZ_HDR_B );
+      bsPutUChar ( s, BZ_HDR_Z );
+      bsPutUChar ( s, BZ_HDR_h );
+      bsPutUChar ( s, (UChar)(BZ_HDR_0 + s->blockSize100k) );
    }
 
    if (s->nblock > 0) {
