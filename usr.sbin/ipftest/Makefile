@@ -17,4 +17,6 @@ CLEANFILES+=	opt_ipfilter.h
 opt_ipfilter.h:	Makefile
 	echo "#define IPFILTER 1" > opt_ipfilter.h
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
