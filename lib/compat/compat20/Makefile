@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/12/23 05:07:32 peter Exp $
+# $Id: Makefile,v 1.2 1996/12/23 21:47:27 jkh Exp $
 
 DISTRIBUTION=	compat20
 
@@ -11,13 +11,13 @@ all:	${LIBS}
 
 .for lib in ${LIBS}
 ${lib}:	${lib}.gz.uu
-	uudecode ${.CURDIR}/${lib}.gz.uu
-	gunzip ${lib}.gz
+	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
 .endfor
 
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ${LIBS} \
-		${DESTDIR}${BINDIR}
+	${INSTALL} ${COPY} -o ${LIBMODE} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+		${DESTDIR}${LIBCOMPATDIR}
 
-# Get all the fruit, even though we don't set PROG
+# Get all the fruit, even though we don't set PROG.
+# XXX bsd.lib.mk has fruitflies, e.g., it fails if LIBS is empty.
 .include <bsd.prog.mk>
