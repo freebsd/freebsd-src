@@ -43,7 +43,7 @@ _libbind=	libbind
 .endif
 
 _libcrypt=	libcrypt
-.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
+.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT) && !defined(NO_DESCRYPT)
 # Build both libraries. They have different names, so no harm,
 # and this avoids having stale libscrypt.*
 _libcrypt+=	../secure/lib/libcrypt
