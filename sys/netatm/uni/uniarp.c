@@ -372,6 +372,12 @@ uniarp_ifaddr(sip)
 			 * This is what we're waiting for
 			 */
 			uniarp_client_mode(uip, NULL);
+		} else if (uip->uip_arpstate == UIAS_SERVER_ACTIVE) {
+			/*
+			 * Set new local arpserver atm address
+			 */
+			ATM_ADDR_SEL_COPY(&sip->si_addr, nip->nif_sel,
+						&uip->uip_arpsvratm);
 		}
 	}
 
