@@ -104,10 +104,15 @@ main:
  * number should be used.  If what the bios gives us is bad, use the '0' in
  * the block instead.
  */
-		testb $0x20,_FLAGS(%bp)		# Set number drive?
+		testb $0x20,_FLAGS(%bp)		# Set drive number?
 		jnz main.1			# Yes
 		testb %dl,%dl			# Drive number valid?
 		js main.2			# Possibly (0x80 set)
+/*
+ * Only update the boot-sector when there is a valid drive number or
+ * the drive number is set manually.
+ */
+		orb $0x40,_FLAGS(%bp)		# Disable updates
 main.1:		movb _SETDRV(%bp),%dl		# Drive number to use
 /*
  * Whatever we decided to use, now store it into the fake
@@ -145,16 +150,14 @@ main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 /*
  * Now scan the table of known types
  */
-		movb $TBL1SZ,%cl		# Number of entries
-		repne				# Known
-		scasb				#  type?
-		jne main.4			# No
+		movb $TBL1SZ+1,%cl		# Number of entries
+		repne				# Locate
+		scasb				#  type
 /*
- * If it matches get the matching element in the next array.  If it doesn't,
- * we are already pointing at its first element which points to a "?".
+ * Get the matching element in the next array.
  */
-		addw $TBL1SZ,%di		# Adjust
-main.4:		movb (%di),%cl			# Partition
+		addw $TBL1SZ-1, %di		# Adjust
+		movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
 main.5:		incw %dx			# Next item
@@ -305,7 +308,6 @@ main.14:	popw %si			# Restore
 /*
  * Load selected bootsector to the LOAD location in RAM.
  * If it fails to read or isn't marked bootable, treat it as a bad selection.
- * XXX: What does %si carry?
  */
 main.15:	movw $LOAD,%bx			# Address for read
 		movb $0x2,%ah			# Read sector
@@ -313,10 +315,8 @@ main.15:	movw $LOAD,%bx			# Address for read
 		jc main.10			# If error
 		cmpw $MAGIC,0x1fe(%bx)		# Bootable?
 		jne main.10			# No
-		pushw %si			# Save
 		movw $crlf,%si			# Leave some
 		callw puts			#  space
-		popw %si			# Restore
 		jmp *%bx			# Invoke bootstrap
 
 /*
@@ -413,9 +413,9 @@ tables:
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
 /*
  * These are offsets that match the known names above and point to the strings
- * that will be printed.
+ * that will be printed. os_misc will be used if the search of the above table
+ * runs over.
  */
-		.byte os_misc-. 		# Unknown
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
 		.byte os_dos-.			# DOS
@@ -427,6 +427,7 @@ tables:
 		.byte os_freebsd-.		# FreeBSD
 		.byte os_bsd-.			# OpenBSD
 		.byte os_bsd-.			# NetBSD
+		.byte os_misc-. 		# Unknown
 /*
  * And here are the strings themselves. 0x80 or'd into a byte indicates
  * the end of the string. (not so great for Russians but...)
