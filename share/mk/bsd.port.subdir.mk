@@ -1,5 +1,37 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
 #	$Id$
+#
+# The include file <bsd.port.subdir.mk> contains the default targets
+# for building ports subdirectories. 
+#
+#
+# +++ variables +++
+#
+# STRIP		The flag passed to the install program to cause the binary
+#		to be stripped.  This is to be used when building your
+#		own install script so that the entire system can be made
+#		stripped/not-stripped using a single knob. [-s]
+#
+# ECHO_MSG	Used to print all the '===>' style prompts - override this
+#		to turn them off [echo].
+#
+# OPSYS		Get the operating system type [`uname -s`]
+#
+# SUBDIR	A list of subdirectories that should be built as well.
+#		Each of the targets will execute the same target in the
+#		subdirectories.
+#
+#
+# +++ targets +++
+#
+#	README.html:
+#		Creating README.html for package.
+#
+#	afterinstall, all, beforeinstall, build, checksum, clean,
+#	configure, depend, describe, extract, fetch, fetch-list,
+#	install, package, readmes, realinstall, reinstall, tags
+#
+
 
 .MAIN: all
 
