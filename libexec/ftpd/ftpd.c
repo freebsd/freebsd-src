@@ -1047,7 +1047,7 @@ end_login()
 
 	(void) seteuid((uid_t)0);
 	if (logged_in)
-		ftpd_logwtmp(ttyline, "", "");
+		ftpd_logwtmp(ttyline, "", NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), (uid_t)0,
@@ -1293,7 +1293,7 @@ skip:
 #endif
 
 	/* open wtmp before chroot */
-	ftpd_logwtmp(ttyline, pw->pw_name, remotehost);
+	ftpd_logwtmp(ttyline, pw->pw_name, (struct sockaddr *)&his_addr);
 	logged_in = 1;
 
 	if (guest && stats && statfd < 0)
@@ -2334,7 +2334,7 @@ dologout(status)
 
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
-		ftpd_logwtmp(ttyline, "", "");
+		ftpd_logwtmp(ttyline, "", NULL);
 	}
 	/* beware of flushing buffers after a SIGPIPE */
 	_exit(status);
