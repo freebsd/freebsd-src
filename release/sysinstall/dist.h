@@ -15,7 +15,8 @@
 #define DIST_COMPAT21		0x0400
 #define DIST_XF86		0x0800
 #define DIST_DES		0x1000
-#define DIST_ALL		0x1FFF
+#define DIST_CATPAGES		0x2000
+#define DIST_ALL		0x3FFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \

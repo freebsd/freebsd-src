@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.83 1996/12/12 08:33:36 jkh Exp $
+ * $Id: dist.c,v 1.84 1996/12/14 23:08:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,6 +65,7 @@ static Distribution DistTable[] = {
 { "doc",	"/",			&Dists,		DIST_DOC,		NULL		},
 { "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
+{ "catpages",	"/",			&Dists,		DIST_CATPAGES,		NULL		},
 { "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
