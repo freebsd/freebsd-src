@@ -35,9 +35,6 @@
 
 #include "dgm.h"
 
-#if NDGM > 0 
-
-
 /* Helg: i.e.25 times per sec board will be polled */
 #define POLLSPERSEC 25
 /* How many charactes can we write to input tty rawq */
@@ -2003,5 +2000,3 @@ disc_optim(tp, t)
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
-
-#endif /* NDGM > 0 */
