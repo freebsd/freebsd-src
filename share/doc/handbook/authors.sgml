@@ -43,11 +43,11 @@ and double quotes.
   <tt><htmlurl url='mailto:bde@FreeBSD.ORG'
   name='&lt;bde@FreeBSD.ORG&gt;'></tt>">
 
-<!ENTITY a.brian "Brian N. Handy
+<!ENTITY a.handy "Brian N. Handy
   <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
   name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
 
-<!ENTITY a.briansomers "Brian Somers
+<!ENTITY a.brian "Brian Somers
   <tt><htmlurl url='mailto:brian@awfulhak.demon.co.uk'
   name='&lt;brian@awfulhak.demon.co.uk&gt;'></tt>">
 
