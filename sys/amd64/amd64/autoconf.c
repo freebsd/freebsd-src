@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.28 1995/05/11 02:50:11 wpaul Exp $
+ *	$Id: autoconf.c,v 1.29 1995/05/11 19:26:07 rgrimes Exp $
  */
 
 /*
@@ -237,12 +237,35 @@ swapconf()
 		}
 		swp->sw_nblks = ctod(dtoc(swp->sw_nblks));
 	}
-	if (dumplo == 0 && bdevsw[major(dumpdev)].d_psize)
-		dumplo = (*bdevsw[major(dumpdev)].d_psize)(dumpdev) -
-			Maxmem*NBPG/512;
-	if (dumplo < 0)
-		dumplo = 0;
+	if (dumpdev != NODEV) {
+		if (dumplo == 0 && bdevsw[major(dumpdev)].d_psize)
+			dumplo = (*bdevsw[major(dumpdev)].d_psize)(dumpdev) -
+				Maxmem*NBPG/512;
+		if (dumplo < 0)
+			dumplo = 0;
+	}
 }
+
+int
+setdumpdev(dev_t dev)
+{
+	long newdumplo, psize;
+	if (dev != NODEV && bdevsw[major(dev)].d_psize) {
+		psize = bdevsw[major(dev)].d_psize(dev);
+		newdumplo = bdevsw[major(dev)].d_psize(dev) - Maxmem*NBPG/512;
+		if (newdumplo >= 0) {
+			dumpdev = dev;
+			dumplo = newdumplo;
+			return 0;
+		}
+		return ENOSPC;
+	} else {
+		dumpdev = dev;
+		dumplo = 0;
+		return 0;
+	}
+	/*NOTREACHED*/
+}	
 
 #define	DOSWAP			/* change swdevt and dumpdev */
 u_long	bootdev = 0;		/* should be dev_t, but not until 32 bits */
