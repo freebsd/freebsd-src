@@ -91,14 +91,22 @@ char	action_tab[][MAXSTR]={
 char	type_tab[][MAXSTR]={
 "ac",
 #define T_ACCEPT	0
-"de",
-#define T_DENY		1
+"lo",
+#define T_LOG		1
+"r",
+#define T_REJECT	2
+"lr",
+#define T_LREJECT	3
+"d",
+#define T_DENY		4
+"ld",
+#define T_LDENY		5
 "si",
-#define T_SINGLE	2
+#define T_SINGLE	6
 "bi",
-#define T_BIDIR		3
+#define T_BIDIR		7
 "",
-#define T_NONE		4
+#define T_NONE		8
 };
 
 
@@ -109,10 +117,12 @@ char	proto_tab[][MAXSTR]={
 #define P_ICMP		1
 "tcp",
 #define P_TCP		2
+"syn",
+#define P_SYN		3
 "udp",
-#define P_UDP		3
+#define P_UDP		4
 ""
-#define P_NONE		4
+#define P_NONE		5
 };
 
 struct nlist nlf[]={
@@ -174,21 +184,45 @@ if (do_verbose) {
 if (do_verbose)
 	if (c_t==FW) {
 		if (chain->flags & IP_FW_F_ACCEPT) 
-			printf("A");
+			if (chain->flags & IP_FW_F_PRN)
+				printf("l");
+			else
+				printf("a");
 		else 
-			printf("D");
+			if (chain->flags & IP_FW_F_PRN)
+				if (chain->flags & IP_FW_F_ICMPRPL)
+					printf("R");
+				else
+					printf("D");
+			else
+				if (chain->flags & IP_FW_F_ICMPRPL)
+					printf("r");
+				else
+					printf("d");
 	} else {
 		if (chain->flags & IP_FW_F_BIDIR) 
-			printf("B");
+			printf("b");
 		else 
-			printf("S");
+			printf("s");
 	}
 else
 	if (c_t==FW) {
 		if (chain->flags & IP_FW_F_ACCEPT) 
-			printf("accept ");
+			if (chain->flags & IP_FW_F_PRN)
+				printf("log ");
+			else
+				printf("accept ");
 		else 
-			printf("deny   ");
+			if (chain->flags & IP_FW_F_PRN)
+				if (chain->flags & IP_FW_F_ICMPRPL)
+					printf("lreject ");
+				else
+					printf("ldeny ");
+			else
+				if (chain->flags & IP_FW_F_ICMPRPL)
+					printf("reject ");
+				else
+					printf("deny ");
 	} else {
 		if (chain->flags & IP_FW_F_BIDIR) 
 			printf("bidir  ");
@@ -202,7 +236,10 @@ if (do_verbose)
 			printf("I ");
 			break;
 		case IP_FW_F_TCP:
-			printf("T ");
+			if (chain->flags&IP_FW_F_TCPSYN)
+				printf("S ");
+			else
+				printf("T ");
 			break;
 		case IP_FW_F_UDP:
 			printf("U ");
@@ -219,7 +256,10 @@ else
 			printf("icmp ");
 			break;
 		case IP_FW_F_TCP:
-			printf("tcp  ");
+			if (chain->flags&IP_FW_F_TCPSYN)
+				printf("syn  ");
+			else
+				printf("tcp  ");
 			break;
 		case IP_FW_F_UDP:
 			printf("udp  ");
@@ -536,8 +576,11 @@ struct	hostent *hptr;
 				show_usage();
 				exit(1);
 			}
-		 	mask->s_addr=
+			if (n_bit>0)
+		 	   mask->s_addr=
 			     htonl(ULONG_MAX<<(sizeof(u_long)*CHAR_BIT-n_bit));
+			else
+			   mask->s_addr=0L;
 		} 
 
 		if (sm_oct) {
@@ -670,13 +713,11 @@ char **av;
 void policy(av)
 char **av;
 {
- int p;
+ u_short p=0,b;
  kvm_t *kd;
  static char errb[_POSIX2_LINE_MAX];
- int  b;
 
-if (*av==NULL || strlen(*av)<=0) 
- {
+if (*av==NULL || strlen(*av)<=0) {
  if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL) {
      fprintf(stderr,"%s: kvm_openfiles: %s\n",progname,kvm_geterr(kd));
      exit(1);
@@ -685,24 +726,22 @@ if (*av==NULL || strlen(*av)<=0)
       fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
 					progname,getbootfile()); 
       exit(1);
-}
+ }
 
 kvm_read(kd,(u_long)nlf[N_POLICY].n_value,&b,sizeof(int));
 
-if (b==1)
-	printf("Default policy: ACCEPT\n");
-if (b==0) 
+if (b&IP_FW_P_DENY)
 	printf("Default policy: DENY\n");
-if (b!=0 && b!=1)
-	printf("Wrong policy value\n");
+else
+	printf("Default policy: ACCEPT\n");
 exit(1);
 }
 
 if (!strncmp(*av,P_DE,strlen(P_DE)))
-	p=0;
+	p|=IP_FW_P_DENY;
 else
 if (!strncmp(*av,P_AC,strlen(P_AC)))
-	p=1;
+	p&=~IP_FW_P_DENY;
 else {
 	fprintf(stderr,"%s: bad policy value.\n",progname);
 	exit(1);
@@ -712,10 +751,10 @@ if (setsockopt(s,IPPROTO_IP,IP_FW_POLICY,&p,sizeof(p))<0) {
 	fprintf(stderr,"%s: setsockopt failed.\n",progname);
 	exit(1);
 } else {
-	if (p)
-		printf("Policy set to ACCEPT.\n");
-	else
+	if (p&IP_FW_P_DENY)
 		printf("Policy set to DENY.\n");
+	else
+		printf("Policy set to ACCEPT.\n");
 	exit(0);
 }
 }
@@ -835,6 +874,17 @@ struct ip_fw	frwl;
 	}
 
 	switch(get_num(*av,type_tab)) {
+			case T_LREJECT:
+				flags|=IP_FW_F_PRN;
+			case T_REJECT:
+				flags|=IP_FW_F_ICMPRPL;
+				if (int_t!=FW) {
+					show_usage();
+					exit(1);
+				}
+				break;
+			case T_LDENY:
+				flags|=IP_FW_F_PRN;
 			case T_DENY:
 				flags|=0; /* just to show it related to flags */
 				if (int_t!=FW) {
@@ -842,6 +892,8 @@ struct ip_fw	frwl;
 					exit(1);
 				}
 				break;
+			case T_LOG:
+				flags|=IP_FW_F_PRN;
 			case T_ACCEPT:
 				flags|=IP_FW_F_ACCEPT;
 				if (int_t!=FW) {
@@ -863,6 +915,9 @@ struct ip_fw	frwl;
 					exit(1);
 				}
 				break;
+			default:
+				show_usage();
+				exit(1);
 
 	} /* type of switch */
 
@@ -880,6 +935,8 @@ proto_switch:
 		case P_ICMP:
 			flags|=IP_FW_F_ICMP;
 			break;
+		case P_SYN:
+			flags|=IP_FW_F_TCPSYN;
 		case P_TCP:
 			flags|=IP_FW_F_TCP;
 			ports_ok=1;
