@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.21 1999/03/27 20:08:53 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.23 1999/04/10 18:22:22 wpaul Exp $
  */
 
 /*
@@ -53,7 +53,6 @@
 #define PN_MII			0xA0	/* MII access register */
 #define PN_NWAY			0xB8	/* Internal NWAY register */
 
-
 /*
  * Bus control bits.
  */
@@ -71,6 +70,7 @@
 #define PN_SKIPLEN_4LONG	0x00000020
 #define PN_SKIPLEN_5LONG	0x00000040
 
+#define PN_CACHEALIGN_NONE	0x00000000
 #define PN_CACHEALIGN_8LONG	0x00004000
 #define PN_CACHEALIGN_16LONG	0x00008000
 #define PN_CACHEALIGN_32LONG	0x0000C000
@@ -109,6 +109,7 @@
 #define PN_ISR_RX_IDLE		0x00000100	/* rx stopped */
 #define PN_ISR_RX_WATCHDOG	0x00000200	/* rx watchdog timeo */
 #define PN_ISR_TX_EARLY		0x00000400	/* rx watchdog timeo */
+#define PN_ISR_LINKFAIL		0x00001000
 #define PN_ISR_BUS_ERR		0x00002000
 #define PN_ISR_ABNORMAL		0x00008000
 #define PN_ISR_NORMAL		0x00010000
@@ -253,7 +254,7 @@
 #define PN_NWAY_TP		0x00000040	/* 1 == tp, 0 == AUI */
 #define PN_NWAY_AUIVOLT		0x00000080	/* 1 == full, 0 == half */
 #define PN_NWAY_DUPLEX		0x00000100	/* 1 == full, 0 == half */
-#define PN_NWAY_LINKTEST	0x00000200	/* 1 == on, 0 == off */
+#define PN_NWAY_LINKTEST	0x00000200	/* 0 == on, 1 == off */
 #define PN_NWAY_AUTODETECT	0x00000400	/* 1 == off, 0 == on */
 #define PN_NWAY_SPEEDSEL	0x00000800	/* 0 == 10, 1 == 100 */
 #define PN_NWAY_NWAY_ENB	0x00001000	/* 0 == off, 1 == on */
@@ -269,6 +270,46 @@
 #define PN_NWAY_LPAR100FULL	0x20000000
 #define PN_NWAY_LPAR100HALF	0x40000000
 #define PN_NWAY_LPAR100T4	0x80000000
+
+/*
+ * Nway register bits that must be set to turn on to initiate
+ * an autoneg session with all modes advertized and AUI disabled.
+ */
+#define PN_NWAY_AUTOENB							\
+	(PN_NWAY_AUILOWCUR|PN_NWAY_TPEXTEND|PN_NWAY_POLARITY|PN_NWAY_TP	\
+	 |PN_NWAY_NWAY_ENB|PN_NWAY_CAP10HALF|PN_NWAY_CAP10FULL|		\
+	 PN_NWAY_CAP100FULL|PN_NWAY_CAP100HALF|PN_NWAY_CAP100T4|	\
+	 PN_NWAY_AUTONEGRSTR)
+
+#define PN_NWAY_MODE_10HD						\
+	(PN_NWAY_CAP10HALF|PN_NWAY_CAP10FULL|		\
+	 PN_NWAY_CAP100FULL|PN_NWAY_CAP100HALF|PN_NWAY_CAP100T4|	\
+	 PN_NWAY_AUILOWCUR|PN_NWAY_TPEXTEND|PN_NWAY_POLARITY|		\
+	 PN_NWAY_TP)
+
+#define PN_NWAY_MODE_10FD						\
+	(PN_NWAY_CAP10HALF|PN_NWAY_CAP10FULL|		\
+	 PN_NWAY_CAP100FULL|PN_NWAY_CAP100HALF|PN_NWAY_CAP100T4|	\
+	 PN_NWAY_AUILOWCUR|PN_NWAY_TPEXTEND|PN_NWAY_POLARITY|		\
+	 PN_NWAY_TP|PN_NWAY_DUPLEX)
+
+#define PN_NWAY_MODE_100HD						\
+	(PN_NWAY_CAP10HALF|PN_NWAY_CAP10FULL|		\
+	 PN_NWAY_CAP100FULL|PN_NWAY_CAP100HALF|PN_NWAY_CAP100T4|	\
+	 PN_NWAY_AUILOWCUR|PN_NWAY_TPEXTEND|PN_NWAY_POLARITY|		\
+	 PN_NWAY_TP|PN_NWAY_SPEEDSEL)
+
+#define PN_NWAY_MODE_100FD						\
+	(PN_NWAY_CAP10HALF|PN_NWAY_CAP10FULL|		\
+	 PN_NWAY_CAP100FULL|PN_NWAY_CAP100HALF|PN_NWAY_CAP100T4|	\
+	 PN_NWAY_AUILOWCUR|PN_NWAY_TPEXTEND|PN_NWAY_POLARITY|		\
+	 PN_NWAY_TP|PN_NWAY_SPEEDSEL|PN_NWAY_DUPLEX)
+
+#define PN_NWAY_MODE_100T4 PN_NWAY_MODE_100HD
+
+#define PN_NWAY_LPAR							\
+	(PN_NWAY_LPAR10HALF|PN_NWAY_LPAR10FULL|PN_NWAY_LPAR100HALF|	\
+	 PN_NWAY_LPAR100FULL|PN_NWAY_LPAR100T4)
 
 /*
  * Size of a setup frame.
@@ -443,6 +484,7 @@ struct pn_softc {
 #define PN_169_REV	32
 #define PN_169B_REV	33
 	u_int8_t		pn_promisc_war;
+	u_int8_t		pn_cachesize;
 	struct pn_chain_onefrag	*pn_promisc_bug_save;
 	unsigned char           *pn_promisc_buf;
 #endif
@@ -481,6 +523,15 @@ struct pn_softc {
  */
 #define	PN_DEVICEID_PNIC	0x0002
 #define PN_DEVICEID_PNIC_II	0xc115
+
+/*
+ * The 82c168 chip has the same PCI vendor/device ID as the
+ * 82c169, but a different revision. Assume that any revision
+ * between 0x10 an 0x1F is an 82c168.
+ */
+#define PN_REVMASK		0xF0
+#define PN_REVID_82C168		0x10
+#define PN_REVID_82C169		0x20
 
 /*
  * Texas Instruments PHY identifiers
@@ -525,6 +576,7 @@ struct pn_softc {
 #define PN_PCI_STATUS		0x06
 #define PN_PCI_REVISION		0x08
 #define PN_PCI_CLASSCODE	0x09
+#define PN_PCI_CACHELEN		0x0C
 #define PN_PCI_LATENCY_TIMER	0x0D
 #define PN_PCI_HEADER_TYPE	0x0E
 #define PN_PCI_LOIO		0x10
