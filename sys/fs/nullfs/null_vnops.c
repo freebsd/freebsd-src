@@ -414,7 +414,7 @@ null_lookup(ap)
 /*
  * Setattr call. Disallow write attempts if the layer is mounted read-only.
  */
-int
+static int
 null_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnodeop_desc *a_desc;
