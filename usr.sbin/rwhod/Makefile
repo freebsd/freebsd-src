@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	rwhod
+WARNS?=	4
 MAN=	rwhod.8
 
 .include <bsd.prog.mk>
