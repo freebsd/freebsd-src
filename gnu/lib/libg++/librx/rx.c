@@ -17,6 +17,8 @@ License along with this software; see the file COPYING.LIB.  If not,
 write to the Free Software Foundation, 675 Mass Ave, Cambridge, MA
 02139, USA.  */
 
+#define _RX_C_
+
 /* NOTE!!!  AIX is so losing it requires this to be the first thing in the 
  * file. 
  * Do not put ANYTHING before it!  
@@ -42,6 +44,7 @@ char rx_version_string[] = "GNU Rx version 0.06";
 #endif
 
 #include <sys/types.h>
+#include <sys/param.h>  /* for BSD */
 
 #undef MAX
 #undef MIN
