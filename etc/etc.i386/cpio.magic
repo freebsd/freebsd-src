@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.9 1994/06/12 11:05:04 csgr Exp $
+#	$Id: cpio.magic,v 1.10 1994/06/15 21:02:36 jkh Exp $
 #
 set_tmp_dir()
 {
@@ -104,7 +104,7 @@ load_fd()
 		echo; 
 		if [ "$drive" != "C" ]; then
 			echo	"Insert floppy in drive $drive:, then press RETURN to copy files,"
-			echo -n "or enter option (? for help): "
+			echo -n "or enter option (? for help): "
 		else
 			echo -n "Press RETURN to copy files, or enter option (? for help): "
 		fi
