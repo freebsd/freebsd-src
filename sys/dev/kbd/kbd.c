@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.8 1999/05/30 16:51:31 phk Exp $
+ * $Id: kbd.c,v 1.9 1999/05/31 11:24:48 phk Exp $
  */
 
 #include "kbd.h"
@@ -44,6 +44,15 @@
 
 #include <dev/kbd/kbdreg.h>
 
+#define KBD_INDEX(dev)	minor(dev)
+
+typedef struct genkbd_softc {
+	int		gkb_flags;	/* flag/status bits */
+#define KB_ASLEEP	(1 << 0)
+	struct clist	gkb_q;		/* input queue */
+	struct selinfo	gkb_rsel;
+} genkbd_softc_t;
+
 /* local arrays */
 
 /*
@@ -58,11 +67,6 @@ static keyboard_t	**keyboard = &kbd_ini;
 static keyboard_switch_t *kbdsw_ini;
        keyboard_switch_t **kbdsw = &kbdsw_ini;
 
-#ifdef KBD_INSTALL_CDEV
-static struct cdevsw	*kbdcdevsw_ini;
-static struct cdevsw	**kbdcdevsw = &kbdcdevsw_ini;
-#endif
-
 #define ARRAY_DELTA	4
 
 static int
@@ -70,9 +74,6 @@ kbd_realloc_array(void)
 {
 	keyboard_t **new_kbd;
 	keyboard_switch_t **new_kbdsw;
-#ifdef KBD_INSTALL_CDEV
-	struct cdevsw **new_cdevsw;
-#endif
 	int newsize;
 	int s;
 
@@ -89,35 +90,16 @@ kbd_realloc_array(void)
 		splx(s);
 		return ENOMEM;
 	}
-#ifdef KBD_INSTALL_CDEV
-	new_cdevsw = malloc(sizeof(*new_cdevsw)*newsize, M_DEVBUF, M_NOWAIT);
-	if (new_cdevsw == NULL) {
-		free(new_kbd, M_DEVBUF);
-		free(new_kbdsw, M_DEVBUF);
-		splx(s);
-		return ENOMEM;
-	}
-#endif
 	bzero(new_kbd, sizeof(*new_kbd)*newsize);
 	bzero(new_kbdsw, sizeof(*new_kbdsw)*newsize);
 	bcopy(keyboard, new_kbd, sizeof(*keyboard)*keyboards);
 	bcopy(kbdsw, new_kbdsw, sizeof(*kbdsw)*keyboards);
-#ifdef KBD_INSTALL_CDEV
-	bzero(new_cdevsw, sizeof(*new_cdevsw)*newsize);
-	bcopy(kbdcdevsw, new_cdevsw, sizeof(*kbdcdevsw)*keyboards);
-#endif
 	if (keyboards > 1) {
 		free(keyboard, M_DEVBUF);
 		free(kbdsw, M_DEVBUF);
-#ifdef KBD_INSTALL_CDEV
-		free(kbdcdevsw, M_DEVBUF);
-#endif
 	}
 	keyboard = new_kbd;
 	kbdsw = new_kbdsw;
-#ifdef KBD_INSTALL_CDEV
-	kbdcdevsw = new_cdevsw;
-#endif
 	keyboards = newsize;
 	splx(s);
 
@@ -358,6 +340,8 @@ keyboard_t
 {
 	if ((index < 0) || (index >= keyboards))
 		return NULL;
+	if (keyboard[index] == NULL)
+		return NULL;
 	if (!KBD_IS_VALID(keyboard[index]))
 		return NULL;
 	return keyboard[index];
@@ -394,28 +378,26 @@ kbd_configure(int flags)
 
 #define KBD_UNIT(dev)	minor(dev)
 
-static d_open_t		kbdopen;
-static d_close_t	kbdclose;
-static d_read_t		kbdread;
-static d_write_t	kbdwrite;
-static d_ioctl_t	kbdioctl;
-static d_devtotty_t	kbddevtotty;
-static d_poll_t		kbdpoll;
-static d_mmap_t		kbdmmap;
+static d_open_t		genkbdopen;
+static d_close_t	genkbdclose;
+static d_read_t		genkbdread;
+static d_write_t	genkbdwrite;
+static d_ioctl_t	genkbdioctl;
+static d_poll_t		genkbdpoll;
 
 #define CDEV_MAJOR	112
 
 static struct cdevsw kbd_cdevsw = {
-	/* open */	kbdopen,
-	/* close */	kbdclose,
-	/* read */	kbdread,
-	/* write */	kbdwrite,
-	/* ioctl */	kbdioctl,
+	/* open */	genkbdopen,
+	/* close */	genkbdclose,
+	/* read */	genkbdread,
+	/* write */	genkbdwrite,
+	/* ioctl */	genkbdioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	kbddevtotty,
-	/* poll */	kbdpoll,
-	/* mmap */	kbdmmap,
+	/* devtotty */	nodevtotty,
+	/* poll */	genkbdpoll,
+	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"kbd",
 	/* parms */	noparms,
@@ -427,155 +409,37 @@ static struct cdevsw kbd_cdevsw = {
 	/* bmaj */	-1
 };
 
-static void
-vkbdattach(void *arg)
-{
-	static int kbd_devsw_installed = FALSE;
-
-	if (!kbd_devsw_installed) {
-		cdevsw_add(&kbd_cdevsw);
-		kbd_devsw_installed = TRUE;
-	}
-}
-
-PSEUDO_SET(vkbdattach, kbd);
-
 int
-kbd_attach(dev_t dev, keyboard_t *kbd, struct cdevsw *cdevsw)
+kbd_attach(keyboard_t *kbd)
 {
-	int s;
+	dev_t dev;
 
 	if (kbd->kb_index >= keyboards)
 		return EINVAL;
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
 
-	s = spltty();
-	kbd->kb_minor = minor(dev);
-	kbdcdevsw[kbd->kb_index] = cdevsw;
-	splx(s);
-
-	/* XXX: DEVFS? */
+	dev = make_dev(&kbd_cdevsw, kbd->kb_index, UID_ROOT, GID_WHEEL, 0600,
+		       "kbd%r", kbd->kb_index);
+	if (dev->si_drv1 == NULL)
+		dev->si_drv1 = malloc(sizeof(genkbd_softc_t), M_DEVBUF,
+				      M_WAITOK);
+	bzero(dev->si_drv1, sizeof(genkbd_softc_t));
 
 	printf("kbd%d at %s%d\n", kbd->kb_index, kbd->kb_name, kbd->kb_unit);
 	return 0;
 }
 
 int
-kbd_detach(dev_t dev, keyboard_t *kbd, struct cdevsw *cdevsw)
+kbd_detach(keyboard_t *kbd)
 {
-	int s;
-
 	if (kbd->kb_index >= keyboards)
 		return EINVAL;
 	if (keyboard[kbd->kb_index] != kbd)
 		return EINVAL;
-	if (kbdcdevsw[kbd->kb_index] != cdevsw)
-		return EINVAL;
 
-	s = spltty();
-	kbdcdevsw[kbd->kb_index] = NULL;
-	splx(s);
+	/* XXX: unmake_dev() ? */
 	return 0;
-}
-
-static int
-kbdopen(dev_t dev, int flag, int mode, struct proc *p)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (unit >= keyboards)
-		return ENXIO;
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	if (KBD_IS_BUSY(keyboard[unit]))
-		return EBUSY;
-	return (*kbdcdevsw[unit]->d_open)(makedev(0, keyboard[unit]->kb_minor),
-					  flag, mode, p);
-}
-
-static int
-kbdclose(dev_t dev, int flag, int mode, struct proc *p)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_close)(makedev(0, keyboard[unit]->kb_minor),
-					   flag, mode, p);
-}
-
-static int
-kbdread(dev_t dev, struct uio *uio, int flag)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_read)(makedev(0, keyboard[unit]->kb_minor),
-					  uio, flag);
-}
-
-static int
-kbdwrite(dev_t dev, struct uio *uio, int flag)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_write)(makedev(0, keyboard[unit]->kb_minor),
-					   uio, flag);
-}
-
-static int
-kbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_ioctl)(makedev(0, keyboard[unit]->kb_minor),
-					   cmd, arg, flag, p);
-}
-
-static struct tty
-*kbddevtotty(dev_t dev)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return NULL;
-	return (*kbdcdevsw[unit]->d_devtotty)(makedev(0, keyboard[unit]->kb_minor));
-}
-
-static int
-kbdpoll(dev_t dev, int event, struct proc *p)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_poll)(makedev(0, keyboard[unit]->kb_minor),
-					  event, p);
-}
-
-static int
-kbdmmap(dev_t dev,  vm_offset_t offset, int nprot)
-{
-	int unit;
-
-	unit = KBD_UNIT(dev);
-	if (kbdcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*kbdcdevsw[unit]->d_mmap)(makedev(0, keyboard[unit]->kb_minor),
-					  offset, nprot);
 }
 
 /*
@@ -589,15 +453,18 @@ kbdmmap(dev_t dev,  vm_offset_t offset, int nprot)
 
 static kbd_callback_func_t genkbd_event;
 
-int
-genkbdopen(genkbd_softc_t *sc, keyboard_t *kbd, int mode, int flag,
-	   struct proc *p)
+static int
+genkbdopen(dev_t dev, int mode, int flag, struct proc *p)
 {
+	keyboard_t *kbd;
+	genkbd_softc_t *sc;
 	int s;
 	int i;
 
 	s = spltty();
-	if (!KBD_IS_VALID(kbd)) {
+	sc = dev->si_drv1;
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((sc == NULL) || (kbd == NULL) || !KBD_IS_VALID(kbd)) {
 		splx(s);
 		return ENXIO;
 	}
@@ -626,29 +493,37 @@ genkbdopen(genkbd_softc_t *sc, keyboard_t *kbd, int mode, int flag,
 	return 0;
 }
 
-int
-genkbdclose(genkbd_softc_t *sc, keyboard_t *kbd, int mode, int flag,
-	    struct proc *p)
+static int
+genkbdclose(dev_t dev, int mode, int flag, struct proc *p)
 {
+	keyboard_t *kbd;
+	genkbd_softc_t *sc;
 	int s;
 
 	/*
 	 * NOTE: the device may have already become invalid.
-	 * !KBD_IS_VALID(kbd)
+	 * kbd == NULL || !KBD_IS_VALID(kbd)
 	 */
 	s = spltty();
-	kbd_release(kbd, (void *)sc);
+	sc = dev->si_drv1;
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((sc == NULL) || (kbd == NULL) || !KBD_IS_VALID(kbd)) {
+		/* XXX: we shall be forgiving and don't report error... */
+	} else {
+		kbd_release(kbd, (void *)sc);
 #if 0
-	clist_free_cblocks(&sc->gkb_q);
+		clist_free_cblocks(&sc->gkb_q);
 #endif
+	}
 	splx(s);
-
 	return 0;
 }
 
-int
-genkbdread(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio, int flag)
+static int
+genkbdread(dev_t dev, struct uio *uio, int flag)
 {
+	keyboard_t *kbd;
+	genkbd_softc_t *sc;
 	u_char buffer[KB_BUFSIZE];
 	int len;
 	int error;
@@ -656,17 +531,24 @@ genkbdread(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio, int flag)
 
 	/* wait for input */
 	s = spltty();
+	sc = dev->si_drv1;
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((sc == NULL) || (kbd == NULL) || !KBD_IS_VALID(kbd)) {
+		splx(s);
+		return ENXIO;
+	}
 	while (sc->gkb_q.c_cc == 0) {
-		if (!KBD_IS_VALID(kbd)) {
-			splx(s);
-			return EIO;
-		}
 		if (flag & IO_NDELAY) {
 			splx(s);
 			return EWOULDBLOCK;
 		}
 		sc->gkb_flags |= KB_ASLEEP;
 		error = tsleep((caddr_t)sc, PZERO | PCATCH, "kbdrea", 0);
+		kbd = kbd_get_keyboard(KBD_INDEX(dev));
+		if ((kbd == NULL) || !KBD_IS_VALID(kbd)) {
+			splx(s);
+			return ENXIO;	/* our keyboard has gone... */
+		}
 		if (error) {
 			sc->gkb_flags &= ~KB_ASLEEP;
 			splx(s);
@@ -690,23 +572,25 @@ genkbdread(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio, int flag)
 	return error;
 }
 
-int
-genkbdwrite(genkbd_softc_t *sc, keyboard_t *kbd, struct uio *uio, int flag)
+static int
+genkbdwrite(dev_t dev, struct uio *uio, int flag)
 {
-	if (!KBD_IS_VALID(kbd))
+	keyboard_t *kbd;
+
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((kbd == NULL) || !KBD_IS_VALID(kbd))
 		return ENXIO;
 	return ENODEV;
 }
 
-int
-genkbdioctl(genkbd_softc_t *sc, keyboard_t *kbd, u_long cmd, caddr_t arg,
-	    int flag, struct proc *p)
+static int
+genkbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 {
+	keyboard_t *kbd;
 	int error;
 
-	if (kbd == NULL)	/* XXX */
-		return ENXIO;
-	if (!KBD_IS_VALID(kbd))
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((kbd == NULL) || !KBD_IS_VALID(kbd))
 		return ENXIO;
 	error = (*kbdsw[kbd->kb_index]->ioctl)(kbd, cmd, arg);
 	if (error == ENOIOCTL)
@@ -714,17 +598,23 @@ genkbdioctl(genkbd_softc_t *sc, keyboard_t *kbd, u_long cmd, caddr_t arg,
 	return error;
 }
 
-int
-genkbdpoll(genkbd_softc_t *sc, keyboard_t *kbd, int events, struct proc *p)
+static int
+genkbdpoll(dev_t dev, int events, struct proc *p)
 {
+	keyboard_t *kbd;
+	genkbd_softc_t *sc;
 	int revents;
 	int s;
 
 	revents = 0;
 	s = spltty();
-	if (events & (POLLIN | POLLRDNORM)) {
-		if ((sc->gkb_q.c_cc > 0) || !KBD_IS_VALID(kbd))
-			revents |= (POLLIN | POLLRDNORM);
+	sc = dev->si_drv1;
+	kbd = kbd_get_keyboard(KBD_INDEX(dev));
+	if ((sc == NULL) || (kbd == NULL) || !KBD_IS_VALID(kbd)) {
+		revents =  POLLHUP;	/* the keyboard has gone */
+	} else if (events & (POLLIN | POLLRDNORM)) {
+		if (sc->gkb_q.c_cc > 0)
+			revents = events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(p, &sc->gkb_rsel);
 	}
@@ -750,6 +640,11 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 	case KBDIO_UNLOADING:
 		/* the keyboard is going... */
 		kbd_release(kbd, (void *)sc);
+		if (sc->gkb_flags & KB_ASLEEP) {
+			sc->gkb_flags &= ~KB_ASLEEP;
+			wakeup((caddr_t)sc);
+		}
+		selwakeup(&sc->gkb_rsel);
 		return 0;
 	default:
 		return EINVAL;
