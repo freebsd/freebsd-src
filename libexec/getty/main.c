@@ -161,7 +161,7 @@ static void	putchr __P((int));
 static void	putf __P((char *));
 static void	putpad __P((char *));
 static void	puts __P((char *));
-
+extern void	reset_fbtab __P((char *));
 int
 main(argc, argv)
 	int argc;
@@ -223,6 +223,9 @@ main(argc, argv)
 		login_tty(i);
 	    }
 	}
+
+	/* Read the FBTAB file and check if we have to reset perms/ownership */
+	reset_fbtab(ttyn);
 
 	gettable("default", defent);
 	gendefaults();
