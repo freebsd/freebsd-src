@@ -316,18 +316,18 @@ wt*)
 ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
-	ad*s*) name=ad; blk=30; chr=116;;
-	afd*s*) name=afd; blk=32; chr=118;;
-	amrd*s*) name=amrd; blk=35; chr=133;;
-	da*s*) name=da; blk=4;  chr=13;;
-	fla*s*) name=fla; blk=28; chr=102;;
-	ida*s*) name=ida; blk=29; chr=109;;
-	md*s*) name=md; blk=22;  chr=95;;
-	mlxd*s*) name=mlxd; blk=27; chr=131;;
-	sd*s*) name=sd; blk=4;  chr=13;;
-	vn*s*) name=vn; blk=15; chr=43;;
-	wd*s*) name=wd; blk=0;  chr=3;;
-	wfd*s*) name=wfd; blk=1; chr=87;;
+	ad*s*) name=ad; chr=116;;
+	afd*s*) name=afd; chr=118;;
+	amrd*s*) name=amrd; chr=133;;
+	da*s*) name=da;  chr=13;;
+	fla*s*) name=fla; chr=102;;
+	ida*s*) name=ida; chr=109;;
+	md*s*) name=md;  chr=95;;
+	mlxd*s*) name=mlxd; chr=131;;
+	sd*s*) name=sd;  chr=13;;
+	vn*s*) name=vn; chr=43;;
+	wd*s*) name=wd;  chr=3;;
+	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
 	amrd*s*|mlxd*s*)
@@ -354,7 +354,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 			slice=$(($slice+1))
 			slicename=`dkitos $slice`
 			minor=`dkminor 0 $unit $slice $dkrawpart`
-			mknod  $name$unit$slicename b $blk $minor
+			mknod  $name$unit$slicename c $chr $minor
 			mknod r$name$unit$slicename c $chr $minor
 			case $part in
 			[a-h])
@@ -366,7 +366,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 					minor=`dkminor 0 $unit $slice $part`
 					partname=`dkitop $part`
 					mknod  $name$unit$slicename$partname \
-					      b $blk $minor
+					      c $chr $minor
 					mknod r$name$unit$slicename$partname \
 					      c $chr $minor
 				done
@@ -395,10 +395,10 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 fd*)
 	umask $disk_umask
 	unit=`expr $i : '..\(.*\)'`
-	name=fd; blk=2; chr=9
+	name=fd; chr=9
 	case $unit in
 	0|1|2|3)
-		mknod ${name}${unit}   b $blk `expr $unit '*' 64`
+		mknod ${name}${unit}   c $chr `expr $unit '*' 64`
 		mknod r${name}${unit}  c $chr `expr $unit '*' 64`
 		# Fake BSD partitions
 		for i in a b c d e f g h
@@ -408,19 +408,19 @@ fd*)
 		done
 		# User-readable and programmer-readable name sets
 
-		mknod ${name}${unit}.1720  b $blk `expr $unit '*' 64 + 1`
+		mknod ${name}${unit}.1720  c $chr `expr $unit '*' 64 + 1`
 		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1`
 		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
 		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
 
-		mknod ${name}${unit}.1480  b $blk `expr $unit '*' 64 + 2`
+		mknod ${name}${unit}.1480  c $chr `expr $unit '*' 64 + 2`
 		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2`
 		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
 		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}96hs18
 
-		mknod ${name}${unit}.1440  b $blk `expr $unit '*' 64 + 3`
+		mknod ${name}${unit}.1440  c $chr `expr $unit '*' 64 + 3`
 		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3`
 		# ln -f ${name}${unit}.1440 ${name}${unit}135
 		# ln -f r${name}${unit}.1440 r${name}${unit}135
@@ -429,7 +429,7 @@ fd*)
 		# ln -f ${name}${unit}.1440 ${name}${unit}96ds18
 		# ln -f r${name}${unit}.1440 r${name}${unit}96ds18
 
-		mknod ${name}${unit}.1200  b $blk `expr $unit '*' 64 + 4`
+		mknod ${name}${unit}.1200  c $chr `expr $unit '*' 64 + 4`
 		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4`
 		# ln -f ${name}${unit}.1200 ${name}${unit}96
 		# ln -f r${name}${unit}.1200 r${name}${unit}96
@@ -438,28 +438,28 @@ fd*)
 		# ln -f ${name}${unit}.1200 ${name}${unit}135ds15
 		# ln -f r${name}${unit}.1200 r${name}${unit}135ds15
 
-		mknod ${name}${unit}.820  b $blk `expr $unit '*' 64 + 5`
+		mknod ${name}${unit}.820  c $chr `expr $unit '*' 64 + 5`
 		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5`
 		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
 		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}135hs10
 
-		mknod ${name}${unit}.800  b $blk `expr $unit '*' 64 + 6`
+		mknod ${name}${unit}.800  c $chr `expr $unit '*' 64 + 6`
 		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6`
 		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
 		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}135ds10
 
-		mknod ${name}${unit}.720  b $blk `expr $unit '*' 64 + 7`
+		mknod ${name}${unit}.720  c $chr `expr $unit '*' 64 + 7`
 		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7`
 		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
 		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}135ds9
 
-		mknod ${name}${unit}.360  b $blk `expr $unit '*' 64 + 8`
+		mknod ${name}${unit}.360  c $chr `expr $unit '*' 64 + 8`
 		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8`
 		# ln -f ${name}${unit}.360 ${name}${unit}48
 		# ln -f r${name}${unit}.360 r${name}${unit}48
@@ -478,10 +478,10 @@ fd*)
 ft*)
 	umask $tape_umask
 	unit=`expr $i : '..\(.*\)'`
-	name=ft; blk=2; chr=9
+	name=ft; chr=9
 	case $unit in
 	0|1|2|3)
-		mknod ${name}${unit}   b $blk `expr $unit '*' 64 + 32`
+		mknod ${name}${unit}   c $chr `expr $unit '*' 64 + 32`
 		mknod r${name}${unit}  c $chr `expr $unit '*' 64 + 32`
 		ln -f ${name}${unit} ${name}${unit}a
 		ln -f r${name}${unit} r${name}${unit}a
@@ -497,18 +497,18 @@ ft*)
 ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
-	ad*) name=ad; blk=30; chr=116;;
-	afd*) name=afd; blk=32; chr=118;;
-	amrd*) name=amrd; blk=35; chr=133;;
-	da*) name=da; blk=4;  chr=13;;
-	fla*) name=fla; blk=28; chr=102;;
-	ida*) name=ida; blk=29; chr=109;;
-	md*) name=md; blk=22; chr=95;;
-	mlxd*) name=mlxd; blk=27; chr=131;;
-	sd*) name=sd; blk=4; chr=13;;
-	vn*) name=vn; blk=15; chr=43;;
-	wd*) name=wd; blk=0;  chr=3;;
-	wfd*) name=wfd; blk=1; chr=87;;
+	ad*) name=ad; chr=116;;
+	afd*) name=afd; chr=118;;
+	amrd*) name=amrd; chr=133;;
+	da*) name=da;  chr=13;;
+	fla*) name=fla; chr=102;;
+	ida*) name=ida; chr=109;;
+	md*) name=md; chr=95;;
+	mlxd*) name=mlxd; chr=131;;
+	sd*) name=sd; chr=13;;
+	vn*) name=vn; chr=43;;
+	wd*) name=wd;  chr=3;;
+	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
 	amrd*|mlxd*)
@@ -538,7 +538,7 @@ ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|sd*|vn*|wd*|wfd*)
 ccd*)
 	umask $disk_umask
 	name=ccd
-	blk=21; chr=74
+	chr=74
 	unit=`expr $i : '...\(.*\)'`
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
@@ -546,7 +546,7 @@ ccd*)
 		do
 			minor=`dkminor 0 $unit 0 $part`
 			partname=`dkitop $part`
-			mknod  $name$unit$partname b $blk $minor
+			mknod  $name$unit$partname c $chr $minor
 			mknod r$name$unit$partname c $chr $minor
 		done
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
@@ -723,27 +723,27 @@ ast*)
 acd*|cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
-	acd*) units=`expr $i : '...\(.*\)'`; name=acd; blk=31; chr=117;;
-	cd*) units=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
-	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
-	scd*) units=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
+	acd*) units=`expr $i : '...\(.*\)'`; name=acd; chr=117;;
+	cd*) units=`expr $i : '..\(.*\)'`; name=cd; chr=15;;
+	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; chr=29;;
+	scd*) units=`expr $i : '...\(.*\)'`; name=scd; chr=45;;
 	esac
 	if [ -z "${units}" -o "${units}" -le 0 ]; then
 		units=1
 	fi
 	if [ "${units}" -le 31 ]; then
-		eval `echo ${chr} ${blk} ${units} ${name} |awk \
-			'{ c=$1; b=$2; n=$3; name=$4;} END{
+		eval `echo ${chr} ${units} ${name} |awk \
+			'{ c=$1; n=$2; name=$3;} END{
 			for (i = 0; i < n; i++){
 				printf("rm -f %s%d* r%s%d*; \
-					mknod %s%da b %d %d; \
-					mknod %s%dc b %d %d; \
+					mknod %s%da c %d %d; \
+					mknod %s%dc c %d %d; \
 					mknod r%s%da c %d %d; \
 					mknod r%s%dc c %d %d; \
 					chgrp operator %s%d* r%s%d*;",
 					name, i, name, i,
-					name, i, b, (i * 8),
-					name, i, b, (i * 8) + 2,
+					name, i, c, (i * 8),
+					name, i, c, (i * 8) + 2,
 					name, i, c, (i * 8),
 					name, i, c, (i * 8) + 2,
 					name, i, name, i); }}'`
@@ -756,19 +756,19 @@ acd*|cd*|mcd*|scd*)
 matcd*)
 	umask 2
 	case $i in
-	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; blk=17; chr=46;;
+	matcd*) unit=`expr $i : '.....\(.*\)'`; name=matcd; chr=46;;
 	esac
 	case $unit in
 	0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15)
-		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
-		mknod ${name}${unit}c   b $blk `expr $unit '*' 8 + 2`
+		mknod ${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
+		mknod ${name}${unit}c   c $chr `expr $unit '*' 8 + 2`
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
 		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2`
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 
-		mknod ${name}${unit}la  b $blk `expr $unit '*' 8 + 128`
-		mknod ${name}${unit}lc  b $blk `expr $unit '*' 8 + 130`
+		mknod ${name}${unit}la  c $chr `expr $unit '*' 8 + 128`
+		mknod ${name}${unit}lc  c $chr `expr $unit '*' 8 + 130`
 		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128`
 		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130`
 		chgrp operator ${name}${unit}l[a-h] r${name}${unit}l[a-h]
@@ -784,13 +784,12 @@ matcd*)
 wcd*)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
-	blk=19
 	chr=69
 	case $unit in
 	0|1|2|3|4|5|6|7)
-		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
+		mknod wcd${unit}a  c $chr `expr $unit '*' 8 + 0`
 		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
-		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
+		mknod wcd${unit}c  c $chr `expr $unit '*' 8 + 2`
 		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2`
 		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
 		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
