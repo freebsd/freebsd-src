@@ -269,6 +269,11 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
+		  "VIPER 2525 25462", "-011"},
+		  SA_QUIRK_NOCOMP|SA_QUIRK_1FM|SA_QUIRK_NODREAD, 0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
 		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 1024
 	},
 	{
