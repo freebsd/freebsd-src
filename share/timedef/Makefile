@@ -32,6 +32,7 @@ LOCALES=	am_ET.UTF-8 \
 		fi_FI.UTF-8 \
 		fr_FR.ISO8859-1 \
 		fr_FR.UTF-8 \
+		he_IL.UTF-8 \
 		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hr_HR.UTF-8 \

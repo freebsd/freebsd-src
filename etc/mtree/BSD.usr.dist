@@ -471,6 +471,8 @@
             ..
             fr_FR.UTF-8
             ..
+            he_IL.UTF-8
+            ..
             hi_IN.ISCII-DEV
             ..
             hr_HR.ISO8859-2
@@ -932,6 +934,8 @@
             fr_FR.ISO8859-15
             ..
             fr_FR.UTF-8
+            ..
+            he_IL.UTF-8
             ..
             hi_IN.ISCII-DEV
             ..
