@@ -63,7 +63,7 @@ instead of the default
 .Pa /dev/kmem .
 .It Fl N
 Extract the name list from the specified system instead of the default
-.Pa /kernel .
+.Pa /boot/kernel/kernel .
 .It Fl s
 Only display server side statistics
 .It Fl W
@@ -77,8 +77,8 @@ activity for both the client and server at
 second intervals.
 .El
 .Sh FILES
-.Bl -tag -width /dev/kmem -compact
-.It Pa /kernel
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
 default kernel namelist
 .It Pa /dev/kmem
 default memory file

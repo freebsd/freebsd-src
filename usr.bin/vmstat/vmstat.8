@@ -91,7 +91,7 @@ instead of the default
 Extract the name list from the specified
 .Ar system
 instead of the default
-.Pa /kernel .
+.Pa /boot/kernel/kernel .
 .It Fl m
 Report on the usage of kernel dynamic memory listed first by size of
 allocation and then by type of usage.
@@ -297,8 +297,8 @@ will tell vmstat to select the first three direct access or CDROM devices
 and display statistics on those devices, as well as other systems
 statistics every second.
 .Sh FILES
-.Bl -tag -width /dev/kmemxxx -compact
-.It Pa /kernel
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
 default kernel namelist
 .It Pa /dev/kmem
 default memory file
