@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.45 1997/12/07 04:01:03 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.46 1997/12/08 22:09:24 sef Exp $
  */
 
 /*
@@ -324,13 +324,6 @@ procfs_bmap(ap)
  * list, so to get it back vget() must be
  * used.
  *
- * for procfs, check if the process is still
- * alive and if it isn't then just throw away
- * the vnode by calling vgone().  this may
- * be overkill and a waste of time since the
- * chances are that the process will still be
- * there and PFIND is not free.
- *
  * (vp) is locked on entry, but must be unlocked on exit.
  */
 static int
@@ -340,11 +333,8 @@ procfs_inactive(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct pfsnode *pfs = VTOPFS(vp);
 
 	VOP_UNLOCK(vp, 0, ap->a_p);
-	if (PFIND(pfs->pfs_pid) == 0)
-		vgone(vp);
 
 	return (0);
 }
