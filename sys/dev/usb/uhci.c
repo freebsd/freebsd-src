@@ -610,14 +610,13 @@ uhci_detach(struct uhci_softc *sc, int flags)
 usbd_status
 uhci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
 {
-	return (usb_allocmem(&((struct uhci_softc *)bus)->sc_bus, size, 0,
-	    dma));
+	return (usb_allocmem(bus, size, 0, dma));
 }
 
 void
 uhci_freem(struct usbd_bus *bus, usb_dma_t *dma)
 {
-	usb_freemem(&((struct uhci_softc *)bus)->sc_bus, dma);
+	usb_freemem(bus, dma);
 }
 
 usbd_xfer_handle

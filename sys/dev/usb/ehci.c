@@ -55,8 +55,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/kernel.h>
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/select.h>
 #elif defined(__FreeBSD__)
@@ -65,6 +65,7 @@
 #include <sys/bus.h>
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
+#include <sys/lockmgr.h>
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 #include <machine/cpu.h>
 #endif
@@ -985,12 +986,9 @@ ehci_shutdown(void *v)
 usbd_status
 ehci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	struct ehci_softc *sc = (struct ehci_softc *)bus;
-#endif
 	usbd_status err;
 
-	err = usb_allocmem(&sc->sc_bus, size, 0, dma);
+	err = usb_allocmem(bus, size, 0, dma);
 #ifdef USB_DEBUG
 	if (err)
 		printf("ehci_allocm: usb_allocmem()=%d\n", err);
@@ -1001,11 +999,7 @@ ehci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
 void
 ehci_freem(struct usbd_bus *bus, usb_dma_t *dma)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	struct ehci_softc *sc = (struct ehci_softc *)bus;
-#endif
-
-	usb_freemem(&sc->sc_bus, dma);
+	usb_freemem(bus, dma);
 }
 
 usbd_xfer_handle

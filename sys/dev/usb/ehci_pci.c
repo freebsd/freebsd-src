@@ -61,6 +61,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
+#include <sys/lockmgr.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>

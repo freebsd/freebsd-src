@@ -64,8 +64,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/kernel.h>
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/select.h>
 #elif defined(__FreeBSD__)
@@ -501,8 +501,8 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		     ohci_soft_td_t *sp, ohci_soft_td_t **ep)
 {
 	ohci_soft_td_t *next, *cur;
-	ohci_physaddr_t dataphys, dataphysend;
-	u_int32_t intr, tdflags;
+	ohci_physaddr_t dataphys;
+	u_int32_t tdflags;
 	int offset = 0;
 	int len, curlen;
 	usb_dma_t *dma = &xfer->dmabuf;
@@ -513,12 +513,10 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 	len = alen;
 	cur = sp;
 
-	dataphys = DMAADDR(dma, 0);
-	dataphysend = OHCI_PAGE(DMAADDR(dma, len - 1));
-	tdflags = (
+	tdflags = htole32(
 	    (rd ? OHCI_TD_IN : OHCI_TD_OUT) |
 	    (flags & USBD_SHORT_XFER_OK ? OHCI_TD_R : 0) |
-	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY);
+	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY | OHCI_TD_NOINTR);
 
 	for (;;) {
 		next = ohci_alloc_std(sc);
@@ -527,20 +525,27 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 		dataphys = DMAADDR(dma, offset);
 
-		/* The OHCI hardware can handle at most one page crossing. */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		if (OHCI_PAGE(dataphys) == dataphysend ||
-		    OHCI_PAGE(dataphys) + OHCI_PAGE_SIZE == dataphysend)
-#elif defined(__FreeBSD__)
-		/* XXX This is pretty broken: Because we do not allocate
-		 * a contiguous buffer (contiguous in physical pages) we
-		 * can only transfer one page in one go.
-		 * So check whether the start and end of the buffer are on
-		 * the same page.
+		/*
+		 * The OHCI hardware can handle at most one 4k crossing.
+		 * XXX - currently we only allocate contigous buffers, but
+		 * the OHCI spec says: If during the data transfer the buffer
+		 * address contained in the HC's working copy of
+		 * CurrentBufferPointer crosses a 4K boundary, the upper 20
+		 * bits of Buffer End are copied to the working value of
+		 * CurrentBufferPointer causing the next buffer address to
+		 * be the 0th byte in the same 4K page that contains the
+		 * last byte of the buffer (the 4K boundary crossing may
+		 * occur within a data packet transfer.)
+		 *
+		 * If/when dma has multiple segments, this will need to
+		 * properly handle fragmenting TD's.
+		 *
+		 * We can describe the above using maxsegsz = 4k and nsegs = 2
+		 * in the future.
 		 */
-		if (OHCI_PAGE(dataphys) == dataphysend)
-#endif
-		{
+		if (OHCI_PAGE(dataphys) == OHCI_PAGE(DMAADDR(dma, offset +
+		    len - 1)) || len - (OHCI_PAGE_SIZE -
+		    OHCI_PAGE_OFFSET(dataphys)) <= OHCI_PAGE_SIZE) {
 			/* we can handle it in this TD */
 			curlen = len;
 		} else {
@@ -551,38 +556,36 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 			 * the case of an mbuf cluster). You'll get an early
 			 * short packet.
 			 */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = 2 * OHCI_PAGE_SIZE -
-				 OHCI_PAGE_MASK(dataphys);
-			if (curlen > len)	/* may have fit in one page */
-				curlen = len;
-#elif defined(__FreeBSD__)
-			/* See comment above (XXX) */
-			curlen = OHCI_PAGE_SIZE -
-				 OHCI_PAGE_MASK(dataphys);
+				 OHCI_PAGE_OFFSET(dataphys);
+			/* the length must be a multiple of the max size */
+			curlen -= curlen %
+			    UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize);
+#ifdef DIAGNOSTIC
+			if (curlen == 0)
+				panic("ohci_alloc_std: curlen == 0");
 #endif
 		}
 		DPRINTFN(4,("ohci_alloc_std_chain: dataphys=0x%08x "
-			    "dataphysend=0x%08x len=%d curlen=%d\n",
-			    dataphys, dataphysend,
-			    len, curlen));
+			    "len=%d curlen=%d\n",
+			    dataphys, len, curlen));
 		len -= curlen;
 
-		intr = len == 0 ? OHCI_TD_SET_DI(1) : OHCI_TD_NOINTR;
-		cur->td.td_flags = htole32(tdflags | intr);
+		cur->td.td_flags = tdflags;
 		cur->td.td_cbp = htole32(dataphys);
 		cur->nexttd = next;
 		cur->td.td_nexttd = htole32(next->physaddr);
-		cur->td.td_be = htole32(dataphys + curlen - 1);
+		cur->td.td_be = htole32(DMAADDR(dma, curlen - 1));
 		cur->len = curlen;
 		cur->flags = OHCI_ADD_LEN;
+		cur->xfer = xfer;
 		DPRINTFN(10,("ohci_alloc_std_chain: cbp=0x%08x be=0x%08x\n",
 			    dataphys, dataphys + curlen - 1));
 		if (len == 0)
 			break;
 		if (len < 0)
-			panic("Length went negative: %d curlen %d dma %p offset %08x", len, curlen, *dma, (int)offset);
+			panic("Length went negative: %d curlen %d dma %p offset %08x", len, curlen, dma, (int)0);
 
 		DPRINTFN(10,("ohci_alloc_std_chain: extend chain\n"));
 		offset += curlen;
@@ -592,14 +595,13 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 	    alen % UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize) == 0) {
 		/* Force a 0 length transfer at the end. */
 
-		cur->td.td_flags = htole32(tdflags | OHCI_TD_NOINTR);
 		cur = next;
 
 		next = ohci_alloc_std(sc);
 		if (next == NULL)
 			goto nomem;
 
-		cur->td.td_flags = htole32(tdflags | OHCI_TD_SET_DI(1));
+		cur->td.td_flags = tdflags;
 		cur->td.td_cbp = 0; /* indicate 0 length packet */
 		cur->nexttd = next;
 		cur->td.td_nexttd = htole32(next->physaddr);
@@ -609,8 +611,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		cur->xfer = xfer;
 		DPRINTFN(2,("ohci_alloc_std_chain: add 0 xfer\n"));
 	}
-	cur->flags = OHCI_CALL_DONE | OHCI_ADD_LEN;
-	*ep = next;
+	*ep = cur;
 
 	return (USBD_NORMAL_COMPLETION);
 
@@ -944,21 +945,13 @@ ohci_init(ohci_softc_t *sc)
 usbd_status
 ohci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	struct ohci_softc *sc = (struct ohci_softc *)bus;
-#endif
-
-	return (usb_allocmem(&sc->sc_bus, size, 0, dma));
+	return (usb_allocmem(bus, size, 0, dma));
 }
 
 void
 ohci_freem(struct usbd_bus *bus, usb_dma_t *dma)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	struct ohci_softc *sc = (struct ohci_softc *)bus;
-#endif
-
-	usb_freemem(&sc->sc_bus, dma);
+	usb_freemem(bus, dma);
 }
 
 usbd_xfer_handle
