@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
-.\"	$Id: pstat.8,v 1.15 1997/10/09 07:22:05 charnier Exp $
+.\"	$Id: pstat.8,v 1.16 1998/01/17 16:58:55 bde Exp $
 .\"
 .Dd May 13, 1994
 .Dt PSTAT 8
@@ -131,6 +131,10 @@ reports the percentage of space used.
 .Pp
 If more than one partition is configured into the system, totals for all
 of the statistics will be reported in the final line of the report.
+.Pp
+If you supply the option again, as in
+.Fl ss ,
+the system will display a breakdown of the swap bitmap/radix-tree.
 .It Fl t
 Print table for terminals
 with these headings:
