@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.46 1995/08/23 23:02:22 gibbs Exp $
+ *      $Id: aha1542.c,v 1.47 1995/09/19 18:55:04 bde Exp $
  */
 
 /*
@@ -34,6 +34,7 @@
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>	/* XXX for bootverbose: a funny place */
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -255,6 +256,7 @@ struct	aha_inquire
 					/* 0x43 ('C') = AHA-1542C */
 					/* 0x44 ('D') = AHA-1542CF */
 					/* 0x45 ('E') = AHA-1542CF, BIOS v2.01 */
+					/* 0x46 ('F') = AHA-1542CP, "Plug'nPlay" */
 	u_char	spec_opts;		/* special options ID */
 					/* 0x41 = Board is standard model */
 	u_char	revision_1;		/* firmware revision [0-9A-Z] */
@@ -963,7 +965,13 @@ aha_done(unit, ccb)
 	scsi_done(xs);
 }
 
-static char *board_rev(int type)
+/* Macro to determine that a rev is potentially a new valid one
+ * so that the driver doesn't keep breaking on new revs as it
+ * did for the CF and CP.
+ */
+#define PROBABLY_NEW_BOARD(REV) (REV > 0x43 && REV < 0x56)
+
+static char *board_rev(int unit, int type)
 {
 	switch(type)
 	{
@@ -974,7 +982,20 @@ static char *board_rev(int type)
 		case 0x43: return "AHA-1542C";
 		case 0x44: return "AHA-1542CF";
 		case 0x45: return "AHA-1542CF BIOS v2.01";
-		default: return "Unknown board";
+		case 0x46: return "AHA-1542CP";
+
+		default:
+
+
+		if (PROBABLY_NEW_BOARD(type))
+		{
+			printf("aha%d: Assuming type %02x is a new board.\n",
+			unit, type);
+			return "New Adaptec rev?";
+		}
+
+		printf("aha%d: type %02x is an unknown board.\n", unit, type);
+		return "Unknown board";
 	}
 }
 
@@ -986,6 +1007,7 @@ aha_init(unit)
 	int     unit;
 {
 	struct aha_data *aha = ahadata[unit];
+	char *desc;
 	unsigned char ad[3];
 	volatile int i, sts;
 	struct	aha_config conf;
@@ -1067,62 +1089,69 @@ aha_init(unit)
 
 	aha->flags = SDEV_BOUNCE;
 
+#define	PRVERBOSE(x) if (bootverbose) printf x
+
 	/*
-	 * If we are a 1542C or 1542CF disable the extended bios so that the
+	 * If we are a new type of 1542 board (anything newer than a 1542C)
+	 * then disable the extended bios so that the
 	 * mailbox interface is unlocked.
 	 * This is also true for the 1542B Version 3.20. First Adaptec
 	 * board that supports >1Gb drives.
 	 * No need to check the extended bios flags as some of the
 	 * extensions that cause us problems are not flagged in that byte.
 	 */
-	printf("aha%d: %s-V%c.%c",
-	unit, board_rev(inquire.boardid), inquire.revision_1,
-	inquire.revision_2);
+	desc = board_rev(unit, inquire.boardid);
 
-	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
-		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
+	PRVERBOSE( ("aha%d: Rev %02x (%s) V%c.%c",
+	unit, inquire.boardid, desc, inquire.revision_1,
+	inquire.revision_2) );
+
+	if (PROBABLY_NEW_BOARD(inquire.boardid) ||
+		(inquire.boardid == 0x41
 		&& inquire.revision_1 == 0x31 && inquire.revision_2 == 0x34)) {
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
 
-		printf(", enabling mailbox");
+		PRVERBOSE( (", enabling mailbox") );
 
 		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
 			0, extbios.mailboxlock);
-
 	}
 
 	/* Which boards support residuals?  Some early 1542A's apparently
 	 * don't.  The 1542B with V0.5 of the software does, so I've
 	 * arbitrarily set that as the earliest rev.
 	 */
-	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
-		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
+	if (PROBABLY_NEW_BOARD(inquire.boardid) ||
+		(inquire.boardid == 0x41
 		&& (inquire.revision_1 > '0' || inquire.revision_2 >= '5'))) {
-		printf(", enabling residuals");
+
+		PRVERBOSE( (", enabling residuals") );
+
 		aha->init_opcode = AHA_INIT_RESID_CCB;
 		aha->sg_opcode = AHA_INIT_SG_RESID_CCB;
 	}
 
 	/* Which boards support target operations?  The 1542C completely
 	 * locks up the SCSI bus if you enable them.  I'm only sure
-	 * about the B.
+	 * about the B, which was sold in the OEM market as a target
+	 * board.
 	 */
 	if (inquire.boardid == 0x41) {
-		printf(", target ops");
+		PRVERBOSE( (", target ops") );
 		aha->flags |= SDEV_TARGET_OPS;
 	}
 
-	printf("\n");
+	PRVERBOSE( ("\n") );
 
 	/*
 	 * setup dma channel from jumpers and save int
 	 * level
 	 */
-	printf("aha%d: reading board settings, ", unit);
-#define	PRNT(x) printf(x)
+	PRVERBOSE(("aha%d: reading board settings, ", unit));
+
 	if (inquire.boardid == 0x20) {
 		DELAY(1000);		/* for Bustek 545 */
 	}
@@ -1133,62 +1162,59 @@ aha_init(unit)
 		outb(0x0b, 0x0c);
 		outb(0x0a, 0x00);
 		aha->aha_dma = 0;
-		PRNT("dma=0 ");
 		break;
 	case CHAN5:
 		outb(0xd6, 0xc1);
 		outb(0xd4, 0x01);
 		aha->aha_dma = 5;
-		PRNT("dma=5 ");
 		break;
 	case CHAN6:
 		outb(0xd6, 0xc2);
 		outb(0xd4, 0x02);
 		aha->aha_dma = 6;
-		PRNT("dma=6 ");
 		break;
 	case CHAN7:
 		outb(0xd6, 0xc3);
 		outb(0xd4, 0x03);
 		aha->aha_dma = 7;
-		PRNT("dma=7 ");
 		break;
 	default:
-		printf("illegal dma jumper setting\n");
-		return (EIO);
-	}
-	switch (conf.intr) {
-	case INT9:
-		aha->aha_int = 9;
-		PRNT("int=9 ");
-		break;
-	case INT10:
-		aha->aha_int = 10;
-		PRNT("int=10 ");
-		break;
-	case INT11:
-		aha->aha_int = 11;
-		PRNT("int=11 ");
-		break;
-	case INT12:
-		aha->aha_int = 12;
-		PRNT("int=12 ");
-		break;
-	case INT14:
-		aha->aha_int = 14;
-		PRNT("int=14 ");
-		break;
-	case INT15:
-		aha->aha_int = 15;
-		PRNT("int=15 ");
-		break;
-	default:
-		printf("illegal int jumper setting\n");
+		printf("aha%d: illegal dma jumper setting\n", unit);
 		return (EIO);
 	}
 
+	PRVERBOSE( ("dma=%d ", aha->aha_dma) );
+
+	switch (conf.intr) {
+	case INT9:
+		aha->aha_int = 9;
+		break;
+	case INT10:
+		aha->aha_int = 10;
+		break;
+	case INT11:
+		aha->aha_int = 11;
+		break;
+	case INT12:
+		aha->aha_int = 12;
+		break;
+	case INT14:
+		aha->aha_int = 14;
+		break;
+	case INT15:
+		aha->aha_int = 15;
+		break;
+	default:
+		printf("aha%d: illegal int jumper setting\n", unit);
+		return (EIO);
+	}
+
+	PRVERBOSE( ("int=%d ", aha->aha_int) );
+
 	/* who are we on the scsi bus? */
 	aha->aha_scsi_dev = conf.scsi_dev;
+
+	PRVERBOSE( ("id=%d ", aha->aha_scsi_dev) );
 
 	/*
 	 * Change the bus on/off times to not clash with other dma users.
@@ -1205,7 +1231,7 @@ aha_init(unit)
 		return (EIO);
 	}
 #else
-	printf (" (bus speed defaulted)\n");
+	PRVERBOSE( (" (bus speed defaulted)\n") );
 #endif	/*TUNE_1542*/
 	/*
 	 * Initialize mail box
