@@ -313,7 +313,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 	}
 	if (ifp != NULL) {
 		ifp->if_obytes += m->m_pkthdr.len + adjust;
-		if (m->m_flags & M_MCAST)
+		if (m->m_flags & (M_BCAST|M_MCAST))
 			ifp->if_omcasts++;
 		active = ifp->if_flags & IFF_OACTIVE;
 	}
