@@ -10,7 +10,7 @@
 SRCS=	config_local.h
 CLEANFILES=	${SRCS}
 
-all: ${SRCS}
+all depend: ${SRCS}
 
 config_local.h: newvers.sh
 	@rm -f ${.TARGET}
