@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.9 1998/10/07 02:39:05 msmith Exp $
+ *	$Id: bootinfo.c,v 1.10 1998/10/07 10:55:46 peter Exp $
  */
 
 #include <stand.h>
@@ -155,21 +155,25 @@ bi_copyenv(vm_offset_t addr)
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
-#define MOD_STR(t, a, s) {				\
-    u_int32_t ident = (t << 16) + strlen(s) + 1;	\
-    i386_copyin(&ident, a, sizeof(ident));		\
-    a += sizeof(ident);					\
-    i386_copyin(s, a, strlen(s) + 1);			\
-    a += strlen(s) + 1;					\
+#define COPY32(v, a) {				\
+    u_int32_t	x = (v);			\
+    i386_copyin(&x, a, sizeof(x));		\
+    a += sizeof(x);				\
+}
+
+#define MOD_STR(t, a, s) {			\
+    COPY32(t, a);				\
+    COPY32(strlen(s) + 1, a);			\
+    i386_copyin(s, a, strlen(s) + 1);		\
+    a += strlen(s) + 1;				\
 }
 
 #define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
 #define MOD_TYPE(a, s)	MOD_STR(MODINFO_TYPE, a, s)
 
 #define MOD_VAR(t, a, s) {			\
-    u_int32_t ident = (t << 16) + sizeof(s);	\
-    i386_copyin(&ident, a, sizeof(ident));	\
-    a += sizeof(ident);				\
+    COPY32(t, a);				\
+    COPY32(sizeof(s), a);			\
     i386_copyin(&s, a, sizeof(s));		\
     a += sizeof(s);				\
 }
@@ -177,20 +181,16 @@ bi_copyenv(vm_offset_t addr)
 #define MOD_ADDR(a, s)	MOD_VAR(MODINFO_ADDR, a, s)
 #define MOD_SIZE(a, s)	MOD_VAR(MODINFO_SIZE, a, s)
 
-#define MOD_METADATA(a, mm) {							\
-    u_int32_t ident = ((MODINFO_METADATA | mm->md_type) << 16) + mm->md_size;	\
-    i386_copyin(&ident, a, sizeof(ident));					\
-    a += sizeof(ident);								\
-    i386_copyin(mm->md_data, a, mm->md_size);					\
-    a += mm->md_size;								\
+#define MOD_METADATA(a, mm) {			\
+    COPY32(MODINFO_METADATA | mm->md_type, a);	\
+    COPY32(mm->md_size, a);			\
+    i386_copyin(mm->md_data, a, mm->md_size);	\
+    a += mm->md_size;				\
 }
 
 #define MOD_END(a) {				\
-    u_int32_t ident = 0;			\
-    i386_copyin(&ident, a, sizeof(ident));	\
-    a += sizeof(ident);				\
-    i386_copyin(&ident, a, sizeof(ident));	\
-    a += sizeof(ident);				\
+    COPY32(MODINFO_END, a);			\
+    COPY32(0, a);				\
 }
 
 vm_offset_t
