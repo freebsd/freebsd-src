@@ -1027,7 +1027,11 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
+#ifdef __i386__
     fs = ((ipfw_insn_pipe *)cmd)->pipe_ptr;
+#else
+    bcopy(& ((ipfw_insn_pipe *)cmd)->pipe_ptr, &fs, sizeof(fs));
+#endif
 
     if (fs != NULL)
 	return fs;
@@ -1049,7 +1053,11 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
     }
     /* record for the future */
 #if IPFW2
+#ifdef __i386__
     ((ipfw_insn_pipe *)cmd)->pipe_ptr = fs;
+#else
+    bcopy(&fs, & ((ipfw_insn_pipe *)cmd)->pipe_ptr, sizeof(fs));
+#endif
 #else
     if (fs != NULL)
 	rule->pipe_ptr = fs;

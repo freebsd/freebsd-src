@@ -348,6 +348,14 @@ struct _s_x rule_options[] = {
 	{ NULL, 0 }
 };
 
+static __inline u_int64_t
+align_uint64(u_int64_t *pll) {
+	u_int64_t ret;
+
+	bcopy (pll, &ret, sizeof(ret));
+	return ret;
+};
+
 /**
  * match_token takes a table and a string, returns the value associated
  * with the string (0 meaning an error in most cases)
@@ -813,8 +821,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	int or_block = 0;	/* we are in an or block */
+	u_int32_t set_disable;
 
-	u_int32_t set_disable = rule->set_disable;
+	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
 
 	if (set_disable & (1 << rule->set)) { /* disabled */
 		if (!show_sets)
@@ -825,8 +834,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	printf("%05u ", rule->rulenum);
 
 	if (do_acct)
-		printf("%*llu %*llu ", pcwidth, rule->pcnt, bcwidth,
-		    rule->bcnt);
+		printf("%*llu %*llu ", pcwidth, align_uint64(&rule->pcnt),
+		    bcwidth, align_uint64(&rule->bcnt));
 
 	if (do_time) {
 		char timestr[30];
@@ -1213,14 +1222,18 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 {
 	struct protoent *pe;
 	struct in_addr a;
+	uint16_t rulenum;
 
 	if (!do_expired) {
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
 			return;
 	}
 
-	printf("%05d %*llu %*llu (%ds)", d->rulenum, pcwidth, d->pcnt, bcwidth,
-	    d->bcnt, d->expire);
+	bcopy(&d->rule, &rulenum, sizeof(rulenum));
+
+	printf("%05d %*llu %*llu (%ds)", rulenum, pcwidth,
+	    align_uint64(&d->pcnt), bcwidth,
+	    align_uint64(&d->bcnt), d->expire);
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1454,7 +1467,9 @@ sets_handler(int ac, char *av[])
 			err(EX_OSERR, "malloc");
 		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
-		set_disable = ((struct ip_fw *)data)->set_disable;
+		bcopy(&((struct ip_fw *)data)->next_rule,
+			&set_disable, sizeof(set_disable));
+
 
 		for (i = 0, msg = "disable" ; i < 31; i++)
 			if (  (set_disable & (1<<i))) {
@@ -1620,23 +1635,27 @@ list(int ac, char *av[])
 		for (n = 0, r = data; n < nstat;
 		    n++, r = (void *)r + RULESIZE(r)) {
 			/* packet counter */
-			width = snprintf(NULL, 0, "%llu", r->pcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&r->pcnt));
 			if (width > pcwidth)
 				pcwidth = width;
 
 			/* byte counter */
-			width = snprintf(NULL, 0, "%llu", r->bcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&r->bcnt));
 			if (width > bcwidth)
 				bcwidth = width;
 		}
 	}
 	if (do_dynamic && ndyn) {
 		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-			width = snprintf(NULL, 0, "%llu", d->pcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&d->pcnt));
 			if (width > pcwidth)
 				pcwidth = width;
 
-			width = snprintf(NULL, 0, "%llu", d->bcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&d->bcnt));
 			if (width > bcwidth)
 				bcwidth = width;
 		}
@@ -1690,9 +1709,12 @@ list(int ac, char *av[])
 				/* already warned */
 				continue;
 			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				if (d->rulenum > rnum)
+				uint16_t rulenum;
+
+				bcopy(&d->rule, &rulenum, sizeof(rulenum));
+				if (rulenum > rnum)
 					break;
-				if (d->rulenum == rnum)
+				if (rulenum == rnum)
 					show_dyn_ipfw(d, pcwidth, bcwidth);
 			}
 		}
