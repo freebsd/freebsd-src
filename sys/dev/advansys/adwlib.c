@@ -190,6 +190,32 @@ adw_reset_chip(struct adw_softc *adw)
 }
 
 /*
+ * Reset the SCSI bus.
+ */
+int
+adw_reset_bus(struct adw_softc *adw)
+{
+	adw_idle_cmd_status_t status;
+
+	status =
+	    adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START, /*param*/0);
+	if (status != ADW_IDLE_CMD_SUCCESS) {
+		xpt_print_path(adw->path);
+		printf("Bus Reset start attempt failed\n");
+		return (1);
+	}
+	DELAY(ADW_BUS_RESET_HOLD_DELAY_US);
+	status =
+	    adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END, /*param*/0);
+	if (status != ADW_IDLE_CMD_SUCCESS) {
+		xpt_print_path(adw->path);
+		printf("Bus Reset end attempt failed\n");
+		return (1);
+	}
+	return (0);
+}
+
+/*
  * Read the specified EEPROM location
  */
 static u_int16_t
@@ -818,22 +844,22 @@ adw_hshk_cfg_period_factor(u_int tinfo)
 }
 
 /*
- * Send an idle command to the chip and optionally wait for completion.
+ * Send an idle command to the chip and wait for completion.
  */
-void
+adw_idle_cmd_status_t
 adw_idle_cmd_send(struct adw_softc *adw, adw_idle_cmd_t cmd, u_int parameter)
 {
-	int s;
-
-	adw->idle_command_cmp = 0;
+	u_int		      timeout;
+	adw_idle_cmd_status_t status;
+	int		      s;
 
 	s = splcam();	
 
-	if (adw->idle_cmd != ADW_IDLE_CMD_COMPLETED)
-		printf("%s: Warning! Overlapped Idle Commands Attempted\n",
-		       adw_name(adw));
-	adw->idle_cmd = cmd;
-	adw->idle_cmd_param = parameter;
+	/*
+	 * Clear the idle command status which is set by the microcode
+	 * to a non-zero value to indicate when the command is completed.
+	 */
+	adw_lram_write_16(adw, ADW_MC_IDLE_CMD_STATUS, 0);
 
 	/*
 	 * Write the idle command value after the idle command parameter
@@ -841,37 +867,25 @@ adw_idle_cmd_send(struct adw_softc *adw, adw_idle_cmd_t cmd, u_int parameter)
 	 * followed, the microcode may process the idle command before the
 	 * parameters have been written to LRAM.
 	 */
-	adw_lram_write_16(adw, ADW_MC_IDLE_CMD_PARAMETER, parameter);
+	adw_lram_write_32(adw, ADW_MC_IDLE_CMD_PARAMETER, parameter);
     	adw_lram_write_16(adw, ADW_MC_IDLE_CMD, cmd);
 
 	/*
 	 * Tickle the RISC to tell it to process the idle command.
 	 */
 	adw_tickle_risc(adw, ADW_TICKLE_B);
-	splx(s);
-}
-
-/* Wait for an idle command to complete */
-adw_idle_cmd_status_t
-adw_idle_cmd_wait(struct adw_softc *adw)
-{
-	u_int		      timeout;
-	adw_idle_cmd_status_t status;
-	int		      s;
 
 	/* Wait for up to 10 seconds for the command to complete */
-	timeout = 10000;
+	timeout = 5000000;
 	while (--timeout) {
-		s = splcam();
 		status = adw_lram_read_16(adw, ADW_MC_IDLE_CMD_STATUS);
-		splx(s);
        		if (status != 0)
 			break;
-		DELAY(1000);
+		DELAY(20);
 	}
 
 	if (timeout == 0)
 		panic("%s: Idle Command Timed Out!\n", adw_name(adw));
-	adw->idle_cmd = ADW_IDLE_CMD_COMPLETED;
+	splx(s);
 	return (status);
 }
