@@ -524,12 +524,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    }
 
 		case NGM_EIFACE_GET_IFNAME:
-			NG_MKRESPONSE(resp, msg, IFNAMSIZ + 1, M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ + 1);
+			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ);
 			break;
 
 		case NGM_EIFACE_GET_IFADDRS:

@@ -406,12 +406,12 @@ ng_gif_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_GIF_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_GIF_GET_IFNAME:
-			NG_MKRESPONSE(resp, msg, IFNAMSIZ + 1, M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ + 1);
+			strlcpy(resp->data, priv->ifp->if_xname, IFNAMSIZ);
 			break;
 		case NGM_GIF_GET_IFINDEX:
 			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
