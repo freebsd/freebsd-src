@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.7 1998/09/10 20:44:56 ache Exp $
+#	$Id: Makefile.inc0,v 1.8 1998/09/17 16:32:00 andreas Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -42,10 +42,11 @@ ${BKTGTS} :
 #
 # Temporary path and environment for the legacy build.
 #
-ELFTMPPATH=	${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/sbin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/bin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/sbin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/bin:${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp/usr/games
-LEGACY_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout	\
-		PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1	\
-		TOOLROOT=${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp
+ELFTMP=		${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp
+ELFTMPPATH=	${ELFTMP}/sbin:${ELFTMP}/bin:${ELFTMP}/usr/sbin:${ELFTMP}/usr/bin:${ELFTMP}/usr/games
+LEGACY_ENV=	PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1 TOOLROOT=${ELFTMP} \
+		MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout
+XMAKE=		${ELFTMP}/usr/bin/${MAKE}
 
 #
 # world
@@ -67,11 +68,11 @@ world:
 .endif
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
-	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-build
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-build
 .endif
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} -B installworld
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
-	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-install
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-install
 .endif
 .if target(post-world)
 	@echo
@@ -94,7 +95,7 @@ world:
 buildworld	:
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
-	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} legacy-build
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-build
 .endif
 
 #
@@ -106,5 +107,5 @@ buildworld	:
 installworld	:
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} installworld
 .if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
-	@cd ${.CURDIR}; ${LEGACY_ENV} ${MAKE} -DNOMAN -DNOINFO legacy-install
+	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} -DNOMAN -DNOINFO legacy-install
 .endif
