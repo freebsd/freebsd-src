@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: user.c,v 1.5 1997/02/22 14:22:42 peter Exp $
  */
 
 #include <stdio.h>
@@ -47,20 +47,27 @@ MONENTRY Monitor[MAXMON];
 user_command()
 {
   char h;
+  char *m;
   int i, k, c, n, error;
   char cmd[512], dumppath[MAXPATHLEN+1], pkt[3];
   FILE *dumpf;
 
   error = 0;
   if(fgets(cmd, 512, User) != NULL) {
+    m = cmd;
+    while ( *m != '\0' ) {
+	if(isupper(*m))
+	    *m = tolower(*m);
+	m++;
+    }
     if(sscanf(cmd, "status %c %d", &h, &i) == 2
-		&& h >= 'A' && h <= 'P' && i >= 1 && i <= 16) {
-      h -= 'A';
+		&& h >= 'a' && h <= 'p' && i >= 1 && i <= 16) {
+      h -= 'a';
       i--;
       printstatus(User, &Status[h][i]);
     } else if(sscanf(cmd, "send %c %s %d", &h, cmd, &n) == 3
-	      && h >= 'A' && h <= 'P' && (i = find(cmd, X10cmdnames)) >= 0) {
-      h -= 'A';
+	      && h >= 'a' && h <= 'p' && (i = find(cmd, X10cmdnames)) >= 0) {
+      h -= 'a';
       pkt[0] = h;
       pkt[1] = i;
       pkt[2] = n;
@@ -89,8 +96,8 @@ user_command()
 	error++;
       }
     } else if(sscanf(cmd, "monitor %c %d", &h, &i) == 2
-	      && h >= 'A' && h <= 'P' && i >= 1 && i <= 16) {
-      h -= 'A';
+	      && h >= 'a' && h <= 'p' && i >= 1 && i <= 16) {
+      h -= 'a';
       i--;
       for(k = 0; k < MAXMON; k++) {
 	if(!Monitor[k].inuse) break;
@@ -137,7 +144,7 @@ char *tab[];
 	int i;
 
 	for(i = 0; tab[i] != NULL; i++) {
-	  if(strcmp(s, tab[i]) == 0) return(i);
+	  if(strcasecmp(s, tab[i]) == 0) return(i);
 	}
 	return(-1);
 }
