@@ -2349,7 +2349,11 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = ESTALE;
 		goto out1;
 	}
+	NFSD_UNLOCK();
+	mtx_lock(&Giant);
 	(void) vn_start_write(NULL, &mp, V_WAIT);
+	mtx_unlock(&Giant);
+	NFSD_LOCK();
 	nfsm_srvnamesiz(len);
 	/*
 	 * Remember our original uid so that we can reset cr_uid before
