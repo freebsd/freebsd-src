@@ -911,7 +911,7 @@ again:
 	if (timeout) {
 		struct timeval tv;
 
-		if (timeout->tv_nsec > 1000000000) {
+		if (timeout->tv_nsec < 0 || timeout->tv_nsec > 1000000000) {
 			error = EINVAL;
 			goto out;
 		}
