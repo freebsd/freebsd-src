@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id$
+#	$Id: cpio.magic,v 1.1 1994/02/21 21:51:51 rgrimes Exp $
 #
 set_tmp_dir()
 {
@@ -238,13 +238,14 @@ extract()
 		;;
 	esac
 	#XXX ugly hack to eliminate busy files, copy them to /tmp and use them
-	#from there...
+	#from there... even uglier.. we CAN NOT LOAD libc.so.1.0 from the tar
+	#balls or it spams tar!!
 	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
 	
 	for i in $*; do
 		/tmp/cat "$i"* | 
 		/tmp/gunzip |
-		(cd / ; /tmp/tar --extract --file - --preserve-permissions ${tarverbose} )
+		(cd / ; /tmp/tar --extract --file - --preserve-permissions --exclude libc.so.1.0 ${tarverbose} )
 	done
 	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
