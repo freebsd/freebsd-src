@@ -1806,7 +1806,7 @@ bdevvp(dev, vpp)
 	if (vfinddev(dev, vpp))
 		return (0);
 
-	error = getnewvnode("none", (struct mount *)0, spec_vnodeop_p, &nvp);
+	error = getnewvnode("none", (struct mount *)0, devfs_specop_p, &nvp);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);
@@ -2587,14 +2587,14 @@ vgonechrl(struct vnode *vp, struct thread *td)
 		VOP_UNLOCK(vp, 0, td);
 		vp->v_vnlock = &vp->v_lock;
 		vp->v_tag = "orphanchr";
-		vp->v_op = spec_vnodeop_p;
+		vp->v_op = devfs_specop_p;
 		delmntque(vp);
 		cache_purge(vp);
 		vrele(vp);
 		VI_LOCK(vp);
 	} else
 		vclean(vp, 0, td);
-	vp->v_op = spec_vnodeop_p;
+	vp->v_op = devfs_specop_p;
 	vx_unlock(vp);
 	VI_UNLOCK(vp);
 }
