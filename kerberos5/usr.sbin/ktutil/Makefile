@@ -25,15 +25,16 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/admin \
 		-I${ASN1OBJDIR} \
 		-I${.OBJDIR}
-LDADD=		-L${KRB5OBJDIR} -lkrb5 \
+LDADD=		-L${KADM5COBJDIR} -lkadm5clnt \
+		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		-L${SLOBJDIR} -lsl -L${ASN1OBJDIR} -lasn1 \
-		-L${KADM5COBJDIR} -lkadm5clnt \
-		-lcrypto -lcrypt -lcom_err -lreadline
+		-lcrypto -lcrypt -lcom_err -lreadline -lcurses
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
 		${LIBSL} ${LIBASN1} ${LIBKADM5CLNT} \
-		${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE}
+		${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE} \
+		${LIBCURSES}
 MAN=		ktutil.8
 
 .include <bsd.prog.mk>
