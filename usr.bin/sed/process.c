@@ -86,7 +86,7 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT(s) { fwrite(s, sizeof(u_char), psl, stdout); putchar('\n'); }
+#define OUT(s) { fwrite(s, sizeof(u_char), psl, outfile); fputc('\n', outfile); }
 
 void
 process(void)
@@ -130,7 +130,7 @@ redirect:
 				pd = 1;
 				psl = 0;
 				if (cp->a2 == NULL || lastaddr)
-					(void)printf("%s", cp->t);
+					(void)fprintf(outfile, "%s", cp->t);
 				break;
 			case 'd':
 				pd = 1;
@@ -162,7 +162,7 @@ redirect:
 				cspace(&HS, ps, psl, 0);
 				break;
 			case 'i':
-				(void)printf("%s", cp->t);
+				(void)fprintf(outfile, "%s", cp->t);
 				break;
 			case 'l':
 				lputs(ps);
@@ -252,7 +252,7 @@ redirect:
 			case '}':
 				break;
 			case '=':
-				(void)printf("%lu\n", linenum);
+				(void)fprintf(outfile, "%lu\n", linenum);
 			}
 			cp = cp->next;
 		} /* for all cp */
@@ -438,7 +438,7 @@ flush_appends(void)
 		switch (appends[i].type) {
 		case AP_STRING:
 			fwrite(appends[i].s, sizeof(char), appends[i].len,
-			    stdout);
+			    outfile);
 			break;
 		case AP_FILE:
 			/*
@@ -452,12 +452,12 @@ flush_appends(void)
 			if ((f = fopen(appends[i].s, "r")) == NULL)
 				break;
 			while ((count = fread(buf, sizeof(char), sizeof(buf), f)))
-				(void)fwrite(buf, sizeof(char), count, stdout);
+				(void)fwrite(buf, sizeof(char), count, outfile);
 			(void)fclose(f);
 			break;
 		}
-	if (ferror(stdout))
-		errx(1, "stdout: %s", strerror(errno ? errno : EIO));
+	if (ferror(outfile))
+		errx(1, "%s: %s", outfname, strerror(errno ? errno : EIO));
 	appendx = sdone = 0;
 }
 
@@ -470,6 +470,8 @@ lputs(char *s)
 	struct winsize win;
 	static int termwidth = -1;
 
+	if (outfile != stdout)
+		termwidth = 60;
 	if (termwidth == -1) {
 		if ((p = getenv("COLUMNS")) && *p != '\0')
 			termwidth = atoi(p);
@@ -482,32 +484,32 @@ lputs(char *s)
 
 	for (count = 0; *s; ++s) {
 		if (count + 5 >= termwidth) {
-			(void)printf("\\\n");
+			(void)fprintf(outfile, "\\\n");
 			count = 0;
 		}
 		if (isprint((unsigned char)*s) && *s != '\\') {
-			(void)putchar(*s);
+			(void)fputc(*s, outfile);
 			count++;
 		} else if (*s == '\n') {
-			(void)putchar('$');
-			(void)putchar('\n');
+			(void)fputc('$', outfile);
+			(void)fputc('\n', outfile);
 			count = 0;
 		} else {
 			escapes = "\\\a\b\f\r\t\v";
-			(void)putchar('\\');
+			(void)fputc('\\', outfile);
 			if ((p = strchr(escapes, *s))) {
-				(void)putchar("\\abfrtv"[p - escapes]);
+				(void)fputc("\\abfrtv"[p - escapes], outfile);
 				count += 2;
 			} else {
-				(void)printf("%03o", *(u_char *)s);
+				(void)fprintf(outfile, "%03o", *(u_char *)s);
 				count += 4;
 			}
 		}
 	}
-	(void)putchar('$');
-	(void)putchar('\n');
-	if (ferror(stdout))
-		errx(1, "stdout: %s", strerror(errno ? errno : EIO));
+	(void)fputc('$', outfile);
+	(void)fputc('\n', outfile);
+	if (ferror(outfile))
+		errx(1, "%s: %s", outfname, strerror(errno ? errno : EIO));
 }
 
 static __inline int
