@@ -59,13 +59,14 @@ MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 struct sockaddr;
 
 static int	hpfs_mountfs(register struct vnode *, struct mount *, 
-				  struct hpfs_args *, struct thread *);
+				  struct thread *);
 
 static vfs_init_t       hpfs_init;
 static vfs_uninit_t     hpfs_uninit;
 static vfs_fhtovp_t     hpfs_fhtovp;
 static vfs_vget_t       hpfs_vget;
-static vfs_omount_t     hpfs_omount;
+static vfs_cmount_t     hpfs_cmount;
+static vfs_mount_t      hpfs_mount;
 static vfs_root_t       hpfs_root;
 static vfs_statfs_t     hpfs_statfs;
 static vfs_unmount_t    hpfs_unmount;
@@ -90,18 +91,49 @@ hpfs_uninit (vfsp)
 }
 
 static int
-hpfs_omount ( 
-	struct mount *mp,
-	char *path,
-	caddr_t data,
+hpfs_cmount ( 
+	struct mntarg *ma,
+	void *data,
+	int flags,
 	struct thread *td )
 {
-	size_t		size;
-	int		err = 0;
-	struct vnode	*devvp;
 	struct hpfs_args args;
+	int error;
+
+	error = copyin(data, (caddr_t)&args, sizeof (struct hpfs_args));
+	if (error)
+		return (error);
+
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_argf(ma, "uid", "%d", args.uid);
+	ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "mode", "%d", args.mode);
+	if (args.flags & HPFSMNT_TABLES) {
+		ma = mount_arg(ma, "d2u", args.d2u, sizeof args.d2u);
+		ma = mount_arg(ma, "u2d", args.u2d, sizeof args.u2d);
+	}
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+
+static const char *hpfs_opts[] = {
+	"from", "export", "uid", "gid", "mode", "d2u", "u2d", NULL
+};
+
+static int
+hpfs_mount ( 
+	struct mount *mp,
+	struct thread *td )
+{
+	int		err = 0, error;
+	struct vnode	*devvp;
 	struct hpfsmount *hpmp = 0;
 	struct nameidata ndp;
+	struct export_args export;
+	char *from;
 
 	dprintf(("hpfs_omount():\n"));
 	/*
@@ -109,11 +141,12 @@ hpfs_omount (
 	 * Mounting non-root filesystem or updating a filesystem
 	 ***
 	 */
+	if (vfs_filteropt(mp->mnt_optnew, hpfs_opts))
+		return (EINVAL);
 
-	/* copy in user arguments*/
-	err = copyin(data, (caddr_t)&args, sizeof (struct hpfs_args));
-	if (err)
-		goto error_1;		/* can't get arguments*/
+	from = vfs_getopts(mp->mnt_optnew, "from", &error);
+	if (error)
+		return (error);
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -124,9 +157,13 @@ hpfs_omount (
 
 		hpmp = VFSTOHPFS(mp);
 
-		if (args.fspec == 0) {
+		if (from == NULL) {
+			error = vfs_copyopt(mp->mnt_optnew, "export",
+			    &export, sizeof export);
+			if (error)
+				return (error);
 			dprintf(("export 0x%x\n",args.export.ex_flags));
-			err = vfs_export(mp, &args.export);
+			err = vfs_export(mp, &export);
 			if (err) {
 				printf("hpfs_omount: vfs_export failed %d\n",
 					err);
@@ -144,7 +181,7 @@ hpfs_omount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -172,23 +209,11 @@ hpfs_omount (
 	 * to something other than "path" for some rason.
 	 */
 	/* Save "mounted from" info for mount point (NULL pad)*/
-	copyinstr(	args.fspec,			/* device name*/
-			mp->mnt_stat.f_mntfromname,	/* save area*/
-			MNAMELEN - 1,			/* max size*/
-			&size);				/* real size*/
-	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	vfs_mountedfrom(mp, from);
 
-	err = hpfs_mountfs(devvp, mp, &args, td);
+	err = hpfs_mountfs(devvp, mp, td);
 	if (err)
 		goto error_2;
-
-	/*
-	 * Initialize FS stat information in mount struct; uses both
-	 * mp->mnt_stat.f_mntonname and mp->mnt_stat.f_mntfromname
-	 *
-	 * This code is common to root and non-root mounts
-	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 
 	goto success;
 
@@ -209,13 +234,12 @@ success:
  * Common code for mount and mountroot
  */
 int
-hpfs_mountfs(devvp, mp, argsp, td)
+hpfs_mountfs(devvp, mp, td)
 	register struct vnode *devvp;
 	struct mount *mp;
-	struct hpfs_args *argsp;
 	struct thread *td;
 {
-	int error, ronly;
+	int error, ronly, v;
 	struct sublock *sup;
 	struct spblock *spp;
 	struct hpfsmount *hpmp;
@@ -285,15 +309,18 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	hpmp->hpm_devvp = devvp;
 	hpmp->hpm_dev = devvp->v_rdev;
 	hpmp->hpm_mp = mp;
-	hpmp->hpm_uid = argsp->uid;
-	hpmp->hpm_gid = argsp->gid;
-	hpmp->hpm_mode = argsp->mode;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+		hpmp->hpm_uid = v;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+		hpmp->hpm_gid = v;
+	if (1 == vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v))
+		hpmp->hpm_mode = v;
 
 	error = hpfs_bminit(hpmp);
 	if (error)
 		goto failed;
 
-	error = hpfs_cpinit(hpmp, argsp);
+	error = hpfs_cpinit(mp, hpmp);
 	if (error) {
 		hpfs_bmdeinit(hpmp);
 		goto failed;
@@ -560,7 +587,8 @@ hpfs_vget(
 static struct vfsops hpfs_vfsops = {
 	.vfs_fhtovp =		hpfs_fhtovp,
 	.vfs_init =		hpfs_init,
-	.vfs_omount =		hpfs_omount,
+	.vfs_cmount =		hpfs_cmount,
+	.vfs_mount =		hpfs_mount,
 	.vfs_root =		hpfs_root,
 	.vfs_statfs =		hpfs_statfs,
 	.vfs_uninit =		hpfs_uninit,
