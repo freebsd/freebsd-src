@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.51 2002/08/15 09:32:50 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.55 2002/10/23 09:14:01 jdolecek Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -126,7 +126,17 @@ struct ulpt_softc {
 #endif
 };
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__)
+dev_type_open(ulptopen);
+dev_type_close(ulptclose);
+dev_type_write(ulptwrite);
+dev_type_ioctl(ulptioctl);
+
+const struct cdevsw ulpt_cdevsw = {
+	ulptopen, ulptclose, noread, ulptwrite, ulptioctl,
+	nostop, notty, nopoll, nommap, nokqfilter,
+};
+#elif defined(__OpenBSD__)
 cdev_decl(ulpt);
 #elif defined(__FreeBSD__)
 Static d_open_t ulptopen;
@@ -226,7 +236,7 @@ USB_ATTACH(ulpt)
 #ifdef DIAGNOSTIC
 	if (ifcd < (usb_interface_descriptor_t *)cdesc ||
 	    ifcd >= iend)
-		panic("ulpt: iface desc out of range\n");
+		panic("ulpt: iface desc out of range");
 #endif
 	/* Step through all the descriptors looking for bidir mode */
 	for (id = ifcd, altno = 0;
@@ -356,7 +366,6 @@ ulpt_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		sc->sc_dying = 1;
@@ -398,9 +407,13 @@ USB_DETACH(ulpt)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	/* locate the major number */
+#if defined(__NetBSD__)
+	maj = cdevsw_lookup_major(&ulpt_cdevsw);
+#elif defined(__OpenBSD__)
 	for (maj = 0; maj < nchrdev; maj++)
 		if (cdevsw[maj].d_open == ulptopen)
 			break;
+#endif
 
 	/* Nuke the vnodes for any open instances (calls close). */
 	mn = self->dv_unit;
