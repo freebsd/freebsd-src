@@ -155,7 +155,7 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef notyet
-# define OPTFLAGS "BD:I:L:PSVd:ef:ij:knqrst"
+# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:knqrst"
 #else
 # define OPTFLAGS "D:I:V:d:ef:ij:knqrst"
 #endif
