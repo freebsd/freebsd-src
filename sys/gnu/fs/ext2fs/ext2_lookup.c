@@ -704,7 +704,7 @@ ext2_dirbadentry(dp, de, entryoffsetinblock)
 
         if (error_msg != NULL) {
                 printf("bad directory entry: %s\n", error_msg);
-                printf("offset=%lu, inode=%lu, rec_len=%d, name_len=%d\n",
+                printf("offset=%d, inode=%lu, rec_len=%u, name_len=%u\n",
 			entryoffsetinblock, (unsigned long)de->inode,
 			de->rec_len, de->name_len);
         }

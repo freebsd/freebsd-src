@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.131 1998/06/17 14:13:14 bde Exp $
+ *      $Id: sd.c,v 1.132 1998/07/04 22:30:24 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -289,10 +289,9 @@ sdattach(struct scsi_link *sc_link)
 		 * (could happen on removable media - MOD)
 		 * -- this avoids the division below from falling over
 	 	 */
-		printf("%ldMB (%ld %d byte sectors)",
-		    dp->disksize / ((1024L * 1024L) / dp->secsiz),
-		    dp->disksize,
-		    dp->secsiz);
+		printf("%luMB (%lu %u byte sectors)",
+		    (u_long)(dp->disksize / ((1024L * 1024L) / dp->secsiz)),
+		    (u_long)dp->disksize, dp->secsiz);
 
 #ifndef SCSI_REPORT_GEOMETRY
 		if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
@@ -418,8 +417,8 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 	SC_DEBUG(sc_link, SDEV_DB1, ("sdsopen: (unit %ld)\n", unit));
 #else	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("sd_open: dev=0x%lx (unit %ld, partition %d)\n",
-		dev, unit, PARTITION(dev)));
+	    ("sd_open: dev=0x%lx (unit %lu, partition %d)\n",
+		(u_long)dev, (u_long)unit, PARTITION(dev)));
 #endif	/* !SLICE */
 
 	/*
@@ -495,7 +494,8 @@ sd_open(dev_t dev, int mode, int fmt, struct proc *p, struct scsi_link *sc_link)
 #endif	/* !SLICE */
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
 
-	SC_DEBUG(sc_link, SDEV_DB3, ("open %ld %ld\n", sdstrats, sdqueues));
+	SC_DEBUG(sc_link, SDEV_DB3, ("open %lu %lu\n",
+	    (u_long)sdstrats, (u_long)sdqueues));
 
 	scsi_device_unlock(sc_link);
 	return 0;
@@ -600,7 +600,9 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/* make sure that the transfer size is a multiple of the sector size */
 	if( (bp->b_bcount % secsize) != 0 ) {
 		bp->b_error = EINVAL;
-		printf("sd_strategy: Invalid b_bcount %d at block number: 0x%x\n", bp->b_bcount, bp->b_blkno);
+		printf(
+		"sd_strategy: Invalid b_bcount %ld at block number: 0x%lx\n",
+		    bp->b_bcount, (long)bp->b_blkno);
 		goto bad;
 	}
 
@@ -784,7 +786,7 @@ sdstart(u_int32_t unit, u_int32_t flags)
 			}
 		} else {
 bad:
-			printf("sd%ld: oops not queued\n", unit);
+			printf("sd%lu: oops not queued\n", (u_long)unit);
 			bp->b_error = EIO;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
@@ -814,7 +816,7 @@ sd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	errval  error;
 	struct scsi_data *sd = sc_link->sd;
 #endif	/* !SLICE */
-	SC_DEBUG(sc_link, SDEV_DB1, ("sdioctl (0x%x)", cmd));
+	SC_DEBUG(sc_link, SDEV_DB1, ("sdioctl (0x%lx)", cmd));
 
 #if 0
 	/* Wait until we have exclusive access to the device. */
@@ -1004,12 +1006,12 @@ sd_get_parms(int unit, int flags)
 	} else {
 
 		SC_DEBUG(sc_link, SDEV_DB3,
-		    ("%ld cyls, %d heads, %d precomp, %d red_write, %d land_zone\n",
-			scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
-			scsi_sense.pages.rigid_geometry.nheads,
-			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_wp),
-			b2tol(scsi_sense.pages.rigid_geometry.st_cyl_rwc),
-			b2tol(scsi_sense.pages.rigid_geometry.land_zone)));
+	    ("%lu cyls, %d heads, %u precomp, %u red_write, %u land_zone\n",
+		    (u_long)scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2),
+		    scsi_sense.pages.rigid_geometry.nheads,
+		    b2tol(scsi_sense.pages.rigid_geometry.st_cyl_wp),
+		    b2tol(scsi_sense.pages.rigid_geometry.st_cyl_rwc),
+		    b2tol(scsi_sense.pages.rigid_geometry.land_zone)));
 
 		/*
 		 * KLUDGE!!(for zone recorded disks)
@@ -1049,8 +1051,8 @@ sd_get_parms(int unit, int flags)
 	case 2048:
 		break;
 	default:
-		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
-		    unit, sd->params.secsiz);
+		printf("sd%lu: Can't deal with %u bytes logical blocks\n",
+		    (u_long)unit, sd->params.secsiz);
 		error = ENXIO;
 	}
 	if (error == 0)
@@ -1269,7 +1271,7 @@ sdsdump(void *private, int32_t start, int32_t num)
 			if (wdog_tickler)
 				(*wdog_tickler)();
 #endif /* HW_WDOG */
-			printf("%ld ", num / 2048);
+			printf("%ld ", (u_long)(num / 2048));
 		}
 		/* update block count */
 		num -= blkcnt;

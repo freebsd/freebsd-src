@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.55 1998/04/16 11:15:23 peter Exp $
+ *      $Id: scsi_base.c,v 1.56 1998/04/17 22:37:08 des Exp $
  */
 
 #include "opt_bounce.h"
@@ -770,7 +770,8 @@ static errval
 sc_err1(xs)
 	struct scsi_xfer *xs;
 {
-	SC_DEBUG(xs->sc_link, SDEV_DB3, ("sc_err1,err = 0x%lx \n", xs->error));
+	SC_DEBUG(xs->sc_link, SDEV_DB3, ("sc_err1,err = 0x%lx \n",
+	    (u_long)xs->error));
 
 	switch ((int)xs->error) {
 	case XS_SENSE:
@@ -885,22 +886,24 @@ void scsi_sense_print(xs)
 			case 0x7:	/* DATA PROTECT */
 				break;
 			case 0x8:	/* BLANK CHECK */
-				printf(" req sz: %ld (decimal)",
-				    info);
+				printf(" req sz: %lu (decimal)", (u_long)info);
 				break;
 			default:
 				if (info) {
 		    		if (sense->ext.extended.flags & SSD_ILI) {
-						printf(" ILI (length mismatch): %ld", info);
+						printf(
+						" ILI (length mismatch): %ld",
+						    (u_long)info);
 					}
 					else {
-						printf(" info:%#lx", info);
+						printf(" info:%#lx",
+						    (u_long)info);
 					}
 				}
 			}
 		}
 		else if (info)
-			printf(" info?:%#lx", info);
+			printf(" info?:%#lx", (u_long)info);
 
 		if (ext->extra_len >= 4) {
 			if (bcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
@@ -1311,18 +1314,18 @@ static void
 show_scsi_xs(xs)
 	struct scsi_xfer *xs;
 {
-	printf("xs(%p): ", xs);
-	printf("flg(0x%lx)", xs->flags);
-	printf("sc_link(%p)", xs->sc_link);
+	printf("xs(%p): ", (void *)xs);
+	printf("flg(0x%lx)", (u_long)xs->flags);
+	printf("sc_link(%p)", (void *)xs->sc_link);
 	printf("retr(0x%x)", xs->retries);
-	printf("timo(0x%lx)", xs->timeout);
-	printf("cmd(%p)", xs->cmd);
-	printf("len(0x%lx)", xs->cmdlen);
-	printf("data(%p)", xs->data);
-	printf("len(0x%lx)", xs->datalen);
-	printf("res(0x%lx)", xs->resid);
-	printf("err(0x%lx)", xs->error);
-	printf("bp(%p)", xs->bp);
+	printf("timo(0x%lx)", (long)xs->timeout);
+	printf("cmd(%p)", (void *)xs->cmd);
+	printf("len(0x%lx)", (long)xs->cmdlen);
+	printf("data(%p)", (void *)xs->data);
+	printf("len(0x%lx)", (long)xs->datalen);
+	printf("res(0x%lx)", (long)xs->resid);
+	printf("err(0x%lx)", (long)xs->error);
+	printf("bp(%p)", (void *)xs->bp);
 	show_scsi_cmd(xs);
 }
 
@@ -1341,7 +1344,7 @@ show_scsi_cmd(struct scsi_xfer *xs)
 				printf(",");
 			printf("%x", b[i++]);
 		}
-		printf("-[%ld bytes]\n", xs->datalen);
+		printf("-[%ld bytes]\n", (long)xs->datalen);
 		if (xs->datalen)
 			show_mem(xs->data, min(64, xs->datalen));
 	} else {
@@ -1358,7 +1361,7 @@ show_mem(address, num)
 	printf("------------------------------");
 	for (y = 0; y < num; y += 1) {
 		if (!(y % 16))
-			printf("\n%03ld: ", y);
+			printf("\n%03ld: ", (long)y);
 		printf("%02x ", *address++);
 	}
 	printf("\n------------------------------\n");

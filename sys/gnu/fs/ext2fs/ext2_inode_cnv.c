@@ -62,8 +62,9 @@ ext2_print_dinode( di )
 	printf( /* "Inode: %5d" */
 		" Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d\n",
 		"n/a", di->di_mode, di->di_flags, di->di_gen);
-	printf( "User: %5d Group: %5d  Size: %d\n",
-		di->di_uid, di->di_gid, di->di_size);
+	printf( "User: %5lu Group: %5lu  Size: %lu\n",
+		(unsigned long)di->di_uid, (unsigned long)di->di_gid,
+		(unsigned long)di->di_size);
 	printf( "Links: %3d Blockcount: %d\n",
 		di->di_nlink, di->di_blocks);
 	printf( "ctime: 0x%x", di->di_ctime); 

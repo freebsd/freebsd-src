@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.156 1998/06/10 22:02:14 julian Exp $
+ * $Id: vfs_subr.c,v 1.157 1998/06/21 18:02:43 bde Exp $
  */
 
 /*
@@ -1901,10 +1901,10 @@ vprint(label, vp)
 	char buf[64];
 
 	if (label != NULL)
-		printf("%s: %x: ", label, vp);
+		printf("%s: %p: ", label, (void *)vp);
 	else
-		printf("%x: ", vp);
-	printf("type %s, usecount %d, writecount %d, refcount %ld,",
+		printf("%p: ", (void *)vp);
+	printf("type %s, usecount %d, writecount %d, refcount %d,",
 	    typename[vp->v_type], vp->v_usecount, vp->v_writecount,
 	    vp->v_holdcnt);
 	buf[0] = '\0';
