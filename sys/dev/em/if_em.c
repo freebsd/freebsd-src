@@ -80,6 +80,7 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1013, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1014, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -99,6 +100,7 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x107A, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x107B, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x107C, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x108A, PCI_ANY_ID, PCI_ANY_ID, 0},
         /* required last entry */
         { 0, 0, 0, 0, 0}
 };
