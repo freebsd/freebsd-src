@@ -35,8 +35,7 @@
 #define AACQ_BIO	1
 #define AACQ_READY	2
 #define AACQ_BUSY	3
-#define AACQ_COMPLETE	4
-#define AACQ_COUNT	5	/* total number of queues */
+#define AACQ_COUNT	4	/* total number of queues */
 
 struct aac_qstat {
 	u_int32_t	q_length;
