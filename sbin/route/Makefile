@@ -6,7 +6,7 @@ MAN=	route.8
 SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CFLAGS+=-DINET6
-CLEANFILES+=keywords.h
+CLEANFILES+=keywords.h _keywords.tmp
 BINMODE=4555
 
 keywords.h: keywords
@@ -19,8 +19,4 @@ keywords.h: keywords
 	    > ${.TARGET}
 	rm -f _keywords.tmp
 
-./keywords.h:	keywords.h
-
 .include <bsd.prog.mk>
-
-route .depend lint tags: keywords.h
