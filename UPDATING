@@ -40,7 +40,7 @@ ITEMS:'
 	lots of crypto tools (like SSH)) will fail with strange
 	errors. (see below, 20000624).
 
-	FreESBD-current is safe again to run Crypto.
+	FreeBSD-current is safe again to run Crypto.
 
 20000709:
 	phk made the malloc default options AJ.  This may slow things
