@@ -17,7 +17,7 @@ uname=guest
 shell="/bin/csh"
 needgentry="NO"
 
-. /stand/miscfuncs.sh
+. /stand/scripts/miscfuncs.sh
 
 #########################
 # Some Functions we need.

@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.1 1995/01/14 07:41:47 jkh Exp $
+# $Id: instdist.sh,v 1.2 1995/01/27 07:37:53 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -19,7 +19,7 @@ else
 fi
 
 # Grab the miscellaneous functions.
-. /stand/miscfuncs.sh
+. /stand/scripts/miscfuncs.sh
 
 # Set the initial state for media installation.
 media_set_defaults()
