@@ -23,15 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdreg.h,v 1.1 1999/01/09 02:44:50 yokota Exp $
+ * $Id: atkbdreg.h,v 1.2 1999/03/10 10:36:52 yokota Exp $
  */
 
 #ifndef _DEV_KBD_ATKBDREG_H_
 #define _DEV_KBD_ATKBDREG_H_
 
 #define ATKBD_DRIVER_NAME	"atkbd"
-#define ATKBD_UNIT(dev)		minor(dev)
-#define ATKBD_MKMINOR(unit)	(unit)
 
 /* device configuration flags (atkbdprobe, atkbdattach) */
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
@@ -40,20 +38,8 @@
 
 #ifdef KERNEL
 
-typedef struct atkbd_softc {
-	short		flags;
-#define	ATKBD_ATTACHED	(1 << 0)
-	keyboard_t	*kbd;
-#ifdef KBD_INSTALL_CDEV
-	genkbd_softc_t	gensc;
-#endif
-} atkbd_softc_t;
-
-#ifdef __i386__
-atkbd_softc_t	*atkbd_get_softc(int unit);
-#endif
 int		atkbd_probe_unit(int unit, int port, int irq, int flags);
-int		atkbd_attach_unit(int unit, atkbd_softc_t *sc,
+int		atkbd_attach_unit(int unit, keyboard_t **kbd,
 				 int port, int irq, int flags);
 
 #endif /* KERNEL */

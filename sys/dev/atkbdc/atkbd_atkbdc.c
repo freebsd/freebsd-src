@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.3 1999/04/16 21:22:34 peter Exp $
+ * $Id: atkbd_isa.c,v 1.4 1999/05/08 21:59:28 dfr Exp $
  */
 
 #include "atkbd.h"
@@ -64,7 +64,7 @@ static device_method_t atkbd_methods[] = {
 static driver_t atkbd_driver = {
 	ATKBD_DRIVER_NAME,
 	atkbd_methods,
-	sizeof(atkbd_softc_t),
+	1,
 };
 
 static int
@@ -88,7 +88,7 @@ atkbdprobe(device_t dev)
 static int
 atkbdattach(device_t dev)
 {
-	atkbd_softc_t *sc;
+	keyboard_t *kbd;
 	uintptr_t port;
 	uintptr_t irq;
 	uintptr_t flags;
@@ -97,13 +97,11 @@ atkbdattach(device_t dev)
 	int zero = 0;
 	int error;
 
-	sc = (atkbd_softc_t *)device_get_softc(dev);
-
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
 
-	error = atkbd_attach_unit(device_get_unit(dev), sc, port, irq, flags);
+	error = atkbd_attach_unit(device_get_unit(dev), &kbd, port, irq, flags);
 	if (error)
 		return error;
 
@@ -111,7 +109,7 @@ atkbdattach(device_t dev)
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
 	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
-		       atkbd_isa_intr, sc, &ih);
+		       atkbd_isa_intr, kbd, &ih);
 
 	return 0;
 }
@@ -119,10 +117,10 @@ atkbdattach(device_t dev)
 static void
 atkbd_isa_intr(void *arg)
 {
-	atkbd_softc_t *sc;
+	keyboard_t *kbd;
 
-	sc = (atkbd_softc_t *)arg;
-	(*kbdsw[sc->kbd->kb_index]->intr)(sc->kbd, NULL);
+	kbd = (keyboard_t *)arg;
+	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
