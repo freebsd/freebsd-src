@@ -31,6 +31,7 @@ LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
+LIBEXPAT?=	${DESTDIR}${LIBDIR}/libexpat.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
