@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1997/04/26 04:00:18 kato Exp $
+#	$Id: Makefile,v 1.14 1997/06/09 13:44:03 kato Exp $
 #
 
 PROG=	boot
@@ -95,7 +95,7 @@ install:
 		boot1 ${DESTDIR}${BINDIR}/boot1
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		boot2 ${DESTDIR}${BINDIR}/boot2
-	for i in sd fd wd od vn ; do \
+	for i in sd fd wd od vn wfd ; do \
 		( cd ${DESTDIR}${BINDIR} ; \
 		rm -f boot$${i} $${i}boot ; \
 		ln -s boot1 $${i}boot ; \
