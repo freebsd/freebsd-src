@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.3 1998/10/27 06:10:45 grog Exp grog $ */
+/* $Id: commands.c,v 1.2 1998/11/02 04:12:28 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -51,7 +51,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include "vinumhdr.h"
+#include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <sys/types.h>
 #include <sys/wait.h>
