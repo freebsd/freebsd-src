@@ -4,6 +4,11 @@
  * There is no copyright, you can use it as you want.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -12,15 +17,15 @@
 #include <sys/socket.h>
 #include <signal.h>
 
-#include <stdio.h>
-#include <fstab.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <pwd.h>
-#include <grp.h>
 #include <errno.h>
+#include <fstab.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <syslog.h>
 #include <varargs.h>
@@ -92,11 +97,11 @@ main(argc, argv)
 	/* create and register the service */
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
-		syslog(LOG_ERR, "couldn't create udp service.");
+		syslog(LOG_ERR, "couldn't create udp service");
 		exit(1);
 	}
 	if (!svc_register(transp, RQUOTAPROG, RQUOTAVERS, rquota_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RQUOTAPROG, RQUOTAVERS, %s).", proto?"udp":"(inetd)");
+		syslog(LOG_ERR, "unable to register (RQUOTAPROG, RQUOTAVERS, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 
