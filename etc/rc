@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.48 1995/03/21 15:20:47 jkh Exp $
+#	$Id: rc,v 1.49 1995/03/21 16:44:03 wollman Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -266,17 +266,75 @@ if [ -x /sbin/ldconfig ]; then
 	ldconfig ${_LDC}
 fi
 
-# Syscons screen saver
-if [ "X${saver}" != X"NO" ] ; then
-	echo -n "syscons screensaver: "
-	modload -u -o /tmp/saver_mod -e saver_init -q /lkm/${saver}_saver_mod.o
+######################### Start Of Syscons Section #######################
+
+kbdadjust=NO
+[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" ] && kbdadjust=YES
+vidadjust=NO
+[ "X${scrnmap}" != X"NO" -o "X${font8x16}" != X"NO" -o \
+	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
+	"X${blanktime}" != X"NO" ] && vidadjust=YES
+
+[ "X${kbdajust}" != X"NO" -o "X${vidajust}" != X"NO" -o \
+	"X${saver}" != X"NO" ] && echo "starting syscons:"
+
+[ "X${kbdajust}" != X"NO" ] && echo "kbdcontrol: "
+
+# keymap
+if [ "X${keymap}" != X"NO" ]; then
+	echo -n "keymap "
+	kbdcontrol -l ${keymap}
 fi
 
-# Syscons keymap
-if [ "X${keymap}" != X"NO" ]; then
-	echo -n "syscons keymap: "
-	kbdcontrol -l ${KEYMAP}
+# keyrate
+if [ "X${keyrate}" != X"NO" ]; then
+	echo -n "keyrate "
+	kbdcontrol -r ${keyrate}
 fi
+
+[ "X${kbdajust}" != X"NO" ] && echo
+[ "X${vidajust}" != X"NO" ] && echo "vidcontrol: "
+
+# screen mapping
+if [ "X${scrnmap}" != X"NO" ]; then
+	echo -n "screen_map "
+	vidcontrol -l ${scrnmap}
+fi
+
+# font 8x16
+if [ "X${font8x16}" != X"NO" ]; then
+	echo -n "font8x16 "
+	vidcontrol -f 8x16 ${font8x16}
+fi
+
+# font 8x14
+if [ "X${font8x14}" != X"NO" ]; then
+	echo -n "font8x14 "
+	vidcontrol -f 8x14 ${font8x14}
+fi
+
+# font 8x8
+if [ "X${font8x8}" != X"NO" ]; then
+	echo -n "font8x8 "
+	vidcontrol -f 8x8 ${font8x8}
+fi
+
+# blank time
+if [ "X${blanktime}" != X"NO" ]; then
+	echo -n "blank_time "
+	vidcontrol -t ${blanktime}
+fi
+
+[ "X${vidajust}" != X"NO" ] && echo
+
+# screen saver
+if [ "X${saver}" != X"NO" ] ; then
+	echo -n "screensaver: "
+	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
+				 saver_init -q /lkm/${saver}_saver_mod.o
+fi
+
+######################### End Of Syscons Section #######################
 
 . /etc/rc.local
 
