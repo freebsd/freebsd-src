@@ -1,0 +1,39 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)p.mac	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.de UC
+\&\\$3\s-1\\$1\\s0\&\\$2
+..
+.de IT
+\&\\$3\fI\\$1\fR\^\&\\$2
+..
+.de UL
+\%\&\\$3\f(CW\s-1\\$1\s0\fR\&\\$2
+..
+.de P1
+.DS I .5i
+.nf
+.ft CW
+.ps \\n(PS-1
+.vs \\n(VS-1
+..
+.de P2
+.ps \\n(PS
+.vs \\n(VS
+.ft R
+.DE
+..
+.hy 14	\"2=not last lines; 4= no -xx; 8=no xx-
+.am SH
+.ft R
+..
+.am NH
+.ft R
+..
+.am TL
+.ft R
+..
