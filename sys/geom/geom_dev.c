@@ -176,6 +176,8 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	mtx_unlock(&Giant);
 	g_topology_lock();
 
+	dev->si_stripesize = pp->stripesize;
+	dev->si_stripeoffset = pp->stripeoffset;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;

@@ -248,6 +248,8 @@ g_bde_config(struct g_configargs *ga)
 		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
 		pp->flags |= G_PF_CANDELETE;
+		pp->slicesize = kp->zone_cont;
+		pp->sliceoffset = 0;
 		pp->mediasize = sc->mediasize;
 		pp->sectorsize = sc->sectorsize;
 		g_error_provider(pp, 0);

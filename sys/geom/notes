@@ -86,3 +86,33 @@ allows userland to mmap(2) the pages containing the statistics data.
 In order to indicate to userland when the data in a statstics
 structure might be inconsistent, g_io_deliver() atomically sets a
 flag "updating" and resets it when the structure is again consistent.
+-----------------------------------------------------------------------
+maxsize, stripesize and stripeoffset
+
+maxsize is the biggest request we are willing to handle.  If not
+set there is no upper bound on the size of a request and the code
+is responsible for chopping it up.  Only hardware methods should
+set an upper bound in this field.  Geom_disk will inherit the upper
+bound set by the device driver.
+
+stripesize is the width of any natural request boundaries for the
+device.  This would be the width of a stripe on a raid-5 unit or
+one zone in GBDE.  The idea with this field is to hint to clustering
+type code to not trivially overrun these boundaries.
+
+stripeoffset is the amount of the first stripe which lies before the
+devices beginning.
+
+If we have a device with 64k stripes:
+	[0...64k[
+	[64k...128k[
+	[128k..192k[
+Then it will have stripesize = 64k and stripeoffset = 0.
+
+If we put a MBR on this device, where slice#1 starts on sector#63,
+then this slice will have: stripesize = 64k, stripeoffset = 63 * sectorsize.
+
+If the clustering code wants to widen a request which writes to
+sector#53 of the slice, it can calculate how many bytes till the end of
+the stripe as:
+	stripewith - (53 * sectorsize + stripeoffset) % stripewidth.
