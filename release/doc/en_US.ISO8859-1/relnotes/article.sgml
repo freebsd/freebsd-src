@@ -413,7 +413,7 @@
       has been fixed.</para>
 
     <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
-      traffic.</para>
+      traffic. &merged;</para>
 
     <para>A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
