@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.8 1994/08/29 06:23:18 davidg Exp $
+ * $Id: swap_pager.c,v 1.9 1994/09/25 04:02:10 davidg Exp $
  */
 
 /*
@@ -68,6 +68,9 @@
 #ifndef NPENDINGIO
 #define NPENDINGIO	16
 #endif
+
+int	swap_pager_input __P((sw_pager_t, vm_page_t *, int, int));
+int	swap_pager_output __P((sw_pager_t, vm_page_t *, int, int, int *));
 
 int nswiodone;
 extern int vm_pageout_rate_limit;
@@ -380,9 +383,9 @@ swap_pager_getswapspace( unsigned amount, unsigned *rtval) {
  */
 void
 swap_pager_freeswapspace( unsigned from, unsigned to) {
+#ifdef EXP
 	unsigned nblocksfrag = btodb(SWB_NPAGES*PAGE_SIZE);
 	unsigned tmpalloc;
-#ifdef EXP
 	if( ((to + 1) - from) >= nblocksfrag) {
 #endif
 		rlist_free(&swapmap, from, to);
@@ -1538,7 +1541,7 @@ swap_pager_clean()
 		 * Look up and removal from done list must be done
 		 * at splbio() to avoid conflicts with swap_pager_iodone.
 		 */
-		while (spc = swap_pager_done.tqh_first) {
+		while ((spc = swap_pager_done.tqh_first) != 0) {
 			pmap_qremove( spc->spc_kva, spc->spc_count);
 			swap_pager_finish(spc);
 			TAILQ_REMOVE(&swap_pager_done, spc, spc_list);
@@ -1590,8 +1593,8 @@ swap_pager_finish(spc)
 	 */
 	if (spc->spc_flags & SPC_ERROR) {
 		for(i=0;i<spc->spc_count;i++) {
-			printf("swap_pager_finish: clean of page %x failed\n",
-			       VM_PAGE_TO_PHYS(spc->spc_m[i]));
+			printf("swap_pager_finish: clean of page %lx failed\n",
+			       (u_long)VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->flags |= PG_LAUNDRY;
 		}
 	} else {
@@ -1630,8 +1633,8 @@ swap_pager_iodone(bp)
 	TAILQ_INSERT_TAIL(&swap_pager_done, spc, spc_list);
 	if (bp->b_flags & B_ERROR) {
 		spc->spc_flags |= SPC_ERROR;
-		printf("error %d blkno %d sz %d ",
-			bp->b_error, bp->b_blkno, bp->b_bcount);
+		printf("error %d blkno %lu sz %ld ",
+			bp->b_error, (u_long)bp->b_blkno, bp->b_bcount);
 	}
 
 /*

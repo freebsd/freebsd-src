@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.4 1994/08/04 19:40:47 davidg Exp $
+ * $Id: vm_map.c,v 1.5 1994/08/18 22:36:04 wollman Exp $
  */
 
 /*
@@ -296,7 +296,6 @@ vm_map_entry_create(map)
 	vm_map_t	map;
 {
 	vm_map_entry_t	entry;
-	int s;
 	int i;
 #define KENTRY_LOW_WATER 64
 #define MAPENTRY_LOW_WATER 64
@@ -307,7 +306,9 @@ vm_map_entry_create(map)
 	if (kentry_count < KENTRY_LOW_WATER) {
 		if (mapvmpgcnt && mapvm) {
 			vm_page_t m;
-			if (m = vm_page_alloc(kmem_object, mapvm-vm_map_min(kmem_map))) {
+			m = vm_page_alloc(kmem_object, 
+				mapvm-vm_map_min(kmem_map));
+			if (m) {
 				int newentries;
 				newentries = (NBPG/sizeof (struct vm_map_entry));
 				vm_page_wire(m);
@@ -329,20 +330,23 @@ vm_map_entry_create(map)
 
 	if (map == kernel_map || map == kmem_map || map == pager_map) {
 
-		if (entry = kentry_free) {
+		entry = kentry_free;
+		if (entry) {
 			kentry_free = entry->next;
 			--kentry_count;
 			return entry;
 		}
 
-		if (entry = mappool) {
+		entry = mappool;
+		if (entry) {
 			mappool = entry->next;
 			--mappoolcnt;
 			return entry;
 		}
 
 	} else {
-		if (entry = mappool) {
+		entry = mappool;
+		if (entry) {
 			mappool = entry->next;
 			--mappoolcnt;
 			return entry;
@@ -351,7 +355,6 @@ vm_map_entry_create(map)
 		MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
 		       M_VMMAPENT, M_WAITOK);
 	}
-dopanic:
 	if (entry == NULL)
 		panic("vm_map_entry_create: out of map entries");
 
@@ -368,8 +371,6 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
-	int s;
-
 	if (map == kernel_map || map == kmem_map || map == pager_map ||
 		kentry_count < KENTRY_LOW_WATER) {
 		entry->next = kentry_free;
@@ -2407,7 +2408,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 	 *	it for all possible accesses.
 	 */
 
-	if (*wired = (entry->wired_count != 0))
+	*wired = (entry->wired_count != 0);
+	if (*wired)
 		prot = fault_type = entry->protection;
 
 	/*
@@ -2415,7 +2417,8 @@ vm_map_lookup(var_map, vaddr, fault_type, out_entry,
 	 *	it down.
 	 */
 
-	if (su = !entry->is_a_map) {
+	su = !entry->is_a_map;
+	if (su) {
 	 	share_map = map;
 		share_offset = vaddr;
 	}

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.5 1994/08/06 09:00:50 davidg Exp $
+ * $Id: vm_mmap.c,v 1.6 1994/09/02 15:06:51 davidg Exp $
  */
 
 /*
@@ -126,60 +126,6 @@ struct mmap_args {
 	long	pad;
 	off_t	pos;
 };
-
-#ifdef COMPAT_43
-struct ommap_args {
-	caddr_t	addr;
-	int	len;
-	int	prot;
-	int	flags;
-	int	fd;
-	long	pos;
-};
-int
-ommap(p, uap, retval)
-	struct proc *p;
-	register struct ommap_args *uap;
-	int *retval;
-{
-	struct mmap_args nargs;
-	static const char cvtbsdprot[8] = {
-		0,
-		PROT_EXEC,
-		PROT_WRITE,
-		PROT_EXEC|PROT_WRITE,
-		PROT_READ,
-		PROT_EXEC|PROT_READ,
-		PROT_WRITE|PROT_READ,
-		PROT_EXEC|PROT_WRITE|PROT_READ,
-	};
-#define	OMAP_ANON	0x0002
-#define	OMAP_COPY	0x0020
-#define	OMAP_SHARED	0x0010
-#define	OMAP_FIXED	0x0100
-#define	OMAP_INHERIT	0x0800
-
-	nargs.addr = uap->addr;
-	nargs.len = uap->len;
-	nargs.prot = cvtbsdprot[uap->prot&0x7];
-	nargs.flags = 0;
-	if (uap->flags & OMAP_ANON)
-		nargs.flags |= MAP_ANON;
-	if (uap->flags & OMAP_COPY)
-		nargs.flags |= MAP_COPY;
-	if (uap->flags & OMAP_SHARED)
-		nargs.flags |= MAP_SHARED;
-	else
-		nargs.flags |= MAP_PRIVATE;
-	if (uap->flags & OMAP_FIXED)
-		nargs.flags |= MAP_FIXED;
-	if (uap->flags & OMAP_INHERIT)
-		nargs.flags |= MAP_INHERIT;
-	nargs.fd = uap->fd;
-	nargs.pos = uap->pos;
-	return (mmap(p, &nargs, retval));
-}
-#endif
 
 int
 mmap(p, uap, retval)
@@ -294,6 +240,61 @@ mmap(p, uap, retval)
 		*retval = (int)addr;
 	return (error);
 }
+
+#ifdef COMPAT_43
+struct ommap_args {
+	caddr_t	addr;
+	int	len;
+	int	prot;
+	int	flags;
+	int	fd;
+	long	pos;
+};
+int
+ommap(p, uap, retval)
+	struct proc *p;
+	register struct ommap_args *uap;
+	int *retval;
+{
+	struct mmap_args nargs;
+	static const char cvtbsdprot[8] = {
+		0,
+		PROT_EXEC,
+		PROT_WRITE,
+		PROT_EXEC|PROT_WRITE,
+		PROT_READ,
+		PROT_EXEC|PROT_READ,
+		PROT_WRITE|PROT_READ,
+		PROT_EXEC|PROT_WRITE|PROT_READ,
+	};
+#define	OMAP_ANON	0x0002
+#define	OMAP_COPY	0x0020
+#define	OMAP_SHARED	0x0010
+#define	OMAP_FIXED	0x0100
+#define	OMAP_INHERIT	0x0800
+
+	nargs.addr = uap->addr;
+	nargs.len = uap->len;
+	nargs.prot = cvtbsdprot[uap->prot&0x7];
+	nargs.flags = 0;
+	if (uap->flags & OMAP_ANON)
+		nargs.flags |= MAP_ANON;
+	if (uap->flags & OMAP_COPY)
+		nargs.flags |= MAP_COPY;
+	if (uap->flags & OMAP_SHARED)
+		nargs.flags |= MAP_SHARED;
+	else
+		nargs.flags |= MAP_PRIVATE;
+	if (uap->flags & OMAP_FIXED)
+		nargs.flags |= MAP_FIXED;
+	if (uap->flags & OMAP_INHERIT)
+		nargs.flags |= MAP_INHERIT;
+	nargs.fd = uap->fd;
+	nargs.pos = uap->pos;
+	return (mmap(p, &nargs, retval));
+}
+#endif /* COMPAT_43 */
+
 
 struct msync_args {
 	caddr_t	addr;
@@ -540,7 +541,8 @@ mlock(p, uap, retval)
 	    p->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
 		return (EAGAIN);
 #else
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 #endif
 
@@ -571,7 +573,8 @@ munlock(p, uap, retval)
 	if ((addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
 		return (EINVAL);
 #ifndef pmap_wired_count
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 #endif
 	size = round_page((vm_size_t)uap->len);
