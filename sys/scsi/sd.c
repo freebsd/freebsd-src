@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.103 1997/03/23 06:33:52 bde Exp $
+ *      $Id: sd.c,v 1.104 1997/03/24 11:25:02 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -313,20 +313,10 @@ sd_open(dev, mode, fmt, p, sc_link)
 	/*
 	 * Load the physical device parameters
 	 */
-#if 0
-	sd_get_parms(unit, 0);	/* sets SDEV_MEDIA_LOADED */
-	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
-		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
-		    unit, sd->params.secsiz);
-		Debugger("sd");
-		errcode = ENXIO;
-		goto bad;
-	}
-#else
 	if(errcode = sd_get_parms(unit, 0))	/* sets SDEV_MEDIA_LOADED */
 		goto bad;
 	switch (sd->params.secsiz) {
-	case SECSIZE: /* 512 */
+	case 512:
 	case 1024:
 	case 2048:
 		break;
@@ -337,7 +327,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 		errcode = ENXIO;
 		goto bad;
 	}
-#endif
+
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
 
 	/* Lock the pack in. */
@@ -425,26 +415,13 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
         scsi_minphys(bp,&sd_switch);
 
-#if 0
-	/*
-	 * Odd number of bytes or negative offset
-	 */
-	if (bp->b_blkno < 0 || bp->b_bcount % DEV_BSIZE != 0) {
-		bp->b_error = EINVAL;
-		goto bad;
-	}
-	/*
-	 * Do bounds checking, adjust transfer, and set b_pblkno.
-	 */
-	if (dscheck(bp, sd->dk_slices) <= 0)
-		goto done;	/* XXX check b_resid */
-#else
 	/*
 	 * Odd number of bytes or negative offset
 	 */
 	if (bp->b_blkno < 0 ) {
 		bp->b_error = EINVAL;
-		printf("sd_strategy: Negative block number: 0x%x\n", bp->b_blkno);
+		printf("sd_strategy: Negative block number: 0x%x\n",
+			bp->b_blkno);
 		goto bad;
 	}
 
@@ -492,7 +469,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		if (status <= 0)
 			goto done;	/* XXX check b_resid */
 	}
-#endif
+
 	opri = SPLSD();
 	/*
 	 * Use a bounce buffer if necessary
