@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.23 1999/07/10 21:57:52 alc Exp $
+ *	$Id: ipl_funcs.c,v 1.24 1999/07/11 19:24:41 phk Exp $
  */
 
 #include <sys/types.h>
@@ -207,7 +207,6 @@ unsigned NAME(void)				\
 	IFCPL_LOCK();				\
 	x = cpl;				\
 	cpl OP MODIFIER;			\
-	set_cpl;				\
 	IFCPL_UNLOCK();				\
 						\
 	return (x);				\
