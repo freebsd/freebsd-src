@@ -504,7 +504,6 @@ pcn_attach(dev)
 	device_t		dev;
 {
 	u_int32_t		eaddr[2];
-	u_int32_t		command;
 	struct pcn_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
