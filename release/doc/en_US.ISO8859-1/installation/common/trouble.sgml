@@ -34,6 +34,50 @@
     <qandaset arch="i386">
       <qandaentry>
         <question>
+          <para>My system hangs while probing hardware during boot, or it
+            behaves strangely during install.</para>
+        </question>
+        <answer>
+          <para>&os; 5.0 and above makes extensive use of the system ACPI
+            service on the i386 platform to aid in system configuration if it's
+            detected during boot.  Unfortunately, some bugs still exist in both
+            the ACPI driver and within system motherboards and BIOS.  The use
+            of ACPI can be disabled by unsetting the <quote>acpi_load</quote>
+            variable in the third stage boot loader:</para>
+
+          <screen>unset acpi_loader</screen>
+
+          <para>This is reset each time the system is booted, so it might be
+            necessary to set it permanently in the file
+            <filename>/boot/loader.conf</filename>.  More inforation about the
+            boot loader can be found in the FreeBSD Handbook.</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>My legacy ISA device used to be recognized in previous versions
+            of &os;, but now it's not.  What happened?</para>
+        </question>
+        <answer>
+          <para>Some device drivers, like matcd, were removed over time due to
+            lack of maintainership or other reasons.  Others still exist but
+            are disabled because of their intrusive hardware probe routines.
+            The following device drivers fall into this category and can
+            re-enabled from the third stage boot loader: aha, ahv, aic, bt, ed,
+            cs, sn, ie, fe, le, and lnc.  To do this, stop the loader during
+            it's 10 second countdown and enter the following at the
+            prompt:</para>
+
+          <screen>unset hint.foo.0.disabled</screen>
+
+          <para>where <quote>foo</quote> is the name of the driver to re-enable.
+            This can be set permanently by editing the file
+            <filename>/boot/device.hints</filename> and removing the appropriate
+            <quote>disabled</quote> entry.</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
           <para>I go to boot from the hard disk for the first time
           after installing &os;, the kernel loads and probes my
           hardware, but stops with messages like:</para>
