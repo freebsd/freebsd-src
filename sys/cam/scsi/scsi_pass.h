@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kenneth D. Merry.
+ * Copyright (c) 1997, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: scsi_pass.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #ifndef _SCSI_PASS_H
@@ -32,7 +32,7 @@
 
 #include <cam/cam_ccb.h>
 
-#define CAMIOCOMMAND	_IOWR('Q', 2, union ccb)
-#define CAMGETPASSTHRU	_IOWR('Q', 3, union ccb)
+#define CAMIOCOMMAND	_IOWR(CAM_VERSION, 2, union ccb)
+#define CAMGETPASSTHRU	_IOWR(CAM_VERSION, 3, union ccb)
 
 #endif
