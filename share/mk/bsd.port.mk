@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.15 1996/12/11 10:25:04 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.16 1996/12/12 04:49:30 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -71,8 +71,9 @@
 #				  and ${PATCHFILES} will be put in this subdirectory of
 #				  ${DISTDIR}.  Also they will be fetched in this subdirectory 
 #				  from FreeBSD mirror sites.
-# ALLFILES		- All of ${DISTFILES} and ${PATCHFILES}.  If ${DIST_SUBDIR}
-#                 is defined, it will be appended in front of all filenames.
+# ALLFILES		- All of ${DISTFILES} and ${PATCHFILES}.
+# IGNOREFILES	- If some of the ${ALLFILES} are not checksum-able, set
+#				  this variable to their names.
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
 #				  (default: ${DISTNAME}).
@@ -501,12 +502,32 @@ FETCH_BEFORE_ARGS+=	-l
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGNAME?=		${DISTNAME}
 
+ALLFILES?=	${DISTFILES} ${PATCHFILES}
+
+.if defined(IGNOREFILES)
+CKSUMFILES!=	\
+	for file in ${ALLFILES}; do \
+		ignore=0; \
+		for tmp in ${IGNOREFILES}; do \
+			if [ "$$file" = "$$tmp" ]; then \
+				ignore=1; \
+			fi; \
+		done; \
+		if [ "$$ignore" = 0 ]; then \
+			echo "$$file"; \
+		fi; \
+	done
+.else
+CKSUMFILES=		${ALLFILES}
+.endif
+
 # List of all files, with ${DIST_SUBDIR} in front.  Used for checksum.
 .if defined(DIST_SUBDIR)
-ALLFILES?=		${DISTFILES:S/^/${DIST_SUBDIR}\//} \
-				${PATCHFILES:S/^/${DIST_SUBDIR}\//}
+_CKSUMFILES?=	${CKSUMFILES:S/^/${DIST_SUBDIR}\//}
+_IGNOREFILES?=	${IGNOREFILES:S/^/${DIST_SUBDIR}\//}
 .else
-ALLFILES?=		${DISTFILES} ${PATCHFILES}
+_CKSUMFILES?=	${CKSUMFILES}
+_IGNOREFILES?=	${IGNOREFILES}
 .endif
 
 # This is what is actually going to be extracted, and is overridable
@@ -1196,9 +1217,12 @@ makesum: fetch
 	@${MKDIR} ${FILESDIR}
 	@if [ -f ${MD5_FILE} ]; then ${RM} -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
-	 for file in ${ALLFILES}; do \
+	 for file in ${_CKSUMFILES}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
 	 done)
+	@for file in ${_IGNOREFILES}; do \
+		${ECHO} "MD5 ($$file) = IGNORE" >> ${MD5_FILE}; \
+	done
 .endif
 
 .if !target(checksum)
@@ -1206,22 +1230,38 @@ checksum: fetch
 	@if [ ! -f ${MD5_FILE} ]; then \
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
-		(cd ${DISTDIR}; OK=""; \
-		  for file in ${ALLFILES}; do \
+		(cd ${DISTDIR}; OK="true"; \
+		  for file in ${_CKSUMFILES}; do \
 			CKSUM=`${MD5} < $$file`; \
 			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
-				${ECHO_MSG} ">> No checksum recorded for $$file"; \
+				${ECHO_MSG} ">> No checksum recorded for $$file."; \
+				OK="false"; \
+			elif [ "$$CKSUM2" = "IGNORE" ]; then \
+				${ECHO_MSG} ">> Checksum for $$file is set to IGNORE in md5 file even though"; \
+				${ECHO_MSG} "   the file is not in the "'$$'"{IGNOREFILES} list."; \
 				OK="false"; \
 			elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
-				${ECHO_MSG} ">> Checksum mismatch for $$file"; \
+				${ECHO_MSG} ">> Checksum mismatch for $$file."; \
 				exit 1; \
 			fi; \
 		  done; \
-		  if [ "$$OK" = "" ]; then \
+		  for file in ${_IGNOREFILES}; do \
+			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
+			if [ "$$CKSUM2" = "" ]; then \
+				${ECHO_MSG} ">> No checksum recorded for $$file, file is in "'$$'"{IGNOREFILES} list."; \
+				OK="false"; \
+			elif [ "$$CKSUM2" != "IGNORE" ]; then \
+				${ECHO_MSG} ">> Checksum for $$file is not set to IGNORE in md5 file even though"; \
+				${ECHO_MSG} "   the file is in the "'$$'"{IGNOREFILES} list."; \
+				OK="false"; \
+			fi; \
+		  done; \
+		  if [ "$$OK" = "true" ]; then \
 			${ECHO_MSG} "Checksums OK."; \
 		  else \
-			${ECHO_MSG} "Checksums OK for files that have them."; \
+			${ECHO_MSG} "There may be some inconsistencies, make sure the Makefile and md5 file"; \
+			${ECHO_MSG} "(\"${MD5_FILE}\") are up to date."; \
 		  fi) ; \
 	fi
 .endif
