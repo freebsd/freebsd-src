@@ -42,7 +42,8 @@ The
 driver provides support for ISA, PCCARD and PCI controllers based on
 Future Domain SCSI controller chips including the TMC-16C30, 16C50 and 32C60.
 Supported controllers include:
-.Bl -dash -offset indent -compact
+.Pp
+.Bl -bullet -compact
 .It
 Adaptec 2920/A
 .It
@@ -60,9 +61,10 @@ RATOC REX-5536, REX-5536AM, REX-5536M, REX-9836A
 .El
 .Pp
 Note that the Adaptec 2920C is supported by the
-.Sy ahc
+.Xr ahc 4
 driver.
 .Sh SEE ALSO
+.Xr ahc 4 ,
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
@@ -72,7 +74,9 @@ driver.
 .Sh HISTORY
 The
 .Nm
-device driver has been developed for NetBSD/pc98 and ported for
+device driver has been developed for
+.Nx Ns / Ns Tn pc98
+and ported for
 .Fx .
 It first appeared in
 .Fx 2.2
