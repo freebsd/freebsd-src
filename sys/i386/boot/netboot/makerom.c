@@ -36,9 +36,9 @@ main(argc,argv)
 	for (i=0,sum=0; i<ROMSIZE; i++)
 		sum += rom[i];
 	rom[5] = -sum;
-	for (i=0,sum=0; i<ROMSIZE; i++);
+	for (i=0,sum=0; i<ROMSIZE; i++)
 		sum += rom[i];
-	if (sum)
+	if (sum & 0x00FF)
 		printf("checksum fails.\n");
 	if (lseek(fd, (off_t)0, SEEK_SET) < 0) {
 		perror("unable to seek");
