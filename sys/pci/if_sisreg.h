@@ -307,11 +307,10 @@ struct sis_desc {
 #define SIS_CMDSTS_MORE		0x40000000
 #define SIS_CMDSTS_OWN		0x80000000
 
-#define	SIS_CRC_SIZE		0x4
 #define SIS_LASTDESC(x)		(!((x)->sis_ctl & SIS_CMDSTS_MORE)))
 #define SIS_OWNDESC(x)		((x)->sis_ctl & SIS_CMDSTS_OWN)
 #define SIS_INC(x, y)		{ if (++(x) == y) x = 0; }
-#define SIS_RXBYTES(x)		(((x)->sis_ctl & SIS_CMDSTS_BUFLEN) - SIS_CRC_SIZE)
+#define SIS_RXBYTES(x)		(((x)->sis_ctl & SIS_CMDSTS_BUFLEN) - ETHER_CRC_LEN)
 
 #define SIS_RXSTAT_COLL		0x00010000
 #define SIS_RXSTAT_LOOPBK	0x00020000
