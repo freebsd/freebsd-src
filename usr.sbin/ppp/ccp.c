@@ -376,7 +376,20 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
+  struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt *next;
+
   log_Printf(LogCCP, "%s: LayerFinish.\n", fp->link->name);
+
+  /*
+   * Nuke options that may be left over from sending a REQ but never
+   * coming up.
+   */
+  while (ccp->out.opt) {
+    next = ccp->out.opt->next;
+    free(ccp->out.opt);
+    ccp->out.opt = next;
+  }
 }
 
 /*  Called when CCP has reached the OPEN state */
@@ -385,6 +398,8 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt **o;
+  int f;
 
   log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
 
@@ -400,10 +415,14 @@ CcpLayerUp(struct fsm *fp)
     }
   }
 
+  o = &ccp->out.opt;
+  for (f = 0; f < ccp->out.algorithm; f++)
+    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]))
+      o = &(*o)->next;
+
   if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
       ccp->out.algorithm < NALGORITHMS) {
-    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
-                       (&ccp->out.opt->val);
+    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)(&(*o)->val);
     if (ccp->out.state == NULL) {
       log_Printf(LogERROR, "%s: %s (out) initialisation failure\n",
                 fp->link->name, protoname(ccp->my_proto));
