@@ -1,16 +1,14 @@
-#
-# $Id: Makefile,v 1.17 1999/08/01 15:44:51 obrien Exp $
-#
+#	$Id: Makefile,v 1.18 1999/08/14 22:44:36 obrien Exp $
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}/cp
 
-YACC=		bison --broken-undeftoken-init
+YACC=	bison --broken-undeftoken-init
 
-PROG =	cc1plus
-SRCS =	parse.c parse.h
-SRCS +=	call.c class.c cvt.c decl.c decl2.c errfn.c error.c except.c expr.c \
+PROG=	cc1plus
+SRCS=	parse.c parse.h
+SRCS+=	call.c class.c cvt.c decl.c decl2.c errfn.c error.c except.c expr.c \
 	friend.c init.c lex.c method.c pt.c ptree.c repo.c rtti.c \
 	search.c semantics.c sig.c spew.c tree.c typeck.c typeck2.c xref.c
 BINDIR=	/usr/libexec
@@ -31,7 +29,7 @@ CPPHDRS=	exception new new.h typeinfo
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${CPPHDRS:S;^;${GCCDIR}/cp/inc/;} \
-		${DESTDIR}/usr/include/g++
+	    ${CPPHDRS:S;^;${GCCDIR}/cp/inc/;} \
+	    ${DESTDIR}/usr/include/g++
 
 .include <bsd.prog.mk>

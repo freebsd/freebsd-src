@@ -1,15 +1,13 @@
-#
-# $Id: Makefile,v 1.7 1999/03/05 04:55:03 obrien Exp $
-#
+#	$Id: Makefile,v 1.6 1999/04/04 16:36:33 obrien Exp $
 
 .include "../Makefile.inc"
 
 .PATH: ../cc_tools ${GCCDIR}/objc ${GCCDIR}
 
-PROG =	cc1obj
-SRCS =	objc-parse.c objc-act.c
+PROG=	cc1obj
+SRCS=	objc-parse.c objc-act.c
 # Ugh, compiled twice...
-SRCS +=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c c-lex.c \
+SRCS+=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c c-lex.c \
 	c-pragma.c c-typeck.c
 BINDIR=	/usr/libexec
 NOMAN=	1
