@@ -62,21 +62,21 @@
 #include <geom/geom.h>
 
 uint16_t
-g_dec_be2(u_char *p)
+g_dec_be2(const u_char *p)
 {
 
 	return((p[0] << 8) | p[1]);
 }
 
 uint32_t
-g_dec_be4(u_char *p)
+g_dec_be4(const u_char *p)
 {
 
 	return((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
 }
 
 uint16_t
-g_dec_le2(u_char *p)
+g_dec_le2(const u_char *p)
 {
 
 	return((p[1] << 8) | p[0]);
@@ -91,7 +91,7 @@ g_enc_le2(u_char *p, uint16_t u)
 }
 
 uint32_t
-g_dec_le4(u_char *p)
+g_dec_le4(const u_char *p)
 {
 
 	return((p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0]);
@@ -109,7 +109,7 @@ g_enc_le4(u_char *p, uint32_t u)
 }
 
 uint64_t
-g_dec_le8(u_char *p)
+g_dec_le8(const u_char *p)
 {
 
 	return(g_dec_le4(p) | ((uint64_t)(g_dec_le4(p + 4)) << 32));
