@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.210 1996/11/07 14:43:59 joerg Exp $
+ *	$Id: machdep.c,v 1.211 1996/11/11 20:38:52 bde Exp $
  */
 
 #include "npx.h"
@@ -282,9 +282,9 @@ again:
 	if (nbuf == 0) {
 		nbuf = 30;
 		if( physmem > 1024)
-			nbuf += min((physmem - 1024) / 12, 1024);
+			nbuf += min((physmem - 1024) / 6, 2048);
 	}
-	nswbuf = min(nbuf, 128);
+	nswbuf = max(min(nbuf/4, 128), 16);
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
