@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.9 1996/08/14 17:22:16 jkh Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.10 1996/08/18 12:47:33 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -147,7 +147,7 @@
 
 	    <item>McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
                 and John Quarterman. <em>The Design and
-		Implementation of the 4.4BSD UNIX Operating
+		Implementation of the 4.4BSD Operating
 		System</em>.  Reading, Mass. : Addison-Wesley, 1996.
 		<newline>ISBN 0-201-54979-4</item>
 
