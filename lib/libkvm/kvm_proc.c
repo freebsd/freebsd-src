@@ -52,9 +52,8 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
  */
 
 #include <sys/param.h>
-#define _KERNEL
+#define _WANT_UCRED	/* make ucred.h give us 'struct ucred' */
 #include <sys/ucred.h>
-#undef _KERNEL
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
