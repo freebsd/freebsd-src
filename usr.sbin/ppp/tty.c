@@ -65,6 +65,13 @@
 #include "main.h"
 #include "tty.h"
 
+#if defined(__mac68k__) || defined(__macppc__)
+#undef	CRTS_IFLOW
+#undef	CCTS_OFLOW
+#define	CRTS_IFLOW	CDTRCTS
+#define	CCTS_OFLOW	CDTRCTS
+#endif
+
 #define	Online(dev)	((dev)->mbits & TIOCM_CD)
 
 struct ttydevice {
