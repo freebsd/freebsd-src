@@ -35,14 +35,18 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.83 1998/05/19 12:58:05 kato Exp $
+ *	$Id: machdep.c,v 1.84 1998/05/28 13:50:13 kato Exp $
  */
 
 #include "apm.h"
+#include "ether.h"
 #include "npx.h"
+#include "opt_atalk.h"
 #include "opt_bounce.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_inet.h"
+#include "opt_ipx.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
@@ -97,7 +101,14 @@
 
 #include <ddb/ddb.h>
 
+#if defined(INET) || defined(IPX) || defined(NATM) || defined(NETATALK) \
+    || NETHER > 0 || defined(NS)
+#define NETISR
+#endif
+
+#ifdef NETISR
 #include <net/netisr.h>
+#endif
 
 #if NAPM > 0
 #include <machine/apm_bios.h>
@@ -203,12 +214,16 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
+#ifdef NETISR
+static void setup_netisrs __P((struct linker_set *));
+#endif
 
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
+#ifdef NETISR
 extern struct linker_set netisr_set;
+#endif
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -253,10 +268,12 @@ cpu_startup(dummy)
 		}
 	}
 
+#ifdef NETISR
 	/*
 	 * Quickly wire in netisrs.
 	 */
 	setup_netisrs(&netisr_set);
+#endif
 
 	/*
 	 * Calculate callout wheel size
@@ -431,6 +448,7 @@ again:
 #endif  /* SMP */
 }
 
+#ifdef NETISR
 int
 register_netisr(num, handler)
 	int num;
@@ -457,6 +475,7 @@ setup_netisrs(ls)
 		register_netisr(nit->nit_num, nit->nit_isr);
 	}
 }
+#endif /* NETISR */
 
 /*
  * Send an interrupt to process.
