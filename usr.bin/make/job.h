@@ -203,7 +203,11 @@ typedef struct Shell {
     char          *exit;	/* exit on error */
 }               Shell;
 
-
+/*
+ * If REMOTE is defined then these things need exposed, otherwise they are
+ * static to job.c!
+ */
+#ifdef REMOTE
 extern char 	*targFmt;   	/* Format string for banner that separates
 				 * output from multiple jobs. Contains a
 				 * single %s where the name of the node being
@@ -218,6 +222,7 @@ extern Lst  	jobs;	    	/* List of active job descriptors */
 extern Lst  	stoppedJobs;	/* List of jobs that are stopped or didn't
 				 * quite get started */
 extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
+#endif
 
 
 void Job_Touch(GNode *, Boolean);
