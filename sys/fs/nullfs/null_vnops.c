@@ -537,6 +537,10 @@ null_lock(struct vop_lock_args *ap)
 		return (error);
 	}
 
+	if ((flags & LK_INTERLOCK) == 0) {
+		VI_LOCK(vp);
+		flags |= LK_INTERLOCK;
+	}
 	if (vp->v_vnlock != NULL) {
 		/*
 		 * The lower level has exported a struct lock to us. Use
@@ -546,10 +550,6 @@ null_lock(struct vop_lock_args *ap)
 		 * going away doesn't mean the struct lock below us is.
 		 * LK_EXCLUSIVE is fine.
 		 */
-		if ((flags & LK_INTERLOCK) == 0) {
-			VI_LOCK(vp);
-			flags |= LK_INTERLOCK;
-		}
 		nn = VTONULL(vp);
 		if ((flags & LK_TYPE_MASK) == LK_DRAIN) {
 			NULLFSDEBUG("null_lock: avoiding LK_DRAIN\n");
@@ -558,7 +558,7 @@ null_lock(struct vop_lock_args *ap)
 			 * pending locks to complete.  Afterwards the
 			 * lockmgr call might block, but no other threads
 			 * will attempt to use this nullfs vnode due to the
-			 * VI_XLOCK flag.
+			 * VI_DOOMED flag.
 			 */
 			while (nn->null_pending_locks > 0) {
 				nn->null_drain_wakeup = 1;
@@ -580,7 +580,7 @@ null_lock(struct vop_lock_args *ap)
 		 * and another process might have initiated a recycle 
 		 * operation.  When that happens, just back out.
 		 */
-		if (error == 0 && (vp->v_iflag & VI_XLOCK) != 0 &&
+		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0 &&
 		    td != vp->v_vxthread) {
 			lockmgr(vp->v_vnlock,
 				(flags & ~LK_TYPE_MASK) | LK_RELEASE,
@@ -598,9 +598,6 @@ null_lock(struct vop_lock_args *ap)
 			nn->null_drain_wakeup = 0;
 			wakeup(&nn->null_pending_locks);
 		}
-		if (error == ENOENT && (vp->v_iflag & VI_XLOCK) != 0 &&
-		    vp->v_vxthread != curthread)
-			vx_waitl(vp);
 		VI_UNLOCK(vp);
 		return error;
 	} else {
@@ -695,7 +692,6 @@ null_inactive(struct vop_inactive_args *ap)
 	struct thread *td = ap->a_td;
 
 	vp->v_object = NULL;
-	VOP_UNLOCK(vp, 0, td);
 
 	/*
 	 * If this is the last reference, then free up the vnode
