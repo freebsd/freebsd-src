@@ -52,7 +52,6 @@ static int	dead_lock(struct vop_lock_args *);
 static int	dead_lookup(struct vop_lookup_args *);
 static int	dead_open(struct vop_open_args *);
 static int	dead_poll(struct vop_poll_args *);
-static int	dead_print(struct vop_print_args *);
 static int	dead_read(struct vop_read_args *);
 static int	dead_write(struct vop_write_args *);
 
@@ -74,7 +73,7 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) dead_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
 	{ &vop_poll_desc,		(vop_t *) dead_poll },
-	{ &vop_print_desc,		(vop_t *) dead_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_read_desc,		(vop_t *) dead_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
 	{ &vop_readlink_desc,		(vop_t *) vop_ebadf },
@@ -235,21 +234,6 @@ dead_bmap(ap)
 	if (!chkvnlock(ap->a_vp))
 		return (EIO);
 	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_vpp, ap->a_bnp, ap->a_runp, ap->a_runb));
-}
-
-/*
- * Print out the contents of a dead vnode.
- */
-/* ARGSUSED */
-static int
-dead_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag %s, dead vnode\n", ap->a_vp->v_tag);
-	return (0);
 }
 
 /*

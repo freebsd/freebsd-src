@@ -68,7 +68,6 @@ static int	devfs_ioctl(struct vop_ioctl_args *ap);
 static int	devfs_lookupx(struct vop_lookup_args *ap);
 static int	devfs_mknod(struct vop_mknod_args *ap);
 static int	devfs_pathconf(struct vop_pathconf_args *ap);
-static int	devfs_print(struct vop_print_args *ap);
 static int	devfs_read(struct vop_read_args *ap);
 static int	devfs_readdir(struct vop_readdir_args *ap);
 static int	devfs_readlink(struct vop_readlink_args *ap);
@@ -526,18 +525,6 @@ devfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
-/* ARGSUSED */
-static int
-devfs_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	printf("tag %s, devfs vnode\n", ap->a_vp->v_tag);
-	return (0);
-}
-
 static int
 devfs_read(ap)
 	struct vop_read_args /* {
@@ -899,7 +886,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) devfs_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) devfs_readlink },
@@ -930,7 +917,7 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) devfs_print },
+	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 #ifdef MAC
 	{ &vop_refreshlabel_desc,	(vop_t *) devfs_refreshlabel },
