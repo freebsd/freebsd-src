@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id: startslip.c,v 1.28 1998/06/28 20:40:51 bde Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,7 +59,6 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #include <string.h>
 #include <syslog.h>
 #include <termios.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <net/slip.h>
@@ -113,8 +114,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	char *cp, **ap;
 	int ch, disc;
 	void sighup(), sigterm(), sigurg();
@@ -379,7 +378,7 @@ restart:
 			syslog(LOG_ERR, "%s: tcsetattr(%s): %m", username, devicename);
 			down(2);
 		}
-		/* Only now we able to receive HUP on carier drop! */
+		/* Only now we able to receive HUP on carrier drop! */
 	}
 
 	/*
