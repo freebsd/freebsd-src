@@ -40,7 +40,9 @@
 /*
  * Interface types for benefit of parsing media address headers.
  * This list is derived from the SNMP list of ifTypes, currently
- * documented in RFC1573.
+ * documented in RFC1573, now maintained as:
+ *
+ * 	ftp.isi.edu/in-notes/iana/assignments/smi-numbers
  */
 
 #define	IFT_OTHER	0x1		/* none of the following */
@@ -97,8 +99,10 @@
 #define	IFT_SMDSICIP	0x34		/* SMDS InterCarrier Interface */
 #define	IFT_PROPVIRTUAL	0x35		/* Proprietary Virtual/internal */
 #define	IFT_PROPMUX	0x36		/* Proprietary Multiplexing */
-#define	IFT_GIF		0x37
-#define	IFT_FAITH	0x38
-#define	IFT_STF		0x39
 
+/* not based on IANA assignments */
+#define	IFT_GIF		0xf0
+#define	IFT_PVC		0xf1
+#define	IFT_FAITH	0xf2
+#define	IFT_STF		0xf3
 #endif
