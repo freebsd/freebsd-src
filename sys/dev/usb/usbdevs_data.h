@@ -2896,6 +2896,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "DigiFilm-Combo Reader",
 	},
 	{
+	    USB_VENDOR_SIIG, USB_PRODUCT_SIIG_WINTERREADER,
+	    0,
+	    "SIIG",
+	    "Sitecom Cardreader CN-311",
+	},
+	{
 	    USB_VENDOR_SILICONPORTALS, USB_PRODUCT_SILICONPORTALS_YAPPH_NF,
 	    0,
 	    "Silicon Portals",

@@ -1172,6 +1172,7 @@
 
 /* SIIG products */
 #define	USB_PRODUCT_SIIG_DIGIFILMREADER	0x0004		/* DigiFilm-Combo Reader */
+#define	USB_PRODUCT_SIIG_WINTERREADER	0x0330		/* Sitecom Cardreader CN-311 */
 
 /* Silicon Portals Inc. */
 #define	USB_PRODUCT_SILICONPORTALS_YAPPH_NF	0x0200		/* YAP Phone (no firmware) */

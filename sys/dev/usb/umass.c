@@ -636,6 +636,11 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->quirks |= RS_NO_CLEAR_UA;
 	}
 
+	if (UGETW(dd->idVendor) == USB_VENDOR_SIIG
+		&& UGETW(dd->idProduct) == USB_PRODUCT_SIIG_WINTERREADER) {
+		    sc->quirks |= IGNORE_RESIDUE;
+	}
+
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
 	    && UGETW(dd->idProduct) == USB_PRODUCT_YEDATA_FLASHBUSTERU) {
 
