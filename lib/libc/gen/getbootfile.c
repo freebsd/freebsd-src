@@ -50,6 +50,6 @@ getbootfile(void)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTFILE;
 	if (sysctl(mib, 2, name, &size, NULL, 0) == -1)
-		return ("/kernel");
+		return ("/boot/kernel/kernel");
 	return (name);
 }
