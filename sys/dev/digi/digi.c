@@ -142,13 +142,14 @@ const struct digi_control_signals digi_normal_signals = {
 };
 
 static struct cdevsw digi_sw = {
+	.d_version =	D_VERSION,
 	.d_open =	digiopen,
 	.d_close =	digiclose,
 	.d_read =	digiread,
 	.d_write =	digiwrite,
 	.d_ioctl =	digiioctl,
 	.d_name =	driver_name,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static void

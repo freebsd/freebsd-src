@@ -186,6 +186,8 @@ static	d_close_t	ti_close;
 static	d_ioctl_t	ti_ioctl2;
 
 static struct cdevsw ti_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ti_open,
 	.d_close =	ti_close,
 	.d_ioctl =	ti_ioctl2,

@@ -105,6 +105,8 @@ static struct periph_driver passdriver =
 PERIPHDRIVER_DECLARE(pass, passdriver);
 
 static struct cdevsw pass_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	passopen,
 	.d_close =	passclose,
 	.d_ioctl =	passioctl,

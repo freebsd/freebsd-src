@@ -92,6 +92,8 @@ Static d_ioctl_t	ubtbcmfw_ioctl;
 Static d_poll_t		ubtbcmfw_poll;
 
 Static struct cdevsw	ubtbcmfw_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ubtbcmfw_open,
 	.d_close =	ubtbcmfw_close,
 	.d_read =	ubtbcmfw_read,

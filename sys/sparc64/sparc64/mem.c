@@ -83,13 +83,14 @@ static	d_read_t	mmrw;
 
 #define CDEV_MAJOR 2
 static struct cdevsw mem_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	mmopen,
 	.d_close =	mmclose,
 	.d_read =	mmrw,
 	.d_write =	mmrw,
 	.d_name =	"mem",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_MEM,
+	.d_flags =	D_MEM | D_NEEDGIANT,
 };
 
 static int

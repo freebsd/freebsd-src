@@ -43,6 +43,8 @@ static d_ioctl_t xrpu_ioctl;
 static d_mmap_t xrpu_mmap;
 
 static struct cdevsw xrpu_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	xrpu_open,
 	.d_close =	xrpu_close,
 	.d_ioctl =	xrpu_ioctl,

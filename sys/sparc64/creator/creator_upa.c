@@ -74,6 +74,8 @@ static driver_t creator_upa_driver = {
 static devclass_t creator_upa_devclass;
 
 static struct cdevsw creator_devsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	creator_open,
 	.d_close =	creator_close,
 	.d_ioctl =	creator_ioctl,

@@ -70,6 +70,8 @@ static d_ioctl_t agp_ioctl;
 static d_mmap_t agp_mmap;
 
 static struct cdevsw agp_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	agp_open,
 	.d_close =	agp_close,
 	.d_ioctl =	agp_ioctl,

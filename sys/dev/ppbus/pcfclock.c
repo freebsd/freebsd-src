@@ -68,6 +68,8 @@ static	d_close_t		pcfclock_close;
 static	d_read_t		pcfclock_read;
 
 static struct cdevsw pcfclock_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	pcfclock_open,
 	.d_close =	pcfclock_close,
 	.d_read =	pcfclock_read,

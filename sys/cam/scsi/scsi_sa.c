@@ -425,6 +425,7 @@ PERIPHDRIVER_DECLARE(sa, sadriver);
 
 
 static struct cdevsw sa_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	saopen,
 	.d_close =	saclose,
 	.d_read =	physread,
@@ -432,7 +433,7 @@ static struct cdevsw sa_cdevsw = {
 	.d_ioctl =	saioctl,
 	.d_strategy =	sastrategy,
 	.d_name =	"sa",
-	.d_flags =	D_TAPE,
+	.d_flags =	D_TAPE | D_NEEDGIANT,
 };
 
 static int

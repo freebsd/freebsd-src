@@ -147,13 +147,14 @@ static	d_strategy_t	scdstrategy;
 
 
 static struct cdevsw scd_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	scdopen,
 	.d_close =	scdclose,
 	.d_read =	physread,
 	.d_ioctl =	scdioctl,
 	.d_strategy =	scdstrategy,
 	.d_name =	"scd",
-	.d_flags =	D_DISK,
+	.d_flags =	D_DISK | D_NEEDGIANT,
 };
 
 int

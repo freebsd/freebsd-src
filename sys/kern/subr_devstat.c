@@ -437,6 +437,8 @@ SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD,
 static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
 };

@@ -81,6 +81,8 @@ static	d_ioctl_t	crdioctl;
 static	d_poll_t	crdpoll;
 
 static struct cdevsw crd_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	crdopen,
 	.d_close =	crdclose,
 	.d_read =	crdread,

@@ -348,6 +348,8 @@ static driver_t psm_driver = {
 
 
 static struct cdevsw psm_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	psmopen,
 	.d_close =	psmclose,
 	.d_read =	psmread,

@@ -69,6 +69,8 @@ static	d_read_t	joyread;
 static	d_ioctl_t	joyioctl;
 
 static struct cdevsw joy_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	joyopen,
 	.d_close =	joyclose,
 	.d_read =	joyread,

@@ -147,11 +147,12 @@ static	d_close_t	rcclose;
 static	d_ioctl_t	rcioctl;
 
 static struct cdevsw rc_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	rcopen,
 	.d_close =	rcclose,
 	.d_ioctl =	rcioctl,
 	.d_name =	"rc",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static devclass_t rc_devclass;

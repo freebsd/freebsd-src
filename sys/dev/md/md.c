@@ -116,6 +116,8 @@ static dev_t	status_dev = 0;
 static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	mdctlioctl,
 	.d_name =	MD_NAME,
 };

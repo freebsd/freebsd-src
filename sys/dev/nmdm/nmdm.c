@@ -72,13 +72,14 @@ static d_write_t	nmdmwrite;
 static d_ioctl_t	nmdmioctl;
 
 static struct cdevsw nmdm_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	nmdmopen,
 	.d_close =	nmdmclose,
 	.d_read =	nmdmread,
 	.d_write =	nmdmwrite,
 	.d_ioctl =	nmdmioctl,
-	.d_name =	"nmdm",
-	.d_flags =	D_TTY | D_PSEUDO,
+	.d_name =	"nmdn",
+	.d_flags =	D_TTY | D_PSEUDO | D_NEEDGIANT,
 };
 
 #define BUFSIZ 		100		/* Chunk size iomoved to/from user */

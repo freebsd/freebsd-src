@@ -175,10 +175,12 @@ static struct periph_driver sesdriver = {
 PERIPHDRIVER_DECLARE(ses, sesdriver);
 
 static struct cdevsw ses_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	sesopen,
 	.d_close =	sesclose,
 	.d_ioctl =	sesioctl,
 	.d_name =	"ses",
+	.d_flags =	D_NEEDGIANT,
 };
 
 static void

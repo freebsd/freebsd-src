@@ -104,6 +104,8 @@ static d_ioctl_t	tunioctl;
 static d_poll_t		tunpoll;
 
 static struct cdevsw tun_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	tunopen,
 	.d_close =	tunclose,
 	.d_read =	tunread,

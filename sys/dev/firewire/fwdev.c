@@ -73,9 +73,9 @@ static	d_write_t	fw_write;
 static	d_mmap_t	fw_mmap;
 static	d_strategy_t	fw_strategy;
 
-struct cdevsw firewire_cdevsw = 
-{
+struct cdevsw firewire_cdevsw = {
 #if __FreeBSD_version >= 500104
+	.d_version =	D_VERSION,
 	.d_open =	fw_open,
 	.d_close =	fw_close,
 	.d_read =	fw_read,
@@ -85,7 +85,7 @@ struct cdevsw firewire_cdevsw =
 	.d_mmap =	fw_mmap,
 	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
-	.d_flags =	D_MEM
+	.d_flags =	D_MEM | D_NEEDGIANT
 #else
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
 	fw_poll, fw_mmap, fw_strategy, "fw", CDEV_MAJOR,

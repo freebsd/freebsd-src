@@ -73,6 +73,8 @@ static	d_write_t	gpwrite;
 static	d_ioctl_t	gpioctl;
 
 static struct cdevsw gp_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	gpopen,
 	.d_close =	gpclose,
 	.d_write =	gpwrite,

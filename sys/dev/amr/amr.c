@@ -91,6 +91,8 @@ static d_close_t        amr_close;
 static d_ioctl_t        amr_ioctl;
 
 static struct cdevsw amr_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	amr_open,
 	.d_close =	amr_close,
 	.d_ioctl =	amr_ioctl,
