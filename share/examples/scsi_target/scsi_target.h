@@ -32,10 +32,10 @@
 #define _SCSI_TARGET_H
 
 /*
- * Maximum number of parallel commands to accept
- * Set to 256 for Fibre Channel (SPI is 16)
+ * Maximum number of parallel commands to accept,
+ * 256 for Fibre Channel (SPI is 16).
  */
-#define MAX_INITIATORS		16
+#define MAX_INITIATORS		256
 #define	SECTOR_SIZE		512
 #define MAX_EVENTS		(MAX_INITIATORS + 5)
 				/* kqueue for AIO, signals */
