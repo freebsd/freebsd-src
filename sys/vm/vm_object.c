@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.51 1995/07/29 11:44:27 bde Exp $
+ * $Id: vm_object.c,v 1.52 1995/08/16 16:14:28 bde Exp $
  */
 
 /*
@@ -1407,10 +1407,13 @@ vm_object_check() {
  *	vm_object_print:	[ debug ]
  */
 void
-vm_object_print(object, full)
-	vm_object_t object;
+vm_object_print(iobject, full, dummy3, dummy4)
+	/* db_expr_t */ int iobject;
 	boolean_t full;
+	/* db_expr_t */ int dummy3;
+	char *dummy4;
 {
+	vm_object_t object = (vm_object_t)iobject;	/* XXX */
 	register vm_page_t p;
 
 	register int count;
