@@ -536,7 +536,7 @@ card "BUG Inc." "Linkboy D64K"
 	remove  logger -s BUG Linkboy D64K removed
 
 # NTT DoCoMo DATA/FAX Adapter
-card "NTT DoCoMo" "PCMCIA DATA/FAX ADA"
+card "NTT DoCoMo" "PCMCIA DATA/FAX ADAPTER 9600"
 	config  0x22 "sio3" ? 0x82
 	insert  logger -s NTT DoCoMo DATA/FAX Adapter inserted
 	remove  logger -s NTT DoCoMo DATA/FAX Adapter removed
