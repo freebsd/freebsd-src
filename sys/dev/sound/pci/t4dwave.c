@@ -790,16 +790,16 @@ tr_pci_probe(device_t dev)
 	switch (pci_get_devid(dev)) {
 		case SPA_PCI_ID:
 			device_set_desc(dev, "SiS 7018");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case ALI_PCI_ID:
 			device_set_desc(dev, "Acer Labs M5451");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case TDX_PCI_ID:
 			device_set_desc(dev, "Trident 4DWave DX");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case TNX_PCI_ID:
 			device_set_desc(dev, "Trident 4DWave NX");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 	}
 
 	return ENXIO;

@@ -612,67 +612,67 @@ ich_pci_probe(device_t dev)
 	switch(pci_get_devid(dev)) {
 	case 0x71958086:
 		device_set_desc(dev, "Intel 443MX");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x24158086:
 		device_set_desc(dev, "Intel ICH (82801AA)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x24258086:
 		device_set_desc(dev, "Intel ICH (82801AB)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x24458086:
 		device_set_desc(dev, "Intel ICH2 (82801BA)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x24858086:
 		device_set_desc(dev, "Intel ICH3 (82801CA)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case ICH4ID:
 		device_set_desc(dev, "Intel ICH4 (82801DB)");
-		return -1000;	/* allow a better driver to override us */
+		return BUS_PROBE_LOW_PRIORITY;
 
 	case ICH5ID:
 		device_set_desc(dev, "Intel ICH5 (82801EB)");
-		return -1000;	/* allow a better driver to override us */
+		return BUS_PROBE_LOW_PRIORITY;
 
 	case ICH6ID:
 		device_set_desc(dev, "Intel ICH6 (82801FB)");
-		return -1000;	/* allow a better driver to override us */
+		return BUS_PROBE_LOW_PRIORITY;
 
 	case SIS7012ID:
 		device_set_desc(dev, "SiS 7012");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x01b110de:
 		device_set_desc(dev, "nVidia nForce");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x006a10de:
 		device_set_desc(dev, "nVidia nForce2");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x008a10de:
 		device_set_desc(dev, "nVidia nForce2 400");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x00da10de:
 		device_set_desc(dev, "nVidia nForce3");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x00ea10de:
 		device_set_desc(dev, "nVidia nForce3 250");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x74451022:
 		device_set_desc(dev, "AMD-768");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x746d1022:
 		device_set_desc(dev, "AMD-8111");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	default:
 		return ENXIO;

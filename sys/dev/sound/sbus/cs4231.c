@@ -312,7 +312,7 @@ cs4231_bus_probe(device_t dev)
 	name = ofw_bus_get_name(dev);
 	if (strcmp("SUNW,CS4231", name) == 0) {
 		device_set_desc(dev, "Sun Audiocs");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }

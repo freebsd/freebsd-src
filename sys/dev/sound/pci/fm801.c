@@ -705,7 +705,7 @@ fm801_pci_probe( device_t dev )
 
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA1 ) {
 		device_set_desc(dev, "Forte Media FM801 Audio Controller");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 /*
 	if ((id = pci_get_devid(dev)) == PCI_DEVICE_FORTEMEDIA2 ) {

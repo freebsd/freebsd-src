@@ -555,7 +555,7 @@ au88x0_pci_probe(device_t dev)
 	for (auc = au88x0_chipsets; auc->auc_pci_id; ++auc) {
 		if (auc->auc_pci_id == pci_id) {
 			device_set_desc(dev, auc->auc_name);
-			return (0);
+			return BUS_PROBE_DEFAULT;
 		}
 	}
 	return (ENXIO);
