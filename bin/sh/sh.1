@@ -48,8 +48,9 @@
 .Op Fl c Ar string
 .Op Ar arg ...
 .Sh DESCRIPTION
-.Nm Sh
-is the standard command interpreter for the system.
+The
+.Nm
+utility is the standard command interpreter for the system.
 The current version of
 .Nm
 is in the process of being changed to
@@ -670,10 +671,15 @@ to the standard input of
 .Ql command2 .
 .Pp
 A
-.Dq Li ;
+.Dq Li \;
 or newline terminator causes the preceding
-AND-OR-list (described next) to be executed sequentially; a & causes
-asynchronous execution of the preceding AND-OR-list.
+AND-OR-list
+(described below in the section called
+.Sx Short-Circuit List Operators )
+to be executed sequentially;
+an
+.Dq Li &
+causes asynchronous execution of the preceding AND-OR-list.
 .Pp
 Note that unlike some other shells,
 .Nm
@@ -863,11 +869,22 @@ When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
 with the same name in the surrounding scope, if there is
 one.  Otherwise, the variable is initially unset.  The shell
-uses dynamic scoping, so that if the variable x is made
-local to function f, which then calls function g, references
-to the variable x made inside g will refer to the
-variable x declared inside f, not to the global variable
-named x.
+uses dynamic scoping, so that if the variable
+.Em x
+is made local to function
+.Em f ,
+which then calls function
+.Em g ,
+references to the variable
+.Em x
+made inside
+.Em g
+will refer to the variable
+.Em x
+declared inside
+.Em f ,
+not to the global variable named
+.Em x .
 .Pp
 The only special parameter than can be made local is
 .Dq Li - .
@@ -932,14 +949,17 @@ Expands to the positional parameters, starting from one.  When
 the expansion occurs within double-quotes, each positional
 parameter expands as a separate argument.
 If there are no positional parameters, the
-expansion of @ generates zero arguments, even when @ is
-double-quoted.  What this basically means, for example, is
+expansion of
+.Li @
+generates zero arguments, even when
+.Li @
+is double-quoted.  What this basically means, for example, is
 if $1 is
 .Dq abc
 and $2 is
 .Dq def ghi ,
 then
-.Qq $@
+.Qq Li $@
 expands to
 the two arguments:
 .Bd -literal -offset indent
@@ -976,7 +996,9 @@ a single word expand to a single field.  It is only field
 splitting or pathname expansion that can create multiple
 fields from a single word.
 The single exception to this rule is
-the expansion of the special parameter @ within double-quotes,
+the expansion of the special parameter
+.Li @
+within double-quotes,
 as was described above.
 .Pp
 The order of word expansion is:
@@ -1046,8 +1068,8 @@ Pathname expansion is not performed on the results of the
 expansion.
 .It
 Field splitting is not performed on the results of the
-expansion, with the exception of
-.Dq Li @ .
+expansion, with the exception of the special parameter
+.Li @ .
 .El
 .Pp
 In addition, a parameter expansion can be modified by using one of the
@@ -1096,10 +1118,10 @@ In each case, pattern matching notation
 .Sx Shell Patterns ) ,
 rather than regular expression notation,
 is used to evaluate the patterns.
-If parameter is
-.Dq Li *
+If parameter is one of the special parameters
+.Li *
 or
-.Dq Li @ ,
+.Li @ ,
 the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
@@ -1212,8 +1234,10 @@ characters and they are turned into meta-characters.
 .Pp
 An asterisk
 .Pq Li *
-matches any string of characters.  A
-question mark matches any single character.
+matches any string of characters.
+A question mark
+.Pq Li ?
+matches any single character.
 A left bracket
 .Pq Li [
 introduces a character class.
@@ -1228,16 +1252,19 @@ matches a
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
 A range of characters may be specified using a minus sign.
-The character class may be complemented
-by making an exclamation point the first character of the character class.
+The character class may be complemented by making an exclamation point
+.Pq Li !
+the first character of the character class.
 .Pp
 To include a
-.Dq Li \&]
+.Dq Li \]
 in a character class, make it the first character listed
 (after the
 .Dq Li ! ,
 if any).
-To include a minus sign, make it the first or last character listed.
+To include a
+.Dq Li - ,
+make it the first or last character listed.
 .Ss Builtin Commands
 This section lists the commands which
 are builtin because they need to perform some operation
@@ -1623,7 +1650,9 @@ command lists the names of all read only variables.
 .Op Fl c Ar string
 .Op Fl - Ar arg ...
 .Xc
-The set command performs three different functions:
+The
+.Ic set
+command performs three different functions:
 .Bl -item
 .It
 With no arguments, it lists the values of all shell variables.
@@ -1677,7 +1706,7 @@ rather than using
 .It Ic shift Op Ar n
 Shift the positional parameters
 .Ar n
-times, or one time if
+times, or once if
 .Ar n
 is not specified.
 A shift sets the value of $1 to the value of $2,
@@ -1823,7 +1852,7 @@ to a subset of those described in the vi man page.
 The command
 .Dq Li set -o vi
 (or
-.Dq Li set -E )
+.Dq Li set -V )
 enables vi-mode editing and places
 .Nm
 into vi insert mode.  With vi-mode enabled,
@@ -1837,7 +1866,7 @@ while in command mode will pass the line to the shell.
 Similarly, the
 .Dq Li set -o emacs
 (or
-.Dq Li set -V )
+.Dq Li set -E )
 command can be used to enable a subset of
 emacs-style command line editing features.
 .Sh SEE ALSO
