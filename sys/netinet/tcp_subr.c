@@ -1109,7 +1109,7 @@ tcp_new_isn()
 			tcp_iss += TCP_ISSINCR/2;
 			return tcp_iss;
 		case 1:	/*
-			 * OpemBSD randomized scheme
+			 * OpenBSD randomized scheme
 			 */
 			return tcp_rndiss_next();
 	}
