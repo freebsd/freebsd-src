@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.26 1998/06/08 09:19:35 dfr Exp $
+ *	$Id: imgact_elf.c,v 1.27 1998/07/11 10:28:47 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -533,9 +533,9 @@ exec_elf_imgact(struct image_params *imgp)
 	}
 
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t)text_addr;
+	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = (caddr_t)data_addr;
+	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr;
 
 	addr = 2L*MAXDSIZ; /* May depend on OS type XXX */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.39 1998/02/03 21:41:12 bde Exp $
+ *	$Id: imgact_aout.c,v 1.40 1998/02/20 13:11:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -187,8 +187,9 @@ exec_aout_imgact(imgp)
 	/* Fill in process VM information */
 	vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;
 	vmspace->vm_dsize = (a_out->a_data + bss_size) >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t) virtual_offset;
-	vmspace->vm_daddr = (caddr_t) virtual_offset + a_out->a_text;
+	vmspace->vm_taddr = (caddr_t) (uintptr_t) virtual_offset;
+	vmspace->vm_daddr = (caddr_t) (uintptr_t)
+			    (virtual_offset + a_out->a_text);
 
 	/* Fill in image_params */
 	imgp->interpreted = 0;

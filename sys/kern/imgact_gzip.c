@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.32 1997/12/14 19:36:24 jdp Exp $
+ * $Id: imgact_gzip.c,v 1.33 1998/06/16 14:36:40 bde Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -260,8 +260,9 @@ do_aout_hdr(struct imgact_gzip * gz)
 	/* Fill in process VM information */
 	vmspace->vm_tsize = gz->a_out.a_text >> PAGE_SHIFT;
 	vmspace->vm_dsize = (gz->a_out.a_data + gz->bss_size) >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t) gz->virtual_offset;
-	vmspace->vm_daddr = (caddr_t) gz->virtual_offset + gz->a_out.a_text;
+	vmspace->vm_taddr = (caddr_t) (uintptr_t) gz->virtual_offset;
+	vmspace->vm_daddr = (caddr_t) (uintptr_t)
+			    (gz->virtual_offset + gz->a_out.a_text);
 
 	/* Fill in image_params */
 	gz->ip->interpreted = 0;
@@ -340,7 +341,7 @@ Flush(void *vp, u_char * ptr, u_long siz)
 				return ENOEXEC;
 			}
 			if (gz->file_offset == 0) {
-				q = (u_char *) gz->virtual_offset;
+				q = (u_char *) (uintptr_t) gz->virtual_offset;
 				copyout(&gz->a_out, q, sizeof gz->a_out);
 			}
 		}
@@ -355,8 +356,8 @@ Flush(void *vp, u_char * ptr, u_long siz)
 	}
 	if (gz->output >= gz->file_offset && gz->output < gz->file_end) {
 		i = min(siz, gz->file_end - gz->output);
-		q = (u_char *) gz->virtual_offset +
-		    gz->output - gz->file_offset;
+		q = (u_char *) (uintptr_t)
+		    (gz->virtual_offset + gz->output - gz->file_offset);
 		copyout(p, q, i);
 		gz->output += i;
 		p += i;
