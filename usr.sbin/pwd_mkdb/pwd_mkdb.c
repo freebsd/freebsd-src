@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.20 1997/10/10 06:27:07 charnier Exp $";
+	"$Id: pwd_mkdb.c,v 1.21 1998/01/10 17:27:28 wosch Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -227,7 +227,8 @@ main(argc, argv)
 		} else {
 			methoduid = R_NOOVERWRITE;
 		}
-		(void)(pw_db->close)(pw_db);
+		if ((pw_db->close)(pw_db))
+			error("close pw_db");
 		method = 0;
 	} else {
 		dp = dbopen(buf,
@@ -383,7 +384,8 @@ main(argc, argv)
 		}
 		/* Create original format password file entry */
 		if (Cflag && makeold)	/* copy comments */
-			(void)fprintf(oldfp, "%s\n", line);
+			if (fprintf(oldfp, "%s\n", line) == EOF)
+				error("write old");
 		else if (makeold) {
 			char uidstr[20];
 			char gidstr[20];
@@ -391,10 +393,11 @@ main(argc, argv)
 			snprintf(uidstr, sizeof(uidstr), "%d", pwd.pw_uid);
 			snprintf(gidstr, sizeof(gidstr), "%d", pwd.pw_gid);
 
-			(void)fprintf(oldfp, "%s:*:%s:%s:%s:%s:%s\n",
+			if (fprintf(oldfp, "%s:*:%s:%s:%s:%s:%s\n",
 			    pwd.pw_name, pwd.pw_fields & _PWF_UID ? uidstr : "",
 			    pwd.pw_fields & _PWF_GID ? gidstr : "",
-			    pwd.pw_gecos, pwd.pw_dir, pwd.pw_shell);
+			    pwd.pw_gecos, pwd.pw_dir, pwd.pw_shell) == EOF)
+				error("write old");
 		}
 	}
 	/* If YP enabled, set flag. */
@@ -415,12 +418,14 @@ main(argc, argv)
 		error("close");
 	if (makeold) {
 		(void)fflush(oldfp);
-		(void)fclose(oldfp);
+		if (fclose(oldfp) == EOF)
+			error("close old");
 	}
 
 	/* Set master.passwd permissions, in case caller forgot. */
 	(void)fchmod(fileno(fp), S_IRUSR|S_IWUSR);
-	(void)fclose(fp);
+	if (fclose(fp) == EOF)
+		error("close fp");
 
 	/* Install as the real password files. */
 	(void)snprintf(buf, sizeof(buf), "%s/%s.tmp", prefix, _MP_DB);
