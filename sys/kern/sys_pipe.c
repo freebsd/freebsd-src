@@ -183,17 +183,35 @@ pipe(p, uap)
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
 	error = falloc(p, &rf, &fd);
-	if (error)
-		goto free2;
+	if (error) {
+		pipeclose(rpipe);
+		pipeclose(wpipe);
+		return (error);
+	}
 	fhold(rf);
 	p->p_retval[0] = fd;
+
+	/*
+	 * Warning: once we've gotten past allocation of the fd for the
+	 * read-side, we can only drop the read side via fdrop() in order
+	 * to avoid races against processes which manage to dup() the read
+	 * side while we are blocked trying to allocate the write side.
+	 */
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
 	rf->f_data = (caddr_t)rpipe;
 	rf->f_ops = &pipeops;
 	error = falloc(p, &wf, &fd);
-	if (error)
-		goto free3;
+	if (error) {
+		if (fdp->fd_ofiles[p->p_retval[0]] == rf) {
+			fdp->fd_ofiles[p->p_retval[0]] = NULL;
+			fdrop(rf, p);
+		}
+		fdrop(rf, p);
+		/* rpipe has been closed by fdrop(). */
+		pipeclose(wpipe);
+		return (error);
+	}
 	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_PIPE;
 	wf->f_data = (caddr_t)wpipe;
@@ -205,16 +223,6 @@ pipe(p, uap)
 	fdrop(rf, p);
 
 	return (0);
-free3:
-	if (fdp->fd_ofiles[p->p_retval[0]] == rf) {
-		fdp->fd_ofiles[p->p_retval[0]] = NULL;
-		fdrop(rf, p);
-	}
-	fdrop(rf, p);
-free2:
-	(void)pipeclose(wpipe);
-	(void)pipeclose(rpipe);
-	return (error);
 }
 
 /*
