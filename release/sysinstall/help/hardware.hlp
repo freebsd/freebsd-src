@@ -85,7 +85,7 @@ lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
-ed0     280     10       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
+ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503; HP PC Lan+
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
@@ -105,6 +105,8 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
 xl0	dyn	dyn	n/a	dyn	3Com 3c900, 3c905 and 3c905B
 					((Fast) Etherlink XL)
+cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
+                                        cards.
 ze0     300     5       n/a     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
@@ -233,7 +235,8 @@ To finish configuring a driver, press 'Q'.
 
 Note that PCI and EISA devices can be probed reliably, therefore they
 are not shown in the table above nor can their settings be changed
-using UserConfig.
+using UserConfig.  PCI drivers may be seen in the "PCI Devices" section
+in the Active Devices list, if you wish to check for their presence.
 
 
 3.      LINT - other possible configurations
