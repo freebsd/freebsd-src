@@ -52,6 +52,9 @@
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
 
+#define MAX_ROM (1024 - sizeof(u_int32_t) * 5)
+#define CROM_END(cc) ((vm_offset_t)(cc)->stack[0].dir + MAX_ROM - 1)
+
 void
 crom_init_context(struct crom_context *cc, u_int32_t *p)
 {
@@ -93,12 +96,12 @@ crom_next(struct crom_context *cc)
 		return;
 	reg = crom_get(cc);
 	if ((reg->key & CSRTYPE_MASK) == CSRTYPE_D) {
-		cc->depth ++;
-		if (cc->depth > CROM_MAX_DEPTH) {
+		if (cc->depth >= CROM_MAX_DEPTH) {
 			printf("crom_next: too deep\n");
-			cc->depth --;
 			goto again;
 		}
+		cc->depth ++;
+
 		ptr = &cc->stack[cc->depth];
 		ptr->dir = (struct csrdirectory *) (reg + reg->val);
 		ptr->index = 0;
@@ -108,8 +111,13 @@ again:
 	ptr = &cc->stack[cc->depth];
 	ptr->index ++;
 check:
-	if (ptr->index < ptr->dir->crc_len)
+	if (ptr->index < ptr->dir->crc_len &&
+			(vm_offset_t)crom_get(cc) <= CROM_END(cc))
 		return;
+
+	if (ptr->index < ptr->dir->crc_len)
+		printf("crom_next: bound check failed\n");
+
 	if (cc->depth > 0) {
 		cc->depth--;
 		goto again;
@@ -173,11 +181,17 @@ crom_parse_text(struct crom_context *cc, char *buf, int len)
 		return;
 
 	reg = crom_get(cc);
-	if (reg->key != CROM_TEXTLEAF) {
+	if (reg->key != CROM_TEXTLEAF ||
+			(vm_offset_t)(reg + reg->val) > CROM_END(cc)) {
 		strncpy(buf, nullstr, len);
 		return;
 	}
 	textleaf = (struct csrtext *)(reg + reg->val);
+
+	if ((vm_offset_t)textleaf + textleaf->crc_len > CROM_END(cc)) {
+		strncpy(buf, nullstr, len);
+		return;
+	}
 
 	/* XXX should check spec and type */
 
