@@ -23,7 +23,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfhkotw
-.Op Fl m Ar system
+.Op Fl m Ar machine
 .Op Fl p Ar string
 .Op Fl M Ar path
 .Op Fl P Ar pager
@@ -67,7 +67,7 @@ Specify which pager to use.
 By default,
 .Nm
 uses
-.Nm %pager% ,
+.Nm %pager% .
 This option overrides the
 .Ev PAGER
 environment variable.
@@ -97,9 +97,20 @@ Print a one line help message and exit.
 .It Fl k
 Equivalent to
 .Nm apropos .
-.It Fl m Ar system
-Specify an alternate set of man pages to search based on the system
-name given.
+.It Fl m Ar machine
+As some manual pages are intended only for specific architectures,
+.Nm
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden using this option
+or by setting the environment variable
+.Ev MACHINE
+to the name of a specific architecture.
+This option overrides the
+.Ev MACHINE
+environment variable.
 .It Fl o
 Look for original, non-localized manpages only.
 .Pp
@@ -185,16 +196,10 @@ These variables specify the preferred language for manual pages.
 .Fl o
 option above.)
 .It Ev MACHINE
-As some manual pages are intended only for specific architectures,
-.Nm
-searches any subdirectories,
-with the same name as the current architecture,
-in every directory which it searches.
-Machine specific areas are checked before general areas.
-The current machine type may be overridden by setting the environment
-variable
+If
 .Ev MACHINE
-to the name of a specific architecture.
+is set, its value is used to override the current machine type
+when searching machine specific subdirectories.
 .It Ev MANPATH
 If
 .Ev MANPATH
