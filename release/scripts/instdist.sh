@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.9 1995/02/02 04:13:20 jkh Exp $
+# $Id: instdist.sh,v 1.10 1995/02/02 05:44:14 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -311,7 +311,7 @@ media_select_distribution()
 	MEDIA_DISTRIBUTIONS=""
 	while [ "${MEDIA_DISTRIBUTIONS}" = "" ]; do
 
-	dialog --title "Please specify a distribution to load" \
+	dialog --title "${DISTNAME}: Choose distributions" \
 	--checklist \
 "FreeBSD is separated into a number of distributions for ease of\n\
 installation.  Please select the distributions you wish to load, any\n\
