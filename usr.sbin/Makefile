@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.126 1998/08/30 20:15:09 gpalmer Exp $
+#	$Id: Makefile,v 1.127 1998/08/30 20:56:09 gpalmer Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -102,7 +102,8 @@ SUBDIR+=mailstats \
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=crunch \
+SUBDIR+=btxld \
+	crunch \
 	kgmon \
 	pcvt \
 	pnpinfo \
