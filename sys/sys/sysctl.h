@@ -354,8 +354,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
 #define	KERN_LOGSIGEXIT		34	/* int: do we log sigexit procs? */
 #define	KERN_IOV_MAX		35	/* int: value of UIO_MAXIOV */
-#define	KERN_IDENT		36	/* string: kernel ident */
-#define KERN_MAXID		37      /* number of valid kern ids */
+#define KERN_MAXID		36	/* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -393,7 +392,6 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "usrstack", CTLTYPE_INT }, \
 	{ "logsigexit", CTLTYPE_INT }, \
 	{ "iov_max", CTLTYPE_INT }, \
-	{ "ident", CTLTYPE_STRING }, \
 }
 
 /*

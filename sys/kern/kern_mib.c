@@ -85,6 +85,9 @@ SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
 #endif
 
+SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD,
+    ident, 0, "Kernel identifier");
+
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD,
     osrelease, 0, "Operating system release");
 
