@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.14 1997/09/05 20:22:10 smp Exp smp $
+ *	$Id: ipl_funcs.c,v 1.8 1997/09/07 22:03:05 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -47,9 +47,13 @@ DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
 DO_SETBITS(setsoftclock, &ipending, SWI_CLOCK_PENDING)
 DO_SETBITS(setsoftnet,   &ipending, SWI_NET_PENDING)
 DO_SETBITS(setsofttty,   &ipending, SWI_TTY_PENDING)
+DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
+DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
 
 DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
 DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
+DO_SETBITS(schedsoftcamnet, &idelayed, SWI_CAMNET_PENDING)
+DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
 
 unsigned
 softclockpending(void)
@@ -72,6 +76,10 @@ GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
+GENSPL(splcam, cpl |= cam_imask)
+GENSPL(splsoftcam, cpl |= SWI_CAMBIO_MASK | SWI_CAMNET_MASK)
+GENSPL(splsoftcambio, cpl |= SWI_CAMBIO_MASK)
+GENSPL(splsoftcamnet, cpl |= SWI_CAMNET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
@@ -127,9 +135,13 @@ DO_SETBITS(setsoftast,   &ipending, SWI_AST_PENDING)
 DO_SETBITS(setsoftclock, &ipending, SWI_CLOCK_PENDING)
 DO_SETBITS(setsoftnet,   &ipending, SWI_NET_PENDING)
 DO_SETBITS(setsofttty,   &ipending, SWI_TTY_PENDING)
+DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
+DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
 
 DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
 DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
+DO_SETBITS(schedsoftcamnet, &idelayed, SWI_CAMNET_PENDING)
+DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
 
 unsigned
 softclockpending(void)
@@ -202,17 +214,21 @@ unsigned NAME(void)							\
 	return (x);							\
 }
 
-/*    NAME:            OP:     MODIFIER:               PC: */
-GENSPL(splbio,		|=,	bio_imask,		2)
-GENSPL(splclock,	 =,	HWI_MASK | SWI_MASK,	3)
-GENSPL(splhigh,		 =,	HWI_MASK | SWI_MASK,	4)
-GENSPL(splimp,		|=,	net_imask,		5)
-GENSPL(splnet,		|=,	SWI_NET_MASK,		6)
-GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,		7)
-GENSPL(splsofttty,	|=,	SWI_TTY_MASK,		8)
-GENSPL(splstatclock,	|=,	stat_imask,		9)
-GENSPL(spltty,		|=,	tty_imask,		10)
-GENSPL(splvm,		|=,	net_imask | bio_imask,	11)
+/*    NAME:            OP:     MODIFIER:				PC: */
+GENSPL(splbio,		|=,	bio_imask,				2)
+GENSPL(splclock,	 =,	HWI_MASK | SWI_MASK,			3)
+GENSPL(splhigh,		 =,	HWI_MASK | SWI_MASK,			4)
+GENSPL(splimp,		|=,	net_imask,				5)
+GENSPL(splnet,		|=,	SWI_NET_MASK,				6)
+GENSPL(splcam,		|=,	cam_imask,				7)
+GENSPL(splsoftcam,	|=,	SWI_CAMBIO_MASK | SWI_CAMNET_MASK,	8)
+GENSPL(splsoftcambio,	|=,	SWI_CAMBIO_MASK,			9)
+GENSPL(splsoftcamnet, 	|=,	SWI_CAMNET_MASK				10)
+GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,				11)
+GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
+GENSPL(splstatclock,	|=,	stat_imask,				13)
+GENSPL(spltty,		|=,	tty_imask,				14)
+GENSPL(splvm,		|=,	net_imask | bio_imask,			15)
 
 #else /* INTR_SPL */
 
@@ -240,6 +256,10 @@ GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
+GENSPL(splcam, cpl |= cam_imask)
+GENSPL(splsoftcam, cpl |= SWI_CAMBIO_MASK | SWI_CAMNET_MASK)
+GENSPL(splsoftcambio, cpl |= SWI_CAMBIO_MASK)
+GENSPL(splsoftcamnet, cpl |= SWI_CAMNET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)

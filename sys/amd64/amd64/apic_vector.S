@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.37 1997/09/07 19:23:45 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.21 1997/09/07 22:02:36 fsmp Exp $
  */
 
 
@@ -498,6 +498,8 @@ MCOUNT_LABEL(eintr)
  * Addresses of interrupt handlers.
  *  XresumeNN: Resumption addresses for HWIs.
  */
+	.globl _ihandlers
+_ihandlers:
 ihandlers:
 /*
  * used by:
@@ -514,15 +516,16 @@ ihandlers:
  *  ipl.s:	doreti_unpend
  *  apic_ipl.s:	splz_unpend
  */
-	.long	swi_tty,   swi_net
-	.long	0, 0, 0, 0
+	.long	swi_tty, swi_net, dummycamisr, dummycamisr
+	.long	0, 0
 	.long	_softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
 	.long	SWI_TTY_MASK, SWI_NET_MASK
-	.long	0, 0, 0, 0
+	.long	SWI_CAMNET_MASK, SWI_CAMBIO_MASK
+	.long	0, 0
 	.long	SWI_CLOCK_MASK, SWI_AST_MASK
 
 /*

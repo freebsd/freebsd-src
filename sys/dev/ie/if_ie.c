@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.44 1997/07/20 14:09:59 bde Exp $
+ *	$Id: if_ie.c,v 1.45 1997/09/02 01:18:14 bde Exp $
  */
 
 /*
@@ -1915,6 +1915,7 @@ command_and_wait(int unit, int cmd, volatile void *pcmd, int mask)
 {
 	volatile struct ie_cmd_common *cc = pcmd;
 	volatile int timedout = 0;
+	struct	 callout_handle ch;
 
 	ie_softc[unit].scb->ie_command = (u_short) cmd;
 
@@ -1925,7 +1926,8 @@ command_and_wait(int unit, int cmd, volatile void *pcmd, int mask)
 		 * According to the packet driver, the minimum timeout
 		 * should be .369 seconds, which we round up to .37.
 		 */
-		timeout(chan_attn_timeout, (caddr_t)&timedout, 37 * hz / 100);
+		ch = timeout(chan_attn_timeout, (caddr_t)&timedout,
+			     37 * hz / 100);
 		/* ignore cast-qual */
 
 		/*
@@ -1940,7 +1942,7 @@ command_and_wait(int unit, int cmd, volatile void *pcmd, int mask)
 				break;
 		}
 
-		untimeout(chan_attn_timeout, (caddr_t)&timedout);
+		untimeout(chan_attn_timeout, (caddr_t)&timedout, ch);
 		/* ignore cast-qual */
 
 		return (timedout);

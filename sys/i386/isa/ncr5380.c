@@ -624,7 +624,8 @@ int32_t nca_scsi_cmd (struct scsi_xfer *xs)
 			 * Tried to return COMPLETE but the machine hanged
 			 * with this. */
 			return (SUCCESSFULLY_QUEUED);
-		timeout (nca_timeout, (caddr_t) scb, (xs->timeout * hz) / 1000);
+		xs->timeout_ch = timeout (nca_timeout, (caddr_t) scb,
+					  (xs->timeout * hz) / 1000);
 		scb->flags |= SCB_TIMECHK;
 		PRINT (("nca%d/%d/%d command queued\n", unit,
 			xs->sc_link->target, xs->sc_link->lun));
@@ -640,7 +641,7 @@ int32_t nca_scsi_cmd (struct scsi_xfer *xs)
 
 		/* Because we are polling, take out the timeout entry
 		 * nca_timeout made. */
-		untimeout (nca_timeout, (void*) scb);
+		untimeout (nca_timeout, (void*) scb, scb->xfer->timeout_ch);
 
 		if (! nca_poll (z, scb))
 			/* We timed out again... This is bad. Notice that
@@ -708,7 +709,8 @@ void nca_timeout (void *arg)
 	if (! (scb->flags & SCB_ABORTED)) {
 		nca_abort (z, scb);
 		/* 2 seconds for the abort */
-		timeout (nca_timeout, (caddr_t)scb, 2*hz);
+		scb->xfer->timeout_ch = timeout (nca_timeout, (caddr_t)scb,
+						 2*hz);
 		scb->flags |= (SCB_ABORTED | SCB_TIMECHK);
 	} else {
 		/* abort timed out */
@@ -987,7 +989,7 @@ void nca_done (adapter_t *z, scb_t *scb)
 	struct scsi_xfer *xs = scb->xfer;
 
 	if (scb->flags & SCB_TIMECHK)
-		untimeout (nca_timeout, (caddr_t) scb);
+		untimeout (nca_timeout, (caddr_t) scb, xs->timeout_ch);
 
 	/* How much of the buffer was not touched. */
 	xs->resid = scb->datalen;
