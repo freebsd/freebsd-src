@@ -810,8 +810,6 @@ svr4_sys_sysconfig(td, uap)
 	return 0;
 }
 
-extern int swap_pager_full;
-
 /* ARGSUSED */
 int
 svr4_sys_break(td, uap)
