@@ -27,6 +27,7 @@
 LIB=		pam_krb5
 SHLIB_NAME=	pam_krb5.so
 SRCS=		pam_krb5.c
+NO_WERROR=	yes
 DPADD=		${LIBKRB5} ${LIBGSSAPI} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBCOM_ERR} ${LIBROKEN}
 LDADD=		-lkrb5 -lgssapi -lasn1 -lcrypto -lcrypt -lcom_err \

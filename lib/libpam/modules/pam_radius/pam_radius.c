@@ -208,12 +208,12 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	free(resp[num_msgs-1].resp);
 	free(resp);
 	while (num_msgs > 0)
-		free((void *)msgs[--num_msgs].msg);
+		free(msgs[--num_msgs].msg);
 	return PAM_SUCCESS;
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 	struct rad_handle *radh;
@@ -285,8 +285,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				 * to the value given in the "template_user"
 				 * option.
 				 */
-				retval = pam_get_item(pamh, PAM_USER,
-				    (void *)&tmpuser);
+				retval = pam_get_item(pamh, PAM_USER, &tmpuser);
 				if (retval != PAM_SUCCESS)
 					PAM_RETURN(retval);
 				if (getpwnam(tmpuser) == NULL) {
@@ -329,7 +328,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -341,7 +340,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
 {
 	struct options options;
 
@@ -353,7 +352,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -365,7 +364,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -377,7 +376,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 

@@ -5,7 +5,6 @@ PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
-CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 
@@ -15,3 +14,5 @@ CFLAGS+=	-I${.CURDIR}/../../libpam
 # Punt for the time being until I can figure out how to do it.
 #DPADD+=		${LIBPAM}
 #LDADD+=		-lpam
+
+.include	"../Makefile.inc"
