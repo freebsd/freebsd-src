@@ -2575,7 +2575,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	if (pde == NULL || (*pde & PG_V) == 0) 
 		return (FALSE);
 	pte = vtopte(addr);
-	if ((*pte & PG_V) == 0)
+	if (*pte & PG_V)
 		return (FALSE);
 	return (TRUE);
 }
