@@ -245,7 +245,8 @@ static struct cdevsw mcd_cdevsw = {
 #define MIN_DELAY       15
 #define DELAY_GETREPLY  5000000
 
-int mcd_attach(struct isa_device *dev)
+static int
+mcd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
 	struct mcd_data *cd = mcd_data + unit;
@@ -268,7 +269,8 @@ int mcd_attach(struct isa_device *dev)
 	return 1;
 }
 
-int mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
+static int
+mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part,phys,r,retry;
 	struct mcd_data *cd;
@@ -360,7 +362,8 @@ MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
 	return ENXIO;
 }
 
-int mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
+static int
+mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int unit,part;
 	struct mcd_data *cd;
@@ -384,7 +387,7 @@ int mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
 	return 0;
 }
 
-void
+static void
 mcdstrategy(struct bio *bp)
 {
 	struct mcd_data *cd;
@@ -455,7 +458,8 @@ done:
 	return;
 }
 
-static void mcd_start(int unit)
+static void
+mcd_start(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct partition *p;
@@ -502,7 +506,8 @@ static void mcd_start(int unit)
 	return;
 }
 
-int mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+static int
+mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct mcd_data *cd;
 	int unit,part,retry,r;
@@ -622,7 +627,8 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 /* this could have been taken from scsi/cd.c, but it is not clear
  * whether the scsi cd driver is linked in
  */
-static int mcd_getdisklabel(int unit)
+static int
+mcd_getdisklabel(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
@@ -658,7 +664,8 @@ static int mcd_getdisklabel(int unit)
 	return 0;
 }
 
-int mcdsize(dev_t dev)
+static int
+mcdsize(dev_t dev)
 {
 	int size;
 	int unit = mcd_unit(dev);
@@ -715,7 +722,7 @@ twiddle_thumbs(int port, int unit, int count, char *whine)
 
 /* check to see if a Mitsumi CD-ROM is attached to the ISA bus */
 
-int
+static int
 mcd_probe(struct isa_device *dev)
 {
 	int port = dev->id_iobase;
