@@ -106,8 +106,10 @@ struct isa_device { int dummy; };
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
-
-#define DSP_BUFFSIZE (65536 - 256) /* XXX */
+/*
+#define DSP_BUFFSIZE (65536 - 256)
+*/
+#define DSP_BUFFSIZE (8192)
 /* the last 256 bytes are room for buggy soundcard to overflow. */
 
 /* make figuring out what a format is easier. got AFMT_STEREO already */

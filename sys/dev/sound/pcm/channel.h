@@ -47,7 +47,9 @@ pcmchan_caps *chn_getcaps(pcm_channel *c);
 int chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat);
 void chn_resetbuf(pcm_channel *c);
 void chn_intr(pcm_channel *c);
-void chn_dmaupdate(pcm_channel *c);
+void chn_checkunderflow(pcm_channel *c);
+int chn_wrfeed(pcm_channel *c);
+int chn_rdfeed(pcm_channel *c);
 int chn_abort(pcm_channel *c);
 
 void buf_isadma(snd_dbuf *b, int go);
@@ -60,6 +62,7 @@ extern pcm_feeder feeder_root;
 #define PCMDIR_REC -1
 
 #define PCMTRIG_START 1
+#define PCMTRIG_EMLDMAWR 2
 #define PCMTRIG_STOP 0
 #define PCMTRIG_ABORT -1
 
@@ -85,6 +88,8 @@ extern pcm_feeder feeder_root;
  * tsleeps in chn_{read,write} at the highest sample rate.
  * (which is usually 48kHz * 16bit * stereo = 192000 bytes/sec)
  */
-#define CHN_2NDBUFBLKSIZE	(12 * 1024)
+#define CHN_2NDBUFBLKSIZE	(2 * 1024)
 /* The total number of blocks per secondary buffer. */
-#define CHN_2NDBUFBLKNUM	(3)
+#define CHN_2NDBUFBLKNUM	(8)
+/* The size of a whole secondary buffer. */
+#define CHN_2NDBUFWHOLESIZE	(CHN_2NDBUFBLKSIZE * CHN_2NDBUFBLKNUM)

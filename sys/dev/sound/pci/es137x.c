@@ -367,6 +367,7 @@ eschan_trigger(void *data, int go)
 	struct es_info *es = ch->parent;
 	unsigned cnt = ch->buffer->dl / ch->buffer->sample_size - 1;
 
+	if (go == PCMTRIG_EMLDMAWR) return 0;
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
 			int b = (ch->fmt & AFMT_S16_LE)? 2 : 1;
@@ -479,7 +480,7 @@ es1371_init(struct es_info *es)
 	/* AC'97 warm reset to start the bitclk */
 	bus_space_write_4(es->st, es->sh, ES1371_REG_LEGACY, es->ctrl | ES1371_SYNC_RES);
 	DELAY(2000);
-	bus_space_write_4(es->st, es->sh,  ES1370_REG_SERIAL_CONTROL,es->ctrl);
+	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->ctrl);
 	/* Init the sample rate converter */
 	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, ES1371_DIS_SRC);
 	for (idx = 0; idx < 0x80; idx++)
