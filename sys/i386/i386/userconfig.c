@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.6 1994/11/03 04:14:23 jkh Exp $
+ *      $Id: userconfig.c,v 1.7 1994/11/03 05:02:41 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -298,8 +298,8 @@ quitfunc(CmdParm *parms)
 static int
 helpfunc(CmdParm *parms)
 {
-    printf("Command\t\tDescription\n");
-    printf("-------\t\t-----------\n");
+    printf("Command\t\t\tDescription\n");
+    printf("-------\t\t\t-----------\n");
     printf("ls\t\t\tList currently configured devices\n");
     printf("io <devname> <addr>\tSet device io address\n");
     printf("irq <devname> <irq>\tSet device IRQ\n");
