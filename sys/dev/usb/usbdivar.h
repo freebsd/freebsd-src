@@ -175,8 +175,6 @@ struct usbd_pipe {
 	char			repeat;
 	int			interval;
 
-	usb_callout_t		abort_handle;
-
 	/* Filled by HC driver. */
 	struct usbd_pipe_methods *methods;
 };
