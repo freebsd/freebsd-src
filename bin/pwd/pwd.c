@@ -45,16 +45,15 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <err.h>
 #include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/param.h>
 
 static char *getcwd_logical(void);
 void usage(void);
@@ -65,16 +64,6 @@ main(int argc, char *argv[])
 	int Lflag, Pflag;
 	int ch;
 	char *p;
-	char buf[PATH_MAX];
-
-	if (strcmp(getprogname(), "realpath") == 0) {
-		if (argc != 2)
-			usage();
-		if ((p = realpath(argv[1], buf)) == NULL)
-			err(1, "%s", argv[1]);
-		(void)printf("%s\n", p);
-		exit(0);
-	}
 
 	Lflag = Pflag = 0;
 	while ((ch = getopt(argc, argv, "LP")) != -1)
@@ -107,10 +96,7 @@ void
 usage(void)
 {
 
-	if (strcmp(getprogname(), "realpath") == 0)
-		(void)fprintf(stderr, "usage: realpath [path]\n");
-	else
-		(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
+	(void)fprintf(stderr, "usage: pwd [-L | -P]\n");
   	exit(1);
 }
 
