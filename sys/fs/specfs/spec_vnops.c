@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.38 1997/03/24 11:24:44 bde Exp $
+ * $Id: spec_vnops.c,v 1.39 1997/05/01 19:12:22 sos Exp $
  */
 
 #include <sys/param.h>
@@ -595,6 +595,7 @@ spec_close(ap)
 		 * plus the session), release the reference from the session.
 		 */
 		if (vcount(vp) == 2 && ap->a_p &&
+		    (vp->v_flag & VXLOCK) == 0 &&
 		    vp == ap->a_p->p_session->s_ttyvp) {
 			vrele(vp);
 			ap->a_p->p_session->s_ttyvp = NULL;
