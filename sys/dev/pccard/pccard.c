@@ -1174,6 +1174,7 @@ static void
 pccard_intr(void *arg)
 {
 	struct pccard_function *pf = (struct pccard_function*) arg;
+#ifdef COOKIE_FOR_WARNER
 	int reg;
 
 	if (pf->intr_handler == NULL)
@@ -1189,6 +1190,11 @@ pccard_intr(void *arg)
 				 reg & ~PCCARD_CCR_STATUS_INTR);
 		pf->intr_handler(pf->intr_handler_arg);
 	}
+#else
+	if (pf->intr_handler == NULL)
+		return;
+	pf->intr_handler(pf->intr_handler_arg);
+#endif
 }
 
 static int
