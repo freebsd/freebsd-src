@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.10 1998/01/24 02:54:39 eivind Exp $
+ *    $Id: spkr.c,v 1.11 1998/02/09 15:05:44 kato Exp $
  */
 
 /*
@@ -617,7 +617,7 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
 }
 
 
-static spkr_devsw_installed = 0;
+static int spkr_devsw_installed;
 
 static void
 spkr_drvinit(void *unused)
