@@ -27,6 +27,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifdef YP
@@ -55,14 +57,16 @@ yp_passwd(char *user)
 {
 	struct yppasswd yppasswd;
 	struct master_yppasswd master_yppasswd;
+	struct netconfig *nconf;
+	void *localhandle;
 	struct passwd *pw;
 	CLIENT *clnt;
 	struct rpc_err err;
 	char   *master;
 	int    *status = NULL;
 	uid_t	uid;
-	char			*sockname = YP_SOCKNAME;
 
+	nconf = NULL;
 	_use_yp = 1;
 
 	uid = getuid();
@@ -144,12 +148,24 @@ for other users");
 	}
 
 	if (suser_override) {
-		if ((clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
-				MASTER_YPPASSWDVERS, "unix")) == NULL) {
-			warnx("failed to contact rpc.yppasswdd on host %s: %s",
-				master, clnt_spcreateerror(""));
+		localhandle = setnetconfig();
+		while ((nconf = getnetconfig(localhandle)) != NULL) {
+			if (nconf->nc_protofmly != NULL &&
+			    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+				break;
+		}
+		if (nconf == NULL) {
+			warnx("getnetconfig: %s", nc_sperror());
 			return(1);
 		}
+		if ((clnt = clnt_tp_create(NULL, MASTER_YPPASSWDPROG,
+		    MASTER_YPPASSWDVERS, nconf)) == NULL) {
+			warnx("failed to contact rpc.yppasswdd on host %s: %s",
+				master, clnt_spcreateerror(""));
+			endnetconfig(localhandle);
+			return(1);
+		}
+		endnetconfig(localhandle);
 	} else {
 		if ((clnt = clnt_create(master, YPPASSWDPROG,
 				YPPASSWDVERS, "udp")) == NULL) {
