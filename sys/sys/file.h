@@ -44,9 +44,8 @@
 
 #ifdef _KERNEL
 #include <sys/types.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/queue.h>
 
 struct stat;
@@ -122,8 +121,6 @@ extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* (fl) actual number of open files */
 extern struct sx filelist_lock; /* sx to protect filelist and nfiles */
 
-static __inline struct file * fhold __P((struct file *fp));
-static __inline struct file * fhold_locked __P((struct file *fp));
 int fget __P((struct thread *td, int fd, struct file **fpp));
 int fget_read __P((struct thread *td, int fd, struct file **fpp));
 int fget_write __P((struct thread *td, int fd, struct file **fpp));
@@ -143,28 +140,18 @@ int fgetvp_write __P((struct thread *td, int fd, struct vnode **vpp));
 int fgetsock __P((struct thread *td, int fd, struct socket **spp, u_int *fflagp));
 void fputsock __P((struct socket *sp));
 
-static __inline struct file *
-fhold_locked(fp)
-	struct file *fp;
-{
+#define	fhold_locked(fp)						\
+	do {								\
+		FILE_LOCK_ASSERT(fp, MA_OWNED);				\
+		(fp)->f_count++;					\
+	} while (0)
 
-#ifdef INVARIANTS
-	FILE_LOCK_ASSERT(fp, MA_OWNED);
-#endif
-	fp->f_count++;
-	return (fp);
-}
-
-static __inline struct file *
-fhold(fp)
-	struct file *fp;
-{
-
-	FILE_LOCK(fp);
-	fhold_locked(fp);
-	FILE_UNLOCK(fp);
-	return (fp);
-}
+#define	fhold(fp)							\
+	do {								\
+		FILE_LOCK(fp);						\
+		fhold_locked(fp);					\
+		FILE_UNLOCK(fp);					\
+	} while (0)
 
 static __inline int fo_read __P((struct file *fp, struct uio *uio,
     struct ucred *cred, int flags, struct thread *td));
