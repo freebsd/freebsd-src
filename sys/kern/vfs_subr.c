@@ -925,7 +925,8 @@ getnewvnode(tag, mp, vops, vpp)
 		for (count = 0; count < freevnodes; count++) {
 			vp = TAILQ_FIRST(&vnode_free_list);
 
-			KASSERT(vp->v_usecount == 0, 
+			KASSERT(vp->v_usecount == 0 &&
+			    (vp->v_iflag & VI_DOINGINACT) == 0,
 			    ("getnewvnode: free vnode isn't"));
 
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
@@ -2172,8 +2173,8 @@ vrele(vp)
 	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
 	    ("vrele: missed vn_close"));
 
-	if (vp->v_usecount > 1) {
-
+	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
+	    vp->v_usecount == 1)) {
 		v_incr_usecount(vp, -1);
 		VI_UNLOCK(vp);
 
@@ -2183,13 +2184,20 @@ vrele(vp)
 	if (vp->v_usecount == 1) {
 		v_incr_usecount(vp, -1);
 		/*
-		 * We must call VOP_INACTIVE with the node locked.
-		 * If we are doing a vput, the node is already locked,
-		 * but, in the case of vrele, we must explicitly lock
-		 * the vnode before calling VOP_INACTIVE.
+		 * We must call VOP_INACTIVE with the node locked. Mark
+		 * as VI_DOINGINACT to avoid recursion.
 		 */
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0)
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
+			VI_LOCK(vp);
+			vp->v_iflag |= VI_DOINGINACT;
+			VI_UNLOCK(vp);
 			VOP_INACTIVE(vp, td);
+			VI_LOCK(vp);
+			KASSERT(vp->v_iflag & VI_DOINGINACT,
+			    ("vrele: lost VI_DOINGINACT"));
+			vp->v_iflag &= ~VI_DOINGINACT;
+			VI_UNLOCK(vp);
+		}
 		VI_LOCK(vp);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
@@ -2225,7 +2233,8 @@ vput(vp)
 	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
 	    ("vput: missed vn_close"));
 
-	if (vp->v_usecount > 1) {
+	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
+	    vp->v_usecount == 1)) {
 		v_incr_usecount(vp, -1);
 		VOP_UNLOCK(vp, LK_INTERLOCK, td);
 		return;
@@ -2234,13 +2243,17 @@ vput(vp)
 	if (vp->v_usecount == 1) {
 		v_incr_usecount(vp, -1);
 		/*
-		 * We must call VOP_INACTIVE with the node locked.
-		 * If we are doing a vput, the node is already locked,
-		 * so we just need to release the vnode mutex.
+		 * We must call VOP_INACTIVE with the node locked, so
+		 * we just need to release the vnode mutex. Mark as
+		 * as VI_DOINGINACT to avoid recursion.
 		 */
+		vp->v_iflag |= VI_DOINGINACT;
 		VI_UNLOCK(vp);
 		VOP_INACTIVE(vp, td);
 		VI_LOCK(vp);
+		KASSERT(vp->v_iflag & VI_DOINGINACT,
+		    ("vput: lost VI_DOINGINACT"));
+		vp->v_iflag &= ~VI_DOINGINACT;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		else
@@ -2545,9 +2558,19 @@ vclean(vp, flags, td)
 	if (active) {
 		if (flags & DOCLOSE)
 			VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
-			panic("vclean: cannot relock.");
-		VOP_INACTIVE(vp, td);
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_DOINGINACT) == 0) {
+			vp->v_iflag |= VI_DOINGINACT;
+			VI_UNLOCK(vp);
+			if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) != 0)
+				panic("vclean: cannot relock.");
+			VOP_INACTIVE(vp, td);
+			VI_LOCK(vp);
+			KASSERT(vp->v_iflag & VI_DOINGINACT,
+			    ("vclean: lost VI_DOINGINACT"));
+			vp->v_iflag &= ~VI_DOINGINACT;
+		}
+		VI_UNLOCK(vp);
 	}
 
 	/*
