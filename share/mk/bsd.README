@@ -4,7 +4,7 @@
 XXX This document is seriously out of date, it is currenly being revised.
 
 This is the README file for the new make "include" files for the BSD
-source tree. The files are installed in /usr/share/mk, and are, by
+source tree.  The files are installed in /usr/share/mk, and are, by
 convention, named with the suffix ".mk".
 
 bsd.dep.mk		- handle Makefile dependencies
@@ -108,13 +108,14 @@ MANMODE		Manual mode.
 MANSUBDIR	Subdirectory under the manual page section, i.e. "/vax"
 		or "/tahoe" for machine specific manual pages.
 
-MAN1 ... MAN9	The manual pages to be installed (use a .1 - .9 suffix).
+MAN		The manual pages to be installed (use a .1 - .9 suffix).
 
 MLINKS		List of manual page links (using a .1 - .9 suffix).  The
 		linked-to file must come first, the linked file second,
 		and there may be multiple pairs.  The files are soft-linked.
 
-The include file <bsd.man.mk> includes the include file <bsd.inc.mk>.
+The include file <bsd.man.mk> includes a file named "../Makefile.inc" if
+it exists.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -210,8 +211,8 @@ LINKS		The list of binary links; should be full pathnames, the
 
 			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
 
-MAN1...MAN9	Manual pages (should end in .1  - .9).  If no MAN variable
-		is defined, "MAN1=${PROG}.1" is assumed.
+MAN		Manual pages (should end in .1 - .9).  If no MAN variable
+		is defined, "MAN=${PROG}.1" is assumed.
 
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
@@ -246,8 +247,8 @@ SUBDIR		A list of subdirectories that should be built as well.
 		Each of the targets will execute the same target in the
 		subdirectories.
 
-The include file <bsd.prog.mk> includes the include files <bsd.inc.mk>
-and <bsd.man.mk>.
+The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
+if it exists, as well as the include file <bsd.man.mk>.
 
 Some simple examples:
 
@@ -300,15 +301,15 @@ LIBMODE		Library mode.
 
 LDADD		Additional loader objects.
 
-MAN1 ... MAN9	The manual pages to be installed (use a .1 - .9 suffix).
+MAN		The manual pages to be installed (use a .1 - .9 suffix).
 
 SRCS		List of source files to build the library.  Suffix types
 		.s, .c, and .f are supported.  Note, .s files are preferred
 		to .c files of the same name.  (This is not the default for
 		versions of make.)
 
-The include file <bsd.lib.mk> includes the include files <bsd.inc.mk>
-and <bsd.man.mk>.
+The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
+if it exists, as well as the include file <bsd.man.mk>.
 
 It has rules for building profiled objects; profiled libraries are
 built by default.
