@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.24 1995/06/27 17:26:27 guido Exp $
+ * $Id: ip_input.c,v 1.25 1995/07/09 14:29:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -79,8 +79,12 @@ struct socket *ip_rsvpd;
 #ifndef	IPSENDREDIRECTS
 #define	IPSENDREDIRECTS	1
 #endif
+#ifndef	DIRECTED_BROADCAST
+#define	DIRECTED_BROADCAST	0
+#endif
 int	ipforwarding = IPFORWARDING;
 int	ipsendredirects = IPSENDREDIRECTS;
+int	ipdirbroadcast = DIRECTED_BROADCAST;
 int	ip_defttl = IPDEFTTL;
 int	ip_dosourceroute = 0;
 #ifdef DIAGNOSTIC
@@ -273,10 +277,7 @@ next:
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
-		if (
-#ifdef	DIRECTED_BROADCAST
-		    ia->ia_ifp == m->m_pkthdr.rcvif &&
-#endif
+		if ((!ipdirbroadcast || ia->ia_ifp == m->m_pkthdr.rcvif) &&
 		    (ia->ia_ifp->if_flags & IFF_BROADCAST)) {
 			u_long t;
 
@@ -1206,6 +1207,9 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case IPCTL_SENDREDIRECTS:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 			&ipsendredirects));
+	case IPCTL_DIRECTEDBROADCAST:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+			&ipdirbroadcast));
 	case IPCTL_DEFTTL:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_defttl));
 	case IPCTL_SOURCEROUTE:
