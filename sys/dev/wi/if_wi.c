@@ -142,6 +142,11 @@ static void wi_media_status(struct ifnet *, struct ifmediareq *);
 static int wi_get_debug(struct wi_softc *, struct wi_req *);
 static int wi_set_debug(struct wi_softc *, struct wi_req *);
 
+/* support to download firmware for symbol CF card */
+static int wi_symbol_write_firm(struct wi_softc *, const void *, int,
+		const void *, int);
+static int wi_symbol_set_hcr(struct wi_softc *, int);
+
 devclass_t wi_devclass;
 
 struct wi_card_ident wi_card_ident[] = {
@@ -3108,4 +3113,141 @@ wi_set_debug(sc, wreq)
 	error = wi_cmd(sc, cmd, param0, param1, 0);
 
 	return (error);
+}
+
+/*
+ * Special routines to download firmware for Symbol CF card.
+ * XXX: This should be modified generic into any PRISM-2 based card.
+ */
+
+#define	WI_SBCF_PDIADDR		0x3100
+
+/* unaligned load little endian */
+#define	GETLE32(p)	((p)[0] | ((p)[1]<<8) | ((p)[2]<<16) | ((p)[3]<<24))
+#define	GETLE16(p)	((p)[0] | ((p)[1]<<8))
+
+int
+wi_symbol_load_firm(struct wi_softc *sc, const void *primsym, int primlen,
+    const void *secsym, int seclen)
+{
+	uint8_t ebuf[256];
+	int i;
+
+	/* load primary code and run it */
+	wi_symbol_set_hcr(sc, WI_HCR_EEHOLD);
+	if (wi_symbol_write_firm(sc, primsym, primlen, NULL, 0))
+		return EIO;
+	wi_symbol_set_hcr(sc, WI_HCR_RUN);
+	for (i = 0; ; i++) {
+		if (i == 10)
+			return ETIMEDOUT;
+		tsleep(sc, PWAIT, "wiinit", 1);
+		if (CSR_READ_2(sc, WI_CNTL) == WI_CNTL_AUX_ENA_STAT)
+			break;
+		/* write the magic key value to unlock aux port */
+		CSR_WRITE_2(sc, WI_PARAM0, WI_AUX_KEY0);
+		CSR_WRITE_2(sc, WI_PARAM1, WI_AUX_KEY1);
+		CSR_WRITE_2(sc, WI_PARAM2, WI_AUX_KEY2);
+		CSR_WRITE_2(sc, WI_CNTL, WI_CNTL_AUX_ENA_CNTL);
+	}
+
+	/* issue read EEPROM command: XXX copied from wi_cmd() */
+	CSR_WRITE_2(sc, WI_PARAM0, 0);
+	CSR_WRITE_2(sc, WI_PARAM1, 0);
+	CSR_WRITE_2(sc, WI_PARAM2, 0);
+	CSR_WRITE_2(sc, WI_COMMAND, WI_CMD_READEE);
+        for (i = 0; i < WI_TIMEOUT; i++) {
+                if (CSR_READ_2(sc, WI_EVENT_STAT) & WI_EV_CMD)
+                        break;
+                DELAY(1);
+        }
+        CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_CMD);
+
+	CSR_WRITE_2(sc, WI_AUX_PAGE, WI_SBCF_PDIADDR / WI_AUX_PGSZ);
+	CSR_WRITE_2(sc, WI_AUX_OFFSET, WI_SBCF_PDIADDR % WI_AUX_PGSZ);
+	CSR_READ_MULTI_STREAM_2(sc, WI_AUX_DATA,
+	    (uint16_t *)ebuf, sizeof(ebuf) / 2);
+	if (GETLE16(ebuf) > sizeof(ebuf))
+		return EIO;
+	if (wi_symbol_write_firm(sc, secsym, seclen, ebuf + 4, GETLE16(ebuf)))
+		return EIO;
+	return 0;
+}
+
+static int
+wi_symbol_write_firm(struct wi_softc *sc, const void *buf, int buflen,
+    const void *ebuf, int ebuflen)
+{
+	const uint8_t *p, *ep, *q, *eq;
+	char *tp;
+	uint32_t addr, id, eid;
+	int i, len, elen, nblk, pdrlen;
+
+	/*
+	 * Parse the header of the firmware image.
+	 */
+	p = buf;
+	ep = p + buflen;
+	while (p < ep && *p++ != ' ');	/* FILE: */
+	while (p < ep && *p++ != ' ');	/* filename */
+	while (p < ep && *p++ != ' ');	/* type of the firmware */
+	nblk = strtoul(p, &tp, 10);
+	p = tp;
+	pdrlen = strtoul(p + 1, &tp, 10);
+	p = tp;
+	while (p < ep && *p++ != 0x1a);	/* skip rest of header */
+
+	/*
+	 * Block records: address[4], length[2], data[length];
+	 */
+	for (i = 0; i < nblk; i++) {
+		addr = GETLE32(p);	p += 4;
+		len  = GETLE16(p);	p += 2;
+		CSR_WRITE_2(sc, WI_AUX_PAGE, addr / WI_AUX_PGSZ);
+		CSR_WRITE_2(sc, WI_AUX_OFFSET, addr % WI_AUX_PGSZ);
+		CSR_WRITE_MULTI_STREAM_2(sc, WI_AUX_DATA,
+		    (const uint16_t *)p, len / 2);
+		p += len;
+	}
+	
+	/*
+	 * PDR: id[4], address[4], length[4];
+	 */
+	for (i = 0; i < pdrlen; ) {
+		id   = GETLE32(p);	p += 4; i += 4;
+		addr = GETLE32(p);	p += 4; i += 4;
+		len  = GETLE32(p);	p += 4; i += 4;
+		/* replace PDR entry with the values from EEPROM, if any */
+		for (q = ebuf, eq = q + ebuflen; q < eq; q += elen * 2) {
+			elen = GETLE16(q);	q += 2;
+			eid  = GETLE16(q);	q += 2;
+			elen--;		/* elen includes eid */
+			if (eid == 0)
+				break;
+			if (eid != id)
+				continue;
+			CSR_WRITE_2(sc, WI_AUX_PAGE, addr / WI_AUX_PGSZ);
+			CSR_WRITE_2(sc, WI_AUX_OFFSET, addr % WI_AUX_PGSZ);
+			CSR_WRITE_MULTI_STREAM_2(sc, WI_AUX_DATA,
+			    (const uint16_t *)q, len / 2);
+			break;
+		}
+	}
+	return 0;
+}
+
+static int
+wi_symbol_set_hcr(struct wi_softc *sc, int mode)
+{
+	uint16_t hcr;
+
+	CSR_WRITE_2(sc, WI_COR, WI_COR_RESET);
+	tsleep(sc, PWAIT, "wiinit", 1);
+	hcr = CSR_READ_2(sc, WI_HCR);
+	hcr = (hcr & WI_HCR_4WIRE) | (mode & ~WI_HCR_4WIRE);
+	CSR_WRITE_2(sc, WI_HCR, hcr);
+	tsleep(sc, PWAIT, "wiinit", 1);
+	CSR_WRITE_2(sc, WI_COR, WI_COR_IOMODE);
+	tsleep(sc, PWAIT, "wiinit", 1);
+	return 0;
 }
