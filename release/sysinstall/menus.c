@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.16 1995/06/04 07:06:48 jkh Exp $
+ * $Id: menus.c,v 1.41.2.17 1995/06/04 23:45:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -537,10 +537,12 @@ Mono servers are particularly well-suited to most LCD displays).",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_8514, 0, dmenuFlagCheck	},
       { "AGX", "8-bit AGX card [1MB]",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_AGX, 0, dmenuFlagCheck	},
-      { "Mch3", "8 and 16-bit (65K color) for ATI Mach32 card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0, dmenuFlagCheck	},
-      { "Mch8", "8-bit ATI Mach8 card [1MB]",
+      { "Ma8", "8-bit ATI Mach8 card [1MB]",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH8, 0, dmenuFlagCheck	},
+      { "Ma32", "8 and 16-bit (65K color) for ATI Mach32 card [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0, dmenuFlagCheck	},
+      { "Ma64", "8 and 16-bit (65K color) for ATI Mach64 card [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH64, 0, dmenuFlagCheck	},
       { "P9K", "8, 16, and 24-bit color for Weitek P9000 based boards [1MB]",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_P9000, 0, dmenuFlagCheck	},
       { "S3", "8, 16 and 24-bit color for S3 based boards [1MB]",
