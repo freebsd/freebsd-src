@@ -13,7 +13,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
-.\"	$Id: ls.1,v 1.21 1998/04/29 18:39:51 imp Exp $
+.\"	$Id: ls.1,v 1.22 1998/05/13 07:57:03 phk Exp $
 .\"
 .Dd July 29, 1994
 .Dt LS 1
@@ -50,13 +50,13 @@ For each operand that names a
 .Ar file
 of a type other than
 directory,
-.Nm ls
+.Nm
 displays its name as well as any requested,
 associated information.
 For each operand that names a
 .Ar file
 of type directory,
-.Nm ls
+.Nm
 displays the names of files contained
 within that directory, as well as any requested, associated
 information.
@@ -162,7 +162,7 @@ lexicographical order or the oldest entries first.
 Display the number of file system blocks actually used by each file, in units
 of 512 bytes, where partial units are rounded up to the next integer value.
 If the output is to a terminal, a total sum for all the file
-sizes is output on a line before the listing.  The environemnt variable
+sizes is output on a line before the listing.  The environment variable
 BLOCKSIZE overrides the unit size of 512 bytes.
 .It Fl t
 Sort by time modified (most recently modified
@@ -214,7 +214,7 @@ options all override each other (either partially or fully); they
 are applied in the order specified.
 .Pp
 By default,
-.Nm ls
+.Nm
 lists one entry per line to standard
 output; the exceptions are to terminals or when the
 .Fl C
@@ -343,11 +343,11 @@ or
 .El
 .Pp
 The
-.Nm ls
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
-.Nm ls :
+.Nm Ns :
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
 If the environment variable
@@ -362,7 +362,7 @@ decimal integer, it is used as the
 column position width for displaying
 multiple-text-column output.
 The
-.Nm ls
+.Nm
 utility calculates how
 many pathname text columns to display
 based on the width provided.
@@ -385,12 +385,12 @@ specification.
 .Xr sticky 8
 .Sh HISTORY
 An
-.Nm ls
+.Nm
 command appeared in
 .At v1 .
 .Sh STANDARDS
 The
-.Nm ls
+.Nm
 function is expected to be a superset of the
 .St -p1003.2
 specification.
