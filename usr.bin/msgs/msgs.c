@@ -634,7 +634,7 @@ int length;
 		if ((env_pager = getenv("PAGER")) == NULL) {
 			snprintf(cmdbuf, sizeof(cmdbuf), _PATH_PAGER, Lpp);
 		} else {
-			snprintf(cmdbuf, sizeof(cmdbuf), env_pager);
+			snprintf(cmdbuf, sizeof(cmdbuf), "%s", env_pager);
 		}
 		outf = popen(cmdbuf, "w");
 		if (!outf)
