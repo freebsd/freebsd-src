@@ -129,6 +129,8 @@
 
 #include <pci/if_wbreg.h>
 
+MODULE_DEPEND(wb, miibus, 1, 1, 1);
+
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";
