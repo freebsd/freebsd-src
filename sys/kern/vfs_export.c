@@ -1012,7 +1012,7 @@ sched_sync(void)
 				 * slot we are safe.
 				 */
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
-				    !vn_isdisk(vp))
+				    !vn_isdisk(vp, NULL))
 					panic("sched_sync: fsync failed vp %p tag %d", vp, vp->v_tag);
 				/*
 				 * Put us back on the worklist.  The worklist
@@ -2516,7 +2516,7 @@ vfs_object_create(vp, p, cred)
 	vm_object_t object;
 	int error = 0;
 
-	if (!vn_isdisk(vp) && vn_canvmio(vp) == FALSE)
+	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
 		return 0;
 
 retry:
@@ -2875,15 +2875,27 @@ vn_todev(vp)
  * Check if vnode represents a disk device
  */
 int
-vn_isdisk(vp)
+vn_isdisk(vp, errp)
 	struct vnode *vp;
+	int *errp;
 {
-	if (vp->v_type != VBLK && vp->v_type != VCHR)
+	if (vp->v_type != VBLK && vp->v_type != VCHR) {
+		if (errp != NULL)
+			*errp = ENOTBLK;
 		return (0);
-	if (!devsw(vp->v_rdev))
+	}
+	if (!devsw(vp->v_rdev)) {
+		if (errp != NULL)
+			*errp = ENXIO;
 		return (0);
-	if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+	}
+	if (!(devsw(vp->v_rdev)->d_flags & D_DISK)) {
+		if (errp != NULL)
+			*errp = ENOTBLK;
 		return (0);
+	}
+	if (errp != NULL)
+		*errp = 0;
 	return (1);
 }
 

@@ -159,7 +159,8 @@ spec_open(ap)
 	 * XXX: take this into account, and consequently they need to
 	 * XXX: live in the diskslicing code.  Some checks do.
 	 */
-	if (vn_isdisk(vp) && ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
+	if (vn_isdisk(vp, NULL) && ap->a_cred != FSCRED && 
+	    (ap->a_mode & FWRITE)) {
 		/*
 		 * Never allow opens for write if the device is mounted R/W
 		 */
@@ -204,7 +205,7 @@ spec_open(ap)
 		}
 	}
 
-	if (vn_isdisk(vp)) {
+	if (vn_isdisk(vp, NULL)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
 	}
@@ -337,7 +338,7 @@ spec_fsync(ap)
 	struct buf *nbp;
 	int s;
 
-	if (!vn_isdisk(vp))
+	if (!vn_isdisk(vp, NULL))
 		return (0);
 
 	/*
@@ -415,7 +416,7 @@ spec_strategy(ap)
 	 * and write counts for disks that have associated filesystems.
 	 */
 	vp = ap->a_vp;
-	if (vn_isdisk(vp) && (mp = vp->v_specmountpoint) != NULL) {
+	if (vn_isdisk(vp, NULL) && (mp = vp->v_specmountpoint) != NULL) {
 		if ((bp->b_flags & B_READ) == 0) {
 			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
 				mp->mnt_stat.f_asyncwrites++;
@@ -640,7 +641,7 @@ spec_getpages(ap)
 	 * block device is mounted.  However, we can use v_rdev.
 	 */
 
-	if (vn_isdisk(vp))
+	if (vn_isdisk(vp, NULL))
 		blksiz = vp->v_rdev->si_bsize_phys;
 	else
 		blksiz = DEV_BSIZE;

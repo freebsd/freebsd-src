@@ -202,8 +202,7 @@ swapon(p, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	if (!vn_isdisk(vp)) 
-		error = ENOTBLK;
+	vn_isdisk(vp, &error);
 
 	if (!error)
 		error = swaponvp(p, vp, vp->v_rdev, 0);

@@ -268,9 +268,9 @@ ext2_mount(mp, path, data, ndp, p)
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
-	if (!vn_isdisk(devvp)) {
+	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);
-		return (ENOTBLK);
+		return (error);
 	}
 
 	/*

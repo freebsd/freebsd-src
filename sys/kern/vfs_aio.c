@@ -934,8 +934,8 @@ aio_qphysio(p, aiocbe)
 
 	vp = (struct vnode *)fp->f_data;
 
-	if (!vn_isdisk(vp))
-		return (-1);
+	if (!vn_isdisk(vp, &error))
+		return (error);
 
  	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)
 		return (-1);

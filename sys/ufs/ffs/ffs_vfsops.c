@@ -280,10 +280,8 @@ ffs_mount( mp, path, data, ndp, p)
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
-	if (!vn_isdisk(devvp)) {
-		err = ENOTBLK;
+	if (!vn_isdisk(devvp, &err))
 		goto error_2;
-	}
 
 	/*
 	 * If mount by non-root, then verify that user has necessary
@@ -442,7 +440,7 @@ ffs_reload(mp, cred, p)
 	 * Only VMIO the backing device if the backing device is a real
 	 * block device.  See ffs_mountmfs() for more details.
 	 */
-	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp)) {
+	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, p->p_ucred);
 		simple_lock(&devvp->v_interlock);
@@ -599,7 +597,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp)) {
+	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, p->p_ucred);
 		simple_lock(&devvp->v_interlock);

@@ -126,9 +126,8 @@ ffs_fsync(ap)
 	int s, error, wait, passes, skipmeta;
 	daddr_t lbn;
 
-
 	wait = (ap->a_waitfor == MNT_WAIT);
-	if (vn_isdisk(vp)) {
+	if (vn_isdisk(vp, NULL)) {
 		lbn = INT_MAX;
 		if (vp->v_specmountpoint != NULL &&
 		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP))
@@ -265,7 +264,7 @@ loop:
 				goto loop;
 			}
 #ifdef DIAGNOSTIC
-			if (!vn_isdisk(vp))
+			if (!vn_isdisk(vp, NULL))
 				vprint("ffs_fsync: dirty", vp);
 #endif
 		}

@@ -321,10 +321,8 @@ ntfs_mount (
 	devvp = ndp->ni_vp;
 
 #if defined(__FreeBSD__)
-	if (!vn_isdisk(devvp)) {
-		err = ENOTBLK;
+	if (!vn_isdisk(devvp, &err)) 
 		goto error_2;
-	}
 #else
 	if (devvp->v_type != VBLK) {
 		err = ENOTBLK;
