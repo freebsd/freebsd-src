@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.42 1995/04/15 21:04:58 bde Exp $
+ * $Id: tty.c,v 1.43 1995/05/07 06:32:28 bde Exp $
  */
 
 #include "snp.h"
@@ -1042,7 +1042,7 @@ ttywait(tp)
 		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
 			SET(tp->t_state, TS_ASLEEP);
 			error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH,
-					 ttyout, tp->t_timeout);
+					 "ttywai", tp->t_timeout);
 			if (error)
 				break;
 		}
@@ -1812,7 +1812,8 @@ ovhiwat:
 		return (uio->uio_resid == cnt ? EWOULDBLOCK : 0);
 	}
 	SET(tp->t_state, TS_ASLEEP);
-	error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
+	error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, "ttywri",
+			 tp->t_timeout);
 	splx(s);
 	if (error)
 		goto out;
