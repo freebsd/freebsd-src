@@ -202,6 +202,11 @@ is replaced by the year with century as a decimal number.
 is replaced by the year without century as a decimal number (00-99).
 .It Cm \&%Z
 is replaced by the time zone name.
+.It Cm \&%z
+is replaced by the time zone offset from UTC; a leading plus sign stands for
+east of UTC, a minus sign for west of UTC, hours and minutes follow
+with two digits each and no delimiter between them (common form for
+RFC 822 date headers).
 .It Cm %+
 is replaced by national representation of the date and time
 (the format is similar to that produced by
@@ -241,6 +246,7 @@ with a lot of extensions including
 .Ql %t ,
 .Ql %u ,
 .Ql \&%V ,
+.Ql %z ,
 .Ql %+ .
 
 The peculiar week number and year in the replacements of
