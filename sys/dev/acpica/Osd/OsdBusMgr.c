@@ -37,7 +37,7 @@
 #include <sys/eventhandler.h>
 #include <sys/reboot.h>
 
-#define _COMPONENT	OS_DEPENDENT
+#define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("BUSMGR")
 
 struct osd_eventhandle {
@@ -56,7 +56,7 @@ osd_idlehandler(void *arg, int junk)
 {
     struct osd_eventhandle	*oh = (struct osd_eventhandle *)arg;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     oh->Function(oh->Context);
     return_VOID();
@@ -67,7 +67,7 @@ osd_shutdownhandler(void *arg, int howto)
 {
     struct osd_eventhandle	*oh = (struct osd_eventhandle *)arg;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     oh->Function(oh->Context);
     return_VOID();
@@ -78,7 +78,7 @@ AcpiOsInstallIdleHandler(OSD_IDLE_HANDLER Function, void *Context)
 {
     int	i;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -99,7 +99,7 @@ AcpiOsRemoveIdleHandler(OSD_IDLE_HANDLER Function)
 {
     int i;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -122,7 +122,7 @@ AcpiOsInstallShutdownHandler(OSD_SHUTDOWN_HANDLER Function, void *Context)
 {
     int	i;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -143,7 +143,7 @@ AcpiOsRemoveShutdownHandler(OSD_SHUTDOWN_HANDLER Function)
 {
     int i;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (Function == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -160,7 +160,7 @@ AcpiOsRemoveShutdownHandler(OSD_SHUTDOWN_HANDLER Function)
 ACPI_STATUS
 AcpiOsShutdown (void)
 {
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     shutdown_nice(0);
     return_VOID();

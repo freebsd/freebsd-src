@@ -37,8 +37,9 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 
-#define _COMPONENT	OS_DEPENDENT
+#define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("SYNCH")
 
 static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
@@ -54,7 +55,6 @@ struct acpi_semaphore {
     struct mtx	as_mtx;
     UINT32	as_units;
     UINT32	as_maxunits;
-    char	*as_name;
 };
 
 ACPI_STATUS
@@ -63,7 +63,7 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (OutHandle == NULL)
 	return(AE_BAD_PARAMETER);
@@ -76,8 +76,6 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
     mtx_init(&as->as_mtx, "ACPI semaphore", MTX_DEF);
     as->as_units = InitialUnits;
     as->as_maxunits = MaxUnits;
-    as->as_name = malloc(strlen(name) + 1, M_ACPISEM, M_NOWAIT);
-    strcpy(as->as_name, name);
 
     DEBUG_PRINT(TRACE_MUTEX, ("created semaphore %p max %d, initial %d\n", 
 			      as, InitialUnits, MaxUnits));
@@ -96,15 +94,10 @@ AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore *as = (struct acpi_semaphore *)Handle;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
-#ifdef ACPI_TRACK_SEMAPHORE
-    printf("destroyed semaphore '%s' @ %p\n", as->as_name, as);
-#else
     DEBUG_PRINT(TRACE_MUTEX, ("destroyed semaphore %p\n", as));
-#endif
     mtx_destroy(&as->as_mtx);
-    free(as->as_name, M_ACPISEM);
     free(Handle, M_ACPISEM);
     return_ACPI_STATUS(AE_OK);
 #else
@@ -125,7 +118,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
     ACPI_STATUS			result;
     int				rv, tmo;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (as == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -135,7 +128,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 	tmo = 0;
     } else {
 	/* compute timeout using microseconds per tick */
-	tmo = (Timeout * 1000) / (1000000 / hz)
+	tmo = (Timeout * 1000) / (1000000 / hz);
 	if (tmo <= 0)
 	    tmo = 1;
     }
@@ -155,7 +148,6 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 	}
 	DEBUG_PRINT(TRACE_MUTEX, ("semaphore blocked, calling msleep(%p, %p, %d, \"acpisem\", %d)\n",
 				  as, as->as_mtx, 0, tmo));
-	for (;;) ;
 	
 	rv = msleep(as, &as->as_mtx, 0, "acpisem", tmo);
 	DEBUG_PRINT(TRACE_MUTEX, ("msleep returned %d\n", rv));
@@ -178,7 +170,7 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
 
-    FUNCTION_TRACE(__FUNCTION__);
+    FUNCTION_TRACE(__func__);
 
     if (as == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
