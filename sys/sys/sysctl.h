@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.64 1998/09/05 14:13:35 bde Exp $
+ * $Id: sysctl.h,v 1.65 1998/09/05 17:13:28 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -78,6 +78,7 @@ struct ctlname {
 #define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
 #define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 #define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
+#define CTLFLAG_SECURE	0x08000000	/* Permit set only if securelevel<=0 */
 
 /*
  * USE THIS instead of a hardwired number from the categories below
