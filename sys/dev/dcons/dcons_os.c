@@ -489,7 +489,7 @@ static int
 dcons_drv_init(int stage)
 {
 #ifdef __i386__
-	int addr, size;
+	quad_t addr, size;
 #endif
 
 	if (drv_init)
@@ -504,10 +504,17 @@ dcons_drv_init(int stage)
 	dg.size = DCONS_BUF_SIZE;
 
 #ifdef __i386__
-	if (getenv_int("dcons.addr", &addr) > 0 &&
-	    getenv_int("dcons.size", &size) > 0) {
+	if (getenv_quad("dcons.addr", &addr) > 0 &&
+	    getenv_quad("dcons.size", &size) > 0) {
+		vm_paddr_t pa;
+		/*
+		 * Allow read/write access to dcons buffer.
+		 */
+		for (pa = trunc_page(addr); pa < addr + size; pa += PAGE_SIZE)
+			*vtopte(KERNBASE + pa) |= PG_RW;
+		invltlb();
 		/* XXX P to V */
-		dg.buf = (struct dcons_buf *)(KERNBASE + addr);
+		dg.buf = (struct dcons_buf *)(vm_offset_t)(KERNBASE + addr);
 		dg.size = size;
 		if (dcons_load_buffer(dg.buf, dg.size, sc) < 0)
 			dg.buf = NULL;
