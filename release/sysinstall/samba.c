@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.3.2.1 1996/06/17 09:04:57 jkh Exp $
+ * $Id: samba.c,v 1.6 1996/07/10 04:52:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -52,7 +52,8 @@ static DMenu MenuSamba = {
 };
 
 /* These probably shouldn't be hard-coded, but making them options might prove to be even more confusing! */
-#define SMB_CONF "./smb.conf"
+#define SMB_CONF_DIR "/usr/local/samba/lib"
+#define SMB_CONF "/usr/local/samba/lib/smb.conf"
 
 int
 configSamba(dialogMenuItem *self)
@@ -144,6 +145,7 @@ configSamba(dialogMenuItem *self)
 		}	/* end for loop		 */
 	    }	/* end if (SAMBA_export) */
 	    fclose(fptr);
+	    Mkdir(SMB_CONF_DIR);
 	    vsystem("mv -f /tmp/smb.conf %s", SMB_CONF);
 	}
 	else
