@@ -45,10 +45,10 @@ get_cyclecount(void)
 
 extern vm_offset_t vector_page;
 
-void fork_trampoline(void);
-void *initarm(void *, void *);
-void arm_vector_init(vm_offset_t, int);
-void identify_arm_cpu(void);
+void	arm_vector_init(vm_offset_t, int);
+void	fork_trampoline(void);
+void	identify_arm_cpu(void);
+void	*initarm(void *, void *);
 
 extern char btext[];
 extern char etext[];
