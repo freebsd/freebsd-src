@@ -38,8 +38,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.15 1998/02/04 22:32:32 eivind Exp $
+ * $Id: kern_lock.c,v 1.16 1998/02/06 12:13:23 eivind Exp $
  */
+
+#include "opt_lint.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -462,7 +464,7 @@ lockmgr_printinfo(lkp)
 		printf(" with %d pending", lkp->lk_waitcount);
 }
 
-#if defined(SIMPLELOCK_DEBUG) && NCPUS == 1
+#if defined(SIMPLELOCK_DEBUG) && (NCPUS == 1 || defined(COMPILING_LINT))
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -555,4 +557,6 @@ _simple_unlock(alp, id, l)
 	if (curproc)
 		curproc->p_simple_locks--;
 }
+#elif defined(SIMPLELOCK_DEBUG)
+#error "SIMPLELOCK_DEBUG is not compatible with SMP!"
 #endif /* SIMPLELOCK_DEBUG && NCPUS == 1 */
