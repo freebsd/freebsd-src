@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.121 2002/03/16 16:11:18 tsutsui Exp $	*/
+/*	$NetBSD: ohci.c,v 1.123 2002/05/19 06:24:31 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -405,7 +405,7 @@ ohci_alloc_sed(ohci_softc_t *sc)
 			return (NULL);
 		for(i = 0; i < OHCI_SED_CHUNK; i++) {
 			offs = i * OHCI_SED_SIZE;
-			sed = (ohci_soft_ed_t *)((char *)KERNADDR(&dma, offs));
+			sed = KERNADDR(&dma, offs);
 			sed->physaddr = DMAADDR(&dma, offs);
 			sed->next = sc->sc_freeeds;
 			sc->sc_freeeds = sed;
@@ -443,7 +443,7 @@ ohci_alloc_std(ohci_softc_t *sc)
 		s = splusb();
 		for(i = 0; i < OHCI_STD_CHUNK; i++) {
 			offs = i * OHCI_STD_SIZE;
-			std = (ohci_soft_td_t *)((char *)KERNADDR(&dma, offs));
+			std = KERNADDR(&dma, offs);
 			std->physaddr = DMAADDR(&dma, offs);
 			std->nexttd = sc->sc_freetds;
 			sc->sc_freetds = std;
@@ -622,7 +622,7 @@ ohci_alloc_sitd(ohci_softc_t *sc)
 			return (NULL);
 		for(i = 0; i < OHCI_SITD_CHUNK; i++) {
 			offs = i * OHCI_SITD_SIZE;
-			sitd = (ohci_soft_itd_t *)((char*)KERNADDR(&dma, offs));
+			sitd = KERNADDR(&dma, offs);
 			sitd->physaddr = DMAADDR(&dma, offs);
 			sitd->nextitd = sc->sc_freeitds;
 			sc->sc_freeitds = sitd;
@@ -703,7 +703,7 @@ ohci_init(ohci_softc_t *sc)
 			 OHCI_HCCA_ALIGN, &sc->sc_hccadma);
 	if (err)
 		return (err);
-	sc->sc_hcca = (struct ohci_hcca *)KERNADDR(&sc->sc_hccadma, 0);
+	sc->sc_hcca = KERNADDR(&sc->sc_hccadma, 0);
 	memset(sc->sc_hcca, 0, OHCI_HCCA_SIZE);
 
 	sc->sc_eintrs = OHCI_NORMAL_INTRS;
