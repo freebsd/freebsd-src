@@ -1,4 +1,4 @@
-/*	$Id: domacro.c,v 1.2 1997/06/25 08:56:37 msmith Exp $ */
+/*	$Id: domacro.c,v 1.3 1997/06/27 09:30:09 ache Exp $ */
 /*	$NetBSD: domacro.c,v 1.9 1997/03/13 06:23:14 lukem Exp $	*/
 
 /*
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)domacro.c	8.3 (Berkeley) 4/2/94";
 #else
-static char rcsid[] = "$Id: domacro.c,v 1.2 1997/06/25 08:56:37 msmith Exp $";
+static char rcsid[] = "$Id: domacro.c,v 1.3 1997/06/27 09:30:09 ache Exp $";
 #endif
 #endif /* not lint */
 
@@ -77,7 +77,7 @@ domacro(argc, argv)
 TOP:
 	cp1 = macros[i].mac_start;
 	while (cp1 != macros[i].mac_end) {
-		while (isspace((unsigned char)*cp1)) {
+		while (isascii(*cp1) && isspace(*cp1)) {
 			cp1++;
 		}
 		cp2 = line;
