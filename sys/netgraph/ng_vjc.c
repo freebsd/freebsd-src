@@ -338,6 +338,7 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 			return (ENOBUFS);
 		}
 		hm->m_len = 0;
+		hm->m_pkthdr.rcvif = NULL;
 		if (hlen > MHLEN) {		/* unlikely, but can happen */
 			MCLGET(hm, M_DONTWAIT);
 			if ((hm->m_flags & M_EXT) == 0) {

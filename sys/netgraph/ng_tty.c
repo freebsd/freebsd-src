@@ -383,8 +383,8 @@ ngt_input(int c, struct tty *tp)
 				    "%s: can't get mbuf\n", node->name);
 			ERROUT(ENOBUFS);
 		}
-		m->m_len = 0;
-		m->m_pkthdr.len = 0;
+		m->m_len = m->m_pkthdr.len = 0;
+		m->m_pkthdr.rcvif = NULL;
 		sc->m = m;
 	}
 
