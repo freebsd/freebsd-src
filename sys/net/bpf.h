@@ -340,14 +340,25 @@ struct bpf_insn {
 #define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
 
 #ifdef _KERNEL
+struct bpf_if;
 int	 bpf_validate(const struct bpf_insn *, int);
-void	 bpf_tap(struct ifnet *, u_char *, u_int);
-void	 bpf_mtap(struct ifnet *, struct mbuf *);
+void	 bpf_tap(struct bpf_if *, u_char *, u_int);
+void	 bpf_mtap(struct bpf_if *, struct mbuf *);
 void	 bpfattach(struct ifnet *, u_int, u_int);
+void	 bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
 void	 bpfdetach(struct ifnet *);
 
 void	 bpfilterattach(int);
 u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
+
+#define	BPF_TAP(_ifp,_pkt,_pktlen) do {				\
+	if ((_ifp)->if_bpf)					\
+		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));	\
+} while (0)
+#define	BPF_MTAP(_ifp,_m) do {					\
+	if ((_ifp)->if_bpf)					\
+		bpf_mtap((_ifp)->if_bpf, (_m));			\
+} while (0)
 #endif
 
 /*
@@ -355,4 +366,4 @@ u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
  */
 #define BPF_MEMWORDS 16
 
-#endif
+#endif /* _NET_BPF_H_ */
