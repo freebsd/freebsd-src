@@ -777,6 +777,43 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 	return (error);
 }
 
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct mbuf *m0, bus_dma_segment_t *segs, int *nsegs,
+			int flags)
+{
+	int error;
+
+	M_ASSERTPKTHDR(m0);
+
+	flags |= BUS_DMA_NOWAIT;
+	*nsegs = 0;
+	error = 0;
+	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		bus_addr_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			if (m->m_len > 0) {
+				error = _bus_dmamap_load_buffer(dmat, map,
+						m->m_data, m->m_len,
+						NULL, flags, &lastaddr,
+						segs, nsegs, first);
+				first = 0;
+			}
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	/* XXX FIXME: Having to increment nsegs is really annoying */
+	++*nsegs;
+	CTR4(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
+	    "error %d nsegs %d", dmat, dmat->flags, error, *nsegs);
+	return (error);
+}
+
 /*
  * Like _bus_dmamap_load(), but for uios.
  */
