@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.115 1998/03/01 04:18:22 dyson Exp $
+ * $Id: vm_object.c,v 1.116 1998/03/07 21:37:06 dyson Exp $
  */
 
 /*
@@ -448,6 +448,7 @@ vm_object_terminate(object)
 				printf("vm_object_terminate: freeing busy page\n");
 #endif
 			p->flags |= PG_BUSY;
+			vm_page_protect(p, VM_PROT_NONE);
 			vm_page_free(p);
 			cnt.v_pfree++;
 		}
@@ -920,7 +921,6 @@ vm_object_qcollapse(object)
 
 		next = TAILQ_NEXT(p, listq);
 		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
-		    ((p->queue - p->pc) == PQ_CACHE) ||
 		    !p->valid || p->hold_count || p->wire_count || p->busy) {
 			p = next;
 			continue;
@@ -951,8 +951,12 @@ vm_object_qcollapse(object)
 					swap_pager_freespace(backing_object,
 					    backing_object_paging_offset_index + p->pindex, 1);
 
+				if ((p->queue - p->pc) == PQ_CACHE)
+					vm_page_deactivate(p);
+				else
+					vm_page_protect(p, VM_PROT_NONE);
+
 				vm_page_rename(p, object, new_pindex);
-				vm_page_protect(p, VM_PROT_NONE);
 				p->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
@@ -1067,7 +1071,10 @@ vm_object_collapse(object)
 						vm_page_protect(p, VM_PROT_NONE);
 						vm_page_free(p);
 					} else {
-						vm_page_protect(p, VM_PROT_NONE);
+						if ((p->queue - p->pc) == PQ_CACHE)
+							vm_page_deactivate(p);
+						else
+							vm_page_protect(p, VM_PROT_NONE);
 						vm_page_rename(p, object, new_pindex);
 						p->dirty = VM_PAGE_BITS_ALL;
 					}
