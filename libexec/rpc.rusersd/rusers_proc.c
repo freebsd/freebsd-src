@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.1.1.1 1994/08/28 14:53:44 csgr Exp $";
+static char rcsid[] = "$Id: rusers_proc.c,v 1.2 1994/11/04 02:12:49 jkh Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -239,7 +239,7 @@ do_names_2(int all)
 int *
 rusers_num()
 {
-        int num_users = 0;
+        static int num_users = 0;
 	struct utmp usr;
 
         ufp = fopen(_PATH_UTMP, "r");
@@ -268,7 +268,7 @@ static utmparr *
 do_names_1(int all)
 {
         utmpidlearr *utidle;
-        utmparr ut;
+        static utmparr ut;
         int i;
         
         bzero((char *)&ut, sizeof(ut));
