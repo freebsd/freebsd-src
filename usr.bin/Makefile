@@ -207,9 +207,8 @@ SUBDIR=	alias \
 	ypwhich
 
 .if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../kerberosIV) && !exists(${.CURDIR}/../secure)) || \
-    defined(NOCRYPT)
-# Releases need both this non-crypt telnet and the crypt telnet.
+    !exists(${.CURDIR}/../crypto) || defined(NOCRYPT) || defined(NO_OPENSSL)
+# make release needs both
 SUBDIR+=telnet
 .endif
 
