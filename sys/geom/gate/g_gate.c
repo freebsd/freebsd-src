@@ -463,6 +463,13 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 
 		G_GATE_CHECK_VERSION(ggio);
 		error = g_gate_create(ggio);
+		/*
+		 * Reset TDP_GEOM flag.
+		 * There are pending events for sure, because we just created
+		 * new provider and other classes want to taste it, but we
+		 * cannot answer on I/O requests until we're here.
+		 */
+		td->td_pflags &= ~TDP_GEOM;
 		return (error);
 	    }
 	case G_GATE_CMD_DESTROY:
