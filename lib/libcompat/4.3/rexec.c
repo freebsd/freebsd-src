@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -146,6 +148,8 @@ ruserpass(host, aname, apass, aacct)
 	hdir = getenv("HOME");
 	if (hdir == NULL)
 		hdir = ".";
+	if (strlen(hdir) + 8 > sizeof(buf))
+		return (0);
 	(void) sprintf(buf, "%s/.netrc", hdir);
 	cfile = fopen(buf, "r");
 	if (cfile == NULL) {
