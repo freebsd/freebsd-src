@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <netipx/ipx.h>
 #include <netatalk/at.h>
+#include <netgraph/ng_socket.h>
 
 #ifdef NS
 #include <netns/ns.h>
@@ -195,6 +196,9 @@ pr_family(af)
 		break;
 	case AF_CCITT:
 		afname = "X.25";
+		break;
+	case AF_NETGRAPH:
+		afname = "Netgraph";
 		break;
 	default:
 		afname = NULL;
@@ -425,6 +429,11 @@ p_sockaddr(sa, mask, flags, width)
 			cp = atalk_print2(sa,mask,9);
 		else
 			cp = atalk_print(sa,11);
+		break;
+	    }
+	case AF_NETGRAPH:
+	    {
+		printf("%s", ((struct sockaddr_ng *)sa)->sg_data);
 		break;
 	    }
 #ifdef NS

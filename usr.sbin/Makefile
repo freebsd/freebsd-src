@@ -47,6 +47,8 @@ SUBDIR=	IPXrouted \
 	named.restart \
 	ndc \
 	newsyslog \
+	ngctl \
+	nghook \
 	nslookup \
 	nsupdate \
 	pccard \

@@ -102,6 +102,9 @@ struct	arpcom {
 	struct 	ifnet ac_if;		/* network-visible interface */
 	u_char	ac_enaddr[6];		/* ethernet hardware address */
 	int	ac_multicnt;		/* length of ac_multiaddrs list */
+/* #ifdef	NETGRAPH */
+	void *ac_ng;			/* hook to hang netgraph stuff off */
+/* #endif */
 };
 
 extern u_char	etherbroadcastaddr[6];
