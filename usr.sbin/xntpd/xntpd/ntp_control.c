@@ -1,8 +1,11 @@
 /*
  * ntp_control.c - respond to control messages and send async traps
- *
+ */
+
+/*
  * $FreeBSD$
  */
+
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -1686,7 +1689,7 @@ ctl_getitem(var_list, data)
 	/*
 	 * Delete leading commas and white space
 	 */
-	while (reqpt < reqend && (*reqpt == ',' || isspace(*reqpt))) {
+	while (reqpt < reqend && (*reqpt == ',' || isspace((unsigned char)*reqpt))) {
 		reqpt++;
 	}
 
@@ -1710,7 +1713,7 @@ ctl_getitem(var_list, data)
 				tp++;
 			}
 			if ((*tp == '\0') || (*tp == '=')) {
-				while (cp < reqend && isspace(*cp))
+				while (cp < reqend && isspace((unsigned char)*cp))
 					cp++;
 				if (cp == reqend || *cp == ',') {
 					buf[0] = '\0';
@@ -1723,26 +1726,18 @@ ctl_getitem(var_list, data)
 				if (*cp == '=') {
 					cp++;
 					tp = buf;
-					while (cp < reqend && isspace(*cp))
+					while (cp < reqend && isspace((unsigned char)*cp))
 						cp++;
 					while (cp < reqend && *cp != ',') {
 						*tp++ = *cp++;
-						if (tp > buf + sizeof(buf)) {
-							msyslog(LOG_WARNING,
-	 "Attempted \"ntpdx\" exploit from IP %d.%d.%d.%d:%d (possibly spoofed)\n", 
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 24) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 16) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 8) & 0xff,
-	(ntohl(rmt_addr->sin_addr.s_addr) >> 0) & 0xff,
-	ntohs(rmt_addr->sin_port));
-
+						if (tp >= buf + sizeof(buf))
 							return (0);
-						}
 					}
 					if (cp < reqend)
 						cp++;
 					*tp = '\0';
-					while (isspace(*(tp-1)))
+					while (tp != buf &&
+					    isspace((unsigned char)*(tp-1)))
 						*(--tp) = '\0';
 					reqpt = cp;
 					*data = buf;
