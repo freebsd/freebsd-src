@@ -305,7 +305,7 @@ record_label_chunks(Device **devs, Device *dev)
 		    }
 		}
 	    }
-	    else if (c1->type == fat) {
+	    else if (c1->type == fat || c1->type == efi) {
 		label_chunk_info[j].type = PART_FAT;
 		label_chunk_info[j].c = c1;
 		++j;

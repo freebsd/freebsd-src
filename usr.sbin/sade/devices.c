@@ -460,7 +460,7 @@ skipif:
 
 	    /* Look for existing DOS partitions to register as "DOS media devices" */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
-		if (c1->type == fat || c1->type == extended) {
+		if (c1->type == fat || c1->type == efi || c1->type == extended) {
 		    Device *dev;
 		    char devname[80];
 
