@@ -46,8 +46,9 @@
 .Op Fl bfhpx
 .Op Fl l Ar num
 .Sh DESCRIPTION
-.Nm Col
-filters out reverse (and half reverse) line feeds so that the output is
+The
+.Nm
+utility filters out reverse (and half reverse) line feeds so that the output is
 in the correct order with only forward and half forward line
 feeds, and replaces white-space characters with tabs where possible.
 This can be useful in processing the output of
@@ -55,8 +56,9 @@ This can be useful in processing the output of
 and
 .Xr tbl  1 .
 .Pp
-.Nm Col
-reads from the standard input and writes to the standard output.
+The
+.Nm
+utility reads from the standard input and writes to the standard output.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -117,8 +119,9 @@ reverse line feed (11)
 All unrecognized control characters and escape sequences are
 discarded.
 .Pp
-.Nm Col
-keeps track of the character set as characters are read and makes
+The
+.Nm
+utility keeps track of the character set as characters are read and makes
 sure the character set is correct when they are output.
 .Pp
 If the input attempts to back up to the last flushed line,
