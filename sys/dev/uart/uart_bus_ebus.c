@@ -61,7 +61,7 @@ static driver_t uart_ebus_driver = {
 static int
 uart_ebus_probe(device_t dev)
 {
-	const char *nm;
+	const char *nm, *cmpt;
 	struct uart_softc *sc;
 	int error;
 
@@ -69,7 +69,9 @@ uart_ebus_probe(device_t dev)
 	sc->sc_class = NULL;
 
 	nm = ebus_get_name(dev);
-	if (!strcmp(nm, "su")) {
+	cmpt = ebus_get_compat(dev);
+	if (!strcmp(nm, "su") || !strcmp(nm, "su_pnp") || (cmpt != NULL &&
+	    (!strcmp(cmpt, "su") || !strcmp(cmpt, "su16550")))) {
 		sc->sc_class = &uart_ns8250_class;
 		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
