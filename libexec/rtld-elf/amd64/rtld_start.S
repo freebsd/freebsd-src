@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld_start.S,v 1.6 1998/03/05 21:05:53 jdp Exp $
+ *      $Id: rtld_start.S,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
  */
 
 	.text
@@ -32,12 +32,17 @@
 .rtld_start:
 	xorl	%ebp,%ebp		# Clear frame pointer for good form
 	movl	%esp,%eax		# Save initial stack pointer
-	subl	$4,%esp			# A place to store exit procedure addr
-	pushl	%esp			# Pass its address to rtld
+	subl	$8,%esp			# A place to store exit procedure addr
+	movl	%esp,%ebx		# save address of exit proc
+	movl	%esp,%ecx		# construct address of obj_main
+	addl	$4,%ecx
+	pushl	%ecx			# Pass address of obj_main
+	pushl	%ebx			# Pass address of exit proc
 	pushl	%eax			# Pass initial stack pointer to rtld
 	call	_rtld@PLT		# Call rtld(sp); returns entry point
-	addl	$8,%esp			# Remove arguments from stack
+	addl	$12,%esp		# Remove arguments from stack
 	popl	%edx			# Get exit procedure address
+	addl	$4,%esp			# Ignore obj_main
 /*
  * At this point, %eax contains the entry point of the main program, and
  * %edx contains a pointer to a termination function that should be

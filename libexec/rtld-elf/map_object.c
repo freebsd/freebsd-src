@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: map_object.c,v 1.2 1998/03/06 22:14:53 jdp Exp $
+ *      $Id: map_object.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -50,31 +50,31 @@ map_object(int fd)
 {
     Obj_Entry *obj;
     union {
-	Elf32_Ehdr hdr;
+	Elf_Ehdr hdr;
 	char buf[PAGE_SIZE];
     } u;
     int nbytes;
-    Elf32_Phdr *phdr;
-    Elf32_Phdr *phlimit;
-    Elf32_Phdr *segs[2];
+    Elf_Phdr *phdr;
+    Elf_Phdr *phlimit;
+    Elf_Phdr *segs[2];
     int nsegs;
-    Elf32_Phdr *phdyn;
-    Elf32_Phdr *phphdr;
+    Elf_Phdr *phdyn;
+    Elf_Phdr *phphdr;
     caddr_t mapbase;
     size_t mapsize;
-    Elf32_Off base_offset;
-    Elf32_Addr base_vaddr;
-    Elf32_Addr base_vlimit;
+    Elf_Off base_offset;
+    Elf_Addr base_vaddr;
+    Elf_Addr base_vlimit;
     caddr_t base_addr;
-    Elf32_Off data_offset;
-    Elf32_Addr data_vaddr;
-    Elf32_Addr data_vlimit;
+    Elf_Off data_offset;
+    Elf_Addr data_vaddr;
+    Elf_Addr data_vlimit;
     caddr_t data_addr;
-    Elf32_Addr clear_vaddr;
+    Elf_Addr clear_vaddr;
     caddr_t clear_addr;
     size_t nclear;
-    Elf32_Addr bss_vaddr;
-    Elf32_Addr bss_vlimit;
+    Elf_Addr bss_vaddr;
+    Elf_Addr bss_vlimit;
     caddr_t bss_addr;
 
     if ((nbytes = read(fd, u.buf, PAGE_SIZE)) == -1) {
@@ -83,7 +83,7 @@ map_object(int fd)
     }
 
     /* Make sure the file is valid */
-    if (nbytes < sizeof(Elf32_Ehdr)
+    if (nbytes < sizeof(Elf_Ehdr)
       || u.hdr.e_ident[EI_MAG0] != ELFMAG0
       || u.hdr.e_ident[EI_MAG1] != ELFMAG1
       || u.hdr.e_ident[EI_MAG2] != ELFMAG2
@@ -91,8 +91,8 @@ map_object(int fd)
 	_rtld_error("Invalid file format");
 	return NULL;
     }
-    if (u.hdr.e_ident[EI_CLASS] != ELFCLASS32
-      || u.hdr.e_ident[EI_DATA] != ELFDATA2LSB) {
+    if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
+      || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
 	_rtld_error("Unsupported file layout");
 	return NULL;
     }
@@ -105,7 +105,7 @@ map_object(int fd)
 	_rtld_error("Unsupported file type");
 	return NULL;
     }
-    if (u.hdr.e_machine != EM_386) {
+    if (u.hdr.e_machine != ELF_TARG_MACH) {
 	_rtld_error("Unsupported machine");
 	return NULL;
     }
@@ -115,9 +115,9 @@ map_object(int fd)
      * not strictly required by the ABI specification, but it seems to
      * always true in practice.  And, it simplifies things considerably.
      */
-    assert(u.hdr.e_phentsize == sizeof(Elf32_Phdr));
-    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf32_Phdr) <= PAGE_SIZE);
-    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf32_Phdr) <= nbytes);
+    assert(u.hdr.e_phentsize == sizeof(Elf_Phdr));
+    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= PAGE_SIZE);
+    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= nbytes);
 
     /*
      * Scan the program header entries, and save key information.
@@ -125,7 +125,7 @@ map_object(int fd)
      * We rely on there being exactly two load segments, text and data,
      * in that order.
      */
-    phdr = (Elf32_Phdr *) (u.buf + u.hdr.e_phoff);
+    phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
     phlimit = phdr + u.hdr.e_phnum;
     nsegs = 0;
     phdyn = NULL;
@@ -156,8 +156,8 @@ map_object(int fd)
     }
 
     assert(nsegs == 2);
-    assert(segs[0]->p_align <= PAGE_SIZE);
-    assert(segs[1]->p_align <= PAGE_SIZE);
+    assert(segs[0]->p_align >= PAGE_SIZE);
+    assert(segs[1]->p_align >= PAGE_SIZE);
 
     /*
      * Map the entire address space of the object, to stake out our
@@ -219,12 +219,12 @@ map_object(int fd)
       base_vaddr;
     obj->vaddrbase = base_vaddr;
     obj->relocbase = mapbase - base_vaddr;
-    obj->dynamic = (const Elf32_Dyn *)
+    obj->dynamic = (const Elf_Dyn *)
       (mapbase + (phdyn->p_vaddr - base_vaddr));
     if (u.hdr.e_entry != 0)
 	obj->entry = (caddr_t) (mapbase + (u.hdr.e_entry - base_vaddr));
     if (phphdr != NULL) {
-	obj->phdr = (const Elf32_Phdr *)
+	obj->phdr = (const Elf_Phdr *)
 	  (mapbase + (phphdr->p_vaddr - base_vaddr));
 	obj->phsize = phphdr->p_memsz;
     }
