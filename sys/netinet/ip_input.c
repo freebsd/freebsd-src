@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.31 1995/12/19 20:46:15 wollman Exp $
+ * $Id: ip_input.c,v 1.32 1995/12/20 18:04:19 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -303,7 +303,7 @@ next:
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
 		if (ia->ia_ifp->if_flags & IFF_BROADCAST) {
-#if 1
+#if 0
 			u_long t;
 #endif
 
@@ -312,7 +312,7 @@ next:
 				goto ours;
 			if (ip->ip_dst.s_addr == ia->ia_netbroadcast.s_addr)
 				goto ours;
-#if 1 /* XXX - this should go away */
+#if 0 /* XXX - this should go away */
 			/*
 			 * Look for all-0's host part (old broadcast addr),
 			 * either for subnet or net.
