@@ -5,7 +5,8 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
+static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, vm_offset_t *paddr,
+    int prot)
 {
 	drm_device_t	 *dev	 = kdev->si_drv1;
 	drm_device_dma_t *dma	 = dev->dma;
@@ -19,10 +20,11 @@ static int DRM(dma_mmap)(dev_t kdev, vm_offset_t offset, int prot)
 	physical = dma->pagelist[page];
 
 	DRM_DEBUG("0x%08x (page %lu) => 0x%08lx\n", offset, page, physical);
-	return atop(physical);
+	*paddr = physical;
+	return 0;
 }
 
-int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)
+int DRM(mmap)(dev_t kdev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
 	drm_device_t	*dev	= kdev->si_drv1;
 	drm_map_t	*map	= NULL;
@@ -43,7 +45,7 @@ int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)
 	if (dev->dma
 	    && offset >= 0
 	    && offset < ptoa(dev->dma->page_count))
-		return DRM(dma_mmap)(kdev, offset, prot);
+		return DRM(dma_mmap)(kdev, offset, paddr, prot);
 
 				/* A sequential search of a linked list is
 				   fine here because: 1) there will only be
@@ -72,9 +74,11 @@ int DRM(mmap)(dev_t kdev, vm_offset_t offset, int prot)
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 	case _DRM_AGP:
-		return atop(offset);
+		*paddr = offset;
+		return 0;
 	case _DRM_SHM:
-		return atop(vtophys(offset));
+		*paddr = vtophys(offset);
+		return 0;
 	default:
 		return -1;	/* This should never happen. */
 	}

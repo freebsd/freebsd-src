@@ -313,12 +313,12 @@ pcigfb_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 int
-pcigfb_mmap(dev_t dev, vm_offset_t offset, int prot)
+pcigfb_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
 	struct gfb_softc *sc;
 
 	sc = (struct gfb_softc *)devclass_get_softc(gfb_devclass, minor(dev));
-	return genfbmmap(&sc->gensc, sc->adp, offset, prot);
+	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
 }
 
 #endif /*FB_INSTALL_CDEV*/

@@ -397,12 +397,12 @@ gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-gdcmmap(dev_t dev, vm_offset_t offset, int prot)
+gdcmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
     gdc_softc_t *sc;
 
     sc = GDC_SOFTC(GDC_UNIT(dev));
-    return genfbmmap(&sc->gensc, sc->adp, offset, prot);
+    return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
 }
 
 #endif /* FB_INSTALL_CDEV */

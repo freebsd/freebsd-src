@@ -157,7 +157,8 @@ typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
 typedef int d_write_t(dev_t dev, struct uio *uio, int ioflag);
 typedef int d_poll_t(dev_t dev, int events, struct thread *td);
 typedef int d_kqfilter_t(dev_t dev, struct knote *kn);
-typedef int d_mmap_t(dev_t dev, vm_offset_t offset, int nprot);
+typedef int d_mmap_t(dev_t dev, vm_offset_t offset, vm_offset_t *paddr,
+   		     int nprot);
 
 typedef int l_open_t(dev_t dev, struct tty *tp);
 typedef int l_close_t(struct tty *tp, int flag);

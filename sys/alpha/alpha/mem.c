@@ -222,7 +222,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, int prot)
+memmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
@@ -238,7 +238,8 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	 */
 	if ((prot & alpha_pa_access(atop((vm_offset_t)offset))) != prot)
 		return (-1);
-	return (alpha_btop(ALPHA_PHYS_TO_K0SEG(offset)));
+	*paddr = ALPHA_PHYS_TO_K0SEG(offset);
+	return (0);
 }
 
 static int

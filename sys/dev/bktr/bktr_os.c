@@ -753,7 +753,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thread *td
  * 
  */
 static int
-bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
+bktr_mmap( dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot )
 {
 	int		unit;
 	bktr_ptr_t	bktr;
@@ -779,7 +779,8 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 	if (offset >= bktr->alloc_pages * PAGE_SIZE)
 		return( -1 );
 
-	return( atop(vtophys(bktr->bigbuf) + offset) );
+	*paddr = vtophys(bktr->bigbuf) + offset;
+	return( 0 );
 }
 
 static int

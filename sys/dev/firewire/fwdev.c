@@ -921,13 +921,13 @@ fw_poll(dev_t dev, int events, fw_proc *td)
 }
 
 static int
-fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
+fw_mmap (dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nproto)
 {  
 	struct firewire_softc *fc;
 	int unit = DEV2UNIT(dev);
 
 	if (DEV_FWMEM(dev))
-		return fwmem_mmap(dev, offset, nproto);
+		return fwmem_mmap(dev, offset, paddr, nproto);
 
 	fc = devclass_get_softc(firewire_devclass, unit);
 
