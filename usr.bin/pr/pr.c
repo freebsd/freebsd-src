@@ -1560,11 +1560,11 @@ void
 usage()
 {
 	(void)fputs(
-	 "usage: pr [+page] [-col] [-adFLmrt] [-e[ch][gap]] [-h header]\n",err);
+	 "usage: pr [+page] [-col] [-adFmrt] [-e[ch][gap]] [-h header]\n",err);
 	(void)fputs(
 	 "          [-i[ch][gap]] [-l line] [-n[ch][width]] [-o offset]\n",err);
 	(void)fputs(
-	 "          [-s[ch]] [-w width] [-] [file ...]\n", err);
+	 "          [-L locale] [-s[ch]] [-w width] [-] [file ...]\n", err);
 }
 
 /*
@@ -1581,7 +1581,7 @@ setup(argc, argv)
 	int iflag = 0;
 	int wflag = 0;
 	int cflag = 0;
-	int Lflag = 0;
+	char *Lflag = NULL;
 
 	if (isatty(fileno(stdout))) {
 		/*
@@ -1593,7 +1593,7 @@ setup(argc, argv)
 		}
 	} else
 		err = stderr;
-	while ((c = egetopt(argc, argv, "#adFmrte?h:i?Ll:n?o:s?w:")) != -1) {
+	while ((c = egetopt(argc, argv, "#adFmrte?h:i?L:l:n?o:s?w:")) != -1) {
 		switch (c) {
 		case '+':
 			if ((pgnm = atoi(eoptarg)) < 1) {
@@ -1665,7 +1665,7 @@ setup(argc, argv)
 				ogap = OGAP;
 			break;
 		case 'L':
-			Lflag++;
+			Lflag = eoptarg;
 			break;
 		case 'l':
 			if (!isdigit((unsigned char)*eoptarg) || ((lines=atoi(eoptarg)) < 1)) {
@@ -1817,8 +1817,7 @@ setup(argc, argv)
 	}
 
 	timefrmt = TIMEFMT;
-	if (!Lflag)
-		(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_TIME, (Lflag != NULL) ? Lflag : "");
 
 	return(0);
 }
