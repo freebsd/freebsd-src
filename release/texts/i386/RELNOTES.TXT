@@ -53,6 +53,10 @@ The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
 The fxp(4) driver now requires a "device miibus" entry in the kernel
 configuration file.
 
+smbfs (CIFS) support in kernel has been added.
+
+TCP now has RFC 1323 extensions enabled by default in rc.conf(5).
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -76,6 +80,24 @@ link, with a -n option for compatability with other implementations.
 
 find(1) now has the -anewer, -cnewer, -mnewer, -okdir, and
 -newer[acm][acmt] primaries for comparisons of file timestamps.
+
+c89(1) has been converted from a shell script to a binary executable,
+fixing some minor bugs.
+
+vidcontrol(1) now supports a -p option to take a snapshot of a
+syscons(4) video buffer.  These snapshots can be manipulated by some
+of the scr2* utilities in the Ports Collection.
+
+vidcontrol(1) now allows the user to omit the font size specification
+when loading a font, and has some better error-handling.
+
+telnet(1) now supports a -u flag to allow connections to UNIX-domain
+(AF_UNIX) sockets.
+
+newfs(8) now takes a -U option to enable softupdates on a new
+filesystem.
+
+libcrypt now has support for Blowfish password hashing.
 
 
 2. Supported Configurations
