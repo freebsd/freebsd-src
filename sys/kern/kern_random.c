@@ -1,7 +1,7 @@
 /*
  * random.c -- A strong random number generator
  *
- * $Id$
+ * $Id: random_machdep.c,v 1.2 1995/12/27 11:22:01 markm Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -49,6 +49,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/isa_device.h>
+#include <machine/cpu.h>
 #include <machine/random.h>
 
 /*
@@ -191,7 +192,7 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	}
 	else {
 #endif
-		outb(TIMER_LATCH|TIMER_SEL0, TIMER_MODE); /* latch ASAP */
+		outb(TIMER_MODE, TIMER_LATCH|TIMER_SEL0); /* latch ASAP */
 		num ^= inb(TIMER_CNTR0) << 16;
 		num ^= inb(TIMER_CNTR0) << 24;
 		r->entropy_count += 2;
