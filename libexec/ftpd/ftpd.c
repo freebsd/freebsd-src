@@ -1145,7 +1145,8 @@ end_login(void)
 	pw = NULL;
 #ifdef	LOGIN_CAP
 	setusercontext(NULL, getpwuid(0), (uid_t)0,
-		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK);
+		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|
+		       LOGIN_SETMAC);
 #endif
 #ifdef USE_PAM
 	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS)
@@ -1408,7 +1409,7 @@ skip:
 	}
 	setusercontext(lc, pw, (uid_t)0,
 		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
-		LOGIN_SETRESOURCES|LOGIN_SETUMASK);
+		LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
