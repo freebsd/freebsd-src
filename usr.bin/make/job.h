@@ -221,7 +221,7 @@ extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
 
 
 void Job_Touch(GNode *, Boolean);
-Boolean Job_CheckCommands(GNode *, void (*abortProc )(char *, ...));
+Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);
 void Job_CatchOutput(void);
 void Job_Make(GNode *);
