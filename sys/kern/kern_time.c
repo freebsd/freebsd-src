@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.51 1998/04/05 12:10:41 phk Exp $
+ * $Id: kern_time.c,v 1.52 1998/04/06 08:26:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -287,10 +287,24 @@ signanosleep(p, uap)
 	if (error)
 		return (error);
 
-	/* change mask for sleep */
+	/*
+	 * Use the support for sigsuspend() to manage the masks.  Arrange to
+	 * have postsig() itself restore the mask after the signal has
+	 * been delivered.  This is because postsig() is called just prior
+	 * to returning to usermode.  If we had restore the masks early, the
+	 * signal would be blocked by the time it should have been processed.
+	 */
+	p->p_sigacts->ps_oldmask = p->p_sigmask;
+	p->p_sigacts->ps_flags |= SAS_OLDMASK;
 	p->p_sigmask = mask &~ sigcantmask;
 
 	error = nanosleep1(p, &rqt, &rmt);
+
+	if (error != EINTR) {
+		/* signal not queued, restore mask ourselves */
+		p->p_sigmask = p->p_sigacts->ps_oldmask;
+		p->p_sigacts->ps_flags &= ~SAS_OLDMASK;
+	}
 
 	if (error && SCARG(uap, rmtp)) {
 		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
