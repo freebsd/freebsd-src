@@ -145,7 +145,45 @@ Boston, MA 02111-1307, USA.  */
    
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
-    
+
+/* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
+   source tree so it can be configured appropriately without using
+   the GNU configure/build mechanism. */
+
+#ifdef FREEBSD_NATIVE
+
+/* Look for the include files in the system-defined places.  */
+
+#define GPLUSPLUS_INCLUDE_DIR		"/usr/include/g++"
+
+#define GCC_INCLUDE_DIR			"/usr/include"
+
+/* FreeBSD has GCC_INCLUDE_DIR first.  */
+#define INCLUDE_DEFAULTS		\
+  {					\
+    { GCC_INCLUDE_DIR, 0, 0 },		\
+    { GPLUSPLUS_INCLUDE_DIR, 1, 1 },	\
+    { 0, 0, 0 }				\
+  }
+
+/* Under FreeBSD, the normal location of the compiler back ends is the
+   /usr/libexec directory.  */
+
+#define STANDARD_EXEC_PREFIX		"/usr/libexec/"
+
+/* Under FreeBSD, the normal location of the various *crt*.o files is the
+   /usr/lib directory.  */
+
+#define STANDARD_STARTFILE_PREFIX	"/usr/lib/"
+
+/* On FreeBSD, gcc is called 'cc' */
+#define GCC_NAME			"cc"
+
+/* FreeBSD is 4.4BSD derived */
+#define bsd4_4
+
+#endif /* FREEBSD_NATIVE */
+
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Dunix -Di386 -D__ELF__ -D__FreeBSD__=3 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
