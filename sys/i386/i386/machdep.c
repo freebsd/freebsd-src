@@ -299,7 +299,9 @@ again:
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
-	 * buffers to cover 1/20 of our ram over 64MB.
+	 * buffers to cover 1/20 of our ram over 64MB.  When auto-sizing
+	 * the buffer cache we limit the eventual kva reservation to
+	 * maxbcache bytes.
 	 *
 	 * factor represents the 1/4 x ram conversion.
 	 */
@@ -312,6 +314,9 @@ again:
 			    16384 / factor);
 		if (physmem_est > 16384)
 			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
+
+		if (maxbcache && nbuf > physmem_est / BKVASIZE)
+			nbuf = maxbcache / BKVASIZE;
 	}
 
 	/*
