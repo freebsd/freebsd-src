@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2004
+.Dd January 26, 2005
 .Dt FPCLASSIFY 3
 .Os
 .Sh NAME
@@ -92,6 +92,12 @@ The symbol
 is provided as an alias to
 .Fn isnan
 for compatibility, and its use is deprecated.
+Similarly,
+.Fn finite
+and
+.Fn finitef
+are deprecated versions of
+.Fn isfinite .
 .Sh SEE ALSO
 .Xr isgreater 3 ,
 .Xr math 3 ,
