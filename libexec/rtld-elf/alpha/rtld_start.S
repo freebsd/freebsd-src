@@ -3,6 +3,7 @@
 
 /*
  * Copyright 1996 Matt Thomas <matt@3am-software.com>
+ * Copyright 2000 John D. Polstra
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,7 +166,53 @@ $100:	ldgp    gp, 0(gp)
 	lda     sp, 168(sp)
 	jmp     $31, ($27)
 	.end _rtld_bind_start
+
+/*
+ * int cmp0_and_store_int(volatile int *p, int newval);
+ *
+ * If an int holds 0, store newval into it; else do nothing.  Returns
+ * the previous value.
+ */
+LEAF(cmp0_and_store_int, 2)
+1:	mov	a1, t0
+	ldl_l	v0, 0(a0)
+	bne	v0, 3f
+	stl_c	t0, 0(a0)
+	beq	t0, 2f
+	mb
+	RET
+2:	br	1b
+3:	RET
+END(cmp0_and_store_int)
+
+LEAF(atomic_add_int, 2)
+0:	ldl_l	t0, 0(a0)
+	addq	t0, a1, t0
+	stl_c	t0, 0(a0)
+	beq	t0, 1f
+	mb
+	RET
+1:	br	0b
+END(atomic_add_int)
  
+/* Atomically increment an int. */
+LEAF(atomic_incr_int, 1)
+0:	ldl_l	t0, 0(a0)
+	addq	t0, 1, t0
+	stl_c	t0, 0(a0)
+	beq	t0, 1f
+	mb
+	RET
+1:	br	0b
+END(atomic_incr_int)
 
-
-
+/* Atomically decrement an int. */
+LEAF(atomic_decr_int, 1)
+0:	ldl_l	t0, 0(a0)
+	subq	t0, 1, t0
+	stl_c	t0, 0(a0)
+	beq	t0, 1f
+	mb
+	RET
+1:	br	0b
+END(atomic_decr_int)
