@@ -183,7 +183,7 @@ struct vnode {
 #define	VOWANT		0x20000	/* a thread is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
-/* open for business	0x100000 */
+#define	VCACHEDLABEL	0x100000 /* Vnode has valid cached MAC label */
 #define	VONWORKLST	0x200000 /* On syncer work-list */
 #define	VMOUNT		0x400000 /* Mount in progress */
 #define	VOBJDIRTY	0x800000 /* object might be dirty */
