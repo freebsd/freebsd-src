@@ -45,7 +45,7 @@
 .Op Fl w Ar word
 .Op Fl s Ar string
 .Op Fl p Ar precision
-.Op reps Op begin Op end Op s
+.Op Ar reps Op Ar begin Op Ar end Op Ar s
 .Sh DESCRIPTION
 The
 .Nm
@@ -125,13 +125,15 @@ Defaults for the four arguments are, respectively,
 the seed,
 .Ar s ,
 is picked randomly.
-.Ar Reps
-is expected to be an unsigned integer,
+The
+.Ar reps
+argument is expected to be an unsigned integer,
 and if given as zero is taken to be infinite.
-.Ar Begin
+The
+.Ar begin
 and
 .Ar end
-may be given as real numbers or as characters
+arguments may be given as real numbers or as characters
 representing the corresponding value in
 .Tn ASCII .
 The last argument must be a real number.
