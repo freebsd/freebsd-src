@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.1 1997/01/30 21:43:38 wollman Exp $
+ *	$Id: fetch.h,v 1.2 1997/01/31 19:55:49 wollman Exp $
  */
 
 #ifndef fetch_h
@@ -78,6 +78,7 @@ void	init_schemes(void);
 void	rm(struct fetch_state *fs);
 void	setup_sigalrm(void);
 void	unsetup_sigalrm(void);
+void	*safe_malloc(size_t len);
 char	*percent_decode(const char *orig);
 char	*safe_strdup(const char *orig);
 char	*safe_strndup(const char *orig, size_t len);
