@@ -248,12 +248,6 @@ tco_setscales(struct timecounter *tc)
 }
 
 void
-tc_update(struct timecounter *tc)
-{
-	tco_setscales(tc);
-}
-
-void
 tc_init(struct timecounter *tc)
 {
 	struct timecounter *t1, *t2, *t3;

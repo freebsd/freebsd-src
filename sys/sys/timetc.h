@@ -96,7 +96,6 @@ extern struct timecounter *volatile timecounter;
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
 void	tc_windup(void);
-void	tc_update(struct timecounter *tc);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_TIMETC_H_ */
