@@ -821,13 +821,6 @@ udp_attach(struct socket *so, int proto, struct proc *p)
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = ip_defttl;
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
-	if (error != 0) {
-		in_pcbdetach(inp);
-		return error;
-	}
-#endif /*IPSEC*/
 	return 0;
 }
 

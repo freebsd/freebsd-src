@@ -361,13 +361,6 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	/* The socket is always "connected" because
 	   we always know "where" to send the packet */
 	so->so_state |= SS_ISCONNECTED;
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
-	if (error != 0) {
-		in_pcbdetach(inp);
-		return error;
-	}
-#endif /*IPSEC*/
 	return 0;
 }
 
