@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile.inc,v 1.15 1996/09/19 15:38:01 peter Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -46,12 +46,6 @@ LIBDESTDIR=	${.OBJDIR}/../cc_int
 LIBDESTDIR=	${.CURDIR}/../cc_int
 .endif
 
-# XXX LDDESTDIR isn't a directory and there is no standard name for the dir
-LDDESTDIR=	-L${LIBDESTDIR}
-.if defined(SHARED_LIBCC_INT)
-LIBCC_INT=	${LIBDESTDIR}/libcc_int.so.272.0
-.else
 LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
-.endif
 
 .endif

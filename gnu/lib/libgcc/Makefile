@@ -1,8 +1,10 @@
 #
-# $Id: Makefile,v 1.9 1996/05/07 23:15:14 wosch Exp $
+# $Id: Makefile,v 1.11 1996/09/19 15:53:44 peter Exp $
 #
 
 LIB=	gcc
+
+# Install libgcc_pic.a, since ld.so uses it.
 INSTALL_PIC_ARCHIVE=  yes
 
 #
