@@ -2265,7 +2265,7 @@ usf_dec_ie_uimp(usf, ie)
  * Decode an information element using field identifiers
  *
  * The AAL parameters and ATM user cell rate IEs are formatted
- * with a one-byte identifier preceeding each field.  The routine
+ * with a one-byte identifier preceding each field.  The routine
  * parses these IEs by using a table which relates the field
  * identifiers with the fields in the appropriate IE structure.
  * Field order in the received message is immaterial.

@@ -370,7 +370,7 @@ DEFINE_PARSE_STRUCT_TYPE(typeinfo, TYPEINFO, ());
 DEFINE_PARSE_STRUCT_TYPE(linkinfo, LINKINFO, (&ng_generic_nodeinfo_type));
 
 /* Get length of an array when the length is stored as a 32 bit
-   value immediately preceeding the array -- as with struct namelist
+   value immediately preceding the array -- as with struct namelist
    and struct typelist. */
 static int
 ng_generic_list_getLength(const struct ng_parse_type *type,

@@ -1501,7 +1501,7 @@ usf_enc_ie_uimp(usf, ie)
  * Encode an information element using field identifiers
  *
  * The AAL parameters and ATM user cell rate IEs are formatted
- * with a one-byte identifier preceeding each field.  The routine
+ * with a one-byte identifier preceding each field.  The routine
  * encodes these IEs by using a table which relates the field
  * identifiers with the fields in the appropriate IE structure.
  *

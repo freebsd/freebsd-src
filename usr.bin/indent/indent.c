@@ -756,7 +756,7 @@ check_type:
 	    if (ps.in_parameter_declaration)
 		prefix_blankline_requested = 0;
 
-	    if (ps.p_l_follow > 0) {	/* check for preceeding unbalanced
+	    if (ps.p_l_follow > 0) {	/* check for preceding unbalanced
 					 * parens */
 		diag(1, "Unbalanced parens");
 		ps.p_l_follow = 0;
