@@ -29,9 +29,10 @@
 extern char *optarg;
 extern void pw_init __P((void));
 static char *program_name = "";
-static char *version = "yppsswdd " VERSION;
+static char *version = "yppasswdd " VERSION;
 char *passfile = _PATH_MASTERPASSWD;
 int allow_chfn = 0, allow_chsh = 0;
+char *domain;
 
 #define xprt_addr(xprt)	(svc_getcaller(xprt)->sin_addr)
 #define xprt_port(xprt)	ntohs(svc_getcaller(xprt)->sin_port)
@@ -157,6 +158,12 @@ main(int argc, char **argv)
 
 	if (daemon(0,0)) {
 		perror("fork");
+		exit(1);
+	}
+
+	if (yp_get_default_domain(&domain)) {
+		fprintf(stderr, "%s: NIS domain name not set -- aborting\n",
+					program_name);
 		exit(1);
 	}
 

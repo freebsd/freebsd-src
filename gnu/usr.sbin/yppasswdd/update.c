@@ -27,6 +27,9 @@
 #include <rpc/pmap_clnt.h>
 #include "yppasswd.h"
 
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+
 char *tempname, *passfile;
 extern int *allow_chfn, *allow_chsh;
 extern int pid;
@@ -34,10 +37,62 @@ extern int     pw_copy __P((int, int, struct passwd *));
 extern int     pw_lock __P((void));
 extern int     pw_mkdb __P((void));
 extern int     pw_tmp __P((void));
+extern char	*domain;
+static struct passwd yp_password;
 
 #define xprt_addr(xprt)	(svc_getcaller(xprt)->sin_addr)
 #define xprt_port(xprt)	ntohs(svc_getcaller(xprt)->sin_port)
 void reaper( int sig );
+
+static void copy_yp_pass(p, x, m)
+	char *p;
+	int x, m;
+{
+	register char *t, *s = p;
+	static char *buf;
+
+	yp_password.pw_fields = 0;
+
+	buf = (char *)realloc(buf, m + 10);
+	bzero(buf, m + 10);
+
+	/* Turn all colons into NULLs */
+	while (strchr(s, ':')) {
+		s = (strchr(s, ':') + 1);
+		*(s - 1)= '\0';
+	}
+
+	t = buf;
+#define EXPAND(e)       e = t; while ((*t++ = *p++));
+        EXPAND(yp_password.pw_name);
+	yp_password.pw_fields |= _PWF_NAME;
+        EXPAND(yp_password.pw_passwd);
+	yp_password.pw_fields |= _PWF_PASSWD;
+	yp_password.pw_uid = atoi(p);
+        p += (strlen(p) + 1);
+	yp_password.pw_fields |= _PWF_UID;
+	yp_password.pw_gid = atoi(p);
+        p += (strlen(p) + 1);
+	yp_password.pw_fields |= _PWF_GID;
+	if (x) {
+		EXPAND(yp_password.pw_class);
+		yp_password.pw_fields |= _PWF_CLASS;
+		yp_password.pw_change = atol(p);
+		p += (strlen(p) + 1);
+		yp_password.pw_fields |= _PWF_CHANGE;
+		yp_password.pw_expire = atol(p);
+		p += (strlen(p) + 1);
+		yp_password.pw_fields |= _PWF_EXPIRE;
+	}
+        EXPAND(yp_password.pw_gecos);
+	yp_password.pw_fields |= _PWF_GECOS;
+        EXPAND(yp_password.pw_dir);
+	yp_password.pw_fields |= _PWF_DIR;
+        EXPAND(yp_password.pw_shell);
+	yp_password.pw_fields |= _PWF_SHELL;
+
+	return;
+}
 
 /*===============================================================*
  * Argument validation. Avoid \n... (ouch).
@@ -78,6 +133,8 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
     int		pfd, tfd;
     char	*passfile_hold;
     char	template[] = "/tmp/yppwtmp.XXXXX";
+    char	*result;
+    int		resultlen;
 
     newpw = &yppw->newpw;
     res = 1;
@@ -96,11 +153,24 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
 
     /* Check if the user exists
      */
+    if (yp_match(domain, "master.passwd.byname", yppw->newpw.pw_name,
+	strlen(yppw->newpw.pw_name), &result, &resultlen)) {
+	syslog ( LOG_WARNING, "%s failed", logbuf );
+	syslog ( LOG_WARNING, "User not in password file." );
+	return (&res);
+    } else {
+	copy_yp_pass(result, 1, resultlen);
+	pw = (struct passwd *)&yp_password;
+	free(result);
+    }
+
+#ifdef notdef
     if (!(pw = getpwnam(yppw->newpw.pw_name))) {
         syslog ( LOG_WARNING, "%s failed", logbuf );
         syslog ( LOG_WARNING, "User not in password file." );
         return (&res);
     }
+#endif
 
    /* Check the password.
     */
