@@ -65,7 +65,6 @@ options 	SYSVSEM			#SYSV-style semaphores
 #options 	NINTR=24		# number of INTs
 
 controller	isa0
-controller	pnp0			# PnP support for ISA
 controller	pci0
 
 # Floppy drives
