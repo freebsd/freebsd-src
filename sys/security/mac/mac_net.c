@@ -89,9 +89,12 @@ mac_mbuf_to_label(struct mbuf *mbuf)
 	struct m_tag *tag;
 	struct label *label;
 
+	if (mbuf == NULL)
+		return (NULL);
 	tag = m_tag_find(mbuf, PACKET_TAG_MACLABEL, NULL);
+	if (tag == NULL)
+		return (NULL);
 	label = (struct label *)(tag+1);
-
 	return (label);
 }
 
