@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: wormcontrol.8,v 1.2 1996/02/01 14:14:22 joerg Exp $
+.\" $Id: wormcontrol.8,v 1.4 1996/11/06 13:35:27 joerg Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -111,6 +111,9 @@ By now, the vendor/model names of
 .Dq PLASMON
 \&/
 .Dq RF4100 ,
+.Dq PHILIPS
+\&/
+.Dq CDD2000 ,
 and
 .Dq HP
 \&/
@@ -175,7 +178,7 @@ The typical sequence of burning a data CD-R looks like:
 # wormcontrol select PLASMON RF4100
 # wormcontrol prepdisk double
 # wormcontrol track data
-# rtprio 5 team -v 1m 5 < cdrom.image | dd of=/dev/rworm0 obs=20k
+# rtprio 5 team -v 1m 5 < cdrom.image | rtprio 5 dd of=/dev/rworm0 obs=20k
 # wormcontrol fixate 1
 .Ed
 .Pp
@@ -199,11 +202,13 @@ pipe a constant data stream into the CD recorder.
 .Xr dd 1 ,
 .Xr team 1 ,
 .Xr perror 3 .
+.Pp
+.Pa /usr/share/examples/worm/*
 .Sh HISTORY
 .Nm Wormcontrol
 is currently under development.
 .Sh AUTHOR
 The program has been contributed by
-.if n Joerg Wunsch,
-.if t J\(:org Wunsch,
+.ie t J\(:org Wunsch,
+.el Joerg Wunsch,
 Dresden.
