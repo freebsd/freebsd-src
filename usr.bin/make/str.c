@@ -41,7 +41,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "make.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "globals.h"
+#include "str.h"
+#include "util.h"
+#include "var.h"
 
 static char **argv, *buffer;
 static int argmax, curlen;

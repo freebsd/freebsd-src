@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -36,76 +35,56 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)config.h	8.2 (Berkeley) 4/28/95
  * $FreeBSD$
  */
 
-#ifndef config_h_efe0765e
-#define	config_h_efe0765e
+#ifndef util_h_b7020fdb
+#define	util_h_b7020fdb
+
+#include <sys/types.h>
+
+#define	CONCAT(a,b)	a##b
 
 /*
- * DEFMAXJOBS
- *	This control the default concurrency. On no occasion will more
- *	than DEFMAXJOBS targets be created at once.
+ * debug control:
+ *	There is one bit per module.  It is up to the module what debug
+ *	information to print.
  */
-#define	DEFMAXJOBS	1
+#define	DEBUG_ARCH	0x0001
+#define	DEBUG_COND	0x0002
+#define	DEBUG_DIR	0x0004
+#define	DEBUG_GRAPH1	0x0008
+#define	DEBUG_GRAPH2	0x0010
+#define	DEBUG_JOB	0x0020
+#define	DEBUG_MAKE	0x0040
+#define	DEBUG_SUFF	0x0080
+#define	DEBUG_TARG	0x0100
+#define	DEBUG_VAR	0x0200
+#define	DEBUG_FOR	0x0400
+#define	DEBUG_LOUD	0x0800
 
-/*
- * INCLUDES
- * LIBRARIES
- *	These control the handling of the .INCLUDES and .LIBS variables.
- *	If INCLUDES is defined, the .INCLUDES variable will be filled
- *	from the search paths of those suffixes which are marked by
- *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS
- *	See suff.c for more details.
- */
-#define	INCLUDES
-#define	LIBRARIES
+#define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
+#define	DEBUGF(module,args)		\
+do {						\
+	if (DEBUG(module)) {			\
+		Debug args ;			\
+	}					\
+} while (0)
 
-/*
- * LIBSUFF
- *	Is the suffix used to denote libraries and is used by the Suff module
- *	to find the search path on which to seek any -l<xx> targets.
- *
- * RECHECK
- *	If defined, Make_Update will check a target for its current
- *	modification time after it has been re-made, setting it to the
- *	starting time of the make only if the target still doesn't exist.
- *	Unfortunately, under NFS the modification time often doesn't
- *	get updated in time, so a target will appear to not have been
- *	re-made, causing later targets to appear up-to-date. On systems
- *	that don't have this problem, you should defined this. Under
- *	NFS you probably should not, unless you aren't exporting jobs.
- */
-#define	LIBSUFF	".a"
-#define	RECHECK
+#define	ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
+#define	ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
 
-/*
- * SYSVINCLUDE
- *	Recognize system V like include directives [include "filename"]
- * SYSVVARSUB
- *	Recognize system V like ${VAR:x=y} variable substitutions
- */
-#define	SYSVINCLUDE
-#define	SYSVVARSUB
+void Debug(const char *, ...);
+void Error(const char *, ...);
+void Fatal(const char *, ...);
+void Punt(const char *, ...);
+void DieHorribly(void);
+int PrintAddr(void *, void *);
+void Finish(int);
+char *estrdup(const char *);
+void *emalloc(size_t);
+void *erealloc(void *, size_t);
+void enomem(void);
+int eunlink(const char *);
 
-/*
- * SUNSHCMD
- *	Recognize SunOS and Solaris:
- *		VAR :sh= CMD	# Assign VAR to the command substitution of CMD
- *		${VAR:sh}	# Return the command substitution of the value
- *				# of ${VAR}
- */
-#define	SUNSHCMD
-
-#if !defined(__svr4__) && !defined(__SVR4) && !defined(__ELF__)
-# ifndef RANLIBMAG
-#  define RANLIBMAG "__.SYMDEF"
-# endif
-#else
-# ifndef RANLIBMAG
-#  define RANLIBMAG "/"
-# endif
-#endif
-
-#endif /* config_h_efe0765e */
+#endif /* util_h_b7020fdb */

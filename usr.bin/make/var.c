@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1989 by Berkeley Softworks
@@ -83,13 +83,21 @@ __FBSDID("$FreeBSD$");
  * XXX: There's a lot of duplication in these functions.
  */
 
-#include    <ctype.h>
-#include    <sys/types.h>
-#include    <regex.h>
-#include    <stdlib.h>
-#include    "make.h"
-#include    "buf.h"
-#include    "var.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "buf.h"
+#include "config.h"
+#include "globals.h"
+#include "GNode.h"
+#include "make.h"
+#include "nonints.h"
+#include "parse.h"
+#include "str.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 /*
  * This is a harmless return value for Var_Parse that can be used by Var_Subst

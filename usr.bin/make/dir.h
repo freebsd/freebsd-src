@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -40,11 +40,13 @@
  * $FreeBSD$
  */
 
-/* dir.h --
- */
+#ifndef dir_h_6002e3b8
+#define	dir_h_6002e3b8
 
-#ifndef	_DIR
-#define	_DIR
+#include "hash.h"
+
+struct GNode;
+struct Lst;
 
 typedef struct Path {
 	char	*name;	    	/* Name of directory */
@@ -57,16 +59,16 @@ typedef struct Path {
 void Dir_Init(void);
 void Dir_InitDot(void);
 Boolean Dir_HasWildcards(const char *);
-void Dir_Expand(char *, Lst *, Lst *);
-char *Dir_FindFile(char *, Lst *);
-int Dir_MTime(GNode *);
-void Dir_AddDir(Lst *, char *);
-char *Dir_MakeFlags(char *, Lst *);
-void Dir_ClearPath(Lst *);
-void Dir_Concat(Lst *, Lst *);
+void Dir_Expand(char *, struct Lst *, struct Lst *);
+char *Dir_FindFile(char *, struct Lst *);
+int Dir_MTime(struct GNode *);
+void Dir_AddDir(struct Lst *, char *);
+char *Dir_MakeFlags(char *, struct Lst *);
+void Dir_ClearPath(struct Lst *);
+void Dir_Concat(struct Lst *, struct Lst *);
 void Dir_PrintDirectories(void);
-void Dir_PrintPath(Lst *);
+void Dir_PrintPath(struct Lst *);
 void Dir_Destroy(void *);
 void *Dir_CopyDir(void *);
 
-#endif /* _DIR */
+#endif /* dir_h_6002e3b8 */

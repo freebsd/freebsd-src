@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
  *	Function to concatentate two lists.
  */
 
+#include <stdio.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

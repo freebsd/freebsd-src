@@ -46,8 +46,11 @@ __FBSDID("$FreeBSD$");
  *	Remove the node and return its datum from the head of the list
  */
 
+#include <stdio.h>
+
 #include "make.h"
 #include "lst.h"
+#include "util.h"
 
 /*-
  *-----------------------------------------------------------------------

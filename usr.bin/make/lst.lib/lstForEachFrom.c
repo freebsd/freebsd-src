@@ -47,7 +47,11 @@ __FBSDID("$FreeBSD$");
  *	a given point.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

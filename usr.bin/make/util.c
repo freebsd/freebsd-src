@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Juli Mallett.  All rights reserved.
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -50,19 +50,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <err.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <sysexits.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "make.h"
-#include "hash.h"
-#include "dir.h"
+#include "globals.h"
 #include "job.h"
-#include "pathnames.h"
+#include "targ.h"
+#include "util.h"
 
 /*-
  * Debug --
