@@ -2602,6 +2602,8 @@ static void dc_tx_underrun(sc)
 
 	if (DC_IS_INTEL(sc))
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
+
+	return;
 }
 
 static void dc_intr(arg)
@@ -2612,9 +2614,13 @@ static void dc_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+
+	if ( (CSR_READ_4(sc, DC_ISR) & DC_INTRS) == 0)
+		return ;
+
 	ifp = &sc->arpcom.ac_if;
 
-	/* Supress unwanted interrupts */
+	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		if (CSR_READ_4(sc, DC_ISR) & DC_INTRS)
 			dc_stop(sc);
