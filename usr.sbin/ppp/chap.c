@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.44 1999/02/18 00:52:12 brian Exp $
+ * $Id: chap.c,v 1.45 1999/02/18 19:11:46 brian Exp $
  *
  *	TODO:
  */
@@ -105,8 +105,11 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
 }
 
 static char *
-chap_BuildAnswer(char *name, char *key, u_char id, char *challenge,
-                 u_char type, int lanman)
+chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
+#ifdef HAVE_DES
+                 , int lanman
+#endif
+                )
 {
   char *result, *digest;
   size_t nlen, klen;
@@ -286,20 +289,32 @@ chap_Cleanup(struct chap *chap, int sig)
       log_Printf(LogERROR, "Chap: Child exited %d\n", WEXITSTATUS(status));
   }
   *chap->challenge = 0;
+#ifdef HAVE_DES
   chap->peertries = 0;
+#endif
 }
 
 static void
-chap_Respond(struct chap *chap, char *name, char *key, u_char type, int lm)
+chap_Respond(struct chap *chap, char *name, char *key, u_char type
+#ifdef HAVE_DES
+             , int lm
+#endif
+            )
 {
   u_char *ans;
 
-  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, type, lm);
+  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, type
+#ifdef HAVE_DES
+                         , lm
+#endif
+                        );
 
   if (ans) {
     ChapOutput(chap->auth.physical, CHAP_RESPONSE, chap->auth.id,
                ans, *ans + 1 + strlen(name), name);
+#ifdef HAVE_DES
     chap->NTRespSent = !lm;
+#endif
     free(ans);
   } else
     ChapOutput(chap->auth.physical, CHAP_FAILURE, chap->auth.id,
@@ -362,10 +377,12 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         chap_Cleanup(chap, SIGTERM);
       }
     } else {
+#ifdef HAVE_DES
       int lanman = chap->auth.physical->link.lcp.his_authtype == 0x80 &&
                    ((chap->NTRespSent &&
                      IsAccepted(chap->auth.physical->link.lcp.cfg.chap80lm)) ||
                     !IsAccepted(chap->auth.physical->link.lcp.cfg.chap80nt));
+#endif
 
       while (end >= name && strchr(" \t\r\n", *end))
         *end-- = '\0';
@@ -374,8 +391,11 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         *end-- = '\0';
       key += strspn(key, " \t");
 
-      chap_Respond(chap, name, key,
-                   chap->auth.physical->link.lcp.his_authtype, lanman);
+      chap_Respond(chap, name, key, chap->auth.physical->link.lcp.his_authtype
+#ifdef HAVE_DES
+                   , lanman
+#endif
+                  );
       chap_Cleanup(chap, 0);
     }
   }
@@ -451,21 +471,29 @@ chap_Failure(struct authinfo *authp)
 }
 
 static int
-chap_Cmp(u_char type, int lm, char *myans, int mylen, char *hisans, int hislen)
+chap_Cmp(u_char type, char *myans, int mylen, char *hisans, int hislen
+#ifdef HAVE_DES
+         , int lm
+#endif
+        )
 {
   if (mylen != hislen)
     return 0;
+#ifdef HAVE_DES
   else if (type == 0x80) {
     int off = lm ? 0 : 24;
 
     if (memcmp(myans + off, hisans + off, 24))
       return 0;
-  } else if (memcmp(myans, hisans, mylen))
+  }
+#endif
+  else if (memcmp(myans, hisans, mylen))
     return 0;
 
   return 1;
 }
 
+#ifdef HAVE_DES
 static int
 chap_HaveAnotherGo(struct chap *chap)
 {
@@ -478,6 +506,7 @@ chap_HaveAnotherGo(struct chap *chap)
 
   return 0;
 }
+#endif
 
 void
 chap_Init(struct chap *chap, struct physical *p)
@@ -491,8 +520,10 @@ chap_Init(struct chap *chap, struct physical *p)
   chap->child.fd = -1;
   auth_Init(&chap->auth, p, chap_Challenge, chap_Success, chap_Failure);
   *chap->challenge = 0;
+#ifdef HAVE_DES
   chap->NTRespSent = 0;
   chap->peertries = 0;
+#endif
 }
 
 void
@@ -506,8 +537,11 @@ chap_Input(struct physical *p, struct mbuf *bp)
 {
   struct chap *chap = &p->dl->chap;
   char *name, *key, *ans;
-  int len, nlen, lanman;
+  int len, nlen;
   u_char alen;
+#ifdef HAVE_DES
+  int lanman;
+#endif
 
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL)
     log_Printf(LogERROR, "Chap Input: Truncated header !\n");
@@ -530,7 +564,9 @@ chap_Input(struct physical *p, struct mbuf *bp)
     }
     chap->auth.id = chap->auth.in.hdr.id;	/* We respond with this id */
 
+#ifdef HAVE_DES
     lanman = 0;
+#endif
     switch (chap->auth.in.hdr.code) {
       case CHAP_CHALLENGE:
         bp = mbuf_Read(bp, &alen, 1);
@@ -543,9 +579,11 @@ chap_Input(struct physical *p, struct mbuf *bp)
         *chap->challenge = alen;
         bp = mbuf_Read(bp, chap->challenge + 1, alen);
         bp = auth_ReadName(&chap->auth, bp, len);
+#ifdef HAVE_DES
         lanman = p->link.lcp.his_authtype == 0x80 &&
                  ((chap->NTRespSent && IsAccepted(p->link.lcp.cfg.chap80lm)) ||
                   !IsAccepted(p->link.lcp.cfg.chap80nt));
+#endif
         break;
 
       case CHAP_RESPONSE:
@@ -566,7 +604,9 @@ chap_Input(struct physical *p, struct mbuf *bp)
         bp = mbuf_Read(bp, ans + 1, alen);
         ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
+#ifdef HAVE_DES
         lanman = alen == 49 && ans[alen] == 0;
+#endif
         break;
 
       case CHAP_SUCCESS:
@@ -589,13 +629,19 @@ chap_Input(struct physical *p, struct mbuf *bp)
           log_Printf(LogPHASE, "Chap Input: %s (%d bytes from %s%s)\n",
                      chapcodes[chap->auth.in.hdr.code], alen,
                      chap->auth.in.name,
+#ifdef HAVE_DES
                      lanman && chap->auth.in.hdr.code == CHAP_RESPONSE ?
-                     " - lanman" : "");
+                     " - lanman" :
+#endif
+                     "");
         else
           log_Printf(LogPHASE, "Chap Input: %s (%d bytes%s)\n",
                      chapcodes[chap->auth.in.hdr.code], alen,
+#ifdef HAVE_DES
                      lanman && chap->auth.in.hdr.code == CHAP_RESPONSE ?
-                     " - lanman" : "");
+                     " - lanman" :
+#endif
+                     "");
         break;
 
       case CHAP_SUCCESS:
@@ -616,8 +662,11 @@ chap_Input(struct physical *p, struct mbuf *bp)
                           p->dl->bundle->cfg.auth.name);
         else
           chap_Respond(chap, p->dl->bundle->cfg.auth.name,
-                       p->dl->bundle->cfg.auth.key,
-                       p->link.lcp.his_authtype, lanman);
+                       p->dl->bundle->cfg.auth.key, p->link.lcp.his_authtype
+#ifdef HAVE_DES
+                       , lanman
+#endif
+                      );
         break;
 
       case CHAP_RESPONSE:
@@ -634,6 +683,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
           key = auth_GetSecret(p->dl->bundle, name, nlen, p);
           if (key) {
             char *myans;
+#ifdef HAVE_DES
             if (lanman && !IsEnabled(p->link.lcp.cfg.chap80lm)) {
               log_Printf(LogPHASE, "Auth failure: LANMan not enabled\n");
               if (chap_HaveAnotherGo(chap))
@@ -645,15 +695,25 @@ chap_Input(struct physical *p, struct mbuf *bp)
               if (chap_HaveAnotherGo(chap))
                 break;
               key = NULL;
-            } else {
+            } else
+#endif
+            {
               myans = chap_BuildAnswer(name, key, chap->auth.id,
                                        chap->challenge,
-                                       p->link.lcp.want_authtype, lanman);
+                                       p->link.lcp.want_authtype
+#ifdef HAVE_DES
+                                       , lanman
+#endif
+                                      );
               if (myans == NULL)
                 key = NULL;
               else {
-                if (!chap_Cmp(p->link.lcp.want_authtype, lanman,
-                              myans + 1, *myans, ans + 1, alen))
+                if (!chap_Cmp(p->link.lcp.want_authtype, myans + 1, *myans,
+                              ans + 1, alen
+#ifdef HAVE_DES
+                              , lanman
+#endif
+                             ))
                   key = NULL;
                 free(myans);
               }
