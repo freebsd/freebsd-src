@@ -16,7 +16,7 @@
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
      edge. -->
-<!ENTITY release.prev.stable "4.7-RELEASE">
+<!ENTITY release.prev.stable "4.8-RELEASE">
 
 <!-- The previous historical release.  Used only to tell what was
      the cutoff point for "historic" release notes. -->
