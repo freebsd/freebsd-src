@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_hypot.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
+static char rcsid[] = "$Id: e_hypot.c,v 1.5 1997/03/09 16:29:22 bde Exp $";
 #endif
 
 /* __ieee754_hypot(x,y)
@@ -107,7 +107,7 @@ static char rcsid[] = "$Id: e_hypot.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 	    t1 = 0;
 	    SET_HIGH_WORD(t1,ha);
 	    t2 = a-t1;
-	    w  = sqrt(t1*t1-(b*(-b)-t2*(a+t1)));
+	    w  = __ieee754_sqrt(t1*t1-(b*(-b)-t2*(a+t1)));
 	} else {
 	    a  = a+a;
 	    y1 = 0;
@@ -116,7 +116,7 @@ static char rcsid[] = "$Id: e_hypot.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 	    t1 = 0;
 	    SET_HIGH_WORD(t1,ha+0x00100000);
 	    t2 = a - t1;
-	    w  = sqrt(t1*y1-(w*(-w)-(t1*y2+t2*b)));
+	    w  = __ieee754_sqrt(t1*y1-(w*(-w)-(t1*y2+t2*b)));
 	}
 	if(k!=0) {
 	    u_int32_t high;

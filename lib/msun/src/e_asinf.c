@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_asinf.c,v 1.2 1995/05/30 05:47:56 rgrimes Exp $";
+static char rcsid[] = "$Id: e_asinf.c,v 1.6 1997/03/09 16:29:20 bde Exp $";
 #endif
 
 #include "math.h"
@@ -73,7 +73,7 @@ qS4 =  7.7038154006e-02; /* 0x3d9dc62e */
 	t = w*(float)0.5;
 	p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
 	q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
-	s = sqrtf(t);
+	s = __ieee754_sqrtf(t);
 	if(ix>=0x3F79999A) { 	/* if |x| > 0.975 */
 	    w = p/q;
 	    t = pio2_hi-((float)2.0*(s+s*w)-pio2_lo);

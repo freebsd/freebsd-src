@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_acoshf.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
+static char rcsid[] = "$Id: e_acoshf.c,v 1.5 1997/03/09 16:29:17 bde Exp $";
 #endif
 
 #include "math.h"
@@ -49,9 +49,9 @@ ln2	= 6.9314718246e-01;  /* 0x3f317218 */
 	    return 0.0;			/* acosh(1) = 0 */
 	} else if (hx > 0x40000000) {	/* 2**28 > x > 2 */
 	    t=x*x;
-	    return __ieee754_logf((float)2.0*x-one/(x+sqrtf(t-one)));
+	    return __ieee754_logf((float)2.0*x-one/(x+__ieee754_sqrtf(t-one)));
 	} else {			/* 1<x<2 */
 	    t = x-one;
-	    return log1pf(t+sqrtf((float)2.0*t+t*t));
+	    return log1pf(t+__ieee754_sqrtf((float)2.0*t+t*t));
 	}
 }

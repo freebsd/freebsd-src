@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_asinh.c,v 1.1.1.1 1994/08/19 09:39:45 jkh Exp $";
+static char rcsid[] = "$Id: s_asinh.c,v 1.5 1997/03/09 16:29:29 bde Exp $";
 #endif
 
 /* asinh(x)
@@ -56,10 +56,10 @@ huge=  1.00000000000000000000e+300;
 	    w = __ieee754_log(fabs(x))+ln2;
 	} else if (ix>0x40000000) {	/* 2**28 > |x| > 2.0 */
 	    t = fabs(x);
-	    w = __ieee754_log(2.0*t+one/(sqrt(x*x+one)+t));
+	    w = __ieee754_log(2.0*t+one/(__ieee754_sqrt(x*x+one)+t));
 	} else {		/* 2.0 > |x| > 2**-28 */
 	    t = x*x;
-	    w =log1p(fabs(x)+t/(one+sqrt(one+t)));
+	    w =log1p(fabs(x)+t/(one+__ieee754_sqrt(one+t)));
 	}
 	if(hx>0) return w; else return -w;
 }

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_acos.c,v 1.2 1995/05/30 05:47:51 rgrimes Exp $";
+static char rcsid[] = "$Id: e_acos.c,v 1.6 1997/03/09 16:29:14 bde Exp $";
 #endif
 
 /* __ieee754_acos(x)
@@ -35,7 +35,7 @@ static char rcsid[] = "$Id: e_acos.c,v 1.2 1995/05/30 05:47:51 rgrimes Exp $";
  *	if x is NaN, return x itself;
  *	if |x|>1, return NaN with invalid signal.
  *
- * Function needed: sqrt
+ * Function needed: __ieee754_sqrt
  */
 
 #include "math.h"
@@ -92,13 +92,13 @@ qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 	    z = (one+x)*0.5;
 	    p = z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))));
 	    q = one+z*(qS1+z*(qS2+z*(qS3+z*qS4)));
-	    s = sqrt(z);
+	    s = __ieee754_sqrt(z);
 	    r = p/q;
 	    w = r*s-pio2_lo;
 	    return pi - 2.0*(s+w);
 	} else {			/* x > 0.5 */
 	    z = (one-x)*0.5;
-	    s = sqrt(z);
+	    s = __ieee754_sqrt(z);
 	    df = s;
 	    SET_LOW_WORD(df,0);
 	    c  = (z-df*df)/(s+df);
