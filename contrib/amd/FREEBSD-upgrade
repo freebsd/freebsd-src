@@ -83,6 +83,7 @@ For the import of AMD the following files were removed:
 
 	libamu/
 	Makefile.am     Makefile.in     clnt_sperrno.c  memcmp.c
+	strcasecmp.c    strdup.c        strstr.c        ualarm.c
 
 	mk-amd-map/
 	Makefile.am     Makefile.in
