@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)lfs_cleanerd.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: lfs_cleanerd.8,v 1.5 1997/02/22 14:21:45 peter Exp $
+.\"	$Id: lfs_cleanerd.8,v 1.6 1997/06/23 04:02:09 steve Exp $
 .\"
 .Dd December 11, 1993
 .Dt LFS_CLEANERD 8
@@ -44,7 +44,7 @@
 .Pa node
 .Sh DESCRIPTION
 The
-.Nm lfs_cleanerd
+.Nm
 command starts a daemon process which garbage-collects
 the log-structured file system residing at the point named by
 .Ar node
@@ -74,6 +74,6 @@ When cleaning the file system, read data in small chunks.
 .Xr mount_lfs 8
 .Sh HISTORY
 The
-.Nm lfs_cleanerd
+.Nm
 utility first appeared in
 .Bx 4.4 .
