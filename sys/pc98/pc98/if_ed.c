@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.50 1998/06/22 08:06:58 kato Exp $
+ *	$Id: if_ed.c,v 1.51 1998/08/28 12:47:44 kato Exp $
  */
 
 /*
@@ -4213,11 +4213,8 @@ ds_getmcaf(sc, mcaf)
 
 #if NPNP > 0
 
-static struct edpnp_ids {
-	u_long vend_id;
-	char *id_str;
-} edpnp_ids[] = {
-	{ 0x1980635e, "WSC8019"},
+static pnpid_t edpnp_ids[] = {
+	{ 0xd680d041, "NE2000"},
 	{ 0 }
 };
 
@@ -4238,12 +4235,12 @@ DATA_SET (pnpdevice_set, edpnp);
 static char *
 edpnp_probe(u_long csn, u_long vend_id)
 {
-	struct edpnp_ids *ids;
+	pnpid_t *id;
 	char *s = NULL;
 
-	for(ids = edpnp_ids; ids->vend_id != 0; ids++) {
-		if (vend_id == ids->vend_id) {
-			s = ids->id_str;
+	for(id = edpnp_ids; id->vend_id != 0; id++) {
+		if (vend_id == id->vend_id) {
+			s = id->id_str;
 			break;
 		}
 	}
