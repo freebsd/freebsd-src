@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.39 1994/03/20 20:05:55 davidg Exp $
+ *	$Id: syscons.c,v 1.40 1994/03/21 06:37:04 davidg Exp $
  *
  */
 
@@ -795,7 +795,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			scp->status &= ~LOCK_KEY_MASK;
 			scp->status |= *data;
 			if (scp == cur_console) 
-				update_leds(scp->status & LED_MASK);
+				update_leds(scp->status);
 			return 0;
 		}
 		return EINVAL;
@@ -864,7 +864,7 @@ int pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			scp->status &= ~LED_MASK;
 			scp->status |= *data;
 			if (scp == cur_console)
-			update_leds(scp->status & LED_MASK);
+				update_leds(scp->status);
 			return 0;
 		}
 		return EINVAL;
@@ -1449,7 +1449,7 @@ static void exchange_scr(void)
 	new_scp->crt_base = Crtat;
 	move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
 	bcopy(new_scp->scr_buf, Crtat, new_scp->xsize * new_scp->ysize * 2);
-	update_leds(new_scp->status & LED_MASK);
+	update_leds(new_scp->status);
 	if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
 		shfts = ctls = alts = agrs = metas = 0;
 	delayed_next_scr = 0;
@@ -2084,6 +2084,13 @@ static void update_leds(int which)
 {
   	static u_char xlate_leds[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
+	/* replace CAPS led with ALTGR led for ALTGR keyboards */
+	if (key_map.n_keys > ALTGR_OFFSET) {
+		if (which & ALKED)
+			which |= CLKED;
+		else
+			which &= ~CLKED;
+	}
 	kbd_cmd2(KB_SETLEDS, xlate_leds[which & LED_MASK]);
 }
   
@@ -2311,7 +2318,7 @@ next_code:
 						cur_console->status &= ~NLKED;
 					else
 						cur_console->status |= NLKED;
-					update_leds(cur_console->status & LED_MASK); 
+					update_leds(cur_console->status);
 				}
 				break;
 			case CLK:
@@ -2321,7 +2328,7 @@ next_code:
 						cur_console->status &= ~CLKED;
 					else
 						cur_console->status |= CLKED;
-					update_leds(cur_console->status & LED_MASK);
+					update_leds(cur_console->status);
 				}
 				break;
 			case SLK:
@@ -2333,7 +2340,7 @@ next_code:
 					} 
 					else 
 						cur_console->status |= SLKED;
-					update_leds(cur_console->status & LED_MASK);
+					update_leds(cur_console->status);
 				}
 				break;
  			case ALK:
@@ -2343,6 +2350,7 @@ next_code:
  						cur_console->status &= ~ALKED;
  					else
  						cur_console->status |= ALKED;
+					update_leds(cur_console->status);
 				}
   				break;
 
