@@ -1158,6 +1158,8 @@ msschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct mss_chinfo *ch = data;
 
 	ch->blksz = blocksize;
+	sndbuf_resize(ch->buffer, 2, ch->blksz);
+
 	return ch->blksz;
 }
 
