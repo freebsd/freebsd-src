@@ -494,6 +494,13 @@ exit1(struct thread *td, int rv)
 
 	cpu_sched_exit(td); /* XXXKSE check if this should be in thread_exit */
 	/*
+	 * Allow the scheduler to adjust the priority of the
+	 * parent when a kseg is exiting.
+	 */
+	if (p->p_pid != 1) 
+		sched_exit(p->p_pptr, p);
+
+	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
 	 * This will also release this thread's reference to the ucred.
 	 * Other thread parts to release include pcb bits and such.
@@ -575,17 +582,6 @@ loop:
 
 		nfound++;
 		if (p->p_state == PRS_ZOMBIE) {
-			/*
-			 * Allow the scheduler to adjust the priority of the
-			 * parent when a kseg is exiting.
-			 */
-			if (curthread->td_proc->p_pid != 1) {
-				mtx_lock_spin(&sched_lock);
-				sched_exit(curthread->td_ksegrp,
-				    FIRST_KSEGRP_IN_PROC(p));
-				mtx_unlock_spin(&sched_lock);
-			}
-
 			td->td_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat)
