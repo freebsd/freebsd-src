@@ -265,8 +265,6 @@ makefile(void)
 		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("hints.c.new"), path("hints.c"));
-	
-	printf("Don't forget to do a ``make depend''\n");
 }
 
 /*
