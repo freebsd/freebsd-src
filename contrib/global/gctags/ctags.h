@@ -47,7 +47,11 @@
 #endif
 
 #define	SETLINE		{++lineno;lineftell = ftell(inf);}
+#ifdef GLOBAL
+#define	GETC(op,exp)	((((c = getc(inf)) == '\r') ? (c = getc(inf)) : c) op (int)exp)
+#else
 #define	GETC(op,exp)	((c = getc(inf)) op (int)exp)
+#endif
 
 #define	iswhite(arg)	(_wht[(unsigned)arg])	/* T if char is white */
 #define	begtoken(arg)	(_btk[(unsigned)arg])	/* T if char can start token */
@@ -71,11 +75,13 @@ extern FILE    *inf;			/* ioptr for current input file */
 extern FILE    *outf;			/* ioptr for current output file */
 extern long	lineftell;		/* ftell after getc( inf ) == '\n' */
 extern int	lineno;			/* line number of current line */
-#ifdef GTAGS
+#ifdef GLOBAL
+extern int	cflag;                  /* -c: compact index */
 extern int	eflag;                  /* -e: '{' at 0 column force function end */
 extern int	Dflag;			/* -D: allow duplicate entrys */
 extern int	rflag;			/* -r: function reference */
-#endif /* GTAGS */
+extern int	sflag;			/* -s: collect symbols */
+#endif
 extern int	dflag;			/* -d: non-macro defines */
 extern int	tflag;			/* -t: create tags for typedefs */
 extern int	vflag;			/* -v: vgrind style index output */
@@ -85,6 +91,7 @@ extern bool	_wht[], _etk[], _itk[], _btk[], _gd[];
 extern char	lbuf[LINE_MAX];
 extern char    *lbp;
 extern char	searchar;		/* ex search character */
+extern char    *progname;		/* program name */
 
 #ifndef __P
 #ifdef __STDC__
@@ -105,9 +112,7 @@ void	y_entries __P((void));
 int	PF_funcs __P((void));
 void	c_entries __P((void));
 void	skip_comment __P((void));
-#ifdef GTAGS
+#ifdef GLOBAL
 void	asm_entries __P((void));
-void	gtagopen __P((void));
-int	isdefined __P((char *));
-void	gtagclose __P((void));
+int	portable_getc __P((FILE *));
 #endif

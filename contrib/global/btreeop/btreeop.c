@@ -28,132 +28,58 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	btreeop.c				6-Jul-97
+ *	btreeop.c				6-Nov-97
  *
  */
-#include <err.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <ctype.h>
-#include <db.h>
-#include <fcntl.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include "global.h"
 
 char    *dbdefault = "btree";   	/* default database name */
-char    *dbname;
-char	buf[BUFSIZ+1];
-char	out[BUFSIZ+1];
+char	*progname  = "btreeop";		/* command name */
 
-#ifndef __P
-#if defined(__STDC__)
-#define __P(protos)     protos
-#else
-#define __P(protos)     ()
-#endif
-#endif
-
-void	die __P((char *));
 static void	usage __P((void));
-void	entab __P((char *));
-void	detab __P((char *, char *));
+void	signal_setup __P((void));
+void	onintr __P((int));
 void	main __P((int, char **));
-void	dbwrite __P((DB *));
-void	dbkey __P((DB *, char *));
-void	dbscan __P((DB *, int));
-void	dbdel __P((DB *, char *));
-DB	*db;
-char	*key;
+void	dbwrite __P((DBIO *));
+void	dbkey __P((DBIO *, char *, int));
+void	dbscan __P((DBIO *, char *, int));
+void	dbdel __P((DBIO *, char *, int));
+void	dbbysecondkey __P((DBIO *, int, char *, int));
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN   1234
-#endif
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN      4321
-#endif
-
-void
-die(s)
-char	*s;
-{
-	errx(1, "%s", s);
-}
+#define F_KEY	0
+#define F_DEL	1
 
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n",
-		"usage: btreeop [-A][-C][-D key][-K key][-L][-b][-c cachesize]",
-		"               [-l][-p psize][dbname]");
+	fprintf(stderr, "%s\n",
+		"usage: btreeop [-A][-C][-D[n] key][-K[n] key][-L][-k prefix][dbname]");
 	exit(1);
 }
 
-#define TABPOS(i)	((i)%8 == 0)
 /*
- * entab: convert spaces into tabs
- *
- *	io)	buf	string buffer
+ * Btreeop catch signal even if the parent ignore it.
  */
-void
-entab(buf)
-char	*buf;
-{
-	int	blanks = 0;
-	int	pos, src, dst;
-	char	c;
+int	exitflag = 0;
 
-	pos = src = dst = 0;
-	while ((c = buf[src++]) != 0) {
-		if (c == ' ') {
-			if (!TABPOS(++pos)) {
-				blanks++;		/* count blanks */
-				continue;
-			}
-			buf[dst++] = '\t';
-		} else if (c == '\t') {
-			while (!TABPOS(++pos))
-				;
-			buf[dst++] = '\t';
-		} else {
-			++pos;
-			while (blanks--)
-				buf[dst++] = ' ';
-			buf[dst++] = c;
-		}
-		blanks = 0;
-	}
-	buf[dst] = 0;
-}
-/*
- * detab: convert tabs into spaces
- *
- *	i)	buf	string including tabs
- *	o)	out	output
- */
 void
-detab(buf, out)
-char	*buf;
-char	*out;
+onintr(signo)
+int	signo;
 {
-	int	src, dst;
-	char	c;
-
-	src = dst = 0;
-	while ((c = buf[src++]) != 0) {
-		if (c == '\t') {
-			do {
-				out[dst++] = ' ';
-			} while (!TABPOS(dst));
-		} else {
-			out[dst++] = c;
-		}
-	}
-	out[dst] = 0;
+	exitflag = 1;
 }
 
-#include <errno.h>
+void
+signal_setup()
+{
+	signal(SIGHUP, onintr);
+	signal(SIGINT, onintr);
+	signal(SIGQUIT, onintr);
+	signal(SIGTERM, onintr);
+}
+
 void
 main(argc, argv)
 int	argc;
@@ -161,27 +87,20 @@ char	*argv[];
 {
 	char	command = 'R';
 	char	*key = NULL;
-	DB	*db;
-	BTREEINFO info;
-	int	c;
-	int	flags = 0;
-	extern	char *optarg;
-	extern	int optind;
+	int	mode;
+	char	*dbname;
+	DBIO	*dbio;
+	int	i, c;
+	int	secondkey = 0;
+	char	*prefix = (char *)0;
 
-	info.flags = R_DUP;		/* allow duplicate entries */
-	info.cachesize = 500000;
-	info.maxkeypage = 0;
-	info.minkeypage = 0;
-	info.psize = 0;
-	info.compare = NULL;
-	info.prefix = NULL;
-	info.lorder = LITTLE_ENDIAN;
-
-	while ((c = getopt(argc, argv, "ACD:K:Lbc:lp:")) != -1) {
-		switch (c) {
-		case 'K':
+	for (i = 1; i < argc && argv[i][0] == '-'; ++i) {
+		switch (c = argv[i][1]) {
 		case 'D':
-			key = optarg;
+		case 'K':
+			if (argv[i][2] && isdigit(argv[i][2]))
+				secondkey = atoi(&argv[i][2]);
+			key = argv[++i];
 		case 'A':
 		case 'C':
 		case 'L':
@@ -189,89 +108,79 @@ char	*argv[];
 				usage();
 			command = c;
 			break;
-		case 'b':
-			info.lorder = BIG_ENDIAN;
-			break;
-		case 'c':
-			info.cachesize = atoi(optarg);
-			break;
-		case 'l':
-			info.lorder = LITTLE_ENDIAN;
-			break;
-		case 'p':
-			info.psize = atoi(optarg);
+		case 'k':
+			prefix = argv[++i];
 			break;
 		default:
 			usage();
 		}
 	}
-
-	dbname = (optind < argc) ? argv[optind] : dbdefault;
+	dbname = (i < argc) ? argv[i] : dbdefault;
 	switch (command) {
 	case 'A':
 	case 'D':
-		flags = O_RDWR|O_CREAT;
+		mode = 2;
 		break;
 	case 'C':
-		flags = O_RDWR|O_CREAT|O_TRUNC;
+		mode = 1;
 		break;
 	case 'K':
 	case 'L':
 	case 'R':
-		flags = O_RDONLY;
+		mode = 0;
 		break;
 	}
-	db = dbopen(dbname, flags, 0644, DB_BTREE, &info);
-	if (db == NULL) {
-		die("dbopen failed.");
-	}
+	dbio = db_open(dbname, mode, 0644, DBIO_DUP);
+	if (dbio == NULL)
+		die1("db_open failed (dbname = %s).", dbname);
+
 	switch (command) {
 	case 'A':			/* Append records */
 	case 'C':			/* Create database */
-		dbwrite(db);
+		dbwrite(dbio);
 		break;
 	case 'D':			/* Delete records */
-		dbdel(db, key);
+		dbdel(dbio, key, secondkey);
 		break;
 	case 'K':			/* Keyed (indexed) read */
-		dbkey(db, key);
+		dbkey(dbio, key, secondkey);
 		break;
 	case 'R':			/* sequencial Read */
-	case 'L':			/* key's List */
-		dbscan(db, (command == 'L') ? 1 : 0);
+	case 'L':			/* primary key List */
+		dbscan(dbio, prefix, (command == 'L') ? 1 : 0);
 		break;
 	}
-	if (db->close(db)) {
-		die("db->close failed.");
-	}
+	db_close(dbio);
+	if (exitflag)
+		exit(1);
 	exit(0);
 }
 /*
  * dbwrite: write to database
  *
- *	i)	db
+ *	i)	dbio		database
  */
 void
-dbwrite(db)
-DB	*db;
+dbwrite(dbio)
+DBIO	*dbio;
 {
-	DBT     key, dat;
-	int	status;
-#define IDENTLEN 80
-	char	keybuf[IDENTLEN+1];
+	char	*p;
+	char	keybuf[MAXKEYLEN+1];
 	char	*c;
 
+	signal_setup();
 	/*
 	 * Input file format:
-	 * +------------------
-	 * |Key		Data\n
-	 * |Key		Data\n
+	 * +--------------------------------------------------
+	 * |Primary-key	secondary-key-1 secondary-key-2 Data\n
+	 * |Primary-key	secondary-key-1 secondary-key-2 Data\n
 	 * 	.
 	 * 	.
-	 * - Key and Data are separated by blank('\t' or ' '). 
-	 * - Key cannot include blank.
+	 * - Keys and Data are separated by blank('\t' or ' '). 
+	 * - Keys cannot include blank.
 	 * - Data can include blank.
-	 * - Null Data not allowed.
+	 * - Null record not allowed.
+	 * - Secondary-key is assumed as a part of data by db(3).
 	 *
 	 * META record:
 	 * You can write meta record by making key start with a ' '.
@@ -279,127 +188,151 @@ DB	*db;
 	 * +------------------
 	 * | __.VERSION 2
 	 */
-	while (fgets(buf, BUFSIZ, stdin)) {
-		if (buf[strlen(buf)-1] == '\n')		/* chop(buf) */
-			buf[strlen(buf)-1] = 0;
-		else
-			while (fgetc(stdin) != '\n')
-				;
-		c = buf;
+	while (p = mgets(stdin, 0, NULL)) {
+		if (exitflag)
+			break;
+		c = p;
 		if (*c == ' ') {			/* META record */
 			if (*++c == ' ')
-				die("illegal format.");
+				die("key cannot include blanks.");
 		}
 		for (; *c && !isspace(*c); c++)		/* skip key part */
 			;
 		if (*c == 0)
 			die("data part not found.");
-		if (c - buf > IDENTLEN)
-			die("key too long.");
-		strncpy(keybuf, buf, c - buf);		/* make key string */
-		keybuf[c - buf] = 0;
+		if (c - p > MAXKEYLEN)
+			die("primary key too long.");
+		strncpy(keybuf, p, c - p);		/* make key string */
+		keybuf[c - p] = 0;
 		for (; *c && isspace(*c); c++)		/* skip blanks */
 			;
 		if (*c == 0)
 			die("data part is null.");
-		entab(buf);
-		key.data = keybuf;
-		key.size = strlen(keybuf)+1;
-		dat.data = buf;
-		dat.size = strlen(buf)+1;
-
-		status = (db->put)(db, &key, &dat, 0);
-		switch (status) {
-		case RET_SUCCESS:
-			break;
-		case RET_ERROR:
-		case RET_SPECIAL:
-			die("db->put: failed.");
-		}
+		entab(p);
+		db_put(dbio, keybuf, p);
 	}
 }
 
 /*
  * dbkey: Keyed search
  *
- *	i)	db
- *	i)	skey	
+ *	i)	dbio		database
+ *	i)	skey		key for search
+ *	i)	secondkey	0: primary key, >0: secondary key
  */
 void
-dbkey(db, skey)
-DB	*db;
+dbkey(dbio, skey, secondkey)
+DBIO	*dbio;
 char	*skey;
+int	secondkey;
 {
-	DBT	dat, key;
-	int	status;
+	char	*p;
 
-	key.data = skey;
-	key.size = strlen(skey)+1;
-
-	for (status = (*db->seq)(db, &key, &dat, R_CURSOR);
-		status == RET_SUCCESS && !strcmp(key.data, skey);
-		status = (*db->seq)(db, &key, &dat, R_NEXT)) {
-		detab((char *)dat.data, out);
-		(void)fprintf(stdout, "%s\n", out);
+	if (!secondkey) {
+		for (p = db_first(dbio, skey, 0); p; p = db_next(dbio))
+			detab(stdout, p);
+		return;
 	}
-	if (status == RET_ERROR)
-		die("db->seq failed.");
+	dbbysecondkey(dbio, F_KEY, skey, secondkey);
 }
 
 /*
- * dbscan: Scan all records
+ * dbscan: Scan records
  *
- *	i)	db
- *	i)	keylist
+ *	i)	dbio		database
+ *	i)	prefix		prefix of primary key
+ *	i)	keylist		0: key and data, 1: primary key only
  */
 void
-dbscan(db, keylist)
-DB	*db;
+dbscan(dbio, prefix, keylist)
+DBIO	*dbio;
+char	*prefix;
 int	keylist;
 {
-	DBT	dat, key;
-	int	status;
-	char	prev[IDENTLEN+1];
+	char	*p;
+	int	flags = DBIO_SKIPMETA; 
 
-	prev[0] = 0;
-	for (status = (*db->seq)(db, &key, &dat, R_FIRST);
-		status == RET_SUCCESS;
-		status = (*db->seq)(db, &key, &dat, R_NEXT)) {
-		/* skip META record */
-		if (*(char *)key.data == ' ')
-			continue;
-		if (keylist) {
-			if (!strcmp(prev, (char *)key.data))
-				continue;
-			strcpy(prev, (char *)key.data);
-			(void)fprintf(stdout, "%s\n", (char *)key.data);
-			continue;
-		}
-		detab((char *)dat.data, out);
-		(void)fprintf(stdout, "%s\n", out);
-	}
-	if (status == RET_ERROR)
-		die("db->seq failed.");
+	if (prefix)	
+		flags |= DBIO_PREFIX;
+	if (keylist)
+		flags |= DBIO_KEY;
+
+	for (p = db_first(dbio, prefix, flags); p; p = db_next(dbio))
+		detab(stdout, p);
 }
 
 /*
  * dbdel: Delete records
  *
- *	i)	db
- *	i)	skey	key
+ *	i)	dbio		database
+ *	i)	skey		key for search
+ *	i)	secondkey	0: primary key, >0: secondary key
  */
 void
-dbdel(db, skey)
-DB	*db;
+dbdel(dbio, skey, secondkey)
+DBIO	*dbio;
 char	*skey;
+int	secondkey;
 {
-	DBT	key;
-	int	status;
+	signal_setup();
+	if (!secondkey) {
+		db_del(dbio, skey);
+		return;
+	}
+	dbbysecondkey(dbio, F_DEL, skey, secondkey);
+}
+/*
+ * dbbysecondkey: proc by second key
+ *
+ *	i)	dbio	database
+ *	i)	func	F_KEY, F_DEL
+ *	i)	skey
+ *	i)	secondkey
+ */
+void
+dbbysecondkey(dbio, func, skey, secondkey)
+DBIO	*dbio;
+int	func;
+char	*skey;
+int	secondkey;
+{
+	char	*c, *p;
+	int	i;
 
-	key.data = skey;
-	key.size = strlen(skey)+1;
+	/* trim skey */
+	for (c = skey; *c && isspace(*c); c++)
+		;
+	skey = c;
+	for (c = skey+strlen(skey)-1; *c && isspace(*c); c--)
+		*c = 0;
 
-	status = (*db->del)(db, &key, 0);
-	if (status == RET_ERROR)
-		die("db->del failed.");
+	for (p = db_first(dbio, NULL, DBIO_SKIPMETA); p; p = db_next(dbio)) {
+		if (exitflag)
+			break;
+		c = p;
+		/* reach to specified key */
+		for (i = secondkey; i; i--) {
+			for (; *c && !isspace(*c); c++)
+				;
+			if (*c == 0)
+				die("specified key not found.");
+			for (; *c && isspace(*c); c++)
+				;
+			if (*c == 0)
+				die("specified key not found.");
+		}
+		i = strlen(skey);
+		if (!strncmp(c, skey, i) && (*(c+i) == 0 || isspace(*(c+i)))) {
+			switch (func) {
+			case F_KEY:
+				detab(stdout, p);
+				break;
+			case F_DEL:
+				db_del(dbio, NULL);
+				break;
+			}
+		}
+		if (exitflag)
+			break;
+	}
 }

@@ -42,7 +42,6 @@ static const char rcsid[] =
 	"$Id: ctags.c,v 1.3 1997/07/10 06:43:40 charnier Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <err.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,6 +49,10 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "ctags.h"
+#ifdef GLOBAL
+#include "lookup.h"
+#include "die.h"
+#endif
 
 /*
  * ctags: create a tags file
@@ -66,17 +69,21 @@ FILE	*outf;			/* ioptr for tags file */
 long	lineftell;		/* ftell after getc( inf ) == '\n' */
 
 int	lineno;			/* line number of current line */
+#ifdef GLOBAL
+int	cflag;			/* -c: compact index */
+#endif
 int	dflag;			/* -d: non-macro defines */
-#ifdef GTAGS
+#ifdef GLOBAL
 int	eflag;			/* -e: '{' at 0 column force function end */
 #endif
 int	tflag;			/* -t: create tags for typedefs */
 int	vflag;			/* -v: vgrind style index output */
 int	wflag;			/* -w: suppress warnings */
 int	xflag;			/* -x: cxref style output */
-#ifdef GTAGS
+#ifdef GLOBAL
 int	Dflag;			/* -D: allow duplicate entrys */
 int	rflag;			/* -r: function reference */
+int	sflag;			/* -s: collect symbols */
 #endif
 #ifdef YACC
 int	yaccfile;		/* yacc file */
@@ -85,6 +92,7 @@ int	yaccfile;		/* yacc file */
 char	*curfile;		/* current input file name */
 char	searchar = '/';		/* use /.../ searches by default */
 char	lbuf[LINE_MAX];
+char	*progname = "gctags";	/* program name */
 
 void	init __P((void));
 void	find_entries __P((char *));
@@ -107,8 +115,8 @@ main(argc, argv)
 	extern int optind;
 
 	aflag = uflag = NO;
-#ifdef GTAGS
-	while ((ch = getopt(argc, argv, "BDFadef:rtuwvxy")) != -1)
+#ifdef GLOBAL
+	while ((ch = getopt(argc, argv, "BDFacdef:rstuwvx")) != -1)
 #else
 	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != -1)
 #endif
@@ -116,7 +124,7 @@ main(argc, argv)
 		case 'B':
 			searchar = '?';
 			break;
-#ifdef GTAGS
+#ifdef GLOBAL
 		case 'D':
 			Dflag++;
 			break;
@@ -124,13 +132,23 @@ main(argc, argv)
 		case 'F':
 			searchar = '/';
 			break;
+#ifdef GLOBAL
+		case 's':
+			sflag++;
+			break;
+#endif
 		case 'a':
 			aflag++;
 			break;
+#ifdef GLOBAL
+		case 'c':
+			cflag++;
+			break;
+#endif
 		case 'd':
 			dflag++;
 			break;
-#ifdef GTAGS
+#ifdef GLOBAL
 		case 'e':
 			eflag++;
 			break;
@@ -138,7 +156,7 @@ main(argc, argv)
 		case 'f':
 			outfile = optarg;
 			break;
-#ifdef GTAGS
+#ifdef GLOBAL
 		case 'r':
 			rflag++;
 			break;
@@ -165,15 +183,22 @@ main(argc, argv)
 	argc -= optind;
 	if (!argc)
 		usage();
-#ifdef GTAGS
-	if (rflag)
-		gtagopen();
+#ifdef GLOBAL
+	if (sflag && rflag)
+		die("-s and -r conflict.");
+	if (rflag) {
+		char	*dbpath;
+
+		if (!(dbpath = getenv("GTAGSDBPATH")))
+			dbpath = ".";
+		lookupopen(dbpath);
+	}
 #endif
 	init();
 
 	for (exit_val = step = 0; step < argc; ++step)
 		if (!(inf = fopen(argv[step], "r"))) {
-			warnx("%s cannot open", argv[step]);
+			fprintf(stderr, "%s: %s cannot open\n", progname, argv[step]);
 			exit_val = 1;
 		}
 		else {
@@ -183,9 +208,13 @@ main(argc, argv)
 		}
 
 	if (head)
-		if (xflag)
+		if (xflag) {
 			put_entries(head);
-		else {
+#ifdef GLOBAL
+			if (cflag)
+				compact_print("", 0, "");/* flush last record */
+#endif
+		} else {
 			if (uflag) {
 				for (step = 0; step < argc; step++) {
 					(void)sprintf(cmd,
@@ -197,7 +226,7 @@ main(argc, argv)
 				++aflag;
 			}
 			if (!(outf = fopen(outfile, aflag ? "a" : "w"))) {
-				warnx("%s cannot open", outfile);
+				fprintf(stderr, "%s: %s cannot open\n", progname, outfile);
 				exit(exit_val);
 			}
 			put_entries(head);
@@ -208,9 +237,9 @@ main(argc, argv)
 				system(cmd);
 			}
 		}
-#ifdef GTAGS
+#ifdef GLOBAL
 	if (rflag)
-		gtagclose();
+		lookupclose();
 #endif
 	exit(exit_val);
 }
@@ -219,10 +248,10 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-#ifdef GTAGS
-			"usage: gctags [-BDFadrtuwvx] [-f tagsfile] file ...\n");
+#ifdef GLOBAL
+			"usage: gctags [-BDFacderstuvwx] [-f tagsfile] file ...\n");
 #else
-			"usage: gctags [-BFadtuwvx] [-f tagsfile] file ...\n");
+			"usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
 #endif
 		exit(1);
 }
@@ -280,7 +309,7 @@ find_entries(file)
 		if (cp[1] == 'l' && !cp[2]) {
 			int	c;
 
-#ifdef GTAGS
+#ifdef GLOBAL
 			if (rflag)
 				fprintf(stderr, "-r option is ignored in lisp file (Warning only)\n");
 #endif
@@ -327,14 +356,14 @@ find_entries(file)
 			pfnote("yyparse", lineno);
 			y_entries();
 		}
-#ifdef GTAGS
+#ifdef GLOBAL
 /* assembler */	else if ((cp[1] == 's' || cp[1] == 'S') && !cp[2]) {
 			asm_entries();
 			return;
 		}
 #endif
 /* fortran */	else if ((cp[1] != 'c' && cp[1] != 'h') && !cp[2]) {
-#ifdef GTAGS
+#ifdef GLOBAL
 			if (rflag)
 				fprintf(stderr, "-r option is ignored in fortran file (Warning only)\n");
 #endif
@@ -348,63 +377,3 @@ find_entries(file)
 #endif
 /* C */	c_entries();
 }
-
-#ifdef GTAGS
-#include <db.h>
-DB      *db;
-
-void
-gtagopen()
-{
-	BTREEINFO info;
-	char *env;
-	char dbname[200];
-
-	strcpy(dbname, ".");
-	if ((env = getenv("GTAGDBPATH"))) {
-		strcpy(dbname, env);
-	}
-	strcat(dbname, "/GTAGS");
-
-	info.flags = 0;
-	info.cachesize = 500000;
-	info.maxkeypage = 0;
-	info.minkeypage = 0;
-	info.psize = 0;
-	info.compare = 0;
-	info.prefix = 0;
-	info.lorder = 0;
-
-#define O_RDONLY        0x0000          /* open for reading only */
-	db = dbopen(dbname, O_RDONLY, 0, DB_BTREE, &info);
-	if (db == 0)
-		errx(1, "GTAGS file needed");
-}
-int
-isdefined(skey)
-char	*skey;
-{
-        DBT     dat, key;
-        int     status;
-
-        key.data = skey;
-        key.size = strlen(skey)+1;
-
-        status = (*db->get)(db, &key, &dat, 0);
-	switch (status) {
-	case RET_SUCCESS:
-		return(1);				/* exist */
-	case RET_ERROR:
-		errx(1, "db->get failed");
-	case RET_SPECIAL:				/* not exist */
-		break;
-	}
-	return 0;
-}
-void
-gtagclose()
-{
-        if (db->close(db))
-		errx(1, "GTAGS cannot close.(dbclose)");
-}
-#endif
