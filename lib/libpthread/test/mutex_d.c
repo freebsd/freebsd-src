@@ -1455,6 +1455,9 @@ int main (int argc, char *argv[])
 	act.sa_flags = SA_RESTART;
 	sigaction (SIGINT, &act, NULL);
 
+	/* This test relies on the concurrency level being 1. */
+	pthread_setconcurrency(1);
+
 	/*
 	 * Initialize the thread attribute.
 	 */
