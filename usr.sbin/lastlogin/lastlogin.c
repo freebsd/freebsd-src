@@ -116,7 +116,7 @@ output(p, l)
 	struct passwd *p;
 	struct lastlog *l;
 {
-	time_t t = int_to_time(l->ll_time);
+	time_t t = _int_to_time(l->ll_time);
 	printf("%-*.*s  %-*.*s %-*.*s   %s",
 		UT_NAMESIZE, UT_NAMESIZE, p->pw_name,
 		UT_LINESIZE, UT_LINESIZE, l->ll_line,

@@ -21,7 +21,7 @@
  * implement the 50-year rule to handle post-2038 conversions.
  */
 time_t
-time32_to_time(__int32_t t32)
+_time32_to_time(__int32_t t32)
 {
     return((time_t)t32);
 }
@@ -32,7 +32,7 @@ time32_to_time(__int32_t t32)
  * converted back to a temporally local 64 bit time_t using time32_to_time.
  */
 __int32_t
-time_to_time32(time_t t)
+_time_to_time32(time_t t)
 {
     return((__int32_t)t);
 }
@@ -43,7 +43,7 @@ time_to_time32(time_t t)
  * past 2038.
  */
 time_t
-time64_to_time(__int64_t t64)
+_time64_to_time(__int64_t t64)
 {
     return((time_t)t64);
 }
@@ -53,7 +53,7 @@ time64_to_time(__int64_t t64)
  * as 32 bits we simply sign-extend and do not support times past 2038.
  */
 __int64_t
-time_to_time64(time_t t)
+_time_to_time64(time_t t)
 {
     return((__int64_t)t);
 }
@@ -63,18 +63,18 @@ time_to_time64(time_t t)
  * may not require using the 50-year rule.
  */
 long
-time_to_long(time_t t)
+_time_to_long(time_t t)
 {
     if (sizeof(long) == sizeof(__int64_t))
-	return(time_to_time64(t));
+	return(_time_to_time64(t));
     return((long)t);
 }
 
 time_t
-long_to_time(long tlong)
+_long_to_time(long tlong)
 {
     if (sizeof(long) == sizeof(__int32_t))
-	return(time32_to_time(tlong));
+	return(_time32_to_time(tlong));
     return((time_t)tlong);
 }
 
@@ -83,18 +83,18 @@ long_to_time(long tlong)
  * may not require using the 50-year rule.
  */
 int
-time_to_int(time_t t)
+_time_to_int(time_t t)
 {
     if (sizeof(int) == sizeof(__int64_t))
-	return(time_to_time64(t));
+	return(_time_to_time64(t));
     return((int)t);
 }
 
 time_t
-int_to_time(int tint)
+_int_to_time(int tint)
 {
     if (sizeof(int) == sizeof(__int32_t))
-	return(time32_to_time(tint));
+	return(_time32_to_time(tint));
     return((time_t)tint);
 }
 
