@@ -229,8 +229,8 @@ options 	WITNESS_SKIPSPIN
 options 	MUTEX_PROFILING
 # Set the number of buffers and the hash size.  The hash size MUST be larger
 # than the number of buffers.  Hash size should be prime.
-options		MPROF_BUFFERS="1536"
-options		MPROF_HASH_SIZE="1543"
+options 	MPROF_BUFFERS="1536"
+options 	MPROF_HASH_SIZE="1543"
 
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
@@ -639,7 +639,7 @@ options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
-options		IPFIREWALL_FORWARD	#packet destination changes
+options 	IPFIREWALL_FORWARD	#packet destination changes
 options 	IPV6FIREWALL		#firewall for IPv6
 options 	IPV6FIREWALL_VERBOSE
 options 	IPV6FIREWALL_VERBOSE_LIMIT=100
@@ -744,7 +744,7 @@ options 	FFS			#Fast filesystem
 options 	NFSCLIENT		#Network File System client
 
 # The rest are optional:
-options		AUTOFS			#Auto File System
+options 	AUTOFS			#Auto File System
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
@@ -1333,14 +1333,14 @@ options 	AHC_DUMP_EEPROM
 options 	AHC_TMODE_ENABLE
 
 # Compile in Aic7xxx Debugging code.
-options		AHC_DEBUG
+options 	AHC_DEBUG
 
 # Aic7xxx driver debugging options. See sys/dev/aic7xxx/aic7xxx.h
-options		AHC_DEBUG_OPTS
+options 	AHC_DEBUG_OPTS
 
 # Print register bitfields in debug output.  Adds ~128k to driver
 # See ahc(4).
-options		AHC_REG_PRETTY_PRINT
+options 	AHC_REG_PRETTY_PRINT
 
 # Compile in aic79xx debugging code.
 options 	AHD_DEBUG
@@ -1352,7 +1352,7 @@ options 	AHD_DEBUG_OPTS=0xFFFFFFFF
 options 	AHD_REG_PRETTY_PRINT
 
 # Bitmap of units to enable targetmode operations.
-options		AHD_TMODE_ENABLE
+options 	AHD_TMODE_ENABLE
 
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
@@ -2480,7 +2480,7 @@ options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
 
 # Adaptec Array Controller driver options
-options		AAC_DEBUG	# Debugging levels:
+options 	AAC_DEBUG	# Debugging levels:
 				# 0 - quiet, only emit warnings
 				# 1 - noisy, emit major function
 				#     points and things done
