@@ -1061,6 +1061,7 @@ installEnvironment(void)
     configEnvironmentRC_conf();
     if (file_readable("/etc/resolv.conf"))
 	configEnvironmentResolv("/etc/resolv.conf");
+    configMake_conf("/etc/make.conf");
 }
 
 /* Copy the boot floppy contents into /stand */
