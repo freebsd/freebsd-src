@@ -28,13 +28,15 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/ata.h>
+
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <err.h>
-#include <sys/ata.h>
 
 char *
 mode2str(int mode)
