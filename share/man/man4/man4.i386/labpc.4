@@ -91,9 +91,9 @@ and not the driver (other than turning it on); See the \fILabPC+
 User's Manual\fP and the source code if this doesn't make sense to
 you.
 .Pp
-The driver supports several Analog I/O ioctl calls.  These are defined
-in sys/aio.h and are intended to be compatable with other AIO board
-device drivers.
+The driver supports several general analog I/O ioctl calls.  These
+are defined in sys/dataacq.h and are intended to be implemented in
+other data acquisition board device drivers.
 .Pp
 AD_MICRO_PERIOD_SET takes a pointer to a long argument specifying
 the number of microseconds between samples.
@@ -117,8 +117,6 @@ into the supported gain array, with one gain for each channel.
 .Pp
 AD_GAINS_GET takes an array of NCHANS (returned by AD_NCHANS_GET)
 integers and returns the cuurrent board gains.
-.Sh SEE ALSO
-.Xr aio 1
 .Sh BUGS
 In general, only those capabilities that I needed are present.  In
 particular the following notable restrictions are present.
