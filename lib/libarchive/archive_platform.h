@@ -93,9 +93,9 @@
 #else /* !__FreeBSD__ */
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no built-in configuration in archive_platform.h.
-#endif /* __FreeBSD__ */
+#endif /* !__FreeBSD__ */
 
-#endif /* HAVE_CONFIG_H */
+#endif /* !HAVE_CONFIG_H */
 
 /* No non-FreeBSD platform will have __FBSDID, so just define it here. */
 #ifdef __FreeBSD__
