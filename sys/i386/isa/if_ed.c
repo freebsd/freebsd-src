@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.107.2.4 1997/10/04 08:52:00 davidg Exp $
+ *	$Id: if_ed.c,v 1.107.2.5 1997/10/30 00:38:18 nate Exp $
  */
 
 /*
@@ -691,14 +691,13 @@ ed_probe_WD80x3(isa_dev)
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + ED_WD_PROM + i);
 
 	/*
-	 * Set upper address bits, 8/16 bit access to shared memory, and
-	 * zero waitstate operation for 16 bit cards.
+	 * Set upper address bits and 8/16 bit access to shared memory.
 	 */
 	if (isa16bit) {
 		if (sc->is790) {
 			sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
 		} else {
-			sc->wd_laar_proto = ED_WD_LAAR_L16EN | ED_WD_LAAR_0WS16 |
+			sc->wd_laar_proto = ED_WD_LAAR_L16EN |
 			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI);
 		}
 		/*
