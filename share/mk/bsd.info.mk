@@ -1,4 +1,4 @@
-# $Id$
+# $Id: bsd.info.mk,v 1.6 1995/01/12 08:20:25 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -20,8 +20,7 @@ all: ${INFO:S/$/.info/g}
 DISTRIBUTION?=	infodist
 .if !target(distribute)
 distribute:     
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SH
-ARED=copies     
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies     
 .endif
 
 .if defined(SRCS)
