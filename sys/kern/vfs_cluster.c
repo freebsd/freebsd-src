@@ -73,6 +73,10 @@ static int write_behind = 1;
 SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0,
     "Cluster write-behind; 0: disable, 1: enable, 2: backed off");
 
+static int read_max = 64;
+SYSCTL_INT(_vfs, OID_AUTO, read_max, CTLFLAG_RW, &read_max, 0,
+    "Cluster read-ahead max block count");
+
 /* Page expended to mark partially backed buffers */
 extern vm_page_t	bogus_page;
 
@@ -81,11 +85,6 @@ extern vm_page_t	bogus_page;
  * Manipulated by vm_pager.c
  */
 extern int cluster_pbuf_freecnt;
-
-/*
- * Maximum number of blocks for read-ahead.
- */
-#define MAXRA 32
 
 /*
  * Read data to a buf, including read-ahead if we find this to be beneficial.
@@ -104,10 +103,9 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 {
 	struct buf *bp, *rbp, *reqbp;
 	daddr_t blkno, origblkno;
-	int error, num_ra;
-	int i;
 	int maxra, racluster;
-	long origtotread;
+	int error, ncontig;
+	int i;
 
 	error = 0;
 
@@ -116,18 +114,17 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	 * ad-hoc parameters.  This needs work!!!
 	 */
 	racluster = vp->v_mount->mnt_iosize_max / size;
-	maxra = 2 * racluster + (totread / size);
-	if (maxra > MAXRA)
-		maxra = MAXRA;
-	if (maxra > nbuf/8)
-		maxra = nbuf/8;
+	maxra = seqcount;
+	maxra = min(read_max, maxra);
+	maxra = min(nbuf/8, maxra);
+	if (((u_quad_t)(lblkno + maxra + 1) * size) > filesize)
+		maxra = (filesize / size) - lblkno;
 
 	/*
 	 * get the requested block
 	 */
 	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0, 0);
 	origblkno = lblkno;
-	origtotread = totread;
 
 	/*
 	 * if it is in the cache, then check to see if the reads have been
@@ -141,7 +138,6 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			return 0;
 		} else {
 			int s;
-			struct buf *tbp;
 			bp->b_flags &= ~B_RAM;
 			/*
 			 * We do the spl here so that there is no window
@@ -156,8 +152,8 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 				 * Stop if the buffer does not exist or it
 				 * is invalid (about to go away?)
 				 */
-				tbp = gbincore(vp, lblkno+i);
-				if (tbp == NULL || (tbp->b_flags & B_INVAL))
+				rbp = gbincore(vp, lblkno+i);
+				if (rbp == NULL || (rbp->b_flags & B_INVAL))
 					break;
 
 				/*
@@ -166,7 +162,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 				 */
 				if (((i % racluster) == (racluster - 1)) ||
 					(i == (maxra - 1)))
-					tbp->b_flags |= B_RAM;
+					rbp->b_flags |= B_RAM;
 			}
 			VI_UNLOCK(vp);
 			splx(s);
@@ -183,12 +179,11 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	} else {
 		off_t firstread = bp->b_offset;
 		int nblks;
-		int ncontigafter;
 
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("cluster_read: no buffer offset"));
 
-		ncontigafter = 0;
+		ncontig = 0;
 
 		/*
 		 * Compute the total number of blocks that we should read
@@ -205,23 +200,23 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		 */
 		if (nblks > 1) {
 	    		error = VOP_BMAP(vp, lblkno, NULL,
-				&blkno, &ncontigafter, NULL);
+				&blkno, &ncontig, NULL);
 			/*
 			 * If this failed to map just do the original block.
 			 */
 			if (error || blkno == -1)
-				ncontigafter = 0;
+				ncontig = 0;
 		}
 
 		/*
 		 * If we have contiguous data available do a cluster
 		 * otherwise just read the requested block.
 		 */
-		if (ncontigafter) {
+		if (ncontig) {
 			/* Account for our first block. */
-			ncontigafter++;
-			if (ncontigafter < nblks)
-				nblks = ncontigafter;
+			ncontig = min(ncontig + 1, nblks);
+			if (ncontig < nblks)
+				nblks = ncontig;
 			bp = cluster_rbuild(vp, filesize, lblkno,
 				blkno, size, nblks, bp);
 			lblkno += (bp->b_bufsize / size);
@@ -233,44 +228,9 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	}
 
 	/*
-	 * if we have been doing sequential I/O, then do some read-ahead
-	 */
-	rbp = NULL;
-	if (seqcount && (lblkno < (origblkno + seqcount))) {
-		/*
-		 * we now build the read-ahead buffer if it is desirable.
-		 */
-		if (((u_quad_t)(lblkno + 1) * size) <= filesize &&
-		    !(error = VOP_BMAP(vp, lblkno, NULL, &blkno, &num_ra, NULL)) &&
-		    blkno != -1) {
-			int nblksread;
-			int ntoread = num_ra + 1;
-			nblksread = (origtotread + size - 1) / size;
-			if (seqcount < nblksread)
-				seqcount = nblksread;
-			if (seqcount < ntoread)
-				ntoread = seqcount;
-			if (num_ra) {
-				rbp = cluster_rbuild(vp, filesize, lblkno,
-					blkno, size, ntoread, NULL);
-			} else {
-				rbp = getblk(vp, lblkno, size, 0, 0, 0);
-				rbp->b_flags |= B_ASYNC | B_RAM;
-				rbp->b_iocmd = BIO_READ;
-				rbp->b_blkno = blkno;
-			}
-		}
-	}
-
-	/*
-	 * handle the synchronous read
+	 * handle the synchronous read so that it is available ASAP.
 	 */
 	if (bp) {
-#if defined(CLUSTERDEBUG)
-		if (rcluster)
-			printf("S(%ld,%ld,%d) ",
-			    (long)bp->b_lblkno, bp->b_bcount, seqcount);
-#endif
 		if ((bp->b_flags & B_CLUSTER) == 0) {
 			vfs_busy_pages(bp, 0);
 		}
@@ -280,44 +240,54 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			BUF_KERNPROC(bp);
 		error = VOP_STRATEGY(vp, bp);
 		curproc->p_stats->p_ru.ru_inblock++;
+		if (error)
+			return (error);
 	}
 
 	/*
-	 * and if we have read-aheads, do them too
+	 * If we have been doing sequential I/O, then do some read-ahead.
 	 */
-	if (rbp) {
-		if (error) {
-			rbp->b_flags &= ~B_ASYNC;
-			brelse(rbp);
-		} else if (rbp->b_flags & B_CACHE) {
+	while (lblkno < (origblkno + maxra)) {
+		error = VOP_BMAP(vp, lblkno, NULL, &blkno, &ncontig, NULL);
+		if (error)
+			break;
+
+		if (blkno == -1)
+			break;
+
+		/*
+		 * We could throttle ncontig here by maxra but we might as
+		 * well read the data if it is contiguous.  We're throttled
+		 * by racluster anyway.
+		 */
+		if (ncontig) {
+			ncontig = min(ncontig + 1, racluster);
+			rbp = cluster_rbuild(vp, filesize, lblkno, blkno,
+				size, ncontig, NULL);
+			lblkno += (rbp->b_bufsize / size);
+		} else {
+			rbp = getblk(vp, lblkno, size, 0, 0, 0);
+			rbp->b_flags |= B_ASYNC | B_RAM;
+			rbp->b_iocmd = BIO_READ;
+			rbp->b_blkno = blkno;
+			lblkno += 1;
+		}
+		if (rbp->b_flags & B_CACHE) {
 			rbp->b_flags &= ~B_ASYNC;
 			bqrelse(rbp);
-		} else {
-#if defined(CLUSTERDEBUG)
-			if (rcluster) {
-				if (bp)
-					printf("A+");
-				else
-					printf("A");
-				printf("(%jd,%jd,%jd,%jd) ",
-				    (intmax_t)rbp->b_lblkno,
-				    (intmax_t)rbp->b_bcount,
-				    (intmax_t)(rbp->b_lblkno - origblkno),
-				    (intmax_t)seqcount);
-			}
-#endif
-
-			if ((rbp->b_flags & B_CLUSTER) == 0) {
-				vfs_busy_pages(rbp, 0);
-			}
-			rbp->b_flags &= ~B_INVAL;
-			rbp->b_ioflags &= ~BIO_ERROR;
-			if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
-				BUF_KERNPROC(rbp);
-			(void) VOP_STRATEGY(vp, rbp);
-			curproc->p_stats->p_ru.ru_inblock++;
+			continue;
 		}
+		if ((rbp->b_flags & B_CLUSTER) == 0) {
+			vfs_busy_pages(rbp, 0);
+		}
+		rbp->b_flags &= ~B_INVAL;
+		rbp->b_ioflags &= ~BIO_ERROR;
+		if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
+			BUF_KERNPROC(rbp);
+		(void) VOP_STRATEGY(vp, rbp);
+		curproc->p_stats->p_ru.ru_inblock++;
 	}
+
 	if (reqbp)
 		return (bufwait(reqbp));
 	else
