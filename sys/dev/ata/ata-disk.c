@@ -209,9 +209,10 @@ ad_attach(struct ata_device *atadev)
     adp->disk.d_label.d_secperunit = adp->total_secs;
 
     atadev->driver = adp;
+    atadev->flags = 0;
 
     /* if this disk belongs to an ATA RAID dont print the probe */
-    if (!ar_probe(adp))
+    if (!ata_raid_probe(adp))
 	adp->flags |= AD_F_RAID_SUBDISK;
     else
 	ad_print(adp, "");
@@ -248,6 +249,7 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
     atadev->driver = NULL;
+    atadev->flags = 0;
     free(adp, M_AD);
 }
 
