@@ -43,24 +43,29 @@
 #ifndef dir_h_6002e3b8
 #define	dir_h_6002e3b8
 
+#include <sys/queue.h>
 #include "hash.h"
 
 struct GNode;
 struct Lst;
+struct Dir;
+
+struct PathElement;
+TAILQ_HEAD(Path, PathElement);
 
 void Dir_Init(void);
 void Dir_InitDot(void);
 Boolean Dir_HasWildcards(const char *);
-void Dir_Expand(char *, struct Lst *, struct Lst *);
-char *Dir_FindFile(char *, struct Lst *);
 int Dir_MTime(struct GNode *);
-void Dir_AddDir(struct Lst *, const char *);
-char *Dir_MakeFlags(const char *, const struct Lst *);
-void Dir_ClearPath(struct Lst *);
-void Dir_Concat(struct Lst *, struct Lst *);
 void Dir_PrintDirectories(void);
-void Dir_PrintPath(const struct Lst *);
-void Dir_Destroy(void *);
-void *Dir_CopyDir(void *);
+
+struct Dir *Path_AddDir(struct Path *, const char *);
+void Path_Clear(struct Path *);
+void Path_Concat(struct Path *, const struct Path *);
+void Path_Duplicate(struct Path *, const struct Path *);
+void Path_Expand(char *, struct Path *, struct Lst *);
+char *Path_FindFile(char *, struct Path *);
+char *Path_MakeFlags(const char *, const struct Path *);
+void Path_Print(const struct Path *);
 
 #endif /* dir_h_6002e3b8 */
