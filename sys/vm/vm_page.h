@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.51 1999/01/21 10:06:24 dillon Exp $
+ * $Id: vm_page.h,v 1.52 1999/01/24 01:05:15 dillon Exp $
  */
 
 /*
@@ -347,6 +347,11 @@ vm_page_wakeup(vm_page_t m)
 	vm_page_flash(m);
 }
 
+/*
+ *
+ *
+ */
+
 static __inline void
 vm_page_io_start(vm_page_t m)
 {
@@ -538,6 +543,20 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 	}
 	return(FALSE);
 }
+
+/*
+ *	vm_page_dirty:
+ *
+ *	make page all dirty
+ */
+
+static __inline void
+vm_page_dirty(vm_page_t m)
+{
+	KASSERT(m->queue - m->pc != PQ_CACHE, ("vm_page_dirty: page in cache!"));
+	m->dirty = VM_PAGE_BITS_ALL;
+}
+
 
 #endif				/* KERNEL */
 #endif				/* !_VM_PAGE_ */
