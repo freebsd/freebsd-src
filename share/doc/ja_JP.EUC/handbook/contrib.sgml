@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.2 1996/11/19 11:33:33 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.3 1996/11/29 15:45:14 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.157 -->
+<!-- Original revision: 1.158 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -268,7 +268,7 @@
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
-	  <item>Mark Huizer &lt;xaa@stack.urc.tue.nl&gt;
+	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
