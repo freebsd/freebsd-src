@@ -203,6 +203,29 @@ int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		    void *callback_arg, int flags);
 
 /*
+ * Like bus_dmamap_callback but includes map size in bytes.  This is
+ * defined as a separate interface to maintain compatiiblity for users
+ * of bus_dmamap_callback_t--at some point these interfaces should be merged.
+ */
+typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
+/*
+ * Like bus_dmamap_load but for mbufs.  Note the use of the
+ * bus_dmamap_callback2_t interface.
+ */
+int bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
+			 struct mbuf *mbuf,
+			 bus_dmamap_callback2_t *callback, void *callback_arg,
+			 int flags);
+/*
+ * Like bus_dmamap_load but for uios.  Note the use of the
+ * bus_dmamap_callback2_t interface.
+ */
+int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct uio *ui,
+			bus_dmamap_callback2_t *callback, void *callback_arg,
+			int flags);
+
+/*
  * Perform a syncronization operation on the given map.
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
