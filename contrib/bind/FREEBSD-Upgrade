@@ -17,6 +17,8 @@ cvs import -m"Import of ISC BIND version 8.3.3" src/contrib/bind ISC v8_3_3
 
 11. Resolve conflicts as needed.
 
+cvs checkout -jISC:yesterday -jISC src/contrib/bind
+
 
 Note: bin/nslookup/commands.l needs a different patch for the command line
       editing customization in -current and RELENG_4.
