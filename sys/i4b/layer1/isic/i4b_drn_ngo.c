@@ -26,12 +26,12 @@
  *
  *	i4b_drn_ngo.c - Dr. Neuhaus Niccy GO@ and SAGEM Cybermod
  *	--------------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:07:44 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

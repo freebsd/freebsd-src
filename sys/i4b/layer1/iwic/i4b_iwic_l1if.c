@@ -26,12 +26,12 @@
  *
  *      i4b_iwic - isdn4bsd Winbond W6692 driver
  *      ----------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sun Jan 21 11:09:33 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
@@ -39,9 +39,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
-
-
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
