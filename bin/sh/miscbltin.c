@@ -349,6 +349,9 @@ static const struct limits limits[] = {
 #ifdef RLIMIT_SWAP
 	{ "swap limit",		"kbytes",	RLIMIT_SWAP,	1024, 'w' },
 #endif
+#ifdef RLIMIT_SBSIZE
+	{ "sbsize",		"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
+#endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
@@ -367,7 +370,7 @@ ulimitcmd(argc, argv)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnul")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnulb")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;
