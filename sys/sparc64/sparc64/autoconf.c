@@ -26,7 +26,10 @@
  * $FreeBSD$
  */
 
+#include "opt_bootp.h"
 #include "opt_isa.h"
+#include "opt_nfs.h"
+#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,13 +44,27 @@ extern device_t isa_bus_device;
 
 dev_t dumpdev = NODEV;
 dev_t rootdev = NODEV;
+static device_t nexusdev;
 
 static void configure(void *);
 
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure, NULL);
+#ifdef NFS_ROOT
+SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
 
-static device_t nexusdev;
+#ifndef BOOTP_NFSROOT
+#error "NFS_ROOT support not implemented for the non-BOOTP_NFSROOT case"
+#endif
 
+extern void bootpc_init(void);
+
+void
+cpu_rootconf()
+{
+	bootpc_init();
+	rootdevnames[0] = "nfs:";
+}
+#endif
 
 static void
 configure(void *v)
