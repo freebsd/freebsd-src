@@ -994,7 +994,7 @@ mac_test_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	ASSERT_CRED_LABEL(cred->cr_label);
-	ASSERT_VNODE_LABEL(newlabel);
+	ASSERT_CRED_LABEL(newlabel);
 }
 
 static void
