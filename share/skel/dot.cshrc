@@ -11,7 +11,7 @@ setenv	EDITOR	vi
 setenv	EXINIT	'set autoindent'
 setenv	PAGER	more
 
-set path = (~/bin /bin /usr/{bin,X11/bin,contrib/bin,games,old/bin} /usr/local/bin)
+set path = (~/bin /bin /usr/{bin,games} /usr/local/bin /usr/X11R6/bin)
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
