@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.24 1995/05/18 02:59:22 davidg Exp $
+ * $Id: vm_fault.c,v 1.25 1995/05/30 08:15:59 rgrimes Exp $
  */
 
 /*
@@ -837,9 +837,9 @@ RetryCopy:
 		}
 	}
 
-	m->flags |= PG_MAPPED;
-
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
+
+	m->flags |= PG_MAPPED;
 #if 0
 	if (change_wiring == 0 && wired == 0)
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
