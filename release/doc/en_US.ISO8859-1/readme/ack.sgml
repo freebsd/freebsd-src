@@ -12,18 +12,19 @@ This file is the Acknowledgments section of the old RELNOTES.TXT.
   <title>Acknowledgments</title>
 
   <para>&os; represents the cumulative work of many hundreds, if not
-  thousands, of individuals from around the world who have worked very
-  hard to bring you this release.  For a complete list of &os;
-  project staffers, please see:</para>
+  thousands, of individuals from around the world who have worked
+  countless hours to bring about this &release.type;.</para>
 
-  <para><ulink url="http://www.freebsd.org/handbook/staff.html">http://www.freebsd.org/handbook/staff.html</ulink></para>
-
-  <para>or, if you've loaded the doc distribution:</para>
-
-  <para><filename>/usr/share/doc/handbook/staff.html</filename></para>
+  <para>For a complete list of &os; developers and their roles, please see
+  <ulink url="http://www.freebsd.org/handbook/staff.html"></ulink> (or
+  the corresponding page on any of the &os; Web site mirrors).
+  This list can also be found at
+  <filename>/usr/share/doc/handbook/staff.html</filename>
+  on machines with &os;'s <filename>doc</filename> distribution
+  installed.</para>
 
   <para>Special thanks also go to the many thousands of &os; users and
-  testers all over the world, without whom this release simply would
+  testers all over the world, without whom this &release.type; simply would
   not have been possible.</para>
 
 </sect1>
