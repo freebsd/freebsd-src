@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.36 1997/04/27 13:23:29 kato Exp $
+ *  $Id: syscons.c,v 1.37 1997/05/01 11:28:49 kato Exp $
  */
 
 #include "sc.h"
@@ -93,9 +93,7 @@
 #define COLD 0
 #define WARM 1
 
-/* this may break on older VGA's but is useful on real 32 bit systems */
 /* XXX use sc_bcopy where video memory is concerned */
-#define bcopyw	 bcopy
 #define sc_bcopy generic_bcopy
 extern void generic_bcopy(const void *, void *, size_t);
 
@@ -580,10 +578,10 @@ scattach(struct isa_device *dev)
 #endif
 
     /* copy temporary buffer to final buffer */
-    bcopyw(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    bcopy(sc_buffer, scp->scr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 
 #ifdef PC98
-    bcopyw(Atrat, scp->atr_buf, scp->xsize * scp->ysize * sizeof(u_short));
+    bcopy(Atrat, scp->atr_buf, scp->xsize * scp->ysize * sizeof(u_short));
 #endif
     scp->cursor_pos = scp->cursor_oldpos =
 	scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
@@ -2083,16 +2081,16 @@ scan_esc(scr_stat *scp, u_char c)
 		move_crsr(scp, scp->xpos, scp->ypos - 1);
 	    else {
 #ifdef PC98
-		bcopyw(scp->scr_buf, scp->scr_buf + scp->xsize,
+		bcopy(scp->scr_buf, scp->scr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
-		bcopyw(scp->atr_buf, scp->atr_buf + scp->xsize,
+		bcopy(scp->atr_buf, scp->atr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
 		fillw(scr_map[0x20],
 		      scp->scr_buf, scp->xsize);
 		fillw(at2pc98(scp->term.cur_color),
 		      scp->atr_buf, scp->xsize);
 #else
-		bcopyw(scp->scr_buf, scp->scr_buf + scp->xsize,
+		bcopy(scp->scr_buf, scp->scr_buf + scp->xsize,
 		       (scp->ysize - 1) * scp->xsize * sizeof(u_short));
 		fillw(scp->term.cur_color | scr_map[0x20],
 		      scp->scr_buf, scp->xsize);
@@ -2314,11 +2312,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = scp->scr_buf + scp->ypos * scp->xsize;
 	    dst = src + n * scp->xsize;
 	    count = scp->ysize - (scp->ypos + n);
-	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
+	    bcopy(src, dst, count * scp->xsize * sizeof(u_short));
 #ifdef PC98
 	    src_attr = scp->atr_buf + scp->ypos * scp->xsize;
 	    dst_attr = src_attr + n * scp->xsize;
-	    bcopyw(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
 	    fillw(scr_map[0x20], src,
 		  n * scp->xsize);
 	    fillw(at2pc98(scp->term.cur_color), src_attr,
@@ -2338,12 +2336,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = scp->scr_buf + scp->ypos * scp->xsize;
 	    src = dst + n * scp->xsize;
 	    count = scp->ysize - (scp->ypos + n);
-	    bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
+	    bcopy(src, dst, count * scp->xsize * sizeof(u_short));
 	    src = dst + count * scp->xsize;
 #ifdef PC98
 	    dst_attr = scp->atr_buf + scp->ypos * scp->xsize;
 	    src_attr = dst_attr + n * scp->xsize;
-	    bcopyw(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * scp->xsize * sizeof(u_short));
 	    src_attr = dst_attr + count * scp->xsize;
 	    fillw(scr_map[0x20], src,
 		  n * scp->xsize);
@@ -2364,12 +2362,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    dst = scp->cursor_pos;
 	    src = dst + n;
 	    count = scp->xsize - (scp->xpos + n);
-	    bcopyw(src, dst, count * sizeof(u_short));
+	    bcopy(src, dst, count * sizeof(u_short));
 	    src = dst + count;
 #ifdef PC98
 	    dst_attr = scp->cursor_atr;
 	    src_attr = dst_attr + n;
-	    bcopyw(src_attr, dst_attr, count * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * sizeof(u_short));
 	    src_attr = dst_attr + count;
 	    fillw(scr_map[0x20], src, n);
 	    fillw(at2pc98(scp->term.cur_color), src_attr, n);
@@ -2393,11 +2391,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = scp->cursor_pos;
 	    dst = src + n;
 	    count = scp->xsize - (scp->xpos + n);
-	    bcopyw(src, dst, count * sizeof(u_short));
+	    bcopy(src, dst, count * sizeof(u_short));
 #ifdef PC98
 	    src_attr = scp->cursor_atr;
 	    dst_attr = src_attr + n;
-	    bcopyw(src_attr, dst_attr, count * sizeof(u_short));
+	    bcopy(src_attr, dst_attr, count * sizeof(u_short));
 	    fillw(scr_map[0x20], src, n);
 	    fillw(at2pc98(scp->term.cur_color), src_attr, n);
 #else
@@ -2417,11 +2415,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->ysize)
 		n = scp->ysize;
-	    bcopyw(scp->scr_buf + (scp->xsize * n),
+	    bcopy(scp->scr_buf + (scp->xsize * n),
 		   scp->scr_buf,
 		   scp->xsize * (scp->ysize - n) * sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf + (scp->xsize * n),
+	    bcopy(scp->atr_buf + (scp->xsize * n),
 		   scp->atr_buf,
 		   scp->xsize * (scp->ysize - n) * sizeof(u_short));
 	    fillw(scr_map[0x20],
@@ -2442,12 +2440,12 @@ scan_esc(scr_stat *scp, u_char c)
 	    n = scp->term.param[0]; if (n < 1)  n = 1;
 	    if (n > scp->ysize)
 		n = scp->ysize;
-	    bcopyw(scp->scr_buf,
+	    bcopy(scp->scr_buf,
 		  scp->scr_buf + (scp->xsize * n),
 		  scp->xsize * (scp->ysize - n) *
 		  sizeof(u_short));
 #ifdef PC98
-	    bcopyw(scp->atr_buf,
+	    bcopy(scp->atr_buf,
 		  scp->atr_buf + (scp->xsize * n),
 		  scp->xsize * (scp->ysize - n) *
 		  sizeof(u_short));
@@ -3089,11 +3087,11 @@ kanji_end:
     if (scp->cursor_pos >= scp->scr_buf + scp->ysize * scp->xsize) {
 	remove_cutmarking(scp);
 	if (scp->history) {
-	    bcopyw(scp->scr_buf, scp->history_head,
+	    bcopy(scp->scr_buf, scp->history_head,
 		   scp->xsize * sizeof(u_short));
 	    scp->history_head += scp->xsize;
 #ifdef PC98
-	    bcopyw(scp->atr_buf, scp->his_atr_head,
+	    bcopy(scp->atr_buf, scp->his_atr_head,
 		   scp->xsize * sizeof(u_short));
 	    scp->his_atr_head += scp->xsize;
 #endif
@@ -3107,10 +3105,10 @@ kanji_end:
 		scp->his_atr_head = scp->his_atr; }
 #endif
 	}
-	bcopyw(scp->scr_buf + scp->xsize, scp->scr_buf,
+	bcopy(scp->scr_buf + scp->xsize, scp->scr_buf,
 	       scp->xsize * (scp->ysize - 1) * sizeof(u_short));
 #ifdef PC98
-	bcopyw(scp->atr_buf + scp->xsize, scp->atr_buf,
+	bcopy(scp->atr_buf + scp->xsize, scp->atr_buf,
 	       scp->xsize * (scp->ysize - 1) * sizeof(u_short));
 	fillw(scr_map[0x20],
 	      scp->scr_buf + scp->xsize * (scp->ysize - 1),
@@ -3419,12 +3417,12 @@ history_to_screen(scr_stat *scp)
 #ifdef PC98
     {
 #endif
-	bcopyw(scp->history + (((scp->history_pos - scp->history) +
+	bcopy(scp->history + (((scp->history_pos - scp->history) +
 	       scp->history_size-((i+1)*scp->xsize))%scp->history_size),
 	       scp->scr_buf + (scp->xsize * (scp->ysize-1 - i)),
 	       scp->xsize * sizeof(u_short));
 #ifdef PC98
-	bcopyw(scp->his_atr + (((scp->his_atr_pos - scp->his_atr) +
+	bcopy(scp->his_atr + (((scp->his_atr_pos - scp->his_atr) +
 	       scp->history_size-((i+1)*scp->xsize))%scp->history_size),
 	       scp->atr_buf + (scp->xsize * (scp->ysize-1 - i)),
 	       scp->xsize * sizeof(u_short)); }
@@ -3616,12 +3614,12 @@ next_code:
 
 	    /* copy screen into top of history buffer */
 	    for (i=0; i<cur_console->ysize; i++) {
-		bcopyw(cur_console->scr_buf + (cur_console->xsize * i),
+		bcopy(cur_console->scr_buf + (cur_console->xsize * i),
 		       cur_console->history_head,
 		       cur_console->xsize * sizeof(u_short));
 		cur_console->history_head += cur_console->xsize;
 #ifdef PC98
-		bcopyw(cur_console->atr_buf + (cur_console->xsize * i),
+		bcopy(cur_console->atr_buf + (cur_console->xsize * i),
 		       cur_console->his_atr_head,
 		       cur_console->xsize * sizeof(u_short));
 		cur_console->his_atr_head += cur_console->xsize;
@@ -3858,13 +3856,13 @@ next_code:
 #endif
 
 			    for (i=0; i<cur_console->ysize; i++) {
-				bcopyw(ptr,
+				bcopy(ptr,
 				       cur_console->scr_buf +
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
 				ptr += cur_console->xsize;
 #ifdef PC98
-				bcopyw(ptr_a,
+				bcopy(ptr_a,
 				       cur_console->atr_buf +
 				       (cur_console->xsize*i),
 				       cur_console->xsize * sizeof(u_short));
@@ -4167,22 +4165,22 @@ set_mode(scr_stat *scp)
 #else
     switch (scp->mode) {
     case M_VGA_M80x60:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x60;
 
     case M_VGA_C80x60:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x60:
 	special_modetable[2]  = 0x08;
 	special_modetable[19] = 0x47;
 	goto special_480l;
 
     case M_VGA_M80x30:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x30;
 
     case M_VGA_C80x30:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x30:
 	special_modetable[19] = 0x4f;
 special_480l:
@@ -4197,21 +4195,21 @@ special_480l:
 	goto setup_mode;
 
     case M_ENH_B80x43:
-	bcopyw(video_mode_ptr+(64*M_ENH_B80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_ENH_B80x25), &special_modetable, 64);
 	goto special_80x43;
 
     case M_ENH_C80x43:
-	bcopyw(video_mode_ptr+(64*M_ENH_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_ENH_C80x25), &special_modetable, 64);
 special_80x43:
 	special_modetable[28] = 87;
 	goto special_80x50;
 
     case M_VGA_M80x50:
-	bcopyw(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_M80x25), &special_modetable, 64);
 	goto special_80x50;
 
     case M_VGA_C80x50:
-	bcopyw(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
+	bcopy(video_mode_ptr+(64*M_VGA_C80x25), &special_modetable, 64);
 special_80x50:
 	special_modetable[2] = 8;
 	special_modetable[19] = 7;
@@ -4572,19 +4570,19 @@ set_destructive_cursor(scr_stat *scp)
 
     if (scp->status & MOUSE_VISIBLE) {
 	if ((scp->cursor_saveunder & 0xff) == 0xd0)
-    	    bcopyw(&scp->mouse_cursor[0], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[0], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd1)
-    	    bcopyw(&scp->mouse_cursor[32], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[32], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd2)
-    	    bcopyw(&scp->mouse_cursor[64], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[64], cursor, scp->font_size);
 	else if ((scp->cursor_saveunder & 0xff) == 0xd3)
-    	    bcopyw(&scp->mouse_cursor[96], cursor, scp->font_size);
+    	    bcopy(&scp->mouse_cursor[96], cursor, scp->font_size);
 	else
-	    bcopyw(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
+	    bcopy(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
  	       	   cursor, scp->font_size);
     }
     else
-    	bcopyw(font_buffer + ((scp->cursor_saveunder & 0xff) * scp->font_size),
+    	bcopy(font_buffer + ((scp->cursor_saveunder & 0xff) * scp->font_size),
  	       cursor, scp->font_size);
     for (i=0; i<32; i++)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
@@ -4731,13 +4729,13 @@ draw_mouse_image(scr_stat *scp)
     yoffset = scp->mouse_ypos % font_size;
 
     /* prepare mousepointer char's bitmaps */
-    bcopyw(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos) & 0xff) * font_size),
 	   &scp->mouse_cursor[0], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+1) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[32], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+scp->xsize) & 0xff) * font_size),
 	   &scp->mouse_cursor[64], font_size);
-    bcopyw(font_buffer + ((*(scp->mouse_pos+scp->xsize+1) & 0xff) * font_size),
+    bcopy(font_buffer + ((*(scp->mouse_pos+scp->xsize+1) & 0xff) * font_size),
 	   &scp->mouse_cursor[96], font_size);
     for (i=0; i<font_size; i++) {
 	buffer[i] = scp->mouse_cursor[i]<<8 | scp->mouse_cursor[i+32];
