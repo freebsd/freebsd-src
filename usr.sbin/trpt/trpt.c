@@ -205,7 +205,7 @@ main(int argc, char **argv)
 		putchar('\n');
 	}
 	else for (i = 0; i < npcbs; i++) {
-		printf("\n%x:\n", (int)tcp_pcbs[i]);
+		printf("\n%p:\n", tcp_pcbs[i]);
 		dotrace(tcp_pcbs[i]);
 	}
 	exit(0);
