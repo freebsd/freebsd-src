@@ -20,7 +20,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <stdlib.h>
 # include <string.h>
 #endif
-#if defined(KERNEL) && (__FreeBSD_version >= 220000)
+#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else

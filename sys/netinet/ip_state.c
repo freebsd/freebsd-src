@@ -29,7 +29,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #  include <linux/module.h>
 # endif
 #endif
-#if defined(KERNEL) && (__FreeBSD_version >= 220000)
+#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 # if (__FreeBSD_version >= 300000) && !defined(IPFILTER_LKM)

@@ -20,7 +20,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
     defined(_KERNEL)
 # include "opt_ipfilter_log.h"
 #endif
-#if defined(KERNEL) && defined(__FreeBSD_version) && \
+#if defined(_KERNEL) && defined(__FreeBSD_version) && \
     (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
