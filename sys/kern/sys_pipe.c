@@ -242,7 +242,7 @@ pipe(td, uap)
 		free(pmtx, M_TEMP);
 		return (error);
 	}
-	fhold(rf);
+	/* An extra reference on `rf' has been held for us by falloc(). */
 	td->td_retval[0] = fd;
 
 	/*
@@ -272,12 +272,14 @@ pipe(td, uap)
 		free(pmtx, M_TEMP);
 		return (error);
 	}
+	/* An extra reference on `wf' has been held for us by falloc(). */
 	FILE_LOCK(wf);
 	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_PIPE;
 	wf->f_data = wpipe;
 	wf->f_ops = &pipeops;
 	FILE_UNLOCK(wf);
+	fdrop(wf, td);
 	td->td_retval[1] = fd;
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;

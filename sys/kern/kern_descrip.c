@@ -1163,6 +1163,10 @@ fdavail(td, n)
 /*
  * Create a new open file structure and allocate
  * a file decriptor for the process that refers to it.
+ * We add one reference to the file for the descriptor table
+ * and one reference for resultfp. This is to prevent us being
+ * prempted and the entry in the descriptor table closed after
+ * we release the FILEDESC lock.
  */
 int
 falloc(td, resultfp, resultfd)
@@ -1198,6 +1202,8 @@ falloc(td, resultfp, resultfd)
 	 */
 	fp->f_mtxp = mtx_pool_alloc(mtxpool_sleep);
 	fp->f_count = 1;
+	if (resultfp)
+		fp->f_count++;
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	FILEDESC_LOCK(p->p_fd);
@@ -1210,6 +1216,8 @@ falloc(td, resultfp, resultfd)
 	if ((error = fdalloc(td, 0, &i))) {
 		FILEDESC_UNLOCK(p->p_fd);
 		fdrop(fp, td);
+		if (resultfp)
+			fdrop(fp, td);
 		return (error);
 	}
 	p->p_fd->fd_ofiles[i] = fp;
@@ -1676,7 +1684,7 @@ fdcheckstd(td)
 	struct filedesc *fdp;
 	struct file *fp;
 	register_t retval;
-	int fd, i, error, flags, devnull;
+	int fd, i, error, flags, devnull, extraref;
 
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1690,16 +1698,28 @@ fdcheckstd(td)
 			error = falloc(td, &fp, &fd);
 			if (error != 0)
 				break;
+			/* Note extra ref on `fp' held for us by falloc(). */
 			KASSERT(fd == i, ("oof, we didn't get our fd"));
 			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
 			    td);
 			flags = FREAD | FWRITE;
 			error = vn_open(&nd, &flags, 0, -1);
 			if (error != 0) {
+				/*
+				 * Someone may have closed the entry in the
+				 * file descriptor table, so check it hasn't
+				 * changed before dropping the reference count.
+				 */
+				extraref = 0;
 				FILEDESC_LOCK(fdp);
-				fdp->fd_ofiles[fd] = NULL;
+				if (fdp->fd_ofiles[fd] == fp) {
+					fdp->fd_ofiles[fd] = NULL;
+					extraref = 1;
+				}
 				FILEDESC_UNLOCK(fdp);
 				fdrop(fp, td);
+				if (extraref)
+					fdrop(fp, td);
 				break;
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);

@@ -189,7 +189,7 @@ static  int
 streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	int type, protocol;
-	int fd;
+	int fd, extraref;
 	struct file *fp;
 	struct socket *so;
 	int error;
@@ -251,13 +251,21 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 
 	if ((error = falloc(td, &fp, &fd)) != 0)
 	  return error;
+	/* An extra reference on `fp' has been held for us by falloc(). */
 
 	if ((error = socreate(family, &so, type, protocol,
 	    td->td_ucred, td)) != 0) {
 	  FILEDESC_LOCK(p->p_fd);
-	  p->p_fd->fd_ofiles[fd] = 0;
+	  /* Check the fd table entry hasn't changed since we made it. */
+	  extraref = 0;
+	  if (p->p_fd->fd_ofiles[fd] == fp) {
+	    p->p_fd->fd_ofiles[fd] = NULL;
+	    extraref = 1;
+	  }
 	  FILEDESC_UNLOCK(p->p_fd);
-	  ffree(fp);
+	  if (extraref)
+	    fdrop(fp, td);
+	  fdrop(fp, td);
 	  return error;
 	}
 
@@ -269,6 +277,7 @@ streamsopen(dev_t dev, int oflags, int devtype, struct thread *td)
 	FILEDESC_UNLOCK(p->p_fd);
 
 	(void)svr4_stream_get(fp);
+	fdrop(fp, td);
 	PROC_LOCK(p);
 	td->td_dupfd = fd;
 	PROC_UNLOCK(p);
