@@ -135,18 +135,6 @@ static int ip6_splithdr __P((struct mbuf *, struct ip6_exthdrs *));
  * type of "mtu": rt_rmx.rmx_mtu is u_long, ifnet.ifr_mtu is int, and
  * nd_ifinfo.linkmtu is u_int32_t.  so we use u_long to hold largest one,
  * which is rt_rmx.rmx_mtu.
- *
- * If MIP6 is active it will have to add a Home Address option to DH1 if
- * the mobile node is roaming or a Routing Header type 0 if there exist
- * a Binding Cache entry for the destination node or a BU option to DH2
- * if the mobile node initiates communication and no BUL entry exist.
- * The only way to do this is to allocate new memory, copy the user data
- * to the new buffer and then add the Home Address option, BU option and
- * routing header type 0 respectively. MIP6 will set two flags in "struct
- * pktopts" to restore the original contents once ip6_output is completed.
- * To make this work, make sure that function exit is made through label
- * alldone.
- *
  */
 int
 ip6_output(m0, opt, ro, flags, im6o, ifpp)
@@ -1346,6 +1334,17 @@ do { \
 
 				case IPV6_V6ONLY:
 					/*
+					 * make setsockopt(IPV6_V6ONLY)
+					 * available only prior to bind(2).
+					 * see ipng mailing list, Jun 22 2001.
+					 */
+					if (in6p->in6p_lport ||
+					    !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr))
+					{
+						error = EINVAL;
+						break;
+					}
+					/*
 					 * XXX: BINDV6ONLY should be integrated
 					 * into V6ONLY.
 					 */
@@ -1484,9 +1483,11 @@ do { \
 
 				if (ip6_fw_ctl_ptr == NULL)
 					return EINVAL;
-				if (error = soopt_getm(sopt, &m)) /* XXX */
+				/* XXX */
+				if ((error = soopt_getm(sopt, &m)) != 0)
 					break;
-				if (error = soopt_mcopyin(sopt, m)) /* XXX */
+				/* XXX */
+				if ((error = soopt_mcopyin(sopt, m)) != 0)
 					break;
 				error = (*ip6_fw_ctl_ptr)(optname, mp);
 				m = *mp;
