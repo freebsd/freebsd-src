@@ -430,7 +430,7 @@ ata_pci_dmastop(struct ata_channel *ch)
 {
     int error;
 
-    error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
+    error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
