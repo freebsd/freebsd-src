@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id$
+# $Id: bsd.port.mk,v 1.3 1994/08/21 14:32:40 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -18,8 +18,8 @@
 # PKGDIR 	- Package creation files.
 #
 # USE_GMAKE	- Says that the package uses gmake (*).
-# GNU_CONFIGURE	- Says that the package uses GNU configure (*).
-# GNU_CONFIGURE_ARGS - If defined, override defaults with these args (*).
+# HAS_CONFIGURE	- Says that the package has its own configure script (*).
+# CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
 # HOME_LOCATION	- site/path name (or user's email address) describing
 #		  where this package came from or can be obtained if the
 #		  tarball is missing.
@@ -103,12 +103,8 @@ configure: extract
 			patch -d ${WRKSRC} --quiet -E -p0 < $$i; \
 		done; \
 	fi
-.if defined(GNU_CONFIGURE)
-.if !defined(GNU_CONFIGURE_ARGS)
-	@(cd ${WRKSRC}; ./configure i386--freebsd)
-.else !defined(GNU_CONFIGURE_ARGS)
-	@(cd ${WRKSRC}; ./configure ${GNU_CONFIGURE_ARGS})
-.endif
+.if defined(HAS_CONFIGURE)
+	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 # We have a small convention for our local configure scripts, which
 # is that ${.CURDIR} and the package working directory get passed as
