@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chio.h,v 1.10 1997/03/06 15:36:45 joerg Exp $
+ *	$Id: chio.h,v 1.11 1997/03/11 19:38:02 joerg Exp $
  */
 
 #ifndef	_SYS_CHIO_H_
@@ -54,14 +54,19 @@
 #define CHET_DT		3	/* data transfer (drive) */
 
 /*
+ * Maximum length of a volume identification string
+ */
+#define CH_VOLTAG_MAXLEN	32
+
+/*
  * Structure used to execute a MOVE MEDIUM command.
  */
 struct changer_move {
-	int	cm_fromtype;	/* element type to move from */
-	int	cm_fromunit;	/* logical unit of from element */
-	int	cm_totype;	/* element type to move to */
-	int	cm_tounit;	/* logical unit of to element */
-	int	cm_flags;	/* misc. flags */
+	u_int16_t	cm_fromtype;	/* element type to move from */
+	u_int16_t	cm_fromunit;	/* logical unit of from element */
+	u_int16_t	cm_totype;	/* element type to move to */
+	u_int16_t	cm_tounit;	/* logical unit of to element */
+	u_int16_t	cm_flags;	/* misc. flags */
 };
 
 /* cm_flags */
@@ -81,13 +86,13 @@ struct changer_move {
  * are the same.
  */
 struct changer_exchange {
-	int	ce_srctype;	/* element type of source */
-	int	ce_srcunit;	/* logical unit of source */
-	int	ce_fdsttype;	/* element type of first destination */
-	int	ce_fdstunit;	/* logical unit of first destination */
-	int	ce_sdsttype;	/* element type of second destination */
-	int	ce_sdstunit;	/* logical unit of second destination */
-	int	ce_flags;	/* misc. flags */
+	u_int16_t	ce_srctype;	/* element type of source */
+	u_int16_t	ce_srcunit;	/* logical unit of source */
+	u_int16_t	ce_fdsttype;	/* element type of first destination */
+	u_int16_t	ce_fdstunit;	/* logical unit of first destination */
+	u_int16_t	ce_sdsttype;	/* element type of second destination */
+	u_int16_t	ce_sdstunit;	/* logical unit of second destination */
+	u_int16_t	ce_flags;	/* misc. flags */
 };
 
 /* ce_flags */
@@ -99,9 +104,9 @@ struct changer_exchange {
  * moves the current picker in front of the specified element.
  */
 struct changer_position {
-	int	cp_type;	/* element type */
-	int	cp_unit;	/* logical unit of element */
-	int	cp_flags;	/* misc. flags */
+	u_int16_t	cp_type;	/* element type */
+	u_int16_t	cp_unit;	/* logical unit of element */
+	u_int16_t	cp_flags;	/* misc. flags */
 };
 
 /* cp_flags */
@@ -111,36 +116,99 @@ struct changer_position {
  * Data returned by CHIOGPARAMS.
  */
 struct changer_params {
-	int	cp_curpicker;	/* current picker */
-	int	cp_npickers;	/* number of pickers */
-	int	cp_nslots;	/* number of slots */
-	int	cp_nportals;	/* number of import/export portals */
-	int	cp_ndrives;	/* number of drives */
+	u_int16_t	cp_npickers;	/* number of pickers */
+	u_int16_t	cp_nslots;	/* number of slots */
+	u_int16_t	cp_nportals;	/* number of import/export portals */
+	u_int16_t	cp_ndrives;	/* number of drives */
 };
 
 /*
  * Command used to get element status.
  */
-struct changer_element_status {
-	int	ces_type;	/* element type */
-	u_int8_t *ces_data;	/* pre-allocated data storage */
+
+struct changer_voltag {
+	u_char		cv_volid[CH_VOLTAG_MAXLEN+1];
+	u_int16_t	cv_serial;
 };
 
+typedef struct changer_voltag changer_voltag_t;
+
 /*
- * Data returned by CHIOGSTATUS is an array of flags bytes.
+ * Flags definitions for ces_status
  * Not all flags have meaning for all element types.
  */
-#define CESTATUS_FULL		0x01	/* element is full */
-#define CESTATUS_IMPEXP		0x02	/* media deposited by operator */
-#define CESTATUS_EXCEPT		0x04	/* element in abnormal state */
-#define CESTATUS_ACCESS		0x08	/* media accessible by picker */
-#define CESTATUS_EXENAB		0x10	/* element supports exporting */
-#define CESTATUS_INENAB		0x20	/* element supports importing */
+typedef enum {
+	CES_STATUS_FULL	  = 0x001,	/* element is full */
+	CES_STATUS_IMPEXP = 0x002,	/* media deposited by operator */
+	CES_STATUS_EXCEPT = 0x004,	/* element in abnormal state */
+	CES_PICKER_MASK	  = 0x005,	/* flags valid for pickers */
+	CES_STATUS_ACCESS = 0x008,	/* media accessible by picker */
+	CES_SLOT_MASK	  = 0x00c,	/* flags valid for slots */
+	CES_DRIVE_MASK	  = 0x00c,	/* flags valid for drives */
+	CES_STATUS_EXENAB = 0x010,	/* element supports exporting */
+	CES_STATUS_INENAB = 0x020,	/* element supports importing */
+	CES_PORTAL_MASK	  = 0x03f,	/* flags valid for portals */
+	CES_INVERT	  = 0x040,	/* invert bit */
+	CES_SOURCE_VALID  = 0x080,	/* source address (ces_source) valid */
+	CES_SCSIID_VALID  = 0x100,	/* ces_scsi_id is valid */
+	CES_LUN_VALID	  = 0x200,	/* ces_scsi_lun is valid */
+} ces_status_flags;
 
-#define CESTATUS_PICKER_MASK	0x05	/* flags valid for pickers */
-#define CESTATUS_SLOT_MASK	0x0c	/* flags valid for slots */
-#define CESTATUS_PORTAL_MASK	0x3f	/* flags valid for portals */
-#define CESTATUS_DRIVE_MASK	0x0c	/* flags valid for drives */
+struct changer_element_status {
+	u_int8_t		ces_type;	  /* element type */
+	u_int16_t		ces_addr;	  /* logical element address */
+	u_int16_t		ces_int_addr;	  /* changer element address */
+	ces_status_flags	ces_flags;	  /* 
+						   * see CESTATUS definitions
+						   * below 
+						   */ 
+	u_int8_t		ces_sensecode;	  /* 
+						   * additional sense
+						   * code for element */
+	u_int8_t		ces_sensequal;	  /*
+						   * additional sense
+						   * code qualifier 
+						   */
+	u_int8_t		ces_source_type;  /* 
+						   * element type of
+						   * source address 
+						   */
+	u_int16_t		ces_source_addr;  /* 
+						   * source address of medium
+						   */
+	changer_voltag_t     	ces_pvoltag;	  /* primary volume tag */
+	changer_voltag_t	ces_avoltag;	  /* alternate volume tag */
+	u_int8_t		ces_scsi_id;	  /* SCSI id of element */
+	u_int8_t		ces_scsi_lun;	  /* SCSI lun of element */
+};
+
+struct changer_element_status_request {
+	u_int16_t			cesr_element_type;
+	u_int16_t			cesr_element_base;
+	u_int16_t			cesr_element_count;
+
+	u_int16_t			cesr_flags;
+#define CESR_VOLTAGS	0x01
+
+	struct changer_element_status	*cesr_element_status;
+};
+
+
+struct changer_set_voltag_request {
+	u_int16_t		csvr_type;
+	u_int16_t		csvr_addr;
+
+	u_int16_t		csvr_flags;
+#define CSVR_MODE_MASK		0x0f	/* mode mask, acceptable modes below: */
+#define	CSVR_MODE_SET		0x00	/* set volume tag if not set */
+#define CSVR_MODE_REPLACE	0x01	/* unconditionally replace volume tag */
+#define CSVR_MODE_CLEAR		0x02	/* clear volume tag */
+
+#define CSVR_ALTERNATE		0x10	/* set to work with alternate voltag */
+
+	changer_voltag_t     	csvr_voltag;
+};
+
 
 #define CESTATUS_BITS	\
 	"\20\6INEAB\5EXENAB\4ACCESS\3EXCEPT\2IMPEXP\1FULL"
@@ -151,6 +219,8 @@ struct changer_element_status {
 #define CHIOGPICKER	_IOR('c', 0x04, int)
 #define CHIOSPICKER	_IOW('c', 0x05, int)
 #define CHIOGPARAMS	_IOR('c', 0x06, struct changer_params)
-#define CHIOGSTATUS	_IOW('c', 0x08, struct changer_element_status)
+#define CHIOIELEM	_IOW('c', 0x07, u_int32_t)
+#define CHIOGSTATUS	_IOW('c', 0x08, struct changer_element_status_request)
+#define CHIOSETVOLTAG	_IOW('c', 0x09, struct changer_set_voltag_request)
 
 #endif /* !_SYS_CHIO_H_ */
