@@ -187,12 +187,14 @@ The algorithm used will depend upon whether
 has been called and whether a global default format has been specified.
 Unless a global default has been specified or
 .Fn crypt_set_format
-has set the format to something else, the best algorithm is used
-which is currently
+has set the format to something else, the built-in default format is
+used.
+This is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
-MD5.
+DES
+if it is available, or MD5 if not.
 .Pp
 How the salt is used will depend upon the algorithm for the hash.  For
 best results, specify at least two characters of salt.
