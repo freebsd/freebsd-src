@@ -1,4 +1,4 @@
-static char junk[] = "\n@(#)LIBF77 VERSION 19970226\n";
+static char junk[] = "\n@(#)LIBF77 VERSION 19970919\n";
 
 /*
 2.00	11 June 1980.  File version.c added to library.
@@ -46,4 +46,8 @@ static char junk[] = "\n@(#)LIBF77 VERSION 19970226\n";
 			to permit aliasing it with input arguments.
 			(For now, at least, this is just for possible
 			benefit of g77.)
+	4 April 1997: [cz]_div.c: tweaks invisible on most systems (that may
+			affect systems using gratuitous extra precision).
+	19 Sept. 1997: [de]time_.c (Unix systems only): change return
+			type to double.
 */

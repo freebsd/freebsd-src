@@ -229,7 +229,7 @@ fwd_strcpy(register char *t, register char *s)
     extern FILEP c_file;
     extern char tr_tab[];	/* in output.c */
     register char *Tr = tr_tab;
-    int ch, inc, ind;
+    int ch, cmax, inc, ind;
     static int extra_indent, last_indent, set_cursor = 1;
 
     cursor_pos += indent - last_indent;
@@ -250,13 +250,17 @@ fwd_strcpy(register char *t, register char *s)
 		ind = indent <= MAX_INDENT
 			? indent
 			: MIN_INDENT + indent % (MAX_INDENT - MIN_INDENT);
-		cursor_pos = ind + extra_indent;
+		cursor_pos = extra_indent;
+		if (use_indent)
+			cursor_pos += ind;
 		set_cursor = 0;
 		}
-	if (in_comment)
+	if (in_comment) {
+		cmax = max_line_len + 32;	/* let comments be wider */
         	for (pointer = next_slot; *pointer && *pointer != '\n' &&
-				cursor_pos <= max_line_len; pointer++)
+				cursor_pos <= cmax; pointer++)
 			cursor_pos++;
+		}
 	else
           for (pointer = next_slot; *pointer && *pointer != '\n' &&
 		cursor_pos <= max_line_len; pointer++) {

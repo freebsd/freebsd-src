@@ -1,6 +1,4 @@
-#ifdef KR_headers
-extern FILE *fdopen();
-#else
+#ifndef KR_headers
 #ifdef MSDOS
 #include "io.h"
 #ifndef WATCOM

@@ -40,43 +40,23 @@ mv_cur(Void)	/* shouldn't use fseek because it insists on calling fflush */
 		}
 		return(0);
 	}
-	if(cursor > 0) {
+	if (cursor > 0) {
 		if(f__hiwater <= f__recpos)
 			for(;cursor>0;cursor--) (*f__putn)(' ');
 		else if(f__hiwater <= f__recpos + cursor) {
-#ifndef NON_UNIX_STDIO
-			if(f__cf->_ptr + f__hiwater - f__recpos < buf_end(f__cf))
-				f__cf->_ptr += f__hiwater - f__recpos;
-			else
-#endif
-				(void) fseek(f__cf, (long) (f__hiwater - f__recpos), SEEK_CUR);
 			cursor -= f__hiwater - f__recpos;
 			f__recpos = f__hiwater;
 			for(; cursor > 0; cursor--)
 				(*f__putn)(' ');
 		}
 		else {
-#ifndef NON_UNIX_STDIO
-			if(f__cf->_ptr + cursor < buf_end(f__cf))
-				f__cf->_ptr += cursor;
-			else
-#endif
-				(void) fseek(f__cf, (long)cursor, SEEK_CUR);
 			f__recpos += cursor;
 		}
 	}
-	if(cursor<0)
+	else if (cursor < 0)
 	{
-		if(cursor+f__recpos<0) err(f__elist->cierr,110,"left off");
-#ifndef NON_UNIX_STDIO
-		if(f__cf->_ptr + cursor >= f__cf->_base)
-			f__cf->_ptr += cursor;
-		else
-#endif
-		if(f__curunit && f__curunit->useek)
-			(void) fseek(f__cf,(long)cursor,SEEK_CUR);
-		else
-			err(f__elist->cierr,106,"fmt");
+		if(cursor + f__recpos < 0)
+			err(f__elist->cierr,110,"left off");
 		if(f__hiwater < f__recpos)
 			f__hiwater = f__recpos;
 		f__recpos += cursor;
@@ -292,9 +272,7 @@ wrt_G(ufloat *p, int w, int d, int e, ftnlen len)
 	if(x<.1) {
 		if (x != 0.)
 			return(wrt_E(p,w,d,e,len));
-#ifdef WANT_LEAD_0
 		i = 1;
-#endif
 		goto have_i;
 		}
 	for(;i<=d;i++,up*=10)
@@ -328,7 +306,7 @@ w_ed(struct syl *p, char *ptr, ftnlen len)
 		sig_die(f__fmtbuf, 1);
 	case I:	return(wrt_I((Uint *)ptr,p->p1,len, 10));
 	case IM:
-		return(wrt_IM((Uint *)ptr,p->p1,p->p2,len,10));
+		return(wrt_IM((Uint *)ptr,p->p1,p->p2.i[0],len,10));
 
 		/* O and OM don't work right for character, double, complex, */
 		/* or doublecomplex, and they differ from Fortran 90 in */
@@ -336,7 +314,7 @@ w_ed(struct syl *p, char *ptr, ftnlen len)
 
 	case O:	return(wrt_I((Uint *)ptr, p->p1, len, 8));
 	case OM:
-		return(wrt_IM((Uint *)ptr,p->p1,p->p2,len,8));
+		return(wrt_IM((Uint *)ptr,p->p1,p->p2.i[0],len,8));
 	case L:	return(wrt_L((Uint *)ptr,p->p1, len));
 	case A: return(wrt_A(ptr,len));
 	case AW:
@@ -344,17 +322,17 @@ w_ed(struct syl *p, char *ptr, ftnlen len)
 	case D:
 	case E:
 	case EE:
-		return(wrt_E((ufloat *)ptr,p->p1,p->p2,p->p3,len));
+		return(wrt_E((ufloat *)ptr,p->p1,p->p2.i[0],p->p2.i[1],len));
 	case G:
 	case GE:
-		return(wrt_G((ufloat *)ptr,p->p1,p->p2,p->p3,len));
-	case F:	return(wrt_F((ufloat *)ptr,p->p1,p->p2,len));
+		return(wrt_G((ufloat *)ptr,p->p1,p->p2.i[0],p->p2.i[1],len));
+	case F:	return(wrt_F((ufloat *)ptr,p->p1,p->p2.i[0],len));
 
 		/* Z and ZM assume 8-bit bytes. */
 
 	case Z: return(wrt_Z((Uint *)ptr,p->p1,0,len));
 	case ZM:
-		return(wrt_Z((Uint *)ptr,p->p1,p->p2,len));
+		return(wrt_Z((Uint *)ptr,p->p1,p->p2.i[0],len));
 	}
 }
 #ifdef KR_headers
@@ -380,8 +358,8 @@ w_ned(struct syl *p)
 		f__cursor += p->p1;
 		return(1);
 	case APOS:
-		return(wrt_AP(*(char **)&p->p2));
+		return(wrt_AP(p->p2.s));
 	case H:
-		return(wrt_H(p->p1,*(char **)&p->p2));
+		return(wrt_H(p->p1,p->p2.s));
 	}
 }

@@ -328,7 +328,7 @@ do_p1_comment(infile, outfile)
 do_p1_comment(FILE *infile, FILE *outfile)
 #endif
 {
-    extern int c_output_line_length, in_comment;
+    extern int in_comment;
 
     char storage[COMMENT_BUFFER_SIZE + 1];
     int length;
@@ -340,10 +340,7 @@ do_p1_comment(FILE *infile, FILE *outfile)
 
     gflag1 = sharp_line = 0;
     in_comment = 1;
-    if (length > c_output_line_length - 6)
-	margin_printf(outfile, "/*%s*/\n", storage);
-    else
-	margin_printf(outfile, length ? "/* %s */\n" : "\n", storage);
+    margin_printf(outfile, length ? "/* %s */\n" : "\n", storage);
     in_comment = 0;
     gflag1 = sharp_line = gflag;
 } /* do_p1_comment */
@@ -2428,6 +2425,8 @@ proto(FILE *outfile,  Argtypes *at,  char *fname)
 			nice_printf(outfile, "%schar **", comma);
 		else if (k >= 200) {
 			k -= 200;
+			if (k >= 100)
+				k -= 100;
 			nice_printf(outfile, "%s%s", comma,
 				usedcasts[k] = casttypes[k]);
 			}

@@ -162,4 +162,21 @@ realloc(Char *f, Unsigned size)
 		memcpy(q, f, s1);
 	return q;
 	}
+
+/* The following (calloc) should really be in a separate file, */
+/* but defining it here sometimes avoids confusion on systems */
+/* that do not provide calloc in its own file. */
+
+ Char *
+#ifdef KR_headers
+calloc(n, m) Unsigned m, n;
+#else
+calloc(Unsigned n, Unsigned m)
+#endif
+{
+	Char *rv = malloc(n *= m);
+	if (n && rv)
+		memset(rv, 0, n);
+	return rv;
+	}
 #endif

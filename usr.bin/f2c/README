@@ -32,16 +32,17 @@ details, ask netlib@netlib.bell-labs.com to "send readme from f2c".
 On some systems, the malloc and free in malloc.c let f2c run faster
 than do the standard malloc and free.  Other systems may not tolerate
 redefinition of malloc and free (though changes of 8 Nov. 1994 may
-render this less of a problem than hitherto).  If yours is such a
-system, you may either modify the makefile appropriately (remove
-"malloc.o" from the "OBJECTS =" assignment), or simply execute
-	cc -c -DCRAY malloc.c
-before typing "make".  Still other systems have a -lmalloc that
-provides performance competitive with that from malloc.c; you may
-wish to compare the two on your system.  In general, if f2c faults
-when you first try to run it, try compiling malloc.c with -DCRAY;
-this is necessary with at least one version of Linux (but not with
-others).
+render this less of a problem than hitherto).  If your system permits
+use of a user-supplied malloc, you may wish to change the MALLOC =
+line in the makefile to "MALLOC = malloc.o", or to type
+	make MALLOC=malloc.o
+instead of
+	make
+Still other systems have a -lmalloc that provides performance
+competitive with that from malloc.c; you may wish to compare the two
+on your system.  If your system does not permit user-supplied malloc
+routines, then f2c may fault with "MALLOC=malloc.o", or may display
+other untoward behavior.
 
 On some BSD systems, you may need to create a file named "string.h"
 whose single line is
@@ -156,6 +157,11 @@ netlib.bell-labs.com and look in directory /netlib/fp).
 The makefile has a rule for creating tokdefs.h.  If you cannot use the
 makefile, an alternative is to extract tokdefs.h from the beginning of
 gram.c: it's the first 100 lines.
+
+File mem.c has #ifdef CRAY lines that are appropriate for machines
+with the conventional CRAY architecture, but not for "Cray" machines
+based on DEC Alpha chips, such as the T3E; on such machines, you may
+need to make a suitable adjustment, e.g., add #undef CRAY to sysdep.h.
 
 
 Please send bug reports to dmg@bell-labs.com .  The old index file
