@@ -505,7 +505,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (fsflags & MNT_UPDATE) {
-		if ((vp->v_flag & VROOT) == 0) {
+		if ((vp->v_vflag & VV_ROOT) == 0) {
 			vput(vp);
 			error = EINVAL;
 			goto bad;
@@ -539,16 +539,17 @@ vfs_nmount(td, fsflags, fsoptions)
 			error = EBUSY;
 			goto bad;
 		}
-		mtx_lock(&vp->v_interlock);
-		if ((vp->v_flag & VMOUNT) != 0 || vp->v_mountedhere != NULL) {
-			mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_MOUNT) != 0 ||
+		    vp->v_mountedhere != NULL) {
+			VI_UNLOCK(vp);
 			vfs_unbusy(mp, td);
 			vput(vp);
 			error = EBUSY;
 			goto bad;
 		}
-		vp->v_flag |= VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		vp->v_iflag |= VI_MOUNT;
+		VI_UNLOCK(vp);
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, td);
@@ -616,16 +617,16 @@ vfs_nmount(td, fsflags, fsoptions)
 			goto bad;
 		}
 	}
-	mtx_lock(&vp->v_interlock);
-	if ((vp->v_flag & VMOUNT) != 0 ||
+	VI_LOCK(vp);
+	if ((vp->v_iflag & VI_MOUNT) != 0 ||
 	    vp->v_mountedhere != NULL) {
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		vput(vp);
 		error = EBUSY;
 		goto bad;
 	}
-	vp->v_flag |= VMOUNT;
-	mtx_unlock(&vp->v_interlock);
+	vp->v_iflag |= VI_MOUNT;
+	VI_UNLOCK(vp);
 
 	/*
 	 * Allocate and initialize the filesystem.
@@ -660,9 +661,9 @@ update:
 	if (mp->mnt_op->vfs_mount != NULL) {
 		printf("%s doesn't support the new mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		if (mp->mnt_flag & MNT_UPDATE)
 			vfs_unbusy(mp, td);
 		else {
@@ -722,9 +723,9 @@ update:
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, td);
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		vrele(vp);
 		return (error);
 	}
@@ -736,10 +737,10 @@ update:
 	if (!error) {
 		struct vnode *newdp;
 
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
 		vp->v_mountedhere = mp;
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
@@ -756,9 +757,9 @@ update:
 			goto bad;
 		}
 	} else {
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
 #ifdef MAC
@@ -880,7 +881,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if (fsflags & MNT_UPDATE) {
-		if ((vp->v_flag & VROOT) == 0) {
+		if ((vp->v_vflag & VV_ROOT) == 0) {
 			vput(vp);
 			return (EINVAL);
 		}
@@ -911,15 +912,16 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			vput(vp);
 			return (EBUSY);
 		}
-		mtx_lock(&vp->v_interlock);
-		if ((vp->v_flag & VMOUNT) != 0 || vp->v_mountedhere != NULL) {
-			mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_MOUNT) != 0 ||
+		    vp->v_mountedhere != NULL) {
+			VI_UNLOCK(vp);
 			vfs_unbusy(mp, td);
 			vput(vp);
 			return (EBUSY);
 		}
-		vp->v_flag |= VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		vp->v_iflag |= VI_MOUNT;
+		VI_UNLOCK(vp);
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, td);
@@ -983,15 +985,15 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return (ENODEV);
 		}
 	}
-	mtx_lock(&vp->v_interlock);
-	if ((vp->v_flag & VMOUNT) != 0 ||
+	VI_LOCK(vp);
+	if ((vp->v_iflag & VI_MOUNT) != 0 ||
 	    vp->v_mountedhere != NULL) {
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		vput(vp);
 		return (EBUSY);
 	}
-	vp->v_flag |= VMOUNT;
-	mtx_unlock(&vp->v_interlock);
+	vp->v_iflag |= VI_MOUNT;
+	VI_UNLOCK(vp);
 
 	/*
 	 * Allocate and initialize the filesystem.
@@ -1024,9 +1026,9 @@ update:
 	if (mp->mnt_op->vfs_mount == NULL) {
 		printf("%s doesn't support the old mount syscall\n",
 		    mp->mnt_vfc->vfc_name);
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		if (mp->mnt_flag & MNT_UPDATE)
 			vfs_unbusy(mp, td);
 		else {
@@ -1075,9 +1077,9 @@ update:
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, td);
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		vrele(vp);
 		return (error);
 	}
@@ -1089,10 +1091,11 @@ update:
 	if (!error) {
 		struct vnode *newdp;
 
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
+		mp_fixme("Does interlock protect mounted here or not?");
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
 		vp->v_mountedhere = mp;
-		mtx_unlock(&vp->v_interlock);
+		VI_UNLOCK(vp);
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
@@ -1107,9 +1110,9 @@ update:
 		if ((error = VFS_START(mp, 0, td)) != 0)
 			vrele(vp);
 	} else {
-		mtx_lock(&vp->v_interlock);
-		vp->v_flag &= ~VMOUNT;
-		mtx_unlock(&vp->v_interlock);
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
 #ifdef MAC
@@ -1226,7 +1229,7 @@ unmount(td, uap)
 	/*
 	 * Must be the root of the filesystem
 	 */
-	if ((vp->v_flag & VROOT) == 0) {
+	if ((vp->v_vflag & VV_ROOT) == 0) {
 		vput(vp);
 		return (EINVAL);
 	}

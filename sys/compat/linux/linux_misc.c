@@ -381,8 +381,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		goto cleanup;
 	}
 
+	mp_fixme("Unlocked vflags access.");
 	/* prevent more writers */
-	vp->v_flag |= VTEXT;
+	vp->v_vflag |= VV_TEXT;
 
 	/*
 	 * Check if file_offset page aligned. Currently we cannot handle

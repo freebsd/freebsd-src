@@ -216,7 +216,8 @@ exec_svr4_imgact(imgp)
 
 	}
 	/* Indicate that this file should not be modified */
-	imgp->vp->v_flag |= VTEXT;
+	mp_fixme("Unlocked vflag access.");
+	imgp->vp->v_vflag |= VV_TEXT;
     }
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;

@@ -413,7 +413,8 @@ int handleDownCall(opcode, out)
 	      vref(CTOV(cp));
 	      
 	      cp->c_flags &= ~C_VATTR;
-	      if (CTOV(cp)->v_flag & VTEXT)
+	      ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
+	      if (CTOV(cp)->v_vflag & VV_TEXT)
 		  error = coda_vmflush(cp);
 	      CODADEBUG(CODA_ZAPFILE, myprintf((
 "zapfile: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
@@ -470,8 +471,9 @@ int handleDownCall(opcode, out)
 	      }
 	      cp->c_flags &= ~C_VATTR;
 	      coda_nc_zapfid(&out->coda_purgefid.CodaFid, IS_DOWNCALL);
+	      ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 	      if (!(ODD(out->coda_purgefid.CodaFid.Vnode)) 
-		  && (CTOV(cp)->v_flag & VTEXT)) {
+		  && (CTOV(cp)->v_vflag & VV_TEXT)) {
 		  
 		  error = coda_vmflush(cp);
 	      }

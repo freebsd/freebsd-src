@@ -157,7 +157,7 @@ devfs_root(mp, vpp)
 	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, td);
 	if (error)
 		return (error);
-	vp->v_flag |= VROOT;
+	vp->v_vflag |= VV_ROOT;
 	*vpp = vp;
 	return (0);
 }

@@ -203,8 +203,9 @@ rescan:
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
-
-	if (vp->v_type == VDIR && dvp && (dvp->v_flag & VROOT) == 0) {
+	
+	ASSERT_VOP_LOCKED(dvp, "nwfs_allocvp");
+	if (vp->v_type == VDIR && dvp && (dvp->v_vflag & VV_ROOT) == 0) {
 		np->n_flag |= NREFPARENT;
 		vref(dvp);
 	}

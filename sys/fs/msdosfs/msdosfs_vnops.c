@@ -815,6 +815,7 @@ msdosfs_fsync(ap)
 	 */
 loop:
 	s = splbio();
+	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
@@ -823,13 +824,17 @@ loop:
 			panic("msdosfs_fsync: not dirty");
 		bremfree(bp);
 		splx(s);
+		VI_UNLOCK(vp);
+		/* XXX Could do bawrite */
 		(void) bwrite(bp);
 		goto loop;
 	}
 	while (vp->v_numoutput) {
-		vp->v_flag |= VBWAIT;
-		(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "msdosfsn", 0);
+		vp->v_vflag |= VI_BWAIT;
+		(void) msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
+		    PRIBIO + 1, "msdosfsn", 0);
 	}
+	VI_UNLOCK(vp);
 #ifdef DIAGNOSTIC
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vprint("msdosfs_fsync: dirty", vp);

@@ -143,7 +143,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	(*vpp)->v_data = pvd;
 	switch (pn->pn_type) {
 	case pfstype_root:
-		(*vpp)->v_flag = VROOT;
+		(*vpp)->v_vflag = VV_ROOT;
 #if 0
 		printf("root vnode allocated\n");
 #endif

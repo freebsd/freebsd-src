@@ -192,7 +192,7 @@ coda_mount(vfsp, path, data, ndp, td)
     rootfid.Unique = 0;
     cp = make_coda_node(&rootfid, vfsp, VDIR);
     rootvp = CTOV(cp);
-    rootvp->v_flag |= VROOT;
+    rootvp->v_vflag |= VV_ROOT;
 	
     ctlfid.Volume = CTL_VOL;
     ctlfid.Vnode = CTL_VNO;
@@ -257,7 +257,8 @@ coda_unmount(vfsp, mntflags, td)
 	vrele(mi->mi_rootvp);
 
 	active = coda_kill(vfsp, NOT_DOWNCALL);
-	mi->mi_rootvp->v_flag &= ~VROOT;
+	ASSERT_VOP_LOCKED(mi->mi_rootvp, "coda_unmount");
+	mi->mi_rootvp->v_vflag &= ~VV_ROOT;
 	error = vflush(mi->mi_vfsp, 0, FORCECLOSE);
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
 	error = 0;

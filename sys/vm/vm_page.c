@@ -1174,8 +1174,12 @@ vm_page_free_toq(vm_page_t m)
 	) {
 		struct vnode *vp = (struct vnode *)object->handle;
 
-		if (vp && VSHOULDFREE(vp))
-			vfree(vp);
+		if (vp) {
+			VI_LOCK(vp);
+			if (VSHOULDFREE(vp))
+				vfree(vp);
+			VI_UNLOCK(vp);
+		}
 	}
 
 	/*

@@ -1155,7 +1155,8 @@ restart:
 		 *
 		 * XXX: can this only be a VDIR case?
 		 */
-		if (vp->v_flag & VROOT)
+		mp_fixme("Accessing vflags w/o the vn lock.");
+		if (vp->v_vflag & VV_ROOT)
 			error = EBUSY;
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
@@ -2778,7 +2779,7 @@ restart:
 	/*
 	 * The root of a mounted filesystem cannot be deleted.
 	 */
-	if (vp->v_flag & VROOT) {
+	if (vp->v_vflag & VV_ROOT) {
 		error = EBUSY;
 		goto out;
 	}
@@ -2939,7 +2940,8 @@ unionread:
 				return (error);
 			}
 		}
-		if ((vp->v_flag & VROOT) &&
+		mp_fixme("Accessing vflags w/o vn lock.");
+		if ((vp->v_vflag & VV_ROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
@@ -3030,7 +3032,8 @@ unionread:
 				return (error);
 			}
 		}
-		if ((vp->v_flag & VROOT) &&
+		mp_fixme("Accessing vflag without vn lock.");
+		if ((vp->v_vflag & VV_ROOT) &&
 		    (vp->v_mount->mnt_flag & MNT_UNION)) {
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
