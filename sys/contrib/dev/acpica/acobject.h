@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 89 $
+ *       $Revision: 90 $
  *
  *****************************************************************************/
 
@@ -158,8 +158,10 @@
 /* Defines for flag byte above */
 
 #define AOPOBJ_STATIC_ALLOCATION    0x1
-#define AOPOBJ_DATA_VALID           0x2
-#define AOPOBJ_INITIALIZED          0x4
+#define AOPOBJ_STATIC_POINTER       0x2
+#define AOPOBJ_DATA_VALID           0x4
+#define AOPOBJ_ZERO_CONST           0x4
+#define AOPOBJ_INITIALIZED          0x8
 
 
 /*

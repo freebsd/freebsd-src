@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 94 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -215,6 +215,9 @@ AcpiNsDumpOneObject (
     UINT32                  WhichBit;
 
 
+    PROC_NAME ("AcpiNsDumpOneObject");
+
+
     ThisNode = AcpiNsConvertHandleToEntry (ObjHandle);
 
     LevelTmp    = Level;
@@ -229,7 +232,7 @@ AcpiNsDumpOneObject (
 
     if (!ObjHandle)
     {
-        DEBUG_PRINT (ACPI_INFO, ("NsDumpOneObject: Null object handle\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Null object handle\n"));
         return (AE_OK);
     }
 
@@ -253,12 +256,12 @@ AcpiNsDumpOneObject (
         {
             if (DownstreamSiblingMask & WhichBit)
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("|"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "|"));
             }
 
             else
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, (" "));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
             }
 
             WhichBit <<= 1;
@@ -269,28 +272,28 @@ AcpiNsDumpOneObject (
             if (AcpiNsExistDownstreamSibling (ThisNode + 1))
             {
                 DownstreamSiblingMask |= (1 << (Level - 1));
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("+"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "+"));
             }
 
             else
             {
                 DownstreamSiblingMask &= ACPI_UINT32_MAX ^ (1 << (Level - 1));
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("+"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "+"));
             }
 
             if (ThisNode->Child == NULL)
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("-"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "-"));
             }
 
             else if (AcpiNsExistDownstreamSibling (ThisNode->Child))
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("+"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "+"));
             }
 
             else
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("-"));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "-"));
             }
         }
     }
@@ -312,15 +315,15 @@ AcpiNsDumpOneObject (
      * Now we can print out the pertinent information
      */
 
-    DEBUG_PRINT_RAW (TRACE_TABLES, (" %4.4s %-9s ", &ThisNode->Name, AcpiUtGetTypeName (Type)));
-    DEBUG_PRINT_RAW (TRACE_TABLES, ("%p S:%p O:%p",  ThisNode, ThisNode->Child, ThisNode->Object));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " %4.4s %-9s ", &ThisNode->Name, AcpiUtGetTypeName (Type)));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "%p S:%p O:%p",  ThisNode, ThisNode->Child, ThisNode->Object));
 
 
     if (!ThisNode->Object)
     {
         /* No attached object, we are done */
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, ("\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "\n"));
         return (AE_OK);
     }
 
@@ -331,7 +334,7 @@ AcpiNsDumpOneObject (
 
         /* Name is a Method and its AML offset/length are set */
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, (" M:%p-%X\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " M:%p-%X\n",
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.Pcode,
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.PcodeLength));
 
@@ -340,14 +343,14 @@ AcpiNsDumpOneObject (
 
     case ACPI_TYPE_INTEGER:
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, (" N:%X\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " N:%X\n",
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Integer.Value));
         break;
 
 
     case ACPI_TYPE_STRING:
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, (" S:%p-%X\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " S:%p-%X\n",
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->String.Pointer,
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->String.Length));
         break;
@@ -355,7 +358,7 @@ AcpiNsDumpOneObject (
 
     case ACPI_TYPE_BUFFER:
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, (" B:%p-%X\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " B:%p-%X\n",
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Buffer.Pointer,
                     ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Buffer.Length));
         break;
@@ -363,13 +366,13 @@ AcpiNsDumpOneObject (
 
     default:
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, ("\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "\n"));
         break;
     }
 
     /* If debug turned off, done */
 
-    if (!(AcpiDbgLevel & TRACE_VALUES))
+    if (!(AcpiDbgLevel & ACPI_LV_VALUES))
     {
         return (AE_OK);
     }
@@ -387,17 +390,17 @@ AcpiNsDumpOneObject (
 
         /* Decode the type of attached object and dump the contents */
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, ("        Attached Object %p: ", Value));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "        Attached Object %p: ", Value));
 
         if (AcpiTbSystemTablePointer (Value))
         {
-            DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to AML Code)\n"));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "(Ptr to AML Code)\n"));
             BytesToDump = 16;
         }
 
         else if (VALID_DESCRIPTOR_TYPE (Value, ACPI_DESC_TYPE_NAMED))
         {
-            DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to Node)\n"));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "(Ptr to Node)\n"));
             BytesToDump = sizeof (ACPI_NAMESPACE_NODE);
         }
 
@@ -409,13 +412,13 @@ AcpiNsDumpOneObject (
 
             if (ObjType > INTERNAL_TYPE_MAX)
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type %X [UNKNOWN])\n", ObjType));
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "(Ptr to ACPI Object type %X [UNKNOWN])\n", ObjType));
                 BytesToDump = 32;
             }
 
             else
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type %X [%s])\n",
+                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "(Ptr to ACPI Object type %X [%s])\n",
                                     ObjType, AcpiUtGetTypeName (ObjType)));
                 BytesToDump = sizeof (ACPI_OPERAND_OBJECT);
             }
@@ -423,7 +426,7 @@ AcpiNsDumpOneObject (
 
         else
         {
-            DEBUG_PRINT_RAW (TRACE_TABLES, ("(String or Buffer - not descriptor)\n", Value));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "(String or Buffer - not descriptor)\n", Value));
             BytesToDump = 16;
         }
 
@@ -482,7 +485,7 @@ AcpiNsDumpOneObject (
     }
 
 Cleanup:
-    DEBUG_PRINT_RAW (TRACE_TABLES, ("\n"));
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "\n"));
     return (AE_OK);
 }
 
@@ -513,7 +516,7 @@ AcpiNsDumpObjects (
     ACPI_WALK_INFO          Info;
 
 
-    Info.DebugLevel = TRACE_TABLES;
+    Info.DebugLevel = ACPI_LV_TABLES;
     Info.OwnerId = OwnerId;
 
     AcpiNsWalkNamespace (Type, StartHandle, MaxDepth, NS_WALK_NO_UNLOCK, AcpiNsDumpOneObject,
@@ -546,6 +549,8 @@ AcpiNsDumpOneDevice (
     ACPI_STATUS             Status;
     UINT32                  i;
 
+    PROC_NAME ("AcpiNsDumpOneDevice");
+
 
     Status = AcpiNsDumpOneObject (ObjHandle, Level, Context, ReturnValue);
 
@@ -554,10 +559,10 @@ AcpiNsDumpOneDevice (
     {
         for (i = 0; i < Level; i++)
         {
-            DEBUG_PRINT_RAW (TRACE_TABLES, (" "));
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
         }
 
-        DEBUG_PRINT_RAW (TRACE_TABLES, ("    HID: %.8X, ADR: %.8X, Status: %x\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "    HID: %.8X, ADR: %.8X, Status: %x\n",
                         Info.HardwareId, Info.Address, Info.CurrentStatus));
     }
 
@@ -580,17 +585,19 @@ AcpiNsDumpRootDevices (void)
 {
     ACPI_HANDLE             SysBusHandle;
 
+    PROC_NAME ("AcpiNsDumpRootDevices");
+
 
     /* Only dump the table if tracing is enabled */
 
-    if (!(TRACE_TABLES & AcpiDbgLevel))
+    if (!(ACPI_DB_TABLES & AcpiDbgLevel))
     {
         return;
     }
 
     AcpiGetHandle (0, NS_SYSTEM_BUS, &SysBusHandle);
 
-    DEBUG_PRINT (TRACE_TABLES, ("Display of all devices in the namespace:\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Display of all devices in the namespace:\n"));
     AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, SysBusHandle, ACPI_UINT32_MAX, NS_WALK_NO_UNLOCK,
                         AcpiNsDumpOneDevice, NULL, NULL);
 }
@@ -627,7 +634,7 @@ AcpiNsDumpTables (
          * If the name space has not been initialized,
          * there is nothing to dump.
          */
-        DEBUG_PRINTP (TRACE_TABLES, ("name space not initialized!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "name space not initialized!\n"));
         return_VOID;
     }
 
@@ -636,7 +643,7 @@ AcpiNsDumpTables (
         /*  entire namespace    */
 
         SearchHandle = AcpiGbl_RootNode;
-        DEBUG_PRINT (TRACE_TABLES, ("\\\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "\\\n"));
     }
 
 

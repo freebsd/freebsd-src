@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 38 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -185,8 +185,6 @@ AcpiPsAllocOp (
     UINT8                   Flags;
 
 
-    PROC_NAME ("PsAllocOp");
-
 
     /* Allocate the minimum required size object */
 
@@ -215,85 +213,23 @@ AcpiPsAllocOp (
     }
 
 
+
     if (Size == sizeof (ACPI_PARSE_OBJECT))
     {
         /*
-         * The generic op is by far the most common (16 to 1), and therefore
-         * the op cache is implemented with this type.
-         *
-         * Check if there is an Op already available in the cache
+         * The generic op is by far the most common (16 to 1)
          */
-
-        AcpiUtAcquireMutex (ACPI_MTX_CACHES);
-        AcpiGbl_ParseCacheRequests++;
-        if (AcpiGbl_ParseCache)
-        {
-            /* Extract an op from the front of the cache list */
-
-            AcpiGbl_ParseCacheDepth--;
-            AcpiGbl_ParseCacheHits++;
-
-            Op = AcpiGbl_ParseCache;
-            AcpiGbl_ParseCache = Op->Next;
-
-            if (Op->DataType == 0xFF)
-            {
-                DEBUG_PRINTP (ACPI_ERROR, ("Op %p deleted while in cache!\n", Op));
-            }
-
-            /* Clear the previously used Op */
-
-            MEMSET (Op, 0, sizeof (ACPI_PARSE_OBJECT));
-
-            DEBUG_PRINTP (TRACE_PARSE, ("Op %p from Parse Cache\n", Op));
-        }
-        AcpiUtReleaseMutex (ACPI_MTX_CACHES);
+        Op = AcpiUtAcquireFromCache (ACPI_MEM_LIST_PSNODE);
     }
 
     else
     {
-        /*
-         * The generic op is by far the most common (16 to 1), and therefore
-         * the op cache is implemented with this type.
-         *
-         * Check if there is an Op already available in the cache
-         */
-
-        AcpiUtAcquireMutex (ACPI_MTX_CACHES);
-        AcpiGbl_ExtParseCacheRequests++;
-        if (AcpiGbl_ExtParseCache)
-        {
-            /* Extract an op from the front of the cache list */
-
-            AcpiGbl_ExtParseCacheDepth--;
-            AcpiGbl_ExtParseCacheHits++;
-
-            Op = (ACPI_PARSE_OBJECT *) AcpiGbl_ExtParseCache;
-            AcpiGbl_ExtParseCache = (ACPI_PARSE2_OBJECT *) Op->Next;
-
-            if (Op->DataType == 0xFF)
-            {
-                DEBUG_PRINTP (ACPI_ERROR, ("Op %p deleted while in cache!\n", Op));
-            }
-
-            /* Clear the previously used Op */
-
-            MEMSET (Op, 0, sizeof (ACPI_PARSE2_OBJECT));
-
-            DEBUG_PRINTP (TRACE_PARSE, ("Op %p from ExtParse Cache\n", Op));
-        }
-        AcpiUtReleaseMutex (ACPI_MTX_CACHES);
+        Op = AcpiUtAcquireFromCache (ACPI_MEM_LIST_PSNODE_EXT);
     }
 
-
-    /* Allocate a new Op if necessary */
-
-    if (!Op)
-    {
-        Op = ACPI_MEM_CALLOCATE (Size);
-    }
 
     /* Initialize the Op */
+
     if (Op)
     {
         AcpiPsInitOp (Op, Opcode);
@@ -326,62 +262,18 @@ AcpiPsFreeOp (
 
     if (Op->Opcode == AML_INT_RETURN_VALUE_OP)
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Free retval op: %p\n", Op));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Free retval op: %p\n", Op));
     }
 
     if (Op->Flags == PARSEOP_GENERIC)
     {
-        /* Is the cache full? */
-
-        if (AcpiGbl_ParseCacheDepth < MAX_PARSE_CACHE_DEPTH)
-        {
-            /* Put a GENERIC_OP back into the cache */
-
-            /* Clear the previously used Op */
-
-            MEMSET (Op, 0, sizeof (ACPI_PARSE_OBJECT));
-            Op->Flags = PARSEOP_IN_CACHE;
-
-            AcpiUtAcquireMutex (ACPI_MTX_CACHES);
-            AcpiGbl_ParseCacheDepth++;
-
-            Op->Next = AcpiGbl_ParseCache;
-            AcpiGbl_ParseCache = Op;
-
-            AcpiUtReleaseMutex (ACPI_MTX_CACHES);
-            return;
-        }
+        AcpiUtReleaseToCache (ACPI_MEM_LIST_PSNODE, Op);
     }
 
     else
     {
-        /* Is the cache full? */
-
-        if (AcpiGbl_ExtParseCacheDepth < MAX_EXTPARSE_CACHE_DEPTH)
-        {
-            /* Put a GENERIC_OP back into the cache */
-
-            /* Clear the previously used Op */
-
-            MEMSET (Op, 0, sizeof (ACPI_PARSE2_OBJECT));
-            Op->Flags = PARSEOP_IN_CACHE;
-
-            AcpiUtAcquireMutex (ACPI_MTX_CACHES);
-            AcpiGbl_ExtParseCacheDepth++;
-
-            Op->Next = (ACPI_PARSE_OBJECT *) AcpiGbl_ExtParseCache;
-            AcpiGbl_ExtParseCache = (ACPI_PARSE2_OBJECT *) Op;
-
-            AcpiUtReleaseMutex (ACPI_MTX_CACHES);
-            return;
-        }
+        AcpiUtReleaseToCache (ACPI_MEM_LIST_PSNODE_EXT, Op);
     }
-
-
-    /*
-     * Not a GENERIC OP, or the cache is full, just free the Op
-     */
-    ACPI_MEM_FREE (Op);
 }
 
 
@@ -401,38 +293,11 @@ void
 AcpiPsDeleteParseCache (
     void)
 {
-    ACPI_PARSE_OBJECT       *Next;
-
-
     FUNCTION_TRACE ("PsDeleteParseCache");
 
 
-    /* Traverse the global cache list */
-
-    while (AcpiGbl_ParseCache)
-    {
-        /* Delete one cached state object */
-
-        Next = AcpiGbl_ParseCache->Next;
-        ACPI_MEM_FREE (AcpiGbl_ParseCache);
-
-        AcpiGbl_ParseCache = Next;
-        AcpiGbl_ParseCacheDepth--;
-    }
-
-    /* Traverse the global cache list */
-
-    while (AcpiGbl_ExtParseCache)
-    {
-        /* Delete one cached state object */
-
-        Next = AcpiGbl_ExtParseCache->Next;
-        ACPI_MEM_FREE (AcpiGbl_ExtParseCache);
-
-        AcpiGbl_ExtParseCache = (ACPI_PARSE2_OBJECT *) Next;
-        AcpiGbl_ExtParseCacheDepth--;
-    }
-
+    AcpiUtDeleteGenericCache (ACPI_MEM_LIST_PSNODE);
+    AcpiUtDeleteGenericCache (ACPI_MEM_LIST_PSNODE_EXT);
     return_VOID;
 }
 
@@ -592,6 +457,7 @@ AcpiPsIsDeferredOp (
 {
     return ((BOOLEAN)
            (Opcode == AML_METHOD_OP                 ||
+            Opcode == AML_VAR_PACKAGE_OP            ||
             Opcode == AML_CREATE_FIELD_OP           ||
             Opcode == AML_CREATE_BIT_FIELD_OP       ||
             Opcode == AML_CREATE_BYTE_FIELD_OP      ||

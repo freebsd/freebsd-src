@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 104 $
+ *       $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -201,6 +201,11 @@ AcpiUtGetRegionName (
 
 #endif
 
+
+UINT8
+AcpiUtHexToAsciiChar (
+    ACPI_INTEGER            Integer,
+    UINT32                  Position);
 
 BOOLEAN
 AcpiUtValidObjectType (
@@ -423,23 +428,6 @@ FunctionPtrExit (
     UINT8                   *Ptr);
 
 void
-DebugPrintPrefix (
-    NATIVE_CHAR             *ModuleName,
-    UINT32                  LineNumber);
-
-void
-DebugPrint (
-    NATIVE_CHAR             *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    UINT32                  PrintLevel,
-    NATIVE_CHAR             *Format, ...);
-
-void
-DebugPrintRaw (
-    NATIVE_CHAR             *Format, ...);
-
-void
 _ReportInfo (
     NATIVE_CHAR             *ModuleName,
     UINT32                  LineNumber,
@@ -464,6 +452,25 @@ AcpiUtDumpBuffer (
     UINT32                  Display,
     UINT32                  componentId);
 
+void
+AcpiUtDebugPrint (
+    UINT32                  RequestedDebugLevel,
+    UINT32                  ComponentId,
+    NATIVE_CHAR             *ModuleName,
+    NATIVE_CHAR             *ProcName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...);
+
+void
+AcpiUtDebugPrintRaw (
+    UINT32                  RequestedDebugLevel,
+    UINT32                  ComponentId,
+    NATIVE_CHAR             *ModuleName,
+    NATIVE_CHAR             *ProcName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...);
 
 /*
  * UtDelete - Object deletion
@@ -695,9 +702,24 @@ AcpiUtDisplayInitPathname (
 
 
 /*
- * Memory allocation functions and related macros.
- * Macros that expand to include filename and line number
+ * Utalloc - memory allocation and object caching
  */
+
+void *
+AcpiUtAcquireFromCache (
+    UINT32                  ListId);
+
+void
+AcpiUtReleaseToCache (
+    UINT32                  ListId,
+    void                    *Object);
+
+void
+AcpiUtDeleteGenericCache (
+    UINT32                  ListId);
+
+
+/* Debug Memory allocation functions */
 
 void *
 AcpiUtAllocate (

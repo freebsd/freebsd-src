@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmonad - ACPI AML execution for monadic (1 operand) operators
- *              $Revision: 104 $
+ *              $Revision: 108 $
  *
  *****************************************************************************/
 
@@ -179,7 +179,7 @@ AcpiExGetObjectReference (
 
         default:
 
-            DEBUG_PRINTP (ACPI_ERROR, ("(Internal) Unknown Ref subtype %02x\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "(Internal) Unknown Ref subtype %02x\n",
                 ObjDesc->Reference.Opcode));
             *RetDesc = NULL;
             Status = AE_AML_INTERNAL;
@@ -204,7 +204,7 @@ AcpiExGetObjectReference (
 
 Cleanup:
 
-    DEBUG_PRINTP (TRACE_EXEC, ("Obj=%p Ref=%p\n", ObjDesc, *RetDesc));
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p Ref=%p\n", ObjDesc, *RetDesc));
     return_ACPI_STATUS (Status);
 }
 
@@ -250,7 +250,7 @@ AcpiExMonadic1 (
 
     if (ACPI_FAILURE (ResolveStatus))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
 
         goto Cleanup;
@@ -258,7 +258,7 @@ AcpiExMonadic1 (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: bad operand(s) %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: bad operand(s) %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
 
         goto Cleanup;
@@ -381,7 +381,7 @@ AcpiExMonadic2R (
 
     if (ACPI_FAILURE (ResolveStatus))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
 
         goto Cleanup;
@@ -389,7 +389,7 @@ AcpiExMonadic2R (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: bad operand(s) %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: bad operand(s) %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
 
         goto Cleanup;
@@ -486,7 +486,7 @@ AcpiExMonadic2R (
 
             if (Digit > 9)
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("BCD digit too large: \n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD digit too large: \n",
                     Digit));
                 Status = AE_AML_NUMERIC_OVERFLOW;
                 goto Cleanup;
@@ -514,7 +514,7 @@ AcpiExMonadic2R (
 
         if (ObjDesc->Integer.Value > ACPI_MAX_BCD_VALUE)
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("BCD overflow: %d\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD overflow: %d\n",
                 ObjDesc->Integer.Value));
             Status = AE_AML_NUMERIC_OVERFLOW;
             goto Cleanup;
@@ -528,7 +528,7 @@ AcpiExMonadic2R (
             Digit = ObjDesc->Integer.Value;
             for (j = 0; j < i; j++)
             {
-                Digit /= 10;
+                Digit = ACPI_DIVIDE (Digit, 10);
             }
 
             /* Create the BCD digit */
@@ -597,29 +597,23 @@ AcpiExMonadic2R (
          * Do the store, and be careful about deleting the source object,
          * since the object itself may have been stored.
          */
-
         Status = AcpiExStore (ObjDesc, ResDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             /* On failure, just delete the ObjDesc */
 
             AcpiUtRemoveReference (ObjDesc);
+            return_ACPI_STATUS (Status);
         }
 
-        else
-        {
-            /*
-             * Normally, we would remove a reference on the ObjDesc parameter;
-             * But since it is being used as the internal return object
-             * (meaning we would normally increment it), the two cancel out,
-             * and we simply don't do anything.
-             */
-            *ReturnDesc = ObjDesc;
-        }
-
-        ObjDesc = NULL;
+        /*
+         * Normally, we would remove a reference on the ObjDesc parameter;
+         * But since it is being used as the internal return object
+         * (meaning we would normally increment it), the two cancel out,
+         * and we simply don't do anything.
+         */
+        *ReturnDesc = ObjDesc;
         return_ACPI_STATUS (Status);
-
         break;
 
 
@@ -627,7 +621,7 @@ AcpiExMonadic2R (
 
         /* Reference, returning an Reference */
 
-        DEBUG_PRINTP (ACPI_ERROR, ("DebugOp should never get here!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "DebugOp should never get here!\n"));
         return_ACPI_STATUS (AE_OK);
         break;
 
@@ -636,16 +630,12 @@ AcpiExMonadic2R (
      * ACPI 2.0 Opcodes
      */
     case AML_TO_DECSTRING_OP:
-
-        DEBUG_PRINTP (ACPI_ERROR, ("%s is not implemented\n",
-                        AcpiPsGetOpcodeName (Opcode)));
-        Status = AE_NOT_IMPLEMENTED;
-        goto Cleanup;
+        Status = AcpiExConvertToString (ObjDesc, &RetDesc, 10, ACPI_UINT32_MAX, WalkState);
         break;
 
 
     case AML_TO_HEXSTRING_OP:
-        Status = AcpiExConvertToString (ObjDesc, &RetDesc, ACPI_UINT32_MAX, WalkState);
+        Status = AcpiExConvertToString (ObjDesc, &RetDesc, 16, ACPI_UINT32_MAX, WalkState);
         break;
 
     case AML_TO_BUFFER_OP:
@@ -667,7 +657,7 @@ AcpiExMonadic2R (
     case AML_SHIFT_LEFT_BIT_OP:
     case AML_SHIFT_RIGHT_BIT_OP:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("%s is unimplemented\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s is unimplemented\n",
                         AcpiPsGetOpcodeName (Opcode)));
         Status = AE_SUPPORT;
         goto Cleanup;
@@ -757,7 +747,7 @@ AcpiExMonadic2 (
 
     if (ACPI_FAILURE (ResolveStatus))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Could not resolve operands, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Could not resolve operands, %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException (ResolveStatus)));
 
         goto Cleanup;
@@ -765,7 +755,7 @@ AcpiExMonadic2 (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("[%s]: Bad operand(s), %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%s]: Bad operand(s), %s\n",
             AcpiPsGetOpcodeName (Opcode), AcpiFormatException (Status)));
 
         goto Cleanup;
@@ -840,7 +830,7 @@ AcpiExMonadic2 (
         Status = AcpiExResolveOperands (AML_LNOT_OP, &RetDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("%s: bad operand(s) %s\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s: bad operand(s) %s\n",
                 AcpiPsGetOpcodeName (Opcode), AcpiFormatException(Status)));
 
             goto Cleanup;
@@ -1009,7 +999,7 @@ AcpiExMonadic2 (
 
             default:
 
-                DEBUG_PRINTP (ACPI_ERROR, ("Not Buf/Str/Pkg - found type %X\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Not Buf/Str/Pkg - found type %X\n",
                     ObjDesc->Common.Type));
                 Status = AE_AML_OPERAND_TYPE;
                 goto Cleanup;
@@ -1105,7 +1095,7 @@ AcpiExMonadic2 (
             if ((ObjDesc->Reference.Opcode != AML_INDEX_OP) &&
                 (ObjDesc->Reference.Opcode != AML_REF_OF_OP))
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Unknown opcode in ref(%p) - %X\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown opcode in ref(%p) - %X\n",
                     ObjDesc, ObjDesc->Reference.Opcode));
 
                 Status = AE_TYPE;
@@ -1167,7 +1157,7 @@ AcpiExMonadic2 (
                          * severe error.
                          */
 
-                        DEBUG_PRINTP (ACPI_ERROR, ("NULL package element obj %p\n",
+                        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "NULL package element obj %p\n",
                             ObjDesc));
                         Status = AE_AML_UNINITIALIZED_ELEMENT;
                         goto Cleanup;
@@ -1178,7 +1168,7 @@ AcpiExMonadic2 (
 
                 else
                 {
-                    DEBUG_PRINTP (ACPI_ERROR, ("Unknown TargetType %X in obj %p\n",
+                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown TargetType %X in obj %p\n",
                         ObjDesc->Reference.TargetType, ObjDesc));
                     Status = AE_AML_OPERAND_TYPE;
                     goto Cleanup;

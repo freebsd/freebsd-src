@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 47 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -398,7 +398,7 @@ AcpiPsGetNextNamepath (
                         NameOp->Node = (ACPI_NAMESPACE_NODE *) Op;
                         AcpiPsAppendArg (Arg, NameOp);
 
-                        *ArgCount = Count->Value.Integer &
+                        *ArgCount = (UINT32) Count->Value.Integer &
                                     METHOD_FLAGS_ARG_COUNT;
                     }
                 }
@@ -488,7 +488,7 @@ AcpiPsGetNextNamepath (
             if (Node->Type == ACPI_TYPE_METHOD)
             {
                 MethodNode = Node;
-                DEBUG_PRINTP (TRACE_PARSE, ("method - %p Path=%p\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "method - %p Path=%p\n",
                     MethodNode, Path));
 
                 NameOp = AcpiPsAllocOp (AML_INT_NAMEPATH_OP);
@@ -594,6 +594,17 @@ AcpiPsGetNextSimpleArg (
 
         MOVE_UNALIGNED32_TO_32 (&Arg->Value.Integer, ParserState->Aml);
         ParserState->Aml += 4;
+        break;
+
+
+    case ARGP_QWORDDATA:
+
+        AcpiPsInitOp (Arg, AML_QWORD_OP);
+
+        /* Get 8 bytes from the AML stream */
+
+        MOVE_UNALIGNED64_TO_64 (&Arg->Value.Integer, ParserState->Aml);
+        ParserState->Aml += 8;
         break;
 
 

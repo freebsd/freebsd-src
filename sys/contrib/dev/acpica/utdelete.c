@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 72 $
+ *              $Revision: 74 $
  *
  ******************************************************************************/
 
@@ -165,18 +165,21 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_STRING:
 
-        DEBUG_PRINTP (ACPI_INFO, ("**** String %p, ptr %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** String %p, ptr %p\n",
             Object, Object->String.Pointer));
 
         /* Free the actual string buffer */
 
-        ObjPointer = Object->String.Pointer;
+        if (!(Object->Common.Flags & AOPOBJ_STATIC_POINTER))
+        {
+            ObjPointer = Object->String.Pointer;
+        }
         break;
 
 
     case ACPI_TYPE_BUFFER:
 
-        DEBUG_PRINTP (ACPI_INFO, ("**** Buffer %p, ptr %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Buffer %p, ptr %p\n",
             Object, Object->Buffer.Pointer));
 
         /* Free the actual buffer */
@@ -187,7 +190,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_PACKAGE:
 
-        DEBUG_PRINTP (ACPI_INFO, (" **** Package of count %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, " **** Package of count %X\n",
             Object->Package.Count));
 
         /*
@@ -203,7 +206,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_MUTEX:
 
-        DEBUG_PRINTP (ACPI_INFO, ("***** Mutex %p, Semaphore %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Mutex %p, Semaphore %p\n",
             Object, Object->Mutex.Semaphore));
 
         AcpiExUnlinkMutex (Object);
@@ -213,7 +216,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_EVENT:
 
-        DEBUG_PRINTP (ACPI_INFO, ("***** Event %p, Semaphore %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Event %p, Semaphore %p\n",
             Object, Object->Event.Semaphore));
 
         AcpiOsDeleteSemaphore (Object->Event.Semaphore);
@@ -223,7 +226,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_METHOD:
 
-        DEBUG_PRINTP (ACPI_INFO, ("***** Method %p\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Method %p\n", Object));
 
         /* Delete the method semaphore if it exists */
 
@@ -238,7 +241,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_REGION:
 
-        DEBUG_PRINTP (ACPI_INFO, ("***** Region %p\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Region %p\n", Object));
 
         if (Object->Region.Extra)
         {
@@ -263,7 +266,7 @@ AcpiUtDeleteInternalObj (
 
     case ACPI_TYPE_BUFFER_FIELD:
 
-        DEBUG_PRINTP (ACPI_INFO, ("***** Buffer Field %p\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "***** Buffer Field %p\n", Object));
 
         if (Object->BufferField.Extra)
         {
@@ -283,7 +286,7 @@ AcpiUtDeleteInternalObj (
     {
         if (!AcpiTbSystemTablePointer (ObjPointer))
         {
-            DEBUG_PRINTP (ACPI_INFO, ("Deleting Obj Ptr %p \n", ObjPointer));
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Deleting Obj Ptr %p \n", ObjPointer));
 
             ACPI_MEM_FREE (ObjPointer);
         }
@@ -294,13 +297,13 @@ AcpiUtDeleteInternalObj (
 
     if (Object->Common.Flags & AOPOBJ_STATIC_ALLOCATION)
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Object %p [%s] static allocation, no delete\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object %p [%s] static allocation, no delete\n",
             Object, AcpiUtGetTypeName (Object->Common.Type)));
     }
 
     if (!(Object->Common.Flags & AOPOBJ_STATIC_ALLOCATION))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Deleting object %p [%s]\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Deleting object %p [%s]\n",
             Object, AcpiUtGetTypeName (Object->Common.Type)));
 
         AcpiUtDeleteObjectDesc (Object);
@@ -409,7 +412,7 @@ AcpiUtUpdateRefCount (
         NewCount++;
         Object->Common.ReferenceCount = NewCount;
 
-        DEBUG_PRINTP (ACPI_INFO, ("Obj %p Refs=%X, [Incremented]\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj %p Refs=%X, [Incremented]\n",
             Object, NewCount));
         break;
 
@@ -418,7 +421,7 @@ AcpiUtUpdateRefCount (
 
         if (Count < 1)
         {
-            DEBUG_PRINTP (ACPI_INFO, ("Obj %p Refs=%X, can't decrement! (Set to 0)\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj %p Refs=%X, can't decrement! (Set to 0)\n",
                 Object, NewCount));
 
             NewCount = 0;
@@ -428,13 +431,13 @@ AcpiUtUpdateRefCount (
         {
             NewCount--;
 
-            DEBUG_PRINTP (ACPI_INFO, ("Obj %p Refs=%X, [Decremented]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj %p Refs=%X, [Decremented]\n",
                 Object, NewCount));
         }
 
         if (Object->Common.Type == ACPI_TYPE_METHOD)
         {
-            DEBUG_PRINTP (ACPI_INFO, ("Method Obj %p Refs=%X, [Decremented]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Method Obj %p Refs=%X, [Decremented]\n",
                 Object, NewCount));
         }
 
@@ -449,7 +452,7 @@ AcpiUtUpdateRefCount (
 
     case REF_FORCE_DELETE:
 
-        DEBUG_PRINTP (ACPI_INFO, ("Obj %p Refs=%X, Force delete! (Set to 0)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj %p Refs=%X, Force delete! (Set to 0)\n",
             Object, Count));
 
         NewCount = 0;
@@ -460,7 +463,7 @@ AcpiUtUpdateRefCount (
 
     default:
 
-        DEBUG_PRINTP (ACPI_ERROR, ("Unknown action (%X)\n", Action));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown action (%X)\n", Action));
         break;
     }
 
@@ -473,8 +476,8 @@ AcpiUtUpdateRefCount (
     if (Count > MAX_REFERENCE_COUNT)
     {
 
-        DEBUG_PRINTP (ACPI_ERROR,
-            ("**** AE_ERROR **** Invalid Reference Count (%X) in object %p\n\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "**** AE_ERROR **** Invalid Reference Count (%X) in object %p\n\n",
             Count, Object));
     }
 
@@ -534,13 +537,13 @@ AcpiUtUpdateObjectReference (
 
     if (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Object %p is NS handle\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object %p is NS handle\n", Object));
         return_ACPI_STATUS (AE_OK);
     }
 
     if (AcpiTbSystemTablePointer (Object))
     {
-        DEBUG_PRINTP (ACPI_INFO, ("**** Object %p is Pcode Ptr\n", Object));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Object %p is Pcode Ptr\n", Object));
         return_ACPI_STATUS (AE_OK);
     }
 
@@ -783,7 +786,7 @@ AcpiUtRemoveReference (
         return_VOID;
     }
 
-    DEBUG_PRINTP (ACPI_INFO, ("Obj %p Refs=%X\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj %p Refs=%X\n",
             Object, Object->Common.ReferenceCount));
 
     /*

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 33 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -151,6 +151,8 @@ AcpiExCopyBufferToBuffer (
     UINT32                  Length;
     UINT8                   *Buffer;
 
+    PROC_NAME ("AcpiExCopyBufferToBuffer");
+
 
     /*
      * We know that SourceDesc is a buffer by now
@@ -192,8 +194,8 @@ AcpiExCopyBufferToBuffer (
          */
         MEMCPY (TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
 
-        DEBUG_PRINT (ACPI_INFO,
-            ("ExCopyBufferToBuffer: Truncating src buffer from %X to %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Truncating src buffer from %X to %X\n",
             Length, TargetDesc->Buffer.Length));
     }
 
@@ -247,7 +249,7 @@ AcpiExCopyStringToString (
          * large enough to hold the value
          */
         if (TargetDesc->String.Pointer &&
-            !AcpiTbSystemTablePointer (TargetDesc->String.Pointer))
+           (!(TargetDesc->Common.Flags & AOPOBJ_STATIC_POINTER)))
         {
             /*
              * Only free if not a pointer into the DSDT
