@@ -66,8 +66,6 @@ static dev_t		ncp_dev;
 static d_ioctl_t	ncp_ioctl;
 
 static struct cdevsw ncp_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_ioctl =	ncp_ioctl,
 	.d_name =	"ncp",
 };
