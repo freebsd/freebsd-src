@@ -682,7 +682,7 @@ i386_ioconf()
 			if (printed)
 				fprintf(fp1, "\n");
 		}
-		dev_id = 2;
+		dev_id = 6;		/* XXX must match mkglue.c */
 		isa_devtab(fp, "bio", &dev_id);
 		if (seen_wdc)
 			isa_biotab(fp, "wdc");
