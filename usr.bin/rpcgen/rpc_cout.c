@@ -30,16 +30,21 @@
 #ident	"@(#)rpc_cout.c	1.14	93/07/05 SMI" 
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_cout.c 1.13 89/02/22 (C) 1987 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
  * rpc_cout.c, XDR routine outputter for the RPC protocol compiler
  * Copyright (C) 1987, Sun Microsystems, Inc.
  */
+#include <err.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include "rpc_parse.h"
 #include "rpc_util.h"
 
@@ -453,8 +458,7 @@ int flag;
 							  strlen(sizestr)
 							  +strlen(ptemp)+1);
 					if (sizestr == NULL){
-						f_print(stderr,
-							"Fatal error : no memory\n");
+						warnx("fatal error: no memory");
 						crash();
 					};
 					sizestr = strcat(sizestr, ptemp);
@@ -744,10 +748,7 @@ char *str;
 
 	ptr =  (char *)malloc(strlen(str)+1);
 	if (ptr == (char *) NULL)
-	{
-		f_print(stderr, "malloc failed\n");
-		exit(1);
-	};
+		errx(1, "malloc failed");
 
 	hptr = ptr;
 	while (*str != '\0')
