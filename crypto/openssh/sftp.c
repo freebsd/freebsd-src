@@ -16,7 +16,7 @@
 
 #include "includes.h"
 
-RCSID("$OpenBSD: sftp.c,v 1.44 2004/02/17 11:03:08 djm Exp $");
+RCSID("$OpenBSD: sftp.c,v 1.45 2004/03/03 09:31:20 djm Exp $");
 
 #include "buffer.h"
 #include "xmalloc.h"
@@ -44,7 +44,7 @@ size_t num_requests = 16;
 static pid_t sshpid = -1;
 
 /* This is set to 0 if the progressmeter is not desired. */
-int showprogress;
+int showprogress = 1;
 
 int remote_glob(struct sftp_conn *, const char *, int,
     int (*)(const char *, int), glob_t *); /* proto for sftp-glob.c */
@@ -1356,6 +1356,9 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+
+	if (!isatty(STDERR_FILENO))
+		showprogress = 0;
 
 	log_init(argv[0], ll, SYSLOG_FACILITY_USER, 1);
 

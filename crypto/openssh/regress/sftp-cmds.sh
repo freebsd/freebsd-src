@@ -85,6 +85,7 @@ echo "get \"$DATA\" $COPY" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "get failed"
 cmp $DATA ${COPY} || fail "corrupted copy after get"
 
+if [ "$os" != "cygwin" ]; then
 rm -f ${QUOTECOPY}
 cp $DATA ${QUOTECOPY}
 verbose "$tid: get filename with quotes"
@@ -92,6 +93,7 @@ echo "get \"$QUOTECOPY_ARG\" ${COPY}" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1
 	|| fail "put failed"
 cmp ${COPY} ${QUOTECOPY} || fail "corrupted copy after get with quotes"
 rm -f ${QUOTECOPY} ${COPY}
+fi
 
 rm -f ${COPY}.dd/*
 verbose "$tid: get to directory"
