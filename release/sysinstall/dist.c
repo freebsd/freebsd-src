@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.143 1999/07/19 11:58:01 jkh Exp $
+ * $Id: dist.c,v 1.144 1999/07/23 03:42:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,6 +83,7 @@ static Distribution DistTable[] = {
 #endif
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
+{ "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
 { "XF86334",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
