@@ -25,14 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.313 1999/07/07 13:48:49 yokota Exp $
+ *	$Id: syscons.c,v 1.314 1999/07/18 06:16:53 yokota Exp $
  */
 
 #include "sc.h"
 #include "splash.h"
 #include "opt_syscons.h"
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 #ifdef __i386__
 #include "apm.h"
 #endif
@@ -47,9 +46,6 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/cons.h>
@@ -87,10 +83,6 @@ static default_attr kernel_default = {
 
 static	int		sc_console_unit = -1;
 static  scr_stat    	*sc_console;
-#ifdef DEVFS
-static	void		*sc_mouse_devfs_token;
-static	void		*sc_console_devfs_token;
-#endif
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 
@@ -310,9 +302,8 @@ sc_attach_unit(int unit, int flags)
 #ifdef SC_PIXEL_MODE
     video_info_t info;
 #endif
-#ifdef DEVFS
     int vc;
-#endif
+    dev_t dev;
 
     scmeminit(NULL);		/* XXX */
 
@@ -377,22 +368,21 @@ sc_attach_unit(int unit, int flags)
      */
     cdevsw_add(&sc_cdevsw);	/* XXX do this just once... */
 
-#ifdef DEVFS
-    for (vc = sc->first_vty; vc < sc->first_vty + sc->vtys; vc++)
-        sc->devfs_token[vc] = devfs_add_devswf(&sc_cdevsw, vc,
-					       DV_CHR, UID_ROOT, GID_WHEEL,
-					       0600, "ttyv%r", vc);
+    for (vc = 0; vc < MAXCONS; vc++) {
+        dev = make_dev(&sc_cdevsw, vc,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
+	dev->si_tty_tty = &sc->tty[vc];
+    }
     if (scp == sc_console) {
 #ifndef SC_NO_SYSMOUSE
-	sc_mouse_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_MOUSE,
-						DV_CHR, UID_ROOT, GID_WHEEL,
-						0600, "sysmouse");
+	dev = make_dev(&sc_cdevsw, SC_MOUSE,
+	    UID_ROOT, GID_WHEEL, 0600, "sysmouse");
+	dev->si_tty_tty = MOUSE_TTY;
 #endif /* SC_NO_SYSMOUSE */
-	sc_console_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_CONSOLECTL,
-						  DV_CHR, UID_ROOT, GID_WHEEL,
-						  0600, "consolectl");
+	dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
+	    UID_ROOT, GID_WHEEL, 0600, "consolectl");
+	dev->si_tty_tty = CONSOLE_TTY;
     }
-#endif /* DEVFS */
 
     return 0;
 }
@@ -445,25 +435,8 @@ sc_resume_unit(int unit)
 struct tty
 *scdevtotty(dev_t dev)
 {
-    sc_softc_t *sc;
-    int vty = SC_VTY(dev);
-    int unit;
 
-    if (init_done == COLD)
-	return NULL;
-
-    if (vty == SC_CONSOLECTL)
-	return CONSOLE_TTY;
-#ifndef SC_NO_SYSMOUSE
-    if (vty == SC_MOUSE)
-	return MOUSE_TTY;
-#endif
-
-    unit = scdevtounit(dev);
-    sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
-    if (sc == NULL)
-	return NULL;
-    return VIRTUAL_TTY(sc, vty);
+    return (dev->si_tty_tty);
 }
 
 static int
@@ -484,7 +457,7 @@ scdevtounit(dev_t dev)
 int
 scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty_tty;
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
     keyarg_t key;
@@ -551,7 +524,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 int
 scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty_tty;
     struct scr_stat *scp;
     int s;
 
@@ -609,7 +582,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty_tty;
 
     if (!tp)
 	return(ENXIO);
@@ -620,7 +593,7 @@ scread(dev_t dev, struct uio *uio, int flag)
 int
 scwrite(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty_tty;
 
     if (!tp)
 	return(ENXIO);
@@ -716,7 +689,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     scr_stat *scp;
     int s;
 
-    tp = scdevtotty(dev);
+    tp = dev->si_tty_tty;
     if (!tp)
 	return ENXIO;
 
@@ -3165,9 +3138,6 @@ scinit(int unit, int flags)
     static scr_stat *main_vtys[MAXCONS];
     static struct tty main_tty[MAXCONS];
     static u_short sc_buffer[ROW*COL];	/* XXX */
-#ifdef DEVFS
-    static void	*main_devfs_token[MAXCONS];
-#endif
 #ifndef SC_NO_FONT_LOADING
     static u_char font_8[256*8];
     static u_char font_14[256*14];
@@ -3253,11 +3223,8 @@ scinit(int unit, int flags)
 	/* set up the first console */
 	sc->first_vty = unit*MAXCONS;
 	if (flags & SC_KERNEL_CONSOLE) {
-	    sc->vtys = sizeof(main_vtys)/sizeof(main_vtys[0]);
+	    sc->vtys = MAXCONS;
 	    sc->tty = main_tty;
-#ifdef DEVFS
-	    sc->devfs_token = main_devfs_token;
-#endif
 	    sc->console = main_vtys;
 	    scp = main_vtys[0] = &main_console;
 	    init_scp(sc, sc->first_vty, scp);
@@ -3267,15 +3234,13 @@ scinit(int unit, int flags)
 	    /* assert(sc_malloc) */
 	    sc->vtys = MAXCONS;
 	    sc->tty = malloc(sizeof(struct tty)*MAXCONS, M_DEVBUF, M_WAITOK);
-	    bzero(sc->tty, sizeof(struct tty)*MAXCONS);
-#ifdef DEVFS
-	    sc->devfs_token = malloc(sizeof(void *)*MAXCONS,
-				     M_DEVBUF, M_WAITOK);
-#endif
 	    sc->console = malloc(sizeof(struct scr_stat *)*MAXCONS,
 				 M_DEVBUF, M_WAITOK);
 	    scp = sc->console[0] = alloc_scp(sc, sc->first_vty);
 	}
+	bzero(sc->tty, sizeof(struct tty)*MAXCONS);
+	for (i = 0; i < MAXCONS; i++)
+	    ttyregister(&sc->tty[i]);
 	sc->cur_scp = scp;
 
 	/* copy screen to temporary buffer */
@@ -3397,9 +3362,9 @@ scterm(int unit, int flags)
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
 	free(sc->console, M_DEVBUF);
+#if 0
+	/* XXX: We need a ttyunregister for this */
 	free(sc->tty, M_DEVBUF);
-#ifdef DEVFS
-	free(sc->devfs_token, M_DEVBUF);
 #endif
 #ifndef SC_NO_FONT_LOADING
 	free(sc->font_8, M_DEVBUF);
@@ -3872,7 +3837,7 @@ scmmap(dev_t dev, vm_offset_t offset, int nprot)
     struct tty *tp;
     struct scr_stat *scp;
 
-    tp = scdevtotty(dev);
+    tp = dev->si_tty_tty;
     if (!tp)
 	return ENXIO;
     scp = sc_get_scr_stat(tp->t_dev);
