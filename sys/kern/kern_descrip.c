@@ -1016,28 +1016,22 @@ fpathconf(td, uap)
 		td->td_retval[0] = async_io_version;
 		goto out;
 	}
-	switch (fp->f_type) {
-	case DTYPE_PIPE:
-	case DTYPE_SOCKET:
-		if (uap->name != _PC_PIPE_BUF) {
-			error = EINVAL;
-		} else {
-			td->td_retval[0] = PIPE_BUF;
-			error = 0;
-		}
-		break;
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		vp = fp->f_vnode;
+	vp = fp->f_vnode;
+	if (vp != NULL) {
 		mtx_lock(&Giant);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0, td);
 		mtx_unlock(&Giant);
-		break;
-	default:
+	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
+		if (uap->name != _PC_PIPE_BUF) {
+			error = EINVAL;
+		} else {
+			td->td_retval[0] = PIPE_BUF;
+		error = 0;
+		}
+	} else {
 		error = EOPNOTSUPP;
-		break;
 	}
 out:
 	fdrop(fp, td);
@@ -1917,7 +1911,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	*vpp = NULL;
 	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
 		return (error);
-	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
+	if (fp->f_vnode == NULL) {
 		error = EINVAL;
 	} else {
 		*vpp = fp->f_vnode;
