@@ -272,7 +272,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 					 "can't read tty at %x", sess.s_ttyp);
 				return (-1);
 			}
-			kp->ki_tdev = tty.t_dev;	/* XXX: wrong */
+			kp->ki_tdev = (uintptr_t)tty.t_dev;	/* XXX: wrong */
 			if (tty.t_pgrp != NULL) {
 				if (KREAD(kd, (u_long)tty.t_pgrp, &pgrp)) {
 					_kvm_err(kd, kd->program,
