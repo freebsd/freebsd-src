@@ -334,6 +334,14 @@ vinum_init(int argc, char *argv[], char *arg0[])
 	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 	char filename[MAXPATHLEN];			    /* create a file name here */
 
+	/* Variables for use by children */
+	int failed = 0;					    /* set if a child dies badly */
+	int sdfh;					    /* and for subdisk */
+	char zeros[PLEXINITSIZE];
+	int count;					    /* write count */
+	long long offset;				    /* offset in subdisk */
+	long long sdsize;				    /* size of subdisk */
+
 	for (plexindex = 0; plexindex < argc; plexindex++) {
 	    plexno = find_object(argv[plexindex], &type);   /* find the object */
 	    if (plexno < 0)
@@ -356,78 +364,78 @@ vinum_init(int argc, char *argv[], char *arg0[])
 		    return;
 		}
 	    }
-	    pid = fork();
-	    if (pid == 0) {				    /* we're the child */
-		int failed = 0;				    /* set if a child dies badly */
-		int sdfh;				    /* and for subdisk */
-		char zeros[PLEXINITSIZE];
-		int count;				    /* write count */
-		long long offset;			    /* offset in subdisk */
-		long long sdsize;			    /* size of subdisk */
-
-		bzero(zeros, sizeof(zeros));
-		openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
-		for (sdno = 0; sdno < plex.subdisks; sdno++) { /* initialize each subdisk */
-							    /* We already have the plex data in global
-		     * plex from the call to find_object */
-		    pid = fork();			    /* into the background with you */
-		    if (pid == 0) {			    /* I'm the child */
-			get_plex_sd_info(&sd, plexno, sdno);
-			sdsize = sd.sectors * DEV_BSIZE;    /* size of subdisk in bytes */
-			sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
-			setproctitle("initializing %s", filename); /* show what we're doing */
-			syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
-			if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) { /* no go */
+	    if (dowait == 0) {				    /* don't wait for completion */
+		pid = fork();
+		if (pid == 0) {				    /* non-waiting parent */
+		    close(plexfh);			    /* we don't need this any more */
+		    sleep(1);				    /* give them a chance to print */
+		    return;				    /* and go on about our business */
+		}
+	    }
+	    /*
+	     * If we get here, we're either the first-level child
+	     * (if we're not waiting) or we're going to wait.
+	     */
+	    bzero(zeros, sizeof(zeros));
+	    openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
+	    for (sdno = 0; sdno < plex.subdisks; sdno++) {  /* initialize each subdisk */
+		/* We already have the plex data in global
+		 * plex from the call to find_object */
+		pid = fork();				    /* into the background with you */
+		if (pid == 0) {				    /* I'm the child */
+		    get_plex_sd_info(&sd, plexno, sdno);
+		    sdsize = sd.sectors * DEV_BSIZE;	    /* size of subdisk in bytes */
+		    sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
+		    setproctitle("initializing %s", filename); /* show what we're doing */
+		    syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
+		    if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	/* no go */
+			syslog(LOG_ERR | LOG_KERN,
+			    "can't open subdisk %s: %s",
+			    filename,
+			    strerror(errno));
+			exit(1);
+		    }
+		    for (offset = 0; offset < sdsize; offset += count) {
+			count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
+			if (count < 0) {
 			    syslog(LOG_ERR | LOG_KERN,
-				"can't open subdisk %s: %s",
+				"can't write subdisk %s: %s",
 				filename,
 				strerror(errno));
 			    exit(1);
 			}
-			for (offset = 0; offset < sdsize; offset += count) {
-			    count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
-			    if (count < 0) {
-				syslog(LOG_ERR | LOG_KERN,
-				    "can't write subdisk %s: %s",
-				    filename,
-				    strerror(errno));
-				exit(1);
-			    }
 							    /* XXX Grrrr why doesn't this thing recognize EOF? */
-			    else if (count == 0)
-				break;
-			}
-			syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized", filename);
-							    /* Bring the subdisk up */
-			message->index = sd.sdno;	    /* pass object number */
-			message->type = sd_object;	    /* and type of object */
-			message->state = object_up;
-			message->force = 1;		    /* insist */
-			ioctl(superdev, VINUM_SETSTATE, message);
-			exit(0);
-		    } else if (pid < 0)			    /* failure */
-			printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
-		}
-		/* Now wait for them to complete */
-		for (sdno = 0; sdno < plex.subdisks; sdno++) {
-		    int status;
-		    pid = wait(&status);
-		    if (WEXITSTATUS(status) != 0) {	    /* oh, oh */
-			printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
-			failed++;
+			else if (count == 0)
+			    break;
 		    }
-		}
-		if (failed == 0) {
-		    syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
-		} else
-		    syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
-			plex.name,
-			failed);
-		exit(0);
-	    } else {
-		close(plexfh);				    /* we don't need this any more */
-		sleep(1);				    /* give them a chance to print */
+		    syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized", filename);
+							    /* Bring the subdisk up */
+		    message->index = sd.sdno;		    /* pass object number */
+		    message->type = sd_object;		    /* and type of object */
+		    message->state = object_up;
+		    message->force = 1;			    /* insist */
+		    ioctl(superdev, VINUM_SETSTATE, message);
+		    exit(0);
+		} else if (pid < 0)			    /* failure */
+		    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
 	    }
+	    /* Now wait for them to complete */
+	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
+		int status;
+		pid = wait(&status);
+		if (WEXITSTATUS(status) != 0) {		    /* oh, oh */
+		    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
+		    failed++;
+		}
+	    }
+	    if (failed == 0) {
+		syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
+	    } else
+		syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
+		    plex.name,
+		    failed);
+	    if (dowait == 0)				    /* we're the waiting child, */
+		exit(0);				    /* we've done our dash */
 	}
     }
 }
