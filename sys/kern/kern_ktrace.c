@@ -613,21 +613,22 @@ utrace(td, uap)
 #ifdef KTRACE
 	struct ktr_request *req;
 	void *cp;
+	int error;
 
+	if (!KTRPOINT(td, KTR_USER))
+		return (0);
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
+	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
+	error = copyin(uap->addr, cp, uap->len);
+	if (error)
+		return (error);
 	req = ktr_getrequest(KTR_USER);
 	if (req == NULL)
 		return (0);
-	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
-	if (!copyin(uap->addr, cp, uap->len)) {
-		req->ktr_header.ktr_buffer = cp;
-		req->ktr_header.ktr_len = uap->len;
-		ktr_submitrequest(req);
-	} else {
-		ktr_freerequest(req);
-		td->td_inktrace = 0;
-	}
+	req->ktr_header.ktr_buffer = cp;
+	req->ktr_header.ktr_len = uap->len;
+	ktr_submitrequest(req);
 	return (0);
 #else
 	return (ENOSYS);
