@@ -683,9 +683,12 @@ cbb_print_config(device_t dev)
 static int
 cbb_attach(device_t brdev)
 {
+	static int curr_bus_number = 1; /* XXX EVILE BAD (see below) */
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	int rid;
+	int rid, bus, pribus;
+	device_t parent;
 
+	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
 	cv_init(&sc->cv, "cbb cv");
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
@@ -758,6 +761,32 @@ cbb_attach(device_t brdev)
 	sc->exca.flags |= EXCA_HAS_MEMREG_WIN;
 	sc->exca.chipset = EXCA_CARDBUS;
 	cbb_chipinit(sc);
+
+	/*
+	 * This is a gross hack.  We should be scanning the entire pci
+	 * tree, assigning bus numbers in a way such that we (1) can
+	 * reserve 1 extra bus just in case and (2) all sub busses 
+	 * are in an appropriate range.
+	 */
+	bus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
+	pribus = pcib_get_bus(parent);
+	DEVPRINTF((brdev, "Secondary bus is %d\n", bus));
+	if (bus == 0) {
+		if (curr_bus_number < pribus)
+			curr_bus_number = pribus + 1;
+		if (pci_read_config(brdev, PCIR_PRIBUS_2, 1) != pribus) {
+			DEVPRINTF((brdev, "Setting primary bus to %d\n", pribus));
+			pci_write_config(brdev, PCIR_PRIBUS_2, pribus, 1);
+		}
+		bus = curr_bus_number;
+		DEVPRINTF((brdev, "Secondary bus set to %d subbus %d\n", bus,
+		    bus + 1));
+		sc->secbus = bus;
+		sc->subbus = bus + 1;
+		pci_write_config(brdev, PCIR_SECBUS_2, bus, 1);
+		pci_write_config(brdev, PCIR_SUBBUS_2, bus + 1, 1);
+		curr_bus_number += 2;
+	}
 
 	/* attach children */
 	sc->cbdev = device_add_child(brdev, "cardbus", -1);
