@@ -6,7 +6,7 @@
 #
 
 PROG=	bsdtar
-VERSION=	1.01
+VERSION=	1.01.011
 SRCS=	bsdtar.c matching.c read.c util.c write.c
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
