@@ -153,16 +153,6 @@ struct pmap kernel_pmap_store;
 
 static boolean_t pmap_initialized = FALSE;
 
-/* Convert a tte data field into a page mask */
-static vm_offset_t pmap_page_masks[] = {
-	PAGE_MASK_8K,
-	PAGE_MASK_64K,
-	PAGE_MASK_512K,
-	PAGE_MASK_4M
-};
-
-#define	PMAP_TD_GET_MASK(d)	pmap_page_masks[TD_GET_SIZE((d))]
-
 /*
  * Allocate physical memory for use in pmap_bootstrap.
  */
@@ -320,8 +310,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * pmap_kextract() will work for them.
 	 */
 	for (i = 0; i < kernel_tlb_slots; i++) {
-		va = TV_GET_VA(kernel_ttes[i].tte_vpn);
-		pa = TD_GET_PA(kernel_ttes[i].tte_data);
+		va = TTE_GET_VA(&kernel_ttes[i]);
+		pa = TTE_GET_PA(&kernel_ttes[i]);
 		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
 			tp = tsb_kvtotte(va + off);
 			tp->tte_vpn = TV_VPN(va + off);
@@ -369,10 +359,10 @@ pmap_bootstrap(vm_offset_t ekva)
 	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 	for (i = 0; i < sz; i++) {
-		CTR4(KTR_PMAP,
-		    "translation: start=%#lx size=%#lx tte=%#lx pa=%#lx",
+		CTR3(KTR_PMAP,
+		    "translation: start=%#lx size=%#lx tte=%#lx",
 		    translations[i].om_start, translations[i].om_size,
-		    translations[i].om_tte, TD_GET_PA(translations[i].om_tte));
+		    translations[i].om_tte);
 		if (translations[i].om_start < 0xf0000000)	/* XXX!!! */
 			continue;
 		for (off = 0; off < translations[i].om_size;
@@ -578,17 +568,14 @@ vm_offset_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct tte *tp;
-	u_long d;
 
 	if (pm == kernel_pmap)
 		return (pmap_kextract(va));
 	tp = tsb_tte_lookup(pm, va);
 	if (tp == NULL)
 		return (0);
-	else {
-		d = tp->tte_data;
-		return (TD_GET_PA(d) | (va & PMAP_TD_GET_MASK(d)));
-	}
+	else
+		return (TTE_GET_PA(tp) | (va & TTE_GET_PAGE_MASK(tp)));
 }
 
 /*
@@ -599,13 +586,11 @@ vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
 	struct tte *tp;
-	u_long d;
 
 	tp = tsb_kvtotte(va);
-	d = tp->tte_data;
-	if ((d & TD_V) == 0)
+	if ((tp->tte_data & TD_V) == 0)
 		return (0);
-	return (TD_GET_PA(d) | (va & PMAP_TD_GET_MASK(d)));
+	return (TTE_GET_PA(tp) | (va & TTE_GET_PAGE_MASK(tp)));
 }
 
 int
@@ -634,8 +619,6 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		return (0);
 	}
 	CTR0(KTR_PMAP, "pmap_cache_enter: marking uncacheable");
-	if ((m->flags & PG_UNMANAGED) != 0)
-		panic("pmap_cache_enter: non-managed page");
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if ((tp = tsb_tte_lookup(pv->pv_pmap, pv->pv_va)) != NULL) {
 			atomic_clear_long(&tp->tte_data, TD_CV);
@@ -644,7 +627,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		}
 	}
 	pa = VM_PAGE_TO_PHYS(m);
-	dcache_inval_phys(pa, pa + PAGE_SIZE - 1);
+	dcache_page_inval(pa);
 	return (0);
 }
 
@@ -1248,7 +1231,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 {
 	vm_page_t m;
 
-	m = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
+	m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 	if ((tp->tte_data & TD_PV) != 0) {
 		if ((tp->tte_data & TD_W) != 0 &&
 		    pmap_track_modified(pm, va))
@@ -1298,25 +1281,19 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		 vm_offset_t va)
 {
 	vm_page_t m;
-	u_long data;
 
-	data = tp->tte_data;
-	if ((data & TD_PV) != 0) {
-		m = PHYS_TO_VM_PAGE(TD_GET_PA(data));
-		if ((data & TD_REF) != 0) {
+	if ((tp->tte_data & TD_PV) != 0) {
+		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
+		if ((tp->tte_data & TD_REF) != 0) {
 			vm_page_flag_set(m, PG_REFERENCED);
-			data &= ~TD_REF;
+			tp->tte_data &= ~TD_REF;
 		}
-		if ((data & TD_W) != 0 &&
+		if ((tp->tte_data & TD_W) != 0 &&
 		    pmap_track_modified(pm, va)) {
 			vm_page_dirty(m);
 		}
 	}
-
-	data &= ~(TD_W | TD_SW);
-	CTR2(KTR_PMAP, "pmap_protect: new=%#lx old=%#lx",
-	    data, tp->tte_data);
-	tp->tte_data = data;
+	tp->tte_data &= ~(TD_W | TD_SW);
 	return (0);
 }
 
@@ -1381,9 +1358,9 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
 		otte = *tp;
-		om = PHYS_TO_VM_PAGE(TD_GET_PA(otte.tte_data));
+		om = PHYS_TO_VM_PAGE(TTE_GET_PA(&otte));
 
-		if (TD_GET_PA(otte.tte_data) == pa) {
+		if (TTE_GET_PA(&otte) == pa) {
 			CTR0(KTR_PMAP, "pmap_enter: update");
 			PMAP_STATS_INC(pmap_enter_nupdate);
 
@@ -1418,7 +1395,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 					if (pmap_track_modified(pm, va))
 						vm_page_dirty(m);
 				}
-				tlb_tte_demap(otte, pm);
+				tlb_tte_demap(&otte, pm);
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
@@ -1449,7 +1426,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				if (pmap_cache_enter(m, va) != 0)
 					tte.tte_data |= TD_CV;
 			}
-			tlb_tte_demap(otte, pm);
+			tlb_tte_demap(&otte, pm);
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1489,7 +1466,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (prot & VM_PROT_EXECUTE) {
 		tte.tte_data |= TD_EXEC;
 		PMAP_STATS_INC(pmap_niflush);
-		icache_inval_phys(pa, pa + PAGE_SIZE - 1);
+		icache_page_inval(pa);
 	}
 
 	if (tp != NULL)
@@ -1543,7 +1520,7 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 		tte.tte_data = tp->tte_data &
 		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
 		tte.tte_vpn = TV_VPN(va);
-		m = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
+		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 		if ((tp->tte_data & TD_PV) != 0) {
 			KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
 			    ("pmap_enter: unmanaged pv page"));
@@ -1585,22 +1562,24 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 void
 pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	vm_offset_t pa;
 
+	pa = VM_PAGE_TO_PHYS(m);
 	CTR1(KTR_PMAP, "pmap_zero_page: pa=%#lx", pa);
-	dcache_inval_phys(pa, pa + PAGE_SIZE - 1);
+	dcache_page_inval(pa);
 	aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
 }
 
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	vm_offset_t pa;
 
+	pa = VM_PAGE_TO_PHYS(m);
 	CTR3(KTR_PMAP, "pmap_zero_page_area: pa=%#lx off=%#x size=%#x",
 	    pa, off, size);
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
-	dcache_inval_phys(pa + off, pa + off + size - 1);
+	dcache_page_inval(pa);
 	aszero(ASI_PHYS_USE_EC, pa + off, size);
 }
 
@@ -1610,11 +1589,13 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	vm_offset_t src = VM_PAGE_TO_PHYS(msrc);
-	vm_offset_t dst = VM_PAGE_TO_PHYS(mdst);
+	vm_offset_t dst;
+	vm_offset_t src;
 
+	dst = VM_PAGE_TO_PHYS(mdst);
+	src = VM_PAGE_TO_PHYS(msrc);
 	CTR2(KTR_PMAP, "pmap_copy_page: src=%#lx dst=%#lx", src, dst);
-	dcache_inval_phys(dst, dst + PAGE_SIZE - 1);
+	dcache_page_inval(dst);
 	ascopy(ASI_PHYS_USE_EC, src, dst, PAGE_SIZE);
 }
 
