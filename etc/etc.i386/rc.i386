@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.3 1995/04/01 12:55:33 ache Exp $
+#	$Id: rc.i386,v 1.4 1995/04/04 17:34:55 ache Exp $
 #	Do i386 specific processing
 #
 
@@ -8,7 +8,9 @@ echo -n 'enabling FreeBSD/386 options:'
 
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
-	echo -n ' ibcs2';  ibcs2
+# Re-enable this if ibcs2 ever shuts up.
+# 	echo -n ' ibcs2';   ibcs2
+	ibcs2
 fi
 
 if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
