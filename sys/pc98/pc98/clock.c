@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.38 1997/12/26 20:42:37 phk Exp $
+ *	$Id: clock.c,v 1.39 1997/12/29 16:15:57 kato Exp $
  */
 
 /*
@@ -959,10 +959,12 @@ inittodr(time_t base)
 	int		second, min, hour;
 #endif
 
-	s = splclock();
-	time.tv_sec  = base;
-	time.tv_usec = 0;
-	splx(s);
+	if (base) {
+		s = splclock();
+		time.tv_sec  = base;
+		time.tv_usec = 0;
+		splx(s);
+	}
 
 #ifdef PC98
 	rtc_serialcom(0x03);	/* Time Read */
