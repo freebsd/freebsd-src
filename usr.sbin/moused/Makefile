@@ -4,6 +4,6 @@ PROG=	moused
 MAN=	moused.8
 
 #BINMODE=4555
-#INSTALLFLAGS=-fschg
+#PRECIOUSPROG=
 
 .include <bsd.prog.mk>
