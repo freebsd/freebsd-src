@@ -141,6 +141,7 @@ SUBDIR=	${_3dfx} \
 	mlx \
 	${_mly} \
 	mpt \
+	${_mse} \
 	msdosfs \
 	msdosfs_iconv \
 	my \
@@ -315,6 +316,7 @@ _io=		io
 _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
+_mse=		mse
 _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
