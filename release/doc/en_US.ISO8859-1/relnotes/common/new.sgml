@@ -210,6 +210,10 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
+      <para>The <literal>DA_OLD_QUIRKS</literal> kernel option,
+	which is for the CAM SCSI disk driver (&man.cam.4;)
+	has been removed.</para>
+
       <para>The TCP implementation now includes partial (output-only)
 	support for RFC 2385 (TCP-MD5) digest support.  This feature,
 	enabled with the <literal>TCP_SIGNATURE</literal> and
