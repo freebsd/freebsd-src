@@ -24,6 +24,7 @@ $FreeBSD$
 */install-sh
 */intl/*
 */lib/alloca.c
+*/lib/getopt*
 */lib/memcpy.c
 */lib/memmove.c
 */lib/mkstemp.c
