@@ -778,6 +778,10 @@ Debug_Disk(struct disk *d)
 #elif defined(__alpha__)
 	printf("  boot1=%p, bootmgr=%p\n",
 		d->boot1, d->bootmgr);
+#elif defined(__ia64__)
+	printf("\n");
+#else
+/* Should be: error "Debug_Disk: unknown arch"; */
 #endif
 	Debug_Chunk(d->chunks);
 }
@@ -791,9 +795,13 @@ Free_Disk(struct disk *d)
 	if(d->bootipl) free(d->bootipl);
 	if(d->bootmenu) free(d->bootmenu);
 #else
+#if !defined(__ia64__)
 	if(d->bootmgr) free(d->bootmgr);
 #endif
+#endif
+#if !defined(__ia64__)
 	if(d->boot1) free(d->boot1);
+#endif
 #if defined(__i386__)
 	if(d->boot2) free(d->boot2);
 #endif
@@ -868,6 +876,7 @@ void
 Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 #endif
 {
+#if !defined(__ia64__)
 #ifdef PC98
 	if (bootipl_size % d->sector_size != 0)
 		return;
@@ -908,6 +917,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 		memcpy(d->bootmgr, b, s);
 	}
 #endif
+#endif
 }
 
 int
@@ -927,6 +937,10 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	d->boot1 = malloc(15 * 512);
 	if(!d->boot1) return -1;
 	memcpy(d->boot1, b1, 15 * 512);
+#elif defined(__ia64__)
+	/* nothing */
+#else
+/* Should be: #error "Set_Boot_Blocks: unknown arch"; */
 #endif
 	return 0;
 }
