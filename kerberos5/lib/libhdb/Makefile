@@ -57,26 +57,46 @@ CLEANFILES+=	${GEN:S/.x/.c/g} hdb_asn1.h asn1_files
 ${GEN} ${.OBJDIR}/hdb_asn1.h:	asn1_compile hdb.asn1
 	./asn1_compile ${KRB5DIR}/lib/hdb/hdb.asn1 hdb_asn1
 
-asn1_compile:	parse.o lex.o main.c hash.c symbol.c emalloc.c gen.c \
-		gen_encode.c gen_decode.c gen_free.c gen_length.c \
-		gen_copy.c gen_glue.c getarg.c warnerr.c print_version.o \
-		get_window_size.c strupr.c
+asn1_compile:					\
+	gen.c					\
+	gen_copy.c				\
+	gen_decode.c				\
+	gen_encode.c				\
+	gen_free.c				\
+	gen_glue.c				\
+	gen_length.c				\
+	hash.c					\
+	emalloc.c				\
+	main.c					\
+	symbol.c				\
+	getarg.c				\
+	warnerr.c				\
+	${.OBJDIR}/lex.o			\
+	${.OBJDIR}/parse.o			\
+	${.OBJDIR}/print_version.o		\
+	get_window_size.c			\
+	strupr.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
 
-parse.o:	parse.c
+.ORDER: ${.OBJDIR}/roken.h ${.OBJDIR}/parse.c ${.OBJDIR}/parse.h ${.OBJDIR}/lex.c
 
-.ORDER: parse.c parse.h
-parse.h parse.c:	parse.y
+${.OBJDIR}/parse.o:	${.OBJDIR}/parse.c ${.OBJDIR}/roken.h
+
+${.OBJDIR}/lex.o:	${.OBJDIR}/lex.c ${.OBJDIR}/parse.h ${.OBJDIR}/roken.h
+
+${.OBJDIR}/parse.h ${.OBJDIR}/parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c
 	cp y.tab.h parse.h
 
-lex.o:		lex.l
+${.OBJDIR}/lex.c:	lex.l
+	${LEX} -t ${LFLAGS} ${.OODATE} > ${.TARGET}
 
-print_version.o: print_version.h print_version.c
+${.OBJDIR}/print_version.o: ${.OBJDIR}/print_version.h print_version.c \
+				${.OBJDIR}/roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
 
-print_version.h: make-print-version
+${.OBJDIR}/print_version.h: make-print-version
 	./make-print-version print_version.h
 
 make-print-version: make-print-version.c
