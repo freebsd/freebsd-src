@@ -187,16 +187,18 @@ cap_print(struct ata_params *parm)
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
 
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("SATA NCQ                       %s	%s	%d/0x%02X\n",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ? "yes" : "no",
-			" -", ATA_QUEUE_LEN(parm->queue),
-			ATA_QUEUE_LEN(parm->queue));
+		printf("Native Command Queuing (NCQ)   %s	%s	%d/0x%02X\n",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ?
+				"yes" : "no", " -",
+			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
+				ATA_QUEUE_LEN(parm->queue) : 0,
+			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
+				ATA_QUEUE_LEN(parm->queue) : 0);
 	}
-	else
-		printf("dma queued                     %s	%s	%d/0x%02X\n",
-			parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-			parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
-			ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
+	printf("Tagged Command Queuing (TCQ)   %s	%s	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
 
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
