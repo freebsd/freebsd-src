@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: coda.h,v 1.5 1998/10/28 19:33:49 rvb Exp $
+ *  $Id: coda.h,v 1.6 1998/11/11 20:32:20 rvb Exp $
  * 
  */
 
@@ -87,7 +87,7 @@ typedef unsigned long long u_quad_t;
 typedef unsigned long long u_quad_t;
 #endif
 #else
-#define cdev_t dev_t
+#define cdev_t udev_t
 #endif
 
 #ifdef __CYGWIN32__

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.8 1999/05/07 07:03:11 phk Exp $
+ *	$Id: ata-disk.c,v 1.9 1999/05/07 16:37:06 peter Exp $
  */
 
 #include "ata.h"
@@ -78,7 +78,7 @@ static struct cdevsw ad_cdevsw = {
 };
 
 /* misc defines */
-#define UNIT(dev) (dev>>3 & 0x1f)		/* assume 8 minor # per unit */
+#define UNIT(dev) (minor(dev)>>3 & 0x1f)		/* assume 8 minor # per unit */
 #define NUNIT	16				/* max # of devices */
 
 /* prototypes */

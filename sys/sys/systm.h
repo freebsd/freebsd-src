@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.87 1999/03/11 15:09:40 phk Exp $
+ * $Id: systm.h,v 1.88 1999/04/21 07:26:30 peter Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -305,4 +305,16 @@ int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
 int	await  __P((int pri, int timo));
 void	wakeup __P((void *chan));
 
+/*
+ * Common `dev_t' stuff are declared here to avoid #include poisoning
+ */
+
+int major(dev_t x);
+int minor(dev_t x);
+dev_t makedev(int x, int y);
+udev_t dev2udev(dev_t x);
+dev_t udev2dev(udev_t x, int b);
+int uminor(udev_t dev);
+int umajor(udev_t dev);
+udev_t umakedev(int x, int y);
 #endif /* !_SYS_SYSTM_H_ */

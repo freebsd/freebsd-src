@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.72 1999/04/28 11:37:15 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.73 1999/05/06 20:00:27 phk Exp $
  */
 
 
@@ -411,15 +411,15 @@ DBPRINT(("getattr\n"));
 	switch (file_node->type)
 	{
 	case 	DEV_DIR:
-		vap->va_rdev = (dev_t)file_node->dvm;
+		vap->va_rdev = (udev_t)file_node->dvm;
 		vap->va_mode |= (S_IFDIR);
 		break;
 	case	DEV_CDEV:
-		vap->va_rdev = file_node->by.Cdev.dev;
+		vap->va_rdev = dev2udev(file_node->by.Cdev.dev);
 		vap->va_mode |= (S_IFCHR);
 		break;
 	case	DEV_BDEV:
-		vap->va_rdev = file_node->by.Bdev.dev;
+		vap->va_rdev = dev2udev(file_node->by.Bdev.dev);
 		vap->va_mode |= (S_IFBLK);
 		break;
 	case	DEV_SLNK:

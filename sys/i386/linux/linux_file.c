@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.24 1999/05/06 18:44:20 peter Exp $
+ *  $Id: linux_file.c,v 1.25 1999/05/08 06:39:26 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -204,6 +204,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     struct pgrp *pgrp;
     struct tty *tp, *(*d_tty) __P((dev_t));
     caddr_t sg;
+    dev_t dev;
 
     sg = stackgap_init();
     bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
@@ -306,8 +307,9 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)))
 	    return error;
 
-	d_tty = devsw(va.va_rdev)->d_devtotty;
-	if (!d_tty || (!(tp = (*d_tty)(va.va_rdev))))
+	dev = udev2dev(va.va_rdev, 0);		/* XXX vp->v_rdev ? */
+	d_tty = devsw(dev)->d_devtotty;
+	if (!d_tty || (!(tp = (*d_tty)(dev))))
 	    return EINVAL;
 	if (args->cmd == LINUX_F_GETOWN) {
 	    p->p_retval[0] = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;

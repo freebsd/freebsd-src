@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.53 1999/05/09 08:58:44 phk Exp $
+ * $Id: conf.h,v 1.54 1999/05/09 13:00:50 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -142,7 +142,18 @@ static __inline
 struct cdevsw *
 bdevsw(dev_t dev)
 {
-	struct cdevsw *c = cdevsw[bmaj2cmaj[major(dev)]];
+	struct cdevsw *c;
+	int i = major(dev);
+
+	if (bmaj2cmaj[i] == 254)
+		return 0;
+
+	c = cdevsw[bmaj2cmaj[major(dev)]];
+	if (!c) {
+		printf("bogus bdev dev_t %x, no cdev\n", dev);
+		Debugger("Bummer");
+		return 0;
+	}
 	/* CMAJ zero is the console, which has no strategy so this works */
 	if (c->d_strategy)
 		return (c);

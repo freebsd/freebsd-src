@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id: specdev.h,v 1.15 1998/04/19 23:32:29 julian Exp $
+ * $Id: specdev.h,v 1.16 1999/02/25 05:22:30 dillon Exp $
  */
 
 /*
@@ -60,11 +60,7 @@ struct specinfo {
  * Special device management
  */
 #define	SPECHSZ	64
-#if	((SPECHSZ&(SPECHSZ-1)) == 0)
-#define	SPECHASH(rdev)	(((rdev>>5)+(rdev))&(SPECHSZ-1))
-#else
-#define	SPECHASH(rdev)	(((unsigned)((rdev>>5)+(rdev)))%SPECHSZ)
-#endif
+#define	SPECHASH(rdev)	(((unsigned)(minor(rdev)))%SPECHSZ)
 
 extern	struct vnode *speclisth[SPECHSZ];
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.16 1997/11/18 14:40:34 phk Exp $
+ * $Id: cd9660_node.h,v 1.17 1998/02/03 21:39:30 bde Exp $
  */
 
 /*
@@ -56,7 +56,7 @@ typedef	struct	{
 	uid_t		iso_uid;	/* owner user id */
 	gid_t		iso_gid;	/* owner group id */
 	short		iso_links;	/* links of file */
-	dev_t		iso_rdev;	/* Major/Minor number for special */
+	udev_t		iso_rdev;	/* Major/Minor number for special */
 } ISO_RRIP_INODE;
 
 

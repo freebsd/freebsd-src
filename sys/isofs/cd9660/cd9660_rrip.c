@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.6 (Berkeley) 12/5/94
- * $Id: cd9660_rrip.c,v 1.13 1997/08/02 14:31:19 bde Exp $
+ * $Id: cd9660_rrip.c,v 1.14 1999/04/18 10:58:01 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -423,9 +423,9 @@ cd9660_rrip_device(p,ana)
 	low  = isonum_733(p->dev_t_low);
 	
 	if (high == 0)
-		ana->inop->inode.iso_rdev = makedev(major(low), minor(low));
+		ana->inop->inode.iso_rdev = umakedev(umajor(low), uminor(low));
 	else
-		ana->inop->inode.iso_rdev = makedev(high, minor(low));
+		ana->inop->inode.iso_rdev = umakedev(high, uminor(low));
 	ana->fields &= ~ISO_SUSP_DEVICE;
 	return ISO_SUSP_DEVICE;
 }
