@@ -2017,7 +2017,8 @@ restart:
 				atomic_add_int(&bufreusecnt, 1);
 			}
 		}
-		bp->b_data = bp->b_kvabase;
+		bp->b_saveaddr = bp->b_kvabase;
+		bp->b_data = bp->b_saveaddr;
 	}
 	return(bp);
 }
@@ -2695,7 +2696,8 @@ allocbuf(struct buf *bp, int size)
 						bufspacewakeup();
 						bp->b_bufsize = 0;
 					}
-					bp->b_data = bp->b_kvabase;
+					bp->b_saveaddr = bp->b_kvabase;
+					bp->b_data = bp->b_saveaddr;
 					bp->b_bcount = 0;
 					bp->b_flags &= ~B_MALLOC;
 				}
