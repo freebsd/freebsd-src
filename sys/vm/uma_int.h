@@ -283,7 +283,8 @@ void uma_large_free(uma_slab_t slab);
 /* Lock Macros */
 
 #define	ZONE_LOCK_INIT(z)	\
-	mtx_init(&(z)->uz_lock, (z)->uz_name, "UMA zone", MTX_DEF)
+	mtx_init(&(z)->uz_lock, (z)->uz_name, "UMA zone",	\
+	    MTX_DEF | MTX_DUPOK)
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 #define	ZONE_LOCK(z)	mtx_lock(&(z)->uz_lock)
 #define ZONE_UNLOCK(z)	mtx_unlock(&(z)->uz_lock)
