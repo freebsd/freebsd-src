@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: stage2.c,v 1.1 1994/10/20 04:59:58 phk Exp $
  *
  */
 
@@ -23,6 +23,8 @@
 #include <errno.h>
 
 #include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/mount.h>
 
 #include "sysinstall.h"
 
@@ -30,15 +32,17 @@ void
 stage2()
 {
 	char **p,**q;
-	char buf[90];
-	char *diskname = "sd0";
-	int i;
+	char pbuf[90];
+	char dbuf[90];
+	int i,j;
 
-	for(p = devicename; *p; p++) {
+	for(q=mountpoint,p = devicename; *p; p++,q++) {
+		if(!strcmp(*q,"swap")) 
+			continue;
 		TellEm("newfs /dev/r%s",*p); 
-		strcpy(scratch, "/dev/r");
-		strcat(scratch, *p);
-		if (exec("/bin/newfs","/bin/newfs", scratch, 0) == -1)
+		strcpy(pbuf, "/dev/r");
+		strcat(pbuf, *p);
+		if (exec("/bin/newfs","/bin/newfs", pbuf, 0) == -1)
 			Fatal(errmsg);
 	}
 
@@ -53,28 +57,45 @@ stage2()
 	TellEm("write /mnt/etc/fstab");
 	i = open("/mnt/etc/fstab",O_CREAT|O_TRUNC|O_APPEND|O_WRONLY,0644);
 	if(i < 0) {
-	    Fatal("Couldn't open /mnt/etc/fstab for writing");
-    }
-
-	sprintf(scratch,"/dev/%sa		/		ufs		rw 1 1\n",diskname);
-    write(i,scratch,strlen(scratch));
-	sprintf(scratch,"/dev/%sb		none	swap	sw 0 0\n",diskname);
-    write(i,scratch,strlen(scratch));
-	sprintf(scratch,"proc		    /proc	procfs	rw 0 0\n");
-    write(i,scratch,strlen(scratch));
-	sprintf(scratch,"/dev/%se		/usr	ufs		rw 1 2\n",diskname);
-    write(i,scratch,strlen(scratch));
-	close(i);
-
-	TellEm("unmount /mnt/usr");
-	if (unmount("/mnt/usr", 0) == -1) {
-		sprintf(errmsg, "Error unmounting /mnt/usr: %s\n", strerror(errno));
-		Fatal(errmsg);
+		Fatal("Couldn't open /mnt/etc/fstab for writing");
 	}
 
-	TellEm("unmount /mnt");
-	if (unmount("/mnt", 0) == -1) {
-		sprintf(errmsg, "Error unmounting /mnt: %s\n", strerror(errno));
-		Fatal(errmsg);
+	/* This file is our own.  It serves several jobs */
+	j = open("/mnt/this_is_hd",O_CREAT|O_TRUNC|O_APPEND|O_WRONLY,0644);
+	if(j < 0) {
+		Fatal("Couldn't open /mnt/this_is_hd for writing");
+	}
+	for(q=mountpoint,p = devicename; *p; p++,q++) {
+		sprintf(pbuf,"%s\n%s\n",*p,*q);
+	        write(j,pbuf,strlen(pbuf));
+		if(!strcmp(*q,"swap")) 
+			continue;
+		sprintf(pbuf,"/dev/%s\t\t%s\tufs rw 1 1\n",*p,*q);
+	        write(i,pbuf,strlen(pbuf));
+	}
+	for(q=mountpoint,p = devicename; *p; p++,q++) {
+		if(strcmp(*q,"swap")) 
+			continue;
+		sprintf(pbuf,"/dev/%s\t\tnone\tswap sw 0 0\n",*p);
+		write(i,pbuf,strlen(pbuf));
+	}
+	close(i);
+	write(j,"\n",1);
+	close(j);
+	sprintf(pbuf,"proc\t\t/proc\tprocfs rw 0 0\n");
+	write(i,pbuf,strlen(pbuf));
+
+	/* we have to unmount in reverse order */
+	for(p = mountpoint; *p; p++) 
+		continue;
+	
+	for(p--;p >= mountpoint;p--) {
+		if(!strcmp(*q,"swap")) 
+			continue;
+		strcpy(dbuf,"/mnt");
+		strcat(dbuf,*p);
+		TellEm("unmount %s",dbuf);
+		if (unmount("/mnt", 0) == -1)
+			Fatal("Error unmounting /mnt: %s", strerror(errno));
 	}
 }
