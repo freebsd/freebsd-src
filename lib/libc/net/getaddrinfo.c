@@ -223,23 +223,22 @@ static int ip6_str2scopeid __P((char *, struct sockaddr_in6 *));
 #endif
 
 static struct addrinfo *getanswer __P((const querybuf *, int, const char *,
-				       int, const struct addrinfo *));
+	int, const struct addrinfo *));
 static int _dns_getaddrinfo __P((const struct addrinfo *, const char *,
-				 struct addrinfo **));
+	struct addrinfo **));
 static struct addrinfo *_gethtent __P((FILE *fp, const char *,
-				       const struct addrinfo *));
+	const struct addrinfo *));
 static int _files_getaddrinfo __P((const struct addrinfo *, const char *,
-				   struct addrinfo **));
+	struct addrinfo **));
 #ifdef YP
 static int _nis_getaddrinfo __P((const struct addrinfo *, const char *,
-				 struct addrinfo **));
+	struct addrinfo **));
 #endif
 
 static int res_queryN __P((const char *, struct res_target *));
 static int res_searchN __P((const char *, struct res_target *));
 static int res_querydomainN __P((const char *, const char *,
-				 struct res_target *));
-
+	struct res_target *));
 
 static char *ai_errlist[] = {
 	"Success",
@@ -555,12 +554,10 @@ getaddrinfo(hostname, servname, hints, res)
 		if (pai->ai_family != ex->e_af)
 			continue;
 
-		if (!MATCH(pai->ai_socktype, ex->e_socktype,
-			   WILD_SOCKTYPE(ex))) {
+		if (!MATCH(pai->ai_socktype, ex->e_socktype, WILD_SOCKTYPE(ex))) {
 			continue;
 		}
-		if (!MATCH(pai->ai_protocol, ex->e_protocol,
-			   WILD_PROTOCOL(ex))) {
+		if (!MATCH(pai->ai_protocol, ex->e_protocol, WILD_PROTOCOL(ex))) {
 			continue;
 		}
 
