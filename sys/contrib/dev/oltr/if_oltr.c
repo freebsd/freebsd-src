@@ -50,11 +50,6 @@
 #include <net/if_media.h>
 #include <net/iso88025.h>
 
-#if (__FreeBSD_version < 400000)
-#include <bpfilter.h>
-#endif
-
-#if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
 #include <net/bpf.h>
 
 #ifndef BPF_MTAP
@@ -62,7 +57,6 @@
 	if ((_ifp)->if_bpf)				\
 		bpf_mtap((_ifp), (_m));			\
 } while (0)
-#endif
 #endif
 
 #include <vm/vm.h>              /* for vtophys */
@@ -237,8 +231,6 @@ static int oltr_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void oltr_intr		__P((void *));
 static int oltr_ifmedia_upd	__P((struct ifnet *));
 static void oltr_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
-
-#if __FreeBSD_version > 400000
 
 static int oltr_pci_probe		__P((device_t));
 static int oltr_pci_attach	__P((device_t));
@@ -488,199 +480,6 @@ oltr_pci_shutdown(device_t dev)
 	return;
 }
 
-#else
-
-static const char *oltr_pci_probe	__P((pcici_t, pcidi_t));
-static void oltr_pci_attach		__P((pcici_t, int));
-
-static unsigned long oltr_count = 0;
-
-static struct pci_device oltr_device = {
-	"oltr",
-	oltr_pci_probe,
-	oltr_pci_attach,
-	&oltr_count,
-	NULL
-};
-
-DATA_SET(pcidevice_set, oltr_device);
-
-static const char *
-oltr_pci_probe(pcici_t config_id, pcidi_t device_id)
-{
-        int                     i, rc;
-        char                    PCIConfigHeader[64];
-        TRlldAdapterConfig_t    config;
-	
-	if (((device_id & 0xffff) == PCI_VENDOR_OLICOM) && (
-	    (((device_id >> 16) & 0xffff) == 0x0001) ||
-	    (((device_id >> 16) & 0xffff) == 0x0004) ||
-	    (((device_id >> 16) & 0xffff) == 0x0005) ||
-	    (((device_id >> 16) & 0xffff) == 0x0007) ||
-	    (((device_id >> 16) & 0xffff) == 0x0008))) {
-	
-		for (i = 0; i < 64; i++)
-			PCIConfigHeader[i] = pci_cfgread(config_id, i, /* bytes */ 1);
-
-		rc = TRlldPCIConfig(&LldDriver, &config, PCIConfigHeader);
-
-		if (rc == TRLLD_PCICONFIG_FAIL) {
-			printf("oltr: TRlldPciConfig failed!\n");
-			return(NULL);
-		}
-		if (rc == TRLLD_PCICONFIG_VERSION) {
-			printf("oltr: wrong LLD version.\n");
-			return(NULL);
-		}
-		return(AdapterName[config.type]);
-	}
-
-	return(NULL);
-}
-
-static void
-oltr_pci_attach(pcici_t config_id, int unit)
-{
-        int 			i, s, rc = 0, scratch_size;
-	int			media = IFM_TOKEN|IFM_TOK_UTP16;
-	u_long 			command;
-	char 			PCIConfigHeader[64];
-	struct oltr_softc		*sc;
-	struct ifnet		*ifp; /* = &sc->arpcom.ac_if; */
-
-        s = splimp();
-
-	sc = malloc(sizeof(struct oltr_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		printf("oltr%d: no memory for softc struct!\n", unit);
-		goto config_failed;
-	}
-	sc->unit = unit;
-	sc->state = OL_UNKNOWN;
-	ifp = &sc->arpcom.ac_if;
-
-	for (i = 0; i < sizeof(PCIConfigHeader); i++)
-		PCIConfigHeader[i] = pci_cfgread(config_id, i, 1);
-
-	switch(TRlldPCIConfig(&LldDriver, &sc->config, PCIConfigHeader)) {
-	case TRLLD_PCICONFIG_OK:
-		break;
-	case TRLLD_PCICONFIG_SET_COMMAND:
-		printf("oltr%d: enabling bus master mode\n", unit);
-		command = pci_conf_read(config_id, PCIR_COMMAND);
-		pci_conf_write(config_id, PCIR_COMMAND, (command | PCIM_CMD_BUSMASTEREN));
-		command = pci_conf_read(config_id, PCIR_COMMAND);
-		if (!(command & PCIM_CMD_BUSMASTEREN)) {
-			printf("oltr%d: failed to enable bus master mode\n", unit);
-			goto config_failed;
-		}
-		break;
-	case TRLLD_PCICONFIG_FAIL:
-		printf("oltr%d: TRlldPciConfig failed!\n", unit);
-		goto config_failed;
-		break;
-	case TRLLD_PCICONFIG_VERSION:
-		printf("oltr%d: wrong LLD version\n", unit);
-		goto config_failed;
-		break;
-	}
-	printf("oltr%d: MAC address %6D\n", unit, sc->config.macaddress, ":");
-
-	scratch_size = TRlldAdapterSize();
-	if (bootverbose)
-		printf("oltr%d: adapter memory block size %d bytes\n", unit, scratch_size);
-	sc->TRlldAdapter = (TRlldAdapter_t)malloc(scratch_size, M_DEVBUF, M_NOWAIT);
-	if (sc->TRlldAdapter == NULL) {
-		printf("oltr%d: couldn't allocate scratch buffer (%d bytes)\n",unit, scratch_size);
-		goto config_failed;
-	}
-
-	/*
-	 * Allocate RX/TX Pools
-	 */
-	for (i = 0; i < RING_BUFFER_LEN; i++) {
-		sc->rx_ring[i].index = i;
-		sc->rx_ring[i].data = (char *)malloc(RX_BUFFER_LEN, M_DEVBUF, M_NOWAIT);
-		sc->rx_ring[i].address = vtophys(sc->rx_ring[i].data);
-		sc->tx_ring[i].index = i;
-		sc->tx_ring[i].data = (char *)malloc(TX_BUFFER_LEN, M_DEVBUF, M_NOWAIT);
-		sc->tx_ring[i].address = vtophys(sc->tx_ring[i].data);
-		if ((!sc->rx_ring[i].data) || (!sc->tx_ring[i].data)) {
-			printf("oltr%d: unable to allocate ring buffers\n", unit);
-			while (i > 0) {
-				if (sc->rx_ring[i].data)
-					free(sc->rx_ring[i].data, M_DEVBUF);
-				if (sc->tx_ring[i].data)
-					free(sc->tx_ring[i].data, M_DEVBUF);
-				i--;
-			}
-			goto config_failed;
-		}
-	}
-	
-	/*
-	 * Allocate interrupt and DMA channel
-	 */
-	if (!pci_map_int(config_id, oltr_intr, sc, &net_imask)) {
-		printf("oltr%d: couldn't setup interrupt\n", unit);
-		goto config_failed;
-	}
-
-	/*
-	 * Do the ifnet initialization
-	 */
-	ifp->if_softc	= sc;
-	ifp->if_unit	= unit;
-	ifp->if_name	= "oltr";
-	ifp->if_output	= iso88025_output;
-	ifp->if_init	= oltr_init;
-	ifp->if_start	= oltr_start;
-	ifp->if_ioctl	= oltr_ioctl;
-	ifp->if_flags	= IFF_BROADCAST;
-	bcopy(sc->config.macaddress, sc->arpcom.ac_enaddr, sizeof(sc->config.macaddress));
-
-	/*
-	 * Do ifmedia setup.
-	 */
-	ifmedia_init(&sc->ifmedia, 0, oltr_ifmedia_upd, oltr_ifmedia_sts);
-	rc = TRlldSetSpeed(sc->TRlldAdapter, TRLLD_SPEED_16MBPS);
-	switch(sc->config.type) {
-	case TRLLD_ADAPTER_PCI7:	/* OC-3540 */
-		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP100, 0, NULL);
-		/* FALL THROUGH */
-	case TRLLD_ADAPTER_PCI4:	/* OC-3139 */
-	case TRLLD_ADAPTER_PCI5:	/* OC-3140 */
-	case TRLLD_ADAPTER_PCI6:	/* OC-3141 */
-		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_AUTO, 0, NULL);
-		media = IFM_TOKEN|IFM_AUTO;
-		rc = TRlldSetSpeed(sc->TRlldAdapter, 0);
-		/* FALL THROUGH */
-	default:
-		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP4, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_TOKEN|IFM_TOK_UTP16, 0, NULL);
-		break;
-	}
-	sc->ifmedia.ifm_media = media;
-	ifmedia_set(&sc->ifmedia, media);
-
-	/*
-	 * Attach the interface
-	 */
-	if_attach(ifp);
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	iso88025_ifattach(ifp);
-
-	splx(s);
-	return;
-
-config_failed:
-        (void)splx(s);
-
-	return;
-}
-
-#endif
-
 static void
 oltr_intr(void *xsc)
 {
@@ -761,9 +560,7 @@ outloop:
 	sc->tx_head = RING_BUFFER((sc->tx_head + sc->frame_ring[frame].FragmentCount));
 	sc->tx_frame++;
 
-#if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
 	BPF_MTAP(ifp, m0);
-#endif
 	/*ifp->if_opackets++;*/
 
 bad:
