@@ -299,6 +299,7 @@ typedef enum {
 	sHostbasedUsesNameFromPacketOnly, sClientAliveInterval,
 	sClientAliveCountMax, sAuthorizedKeysFile, sAuthorizedKeysFile2,
 	sUsePrivilegeSeparation,
+	sVersionAddendum,
 	sDeprecated
 } ServerOpCodes;
 
@@ -376,6 +377,7 @@ static struct {
 	{ "authorizedkeysfile", sAuthorizedKeysFile },
 	{ "authorizedkeysfile2", sAuthorizedKeysFile2 },
 	{ "useprivilegeseparation", sUsePrivilegeSeparation},
+	{ "versionaddendum", sVersionAddendum },
 	{ NULL, sBadOption }
 };
 
@@ -898,6 +900,13 @@ parse_flag:
 	case sClientAliveCountMax:
 		intptr = &options->client_alive_count_max;
 		goto parse_int;
+
+	case sVersionAddendum:
+                ssh_version_set_addendum(strtok(cp, "\n"));
+                do {
+                        arg = strdelim(&cp);
+                } while (arg != NULL && *arg != '\0');
+		break;
 
 	case sDeprecated:
 		log("%s line %d: Deprecated option %s",
