@@ -144,7 +144,7 @@ static u_long ngpdg_recvspace = 20 * 1024;
 /* List of all sockets */
 LIST_HEAD(, ngpcb) ngsocklist;
 
-#define sotongpcb(so) ((struct ngpcb *)so->so_pcb)
+#define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
 /* If getting unexplained errors returned, set this to "Debugger("X"); */
 #ifndef TRAP_ERROR
@@ -361,8 +361,6 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	NG_SEND_DATA(error, hook, m, mp);	/* makes m NULL */
 
 release:
-	if (hookname != NULL)
-		FREE(hookname, M_NETGRAPH);
 	if (control != NULL)
 		m_freem(control);
 	if (m != NULL)
@@ -435,7 +433,7 @@ ng_attach_cntl(struct socket *so)
 	/* Setup protocol control block */
 	if ((error = ng_attach_common(so, NG_CONTROL)) != 0)
 		return (error);
-	pcbp = (struct ngpcb *) so->so_pcb;
+	pcbp = sotongpcb(so);
 
 	/* Allocate node private info */
 	MALLOC(privdata, struct ngsock *,
