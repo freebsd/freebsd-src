@@ -76,7 +76,7 @@ int umassdebug = UDMASS_CAM|UDMASS_BULK|UDMASS_USB;
 #endif
 
 typedef struct umass_softc {
-	bdevice			sc_dev;		/* base device */
+	USBBASEDEVICE		sc_dev;		/* base device */
 	usbd_interface_handle	sc_iface;	/* the interface we use */
 
 	u_int8_t		sc_bulkout;	/* bulk-out Endpoint Address */
@@ -213,10 +213,10 @@ USB_ATTACH(umass)
 			       USBDEVNAME(sc->sc_dev));
 			USB_ATTACH_ERROR_RETURN;
 		}
-		if (UE_GET_DIR(ed->bEndpointAddress) == UE_IN
+		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
 		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
 			sc->sc_bulkin = ed->bEndpointAddress;
-		} else if (UE_GET_DIR(ed->bEndpointAddress) == UE_OUT
+		} else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT
 		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
 			sc->sc_bulkout = ed->bEndpointAddress;
 		}
@@ -287,6 +287,7 @@ usbd_status
 umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 		   void *buf, int buflen, int flags, int *xfer_size)
 {
+	usbd_device_handle dev;
 	usbd_request_handle reqh;
 	usbd_private_handle priv;
 	void *buffer;
@@ -297,7 +298,9 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 	 * transfer and then wait for it to complete
 	 */
 
-	reqh = usbd_alloc_request();
+	usbd_interface2device_handle(iface, &dev);
+
+	reqh = usbd_alloc_request(dev);
 	if (!reqh) {
 		DPRINTF(UDMASS_USB, ("Not enough memory\n"));
 		return USBD_NOMEM;

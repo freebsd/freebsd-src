@@ -1,5 +1,5 @@
-/*	$NetBSD: hid.c,v 1.7 1999/01/08 11:58:25 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: hid.c,v 1.8 1999/08/14 14:49:31 augustss Exp $	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -45,7 +45,7 @@
 #if defined(__FreeBSD__)
 #include <sys/bus.h>
 #endif
-
+ 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 

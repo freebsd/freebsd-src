@@ -1,5 +1,5 @@
-/*	$NetBSD: ohcivar.h,v 1.4 1998/12/26 12:53:01 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$NetBSD: ohcivar.h,v 1.8 1999/08/22 23:41:00 augustss Exp $	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -39,23 +39,27 @@
  */
 
 typedef struct ohci_soft_ed {
-	ohci_ed_t *ed;
+	ohci_ed_t ed;
 	struct ohci_soft_ed *next;
 	ohci_physaddr_t physaddr;
 } ohci_soft_ed_t;
-#define OHCI_ED_CHUNK 256
+#define OHCI_SED_SIZE ((sizeof (struct ohci_soft_ed) + OHCI_ED_ALIGN - 1) / OHCI_ED_ALIGN * OHCI_ED_ALIGN)
+#define OHCI_SED_CHUNK 128
 
 typedef struct ohci_soft_td {
-	ohci_td_t *td;
+	ohci_td_t td;
 	struct ohci_soft_td *nexttd; /* mirrors nexttd in TD */
 	struct ohci_soft_td *dnext; /* next in done list */
 	ohci_physaddr_t physaddr;
 	LIST_ENTRY(ohci_soft_td) hnext;
-	/*ohci_soft_ed_t *sed;*/
 	usbd_request_handle reqh;
 	u_int16_t len;
+	u_int16_t flags;
+#define OHCI_CALL_DONE	0x0001
+#define OHCI_SET_LEN	0x0002
 } ohci_soft_td_t;
-#define OHCI_TD_CHUNK 256
+#define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
+#define OHCI_STD_CHUNK 128
 
 #define OHCI_NO_EDS (2*OHCI_NO_INTRS-1)
 
@@ -65,12 +69,12 @@ typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	void *sc_ih;			/* interrupt vectoring */
 
 	bus_dma_tag_t sc_dmatag;	/* DMA tag */
 	/* XXX should keep track of all DMA memory */
-#endif /* __FreeBSD__ */
+#endif /* __NetBSD__ || defined(__OpenBSD__) */
 
 	usb_dma_t sc_hccadma;
 	struct ohci_hcca *sc_hcca;
@@ -93,11 +97,12 @@ typedef struct ohci_softc {
 	usbd_request_handle sc_intrreqh;
 
 	int sc_intrs;
+
 	char sc_vendor[16];
+	int sc_id_vendor;
 } ohci_softc_t;
 
 usbd_status	ohci_init __P((ohci_softc_t *));
 int		ohci_intr __P((void *));
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
-

@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.c,v 1.19 1999/08/22 20:12:40 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.21 1999/09/09 12:26:48 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -43,7 +43,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/bus.h>
@@ -514,10 +514,8 @@ usbd_bulk_transfer(reqh, pipe, flags, timeout, buf, size, lbl)
 	usbd_status r;
 	int s, error;
 
-	r = usbd_setup_request(reqh, pipe, 0, buf, *size,
-			       flags, timeout, usbd_bulk_transfer_cb);
-	if (r != USBD_NORMAL_COMPLETION)
-		return (r);
+	usbd_setup_request(reqh, pipe, 0, buf, *size,
+			   flags, timeout, usbd_bulk_transfer_cb);
 	DPRINTFN(1, ("usbd_bulk_transfer: start transfer %d bytes\n", *size));
 	s = splusb();		/* don't want callback until tsleep() */
 	r = usbd_transfer(reqh);
@@ -543,19 +541,19 @@ usbd_bulk_transfer(reqh, pipe, flags, timeout, buf, size, lbl)
 
 void
 usb_detach_wait(dv)
-	bdevice *dv;
+	device_ptr_t dv;
 {
-	DPRINTF(("usb_detach_wait: waiting for %s\n", USBDEVNAME(*dv)));
+	DPRINTF(("usb_detach_wait: waiting for %s\n", USBDEVPTRNAME(dv)));
 	if (tsleep(dv, PZERO, "usbdet", hz * 60))
 		printf("usb_detach_wait: %s didn't detach\n",
-		        USBDEVNAME(*dv));
-	DPRINTF(("usb_detach_wait: %s done\n", USBDEVNAME(*dv)));
+		        USBDEVPTRNAME(dv));
+	DPRINTF(("usb_detach_wait: %s done\n", USBDEVPTRNAME(dv)));
 }       
 
 void
 usb_detach_wakeup(dv)
-	bdevice *dv;
+	device_ptr_t dv;
 {
-	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVNAME(*dv)));
+	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVPTRNAME(dv)));
 	wakeup(dv);
 }       
