@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.37 1996/08/17 23:51:45 wosch Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.38 1996/08/25 21:20:59 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -27,8 +27,33 @@ and on CD-ROM from Walnut Creek CDROM:
       following mirror sites. If you choose to obtain FreeBSD via
       anonymous FTP, please try to use a site near you.
 
+<ref id="mirrors-au" name="Australia">, 
+<ref id="mirrors-br" name="Brazil">, 
+<ref id="mirrors-ca" name="Canada">,
+<ref id="mirrors-cz" name="Czech Republic">,
+<ref id="mirrors-ee" name="Estonia">,
+<ref id="mirrors-fi" name="Finland">,
+<ref id="mirrors-fr" name="France">,
+<ref id="mirrors-de" name="Germany">,
+<ref id="mirrors-hk" name="Hong Kong">,
+<ref id="mirrors-ie" name="Ireland">,
+<ref id="mirrors-il" name="Israel">,
+<ref id="mirrors-jp" name="Japan">,
+<ref id="mirrors-kr" name="Korea">,
+<ref id="mirrors-nl" name="Netherlands">,
+<ref id="mirrors-pl" name="Poland">,
+<ref id="mirrors-pt" name="Portugal">,
+<ref id="mirrors-ru" name="Russia">,
+<ref id="mirrors-za" name="South Africa">,
+<ref id="mirrors-se" name="Sweden">,
+<ref id="mirrors-tw" name="Taiwan">,
+<ref id="mirrors-th" name="Thailand">,
+<ref id="mirrors-us" name="USA">,
+<ref id="mirrors-uk" name="UK">.
+
+
 <descrip>
-<tag>Australia</tag>
+<tag><label id="mirrors-au">Australia</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@au.FreeBSD.ORG" name="hostmaster">
@@ -51,7 +76,7 @@ for this domain.
 
 </itemize>
 
-<tag>Brazil</tag>
+<tag><label id="mirrors-br">Brazil</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@br.FreeBSD.ORG" name="hostmaster">
@@ -81,7 +106,7 @@ for this domain.
 	name="ftp://ftp7.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 </itemize>
 
-<tag>Canada</tag>
+<tag><label id="mirrors-ca">Canada</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@ca.FreeBSD.ORG" name="hostmaster">
@@ -95,7 +120,7 @@ for this domain.
 
 </itemize>
 
-<tag>Czech Republic</tag>
+<tag><label id="mirrors-cz">Czech Republic</tag>
 
 <itemize>
 
@@ -107,7 +132,7 @@ for this domain.
 
 </itemize>
 
-<tag>Estonia</tag>
+<tag><label id="mirrors-ee">Estonia</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@ee.FreeBSD.ORG" name="hostmaster">
@@ -121,7 +146,7 @@ for this domain.
 
 </itemize>
 
-<tag>Finland</tag>
+<tag><label id="mirrors-fi">Finland</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@fi.FreeBSD.ORG" name="hostmaster">
@@ -135,7 +160,7 @@ for this domain.
 
 </itemize>
 
-<tag>France</tag>
+<tag><label id="mirrors-fr">France</tag>
 
 <itemize>
 
@@ -147,7 +172,7 @@ for this domain.
 
 </itemize>
 
-<tag>Germany</tag>
+<tag><label id="mirrors-de">Germany</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@de.FreeBSD.ORG" name="hostmaster">
@@ -179,7 +204,7 @@ for this domain.
 
 </itemize>
 
-<tag>Hong Kong</tag>
+<tag><label id="mirrors-hk">Hong Kong</tag>
 
 <itemize>
 
@@ -191,7 +216,7 @@ for this domain.
 
 </itemize>
 
-<tag>Ireland</tag>
+<tag><label id="mirrors-ie">Ireland</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@ie.FreeBSD.ORG" name="hostmaster">
@@ -205,7 +230,7 @@ for this domain.
 
 </itemize>
 
-<tag>Israel</tag>
+<tag><label id="mirrors-il">Israel</tag>
 
 <itemize>
 
@@ -223,7 +248,7 @@ for this domain.
 
 </itemize>
 
-<tag>Japan</tag>
+<tag><label id="mirrors-jp">Japan</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@jp.FreeBSD.ORG" name="hostmaster">
@@ -252,7 +277,7 @@ for this domain.
 
 </itemize>
 
-<tag>Korea</tag>
+<tag><label id="mirrors-kr">Korea</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@kr.FreeBSD.ORG" name="hostmaster">
@@ -269,7 +294,7 @@ for this domain.
 
 </itemize>
 
-<tag>Netherlands</tag>
+<tag><label id="mirrors-nl">Netherlands</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@nl.FreeBSD.ORG" name="hostmaster">
@@ -283,7 +308,7 @@ for this domain.
 
 </itemize>
 
-<tag>Poland</tag>
+<tag><label id="mirrors-pl">Poland</tag>
 
 <itemize>
  
@@ -295,7 +320,7 @@ for this domain.
 
 </itemize>
 
-<tag>Portugal</tag>
+<tag><label id="mirrors-pt">Portugal</tag>
 
 <itemize>
 
@@ -307,7 +332,7 @@ for this domain.
 
 </itemize>
 
-<tag>Russia</tag>
+<tag><label id="mirrors-ru">Russia</tag>
 
 <itemize>
 
@@ -319,7 +344,7 @@ for this domain.
 
 </itemize>
 
-<tag>South Africa</tag>
+<tag><label id="mirrors-za">South Africa</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@za.FreeBSD.ORG" name="hostmaster">
@@ -339,7 +364,7 @@ for this domain.
 
 </itemize>
 
-<tag>Sweden</tag>
+<tag><label id="mirrors-se">Sweden</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@se.FreeBSD.ORG" name="hostmaster">
@@ -353,7 +378,7 @@ for this domain.
 
 </itemize>
 
-<tag>Taiwan</tag>
+<tag><label id="mirrors-tw">Taiwan</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@tw.FreeBSD.ORG" name="hostmaster">
@@ -373,7 +398,7 @@ for this domain.
 
 </itemize>
 
-<tag>Thailand</tag>
+<tag><label id="mirrors-th">Thailand</tag>
 
 <itemize>
 
@@ -385,7 +410,7 @@ for this domain.
 
 </itemize>
 
-<tag>USA</tag>
+<tag><label id="mirrors-us">USA</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@FreeBSD.ORG" name="hostmaster">
@@ -414,7 +439,7 @@ for this domain.
 
 </itemize>
 
-<tag>UK</tag>
+<tag><label id="mirrors-uk">UK</tag>
 
 In case of problems, please contact the
 <htmlurl url="mailto:hostmaster@uk.FreeBSD.ORG" name="hostmaster">
