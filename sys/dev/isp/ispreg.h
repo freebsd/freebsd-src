@@ -1,5 +1,5 @@
-/* $Id: ispreg.h,v 1.7 1999/03/17 05:04:39 mjacob Exp $ */
-/* release_03_25_99 */
+/* $Id: ispreg.h,v 1.8 1999/03/25 22:52:45 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
@@ -54,6 +54,14 @@
  * Offsets for various register blocks.
  *
  * Sad but true, different architectures have different offsets.
+ *
+ * Don't be alarmed if none of this makes sense. The original register
+ * layout set some defines in a certain pattern. Everything else has been
+ * grafted on since. For example, the ISP1080 manual will state that DMA
+ * registers start at 0x80 from the base of the register address space.
+ * That's true, but for our purposes, we define DMA_REGS_OFF for the 1080
+ * to start at offset 0x60 because the DMA registers are all defined to
+ * be DMA_BLOCK+0x20 and so on. Clear?
  */
 
 #define	BIU_REGS_OFF			0x00
@@ -188,11 +196,11 @@
 #define	BIU2100_ICR_ENABLE_TXDMA_INT	0x0001
 #define	BIU2100_ICR_DISABLE_ALL_INTS	0x0000
 
-#define	ENABLE_INTS(isp)	(isp->isp_type & ISP_HA_SCSI)?  \
+#define	ENABLE_INTS(isp)	(IS_SCSI(isp))?  \
  ISP_WRITE(isp, BIU_ICR, BIU_ICR_ENABLE_RISC_INT | BIU_ICR_ENABLE_ALL_INTS) : \
  ISP_WRITE(isp, BIU_ICR, BIU2100_ICR_ENA_RISC_INT | BIU2100_ICR_ENABLE_ALL_INTS)
 
-#define	INTS_ENABLED(isp)	((isp->isp_type & ISP_HA_SCSI)?  \
+#define	INTS_ENABLED(isp)	((IS_SCSI(isp))?  \
  (ISP_READ(isp, BIU_ICR) & (BIU_ICR_ENABLE_RISC_INT|BIU_ICR_ENABLE_ALL_INTS)) :\
  (ISP_READ(isp, BIU_ICR) & \
 	(BIU2100_ICR_ENA_RISC_INT|BIU2100_ICR_ENABLE_ALL_INTS)))
@@ -606,7 +614,13 @@
 #define	PCI_HCCR_BIOS			0x0001	/*  W : BIOS enable */
 
 /*
- * Qlogic 1XXX NVRAM is an array of 128 bytes.
+ * NVRAM Definitions (PCI cards only)
+ */
+
+#define	ISPBSMX(c, byte, shift, mask)	\
+	(((c)[(byte)] >> (shift)) & (mask))
+/*
+ * Qlogic 1020/1040 NVRAM is an array of 128 bytes.
  *
  * Some portion of the front of this is for general host adapter properties
  * This is followed by an array of per-target parameters, and is tailed off
@@ -615,9 +629,6 @@
  */
 
 #define	ISP_NVRAM_SIZE	128
-
-#define	ISPBSMX(c, byte, shift, mask)	\
-	(((c)[(byte)] >> (shift)) & (mask))
 
 #define	ISP_NVRAM_VERSION(c)			(c)[4]
 #define	ISP_NVRAM_FIFO_THRESHOLD(c)		ISPBSMX(c, 5, 0, 0x03)
@@ -667,6 +678,115 @@
 #define	ISP_NVRAM_TGT_SYNC_OFFSET(c, t)		ISPBSMX(c, _IxT(t, 3), 0, 0x0f)
 #define	ISP_NVRAM_TGT_DEVICE_ENABLE(c, t)	ISPBSMX(c, _IxT(t, 3), 4, 0x01)
 #define	ISP_NVRAM_TGT_LUN_DISABLE(c, t)		ISPBSMX(c, _IxT(t, 3), 5, 0x01)
+
+/*
+ * Qlogic 1080/1240 NVRAM is an array of 256 bytes.
+ *
+ * Some portion of the front of this is for general host adapter properties
+ * This is followed by an array of per-target parameters, and is tailed off
+ * with a checksum xor byte at offset 256. For non-byte entities data is
+ * stored in Little Endian order.
+ */
+
+#define	ISP1080_NVRAM_SIZE	256
+
+#define	ISP1080_NVRAM_VERSION(c)		ISP_NVRAM_VERSION(c)
+
+/* Offset 5 */
+/*
+	uint8_t bios_configuration_mode     :2;
+	uint8_t bios_disable                :1;
+	uint8_t selectable_scsi_boot_enable :1;
+	uint8_t cd_rom_boot_enable          :1;
+	uint8_t disable_loading_risc_code   :1;
+	uint8_t enable_64bit_addressing     :1;
+	uint8_t unused_7                    :1;
+ */
+
+/* Offsets 6, 7 */
+/*
+        uint8_t boot_lun_number    :5;
+        uint8_t scsi_bus_number    :1;
+        uint8_t unused_6           :1;
+        uint8_t unused_7           :1;
+        uint8_t boot_target_number :4;
+        uint8_t unused_12          :1;
+        uint8_t unused_13          :1;
+        uint8_t unused_14          :1;
+        uint8_t unused_15          :1;
+ */
+
+#define	ISP1080_NVRAM_HBA_ENABLE(c)			ISPBSMX(c, 16, 3, 0x01)
+
+#define	ISP1080_NVRAM_BURST_ENABLE(c)			ISPBSMX(c, 16, 1, 0x01)
+#define	ISP1080_NVRAM_FIFO_THRESHOLD(c)			ISPBSMX(c, 16, 4, 0x0f)
+
+#define	ISP1080_NVRAM_AUTO_TERM_SUPPORT(c)		ISPBSMX(c, 17, 7, 0x01)
+#define	ISP1080_NVRAM_BUS0_TERM_MODE(c)			ISPBSMX(c, 17, 0, 0x03)
+#define	ISP1080_NVRAM_BUS1_TERM_MODE(c)			ISPBSMX(c, 17, 2, 0x03)
+
+#define	ISP1080_ISP_PARAMETER(c)			\
+	(((c)[18]) | ((c)[19] << 8))
+
+#define	ISP1080_FAST_POST				ISPBSMX(c, 20, 0, 0x01)
+#define	ISP1080_REPORT_LVD_TRANSITION			ISPBSMX(c, 20, 1, 0x01)
+
+#define	ISP1080_BUS1_OFF				112
+
+#define	ISP1080_NVRAM_INITIATOR_ID(c, b)		\
+	ISPBSMX(c, ((b == 0)? 0 : ISP1080_BUS1_OFF) + 24, 0, 0x0f)
+#define	ISP1080_NVRAM_BUS_RESET_DELAY(c, b)		\
+	(c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 25]
+#define	ISP1080_NVRAM_BUS_RETRY_COUNT(c, b)		\
+	(c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 26]
+#define	ISP1080_NVRAM_BUS_RETRY_DELAY(c, b)		\
+	(c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 27]
+
+#define	ISP1080_NVRAM_ASYNC_DATA_SETUP_TIME(c, b)	\
+	ISPBSMX(c, ((b == 0)? 0 : ISP1080_BUS1_OFF) + 28, 0, 0x0f)
+#define	ISP1080_NVRAM_REQ_ACK_ACTIVE_NEGATION(c, b)	\
+	ISPBSMX(c, ((b == 0)? 0 : ISP1080_BUS1_OFF) + 28, 4, 0x01)
+#define	ISP1080_NVRAM_DATA_LINE_ACTIVE_NEGATION(c, b)	\
+	ISPBSMX(c, ((b == 0)? 0 : ISP1080_BUS1_OFF) + 28, 5, 0x01)
+#define	ISP1080_NVRAM_SELECTION_TIMEOUT(c, b)		\
+	(((c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 30]) | \
+	((c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 31] << 8))
+#define	ISP1080_NVRAM_MAX_QUEUE_DEPTH(c, b)		\
+	(((c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 32]) | \
+	((c)[((b == 0)? 0 : ISP1080_BUS1_OFF) + 33] << 8))
+
+#define	ISP1080_NVRAM_TARGOFF(b)		\
+	((b == 0)? 40: (40 + ISP1080_BUS1_OFF))
+#define	ISP1080_NVRAM_TARGSIZE			6
+#define	_IxT8(tgt, tidx, b)			\
+	(ISP1080_NVRAM_TARGOFF((b)) + (ISP1080_NVRAM_TARGSIZE * (tgt)) + (tidx))
+
+#define	ISP1080_NVRAM_TGT_RENEG(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 0, 0x01)
+#define	ISP1080_NVRAM_TGT_QFRZ(c, t, b)			\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 1, 0x01)
+#define	ISP1080_NVRAM_TGT_ARQ(c, t, b)			\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 2, 0x01)
+#define	ISP1080_NVRAM_TGT_TQING(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 3, 0x01)
+#define	ISP1080_NVRAM_TGT_SYNC(c, t, b)			\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 4, 0x01)
+#define	ISP1080_NVRAM_TGT_WIDE(c, t, b)			\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 5, 0x01)
+#define	ISP1080_NVRAM_TGT_PARITY(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 6, 0x01)
+#define	ISP1080_NVRAM_TGT_DISC(c, t, b)			\
+	ISPBSMX(c, _IxT8(t, 0, (b)), 7, 0x01)
+#define	ISP1080_NVRAM_TGT_EXEC_THROTTLE(c, t, b)	\
+	ISPBSMX(c, _IxT8(t, 1, (b)), 0, 0xff)
+#define	ISP1080_NVRAM_TGT_SYNC_PERIOD(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 2, (b)), 0, 0xff)
+#define	ISP1080_NVRAM_TGT_SYNC_OFFSET(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 3, (b)), 0, 0x0f)
+#define	ISP1080_NVRAM_TGT_DEVICE_ENABLE(c, t, b)	\
+	ISPBSMX(c, _IxT8(t, 3, (b)), 4, 0x01)
+#define	ISP1080_NVRAM_TGT_LUN_DISABLE(c, t, b)		\
+	ISPBSMX(c, _IxT8(t, 3, (b)), 5, 0x01)
 
 /*
  * Qlogic 2XXX NVRAM is an array of 256 bytes.
