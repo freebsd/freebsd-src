@@ -40,10 +40,9 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>	
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -64,7 +63,7 @@ static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, int);
 static u_short	 fts_stat(FTS *, FTSENT *, int);
 static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
-static int	 fts_ufslinks(FTS *sp, const FTSENT *ent);
+static int	 fts_ufslinks(FTS *, const FTSENT *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
@@ -80,25 +79,24 @@ static int	 fts_ufslinks(FTS *sp, const FTSENT *ent);
 #define	BREAD		3		/* fts_read */
 
 /*
- * Internal representation of FTS, including extra implementation details.
- * The FTS returned from fts_open is ftsp_fts from this structure, and it's
- * fts_priv in turn points back to this internal version. i.e. for a given
- * fts_private *priv: &priv->fts_fts == (FTS *)f == priv->fts_fts.fts_priv
+ * Internal representation of an FTS, including extra implementation
+ * details.  The FTS returned from fts_open points to this structure's
+ * ftsp_fts member (and can be cast to an _fts_private as required)
  */
 struct _fts_private {
-	FTS ftsp_fts;
-	struct statfs ftsp_statfs;
-	dev_t ftsp_dev;
-	int ftsp_linksreliable;
+	FTS		ftsp_fts;
+	struct statfs	ftsp_statfs;
+	dev_t		ftsp_dev;
+	int		ftsp_linksreliable;
 };
 
 /*
- * The "FTS_NOSTAT" option can avoid a lot of calls to stat(2) if it knows
- * that a directory could not possibly have subdirectories. This is decided
- * by looking at the link count: A subdirectory would increment its parent's
- * link count by virtue of its own ".." entry. 
- * This assumption only holds for UFS-like filesystems that implement links
- * and directories this way, so we must punt for others.
+ * The "FTS_NOSTAT" option can avoid a lot of calls to stat(2) if it
+ * knows that a directory could not possibly have subdirectories.  This
+ * is decided by looking at the link count: a subdirectory would
+ * increment its parent's link count by virtue of its own ".." entry.
+ * This assumption only holds for UFS-like filesystems that implement
+ * links and directories this way, so we must punt for others.
  */
 
 static const char *ufslike_filesystems[] = {
@@ -129,13 +127,12 @@ fts_open(argv, options, compar)
 	}
 
 	/* Allocate/initialize the stream */
-	if ((priv = malloc(sizeof(struct _fts_private))) == NULL)
+	if ((priv = malloc(sizeof(*priv))) == NULL)
 		return (NULL);
-	memset(priv, 0, sizeof(struct _fts_private));
+	memset(priv, 0, sizeof(*priv));
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
-	sp->fts_priv = priv;
 
 	/* Shush, GCC. */
 	tmp = NULL;
@@ -1202,7 +1199,7 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	struct _fts_private *priv;
 	const char **cpp;
 
-	priv = sp->fts_priv;
+	priv = (struct _fts_private *)sp;
 	/*
 	 * If this node's device is different from the previous, grab
 	 * the filesystem information, and decide on the reliability
@@ -1224,5 +1221,5 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 			priv->ftsp_linksreliable = 0;
 		}
 	}
-	return priv->ftsp_linksreliable;
+	return (priv->ftsp_linksreliable);
 }
