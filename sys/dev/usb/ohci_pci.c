@@ -290,8 +290,10 @@ ohci_pci_attach(device_t self)
 		return ENXIO;
 	}
 	err = ohci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= OHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
@@ -306,17 +308,10 @@ ohci_pci_detach(device_t self)
 {
 	ohci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX this code is not yet fit to be used as detach for the OHCI
-	 * controller
-	 */
-
-	/*
-	 * disable interrupts that might have been switched on in ohci_init
-	 */
-	if (sc->iot && sc->ioh)
-		bus_space_write_4(sc->iot, sc->ioh,
-		    OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	if (sc->sc_flags & OHCI_SCFLG_DONEINIT) {
+		ohci_detach(sc, 0);
+		sc->sc_flags &= ~OHCI_SCFLG_DONEINIT;
+	}
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
@@ -348,6 +343,7 @@ static device_method_t ohci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ohci_pci_probe),
 	DEVMETHOD(device_attach, ohci_pci_attach),
+	DEVMETHOD(device_detach, ohci_pci_detach),
 	DEVMETHOD(device_suspend, ohci_pci_suspend),
 	DEVMETHOD(device_resume, ohci_pci_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),

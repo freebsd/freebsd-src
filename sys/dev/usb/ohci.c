@@ -382,17 +382,20 @@ ohci_activate(device_ptr_t self, enum devact act)
 	}
 	return (rv);
 }
+#endif
 
 int
 ohci_detach(struct ohci_softc *sc, int flags)
 {
-	int rv = 0;
+	int i, rv = 0;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_child != NULL)
 		rv = config_detach(sc->sc_child, flags);
 
 	if (rv != 0)
 		return (rv);
+#endif
 
 	usb_uncallout(sc->sc_tmo_rhsc, ohci_rhsc_enable, sc);
 
@@ -401,13 +404,20 @@ ohci_detach(struct ohci_softc *sc, int flags)
 	shutdownhook_disestablish(sc->sc_shutdownhook);
 #endif
 
+	OWRITE4(sc, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
+
 	usb_delay_ms(&sc->sc_bus, 300); /* XXX let stray task complete */
 
-	/* free data structures XXX */
+	for (i = 0; i < OHCI_NO_EDS; i++)
+		ohci_free_sed(sc, sc->sc_eds[i]);
+	ohci_free_sed(sc, sc->sc_isoc_head);
+	ohci_free_sed(sc, sc->sc_bulk_head);
+	ohci_free_sed(sc, sc->sc_ctrl_head);
+	usb_freemem(&sc->sc_bus, &sc->sc_hccadma);
 
 	return (rv);
 }
-#endif
 
 ohci_soft_ed_t *
 ohci_alloc_sed(ohci_softc_t *sc)
