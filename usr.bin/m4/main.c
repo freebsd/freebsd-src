@@ -181,6 +181,7 @@ main(int argc, char *argv[])
 {
 	int c;
 	int n;
+	int rval;
 	char *p;
 
 	traceout = stderr;
@@ -238,6 +239,7 @@ main(int argc, char *argv[])
         argc -= optind;
         argv += optind;
 
+	rval = 0;
 	active = stdout;		/* default active output     */
 	bbase[0] = bufbase;
         if (!argc) {
@@ -255,8 +257,11 @@ main(int argc, char *argv[])
 			p = *argv;
 			if (p[0] == '-' && p[1] == EOS)
 				set_input(infile, stdin, "stdin");
-			else if (fopen_trypath(infile, p) == NULL)
-				err(1, "%s", p);
+			else if (fopen_trypath(infile, p) == NULL) {
+				warn("%s", p);
+				rval = 1;
+				continue;
+			}
 			sp = -1;
 			fp = 0; 
 			if ((inname[0] = strdup(p)) == NULL)
@@ -284,7 +289,7 @@ main(int argc, char *argv[])
 		(void) fclose(outfile[0]);
 	}
 
-	return 0;
+	exit(rval);
 }
 
 /*
