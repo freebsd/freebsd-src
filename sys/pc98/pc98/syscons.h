@@ -1,18 +1,18 @@
 /*-
- * Copyright (c) 1995 Sen Schmidt
+ * Copyright (c) 1992-1998 Sen Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
+ *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.24 1998/08/03 10:50:57 kato Exp $
+ *	$Id: syscons.h,v 1.25 1998/08/07 11:51:06 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -38,8 +38,13 @@
 #define	pa_to_va(pa)	(KERNBASE + (pa))	/* works if ISMAPPED(pa...) */
 
 /* printable chars */
+#ifdef PC98
+#define PRINTABLE(ch)	((ch) > 0x1b || ((ch) > 0x0f && (ch) < 0x1b) \
+			 || (ch) < 0x07)
+#else
 #define PRINTABLE(ch)	((ch) > 0x1b || ((ch) > 0x0d && (ch) < 0x1b) \
 			 || (ch) < 0x07)
+#endif
 
 /* macros for "intelligent" screen update */
 #define mark_for_update(scp, x)	{\
@@ -65,6 +70,9 @@
 #define MOUSE_MOVED	0x01000
 #define MOUSE_CUTTING	0x02000
 #define MOUSE_VISIBLE	0x04000
+#define GRAPHICS_MODE	0x08000
+#define PIXEL_MODE	0x10000
+#define SAVER_RUNNING	0x20000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -74,6 +82,7 @@
 #define XT_KEYBD	0x00010
 #define KBD_NORESET	0x00020
 #define QUIET_BELL	0x00040
+#define VESA800X600	0x00080
 
 /* attribute flags */
 #define NORMAL_ATTR             0x00
@@ -83,9 +92,6 @@
 #define REVERSE_ATTR            0x08
 #define FOREGROUND_CHANGED      0x10
 #define BACKGROUND_CHANGED      0x20
-
-/* video hardware memory addresses */
-#define VIDEOMEM	0x000A0000
 
 /* misc defines */
 #define FALSE		0
@@ -111,24 +117,11 @@ static unsigned int BELL_PITCH = 1678;
 #define FONT_14		4
 #define FONT_16		8
 
-/* defines related to hardware addresses */
 #ifdef PC98
+/* defines related to hardware addresses */
 #define TEXT_GDC	IO_GDC1	/* 0x60 */
 #define TEXT_VRAM	(KERNBASE+0xA0000)
 #define ATTR_OFFSET	0x1000
-#else /* IBM */
-#define	MONO_BASE	0x3B4			/* crt controller base mono */
-#define	COLOR_BASE	0x3D4			/* crt controller base color */
-#define MISC		0x3C2			/* misc output register */
-#define ATC		IO_VGA+0x00		/* attribute controller */
-#define TSIDX		IO_VGA+0x04		/* timing sequencer idx */
-#define TSREG		IO_VGA+0x05		/* timing sequencer data */
-#define PIXMASK		IO_VGA+0x06		/* pixel write mask */
-#define PALRADR		IO_VGA+0x07		/* palette read address */
-#define PALWADR		IO_VGA+0x08		/* palette write address */
-#define PALDATA		IO_VGA+0x09		/* palette data register */
-#define GDCIDX		IO_VGA+0x0E		/* graph data controller idx */
-#define GDCREG		IO_VGA+0x0F		/* graph data controller data */
 #endif
 
 /* special characters */
@@ -154,6 +147,7 @@ typedef struct term_stat {
 } term_stat;
 
 typedef struct scr_stat {
+	int		adp;			/* video adapter index */
 	u_short 	*scr_buf;		/* buffer when off screen */
 #ifdef PC98
 	u_short 	*atr_buf;		/* buffer when off screen */
@@ -167,6 +161,8 @@ typedef struct scr_stat {
 	int 		ysize;			/* Y text size */
 	int 		xpixel;			/* X graphics size */
 	int 		ypixel;			/* Y graphics size */
+	int		xoff;			/* X offset in pixel mode */
+	int		yoff;			/* Y offset in pixel mode */
 	int		font_size;		/* fontsize in Y direction */
 	int		start;			/* modified area start */
 	int		end;			/* modified area end */
@@ -213,13 +209,31 @@ typedef struct scr_stat {
 	int		history_size;		/* size of history buffer */
 	struct apmhook  r_hook;			/* reconfiguration support */
 #ifdef SC_SPLASH_SCREEN
-	u_char		splash_save_mode;	/* saved mode for splash screen */
+	int		splash_save_mode;	/* saved mode for splash screen */
+	int		splash_save_status;	/* saved status for splash screen */
 #endif
 #ifdef KANJI
 	u_char  kanji_1st_char;
-	u_char 	kanji_type;	/* 0: ASCII CODE	1: HANKAKU ?	*/
-				/* 2: SHIFT JIS 	4: EUC		*/
+#define KTYPE_ASCII	0
+#define KTYPE_KANA	1
+#define KTYPE_JKANA	0x10
+#define KTYPE_7JIS	0x20
+#define KTYPE_SJIS	2
+#define KTYPE_UJIS	4
+#define KTYPE_SUKANA	3
+#define KTYPE_SUJIS	6
+#define KTYPE_KANIN	0x80
+#define KTYPE_ASCIN	0x40
+	u_char 	kanji_type;	/* 0: Ascii code	1: HANKAKU	*/
+				/* 2: Shift JIS 	4: UJIS		*/
+				/* 3: Shift JIS or UJIS HANKAKU		*/
+				/* 6: Shift JIS or UJIS			*/
 				/* 0x10: JIS HANKAKU	0x20: JIS	*/
+				/* 0x80: Kanji Invoke sequence		*/
+				/* 0x40: Ascii Invoke sequence		*/
+#define IS_KTYPE_ASCII_or_HANKAKU(A)	(!((A) & 0xee))
+#define IS_KTYPE_KANA(A)		((A) & 0x11)
+#define KTYPE_MASK_CTRL(A)		((A) &= 0xF0)
 #endif
 } scr_stat;
 
@@ -228,22 +242,64 @@ typedef struct default_attr {
 	int             rev_color;              /* reverse hardware color */
 } default_attr;
 
+
+#define ISTEXTSC(scp)	(!((scp)->status 				\
+			  & (UNKNOWN_MODE | GRAPHICS_MODE | PIXEL_MODE)))
+#define ISGRAPHSC(scp)	(((scp)->status 				\
+			  & (UNKNOWN_MODE | GRAPHICS_MODE)))
+#define ISPIXELSC(scp)	(((scp)->status 				\
+			  & (UNKNOWN_MODE | GRAPHICS_MODE | PIXEL_MODE))\
+			  == PIXEL_MODE)
+#define ISUNKNOWNSC(scp) ((scp)->status & UNKNOWN_MODE)
+
+#define ISFONTAVAIL(af)	((af) & V_ADP_FONT)
+#define ISMOUSEAVAIL(af) ((af) & V_ADP_FONT)
+#define ISPALAVAIL(af)	((af) & V_ADP_PALETTE)
+
 /* misc prototypes used by different syscons related LKM's */
-void set_border(u_char color);
-void set_mode(scr_stat *scp);
-void copy_font(int operation, int font_type, char* font_image);
-void load_palette(char *palette);
+
+/* syscons.c */
+extern int (*sc_user_ioctl)(dev_t dev, u_long cmd, caddr_t data, int flag, 
+			    struct proc *p);
+
+int set_mode(scr_stat *scp);
+scr_stat *sc_get_scr_stat(dev_t dev);
+
+void copy_font(scr_stat *scp, int operation, int font_size, u_char *font_image);
+void set_border(scr_stat *scp, int color);
+#define save_palette(scp, pal)	(*biosvidsw.save_palette)((scp)->adp, pal)
+#define load_palette(scp, pal)	(*biosvidsw.load_palette)((scp)->adp, pal)
+#define get_adapter(scp)	(*biosvidsw.adapter)((scp)->adp)
+
 int add_scrn_saver(void (*this)(int));
 int remove_scrn_saver(void (*this)(int));
 
+void sc_clear_screen(scr_stat *scp);
+void sc_move_mouse(scr_stat *scp, int x, int y);
+int sc_clean_up(scr_stat *scp);
+void sc_alloc_scr_buffer(scr_stat *scp, int wait, int clear);
+void sc_alloc_cut_buffer(scr_stat *scp, int wait);
+void sc_alloc_history_buffer(scr_stat *scp, int lines, int extra, int wait);
+struct tty *scdevtotty(dev_t dev);
+
+/* scvidctl.c */
+int sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
+		     int xsize, int ysize, int fontsize);
+int sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode);
+int sc_set_pixel_mode(scr_stat *scp, struct tty *tp,
+		      int xsize, int ysize, int fontsize);
+int sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, 
+		 struct proc *p);
+
 #ifdef SC_SPLASH_SCREEN
-void splash(int);
-int splash_load(void);
-int splash_unload(void);
+/* splash.c */
+void scsplash(int);
+int scsplash_load(scr_stat *scp);
+int scsplash_unload(scr_stat *scp);
 #endif
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
 #endif
 
-#endif /* !_I386_ISA_SYSCONS_H_ */
+#endif /* !_PC98_PC98_SYSCONS_H_ */
