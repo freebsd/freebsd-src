@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.125 1999/04/24 01:53:53 jkh Exp $
+ * $Id: config.c,v 1.126 1999/04/27 14:33:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -470,7 +470,7 @@ int
 configXDesktop(dialogMenuItem *self)
 {
     char *desk;
-    int ret;
+    int ret = DITEM_SUCCESS;
 
     if (!dmenuOpenSimple(&MenuXDesktops, FALSE) ||
 	!(desk = variable_get(VAR_DESKSTYLE)))
@@ -482,8 +482,11 @@ configXDesktop(dialogMenuItem *self)
     }
     else if (!strcmp(desk, "gnome")) {
 	ret = package_add("@gnomecore");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE)
-	    write_root_xprofile("exec gnome-session\n");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	    ret = package_add("@afterstep");
+	    if (DITEM_STATUS(ret) != DITEM_FAILURE)
+		write_root_xprofile("gnome-session &\nexec afterstep");
+	}
     }
     else if (!strcmp(desk, "afterstep")) {
 	ret = package_add("@afterstep");
@@ -492,17 +495,24 @@ configXDesktop(dialogMenuItem *self)
     }
     else if (!strcmp(desk, "windowmaker")) {
 	ret = package_add("@windowmaker");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE)
-	    write_root_xprofile("xterm &\nexec windowmaker\n");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	    vsystem("/usr/X11R6/bin/wmaker.inst");
+	    write_root_xprofile("xterm &\nexec wmaker\n");
+	}
     }
     else if (!strcmp(desk, "enlightenment")) {
 	ret = package_add("@enlightenment");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE)
 	    write_root_xprofile("xterm &\nexec enlightenment\n");
     }
+    if (DITEM_STATUS(ret) == DITEM_FAILURE)
+	msgConfirm("An error occurred while adding the package(s) required\n"
+		   "by this desktop type.  Please change installation media\n"
+		   "and/or select a different, perhaps simpler, desktop\n"
+		   "environment and try again.");
     return ret;
 }
-    
+
 int
 configXSetup(dialogMenuItem *self)
 {
