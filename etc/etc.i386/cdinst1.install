@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id$
+#	$Id: cdinst1.install,v 1.1.2.1 1994/04/10 20:20:25 rgrimes Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -420,8 +420,8 @@ y*|Y*)
 	;;
 esac
 
-mount -u /dev/fd0a / || {
-	if mount -u /dev/fd1a / ; then
+mount -u /dev/fd0 / || {
+	if mount -u /dev/fd1 / ; then
 		echo "[Please ignore the above error message, that's normal.]"
 	else
 		echo "Oh boy, we're in trouble here: Could not mount floppy read-write."
