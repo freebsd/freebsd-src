@@ -102,6 +102,8 @@ int display_resize()
     /* if operating in "dumb" mode, we only need one line */
     lines = smart_terminal ? screen_length - Header_lines : 1;
 
+    if (lines < 0)
+	lines = 0;
     /* we don't want more than MAX_COLS columns, since the machine-dependent
        modules make static allocations based on MAX_COLS and we don't want
        to run off the end of their buffers */
