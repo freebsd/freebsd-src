@@ -6,7 +6,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm ipfw
-.Nd controlling utility for IP firewall
+.Nd controlling utility for IP firewall and traffic shaper
 .Sh SYNOPSIS
 .Nm ipfw
 .Op Fl q
@@ -27,26 +27,11 @@ flush
 .Oo
 .Fl q
 .Oc
-zero
+{zero|resetlog|delete}
 .Op Ar number ...
-.Nm ipfw
-.Oo
-.Fl q
-.Oc
-resetlog
-.Op Ar number ...
-.Nm ipfw
-delete
-.Ar number ...
 .Nm ipfw
 .Op Fl aftN
-list
-.Op Ar number ...
-.Nm ipfw
-.Oo
-.Fl ftN
-.Oc
-show
+{list|show}
 .Op Ar number ...
 .Nm ipfw
 .Oo
@@ -54,225 +39,72 @@ show
 .Oc
 add
 .Op Ar number
-.Op prob match_probability
-.Ar action 
-.Op log Op Ar logamount Ar number
-.Ar proto
-from
-.Ar src
-to
-.Ar dst
-.Op via Ar name | ipno
-.Op Ar options
+.Ar rule-body 
+.Nm ipfw
+pipe
+.Ar number
+config
+.Ar pipe-config-options
+.Nm ipfw
+pipe {delete|list|show}
+.Op Ar number ...
 .Sh DESCRIPTION
-If used as shown in the first synopsis line, the
-.Ar file
-will be read line by line and applied as arguments to the 
 .Nm
-command.
+is the user interface for controlling the IPFW firewall and
+.Nm dummynet
+traffic shaper in FreeBSD.
 .Pp
-Optionally, a preprocessor can be specified using
-.Fl p Ar preproc
-where
-.Ar file
-is to be piped through.  Useful preprocessors include
-.Xr cpp 1
-and
-.Xr m4 1 .
-If
-.Ar preproc
-doesn't start with a slash as its first character, the usual
-.Ev PATH
-name search is performed.  Care should be taken with this in environments
-where not all filesystems are mounted (yet) by the time
+Each incoming or outgoing packet is passed through the
 .Nm
-is being run (e. g. since they are mounted over NFS).  Once
-.Fl p
-has been specified, optional
-.Fl D
-and
-.Fl U
-specifications can follow and will be passed on to the preprocessor.
-This allows for flexible configuration files (like conditionalizing
-them on the local hostname) and the use of macros to centralize
-frequently required arguments like IP addresses.
+rules. In case a host is acting as a gateway, packets
+forwarded by the gateway are processed by
+.Nm
+twice. In case a host is acting as a bridge, packets
+forwarded by the bridge are processed by
+.Nm
+once.
 .Pp
-Each packet that has been received or is about to be sent goes through
-the
-.Nm
-rules. In the case of a host acting as a gateway, packets that are
-forwarded by the host are processed by
-.Nm
-twice
-.Po
-once when entering, and once when leaving
-.Pc .
-Each packet can be filtered based on the following information that is
-associated with it:
+A firewall configuration is made of a list of numbered rules, which are
+scanned for each packet until a match is
+found and the relevant action is performed. Depending on the
+action and certain system settings, packets can be reinjected
+into the firewall at the rule after the matching one for further
+processing. All rules apply to all interfaces, so it is
+responsibility of the sysadmin to write the ruleset in such
+a way to minimize the number of checks.
 .Pp
-.Bl -tag -offset indent -compact -width xxxx
-.It Receive Interface Pq Ar recv
-Interface over which the packet was received
-.It Transmit Interface Pq Ar xmit
-Interface over which the packet would be transmitted
-.It Incoming Pq Ar in
-Packet was just received
-.It Outgoing Pq Ar out
-Packet would be transmitted
-.It Source IP Address
-Sender's IP Address
-.It Destination IP Address
-Target's IP Address
-.It Protocol
-IP protocol, including but not limited to IP
-.Pq Ar ip ,
-UDP
-.Pq Ar udp ,
-TCP
-.Pq Ar tcp ,
+A configuration always includes a
+.Ar DEFAULT
+rule (numbered 65535) which cannot be modified by the programmer
+and always matches packets. The action associated with the
+default rule can be either
+.Ar deny
 or
-ICMP
-.Pq Ar icmp
-.It Source Port
-Sender's UDP or TCP port
-.It Destination Port
-Target's UDP or TCP port
-.It Connection Setup Flag Pq Ar setup
-This packet is a request to setup a TCP connection
-.It Connection Established Flag Pq Ar established
-This packet is part of an established TCP connection
-.It All TCP Flags Pq Ar tcpflags
-One or more of the TCP flags: close connection
-.Pq Ar fin ,
-open connection
-.Pq Ar syn ,
-reset connection
-.Pq Ar rst ,
-push
-.Pq Ar psh ,
-acknowledgment
-.Pq Ar ack ,
-and
-urgent
-.Pq Ar urg
-.It Fragment Flag Pq Ar frag
-This packet is a fragment of an IP packet
-.It IP Options Pq Ar ipoptions
-One or more of the IP options: strict source route
-.Pq Ar ssrr ,
-loose source route
-.Pq Ar lsrr ,
-record route
-.Pq Ar rr ,
-and timestamp
-.Pq Ar ts
-.It ICMP Types Pq Ar icmptypes
-One or more of the ICMP types: echo reply
-.Pq Ar 0 ,
-destination unreachable
-.Pq Ar 3 ,
-source quench
-.Pq Ar 4 ,
-redirect
-.Pq Ar 5 ,
-echo request
-.Pq Ar 8 ,
-router advertisement
-.Pq Ar 9 ,
-router solicitation
-.Pq Ar 10 ,
-time-to-live exceeded
-.Pq Ar 11 ,
-IP header bad
-.Pq Ar 12 ,
-timestamp request
-.Pq Ar 13 ,
-timestamp reply
-.Pq Ar 14 ,
-information request
-.Pq Ar 15 ,
-information reply
-.Pq Ar 16 ,
-address mask request
-.Pq Ar 17 ,
-and address mask reply
-.Pq Ar 18
-.El
+.Ar allow
+depending on how the kernel is configured.
 .Pp
-Note that may be dangerous to filter on the source IP address or
-source TCP/UDP port because either or both could easily be spoofed.
-.Pp
-The
+All rules have a few associated counters: a packet count and
+a byte count, a log count, and a timestamp indicating the time
+of the last match. Counters can be visualized or reset with
 .Nm
-code works by going through the rule-list for each packet
-until a match is found.
-All rules have two associated counters, a packet count and
-a byte count.
-These counters are updated when a packet matches the rule.
+commands.
 .Pp
-If a rule has the optional
-.Dq prob match_probability
-specifier, where the match_probability is a floating point number
-between 0 and 1, a match is only declared with the specified
-probability. This can be useful for a number of applications
-such as random packet drop or (in conjunction with
-.Xr dummynet 4
-) to simulate the effect of multiple paths leading to out-of-order
-packet delivery.
-.Pp
-The rules are ordered by a 
-.Dq line-number
-from 1 to 65534 that is used
-to order and delete rules. Rules are tried in increasing order, and the
-first rule that matches a packet applies.
-Multiple rules may share the same number and apply in
-the order in which they were added.
-.Pp
-If a rule is added without a number, it is numbered 100 higher than the highest
-defined rule number, unless the highest defined rule number is 65435 or
-greater, in which case new rules are given that same number.
-.Pp
-The delete operation deletes the first rule with number
-.Ar number ,
-if any.
-.Pp
-The list command prints out the current rule set.
-.Pp
-The show command is equivalent to 
-.Sq ipfw -a list .
-.Pp
-The zero operation zeroes the counters associated with rule number
-.Ar number .
-.Pp
-The resetlog operation resets the logging counters associated with
-rule number
-.Ar number .
-.Pp
-The flush operation removes all rules.
-.Pp
-Any command beginning with a 
-.Sq # ,
-or being all blank, is ignored.
-.Pp
-One rule is always present:
-.Bd -literal -offset center
-65535 deny all from any to any
-.Ed
-.Pp
-This rule is the default policy, i.e., don't allow anything at all.
-Your job in setting up rules is to modify this policy to match your
-needs.
-.Pp
-However, if the kernel option
-.Dq IPFIREWALL_DEFAULT_TO_ACCEPT
-is active, the rule is instead:
-.Bd -literal -offset center
-65535 allow all from any to any
-.Ed
-.Pp
-This variation lets everything pass through.  This option should only be
-activated in particular circumstances, such as if you use the firewall
-system as an on-demand denial-of-service filter that is normally wide open.
+Rules can be added with the
+.Ar add
+command; deleted individually with the
+.Ar delete
+command, and globally with the
+.Ar flush
+command; visualized, optionally with the content of
+the counters, using the
+.Ar show
+and
+.Ar list
+commands. Finally, counters can be reset with the
+.Ar zero
+and
+.Ar resetlog
+commands.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -309,6 +141,92 @@ While listing, show last match timestamp.
 .It Fl N
 Try to resolve addresses and service names in output.
 .El
+.Pp
+To ease configuration, rules can be put into a file which is processed
+using
+.Nm
+as shown in the first synopsis line. The
+.Ar file
+will be read line by line and applied as arguments to the 
+.Nm
+command.
+.Pp
+Optionally, a preprocessor can be specified using
+.Fl p Ar preproc
+where
+.Ar file
+is to be piped through.  Useful preprocessors include
+.Xr cpp 1
+and
+.Xr m4 1 .
+If
+.Ar preproc
+doesn't start with a slash as its first character, the usual
+.Ev PATH
+name search is performed.  Care should be taken with this in environments
+where not all filesystems are mounted (yet) by the time
+.Nm
+is being run (e. g. since they are mounted over NFS).  Once
+.Fl p
+has been specified, optional
+.Fl D
+and
+.Fl U
+specifications can follow and will be passed on to the preprocessor.
+This allows for flexible configuration files (like conditionalizing
+them on the local hostname) and the use of macros to centralize
+frequently required arguments like IP addresses.
+.Pp
+The
+.Nm
+.Ar pipe
+commands are used to configure the traffic shaper, as shown in
+the ``TRAFFIC SHAPER CONFIGURATION'' section below.
+.Pp
+.Sh RULE FORMAT
+The
+.Nm
+rule format is the following
+.Pp
+.Op prob Ar match_probability
+.Ar action
+.Op log Op Ar logamount Ar number
+.Ar proto
+from
+.Ar src
+to
+.Ar dst
+.Op interface-spec
+.Op Ar options
+.Pp
+Each packet can be filtered based on the following information that is
+associated with it:
+.Pp
+.Bl -tag -offset indent -compact -width xxxx
+.It Transmit and Receive Interface (by name or address)
+.It Direction (Incoming or Outgoing)
+.It Source and Destination IP Address (possibly masked)
+.It Protocol (TCP, UDP, ICMP, etc.)
+.It Source and Destination Port (lists, ranges or masks)
+.It TCP Flags
+.It IP Fragment Flag
+.It IP Options
+.It ICMP Types
+.It User/Group ID of the socket associated with the packet
+.El
+.Pp
+Note that may be dangerous to filter on the source IP address or
+source TCP/UDP port because either or both could easily be spoofed.
+.Pp
+.Ar prob match_probability
+.Bd -ragged -offset flag
+A match is only declared with the specified
+probability (floating point number between 0 and 1). This can be useful for a number of applications
+such as random packet drop or (in conjunction with
+.Xr dummynet 4
+) to simulate the effect of multiple paths leading to out-of-order
+packet delivery.
+.Ed
 .Pp
 .Ar action :
 .Bl -hang -offset flag -width 1234567890123456
@@ -414,26 +332,10 @@ Skip all subsequent rules numbered less than
 The search continues with the first rule numbered
 .Ar number
 or higher.
-.It Ar uid user
-Match all TCP or UDP packets sent by or received for a
-.Ar user .
-A
-.Ar user
-may be matched by name or identification number.
-.It Ar gid group
-Match all TCP or UDP packets sent by or received for a
-.Ar group .
-A
-.Ar group
-may be matched by name or identification number.
 .El
 .Pp
-If a packet matches more than one
-.Ar divert
-and/or
-.Ar tee
-rule, all but the last are ignored.
-.Pp
+.Ar log Op Ar logamount Ar number
+.Bd -ragged -offset flag
 If the kernel was compiled with
 .Dv IPFIREWALL_VERBOSE ,
 then when a packet matches a rule with the
@@ -457,37 +359,31 @@ through the
 .Xr sysctl 8
 interface in the MIB base of
 .Dv net.inet.ip.fw .
+.Ed
 .Pp
 .Ar proto :
-.Bl -hang -offset flag -width 1234567890123456
-.It Ar ip
-All packets match. The alias
-.Ar all
-has the same effect.
-.It Ar tcp
-Only TCP packets match.
-.It Ar udp
-Only UDP packets match.
-.It Ar icmp
-Only ICMP packets match.
-.It Ar <number|name>
-Only packets for the specified protocol matches (see
+.Bd -ragged -offset flag
+An IP protocol specified by number or name (see
 .Pa /etc/protocols
 for a complete list).
-.El
+The
+.Ar ip
+or
+.Ar all
+keywords mean any protocol will match.
+.Ed
 .Pp
 .Ar src 
 and
 .Ar dst :
-.Bl -hang -offset flag
-.It Ar <address/mask>
-.Op Ar ports
-.El
+.Bd -ragged -offset flag
+.Ar <address/mask> Op Ar ports
 .Pp
 The
 .Em <address/mask>
 may be specified as:
-.Bl -hang -offset flag -width 1234567890123456
+.Pp
+.Bl -hang -offset 0n -width 1234567890123456
 .It Ar ipno
 An ipnumber of the form 1.2.3.4.
 Only this exact ip number match the rule.
@@ -495,7 +391,7 @@ Only this exact ip number match the rule.
 An ipnumber with a mask width of the form 1.2.3.4/24.
 In this case all ip numbers from 1.2.3.0 to 1.2.3.255 will match.
 .It Ar ipno:mask
-An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0.
+An ipnumber with a mask of the form 1.2.3.4:255.255.240.0.
 In this case all ip numbers from 1.2.0.0 to 1.2.15.255 will match.
 .El
 .Pp
@@ -509,8 +405,18 @@ With the TCP and UDP protocols, optional
 may be specified as:
 .Pp
 .Bl -hang -offset flag
-.It Ns {port|port-port} Ns Op ,port Ns Op ,...
+.It Ns {port|port-port|port:mask} Ns Op ,port Ns Op ,...
 .El
+.Pp
+The
+.Ql -
+notation specifies a range of ports (including boundaries).
+.Pp
+The
+.Ql \:
+notation specifies a port and a mask, a match is declared if
+the port number in the packet matches the one in the rule,
+limited to the bits which are set in the mask.
 .Pp
 Service names (from 
 .Pa /etc/services )
@@ -535,18 +441,16 @@ specifications.  See the
 .Ar frag
 option for details on matching fragmented packets.
 .Pp
-Rules can apply to packets when they are incoming, or outgoing, or both.
-The
-.Ar in
-keyword indicates the rule should only match incoming packets.
-The
-.Ar out
-keyword indicates the rule should only match outgoing packets.
+.Ed
+.Ar interface-spec :
 .Pp
-To match packets going through a certain interface, specify
-the interface using
-.Ar via :
-.Bl -hang -offset flag -width 1234567890123456
+.Bd -ragged -offset flag
+Some combinations of the following specifiers are allowed:
+.Bl -hang -offset 0n -width 1234567890123456
+.It Ar in
+Only match incoming packets.
+.It Ar out
+Only match outgoing packets.
 .It Ar via ifX
 Packet must be going through interface
 .Ar ifX.
@@ -597,10 +501,10 @@ or
 is invalid.
 .Pp
 A packet may not have a receive or transmit interface: packets originating
-from the local host have no receive interface. while packets destined for
+from the local host have no receive interface, while packets destined for
 the local host have no transmit interface.
+.Ed
 .Pp
-Additional
 .Ar options :
 .Bl -hang -offset flag -width 1234567890123456
 .It frag
@@ -610,15 +514,12 @@ of the datagram.
 may not be used in conjunction with either
 .Ar tcpflags
 or TCP/UDP port specifications.
-.It in
-Match if this packet was on the way in.
-.It out
-Match if this packet was on the way out.
 .It ipoptions Ar spec
 Match if the IP header contains the comma separated list of 
 options specified in
 .Ar spec .
 The supported IP options are:
+.Pp
 .Ar ssrr 
 (strict source route),
 .Ar lsrr 
@@ -641,6 +542,7 @@ Match if the TCP header contains the comma separated list of
 flags specified in
 .Ar spec .
 The supported TCP flags are:
+.Pp
 .Ar fin ,
 .Ar syn ,
 .Ar rst ,
@@ -662,6 +564,116 @@ Match if the ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of ranges
 or individual types separated by commas.
+The supported ICMP types are:
+.Pp
+echo reply
+.Pq Ar 0 ,
+destination unreachable
+.Pq Ar 3 ,
+source quench
+.Pq Ar 4 ,
+redirect
+.Pq Ar 5 ,
+echo request
+.Pq Ar 8 ,
+router advertisement
+.Pq Ar 9 ,
+router solicitation
+.Pq Ar 10 ,
+time-to-live exceeded
+.Pq Ar 11 ,
+IP header bad
+.Pq Ar 12 ,
+timestamp request
+.Pq Ar 13 ,timestamp reply
+.Pq Ar 14 ,
+information request
+.Pq Ar 15 ,
+information reply
+.Pq Ar 16 ,
+address mask request
+.Pq Ar 17 ,
+and address mask reply
+.Pq Ar 18
+.It Ar uid user
+Match all TCP or UDP packets sent by or received for a
+.Ar user .
+A
+.Ar user
+may be matched by name or identification number.
+.It Ar gid group
+Match all TCP or UDP packets sent by or received for a
+.Ar group .
+A
+.Ar group
+may be matched by name or identification number.
+.El
+.Sh TRAFFIC SHAPER CONFIGURATION
+Ipfw is also the user interface for the
+.Xr dummynet 4
+traffic shaper.
+The shaper operates by passing packets to objects called
+.Ar pipes ,
+which emulates a link with given bandwidth, propagation delay,
+queue size and packet loss rate.
+The
+.Nm
+pipe configuration format is the following
+.Pp
+.Ar pipe number config
+.Op bw Ar bandwidth
+.Op queue Ar {slots|size}
+.Op delay Ar delay-ms
+.Op plr Ar loss-probability
+.Op mask Ar {all | {dst-ip|src-ip|dst-port|src-port|proto} bitmask}
+.Op buckets Ar hash-table-size
+.Pp
+The following parameters can be configured for a pipe:
+.Bl -hang -offset flag -width 1234567890
+.It bw Ar bandwidth
+Bandwidth, measured in
+.Ar [K|M]{bit/s|Byte/s} .
+A value of 0 (default) means unlimited bandwidth.
+The unit must follow immediately the number, as in
+.Dl "ipfw pipe 1 config bw 300Kbit/s queue 50KBytes"
+.It delay Ar ms-delay
+propagation delay, measured in milliseconds. The value is rounded
+to the next multiple of the clock tick (typically 10ms, but it is
+good practice to run kernels with "options HZ=1000" to reduce
+the granularity to 1ms or less). Default value is 0, meaning
+no delay.
+.It queue Ar {slots|size}
+queue size, in slots or KBytes. Default value is 50 slots, which
+is the typical queue size for Ethernet devices. Note that for
+slow speed links you should keep the queue size short or your
+traffic might be affected by a significant queueing delay. E.g.
+50  max-sized ethernet packets (1500
+bytes) mean 600Kbit or 20s of queue on a 30Kbit/s pipe.
+Even worse effect can result if you get
+packets from an interface with a much larger MTU e.g. the loopback
+interface with its 16KB packets.
+.It plr packet-loss-rate
+packet loss rate. NN is a floating-point number, with 0 meaning
+no loss, 1 means 100% loss. The loss rate is internally represented
+on 31 bits.
+.It mask Ar mask-specifier
+dummynet allows you to generate per-flow queues
+using a single pipe specification. A flow identifier is constructed
+by masking the IP addresses, ports and protocol types as specified
+in the pipe configuration. Packets with the same ID after masking fall
+into the same queue. Available mask specifiers are a combination
+of the following:
+.Ar dst-ip mask , src-ip mask ,
+.Ar dst-port mask , src-port mask ,
+.Ar proto mask
+or
+.Ar all
+where the latter means all bits in all fields are significant.
+.It buckets Ar NN
+Specifies the size of the hash table used for storing the various queues.
+Default value is 64 controlled by the sysctl variable
+.Ar net.inet.ip.dummynet.hash_size ,
+allowed range is 16 to 1024.
 .El
 .Sh CHECKLIST
 Here are some important points to consider when designing your
@@ -739,11 +751,86 @@ or in short form without timestamps:
 This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Pp
 .Dl ipfw divert 5000 all from 192.168.2.0/24 to any in
+.Pp
+The following rules show some of the applications of ipfw and
+dummynet for simulations and the like.
+.Pp
+This rule drops random packets with a probability of 5%
+.Pp
+.Dl "ipfw add prob 0.05 deny ip from any to any in"
+.Pp
+A similar effect can be achieved making use of dummynet pipes:
+.Pp
+.Dl "ipfw add pipe 10 ip from any to any"
+.Dl "ipfw pipe 10 config plr 0.05"
+.Pp
+We can use pipes to artificially limit bandwidth e.g. on a machine
+acting as a router, if we want to limit traffic from local clients
+on 192.168.2.0/24 we do:
+.Pp
+.Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
+.Dl "ipfw pipe 1 config bw 300Kbit/s queue 50KBytes"
+.Pp
+note that we use the
+.Ql out
+specifier so that the rule is not used twice. Remember in fact
+that ipfw rules are checked both on incoming and outgoing packets.
+.Pp
+Should we like to simulate a bidirectional link with bandwidth
+limitations, the correct way is the following:
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any out"
+.Dl "ipfw add pipe 2 ip from any to any in"
+.Dl "ipfw pipe 1 config bw 64Kbit/s queue 10Kbytes"
+.Dl "ipfw pipe 2 config bw 64Kbit/s queue 10Kbytes"
+.Pp
+The above can be very useful e.g. if you want to see how your fancy
+Web page will look for a residential user which is connected only through
+a slow link.
+You should not use only
+one pipe for both directions, unless you want to simulate a half-duplex
+medium (e.g. appletalk, Ethernet, IRDA).
+It is not necessary that both pipes have the same configuration,
+so we can also simulate asymmetric links.
+.Pp
+Another typical application of the traffic shaper is to introduce some
+delay in the communication. This can affect a lot applications which do
+a lot of Remote Procedure Calls, and where the round-trip-time of the
+connection often becomes a limiting factor much more than bandwidth:
+.Pp
+.Dl "ipfw add pipe 1 ip from any to any out"
+.Dl "ipfw add pipe 2 ip from any to any in"
+.Dl "ipfw pipe 1 config delay 250ms bw 1Mbit/s"
+.Dl "ipfw pipe 2 config delay 250ms bw 1Mbit/s"
+.Pp
+Per-flow queueing can be useful for a variety of purposes. A very
+simple one is counting traffic:
+.Pp
+.Dl "ipfw add pipe 1 tcp from any to any"
+.Dl "ipfw add pipe 1 udp from any to any"
+.Dl "ipfw add pipe 1 ip from any to any"
+.Dl "ipfw pipe 1 config mask all"
+.Pp
+The above set of rules will create queues (and collect statistics)
+for all traffic. Because the pipes have no limitations, the only
+effect is collecting statistics. Note that we need 3 rules, not just
+the last one, because when ipfw tries to match ip packets it will
+not consider ports, so we would not see connections on separate ports
+as different ones.
+.Pp
+A more sophisticated example is limiting the outbound traffic on a net
+with per-host limits, rather than per-network limits:
+.Pp
+.Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
+.Dl "ipfw add pipe 2 ip from any to 192.168.2.0/24 in"
+.Dl "ipfw pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Dl "ipfw pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
 .Xr divert 4 ,
 .Xr dummynet 4 ,
+.Xr bridge 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
 .Xr protocols 5 ,
@@ -754,6 +841,8 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Xr sysctl 8 ,
 .Xr syslogd 8 .
 .Sh BUGS
+.Pp
+The syntax has grown over the years and it is not very clean.
 .Pp
 .Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
 .Pp
@@ -774,16 +863,23 @@ are not.
 .Pp
 The
 .Dq tee
-action is unimplemented.
+action is unimplemented in FreeBSD 3.x
 .Sh AUTHORS
 .An Ugen J. S. Antsilevich ,
 .An Poul-Henning Kamp ,
 .An Alex Nash ,
-.An Archie Cobbs .
+.An Archie Cobbs ,
+.An Luigi Rizzo .
+.Pp
 API based upon code written by
-.An Daniel Boulet
+Daniel Boulet
 for BSDI.
+.Pp
+Work on dummynet traffic shaper supported by Akamba Corp.
 .Sh HISTORY
 .Nm Ipfw
 first appeared in
 .Fx 2.0 .
+.Nm dummynet
+was introduced in
+.Fx 2.2.8

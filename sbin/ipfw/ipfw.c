@@ -127,6 +127,10 @@ print_port(prot, port, comma)
 	const char *protocol;
 	int printed = 0;
 
+	if (!strcmp(comma,":")) {
+		printf("%s0x%04x", comma, port);
+		return ;
+	}
 	if (do_resolv) {
 		pe = getprotobynumber(prot);
 		if (pe)
@@ -300,6 +304,8 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			print_port(chain->fw_prot, chain->fw_uar.fw_pts[i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 				comma = "-";
+			else if (i==0 && (chain->fw_flg & IP_FW_F_SMSK))
+				comma = ":";
 			else
 				comma = ",";
 		}
@@ -340,6 +346,8 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			print_port(chain->fw_prot, chain->fw_uar.fw_pts[nsp+i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
 				comma = "-";
+			else if (i==0 && (chain->fw_flg & IP_FW_F_DMSK))
+				comma = ":";
 			else
 				comma = ",";
 		}
@@ -456,13 +464,13 @@ list(ac, av)
 	int pcwidth = 0;
 	int bcwidth = 0;
 	int n, num = 0;
+	int nbytes;
 
 	/* get rules or pipes from kernel, resizing array as necessary */
 	{
 		const int unit = do_pipe ? sizeof(*pipes) : sizeof(*rules);
 		const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
 		int nalloc = 0;
-		int nbytes;
 
 		while (num >= nalloc) {
 			nalloc = nalloc * 2 + 200;
@@ -479,19 +487,25 @@ list(ac, av)
 	/* display requested pipes */
 	if (do_pipe) {
 	    u_long rulenum;
+	    void *next_pipe ;
+	    struct dn_pipe *p = (struct dn_pipe *) data;
 
-	    pipes = (struct dn_pipe *) data;
 	    if (ac > 0)
 		rulenum = strtoul(*av++, NULL, 10);
 	    else
 		rulenum = 0 ;
-	    for (n = 0; n < num; n++) {
-		struct dn_pipe *const p = &pipes[n];
+	    for ( ; nbytes > 0 ; p = (struct dn_pipe *)next_pipe ) {
 		double b = p->bandwidth ;
 		char buf[30] ;
 		char qs[30] ;
 		char plr[30] ;
 		int l ;
+		struct dn_flow_queue *q ;
+
+		l = sizeof(*p) + p->rq_elements * sizeof(struct dn_flow_queue) ;
+		next_pipe = (void *)p  + l ;
+		q = (struct dn_flow_queue *)(p+1) ;
+		nbytes -= l ;
 
 		if (rulenum != 0 && rulenum != p->pipe_nr)
 			continue;
@@ -516,9 +530,33 @@ list(ac, av)
 		else
 		    plr[0]='\0';
 
-		printf("%05d: %s %4d ms %s %s -- %d pkts (%d B) %d drops\n",
+		printf("%05d: %s %4d ms %s%s %d queues (%d buckets)\n",
 		    p->pipe_nr, buf, p->delay, qs, plr,
-		    p->r_len, p->r_len_bytes, p->r_drops);
+		    p->rq_elements, p->rq_size);
+		printf("    mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
+		    p->flow_mask.proto,
+		    p->flow_mask.src_ip, p->flow_mask.src_port,
+		    p->flow_mask.dst_ip, p->flow_mask.src_port);
+		for (l = 0 ; l < p->rq_elements ; l++) {
+		    struct in_addr ina ;
+		    struct protoent *pe ;
+
+		    ina.s_addr = htonl(q[l].id.src_ip) ;
+		    printf("    (%d) ", q[l].hash_slot);
+		    pe = getprotobynumber(q[l].id.proto);
+		    if (pe)
+			printf(" %s", pe->p_name);
+		    else
+			printf(" %u", q[l].id.proto);
+		    printf(" %s/%d -> ",
+			inet_ntoa(ina), q[l].id.src_port);
+		    ina.s_addr = htonl(q[l].id.dst_ip) ;
+		    printf("%s/%d\n",
+			inet_ntoa(ina), q[l].id.dst_port);
+		    printf("\t%u pkts %u bytes, tot %qu pkts %qu bytes %u drops\n",
+			q[l].len, q[l].len_bytes,
+			q[l].tot_pkts, q[l].tot_bytes, q[l].drops);
+		}
 	    }
 	    free(data);
 	    return;
@@ -634,6 +672,8 @@ show_usage(const char *fmt, ...)
 "    delay <milliseconds>\n"
 "    queue <size>{packets|Bytes|KBytes}\n"
 "    plr <fraction>\n"
+"    mask {all| [dst-ip|src-ip|dst-port|src-port|proto] <number>}\n"
+"    buckets <number>}\n"
 );
 
 	exit(EX_USAGE);
@@ -777,6 +817,10 @@ lookup_port(const char *arg, int test, int nodash)
 	return(val);
 }
 
+/*
+ * return: 0 normally, 1 if first pair is a range,
+ * 2 if first pair is a port+mask
+ */
 static int
 fill_port(cnt, ptr, off, arg)
 	u_short *cnt, *ptr, off;
@@ -785,10 +829,23 @@ fill_port(cnt, ptr, off, arg)
 	char *s;
 	int initial_range = 0;
 
-	for (s = arg; *s && *s != ',' && *s != '-'; s++) {
+	for (s = arg; *s && *s != ',' && *s != '-' && *s != ':'; s++) {
 		if (*s == '\\' && *(s+1))
 			s++;
 	}
+	if (*s == ':') {
+		*s++ = '\0';
+		if (strchr(arg, ','))
+			errx(EX_USAGE, "port/mask must be first in list");
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0x0000);
+		arg = s;
+		s = strchr(arg,',');
+		if (s)
+			*s++ = '\0';
+		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0xffff);
+		arg = s;
+		initial_range = 2;
+	} else
 	if (*s == '-') {
 		*s++ = '\0';
 		if (strchr(arg, ','))
@@ -1038,6 +1095,77 @@ config_pipe(int ac, char **av)
                     pipe.queue_size = 0 ;
                 }
                 av+=2; ac-=2;
+            } else if (!strncmp(*av,"buckets",strlen(*av)) ) {
+                pipe.rq_size = strtoul(av[1], NULL, 0);
+                av+=2; ac-=2;
+	    } else if (!strncmp(*av,"mask",strlen(*av)) ) {
+		/* per-flow queue, mask is dst_ip, dst_port,
+		 * src_ip, src_port, proto measured in bits
+		 */
+		u_int32_t a ;
+		u_int32_t *par = NULL ;
+
+		pipe.flow_mask.dst_ip = 0 ;
+		pipe.flow_mask.src_ip = 0 ;
+		pipe.flow_mask.dst_port = 0 ;
+		pipe.flow_mask.src_port = 0 ;
+		pipe.flow_mask.proto = 0 ;
+		end = NULL ;
+		av++ ; ac-- ;
+		if (ac >= 1 && !strncmp(*av,"all", strlen(*av)) ) {
+		    /* special case -- all bits are significant */
+		    pipe.flow_mask.dst_ip = ~0 ;
+		    pipe.flow_mask.src_ip = ~0 ;
+		    pipe.flow_mask.dst_port = ~0 ;
+		    pipe.flow_mask.src_port = ~0 ;
+		    pipe.flow_mask.proto = ~0 ;
+		    pipe.flags |= DN_HAVE_FLOW_MASK ;
+		    av++ ; ac-- ;
+		} else {
+		  for (;;) {
+		    if (ac < 1)
+			break ;
+		    if (!strncmp(*av,"dst-ip", strlen(*av)))
+			par = &(pipe.flow_mask.dst_ip) ;
+		    else if (!strncmp(*av,"src-ip", strlen(*av)))
+			par = &(pipe.flow_mask.src_ip) ;
+		    else if (!strncmp(*av,"dst-port", strlen(*av)))
+			(u_int16_t *)par = &(pipe.flow_mask.dst_port) ;
+		    else if (!strncmp(*av,"src-port", strlen(*av)))
+			(u_int16_t *)par = &(pipe.flow_mask.src_port) ;
+		    else if (!strncmp(*av,"proto", strlen(*av)))
+			(u_int8_t *)par = &(pipe.flow_mask.proto) ;
+		    else
+			break ;
+		    if (ac < 2)
+			show_usage("mask: %s value missing", *av);
+		    if (*av[1] == '/') {
+			a = strtoul(av[1]+1, &end, 0);
+			if (a == 32) /* special case... */
+			    a = ~0 ;
+			else
+			    a = (1 << a) - 1 ;
+			fprintf(stderr, " mask is 0x%08x\n", a);
+		    } else
+			a = strtoul(av[1], &end, 0);
+		    if ( (u_int16_t *)par == &(pipe.flow_mask.src_port) ||
+			 (u_int16_t *)par == &(pipe.flow_mask.dst_port) ) {
+			if (a >= (1<<16) )
+			    show_usage("mask: %s must be 16 bit, not 0x%08x",
+				*av, a);
+			*((u_int16_t *)par) = (u_int16_t) a;
+		    } else if ( (u_int8_t *)par == &(pipe.flow_mask.proto) ) {
+			if (a >= (1<<8) )
+			    show_usage("mask: %s must be 8 bit, not 0x%08x",
+				*av, a);
+			*((u_int8_t *)par) = (u_int8_t) a;
+		    } else
+			*par = a;
+		    if (a != 0)
+			pipe.flags |= DN_HAVE_FLOW_MASK ;
+		    av += 2 ; ac -= 2 ;
+		  } /* end for */
+		}
             } else
                 show_usage("unrecognised option ``%s''", *av);
         }
@@ -1233,9 +1361,13 @@ add(ac,av)
 
 	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
 		u_short nports = 0;
+		int retval ;
 
-		if (fill_port(&nports, rule.fw_uar.fw_pts, 0, *av))
+		retval = fill_port(&nports, rule.fw_uar.fw_pts, 0, *av) ;
+		if (retval == 1)
 			rule.fw_flg |= IP_FW_F_SRNG;
+		else if (retval == 2)
+			rule.fw_flg |= IP_FW_F_SMSK;
 		IP_FW_SETNSRCP(&rule, nports);
 		av++; ac--;
 	}
@@ -1256,10 +1388,14 @@ add(ac,av)
 
 	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
 		u_short	nports = 0;
+		int retval ;
 
-		if (fill_port(&nports,
-		    rule.fw_uar.fw_pts, IP_FW_GETNSRCP(&rule), *av))
+		retval = fill_port(&nports,
+		    rule.fw_uar.fw_pts, IP_FW_GETNSRCP(&rule), *av) ;
+		if (retval == 1)
 			rule.fw_flg |= IP_FW_F_DRNG;
+		else if (retval == 2)
+			rule.fw_flg |= IP_FW_F_DMSK;
 		IP_FW_SETNDSTP(&rule, nports);
 		av++; ac--;
 	}
@@ -1661,7 +1797,11 @@ main(ac, av)
 		err(EX_UNAVAILABLE, "socket");
 
 	setbuf(stdout,0);
-
+/*
+ * this is a nasty check on the last argument!!!
+ * If there happens to be a filename matching a keyword in the current
+ * directory, things will fail miserably.
+ */
 	if (ac > 1 && access(av[ac - 1], R_OK) == 0) {
 		qflag = pflag = i = 0;
 		lineno = 0;
