@@ -376,6 +376,10 @@
 #define SK_IMTIMER_TICKS	54
 #define SK_IM_USECS(x)		((x) * SK_IMTIMER_TICKS)
 
+#define	SK_IM_MIN	10
+#define	SK_IM_DEFAULT	100
+#define	SK_IM_MAX	10000
+
 /*
  * The SK_EPROM0 register contains a byte that describes the
  * amount of SRAM mounted on the NIC. The value also tells if
@@ -1442,6 +1446,7 @@ struct sk_softc {
 	u_int32_t		sk_ramsize;	/* amount of RAM on NIC */
 	u_int32_t		sk_pmd;		/* physical media type */
 	u_int32_t		sk_intrmask;
+	int			sk_int_mod;
 	struct sk_if_softc	*sk_if[2];
 	device_t		sk_devs[2];
 	struct mtx		sk_mtx;
