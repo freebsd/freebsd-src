@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.43 1997/11/07 08:52:54 phk Exp $
+ * $Id: kern_clock.c,v 1.44 1997/11/18 12:24:22 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -1015,7 +1015,7 @@ statclock(frame)
 			if (p != NULL)
 				p->p_iticks++;
 			cp_time[CP_INTR]++;
-		} else if (p != NULL && !(p->p_flag & P_IDLEPROC)) {
+		} else if (p != NULL) {
 			p->p_sticks++;
 			cp_time[CP_SYS]++;
 		} else
