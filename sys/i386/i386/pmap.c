@@ -1673,9 +1673,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (pdnxt > eva)
 			pdnxt = eva;
 
-		for (; sva != pdnxt; sva += PAGE_SIZE) {
-			if ((pte = pmap_pte_quick(pmap, sva)) == NULL ||
-			    *pte == 0)
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
+			if (*pte == 0)
 				continue;
 			anyvalid = 1;
 			if (pmap_remove_pte(pmap, pte, sva))
@@ -1765,6 +1765,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
+	pt_entry_t *pte;
 	int anychanged;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
@@ -1808,12 +1809,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (pdnxt > eva)
 			pdnxt = eva;
 
-		for (; sva != pdnxt; sva += PAGE_SIZE) {
-			pt_entry_t *pte;
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
 			vm_page_t m;
 
-			if ((pte = pmap_pte_quick(pmap, sva)) == NULL)
-				continue;
 retry:
 			/*
 			 * Regardless of whether a pte is 32 or 64 bits in
