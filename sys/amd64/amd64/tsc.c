@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.4 1993/11/25 01:31:29 wollman Exp $
+ *	$Id: clock.c,v 1.5 1993/12/19 00:50:30 wollman Exp $
  */
 
 /*
@@ -81,8 +81,6 @@ startrtclock()
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
-	outb (IO_RTC, RTC_DIAG);
-	outb (IO_RTC+1, 0);
 }
 
 unsigned int delaycount;	/* calibrated loop variable (1 millisecond) */
