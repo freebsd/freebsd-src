@@ -1030,6 +1030,7 @@ user(name)
 	if ((pw = sgetpwnam(name))) {
 		if ((shell = pw->pw_shell) == NULL || *shell == 0)
 			shell = _PATH_BSHELL;
+		setusershell();
 		while ((cp = getusershell()) != NULL)
 			if (strcmp(cp, shell) == 0)
 				break;
