@@ -51,45 +51,40 @@ static void concat_dump(struct gctl_req *req);
 static void concat_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, concat_main, G_NULL_OPTS },
-	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS },
+	{ "clear", G_FLAG_VERBOSE, concat_main, G_NULL_OPTS,
+	    "[-v] prov ..."
+	},
+	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS,
+	    "[-v] name prov prov ..."
+	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
-	{ "dump", 0, concat_main, G_NULL_OPTS },
+	{ "dump", 0, concat_main, G_NULL_OPTS,
+	    "prov ..."
+	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, concat_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hv] name prov prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
 
 static int verbose = 0;
-
-
-void usage(const char *name);
-void
-usage(const char *name)
-{
-
-	fprintf(stderr, "usage: %s create [-v] name prov prov ...\n", name);
-	fprintf(stderr, "       %s destroy [-fv] name ...\n", name);
-	fprintf(stderr, "       %s label [-hv] name prov prov ...\n", name);
-	fprintf(stderr, "       %s stop [-fv] name ...\n", name);
-	fprintf(stderr, "       %s clear [-v] prov ...\n", name);
-	fprintf(stderr, "       %s dump prov ...\n", name);
-}
 
 static void
 concat_main(struct gctl_req *req, unsigned flags)

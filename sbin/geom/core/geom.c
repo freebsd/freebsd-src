@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,6 @@ static char comm[MAXPATHLEN], *class_name = NULL, *gclass_name = NULL;
 static uint32_t *version = NULL;
 static int verbose = 0;
 static struct g_command *class_commands = NULL;
-static void (*usage)(const char *name);
 
 #define	GEOM_CLASS_CMDS	0x01
 #define	GEOM_STD_CMDS	0x02
@@ -65,71 +64,80 @@ static int std_available(const char *name);
 
 static void std_help(struct gctl_req *req, unsigned flags);
 static void std_list(struct gctl_req *req, unsigned flags);
+static void std_status(struct gctl_req *req, unsigned flags);
 static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
-	{ "help", 0, std_help, G_NULL_OPTS },
-	{ "list", 0, std_list, G_NULL_OPTS },
-	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS },
-	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS },
+	{ "help", 0, std_help, G_NULL_OPTS, NULL },
+	{ "list", 0, std_list, G_NULL_OPTS,
+	    "[name ...]"
+	},
+	{ "status", 0, std_status,
+	    {
+		{ 's', "script", NULL, G_TYPE_NONE },
+		G_OPT_SENTINEL
+	    },
+	    "[-s] [name ...]"
+	},
+	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS, NULL },
+	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS, NULL },
 	G_CMD_SENTINEL
 };
 
 static void
-std_usage(const char *name)
+usage_command(struct g_command *cmd, const char *prefix)
 {
-	struct g_command *cmd;
 	struct g_option *opt;
-	unsigned i, j;
+	unsigned i;
 
-	for (i = 0; ; i++) {
-		cmd = &class_commands[i];
-		if (cmd->gc_name == NULL)
-			break;
-		fprintf(stderr, "%s %s %s %s", i == 0 ? "usage:" : "      ",
-		    name, class_name, cmd->gc_name);
-		if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
-			fprintf(stderr, " [-v]");
-		for (j = 0; ; j++) {
-			opt = &cmd->gc_options[j];
-			if (opt->go_name == NULL)
-				break;
-			if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
-				fprintf(stderr, " [");
-			else
-				fprintf(stderr, " ");
-			fprintf(stderr, "-%c", opt->go_char);
-			if (opt->go_type != G_TYPE_NONE)
-				fprintf(stderr, " %s", opt->go_name);
-			if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
-				fprintf(stderr, "]");
-		}
-		fprintf(stderr, " ...\n");
+	fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
+	if (cmd->gc_usage != NULL) {
+		fprintf(stderr, " %s\n", cmd->gc_usage);
+		return;
 	}
-	exit(EXIT_FAILURE);
+	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
+		fprintf(stderr, " [-v]");
+	for (i = 0; ; i++) {
+		opt = &cmd->gc_options[i];
+		if (opt->go_name == NULL)
+			break;
+		if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
+			fprintf(stderr, " [");
+		else
+			fprintf(stderr, " ");
+		fprintf(stderr, "-%c", opt->go_char);
+		if (opt->go_type != G_TYPE_NONE)
+			fprintf(stderr, " %s", opt->go_name);
+		if (opt->go_val != NULL || opt->go_type == G_TYPE_NONE)
+			fprintf(stderr, "]");
+	}
+	fprintf(stderr, "\n");
 }
 
 static void
-geom_usage(void)
+usage(void)
 {
 
 	if (class_name == NULL) {
 		errx(EXIT_FAILURE, "usage: %s <class> <command> [options]",
 		    "geom");
 	} else {
+		struct g_command *cmd;
 		const char *prefix;
 		unsigned i;
 
-		if (usage == NULL)
-			prefix = "usage:";
-		else {
-			usage(comm);
-			prefix = "      ";
+		prefix = "usage:";
+		if (class_commands != NULL) {
+			for (i = 0; ; i++) {
+				cmd = &class_commands[i];
+				if (cmd->gc_name == NULL)
+					break;
+				usage_command(cmd, prefix);
+				prefix = "      ";
+			}
 		}
 		for (i = 0; ; i++) {
-			struct g_command *cmd;
-
 			cmd = &std_commands[i];
 			if (cmd->gc_name == NULL)
 				break;
@@ -140,10 +148,7 @@ geom_usage(void)
 			 */
 			if (find_command(cmd->gc_name, GEOM_CLASS_CMDS) != NULL)
 				continue;
-			fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
-			if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
-				fprintf(stderr, " [-v]");
-			fprintf(stderr, "\n");
+			usage_command(cmd, prefix);
 			prefix = "      ";
 		}
 		exit(EXIT_FAILURE);
@@ -280,11 +285,11 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		/* Options passed to kernel. */
 		opt = find_option(cmd, ch);
 		if (opt == NULL)
-			geom_usage();
+			usage();
 		if (G_OPT_ISDONE(opt)) {
 			fprintf(stderr, "Flag '%c' specified twice.\n",
 			    opt->go_char);
-			geom_usage();
+			usage();
 		}
 		G_OPT_DONE(opt);
 
@@ -313,7 +318,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 			if (opt->go_val == NULL) {
 				fprintf(stderr, "Flag '%c' not specified.\n",
 				    opt->go_char);
-				geom_usage();
+				usage();
 			} else {
 				if (opt->go_type == G_TYPE_NUMBER) {
 					gctl_ro_param(req, opt->go_name,
@@ -402,7 +407,7 @@ run_command(int argc, char *argv[])
 		cmd = find_command(argv[0], GEOM_STD_CMDS);
 		if (cmd == NULL) {
 			fprintf(stderr, "Unknown command: %s\n", argv[0]);
-			geom_usage();
+			usage();
 		}
 		if (!std_available(cmd->gc_name)) {
 			fprintf(stderr, "Command '%s' not available.\n",
@@ -420,6 +425,7 @@ run_command(int argc, char *argv[])
 		gctl_ro_param(req, "version", sizeof(*version), version);
 	parse_arguments(cmd, req, &argc, &argv);
 
+	bzero(buf, sizeof(buf));
 	if (cmd->gc_func != NULL) {
 		unsigned flags;
 
@@ -427,7 +433,6 @@ run_command(int argc, char *argv[])
 		cmd->gc_func(req, flags);
 		errstr = req->error;
 	} else {
-		bzero(buf, sizeof(buf));
 		gctl_rw_param(req, "output", sizeof(buf), buf);
 		errstr = gctl_issue(req);
 	}
@@ -438,7 +443,7 @@ run_command(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
-	if (*buf != '\0')
+	if (buf[0] != '\0')
 		printf("%s", buf);
 	gctl_free(req);
 	if (verbose)
@@ -504,9 +509,6 @@ load_library(void)
 		dlclose(dlh);
 		exit(EXIT_FAILURE);
 	}
-	usage = dlsym(dlh, "usage");
-	if (usage == NULL)
-		usage = std_usage;
 }
 
 /*
@@ -517,6 +519,9 @@ set_class_name(void)
 {
 	char *s1, *s2;
 
+	s1 = class_name;
+	for (; *s1 != '\0'; s1++)
+		*s1 = tolower(*s1);
 	gclass_name = malloc(strlen(class_name));
 	if (gclass_name == NULL)
 		errx(EXIT_FAILURE, "No memory");
@@ -534,11 +539,11 @@ get_class(int *argc, char ***argv)
 	snprintf(comm, sizeof(comm), "%s", basename((*argv)[0]));
 	if (strcmp(comm, "geom") == 0) {
 		if (*argc < 2)
-			geom_usage();
+			usage();
 		else if (*argc == 2) {
 			if (strcmp((*argv)[1], "-h") == 0 ||
 			    strcmp((*argv)[1], "help") == 0) {
-				geom_usage();
+				usage();
 			}
 		}
 		strlcatf(comm, sizeof(comm), " %s", (*argv)[1]);
@@ -555,7 +560,7 @@ get_class(int *argc, char ***argv)
 	set_class_name();
 	load_library();
 	if (*argc < 1)
-		geom_usage();
+		usage();
 }
 
 int
@@ -594,7 +599,7 @@ find_geom(struct gclass *classp, const char *name)
 }
 
 static void
-show_one_provider(struct gprovider *pp, const char *prefix)
+list_one_provider(struct gprovider *pp, const char *prefix)
 {
 	struct gconfig *conf;
 	char buf[5];
@@ -612,7 +617,7 @@ show_one_provider(struct gprovider *pp, const char *prefix)
 }
 
 static void
-show_one_consumer(struct gconsumer *cp, const char *prefix)
+list_one_consumer(struct gconsumer *cp, const char *prefix)
 {
 	struct gprovider *pp;
 	struct gconfig *conf;
@@ -637,7 +642,7 @@ show_one_consumer(struct gconsumer *cp, const char *prefix)
 }
 
 static void
-show_one_geom(struct ggeom *gp)
+list_one_geom(struct ggeom *gp)
 {
 	struct gprovider *pp;
 	struct gconsumer *cp;
@@ -653,7 +658,7 @@ show_one_geom(struct ggeom *gp)
 		n = 1;
 		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 			printf("%u. ", n++);
-			show_one_provider(pp, "   ");
+			list_one_provider(pp, "   ");
 		}
 	}
 	if (!LIST_EMPTY(&gp->lg_consumer)) {
@@ -661,7 +666,7 @@ show_one_geom(struct ggeom *gp)
 		n = 1;
 		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
 			printf("%u. ", n++);
-			show_one_consumer(cp, "   ");
+			list_one_consumer(cp, "   ");
 		}
 	}
 	printf("\n");
@@ -671,7 +676,7 @@ static void
 std_help(struct gctl_req *req __unused, unsigned flags __unused)
 {
 
-	geom_usage();
+	usage();
 }
 
 static int
@@ -730,15 +735,208 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			assert(name != NULL);
 			gp = find_geom(classp, name);
 			if (gp != NULL)
-				show_one_geom(gp);
+				list_one_geom(gp);
 			else
 				fprintf(stderr, "No such geom: %s.\n", name);
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			show_one_geom(gp);
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
+			list_one_geom(gp);
 		}
 	}
+	geom_deletetree(&mesh);
+}
+
+static int
+std_status_available(void)
+{
+
+	/* 'status' command is available when 'list' command is. */
+	return (std_list_available());
+}
+
+static void
+status_update_len(struct ggeom *gp, int *name_len, int *status_len)
+{
+	struct gprovider *pp;
+	struct gconfig *conf;
+	int len;
+
+	assert(gp != NULL);
+	assert(name_len != NULL);
+	assert(status_len != NULL);
+
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp != NULL)
+		len = strlen(pp->lg_name);
+	else
+		len = strlen(gp->lg_name);
+	if (*name_len < len)
+		*name_len = len;
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0) {
+			len = strlen(conf->lg_val);
+			if (*status_len < len)
+				*status_len = len;
+		}
+	}
+}
+
+static char *
+status_one_consumer(struct gconsumer *cp)
+{
+	static char buf[256];
+	struct gprovider *pp;
+	struct gconfig *conf;
+
+	pp = cp->lg_provider;
+	if (pp == NULL)
+		return (NULL);
+	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "synchronized") == 0)
+			break;
+	}
+	if (conf == NULL)
+		snprintf(buf, sizeof(buf), "%s", pp->lg_name);
+	else {
+		snprintf(buf, sizeof(buf), "%s (%s)", pp->lg_name,
+		    conf->lg_val);
+	}
+	return (buf);
+}
+
+static void
+status_one_geom(struct ggeom *gp, int script, int name_len, int status_len)
+{
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	struct gconfig *conf;
+	const char *name, *status, *component;
+	int gotone;
+
+	pp = LIST_FIRST(&gp->lg_provider);
+	if (pp != NULL)
+		name = pp->lg_name;
+	else
+		name = gp->lg_name;
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		if (strcasecmp(conf->lg_name, "state") == 0)
+			break;
+	}
+	if (conf == NULL)
+		status = "N/A";
+	else
+		status = conf->lg_val;
+	gotone = 0;
+	LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+		component = status_one_consumer(cp);
+		if (component == NULL)
+			continue;
+		gotone = 1;
+		printf("%*s  %*s  %s\n", name_len, name, status_len, status,
+		    component);
+		if (!script)
+			name = status = "";
+	}
+	if (!gotone) {
+		printf("%*s  %*s  %s\n", name_len, name, status_len, status,
+		    "N/A");
+	}
+}
+
+static void
+std_status(struct gctl_req *req, unsigned flags __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct ggeom *gp;
+	int name_len, status_len;
+	int error, *nargs, *script;
+
+	error = geom_gettree(&mesh);
+	if (error != 0) {
+		fprintf(stderr, "Cannot get GEOM tree: %s.\n", strerror(error));
+		exit(EXIT_FAILURE);
+	}
+	classp = find_class(&mesh, gclass_name);
+	if (classp == NULL) {
+		fprintf(stderr, "Class %s not found.\n", gclass_name);
+		goto end;
+	}
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		goto end;
+	}
+	script = gctl_get_paraml(req, "script", sizeof(*script));
+	if (script == NULL) {
+		gctl_error(req, "No '%s' argument.", "script");
+		goto end;
+	}
+	name_len = strlen("Name");
+	status_len = strlen("Status");
+	if (*nargs > 0) {
+		int i, n = 0;
+
+		for (i = 0; i < *nargs; i++) {
+			const char *name;
+			char param[16];
+
+			snprintf(param, sizeof(param), "arg%d", i);
+			name = gctl_get_asciiparam(req, param);
+			assert(name != NULL);
+			gp = find_geom(classp, name);
+			if (gp == NULL)
+				fprintf(stderr, "No such geom: %s.\n", name);
+			else {
+				status_update_len(gp, &name_len, &status_len);
+				n++;
+			}
+		}
+		if (n == 0)
+			goto end;
+	} else {
+		int n = 0;
+
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
+			status_update_len(gp, &name_len, &status_len);
+			n++;
+		}
+		if (n == 0)
+			goto end;
+	}
+	if (!*script) {
+		printf("%*s  %*s  %s\n", name_len, "Name", status_len, "Status",
+		    "Components");
+	}
+	if (*nargs > 0) {
+		int i;
+
+		for (i = 0; i < *nargs; i++) {
+			const char *name;
+			char param[16];
+
+			snprintf(param, sizeof(param), "arg%d", i);
+			name = gctl_get_asciiparam(req, param);
+			assert(name != NULL);
+			gp = find_geom(classp, name);
+			if (gp != NULL) {
+				status_one_geom(gp, *script, name_len,
+				    status_len);
+			}
+		}
+	} else {
+		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+			if (LIST_EMPTY(&gp->lg_provider))
+				continue;
+			status_one_geom(gp, *script, name_len, status_len);
+		}
+	}
+end:
 	geom_deletetree(&mesh);
 }
 
@@ -822,6 +1020,8 @@ std_available(const char *name)
 		return (1);
 	else if (strcmp(name, "list") == 0)
 		return (std_list_available());
+	else if (strcmp(name, "status") == 0)
+		return (std_status_available());
 	else if (strcmp(name, "load") == 0)
 		return (std_load_available());
 	else if (strcmp(name, "unload") == 0)

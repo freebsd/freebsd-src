@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -60,13 +60,12 @@
 .Ar prov ...
 .Nm
 .Cm list
-.Op Ar name ...
+.Nm
+.Cm status
 .Nm
 .Cm load
-.Op Fl v
 .Nm
 .Cm unload
-.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -121,15 +120,17 @@ Clear metadata on the given devices.
 .It Cm dump
 Dump metadata stored on the given devices.
 .It Cm list
-List all or the given currently configured devices.
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
 .It Cm load
-Load
-.Pa geom_stripe.ko
-kernel module.
+See
+.Xr geom 8 .
 .It Cm unload
-Unload
-.Pa geom_stripe.ko
-kernel module.
+See
+.Xr geom 8 .
 .El
 .Pp
 Additional options:
@@ -190,6 +191,8 @@ If this value is large, you should consider increasing the
 .Va kern.geom.stripe.maxmem
 value.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to set up a striped device from four disks with a
 4 KB stripe size for automatic configuration,
@@ -204,8 +207,6 @@ umount /mnt
 gstripe stop data
 gstripe unload
 .Ed
-.Sh DIAGNOSTICS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh COMPATIBILITY
 The
 .Nm

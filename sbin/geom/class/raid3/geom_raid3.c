@@ -51,7 +51,9 @@ static void raid3_dump(struct gctl_req *req);
 static void raid3_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS },
+	{ "clear", G_FLAG_VERBOSE, raid3_main, G_NULL_OPTS,
+	    "[-v] prov ..."
+	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_NONE },
@@ -63,15 +65,19 @@ struct g_command class_commands[] = {
 		{ 'w', "verify", NULL, G_TYPE_NONE },
 		{ 'W', "noverify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-adhnrRvwW] name"
 	},
-	{ "dump", 0, raid3_main, G_NULL_OPTS },
+	{ "dump", 0, raid3_main, G_NULL_OPTS,
+	    "prov ..."
+	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "number", NULL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hv] <-n number> name prov"
 	},
 	{ "label", G_FLAG_VERBOSE, raid3_main,
 	    {
@@ -80,41 +86,30 @@ struct g_command class_commands[] = {
 		{ 'r', "round_robin", NULL, G_TYPE_NONE },
 		{ 'w', "verify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hnrvw] name prov prov prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS },
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov"
+	},
 	{ "remove", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'n', "number", NULL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-v] <-n number> name"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
 
 static int verbose = 0;
-
-void usage(const char *);
-void
-usage(const char *comm)
-{
-	fprintf(stderr,
-	    "usage: %s label [-hnrvw] name prov prov prov ...\n"
-	    "       %s clear [-v] prov ...\n"
-	    "       %s dump prov ...\n"
-	    "       %s configure [-adhnrRvwW] name\n"
-	    "       %s rebuild [-v] name prov\n"
-	    "       %s insert [-hv] <-n number> name prov\n"
-	    "       %s remove [-v] <-n number> name\n"
-	    "       %s stop [-fv] name ...\n",
-	    comm, comm, comm, comm, comm, comm, comm, comm);
-}
 
 static void
 raid3_main(struct gctl_req *req, unsigned flags)

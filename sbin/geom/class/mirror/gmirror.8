@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -84,13 +84,12 @@
 .Ar name ...
 .Nm
 .Cm list
-.Op Ar name ...
+.Nm
+.Cm status
 .Nm
 .Cm load
-.Op Fl v
 .Nm
 .Cm unload
-.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -203,16 +202,17 @@ Additional options include:
 Stop the given mirror even if it is opened.
 .El
 .It Cm list
-List every currently configured device; if a list of devices is passed as a
-parameter then only those devices will be shown.
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
 .It Cm load
-Load
-.Pa geom_mirror.ko
-kernel module.
+See
+.Xr geom 8 .
 .It Cm unload
-Unload
-.Pa geom_mirror.ko
-kernel module.
+See
+.Xr geom 8 .
 .El
 .Pp
 Additional options include:
@@ -220,6 +220,8 @@ Additional options include:
 .It Fl v
 Be more verbose.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 Use 3 disks to setup a mirror.
 Choose split balance algorithm, split only
@@ -268,8 +270,6 @@ gmirror deactivate data da1
 dd if=/dev/da1 of=/backup/data.img bs=1m
 gmirror activate data da1
 .Ed
-.Sh DIAGNOSTICS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8 ,

@@ -51,29 +51,22 @@ struct g_command class_commands[] = {
 		{ 's', "size", &size, G_TYPE_NUMBER },
 		{ 'S', "secsize", &secsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-v] [-f failprob] [-o offset] [-s size] [-S secsize] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "failprob", &failprob, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-v] [-f failprob] prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] prov ..."
 	},
 	G_CMD_SENTINEL
 };
-
-void usage(const char *name);
-void
-usage(const char *name)
-{
-
-	fprintf(stderr, "usage: %s create [-v] [-f failprob] [-o offset] [-s size] [-S secsize] dev ...\n", name);
-	fprintf(stderr, "       %s configure [-v] [-f failprob] prov ...\n", name);
-	fprintf(stderr, "       %s destroy [-fv] prov ...\n", name);
-}
