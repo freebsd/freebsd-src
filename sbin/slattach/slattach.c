@@ -35,20 +35,22 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988 Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.32 1998/06/28 20:33:36 bde Exp $";
+#if 0
+static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";
+#endif
+static const char rcsid[] =
+	"$Id: slattach.c,v 1.35 1999/06/06 07:18:49 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -75,7 +77,7 @@ void	exit_handler(int ret);	/* run exit_cmd iff specified upon exit. */
 void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
 void	configure_network();	/* configure slip interface */
-void	acquire_line();		/* get tty device as controling terminal */
+void	acquire_line();		/* get tty device as controlling terminal */
 static void usage __P((void));
 
 int	fd = -1;
@@ -94,7 +96,7 @@ int     keepal = 0;             /* keepalive timeout */
 int     outfill = 0;            /* outfill timeout */
 int     sl_unit = -1;           /* unit number */
 int     uucp_lock = 0;          /* do uucp locking */
-int	exiting = 0;		/* allready running exit_handler */
+int	exiting = 0;		/* already running exit_handler */
 
 struct	termios tty;		/* tty configuration/state */
 
@@ -117,8 +119,6 @@ int
 main(int argc, char **argv)
 {
 	int option;
-	extern char *optarg;
-	extern int optind;
 
 	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != -1) {
 		switch (option) {
@@ -195,7 +195,8 @@ main(int argc, char **argv)
 	}
 	dvname = strrchr(dev, '/'); /* always succeeds */
 	dvname++;                   /* trailing tty pathname component */
-	sprintf(pidfilename, "%sslattach.%s.pid", _PATH_VARRUN, dvname);
+	snprintf(pidfilename, sizeof(pidfilename),
+	    "%sslattach.%s.pid", _PATH_VARRUN, dvname);
 	printf("%s\n",pidfilename);
 
 	if (!foreground)
@@ -203,7 +204,7 @@ main(int argc, char **argv)
 	/* daemon() closed stderr, so log errors from here on. */
 	openlog("slattach",LOG_CONS|LOG_PID,LOG_DAEMON);
 
-	acquire_line();		/* get tty device as controling terminal */
+	acquire_line();		/* get tty device as controlling terminal */
 	setup_line(0);		/* configure for slip line discipline */
 	slip_discipline();	/* switch to slip line discipline */
 
@@ -307,7 +308,7 @@ void acquire_line()
 		(void)close (fd);
 	fd = STDIN_FILENO;
 
-	/* acquire the serial line as a controling terminal. */
+	/* acquire the serial line as a controlling terminal. */
 	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
 		syslog(LOG_ERR,"ioctl(TIOCSCTTY): %m");
 		exit_handler(1);
@@ -404,7 +405,7 @@ void slip_discipline()
 	close(s);
 }
 
-/* configure the interface, eg. by passing the unit number to a script. */
+/* configure the interface, e.g. by passing the unit number to a script. */
 void configure_network()
 {
 	int new_unit;
@@ -418,8 +419,12 @@ void configure_network()
 	if (config_cmd) {
 		char *s;
 		s = (char*) malloc(strlen(config_cmd) + 32);
+		if (s == NULL) {
+			syslog(LOG_ERR, "malloc failed");
+			exit(1);
+		}
 		sprintf (s, "%s %d %d", config_cmd, unit, new_unit);
-		syslog(LOG_NOTICE, "Configuring %s (sl%d):", dev, unit);
+		syslog(LOG_NOTICE, "configuring %s (sl%d):", dev, unit);
 		syslog(LOG_NOTICE, "  '%s'", s);
 		system(s);
 		free (s);
@@ -449,7 +454,7 @@ void sighup_handler()
 	}
 again:
 	/* invoke a shell for redial_cmd or punt. */
-	if (*redial_cmd) {
+	if (*redial_cmd) { /* Non-empty redial command */
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running '%s'",
 		       dev, unit, redial_cmd);
 		acquire_line(); /* reopen dead line */
@@ -496,7 +501,7 @@ again:
 		if (!(modem_control & CLOCAL)) {
 			int carrier = 0;
 
-			syslog(LOG_NOTICE, "Waiting for carrier on %s (sl%d)",
+			syslog(LOG_NOTICE, "waiting for carrier on %s (sl%d)",
 			       dev, unit);
 			/* Now wait for carrier before attaching line. */
 			/* We must poll since CLOCAL prevents signal. */
@@ -506,7 +511,7 @@ again:
 				if (comstate & TIOCM_CD)
 					carrier = 1;
 			}
-			syslog(LOG_NOTICE, "Carrier now present on %s (sl%d)",
+			syslog(LOG_NOTICE, "carrier now present on %s (sl%d)",
 			       dev, unit);
 		}
 	}
@@ -569,8 +574,12 @@ void exit_handler(int ret)
 	if (config_cmd) {
 		char *s;
 		s = (char*) malloc(strlen(config_cmd) + 32);
+		if (s == NULL) {
+			syslog(LOG_ERR, "malloc failed");
+			exit(1);
+		}
 		sprintf (s, "%s %d -1", config_cmd, unit);
-		syslog(LOG_NOTICE, "Deconfiguring %s (sl%d):", dev, unit);
+		syslog(LOG_NOTICE, "deconfiguring %s (sl%d):", dev, unit);
 		syslog(LOG_NOTICE, "  '%s'", s);
 		system(s);
 		free (s);
