@@ -126,8 +126,8 @@ linux_open(struct thread *td, struct linux_open_args *args)
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 	struct file *fp;
 
-	error = fget(td, td->td_retval[0], &fp);
 	PROC_UNLOCK(p);
+	error = fget(td, td->td_retval[0], &fp);
 	if (!error) {
 		if (fp->f_type == DTYPE_VNODE)
 			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td->td_ucred,
