@@ -576,13 +576,9 @@ out:
 	vrele(fvp);
 	nwfs_attr_cacheremove(fdvp);
 	nwfs_attr_cacheremove(tdvp);
-	/*
-	 * Need to get rid of old vnodes, because netware will change
-	 * file id on rename
-	 */
-	vgone(fvp);
+	nwfs_attr_cacheremove(fvp);
 	if (tvp)
-		vgone(tvp);
+		nwfs_attr_cacheremove(tvp);
 	/*
 	 * Kludge: Map ENOENT => 0 assuming that it is a reply to a retry.
 	 */
