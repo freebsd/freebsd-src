@@ -168,7 +168,6 @@ tdfx_attach(device_t dev) {
 	 * interface to the card, so we can open it from /dev/3dfxN, where N is a
 	 * small, whole number.
 	 */
-
 	struct tdfx_softc *tdfx_info;
 	u_long	val;
 	/* rid value tells bus_alloc_resource where to find the addresses of ports or
@@ -202,7 +201,6 @@ tdfx_attach(device_t dev) {
 #ifdef DEBUG
 	device_printf(dev, "Base0 @ 0x%x\n", tdfx_info->addr0);
 #endif
-
 	/* Notify the VM that we will be mapping some memory later */
 	tdfx_info->memrange = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
 			RF_ACTIVE | RF_SHAREABLE);
@@ -220,6 +218,44 @@ tdfx_attach(device_t dev) {
 #endif
 	}
 
+	/* Setup for Voodoo3 and Banshee, PIO and an extram Memrange */
+	if(pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO3 ||
+		pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE) {
+		rid = PCIR_MAPS;
+		tdfx_info->addr1 = (pci_read_config(dev, 0x14, 4) & 0xffff0000);
+#ifdef DEBUG
+		device_printf(dev, "Base1 @ 0x%x\n", tdfx_info->addr1);
+#endif
+		tdfx_info->memrange2 = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		if(tdfx_info->memrange2 == NULL) {
+#ifdef DEBUG
+			device_printf(dev, "Mem1 couldn't be allocated, glide may not work.");
+#endif
+			tdfx_info->memrid2 = 0;
+		}
+		else {
+			tdfx_info->memrid2 = rid;
+		}
+		/* Now to map the PIO stuff */
+		rid = 0;
+		tdfx_info->piorange = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		if(tdfx_info->piorange == NULL) {
+#ifdef DEBUG
+			device_printf(dev, "Couldn't map PIO range.");
+#endif
+			tdfx_info->piorid = 0;
+		}
+		else {
+			tdfx_info->piorid = rid;
+		}
+	} else {
+	  tdfx_info->addr1 = 0;
+	  tdfx_info->memrange2 = NULL;
+	  tdfx_info->piorange = NULL;
+	}
+
 	/* 
 	 *	Set Writecombining, or at least Uncacheable for the memory region, if we
 	 * are able to
@@ -231,7 +267,7 @@ tdfx_attach(device_t dev) {
 #endif
 		return -1;
 	}
-	
+
 	/* 
 	 * make_dev registers the cdev to access the 3dfx card from /dev
 	 *	use hex here for the dev num, simply to provide better support if > 10
@@ -251,9 +287,20 @@ tdfx_detach(device_t dev) {
 	tdfx_info = device_get_softc(dev);
 	
 	/* Delete allocated resource, of course */
-	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, 
+	bus_release_resource(dev, SYS_RES_MEMORY, tdfx_info->memrid,
 			tdfx_info->memrange);
-	
+
+	/* Release extended Voodoo3/Banshee resources */
+	if(pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE || 
+			pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO3) {
+		if(tdfx_info->memrange2 != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY, tdfx_info->memrid2,
+				tdfx_info->memrange);
+		if(tdfx_info->piorange != NULL)
+			bus_release_resource(dev, SYS_RES_IOPORT, tdfx_info->piorid,
+				tdfx_info->piorange);
+	}		
+
 	/* Though it is safe to leave the WRCOMB support since the 
 		mem driver checks for it, we should remove it in order
 		to free an MTRR for another device */
@@ -298,19 +345,26 @@ tdfx_setmtrr(device_t dev) {
 	 */
 	int retval = 0, act;
 	struct tdfx_softc *tdfx_info = device_get_softc(dev);
-	/* The memory descriptor is described as the top 15 bits of the real
-		address */
-	tdfx_info->mrdesc.mr_base = pci_read_config(dev, 0x10, 4) & 0xfffe0000;
 
 	/* The older Voodoo cards have a shorter memrange than the newer ones */
 	if((pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO1) || (pci_get_devid(dev) ==
-			PCI_DEVICE_3DFX_VOODOO2)) 
+			PCI_DEVICE_3DFX_VOODOO2)) {
 		tdfx_info->mrdesc.mr_len = 0x400000;
+
+		/* The memory descriptor is described as the top 15 bits of the real
+			address */
+		tdfx_info->mrdesc.mr_base = tdfx_info->addr0 & 0xfffe0000;
+	}
 	else if((pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO3) ||
-			(pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE))
+			(pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE)) {
 		tdfx_info->mrdesc.mr_len = 0x1000000;
-	
-	else return 0;	
+		/* The Voodoo3 and Banshee LFB is the second memory address */
+		/* The memory descriptor is described as the top 15 bits of the real
+			address */
+		tdfx_info->mrdesc.mr_base = tdfx_info->addr1 & 0xfffe0000;
+	}
+	else
+		 return 0;	
 	/* 
     *	The Alliance Pro Motion AT3D was not mentioned in the linux
 	 * driver as far as MTRR support goes, so I just won't put the
@@ -417,6 +471,12 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 	/* We must stay within the bound of our address space */
 	if((offset & 0xff000000) == tdfx_info->addr0)
 		offset &= 0xffffff;
+
+	/* See if the Banshee/V3 LFB is being requested */
+	if(tdfx_info->memrange2 != NULL && (offset & 0xff000000) ==
+			tdfx_info->addr1)
+	  	offset &= 0xffffff;
+
 	if((offset >= 0x1000000) || (offset < 0)) {
 #ifdef  DEBUG
 	   printf("tdfx: offset %x out of range\n", offset);
@@ -600,12 +660,16 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 	return 0;
 }
 
+/* For both of these, I added a variable named workport of type u_int so
+ * that I could eliminate the warning about my data type size. The
+ * applications expect the port to be of type short, so I needed to change
+ * this within the function */
 static int
 tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 {
 	/* Return val */
 	u_int8_t  ret_byte;
-	
+	u_int 	 workport;
 	/* Restricts the access of ports other than those we use */
 	if((piod->port != VGA_INPUT_STATUS_1C) || (piod->port != SC_INDEX) ||
 		(piod->port != SC_DATA) || (piod->port != VGA_MISC_OUTPUT_READ))
@@ -617,7 +681,8 @@ tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 	}
 
 	/* Write the data to the intended port */
-	ret_byte = inb(piod->port);
+	workport = piod->port;
+	ret_byte = inb(workport);
 	copyout(&ret_byte, piod->value, sizeof(u_int8_t));
 	return 0;
 }
@@ -627,7 +692,7 @@ tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 {
 	/* return val */
 	u_int8_t  ret_byte;
-
+	u_int		 workport;
 	/* Replace old switch w/ massive if(...) */
 	/* Restricts the access of ports other than those we use */
 	if((piod->port != SC_INDEX) && (piod->port != SC_DATA) && 
@@ -641,7 +706,8 @@ tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 
 	/* Write the data to the intended port */
 	copyin(piod->value, &ret_byte, sizeof(u_int8_t));
-	outb(piod->port, ret_byte);
+	workport = piod->port;
+	outb(workport, ret_byte);
 	return 0;
 }
 
