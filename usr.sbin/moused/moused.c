@@ -756,8 +756,8 @@ main(int argc, char *argv[])
 
     retry = 1;
     if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
-	usbmodule();
-	retry = 5;
+	if (usbmodule() != 0)
+	    retry = 5;
     }
 
     for (;;) {
@@ -767,10 +767,11 @@ main(int argc, char *argv[])
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
 	    for (i = 0; i < retry; ++i) {
+		if (i > 0)
+		    sleep(2);
 		rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
 		if (rodent.mfd != -1 || errno != ENOENT)
 		    break;
-		sleep(2);
 	    }
 	    if (rodent.mfd == -1)
 		logerr(1, "unable to open %s", rodent.portname);
@@ -855,8 +856,13 @@ usbmodule(void)
 	    }
 	}
     }
-    if (!loaded && kldload("ums") == -1 && errno != EEXIST)
-	logerr(1, "unable to load USB mouse driver");
+    if (!loaded) {
+	if (kldload("ums") != -1)
+	    return 1;
+	if (errno != EEXIST)
+	    logerr(1, "unable to load USB mouse driver");
+    }
+    return 0;
 }
 
 static void
