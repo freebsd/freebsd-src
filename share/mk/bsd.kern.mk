@@ -23,7 +23,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # cache tag lines)
 #
 .if ${MACHINE_ARCH} == "i386"
-CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .endif
 
 #
