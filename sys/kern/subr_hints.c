@@ -34,8 +34,6 @@
  * Access functions for device resources.
  */
 
-extern char static_hints[];		/* by config for now */
-extern int hintmode;			/* 0 = off. 1 = config, 2 = fallback */
 static char *hintp;
 
 /*
