@@ -24,7 +24,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpidump.h,v 1.3 2000/08/09 14:47:52 iwasaki Exp $
  *	$FreeBSD$
  */
 
@@ -154,9 +153,9 @@ struct FACS {
 	u_int32_t	g_lock;		/* bit field */
 	/* 5.2.6.1 Global Lock */
 #define ACPI_GLOBAL_LOCK_PENDING 1
-#define ACPI_GLOBAL_LOCK_OWNED 2
+#define ACPI_GLOBAL_LOCK_OWNED   2
 	u_int32_t	flags;		/* bit field */
-#define ACPI_FACS_FLAG_S4BIOS_F	1	/* Supports S4BIOS_SEQ */
+#define ACPI_FACS_FLAG_S4BIOS_F  1	/* Supports S4BIOS_SEQ */
 	char		reserved[40];
 } __packed;
 
@@ -261,7 +260,7 @@ struct MADT_APIC {
 struct MADTbody {
 	u_int32_t	lapic_addr;
 	u_int32_t	flags;
-#define	ACPI_APIC_FLAG_PCAT_COMPAT 1	/* Syetem has dual-8259 setup. */
+#define	ACPI_APIC_FLAG_PCAT_COMPAT 1	/* System has dual-8259 setup. */
 	u_char		body[1];
 } __packed;
 
@@ -278,6 +277,7 @@ struct HPETbody {
 	u_int16_t	clock_tick __packed;
 } __packed;
 
+#if 0
 void		*acpi_map_physical(vm_offset_t, size_t);
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
 int		 acpi_checksum(void *, size_t);
@@ -287,17 +287,39 @@ void		 acpi_print_sdt(struct ACPIsdt *);
 void		 acpi_print_rsdt(struct ACPIsdt *);
 void		 acpi_print_facp(struct FACPbody *);
 void		 acpi_print_dsdt(struct ACPIsdt *);
-
-void		 asl_dump_termobj(u_int8_t **, int);
-void		 asl_dump_objectlist(u_int8_t **, u_int8_t *, int);
-
-void		 aml_dump(struct ACPIsdt *);
-
 void    	 acpi_handle_rsdt(struct ACPIsdt *);
 void		 acpi_load_dsdt(char *, u_int8_t **, u_int8_t **);
 void		 acpi_dump_dsdt(u_int8_t *, u_int8_t *);
-extern char	*aml_dumpfile;
-extern struct	ACPIsdt dsdt_header;
-extern int	rflag;
+#endif
+
+/* Find and map the RSD PTR structure and return it for parsing */
+struct ACPIsdt  *sdt_load_devmem(void);
+
+/*
+ * Load the DSDT from a previous save file.  Note that other tables are
+ * not saved (i.e. FADT)
+ */
+struct ACPIsdt  *dsdt_load_file(char *);
+
+/* Save the DSDT to a file */
+void		 dsdt_save_file(char *, struct ACPIsdt *);
+
+/* Print out as many fixed tables as possible, given the RSD PTR */
+void    	 sdt_print_all(struct ACPIsdt *);
+
+/* Disassemble the AML in the DSDT */
+void    	 aml_disassemble(struct ACPIsdt *);
+
+/* Routines for accessing tables in physical memory */
+struct ACPIrsdp	*acpi_find_rsd_ptr(void);
+void *		 acpi_map_physical(vm_offset_t, size_t);
+struct ACPIsdt	*sdt_from_rsdt(struct ACPIsdt *, const char *);
+struct ACPIsdt	*dsdt_from_facp(struct FACPbody *);
+int		 acpi_checksum(void *, size_t);
+
+/* Command line flags */
+extern int	dflag;
+extern int	tflag;
+extern int	vflag;
 
 #endif	/* !_ACPIDUMP_H_ */
