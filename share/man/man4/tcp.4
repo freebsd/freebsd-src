@@ -207,9 +207,6 @@ as described in RFC 1644.
 The default value used for the maximum segment size
 .Pq Dq MSS
 when no advice to the contrary is received from MSS negotiation.
-.It TCPCTL_RTTDFLT
-.Pq tcp.rttdflt
-The value of the default maximum TCP Round Trip Time.
 .It TCPCTL_SENDSPACE
 .Pq tcp.sendspace
 Maximum TCP send window.
@@ -219,6 +216,51 @@ Maximum TCP receive window.
 .It tcp.log_in_vain
 Log any connection attempts to ports where there is not a socket
 accepting connections.
+.It tcp.slowstart_flightsize
+The number of packets allowed to be in-flight during the
+.Tn TCP
+slow-start phase on a non-local network.
+.It tcp.local_slowstart_flightsize
+The number of packets allowed to be in-flight during the 
+.Tn TCP
+slow-start phase to local machines in the same subnet.
+.It tcp.msl
+The Maximum Segment Lifetime for a packet.
+.It tcp.keepinit
+Timeout for new, non-established TCP connections.
+.It tcp.keepidle
+Amount of time the connection should be idle before keepalive
+probes (if enabled) are sent.
+.It tcp.keepintvl
+The interval between keepalive probes sent to remote machines.
+After 
+.Dv TCPTV_KEEPCNT
+(default 8) probes are sent, with no response, the connection is dropped.
+.It tcp.always_keepalive
+Assume that
+.Dv SO_KEEPALIVE
+is set on all
+.Tn TCP
+connections, the kernel will
+periodically send a packet to the remote host to verify the connection
+is still up.
+.It tcp.icmp_may_rst
+Certain
+.Tn ICMP
+unreachable messages may abort connections in
+.Tn SYN-SENT
+state.
+.It tcp.do_tcpdrain
+Flush packets in the
+.Tn TCP
+reassembly queue if the system is low on mbufs.
+.\"
+.\" This option should go away and become the default.
+.\"
+.It tcp.tcp_lq_overflow
+If a connection is dropped due to a listen queue overflow, delete the
+cloned route associated with the connection if it does not have any 
+prior information.
 .It tcp.blackhole
 If enabled, disable sending of RST when a connection is attempted
 to a port where there is not a socket accepting connections.
@@ -226,8 +268,27 @@ See
 .Xr blackhole 4 .
 .It tcp.delayed_ack
 Delay ACK to try and piggyback it onto a data packet.
+.It tcp.delacktime
+Maximum amount of time before a delayed ACK is sent.
+.It tcp.newreno
+Enable TCP NewReno Fast Recovery algorithm,
+as described in RFC 2582.
 .It tcp.path_mtu_discovery
 Enable Path MTU Discovery
+.It tcp.tcbhashsize
+Size of the
+.Tn TCP
+control-block hashtable
+(read-only).
+This may be tuned using the kernel option
+.Dv TCBHASHSIZE
+or by setting
+.Va net.inet.tcp.tcbhashsize
+in the
+.Xr loader 8 .
+.It tcp.pcbcount
+Number of active process control blocks
+(read-only).
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
