@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.114 1999/05/26 13:14:24 roger Exp $
+**  $Id: pcisupport.c,v 1.115 1999/05/27 10:59:40 roger Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1027,10 +1027,17 @@ isab_probe(device_t dev)
 	return ENXIO;
 }
 
+static int
+isab_attach(device_t dev)
+{
+	chipset_attach(dev, device_get_unit(dev));
+	return bus_generic_attach(dev);
+}
+
 static device_method_t isab_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		isab_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	isab_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
