@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.76 1999/06/09 16:54:03 brian Exp $
+ * $Id: lcp.c,v 1.77 1999/06/09 20:27:26 brian Exp $
  *
  */
 
@@ -540,7 +540,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct mp *mp;
   struct physical *p = link2physical(fp->link);
 
-  callback_req = 0;
+  sz = op = callback_req = 0;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
