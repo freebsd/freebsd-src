@@ -145,6 +145,7 @@ int	readonly=0;		/* Server is in readonly mode.	*/
 int	noepsv=0;		/* EPSV command is disabled.	*/
 int	noretr=0;		/* RETR command is disabled.	*/
 int	noguestretr=0;		/* RETR command is disabled for anon users. */
+int	noguestmod=1;		/* anon users may not modify existing files. */
 
 static volatile sig_atomic_t recvurg;
 sig_atomic_t transflag;
@@ -247,7 +248,7 @@ static void	 dolog __P((struct sockaddr *));
 static char	*curdir __P((void));
 static void	 end_login __P((void));
 static FILE	*getdatasock __P((char *));
-static char	*gunique __P((char *));
+static int	 guniquefd __P((char *, char **));
 static void	 lostconn __P((int));
 static void	 sigquit __P((int));
 static int	 receive_data __P((FILE *, FILE *));
@@ -302,7 +303,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "46a:AdDEloOp:rRSt:T:u:Uv")) != -1) {
+	while ((ch = getopt(argc, argv, "46a:AdDElmoOp:rRSt:T:u:Uv")) != -1) {
 		switch (ch) {
 		case '4':
 			enable_v4 = 1;
@@ -336,6 +337,10 @@ main(argc, argv, envp)
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'm':
+			noguestmod = 0;
 			break;
 
 		case 'o':
@@ -1561,24 +1566,44 @@ store(name, mode, unique)
 	char *name, *mode;
 	int unique;
 {
+	int fd;
 	FILE *fout, *din;
-	struct stat st;
 	int (*closefunc) __P((FILE *));
 
-	if ((unique || guest) && stat(name, &st) == 0 &&
-	    (name = gunique(name)) == NULL) {
-		LOGCMD(*mode == 'w' ? "put" : "append", name);
-		return;
+	if (*mode == 'a') {		/* APPE */
+		if (unique) {
+			/* Programming error */
+			syslog(LOG_ERR, "Internal: unique flag to APPE");
+			unique = 0;
+		}
+		if (guest && noguestmod) {
+			reply(550, "Appending to existing file denied");
+			goto err;
+		}
+		restart_point = 0;	/* not affected by preceding REST */
+	}
+	if (unique)			/* STOU overrides REST */
+		restart_point = 0;
+	if (guest && noguestmod) {
+		if (restart_point) {	/* guest STOR w/REST */
+			reply(550, "Modifying existing file denied");
+			goto err;
+		} else			/* treat guest STOR as STOU */
+			unique = 1;
 	}
 
 	if (restart_point)
-		mode = "r+";
-	fout = fopen(name, mode);
+		mode = "r+";	/* so ASCII manual seek can work */
+	if (unique) {
+		if ((fd = guniquefd(name, &name)) < 0)
+			goto err;
+		fout = fdopen(fd, mode);
+	} else
+		fout = fopen(name, mode);
 	closefunc = fclose;
 	if (fout == NULL) {
 		perror_reply(553, name);
-		LOGCMD(*mode == 'w' ? "put" : "append", name);
-		return;
+		goto err;
 	}
 	byte_count = -1;
 	if (restart_point) {
@@ -1624,8 +1649,12 @@ store(name, mode, unique)
 	data = -1;
 	pdata = -1;
 done:
-	LOGBYTES(*mode == 'w' ? "put" : "append", name, byte_count);
+	LOGBYTES(*mode == 'a' ? "append" : "put", name, byte_count);
 	(*closefunc)(fout);
+	return;
+err:
+	LOGCMD(*mode == 'a' ? "append" : "put" , name);
+	return;
 }
 
 static FILE *
@@ -2706,39 +2735,65 @@ pasv_error:
 }
 
 /*
- * Generate unique name for file with basename "local".
- * The file named "local" is already known to exist.
+ * Generate unique name for file with basename "local"
+ * and open the file in order to avoid possible races.
+ * Try "local" first, then "local.1", "local.2" etc, up to "local.99".
+ * Return descriptor to the file, set "name" to its name.
+ *
  * Generates failure reply on error.
  */
-static char *
-gunique(local)
+static int
+guniquefd(local, name)
 	char *local;
+	char **name;
 {
 	static char new[MAXPATHLEN];
 	struct stat st;
-	int count;
 	char *cp;
+	int count;
+	int fd;
 
 	cp = strrchr(local, '/');
 	if (cp)
 		*cp = '\0';
 	if (stat(cp ? local : ".", &st) < 0) {
 		perror_reply(553, cp ? local : ".");
-		return ((char *) 0);
+		return (-1);
 	}
-	if (cp)
+	if (cp) {
+		/*
+		 * Let not overwrite dirname with counter suffix.
+		 * -4 is for /nn\0
+		 * In this extreme case dot won't be put in front of suffix.
+		 */
+		if (strlen(local) > sizeof(new) - 4) {
+			reply(553, "Pathname too long");
+			return (-1);
+		}
 		*cp = '/';
+	}
 	/* -4 is for the .nn<null> we put on the end below */
 	(void) snprintf(new, sizeof(new) - 4, "%s", local);
 	cp = new + strlen(new);
-	*cp++ = '.';
-	for (count = 1; count < 100; count++) {
-		(void)sprintf(cp, "%d", count);
-		if (stat(new, &st) < 0)
-			return (new);
+	/* 
+	 * Don't generate dotfile unless requested explicitly.
+	 * This covers the case when basename gets truncated off
+	 * by buffer size.
+	 */
+	if (cp > new && cp[-1] != '/')
+		*cp++ = '.';
+	for (count = 0; count < 100; count++) {
+		/* At count 0 try unmodified name */
+		if (count)
+			(void)sprintf(cp, "%d", count);
+		if ((fd = open(count ? new : local,
+		    O_RDWR | O_CREAT | O_EXCL, 0666)) >= 0) {
+			*name = count ? new : local;
+			return (fd);
+		}
 	}
 	reply(452, "Unique file name cannot be created.");
-	return (NULL);
+	return (-1);
 }
 
 /*
