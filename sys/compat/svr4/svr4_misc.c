@@ -1021,8 +1021,9 @@ svr4_sys_pgrpsys(td, uap)
 		return 0;
 
 	case 2:			/* getsid(pid) */
-		if (SCARG(uap, pid) != 0 &&
-		    (p = svr4_pfind(SCARG(uap, pid))) == NULL)
+		if (SCARG(uap, pid) == 0)
+			PROC_LOCK(p);
+		else if ((p = svr4_pfind(SCARG(uap, pid))) == NULL)
 			return ESRCH;
 		/*
 		 * This has already been initialized to the pid of
@@ -1037,8 +1038,9 @@ svr4_sys_pgrpsys(td, uap)
 
 	case 4:			/* getpgid(pid) */
 
-		if (SCARG(uap, pid) != 0 &&
-		    (p = svr4_pfind(SCARG(uap, pid))) == NULL)
+		if (SCARG(uap, pid) == 0)
+			PROC_LOCK(p);
+		else if ((p = svr4_pfind(SCARG(uap, pid))) == NULL)
 			return ESRCH;
 
 		*retval = (int) p->p_pgrp->pg_id;
