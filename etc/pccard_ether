@@ -178,7 +178,7 @@ case ${startstop} in
 	        ;;
 	*)	
 		# flush beforehand, just in case....
-		route -n flush
+		route -n flush -inet
 		;;
 	esac
 	;;
