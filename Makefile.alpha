@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.11 1998/05/09 21:28:01 jb Exp $
+# $Id: Makefile.alpha,v 1.12 1998/05/10 20:24:52 jb Exp $
 #
 # NOTE:
 #
@@ -342,17 +342,7 @@ lib-tools:
 	@echo " Link to things we haven't fixed yet..."
 	@echo "--------------------------------------------------------------"
 	@-rm -f ${WORLDTMP}/usr/bin/lorder
-	@-rm -f ${WORLDTMP}/usr/bin/groff
-	@-rm -f ${WORLDTMP}/usr/bin/troff
-	@-rm -f ${WORLDTMP}/usr/bin/grotty
-	@-rm -f ${WORLDTMP}/usr/bin/pic
-	@-rm -f ${WORLDTMP}/usr/bin/tbl
 	ln -s /usr/bin/lorder        ${WORLDTMP}/usr/bin/lorder
-	ln -s /usr/bin/groff         ${WORLDTMP}/usr/bin/groff
-	ln -s /usr/bin/troff         ${WORLDTMP}/usr/bin/troff
-	ln -s /usr/bin/grotty        ${WORLDTMP}/usr/bin/grotty
-	ln -s /usr/bin/pic           ${WORLDTMP}/usr/bin/pic
-	ln -s /usr/bin/tbl           ${WORLDTMP}/usr/bin/tbl
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Build tools to compile and install the libraries...."
@@ -368,7 +358,9 @@ lib-tools:
 		usr.bin/lex/lib		\
 		usr.bin/join		\
 		usr.bin/mk_cmds		\
-		usr.bin/uudecode
+		usr.bin/uudecode	\
+		gnu/usr.bin/bc		\
+		gnu/usr.bin/groff
 	cd ${.CURDIR}/$d && ${MAKE} obj && \
 		${MAKE} ${MK_FLAGS} -DBOOTSTRAP depend && \
 		${MAKE} ${MK_FLAGS} -DBOOTSTRAP all && \
@@ -447,22 +439,8 @@ libraries:
 #
 # build-tools - build and install any other tools needed to complete the
 # compile and install.
-# ifdef stale
-# bc and cpp are required to build groff.  Otherwise, the order here is
-# mostly historical, i.e., bogus.
-# chmod is used to build gcc's tmpmultilib[2] at obscure times.
-# endif stale
-# XXX uname is a bug - the target should not depend on the host.
 #
-		# gnu/usr.bin/awk		
-		# gnu/usr.bin/groff	
-		# bin/sh			
-		# usr.bin/symorder	
 build-tools:
-	@-rm -f ${WORLDTMP}/usr/bin/awk
-	@-rm -f ${WORLDTMP}/bin/sh
-	ln -s /usr/bin/awk ${WORLDTMP}/usr/bin/awk
-	ln -s /bin/sh      ${WORLDTMP}/bin/sh
 .for d in			\
 	usr.bin/make 		\
 	usr.bin/xinstall 	\
@@ -477,6 +455,7 @@ build-tools:
 	usr.bin/lex/lib		\
 	usr.bin/mk_cmds		\
 	usr.bin/uudecode	\
+	bin/sh			\
 	bin/cat 		\
 	bin/chmod		\
 	bin/cp 			\
@@ -519,6 +498,7 @@ build-tools:
 	usr.sbin/chown		\
 	usr.sbin/mtree		\
 	usr.sbin/zic		\
+	gnu/usr.bin/awk		\
 	gnu/usr.bin/grep	\
 	gnu/usr.bin/gzip	\
 	gnu/usr.bin/sort	\
