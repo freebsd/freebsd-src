@@ -667,7 +667,6 @@ vm_pageout_scan(int pass)
 	int actcount;
 	int vnodes_skipped = 0;
 	int maxlaunder;
-	int s;
 
 	mtx_lock(&Giant);
 	/*
@@ -983,17 +982,13 @@ rescan0:
 			 * the (future) cleaned page.  Otherwise we could wind
 			 * up laundering or cleaning too many pages.
 			 */
-			s = splvm();
 			TAILQ_INSERT_AFTER(&vm_page_queues[PQ_INACTIVE].pl, m, &marker, pageq);
-			splx(s);
 			if (vm_pageout_clean(m) != 0) {
 				--page_shortage;
 				--maxlaunder;
 			}
-			s = splvm();
 			next = TAILQ_NEXT(&marker, pageq);
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
-			splx(s);
 unlock_and_continue:
 			VM_OBJECT_UNLOCK(object);
 			if (vp) {
@@ -1094,7 +1089,6 @@ unlock_and_continue:
 		}
 		m = next;
 	}
-	s = splvm();
 
 	/*
 	 * We try to maintain some *really* free pages, this allows interrupt
@@ -1115,7 +1109,6 @@ unlock_and_continue:
 		VM_OBJECT_UNLOCK(object);
 		cnt.v_dfree++;
 	}
-	splx(s);
 	vm_page_unlock_queues();
 #if !defined(NO_SWAPPING)
 	/*
@@ -1249,7 +1242,6 @@ vm_pageout_page_stats()
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
 	int page_shortage;
-	int s0;
 
 	page_shortage = 
 	    (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
@@ -1258,7 +1250,6 @@ vm_pageout_page_stats()
 	if (page_shortage <= 0)
 		return;
 
-	s0 = splvm();
 	vm_page_lock_queues();
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
@@ -1323,7 +1314,6 @@ vm_pageout_page_stats()
 		m = next;
 	}
 	vm_page_unlock_queues();
-	splx(s0);
 }
 
 /*
@@ -1332,7 +1322,7 @@ vm_pageout_page_stats()
 static void
 vm_pageout()
 {
-	int error, pass, s;
+	int error, pass;
 
 	/*
 	 * Initialize some paging parameters.
@@ -1413,7 +1403,6 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		s = splvm();
 		vm_page_lock_queues();
 		/*
 		 * If we have enough free memory, wakeup waiters.  Do
@@ -1449,7 +1438,6 @@ vm_pageout()
 				    "psleep", vm_pageout_stats_interval * hz);
 			if (error && !vm_pages_needed) {
 				vm_page_unlock_queues();
-				splx(s);
 				pass = 0;
 				vm_pageout_page_stats();
 				continue;
@@ -1458,7 +1446,6 @@ vm_pageout()
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
 		vm_page_unlock_queues();
-		splx(s);
 		vm_pageout_scan(pass);
 	}
 }
