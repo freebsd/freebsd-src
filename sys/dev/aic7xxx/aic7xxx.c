@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#20 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#21 $
  *
  * $FreeBSD$
  */
@@ -492,6 +492,10 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 				sg->len = ahc_get_sense_bufsize(ahc, scb);
 				sg->len |= AHC_DMA_LAST_SEG;
 
+				/* Fixup byte order */
+				sg->addr = ahc_htole32(sg->addr);
+				sg->len = ahc_htole32(sg->len);
+
 				sc->opcode = REQUEST_SENSE;
 				sc->byte2 = 0;
 				if (tinfo->protocol_version <= SCSI_REV_2
@@ -530,6 +534,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 				hscb->dataptr = sg->addr; 
 				hscb->datacnt = sg->len;
 				hscb->sgptr = scb->sg_list_phys | SG_FULL_RESID;
+				hscb->sgptr = ahc_htole32(hscb->sgptr);
 				scb->sg_count = 1;
 				scb->flags |= SCB_SENSE;
 				ahc_qinfifo_requeue_tail(ahc, scb);
@@ -770,8 +775,9 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			for (i = 0; i < scb->sg_count; i++) {
 				printf("sg[%d] - Addr 0x%x : Length %d\n",
 				       i,
-				       scb->sg_list[i].addr,
-				       scb->sg_list[i].len & AHC_SG_LEN_MASK);
+				       ahc_le32toh(scb->sg_list[i].addr),
+				       ahc_le32toh(scb->sg_list[i].len)
+				       & AHC_SG_LEN_MASK);
 			}
 		}
 		/*
@@ -1326,16 +1332,16 @@ ahc_print_scb(struct scb *scb)
 	       hscb->shared_data.cdb[i++],
 	       hscb->shared_data.cdb[i++]);
 	printf("        dataptr:%#x datacnt:%#x sgptr:%#x tag:%#x\n",
-		hscb->dataptr,
-		hscb->datacnt,
-		hscb->sgptr,
+		ahc_le32toh(hscb->dataptr),
+		ahc_le32toh(hscb->datacnt),
+		ahc_le32toh(hscb->sgptr),
 		hscb->tag);
 	if (scb->sg_count > 0) {
 		for (i = 0; i < scb->sg_count; i++) {
 			printf("sg[%d] - Addr 0x%x : Length %d\n",
 			       i,
-			       scb->sg_list[i].addr,
-			       scb->sg_list[i].len);
+			       ahc_le32toh(scb->sg_list[i].addr),
+			       ahc_le32toh(scb->sg_list[i].len));
 		}
 	}
 }
@@ -4121,7 +4127,7 @@ ahc_init(struct ahc_softc *ahc)
 		ahc_outb(ahc, SCSIID, ahc->our_id_b);
 		scsi_conf = ahc_inb(ahc, SCSICONF + 1);
 		ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
-					|term|ENSTIMER|ACTNEGEN);
+					|term|ahc->seltime_b|ENSTIMER|ACTNEGEN);
 		if ((ahc->features & AHC_ULTRA2) != 0)
 			ahc_outb(ahc, SIMODE0, ahc_inb(ahc, SIMODE0)|ENIOERR);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
@@ -4141,7 +4147,7 @@ ahc_init(struct ahc_softc *ahc)
 		ahc_outb(ahc, SCSIID, ahc->our_id);
 	scsi_conf = ahc_inb(ahc, SCSICONF);
 	ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
-				|term
+				|term|ahc->seltime
 				|ENSTIMER|ACTNEGEN);
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		ahc_outb(ahc, SIMODE0, ahc_inb(ahc, SIMODE0)|ENIOERR);
@@ -4447,13 +4453,24 @@ ahc_suspend(struct ahc_softc *ahc)
 #endif
 
 	/* Save volatile registers */
-	ahc->suspend_state.scsiseq = ahc_inb(ahc, SCSISEQ);
-	ahc->suspend_state.sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
-	ahc->suspend_state.sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
-	ahc->suspend_state.simode0 = ahc_inb(ahc, SIMODE0);
-	ahc->suspend_state.simode1 = ahc_inb(ahc, SIMODE1);
-	ahc->suspend_state.seltimer = ahc_inb(ahc, SELTIMER);
-	ahc->suspend_state.seqctl = ahc_inb(ahc, SEQCTL);
+	if ((ahc->features & AHC_TWIN) != 0) {
+		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) | SELBUSB);
+		ahc->suspend_state.channel[1].scsiseq = ahc_inb(ahc, SCSISEQ);
+		ahc->suspend_state.channel[1].sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
+		ahc->suspend_state.channel[1].sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
+		ahc->suspend_state.channel[1].simode0 = ahc_inb(ahc, SIMODE0);
+		ahc->suspend_state.channel[1].simode1 = ahc_inb(ahc, SIMODE1);
+		ahc->suspend_state.channel[1].seltimer = ahc_inb(ahc, SELTIMER);
+		ahc->suspend_state.channel[1].seqctl = ahc_inb(ahc, SEQCTL);
+		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) & ~SELBUSB);
+	}
+	ahc->suspend_state.channel[0].scsiseq = ahc_inb(ahc, SCSISEQ);
+	ahc->suspend_state.channel[0].sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
+	ahc->suspend_state.channel[0].sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
+	ahc->suspend_state.channel[0].simode0 = ahc_inb(ahc, SIMODE0);
+	ahc->suspend_state.channel[0].simode1 = ahc_inb(ahc, SIMODE1);
+	ahc->suspend_state.channel[0].seltimer = ahc_inb(ahc, SELTIMER);
+	ahc->suspend_state.channel[0].seqctl = ahc_inb(ahc, SEQCTL);
 
 	if ((ahc->chip & AHC_PCI) != 0) {
 		ahc->suspend_state.dscommand0 = ahc_inb(ahc, DSCOMMAND0);
@@ -4513,13 +4530,29 @@ ahc_resume(struct ahc_softc *ahc)
 	ahc_build_free_scb_list(ahc);
 
 	/* Restore volatile registers */
-	ahc_outb(ahc, SCSISEQ, ahc->suspend_state.scsiseq);
-	ahc_outb(ahc, SXFRCTL0, ahc->suspend_state.sxfrctl0);
-	ahc_outb(ahc, SXFRCTL1, ahc->suspend_state.sxfrctl1);
-	ahc_outb(ahc, SIMODE0, ahc->suspend_state.simode0);
-	ahc_outb(ahc, SIMODE1, ahc->suspend_state.simode1);
-	ahc_outb(ahc, SELTIMER, ahc->suspend_state.seltimer);
-	ahc_outb(ahc, SEQCTL, ahc->suspend_state.seqctl);
+	if ((ahc->features & AHC_TWIN) != 0) {
+		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) | SELBUSB);
+		ahc_outb(ahc, SCSIID, ahc->our_id);
+		ahc_outb(ahc, SCSISEQ, ahc->suspend_state.channel[1].scsiseq);
+		ahc_outb(ahc, SXFRCTL0, ahc->suspend_state.channel[1].sxfrctl0);
+		ahc_outb(ahc, SXFRCTL1, ahc->suspend_state.channel[1].sxfrctl1);
+		ahc_outb(ahc, SIMODE0, ahc->suspend_state.channel[1].simode0);
+		ahc_outb(ahc, SIMODE1, ahc->suspend_state.channel[1].simode1);
+		ahc_outb(ahc, SELTIMER, ahc->suspend_state.channel[1].seltimer);
+		ahc_outb(ahc, SEQCTL, ahc->suspend_state.channel[1].seqctl);
+		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) & ~SELBUSB);
+	}
+	ahc_outb(ahc, SCSISEQ, ahc->suspend_state.channel[0].scsiseq);
+	ahc_outb(ahc, SXFRCTL0, ahc->suspend_state.channel[0].sxfrctl0);
+	ahc_outb(ahc, SXFRCTL1, ahc->suspend_state.channel[0].sxfrctl1);
+	ahc_outb(ahc, SIMODE0, ahc->suspend_state.channel[0].simode0);
+	ahc_outb(ahc, SIMODE1, ahc->suspend_state.channel[0].simode1);
+	ahc_outb(ahc, SELTIMER, ahc->suspend_state.channel[0].seltimer);
+	ahc_outb(ahc, SEQCTL, ahc->suspend_state.channel[0].seqctl);
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		ahc_outb(ahc, SCSIID_ULTRA2, ahc->our_id);
+	else
+		ahc_outb(ahc, SCSIID, ahc->our_id);
 
 	if ((ahc->chip & AHC_PCI) != 0) {
 		ahc_outb(ahc, DSCOMMAND0, ahc->suspend_state.dscommand0);
@@ -5425,6 +5458,8 @@ ahc_calc_residual(struct scb *scb)
 {
 	struct hardware_scb *hscb;
 	struct status_pkt *spkt;
+	uint32_t sgptr;
+	uint32_t resid_sgptr;
 	uint32_t resid;
 
 	/*
@@ -5444,24 +5479,26 @@ ahc_calc_residual(struct scb *scb)
 	 */
 
 	hscb = scb->hscb;
-	if ((hscb->sgptr & SG_RESID_VALID) == 0)
+	sgptr = ahc_le32toh(hscb->sgptr);
+	if ((sgptr & SG_RESID_VALID) == 0)
 		/* Case 1 */
 		return;
-	hscb->sgptr &= ~SG_RESID_VALID;
+	sgptr &= ~SG_RESID_VALID;
 
-	if ((hscb->sgptr & SG_LIST_NULL) != 0)
+	if ((sgptr & SG_LIST_NULL) != 0)
 		/* Case 2 */
 		return;
 
 	spkt = &hscb->shared_data.status;
-	if ((hscb->sgptr & SG_FULL_RESID) != 0) {
+	resid_sgptr = ahc_le32toh(spkt->residual_sg_ptr);
+	if ((sgptr & SG_FULL_RESID) != 0) {
 		/* Case 3 */
 		resid = ahc_get_transfer_length(scb);
-	} else if ((spkt->residual_sg_ptr & SG_LIST_NULL) != 0) {
+	} else if ((resid_sgptr & SG_LIST_NULL) != 0) {
 		/* Case 4 */
 		return;
-	} else if ((spkt->residual_sg_ptr & ~SG_PTR_MASK) != 0) {
-		panic("Bogus resid sgptr value 0x%x\n", spkt->residual_sg_ptr);
+	} else if ((resid_sgptr & ~SG_PTR_MASK) != 0) {
+		panic("Bogus resid sgptr value 0x%x\n", resid_sgptr);
 	} else {
 		struct ahc_dma_seg *sg;
 
@@ -5469,9 +5506,8 @@ ahc_calc_residual(struct scb *scb)
 		 * Remainder of the SG where the transfer
 		 * stopped.  
 		 */
-		resid = spkt->residual_datacnt & AHC_SG_LEN_MASK;
-		sg = ahc_sg_bus_to_virt(scb,
-					spkt->residual_sg_ptr & SG_PTR_MASK);
+		resid = ahc_le32toh(spkt->residual_datacnt) & AHC_SG_LEN_MASK;
+		sg = ahc_sg_bus_to_virt(scb, resid_sgptr & SG_PTR_MASK);
 
 		/* The residual sg_ptr always points to the next sg */
 		sg--;
@@ -5481,9 +5517,9 @@ ahc_calc_residual(struct scb *scb)
 		 * SG segments that are after the SG where
 		 * the transfer stopped.
 		 */
-		while ((sg->len & AHC_DMA_LAST_SEG) == 0) {
+		while ((ahc_le32toh(sg->len) & AHC_DMA_LAST_SEG) == 0) {
 			sg++;
-			resid += sg->len & AHC_SG_LEN_MASK;
+			resid += ahc_le32toh(sg->len) & AHC_SG_LEN_MASK;
 		}
 	}
 	if ((scb->flags & SCB_SENSE) == 0)
@@ -5757,17 +5793,10 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 	struct	ins_format3 *fmt3_ins;
 	u_int	opcode;
 
-	/* Structure copy */
-	instr = *(union ins_formats*)&seqprog[instrptr * 4];
-
-#if BYTE_ORDER == BIG_ENDIAN
-	opcode = instr.format.bytes[0];
-	instr.format.bytes[0] = instr.format.bytes[3];
-	instr.format.bytes[3] = opcode;
-	opcode = instr.format.bytes[1];
-	instr.format.bytes[1] = instr.format.bytes[2];
-	instr.format.bytes[2] = opcode;
-#endif
+	/*
+	 * The firmware is always compiled into a little endian format.
+	 */
+	instr.integer = ahc_le32toh(*(uint32_t*)&seqprog[instrptr * 4]);
 
 	fmt1_ins = &instr.format1;
 	fmt3_ins = NULL;
@@ -5871,14 +5900,8 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 				      |	(fmt1_ins->opcode << 25);
 			}
 		}
-#if BYTE_ORDER == BIG_ENDIAN
-		opcode = instr.format.bytes[0];
-		instr.format.bytes[0] = instr.format.bytes[3];
-		instr.format.bytes[3] = opcode;
-		opcode = instr.format.bytes[1];
-		instr.format.bytes[1] = instr.format.bytes[2];
-		instr.format.bytes[2] = opcode;
-#endif
+		/* The sequencer is a little endian cpu */
+		instr.integer = ahc_htole32(instr.integer);
 		ahc_outsb(ahc, SEQRAM, instr.bytes, 4);
 		break;
 	default:

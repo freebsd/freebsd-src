@@ -134,16 +134,52 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AIC7810		0x1078900400000000ull
 #define ID_AIC7815		0x7815900400000000ull
 
-#define SUBID_9005_TYPE		0x000F
-#define SUBID_9005_MAXRATE	0x0030
-#define SUBID_9005_DISAUTOTERM	0x0040
-#define SUBID_9005_LEGACYCONN	0x0080
-#define SUBID_9005_SEEPTYPE	0x0300
-#define SUBID_9005_NUMCHAN	0x0C00
-#define SUBID_9005_MFUNCENB	0x1000
-#define SUBID_9005_SCSIWIDTH	0x2000
-#define SUBID_9005_PCIWIDTH	0x4000
-#define SUBID_9005_SEDIFF	0x8000
+#define SUBID_9005_TYPE(id) ((id) & 0xF)
+#define		SUBID_9005_TYPE_MB		0xF	/* On Motherboard */
+#define		SUBID_9005_TYPE_CARD		0x0	/* Standard Card */
+#define		SUBID_9005_TYPE_LCCARD		0x1	/* Low Cost Card */
+#define		SUBID_9005_TYPE_RAID		0x3	/* Combined with Raid */
+
+#define SUBID_9005_MAXRATE(id) (((id) & 0x30) >> 4)
+#define		SUBID_9005_MAXRATE_ULTRA2	0x0
+#define		SUBID_9005_MAXRATE_ULTRA	0x1
+#define		SUBID_9005_MAXRATE_U160		0x2
+#define		SUBID_9005_MAXRATE_RESERVED	0x3
+
+#define SUBID_9005_SEEPTYPE(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0xC0) >> 6						\
+	 : ((id) & 0x300) >> 8)
+#define		SUBID_9005_SEEPTYPE_NONE	0x0
+#define		SUBID_9005_SEEPTYPE_1K		0x1
+#define		SUBID_9005_SEEPTYPE_2K_4K	0x2
+#define		SUBID_9005_SEEPTYPE_RESERVED	0x3
+#define SUBID_9005_AUTOTERM(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? (((id) & 0x400) >> 10) == 0					\
+	 : (((id) & 0x40) >> 6) == 0)
+
+#define SUBID_9005_NUMCHAN(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0x300) >> 8						\
+	 : ((id) & 0xC00) >> 10)
+
+#define SUBID_9005_LEGACYCONN(id)					\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? 0								\
+	 : ((id) & 0x80) >> 7)
+
+#define SUBID_9005_MFUNCENB(id)						\
+	((SUBID_9005_TYPE(id) == SUBID_9005_TYPE_MB)			\
+	 ? ((id) & 0x800) >> 11						\
+	 : ((id) & 0x1000) >> 12)
+/*
+ * Informational only. Should use chip register to be
+ * ceratian, but may be use in identification strings.
+ */
+#define SUBID_9005_CARD_SCSIWIDTH_MASK	0x2000
+#define SUBID_9005_CARD_PCIWIDTH_MASK	0x4000
+#define SUBID_9005_CARD_SEDIFF_MASK	0x8000
 
 static ahc_device_setup_t ahc_aic7850_setup;
 static ahc_device_setup_t ahc_aic7855_setup;
@@ -614,7 +650,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	/* If the second function is not hooked up, ignore it. */
 	if (ahc_get_pci_function(pci) > 0
 	 && subvendor == 0x9005
-	 && (subdevice & SUBID_9005_MFUNCENB) == 0)
+	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
 
 	for (i = 0; i < ahc_num_pci_devs; i++) {
