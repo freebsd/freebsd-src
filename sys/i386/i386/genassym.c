@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.51 1998/02/01 18:53:09 bde Exp $
+ *	$Id: genassym.c,v 1.52 1998/04/04 13:24:08 phk Exp $
  */
 
 #include "opt_vm86.h"
@@ -64,6 +64,13 @@
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
+#ifdef SMP
+#include <machine/apic.h>
+#endif
+#ifdef VM86
+#include <machine/segments.h>
+#endif
+#include <machine/globaldata.h>
 
 int	main __P((void));
 int	printf __P((const char *, ...));
@@ -82,6 +89,10 @@ main()
 	struct trapframe *tf = (struct trapframe *)0;
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo *bootinfo = (struct bootinfo *)0;
+	struct globaldata *globaldata = (struct globaldata *)0;
+#ifdef SMP
+	struct privatespace *privatespace = (struct privatespace *)0;
+#endif
 
 	printf("#define\tP_FORW %p\n", &p->p_procq.tqe_next);
 	printf("#define\tP_BACK %p\n", &p->p_procq.tqe_prev);
@@ -133,7 +144,7 @@ main()
 	printf("#define\tPCB_GS %p\n", &pcb->pcb_gs);
 #ifdef VM86
 	printf("#define\tPCB_EXT %p\n", &pcb->pcb_ext);
-#endif /* VM86 */
+#endif
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %p\n", &pcb->pcb_mpnest);
 #endif
@@ -188,6 +199,39 @@ main()
 	printf("#define\tBI_SIZE %p\n", &bootinfo->bi_size);
 	printf("#define\tBI_SYMTAB %p\n", &bootinfo->bi_symtab);
 	printf("#define\tBI_ESYMTAB %p\n", &bootinfo->bi_esymtab);
+
+	printf("#define\tGD_SIZEOF %d\n", sizeof(struct globaldata));
+	printf("#define\tGD_CURPROC %d\n", &globaldata->curproc);
+	printf("#define\tGD_NPXPROC %d\n", &globaldata->npxproc);
+	printf("#define\tGD_CURPCB %d\n", &globaldata->curpcb);
+	printf("#define\tGD_COMMON_TSS %d\n", &globaldata->common_tss);
+#ifdef VM86
+	printf("#define\tGD_COMMON_TSSD %d\n", &globaldata->common_tssd);
+	printf("#define\tGD_PRIVATE_TSS %d\n", &globaldata->private_tss);
+#endif
+#ifdef SMP
+	printf("#define\tGD_CPUID %d\n", &globaldata->cpuid);
+	printf("#define\tGD_CPU_LOCKID %d\n", &globaldata->cpu_lockid);
+	printf("#define\tGD_OTHER_CPUS %d\n", &globaldata->other_cpus);
+	printf("#define\tGD_MY_IDLEPTD %d\n", &globaldata->my_idlePTD);
+	printf("#define\tGD_SS_TPR %d\n", &globaldata->ss_tpr);
+	printf("#define\tGD_PRV_CMAP1 %d\n", &globaldata->prv_CMAP1);
+	printf("#define\tGD_PRV_CMAP2 %d\n", &globaldata->prv_CMAP2);
+	printf("#define\tGD_PRV_CMAP3 %d\n", &globaldata->prv_CMAP3);
+	printf("#define\tGD_INSIDE_INTR %d\n", &globaldata->inside_intr);
+#ifdef VM86
+	printf("#define\tGD_MY_TR %d\n", &globaldata->my_tr);
+#endif
+	printf("#define\tPS_GLOBALDATA 0x%x\n", &privatespace->globaldata);
+	printf("#define\tPS_PRVPT 0x%x\n", &privatespace->prvpt);
+	printf("#define\tPS_LAPIC 0x%x\n", &privatespace->lapic);
+	printf("#define\tPS_IDLESTACK 0x%x\n", &privatespace->idlestack);
+	printf("#define\tPS_IDLESTACK_TOP 0x%x\n", &privatespace->CPAGE1);
+	printf("#define\tPS_CPAGE1 0x%x\n", &privatespace->CPAGE1);
+	printf("#define\tPS_CPAGE2 0x%x\n", &privatespace->CPAGE2);
+	printf("#define\tPS_CPAGE3 0x%x\n", &privatespace->CPAGE3);
+	printf("#define\tPS_IOAPICS 0x%x\n", &privatespace->ioapics);
+#endif
 
 	return (0);
 }
