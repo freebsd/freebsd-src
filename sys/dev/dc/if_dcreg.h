@@ -655,6 +655,9 @@ struct dc_softc {
 	struct dc_list_data	*dc_ldata;
 	struct dc_chain_data	dc_cdata;
 	struct callout_handle	dc_stat_ch;
+#ifdef __alpha__
+	int			dc_srm_media;
+#endif
 };
 
 #define DC_TX_POLL		0x00000001
