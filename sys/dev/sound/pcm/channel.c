@@ -997,7 +997,7 @@ chn_buildfeeder(struct pcm_channel *c)
 {
 	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
-	u_int32_t tmp[2], type, flags;
+	u_int32_t tmp[2], type, flags, hwfmt;
 
 	CHN_LOCKASSERT(c);
 	while (chn_removefeeder(c) == 0);
@@ -1072,14 +1072,22 @@ chn_buildfeeder(struct pcm_channel *c)
 		}
 	}
 
-	if (!fmtvalid(c->feeder->desc->out, chn_getcaps(c)->fmtlist)) {
-		if (chn_fmtchain(c, chn_getcaps(c)->fmtlist) == 0) {
-			DEB(printf("can't build fmtchain from %x\n", c->feeder->desc->out));
-			return EINVAL;
+	if (fmtvalid(c->feeder->desc->out, chn_getcaps(c)->fmtlist)) {
+		hwfmt = c->feeder->desc->out;
+	} else {
+		if (c->direction == PCMDIR_REC) {
+			tmp[0] = c->format;
+			tmp[1] = NULL;
+			hwfmt = chn_fmtchain(c, tmp);
+		} else {
+			hwfmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);
 		}
-		DEB(printf("built fmtchain from %x\n", c->feeder->desc->out));
 	}
 
+	if (hwfmt == 0)
+		return EINVAL;
+
+	sndbuf_setfmt(c->bufhard, hwfmt);
 	return 0;
 }
 
