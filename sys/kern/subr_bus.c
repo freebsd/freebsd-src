@@ -128,8 +128,6 @@ devclass_find_internal(const char *classname, int create)
 			return (NULL);
 		dc->name = (char*) (dc + 1);
 		strcpy(dc->name, classname);
-		dc->devices = NULL;
-		dc->maxunit = 0;
 		TAILQ_INIT(&dc->drivers);
 		TAILQ_INSERT_TAIL(&devclasses, dc, link);
 
