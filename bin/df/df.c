@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.7 1995/05/30 00:06:42 rgrimes Exp $
+ *	$Id: df.c,v 1.7.4.2 1996/06/05 02:35:24 jkh Exp $
  */
 
 #ifndef lint
@@ -386,10 +386,7 @@ ufs_df(file, maxwidth)
 	sfsp->f_blocks = sblock.fs_dsize;
 	sfsp->f_bfree = sblock.fs_cstotal.cs_nbfree * sblock.fs_frag +
 		sblock.fs_cstotal.cs_nffree;
-	sfsp->f_bavail = (sblock.fs_dsize * (100 - sblock.fs_minfree) / 100) -
-		(sblock.fs_dsize - sfsp->f_bfree);
-	if (sfsp->f_bavail < 0)
-		sfsp->f_bavail = 0;
+	sfsp->f_bavail = freespace(&sblock, sblock.fs_minfree);
 	sfsp->f_files =  sblock.fs_ncg * sblock.fs_ipg;
 	sfsp->f_ffree = sblock.fs_cstotal.cs_nifree;
 	sfsp->f_fsid.val[0] = 0;
