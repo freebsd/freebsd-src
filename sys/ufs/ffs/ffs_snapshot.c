@@ -353,7 +353,7 @@ restart:
 			goto out1;
 		if (loc == len) {
 			readblock(nbp, blkno + loc);
-			size = fs->fs_cssize % fs->fs_bsize;
+			size = fs->fs_cssize - loc * fs->fs_bsize;
 		}
 		bcopy(fs->fs_csp[loc], nbp->b_data, size);
 		nbp->b_flags |= B_VALIDSUSPWRT;
