@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.29 1995/12/07 12:47:03 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.30 1995/12/11 04:56:07 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -52,27 +52,29 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
+#ifdef notyet_block_reallocation_enabled
 #ifdef DEBUG
-#include <vm/vm.h>
 #include <sys/sysctl.h>
-int doreallocblks = 0;
+#include <sys/kernel.h>
+
+static int	doreallocblks = 0;
 SYSCTL_INT(_debug, 13, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
-
 #else
-/* XXX for cluster_write */
-#define doreallocblks 0
+#define	doreallocblks 0
 #endif
+#endif /* notyet_block_reallocation_enabled */
 
-/*
- * Local declarations
- */
-static struct buf *cluster_rbuild __P((struct vnode *, u_quad_t,
-    daddr_t, daddr_t, long, int));
-struct cluster_save *cluster_collectbufs __P((struct vnode *, struct buf *));
+#ifdef notyet_block_reallocation_enabled
+static struct cluster_save *
+	cluster_collectbufs __P((struct vnode *vp, struct buf *last_bp));
+#endif
+static struct buf *
+	cluster_rbuild __P((struct vnode *vp, u_quad_t filesize, daddr_t lbn,
+			    daddr_t blkno, long size, int run));
 
-int totreads;
-int totreadblocks;
-extern vm_page_t bogus_page;
+static int	totreads;
+static int	totreadblocks;
+extern vm_page_t	bogus_page;
 
 #ifdef DIAGNOSTIC
 /*
@@ -464,7 +466,7 @@ cluster_write(bp, filesize)
 			 * reallocating to make it sequential.
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
-#if 1
+#ifndef notyet_block_reallocation_enabled
 			if (((u_quad_t)(lbn + 1) * lblocksize) != filesize ||
 				lbn != vp->v_lastw + 1 ||
 				vp->v_clen <= cursize) {
@@ -509,7 +511,7 @@ cluster_write(bp, filesize)
 					return;
 				}
 			}
-#endif
+#endif /* notyet_block_reallocation_enabled */
 		}
 		/*
 		 * Consider beginning a cluster. If at end of file, make
@@ -684,12 +686,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 	return totalwritten;
 }
 
-#if 0
+#ifdef notyet_block_reallocation_enabled
 /*
  * Collect together all the buffers in a cluster.
  * Plus add one additional buffer.
  */
-struct cluster_save *
+static struct cluster_save *
 cluster_collectbufs(vp, last_bp)
 	struct vnode *vp;
 	struct buf *last_bp;
@@ -710,4 +712,4 @@ cluster_collectbufs(vp, last_bp)
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
 }
-#endif
+#endif /* notyet_block_reallocation_enabled */
