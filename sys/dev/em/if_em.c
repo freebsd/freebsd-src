@@ -301,8 +301,7 @@ em_attach(device_t dev)
 	adapter->dev = dev;
 	adapter->osdep.dev = dev;
 	adapter->unit = device_get_unit(dev);
-	mtx_init(&adapter->mtx, device_get_nameunit(dev),
-		MTX_NETWORK_LOCK, MTX_DEF);
+	EM_LOCK_INIT(adapter, device_get_nameunit(dev));
 
 	if (em_adapter_list != NULL)
 		em_adapter_list->prev = adapter;
@@ -561,6 +560,8 @@ em_detach(device_t dev)
 		adapter->next->prev = adapter->prev;
 	if (adapter->prev != NULL)
 		adapter->prev->next = adapter->next;
+
+	EM_LOCK_DESTROY(adapter);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
@@ -933,7 +934,7 @@ em_intr(void *arg)
 
         if (ether_poll_register(em_poll, ifp)) {
                 em_disable_intr(adapter);
-                em_poll(ifp, 0, 1);
+                em_poll_locked(ifp, 0, 1);
 		EM_UNLOCK(adapter);
                 return;
         }
@@ -1299,7 +1300,7 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
  * 82547 workaround to avoid controller hang in half-duplex environment.
  * The workaround is to avoid queuing a large packet that would span   
  * the internal Tx FIFO ring boundary. We need to reset the FIFO pointers
- * in this case. We do that only when FIFO is queiced.
+ * in this case. We do that only when FIFO is quiescent.
  *
  **********************************************************************/
 static void
@@ -1312,7 +1313,8 @@ em_82547_move_tail(void *arg)
 	uint16_t length = 0;
 	boolean_t eop = 0;
 
-	EM_LOCK(adapter);
+	EM_LOCK_ASSERT(adapter);
+
 	hw_tdt = E1000_READ_REG(&adapter->hw, TDT);
 	sw_tdt = adapter->next_avail_tx_desc;
 	
@@ -1335,7 +1337,6 @@ em_82547_move_tail(void *arg)
 			length = 0;
 		}
 	}	
-	EM_UNLOCK(adapter);
 	return;
 }
 
@@ -1702,7 +1703,7 @@ em_allocate_pci_resources(struct adapter * adapter)
 		return(ENXIO);
 	}
 	if (bus_setup_intr(dev, adapter->res_interrupt,
-			   INTR_TYPE_NET /*| INTR_MPSAFE*/,
+			   INTR_TYPE_NET | INTR_MPSAFE,
 			   (void (*)(void *)) em_intr, adapter,
 			   &adapter->int_handler_tag)) {
 		printf("em%d: Error registering interrupt handler!\n", 
