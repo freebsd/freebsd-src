@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.117 1995/04/12 20:47:28 wollman Exp $
+ *	$Id: machdep.c,v 1.119 1995/04/14 02:06:00 wpaul Exp $
  */
 
 #include "npx.h"
@@ -391,9 +391,16 @@ again:
 	 */
 	configure();
 	if (bootverbose) {
-		printf("BIOS Geometries:");
-		for (i=0; i < N_BIOS_GEOM; i++)
-			printf(" %x:%x\n", i, bootinfo.bi_bios_geom[i]);
+		printf("BIOS Geometries:\n");
+		for (i=0; i < N_BIOS_GEOM; i++) {
+			int j = bootinfo.bi_bios_geom[i];
+			if (j == 0x4f010f)
+				continue;
+			printf(" %x:%08x", i, j);
+			printf(" %d cyl, %d heads, %d sects\n",
+				j >> 16, (j >> 8) & 0xff, j & 0xff);
+				
+		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
 }
