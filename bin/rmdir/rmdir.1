@@ -1,0 +1,92 @@
+.\" Copyright (c) 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)rmdir.1	8.1 (Berkeley) 5/31/93
+.\"
+.Dd May 31, 1993
+.Dt RMDIR 1
+.Os
+.Sh NAME
+.Nm rmdir
+.Nd remove directories
+.Sh SYNOPSIS
+.Nm rmdir
+.\" .Op Fl p
+.Ar directory ...
+.Sh DESCRIPTION
+The rmdir utility removes the directory entry specified by
+each
+.Ar directory
+argument, provided it is empty.
+.Pp
+Arguments are processed in the order given.
+In order to remove both a parent directory and a subdirectory
+of that parent, the subdirectory
+must be specified first so the parent directory
+is empty when
+.Nm rmdir
+tries to remove it.
+.\" .Pp
+.\" The following option is available:
+.\" .Bl -tag -width Ds
+.\" .It Fl p
+.\" Each
+.\" .Ar directory
+.\" argument is treated as a pathname of which all
+.\" components will be removed, if they are empty,
+.\" starting with the last most component.
+.\" (See
+.\" .Xr rm 1
+.\" for fully non-discriminant recursive removal).
+.\" .El
+.Pp
+The
+.Nm rmdir
+utility exits with one of the following values:
+.Bl -tag -width flag
+.It Li \&0
+Each directory entry specified by a dir operand
+referred to an empty directory and was removed
+successfully.
+.It Li \&>\&0
+An error occurred.
+.El
+.Sh SEE ALSO
+.Xr rm 1
+.Sh STANDARDS
+The
+.Nm rmdir
+command is expected to be
+.St -p1003.2
+compatible.
