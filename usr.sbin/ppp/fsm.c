@@ -475,6 +475,12 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
+  /* Some things must be done before we Decode the packet */
+  switch (fp->state) {
+  case ST_OPENED:
+    (*fp->fn->LayerDown)(fp);
+  }
+
   /* Check and process easy case */
   switch (fp->state) {
   case ST_INITIAL:
@@ -693,7 +699,6 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
-    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
     (*fp->parent->LayerDown)(fp->parent->object, fp);
