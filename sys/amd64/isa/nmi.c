@@ -66,6 +66,7 @@
 #if defined(APIC_IO)
 #include <machine/smp.h>
 #include <machine/smptests.h>			/** FAST_HI */
+#include <machine/resource.h>
 #endif /* APIC_IO */
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
@@ -188,7 +189,7 @@ atpic_attach(device_t dev)
 {
 #ifdef APIC_IO
 	int		rid;
-	bus_resource_t	res;
+	struct resource *res;
 
 	/* try to allocate our IRQ and then free it */
 	rid = 0;
