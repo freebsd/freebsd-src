@@ -48,7 +48,11 @@
 #define __REALLY_HAVE_AGP	__HAVE_AGP
 #endif
 
+#ifdef __i386__
 #define __REALLY_HAVE_MTRR	(__HAVE_MTRR)
+#else
+#define __REALLY_HAVE_MTRR	0
+#endif
 #define __REALLY_HAVE_SG	(__HAVE_SG)
 
 #if __REALLY_HAVE_AGP
@@ -97,7 +101,11 @@
 #define DRM_CURRENTPID		curproc->p_pid
 #endif
 
-#define DRM_IOCTL_ARGS		dev_t kdev, u_long cmd, caddr_t data, int flags, DRM_STRUCTPROC *p
+/* Currently our DRMFILE (filp) is a void * which is actually the pid
+ * of the current process.  It should be a per-open unique pointer, but
+ * code for that is not yet written */
+#define DRMFILE			void *
+#define DRM_IOCTL_ARGS		dev_t kdev, u_long cmd, caddr_t data, int flags, DRM_STRUCTPROC *p, DRMFILE filp
 #define DRM_LOCK		lockmgr(&dev->dev_lock, LK_EXCLUSIVE, 0, DRM_CURPROC)
 #define DRM_UNLOCK 		lockmgr(&dev->dev_lock, LK_RELEASE, 0, DRM_CURPROC)
 #define DRM_SUSER(p)		suser(p)
@@ -128,6 +136,16 @@
 		DRM_DEBUG("can't find authenticator\n");	\
 		return EINVAL;					\
 	}
+
+#define LOCK_TEST_WITH_RETURN(dev, filp)				\
+do {									\
+	if (!_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) ||		\
+	     dev->lock.filp != filp) {					\
+		DRM_ERROR("%s called without lock held\n",		\
+			   __FUNCTION__);				\
+		return EINVAL;						\
+	}								\
+} while (0)
 
 #define DRM_UDELAY( udelay )					\
 do {								\
@@ -200,7 +218,7 @@ while (!condition) {							\
 #endif
 
 #define malloctype DRM(M_DRM)
-/* The macros confliced in the MALLOC_DEFINE */
+/* The macros conflicted in the MALLOC_DEFINE */
 MALLOC_DECLARE(malloctype);
 #undef malloctype
 
@@ -214,10 +232,8 @@ typedef struct drm_chipinfo
 
 #define cpu_to_le32(x) (x)	/* FIXME */
 
-typedef u_int32_t dma_addr_t;
+typedef unsigned long dma_addr_t;
 typedef u_int32_t atomic_t;
-typedef u_int32_t cycles_t;
-typedef u_int32_t spinlock_t;
 typedef u_int32_t u32;
 typedef u_int16_t u16;
 typedef u_int8_t u8;
@@ -301,10 +317,8 @@ find_first_zero_bit(volatile void *p, int max)
  * exist.
  */
 #if (__FreeBSD_version < 500002 && __FreeBSD_version > 500000) || __FreeBSD_version < 420000
-/* FIXME: again, what's the exact date? */
 #define MODULE_VERSION(a,b)		struct __hack
 #define MODULE_DEPEND(a,b,c,d,e)	struct __hack
-
 #endif
 
 /* Redefinitions to make templating easy */
@@ -329,8 +343,6 @@ find_first_zero_bit(volatile void *p, int max)
 #else
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #endif
-
-#define DRM_PROC_LIMIT (PAGE_SIZE-80)
 
 #if (__FreeBSD_version >= 500000) || ((__FreeBSD_version < 500000) && (__FreeBSD_version >= 410002))
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
@@ -365,12 +377,9 @@ find_first_zero_bit(volatile void *p, int max)
 
 /* drm_drv.h */
 extern d_ioctl_t	DRM(ioctl);
-extern d_ioctl_t	DRM(lock);
-extern d_ioctl_t	DRM(unlock);
 extern d_open_t		DRM(open);
 extern d_close_t	DRM(close);
 extern d_read_t		DRM(read);
-extern d_write_t	DRM(write);
 extern d_poll_t		DRM(poll);
 extern d_mmap_t		DRM(mmap);
 extern int		DRM(open_helper)(dev_t kdev, int flags, int fmt, 
@@ -378,81 +387,9 @@ extern int		DRM(open_helper)(dev_t kdev, int flags, int fmt,
 extern drm_file_t	*DRM(find_file_by_proc)(drm_device_t *dev, 
 					 DRM_STRUCTPROC *p);
 
-/* Misc. IOCTL support (drm_ioctl.h) */
-extern d_ioctl_t	DRM(irq_busid);
-extern d_ioctl_t	DRM(getunique);
-extern d_ioctl_t	DRM(setunique);
-extern d_ioctl_t	DRM(getmap);
-extern d_ioctl_t	DRM(getclient);
-extern d_ioctl_t	DRM(getstats);
-
-/* Context IOCTL support (drm_context.h) */
-extern d_ioctl_t	DRM(resctx);
-extern d_ioctl_t	DRM(addctx);
-extern d_ioctl_t	DRM(modctx);
-extern d_ioctl_t	DRM(getctx);
-extern d_ioctl_t	DRM(switchctx);
-extern d_ioctl_t	DRM(newctx);
-extern d_ioctl_t	DRM(rmctx);
-extern d_ioctl_t	DRM(setsareactx);
-extern d_ioctl_t	DRM(getsareactx);
-
-/* Drawable IOCTL support (drm_drawable.h) */
-extern d_ioctl_t	DRM(adddraw);
-extern d_ioctl_t	DRM(rmdraw);
-
-/* Authentication IOCTL support (drm_auth.h) */
-extern d_ioctl_t	DRM(getmagic);
-extern d_ioctl_t	DRM(authmagic);
-
-/* Locking IOCTL support (drm_lock.h) */
-extern d_ioctl_t	DRM(block);
-extern d_ioctl_t	DRM(unblock);
-extern d_ioctl_t	DRM(finish);
-
-/* Buffer management support (drm_bufs.h) */
-extern d_ioctl_t	DRM(addmap);
-extern d_ioctl_t	DRM(rmmap);
-#if __HAVE_DMA
-extern d_ioctl_t	DRM(addbufs_agp);
-extern d_ioctl_t	DRM(addbufs_pci);
-extern d_ioctl_t	DRM(addbufs_sg);
-extern d_ioctl_t	DRM(addbufs);
-extern d_ioctl_t	DRM(infobufs);
-extern d_ioctl_t	DRM(markbufs);
-extern d_ioctl_t	DRM(freebufs);
-extern d_ioctl_t	DRM(mapbufs);
-#endif
-
-/* Memory management support (drm_memory.h) */
-extern int		DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS;
-
-/* DMA support (drm_dma.h) */
-#if __HAVE_DMA
-extern d_ioctl_t	DRM(control);
-#endif
-#if __HAVE_VBL_IRQ
-extern d_ioctl_t	DRM(wait_vblank);
-#endif
-
-/* AGP/GART support (drm_agpsupport.h) */
-#if __REALLY_HAVE_AGP
-extern d_ioctl_t	DRM(agp_acquire);
-extern d_ioctl_t	DRM(agp_release);
-extern d_ioctl_t	DRM(agp_enable);
-extern d_ioctl_t	DRM(agp_info);
-extern d_ioctl_t	DRM(agp_alloc);
-extern d_ioctl_t	DRM(agp_free);
-extern d_ioctl_t	DRM(agp_unbind);
-extern d_ioctl_t	DRM(agp_bind);
-#endif
-
-/* Scatter Gather Support (drm_scatter.h) */
-#if __HAVE_SG
-extern d_ioctl_t	DRM(sg_alloc);
-extern d_ioctl_t	DRM(sg_free);
-#endif
-
-/* SysCtl Support (drm_sysctl.h) */
+/* sysctl support (drm_sysctl.h) */
 extern int		DRM(sysctl_init)(drm_device_t *dev);
 extern int		DRM(sysctl_cleanup)(drm_device_t *dev);
+
+/* Memory info sysctl (drm_memory.h) */
+extern int		DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS;

@@ -61,7 +61,6 @@ static drm_mem_stats_t	  DRM(mem_stats)[]   = {
 	[DRM_MEM_MAGIC]	    = { "magic"	   },
 	[DRM_MEM_IOCTLS]    = { "ioctltab" },
 	[DRM_MEM_MAPS]	    = { "maplist"  },
-	[DRM_MEM_VMAS]	    = { "vmalist"  },
 	[DRM_MEM_BUFS]	    = { "buflist"  },
 	[DRM_MEM_SEGS]	    = { "seglist"  },
 	[DRM_MEM_PAGES]	    = { "pagelist" },

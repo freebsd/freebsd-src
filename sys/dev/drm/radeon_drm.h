@@ -534,6 +534,10 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_LAST_CLEAR            4
 #define RADEON_PARAM_IRQ_NR                5
 #define RADEON_PARAM_AGP_BASE              6 /* card offset of agp base */
+#define RADEON_PARAM_REGISTER_HANDLE       7 /* for drmMap() */
+#define RADEON_PARAM_STATUS_HANDLE         8
+#define RADEON_PARAM_SAREA_HANDLE          9
+#define RADEON_PARAM_AGP_TEX_HANDLE        10
 
 typedef struct drm_radeon_getparam {
 	int param;

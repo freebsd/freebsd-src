@@ -186,16 +186,6 @@ do {									\
 	}								\
 } while (0)
 
-#define LOCK_TEST_WITH_RETURN( dev )					\
-do {									\
-	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
-	     dev->lock.pid != DRM_CURRENTPID ) {				\
-		DRM_ERROR( "%s called without lock held\n",		\
-			   __FUNCTION__ );					\
-		return DRM_ERR(EINVAL);				\
-	}								\
-} while (0)
-
 #define WRAP_TEST_WITH_RETURN( dev_priv )				\
 do {									\
 	if ( test_bit( 0, &dev_priv->prim.wrapped ) ) {			\

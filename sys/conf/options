@@ -394,7 +394,6 @@ NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
 
 # DRM options
-DRM_LINUX		opt_drm.h
 DRM_DEBUG		opt_drm.h
 
 ZERO_COPY_SOCKETS	opt_zero.h

@@ -352,7 +352,7 @@ static void r128_cce_init_ring_buffer( drm_device_t *dev,
 
 		R128_WRITE( R128_PM4_BUFFER_DL_RPTR_ADDR,
      			    entry->busaddr[page_ofs]);
-		DRM_DEBUG( "ring rptr: offset=0x%08x handle=0x%08lx\n",
+		DRM_DEBUG( "ring rptr: offset=0x%08lx handle=0x%08lx\n",
 			   entry->busaddr[page_ofs],
      			   entry->handle + tmp_ofs );
 	}
@@ -621,9 +621,12 @@ int r128_do_cleanup_cce( drm_device_t *dev )
 #if __REALLY_HAVE_SG
 		if ( !dev_priv->is_pci ) {
 #endif
-			DRM_IOREMAPFREE( dev_priv->cce_ring );
-			DRM_IOREMAPFREE( dev_priv->ring_rptr );
-			DRM_IOREMAPFREE( dev_priv->buffers );
+			if ( dev_priv->cce_ring != NULL )
+				DRM_IOREMAPFREE( dev_priv->cce_ring );
+			if ( dev_priv->ring_rptr != NULL )
+				DRM_IOREMAPFREE( dev_priv->ring_rptr );
+			if ( dev_priv->buffers != NULL )
+				DRM_IOREMAPFREE( dev_priv->buffers );
 #if __REALLY_HAVE_SG
 		} else {
 			if (!DRM(ati_pcigart_cleanup)( dev,
@@ -666,7 +669,7 @@ int r128_cce_start( DRM_IOCTL_ARGS )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( dev_priv->cce_running || dev_priv->cce_mode == R128_PM4_NONPM4 ) {
 		DRM_DEBUG( "%s while CCE running\n", __FUNCTION__ );
@@ -689,7 +692,7 @@ int r128_cce_stop( DRM_IOCTL_ARGS )
 	int ret;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL(stop, (drm_r128_cce_stop_t *)data, sizeof(stop) );
 
@@ -728,7 +731,7 @@ int r128_cce_reset( DRM_IOCTL_ARGS )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( !dev_priv ) {
 		DRM_DEBUG( "%s called before init done\n", __FUNCTION__ );
@@ -749,7 +752,7 @@ int r128_cce_idle( DRM_IOCTL_ARGS )
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( dev_priv->cce_running ) {
 		r128_do_cce_flush( dev_priv );
@@ -763,7 +766,7 @@ int r128_engine_reset( DRM_IOCTL_ARGS )
 	DRM_DEVICE;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	return r128_do_engine_reset( dev );
 }
@@ -810,7 +813,7 @@ int r128_fullscreen( DRM_IOCTL_ARGS )
 	DRM_DEVICE;
 	drm_r128_fullscreen_t fs;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( fs, (drm_r128_fullscreen_t *)data, sizeof(fs) );
 
@@ -892,7 +895,7 @@ drm_buf_t *r128_freelist_get( drm_device_t *dev )
 	for ( i = 0 ; i < dma->buf_count ; i++ ) {
 		buf = dma->buflist[i];
 		buf_priv = buf->dev_private;
-		if ( buf->pid == 0 )
+		if ( buf->filp == 0 )
 			return buf;
 	}
 
@@ -951,7 +954,7 @@ int r128_wait_ring( drm_r128_private_t *dev_priv, int n )
 	return DRM_ERR(EBUSY);
 }
 
-static int r128_cce_get_buffers( drm_device_t *dev, drm_dma_t *d )
+static int r128_cce_get_buffers( DRMFILE filp, drm_device_t *dev, drm_dma_t *d )
 {
 	int i;
 	drm_buf_t *buf;
@@ -960,7 +963,7 @@ static int r128_cce_get_buffers( drm_device_t *dev, drm_dma_t *d )
 		buf = r128_freelist_get( dev );
 		if ( !buf ) return DRM_ERR(EAGAIN);
 
-		buf->pid = DRM_CURRENTPID;
+		buf->filp = filp;
 
 		if ( DRM_COPY_TO_USER( &d->request_indices[i], &buf->idx,
 				   sizeof(buf->idx) ) )
@@ -981,7 +984,7 @@ int r128_cce_buffers( DRM_IOCTL_ARGS )
 	int ret = 0;
 	drm_dma_t d;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( d, (drm_dma_t *) data, sizeof(d) );
 
@@ -1004,7 +1007,7 @@ int r128_cce_buffers( DRM_IOCTL_ARGS )
 	d.granted_count = 0;
 
 	if ( d.request_count ) {
-		ret = r128_cce_get_buffers( dev, &d );
+		ret = r128_cce_get_buffers( filp, dev, &d );
 	}
 
 	DRM_COPY_TO_USER_IOCTL((drm_dma_t *) data, d, sizeof(d) );

@@ -80,6 +80,7 @@
  *       Added packets R200_EMIT_PP_CUBIC_FACES_[0..5] and
  *       R200_EMIT_PP_CUBIC_OFFSETS_[0..5].  (brian)
  * 1.8 - Remove need to call cleanup ioctls on last client exit (keith)
+ *       Add 'GET' queries for starting additional clients on different VT's.
  */
 #define DRIVER_IOCTLS							     \
  [DRM_IOCTL_NR(DRM_IOCTL_DMA)]               = { radeon_cp_buffers,  1, 0 }, \
@@ -122,19 +123,17 @@ do {									\
 		if ( dev_priv->page_flipping ) {			\
 			radeon_do_cleanup_pageflip( dev );		\
 		}							\
-                radeon_mem_release( dev_priv->agp_heap );		\
-                radeon_mem_release( dev_priv->fb_heap );		\
+                radeon_mem_release( filp, dev_priv->agp_heap );		\
+                radeon_mem_release( filp, dev_priv->fb_heap );		\
 	}								\
 } while (0)
 
 /* When the last client dies, shut down the CP and free dev->dev_priv.
  */
-#define __HAVE_RELEASE 1
-#define DRIVER_RELEASE() 			\
+/* #define __HAVE_RELEASE 1 */
+#define DRIVER_PRETAKEDOWN()			\
 do {						\
-        DRM(reclaim_buffers)( dev, priv->pid ); \
-	if ( dev->open_count == 1)		\
-                 radeon_do_release( dev );	\
+    radeon_do_release( dev );			\
 } while (0)
 
 
