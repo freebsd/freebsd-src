@@ -52,8 +52,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethnamaddr.c,v 4.9.1.1 1993/05/02 22:43:03 vixie Rel $";
+static char sccsid[] = "From: @(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
+/*static char rcsid[] = "From: Id: gethnamaddr.c,v 4.9.1.1 1993/05/02 22:43:03 vixie Rel ";*/
+static const char rcsid[] =
+  "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -71,6 +73,35 @@ static char rcsid[] = "$Id: gethnamaddr.c,v 4.9.1.1 1993/05/02 22:43:03 vixie Re
 #define	MAXALIASES	35
 #define	MAXADDRS	35
 
+#define _PATH_HOSTCONF	"/etc/host.conf"
+
+enum service_type { 
+  SERVICE_NONE = 0,
+  SERVICE_BIND,
+  SERVICE_HOSTS,
+  SERVICE_NIS };
+#define SERVICE_MAX	SERVICE_NIS
+
+static struct {
+  const char *name;
+  enum service_type type;
+} service_names[] = {
+  { "hosts", SERVICE_HOSTS },
+  { "/etc/hosts", SERVICE_HOSTS },
+  { "hosttable", SERVICE_HOSTS },
+  { "htable", SERVICE_HOSTS },
+  { "bind", SERVICE_BIND },
+  { "dns", SERVICE_BIND },
+  { "domain", SERVICE_BIND },
+  { "yp", SERVICE_NIS },
+  { "yellowpages", SERVICE_NIS },
+  { "nis", SERVICE_NIS },
+  { 0, SERVICE_NONE }
+};
+
+static enum service_type service_order[SERVICE_MAX + 1];
+static int service_done = 0;
+
 static char *h_addr_ptrs[MAXADDRS + 1];
 
 static struct hostent host;
@@ -81,7 +112,6 @@ static FILE *hostf = NULL;
 static char hostaddr[MAXADDRS];
 static char *host_addrs[2];
 static int stayopen = 0;
-char *strpbrk();
 
 #if PACKETSZ > 1024
 #define	MAXPACKET	PACKETSZ
@@ -100,6 +130,49 @@ typedef union {
 } align;
 
 extern int h_errno;
+
+static enum service_type
+get_service_name(const char *name) {
+	int i;
+	for(i = 0; service_names[i].type != SERVICE_NONE; i++) {
+		if(!strcasecmp(name, service_names[i].name)) {
+			return service_names[i].type;
+		}
+	}
+	return SERVICE_NONE;
+}
+
+static void
+init_services()
+{
+	char *cp, buf[BUFSIZ];
+	register int cc = 0;
+	FILE *fd;
+
+	if ((fd = (FILE *)fopen(_PATH_HOSTCONF, "r")) == NULL) {
+				/* make some assumptions */
+		service_order[0] = SERVICE_BIND;
+		service_order[1] = SERVICE_HOSTS;
+		service_order[2] = SERVICE_NONE;
+	} else {
+		while (fgets(buf, BUFSIZ, fd) != NULL && cc < SERVICE_MAX) {
+			if(buf[0] == '#')
+				continue;
+
+			cp = strtok(buf, "\n \t,:;");
+			do {
+				if(!isalpha(cp[0])) continue;
+				service_order[cc] = get_service_name(buf);
+				if(service_order[cc] != SERVICE_NONE)
+					cc++;
+			} while((cp = strtok((char *)0, "\n \t,:;"))
+				&& (cc < SERVICE_MAX));
+		}
+		service_order[cc] = SERVICE_NONE;
+		fclose(fd);
+	}
+	service_done = 1;
+}
 
 static struct hostent *
 getanswer(answer, anslen, iquery)
@@ -246,7 +319,7 @@ getanswer(answer, anslen, iquery)
 }
 
 struct hostent *
-gethostbyname(name)
+_getdnsbyname(name)
 	const char *name;
 {
 	querybuf buf;
@@ -295,16 +368,13 @@ gethostbyname(name)
 		if (_res.options & RES_DEBUG)
 			printf("res_search failed\n");
 #endif
-		if (errno == ECONNREFUSED)
-			return (_gethtbyname(name));
-		else
-			return ((struct hostent *) NULL);
+		return ((struct hostent *) NULL);
 	}
 	return (getanswer(&buf, n, 0));
 }
 
 struct hostent *
-gethostbyaddr(addr, len, type)
+_getdnsbyaddr(addr, len, type)
 	const char *addr;
 	int len, type;
 {
@@ -327,8 +397,6 @@ gethostbyaddr(addr, len, type)
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
 #endif
-		if (errno == ECONNREFUSED)
-			return (_gethtbyaddr(addr, len, type));
 		return ((struct hostent *) NULL);
 	}
 	hp = getanswer(&buf, n, 1);
@@ -450,3 +518,120 @@ _gethtbyaddr(addr, len, type)
 	_endhtent();
 	return (p);
 }
+
+
+#ifdef YP
+struct hostent *
+_getnishost(name, map)
+	char *name, *map;
+{
+	register char *cp, *dp, **q;
+	char *result;
+	int resultlen;
+	static struct hostent h;
+	static char *domain = (char *)NULL;
+
+	if (domain == (char *)NULL)
+		if (yp_get_default_domain (&domain))
+			return ((struct hostent *)NULL);
+
+	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
+		return ((struct hostent *)NULL);
+
+	if (cp = index(result, '\n'))
+		*cp = '\0';
+
+	cp = strpbrk(result, " \t");
+	*cp++ = '\0';
+#if BSD >= 43 || defined(h_addr)	/* new-style hostent structure */
+	h.h_addr_list = host_addrs;
+#endif
+	h.h_addr = hostaddr;
+	*((u_long *)h.h_addr) = inet_addr(result);
+	h.h_length = sizeof(u_long);
+	h.h_addrtype = AF_INET;
+	while (*cp == ' ' || *cp == '\t')
+		cp++;
+	h.h_name = cp;
+	q = h.h_aliases = host_aliases;
+	cp = strpbrk(cp, " \t");
+	if (cp != NULL)
+		*cp++ = '\0';
+	while (cp && *cp) {
+		if (*cp == ' ' || *cp == '\t') {
+			cp++;
+			continue;
+		}
+		if (q < &host_aliases[MAXALIASES - 1])
+			*q++ = cp;
+		cp = strpbrk(cp, " \t");
+		if (cp != NULL)
+			*cp++ = '\0';
+	}
+	*q = NULL;
+	return (&h);
+}
+#endif /* YP */
+
+struct hostent *
+gethostbyname(const char *name)
+{
+	struct hostent *hp = 0;
+	int nserv = 0;
+
+	if(!service_done) {
+		init_services();
+	}
+
+	while(!hp) {
+		switch(service_order[nserv]) {
+		      case SERVICE_NONE:
+			return 0;
+		      case SERVICE_HOSTS:
+			hp = _gethtbyname(name);
+			break;
+		      case SERVICE_BIND:
+			hp = _getdnsbyname(name);
+			break;
+		      case SERVICE_NIS:
+#ifdef YP
+			hp = _getnishost(name, "hosts.byname");
+#endif
+			break;
+		}
+		nserv++;
+	}
+	return hp;
+}
+
+struct hostent *
+gethostbyaddr(const char *addr, int len, int type)
+{
+	struct hostent *hp = 0;
+	int nserv = 0;
+
+	if(!service_done) {
+		init_service();
+	}
+
+	while(!hp) {
+		switch(service_order[nserv]) {
+		      case SERVICE_NONE:
+			return 0;
+		      case SERVICE_HOSTS:
+			hp = _gethtbyaddr(addr, len, type);
+			break;
+		      case SERVICE_BIND:
+			hp = _getdnsbyname(addr, len, type);
+			break;
+		      case SERVICE_NIS:
+#ifdef YP
+			hp = _getnishost(addr, "hosts.byaddr");
+#endif
+			break;
+		}
+		nserv++;
+	}
+	return hp;
+}
+
