@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.78 1996/05/04 17:26:55 peter Exp $ -->
+<!-- $Id: contrib.sgml,v 1.79 1996/05/07 21:35:19 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -222,7 +222,7 @@
 	  <item>Martin Birgmeier
 	  <item>Masafumi Nakane &lt;max@sfc.wide.ad.jp&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
-	  <item>Michael Elbel &lt;me@freebsd.org&gt;
+	  <item>Michael Elbel &lt;me@FreeBSD.ORG&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@iis.u-tokyo.ac.jp&gt;
@@ -337,7 +337,7 @@
 	<item>Paul Popelka &lt;paulp@uts.amdahl.com&gt;
 	<item>Peter da Silva &lt;peter@NeoSoft.com&gt;
 	<item>Phil Sutherland &lt;philsuth@mycroft.dialix.oz.au&gt;
-	<item>Poul-Henning Kamp&lt;phk@FreeBSD.org&gt;
+	<item>Poul-Henning Kamp&lt;phk@FreeBSD.ORG&gt;
 	<item>Ralf Friedl &lt;friedl@informatik.uni-kl.de&gt;
 	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
 	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;

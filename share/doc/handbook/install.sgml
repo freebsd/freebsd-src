@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.24 1996/02/27 15:57:49 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.25 1996/03/20 10:38:53 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -41,7 +41,7 @@
 	  (IRQ) and IO port addresses. </item>
 
       <item>Download the <url
-	  url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.0-RELEASE/floppies/boot.flp"
+	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/floppies/boot.flp"
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
@@ -53,7 +53,7 @@
 	<itemize>
 	  <item>If you are using MS-DOS download 
 	    <url 
-url="ftp://ftp.freebsd.org/pub/FreeBSD/tools/dos-tools/rawrite.exe"
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/dos-tools/rawrite.exe"
 	      name="rawrite.exe">, then run it:
 <tscreen><verb>
 C:\> rawrite
@@ -687,8 +687,8 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	documentation you should need to be able to navigate
 	through an installation and if it does not then we would
 	like to know what you found most confusing.  Send your
-	comments to <htmlurl url="mailto:doc@freebsd.org"
-	name="doc@freebsd.org">.  It is the objective of the
+	comments to the &a.doc;.
+	It is the objective of the
 	FreeBSD installation program (sysinstall) to be
 	self-documenting enough that painful ``step-by-step''
 	guides are no longer necessary.  It may take us a little
@@ -865,7 +865,8 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	are still lacking anyone to actually do the work.
 	Ongoing work with Linux's DOSEMU utility may bring this
 	much closer to being a reality sometime soon.  Send mail
-	to hackers@freebsd.org if you're interested in joining
+	to the &a.hackers
+	if you're interested in joining
 	this effort!
 
 	However, there is a nice application available in the
