@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.6 1998/10/16 19:26:11 msmith Exp $
+# $Id: Makefile,v 1.1.1.1 1999/07/28 20:28:45 se Exp $
 
 LIB=		arc
 NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 
-.PATH:		arch/${MACHINE}
+.PATH:		${.CURDIR}/arch/${MACHINE}
 # XXX hack to pick up stand.h
 LIBSTANDDIR=	${.CURDIR}/../../../../lib/libstand
 CFLAGS=		-I${LIBSTANDDIR}
@@ -13,7 +13,7 @@ CFLAGS+=	-DDEBUG
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
-		-I${.CURDIR}/../../.. -I../include
+		-I${.CURDIR}/../../.. -I${.CURDIR}/../include
 
 #CFLAGS+= -DDISK_DEBUG
 #CPPFLAGS+= -DNO_DISKLABEL
