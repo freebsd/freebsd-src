@@ -79,8 +79,8 @@ namespace of the root file system, reserving space for attribute data:
 
   mkdir /.attribute /.attribute/system
   cd /.attribute/system
-  extattrctl -p / 388 posix1e.acl_access
-  extattrctl -p / 388 posix1e.acl_default
+  extattrctl initattr -p / 388 posix1e.acl_access
+  extattrctl initattr -p / 388 posix1e.acl_default
 
 On the next mount of the root file system, the attributes will be
 automatically started.
