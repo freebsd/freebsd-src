@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.58 1998/10/22 02:00:49 dg Exp $
+ *	$Id: if_fxp.c,v 1.59 1998/12/14 05:47:27 dillon Exp $
  */
 
 /*
@@ -1485,18 +1485,62 @@ fxp_mediastatus(ifp, ifmr)
 	struct ifmediareq *ifmr;
 {
 	struct fxp_softc *sc = ifp->if_softc;
-	int flags;
+	int flags, stsflags;
 
 	switch (sc->phy_primary_device) {
-	case FXP_PHY_DP83840:
-	case FXP_PHY_DP83840A:
 	case FXP_PHY_82555:
 	case FXP_PHY_82555B:
-		flags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_BMCR);
+	case FXP_PHY_DP83840:
+	case FXP_PHY_DP83840A:
+		ifmr->ifm_status = IFM_AVALID; /* IFM_ACTIVE will be valid */
 		ifmr->ifm_active = IFM_ETHER;
-		if (flags & FXP_PHY_BMCR_AUTOEN)
-			ifmr->ifm_active |= IFM_AUTO;
-		else {
+		/*
+		 * the following is not an error.
+		 * You need to read this register twice to get current
+		 * status. This is correct documented behaviour, the
+		 * first read gets latched values.
+		 */
+		stsflags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_STS);
+		stsflags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_STS);
+		if (stsflags & FXP_PHY_STS_LINK_STS)
+				ifmr->ifm_status |= IFM_ACTIVE;
+
+		/* 
+		 * If we are in auto mode, then try report the result.
+		 */
+		flags = fxp_mdi_read(sc, sc->phy_primary_addr, FXP_PHY_BMCR);
+		if (flags & FXP_PHY_BMCR_AUTOEN) {
+			ifmr->ifm_active |= IFM_AUTO; /* XXX presently 0 */
+			if (stsflags & FXP_PHY_STS_AUTO_DONE) {
+				/*
+				 * Intel and National parts report
+				 * differently on what they found.
+				 */
+				if ((sc->phy_primary_device == FXP_PHY_82555)
+				|| (sc->phy_primary_device == FXP_PHY_82555B)) {
+					flags = fxp_mdi_read(sc,
+						sc->phy_primary_addr,
+						FXP_PHY_USC);
+	
+					if (flags & FXP_PHY_USC_SPEED)
+						ifmr->ifm_active |= IFM_100_TX;
+					else
+						ifmr->ifm_active |= IFM_10_T;
+		
+					if (flags & FXP_PHY_USC_DUPLEX)
+						ifmr->ifm_active |= IFM_FDX;
+				} else { /* it's National. only know speed  */
+					flags = fxp_mdi_read(sc,
+						sc->phy_primary_addr,
+						FXP_DP83840_PAR);
+	
+					if (flags & FXP_DP83840_PAR_SPEED_10)
+						ifmr->ifm_active |= IFM_10_T;
+					else
+						ifmr->ifm_active |= IFM_100_TX;
+				}
+			}
+		} else { /* in manual mode.. just report what we were set to */
 			if (flags & FXP_PHY_BMCR_SPEED_100M)
 				ifmr->ifm_active |= IFM_100_TX;
 			else
