@@ -111,8 +111,15 @@ main(int argc, char *argv[])
 	testfmt("00123,456,78.0625", "%'017.4F", 12345678.0625);
 	testfmt(" 90,00", "%'6.0f", 9000.0);
 	testfmt("90,00.0", "%'.1f", 9000.0);
+
 	assert(setlocale(LC_NUMERIC, "ru_RU.ISO8859-5")); /* decimalpoint==, */
 	testfmt("3,1415", "%g", 3.1415);
+
+	/* thousands=. decimalpoint=, grouping=3;3 */
+	assert(setlocale(LC_NUMERIC, "el_GR.ISO8859-7")); /* decimalpoint==, */
+	testfmt("1.234,00", "%'.2f", 1234.00);
+	testfmt("123.456,789", "%'.3f", 123456.789);
+
 	assert(setlocale(LC_NUMERIC, ""));
 	testfmt("12345678.062500", "%'f", 12345678.0625);
 	testfmt("9000.000000", "%'f", 9000.0);
