@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.7 1994/10/01 19:44:38 wollman Exp $
+ * $Id: if.h,v 1.8 1994/11/14 14:06:05 bde Exp $
  */
 
 #ifndef _NET_IF_H_
-#define _NET_IF_H_
+#define	_NET_IF_H_
 
 /*
  * Structures defining a network interface, providing a packet
@@ -61,6 +61,9 @@
  * routing and gateway routines maintaining information used to locate
  * interfaces.  These routines live in the files if.c and route.c
  */
+
+#include <socket.h>			/* for struct sockaddr */
+
 #ifndef _TIME_ /*  XXX fast fix for SNMP, going away soon */
 #include <sys/time.h>
 #endif
@@ -368,6 +371,6 @@ void	loopattach __P((void));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 void	lortrequest __P((int, struct rtentry *, struct sockaddr *));
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_NET_IF_H_ */
