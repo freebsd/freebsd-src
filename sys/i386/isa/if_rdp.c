@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_rdp.c,v 1.1.1.1 1998/12/21 12:43:35 j Exp $
+ *	$Id: if_rdp.c,v 1.2 1998/12/21 18:11:10 joerg Exp $
  */
 
 /*
@@ -109,6 +109,7 @@
  *  2 - debug EEPROM IO
  *  4 - debug interrupt status
  */
+#undef DEBUG
 #define DEBUG 0
 
 /*

@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.45 1998/12/15 15:51:37 kato Exp $
+ * $Id: if_fe.c,v 1.46 1998/12/31 03:21:14 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -3823,7 +3823,9 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 		return 0;
 	}
 
+#ifdef BRIDGE
 getit:
+#endif
 	/* Strip off the Ethernet header.  */
 	m->m_pkthdr.len -= sizeof ( struct ether_header );
 	m->m_len -= sizeof ( struct ether_header );
