@@ -81,18 +81,18 @@ shquote(char **argv)
 			errx(1, "malloc failed");
 	}
 
-	if (*argv == 0) {
-		buf[0] = 0;
+	if (*argv == NULL) {
+		buf[0] = '\0';
 		return (buf);
 	}
 	dst = buf;
-	for (p = argv; (src = *p++) != 0; ) {
-		if (*src == 0)
+	for (p = argv; (src = *p++) != NULL; ) {
+		if (*src == '\0')
 			continue;
 		len = (buf_size - 1 - (dst - buf)) / 4;
 		strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
 		    VIS_NL | VIS_CSTYLE);
-		while (*dst)
+		while (*dst != '\0')
 			dst++;
 		if ((buf_size - 1 - (dst - buf)) / 4 > 0)
 			*dst++ = ' ';
