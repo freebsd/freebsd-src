@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.11 1994/11/28 22:13:06 jkh Exp $
+# $Id: miscfuncs.sh,v 1.12 1994/12/01 13:46:13 jkh Exp $
 
 if [ "${_MISCFUNCS_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -22,7 +22,7 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
 export PATH
 
 # Keep this current with the distribution!
-DISTNAME="2.0-RELEASE"
+DISTNAME="2.0-941222-SNAP"
 
 # Express or Custom install?
 INSTALL_TYPE=""
