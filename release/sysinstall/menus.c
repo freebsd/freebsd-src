@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.205 1999/05/19 08:56:56 jkh Exp $
+ * $Id: menus.c,v 1.206 1999/05/21 07:10:35 roberto Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1337,13 +1337,10 @@ DMenu MenuNTP = {
       { "U.S. East Coast #2",	"otc1.psu.edu (WWV clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=otc1.psu.edu" },
-      { "U.S. West Coast",	"apple.com (WWV clock)",
-	dmenuVarsCheck,	dmenuSetVariables, NULL, 
-	"ntpdate_enable=YES,ntpdate_flags=apple.com" },
-      { "U.S. West Coast #2",	"clepsydra.dec.com (GOES clock)",
+      { "U.S. West Coast #1",	"clepsydra.dec.com (GOES clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=clepsydra.dec.com" },
-      { "U.S. West Coast #3",	"clock.llnl.gov (WWVB clock)",
+      { "U.S. West Coast #2",	"clock.llnl.gov (WWVB clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=clock.llnl.gov" },
       { "U.S. Midwest",		"ncar.ucar.edu (WWVB clock)",
