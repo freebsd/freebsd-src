@@ -125,7 +125,6 @@
 #define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
-#define UAREA_PAGES	1	/* holds struct user WITHOUT PCB (see def.) */
 
 
 /*
