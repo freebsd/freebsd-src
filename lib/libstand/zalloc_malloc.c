@@ -109,7 +109,7 @@ Free(void *ptr, const char *file, int line)
 	    return;
 	}
 	if (res->ga_Magic != GAMAGIC)
-	    panic("free: guard1 fail @ %p from %s:%p", ptr, file, line);
+	    panic("free: guard1 fail @ %p from %s:%d", ptr, file, line);
 	res->ga_Magic = GAFREE;
 #endif
 #ifdef USEENDGUARD
