@@ -332,9 +332,9 @@ layer3(char *pbuf, int n, int off, unsigned char *buf)
 			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x0f, "Length of Call Reference = 2");
 			i++;
 			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x80, "Call Reference sent %s origination side", (buf[i] & 0x80) ? "to" : "from");
-			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x7f, "Call reference = %d = %02x", (buf[i] & 0x7f));
+			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0x7f, "Call reference = %d = %02x", (buf[i] & 0x7f), (buf[i] & 0x7f));
 			i++;
-			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0xff, "Call reference = %d = %02x", (buf[i]));
+			sprintline(3, (pbuf+strlen(pbuf)), off+i, buf[i], 0xff, "Call reference = %d = %02x", (buf[i]), (buf[i]));
 			break;
 	}
 	i++;	
