@@ -160,7 +160,7 @@ checkinode(inumber, idesc)
 		 * Fake ndb value so direct/indirect block checks below
 		 * will detect any garbage after symlink string.
 		 */
-		if (dp->di_size < sblock.fs_maxsymlinklen) {
+		if ((dp->di_size < sblock.fs_maxsymlinklen) || dp->di_blocks == 0) {
 			ndb = howmany(dp->di_size, sizeof(daddr_t));
 			if (ndb > NDADDR) {
 				j = ndb - NDADDR;
