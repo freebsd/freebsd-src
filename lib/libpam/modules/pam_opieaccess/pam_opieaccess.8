@@ -96,7 +96,16 @@ Otherwise, it returns
 .Dv PAM_AUTH_ERR .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm no_warn"
+.Bl -tag -width ".Cm allow_local"
+.It Cm allow_local
+Always allow local logins.
+If this option is not specified, local logins are treated as remote
+logins from
+.Dq localhost ,
+and will be refused unless an appropriate
+.Dq allow
+entry exists in
+.Pa /etc/opieaccess .
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -106,6 +115,14 @@ level.
 suppress warning messages to the user.
 These messages include reasons why the user's authentication attempt
 was declined.
+.El
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa /etc/opieaccess
+List of trusted hosts or networks.
+See
+.Xr opieaccess 5
+for a description of its syntax.
 .El
 .Sh SEE ALSO
 .Xr opie 4 ,

@@ -74,7 +74,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (r != PAM_SUCCESS)
 		return (r);
 	if (rhost == NULL)
-		rhost = "localhost";
+		rhost = openpam_get_option(pamh, "allow_local") ?
+		    "" : "localhost";
 
 	if (opieaccessfile(rhost) != 0 && opiealways(pwent->pw_dir) != 0)
 		return (PAM_SUCCESS);
