@@ -142,9 +142,13 @@ if an error occurred.
 and
 .Fn sendmsg
 fail if:
-.Bl -tag -width [EMSGSIZE]
+.Bl -tag -width Er
 .It Bq Er EBADF
 An invalid descriptor was specified.
+.It Bq Er EACCES
+The destination address is a broadcast address, and 
+.Dv SO_BROADCAST
+has not been set on the socket.
 .It Bq Er ENOTSOCK
 The argument
 .Fa s
@@ -164,6 +168,8 @@ The operation may succeed when buffers become available.
 The output queue for a network interface was full.
 This generally indicates that the interface has stopped sending,
 but may be caused by transient congestion.
+.It Bq Er EHOSTUNREACH
+The remote host was unreachable.
 .El
 .Sh SEE ALSO
 .Xr fcntl 2 ,
