@@ -7,6 +7,8 @@
 %mlists;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
+%misc;
 ]>
 
 <article>
@@ -60,7 +62,7 @@
   utilities for &os;.  Each
   <quote>port</quote> consists of a set of scripts to retrieve,
   configure, build, and install a piece of software, with a single
-  command.  Over 5000 ports, from editors to programming
+  command.  Over &os.numports; ports, from editors to programming
   languages to graphical applications, make &os; a powerful and
   comprehensive operating environment that extends far beyond what's
   provided by many commercial versions of UNIX.  Most ports are also
@@ -110,7 +112,7 @@
   <sect2>
     <title>CDROM and DVD</title>
 
-    <para>&os; -RELEASE distributions (for example, 4.3-RELEASE) may
+    <para>&os; -RELEASE distributions may
     be ordered on CDROM or DVD from several publishers.  This is
     frequently the most convenient way to obtain &os; for new
     installations, as it provides a convenient way to quickly
