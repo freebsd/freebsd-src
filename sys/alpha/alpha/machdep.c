@@ -225,6 +225,8 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
+void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
+
 static void identifycpu __P((void));
 
 static vm_offset_t buffer_sva, buffer_eva;
@@ -1221,7 +1223,7 @@ DELAY(int n)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
-static void
+void
 osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct proc *p = curproc;
