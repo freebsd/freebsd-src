@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.7 1995/05/30 05:05:34 rgrimes Exp $
+# $Id: Makefile.yp,v 1.7.4.1 1995/08/25 11:18:36 davidg Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -267,9 +267,9 @@ services.byname: $(SERVICES)
 	$(RM) $@
 	$(CAT) $(SERVICES) | \
 	$(AWK) \
-	   '$$1 !~ "#"  { print $$1"\t"$$0; \
-			  for (n=3; n<=NF && $$n !~ "#"; n++) \
-			      print $$n"\t"$$0 \
+	   '$$1 !~ "#"  { if (index($$2,"udp")) { printf("%s/udp",$$1) } \
+			  else { printf("%s/tcp",$$1) }; print "\t"$$0 ; \
+			  print $$2"\t"$$0 ; \
 			}' $^ | $(DBLOAD) -i $(SERVICES) -o $(YPMAPDIR)/$@ - $@
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1995/02/15 04:33:52 wpaul Exp $
+# $Id: Makefile,v 1.6.4.1 1995/08/25 11:18:34 davidg Exp $
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	ypserv
@@ -12,7 +12,10 @@ MAN8= ypserv.8
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/Makefile.yp \
-		${DESTDIR}/var/yp/Makefile
+		${DESTDIR}/var/yp/Makefile.dist
+	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
+		ln -s   ${DESTDIR}/var/yp/Makefile.dist \
+			${DESTDIR}/var/yp/Makefile; fi
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/mknetid \
 		${DESTDIR}/usr/libexec/mknetid
