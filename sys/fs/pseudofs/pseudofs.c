@@ -269,7 +269,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 	vfs_getnewfsid(mp);
 
 	sbp = &mp->mnt_stat;
-	bcopy(pi->pi_name, sbp->f_mntfromname, sizeof pi->pi_name);
+	vfs_mountedfrom(mp, pi->pi_name);
 	sbp->f_bsize = PAGE_SIZE;
 	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_blocks = 1;
@@ -316,7 +316,7 @@ pfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 int
 pfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
-	bcopy(&mp->mnt_stat, sbp, sizeof *sbp);
+	/* no-op:  always called with mp->mnt_stat */
 	return (0);
 }
 
