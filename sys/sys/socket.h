@@ -42,6 +42,12 @@
  */
 
 /*
+ * Data types.
+ */
+typedef u_char		sa_family_t;
+typedef u_int32_t	socklen_t;
+ 
+/*
  * Types
  */
 #define	SOCK_STREAM	1		/* stream socket */
@@ -140,9 +146,9 @@ struct	linger {
  * addresses.
  */
 struct sockaddr {
-	u_char	sa_len;			/* total length */
-	u_char	sa_family;		/* address family */
-	char	sa_data[14];		/* actually longer; address value */
+	u_char		sa_len;		/* total length */
+	sa_family_t	sa_family;	/* address family */
+	char		sa_data[14];	/* actually longer; address value */
 };
 #define	SOCK_MAXADDRLEN	255		/* longest possible addresses */
 
@@ -165,11 +171,11 @@ struct sockproto {
 				_SS_PAD1SIZE - _SS_ALIGNSIZE)
 
 struct sockaddr_storage {
-	u_char	__ss_len;		/* address length */
-	u_char	__ss_family;	/* address family */
-	char	__ss_pad1[_SS_PAD1SIZE];
-	int64_t	__ss_align;	/* force desired structure storage alignment */
-	char	__ss_pad2[_SS_PAD2SIZE];
+	u_char		__ss_len;		/* address length */
+	sa_family_t	__ss_family;	/* address family */
+	char		__ss_pad1[_SS_PAD1SIZE];
+	int64_t		__ss_align;	/* force desired structure storage alignment */
+	char		__ss_pad2[_SS_PAD2SIZE];
 };
 
 /*
@@ -179,7 +185,6 @@ struct sockaddr_storage {
 #define	PF_LOCAL	AF_LOCAL
 #define	PF_UNIX		PF_LOCAL	/* backward compatibility */
 #define	PF_INET		AF_INET
-#define	PF_INET6	AF_INET6
 #define	PF_IMPLINK	AF_IMPLINK
 #define	PF_PUP		AF_PUP
 #define	PF_CHAOS	AF_CHAOS
@@ -289,13 +294,13 @@ struct sockaddr_storage {
  * Used value-result for recvmsg, value only for sendmsg.
  */
 struct msghdr {
-	caddr_t	msg_name;		/* optional address */
-	u_int	msg_namelen;		/* size of address */
-	struct	iovec *msg_iov;		/* scatter/gather array */
-	u_int	msg_iovlen;		/* # elements in msg_iov */
-	caddr_t	msg_control;		/* ancillary data, see below */
-	u_int	msg_controllen;		/* ancillary data buffer len */
-	int	msg_flags;		/* flags on received message */
+	void		*msg_name;		/* optional address */
+	socklen_t	 msg_namelen;		/* size of address */
+	struct iovec	*msg_iov;		/* scatter/gather array */
+	int		 msg_iovlen;		/* # elements in msg_iov */
+	void		*msg_control;		/* ancillary data, see below */
+	socklen_t	 msg_controllen;	/* ancillary data buffer len */
+	int		 msg_flags;		/* flags on received message */
 };
 
 #define	MSG_OOB		0x1		/* process out-of-band data */
@@ -316,9 +321,9 @@ struct msghdr {
  * of message elements headed by cmsghdr structures.
  */
 struct cmsghdr {
-	u_int	cmsg_len;		/* data byte count, including hdr */
-	int	cmsg_level;		/* originating protocol */
-	int	cmsg_type;		/* protocol-specific type */
+	socklen_t	cmsg_len;		/* data byte count, including hdr */
+	int		cmsg_level;		/* originating protocol */
+	int		cmsg_type;		/* protocol-specific type */
 /* followed by	u_char  cmsg_data[]; */
 };
 
@@ -414,22 +419,22 @@ struct sf_hdtr {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	accept __P((int, struct sockaddr *, int *));
-int	bind __P((int, const struct sockaddr *, int));
-int	connect __P((int, const struct sockaddr *, int));
-int	getpeername __P((int, struct sockaddr *, int *));
-int	getsockname __P((int, struct sockaddr *, int *));
-int	getsockopt __P((int, int, int, void *, int *));
+int	accept __P((int, struct sockaddr *, socklen_t *));
+int	bind __P((int, const struct sockaddr *, socklen_t));
+int	connect __P((int, const struct sockaddr *, socklen_t));
+int	getpeername __P((int, struct sockaddr *, socklen_t *));
+int	getsockname __P((int, struct sockaddr *, socklen_t *));
+int	getsockopt __P((int, int, int, void *, socklen_t *));
 int	listen __P((int, int));
 ssize_t	recv __P((int, void *, size_t, int));
-ssize_t	recvfrom __P((int, void *, size_t, int, struct sockaddr *, int *));
+ssize_t	recvfrom __P((int, void *, size_t, int, struct sockaddr *, socklen_t *));
 ssize_t	recvmsg __P((int, struct msghdr *, int));
 ssize_t	send __P((int, const void *, size_t, int));
 ssize_t	sendto __P((int, const void *,
-	    size_t, int, const struct sockaddr *, int));
+	    size_t, int, const struct sockaddr *, socklen_t));
 ssize_t	sendmsg __P((int, const struct msghdr *, int));
 int	sendfile __P((int, int, off_t, size_t, struct sf_hdtr *, off_t *, int));
-int	setsockopt __P((int, int, int, const void *, int));
+int	setsockopt __P((int, int, int, const void *, socklen_t));
 int	shutdown __P((int, int));
 int	socket __P((int, int, int));
 int	socketpair __P((int, int, int, int *));

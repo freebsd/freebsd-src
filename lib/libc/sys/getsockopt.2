@@ -43,9 +43,9 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Ft int
-.Fn getsockopt "int s" "int level" "int optname" "void *optval" "int *optlen"
+.Fn getsockopt "int s" "int level" "int optname" "void *optval" "socklen_t *optlen"
 .Ft int
-.Fn setsockopt "int s" "int level" "int optname" "const void *optval" "int optlen"
+.Fn setsockopt "int s" "int level" "int optname" "const void *optval" "socklen_t optlen"
 .Sh DESCRIPTION
 .Fn Getsockopt
 and
