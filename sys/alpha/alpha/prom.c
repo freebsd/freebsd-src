@@ -27,8 +27,6 @@
  * $FreeBSD$
  */
 
-#include "opt_simos.h"
-
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
 /* __KERNEL_RCSID(0, "$NetBSD: prom.c,v 1.22 1998/02/27 04:03:00 thorpej Exp $"); */
@@ -99,18 +97,12 @@ static int alpha_console;
 void
 init_bootstrap_console()
 {
-#ifndef SIMOS
 	char buf[4];
-#endif
 
 	init_prom_interface(hwrpb);
 
-#ifdef SIMOS
-	alpha_console = 0;
-#else
 	prom_getenv(PROM_E_TTY_DEV, buf, 4);
 	alpha_console = buf[0] - '0';
-#endif
 	promcnattach(alpha_console);
 }
 
@@ -194,20 +186,6 @@ enter_prom()
 	s = intr_disable();
 
 	if (!prom_mapped) {
-#ifdef SIMOS
-		/*
-		 * SimOS console uses floating point.
-		 */
-		if (curthread != PCPU_GET(fpcurthread)) {
-			alpha_pal_wrfen(1);
-			if (PCPU_GET(fpcurthread)) {
-				savefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
-				PCPU_GET(fpcurthread)->td_pcb->pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
-			}
-			PCPU_SET(fpcurthread, curthread);
-			restorefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
-		}
-#endif
 		if (!pmap_uses_prom_console())
 			panic("enter_prom");
 		lev1map = rom_lev1map();	/* XXX */
