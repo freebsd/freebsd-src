@@ -29,18 +29,20 @@
 #ifndef	_SYS_DISKSLICE_H_
 #define	_SYS_DISKSLICE_H_
 
-#ifndef _KERNEL
-#include <sys/types.h>
-#endif
+#ifndef raidframe_has_been_fixed
 #include <sys/ioccom.h>
-
-#define	BASE_SLICE		2
-#define	COMPATIBILITY_SLICE	0
 #define	DIOCGSLICEINFO		_IOR('d', 111, struct diskslices)
 #define	DIOCSYNCSLICEINFO	_IOW('d', 112, int)
+#endif
+
+#ifndef sys_boot_code_has_been_fixed
+#define	BASE_SLICE		2
+#define	COMPATIBILITY_SLICE	0
 #define	MAX_SLICES		32
 #define	WHOLE_DISK_SLICE	1
+#endif
 
+#ifdef NO_GEOM
 struct diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
@@ -88,4 +90,5 @@ int	dssize(dev_t dev, struct diskslices **sspp);
 
 #endif /* _KERNEL */
 
+#endif /* NO_GEOM */
 #endif /* !_SYS_DISKSLICE_H_ */
