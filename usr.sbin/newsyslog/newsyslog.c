@@ -1,3 +1,33 @@
+/*-
+ * ------+---------+---------+-------- + --------+---------+---------+---------*
+ * This file includes significant modifications done by:
+ * Copyright (c) 2003, 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * ------+---------+---------+-------- + --------+---------+---------+---------*
+ */
+
 /*
  * This file contains changes from the Open Software Foundation.
  */
@@ -35,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -56,6 +87,12 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 #include "extern.h"
+
+/* Define this symbol to try out the "new order" for work items. */
+#define	TRY_NEWORDER
+#ifndef USE_NEWORDER
+#define	USE_NEWORDER	0	/* Initial value for dbg_new_order */
+#endif
 
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
@@ -103,12 +140,37 @@ struct conf_entry {
 	struct conf_entry *next;/* Linked list pointer */
 };
 
+struct sigwork_entry {
+	SLIST_ENTRY(sigwork_entry) sw_nextp;
+	int	 sw_signum;		/* the signal to send */
+	int	 sw_pidok;		/* true if pid value is valid */
+	pid_t	 sw_pid;		/* the process id from the PID file */
+	const char *sw_pidtype;		/* "daemon" or "process group" */
+	char	 sw_fname[1];		/* file the PID was read from */
+};
+
+struct zipwork_entry {
+	SLIST_ENTRY(zipwork_entry) zw_nextp;
+	const struct conf_entry *zw_conf;	/* for chown/perm/flag info */
+	const struct sigwork_entry *zw_swork;	/* to know success of signal */
+	int	 zw_fsize;		/* size of the file to compress */
+	char	 zw_fname[1];		/* the file to compress */
+};
+
 typedef enum {
 	FREE_ENT, KEEP_ENT
 }	fk_entry;
 
+SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
+SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
+
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
-int dbg_new_order;		/* -D Try the 'neworder' of doing the work */
+/*
+ * The debug options "neworder" and "oldorder" can be used to change
+ * which order work is done in.  Note that both options will disappear
+ * in the near future, and the "new" order will be the only order.
+ */
+int dbg_new_order = USE_NEWORDER;
 
 int archtodir = 0;		/* Archive old logfiles to other directory */
 int createlogs;			/* Create (non-GLOB) logfiles which do not */
@@ -144,6 +206,16 @@ static char *missing_field(char *p, char *errline);
 static void	 change_attrs(const char *, const struct conf_entry *);
 static fk_entry	 do_entry(struct conf_entry *);
 static fk_entry	 do_rotate(const struct conf_entry *);
+#ifdef TRY_NEWORDER
+static void	 do_sigwork(struct sigwork_entry *);
+static void	 do_zipwork(struct zipwork_entry *);
+static struct sigwork_entry *
+		 save_sigwork(const struct conf_entry *);
+static struct zipwork_entry *
+		 save_zipwork(const struct conf_entry *, const struct
+		    sigwork_entry *, int, const char *);
+static void	 set_swpid(struct sigwork_entry *, const struct conf_entry *);
+#endif
 static int	 sizefile(const char *);
 static void expand_globs(struct conf_entry **work_p,
 		struct conf_entry **glob_p);
@@ -178,6 +250,13 @@ main(int argc, char **argv)
 {
 	fk_entry free_or_keep;
 	struct conf_entry *p, *q;
+#ifdef TRY_NEWORDER
+	struct sigwork_entry *stmp;
+	struct zipwork_entry *ztmp;
+#endif
+
+	SLIST_INIT(&swhead);
+	SLIST_INIT(&zwhead);
 
 	parse_args(argc, argv);
 	argc -= optind;
@@ -198,6 +277,50 @@ main(int argc, char **argv)
 			free_entry(q);
 		q = p;
 	}
+
+#ifdef TRY_NEWORDER
+	/*
+	 * Send signals to any processes which need a signal to tell
+	 * them to close and re-open the log file(s) we have rotated.
+	 * Note that zipwork_entries include pointers to these
+	 * sigwork_entry's, so we can not free the entries here.
+	 */
+	if (!SLIST_EMPTY(&swhead)) {
+		if (noaction || verbose)
+			printf("Signal all daemon process(es)...\n");
+		SLIST_FOREACH(stmp, &swhead, sw_nextp)
+			do_sigwork(stmp);
+		if (noaction)
+			printf("\tsleep 10\n");
+		else {
+			if (verbose)
+				printf("Pause 10 seconds to allow daemon(s)"
+				    " to close log file(s)\n");
+			sleep(10);
+		}
+	}
+	/*
+	 * Compress all files that we're expected to compress, now
+	 * that all processes should have closed the files which
+	 * have been rotated.
+	 */
+	if (!SLIST_EMPTY(&zwhead)) {
+		if (noaction || verbose)
+			printf("Compress all rotated log file(s)...\n");
+		while (!SLIST_EMPTY(&zwhead)) {
+			ztmp = SLIST_FIRST(&zwhead);
+			do_zipwork(ztmp);
+			SLIST_REMOVE_HEAD(&zwhead, zw_nextp);
+			free(ztmp);
+		}
+	}
+	/* Now free all the sigwork entries. */
+	while (!SLIST_EMPTY(&swhead)) {
+		stmp = SLIST_FIRST(&swhead);
+		SLIST_REMOVE_HEAD(&swhead, sw_nextp);
+		free(stmp);
+	}
+#endif /* TRY_NEWORDER */
 
 	while (wait(NULL) > 0 || errno == EINTR)
 		;
@@ -679,6 +802,23 @@ parse_doption(const char *doption)
 
 	if (strcmp(doption, "ats") == 0) {
 		dbg_at_times++;
+		return (1);			/* successfully parsed */
+	}
+
+	if (strcmp(doption, "neworder") == 0) {
+#ifdef TRY_NEWORDER
+		dbg_new_order++;
+#else
+		warnx("NOTE: The code for 'neworder' was not compiled in.");
+#endif
+		return (1);			/* successfully parsed */
+	}
+	if (strcmp(doption, "oldorder") == 0) {
+#ifdef TRY_NEWORDER
+		dbg_new_order = 0;
+#else
+		warnx("NOTE: The code for 'neworder' was not compiled in.");
+#endif
 		return (1);			/* successfully parsed */
 	}
 
@@ -1455,6 +1595,31 @@ do_rotate(const struct conf_entry *ent)
 		printf("Start new log...\n");
 	createlog(ent);
 
+#ifdef TRY_NEWORDER
+	/*
+	 * Save all signalling and file-compression to be done after log
+	 * files from all entries have been rotated.  This way any one
+	 * process will not be sent the same signal multiple times when
+	 * multiple log files had to be rotated.
+	 */
+	if (dbg_new_order) {
+		struct sigwork_entry *swork;
+
+		swork = NULL;
+		if (ent->pid_file != NULL)
+			swork = save_sigwork(ent);
+		if (ent->numlogs > 0 && (flags & (CE_COMPACT | CE_BZCOMPACT))) {
+			/*
+			 * The zipwork_entry will include a pointer to this
+			 * conf_entry, so the conf_entry should not be freed.
+			 */
+			free_or_keep = KEEP_ENT;
+			save_zipwork(ent, swork, ent->fsize, file1);
+		}
+		return (free_or_keep);
+	}
+#endif /* TRY_NEWORDER */
+
 	/*
 	 * Find out if there is a process to signal.  If nosignal (-s) was
 	 * specified, then do not signal any process.  Note that nosignal
@@ -1512,6 +1677,310 @@ do_rotate(const struct conf_entry *ent)
 	}
 	return (free_or_keep);
 }
+
+#ifdef TRY_NEWORDER
+static void
+do_sigwork(struct sigwork_entry *swork)
+{
+	struct sigwork_entry *nextsig;
+	int kres, secs;
+
+	if (!(swork->sw_pidok) || swork->sw_pid == 0)
+		return;			/* no work to do... */
+
+	/*
+	 * If nosignal (-s) was specified, then do not signal any process.
+	 * Note that a nosignal request triggers a warning message if the
+	 * rotated logfile needs to be compressed, *unless* -R was also
+	 * specified.  We assume that an `-sR' request came from a process
+	 * which writes to the logfile, and as such, we assume that process
+	 * has already made sure the logfile is not presently in use.  This
+	 * just sets swork->sw_pidok to a special value, and do_zipwork
+	 * will print any necessary warning(s).
+	 */
+	if (nosignal) {
+		if (!rotatereq)
+			swork->sw_pidok = -1;
+		return;
+	}
+
+	/*
+	 * Compute the pause between consecutive signals.  Use a longer
+	 * sleep time if we will be sending two signals to the same
+	 * deamon or process-group.
+	 */
+	secs = 0;
+	nextsig = SLIST_NEXT(swork, sw_nextp);
+	if (nextsig != NULL) {
+		if (swork->sw_pid == nextsig->sw_pid)
+			secs = 10;
+		else
+			secs = 1;
+	}
+
+	if (noaction) {
+		printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
+		    (int)swork->sw_pid, swork->sw_fname);
+		if (secs > 0)
+			printf("\tsleep %d\n", secs);
+		return;
+	}
+
+	kres = kill(swork->sw_pid, swork->sw_signum);
+	if (kres != 0) {
+		/*
+		 * Assume that "no such process" (ESRCH) is something
+		 * to warn about, but is not an error.  Presumably the
+		 * process which writes to the rotated log file(s) is
+		 * gone, in which case we should have no problem with
+		 * compressing the rotated log file(s).
+		 */
+		if (errno != ESRCH)
+			swork->sw_pidok = 0;
+		warn("can't notify %s, pid %d", swork->sw_pidtype,
+		    (int)swork->sw_pid);
+	} else {
+		if (verbose)
+			printf("Notified %s pid %d = %s\n", swork->sw_pidtype,
+			    (int)swork->sw_pid, swork->sw_fname);
+		if (secs > 0) {
+			if (verbose)
+				printf("Pause %d second(s) between signals\n",
+				    secs);
+			sleep(secs);
+		}
+	}
+}
+
+static void
+do_zipwork(struct zipwork_entry *zwork)
+{
+	const char *pgm_name, *pgm_path;
+	int zstatus;
+	pid_t pidzip, wpid;
+	char zresult[MAXPATHLEN];
+
+	pgm_path = NULL;
+	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
+	if (zwork != NULL && zwork->zw_conf != NULL) {
+		if (zwork->zw_conf->flags & CE_COMPACT) {
+			pgm_path = _PATH_GZIP;
+			strlcat(zresult, COMPRESS_POSTFIX, sizeof(zresult));
+		} else if (zwork->zw_conf->flags & CE_BZCOMPACT) {
+			pgm_path = _PATH_BZIP2;
+			strlcat(zresult, BZCOMPRESS_POSTFIX, sizeof(zresult));
+		}
+	}
+	if (pgm_path == NULL) {
+		warnx("invalid entry for %s in do_zipwork", zwork->zw_fname);
+		return;
+	}
+
+	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
+		warnx(
+		    "log %s not compressed because daemon(s) not notified",
+		    zwork->zw_fname);
+		change_attrs(zwork->zw_fname, zwork->zw_conf);
+		return;
+	}
+
+	if (noaction) {
+		pgm_name = strrchr(pgm_path, '/');
+		if (pgm_name == NULL)
+			pgm_name = pgm_path;
+		else
+			pgm_name++;
+		printf("\t%s %s\n", pgm_name, zwork->zw_fname);
+		change_attrs(zresult, zwork->zw_conf);
+		return;
+	}
+
+	pidzip = fork();
+	if (pidzip < 0)
+		err(1, "gzip fork");
+	else if (!pidzip) {
+		/* The child process executes the compression command */
+		execl(pgm_path, pgm_path, "-f", zwork->zw_fname, (char *)0);
+		err(1, "%s", pgm_path);
+	}
+
+	wpid = waitpid(pidzip, &zstatus, 0);
+	if (wpid == -1) {
+		warn("%s: waitpid(%d)", pgm_path, pidzip);
+		return;
+	}
+	if (!WIFEXITED(zstatus)) {
+		warn("%s: did not terminate normally", pgm_path);
+		return;
+	}
+	if (WEXITSTATUS(zstatus)) {
+		warn("%s: terminated with %d (non-zero) status",
+		    pgm_path, WEXITSTATUS(zstatus));
+		return;
+	}
+
+	/* Compression was successful, set file attributes on the result. */
+	change_attrs(zresult, zwork->zw_conf);
+}
+
+/*
+ * Save information on any process we need to signal.  Any single
+ * process may need to be sent different signal-values for different
+ * log files, but usually a single signal-value will cause the process
+ * to close and re-open all of it's log files.
+ */
+static struct sigwork_entry *
+save_sigwork(const struct conf_entry *ent)
+{
+	struct sigwork_entry *sprev, *stmp;
+	int ndiff;
+	size_t tmpsiz;
+
+	sprev = NULL;
+	ndiff = 1;
+	SLIST_FOREACH(stmp, &swhead, sw_nextp) {
+		ndiff = strcmp(ent->pid_file, stmp->sw_fname);
+		if (ndiff > 0)
+			break;
+		if (ndiff == 0) {
+			if (ent->sig == stmp->sw_signum)
+				break;
+			if (ent->sig > stmp->sw_signum) {
+				ndiff = 1;
+				break;
+			}
+		}
+		sprev = stmp;
+	}
+	if (stmp != NULL && ndiff == 0)
+		return (stmp);
+
+	tmpsiz = sizeof(struct sigwork_entry) + strlen(ent->pid_file) + 1;
+	stmp = malloc(tmpsiz);
+	set_swpid(stmp, ent);
+	stmp->sw_signum = ent->sig;
+	strcpy(stmp->sw_fname, ent->pid_file);
+	if (sprev == NULL)
+		SLIST_INSERT_HEAD(&swhead, stmp, sw_nextp);
+	else
+		SLIST_INSERT_AFTER(sprev, stmp, sw_nextp);
+	return (stmp);
+}
+
+/*
+ * Save information on any file we need to compress.  We may see the same
+ * file multiple times, so check the full list to avoid duplicates.  The
+ * list itself is sorted smallest-to-largest, because that's the order we
+ * want to compress the files.  If the partition is very low on disk space,
+ * then the smallest files are the most likely to compress, and compressing
+ * them first will free up more space for the larger files.
+ */
+static struct zipwork_entry *
+save_zipwork(const struct conf_entry *ent, const struct sigwork_entry *swork,
+    int zsize, const char *zipfname)
+{
+	struct zipwork_entry *zprev, *ztmp;
+	int ndiff;
+	size_t tmpsiz;
+
+	/* Compute the size if the caller did not know it. */
+	if (zsize < 0)
+		zsize = sizefile(zipfname);
+
+	zprev = NULL;
+	ndiff = 1;
+	SLIST_FOREACH(ztmp, &zwhead, zw_nextp) {
+		ndiff = strcmp(zipfname, ztmp->zw_fname);
+		if (ndiff == 0)
+			break;
+		if (zsize > ztmp->zw_fsize)
+			zprev = ztmp;
+	}
+	if (ztmp != NULL && ndiff == 0)
+		return (ztmp);
+
+	tmpsiz = sizeof(struct zipwork_entry) + strlen(zipfname) + 1;
+	ztmp = malloc(tmpsiz);
+	ztmp->zw_conf = ent;
+	ztmp->zw_swork = swork;
+	ztmp->zw_fsize = zsize;
+	strcpy(ztmp->zw_fname, zipfname);
+	if (zprev == NULL)
+		SLIST_INSERT_HEAD(&zwhead, ztmp, zw_nextp);
+	else
+		SLIST_INSERT_AFTER(zprev, ztmp, zw_nextp);
+	return (ztmp);
+}
+
+/* Send a signal to the pid specified by pidfile */
+static void
+set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
+{
+	FILE *f;
+	long minok, maxok, rval;
+	char *endp, *linep, line[BUFSIZ];
+
+	minok = MIN_PID;
+	maxok = MAX_PID;
+	swork->sw_pidok = 0;
+	swork->sw_pid = 0;
+	swork->sw_pidtype = "daemon";
+	if (ent->flags & CE_SIGNALGROUP) {
+		/*
+		 * If we are expected to signal a process-group when
+		 * rotating this logfile, then the value read in should
+		 * be the negative of a valid process ID.
+		 */
+		minok = -MAX_PID;
+		maxok = -MIN_PID;
+		swork->sw_pidtype = "process-group";
+	}
+
+	f = fopen(ent->pid_file, "r");
+	if (f == NULL) {
+		warn("can't open pid file: %s", ent->pid_file);
+		return;
+	}
+
+	if (fgets(line, BUFSIZ, f) == NULL) {
+		/*
+		 * Warn if the PID file is empty, but do not consider
+		 * it an error.  Most likely it means the process has
+		 * has terminated, so it should be safe to rotate any
+		 * log files that the process would have been using.
+		 */
+		if (feof(f)) {
+			swork->sw_pidok = 1;
+			warnx("pid file is empty: %s", ent->pid_file);
+		} else
+			warn("can't read from pid file: %s", ent->pid_file);
+		(void)fclose(f);
+		return;
+	}
+	(void)fclose(f);
+
+	errno = 0;
+	linep = line;
+	while (*linep == ' ')
+		linep++;
+	rval = strtol(linep, &endp, 10);
+	if (*endp != '\0' && !isspacech(*endp)) {
+		warnx("pid file does not start with a valid number: %s",
+		    ent->pid_file);
+	} else if (rval < minok || rval > maxok) {
+		warnx("bad value '%ld' for process number in %s",
+		    rval, ent->pid_file);
+		if (verbose)
+			warnx("\t(expecting value between %ld and %ld)",
+			    minok, maxok);
+	} else {
+		swork->sw_pidok = 1;
+		swork->sw_pid = rval;
+	}
+
+	return;
+}
+#endif /* TRY_NEWORDER */
 
 /* Log the fact that the logs were turned over */
 static int
