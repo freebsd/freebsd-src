@@ -7,7 +7,7 @@
 #include <signal.h>
 #include "hash.h"
 #include "rcs.h"
-#include "regex.h"
+#include "gnuregex.h"
 #include "fnmatch.h"
 #include "getopt.h"
 #include "wait.h"
