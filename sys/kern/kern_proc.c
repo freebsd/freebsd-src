@@ -97,8 +97,8 @@ procinit()
 	 * not know of any way to do that...
 	 */
 	if (sizeof(struct kinfo_proc) != KINFO_PROC_SIZE)
-		printf("WARNING: size of kinfo_proc (%d) should be %d!!!\n",
-			sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
+		printf("WARNING: size of kinfo_proc (%ld) should be %d!!!\n",
+			(long)sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
 }
 
 /*
