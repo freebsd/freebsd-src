@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier RObert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.3 1995/07/06 14:24:56 jfieber Exp $
+# $Id: ctm.sgml,v 1.4 1995/08/29 01:42:33 jfieber Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -44,47 +44,50 @@
       <p>You will need two things: The ``<tt/CTM/'' program and the initial
         deltas to feed it (to get up to ``current'' levels).
 
-        The <tt/CTM/ program is in the <tt/FreeBSD-current/ tree from
-        version 2.0.0 and forward (<tt>/usr/src/usr.sbin/<tt/CTM/</tt>).
-        If you are running an older version of FreeBSD, you can fetch the
+        The <tt/CTM/ program has been part of FreeBSD ever since version 2.0
+        was released, and lives in <tt>/usr/src/usr.sbin/<tt/CTM/</tt> if you
+        have a copy of the source online.
+
+        If you are running a pre-2.0 version of FreeBSD, you can fetch the
         current <tt/CTM/ sources directly from:
 
         <url
           url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/usr.sbin/ctm">
 
-        The ``deltas'' you feed <tt/CTM/ can be had two ways, ftp or email.
-        If you have general ftp access to the Internet, then the following
-        ftp sites support access to <tt/CTM/:
+        The ``deltas'' you feed <tt/CTM/ can be had two ways, FTP or e-mail.
+        If you have general FTP access to the Internet then the following
+        FTP sites support access to <tt/CTM/:
 
         <url url="ftp://freefall.cdrom.com/pub/CTM">
 
-        Ftp the the relevant directory and fetch the <tt/README/ file,
+        FTP the relevant directory and fetch the <tt/README/ file,
         starting from there.
 
         If you only have access to electronic mail or are otherwise blocked
-        from using ftp, then you may wish to your deltas via email:
+        from using FTP then you may wish to get your deltas via email:
 
         Send email to <tt/&lt;majordomo@freebsd.org&gt;/ to subscribe to
         the list ``ctm-src-cur''.  (If you do not know how to subscribe
         yourself using majordomo, send a message first containing the
-        word ``help'', it will send you back usage instructions.)
+        word ``help'' - it will send you back usage instructions.)
 
         When you begin receiving your <tt/CTM/ updates in the mail, you may
-        use the <tt/ctm_rmail/ program to unpack and apply them with.  You
+        use the <tt/ctm_rmail/ program to unpack and apply them.  You
         can actually use the <tt/ctm_rmail/ program directly from a entry
-        in <tt>/etc/aliases</tt> if you want.  Check the <tt/ctm_rmail/ man
-        page for more details.
+        in <tt>/etc/aliases</tt> if you want to have the process run in a
+        fully automated fashion.  Check the <tt/ctm_rmail/ man page for more
+        details.
 
         <bf/NOTE/: No matter what method you use to get the <tt/CTM/
         deltas, you should subscribe to the <tt/ctm-announce@freebsd.org/
-        mailing list.  In the future this will be the only place where
-        announcements about the operation of the <tt/CTM/ system will be
+        mailing list.  In the future, this will be the only place where
+        announcements concerning the operations of the <tt/CTM/ system will be
         posted.  Send an email to <tt/majordomo@freebsd.org/ with a single
         line of ``<tt/subscribe ctm-announce/'' to get added to the list.
 
     <sect1><heading>Starting off with <tt/CTM/ for the first time</heading>
       <p>Before you can start using <tt/CTM/ deltas, you will need to get a
-        special ``base'' delta that provides a starting point for all
+        special ``base'' delta that provides the starting point for all
         deltas produced subsequently to it.
 
         You can recognize a base delta by the ``<tt/A/'' appended to the
@@ -110,19 +113,20 @@
         so you don't need to gunzip them first, this saves diskspace.
 
         Unless it feels very secure about the entire process, <tt/CTM/ will
-        not touch your tree.  To check out a delta you can also use the
-        ``<tt/-c/'' flag and <tt/CTM/ won't actually touch your tree, but
-        only check the integrity of the delta, and see if it would apply
-        cleanly to the tree.
+        not touch your tree.  To verify a delta you can also use the
+        ``<tt/-c/'' flag and <tt/CTM/ won't actually touch your tree; it will
+	merely verify the integrity of the delta and see if it would apply
+        cleanly to your current tree.
 
-        There are other options to <tt/CTM/ as well, look in the sources.
+        There are other options to <tt/CTM/ as well, look in the sources
+        for more details.
 
         I would also be very happy if somebody could help with the ``user
         interface'' portions, as I have realized that I can't make up my
         mind on what options should do what, how and when...
 
         That's really all there is to it.  Everytime you get a new delta,
-        you run it through <tt/CTM/.
+        just run it through <tt/CTM/ to keep your sources up to date.
 
         Don't remove the deltas if they are hard to download again.  You
         just might want to keep them around in case something bad happens.
