@@ -2,7 +2,6 @@
 
 PROG = amq
 SRCS = amq.c amq_clnt.c amq_xdr.c misc_rpc.c
-LDADD+=-lrpc
 CFLAGS+=-I${.CURDIR}/../include
 CFLAGS+=-I${.CURDIR}/../rpcx
 CFLAGS+=-I${.CURDIR}/../config

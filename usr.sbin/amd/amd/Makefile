@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/22/94
 
 PROG=	amd
-MAN8=	amd.0
+MAN8=	amd.8
 OS=	bsd44
 SRCS=	afs_ops.c am_ops.c clock.c util.c xutil.c \
 	efs_ops.c mapc.c info_file.c info_hes.c \
@@ -14,7 +14,6 @@ SRCS=	afs_ops.c am_ops.c clock.c util.c xutil.c \
 	amq_subr.c umount_fs.c host_ops.c nfsx_ops.c \
 	ufs_ops.c ifs_ops.c amd.c get_args.c restart.c wire.c
 OBJS+=	vers.${PROG}.o
-LDADD+= -lrpc
 CFLAGS+=-I${.CURDIR}/../rpcx
 CFLAGS+=-I${.CURDIR}/../config
 CFLAGS+=-I${.CURDIR}/../include
