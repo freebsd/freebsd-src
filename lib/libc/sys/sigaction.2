@@ -445,7 +445,7 @@ void handler(int, siginfo_t *info, void *context);
 The handler function should match the SA_SIGINFO prototype if the
 SA_SIGINFO bit is set in flags.
 It then should be pointed to by the
-.Dv sa_siginfo
+.Dv sa_sigaction
 member of
 .Dv struct sigaction .
 Note that you should not assign SIG_DFL or SIG_IGN this way.
