@@ -57,7 +57,7 @@ typedef struct _hitList {
 /* These are the only meaningful files I know about */
 static HitList etc_files [] = {
    { JUST_COPY,		"Xaccel.ini",		TRUE, NULL },
-   { JUST_COPY,		"XF86Config",		TRUE, NULL },
+   { JUST_COPY,		"X11",			TRUE, NULL },
    { JUST_COPY,		"adduser.conf",		TRUE, NULL },
    { JUST_COPY,		"aliases",		TRUE, NULL },
    { JUST_COPY,		"aliases.db",		TRUE, NULL },
