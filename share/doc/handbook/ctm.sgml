@@ -1,9 +1,9 @@
 <!--
 # This is the sgml version of the ctm.FAQ file.
 #
-# Converted by Ollivier RObert <roberto@FreeBSD.ORG>
+# Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.4 1995/08/29 01:42:33 jfieber Exp $
+# $Id: ctm.sgml,v 1.5 1995/10/16 09:11:22 jkh Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -97,7 +97,7 @@
         Megabytes of <tt/gzip/'ed data is common for a base delta.
 
         If you do have the 2.0-RELEASE <tt/srcdist/, you can instead
-        retreive the <tt/src-cur.0372R20.gz/ file, it's only 4Mb and it
+        retrieve the <tt/src-cur.0372R20.gz/ file, it's only 4Mb and it
         will take you to current from the 2.0-RELEASE sources.
 
         Once you've picked a base delta to start from, you will also need
@@ -110,7 +110,7 @@
           ctm -v -v /where/you/store/your/deltas/src-cur.*
         </verb>
         <tt/CTM/ understands deltas which have been put through <tt/gzip/,
-        so you don't need to gunzip them first, this saves diskspace.
+        so you don't need to gunzip them first, this saves disk space.
 
         Unless it feels very secure about the entire process, <tt/CTM/ will
         not touch your tree.  To verify a delta you can also use the
@@ -125,7 +125,7 @@
         interface'' portions, as I have realized that I can't make up my
         mind on what options should do what, how and when...
 
-        That's really all there is to it.  Everytime you get a new delta,
+        That's really all there is to it.  Every time you get a new delta,
         just run it through <tt/CTM/ to keep your sources up to date.
 
         Don't remove the deltas if they are hard to download again.  You
@@ -176,7 +176,7 @@
         but interest has not been all that high yet.  Tell me if you want
         an email list for that too and we'll consider setting it up.
 
-        If you have commit priviledges or are similary authorized by the
+        If you have commit privileges or are similarly authorized by the
         FreeBSD core team, you can also get access to the CVS repository
         tree by the same means.  Contact &a.phk;
         for details.

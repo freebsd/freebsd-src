@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: routing.sgml,v 1.1 1995/10/07 04:31:41 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
 
@@ -161,7 +161,7 @@ host2.foobar.com link#1             UC          0        0
 	ISP's Terminal Server. Your ISP has a local network at
 	their site, which has, among other things, the server
 	where you connect and a hardware device (T1-GW) attached
-	to the ISP's internet feed.
+	to the ISP's Internet feed.
 
 	The default routes for each of your machines will be:
 
@@ -206,12 +206,12 @@ Local1 (10.20.30.1, 10.9.9.30)  -->  T1-GW (10.9.9.1)
 	networks.
 
 	In one case, the machine as two ethernet cards, each
-	having an address on the seperate subnets. Alternately,
+	having an address on the separate subnets. Alternately,
 	the machine may only have one ethernet card, and be using
 	ifconfig aliasing. The former is used if two physically
 	separate ethernet networks are in use, the latter if
 	there is one physical network segment, but two logically
-	seperate subnets.
+	separate subnets.
 
 	Either way, routing tables are set up so that each subnet
 	knows that this machine is the defined gateway (inbound
@@ -220,7 +220,7 @@ Local1 (10.20.30.1, 10.9.9.30)  -->  T1-GW (10.9.9.1)
 	often used when we need to implement packet filtering or
 	firewall security in either or both directions.
 
-    <sect1><heading>Routing propogation</heading>
+    <sect1><heading>Routing propagation</heading>
 
       <p>We have already talked about how we define our routes to
 	the outside world, but not about how the outside world
@@ -242,7 +242,7 @@ Local1 (10.20.30.1, 10.9.9.30)  -->  T1-GW (10.9.9.1)
 	information) that keeps track of all assigned
 	address-spaces, and defines their point of connection to
 	the Internet Backbone. The ``Backbone'' are the main
-	trunk lines that carry internet traffic across the
+	trunk lines that carry Internet traffic across the
 	country, and around the world. Each backbone machine has
 	a copy of a master set of tables, which direct traffic
 	for a particular network to a specific backbone carrier,
@@ -252,7 +252,7 @@ Local1 (10.20.30.1, 10.9.9.30)  -->  T1-GW (10.9.9.1)
 	It is the task of your service provider to advertise to
 	the backbone sites that they are the point of connection
 	(and thus the path inward) for your site.  This is known
-	as route propogation.
+	as route propagation.
 
 <!--
     <sect1><heading>Multicast Routing</heading>
@@ -260,7 +260,7 @@ Local1 (10.20.30.1, 10.9.9.30)  -->  T1-GW (10.9.9.1)
 
     <sect1><heading>Troubleshooting</heading>
 
-      <p>Sometimes, there is a problem with routing propogation,
+      <p>Sometimes, there is a problem with routing propagation,
 	and some sites are unable to connect to you. Perhaps the
 	most useful command for trying to figure out where a
 	routing is breaking down is the <tt>traceroute(8)</tt>

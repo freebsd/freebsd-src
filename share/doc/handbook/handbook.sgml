@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.37 1995/12/07 13:22:14 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.38 1995/12/21 17:16:29 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -103,9 +103,9 @@ Web server">.
 
     <chapt><heading>PPP and SLIP</heading>
 
-    <p>If your connection to the internet is through a modem, or
+    <p>If your connection to the Internet is through a modem, or
     you wish to provide other people with dialup connections to
-    the internet using FreeBSD, you have the option of using PPP
+    the Internet using FreeBSD, you have the option of using PPP
     or SLIP.  Furthermore, two varieties of PPP are provided:
     <em>user</em> (sometimes referred to as iijppp) and
     <em>kernel</em>.  The procedures for configuring both types

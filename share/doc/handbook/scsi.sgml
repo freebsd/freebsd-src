@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.9 1995/11/25 20:00:49 jkh Exp $ -->
+<!-- $Id: scsi.sgml,v 1.10 1995/12/04 17:58:50 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -224,7 +224,7 @@
             is important to get clean signals on the bus, without
             reflections or ringing.  If you once made a long distance
             telephone call on a bad line you probably know what reflections
-            are.  With 20Mbytes/sec travelling over your SCSI bus, you
+            are.  With 20Mbytes/sec traveling over your SCSI bus, you
             don't want signals echoing back.
 
             Terminators come in various incarnations, with more or less
@@ -259,7 +259,7 @@
             by far the most misunderstood part of SCSI. And it is by far
             the simplest..  The rule is: <bf>every SCSI bus has 2 (two)
             terminators, one at each end of the bus.</bf> So, two and not
-            one or three or whatever. Do yourself a favour and stick to
+            one or three or whatever. Do yourself a favor and stick to
             this rule. It will save you endless grief, because wrong
             termination has the potential to introduce highly mysterious
             bugs.
@@ -456,7 +456,7 @@
 	  asked for a geometry , it is nearly always better to supply the
 	  geometry used by the BIOS, or <em>if the BIOS is never going to know
 	  about this disk</em>, (e.g. it is not a booting disk) to supply a
-	  ficticious geometry that is convenient.
+	  fictitious geometry that is convenient.
 
       <sect3><heading>SCSI subsystem design</heading>
         <p>
@@ -476,7 +476,7 @@
 
           The multi level design allows a decoupling of low-level bit
           banging and more high level stuff. Adding support for another
-          piece of hardware is a much more managable problem.
+          piece of hardware is a much more manageable problem.
         
       <sect3><heading>Kernel configuration</heading>
         <p>
@@ -554,7 +554,7 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  to unit number 1. Note that <em>wired down devices need not
 	  be found</em>
 	  to get their unit number. The unit number for a wired down device
-	  is reserved for thet device, even if it is turned off at boot
+	  is reserved for that device, even if it is turned off at boot
 	  time. This allows the device to be turned on and brought
 	  on-line at a later time, without rebooting. Notice that a device's
 	  unit number has <em>no</em> relationship with it's target ID on 
@@ -706,7 +706,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
           <item>
             Check for loose connectors and cables.
           <item>
-            Check and doublecheck the location and number of your terminators.
+            Check and double check the location and number of your terminators.
           <item>
             Check if your bus has at least one supplier of terminator power
             (especially with external terminators.
