@@ -730,10 +730,12 @@ _ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 	/* XXX FTP_AUTH, and maybe .netrc */
 
 	/* send user name and password */
+	if (url->user[0] == '\0')
+		_fetch_netrc_auth(url);
 	user = url->user;
-	if (!user || !*user)
+	if (*user == '\0')
 		user = getenv("FTP_LOGIN");
-	if (!user || !*user)
+	if (user == NULL || *user == '\0')
 		user = FTP_ANONYMOUS_USER;
 	if (purl && url->port == _fetch_default_port(url->scheme))
 		e = _ftp_cmd(conn, "USER %s@%s", user, url->host);
@@ -745,9 +747,9 @@ _ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 	/* did the server request a password? */
 	if (e == FTP_NEED_PASSWORD) {
 		pwd = url->pwd;
-		if (!pwd || !*pwd)
+		if (*pwd == '\0')
 			pwd = getenv("FTP_PASSWORD");
-		if (!pwd || !*pwd) {
+		if (pwd == NULL || *pwd == '\0') {
 			if ((logname = getlogin()) == 0)
 				logname = FTP_ANONYMOUS_USER;
 			if ((len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname)) < 0)
