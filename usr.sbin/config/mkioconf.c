@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.35 1998/05/02 01:57:39 kato Exp $";
+	"$Id: mkioconf.c,v 1.36 1998/06/09 14:02:06 dfr Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -618,7 +618,6 @@ i386_ioconf()
 	int dev_id;
 	FILE *fp, *fp1;
 	static char *old_d_name;
-	static char old_shandler[32 + 1];
 
 	fp = fopen(path("ioconf.c.new"), "w");
 	if (fp == 0)
@@ -658,22 +657,18 @@ i386_ioconf()
 			fprintf(fp, "#include <i386/isa/isa.h>\n");
 		else
 			fprintf(fp, "#include <pc98/pc98/pc98.h>\n");
-		fprintf(fp1, "\n");
-		fprintf(fp1, "#include <i386/isa/isa_device.h>\n");
-		fprintf(fp1, "\n");
+		fprintf(fp, "#include <i386/isa/isa_device.h>\n");
+		fprintf(fp, "\n");
 		for (dp = dtab; dp != 0; dp = dp->d_next) {
-			int printed = 0;
-
 			mp = dp->d_conn;
 			if (mp == 0 || mp == TO_NEXUS ||
 			    !eq(mp->d_name, "isa"))
 				continue;
 			if (old_d_name == NULL || !eq(dp->d_name, old_d_name)) {
 				old_d_name = dp->d_name;
-				fprintf(fp1,
-					"extern struct isa_driver %3sdriver;",
+				fprintf(fp,
+					"extern struct isa_driver %3sdriver;\n",
 					old_d_name);
-				printed = 1;
 			}
 			if (eq(dp->d_name, "wdc"))
 				seen_wdc++;
@@ -684,14 +679,6 @@ i386_ioconf()
 		"remapped irq 2 to irq 9, please update your config file\n");
 				dp->d_irq = 9;
 			}
-			if (dp->d_vec != NULL && dp->d_vec->id != NULL &&
-			    !eq(shandler(dp), old_shandler)) {
-				strcpy(old_shandler, shandler(dp));
-				fprintf(fp1, " inthand2_t %s;", old_shandler);
-				printed = 1;
-			}
-			if (printed)
-				fprintf(fp1, "\n");
 		}
 		dev_id = 10;		/* XXX must match mkglue.c */
 		isa_devtab(fp, "bio", &dev_id);
