@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.9 1995/12/07 12:48:29 davidg Exp $
+ * $Id: vm_unix.c,v 1.10 1996/01/19 04:00:27 dyson Exp $
  */
 
 /*
@@ -72,33 +72,45 @@ obreak(p, uap, retval)
 	int *retval;
 {
 	register struct vmspace *vm = p->p_vmspace;
-	vm_offset_t new, old;
+	vm_offset_t new, old, base;
 	int rv;
-	register int diff;
 
-	old = (vm_offset_t) vm->vm_daddr;
+	base = round_page((vm_offset_t) vm->vm_daddr);
 	new = round_page(uap->nsize);
-	if ((int) (new - old) > p->p_rlimit[RLIMIT_DATA].rlim_cur)
-		return (ENOMEM);
-	old = round_page(old + ctob(vm->vm_dsize));
-	diff = new - old;
-	if (diff > 0) {
+	if (new > base) {
+		if ((new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur)
+			return ENOMEM;
+		if (new >= VM_MAXUSER_ADDRESS)
+			return (ENOMEM);
+	} else if (new < base) {
+		/*
+		 * This is simply an invalid value.  If someone wants to
+		 * do fancy address space manipulations, mmap and munmap
+		 * can do most of what the user would want.
+		 */
+		return EINVAL;
+	}
+
+	old = base + ctob(vm->vm_dsize);
+
+	if (new > old) {
+		vm_size_t diff;
 		if (swap_pager_full) {
 			return (ENOMEM);
 		}
+		diff = new - old;
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
-	} else if (diff < 0) {
-		diff = -diff;
-		rv = vm_map_remove(&vm->vm_map, new, new + diff);
+	} else if (new < old) {
+		rv = vm_map_remove(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
 			return (ENOMEM);
 		}
-		vm->vm_dsize -= btoc(diff);
+		vm->vm_dsize -= btoc(old - new);
 	}
 	return (0);
 }
