@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
  *	Job_Wait	Wait for all currently-running jobs to finish.
  */
 
+#include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/stat.h>
@@ -232,6 +233,8 @@ typedef struct Job {
 		}	o_file;
 
 	}       output;	    /* Data for tracking a shell's output */
+
+	TAILQ_ENTRY(Job) link;	/* list link */
 } Job;
 
 #define	outPipe	  	output.o_pipe.op_outPipe
@@ -240,6 +243,8 @@ typedef struct Job {
 #define	curPos		output.o_pipe.op_curPos
 #define	outFile		output.o_file.of_outFile
 #define	outFd	  	output.o_file.of_outFd
+
+TAILQ_HEAD(JobList, Job);
 
 /*
  * Shell Specifications:
@@ -386,7 +391,7 @@ int		maxJobs;	/* The most children we can run at once */
 STATIC int	nJobs;		/* The number of children currently running */
 
 /* The structures that describe them */
-STATIC Lst	jobs = Lst_Initializer(jobs);
+static struct JobList jobs = TAILQ_HEAD_INITIALIZER(jobs);
 
 STATIC Boolean	jobFull;    	/* Flag to tell when the job table is full. It
 				 * is set TRUE when (1) the total number of
@@ -417,7 +422,7 @@ STATIC const char *targFmt;   	/* Format string to use to head output from a
  * Lst of Job structures describing jobs that were stopped due to
  * concurrency limits or externally
  */
-STATIC Lst stoppedJobs = Lst_Initializer(stoppedJobs);
+static struct JobList stoppedJobs = TAILQ_HEAD_INITIALIZER(stoppedJobs);
 
 STATIC int	fifoFd;		/* Fd of our job fifo */
 STATIC char	fifoName[] = "/tmp/make_fifo_XXXXXXXXX";
@@ -491,12 +496,9 @@ JobCatchSig(int signo)
 static void
 JobCondPassSig(int signo)
 {
-	LstNode	*ln;
 	Job	*job;
 
-	LST_FOREACH(ln, &jobs) {
-		job = Lst_Datum(ln);
-
+	TAILQ_FOREACH(job, &jobs, link) {
 		DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %d.\n",
 		    signo, job->pid));
 		KILL(job->pid, signo);
@@ -900,7 +902,7 @@ JobFinish(Job *job, int *status)
 			fprintf(out, "*** Stopped -- signal %d\n",
 			WSTOPSIG(*status));
 			job->flags |= JOB_RESUME;
-			Lst_AtEnd(&stoppedJobs, job);
+			TAILQ_INSERT_TAIL(&stoppedJobs, job, link);
 			fflush(out);
 			return;
 
@@ -933,7 +935,7 @@ JobFinish(Job *job, int *status)
 #endif
 			}
 			job->flags &= ~JOB_CONTINUING;
-			Lst_AtEnd(&jobs, job);
+			TAILQ_INSERT_TAIL(&jobs, job, link);
 			nJobs += 1;
 			DEBUGF(JOB, ("Process %d is continuing locally.\n",
 			    job->pid));
@@ -1314,7 +1316,7 @@ JobExec(Job *job, char **argv)
 	 * Now the job is actually running, add it to the table.
 	 */
 	nJobs += 1;
-	Lst_AtEnd(&jobs, job);
+	TAILQ_INSERT_TAIL(&jobs, job, link);
 	if (nJobs == maxJobs) {
 		jobFull = TRUE;
 	}
@@ -1366,7 +1368,8 @@ JobMakeArgv(Job *job, char **argv)
 
 /**
  * JobRestart
- *	Restart a job that stopped for some reason.
+ *	Restart a job that stopped for some reason. The job must be neither
+ *	on the jobs nor on the stoppedJobs list.
  *
  * Side Effects:
  *	jobFull will be set if the job couldn't be run.
@@ -1396,7 +1399,7 @@ JobRestart(Job *job)
 			 * put it back on the hold queue and mark the table full
 			 */
 			DEBUGF(JOB, ("holding\n"));
-			Lst_AtFront(&stoppedJobs, (void *)job);
+			TAILQ_INSERT_HEAD(&stoppedJobs, job, link);
 			jobFull = TRUE;
 			DEBUGF(JOB, ("Job queue is full.\n"));
 			return;
@@ -1452,7 +1455,7 @@ JobRestart(Job *job)
 			* place the job back on the list of stopped jobs.
 			*/
 			DEBUGF(JOB, ("table full\n"));
-			Lst_AtFront(&stoppedJobs, (void *)job);
+			TAILQ_INSERT_HEAD(&stoppedJobs, job, link);
 			jobFull = TRUE;
 			DEBUGF(JOB, ("Job queue is full.\n"));
 		}
@@ -1735,7 +1738,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 
 		DEBUGF(JOB, ("Can only run job locally.\n"));
 		job->flags |= JOB_RESTART;
-		Lst_AtEnd(&stoppedJobs, job);
+		TAILQ_INSERT_TAIL(&stoppedJobs, job, link);
 	} else {
 		if (nJobs >= maxJobs) {
 			/*
@@ -2021,7 +2024,6 @@ Job_CatchChildren(Boolean block)
 {
 	int	pid;	/* pid of dead child */
 	Job	*job;	/* job descriptor for dead child */
-	LstNode	*jnode;	/* list element for finding job */
 	int	status;	/* Exit/termination status */
 
 	/*
@@ -2039,32 +2041,30 @@ Job_CatchChildren(Boolean block)
 
 		DEBUGF(JOB, ("Process %d exited or stopped.\n", pid));
 
-		LST_FOREACH(jnode, &jobs) {
-			if (((const Job *)Lst_Datum(jnode))->pid == pid)
+		TAILQ_FOREACH(job, &jobs, link) {
+			if (job->pid == pid)
 				break;
 		}
 
-		if (jnode == NULL) {
+		if (job == NULL) {
 			if (WIFSIGNALED(status) &&
 			    (WTERMSIG(status) == SIGCONT)) {
-				LST_FOREACH(jnode, &stoppedJobs) {
-					if (((const Job *)Lst_Datum(jnode))->pid == pid)
+				TAILQ_FOREACH(job, &jobs, link) {
+					if (job->pid == pid)
 						break;
 				}
-				if (jnode == NULL) {
+				if (job == NULL) {
 					Error("Resumed child (%d) not in table",
 					    pid);
 					continue;
 				}
-				job = Lst_Datum(jnode);
-				Lst_Remove(&stoppedJobs, jnode);
+				TAILQ_REMOVE(&stoppedJobs, job, link);
 			} else {
 				Error("Child (%d) not in table?", pid);
 				continue;
 			}
 		} else {
-			job = Lst_Datum(jnode);
-			Lst_Remove(&jobs, jnode);
+			TAILQ_REMOVE(&jobs, job, link);
 			nJobs -= 1;
 			if (fifoFd >= 0 && maxJobs > 1) {
 				write(fifoFd, "+", 1);
@@ -2112,7 +2112,6 @@ Job_CatchOutput(int flag)
 #else
 	struct timeval	timeout;
 	fd_set		readfds;
-	LstNode		*ln;
 	Job		*job;
 #endif
 
@@ -2163,13 +2162,13 @@ Job_CatchOutput(int flag)
 			if (--nfds <= 0)
 				return;
 		}
-		for (ln = Lst_First(&jobs); nfds != 0 && ln != NULL;
-		    ln = Lst_Succ(ln)){
-			job = Lst_Datum(ln);
+		job = TAILQ_FIRST(&jobs);
+		while (nfds != 0 && job != NULL) {
 			if (FD_ISSET(job->inPipe, &readfds)) {
 				JobDoOutput(job, FALSE);
-				nfds -= 1;
+				nfds--;
 			}
+			job = TAILQ_NEXT(job, link);
 		}
 #endif /* !USE_KQUEUE */
 	}
@@ -2473,7 +2472,7 @@ Boolean
 Job_Empty(void)
 {
 	if (nJobs == 0) {
-		if (!Lst_IsEmpty(&stoppedJobs) && !aborting) {
+		if (!TAILQ_EMPTY(&stoppedJobs) && !aborting) {
 			/*
 			 * The job table is obviously not full if it has no
 			 * jobs in it...Try and restart the stopped jobs.
@@ -2708,15 +2707,12 @@ Job_ParseShell(char *line)
 static void
 JobInterrupt(int runINTERRUPT, int signo)
 {
-	LstNode	*ln;		/* element in job table */
 	Job	*job;		/* job descriptor in that element */
 	GNode	*interrupt;	/* the node describing the .INTERRUPT target */
 
 	aborting = ABORT_INTERRUPT;
 
-	for (ln = Lst_First(&jobs); ln != NULL; ln = Lst_Succ(ln)) {
-		job = Lst_Datum(ln);
-
+	TAILQ_FOREACH(job, &jobs, link) {
 		if (!Targ_Precious(job->node)) {
 			char *file = (job->node->path == NULL ?
 			    job->node->name : job->node->path);
@@ -2817,16 +2813,13 @@ Job_Wait(void)
 void
 Job_AbortAll(void)
 {
-	LstNode	*ln;	/* element in job table */
 	Job	*job;	/* the job descriptor in that element */
 	int	foo;
 
 	aborting = ABORT_ERROR;
 
 	if (nJobs) {
-		for (ln = Lst_First(&jobs); ln != NULL; ln = Lst_Succ(ln)) {
-			job = Lst_Datum(ln);
-
+		TAILQ_FOREACH(job, &jobs, link) {
 			/*
 			 * kill the child process with increasingly drastic
 			 * signals to make darn sure it's dead.
@@ -2855,9 +2848,12 @@ Job_AbortAll(void)
 static void
 JobRestartJobs(void)
 {
-	while (!jobFull && !Lst_IsEmpty(&stoppedJobs)) {
+	Job *job;
+
+	while (!jobFull && (job = TAILQ_FIRST(&stoppedJobs)) != NULL) {
 		DEBUGF(JOB, ("Job queue is not full. "
 		    "Restarting a stopped job.\n"));
-		JobRestart(Lst_DeQueue(&stoppedJobs));
+		TAILQ_REMOVE(&stoppedJobs, job, link);
+		JobRestart(job);
 	}
 }
