@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.46 1998/10/08 12:10:07 kato Exp $
+#	$Id: GENERIC98,v 1.47 1998/10/08 17:07:44 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -152,7 +152,8 @@ device vx0
 
 #
 # DP8390 NIC
-# ed0: generic driver/EtherEZ98
+#
+# ed0: generic driver
 # ed1: LANEED LD-BDN
 # ed2: EGY-98
 # ed3: LGY-98
@@ -162,13 +163,10 @@ device vx0
 # ed7: LA-98
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
-#
-# MB86960 NIC
-# fe0: RE1000/1000Plus/AccessPC N98C+
+# fe0: RE1000/1000Plus
 # fe1: C-NET(98)P2/C-NET(9N)E
 #
 device ed0 at isa? port 0x00d0 net irq 6 vector edintr
-#device ed0 at isa? port 0x10d0 net irq 6 iomem 0xc8000 iosiz 8192 vector edintr	# SMC EtherEZ98
 device ed1 at isa? port 0x00d8 net irq 6 flags 0x200000 vector edintr
 device ed2 at isa? port 0x00d8 net irq 6 flags 0x300000 vector edintr
 device ed3 at isa? port 0x00d0 net irq 6 flags 0x400000 vector edintr
