@@ -183,7 +183,7 @@ acdattach(struct atapi_softc *atp)
 	    devstat_add_entry(cdp->stats, string, tmpcdp->lun, DEV_BSIZE,
 			      DEVSTAT_NO_ORDERED_TAGS,
 			      DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			      0x178);
+			      DEVSTAT_PRIORITY_CD);
 	}
     }
     else {
