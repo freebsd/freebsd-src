@@ -311,7 +311,8 @@ kmem_malloc(map, size, flags)
 	vm_page_t m;
 	int pflags;
 
-	GIANT_REQUIRED;
+	if ((flags & M_NOWAIT) == 0)
+		GIANT_REQUIRED;
 
 	size = round_page(size);
 	addr = vm_map_min(map);
