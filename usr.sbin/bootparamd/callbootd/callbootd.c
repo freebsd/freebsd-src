@@ -20,6 +20,7 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 #include <err.h>
 #include <netdb.h>
+#include <stdlib.h>
 
 
 /* #define bp_address_u bp_address */
@@ -36,7 +37,7 @@ static void usage __P((void));
 int printgetfile __P((bp_getfile_res *));
 int printwhoami __P((bp_whoami_res *));
 
-int
+bool_t
 eachres_whoami(resultp, raddr)
 bp_whoami_res *resultp;
 struct sockaddr_in *raddr;
@@ -50,6 +51,7 @@ struct sockaddr_in *raddr;
   return(0);
 }
 
+bool_t
 eachres_getfile(resultp, raddr)
 bp_getfile_res *resultp;
 struct sockaddr_in *raddr;
@@ -95,10 +97,9 @@ char **argv;
 
   if ( ! broadcast ) {
     clnt = clnt_create(server,BOOTPARAMPROG, BOOTPARAMVERS, "udp");
+    if ( clnt == NULL )
+      errx(1, "could not contact bootparam server on host %s", server);
   }
-
-  if ( clnt == NULL )
-     errx(1, "could not contact bootparam server on host %s", server);
 
   switch (argc) {
   case 3:
@@ -118,8 +119,10 @@ char **argv;
      } else {
        clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_WHOAMI,
-			       (xdrproc_t)xdr_bp_whoami_arg, (char *)&whoami_arg,
-			       xdr_bp_whoami_res, (char *)&stat_whoami_res,
+			       (xdrproc_t)xdr_bp_whoami_arg,
+			       (char *)&whoami_arg,
+			       (xdrproc_t)xdr_bp_whoami_res,
+			       (char *)&stat_whoami_res,
 			       (resultproc_t)eachres_whoami);
        exit(0);
      }
@@ -139,8 +142,10 @@ char **argv;
     } else {
       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_GETFILE,
-			       xdr_bp_getfile_arg, (char *)&getfile_arg,
-			       xdr_bp_getfile_res, (char *)&stat_getfile_res,
+			       (xdrproc_t)xdr_bp_getfile_arg,
+			       (char *)&getfile_arg,
+			       (xdrproc_t)xdr_bp_getfile_res,
+			       (char *)&stat_getfile_res,
 			       (resultproc_t)eachres_getfile);
       exit(0);
     }
