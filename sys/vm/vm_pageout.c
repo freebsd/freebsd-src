@@ -384,7 +384,7 @@ vm_pageout_flush(mc, count, flags)
 	for (i = 0; i < count; i++) {
 		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL, ("vm_pageout_flush page %p index %d/%d: partially invalid page", mc[i], i, count));
 		vm_page_io_start(mc[i]);
-		vm_page_protect(mc[i], VM_PROT_READ);
+		pmap_page_protect(mc[i], VM_PROT_READ);
 	}
 	object = mc[0]->object;
 	vm_page_unlock_queues();
@@ -437,7 +437,7 @@ vm_pageout_flush(mc, count, flags)
 			vm_object_pip_wakeup(object);
 			vm_page_io_finish(mt);
 			if (!vm_page_count_severe() || !vm_page_try_to_cache(mt))
-				vm_page_protect(mt, VM_PROT_READ);
+				pmap_page_protect(mt, VM_PROT_READ);
 		}
 	}
 	return numpagedout;
