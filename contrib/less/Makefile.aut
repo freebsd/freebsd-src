@@ -23,9 +23,9 @@ DISTFILES_W = \
 DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
-	configure configure.in acconfig.h lesskey.c lessecho.c scrsize.c \
+	configure configure.ac lesskey.c lessecho.c scrsize.c \
 	cmd.h funcs.h lglob.h less.h lesskey.h option.h pckeys.h position.h \
-	install.sh defines.h.in defines.h.top mkinstalldirs \
+	install.sh defines.h.in mkinstalldirs \
 	less.nro lesskey.nro less.man lesskey.man less.hlp \
 	mkfuncs.awk mkhelp.c \
 	${DISTFILES_W}
@@ -41,10 +41,8 @@ help.c: less.hlp mkhelp
 mkhelp: mkhelp.c
 	${CC} -o mkhelp mkhelp.c
 
-${srcdir}/configure: ${srcdir}/configure.in \
-		${srcdir}/Makefile.in \
-		${srcdir}/defines.h.top \
-		${srcdir}/acconfig.h
+${srcdir}/configure: ${srcdir}/configure.ac \
+		${srcdir}/Makefile.in
 	cd ${srcdir}; autoheader; autoconf
 
 funcs.h: ${SRC:%=${srcdir}/%}
