@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.29 2000/05/11 18:55:38 dmlb Exp $
+ * $Id: if_ray.c,v 1.39 2000/06/18 21:40:46 dmlb Exp $
  *
  */
 
@@ -455,7 +455,7 @@ ray_attach(device_t dev)
 	/*
 	 * Grab the resources I need
 	 */
-#if (RAY_DBG_CM || RAY_DBG_BOOTPARAM)
+#if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
 	{
 		u_long flags = 0xffff;
 		CARD_GET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_IOPORT,
@@ -476,7 +476,7 @@ ray_attach(device_t dev)
 		    bus_get_resource_start(dev, SYS_RES_IRQ, 0),
 		    bus_get_resource_count(dev, SYS_RES_IRQ, 0));
 	}
-#endif /* (RAY_DBG_CM || RAY_DBG_BOOTPARAM) */
+#endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
 	error = ray_res_alloc_cm(sc);
 	if (error)
 		return (error);
@@ -893,7 +893,7 @@ ray_init_download(struct ray_softc *sc, struct ray_comq_entry *com)
 
 /* XXX this is a hack whilst I transition the code. The instance
  * XXX variables above should be set somewhere else. This is needed for
- * XXX start_join / 
+ * XXX start_join */
 bcopy(&sc->sc_d, &com->c_desired, sizeof(struct ray_nw_param));
 	    
 	/*
@@ -1372,16 +1372,16 @@ ray_tx(struct ifnet *ifp)
 	if ((sc == NULL) || (sc->gone))
 		return;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
-		RAY_RECERR(sc, "not running");
+		RAY_RECERR(sc, "cannot transmit - not running");
 		return;
 	}
 	if (!sc->sc_havenet) {
-		RAY_RECERR(sc, "no network");
+		RAY_RECERR(sc, "cannot transmit - no network");
 		return;
 	}
 	if (!RAY_ECF_READY(sc)) {
 		/* Can't assume that the ECF is busy because of this driver */
-		RAY_RECERR(sc, "ECF busy, re-scheduling self");
+		RAY_RECERR(sc, "cannot transmit - ECF busy");
 		sc->tx_timerh = timeout(ray_tx_timo, sc, RAY_TX_TIMEOUT);
 		return;
 	} else
@@ -1439,7 +1439,12 @@ ray_tx(struct ifnet *ifp)
 			    eh->ether_shost,
 			    eh->ether_dhost);
 		else
-			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+			bufp = ray_tx_wrhdr(sc, bufp,
+			    IEEE80211_FC0_TYPE_DATA,
+			    IEEE80211_FC1_AP_TO_STA,
+			    eh->ether_dhost,
+			    sc->sc_c.np_bss_id,
+			    eh->ether_shost);
 
 	/*
 	 * Translation - capability as described earlier
@@ -1472,7 +1477,7 @@ ray_tx(struct ifnet *ifp)
 
 	}
 	if (m0 == NULL) {
-		RAY_RECERR(sc, "could not translate mbuf");
+		RAY_RECERR(sc, "could not translate packet");
 		RAY_CCS_FREE(sc, ccs);
 		ifp->if_oerrors++;
 		return;
@@ -1665,7 +1670,7 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	size_t bufp, ebufp;
 	u_int8_t siglev, antenna;
 	u_int first, ni, i;
-	u_int8_t *dst;
+	u_int8_t *mp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -1709,7 +1714,7 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_pkthdr.len = pktlen;
 	m0->m_len = pktlen;
-	dst = mtod(m0, u_int8_t *);
+	mp = mtod(m0, u_int8_t *);
 
 	/*
 	 * Walk the fragment chain to build the complete packet.
@@ -1747,14 +1752,14 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 
 		ebufp = bufp + fraglen;
 		if (ebufp <= RAY_RX_END)
-			SRAM_READ_REGION(sc, bufp, dst, fraglen);
+			SRAM_READ_REGION(sc, bufp, mp, fraglen);
 		else {
-			SRAM_READ_REGION(sc, bufp, dst,
+			SRAM_READ_REGION(sc, bufp, mp,
 			    (tmplen = RAY_RX_END - bufp));
-			SRAM_READ_REGION(sc, RAY_RX_BASE, dst + tmplen,
+			SRAM_READ_REGION(sc, RAY_RX_BASE, mp + tmplen,
 			    ebufp - RAY_RX_END);
 		}
-		dst += fraglen;
+		mp += fraglen;
 		readlen += fraglen;
 	}
 
@@ -1816,32 +1821,9 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ieee80211_header *header = mtod(m0, struct ieee80211_header *);
 	struct ether_header *eh;
-	u_int8_t *src;
+	u_int8_t *sa, *da, *ra, *ta;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
-
-	/*
-	 * Obtain the .11 src addresses.
-	 */
-	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
-
-	case IEEE80211_FC1_STA_TO_STA:
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from sta %6D", src, ":");
-		src = header->i_addr2;
-		break;
-
-	case IEEE80211_FC1_AP_TO_STA:
-		RAY_DPRINTF(sc, RAY_DBG_RX, "packet from ap %6D", src, ":");
-		src = header->i_addr3;
-		break;
-
-	default:
-		RAY_RECERR(sc, "DATA TODS/FROMDS wrong fc1 0x%x",
-		    header->i_fc[1] & IEEE80211_FC1_DS_MASK);
-		ifp->if_ierrors++;
-		m_freem(m0);
-		return;
-	}
 
 	/*
 	 * Check the the data packet subtype, some packets have
@@ -1874,6 +1856,52 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	}
 
 	/*
+	 * Obtain the .11 addresses. Packets may come via APs so the
+	 * MAC addresses of the source/destination may be different
+	 * from the node that actually sent us the packet.
+	 *
+	 * XXX At present this information is unused, although it is
+	 * XXX available for translation routines to use.
+	 */
+	switch (header->i_fc[1] & IEEE80211_FC1_DS_MASK) {
+
+	case IEEE80211_FC1_STA_TO_STA:
+		da = header->i_addr1;
+		sa = header->i_addr2;
+	    	ra = ta = NULL;
+		RAY_DPRINTF(sc, RAY_DBG_RX, "from %6D to %6D",
+		    sa, ":", da, ":");
+		break;
+
+	case IEEE80211_FC1_AP_TO_STA:
+		da = header->i_addr1;
+		ta = header->i_addr2;
+		sa = header->i_addr3;
+	    	ra = NULL;
+		RAY_DPRINTF(sc, RAY_DBG_RX, "ap %6D from %6D to %6D",
+		    ta, ":", sa, ":", da, ":");
+		break;
+
+	case IEEE80211_FC1_STA_TO_AP:
+	    	ra = header->i_addr1;
+		sa = header->i_addr2;
+		da = header->i_addr3;
+		ta = NULL;
+		RAY_DPRINTF(sc, RAY_DBG_RX, "from %6D to %6D ap %6D",
+		    sa, ":", da, ":", ra, ":");
+		break;
+
+	case IEEE80211_FC1_AP_TO_AP:
+		ra = header->i_addr1;
+		ta = header->i_addr2;
+		da = header->i_addr3;
+		sa = (u_int8_t *)header+1;
+		RAY_DPRINTF(sc, RAY_DBG_RX, "from %6D to %6D ap %6D to %6D",
+		    sa, ":", da, ":", ta, ":", ra, ":");
+		break;
+	}
+
+	/*
 	 * Translation - capability as described earlier
 	 *
 	 * Each case must remove the 802.11 header and leave an 802.3
@@ -1899,7 +1927,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	 * up the stack.
 	 */
 	ifp->if_ipackets++;
-	ray_rx_update_cache(sc, src, siglev, antenna);
+	ray_rx_update_cache(sc, header->i_addr2, siglev, antenna);
 	eh = mtod(m0, struct ether_header *);
 	m_adj(m0, sizeof(struct ether_header));
 	ether_input(ifp, eh, m0);
@@ -2024,6 +2052,7 @@ ray_rx_mgt_auth(struct ray_softc *sc, struct mbuf *m0)
 	switch (IEEE80211_AUTH_ALGORITHM(auth)) {
 	    
 	case IEEE80211_AUTH_OPENSYSTEM:
+		RAY_RECERR(sc, "open system authentication request");
 		if (IEEE80211_AUTH_TRANSACTION(auth) == 1) {
 
 			/* XXX see sys/dev/awi/awk.c:awi_{recv|send}_auth */
@@ -2057,24 +2086,26 @@ RAY_DHEX8(sc, RAY_DBG_MGT, bufp-pktlen+6, pktlen, "AUTH MGT response to Open Sys
 
 		} else if (IEEE80211_AUTH_TRANSACTION(auth) == 2) {
 
+			/*
+			 * XXX probably need a lot more than this
+			 * XXX like initiating an auth sequence
+			 */
 			if (IEEE80211_AUTH_STATUS(auth) !=
 			    IEEE80211_STATUS_SUCCESS)
 				RAY_RECERR(sc,
 				    "authentication failed with status %d",
 				    IEEE80211_AUTH_STATUS(auth));
 
-			/* XXX probably need a lot more than this */
-
 		}
 		break;
 
 	case IEEE80211_AUTH_SHAREDKEYS:
-		RAY_RECERR(sc, "shared key authentication requested");
+		RAY_RECERR(sc, "shared key authentication request");
 		break;
 	
 	default:
 		RAY_RECERR(sc,
-		    "unknown authentication subtype 0x%04hx",
+		    "reserved authentication subtype 0x%04hx",
 		    IEEE80211_AUTH_ALGORITHM(auth));
 		break;
 	}
@@ -3058,6 +3089,7 @@ ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 
 	/*
 	 * XXX we probably want to call a timeout on ourself here...
+	 * XXX why isn't this processed like the TX case
 	 */
 	i = 0;
 	while (!RAY_ECF_READY(sc))
@@ -3334,14 +3366,14 @@ ray_res_alloc_am(struct ray_softc *sc)
 	sc->am_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &sc->am_rid,
 	    0, ~0, 0x1000, RF_ACTIVE);
 	if (!sc->am_res) {
-		RAY_RECERR(sc, "Cannot allocate attribute memory");
+		RAY_PRINTF(sc, "Cannot allocate attribute memory");
 		return (ENOMEM);
 	}
 	/* Ensure attribute memory settings */
 	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 	    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR); /* XXX card_set_res_flags */
 	if (error) {
-		RAY_RECERR(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
 		return (error);
 	}
 	sc->am_bsh = rman_get_bushandle(sc->am_res);
@@ -3378,7 +3410,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 	sc->cm_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &sc->cm_rid,
 	    0, ~0, 0xc000, RF_ACTIVE);
 	if (!sc->cm_res) {
-		RAY_RECERR(sc, "Cannot allocate common memory");
+		RAY_PRINTF(sc, "Cannot allocate common memory");
 		return (ENOMEM);
 	}
 	/* XXX Ensure 8bit access somehow */
@@ -3386,7 +3418,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 	    SYS_RES_MEMORY, sc->cm_rid, 2); /* XXX card_set_res_flags */
 	if (error) {
-		RAY_RECERR(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
 		return (error);
 	}
 #endif /* XXX_8BIT */
@@ -3422,7 +3454,7 @@ ray_res_alloc_irq(struct ray_softc *sc)
 	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irq_rid,
 	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq_res) {
-		RAY_RECERR(sc, "Cannot allocate irq");
+		RAY_PRINTF(sc, "Cannot allocate irq");
 		return (ENOMEM);
 	}
 	if ((error = bus_setup_intr(sc->dev, sc->irq_res, INTR_TYPE_NET,
