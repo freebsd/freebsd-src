@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.49 1995/03/23 19:03:02 rgrimes Exp $
+#	$Id: Makefile,v 1.50 1995/03/23 23:40:29 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -17,9 +17,13 @@
 # Put initial settings here.
 SUBDIR=
 
-# do include first.
+# We must do include and lib first so that the perl *.ph generation
+# works correctly as it uses the header files installed by this.
 .if exists(include)
 SUBDIR+= include
+.endif
+.if exists(lib)
+SUBDIR+= lib
 .endif
 
 .if exists(bin)
@@ -33,9 +37,6 @@ SUBDIR+= games
 .endif
 .if exists(gnu)
 SUBDIR+= gnu
-.endif
-.if exists(lib)
-SUBDIR+= lib
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 SUBDIR+= eBones
