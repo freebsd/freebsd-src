@@ -1,0 +1,134 @@
+.\"-
+.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2001 Thomas Moestl
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.  
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 21, 2001
+.Dt CAP_COPY_EXT 3
+.Os
+.Sh NAME
+.Nm cap_copy_ext
+.Nd Convert a Capability State in Working Storage to an External Representation
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/capability.h>
+.Ft ssize_t
+.Fn cap_copy_ext "void *ext_p" "cap_t cap" "ssize_t len"
+.Ft ssize_t
+.Fn cap_size "cap_t cap"
+.Sh DESCRIPTION
+The
+.Nm
+function converts the capability state in working storage identified by
+.Va cap
+to an opaque contiguous external representation in the buffer
+.Va ext_p
+points to.
+.Va size
+specifies the maximum number of bytes that may be written into the buffer.
+.Pp
+An application can use the
+.Nm cap_size
+function to determine the amount of storage in bytes that are needed for
+the external representation of
+.Va cap .
+.Sh IMPLEMENTATION NOTES
+The format of the external representation is not specified in the POSIX.1e
+draft. Applications that need a portable representation should use
+.Xr cap_to_text 3 .
+.Pp
+This function is appropriate in cases where a persistent representation is
+needed that needs no to be portable. Due to endianess issues, this format might
+not even be portable between machines of different architectures running this
+implementation.
+.Pp
+.Xr cap_copy_int 3
+can be used to convert the external representation back to a
+.Va cap_t .
+.Sh RETURN VALUES
+Upon successful completion, the
+.Nm
+function returns the number of bytes written to
+.Va ext_t .
+.Nm cap_size
+returns the number of bytes needed for the external representation of
+.Va cap
+if it is valid.
+On error, both return
+.Va -1
+and set
+.Va errno
+appropriately.
+.Sh ERRORS
+.Nm
+can set
+.Dv errno
+to the following values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Either the
+.Va cap
+argument does not refer to a capability state in working storage
+or the
+.Va len
+argument is below zero, or both.
+.It Bq Er ERANGE
+The buffer size specified by
+.Va len
+argument is too small to hold the external representation.
+.El
+.Pp
+.Nm cap_size
+can set
+.Dv errno
+to the following values:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Va cap
+argument does not refer to a capability state in working storage.
+.El
+.Sh SEE ALSO
+.Xr cap_copy_int 3 ,
+.Xr cap_free 3 ,
+.Xr cap_from_text 3 ,
+.Xr cap_get_flag 3 ,
+.Xr cap_to_text 3 ,
+.Xr posix1e 3
+.Sh STANDARDS
+This function is expected to conform to the withdrawn
+IEEE draft 1003.1e
+.Po
+.Do  POSIX.1e
+.Dc
+.Pc .
+.Sh HISTORY
+This function first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Thomas Moestl Aq tmm@FreeBSD.org
