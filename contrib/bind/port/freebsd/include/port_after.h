@@ -7,7 +7,6 @@
 #define USE_WAITPID
 #define HAVE_GETRUSAGE
 #define HAVE_FCHMOD
-#define NEED_PSELECT
 #define HAVE_SA_LEN
 #define SETPWENT_VOID
 #define RLIMIT_TYPE rlim_t
@@ -27,6 +26,7 @@
 #define UDPSUM		"udpcksum"
 
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 #if (!defined(BSD)) || (BSD < 199306)
