@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.85 1996/11/11 05:24:44 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.86 1996/11/16 01:19:14 gibbs Exp $
  */
 /*
  * TODO:
@@ -254,6 +254,8 @@ static void	ahc_done __P((struct ahc_softc *ahc, struct scb *scbp));
 static void 	ahc_handle_seqint __P((struct ahc_softc *ahc, u_int8_t intstat));
 static void	ahc_handle_scsiint __P((struct ahc_softc *ahc,
 					u_int8_t intstat));
+static void	ahc_handle_devreset __P((struct ahc_softc *ahc,
+					 struct scb *scb));
 static void	ahc_loadseq __P((struct ahc_softc *ahc));
 static int	ahc_match_scb __P((struct scb *scb, int target, char channel));
 static int	ahc_poll __P((struct ahc_softc *ahc, int wait));
@@ -951,6 +953,7 @@ ahc_handle_seqint(ahc, intstat)
 			 * transfers.
 			 */
 			if ((ahc->sdtrpending & targ_mask) != 0) {
+				/* We started it */
 				if (saved_offset == offset) {
 					/*
 					 * Don't send an SDTR back to
@@ -1233,6 +1236,10 @@ ahc_handle_seqint(ahc, intstat)
 				 */
 				STAILQ_INSERT_TAIL(&ahc->waiting_scbs, scb,
 						   links);
+				/* Give the command a new lease on life */
+				untimeout(ahc_timeout, (caddr_t)scb);
+				timeout(ahc_timeout, (caddr_t)scb,
+					(scb->xs->timeout * hz) / 1000);
 				break;
 			}
 			/* Else treat as if it is a BUSY condition */
@@ -1320,44 +1327,6 @@ ahc_handle_seqint(ahc, intstat)
 		} else	
 			panic("ahc_intr: AWAITING_MSG for an SCB that "
 			      "does not have a waiting message");
-		break;
-	}
-	case IMMEDDONE:
-	{
-		/*
-		 * Take care of device reset messages
-		 */
-		u_int8_t scbindex = ahc_inb(ahc, SCB_TAG);
-
-		scb = ahc->scb_data->scbarray[scbindex];
-		if (scb->flags & SCB_DEVICE_RESET) {
-			u_int8_t targ_scratch;
-			int found;
-			/*
-			 * Go back to async/narrow transfers and
-			 * renegotiate.
-			 */
-			ahc_unbusy_target(ahc, target, channel);
-			ahc->needsdtr |= ahc->needsdtr_orig & targ_mask;
-			ahc->needwdtr |= ahc->needwdtr_orig & targ_mask;
-			ahc->sdtrpending &= ~targ_mask;
-			ahc->wdtrpending &= ~targ_mask;
-			targ_scratch = ahc_inb(ahc, TARG_SCRATCH 
-					       + scratch_offset);
-			targ_scratch &= SXFR;
-			ahc_outb(ahc, TARG_SCRATCH + scratch_offset,
-				 targ_scratch);
-			found = ahc_reset_device(ahc, target,
-						 channel, NULL, 
-						 XS_NOERROR);
-			sc_print_addr(scb->xs->sc_link);
-			printf("Bus Device Reset delivered. "
-			       "%d SCBs aborted\n", found);
-			ahc->in_timeout = FALSE;
-			ahc_run_done_queue(ahc);
-		} else
-			panic("ahc_intr: Immediate complete for "
-			      "unknown operation.");
 		break;
 	}
 	case DATA_OVERRUN:
@@ -1465,9 +1434,15 @@ ahc_handle_scsiint(ahc, intstat)
 
 	scb_index = ahc_inb(ahc, SCB_TAG);
 	status = ahc_inb(ahc, SSTAT1);
-	scb = ahc->scb_data->scbarray[scb_index];
 
-	if (status & SCSIRSTI) {
+	if (scb_index < ahc->scb_data->numscbs) {
+		scb = ahc->scb_data->scbarray[scb_index];
+		if ((scb->flags & SCB_ACTIVE) == 0)
+			scb = NULL;
+	} else
+		scb = NULL;
+
+	if ((status & SCSIRSTI) != 0) {
 		char channel;
 		channel = (ahc_inb(ahc, SBLKCTL) & SELBUSB) ? 'B' : 'A';
 		printf("%s: Someone reset channel %c\n",
@@ -1478,7 +1453,80 @@ ahc_handle_scsiint(ahc, intstat)
 				  XS_BUSY,
 				  /* Initiate Reset */FALSE);
 		scb = NULL;
-	} else if (!(scb && (scb->flags & SCB_ACTIVE))){
+	} else if ((status & BUSFREE) != 0 && (status & SELTO) == 0) {
+		/*
+		 * First look at what phase we were last in.
+		 * If its message out, chances are pretty good
+		 * that the busfree was in response to one of
+		 * our abort requests.
+		 */
+		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
+		u_int8_t target = (ahc_inb(ahc, SCSIID) >> 4) & 0x0f;
+		char channel = ahc_inb(ahc, SBLKCTL) & SELBUSB ? 'B': 'A';
+		int printerror = 1;
+
+		if (lastphase != P_BUSFREE) {
+			u_int8_t flags = ahc_inb(ahc, FLAGS)
+					& (IDENTIFY_SEEN|RESELECTED);
+
+			if (flags == 0 || flags == (IDENTIFY_SEEN|RESELECTED)) {
+				/*
+				 * We have an SCB we have to clean up.
+				 */
+				u_int8_t next;
+
+				next = ahc_unbusy_target(ahc, target, channel);
+				
+				if (next != SCB_LIST_NULL) {
+					if (ahc->flags & AHC_PAGESCBS) {
+						/* Use the current SCB */
+						struct hardware_scb *hscb;
+
+						hscb = &ahc->scb_data->hscbs[next];
+						ahc_outb(ahc, SCBCNT, SCBAUTO);
+						ahc_outsb(ahc, SCBARRAY,
+							 (u_int8_t *)hscb, 28);
+						ahc_outb(ahc, SCBCNT, 0);
+					} else
+						/* Just switch to the SCB */
+						ahc_outb(ahc, SCBPTR, next);
+
+					/* Add this SCB as the next to run */
+					ahc_outb(ahc, SCB_NEXT,
+						ahc_inb(ahc, WAITING_SCBH));
+					ahc_outb(ahc, WAITING_SCBH,
+						 ahc_inb(ahc, SCBPTR));
+				} else {
+					/* Add us to the Free list */
+					ahc_outb(ahc, SCB_NEXT,
+						ahc_inb(ahc, FREE_SCBH));
+					ahc_outb(ahc, FREE_SCBH,
+						ahc_inb(ahc, SCBPTR));
+				}
+
+				/* Did we ask for this?? */
+				if (lastphase == P_MESGOUT && scb != NULL) {
+					if (scb->flags & SCB_DEVICE_RESET) {
+						ahc_handle_devreset(ahc, scb);
+						printerror = 0;
+					} else if (scb->flags & SCB_ABORTED) {
+						ahc_done(ahc, scb);
+						printerror = 0;
+					}
+				}
+			}
+		}
+		if (printerror != 0) {
+			if (scb != NULL) {
+				scb->xs->error = XS_DRIVER_STUFFUP;
+				sc_print_addr(scb->xs->sc_link);
+				ahc_done(ahc, scb);
+			} else
+				printf("%s: ", ahc_name(ahc));
+			printf("Unexpected busfree.  LASTPHASE == 0x%x\n",
+			       lastphase);
+		}
+	} else if (scb == NULL) {
 		printf("%s: ahc_intr - referenced scb not "
 		       "valid during scsiint 0x%x scb(%d)\n",
 			ahc_name(ahc), status, scb_index);
@@ -1486,7 +1534,7 @@ ahc_handle_scsiint(ahc, intstat)
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		scb = NULL;
-	} else if (status & SCSIPERR) {
+	} else if ((status & SCSIPERR) != 0) {
 		/*
 		 * Determine the bus phase and
 		 * queue an appropriate message
@@ -1543,7 +1591,7 @@ ahc_handle_scsiint(ahc, intstat)
 			 * this decision for us?
 			 */
 			xs->error = XS_DRIVER_STUFFUP;
-	} else if (status & SELTO) {
+	} else if ((status & SELTO) != 0) {
 		struct scsi_xfer *xs;
 		u_int8_t scbptr;
 		u_int8_t nextscb;
@@ -1579,7 +1627,7 @@ ahc_handle_scsiint(ahc, intstat)
 		ahc_outb(ahc, SCB_NEXT, nextscb);
 		ahc_outb(ahc, FREE_SCBH, scbptr);
 		restart_sequencer(ahc);
-	} else if (!(status & BUSFREE)) {
+	} else {
 		sc_print_addr(scb->xs->sc_link);
 		printf("Unknown SCSIINT. Status = 0x%x\n", status);
 		ahc_outb(ahc, CLRSINT1, status);
@@ -1594,7 +1642,40 @@ ahc_handle_scsiint(ahc, intstat)
 	}
 }
 
-	
+static void
+ahc_handle_devreset(ahc, scb)
+	struct ahc_softc *ahc;
+	struct scb *scb;
+{
+	u_int16_t targ_mask;
+	u_int8_t targ_scratch;
+	u_int8_t target = scb->xs->sc_link->target;
+	int scratch_offset = target;
+	char channel = (scb->hscb->tcl & SELBUSB) ? 'B': 'A';
+	int found;
+
+	if (channel == 'B')     
+		scratch_offset += 8;    
+	targ_mask = (0x01 << scratch_offset);
+	/*
+	 * Go back to async/narrow transfers and
+	 * renegotiate.
+	 */
+	ahc_unbusy_target(ahc, target, channel);
+	ahc->needsdtr |= ahc->needsdtr_orig & targ_mask;
+	ahc->needwdtr |= ahc->needwdtr_orig & targ_mask;
+	ahc->sdtrpending &= ~targ_mask;
+	ahc->wdtrpending &= ~targ_mask;
+	targ_scratch = ahc_inb(ahc, TARG_SCRATCH + scratch_offset);
+	targ_scratch &= SXFR;
+	ahc_outb(ahc, TARG_SCRATCH + scratch_offset, targ_scratch);
+	found = ahc_reset_device(ahc, target, channel, NULL, XS_NOERROR);
+	sc_print_addr(scb->xs->sc_link);
+	printf("Bus Device Reset delivered. %d SCBs aborted\n", found);
+	ahc->in_timeout = FALSE;
+	ahc_run_done_queue(ahc);
+}
+
 /*
  * We have a scb which has been processed by the
  * adaptor, now we look to see how the operation
@@ -1612,14 +1693,11 @@ ahc_done(ahc, scb)
 	 * Put the results of the operation
 	 * into the xfer and call whoever started it
 	 */
-#if defined(__NetBSD__)
 	if (xs->error != XS_NOERROR) {
 		/* Don't override the error value. */
 	} else if (scb->flags & SCB_ABORTED) {
 		xs->error = XS_DRIVER_STUFFUP;
-	} else
-#endif
-	if (scb->flags & SCB_SENSE)
+	} else if (scb->flags & SCB_SENSE)
 		xs->error = XS_SENSE;
 	if (scb->flags & SCB_SENTORDEREDTAG)
 		ahc->in_timeout = FALSE;
@@ -3090,8 +3168,8 @@ ahc_calc_residual(scb)
 	}
 
 	/*
-	 * Clean out the residual information in this SCB for the
-	 * next consumer of this SCB.
+	 * Clean out the residual information in this SCB for its
+	 * next consumer.
 	 */
 	hscb->residual_data_count[2] = 0;
 	hscb->residual_data_count[1] = 0;
