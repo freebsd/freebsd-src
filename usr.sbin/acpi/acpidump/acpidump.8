@@ -72,7 +72,8 @@ is invoked without the
 option, it will read ACPI tables from physical
 memory via a special file
 .Pa /dev/mem
-and dump them.  First it searches for the RSDP
+and dump them.
+First it searches for the RSDP
 (Root System Description Pointer),
 which has the signature
 .Qq RSD PTR\ \& ,
@@ -89,8 +90,8 @@ OEM Revision, Creator ID and Creator Revision.
 .Nm
 dumps contents of these SDTs.
 For further information about formats of each table,
-see chapter 5: 
-.Dq ACPI Software Programming Model 
+see chapter 5:
+.Dq ACPI Software Programming Model
 from the ACPI specifications referenced below.
 .Pp
 There is always a pointer to a physical memory address in RSDT for FACP
@@ -167,6 +168,7 @@ Revision 1.0b, 2.0
 .An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
 .An Yasuo YOKOYAMA Aq yokoyama@jp.FreeBSD.org
 .Pp
+.An -nosplit
 Some contributions made by
 .An Chitoshi Ohsawa Aq ohsawa@catv1.ccn-net.ne.jp ,
 .An Takayasu IWANASHI Aq takayasu@wendy.a.perfect-liberty.or.jp ,
@@ -174,7 +176,7 @@ Some contributions made by
 .An Hiroki Sato Aq hrs@FreeBSD.org ,
 .An Michael Lucas Aq mwlucas@blackhelicopters.org
 and
-.An Michael Smith Aq msmith@freebsd.org .
+.An Michael Smith Aq msmith@FreeBSD.org .
 .Sh HISTORY
 The
 .Nm
