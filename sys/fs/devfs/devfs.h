@@ -78,11 +78,9 @@ struct devfs_rule {
 	int	dr_icond;
 #define	DRC_DSWFLAGS	0x001
 #define	DRC_PATHPTRN	0x002
-#define	DRC_MAJOR	0x004
 	int	dr_dswflags;			/* cdevsw flags to match. */
 #define	DEVFS_MAXPTRNLEN	200
 	char	dr_pathptrn[DEVFS_MAXPTRNLEN];	/* Pattern to match path. */
-	int	dr_major;			/* Device major number. */
 
 	/*
 	 * Things to change.  dr_iacts determines which of the other
