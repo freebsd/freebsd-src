@@ -376,7 +376,7 @@ struct wi_ltv_ver {
 #define	WI_NIC_LUCENT_ID	0x0001
 #define	WI_NIC_LUCENT_STR	"Lucent Technologies, WaveLAN/IEEE"
 
-#define	WI_NIC_SONY_ID		0x0001
+#define	WI_NIC_SONY_ID		0x0002
 #define	WI_NIC_SONY_STR		"Sony WaveLAN/IEEE"
 
 #define	WI_NIC_LUCENT_EMB_ID	0x0005
