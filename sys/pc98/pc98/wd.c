@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.11 1996/12/01 16:34:30 bde Exp $
+ *	$Id: wd.c,v 1.12 1996/12/04 04:21:16 asami Exp $
  */
 
 /* TODO:
@@ -482,25 +482,11 @@ wdattach(struct isa_device *dvp)
 				printf("wd%d: size unknown, using %s values\n",
 				       lunit, du->dk_dd.d_secperunit > 17
 					      ? "BIOS" : "fake");
-#ifdef PC98	/* XXX */
-			if (du->dk_dd.d_secperunit > 8 * 1024 * 1024) {
-			    du->dk_dd.d_ncylinders = 
-				bootinfo.bi_bios_geom[du->dk_unit] >> 16;
-			    du->dk_dd.d_secperunit = 
-				du->dk_dd.d_ncylinders
-					* du->dk_dd.d_ntracks
-					* du->dk_dd.d_nsectors;
-			}
-#endif
 			printf(
 "wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
 			       lunit,
 			       du->dk_dd.d_secperunit
-#ifdef PC98
-			       / ( 1024 * 1024 / du->dk_dd.d_secsize) ,
-#else
 			       * du->dk_dd.d_secsize / (1024 * 1024),
-#endif
 			       du->dk_dd.d_secperunit,
 			       du->dk_dd.d_ncylinders,
 			       du->dk_dd.d_ntracks,
