@@ -346,9 +346,9 @@ case ${swapfile} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -w "${swapfile}" -a -c /dev/vn0b ]; then
+	if [ -w "${swapfile}" -a -c /dev/mdctl ]; then
 		echo "Adding ${swapfile} as additional swap"
-		vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
+		mdev=`mdconfig -a -t vnode -f ${swapfile}` && swapon /dev/${mdev}
 	fi
 	;;
 esac
