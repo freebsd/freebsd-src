@@ -247,7 +247,7 @@
     <para>Those interested in an upgrade method that allows more
     flexibility and sophistication should take a look at the
     <quote>Upgrading FreeBSD from source</quote> tutorial found at
-    http://www.freebsd.org/docs.html.  This method requires reliable
+    http://www.FreeBSD.org/docs.html.  This method requires reliable
     network connectivity, extra disk space and spare time, but has
     advantages for networks and other more complex
     installations.</para>

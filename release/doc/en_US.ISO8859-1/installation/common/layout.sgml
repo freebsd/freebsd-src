@@ -73,7 +73,7 @@ XF86336</screen>
 	<para>The ports collection may be installed like any other
 	distribution and requires about 100MB unpacked.  More
 	information on the ports collection may be obtained from
-	<ulink url="http://www.freebsd.org/ports/">http://www.freebsd.org/ports/</ulink> or locally from
+	<ulink url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink> or locally from
 	<filename>/usr/share/doc/handbook</filename> if you've installed the <filename>doc</filename>
 	distribution.</para>
       </listitem>
