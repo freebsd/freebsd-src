@@ -108,6 +108,10 @@ int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
     &sugid_coredump, 0, "Enable coredumping set user/group ID processes");
 
+static int	do_coredump = 1;
+SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
+	&do_coredump, 0, "Enable/Disable coredumps");
+
 /*
  * Signal properties and actions.
  * The array below categorizes the signals and their default actions
@@ -1585,7 +1589,7 @@ coredump(p)
 	
 	STOPEVENT(p, S_CORE, 0);
 
-	if ((sugid_coredump == 0) && p->p_flag & P_SUGID)
+	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0)
 		return (EFAULT);
 	
 	/*
