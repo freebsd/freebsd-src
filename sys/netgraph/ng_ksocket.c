@@ -908,9 +908,14 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	/* Look if socket address is stored in packet tags */
-	if ((stag = (struct sa_tag *)m_tag_locate(m, NGM_KSOCKET_COOKIE,
-	    NG_KSOCKET_TAG_SOCKADDR, NULL)) != NULL)
+	/*
+	 * Look if socket address is stored in packet tags.
+	 * If sockaddr is ours, or provided by a third party (zero id),
+	 * then we accept it.
+	 */
+	if (((stag = (struct sa_tag *)m_tag_locate(m, NGM_KSOCKET_COOKIE,
+	    NG_KSOCKET_TAG_SOCKADDR, NULL)) != NULL) &&
+	    (stag->id == NG_NODE_ID(node) || stag->id == 0))
 		sa = &stag->sa;
 
 	/* Send packet */
@@ -1114,13 +1119,15 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 			struct sa_tag	*stag;
 
 			stag = (struct sa_tag *)m_tag_alloc(NGM_KSOCKET_COOKIE,
-			    NG_KSOCKET_TAG_SOCKADDR, sa->sa_len, M_NOWAIT);
+			    NG_KSOCKET_TAG_SOCKADDR, sizeof(ng_ID_t) +
+			    sa->sa_len, M_NOWAIT);
 			if (stag == NULL) {
 				FREE(sa, M_SONAME);
 				goto sendit;
 			}
 			bcopy(sa, &stag->sa, sa->sa_len);
 			FREE(sa, M_SONAME);
+			stag->id = NG_NODE_ID(node);
 			m_tag_prepend(m, &stag->tag);
 		}
 

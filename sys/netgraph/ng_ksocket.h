@@ -100,6 +100,7 @@ enum {
 /* Structure for sockaddr tag */
 struct sa_tag {
 	struct m_tag	tag;
+	ng_ID_t		id;
 	struct sockaddr	sa;
 };
 
