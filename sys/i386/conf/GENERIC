@@ -89,7 +89,6 @@ options 	ATA_STATIC_ID		#Static device numbering
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
-device		dpt		# DPT Smartcache - See NOTES for options!
 device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
@@ -99,6 +98,10 @@ device		adw
 device		bt
 device		aha	1
 device		aic
+
+# RAID controllers interfaced to the SCSI subsystem
+device		dpt		# DPT Smartcache - See NOTES for options!
+device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
