@@ -62,6 +62,8 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -95,8 +97,13 @@ int	ipport_lastauto  = IPPORT_USERRESERVED;		/* 5000 */
 int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
-/* Shall we allocate ephemeral ports in random order? */
-int	ipport_randomized = 0;
+/* Variables dealing with random ephemeral port allocation. */
+int	ipport_randomized = 1;	/* user controlled via sysctl */
+int	ipport_randomcps = 10;	/* user controlled via sysctl */
+int	ipport_randomtime = 45;	/* user controlled via sysctl */
+int	ipport_stoprandom = 0;	/* toggled by ipport_tick */
+int	ipport_tcpallocs;
+int	ipport_tcplastcount;
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
@@ -136,6 +143,10 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized, CTLFLAG_RW,
 	   &ipport_randomized, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps,
+          CTLFLAG_RW, &ipport_randomcps, 0, "");
+SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
+          CTLFLAG_RW, &ipport_randomtime, 0, "");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -200,6 +211,7 @@ in_pcbbind(inp, nam, p)
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error, prison = 0;
+	int dorandom;
 
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
@@ -313,6 +325,20 @@ in_pcbbind(inp, nam, p)
 			lastport = &pcbinfo->lastport;
 		}
 		/*
+		* For UDP, use random port allocation as long as the user
+		* allows it.  For TCP (and as of yet unknown) connections,
+		* use random port allocation only if the user allows it AND
+		* ipport_tick allows it.
+		*/
+		if (ipport_randomized &&
+			(!ipport_stoprandom || pcbinfo == &udbinfo))
+			dorandom = 1;
+		else
+			dorandom = 0;
+		/* Make sure to not include UDP packets in the count. */
+		if (pcbinfo != &udbinfo)
+			ipport_tcpallocs++;
+		/*
 		 * Simple check to ensure all ports are not used up causing
 		 * a deadlock here.
 		 *
@@ -323,7 +349,7 @@ in_pcbbind(inp, nam, p)
 			/*
 			 * counting down
 			 */
-			if (ipport_randomized)
+			if (dorandom)
 				*lastport = first -
 					    (arc4random() % (first - last));
 			count = first - last;
@@ -343,7 +369,7 @@ in_pcbbind(inp, nam, p)
 			/*
 			 * counting up
 			 */
-			if (ipport_randomized)
+			if (dorandom)
 				*lastport = first +
 					    (arc4random() % (last - first));
 			count = last - first;
@@ -1046,4 +1072,26 @@ prison_xinpcb(struct proc *p, struct inpcb *inp)
 	if (ntohl(inp->inp_laddr.s_addr) == p->p_prison->pr_ip)
 		return (0);
 	return (1);
+}
+
+/*
+ * ipport_tick runs once per second, determining if random port
+ * allocation should be continued.  If more than ipport_randomcps
+ * ports have been allocated in the last second, then we return to
+ * sequential port allocation. We return to random allocation only
+ * once we drop below ipport_randomcps for at least 5 seconds.
+ */
+
+void
+ipport_tick(xtp)
+	void *xtp;
+{
+	if (ipport_tcpallocs > ipport_tcplastcount + ipport_randomcps) {
+		ipport_stoprandom = ipport_randomtime;
+	} else {
+		if (ipport_stoprandom > 0)
+			ipport_stoprandom--;
+	}
+	ipport_tcplastcount = ipport_tcpallocs;
+	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }

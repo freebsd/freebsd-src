@@ -310,6 +310,7 @@ extern int	ipport_firstauto;
 extern int	ipport_lastauto;
 extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
+extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0 __P((struct inpcb *, struct ifnet *));
 void	in_losing __P((struct inpcb *));
@@ -335,6 +336,7 @@ void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
 void	in_pcbremlists __P((struct inpcb *inp));
+void	ipport_tick(void *xtp);
 int	prison_xinpcb __P((struct proc *p, struct inpcb *inp));
 #endif /* _KERNEL */
 
