@@ -37,6 +37,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The load addresses of kernels has been exported
+    to the symbol table and various hard-coded constants removed so
+    that utilities such as &man.ps.1; can work with kernels compiled
+    at different addresses.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -96,6 +101,9 @@
 
     <para>&man.cat.1; now has the ability to read from UNIX-domain
     sockets. &merged;</para>
+
+    <para>&man.find.1; can now take various units of time to be
+    applied to the <option>-[acm]time</option> primaries.</para>
 
     <para>&man.netstat.1; now has a <option>-z</option> flag to reset
     statistics.</para>
