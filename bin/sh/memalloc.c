@@ -42,11 +42,11 @@ static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include "shell.h"
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
-#include "machdep.h"
 #include "mystring.h"
 #include "expand.h"
 #include <stdlib.h>
@@ -100,26 +100,46 @@ savestr(char *s)
  * to make this more efficient, and also to avoid all sorts of exception
  * handling code to handle interrupts in the middle of a parse.
  *
- * The size 504 was chosen because the Ultrix malloc handles that size
- * well.
+ * The size 496 was chosen because with 16-byte alignment the total size
+ * for the allocated block is 512.
  */
 
-#define MINSIZE 504		/* minimum size of a block */
+#define MINSIZE 496		/* minimum size of a block. */
 
 
 struct stack_block {
 	struct stack_block *prev;
-	char space[MINSIZE];
+	/* Data follows */
 };
+#define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
-struct stack_block stackbase;
-struct stack_block *stackp = &stackbase;
+struct stack_block *stackp;
 struct stackmark *markp;
-char *stacknxt = stackbase.space;
-int stacknleft = MINSIZE;
+char *stacknxt;
+int stacknleft;
 int sstrnleft;
 int herefd = -1;
 
+
+static void
+stnewblock(int nbytes)
+{
+	struct stack_block *sp;
+	int allocsize;
+
+	if (nbytes < MINSIZE)
+		nbytes = MINSIZE;
+
+	allocsize = ALIGN(sizeof(struct stack_block)) + ALIGN(nbytes);
+
+	INTOFF;
+	sp = ckmalloc(allocsize);
+	sp->prev = stackp;
+	stacknxt = SPACE(sp);
+	stacknleft = allocsize - (stacknxt - (char*)sp);
+	stackp = sp;
+	INTON;
+}
 
 
 pointer
@@ -128,22 +148,8 @@ stalloc(int nbytes)
 	char *p;
 
 	nbytes = ALIGN(nbytes);
-	if (nbytes > stacknleft) {
-		int blocksize;
-		struct stack_block *sp;
-
-		blocksize = nbytes;
-		if (blocksize < MINSIZE)
-			blocksize = MINSIZE;
-		INTOFF;
-		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + 
-		    blocksize);
-		sp->prev = stackp;
-		stacknxt = sp->space;
-		stacknleft = blocksize;
-		stackp = sp;
-		INTON;
-	}
+	if (nbytes > stacknleft)
+		stnewblock(nbytes);
 	p = stacknxt;
 	stacknxt += nbytes;
 	stacknleft -= nbytes;
@@ -212,41 +218,40 @@ growstackblock(void)
 	int oldlen;
 	struct stack_block *sp;
 	struct stack_block *oldstackp;
+	struct stackmark *xmark;
 
-	newlen = ALIGN(stacknleft * 2 + 100);
+	newlen = (stacknleft == 0) ? MINSIZE : stacknleft * 2 + 100;
+	newlen = ALIGN(newlen);
 	oldspace = stacknxt;
 	oldlen = stacknleft;
 
-	if (stacknxt == stackp->space && stackp != &stackbase) {
+	if (stackp != NULL && stacknxt == SPACE(stackp)) {
 		INTOFF;
 		oldstackp = stackp;
-		sp = stackp;
-		stackp = sp->prev;
-		sp = ckrealloc((pointer)sp, sizeof(struct stack_block) - 
-		    MINSIZE + newlen);
+		stackp = oldstackp->prev;
+		sp = ckrealloc((pointer)oldstackp, newlen);
 		sp->prev = stackp;
 		stackp = sp;
-		stacknxt = sp->space;
-		stacknleft = newlen;
-		{
-		  /* Stack marks pointing to the start of the old block
-		   * must be relocated to point to the new block 
-		   */
-		  struct stackmark *xmark;
-		  xmark = markp;
-		  while (xmark != NULL && xmark->stackp == oldstackp) {
-		    xmark->stackp = stackp;
-		    xmark->stacknxt = stacknxt;
-		    xmark->stacknleft = stacknleft;
-		    xmark = xmark->marknext;
-		  }
+		stacknxt = SPACE(sp);
+		stacknleft = newlen - (stacknxt - (char*)sp);
+
+		/*
+		 * Stack marks pointing to the start of the old block
+		 * must be relocated to point to the new block
+		 */
+		xmark = markp;
+		while (xmark != NULL && xmark->stackp == oldstackp) {
+			xmark->stackp = stackp;
+			xmark->stacknxt = stacknxt;
+			xmark->stacknleft = stacknleft;
+			xmark = xmark->marknext;
 		}
 		INTON;
 	} else {
 		p = stalloc(newlen);
-		memcpy(p, oldspace, oldlen);
-		stacknxt = p;			/* free the space */
-		stacknleft += newlen;		/* we just allocated */
+		if (oldlen != 0)
+			memcpy(p, oldspace, oldlen);
+		stunalloc(p);
 	}
 }
 

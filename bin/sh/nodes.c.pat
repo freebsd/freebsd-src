@@ -37,6 +37,7 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <stdlib.h>
 /*
  * Routine for dealing with parsed shell commands.
@@ -45,7 +46,6 @@
 #include "shell.h"
 #include "nodes.h"
 #include "memalloc.h"
-#include "machdep.h"
 #include "mystring.h"
 
 
