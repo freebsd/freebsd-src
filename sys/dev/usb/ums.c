@@ -111,6 +111,8 @@ struct ums_softc {
 #	  define	UMS_ASLEEP	0x01	/* readFromDevice is waiting */
 #	  define	UMS_SELECT	0x02	/* select is waiting */
 	struct selinfo	rsel;		/* process waiting in select */
+
+	dev_t		dev;		/* specfs */
 };
 
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
@@ -330,6 +332,9 @@ USB_ATTACH(ums)
 	sc->rsel.si_flags = 0;
 	sc->rsel.si_pid = 0;
 
+	sc->dev = make_dev(&ums_cdevsw, device_get_unit(self), UID_ROOT, GID_OPERATOR,
+			0644, "ums%d", device_get_unit(self));
+
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -366,6 +371,8 @@ ums_detach(device_t self)
 		selwakeup(&sc->rsel);
 	}
 #endif
+
+	remove_dev(sc->dev);
 
 	return 0;
 }
