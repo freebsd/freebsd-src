@@ -632,6 +632,7 @@ ibcs2_ioctl(td, uap)
 	case IBCS2_SIOCSOCKSYS:
 		return ibcs2_socksys(td, (struct ibcs2_socksys_args *)uap);
 
+	case IBCS2_FIONREAD:
 	case IBCS2_I_NREAD:     /* STREAMS */
 	        SCARG(uap, cmd) = FIONREAD;
 		return ioctl(td, (struct ioctl_args *)uap);
