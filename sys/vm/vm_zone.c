@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.17 1998/02/06 12:14:29 eivind Exp $
+ * $Id: vm_zone.c,v 1.18 1998/02/09 06:11:36 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@ static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
 
 static struct vm_zone *zlist;
 static int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
+static int zone_kmem_pages, zone_kern_pages, zone_kmem_kvaspace;
 
 /*
  * Create a zone, but don't allocate the zone structure.  If the
@@ -108,6 +109,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	if (z->zflags & ZONE_INTERRUPT) {
 
 		totsize = round_page(z->zsize * nentries);
+		zone_kmem_kvaspace += totsize;
 
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
 		if (z->zkva == 0)
@@ -302,6 +304,7 @@ _zget(vm_zone_t z)
 			pmap_kenter(zkva, VM_PAGE_TO_PHYS(m));
 			bzero((caddr_t) zkva, PAGE_SIZE);
 			z->zpagecount++;
+			zone_kmem_pages++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
@@ -324,9 +327,11 @@ _zget(vm_zone_t z)
 			int s;
 			s = splvm();
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
+			zone_kmem_pages += z->zalloc;
 			splx(s);
 		} else {
 			item = (void *) kmem_alloc(kernel_map, nbytes);
+			zone_kern_pages += z->zalloc;
 		}
 		bzero(item, nbytes);
 		nitems = nbytes / z->zsize;
@@ -438,5 +443,12 @@ zerror(int error)
 }
 #endif
 
-SYSCTL_OID(_kern, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
+SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
 	NULL, 0, sysctl_vm_zone, "A", "Zone Info");
+
+SYSCTL_INT(_vm, OID_AUTO, zone_kmem_pages,
+	CTLFLAG_RD, &zone_kmem_pages, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, zone_kmem_kvaspace,
+	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, zone_kern_pages,
+	CTLFLAG_RD, &zone_kern_pages, 0, "");

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.60 1998/02/12 18:02:04 eivind Exp $
+#	$Id: options,v 1.61 1998/02/16 23:57:33 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -175,3 +175,8 @@ SI_DEBUG		opt_debug_si.h
 DEBUG			opt_global.h
 DIAGNOSTIC		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
+
+# These are VM related options
+VM_KMEM_SIZE	opt_vm.h
+VM_KMEM_SIZE_SCALE opt_vm.h
+VM_KMEM_SIZE_MAX	opt_vm.h
