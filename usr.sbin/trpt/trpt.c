@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)trpt.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id: trpt.c,v 1.8 1997/10/22 06:23:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -76,10 +80,12 @@ static char sccsid[] = "@(#)trpt.c	8.1 (Berkeley) 6/6/93";
 
 #include <arpa/inet.h>
 
-#include <stdio.h>
-#include <errno.h>
+#include <err.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 struct nlist nl[] = {
 #define	N_TCP_DEBUG	0
@@ -102,15 +108,20 @@ static caddr_t tcp_pcbs[TCP_NDEBUG];
 static n_time ntime;
 static int aflag, kflag, memf, follow, sflag, tflag;
 
+void dotrace __P((caddr_t));
+void klseek __P((int, off_t, int));
+int numeric __P((caddr_t *, caddr_t *));
+void tcp_trace __P((short, short, struct tcpcb *, struct tcpcb *,
+			struct tcpiphdr *, int));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
-	int ch, i, jflag, npcbs, numeric();
-	char *system, *core, *malloc();
-	off_t lseek();
+	int ch, i, jflag, npcbs;
+	char *system, *core;
 
 	jflag = npcbs = 0;
 	while ((ch = getopt(argc, argv, "afjp:st")) !=  -1)
@@ -126,11 +137,8 @@ main(argc, argv)
 			++jflag;
 			break;
 		case 'p':
-			if (npcbs >= TCP_NDEBUG) {
-				fputs("trpt: too many pcb's specified\n",
-				    stderr);
-				exit(1);
-			}
+			if (npcbs >= TCP_NDEBUG)
+				errx(1, "too many pcb's specified");
 			(void)sscanf(optarg, "%x", (int *)&tcp_pcbs[npcbs++]);
 			break;
 		case 's':
@@ -141,9 +149,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-"usage: trpt [-afjst] [-p hex-address] [system [core]]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -166,27 +172,20 @@ main(argc, argv)
 	else
 		system = (char *)getbootfile();
 
-	if (nlist(system, nl) < 0 || !nl[0].n_value) {
-		fprintf(stderr, "trpt: %s: no namelist\n", system);
-		exit(1);
-	}
-	if ((memf = open(core, O_RDONLY)) < 0) {
-		perror(core);
-		exit(2);
-	}
+	if (nlist(system, nl) < 0 || !nl[0].n_value)
+		errx(1, "%s: no namelist", system);
+	if ((memf = open(core, O_RDONLY)) < 0)
+		err(2, "%s", core);
 	if (kflag) {
 #ifdef NEWVM
-		fputs("trpt: can't do core files yet\n", stderr);
-		exit(1);
+		errx(1, "can't do core files yet");
 #else
 		off_t off;
 
 		Sysmap = (struct pte *)
 		   malloc((u_int)(nl[N_SYSSIZE].n_value * sizeof(struct pte)));
-		if (!Sysmap) {
-			fputs("trpt: can't get memory for Sysmap.\n", stderr);
-			exit(1);
-		}
+		if (!Sysmap)
+			errx(1, "can't get memory for Sysmap");
 		off = nl[N_SYSMAP].n_value & ~KERNBASE;
 		(void)lseek(memf, off, L_SET);
 		(void)read(memf, (char *)Sysmap,
@@ -195,16 +194,12 @@ main(argc, argv)
 	}
 	(void)klseek(memf, (off_t)nl[N_TCP_DEBX].n_value, L_SET);
 	if (read(memf, (char *)&tcp_debx, sizeof(tcp_debx)) !=
-	    sizeof(tcp_debx)) {
-		perror("trpt: tcp_debx");
-		exit(3);
-	}
+	    sizeof(tcp_debx))
+		err(3, "tcp_debx");
 	(void)klseek(memf, (off_t)nl[N_TCP_DEBUG].n_value, L_SET);
 	if (read(memf, (char *)tcp_debug, sizeof(tcp_debug)) !=
-	    sizeof(tcp_debug)) {
-		perror("trpt: tcp_debug");
-		exit(3);
-	}
+	    sizeof(tcp_debug))
+		err(3, "tcp_debug");
 	/*
 	 * If no control blocks have been specified, figure
 	 * out how many distinct one we have and summarize
@@ -244,6 +239,15 @@ main(argc, argv)
 	exit(0);
 }
 
+static void
+usage()
+{
+	(void)fprintf(stderr,
+		"usage: trpt [-afjst] [-p hex-address] [system [core]]\n");
+	exit(1);
+}
+
+void
 dotrace(tcpcb)
 	register caddr_t tcpcb;
 {
@@ -279,17 +283,13 @@ done:	if (follow) {
 			sleep(1);
 			(void)klseek(memf, (off_t)nl[N_TCP_DEBX].n_value, L_SET);
 			if (read(memf, (char *)&tcp_debx, sizeof(tcp_debx)) !=
-			    sizeof(tcp_debx)) {
-				perror("trpt: tcp_debx");
-				exit(3);
-			}
+			    sizeof(tcp_debx))
+				err(3, "tcp_debx");
 		} while (tcp_debx == prev_debx);
 		(void)klseek(memf, (off_t)nl[N_TCP_DEBUG].n_value, L_SET);
 		if (read(memf, (char *)tcp_debug, sizeof(tcp_debug)) !=
-		    sizeof(tcp_debug)) {
-			perror("trpt: tcp_debug");
-			exit(3);
-		}
+		    sizeof(tcp_debug))
+			err(3, "tcp_debug");
 		goto again;
 	}
 }
@@ -298,6 +298,7 @@ done:	if (follow) {
  * Tcp debug routines
  */
 /*ARGSUSED*/
+void
 tcp_trace(act, ostate, atp, tp, ti, req)
 	short act, ostate;
 	struct tcpcb *atp, *tp;
@@ -392,18 +393,18 @@ tcp_trace(act, ostate, atp, tp, ti, req)
 	}
 }
 
+int
 numeric(c1, c2)
 	caddr_t *c1, *c2;
 {
 	return(*c1 - *c2);
 }
 
+void
 klseek(fd, base, off)
 	int fd, off;
 	off_t base;
 {
-	off_t lseek();
-
 #ifndef NEWVM
 	if (kflag) {	/* get kernel pte */
 		base &= ~KERNBASE;
