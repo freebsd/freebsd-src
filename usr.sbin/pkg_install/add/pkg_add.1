@@ -27,7 +27,7 @@
 .Op Fl vInfRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
-.Ar pkg-name ...
+.Ar pkg-name [pkg-name ...]
 .Sh DESCRIPTION
 The
 .Nm
@@ -165,6 +165,14 @@ in the staging area, the location of which is read as a string
 from stdin.  The complete packing list is also read from stdin,
 and the contents then acted on as normal.
 .El
+On or more
+.Ar pkg-name
+arguments may be specified, each being either a file containing the
+package (these usually ending with the ``.tgz'' suffix) or a
+URL pointing at a file available on an ftp site.  Thus you may
+extract files directly from their anonymous ftp locations (e.g.
+.Nm
+ftp://ftp.freebsd.org/pub/FreeBSD/packages/shells/bash-1.14.4.tgz).
 .Sh TECHNICAL DETAILS
 .Nm
 is fairly simple.  It extracts each packages' "packing list"
