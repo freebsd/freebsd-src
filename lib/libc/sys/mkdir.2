@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mkdir.2	8.2 (Berkeley) 12/11/93
-.\"	$Id: mkdir.2,v 1.2 1996/10/05 22:26:41 wosch Exp $
+.\"	$Id: mkdir.2,v 1.3 1996/12/02 20:03:40 wosch Exp $
 .\"
 .Dd December 11, 1993
 .Dt MKDIR 2
@@ -64,8 +64,6 @@ will fail and no directory will be created if:
 .Bl -tag -width ENAMETOOLO
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
-.It Bq Er EINVAL
-The pathname contains a character with the high-order bit set.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.
