@@ -37,7 +37,9 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.12 2000/12/10 02:16:48 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.13 2002/06/01 16:16:44 tom Exp $")
+
+static char mark[] = "-";
 
 NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   16,				  /* Nr. of chars high */
@@ -73,7 +75,7 @@ NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu = {
   (Menu_Hook)0,			  /* Item init */
   (Menu_Hook)0,			  /* Item term */
   (void *)0,			  /* userptr */
-  "-",				  /* mark */
+  mark,				  /* mark */
   ALL_MENU_OPTS,                  /* options */
   0			          /* status */	    
 };

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001,2002 Free Software Foundation, Inc.    *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,9 +29,10 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey 1996-on                                        *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.128 2002/05/11 21:38:02 tom Exp $ */
+/* $Id: curses.h.in,v 1.129 2002/06/01 17:22:56 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -963,4 +964,3 @@ NCURSES_EXPORT(int) vsscanf(const char *, const char *, va_list);
 #define KEY_BREAK	0401		/* Break key (unreliable) */
 #define KEY_SRESET	0530		/* Soft (partial) reset (unreliable) */
 #define KEY_RESET	0531		/* Reset or hard reset (unreliable) */
-#define KEY_RESIZE	0632		/* Terminal resize event */

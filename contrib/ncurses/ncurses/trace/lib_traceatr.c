@@ -39,7 +39,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* acs_chars */
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.41 2002/02/10 01:26:56 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.42 2002/06/16 00:35:01 tom Exp $")
 
 #define COLOR_OF(c) (c < 0 || c > 7 ? "default" : colors[c].name)
 
@@ -249,39 +249,42 @@ NCURSES_EXPORT(char *)
 _tracecchar_t2 (int bufnum, const cchar_t *ch)
 {
     char *buf = _nc_trace_buf(bufnum, BUFSIZ);
-    attr_t attr = AttrOfD(ch);
+    attr_t attr;
     const char *found;
 
     strcpy(buf, l_brace);
-    if ((found = _nc_altcharset_name(attr, CharOfD(ch))) != 0) {
-	(void) strcat(buf, found);
-	attr &= ~A_ALTCHARSET;
-    } else if (!isnac(CHDEREF(ch))) {
-	PUTC_DATA;
-	int n;
+    if (ch != 0) {
+	attr = AttrOfD(ch);
+	if ((found = _nc_altcharset_name(attr, CharOfD(ch))) != 0) {
+	    (void) strcat(buf, found);
+	    attr &= ~A_ALTCHARSET;
+	} else if (!isnac(CHDEREF(ch))) {
+	    PUTC_DATA;
+	    int n;
 
-	memset (&PUT_st, '\0', sizeof (PUT_st));
-	PUTC_i = 0;
-	(void) strcat(buf, "{ ");
-	do {
-	    PUTC_ch = PUTC_i < CCHARW_MAX ? ch->chars[PUTC_i] : L'\0';
-	    PUTC_n = wcrtomb(PUTC_buf, ch->chars[PUTC_i], &PUT_st);
-	    if (PUTC_ch == L'\0')
-		--PUTC_n;
-	    if (PUTC_n <= 0)
-		break;
-	    for (n = 0; n < PUTC_n; n++) {
-		if (n)
-		    (void) strcat(buf, ", ");
-		(void) strcat(buf, _tracechar(UChar(PUTC_buf[n])));
-	    }
-	    ++PUTC_i;
-	} while (PUTC_ch != L'\0');
-	(void) strcat(buf, " }");
+	    memset (&PUT_st, '\0', sizeof (PUT_st));
+	    PUTC_i = 0;
+	    (void) strcat(buf, "{ ");
+	    do {
+		PUTC_ch = PUTC_i < CCHARW_MAX ? ch->chars[PUTC_i] : L'\0';
+		PUTC_n = wcrtomb(PUTC_buf, ch->chars[PUTC_i], &PUT_st);
+		if (PUTC_ch == L'\0')
+		    --PUTC_n;
+		if (PUTC_n <= 0)
+		    break;
+		for (n = 0; n < PUTC_n; n++) {
+		    if (n)
+			(void) strcat(buf, ", ");
+		    (void) strcat(buf, _tracechar(UChar(PUTC_buf[n])));
+		}
+		++PUTC_i;
+	    } while (PUTC_ch != L'\0');
+	    (void) strcat(buf, " }");
+	}
+	if (attr != A_NORMAL)
+	    (void) sprintf(buf + strlen(buf), " | %s",
+		    _traceattr2(bufnum + 20, attr));
     }
-    if (attr != A_NORMAL)
-	(void) sprintf(buf + strlen(buf), " | %s",
-		_traceattr2(bufnum + 20, attr));
 
     return (strcat(buf, r_brace));
 }

@@ -40,14 +40,14 @@
  *	from the input stream.
  */
 
+#define __INTERNAL_CAPS_VISIBLE
 #include <curses.priv.h>
 
 #include <ctype.h>
 #include <tic.h>
-#define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.55 2002/04/22 00:01:30 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.56 2002/05/25 12:23:51 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =

@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.40 2001/08/12 00:45:57 tom Exp $
+ * $Id: tic.h,v 1.41 2002/06/01 19:07:02 tom Exp $
  *	tic.h - Global variables and structures for the terminfo
  *			compiler.
  */
@@ -119,6 +119,7 @@ extern "C" {
 extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
 extern NCURSES_EXPORT(void) _nc_tracef (char *, ...) GCC_PRINTFLIKE(1,2);
 extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
+extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 
 /*
  * These are the types of tokens returned by the scanner.  The first

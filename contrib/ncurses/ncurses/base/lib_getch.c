@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.60 2002/03/17 00:46:01 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.61 2002/06/16 00:31:57 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -260,7 +260,7 @@ _nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 	    /* resizeterm can push KEY_RESIZE */
 	    if (cooked_key_in_fifo()) {
 		*result = fifo_pull();
-		returnCode(OK);
+		returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
 	    }
 	}
 #endif
