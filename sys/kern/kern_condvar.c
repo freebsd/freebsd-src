@@ -205,7 +205,6 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
-	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -213,9 +212,11 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_unlock_spin(&sched_lock);
 		return;
 	}
+
+	mtx_lock_spin(&sched_lock);
+
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT();
@@ -260,7 +261,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
-	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -268,9 +268,11 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		 * procs or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
+
+	mtx_lock_spin(&sched_lock);
+
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT();
@@ -320,13 +322,12 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	td = curthread;
 	rval = 0;
 #ifdef KTRACE
-		ktrcsw(td->td_proc->p_tracep, 1, 0);
+	ktrcsw(td->td_proc->p_tracep, 1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
-	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -334,9 +335,11 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
+
+	mtx_lock_spin(&sched_lock);
+
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT();
@@ -399,7 +402,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
-	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
 		 * After a panic, or during autoconfiguration, just give
@@ -407,9 +409,11 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		 * thread or panic below, in case this is the idle process and
 		 * already asleep.
 		 */
-		mtx_unlock_spin(&sched_lock);
 		return 0;
 	}
+
+	mtx_lock_spin(&sched_lock);
+
 	CV_WAIT_VALIDATE(cvp, mp);
 
 	DROP_GIANT();
