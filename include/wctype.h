@@ -56,16 +56,11 @@ typedef unsigned long	wctype_t;
 #endif
 
 __BEGIN_DECLS
-int	iswctype(wint_t, wctype_t);
-wint_t	towctrans(wint_t, wctrans_t);
-wctrans_t wctrans(const char *);
-wctype_t wctype(const char *);
-#if 0
-/* XXX: not implemented */
 int	iswalnum(wint_t);
 int	iswalpha(wint_t);
 int	iswblank(wint_t);
 int	iswcntrl(wint_t);
+int	iswctype(wint_t, wctype_t);
 int	iswdigit(wint_t);
 int	iswgraph(wint_t);
 int	iswlower(wint_t);
@@ -74,11 +69,47 @@ int	iswpunct(wint_t);
 int	iswspace(wint_t);
 int	iswupper(wint_t);
 int	iswxdigit(wint_t);
+wint_t	towctrans(wint_t, wctrans_t);
 wint_t	towlower(wint_t);
 wint_t	towupper(wint_t);
+wctrans_t wctrans(const char *);
+wctype_t wctype(const char *);
+
+#if __BSD_VISIBLE
+wint_t	iswascii(wint_t);
+wint_t	iswhexnumber(wint_t);
+wint_t	iswideogram(wint_t);
+wint_t	iswnumber(wint_t);
+wint_t	iswphonogram(wint_t);
+wint_t	iswrune(wint_t);
+wint_t	iswspecial(wint_t);
 #endif
 __END_DECLS
 
+#define iswalnum(wc)	__istype((wc), _CTYPE_A|_CTYPE_D)
+#define iswalpha(wc)	__istype((wc), _CTYPE_A)
+#define iswblank(wc)	__istype((wc), _CTYPE_B)
+#define iswcntrl(wc)	__istype((wc), _CTYPE_C)
 #define iswctype(wc, charclass) __istype((wc), (charclass))
+#define iswdigit(wc)	__istype((wc), _CTYPE_D)
+#define iswgraph(wc)	__istype((wc), _CTYPE_G)
+#define iswlower(wc)	__istype((wc), _CTYPE_L)
+#define iswprint(wc)	__istype((wc), _CTYPE_R)
+#define iswpunct(wc)	__istype((wc), _CTYPE_P)
+#define iswspace(wc)	__istype((wc), _CTYPE_S)
+#define iswupper(wc)	__istype((wc), _CTYPE_U)
+#define iswxdigit(wc)	__istype((wc), _CTYPE_X)
+#define towlower(wc)	__tolower(wc)
+#define towupper(wc)	__toupper(wc)
+
+#if __BSD_VISIBLE
+#define iswascii(wc)	(((wc) & ~0x7F) == 0)
+#define iswhexnumber(wc) __istype((wc), _CTYPE_X)
+#define iswideogram(wc)	__istype((wc), _CTYPE_I)
+#define iswnumber(wc)	__istype((wc), _CTYPE_D)
+#define iswphonogram(wc) __istype((wc), _CTYPE_Q)
+#define iswrune(wc)	__istype((wc), 0xFFFFFF00L)
+#define iswspecial(wc)	__istype((wc), _CTYPE_T)
+#endif
 
 #endif		/* _WCTYPE_H_ */
