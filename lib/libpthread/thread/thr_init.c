@@ -319,8 +319,6 @@ _libpthread_init(struct pthread *curthread)
 static void
 init_main_thread(struct pthread *thread)
 {
-	int i;
-
 	/* Setup the thread attributes. */
 	thread->attr = _pthread_attr_default;
 	thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
@@ -383,15 +381,6 @@ init_main_thread(struct pthread *thread)
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&thread->mutexq);
 
-	/* Initialize thread locking. */
-	if (_lock_init(&thread->lock, LCK_ADAPTIVE,
-	    _thr_lock_wait, _thr_lock_wakeup) != 0)
-		PANIC("Cannot initialize initial thread lock");
-	for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-		_lockuser_init(&thread->lockusers[i], (void *)thread);
-		_LCK_SET_PRIVATE2(&thread->lockusers[i], (void *)thread);
-	}
-
 	/* Initialize hooks in the thread structure: */
 	thread->specific = NULL;
 	thread->cleanup = NULL;
@@ -420,20 +409,6 @@ init_private(void)
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
-
-		/*
-		 * Create a red zone below the main stack.  All other
-		 * stacks are constrained to a maximum size by the
-		 * parameters passed to mmap(), but this stack is only
-		 * limited by resource limits, so this stack needs an
-		 * explicitly mapped red zone to protect the thread stack
-		 * that is just beyond.
-		 */
-		if (mmap((void *)_usrstack - THR_STACK_INITIAL -
-		    _thr_guard_default, _thr_guard_default,
-		    0, MAP_ANON, -1, 0) == MAP_FAILED)
-			PANIC("Cannot allocate red zone for initial thread");
-
 		/* Get the kernel clockrate: */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_CLOCKRATE;
