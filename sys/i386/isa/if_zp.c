@@ -1,7 +1,7 @@
 /*
  * This code is based on
  *  (1) FreeBSD implementation on ISA/EISA Ethelink III by Herb Peyerl
- *  (2) Linux implementation on PCMCIA Etherlink III by Devid Hinds
+ *  (2) Linux implementation on PCMCIA Etherlink III by David Hinds
  *  (3) FreeBSD implementation on PCMCIA IBM Ethernet Card I/II
  *      by David Greenman
  *  (4) RT-Mach implementation on PCMCIA/ISA/EISA Etherlink III
@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.48 1998/06/07 17:10:40 dfr Exp $
+ *	$Id: if_zp.c,v 1.49 1998/10/22 05:58:39 bde Exp $
  */
 /*-
  * TODO:
