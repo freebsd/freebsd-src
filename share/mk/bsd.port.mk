@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.55 1994/10/13 10:33:35 jkh Exp $
+# $Id: bsd.port.mk,v 1.56 1994/10/14 07:56:46 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -231,7 +231,7 @@ install: ${INSTALL_COOKIE}
 
 ${INSTALL_COOKIE}:
 	@echo "===>  Installing for ${DISTNAME}"
-	@${MAKE} pre-install
+	@${MAKE} ${.MAKEFLAGS} pre-install
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .else defined(USE_GMAKE)
@@ -272,7 +272,7 @@ build: configure pre-build
 		if [ ! -d $$i ]; then \
 			echo ">> No directory for $$i.  Skipping.."; \
 		else \
-			(cd $$i; ${MAKE} is_depended) ; \
+			(cd $$i; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
 		fi \
 	done
 	@echo "===>  Returning to build of ${DISTNAME}"
@@ -302,7 +302,7 @@ configure: extract ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
-	@${MAKE} pre-configure
+	@${MAKE} ${.MAKEFLAGS} pre-configure
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
