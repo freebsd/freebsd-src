@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.15 1997/02/22 15:07:50 peter Exp $
+# $Id: Makefile,v 1.16 1997/05/27 00:08:01 fenner Exp $
 
 LIB=    pcap
 SRCS=	grammar.c tokdefs.h pcap-bpf.c \
@@ -32,6 +32,7 @@ beforeinstall:
 		${DESTDIR}/usr/include
 .endfor
 
+.ORDER: grammar.c tokdefs.h
 tokdefs.h grammar.c: grammar.y
 	${YACC} ${YACCFLAGS} -d ${PCAP_DISTDIR}/grammar.y
 	mv y.tab.c grammar.c
