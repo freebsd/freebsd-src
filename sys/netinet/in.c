@@ -405,10 +405,11 @@ in_control(so, cmd, data, ifp, p)
 		}
 		if (ifra->ifra_addr.sin_family == AF_INET &&
 		    (hostIsNew || maskIsNew))
+			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0);
+
 		if (error != 0 && iaIsNew)
 			break;
 
-			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0);
 		if ((ifp->if_flags & IFF_BROADCAST) &&
 		    (ifra->ifra_broadaddr.sin_family == AF_INET))
 			ia->ia_broadaddr = ifra->ifra_broadaddr;
