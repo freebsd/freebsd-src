@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.2 1994/09/27 20:42:42 phk Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.3 1994/12/12 12:35:42 bde Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <sys/kernel.h>		/* defines tz */
 #include <sys/systm.h>		/* defines tz */
+#include <machine/clock.h>
 
 /*
  * MSDOSFS include files.
@@ -31,19 +32,19 @@
 #include <msdosfs/direntry.h>
 
 /*
- * Days in each month in a regular year.
+ * Total number of days that have passed for each month in a regular year.
  */
 u_short regyear[] = {
-	31, 28, 31, 30, 31, 30,
-	31, 31, 30, 31, 30, 31
+	31, 59, 90, 120, 151, 181,
+	212, 243, 273, 304, 334, 365
 };
 
 /*
- * Days in each month in a leap year.
+ * Total number of days that have passed for each month in a leap year.
  */
 u_short leapyear[] = {
-	31, 29, 31, 30, 31, 30,
-	31, 31, 30, 31, 30, 31
+	31, 60, 91, 121, 152, 182,
+	213, 244, 274, 305, 335, 366
 };
 
 /*
@@ -76,7 +77,7 @@ unix2dostime(tsp, ddp, dtp)
 	 * If the time from the last conversion is the same as now, then
 	 * skip the computations and use the saved result.
 	 */
-	t = tsp->ts_sec - (tz.tz_minuteswest * 60)
+	t = tsp->ts_sec - (tz.tz_minuteswest * 60) - adjkerntz;
 	     /* +- daylight savings time correction */ ;
 	if (lasttime != t) {
 		lasttime = t;
@@ -99,11 +100,10 @@ unix2dostime(tsp, ddp, dtp)
 				days -= inc;
 			}
 			months = year & 0x03 ? regyear : leapyear;
-			for (month = 0; month < 12; month++) {
-				if (days < months[month])
-					break;
-				days -= months[month];
-			}
+			for (month = 0; days > months[month]; month++)
+				;
+			if (month > 0)
+				days -= months[month - 1];
 			lastddate = ((days + 1) << DD_DAY_SHIFT)
 			    + ((month + 1) << DD_MONTH_SHIFT);
 			/*
@@ -157,29 +157,25 @@ dos2unixtime(dd, dt, tsp)
 		lastdosdate = dd;
 		days = 0;
 		year = (dd & DD_YEAR_MASK) >> DD_YEAR_SHIFT;
-		for (y = 0; y < year; y++) {
-			days += y & 0x03 ? 365 : 366;
-		}
+		days = year * 365;
+		days += year / 4 + 1;	/* add in leap days */
+		if ((year & 0x03) == 0)
+			days--;		/* if year is a leap year */
 		months = year & 0x03 ? regyear : leapyear;
-		/*
-		 * Prevent going from 0 to 0xffffffff in the following
-		 * loop.
-		 */
 		month = (dd & DD_MONTH_MASK) >> DD_MONTH_SHIFT;
-		if (month == 0) {
+		if (month < 1 || month > 12) {
 			printf(
 			    "dos2unixtime(): month value out of range (%ld)\n",
 			    month);
 			month = 1;
 		}
-		for (m = 0; m < month - 1; m++) {
-			days += months[m];
-		}
+		if (month > 1)
+			days += months[month - 2];
 		days += ((dd & DD_DAY_MASK) >> DD_DAY_SHIFT) - 1;
 		lastseconds = (days * 24 * 60 * 60) + SECONDSTO1980;
 	}
 	tsp->ts_sec = seconds + lastseconds + (tz.tz_minuteswest * 60)
-	     /* -+ daylight savings time correction */ ;
+	     + adjkerntz 	/* -+ daylight savings time correction */ ;
 	tsp->ts_nsec = 0;
 }
 
