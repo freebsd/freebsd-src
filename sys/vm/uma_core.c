@@ -1210,7 +1210,6 @@ uma_startup3(void)
 #ifdef UMA_DEBUG
 	printf("Starting callout.\n");
 #endif
-	/* We'll be mpsafe once the vm is locked. */
 	callout_init(&uma_callout, 0);
 	callout_reset(&uma_callout, UMA_WORKING_TIME * hz, uma_timeout, NULL);
 #ifdef UMA_DEBUG
@@ -1422,11 +1421,13 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int wait, uma_bucket_t bucket)
 
 	if (bucket) {
 #ifdef SMP
-		if (zone->uz_fills >= mp_ncpus)
+		if (zone->uz_fills >= mp_ncpus) {
 #else
-		if (zone->uz_fills > 1)
+		if (zone->uz_fills > 1) {
 #endif
+			ZONE_UNLOCK(zone);
 			return (NULL);
+		}
 
 		zone->uz_fills++;
 	}
