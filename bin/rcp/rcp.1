@@ -29,7 +29,7 @@
 .\"	@(#)rcp.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 1993
+.Dd October 16, 2002
 .Dt RCP 1
 .Os
 .Sh NAME
@@ -37,12 +37,10 @@
 .Nd remote file copy
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46Kpx
-.Op Fl k Ar realm
+.Op Fl 46p
 .Ar file1 file2
 .Nm
-.Op Fl 46Kprx
-.Op Fl k Ar realm
+.Op Fl 46pr
 .Ar
 .Ar directory
 .Sh DESCRIPTION
@@ -65,16 +63,6 @@ The following options are available:
 Use IPv4 addresses only.
 .It Fl 6
 Use IPv6 addresses only.
-.It Fl K
-Turn off all Kerberos authentication.
-.It Fl k
-Request
-.Nm
-to obtain tickets
-for the remote host in realm
-.Ar realm
-instead of the remote host's realm as determined by
-.Xr krb_realmofhost 3 .
 .It Fl p
 Cause
 .Nm
@@ -92,15 +80,6 @@ If any of the source files are directories,
 .Nm
 copies each subtree rooted at that name; in this case
 the destination must be a directory.
-.It Fl x
-Turn on
-.Tn DES
-encryption for all data passed by
-.Nm .
-This may impact response time and
-.Tn CPU
-utilization, but provides
-increased security.
 .El
 .Pp
 If
