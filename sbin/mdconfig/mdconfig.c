@@ -164,15 +164,16 @@ main(int argc, char **argv)
 		i = ioctl(fd, MDIOCATTACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-	} else {
+		if (mdio.md_options & MD_AUTOUNIT)
+			printf("%s%d\n", MD_NAME, mdio.md_unit);
+	} else if (action == DETACH) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			usage();
 		i = ioctl(fd, MDIOCDETACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-	}
-	if (mdio.md_options & MD_AUTOUNIT)
-		printf("%s%d\n", MD_NAME, mdio.md_unit);
+	} else
+		usage();
 	close (fd);
 	return (0);
 }
