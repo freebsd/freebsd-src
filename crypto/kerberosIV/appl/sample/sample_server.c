@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
@@ -18,7 +20,7 @@
 
 #include "sample.h"
 
-RCSID("$Id: sample_server.c,v 1.14 1999/11/13 06:28:49 assar Exp $");
+RCSID("$Id: sample_server.c,v 1.14.2.1 2000/06/28 19:08:00 assar Exp $");
 
 static void
 usage (void)
@@ -108,7 +110,7 @@ main(int argc, char **argv)
 	snprintf(retbuf, sizeof(retbuf),
 		 "Kerberos error: %s\n",
 		 krb_get_err_text(status));
-	syslog(LOG_ERR, retbuf);
+	syslog(LOG_ERR, "%s", retbuf);
     } else {
 	/* Check the version string (KRB_SENDAUTH_VLEN chars) */
 	if (strncmp(version, SAMPLE_VERSION, KRB_SENDAUTH_VLEN)) {
