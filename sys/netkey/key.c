@@ -7171,10 +7171,13 @@ key_validate_ext(ext, len)
 		    SADB_X_IDENTTYPE_ADDR) {
 			baselen = PFKEY_ALIGN8(sizeof(struct sadb_ident));
 			checktype = ADDR;
-		} else
+		} else {
+			baselen = 0;	/* XXX pacify gcc-3.1 */
 			checktype = NONE;
+		}
 		break;
 	default:
+		baselen = 0;		/* XXX pacify gcc-3.1 */
 		checktype = NONE;
 		break;
 	}
