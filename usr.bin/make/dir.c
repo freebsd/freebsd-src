@@ -189,7 +189,6 @@ static Path *dot;	    /* contents of current directory */
  */
 static Hash_Table mtimes;
 
-static int DirFindName(void *, void *);
 static int DirPrintWord(void *, void *);
 static int DirPrintDir(void *, void *);
 
@@ -283,10 +282,10 @@ Dir_End(void)
  *-----------------------------------------------------------------------
  */
 static int
-DirFindName(void *p, void *dname)
+DirFindName(const void *p, const void *dname)
 {
 
-	return (strcmp(((Path *)p)->name, dname));
+	return (strcmp(((const Path *)p)->name, dname));
 }
 
 /*-

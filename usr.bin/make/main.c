@@ -121,7 +121,7 @@ Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
 char *			chdir_verify_path(char *, char *);
-static int		ReadMakefile(void *, void *);
+static int		ReadMakefile(const void *, const void *);
 static void		usage(void);
 
 static char *curdir;			/* startup directory */
@@ -904,7 +904,7 @@ main(int argc, char **argv)
  *	lots
  */
 static Boolean
-ReadMakefile(void *p, void *q __unused)
+ReadMakefile(const void *p, const void *q __unused)
 {
 	char *fname;			/* makefile to read */
 	FILE *stream;
@@ -912,7 +912,8 @@ ReadMakefile(void *p, void *q __unused)
 	char *MAKEFILE;
 	int setMAKEFILE;
 
-	fname = p;
+	/* XXX - remove this once constification is done */
+	fname = estrdup(p);
 
 	if (!strcmp(fname, "-")) {
 		Parse_File("(stdin)", stdin);

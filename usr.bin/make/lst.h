@@ -91,7 +91,7 @@ struct Lst {
 };
 typedef	struct	Lst Lst;
 
-typedef	int CompareProc(void *, void *);
+typedef	int CompareProc(const void *, const void *);
 typedef	int DoProc(void *, void *);
 typedef	void *DuplicateProc(void *);
 typedef	void FreeProc(void *);
@@ -156,7 +156,7 @@ ReturnStatus	Lst_Concat(Lst *, Lst *, int);
 /* Find an element in a list */
 #define	Lst_Find(LST, D, FN)	(Lst_FindFrom((LST), Lst_First(LST), (D), (FN)))
 /* Find an element starting from somewhere */
-LstNode		*Lst_FindFrom(Lst *, LstNode *, void *, CompareProc *);
+LstNode		*Lst_FindFrom(Lst *, LstNode *, const void *, CompareProc *);
 /*
  * See if the given datum is on the list. Returns the LstNode containing
  * the datum
