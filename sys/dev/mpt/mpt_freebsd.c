@@ -268,11 +268,13 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				ntodo = MPT_NSGL(mpt) - 1;
 				ce->NextChainOffset = (MPT_RQSL(mpt) -
 				    sizeof (SGE_SIMPLE32)) >> 2;
+				ce->Length = MPT_NSGL(mpt)
+				    * sizeof (SGE_SIMPLE32);
 			} else {
 				ntodo = nleft;
 				ce->NextChainOffset = 0;
+				ce->Length = ntodo * sizeof (SGE_SIMPLE32);
 			}
-			ce->Length = ntodo * sizeof (SGE_SIMPLE32);
 			ce->Address = req->req_pbuf +
 			    ((char *)se - (char *)mpt_req);
 			ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
