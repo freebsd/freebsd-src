@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.6 1994/08/06 09:15:28 davidg Exp $
+ * $Id: vfs_bio.c,v 1.7 1994/08/07 14:53:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -646,11 +646,7 @@ count_lock_queue()
 	return(count);
 }
 
-#ifndef UPDATE_INTERVAL
 int vfs_update_interval = 30;
-#else
-int vfs_update_interval = UPDATE_INTERVAL;
-#endif
 
 void
 vfs_update() {
