@@ -143,7 +143,7 @@ procfs_open(ap)
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL)) {
+	if (pfs->pfs_pid && p_cansee(ap->a_p, p2)) {
 		error = ENOENT;
 		goto out;
 	}
@@ -157,7 +157,7 @@ procfs_open(ap)
 		}
 
 		p1 = ap->a_p;
-		if (p_can(p1, p2, P_CAN_DEBUG, NULL) &&
+		if (p_candebug(p1, p2) &&
 		    !procfs_kmemaccess(p1)) {
 			error = EPERM;
 		}
@@ -242,7 +242,7 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL))) {
+	if ((error = p_candebug(p, procp))) {
 		PROC_UNLOCK(procp);
 		return (error == ESRCH ? ENOENT : error);
 	}
@@ -408,7 +408,7 @@ procfs_getattr(ap)
 			return (ENOENT);
 		}
 
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+		if (p_cansee(ap->a_p, procp)) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
@@ -625,7 +625,7 @@ procfs_access(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+		if (p_cansee(ap->a_p, procp)) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
@@ -699,7 +699,7 @@ procfs_lookup(ap)
 		if (p == NULL)
 			break;
 
-		if (p_can(curp, p, P_CAN_SEE, NULL)) {
+		if (p_cansee(curp, p)) {
 			PROC_UNLOCK(p);
 			break;
 		}
@@ -800,7 +800,7 @@ procfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			break;
-		if (p_can(curproc, p, P_CAN_SEE, NULL)) {
+		if (p_cansee(curproc, p)) {
 			PROC_UNLOCK(p);
 			break;
 		}
@@ -868,11 +868,11 @@ procfs_readdir(ap)
 					p = LIST_NEXT(p, p_list);
 					if (p == NULL)
 						goto done;
-					if (p_can(curproc, p, P_CAN_SEE, NULL))
+					if (p_cansee(curproc, p))
 						continue;
 					pcnt++;
 				}
-				while (p_can(curproc, p, P_CAN_SEE, NULL)) {
+				while (p_cansee(curproc, p)) {
 					p = LIST_NEXT(p, p_list);
 					if (p == NULL)
 						goto done;

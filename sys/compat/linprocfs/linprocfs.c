@@ -604,7 +604,7 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (p->p_args && (ps_argsopen || !p_can(curp, p, P_CAN_SEE, NULL))) {
+	if (p->p_args && (ps_argsopen || !p_cansee(curp, p))) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 	} else if (p != curp) {
 		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
