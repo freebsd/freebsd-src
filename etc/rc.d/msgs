@@ -5,7 +5,6 @@
 
 # PROVIDE: msgs
 # REQUIRE: LOGIN
-# KEYWORD: FreeBSD
 
 # Make a bounds file for msgs(1) if there isn't one already
 #

@@ -6,7 +6,6 @@
 # PROVIDE: kadmin
 # REQUIRE: kerberos
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

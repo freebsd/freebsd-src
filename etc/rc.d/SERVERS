@@ -6,7 +6,6 @@
 
 # PROVIDE: SERVERS
 # REQUIRE: mountcritremote
-# KEYWORD: FreeBSD
 
 #	This is a dummy dependency, for early-start servers relying on
 #	some basic configuration.

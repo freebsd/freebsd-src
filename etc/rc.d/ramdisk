@@ -30,7 +30,6 @@
 # PROVIDE: ramdisk
 # REQUIRE: localswap
 # BEFORE: mountcritlocal
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

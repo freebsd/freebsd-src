@@ -9,7 +9,7 @@
 #
 
 # PROVIDE: power_profile
-# KEYWORD: FreeBSD nojail nostart
+# KEYWORD: nojail nostart
 
 . /etc/rc.subr
 

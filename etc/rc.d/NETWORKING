@@ -7,7 +7,6 @@
 # PROVIDE: NETWORKING NETWORK
 # REQUIRE: dhclient netif routing network_ipv6 isdnd ppp-user
 # REQUIRE: routed mrouted route6d mroute6d
-# KEYWORD: FreeBSD
 
 #	This is a dummy dependency, for services which require networking
 #	to be operational before starting.

@@ -6,7 +6,6 @@
 
 # PROVIDE: LOGIN
 # REQUIRE: DAEMON
-# KEYWORD: FreeBSD
 
 #	This is a dummy dependency to ensure user services such as xdm,
 #	inetd, cron and kerberos are started after everything else, in case

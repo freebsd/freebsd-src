@@ -29,7 +29,7 @@
 
 # PROVIDE: serial
 # REQUIRE: root
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 # Change some defaults for serial devices.
 # Standard defaults are:

@@ -5,7 +5,6 @@
 #
 
 # PROVIDE: securelevel
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

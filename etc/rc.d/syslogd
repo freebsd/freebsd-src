@@ -7,7 +7,6 @@
 # PROVIDE: syslogd
 # REQUIRE: mountcritremote cleanvar
 # BEFORE:  SERVERS
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

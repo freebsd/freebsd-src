@@ -6,7 +6,7 @@
 # PROVIDE: netoptions
 # REQUIRE: localpkg
 # BEFORE:  securelevel
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: archdep
 # REQUIRE: LOGIN
 # BEFORE: abi
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -7,7 +7,6 @@
 # PROVIDE: sysctl
 # REQUIRE: root
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

@@ -7,7 +7,7 @@
 # PROVIDE: local
 # REQUIRE: DAEMON
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD shutdown
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

@@ -7,7 +7,6 @@
 # PROVIDE: lpd
 # REQUIRE: DAEMON
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

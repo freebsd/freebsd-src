@@ -7,7 +7,7 @@
 # PROVIDE: bootparams
 # REQUIRE: rpcbind DAEMON
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
