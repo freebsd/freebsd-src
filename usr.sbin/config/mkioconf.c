@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.49 1999/04/16 21:28:10 peter Exp $";
+	"$Id: mkioconf.c,v 1.50 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -47,12 +47,9 @@ static const char rcsid[] =
 /*
  * build the ioconf.c file
  */
-static char	*qu();
-static char	*intv();
-static char	*wnum();
-void scbus_devtab __P((FILE *, int *));
-void i386_ioconf __P((void));
-void alpha_ioconf __P((void));
+static char	*qu __P((int));
+static char	*wnum __P((int));
+static void	scbus_devtab __P((FILE *));
 
 static char *
 devstr(struct device *dp)
@@ -168,17 +165,10 @@ write_devtab(FILE *fp)
 	fprintf(fp, "int devtab_count = %d;\n", count);
 }
 
-#if MACHINE_I386
-static char *sirq();
-
 void
-i386_ioconf()
+newbus_ioconf()
 {
-	register struct device *dp, *mp;
-	int dev_id;
 	FILE *fp;
-	static char *old_d_name;
-	int count;
 
 	fp = fopen(path("ioconf.c.new"), "w");
 	if (fp == 0)
@@ -189,11 +179,9 @@ i386_ioconf()
 	fprintf(fp, " */\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#include <sys/param.h>\n");
-	fprintf(fp, "\n");
-	fprintf(fp, "#define C (caddr_t)\n");
 
 	if (seen_scbus)
-		scbus_devtab(fp, &dev_id);
+		scbus_devtab(fp);
 
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
@@ -246,10 +234,9 @@ id_put(fp, unit, s)
  *      All that nice "conflicting SCSI ID checking" is now
  *      lost and should be put back in.
  */
-void
-scbus_devtab(fp, dev_idp)
+static void
+scbus_devtab(fp)
 	FILE	*fp;
-	int	*dev_idp;
 {
 	register struct device *dp, *mp;
 
@@ -320,67 +307,9 @@ scbus_devtab(fp, dev_idp)
 	fprintf(fp, "};\n");
 }
 
-/*
- * XXX - there should be a general function to print devtabs instead of these
- * little pieces of it.
- */
-
-static char *
-sirq(num)
-{
-
-	if (num == -1)
-		return ("0");
-	sprintf(errbuf, "IRQ%d", num);
-	return (errbuf);
-}
-#endif
-
-#if MACHINE_ALPHA
-void
-alpha_ioconf()
-{
-	register struct device *dp, *mp;
-	FILE *fp;
-	int dev_id = 10;
-	int count;
-
-	fp = fopen(path("ioconf.c.new"), "w");
-	if (fp == 0)
-		err(1, "%s", path("ioconf.c"));
-	fprintf(fp, "#include <sys/types.h>\n");
-	fprintf(fp, "#include <sys/time.h>\n");
-	fprintf(fp, "#include <sys/queue.h>\n\n");
-	fprintf(fp, "#include <sys/sysctl.h>\n");
-	fprintf(fp, "#include <sys/bus_private.h>\n");
-	fprintf(fp, "#include <isa/isareg.h>\n\n");
-	fprintf(fp, "#define C (char *)\n\n");
-
-	write_devtab(fp);
-	
-	if (seen_scbus)
-		scbus_devtab(fp, &dev_id);
-
-	(void) fclose(fp);
-	moveifchanged(path("ioconf.c.new"), path("ioconf.c"));
-}
-
-#endif
-
-static char *
-intv(dev)
-	register struct device *dev;
-{
-	static char buf[20];
-
-	if (dev->d_vec == 0)
-		return ("     0");
-	(void) sprintf(buf, "%sint%d", dev->d_name, dev->d_unit);
-	return (buf);
-}
-
 static char *
 qu(num)
+	int num;
 {
 
 	if (num == QUES)
@@ -393,6 +322,7 @@ qu(num)
 
 static char *
 wnum(num)
+	int num;
 {
 
 	if (num == QUES || num == UNKNOWN)

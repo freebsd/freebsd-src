@@ -39,6 +39,8 @@
 #include "y.tab.h"
 #include "config.h"
 
+#define YY_NO_UNPUT
+
 #define tprintf if (do_trace) printf
 
 /*
@@ -52,52 +54,37 @@ struct kt {
 	{ "and",	AND },
 	{ "args",	ARGS },
 	{ "at",		AT },
-#if MACHINE_I386
-	{ "bio",	BIO },
-	{ "bus",	BUS },
-	{ "cam",	CAM },
+	{ "bio",	BIO },		/* XXX going away */
+	{ "bus",	BUS },		/* XXX going away */
+	{ "cam",	CAM },		/* XXX going away */
 	{ "conflicts",	CONFLICTS },
-#endif
 	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
 	{ "csr",	CSR },
 	{ "device",	DEVICE },
-#if MACHINE_I386
 	{ "disable",	DISABLE },
-#endif
 	{ "disk",	DISK },
 	{ "drive",	DRIVE },
-#if MACHINE_I386
 	{ "drq",	DRQ },
-#endif
 	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
-#if MACHINE_I386
-	{ "ha",		HA },
-#endif
 	{ "ident",	IDENT },
 	{ "interleave",	INTERLEAVE },
-#if MACHINE_I386
 	{ "iomem",	IOMEM },
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
-#endif
 	{ "machine",	MACHINE },
 	{ "major",	MAJOR },
 	{ "makeoptions", MAKEOPTIONS },
 	{ "master",	MASTER },
 	{ "maxusers",	MAXUSERS },
 	{ "minor",	MINOR },
-#if MACHINE_I386
-	{ "net",	NET },
-#endif
+	{ "net",	NET },		/* XXX going away */
 	{ "nexus",	NEXUS },
 	{ "on",		ON },
 	{ "options",	OPTIONS },
-#if MACHINE_I386
 	{ "port",	PORT },
-#endif
 	{ "priority",	PRIORITY },
 	{ "pseudo-device",PSEUDO_DEVICE },
 	{ "root",	ROOT },
@@ -107,9 +94,7 @@ struct kt {
 	{ "swap",	SWAP },
 	{ "tape",	DEVICE },
 	{ "target",	TARGET },
-#if MACHINE_I386
-	{ "tty",	TTY },
-#endif
+	{ "tty",	TTY },		/* XXX going away */
 	{ "trace",	TRACE },
 	{ "unit",	UNIT },
 	{ "vector",	VECTOR },
@@ -163,7 +148,6 @@ WORD	[A-Za-z_][-A-Za-z_]*
 			return NUMBER;
 		}
 [0-9]"."[0-9]*	{
-			double atof();
 			yylval.val = (int) (60 * atof(yytext) + 0.5);
 			return FPNUMBER;
 		}
