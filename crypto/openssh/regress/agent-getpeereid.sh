@@ -7,6 +7,12 @@ UNPRIV=nobody
 ASOCK=${OBJ}/agent
 SSH_AUTH_SOCK=/nonexistant
 
+if grep "#undef.*HAVE_GETPEEREID" ${BUILDDIR}/config.h >/dev/null 2>&1
+then
+	echo "skipped (not supported on this platform)"
+	exit 0
+fi
+
 trace "start agent"
 eval `${SSHAGENT} -s -a ${ASOCK}` > /dev/null
 r=$?

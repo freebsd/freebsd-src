@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rsa.c,v 1.56 2002/06/10 16:53:06 stevesk Exp $");
+RCSID("$OpenBSD: auth-rsa.c,v 1.57 2003/04/08 20:21:28 itojun Exp $");
 
 #include <openssl/rsa.h>
 #include <openssl/md5.h>
@@ -187,7 +187,7 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
 		xfree(file);
 		fclose(f);
-		log("Authentication refused: %s", line);
+		logit("Authentication refused: %s", line);
 		restore_uid();
 		return (0);
 	}
@@ -246,7 +246,7 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 
 		/* check the real bits  */
 		if (bits != BN_num_bits(key->rsa->n))
-			log("Warning: %s, line %lu: keysize mismatch: "
+			logit("Warning: %s, line %lu: keysize mismatch: "
 			    "actual %d vs. announced %d.",
 			    file, linenum, BN_num_bits(key->rsa->n), bits);
 

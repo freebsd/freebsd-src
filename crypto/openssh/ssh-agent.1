@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.37 2003/03/28 10:11:43 jmc Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.39 2003/06/10 09:12:11 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -133,7 +133,7 @@ However, the connection to the agent is forwarded over SSH
 remote logins, and the user can thus use the privileges given by the
 identities anywhere in the network in a secure way.
 .Pp
-There are two main ways to get an agent setup:
+There are two main ways to get an agent set up:
 Either the agent starts a new subcommand into which some environment
 variables are exported, or the agent prints the needed shell commands
 (either
@@ -179,6 +179,11 @@ authentication agent.
 These sockets should only be readable by the owner.
 The sockets should get automatically removed when the agent exits.
 .El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free
 ssh 1.2.12 release by Tatu Ylonen.
@@ -188,8 +193,3 @@ removed many bugs, re-added newer features and
 created OpenSSH.
 Markus Friedl contributed the support for SSH
 protocol versions 1.5 and 2.0.
-.Sh SEE ALSO
-.Xr ssh 1 ,
-.Xr ssh-add 1 ,
-.Xr ssh-keygen 1 ,
-.Xr sshd 8

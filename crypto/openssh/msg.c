@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: msg.c,v 1.5 2002/12/19 00:07:02 djm Exp $");
+RCSID("$OpenBSD: msg.c,v 1.6 2003/06/28 16:23:06 deraadt Exp $");
 
 #include "buffer.h"
 #include "getput.h"
@@ -40,9 +40,9 @@ ssh_msg_send(int fd, u_char type, Buffer *m)
 
 	PUT_32BIT(buf, mlen + 1);
 	buf[4] = type;		/* 1st byte of payload is mesg-type */
-	if (atomicio(write, fd, buf, sizeof(buf)) != sizeof(buf))
+	if (atomicio(vwrite, fd, buf, sizeof(buf)) != sizeof(buf))
 		fatal("ssh_msg_send: write");
-	if (atomicio(write, fd, buffer_ptr(m), mlen) != mlen)
+	if (atomicio(vwrite, fd, buffer_ptr(m), mlen) != mlen)
 		fatal("ssh_msg_send: write");
 }
 

@@ -8,7 +8,7 @@ check_version ()
 {
 	version=$1
 	expect=$2
-	banner=`echo -n | ${SSHD} -o "Protocol=${version}" -i -f ${OBJ}/sshd_proxy`
+	banner=`echon | ${SSHD} -o "Protocol=${version}" -i -f ${OBJ}/sshd_proxy`
 	case ${banner} in
 	SSH-1.99-*)
 		proto=199

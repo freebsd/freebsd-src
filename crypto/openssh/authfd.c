@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.58 2003/01/23 13:50:27 markus Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.61 2003/06/28 16:23:06 deraadt Exp $");
 
 #include <openssl/evp.h>
 
@@ -122,8 +122,8 @@ ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply
 	PUT_32BIT(buf, len);
 
 	/* Send the length and then the packet to the agent. */
-	if (atomicio(write, auth->fd, buf, 4) != 4 ||
-	    atomicio(write, auth->fd, buffer_ptr(request),
+	if (atomicio(vwrite, auth->fd, buf, 4) != 4 ||
+	    atomicio(vwrite, auth->fd, buffer_ptr(request),
 	    buffer_len(request)) != buffer_len(request)) {
 		error("Error writing to authentication socket.");
 		return 0;
@@ -332,7 +332,7 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
 		buffer_get_bignum(&auth->identities, key->rsa->n);
 		*comment = buffer_get_string(&auth->identities, NULL);
 		if (bits != BN_num_bits(key->rsa->n))
-			log("Warning: identity keysize mismatch: actual %d, announced %u",
+			logit("Warning: identity keysize mismatch: actual %d, announced %u",
 			    BN_num_bits(key->rsa->n), bits);
 		break;
 	case 2:
@@ -373,7 +373,7 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 	if (key->type != KEY_RSA1)
 		return 0;
 	if (response_type == 0) {
-		log("Compatibility with ssh protocol version 1.0 no longer supported.");
+		logit("Compatibility with ssh protocol version 1.0 no longer supported.");
 		return 0;
 	}
 	buffer_init(&buffer);
@@ -392,7 +392,7 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 	type = buffer_get_char(&buffer);
 
 	if (agent_failed(type)) {
-		log("Agent admitted failure to authenticate using the key.");
+		logit("Agent admitted failure to authenticate using the key.");
 	} else if (type != SSH_AGENT_RSA_RESPONSE) {
 		fatal("Bad authentication response: %d", type);
 	} else {
@@ -441,7 +441,7 @@ ssh_agent_sign(AuthenticationConnection *auth,
 	}
 	type = buffer_get_char(&msg);
 	if (agent_failed(type)) {
-		log("Agent admitted failure to sign using the key.");
+		logit("Agent admitted failure to sign using the key.");
 	} else if (type != SSH2_AGENT_SIGN_RESPONSE) {
 		fatal("Bad authentication response: %d", type);
 	} else {
@@ -589,16 +589,33 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 }
 
 int
-ssh_update_card(AuthenticationConnection *auth, int add, const char *reader_id, const char *pin)
+ssh_update_card(AuthenticationConnection *auth, int add, 
+    const char *reader_id, const char *pin, u_int life, u_int confirm)
 {
 	Buffer msg;
-	int type;
+	int type, constrained = (life || confirm);
+
+	if (add) {
+		type = constrained ?
+		    SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED :
+		    SSH_AGENTC_ADD_SMARTCARD_KEY;
+	} else
+		type = SSH_AGENTC_REMOVE_SMARTCARD_KEY;
 
 	buffer_init(&msg);
-	buffer_put_char(&msg, add ? SSH_AGENTC_ADD_SMARTCARD_KEY :
-	    SSH_AGENTC_REMOVE_SMARTCARD_KEY);
+	buffer_put_char(&msg, type);
 	buffer_put_cstring(&msg, reader_id);
 	buffer_put_cstring(&msg, pin);
+	
+	if (constrained) {
+		if (life != 0) {
+			buffer_put_char(&msg, SSH_AGENT_CONSTRAIN_LIFETIME);
+			buffer_put_int(&msg, life);
+		}
+		if (confirm != 0)
+			buffer_put_char(&msg, SSH_AGENT_CONSTRAIN_CONFIRM);
+	}
+
 	if (ssh_request_reply(auth, &msg, &msg) == 0) {
 		buffer_free(&msg);
 		return 0;
@@ -641,7 +658,7 @@ decode_reply(int type)
 	case SSH_AGENT_FAILURE:
 	case SSH_COM_AGENT2_FAILURE:
 	case SSH2_AGENT_FAILURE:
-		log("SSH_AGENT_FAILURE");
+		logit("SSH_AGENT_FAILURE");
 		return 0;
 	case SSH_AGENT_SUCCESS:
 		return 1;

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: misc.c,v 1.20 2002/12/13 10:03:15 markus Exp $");
+RCSID("$OpenBSD: misc.c,v 1.22 2003/09/18 08:49:45 markus Exp $");
 
 #include "misc.h"
 #include "log.h"
@@ -60,7 +60,7 @@ set_nonblock(int fd)
 		debug2("fd %d is O_NONBLOCK", fd);
 		return;
 	}
-	debug("fd %d setting O_NONBLOCK", fd);
+	debug2("fd %d setting O_NONBLOCK", fd);
 	val |= O_NONBLOCK;
 	if (fcntl(fd, F_SETFL, val) == -1)
 		debug("fcntl(%d, F_SETFL, O_NONBLOCK): %s",
@@ -325,30 +325,4 @@ addargs(arglist *args, char *fmt, ...)
 	args->nalloc = nalloc;
 	args->list[args->num++] = xstrdup(buf);
 	args->list[args->num] = NULL;
-}
-
-mysig_t
-mysignal(int sig, mysig_t act)
-{
-#ifdef HAVE_SIGACTION
-	struct sigaction sa, osa;
-
-	if (sigaction(sig, NULL, &osa) == -1)
-		return (mysig_t) -1;
-	if (osa.sa_handler != act) {
-		memset(&sa, 0, sizeof(sa));
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-#if defined(SA_INTERRUPT)
-		if (sig == SIGALRM)
-			sa.sa_flags |= SA_INTERRUPT;
-#endif
-		sa.sa_handler = act;
-		if (sigaction(sig, &sa, NULL) == -1)
-			return (mysig_t) -1;
-	}
-	return (osa.sa_handler);
-#else
-	return (signal(sig, act));
-#endif
 }

@@ -9,11 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -48,7 +43,7 @@
 
 #include "loginrec.h"
 
-RCSID("$Id: logintest.c,v 1.8 2001/04/05 23:05:22 stevesk Exp $");
+RCSID("$Id: logintest.c,v 1.10 2003/08/21 23:34:41 djm Exp $");
 
 #ifdef HAVE___PROGNAME
 extern char *__progname;
@@ -292,7 +287,7 @@ main(int argc, char *argv[])
 {
 	printf("Platform-independent login recording test driver\n");
 
-	__progname = get_progname(argv[0]);
+	__progname = ssh_get_progname(argv[0]);
 	if (argc == 2) {
 		if (strncmp(argv[1], "-i", 3) == 0)
 			compile_opts_only = 1;

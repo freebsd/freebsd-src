@@ -89,6 +89,12 @@ sc_init(void)
 	r = sc_establish_context(&ctx, "openssh");
 	if (r)
 		goto err;
+	if (sc_reader_id >= ctx->reader_count) {
+		r = SC_ERROR_NO_READERS_FOUND;
+		error("Illegal reader number %d (max %d)", sc_reader_id, 
+		    ctx->reader_count -1);
+		goto err;
+	}
 	r = sc_connect_card(ctx->reader[sc_reader_id], 0, &card);
 	if (r)
 		goto err;
@@ -104,7 +110,8 @@ err:
 /* private key operations */
 
 static int
-sc_prkey_op_init(RSA *rsa, struct sc_pkcs15_object **key_obj_out)
+sc_prkey_op_init(RSA *rsa, struct sc_pkcs15_object **key_obj_out,
+	unsigned int usage)
 {
 	int r;
 	struct sc_priv_data *priv;
@@ -124,7 +131,8 @@ sc_prkey_op_init(RSA *rsa, struct sc_pkcs15_object **key_obj_out)
 			goto err;
 		}
 	}
-	r = sc_pkcs15_find_prkey_by_id(p15card, &priv->cert_id, &key_obj);
+	r = sc_pkcs15_find_prkey_by_id_usage(p15card, &priv->cert_id, 
+		usage, &key_obj);
 	if (r) {
 		error("Unable to find private key from SmartCard: %s",
 		      sc_strerror(r));
@@ -133,7 +141,16 @@ sc_prkey_op_init(RSA *rsa, struct sc_pkcs15_object **key_obj_out)
 	key = key_obj->data;
 	r = sc_pkcs15_find_pin_by_auth_id(p15card, &key_obj->auth_id,
 					  &pin_obj);
-	if (r) {
+	if (r == SC_ERROR_OBJECT_NOT_FOUND) {
+		/* no pin required */
+		r = sc_lock(card);
+		if (r) {
+			error("Unable to lock smartcard: %s", sc_strerror(r));
+			goto err;
+		}
+		*key_obj_out = key_obj;
+		return 0;
+	} else if (r) {
 		error("Unable to find PIN object from SmartCard: %s",
 		      sc_strerror(r));
 		goto err;
@@ -161,6 +178,9 @@ err:
 	return -1;
 }
 
+#define SC_USAGE_DECRYPT	SC_PKCS15_PRKEY_USAGE_DECRYPT | \
+				SC_PKCS15_PRKEY_USAGE_UNWRAP
+
 static int
 sc_private_decrypt(int flen, u_char *from, u_char *to, RSA *rsa,
     int padding)
@@ -170,10 +190,11 @@ sc_private_decrypt(int flen, u_char *from, u_char *to, RSA *rsa,
 
 	if (padding != RSA_PKCS1_PADDING)
 		return -1;	
-	r = sc_prkey_op_init(rsa, &key_obj);
+	r = sc_prkey_op_init(rsa, &key_obj, SC_USAGE_DECRYPT);
 	if (r)
 		return -1;
-	r = sc_pkcs15_decipher(p15card, key_obj, 0, from, flen, to, flen);
+	r = sc_pkcs15_decipher(p15card, key_obj, SC_ALGORITHM_RSA_PAD_PKCS1, 
+	    from, flen, to, flen);
 	sc_unlock(card);
 	if (r < 0) {
 		error("sc_pkcs15_decipher() failed: %s", sc_strerror(r));
@@ -185,6 +206,9 @@ err:
 	return -1;
 }
 
+#define SC_USAGE_SIGN 		SC_PKCS15_PRKEY_USAGE_SIGN | \
+				SC_PKCS15_PRKEY_USAGE_SIGNRECOVER
+
 static int
 sc_sign(int type, u_char *m, unsigned int m_len,
 	unsigned char *sigret, unsigned int *siglen, RSA *rsa)
@@ -193,7 +217,15 @@ sc_sign(int type, u_char *m, unsigned int m_len,
 	int r;
 	unsigned long flags = 0;
 
-	r = sc_prkey_op_init(rsa, &key_obj);
+	/* XXX: sc_prkey_op_init will search for a pkcs15 private
+	 * key object with the sign or signrecover usage flag set.
+	 * If the signing key has only the non-repudiation flag set
+	 * the key will be rejected as using a non-repudiation key
+	 * for authentication is not recommended. Note: This does not
+	 * prevent the use of a non-repudiation key for authentication
+	 * if the sign or signrecover flag is set as well. 
+	 */
+	r = sc_prkey_op_init(rsa, &key_obj, SC_USAGE_SIGN);
 	if (r)
 		return -1;
 	/* FIXME: length of sigret correct? */
@@ -321,7 +353,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	debug("sc_read_pubkey() with cert id %02X", cinfo->id.value[0]);
 	r = sc_pkcs15_read_certificate(p15card, cinfo, &cert);
 	if (r) {
-		log("Certificate read failed: %s", sc_strerror(r));
+		logit("Certificate read failed: %s", sc_strerror(r));
 		goto err;
 	}
 	x509 = X509_new();
@@ -331,7 +363,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	}
 	p = cert->data;
 	if (!d2i_X509(&x509, &p, cert->data_len)) {
-		log("Unable to parse X.509 certificate");
+		logit("Unable to parse X.509 certificate");
 		r = -1;
 		goto err;
 	}
@@ -341,7 +373,7 @@ sc_read_pubkey(Key * k, const struct sc_pkcs15_object *cert_obj)
 	X509_free(x509);
 	x509 = NULL;
 	if (pubkey->type != EVP_PKEY_RSA) {
-		log("Public key is of unknown type");
+		logit("Public key is of unknown type");
 		r = -1;
 		goto err;
 	}
@@ -413,7 +445,7 @@ sc_get_keys(const char *id, const char *pin)
 		r = sc_pkcs15_get_objects(p15card, SC_PKCS15_TYPE_CERT_X509,
 					  certs, 32);
 		if (r == 0) {
-			log("No certificates found on smartcard");
+			logit("No certificates found on smartcard");
 			r = -1;
 			goto err;
 		} else if (r < 0) {
@@ -423,9 +455,14 @@ sc_get_keys(const char *id, const char *pin)
 		}
 		key_count = r;
 	}
-	/* FIXME: only keep entries with a corresponding private key */
 	keys = xmalloc(sizeof(Key *) * (key_count*2+1));
 	for (i = 0; i < key_count; i++) {
+		sc_pkcs15_object_t *tmp_obj = NULL;
+		cert_id = ((sc_pkcs15_cert_info_t *)(certs[i]->data))->id;
+		if (sc_pkcs15_find_prkey_by_id(p15card, &cert_id, &tmp_obj))
+			/* skip the public key (certificate) if no
+			 * corresponding private key is present */
+			continue;
 		k = key_new(KEY_RSA);
 		if (k == NULL)
 			break;
@@ -457,6 +494,32 @@ sc_put_key(Key *prv, const char *id)
 {
 	error("key uploading not yet supported");
 	return -1;
+}
+
+char *
+sc_get_key_label(Key *key)
+{
+	int r;
+	const struct sc_priv_data *priv;
+	struct sc_pkcs15_object *key_obj;
+
+	priv = (const struct sc_priv_data *) RSA_get_app_data(key->rsa);
+	if (priv == NULL || p15card == NULL) {
+		logit("SmartCard key not loaded");
+		/* internal error => return default label */
+		return xstrdup("smartcard key");
+	}
+	r = sc_pkcs15_find_prkey_by_id(p15card, &priv->cert_id, &key_obj);
+	if (r) {
+		logit("Unable to find private key from SmartCard: %s",
+		      sc_strerror(r));
+		return xstrdup("smartcard key");
+	}
+	if (key_obj == NULL || key_obj->label == NULL)
+		/* the optional PKCS#15 label does not exists
+		 * => return the default label */
+		return xstrdup("smartcard key");
+	return xstrdup(key_obj->label);
 }
 
 #endif /* SMARTCARD */

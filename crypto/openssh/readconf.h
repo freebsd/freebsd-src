@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.46 2003/04/01 10:22:21 markus Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.55 2003/09/01 18:15:50 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -33,7 +33,6 @@ typedef struct {
 	char   *xauth_location;	/* Location for xauth program */
 	int     gateway_ports;	/* Allow remote connects to forwarded ports. */
 	int     use_privileged_port;	/* Don't use privileged port if false. */
-	int     rhosts_authentication;	/* Try rhosts authentication. */
 	int     rhosts_rsa_authentication;	/* Try rhosts with RSA
 						 * authentication. */
 	int     rsa_authentication;	/* Try RSA authentication. */
@@ -41,15 +40,8 @@ typedef struct {
 	int     hostbased_authentication;	/* ssh2's rhosts_rsa */
 	int     challenge_response_authentication;
 					/* Try S/Key or TIS, authentication. */
-#if defined(KRB4) || defined(KRB5)
-	int     kerberos_authentication;	/* Try Kerberos authentication. */
-#endif
-#if defined(AFS) || defined(KRB5)
-	int     kerberos_tgt_passing;	/* Try Kerberos TGT passing. */
-#endif
-#ifdef AFS
-	int     afs_token_passing;	/* Try AFS token passing. */
-#endif
+	int     gss_authentication;	/* Try GSS authentication */
+	int     gss_deleg_creds;	/* Delegate GSS credentials */
 	int     password_authentication;	/* Try password
 						 * authentication. */
 	int     kbd_interactive_authentication; /* Try keyboard-interactive auth. */
@@ -64,8 +56,11 @@ typedef struct {
 	LogLevel log_level;	/* Level for logging. */
 
 	int     port;		/* Port to connect. */
+	int     address_family;
 	int     connection_attempts;	/* Max attempts (seconds) before
 					 * giving up */
+	int     connection_timeout;	/* Max time (seconds) before
+				 	 * aborting connection attempt */
 	int     number_of_password_prompts;	/* Max number of password
 						 * prompts. */
 	int     cipher;		/* Cipher to use. */
@@ -86,6 +81,7 @@ typedef struct {
 	char   *preferred_authentications;
 	char   *bind_address;	/* local socket address for connection to sshd */
 	char   *smartcard_device; /* Smartcard reader device */
+	int	verify_host_key_dns;	/* Verify host key using DNS */
 
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */
 	char   *identity_files[SSH_MAX_IDENTITY_FILES];
@@ -101,6 +97,7 @@ typedef struct {
 	int	clear_forwardings;
 
 	int	enable_ssh_keysign;
+	int	rekey_limit;
 	int	no_host_authentication_for_localhost;
 }       Options;
 

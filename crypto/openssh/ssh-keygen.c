@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.102 2002/11/26 00:45:03 wcobb Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.108 2003/08/14 16:08:58 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -27,9 +27,13 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.102 2002/11/26 00:45:03 wcobb Exp $");
 #include "pathnames.h"
 #include "log.h"
 #include "readpass.h"
+#include "moduli.h"
 
 #ifdef SMARTCARD
 #include "scard.h"
+#endif
+#ifdef DNS
+#include "dns.h"
 #endif
 
 /* Number of bits in the RSA/DSA key.  This value can be changed on the command line. */
@@ -70,6 +74,7 @@ char *identity_comment = NULL;
 int convert_to_ssh2 = 0;
 int convert_from_ssh2 = 0;
 int print_public = 0;
+int print_generic = 0;
 
 char *key_type_name = NULL;
 
@@ -162,6 +167,10 @@ do_convert_to_ssh2(struct passwd *pw)
 			fprintf(stderr, "load failed\n");
 			exit(1);
 		}
+	}
+	if (k->type == KEY_RSA1) {
+		fprintf(stderr, "version 1 keys are not supported\n");
+		exit(1);
 	}
 	if (key_to_blob(k, &blob, &len) <= 0) {
 		fprintf(stderr, "key_to_blob failed\n");
@@ -415,7 +424,7 @@ do_upload(struct passwd *pw, const char *sc_reader_id)
 	key_free(prv);
 	if (ret < 0)
 		exit(1);
-	log("loading key done");
+	logit("loading key done");
 	exit(0);
 }
 
@@ -616,6 +625,38 @@ do_change_passphrase(struct passwd *pw)
 	exit(0);
 }
 
+#ifdef DNS
+/*
+ * Print the SSHFP RR.
+ */
+static void
+do_print_resource_record(struct passwd *pw, char *hostname)
+{
+	Key *public;
+	char *comment = NULL;
+	struct stat st;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0) {
+		perror(identity_file);
+		exit(1);
+	}
+	public = key_load_public(identity_file, &comment);
+	if (public != NULL) {
+		export_dns_rr(hostname, public, stdout, print_generic);
+		key_free(public);
+		xfree(comment);
+		exit(0);
+	}
+	if (comment)
+		xfree(comment);
+
+	printf("failed to read v2 public key from %s.\n", identity_file);
+	exit(1);
+}
+#endif /* DNS */
+
 /*
  * Change the comment of a private key file.
  */
@@ -722,6 +763,7 @@ usage(void)
 	fprintf(stderr, "  -c          Change comment in private and public key files.\n");
 	fprintf(stderr, "  -e          Convert OpenSSH to IETF SECSH key file.\n");
 	fprintf(stderr, "  -f filename Filename of the key file.\n");
+	fprintf(stderr, "  -g          Use generic DNS resource record format.\n");
 	fprintf(stderr, "  -i          Convert IETF SECSH to OpenSSH key file.\n");
 	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
 	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
@@ -732,10 +774,16 @@ usage(void)
 	fprintf(stderr, "  -C comment  Provide new comment.\n");
 	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
 	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
+#ifdef DNS
+	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
+#endif /* DNS */
 #ifdef SMARTCARD
 	fprintf(stderr, "  -D reader   Download public key from smartcard.\n");
 	fprintf(stderr, "  -U reader   Upload private key to smartcard.\n");
 #endif /* SMARTCARD */
+
+	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli\n");
+	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli\n");
 
 	exit(1);
 }
@@ -747,19 +795,25 @@ int
 main(int ac, char **av)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
-	char *reader_id = NULL;
+	char out_file[MAXPATHLEN], *reader_id = NULL;
+	char *resource_record_hostname = NULL;
 	Key *private, *public;
 	struct passwd *pw;
 	struct stat st;
-	int opt, type, fd, download = 0;
+	int opt, type, fd, download = 0, memory = 0;
+	int generator_wanted = 0, trials = 100;
+	int do_gen_candidates = 0, do_screen_candidates = 0;
+	BIGNUM *start = NULL;
 	FILE *f;
 
 	extern int optind;
 	extern char *optarg;
 
-	__progname = get_progname(av[0]);
+	__progname = ssh_get_progname(av[0]);
 
 	SSLeay_add_all_algorithms();
+	log_init(av[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
+
 	init_rng();
 	seed_rng();
 
@@ -774,7 +828,8 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	while ((opt = getopt(ac, av, "deiqpclBRxXyb:f:t:U:D:P:N:C:")) != -1) {
+	while ((opt = getopt(ac, av,
+	    "degiqpclBRxXyb:f:t:U:D:P:N:C:r:g:T:G:M:S:a:W:")) != -1) {
 		switch (opt) {
 		case 'b':
 			bits = atoi(optarg);
@@ -798,6 +853,9 @@ main(int ac, char **av)
 		case 'f':
 			strlcpy(identity_file, optarg, sizeof(identity_file));
 			have_identity = 1;
+			break;
+		case 'g':
+			print_generic = 1;
 			break;
 		case 'P':
 			identity_passphrase = optarg;
@@ -839,6 +897,42 @@ main(int ac, char **av)
 		case 'U':
 			reader_id = optarg;
 			break;
+		case 'r':
+			resource_record_hostname = optarg;
+			break;
+		case 'W':
+			generator_wanted = atoi(optarg);
+			if (generator_wanted < 1)
+				fatal("Desired generator has bad value.");
+			break;
+		case 'a':
+			trials = atoi(optarg);
+			if (trials < TRIAL_MINIMUM) {
+				fatal("Minimum primality trials is %d", 
+				    TRIAL_MINIMUM);
+			}
+			break;
+		case 'M':
+			memory = atoi(optarg);
+			if (memory != 0 && 
+			   (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
+				fatal("Invalid memory amount (min %ld, max %ld)",
+				    LARGE_MINIMUM, LARGE_MAXIMUM);
+			}
+			break;
+		case 'G':
+			do_gen_candidates = 1;
+			strlcpy(out_file, optarg, sizeof(out_file));
+			break;
+		case 'T':
+			do_screen_candidates = 1;
+			strlcpy(out_file, optarg, sizeof(out_file));
+			break;
+		case 'S':
+			/* XXX - also compare length against bits */
+			if (BN_hex2bn(&start, optarg) == 0)
+				fatal("Invalid start point.");
+			break;
 		case '?':
 		default:
 			usage();
@@ -864,6 +958,13 @@ main(int ac, char **av)
 		do_convert_from_ssh2(pw);
 	if (print_public)
 		do_print_public(pw);
+	if (resource_record_hostname != NULL) {
+#ifdef DNS
+		do_print_resource_record(pw, resource_record_hostname);
+#else /* DNS */
+		fatal("no DNS support.");
+#endif /* DNS */
+	}
 	if (reader_id != NULL) {
 #ifdef SMARTCARD
 		if (download)
@@ -873,6 +974,42 @@ main(int ac, char **av)
 #else /* SMARTCARD */
 		fatal("no support for smartcards.");
 #endif /* SMARTCARD */
+	}
+
+	if (do_gen_candidates) {
+		FILE *out = fopen(out_file, "w");
+		
+		if (out == NULL) {
+			error("Couldn't open modulus candidate file \"%s\": %s",
+			    out_file, strerror(errno));
+			return (1);
+		}
+		if (gen_candidates(out, memory, bits, start) != 0)
+			fatal("modulus candidate generation failed\n");
+
+		return (0);
+	}
+
+	if (do_screen_candidates) {
+		FILE *in;
+		FILE *out = fopen(out_file, "w");
+
+		if (have_identity && strcmp(identity_file, "-") != 0) {
+			if ((in = fopen(identity_file, "r")) == NULL) {
+				fatal("Couldn't open modulus candidate "
+				    "file \"%s\": %s", identity_file, 
+				    strerror(errno));
+			}
+		} else
+			in = stdin;
+
+		if (out == NULL) {
+			fatal("Couldn't open moduli file \"%s\": %s",
+			    out_file, strerror(errno));
+		}
+		if (prime_test(in, out, trials, generator_wanted) != 0)
+			fatal("modulus screening failed\n");
+		return (0);
 	}
 
 	arc4random_stir();

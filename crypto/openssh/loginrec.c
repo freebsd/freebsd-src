@@ -12,11 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -163,7 +158,7 @@
 #include "log.h"
 #include "atomicio.h"
 
-RCSID("$Id: loginrec.c,v 1.47 2003/03/10 00:23:07 djm Exp $");
+RCSID("$Id: loginrec.c,v 1.52 2003/07/06 05:20:46 dtucker Exp $");
 
 #ifdef HAVE_UTIL_H
 #  include <util.h>
@@ -413,7 +408,7 @@ login_write (struct logininfo *li)
 {
 #ifndef HAVE_CYGWIN
 	if ((int)geteuid() != 0) {
-	  log("Attempt to write login records by non-root user (aborting)");
+	  logit("Attempt to write login records by non-root user (aborting)");
 	  return 1;
 	}
 #endif
@@ -818,7 +813,7 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 	endttyent();
 
 	if((struct ttyent *)0 == ty) {
-		log("utmp_write_entry: tty not found");
+		logit("utmp_write_entry: tty not found");
 		return(1);
 	}
 #else /* FIXME */
@@ -842,8 +837,8 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 		}
 
 		(void)lseek(fd, (off_t)(tty * sizeof(struct utmp)), SEEK_SET);
-		if (atomicio(write, fd, ut, sizeof(*ut)) != sizeof(*ut))
-			log("utmp_write_direct: error writing %s: %s",
+		if (atomicio(vwrite, fd, ut, sizeof(*ut)) != sizeof(*ut))
+			logit("utmp_write_direct: error writing %s: %s",
 			    UTMP_FILE, strerror(errno));
 
 		(void)close(fd);
@@ -862,12 +857,12 @@ utmp_perform_login(struct logininfo *li)
 	construct_utmp(li, &ut);
 # ifdef UTMP_USE_LIBRARY
 	if (!utmp_write_library(li, &ut)) {
-		log("utmp_perform_login: utmp_write_library() failed");
+		logit("utmp_perform_login: utmp_write_library() failed");
 		return 0;
 	}
 # else
 	if (!utmp_write_direct(li, &ut)) {
-		log("utmp_perform_login: utmp_write_direct() failed");
+		logit("utmp_perform_login: utmp_write_direct() failed");
 		return 0;
 	}
 # endif
@@ -883,12 +878,12 @@ utmp_perform_logout(struct logininfo *li)
 	construct_utmp(li, &ut);
 # ifdef UTMP_USE_LIBRARY
 	if (!utmp_write_library(li, &ut)) {
-		log("utmp_perform_logout: utmp_write_library() failed");
+		logit("utmp_perform_logout: utmp_write_library() failed");
 		return 0;
 	}
 # else
 	if (!utmp_write_direct(li, &ut)) {
-		log("utmp_perform_logout: utmp_write_direct() failed");
+		logit("utmp_perform_logout: utmp_write_direct() failed");
 		return 0;
 	}
 # endif
@@ -907,7 +902,7 @@ utmp_write_entry(struct logininfo *li)
 		return utmp_perform_logout(li);
 
 	default:
-		log("utmp_write_entry: invalid type field");
+		logit("utmp_write_entry: invalid type field");
 		return 0;
 	}
 }
@@ -948,7 +943,7 @@ utmpx_write_library(struct logininfo *li, struct utmpx *utx)
 static int
 utmpx_write_direct(struct logininfo *li, struct utmpx *utx)
 {
-	log("utmpx_write_direct: not implemented!");
+	logit("utmpx_write_direct: not implemented!");
 	return 0;
 }
 # endif /* UTMPX_USE_LIBRARY */
@@ -961,12 +956,12 @@ utmpx_perform_login(struct logininfo *li)
 	construct_utmpx(li, &utx);
 # ifdef UTMPX_USE_LIBRARY
 	if (!utmpx_write_library(li, &utx)) {
-		log("utmpx_perform_login: utmp_write_library() failed");
+		logit("utmpx_perform_login: utmp_write_library() failed");
 		return 0;
 	}
 # else
 	if (!utmpx_write_direct(li, &ut)) {
-		log("utmpx_perform_login: utmp_write_direct() failed");
+		logit("utmpx_perform_login: utmp_write_direct() failed");
 		return 0;
 	}
 # endif
@@ -1004,7 +999,7 @@ utmpx_write_entry(struct logininfo *li)
 	case LTYPE_LOGOUT:
 		return utmpx_perform_logout(li);
 	default:
-		log("utmpx_write_entry: invalid type field");
+		logit("utmpx_write_entry: invalid type field");
 		return 0;
 	}
 }
@@ -1026,14 +1021,14 @@ wtmp_write(struct logininfo *li, struct utmp *ut)
 	int fd, ret = 1;
 
 	if ((fd = open(WTMP_FILE, O_WRONLY|O_APPEND, 0)) < 0) {
-		log("wtmp_write: problem writing %s: %s",
+		logit("wtmp_write: problem writing %s: %s",
 		    WTMP_FILE, strerror(errno));
 		return 0;
 	}
 	if (fstat(fd, &buf) == 0)
-		if (atomicio(write, fd, ut, sizeof(*ut)) != sizeof(*ut)) {
+		if (atomicio(vwrite, fd, ut, sizeof(*ut)) != sizeof(*ut)) {
 			ftruncate(fd, buf.st_size);
-			log("wtmp_write: problem writing %s: %s",
+			logit("wtmp_write: problem writing %s: %s",
 			    WTMP_FILE, strerror(errno));
 			ret = 0;
 		}
@@ -1070,7 +1065,7 @@ wtmp_write_entry(struct logininfo *li)
 	case LTYPE_LOGOUT:
 		return wtmp_perform_logout(li);
 	default:
-		log("wtmp_write_entry: invalid type field");
+		logit("wtmp_write_entry: invalid type field");
 		return 0;
 	}
 }
@@ -1119,12 +1114,12 @@ wtmp_get_entry(struct logininfo *li)
 	li->tv_sec = li->tv_usec = 0;
 
 	if ((fd = open(WTMP_FILE, O_RDONLY)) < 0) {
-		log("wtmp_get_entry: problem opening %s: %s",
+		logit("wtmp_get_entry: problem opening %s: %s",
 		    WTMP_FILE, strerror(errno));
 		return 0;
 	}
 	if (fstat(fd, &st) != 0) {
-		log("wtmp_get_entry: couldn't stat %s: %s",
+		logit("wtmp_get_entry: couldn't stat %s: %s",
 		    WTMP_FILE, strerror(errno));
 		close(fd);
 		return 0;
@@ -1139,7 +1134,7 @@ wtmp_get_entry(struct logininfo *li)
 
 	while (!found) {
 		if (atomicio(read, fd, &ut, sizeof(ut)) != sizeof(ut)) {
-			log("wtmp_get_entry: read of %s failed: %s",
+			logit("wtmp_get_entry: read of %s failed: %s",
 			    WTMP_FILE, strerror(errno));
 			close (fd);
 			return 0;
@@ -1192,15 +1187,15 @@ wtmpx_write(struct logininfo *li, struct utmpx *utx)
 	int fd, ret = 1;
 
 	if ((fd = open(WTMPX_FILE, O_WRONLY|O_APPEND, 0)) < 0) {
-		log("wtmpx_write: problem opening %s: %s",
+		logit("wtmpx_write: problem opening %s: %s",
 		    WTMPX_FILE, strerror(errno));
 		return 0;
 	}
 
 	if (fstat(fd, &buf) == 0)
-		if (atomicio(write, fd, utx, sizeof(*utx)) != sizeof(*utx)) {
+		if (atomicio(vwrite, fd, utx, sizeof(*utx)) != sizeof(*utx)) {
 			ftruncate(fd, buf.st_size);
-			log("wtmpx_write: problem writing %s: %s",
+			logit("wtmpx_write: problem writing %s: %s",
 			    WTMPX_FILE, strerror(errno));
 			ret = 0;
 		}
@@ -1239,7 +1234,7 @@ wtmpx_write_entry(struct logininfo *li)
 	case LTYPE_LOGOUT:
 		return wtmpx_perform_logout(li);
 	default:
-		log("wtmpx_write_entry: invalid type field");
+		logit("wtmpx_write_entry: invalid type field");
 		return 0;
 	}
 }
@@ -1275,12 +1270,12 @@ wtmpx_get_entry(struct logininfo *li)
 	li->tv_sec = li->tv_usec = 0;
 
 	if ((fd = open(WTMPX_FILE, O_RDONLY)) < 0) {
-		log("wtmpx_get_entry: problem opening %s: %s",
+		logit("wtmpx_get_entry: problem opening %s: %s",
 		    WTMPX_FILE, strerror(errno));
 		return 0;
 	}
 	if (fstat(fd, &st) != 0) {
-		log("wtmpx_get_entry: couldn't stat %s: %s",
+		logit("wtmpx_get_entry: couldn't stat %s: %s",
 		    WTMPX_FILE, strerror(errno));
 		close(fd);
 		return 0;
@@ -1295,7 +1290,7 @@ wtmpx_get_entry(struct logininfo *li)
 
 	while (!found) {
 		if (atomicio(read, fd, &utx, sizeof(utx)) != sizeof(utx)) {
-			log("wtmpx_get_entry: read of %s failed: %s",
+			logit("wtmpx_get_entry: read of %s failed: %s",
 			    WTMPX_FILE, strerror(errno));
 			close (fd);
 			return 0;
@@ -1340,7 +1335,7 @@ syslogin_perform_login(struct logininfo *li)
 	struct utmp *ut;
 
 	if (! (ut = (struct utmp *)malloc(sizeof(*ut)))) {
-		log("syslogin_perform_login: couldn't malloc()");
+		logit("syslogin_perform_login: couldn't malloc()");
 		return 0;
 	}
 	construct_utmp(li, ut);
@@ -1359,7 +1354,7 @@ syslogin_perform_logout(struct logininfo *li)
 	(void)line_stripname(line, li->line, sizeof(line));
 
 	if (!logout(line)) {
-		log("syslogin_perform_logout: logout() returned an error");
+		logit("syslogin_perform_logout: logout() returned an error");
 #  ifdef HAVE_LOGWTMP
 	} else {
 		logwtmp(line, "", "");
@@ -1382,7 +1377,7 @@ syslogin_write_entry(struct logininfo *li)
 	case LTYPE_LOGOUT:
 		return syslogin_perform_logout(li);
 	default:
-		log("syslogin_write_entry: Invalid type field");
+		logit("syslogin_write_entry: Invalid type field");
 		return 0;
 	}
 }
@@ -1417,7 +1412,7 @@ lastlog_filetype(char *filename)
 	struct stat st;
 
 	if (stat(LASTLOG_FILE, &st) != 0) {
-		log("lastlog_perform_login: Couldn't stat %s: %s", LASTLOG_FILE,
+		logit("lastlog_perform_login: Couldn't stat %s: %s", LASTLOG_FILE,
 			strerror(errno));
 		return 0;
 	}
@@ -1448,12 +1443,12 @@ lastlog_openseek(struct logininfo *li, int *fd, int filemode)
 				 LASTLOG_FILE, li->username);
 			break;
 		default:
-			log("lastlog_openseek: %.100s is not a file or directory!",
+			logit("lastlog_openseek: %.100s is not a file or directory!",
 			    LASTLOG_FILE);
 			return 0;
 	}
 
-	*fd = open(lastlog_file, filemode);
+	*fd = open(lastlog_file, filemode, 0600);
 	if ( *fd < 0) {
 		debug("lastlog_openseek: Couldn't open %s: %s",
 		    lastlog_file, strerror(errno));
@@ -1465,7 +1460,7 @@ lastlog_openseek(struct logininfo *li, int *fd, int filemode)
 		offset = (off_t) ((long)li->uid * sizeof(struct lastlog));
 
 		if ( lseek(*fd, offset, SEEK_SET) != offset ) {
-			log("lastlog_openseek: %s->lseek(): %s",
+			logit("lastlog_openseek: %s->lseek(): %s",
 			 lastlog_file, strerror(errno));
 			return 0;
 		}
@@ -1487,9 +1482,9 @@ lastlog_perform_login(struct logininfo *li)
 		return(0);
 
 	/* write the entry */
-	if (atomicio(write, fd, &last, sizeof(last)) != sizeof(last)) {
+	if (atomicio(vwrite, fd, &last, sizeof(last)) != sizeof(last)) {
 		close(fd);
-		log("lastlog_write_filemode: Error writing to %s: %s",
+		logit("lastlog_write_filemode: Error writing to %s: %s",
 		    LASTLOG_FILE, strerror(errno));
 		return 0;
 	}
@@ -1505,7 +1500,7 @@ lastlog_write_entry(struct logininfo *li)
 	case LTYPE_LOGIN:
 		return lastlog_perform_login(li);
 	default:
-		log("lastlog_write_entry: Invalid type field");
+		logit("lastlog_write_entry: Invalid type field");
 		return 0;
 	}
 }

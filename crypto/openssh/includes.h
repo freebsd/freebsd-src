@@ -50,9 +50,6 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #ifdef HAVE_NETGROUP_H
 # include <netgroup.h>
 #endif
-#if defined(HAVE_NETDB_H)
-# include <netdb.h>
-#endif
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
 #endif
@@ -68,6 +65,7 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #ifdef HAVE_NEXT
 #  include <libc.h>
 #endif
+#define __USE_GNU /* before unistd.h, activate extra prototypes for glibc */
 #include <unistd.h> /* For STDIN_FILENO, etc */
 #include <termios.h> /* Struct winsize */
 
@@ -133,12 +131,18 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h> /* for MAP_ANONYMOUS */
 #endif
+#ifdef HAVE_SYS_STRTIO_H
+#include <sys/strtio.h>	/* for TIOCCBRK on HP-UX */
+#endif
 
 #include <netinet/in_systm.h> /* For typedefs */
 #include <netinet/in.h> /* For IPv6 macros */
 #include <netinet/ip.h> /* For IPTOS macros */
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#if defined(HAVE_NETDB_H)
+# include <netdb.h>
+#endif
 #ifdef HAVE_RPC_TYPES_H
 # include <rpc/types.h> /* For INADDR_LOOPBACK */
 #endif
@@ -167,7 +171,6 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 
 #include "version.h"
 #include "openbsd-compat/openbsd-compat.h"
-#include "openbsd-compat/bsd-cygwin_util.h"
 #include "openbsd-compat/bsd-nextstep.h"
 
 #include "entropy.h"

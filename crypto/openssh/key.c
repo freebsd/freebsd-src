@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.51 2003/02/12 09:33:04 markus Exp $");
+RCSID("$OpenBSD: key.c,v 1.54 2003/07/09 13:58:19 avsm Exp $");
 
 #include <openssl/evp.h>
 
@@ -169,7 +169,7 @@ key_equal(Key *a, Key *b)
 	return 0;
 }
 
-static u_char *
+u_char*
 key_fingerprint_raw(Key *k, enum fp_type dgst_type, u_int *dgst_raw_length)
 {
 	const EVP_MD *md = NULL;
@@ -236,8 +236,10 @@ key_fingerprint_hex(u_char *dgst_raw, u_int dgst_raw_len)
 	for (i = 0; i < dgst_raw_len; i++) {
 		char hex[4];
 		snprintf(hex, sizeof(hex), "%02x:", dgst_raw[i]);
-		strlcat(retval, hex, dgst_raw_len * 3);
+		strlcat(retval, hex, dgst_raw_len * 3 + 1);
 	}
+
+	/* Remove the trailing ':' character */
 	retval[(dgst_raw_len * 3) - 1] = '\0';
 	return retval;
 }
@@ -438,7 +440,7 @@ key_read(Key *ret, char **cpp)
 			xfree(blob);
 			return -1;
 		}
-		k = key_from_blob(blob, n);
+		k = key_from_blob(blob, (u_int)n);
 		xfree(blob);
 		if (k == NULL) {
 			error("key_read: key_from_blob %s failed", cp);
@@ -674,7 +676,7 @@ key_names_valid2(const char *names)
 }
 
 Key *
-key_from_blob(u_char *blob, int blen)
+key_from_blob(u_char *blob, u_int blen)
 {
 	Buffer b;
 	char *ktype;

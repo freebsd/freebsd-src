@@ -1,6 +1,4 @@
 /*
- * cygwin_util.c
- *
  * Copyright (c) 2000, 2001, Corinna Vinschen <vinschen@cygnus.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +29,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-cygwin_util.c,v 1.9 2002/11/09 15:59:29 mouring Exp $");
+RCSID("$Id: bsd-cygwin_util.c,v 1.11 2003/08/07 06:23:43 dtucker Exp $");
 
 #ifdef HAVE_CYGWIN
 
@@ -53,7 +51,8 @@ RCSID("$Id: bsd-cygwin_util.c,v 1.9 2002/11/09 15:59:29 mouring Exp $");
 # undef pipe
 #endif
 
-int binary_open(const char *filename, int flags, ...)
+int 
+binary_open(const char *filename, int flags, ...)
 {
 	va_list ap;
 	mode_t mode;
@@ -61,55 +60,56 @@ int binary_open(const char *filename, int flags, ...)
 	va_start(ap, flags);
 	mode = va_arg(ap, mode_t);
 	va_end(ap);
-	return open(filename, flags | O_BINARY, mode);
+	return (open(filename, flags | O_BINARY, mode));
 }
 
-int binary_pipe(int fd[2])
+int 
+binary_pipe(int fd[2])
 {
 	int ret = pipe(fd);
 
 	if (!ret) {
-		setmode (fd[0], O_BINARY);
-		setmode (fd[1], O_BINARY);
+		setmode(fd[0], O_BINARY);
+		setmode(fd[1], O_BINARY);
 	}
-	return ret;
+	return (ret);
 }
 
 #define HAS_CREATE_TOKEN 1
 #define HAS_NTSEC_BY_DEFAULT 2
 
-static int has_capability(int what)
+static int 
+has_capability(int what)
 {
-	/* has_capability() basically calls uname() and checks if
-	   specific capabilities of Cygwin can be evaluated from that.
-	   This simplifies the calling functions which only have to ask
-	   for a capability using has_capability() instead of having
-	   to figure that out by themselves. */
 	static int inited;
 	static int has_create_token;
 	static int has_ntsec_by_default;
 
+	/* 
+	 * has_capability() basically calls uname() and checks if
+	 * specific capabilities of Cygwin can be evaluated from that.
+	 * This simplifies the calling functions which only have to ask
+	 * for a capability using has_capability() instead of having
+	 * to figure that out by themselves.
+	 */
 	if (!inited) {
 		struct utsname uts;
 		char *c;
 		
 		if (!uname(&uts)) {
-			int major_high = 0;
-			int major_low = 0;
-			int minor = 0;
-			int api_major_version = 0;
-			int api_minor_version = 0;
+			int major_high = 0, major_low = 0, minor = 0;
+			int api_major_version = 0, api_minor_version = 0;
 			char *c;
 
 			sscanf(uts.release, "%d.%d.%d", &major_high,
-			       &major_low, &minor);
-			c = strchr(uts.release, '(');
-			if (c)
+			    &major_low, &minor);
+			if ((c = strchr(uts.release, '(')) != NULL) {
 				sscanf(c + 1, "%d.%d", &api_major_version,
-				       &api_minor_version);
+				    &api_minor_version);
+			}
 			if (major_high > 1 ||
 			    (major_high == 1 && (major_low > 3 ||
-			     (major_low == 3 && minor >= 2))))
+			    (major_low == 3 && minor >= 2))))
 				has_create_token = 1;
 			if (api_major_version > 0 || api_minor_version >= 56)
 				has_ntsec_by_default = 1;
@@ -118,14 +118,15 @@ static int has_capability(int what)
 	}
 	switch (what) {
 	case HAS_CREATE_TOKEN:
-		return has_create_token;
+		return (has_create_token);
 	case HAS_NTSEC_BY_DEFAULT:
-		return has_ntsec_by_default;
+		return (has_ntsec_by_default);
 	}
-	return 0;
+	return (0);
 }
 
-int check_nt_auth(int pwd_authenticated, struct passwd *pw)
+int
+check_nt_auth(int pwd_authenticated, struct passwd *pw)
 {
 	/*
 	* The only authentication which is able to change the user
@@ -149,34 +150,33 @@ int check_nt_auth(int pwd_authenticated, struct passwd *pw)
 			has_create_token = 0;
 			if (has_capability(HAS_CREATE_TOKEN) &&
 			    (ntsec_on(cygwin) ||
-			     (has_capability(HAS_NTSEC_BY_DEFAULT) &&
-			      !ntsec_off(cygwin))))
+			    (has_capability(HAS_NTSEC_BY_DEFAULT) &&
+			    !ntsec_off(cygwin))))
 				has_create_token = 1;
 		}
 		if (has_create_token < 1 &&
 		    !pwd_authenticated && geteuid() != pw->pw_uid)
-			return 0;
+			return (0);
 	}
-	return 1;
+	return (1);
 }
 
-int check_ntsec(const char *filename)
+int
+check_ntsec(const char *filename)
 {
 	char *cygwin;
-	int allow_ntea = 0;
-	int allow_ntsec = 0;
+	int allow_ntea = 0, allow_ntsec = 0;
 	struct statfs fsstat;
 
 	/* Windows 95/98/ME don't support file system security at all. */
 	if (!is_winnt)
-		return 0;
+		return (0);
 
 	/* Evaluate current CYGWIN settings. */
 	cygwin = getenv("CYGWIN");
 	allow_ntea = ntea_on(cygwin);
 	allow_ntsec = ntsec_on(cygwin) ||
-		      (has_capability(HAS_NTSEC_BY_DEFAULT) &&
-		       !ntsec_off(cygwin));
+	    (has_capability(HAS_NTSEC_BY_DEFAULT) && !ntsec_off(cygwin));
 
 	/*
 	 * `ntea' is an emulation of POSIX attributes. It doesn't support
@@ -185,14 +185,14 @@ int check_ntsec(const char *filename)
 	 * for security checks.
 	 */
 	if (allow_ntea)
-		return 1;
+		return (1);
 
 	/*
 	 * Retrieve file system flags. In Cygwin, file system flags are
 	 * copied to f_type which has no meaning in Win32 itself.
 	 */
 	if (statfs(filename, &fsstat))
-		return 1;
+		return (1);
 
 	/*
 	 * Only file systems supporting ACLs are able to set permissions.
@@ -200,12 +200,13 @@ int check_ntsec(const char *filename)
 	 * ACLs to support POSIX permissions on files.
 	 */
 	if (fsstat.f_type & FS_PERSISTENT_ACLS)
-		return allow_ntsec;
+		return (allow_ntsec);
 
-	return 0;
+	return (0);
 }
 
-void register_9x_service(void)
+void
+register_9x_service(void)
 {
         HINSTANCE kerneldll;
         DWORD (*RegisterServiceProcess)(DWORD, DWORD);
@@ -219,10 +220,10 @@ void register_9x_service(void)
 	 */
 	if (is_winnt)
 		return;
-	if (! (kerneldll = LoadLibrary("KERNEL32.DLL")))
+	if (!(kerneldll = LoadLibrary("KERNEL32.DLL")))
 		return;
-	if (! (RegisterServiceProcess = (DWORD (*)(DWORD, DWORD))
-			  GetProcAddress(kerneldll, "RegisterServiceProcess")))
+	if (!(RegisterServiceProcess = (DWORD (*)(DWORD, DWORD))
+		GetProcAddress(kerneldll, "RegisterServiceProcess")))
 		return;
 	RegisterServiceProcess(0, 1);
 }
