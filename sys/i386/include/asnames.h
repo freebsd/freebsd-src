@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.10 1997/09/29 02:17:42 peter Exp $
+ * $Id: asnames.h,v 1.11 1997/12/08 22:56:39 fsmp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -70,6 +70,7 @@
 #define _Xalign				Xalign
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
+#define _Xcpuast			Xcpuast
 #define _Xcpustop			Xcpustop
 #define _Xdbg				Xdbg
 #define _Xdiv				Xdiv
@@ -184,6 +185,7 @@
 #define _bootstrap_gdt			bootstrap_gdt
 #define _bzero				bzero
 #define _cam_imask			cam_imask
+#define _checkstate_probed_cpus		checkstate_probed_cpus
 #define _clock_lock			clock_lock
 #define _cnt				cnt
 #define _common_tss			common_tss
@@ -229,6 +231,7 @@
 #define _get_align_lock			get_align_lock
 #define _get_altsyscall_lock		get_altsyscall_lock
 #define _get_fpu_lock			get_fpu_lock
+#define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
 #define _i586_ctr_bias			i586_ctr_bias
