@@ -766,9 +766,7 @@ stf_rtrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-
-	if (rt)
-		rt->rt_rmx.rmx_mtu = IPV6_MMTU;
+	rt->rt_rmx.rmx_mtu = IPV6_MMTU;
 }
 
 static int
