@@ -686,19 +686,10 @@ and editing
 .Pa /etc/pf.conf
 appropriately.
 .Pp
-Having
-.Bd -literal -offset indent
-options PFIL_HOOKS
-options RANDOM_IP_ID
-.Ed
-.Pp
-in the kernel configuration file is required for use as a
-.Xr kld 4
-module.
-.Pp
 .Dl "device pf"
 .Pp
-builds it into the kernel.
+builds pf into the kernel.
+Otherwise it is loaded from a module.
 .It Va pf_rules
 .Pq Vt str
 Path to
