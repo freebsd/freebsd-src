@@ -99,6 +99,8 @@ typedef enum {
 	CAM_ARG_DEBUG_TRACE	= 0x02000000,
 	CAM_ARG_DEBUG_SUBTRACE	= 0x04000000,
 	CAM_ARG_DEBUG_CDB	= 0x08000000,
+	CAM_ARG_DEBUG_XPT	= 0x10000000,
+	CAM_ARG_DEBUG_PERIPH	= 0x20000000,
 } cam_argmask;
 
 struct camcontrol_opts {
@@ -138,7 +140,7 @@ struct camcontrol_opts option_table[] = {
 	{"tags", CAM_CMD_TAG, CAM_ARG_NONE, "N:q"},
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
-	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "ITSc"},
+	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
 	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qwy"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -2009,6 +2011,10 @@ camdebug(int argc, char **argv, char *combinedopt)
 			arglist |= CAM_ARG_DEBUG_INFO;
 			ccb.cdbg.flags |= CAM_DEBUG_INFO;
 			break;
+		case 'P':
+			arglist |= CAM_ARG_DEBUG_PERIPH;
+			ccb.cdbg.flags |= CAM_DEBUG_PERIPH;
+			break;
 		case 'S':
 			arglist |= CAM_ARG_DEBUG_SUBTRACE;
 			ccb.cdbg.flags |= CAM_DEBUG_SUBTRACE;
@@ -2016,6 +2022,10 @@ camdebug(int argc, char **argv, char *combinedopt)
 		case 'T':
 			arglist |= CAM_ARG_DEBUG_TRACE;
 			ccb.cdbg.flags |= CAM_DEBUG_TRACE;
+			break;
+		case 'X':
+			arglist |= CAM_ARG_DEBUG_XPT;
+			ccb.cdbg.flags |= CAM_DEBUG_XPT;
 			break;
 		case 'c':
 			arglist |= CAM_ARG_DEBUG_CDB;
@@ -2048,8 +2058,9 @@ camdebug(int argc, char **argv, char *combinedopt)
 
 	if (strncmp(tstr, "off", 3) == 0) {
 		ccb.cdbg.flags = CAM_DEBUG_NONE;
-		arglist &= ~(CAM_ARG_DEBUG_INFO|CAM_ARG_DEBUG_TRACE|
-			     CAM_ARG_DEBUG_SUBTRACE);
+		arglist &= ~(CAM_ARG_DEBUG_INFO|CAM_ARG_DEBUG_PERIPH|
+			     CAM_ARG_DEBUG_TRACE|CAM_ARG_DEBUG_SUBTRACE|
+			     CAM_ARG_DEBUG_XPT);
 	} else if (strncmp(tstr, "all", 3) != 0) {
 		tmpstr = (char *)strtok(tstr, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')){
@@ -3148,7 +3159,8 @@ usage(int verbose)
 "                              [-P pagectl][-e | -b][-d]\n"
 "        camcontrol cmd        [dev_id][generic args] <-c cmd [args]>\n"
 "                              [-i len fmt|-o len fmt [args]]\n"
-"        camcontrol debug      [-I][-T][-S][-c] <all|bus[:target[:lun]]|off>\n"
+"        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
+"                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
 "        camcontrol negotiate  [dev_id][generic args] [-a][-c]\n"
 "                              [-D <enable|disable>][-O offset][-q]\n"
