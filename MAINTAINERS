@@ -91,13 +91,13 @@ contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	mlaier	Pre-commit review requested.
 binutils	obrien	Insists on BU blocked from unapproved commits
-geom_concat	pjd	Pre-commit review requested.
-geom_gate	pjd	Pre-commit review requested.
-geom_label	pjd	Pre-commit review requested.
-geom_mirror	pjd	Pre-commit review requested.
-geom_nop	pjd	Pre-commit review requested.
-geom_stripe	pjd	Pre-commit review requested.
-sbin/geom	pjd	Pre-commit review requested.
+geom_concat	pjd	Pre-commit review prefered.
+geom_gate	pjd	Pre-commit review prefered.
+geom_label	pjd	Pre-commit review prefered.
+geom_mirror	pjd	Pre-commit review prefered.
+geom_nop	pjd	Pre-commit review prefered.
+geom_stripe	pjd	Pre-commit review prefered.
+sbin/geom	pjd	Pre-commit review prefered.
 nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
