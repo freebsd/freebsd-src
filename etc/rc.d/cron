@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: cron
-# REQUIRE: LOGIN
+# REQUIRE: LOGIN cleanvar
 # BEFORE: securelevel
 # KEYWORD: shutdown
 

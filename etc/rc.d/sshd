@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: sshd
-# REQUIRE: LOGIN
+# REQUIRE: LOGIN cleanvar
 
 . /etc/rc.subr
 

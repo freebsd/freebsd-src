@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: mountcritremote
-# REQUIRE: NETWORKING root mountcritlocal
+# REQUIRE: NETWORKING root mountcritlocal cleanvar
 # KEYWORD: nojail
 
 . /etc/rc.subr
