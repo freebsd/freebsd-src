@@ -1499,6 +1499,9 @@ fxp_intr(void *xsc)
 	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
 
+	if (sc->gone)
+		return;
+
 	FXP_LOCK(sc);
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING) {
