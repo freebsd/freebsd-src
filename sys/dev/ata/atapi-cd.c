@@ -1126,9 +1126,7 @@ acd_start(struct atapi_softc *atp)
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
-	biodone(bp);
-	return;
+	goto failure;
     }
 
     bzero(ccb, sizeof(ccb));
@@ -1149,7 +1147,11 @@ acd_start(struct atapi_softc *atp)
 	lastlba = cdp->info.volsize;
     }
 
-    count = (bp->b_bcount + (blocksize - 1)) / blocksize;
+    if (bp->b_bcount % blocksize != 0) {
+	bp->b_error = EINVAL;
+	goto failure;
+    }
+    count = bp->b_bcount / blocksize;
 
     if (bp->b_flags & B_READ) {
 	/* if transfer goes beyond range adjust it to be within limits */
@@ -1191,6 +1193,11 @@ acd_start(struct atapi_softc *atp)
 
     atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * blocksize,
 		    bp->b_flags & B_READ ? ATPR_F_READ : 0, 30, acd_done,bp);
+    return;
+
+failure:
+    bp->b_flags |= B_ERROR;
+    biodone(bp);
 }
 
 static int 
