@@ -34,7 +34,7 @@ cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_ses.c	optional ses
 cam/scsi/scsi_targ_bh.c	optional targbh
 cam/scsi/scsi_target.c	optional targ
-coda/coda_fbsd.c	optional vcoda
+coda/coda_fbsd.c	count vcoda
 coda/coda_namecache.c	optional vcoda
 coda/coda_psdev.c	optional vcoda
 coda/coda_subr.c	optional vcoda
@@ -81,7 +81,7 @@ dev/advansys/adw_pci.c	optional adw pci
 dev/advansys/adwcam.c	optional adw
 dev/advansys/adwlib.c	optional adw
 dev/advansys/adwmcode.c	optional adw
-dev/aha/aha.c		optional aha
+dev/aha/aha.c		count aha
 dev/aha/aha_isa.c	optional aha isa
 dev/aha/aha_mca.c	optional aha mca
 dev/ahb/ahb.c		optional ahb eisa
@@ -106,24 +106,24 @@ dev/awi/awi.c		optional awi
 dev/awi/if_awi_pccard.c	optional awi card
 dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_card.c	optional bktr pci
-dev/bktr/bktr_core.c	optional bktr pci
+dev/bktr/bktr_core.c	count bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci smbus
 dev/bktr/bktr_os.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
-dev/buslogic/bt.c	optional bt
+dev/buslogic/bt.c	count bt
 dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_pci.c	optional bt pci
 dev/cardbus/cardbus.c	optional cardbus
-dev/ccd/ccd.c		optional ccd
+dev/ccd/ccd.c		count ccd
 dev/cs/if_cs.c		optional cs
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci
 dev/dpt/dpt_scsi.c	optional dpt
 dev/ed/if_ed_pci.c	optional ed pci
-dev/en/midway.c		optional en
+dev/en/midway.c		count en
 dev/ep/if_ep.c		optional ep
 dev/ep/if_ep_eisa.c	optional ep eisa
 dev/ep/if_ep_isa.c	optional ep isa
@@ -157,7 +157,7 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
-dev/ie/if_ie.c		optional ie isa
+dev/ie/if_ie.c		count ie isa
 dev/iicbus/iicbb_if.m	optional iicbb
 dev/iicbus/iicbus_if.m	optional iicbus
 dev/iicbus/if_ic.c	optional ic
@@ -171,7 +171,7 @@ dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/lmc/if_lmc.c	optional lmc
-dev/lnc/if_lnc.c	optional lnc
+dev/lnc/if_lnc.c	count lnc
 dev/lnc/if_lnc_isa.c	optional lnc isa
 dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
@@ -204,7 +204,7 @@ dev/pccard/power_if.m	optional pccard
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa
-dev/pdq/if_fpa.c	optional fpa pci
+dev/pdq/if_fpa.c	count fpa pci
 dev/pdq/pdq.c		optional fea eisa
 dev/pdq/pdq.c		optional fpa pci
 dev/pdq/pdq_ifsubr.c	optional fea eisa
@@ -232,7 +232,7 @@ dev/si/si_pci.c		optional si pci
 dev/smbus/smbus_if.m	optional smbus
 dev/smbus/smb.c		optional smb
 dev/smbus/smbconf.c	optional smbus
-dev/smbus/smbus.c	optional smbus
+dev/smbus/smbus.c	count smbus
 dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
@@ -305,7 +305,7 @@ dev/vinum/vinumrevive.c		optional vinum
 dev/vinum/vinumstate.c		optional vinum
 dev/vinum/vinumutil.c		optional vinum
 dev/vn/vn.c			optional vn
-dev/vx/if_vx.c			optional vx
+dev/vx/if_vx.c			count vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/xe/if_xe.c			optional xe
@@ -320,21 +320,21 @@ gnu/ext2fs/ext2_subr.c		optional ext2fs
 gnu/ext2fs/ext2_vfsops.c	optional ext2fs
 gnu/ext2fs/ext2_vnops.c		optional ext2fs
 # device drivers
-i4b/driver/i4b_trace.c	 optional i4btrc
-i4b/driver/i4b_rbch.c	 optional i4brbch
-i4b/driver/i4b_tel.c	 optional i4btel
-i4b/driver/i4b_ipr.c	 optional i4bipr
-i4b/driver/i4b_ctl.c     optional i4bctl
-i4b/driver/i4b_isppp.c   optional i4bisppp
-net/if_spppsubr.c        optional sppp
+i4b/driver/i4b_trace.c	 count i4btrc
+i4b/driver/i4b_rbch.c	 count i4brbch
+i4b/driver/i4b_tel.c	 count i4btel
+i4b/driver/i4b_ipr.c	 count i4bipr
+i4b/driver/i4b_ctl.c     count i4bctl
+i4b/driver/i4b_isppp.c   count i4bisppp
+net/if_spppsubr.c        count sppp
 # needed by i4bipr
 net/slcompress.c         optional i4bipr
 # tina-dd control driver
-i4b/tina-dd/i4b_tina_dd.c optional tina
+i4b/tina-dd/i4b_tina_dd.c count tina
 # support
 i4b/layer2/i4b_mbuf.c	 optional i4btrc
 # Q.921 handler
-i4b/layer2/i4b_l2.c	 optional i4bq921
+i4b/layer2/i4b_l2.c	 count i4bq921
 i4b/layer2/i4b_l2fsm.c	 optional i4bq921
 i4b/layer2/i4b_uframe.c	 optional i4bq921
 i4b/layer2/i4b_tei.c	 optional i4bq921
@@ -344,7 +344,7 @@ i4b/layer2/i4b_l2timer.c optional i4bq921
 i4b/layer2/i4b_util.c	 optional i4bq921
 i4b/layer2/i4b_lme.c	 optional i4bq921
 # Q.931 handler
-i4b/layer3/i4b_q931.c	 optional i4bq931
+i4b/layer3/i4b_q931.c	 count i4bq931
 i4b/layer3/i4b_l3fsm.c	 optional i4bq931
 i4b/layer3/i4b_l3timer.c optional i4bq931
 i4b/layer3/i4b_l2if.c	 optional i4bq931
@@ -352,11 +352,11 @@ i4b/layer3/i4b_l4if.c	 optional i4bq931
 i4b/layer3/i4b_q932fac.c optional i4bq931
 # isdn device driver, interface to i4bd
 i4b/layer4/i4b_i4bdrv.c	 optional i4b
-i4b/layer4/i4b_l4.c	 optional i4b
+i4b/layer4/i4b_l4.c	 count i4b
 i4b/layer4/i4b_l4mgmt.c	 optional i4b
 i4b/layer4/i4b_l4timer.c optional i4b
 isa/isa_if.m		optional isa
-isa/isa_common.c	optional isa
+isa/isa_common.c	count isa
 isa/isahint.c		optional isa
 isa/joy.c		optional joy
 isa/pnp.c		optional isa
@@ -446,7 +446,7 @@ kern/tty_compat.c	standard
 kern/tty_conf.c		standard
 kern/tty_cons.c		standard
 kern/tty_pty.c		optional pty
-kern/tty_snoop.c	optional snp
+kern/tty_snoop.c	count snp
 kern/tty_subr.c		standard
 kern/tty_tty.c		standard
 kern/uipc_domain.c	standard
@@ -535,7 +535,7 @@ msdosfs/msdosfs_lookup.c	optional msdosfs
 msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		standard
-net/bpf_filter.c	optional bpf
+net/bpf_filter.c	count bpf
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard
@@ -544,18 +544,18 @@ net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
 net/if_ef.c		optional ef
 net/if_ethersubr.c	optional ether
-net/if_faith.c		optional faith
+net/if_faith.c		count faith
 net/if_fddisubr.c	optional fddi
-net/if_gif.c		optional gif
+net/if_gif.c		count gif
 net/if_iso88025subr.c	optional token
-net/if_loop.c		optional loop
+net/if_loop.c		count loop
 net/if_media.c		standard
 net/if_mib.c		standard
-net/if_ppp.c		optional ppp
+net/if_ppp.c		count ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
 net/if_tun.c		optional tun
-net/if_vlan.c		optional vlan
+net/if_vlan.c		count vlan
 net/intrq.c		standard
 net/net_osdep.c		standard
 net/ppp_deflate.c	optional ppp_deflate
@@ -811,7 +811,7 @@ nwfs/nwfs_node.c	optional nwfs
 nwfs/nwfs_subr.c	optional nwfs
 nwfs/nwfs_vfsops.c	optional nwfs
 nwfs/nwfs_vnops.c	optional nwfs
-pccard/pccard.c		optional card
+pccard/pccard.c		count card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
@@ -822,10 +822,10 @@ pci/agp_via.c		optional agp
 pci/agp_sis.c		optional agp
 pci/agp_ali.c		optional agp
 pci/agp_amd.c		optional agp
-pci/alpm.c		optional alpm
+pci/alpm.c		count alpm
 pci/amd.c		optional amd
 pci/cy_pci.c		optional cy pci
-pci/if_ar_p.c		optional ar pci
+pci/if_ar_p.c		count ar pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
@@ -846,11 +846,11 @@ pci/if_wx.c		optional wx
 pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
 pci/isp_pci.c		optional isp
-pci/meteor.c		optional meteor pci
+pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 pci/pccbb.c		optional pccbb cardbus
-pci/pci.c		optional pci
+pci/pci.c		count pci
 pci/pci_compat.c	optional pci compat_oldpci \
 	warning "Old PCI driver compatability shims present."
 pci/pcic_p.c		optional pcic pci

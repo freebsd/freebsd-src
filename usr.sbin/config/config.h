@@ -71,6 +71,8 @@ struct file_list {
 #define NO_IMPLCT_RULE	2
 #define NO_OBJ		4
 #define BEFORE_DEPEND	8
+#define NEED_COUNT	16
+#define ISDUP		32
 
 struct device {
 	int	d_type;			/* DEVICE, bus adaptor */
@@ -168,8 +170,6 @@ extern int	profiling;
 extern int	debugging;
 
 extern int	maxusers;
-
-extern	int old_config_present;	/* Old config/build directory still there */
 
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
