@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"     $Id$
+.\"     $Id: pccard.conf.5,v 1.8 1999/07/12 20:12:16 nik Exp $
 .\"
 .Dd November 2, 1994
 .Dt PCCARD.CONF 5
@@ -115,6 +115,10 @@ The syntax of the resources is as follows:
 Each of the statements define I/O, memory or IRQ
 blocks that can be used to allocate to drivers when
 they are initialized.
+.Pp
+The syntax of the debuglevel parameter:
+.Pp
+.Dl debuglevel Ar level
 .Pp
 Multiple lines of any of the above statements may be
 present to allow separate blocks of each resource to be

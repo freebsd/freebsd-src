@@ -26,13 +26,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.38 1999/07/23 08:53:20 hosokawa Exp $";
+	"$Id: cardd.c,v 1.39 1999/07/23 14:58:33 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
@@ -114,7 +115,8 @@ readslots(void)
 			if (mem == 0) {
 				mem = alloc_memory(4 * 1024);
 				if (mem == 0)
-					die("can't allocate memory for controller access");
+					die("can't allocate memory for "
+					    "controller access");
 				if (ioctl(fd, PIOCRWMEM, &mem))
 					logerr("ioctl (PIOCRWMEM)");
 			}
@@ -201,7 +203,7 @@ card_inserted(struct slot *sp)
 {
 	struct card *cp;
 
-	sleep(5);
+	usleep(pccard_init_sleep);
 	sp->cis = readcis(sp->fd);
 	if (sp->cis == 0) {
 		logmsg("Error reading CIS on %s\n", sp->name);
@@ -284,10 +286,10 @@ assign_driver(struct card *cp)
 		if (conf->inuse == 0 && conf->driver->card == cp &&
 		    conf->driver->config == conf &&
 		    conf->driver->inuse == 0) {
-#ifdef	DEBUG
-			logmsg("Found existing driver (%s) for %s\n",
-			    conf->driver->name, cp->manuf);
-#endif
+			if (debug_level > 0) {
+				logmsg("Found existing driver (%s) for %s\n",
+				    conf->driver->name, cp->manuf);
+			}
 			conf->driver->inuse = 1;
 			conf->inuse = 1;
 			return (conf);
@@ -351,8 +353,11 @@ assign_io(struct slot *sp)
 	for (cisconf = cis->conf; cisconf; cisconf = cisconf->next)
 		if (cisconf->id == sp->config->index)
 			break;
-	if (cisconf == 0)
+	if (cisconf == 0) {
+		logmsg("Config id %d not present in this card",
+		    sp->config->index);
 		return (-1);
+	}
 	sp->card_config = cisconf;
 
 	/*
@@ -381,10 +386,10 @@ assign_io(struct slot *sp)
 			sp->config->driver->mem = sp->mem.addr;
 		}
 		sp->mem.cardaddr = 0x4000;
-#ifdef	DEBUG
-		logmsg("Using mem addr 0x%x, size %d, card addr 0x%x\n",
-			sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
-#endif
+		if (debug_level > 0) {
+			logmsg("Using mem addr 0x%x, size %d, card addr 0x%x\n",
+			    sp->mem.addr, sp->mem.size, sp->mem.cardaddr);
+		}
 	}
 
 	/* Now look at I/O. */
@@ -455,10 +460,10 @@ assign_io(struct slot *sp)
 			sp->io.flags = IODF_WS | IODF_CS16 | IODF_16BIT;
 			break;
 		}
-#ifdef	DEBUG
-		logmsg("Using I/O addr 0x%x, size %d\n",
-		    sp->io.addr, sp->io.size);
-#endif
+		if (debug_level > 0) {
+			logmsg("Using I/O addr 0x%x, size %d\n",
+			    sp->io.addr, sp->io.size);
+		}
 	}
 	sp->irq = sp->config->irq;
 	sp->flags |= IRQ_ASSIGNED;
@@ -497,11 +502,12 @@ setup_slot(struct slot *sp)
 	c = sp->config->index;
 	c |= 0x40;
 	write(sp->fd, &c, sizeof(c));
-#ifdef	DEBUG
-	logmsg("Setting config reg at offs 0x%lx to 0x%x, Reset time = %d ms\n",
-		(unsigned long)offs, c, sp->card->reset_time);
-#endif
-	sleep(5);
+	if (debug_level > 0) {
+		logmsg("Setting config reg at offs 0x%lx to 0x%x, "
+		    "Reset time = %d ms\n", (unsigned long)offs, c,
+		    sp->card->reset_time);
+	}
+	usleep(pccard_init_sleep);
 	usleep(sp->card->reset_time * 1000);
 
 	/* If other config registers exist, set them up. */
@@ -540,10 +546,11 @@ setup_slot(struct slot *sp)
 			io.size = 0x300;
 		}
 #endif
-#ifdef	DEBUG
-		logmsg("Assigning I/O window %d, start 0x%x, size 0x%x flags 0x%x\n",
-			io.window, io.start, io.size, io.flags);
-#endif
+		if (debug_level > 0) {
+			logmsg("Assigning I/O window %d, start 0x%x, "
+			    "size 0x%x flags 0x%x\n", io.window, io.start,
+			    io.size, io.flags);
+		}
 		io.flags |= IODF_ACTIVE;
 		if (ioctl(sp->fd, PIOCSIO, &io)) {
 			logerr("ioctl (PIOCSIO)");
@@ -565,10 +572,15 @@ setup_slot(struct slot *sp)
 		drv.iobase = sp->io.addr;
 	else
 		drv.iobase = 0;
-#ifdef	DEBUG
-	logmsg("Assign %s%d, io 0x%x, mem 0x%lx, %d bytes, irq %d, flags %x\n",
-	    drv.name, drv.unit, drv.iobase, drv.mem, drv.memsize, sp->irq, drv.flags);
+#ifdef DEV_DESC_HAS_SIZE
+	drv.iosize = sp->io.size;
 #endif
+	if (debug_level > 0) {
+		logmsg("Assign %s%d, io 0x%x-0x%x, mem 0x%lx, %d bytes, "
+		    "irq %d, flags %x\n", drv.name, drv.unit, drv.iobase, 
+		    drv.iobase + sp->io.size - 1, drv.mem, drv.memsize, 
+		    sp->irq, drv.flags);
+	}
 
 	/*
 	 * If the driver fails to be connected to the device,
@@ -576,7 +588,8 @@ setup_slot(struct slot *sp)
 	 */
 	memcpy(drv.misc, sp->eaddr, 6);
 	if (ioctl(sp->fd, PIOCSDRV, &drv)) {
-		logmsg("driver allocation failed for %s", sp->card->manuf);
+		logmsg("driver allocation failed for %s(%s): %s",
+		    sp->card->manuf, sp->card->version, strerror(errno));
 		return (0);
 	}
 	return (1);
