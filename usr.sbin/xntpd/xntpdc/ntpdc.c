@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <netdb.h>
+#include <histedit.h>
 
 #include "ntpdc.h"
 #include "ntp_select.h"
@@ -210,7 +211,7 @@ int debug;
 /*
  * main - parse arguments and handle options
  */
-void
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -791,6 +792,11 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata,
 	return res;
 }
 
+const char *
+xntpdc_prompt()
+{
+	return (prompt);
+}
 
 /*
  * getcmds - read commands from the standard input and execute them
@@ -798,16 +804,34 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata,
 static void
 getcmds()
 {
+	static EditLine *el = NULL;
+	static History *hist = NULL;
 	char line[MAXLINE];
+	int num = 0;
+	const char *bp = NULL;
 
 	for (;;) {
 		if (interactive) {
-			(void) fputs(prompt, stderr);
-			(void) fflush(stderr);
-		}
+			if (!el) {
+				el = el_init("xntpdc", stdin, stdout);
+				hist = history_init();
+				history(hist, H_EVENT, 100);
+				el_set(el, EL_HIST, history, hist);
+				el_set(el, EL_EDITOR, "emacs");
+				el_set(el, EL_PROMPT, xntpdc_prompt);
+				el_set(el, EL_SIGNAL, 1);
+			}
+			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+				return;
 
-		if (fgets(line, sizeof line, stdin) == NULL)
-			return;
+			memcpy(line, bp, (MAXLINE > num ? MAXLINE : num));
+			line[num] = 0;
+			history(hist, H_ENTER, bp);
+
+		} else {
+			if (fgets(line, sizeof line, stdin) == NULL)
+				return;
+		}
 
 		docmd(line);
 	}
