@@ -491,8 +491,6 @@ display(p, list)
 				continue;
 			}
 		}
-		if (f_nonprint)
-			prcopy(cur->fts_name, cur->fts_name, cur->fts_namelen);
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
 		if (f_octal || f_octal_escape) {

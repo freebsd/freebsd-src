@@ -56,17 +56,19 @@ static const char rcsid[] =
 #include "ls.h"
 #include "extern.h"
 
-void
-prcopy(src, dest, len)
-	char *src, *dest;
-	int len;
+int
+prn_printable(s)
+	const char *s;
 {
-	unsigned char ch;
+	unsigned char c;
+	int n;
 
-	while (len--) {
-		ch = *src++;
-		*dest++ = isprint(ch) ? ch : '?';
-	}
+	for (n = 0; (c = *s) != '\0'; ++s, ++n)
+		if (isprint(c))
+			putchar(c);
+		else
+			putchar('?');
+	return n;
 }
 
 /*
@@ -84,7 +86,7 @@ prcopy(src, dest, len)
 
 int
 len_octal(s, len)
-        char *s;
+        const char *s;
 	int len;
 {
 	int r = 0;
@@ -96,7 +98,7 @@ len_octal(s, len)
 
 int
 prn_octal(s)
-        char *s;
+        const char *s;
 {
         unsigned char ch;
 	int len = 0;

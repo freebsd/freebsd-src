@@ -44,10 +44,10 @@ int	 statcmp __P((const FTSENT *, const FTSENT *));
 int	 revstatcmp __P((const FTSENT *, const FTSENT *));
 
 char	*flags_to_string __P((u_long, char *));
-void	 prcopy __P((char *, char *, int));
 void	 printcol __P((DISPLAY *));
 void	 printlong __P((DISPLAY *));
 void	 printscol __P((DISPLAY *));
 void	 usage __P((void));
-int	 len_octal __P((char *, int));
-int	 prn_octal __P((char *));
+int	 len_octal __P((const char *, int));
+int	 prn_octal __P((const char *));
+int	 prn_printable __P((const char *));
