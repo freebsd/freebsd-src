@@ -97,6 +97,7 @@
 #include <sys/namei.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
@@ -1176,9 +1177,9 @@ ccdiodone(struct bio *ibp)
 			bp->bio_error = cbp->cb_buf.bio_error ? 
 			    cbp->cb_buf.bio_error : EIO;
 		}
-		printf("ccd%d: error %d on component %d block %d (ccd block %lld)%s\n",
-		       unit, bp->bio_error, cbp->cb_comp, 
-		       (int)cbp->cb_buf.bio_blkno, bp->bio_blkno, msg);
+		printf("ccd%d: error %d on component %d block %d "
+		    "(ccd block %jd)%s\n", unit, bp->bio_error, cbp->cb_comp, 
+		    (int)cbp->cb_buf.bio_blkno, (intmax_t)bp->bio_blkno, msg);
 	}
 
 	/*
