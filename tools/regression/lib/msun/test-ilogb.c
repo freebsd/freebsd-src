@@ -42,6 +42,7 @@ main(void)
 	long double ld;
 	int e, i;
 
+	printf("1..3\n");
 	assert(ilogb(0) == FP_ILOGB0);
 	assert(ilogb(NAN) == FP_ILOGBNAN);
 	assert(ilogb(INFINITY) == INT_MAX);
@@ -52,7 +53,7 @@ main(void)
 		i = ilogb(d);
 		assert(i == e);
 	}
-	printf("PASS ilogb\n");
+	printf("ok 1 - ilogb\n");
 
 	assert(ilogbf(0) == FP_ILOGB0);
 	assert(ilogbf(NAN) == FP_ILOGBNAN);
@@ -64,7 +65,7 @@ main(void)
 		i = ilogbf(f);
 		assert(i == e);
 	}
-	printf("PASS ilogbf\n");
+	printf("ok 2 - ilogbf\n");
 
 	assert(ilogbl(0) == FP_ILOGB0);
 	assert(ilogbl(NAN) == FP_ILOGBNAN);
@@ -76,7 +77,7 @@ main(void)
 		i = ilogbl(ld);
 		assert(i == e);
 	}
-	printf("PASS ilogbl\n");
+	printf("ok 3 - ilogbl\n");
 
 	return (0);
 }

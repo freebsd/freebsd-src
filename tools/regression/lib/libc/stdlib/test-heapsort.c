@@ -44,6 +44,7 @@ main(int argc, char *argv[])
   int testvector[IVEC_LEN];
   int sresvector[IVEC_LEN];
 
+  printf("1..1\n");
   for (j = 2; j < IVEC_LEN; j++) {
     /* Populate test vectors */
     for (i = 0; i < j; i++)
@@ -59,7 +60,7 @@ main(int argc, char *argv[])
       assert(testvector[i] == sresvector[i]);
   }
 
-  printf("PASS heapsort\n");
+  printf("ok 1 - heapsort\n");
 
   return(0);
 }

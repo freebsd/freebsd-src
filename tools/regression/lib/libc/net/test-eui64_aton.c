@@ -40,15 +40,18 @@ test_str( const char *str, const struct eui64 *eui)
 {
 	struct eui64	e;
 	char		buf[EUI64_SIZ];
+	static int	test = 0;
+
+	test++;
 
 	if (eui64_aton(str, &e) != 0 &&
 	    memcmp(&e, &eui, sizeof(struct eui64)) != 0) {
-		printf("FAIL: eui64_aton(%s)\n", str);
+		printf("not ok %d - : eui64_aton(%s)\n", test, str);
 		eui64_ntoa(&e, buf, sizeof(buf));
-		printf("got: %s\n", buf);
+		printf("# got: %s\n", buf);
 		return (0);
 	} else {
-		printf("PASS: eui64_aton(%s)\n", str);
+		printf("ok %d - eui64_aton(%s)\n", test, str);
 		return (1);
 	}
 
@@ -57,6 +60,8 @@ test_str( const char *str, const struct eui64 *eui)
 int
 main(int argc, char **argv)
 {
+
+	printf("1..5\n");
 
 	test_str(test_eui64_id_ascii, &test_eui64_id);
 	test_str(test_eui64_id_colon_ascii, &test_eui64_id);

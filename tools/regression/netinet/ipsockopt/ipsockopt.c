@@ -810,6 +810,7 @@ int
 main(int argc, char *argv[])
 {
 
+	printf("1..1\n");
 	if (geteuid() != 0) {
 		warnx("Not running as root, can't run tests as root");
 		fprintf(stderr, "\n");
@@ -833,6 +834,6 @@ main(int argc, char *argv[])
 		    getuid(), geteuid());
 		testsuite(PRIV_GETROOT);
 	}
-	fprintf(stderr, "PASS\n");
+	printf("ok 1 - ipsockopt\n");
 	exit(0);
 }

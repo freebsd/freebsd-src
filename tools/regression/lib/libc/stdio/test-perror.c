@@ -51,6 +51,8 @@ main(int argc, char *argv[])
 	int i;
 	char *s;
 
+	printf("1..1\n");
+
 	strcpy(tmpfil, _PATH_TMP "perror.XXXXXXXX");
 	if (mkstemp(tmpfil) < 0)
 		err(1, "mkstemp");
@@ -92,7 +94,7 @@ main(int argc, char *argv[])
 	assert(s == NULL);
 	fclose(stderr);
 
-	printf("PASS perror()\n");
+	printf("ok 1 - perror()\n");
 
 	return (0);
 }

@@ -54,6 +54,8 @@ main(int argc, char *argv[])
 	/*
 	 * C/POSIX locale.
 	 */
+	
+	printf("1..1\n");
 
 	assert(MB_CUR_MAX == 1);
 
@@ -121,7 +123,7 @@ main(int argc, char *argv[])
 	memset(&s, 0, sizeof(s));
 	assert(mbrlen(buf, 2, &s) == 2);
 
-	printf("PASS mbrlen()\n");
+	printf("ok 1 - mbrlen()\n");
 
 	return (0);
 }
