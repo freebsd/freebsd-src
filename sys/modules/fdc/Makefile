@@ -8,8 +8,8 @@ SRCS=	fd.c \
 	bus_if.h card_if.h device_if.h isa_if.h
 NOMAN=
 
-FDC_DEBUG=	1	# 0/1
-FDC_PCCARD=	0	# 0/1  whether pccard support (i. e. Y-E DATA PCMCIA
+FDC_DEBUG?=	0	# 0/1
+FDC_PCCARD?=	1	# 0/1  whether pccard support (i. e. Y-E DATA PCMCIA
 #			# fdc) is desired
 
 CLEANFILES=	card.h
