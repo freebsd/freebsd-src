@@ -110,8 +110,16 @@ ata_generic_transaction(struct ata_request *request)
 
 	    /* device reset doesn't interrupt */
 	    if (request->u.ata.command == ATA_ATAPI_RESET) {
-		DELAY(10);
-		request->status = ATA_IDX_INB(ch, ATA_STATUS);
+		int timeout = 1000000;
+		do {
+		    DELAY(10);
+		    request->status = ATA_IDX_INB(ch, ATA_STATUS);
+		} while (request->status & ATA_S_BUSY && timeout--);
+		if (timeout)
+		    printf("ATAPI_RESET time = %dus\n", (1000000-timeout)*10);
+		else
+		    printf("ATAPI_RESET timeout\n");
+
 		if (request->status & ATA_S_ERROR) {
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
 		    //request->result = EIO;
