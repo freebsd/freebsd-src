@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.4 1997/10/05 14:21:30 brian Exp $
+.\" $Id: pppctl.8,v 1.5 1997/11/07 02:54:46 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -61,13 +61,13 @@ If no
 arguments are given,
 .Nm
 enters interactive mode, where commands are read from standard input.
-When in interactive mode, the
-.Fl v
-option is assumed.  Any password negotiation due to the
-.Fl p
-option is done prior to enabling the
-.Fl v
-option.
+When reading commands, the
+.Xr editline 3
+library is used, allowing command-line editing (with
+.Xr editrc 5
+defining editing behaviour).  The history size
+defaults to
+.Em 20 lines .
 
 The following command line options are available:
 .Bl -tag -width Ds
@@ -76,7 +76,8 @@ Display all data sent to and received from the
 .Nm ppp
 daemon.  Normally,
 .Nm pppctl
-displays only non-prompt lines received.
+displays only non-prompt lines received.  This option is ignored in
+interactive mode.
 .It Fl t Ar n
 Use a timeout of
 .Ar n
@@ -173,9 +174,28 @@ You can even make a generic script:
 exec pppctl /var/run/internet "$@"
 .Ed
 
+.Sh ENVIRONMENT VARIABLES
+The following environment variables are understood by
+.Nm pppctl
+when in interactive mode:
+.Bl -tag -width XXXXXXXXXX
+.It Dv EL_SIZE
+The number of history lines.  The default is 20.
+.It Dv EL_EDITOR
+The edit mode.  Only values of "emacs" and "vi" are accepted.  Other values
+are silently ignored.  This environment variable will override the
+.Ar bind -v
+and
+.Ar bind -e
+commands in
+.Pa ~/.editrc .
+.El
+
 .Sh SEE ALSO
-.Xr services 5 ,
-.Xr ppp 8
+.Xr editline 3 ,
+.Xr editrc 5 ,
+.Xr ppp 8 ,
+.Xr services 5
 
 .Sh HISTORY
 The
