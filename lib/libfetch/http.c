@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.6 1998/11/05 19:48:17 des Exp $
+ *	$Id: http.c,v 1.7 1998/11/06 22:14:08 des Exp $
  */
 
 /*
@@ -78,7 +78,7 @@
 
 #include "fetch.h"
 #include "common.h"
-#include "httperr.inc"
+#include "httperr.h"
 
 #ifndef NDEBUG
 #define DEBUG(x) do x; while (0)
@@ -305,12 +305,14 @@ _http_auth(char *usr, char *pwd)
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int sd = -1, err, i, enc = ENC_NONE;
+    int sd = -1, err, i, enc = ENC_NONE, verbose;
     struct cookie *c;
     char *ln, *p, *q;
     FILE *f, *cf;
     size_t len;
 
+    verbose = (strchr(flags, 'v') != NULL);
+    
     /* allocate cookie */
     if ((c = calloc(1, sizeof(struct cookie))) == NULL)
 	return NULL;
@@ -340,12 +342,12 @@ fetchGetHTTP(struct url *URL, char *flags)
 	host[len] = 0;
 
 	/* connect */
-	sd = fetchConnect(host, port);
+	sd = fetchConnect(host, port, verbose);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
-	if ((sd = fetchConnect(URL->host, URL->port)) == -1)
+	if ((sd = fetchConnect(URL->host, URL->port, verbose)) == -1)
 	    goto ouch;
     }
 
@@ -355,6 +357,9 @@ fetchGetHTTP(struct url *URL, char *flags)
     c->real_f = f;
 
     /* send request (proxies require absolute form, so use that) */
+    if (verbose)
+	_fetch_info("requesting http://%s:%d%s",
+		    URL->host, URL->port, URL->doc);
     _http_cmd(f, "GET http://%s:%d%s HTTP/1.1" ENDL,
 	      URL->host, URL->port, URL->doc);
 
@@ -443,10 +448,12 @@ ouch:
     if (sd >= 0)
 	close(sd);
     free(c);
+    _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 fouch:
     fclose(f);
     free(c);
+    _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 }
 

@@ -25,10 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
+ *	$Id: file.c,v 1.2 1998/11/06 22:14:08 des Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
@@ -73,6 +73,7 @@ fetchStatFile(struct url *u, struct url_stat *us, char *flags)
 	return -1;
     }
     us->size = sb.st_size;
-    us->time = sb.st_mtime;
+    us->atime = sb.st_atime;
+    us->mtime = sb.st_mtime;
     return 0;
 }
