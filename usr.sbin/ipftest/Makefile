@@ -9,7 +9,7 @@ SRCS=	opt_ipfilter.h \
 	ipft_tx.c misc.c ip_frag.c ip_state.c ip_nat.c ip_proxy.c \
 	ip_auth.c ipft_hx.c ip_fil.c natparse.c facpri.c common.c
 
-CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -I- -I${.OBJDIR} -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../sys -I${.CURDIR}/../../contrib/ipfilter
+CFLAGS+=-DUSE_INET6 -DIPL_NAME=\"/dev/ipl\" -I- -I${.OBJDIR} -I${.CURDIR}/../../sys/contrib/ipfilter/netinet -I${.CURDIR}/../../sys -I${.CURDIR}/../../contrib/ipfilter
 
 CLEANFILES+=	opt_ipfilter.h
 
