@@ -22,7 +22,8 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	getuid.o ioctl.o kill.o ktrace.o lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
 	madvise.o mincore.o mkdir.o mkfifo.o mknod.o mlock.o mount.o \
-	mprotect.o msync.o munlock.o munmap.o nfssvc.o open.o \
+	mprotect.o msync.o munlock.o munmap.o nfssvc.o \
+	ntp_adjtime.o ntp_gettime.o open.o \
 	pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
 	select.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
@@ -32,17 +33,9 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	swapon.o symlink.o sync.o umask.o unlink.o unmount.o \
 	utimes.o vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
 
-PASM=	${ASM:.o=.po}
-SASM=	${ASM:.o=.so}
-
 PSEUDO=	_exit.o _getlogin.o
-PPSEUDO=${PSEUDO:.o=.po}
-SPSEUDO=${PSEUDO:.o=.so}
 
 OBJS+=	${ASM} ${PSEUDO}
-POBJS+=	${PASM} ${PPSEUDO}
-SOBJS+=	${SASM} ${SPSEUDO}
-CLEANFILES+=${ASM} ${PSEUDO} ${POBJS} ${SOBJS}
 
 ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
@@ -51,6 +44,7 @@ ${ASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
 
+PASM=	${ASM:.o=.po}
 ${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
@@ -58,6 +52,7 @@ ${PASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
 
+SASM=	${ASM:.o=.so}
 ${SASM}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
 	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
@@ -70,6 +65,7 @@ ${PSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
 
+PPSEUDO=${PSEUDO:.o=.po}
 ${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
@@ -77,6 +73,7 @@ ${PPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
 
+SPSEUDO=${PSEUDO:.o=.so}
 ${SPSEUDO}: ${.CURDIR}/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
 	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
