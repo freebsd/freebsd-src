@@ -1023,7 +1023,6 @@ cpu	EV4</programlisting>
 	      <para>SDRAM DIMMs in sets of 2, non-ECC [PC164SX]</para>
             </listitem>
 	    <listitem>
-	    <listitem>
 	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164LX]</para>
             </listitem></itemizedlist>
         </listitem>
