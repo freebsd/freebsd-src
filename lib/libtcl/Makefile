@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.25 1997/11/27 20:52:28 pst Exp $
+# $Id: Makefile,v 1.26 1998/01/17 15:49:55 bde Exp $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -42,9 +42,6 @@ SRCS=	panic.c regexp.c tclAsync.c tclBasic.c tclBinary.c tclCkalloc.c \
 	tclUnixFCmd.c tclUnixFile.c tclUnixPipe.c tclUnixSock.c \
 	tclUnixTime.c tclUnixInit.c tclUnixNotfy.c tclLoadDl.c
 
-HEADERS=generic/patchlevel.h generic/tclInt.h generic/tclPort.h \
-	generic/tclRegexp.h unix/tclUnixPort.h
-
 beforeinstall: installhdrs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${TCLDIST}/library/tclIndex ${DESTDIR}${TCL_LIBRARY} 
@@ -61,11 +58,6 @@ beforeinstall: installhdrs
 installhdrs:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${TCLDIST}/generic/tcl.h ${DESTDIR}/usr/include/tcl
-.for m in ${HEADERS}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${TCLDIST}/$m \
-		${DESTDIR}/usr/include/tcl/$m
-.endfor
-
 
 MANFILTER=sed "/\.so *man.macros/s;.*;.so /usr/share/tmac/tcl.macros;"
 
