@@ -227,6 +227,10 @@ upper and lower bounds of the timeouts for ``directory'' attributes and
 for regular files, and 30 -> 60 seconds for directories.  The algorithm to
 calculate the timeout is based on the age of the file.  The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.It noinet4
+.It noinet6
+Disables AF_INET or AF_INET6 connections.  Useful for hosts that have
+both an A record and an AAAA record for the same name.
 .El
 .Pp
 .Bl -tag -width "dumbtimerXX"
