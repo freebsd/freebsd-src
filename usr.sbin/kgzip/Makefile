@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	rnordier
+
 PROG=	kgzip
 SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c
 MAN8=	kgzip.8

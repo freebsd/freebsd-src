@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	rnordier
+
 M4?=	m4
 M4FLAGS+=	-DLOADER_ADDRESS=${LOADER_ADDRESS}
 
