@@ -73,6 +73,7 @@ static struct Info {
 	struct	nchstats nchstats;
 	long	nchcount;
 	long	*intrcnt;
+	int		bufspace;
 } s, s1, s2, z;
 
 #define	cnt s.Cnt
@@ -154,6 +155,8 @@ static struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	12
 	{ "_eintrcnt" },
+#define	X_BUFFERSPACE	13
+	{ "_bufspace" },
 	{ "" },
 };
 
@@ -295,7 +298,7 @@ labelkre()
 	mvprintw(VMSTATROW + 3, VMSTATCOL + 10, "zfod");
 	mvprintw(VMSTATROW + 4, VMSTATCOL + 10, "nzfod");
 	mvprintw(VMSTATROW + 5, VMSTATCOL + 10, "%%zfod");
-	mvprintw(VMSTATROW + 6, VMSTATCOL + 10, "kern");
+	mvprintw(VMSTATROW + 6, VMSTATCOL + 10, "cache");
 	mvprintw(VMSTATROW + 7, VMSTATCOL + 10, "wire");
 	mvprintw(VMSTATROW + 8, VMSTATCOL + 10, "act");
 	mvprintw(VMSTATROW + 9, VMSTATCOL + 10, "inact");
@@ -307,6 +310,8 @@ labelkre()
 	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "pdpgs");
 	if (LINES - 1 > VMSTATROW + 16)
 		mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "intrn");
+	if (LINES - 1 > VMSTATROW + 17)
+		mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "buf");
 
 	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -452,7 +457,7 @@ showkre()
 		putfloat(tot == 0 ? 0.0 : (100.0 * cnt.v_zfod / tot),
 			 VMSTATROW + 5, VMSTATCOL + 2, 7, 2, 1);
 	}
-	putint(pgtokb(cnt.v_kernel_pages), VMSTATROW + 6, VMSTATCOL, 9);
+	putint(pgtokb(cnt.v_cache_count), VMSTATROW + 6, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 7, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_active_count), VMSTATROW + 8, VMSTATCOL, 9);
 	putint(pgtokb(cnt.v_inactive_count), VMSTATROW + 9, VMSTATCOL, 9);
@@ -464,6 +469,8 @@ showkre()
 	PUTRATE(Cnt.v_pdpages, VMSTATROW + 15, VMSTATCOL, 9);
 	if (LINES - 1 > VMSTATROW + 16)
 		PUTRATE(Cnt.v_intrans, VMSTATROW + 16, VMSTATCOL, 9);
+	if (LINES - 1 > VMSTATROW + 17)
+		putint(s.bufspace/1024, VMSTATROW + 17, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
 	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
 	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
@@ -607,6 +614,7 @@ getinfo(s, st)
 
 	NREAD(X_CPTIME, s->time, sizeof s->time);
 	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
+	NREAD(X_BUFFERSPACE, &s->bufspace, LONG);
 	NREAD(X_DK_BUSY, &s->dk_busy, LONG);
 	NREAD(X_DK_TIME, s->dk_time, dk_ndrive * LONG);
 	NREAD(X_DK_XFER, s->dk_xfer, dk_ndrive * LONG);
