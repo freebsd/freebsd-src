@@ -1532,10 +1532,15 @@ spx_listen(so, td)
 
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
-	if (ipxp->ipxp_lport == 0)
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error == 0 && ipxp->ipxp_lport == 0)
 		error = ipx_pcbbind(ipxp, NULL, td);
-	if (error == 0)
+	if (error == 0) {
 		cb->s_state = TCPS_LISTEN;
+		solisten_proto(so);
+	}
+	SOCK_UNLOCK(so);
 	IPX_UNLOCK(ipxp);
 	IPX_LIST_UNLOCK();
 	return (error);

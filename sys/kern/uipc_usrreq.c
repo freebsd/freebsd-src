@@ -124,7 +124,7 @@ static void    unp_mark(struct file *);
 static void    unp_discard(struct file *);
 static void    unp_freerights(struct file **, int);
 static int     unp_internalize(struct mbuf **, struct thread *);
-static int     unp_listen(struct unpcb *, struct thread *);
+static int     unp_listen(struct socket *, struct unpcb *, struct thread *);
 
 static int
 uipc_abort(struct socket *so)
@@ -284,7 +284,7 @@ uipc_listen(struct socket *so, struct thread *td)
 		UNP_UNLOCK();
 		return (EINVAL);
 	}
-	error = unp_listen(unp, td);
+	error = unp_listen(so, unp, td);
 	UNP_UNLOCK();
 	return (error);
 }
@@ -1708,16 +1708,21 @@ unp_dispose(struct mbuf *m)
 }
 
 static int
-unp_listen(struct unpcb *unp, struct thread *td)
+unp_listen(struct socket *so, struct unpcb *unp, struct thread *td)
 {
+	int error;
+
 	UNP_LOCK_ASSERT();
 
-	/*
-	 * XXXRW: Why populate the local peer cred with our own credential?
-	 */
-	cru2x(td->td_ucred, &unp->unp_peercred);
-	unp->unp_flags |= UNP_HAVEPCCACHED;
-	return (0);
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error == 0) {
+		cru2x(td->td_ucred, &unp->unp_peercred);
+		unp->unp_flags |= UNP_HAVEPCCACHED;
+		solisten_proto(so);
+	}
+	SOCK_UNLOCK(so);
+	return (error);
 }
 
 static void
