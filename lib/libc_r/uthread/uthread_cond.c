@@ -134,9 +134,15 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	int             rval = 0;
 	int             status;
 
-	if (cond == NULL || *cond == NULL) {
+	if (cond == NULL)
 		rval = EINVAL;
-	} else {
+
+	/*
+	 * If the condition variable is statically initialized,
+	 * perform the dynamic initialization:
+	 */
+	else if (*cond != NULL ||
+	    (rval = pthread_cond_init(cond,NULL)) == 0) {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
 
@@ -189,9 +195,15 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int             rval = 0;
 	int             status;
 
-	if (cond == NULL || *cond == NULL) {
+	if (cond == NULL)
 		rval = EINVAL;
-	} else {
+
+	/*
+	 * If the condition variable is statically initialized,
+	 * perform the dynamic initialization:
+	 */
+	else if (*cond != NULL ||
+	    (rval = pthread_cond_init(cond,NULL)) == 0) {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
 
