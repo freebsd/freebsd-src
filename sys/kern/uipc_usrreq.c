@@ -93,7 +93,7 @@ static void    unp_mark __P((struct file *));
 static void    unp_discard __P((struct file *));
 static void    unp_freerights __P((struct file **, int));
 static int     unp_internalize __P((struct mbuf **, struct thread *));
-static int     unp_listen __P((struct unpcb *, struct proc *));
+static int     unp_listen __P((struct unpcb *, struct thread *));
 
 static int
 uipc_abort(struct socket *so)
@@ -204,7 +204,7 @@ uipc_listen(struct socket *so, struct thread *td)
 
 	if (unp == 0 || unp->unp_vnode == 0)
 		return EINVAL;
-	return unp_listen(unp, td->td_proc);
+	return unp_listen(unp, td);
 }
 
 static int
@@ -1418,12 +1418,12 @@ unp_dispose(m)
 }
 
 static int
-unp_listen(unp, p)
+unp_listen(unp, td)
 	struct unpcb *unp;
-	struct proc *p;
+	struct thread *td;
 {
 
-	cru2x(p->p_ucred, &unp->unp_peercred);
+	cru2x(td->td_ucred, &unp->unp_peercred);
 	unp->unp_flags |= UNP_HAVEPCCACHED;
 	return (0);
 }
