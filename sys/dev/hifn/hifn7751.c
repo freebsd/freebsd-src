@@ -1668,6 +1668,10 @@ hifn_crypto(
 			if (cmd->src_m->m_flags & M_PKTHDR) {
 				len = MHLEN;
 				MGETHDR(m0, M_DONTWAIT, MT_DATA);
+				if (m0 && !m_dup_pkthdr(m0, cmd->src_m, M_DONTWAIT)) {
+					m_free(m0);
+					m0 = NULL;
+				}
 			} else {
 				len = MLEN;
 				MGET(m0, M_DONTWAIT, MT_DATA);
@@ -1676,9 +1680,6 @@ hifn_crypto(
 				hifnstats.hst_nomem_mbuf++;
 				err = dma->cmdu ? ERESTART : ENOMEM;
 				goto err_srcmap;
-			}
-			if (len == MHLEN) {
-				M_COPY_PKTHDR(m0, cmd->src_m);
 			}
 			if (totlen >= MINCLSIZE) {
 				MCLGET(m0, M_DONTWAIT);
