@@ -52,7 +52,7 @@ int     __usecs = 0;                    /*
 					 * region (used only if insert/delete
 					 * line capabilities absent)
 					 */
-char	AM, BS, CA, DA, EO, HC, IN, MI, MS, NC, NS, OS, PC,
+char    AM, BS, CA, DA, DB, EO, HC, IN, MI, MS, NC, NS, OS, PC,
 	UL, XB, XN, XT, XS, XX;
 char	*AL, *BC, *BT, *CD, *CE, *CL, *CM, *CR, *CS, *DC, *DL,
 	*DM, *DO, *ED, *EI, *K0, *K1, *K2, *K3, *K4, *K5, *K6,
