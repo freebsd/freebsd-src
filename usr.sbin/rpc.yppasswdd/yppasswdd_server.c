@@ -651,10 +651,10 @@ cleaning up and bailing out");
 	case 0:
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-				yppasswd_domain, "pushpw", NULL);
+				yppasswd_domain, "pushpw", (char *)NULL);
 		} else {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-				yppasswd_domain, NULL);
+				yppasswd_domain, (char *)NULL);
 		}
     		yp_error("couldn't exec map update process: %s",
 					strerror(errno));
@@ -841,10 +841,10 @@ cleaning up and bailing out");
 	case 0:
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-				argp->domain, "pushpw", NULL);
+				argp->domain, "pushpw", (char *)NULL);
     		} else {
 			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-				argp->domain, NULL);
+				argp->domain, (char *)NULL);
 		}
     		yp_error("couldn't exec map update process: %s",
 					strerror(errno));

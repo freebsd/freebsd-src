@@ -297,7 +297,7 @@ doit(f, fromp)
 		error("No remote directory.\n");
 		exit(1);
 	}
-	execl(pwd->pw_shell, cp, "-c", cmdbuf, 0);
+	execl(pwd->pw_shell, cp, "-c", cmdbuf, (char *)0);
 	err(1, "%s", pwd->pw_shell);
 }
 

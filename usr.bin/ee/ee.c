@@ -3148,7 +3148,7 @@ char *string;		/* string containing user command		*/
 			}
 			for (value = 1; value < 24; value++)
 				signal(value, SIG_DFL);
-			execl(path, last_slash, "-c", string, NULL);
+			execl(path, last_slash, "-c", string, (char *)NULL);
 			errx(1, exec_err_msg, path);
 		}
 		else	/* if the parent	*/

@@ -672,7 +672,7 @@ compress_log(char *log)
 	if (pid < 0)
 		err(1, "fork");
 	else if (!pid) {
-		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, 0);
+		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, (char *)0);
 		err(1, _PATH_GZIP);
 	}
 }

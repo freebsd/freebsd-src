@@ -136,7 +136,7 @@ mk_data(const struct iodesc * idi, const struct iodesc * ido,
 	close(idi->fd);
 	dup2(ido->fd, STDOUT_FILENO);
 	close(ido->fd);
-	execlp("gzip", "gzip", "-9", NULL);
+	execlp("gzip", "gzip", "-9", (char *)NULL);
 	warn(NULL);
 	_exit(1);
     default:

@@ -2080,7 +2080,7 @@ cleantmpdir(jid, tpath, user)
 							tpath);
 		break;
 	case 0:
-		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, 0);
+		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, (char *)0);
 		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m",
 							tpath, CLEANTMPCMD);
 		exit(1);

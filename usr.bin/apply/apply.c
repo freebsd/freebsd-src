@@ -244,7 +244,7 @@ exec_shell(const char *command, char *use_shell, char *use_name)
 		err(1, "vfork");
 	case 0:				/* child */
 		(void)sigsetmask(omask);
-		execl(use_shell, use_name, "-c", command, NULL);
+		execl(use_shell, use_name, "-c", command, (char *)NULL);
 		warn("%s", use_shell);
 		_exit(1);
 	}

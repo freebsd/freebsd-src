@@ -962,7 +962,7 @@ static	char	*deathmesg[] =
 	{
 	cleanup(FALSE);
 	execl(_PATH_GAMEPROG, "phantasia", "-s",
-	    (Wizard ? "-S": (char *) NULL), 0);
+	    (Wizard ? "-S": (char *) NULL), (char *)0);
 	exit(0);
 	/*NOTREACHED*/
 	}
