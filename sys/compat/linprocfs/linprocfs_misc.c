@@ -61,8 +61,9 @@
 #include <sys/vmmeter.h>
 #include <sys/exec.h>
 
-#include <machine/md_var.h>
+#include <machine/clock.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
 
 #include <i386/linux/linprocfs/linprocfs.h>
 
@@ -171,44 +172,79 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	char *ps;
 	int xlen;
 	char psbuf[512];		/* XXX - conservative */
-	char *class;
+	int class;
+        int i;
 #if 0
 	extern char *cpu_model;		/* Yuck */
 #endif
+        /* We default the flags to include all non-conflicting flags,
+           and the Intel versions of conflicting flags.  Note the space
+           before each name; that is significant, and should be 
+           preserved. */
+
+        static char *flags[] = {
+		"fpu",      "vme",     "de",       "pse",      "tsc",
+		"msr",      "pae",     "mce",      "cx8",      "apic",
+		"sep",      "sep",     "mtrr",     "pge",      "mca",
+		"cmov",     "pat",     "pse36",    "pn",       "b19",
+		"b20",      "b21",     "mmxext",   "mmx",      "fxsr",
+		"xmm",      "b26",     "b27",      "b28",      "b29",
+		"3dnowext", "3dnow"
+	};
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
 	switch (cpu_class) {
 	case CPUCLASS_286:
-		class = "286";
+		class = 2;
 		break;
 	case CPUCLASS_386:
-		class = "386";
+		class = 3;
 		break;
 	case CPUCLASS_486:
-		class = "486";
+		class = 4;
 		break;
 	case CPUCLASS_586:
-		class = "586";
+		class = 5;
 		break;
 	case CPUCLASS_686:
-		class = "686";
+		class = 6;
 		break;
 	default:
-		class = "unknown";
+                class = 0;
 		break;
 	}
 
 	ps = psbuf;
 	ps += sprintf(ps,
 			"processor       : %d\n"
-			"cpu             : %.3s\n"
-			"model           : %.20s\n"
 			"vendor_id       : %.20s\n"
+			"cpu family      : %d\n"
+			"model           : %d\n"
 			"stepping        : %d\n",
-			0, class, "unknown", cpu_vendor, cpu_id);
+			0, cpu_vendor, class, cpu, cpu_id & 0xf);
 
+        ps += sprintf(ps,
+                        "flags           :");
+
+        if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
+		flags[16] = "fcmov";
+        } else if (!strcmp(cpu_vendor, "CyrixInstead")) {
+		flags[24] = "cxmmx";
+        }
+        
+        for (i = 0; i < 32; i++)
+		if (cpu_feature & (1 << i))
+			ps += sprintf(ps, " %s", flags[i]);
+	ps += sprintf(ps, "\n");
+        if (class >= 5) {
+		ps += sprintf(ps,
+			"cpu MHz         : %d.%02d\n",
+                        (tsc_freq + 4999) / 1000000,
+                        ((tsc_freq + 4999) / 10000) % 100);
+        }
+        
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
