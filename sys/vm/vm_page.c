@@ -242,6 +242,11 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	end = new_end;
 
 	/*
+	 * Reserve an unmapped guard page to trap access to vm_page_array[-1].
+	 */
+	vaddr += PAGE_SIZE;
+
+	/*
 	 * Initialize the mem entry structures now, and put them in the free
 	 * queue.
 	 */
