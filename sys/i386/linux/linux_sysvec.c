@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.32 1998/08/16 01:21:50 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.33 1998/09/14 05:36:48 jdp Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -434,6 +434,13 @@ Elf32_Brandinfo linux_brand = {
 					&elf_linux_sysvec
 				 };
 
+Elf32_Brandinfo linux_glibc2brand = {
+					"Linux",
+					"/compat/linux",
+					"/lib/ld-linux.so.2",
+					&elf_linux_sysvec
+				 };
+
 #ifndef LKM
 /*
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
@@ -445,7 +452,8 @@ static void
 linux_elf_init(dummy)
 	void *dummy;
 {
-	if (elf_insert_brand_entry(&linux_brand) < 0)
+	if ((elf_insert_brand_entry(&linux_brand) < 0) ||
+	    (elf_insert_brand_entry(&linux_glibc2brand) < 0))
 		printf("cannot insert Linux elf brand handler\n");
 	else if (bootverbose)
 		printf("Linux-ELF exec handler installed\n");
