@@ -2549,10 +2549,10 @@ dropafterack:
 #endif
 	KASSERT(headlocked, ("headlocked should be 1"));
 	INP_INFO_WUNLOCK(&tcbinfo);
-	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	INP_UNLOCK(inp);
+	m_freem(m);
 	return;
 
 dropwithreset:
@@ -2617,9 +2617,9 @@ drop:
 #endif
 	if (tp)
 		INP_UNLOCK(inp);
-	m_freem(m);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
+	m_freem(m);
 	return;
 }
 
