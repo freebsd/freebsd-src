@@ -419,6 +419,10 @@ MAIN:{
     }
 
     # Build LINT if requested
+    if ($cmds{'lint'} && ! -f "$sandbox/src/sys/$machine/conf/NOTES") {
+	logstage("no NOTES, skipping lint kernel");
+	$cmds{'lint'} = 0;
+    }
     if ($cmds{'lint'}) {
 	logstage("building lint kernel");
 	cd("$sandbox/src/sys/$machine/conf");
