@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.24 1994/09/28 15:55:35 jkh Exp $
+ *      $Id: bt742a.c,v 1.25 1994/09/28 16:23:13 jkh Exp $
  */
 
 /*
@@ -1066,6 +1066,8 @@ bt_init(unit)
 #endif
 		return (ENXIO);
 	}
+
+	DELAY(10000);
 
 	/*
          * Displaying Board ID and Hardware Revision
