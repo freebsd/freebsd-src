@@ -150,6 +150,7 @@ struct pargs {
  *      n - not locked, lazy
  *      o - ktrace lock
  *      p - select lock (sellock)
+ *      r - p_peers lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
  * either lock is sufficient for read access, but both locks must be held
@@ -585,7 +586,7 @@ struct proc {
 	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU) */
 	u_short		p_acflag;	/* (c) Accounting flags. */
 	struct rusage	*p_ru;		/* (a) Exit information. XXX */
-	struct proc	*p_peers;	/* (c) */
+	struct proc	*p_peers;	/* (r) */
 	struct proc	*p_leader;	/* (b) */
 	void		*p_emuldata;	/* (c) Emulator state data. */
 };
@@ -804,6 +805,7 @@ extern u_long pgrphash;
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
 extern struct mtx pargs_ref_lock;
+extern struct mtx ppeers_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
 extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0 */
