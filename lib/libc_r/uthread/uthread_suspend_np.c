@@ -74,11 +74,13 @@ pthread_suspend_np(pthread_t thread)
 			if ((thread->flags & PTHREAD_FLAGS_IN_WORKQ) != 0)
 				PTHREAD_WORKQ_REMOVE(thread);
 			_thread_seterrno(thread,EINTR);
+
+			/* FALLTHROUGH */
+		case PS_SLEEP_WAIT:
 			thread->interrupted = 1;
 
 			/* FALLTHROUGH */
 		case PS_SIGTHREAD:
-		case PS_SLEEP_WAIT:
 		case PS_WAIT_WAIT:
 		case PS_SIGSUSPEND:
 		case PS_SIGWAIT:
