@@ -133,10 +133,6 @@ In the current implementation,
 doesn't dump any information of Firmware ACPI Control Structure
 (FACS)
 specified by a pointer in FACP.
-Some parts of output in ASL are incomplete.  To obtain a complete
-output, it would need to change the implementation into another one
-that analyzes a whole DSDT and builds an ACPI namespace as preprocess,
-and then interprets the DSDT again referring to namespace.
 .Sh FILES
 .Bl -tag -width /dev/mem
 .It Pa /dev/mem

@@ -169,11 +169,12 @@ void		 acpi_print_dsdt(struct ACPIsdt *);
 void		 asl_dump_termobj(u_int8_t **, int);
 void		 asl_dump_objectlist(u_int8_t **, u_int8_t *, int);
 
-void		 aml_dump(u_int32_t *, int);
+void		 aml_dump(struct ACPIsdt *);
 
 void    	 acpi_handle_rsdt(struct ACPIsdt *);
 void		 acpi_load_dsdt(char *, u_int8_t **, u_int8_t **);
-
+void		 acpi_dump_dsdt(u_int8_t *, u_int8_t *);
 extern char	*aml_dumpfile;
+extern struct	ACPIsdt dsdt_header;
 
 #endif	/* !_ACPIDUMP_H_ */
