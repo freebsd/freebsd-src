@@ -240,21 +240,20 @@ static int nswap_hiwat = 512;	/* in pages, swap_pager_almost_full warn */
 SYSCTL_INT(_vm, OID_AUTO, dmmax,
 	CTLFLAG_RD, &dmmax, 0, "Maximum size of a swap block");
 
-static __inline void	swp_sizecheck(void);
+static void	swp_sizecheck(void);
 static void	swp_pager_sync_iodone(struct buf *bp);
 static void	swp_pager_async_iodone(struct buf *bp);
 
 /*
  * Swap bitmap functions
  */
-static __inline void	swp_pager_freeswapspace(daddr_t blk, int npages);
-static __inline daddr_t	swp_pager_getswapspace(int npages);
+static void	swp_pager_freeswapspace(daddr_t blk, int npages);
+static daddr_t	swp_pager_getswapspace(int npages);
 
 /*
  * Metadata functions
  */
-static __inline struct swblock **
-    swp_pager_hash(vm_object_t object, vm_pindex_t index);
+static struct swblock **swp_pager_hash(vm_object_t object, vm_pindex_t index);
 static void swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
@@ -272,7 +271,7 @@ static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
  *	This routine may not block.
  *	This routine must be called at splvm()
  */
-static __inline void
+static void
 swp_sizecheck()
 {
 	GIANT_REQUIRED;
@@ -292,14 +291,14 @@ swp_sizecheck()
 /*
  * SWP_PAGER_HASH() -	hash swap meta data
  *
- *	This is an inline helper function which hashes the swapblk given
+ *	This is an helper function which hashes the swapblk given
  *	the object and page index.  It returns a pointer to a pointer
  *	to the object, or a pointer to a NULL pointer if it could not
  *	find a swapblk.
  *
  *	This routine must be called at splvm().
  */
-static __inline struct swblock **
+static struct swblock **
 swp_pager_hash(vm_object_t object, vm_pindex_t index)
 {
 	struct swblock **pswap;
@@ -549,7 +548,7 @@ swap_pager_dealloc(object)
  *	This routine may not block
  *	This routine must be called at splvm().
  */
-static __inline daddr_t
+static daddr_t
 swp_pager_getswapspace(npages)
 	int npages;
 {
@@ -586,7 +585,7 @@ swp_pager_getswapspace(npages)
  *	This routine may not block
  *	This routine must be called at splvm().
  */
-static __inline void
+static void
 swp_pager_freeswapspace(blk, npages)
 	daddr_t blk;
 	int npages;
