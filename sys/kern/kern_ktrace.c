@@ -150,12 +150,19 @@ ktrnamei(vp, path)
 	struct ktr_header *kth;
 	struct proc *p = curproc;	/* XXX */
 
+	/*
+	 * don't let p_tracep get ripped out from under us
+	 */
+	if (vp)
+		VREF(vp);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_NAMEI);
 	kth->ktr_len = strlen(path);
 	kth->ktr_buffer = path;
 
 	ktrwrite(vp, kth, NULL);
+	if (vp)
+		vrele(vp);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
@@ -174,6 +181,11 @@ ktrgenio(vp, fd, rw, uio, error)
 
 	if (error)
 		return;
+	/*
+	 * don't let p_tracep get ripped out from under us
+	 */
+	if (vp)
+		VREF(vp);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_GENIO);
 	ktg.ktr_fd = fd;
@@ -184,6 +196,8 @@ ktrgenio(vp, fd, rw, uio, error)
 	uio->uio_rw = UIO_WRITE;
 
 	ktrwrite(vp, kth, uio);
+	if (vp)
+		vrele(vp);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
@@ -200,6 +214,11 @@ ktrpsig(vp, sig, action, mask, code)
 	struct ktr_psig	kp;
 	struct proc *p = curproc;	/* XXX */
 
+	/*
+	 * don't let vp get ripped out from under us
+	 */
+	if (vp)
+		VREF(vp);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_PSIG);
 	kp.signo = (char)sig;
@@ -210,6 +229,8 @@ ktrpsig(vp, sig, action, mask, code)
 	kth->ktr_len = sizeof (struct ktr_psig);
 
 	ktrwrite(vp, kth, NULL);
+	if (vp)
+		vrele(vp);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
@@ -223,6 +244,11 @@ ktrcsw(vp, out, user)
 	struct	ktr_csw kc;
 	struct proc *p = curproc;	/* XXX */
 
+	/*
+	 * don't let vp get ripped out from under us
+	 */
+	if (vp)
+		VREF(vp);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_CSW);
 	kc.out = out;
@@ -231,6 +257,8 @@ ktrcsw(vp, out, user)
 	kth->ktr_len = sizeof (struct ktr_csw);
 
 	ktrwrite(vp, kth, NULL);
+	if (vp)
+		vrele(vp);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
@@ -289,19 +317,20 @@ ktrace(td, uap)
 		}
 	}
 	/*
-	 * Clear all uses of the tracefile
+	 * Clear all uses of the tracefile.
 	 */
 	if (ops == KTROP_CLEARFILE) {
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_tracep == vp) {
-				if (ktrcanset(curp, p)) {
+				if (ktrcanset(curp, p) && p->p_tracep == vp) {
 					p->p_tracep = NULL;
 					p->p_traceflag = 0;
 					(void) vn_close(vp, FREAD|FWRITE,
 						p->p_ucred, td);
-				} else
+				} else {
 					error = EPERM;
+				}
 			}
 		}
 		sx_sunlock(&allproc_lock);
@@ -371,6 +400,7 @@ utrace(td, uap)
 #ifdef KTRACE
 	struct ktr_header *kth;
 	struct proc *p = curproc;	/* XXX */
+	struct vnode *vp;
 	register caddr_t cp;
 
 	if (!KTRPOINT(p, KTR_USER))
@@ -378,13 +408,17 @@ utrace(td, uap)
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	p->p_traceflag |= KTRFAC_ACTIVE;
+	if ((vp = p->p_tracep) != NULL)
+		VREF(vp);
 	kth = ktrgetheader(KTR_USER);
 	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
 	if (!copyin(uap->addr, cp, uap->len)) {
 		kth->ktr_buffer = cp;
 		kth->ktr_len = uap->len;
-		ktrwrite(p->p_tracep, kth, NULL);
+		ktrwrite(vp, kth, NULL);
 	}
+	if (vp)
+		vrele(vp);
 	FREE(kth, M_KTRACE);
 	FREE(cp, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
@@ -407,12 +441,16 @@ ktrops(curp, p, ops, facs, vp)
 		return (0);
 	if (ops == KTROP_SET) {
 		if (p->p_tracep != vp) {
+			struct vnode *vtmp;
+
 			/*
 			 * if trace file already in use, relinquish
 			 */
-			if (p->p_tracep != NULL)
-				vrele(p->p_tracep);
 			VREF(vp);
+			while ((vtmp = p->p_tracep) != NULL) {
+				p->p_tracep = NULL;
+				vrele(vtmp);
+			}
 			p->p_tracep = vp;
 		}
 		p->p_traceflag |= facs;
@@ -421,11 +459,13 @@ ktrops(curp, p, ops, facs, vp)
 	} else {
 		/* KTROP_CLEAR */
 		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0) {
+			struct vnode *vtmp;
+
 			/* no more tracing */
 			p->p_traceflag = 0;
-			if (p->p_tracep != NULL) {
-				vrele(p->p_tracep);
+			if ((vtmp = p->p_tracep) != NULL) {
 				p->p_tracep = NULL;
+				vrele(vtmp);
 			}
 		}
 	}
@@ -513,7 +553,8 @@ ktrwrite(vp, kth, uio)
 	if (!error)
 		return;
 	/*
-	 * If error encountered, give up tracing on this vnode.
+	 * If error encountered, give up tracing on this vnode.  XXX what
+	 * happens to the loop if vrele() blocks?
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
