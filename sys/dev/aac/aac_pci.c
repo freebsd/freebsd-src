@@ -105,8 +105,6 @@ struct aac_ident
 	"Dell PERC 3/Di"},
 	{0x1028, 0x0002, 0x1028, 0x00d9, AAC_HWIF_I960RX, 0,
 	"Dell PERC 3/Di"},
-	{0x1028, 0x0008, 0x1028, 0x00cf, AAC_HWIF_I960RX, 0,
-	"Dell PERC 3/Di"},
 	{0x1028, 0x000a, 0x1028, 0x0106, AAC_HWIF_I960RX, 0,
 	"Dell PERC 3/Di"},
 	{0x1028, 0x000a, 0x1028, 0x011b, AAC_HWIF_I960RX, 0,
