@@ -60,17 +60,20 @@ each associate an ACL with an object referred to by
 .Va fd
 or
 .Va path_p .
+The
 .Fn acl_set_fd_np
 and
 .Fn acl_set_link_np
-are not POSIX.1e calls.
+functions are not POSIX.1e calls.
+The
 .Fn acl_set_fd
-allows only the setting of ACLs of type ACL_TYPE_ACCESS
+function allows only the setting of ACLs of type ACL_TYPE_ACCESS
 where as
 .Fn acl_set_fd_np
 allows the setting of ACLs of any type.
+The
 .Fn acl_set_link_np
-acts on a symlink rather than its target, if the target of the
+function acts on a symlink rather than its target, if the target of the
 path is a symlink.
 .Sh IMPLEMENTATION NOTES
 .Fx Ns 's
