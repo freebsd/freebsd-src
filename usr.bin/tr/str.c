@@ -227,10 +227,12 @@ genequiv(s)
 		s->equiv[0] = backslash(s);
 		if (*s->str != '=')
 			errx(1, "misplaced equivalence equals sign");
+		s->str += 2;
 	} else {
 		s->equiv[0] = s->str[0];
 		if (s->str[1] != '=')
 			errx(1, "misplaced equivalence equals sign");
+		s->str += 3;
 	}
 
 	/*
@@ -254,7 +256,6 @@ genequiv(s)
 		s->equiv[p] = OOBCH;
 	}
 
-	s->str += 2;
 	s->cnt = 0;
 	s->state = SET;
 	s->set = s->equiv;
