@@ -501,7 +501,7 @@ xmitfile(pf)
 	struct tftphdr *dp, *r_init();
 	register struct tftphdr *ap;    /* ack packet */
 	register int size, n;
-	volatile int block;
+	volatile unsigned short block;
 
 	signal(SIGALRM, timer);
 	dp = r_init();
@@ -571,7 +571,7 @@ recvfile(pf)
 	struct tftphdr *dp, *w_init();
 	register struct tftphdr *ap;    /* ack buffer */
 	register int n, size;
-	volatile int block;
+	volatile unsigned short block;
 
 	signal(SIGALRM, timer);
 	dp = w_init();
