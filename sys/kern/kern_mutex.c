@@ -232,7 +232,7 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
 		    m, m->mtx_lock, RETIP(m));
 		while (!_obtain_lock(m, p)) {
-			int v;
+			uintptr_t v;
 			struct proc *p1;
 
 			mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
