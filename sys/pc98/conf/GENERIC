@@ -175,7 +175,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.
 
 # DP8390 NIC
-#device		ed	1
+device		ed
 
 # MB86960A NIC
 options 	FE_8BIT_SUPPORT		# LAC-98 support
