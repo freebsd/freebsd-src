@@ -37,7 +37,11 @@
 .Nm npx
 .Nd Numeric Processing Extension coprocessor and emulator
 .Sh SYNOPSIS
-.Cd "device npx0 at nexus? port IO_NPX flags 0x0 irq 13"
+.Cd "device npx"
+.Cd hint.npx.0.at="nexus"
+.Cd hint.npx.0.port="0x0F0"
+.Cd hint.npx.0.flags="0x0"
+.Cd hint.npx.0.irq="13"
 .Pp
 For hosts without a FPU coprocessor add:
 .Cd "options MATH_EMULATE"
@@ -78,8 +82,44 @@ The
 .Sy GENERIC
 kernel configuration uses the MATH_EMULATE option.
 .Pp
-For a description of the possible "flags" values see the LINT kernel
-configuration file.
+The flags for npx0 are:
+.Bl -tag -width xxxxxxxxx -compact
+.It 0x01
+don't use the npx registers to optimize bcopy.
+.It 0x02
+don't use the npx registers to optimize bzero.
+.It 0x04
+don't use the npx registers to optimize copyin or copyout.
+.It 0x08
+use emulator even if hardware FPU is available.
+.El
+.Pp
+The npx registers are normally used
+to optimize copying and zeroing
+when all of the following conditions are satisfied:
+.Bl -enum -compact
+.It
+I586_CPU is an option
+.It
+the cpu is an i586 (perhaps not a Pentium)
+.It
+the probe for npx0 succeeds
+.It
+INT 16 exception handling works.
+.El
+Then copying and zeroing
+using the npx registers
+is normally 30-100% faster.
+.Pp
+The flags can be used
+to control cases
+where it doesn't work or is slower.
+Setting them at boot time
+using userconfig works correctly
+(the optimizations are not used
+until later in the bootstrap
+when npx0 is attached).
+Flag 0x08 automatically disables the i586 optimized routines.
 .Sh CAVEATS
 The emulator is much slower than the NPX coprocessor.
 This will result in poor floating-point math performance
