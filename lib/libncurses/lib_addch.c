@@ -56,10 +56,14 @@ chtype	ch = c;
         	T(("win attr = %x", win->_attrs));
 		ch |= win->_attrs;
 
-		if (win->_line[y][x]&A_CHARTEXT == ' ')
-			ch |= win->_bkgd;
+		/* Don't attempt to replace any given attributes */
+		if ((ch&A_ATTRIBUTES) == A_NORMAL) {
+			if (ch == ' ')
+				ch = win->_bkgd;
 		else
 			ch |= (win->_bkgd&A_ATTRIBUTES);
+		}
+
 		T(("bkg = %x -> ch = %x", win->_bkgd, ch));
 
 		if (win->_line[y][x] != ch) {
