@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.20 1995/03/01 22:24:43 dufault Exp $
+ *      $Id: scsiconf.c,v 1.21 1995/03/04 20:50:58 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -100,8 +100,8 @@ void *extend_set(struct extend_array *ea, int index, void *value)
 
 void *extend_get(struct extend_array *ea, int index)
 {
-	if (index >= ea->nelem || index < 0)
-		return 0;
+	if (ea == NULL || index >= ea->nelem || index < 0)
+		return NULL;
 	return ea->ps[index];
 }
 
