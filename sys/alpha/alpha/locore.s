@@ -213,9 +213,7 @@ LEAF(savefpstate, 1)
 	stt	$f25, (25 * 8)(t1)
 	stt	$f26, (26 * 8)(t1)
 	stt	$f27, (27 * 8)(t1)
-	.set noat
 	stt	$f28, (28 * 8)(t1)
-	.set at
 	stt	$f29, (29 * 8)(t1)
 	stt	$f30, (30 * 8)(t1)
 
@@ -277,9 +275,7 @@ LEAF(restorefpstate, 1)
 	ldt	$f25, (25 * 8)(t1)
 	ldt	$f26, (26 * 8)(t1)
 	ldt	$f27, (27 * 8)(t1)
-	.set noat
 	ldt	$f28, (28 * 8)(t1)
-	.set at
 	ldt	$f29, (29 * 8)(t1)
 	ldt	$f30, (30 * 8)(t1)
 
