@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd July 8, 2000
 .Dt KENV 1
 .Os
 .Sh NAME
@@ -32,19 +32,23 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl h
-.Op variable
+.Op Ar variable
 .Sh DESCRIPTION
+The
 .Nm
-will dump the kernel environment.
+utility will dump the kernel environment.
 If the
 .Fl h
-flag is specified, it will limit the report to kernel probe hints.
-If an optional variable name is specified,
+option is specified, it will limit the report to kernel probe hints.
+If an optional
+.Ar variable
+name is specified,
 .Nm
 will only report that value.
 .Sh SEE ALSO
 .Xr loader 8
 .Sh HISTORY
+The
 .Nm
-appeared in
+utility appeared in
 .Fx 4.1.1 .

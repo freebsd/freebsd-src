@@ -46,17 +46,19 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is normally used in a Bourne shell script.
-It tests for the appropriate status "false" before running
-(or failing to run) a list of commands.
+utility always returns with an exit code of zero.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr csh 1 ,
 .Xr false 1 ,
 .Xr sh 1
-.Sh DIAGNOSTICS
-The
-.Nm
-utility always returns with exit code zero.
 .Sh STANDARDS
 The
 .Nm
