@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.21 1995/07/01 19:09:40 joerg Exp $
+ * $Id: ip_output.c,v 1.22 1995/07/02 16:45:07 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -247,7 +247,7 @@ ip_output(m0, opt, ro, flags, imo)
 				 * is multicast and not just sent down one link
 				 * as prescribed by rsvpd.
 				 */
-				if (ip_rsvpd == NULL)
+				if (!rsvp_on)
 				  imo = NULL;
 				if (ip_mforward(ip, ifp, m, imo) != 0) {
 					m_freem(m);
