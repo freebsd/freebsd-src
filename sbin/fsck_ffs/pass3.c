@@ -61,8 +61,8 @@ pass3()
 	for (inpindex = inplast - 1; inpindex >= 0; inpindex--) {
 		if (got_siginfo) {
 			printf("%s: phase 3: dir %d of %d (%d%%)\n", cdevname,
-			    inplast - inpindex - 1, inplast,
-			    (inplast - inpindex - 1) * 100 / inplast);
+			    (int)(inplast - inpindex - 1), (int)inplast,
+			    (int)((inplast - inpindex - 1) * 100 / inplast));
 			got_siginfo = 0;
 		}
 		inp = inpsort[inpindex];
@@ -101,7 +101,8 @@ pass3()
 			propagate();
 			continue;
 		}
-		pfatal("ORPHANED DIRECTORY LOOP DETECTED I=%lu", orphan);
+		pfatal("ORPHANED DIRECTORY LOOP DETECTED I=%lu",
+		    (u_long)orphan);
 		if (reply("RECONNECT") == 0)
 			continue;
 		memset(&idesc, 0, sizeof(struct inodesc));
