@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: mntfs.c,v 1.3 1997/02/22 16:01:35 peter Exp $
  */
 
 #ifndef lint
@@ -235,7 +235,6 @@ static void uninit_mntfs(mf, rmd)
 mntfs *mf;
 int rmd;
 {
-	if (mf->mf_mount) free((voidp) mf->mf_mount);
 	if (mf->mf_auto) free((voidp) mf->mf_auto);
 	if (mf->mf_mopts) free((voidp) mf->mf_mopts);
 	if (mf->mf_remopts) free((voidp) mf->mf_remopts);
@@ -247,6 +246,7 @@ int rmd;
 	 */
 	if (rmd && (mf->mf_flags & MFF_MKMNT))
 		rmdirs(mf->mf_mount);
+	if (mf->mf_mount) free((voidp) mf->mf_mount);
 
 	/*
 	 * Clean up the file server
