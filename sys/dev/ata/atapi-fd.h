@@ -74,7 +74,7 @@ struct afd_softc {
     struct atapi_softc		*atp;		/* controller structure */
     int				lun;		/* logical device unit */
     int				transfersize;	/* max size of each transfer */
-    struct bio_queue_head	bio_queue;	/* queue of i/o requests */
+    struct bio_queue_head	queue;		/* queue of i/o requests */
     struct afd_header		header;		/* capabilities page info */
     struct afd_cappage		cap;		/* capabilities page info */
     struct disk			disk;		/* virtual drives */

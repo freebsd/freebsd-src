@@ -69,21 +69,25 @@ static struct intr_config_hook *ata_delayed_attach = NULL;
 static char ata_conf[256];
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
+/* misc defines */
+#define MASTER	0
+#define SLAVE	1
+
 int
 ata_probe(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_softc *scp;
     int rid;
-    int mask = 0;
-    u_int8_t status0, status1;
 
-    if (!scp || scp->flags & ATA_ATTACHED)
+    if (!dev)
+	return ENXIO;
+    scp = device_get_softc(dev);
+    if (!scp || scp->devices)
 	return ENXIO;
 
     /* initialize the softc basics */
     scp->active = ATA_IDLE;
     scp->dev = dev;
-    scp->devices = 0;
 
     rid = ATA_IOADDR_RID;
     scp->r_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
@@ -107,28 +111,7 @@ ata_probe(device_t dev)
 		   (int)rman_get_start(scp->r_altio),
 		   (scp->r_bmio) ? (int)rman_get_start(scp->r_bmio) : 0);
 
-    /* do we have any signs of ATA/ATAPI HW being present ? */
-    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(1);
-    status0 = ATA_INB(scp->r_io, ATA_STATUS);
-    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5)
-	mask |= 0x01;
-    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-    DELAY(1);	
-    status1 = ATA_INB(scp->r_io, ATA_STATUS);
-    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5)
-	mask |= 0x02;
-
-    if (bootverbose)
-	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
-		   mask, status0, status1);
-    if (!mask)
-	goto failure;
-
-    ata_reset(scp, &mask);
-
-    if (!mask)
-	goto failure;
+    ata_reset(scp);
 
     TAILQ_INIT(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
@@ -149,10 +132,13 @@ failure:
 int
 ata_attach(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_softc *scp;
     int error, rid;
 
-    if (!scp || scp->flags & ATA_ATTACHED)
+    if (!dev)
+	return ENXIO;
+    scp = device_get_softc(dev);
+    if (!scp)
 	return ENXIO;
 
     rid = ATA_IRQ_RID;
@@ -197,19 +183,26 @@ ata_attach(device_t dev)
 	    atapi_attach(scp, ATA_SLAVE);
 #endif
     }
-    scp->flags |= ATA_ATTACHED;
     return 0;
 }
 
 int
 ata_detach(device_t dev)
 {
-    struct ata_softc *scp = device_get_softc(dev);
+    struct ata_softc *scp;
+    int s;
  
-    if (!scp || !(scp->flags & ATA_ATTACHED))
+    if (!dev)
+	return ENXIO;
+    scp = device_get_softc(dev);
+    if (!scp || !scp->devices)
 	return ENXIO;
 
-    /* make sure device is not busy SOS XXX */
+    /* make sure channel is not busy SOS XXX */
+    s = splbio();
+    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
+        tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
+    splx(s);
 
     /* disable interrupts on devices */
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
@@ -218,30 +211,31 @@ ata_detach(device_t dev)
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
 
 #ifdef DEV_ATADISK
-    if (scp->devices & ATA_ATA_MASTER)
-	ad_detach(scp->dev_softc[0]);
-    if (scp->devices & ATA_ATA_SLAVE)
-	ad_detach(scp->dev_softc[1]);
+    if (scp->devices & ATA_ATA_MASTER && scp->dev_softc[MASTER])
+	ad_detach(scp->dev_softc[MASTER]);
+    if (scp->devices & ATA_ATA_SLAVE && scp->dev_softc[SLAVE])
+	ad_detach(scp->dev_softc[SLAVE]);
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
-    if (scp->devices & ATA_ATAPI_MASTER)
-	atapi_detach(scp->dev_softc[0]);
-    if (scp->devices & ATA_ATAPI_SLAVE)
-	atapi_detach(scp->dev_softc[1]);
+    if (scp->devices & ATA_ATAPI_MASTER && scp->dev_softc[MASTER])
+	atapi_detach(scp->dev_softc[MASTER]);
+    if (scp->devices & ATA_ATAPI_SLAVE && scp->dev_softc[SLAVE])
+	atapi_detach(scp->dev_softc[SLAVE]);
 #endif
 
-    if (scp->dev_param[ATA_DEV(ATA_MASTER)]) {
-	free(scp->dev_param[ATA_DEV(ATA_MASTER)], M_ATA);
-	scp->dev_param[ATA_DEV(ATA_MASTER)] = NULL;
+    if (scp->dev_param[MASTER]) {
+	free(scp->dev_param[MASTER], M_ATA);
+	scp->dev_param[MASTER] = NULL;
     }
-    if (scp->dev_param[ATA_DEV(ATA_SLAVE)]) {
-	free(scp->dev_param[ATA_DEV(ATA_SLAVE)], M_ATA);
-	scp->dev_param[ATA_DEV(ATA_SLAVE)] = NULL;
+    if (scp->dev_param[SLAVE]) {
+	free(scp->dev_param[SLAVE], M_ATA);
+	scp->dev_param[SLAVE] = NULL;
     }
-    scp->dev_softc[ATA_DEV(ATA_MASTER)] = NULL;
-    scp->dev_softc[ATA_DEV(ATA_SLAVE)] = NULL;
-    scp->mode[ATA_DEV(ATA_MASTER)] = ATA_PIO;
-    scp->mode[ATA_DEV(ATA_SLAVE)] = ATA_PIO;
+    scp->dev_softc[MASTER] = NULL;
+    scp->dev_softc[SLAVE] = NULL;
+    scp->mode[MASTER] = ATA_PIO;
+    scp->mode[SLAVE] = ATA_PIO;
+    scp->devices = 0;
 
     bus_teardown_intr(dev, scp->r_irq, scp->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, scp->r_irq);
@@ -249,7 +243,7 @@ ata_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, scp->r_bmio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, scp->r_altio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, scp->r_io);
-    scp->flags &= ~ATA_ATTACHED;
+    scp->active = ATA_IDLE;
     return 0;
 }
 
@@ -336,7 +330,7 @@ ata_boot_attach(void)
 	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATA_IDENTIFY))
 		scp->devices &= ~ATA_ATA_MASTER;
 	if (scp->devices & ATA_ATAPI_MASTER)
-	    if (ata_getparam(scp, ATA_MASTER,ATA_C_ATAPI_IDENTIFY))
+	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATAPI_IDENTIFY))
 		scp->devices &= ~ATA_ATAPI_MASTER;
     }
 
@@ -407,14 +401,13 @@ ata_intr(void *data)
 	break;
 #endif
     case ATA_WAIT_INTR:
+    case ATA_WAIT_INTR | ATA_REINITING:
 	wakeup((caddr_t)scp);
 	break;
 
     case ATA_WAIT_READY:
+    case ATA_WAIT_READY | ATA_REINITING:
 	break;
-
-    case ATA_REINITING:
-	return;
 
     case ATA_IDLE:
 	if (scp->flags & ATA_QUEUED) {
@@ -435,7 +428,9 @@ ata_intr(void *data)
     }
 #endif
     }
-    scp->active = ATA_IDLE;
+    scp->active &= ATA_REINITING;
+    if (scp->active & ATA_REINITING)
+	return;
     scp->running = NULL;
     ata_start(scp);
     return;
@@ -457,10 +452,10 @@ ata_start(struct ata_softc *scp)
 #ifdef DEV_ATADISK
     /* find & call the responsible driver if anything on the ATA queue */
     if (TAILQ_EMPTY(&scp->ata_queue)) {
-	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
-	    ad_start((struct ad_softc *)scp->dev_softc[0]);
-	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
-	    ad_start((struct ad_softc *)scp->dev_softc[1]);
+	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[MASTER])
+	    ad_start((struct ad_softc *)scp->dev_softc[MASTER]);
+	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[SLAVE])
+	    ad_start((struct ad_softc *)scp->dev_softc[SLAVE]);
     }
     if ((ad_request = TAILQ_FIRST(&scp->ata_queue))) {
 	TAILQ_REMOVE(&scp->ata_queue, ad_request, chain);
@@ -474,10 +469,10 @@ ata_start(struct ata_softc *scp)
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     /* find & call the responsible driver if anything on the ATAPI queue */
     if (TAILQ_EMPTY(&scp->atapi_queue)) {
-	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
-	    atapi_start((struct atapi_softc *)scp->dev_softc[0]);
-	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
-	    atapi_start((struct atapi_softc *)scp->dev_softc[1]);
+	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[MASTER])
+	    atapi_start((struct atapi_softc *)scp->dev_softc[MASTER]);
+	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[SLAVE])
+	    atapi_start((struct atapi_softc *)scp->dev_softc[SLAVE]);
     }
     if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue))) {
 	TAILQ_REMOVE(&scp->atapi_queue, atapi_request, chain);
@@ -491,27 +486,35 @@ ata_start(struct ata_softc *scp)
 }
 
 void
-ata_reset(struct ata_softc *scp, int *mask)
+ata_reset(struct ata_softc *scp)
 {
-    int timeout;  
-    u_int8_t a, b, ostat0, ostat1;
-    u_int8_t status0 = ATA_S_BUSY, status1 = ATA_S_BUSY;
+    u_int8_t lsb, msb, ostat0, ostat1;
+    u_int8_t stat0 = ATA_S_BUSY, stat1 = ATA_S_BUSY;
+    int mask = 0, timeout;
 
-    /* get the current status of the devices */
-    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-    DELAY(10);
-    ostat1 = ATA_INB(scp->r_io, ATA_STATUS);
+    /* do we have any signs of ATA/ATAPI HW being present ? */
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(10);
+    DELAY(1);
     ostat0 = ATA_INB(scp->r_io, ATA_STATUS);
+    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5)
+	mask |= 0x01;
+    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+    DELAY(1);	
+    ostat1 = ATA_INB(scp->r_io, ATA_STATUS);
+    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5)
+	mask |= 0x02;
+
+    scp->devices = 0;
+    if (!mask)
+	return;
 
     /* in some setups we dont want to test for a slave */
     if (scp->flags & ATA_NO_SLAVE)
-	*mask &= ~0x02;
+	mask &= ~0x02;
 
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
-		   *mask, ostat0, ostat1);
+		   mask, ostat0, ostat1);
 
     /* reset channel */
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
@@ -519,86 +522,85 @@ ata_reset(struct ata_softc *scp, int *mask)
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS);
     DELAY(100000);
     ATA_INB(scp->r_io, ATA_ERROR);
-    scp->devices = 0;
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310000; timeout++) {
-	if (status0 & ATA_S_BUSY) {
+	if (stat0 & ATA_S_BUSY) {
             ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
             DELAY(10);
-            status0 = ATA_INB(scp->r_io, ATA_STATUS);
-            if (!(status0 & ATA_S_BUSY)) {
+            stat0 = ATA_INB(scp->r_io, ATA_STATUS);
+            if (!(stat0 & ATA_S_BUSY)) {
                 /* check for ATAPI signature while its still there */
-		a = ATA_INB(scp->r_io, ATA_CYL_LSB);
-		b = ATA_INB(scp->r_io, ATA_CYL_MSB);
+		lsb = ATA_INB(scp->r_io, ATA_CYL_LSB);
+		msb = ATA_INB(scp->r_io, ATA_CYL_MSB);
 		if (bootverbose)
 		    ata_printf(scp, ATA_MASTER,
-			       "ATAPI probe a=%02x b=%02x\n", a, b);
-		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
+			       "ATAPI probe %02x %02x\n", lsb, msb);
+		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
                     scp->devices |= ATA_ATAPI_MASTER;
             }
         }
-        if (status1 & ATA_S_BUSY) {
+        if (stat1 & ATA_S_BUSY) {
             ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
             DELAY(10);
-            status1 = ATA_INB(scp->r_io, ATA_STATUS);
-            if (!(status1 & ATA_S_BUSY)) {
+            stat1 = ATA_INB(scp->r_io, ATA_STATUS);
+            if (!(stat1 & ATA_S_BUSY)) {
                 /* check for ATAPI signature while its still there */
-		a = ATA_INB(scp->r_io, ATA_CYL_LSB);
-		b = ATA_INB(scp->r_io, ATA_CYL_MSB);
+		lsb = ATA_INB(scp->r_io, ATA_CYL_LSB);
+		msb = ATA_INB(scp->r_io, ATA_CYL_MSB);
 		if (bootverbose)
 		    ata_printf(scp, ATA_SLAVE,
-			       "ATAPI probe a=%02x b=%02x\n", a, b);
-		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
+			       "ATAPI probe %02x %02x\n", lsb, msb);
+		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
                     scp->devices |= ATA_ATAPI_SLAVE;
             }
         }
-	if (*mask == 0x01)      /* wait for master only */
-	    if (!(status0 & ATA_S_BUSY))
+	if (mask == 0x01)      /* wait for master only */
+	    if (!(stat0 & ATA_S_BUSY))
 		break;
-	if (*mask == 0x02)      /* wait for slave only */
-	    if (!(status1 & ATA_S_BUSY))
+	if (mask == 0x02)      /* wait for slave only */
+	    if (!(stat1 & ATA_S_BUSY))
 		break;
-	if (*mask == 0x03)      /* wait for both master & slave */
-	    if (!(status0 & ATA_S_BUSY) && !(status1 & ATA_S_BUSY))
+	if (mask == 0x03)      /* wait for both master & slave */
+	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
 	DELAY(100);
     }	
     DELAY(10);
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
 
-    if (status0 & ATA_S_BUSY)
-	*mask &= ~0x01;
-    if (status1 & ATA_S_BUSY)
-	*mask &= ~0x02;
+    if (stat0 & ATA_S_BUSY)
+	mask &= ~0x01;
+    if (stat1 & ATA_S_BUSY)
+	mask &= ~0x02;
     if (bootverbose)
-	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
-		   *mask, status0, status1);
-    if (!*mask)
+	ata_printf(scp, -1, "mask=%02x stat0=%02x stat1=%02x\n", 
+		   mask, stat0, stat1);
+    if (!mask)
 	return;
 
-    if (*mask & 0x01 && ostat0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
+    if (mask & 0x01 && ostat0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
         ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
         DELAY(10);
 	ATA_OUTB(scp->r_io, ATA_ERROR, 0x58);
 	ATA_OUTB(scp->r_io, ATA_CYL_LSB, 0xa5);
-	a = ATA_INB(scp->r_io, ATA_ERROR);
-	b = ATA_INB(scp->r_io, ATA_CYL_LSB);
+	lsb = ATA_INB(scp->r_io, ATA_ERROR);
+	msb = ATA_INB(scp->r_io, ATA_CYL_LSB);
 	if (bootverbose)
-	    ata_printf(scp, ATA_MASTER, "ATA probe a=%02x b=%02x\n", a, b);
-        if (a != 0x58 && b == 0xa5)
+	    ata_printf(scp, ATA_MASTER, "ATA probe %02x %02x\n", lsb, msb);
+        if (lsb != 0x58 && msb == 0xa5)
             scp->devices |= ATA_ATA_MASTER;
     }
-    if (*mask & 0x02 && ostat1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
+    if (mask & 0x02 && ostat1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
         ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
         DELAY(10);
 	ATA_OUTB(scp->r_io, ATA_ERROR, 0x58);
 	ATA_OUTB(scp->r_io, ATA_CYL_LSB, 0xa5);
-	a = ATA_INB(scp->r_io, ATA_ERROR);
-	b = ATA_INB(scp->r_io, ATA_CYL_LSB);
+	lsb = ATA_INB(scp->r_io, ATA_ERROR);
+	msb = ATA_INB(scp->r_io, ATA_CYL_LSB);
 	if (bootverbose)
-	    ata_printf(scp, ATA_SLAVE, "ATA probe a=%02x b=%02x\n", a, b);
-        if (a != 0x58 && b == 0xa5)
+	    ata_printf(scp, ATA_SLAVE, "ATA probe %02x %02x\n", lsb, msb);
+        if (lsb != 0x58 && msb == 0xa5)
             scp->devices |= ATA_ATA_SLAVE;
     }
     if (bootverbose)
@@ -608,36 +610,74 @@ ata_reset(struct ata_softc *scp, int *mask)
 int
 ata_reinit(struct ata_softc *scp)
 {
-    int mask = 0, odevices;
+    int devices, misdev, newdev;
 
     scp->active = ATA_REINITING;
     scp->running = NULL;
-    if (scp->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))
-	mask |= 0x01;
-    if (scp->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))
-	mask |= 0x02;
-    if (mask) {
-	odevices = scp->devices;
-	ata_printf(scp, -1, "resetting devices .. ");
-	ata_reset(scp, &mask);
-	if (odevices != scp->devices)
-	    printf(" device dissapeared! 0x%02x ", odevices & ~scp->devices);
+    devices = scp->devices;
+    ata_printf(scp, -1, "resetting devices .. ");
+    ata_reset(scp);
 
+    if ((misdev = devices & ~scp->devices)) {
+	printf("\ndevice(s) disappeared! 0x%02x\n", misdev);
 #ifdef DEV_ATADISK
-	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
-	    ad_reinit((struct ad_softc *)scp->dev_softc[0]);
-	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
-	    ad_reinit((struct ad_softc *)scp->dev_softc[1]);
+	if (misdev & ATA_ATA_MASTER && scp->dev_softc[MASTER])
+	    ad_detach(scp->dev_softc[MASTER]);
+	if (misdev & ATA_ATA_SLAVE && scp->dev_softc[SLAVE])
+	    ad_detach(scp->dev_softc[SLAVE]);
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
-	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
-	    atapi_reinit((struct atapi_softc *)scp->dev_softc[0]);
-	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
-	    atapi_reinit((struct atapi_softc *)scp->dev_softc[1]);
+	if (misdev & ATA_ATAPI_MASTER && scp->dev_softc[MASTER])
+	    atapi_detach(scp->dev_softc[MASTER]);
+	if (misdev & ATA_ATAPI_SLAVE && scp->dev_softc[SLAVE])
+	    atapi_detach(scp->dev_softc[SLAVE]);
 #endif
-	printf("done\n");
+	if (misdev & ATA_ATA_MASTER || misdev & ATA_ATAPI_MASTER) {
+	    free(scp->dev_param[MASTER], M_ATA);
+	    scp->dev_param[MASTER] = NULL;
+	}
+	if (misdev & ATA_ATA_SLAVE || misdev & ATA_ATAPI_SLAVE) {
+	    free(scp->dev_param[SLAVE], M_ATA);
+	    scp->dev_param[SLAVE] = NULL;
+	}
+    }
+    if ((newdev = ~devices & scp->devices)) {
+	printf("\ndevice(s) appeared! 0x%02x\n", newdev);
+	if (newdev & ATA_ATA_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATA_IDENTIFY))
+		newdev &= ~ATA_ATA_MASTER;
+	if (newdev & ATA_ATA_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATA_IDENTIFY))
+		newdev &= ~ATA_ATA_SLAVE;
+	if (newdev & ATA_ATAPI_MASTER)
+	    if (ata_getparam(scp, ATA_MASTER, ATA_C_ATAPI_IDENTIFY))
+		newdev &= ~ATA_ATAPI_MASTER;
+	if (newdev & ATA_ATAPI_SLAVE)
+	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
+		newdev &= ~ATA_ATAPI_SLAVE;
     }
     scp->active = ATA_IDLE;
+#ifdef DEV_ATADISK
+    if (newdev & ATA_ATA_MASTER && !scp->dev_softc[MASTER])
+	ad_attach(scp, ATA_MASTER);
+    else if (scp->devices & ATA_ATA_MASTER && scp->dev_softc[MASTER])
+	ad_reinit((struct ad_softc *)scp->dev_softc[MASTER]);
+    if (newdev & ATA_ATA_SLAVE && !scp->dev_softc[SLAVE])
+	ad_attach(scp, ATA_SLAVE);
+    else if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[SLAVE])
+	ad_reinit((struct ad_softc *)scp->dev_softc[SLAVE]);
+#endif
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
+    if (newdev & ATA_ATAPI_MASTER && !scp->dev_softc[MASTER])
+	atapi_attach(scp, ATA_MASTER);
+    else if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[MASTER])
+	atapi_reinit((struct atapi_softc *)scp->dev_softc[MASTER]);
+    if (newdev & ATA_ATAPI_SLAVE && !scp->dev_softc[SLAVE])
+	atapi_attach(scp, ATA_SLAVE);
+    else if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[SLAVE])
+	atapi_reinit((struct atapi_softc *)scp->dev_softc[SLAVE]);
+#endif
+    printf("done\n");
     ata_start(scp);
     return 0;
 }
@@ -651,12 +691,12 @@ ata_service(struct ata_softc *scp)
 		 ata_dmastatus(scp) | ATA_BMSTAT_INTERRUPT);
 #ifdef DEV_ATADISK
 	if ((ATA_INB(scp->r_io, ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
-	    if ((scp->devices & ATA_ATA_MASTER) && scp->dev_softc[0])
-		return ad_service((struct ad_softc *)scp->dev_softc[0], 0);
+	    if ((scp->devices & ATA_ATA_MASTER) && scp->dev_softc[MASTER])
+		return ad_service((struct ad_softc *)scp->dev_softc[MASTER], 0);
 	}
 	else {
-	    if ((scp->devices & ATA_ATA_SLAVE) && scp->dev_softc[1])
-		return ad_service((struct ad_softc *)scp->dev_softc[1], 0);
+	    if ((scp->devices & ATA_ATA_SLAVE) && scp->dev_softc[SLAVE])
+		return ad_service((struct ad_softc *)scp->dev_softc[SLAVE], 0);
 	}
 #endif
     }
@@ -751,7 +791,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 
     switch (flags) {
     case ATA_WAIT_INTR:
-	scp->active = ATA_WAIT_INTR;
+	scp->active |= ATA_WAIT_INTR;
 	asleep((caddr_t)scp, PRIBIO, "atacmd", 10 * hz);
 	ATA_OUTB(scp->r_io, ATA_CMD, command);
 
@@ -761,14 +801,13 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 
 	if (await(PRIBIO, 10 * hz)) {
 	    ata_printf(scp, device, "ata_command: timeout waiting for intr\n");
-	    scp->active = ATA_IDLE;
+	    scp->active &= ~ATA_WAIT_INTR;
 	    error = -1;
 	}
 	break;
     
     case ATA_WAIT_READY:
-	if (scp->active != ATA_REINITING)
-	    scp->active = ATA_WAIT_READY;
+	scp->active |= ATA_WAIT_READY;
 	ATA_OUTB(scp->r_io, ATA_CMD, command);
 	if (ata_wait(scp, device, ATA_S_READY) < 0) { 
 	    ata_printf(scp, device, 
@@ -776,8 +815,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 		       command, scp->status, scp->error);
 	    error = -1;
 	}
-	if (scp->active != ATA_REINITING)
-	    scp->active = ATA_IDLE;
+	scp->active &= ~ATA_WAIT_READY;
 	break;
 
     case ATA_IMMEDIATE:

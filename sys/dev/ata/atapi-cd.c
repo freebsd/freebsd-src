@@ -98,6 +98,7 @@ static int acd_set_speed(struct acd_softc *cdp, int);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
+static eventhandler_tag acd_tag;
 static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 
 int
@@ -110,7 +111,7 @@ acdattach(struct atapi_softc *atp)
 
     if (!acd_cdev_done) {
 	cdevsw_add(&acd_cdevsw);
-	EVENTHANDLER_REGISTER(dev_clone, acd_clone, 0, 1000);
+	acd_tag = EVENTHANDLER_REGISTER(dev_clone, acd_clone, 0, 1000);
 	acd_cdev_done++;
     }
 
@@ -213,13 +214,36 @@ void
 acddetach(struct atapi_softc *atp)
 {   
     struct acd_softc *cdp = atp->driver;
+    struct bio *bp;
+    int subdev;
     
-    destroy_dev(cdp->dev1);
-    destroy_dev(cdp->dev2);
     if (cdp->changer_info) {
-	/* should free all cdp's here, not possible yet SOS XXX */
+	for (subdev = 0; subdev < cdp->changer_info->slots; subdev++) {
+	    if (cdp->driver[subdev] == cdp)
+		continue;
+	    while ((bp = bioq_first(&cdp->driver[subdev]->queue))) {
+        	bp->bio_error = ENXIO;
+        	bp->bio_flags |= BIO_ERROR;
+        	biodone(bp);
+	    }
+	    destroy_dev(cdp->dev1);
+	    destroy_dev(cdp->dev2);
+	    devstat_remove_entry(cdp->stats);
+	    free(cdp->stats, M_ACD);
+	    free(cdp->atp->devname, M_ACD);
+	    ata_free_lun(&acd_lun_map, cdp->lun);
+	    free(cdp, M_ACD);
+	}
+	free(cdp->driver, M_ACD);
 	free(cdp->changer_info, M_ACD);
     }
+    while ((bp = bioq_first(&cdp->queue))) {
+        bp->bio_error = ENXIO;
+        bp->bio_flags |= BIO_ERROR;
+        biodone(bp);
+    }
+    destroy_dev(cdp->dev1);
+    destroy_dev(cdp->dev2);
     devstat_remove_entry(cdp->stats);
     free(cdp->stats, M_ACD);
     free(cdp->atp->devname, M_ACD);
@@ -234,7 +258,7 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
 
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO)))
 	return NULL;
-    bioq_init(&cdp->bio_queue);
+    bioq_init(&cdp->queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
     cdp->block_size = 2048;
@@ -1097,6 +1121,13 @@ acdstrategy(struct bio *bp)
     struct acd_softc *cdp = bp->bio_dev->si_drv1;
     int s;
 
+    if (cdp->atp->flags & ATAPI_F_DETACHING) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+	return;
+    }
+
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
 	bp->bio_resid = 0;
@@ -1108,7 +1139,7 @@ acdstrategy(struct bio *bp)
     bp->bio_resid = bp->bio_bcount;
 
     s = splbio();
-    bioqdisksort(&cdp->bio_queue, bp);
+    bioqdisksort(&cdp->queue, bp);
     ata_start(cdp->atp->controller);
     splx(s);
 }
@@ -1117,7 +1148,7 @@ void
 acd_start(struct atapi_softc *atp)
 {
     struct acd_softc *cdp = atp->driver;
-    struct bio *bp = bioq_first(&cdp->bio_queue);
+    struct bio *bp = bioq_first(&cdp->queue);
     u_int32_t lba, lastlba, count;
     int8_t ccb[16];
     int track, blocksize;
@@ -1126,13 +1157,13 @@ acd_start(struct atapi_softc *atp)
 	int i;
 
 	cdp = cdp->driver[cdp->changer_info->current_slot];
-	bp = bioq_first(&cdp->bio_queue);
+	bp = bioq_first(&cdp->queue);
 
 	/* check for work pending on any other slot */
 	for (i = 0; i < cdp->changer_info->slots; i++) {
 	    if (i == cdp->changer_info->current_slot)
 		continue;
-	    if (bioq_first(&(cdp->driver[i]->bio_queue))) {
+	    if (bioq_first(&(cdp->driver[i]->queue))) {
 	        if (!bp || time_second > (cdp->timestamp + 10)) {
 		    acd_select_slot(cdp->driver[i]);
 		    return;
@@ -1142,7 +1173,7 @@ acd_start(struct atapi_softc *atp)
     }
     if (!bp)
 	return;
-    bioq_remove(&cdp->bio_queue, bp);
+    bioq_remove(&cdp->queue, bp);
 
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
