@@ -703,6 +703,7 @@ ftp.1:
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
 .endif
@@ -742,6 +743,7 @@ cdrom.1:
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
