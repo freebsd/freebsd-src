@@ -354,6 +354,13 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		nfsm_adv(nfsm_rndup(len));
 		tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
+		/*
+		 * XXX: This credential should be managed using crget(9)
+		 * and related calls.  Right now, this tramples on any
+		 * extensible data in the ucred, fails to initialize the
+		 * mutex, and worse.  This must be fixed before FreeBSD
+		 * 5.0-RELEASE.
+		 */
 		bzero((caddr_t)&nd->nd_cr, sizeof (struct ucred));
 		nd->nd_cr.cr_ref = 1;
 		nd->nd_cr.cr_uid = fxdr_unsigned(uid_t, *tl++);
