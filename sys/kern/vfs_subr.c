@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.52 1996/01/19 03:58:15 dyson Exp $
+ * $Id: vfs_subr.c,v 1.53 1996/03/09 06:43:19 dyson Exp $
  */
 
 /*
@@ -112,7 +112,7 @@ static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
 void
 vntblinit()
 {
-	desiredvnodes = maxproc + vm_object_cache_max;
+	desiredvnodes = maxproc + vm_object_cache_max + extravnodes;
 
 	TAILQ_INIT(&vnode_free_list);
 	CIRCLEQ_INIT(&mountlist);

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.258 1996/05/13 04:38:10 nate Exp $
+#	$Id: LINT,v 1.259 1996/05/17 09:42:46 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -42,6 +42,16 @@ maxusers	10
 # or perhaps a user using lots of windows under X).
 options		CHILD_MAX=128
 options		OPEN_MAX=128
+
+#
+# Under some circumstances it is useful to have an extra number of
+# vnode data structures allocated at boot time.  In particular,
+# usenet news servers can benefit if there are enough vnodes to
+# cache the busiest newsgroup and overview directories.  Beware that
+# this is an expensive option, it consumes physical non-pageable ram.
+# A busy news server may benefit from 10,000 extra vnodes or so.
+#
+options		EXTRA_VNODES=1
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
@@ -258,7 +268,7 @@ options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
-# THis DEVFS is experimental but seems to work
+# This DEVFS is experimental but seems to work
 options		DEVFS			#devices filesystem
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
