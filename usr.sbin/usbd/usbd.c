@@ -54,6 +54,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <paths.h>
+#include <stdint.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -583,8 +584,8 @@ print_event(struct usb_event *event)
 	    event->ue_type == USB_EVENT_DEVICE_DETACH) {
 		devinfo = &event->u.ue_device;
 
-		printf(" at %ld.%09ld, %s, %s:\n",
-			timespec->tv_sec, timespec->tv_nsec,
+		printf(" at %jd.%09ld, %s, %s:\n",
+			(intmax_t)timespec->tv_sec, timespec->tv_nsec,
 			devinfo->udi_product, devinfo->udi_vendor);
 
 		printf("  vndr=0x%04x prdct=0x%04x rlse=0x%04x "
@@ -607,12 +608,12 @@ print_event(struct usb_event *event)
 		}
 	} else if (event->ue_type == USB_EVENT_CTRLR_ATTACH ||
 	    event->ue_type == USB_EVENT_CTRLR_DETACH) {
-		printf(" bus=%d", &event->u.ue_ctrlr.ue_bus);
+		printf(" bus=%d", event->u.ue_ctrlr.ue_bus);
 	} else if (event->ue_type == USB_EVENT_DRIVER_ATTACH ||
 	    event->ue_type == USB_EVENT_DRIVER_DETACH) {
 		printf(" cookie=%u devname=%s",
-		    &event->u.ue_driver.ue_cookie.cookie,
-		    &event->u.ue_driver.ue_devname);
+		    event->u.ue_driver.ue_cookie.cookie,
+		    event->u.ue_driver.ue_devname);
 	}
 	printf("\n");
 }
