@@ -42,6 +42,7 @@
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/filedesc.h>
@@ -53,7 +54,6 @@
 #include <sys/stat.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
 #include <sys/event.h>
@@ -1008,10 +1008,15 @@ fdcopy(p)
 	 * kq descriptors cannot be copied.
 	 */
 	if (newfdp->fd_knlistsize != -1) {
-		fpp = newfdp->fd_ofiles;
-		for (i = newfdp->fd_lastfile; i-- >= 0; fpp++) {
-			if (*fpp != NULL && (*fpp)->f_type == DTYPE_KQUEUE)
+		fpp = &newfdp->fd_ofiles[newfdp->fd_lastfile];
+		for (i = newfdp->fd_lastfile; i >= 0; i--, fpp--) {
+			if (*fpp != NULL && (*fpp)->f_type == DTYPE_KQUEUE) {
 				*fpp = NULL;
+				if (i < newfdp->fd_freefile)
+					newfdp->fd_freefile = i;
+			}
+			if (*fpp == NULL && i == newfdp->fd_lastfile && i > 0)
+				newfdp->fd_lastfile--;
 		}
 		newfdp->fd_knlist = NULL;
 		newfdp->fd_knlistsize = -1;
@@ -1062,9 +1067,9 @@ fdfree(p)
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
 	if (fdp->fd_knlist)
-		FREE(fdp->fd_knlist, M_TEMP);
+		FREE(fdp->fd_knlist, M_KQUEUE);
 	if (fdp->fd_knhash)
-		FREE(fdp->fd_knhash, M_TEMP);
+		FREE(fdp->fd_knhash, M_KQUEUE);
 	FREE(fdp, M_FILEDESC);
 }
 
