@@ -23,10 +23,12 @@
 KERNEL?=	kernel
 STD8X16FONT?=	iso
 
+.if !defined(S)
 .if exists(./@/.)
 S=	./@
 .else
 S=	../..
+.endif
 .endif
 ALPHA=	${S}/alpha
 
