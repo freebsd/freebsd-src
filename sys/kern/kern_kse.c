@@ -500,14 +500,8 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 		timespecadd(&ts, &timeout);
 		TIMESPEC_TO_TIMEVAL(&tv, &timeout);
 	}
-	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
-	td->td_flags = TDF_UPCALLING;
-#if 0	/* XXX This shouldn't be necessary */
-	if (p->p_sflag & PS_NEEDSIGCHK)
-		td->td_flags |= TDF_ASTPENDING;
-#endif
-	mtx_unlock_spin(&sched_lock);
+	td->td_pflags |= TDP_UPCALLING;
 	PROC_LOCK(p);
 	while ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 &&
 	       (kg->kg_completed == NULL)) {
@@ -1379,7 +1373,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
-	td2->td_flags  = TDF_UPCALLING;
+	td2->td_pflags = TDP_UPCALLING;
 #if 0	/* XXX This shouldn't be necessary */
 	if (td->td_proc->p_sflag & PS_NEEDSIGCHK)
 		td2->td_flags |= TDF_ASTPENDING;
@@ -1432,9 +1426,7 @@ error:
 void
 thread_signal_upcall(struct thread *td)
 {
-	mtx_lock_spin(&sched_lock);
-	td->td_flags |= TDF_UPCALLING;
-	mtx_unlock_spin(&sched_lock);
+	td->td_pflags |= TDP_UPCALLING;
 
 	return;
 }
@@ -1612,9 +1604,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * strucuture, we can go to userland.
 		 * Turn ourself into an upcall thread.
 		 */
-		mtx_lock_spin(&sched_lock);
-		td->td_flags |= TDF_UPCALLING;
-		mtx_unlock_spin(&sched_lock);
+		td->td_pflags |= TDP_UPCALLING;
 	} else if (td->td_mailbox && (ku == NULL)) {
 		error = thread_export_context(td);
 		/* possibly upcall with error? */
@@ -1663,7 +1653,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		PROC_UNLOCK(p);
 	}
 
-	if (td->td_flags & TDF_UPCALLING) {
+	if (td->td_pflags & TDP_UPCALLING) {
 		uts_crit = 0;
 		kg->kg_nextupcall = ticks+kg->kg_upquantum;
 		/* 
@@ -1674,8 +1664,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 
+		td->td_pflags &= ~TDP_UPCALLING;
 		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_UPCALLING;
 		if (ku->ku_flags & KUF_DOUPCALL)
 			ku->ku_flags &= ~KUF_DOUPCALL;
 		mtx_unlock_spin(&sched_lock);
