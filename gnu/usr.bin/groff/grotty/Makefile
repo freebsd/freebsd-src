@@ -1,13 +1,11 @@
-# Makefile for grotty
+# $FreeBSD$
 
 PROG=		grotty
 SRCS=		tty.cc
-#CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
-MANDEPEND=	grotty.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

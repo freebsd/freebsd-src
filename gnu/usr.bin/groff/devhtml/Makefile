@@ -1,9 +1,7 @@
 # $FreeBSD$
-#
-# Generic groff font makefile
 
-NOOBJ=
+DEV=		html
+DEVFILES=	DESC TR TI TB TBI CR CI CB CBI HR HI HB HBI NR NI NB NBI S
 
-.include "${.CURDIR}/../Makefile.inc"
-.include "${DIST_DIR}/Makefile.sub"
-.include "${.CURDIR}/../Makefile.dev"
+.include "../Makefile.inc"
+.include "../Makefile.dev"

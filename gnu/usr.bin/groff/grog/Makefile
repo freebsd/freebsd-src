@@ -12,5 +12,5 @@ beforeinstall:
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
 
-grog: ${DIST_DIR}/grog.sh
-	sed -e 's/gsoelim/soelim/' ${.ALLSRC} > ${.TARGET}
+grog: grog.sh
+	sed -e 's/@g@/$(g)/g' ${.ALLSRC} > ${.TARGET}

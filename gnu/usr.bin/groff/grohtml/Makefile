@@ -1,15 +1,12 @@
 # $FreeBSD$
-#
-# Makefile for grohtml
 
 PROG=		grohtml
-SRCS=		html.cc
+SRCS=		html.cc output.cc
 
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
-MANDEPEND=	grohtml.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
