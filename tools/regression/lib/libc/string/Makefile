@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+CFLAGS=		-I/usr/local/include -L/usr/local/lib
+LDFLAGS=	-ltap
+
 TESTS=	test-strerror
 
 .PHONY: tests
