@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.48 1997/05/22 07:25:20 phk Exp $
+ * $Id: kern_exit.c,v 1.49 1997/06/16 00:29:30 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -125,6 +125,8 @@ exit1(p, rv)
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
 	}
+
+	aio_proc_rundown(p);
 
 	/* are we a task leader? */
 	if(p == p->p_leader) {
