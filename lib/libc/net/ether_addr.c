@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.3 1996/03/16 21:25:59 wpaul Exp $
+ *	$Id: ether_addr.c,v 1.4 1996/07/12 18:54:31 jkh Exp $
  */
 
 
@@ -158,15 +158,15 @@ int ether_ntohost(hostname, e)
 				strlen(ether_a), &result, &resultlen)) {
 				continue;
 			}
-			strncpy((char *)&buf, result, resultlen);
+			strncpy(buf, result, resultlen);
 				free(result);
 		}
 #endif
-		if (!ether_line(&buf, &local_ether, &local_host)) {
+		if (!ether_line(buf, &local_ether, local_host)) {
 			if (!bcmp((char *)&local_ether.octet[0],
 				(char *)&e->octet[0], 6)) {
 			/* We have a match */
-				strcpy(hostname, (char *)&local_host);
+				strcpy(hostname, local_host);
 				fclose(fp);
 				return(0);
 			}
@@ -207,12 +207,12 @@ int ether_hostton(hostname, e)
 				strlen(hostname), &result, &resultlen)) {
 				continue;
 			}
-			strncpy((char *)&buf, result, resultlen);
+			strncpy(buf, result, resultlen);
 			free(result);
 		}
 #endif
-		if (!ether_line(&buf, &local_ether, &local_host)) {
-			if (!strcmp(hostname, (char *)&local_host)) {
+		if (!ether_line(buf, &local_ether, local_host)) {
+			if (!strcmp(hostname, local_host)) {
 				/* We have a match */
 				bcopy((char *)&local_ether.octet[0],
 					(char *)&e->octet[0], 6);
