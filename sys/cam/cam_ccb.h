@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.3 1998/12/10 04:05:49 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.4 1999/03/05 23:13:20 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -98,61 +98,96 @@ typedef enum {
 
 /* XPT Opcodes for xpt_action */
 typedef enum {
+/* Function code flags are bits greater than 0xff */
+	XPT_FC_QUEUED		= 0x100,
+				/* Non-immediate function code */
+	XPT_FC_USER_CCB		= 0x200,
+	XPT_FC_XPT_ONLY		= 0x400,
+				/* Only for the transport layer device */
 /* Common function commands: 0x00->0x0F */
-	XPT_NOOP,		/* Execute Nothing */
-	XPT_SCSI_IO,		/* Execute the requested I/O operation */
-	XPT_GDEV_TYPE,		/* Get type information for specified device */
-	XPT_GDEVLIST,		/* Get a list of peripheral devices */
-	XPT_PATH_INQ,		/* Path routing inquiry */
-	XPT_REL_SIMQ,		/* Release a frozen SIM queue */
-	XPT_SASYNC_CB,		/* Set Asynchronous Callback Parameters */
-	XPT_SDEV_TYPE,		/* Set device type information */
-	XPT_SCAN_BUS,		/* (Re)Scan the SCSI Bus */
-	XPT_DEV_MATCH,		/* Get EDT entries matching the given pattern */
-	XPT_DEBUG,		/* Turn on debugging for a bus, target or lun */
+	XPT_NOOP 		= 0x00,
+				/* Execute Nothing */
+	XPT_SCSI_IO		= 0x01 | XPT_FC_QUEUED,
+				/* Execute the requested I/O operation */
+	XPT_GDEV_TYPE		= 0x02,
+				/* Get type information for specified device */
+	XPT_GDEVLIST		= 0x03,
+				/* Get a list of peripheral devices */
+	XPT_PATH_INQ		= 0x04,
+				/* Path routing inquiry */
+	XPT_REL_SIMQ		= 0x05,
+				/* Release a frozen SIM queue */
+	XPT_SASYNC_CB		= 0x06,
+				/* Set Asynchronous Callback Parameters */
+	XPT_SDEV_TYPE		= 0x07,
+				/* Set device type information */
+	XPT_SCAN_BUS		= 0x08 | XPT_FC_QUEUED | XPT_FC_USER_CCB
+				       | XPT_FC_XPT_ONLY,
+				/* (Re)Scan the SCSI Bus */
+	XPT_DEV_MATCH		= 0x09 | XPT_FC_XPT_ONLY,
+				/* Get EDT entries matching the given pattern */
+	XPT_DEBUG		= 0x0a,
+				/* Turn on debugging for a bus, target or lun */
 /* SCSI Control Functions: 0x10->0x1F */
-	XPT_ABORT = 0x10,	/* Abort the specified CCB */
-	XPT_RESET_BUS,		/* Reset the specified SCSI bus */
-	XPT_RESET_DEV,		/* Bus Device Reset the specified SCSI device */
-	XPT_TERM_IO,		/* Terminate the I/O process */
-	XPT_SCAN_LUN,		/* Scan Logical Unit */
-	XPT_GET_TRAN_SETTINGS,	/*
+	XPT_ABORT		= 0x10,
+				/* Abort the specified CCB */
+	XPT_RESET_BUS		= 0x11 | XPT_FC_XPT_ONLY,
+				/* Reset the specified SCSI bus */
+	XPT_RESET_DEV		= 0x12,
+				/* Bus Device Reset the specified SCSI device */
+	XPT_TERM_IO		= 0x13,
+				/* Terminate the I/O process */
+	XPT_SCAN_LUN		= 0x14 | XPT_FC_QUEUED | XPT_FC_USER_CCB
+				       | XPT_FC_XPT_ONLY,
+				/* Scan Logical Unit */
+	XPT_GET_TRAN_SETTINGS	= 0x15,
+				/*
 				 * Get default/user transfer settings
 				 * for the target
 				 */
-	XPT_SET_TRAN_SETTINGS,	/*
+	XPT_SET_TRAN_SETTINGS	= 0x16,
+				/*
 				 * Set transfer rate/width
 				 * negotiation settings
 				 */
-	XPT_CALC_GEOMETRY,	/*
+	XPT_CALC_GEOMETRY	= 0x17,
+				/*
 				 * Calculate the geometry parameters for
 				 * a device give the sector size and
 				 * volume size.
 				 */
 
 /* HBA engine commands 0x20->0x2F */
-	XPT_ENG_INQ = 0x20,	/* HBA engine feature inquiry */
-	XPT_ENG_EXEC,		/* HBA execute engine request */
+	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
+				/* HBA engine feature inquiry */
+	XPT_ENG_EXEC		= 0x21 | XPT_FC_QUEUED | XPT_FC_XPT_ONLY,
+				/* HBA execute engine request */
 
 /* Target mode commands: 0x30->0x3F */
-	XPT_EN_LUN = 0x30,	/* Enable LUN as a target */
-	XPT_TARGET_IO,		/* Execute target I/O request */
-	XPT_ACCEPT_TARGET_IO,	/* Accept Host Target Mode CDB */
-	XPT_CONT_TARGET_IO,	/* Continue Host Target I/O Connection */
-	XPT_IMMED_NOTIFY,	/* Notify Host Target driver of event */
-	XPT_NOTIFY_ACK,		/* Acknowledgement of event */
+	XPT_EN_LUN		= 0x30,
+				/* Enable LUN as a target */
+	XPT_TARGET_IO		= 0x31 | XPT_FC_QUEUED,
+				/* Execute target I/O request */
+	XPT_ACCEPT_TARGET_IO	= 0x32 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
+				/* Accept Host Target Mode CDB */
+	XPT_CONT_TARGET_IO	= 0x33 | XPT_FC_QUEUED,
+				/* Continue Host Target I/O Connection */
+	XPT_IMMED_NOTIFY	= 0x34 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
+				/* Notify Host Target driver of event */
+	XPT_NOTIFY_ACK		= 0x35,
+				/* Acknowledgement of event */
 
 /* Vendor Unique codes: 0x80->0x8F */
-	XPT_VUNIQUE = 0x80
+	XPT_VUNIQUE		= 0x80
 } xpt_opcode;
 
-#define XPT_OPCODE_GROUP_MASK		0xF0
-#define XPT_OPCODE_GROUP(op) ((op) & XPT_OPCODE_GROUP_MASK)
-#define XPT_OPCODE_GROUP_COMMON		0x00
-#define XPT_OPCODE_GROUP_SCSI_CONTROL	0x10
-#define XPT_OPCODE_GROUP_HBA_ENGINE	0x20
-#define XPT_OPCODE_GROUP_TMODE		0x30
-#define XPT_OPCODE_GROUP_VENDOR_UNIQUE	0x80
+#define XPT_FC_GROUP_MASK		0xF0
+#define XPT_FC_GROUP(op) ((op) & XPT_FC_GROUP_MASK)
+#define XPT_FC_GROUP_COMMON		0x00
+#define XPT_FC_GROUP_SCSI_CONTROL	0x10
+#define XPT_FC_GROUP_HBA_ENGINE	0x20
+#define XPT_FC_GROUP_TMODE		0x30
+#define XPT_FC_GROUP_VENDOR_UNIQUE	0x80
 
 typedef union {
 	LIST_ENTRY(ccb_hdr) le;
@@ -216,11 +251,11 @@ struct ccb_getdev {
 				 * CCBs held by peripheral drivers
 				 * for this device
 				 */
-	u_int8_t  maxtags;	/*
+	int	  maxtags;	/*
 				 * Boundary conditions for number of
 				 * tagged operations
 				 */
-	u_int8_t  mintags;
+	int	  mintags;
 };
 
 
@@ -318,11 +353,17 @@ struct periph_match_result {
 	lun_id_t		target_lun;
 };
 
+typedef enum {
+	DEV_RESULT_NOFLAG		= 0x00,
+	DEV_RESULT_UNCONFIGURED		= 0x01
+} dev_result_flags;
+
 struct device_match_result {
 	path_id_t			path_id;
 	target_id_t			target_id;
 	lun_id_t			target_lun;
 	struct scsi_inquiry_data	inq_data;
+	dev_result_flags		flags;
 };
 
 struct bus_match_result {
@@ -396,7 +437,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x10	/* Hex value for current version */
+#define CAM_VERSION	0x11	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -444,6 +485,7 @@ struct ccb_pathinq {
 	char 	    dev_name[DEV_IDLEN];/* Device name for SIM */
 	u_int32_t   unit_number;	/* Unit number for SIM */
 	u_int32_t   bus_id;		/* Bus ID for SIM */
+	u_int32_t   base_transfer_speed;/* Base bus speed in KB/sec */
 };
 
 typedef union {

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.11 1999/04/11 02:55:50 eivind Exp $
+ *      $Id: advlib.c,v 1.12 1999/04/19 21:27:36 gibbs Exp $
  */
 /*
  * Ported from:
@@ -1790,7 +1790,8 @@ adv_put_ready_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 
 	tid_no = ADV_TIX_TO_TID(scsiq->q2.target_ix);
 	tinfo = &adv->tinfo[tid_no];
-	if (tinfo->current.period != tinfo->goal.period) {
+	if ((tinfo->current.period != tinfo->goal.period)
+	 || (tinfo->current.offset != tinfo->goal.offset)) {
 
 		adv_msgout_sdtr(adv, tinfo->goal.period, tinfo->goal.offset);
 		scsiq->q1.cntl |= QC_MSG_OUT;

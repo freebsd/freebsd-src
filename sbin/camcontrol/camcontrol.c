@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.8 1998/12/20 20:32:34 mjacob Exp $
+ *	$Id: camcontrol.c,v 1.9 1999/01/14 05:56:30 gibbs Exp $
  */
 
 #include <sys/ioctl.h>
@@ -65,6 +65,9 @@ typedef enum {
 	CAM_ARG_USAGE		= 0x0000000a,
 	CAM_ARG_DEBUG		= 0x0000000b,
 	CAM_ARG_RESET		= 0x0000000c,
+	CAM_ARG_FORMAT		= 0x0000000d,
+	CAM_ARG_TAG		= 0x0000000e,
+	CAM_ARG_RATE		= 0x0000000f,
 	CAM_ARG_OPT_MASK	= 0x0000000f,
 	CAM_ARG_VERBOSE		= 0x00000010,
 	CAM_ARG_DEVICE		= 0x00000020,
@@ -108,6 +111,7 @@ extern int optreset;
 
 static const char scsicmd_opts[] = "c:i:o:";
 static const char readdefect_opts[] = "f:GP";
+static const char negotiate_opts[] = "acD:O:qR:T:UW:";
 
 struct camcontrol_opts option_table[] = {
 	{"tur", CAM_ARG_TUR, NULL},
@@ -124,6 +128,9 @@ struct camcontrol_opts option_table[] = {
 	{"devlist", CAM_ARG_DEVTREE, NULL},
 	{"periphlist", CAM_ARG_DEVLIST, NULL},
 	{"modepage", CAM_ARG_MODE_PAGE, "dem:P:"},
+	{"tags", CAM_ARG_TAG, "N:q"},
+	{"negotiate", CAM_ARG_RATE, negotiate_opts},
+	{"rate", CAM_ARG_RATE, negotiate_opts},
 	{"debug", CAM_ARG_DEBUG, "ITSc"},
 	{"help", CAM_ARG_USAGE, NULL},
 	{"-?", CAM_ARG_USAGE, NULL},
@@ -144,7 +151,7 @@ camcontrol_optret getoption(char *arg, cam_argmask *argnum, char **subopt);
 static int getdevlist(struct cam_device *device);
 static int getdevtree(void);
 static int testunitready(struct cam_device *device, int retry_count,
-			 int timeout);
+			 int timeout, int quiet);
 static int scsistart(struct cam_device *device, int startstop, int loadeject,
 		     int retry_count, int timeout);
 static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
@@ -161,6 +168,16 @@ static void modepage(struct cam_device *device, int argc, char **argv,
 		     char *combinedopt, int retry_count, int timeout);
 static int scsicmd(struct cam_device *device, int argc, char **argv, 
 		   char *combinedopt, int retry_count, int timeout);
+static int tagcontrol(struct cam_device *device, int argc, char **argv,
+		      char *combinedopt);
+static void cts_print(struct cam_device *device,
+		      struct ccb_trans_settings *cts);
+static void cpi_print(struct ccb_pathinq *cpi);
+static int get_cpi(struct cam_device *device, struct ccb_pathinq *cpi);
+static int get_print_cts(struct cam_device *device, int user_settings,
+			 int quiet, struct ccb_trans_settings *cts);
+static int ratecontrol(struct cam_device *device, int retry_count,
+		       int timeout, int argc, char **argv, char *combinedopt);
 
 camcontrol_optret
 getoption(char *arg, cam_argmask *argnum, char **subopt)
@@ -250,13 +267,15 @@ getdevtree(void)
 	int bufsize, i, fd;
 	int need_close = 0;
 	int error = 0;
+	int skip_device = 0;
 
 	if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
 		warn("couldn't open %s", XPT_DEVICE);
 		return(1);
 	}
 
-	bzero(&(&ccb.ccb_h)[1], sizeof(struct ccb_dev_match));
+	bzero(&(&ccb.ccb_h)[1],
+	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
 
 	ccb.ccb_h.func_code = XPT_DEV_MATCH;
 	bufsize = sizeof(struct dev_match_result) * 100;
@@ -326,6 +345,14 @@ getdevtree(void)
 				dev_result =
 				     &ccb.cdm.matches[i].result.device_result;
 
+				if ((dev_result->flags
+				     & DEV_RESULT_UNCONFIGURED)
+				 && ((arglist & CAM_ARG_VERBOSE) == 0)) {
+					skip_device = 1;
+					break;
+				} else
+					skip_device = 0;
+
 				cam_strvis(vendor, dev_result->inq_data.vendor,
 					   sizeof(dev_result->inq_data.vendor),
 					   sizeof(vendor));
@@ -361,6 +388,9 @@ getdevtree(void)
 				periph_result =
 				      &ccb.cdm.matches[i].result.periph_result;
 
+				if (skip_device != 0)
+					break;
+
 				if (need_close > 1)
 					fprintf(stdout, ",");
 
@@ -389,7 +419,8 @@ getdevtree(void)
 }
 
 static int
-testunitready(struct cam_device *device, int retry_count, int timeout)
+testunitready(struct cam_device *device, int retry_count, int timeout,
+	      int quiet)
 {
 	int error = 0;
 	union ccb *ccb;
@@ -410,7 +441,8 @@ testunitready(struct cam_device *device, int retry_count, int timeout)
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
 	if (cam_send_ccb(device, ccb) < 0) {
-		perror("error sending test unit ready");
+		if (quiet == 0)
+			perror("error sending test unit ready");
 
 		if (arglist & CAM_ARG_VERBOSE) {
 		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
@@ -425,10 +457,12 @@ testunitready(struct cam_device *device, int retry_count, int timeout)
 		return(1);
 	}
 
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) 
-		fprintf(stdout, "Unit is ready\n");
-	else {
-		fprintf(stdout, "Unit is not ready\n");
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		if (quiet == 0)
+			fprintf(stdout, "Unit is ready\n");
+	} else {
+		if (quiet == 0)
+			fprintf(stdout, "Unit is not ready\n");
 		error = 1;
 
 		if (arglist & CAM_ARG_VERBOSE) {
@@ -595,7 +629,8 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	inq_buf = (struct scsi_inquiry_data *)malloc(
 		sizeof(struct scsi_inquiry_data));
@@ -660,12 +695,11 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 		return(error);
 	}
 
+	fprintf(stdout, "%s%d: ", device->device_name,
+		device->dev_unit_num);
 	scsi_print_inquiry(inq_buf);
 
 	free(inq_buf);
-
-	if (arglist & CAM_ARG_GET_SERIAL)
-		fprintf(stdout, "Serial Number ");
 
 	return(0);
 }
@@ -686,7 +720,8 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 	}
 
 	/* cam_getccb cleans up the header, caller has to zero the payload */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	serial_buf = (struct scsi_vpd_unit_serial_number *)
 		malloc(sizeof(*serial_buf));
@@ -754,9 +789,10 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 	bcopy(serial_buf->serial_num, serial_num, serial_buf->length);
 	serial_num[serial_buf->length] = '\0';
 
-	if (((arglist & CAM_ARG_GET_STDINQ) == 0)
-	 && (arglist & CAM_ARG_GET_XFERRATE))
-		fprintf(stdout, "Serial Number ");
+	if ((arglist & CAM_ARG_GET_STDINQ)
+	 || (arglist & CAM_ARG_GET_XFERRATE))
+		fprintf(stdout, "%s%d: Serial Number ",
+			device->device_name, device->dev_unit_num);
 
 	fprintf(stdout, "%.60s\n", serial_num);
 
@@ -770,35 +806,106 @@ scsixferrate(struct cam_device *device)
 {
 	u_int32_t freq;
 	u_int32_t speed;
+	union ccb *ccb;
+	u_int mb;
+	int retval = 0;
 
-	if (device->sync_period != 0)
-		freq = scsi_calc_syncsrate(device->sync_period);
-	else 
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		return(1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+
+	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	ccb->cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+
+	if (((retval = cam_send_ccb(device, ccb)) < 0)
+	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+		char *error_string = "error getting transfer settings";
+
+		if (retval < 0)
+			warn(error_string);
+		else
+			warnx(error_string);
+
+		/*
+		 * If there is an error, it won't be a SCSI error since
+		 * this isn't a SCSI CCB.
+		 */
+		if (arglist & CAM_ARG_VERBOSE)
+			fprintf(stderr, "CAM status is %#x\n",
+				ccb->ccb_h.status);
+
+		retval = 1;
+
+		goto xferrate_bailout;
+
+	}
+
+	if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+	 && (ccb->cts.sync_offset != 0)) {
+		freq = scsi_calc_syncsrate(ccb->cts.sync_period);
+		speed = freq;
+	} else {
+		struct ccb_pathinq cpi;
+
+		retval = get_cpi(device, &cpi);
+
+		if (retval != 0)
+			goto xferrate_bailout;
+
+		speed = cpi.base_transfer_speed;
 		freq = 0;
+	}
 
-	speed = freq;
-	speed *= (0x01 << device->bus_width);
-	fprintf(stdout, "%d.%dMB/s transfers ", speed / 1000, speed % 1000);
+	fprintf(stdout, "%s%d: ", device->device_name,
+		device->dev_unit_num);
 
-	if (device->sync_period != 0)
-                fprintf(stdout, "(%d.%dMHz, offset %d", freq / 1000,
-			freq % 1000, device->sync_offset);
+	if ((ccb->cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
+		speed *= (0x01 << device->bus_width);
 
-        if (device->bus_width != 0) {
-                if (device->sync_period == 0)
-                        fprintf(stdout, "(");
-                else
-                        fprintf(stdout, ", "); 
-                fprintf(stdout, "%dbit)", 8 * (0x01 << device->bus_width));
-        } else if (device->sync_period != 0)
-                fprintf(stdout, ")");
-                                 
+	mb = speed / 1000;
+
+	if (mb > 0) 
+		fprintf(stdout, "%d.%03dMB/s transfers ",
+			mb, speed % 1000);
+	else
+		fprintf(stdout, "%dKB/s transfers ",
+			(speed % 1000) * 1000);
+
+	if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+	 && (ccb->cts.sync_offset != 0))
+                fprintf(stdout, "(%d.%03dMHz, offset %d", freq / 1000,
+			freq % 1000, ccb->cts.sync_offset);
+
+	if (((ccb->cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
+	 && (ccb->cts.bus_width > 0)) {
+		if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+		 && (ccb->cts.sync_offset != 0)) {
+			fprintf(stdout, ", ");
+		} else {
+			fprintf(stdout, " (");
+		}
+		fprintf(stdout, "%dbit)", 8 * (0x01 << ccb->cts.bus_width));
+	} else if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+		&& (ccb->cts.sync_offset != 0)) {
+		fprintf(stdout, ")");
+	}
+
         if (device->inq_data.flags & SID_CmdQue)
                 fprintf(stdout, ", Tagged Queueing Enabled");
  
         fprintf(stdout, "\n");
 
-	return(0);
+xferrate_bailout:
+
+	cam_freeccb(ccb);
+
+	return(retval);
 }
 
 static int
@@ -1030,7 +1137,8 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	 * cam_getccb() zeros the CCB header only.  So we need to zero the
 	 * payload portion of the ccb.
 	 */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	cam_fill_csio(&ccb->csio,
 		      /*retries*/ retry_count,
@@ -1270,7 +1378,8 @@ mode_sense(struct cam_device *device, int mode_page, int page_control,
 	if (ccb == NULL)
 		errx(1, "mode_sense: couldn't allocate CCB");
 
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	scsi_mode_sense(&ccb->csio,
 			/* retries */ retry_count,
@@ -1323,7 +1432,8 @@ mode_select(struct cam_device *device, int save_pages, int retry_count,
 	if (ccb == NULL)
 		errx(1, "mode_select: couldn't allocate CCB");
 
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	scsi_mode_select(&ccb->csio,
 			 /* retries */ retry_count,
@@ -1426,7 +1536,8 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		return(1);
 	}
 
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio));
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -1784,6 +1895,685 @@ camdebug(int argc, char **argv, char *combinedopt)
 	return(error);
 }
 
+static int
+tagcontrol(struct cam_device *device, int argc, char **argv,
+	   char *combinedopt)
+{
+	int c;
+	union ccb *ccb;
+	int numtags = -1;
+	int retval = 0;
+	int quiet = 0;
+	char pathstr[1024];
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("tagcontrol: error allocating ccb");
+		return(1);
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch(c) {
+		case 'N':
+			numtags = strtol(optarg, NULL, 0);
+			if (numtags < 0) {
+				warnx("tag count %d is < 0", numtags);
+				retval = 1;
+				goto tagcontrol_bailout;
+			}
+			break;
+		case 'q':
+			quiet++;
+			break;
+		default:
+			break;
+		}
+	}
+
+	cam_path_string(device, pathstr, sizeof(pathstr));
+
+	if (numtags >= 0) {
+		bzero(&(&ccb->ccb_h)[1],
+		      sizeof(struct ccb_relsim) - sizeof(struct ccb_hdr));
+		ccb->ccb_h.func_code = XPT_REL_SIMQ;
+		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
+		ccb->crs.openings = numtags;
+
+
+		if (cam_send_ccb(device, ccb) < 0) {
+			perror("error sending XPT_REL_SIMQ CCB");
+			retval = 1;
+			goto tagcontrol_bailout;
+		}
+
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			warnx("XPT_REL_SIMQ CCB failed, status %#x",
+			      ccb->ccb_h.status);
+			retval = 1;
+			goto tagcontrol_bailout;
+		}
+
+
+		if (quiet == 0)
+			fprintf(stdout, "%stagged openings now %d\n",
+				pathstr, ccb->crs.openings);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_getdev) - sizeof(struct ccb_hdr));
+
+	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		perror("error sending XPT_GDEV_TYPE CCB");
+		retval = 1;
+		goto tagcontrol_bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		warnx("XPT_GDEV_TYPE CCB failed, status %#x",
+		      ccb->ccb_h.status);
+		retval = 1;
+		goto tagcontrol_bailout;
+	}
+
+	if (arglist & CAM_ARG_VERBOSE) {
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "dev_openings  %d\n", ccb->cgd.dev_openings);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "dev_active    %d\n", ccb->cgd.dev_active);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "devq_openings %d\n", ccb->cgd.devq_openings);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "devq_queued   %d\n", ccb->cgd.devq_queued);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "held          %d\n", ccb->cgd.held);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "mintags       %d\n", ccb->cgd.mintags);
+		fprintf(stdout, "%s", pathstr);
+		fprintf(stdout, "maxtags       %d\n", ccb->cgd.maxtags);
+	} else {
+		if (quiet == 0) {
+			fprintf(stdout, "%s", pathstr);
+			fprintf(stdout, "device openings: ");
+		}
+		fprintf(stdout, "%d\n", ccb->cgd.dev_openings +
+			ccb->cgd.dev_active);
+	}
+
+tagcontrol_bailout:
+
+	cam_freeccb(ccb);
+	return(retval);
+}
+
+static void
+cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
+{
+	char pathstr[1024];
+
+	cam_path_string(device, pathstr, sizeof(pathstr));
+
+	if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
+
+		fprintf(stdout, "%ssync parameter: %d\n", pathstr,
+			cts->sync_period);
+
+		if (cts->sync_offset != 0) {
+			u_int freq;
+			u_int speed;
+
+			freq = scsi_calc_syncsrate(cts->sync_period);
+			fprintf(stdout, "%sfrequencey: %d.%03dMHz\n", pathstr,
+				freq / 1000, freq % 1000);
+		}
+	}
+
+	if (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)
+		fprintf(stdout, "%soffset: %d\n", pathstr, cts->sync_offset);
+
+	if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID)
+		fprintf(stdout, "%sbus width: %d bits\n", pathstr,
+			(0x01 << cts->bus_width) * 8);
+
+	if (cts->valid & CCB_TRANS_DISC_VALID)
+		fprintf(stdout, "%sdisconnection is %s\n", pathstr,
+			(cts->flags & CCB_TRANS_DISC_ENB) ? "enabled" :
+			"disabled");
+
+	if (cts->valid & CCB_TRANS_TQ_VALID)
+		fprintf(stdout, "%stagged queueing is %s\n", pathstr,
+			(cts->flags & CCB_TRANS_TAG_ENB) ? "enabled" :
+			"disabled");
+
+}
+
+/*
+ * Get a path inquiry CCB for the specified device.  
+ */
+static int
+get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
+{
+	union ccb *ccb;
+	int retval = 0;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("get_cpi: couldn't allocate CCB");
+		return(1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+
+	ccb->ccb_h.func_code = XPT_PATH_INQ;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("get_cpi: error sending Path Inquiry CCB");
+
+		if (arglist & CAM_ARG_VERBOSE)
+			fprintf(stderr, "CAM status is %#x\n",
+				ccb->ccb_h.status);
+
+		retval = 1;
+
+		goto get_cpi_bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+
+		if (arglist & CAM_ARG_VERBOSE)
+			fprintf(stderr, "get_cpi: CAM status is %#x\n",
+				ccb->ccb_h.status);
+
+		retval = 1;
+
+		goto get_cpi_bailout;
+	}
+
+	bcopy(&ccb->cpi, cpi, sizeof(struct ccb_pathinq));
+
+get_cpi_bailout:
+
+	cam_freeccb(ccb);
+
+	return(retval);
+}
+
+static void
+cpi_print(struct ccb_pathinq *cpi)
+{
+	char adapter_str[1024];
+	int i;
+
+	snprintf(adapter_str, sizeof(adapter_str),
+		 "%s%d:", cpi->dev_name, cpi->unit_number);
+
+	fprintf(stdout, "%s SIM/HBA version: %d\n", adapter_str,
+		cpi->version_num);
+
+	for (i = 1; i < 0xff; i = i << 1) {
+		char *str;
+
+		if ((i & cpi->hba_inquiry) == 0)
+			continue;
+
+		fprintf(stdout, "%s supports ", adapter_str);
+
+		switch(i) {
+		case PI_MDP_ABLE:
+			str = "MDP message";
+			break;
+		case PI_WIDE_32:
+			str = "32 bit wide SCSI";
+			break;
+		case PI_WIDE_16:
+			str = "16 bit wide SCSI";
+			break;
+		case PI_SDTR_ABLE:
+			str = "SDTR message";
+			break;
+		case PI_LINKED_CDB:
+			str = "linked CDBs";
+			break;
+		case PI_TAG_ABLE:
+			str = "tag queue messages";
+			break;
+		case PI_SOFT_RST:
+			str = "soft reset alternative";
+			break;
+		}
+		fprintf(stdout, "%s\n", str);
+	}
+
+	for (i = 1; i < 0xff; i = i << 1) {
+		char *str;
+
+		if ((i & cpi->hba_misc) == 0)
+			continue;
+
+		fprintf(stdout, "%s ", adapter_str);
+
+		switch(i) {
+		case PIM_SCANHILO:
+			str = "bus scans from high ID to low ID";
+			break;
+		case PIM_NOREMOVE:
+			str = "removable devices not included in scan";
+			break;
+		case PIM_NOINITIATOR:
+			str = "initiator role not supported";
+			break;
+		case PIM_NOBUSRESET:
+			str = "user has disabled initial BUS RESET or"
+			      " controller is in target/mixed mode";
+			break;
+		}
+		fprintf(stdout, "%s\n", str);
+	}
+
+	for (i = 1; i < 0xff; i = i << 1) {
+		char *str;
+
+		if ((i & cpi->target_sprt) == 0)
+			continue;
+
+		fprintf(stdout, "%s supports ", adapter_str);
+		switch(i) {
+		case PIT_PROCESSOR:
+			str = "target mode processor mode";
+			break;
+		case PIT_PHASE:
+			str = "target mode phase cog. mode";
+			break;
+		case PIT_DISCONNECT:
+			str = "disconnects in target mode";
+			break;
+		case PIT_TERM_IO:
+			str = "terminate I/O message in target mode";
+			break;
+		case PIT_GRP_6:
+			str = "group 6 commands in target mode";
+			break;
+		case PIT_GRP_7:
+			str = "group 7 commands in target mode";
+			break;
+		}
+
+		fprintf(stdout, "%s\n", str);
+	}
+	fprintf(stdout, "%s HBA engine count: %d\n", adapter_str,
+		cpi->hba_eng_cnt);
+	fprintf(stdout, "%s maxium target: %d\n", adapter_str,
+		cpi->max_target);
+	fprintf(stdout, "%s maxium LUN: %d\n", adapter_str,
+		cpi->max_lun);
+	fprintf(stdout, "%s highest path ID in subsystem: %d\n",
+		adapter_str, cpi->hpath_id);
+	fprintf(stdout, "%s SIM vendor: %s\n", adapter_str, cpi->sim_vid);
+	fprintf(stdout, "%s HBA vendor: %s\n", adapter_str, cpi->hba_vid);
+	fprintf(stdout, "%s bus ID: %d\n", adapter_str, cpi->bus_id);
+	fprintf(stdout, "%s base transfer speed: ", adapter_str);
+	if (cpi->base_transfer_speed > 1000)
+		fprintf(stdout, "%d.%03dMB/sec\n",
+			cpi->base_transfer_speed / 1000,
+			cpi->base_transfer_speed % 1000);
+	else
+		fprintf(stdout, "%dKB/sec\n",
+			(cpi->base_transfer_speed % 1000) * 1000);
+}
+
+static int
+get_print_cts(struct cam_device *device, int user_settings, int quiet,
+	      struct ccb_trans_settings *cts)
+{
+	int retval;
+	union ccb *ccb;
+
+	retval = 0;
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("get_print_cts: error allocating ccb");
+		return(1);
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+
+	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+
+	if (user_settings == 0)
+		ccb->cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+	else
+		ccb->cts.flags = CCB_TRANS_USER_SETTINGS;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		perror("error sending XPT_GET_TRAN_SETTINGS CCB");
+		retval = 1;
+		goto get_print_cts_bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		warnx("XPT_GET_TRANS_SETTINGS CCB failed, status %#x",
+		      ccb->ccb_h.status);
+		retval = 1;
+		goto get_print_cts_bailout;
+	}
+
+	if (quiet == 0)
+		cts_print(device, &ccb->cts);
+
+	if (cts != NULL)
+		bcopy(&ccb->cts, cts, sizeof(struct ccb_trans_settings));
+
+get_print_cts_bailout:
+
+	cam_freeccb(ccb);
+
+	return(retval);
+}
+
+static int
+ratecontrol(struct cam_device *device, int retry_count, int timeout,
+	    int argc, char **argv, char *combinedopt)
+{
+	int c;
+	union ccb *ccb;
+	int user_settings = 0;
+	int retval = 0;
+	int disc_enable = -1, tag_enable = -1;
+	int offset = -1;
+	double syncrate = -1;
+	int bus_width = -1;
+	int quiet = 0;
+	int change_settings = 0, send_tur = 0;
+	struct ccb_pathinq cpi;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("ratecontrol: error allocating ccb");
+		return(1);
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch(c){
+		case 'a':
+			send_tur = 1;
+			break;
+		case 'c':
+			user_settings = 0;
+			break;
+		case 'D':
+			if (strncasecmp(optarg, "enable", 6) == 0)
+				disc_enable = 1;
+			else if (strncasecmp(optarg, "disable", 7) == 0)
+				disc_enable = 0;
+			else {
+				warnx("-D argument \"%s\" is unknown", optarg);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
+		case 'O':
+			offset = strtol(optarg, NULL, 0);
+			if (offset < 0) {
+				warnx("offset value %d is < 0", offset);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
+		case 'q':
+			quiet++;
+			break;
+		case 'R':
+			syncrate = atof(optarg);
+
+			if (syncrate < 0) {
+				warnx("sync rate %f is < 0", syncrate);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
+		case 'T':
+			if (strncasecmp(optarg, "enable", 6) == 0)
+				tag_enable = 1;
+			else if (strncasecmp(optarg, "disable", 7) == 0)
+				tag_enable = 0;
+			else {
+				warnx("-T argument \"%s\" is unknown", optarg);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
+		case 'U':
+			user_settings = 1;
+			break;
+		case 'W':
+			bus_width = strtol(optarg, NULL, 0);
+			if (bus_width < 0) {
+				warnx("bus width %d is < 0", bus_width);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			change_settings = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+
+	/*
+	 * Grab path inquiry information, so we can determine whether
+	 * or not the initiator is capable of the things that the user
+	 * requests.
+	 */
+	ccb->ccb_h.func_code = XPT_PATH_INQ;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		perror("error sending XPT_PATH_INQ CCB");
+		retval = 1;
+		goto ratecontrol_bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		warnx("XPT_PATH_INQ CCB failed, status %#x",
+		      ccb->ccb_h.status);
+		retval = 1;
+		goto ratecontrol_bailout;
+	}
+
+	bcopy(&ccb->cpi, &cpi, sizeof(struct ccb_pathinq));
+
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
+
+	if (quiet == 0)
+		fprintf(stdout, "Current Parameters:\n");
+
+	retval = get_print_cts(device, user_settings, quiet, &ccb->cts);
+
+	if (retval != 0)
+		goto ratecontrol_bailout;
+
+	if (arglist & CAM_ARG_VERBOSE)
+		cpi_print(&cpi);
+
+	if (change_settings) {
+		if (disc_enable != -1) {
+			ccb->cts.valid |= CCB_TRANS_DISC_VALID;
+			if (disc_enable == 0)
+				ccb->cts.flags &= ~CCB_TRANS_DISC_ENB;
+			else
+				ccb->cts.flags |= CCB_TRANS_DISC_ENB;
+		} else
+			ccb->cts.valid &= ~CCB_TRANS_DISC_VALID;
+
+		if (tag_enable != -1) {
+			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
+				warnx("HBA does not support tagged queueing, "
+				      "so you cannot modify tag settings");
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+
+			ccb->cts.valid |= CCB_TRANS_TQ_VALID;
+
+			if (tag_enable == 0)
+				ccb->cts.flags &= ~CCB_TRANS_TAG_ENB;
+			else
+				ccb->cts.flags |= CCB_TRANS_TAG_ENB;
+		} else
+			ccb->cts.valid &= ~CCB_TRANS_TQ_VALID;
+
+		if (offset != -1) {
+			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
+				warnx("HBA at %s%d is not cable of changing "
+				      "offset", cpi.dev_name,
+				      cpi.unit_number);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+			ccb->cts.valid |= CCB_TRANS_SYNC_OFFSET_VALID;
+			ccb->cts.sync_offset = offset;
+		} else
+			ccb->cts.valid &= ~CCB_TRANS_SYNC_OFFSET_VALID;
+
+		if (syncrate != -1) {
+			int num_syncrates;
+			int prelim_sync_period;
+			int period_factor_set = 0;
+			u_int freq;
+			int i;
+
+			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
+				warnx("HBA at %s%d is not cable of changing "
+				      "transfer rates", cpi.dev_name,
+				      cpi.unit_number);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+
+			ccb->cts.valid |= CCB_TRANS_SYNC_RATE_VALID;
+
+			/*
+			 * The sync rate the user gives us is in MHz.
+			 * We need to translate it into KHz for this
+			 * calculation.
+			 */
+			syncrate *= 1000;
+
+			/*
+			 * Next, we calculate a "preliminary" sync period
+			 * in tenths of a nanosecond.
+			 */
+			if (syncrate == 0)
+				prelim_sync_period = 0;
+			else
+				prelim_sync_period = 10000000 / syncrate;
+
+			ccb->cts.sync_period =
+				scsi_calc_syncparam(prelim_sync_period);
+
+			freq = scsi_calc_syncsrate(ccb->cts.sync_period);
+		} else
+			ccb->cts.valid &= ~CCB_TRANS_SYNC_RATE_VALID;
+
+		/*
+		 * The bus_width argument goes like this:
+		 * 0 == 8 bit
+		 * 1 == 16 bit
+		 * 2 == 32 bit
+		 * Therefore, if you shift the number of bits given on the
+		 * command line right by 4, you should get the correct
+		 * number.
+		 */
+		if (bus_width != -1) {
+
+			/*
+			 * We might as well validate things here with a
+			 * decipherable error message, rather than what
+			 * will probably be an indecipherable error message
+			 * by the time it gets back to us.
+			 */
+			if ((bus_width == 16)
+			 && ((cpi.hba_inquiry & PI_WIDE_16) == 0)) {
+				warnx("HBA does not support 16 bit bus width");
+				retval = 1;
+				goto ratecontrol_bailout;
+			} else if ((bus_width == 32)
+				&& ((cpi.hba_inquiry & PI_WIDE_32) == 0)) {
+				warnx("HBA does not support 32 bit bus width");
+				retval = 1;
+				goto ratecontrol_bailout;
+			} else if (bus_width != 8) {
+				warnx("Invalid bus width %d", bus_width);
+				retval = 1;
+				goto ratecontrol_bailout;
+			}
+
+			ccb->cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
+			ccb->cts.bus_width = bus_width >> 4;
+		} else
+			ccb->cts.valid &= ~CCB_TRANS_BUS_WIDTH_VALID;
+
+		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+
+		if (cam_send_ccb(device, ccb) < 0) {
+			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
+			retval = 1;
+			goto ratecontrol_bailout;
+		}
+
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			warnx("XPT_SET_TRANS_SETTINGS CCB failed, status %#x",
+			      ccb->ccb_h.status);
+			retval = 1;
+			goto ratecontrol_bailout;
+		}
+	}
+
+	if (send_tur) {
+		retval = testunitready(device, retry_count, timeout,
+				       (arglist & CAM_ARG_VERBOSE) ? 0 : 1);
+
+		/*
+		 * If the TUR didn't succeed, just bail.
+		 */
+		if (retval != 0) {
+			if (quiet == 0)
+				fprintf(stderr, "Test Unit Ready failed\n");
+			goto ratecontrol_bailout;
+		}
+
+		/*
+		 * If the user wants things quiet, there's no sense in
+		 * getting the transfer settings, if we're not going
+		 * to print them.
+		 */
+		if (quiet != 0)
+			goto ratecontrol_bailout;
+
+		fprintf(stdout, "New Parameters:\n");
+		retval = get_print_cts(device, user_settings, 0, NULL);
+	}
+
+ratecontrol_bailout:
+
+	cam_freeccb(ccb);
+	return(retval);
+}
+
 void 
 usage(void)
 {
@@ -1803,6 +2593,10 @@ usage(void)
 "        camcontrol cmd        [generic args] <-c cmd [args]> \n"
 "                              [-i len fmt|-o len fmt [args]]\n"
 "        camcontrol debug      [-I][-T][-S][-c] <all|bus[:target[:lun]]|off>\n"
+"        camcontrol tags       [generic args] [-N tags] [-q] [-v]\n"
+"        camcontrol negotiate  [generic args] [-a][-c][-D <enable|disable>]\n"
+"                              [-O offset][-q][-R syncrate][-v]\n"
+"                              [-T <enable|disable>][-U][-W bus_width]\n"
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
 "periphlist  list all CAM peripheral drivers attached to a device\n"
@@ -1817,6 +2611,8 @@ usage(void)
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given scsi command, may need -i or -o as well\n"
 "debug       turn debugging on/off for a bus, target, or lun, or all devices\n"
+"tags        report or set the number of transaction slots for a device\n"
+"negotiate   report or set device negotiation parameters\n"
 "Generic arguments:\n"
 "-v                be verbose, print out sense information\n"
 "-t timeout        command timeout in seconds, overrides default timeout\n"
@@ -1825,8 +2621,9 @@ usage(void)
 "-E                have the kernel attempt to perform SCSI error recovery\n"
 "-C count          specify the SCSI command retry count (needs -E to work)\n"
 "modepage arguments:\n"
+"-m page           specify the mode page to view or edit\n"
 "-e                edit the specified mode page\n"
-"-B                disable block descriptors for mode sense\n"
+"-d                disable block descriptors for mode sense\n"
 "-P pgctl          page control field 0-3\n"
 "defects arguments:\n"
 "-f format         specify defect list format (block, bfi or phys)\n"
@@ -1844,7 +2641,22 @@ usage(void)
 "-I                CAM_DEBUG_INFO -- scsi commands, errors, data\n"
 "-T                CAM_DEBUG_TRACE -- routine flow tracking\n"
 "-S                CAM_DEBUG_SUBTRACE -- internal routine command flow\n"
-"-c                CAM_DEBUG_CDB -- print out SCSI CDBs only\n",
+"-c                CAM_DEBUG_CDB -- print out SCSI CDBs only\n"
+"tags arguments:\n"
+"-N tags           specify the number of tags to use for this device\n"
+"-q                be quiet, don't report the number of tags\n"
+"-v                report a number of tag-related parameters\n"
+"negotiate arguments:\n"
+"-a                send a test unit ready after negotiation\n"
+"-c                report/set current negotiation settings\n"
+"-D <arg>          \"enable\" or \"disable\" disconnection\n"
+"-O offset         set command delay offset\n"
+"-q                be quiet, don't report anything\n"
+"-R syncrate       synchronization rate in MHz\n"
+"-T <arg>          \"enable\" or \"disable\" tagged queueing\n"
+"-U                report/set user negotiation settings\n"
+"-W bus_width      set the bus width in bits (8, 16 or 32)\n"
+"-v                also print a Path Inquiry CCB for the controller\n",
 DEFAULT_DEVICE, DEFAULT_UNIT);
 }
 
@@ -2025,7 +2837,7 @@ main(int argc, char **argv)
 			error = getdevtree();
 			break;
 		case CAM_ARG_TUR:
-			error = testunitready(cam_dev, retry_count, timeout);
+			error = testunitready(cam_dev, retry_count, timeout, 0);
 			break;
 		case CAM_ARG_INQUIRY:
 			error = scsidoinquiry(cam_dev, argc, argv, combinedopt,
@@ -2056,6 +2868,13 @@ main(int argc, char **argv)
 			break;
 		case CAM_ARG_DEBUG:
 			error = camdebug(argc, argv, combinedopt);
+			break;
+		case CAM_ARG_TAG:
+			error = tagcontrol(cam_dev, argc, argv, combinedopt);
+			break;
+		case CAM_ARG_RATE:
+			error = ratecontrol(cam_dev, retry_count, timeout,
+					    argc, argv, combinedopt);
 			break;
 		default:
 			usage();
