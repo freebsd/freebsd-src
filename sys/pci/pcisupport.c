@@ -1253,6 +1253,10 @@ chip_match(device_t dev)
 	case 0x800610c8:
 		return ("NeoMagic MagicMedia 256ZX Audio controller");
 
+	/* ESS Technology Inc -- vendor 0x125d */
+	case 0x1978125d:
+		return ("ESS Technology Maestro 2E Audio controller");
+
 	/* Toshiba -- vendor 0x1179 */
 	case 0x07011179:
 		return ("Toshiba Fast Infra Red controller");
@@ -1453,6 +1457,8 @@ const char* pci_vga_match(device_t dev)
 			chip = "Mach64-GW"; break;
 		case 0x4758:
 			chip = "Mach64-GX"; break;
+		case 0x4c4d:
+			chip = "Mobility-1"; break;
 		case 0x475a:
 			chip = "Mach64-GZ"; break;
 		case 0x5245:
