@@ -1,5 +1,10 @@
+Colors example {
+	pair = red, yellow
+	pair = blue, white
+}
+
 Field Title {
-	attributes = A_BOLD
+	attributes = COLOR_PAIR(2)
 	text = "A Simple Demo"
 }
 
@@ -37,13 +42,13 @@ Field field7 {
 
 Field field8 {
 	width = 6
-	attributes = A_BOLD|A_REVERSE
 	action = "EXIT"
 	function = exit_form
 }
 
 Field field9 {
-	attributes = A_BOLD|A_REVERSE
+	attributes = COLOR_PAIR(1)
+	highlight = COLOR_PAIR(1)|A_BOLD
 	action = "CANCEL"
 	function = cancel_form
 }
@@ -80,6 +85,8 @@ Link cancel as field9 {
 Form example at 0,0 {
 	height = 24
 	width = 80
+	colortable = example
+	attributes = COLOR_PAIR(1)
 
 	Field Title  at  0,30
 

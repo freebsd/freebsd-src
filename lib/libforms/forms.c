@@ -1,24 +1,46 @@
-/*
- * Copyright (c) 1995 Paul Richards. 
+/*-
+ * Copyright (c) 1995
+ *	Paul Richards.  All rights reserved.
  *
- * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer, 
+ *    verbatim and that no modifications are made prior to this 
+ *    point in the file.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Paul Richards.
+ * 4. The name Paul Richards may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- * This software may be used, modified, copied, distributed, and
- * sold, in both source and binary form provided that the above
- * copyright and these terms are retained, verbatim, as the first
- * lines of this file.  Under no circumstances is the author
- * responsible for the proper functioning of this software, nor does
- * the author assume any responsibility for damages incurred with
- * its use.
+ * THIS SOFTWARE IS PROVIDED BY PAUL RICHARDS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL PAUL RICHARDS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <forms.h>
+#include <ncurses.h>
+
 #include "internal.h"
 
-unsigned int keymap[] = {
+unsigned int f_keymap[] = {
 	KEY_UP,			/* F_UP */
 	KEY_DOWN,		/* F_DOWN */
 	9,			/* F_RIGHT */
@@ -28,8 +50,9 @@ unsigned int keymap[] = {
 	KEY_RIGHT,		/* F_CRIGHT */
 	KEY_HOME,		/* F_CHOME */
 	KEY_END,		/* F_CEND */
-	263,		/* F_CBS */
-	330		/* F_CDEL */
+	263,			/* F_CBS */
+	330,			/* F_CDEL */
+	10			/* F_ACCEPT */
 };
 
 int done=0;
@@ -39,7 +62,15 @@ initfrm(struct form *form)
 {
 
 	struct field *field = &form->field[0];
+	int i;
 
+	if (has_colors()) {
+		start_color();
+		if (form->color_table)
+			for (i=0; form->color_table[i].f != -1; i++) {
+				init_pair(i+1, form->color_table[i].f, form->color_table[i].b);
+			}
+	}
 	cbreak();
 	noecho();
 
@@ -51,6 +82,7 @@ initfrm(struct form *form)
 	form->no_fields = 0;
 
 	keypad(form->window, TRUE);
+
 
 	while (field->type != F_END) {
 		if (field->type == F_INPUT) {
@@ -81,6 +113,7 @@ initfrm(struct form *form)
 		form->no_fields++;
 		field = &form->field[form->no_fields];
 	}
+	form->current_field = form->start_field;
 	show_form(form);
 	return (OK);
 }
@@ -104,12 +137,14 @@ endfrm(struct form *form)
 int
 update_form(struct form *form)
 {
+	int selattr;
 
 	show_form(form);
 
 	if (form->current_field == -1)
 		return (F_CANCEL);
 
+	wattrset(form->window, form->field[form->current_field].selattr);
 	switch (form->field[form->current_field].type) {
 		case F_MENU:
 			field_menu(form);
@@ -125,6 +160,7 @@ update_form(struct form *form)
 			print_status("Error, current field is invalid");
 			return (F_CANCEL);
 	}
+	wattrset(form->window, 0);
 
 	return (done);
 }
@@ -133,9 +169,15 @@ static void
 show_form(struct form *form)
 {
 	int i;
+	int y, x;
+
+	wattrset(form->window, form->attr);
+	for (y = 0; y < form->height; y++)
+		for (x = 0; x < form->width; x++)
+			mvwaddch(form->window, y, x, ' ');
 
 	for (i=0; i < form->no_fields; i++) {
-		wattrset(form->window, 0);
+		wattrset(form->window, form->field[i].attr);
 		wmove(form->window, form->field[i].y, form->field[i].x);
 		switch (form->field[i].type) {
 			case F_TEXT:
@@ -155,6 +197,7 @@ show_form(struct form *form)
 				break;
 		}
 	}
+	wattrset(form->window, 0);
 	wrefresh(form->window);
 }
 
@@ -163,8 +206,6 @@ disp_text(struct form *form, int index)
 {
 
 	struct field *field = &form->field[index];
-
-	wattron(form->window, field->attr);
 
 	if (print_string(form->window, field->y, field->x,
 	             field->width, field->field.text->text) == ERR)
@@ -177,8 +218,6 @@ disp_input(struct form *form, int index)
 
 	struct field *field = &form->field[index];
 
-	wattron(form->window, field->attr);
-
 	if (field->field.input->lbl_flag) {
 		if (print_string(form->window, field->y, field->x,
 						 field->width, field->field.input->label) == ERR)
@@ -187,15 +226,12 @@ disp_input(struct form *form, int index)
 		if (print_string(form->window, field->y, field->x,
 						 field->width, field->field.input->input) == ERR)
 			print_status("Illegal scroll in print_string");
-		
 }
 
 static void
 disp_menu(struct form *form, int index)
 {
 	struct field *field = &form->field[index];
-
-	wattron(form->window, field->attr);
 
 	if (print_string(form->window, field->y, field->x,
 			field->width,
@@ -208,14 +244,10 @@ disp_action(struct form *form, int index)
 {
 	struct field *field = &form->field[index];
 
-
-	wattron(form->window, field->attr);
-
 	if (print_string(form->window, field->y, field->x,
 				field->width,
 				field->field.action->text) == ERR)
 		print_status("Illegal scroll in print_string");
-
 }
 
 static void
@@ -226,7 +258,6 @@ field_action(struct form *form)
 	int ch;
 
 	for (;;) {
-		wattron(form->window, F_SELATTR);
 		disp_action(form, form->current_field);
 		wmove(form->window, field->y, field->x);
 		ch = wgetch(form->window);
@@ -247,7 +278,6 @@ field_menu(struct form *form)
 	int ch;
 
 	for (;;) {
-		wattron(form->window, F_SELATTR);
 		disp_menu(form, form->current_field);
 		wmove(form->window, field->y, field->x);
 		switch (ch = wgetch(form->window)) {
@@ -367,7 +397,6 @@ field_input(struct form *form)
 #define CURSPOS ((len < field->width) ? len : field->width)
 
 	len = strlen(field->field.input->input);
-	wattron(form->window, F_SELATTR);
 	disp_input(form, form->current_field);
 
 	cursor = CURSPOS;

@@ -12,18 +12,18 @@
  * its use.
  */
 
-#define F_UP		keymap[0]
-#define F_DOWN		keymap[1]
-#define F_RIGHT	keymap[2]
-#define F_LEFT		keymap[3]
-#define F_NEXT		keymap[4]
-#define F_CLEFT	keymap[5]
-#define F_CRIGHT	keymap[6]
-#define F_CHOME	keymap[7]
-#define F_CEND		keymap[8]
-#define F_CBS		keymap[9]
-#define F_CDEL		keymap[10]
-#define F_ACCEPT	F_NEXT
+#define F_UP		f_keymap[0]
+#define F_DOWN		f_keymap[1]
+#define F_RIGHT		f_keymap[2]
+#define F_LEFT		f_keymap[3]
+#define F_NEXT		f_keymap[4]
+#define F_CLEFT		f_keymap[5]
+#define F_CRIGHT	f_keymap[6]
+#define F_CHOME		f_keymap[7]
+#define F_CEND		f_keymap[8]
+#define F_CBS		f_keymap[9]
+#define F_CDEL		f_keymap[10]
+#define F_ACCEPT	f_keymap[11]
 
 /* Private function declarations */
 static void show_form(struct form *);
