@@ -811,7 +811,6 @@ mddetach(int unit, struct proc *p)
 	case MD_SWAP:
 	case MD_MALLOC:
 	case MD_PRELOAD:
-	case MD_PRELOAD_COMPRESSED:
 		return (mddestroy(sc, p));
 	default:
 		return (EOPNOTSUPP);
