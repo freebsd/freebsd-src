@@ -749,6 +749,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    ptr->mv_row = scp->ypos;
 	    ptr->mv_csz = scp->xsize;
 	    ptr->mv_rsz = scp->ysize;
+	    ptr->mv_hsz = (scp->history != NULL) ? scp->history->vtb_rows : 0;
 	    /*
 	     * The following fields are filled by the terminal emulator. XXX
 	     *
@@ -835,20 +836,58 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
     case CONS_SCRSHOT:		/* get a screen shot */
     {
-	scrshot_t *ptr = (scrshot_t*)data;
+	int retval, hist_rsz;
+	size_t lsize, csize;
+	vm_offset_t frbp, hstp;
+	unsigned lnum;
+	scrshot_t *ptr = (scrshot_t *)data;
+	void *outp = ptr->buf;
+
 	s = spltty();
 	if (ISGRAPHSC(scp)) {
 	    splx(s);
 	    return EOPNOTSUPP;
 	}
-	if (scp->xsize != ptr->xsize || scp->ysize != ptr->ysize) {
+	hist_rsz = (scp->history != NULL) ? scp->history->vtb_rows : 0;
+	if ((ptr->x + ptr->xsize) > scp->xsize ||
+	    (ptr->y + ptr->ysize) > (scp->ysize + hist_rsz)) {
 	    splx(s);
 	    return EINVAL;
 	}
-	copyout ((void*)scp->vtb.vtb_buffer, ptr->buf,
-		 ptr->xsize * ptr->ysize * sizeof(u_int16_t));
+
+	lsize = scp->xsize * sizeof(u_int16_t);
+	csize = ptr->xsize * sizeof(u_int16_t);
+	/* Pointer to the last line of framebuffer */
+	frbp = scp->vtb.vtb_buffer + scp->ysize * lsize + ptr->x *
+	       sizeof(u_int16_t);
+	/* Pointer to the last line of target buffer */
+	(vm_offset_t)outp += ptr->ysize * csize;
+	/* Pointer to the last line of history buffer */
+	if (scp->history != NULL)
+	    hstp = scp->history->vtb_buffer + sc_vtb_tail(scp->history) *
+		sizeof(u_int16_t) + ptr->x * sizeof(u_int16_t);
+	else
+	    hstp = NULL;
+
+	retval = 0;
+	for (lnum = 0; lnum < (ptr->y + ptr->ysize); lnum++) {
+	    if (lnum < scp->ysize) {
+		frbp -= lsize;
+	    } else {
+		hstp -= lsize;
+		if (hstp < scp->history->vtb_buffer)
+		    hstp += scp->history->vtb_rows * lsize;
+		frbp = hstp;
+	    }
+	    if (lnum < ptr->y)
+		continue;
+	    (vm_offset_t)outp -= csize;
+	    retval = copyout((void *)frbp, outp, csize);
+	    if (retval != 0)
+		break;
+	}
 	splx(s);
-	return 0;
+	return retval;
     }
 
     case VT_SETMODE:    	/* set screen switcher mode */
