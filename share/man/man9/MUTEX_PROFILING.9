@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2004
+.Dd January 7, 2007
 .Dt MUTEX_PROFILING 9
 .Os
 .Sh NAME
@@ -40,7 +40,9 @@ The
 .Dv MUTEX_PROFILING
 kernel option adds support for measuring and reporting mutex use and
 contention statistics.
-These statistics are collated by acquisition point, these being
+These statistics are collated by
+.Dq acquisition point .
+Acquisition points are
 distinct places in the kernel source code (identified by source file
 name and line number) where a mutex is acquired.
 .Pp
