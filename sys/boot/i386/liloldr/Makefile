@@ -6,7 +6,7 @@ LDR=		liloldr
 BSECT=		lilobsect
 BOOT=		liloboot
 PROG=		${BOOT}
-MAN8=		${BOOT}.8
+NOMAN=	1
 STRIP=
 BINDIR?=	/boot
 
