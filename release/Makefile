@@ -1029,9 +1029,13 @@ installCRUNCH:
 doMFSKERN:
 	@echo "Running ${.TARGET} for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
-	    sh ${.CURDIR}/${TARGET}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
-	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
+	@cd ${.CURDIR}/../sys/${TARGET}/conf; \
+	if [ -r ${.CURDIR}/${TARGET}/dokern.sh ]; then \
+	    sh ${.CURDIR}/${TARGET}/dokern.sh ${FDSIZE}; \
+	else \
+	    sed -e 's/ident.*GENERIC/ident		BOOTMFS/g'; \
+	fi < GENERIC > BOOTMFS; \
+	[ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
 .if defined(FDSIZE) && ${FDSIZE} == "SMALL" && \
     exists(${.CURDIR}/${TARGET}/drivers-small.conf)
 	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
