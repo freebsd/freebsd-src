@@ -30,27 +30,24 @@
 	.globl	.rtld_start
 	.type	.rtld_start,@function
 .rtld_start:
-	xorl	%ebp,%ebp		# Clear frame pointer for good form
-	movl	%esp,%eax		# Save initial stack pointer
-	subl	$8,%esp			# A place to store exit procedure addr
-	movl	%esp,%ebx		# save address of exit proc
-	movl	%esp,%ecx		# construct address of obj_main
-	addl	$4,%ecx
-	pushl	%ecx			# Pass address of obj_main
-	pushl	%ebx			# Pass address of exit proc
-	pushl	%eax			# Pass initial stack pointer to rtld
+	xorq	%rbp,%rbp		# Clear frame pointer for good form
+	subq	$16,%rsp		# A place to store exit procedure addr
+	movq	%rdi,%r12
+	movq	%rsp,%rsi		# save address of exit proc
+	movq	%rsp,%rdx		# construct address of obj_main
+	addq	$8,%rdx
 	call	_rtld@PLT		# Call rtld(sp); returns entry point
-	addl	$12,%esp		# Remove arguments from stack
-	popl	%edx			# Get exit procedure address
-	addl	$4,%esp			# Ignore obj_main
+	popq	%rsi			# Get exit procedure address
+	addq	$8,%rsp			# Ignore obj_main
+	movq	%r12,%rdi		# *ap
 /*
- * At this point, %eax contains the entry point of the main program, and
- * %edx contains a pointer to a termination function that should be
+ * At this point, %rax contains the entry point of the main program, and
+ * %rdx contains a pointer to a termination function that should be
  * registered with atexit().  (crt1.o registers it.)
  */
 .globl .rtld_goto_main
 .rtld_goto_main:	# This symbol exists just to make debugging easier.
-	jmp	*%eax			# Enter main program
+	jmp	*%rax			# Enter main program
 
 
 /*
@@ -63,26 +60,54 @@
  * We are careful to preserve all registers, even the the caller-save
  * registers.  That is because this code may be invoked by low-level
  * assembly-language code that is not ABI-compliant.
+ *
+ * Stack map:
+ * reloff       0x58
+ * obj          0x50
+ * rflags       0x48
+ * rax          0x40
+ * rdx          0x38
+ * rcx          0x30
+ * rsi          0x28
+ * rdi          0x20
+ * r8           0x18
+ * r9           0x10
+ * r10          0x8
+ * r11          0x0
  */
 	.align	4
 	.globl	_rtld_bind_start
 	.type	_rtld_bind_start,@function
 _rtld_bind_start:
-	pushf				# Save eflags
-	pushl	%eax			# Save %eax
-	pushl	%edx			# Save %edx
-	pushl	%ecx			# Save %ecx
-	pushl	20(%esp)		# Copy reloff argument
-	pushl	20(%esp)		# Copy obj argument
+	pushfq				# Save rflags
+	pushq	%rax			# Save %rax
+	pushq	%rdx			# Save %rdx
+	pushq	%rcx			# Save %rcx
+	pushq	%rsi			# Save %rsi
+	pushq	%rdi			# Save %rdi
+	pushq	%r8			# Save %r8
+	pushq	%r9			# Save %r9
+	pushq	%r10			# Save %r10
+	pushq	%r11			# Save %r11
+
+	movq	0x50(%rsp),%rdi		# Fetch obj argument
+	movq	0x58(%rsp),%rsi		# Fetch reloff argument
+	leaq	(%rsi,%rsi,2),%rsi	# multiply by 3
+	leaq	(,%rsi,8),%rsi		# now 8, for 24 (sizeof Elf_Rela)
 
 	call	_rtld_bind@PLT		# Transfer control to the binder
-	/* Now %eax contains the entry point of the function being called. */
+	/* Now %rax contains the entry point of the function being called. */
 
-	addl	$8,%esp			# Discard binder arguments
-	movl	%eax,20(%esp)		# Store target over obj argument
-	popl	%ecx			# Restore %ecx
-	popl	%edx			# Restore %edx
-	popl	%eax			# Restore %eax
-	popf				# Restore eflags
-	leal	4(%esp),%esp		# Discard reloff, do not change eflags
+	movq	%rax,0x58(%rsp)		# Store target over reloff argument
+	popq	%r11			# Restore %r11
+	popq	%r10			# Restore %r10
+	popq	%r9			# Restore %r9
+	popq	%r8			# Restore %r8
+	popq	%rdi			# Restore %rdi
+	popq	%rsi			# Restore %rsi
+	popq	%rcx			# Restore %rcx
+	popq	%rdx			# Restore %rdx
+	popq	%rax			# Restore %rax
+	popfq				# Restore rflags
+	leaq	8(%rsp),%rsp		# Discard obj, do not change rflags
 	ret				# "Return" to target address

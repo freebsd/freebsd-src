@@ -48,7 +48,7 @@
 #include "rtld.h"
 
 /*
- * Process the special R_386_COPY relocations in the main program.  These
+ * Process the special R_X86_64_COPY relocations in the main program.  These
  * copy data from a shared object into a region in the main program's BSS
  * segment.
  *
@@ -57,14 +57,14 @@
 int
 do_copy_relocations(Obj_Entry *dstobj)
 {
-    const Elf_Rel *rellim;
-    const Elf_Rel *rel;
+    const Elf_Rela *relalim;
+    const Elf_Rela *rela;
 
     assert(dstobj->mainprog);	/* COPY relocations are invalid elsewhere */
 
-    rellim = (const Elf_Rel *) ((caddr_t) dstobj->rel + dstobj->relsize);
-    for (rel = dstobj->rel;  rel < rellim;  rel++) {
-	if (ELF_R_TYPE(rel->r_info) == R_386_COPY) {
+    relalim = (const Elf_Rela *) ((caddr_t) dstobj->rela + dstobj->relasize);
+    for (rela = dstobj->rela;  rela < relalim;  rela++) {
+	if (ELF_R_TYPE(rela->r_info) == R_X86_64_COPY) {
 	    void *dstaddr;
 	    const Elf_Sym *dstsym;
 	    const char *name;
@@ -74,8 +74,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    const Elf_Sym *srcsym;
 	    Obj_Entry *srcobj;
 
-	    dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
-	    dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
+	    dstaddr = (void *) (dstobj->relocbase + rela->r_offset);
+	    dstsym = dstobj->symtab + ELF_R_SYM(rela->r_info);
 	    name = dstobj->strtab + dstsym->st_name;
 	    hash = elf_hash(name);
 	    size = dstsym->st_size;
@@ -112,8 +112,8 @@ init_pltgot(Obj_Entry *obj)
 int
 reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 {
-	const Elf_Rel *rellim;
-	const Elf_Rel *rel;
+	const Elf_Rela *relalim;
+	const Elf_Rela *rela;
 	SymCache *cache;
 	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
@@ -126,30 +126,30 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	if (cache == MAP_FAILED)
 	    cache = NULL;
 
-	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
-	for (rel = obj->rel;  rel < rellim;  rel++) {
-	    Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
+	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
+	for (rela = obj->rela;  rela < relalim;  rela++) {
+	    Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
 
-	    switch (ELF_R_TYPE(rel->r_info)) {
+	    switch (ELF_R_TYPE(rela->r_info)) {
 
-	    case R_386_NONE:
+	    case R_X86_64_NONE:
 		break;
 
-	    case R_386_32:
+	    case R_X86_64_64:
 		{
 		    const Elf_Sym *def;
 		    const Obj_Entry *defobj;
 
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
 			goto done;
 
-		    *where += (Elf_Addr) (defobj->relocbase + def->st_value);
+		    *where = (Elf_Addr) (defobj->relocbase + def->st_value + rela->r_addend);
 		}
 		break;
 
-	    case R_386_PC32:
+	    case R_X86_64_PC32:
 		/*
 		 * I don't think the dynamic linker should ever see this
 		 * type of relocation.  But the binutils-2.6 tools sometimes
@@ -159,18 +159,19 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    const Elf_Sym *def;
 		    const Obj_Entry *defobj;
 
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
 			goto done;
 
-		    *where +=
-		      (Elf_Addr) (defobj->relocbase + def->st_value) -
+		    *where =
+		      (Elf_Addr) (defobj->relocbase + def->st_value + rela->r_addend) -
 		      (Elf_Addr) where;
 		}
 		break;
+	/* missing: R_X86_64_GOT32 R_X86_64_PLT32 */
 
-	    case R_386_COPY:
+	    case R_X86_64_COPY:
 		/*
 		 * These are deferred until all other relocations have
 		 * been done.  All we do here is make sure that the COPY
@@ -178,18 +179,18 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		 * only in executable files.
 		 */
 		if (!obj->mainprog) {
-		    _rtld_error("%s: Unexpected R_386_COPY relocation"
+		    _rtld_error("%s: Unexpected R_X86_64_COPY relocation"
 		      " in shared library", obj->path);
 		    goto done;
 		}
 		break;
 
-	    case R_386_GLOB_DAT:
+	    case R_X86_64_GLOB_DAT:
 		{
 		    const Elf_Sym *def;
 		    const Obj_Entry *defobj;
 
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		    def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
 			goto done;
@@ -198,14 +199,16 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		}
 		break;
 
-	    case R_386_RELATIVE:
-		*where += (Elf_Addr) obj->relocbase;
+	    case R_X86_64_RELATIVE:
+		*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
 		break;
+
+	/* missing: R_X86_64_GOTPCREL, R_X86_64_32, R_X86_64_32S, R_X86_64_16, R_X86_64_PC16, R_X86_64_8, R_X86_64_PC8 */
 
 	    default:
 		_rtld_error("%s: Unsupported relocation type %d"
 		  " in non-PLT relocations\n", obj->path,
-		  ELF_R_TYPE(rel->r_info));
+		  ELF_R_TYPE(rela->r_info));
 		goto done;
 	    }
 	}
@@ -220,17 +223,17 @@ done:
 int
 reloc_plt(Obj_Entry *obj)
 {
-    const Elf_Rel *rellim;
-    const Elf_Rel *rel;
+    const Elf_Rela *relalim;
+    const Elf_Rela *rela;
 
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
-    for (rel = obj->pltrel;  rel < rellim;  rel++) {
+    relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+    for (rela = obj->pltrela;  rela < relalim;  rela++) {
 	Elf_Addr *where;
 
-	assert(ELF_R_TYPE(rel->r_info) == R_386_JMP_SLOT);
+	assert(ELF_R_TYPE(rela->r_info) == R_X86_64_JMP_SLOT);
 
 	/* Relocate the GOT slot pointing into the PLT. */
-	where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 	*where += (Elf_Addr)obj->relocbase;
     }
     return 0;
@@ -240,24 +243,24 @@ reloc_plt(Obj_Entry *obj)
 int
 reloc_jmpslots(Obj_Entry *obj)
 {
-    const Elf_Rel *rellim;
-    const Elf_Rel *rel;
+    const Elf_Rela *relalim;
+    const Elf_Rela *rela;
 
     if (obj->jmpslots_done)
 	return 0;
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
-    for (rel = obj->pltrel;  rel < rellim;  rel++) {
+    relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+    for (rela = obj->pltrela;  rela < relalim;  rela++) {
 	Elf_Addr *where, target;
 	const Elf_Sym *def;
 	const Obj_Entry *defobj;
 
-	assert(ELF_R_TYPE(rel->r_info) == R_386_JMP_SLOT);
-	where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
-	def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL);
+	assert(ELF_R_TYPE(rela->r_info) == R_X86_64_JMP_SLOT);
+	where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+	def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj, true, NULL);
 	if (def == NULL)
 	    return -1;
-	target = (Elf_Addr)(defobj->relocbase + def->st_value);
-	reloc_jmpslot(where, target, defobj, obj, rel);
+	target = (Elf_Addr)(defobj->relocbase + def->st_value + rela->r_addend);
+	reloc_jmpslot(where, target, defobj, obj, (const Elf_Rel *)rela);
     }
     obj->jmpslots_done = true;
     return 0;
