@@ -164,12 +164,12 @@ parse_entry(struct mod_metadata *md, const char *cval,
 	case MDT_DEPEND:
 		if (!dflag)
 			break;
-		check(ef_seg_read(ef, data, sizeof(mdp), &mdp));
+		check(EF_SEG_READ(ef, data, sizeof(mdp), &mdp));
 		printf("  depends on %s.%d (%d,%d)\n", cval,
 		    mdp.md_ver_preferred, mdp.md_ver_minimum, mdp.md_ver_maximum);
 		break;
 	case MDT_VERSION:
-		check(ef_seg_read(ef, data, sizeof(mdv), &mdv));
+		check(EF_SEG_READ(ef, data, sizeof(mdv), &mdv));
 		record_int(MDT_VERSION);
 		record_string(cval);
 		record_int(mdv.mv_version);
@@ -202,18 +202,24 @@ read_kld(char *filename, char *kldname)
 /*	struct kld_info *kip;
 	struct mod_info *mip;*/
 	void **p, **orgp;
-	int error, nmlen;
+	int error, eftype, nmlen;
 	long start, finish, entries;
-	Elf_Sym *sym;
 	char kldmodname[MAXMODNAME + 1], cval[MAXMODNAME + 1], *cp;
 
 	if (verbose || dflag)
 		printf("%s\n", filename);
 	error = ef_open(filename, &ef, verbose);
-	if (error)
-		return error;
-	if (ef.ef_type != EFT_KLD && ef.ef_type != EFT_KERNEL)  {
-		ef_close(&ef);
+	if (error) {
+		error = ef_obj_open(filename, &ef, verbose);
+		if (error) {
+			if (verbose)
+				warnc(error, "elf_open(%s)", filename);
+			return error;
+		}
+	}
+	eftype = EF_GET_TYPE(&ef);
+	if (eftype != EFT_KLD && eftype != EFT_KERNEL)  {
+		EF_CLOSE(&ef);
 		return 0;
 	}
 	if (!dflag) {
@@ -225,18 +231,17 @@ read_kld(char *filename, char *kldname)
 /*		fprintf(fxref, "%s:%s:%d\n", kldmodname, kldname, 0);*/
 	}
 	do {
-		check(ef_lookup_symbol(&ef, "__start_set_" MDT_SETNAME, &sym));
-		start = sym->st_value;
-		check(ef_lookup_symbol(&ef, "__stop_set_" MDT_SETNAME, &sym));
-		finish = sym->st_value;
-		entries = (finish - start) / sizeof(void *);
-		check(ef_seg_read_entry_rel(&ef, start, sizeof(*p) * entries,
+		check(EF_LOOKUP_SET(&ef, MDT_SETNAME, &start, &finish,
+		    &entries));
+		check(EF_SEG_READ_ENTRY_REL(&ef, start, sizeof(*p) * entries,
 		    (void *)&p));
 		orgp = p;
 		while(entries--) {
-			check(ef_seg_read_rel(&ef, (Elf_Off)*p, sizeof(md), &md));
+			check(EF_SEG_READ_REL(&ef, (Elf_Off)*p, sizeof(md),
+			    &md));
 			p++;
-			check(ef_seg_read(&ef, (Elf_Off)md.md_cval, sizeof(cval), cval));
+			check(EF_SEG_READ(&ef, (Elf_Off)md.md_cval,
+			    sizeof(cval), cval));
 			cval[MAXMODNAME] = '\0';
 			parse_entry(&md, cval, &ef, kldname);
 		}
@@ -244,7 +249,7 @@ read_kld(char *filename, char *kldname)
 			warnc(error, "error while reading %s", filename);
 		free(orgp);
 	} while(0);
-	ef_close(&ef);
+	EF_CLOSE(&ef);
 	return error;
 }
 

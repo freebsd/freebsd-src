@@ -48,11 +48,70 @@
 
 #include "ef.h"
 
+struct ef_file {
+	char*		ef_name;
+	struct elf_file *ef_efile;
+	Elf_Phdr *	ef_ph;
+	int		ef_fd;
+	int		ef_type;
+	Elf_Ehdr	ef_hdr;
+	void*		ef_fpage;		/* First block of the file */
+	int		ef_fplen;		/* length of first block */
+	Elf_Dyn*	ef_dyn;			/* Symbol table etc. */
+	Elf_Hashelt	ef_nbuckets;
+	Elf_Hashelt	ef_nchains;
+	Elf_Hashelt*	ef_buckets;
+	Elf_Hashelt*	ef_chains;
+	Elf_Hashelt*	ef_hashtab;
+	Elf_Off		ef_stroff;
+	caddr_t		ef_strtab;
+	int		ef_strsz;
+	Elf_Off		ef_symoff;
+	Elf_Sym*	ef_symtab;
+	int		ef_nsegs;
+	Elf_Phdr *	ef_segs[2];
+	int		ef_verbose;
+	Elf_Rel *	ef_rel;			/* relocation table */
+	int		ef_relsz;		/* number of entries */
+	Elf_Rela *	ef_rela;		/* relocation table */
+	int		ef_relasz;		/* number of entries */
+};
+
 static void ef_print_phdr(Elf_Phdr *);
 static u_long ef_get_offset(elf_file_t, Elf_Off);
 static int ef_parse_dynamic(elf_file_t);
 
-void
+static int ef_get_type(elf_file_t ef);
+static int ef_close(elf_file_t ef);
+static int ef_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
+static int ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr);
+static int ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
+static int ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
+    void *dest);
+static int ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
+    void **ptr);
+static int ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
+    void **ptr);
+static Elf_Addr ef_symaddr(elf_file_t ef, Elf_Word symidx);
+static int ef_lookup_set(elf_file_t ef, const char *name, long *startp,
+    long *stopp, long *countp);
+static int ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
+
+static struct elf_file_ops ef_file_ops = {
+	ef_get_type,
+	ef_close,
+	ef_read,
+	ef_read_entry,
+	ef_seg_read,
+	ef_seg_read_rel,
+	ef_seg_read_entry,
+	ef_seg_read_entry_rel,
+	ef_symaddr,
+	ef_lookup_set,
+	ef_lookup_symbol
+};
+
+static void
 ef_print_phdr(Elf_Phdr *phdr)
 {
 
@@ -66,7 +125,7 @@ ef_print_phdr(Elf_Phdr *phdr)
 	}
 }
 
-u_long
+static u_long
 ef_get_offset(elf_file_t ef, Elf_Off off)
 {
 	Elf_Phdr *ph;
@@ -79,6 +138,13 @@ ef_get_offset(elf_file_t ef, Elf_Off off)
 		}
 	}
 	return 0;
+}
+
+static int
+ef_get_type(elf_file_t ef)
+{
+
+	return (ef->ef_type);
 }
 
 /*
@@ -100,7 +166,7 @@ elf_hash(const char *name)
 	return h;
 }
 
-int
+static int
 ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
 {
 	unsigned long symnum;
@@ -144,7 +210,57 @@ ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
 	return ENOENT;
 }
 
-int
+static int
+ef_lookup_set(elf_file_t ef, const char *name, long *startp, long *stopp,
+    long *countp)
+{
+	Elf_Sym *sym;
+	char *setsym;
+	int error, len;
+
+	len = strlen(name) + sizeof("__start_set_"); /* sizeof includes \0 */
+	setsym = malloc(len);
+	if (setsym == NULL)
+		return (ENOMEM);
+
+	/* get address of first entry */
+	snprintf(setsym, len, "%s%s", "__start_set_", name);
+	error = ef_lookup_symbol(ef, setsym, &sym);
+	if (error)
+		goto out;
+	*startp = sym->st_value;
+
+	/* get address of last entry */
+	snprintf(setsym, len, "%s%s", "__stop_set_", name);
+	error = ef_lookup_symbol(ef, setsym, &sym);
+	if (error)
+		goto out;
+	*stopp = sym->st_value;
+
+	/* and the number of entries */
+	*countp = (*stopp - *startp) / sizeof(void *);
+
+out:
+	free(setsym);
+	return (error);
+}
+
+static Elf_Addr
+ef_symaddr(elf_file_t ef, Elf_Word symidx)
+{
+	const Elf_Sym *sym;
+
+	if (symidx >= ef->ef_nchains)
+		return (0);
+	sym = ef->ef_symtab + symidx;
+
+	if (ELF_ST_BIND(sym->st_info) == STB_LOCAL &&
+	    sym->st_shndx != SHN_UNDEF && sym->st_value != 0)
+		return (sym->st_value);
+	return (0);
+}
+
+static int
 ef_parse_dynamic(elf_file_t ef)
 {
 	Elf_Dyn *dp;
@@ -302,7 +418,7 @@ ef_parse_dynamic(elf_file_t ef)
 	return 0;
 }
 
-int
+static int
 ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 {
 	ssize_t r;
@@ -319,7 +435,7 @@ ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 		return EIO;
 }
 
-int
+static int
 ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 {
 	int error;
@@ -333,7 +449,7 @@ ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 	return error;
 }
 
-int
+static int
 ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 {
 	u_long ofs = ef_get_offset(ef, offset);
@@ -347,10 +463,12 @@ ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 	return ef_read(ef, ofs, len, dest);
 }
 
-int
+static int
 ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 {
 	u_long ofs = ef_get_offset(ef, offset);
+	const Elf_Rela *a;
+	const Elf_Rel *r;
 	int error;
 
 	if (ofs == 0) {
@@ -361,10 +479,23 @@ ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 	}
 	if ((error = ef_read(ef, ofs, len, dest)) != 0)
 		return (error);
-	return (ef_reloc(ef, offset, len, dest));
+
+	for (r = ef->ef_rel; r < &ef->ef_rel[ef->ef_relsz]; r++) {
+		error = ef_reloc(ef->ef_efile, r, EF_RELOC_REL, 0, offset, len,
+		    dest);
+		if (error != 0)
+			return (error);
+	}
+	for (a = ef->ef_rela; a < &ef->ef_rela[ef->ef_relasz]; a++) {
+		error = ef_reloc(ef->ef_efile, a, EF_RELOC_RELA, 0, offset, len,
+		    dest);
+		if (error != 0)
+			return (error);
+	}
+	return (0);
 }
 
-int
+static int
 ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 {
 	int error;
@@ -378,7 +509,7 @@ ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 	return error;
 }
 
-int
+static int
 ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 {
 	int error;
@@ -393,8 +524,9 @@ ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 }
 
 int
-ef_open(const char *filename, elf_file_t ef, int verbose)
+ef_open(const char *filename, struct elf_file *efile, int verbose)
 {
+	elf_file_t ef;
 	Elf_Ehdr *hdr;
 	int fd;
 	int error;
@@ -402,14 +534,25 @@ ef_open(const char *filename, elf_file_t ef, int verbose)
 	int nsegs;
 	Elf_Phdr *phdr, *phdyn, *phphdr, *phlimit;
 
-	bzero(ef, sizeof(*ef));
 	if (filename == NULL)
 		return EFTYPE;
-	ef->ef_verbose = verbose;
 	if ((fd = open(filename, O_RDONLY)) == -1)
 		return errno;
+
+	ef = malloc(sizeof(*ef));
+	if (ef == NULL) {
+		close(fd);
+		return (ENOMEM);
+	}
+
+	efile->ef_ef = ef;
+	efile->ef_ops = &ef_file_ops;
+
+	bzero(ef, sizeof(*ef));
+	ef->ef_verbose = verbose;
 	ef->ef_fd = fd;
 	ef->ef_name = strdup(filename);
+	ef->ef_efile = efile;
 	hdr = (Elf_Ehdr *)&ef->ef_hdr;
 	do {
 		res = read(fd, hdr, sizeof(*hdr));
@@ -485,15 +628,12 @@ ef_open(const char *filename, elf_file_t ef, int verbose)
 		} else
 			break;
 	} while(0);
-	if (error) {
+	if (error)
 		ef_close(ef);
-		if (ef->ef_verbose)
-			warnc(error, "elf_open(%s)", filename);
-	}
 	return error;
 }
 
-int
+static int
 ef_close(elf_file_t ef)
 {
 	close(ef->ef_fd);
@@ -501,5 +641,8 @@ ef_close(elf_file_t ef)
 		free(ef->ef_fpage);*/
 	if (ef->ef_name)
 		free(ef->ef_name);
+	ef->ef_efile->ef_ops = NULL;
+	ef->ef_efile->ef_ef = NULL;
+	free(ef);
 	return 0;
 }
