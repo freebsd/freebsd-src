@@ -793,25 +793,25 @@ STATNODE(numfullpathfail4);
 STATNODE(numfullpathfound);
 
 int
-textvp_fullpath(struct proc *p, char **retbuf, char **retfreebuf) {
+vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
+{
 	char *bp, *buf;
 	int i, slash_prefixed;
 	struct filedesc *fdp;
 	struct namecache *ncp;
-	struct vnode *vp, *textvp;
+	struct vnode *vp;
 
 	numfullpathcalls++;
 	if (disablefullpath)
 		return (ENODEV);
-	textvp = p->p_textvp;
-	if (textvp == NULL)
+	if (vn == NULL)
 		return (EINVAL);
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	bp = buf + MAXPATHLEN - 1;
 	*bp = '\0';
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	slash_prefixed = 0;
-	for (vp = textvp; vp != fdp->fd_rdir && vp != rootvnode;) {
+	for (vp = vn; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
 				free(buf, M_TEMP);
@@ -820,7 +820,7 @@ textvp_fullpath(struct proc *p, char **retbuf, char **retfreebuf) {
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
-		if (vp != textvp && vp->v_dd->v_id != vp->v_ddid) {
+		if (vp != vn && vp->v_dd->v_id != vp->v_ddid) {
 			numfullpathfail1++;
 			free(buf, M_TEMP);
 			return (ENOTDIR);
@@ -831,7 +831,7 @@ textvp_fullpath(struct proc *p, char **retbuf, char **retfreebuf) {
 			free(buf, M_TEMP);
 			return (ENOENT);
 		}
-		if (vp != textvp && ncp->nc_dvp != vp->v_dd) {
+		if (vp != vn && ncp->nc_dvp != vp->v_dd) {
 			numfullpathfail3++;
 			free(buf, M_TEMP);
 			return (EBADF);
@@ -863,6 +863,6 @@ textvp_fullpath(struct proc *p, char **retbuf, char **retfreebuf) {
 	}
 	numfullpathfound++;
 	*retbuf = bp; 
-	*retfreebuf = buf;
+	*freebuf = buf;
 	return (0);
 }
