@@ -186,6 +186,14 @@ TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic 95/97/100 and
 Cirrus Logic PD683X bridges.  16-bit PC Card support under this is not yet
 functional.
 
+Write combining for crashdumps has been implemented.  This feature
+is useful when write caching is disabled on both SCSI and IDE disks,
+where large memory dumps could take up to an hour to complete.
+
+The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs 
+when unloading and reloading, and syncs with some NetBSD changes.
+
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -385,7 +393,7 @@ and packages should not be affected. [MERGED]
 
 make(1) has gained the :C/// (regexp substitution), :L (lowercase),
 and :U (uppercase) variable modifiers.  These were added to reduce the
-differences between the FreeBSD and OpenBSD/NetBSD make programs.
+differences between the FreeBSD and OpenBSD/NetBSD make programs. [MERGED]
 
 fsck wrappers have been imported; this feature provides infrastructure
 for fsck(8) to work on different types of filesystems (analogous to
@@ -394,6 +402,9 @@ mount(8) and mount_*(8)).
 ncurses has been updated to ncurses-5.1-20001009. [MERGED]
 
 gperf has been updated to 2.7.2.
+
+style.perl.7, a style guide for Perl code in the FreeBSD base system,
+has been added.
 
 
 2. Supported Configurations
