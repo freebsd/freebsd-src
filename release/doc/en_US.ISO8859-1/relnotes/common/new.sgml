@@ -160,6 +160,10 @@
 
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
 
+      <para>The proatm driver has been added to support 
+        ProSum's ProATM (IDT77252-based) interfaces.  This driver is
+        analogous to the patm driver in &os;-CURRENT.</para>
+
       <para>The &man.rl.4; driver now has support for the RealTek
 	8139C+ Fast Ethernet chip and the RealTek 8169 Gigabit
 	Ethernet chip.</para>
@@ -263,6 +267,9 @@
     <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.</para>
 
+    <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
+      traffic.</para>
+
     <para>&man.uudecode.1; and &man.b64decode.1; now support a
       <option>-r</option> flag for decoding raw (or broken) files that
       may be missing the initial and possibly final framing
@@ -274,6 +281,22 @@
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
+
+    <para arch="i386">The Intel ACPI 20030228 distribution (with local
+      &os; changes and support code) has been imported.  This feature
+      should be considered experimental and should be tested prior to
+      being deployed in a production environment.
+
+      <note>
+	<para>Unlike on &os;-CURRENT, the ACPI driver must be
+	  statically compiled into the kernel by adding
+	  <literal>device acpica</literal> to a kernel
+	  configuration.  There is no kernel module.  This driver is
+	  not present in the default, <filename>GENERIC</filename>
+	  kernel.</para>
+      </note>
+
+      </para>
 
     <para><application>groff</application> has been updated from
       1.18.1 to 1.19.</para>
@@ -293,7 +316,13 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>&man.pkg.create.1; now supports a <option>-C</option>
+      option, which allows packages to register a list of other
+      packages with which they conflict.  They will refuse to install
+      (via &man.pkg.add.1;) if one of the listed packages is already
+      present.  The <option>-f</option> flag to &man.pkg.add.1;
+      overrides this conflict-checking.</para>
+
   </sect2>
 
   <sect2 id="releng">
