@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)callout.h	8.2 (Berkeley) 1/21/94
- * $Id: callout.h,v 1.8 1997/09/21 22:08:59 gibbs Exp $
+ * $Id: callout.h,v 1.9 1997/09/24 16:39:27 gibbs Exp $
  */
 
 #ifndef _SYS_CALLOUT_H_
@@ -52,9 +52,9 @@ struct callout {
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
 	} c_links;
+	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */
 	void	(*c_func) __P((void *));	/* function to call */
-	int	c_time;				/* ticks to the event */
 };
 
 struct callout_handle {
