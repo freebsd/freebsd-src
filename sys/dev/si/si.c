@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id$
+ *	$Id: si.c,v 1.1 1995/08/09 13:13:46 peter Exp $
  */
 
 #ifndef lint
@@ -615,10 +615,6 @@ si%d: -------------------USE AT YOUR OWN RISK!!!!--------------------\n\
 si%d: WARNING!! THIS DRIVER IS NOT COMPLETE NOR SUFFICIENTLY TESTED!!\n\
 si%d: -------------------USE AT YOUR OWN RISK!!!!--------------------\n\
 ", unit, unit, unit);
-
-#ifdef __GNUC__
-#warning "WARNING: THIS DRIVER IS NOT COMPLETE! USE AT YOR OWN RISK!!!"
-#endif
 
 	}
 	return (1);
