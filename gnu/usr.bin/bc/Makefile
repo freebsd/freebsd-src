@@ -8,10 +8,8 @@ PROG=	bc
 SRCS=	bc.y execute.c global.c load.c main.c scan.l storage.c util.c \
 	number.c getopt.c getopt1.c
 CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../../contrib/bc/h -DHAVE_CONFIG_H
-#DPADD=	${LIBREADLINE} ${LIBTERMCAP}
-#LDADD=	-lreadline -ltermcap
-DPADD += ${LIBEDIT} ${LIBTERMCAP}
-LDADD += -ledit -ltermcap
+DPADD=	${LIBEDIT} ${LIBTERMCAP}
+LDADD=	-ledit -ltermcap
 
 EXAMPLES=	ckbook.b pi.b primes.b twins.b
 EXAMPDIR=	/usr/share/examples/bc
