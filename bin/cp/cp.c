@@ -248,6 +248,14 @@ copy(argv, type, fts_options)
 	FTSENT *curr;
 	int base = 0, dne, badcp, nlen, rval;
 	char *p, *target_mid;
+	mode_t mask;
+
+	/*
+	 * Keep an inverted copy of the umask, for use in correcting
+	 * permissions on created directories when not using -p.
+	 */
+	mask = ~umask(0777);
+	umask(~mask);
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
 		err(1, NULL);
@@ -263,8 +271,6 @@ copy(argv, type, fts_options)
 		case FTS_DC:			/* Warn, continue. */
 			warnx("%s: directory causes a cycle", curr->fts_path);
 			badcp = rval = 1;
-			continue;
-		case FTS_DP:			/* Ignore, continue. */
 			continue;
 		}
 
@@ -323,6 +329,25 @@ copy(argv, type, fts_options)
 			STRIP_TRAILING_SLASH(to);
 		}
 
+		if (curr->fts_info == FTS_DP) {
+			/*
+			 * We are finished copying to this directory.  If
+			 * -p is in effect, set permissions and timestamps.
+			 * Otherwise, if we created this directory, set the
+			 * correct permissions, limited by the umask.
+			 */
+			if (pflag)
+				rval = setfile(curr->fts_statp, 0);
+			else if (curr->fts_number) {
+				mode_t perm = curr->fts_statp->st_mode & mask;
+				if (chmod(to.p_path, perm)) {
+					warn("chmod: %s", to.p_path);
+					rval = 1;
+				}
+			}
+			continue;
+		}
+
 		/* Not an error but need to remember it happened */
 		if (stat(to.p_path, &to_stat) == -1)
 			dne = 1;
@@ -376,16 +401,19 @@ copy(argv, type, fts_options)
 				err(1, "%s", to.p_path);
 			}
 			/*
-			 * If not -p and directory didn't exist, set it to be
-			 * the same as the from directory, umodified by the
-                         * umask; arguably wrong, but it's been that way
-                         * forever.
+			 * Arrange to correct directory permissions later
+			 * (in the post-order phase) if this is a new
+			 * directory and the permissions aren't the final
+			 * ones we want yet.  Note that mkdir() does not
+			 * honour setuid, setgid nor sticky bits, but we
+			 * normally want to preserve them on directories.
 			 */
-			if (pflag && setfile(curr->fts_statp, 0))
-				badcp = rval = 1;
-			else if (dne)
-				(void)chmod(to.p_path,
-				    curr->fts_statp->st_mode);
+			{
+			mode_t mode = curr->fts_statp->st_mode;
+			curr->fts_number = dne &&
+			    ((mode & (S_ISUID|S_ISGID|S_ISTXT)) ||
+			    ((mode | S_IRWXU) & mask) != (mode & mask));
+			}
 			break;
 		case S_IFBLK:
 		case S_IFCHR:
