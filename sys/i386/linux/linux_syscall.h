@@ -71,7 +71,7 @@
 #define	LINUX_SYS_linux_setregid16	71
 #define	LINUX_SYS_linux_sigsuspend	72
 #define	LINUX_SYS_linux_sigpending	73
-#define	LINUX_SYS_osethostname	74
+#define	LINUX_SYS_linux_sethostname	74
 #define	LINUX_SYS_linux_setrlimit	75
 #define	LINUX_SYS_linux_old_getrlimit	76
 #define	LINUX_SYS_getrusage	77
@@ -81,7 +81,7 @@
 #define	LINUX_SYS_linux_setgroups16	81
 #define	LINUX_SYS_linux_old_select	82
 #define	LINUX_SYS_linux_symlink	83
-#define	LINUX_SYS_ostat	84
+#define	LINUX_SYS_stat	84
 #define	LINUX_SYS_linux_readlink	85
 #define	LINUX_SYS_linux_uselib	86
 #define	LINUX_SYS_swapon	87
@@ -90,7 +90,7 @@
 #define	LINUX_SYS_linux_mmap	90
 #define	LINUX_SYS_munmap	91
 #define	LINUX_SYS_linux_truncate	92
-#define	LINUX_SYS_oftruncate	93
+#define	LINUX_SYS_ftruncate	93
 #define	LINUX_SYS_fchmod	94
 #define	LINUX_SYS_fchown	95
 #define	LINUX_SYS_getpriority	96
