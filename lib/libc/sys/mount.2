@@ -42,7 +42,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft int
-.Fn mount "int type" "const char *dir" "int flags" "caddr_t data"
+.Fn mount "const char *name" "const char *dir" "int flags" "void *data"
 .Ft int
 .Fn unmount "const char *dir" "int flags"
 .Sh DESCRIPTION
