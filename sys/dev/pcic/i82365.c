@@ -83,8 +83,8 @@ int	pcic_debug = 0;
 
 #define	PCIC_MEM_ALIGN	PCIC_MEM_PAGESIZE
 
-void	pcic_attach_socket __P((struct pcic_handle *));
-void	pcic_init_socket __P((struct pcic_handle *));
+static void	pcic_attach_socket(device_t, struct pcic_handle *);
+static void	pcic_init_socket(struct pcic_handle *);
 
 #if XXX
 int	pcic_submatch __P((struct device *, struct cfdata *, void *));
@@ -343,23 +343,19 @@ pcic_attach(device_t dev)
 }
 
 void
-pcic_attach_sockets(sc)
-	struct pcic_softc *sc;
+pcic_attach_sockets(device_t dev)
 {
+	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
 	int i;
 
 	for (i = 0; i < PCIC_NSLOTS; i++)
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP)
-			pcic_attach_socket(&sc->handle[i]);
+			pcic_attach_socket(dev, &sc->handle[i]);
 }
 
 void
-pcic_attach_socket(h)
-	struct pcic_handle *h;
+pcic_attach_socket(device_t dev, struct pcic_handle *h)
 {
-	struct pccardbus_attach_args paa;
-	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
-
 	/* initialize the rest of the handle */
 
 	h->shutdown = 0;
@@ -367,20 +363,19 @@ pcic_attach_socket(h)
 	h->ioalloc = 0;
 	h->ih_irq = 0;
 
-	/* now, config one pccard device per socket */
-
-	paa.paa_busname = "pccard";
-	paa.pct = (pccard_chipset_tag_t) sc->pct;
-	paa.pch = (pccard_chipset_handle_t) h;
-	paa.iobase = sc->iobase;
-	paa.iosize = sc->iosize;
-
-#if XXX
-	h->pccard = config_found_sm(&sc->dev, &paa, pcic_print,
-	    pcic_submatch);
-#endif
+	/* 
+	 * now, config one pccard device per socket
+	 *
+	 * XXX This should add all devices that can attach to pcic, which
+	 * is what we want in the general case.
+	 *
+	 * XXX Notice we don't use h AT ALL.  This should be considered to
+	 * XXX be BAD.
+	 */
+	device_add_child(dev, NULL, -1, NULL);
 
 	/* if there's actually a pccard device attached, initialize the slot */
+	/* XXX WE SHOULD MOVE THIS TO CHILD ATTACHED */
 
 	if (h->pccard)
 		pcic_init_socket(h);
@@ -518,7 +513,7 @@ pcic_init_socket(h)
 	 */
 #ifdef DIAGNOSTIC
 	if (h->event_thread != NULL)
-		panic("pcic_attach_socket: event thread");
+		panic("pcic_init_socket: event thread");
 #endif
 	pcic_create_event_thread(h);
 
@@ -1439,4 +1434,16 @@ st_pcic_write(h, idx, data)
 	}
 
 	bus_space_write_1(h->ph_bus_t, h->ph_bus_h, PCIC_REG_DATA, data);
+}
+
+int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return bus_generic_activate_resource(dev, child, type, rid, r);
+}
+
+int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return bus_generic_deactivate_resource(dev, child, type, rid, r);
 }
