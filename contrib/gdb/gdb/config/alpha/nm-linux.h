@@ -1,21 +1,29 @@
-/* Native definitions for alpha running Linux.
-   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
+/* Native definitions for alpha running GNU/Linux.
 
-This file is part of GDB.
+   Copyright 1993, 1994, 1996, 1998, 2000, 2001, 2002 Free Software
+   Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This file is part of GDB.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
+
+#ifndef NM_LINUX_H
+#define NM_LINUX_H
+
+#include "nm-linux.h"
 
 /* Figure out where the longjmp will land.  We expect that we have just entered
    longjmp and haven't yet setup the stack frame, so the args are still in the
@@ -24,16 +32,14 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
    This routine returns true on success */
 
 #define GET_LONGJMP_TARGET(ADDR) get_longjmp_target(ADDR)
-extern int
-get_longjmp_target PARAMS ((CORE_ADDR *));
-
-/* Tell gdb that we can attach and detach other processes */
-#define ATTACH_DETACH
+extern int get_longjmp_target (CORE_ADDR *);
 
 /* ptrace register ``addresses'' are absolute.  */
 
 #define U_REGS_OFFSET 0
 
+/* FIXME: This is probably true, or should be, on all GNU/Linux ports.
+   IA64?  Sparc64?  */
 #define PTRACE_ARG3_TYPE long
 
 /* ptrace transfers longs, the ptrace man page is lying.  */
@@ -44,23 +50,12 @@ get_longjmp_target PARAMS ((CORE_ADDR *));
 
 #define CANNOT_STEP_BREAKPOINT
 
-/* Linux has shared libraries.  */
+/* GNU/Linux has shared libraries.  */
 
 #define GDB_TARGET_HAS_SHARED_LIBS
-
-/* Support for shared libraries.  */
-
-#include "solib.h"
-
-#ifdef __ELF__
-#define SVR4_SHARED_LIBS
-#define TARGET_ELF64
-#endif
-
-/* This is a lie.  It's actually in stdio.h. */
-
-#define PSIGNAL_IN_SIGNAL_H
 
 /* Given a pointer to either a gregset_t or fpregset_t, return a
    pointer to the first register.  */
 #define ALPHA_REGSET_BASE(regsetp)  ((long *) (regsetp))
+
+#endif /* NM_LINUX_H */

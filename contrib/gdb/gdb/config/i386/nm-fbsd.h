@@ -1,27 +1,71 @@
-/* Native-dependent definitions for Intel 386 running BSD Unix, for GDB.
-   Copyright 1986, 1987, 1989, 1992, 1996 Free Software Foundation, Inc.
+/* Native-dependent definitions for FreeBSD/i386.
+   Copyright 1986, 1987, 1989, 1992, 1994, 1996, 1997, 2000, 2001
+   Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
-#ifndef NM_FREEBSD_H
-#define NM_FREEBSD_H
+#ifndef NM_FBSD_H
+#define NM_FBSD_H
 
-/* Be shared lib aware */
-#include "solib.h"
+#ifdef HAVE_PT_GETDBREGS
+#define I386_USE_GENERIC_WATCHPOINTS
+#endif
+
+#include "i386/nm-i386.h"
+
+/* Provide access to the i386 hardware debugging registers.  */
+
+#define I386_DR_LOW_SET_CONTROL(control) \
+  i386bsd_dr_set_control (control)
+extern void i386bsd_dr_set_control (unsigned long control);
+
+#define I386_DR_LOW_SET_ADDR(regnum, addr) \
+  i386bsd_dr_set_addr (regnum, addr)
+extern void i386bsd_dr_set_addr (int regnum, CORE_ADDR addr);
+
+#define I386_DR_LOW_RESET_ADDR(regnum) \
+  i386bsd_dr_reset_addr (regnum)
+extern void i386bsd_dr_reset_addr (int regnum);
+
+#define I386_DR_LOW_GET_STATUS() \
+  i386bsd_dr_get_status ()
+extern unsigned long i386bsd_dr_get_status (void);
+
+
+/* Type of the third argument to the `ptrace' system call.  */
+#define PTRACE_ARG3_TYPE caddr_t
+
+/* Override copies of {fetch,store}_inferior_registers in `infptrace.c'.  */
+#define FETCH_INFERIOR_REGISTERS
+
+/* Override child_resume in `infptrace.c' to work around a kernel bug.  */
+#define CHILD_RESUME
+
+/* We can attach and detach.  */
+#define ATTACH_DETACH
+
+
+/* Support for the user struct.  */
+
+/* Return the size of the user struct.  */
+
+#define KERNEL_U_SIZE kernel_u_size ()
+extern int kernel_u_size (void);
 
 /* This is the amount to subtract from u.u_ar0
    to get the offset in the core file of the register values.  */
@@ -30,14 +74,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define KERNEL_U_ADDR USRSTACK
 
 #define REGISTER_U_ADDR(addr, blockend, regno) \
-	(addr) = i386_register_u_addr ((blockend),(regno));
+  (addr) = register_u_addr ((blockend), (regno))
+extern CORE_ADDR register_u_addr (CORE_ADDR blockend, int regno);
+
 
-extern int
-i386_register_u_addr PARAMS ((int, int));
+/* Shared library support.  */
 
-#define PTRACE_ARG3_TYPE char*
+/* The FreeBSD <link.h> uses the same condition to distinguish ELF
+   from a.out.  ELF implies SVR4 shared libraries.  */
+#if (defined (FREEBSD_ELF) || defined (__ELF__)) && !defined (FREEBSD_AOUT)
+#define SVR4_SHARED_LIBS
+#endif
 
-/* make structure definitions match up with those expected in solib.c */
+#include "solib.h"		/* Support for shared libraries. */
+#ifdef SVR4_SHARED_LIBS
+#include "elf/common.h"		/* Additional ELF shared library info. */
+#endif
+
+#ifndef SVR4_SHARED_LIBS
+
+/* Make structure definitions match up with those expected in `solib.c'.  */
+
 #define link_object	sod
 #define lo_name		sod_name
 #define lo_library	sod_library
@@ -90,9 +147,6 @@ i386_register_u_addr PARAMS ((int, int));
 #define ld_un		d_un
 #define ld_2		d_sdt
 
-/* Return sizeof user struct to callers in less machine dependent routines */
+#endif /* !SVR4_SHARED_LIBS */
 
-#define KERNEL_U_SIZE kernel_u_size()
-extern int kernel_u_size PARAMS ((void));
-
-#endif /* NM_FREEBSD_H */
+#endif /* NM_FBSD_H */

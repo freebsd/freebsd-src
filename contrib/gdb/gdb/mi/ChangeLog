@@ -1,0 +1,1765 @@
+2002-04-07  Michael Chastain  <mec@shout.net>
+
+	Merge from HEAD to fix PR gdb/381:
+
+	2002-04-04  Daniel Jacobowitz  <drow@mvista.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): Skip end-of-function
+ 	markers in the line table.
+ 
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	From wiz at danbala:
+	* gdbmi.texinfo: Fix grammar and typos.
+	Fix PR gdb/287.
+
+2002-02-03  Jim Blandy  <jimb@redhat.com>
+
+	* mi-cmd-stack.c (list_args_or_locals): Move declaration of
+	print_me inside the loop body, so it gets re-initialized every
+	iteration.  The cases for the different symbol kinds leave
+	print_me unchanged if they don't want the symbol printed.
+
+2002-01-22  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbmi.texinfo: Remove makeinfo 3.12 hacks.
+
+2002-01-21  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-cmd-stack.c: Remove #else clause of #ifdef UI_OUT.
+	* mi-cmd-break.c: Ditto.
+	* mi-main.c: Ditto.
+
+2001-12-30  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Fix the application of GFDL in the Copyright notice.
+
+2001-10-12  Daniel Jacobowitz  <drow@mvista.com>
+
+	* mi-cmd-stack.c (list_args_or_locals): Use ALL_BLOCK_SYMBOLS.
+
+2001-09-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_thread_select): Pass uiout to
+	gdb_thread_select.
+	(mi_cmd_thread_list_ids): Pass uiout to gdb_list_thread_ids.
+
+	* mi-cmd-break.c (breakpoint_notify): Pass uiout to
+	gdb_breakpoint_query.
+
+2001-08-17  Keith Seitz  <keiths@redhat.com>
+
+	* mi-cmd-var.c (varobj_update_one): Update call to
+	varobj_update to reflect recent api change.
+
+2001-07-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c: Include "gdb.h".
+	* mi-cmd-break.c: Include "gdb.h".
+
+2001-07-12  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_execute_command): Flush output after ``(gdb)''
+	prompt.  Bug reported by David Whedon.
+	(mi_execute_async_cli_command): Ditto.
+	(mi_exec_async_cli_cmd_continuation): Ditto.
+	(mi_command_loop): Ditto.
+
+2001-07-10  Mark Kettenis  <kettenis@gnu.org>
+
+	* mi-out.c (mi_out_new): Initialize suppress_ouput field of newly
+	created `struct ui_out_data'.
+
+2001-07-09  Kevin Buettner  <kevinb@redhat.com>
+
+	* mi-main.c (register_changed_p, get_register): Use alloca()
+	to allocate space previously allocated via gcc's
+	variable-length array extension.
+	(mi_cmd_data_write_register_values, mi_cmd_data_write_memory):
+	Change type of ``buffer'' to ``void *''.  Don't cast return value
+	from xmalloc().  Add a cleanup to free the xmalloc'd buffer.
+
+2001-07-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_evaluate_expression): Replace value_ptr
+	with `struct value *'.
+
+2001-07-08  Kevin Buettner  <kevinb@redhat.com>
+
+	* mi-out.c (mi_table_header, mi_field_int, mi_field_skip)
+	(mi_field_string) Make function declarators match earlier
+	declarations.
+
+2001-07-04  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_ui_out_impl): Initialize is_mi_like_p to one.
+
+2001-06-27  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_table_begin): Include nr_cols and nr_rows in mi1
+	table output.
+	* mi-out.c (mi_table_begin): Only suppress output when mi0. Change
+	the header to a list.
+	(mi_table_body): For mi1, close the header list and open a table
+	body list.
+	(mi_table_end): For mi1, close the body list.
+	(mi_table_header): For mi1, output a tuple containing all the
+	header information.
+	(mi_open, mi_close): Reverse logic of mi_version test.
+	* gdbmi.texinfo (GDB/MI Breakpoint Table Commands): Update.
+
+2001-06-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbmi.texinfo (GDB/MI Output Syntax): Delete reference to query
+	packet.
+
+2001-06-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-cmd-stack.c (list_args_or_locals): Output a list of "args" or
+	"locals" entries.
+	* gdbmi.texinfo (stack-list-locals, stack-list-arguments)
+	(exec-interrupt, target-select, thread-select): Update
+	documentation.
+
+2001-06-26  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-cmd-stack.c (mi_cmd_stack_list_frames): Output a list of
+	"stack" entries.
+	(mi_cmd_stack_list_args): Ditto for "stack-args".
+	* gdbmi.texinfo (stack-list-frames, stack-list-arguments): Update
+	documentation.
+	(GDB/MI Stack Manipulation Commands): Fix section title.  Was
+	Stack Manipulation Commands in GDB/MI.
+
+2001-06-25  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbmi.texinfo: Update output examples that contain stop reason
+	output, change the args=.... to a list.
+	(exec-return): Ditto.
+
+2001-06-25  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_read_memory): Output the memory contents
+	- memory and data - as a list.
+	* gdbmi.texinfo (data-read-memory): Update documentation.
+
+2001-06-25  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_list_register_values): Output a list of
+	register values.
+	* gdbmi.texinfo (data-list-register-values): Update documentation.
+
+2001-06-25  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_list_register_names): Output a list of
+	register names.
+	(mi_cmd_data_list_register_names): Include the pseudo registers.
+	(mi_cmd_data_list_register_names): Don't leave holes in the list,
+	output "" for NULL registers.
+	* gdbmi.texinfo (data-list-register-names): Update documentation.
+
+2001-06-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_list_changed_registers): Output a list of
+	register numbers.
+	* gdbmi.texinfo (data-list-changed-registers): Update
+	documentation.
+	
+2001-06-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbmi.texinfo (data-disassemble): Update documentation of
+	output.  Produces a list of instructions and a list of source
+	lines.
+
+2001-06-22  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): For "-data-disassemble",
+	output a list instead of a tupple.
+
+2001-06-21  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (struct ui_out_data): Replace field first_header with
+	suppress_output.
+	(mi_begin, mi_end): Check suppress_header.
+	(mi_field_int, mi_field_skip): Ditto.
+	(mi_field_string, mi_field_fmt): Ditto.
+	(mi_table_begin): When nr_rows is zero, set suppress_header else,
+	output the start of the header.
+	(mi_table_body): Clear suppress header.
+
+2001-06-21  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_open): For lists, when mi_version > 0, use ``[''.
+	(mi_close): Ditto for ``]''.
+
+2001-06-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_table_header): Add parameter ``col_name''.
+
+2001-06-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c: Include "gdb_assert.h".
+	(mi_table_begin): Add parameter ``nr_rows''.
+
+2001-06-18  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c: Use strncmp as the "mi" test.  Allow "mi", "mi0" and
+	"mi1".
+	(mi_command_loop): Add parameter mi_version, pass to mi_out_new.
+	(mi1_command_loop, mi0_command_loop): New functions.
+	(_initialize_mi_main): Recognize "mi", "mi0" and "mi1".
+	* mi-out.c (mi_out_new): Add parameter mi_version.
+	(struct ui_out_data): Add field mi_version.
+	* mi-out.h (mi_out_new): Update.
+
+2001-06-07  Andrew Cagney  <ac131313@redhat.com>
+
+	* gdbmi.texinfo (GDB/MI Output Syntax): Add tuples and lists to
+	syntax.
+	(GDB/MI Draft Changes to Output Syntax): Delete section.
+	
+Mon Jun 11 17:22:25 2001  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-out.c: Fix typo. s/supress/suppress/.
+
+2001-06-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_table_end, mi_table_begin, mi_begin, mi_end): Move
+	supress_field_separator updates from here.
+	(mi_open, mi_close): To here.
+	(mi_open): Add parameter name. Output a field_separator.
+	(mi_table_begin): Update.
+	(mi_table_header): Update.
+	(mi_begin): Update.
+
+2001-06-09  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_table_begin): Make char* parameters constant.
+	(mi_table_header): Ditto.
+	(mi_field_int): Ditto.
+	(mi_field_skip): Ditto.
+	(mi_field_string): Ditto.
+	(mi_field_fmt): Ditto.
+	(mi_text): Ditto.
+	(mi_message): Ditto.
+
+2001-05-12  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_close, mi_open): Output ``[]'' when a list.
+
+Fri May 11 13:55:07 2001  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-var.c: Replace ui_out_list_begin, ui_out_list_end and
+ 	make_cleanup_ui_out_list_end with ui_out_tupple_begin,
+ 	ui_out_tupple_end and make_cleanup_ui_out_tupple_begin_end.
+	* mi-cmd-stack.c: Ditto.
+	* mi-cmd-disas.c: Ditto.
+	* mi-main.c: Ditto.
+
+2001-05-10  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_open, mi_close): Replace list_open and list_close.
+	(mi_table_begin): Update.
+	(mi_table_header): Update.
+	(mi_begin): Update.
+	(mi_table_body): Update.
+	(mi_table_end): Update.
+	(mi_end): Update.
+
+Thu May 10 16:28:13 2001  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command): Always initialize
+ 	old_cleanups.
+
+2001-05-08  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.c (mi_begin, mi_end): Replace mi_list_begin and
+	mi_list_end.
+	(mi_ui_out_impl): Update.
+
+2001-03-28  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_read_memory): Use xcalloc.
+
+2001-03-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Update copyright.  Change Permissions to GFDL.
+
+2001-03-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): Initialize ``file_string''
+	and ``line_num''.  Consolidate declaration of argument variables.
+
+2001-03-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-out.h: Remove #ifdef __STDC__.
+
+2001-03-08  Andrew Cagney  <ac131313@redhat.com>
+
+	* mi-main.c (mi_cmd_data_list_register_names): Use NUM_REGS, not
+	ARCH_NUM_REGS.
+	(mi_cmd_data_list_changed_registers): Ditto.
+	(mi_cmd_data_list_register_values): Ditto.
+	(mi_cmd_data_write_register_values): Ditto.
+
+2001-03-06  Kevin Buettner  <kevinb@redhat.com>
+
+	* gdbmi.texinfo, mi-cmd-disas.c, mi-cmd-stack.c, mi-cmd-var.c,
+	mi-cmds.c, mi-cmds.h, mi-console.c, mi-console.h, mi-getopt.c,
+	mi-getopt.h, mi-out.c, mi-out.h, mi-parse.c, mi-parse.h: 
+	Update/correct copyright notices.
+
+Wed Feb  7 19:50:37 2001  Andrew Cagney  <cagney@redhat.com>
+
+	* mi-getopt.c: Add __FILE__ and __LINE__ parameter to calls to
+ 	internal_error.
+	* mi-console.c: Ditto.
+	* mi-cmds.c: Ditto.
+	* mi-cmd-break.c: Ditto.
+
+2001-01-27  Fernando Nasser  <fnasser@redhat.com>
+
+	From Momchil Velikov  <velco@fadata.bg>
+	* mi-cmd-disas.c (gdb_dis_asm_read_memory): Add missing memory
+	attributes argument in the call to `xfer_memory'.
+
+2000-12-14  Kevin Buettner  <kevinb@redhat.com>
+
+	* mi-cmd-disas.c, mi-cmd-var.c, mi-console.c, mi-main.c,
+	mi-parse.c: Replace occurrences of free() with xfree().
+
+Fri Nov 17 16:07:23 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c: Replace asprintf with xasprintf.
+	* mi-cmd-var.c (mi_cmd_var_create): Ditto.
+
+2000-10-16  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo (GDB/MI Variable Objects): Dimensions of
+	multitable changed to "@columnfractions .4 .6".  Suggested by
+	Dmitry Sivachenko <dima@Chg.RU>.
+
+2000-08-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Change flathead -> @sc{gdb/mi}.
+	Fix typos and markup mistakes (from Dmitry S.
+	Sivachenko <dima@Chg.RU>).
+
+2000-07-24  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Change GDB -> @value{GDBN}, and
+	(gdb) -> (@value{GDBP}).  Fix a few typos and some markup.  From
+	Dmitry S. Sivachenko <dima@Chg.RU>.
+
+Tue May 16 14:13:41 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_execute): Use free_current_contents.
+	(free_and_reset): Delete.
+
+Mon May 15 16:17:56 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_data_assign, mi_cmd_data_evaluate_expression),
+ 	mi-cmd-var.c (mi_cmd_var_create, mi_cmd_var_delete): Delete
+ 	make_cleanup_func casts. Not needed.
+
+2000-05-07  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Lots of typos and grammar fixes from Brian
+        Youmans <3diff@flib.gnu.ai.mit.edu>.
+
+Wed Apr 26 18:35:19 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbmi.texinfo (GDB/MI Output Syntax v2.0): Convert Draft 2.0
+ 	Output Syntax into a new section.  Cross reference.
+	(menu): Fix tipo. GDB/MI Compatibility with CLI.
+
+2000-04-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gdbmi.texinfo: Lots of changes, to include this document as part
+	of the GDB manual.
+
+2000-03-13  James Ingham  <jingham@leda.cygnus.com>
+
+	* mi-cmd-var.c (mi_cmd_var_create): Add special frame cookie "@"
+	to indicate an "USE_CURRENT_FRAME" variable.
+	(varobj_update_one): Add "in_scope" and "type_changed" to the
+	result.
+
+2000-03-06  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.h: Export mi_cmd_data_write_register_values.
+	
+	* mi-cmds.c (mi_cmds): Implement data-write-register-values with
+ 	mi_cmd_data_write_register_values.
+
+	* mi-main.c (mi_cmd_data_write_register_values): New
+ 	function. Write a value into a register.
+
+2000-03-06  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Update data-disassemble documentation.
+
+2000-03-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): Use
+ 	ui_out_field_core_addr() instead of print_address_numeric(), to
+ 	maintain consistency throughout MI.
+
+Wed Feb 23 17:09:39 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-break.c, mi-cmd-disas.c, mi-cmd-stack.c, mi-cmd-var.c,
+ 	mi-cmds.c, mi-cmds.h, mi-console.c, mi-console.h, mi-getopt.c,
+ 	mi-getopt.h, mi-main.c, mi-out.c, mi-out.h, mi-parse.c,
+ 	mi-parse.h: Update copyright information.
+
+Wed Feb 23 13:31:16 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-disas.c (gdb_dis_asm_read_memory): Change LEN to unsigned
+ 	long.  Match ../include/dis-asm.h change.
+
+Wed Feb 23 10:30:55 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbmi.texinfo: Update copyright - FSF.  Update version
+ 	information.
+
+	mi-cmd-break.c, mi-cmd-disas.c, mi-cmd-stack.c, mi-cmd-var.c,
+ 	mi-cmds.h, mi-main.c, mi-parse.c, mi-parse.h: Re-format using GNU
+ 	indent.
+
+2000-02-21  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c: Add include of gdbcore.h for write_memory()
+ 	prototype.
+
+2000-02-18  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): Change syntax of
+ 	command. Now use options.  
+	Instead of printing the symbolic address of instructions via
+ 	print_address_symbolic(), use build_address_symbolic() and format
+ 	properly for output.
+	(gdb_do_disassmble): Delete.
+
+2000-02-18  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-disas.c (mi_cmd_disassemble): 
+
+2000-02-17  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_data_write_memory): New function. Write a
+ 	value into target memory.
+
+	* mi-cmds.h (mi_cmd_data_write_memory): Export. 
+
+	* mi-cmds.c (mi_cmds): Hook up data-write-memory to
+ 	mi_cmd_data_write_memory().
+
+2000-02-17  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_target_download): Correct error message to
+ 	report right function name.
+	(mi_cmd_target_select): Add doing exec cleanups at end.
+	(mi_cmd_data_read_memory): Correct typo.
+	(mi_cmd_execute): Do not simply free last_async_command, but reset
+ 	it to NULL as well.
+	(free_and_reset): New function, free the argument and set it to
+ 	NULL.
+	(mi_cmd_target_select_continuation): Delete prototype.
+	
+Tue Feb  1 00:17:12 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-disas.c, mi-cmds.h, mi-console.c, mi-console.h,
+ 	mi-main.c, mi-out.c, mi-out.h: Update to reflect rename of
+ 	gdb-file / GDB_FILE to ui-file / ``struct ui_file''.
+	
+Mon Jan 31 18:33:28 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_command_loop): Delete reference to
+ 	fputs_unfiltered_hook.
+
+2000-01-27  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Update entries for
+ 	mi_cmd_data_list_register_names,
+ 	mi_cmd_data_list_changed_registers,
+ 	mi_cmd_data_list_register_values.
+
+	* mi-cmds.h (mi_cmd_data_list_register_names,
+ 	mi_cmd_data_list_changed_registers,
+ 	mi_cmd_data_list_register_values): Update to mi_cmd_argv_ftype.
+
+	* mi-main.c (mi_cmd_data_list_register_names,
+ 	mi_cmd_data_list_changed_registers,
+ 	mi_cmd_data_list_register_values): Update to use argc, argv
+ 	parameters.
+	
+2000-01-27  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_data_read_memory): Correct the computation of
+ 	next-row.
+
+2000-01-27  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmd-var.c (mi_cmd_var_create): Test for NULL type.
+	(mi_cmd_var_set_format, mi_cmd_var_show_format,
+	mi_cmd_var_info_num_children, mi_cmd_var_list_children,
+	mi_cmd_var_info_type, mi_cmd_var_info_expression,
+	mi_cmd_var_show_attributes, mi_cmd_var_evaluate_expression,
+	mi_cmd_var_assign, mi_cmd_var_update): Prevent possibility of memory
+	leak on error.
+
+2000-01-27  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c (mi_field_string): Test for NULL string pointer.
+
+2000-01-17  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-stack.c (mi_cmd_stack_list_frames): Call
+ 	print_frmae_info() with the correct arguments.
+
+	* mi-main.c (mi_cmd_exec_return): Call
+ 	show_and_print_stack_frame() with LOC_AND_ADDRESS, so it does the
+ 	right thing.  Update Copyright.
+
+2000-01-13  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c: Move disassemble commands from here.
+
+	* mi-cmd-disas.c: To here. New file.
+
+2000-01-13  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-stack.c: Remove include of mi-out.h.
+
+	* mi-main.c (mi_cmd_disassemble): Update function to use argc/argv
+ 	interface.
+
+	* mi-cmds.h: Ditto.
+
+	* mi-cmds.c: Ditto.
+
+2000-01-12  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Update stack commands descriptions.
+	Add thread commands descriptions and examples.
+
+	* mi-main.c (mi_cmd_thread_list_ids): Fix typo.
+
+2000-01-12  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_thread_list_ids): New function, print a list
+ 	of currently known threads ids, and the total number of threads.
+	(mi_cmd_thread_select): New function. Switch current thread.
+
+	* mi-cmds.c (mi_cmds): Implement thread-list-ids by
+ 	mi_cmd_thread_list_ids, and thread-select by mi_cmd_thread_select.
+
+	* mi-cmds.h (mi_cmd_thread_select, mi_cmd_thread_list_ids): Export.
+
+2000-01-11  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c: Move stack commands from here.
+
+	* mi-cmd-stack.c: To here. New file.
+
+2000-01-07  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (list_args_or_locals): Add a new paramter, the frame
+ 	for which to display args or locals. Don't use selected_frame
+ 	anymore, use the new parameter instead. Return void instead of
+ 	mi_cmd_result, let callers do so.
+	(mi_cmd_stack_list_args): Change interface. Now accept low and
+ 	high frame numbers to display args for a range of frames. Without
+ 	these two, display args for the whole stack.
+	(mi_cmd_stack_list_locals): Adapt to new interface for
+ 	list_args_or_locals.
+
+2000-01-06  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_stack_info_depth, mi_cmd_stack_list_args,
+ 	mi_cmd_stack_list_frames, mi_cmd_stack_list_locals,
+ 	mi_cmd_stack_select_frame): Change to use argv type of parameters.
+
+	* mi-cmds.c (mi_cmds): Change stack-info-depth,
+ 	stack-list-arguments, stack-list-frames, stack-list-locals,
+ 	stack-select-frame to use argv parameters.
+
+	* mi-cmds.h (mi_cmd_stack_info_depth, mi_cmd_stack_list_args,
+ 	mi_cmd_stack_list_frames, mi_cmd_stack_list_locals,
+ 	mi_cmd_stack_select_frame): Update definitions.
+
+Tue Jan  4 12:38:54 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_command_loop): Force the MI interface to use seven
+ 	bit strings.
+	* gdbmi.texinfo: Make it clear that a quoted C string is seven
+ 	bit.
+
+Thu Dec 30 14:15:22 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-getopt.c (mi_getopt): Rewrite.  Allow long options.
+	* mi-getopt.h (struct mi_opt): Declare.
+	(mi_getopt): Update.
+
+	* mi-main.c (mi_cmd_data_read_memory), mi-cmd-break.c
+ 	(mi_cmd_break_insert, mi_cmd_break_watch): Update.
+
+Wed Dec 29 23:38:35 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-break.c (mi_cmd_break_insert): Add support for -c
+ 	<condition>, -i <ignore-count> and -p <thread>.
+	(breakpoint_notify): New function.
+	(mi_cmd_break_insert): Wrap GDB call with callback hooks so that
+ 	MI is notified when ever a breakpoint is created.
+
+	* gdbmi.texinfo: Update.
+
+Fri Dec 24 11:23:22 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (gdb_do_disassemble): Strip out more useless #ifdef
+ 	UI_OUTs.
+
+1999-12-23  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (gdb_do_disassemble): Fix output. Lines that have no
+ 	assembly instructions must still be outputted, to keep the source
+ 	line numbering correct.
+	Remove #ifdef UI_OUT's, they are useless.
+
+1999-12-17  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (gdb_do_disassemble): Don't print a new list in mixed
+ 	mode, every time. Just do it when we actually encounter a new
+ 	source line.
+
+1999-12-17  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmd-var.c (mi_cmd_var_list_children): Add test for C++ pseudo
+	variable objects (private, public, protected) as these do not have
+        a type and the -var-list-children operation was dumping core.
+	
+Fri Dec 17 20:23:33 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbmi.texinfo: Document recommended syntax for options.
+
+	* mi-main.c (mi_cmd_data_read_memory): Add support for ``-o
+ 	<offset>''.
+	* gdbmi.texinfo: Document.
+	
+Wed Dec 15 17:43:08 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-getopt.h (mi_getopt): Change optarg to a char pointer. Check
+ 	optind.
+  	* mi-cmd-break.c (mi_cmd_break_insert): Update.
+
+	* mi-main.c (mi_cmd_data_read_memory): Add fields "next-row-addr",
+ 	"prev-row-addr", "next-page-addr", "prev-page-addr" and a per row
+ 	"addr".
+	* gdbmi.texinfo: Update.
+
+Wed Dec 15 01:05:40 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_result): Add MI_CMD_CAUGHT_ERROR for when the
+ 	error is caught.
+
+	* mi-main.c (captured_mi_execute_command): When
+ 	MI_CMD_CAUGHT_ERROR return 0 rethrowing the eror.
+
+1999-12-13  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-break.c (mi_cmd_break_insert): Remove unused var.
+
+	* mi-cmd-var.c (mi_cmd_var_update): Remove unused variables.
+
+Mon Dec 13 18:43:36 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-parse.c (mi_parse): Quote the command when printing it.
+	(mi_parse_argv): Fix handling of quoted strings. Was not
+ 	de-quoting them.
+	(mi_parse_argv): Make static.
+
+Mon Dec 13 18:30:03 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_break_insert, mi_cmd_break_watch): Change type
+ 	to mi_cmd_argv_ftype.
+	* mi-cmds.c (mi_cmds): Update.
+	* mi-cmd-break.c (mi_cmd_break_insert, mi_cmd_break_watch): Change
+ 	to new style of arguments with argc and argv.  Parse arguments
+ 	using mi_getopt.
+
+	* mi-cmd-break.c (mi_cmd_break_insert): Wrap body in #ifdef UI_OUT
+ 	to avoid non-ui compile problems.
+
+Mon Dec 13 15:08:36 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-getopt.h, mi-getopt.c: New files. Similar to getopt but with
+ 	well defined semantics.
+	
+Mon Dec 13 14:22:21 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_break_insert, mi_cmd_break_watch, enum
+ 	wp_type, enum bp_type): Move from here.
+	* mi-cmd-break.c: To here.  New file.
+	(mi_cmd_break_insert, mi_cmd_break_insert, mi_cmd_break_watch):
+ 	Use error to report problems.
+
+1999-12-09  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Update description of exec-interrupt.
+
+	* mi-main.c (mi_cmd_exec_interrupt): If the program is not
+ 	executing, don't try to interrupt it, but error out instead.  Make
+ 	sure previous_async_command is not null before duplicating it into
+ 	last_async_command.
+
+	* gdbmi.texinfo: Add examples for data-evaluate-expression.
+
+1999-12-08  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmd-var.c (mi_cmd_var_assign, mi_cmd_var_create,
+ 	mi_cmd_var_delete, mi_cmd_var_evaluate_expression,
+ 	mi_cmd_var_info_expression, mi_cmd_var_info_num_children,
+ 	mi_cmd_var_info_type, mi_cmd_var_list_children,
+ 	mi_cmd_var_set_format, mi_cmd_var_show_attributes,
+ 	mi_cmd_var_show_format, mi_cmd_var_update): Change to use new
+ 	style of arguments with argc and argv.
+	(next_arg): Delete.
+	(which_var): Delete.
+
+	* mi-cmds.c (mi_cmds): Update entries for mi_cmd_var_assign,
+ 	mi_cmd_var_create, mi_cmd_var_delete,
+ 	mi_cmd_var_evaluate_expression, mi_cmd_var_info_expression,
+ 	mi_cmd_var_info_num_children, mi_cmd_var_info_type,
+ 	mi_cmd_var_list_children, mi_cmd_var_set_format,
+ 	mi_cmd_var_show_attributes, mi_cmd_var_show_format,
+ 	mi_cmd_var_update.
+
+	* mi-cmds.h (mi_cmd_var_assign, mi_cmd_var_create,
+ 	mi_cmd_var_delete, mi_cmd_var_evaluate_expression,
+ 	mi_cmd_var_info_expression, mi_cmd_var_info_num_children,
+ 	mi_cmd_var_info_type, mi_cmd_var_list_children,
+ 	mi_cmd_var_set_format, mi_cmd_var_show_attributes,
+ 	mi_cmd_var_show_format, mi_cmd_var_update): Update declarations.
+
+1999-12-08  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Comment out -data-assign command.  * mi-main.c
+ 	(mi_cmd_data_assign): Do not use, comment out.  * mi-cmds.h
+ 	(mi_cmd_data_assign): Remove.  * mi-cmds.c: Remove -data-assign
+ 	command from MI interface.
+
+1999-12-07  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-parse.c (mi_parse): Add '\n' at end of error messages, so
+ 	that prompt comes out on new line.
+
+	* gdbmi.texinfo: Update disassembly command output.
+
+1999-12-06  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (gdb_do_disassemble): Update output for UI_OUT case.
+
+1999-12-02  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Update exec-until output, including the reason
+ 	for stopping.
+
+Thu Dec  2 17:17:22 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.c: Include <string.h> for memset.
+
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_exec_return): ifdef the references to
+ 	return_command_wrapper().
+	
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_gdb_exit, mi_cmd_exec_interrupt,
+ 	mi_cmd_target_select, mi_execute_async_cli_command,
+ 	mi_exec_async_cli_cmd_continuation, mi_load_progress): Don't print
+ 	last_async_command if it is NULL.
+	(mi_cmd_exec_return): 
+
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_exec_return): Reimplement using
+ 	return_command() instead of mi_execute_async_cli_command().
+
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.h: Export mi_cmd_data_assign and
+ 	mi_cmd_data_evaluate_expression.
+
+	* mi-cmds.c (mi_cmds): Hook data-assign to mi_cmd_data_assign and
+ 	data-evaluate-expression to mi_cmd_data_evaluate_expression.
+
+	* mi-main.c (mi_cmd_data_assign): New function. Implement
+ 	data-assign command.
+	(mi_cmd_data_evaluate_expression): New function. Implement
+ 	data-evaluate-expression command.
+
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Fix some texinfo formatting errors.
+
+1999-12-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Update data-list-register-values description.
+
+	* mi-cmds.h: Export mi_cmd_data_list_register_values.
+
+	* mi-cmds.c (mi_cmds): Hook data-list-register-values to
+ 	mi_cmd_data_list_register_values.
+
+	* mi-main.c (mi_cmd_data_list_register_values): New
+ 	function. Implements the -data-list-register-values command.
+	(get_register): New function. Output the contents of a given
+ 	register.
+
+Wed Dec  1 20:27:22 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command): Append missing "\n"
+ 	for synchronous stopped message.
+
+1999-11-30  James Ingham  <jingham@leda.cygnus.com>
+
+	* gdbmi.texinfo: Fix obvious typo in @end statement.
+
+Wed Dec  1 12:36:27 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-var.c: Include "value.h".
+	* mi-console.c: Include <string.h>.
+
+Wed Dec  1 00:21:03 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (captured_mi_execute_command): For a CLI command, pass
+ 	"%s" to mi_execute_cli_command to stop core dumps.
+	(captured_mi_execute_command): Echo CLI commands on gdb_stdlog.
+
+Wed Dec  1 00:10:07 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbmi.texinfo: Explain NR-BYTES and ADDR.
+
+Tue Nov 30 23:31:57 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmd-var.c (mi_cmd_var_create, mi_cmd_var_delete,
+ 	mi_cmd_var_set_format, mi_cmd_var_show_format,
+ 	mi_cmd_var_info_num_children, mi_cmd_var_list_children,
+ 	mi_cmd_var_info_type, mi_cmd_var_info_expression,
+ 	mi_cmd_var_show_attributes, mi_cmd_var_evaluate_expression,
+ 	mi_cmd_var_assign, mi_cmd_var_update, varobj_update_one, next_arg,
+ 	which_var): New file.  Move varobj commands to here from
+ 	mi-main.c.
+
+	* mi-console.h, mi-console.c (mi_console_file_new,
+ 	mi_console_file_delete, mi_console_file_fputs,
+ 	mi_console_raw_packet, mi_console_file_flush): New files. Move
+ 	mi_console_file to here from mi-main.c.
+
+Tue Nov 30 19:37:25 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (captured_mi_execute_command): Use fputstr_unfiltered
+ 	when printing error messages.
+	(mi_cmd_execute): Ditto.
+
+1999-11-29  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Describe -data-list-changed-registers,
+ 	-data-list-register-names. Add examples for
+ 	-exec-next-instruction, exec-step-instruction, -exec-run,
+ 	-exec-until.  Format examples for -data-read-memory.
+	update example for -target-download.
+	
+1999-11-29  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Remove mentioning of inaccurate watchpoint hit
+ 	count.
+	
+Mon Nov 29 19:28:55 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command): Return ``enum
+ 	mi_cmd_cmd_result''.  mi_cmd_exec_run, mi_cmd_exec_next,
+ 	mi_cmd_exec_step, mi_cmd_exec_step_instruction,
+ 	mi_cmd_exec_finish, mi_cmd_exec_until, mi_cmd_exec_return,
+ 	mi_cmd_exec_continue): Update call.
+	(mi_execute_async_cli_command): When target is synchronous, fake
+ 	asynchronous behavour (ulgh).  Allows tests to be run on built-in
+ 	simulator and native targets.
+
+Mon Nov 29 15:15:16 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_gdb_exit), mi-cmds.c (mi_cmds), mi-main.c
+ 	(mi_cmd_gdb_exit): Change function signature to mi_cmd_argv_ftype.
+
+1999-11-28  Andew Cagney  <cagney@rat-in-a-hat.cygnus.com>
+
+	* mi-parse.c: Include <ctype.h> and <string.h>
+
+1999-11-26  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* gdbmi.texinfo: Added watchpoint command descriptions and
+ 	examples.
+
+	* mi-main.c (mi_load_progress): Add parameter for total sent so far.
+	Print it as well.
+	
+Fri Nov 26 10:17:49 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbmi.texinfo (section Output Syntax): For lists, the <string>
+ 	part of a <result> is optional.  Clarify syntax.
+	(appendix Proposed v2.0 Output Syntax): New section. Provide
+ 	record of discussion of possible changes to syntax.
+
+Wed Nov 24 19:41:35 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_data_read_memory): Simplify.  Fix coredump
+ 	when arguments were bad.
+	(mi_cmd_execute): Change parameter to ``struct mi_parse''.  Handle
+ 	case of argv_func as well as args_func.
+	(captured_mi_execute_command): Update.
+
+	* mi-cmds.c (struct mi_cmd): Add field for mi_cmd_argv_ftype.
+	(mi_cmds): Update mi_cmd_data_read_memory.
+	(mi_lookup): Return 
+
+	* mi-cmds.h (mi_cmd_args_ftype): Rename mi_cmd_ftype. Make all
+ 	functions of type this type.
+	(mi_cmd_argv_ftype): Declare.
+	(mi_cmd_data_read_memory): Change type to mi_cmd_argv_fytpe.
+	(struct mi_cmd): Move declaration to here from mi-cmds.c.
+	(mi_lookup): Return a pointer to ``struct mi_cmd''.
+	
+Wed Nov 24 15:03:34 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-parse.c (mi_parse): Initialize TOKEN when a CLI command.
+
+	* gdbmi.texinfo: Allow a <token> before a CLI command.
+
+	* mi-parse.h (struct mi_parse): Declare.
+	(mi_parse): Change to return a ``struct mi_parse''.
+	(enum mi_command_type): Delete PARSE_ERROR.
+
+	* mi-main.c (struct mi_execute_command_context): Delete.
+	(captured_mi_execute_command): Update
+	(mi_execute_command): Update.  Check for mi_parse returning NULL.
+
+Wed Nov 24 12:57:14 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-parse.h: Remove const, from cmd parameter.  Causes cascading
+ 	warnings.
+
+Wed Nov 24 15:03:34 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-parse.c (mi_parse): New function.  Move parse code to here.
+	* mi-main.c (parse): From here. Delete.
+
+Wed Nov 24 12:57:14 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-parse.c, mi-parse.h: New files. Implement mi_parse_env.
+
+Wed Nov 24 11:24:05 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-out.c (mi_field_string): Make string parameter constant.
+
+1999-11-23  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_target_download): Export. 
+
+	* mi-cmds.c (mi_cmds): Add mi_cmd_target_download.
+
+	* mi-main.c: Include <sys/time.h>.
+	(mi_cmd_target_download): New function, implement the
+ 	target-download command.
+	(mi_load_progress): New function. Called via the
+ 	show_load_progress hook. Prints updates every 0.5 secs.
+	(mi_command_loop): Initialize the show_load_progress hook.
+
+1999-11-22  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_exec_until): New function. Implement until
+ 	command.
+	(mi_cmd_exec_step_instruction): New function. Implement stepi
+ 	command.
+	(mi_cmd_exec_next_instruction): New function. Implement nexti
+ 	command.
+	
+	* mi-cmds.c (mi_cmds): Add mi_cmd_exec_step_instruction,
+ 	mi_cmd_exec_next_instruction, mi_cmd_exec_until.
+
+	* mi-cmds.h (mi_cmd_exec_step_instruction,
+ 	mi_cmd_exec_next_instruction, mi_cmd_exec_until): Export.
+	
+Tue Nov 23 00:30:37 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi/gdbmi.texinfo: Document -data-read-memory.
+	
+	* mi-main.c (mi_cmd_data_read_memory): Fix off-by-one check of
+ 	argc.
+	(mi_cmd_data_read_memory): Label the output table with "memory".
+
+Thu Nov 18 18:15:53 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_exec_interrupt, mi_cmd_break_insert,
+ 	mi_cmd_break_watch, mi_cmd_disassemble, mi_cmd_execute): Replace
+ 	strdup with xstrdup.
+
+Thu Nov 18 20:50:09 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_data_read_memory): New function.  Implement
+ 	data-read-memory.
+
+	* mi-cmds.h, mi-cmds.c: Add mi_cmd_data_read_memory.
+	* mi-cmds.c (mi_cmds): Ditto.
+
+1999-11-11  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_break_watch): Export.
+
+	* mi-cmds.c (mi_cmds): Hook up break-watch to function
+ 	mi_cmd_break_watch.
+
+	* mi-main.c (wp_type): New enumeration for the possible types of
+ 	watchpoints.
+	(mi_cmd_break_watch): New function, implements the break-watch
+ 	command.
+
+1999-11-11  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_break_insert): Handle case in which the command is
+	just a -break-insert w/o args.
+
+Fri Nov 12 00:01:52 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-out.c (mi_field_string): Always quote the string.
+
+1999-11-10  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.h(mi_cmd_data_list_changed_registers,
+ 	mi_cmd_data_list_register_names): Export.
+
+	* mi-cmds.c (mi_cmds): Hook up data-list-changed-registers to
+ 	mi_cmd_data_list_changed_registers and data-list-register-names to
+ 	mi_cmd_data_list_register_names.
+
+	* mi-main.c (mi_cmd_data_list_changed_registers): New function,
+ 	implements the data-list-changed-registers command.
+	(mi_cmd_data_list_register_names): New function, implements the
+ 	data-list-register-names command.
+	(register_changed_p): New function. Decide whether the register
+ 	contents have changed.
+	(setup_architecture_data): New function. Initialize registers
+ 	memory.
+	(_initialize_mi_main): Call setup_architecture_data(), and
+ 	register_gdbarch_swap().
+
+Wed Nov 10 18:35:08 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_command): Correctly quote error messages.
+
+Wed Nov 10 11:05:14 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi/gdbmi.texinfo: Delete <stream-output>.  Replaced by
+ 	<c-string>.
+
+	* mi-main.c (mi_console_raw_packet): Always quote console output.
+
+Tue Nov  9 17:53:05 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_console_file_new), mi-out.c (mi_out_new): Replace
+ 	the tui_file with a mem_file. Ya!
+	
+	* mi-out.c (do_write): New function, wrapper to gdb_file_write.
+	(mi_out_put): Pass do_write to gdb_file_put.
+
+	* mi-main.c (mi_console_file_flush): Rewrite.  Use
+ 	mi_console_raw_packet to send data to the console.
+	(mi_console_raw_packet): New function. Correctly
+ 	create quoted C string packets.
+
+1999-11-08  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Break-insert is now implemented by
+ 	mi_cmd_break_insert.
+	* mi-cmds.h (mi_cmd_break_insert): Export. 
+	* mi-main.c (bp_type): New enumeration.
+	(mi_cmd_break_insert): New function. Implements all flavors of
+ 	breakpoint insertion.
+
+Mon Nov  8 17:49:17 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_console_file_flush): Replace gdb_file_get_strbuf
+ 	with tui_file_get_strbuf.
+
+Fri Nov  5 17:06:07 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_console_file_delete, mi_console_file_fputs,
+ 	mi_console_file_flush): Call internal_error instead of error.
+
+Thu Nov  4 19:53:32 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (captured_mi_execute_command): New function.
+	(mi_execute_command): Rewrite.  Replace SET_TOP_LEVEL() with call
+ 	to captured_mi_execute_command via catch_errors.
+
+Thu Nov  4 20:33:58 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (clean): Delete.
+	(mi_command_loop): Delete extern declaration of
+ 	mi_execute_command.
+
+1999-10-28  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_stack_select_frame): Conditionalize the body
+ 	on UI_OUT, because select_frame_command_wrapper is only defined if
+ 	UI_OUT is.
+	(mi_cmd_exec_interrupt): Conditionalize the body on UI_OUT,
+ 	because interrupt_target_command_wrapper is only defined if UI_OUT is.
+
+	* mi-cmds.c (mi_cmds): Implement command exec-interrupt by
+ 	mi_cmd_exec_interrupt.  
+
+	* mi-main.c (mi_cmd_exec_interrupt): New function. Implements
+ 	exec-interrupt command.
+	(mi_cmd_execute): If the target is running save execution command
+ 	token in previous_async_command. If the command is not 'interrupt' 
+	and the target is running, reject it.
+	(clean): New function. Free the arg and reset it to NULL.
+
+	* mi-cmds.h (mi_cmd_exec_interrupt):Export.
+
+1999-10-28  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Implement command stack-select-frame by
+ 	mi_cmd_stack_select_frame.  
+
+	* mi-main.c (mi_cmd_stack_select_frame): New function. Implements
+ 	stack-select-frame command.
+
+	* mi-cmds.h (mi_cmd_select_frame):Export.
+
+1999-10-26  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Implement commands stack-list-locals and
+ 	stack-list-arguments by mi_cmd_stack_list_locals and
+ 	mi_cmd_stack_list_args.
+
+	* mi-main.c (mi_cmd_stack_list_locals): New function. Implements
+ 	stack-list-locals command.
+	(mi_cmd_stack_list_args): New function. Implements
+ 	stack-list-arguments command.
+	(list_args_or_locals): New function. Do all the work for the
+	listing of locals or arguments.
+
+	* mi-cmds.h (mi_cmd_stack_list_args,mi_cmd_stack_list_locals) :
+ 	Export.
+
+1999-10-25  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Add new command stack-info-depth.
+
+	* mi-main.c (mi_cmd_stack_info_depth): New function. Implements
+ 	the stack-info-depth command.
+	* mi-cmds.h (mi_cmd_stack_info_depth): Export.
+
+
+1999-10-22  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_execute_command): Handle MI_CMD_ERROR case
+ 	properly, for command that return error code and don't set
+ 	mi_error_message.
+
+	* mi-cmds.c (mi_cmds): Hook stack-list-frames command to
+ 	mi_cmd_stack_list_frames function.
+	* mi-cmds.h (mi_cmd_stack_list_frames): Export.
+	
+	* mi-main.c (mi_execute_command): Deal with a return code of
+ 	MI_CMD_ERROR from the execution of mi commands.
+	(mi_error_message): Static string variable, to contain the error
+ 	message from mi commands.
+	(mi_cmd_stack_list_frames): New function. Prints a backtrace.
+
+1999-10-18  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_disassemble): Handle the new command line
+ 	parameter that specifies the number of disassembly lines to be
+ 	displayed.
+	(gdb_do_disassemble): Add new parameter. Count the number of lines
+ 	that have been displayed, and stop when limit is reached.
+
+Wed Oct 13 18:04:13 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_command_loop): Don't initialize ``flush_hook''.
+
+1999-10-13  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi/gdbmi.texinfo: More reformatting of the grammars.
+
+1999-10-12  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi/gdbmi.texinfo: More TeX formatting.
+
+1999-10-11  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi/gdbmi.texinfo: First pass completed. All commands should have
+	some comments/info.
+	Escape '@' output special char.
+	Reformat for TeX.
+
+1999-10-08  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi/gdbmi.texinfo: Filled in part of file command section, and
+ 	stack section.
+
+1999-10-07  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi/gdbmi.texinfo: Filled in some sections about execution
+ 	commands.
+
+Tue Oct  5 15:27:28 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h: Sort table
+	* mi-cmds.c: Ditto.
+	(MI_TABLE_SIZE): Increase to 251.
+
+1999-10-04  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_var_create, mi_cmd_var_delete): Add missing
+	cleanups.
+	
+1999-10-04  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (next_arg): Returns lenght as well.
+	(which_var, mi_cmd_var_create, mi_cmd_var_delete,
+	mi_cmd_var_set_format, mi_cmd_var_update): Do not modify the input
+	string, use allocated storage instead.
+	(mi_cmd_var_assign): Adjust call to next_arg() to include new
+	argument.
+
+1999-10-04  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_execute_command): Fix handling of errors.
+
+1999-10-04  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c (mi_out_new): Call tui_sfileopen() instead of
+        deprecated gdb_file_init_astream().
+	* mi-main.c (mi_console_file_new): Ditto.
+
+Mon Oct  4 15:17:29 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h: Sort function declarations.
+ 	(mi_lookup): Add extern.
+
+	* mi-cmds.c (mi_lookup): Delete dead code.
+	(build_table): Call  internal_error instead of error.
+	(build_table): Send trace output to gdb_stdlog.
+
+1999-10-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command): Don't do the cleanups
+ 	if target_executing is null.
+
+1999-09-28  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (async_p): Change var name to event_loop_p.
+
+Mon Sep 27 15:11:00 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command, mi_execute_command):
+ 	Replace target_has_async with function target_can_async_p.
+
+Sun Sep 26 00:12:52 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_target_select_continuation): Delete function.
+	(mi_cmd_target_select): Simplify.  target-connect is guarenteed to
+ 	be synchronous.
+
+Sun Sep 26 00:12:52 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h (mi_cmd_ftype): Replace mi_impl_ftype.
+	(enum mi_cmd_result): Define.
+	* mi-cmds.c (struct mi_cmd): Update.
+	(mi_lookup): Update.
+	* mi-main.c (mi_cmd_execute): Update.
+
+	* mi-main.c (mi_cmd_gdb_exit, mi_cmd_exec_run, mi_cmd_exec_next,
+ 	mi_cmd_exec_step, mi_cmd_target_select, mi_cmd_exec_continue,
+ 	mi_cmd_exec_return, mi_cmd_exec_finish, mi_cmd_disassemble,
+ 	mi_cmd_var_create, mi_cmd_var_delete, mi_cmd_var_set_format,
+ 	mi_cmd_var_show_format, mi_cmd_var_info_num_children,
+ 	mi_cmd_var_list_children, mi_cmd_var_info_type,
+ 	mi_cmd_var_info_expression, mi_cmd_var_show_attributes,
+ 	mi_cmd_var_evaluate_expression, mi_cmd_var_update): Update.
+  	Return MI_CMD_DONE.
+
+1999-09-22  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_var_create): Use paddr() to format address
+	on trace output.
+
+1999-09-21  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_var_create): Test for varobjdebug before
+	printing trace and send it to gdb_stdlog.
+
+Mon Sep 20 13:41:04 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* Makefile.in (mi-out.o): Add dependency list.
+	* mi-out.c: Include "mi-out.h".
+
+1999-09-18  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (_initialize_mi_main): Events on stadin are now
+ 	handled by stdin_event_handler.
+
+1999-09-17  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Add var-* commands.
+
+1999-09-17  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_var_create, mi_cmd_var_delete,
+	mi_cmd_var_set_format, mi_cmd_var_show_format,
+	mi_cmd_var_info_num_children, mi_cmd_var_list_children,
+	mi_cmd_var_info_type, mi_cmd_var_info_expression,
+	mi_cmd_var_show_attributes, mi_cmd_var_evaluate_expression,
+	mi_cmd_var_assign, mi_cmd_var_update, varobj_update_one,
+	which_var, next_arg): New functions.  Implement the -var-*
+	commands.
+	* mi-cmds.h: Add prototypes for the above.
+
+1999-09-14  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Add detach command.
+
+1999-09-09  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (lookup_table): Fix typo.
+
+1999-09-09  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (mi_cmds): Fix typo and missing command.
+
+1999-09-09  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c: Properly align function prototypes.
+	(mi_cmd_target_select): Proper check for NULL value.
+
+1999-09-09  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_execute_async_cli_command): Fix for native targets
+	that do not have async yet.
+
+1999-09-01  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_disassemble): Remove unused var.
+	(gdb_do_disassemble): Ditto.
+
+1999-08-30  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c: Replace all the occurrences of 'asynch' in variable
+ 	or function names with 'async' to make it consistent with the rest
+ 	of gdb.
+
+Mon Aug 30 18:16:39 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c: #include <ctype.h> for isspace().
+
+1999-08-27  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (gdb_do_disassemble): This function returns void, not
+ 	int.
+
+1999-08-26  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_disassemble): Don't use atoi() on the high
+ 	address string, just treat it same as address low.
+	(gdb_do_disassemble): Parse high_address string before seeing if
+ 	it is zero.
+
+1999-08-25  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_disassemble): New function to produce
+ 	disassembly output for mi.
+	(gdb_dis_asm_read_memory): New function. Read the disassembly from
+ 	the executable file, instead of target memory.
+	(compare_lines): New function. Compare order of disassembly lines.
+	(gdb_do_disassemble): New function. Do the real job of getting the
+ 	assembly code out.
+
+	* mi-cmds.c (mi_cmds): Do data-disassemble mi command via the
+ 	mi_cmd_disassemble function.
+
+	* mi-cmds.h: Export new function mi_cmd_disassemble.
+
+Wed Aug 25 15:58:31 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_command_loop): Remove references to ui-hooks.
+
+1999-08-21  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_execute_asynch_cli_command): Fix the incorrect
+	usage of strcat(): allocate enough space for the string.
+
+1999-08-13  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	From Christopher Faylor <cgf@cygnus.com>
+	* mi-main.c (mi_execute_command): Make sure we flush all the
+ 	output after each command.
+
+1999-08-10  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (_initialize_mi_main): Remove casting in call to
+ 	add_file_handler.
+
+Sun Aug  8 17:20:57 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_cmd_target_select, mi_execute_asynch_cli_command):
+ 	Replace call to fatal with call to internal_error.
+
+1999-07-26  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_execute): Add return code.
+	(mi_execute_command): Make appropriate changes when calling the
+	function mentioned above.
+	(mi_cmd_gdb_exit, mi_cmd_target_select,
+	mi_cmd_target_select_continuation, mi_execute_command,
+	mi_exec_asynch_cli_cmd, mi_exec_asynch_cli_cmd_continuation):
+	Print token, prefix, class and output (if any) in one single group
+	of statements.
+	(mi_execute_command, mi_cmd_execute): Fix error prefix.
+	(mi_cmd_execute): Use exec cleanup for token.
+	* mi-out.c (mi_out_rewind): New function.
+	* mi-out.h: Prototype for the above.
+
+1999-07-16  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_gdb_exit): Use buffer for exit message.
+	(mi_cmd_execute): Route error messages to correct file.
+	(mi_execute_asynch_cli_command): Insert line feed after running
+	message.
+
+1999-07-16  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.h (mi_out_buffered): Add extern declaration.
+	* mi-out.c (mi_out_buffered): New function. Insert a string at the
+	current buffer position.
+	* mi-main.c (mi_cmd_target_select, mi_execute_command,
+	mi_cmd_execute, mi_execute_asynch_cli_command): Use the above
+	function instead of printing to raw_stdout.
+	(mi_cmd_target_select, mi_cmd_target_select_continuation,
+	mi_execute_command, mi_cmd_execute, mi_execute_cli_command,
+	mi_exec_asynch_cli_cmd_continuation): Fix handling of token and
+	prefix.
+	(mi_execute_cli_command): Remove parameter no longer needed.
+
+1999-07-15  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c (mi_cmd_target_select_continuation): Print the numeric
+ 	token when we are connected.
+	(mi_execute_command): Don't print the token now, do it later.
+	(mi_execute_cli_command): Add a new parameter for the numeric
+ 	token.  Print the token, the prefix and the class after the
+ 	command has executed, not before.
+	(mi_execute_asynch_cli_command): Don't print an extra blank line.
+
+1999-07-15  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_gdb_exit): Add \n at the end.
+
+1999-07-15  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_cmd_execute): New function. Dispatch a mi operation.
+	(mi_execute_command): Use the above.
+
+1999-07-15  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c: Fix identation.
+
+1999-07-15  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* mi-main.c: Include target.h and inferior.h.
+	(mi_cmd_target_select): New function to execute the target-select
+ 	mi operation.
+	(mi_cmd_target_select_continuation): New function. Continuation
+ 	for the target-select operation.
+	(mi_execute_command): In case of an MI command which requires
+ 	asynchronous execution, do not try to display the result now. If
+ 	the execution has to look synchronous don't display the "(gdb)"
+ 	prompt.
+	(mi_execute_asynch_cli_command): Invoke real asynchronous
+ 	commands, set up exec_cleanups, and continuations.
+	(mi_exec_asynch_cli_cmd_continuation): New function. Continuation
+ 	for all the MI execution commands except 'target-select'.
+	(mi_execute_command): Handle null commands by exiting gdb, instead
+ 	of core dumping.
+
+	* mi-cmds.c (mi_cmds): Hook up -target-select operation to new mi
+ 	function.
+
+	* mi-cmds.h (mi_cmd_target_select): Add extern declaration.
+
+Thu Jul 15 10:31:39 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (struct mi_console_file): Add field ``prefix''.
+	(mi_console_file_new): Add argument prefix.  Initialize prefix
+ 	field.
+	(mi_console_file_flush): Use ``prefix'' instead of "~" as the
+ 	prefix string.
+	(mi_command_loop): Update stream output prefixes. gdb_stdout ==
+ 	"~", gdb_stderr / gdb_stdlog == "&", gdb_stdtarg == "@".
+
+1999-07-13  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (ui_out_data): New field first_header. Fix output when
+	no breakpoints are found.
+	(mi_table_begin, mi_table_body, mi_table_header): Test for
+	first_header.
+	(mi_table_end): Test for supress_field_separator.
+	(mi_message): Remove messages from MI output.
+
+1999-06-30  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (mi_cmds[]): Delete gdb-cli operation.
+	* mi-main.c (parse): Remove ifdefs for cli commands parsing.
+	(mi-execute-command): Ditto.
+
+Mon Jun 28 13:06:52 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-out.h: New file.
+	(mi_out_new, mi_out_put): Move mi specific delcarations to here.
+	* ui-out.h: From here.
+
+	* mi-main.c: Include "mi-out.h".
+
+1999-06-25  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* top.c (print_gdb_version): Add the word HEADLESS when output
+	follows headless format.
+	(print_command_lines): Fix typo.
+
+1999-06-25  Elena Zannoni  <ezannoni@kwikemart.cygnus.com>
+
+	* event-loop.h: Export input_fd.  
+	* mi-main.c (mi_command_loop): Use the event loop if running
+ 	asynchronously.
+	(mi_execute_command_wrapper): New function.
+	(_initialize_mi-main): Set things up for running asynchronously.
+
+1999-06-18  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+        * mi-cmds.c (mi_lookup): Deleted.
+        (lookup_table): New function. Replaces old mi_lookup() for local
+        use.
+        (mi_lookup): New function. External interface for command table
+        searchs.
+        (build_table): New definition.
+        (mi_cmds[]): Add several command implementations and the gdb-cli
+        special operation.
+        (mi_cmd_execute): Deleted.
+        * mi-cmds.h: Add type definition for command implementation
+        function pointers, add declaration for new implementation
+        functions and a declaration for mi_lookup().
+        * mi-main.c (mi_execute_asynch_cli_command): New
+        function. Captures code that was repeated for all asynch
+        operations.
+        (mi_cmd_exec_*): Use the above new function.
+        (mi_gdb_cmd_exit): Fix the output, printing something appropriate.
+        (mi_cmd_exec_finish): New operation implementation function.
+        (mi_cmd_exec_return): Ditto.
+        (parse): Prepare to remove cli commands.
+        (mi_execute_command): Fix the output and change the way mi-cmds is
+        used.
+
+1999-06-18  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+        * mi-out.c (mi_table_begin): Add missing field separator call.
+
+Thu Jun 17 21:05:40 1999  Fernando Nasser  <fnasser@tofu.to.cygnus.com>
+
+	* breakpoint.c (breakpoint_1): Remove space in breakpoint table
+	id.
+	(mention): Use ui_out for last new line (forgotten).
+
+1999-06-16  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c (mi_console_file_flush): Prevent prefix printing when
+	buffer empty; change prefix to '~'.
+	(mi_cmd_exec_*): Prefix normal output with '^' instead of
+	','; remove unwanted new lines before "stopped".
+
+1999-06-16  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-cmds.c (struct mi_cmds): Updated entries for -exec-continue
+	and exec-next operations.
+	(mi_cmd_execute): New text for error messages.
+	* mi-cmds.h: Add declaration for mi_cmd_exec_next and
+	mi_cmd_exec_continue.
+	* mi-main.c (mi_cmd_exec_next): New function. Implements exec-next
+	operation.
+	(mi_cmd_exec_continue): New function. Implements exec-continue
+	operation.
+	(mi_execute_comand): Add missing space to prompt.
+	(mi_cmd_exec_run): Ditto.
+	(mi_cmd_exec_step): Ditto.
+	* mi-out.c (mi_out_new): Add flags argument to ui_out_new call.
+	(ui_list_end): Reset supress_field_separator flag.
+
+Sat Jun 12 11:49:10 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h. mi-cmds.c (exec step): Command implemented by
+ 	mi_cmd_exec_step instead of cli call.
+	* mi-main.c (mi_cmd_exec_step): New function.
+
+	* mi-cmds.h. mi-cmds.c (exec run): Command implemented by
+ 	mi_cmd_exec_run instead of cli call.
+	* mi-main.c (mi_cmd_exec_run): New function.
+
+	* mi-cmds.h. mi-cmds.c (gdb exit): Command implemented by
+ 	mi_cmd_gdb_exit instead of quit_force.
+	* mi-main.c (mi_cmd_gdb_exit): New function.
+
+Sat Jun 12 11:33:23 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_command_loop): Pass mi_input to
+ 	simplified_command_loop.
+	(mi_input): New function.  Calls gdb_readline with no prompt.
+
+Sat Jun 12 11:19:02 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_console_file_fputs): Re-implement.  Use a buffer
+ 	to accumulate output.
+
+	* mi-main.c (struct mi_console_file): Add a buffer.
+	(mi_console_file_new): Create a buffer.
+	(mi_console_file_flush): New function.
+
+Sat Jun 12 10:59:39 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-cmds.h (raw_stdout): Declare.  Will be moved later.
+	* mi-cmds.c (mi_cmd_execute): Send error messages to RAW stdout.
+	(mi_cmds): Sort by class.
+
+	* mi-main.c (raw_stdout): Make global.
+	* mi-main.c: Remove #ifdef UI_OUT.  File assumes UI_OUT is
+ 	present.
+	* mi-main.c: Include "gdb_string.h".
+	(mi_out_put): Delete declaration.
+
+1999-06-11  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-main.c: Add pre-processor test for UI_OUT.
+	(mi_execute_command): Add pre-processor test for UI_OUT.
+
+Fri Jun 11 23:11:41 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (raw_stdout): New variable.
+	(mi_execute_command): Write mi-out direct to raw_stdout.
+	(mi_command_loop): Create raw_stdout. Attach gdb_stdout to the
+ 	console.
+	(mi_console_file_fputs, mi_console_file_delete,
+ 	mi_console_file_new): New functions.
+	(struct mi_console_file): Declare.
+
+Fri Jun 11 18:34:33 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c (mi_execute_command): Call mi_out_put to display the
+ 	result.
+	* mi-out.c (mi_out_put): New function.
+	* ui-out.h (mi_out_put): Add declare.  Will move later.
+	* Makefile.in (mi-cmds.o, mi-main.o): Add dependency on ui-out.h.
+
+	* mi-out.c (mi_field_string, mi_field_fmt, mi_message, mi_flush,
+ 	out_field_fmt, list_open, list_close): Replace gdb_stdout with
+ 	data->buffer.
+	(field_separator, list_open, list_close): Add uiout parameter.
+	(mi_table_begin, mi_table_body, mi_table_end, mi_list_begin,
+ 	mi_list_end, mi_field_string, mi_field_fmt, out_field_fmt,
+ 	out_field_fmt): Update.
+
+	* mi-out.c (mi_out_new): Initialize supress_field_separator.
+	(supress_field_separator): Move into mi-out local data object.
+	(mi_table_begin, mi_list_begin, field_separator): Update.
+
+Fri Jun 11 16:08:37 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-out.c (mi_out_new): New function, replace init_mi_out.
+	* mi-main.c (mi_command_loop): Call mi_out_new().
+
+	* ui-out.h (mi_out_new): Add declaration.  Will move later.
+	(mi_ui_out_impl): Delete.
+
+Wed Jun  9 16:42:16 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* mi-main.c: Include "ui-hooks.h".
+ 	(mi_init_ui, mi_command_loop): New functions.
+	(_initialize_mi_main): Install ``mi'' as the interpreter when
+ 	selected.
+
+Mon Jun  7 18:43:43 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	From Fernando Nasser  <fnasser@totem.to.cygnus.com>
+	* mi-cmds.c (build_table): Clean up error message.
+	* mi-cmds.c (mi_cmd_execute), mi-main.c (mi_execute_command): Only
+ 	print debug information when mi_debug_p.
+	* mi-cmds.h (mi_debug_p), mi-main.c: Global, control debug messages.
+	
+Thu Jun  3 00:44:52 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+  	From Fernando Nasser  <fnasser@totem.to.cygnus.com>:
+	* mi-cmds.c: Add CLI definitions for "exec-arguments",
+ 	"exec-next", "gdb-exit", "break-list", "break-info", "exec-step"
+ 	and "stack-list-frames" to mi_cmds.
+	(struct mi_command): Add ``from_tty'' argument to func.
+	* mi-cmds.h (quit_force): Declare.
+
+1999-05-31  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c (mi_table_end): Remove unwanted "\n".
+
+Thu May 27 14:59:06 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* top.c: Include "ui-hooks.h".
+	(call_interp_loop): Tempoary.  Pass mi_execute_command to
+ 	simplified_command_loop.  Initialize gdb_stdout & gdb_stderr to
+ 	stdio gdb_file streams.  Force all hooks to null.
+
+	* mi-cmds.h, mi-main.c, mi-cmds.c: New files.
+	* Makefile.in (SFILES): Add mi-main.c, mi-cmds.c
+	(COMMON_OBS): Add mi-main.o, mi-cmds.o.
+	(mi_cmds_h): Define.
+
+Wed May 26 12:39:49 1999  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* top.c (call_interp_loop): Hack.  Add extern declaration for
+ 	mi_ui_out_impl.
+
+1999-05-25  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c: New table syntax.
+
+Mon May 24 16:16:29 1999  Andrew Cagney  <cagney@amy.cygnus.com>
+
+	mi-out.c (_initialize_mi_out): Add external declaration.
+
+1999-05-21  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c (mi_table_begin): Added missing parameter.
+
+1999-05-21  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c: Changed table markers and added table id.
+
+1999-05-21  Fernando Nasser  <fnasser@totem.to.cygnus.com>
+
+	* mi-out.c: New file. Implements low-level ui-out primitives for
+	CLI-based interaction.
+
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

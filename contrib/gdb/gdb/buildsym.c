@@ -1,21 +1,23 @@
 /* Support routines for building symbol tables in GDB's internal format.
-   Copyright 1986-1999 Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+   1996, 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* This module provides subroutines used for creating and adding to
    the symbol table.  These routines are called from various symbol-
@@ -33,9 +35,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbtypes.h"
 #include "complaints.h"
 #include "gdb_string.h"
-
+#include "expression.h"		/* For "enum exp_opcode" used by... */
+#include "language.h"		/* For "longest_local_hex_string_custom" */
+#include "bcache.h"
+#include "filenames.h"		/* For DOSish file names */
 /* Ask buildsym.h to define the vars it normally declares `extern'.  */
-#define	EXTERN			/**/
+#define	EXTERN
+/**/
 #include "buildsym.h"		/* Our own declarations */
 #undef	EXTERN
 
@@ -79,10 +85,24 @@ struct complaint innerblock_anon_complaint =
 {"inner block (0x%lx-0x%lx) not inside outer block (0x%lx-0x%lx)", 0, 0};
 
 struct complaint blockvector_complaint =
-{"block at 0x%lx out of order", 0, 0};
+{"block at %s out of order", 0, 0};
 
 /* maintain the lists of symbols and blocks */
 
+/* Add a pending list to free_pendings. */
+void
+add_free_pendings (struct pending *list)
+{
+  register struct pending *link = list;
+
+  if (list)
+    {
+      while (link->next) link = link->next;
+      link->next = free_pendings;
+      free_pendings = list;
+    }
+}
+      
 /* Add a symbol to one of the lists of symbols.  */
 
 void
@@ -146,14 +166,14 @@ find_symbol_in_list (struct pending *list, char *name, int length)
 
 /* ARGSUSED */
 void
-really_free_pendings (int foo)
+really_free_pendings (PTR dummy)
 {
   struct pending *next, *next1;
 
   for (next = free_pendings; next; next = next1)
     {
       next1 = next->next;
-      free ((void *) next);
+      xfree ((void *) next);
     }
   free_pendings = NULL;
 
@@ -162,14 +182,14 @@ really_free_pendings (int foo)
   for (next = file_symbols; next != NULL; next = next1)
     {
       next1 = next->next;
-      free ((void *) next);
+      xfree ((void *) next);
     }
   file_symbols = NULL;
 
   for (next = global_symbols; next != NULL; next = next1)
     {
       next1 = next->next;
-      free ((void *) next);
+      xfree ((void *) next);
     }
   global_symbols = NULL;
 }
@@ -187,7 +207,7 @@ free_pending_blocks (void)
   for (bnext = pending_blocks; bnext; bnext = bnext1)
     {
       bnext1 = bnext->next;
-      free ((void *) bnext);
+      xfree ((void *) bnext);
     }
 #endif
   pending_blocks = NULL;
@@ -220,7 +240,7 @@ finish_block (struct symbol *symbol, struct pending **listhead,
     }
 
   block = (struct block *) obstack_alloc (&objfile->symbol_obstack,
-    (sizeof (struct block) + ((i - 1) * sizeof (struct symbol *))));
+	    (sizeof (struct block) + ((i - 1) * sizeof (struct symbol *))));
 
   /* Copy the symbols into the block.  */
 
@@ -255,9 +275,8 @@ finish_block (struct symbol *symbol, struct pending **listhead,
 	     parameter symbols. */
 	  int nparams = 0, iparams;
 	  struct symbol *sym;
-	  for (i = 0; i < BLOCK_NSYMS (block); i++)
+	  ALL_BLOCK_SYMBOLS (block, i, sym)
 	    {
-	      sym = BLOCK_SYM (block, i);
 	      switch (SYMBOL_CLASS (sym))
 		{
 		case LOC_ARG:
@@ -303,6 +322,7 @@ finish_block (struct symbol *symbol, struct pending **listhead,
 		    case LOC_BASEREG_ARG:
 		    case LOC_LOCAL_ARG:
 		      TYPE_FIELD_TYPE (ftype, iparams) = SYMBOL_TYPE (sym);
+		      TYPE_FIELD_ARTIFICIAL (ftype, iparams) = 0;
 		      iparams++;
 		      break;
 		    case LOC_UNDEF:
@@ -382,7 +402,7 @@ finish_block (struct symbol *symbol, struct pending **listhead,
 	      else
 		{
 		  complain (&innerblock_anon_complaint, BLOCK_START (pblock->block),
-		     BLOCK_END (pblock->block), BLOCK_START (block),
+			    BLOCK_END (pblock->block), BLOCK_START (block),
 			    BLOCK_END (block));
 		}
 	      if (BLOCK_START (pblock->block) < BLOCK_START (block))
@@ -468,7 +488,7 @@ make_blockvector (struct objfile *objfile)
   for (next = pending_blocks; next; next = next1)
     {
       next1 = next->next;
-      free (next);
+      xfree (next);
     }
 #endif
   pending_blocks = NULL;
@@ -485,17 +505,11 @@ make_blockvector (struct objfile *objfile)
 	  if (BLOCK_START (BLOCKVECTOR_BLOCK (blockvector, i - 1))
 	      > BLOCK_START (BLOCKVECTOR_BLOCK (blockvector, i)))
 	    {
-
-	      /* FIXME-32x64: loses if CORE_ADDR doesn't fit in a
-	         long.  Possible solutions include a version of
-	         complain which takes a callback, a
-	         sprintf_address_numeric to match
-	         print_address_numeric, or a way to set up a GDB_FILE
-	         which causes sprintf rather than fprintf to be
-	         called.  */
+	      CORE_ADDR start
+		= BLOCK_START (BLOCKVECTOR_BLOCK (blockvector, i));
 
 	      complain (&blockvector_complaint,
-			(unsigned long) BLOCK_START (BLOCKVECTOR_BLOCK (blockvector, i)));
+			longest_local_hex_string ((LONGEST) start));
 	    }
 	}
     }
@@ -519,7 +533,7 @@ start_subfile (char *name, char *dirname)
 
   for (subfile = subfiles; subfile; subfile = subfile->next)
     {
-      if (STREQ (subfile->name, name))
+      if (FILENAME_CMP (subfile->name, name) == 0)
 	{
 	  current_subfile = subfile;
 	  return;
@@ -531,6 +545,7 @@ start_subfile (char *name, char *dirname)
      source file.  */
 
   subfile = (struct subfile *) xmalloc (sizeof (struct subfile));
+  memset ((char *) subfile, 0, sizeof (struct subfile));
   subfile->next = subfiles;
   subfiles = subfile;
   current_subfile = subfile;
@@ -569,7 +584,7 @@ start_subfile (char *name, char *dirname)
      program.  But to demangle we need to set the language to C++.  We
      can distinguish cfront code by the fact that it has #line
      directives which specify a file name ending in .C.
-  
+
      So if the filename of this subfile ends in .C, then change the
      language of any pending subfiles from C to C++.  We also accept
      any other C++ suffixes accepted by deduce_language_from_filename
@@ -654,7 +669,7 @@ push_subfile (void)
   subfile_stack = tem;
   if (current_subfile == NULL || current_subfile->name == NULL)
     {
-      abort ();
+      internal_error (__FILE__, __LINE__, "failed internal consistency check");
     }
   tem->name = current_subfile->name;
 }
@@ -667,11 +682,11 @@ pop_subfile (void)
 
   if (link == NULL)
     {
-      abort ();
+      internal_error (__FILE__, __LINE__, "failed internal consistency check");
     }
   name = link->name;
   subfile_stack = link->next;
-  free ((void *) link);
+  xfree ((void *) link);
   return (name);
 }
 
@@ -695,7 +710,7 @@ record_line (register struct subfile *subfile, int line, CORE_ADDR pc)
       subfile->line_vector_length = INITIAL_LINE_VECTOR_LENGTH;
       subfile->line_vector = (struct linetable *)
 	xmalloc (sizeof (struct linetable)
-		 + subfile->line_vector_length * sizeof (struct linetable_entry));
+	   + subfile->line_vector_length * sizeof (struct linetable_entry));
       subfile->line_vector->nitems = 0;
       have_line_numbers = 1;
     }
@@ -712,7 +727,7 @@ record_line (register struct subfile *subfile, int line, CORE_ADDR pc)
 
   e = subfile->line_vector->item + subfile->line_vector->nitems++;
   e->line = line;
-  e->pc = pc;
+  e->pc = ADDR_BITS_REMOVE(pc);
 }
 
 /* Needed in order to sort line tables from IBM xcoff files.  Sigh!  */
@@ -855,7 +870,7 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
   /* Cleanup any undefined types that have been left hanging around
      (this needs to be done before the finish_blocks so that
      file_symbols is still good).
-  
+
      Both cleanup_undefined_types and finish_global_stabs are stabs
      specific, but harmless for other symbol readers, since on gdb
      startup or when finished reading stabs, the state is set so these
@@ -921,7 +936,7 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	      if (objfile->flags & OBJF_REORDERED)
 		qsort (subfile->line_vector->item,
 		       subfile->line_vector->nitems,
-		       sizeof (struct linetable_entry), compare_line_numbers);
+		     sizeof (struct linetable_entry), compare_line_numbers);
 	    }
 
 	  /* Now, allocate a symbol table.  */
@@ -968,8 +983,8 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	  if (subfile->debugformat != NULL)
 	    {
 	      symtab->debugformat = obsavestring (subfile->debugformat,
-				      strlen (subfile->debugformat),
-					  &objfile->symbol_obstack);
+					      strlen (subfile->debugformat),
+						  &objfile->symbol_obstack);
 	    }
 
 	  /* All symtabs for the main file and the subfiles share a
@@ -980,23 +995,23 @@ end_symtab (CORE_ADDR end_addr, struct objfile *objfile, int section)
 	}
       if (subfile->name != NULL)
 	{
-	  free ((void *) subfile->name);
+	  xfree ((void *) subfile->name);
 	}
       if (subfile->dirname != NULL)
 	{
-	  free ((void *) subfile->dirname);
+	  xfree ((void *) subfile->dirname);
 	}
       if (subfile->line_vector != NULL)
 	{
-	  free ((void *) subfile->line_vector);
+	  xfree ((void *) subfile->line_vector);
 	}
       if (subfile->debugformat != NULL)
 	{
-	  free ((void *) subfile->debugformat);
+	  xfree ((void *) subfile->debugformat);
 	}
 
       nextsub = subfile->next;
-      free ((void *) subfile);
+      xfree ((void *) subfile);
     }
 
   /* Set this for the main source file.  */
@@ -1025,7 +1040,7 @@ push_context (int desc, CORE_ADDR valu)
       context_stack_size *= 2;
       context_stack = (struct context_stack *)
 	xrealloc ((char *) context_stack,
-	      (context_stack_size * sizeof (struct context_stack)));
+		  (context_stack_size * sizeof (struct context_stack)));
     }
 
   new = &context_stack[context_stack_depth++];
@@ -1042,33 +1057,13 @@ push_context (int desc, CORE_ADDR valu)
   return new;
 }
 
+
 /* Compute a small integer hash code for the given name. */
 
 int
 hashname (char *name)
 {
-  register char *p = name;
-  register int total = p[0];
-  register int c;
-
-  c = p[1];
-  total += c << 2;
-  if (c)
-    {
-      c = p[2];
-      total += c << 4;
-      if (c)
-	{
-	  total += p[3] << 6;
-	}
-    }
-
-  /* Ensure result is positive.  */
-  if (total < 0)
-    {
-      total += (1000 << 6);
-    }
-  return (total % HASHSIZE);
+    return (hash(name,strlen(name)) % HASHSIZE);
 }
 
 
@@ -1111,7 +1106,7 @@ merge_symbol_lists (struct pending **srclist, struct pending **targetlist)
    corresponding to a psymtab.  */
 
 void
-buildsym_init ()
+buildsym_init (void)
 {
   free_pendings = NULL;
   file_symbols = NULL;
@@ -1124,7 +1119,7 @@ buildsym_init ()
    file, e.g. a shared library).  */
 
 void
-buildsym_new_init ()
+buildsym_new_init (void)
 {
   buildsym_init ();
 }

@@ -1,21 +1,22 @@
 /* ARC target-dependent stuff.
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "frame.h"
@@ -25,6 +26,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "floatformat.h"
 #include "symtab.h"
 #include "gdbcmd.h"
+#include "regcache.h"
+
+/* Local functions */
+
+static int arc_set_cpu_type (char *str);
 
 /* Current CPU, set with the "set cpu" command.  */
 static int arc_bfd_mach_type;
@@ -32,12 +38,18 @@ char *arc_cpu_type;
 char *tmp_arc_cpu_type;
 
 /* Table of cpu names.  */
-struct {
-  char *name;
-  int value;
-} arc_cpu_type_table[] = {
-  { "base", bfd_mach_arc_base },
-  { NULL, 0 }
+struct
+  {
+    char *name;
+    int value;
+  }
+arc_cpu_type_table[] =
+{
+  { "arc5", bfd_mach_arc_5 },
+  { "arc6", bfd_mach_arc_6 },
+  { "arc7", bfd_mach_arc_7 },
+  { "arc8", bfd_mach_arc_8 },
+  {  NULL,  0 }
 };
 
 /* Used by simulator.  */
@@ -77,13 +89,14 @@ int debug_pipeline_p;
    | ((d) & 511))
 
 /* Codestream stuff.  */
-static void codestream_read PARAMS ((unsigned int *, int));
-static void codestream_seek PARAMS ((CORE_ADDR));
-static unsigned int codestream_fill PARAMS ((int));
+static void codestream_read (unsigned int *, int);
+static void codestream_seek (CORE_ADDR);
+static unsigned int codestream_fill (int);
 
-#define CODESTREAM_BUFSIZ 16 
+#define CODESTREAM_BUFSIZ 16
 static CORE_ADDR codestream_next_addr;
 static CORE_ADDR codestream_addr;
+/* FIXME assumes sizeof (int) == 32? */
 static unsigned int codestream_buf[CODESTREAM_BUFSIZ];
 static int codestream_off;
 static int codestream_cnt;
@@ -99,9 +112,8 @@ static int codestream_cnt;
    ? codestream_fill (0) \
    : codestream_buf[codestream_off++])
 
-static unsigned int 
-codestream_fill (peek_flag)
-    int peek_flag;
+static unsigned int
+codestream_fill (int peek_flag)
 {
   codestream_addr = codestream_next_addr;
   codestream_next_addr += CODESTREAM_BUFSIZ * sizeof (codestream_buf[0]);
@@ -111,17 +123,16 @@ codestream_fill (peek_flag)
 	       CODESTREAM_BUFSIZ * sizeof (codestream_buf[0]));
   /* FIXME: check return code?  */
 
-  /* Handle byte order differences.  */
-  if (HOST_BYTE_ORDER != TARGET_BYTE_ORDER)
-    {
-      register unsigned int i, j, n = sizeof (codestream_buf[0]);
-      register char tmp, *p;
-      for (i = 0, p = (char *) codestream_buf; i < CODESTREAM_BUFSIZ;
-	   ++i, p += n)
-	for (j = 0; j < n / 2; ++j)
-	  tmp = p[j], p[j] = p[n - 1 - j], p[n - 1 - j] = tmp;
-    }
-  
+
+  /* Handle byte order differences -> convert to host byte ordering.  */
+  {
+    int i;
+    for (i = 0; i < CODESTREAM_BUFSIZ; i++)
+      codestream_buf[i] =
+	extract_unsigned_integer (&codestream_buf[i],
+				  sizeof (codestream_buf[i]));
+  }
+
   if (peek_flag)
     return codestream_peek ();
   else
@@ -129,8 +140,7 @@ codestream_fill (peek_flag)
 }
 
 static void
-codestream_seek (place)
-    CORE_ADDR place;
+codestream_seek (CORE_ADDR place)
 {
   codestream_next_addr = place / CODESTREAM_BUFSIZ;
   codestream_next_addr *= CODESTREAM_BUFSIZ;
@@ -143,9 +153,7 @@ codestream_seek (place)
 /* This function is currently unused but leave in for now.  */
 
 static void
-codestream_read (buf, count)
-     unsigned int *buf;
-     int count;
+codestream_read (unsigned int *buf, int count)
 {
   unsigned int *p;
   int i;
@@ -157,8 +165,7 @@ codestream_read (buf, count)
 /* Set up prologue scanning and return the first insn.  */
 
 static unsigned int
-setup_prologue_scan (pc)
-     CORE_ADDR pc;
+setup_prologue_scan (CORE_ADDR pc)
 {
   unsigned int insn;
 
@@ -176,8 +183,7 @@ setup_prologue_scan (pc)
  */
 
 static long
-arc_get_frame_setup (pc)
-     CORE_ADDR pc;
+arc_get_frame_setup (CORE_ADDR pc)
 {
   unsigned int insn;
   /* Size of frame or -1 if unrecognizable prologue.  */
@@ -203,16 +209,16 @@ arc_get_frame_setup (pc)
     {
       insn = codestream_get ();
       /* Frame may not be necessary, even though blink is saved.
-	 At least this is something we recognize.  */
+         At least this is something we recognize.  */
       frame_size = 0;
     }
 
-  if ((insn & BUILD_INSN (-1, 0, -1, -1, -1))		/* st fp,[sp] */
+  if ((insn & BUILD_INSN (-1, 0, -1, -1, -1))	/* st fp,[sp] */
       == BUILD_INSN (2, 0, SP_REGNUM, FP_REGNUM, 0))
-    {	
+    {
       insn = codestream_get ();
       if ((insn & BUILD_INSN (-1, -1, -1, -1, 0))
-	       != BUILD_INSN (12, FP_REGNUM, SP_REGNUM, SP_REGNUM, 0))
+	  != BUILD_INSN (12, FP_REGNUM, SP_REGNUM, SP_REGNUM, 0))
 	return -1;
 
       /* Check for stack adjustment sub sp,sp,N.  */
@@ -229,12 +235,12 @@ arc_get_frame_setup (pc)
 	  if (frame_size < 0)
 	    return -1;
 
-          codestream_get ();
+	  codestream_get ();
 
 	  /* This sequence is used to get the address of the return
 	     buffer for a function that returns a structure.  */
 	  insn = codestream_peek ();
-	  if (insn & OPMASK == 0x60000000)
+	  if ((insn & OPMASK) == 0x60000000)
 	    codestream_get ();
 	}
       /* Frameless fn.  */
@@ -264,9 +270,7 @@ arc_get_frame_setup (pc)
    This allows a quicker answer.  */
 
 CORE_ADDR
-skip_prologue (pc, frameless_p)
-     CORE_ADDR pc;
-     int frameless_p;
+arc_skip_prologue (CORE_ADDR pc, int frameless_p)
 {
   unsigned int insn;
   int i, frame_size;
@@ -283,8 +287,8 @@ skip_prologue (pc, frameless_p)
       insn = codestream_peek ();
       if ((insn & BUILD_INSN (-1, 0, -1, 0, 0))
 	  != BUILD_INSN (2, 0, SP_REGNUM, 0, 0))
-	break; /* not st insn */
-      if (! ARC_CALL_SAVED_REG (X_C (insn)))
+	break;			/* not st insn */
+      if (!ARC_CALL_SAVED_REG (X_C (insn)))
 	break;
       codestream_get ();
     }
@@ -297,8 +301,7 @@ skip_prologue (pc, frameless_p)
    This is taken from frameless_look_for_prologue.  */
 
 CORE_ADDR
-arc_frame_saved_pc (frame)
-     struct frame_info *frame;
+arc_frame_saved_pc (struct frame_info *frame)
 {
   CORE_ADDR func_start;
   unsigned int insn;
@@ -344,9 +347,7 @@ arc_frame_saved_pc (frame)
  */
 
 void
-frame_find_saved_regs (fip, fsrp)
-     struct frame_info *fip;
-     struct frame_saved_regs *fsrp;
+frame_find_saved_regs (struct frame_info *fip, struct frame_saved_regs *fsrp)
 {
   long locals;
   unsigned int insn;
@@ -360,11 +361,11 @@ frame_find_saved_regs (fip, fsrp)
   dummy_bottom = fip->frame - 4 - REGISTER_BYTES - CALL_DUMMY_LENGTH;
 
   /* Check if the PC is in the stack, in a dummy frame.  */
-  if (dummy_bottom <= fip->pc && fip->pc <= fip->frame) 
+  if (dummy_bottom <= fip->pc && fip->pc <= fip->frame)
     {
       /* all regs were saved by push_call_dummy () */
       adr = fip->frame;
-      for (i = 0; i < NUM_REGS; i++) 
+      for (i = 0; i < NUM_REGS; i++)
 	{
 	  adr -= REGISTER_RAW_SIZE (i);
 	  fsrp->regs[i] = adr;
@@ -374,7 +375,7 @@ frame_find_saved_regs (fip, fsrp)
 
   locals = arc_get_frame_setup (get_pc_function_start (fip->pc));
 
-  if (locals >= 0) 
+  if (locals >= 0)
     {
       /* Set `adr' to the value of `sp'.  */
       adr = fip->frame - locals;
@@ -382,9 +383,9 @@ frame_find_saved_regs (fip, fsrp)
 	{
 	  insn = codestream_get ();
 	  if ((insn & BUILD_INSN (-1, 0, -1, 0, 0))
-	       != BUILD_INSN (2, 0, SP_REGNUM, 0, 0))
+	      != BUILD_INSN (2, 0, SP_REGNUM, 0, 0))
 	    break;
-          regnum = X_C (insn);
+	  regnum = X_C (insn);
 	  offset = X_D (insn);
 	  fsrp->regs[regnum] = adr + offset;
 	}
@@ -395,14 +396,14 @@ frame_find_saved_regs (fip, fsrp)
 }
 
 void
-push_dummy_frame ()
+arc_push_dummy_frame (void)
 {
   CORE_ADDR sp = read_register (SP_REGNUM);
   int regnum;
   char regbuf[MAX_REGISTER_RAW_SIZE];
 
   read_register_gen (PC_REGNUM, regbuf);
-  write_memory (sp+4, regbuf, REGISTER_SIZE);
+  write_memory (sp + 4, regbuf, REGISTER_SIZE);
   read_register_gen (FP_REGNUM, regbuf);
   write_memory (sp, regbuf, REGISTER_SIZE);
   write_register (FP_REGNUM, sp);
@@ -411,22 +412,22 @@ push_dummy_frame ()
       read_register_gen (regnum, regbuf);
       sp = push_bytes (sp, regbuf, REGISTER_RAW_SIZE (regnum));
     }
-  sp += (2*REGISTER_SIZE);
+  sp += (2 * REGISTER_SIZE);
   write_register (SP_REGNUM, sp);
 }
 
 void
-pop_frame ()
+arc_pop_frame (void)
 {
   struct frame_info *frame = get_current_frame ();
   CORE_ADDR fp;
   int regnum;
   struct frame_saved_regs fsr;
   char regbuf[MAX_REGISTER_RAW_SIZE];
-  
+
   fp = FRAME_FP (frame);
   get_frame_saved_regs (frame, &fsr);
-  for (regnum = 0; regnum < NUM_REGS; regnum++) 
+  for (regnum = 0; regnum < NUM_REGS; regnum++)
     {
       CORE_ADDR adr;
       adr = fsr.regs[regnum];
@@ -447,45 +448,48 @@ pop_frame ()
 
 typedef enum
 {
-  NORMAL4, /* a normal 4 byte insn */
-  NORMAL8, /* a normal 8 byte insn */
-  BRANCH4, /* a 4 byte branch insn, including ones without delay slots */
-  BRANCH8, /* an 8 byte branch insn, including ones with delay slots */
-} insn_type;
+  NORMAL4,			/* a normal 4 byte insn */
+  NORMAL8,			/* a normal 8 byte insn */
+  BRANCH4,			/* a 4 byte branch insn, including ones without delay slots */
+  BRANCH8,			/* an 8 byte branch insn, including ones with delay slots */
+}
+insn_type;
 
 /* Return the type of INSN and store in TARGET the destination address of a
    branch if this is one.  */
 /* ??? Need to verify all cases are properly handled.  */
 
 static insn_type
-get_insn_type (insn, pc, target)
-     unsigned long insn;
-     CORE_ADDR pc, *target;
+get_insn_type (unsigned long insn, CORE_ADDR pc, CORE_ADDR *target)
 {
   unsigned long limm;
 
   switch (insn >> 27)
     {
-    case 0 : case 1 : case 2 : /* load/store insns */
+    case 0:
+    case 1:
+    case 2:			/* load/store insns */
       if (LIMM_P (X_A (insn))
 	  || LIMM_P (X_B (insn))
 	  || LIMM_P (X_C (insn)))
 	return NORMAL8;
       return NORMAL4;
-    case 4 : case 5 : case 6 : /* branch insns */
+    case 4:
+    case 5:
+    case 6:			/* branch insns */
       *target = pc + 4 + X_L (insn);
       /* ??? It isn't clear that this is always the right answer.
-	 The problem occurs when the next insn is an 8 byte insn.  If the
-	 branch is conditional there's no worry as there shouldn't be an 8
-	 byte insn following.  The programmer may be cheating if s/he knows
-	 the branch will never be taken, but we don't deal with that.
-	 Note that the programmer is also allowed to play games by putting
-	 an insn with long immediate data in the delay slot and then duplicate
-	 the long immediate data at the branch target.  Ugh!  */
+         The problem occurs when the next insn is an 8 byte insn.  If the
+         branch is conditional there's no worry as there shouldn't be an 8
+         byte insn following.  The programmer may be cheating if s/he knows
+         the branch will never be taken, but we don't deal with that.
+         Note that the programmer is also allowed to play games by putting
+         an insn with long immediate data in the delay slot and then duplicate
+         the long immediate data at the branch target.  Ugh!  */
       if (X_N (insn) == 0)
 	return BRANCH4;
       return BRANCH8;
-    case 7 : /* jump insns */
+    case 7:			/* jump insns */
       if (LIMM_P (X_B (insn)))
 	{
 	  limm = read_memory_integer (pc + 4, 4);
@@ -499,7 +503,7 @@ get_insn_type (insn, pc, target)
       if (X_Q (insn) == 0 && X_N (insn) == 0)
 	return BRANCH4;
       return BRANCH8;
-    default : /* arithmetic insns, etc. */
+    default:			/* arithmetic insns, etc. */
       if (LIMM_P (X_A (insn))
 	  || LIMM_P (X_B (insn))
 	  || LIMM_P (X_C (insn)))
@@ -517,9 +521,8 @@ get_insn_type (insn, pc, target)
    set up a simulated single-step, we undo our damage.  */
 
 void
-arc_software_single_step (ignore, insert_breakpoints_p)
-     enum target_signal ignore; /* sig but we don't need it */
-     int insert_breakpoints_p;
+arc_software_single_step (enum target_signal ignore,	/* sig but we don't need it */
+			  int insert_breakpoints_p)
 {
   static CORE_ADDR next_pc, target;
   static int brktrg_p;
@@ -543,10 +546,10 @@ arc_software_single_step (ignore, insert_breakpoints_p)
       brktrg_p = 0;
 
       if ((type == BRANCH4 || type == BRANCH8)
-	  /* Watch out for branches to the following location.
-	     We just stored a breakpoint there and another call to
-	     target_insert_breakpoint will think the real insn is the
-	     breakpoint we just stored there.  */
+      /* Watch out for branches to the following location.
+         We just stored a breakpoint there and another call to
+         target_insert_breakpoint will think the real insn is the
+         breakpoint we just stored there.  */
 	  && target != next_pc)
 	{
 	  brktrg_p = 1;
@@ -568,22 +571,23 @@ arc_software_single_step (ignore, insert_breakpoints_p)
     }
 }
 
-#ifdef GET_LONGJMP_TARGET
+/* Because of Multi-arch, GET_LONGJMP_TARGET is always defined.  So test
+   for a definition of JB_PC.  */
+#ifdef JB_PC
 /* Figure out where the longjmp will land.  Slurp the args out of the stack.
    We expect the first arg to be a pointer to the jmp_buf structure from which
    we extract the pc (JB_PC) that we will land at.  The pc is copied into PC.
    This routine returns true on success. */
 
 int
-get_longjmp_target(pc)
-     CORE_ADDR *pc;
+get_longjmp_target (CORE_ADDR *pc)
 {
   char buf[TARGET_PTR_BIT / TARGET_CHAR_BIT];
   CORE_ADDR sp, jb_addr;
 
   sp = read_register (SP_REGNUM);
 
-  if (target_read_memory (sp + SP_ARG0, /* Offset of first arg on stack */
+  if (target_read_memory (sp + SP_ARG0,		/* Offset of first arg on stack */
 			  buf,
 			  TARGET_PTR_BIT / TARGET_CHAR_BIT))
     return 0;
@@ -603,9 +607,7 @@ get_longjmp_target(pc)
 /* Disassemble one instruction.  */
 
 static int
-arc_print_insn (vma, info)
-     bfd_vma vma;
-     disassemble_info *info;
+arc_print_insn (bfd_vma vma, disassemble_info *info)
 {
   static int current_mach;
   static int current_endian;
@@ -617,8 +619,7 @@ arc_print_insn (vma, info)
     {
       current_mach = arc_bfd_mach_type;
       current_endian = TARGET_BYTE_ORDER;
-      current_disasm = arc_get_disassembler (current_mach,
-					     current_endian == BIG_ENDIAN);
+      current_disasm = arc_get_disassembler (NULL);
     }
 
   return (*current_disasm) (vma, info);
@@ -627,9 +628,7 @@ arc_print_insn (vma, info)
 /* Command to set cpu type.  */
 
 void
-arc_set_cpu_type_command (args, from_tty)
-     char *args;
-     int from_tty;
+arc_set_cpu_type_command (char *args, int from_tty)
 {
   int i;
 
@@ -640,32 +639,29 @@ arc_set_cpu_type_command (args, from_tty)
 	printf_unfiltered ("%s\n", arc_cpu_type_table[i].name);
 
       /* Restore the value.  */
-      tmp_arc_cpu_type = strsave (arc_cpu_type);
+      tmp_arc_cpu_type = xstrdup (arc_cpu_type);
 
       return;
     }
-  
+
   if (!arc_set_cpu_type (tmp_arc_cpu_type))
     {
       error ("Unknown cpu type `%s'.", tmp_arc_cpu_type);
       /* Restore its value.  */
-      tmp_arc_cpu_type = strsave (arc_cpu_type);
+      tmp_arc_cpu_type = xstrdup (arc_cpu_type);
     }
 }
 
 static void
-arc_show_cpu_type_command (args, from_tty)
-     char *args;
-     int from_tty;
+arc_show_cpu_type_command (char *args, int from_tty)
 {
 }
 
 /* Modify the actual cpu type.
    Result is a boolean indicating success.  */
 
-int
-arc_set_cpu_type (str)
-     char *str;
+static int
+arc_set_cpu_type (char *str)
 {
   int i, j;
 
@@ -686,7 +682,7 @@ arc_set_cpu_type (str)
 }
 
 void
-_initialize_arc_tdep ()
+_initialize_arc_tdep (void)
 {
   struct cmd_list_element *c;
 
@@ -698,13 +694,13 @@ change the cpu being debugged.  It also gives one access to\n\
 cpu-type-specific registers and recognize cpu-type-specific instructions.\
 ",
 		   &setlist);
-  c->function.cfunc = arc_set_cpu_type_command;
+  set_cmd_cfunc (c, arc_set_cpu_type_command);
   c = add_show_from_set (c, &showlist);
-  c->function.cfunc = arc_show_cpu_type_command;
+  set_cmd_cfunc (c, arc_show_cpu_type_command);
 
-  /* We have to use strsave here because the `set' command frees it before
-     setting a new value.  */
-  tmp_arc_cpu_type = strsave (DEFAULT_ARC_CPU_TYPE);
+  /* We have to use xstrdup() here because the `set' command frees it
+     before setting a new value.  */
+  tmp_arc_cpu_type = xstrdup (DEFAULT_ARC_CPU_TYPE);
   arc_set_cpu_type (tmp_arc_cpu_type);
 
   c = add_set_cmd ("displaypipeline", class_support, var_zinteger,
