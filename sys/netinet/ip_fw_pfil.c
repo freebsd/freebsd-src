@@ -385,7 +385,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 
 	case MOD_UNLOAD:
 		if (ipfw_pfil_hooked) {
-			if ((err = ipfw_unhook()) > 0);
+			if ((err = ipfw_unhook()) > 0)
 				break;
 			ipfw_destroy();
 			ipfw_pfil_hooked = 0;
