@@ -51,6 +51,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	int np;
 	int nl = 0;
 	volatile struct proc *p, *pp;
+	volatile struct thread *td;
 
 	np = nprocs;
 
@@ -59,7 +60,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 	else
 		p = &proc0;
 
-	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag stat wmesg   wchan   cmd\n");
+	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag  stat wmesg   wchan   cmd\n");
 	while (--np >= 0) {
 		/*
 		 * XXX just take 20 for now...
@@ -93,12 +94,11 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		if (pp == NULL)
 			pp = p;
 
-		db_printf("%5d %8p %8p %4d %5d %5d %06x  %d",
+		db_printf("%5d %8p %8p %4d %5d %5d %07x  %d",
 		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
 		    p->p_ucred ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
 		if (p->p_flag & P_KSES) {
-			struct thread *td;
 			db_printf("(threaded)  %s\n", p->p_comm);
 			FOREACH_THREAD_IN_PROC(p, td) {
 				db_printf( ".  .  .  .  .  .  .  "
@@ -106,14 +106,21 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 				if (td->td_wchan) {
 					db_printf("%6s %8p", td->td_wmesg,
 					    (void *)td->td_wchan);
+				} else if (p->p_stat == SMTX) {
+					db_printf("%6s %8p", td->td_mtxname,
+					    (void *)td->td_blocked);
 				} else {
 					db_printf("--not blocked--");
 				}
 			}
 		} else {
-			if (p->p_thread.td_wchan) {
-				db_printf("  %6s %8p", p->p_thread.td_wmesg,
-				    (void *)p->p_thread.td_wchan);
+			td = &p->p_thread;
+			if (td->td_wchan) {
+				db_printf("  %6s %8p", td->td_wmesg,
+				    (void *)td->td_wchan);
+			} else if (p->p_stat == SMTX) {
+				db_printf("  %6s %8p", td->td_mtxname,
+				    (void *)td->td_blocked);
 			} else {
 				db_printf("                 ");
 			}
