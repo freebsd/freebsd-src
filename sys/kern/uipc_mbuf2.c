@@ -396,6 +396,7 @@ m_aux_delete(struct mbuf *m, struct mbuf *victim)
 				m->m_pkthdr.aux = n->m_next;
 			n->m_next = NULL;
 			m_free(n);
+			return;
 		} else
 			prev = n;
 		n = next;
