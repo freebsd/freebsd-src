@@ -3,14 +3,16 @@
 # Read in /etc/sysctl.conf and set things accordingly
 #
 # $FreeBSD$
+
 if [ -f /etc/sysctl.conf ]; then
-	sed '
-		/^[  	]*#/d
-		/^[ 	]*$/d
-		s/#.*$//g
-	' /etc/sysctl.conf |
-	while read var
+	while read var comments
 	do
-		sysctl -w ${var}
-	done
+		case ${var} in
+		\#*|'')
+			;;
+		*)
+			sysctl -w ${var}
+			;;
+		esac
+	done < /etc/sysctl.conf
 fi
