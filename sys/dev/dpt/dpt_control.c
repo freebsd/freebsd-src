@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.10 1998/12/04 22:54:45 archie Exp $"
+#ident "$Id: dpt_control.c,v 1.10.2.1 1999/05/11 11:04:12 jkh Exp $"
 
 #include "opt_dpt.h"
 
@@ -150,7 +150,6 @@ dpt_physmap(u_int32_t req_paddr, vm_size_t req_size)
 	if (va == (vm_offset_t) 0)
 		return (va);
 
-	size += PAGE_SIZE;
 	for (ndx = 0; ndx < size; ndx += PAGE_SIZE) {
 		pmap_kenter(va + ndx, paddr + ndx);
 		invltlb();
