@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.14 1995/08/06 12:37:32 bde Exp $
+# $Id: Makefile,v 1.15 1996/02/09 00:45:32 mpp Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
@@ -184,9 +184,12 @@ MLINKS+=curs_termatt.3 baudrate.3 curs_termatt.3 erasechar.3 \
 	curs_termatt.3 has_ic.3 curs_termatt.3 has_il.3 \
 	curs_termatt.3 killchar.3 curs_termatt.3 longname.3 \
 	curs_termatt.3 termattrs.3 curs_termatt.3 termname.3
+
+# XXX name clash with termcap(3)
+# MLINKS+= curs_termin.3 tparm.3 
 MLINKS+=curs_termin.3 setupterm.3 curs_termin.3 setterm.3 \
 	curs_termin.3 set_curterm.3 curs_termin.3 del_curterm.3 \
-	curs_termin.3 restartterm.3 curs_termin.3 tparm.3 \
+	curs_termin.3 restartterm.3 \
 	curs_termin.3 putp.3 curs_termin.3 vidputs.3 \
 	curs_termin.3 vidattr.3 curs_termin.3 mvcur.3 \
 	curs_termin.3 tigetflag.3 curs_termin.3 tigetnum.3 \
