@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.20 1998/04/06 23:27:51 halley Exp $";
-static char rcsid[] = "$Id: res_send.c,v 1.22 1998/05/02 15:51:54 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.23 1998/06/11 09:03:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -99,8 +99,12 @@ static char rcsid[] = "$Id: res_send.c,v 1.22 1998/05/02 15:51:54 peter Exp $";
 
 #include "res_config.h"
 
+#ifdef NOPOLL			/* libc_r doesn't wrap poll yet() */
+static int use_poll = 0;
+#else
 static int use_poll = 1;	/* adapt to poll() syscall availability */
 				/* 0 = not present, 1 = try it, 2 = exists */
+#endif
 
 static int s = -1;		/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
@@ -519,8 +523,10 @@ read_len:
 			/*
 			 * Use datagrams.
 			 */
+#ifndef NOPOLL
 			struct pollfd pfd;
 			int msec;
+#endif
 			struct timeval timeout;
 			fd_set dsmask, *dsmaskp;
 			int dsmasklen;
@@ -626,6 +632,7 @@ read_len:
 			/*
 			 * Wait for reply
 			 */
+#ifndef NOPOLL
     othersyscall:
 			if (use_poll) {
 				msec = (_res.retrans << try) * 1000;
@@ -634,19 +641,23 @@ read_len:
 				if (msec <= 0)
 					msec = 1000;
 			} else {
+#endif
 				timeout.tv_sec = (_res.retrans << try);
 				if (try > 0)
 					timeout.tv_sec /= _res.nscount;
 				if ((long) timeout.tv_sec <= 0)
 					timeout.tv_sec = 1;
 				timeout.tv_usec = 0;
+#ifndef NOPOLL
 			}
+#endif
     wait:
 			if (s < 0) {
 				Perror(stderr, "s out-of-bounds", EMFILE);
 				res_close();
 				goto next_ns;
 			}
+#ifndef NOPOLL
 			if (use_poll) {
 				struct sigaction sa, osa;
 				int sigsys_installed = 0;
@@ -680,6 +691,7 @@ read_len:
 					goto next_ns;
 				}
 			} else {
+#endif
 				dsmasklen = howmany(s + 1, NFDBITS) *
 					    sizeof(fd_mask);
 				if (dsmasklen > sizeof(fd_set)) {
@@ -704,7 +716,9 @@ read_len:
 					res_close();
 					goto next_ns;
 				}
+#ifndef NOPOLL
 			}
+#endif
 
 			if (n == 0) {
 				/*
