@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.47 1999/03/07 22:48:50 ken Exp $
+ *      $Id: cam_xpt.c,v 1.48 1999/03/11 10:48:02 jkh Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -336,6 +336,31 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/*quirks*/0, /*mintags*/2, /*maxtags*/2
 	},
 	{
+		/*
+		 * Slow when tagged queueing is enabled.  Write performance
+		 * steadily drops off with more and more concurrent
+		 * transactions.  Best sequential write performance with
+		 * tagged queueing turned off and write caching turned on.
+		 *
+		 * PR:  kern/10398
+		 * Submitted by:  Hideaki Okada <hokada@isl.melco.co.jp>
+		 * Drive:  DCAS-34330 w/ "S65A" firmware.
+		 *
+		 * The drive with the problem had the "S65A" firmware
+		 * revision, and has also been reported (by Stephen J.
+		 * Roznowski <sjr@home.net>) for a drive with the "S61A"
+		 * firmware revision.
+		 *
+		 * Although no one has reported problems with the 2 gig
+		 * version of the DCAS drive, the assumption is that it
+		 * has the same problems as the 4 gig version.  Therefore
+		 * this quirk entries disables tagged queueing for all
+		 * DCAS drives.
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "IBM", "DCAS*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "iomega", "jaz*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
@@ -360,6 +385,8 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * Slow when tagged queueing is enabled. (1.5MB/sec versus
 		 * 8MB/sec.)
 		 * Submitted by: Andrew Gallatin <gallatin@cs.duke.edu>
+		 * Best performance with these drives is achieved with
+		 * tagged queueing turned off, and write caching turned on.
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, west_digital, "WDE*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
@@ -369,6 +396,8 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * Slow when tagged queueing is enabled. (1.5MB/sec versus
 		 * 8MB/sec.)
 		 * Submitted by: Andrew Gallatin <gallatin@cs.duke.edu>
+		 * Best performance with these drives is achieved with
+		 * tagged queueing turned off, and write caching turned on.
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, west_digital, "ENTERPRISE", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
