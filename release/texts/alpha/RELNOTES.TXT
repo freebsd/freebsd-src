@@ -453,10 +453,6 @@ A bug in rwhod(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory
 FreeBSD-SA-01:29). [MERGED]
 
-To prevent some forms of DOS attacks, glob(3) allows specification of
-a limit on the number of pathname matches it will return.  ftpd(8) now
-uses this feature. [MERGED]
-
 A security hole in FreeBSD's FFS and EXT2FS implementations, which
 allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory
@@ -465,7 +461,16 @@ FreeBSD-SA-01:30). [MERGED]
 A remotely-exploitable vulnerability in ntpd(8) has been closed (see
 security advisory FreeBSD-SA-01:31). [MERGED]
 
-A security hole in IPFilter's fragment cache has been closed. [MERGED]
+A security hole in IPFilter's fragment cache has been closed (see
+security advisory FreeBSD-SA-01:32). [MERGED]
+
+Buffer overflows in glob(3), which could cause arbitrary code to be
+run on an FTP server, have been closed.  In addition, to prevent some
+forms of DOS attacks, glob(3) now allows specification of a limit on
+the number of pathname matches it will return.  ftpd(8) now uses this
+feature (see security advisory FreeBSD-SA-01:33). [MERGED]
+
+Initial sequence numbers in TCP are more thoroughly randomized.
 
 
 1.3. USERLAND CHANGES
@@ -748,7 +753,8 @@ dependencies.
 top(1) will now use the full width of its tty.
 
 groff(1) and its related utilities have been updated to FSF version
-1.16.1. [MERGED]
+1.17.  This import brings in a new mdoc(7) macro package, which
+removes many of the limitations of its predecessor.
 
 A number of cleanups and enhancements have been applied to the PCI
 subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
