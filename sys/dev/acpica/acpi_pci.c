@@ -167,7 +167,7 @@ acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
     pci_child_location_str_method(cbdev, child, buf, buflen);
     
     if (dinfo->ap_handle) {
-	strlcat(buf, " path=", buflen);
+	strlcat(buf, " handle=", buflen);
 	strlcat(buf, acpi_name(dinfo->ap_handle), buflen);
     }
     return (0);
