@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: miscbltin.c,v 1.16 1998/08/24 10:20:36 cracauer Exp $";
+	"$Id: miscbltin.c,v 1.17 1998/08/25 09:33:34 cracauer Exp $";
 #endif /* not lint */
 
 /*
@@ -285,10 +285,11 @@ umaskcmd(argc, argv)
 		} else {
 			void *set;
 			if ((set = setmode (ap)) == 0)
-					error("Illegal number: %s", ap);
+				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
 			umask(~mask & 0777);
+			free(set);
 		}
 	}
 	return 0;
