@@ -1,14 +1,9 @@
-#	$Id: bsd.man.mk,v 1.7 1995/10/21 18:18:46 bde Exp $
+#	$Id: bsd.man.mk,v 1.8 1995/12/14 18:13:14 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
-MANGRP?=	bin
-MANOWN?=	bin
-MANMODE?=	444
-
-MANDIR?=	/usr/share/man/man
 MANSRC?=	${.CURDIR}
 MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
