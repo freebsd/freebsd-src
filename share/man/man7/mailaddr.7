@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mailaddr.7	8.1 (Berkeley) 6/16/93
+.\"	$Id$
 .\"
 .Dd June 16, 1993
 .Dt MAILADDR 7
@@ -137,11 +138,12 @@ not be supported at all sites.  For example, messages to CSNET or BITNET sites
 can often be sent to ``user@host.CSNET'' or ``user@host.BITNET'' respectively.
 .Sh SEE ALSO
 .Xr mail 1 ,
-.Xr sendmail 8 ;
-.br
-Crocker, D. H.,
-.Em Standard for the Format of Arpa Internet Text Messages,
-RFC822.
+.Xr sendmail 8
+.Rs
+.%A Crocker, D. H.
+.%T Standard for the Format of Arpa Internet Text Messages
+.%O RFC822
+.Re
 .Sh HISTORY
 .Nm Mailaddr
 appeared in
