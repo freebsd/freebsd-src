@@ -156,7 +156,7 @@ load_code (code)
   long  label_no;
   long  vaf_name;	/* variable, array or function number. */
   long  func;
-  program_counter save_adr;
+  static program_counter save_adr;
 
   /* Initialize. */
   str = code;
