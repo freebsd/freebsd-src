@@ -1233,7 +1233,6 @@ issignal(p)
 		if (!SIGNOTEMPTY(mask))	 	/* no signal to send */
 			return (0);
 		sig = sig_ffs(&mask);
-		prop = sigprop(sig);
 
 		STOPEVENT(p, S_SIG, sig);
 
@@ -1259,14 +1258,6 @@ issignal(p)
 				 && p->p_flag & P_TRACED);
 
 			/*
-			 * If the traced bit got turned off, go back up
-			 * to the top to rescan signals.  This ensures
-			 * that p_sig* and ps_sigact are consistent.
-			 */
-			if ((p->p_flag & P_TRACED) == 0)
-				continue;
-
-			/*
 			 * If parent wants us to take the signal,
 			 * then it will leave it in p->p_xstat;
 			 * otherwise we just look for signals again.
@@ -1283,7 +1274,17 @@ issignal(p)
 			SIGADDSET(p->p_siglist, sig);
 			if (SIGISMEMBER(p->p_sigmask, sig))
 				continue;
+
+			/*
+			 * If the traced bit got turned off, go back up
+			 * to the top to rescan signals.  This ensures
+			 * that p_sig* and ps_sigact are consistent.
+			 */
+			if ((p->p_flag & P_TRACED) == 0)
+				continue;
 		}
+
+		prop = sigprop(sig);
 
 		/*
 		 * Decide whether the signal should be returned.
