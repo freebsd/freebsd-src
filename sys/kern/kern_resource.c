@@ -509,11 +509,7 @@ calcru(p, up, sp, ip)
 	}
 
 	tu = p->p_runtime;
-#ifdef SMP
-	if (p->p_oncpu != 0xff) {
-#else
 	if (p == curproc) {
-#endif
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
