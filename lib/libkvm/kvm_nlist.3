@@ -60,12 +60,10 @@ Each symbol is looked up using the n_name field, and if found, the
 corresponding n_type and n_value fields are filled in.  These fields are set
 to 0 if the symbol is not found.
 .Pp
-The program
-.Xr kvm_mkdb 8
-builds a database from the running kernel's namelist.
-If the database matches the opened kernel,
-.Fn kvm_nlist
-uses it to speed lookups.
+.Xr kldsym 2
+is used to locate the symbol.  This is a less than perfect emulation
+of the nlist values but has the advantage of being aware of kernel modules
+and is reasonably fast.
 .Sh RETURN VALUES
 The
 .Fn kvm_nlist
@@ -76,6 +74,7 @@ If the kernel symbol table was unreadable, -1 is returned.
 .It Pa /var/db/kvm_kernel.db
 .El
 .Sh SEE ALSO
+.Xr kldsym 2 ,
 .Xr kvm 3 ,
 .Xr kvm_close 3 ,
 .Xr kvm_getargv 3 ,
@@ -85,5 +84,4 @@ If the kernel symbol table was unreadable, -1 is returned.
 .Xr kvm_open 3 ,
 .Xr kvm_openfiles 3 ,
 .Xr kvm_read 3 ,
-.Xr kvm_write 3 ,
-.Xr kvm_mkdb 8
+.Xr kvm_write 3

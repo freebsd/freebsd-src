@@ -70,7 +70,6 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
 
 #include <limits.h>
 #include <memory.h>
-#include <db.h>
 #include <paths.h>
 
 #include "kvm_private.h"
@@ -674,6 +673,12 @@ kvm_getargv(kd, kp, nchr)
 	static char *buf, *p;
 	static char **bufp;
 	static int argc;
+
+	if (!ISALIVE(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read user space from dead kernel");
+		return (0);
+	}
 
 	if (!buflen) {
 		l = sizeof(buflen);
