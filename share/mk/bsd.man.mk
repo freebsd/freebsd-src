@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.25 1997/07/25 11:17:12 bde Exp $
+#	$Id: bsd.man.mk,v 1.26 1997/11/09 15:03:14 wosch Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links.
@@ -51,11 +51,6 @@
 #	maninstall:
 #		Install the manual pages and their links.
 #
-
-
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
 
 MANSRC?=	${.CURDIR}
 MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
