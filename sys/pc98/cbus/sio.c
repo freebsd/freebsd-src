@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.58 1998/06/01 12:40:24 kato Exp $
+ *	$Id: sio.c,v 1.59 1998/06/05 08:31:01 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2195,7 +2195,7 @@ cont:
 static int
 sioioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
-	int		cmd;
+	u_long		cmd;
 	caddr_t		data;
 	int		flag;
 	struct proc	*p;
