@@ -47,14 +47,14 @@
 			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+			mov __CONCAT($SYS_,x),%eax; KERNCALL; jb 2b
 
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
 #define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			lea __CONCAT(SYS_,x), %eax; KERNCALL; ret
+			mov __CONCAT($SYS_,x),%eax; KERNCALL; ret
 
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x

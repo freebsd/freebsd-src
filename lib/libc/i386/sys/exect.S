@@ -43,7 +43,7 @@
 #include <machine/psl.h>
 
 ENTRY(exect)
-	lea	SYS_execve,%eax
+	mov	$SYS_execve,%eax
 	pushf
 	popl	%edx
 	orl	$ PSL_T,%edx
