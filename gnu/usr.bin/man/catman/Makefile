@@ -1,3 +1,8 @@
+#	$Id
+
+MAINTAINER= wosch
+
+
 MAN1=	catman.1
 
 beforeinstall:

@@ -1,3 +1,6 @@
+#	$Id$
+MAINTAINER= wosch
+
 MAN1=	killall.1
 
 beforeinstall:

@@ -1,3 +1,7 @@
+# $Id$
+
+MAINTAINER= wosch
+
 MAN8=	spkrtest.8
 
 beforeinstall:

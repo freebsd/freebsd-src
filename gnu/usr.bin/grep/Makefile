@@ -1,4 +1,6 @@
-#	$Id: Makefile,v 1.13 1998/10/02 07:14:32 obrien Exp $
+#	$Id: Makefile,v 1.14 1998/11/14 23:37:32 wosch Exp $
+
+MAINTAINER= wosch
 
 GREP_LIBZ= YES
 GREP_FTS=  YES
