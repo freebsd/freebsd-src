@@ -105,7 +105,7 @@
       support for the Prolific PL-2303 serial adapter and the SUNTAC
       Slipper U VS-10U, respectively.</para>
 
-    <para>The uvisor driver for connecting Handspring Visors via USB
+    <para>The &man.uvisor.4; driver for connecting Handspring Visors via USB
       has been added.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
@@ -507,6 +507,10 @@
 
       <para><application>sendmail</application> has been updated 
 	from version 8.12.3 to version 8.12.5.</para>
+
+      <para arch="i386">Version 1.4.5 of the
+	<application>smbfs</application> userland utilities has been
+	imported.</para>
 
       <para><application>GNU tar</application> has been updated to
 	1.13.25.</para>
