@@ -49,7 +49,6 @@ extern	u_int	cpuid_cpuinfo;
 extern	u_int	cpu_id;
 extern	u_int	cpu_fxsr;
 extern	char	cpu_vendor[];
-extern	char	cpu_brand[];
 extern	u_int	cyrix_did;
 extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
