@@ -745,7 +745,7 @@ cgaccount(cg, vp, nbp, passno)
 		return (EIO);
 	}
 	UFS_LOCK(ip->i_ump);
-	ACTIVECLEAR(fs, cg);
+	ACTIVESET(fs, cg);
 	UFS_UNLOCK(ip->i_ump);
 	bcopy(bp->b_data, nbp->b_data, fs->fs_cgsize);
 	if (fs->fs_cgsize < fs->fs_bsize)
