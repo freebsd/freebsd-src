@@ -212,7 +212,7 @@ propagate_priority(struct proc *p)
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		if (p->p_oncpu != 0xff) {
+		if (p->p_oncpu != NOCPU) {
 			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
 			return;
 		}
@@ -932,6 +932,8 @@ static char *spin_order_list[] = {
 #ifdef __i386__
 	"cy",
 #endif
+	"ithread table lock",
+	"ithread list lock",
 	"sched lock",
 #ifdef __i386__
 	"clk",
@@ -940,8 +942,6 @@ static char *spin_order_list[] = {
 	/*
 	 * leaf locks
 	 */
-	"ithread table lock",
-	"ithread list lock",
 #ifdef SMP
 #ifdef __i386__
 	"ap boot",
