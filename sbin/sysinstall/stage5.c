@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.16.2.1 1994/11/21 03:12:20 phk Exp $
+ * $Id: stage5.c,v 1.17 1994/12/27 23:26:57 jkh Exp $
  *
  */
 
@@ -43,9 +43,10 @@ stage5()
 		end_dialog();
 		dialog_active=0;
 		if (exec_sh)
-			exec (2,"/stand/sh","/stand/-sh", 0);
+			exec (2, "/stand/sh", "/stand/-sh", 0);
 		else
-			exec (3,"/stand/bininst","/stand/-bininst", 0);
+			exec (3, "/stand/scripts/bininst.sh",
+			      "/stand/scripts/-bininst.sh", 0);
 		dialog_active=1;
 	}
 }
