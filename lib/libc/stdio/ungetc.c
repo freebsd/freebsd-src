@@ -96,8 +96,6 @@ ungetc(int c, FILE *fp)
 {
 	int ret;
 
-	if (c == EOF)
-		return (EOF);
 	if (!__sdidinit)
 		__sinit();
 	FLOCKFILE(fp);
