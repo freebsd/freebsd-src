@@ -553,7 +553,8 @@ ums_enable(v)
 	/* Set up interrupt pipe. */
 	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
 				USBD_SHORT_XFER_OK, &sc->sc_intrpipe, sc, 
-				sc->sc_ibuf, sc->sc_isize, ums_intr);
+				sc->sc_ibuf, sc->sc_isize, ums_intr,
+				USBD_DEFAULT_INTERVAL);
 	if (err) {
 		DPRINTF(("ums_enable: usbd_open_pipe_intr failed, error=%d\n",
 			 err));

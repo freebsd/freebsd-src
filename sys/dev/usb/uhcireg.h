@@ -1,5 +1,5 @@
-/*	$NetBSD: uhcireg.h,v 1.8 1999/11/18 23:32:28 augustss Exp $	*/
-/*	$FreeBSD$ */
+/*	$NetBSD: uhcireg.h,v 1.9 1999/11/20 00:57:09 augustss Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
