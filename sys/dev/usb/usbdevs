@@ -872,6 +872,9 @@ product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 
 /* Palm Computing, Inc. product */
 product PALM SERIAL		0x0080	USB Serial Adaptor
+product PALM M500		0x0001	Palm m500
+product PALM M505		0x0002	Palm m505
+product PALM M125		0x0040	Palm m125
 
 /* Panasonic products */
 product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
@@ -1003,6 +1006,8 @@ product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 product SONY DSC		0x0010	DSC cameras
 product SONY MSACUS1		0x002d	Memorystick MSAC-US1
 product SONY MSC		0x0032	MSC memory stick slot
+product SONY CLIE_40		0x0066	Sony Clie v4.0
+product SONY CLIE_41		0x009a	Sony Clie v4.1
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator

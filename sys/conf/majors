@@ -154,7 +154,7 @@ chrdev	name		comments
 135	zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
-138	usio		USB Serial support <n_hibma>
+138	ucom		USB Serial support <n_hibma>
 139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
 140	pcfclock	PCFCLOCK <sascha@schumann.cx>
 141	pcdmx		PCDMX theatre lighting controller
