@@ -313,6 +313,10 @@ bit fpi->nbits in the bits array on.  Denormals have it off, with
 exponent = fpi->emin.  Strtodg provides distinct return values for normals
 and denormals; see gdtoa.h.
 
+Compiling g__fmt.c, strtod.c, and strtodg.c with -DUSE_LOCALE causes
+the decimal-point character to be taken from the current locale; otherwise
+it is '.'.
+
 Please send comments to
 
 	David M. Gay
