@@ -158,7 +158,6 @@ device		ppi0		# Parallel port interface device
 
 
 # PCI Ethernet NICs.
-device		al0		# ADMtek AL981 (``Comet'')
 device		ax0		# ASIX AX88140A
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -169,6 +168,7 @@ device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 controller	miibus0		# MII bus support
+device		al0		# ADMtek AL981/AN985 (``Comet''/``Centaur'')
 device		dm0		# Davicom DM9100/DM9102
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
