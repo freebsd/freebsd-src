@@ -3288,7 +3288,11 @@ pim_input(struct mbuf *m, int off)
 	    m_freem(m);
 	    return;
 	}
-	
+
+	/* If a NULL_REGISTER, pass it to the daemon */
+	if ((ntohl(*reghdr) & PIM_NULL_REGISTER))
+	    goto pim_input_to_daemon;
+
 	/*
 	 * Copy the TOS from the outer IP header to the inner IP header.
 	 */
@@ -3308,11 +3312,7 @@ pim_input(struct mbuf *m, int off)
 	    m->m_data -= (iphlen + PIM_MINLEN);
 	    m->m_len  += (iphlen + PIM_MINLEN);
 	}
-	
-	/* If a NULL_REGISTER, pass it to the daemon */
-	if ((ntohl(*reghdr) & PIM_NULL_REGISTER))
-	    goto pim_input_to_daemon;
-	
+
 	/*
 	 * Decapsulate the inner IP packet and loopback to forward it
 	 * as a normal multicast packet. Also, make a copy of the 
