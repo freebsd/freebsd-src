@@ -107,7 +107,7 @@ struct ng_ppp_link_conf {
 	u_char		enableACFComp;	/* enable addr/ctrl field compression */
 	u_int16_t	mru;		/* peer MRU */
 	u_int32_t	latency;	/* link latency (in milliseconds) */
-	u_int32_t	bandwidth;	/* link bandwidth (in bytes/second) */
+	u_int32_t	bandwidth;	/* link bandwidth (in bytes/sec/10) */
 };
 
 /* Keep this in sync with the above structure definition */
