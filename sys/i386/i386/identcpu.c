@@ -536,8 +536,26 @@ printcpuinfo(void)
 		case 0x580:
 			strcpy(cpu_model, "IDT WinChip 2");
 			break;
+		case 0x660:
+		case 0x662:
+		case 0x663:
+			strcpy(cpu_model, "VIA C3 Samuel");
+			break;
 		case 0x670:
+		case 0x671:
+		case 0x672:
 			strcpy(cpu_model, "VIA C3 Samuel 2");
+			break;
+		case 0x678:
+		case 0x67a:
+			strcpy(cpu_model, "VIA C3 Ezra");
+			break;
+		case 0x689:
+			strcpy(cpu_model, "VIA C3 Ezra-T");
+			break;
+		case 0x691:
+		case 0x693:
+			strcpy(cpu_model, "VIA C3 Nehemiah");
 			break;
 		default:
 			strcpy(cpu_model, "VIA/IDT Unknown");
