@@ -181,8 +181,10 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	size_t copy_length;
 	const char *p, *pp;
 	const struct stat *st;
+	int mytartype;
 
 	ret = 0;
+	mytartype = -1;
 	memcpy(buff, &template_header, 512);
 
 	h = (struct archive_entry_header_ustar *)buff;
@@ -219,7 +221,9 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	}
 
 	p = archive_entry_hardlink(entry);
-	if(p == NULL)
+	if(p != NULL)
+		mytartype = '1';
+	else
 		p = archive_entry_symlink(entry);
 	if (p != NULL && p[0] != '\0') {
 		copy_length = strlen(p);
@@ -302,8 +306,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 
 	if (tartype >= 0) {
 		h->typeflag[0] = tartype;
-	} else if (archive_entry_hardlink(entry) != NULL) {
-		h->typeflag[0] = '1';
+	} else if (mytartype >= 0) {
+		h->typeflag[0] = mytartype;
 	} else {
 		switch (st->st_mode & S_IFMT) {
 		case S_IFREG: h->typeflag[0] = '0' ; break;
