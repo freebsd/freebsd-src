@@ -36,13 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-bus_addr_t
-uart_cpu_busaddr(struct uart_bas *bas)
-{
-
-	return (bas->bsh);
-}
-
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
@@ -82,6 +75,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 * ns8250 and successors on i386.
 		 */
 		di->ops = uart_ns8250_ops;
+		di->bas.iobase = ivar;
 		di->bas.bst = AMD64_BUS_SPACE_IO;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
 			return (ENXIO);
