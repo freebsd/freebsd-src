@@ -2,7 +2,7 @@
 #
 
 PROG=	scp
-SRCS=	scp.c scp-common.c
+SRCS=	scp.c
 
 DPADD=	${LIBSSH}
 LDADD=	-lssh

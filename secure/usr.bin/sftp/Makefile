@@ -2,7 +2,7 @@
 #
 
 PROG=	sftp
-SRCS=   sftp.c sftp-client.c sftp-int.c sftp-common.c sftp-glob.c scp-common.c
+SRCS=   sftp.c sftp-client.c sftp-int.c sftp-common.c sftp-glob.c
 
 LDADD=	-lssh -lcrypto
 DPADD=	${LIBSSH} ${LIBCRYPTO}
