@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.326 1997/10/03 14:05:29 markm Exp $
+#	$Id: Makefile,v 1.327 1997/10/03 14:17:46 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -360,7 +360,7 @@ release.7:
 .if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
-	@for i in `cd /usr/src && echo [a-z]* | sed -e s/contrib-crypto//` ; do \
+	@for i in `cd /usr/src && echo [a-z]*` ; do \
 		if [ -d /usr/src/$$i ] ; then \
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				TN=`echo s$$i | tr -d '.' | sed 's/usr/u/'` \
@@ -379,8 +379,7 @@ release.7:
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
-		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
-		if [ -f scrypto.inf ] ; then mv scrypto.inf ../des ; fi ; )
+		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi && \
 	@echo "src distribution is finished."
 .endif
 	touch release.7
