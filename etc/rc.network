@@ -714,24 +714,59 @@ network_pass3() {
 
 		case ${nfs_client_enable} in
 		[Yy][Ee][Ss])
-			if [ -n "${nfs_access_cache}" ]; then
-				echo -n " NFS access cache time=${nfs_access_cache}"
-				sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+			nfsclient_in_kernel=0
+			# Handle absent nfs client support
+			if sysctl vfs.nfs >/dev/null 2>&1; then
+				nfsclient_in_kernel=1
+			else
+				kldload nfsclient && nfsclient_in_kernel=1
 			fi
-			if [ -n "${nfs_bufpackets}" ]; then
-				sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
-			fi
-			case ${rpc_statd_enable} in
-			[Yy][Ee][Ss])
-				echo -n ' rpc.statd';	rpc.statd
-				;;
-			esac
 
-			case ${rpc_lockd_enable} in
-			[Yy][Ee][Ss])
-				echo -n ' rpc.lockd';	rpc.lockd
-				;;
-			esac
+			if [ ${nfsclient_in_kernel} -eq 1 ]
+			then
+				if [ -n "${nfs_access_cache}" ]; then
+					echo -n " NFS access cache time=${nfs_access_cache}"
+					sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+				fi
+				if [ -n "${nfs_bufpackets}" ]; then
+					sysctl vfs.nfs.bufpackets=${nfs_bufpackets} > /dev/null
+				fi
+				case ${rpc_statd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' rpc.statd';	rpc.statd
+					;;
+				esac
+
+				case ${rpc_lockd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' rpc.lockd';	rpc.lockd
+					;;
+				esac
+
+				case ${amd_enable} in
+				[Yy][Ee][Ss])
+					echo -n ' amd'
+					case ${amd_map_program} in
+					[Nn][Oo] | '')
+						;;
+					*)
+						amd_flags="${amd_flags} `eval\
+							${amd_map_program}`"
+						;;
+					esac
+
+					if [ -n "${amd_flags}" ]; then
+						amd -p ${amd_flags}\
+							> /var/run/amd.pid 2> /dev/null
+					else
+						amd 2> /dev/null
+					fi
+					;;
+				esac
+			else
+				echo 'Warning: NFS client kernel module failed to load'
+				nfs_client_enable=NO
+			fi
 			;;
 		esac
 
@@ -742,26 +777,6 @@ network_pass3() {
 			rpc.umntall -k
 		fi
 
-		case ${amd_enable} in
-		[Yy][Ee][Ss])
-			echo -n ' amd'
-			case ${amd_map_program} in
-			[Nn][Oo] | '')
-				;;
-			*)
-				amd_flags="${amd_flags} `eval\
-					${amd_map_program}`"
-				;;
-			esac
-
-			if [ -n "${amd_flags}" ]; then
-				amd -p ${amd_flags}\
-					> /var/run/amd.pid 2> /dev/null
-			else
-				amd 2> /dev/null
-			fi
-			;;
-		esac
 		;;
 	esac
 
