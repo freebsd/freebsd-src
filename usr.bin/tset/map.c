@@ -47,7 +47,7 @@ static const char rcsid[] =
 #include "extern.h"
 
 extern speed_t Ospeed;
-speed_t	baudrate __P((char *));
+speed_t	tset_baudrate __P((char *));
 
 /* Baud rate conditionals for mapping. */
 #define	GT		0x01
@@ -139,7 +139,7 @@ next:	if (*arg == ':') {
 		if (arg == NULL)
 			goto badmopt;
 		*arg++ = '\0';
-		mapp->speed = baudrate(p);
+		mapp->speed = tset_baudrate(p);
 	}
 
 	if (*arg == '\0')			/* Non-optional type. */
@@ -236,7 +236,7 @@ SPEEDS speeds[] = {
 };
 
 speed_t
-baudrate(rate)
+tset_baudrate(rate)
 	char *rate;
 {
 	SPEEDS *sp;
