@@ -18,24 +18,7 @@
 # -DTRACE	compile in kernel tracing hooks
 # -DQUOTA	compile in file system quotas
 #
-# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
-# --------------------         -----   ----------------------
-# CURRENT PATCH LEVEL:         3       00158
-# --------------------         -----   ----------------------
-#
-# 29 Jun 92	Chris G. Demetriou	Fix vers.o for kernel profiling and
-#						plain old link
-# 25 Mar 93	Sean Eric Fagan		Add support for assembler source
-# 25 Apr 93	Bruce Evans		Support for intr-0.0, and some fixes
-#		Rodney W. Grimes	Added depedencies for conf.o due to
-#					all the new drivers. And to param.c
-#					because there were missing.
-# 26 May 97	Rodney W. Grimes	Remove extra SYSTEM_LD_TAIL
-#					Redirect stderr from dbsym to null,
-#					this is bad, but atleast I won't get
-#					100's of bug reports about the silly
-#					warning from dbsym.
-#
+
 TOUCH=	touch -f -c
 LD=	/usr/bin/ld
 CC=	cc 
@@ -47,7 +30,7 @@ I386=	../../i386
 INCLUDES= -I. -I$S -I$S/sys
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DNPX
 ASFLAGS=
-CFLAGS=	-O ${COPTS}
+CFLAGS=	-O ${DEBUG} ${COPTS}
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
@@ -118,7 +101,7 @@ genassym:
 		 ${I386}/i386/genassym.c -o genassym
 
 depend: assym.s param.c
-	sh /usr/bin/mkdep ${COPTS} ${CFILES} ioconf.c
+	sh /usr/bin/mkdep ${COPTS} ${CFILES} ioconf.c param.c ${I386}/i386/conf.c
 	sh /usr/bin/mkdep -a -p ${INCLUDES} ${IDENT} ${PARAM} ${I386}/i386/genassym.c
 
 links:
@@ -154,7 +137,7 @@ param.c: $S/conf/param.c \
 param.o: param.c Makefile
 	${CC} -c ${CFLAGS} ${PARAM} param.c
 
-newvers:
+vers.o: ${SYSTEM_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
 	${CC} ${CFLAGS} -c vers.c
 
