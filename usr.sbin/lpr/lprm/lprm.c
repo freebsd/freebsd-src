@@ -74,6 +74,7 @@ int	 requ[MAXREQUESTS];	/* job number of spool entries */
 int	 requests;		/* # of spool requests */
 char	*user[MAXUSERS];	/* users to process */
 int	 users;			/* # of users in user array */
+uid_t	 uid, euid;		/* real and effective user id's */
 
 static char	luser[16];	/* buffer for person */
 
@@ -87,6 +88,9 @@ main(argc, argv)
 	register char *arg;
 	struct passwd *p;
 
+	uid = getuid();
+	euid = geteuid();
+	seteuid(uid);	/* be safe */
 	name = argv[0];
 	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);

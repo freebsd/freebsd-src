@@ -48,6 +48,8 @@ static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
 #include "lp.h"
 #include "pathnames.h"
 
+extern uid_t	uid, euid;
+
 static void perr __P((char *));
 
 /*
@@ -73,12 +75,18 @@ startdaemon(printer)
 #ifndef SUN_LEN
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
+	seteuid(euid);
 	if (connect(s, (struct sockaddr *)&un, SUN_LEN(&un)) < 0) {
+		seteuid(uid);
 		perr("connect");
 		(void) close(s);
 		return(0);
 	}
-	(void) sprintf(buf, "\1%s\n", printer);
+	seteuid(uid);
+	if (snprintf(buf, sizeof buf, "\1%s\n", printer) > sizeof buf-1) {
+		close(s);
+		return (0);
+	}
 	n = strlen(buf);
 	if (write(s, buf, n) != n) {
 		perr("write");
