@@ -599,11 +599,11 @@ vm_page_remove(vm_page_t m)
 	vm_object_t object;
 	vm_page_t root;
 
-	GIANT_REQUIRED;
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->object == NULL)
 		return;
-
+	if (!VM_OBJECT_LOCKED(m->object))
+		GIANT_REQUIRED;
 	if ((m->flags & PG_BUSY) == 0) {
 		panic("vm_page_remove: page not busy");
 	}
@@ -1030,7 +1030,6 @@ vm_page_free_toq(vm_page_t m)
 	struct vpgqueues *pq;
 	vm_object_t object = m->object;
 
-	GIANT_REQUIRED;
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
 	cnt.v_tfree++;
