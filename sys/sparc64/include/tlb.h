@@ -29,8 +29,6 @@
 #ifndef	_MACHINE_TLB_H_
 #define	_MACHINE_TLB_H_
 
-#include <sys/ktr.h>
-
 #define	TLB_SLOT_COUNT			64
 
 #define	TLB_SLOT_TSB_KERNEL_MIN		60	/* XXX */
@@ -163,7 +161,6 @@ tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 static __inline void
 tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
 {
-	CTR3(KTR_CT1, "tlb_page_demap: tlb=%#x ctx=%#lx va=%#lx", tlb, ctx, va);
 	if (tlb & TLB_DTLB)
 		tlb_dtlb_page_demap(ctx, va);
 	if (tlb & TLB_ITLB)
@@ -173,8 +170,6 @@ tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
 static __inline void
 tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
 {
-	CTR4(KTR_CT1, "tlb_store: tlb=%#x va=%#lx ctx=%#lx data=%#lx",
-	    tlb, va, ctx, tte.tte_data);
 	if (tlb & TLB_DTLB)
 		tlb_dtlb_store(va, ctx, tte);
 	if (tlb & TLB_ITLB)
@@ -184,9 +179,6 @@ tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
 static __inline void
 tlb_store_slot(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
-	CTR5(KTR_CT1,
-	    "tlb_store_slot: tlb=%d va=%#lx ctx=%#lx data=%#lx slot=%d",
-	    tlb, va, ctx, tte.tte_data, slot);
 	if (tlb & TLB_DTLB)
 		tlb_dtlb_store_slot(va, ctx, tte, slot);
 	if (tlb & TLB_ITLB)
