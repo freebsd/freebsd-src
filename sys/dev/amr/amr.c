@@ -245,13 +245,22 @@ amr_sglist_map(struct amr_softc *sc)
      * XXX this assumes we can get enough space for all the s/g maps in one 
      * contiguous slab.  We may need to switch to a more complex arrangement where
      * we allocate in smaller chunks and keep a lookup table from slot to bus address.
+     *
+     * XXX HACK ALERT: at least some controllers don't like the s/g memory being
+     *                 allocated below 0x2000.  We leak some memory if we get some
+     *                 below this mark and allocate again.
      */
+retry:
     error = bus_dmamem_alloc(sc->amr_sg_dmat, (void **)&sc->amr_sgtable, BUS_DMA_NOWAIT, &sc->amr_sg_dmamap);
     if (error) {
 	device_printf(sc->amr_dev, "can't allocate s/g table\n");
 	return(ENOMEM);
     }
     bus_dmamap_load(sc->amr_sg_dmat, sc->amr_sg_dmamap, sc->amr_sgtable, segsize, amr_dma_map_sg, sc, 0);
+    if (sc->amr_sgbusaddr < 0x2000) {
+	device_printf(sc->amr_dev, "s/g table too low (0x%x), reallocating\n", sc->amr_sgbusaddr);
+	goto retry;
+    }
     return(0);
 }
 
