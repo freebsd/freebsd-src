@@ -1957,6 +1957,11 @@ fd_detach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
+	g_topology_lock();
+	g_wither_geom(fd->fd_geom, ENXIO);
+	g_topology_unlock();
+	while (device_get_state(dev) == DS_BUSY)
+		tsleep(fd, PZERO, "fdd", hz/10);
 	callout_drain(&fd->toffhandle);
 
 	return (0);
