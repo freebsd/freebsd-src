@@ -36,36 +36,25 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
+#ident "$Id: dpt_control.c,v 1.2 1998/02/10 17:36:43 eivind Exp $"
 
 #include "opt_dpt.h"
 
-#include <sys/types.h>
-/* #include <i386/isa/isa.h> */
 #include <i386/include/cputypes.h>
-#include <i386/isa/timerreg.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
-#include <machine/clock.h>
-#include <machine/speaker.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsi_message.h>
 #include <scsi/scsiconf.h>
 
 #include <sys/dpt.h>
-#include <sys/queue.h>
 
 #define INLINE __inline
 

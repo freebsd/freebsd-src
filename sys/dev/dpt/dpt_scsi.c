@@ -64,34 +64,24 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
+#ident "$Id: dpt_scsi.c,v 1.2 1998/02/10 17:36:44 eivind Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
-#include <sys/acct.h>
-#include <sys/queue.h>
 
-#include <machine/endian.h>
 #include <machine/ipl.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsi_message.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
 
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-#include <sys/reboot.h>
 
 #include <sys/dpt.h>
 
