@@ -234,7 +234,7 @@ file(char *name)
 		if ((p = strchr(line, '#')) != NULL)
 			*p = '\0';
 		for (p = line; isblank(*p); p++);
-		if (*p == '\0')
+		if (*p == '\n' || *p == '\0')
 			continue;
 		i = sscanf(p, "%49s %49s %49s %49s %49s", arg[0], arg[1],
 		    arg[2], arg[3], arg[4]);
