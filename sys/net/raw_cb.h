@@ -57,6 +57,7 @@ struct rawcb {
 
 #ifdef _KERNEL
 extern LIST_HEAD(rawcb_list_head, rawcb) rawcb_list;
+extern struct mtx rawcb_mtx;
 
 /* protosw entries */
 pr_ctlinput_t	raw_ctlinput;
