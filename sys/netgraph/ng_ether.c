@@ -728,7 +728,8 @@ ng_enaddr_unparse(const struct ng_parse_type *type,
 	int len;
 
 	len = snprintf(cbuf, cbuflen, "%02x:%02x:%02x:%02x:%02x:%02x",
-	    data[0], data[1], data[2], data[3], data[4], data[5]);
+	    data[*off], data[*off + 1], data[*off + 2],
+	    data[*off + 3], data[*off + 4], data[*off + 5]);
 	if (len >= cbuflen)
 		return (ERANGE);
 	*off += ETHER_ADDR_LEN;
