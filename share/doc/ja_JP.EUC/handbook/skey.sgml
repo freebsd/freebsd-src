@@ -1,0 +1,355 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- 和訳: hino@nwk.CL.nec.co.jp 1996/09/24 -->
+<!-- Original revision: 1.5 -->
+
+<!--
+Copyright 1995 Massachusetts Institute of Technology
+
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby
+granted, provided that both the above copyright notice and this
+permission notice appear in all copies, that both the above
+copyright notice and this permission notice appear in all
+supporting documentation, and that the name of M.I.T. not be used
+in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  M.I.T. makes
+no representations about the suitability of this software for any
+purpose.  It is provided "as is" without express or implied
+warranty.
+
+THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+-->
+
+<sect><heading>S/KEY<label id="skey"></heading>
+
+<p><em>原作: &a.wollman;<newline>25 September 1995.</em>
+<p><em>訳: &a.hino;.<newline>24 September 1996.</em>
+
+<p>S/KEY は一方向ハッシュ関数 (ここで述べているバージョンでは, 過去と
+の互換性を保つために MD4 を用いています. S/KEY の他のバージョンでは 
+MD5 や DES-MAC を用いているものもあります) を基にしたワンタイムパスワー
+ド方式です. S/KEY は, バージョン 1.1.5 以降のすべての FreeBSD に標準的
+に含まれています. S/KEY は FreeBSD 以外の数多くのシステムの上でも利用
+可能であり, その実装の数も増えています. S/KEY ば Bell Communications
+Research, Inc. の登録商標です.
+
+<!-- XXX - UNIX以外のよい表現はないかな? -->
+<p>以下の説明では, 三種類の異なる「パスワード」が使われます. まず一つ
+目は, あなたが普段使っている普通の UNIX スタイルの, もしくは Kerberos 
+でのパスワードです. ここではこれを ``UNIX パスワード'' と呼ぶことにし
+ます. 二つ目は, S/KEY の `<tt/key/' プログラムによって生成され,
+`<tt/keyinit/' プログラムとログインプロンプトが受け付ける, 一回限りの
+パスワードです. ここではこれを ``ワンタイムパスワード'' と呼ぶことにし
+ます. 三つ目のパスワードは, `<tt/key/' (と場合により `<tt/keyinit/') 
+プログラムに対してユーザが入力する秘密のパスワードで, ワンタイムパスワー
+ドを生成するのに使われます. ここではこれを ``秘密のパスフレーズ'' もし
+くは単に ``パスフレーズ'' と呼ぶことにします. (訳注: ユーザが頭の中だ
+けにしまっておくべきものが, この秘密のパスフレーズです. なお, 原文では
+これをパスワードと表記していますが, 混乱を避けるために訳文ではすべて ``
+秘密のパスフレーズ'' に統一しています.)
+
+<p>秘密のパスフレーズは, UNIX パスワードと同じである必要はありませんし, 
+また UNIX パスワードと何らかの関連性を持たなければならないということも
+ありません (両者を同一に設定することは可能ですが, お奨めしません). 
+UNIX パスワードは長さが 8 文字に制限されています (訳注: FreeBSD で DES 
+を導入していない場合はもっと長いパスワードも認識されます). これに対し,
+S/KEY では秘密のパスフレーズを好きなだけ長くすることができます (訳注: 
+実装上, `<tt/key/' コマンドなどのバッファ長で制限されてしまう可能性が
+あります. 200文字程度に押えておいた方がよいでしょう :-). 筆者は 7 語か
+らなる文を使っています. 通常の設定では, S/KEY システムは UNIX のパスワー
+ドシステムと完全に独立して動作するようになっています.
+
+<p>S/KEY システムでは他に二種類のデータを使用します. 一つは ``シード
+(種)'' または (混乱を招きますが) ``キー'' と呼ばれるもので, (訳注: デ
+フォルトでは) 二つの文字と五つの数字で構成されます. もう一つは ``シー
+ケンス番号'' で, 1 以上の整数です. シーケンス番号は特に指定しなければ
+100以下です (訳注: ``<tt/keyinit/' プログラムでは 9999 まで指定できま
+す). S/KEY はここまでに述べたデータを利用してワンタイムパスワードを生
+成します. その方法は, まずシードと秘密のパスフレーズを連結し, それに対
+してシーケンス番号の回数だけ一方向ハッシュ (RSA Data Security, Inc. に
+よる MD4 セキュアハッシュ関数) を繰り返し計算します. そしてその結果を
+六つの英単語に変換します (訳注: ハッシュ計算の後, 64ビットに収まるよう
+にデータを処理したものが厳密な意味でのワンタイムパスワードです. 通常は
+ユーザの便宜のために, この 64ビットデータと六つの英単語との間で変換処
+理をおこなっています) . `<tt/login/' プログラムと `<tt/su/' プログラム
+は, 前回最後に受け付けられたワンタイムパスワードを記録しています. そし
+て, その前回のワンタイムパスワードと, ユーザが入力したワンタイムパスワー
+ドを一回ハッシュ関数にかけた結果とが一致した場合に, このユーザは認証さ
+れます. 一方向ハッシュ関数を使うことにより, もし (ログイン等に成功した) 
+ワンタイムパスワードが一回盗聴されたとしても, 次回以降に使われる複数の
+ワンタイムパスワードを生成することは不可能です. シーケンス番号はログイ
+ン (等) が成功するたびに一つずつ減らされて, ユーザとログインプログラム
+の間で同期が取られます. (シーケンス番号が 1 になったら, S/KEY を再度初
+期化する必要があります.)
+
+<p>次に, S/KEY 関連の四つのプログラムについて説明します. `<tt/key/' プ
+ログラムは, シーケンス番号と, シードと, 秘密のパスフレーズを受け付けて, 
+ワンタイムパスワードを生成します. `<tt/keyinit/' プログラムは, S/KEY 
+を初期化するのに使用され, また秘密のパスフレーズやシーケンス番号やシー
+ドを変更するためにも使用されます. このプログラムを実行するには, 秘密の
+パスフレーズか, または, シーケンス番号とシードとワンタイムパスワードの
+一組かの, どちらかが必要になります. `<tt/keyinfo/' プログラムは,
+<tt>/etc/skeykeys</tt> というファイルを調べて, このプログラムを起動し
+たユーザの現在のシーケンス番号とシードを表示します. 最後に,
+`<tt/login/' と `<tt/su/' プログラムについてですが, これらは S/KEY の
+ワンタイムパスワードを, (訳注:システムが) ユーザを認証するものとして受
+理する処理をおこないます. `<tt/login/' プログラムは, 指定された特定の
+アドレスからの接続に対して, UNIX パスワードの使用を認めなくする機能, 
+逆に言えば S/KEY の利用を強制する機能も持っています.
+
+<p>このドキュメントでは, 四種類の異なる操作について説明します. 一つ目
+は, `<tt/keyinit/' プログラムを信頼できる通信路上で利用する場合で, 一
+番始めに S/KEY を設定する操作や, 使い始めたあとで秘密のパスフレーズや
+シードを変更する操作です. 二つ目は, `<tt/keyinit/' プログラムを信頼で
+きない通信路上で利用する場合で, 操作の目的は一つ目と同じです. この場合
+には `<tt/key/' プログラムを併用する必要があります. 三つ目は,
+`<tt/key/' プログラムを使い, 信頼できない通信路を通じてログインする操
+作です. 四番目は, `<tt/key/' プログラムを使って, 複数のワンタイムパス
+ワードを一気に生成する操作です. ここで生成した複数のワンタイムパスワー
+ドは, メモしたり印刷したりして携帯し, 信頼できる通信路が一切ないところ 
+(例えば展示会場など) で利用することができます. (訳注: ワンタイムパスワー
+ドを記録した紙をなくさないこと! 電話番号やIPアドレス, ユーザ名を一緒に
+メモしていたら最悪です!!)
+
+
+<sect1><heading>信頼できる通信路での初期化</heading>
+
+<p>信頼できる通信路 (例えばあるマシンのコンソール画面など) を利用して
+いるときに, S/KEY の初期化, S/KEY の秘密のパスフレーズの変更, またはシー
+ドの変更をおこなうことができます. そのためには, まずあなた自身がログイ
+ンし, `<tt/keyinit/' コマンドを以下のようにパラメタなしで実行します:
+
+<tscreen><verb>
+$ keyinit
+Updating wollman:			) この部分は始めて S/KEY を使
+Old key: ha73895			) うときには表示されません.
+Reminder - Only use this method if you are directly connected.
+If you are using telnet or rlogin exit with no password and use keyinit -s.
+	) `keyinit' コマンドが出力する注意です. 訳すと,
+	) 注意 - この動作モードはマシンに直接入力しているときのみ利用
+	) すること. もし今 telnet や rlogin を使っているなら, 秘密のパ
+	) スフレーズを入力せずにこのままコマンドを終了し, かわりに 
+	) keyinit -s を実行すること.
+Enter secret password:			) ここで秘密のパスフレーズを入力します.
+Again secret password:			) もう一回入力します.
+
+ID wollman s/key is 99 ha73896		) あとで説明します.
+SAG HAS FONT GOUT FATE BOOM		)
+</verb></tscreen>
+
+<p>上の例で出てきた事柄について説明しましょう. `Enter secret
+password:' というプロンプトに対してあなたが考えた秘密のパスフレーズを
+入力します (筆者は 7 単語以上の文を秘密のパスフレーズにしています). こ
+の秘密のパスフレーズは後でログインするために必要になるものです. `ID' 
+から始まる行は, S/KEY における一回分のパラメタであり, あなたのログイ
+ン名とシーケンス番号とシードです. (訳注: `<tt/keyinit/' コマンドは次回
+にログインするときに使われるパラメタを参考のためにここで表示しま
+す. ) S/KEY を使ってログインするときには, システム側が自動的にこれらの
+パラメタを表示してくれますから, これらのパラメタを覚えておく必要は
+ありません. 最後の行が, 今述べたパラメタと入力された秘密のパスフレー
+ズから計算されたワンタイムパスワードです. この例を実行した後, 次にログ
+インするときに打ち込むべきワンタイムパスワードがこれです.
+
+<sect1><heading>信頼できない通信路での初期化</heading>
+
+<p>信頼できない通信路を使って S/KEY を初期化, または秘密のパスフレーズ
+やシードを変更するためには, 信頼できる通信路として, その信頼できない通
+信路とは別のものを用意する必要があります. その信頼できる通信路は 
+`<tt/key/' プログラムを実行するために必要となるもので, 例えばそれは, 
+あなたが信頼できる Macintosh のデスクアクセサリや信頼できるマシンのシェ
+ルプロンプトだったりするでしょう (そこでの操作に関しては後述します).
+(訳注: ここでの通信路とはマシンそのものになります. 信頼できるマシンと
+は, 信頼できる人がしっかり管理しているマシンということです.)  他に準備
+しておくものとして, シーケンス番号 (100は適切な値といえるでしょう) と, 
+場合によっては自分で考えた, またはランダムに生成されたシードがあります. 
+あなたが S/KEY を初期化しようとしているマシンへの通信路が, 信頼できな
+いものである場合には `<tt/keyinit -s/' コマンドを以下のように使用しま
+す:
+
+<tscreen><verb>
+$ keyinit -s 
+Updating wollman:
+Old key: kh94741
+Reminder you need the 6 English words from the skey command.
+	) `keyinit' コマンドが出力する注意です. 訳すと,
+	) 注意 - skey コマンドの出力する 6 英単語が必要になります.
+Enter sequence count from 1 to 9999: 100	) ここを入力.
+Enter new key [default kh94742]: 		) リターンのみ入力.
+s/key 100 kh94742
+</verb></tscreen>
+
+デフォルトのシード (`keyinit' プログラムは困ったことにこれを `key' と
+読んでいるのですが, 混乱しないよう注意してください) で構わなければ, リ
+ターンキーを押してください. 次に, あらかじめ用意しておいた信頼できる通
+信路 (信頼できるマシンや信頼できる S/KEY デスクアクセサリなど) へ移っ
+て, 先ほどと同じパラメタを入力します.
+
+<tscreen><verb>
+$ key 100 kh94742
+Reminder - Do not use this program while logged in via telnet or rlogin.
+Enter secret password: 		) ここで秘密のパスフレーズを入力します.
+HULL NAY YANG TREE TOUT VETO
+</verb></tscreen>
+
+ここで信頼できない通信路の方に戻って, `<tt/key/' コマンドが出力したワ
+ンタイムパスワードをコピーして `<tt/keyinit/' プログラムに入力します.
+
+<tscreen><verb>
+s/key access password: HULL NAY YANG TREE TOUT VETO
+
+ID wollman s/key is 100 kh94742
+HULL NAY YANG TREE TOUT VETO
+</verb></tscreen>
+
+後は, 前章で説明したことと同様です. 
+
+<sect1><heading>ちょっと寄り道: ログインプロンプトについて</heading>
+
+<p>どうやってワンタイムパスワードを生成するかを説明する前に, S/KEY を
+使う場合のログインプロンプトを見ておいた方がよいでしょう.
+
+<tscreen><verb>
+$ telnet himalia
+Trying 18.26.0.186...
+Connected to himalia.lcs.mit.edu.
+Escape character is '^]'.
+s/key 92 hi52030
+Password:
+</verb></tscreen>
+
+パスワードを要求する前に, ログインプログラムがシーケンス番号とシードを
+表示していることがわかります. この二つのパラメタを使ってワンタイムパ
+スワードを計算することになります. ここではまだ使っていませんが, 便利な
+機能がログインプログラムに備わっています:パスワードプロンプトに対して, 
+何も入力せずにリターンを押すとエコーモードに切り替わります. つまりタイ
+プした文字がそのまま見えるようになるのです. これは S/KEY のワンタイム
+パスワードを紙に印刷していた場合など, ワンタイムパスワードを手で入力し
+なければならない場合に特に役立つ機能です.
+
+<p>このログインしようとしてるマシンが, あなたが今使っているマシンから
+UNIX パスワードを使ってログインすることができないように設定されている
+場合があります. その場合には, ログインプロンプトには S/KEY のワンタイ
+ムパスワードの利用が必要であることを示す `<tt>(s/key required)</tt>' 
+という注釈が表示されます.
+
+<sect1><heading>ワンタイムパスワードを生成する</heading>
+
+<p>次に前章のログインプロンプトに対して入力するためのワンタイムパスワー
+ドを生成しましょう. そのために, 信頼できるマシンと `<tt/key/' プログラ
+ムを使用します. (`<tt/key/' プログラムには DOS や Windows の上で動くも
+の, Macintoshのデスクアクセサリとして動くものなどもあります.) コマンド
+ラインで `<tt/key/' プログラムを起動するときには, シーケンス番号とシー
+ドを引数として指定します. 入力が面倒な人は, ログインプロンプトに表示さ
+れたもののうちで ``<tt/key/'' からその行の最後までを, そのままカットア
+ンドペーストすることもできます. ``<tt/key/' プログラムの実行は以下のよ
+うになります:
+
+<tscreen><verb>
+$ key 92 hi52030				) 前章の例からペースト.
+Reminder - Do not use this program while logged in via telnet or rlogin.
+Enter secret password: 				) 秘密のパスフレーズを入力.
+ADEN BED WOLF HAW HOT STUN
+</verb></tscreen>
+
+そして別のウィンドウで:
+
+<tscreen><verb>
+s/key 92 hi52030				) 前章の例の続き.
+Password:					) ここでリターンキーを押した.
+ (turning echo on)
+Password:ADEN BED WOLF HAW HOT STUN
+Last login: Wed Jun 28 15:31:00 from halloran-eldar.l
+[以下略.]
+</verb></tscreen>
+
+以上の手順は, 信頼できるマシンが利用できる場合 <em/のみに/ 使えるもっ
+とも簡単な方法です.
+
+<sect1><heading>複数のワンタイムパスワードを生成する</heading>
+
+<p>都合によっては, 信頼できるマシンや信頼できる通信路が一切確保できな
+いようなところで S/KEY を使う必要があるでしょう. このような場合には,
+`<tt/key/' コマンドを使って複数のワンタイムパスワードを一気に生成する
+ことが可能です. そして結果を紙に印刷して携帯していくことができます. 例
+えば:
+
+<tscreen><verb>
+$ key -n 25 57 zz99999
+Reminder - Do not use this program while logged in via telnet or rlogin.
+Enter secret password: 
+33: WALT THY MALI DARN NIT HEAD  
+34: ASK RICE BEAU GINA DOUR STAG 
+[...]
+56: AMOS BOWL LUG FAT CAIN INCH  
+57: GROW HAYS TUN DISH CAR BALM  
+</verb></tscreen>
+
+`<tt/-n 25/' という引数によって 25 個のワンタイムパスワードの生成を要
+求します. ここで `<tt/57/' は, <em/最後に表示されている/ (もっとも大き
+い) シーケンス番号です. 残りのパラメタは前出の例と同様です. 出力は普
+通に使う順番とは <em/逆/ に出力されていることに注意してください (訳注: 
+一番最初に使うワンタイムパスワードは一番最後に出力されたものです). こ
+の結果をカットアンドペーストして `<tt/lpr/' コマンドを使って印刷すると
+よいでしょう. もしあなたがセキュリティに偏執するなら, この結果を紙と鉛
+筆を使って手で書き移した方がよいかもしれません. ここで, 出力の各行はシー
+ケンス番号とそれに対応する一回分のワンタイムパスワードです. 消費済みの
+ワンタイムパスワードの行をペンで消していくと便利でしょう.
+
+<sect1><heading>UNIX パスワードの利用を制限する</heading>
+
+<p>設定ファイル <tt>/etc/skey.access</tt> を使って UNIX パスワードの利
+用を制限することができます. この場合の判断基準として, ログインを受け付
+ける際のホスト名, ユーザ名, 端末のポート, IP アドレスなどが利用できま
+す. この設定ファイルの詳細に関してはマニュアル <em/skey.access/ (5) を
+ご覧ください. マニュアルにはこの機能に関わるセキュリティについて, いく
+つかの警告が記述してあります. この機能を使ってセキュリティを高めようと
+するのならば絶対にこのマニュアルを読んでください.
+
+<p>もし <tt>/etc/skey.access</tt> ファイルが存在しないならば (FreeBSD
+をインストールした直後の状態では存在しません), すべてのユーザが UNIX 
+パスワードを利用することができます. 逆に, もしファイルが存在するならば,
+<tt>/etc/skey.access</tt> ファイルに明示的に記述されていない限り, すべ
+てのユーザは S/KEY の利用を要求されます. どちらの場合においても, その
+マシンのコンソールからはいつでも UNIX パスワードを使ってログインするこ
+とが可能です.
+
+<p>以下によく使われるであろう三種類の設定を含む設定ファイルの例を示し
+ます:
+
+<tscreen><verb>
+permit internet 18.26.0.0 255.255.0.0
+permit user jrl
+permit port ttyd0
+</verb></tscreen>
+
+はじめの行 (`<tt/permit internet/') で, telnet などで接続するときの IP 
+のソースアドレス (注意: これは偽造されるおそれがあります) が特定の値と
+マスクに一致している場合に, UNIX パスワードの利用を許可することを指定
+しています. この設定自体はセキュリティを高めるための機能ではありません. 
+そうではなく, ログインの権利を持つ許可されたユーザに対して, 現在そのユー
+ザが使っているネットワークが信頼できないと考えられるので S/KEY を使う
+べきである, ということを気づかせるための機能であると考えてください.
+
+<p>二行目 (`<tt/permit user/') によって, ある特定のユーザに対して, い
+つでも UNIX パスワードの利用を許可するように指定しています. 一般的には
+この設定をおこなうべきではありません. `<tt/key/' プログラムがどうして
+も使えない環境にいる人や, ダム端末しかない環境にいる人, または何度教え
+ても聞く耳を持たないような人をサポートする必要がある場合にのみ設定をお
+こなってください.
+
+<p>三行目 (`<tt/permit port/') によって, ある特定の端末ポートからログ
+インしようとするすべてのユーザに対して UNIX パスワードの利用を許可する
+ように指定しています. この設定はダイヤルアップ回線に対する設定として利
+用できるでしょう.
