@@ -83,7 +83,7 @@ struct bufobj {
 	long		bo_numoutput;	/* i Writes in progress */
 	u_int		bo_flag;	/* i Flags */
 	struct buf_ops	*bo_ops;	/* - buffer operatoins */
-	struct vm_object *bo_object;		/* v Place to store VM object */
+	struct vm_object *bo_object;	/* v Place to store VM object */
 };
 
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
