@@ -1176,6 +1176,20 @@ SRBdone( PACB pACB, PDCB pDCB, PSRB pSRB )
 	    pSRB->TargetStatus = 0;
 	    pcmd->error = XS_TIMEOUT;
 	}
+	else if (status == SCSI_STAT_BUSY)
+	{
+#ifdef DC390_DEBUG0
+		printf("DC390: target busy at %s %d\n", __FILE__, __LINE__);
+#endif
+		pcmd->error = XS_BUSY;
+	}
+	else if (status == SCSI_STAT_RESCONFLICT)
+	{
+#ifdef DC390_DEBUG0
+		printf("DC390: target reserved at %s %d\n", __FILE__, __LINE__);
+#endif
+		pcmd->error = XS_BUSY;	/*XXX*/
+	}
 	else
 	{
 	    pSRB->AdaptStatus = 0;
@@ -1193,6 +1207,9 @@ SRBdone( PACB pACB, PDCB pDCB, PSRB pSRB )
 	    }
 	    else
 	    {
+#ifdef DC390_DEBUG0
+		printf("DC390: driver stuffup at %s %d\n", __FILE__, __LINE__);
+#endif
 		pcmd->error = XS_DRIVER_STUFFUP;
 	    }
 	}
@@ -1207,6 +1224,9 @@ SRBdone( PACB pACB, PDCB pDCB, PSRB pSRB )
 	}
 	else if( pSRB->SRBStatus & PARITY_ERROR)
 	{
+#ifdef DC390_DEBUG0
+	    printf("DC390: driver stuffup %s %d\n", __FILE__, __LINE__);
+#endif
 	    pcmd->error = XS_DRIVER_STUFFUP;
 	}
 	else		       /* No error */
