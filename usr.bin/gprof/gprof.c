@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
+#include <limits.h>
 #include "gprof.h"
 
 static int valcmp(const void *, const void *);
@@ -302,12 +303,20 @@ openpfile(filename)
 	    filename, rate, "incompatible with clock rate", hz);
 	done();
     }
+    if ( gmonhdr.histcounter_type == 0 ) {
+	/* Historical case.  The type was u_short (2 bytes in practice). */
+	histcounter_type = 16;
+	histcounter_size = 2;
+    } else {
+	histcounter_type = gmonhdr.histcounter_type;
+	histcounter_size = abs(histcounter_type) / CHAR_BIT;
+    }
     s_lowpc = (unsigned long) gmonhdr.lpc;
     s_highpc = (unsigned long) gmonhdr.hpc;
     lowpc = (unsigned long)gmonhdr.lpc / HISTORICAL_SCALE_2;
     highpc = (unsigned long)gmonhdr.hpc / HISTORICAL_SCALE_2;
     sampbytes = gmonhdr.ncnt - size;
-    nsamples = sampbytes / sizeof (UNIT);
+    nsamples = sampbytes / histcounter_size;
 #   ifdef DEBUG
 	if ( debug & SAMPLEDEBUG ) {
 	    printf( "[openpfile] hdr.lpc 0x%lx hdr.hpc 0x%lx hdr.ncnt %d\n",
@@ -374,7 +383,7 @@ dumpsum( sumfile )
     /*
      * dump the samples
      */
-    if (fwrite(samples, sizeof (UNIT), nsamples, sfile) != nsamples) {
+    if (fwrite(samples, histcounter_size, nsamples, sfile) != nsamples) {
 	perror( sumfile );
 	done();
     }
@@ -422,20 +431,47 @@ readsamples(pfile)
     FILE	*pfile;
 {
     register i;
-    UNIT	sample;
+    intmax_t	sample;
 
     if (samples == 0) {
-	samples = (UNIT *) calloc(sampbytes, sizeof (UNIT));
+	samples = (double *) calloc(nsamples, sizeof(double));
 	if (samples == 0) {
-	    warnx("no room for %d sample pc's", sampbytes / sizeof (UNIT));
+	    warnx("no room for %d sample pc's", nsamples);
 	    done();
 	}
     }
     for (i = 0; i < nsamples; i++) {
-	fread(&sample, sizeof (UNIT), 1, pfile);
+	fread(&sample, histcounter_size, 1, pfile);
 	if (feof(pfile))
 		break;
-	samples[i] += sample;
+	switch ( histcounter_type ) {
+	case -8:
+	    samples[i] += *(int8_t *)&sample;
+	    break;
+	case 8:
+	    samples[i] += *(u_int8_t *)&sample;
+	    break;
+	case -16:
+	    samples[i] += *(int16_t *)&sample;
+	    break;
+	case 16:
+	    samples[i] += *(u_int16_t *)&sample;
+	    break;
+	case -32:
+	    samples[i] += *(int32_t *)&sample;
+	    break;
+	case 32:
+	    samples[i] += *(u_int32_t *)&sample;
+	    break;
+	case -64:
+	    samples[i] += *(int64_t *)&sample;
+	    break;
+	case 64:
+	    samples[i] += *(u_int64_t *)&sample;
+	    break;
+	default:
+	    err(1, "unsupported histogram counter type %d", histcounter_type);
+	}
     }
     if (i != nsamples) {
 	warnx("unexpected EOF after reading %d/%d samples", --i , nsamples );
@@ -478,7 +514,7 @@ readsamples(pfile)
 asgnsamples()
 {
     register int	j;
-    UNIT		ccnt;
+    double		ccnt;
     double		time;
     unsigned long	pcl, pch;
     register int	i;
@@ -498,7 +534,7 @@ asgnsamples()
 	time = ccnt;
 #	ifdef DEBUG
 	    if ( debug & SAMPLEDEBUG ) {
-		printf( "[asgnsamples] pcl 0x%lx pch 0x%lx ccnt %d\n" ,
+		printf( "[asgnsamples] pcl 0x%lx pch 0x%lx ccnt %.0f\n" ,
 			pcl , pch , ccnt );
 	    }
 #	endif DEBUG
