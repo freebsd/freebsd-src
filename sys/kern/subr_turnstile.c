@@ -233,11 +233,16 @@ propagate_priority(struct thread *td)
 		mtx_lock_spin(&tc->tc_lock);
 
 		/*
-		 * If this turnstile has no threads on its blocked queue
-		 * then it's possible that it was just woken up on another
-		 * CPU.  If so, we are done.
+		 * This thread may not be blocked on this turnstile anymore
+		 * but instead might already be woken up on another CPU
+		 * that is waiting on sched_lock in turnstile_unpend() to
+		 * finish waking this thread up.  We can detect this case
+		 * by checking to see if this thread has been given a
+		 * turnstile by either turnstile_signal() or
+		 * turnstile_wakeup().  In this case, treat the thread as
+		 * if it was already running.
 		 */
-		if (TAILQ_EMPTY(&ts->ts_blocked)) {
+		if (td->td_turnstile != NULL) {
 			mtx_unlock_spin(&tc->tc_lock);
 			return;
 		}
@@ -300,9 +305,7 @@ init_turnstiles(void)
 		    NULL, MTX_SPIN);
 	}
 	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
-#ifdef INVARIANTS
 	thread0.td_turnstile = NULL;
-#endif
 }
 
 static void
@@ -468,9 +471,7 @@ turnstile_wait(struct turnstile *ts, struct lock_object *lock,
 		LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
 		MPASS(owner == ts->ts_owner);
 	}
-#ifdef INVARIANTS
 	td->td_turnstile = NULL;
-#endif
 	mtx_unlock_spin(&tc->tc_lock);
 
 	mtx_lock_spin(&sched_lock);
