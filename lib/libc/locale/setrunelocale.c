@@ -78,14 +78,13 @@ _xpg4_setrunelocale(encoding)
 	/*
 	 * The "C" and "POSIX" locale are always here.
 	 */
-	if (!*encoding || !strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
+	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
 		return(0);
 	}
 
-	if (!_PathLocale && !(_PathLocale = getenv("PATH_LOCALE")))
-		_PathLocale = _PATH_LOCALE;
-
+	if (!_PathLocale)
+		return(EFAULT);
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");
 	(void) strcat(name, encoding);
