@@ -255,10 +255,10 @@ syncache_init(void)
 	 * more entry than cache limit, so a new entry can bump out an
 	 * older one.
 	 */
-	tcp_syncache.cache_limit -= 1;
 	tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcp_syncache.zone, tcp_syncache.cache_limit);
+	tcp_syncache.cache_limit -= 1;
 }
 
 static void
