@@ -501,7 +501,7 @@ wi_detach(device_t dev)
 	WI_LOCK(sc);
 
 	/* check if device was removed */
-	sc->wi_gone = !bus_child_present(dev);
+	sc->wi_gone |= !bus_child_present(dev);
 
 	wi_stop(ifp, 0);
 
@@ -584,9 +584,9 @@ wi_intr(void *arg)
 
 	WI_LOCK(sc);
 
-	if (sc->wi_gone || (ifp->if_flags & IFF_UP) == 0) {
+	if (sc->wi_gone || !sc->sc_enabled || (ifp->if_flags & IFF_UP) == 0) {
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
-		CSR_WRITE_2(sc, WI_EVENT_ACK, ~0);
+		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 		WI_UNLOCK(sc);
 		return;
 	}
@@ -637,7 +637,7 @@ wi_init(void *arg)
 	}
 
 	if ((wasenabled = sc->sc_enabled))
-		wi_stop(ifp, 0);
+		wi_stop(ifp, 1);
 	wi_reset(sc);
 
 	/* common 802.11 configuration */
@@ -800,7 +800,7 @@ wi_init(void *arg)
 out:
 	if (error) {
 		if_printf(ifp, "interface not running\n");
-		wi_stop(ifp, 0);
+		wi_stop(ifp, 1);
 	}
 	WI_UNLOCK(sc);
 	DPRINTF(("wi_init: return %d\n", error));
@@ -816,6 +816,8 @@ wi_stop(struct ifnet *ifp, int disable)
 
 	WI_LOCK(sc);
 
+	DELAY(100000);
+
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 	if (sc->sc_enabled && !sc->wi_gone) {
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
@@ -827,7 +829,8 @@ wi_stop(struct ifnet *ifp, int disable)
 #endif
 			sc->sc_enabled = 0;
 		}
-	}
+	} else if (sc->wi_gone && disable)	/* gone --> not enabled */
+	    sc->sc_enabled = 0;
 
 	sc->sc_tx_timer = 0;
 	sc->sc_scan_timer = 0;
@@ -991,7 +994,7 @@ wi_reset(struct wi_softc *sc)
 	int tries;
 	
 	/* Symbol firmware cannot be initialized more than once */
-	if (sc->sc_firmware_type != WI_INTERSIL && sc->sc_reset)
+	if (sc->sc_firmware_type == WI_SYMBOL && sc->sc_reset)
 		return (0);
 	if (sc->sc_firmware_type == WI_SYMBOL)
 		tries = 1;
@@ -1113,8 +1116,9 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
-				wi_stop(ifp, 0);
+				wi_stop(ifp, 1);
 			}
+			sc->wi_gone = 0;
 		}
 		sc->sc_if_flags = ifp->if_flags;
 		error = 0;
@@ -1604,6 +1608,9 @@ wi_tx_intr(struct wi_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = &ic->ic_if;
 	int fid, cur;
+
+	if (sc->wi_gone)
+		return;
 
 	fid = CSR_READ_2(sc, WI_ALLOC_FID);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_ALLOC);
@@ -2375,18 +2382,22 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 	int			i, s = 0;
 	static volatile int count  = 0;
 	
+	if (sc->wi_gone)
+		return (ENODEV);
+
 	if (count > 0)
 		panic("Hey partner, hold on there!");
 	count++;
 
 	/* wait for the busy bit to clear */
-	for (i = 500; i > 0; i--) {	/* 5s */
+	for (i = 500; i > 0; i--) {	/* 500ms */
 		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
 			break;
-		DELAY(10*1000);	/* 10 m sec */
+		DELAY(1*1000);	/* 1ms */
 	}
 	if (i == 0) {
 		device_printf(sc->sc_dev, "wi_cmd: busy bit won't clear.\n" );
+		sc->wi_gone = 1;
 		count--;
 		return(ETIMEDOUT);
 	}
@@ -2423,6 +2434,8 @@ wi_cmd(struct wi_softc *sc, int cmd, int val0, int val1, int val2)
 	if (i == WI_TIMEOUT) {
 		device_printf(sc->sc_dev,
 		    "timeout in wi_cmd 0x%04x; event status 0x%04x\n", cmd, s);
+		if (s == 0xffff)
+			sc->wi_gone = 1;
 		return(ETIMEDOUT);
 	}
 	return (0);
@@ -2444,6 +2457,8 @@ wi_seek_bap(struct wi_softc *sc, int id, int off)
 			device_printf(sc->sc_dev, "timeout in wi_seek to %x/%x\n",
 			    id, off);
 			sc->sc_bap_off = WI_OFF_ERR;	/* invalidate */
+			if (status == 0xffff)
+				sc->wi_gone = 1;
 			return ETIMEDOUT;
 		}
 		DELAY(1);
