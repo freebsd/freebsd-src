@@ -2157,7 +2157,15 @@ vmspace_fork(vm1)
                                                                        old_entry->start));
                                 old_entry->object.vm_object = object;
                                 old_entry->offset = (vm_offset_t) 0;
-                        }
+                        } else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
+				vm_object_shadow(&old_entry->object.vm_object,
+						 &old_entry->offset,
+						 OFF_TO_IDX(old_entry->end -
+							old_entry->start));
+
+				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
+				object = old_entry->object.vm_object;
+			}
 
 			/*
 			 * Clone the entry, referencing the sharing map.
