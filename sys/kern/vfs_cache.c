@@ -553,23 +553,30 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL)
  * XXX: by incrementing each vnodes v_id individually instead of
  * XXX: using the global v_id.
  */
-
-/*
- * XXX This is sometimes called when a vnode may still be re-used, in which
- * case v_dd may be invalid.  Need to look this up.
- */
 void
 cache_purge(vp)
 	struct vnode *vp;
 {
+	struct namecache *ncp;
 	static u_long nextid;
 
 	CACHE_LOCK();
-	while (!LIST_EMPTY(&vp->v_cache_src))
-		cache_zap(LIST_FIRST(&vp->v_cache_src));
+	while (!LIST_EMPTY(&vp->v_cache_src)) {
+		struct vnode *cvp;
+
+		ncp = LIST_FIRST(&vp->v_cache_src);
+		/*
+		 * We must reset v_dd of any children so they don't
+		 * continue to point to us.
+		 */
+		if ((cvp = ncp->nc_vp) && cvp->v_dd == vp) {
+			cvp->v_dd = cvp;
+			cvp->v_ddid = 0;
+		}
+		cache_zap(ncp);
+	}
 	while (!TAILQ_EMPTY(&vp->v_cache_dst))
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
-
 	do
 		nextid++;
 	while (nextid == vp->v_id || !nextid);
