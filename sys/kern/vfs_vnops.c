@@ -393,9 +393,17 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 	auio.uio_rw = rw;
 	auio.uio_td = td;
 	if (rw == UIO_READ) {
-		error = VOP_READ(vp, &auio, ioflg, cred);
+#ifdef MAC
+		error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_READ);
+		if (error == 0)
+#endif
+			error = VOP_READ(vp, &auio, ioflg, cred);
 	} else {
-		error = VOP_WRITE(vp, &auio, ioflg, cred);
+#ifdef MAC
+		error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_WRITE);
+		if (error == 0)
+#endif
+			error = VOP_WRITE(vp, &auio, ioflg, cred);
 	}
 	if (aresid)
 		*aresid = auio.uio_resid;
@@ -482,7 +490,11 @@ vn_read(fp, uio, cred, flags, td)
 
 	ioflag |= sequential_heuristic(uio, fp);
 
-	error = VOP_READ(vp, uio, ioflag, cred);
+#ifdef MAC
+	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_READ);
+	if (error == 0)
+#endif
+		error = VOP_READ(vp, uio, ioflag, cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
@@ -533,7 +545,11 @@ vn_write(fp, uio, cred, flags, td)
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
-	error = VOP_WRITE(vp, uio, ioflag, cred);
+#ifdef MAC
+	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_WRITE);
+	if (error == 0)
+#endif
+		error = VOP_WRITE(vp, uio, ioflag, cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
 	fp->f_nextoff = uio->uio_offset;
@@ -575,6 +591,12 @@ vn_stat(vp, sb, td)
 	register struct vattr *vap;
 	int error;
 	u_short mode;
+
+#ifdef MAC
+	error = mac_check_vnode_stat(td->td_ucred, vp);
+	if (error)
+		return (error);
+#endif
 
 	vap = &vattr;
 	error = VOP_GETATTR(vp, vap, td->td_ucred, td);
@@ -757,6 +779,19 @@ vn_poll(fp, events, cred, td)
 	struct ucred *cred;
 	struct thread *td;
 {
+	struct vnode *vp;
+#ifdef MAC
+	int error;
+#endif
+
+	vp = (struct vnode *)fp->f_data;
+#ifdef MAC
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_POLL);
+	VOP_UNLOCK(vp, 0, td);
+	if (error)
+		return (error);
+#endif
 
 	return (VOP_POLL(((struct vnode *)fp->f_data), events, cred, td));
 }
