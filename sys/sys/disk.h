@@ -40,7 +40,7 @@ struct disk {
 #define DISKFLAG_LOCK		0x1
 #define DISKFLAG_WANTED		0x2
 
-dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, struct cdevsw *diskdevsw);
+dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, void *unused);
 void disk_destroy(dev_t dev);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);

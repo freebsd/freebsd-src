@@ -266,7 +266,7 @@ g_disk_create(void *arg)
 
 
 dev_t
-disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
+disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void *unused)
 {
 	dev_t dev;
 
