@@ -5,6 +5,10 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010220:
+	The problems with libc have been corrected.  It is now mostly
+	safe to go back into the water.
+
 20010211:
 	The size of FILE was changed.  This breaks upgrading.  If
 	you must upgrade, be prepared for pain.  It also breaks almost
