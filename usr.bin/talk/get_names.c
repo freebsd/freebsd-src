@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <pwd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include "talk.h"
