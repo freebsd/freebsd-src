@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 
-#define AN_TIMEOUT	600000
+#define AN_TIMEOUT	65536
 
 /* Default network name: <empty string> */
 #define AN_DEFAULT_NETNAME	""
@@ -460,8 +460,7 @@ struct an_softc	{
 	struct an_ltv_caps	an_caps;
 	struct an_ltv_ssidlist	an_ssidlist;
 	struct an_ltv_aplist	an_aplist;
-        struct an_ltv_key	an_temp_keys;
-        struct an_ltv_key	an_perm_keys;
+        struct an_ltv_key	an_temp_keys[4];
 	int			an_tx_rate;
 	int			an_rxmode;
 	int			an_gone;
