@@ -183,7 +183,7 @@ struct nic_info {
 	int ident;         /* Type of card */
 	int ic;            /* Type of ic, Am7990, Am79C960 etc. */
 	int mem_mode;
-	int iobase;
+	long iobase;
 	int mode;          /* Mode setting at initialization */
 };
 
