@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.7 1995/10/23 20:36:26 ache Exp $
+ *	$Id: ls.c,v 1.8 1995/10/23 21:09:01 ache Exp $
  */
 
 #ifndef lint
@@ -105,7 +105,8 @@ main(argc, argv)
 	int ch, fts_options, notused;
 	char *p;
 
-	(void) setlocale(LC_CTYPE|LC_TIME, "");
+	(void) setlocale(LC_ALL, "");
+
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {
 		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1 ||
