@@ -375,7 +375,7 @@ typedef struct hifn_desc {
 /*
  * PLL config register 
  */
-#define	HIFN_PLL_7956		0x00001d18	/* 7956 PLL config value */ 
+#define	HIFN_PLL_7956		0x00001d19	/* 7956 PLL config value */ 
 
 /*********************************************************************
  * Structs for board commands 
