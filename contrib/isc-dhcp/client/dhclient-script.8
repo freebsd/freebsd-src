@@ -35,6 +35,9 @@
 .\" Enterprises.  To learn more about the Internet Software Consortium,
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $FreeBSD$
+.\"
 .TH dhclient-script 8
 .SH NAME
 dhclient-script - DHCP client network configuration script
@@ -86,7 +89,7 @@ will exit with that error code immediately after the client script exits.
 After all processing has completed,
 .B /sbin/dhclient-script
 checks for the presence of an executable
-.B /sbin/dhclient-exit-hooks
+.B /etc/dhclient-exit-hooks
 script, which if present is invoked using the '.' command.   The exit status
 is passed in the exit_status shell variable, and will always be zero if the
 script succeeded at the task for which it was invoked.
