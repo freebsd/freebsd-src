@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25.4.7 1996/11/20 18:25:30 pst Exp $
+ *	$Id: tcp_input.c,v 1.25.4.8 1997/07/07 20:56:58 jdp Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -821,15 +821,17 @@ findpcb:
 			 * option, check it to make sure this segment really
 			 * matches our SYN.  If not, just drop it as old
 			 * duplicate, but send an RST if we're still playing
-			 * by the old rules.
+			 * by the old rules.  If no CC.ECHO option, make sure
+			 * we don't get fooled into using T/TCP.
 			 */
-			if ((to.to_flag & TOF_CCECHO) &&
-			    tp->cc_send != to.to_ccecho) {
-				if (taop->tao_ccsent != 0)
-					goto drop;
-				else
-					goto dropwithreset;
-			}
+			if (to.to_flag & TOF_CCECHO) {
+				if (tp->cc_send != to.to_ccecho)
+					if (taop->tao_ccsent != 0)
+						goto drop;
+					else
+						goto dropwithreset;
+			} else
+				tp->t_flags &= ~TF_RCVD_CC;
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			/* Do window scaling on this connection? */
