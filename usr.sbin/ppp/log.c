@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.1 1998/02/10 03:23:25 brian Exp $
+ *	$Id: log.c,v 1.25.2.2 1998/04/03 19:25:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -83,22 +83,29 @@ log_RegisterPrompt(struct prompt *prompt)
   }
 }
 
+static void
+LogSetMaskLocal(void)
+{
+  struct prompt *p;
+
+  LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
+  for (p = logprompt; p; p = p->lognext)
+    LogMaskLocal |= p->logmask;
+}
+
 void
 log_UnRegisterPrompt(struct prompt *prompt)
 {
   if (prompt) {
     struct prompt **p;
 
-    LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
-    for (p = &logprompt; *p; p = &(*p)->lognext) {
+    for (p = &logprompt; *p; p = &(*p)->lognext)
       if (*p == prompt) {
-        *p = (*p)->lognext;
+        *p = prompt->lognext;
         prompt->lognext = NULL;
-        if (!*p)
-          break;
+        break;
       }
-      LogMaskLocal |= (*p)->logmask;
-    }
+    LogSetMaskLocal();
   }
 }
 
@@ -150,8 +157,8 @@ void
 LogDiscardLocal(int id, u_long *mask)
 {
   if (id >= LogMIN && id <= LogMAXCONF) {
-    LogMaskLocal &= ~MSK(id);
     *mask &= ~MSK(id);
+    LogSetMaskLocal();
   }
 }
 
@@ -164,7 +171,8 @@ LogDiscardAll()
 void
 LogDiscardAllLocal(u_long *mask)
 {
-  LogMaskLocal = *mask = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
+  *mask = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
+  LogSetMaskLocal();
 }
 
 int
