@@ -18,7 +18,7 @@ blkdev	name		comments
 2	fd		floppy disk
 3	wt		QIC-02/36 tape
 4	da		SCSI "direct acess" devices
-5	sa		SCSI "sequential access" devices
+5	was:sa		SCSI "sequential access" devices
 6	cd		SCSI "cdrom" type
 7	mcd		Mitsumi CDROM interface
 8	lkm		assigned to Loadable Kernel modules
@@ -35,7 +35,7 @@ blkdev	name		comments
 19	wcdb		ATAPI CDROM client of "wd"
 20	??		ATA disks
 21	ccd		concatenated disk
-22	gd		Geometry disk.
+22	was:gd		Geometry disk.
 24	wstb		ATAPI tape client of "wd"
 25	vinum		Volume manager
 26	sw		VM internal swap device
@@ -145,7 +145,7 @@ chrdev	name		comments
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
 93	coda		CODA filesystem.
 94	loran		Loran-C Receiver
-95	gd		Geometry disk
+95	was:gd		Geometry disk
 96	altq		alternate queueing (including cbq, red, wfq)
 97	myx		Mylex RAID controller (ulf@alameda.net)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
