@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap-snoop.c,v 1.20 97/04/08 21:06:17 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snoop.c,v 1.20.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
