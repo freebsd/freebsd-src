@@ -263,7 +263,7 @@ static struct filed consfile;	/* Console */
 static int	Debug;		/* debug flag */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
-static char	*LocalDomain;	/* our local domain name */
+static const char *LocalDomain;	/* our local domain name */
 static int	*finet;		/* Internet datagram socket */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
@@ -971,6 +971,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	struct addrinfo *r;
 	int i, l, lsent = 0;
 	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
+	char nul[] = "", space[] = " ", lf[] = "\n", crlf[] = "\r\n";
 	const char *msgret;
 
 	v = iov;
@@ -981,14 +982,14 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		    f->f_prevhost, ctime(&now));
 		if (v->iov_len > 0)
 			v++;
-		v->iov_base = "";
+		v->iov_base = nul;
 		v->iov_len = 0;
 		v++;
 	} else {
 		v->iov_base = f->f_lasttime;
 		v->iov_len = 15;
 		v++;
-		v->iov_base = " ";
+		v->iov_base = space;
 		v->iov_len = 1;
 		v++;
 	}
@@ -1030,7 +1031,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_base = fp_buf;
 		v->iov_len = strlen(fp_buf);
 	} else {
-	        v->iov_base="";
+	        v->iov_base = nul;
 		v->iov_len = 0;
 	}
 	v++;
@@ -1038,7 +1039,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	v->iov_base = f->f_prevhost;
 	v->iov_len = strlen(v->iov_base);
 	v++;
-	v->iov_base = " ";
+	v->iov_base = space;
 	v->iov_len = 1;
 	v++;
 
@@ -1074,11 +1075,12 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		if (strcasecmp(f->f_prevhost, LocalHostName))
 			l = snprintf(line, sizeof line - 1,
 			    "<%d>%.15s Forwarded from %s: %s",
-			    f->f_prevpri, iov[0].iov_base, f->f_prevhost,
-			    iov[5].iov_base);
+			    f->f_prevpri, (char *)iov[0].iov_base,
+			    f->f_prevhost, (char *)iov[5].iov_base);
 		else
 			l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
-			     f->f_prevpri, iov[0].iov_base, iov[5].iov_base);
+			     f->f_prevpri, (char *)iov[0].iov_base,
+			    (char *)iov[5].iov_base);
 		if (l < 0)
 			l = 0;
 		else if (l > MAXLINE)
@@ -1132,7 +1134,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_FILE:
 		dprintf(" %s\n", f->f_un.f_fname);
-		v->iov_base = "\n";
+		v->iov_base = lf;
 		v->iov_len = 1;
 		if (writev(f->f_file, iov, 7) < 0) {
 			int e = errno;
@@ -1146,7 +1148,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_PIPE:
 		dprintf(" %s\n", f->f_un.f_pipe.f_pname);
-		v->iov_base = "\n";
+		v->iov_base = lf;
 		v->iov_len = 1;
 		if (f->f_un.f_pipe.f_pid == 0) {
 			if ((f->f_file = p_open(f->f_un.f_pipe.f_pname,
@@ -1177,7 +1179,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 
 	case F_TTY:
 		dprintf(" %s%s\n", _PATH_DEV, f->f_un.f_fname);
-		v->iov_base = "\r\n";
+		v->iov_base = crlf;
 		v->iov_len = 2;
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
@@ -1190,7 +1192,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	case F_USERS:
 	case F_WALL:
 		dprintf("\n");
-		v->iov_base = "\r\n";
+		v->iov_base = crlf;
 		v->iov_len = 2;
 		wallmsg(f, iov);
 		break;
