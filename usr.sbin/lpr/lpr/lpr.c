@@ -496,11 +496,11 @@ main(int argc, char *argv[])
 		 */
 		seteuid(euid);
 		if ((tfd = open(tfname, O_RDWR)) >= 0) {
-			char c;
+			char touch_c;
 
-			if (read(tfd, &c, 1) == 1 &&
+			if (read(tfd, &touch_c, 1) == 1 &&
 			    lseek(tfd, (off_t)0, 0) == 0 &&
-			    write(tfd, &c, 1) != 1) {
+			    write(tfd, &touch_c, 1) != 1) {
 				printf("%s: cannot touch %s\n", progname,
 				    tfname);
 				tfname[inchar]++;
