@@ -102,7 +102,7 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A bug in the &man.fetch.1; utility which allows
+    <para>A bug in the &man.fetch.1; utility, which allows
       a malicious HTTP server to cause arbitrary portions of the client's
       memory to be overwritten, has been fixed.
       For more information, see security advisory
@@ -110,9 +110,10 @@
       &merged;</para>
 
     <para>A bug in &man.procfs.5; and &man.linprocfs.5;
-      which could cause a malicious local user could perform a local
-      denial of service attack by causing a system panic, or the user
-      could read parts of kernel memory, has been fixed.
+      which could allow a malicious local user to read parts of kernel
+      memory or perform a local
+      denial of service attack by causing a system panic,
+      has been fixed.
       For more information, see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       &merged;</para>
@@ -141,7 +142,7 @@
 
     <para>Fine-grained locking to allow much of the VFS stack to run
       without the Giant lock has been added.  This is enabled by default
-      on alpha, amd64, and i386 architecture, and can be disabled
+      on the alpha, amd64, and i386 architectures, and can be disabled
       by setting the loader tunable (and sysctl variable)
       <varname>debug.mpsafevfs</varname> to
       <literal>0</literal>.</para>
@@ -159,8 +160,8 @@
 
     <para arch="i386">Memory allocation for legacy PCI bridges has
       been limited to the top 32MB of RAM.  Many older, legacy bridges
-      only allow allocation from this range and this only applies
-      to devices which don't have their memory assigned by the BIOS.
+      only allow allocation from this range.  This change only applies
+      to devices which do not have their memory assigned by the BIOS.
       This change fixes the <quote>bad Vcc</quote> error of CardBus
       bridges (&man.pccbb.4;). &merged;</para>
 
@@ -256,7 +257,7 @@
 
       <para>The &man.psm.4; driver now has improved support for
 	Synaptics Touchpad users.  It now has better tracking of
-	slow-speed movement and now has support for various extra
+	slow-speed movement and support for various extra
 	buttons and dials.  These features can be tuned with the
 	<varname>hw.psm.synaptics.<replaceable>*</replaceable></varname>
 	hierarchy of sysctl variables.</para>
@@ -329,7 +330,7 @@
 	  and &man.altq.4;. &merged;</para>
 
 	<para>Several programming errors in the &man.sk.4; driver have
-	  been corrected.  This bug was particular to SMP systems, and
+	  been corrected.  These bugs were particular to SMP systems, and
 	  could cause panics, page faults, aborted SSH connections, or
 	  corrupted file transfers.  More details can be found in
 	  errata note
@@ -343,7 +344,7 @@
 	<para>The &man.vge.4; driver now has support for device polling
 	  (&man.polling.4;).</para>
 
-	<para>Support for 802.11 devices in the &man.wlan.4; has been
+	<para>Support for 802.11 devices in the &man.wlan.4; framework has been
 	  greatly overhauled.  In addition to architectural changes,
 	  it includes completed 802.11g, WPA, 802.11i, 802.1x,
 	  WME/WMM, AP-side power-saving, and plugin frameworks for
@@ -361,28 +362,28 @@
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
 	data that must be fragmented.  &merged;</para>
 
-      <para>CARP (Common Address Redundancy Protocol) has
+      <para>The Common Address Redundancy Protocol (CARP) has
 	been implemented.  CARP comes from OpenBSD and allows
 	multiple hosts to share an IP address, providing
 	high availability and load balancing.
-	For more information, see &man.carp.4; manual page.</para>
+	For more information, see the &man.carp.4; manual page.</para>
 
-      <para>&man.ipfw.4; <literal>IPDIVERT</literal> option has been
+      <para>The &man.ipfw.4; <literal>IPDIVERT</literal> option is now
 	available as a kernel loadable module.
 	If this module is not loaded, &man.ipfw.4; will refuse to
 	install <literal>divert</literal> rules and &man.natd.8;
-	will put an error message <quote>protocol not supported</quote>.</para>
+	will return the error message <quote>protocol not supported</quote>.</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
-	of the &man.altq.4;, packets via a divert socket,
-	and TCP data length.</para>
+	of &man.altq.4; packets via a divert socket,
+	as well as the TCP data length.</para>
 
-      <para>&man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
+      <para>The &man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
 	the full packet destination manipulation when the kernel option
 	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> is specified
 	in addition to <literal>options IPFIRWALL_FORWARD</literal>.
 	This kernel option disables all restrictions to ensure proper
-	behavior for locally generated packets and allows to redirect
+	behavior for locally generated packets and allows redirection of
 	packets destined to locally configured IP addresses.
 	Note that &man.ipfw.8; rules have to be carefully crafted to
 	make sure that things like PMTU discovery do not break.</para>
@@ -405,10 +406,10 @@
 	fixed. &merged;</para>
 
       <para>RFC 1644 T/TCP support has been removed.  This is because
-	the design is based on an weak security model that can result
-	in the ease of denial-of-service attacks and this TCP
-	extension has been considered as a defective one in
-	the recent Internet Draft.</para>
+	the design is based on a weak security model that can easily
+	permit denial-of-service attacks.  This TCP
+	extension has been considered a defective one in
+	a recent Internet Draft.</para>
 
       <para>Random ephemeral port number allocation has led to some
         problems with port reuse at high connection rates.  This
@@ -512,7 +513,7 @@
 
     <para>Support for abbreviated forms of a number of &man.ipfw.8;
       options has been deprecated.  Warnings are printed to stderr
-      indicated the correct full form when one of these abbreviations
+      indicating the correct full form when one of these abbreviations
       is detected.</para>
 
     <para>The <filename>libarchive</filename> library (as well as the
@@ -527,15 +528,15 @@
       be excluded from various programs and will cause the NIS
       utilities to not be built. &merged;</para>
 
-    <para arch="i386">The &man.mkuzip.8;, which is a non-GPL
-      utility to compress file system images for use with
+    <para arch="i386">The &man.mkuzip.8; utility, which
+      compresses file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added.</para>
 
     <para>The &man.newsyslog.8; utility now supports
 	a <option>-d</option> option to specify an alternate root for log files
 	similar to <varname>DESTDIR</varname> in the BSD make process.
-	This only affects log file paths, not config file (<option>-f</option>)
+	This only affects log file paths, not configuration file (<option>-f</option>)
 	or archive directory (<option>-a</option>) paths.</para>
 
     <para>The &man.ncal.1; utility now supports a <option>-m</option>
@@ -548,7 +549,7 @@
       <function>ib<replaceable>foo</replaceable></function>
       API.</para>
 
-    <para>The &man.mknod.8; utility has been marked deprecated.
+    <para>The &man.mknod.8; utility is now deprecated.
       Device nodes have been managed by the &man.devfs.5; device file
       system since &os; 5.0.</para>
 
@@ -577,7 +578,7 @@
       echo</command> to get this behavior. &merged;</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
-      option that asks for confirmation once if recursively
+      option that asks for confirmation (once) if recursively
       removing directories or if more than 3 files are listed in the
       command line. &merged;</para>
 
@@ -591,7 +592,7 @@
     <para>The &man.syslog.3; function is now thread-safe. &merged;</para>
 
     <para>The &man.syslogd.8; utility now opens an additional domain
-      socket <filename>/var/run/logpriv</filename> by default,
+      socket (<filename>/var/run/logpriv</filename> by default),
       with <literal>0600</literal> permissions to be used
       by privileged programs.  This prevents privileged
       programs from locking when the domain sockets
@@ -612,8 +613,8 @@
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
       for querying <hostid role="fqdn">whois.krnic.net</hostid>
-      (the National Internet Development Agency of Korea)
-      which hold details of IP address allocations within
+      (the National Internet Development Agency of Korea),
+      which holds details of IP address allocations within
       Korea. &merged;</para>
 
     <para>The <option>-I</option> option of the &man.xargs.1; command
