@@ -19,6 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -45,6 +46,33 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "natd.h"
+
+struct instance {
+	const char		*name;
+	struct libalias		*la;
+	LIST_ENTRY(instance)	list;
+
+	int			ifIndex;
+	int			assignAliasAddr;
+	char*			ifName;
+	int			logDropped;
+	u_short			inPort;
+	u_short			outPort;
+	u_short			inOutPort;
+	struct in_addr		aliasAddr;
+	int			ifMTU;
+	int			aliasOverhead;
+	int			dropIgnoredIncoming;
+	int			divertIn;
+	int			divertOut;
+	int			divertInOut;
+};
+
+static LIST_HEAD(, instance) root = LIST_HEAD_INITIALIZER(&root);
+
+struct libalias *mla;
+struct instance *mip;
+int ninstance = 1;
 
 /* 
  * Default values for input and output
@@ -100,6 +128,8 @@ static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, ch
 static void	ParseArgs (int argc, char** argv);
 static void	SetupPunchFW(const char *strValue);
 static void	SetupSkinnyPort(const char *strValue);
+static void	NewInstance(const char *name);
+static void	DoGlobal (int fd);
 
 /*
  * Globals.
@@ -108,29 +138,18 @@ static void	SetupSkinnyPort(const char *strValue);
 static	int			verbose;
 static 	int			background;
 static	int			running;
-static	int			assignAliasAddr;
-static	char*			ifName;
-static  int			ifIndex;
-static	u_short			inPort;
-static	u_short			outPort;
-static	u_short			inOutPort;
-static	struct in_addr		aliasAddr;
-static 	int			dynamicMode;
-static  int			ifMTU;
-static	int			aliasOverhead;
-static 	int			icmpSock;
-static  int			dropIgnoredIncoming;
-static  int			logDropped;
 static	int			logFacility;
+
+static 	int			dynamicMode;
+static 	int			icmpSock;
 static	int			logIpfwDenied;
 static	char*			pidName;
+static	int			routeSock;
+static	int			globalPort;
+static	int			divertGlobal;
 
 int main (int argc, char** argv)
 {
-	int			divertIn;
-	int			divertOut;
-	int			divertInOut;
-	int			routeSock;
 	struct sockaddr_in	addr;
 	fd_set			readMask;
 	int			fdMax;
@@ -139,26 +158,22 @@ int main (int argc, char** argv)
  * Done already here to be able to alter option bits
  * during command line and configuration file processing.
  */
-	PacketAliasInit ();
+	NewInstance("default");
+
 /*
  * Parse options.
  */
-	inPort			= 0;
-	outPort			= 0;
 	verbose 		= 0;
-	inOutPort		= 0;
-	ifName			= NULL;
-	ifMTU			= -1;
 	background		= 0;
 	running			= 1;
-	assignAliasAddr		= 0;
-	aliasAddr.s_addr	= INADDR_NONE;
-	aliasOverhead		= 12;
 	dynamicMode		= 0;
- 	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
 	logIpfwDenied		= -1;
 	pidName			= PIDFILE;
+	routeSock 		= -1;
+	icmpSock 		= -1;
+	fdMax	 		= -1;
+	divertGlobal		= -1;
 
 	ParseArgs (argc, argv);
 /*
@@ -171,107 +186,142 @@ int main (int argc, char** argv)
  */
 	openlog ("natd", LOG_CONS | LOG_PID | (verbose ? LOG_PERROR : 0),
 		 logFacility);
+
+	LIST_FOREACH(mip, &root, list) {
+		mla = mip->la;
 /*
  * If not doing the transparent proxying only,
  * check that valid aliasing address has been given.
  */
-	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL &&
-	    !(PacketAliasSetMode(0,0) & PKT_ALIAS_PROXY_ONLY))
-		errx (1, "aliasing address not given");
+		if (mip->aliasAddr.s_addr == INADDR_NONE && mip->ifName == NULL &&
+		    !(LibAliasSetMode(mla, 0,0) & PKT_ALIAS_PROXY_ONLY))
+			errx (1, "instance %s: aliasing address not given", mip->name);
 
-	if (aliasAddr.s_addr != INADDR_NONE && ifName != NULL)
-		errx (1, "both alias address and interface "
-			 "name are not allowed");
+		if (mip->aliasAddr.s_addr != INADDR_NONE && mip->ifName != NULL)
+			errx (1, "both alias address and interface "
+				 "name are not allowed");
 /*
  * Check that valid port number is known.
  */
-	if (inPort != 0 || outPort != 0)
-		if (inPort == 0 || outPort == 0)
-			errx (1, "both input and output ports are required");
+		if (mip->inPort != 0 || mip->outPort != 0)
+			if (mip->inPort == 0 || mip->outPort == 0)
+				errx (1, "both input and output ports are required");
 
-	if (inPort == 0 && outPort == 0 && inOutPort == 0)
-		ParseOption ("port", DEFAULT_SERVICE);
+		if (mip->inPort == 0 && mip->outPort == 0 && mip->inOutPort == 0)
+			ParseOption ("port", DEFAULT_SERVICE);
 
 /*
  * Check if ignored packets should be dropped.
  */
-	dropIgnoredIncoming = PacketAliasSetMode (0, 0);
-	dropIgnoredIncoming &= PKT_ALIAS_DENY_INCOMING;
+		mip->dropIgnoredIncoming = LibAliasSetMode (mla, 0, 0);
+		mip->dropIgnoredIncoming &= PKT_ALIAS_DENY_INCOMING;
 /*
  * Create divert sockets. Use only one socket if -p was specified
  * on command line. Otherwise, create separate sockets for
  * outgoing and incoming connnections.
  */
-	if (inOutPort) {
+		if (mip->inOutPort) {
 
-		divertInOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
-		if (divertInOut == -1)
-			Quit ("Unable to create divert socket.");
+			mip->divertInOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			if (mip->divertInOut == -1)
+				Quit ("Unable to create divert socket.");
+			if (mip->divertInOut > fdMax)
+				fdMax = mip->divertInOut;
 
-		divertIn  = -1;
-		divertOut = -1;
+			mip->divertIn  = -1;
+			mip->divertOut = -1;
 /*
  * Bind socket.
  */
 
-		addr.sin_family		= AF_INET;
-		addr.sin_addr.s_addr	= INADDR_ANY;
-		addr.sin_port		= inOutPort;
+			addr.sin_family		= AF_INET;
+			addr.sin_addr.s_addr	= INADDR_ANY;
+			addr.sin_port		= mip->inOutPort;
 
-		if (bind (divertInOut,
-			  (struct sockaddr*) &addr,
-			  sizeof addr) == -1)
-			Quit ("Unable to bind divert socket.");
-	}
-	else {
+			if (bind (mip->divertInOut,
+				  (struct sockaddr*) &addr,
+				  sizeof addr) == -1)
+				Quit ("Unable to bind divert socket.");
+		}
+		else {
 
-		divertIn = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
-		if (divertIn == -1)
-			Quit ("Unable to create incoming divert socket.");
+			mip->divertIn = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			if (mip->divertIn == -1)
+				Quit ("Unable to create incoming divert socket.");
+			if (mip->divertIn > fdMax)
+				fdMax = mip->divertIn;
 
-		divertOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
-		if (divertOut == -1)
-			Quit ("Unable to create outgoing divert socket.");
 
-		divertInOut = -1;
+			mip->divertOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			if (mip->divertOut == -1)
+				Quit ("Unable to create outgoing divert socket.");
+			if (mip->divertOut > fdMax)
+				fdMax = mip->divertOut;
+
+			mip->divertInOut = -1;
 
 /*
  * Bind divert sockets.
  */
 
-		addr.sin_family		= AF_INET;
-		addr.sin_addr.s_addr	= INADDR_ANY;
-		addr.sin_port		= inPort;
+			addr.sin_family		= AF_INET;
+			addr.sin_addr.s_addr	= INADDR_ANY;
+			addr.sin_port		= mip->inPort;
 
-		if (bind (divertIn,
-			  (struct sockaddr*) &addr,
-			  sizeof addr) == -1)
-			Quit ("Unable to bind incoming divert socket.");
+			if (bind (mip->divertIn,
+				  (struct sockaddr*) &addr,
+				  sizeof addr) == -1)
+				Quit ("Unable to bind incoming divert socket.");
 
-		addr.sin_family		= AF_INET;
-		addr.sin_addr.s_addr	= INADDR_ANY;
-		addr.sin_port		= outPort;
+			addr.sin_family		= AF_INET;
+			addr.sin_addr.s_addr	= INADDR_ANY;
+			addr.sin_port		= mip->outPort;
 
-		if (bind (divertOut,
-			  (struct sockaddr*) &addr,
-			  sizeof addr) == -1)
-			Quit ("Unable to bind outgoing divert socket.");
-	}
+			if (bind (mip->divertOut,
+				  (struct sockaddr*) &addr,
+				  sizeof addr) == -1)
+				Quit ("Unable to bind outgoing divert socket.");
+		}
 /*
  * Create routing socket if interface name specified and in dynamic mode.
  */
-	routeSock = -1;
-	if (ifName) {
-		if (dynamicMode) {
+		if (mip->ifName) {
+			if (dynamicMode) {
 
-			routeSock = socket (PF_ROUTE, SOCK_RAW, 0);
-			if (routeSock == -1)
-				Quit ("Unable to create routing info socket.");
+				if (routeSock == -1)
+					routeSock = socket (PF_ROUTE, SOCK_RAW, 0);
+				if (routeSock == -1)
+					Quit ("Unable to create routing info socket.");
+				if (routeSock > fdMax)
+					fdMax = routeSock;
 
-			assignAliasAddr = 1;
+				mip->assignAliasAddr = 1;
+			}
+			else
+				SetAliasAddressFromIfName (mip->ifName);
 		}
-		else
-			SetAliasAddressFromIfName (ifName);
+
+	}
+	if (globalPort) {
+
+		divertGlobal = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+		if (divertGlobal == -1)
+			Quit ("Unable to create divert socket.");
+		if (divertGlobal > fdMax)
+			fdMax = divertGlobal;
+
+/*
+* Bind socket.
+*/
+
+		addr.sin_family		= AF_INET;
+		addr.sin_addr.s_addr	= INADDR_ANY;
+		addr.sin_port		= globalPort;
+
+		if (bind (divertGlobal,
+			  (struct sockaddr*) &addr,
+			  sizeof addr) == -1)
+			Quit ("Unable to bind global divert socket.");
 	}
 /*
  * Create socket for sending ICMP messages.
@@ -302,34 +352,22 @@ int main (int argc, char** argv)
 /*
  * Set alias address if it has been given.
  */
-	if (aliasAddr.s_addr != INADDR_NONE)
-		PacketAliasSetAddress (aliasAddr);
-/*
- * We need largest descriptor number for select.
- */
-
-	fdMax = -1;
-
-	if (divertIn > fdMax)
-		fdMax = divertIn;
-
-	if (divertOut > fdMax)
-		fdMax = divertOut;
-
-	if (divertInOut > fdMax)
-		fdMax = divertInOut;
-
-	if (routeSock > fdMax)
-		fdMax = routeSock;
+	mip = LIST_FIRST(&root);	/* XXX: simon */
+	LIST_FOREACH(mip, &root, list) {
+		mla = mip->la;
+		if (mip->aliasAddr.s_addr != INADDR_NONE)
+			LibAliasSetAddress (mla, mip->aliasAddr);
+	}
 
 	while (running) {
+		mip = LIST_FIRST(&root);	/* XXX: simon */
 
-		if (divertInOut != -1 && !ifName) {
+		if (mip->divertInOut != -1 && !mip->ifName && ninstance == 1) {
 /*
  * When using only one socket, just call 
  * DoAliasing repeatedly to process packets.
  */
-			DoAliasing (divertInOut, DONT_KNOW);
+			DoAliasing (mip->divertInOut, DONT_KNOW);
 			continue;
 		}
 /* 
@@ -339,19 +377,24 @@ int main (int argc, char** argv)
 /*
  * Check if new packets are available.
  */
-		if (divertIn != -1)
-			FD_SET (divertIn, &readMask);
+		LIST_FOREACH(mip, &root, list) {
+			if (mip->divertIn != -1)
+				FD_SET (mip->divertIn, &readMask);
 
-		if (divertOut != -1)
-			FD_SET (divertOut, &readMask);
+			if (mip->divertOut != -1)
+				FD_SET (mip->divertOut, &readMask);
 
-		if (divertInOut != -1)
-			FD_SET (divertInOut, &readMask);
+			if (mip->divertInOut != -1)
+				FD_SET (mip->divertInOut, &readMask);
+		}
 /*
  * Routing info is processed always.
  */
 		if (routeSock != -1)
 			FD_SET (routeSock, &readMask);
+
+		if (divertGlobal != -1)
+			FD_SET (divertGlobal, &readMask);
 
 		if (select (fdMax + 1,
 			    &readMask,
@@ -365,18 +408,24 @@ int main (int argc, char** argv)
 			Quit ("Select failed.");
 		}
 
-		if (divertIn != -1)
-			if (FD_ISSET (divertIn, &readMask))
-				DoAliasing (divertIn, INPUT);
+		if (divertGlobal != -1)
+			if (FD_ISSET (divertGlobal, &readMask))
+				DoGlobal (divertGlobal);
+		LIST_FOREACH(mip, &root, list) {
+			mla = mip->la;
+			if (mip->divertIn != -1)
+				if (FD_ISSET (mip->divertIn, &readMask))
+					DoAliasing (mip->divertIn, INPUT);
 
-		if (divertOut != -1)
-			if (FD_ISSET (divertOut, &readMask))
-				DoAliasing (divertOut, OUTPUT);
+			if (mip->divertOut != -1)
+				if (FD_ISSET (mip->divertOut, &readMask))
+					DoAliasing (mip->divertOut, OUTPUT);
 
-		if (divertInOut != -1) 
-			if (FD_ISSET (divertInOut, &readMask))
-				DoAliasing (divertInOut, DONT_KNOW);
+			if (mip->divertInOut != -1) 
+				if (FD_ISSET (mip->divertInOut, &readMask))
+					DoAliasing (mip->divertInOut, DONT_KNOW);
 
+		}
 		if (routeSock != -1)
 			if (FD_ISSET (routeSock, &readMask))
 				HandleRoutingInfo (routeSock);
@@ -443,6 +492,131 @@ static void ParseArgs (int argc, char** argv)
 	}
 }
 
+static void DoGlobal (int fd)
+{
+	int			bytes;
+	int			origBytes;
+	char			buf[IP_MAXPACKET];
+	struct sockaddr_in	addr;
+	int			wrote;
+	int			status;
+	int			addrSize;
+	struct ip*		ip;
+	char			msgBuf[80];
+
+/*
+ * Get packet from socket.
+ */
+	addrSize  = sizeof addr;
+	origBytes = recvfrom (fd,
+			      buf,
+			      sizeof buf,
+			      0,
+			      (struct sockaddr*) &addr,
+			      &addrSize);
+
+	if (origBytes == -1) {
+
+		if (errno != EINTR)
+			Warn ("read from divert socket failed");
+
+		return;
+	}
+
+#if 0
+	if (mip->assignAliasAddr) {
+		SetAliasAddressFromIfName (mip->ifName);
+		mip->assignAliasAddr = 0;
+	}
+#endif
+/*
+ * This is an IP packet.
+ */
+	ip = (struct ip*) buf;
+
+	if (verbose) {
+/*
+ * Print packet direction and protocol type.
+ */
+		printf ("Glb ");
+
+		switch (ip->ip_p) {
+		case IPPROTO_TCP:
+			printf ("[TCP]  ");
+			break;
+
+		case IPPROTO_UDP:
+			printf ("[UDP]  ");
+			break;
+
+		case IPPROTO_ICMP:
+			printf ("[ICMP] ");
+			break;
+
+		default:
+			printf ("[%d]    ", ip->ip_p);
+			break;
+		}
+/*
+ * Print addresses.
+ */
+		PrintPacket (ip);
+	}
+
+	LIST_FOREACH(mip, &root, list) {
+		mla = mip->la;
+		if (LibAliasOutTry (mla, buf, IP_MAXPACKET, 0) != PKT_ALIAS_IGNORED)
+			break;
+	}
+/*
+ * Length might have changed during aliasing.
+ */
+	bytes = ntohs (ip->ip_len);
+/*
+ * Update alias overhead size for outgoing packets.
+ */
+	if (mip != NULL && bytes - origBytes > mip->aliasOverhead)
+		mip->aliasOverhead = bytes - origBytes;
+
+	if (verbose) {
+		
+/*
+ * Print addresses after aliasing.
+ */
+		printf (" aliased to\n");
+		printf ("           ");
+		PrintPacket (ip);
+		printf ("\n");
+	}
+
+/*
+ * Put packet back for processing.
+ */
+	wrote = sendto (fd, 
+		        buf,
+	    		bytes,
+	    		0,
+	    		(struct sockaddr*) &addr,
+	    		sizeof addr);
+	
+	if (wrote != bytes) {
+
+		if (errno == EMSGSIZE) {
+
+			if (mip->ifMTU != -1)
+				SendNeedFragIcmp (icmpSock,
+						  (struct ip*) buf,
+						  mip->ifMTU - mip->aliasOverhead);
+		}
+		else if (errno == EACCES && logIpfwDenied) {
+
+			sprintf (msgBuf, "failed to write packet back");
+			Warn (msgBuf);
+		}
+	}
+}
+
+
 static void DoAliasing (int fd, int direction)
 {
 	int			bytes;
@@ -455,10 +629,10 @@ static void DoAliasing (int fd, int direction)
 	struct ip*		ip;
 	char			msgBuf[80];
 
-	if (assignAliasAddr) {
+	if (mip->assignAliasAddr) {
 
-		SetAliasAddressFromIfName (ifName);
-		assignAliasAddr = 0;
+		SetAliasAddressFromIfName (mip->ifName);
+		mip->assignAliasAddr = 0;
 	}
 /*
  * Get packet from socket.
@@ -494,6 +668,8 @@ static void DoAliasing (int fd, int direction)
  * Print packet direction and protocol type.
  */
 		printf (direction == OUTPUT ? "Out " : "In  ");
+		if (ninstance > 1)
+			printf ("{%s} %08x", mip->name);
 
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -522,21 +698,21 @@ static void DoAliasing (int fd, int direction)
 /*
  * Outgoing packets. Do aliasing.
  */
-		PacketAliasOut (buf, IP_MAXPACKET);
+		LibAliasOut (mla, buf, IP_MAXPACKET);
 	}
 	else {
 
 /*
  * Do aliasing.
  */	
-		status = PacketAliasIn (buf, IP_MAXPACKET);
+		status = LibAliasIn (mla, buf, IP_MAXPACKET);
 		if (status == PKT_ALIAS_IGNORED &&
-		    dropIgnoredIncoming) {
+		    mip->dropIgnoredIncoming) {
 
 			if (verbose)
 				printf (" dropped.\n");
 
-			if (logDropped)
+			if (mip->logDropped)
 				SyslogPacket (ip, LOG_WARNING, "denied");
 
 			return;
@@ -550,8 +726,8 @@ static void DoAliasing (int fd, int direction)
  * Update alias overhead size for outgoing packets.
  */
 	if (direction == OUTPUT &&
-	    bytes - origBytes > aliasOverhead)
-		aliasOverhead = bytes - origBytes;
+	    bytes - origBytes > mip->aliasOverhead)
+		mip->aliasOverhead = bytes - origBytes;
 
 	if (verbose) {
 		
@@ -579,10 +755,10 @@ static void DoAliasing (int fd, int direction)
 		if (errno == EMSGSIZE) {
 
 			if (direction == OUTPUT &&
-			    ifMTU != -1)
+			    mip->ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
 						  (struct ip*) buf,
-						  ifMTU - aliasOverhead);
+						  mip->ifMTU - mip->aliasOverhead);
 		}
 		else if (errno == EACCES && logIpfwDenied) {
 
@@ -615,11 +791,15 @@ static void HandleRoutingInfo (int fd)
 	if (verbose)
 		printf ("Routing message %#x received.\n", ifMsg.ifm_type);
 
-	if ((ifMsg.ifm_type == RTM_NEWADDR || ifMsg.ifm_type == RTM_IFINFO) &&
-	    ifMsg.ifm_index == ifIndex) {
-		if (verbose)
-			printf("Interface address/MTU has probably changed.\n");
-		assignAliasAddr = 1;
+	if ((ifMsg.ifm_type == RTM_NEWADDR || ifMsg.ifm_type == RTM_IFINFO)) {
+		LIST_FOREACH(mip, &root, list) {
+			mla = mip->la;
+			if (ifMsg.ifm_index == mip->ifIndex) {
+				if (verbose)
+					printf("Interface address/MTU has probably changed.\n");
+				mip->assignAliasAddr = 1;
+			}
+		}
 	}
 }
 
@@ -714,7 +894,7 @@ SetAliasAddressFromIfName(const char *ifn)
  * find correct interface index for routing
  * message processing.
  */
-	ifIndex	= 0;
+	mip->ifIndex	= 0;
 	next = buf;
 	while (next < lim) {
 		ifm = (struct if_msghdr *)next;
@@ -729,13 +909,13 @@ SetAliasAddressFromIfName(const char *ifn)
 			sdl = (struct sockaddr_dl *)(ifm + 1);
 			if (strlen(ifn) == sdl->sdl_nlen &&
 			    strncmp(ifn, sdl->sdl_data, sdl->sdl_nlen) == 0) {
-				ifIndex = ifm->ifm_index;
-				ifMTU = ifm->ifm_data.ifi_mtu;
+				mip->ifIndex = ifm->ifm_index;
+				mip->ifMTU = ifm->ifm_data.ifi_mtu;
 				break;
 			}
 		}
 	}
-	if (!ifIndex)
+	if (!mip->ifIndex)
 		errx(1, "unknown interface name %s", ifn);
 /*
  * Get interface address.
@@ -768,9 +948,9 @@ SetAliasAddressFromIfName(const char *ifn)
 	if (sin == NULL)
 		errx(1, "%s: cannot get interface address", ifn);
 
-	PacketAliasSetAddress(sin->sin_addr);
+	LibAliasSetAddress(mla, sin->sin_addr);
 	syslog(LOG_INFO, "Aliasing to %s, mtu %d bytes",
-	       inet_ntoa(sin->sin_addr), ifMTU);
+	       inet_ntoa(sin->sin_addr), mip->ifMTU);
 
 	free(buf);
 }
@@ -791,8 +971,8 @@ void Warn (const char* msg)
 
 static void RefreshAddr (int sig)
 {
-	if (ifName)
-		assignAliasAddr = 1;
+	if (mip->ifName)
+		mip->assignAliasAddr = 1;
 }
 
 static void InitiateShutdown (int sig)
@@ -818,11 +998,13 @@ static void Shutdown (int sig)
 
 enum Option {
 
-	PacketAliasOption,
+	LibAliasOption,
+	Instance,
 	Verbose,
 	InPort,
 	OutPort,
 	Port,
+	GlobalPort,
 	AliasAddress,
 	TargetAddress,
 	InterfaceName,
@@ -871,7 +1053,7 @@ struct OptionInfo {
 
 static struct OptionInfo optionTable[] = {
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_UNREGISTERED_ONLY,
 		YesNo,
 		"[yes|no]",
@@ -879,7 +1061,7 @@ static struct OptionInfo optionTable[] = {
 		"unregistered_only",
 		"u" },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_LOG,
 		YesNo,
 		"[yes|no]",
@@ -887,7 +1069,7 @@ static struct OptionInfo optionTable[] = {
 		"log",
 		"l" },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_PROXY_ONLY,
 		YesNo,
 		"[yes|no]",
@@ -895,7 +1077,7 @@ static struct OptionInfo optionTable[] = {
 		"proxy_only",
 		NULL },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_REVERSE,
 		YesNo,
 		"[yes|no]",
@@ -903,7 +1085,7 @@ static struct OptionInfo optionTable[] = {
 		"reverse",
 		NULL },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_DENY_INCOMING,
 		YesNo,
 		"[yes|no]",
@@ -911,7 +1093,7 @@ static struct OptionInfo optionTable[] = {
 		"deny_incoming",
 		"d" },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_USE_SOCKETS,
 		YesNo,
 		"[yes|no]",
@@ -919,7 +1101,7 @@ static struct OptionInfo optionTable[] = {
 		"use_sockets",
 		"s" },
 
-	{ PacketAliasOption,
+	{ LibAliasOption,
 		PKT_ALIAS_SAME_PORTS,
 		YesNo,
 		"[yes|no]",
@@ -966,6 +1148,14 @@ static struct OptionInfo optionTable[] = {
 		"set port (defaults to natd/divert)",
 		"port",
 		"p" },
+	
+	{ GlobalPort,
+		0,
+		Service,
+		"number|service_name",
+		"set globalport",
+		"globalport",
+		NULL },
 	
 	{ AliasAddress,
 		0,
@@ -1080,6 +1270,13 @@ static struct OptionInfo optionTable[] = {
 		"store PID in an alternate file",
 		"pid_file",
 		"P" },
+	{ Instance,
+		0,
+		String,
+		"instance name",
+		"name of aliasing engine instance",
+		"instance",
+		NULL },
 };
 	
 static void ParseOption (const char* option, const char* parms)
@@ -1175,10 +1372,10 @@ static void ParseOption (const char* option, const char* parms)
 	}
 
 	switch (info->type) {
-	case PacketAliasOption:
+	case LibAliasOption:
 	
 		aliasValue = yesNoValue ? info->packetAliasOpt : 0;
-		PacketAliasSetMode (aliasValue, info->packetAliasOpt);
+		LibAliasSetMode (mla, aliasValue, info->packetAliasOpt);
 		break;
 
 	case Verbose:
@@ -1190,23 +1387,27 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case InPort:
-		inPort = uNumValue;
+		mip->inPort = uNumValue;
 		break;
 
 	case OutPort:
-		outPort = uNumValue;
+		mip->outPort = uNumValue;
 		break;
 
 	case Port:
-		inOutPort = uNumValue;
+		mip->inOutPort = uNumValue;
+		break;
+
+	case GlobalPort:
+		globalPort = uNumValue;
 		break;
 
 	case AliasAddress:
-		memcpy (&aliasAddr, &addrValue, sizeof (struct in_addr));
+		memcpy (&mip->aliasAddr, &addrValue, sizeof (struct in_addr));
 		break;
 
 	case TargetAddress:
-		PacketAliasSetTarget(addrValue);
+		LibAliasSetTarget(mla, addrValue);
 		break;
 
 	case RedirectPort:
@@ -1222,14 +1423,14 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case ProxyRule:
-		PacketAliasProxyRule (strValue);
+		LibAliasProxyRule (mla, strValue);
 		break;
 
 	case InterfaceName:
-		if (ifName)
-			free (ifName);
+		if (mip->ifName)
+			free (mip->ifName);
 
-		ifName = strdup (strValue);
+		mip->ifName = strdup (strValue);
 		break;
 
 	case ConfigFile:
@@ -1237,7 +1438,7 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case LogDenied:
-		logDropped = yesNoValue;
+		mip->logDropped = yesNoValue;
 		break;
 
 	case LogFacility:
@@ -1274,6 +1475,9 @@ static void ParseOption (const char* option, const char* parms)
 
 	case PidFile:
 		pidName = strdup (strValue);
+		break;
+	case Instance:
+		NewInstance(strValue);
 		break;
 	}
 }
@@ -1471,7 +1675,7 @@ void SetupPortRedirect (const char* parms)
 	        if (numRemotePorts == 1 && remotePort == 0)
 		        remotePortCopy = 0;
 
-		link = PacketAliasRedirectPort (localAddr,
+		link = LibAliasRedirectPort (mla, localAddr,
 						htons(localPort + i),
 						remoteAddr,
 						htons(remotePortCopy),
@@ -1492,7 +1696,7 @@ void SetupPortRedirect (const char* parms)
 			localPort = GETLOPORT(portRange);
 			if (GETNUMPORTS(portRange) != 1)
 				errx(1, "redirect_port: local port must be single in this context");
-			PacketAliasAddServer(link, localAddr, htons(localPort));
+			LibAliasAddServer(mla, link, localAddr, htons(localPort));
 			ptr = strtok(NULL, ",");
 		}
 	}
@@ -1550,7 +1754,7 @@ SetupProtoRedirect(const char* parms)
 /*
  * Create aliasing link.
  */
-	(void)PacketAliasRedirectProto(localAddr, remoteAddr, publicAddr,
+	(void)LibAliasRedirectProto(mla, localAddr, remoteAddr, publicAddr,
 				       proto);
 }
 
@@ -1588,7 +1792,7 @@ void SetupAddressRedirect (const char* parms)
 		errx (1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
-	link = PacketAliasRedirectAddr(localAddr, publicAddr);
+	link = LibAliasRedirectAddr(mla, localAddr, publicAddr);
 
 /*
  * Setup LSNAT server pool.
@@ -1597,7 +1801,7 @@ void SetupAddressRedirect (const char* parms)
 		ptr = strtok(serverPool, ",");
 		while (ptr != NULL) {
 			StrToAddr(ptr, &localAddr);
-			PacketAliasAddServer(link, localAddr, htons(~0));
+			LibAliasAddServer(mla, link, localAddr, htons(~0));
 			ptr = strtok(NULL, ",");
 		}
 	}
@@ -1712,8 +1916,8 @@ SetupPunchFW(const char *strValue)
 	if (sscanf(strValue, "%u:%u", &base, &num) != 2)
 		errx(1, "punch_fw: basenumber:count parameter required");
 
-	PacketAliasSetFWBase(base, num);
-	(void)PacketAliasSetMode(PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
+	LibAliasSetFWBase(mla, base, num);
+	(void)LibAliasSetMode(mla, PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
 }
 
 static void
@@ -1724,5 +1928,35 @@ SetupSkinnyPort(const char *strValue)
 	if (sscanf(strValue, "%u", &port) != 1)
 		errx(1, "skinny_port: port parameter required");
 
-	PacketAliasSetSkinnyPort(port);
+	LibAliasSetSkinnyPort(mla, port);
+}
+
+static void
+NewInstance(const char *name)
+{
+	struct instance *ip;
+
+	LIST_FOREACH(ip, &root, list) {
+		if (!strcmp(ip->name, name)) {
+			mla = ip->la;
+			mip = ip;
+			return;
+		}
+	}
+	ninstance++;
+	ip = calloc(sizeof *ip, 1);
+	ip->name = strdup(name);
+	ip->la = LibAliasInit (ip->la);
+	ip->assignAliasAddr	= 0;
+	ip->ifName		= NULL;
+ 	ip->logDropped		= 0;
+	ip->inPort		= 0;
+	ip->outPort		= 0;
+	ip->inOutPort		= 0;
+	ip->aliasAddr.s_addr	= INADDR_NONE;
+	ip->ifMTU		= -1;
+	ip->aliasOverhead	= 12;
+	LIST_INSERT_HEAD(&root, ip, list);
+	mla = ip->la;
+	mip = ip;
 }
