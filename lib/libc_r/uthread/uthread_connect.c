@@ -42,7 +42,7 @@ int
 connect(int fd, const struct sockaddr * name, int namelen)
 {
 	struct sockaddr tmpname;
-	int             ret, tmpnamelen;
+	int             errnolen, ret, tmpnamelen;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
@@ -63,7 +63,8 @@ connect(int fd, const struct sockaddr * name, int namelen)
 					 * Get the error, this function
 					 * should not fail 
 					 */
-					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &tmpnamelen);
+					errnolen = sizeof(errno);
+					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
 				}
 			} else {
 				ret = -1;
