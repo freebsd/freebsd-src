@@ -75,7 +75,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	enum {COMPRESS, DECOMPRESS} style;
+        enum {COMPRESS, DECOMPRESS} style = COMPRESS;
 	size_t len;
 	int bits, cat, ch;
 	char *p, newname[MAXPATHLEN];
@@ -88,7 +88,10 @@ main(argc, argv)
 		style = DECOMPRESS;
 	else if (!strcmp(p, "compress"))
 		style = COMPRESS;
-	else
+	else if (!strcmp(p, "zcat")) {
+		style = DECOMPRESS;
+		cat = 1;
+	} else
 		errx(1, "unknown program name");
 
 	bits = cat = 0;
