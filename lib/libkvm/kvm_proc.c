@@ -222,6 +222,12 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				return (-1);
 			}
 			kp->ki_start = pstats.p_start;
+
+			/*
+			 * XXX: The times here are probably zero and need
+			 * to be calculated from the raw data in p_rux and
+			 * p_crux.
+			 */
 			kp->ki_rusage = pstats.p_ru;
 			kp->ki_childstime = pstats.p_cru.ru_stime;
 			kp->ki_childutime = pstats.p_cru.ru_utime;
@@ -338,7 +344,7 @@ nopgrp:
 				    kp->ki_lockname, LOCKNAMELEN);
 			kp->ki_lockname[LOCKNAMELEN] = 0;
 		}
-		bintime2timeval(&proc.p_runtime, &tv);
+		bintime2timeval(&proc.p_rux.rux_runtime, &tv);
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;
