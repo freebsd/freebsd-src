@@ -85,14 +85,13 @@
 #include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
-static	d_ioctl_t	vnioctl;
-static	d_open_t	vnopen;
-static	d_close_t	vnclose;
+static	d_ioctl_t	vnioctl, vnctlioctl;
+static	d_open_t	vnopen, vnctlopen;
+static	d_close_t	vnclose, vnctlclose;
 static	d_psize_t	vnsize;
 static	d_strategy_t	vnstrategy;
 
 #define CDEV_MAJOR 43
-#define BDEV_MAJOR 15
 
 #define VN_BSIZE_BEST	8192
 
@@ -115,9 +114,46 @@ static struct cdevsw vn_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	vnsize,
-	/* flags */	D_DISK|D_CANFREE,
-	/* bmaj */	BDEV_MAJOR
+	/* flags */	D_DISK | D_CANFREE | D_MEMDISK
 };
+
+
+static struct cdevsw vnctl_cdevsw = {
+	/* open */	vnctlopen,
+	/* close */	vnctlclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	vnctlioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"vn",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0
+};
+
+static void
+vn_clone (void *arg, char *name, int namelen, dev_t *dev)
+{
+	int i, u;
+	char *np;
+
+	if (*dev != NODEV)
+		return;
+	i = dev_stdclone(name, &np, "vn", &u);
+	if (i != 2)
+		return;
+	if (u > DKMAXUNIT)
+		return;
+	if (strcmp(np, ".ctl"))
+		return;
+	*dev = make_dev(&vnctl_cdevsw, dkmakeminor(u, 0, 0) | 0x02000000,
+	    UID_ROOT, GID_WHEEL, 0600, name);
+	return;
+}
+
 
 #define	getvnbuf()	\
 	((struct buf *)malloc(sizeof(struct buf), M_DEVBUF, M_WAITOK))
@@ -157,10 +193,24 @@ static int 	vniocattach_file (struct vn_softc *, struct vn_ioctl *, dev_t dev, i
 static int 	vniocattach_swap (struct vn_softc *, struct vn_ioctl *, dev_t dev, int flag, struct proc *p);
 
 static	int
+vnctlclose(dev_t dev, int flags, int mode, struct proc *p)
+{
+	struct vn_softc *vn = dev->si_drv1;
+
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnctlclose(%s, 0x%x, 0x%x, %p)\n",
+		    devtoname(dev), flags, mode, (void *)p);
+	return (0);
+}
+
+static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
 	struct vn_softc *vn = dev->si_drv1;
 
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnclose(%s, 0x%x, 0x%x, %p)\n",
+		    devtoname(dev), flags, mode, (void *)p);
 	if (vn->sc_slices != NULL)
 		dsclose(dev, mode, vn->sc_slices);
 	return (0);
@@ -194,6 +244,25 @@ vnfindvn(dev_t dev)
 		SLIST_INSERT_HEAD(&vn_list, vn, sc_list);
 	}
 	return (vn);
+}
+
+static	int
+vnctlopen(dev_t dev, int flags, int mode, struct proc *p)
+{
+	struct vn_softc *vn;
+
+	/*
+	 * Locate preexisting device
+	 */
+
+	if ((vn = dev->si_drv1) == NULL)
+		vn = vnfindvn(dev);
+
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnctlopen(%s, 0x%x, 0x%x, %p)\n",
+		    devtoname(dev), flags, mode, (void *)p);
+
+	return(0);
 }
 
 static	int
@@ -374,7 +443,7 @@ vnstrategy(struct bio *bp)
 
 /* ARGSUSED */
 static	int
-vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+vnctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct vn_softc *vn;
 	struct vn_ioctl *vio;
@@ -383,30 +452,9 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	vn = dev->si_drv1;
 	IFOPT(vn,VN_FOLLOW)
-		printf("vnioctl(%s, 0x%lx, %p, 0x%x, %p): unit %d\n",
+		printf("vnctlioctl(%s, 0x%lx, %p, 0x%x, %p): unit %d\n",
 		    devtoname(dev), cmd, (void *)data, flag, (void *)p,
 		    dkunit(dev));
-
-	switch (cmd) {
-	case VNIOCATTACH:
-	case VNIOCDETACH:
-	case VNIOCGSET:
-	case VNIOCGCLEAR:
-	case VNIOCUSET:
-	case VNIOCUCLEAR:
-		goto vn_specific;
-	}
-
-	if (vn->sc_slices != NULL) {
-		error = dsioctl(dev, cmd, data, flag, &vn->sc_slices);
-		if (error != ENOIOCTL)
-			return (error);
-	}
-	if (dkslice(dev) != WHOLE_DISK_SLICE ||
-	    dkpart(dev) != RAW_PART)
-		return (ENOTTY);
-
-    vn_specific:
 
 	error = suser(p);
 	if (error)
@@ -469,6 +517,35 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return(error);
 }
 
+
+/* ARGSUSED */
+static	int
+vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+{
+	struct vn_softc *vn;
+
+	vn = dev->si_drv1;
+	IFOPT(vn,VN_FOLLOW)
+		printf("vnioctl(%s, 0x%lx, %p, 0x%x, %p): unit %d\n",
+		    devtoname(dev), cmd, (void *)data, flag, (void *)p,
+		    dkunit(dev));
+
+	switch (cmd) {
+	case VNIOCATTACH:
+	case VNIOCDETACH:
+	case VNIOCGSET:
+	case VNIOCGCLEAR:
+	case VNIOCUSET:
+	case VNIOCUCLEAR:
+		return (vnctlioctl(dev, cmd, data, flag, p));
+	}
+
+	if (vn->sc_slices != NULL) 
+		return(dsioctl(dev, cmd, data, flag, &vn->sc_slices));
+
+	return (ENOIOCTL);
+}
+
 /*
  *	vniocattach_file:
  *
@@ -527,19 +604,10 @@ vniocattach_file(vn, vio, dev, flag, p)
 	vn->sc_flags |= VNF_INITED;
 	if (flags == FREAD)
 		vn->sc_flags |= VNF_READONLY;
-	/*
-	 * Reopen so that `ds' knows which devices are open.
-	 * If this is the first VNIOCSET, then we've
-	 * guaranteed that the device is the cdev and that
-	 * no other slices or labels are open.  Otherwise,
-	 * we rely on VNIOCCLR not being abused.
-	 */
-	error = vnopen(dev, flag, S_IFCHR, p);
-	if (error)
-		vnclear(vn);
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnioctl: SET vp %p size %x blks\n",
-		       vn->sc_vp, vn->sc_size);
+		    vn->sc_vp, vn->sc_size);
+
 	return(0);
 }
 
@@ -590,22 +658,11 @@ vniocattach_swap(vn, vio, dev, flag, p)
 		}
 	}
 	vn->sc_flags |= VNF_INITED;
-
 	error = vnsetcred(vn, p->p_ucred);
-	if (error == 0) {
-		/*
-		 * Reopen so that `ds' knows which devices are open.
-		 * If this is the first VNIOCSET, then we've
-		 * guaranteed that the device is the cdev and that
-		 * no other slices or labels are open.  Otherwise,
-		 * we rely on VNIOCCLR not being abused.
-		 */
-		error = vnopen(dev, flag, S_IFCHR, p);
-	}
 	if (error == 0) {
 		IFOPT(vn, VN_FOLLOW) {
 			printf("vnioctl: SET vp %p size %x\n",
-			       vn->sc_vp, vn->sc_size);
+			    vn->sc_vp, vn->sc_size);
 		}
 	}
 	if (error)
@@ -705,15 +762,18 @@ static int
 vn_modevent(module_t mod, int type, void *data)
 {
 	struct vn_softc *vn;
+	static eventhandler_tag clonetag;
 
 	switch (type) {
 	case MOD_LOAD:
+		clonetag = EVENTHANDLER_REGISTER(dev_clone, vn_clone, 0, 1000);
 		cdevsw_add(&vn_cdevsw);
 		break;
 
 	case MOD_UNLOAD:
 		/* fall through */
 	case MOD_SHUTDOWN:
+		EVENTHANDLER_DEREGISTER(dev_clone, clonetag);
 		for (;;) {
 			vn = SLIST_FIRST(&vn_list);
 			if (!vn)
