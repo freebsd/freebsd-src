@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.8 1995/04/26 19:03:14 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.9 1995/05/03 18:34:22 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -65,17 +65,6 @@ static char rcsid[] = "$Id: ypbind.c,v 1.8 1995/04/26 19:03:14 wpaul Exp $";
 #define BINDINGDIR "/var/yp/binding"
 #endif
 
-/*
- * Ping the server once every PING_INTERVAL seconds to make sure it's
- * still there.
- */
-#ifndef PING_INTERVAL
-#define PING_INTERVAL 60
-#endif
-#ifndef FAIL_THRESHOLD
-#define FAIL_THRESHOLD 20
-#endif
-
 struct _dom_binding {
 	struct _dom_binding *dom_pnext;
 	char dom_domain[YPMAXDOMAIN + 1];
@@ -86,7 +75,6 @@ struct _dom_binding {
 	int dom_alive;
 	int dom_broadcasting;
 	int dom_default;
-	time_t dom_check;
 };
 
 extern bool_t xdr_domainname(), xdr_ypbind_resp();
@@ -98,8 +86,10 @@ void	*ypbindproc_null_2 __P((SVCXPRT *, void *, CLIENT *));
 bool_t	*ypbindproc_setdom_2 __P((SVCXPRT *, struct ypbind_setdom *, CLIENT *));
 void	rpc_received __P((char *, struct sockaddr_in *, int ));
 void	broadcast __P((struct _dom_binding *));
-int	ping __P((struct _dom_binding *, int));
+int	ping __P((struct _dom_binding *));
 void	handle_children __P(( int ));
+void	reaper __P((int));
+void	terminate __P((int));
 
 static char *broad_domain;
 char *domainname;
@@ -113,9 +103,18 @@ int ypsecuremode = 0;
 
 /* No more than MAX_CHILDREN child broadcasters at a time. */
 #define MAX_CHILDREN 5
+/* No more than MAX_DOMAINS simultaneous domains */
+#define MAX_DOMAINS 200
+#ifndef FAIL_THRESHOLD
+#define FAIL_THRESHOLD 20
+#endif
+
+#define KILLME_MAGIC 0xdeaddead
+
 int child_fds[FD_SETSIZE];
 static int fd[2];
 int children = 0;
+int domains = 0;
 
 SVCXPRT *udptransp, *tcptransp;
 
@@ -150,6 +149,12 @@ CLIENT *clnt;
 			break;
 
 	if(ypdb==NULL) {
+		if (domains > MAX_DOMAINS) {
+			syslog(LOG_WARNING, "domain limit (%d) exceeded",
+							MAX_DOMAINS);
+			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
+			return;
+		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {	
 			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
@@ -162,17 +167,15 @@ CLIENT *clnt;
 		ypdb->dom_alive = 0;
 		ypdb->dom_default = 0;
 		ypdb->dom_lockfd = -1;
-		sprintf(path, "%s/%s.%ld", BINDINGDIR, ypdb->dom_domain, ypdb->dom_vers);
+		sprintf(path, "%s/%s.%ld", BINDINGDIR,
+					ypdb->dom_domain, ypdb->dom_vers);
 		unlink(path);
 		ypdb->dom_pnext = ypbindlist;
 		ypbindlist = ypdb;
-		return &res;
+		domains++;
 	}
 
-	if(ypdb->dom_alive==0)
-		return &res;
-
-	if (ping(ypdb, 1))
+	if (ping(ypdb))
 		return &res;
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
@@ -298,6 +301,22 @@ int sig;
 	wait3(&st, WNOHANG, NULL);
 }
 
+void terminate(sig)
+int sig;
+{
+	struct _dom_binding *ypdb;
+	char path[MAXPATHLEN];
+
+	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
+		close(ypdb->dom_lockfd);
+		sprintf(path, "%s/%s.%ld", BINDINGDIR,
+			ypdb->dom_domain, ypdb->dom_vers);
+		unlink(path);
+	}
+	pmap_unset(YPBINDPROG, YPBINDVERS);
+	exit(0);
+}
+	
 void
 main(argc, argv)
 int argc;
@@ -307,6 +326,8 @@ char **argv;
 	struct timeval tv;
 	fd_set fdsr;
 	int i;
+	DIR *dird;
+	struct dirent *dirp;
 
 	yp_get_default_domain(&domainname);
 	if( domainname[0] == '\0') {
@@ -323,45 +344,48 @@ char **argv;
 		        ypsecuremode++;
 	}
 
-	/* blow away everything in BINDINGDIR */
+	/* blow away everything in BINDINGDIR (if it exists) */
 
-
+	if ((dird = opendir(BINDINGDIR)) != NULL) {
+		char path[MAXPATHLEN];
+		while ((dirp = readdir(dird)) != NULL)
+			if (strcmp(dirp->d_name, ".") &&
+			    strcmp(dirp->d_name, "..")) {
+				sprintf(path,"%s/%s",BINDINGDIR,dirp->d_name);
+				unlink(path);
+			}
+		closedir(dird);
+	}
 
 #ifdef DAEMON
-	switch(fork()) {
-	case 0:
-		break;
-	case -1:
+	if (daemon(0,0)) {
 		perror("fork");
 		exit(1);
-	default:
-		exit(0);
 	}
-	setsid();
 #endif
 
 	pmap_unset(YPBINDPROG, YPBINDVERS);
 
 	udptransp = svcudp_create(RPC_ANYSOCK);
 	if (udptransp == NULL) {
-		fprintf(stderr, "cannot create udp service.");
+		fprintf(stderr, "cannot create udp service.\n");
 		exit(1);
 	}
 	if (!svc_register(udptransp, YPBINDPROG, YPBINDVERS, ypbindprog_2,
 	    IPPROTO_UDP)) {
-		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, udp).");
+		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, udp).\n");
 		exit(1);
 	}
 
 	tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0);
 	if (tcptransp == NULL) {
-		fprintf(stderr, "cannot create tcp service.");
+		fprintf(stderr, "cannot create tcp service.\n");
 		exit(1);
 	}
 
 	if (!svc_register(tcptransp, YPBINDPROG, YPBINDVERS, ypbindprog_2,
 	    IPPROTO_TCP)) {
-		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, tcp).");
+		fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, tcp).\n");
 		exit(1);
 	}
 
@@ -378,15 +402,19 @@ char **argv;
 	ypbindlist->dom_lockfd = -1;
 	ypbindlist->client_handle = NULL;
 	ypbindlist->dom_default = 1;
-	sprintf(path, "%s/%s.%ld", BINDINGDIR, ypbindlist->dom_domain,
-		ypbindlist->dom_vers);
-	(void)unlink(path);
+	domains++;
+
+	signal(SIGCHLD, reaper);
+	signal(SIGTERM, terminate);
 
 	/* Initialize children fds. */
 	for (i = 0; i < FD_SETSIZE; i++)
 		child_fds[i] = -1;
 
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
+
+	/* Kick off the default domain */
+	broadcast(ypbindlist);
 
 	while(1) {
 		fdsr = svc_fdset;
@@ -395,17 +423,20 @@ char **argv;
 			if (child_fds[i] > 0 )
 				FD_SET(child_fds[i], &fdsr);
 
-		tv.tv_sec = 1;
+		tv.tv_sec = 60;
 		tv.tv_usec = 0;
 
 		switch(select(_rpc_dtablesize(), &fdsr, NULL, NULL, &tv)) {
 		case 0:
 			checkwork();
-			reaper();
 			break;
 		case -1:
-			syslog(LOG_WARNING, "select: %s", strerror(errno));
-			break;
+			if (errno == EINTR)
+				continue;
+			else {
+				syslog(LOG_WARNING, "select: %s", strerror(errno));
+				break;
+			}
 		default:
 			for(i = 0; i < FD_SETSIZE; i++) {
 				if (child_fds[i] > 0 && FD_ISSET(child_fds[i],&fdsr)) {
@@ -427,19 +458,9 @@ void
 checkwork()
 {
 	struct _dom_binding *ypdb;
-	time_t t;
 
-	time(&t);
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
-		if (!ypdb->dom_alive && !ypdb->dom_broadcasting) {
-			if (!ypdb->dom_default)
-				ypdb->dom_alive = 1;
-			ypdb->dom_broadcasting = 1;
-			broadcast(ypdb);
-		}
-		if (ypdb->dom_alive && ypdb->dom_check < t)
-			ping(ypdb, 0);
-	}
+	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
+		ping(ypdb);
 }
 
 /* The clnt_broadcast() callback mechanism sucks. */
@@ -527,15 +548,21 @@ struct _dom_binding *ypdb;
 	enum clnt_stat stat;
 	int i;
 
-	if (children > MAX_CHILDREN)
+	if (children > MAX_CHILDREN || ypdb->dom_broadcasting)
 		return;
-
-	broad_domain = ypdb->dom_domain;
 
 	if (pipe(fd) < 0) {
 		syslog(LOG_WARNING, "pipe: %s",strerror(errno));
 		return;
 	}
+
+	if (ypdb->dom_vers = -1 && (long)ypdb->dom_server_addr.sin_addr.s_addr)
+		syslog(LOG_WARNING, "NIS server [%s] for domain %s not responding",
+		inet_ntoa(ypdb->dom_server_addr.sin_addr), ypdb->dom_domain);
+
+	broad_domain = ypdb->dom_domain;
+	ypdb->dom_broadcasting = 1;
+	flock(ypdb->dom_lockfd, LOCK_UN);
 
 	switch(fork()) {
 	case 0:
@@ -564,10 +591,10 @@ struct _dom_binding *ypdb;
 	    broadcast_result);
 
 	if (stat != RPC_SUCCESS) {
-		syslog(LOG_WARNING, "NIS server for domain %s not responding",
-			ypdb->dom_domain);
 		bzero((char *)&ypdb->dom_server_addr,
 						sizeof(struct sockaddr_in));
+		if (!ypdb->dom_default)
+			ypdb->dom_server_addr.sin_addr.s_addr = KILLME_MAGIC;
 		if (tell_parent(&ypdb->dom_domain, &ypdb->dom_server_addr))
 			syslog(LOG_WARNING, "lost connection to parent");
 	}
@@ -578,8 +605,8 @@ struct _dom_binding *ypdb;
  * The right way to check if a server is alive.
  * Attempt to get a client handle pointing to the server and send a
  * YPPROC_DOMAIN_NONACK. If we don't get a response, we invalidate
- * this binding entry, which will cause checkwork() to dispatch a
- * broadcaster process. Note that we treat non-default domains
+ * this binding entry and send out a broadcast to try to establish
+ * a new binding. Note that we treat non-default domains
  * specially: once bound, we keep tabs on our server, but if it
  * goes away and fails to respond after one round of broadcasting, we
  * abandon it until a client specifically references it again. We make
@@ -587,9 +614,8 @@ struct _dom_binding *ypdb;
  * need it to keep the system on its feet.
  */
 int
-ping(ypdb, force)
+ping(ypdb)
 struct _dom_binding *ypdb;
-int force;
 {
 	bool_t out;
 	struct timeval interval, timeout;
@@ -605,9 +631,6 @@ int force;
 	if (ypdb->dom_broadcasting)
 		return(1);
 
-	if (!ypdb->dom_default && ypdb->dom_vers == -1 && !force)
-		return(1);
-
 	if (ypdb->client_handle == NULL) {
 		if ((ypdb->client_handle = clntudp_bufcreate(
 			&ypdb->dom_server_addr, YPPROG, YPVERS,
@@ -617,7 +640,7 @@ int force;
 			ypdb->client_handle = NULL;
 			ypdb->dom_alive = 0;
 			ypdb->dom_vers = -1;
-			flock(ypdb->dom_lockfd, LOCK_UN);
+			broadcast(ypdb);
 			return(1);
 		}
 	}
@@ -628,14 +651,9 @@ int force;
 		ypdb->client_handle = NULL;
 		ypdb->dom_alive = 0;
 		ypdb->dom_vers = -1;
-		flock(ypdb->dom_lockfd, LOCK_UN);
+		broadcast(ypdb);
 		return(1);
 	}
-	/*
-	 * We pinged successfully. Reset the timer.
-	 */
-	time(&t);
-	ypdb->dom_check = t + PING_INTERVAL;
 
 	return(0);
 }
@@ -645,7 +663,7 @@ char *dom;
 struct sockaddr_in *raddrp;
 int force;
 {
-	struct _dom_binding *ypdb;
+	struct _dom_binding *ypdb, *prev = NULL;
 	struct iovec iov[2];
 	struct ypbind_resp ybr;
 	char path[MAXPATHLEN];
@@ -657,9 +675,11 @@ int force;
 	if(dom==NULL)
 		return;
 
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
+	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 		if( strcmp(ypdb->dom_domain, dom) == 0)
 			break;
+		prev = ypdb;
+	}
 
 	/* if in securemode, check originating port number */
 	if (ypsecuremode && (ntohs(raddrp->sin_port) >= IPPORT_RESERVED)) {
@@ -676,6 +696,21 @@ int force;
 	if (raddrp->sin_addr.s_addr == (long)0) {
 		ypdb->dom_broadcasting = 0;
 		ypdb->dom_alive = 0;
+		broadcast(ypdb);
+		return;
+	}
+
+	if (raddrp->sin_addr.s_addr == KILLME_MAGIC) {
+		if (prev == NULL)
+			ypbindlist = ypdb->dom_pnext;
+		else
+			prev->dom_pnext = ypdb->dom_pnext;
+		sprintf(path, "%s/%s.%ld", BINDINGDIR,
+			ypdb->dom_domain, YPVERS); /* XXX dom_vers can't */
+		close(ypdb->dom_lockfd);	   /* be trusted here    */
+		unlink(path);
+		free(ypdb);
+		domains--;
 		return;
 	}
 
@@ -699,8 +734,8 @@ int force;
 
 	/* We've recovered from a crash: inform the world. */
 	if (ypdb->dom_vers = -1 && ypdb->dom_server_addr.sin_addr.s_addr)
-		syslog(LOG_WARNING, "NIS server for domain %s OK",
-							ypdb->dom_domain);
+		syslog(LOG_WARNING, "NIS server [%s] for domain %s OK",
+		inet_ntoa(ypdb->dom_server_addr.sin_addr), ypdb->dom_domain);
 
 	bcopy((char *)raddrp, (char *)&ypdb->dom_server_addr,
 		sizeof ypdb->dom_server_addr);
