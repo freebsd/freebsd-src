@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.49 1997/12/26 03:24:26 alex Exp $
+ * $Id: ipfw.c,v 1.50 1998/01/06 00:11:57 alex Exp $
  *
  */
 
@@ -36,6 +36,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -80,6 +81,8 @@ static struct icmpcode icmpcodes[] = {
       { ICMP_UNREACH_PRECEDENCE_CUTOFF,	"precedence-cutoff" },
       { 0, NULL }
 };
+
+static void show_usage(const char *fmt, ...);
 
 static int
 mask_bits(struct in_addr m_ad)
@@ -222,7 +225,7 @@ show_ipfw(struct ip_fw *chain)
 			}
 			break;
 		default:
-			errx(1, "impossible");
+			errx(EX_OSERR, "impossible");
 	}
    
 	if (chain->fw_flg & IP_FW_F_PRN)
@@ -404,14 +407,54 @@ list(ac, av)
 	struct ip_fw *r;
 	struct ip_fw rules[1024];
 	int l,i;
+	unsigned long rulenum;
+	int bytes;
 
+	/* extract rules from kernel */
 	memset(rules,0,sizeof rules);
-	l = sizeof rules;
-	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &l);
+	bytes = sizeof rules;
+	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &bytes);
 	if (i < 0)
 		err(2,"getsockopt(IP_FW_GET)");
-	for (r=rules; l >= sizeof rules[0]; r++, l-=sizeof rules[0])
-		show_ipfw(r);
+	if (!ac) {
+		/* display all rules */
+		for (r = rules, l = bytes; l >= sizeof rules[0]; 
+			 r++, l-=sizeof rules[0])
+			show_ipfw(r);
+	}
+	else {
+		/* display specific rules requested on command line */
+		int exitval = EX_OK;
+
+		while (ac--) {
+			char *endptr;
+			int seen;
+
+			/* convert command line rule # */
+			rulenum = strtoul(*av++, &endptr, 10);
+			if (*endptr) {
+				exitval = EX_USAGE;
+				warn("invalid rule number: %s", av - 1);
+				continue;
+			}
+			seen = 0;
+			for (r = rules, l = bytes; 
+				 l >= sizeof rules[0] && r->fw_number <= rulenum;
+				 r++, l-=sizeof rules[0])
+				if (rulenum == r->fw_number) {
+					show_ipfw(r);
+					seen = 1;
+				}
+			if (!seen) {
+				/* give precedence to other error(s) */
+				if (exitval == EX_OK)
+					exitval = EX_UNAVAILABLE;
+				warnx("rule %lu does not exist", rulenum);
+			}
+		}
+		if (exitval != EX_OK)
+			exit(exitval);
+	}
 }
 
 static void
@@ -430,8 +473,8 @@ show_usage(const char *fmt, ...)
 "    flush\n"
 "    add [number] rule\n"
 "    delete number ...\n"
-"    list [number]\n"
-"    show [number]\n"
+"    list [number ...]\n"
+"    show [number ...]\n"
 "    zero [number ...]\n"
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
@@ -450,7 +493,7 @@ show_usage(const char *fmt, ...)
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 "    icmptypes {type[,type]}...\n");
 
-	exit(1);
+	exit(EX_USAGE);
 }
 
 static int
@@ -543,7 +586,7 @@ add_port(cnt, ptr, off, port)
 	u_short *cnt, *ptr, off, port;
 {
 	if (off + *cnt >= IP_FW_MAX_PORTS)
-		errx(1, "too many ports (max is %d)", IP_FW_MAX_PORTS);
+		errx(EX_USAGE, "too many ports (max is %d)", IP_FW_MAX_PORTS);
 	ptr[off+*cnt] = port;
 	(*cnt)++;
 }
@@ -564,14 +607,14 @@ lookup_port(const char *arg, int test, int nodash)
 			val = htons(s->s_port);
 		} else {
 			if (!test) {
-				errx(1, "unknown port ``%s''", arg);
+				errx(EX_DATAERR, "unknown port ``%s''", arg);
 			}
 			val = -1;
 		}
 	} else {
 		if (val < 0 || val > 0xffff) {
 			if (!test) {
-				errx(1, "port ``%s'' out of range", arg);
+				errx(EX_DATAERR, "port ``%s'' out of range", arg);
 			}
 			val = -1;
 		}
@@ -591,7 +634,7 @@ fill_port(cnt, ptr, off, arg)
 	if (*s == '-') {
 		*s++ = '\0';
 		if (strchr(arg, ','))
-			errx(1, "port range must be first in list");
+			errx(EX_USAGE, "port range must be first in list");
 		add_port(cnt, ptr, off, *arg ? lookup_port(arg, 0, 0) : 0x0000);
 		arg = s;
 		s = strchr(arg,',');
@@ -713,8 +756,8 @@ delete(ac,av)
 {
 	struct ip_fw rule;
 	int i;
-	int failed = 0;
-	
+	int exitval = EX_OK;
+
 	memset(&rule, 0, sizeof rule);
 
 	av++; ac--;
@@ -724,12 +767,12 @@ delete(ac,av)
 		rule.fw_number = atoi(*av); av++; ac--;
 		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
 		if (i) {
-			failed = 1;
+			exitval = EX_UNAVAILABLE;
 			warn("rule %u: setsockopt(%s)", rule.fw_number, "IP_FW_DEL");
 		}
 	}
-	if (failed)
-		exit(1);
+	if (exitval != EX_OK)
+		exit(exitval);
 }
 
 static void
@@ -1051,7 +1094,7 @@ badviacombo:
 		show_ipfw(&rule);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
-		err(1, "setsockopt(%s)", "IP_FW_ADD");
+		err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_ADD");
 }
 
 static void
@@ -1064,12 +1107,12 @@ zero (ac, av)
 	if (!ac) {
 		/* clear all entries */
 		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0)
-			err(1, "setsockopt(%s)", "IP_FW_ZERO");
+			err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_ZERO");
 		if (!do_quiet)
 			printf("Accounting cleared.\n");
 	} else {
 		struct ip_fw rule;
-		int failed = 0;
+		int failed = EX_OK;
 
 		memset(&rule, 0, sizeof rule);
 		while (ac) {
@@ -1080,7 +1123,7 @@ zero (ac, av)
 				    IP_FW_ZERO, &rule, sizeof rule)) {
 					warn("rule %u: setsockopt(%s)", rule.fw_number,
 						 "IP_FW_ZERO");
-					failed = 1;
+					failed = EX_UNAVAILABLE;
 				}
 				else
 					printf("Entry %d cleared\n",
@@ -1088,8 +1131,8 @@ zero (ac, av)
 			} else
 				show_usage("invalid rule number ``%s''", *av);
 		}
-		if (failed)
-			exit(1);
+		if (failed != EX_OK)
+			exit(failed);
 	}
 }
 
@@ -1162,7 +1205,7 @@ ipfw_main(ac,av)
 		}
 		if ( do_flush ) {
 			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0) < 0)
-				err(1, "setsockopt(%s)", "IP_FW_FLUSH");
+				err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_FLUSH");
 			if (!do_quiet)
 				printf("Flushed all rules.\n");
 		}
@@ -1196,14 +1239,14 @@ main(ac, av)
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 )
-		err(1, "socket");
+		err(EX_UNAVAILABLE, "socket");
 
 	setbuf(stdout,0);
 
 	if (av[1] && !access(av[1], R_OK)) {
 		lineno = 0;
 		if ((f = fopen(av[1], "r")) == NULL)
-			err(1, "fopen: %s", av[1]);
+			err(EX_UNAVAILABLE, "fopen: %s", av[1]);
 		while (fgets(buf, BUFSIZ, f)) {
 
 			lineno++;
@@ -1218,7 +1261,7 @@ main(ac, av)
 			if (i == 1)
 				continue;
 			if (i == MAX_ARGS)
-				errx(1, "%s: too many arguments", linename);
+				errx(EX_USAGE, "%s: too many arguments", linename);
 			args[i] = NULL;
 
 			ipfw_main(i, args); 
@@ -1226,5 +1269,5 @@ main(ac, av)
 		fclose(f);
 	} else
 		ipfw_main(ac,av);
-	return 0;
+	return EX_OK;
 }
