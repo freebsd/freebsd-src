@@ -676,7 +676,12 @@ struct dc_softc {
 #ifdef SRM_MEDIA
 	int			dc_srm_media;
 #endif
+	struct mtx		dc_mtx;
 };
+
+
+#define	DC_LOCK(_sc)		mtx_enter(&(_sc)->dc_mtx, MTX_DEF)
+#define	DC_UNLOCK(_sc)		mtx_exit(&(_sc)->dc_mtx, MTX_DEF)
 
 #define DC_TX_POLL		0x00000001
 #define DC_TX_COALESCE		0x00000002

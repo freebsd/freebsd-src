@@ -378,7 +378,11 @@ struct wb_softc {
 	struct wb_list_data	*wb_ldata;
 	struct wb_chain_data	wb_cdata;
 	struct callout_handle	wb_stat_ch;
+	struct mtx		wb_mtx;
 };
+
+#define	WB_LOCK(_sc)		mtx_enter(&(_sc)->wb_mtx, MTX_DEF)
+#define	WB_UNLOCK(_sc)		mtx_exit(&(_sc)->wb_mtx, MTX_DEF)
 
 /*
  * register space access macros

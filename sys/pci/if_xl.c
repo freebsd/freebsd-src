@@ -387,9 +387,9 @@ static int xl_mii_readreg(sc, frame)
 	struct xl_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	XL_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -470,7 +470,7 @@ fail:
 	MII_SET(XL_MII_CLK);
 	DELAY(1);
 
-	splx(s);
+	XL_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -485,9 +485,8 @@ static int xl_mii_writereg(sc, frame)
 	struct xl_mii_frame	*frame;
 	
 {
-	int			s;
+	XL_LOCK(sc);
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -526,7 +525,7 @@ static int xl_mii_writereg(sc, frame)
 	 */
 	MII_CLR(XL_MII_DIR);
 
-	splx(s);
+	XL_UNLOCK(sc);
 
 	return(0);
 }
@@ -592,6 +591,8 @@ static void xl_miibus_statchg(dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
 
+	XL_LOCK(sc);
+
 	xl_setcfg(sc);
 
 	/* Set ASIC's duplex mode to match the PHY. */
@@ -601,6 +602,8 @@ static void xl_miibus_statchg(dev)
 	else
 		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
 			(CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
+
+	XL_UNLOCK(sc);
 
         return;
 }
@@ -625,6 +628,8 @@ static void xl_miibus_mediainit(dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
 	ifm = &mii->mii_media;
+
+	XL_LOCK(sc);
 
 	if (sc->xl_media & (XL_MEDIAOPT_AUI|XL_MEDIAOPT_10FL)) {
 		/*
@@ -651,6 +656,8 @@ static void xl_miibus_mediainit(dev)
 			printf("xl%d: found BNC\n", sc->xl_unit);
 		ifmedia_add(ifm, IFM_ETHER|IFM_10_2, 0, NULL);
 	}
+
+	XL_UNLOCK(sc);
 
 	return;
 }
@@ -1341,6 +1348,9 @@ static int xl_attach(dev)
 		goto fail;
 	}
 
+	mtx_init(&sc->xl_mtx, "xl", MTX_DEF);
+	XL_LOCK(sc);
+
 	/* Reset the adapter. */
 	xl_reset(sc);
 
@@ -1556,9 +1566,13 @@ done:
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	XL_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	XL_UNLOCK(sc);
+	mtx_destroy(&sc->xl_mtx);
+
 	return(error);
 }
 
@@ -1567,11 +1581,9 @@ static int xl_detach(dev)
 {
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	xl_reset(sc);
@@ -1594,7 +1606,8 @@ static int xl_detach(dev)
 	ifmedia_removeall(&sc->ifmedia);
 	contigfree(sc->xl_ldata, sizeof(struct xl_list_data), M_DEVBUF);
 
-	splx(s);
+	XL_UNLOCK(sc);
+	mtx_destroy(&sc->xl_mtx);
 
 	return(0);
 }
@@ -2024,6 +2037,7 @@ static void xl_intr(arg)
 	u_int16_t		status;
 
 	sc = arg;
+	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	while((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS) {
@@ -2068,6 +2082,8 @@ static void xl_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		(*ifp->if_start)(ifp);
+
+	XL_LOCK(sc);
 
 	return;
 }
@@ -2215,7 +2231,7 @@ static void xl_start(ifp)
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
-
+	XL_LOCK(sc);
 	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
@@ -2225,6 +2241,7 @@ static void xl_start(ifp)
 		xl_txeof(sc);
 		if (sc->xl_cdata.xl_tx_free == NULL) {
 			ifp->if_flags |= IFF_OACTIVE;
+			XL_UNLOCK(sc);
 			return;
 		}
 	}
@@ -2263,8 +2280,10 @@ static void xl_start(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		XL_UNLOCK(sc);
 		return;
+	}
 
 	/*
 	 * Place the request for the upload interrupt
@@ -2322,6 +2341,8 @@ static void xl_start(ifp)
 	 */
 	xl_rxeof(sc);
 
+	XL_UNLOCK(sc);
+
 	return;
 }
 
@@ -2371,9 +2392,12 @@ static void xl_start_90xB(ifp)
 	int			idx;
 
 	sc = ifp->if_softc;
+	XL_LOCK(sc);
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		XL_UNLOCK(sc);
 		return;
+	}
 
 	idx = sc->xl_cdata.xl_tx_prod;
 	start_tx = &sc->xl_cdata.xl_tx_chain[idx];
@@ -2413,8 +2437,10 @@ static void xl_start_90xB(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		XL_UNLOCK(sc);
 		return;
+	}
 
 	/*
 	 * Place the request for the upload interrupt
@@ -2434,6 +2460,8 @@ static void xl_start_90xB(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	XL_UNLOCK(sc);
+
 	return;
 }
 
@@ -2442,11 +2470,11 @@ static void xl_init(xsc)
 {
 	struct xl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int			s, i;
+	int			i;
 	u_int16_t		rxfilt = 0;
 	struct mii_data		*mii = NULL;
 
-	s = splimp();
+	XL_LOCK(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2610,7 +2638,8 @@ static void xl_init(xsc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
-	if (sc->xl_flags & XL_FLAG_FUNCREG) bus_space_write_4 (sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
+	if (sc->xl_flags & XL_FLAG_FUNCREG)
+	    bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
@@ -2631,9 +2660,9 @@ static void xl_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->xl_stat_ch = timeout(xl_stats_update, sc, hz);
+
+	XL_UNLOCK(sc);
 
 	return;
 }
@@ -2752,11 +2781,11 @@ static int xl_ioctl(ifp, command, data)
 {
 	struct xl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			s, error = 0;
+	int			error = 0;
 	struct mii_data		*mii = NULL;
 	u_int8_t		rxfilt;
 
-	s = splimp();
+	XL_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -2815,7 +2844,7 @@ static int xl_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	XL_UNLOCK(sc);
 
 	return(error);
 }
@@ -2827,6 +2856,8 @@ static void xl_watchdog(ifp)
 	u_int16_t		status = 0;
 
 	sc = ifp->if_softc;
+
+	XL_LOCK(sc);
 
 	ifp->if_oerrors++;
 	XL_SEL_WIN(4);
@@ -2845,6 +2876,8 @@ static void xl_watchdog(ifp)
 	if (ifp->if_snd.ifq_head != NULL)
 		(*ifp->if_start)(ifp);
 
+	XL_UNLOCK(sc);
+
 	return;
 }
 
@@ -2857,6 +2890,8 @@ static void xl_stop(sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
+
+	XL_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
@@ -2910,6 +2945,8 @@ static void xl_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
+	XL_UNLOCK(sc);
+
 	return;
 }
 
@@ -2924,8 +2961,10 @@ static void xl_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	XL_LOCK(sc);
 	xl_reset(sc);
 	xl_stop(sc);
+	XL_UNLOCK(sc);
 
 	return;
 }

@@ -1044,7 +1044,12 @@ struct sf_softc {
 	u_int8_t		sf_link;
 	int			sf_if_flags;
 	struct callout_handle	sf_stat_ch;
+	struct mtx		sf_mtx;
 };
+
+
+#define	SF_LOCK(_sc)		mtx_enter(&(_sc)->sf_mtx, MTX_DEF)
+#define	SF_UNLOCK(_sc)		mtx_exit(&(_sc)->sf_mtx, MTX_DEF)
 
 #define SF_TIMEOUT	1000
 

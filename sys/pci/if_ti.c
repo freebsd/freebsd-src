@@ -1477,13 +1477,10 @@ static int ti_probe(dev)
 static int ti_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_int32_t		command;
 	struct ifnet		*ifp;
 	struct ti_softc		*sc;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1539,6 +1536,9 @@ static int ti_attach(dev)
 		printf("ti%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
+
+	mtx_init(&sc->ti_mtx, "ti", MTX_DEF);
+	TI_LOCK(sc);
 
 	sc->ti_unit = unit;
 
@@ -1689,10 +1689,12 @@ static int ti_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	TI_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
-
+	TI_UNLOCK(sc);
+	mtx_destroy(&sc->ti_mtx);
 	return(error);
 }
 
@@ -1701,11 +1703,10 @@ static int ti_detach(dev)
 {
 	struct ti_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
 
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
@@ -1719,7 +1720,8 @@ static int ti_detach(dev)
 	contigfree(sc->ti_rdata, sizeof(struct ti_ring_data), M_DEVBUF);
 	ifmedia_removeall(&sc->ifmedia);
 
-	splx(s);
+	TI_UNLOCK(sc);
+	mtx_destroy(&sc->ti_mtx);
 
 	return(0);
 }
@@ -1907,13 +1909,16 @@ static void ti_intr(xsc)
 	struct ifnet		*ifp;
 
 	sc = xsc;
+	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 #ifdef notdef
 	/* Avoid this for now -- checking this register is expensive. */
 	/* Make sure this is really our interrupt. */
-	if (!(CSR_READ_4(sc, TI_MISC_HOST_CTL) & TI_MHC_INTSTATE))
+	if (!(CSR_READ_4(sc, TI_MISC_HOST_CTL) & TI_MHC_INTSTATE)) {
+		TI_UNLOCK(sc);
 		return;
+	}
 #endif
 
 	/* Ack interrupt and stop others from occuring. */
@@ -1934,6 +1939,8 @@ static void ti_intr(xsc)
 
 	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
 		ti_start(ifp);
+
+	TI_UNLOCK(sc);
 
 	return;
 }
@@ -2069,6 +2076,7 @@ static void ti_start(ifp)
 	u_int32_t		prodidx = 0;
 
 	sc = ifp->if_softc;
+	TI_LOCK(sc);
 
 	prodidx = CSR_READ_4(sc, TI_MB_SENDPROD_IDX);
 
@@ -2121,6 +2129,7 @@ static void ti_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	TI_UNLOCK(sc);
 
 	return;
 }
@@ -2129,21 +2138,19 @@ static void ti_init(xsc)
 	void			*xsc;
 {
 	struct ti_softc		*sc = xsc;
-        int			s;
-
-	s = splimp();
 
 	/* Cancel pending I/O and flush buffers. */
 	ti_stop(sc);
 
+	TI_LOCK(sc);
 	/* Init the gen info block, ring control blocks and firmware. */
 	if (ti_gibinit(sc)) {
 		printf("ti%d: initialization failure\n", sc->ti_unit);
-		splx(s);
+		TI_UNLOCK(sc);
 		return;
 	}
 
-	splx(s);
+	TI_UNLOCK(sc);
 
 	return;
 }
@@ -2355,10 +2362,10 @@ static int ti_ioctl(ifp, command, data)
 {
 	struct ti_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			s, error = 0;
+	int			error = 0;
 	struct ti_cmd_desc	cmd;
 
-	s = splimp();
+	TI_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -2419,7 +2426,7 @@ static int ti_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	TI_UNLOCK(sc);
 
 	return(error);
 }
@@ -2430,12 +2437,14 @@ static void ti_watchdog(ifp)
 	struct ti_softc		*sc;
 
 	sc = ifp->if_softc;
+	TI_LOCK(sc);
 
 	printf("ti%d: watchdog timeout -- resetting\n", sc->ti_unit);
 	ti_stop(sc);
 	ti_init(sc);
 
 	ifp->if_oerrors++;
+	TI_UNLOCK(sc);
 
 	return;
 }
@@ -2449,6 +2458,8 @@ static void ti_stop(sc)
 {
 	struct ifnet		*ifp;
 	struct ti_cmd_desc	cmd;
+
+	TI_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2482,6 +2493,7 @@ static void ti_stop(sc)
 	sc->ti_tx_saved_considx = TI_TXCONS_UNSET;
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	TI_UNLOCK(sc);
 
 	return;
 }
@@ -2496,8 +2508,9 @@ static void ti_shutdown(dev)
 	struct ti_softc		*sc;
 
 	sc = device_get_softc(dev);
-
+	TI_LOCK(sc);
 	ti_chipinit(sc);
+	TI_UNLOCK(sc);
 
 	return;
 }
