@@ -25,7 +25,8 @@
  * $FreeBSD$
  */
 
-/*
- * This file is not used any more.  It will go away as soon as the gcc
- * linker specs have been updated accordingly.
- */
+	.section .init,"ax",@progbits
+	ret
+
+	.section .fini,"ax",@progbits
+	ret

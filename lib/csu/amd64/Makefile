@@ -2,11 +2,11 @@
 # $FreeBSD$
 #
 
-SRCS=		crt1.c crtbegin.c crtend.c crti.S crtn.S
+SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-elf -Wall -fkeep-inline-functions
+CFLAGS+=	-elf -Wall -fkeep-inline-functions \
+		-I${.CURDIR}/../common
 LDFLAGS+=	-elf
 NOMAN=		true
 NOPIC=		true

@@ -25,7 +25,14 @@
  * $FreeBSD$
  */
 
-/*
- * This file is not used any more.  It will go away as soon as the gcc
- * linker specs have been updated accordingly.
- */
+	.section .init,"ax",@progbits
+	.align	4
+	.globl	_init
+	.type	_init,@function
+_init:
+
+	.section .fini,"ax",@progbits
+	.align	4
+	.globl	_fini
+	.type	_fini,@function
+_fini:

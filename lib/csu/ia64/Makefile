@@ -7,6 +7,7 @@ OBJS=		crt1.o crtbegin.o crtend.o
 OBJS+=		gcrt1.o
 SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-Wall -Wno-unused
+CFLAGS+=	-I${.CURDIR}/../common
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true

@@ -38,6 +38,7 @@
 #endif
 
 #include <stdlib.h>
+#include "crtbrand.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
