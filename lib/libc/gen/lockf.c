@@ -75,7 +75,7 @@ lockf(filedes, function, size)
 		break;
 	case F_TEST:
 		fl.l_type = F_WRLCK;
-		if (_libc_fcntl(filedes, F_GETLK, &fl) == -1)
+		if (_fcntl(filedes, F_GETLK, &fl) == -1)
 			return (-1);
 		if (fl.l_type == F_UNLCK || fl.l_pid == getpid())
 			return (0);
@@ -88,5 +88,5 @@ lockf(filedes, function, size)
 		/* NOTREACHED */
 	}
 
-	return (_libc_fcntl(filedes, cmd, &fl));
+	return (_fcntl(filedes, cmd, &fl));
 }

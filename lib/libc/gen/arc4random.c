@@ -84,10 +84,10 @@ arc4_stir(as)
 
 	gettimeofday(&rdat.tv, NULL);
 	rdat.pid = getpid();
-	fd = _libc_open("/dev/urandom", O_RDONLY, 0);
+	fd = _open("/dev/urandom", O_RDONLY, 0);
 	if (fd >= 0) {
-		(void) _libc_read(fd, rdat.rnd, sizeof(rdat.rnd));
-		_libc_close(fd);
+		(void) _read(fd, rdat.rnd, sizeof(rdat.rnd));
+		_close(fd);
 	}
 	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
 	 * stack... */

@@ -59,7 +59,7 @@ gets(buf)
 	    "warning: this program uses gets(), which is unsafe.\n";
 
 	if (!warned) {
-		(void) _libc_write(STDERR_FILENO, w, sizeof(w) - 1);
+		(void) _write(STDERR_FILENO, w, sizeof(w) - 1);
 		warned = 1;
 	}
 	for (s = buf; (c = getchar()) != '\n';)

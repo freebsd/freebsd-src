@@ -51,5 +51,5 @@ void
 longjmperror()
 {
 #define	ERRMSG	"longjmp botch.\n"
-	(void)_libc_write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
+	(void)_write(STDERR_FILENO, ERRMSG, sizeof(ERRMSG) - 1);
 }

@@ -213,7 +213,7 @@ svcunix_create(sock, sendsize, recvsize, path)
 	    (listen(sock, 2) != 0)) {
 		perror("svc_unix.c - cannot getsockname or listen");
 		if (madesock)
-		       (void)_libc_close(sock);
+		       (void)_close(sock);
 		return ((SVCXPRT *)NULL);
 	}
 	r = (struct unix_rendezvous *)mem_alloc(sizeof(*r));
@@ -333,7 +333,7 @@ svcunix_destroy(xprt)
 	register struct unix_conn *cd = (struct unix_conn *)xprt->xp_p1;
 
 	xprt_unregister(xprt);
-	(void)_libc_close(xprt->xp_sock);
+	(void)_close(xprt->xp_sock);
 	if (xprt->xp_port != 0) {
 		/* a rendezvouser socket */
 		xprt->xp_port = 0;

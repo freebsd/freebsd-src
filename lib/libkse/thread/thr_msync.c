@@ -13,12 +13,19 @@
 #include "pthread_private.h"
 
 int
-_libc_msync(addr, len, flags)
-	void *addr;
-	size_t len;
-	int flags;
+_msync(void *addr, size_t len, int flags)
 {
 	int ret;
+
+	ret = _thread_sys_msync(addr, len, flags);
+
+	return (ret);
+}
+
+int
+msync(void *addr, size_t len, int flags)
+{
+	int	ret;
 
 	/*
 	 * XXX This is quite pointless unless we know how to get the
@@ -26,17 +33,10 @@ _libc_msync(addr, len, flags)
 	 * write. The only real use of this wrapper is to guarantee
 	 * a cancellation point, as per the standard. sigh.
 	 */
-
-	/* This is a cancellation point: */
 	_thread_enter_cancellation_point();
-
-	ret = _thread_sys_msync(addr, len, flags);
-
-	/* No longer in a cancellation point: */
+	ret = _msync(addr, len, flags);
 	_thread_leave_cancellation_point();
 
-	return (ret);
+	return ret;
 }
-
-__weak_reference(_libc_msync, msync);
 #endif

@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-_libc_accept(int fd, struct sockaddr * name, socklen_t *namelen)
+_accept(int fd, struct sockaddr * name, socklen_t *namelen)
 {
 	int             ret;
 
@@ -107,5 +107,5 @@ _libc_accept(int fd, struct sockaddr * name, socklen_t *namelen)
 	return (ret);
 }
 
-__weak_reference(_libc_accept, accept);
+__weak_reference(_accept, accept);
 #endif

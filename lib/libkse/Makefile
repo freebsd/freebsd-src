@@ -26,7 +26,7 @@ PRECIOUSLIB=	yes
 # This is a list of syscalls that are renamed as _thread_sys_{syscall}
 # so that libc_r can provide replacement functions.
 #
-HIDDEN_SYSCALLS= accept.o bind.o close.o connect.o dup.o dup2.o \
+HIDDEN_SYSCALLS= aio_suspend.o accept.o bind.o close.o connect.o dup.o dup2.o \
 	execve.o fchflags.o fchmod.o fchown.o fcntl.o \
 	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
 	getlogin.o getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \

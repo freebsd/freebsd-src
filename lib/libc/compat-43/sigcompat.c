@@ -109,5 +109,5 @@ sigpause(mask)
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-	return (_libc_sigsuspend(&set));
+	return (_sigsuspend(&set));
 }

@@ -195,8 +195,7 @@ __tcdrain(fd)
 	return (ioctl(fd, TIOCDRAIN, 0));
 }
 
-__weak_reference(__tcdrain, _libc_tcdrain);
-__weak_reference(_libc_tcdrain, tcdrain);
+__weak_reference(__tcdrain, tcdrain);
 
 int
 tcflush(fd, which)
@@ -238,8 +237,7 @@ tcflow(fd, action)
 		if (tcgetattr(fd, &term) == -1)
 			return (-1);
 		c = term.c_cc[action == TCIOFF ? VSTOP : VSTART];
-		if (c != _POSIX_VDISABLE && _libc_write(fd, &c, sizeof(c)) ==
-		    -1)
+		if (c != _POSIX_VDISABLE && _write(fd, &c, sizeof(c)) == -1)
 			return (-1);
 		return (0);
 	default:

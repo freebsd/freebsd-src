@@ -437,7 +437,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 				msg("alarm caught it, must be unreachable.");
 				goto error;
 			}
-			res = _libc_read(s, (char *)&thetime, sizeof(thetime));
+			res = _read(s, (char *)&thetime, sizeof(thetime));
 			if (res != sizeof(thetime)) {
 				if (saw_alarm)
 					msg("timed out TCP call.");
@@ -449,7 +449,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			time_valid = 1;
 		}
 		save = errno;
-		(void)_libc_close(s);
+		(void)_close(s);
 		errno = save;
 		s = RPC_ANYSOCK;
 
@@ -468,7 +468,7 @@ error:
 	 */
 
 	if (s != RPC_ANYSOCK)
-		(void)_libc_close(s);
+		(void)_close(s);
 
 	if (clnt != NULL)
 		clnt_destroy(clnt);

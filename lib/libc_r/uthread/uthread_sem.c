@@ -147,6 +147,8 @@ sem_wait(sem_t *sem)
 {
 	int	retval;
 	
+	_thread_enter_cancellation_point();
+	
 	_SEM_CHECK_VALIDITY(sem);
 
 	pthread_mutex_lock(&(*sem)->lock);
@@ -162,6 +164,7 @@ sem_wait(sem_t *sem)
 
 	retval = 0;
   RETURN:
+	_thread_leave_cancellation_point();
 	return retval;
 }
 

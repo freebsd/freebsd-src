@@ -42,16 +42,13 @@
 #include "pthread_private.h"
 
 ssize_t
-_libc_read(int fd, void *buf, size_t nbytes)
+_read(int fd, void *buf, size_t nbytes)
 {
 	int	ret;
 	int	type;
 
-	_thread_enter_cancellation_point();
-
 	/* POSIX says to do just this: */
 	if (nbytes == 0) {
-		_thread_leave_cancellation_point();
 		return (0);
 	}
 
@@ -65,7 +62,6 @@ _libc_read(int fd, void *buf, size_t nbytes)
 			/* File is not open for read: */
 			errno = EBADF;
 			_FD_UNLOCK(fd, FD_READ);
-			_thread_leave_cancellation_point();
 			return (-1);
 		}
 
@@ -97,9 +93,18 @@ _libc_read(int fd, void *buf, size_t nbytes)
 		}
 		_FD_UNLOCK(fd, FD_READ);
 	}
-	_thread_leave_cancellation_point();
 	return (ret);
 }
 
-__weak_reference(_libc_read, read);
+ssize_t
+read(int fd, void *buf, size_t nbytes)
+{
+	ssize_t	ret;
+
+	_thread_enter_cancellation_point();
+	ret = _read(fd, buf, nbytes);
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

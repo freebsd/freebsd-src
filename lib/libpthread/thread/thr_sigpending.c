@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-_libc_sigpending(sigset_t * set)
+_sigpending(sigset_t * set)
 {
 	int ret = 0;
 
@@ -54,5 +54,5 @@ _libc_sigpending(sigset_t * set)
 	return (ret);
 }
 
-__weak_reference(_libc_sigpending, sigpending);
+__weak_reference(_sigpending, sigpending);
 #endif

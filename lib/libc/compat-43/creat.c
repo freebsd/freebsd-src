@@ -48,8 +48,7 @@ __creat(path, mode)
 	mode_t mode;
 #endif
 {
-	return(_libc_open(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
+	return(_open(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
 }
 
-__weak_reference(__creat, _libc_creat);
-__weak_reference(_libc_creat, creat);
+__weak_reference(__creat, creat);

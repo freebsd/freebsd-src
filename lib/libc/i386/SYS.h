@@ -43,18 +43,15 @@
 
 #define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
 			ENTRY(__CONCAT(_,x)); \
-			.weak CNAME(__CONCAT(_libc_,x)); \
-			.set CNAME(__CONCAT(_libc_,x)),CNAME(__CONCAT(_,x)); \
 			.weak CNAME(x); \
-			.set CNAME(x),CNAME(__CONCAT(_libc_,x)); \
+			.set CNAME(x),CNAME(__CONCAT(_,x)); \
 			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
 #define	PSEUDO(x,y)	ENTRY(__CONCAT(_,x)); \
-			.weak CNAME(__CONCAT(_libc_,x)); \
-			.set CNAME(__CONCAT(_libc_,x)),CNAME(__CONCAT(_,x)); \
 			.weak CNAME(x); \
-			.set CNAME(x),CNAME(__CONCAT(_libc_,x)); \
+			.set CNAME(x),CNAME(__CONCAT(_,x)); \
 			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 
 /* gas messes up offset -- although we don't currently need it, do for BCS */
@@ -76,9 +73,13 @@
  */
 #define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
 			ENTRY(__CONCAT(_thread_sys_,x)); \
+			.weak CNAME(x); \
+			.set CNAME(x),CNAME(__CONCAT(_thread_sys_,x)); \
 			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
 #define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x)); \
+			.weak CNAME(x); \
+			.set CNAME(x),CNAME(__CONCAT(_thread_sys_,x)); \
 			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #else
 /*

@@ -74,7 +74,7 @@ tmpfile()
 
 	if ((fp = fdopen(fd, "w+")) == NULL) {
 		sverrno = errno;
-		(void)_libc_close(fd);
+		(void)_close(fd);
 		errno = sverrno;
 		return (NULL);
 	}

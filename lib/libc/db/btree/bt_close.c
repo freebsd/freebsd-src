@@ -105,7 +105,7 @@ __bt_close(dbp)
 	fd = t->bt_fd;
 	free(t);
 	free(dbp);
-	return (_libc_close(fd) ? RET_ERROR : RET_SUCCESS);
+	return (_close(fd) ? RET_ERROR : RET_SUCCESS);
 }
 
 /*
