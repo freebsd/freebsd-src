@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.423 1998/11/03 03:31:22 jkh Exp $
+#	$Id: Makefile,v 1.424 1998/11/03 03:36:34 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -694,7 +694,7 @@ doMFSKERN:
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
 	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
-	@echo "options  USERCONFIG_BOOT" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
+	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
 .if defined(_MFSKERN)
 	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
