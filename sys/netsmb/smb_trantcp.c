@@ -132,7 +132,7 @@ nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
 		if (timevalcmp(&rtv, &atv, >=)) {
 			/*
 			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occured during locking
+			 * In order to avoid missing the event that occurred during locking
 			 * the process, test P_SELECT and rescan file descriptors if
 			 * necessary.
 			 */
