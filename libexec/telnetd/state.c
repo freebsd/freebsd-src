@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)state.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)state.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -358,7 +358,7 @@ gotiac:			switch (c) {
 		char	xbuf2[BUFSIZ];
 		register char *cp;
 		int n = pfrontp - opfrontp, oc;
-		bcopy(opfrontp, xptyobuf, n);
+		memmove(xptyobuf, opfrontp, n);
 		pfrontp = opfrontp;
 		pfrontp += term_input(xptyobuf, pfrontp, n, BUFSIZ+NETSLOP,
 					xbuf2, &oc, BUFSIZ);
@@ -1167,7 +1167,7 @@ suboption()
 	if (SB_EOF())
 	    break;		/* another garbage check */
 
-	if (request == LM_SLC) {  /* SLC is not preceeded by WILL or WONT */
+	if (request == LM_SLC) {  /* SLC is not preceded by WILL or WONT */
 		/*
 		 * Process suboption buffer of slc's
 		 */
