@@ -1125,3 +1125,5 @@ doMFSKERN:
 		${BOOTINODE} ${BOOTLABEL}
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
+
+.include <bsd.prog.mk>
