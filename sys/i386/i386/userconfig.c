@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.105 1998/07/20 20:00:38 msmith Exp $
+ **      $Id: userconfig.c,v 1.106 1998/08/02 09:32:52 gpalmer Exp $
  **/
 
 /**
@@ -234,6 +234,7 @@ static DEV_INFO device_info[] = {
 {"isp",		"QLogic ISP SCSI Controller",		FLG_IMMUTABLE,
 CLS_STORAGE},
 {"dpt",          "DPT SCSI RAID Controller",		FLG_IMMUTABLE,		CLS_STORAGE},
+{"adv",         "Advanced Systems SCSI controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
@@ -270,6 +271,8 @@ CLS_STORAGE},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
+{"tlc",         "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
+{"xl",         "3COM 3C90x PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
@@ -2382,7 +2385,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.105 1998/07/20 20:00:38 msmith Exp $
+ *      $Id: userconfig.c,v 1.106 1998/08/02 09:32:52 gpalmer Exp $
  */
 
 #include "scbus.h"
