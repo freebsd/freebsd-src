@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_sigwait.c,v 1.6 1999/06/20 08:28:47 jb Exp $
  */
 #include <signal.h>
 #include <errno.h>
@@ -41,7 +42,7 @@ sigwait(const sigset_t * set, int *sig)
 {
 	int		ret = 0;
 	int		i;
-	sigset_t	tempset;
+	sigset_t	tempset, waitset;
 	struct sigaction act;
 	
 	/*
@@ -51,17 +52,23 @@ sigwait(const sigset_t * set, int *sig)
 	act.sa_flags = SA_RESTART;
 	act.sa_mask = *set;
 
+	/* Ensure the scheduling signal is masked: */
+	sigaddset(&act.sa_mask, _SCHED_SIGNAL);
+
 	/*
-	 * These signals can't be waited on.
+	 * Initialize the set of signals that will be waited on:
 	 */
-	sigdelset(&act.sa_mask, SIGKILL);
-	sigdelset(&act.sa_mask, SIGSTOP);
-	sigdelset(&act.sa_mask, _SCHED_SIGNAL);
-	sigdelset(&act.sa_mask, SIGCHLD);
-	sigdelset(&act.sa_mask, SIGINFO);
+	waitset = *set;
+
+	/* These signals can't be waited on. */
+	sigdelset(&waitset, SIGKILL);
+	sigdelset(&waitset, SIGSTOP);
+	sigdelset(&waitset, _SCHED_SIGNAL);
+	sigdelset(&waitset, SIGCHLD);
+	sigdelset(&waitset, SIGINFO);
 
 	/* Check to see if a pending signal is in the wait mask. */
-	if (tempset = (_thread_run->sigpend & act.sa_mask)) {
+	if (tempset = (_thread_run->sigpend & waitset)) {
 		/* Enter a loop to find a pending signal: */
 		for (i = 1; i < NSIG; i++) {
 			if (sigismember (&tempset, i))
@@ -81,17 +88,17 @@ sigwait(const sigset_t * set, int *sig)
 	 * Enter a loop to find the signals that are SIG_DFL.  For
 	 * these signals we must install a dummy signal handler in
 	 * order for the kernel to pass them in to us.  POSIX says
-	 * that the application must explicitly install a dummy
+	 * that the _application_ must explicitly install a dummy
 	 * handler for signals that are SIG_IGN in order to sigwait
 	 * on them.  Note that SIG_IGN signals are left in the
 	 * mask because a subsequent sigaction could enable an
 	 * ignored signal.
 	 */
 	for (i = 1; i < NSIG; i++) {
-		if (sigismember(&act.sa_mask, i)) {
-			if (_thread_sigact[i - 1].sa_handler == SIG_DFL)
-				if (_thread_sys_sigaction(i,&act,NULL) != 0)
-					ret = -1;
+		if (sigismember(&waitset, i) &&
+		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
+			if (_thread_sys_sigaction(i,&act,NULL) != 0)
+				ret = -1;
 		}
 	}
 	if (ret == 0) {
@@ -101,7 +108,7 @@ sigwait(const sigset_t * set, int *sig)
 		 * mask is independent of the threads signal mask
 		 * and requires separate storage.
 		 */
-		_thread_run->data.sigwait = &act.sa_mask;
+		_thread_run->data.sigwait = &waitset;
 
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
@@ -119,7 +126,7 @@ sigwait(const sigset_t * set, int *sig)
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
 	for (i = 1; i < NSIG; i++) {
-		if (sigismember(&act.sa_mask, i) &&
+		if (sigismember(&waitset, i) &&
 		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
 			if (_thread_sys_sigaction(i,&act,NULL) != 0)
 				ret = -1;

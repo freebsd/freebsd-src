@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_resume_np.c,v 1.5 1999/06/20 08:28:40 jb Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE
@@ -46,20 +47,19 @@ pthread_resume_np(pthread_t thread)
 		/* The thread exists. Is it suspended? */
 		if (thread->state != PS_SUSPENDED) {
 			/*
-			 * Guard against preemption by a scheduling signal.
-			 * A change of thread state modifies the waiting
-			 * and priority queues.
+			 * Defer signals to protect the scheduling queues
+			 * from access by the signal handler:
 			 */
-			_thread_kern_sched_defer();
+			_thread_kern_sig_defer();
 
 			/* Allow the thread to run. */
 			PTHREAD_NEW_STATE(thread,PS_RUNNING);
 
 			/*
-			 * Reenable preemption and yield if a scheduling
-			 * signal occurred while in the critical region.
+			 * Undefer and handle pending signals, yielding if
+			 * necessary:
 			 */
-			_thread_kern_sched_undefer();
+			_thread_kern_sig_undefer();
 		}
 	}
 	return(ret);

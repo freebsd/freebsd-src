@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_create.c,v 1.13 1999/06/20 08:28:14 jb Exp $
  */
 #include <errno.h>
 #include <stdlib.h>
@@ -171,7 +172,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->inherited_priority = 0;
 
 			/* Initialise the join queue for the new thread: */
-			_thread_queue_init(&(new_thread->join_queue));
+			TAILQ_INIT(&(new_thread->join_queue));
 
 			/* Initialize the mutex queue: */
 			TAILQ_INIT(&new_thread->mutexq);
@@ -179,46 +180,39 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialise hooks in the thread structure: */
 			new_thread->specific_data = NULL;
 			new_thread->cleanup = NULL;
-			new_thread->queue = NULL;
-			new_thread->qnxt = NULL;
 			new_thread->flags = 0;
+			new_thread->poll_data.nfds = 0;
+			new_thread->poll_data.fds = NULL;
 
-			/* Lock the thread list: */
-			_lock_thread_list();
+			/*
+			 * Defer signals to protect the scheduling queues
+			 * from access by the signal handler:
+			 */
+			_thread_kern_sig_defer();
 
 			/*
 			 * Check if the garbage collector thread
 			 * needs to be started.
 			 */
-			f_gc = (_thread_link_list == _thread_initial);
+			f_gc = (TAILQ_FIRST(&_thread_list) == _thread_initial);
 
 			/* Add the thread to the linked list of all threads: */
-			new_thread->nxt = _thread_link_list;
-			_thread_link_list = new_thread;
-
-			/* Unlock the thread list: */
-			_unlock_thread_list();
-
-			/*
-			 * Guard against preemption by a scheduling signal.
-			 * A change of thread state modifies the waiting
-			 * and priority queues.
-			 */
-			_thread_kern_sched_defer();
+			TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
 
 			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
 				PTHREAD_WAITQ_INSERT(new_thread);
-			} else {
+			}
+			else {
 				new_thread->state = PS_RUNNING;
 				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
 			}
 
 			/*
-			 * Reenable preemption and yield if a scheduling
-			 * signal occurred while in the critical region.
+			 * Undefer and handle pending signals, yielding
+			 * if necessary.
 			 */
-			_thread_kern_sched_undefer();
+			_thread_kern_sig_undefer();
 
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
