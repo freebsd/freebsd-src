@@ -372,6 +372,7 @@ get_num(const char *val)
 		mult = sizeof(int);
 		break;
 	default:
+		;
 	}
 
 	if (mult != 0) {
