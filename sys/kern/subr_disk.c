@@ -135,7 +135,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	error = dsopen(dev, devtype, dp->d_flags, &dp->d_slice, &dp->d_label);
 
 	if (!dsisopen(dp->d_slice)) 
-		dp->d_devsw->d_close(dev, oflags, devtype, p);
+		dp->d_devsw->d_close(pdev, oflags, devtype, p);
 	
 	return(error);
 }
@@ -145,14 +145,12 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 {
 	struct disk *dp;
 	int error;
-	dev_t pdev;
 
 	error = 0;
 	dp = dev->si_disk;
 	dsclose(dev, devtype, dp->d_slice);
 	if (!dsisopen(dp->d_slice)) {
-		pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
-		error = dp->d_devsw->d_close(pdev, fflag, devtype, p);
+		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, p);
 	}
 	return (error);
 }
