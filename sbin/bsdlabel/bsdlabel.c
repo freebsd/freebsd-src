@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.13 1998/06/04 06:49:13 charnier Exp $";
+	"$Id: disklabel.c,v 1.14 1998/06/08 06:41:47 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -690,7 +690,7 @@ display(f, lp)
 	if ((unsigned) lp->d_type < DKMAXTYPES)
 		fprintf(f, "type: %s\n", dktypenames[lp->d_type]);
 	else
-		fprintf(f, "type: %d\n", lp->d_type);
+		fprintf(f, "type: %u\n", lp->d_type);
 	fprintf(f, "disk: %.*s\n", (int)sizeof(lp->d_typename),
 		lp->d_typename);
 	fprintf(f, "label: %.*s\n", (int)sizeof(lp->d_packname),
@@ -703,19 +703,20 @@ display(f, lp)
 	if (lp->d_flags & D_BADSECT)
 		fprintf(f, " badsect");
 	fprintf(f, "\n");
-	fprintf(f, "bytes/sector: %ld\n", lp->d_secsize);
-	fprintf(f, "sectors/track: %ld\n", lp->d_nsectors);
-	fprintf(f, "tracks/cylinder: %ld\n", lp->d_ntracks);
-	fprintf(f, "sectors/cylinder: %ld\n", lp->d_secpercyl);
-	fprintf(f, "cylinders: %ld\n", lp->d_ncylinders);
-	fprintf(f, "sectors/unit: %ld\n", lp->d_secperunit);
-	fprintf(f, "rpm: %d\n", lp->d_rpm);
-	fprintf(f, "interleave: %d\n", lp->d_interleave);
-	fprintf(f, "trackskew: %d\n", lp->d_trackskew);
-	fprintf(f, "cylinderskew: %d\n", lp->d_cylskew);
-	fprintf(f, "headswitch: %ld\t\t# milliseconds\n", lp->d_headswitch);
+	fprintf(f, "bytes/sector: %lu\n", (u_long)lp->d_secsize);
+	fprintf(f, "sectors/track: %lu\n", (u_long)lp->d_nsectors);
+	fprintf(f, "tracks/cylinder: %lu\n", (u_long)lp->d_ntracks);
+	fprintf(f, "sectors/cylinder: %lu\n", (u_long)lp->d_secpercyl);
+	fprintf(f, "cylinders: %lu\n", (u_long)lp->d_ncylinders);
+	fprintf(f, "sectors/unit: %lu\n", (u_long)lp->d_secperunit);
+	fprintf(f, "rpm: %u\n", lp->d_rpm);
+	fprintf(f, "interleave: %u\n", lp->d_interleave);
+	fprintf(f, "trackskew: %u\n", lp->d_trackskew);
+	fprintf(f, "cylinderskew: %u\n", lp->d_cylskew);
+	fprintf(f, "headswitch: %lu\t\t# milliseconds\n",
+	    (u_long)lp->d_headswitch);
 	fprintf(f, "track-to-track seek: %ld\t# milliseconds\n",
-		lp->d_trkseek);
+	    (u_long)lp->d_trkseek);
 	fprintf(f, "drivedata: ");
 	for (i = NDDATA - 1; i >= 0; i--)
 		if (lp->d_drivedata[i])
@@ -723,15 +724,15 @@ display(f, lp)
 	if (i < 0)
 		i = 0;
 	for (j = 0; j <= i; j++)
-		fprintf(f, "%ld ", lp->d_drivedata[j]);
-	fprintf(f, "\n\n%d partitions:\n", lp->d_npartitions);
+		fprintf(f, "%lu ", (u_long)lp->d_drivedata[j]);
+	fprintf(f, "\n\n%u partitions:\n", lp->d_npartitions);
 	fprintf(f,
 	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
 	for (i = 0; i < lp->d_npartitions; i++, pp++) {
 		if (pp->p_size) {
-			fprintf(f, "  %c: %8ld %8ld  ", 'a' + i,
-			   pp->p_size, pp->p_offset);
+			fprintf(f, "  %c: %8lu %8lu  ", 'a' + i,
+			   (u_long)pp->p_size, (u_long)pp->p_offset);
 			if ((unsigned) pp->p_fstype < FSMAXTYPES)
 				fprintf(f, "%8.8s", fstypenames[pp->p_fstype]);
 			else
@@ -739,19 +740,22 @@ display(f, lp)
 			switch (pp->p_fstype) {
 
 			case FS_UNUSED:				/* XXX */
-				fprintf(f, "    %5ld %5ld %5.5s ",
-				    pp->p_fsize, pp->p_fsize * pp->p_frag, "");
+				fprintf(f, "    %5lu %5lu %5.5s ",
+				    (u_long)pp->p_fsize,
+				    (u_long)(pp->p_fsize * pp->p_frag), "");
 				break;
 
 			case FS_BSDFFS:
-				fprintf(f, "    %5ld %5ld %5d ",
-				    pp->p_fsize, pp->p_fsize * pp->p_frag,
+				fprintf(f, "    %5lu %5lu %5u ",
+				    (u_long)pp->p_fsize,
+				    (u_long)(pp->p_fsize * pp->p_frag),
 				    pp->p_cpg);
 				break;
 
 			case FS_BSDLFS:
-				fprintf(f, "    %5ld %5ld %5d",
-				    pp->p_fsize, pp->p_fsize * pp->p_frag,
+				fprintf(f, "    %5lu %5lu %5d",
+				    (u_long)pp->p_fsize,
+				    (u_long)(pp->p_fsize * pp->p_frag),
 				    pp->p_cpg);
 				break;
 
@@ -759,16 +763,16 @@ display(f, lp)
 				fprintf(f, "%20.20s", "");
 				break;
 			}
-			fprintf(f, "\t# (Cyl. %4ld",
-			    pp->p_offset / lp->d_secpercyl);
+			fprintf(f, "\t# (Cyl. %4lu",
+			    (u_long)(pp->p_offset / lp->d_secpercyl));
 			if (pp->p_offset % lp->d_secpercyl)
 			    putc('*', f);
 			else
 			    putc(' ', f);
-			fprintf(f, "- %ld",
-			    (pp->p_offset +
-			    pp->p_size + lp->d_secpercyl - 1) /
-			    lp->d_secpercyl - 1);
+			fprintf(f, "- %lu",
+			    (u_long)((pp->p_offset + pp->p_size +
+			    lp->d_secpercyl - 1) /
+			    lp->d_secpercyl - 1));
 			if (pp->p_size % lp->d_secpercyl)
 			    putc('*', f);
 			fprintf(f, ")\n");
@@ -1220,46 +1224,46 @@ checklabel(lp)
 	char part;
 
 	if (lp->d_secsize == 0) {
-		fprintf(stderr, "sector size %ld\n", lp->d_secsize);
+		fprintf(stderr, "sector size 0\n");
 		return (1);
 	}
 	if (lp->d_nsectors == 0) {
-		fprintf(stderr, "sectors/track %ld\n", lp->d_nsectors);
+		fprintf(stderr, "sectors/track 0\n");
 		return (1);
 	}
 	if (lp->d_ntracks == 0) {
-		fprintf(stderr, "tracks/cylinder %ld\n", lp->d_ntracks);
+		fprintf(stderr, "tracks/cylinder 0\n");
 		return (1);
 	}
 	if  (lp->d_ncylinders == 0) {
-		fprintf(stderr, "cylinders/unit %ld\n", lp->d_ncylinders);
+		fprintf(stderr, "cylinders/unit 0\n");
 		errors++;
 	}
 	if (lp->d_rpm == 0)
-		Warning("revolutions/minute %d", lp->d_rpm);
+		Warning("revolutions/minute 0");
 	if (lp->d_secpercyl == 0)
 		lp->d_secpercyl = lp->d_nsectors * lp->d_ntracks;
 	if (lp->d_secperunit == 0)
 		lp->d_secperunit = lp->d_secpercyl * lp->d_ncylinders;
 	if (lp->d_bbsize == 0) {
-		fprintf(stderr, "boot block size %ld\n", lp->d_bbsize);
+		fprintf(stderr, "boot block size 0\n");
 		errors++;
 	} else if (lp->d_bbsize % lp->d_secsize)
 		Warning("boot block size %% sector-size != 0");
 	if (lp->d_sbsize == 0) {
-		fprintf(stderr, "super block size %ld\n", lp->d_sbsize);
+		fprintf(stderr, "super block size 0\n");
 		errors++;
 	} else if (lp->d_sbsize % lp->d_secsize)
 		Warning("super block size %% sector-size != 0");
 	if (lp->d_npartitions > MAXPARTITIONS)
-		Warning("number of partitions (%d) > MAXPARTITIONS (%d)",
-		    lp->d_npartitions, MAXPARTITIONS);
+		Warning("number of partitions (%lu) > MAXPARTITIONS (%d)",
+		    (u_long)lp->d_npartitions, MAXPARTITIONS);
 	for (i = 0; i < lp->d_npartitions; i++) {
 		part = 'a' + i;
 		pp = &lp->d_partitions[i];
 		if (pp->p_size == 0 && pp->p_offset != 0)
-			Warning("partition %c: size 0, but offset %d",
-			    part, pp->p_offset);
+			Warning("partition %c: size 0, but offset %lu",
+			    part, (u_long)pp->p_offset);
 #ifdef notdef
 		if (pp->p_size % lp->d_secpercyl)
 			Warning("partition %c: size %% cylinder-size != 0",
@@ -1284,8 +1288,8 @@ checklabel(lp)
 		part = 'a' + i;
 		pp = &lp->d_partitions[i];
 		if (pp->p_size || pp->p_offset)
-			Warning("unused partition %c: size %d offset %d",
-			    'a' + i, pp->p_size, pp->p_offset);
+			Warning("unused partition %c: size %d offset %lu",
+			    'a' + i, pp->p_size, (u_long)pp->p_offset);
 	}
 	return (errors);
 }
