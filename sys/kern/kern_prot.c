@@ -1534,6 +1534,9 @@ p_candebug(struct proc *p1, struct proc *p2)
 {
 	int error;
 
+	if (p1 == p2)
+		return (0);
+	
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
 
