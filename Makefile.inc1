@@ -93,7 +93,7 @@ SUBDIR+= usr.bin
 SUBDIR+= usr.sbin
 .endif
 
-# etc must be last for "distribute" to work
+# etc must be last for install/distribute to work
 .if exists(${.CURDIR}/etc)
 SUBDIR+= etc
 .endif
@@ -432,13 +432,6 @@ reinstall:
 	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if !defined(NOMAN) && !defined(NO_MAKEDB_RUN)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding man page indices"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/share/man; ${MAKE} makedb
-.endif
 
 redistribute:
 	@echo "--------------------------------------------------------------"
