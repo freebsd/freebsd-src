@@ -41,7 +41,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 
-static Boolean sigpipe_caught;
+static Boolean sigpipe_caught = FALSE;
 
 static void
 catch_pipe(int sig)
@@ -60,14 +60,9 @@ package_add(char *name)
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
-
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE;    
-
     i = index_initialize("packages/INDEX");
     if (DITEM_STATUS(i) != DITEM_SUCCESS)
 	return i;
-
     tmp3 = strpbrk(name, "-") ? NULL : &tmp2;
     tmp = index_search(&Top, name, tmp3);
     if (tmp)

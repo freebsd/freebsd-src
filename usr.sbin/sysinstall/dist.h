@@ -12,19 +12,16 @@
 #define DIST_SRC		0x00020
 #define DIST_DOC		0x00040
 #define DIST_INFO		0x00080
-#ifdef __i386__			/* only applicable on x86 */
 #define DIST_COMPAT1X		0x00100
 #define DIST_COMPAT20		0x00200
 #define DIST_COMPAT21		0x00400
 #define DIST_COMPAT22		0x00800
 #define DIST_COMPAT3X		0x01000
-#endif
 #define DIST_XF86		0x02000
 #define DIST_DES		0x04000
 #define DIST_CATPAGES		0x08000
 #define DIST_PORTS		0x10000
-#define DIST_LOCAL		0x20000
-#define DIST_ALL		0x3FFFF
+#define DIST_ALL		0x1FFFF
 
 /* Canned distribution sets */
 #define _DIST_DEVELOPER \
@@ -76,7 +73,6 @@
 #define DIST_XF86_CSRC		0x2000
 #define DIST_XF86_MISC_ALL	0x3FFF
 #define DIST_XF86_SERVER	0x8000
-#ifdef __i386__
 #define DIST_XF86_SERVER_9MGA		0x0000001
 #define DIST_XF86_SERVER_9480		0x0000002
 #define DIST_XF86_SERVER_9EGC		0x0000004
@@ -91,9 +87,6 @@
 #define DIST_XF86_SERVER_9WEP		0x0000800
 #define DIST_XF86_SERVER_9WS		0x0001000
 #define DIST_XF86_SERVER_9WSN		0x0002000
-#elif __alpha__
-#define DIST_XF86_SERVER_TGA		0x0000001
-#endif
 #define DIST_XF86_SERVER_8514		0x0004000
 #define DIST_XF86_SERVER_AGX		0x0008000
 #define DIST_XF86_SERVER_I128		0x0010000
