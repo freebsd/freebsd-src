@@ -171,13 +171,13 @@ typeerr:		LABEL;
 	 * Catches nano-second differences, but doesn't display them.
 	 */
 	if ((s->flags & F_TIME) &&
-	     ((s->st_mtimespec.ts_sec != p->fts_statp->st_mtimespec.ts_sec) ||
-	     (s->st_mtimespec.ts_nsec != p->fts_statp->st_mtimespec.ts_nsec))) {
+	     ((s->st_mtimespec.tv_sec != p->fts_statp->st_mtimespec.tv_sec) ||
+	     (s->st_mtimespec.tv_nsec != p->fts_statp->st_mtimespec.tv_nsec))) {
 		LABEL;
 		(void)printf("%smodification time (%.24s, ",
-		    tab, ctime(&s->st_mtimespec.ts_sec));
+		    tab, ctime(&s->st_mtimespec.tv_sec));
 		(void)printf("%.24s)\n",
-		    ctime(&p->fts_statp->st_mtimespec.ts_sec));
+		    ctime(&p->fts_statp->st_mtimespec.tv_sec));
 		tab = "\t";
 	}
 	if (s->flags & F_CKSUM)
