@@ -82,7 +82,7 @@ getnewpasswd(pw, nis)
 {
 	int tries;
 	char *p, *t;
-	char buf[_PASSWORD_LEN+1], salt[9];
+	char buf[_PASSWORD_LEN+1], salt[10];
 	struct timeval tv;
 
 	if (!nis)
@@ -121,6 +121,7 @@ getnewpasswd(pw, nis)
 	salt[0] = _PASSWORD_EFMT1;
 	to64(&salt[1], (long)(29 * 25), 4);
 	to64(&salt[5], random(), 4);
+	salt[9] = '\0';
 #else
 	/* Make a good size salt for algoritms that can use it. */
 	to64(&salt[0], random(), 3);
