@@ -402,6 +402,7 @@ extern int           DRM(version)( DRM_IOCTL_ARGS );
 extern void	     DRM(mem_init)(void);
 extern void	     DRM(mem_uninit)(void);
 extern void	     *DRM(alloc)(size_t size, int area);
+extern void	     *DRM(calloc)(size_t nmemb, size_t size, int area);
 extern void	     *DRM(realloc)(void *oldpt, size_t oldsize, size_t size,
 				   int area);
 extern void	     DRM(free)(void *pt, size_t size, int area);

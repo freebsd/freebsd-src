@@ -75,9 +75,9 @@ typedef struct drm_radeon_private {
 	drm_radeon_ring_buffer_t ring;
 	drm_radeon_sarea_t *sarea_priv;
 
-	int agp_size;
-	u32 agp_vm_start;
-	unsigned long agp_buffers_offset;
+	int gart_size;
+	u32 gart_vm_start;
+	unsigned long gart_buffers_offset;
 
 	int cp_mode;
 	int cp_running;
@@ -132,7 +132,7 @@ typedef struct drm_radeon_private {
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
-	unsigned long agp_textures_offset;
+	unsigned long gart_textures_offset;
 
 	drm_local_map_t *sarea;
 	drm_local_map_t *fb;
@@ -140,9 +140,9 @@ typedef struct drm_radeon_private {
 	drm_local_map_t *cp_ring;
 	drm_local_map_t *ring_rptr;
 	drm_local_map_t *buffers;
-	drm_local_map_t *agp_textures;
+	drm_local_map_t *gart_textures;
 
-	struct mem_block *agp_heap;
+	struct mem_block *gart_heap;
 	struct mem_block *fb_heap;
 
 	/* SW interrupt */
