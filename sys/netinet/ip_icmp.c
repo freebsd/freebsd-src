@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.26 1997/05/23 22:33:16 julian Exp $
+ * $Id: ip_icmp.c,v 1.27 1997/08/02 14:32:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,10 @@ SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RD,
 static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&icmpmaskrepl, 0, "");
+
+static int	icmpbmcastecho = 1;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
+	   0, "");
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -370,6 +374,12 @@ icmp_input(m, hlen)
 		break;
 
 	case ICMP_ECHO:
+		if (!icmpbmcastecho
+		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0
+		    && IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			icmpstat.icps_bmcastecho++;
+			break;
+		}
 		icp->icmp_type = ICMP_ECHOREPLY;
 		goto reflect;
 
