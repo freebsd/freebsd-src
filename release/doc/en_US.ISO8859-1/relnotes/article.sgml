@@ -1925,6 +1925,24 @@ hw.pcic.irq="0"</programlisting>
       from the <varname>net.inet.ip.ttl</varname> sysctl
       variable. &merged;</para>
 
+      <sect4>
+	<title>CVSup</title>
+
+	<para><application>CVSup</application>, a frequently used
+	utility in the &os; Ports Collection, was formerly installable
+	using several ports and packages.  The
+	<port>net/cvsup-bin</port> and <port>net/cvsupd-bin</port>
+	ports/packages are no longer necessary or available; the
+	<port>net/cvsup</port> port should be used instead. &merged;</para>
+
+	<para><application>CVSup</application> has been updated to
+	16.1_3, which is available in the &os; Ports Collection as
+	<port>net/cvsup</port>.  This update fixes a long-standing
+	(but only recently encountered) bug which affects the
+	timestamps on all files after Sun Sep 9 01:46:40 UTC 2001
+	(1,000,000,000 seconds after the UNIX epoch).</para>
+      </sect4>
+
       <sect4 id="kame-userland">
         <title>KAME</title>
 
