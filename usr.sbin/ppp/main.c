@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.38 1997/03/13 12:45:30 brian Exp $
+ * $Id: main.c,v 1.39 1997/03/13 14:53:55 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -159,13 +159,19 @@ int excode;
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
-  if (mode & MODE_AUTO) {
-    DeleteIfRoutes(1);
-  }
   if (mode & (MODE_AUTO | MODE_BACKGROUND)) {
+    DeleteIfRoutes(1);
     unlink(pid_filename);
   }
   OsInterfaceDown(1);
+  if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
+    char c = EX_ERRDEAD;
+    if (write(BGFiledes[1],&c,1) == 1)
+      LogPrintf(LOG_PHASE_BIT,"Parent notified of failure.\n");
+    else
+      LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
+    close(BGFiledes[1]);
+  }
   LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
   LogClose();
   if (server >= 0) {
@@ -440,12 +446,18 @@ char **argv;
 	if (mode & MODE_BACKGROUND) {
 	  /* Wait for our child to close its pipe before we exit. */
 	  BGPid = bgpid;
-	  read (BGFiledes[0], &c, 1);
-	  if (c == EX_NORMAL)
-	    LogPrintf (LOG_CHAT, "PPP enabled.\n");
+          close (BGFiledes[1]);
+	  if (read(BGFiledes[0], &c, 1) != 1)
+	    LogPrintf (LOG_PHASE_BIT, "Parent: Child exit, no status.\n");
+	  else if (c == EX_NORMAL)
+	    LogPrintf (LOG_PHASE_BIT, "Parent: PPP enabled.\n");
+	  else
+	    LogPrintf (LOG_PHASE_BIT, "Parent: Child failed %d.\n",(int)c);
+          close (BGFiledes[0]);
 	}
         exit(c);
-      }
+      } else if (mode & MODE_BACKGROUND)
+          close(BGFiledes[0]);
 
       snprintf(pid_filename, sizeof (pid_filename), "%s/ppp.tun%d.pid",
 		  _PATH_VARRUN, tunno);
@@ -705,7 +717,7 @@ DoLoop()
 
   pgroup = getpgrp();
 
-  if (mode & MODE_DIRECT) {
+  if (mode & (MODE_DIRECT|MODE_BACKGROUND)) {
     modem = OpenModem(mode);
     LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
     fflush(stderr);
@@ -720,7 +732,10 @@ DoLoop()
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
 
-  dial_up = FALSE;			/* XXXX */
+  if (mode & MODE_BACKGROUND)
+    dial_up = TRUE;			/* Bring the line up */
+  else
+    dial_up = FALSE;			/* XXXX */
   tries = 0;
   for (;;) {
     nfds = 0;
