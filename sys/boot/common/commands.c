@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.3 1998/09/18 02:01:38 msmith Exp $
+ *	$Id: commands.c,v 1.4 1998/10/07 02:38:26 msmith Exp $
  */
 
 #include <stand.h>
@@ -229,8 +229,6 @@ command_read(int argc, char *argv[])
     }
 
     ngets(buf, sizeof(buf));
-
-    printf("read name '%s' value '%s'\n", name, buf);
 
     if (name != NULL)
 	setenv(name, buf, 1);

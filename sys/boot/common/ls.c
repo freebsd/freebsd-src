@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.3 1998/09/26 01:29:13 msmith Exp $
+ * $Id: ls.c,v 1.4 1998/10/07 02:38:26 msmith Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -44,10 +44,13 @@
 #include <ufs/ufs/dir.h>
 
 #include <stand.h>
+#include <string.h>
 
 #include "bootstrap.h"
 
 static char typestr[] = "?fc?d?b? ?l?s?w";
+
+static int	ls_getdir(char **pathp);
 
 COMMAND_SET(ls, "ls", "list files", command_ls);
 
@@ -55,14 +58,16 @@ static int
 command_ls(int argc, char *argv[])
 {
     int		fd;
-    struct stat	sb;
     size_t	size;
+    struct stat	sb;
     static char	dirbuf[DIRBLKSIZ];
-    static char	buf[128];	/* must be long enough for full pathname */
-    char	*path;
+    char	*buf, *path;
+    char	lbuf[128];		/* one line */
     int		result, ch;
     int		verbose;
 	
+    result = CMD_OK;
+    fd = -1;
     verbose = 0;
     optind = 1;
     while ((ch = getopt(argc, argv, "l")) != -1) {
@@ -80,35 +85,21 @@ command_ls(int argc, char *argv[])
     argc -= (optind - 1);
 
     if (argc < 2) {
-	path = "/";
+	path = "";
     } else {
 	path = argv[1];
     }
 
+    fd = ls_getdir(&path);
+    if (fd == -1) {
+	result = CMD_ERROR;
+	goto out;
+    }
     pager_open();
     pager_output(path);
     pager_output("\n");
 
-    fd = open(path, O_RDONLY);
-    if (fd < 0) {
-	sprintf(command_errbuf, "open '%s' failed: %s", path, strerror(errno));
-	return(CMD_ERROR);
-    }
-    result = CMD_OK;
-    if (fstat(fd, &sb) < 0) {
-	sprintf(command_errbuf, "stat failed: %s", strerror(errno));
-	result = CMD_ERROR;
-	goto out;
-    }
-    if (!S_ISDIR(sb.st_mode)) {
-	sprintf(command_errbuf, "%s: %s", path, strerror(ENOTDIR));
-	result = CMD_ERROR;
-	goto out;
-    }
-    /* fixup path for stat()ing files */
-    if (!strcmp(path, "/"))
-	path = "";
-
+    
     while ((size = read(fd, dirbuf, DIRBLKSIZ)) == DIRBLKSIZ) {
 	struct direct  *dp, *edp;
 
@@ -138,14 +129,16 @@ command_ls(int argc, char *argv[])
 		    if (verbose) {
 			/* stat the file, if possible */
 			sb.st_size = 0;
+			buf = malloc(strlen(path) + strlen(dp->d_name) + 2);
 			sprintf(buf, "%s/%s", path, dp->d_name);
 			/* ignore return, could be symlink, etc. */
 			if (stat(buf, &sb))
 			    sb.st_size = 0;
-			sprintf(buf, " %c %8d %s\n", typestr[dp->d_type], (int)sb.st_size, dp->d_name);
+			free(buf);
+			sprintf(lbuf, " %c %8d %s\n", typestr[dp->d_type], (int)sb.st_size, dp->d_name);
 		    } else
-			sprintf(buf, " %c  %s\n", typestr[dp->d_type], dp->d_name);
-		    if (pager_output(buf))
+			sprintf(lbuf, " %c  %s\n", typestr[dp->d_type], dp->d_name);
+		    if (pager_output(lbuf))
 			goto out;
 		}
 	    }
@@ -154,6 +147,63 @@ command_ls(int argc, char *argv[])
     }
  out:
     pager_close();
-    close(fd);
+    if (fd != -1)
+	close(fd);
+    if (path != NULL)
+	free(path);
     return(result);
+}
+
+/*
+ * Given (path) containing a vaguely reasonable path specification, return an fd
+ * on the directory, and an allocated copy of the path to the directory.
+ */
+static int
+ls_getdir(char **pathp)
+{
+    struct stat	sb;
+    int		fd;
+    char	*cp;
+    char	*path, *tail;
+    
+    tail = NULL;
+    fd = -1;
+
+    /* one extra byte for a possible trailing slash required */
+    path = malloc(strlen(*pathp) + 2);
+    strcpy(path, *pathp);
+
+    /* Make sure the path is respectable to begin with */
+    if (archsw.arch_getdev(NULL, path, &cp)) {
+	sprintf(command_errbuf, "bad path '%s'", path);
+	goto out;
+    }
+    
+    /* If there's no path on the device, assume '/' */
+    if (*cp == 0)
+	strcat(path, "/");
+
+    fd = open(path, O_RDONLY);
+    if (fd < 0) {
+	sprintf(command_errbuf, "open '%s' failed: %s", path, strerror(errno));
+	goto out;
+    }
+    if (fstat(fd, &sb) < 0) {
+	sprintf(command_errbuf, "stat failed: %s", strerror(errno));
+	goto out;
+    }
+    if (!S_ISDIR(sb.st_mode)) {
+	sprintf(command_errbuf, "%s: %s", path, strerror(ENOTDIR));
+	goto out;
+    }
+
+    *pathp = path;
+    return(fd);
+
+ out:
+    free(path);
+    *pathp = NULL;
+    if (fd != -1)
+	close(fd);
+    return(-1);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.10 1998/10/02 08:04:56 peter Exp $
+ *	$Id: bootstrap.h,v 1.11 1998/10/07 02:38:26 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -186,10 +186,11 @@ extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module
  * XXX these are copies of the defines in <sys/linker.h>, and should be nuked
  * XXX before being committed.
  */
-#define MODINFO_NAME		0x0000
-#define MODINFO_TYPE		0x0001
-#define MODINFO_ADDR		0x0002
-#define MODINFO_SIZE		0x0003
+#define MODINFO_END		0x0000
+#define MODINFO_NAME		0x0001
+#define MODINFO_TYPE		0x0002
+#define MODINFO_ADDR		0x0003
+#define MODINFO_SIZE		0x0004
 #define MODINFO_METADATA	0x8000
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
