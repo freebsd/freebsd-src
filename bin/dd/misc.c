@@ -90,7 +90,7 @@ summary()
 /* ARGSUSED */
 void
 summaryx(notused)
-	int notused;
+	int notused __unused;
 {
 	int save_errno = errno;
 
