@@ -132,7 +132,6 @@ struct winsize {
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
 
 #define	TTYDISC		0		/* termios tty line discipline */
-#define	TABLDISC	3		/* tablet discipline */
 #define	SLIPDISC	4		/* serial IP discipline */
 #define	PPPDISC		5		/* PPP discipline */
 #define	NETGRAPHDISC	6		/* Netgraph tty node discipline */
