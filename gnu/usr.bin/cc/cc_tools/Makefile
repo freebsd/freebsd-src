@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.22 1999/04/08 12:26:07 obrien Exp $
+# $Id: Makefile,v 1.23 1999/04/08 15:11:44 peter Exp $
 #
 
 #
@@ -98,7 +98,6 @@ CLEANFILES+=	tree-check.h
 
 #-----------------------------------------------------------------------
 # C parser
-.ORDER: c-parse.c c-parse.h
 c-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
 	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
@@ -111,7 +110,6 @@ CLEANFILES+=	c-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 # objc parser
-.ORDER: objc-parse.c objc-parse.h
 objc-parse.c objc-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
@@ -185,9 +183,7 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # would do if we defined PROG, except for leaving out dependencies on
 # insn-*.h because these dependencies would be circular.
 #
-# XXX pre-egcs we used something simular to this line.  Now it causes cycles...
-# ${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ntree-check.h:Ngenrtl.h}
-${OBJS}: ${COMMONHDRS:M*.h}
+${OBJS:Ngengenrtl.o}: ${SRCS:M*.h:Ninsn-*.h}
 
 # Give all dependencies on insn-*.h explicitly
 # This suffices for `make -j<any> depend', and after that all
@@ -200,6 +196,4 @@ insn-emit.o: insn-codes.h insn-config.h insn-flags.h
 insn-opinit.o: insn-codes.h insn-config.h insn-flags.h
 insn-output.o: insn-attr.h insn-codes.h insn-config.h insn-flags.h
 insn-recog.o: insn-config.h
-
-genattr.o gencodes.o genconfig.o genemit.o genextract.o genflags.o genopinit.o genoutput.o genpeep.o genrecog.o: genrtl.h
 .endif
