@@ -98,18 +98,18 @@ uaccess(u_char *s, int mode)
     return(access((char *)s, mode));
 }
 
-extern void   init_path(int drive, u_char *base, u_char *where);
-extern void   dos_makereadonly(int drive);
-extern int    dos_readonly(int drive);
-extern u_char *dos_getcwd(int drive);
-extern u_char *dos_getpath(int drive);
-extern int    dos_makepath(u_char *where, u_char *newpath);
-extern int    dos_setcwd(u_char *where);
-extern int    dos_to_real_path(u_char *dospath, u_char *realpath, int *);
-extern void   real_to_dos(u_char *real, u_char *dos);
-extern void   dos_to_real(u_char *dos, u_char *real);
-extern u_char **get_entries(u_char *path);
-extern int    get_space(int drive, fsstat_t *fs);
-extern int    find_first(u_char *path, int attr,
-			 dosdir_t *dir, find_block_t *dta);
-extern int    find_next(dosdir_t *dir, find_block_t *dta);
+extern void	init_path(int, u_char *, u_char *);
+extern void	dos_makereadonly(int);
+extern int	dos_readonly(int);
+extern u_char	*dos_getcwd(int);
+extern u_char	*dos_getpath(int);
+extern int	dos_makepath(u_char *, u_char *);
+extern int	dos_match(u_char *, u_char *);
+extern int	dos_setcwd(u_char *);
+extern int	dos_to_real_path(u_char *, u_char *, int *);
+extern void	real_to_dos(u_char *, u_char *);
+extern void	dos_to_real(u_char *, u_char *);
+extern u_char	**get_entries(u_char *);
+extern int	get_space(int, fsstat_t *);
+extern int	find_first(u_char *, int, dosdir_t *, find_block_t *);
+extern int	find_next(dosdir_t *, find_block_t *);

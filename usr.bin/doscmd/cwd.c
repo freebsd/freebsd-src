@@ -42,7 +42,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+
 #include "doscmd.h"
+#include "cwd.h"
 
 #define	D_REDIR         0x0080000	/* XXX - ack */
 #define	D_TRAPS3	0x0200000
@@ -65,7 +67,7 @@ typedef struct Name_t {
 
 #define	MAX_DRIVE	26
 
-static Path_t paths[MAX_DRIVE] = { 0, };
+static Path_t paths[MAX_DRIVE];
 static Name_t *names;
 
 extern int diskdrive;
@@ -269,8 +271,8 @@ dos_makepath(u_char *where, u_char *newpath)
 int
 dos_setcwd(u_char *where)
 {
-    u_char newpath[1024];
-    u_char realpath[1024];
+    u_char new_path[1024];
+    u_char real_path[1024];
     int drive;
     struct stat sb;
     Path_t *d;
@@ -278,21 +280,21 @@ dos_setcwd(u_char *where)
 
     debug(D_REDIR, "dos_setcwd(%s)\n", where);
 
-    error = dos_makepath(where, newpath);
+    error = dos_makepath(where, new_path);
     if (error)
 	return (error);
 
-    error = dos_to_real_path(newpath, realpath, &drive);
+    error = dos_to_real_path(new_path, real_path, &drive);
     if (error)
 	return (error);
     
-    if (ustat(realpath, &sb) < 0 || !S_ISDIR(sb.st_mode))
+    if (ustat(real_path, &sb) < 0 || !S_ISDIR(sb.st_mode))
 	return (PATH_NOT_FOUND);
-    if (uaccess(realpath, R_OK | X_OK))
+    if (uaccess(real_path, R_OK | X_OK))
 	return (PATH_NOT_FOUND);
     
     d = &paths[drive];
-    d->len = ustrlen(newpath + 2);
+    d->len = ustrlen(new_path + 2);
 
     if (d->len + 1 > d->maxlen) {
 	free(d->cwd);
@@ -300,34 +302,33 @@ dos_setcwd(u_char *where)
 	d->cwd = (u_char *)malloc(d->maxlen);
 	if (d->cwd == NULL)
 	    fatal("malloc in dos_setcwd for %c:%s: %s", drntol(drive),
-		  newpath, strerror(errno));
+		  new_path, strerror(errno));
     }
-    ustrcpy(d->cwd, newpath + 2);
+    ustrncpy(d->cwd, new_path + 2, d->maxlen - d->len);
     return (0);
 }
 
 /*
- * Given a DOS path dospath and a drive, convert it to a BSD pathname
- * and store the result in realpath.
+ * Given a DOS path dos_path and a drive, convert it to a BSD pathname
+ * and store the result in real_path.
  * Return DOS errno on failure.
  */
 int
-dos_to_real_path(u_char *dospath, u_char *realpath, int *drivep)
+dos_to_real_path(u_char *dos_path, u_char *real_path, int *drivep)
 {
     Path_t *d;
-    u_char newpath[1024];
+    u_char new_path[1024];
     u_char *rp;
-    int error;
     u_char **dirs;
     u_char *dir;
     int drive;
 
-    debug(D_REDIR, "dos_to_real_path(%s)\n", dospath);
+    debug(D_REDIR, "dos_to_real_path(%s)\n", dos_path);
 
-    if (dospath[0] != '\0' && dospath[1] == ':') {
-	drive = drlton(*dospath);
-	dospath++;
-	dospath++;
+    if (dos_path[0] != '\0' && dos_path[1] == ':') {
+	drive = drlton(*dos_path);
+	dos_path++;
+	dos_path++;
     } else {
 	drive = diskdrive;
     }
@@ -336,15 +337,15 @@ dos_to_real_path(u_char *dospath, u_char *realpath, int *drivep)
     if (d->cwd == NULL)
 	return (DISK_DRIVE_INVALID);
 
-    ustrcpy(realpath, d->path);
+    ustrcpy(real_path, d->path);
 
-    rp = realpath;
+    rp = real_path;
     while (*rp)
 	++rp;
 
-    ustrcpy(newpath, dospath);
+    ustrncpy(new_path, dos_path, 1024 - ustrlen(new_path));
 
-    dirs = get_entries(newpath);
+    dirs = get_entries(new_path);
     if (dirs == NULL)
 	return (PATH_NOT_FOUND);
 
@@ -353,7 +354,7 @@ dos_to_real_path(u_char *dospath, u_char *realpath, int *drivep)
      * There are no . or .. entries to worry about either
      */
 
-    while (dir = *++dirs) {
+    while ((dir = *++dirs) != 0) {
 	*rp++ = '/';
 	dos_to_real(dir, rp);
 	while (*rp)
@@ -398,19 +399,19 @@ u_char cattr[256] = {
     1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-inline
+inline int
 isvalid(unsigned c)
 {
     return (cattr[c & 0xff] == 1);
 }
 
-inline
+inline int
 isdot(unsigned c)
 {
     return (cattr[c & 0xff] == 3);
 }
 
-inline
+inline int
 isslash(unsigned c)
 {
     return (cattr[c & 0xff] == 4);
@@ -693,6 +694,7 @@ get_entries(u_char *path)
  * Return file system statistics for drive.
  * Return the DOS errno on failure.
  */
+int
 get_space(int drive, fsstat_t *fs)
 {
     Path_t *d;
@@ -838,9 +840,10 @@ static search_t dir_search = {dp : NULL};
  * The DTA is populated as required by DOS, but the state area is ignored.
  * Returns DOS errno on failure.
  */
+int
 find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
 {
-    u_char newpath[1024], realpath[1024];
+    u_char new_path[1024], real_path[1024];
     u_char *expr, *slash;
     int drive;
     int error;
@@ -848,11 +851,11 @@ find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
 
     debug(D_REDIR, "find_first(%s, %x, %x)\n", path, attr, dta);
 
-    error = dos_makepath(path, newpath);
+    error = dos_makepath(path, new_path);
     if (error)
 	return (error);
 
-    expr = newpath;
+    expr = new_path;
     slash = 0;
     while (*expr != '\0') {
 	if (*expr == '\\' || *expr == '/')
@@ -861,7 +864,7 @@ find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
     }
     *slash++ = '\0';
 
-    error = dos_to_real_path(newpath, realpath, &drive);
+    error = dos_to_real_path(new_path, real_path, &drive);
     if (error)
 	return (error);
 
@@ -871,11 +874,11 @@ find_first(u_char *path, int attr, dosdir_t *dir, find_block_t *dta)
     if (search->dp)		/* stale search? */
 	closedir(search->dp);
 
-    search->dp = opendir(realpath);
+    search->dp = opendir(real_path);
     if (search->dp == NULL)
 	return (PATH_NOT_FOUND);
 
-    ustrcpy(search->searchdir, realpath);
+    ustrncpy(search->searchdir, real_path, 1024 - ustrlen(real_path));
     search->searchend = search->searchdir;
     while (*search->searchend)
 	++search->searchend;
@@ -910,7 +913,7 @@ find_next(dosdir_t *dir, find_block_t *dta)
     debug(D_REDIR, "find_next()\n");
 #endif
 
-    while (d = readdir(search->dp)) {
+    while ((d = readdir(search->dp)) != 0) {
     	real_to_dos((u_char *)d->d_name, name);
 	to_dos_fcb(dir->name, name);
 #if 0

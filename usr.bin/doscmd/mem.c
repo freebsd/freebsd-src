@@ -224,7 +224,6 @@ int
 mem_adjust(int addr, int size, int *availp)
 {
     char *mp;
-    int delta, nxtsiz;
 
     debug(D_MEMORY, "%04x: adjust(%05x)\n", addr, size);
     addr <<= 4;

@@ -32,9 +32,13 @@
  * $FreeBSD$
  */
 
-#include "doscmd.h"
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <paths.h>
 #include <signal.h>
+#include <unistd.h>
+
+#include "doscmd.h"
 
 static int	lpt_fd[4] = { -1, -1, -1, -1, };
 static FILE	*lpt_file[4] = { 0, 0, 0, 0};
@@ -44,17 +48,13 @@ static int	timeout[4] = { 30, 30, 30, 30 };
 static int	last_poll[4] = { 0, 0, 0, 0};
 static int	last_count[4] = { 0, 0, 0, 0};
 static int	current_count[4] = { 0, 0, 0, 0};
-static int	alarm_active[4] = { 0, 0, 0, 0};
-static int	alarm_set = 0;
 
 static void open_printer(int printer);
 
 void
 int17(regcontext_t *REGS)
 {
-    char	printer_name[20];
     int	fd;
-    int p;
     u_char c;
 
     switch (R_AH) {
@@ -133,7 +133,7 @@ open_printer(int printer)
      * if printer is direct then open output device.
      */
     if (direct[printer]) {
-	if (p = queue[printer]) {
+	if ((p = queue[printer]) != 0) {
 	    if ((fd = open(p, O_WRONLY|O_APPEND|O_CREAT, 0666)) < 0) {
 		perror(p);
 		return;

@@ -98,8 +98,6 @@ static void merge_blocks();
 void
 xms_init(void)
 {
-    int i;
-
     /* Initialize handle table: xms_handle.addr == 0 means free */
     bzero((void *)xms_hand, sizeof(XMS_handle) * NUM_HANDLES);	       
     xms_free_mem = xms_maxsize;
@@ -318,7 +316,6 @@ create_block(u_long addr, u_long size)
 
 void initHMA()
 {
-    caddr_t add;
     int mfd;
 
     /*

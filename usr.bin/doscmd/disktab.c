@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  *
  *	BSDI disktab.c,v 2.2 1996/04/08 19:32:27 bostic Exp
+ *
+ * $FreeBSD$
  */
 
 /* XXX goaway (requires change to config.c) */
