@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.291 1998/09/22 23:58:49 asami Exp $
+#	$Id: bsd.port.mk,v 1.292 1998/10/06 21:12:14 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -2027,12 +2027,14 @@ generate-plist:
 .endif
 .endfor
 	@${SED} ${_sedsubplist} ${PLIST} >> ${TMPPLIST}
+.if !defined(NO_FILTER_SHLIBS)
 .if (${PORTOBJFORMAT} == "aout")
 	@${SED} -e 's,\(/lib.*\.so\.[0-9]*\)$$,\1.0,' ${TMPPLIST} > ${TMPPLIST}.tmp
 .else
 	@${SED} -e 's,\(/lib.*\.so\.[0-9]*\)\.[0-9]*$$,\1,' ${TMPPLIST} > ${TMPPLIST}.tmp
 .endif
 	@${MV} -f ${TMPPLIST}.tmp ${TMPPLIST}
+.endif
 .endif
 
 ${TMPPLIST}:
