@@ -57,8 +57,17 @@ RELEASEPORTSMODULE?=	ports
 # Unless set elsewhere, indicate the object format we'll be using.
 OBJFORMAT?=		elf
 
-# Uncomment this to disable the doc.1 target.  It is also an ERROR
-# to set NOPORTS and not set NODOC since docs depend on ports.
+# Uncomment this to disable the doc.1 target.  Docs normally require
+# the ports tree, so NOPORTS can be set together with NODOC in order
+# to have neither ports or docs.  If only NOPORTS is set to YES, but
+# docs are still desired, the DOMINIMALDOCPORTS logic below will only
+# install the ports that are minimally required for the docs.  This is
+# intended as a compromise, less disk space is required than for using
+# the entire ports collection (und much less time due to the huge number
+# of directories it would create), but still quite a bit as well as some
+# CPU cycles (some of the programs are C++, and things like ghostscript
+# belong to the required ports nevertheless).
+#
 # Setting this also disables doc.2 (RELNOTESng).
 #NODOC=  YES
 #NOPORTS=  YES
@@ -68,6 +77,22 @@ OBJFORMAT?=		elf
 # release build.
 #RELNOTESNG=	YES
 #RELNOTESNG_LANG=	en_US.ISO_8859-1
+
+# As an alternative to installing the entire ports collection (which
+# can take a huge amount of time, in particular on slower disks),
+# setting ${MINIMALDOCPORTS} allows to install and build just those
+# ports that are really required for getting the docs up & running.
+.if defined(NOPORTS) && !defined(NODOC)
+DOMINIMALDOCPORTS=	YES
+.include "Makefile.inc.docports"
+.endif
+
+# Helper variable
+.if defined(NOPORTS)
+.if !defined(DOMINIMALDOCPORTS) || ${DOMINIMALDOCPORTS} != "YES"
+NOPORTSATALL=	YES
+.endif
+.endif
 
 # Set ALLLANG=no if you want the release documentation to be
 # in English only.
@@ -208,9 +233,9 @@ rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
-.if defined(NOPORTS) && !defined(NODOC)
+.if defined(NOPORTSATALL) && !defined(NODOC)
 	@echo "Ports are required for building the docs.  Either set NODOC or"
-	@echo "unset NOPORTS!"
+	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
 	@exit 1
 .endif
 .if defined(RELNOTESNG) && ${RELNOTESNG} == "YES" && defined(NODOC)
@@ -257,6 +282,12 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .endif
+.elif defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
+.if defined(PORTSRELEASETAG)
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${PORTSRELEASETAG} ${MINIMALDOCPORTS}
+.else
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${MINIMALDOCPORTS}
+.endif
 .endif
 .if !defined(NODOC)
 .if defined(DOCRELEASETAG)
@@ -278,6 +309,11 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && cvs -R -q update -P -d
+.endif
+.if defined(DOMINIMALDOCPORTS) && ${DOMINIMALDOCPORTS} == "YES"
+	for i in ${MINIMALDOCPORTS}; do \
+		( cd ${CHROOTDIR}/usr/$$i && cvs -R -q update -P -d ) ; \
+	done
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr/doc && cvs -R -q update -P -d
@@ -304,6 +340,9 @@ rerelease release:
 .endif
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
+.endif
+.if defined(DOMINIMALDOCPORTS)
+	echo "export DOMINIMALDOCPORTS=${DOMINIMALDOCPORTS}" >> ${CHROOTDIR}/mk
 .endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
