@@ -2412,7 +2412,7 @@ static int *warn_std_ptr = 0;
 typedef enum { OBJFMT_UNKNOWN, OBJFMT_AOUT, OBJFMT_ELF } objf_t;
 
 static objf_t objformat = OBJFMT_UNKNOWN;
-#endif
+#endif	/* FREEBSD_NATIVE */
 
 #if defined(HAVE_OBJECT_SUFFIX) || defined(HAVE_EXECUTABLE_SUFFIX)
 
@@ -2742,7 +2742,7 @@ process_command (argc, argv)
       else
         fprintf(stderr, "Unrecognized object format: %s\n", buf);
   }
-#endif
+#endif	/* FREEBSD_NATIVE */
 
   /* Options specified as if they appeared on the command line.  */
   temp = getenv ("GCC_OPTIONS");
@@ -3197,7 +3197,7 @@ process_command (argc, argv)
   add_prefix (&startfile_prefixes,
 	      concat (tooldir_prefix, "lib", dir_separator_str, NULL_PTR),
 	      "BINUTILS", 0, 0, NULL_PTR);
-#endif /* FREEBSD_NATIVE */
+#endif	/* not FREEBSD_NATIVE */
 
   /* More prefixes are enabled in main, after we read the specs file
      and determine whether this is cross-compilation or not.  */
@@ -3233,7 +3233,7 @@ process_command (argc, argv)
     case OBJFMT_UNKNOWN:
       fatal ("object format unknown");
     }
-#endif
+#endif	/* FREEBSD_NATIVE */
 
   for (i = 1; i < argc; i++)
     {
@@ -4732,7 +4732,7 @@ is_directory (path1, path2, linker)
 				       dir_separator_str, "lib", 
 				       dir_separator_str, ".", NULL_PTR)) == 0)))
     return 0;
-#endif /* FREEBSD_NATIVE */
+#endif	/* not FREEBSD_NATIVE */
 
   return (stat (path, &st) >= 0 && S_ISDIR (st.st_mode));
 }
@@ -4914,12 +4914,12 @@ main (argc, argv)
   /* Read specs from a file if there is one.  */
 
 #ifdef FREEBSD_NATIVE
-  just_machine_suffix = "";
+  just_machine_suffix = "";	/* I don't support specs, gives determinism */
 #else	/* FREEBSD_NATIVE */
   machine_suffix = concat (spec_machine, dir_separator_str,
 			   spec_version, dir_separator_str, NULL_PTR);
   just_machine_suffix = concat (spec_machine, dir_separator_str, NULL_PTR);
-#endif /* FREEBSD_NATIVE */
+#endif	/* FREEBSD_NATIVE */
 
   specs_file = find_a_file (&startfile_prefixes, "specs", R_OK);
   /* Read the specs file unless it is a default one.  */
