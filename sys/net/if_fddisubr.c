@@ -630,7 +630,7 @@ fddi_ioctl (ifp, command, data)
 		default:
 			ifp->if_init(ifp->if_softc);
 			break;
-	}
+		}
 	case SIOCGIFADDR: {
 			struct sockaddr *sa;
 

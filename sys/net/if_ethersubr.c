@@ -639,7 +639,7 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		if (m != NULL)
 			m_freem(m);
 		return;
-       }
+	}
 
 recvLocal:
 	/* Continue with upper layer processing */
