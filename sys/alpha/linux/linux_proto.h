@@ -59,15 +59,9 @@ struct	linux_lseek_args {
 	l_off_t	off;	char off_[PAD_(l_off_t)];
 	l_int	whence;	char whence_[PAD_(l_int)];
 };
-struct	linux_getpid_args {
-	register_t dummy;
-};
 struct	linux_umount_args {
 	char *	path;	char path_[PAD_(char *)];
 	l_int	flags;	char flags_[PAD_(l_int)];
-};
-struct	linux_getuid_args {
-	register_t dummy;
 };
 struct	linux_ptrace_args {
 	register_t dummy;
@@ -84,9 +78,6 @@ struct	linux_open_args {
 	char *	path;	char path_[PAD_(char *)];
 	l_int	flags;	char flags_[PAD_(l_int)];
 	l_int	mode;	char mode_[PAD_(l_int)];
-};
-struct	linux_getgid_args {
-	register_t dummy;
 };
 struct	osf1_sigprocmask_args {
 	int	how;	char how_[PAD_(int)];
@@ -589,14 +580,11 @@ int	linux_chmod __P((struct proc *, struct linux_chmod_args *));
 int	linux_chown __P((struct proc *, struct linux_chown_args *));
 int	linux_brk __P((struct proc *, struct linux_brk_args *));
 int	linux_lseek __P((struct proc *, struct linux_lseek_args *));
-int	linux_getpid __P((struct proc *, struct linux_getpid_args *));
 int	linux_umount __P((struct proc *, struct linux_umount_args *));
-int	linux_getuid __P((struct proc *, struct linux_getuid_args *));
 int	linux_ptrace __P((struct proc *, struct linux_ptrace_args *));
 int	linux_access __P((struct proc *, struct linux_access_args *));
 int	linux_kill __P((struct proc *, struct linux_kill_args *));
 int	linux_open __P((struct proc *, struct linux_open_args *));
-int	linux_getgid __P((struct proc *, struct linux_getgid_args *));
 int	osf1_sigprocmask __P((struct proc *, struct osf1_sigprocmask_args *));
 int	linux_sigpending __P((struct proc *, struct linux_sigpending_args *));
 int	linux_ioctl __P((struct proc *, struct linux_ioctl_args *));

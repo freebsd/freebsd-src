@@ -21,10 +21,10 @@
 #define	LINUX_SYS_linux_chown	16
 #define	LINUX_SYS_linux_brk	17
 #define	LINUX_SYS_linux_lseek	19
-#define	LINUX_SYS_linux_getpid	20
+#define	LINUX_SYS_getpid	20
 #define	LINUX_SYS_linux_umount	22
 #define	LINUX_SYS_setuid	23
-#define	LINUX_SYS_linux_getuid	24
+#define	LINUX_SYS_getuid	24
 #define	LINUX_SYS_linux_ptrace	26
 #define	LINUX_SYS_linux_access	33
 #define	LINUX_SYS_sync	36
@@ -33,7 +33,7 @@
 #define	LINUX_SYS_dup	41
 #define	LINUX_SYS_pipe	42
 #define	LINUX_SYS_linux_open	45
-#define	LINUX_SYS_linux_getgid	47
+#define	LINUX_SYS_getgid	47
 #define	LINUX_SYS_osf1_sigprocmask	48
 #define	LINUX_SYS_acct	51
 #define	LINUX_SYS_linux_sigpending	52
