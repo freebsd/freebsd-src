@@ -44,17 +44,6 @@ struct twe_usercommand {
 
 #define TWEIO_COMMAND		_IOWR('T', 100, struct twe_usercommand)
 
-#ifdef __amd64__
-struct twe_usercommand32 {
-    TWE_Command	tu_command;	/* command ready for the controller */
-    uint32_t	tu_data;	/* pointer to data in userspace */
-    uint32_t	tu_size;	/* userspace data length */
-};
-
-#define TWEIO_COMMAND32		_IOWR('T', 100, struct twe_usercommand32)
-#endif
-
-
 /*
  * Command queue statistics
  */
@@ -99,18 +88,6 @@ struct twe_paramcommand {
 
 #define TWEIO_SET_PARAM		_IOW ('T', 104, struct twe_paramcommand)
 #define TWEIO_GET_PARAM		_IOW ('T', 105, struct twe_paramcommand)
-
-#ifdef __amd64__
-struct twe_paramcommand32 {
-    u_int16_t	tp_table_id;
-    u_int8_t	tp_param_id;
-    u_int32_t	tp_data;
-    u_int8_t	tp_size;
-};
-
-#define TWEIO_SET_PARAM32	_IOW ('T', 104, struct twe_paramcommand32)
-#define TWEIO_GET_PARAM32	_IOW ('T', 105, struct twe_paramcommand32)
-#endif
 
 /*
  * Request a controller soft-reset
