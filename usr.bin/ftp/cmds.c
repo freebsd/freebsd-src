@@ -1,4 +1,4 @@
-/*	$Id: cmds.c,v 1.9 1997/06/27 10:21:22 ache Exp $ */
+/*	$Id: cmds.c,v 1.10 1997/11/17 19:29:16 guido Exp $ */
 /*	$NetBSD: cmds.c,v 1.24 1997/05/17 19:44:36 pk Exp $	*/
 
 /*
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id: cmds.c,v 1.9 1997/06/27 10:21:22 ache Exp $";
+static char rcsid[] = "$Id: cmds.c,v 1.10 1997/11/17 19:29:16 guido Exp $";
 #endif
 #endif /* not lint */
 
@@ -457,7 +457,8 @@ getit(argc, argv, restartit, mode)
 	if (argc == 2) {
 		argc++;
 		argv[2] = argv[1];
-		if (*argv[1] == '|' && !another(&argc, &argv, "(Warning: remote file starts with '|') local-file")) {
+		if (*argv[1] == '|' && !another(&argc, &argv,
+		    "(warning: remote file starts with '|') local-file")) {
 			code = -1;
 			return (0);
 		}
@@ -586,9 +587,10 @@ mget(argc, argv)
 			printf("skipping %s for security reasons\n", cp);
 			sleep(2);
 			continue;
-		} else if (*cp == '|') {
-			printf("Note: next file starts with '|', which runs it through a pipe\n");
 		}
+		if (*cp == '|')
+			printf(
+	    "note: next file starts with '|', which runs it through a pipe\n");
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
