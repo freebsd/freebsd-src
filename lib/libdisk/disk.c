@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.3 1997/01/24 21:08:28 jkh Exp $
+ * $Id: disk.c,v 1.30 1998/03/07 08:45:46 ache Exp $
  *
  */
 
@@ -140,6 +140,7 @@ Int_Open_Disk(const char *name, u_long size)
 			case 0x1:
 			case 0x6:
 			case 0x4:
+			case 0xb:
 				ce = fat;
 				break;
 			case DOSPTYP_EXTENDED:
@@ -285,7 +286,7 @@ Collapse_Disk(struct disk *d)
 }
 #endif
 
-static char * device_list[] = {"wd","sd","od",0};
+static char * device_list[] = {"wd","sd","da","od",0};
 
 char **
 Disk_Names()
@@ -362,6 +363,7 @@ slice_type_name( int type, int subtype )
 					case 6:		return "fat (>32Mb)";
 					case 7:		return "NTFS/HPFS";
 					case 10:	return "OS/2 bootmgr";
+					case 11:        return "fat (32-bit)";
 					case 84:	return "OnTrack diskmgr";
 					case 100:	return "Netware 2.x";
 					case 101:	return "Netware 3.x";
