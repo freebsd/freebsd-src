@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 
 /* Fixed size of uname/gname cache. */
-#define gname_cache_size 101
-#define uname_cache_size 101
+#define	gname_cache_size 101
+#define	uname_cache_size 101
 
 /* Initial size of link cache. */
-#define links_cache_initial_size 1024
+#define	links_cache_initial_size 1024
 
 struct archive_dir_entry {
 	struct archive_dir_entry	*next;
