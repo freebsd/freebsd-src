@@ -28,8 +28,59 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
-#define DEF_RPM			3600
-#define DEF_INTERLEAVE	1
+/* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
+        I'm not sure which, so I leave it like it worked before. --schweikh */
+
+static void
+Fill_Disklabel(struct disklabel *dl, const struct disk *new, const struct disk *old, const struct chunk *c1)
+{
+	struct chunk *c2;
+	int j;
+
+	memset(dl, 0, sizeof *dl);
+
+	for(c2 = c1->part; c2; c2 = c2->next) {
+		if (c2->type == unused) continue;
+		if (!strcmp(c2->name, "X")) continue;
+		j = c2->name[strlen(c2->name) - 1] - 'a';
+		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART)
+			continue;
+		dl->d_partitions[j].p_size = c2->size;
+		dl->d_partitions[j].p_offset = c2->offset;
+		dl->d_partitions[j].p_fstype = c2->subtype;
+	}
+
+	dl->d_bbsize = BBSIZE;
+	/*
+	 * Add in defaults for superblock size, interleave, and rpms
+	 */
+	dl->d_sbsize = 0;
+
+	strcpy(dl->d_typename, c1->name);
+
+	dl->d_secsize = 512;
+	dl->d_secperunit = new->chunks->size;
+	dl->d_ncylinders =  new->bios_cyl;
+	dl->d_ntracks =  new->bios_hd;
+	dl->d_nsectors =  new->bios_sect;
+	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
+
+	dl->d_npartitions = MAXPARTITIONS;
+
+	dl->d_type = new->name[0] == 's' || new->name[0] == 'd' ||
+	    new->name[0] == 'o' ? DTYPE_SCSI : DTYPE_ESDI;
+	dl->d_partitions[RAW_PART].p_size = c1->size;
+	dl->d_partitions[RAW_PART].p_offset = c1->offset;
+	dl->d_rpm = 3600;
+	dl->d_interleave = 1;
+
+	dl->d_magic = DISKMAGIC;
+	dl->d_magic2 = DISKMAGIC;
+	dl->d_checksum = dkcksum(dl);
+
+	return;
+}
+
 
 /* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
         I'm not sure which, so I leave it like it worked before. --schweikh */
@@ -37,8 +88,7 @@ static int
 Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const struct chunk *c1)
 {
 	struct disklabel *dl;
-	struct chunk *c2;
-	int i,j;
+	int i;
 	void *p;
 	u_char buf[BBSIZE];
 #ifdef __alpha__
@@ -62,58 +112,7 @@ Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const stru
 #endif
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
-	memset(dl, 0, sizeof *dl);
-
-	for(c2 = c1->part; c2; c2 = c2->next) {
-		if (c2->type == unused) continue;
-		if (!strcmp(c2->name, "X")) continue;
-#ifdef __alpha__
-		j = c2->name[strlen(c2->name) - 1] - 'a';
-#else
-		j = c2->name[strlen(new->name) + 2] - 'a';
-#endif
-		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
-#ifdef DEBUG
-			warn("weird partition letter %c", c2->name[strlen(new->name) + 2]);
-#endif
-			continue;
-		}
-		dl->d_partitions[j].p_size = c2->size;
-		dl->d_partitions[j].p_offset = c2->offset;
-		dl->d_partitions[j].p_fstype = c2->subtype;
-	}
-
-	dl->d_bbsize = BBSIZE;
-	/*
-	 * Add in defaults for superblock size, interleave, and rpms
-	 */
-	dl->d_sbsize = 0;
-	dl->d_interleave = DEF_INTERLEAVE;
-	dl->d_rpm = DEF_RPM;
-
-	strcpy(dl->d_typename, c1->name);
-
-	dl->d_secsize = 512;
-	dl->d_secperunit = new->chunks->size;
-	dl->d_ncylinders =  new->bios_cyl;
-	dl->d_ntracks =  new->bios_hd;
-	dl->d_nsectors =  new->bios_sect;
-	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
-
-	dl->d_npartitions = MAXPARTITIONS;
-
-	dl->d_type = new->name[0] == 's' || new->name[0] == 'd' ||
-	    new->name[0] == 'o' ? DTYPE_SCSI : DTYPE_ESDI;
-	dl->d_partitions[RAW_PART].p_size = c1->size;
-	dl->d_partitions[RAW_PART].p_offset = c1->offset;
-#ifdef PC98
-	dl->d_rpm = 3600;
-	dl->d_interleave = 1;
-#endif
-
-	dl->d_magic = DISKMAGIC;
-	dl->d_magic2 = DISKMAGIC;
-	dl->d_checksum = dkcksum(dl);
+	Fill_Disklabel(dl, new, old, c1);
 
 #ifdef __alpha__
 	/*
