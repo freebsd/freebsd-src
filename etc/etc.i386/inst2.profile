@@ -6,13 +6,15 @@ pc3|ibmpc3:li#25:co#80:am:bs:bw:eo:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:\
 do=\E[B:ho=\E[;H:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:\
 :ac=l\332q\304k\277x\263j\331m\300w\302u\264v\301t\303n\305:\
 :kb=^h:kh=\E[Y:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:"
+OPSYSTEM=FreeBSD
+RELEASE="1.0 BETA"
 export TERMCAP
 export PATH
 export TERM
 export HOME
-echo "NetBSD Base System Release 0.8"
+echo "${OPSYSTEM} Base System Release ${RELEASE}"
 echo ""
-echo "Congratulations, you've got NetBSD on the hard disk!"
+echo "Congratulations, you've got ${OPSYSTEM} on the hard disk!"
 echo ""
 echo "To finish installation:"
 echo "Pick a temporary directory by running set_tmp_dir.  make sure it's"
@@ -27,14 +29,14 @@ echo "information on how to do that)."
 echo ""
 echo "Once this is complete, extract the distribution files by issuing the"
 echo "command 'extract <distribution>'  where <distribution> is the base name"
-echo "of the distribution files, e.g. 'nbase08'."
+echo "of the distribution files, e.g. 'base10'."
 echo ""
 echo "Once all of the filesets you wish to install have been extracted,"
 echo "enter the command 'configure' to finish setting up the system"
 echo " "
-echo "If you should wish to uninstall NetBSD, delete the partition by using the "
+echo "If you should wish to uninstall ${OPSYSTEM}, delete the partition by using the "
 echo " DOS 5 FDISK program. If installed on the entire drive, use the FDISK/MBR"
-echo " to remove the NetBSD bootstrap from the drive."
+echo " to remove the ${OPSYSTEM} bootstrap from the drive."
 echo 'erase ^?, werase ^H, kill ^U, intr ^C'
 stty newcrt werase  intr  kill  erase  9600
 mount -at ufs
@@ -155,15 +157,15 @@ configure()
 #	echo    "make sure things are set up properly, then re-build"
 #	echo	"it with the command 'newaliases'."
 
-	cp /etc/sendmail.cf_proto /etc/sendmail.cf
+#	cp /etc/sendmail.cf_proto /etc/sendmail.cf
 
-	echo	""
-	echo	"WARNING: sendmail will puke on your carpet when the machine"
-	echo	"starts up.  If you don't want it to keep doing this, either"
-	echo	"turn it off in /etc/rc, or give it a reasonable"
-	echo	"/etc/sendmail.cf file."
+#	echo	""
+#	echo	"WARNING: sendmail will puke on your carpet when the machine"
+#	echo	"starts up.  If you don't want it to keep doing this, either"
+#	echo	"turn it off in /etc/rc, or give it a reasonable"
+#	echo	"/etc/sendmail.cf file."
 
-	echo	"127.0.0.1     localhost" > /etc/hosts
+#	echo	"127.0.0.1     localhost" > /etc/hosts
 
 	echo	""
 	echo -n "Does this machine have an ethernet interface? [y] "
