@@ -1,6 +1,13 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
+ * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +17,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -22,9 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <pwd.h>
@@ -35,16 +46,24 @@
 #include <unistd.h>
 
 #define PAM_SM_AUTH
+
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
+#include <security/pam_mod_misc.h>
 
-#include "pam_mod_misc.h"
+enum {
+	PAM_OPT_CONF = PAM_OPT_STD_MAX,
+	PAM_OPT_TEMPLATE_USER
+};
 
-#define MAX_CHALLENGE_MSGS	10
-#define PASSWORD_PROMPT	"RADIUS password:"
+static struct opttab other_options[] = {
+	{ "conf",		PAM_OPT_CONF },
+	{ "template_user",	PAM_OPT_TEMPLATE_USER },
+	{ NULL, 0 }
+};
 
-/* Option names, including the "=" sign. */
-#define OPT_CONF		"conf="
-#define OPT_TMPL		"template_user="
+#define	MAX_CHALLENGE_MSGS	10
+#define	PASSWORD_PROMPT		"RADIUS Password:"
 
 static int	 build_access_request(struct rad_handle *, const char *,
 		    const char *, const void *, size_t);
@@ -64,7 +83,7 @@ build_access_request(struct rad_handle *radh, const char *user,
 
 	if (rad_create_request(radh, RAD_ACCESS_REQUEST) == -1) {
 		syslog(LOG_CRIT, "rad_create_request: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if ((user != NULL &&
 	    rad_put_string(radh, RAD_USER_NAME, user) == -1) ||
@@ -73,18 +92,18 @@ build_access_request(struct rad_handle *radh, const char *user,
 	    (gethostname(host, sizeof host) != -1 &&
 	    rad_put_string(radh, RAD_NAS_IDENTIFIER, host) == -1)) {
 		syslog(LOG_CRIT, "rad_put_string: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if (state != NULL && rad_put_attr(radh, RAD_STATE, state,
 	    state_len) == -1) {
 		syslog(LOG_CRIT, "rad_put_attr: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
 	if (rad_put_int(radh, RAD_SERVICE_TYPE, RAD_AUTHENTICATE_ONLY) == -1) {
 		syslog(LOG_CRIT, "rad_put_int: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -101,7 +120,7 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 			if (s == NULL) {
 				syslog(LOG_CRIT,
 				    "rad_cvt_string: out of memory");
-				return -1;
+				return (-1);
 			}
 			pam_set_item(pamh, PAM_USER, s);
 			free(s);
@@ -109,9 +128,9 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 	}
 	if (attrtype == -1) {
 		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -145,13 +164,13 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 			if (num_msgs >= MAX_CHALLENGE_MSGS) {
 				syslog(LOG_CRIT,
 				    "Too many RADIUS challenge messages");
-				return PAM_SERVICE_ERR;
+				return (PAM_SERVICE_ERR);
 			}
 			msgs[num_msgs].msg = rad_cvt_string(attrval, attrlen);
 			if (msgs[num_msgs].msg == NULL) {
 				syslog(LOG_CRIT,
 				    "rad_cvt_string: out of memory");
-				return PAM_SERVICE_ERR;
+				return (PAM_SERVICE_ERR);
 			}
 			msgs[num_msgs].msg_style = PAM_TEXT_INFO;
 			msg_ptrs[num_msgs] = &msgs[num_msgs];
@@ -161,13 +180,13 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	}
 	if (attrtype == -1) {
 		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
 	if (num_msgs == 0) {
 		msgs[num_msgs].msg = strdup("(null RADIUS challenge): ");
 		if (msgs[num_msgs].msg == NULL) {
 			syslog(LOG_CRIT, "Out of memory");
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		}
 		msgs[num_msgs].msg_style = PAM_TEXT_INFO;
 		msg_ptrs[num_msgs] = &msgs[num_msgs];
@@ -176,77 +195,90 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	msgs[num_msgs-1].msg_style = PAM_PROMPT_ECHO_ON;
 	if ((retval = pam_get_item(pamh, PAM_CONV, &item)) != PAM_SUCCESS) {
 		syslog(LOG_CRIT, "do_challenge: cannot get PAM_CONV");
-		return retval;
+		return (retval);
 	}
 	conv = (const struct pam_conv *)item;
 	if ((retval = conv->conv(num_msgs, msg_ptrs, &resp,
 	    conv->appdata_ptr)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 	if (build_access_request(radh, user, resp[num_msgs-1].resp, state,
 	    statelen) == -1)
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	memset(resp[num_msgs-1].resp, 0, strlen(resp[num_msgs-1].resp));
 	free(resp[num_msgs-1].resp);
 	free(resp);
 	while (num_msgs > 0)
-		free((void *)msgs[--num_msgs].msg);
-	return PAM_SUCCESS;
+		free(msgs[--num_msgs].msg);
+	return (PAM_SUCCESS);
 }
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
+	struct options options;
 	struct rad_handle *radh;
-	const char *user;
-	const char *pass;
-	const char *conf_file = NULL;
-	const char *template_user = NULL;
-	int options = 0;
+	const char *user, *tmpuser, *pass;
+	char *conf_file, *template_user;
 	int retval;
-	int i;
 	int e;
 
-	for (i = 0;  i < argc;  i++) {
-		size_t len;
+	pam_std_option(&options, other_options, argc, argv);
 
-		pam_std_option(&options, argv[i]);
-		if (strncmp(argv[i], OPT_CONF, (len = strlen(OPT_CONF))) == 0)
-			conf_file = argv[i] + len;
-		else if (strncmp(argv[i], OPT_TMPL,
-		    (len = strlen(OPT_TMPL))) == 0)
-			template_user = argv[i] + len;
-	}
-	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
-		return retval;
-	if ((retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
-		return retval;
+	PAM_LOG("Options processed");
 
-	if ((radh = rad_open()) == NULL) {
+	conf_file = NULL;
+	pam_test_option(&options, PAM_OPT_CONF, &conf_file);
+	template_user = NULL;
+	pam_test_option(&options, PAM_OPT_TEMPLATE_USER, &template_user);
+
+	retval = pam_get_user(pamh, &user, NULL);
+	if (retval != PAM_SUCCESS)
+		return (retval);
+
+	PAM_LOG("Got user: %s", user);
+
+	retval = pam_get_pass(pamh, &pass, PASSWORD_PROMPT, &options);
+	if (retval != PAM_SUCCESS)
+		return (retval);
+
+	PAM_LOG("Got password");
+
+	radh = rad_open();
+	if (radh == NULL) {
 		syslog(LOG_CRIT, "rad_open failed");
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
+
+	PAM_LOG("Radius opened");
+
 	if (rad_config(radh, conf_file) == -1) {
 		syslog(LOG_ALERT, "rad_config: %s", rad_strerror(radh));
 		rad_close(radh);
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
+
+	PAM_LOG("Radius config file read");
+
 	if (build_access_request(radh, user, pass, NULL, 0) == -1) {
 		rad_close(radh);
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
-	for ( ; ; ) {
+
+	PAM_LOG("Radius build access done");
+
+	for (;;) {
 		switch (rad_send_request(radh)) {
 
 		case RAD_ACCESS_ACCEPT:
 			e = do_accept(pamh, radh);
 			rad_close(radh);
 			if (e == -1)
-				return PAM_SERVICE_ERR;
+				return (PAM_SERVICE_ERR);
 			if (template_user != NULL) {
-				const void *item;
-				const char *user;
+
+				PAM_LOG("Trying template user: %s",
+				    template_user);
 
 				/*
 				 * If the given user name doesn't exist in
@@ -254,25 +286,29 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 				 * to the value given in the "template_user"
 				 * option.
 				 */
-				retval = pam_get_item(pamh, PAM_USER, &item);
+				retval = pam_get_item(pamh, PAM_USER,
+				    (const void **)&tmpuser);
 				if (retval != PAM_SUCCESS)
-					return retval;
-				user = (const char *)item;
-				if (getpwnam(user) == NULL)
+					return (retval);
+				if (getpwnam(tmpuser) == NULL) {
 					pam_set_item(pamh, PAM_USER,
 					    template_user);
+					PAM_LOG("Using template user");
+				}
+
 			}
-			return PAM_SUCCESS;
+			return (PAM_SUCCESS);
 
 		case RAD_ACCESS_REJECT:
 			rad_close(radh);
-			return PAM_AUTH_ERR;
+			PAM_VERBOSE_ERROR("Radius rejection");
+			return (PAM_AUTH_ERR);
 
 		case RAD_ACCESS_CHALLENGE:
-			if ((retval = do_challenge(pamh, radh, user)) !=
-			    PAM_SUCCESS) {
+			retval = do_challenge(pamh, radh, user);
+			if (retval != PAM_SUCCESS) {
 				rad_close(radh);
-				return retval;
+				return (retval);
 			}
 			break;
 
@@ -280,21 +316,25 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 			syslog(LOG_CRIT, "rad_send_request: %s",
 			    rad_strerror(radh));
 			rad_close(radh);
-			return PAM_AUTHINFO_UNAVAIL;
+			PAM_VERBOSE_ERROR("Radius failure");
+			return (PAM_AUTHINFO_UNAVAIL);
 
 		default:
 			syslog(LOG_CRIT,
 			    "rad_send_request: unexpected return value");
 			rad_close(radh);
-			return PAM_SERVICE_ERR;
+			PAM_VERBOSE_ERROR("Radius error");
+			return (PAM_SERVICE_ERR);
 		}
 	}
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	return PAM_SUCCESS;
+
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_radius");

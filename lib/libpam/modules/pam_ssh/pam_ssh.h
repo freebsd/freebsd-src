@@ -28,21 +28,18 @@
  */
 
 #define SSH_CLIENT_DIR		".ssh"
-#define SSH_CLIENT_IDENTITY	"identity"
-#define SSH_CLIENT_ID_DSA	"id_dsa"
 
-/*
- * Compatibility with SSH2 from SSH Communications Security.
- */
-
-#define SSH2_CLIENT_DIR		".ssh2"
-#define SSH2_DSA_PREFIX		"id_dsa_"
-#define SSH2_PUB_SUFFIX		".pub"
-#define SSH2_RSA_PREFIX		"id_rsa_"
-
-#define	MODULE_NAME	"pam_ssh"
-#define	NEED_PASSPHRASE	"SSH passphrase: "
-#define	SSH_AGENT	"ssh-agent"
+#define	MODULE_NAME		"pam_ssh"
+#define	NEED_PASSPHRASE		"SSH passphrase: "
+#define	SSH_AGENT		"ssh-agent"
 
 #define ENV_PID_SUFFIX		"_AGENT_PID"
 #define ENV_SOCKET_SUFFIX	"_AUTH_SOCK"
+
+#define DEF_KEYFILES		"id_dsa,id_rsa,identity"
+
+#define OPT_KEYFILES		"keyfiles"
+#define OPT_TRY_FIRST_PASS	"try_first_pass"
+#define OPT_USE_FIRST_PASS	"use_first_pass"
+
+#define SEP_KEYFILES		","
