@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.39.1.2 (Berkeley) 2/10/95";
+static char sccsid[] = "@(#)util.c	8.39.1.5 (Berkeley) 3/5/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1485,7 +1485,7 @@ cleanstrcpy(t, f, l)
 {
 #ifdef LOG
 	/* check for newlines and log if necessary */
-	(void) denlstring(f);
+	(void) denlstring(f, TRUE, TRUE);
 #endif
 
 	l--;
@@ -1506,6 +1506,8 @@ cleanstrcpy(t, f, l)
 **
 **	Parameters:
 **		s -- the input string
+**		strict -- if set, don't permit continuation lines.
+**		logattacks -- if set, log attempted attacks.
 **
 **	Returns:
 **		A pointer to a version of the string with newlines
@@ -1513,15 +1515,21 @@ cleanstrcpy(t, f, l)
 */
 
 char *
-denlstring(s)
+denlstring(s, strict, logattacks)
 	char *s;
+	int strict;
+	int logattacks;
 {
 	register char *p;
 	int l;
 	static char *bp = NULL;
 	static int bl = 0;
 
-	if (strchr(s, '\n') == NULL)
+	p = s;
+	while ((p = strchr(p, '\n')) != NULL)
+		if (strict || (*++p != ' ' && *p != '\t'))
+			break;
+	if (p == NULL)
 		return s;
 
 	l = strlen(s) + 1;
@@ -1538,9 +1546,12 @@ denlstring(s)
 		*p++ = ' ';
 
 #ifdef LOG
-	p = macvalue('_', CurEnv);
-	syslog(LOG_ALERT, "POSSIBLE ATTACK from %s: newline in string \"%s\"",
-		p == NULL ? "[UNKNOWN]" : p, bp);
+	if (logattacks)
+	{
+		syslog(LOG_NOTICE, "POSSIBLE ATTACK from %s: newline in string \"%s\"",
+			RealHostName == NULL ? "[UNKNOWN]" : RealHostName,
+			shortenstring(bp, 80));
+	}
 #endif
 
 	return bp;

@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.55.1.3 (Berkeley) 2/10/95";
+static char sccsid[] = "@(#)main.c	8.55.1.7 (Berkeley) 3/5/95";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -293,7 +293,7 @@ main(argc, argv, envp)
 
 	for (i = j = 0; j < MAXUSERENVIRON && (p = envp[i]) != NULL; i++)
 	{
-		if (strncmp(p, "FS=", 3) == 0 || strncmp(p, "LD_", 3) == 0)
+		if (strncmp(p, "IFS=", 4) == 0 || strncmp(p, "LD_", 3) == 0)
 			continue;
 		UserEnviron[j++] = newstr(p);
 	}
@@ -324,7 +324,10 @@ main(argc, argv, envp)
 
 #if NAMED_BIND
 	if (tTd(8, 8))
+	{
+		res_init();
 		_res.options |= RES_DEBUG;
+	}
 #endif
 
 	errno = 0;
@@ -490,7 +493,7 @@ main(argc, argv, envp)
 				ExitStat = EX_USAGE;
 				break;
 			}
-			from = newstr(denlstring(optarg));
+			from = newstr(denlstring(optarg, TRUE, TRUE));
 			if (strcmp(RealUserName, from) != 0)
 				warn_f_flag = j;
 			break;
@@ -571,6 +574,7 @@ main(argc, argv, envp)
 			break;
 
 		  case 'X':	/* traffic log file */
+			setgid(RealGid);
 			setuid(RealUid);
 			TrafficLogFile = fopen(optarg, "a");
 			if (TrafficLogFile == NULL)
@@ -654,6 +658,15 @@ main(argc, argv, envp)
 	}
 
 	/*
+	**  Initialize name server if it is going to be used.
+	*/
+
+#if NAMED_BIND
+	if (!bitset(RES_INIT, _res.options))
+		res_init();
+#endif
+
+	/*
 	**  Process authorization warnings from command line.
 	*/
 
@@ -730,7 +743,7 @@ main(argc, argv, envp)
 
 	/* full names can't have newlines */
 	if (FullName != NULL && strchr(FullName, '\n') != NULL)
-		FullName = newstr(denlstring(FullName));
+		FullName = newstr(denlstring(FullName, TRUE, TRUE));
 
 	/* do heuristic mode adjustment */
 	if (Verbose)
