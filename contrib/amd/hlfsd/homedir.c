@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.2 1998/08/23 22:52:09 obrien Exp $
+ * $Id: homedir.c,v 1.4 1999/01/13 23:31:19 ezk Exp $
+ * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -159,8 +160,8 @@ homedir(int userid)
     if (found->child) {		/* PARENT */
 #ifdef DEBUG
       if (lastchild)
-	plog(XLOG_INFO, "cache spill uid = %d, pid = %d, home = %s",
-	     lastchild->uid, lastchild->child,
+	plog(XLOG_INFO, "cache spill uid = %ld, pid = %ld, home = %s",
+	     (long) lastchild->uid, (long) lastchild->child,
 	     lastchild->home);
 #endif /* DEBUG */
       lastchild = found;
@@ -270,7 +271,7 @@ delay(uid2home_t *found, int secs)
 
 #ifdef DEBUG
   if (found)
-    dlog("delaying on child %d for %d seconds", found->child, secs);
+    dlog("delaying on child %ld for %d seconds", (long) found->child, secs);
 #endif /* DEBUG */
 
   tv.tv_usec = 0;
@@ -536,8 +537,8 @@ readent:
 
   /* the rest of the fields are unimportant and not being considered */
 
-  plog(XLOG_USER, "hlfsd_getpwent: name=%s, uid=%d, dir=%s",
-       passwd_ent.pw_name, passwd_ent.pw_uid, passwd_ent.pw_dir);
+  plog(XLOG_USER, "hlfsd_getpwent: name=%s, uid=%ld, dir=%s",
+       passwd_ent.pw_name, (long) passwd_ent.pw_uid, passwd_ent.pw_dir);
 
   return &passwd_ent;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.5 1999/01/13 20:03:57 obrien Exp $
+ * $Id: nfs_prot_freebsd3.h,v 1.4 1999/03/30 17:22:54 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -66,6 +67,9 @@ struct nfs_fh3;
 #ifdef HAVE_NFS_NFS_H
 # include <nfs/nfs.h>
 #endif /* HAVE_NFS_NFS_H */
+#ifdef	HAVE_UFS_UFS_UFSMOUNT_H
+# include <ufs/ufs/ufsmount.h>
+#endif	/* HAVE_UFS_UFS_UFSMOUNT_H */
 
 /*
  * MACROS:

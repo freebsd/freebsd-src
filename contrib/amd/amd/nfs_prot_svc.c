@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_svc.c,v 1.1.1.1 1998/11/05 02:04:48 ezk Exp $
+ * $Id: nfs_prot_svc.c,v 1.4 1999/08/22 21:12:30 ezk Exp $
  *
  */
 
@@ -98,6 +98,27 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
   char *result;
   xdrproc_t xdr_argument, xdr_result;
   nfssvcproc_t local;
+  struct sockaddr_in *sinp;
+  char dq[20], dq2[28];
+
+  sinp = amu_svc_getcaller(rqstp->rq_xprt);
+#ifdef MNT2_NFS_OPT_RESVPORT
+  /* Verify that the request comes from a reserved port */
+  if (ntohs(sinp->sin_port) >= IPPORT_RESERVED) {
+    plog(XLOG_WARNING, "ignoring request from %s:%u, port not reserved",
+	 inet_dquad(dq, sinp->sin_addr.s_addr),
+	 ntohs(sinp->sin_port));
+    return;
+  }
+#endif /* MNT2_NFS_OPT_RESVPORT */
+  /* if the address does not match, ignore the request */
+  if (sinp->sin_addr.s_addr && sinp->sin_addr.s_addr != myipaddr.s_addr) {
+    plog(XLOG_WARNING, "ignoring request from %s:%u, expected %s",
+	 inet_dquad(dq, sinp->sin_addr.s_addr),
+	 ntohs(sinp->sin_port),
+	 inet_dquad(dq2, myipaddr.s_addr));
+    return;
+  }
 
   nfs_program_2_transp = NULL;
 
@@ -228,7 +249,7 @@ nfs_program_2(struct svc_req *rqstp, SVCXPRT *transp)
 		   (SVC_IN_ARG_TYPE) &argument)) {
     plog(XLOG_ERROR,
 	 "NFS xdr decode failed for %d %d %d",
-	 rqstp->rq_prog, rqstp->rq_vers, rqstp->rq_proc);
+	 (int) rqstp->rq_prog, (int) rqstp->rq_vers, (int) rqstp->rq_proc);
     svcerr_decode(transp);
     return;
   }

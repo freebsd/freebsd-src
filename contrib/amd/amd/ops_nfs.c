@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_nfs.c,v 1.1.1.1 1998/11/05 02:04:50 ezk Exp $
+ * $Id: ops_nfs.c,v 1.5 1999/03/13 17:03:28 ezk Exp $
  *
  */
 
@@ -148,7 +148,7 @@ find_nfs_fhandle_cache(voidp idv, int done)
 
 #ifdef DEBUG
   if (fp2) {
-    dlog("fh cache gives fp %#x, fs %s", fp2, fp2->fh_path);
+    dlog("fh cache gives fp %#lx, fs %s", (unsigned long) fp2, fp2->fh_path);
   } else {
     dlog("fh cache search failed");
   }
@@ -198,7 +198,7 @@ got_nfs_fh(voidp pkt, int len, struct sockaddr_in * sa, struct sockaddr_in * ia,
      */
     if (fp->fh_wchan) {
 #ifdef DEBUG
-      dlog("Calling wakeup on %#x", fp->fh_wchan);
+      dlog("Calling wakeup on %#lx", (unsigned long) fp->fh_wchan);
 #endif /* DEBUG */
       wakeup(fp->fh_wchan);
     }
@@ -259,7 +259,7 @@ prime_nfs_fhandle_cache(char *path, fserver *fs, am_nfs_handle_t *fhbuf, voidp w
     if (fs == fp->fh_fs && STREQ(path, fp->fh_path)) {
       switch (fp->fh_error) {
       case 0:
-	plog(XLOG_INFO, "prime_nfs_fhandle_cache: NFS version %d", fp->fh_nfs_version);
+	plog(XLOG_INFO, "prime_nfs_fhandle_cache: NFS version %d", (int) fp->fh_nfs_version);
 #ifdef HAVE_FS_NFS3
 	if (fp->fh_nfs_version == NFS_VERSION3)
 	  error = fp->fh_error = unx_error(fp->fh_nfs_handle.v3.fhs_status);
@@ -449,7 +449,7 @@ call_mountd(fh_cache *fp, u_long proc, fwd_fun f, voidp wchan)
 #endif /* HAVE_FS_NFS3 */
     mnt_version = MOUNTVERS;
   plog(XLOG_INFO, "call_mountd: NFS version %d, mount version %d",
-       fp->fh_nfs_version, mnt_version);
+       (int) fp->fh_nfs_version, (int) mnt_version);
 
   rpc_msg_init(&mnt_msg, MOUNTPROG, mnt_version, MOUNTPROC_NULL);
   len = make_rpc_packet(iobuf,
@@ -585,10 +585,13 @@ mount_nfs_fh(am_nfs_handle_t *fhp, char *dir, char *fs_name, char *opts, mntfs *
     strcpy(host + MAXHOSTNAMELEN - 3, "..");
 #endif /* MAXHOSTNAMELEN */
 
-  if (mf->mf_remopts && *mf->mf_remopts && !islocalnet(fs->fs_ip->sin_addr.s_addr))
+  if (mf->mf_remopts && *mf->mf_remopts &&
+      !islocalnet(fs->fs_ip->sin_addr.s_addr)) {
+    plog(XLOG_INFO, "Using remopts=\"%s\"", mf->mf_remopts);
     xopts = strdup(mf->mf_remopts);
-  else
+  } else {
     xopts = strdup(opts);
+  }
 
   memset((voidp) &mnt, 0, sizeof(mnt));
   mnt.mnt_dir = dir;
@@ -622,7 +625,7 @@ mount_nfs_fh(am_nfs_handle_t *fhp, char *dir, char *fs_name, char *opts, mntfs *
     mnt.mnt_type = MNTTAB_TYPE_NFS;
   }
 #endif /* HAVE_FS_NFS3 */
-  plog(XLOG_INFO, "mount_nfs_fh: NFS version %d", nfs_version);
+  plog(XLOG_INFO, "mount_nfs_fh: NFS version %d", (int) nfs_version);
 #if defined(HAVE_FS_NFS3) || defined(HAVE_TRANSPORT_TYPE_TLI)
   plog(XLOG_INFO, "mount_nfs_fh: using NFS transport %s", nfs_proto);
 #endif /* defined(HAVE_FS_NFS3) || defined(HAVE_TRANSPORT_TYPE_TLI) */
@@ -659,8 +662,10 @@ mount_nfs_fh(am_nfs_handle_t *fhp, char *dir, char *fs_name, char *opts, mntfs *
 
   /* finally call the mounting function */
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_TRACE) {
     print_nfs_args(&nfs_args, nfs_version);
+    plog(XLOG_DEBUG, "Generic mount flags 0x%x", genflags);
+  }
 #endif /* DEBUG */
   error = mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type,
 		   nfs_version, nfs_proto, mnttab_file_name);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: pawd.c,v 1.2 1998/12/27 06:24:50 ezk Exp $
+ * $Id: pawd.c,v 1.5 1999/09/08 23:36:40 ezk Exp $
  *
  */
 
@@ -58,16 +58,6 @@
 #include <am_defs.h>
 #include <amq.h>
 
-/* dummy variables */
-#if 0
-char *progname;
-char hostname[MAXHOSTNAMELEN];
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
-
 /* statics */
 static char *localhost="localhost";
 static char newdir[MAXPATHLEN];
@@ -77,7 +67,9 @@ static int
 find_mt(amq_mount_tree *mt, char *dir)
 {
   while (mt) {
-    if (STREQ(mt->mt_type, "link") || STREQ(mt->mt_type, "nfs")) {
+    if (STREQ(mt->mt_type, "link") ||
+	STREQ(mt->mt_type, "nfs") ||
+	STREQ(mt->mt_type, "nfsl")) {
       int len = strlen(mt->mt_mountpoint);
       if (NSTREQ(mt->mt_mountpoint, dir, len) &&
 	  ((dir[len] == '\0') || (dir[len] == '/'))) {

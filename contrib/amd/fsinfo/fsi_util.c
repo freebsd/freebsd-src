@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -35,7 +35,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsi_util.c,v 1.1.1.1 1998/11/05 02:04:53 ezk Exp $
+ * $Id: fsi_util.c,v 1.2 1999/01/10 21:54:28 ezk Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_toplvl.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
+ * $Id: amfs_toplvl.c,v 1.5 1999/02/04 07:24:14 ezk Exp $
  *
  */
 
@@ -177,9 +177,11 @@ mount_amfs_toplvl(char *dir, char *opts)
 #endif /* HOSTNAMESZ */
 
   /*
-   * Finally we can compute the mount genflags set above.
+   * Finally we can compute the mount genflags set above,
+   * and add any automounter specific flags.
    */
   genflags = compute_mount_flags(&mnt);
+  genflags |= compute_automounter_mount_flags(&mnt);
 
   /* setup the many fields and flags within nfs_args */
   memmove(&anh.v2.fhs_fh, fhp, sizeof(*fhp));
@@ -225,8 +227,10 @@ mount_amfs_toplvl(char *dir, char *opts)
 
   /* This is it!  Here we try to mount amd on its mount points */
 #ifdef DEBUG
-  amuDebug(D_TRACE)
+  amuDebug(D_TRACE) {
     print_nfs_args(&nfs_args, 0);
+    plog(XLOG_DEBUG, "Generic mount flags 0x%x", genflags);
+  }
 #endif /* DEBUG */
   error = mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type,
 		   0, NULL, mnttab_file_name);

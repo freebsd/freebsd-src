@@ -25,9 +25,12 @@ arch =				sun4
 os =				sos5
 # (amd -o)
 osver =				2.5.1
+# full os name
+full_os =			linux-2.2.5
+# OS vendor
+vendor =			redhat
 # if you print_version after setting up "os", it will show it. (amd -v)
 print_version =			yes | no
-
 # (amd -l)
 log_file =			/var/log/amd | syslog | syslog:facility
 # NFS (RPC/UDP) retry interval, in tenths of secs (amd -t interval.counter)
