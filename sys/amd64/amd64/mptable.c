@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.86 1998/12/07 21:58:18 archie Exp $
+ *	$Id: mp_machdep.c,v 1.87 1999/01/12 00:19:31 eivind Exp $
  */
 
 #include "opt_smp.h"
@@ -1388,11 +1388,13 @@ int
 undirect_isa_irq(int rirq)
 {
 #if defined(READY)
-	printf("Freeing redirected ISA irq %d.\n", rirq);
+	if (bootverbose)
+	    printf("Freeing redirected ISA irq %d.\n", rirq);
 	/** FIXME: tickle the MB redirector chip */
 	return ???;
 #else
-	printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
+	if (bootverbose)
+	    printf("Freeing (NOT implemented) redirected ISA irq %d.\n", rirq);
 	return 0;
 #endif  /* READY */
 }
