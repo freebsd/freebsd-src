@@ -5,7 +5,7 @@ KMOD            = atapi
 SRCS            = atapi.c wdc.h opt_atapi.h #wcd.h 
 NOMAN           =
 CFLAGS         += -DATAPI_MODULE
-CLEANFILES     += wdc.h wcd.h opt_atapi.h
+CLEANFILES      = wcd.h wdc.h
 EXPORT_SYMS	= _atapi_mod _atapi_debug_ptr _atapi_intr_ptr \
 		  _atapi_request_callback_ptr _atapi_request_immediate_ptr \
 		  _atapi_request_wait_ptr _atapi_start_ptr

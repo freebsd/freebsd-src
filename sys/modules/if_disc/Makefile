@@ -8,7 +8,6 @@ NOMAN=
 NBPF?=	1
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	opt_inet.h
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h

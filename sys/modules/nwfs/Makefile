@@ -10,8 +10,6 @@ SRCS=	nwfs_node.c nwfs_ioctl.c nwfs_io.c nwfs_vfsops.c nwfs_vnops.c \
 
 VFS_KLD=true
 
-CLEANFILES= opt_ncp.h opt_nwfs.h opt_vmpage.h
-
 NOMAN=true
 
 CFLAGS+= -DNWFS
@@ -22,9 +20,6 @@ CFLAGS+= -DVNPRINT
 
 opt_ncp.h:
 	echo "#define NCP	1"  > ${.TARGET}
-
-opt_nwfs.h opt_vmpage.h:
-	touch ${.TARGET}
 
 load: nwfs.ko
 	kldload ./nwfs.ko

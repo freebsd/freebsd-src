@@ -8,9 +8,5 @@ SRCS=	opt_vmpage.h procfs_ctl.c procfs_map.c procfs_note.c procfs_rlimit.c \
 NOMAN=
 VFS_KLD=
 CFLAGS+= -DPROCFS
-CLEANFILES+= opt_vmpage.h
-
-opt_vmpage.h:
-	touch ${.TARGET}
 
 .include <bsd.kmod.mk>

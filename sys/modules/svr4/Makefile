@@ -19,8 +19,7 @@ CFLAGS+= -DDEBUG_SVR4
 .endif
 
 EXPORT_SYMS=_svr4_mod
-CLEANFILES+= vnode_if.h vnode_if.c svr4_genassym.o svr4_genassym \
-	svr4_assym.h opt_compat.h opt_vmpage.h
+CLEANFILES= svr4_assym.h svr4_genassym svr4_genassym.o
 
 build-tools: svr4_genassym
 
@@ -39,9 +38,6 @@ svr4_genassym:	svr4_genassym.o
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
-
-opt_vmpage.h:
-	touch opt_vmpage.h
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
