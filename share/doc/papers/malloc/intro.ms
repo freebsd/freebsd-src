@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: intro.ms,v 1.1 1996/04/13 08:30:14 phk Exp $
 .\"
 .ds RH Introduction
 .NH
@@ -16,7 +16,7 @@ Most programs need to allocate storage dynamically in addition
 to whatever static storage the compiler reserved at compile-time.
 To C programmers this fact is rather obvious, but for many years
 this was not an accepted and recognized fact, and many languages 
-still used today doesn't support this notion adequately.
+still used today don't support this notion adequately.
 .PP
 The classic UNIX kernel provides two very simple and powerful
 mechanisms for obtaining dynamic storage, the execution stack 
