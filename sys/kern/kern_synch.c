@@ -539,7 +539,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		if (sig == 0) {
 			if (thread_suspend_check(1)) {
 				sig = SIGSTOP;
-				rval = ERESTART;
 			}
 		}
 		mtx_lock_spin(&sched_lock);
