@@ -95,11 +95,11 @@ boot(int drive)
 		if (*(unsigned char*)V(0xA155d) & (1 << ret)) {
 			bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
 		}
+	}
 #else /* IBM-PC */
 	for(ret = 0; ret < N_BIOS_GEOM; ret ++)
 		bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
 #endif /* PC98 */
-	}
 
 	bootinfo.bi_basemem = memsize(0);
 	bootinfo.bi_extmem = memsize(1);
