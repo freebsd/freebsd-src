@@ -169,6 +169,15 @@ cmdscanner(void)
 				el_set(el, EL_PROMPT, lpc_prompt);
 				el_set(el, EL_SIGNAL, 1);
 				el_source(el, NULL);
+				/*
+				 * EditLine init may call 'cgetset()' to set a
+				 * capability-db meant for termcap (eg: to set
+				 * terminal type 'xterm').  Reset that now, or
+				 * that same db-information will be used for
+				 * printcap (giving us an "xterm" printer, with
+				 * all kinds of invalid capabilities...).
+				 */
+				cgetset(NULL);
 			}
 			if ((bp = el_gets(el, &num)) == NULL || num == 0)
 				quit(0, NULL);
