@@ -26,10 +26,16 @@ struct alias_link;
     PacketAliasInit(void);
 
     extern void
+    PacketAliasUninit(void);
+
+    extern void
     PacketAliasSetAddress(struct in_addr);
 
     extern unsigned int
     PacketAliasSetMode(unsigned int, unsigned int);
+
+    extern void
+    PacketAliasSetFWBase(unsigned int, unsigned int);
 
 /* Packet Handling */
     extern int
@@ -136,15 +142,20 @@ extern u_short InternetChecksum(u_short *, int);
         bit is set after a call to PacketAliasInit(). */
 #define PKT_ALIAS_RESET_ON_ADDR_CHANGE 0x20
 
+/* If PKT_ALIAS_PUNCH_FW is set, active FTP and IRC DCC connections
+   will create a 'hole' in the firewall to allow the transfers to
+   work.  Where (IPFW "line-numbers") the hole is created is
+   controlled by PacketAliasSetFWBase(base, size). The hole will be
+   attached to that particular alias_link, so when the link goes away
+   so do the hole.  */
+#define PKT_ALIAS_PUNCH_FW 0x40
+
 /* Return Codes */
 #define PKT_ALIAS_ERROR -1
 #define PKT_ALIAS_OK 1
 #define PKT_ALIAS_IGNORED 2
 #define PKT_ALIAS_UNRESOLVED_FRAGMENT 3
 #define PKT_ALIAS_FOUND_HEADER_FRAGMENT 4
-
-#undef __libalias_version
-#define __libalias_version "2.4"
 
 #endif
 /*lint -restore */
