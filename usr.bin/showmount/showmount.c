@@ -99,7 +99,7 @@ void print_dump __P((struct mountlist *));
 static void usage __P((void));
 int xdr_mntdump __P((XDR *, struct mountlist **));
 int xdr_exports __P((XDR *, struct exportslist **));
-int tcp_callrpc __P((char *host,
+int tcp_callrpc __P((const char *host,
 		     int prognum, int versnum, int procnum,
 		     xdrproc_t inproc, char *in,
 		     xdrproc_t outproc, char *out));
@@ -120,7 +120,7 @@ main(argc, argv)
 	register struct grouplist *grp;
 	register int rpcs = 0, mntvers = 1;
 	char ch;
-	char *host;
+	const char *host;
 	int estat;
 
 	while ((ch = getopt(argc, argv, "ade3")) != -1)
@@ -217,7 +217,7 @@ main(argc, argv)
  */
 int 
 tcp_callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
-	char *host;
+	const char *host;
 	int prognum;
 	int versnum;
 	int procnum;
