@@ -24,8 +24,10 @@
  * SUCH DAMAGE.
  *
  *	$Id: acpi_vid.c,v 1.4 2003/10/13 10:07:36 taku Exp $
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
