@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223.2.13 1999/05/12 09:04:14 jkh Exp $
+ * $Id: install.c,v 1.223.2.14 1999/05/27 10:34:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -573,6 +573,12 @@ nodisks:
 	restorescr(w);
     }
 
+#ifdef __i386__
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
+	(void)configLinux(self);
+#endif
+
     dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?")) {
 	WINDOW *w = savescr();
@@ -588,21 +594,21 @@ nodisks:
     if (directory_exists("/usr/X11R6")) {
 	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
-	    configXSetup(self);
+	    (void)configXSetup(self);
     }
 
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
 		  "applications, from text editors to games to WEB servers and more.  Would you\n"
 		  "like to browse the collection now?"))
-	configPackages(self);
+	(void)configPackages(self);
 
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to add any initial user accounts to the system?\n"
 		  "Adding at least one account for yourself at this stage is suggested\n"
 		  "since working as the \"root\" user is dangerous (it is easy to do\n"
 		  "things which adversely affect the entire system)."))
-	configUsers(self);
+	(void)configUsers(self);
 
     dialog_clear_norefresh();
     msgConfirm("Now you must set the system manager's password.\n"
