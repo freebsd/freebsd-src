@@ -1,4 +1,4 @@
-#	$Id: options,v 1.17 1996/07/14 10:46:27 joerg Exp $
+#	$Id: options,v 1.18 1996/10/28 11:32:55 phk Exp $
 
 # Option name	filename
 
@@ -63,6 +63,13 @@ SCSIDEBUG		opt_scsi.h
 # Options used only in scsi/od.c.
 OD_BOGUS_NOT_READY	opt_od.h
 OD_AUTO_TURNOFF		opt_od.h
+
+# Options used only in pci/ncr.c
+SCSI_NCR_MYADDR		opt_ncr.h
+SCSI_NCR_MAXSYNC	opt_ncr.h
+SCSI_NCR_MAXWIDE	opt_ncr.h
+SCSI_NCR_DFLT_TAGS	opt_ncr.h
+SCSI_NCR_DEBUG		opt_ncr.h
 
 # Resource limits.
 CHILD_MAX	opt_rlimit.h
