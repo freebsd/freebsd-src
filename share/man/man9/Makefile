@@ -14,8 +14,8 @@ MAN9=	MD5.9 \
 	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
-	microseq.9 mi_switch.9 namei.9 panic.9 physio.9 posix4.9 psignal.9 \
-	resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
+	make_dev.9 microseq.9 mi_switch.9 namei.9 panic.9 physio.9 posix4.9 \
+	psignal.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
 
@@ -61,6 +61,7 @@ MLINKS+=devstat.9 devstat_end_transaction.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
+MLINKS+=make_dev.9 remove_dev.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=mi_switch.9 cpu_switch.9
 MLINKS+=posix4.9 p1003_1b.9
