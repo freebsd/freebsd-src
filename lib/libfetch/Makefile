@@ -12,7 +12,7 @@ INCS=		fetch.h ${.OBJDIR}/fetch_err.h
 MAN3=		fetch.3
 CLEANFILES=	fetch_err.c fetch_err.h ftperr.h httperr.h
 
-SHLIB_MAJOR=    1
+SHLIB_MAJOR=    2
 SHLIB_MINOR=	0
 
 ftperr.h: ftp.errors
