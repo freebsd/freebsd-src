@@ -88,6 +88,7 @@ drm_chipinfo_t DRM(devicelist)[] = {
 #include "dev/drm/drm_ioctl.h"
 #include "dev/drm/drm_lock.h"
 #include "dev/drm/drm_memory.h"
+#include "dev/drm/drm_pci.h"
 #include "dev/drm/drm_vm.h"
 #include "dev/drm/drm_sysctl.h"
 #if __HAVE_SG

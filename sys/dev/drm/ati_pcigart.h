@@ -86,6 +86,8 @@ int DRM(ati_pcigart_init)( drm_device_t *dev,
 		}
 	}
 
+	DRM_MEMORYBARRIER();
+
 	ret = 1;
 
 done:

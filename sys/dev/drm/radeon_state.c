@@ -294,6 +294,9 @@ static struct {
 	{ R200_PP_CUBIC_OFFSET_F1_4, 5, "R200_PP_CUBIC_OFFSET_F1_4" },
 	{ R200_PP_CUBIC_FACES_5, 1, "R200_PP_CUBIC_FACES_5" },
 	{ R200_PP_CUBIC_OFFSET_F1_5, 5, "R200_PP_CUBIC_OFFSET_F1_5" },
+	{ RADEON_PP_TEX_SIZE_0, 2, "RADEON_PP_TEX_SIZE_0" },
+	{ RADEON_PP_TEX_SIZE_1, 2, "RADEON_PP_TEX_SIZE_1" },
+	{ RADEON_PP_TEX_SIZE_2, 2, "RADEON_PP_TEX_SIZE_1" },
 };
 
 
@@ -887,15 +890,14 @@ typedef struct {
 
 static void radeon_cp_dispatch_vertex( drm_device_t *dev,
 				       drm_buf_t *buf,
-				       drm_radeon_tcl_prim_t *prim,
-				       drm_clip_rect_t *boxes,
-				       int nbox )
+				       drm_radeon_tcl_prim_t *prim )
 
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_clip_rect_t box;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	int offset = dev_priv->agp_buffers_offset + buf->offset + prim->start;
 	int numverts = (int)prim->numverts;
+	int nbox = sarea_priv->nbox;
 	int i = 0;
 	RING_LOCALS;
 
@@ -915,10 +917,8 @@ static void radeon_cp_dispatch_vertex( drm_device_t *dev,
 	do {
 		/* Emit the next cliprect */
 		if ( i < nbox ) {
-			if (DRM_COPY_FROM_USER_UNCHECKED( &box, &boxes[i], sizeof(box) ))
-				return;
-
-			radeon_emit_clip_rect( dev_priv, &box );
+			radeon_emit_clip_rect( dev_priv, 
+					       &sarea_priv->boxes[i] );
 		}
 
 		/* Emit the vertex buffer rendering commands */
@@ -997,18 +997,17 @@ static void radeon_cp_dispatch_indirect( drm_device_t *dev,
 
 static void radeon_cp_dispatch_indices( drm_device_t *dev,
 					drm_buf_t *elt_buf,
-					drm_radeon_tcl_prim_t *prim, 
-					drm_clip_rect_t *boxes,
-					int nbox )
+					drm_radeon_tcl_prim_t *prim )
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_clip_rect_t box;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	int offset = dev_priv->agp_buffers_offset + prim->offset;
 	u32 *data;
 	int dwords;
 	int i = 0;
 	int start = prim->start + RADEON_INDEX_PRIM_OFFSET;
 	int count = (prim->finish - start) / sizeof(u16);
+	int nbox = sarea_priv->nbox;
 
 	DRM_DEBUG("hwprim 0x%x vfmt 0x%x %d..%d offset: %x nr %d\n",
 		  prim->prim,
@@ -1047,12 +1046,9 @@ static void radeon_cp_dispatch_indices( drm_device_t *dev,
 		   (count << RADEON_NUM_VERTICES_SHIFT) );
 
 	do {
-		if ( i < nbox ) {
-			if (DRM_COPY_FROM_USER_UNCHECKED( &box, &boxes[i], sizeof(box) ))
-				return;
-			
-			radeon_emit_clip_rect( dev_priv, &box );
-		}
+		if ( i < nbox ) 
+			radeon_emit_clip_rect( dev_priv, 
+					       &sarea_priv->boxes[i] );
 
 		radeon_cp_dispatch_indirect( dev, elt_buf,
 					     prim->start,
@@ -1452,9 +1448,7 @@ int radeon_cp_vertex( DRM_IOCTL_ARGS )
 		prim.numverts = vertex.count;
 		prim.vc_format = dev_priv->sarea_priv->vc_format;
 		
-		radeon_cp_dispatch_vertex( dev, buf, &prim,
-					   dev_priv->sarea_priv->boxes,
-					   dev_priv->sarea_priv->nbox );
+		radeon_cp_dispatch_vertex( dev, buf, &prim );
 	}
 
 	if (vertex.discard) {
@@ -1552,9 +1546,7 @@ int radeon_cp_indices( DRM_IOCTL_ARGS )
 	prim.numverts = RADEON_MAX_VB_VERTS; /* duh */
 	prim.vc_format = dev_priv->sarea_priv->vc_format;
 	
-	radeon_cp_dispatch_indices( dev, buf, &prim,
-				   dev_priv->sarea_priv->boxes,
-				   dev_priv->sarea_priv->nbox );
+	radeon_cp_dispatch_indices( dev, buf, &prim );
 	if (elts.discard) {
 		radeon_cp_discard_buffer( dev, buf );
 	}
@@ -1771,16 +1763,12 @@ int radeon_cp_vertex2( DRM_IOCTL_ARGS )
 			tclprim.offset = prim.numverts * 64;
 			tclprim.numverts = RADEON_MAX_VB_VERTS; /* duh */
 
-			radeon_cp_dispatch_indices( dev, buf, &tclprim,
-						    sarea_priv->boxes,
-						    sarea_priv->nbox);
+			radeon_cp_dispatch_indices( dev, buf, &tclprim );
 		} else {
 			tclprim.numverts = prim.numverts;
 			tclprim.offset = 0; /* not used */
 
-			radeon_cp_dispatch_vertex( dev, buf, &tclprim,
-						   sarea_priv->boxes,
-						   sarea_priv->nbox);
+			radeon_cp_dispatch_vertex( dev, buf, &tclprim );
 		}
 		
 		if (sarea_priv->nbox == 1)

@@ -74,7 +74,7 @@
 /* Driver customization:
  */
 #define DRIVER_PRETAKEDOWN() do {					\
-	if ( dev->dev_private ) mga_do_cleanup_dma( dev );		\
+	mga_do_cleanup_dma( dev );					\
 } while (0)
 
 /* DMA customization:

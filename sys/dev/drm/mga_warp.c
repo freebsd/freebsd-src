@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#define __NO_VERSION__
 #include "dev/drm/mga.h"
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

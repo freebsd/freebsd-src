@@ -1,5 +1,11 @@
-/* sarea.h -- SAREA definitions -*- linux-c -*-
+/**
+ * \file drm_sarea.h 
+ * \brief SAREA definitions
  *
+ * \author Michel Dänzer <michel@daenzer.net>
+ */
+
+/*
  * Copyright 2002 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
  *
@@ -22,23 +28,23 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors:
- *    Michel Dänzer <michel@daenzer.net>
- *
  * $FreeBSD$
  */
 
 #ifndef _DRM_SAREA_H_
 #define _DRM_SAREA_H_
 
+/** Maximum number of drawables in the SAREA */
 #define SAREA_MAX_DRAWABLES 		256
 
-typedef struct _drm_sarea_drawable_t {
+/** SAREA drawable */
+typedef struct drm_sarea_drawable {
     unsigned int	stamp;
     unsigned int	flags;
 } drm_sarea_drawable_t;
 
-typedef struct _dri_sarea_frame_t {
+/** SAREA frame */
+typedef struct drm_sarea_frame {
     unsigned int        x;
     unsigned int        y;
     unsigned int        width;
@@ -46,13 +52,14 @@ typedef struct _dri_sarea_frame_t {
     unsigned int        fullscreen;
 } drm_sarea_frame_t;
 
-typedef struct _drm_sarea_t {
-    /* first thing is always the drm locking structure */
+/** SAREA */
+typedef struct drm_sarea {
+    /** first thing is always the DRM locking structure */
     drm_hw_lock_t		lock;
-		/* NOT_DONE: Use readers/writer lock for drawable_lock */
+    /** \todo Use readers/writer lock for drm_sarea::drawable_lock */
     drm_hw_lock_t		drawable_lock;
-    drm_sarea_drawable_t	drawableTable[SAREA_MAX_DRAWABLES];
-    drm_sarea_frame_t		frame;
+    drm_sarea_drawable_t	drawableTable[SAREA_MAX_DRAWABLES];	/**< drawables */
+    drm_sarea_frame_t		frame;	/**< frame */
     drm_context_t		dummy_context;
 } drm_sarea_t;
 

@@ -16,7 +16,9 @@ struct DRM(sysctl_list) {
 	int	   (*f) DRM_SYSCTL_HANDLER_ARGS;
 } DRM(sysctl_list)[] = {
 	{ "name",    DRM(name_info)    },
+#ifdef DEBUG_MEMORY
 	{ "mem",     DRM(mem_info)     },
+#endif
 	{ "vm",	     DRM(vm_info)      },
 	{ "clients", DRM(clients_info) },
 	{ "bufs",    DRM(bufs_info)    },
@@ -97,10 +99,10 @@ static int DRM(name_info)DRM_SYSCTL_HANDLER_ARGS
 	int error;
 
 	if (dev->unique) {
-		DRM_SYSCTL_PRINT("%s 0x%x %s\n",
+		DRM_SYSCTL_PRINT("%s 0x%x %s",
 			       dev->name, dev2udev(dev->devnode), dev->unique);
 	} else {
-		DRM_SYSCTL_PRINT("%s 0x%x\n", dev->name, dev2udev(dev->devnode));
+		DRM_SYSCTL_PRINT("%s 0x%x", dev->name, dev2udev(dev->devnode));
 	}
 
 	SYSCTL_OUT(req, "", 1);
@@ -113,22 +115,22 @@ static int DRM(_vm_info)DRM_SYSCTL_HANDLER_ARGS
 	drm_device_t *dev = arg1;
 	drm_local_map_t    *map;
 	drm_map_list_entry_t    *listentry;
-	const char   *types[] = { "FB", "REG", "SHM" };
+	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG" };
 	const char   *type;
 	int	     i=0;
 	char         buf[128];
 	int          error;
 
-	DRM_SYSCTL_PRINT("slot	 offset	      size type flags	 "
-			 "address mtrr\n\n");
-	error = SYSCTL_OUT(req, buf, strlen(buf));
-	if (error) return error;
+	DRM_SYSCTL_PRINT("\nslot	 offset	      size type flags	 "
+			 "address mtrr\n");
 
 	if (dev->maplist != NULL) {
 		TAILQ_FOREACH(listentry, dev->maplist, link) {
 			map = listentry->map;
-			if (map->type < 0 || map->type > 2) type = "??";
-			else				    type = types[map->type];
+			if (map->type < 0 || map->type > 4)
+				type = "??";
+			else
+				type = types[map->type];
 			DRM_SYSCTL_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08lx ",
 					 i,
 					 map->offset,
@@ -137,9 +139,9 @@ static int DRM(_vm_info)DRM_SYSCTL_HANDLER_ARGS
 					 map->flags,
 					 (unsigned long)map->handle);
 			if (map->mtrr < 0) {
-				DRM_SYSCTL_PRINT("none\n");
+				DRM_SYSCTL_PRINT("no\n");
 			} else {
-				DRM_SYSCTL_PRINT("%4d\n", map->mtrr);
+				DRM_SYSCTL_PRINT("yes\n");
 			}
 			i++;
 		}
@@ -174,7 +176,7 @@ static int DRM(_bufs_info) DRM_SYSCTL_HANDLER_ARGS
 	int              error;
 
 	if (!dma)	return 0;
-	DRM_SYSCTL_PRINT(" o     size count  free	 segs pages    kB\n\n");
+	DRM_SYSCTL_PRINT("\n o     size count  free	 segs pages    kB\n");
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
 		if (dma->bufs[i].buf_count)
 			DRM_SYSCTL_PRINT("%2d %8d %5d %5d %5d %5d %5d\n",
@@ -220,7 +222,7 @@ static int DRM(_clients_info) DRM_SYSCTL_HANDLER_ARGS
 	char         buf[128];
 	int          error;
 
-	DRM_SYSCTL_PRINT("a dev	pid    uid	magic	  ioctls\n\n");
+	DRM_SYSCTL_PRINT("\na dev	pid    uid	magic	  ioctls\n");
 	TAILQ_FOREACH(priv, &dev->files, link) {
 		DRM_SYSCTL_PRINT("%c %3d %5d %5d %10u %10lu\n",
 			       priv->authenticated ? 'y' : 'n',

@@ -164,8 +164,10 @@ typedef struct drm_r128_sarea {
 	unsigned int last_dispatch;
 
 	drm_tex_region_t tex_list[R128_NR_TEX_HEAPS][R128_NR_TEX_REGIONS+1];
-	int tex_age[R128_NR_TEX_HEAPS];
+	unsigned int tex_age[R128_NR_TEX_HEAPS];
 	int ctx_owner;
+	int pfAllowPageFlip;        /* number of 3d windows (0,1,2 or more) */
+	int pfCurrentPage;	    /* which buffer is being displayed? */
 } drm_r128_sarea_t;
 
 
@@ -193,6 +195,7 @@ typedef struct drm_r128_sarea {
 #define DRM_IOCTL_R128_FULLSCREEN	DRM_IOW( 0x50, drm_r128_fullscreen_t)
 #define DRM_IOCTL_R128_CLEAR2		DRM_IOW( 0x51, drm_r128_clear2_t)
 #define DRM_IOCTL_R128_GETPARAM		DRM_IOW( 0x52, drm_r128_getparam_t)
+#define DRM_IOCTL_R128_FLIP		DRM_IO(  0x53)
 
 typedef struct drm_r128_init {
 	enum {
