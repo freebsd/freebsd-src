@@ -3,13 +3,8 @@
 AWKSRC=	${.CURDIR}/../../contrib/one-true-awk
 .PATH: ${AWKSRC}
 
-.if ${MACHINE_ARCH} == "sparc64"
-PROG=	awk
-.else
 PROG=	nawk
-.endif
 SRCS=	b.c lex.c lib.c main.c parse.c proctab.c run.c tran.c ytab.c ytab.h
-MAN1=	${PROG}.1
 
 # Important for ctype macros!
 CFLAGS+= -funsigned-char
@@ -18,8 +13,10 @@ CFLAGS+= -I. -I${AWKSRC}
 DPADD+=	${LIBM}
 LDADD+=	-lm
 
-#LINKS+=	${BINDIR}/awk ${BINDIR}/nawk
-#MLINKS+=	awk.1 nawk.1
+.if ${MACHINE_ARCH} == "sparc64"
+LINKS+=	${BINDIR}/nawk ${BINDIR}/awk
+MLINKS+=	nawk.1 awk.1
+.endif
 
 CLEANFILES+=	maketab proctab.c ytab.c ytab.h
 
