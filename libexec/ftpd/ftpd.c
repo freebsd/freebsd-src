@@ -1749,6 +1749,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 			while (err != -1 && cnt < filesize) {
 				err = sendfile(filefd, netfd, offset, len,
 					(struct sf_hdtr *) NULL, &cnt, 0);
+				byte_count += cnt;
 				offset += cnt;
 				len -= cnt;
 
