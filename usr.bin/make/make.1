@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2004
+.Dd August 18, 2004
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -581,6 +581,15 @@ entered into the environment as
 for all programs which
 .Nm
 executes.
+By modifying the contents of the
+.Va .MAKEFLAGS
+variable, makefile can alter the contents of the
+.Va MAKEFLAGS
+environment variable made available for all programs which
+.Nm
+executes; compare with the
+.Ic .MAKEFLAGS
+special target below.
 .It Va MFLAGS
 is provided for backward compatibility and
 contains all the options from the
@@ -1146,6 +1155,20 @@ The flags are as if typed to the shell, though the
 .Fl f
 option will have
 no effect.
+Flags (except for
+.Fl f )
+and variable assignments specified as the source
+for this target are also appended to the
+.Va .MAKEFLAGS
+internal variable.
+Please note the difference between this target and the
+.Va .MAKEFLAGS
+internal variable: specifying an option or variable
+assignment as the source for this target will affect
+.Em both
+the current makefile and all processes that
+.Nm
+executes.
 .It Ic .MFLAGS
 Same as above, for backward compatibility.
 .\" XXX: NOT YET!!!!
