@@ -145,7 +145,6 @@ struct dsl_stats {
 
 enum State { NOT_LOADED, DOWN, ACTIVATION, ACTIVE };
 
-
 #define	SIOCLOADFIRMW	_IOWR('i', 67, struct ifreq)
 #define SIOCGETSTATS	_IOWR('i', 68, struct ifreq)
 #define SIOCCLRSTATS	_IOWR('i', 69, struct ifreq)
@@ -214,7 +213,6 @@ sbsh_probe(device_t dev)
 	device_set_desc(dev, "Granch SBNI16 G.SHDSL Modem");
 	return (0);
 }
-
 
 static int
 sbsh_attach(device_t dev)
@@ -554,9 +552,10 @@ sbsh_watchdog(struct ifnet *ifp)
 
 	if_printf(ifp, "transmit timeout\n");
 
-	if (sc->regs->SR & TXS)
-		sc->regs->SR = TXS,
+	if (sc->regs->SR & TXS) {
+		sc->regs->SR = TXS;
 		if_printf(ifp, "interrupt posted but not delivered\n");
+	}
 	free_sent_buffers(sc);
 }
 
@@ -918,13 +917,18 @@ start_cx28975(struct sbsh_softc *sc, struct cx28975_cfg cfg)
 	sc->regs->SR  = 0xff;
 	DELAY(2);
 	sc->regs->CR = XRST;
-	if (cfg.crc16)		sc->regs->CR |= CMOD;
-	if (cfg.fill_7e)	sc->regs->CR |= FMOD;
-	if (cfg.inv)		sc->regs->CR |= PMOD;
+	if (cfg.crc16)
+		sc->regs->CR |= CMOD;
+	if (cfg.fill_7e)
+		sc->regs->CR |= FMOD;
+	if (cfg.inv)
+		sc->regs->CR |= PMOD;
 
 	sc->regs->CRB |= RODD | RXDE;
-	if (cfg.rburst)		sc->regs->CRB |= RDBE;
-	if (cfg.wburst)		sc->regs->CRB |= WTBE;
+	if (cfg.rburst)
+		sc->regs->CRB |= RDBE;
+	if (cfg.wburst)
+		sc->regs->CRB |= WTBE;
 
 	tsleep(sc, PWAIT, "sbsh", 0);
 	if ((p->out_ack & 0x1f) != _ACK_BOOT_WAKE_UP)
