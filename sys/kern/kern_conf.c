@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.47 1999/07/04 14:58:38 phk Exp $
+ * $Id: kern_conf.c,v 1.48 1999/07/17 18:43:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ chrtoblk(dev_t dev)
 
 	if((cd = devsw(dev)) != NULL) {
           if (cd->d_bmaj != -1)
-	    return(makedev(cd->d_bmaj,minor(dev)));
+	    return(makebdev(cd->d_bmaj,minor(dev)));
 	}
 	return(NODEV);
 }
@@ -74,7 +74,7 @@ bdevsw(dev_t dev)
         struct cdevsw *c;
         int i = major(dev);
 
-        if (bmaj2cmaj[i] == 254)
+        if (bmaj2cmaj[i] == 256)
                 return 0;
 
         c = cdevsw[bmaj2cmaj[major(dev)]];
@@ -102,7 +102,7 @@ cdevsw_add(struct cdevsw *newentry)
 	if (!setup) {
 		for (i = 0; i < NUMCDEVSW; i++)
 			if (!bmaj2cmaj[i])
-				bmaj2cmaj[i] = 254;
+				bmaj2cmaj[i] = 256;
 		setup++;
 	}
 
@@ -119,7 +119,7 @@ cdevsw_add(struct cdevsw *newentry)
 	cdevsw[newentry->d_maj] = newentry;
 
 	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) {
-		if (bmaj2cmaj[newentry->d_bmaj] != 254) {
+		if (bmaj2cmaj[newentry->d_bmaj] != 256) {
 			printf("WARNING: \"%s\" is usurping \"%s\"'s bmaj\n",
 			    newentry->d_name, 
 			    cdevsw[bmaj2cmaj[newentry->d_bmaj]]->d_name);
@@ -231,7 +231,15 @@ dev2udev(dev_t x)
 dev_t
 udev2dev(udev_t x, int b)
 {
-	return makedev(umajor(x), uminor(x));
+	switch (b) {
+		case 0:
+			return makedev(umajor(x), uminor(x));
+		case 1:
+			return makebdev(umajor(x), uminor(x));
+		default:
+			Debugger("udev2dev(...,X)");
+			return NODEV;
+	}
 }
 
 int
