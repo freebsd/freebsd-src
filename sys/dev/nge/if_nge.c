@@ -1567,7 +1567,7 @@ nge_encap(sc, m_head, txidx)
 			    NGE_TXEXTSTS_UDPCSUM;
 	}
 
-	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m);
+	mtag = VLAN_OUTPUT_TAG(&sc->arpcom.ac_if, m_head);
 	if (mtag != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
 		    (NGE_TXEXTSTS_VLANPKT|htons(VLAN_TAG_VALUE(mtag)));
