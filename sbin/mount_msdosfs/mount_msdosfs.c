@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.8 1997/03/03 13:23:54 bde Exp $";
+	"$Id: mount_msdos.c,v 1.9 1997/03/29 03:32:25 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -53,6 +53,9 @@ static const char rcsid[] =
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
+	MOPT_FORCE,
+	MOPT_SYNC,
+	MOPT_UPDATE,
 	{ NULL }
 };
 
