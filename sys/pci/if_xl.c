@@ -2452,7 +2452,6 @@ xl_encap(sc, c, m_head)
 		m_new = m_defrag(m_head, M_DONTWAIT);
 		if (m_new == NULL) {
 			m_freem(m_head);
-			printf("xl%d: no memory for tx list\n", sc->xl_unit);
 			return(1);
 		} else {
 			m_head = m_new;
@@ -2500,6 +2499,7 @@ xl_start(ifp)
 	struct xl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	u_int32_t		status;
 	int			error;
 
@@ -2527,12 +2527,15 @@ xl_start(ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, m_head);
-		if (error)
+		if (error) {
+			cur_tx = prev_tx;
 			continue;
+		}
 
 		sc->xl_cdata.xl_tx_free = cur_tx->xl_next;
 		cur_tx->xl_next = NULL;
@@ -2631,6 +2634,7 @@ xl_start_90xB(ifp)
 	struct xl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	sc = ifp->if_softc;
@@ -2655,12 +2659,15 @@ xl_start_90xB(ifp)
 		if (m_head == NULL)
 			break;
 
+		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, m_head);
-		if (error)
+		if (error) {
+			cur_tx = prev_tx;
 			continue;
+		}
 
 		/* Chain it together. */
 		if (prev != NULL)
