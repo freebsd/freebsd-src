@@ -717,15 +717,25 @@ network_pass3() {
 				[Nn][Oo] | '')
 					;;
 				*)
-					amd_flags="${amd_flags} `eval ${amd_map_program}`"
+					amd_flags="${amd_flags} `eval \
+						${amd_map_program}`"
 					;;
 				esac
 		
-				if [ -n "${amd_flags}" ]; then
-					amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
-				else
-					amd 2> /dev/null
-				fi
+				case "${amd_flags}" in
+				'')
+					if [ -r /etc/amd.conf ]; then
+						amd &
+					else
+						echo ''
+			echo 'Warning: amd will not load without arguments'
+					fi
+					;;
+				*)
+					amd -p ${amd_flags} >/var/run/amd.pid \
+						2>/dev/null &
+					;;
+				esac
 				;;
 			esac
 		fi
