@@ -422,7 +422,7 @@ ng_xxx_shutdown(node_p node)
 
 #ifndef PERSISTANT_NODE
 	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(privdata->node);
+	NG_NODE_UNREF(node);
 	FREE(privdata, M_NETGRAPH);
 #else
 	if (node->nd_flags & NGF_REALLY_DIE) {
