@@ -201,6 +201,7 @@ MLINKS+=pcvt.4 vt.4
 MLINKS+=scsi.4 CAM.4
 MLINKS+=scsi.4 SCSI.4
 MLINKS+=scsi.4 cam.4
+MLINKS+=scsi.4 scbus.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=splash.4 screensaver.4
 MLINKS+=syscons.4 sc.4
