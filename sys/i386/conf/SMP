@@ -6,4 +6,7 @@
 
 include GENERIC
 
-options	SMP
+ident		SMP-GENERIC
+
+# To make an SMP kernel, the next two lines are needed
+options 	SMP			# Symmetric MultiProcessor Kernel
