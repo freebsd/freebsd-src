@@ -63,11 +63,13 @@ static void getsysctl(char *, void *, size_t);
 extern char* printable(char *);
 int swapmode(int *retavail, int *retfree);
 static int smpmode;
+enum displaymodes displaymode;
 static int namelength;
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
 void quit(int);
+int compare_pid(const void *a, const void *b);
 
 /* get_process_info passes back a handle.  This is what it looks like: */
 
@@ -87,11 +89,22 @@ struct handle
 /* what we consider to be process size: */
 #define PROCSIZE(pp) ((pp)->ki_size / 1024)
 
+#define RU(pp)	(&(pp)->ki_rusage)
+#define RUTOT(pp) \
+	(RU(pp)->ru_inblock + RU(pp)->ru_oublock + RU(pp)->ru_majflt)
+
+
 /* definitions for indices in the nlist array */
 
 /*
  *  These definitions control the format of the per-process area
  */
+
+static char io_header[] =
+  "  PID %-*.*s   READ  WRITE  FAULT  TOTAL COMMAND";
+
+#define io_Proc_format \
+	"%5d %-*.*s %6d %6d %6d %6d %.*s"
 
 static char smp_header[] =
   "  PID %-*.*s PRI NICE   SIZE    RES STATE  C   TIME   WCPU    CPU COMMAND";
@@ -176,6 +189,10 @@ static int onproc = -1;
 static int pref_len;
 static struct kinfo_proc *pbase;
 static struct kinfo_proc **pref;
+static struct kinfo_proc *previous_procs;
+static struct kinfo_proc **previous_pref;
+static int previous_proc_count = 0;
+static int previous_proc_count_max = 0;
 
 /* these are for getting the memory statistics */
 
@@ -263,8 +280,18 @@ format_header(uname_field)
 
 {
     static char Header[128];
+    const char *prehead;
 
-    snprintf(Header, sizeof(Header), smpmode ? smp_header : up_header,
+    switch (displaymode) {
+    case DISP_CPU:
+	    prehead = smpmode ? smp_header : up_header;
+	    break;
+    case DISP_IO:
+	    prehead = io_header;
+	    break;
+    }
+
+    snprintf(Header, sizeof(Header), prehead,
 	     namelength, namelength, uname_field);
 
     cmdlengthdelta = strlen(Header) - 7;
@@ -387,6 +414,43 @@ get_system_info(si)
     }
 }
 
+const struct kinfo_proc *
+get_old_proc(struct kinfo_proc *pp)
+{
+	struct kinfo_proc **oldpp, *oldp;
+
+	if (previous_proc_count == 0)
+		return (NULL);
+	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
+	    sizeof(struct kinfo_proc *), compare_pid);
+	if (oldpp == NULL)
+		return (NULL);
+	oldp = *oldpp;
+	if (bcmp(&oldp->ki_start, &pp->ki_start, sizeof(pp->ki_start)) != 0)
+		return (NULL);
+	return (oldp);
+}
+
+long
+get_io_total(struct kinfo_proc *pp)
+{
+	const struct kinfo_proc *oldp;
+	static struct kinfo_proc dummy;
+	long ret;
+
+	oldp = get_old_proc(pp);
+	if (oldp == NULL) {
+		bzero(&dummy, sizeof(dummy));
+		oldp = &dummy;
+	}
+
+	ret =
+	    (RU(pp)->ru_inblock - RU(oldp)->ru_inblock) +
+	    (RU(pp)->ru_oublock - RU(oldp)->ru_oublock) +
+	    (RU(pp)->ru_majflt - RU(oldp)->ru_majflt);
+	return (ret);
+}
+
 static struct handle handle;
 
 caddr_t
@@ -408,6 +472,29 @@ get_process_info(si, sel, compare)
     int show_system;
     int show_uid;
     int show_command;
+
+    /*
+     * Save the previous process info.
+     */
+    if (previous_proc_count_max < nproc) {
+	    free(previous_procs);
+	    previous_procs = malloc(nproc * sizeof(struct kinfo_proc));
+	    free(previous_pref);
+	    previous_pref = malloc(nproc * sizeof(struct kinfo_proc *));
+	    if (previous_procs == NULL || previous_pref == NULL) {
+		    (void) fprintf(stderr, "top: Out of memory.\n");
+		    quit(23);
+	    }
+	    previous_proc_count_max = nproc;
+    }
+    if (nproc) {
+	    for (i = 0; i < nproc; i++)
+		    previous_pref[i] = &previous_procs[i];
+	    bcopy(pbase, previous_procs, nproc * sizeof(struct kinfo_proc));
+	    qsort(previous_pref, nproc,
+		sizeof(struct kinfo_proc *), compare_pid);
+    }
+    previous_proc_count = nproc;
 
     pbase = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
     if (nproc > onproc)
@@ -447,8 +534,9 @@ get_process_info(si, sel, compare)
 	    total_procs++;
 	    process_states[(unsigned char) pp->ki_stat]++;
 	    if ((pp->ki_stat != SZOMB) &&
-		(show_idle || (pp->ki_pctcpu != 0) || 
-		 (pp->ki_stat == SRUN)) &&
+		(displaymode == DISP_CPU &&
+		 (show_idle || (pp->ki_pctcpu != 0) || pp->ki_stat == SRUN)) ||
+		(show_idle || (displaymode == DISP_IO && get_io_total(pp))) &&
 		(!show_uid || pp->ki_ruid == (uid_t)sel->uid))
 	    {
 		/*
@@ -494,11 +582,13 @@ format_next_process(handle, get_userid)
     char *(*get_userid)();
 {
     struct kinfo_proc *pp;
+    const struct kinfo_proc *oldp;
     long cputime;
     double pct;
     struct handle *hp;
     char status[16];
     int state;
+    struct rusage ru, *rup;
 
     /* find and remember the next proc structure */
     hp = (struct handle *)handle;
@@ -561,6 +651,30 @@ format_next_process(handle, get_userid)
 	    break;
     }
 
+    if (displaymode == DISP_IO) {
+	    oldp = get_old_proc(pp);
+	    if (oldp != NULL) {
+		   ru.ru_inblock = RU(pp)->ru_inblock - RU(oldp)->ru_inblock;
+		   ru.ru_oublock = RU(pp)->ru_oublock - RU(oldp)->ru_oublock;
+		   ru.ru_majflt = RU(pp)->ru_majflt - RU(oldp)->ru_majflt;
+		   rup = &ru;
+	    } else {
+		   rup = RU(pp);
+	    }
+
+	    sprintf(fmt, io_Proc_format,
+		pp->ki_pid,
+		namelength, namelength,
+		(*get_userid)(pp->ki_ruid),
+		(int)rup->ru_inblock,
+		(int)rup->ru_oublock,
+		(int)rup->ru_majflt,
+		(int)(rup->ru_inblock + rup->ru_oublock + rup->ru_majflt),
+		screen_width > cmdlengthdelta ?
+		screen_width - cmdlengthdelta : 0,
+		printable(pp->ki_comm));
+	    return (fmt);
+    }
     /* format this entry */
     sprintf(fmt,
 	    smpmode ? smp_Proc_format : up_Proc_format,
@@ -616,6 +730,19 @@ getsysctl(name, ptr, len)
 }
 
 /* comparison routines for qsort */
+
+int
+compare_pid(p1, p2)
+    const void *p1, *p2;
+{
+    const struct kinfo_proc * const *pp1 = p1;
+    const struct kinfo_proc * const *pp2 = p2;
+
+    if ((*pp2)->ki_pid < 0 || (*pp1)->ki_pid < 0)
+	    abort();
+
+    return ((*pp1)->ki_pid - (*pp2)->ki_pid);
+}
 
 /*
  *  proc_compare - comparison function for "qsort"
@@ -814,6 +941,16 @@ compare_prio(pp1, pp2)
 }
 #endif
 
+int
+io_compare(pp1, pp2)
+	struct kinfo_proc **pp1, **pp2;
+{
+	long t1, t2;
+
+	t1 = get_io_total(*pp1);
+	t2 = get_io_total(*pp2);
+	return (t2 - t1);
+}
 /*
  * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
  *		the process does not exist.
