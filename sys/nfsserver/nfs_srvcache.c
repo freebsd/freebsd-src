@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfs_srvcache.c,v 1.3 1994/08/02 07:52:12 davidg Exp $
  */
 
 /*
@@ -237,7 +237,8 @@ loop:
 		}
 		rp->rc_flag |= RC_LOCKED;
 		/* remove from hash chain */
-		if (rq = rp->rc_forw)
+		rq = rp->rc_forw;
+		if (rq)
 			rq->rc_back = rp->rc_back;
 		*rp->rc_back = rq;
 		/* remove from LRU chain */
@@ -270,7 +271,8 @@ loop:
 	};
 	rp->rc_proc = nd->nd_procnum;
 	/* insert into hash chain */
-	if (rq = *rpp)
+	rq = *rpp;
+	if (rq)
 		rq->rc_back = &rp->rc_forw;
 	rp->rc_forw = rq;
 	rp->rc_back = rpp;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_syscalls.c,v 1.3 1994/08/02 07:52:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -123,10 +123,12 @@ getfh(p, uap, retval)
 	/*
 	 * Must be super user
 	 */
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if(error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, p);
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	bzero((caddr_t)&fh, sizeof(fh));
@@ -173,7 +175,8 @@ nfssvc(p, uap, retval)
 	/*
 	 * Must be super user
 	 */
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if(error)
 		return (error);
 	while (nfssvc_sockhead.ns_flag & SLP_INIT) {
 		nfssvc_sockhead.ns_flag |= SLP_WANTINIT;
@@ -182,11 +185,13 @@ nfssvc(p, uap, retval)
 	if (uap->flag & NFSSVC_BIOD)
 		error = nfssvc_iod(p);
 	else if (uap->flag & NFSSVC_MNTD) {
-		if (error = copyin(uap->argp, (caddr_t)&ncd, sizeof (ncd)))
+		error = copyin(uap->argp, (caddr_t)&ncd, sizeof (ncd));
+		if (error)
 			return (error);
 		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 			ncd.ncd_dirp, p);
-		if (error = namei(&nd))
+		error = namei(&nd);
+		if (error)
 			return (error);
 		if ((nd.ni_vp->v_flag & VROOT) == 0)
 			error = EINVAL;
@@ -201,24 +206,29 @@ nfssvc(p, uap, retval)
 		error = nqnfs_clientd(nmp, p->p_ucred, &ncd, uap->flag,
 			uap->argp, p);
 	} else if (uap->flag & NFSSVC_ADDSOCK) {
-		if (error = copyin(uap->argp, (caddr_t)&nfsdarg,
-		    sizeof(nfsdarg)))
+		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
+		if (error)
 			return (error);
-		if (error = getsock(p->p_fd, nfsdarg.sock, &fp))
+		error = getsock(p->p_fd, nfsdarg.sock, &fp);
+		if (error)
 			return (error);
 		/*
 		 * Get the client address for connected sockets.
 		 */
 		if (nfsdarg.name == NULL || nfsdarg.namelen == 0)
 			nam = (struct mbuf *)0;
-		else if (error = sockargs(&nam, nfsdarg.name, nfsdarg.namelen,
-			MT_SONAME))
-			return (error);
+		else {
+			error = sockargs(&nam, nfsdarg.name, nfsdarg.namelen,
+				MT_SONAME);
+			if (error)
+				return (error);
+		}
 		error = nfssvc_addsock(fp, nam);
 	} else {
-		if (error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd)))
+		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
+		if (error)
 			return (error);
-		if ((uap->flag & NFSSVC_AUTHIN) && (nfsd = nsd->nsd_nfsd) &&
+		if ((uap->flag & NFSSVC_AUTHIN) && ((nfsd = nsd->nsd_nfsd)) &&
 			(nfsd->nd_slp->ns_flag & SLP_VALID)) {
 			slp = nfsd->nd_slp;
 
@@ -264,7 +274,8 @@ nfssvc(p, uap, retval)
 				nuidp->nu_uid = nsd->nsd_uid;
 				insque(nuidp, (struct nfsuid *)slp);
 				nuh = &slp->ns_uidh[NUIDHASH(nsd->nsd_uid)];
-				if (nuidp->nu_hnext = *nuh)
+				nuidp->nu_hnext = *nuh;
+				if (nuidp->nu_hnext)
 				    nuidp->nu_hnext->nu_hprev = nuidp;
 				nuidp->nu_hprev = (struct nfsuid *)0;
 				*nuh = nuidp;
@@ -319,7 +330,8 @@ nfssvc_addsock(fp, mynam)
 		siz = NFS_MAXPACKET + sizeof (u_long);
 	else
 		siz = NFS_MAXPACKET;
-	if (error = soreserve(so, siz, siz)) {
+	error = soreserve(so, siz, siz); 
+	if (error) {
 		m_freem(mynam);
 		return (error);
 	}
@@ -473,7 +485,8 @@ nfssvc_nfsd(nsd, argp, p)
 		 * nam2 == NULL for connection based protocols to disable
 		 *    recent request caching.
 		 */
-		if (nam2 = nd->nd_nam) {
+		nam2 = nd->nd_nam;
+		if (nam2) {
 			nam = nam2;
 			cacherep = RC_CHECKIT;
 		} else {
@@ -702,7 +715,8 @@ nfsrv_zapsock(slp)
 	struct mbuf *m;
 
 	slp->ns_flag &= ~SLP_ALLFLAGS;
-	if (fp = slp->ns_fp) {
+	fp = slp->ns_fp;
+	if (fp) {
 		slp->ns_fp = (struct file *)0;
 		so = slp->ns_so;
 		so->so_upcall = NULL;
@@ -743,7 +757,8 @@ nfs_getauth(nmp, rep, cred, auth_type, auth_str, auth_len)
 		nmp->nm_flag |= NFSMNT_WANTAUTH;
 		(void) tsleep((caddr_t)&nmp->nm_authtype, PSOCK,
 			"nfsauth1", 2 * hz);
-		if (error = nfs_sigintr(nmp, rep, rep->r_procp)) {
+		error = nfs_sigintr(nmp, rep, rep->r_procp);
+		if (error) {
 			nmp->nm_flag &= ~NFSMNT_WANTAUTH;
 			return (error);
 		}

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.4 1994/08/13 14:21:55 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.5 1994/09/23 17:49:44 wollman Exp $
  */
 
 /*
@@ -181,7 +181,8 @@ nqsrv_getlease(vp, duration, flags, nd, nam, cachablep, frev, cred)
 		return (0);
 	if (*duration > nqsrv_maxlease)
 		*duration = nqsrv_maxlease;
-	if (error = VOP_GETATTR(vp, &vattr, cred, nd->nd_procp))
+	error = VOP_GETATTR(vp, &vattr, cred, nd->nd_procp);
+	if (error)
 		return (error);
 	*frev = vattr.va_filerev;
 	s = splsoftclock();
@@ -194,7 +195,8 @@ nqsrv_getlease(vp, duration, flags, nd, nam, cachablep, frev, cred)
 		 * Find the lease by searching the hash list.
 		 */
 		fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-		if (error = VFS_VPTOFH(vp, &fh.fh_fid)) {
+		error = VFS_VPTOFH(vp, &fh.fh_fid);
+		if (error) {
 			splx(s);
 			return (error);
 		}
@@ -301,7 +303,8 @@ doreply:
 	lp->lc_vp = vp;
 	lp->lc_fsid = fh.fh_fsid;
 	bcopy(fh.fh_fid.fid_data, lp->lc_fiddata, fh.fh_fid.fid_len - sizeof (long));
-	if (lq = *lpp)
+	lq = *lpp;
+	if (lq)
 		lq->lc_fhprev = &lp->lc_fhnext;
 	lp->lc_fhnext = lq;
 	lp->lc_fhprev = lpp;
@@ -327,7 +330,8 @@ nfs_lease_check(vp, p, cred, flag)
 	struct ucred *cred;
 	int flag;
 {
-	int duration = 0, cache;
+	u_long duration = 0;
+	int cache;
 	struct nfsd nfsd;
 	u_quad_t frev;
 
@@ -631,7 +635,8 @@ nqnfs_serverd()
 			nqsrv_instimeq(lp, nqsrv_writeslack);
 		    } else {
 			remque(lp);
-			if (lq = lp->lc_fhnext)
+			lq = lp->lc_fhnext;
+			if (lq)
 				lq->lc_fhprev = lp->lc_fhprev;
 			*lp->lc_fhprev = lq;
 			/*
@@ -711,8 +716,9 @@ nqnfsrv_getlease(nfsd, mrep, md, dpos, cred, nam, mrq)
 	nfsm_dissect(tl, u_long *, 2*NFSX_UNSIGNED);
 	flags = fxdr_unsigned(int, *tl++);
 	nfsd->nd_duration = fxdr_unsigned(int, *tl);
-	if (error = nfsrv_fhtovp(fhp,
-	    TRUE, &vp, cred, nfsd->nd_slp, nam, &rdonly))
+	error = nfsrv_fhtovp(fhp,
+	    TRUE, &vp, cred, nfsd->nd_slp, nam, &rdonly);
+	if (error)
 		nfsm_reply(0);
 	if (rdonly && flags == NQL_WRITE) {
 		error = EROFS;
@@ -918,7 +924,8 @@ nqnfs_callback(nmp, mrep, md, dpos)
 	nd.nd_mrep = mrep;
 	nd.nd_md = md;
 	nd.nd_dpos = dpos;
-	if (error = nfs_getreq(&nd, FALSE))
+	error = nfs_getreq(&nd, FALSE);
+	if (error)
 		return (error);
 	md = nd.nd_md;
 	dpos = nd.nd_dpos;
@@ -929,7 +936,8 @@ nqnfs_callback(nmp, mrep, md, dpos)
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	m_freem(mrep);
-	if (error = nfs_nget(nmp->nm_mountp, fhp, &np))
+	error = nfs_nget(nmp->nm_mountp, fhp, &np);
+	if (error)
 		return (error);
 	vp = NFSTOV(np);
 	if (np->n_tnext) {

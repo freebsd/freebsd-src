@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.3 1994/08/02 07:52:13 davidg Exp $
+ * $Id: nfs_subs.c,v 1.5 1994/09/22 22:10:44 wollman Exp $
  */
 
 /*
@@ -56,6 +56,8 @@
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #endif
+
+#include <vm/vm.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsv2.h>
@@ -643,7 +645,7 @@ nfs_init()
 	 * Initialize reply list and start timer
 	 */
 	nfsreqh.r_prev = nfsreqh.r_next = &nfsreqh;
-	nfs_timer();
+	nfs_timer(0);
 
 	/*
 	 * Set up lease_check and lease_updatetime so that other parts
@@ -702,7 +704,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	dpos = *dposp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - dpos;
 	isnq = (VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NQNFS);
-	if (error = nfsm_disct(&md, &dpos, NFSX_FATTR(isnq), t1, &cp2))
+	error = nfsm_disct(&md, &dpos, NFSX_FATTR(isnq), t1, &cp2);
+	if (error)
 		return (error);
 	fp = (struct nfsv2_fattr *)cp2;
 	vtyp = nfstov_type(fp->fa_type);
@@ -735,11 +738,13 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
 			vp->v_op = spec_nfsv2nodeop_p;
-			if (nvp = checkalias(vp, (dev_t)rdev, vp->v_mount)) {
+			nvp = checkalias(vp, (dev_t)rdev, vp->v_mount);
+			if (nvp) {
 				/*
 				 * Discard unneeded vnode, but save its nfsnode.
 				 */
-				if (nq = np->n_forw)
+				nq = np->n_forw;
+				if (nq)
 					nq->n_back = np->n_back;
 				*np->n_back = nq;
 				nvp->v_data = vp->v_data;
@@ -752,7 +757,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 				 */
 				np->n_vnode = nvp;
 				nhpp = (struct nfsnode **)nfs_hash(&np->n_fh);
-				if (nq = *nhpp)
+				nq = *nhpp;
+				if (nq)
 					nq->n_back = &np->n_forw;
 				np->n_forw = nq;
 				np->n_back = nhpp;
@@ -947,16 +953,20 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 	if (len > 0) {
 		if (rem >= len)
 			*dposp += len;
-		else if (error = nfs_adv(mdp, dposp, len, rem))
-			goto out;
+		else {
+			error = nfs_adv(mdp, dposp, len, rem);
+			if (error)
+				goto out;
+		}
 	}
 	ndp->ni_pathlen = tocp - cnp->cn_pnbuf;
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	/*
 	 * Extract and set starting directory.
 	 */
-	if (error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
-	    nam, &rdonly))
+	error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
+	    nam, &rdonly);
+	if (error)
 		goto out;
 	if (dp->v_type != VDIR) {
 		vrele(dp);
@@ -972,7 +982,8 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 	 * And call lookup() to do the real work
 	 */
 	cnp->cn_proc = p;
-	if (error = lookup(ndp))
+	error = lookup(ndp);
+	if (error)
 		goto out;
 	/*
 	 * Check for encountering a symbolic link
@@ -1057,7 +1068,7 @@ nfsm_adj(mp, len, nul)
 		}
 		count -= m->m_len;
 	}
-	while (m = m->m_next)
+	for (m = m->m_next;m;m = m->m_next)
 		m->m_len = 0;
 }
 
@@ -1085,9 +1096,11 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 	int error, exflags;
 
 	*vpp = (struct vnode *)0;
-	if ((mp = getvfs(&fhp->fh_fsid)) == NULL)
+	mp = getvfs(&fhp->fh_fsid);
+	if (!mp)
 		return (ESTALE);
-	if (error = VFS_FHTOVP(mp, &fhp->fh_fid, nam, vpp, &exflags, &credanon))
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, nam, vpp, &exflags, &credanon);
+	if (error)
 		return (error);
 	/*
 	 * Check/setup credentials.

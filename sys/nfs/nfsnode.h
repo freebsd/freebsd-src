@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.5 1994/08/21 06:50:11 paul Exp $
+ * $Id: nfsnode.h,v 1.6 1994/09/22 19:38:29 wollman Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -163,6 +163,13 @@ int	nfs_vfree __P((struct vop_vfree_args *));
 int	nfs_truncate __P((struct vop_truncate_args *));
 int	nfs_update __P((struct vop_update_args *));
 int	nfs_bwrite __P((struct vop_bwrite_args *));
+
+/* other stuff */
+int	nfs_removeit __P((struct sillyrename *));
+int	nfs_nget __P((struct mount *,nfsv2fh_t *,struct nfsnode **));
+int	nfs_lookitup __P((struct sillyrename *,nfsv2fh_t *,struct proc *));
+int	nfs_sillyrename __P((struct vnode *,struct vnode *,struct componentname *));
+
 #endif /* KERNEL */
 
 #endif
