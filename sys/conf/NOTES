@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.142 1995/02/15 04:49:18 jkh Exp $
+#	$Id: LINT,v 1.143 1995/02/15 06:18:15 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -479,7 +479,10 @@ options		DSI_SOFT_MODEM		#code for DSI Softmodems
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
-# ze: PCMCIA ethernet controller.
+# ze: IBM/National Semiconductor PCMCIA ethernet controller.
+# zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
+#     send/receive operation, but it needs 'iomem' to read/write the
+#     attribute memory)
 #
 
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
@@ -490,6 +493,8 @@ device ep0 at isa? port 0x300 net irq 10 vector epintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
+
 
 # ISDN drivers - `isdn'.
 #
@@ -558,10 +563,7 @@ device		scd0	at isa? port 0x230 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
-
-# NB: both lines are required
 device		apm0	at isa?
-options		APM
 
 #
 # PCI devices:
