@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.9 1995/12/08 23:22:26 phk Exp $
+ * $Id: ssc.c,v 1.10 1995/12/10 20:34:49 bde Exp $
  */
 
 #include <sys/types.h>
@@ -134,7 +134,9 @@ sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
  */
 
 static ssc_devsw_installed = 0;
+#ifdev DEVFS
 static	void *ssc_devfs_token;
+#endif
 
 static void
 ssc_drvinit(void *unused)
@@ -146,9 +148,9 @@ ssc_drvinit(void *unused)
 		cdevsw_add(&dev,&ssc_cdevsw, NULL);
 		ssc_devsw_installed = 1;
 #ifdef DEVFS
-		ssc_devfs_token = devfs_add_devsw(
-				"/scsi", "ssc", &ssc_cdevsw, 0,
-				DV_CHR, 0, 0, 0600);
+		ssc_devfs_token = 
+			devfs_add_devswf(&ssc_cdevsw, 0, DV_CHR, 0, 0, 
+					 0600, "ssc");
 #endif
     	}
 }
