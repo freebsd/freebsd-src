@@ -383,10 +383,10 @@ ffs_reload(mp, cred, td)
 	void *space;
 	struct buf *bp;
 	struct fs *fs, *newfs;
-	struct partinfo dpart;
 	dev_t dev;
 	int i, blks, size, error;
 	int32_t *lp;
+	u_int sectorsize;
 
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
@@ -416,10 +416,11 @@ ffs_reload(mp, cred, td)
 	/*
 	 * Step 2: re-read superblock from disk.
 	 */
-	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, td) != 0)
+	if (VOP_IOCTL(devvp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
+	    FREAD, NOCRED, td) != 0)
 		size = DEV_BSIZE;
 	else
-		size = dpart.disklab->d_secsize;
+		size = sectorsize;
 	if ((error = bread(devvp, (ufs_daddr_t)(SBOFF/size), SBSIZE, NOCRED,&bp)) != 0)
 		return (error);
 	newfs = (struct fs *)bp->b_data;
@@ -545,7 +546,6 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	struct buf *bp;
 	register struct fs *fs;
 	dev_t dev;
-	struct partinfo dpart;
 	void *space;
 	int error, i, blks, size, ronly;
 	int32_t *lp;
@@ -553,6 +553,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	u_int64_t maxfilesize;					/* XXX */
 	size_t strsize;
 	int ncount;
+	u_int sectorsize;
 
 	dev = devvp->v_rdev;
 	cred = td ? td->td_ucred : NOCRED;
@@ -608,10 +609,11 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
-	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, cred, td) != 0)
+	if (VOP_IOCTL(devvp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
+	    FREAD, cred, td) != 0)
 		size = DEV_BSIZE;
 	else
-		size = dpart.disklab->d_secsize;
+		size = sectorsize;
 
 	bp = NULL;
 	ump = NULL;
