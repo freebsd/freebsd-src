@@ -2226,7 +2226,6 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	if (res_idx == -1) {
 		urm.rm_handle = (uintptr_t)rm;
 		snprintf(urm.rm_descr, RM_TEXTLEN, "%s", rm->rm_descr);
-		urm.rm_descr[RM_TEXTLEN - 1] = '\0';
 		urm.rm_start = rm->rm_start;
 		urm.rm_size = rm->rm_end - rm->rm_start + 1;
 		urm.rm_type = rm->rm_type;
