@@ -122,12 +122,12 @@ in the following sections.
 @xref{Warning Options,,Options to Request or Suppress Warnings}.
 @smallexample
 -fsyntax-only  -pedantic  -pedantic-errors
--w  -W  -Wall  -Waggregate-return  -Wbad-function-cast
+-w  -W  -Wall  -Waggregate-return  -Warglist-size-@var{n}  -Wbad-function-cast
 -Wcast-align  -Wcast-qual  -Wchar-subscripts  -Wcomment
 -Wconversion  -Werror  -Wformat
 -Wid-clash-@var{len}  -Wimplicit -Wimplicit-int 
 -Wimplicit-function-declaration  -Wimport
--Werror-implicit-function-declaration  -Winline
+-Werror-implicit-function-declaration  -Wframe-size-@var{n}  -Winline
 -Wlarger-than-@var{len}  -Wlong-long
 -Wmain  -Wmissing-declarations  -Wmissing-noreturn
 -Wmissing-prototypes  -Wmultichar  -Wnested-externs  -Wno-import  
@@ -1817,6 +1817,17 @@ Warn if @samp{long long} type is used.  This is default.  To inhibit
 the warning messages, use @samp{-Wno-long-long}.  Flags
 @samp{-Wlong-long} and @samp{-Wno-long-long} are taken into account
 only when @samp{-pedantic} flag is used.
+
+@item -Wframe-size-@var{n}
+Warn if a frame uses greater than @var{n} bytes.  This warning can be useful 
+when stack space is limited, as is typical in embedded environments.  This 
+warning, and also @samp{-Warglist-size-@var{n}}, can help locate functions
+who may contribute to a stack overrun.
+
+@item -Warglist-size-@var{n}
+Warn if function argument list uses greater than @var{n} bytes.  As with 
+@samp{-Wframe-size-@var{n}}, this warning can help locate functions who 
+may contribute to a stack overrun.
 
 @item -Werror
 Make all warnings into errors.

@@ -864,6 +864,26 @@ c_decode_option (argc, argv)
     warn_missing_braces = 0;
   else if (!strcmp (p, "-Wmain"))
     warn_main = 1;
+  else if (!strncmp (p, "-Wframe-size-", 13))
+    {
+      const char *argstart = &p[13];
+      const int larger_than_val = read_integral_parameter (argstart, p, -1);
+      if (larger_than_val != -1)
+	{
+	  warn_frame_size = larger_than_val;
+	  warn_frame_size_flag = 1;
+	}
+    }
+  else if (!strncmp (p, "-Warglist-size-", 15))
+    {
+      const char *argstart = &p[15];
+      const int larger_than_val = read_integral_parameter (argstart, p, -1);
+      if (larger_than_val != -1)
+	{
+	  warn_arglist_size = larger_than_val;
+	  warn_arglist_size_flag = 1;
+	}
+    }
   else if (!strcmp (p, "-Wno-main"))
     warn_main = -1;
   else if (!strcmp (p, "-Wsign-compare"))

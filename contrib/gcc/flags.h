@@ -121,6 +121,18 @@ extern int warn_cast_align;
 
 extern int warn_template_debugging;
 
+/* Nonzero means warn if a frame is larger that N bytes.  The value 
+   of N is warn_frame_size. */
+ 
+extern int warn_frame_size_flag;
+extern int warn_frame_size;
+ 
+/* Nonzero means warn if a function call pushes more than N bytes 
+   onto the stack.  The value of N is warn_arglist_size. */
+ 
+extern int warn_arglist_size_flag;
+extern int warn_arglist_size;
+
 /* Nonzero means warn about any identifiers that match in the first N
    characters.  The value N is in `id_clash_len'.  */
 
