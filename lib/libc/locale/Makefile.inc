@@ -10,7 +10,7 @@ SRCS+=	ansi.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
-	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wcswidth.c \
+	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c \
 	wctob.c wctrans.c wctype.c wcwidth.c
 
 .if ${LIB} == "c"
