@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <fts.h>
 #include <unistd.h>
 
 #define MAXTOKEN 10
@@ -91,16 +92,83 @@ tokenize(char *cptr, char *token[], int maxtoken)
     return maxtoken;			/* can't get here */
 }
 
+static char *
+findmodule(char *modules_path, const char *module_name)
+{
+    char *const path_argv[2] = { modules_path, NULL };
+    char *module_path = NULL;
+    int module_name_len = strlen(module_name);
+    FTS *fts;
+    FTSENT *ftsent;
+
+    if (modules_path == NULL) {
+	fprintf(stderr,
+	    "Can't allocate memory to traverse a path: %s (%d)\n",
+	    strerror(errno),
+	    errno);
+	exit(1);
+    }
+    fts = fts_open(path_argv, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+    if (fts == NULL) {
+	fprintf(stderr,
+	    "Can't begin traversing path %s: %s (%d)\n",
+	    modules_path,
+	    strerror(errno),
+	    errno);
+	exit(1);
+    }
+    while ((ftsent = fts_read(fts)) != NULL) {
+	if (ftsent->fts_info == FTS_DNR ||
+	    ftsent->fts_info == FTS_ERR ||
+	    ftsent->fts_info == FTS_NS) {
+	    fprintf(stderr,
+		"Error while traversing path %s: %s (%d)\n",
+		modules_path,
+		strerror(errno),
+		errno);
+	    exit(1);
+	}
+	if (ftsent->fts_info != FTS_F ||
+	    ftsent->fts_namelen != module_name_len ||
+	    memcmp(module_name, ftsent->fts_name, module_name_len) != 0)
+		continue;
+	if (asprintf(&module_path,
+	    "%.*s",
+	    ftsent->fts_pathlen,
+	    ftsent->fts_path) == -1) {
+	    fprintf(stderr,
+		"Can't allocate memory traversing path %s: %s (%d)\n",
+		modules_path,
+		strerror(errno),
+		errno);
+	    exit(1);
+	}
+	break;
+    }
+    if (ftsent == NULL && errno != 0) {
+	fprintf(stderr,
+	    "Couldn't complete traversing path %s: %s (%d)\n",
+	    modules_path,
+	    strerror(errno),
+	    errno);
+	exit(1);
+    }
+    fts_close(fts);
+    free(modules_path);
+    return (module_path);
+}
+
 static void
 usage(const char *myname)
 {
     fprintf(stderr,
 	"Usage:\n"
-	"%s [-a] [-k] [-t] [modules-path [outfile]]\n\n"
+	"%s [-a] [-f] [-k] [-s] [-x] [modules-path [outfile]]\n\n"
 	"\t-a\tappend to outfile)\n"
+	"\t-f\tfind the module in any subdirectory of module-path\n"
 	"\t-k\ttake input from kldstat(8)\n"
+	"\t-s\tdon't prepend subdir for module path\n"
 	"\t-x\tdon't append \".debug\" to module name\n",
-	"\t-s\tdon't prepend subdir for module path\n",
 	myname);
 }
 
@@ -120,6 +188,7 @@ main(int argc, char *argv[])
     const char *debugname = ".debug";	/* some file names end in this */
     char *token[MAXTOKEN];
     int nosubdir = 0;
+    int dofind = 0;
 
     getcwd(cwd, MAXPATHLEN);		/* find where we are */
     kldstat = stdin;
@@ -136,6 +205,8 @@ main(int argc, char *argv[])
 		debugname = "";		/* nothing */
 	    else if (strcmp(argv[i], "-s") == 0) /* no subdir */
 		nosubdir = 1;		/* nothing */
+	    else if (strcmp(argv[i], "-f") == 0) /* find .ko (recursively) */
+		dofind = 1;
 	    else {
 		fprintf(stderr,
 		    "Invalid option: %s, aborting\n",
@@ -177,16 +248,30 @@ main(int argc, char *argv[])
 
 	    tokens = tokenize(buf, token, MAXTOKEN);
 	    base = strtoll(token[2], NULL, 16);
-	    strcpy(basetoken, token[4]);
-	    basetoken[strlen(basetoken) - 3] = '/';
-	    basetoken[strlen(basetoken) - 2] = '\0'; /* cut off the .ko */
-	    snprintf(ocbuf,
-		MAXLINE,
-		"/usr/bin/objdump --section-headers %s/%s%s%s",
-		modules_path,
-		nosubdir ? "" : basetoken,
-		token[4],
-		debugname);
+	    if (!dofind) {
+		strcpy(basetoken, token[4]);
+		basetoken[strlen(basetoken) - 3] = '/';
+		basetoken[strlen(basetoken) - 2] = '\0'; /* cut off the .ko */
+		snprintf(ocbuf,
+		    MAXLINE,
+		    "/usr/bin/objdump --section-headers %s/%s%s%s",
+		    modules_path,
+		    nosubdir ? "" : basetoken,
+		    token[4],
+		    debugname);
+	    } else {
+		char *modpath;
+		
+		modpath = findmodule(strdup(modules_path), token[4]);
+		if (modpath == NULL)
+		    continue;
+		snprintf(ocbuf,
+		    MAXLINE,
+		    "/usr/bin/objdump --section-headers %s%s",
+		    modpath,
+		    debugname);
+		free(modpath);
+	    }
 	    if (!(objcopy = popen(ocbuf, "r"))) {
 		fprintf(stderr,
 		    "Can't start %s: %s (%d)\n",
@@ -210,14 +295,28 @@ main(int argc, char *argv[])
 		}
 	    }
 	    if (textaddr) {		/* we must have a text address */
-		fprintf(out,
-		    "add-symbol-file %s/%s/%s%s%s 0x%llx",
-		    cwd,
-		    modules_path,
-		    nosubdir ? "" : basetoken,
-		    token[4],
-		    debugname,
-		    textaddr);
+		if (!dofind) {
+		    fprintf(out,
+			"add-symbol-file %s/%s/%s%s%s 0x%llx",
+			cwd,
+			modules_path,
+			nosubdir ? "" : basetoken,
+			token[4],
+			debugname,
+			textaddr);
+		} else {
+		    char *modpath;
+		
+		    modpath = findmodule(strdup(modules_path), token[4]);
+		    if (modpath == NULL)
+			continue;
+		    fprintf(out,
+			"add-symbol-file %s%s 0x%llx",
+			modpath,
+			debugname,
+			textaddr);
+		    free(modpath);
+		}
 		if (dataaddr)
 		    fprintf(out, " -s .data 0x%llx", dataaddr);
 		if (bssaddr)
