@@ -90,7 +90,26 @@ typedef struct  /* PLATFORM INTERRUPT SOURCE */
 
 #pragma pack()
 
- 
+static void
+parse_local_apic(PROCESSOR_APIC *apic)
+{
+	if (bootverbose) {
+		printf("\t\tProcessorId=0x%x, APIC Id=0x%x",
+		    apic->ProcessorApicId, apic->LocalApicId);
+		if (!apic->ProcessorEnabled)
+			printf(" (disabled)");
+		printf("\n");
+	}
+}
+
+static void
+parse_io_apic(IO_APIC *apic)
+{
+	if (bootverbose)
+		printf("\t\tId=0x%x, Vector=0x%x, Address=0x%lx\n",
+		    apic->IoApicId, apic->Vector, apic->IoApicAddress);
+}
+
 static void
 parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *override)
 {
@@ -115,11 +134,14 @@ parse_io_sapic(IO_SAPIC *sapic)
 static void
 parse_local_sapic(LOCAL_SAPIC *sapic)
 {
-	if (bootverbose)
-		printf("\t\tProcessorId=0x%x, Id=0x%x, Eid=0x%x\n",
-		       sapic->ProcessorId,
-		       sapic->LocalSapicId,
-		       sapic->LocalSapicEid);
+	if (bootverbose) {
+		printf("\t\tProcessorId=0x%x, Id=0x%x, Eid=0x%x",
+		    sapic->ProcessorId, sapic->LocalSapicId,
+		    sapic->LocalSapicEid);
+		if (!sapic->ProcessorEnabled)
+			printf(" (disabled)");
+		printf("\n");
+	}
 }
 
 static void
@@ -154,12 +176,14 @@ parse_madt(APIC_TABLE *madt)
 		switch (head->Type) {
 		case APIC_PROC:
 			if (bootverbose)
-				printf("Processor APIC entry\n");
+				printf("Local APIC entry\n");
+			parse_local_apic((PROCESSOR_APIC *) head);
 			break;
 
 		case APIC_IO:
 			if (bootverbose)
 				printf("I/O APIC entry\n");
+			parse_io_apic((IO_APIC *) head);
 			break;
 
 		case APIC_INTERRUPT_SOURCE_OVERRIDE:
