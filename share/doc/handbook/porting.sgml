@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.39 1996/11/17 00:25:26 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.40 1996/11/17 18:54:51 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -581,6 +581,21 @@ work/foozolix-1.0/
 	  against wide-area network problems, and we are even planning
 	  to add support for automatically determining the closest
 	  master site and fetching from there!
+
+	<p>If your the original tarball is part of one of the following
+	  popular archives:  X-contrib, GNU, Perl CPAN, TeX CTAN, or 
+	  Linux Sunsite, you refer to those sites in an easy compack
+	  form using MASTER_SITE_XCONTRIB, MASTER_SITE_GNU,
+	  MASTER_SITE_PERL_CPAN, MASTER_SITE_TEX_CTAN, and
+	  MASTER_SITE_SUNSITE.  Simply set MASTER_SITE_SUBDIR to the path
+	  with in the archive.  Here is an example:
+<tscreen><verb>
+MASTER_SITES=         ${MASTER_SITE_XCONTRIB}
+MASTER_SITE_SUBDIR=   applications
+</verb></tscreen>
+        <p>The user can also set the MASTER_SITE_* variables in
+          <tt>/etc/make.conf</tt> to override our choices, and use their
+	  favorate mirrors of these popular archives instead.
 
       <sect3>
 	<heading>PATCHFILES<label id="porting:patchfiles"></heading>
