@@ -165,8 +165,8 @@
       </listitem>
 
       <listitem>
-	<para>GCC:  The compiler toolchain is now based on a GCC
-	  3.2.1 pre-release snapshot, rather than GCC
+	<para>GCC:  The compiler toolchain is now based on GCC
+	  3.2.1, rather than GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
 
@@ -291,7 +291,7 @@
     <para>The release of &os; 5.0 does not mean the end of the
       4-STABLE branch.  There will be at least one more release on
       this branch, namely 4.8-RELEASE, currently scheduled for 1
-      February 2003.</para>
+      March 2003.</para>
 
     <para>As of this writing, the release engineering team has no
       definite plans for future releases (past 4.8) on the 4-STABLE
@@ -391,21 +391,15 @@
       <title>Common Notes</title>
 
       <para><application>Perl</application> has been removed from the
-        base system.  The recommended way of installing Perl is either
+        base system, and should be installed either
         from a pre-built package or from the Ports Collection.
         Building Perl as a part of the base system created a number of
         difficulties which made updates problematic.  
         The base system utilities that used Perl have either
         been rewritten (if still applicable) or discarded (if
-        obsolete).</para>
-
-      <para>Some scripts expect to find a Perl interpreter at
-        <filename>/usr/bin/perl</filename>.  The
-        <filename>use.perl</filename> command, a part of the Perl
-        port, can be used to create an appropriate set of symbolic
-        links for them.  In particular, <command>use.perl
-        port</command> will generally set things up as
-        expected.</para>
+        obsolete).  &man.sysinstall.8; will now install the
+        Perl package as a part of most distribution sets, so most
+        users will not notice this change.</para>
 
       <para>It is generally possible to run old
         4.<replaceable>X</replaceable> executables under
