@@ -107,9 +107,9 @@ extern long timedelta;
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
 	SI_SUB_DONE		= 0x0000001,	/* processed*/
+	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
-	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
