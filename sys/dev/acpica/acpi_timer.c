@@ -317,13 +317,20 @@ DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver, acpi_timer_pci_devclas
 static int
 acpi_timer_pci_probe(device_t dev)
 {
-    if ((pci_get_vendor(dev) == 0x8086) &&
-	(pci_get_device(dev) == 0x7113) &&
-	(pci_get_revid(dev) >= 0x03)) {
+    int vendor, device, revid;
+    
+    vendor = pci_get_vendor(dev);
+    device = pci_get_device(dev);
+    revid  = pci_get_revid(dev);
+    
+    if (((vendor == 0x8086) && (device == 0x7113) && (revid >= 0x03))	|| /* PIIX4M */
+	((vendor == 0x8086) && (device == 0x719b)) 			|| /* i440MX */
+	0) {
+
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-	acpi_timer_timecounter.tc_name = "ACPI-PIIX4M";
+	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	if (bootverbose)
-	    device_printf(acpi_timer_dev, "PIIX4M or later detected, enabling ACPI timer optimisation\n");
+	    device_printf(acpi_timer_dev, "functional ACPI timer detected, enabling fast timecount interface\n");
     }
 
     return(ENXIO);		/* we never match anything */
