@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.16 1998/09/17 09:34:51 phk Exp $
+#	$Id: Makefile.inc1,v 1.17 1998/09/17 16:32:00 andreas Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -174,8 +174,8 @@ PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin
 .else
 TOOLROOT=	${WORLDTMP}
 .endif
-STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin
-TMPPATH=	${STRICTTMPPATH}:${PATH}
+STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin:${TOOLROOT}/usr/games
+TMPPATH=	${STRICTTMPPATH}:${PATH}:/usr/games
 
 # XXX COMPILER_PATH is needed for finding cc1, ld and as
 # XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecessary now
@@ -698,25 +698,6 @@ bootstrap-libraries:
 .endfor
 
 #
-# bootstrap-rtld - Build the shared library loader and install it
-# under ${WORLDTMP}. This requires libc_pic which isn't normally
-# bootstrapped, so libc has to be built again. *sigh*
-#
-RTLD_MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
-bootstrap-rtld:
-.if exists(${.CURDIR}/libexec/rtld-${OBJFORMAT})
-	cd ${.CURDIR}/lib/libc; \
-		${MAKE} ${RTLD_MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${RTLD_MK_FLAGS} all; \
-		${MAKE} ${RTLD_MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/libexec/rtld-${OBJFORMAT}; \
-		${MAKE} obj; \
-		${MAKE} ${RTLD_MK_FLAGS} ${_DEPEND}; \
-		${MAKE} ${RTLD_MK_FLAGS} all; \
-		${MAKE} ${RTLD_MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-
-#
 # libraries - build all libraries, and install them under ${DESTDIR}.
 #
 # The ordering is not as special as for bootstrap-libraries.  Build
@@ -921,6 +902,19 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/lib; ${MAKE} -B -DNOMAN -DNOINFO install
 	cd ${.CURDIR}/gnu/lib; ${MAKE} -B -DNOMAN -DNOINFO install
+	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc; \
+		${MAKE} -B -DNOMAN -DNOINFO install
+	cd ${.CURDIR}/usr.bin/lex/lib; \
+		${MAKE} -B -DNOMAN -DNOINFO install
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap; \
+		${MAKE} -B -DNOMAN -DNOINFO install
+.if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib; ${MAKE} -B -DNOMAN -DNOINFO install
+.endif
+.if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} -B -DNOMAN -DNOINFO install
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy rtld"
