@@ -1854,7 +1854,7 @@ static int dc_attach(dev)
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
 	case DC_DEVICEID_AN985:
-	case DE_DEVICEID_FE2500:
+	case DC_DEVICEID_FE2500:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
