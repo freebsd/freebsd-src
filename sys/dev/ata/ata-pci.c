@@ -248,6 +248,12 @@ ata_pci_match(device_t dev)
 	else
 	    return "ServerWorks CSB5 ATA66 controller";
 
+    case 0x02131166:
+	return "ServerWorks CSB6 ATA100 controller (channel 0+1)";
+
+    case 0x02171166:
+	return "ServerWorks CSB6 ATA66 controller (channel 2)";
+
     case 0x4d33105a:
 	return "Promise ATA33 controller";
 
