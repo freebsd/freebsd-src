@@ -18,6 +18,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __FreeBSD__
+#include <ctype.h>
+#endif
 #include "filetypes.h"
 #include "system.h"
 #include "cpiohdr.h"
@@ -1055,6 +1058,9 @@ print_name_with_quoting (p)
 	  break;
 
 	default:
+#ifdef __FreeBSD__
+	  if (isprint(c))
+#else
 	  if (c > 040 &&
 #ifdef __MSDOS__
 	      c < 0377 && c != 0177
@@ -1062,6 +1068,7 @@ print_name_with_quoting (p)
 	      c < 0177
 #endif
 	    )
+#endif
 	    putchar (c);
 	  else
 	    printf ("\\%03o", (unsigned int) c);
