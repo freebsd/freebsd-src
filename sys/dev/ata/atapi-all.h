@@ -148,9 +148,8 @@ struct atapi_softc {
     int8_t			*devname;	/* this devices name */
     int8_t			cmd;		/* last cmd executed */
     u_int32_t			flags;		/* drive flags */
-#define		ATAPI_F_DMA_USED	0x0001
-#define		ATAPI_F_DSC_USED	0x0002
-#define		ATAPI_F_MEDIA_CHANGED	0x0004
+#define		ATAPI_F_DSC_USED	0x0001
+#define		ATAPI_F_MEDIA_CHANGED	0x0002
 
 };
 
@@ -161,6 +160,7 @@ struct atapi_request {
     u_int8_t			ccb[16];	/* command control block */
     int32_t			ccbsize;	/* size of ccb (12 | 16) */
     u_int32_t			bytecount;	/* bytes to transfer */
+    u_int32_t			donecount;	/* bytes transferred */
     int32_t			timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int32_t			retries;	/* retry count */
@@ -168,7 +168,8 @@ struct atapi_request {
     int32_t			error;		/* result translated to errno */
     struct atapi_reqsense	sense;		/* sense data if error */
     int32_t			flags;		
-#define		A_READ			0x0001
+#define		ATPR_F_READ		0x0001
+#define		ATPR_F_DMA_USED		0x0002
 
     int8_t			*data;		/* pointer to data buf */
     struct buf			*bp;		/* associated buf ptr */

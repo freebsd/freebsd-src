@@ -63,8 +63,8 @@
 #define		ATA_C_WRITE		0x30	/* write command */
 #define		ATA_C_PACKET_CMD	0xa0	/* packet command */
 #define		ATA_C_ATAPI_IDENTIFY	0xa1	/* get ATAPI params*/
-#define		ATA_C_READ_MULTI	0xc4	/* read multi command */
-#define		ATA_C_WRITE_MULTI	0xc5	/* write multi command */
+#define		ATA_C_READ_MUL		0xc4	/* read multi command */
+#define		ATA_C_WRITE_MUL		0xc5	/* write multi command */
 #define		ATA_C_SET_MULTI		0xc6	/* set multi size command */
 #define		ATA_C_READ_DMA		0xc8	/* read w/DMA command */
 #define		ATA_C_WRITE_DMA		0xca	/* write w/DMA command */

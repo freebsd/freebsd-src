@@ -275,6 +275,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		return;
 	    }
 	}
+	pci_write_config(parent, 0x53,
+			 (pci_read_config(parent, 0x53, 1) & ~0x01) | 0x02, 1);
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
@@ -582,9 +584,11 @@ via_generic:
 		   (error) ? "failed" : "success", apiomode < 0 ? 0 : apiomode);
     if (!error)
         scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
-    else 
+    else {
 	if (bootverbose)
 	    ata_printf(scp, device, "using PIO mode set by BIOS\n");
+        scp->mode[ATA_DEV(device)] = ATA_PIO;
+    }
 }
 
 int32_t

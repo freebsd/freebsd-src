@@ -63,7 +63,7 @@ void astdetach(struct atapi_softc *);
 MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
 /* defines */
-#define ATAPI_MAX_RETRIES  	5
+#define ATAPI_MAX_RETRIES  	3
 #define ATP_PARAM		ATA_PARAM(atp->controller, atp->unit)
 
 void
@@ -97,7 +97,7 @@ atapi_attach(struct ata_softc *scp, int32_t device)
 #endif
 	/* set PIO mode */
 	ata_dmainit(atp->controller, atp->unit, 
-		    (ata_pmode(ATP_PARAM)<0) ? 0 : ata_pmode(ATP_PARAM), -1,-1);
+		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 
     switch (ATP_PARAM->device_type) {
 #if NATAPICD > 0
@@ -233,6 +233,7 @@ atapi_transfer(struct atapi_request *request)
 	atp->flags &= ~ATAPI_F_DSC_USED;
 
     /* if DMA enabled setup DMA hardware */
+    request->flags &= ~ATPR_F_DMA_USED; 
     if ((atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) &&
 	(request->ccb[0] == ATAPI_READ ||
 	 request->ccb[0] == ATAPI_READ_BIG ||
@@ -241,18 +242,18 @@ atapi_transfer(struct atapi_request *request)
 	  !(atp->controller->flags & ATA_ATAPI_DMA_RO))) &&
 	!ata_dmasetup(atp->controller, atp->unit,
 		      (void *)request->data, request->bytecount,
-		      request->flags & A_READ)) {
-	atp->flags |= ATAPI_F_DMA_USED;
+		      request->flags & ATPR_F_READ)) {
+	request->flags |= ATPR_F_DMA_USED;
     }
 
     /* start ATAPI operation */
     if (ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
 		    request->bytecount, 0, 0, 0, 
-		    (atp->flags & ATAPI_F_DMA_USED) ? ATA_F_DMA : 0,
+		    (request->flags & ATPR_F_DMA_USED) ? ATA_F_DMA : 0,
 		    ATA_IMMEDIATE))
 	printf("%s: failure to send ATAPI packet command\n", atp->devname);
 
-    if (atp->flags & ATAPI_F_DMA_USED)
+    if (request->flags & ATPR_F_DMA_USED)
 	ata_dmastart(atp->controller);
 
     /* command interrupt device ? just return */
@@ -307,15 +308,15 @@ atapi_interrupt(struct atapi_request *request)
 	return ATA_OP_CONTINUES;
     }
 
-    if (atp->flags & ATAPI_F_DMA_USED) {
+    if (request->flags & ATPR_F_DMA_USED) {
 	dma_stat = ata_dmadone(atp->controller);
-	atp->flags &= ~ATAPI_F_DMA_USED; 
 	if ((atp->controller->status & (ATA_S_ERROR | ATA_S_DWF)) ||
 	    dma_stat & ATA_BMSTAT_ERROR) {
 	    request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 	}
 	else {
 	    request->result = 0;
+	    request->donecount = request->bytecount;
 	    request->bytecount = 0;
 	}
     }
@@ -325,7 +326,7 @@ atapi_interrupt(struct atapi_request *request)
 
 	switch (reason) {
 	case ATAPI_P_WRITE:
-	    if (request->flags & A_READ) {
+	    if (request->flags & ATPR_F_READ) {
 		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 		printf("%s: %s trying to write on read buffer\n",
 		       atp->devname, atapi_cmd2str(atp->cmd));
@@ -335,7 +336,7 @@ atapi_interrupt(struct atapi_request *request)
 	    return ATA_OP_CONTINUES;
 	
 	case ATAPI_P_READ:
-	    if (!(request->flags & A_READ)) {
+	    if (!(request->flags & ATPR_F_READ)) {
 		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 		printf("%s: %s trying to read on write buffer\n",
 		       atp->devname, atapi_cmd2str(atp->cmd));
@@ -346,7 +347,7 @@ atapi_interrupt(struct atapi_request *request)
 
 	case ATAPI_P_DONEDRQ:
 	    printf("%s: %s DONEDRQ\n", atp->devname, atapi_cmd2str(atp->cmd));
-	    if (request->flags & A_READ)
+	    if (request->flags & ATPR_F_READ)
 		atapi_read(request, length);
 	    else
 		atapi_write(request, length);
@@ -376,7 +377,7 @@ op_finished:
 	request->ccb[0] = ATAPI_REQUEST_SENSE;
 	request->ccb[4] = sizeof(struct atapi_reqsense);
 	request->bytecount = sizeof(struct atapi_reqsense);
-	request->flags = A_READ;
+	request->flags = ATPR_F_READ;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
     else {
@@ -432,12 +433,16 @@ void
 atapi_reinit(struct atapi_softc *atp)
 {
     /* reinit device parameters */
-    ata_dmainit(atp->controller, atp->unit,
-		(ata_pmode(ATP_PARAM) < 0) ?
-		(ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
-		(ata_wmode(ATP_PARAM) < 0) ? 
-		(ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
-		ata_umode(ATP_PARAM));
+     if (atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA)
+	ata_dmainit(atp->controller, atp->unit,
+		    (ata_pmode(ATP_PARAM) < 0) ?
+		    (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+		    (ata_wmode(ATP_PARAM) < 0) ? 
+		    (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+		    ata_umode(ATP_PARAM));
+    else
+	ata_dmainit(atp->controller, atp->unit, 
+		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);
 }
 
 int32_t
@@ -500,6 +505,7 @@ atapi_read(struct atapi_request *request, int32_t length)
     }
     *buffer += size;
     request->bytecount -= size;
+    request->donecount += size;
 }
 
 static void
@@ -528,6 +534,7 @@ atapi_write(struct atapi_request *request, int32_t length)
     }
     *buffer += size;
     request->bytecount -= size;
+    request->donecount += size;
 }
 
 static void 
@@ -540,8 +547,15 @@ atapi_timeout(struct atapi_request *request)
     printf("%s: %s command timeout - resetting\n", 
 	   atp->devname, atapi_cmd2str(request->ccb[0]));
 
-    if (request->flags & ATAPI_F_DMA_USED)
+    if (request->flags & ATPR_F_DMA_USED) {
 	ata_dmadone(atp->controller);
+	if (request->retries == ATAPI_MAX_RETRIES) {
+	    ata_dmainit(atp->controller, atp->unit, 
+		        (ata_pmode(ATP_PARAM)<0)?0:ata_pmode(ATP_PARAM),-1,-1);
+	    printf("%s: trying fallback to PIO mode\n", atp->devname);
+	    request->retries = 0;
+	}
+    }
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < ATAPI_MAX_RETRIES)

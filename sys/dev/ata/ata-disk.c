@@ -292,7 +292,7 @@ addump(dev_t dev)
 
 	while (request.bytecount > 0) {
 	    ad_transfer(&request);
-	    if (request.flags & AR_F_ERROR)
+	    if (request.flags & ADR_F_ERROR)
 		return EIO;
 	    request.donecount += request.currentsize;
 	    request.bytecount -= request.currentsize;
@@ -341,7 +341,7 @@ ad_start(struct ad_softc *adp)
     request->blockaddr = bp->b_pblkno;
     request->bytecount = bp->b_bcount;
     request->data = bp->b_data;
-    request->flags = (bp->b_flags & B_READ) ? AR_F_READ : 0;
+    request->flags = (bp->b_flags & B_READ) ? ADR_F_READ : 0;
 
     /* remove from drive queue */
     bufq_remove(&adp->queue, bp); 
@@ -402,23 +402,23 @@ ad_transfer(struct ad_request *request)
 	devstat_start_transaction(&adp->stats);
 
 	/* does this drive & transfer work with DMA ? */
-	request->flags &= ~AR_F_DMA_USED;
+	request->flags &= ~ADR_F_DMA_USED;
 	if ((adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA) &&
 	    !ata_dmasetup(adp->controller, adp->unit, 
 			  (void *)request->data, request->bytecount,
-			  (request->flags & AR_F_READ))) {
-	    request->flags |= AR_F_DMA_USED;
-	    cmd = request->flags & AR_F_READ ? ATA_C_READ_DMA : ATA_C_WRITE_DMA;
+			  (request->flags & ADR_F_READ))) {
+	    request->flags |= ADR_F_DMA_USED;
+	    cmd = request->flags&ADR_F_READ ? ATA_C_READ_DMA : ATA_C_WRITE_DMA;
 	    request->currentsize = request->bytecount;
 	}
 
 	/* does this drive support multi sector transfers ? */
 	else if (request->currentsize > DEV_BSIZE)
-	    cmd = request->flags & AR_F_READ?ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
+	    cmd = request->flags&ADR_F_READ ? ATA_C_READ_MUL : ATA_C_WRITE_MUL;
 
 	/* just plain old single sector transfer */
 	else
-	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
+	    cmd = request->flags&ADR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
@@ -427,7 +427,7 @@ ad_transfer(struct ad_request *request)
 	}
 
 	/* if this is a DMA transfer, start it, return and wait for interrupt */
-	if (request->flags & AR_F_DMA_USED) {
+	if (request->flags & ADR_F_DMA_USED) {
 	    ata_dmastart(adp->controller);
 	    return;
 	}
@@ -437,7 +437,7 @@ ad_transfer(struct ad_request *request)
     request->currentsize = min(request->bytecount, adp->transfersize);
 
     /* if this is a PIO read operation, return and wait for interrupt */
-    if (request->flags & AR_F_READ)
+    if (request->flags & ADR_F_READ)
 	return;
 
     /* ready to write PIO data ? */
@@ -463,7 +463,7 @@ ad_interrupt(struct ad_request *request)
     int32_t dma_stat = 0;
 
     /* finish DMA transfer */
-    if (request->flags & AR_F_DMA_USED)
+    if (request->flags & ADR_F_DMA_USED)
 	dma_stat = ata_dmadone(adp->controller);
 
     /* get drive status */
@@ -476,15 +476,15 @@ ad_interrupt(struct ad_request *request)
 
     /* did any real errors happen ? */
     if ((adp->controller->status & ATA_S_ERROR) ||
-	((request->flags & AR_F_DMA_USED) && (dma_stat & ATA_BMSTAT_ERROR))) {
+	((request->flags & ADR_F_DMA_USED) && (dma_stat & ATA_BMSTAT_ERROR))) {
 oops:
 	printf("ad%d: %s %s ERROR blk# %d", adp->lun,
 	       (adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "HARD",
-	       (request->flags & AR_F_READ) ? "READ" : "WRITE",
+	       (request->flags & ADR_F_READ) ? "READ" : "WRITE",
 	       request->blockaddr + (request->donecount / DEV_BSIZE)); 
 
 	/* if this is a UDMA CRC error, reinject request */
-	if (request->flags & AR_F_DMA_USED &&
+	if (request->flags & ADR_F_DMA_USED &&
 	    adp->controller->error & ATA_E_ICRC) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 
@@ -500,26 +500,26 @@ oops:
 	}
 
 	/* if using DMA, try once again in PIO mode */
-	if (request->flags & AR_F_DMA_USED) {
+	if (request->flags & ADR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
-	    request->flags |= AR_F_FORCE_PIO;
+	    request->flags |= ADR_F_FORCE_PIO;
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
 
-	request->flags |= AR_F_ERROR;
+	request->flags |= ADR_F_ERROR;
 	printf(" status=%02x error=%02x\n", 
 	       adp->controller->status, adp->controller->error);
     }
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
-    if (request->flags & AR_F_FORCE_PIO)
+    if (request->flags & ADR_F_FORCE_PIO)
 	printf("ad%d: DMA problem fallback to PIO mode\n", adp->lun);
 
     /* if this was a PIO read operation, get the data */
-    if (!(request->flags & AR_F_DMA_USED) &&
-	((request->flags & (AR_F_READ | AR_F_ERROR)) == AR_F_READ)) {
+    if (!(request->flags & ADR_F_DMA_USED) &&
+	((request->flags & (ADR_F_READ | ADR_F_ERROR)) == ADR_F_READ)) {
 
 	/* ready to receive data? */
 	if ((adp->controller->status & (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
@@ -545,7 +545,7 @@ oops:
     }
 
     /* finish up transfer */
-    if (request->flags & AR_F_ERROR) {
+    if (request->flags & ADR_F_ERROR) {
 	request->bp->b_error = EIO;
 	request->bp->b_flags |= B_ERROR;
     } 
@@ -591,9 +591,9 @@ ad_timeout(struct ad_request *request)
 
     adp->controller->running = NULL;
     printf("ad%d: %s command timeout - resetting\n",
-	   adp->lun, (request->flags & AR_F_READ) ? "READ" : "WRITE");
+	   adp->lun, (request->flags & ADR_F_READ) ? "READ" : "WRITE");
 
-    if (request->flags & AR_F_DMA_USED) {
+    if (request->flags & ADR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
         if (request->retries == AD_MAX_RETRIES) {
 	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
