@@ -493,8 +493,8 @@ cam_periph_lock(struct cam_periph *periph, int priority)
 	/*
 	 * Increment the reference count on the peripheral
 	 * while we wait for our lock attempt to succeed
-	 * to ensure the peripheral doesn't dissappear
-	 * out from under us while we sleep.
+	 * to ensure the peripheral doesn't disappear out
+	 * from under us while we sleep.
 	 */
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return(ENXIO);
@@ -1514,7 +1514,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	status &= CAM_STATUS_MASK;
-	relsim_flags = 0;
+	openings = relsim_flags = 0;
 
 	switch (status) {
 	case CAM_REQ_CMP:
@@ -1532,6 +1532,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_AUTOSENSE_FAIL:
 		xpt_print_path(ccb->ccb_h.path);
 		printf("AutoSense Failed\n");
+		error = EIO;	/* we have to kill the command */
+		break;
 	case CAM_REQ_CMP_ERR:
 	case CAM_CMD_TIMEOUT:
 	case CAM_UNEXP_BUSFREE:
