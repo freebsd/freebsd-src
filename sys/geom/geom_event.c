@@ -153,6 +153,7 @@ g_do_event(struct g_event *ep)
 	switch (ep->event) {
 	case EV_CALL_ME:
 		ep->func(ep->arg);
+		g_topology_assert();
 		break;	
 	case EV_NEW_CLASS:
 		mp2 = ep->class;
