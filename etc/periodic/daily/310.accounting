@@ -24,16 +24,20 @@ case "$daily_accounting_enable" in
 
 	    cd /var/account
 	    rc=0
-
-	    rm -f acct.3.gz acct.3 || rc=3
-	    [ -f acct.2.gz ] && { mv -f acct.2.gz acct.3.gz || rc=3; }
-	    [ -f acct.2 ] &&    { mv -f acct.2 acct.3 || rc=3; }
-	    [ -f acct.1.gz ] && { mv -f acct.1.gz acct.2.gz || rc=3; }
-	    [ -f acct.1 ] &&    { mv -f acct.1 acct.2 || rc=3; }
-	    [ -f acct.0.gz ] && { mv -f acct.0.gz acct.1.gz || rc=3; }
-	    [ -f acct.0 ] &&    { mv -f acct.0 acct.1 || rc=3; }
+	
+	    n=$daily_accounting_save
+	    rm -f acct.$n.gz acct.$n || rc=3
+	    m=$n
+	    n=$(($n - 1))
+	    while [ $n -ge 0 ]
+	    do
+		[ -f acct.$n.gz ] && { mv -f acct.$n.gz acct.$m.gz || rc=3; }
+		[ -f acct.$n ] &&    { mv -f acct.$n acct.$m || rc=3; }
+		m=$n
+		n=$(($n - 1))
+	    done
 	    cp -pf acct acct.0 || rc=3
-	    sa -s >/dev/null || rc=3
+	    sa -s $daily_accounting_flags || rc=3
 
 	    case "$daily_accounting_compress" in
 		[Yy][Ee][Ss])
