@@ -30,15 +30,19 @@
 #define _MACHINE_KDB_H_
 
 #include <machine/cpufunc.h>
+#include <machine/frame.h>
+#include <machine/psl.h>
 
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {
+	kdb_frame->srr1 &= ~PSL_SE;
 }
 
 static __inline void
 kdb_cpu_set_singlestep(void)
 {
+	kdb_frame->srr1 |= PSL_SE;
 }
 
 static __inline void
