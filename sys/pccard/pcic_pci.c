@@ -47,7 +47,7 @@ static void  pcic_pci_attach(pcici_t, int);
 static void  pd6832_legacy_init(pcici_t tag, int unit);
 
 static struct pci_device pcic_pci_driver = {
-	"pcic",
+	"pcic-pci",
 	pcic_pci_probe,
 	pcic_pci_attach,
 	&pcic_pci_count,
