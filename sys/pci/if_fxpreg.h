@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.3.2.3 1997/03/21 08:01:52 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.11 1997/09/29 11:27:42 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -33,19 +33,26 @@
 #define FXP_PCI_MMBA	0x10
 #define FXP_PCI_IOBA	0x14
 
-struct fxp_csr {
-	volatile u_int8_t	:2,
-				scb_rus:4,
-				scb_cus:2;
-	volatile u_int8_t	scb_statack;
-	volatile u_int8_t	scb_command;
-	volatile u_int8_t	scb_intrcntl;
-	volatile u_int32_t	scb_general;
-	volatile u_int32_t	port;
-	volatile u_int16_t	flash_control;
-	volatile u_int16_t	eeprom_control;
-	volatile u_int32_t	mdi_control;
-};
+/*
+ * Control/status registers.
+ */
+#define	FXP_CSR_SCB_RUSCUS	0	/* scb_rus/scb_cus (1 byte) */
+#define	FXP_CSR_SCB_STATACK	1	/* scb_statack (1 byte) */
+#define	FXP_CSR_SCB_COMMAND	2	/* scb_command (1 byte) */
+#define	FXP_CSR_SCB_INTRCNTL	3	/* scb_intrcntl (1 byte) */
+#define	FXP_CSR_SCB_GENERAL	4	/* scb_general (4 bytes) */
+#define	FXP_CSR_PORT		8	/* port (4 bytes) */
+#define	FXP_CSR_FLASHCONTROL	12	/* flash control (2 bytes) */
+#define	FXP_CSR_EEPROMCONTROL	14	/* eeprom control (2 bytes) */
+#define	FXP_CSR_MDICONTROL	16	/* mdi control (4 bytes) */
+
+/*
+ * FOR REFERENCE ONLY, the old definition of FXP_CSR_SCB_RUSCUS:
+ *
+ *	volatile u_int8_t	:2,
+ *				scb_rus:4,
+ *				scb_cus:2;
+ */
 
 #define FXP_PORT_SOFTWARE_RESET		0
 #define FXP_PORT_SELFTEST		1
@@ -71,7 +78,6 @@ struct fxp_csr {
 #define FXP_SCB_STATACK_FR		0x40
 #define FXP_SCB_STATACK_CXTNO		0x80
 
-#define FXP_SCB_COMMAND_MASK		0xff
 #define FXP_SCB_COMMAND_CU_NOP		0x00
 #define FXP_SCB_COMMAND_CU_START	0x10
 #define FXP_SCB_COMMAND_CU_RESUME	0x20
@@ -92,11 +98,13 @@ struct fxp_csr {
  * Command block definitions
  */
 struct fxp_cb_nop {
+	void *fill[2];
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
 };
 struct fxp_cb_ias {
+	void *fill[2];
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
@@ -104,6 +112,7 @@ struct fxp_cb_ias {
 };
 /* I hate bit-fields :-( */
 struct fxp_cb_config {
+	void *fill[2];
 	volatile u_int16_t	cb_status;
 	volatile u_int16_t	cb_command;
 	volatile u_int32_t	link_addr;
@@ -161,12 +170,38 @@ struct fxp_cb_config {
 				mc_all:1,
 				:4;
 };
+
+#define MAXMCADDR 80
+struct fxp_cb_mcs {
+	struct fxp_cb_tx *next;
+	struct mbuf *mb_head;
+	volatile u_int16_t cb_status;
+	volatile u_int16_t cb_command;
+	volatile u_int32_t link_addr;
+	volatile u_int16_t mc_cnt;
+	volatile u_int8_t mc_addr[MAXMCADDR][6];
+};
+
+/*
+ * Number of DMA segments in a TxCB. Note that this is carefully
+ * chosen to make the total struct size an even power of two. It's
+ * critical that no TxCB be split across a page boundry since
+ * no attempt is made to allocate physically contiguous memory.
+ * 
+ */
+#ifdef __alpha__ /* XXX - should be conditional on pointer size */
+#define FXP_NTXSEG      28
+#else
+#define FXP_NTXSEG      29
+#endif
+
 struct fxp_tbd {
 	volatile u_int32_t tb_addr;
 	volatile u_int32_t tb_size;
 };
-
 struct fxp_cb_tx {
+	struct fxp_cb_tx *next;
+	struct mbuf *mb_head;
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
@@ -177,9 +212,7 @@ struct fxp_cb_tx {
 	/*
 	 * The following isn't actually part of the TxCB.
 	 */
-	volatile struct fxp_tbd tbd[29];
-	struct mbuf *mb_head;
-	struct fxp_cb_tx *next;
+	volatile struct fxp_tbd tbd[FXP_NTXSEG];
 };
 
 /*
@@ -193,7 +226,7 @@ struct fxp_cb_tx {
 #define FXP_CB_COMMAND_NOP	0x0
 #define FXP_CB_COMMAND_IAS	0x1
 #define FXP_CB_COMMAND_CONFIG	0x2
-#define FXP_CB_COMMAND_MAS	0x3
+#define FXP_CB_COMMAND_MCAS	0x3
 #define FXP_CB_COMMAND_XMIT	0x4
 #define FXP_CB_COMMAND_RESRV	0x5
 #define FXP_CB_COMMAND_DUMP	0x6
