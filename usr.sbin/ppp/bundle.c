@@ -1160,7 +1160,8 @@ bundle_ShowStatus(struct cmdargs const *arg)
                   (secs / 60) % 60, secs % 60);
   }
   prompt_Printf(arg->prompt, "\n Queued:        %lu of %u\n",
-                ip_QueueLen(&arg->bundle->ncp.ipcp), arg->bundle->cfg.ifqueue);
+                (unsigned long)ip_QueueLen(&arg->bundle->ncp.ipcp),
+                arg->bundle->cfg.ifqueue);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
