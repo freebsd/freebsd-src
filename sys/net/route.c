@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.50 1998/04/17 22:36:57 des Exp $
+ *	$Id: route.c,v 1.51 1999/01/27 22:42:14 dillon Exp $
  */
 
 #include "opt_inet.h"
@@ -43,6 +43,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
+#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -1062,3 +1063,5 @@ rtinit(ifa, cmd, flags)
 	}
 	return (error);
 }
+
+SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, route_init, 0);
