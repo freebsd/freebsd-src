@@ -75,9 +75,7 @@ static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollscan __P((struct thread *, struct pollfd *, u_int));
-static int	pollholddrop __P((struct thread *, struct pollfd *, u_int, int));
 static int	selscan __P((struct thread *, fd_mask **, fd_mask **, int));
-static int	selholddrop __P((struct thread *, fd_mask *, fd_mask *, int, int));
 static int	dofileread __P((struct thread *, struct file *, int, void *,
 		    size_t, off_t, int));
 static int	dofilewrite __P((struct thread *, struct file *, int,
@@ -729,7 +727,7 @@ select(td, uap)
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask s_heldbits[howmany(2048, NFDBITS)];
-	fd_mask *ibits[3], *obits[3], *selbits, *sbp, *heldbits, *hibits, *hobits;
+	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
 	int ncoll, error, timo, i;
 	u_int nbufbytes, ncpbytes, nfdbits;
@@ -761,11 +759,6 @@ select(td, uap)
 		selbits = &s_selbits[0];
 	else
 		selbits = malloc(nbufbytes, M_SELECT, M_WAITOK);
-	if (2 * ncpbytes <= sizeof s_heldbits) {
-		bzero(s_heldbits, sizeof(s_heldbits));
-		heldbits = &s_heldbits[0];
-	} else
-		heldbits = malloc(2 * ncpbytes, M_SELECT, M_WAITOK | M_ZERO);
 
 	/*
 	 * Assign pointers into the bit buffers and fetch the input bits.
@@ -773,8 +766,6 @@ select(td, uap)
 	 * together.
 	 */
 	sbp = selbits;
-	hibits = heldbits + ncpbytes / sizeof *heldbits;
-	hobits = heldbits;
 #define	getbits(name, x) \
 	do {								\
 		if (uap->name == NULL)					\
@@ -786,10 +777,6 @@ select(td, uap)
 			error = copyin(uap->name, ibits[x], ncpbytes);	\
 			if (error != 0)					\
 				goto done_noproclock;			\
-			for (i = 0;					\
-			     i < ncpbytes / sizeof ibits[i][0];		\
-			     i++)					\
-				hibits[i] |= ibits[x][i];		\
 		}							\
 	} while (0)
 	getbits(in, 0);
@@ -814,7 +801,6 @@ select(td, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
-	selholddrop(td, hibits, hobits, uap->nd, 1);
 	timo = 0;
 	PROC_LOCK(td->td_proc);
 retry:
@@ -870,7 +856,6 @@ done:
 	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
-	selholddrop(td, hibits, hobits, uap->nd, 0);
 done_noproclock:
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
@@ -890,63 +875,9 @@ done_noproclock:
 	}
 	if (selbits != &s_selbits[0])
 		free(selbits, M_SELECT);
-	if (heldbits != &s_heldbits[0])
-		free(heldbits, M_SELECT);
 
 	mtx_unlock(&Giant);
 	return (error);
-}
-
-/*
- * Used to hold then release a group of fds for select(2).
- * Hold (hold == 1) or release (hold == 0) a group of filedescriptors.
- * if holding then use ibits setting the bits in obits, otherwise use obits.
- */
-static int
-selholddrop(td, ibits, obits, nfd, hold)
-	struct thread *td;
-	fd_mask *ibits, *obits;
-	int nfd, hold;
-{
-	struct filedesc *fdp = td->td_proc->p_fd;
-	int i, fd;
-	fd_mask bits;
-	struct file *fp;
-
-	FILEDESC_LOCK(fdp);
-	for (i = 0; i < nfd; i += NFDBITS) {
-		if (hold)
-			bits = ibits[i/NFDBITS];
-		else
-			bits = obits[i/NFDBITS];
-		/* ffs(int mask) not portable, fd_mask is long */
-		for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
-			if (!(bits & 1))
-				continue;
-			fp = fdp->fd_ofiles[fd];
-			if (fp == NULL) {
-				FILEDESC_UNLOCK(fdp);
-				return (EBADF);
-			}
-			if (hold) {
-				fhold(fp);
-				obits[(fd)/NFDBITS] |=
-				    ((fd_mask)1 << ((fd) % NFDBITS));
-			} else {
-				/* XXX: optimize by making a special
-				 * version of fdrop that only unlocks
-				 * the filedesc if needed?  This would
-				 * redcuce the number of lock/unlock
-				 * pairs by quite a bit.
-				 */
-				FILEDESC_UNLOCK(fdp);
-				fdrop(fp, td);
-				FILEDESC_LOCK(fdp);
-			}
-		}
-	}
-	FILEDESC_UNLOCK(fdp);
-	return (0);
 }
 
 static int
@@ -961,7 +892,9 @@ selscan(td, ibits, obits, nfd)
 	int n = 0;
 	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
 	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
+	struct filedesc *fdp = td->td_proc->p_fd;
 
+	FILEDESC_LOCK(fdp);
 	for (msk = 0; msk < 3; msk++) {
 		if (ibits[msk] == NULL)
 			continue;
@@ -971,17 +904,19 @@ selscan(td, ibits, obits, nfd)
 			for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
 				if (!(bits & 1))
 					continue;
-				if (fget(td, fd, &fp))
+				if ((fp = fget_locked(fdp, fd)) == NULL) {
+					FILEDESC_UNLOCK(fdp);
 					return (EBADF);
+				}
 				if (fo_poll(fp, flag[msk], fp->f_cred, td)) {
 					obits[msk][(fd)/NFDBITS] |=
 					    ((fd_mask)1 << ((fd) % NFDBITS));
 					n++;
 				}
-				fdrop(fp, td);
 			}
 		}
 	}
+	FILEDESC_UNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }
@@ -1010,8 +945,6 @@ poll(td, uap)
 	int ncoll, error = 0, timo;
 	u_int nfds;
 	size_t ni;
-	struct pollfd p_heldbits[32];
-	struct pollfd *heldbits;
 
 	nfds = SCARG(uap, nfds);
 
@@ -1033,16 +966,9 @@ poll(td, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
-	if (ni > sizeof(p_heldbits))
-		heldbits = malloc(ni, M_TEMP, M_WAITOK);
-	else {
-		bzero(p_heldbits, sizeof(p_heldbits));
-		heldbits = p_heldbits;
-	}
 	error = copyin(SCARG(uap, fds), bits, ni);
 	if (error)
 		goto done_noproclock;
-	bcopy(bits, heldbits, ni);
 	if (SCARG(uap, timeout) != INFTIM) {
 		atv.tv_sec = SCARG(uap, timeout) / 1000;
 		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
@@ -1056,7 +982,6 @@ poll(td, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
-	pollholddrop(td, heldbits, nfds, 1);
 	timo = 0;
 	PROC_LOCK(td->td_proc);
 retry:
@@ -1110,7 +1035,6 @@ done:
 	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
-	pollholddrop(td, heldbits, nfds, 0);
 done_noproclock:
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
@@ -1125,44 +1049,9 @@ done_noproclock:
 out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
-	if (ni > sizeof(p_heldbits))
-		free(heldbits, M_TEMP);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
-}
-
-static int
-pollholddrop(td, fds, nfd, hold)
-	struct thread *td;
-	struct pollfd *fds;
-	u_int nfd;
-	int hold;
-{
-	register struct filedesc *fdp = td->td_proc->p_fd;
-	int i;
-	struct file *fp;
-
-	FILEDESC_LOCK(fdp);
-	for (i = 0; i < nfd; i++, fds++) {
-		if (0 <= fds->fd && fds->fd < fdp->fd_nfiles) {
-			fp = fdp->fd_ofiles[fds->fd];
-			if (hold) {
-				if (fp != NULL) {
-					fhold(fp);
-					fds->revents = 1;
-				} else
-					fds->revents = 0;
-			} else if(fp != NULL && fds->revents) {
-				FILE_LOCK(fp);
-				FILEDESC_UNLOCK(fdp);
-				fdrop_locked(fp, td);
-				FILEDESC_LOCK(fdp);
-			}
-		}
-	}
-	FILEDESC_UNLOCK(fdp);
-	return (0);
 }
 
 static int
@@ -1176,18 +1065,15 @@ pollscan(td, fds, nfd)
 	struct file *fp;
 	int n = 0;
 
+	FILEDESC_LOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
-		FILEDESC_LOCK(fdp);
 		if (fds->fd >= fdp->fd_nfiles) {
 			fds->revents = POLLNVAL;
 			n++;
-			FILEDESC_UNLOCK(fdp);
 		} else if (fds->fd < 0) {
 			fds->revents = 0;
-			FILEDESC_UNLOCK(fdp);
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
-			FILEDESC_UNLOCK(fdp);
 			if (fp == NULL) {
 				fds->revents = POLLNVAL;
 				n++;
@@ -1203,6 +1089,7 @@ pollscan(td, fds, nfd)
 			}
 		}
 	}
+	FILEDESC_UNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }
