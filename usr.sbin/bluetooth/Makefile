@@ -3,14 +3,12 @@
 
 SUBDIR=	\
 	bt3cfw		\
+	bcmfw		\
 	hccontrol	\
 	hcsecd		\
 	hcseriald	\
 	l2control	\
 	l2ping		\
 	rfcomm_pppd
-#  Add this when the legal question is answered
-#	bcmfw		\
-#
 .include <bsd.subdir.mk>
 
