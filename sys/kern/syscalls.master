@@ -541,3 +541,4 @@
 			    int iovcnt); }
 373	STD	BSD	{ int extattr_delete_fd(int fd, int attrnamespace, \
 			    const char *attrname); }
+374	STD	BSD	{ int __setugid(int flag); }
