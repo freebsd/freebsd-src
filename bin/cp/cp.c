@@ -252,7 +252,7 @@ main(int argc, char *argv[])
 	exit (copy(argv, type, fts_options));
 }
 
-int
+static int
 copy(char *argv[], enum op type, int fts_options)
 {
 	struct stat to_stat;
@@ -484,7 +484,7 @@ copy(char *argv[], enum op type, int fts_options)
  *	parent directory, whereas directories tend not to be.  Copying the
  *	files first reduces seeking.
  */
-int
+static int
 mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 {
 	int a_info, b_info;
