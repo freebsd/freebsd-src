@@ -1606,8 +1606,6 @@ vm_object_in_map( object)
 		return 1;
 	if( _vm_object_in_map( buffer_map, object, 0))
 		return 1;
-	if( _vm_object_in_map( phys_map, object, 0))
-		return 1;
 	if( _vm_object_in_map( mb_map, object, 0))
 		return 1;
 	return 0;
