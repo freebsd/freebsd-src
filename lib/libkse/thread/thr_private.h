@@ -1283,7 +1283,7 @@ void	_thread_cancellation_point(void);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
-int	__sys_aio_suspend(const struct aiocb **, int, const struct timespec);
+int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 #endif
 
 /* #include <signal.h> */
