@@ -3,6 +3,7 @@
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  *	$NetBSD: ohci.c,v 1.141 2003/09/10 20:08:29 mycroft Exp $
+ *	$NetBSD: ohci.c,v 1.142 2003/10/11 03:04:26 toshii Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1180,7 +1181,7 @@ ohci_intr1(ohci_softc_t *sc)
 		}
 		sc->sc_hcca->hcca_done_head = 0;
 	} else
-		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS);
+		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS) & ~OHCI_WDH;
 
 	if (intrs == 0)		/* nothing to be done (PCI shared interrupt) */
 		return (0);
