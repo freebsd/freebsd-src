@@ -135,7 +135,7 @@ malloc_type_t M_FOOBUF = {
 /* sys/something/foo_subr.c */
 
 ...
-MALLOC(buf, sizeof *buf, struct foo_buf *, M_FOOBUF, M_NOWAIT);
+MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 
 .Be
 .Sh RETURN VALUES
