@@ -63,7 +63,7 @@ parse.h parse.c:	parse.y
 	mv y.tab.c parse.c
 	mv y.tab.h parse.h
 
-lex.o:		lex.l
+lex.o:		lex.l parse.h
 
 print_version.o: print_version.h print_version.c roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/roken/print_version.c
