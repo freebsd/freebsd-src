@@ -378,6 +378,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
+	inp->inp_inc.inc_isipv6 = 1;
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output(tp);
