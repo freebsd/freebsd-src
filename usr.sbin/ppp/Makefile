@@ -39,10 +39,6 @@ CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
 LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}
-.if defined(RSAREF) && ${RSAREF} == YES
-LDADD+=	-lRSAglue
-DPADD+= ${LIBRSAGLUE}
-.endif
 .endif
 
 .if defined(NORADIUS)
