@@ -873,8 +873,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</question>
 
 	<answer>
-	  <para>At the moment, &os; cannot run AlphaLinux.  Support is
-	  currently being worked on.</para>
+	  <para>&os; can run AlphaLinux binaries with the assistance
+	  of the <port>emulators/linux_base</port>
+	  port/package.</para>
 	</answer>
       </qandaentry>
 
