@@ -67,6 +67,8 @@
 #define HIFN_3DES_KEY_LENGTH		24
 #define HIFN_MAX_CRYPT_KEY_LENGTH	HIFN_3DES_KEY_LENGTH
 #define HIFN_IV_LENGTH			8
+#define	HIFN_AES_IV_LENGTH		16
+#define HIFN_MAX_IV_LENGTH		HIFN_AES_IV_LENGTH
 
 /*
  *  Length values for authentication
@@ -111,7 +113,7 @@ struct hifn_dma {
 struct hifn_session {
 	int hs_state;
 	int hs_prev_op; /* XXX collapse into hs_flags? */
-	u_int8_t hs_iv[HIFN_IV_LENGTH];
+	u_int8_t hs_iv[HIFN_MAX_IV_LENGTH];
 };
 
 #define	HIFN_RING_SYNC(sc, r, i, f)					\
@@ -165,7 +167,9 @@ struct hifn_softc {
 	int			sc_flags;
 #define	HIFN_HAS_RNG		0x1	/* includes random number generator */
 #define	HIFN_HAS_PUBLIC		0x2	/* includes public key support */
-#define	HIFN_IS_7811		0x4	/* Hifn 7811 part */
+#define	HIFN_HAS_AES		0x4	/* includes AES support */
+#define	HIFN_IS_7811		0x8	/* Hifn 7811 part */
+#define	HIFN_IS_7956		0x10	/* Hifn 7956/7955 don't have SDRAM */
 	struct callout		sc_rngto;	/* for polling RNG */
 	struct callout		sc_tickto;	/* for managing DMA */
 	int			sc_rngfirst;
@@ -262,7 +266,7 @@ struct hifn_operand {
 struct hifn_command {
 	u_int16_t session_num;
 	u_int16_t base_masks, cry_masks, mac_masks;
-	u_int8_t iv[HIFN_IV_LENGTH], *ck, mac[HIFN_MAC_KEY_LENGTH];
+	u_int8_t iv[HIFN_MAX_IV_LENGTH], *ck, mac[HIFN_MAC_KEY_LENGTH];
 	int cklen;
 	int sloplen, slopidx;
 
