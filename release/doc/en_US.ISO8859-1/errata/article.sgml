@@ -149,6 +149,10 @@
     <para>&man.sendmail.8; has a local root vulnerability.  For more
     details and patch information, see security advisory
     FreeBSD-SA-01:57.</para>
+
+    <para>&man.lpd.8; contained a remotely-exploitable buffer
+    overflow.  For more details, and a fix for this problem, see
+    security advisory FreeBSD-SA-01:58.</para>
   </sect1>
 
   <sect1>
