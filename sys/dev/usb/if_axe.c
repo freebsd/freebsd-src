@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
-#include "usbdevs.h"
+#include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_ethersubr.h>
 
 #include <dev/mii/mii.h>
@@ -145,6 +145,7 @@ Static int axe_ifmedia_upd(struct ifnet *);
 Static void axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 Static void axe_setmulti(struct axe_softc *);
+Static uint32_t axe_mchash(const uint8_t *);
 
 Static device_method_t axe_methods[] = {
 	/* Device interface */
@@ -196,7 +197,8 @@ axe_cmd(struct axe_softc *sc, int cmd, int index, int val, void *buf)
 	USETW(req.wIndex, index);
 	USETW(req.wLength, AXE_CMD_LEN(cmd));
 
-	err = usbd_do_request(sc->axe_udev, &req, buf);
+	err = usbd_do_request_flags(sc->axe_udev, &req,
+	    buf, USBD_NO_TSLEEP, NULL, USBD_DEFAULT_TIMEOUT);
 
 	if (err)
 		return(-1);
@@ -317,6 +319,27 @@ axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
         return;
 }
 
+#define AXE_POLY	0x04c11db6
+
+Static uint32_t
+axe_mchash(const uint8_t *buf)
+{
+	size_t i;
+	uint32_t crc, carry;
+	int bit;
+	uint8_t data;
+	crc = 0xffffffff;       /* initial value */
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
+			crc <<= 1;
+			if (carry)
+				crc = (crc ^ AXE_POLY) | carry;
+		}
+	}
+	return (crc);
+}
+
 Static void
 axe_setmulti(struct axe_softc *sc)
 {
@@ -347,8 +370,8 @@ axe_setmulti(struct axe_softc *sc)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
+		h = axe_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr))
+		    >> 26;
 		hashtbl[h / 8] |= 1 << (h % 8);
 	}
 
@@ -481,15 +504,21 @@ USB_ATTACH(axe)
 	 */
 	sc->axe_phyaddrs[0] = sc->axe_phyaddrs[1] = 0xFF;
 
+	/*
+	 * An ASIX Electronics chip was detected.  Inform the world.
+	 */
+	printf("axe%d: Ethernet address: %6D\n", sc->axe_unit, eaddr, ":");
+
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
-	if_initname(ifp, "axe", sc->axe_unit);
+	ifp->if_unit = sc->axe_unit;
+	ifp->if_name = "axe";
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = axe_ioctl;
+	ifp->if_output = ether_output;
 	ifp->if_start = axe_start;
 	ifp->if_watchdog = axe_watchdog;
 	ifp->if_init = axe_init;
@@ -741,6 +770,7 @@ axe_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct axe_softc	*sc;
 	struct axe_chain	*c;
 	struct ifnet		*ifp;
+	struct mbuf		*m;
 	usbd_status		err;
 
 	c = priv;
@@ -762,13 +792,16 @@ axe_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	}
 
 	ifp->if_timer = 0;
-	ifp->if_flags &= ~IFF_OACTIVE;
-	usbd_get_xfer_status(c->axe_xfer, NULL, NULL, NULL, &err);
 
-	if (c->axe_mbuf != NULL) {
-		c->axe_mbuf->m_pkthdr.rcvif = ifp;
-		usb_tx_done(c->axe_mbuf);
-		c->axe_mbuf = NULL;
+	usbd_get_xfer_status(c->axe_xfer, NULL, NULL, NULL, &err);
+	m = c->axe_mbuf;
+	c->axe_mbuf = NULL;
+
+	ifp->if_flags &= ~IFF_OACTIVE;
+
+	if (m != NULL) {
+		m->m_pkthdr.rcvif = ifp;
+		usb_tx_done(m);
 	}
 
 	if (err)
@@ -803,11 +836,14 @@ axe_tick(void *xsc)
 	}
 
 	mii_tick(mii);
-	if (!sc->axe_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->axe_link++;
-		if (ifp->if_snd.ifq_head != NULL)
-			axe_start(ifp);
+	if (!sc->axe_link) {
+		mii_pollstat(mii);
+		if (mii->mii_media_status & IFM_ACTIVE &&
+		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+			sc->axe_link++;
+			if (ifp->if_snd.ifq_head != NULL)
+				axe_start(ifp);
+		}
 	}
 
 	sc->axe_stat_ch = timeout(axe_tick, sc, hz);
@@ -1007,6 +1043,11 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int			error = 0;
 
 	switch(command) {
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
+		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_flags & IFF_RUNNING &&
@@ -1052,7 +1093,7 @@ axe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = EINVAL;
 		break;
 	}
 
