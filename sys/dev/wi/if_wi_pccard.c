@@ -169,7 +169,7 @@ wi_pccard_match(dev)
 
 	if ((pp = pccard_product_lookup(dev, wi_pccard_products,
 	    sizeof(wi_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name)
+		if (pp->pp_name != NULL)
 			device_set_desc(dev, pp->pp_name);
 		return (0);
 	}

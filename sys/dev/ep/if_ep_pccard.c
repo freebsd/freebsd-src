@@ -254,7 +254,8 @@ ep_pccard_match(device_t dev)
 
 	if ((pp = pccard_product_lookup(dev, ep_pccard_products,
 	    sizeof(ep_pccard_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->pp_name);
+		if (pp->pp_name != NULL)
+			device_set_desc(dev, pp->pp_name);
 		return 0;
 	}
 	return EIO;
