@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <libutil.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,8 @@ main(int argc, char *argv[])
 {
 	FTS		*fts;
 	FTSENT		*p;
-	long		blocksize, savednumber = 0;
+	off_t		savednumber = 0;
+	long		blocksize;
 	int		ftsoptions;
 	int		listall;
 	int		depth;
@@ -224,16 +226,16 @@ main(int argc, char *argv[])
 				if (ignorep(p))
 					break;
 
-				p->fts_parent->fts_number +=
-				    p->fts_number += p->fts_statp->st_blocks;
+				p->fts_parent->fts_bignum +=
+				    p->fts_bignum += p->fts_statp->st_blocks;
 
 				if (p->fts_level <= depth) {
 					if (hflag) {
-						(void) prthumanval(howmany(p->fts_number, blocksize));
+						(void) prthumanval(howmany(p->fts_bignum, blocksize));
 						(void) printf("\t%s\n", p->fts_path);
 					} else {
-					(void) printf("%ld\t%s\n",
-					    howmany(p->fts_number, blocksize),
+					(void) printf("%jd\t%s\n",
+					    (intmax_t)howmany(p->fts_bignum, blocksize),
 					    p->fts_path);
 					}
 				}
@@ -259,15 +261,15 @@ main(int argc, char *argv[])
 							blocksize));
 						(void) printf("\t%s\n", p->fts_path);
 					} else {
-						(void) printf("%lld\t%s\n",
-							(long long)howmany(p->fts_statp->st_blocks, blocksize),
+						(void) printf("%jd\t%s\n",
+							(intmax_t)howmany(p->fts_statp->st_blocks, blocksize),
 							p->fts_path);
 					}
 				}
 
-				p->fts_parent->fts_number += p->fts_statp->st_blocks;
+				p->fts_parent->fts_bignum += p->fts_statp->st_blocks;
 		}
-		savednumber = p->fts_parent->fts_number;
+		savednumber = p->fts_parent->fts_bignum;
 	}
 
 	if (errno)
@@ -278,7 +280,7 @@ main(int argc, char *argv[])
 			(void) prthumanval(howmany(savednumber, blocksize));
 			(void) printf("\ttotal\n");
 		} else {
-			(void) printf("%ld\ttotal\n", howmany(savednumber, blocksize));
+			(void) printf("%jd\ttotal\n", (intmax_t)howmany(savednumber, blocksize));
 		}
 	}
 
