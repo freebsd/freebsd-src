@@ -111,7 +111,7 @@
 #ifdef SMP
 #define NKPDE	(KVA_PAGES - 1) /* number of page tables/pde's */
 #else
-#define NKPDE	(KVA_PAGES - 1)	/* number of page tables/pde's */
+#define NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
 #endif
 #endif
 
@@ -127,7 +127,7 @@
 #define MPPTDI		(NPDEPTD-1)	/* per cpu ptd entry */
 #define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
 #else
-#define	KPTDI		((NPDEPTD-1)-NKPDE)/* start of kernel virtual pde's */
+#define	KPTDI		(NPDEPTD-NKPDE)/* start of kernel virtual pde's */
 #endif	/* SMP */
 #define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 
