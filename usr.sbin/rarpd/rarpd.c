@@ -108,10 +108,6 @@ static const char rcsid[] =
 #define arp_tpa arp_xtpa
 #endif
 
-#ifndef __GNUC__
-#define inline
-#endif
-
 /*
  * The structure for each interface.
  */
@@ -133,15 +129,6 @@ struct if_info *iflist;
 int verbose;			/* verbose messages */
 int s;				/* inet datagram socket */
 const char *tftp_dir = TFTP_DIR;	/* tftp directory */
-
-#ifndef __P
-#define __P(protos) ()
-#endif
-
-#if BSD < 199200
-extern	char *malloc();
-extern	void exit();
-#endif
 
 int sflag;			/* ignore /tftpboot */
 
@@ -338,7 +325,7 @@ init_one(struct ifreq *ifrp, char *target)
 void
 init(char *target)
 {
-	unsigned n;
+	u_int n;
 	struct ifreq *ifrp, *ifend;
 	struct if_info *ii, *nii, *lii;
 	struct ifconf ifc;
@@ -393,7 +380,7 @@ init(char *target)
 		for (ii = iflist; ii != NULL; ii = ii->ii_next)
 			syslog(LOG_DEBUG, "%s %s 0x%08lx %s",
 			    ii->ii_ifname, intoa(ntohl(ii->ii_ipaddr)),
-			    ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
+			    (u_long)ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
 }
 
 void
@@ -551,7 +538,7 @@ rarp_loop(void)
 		syslog(LOG_ERR, "BIOCGBLEN: %m");
 		exit(1);
 	}
-	buf = (u_char *)malloc((unsigned)bufsize);
+	buf = malloc(bufsize);
 	if (buf == NULL) {
 		syslog(LOG_ERR, "malloc: %m");
 		exit(1);
@@ -637,7 +624,7 @@ rarp_bootable(u_long addr)
 	char ipname[9];
 	static DIR *dd = NULL;
 
-	(void)sprintf(ipname, "%08X", (unsigned int )ntohl(addr));
+	(void)sprintf(ipname, "%08lX", (u_long)ntohl(addr));
 
 	/*
 	 * If directory is already open, rewind it.  Otherwise, open it.
