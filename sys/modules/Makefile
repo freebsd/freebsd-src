@@ -11,7 +11,7 @@ SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	if_ppp if_sl if_tap if_tun ip6fw ipfilter ipfw ispfw joy kernfs kue \
 	linux md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs pcn portal procfs ${_random} \
-	rl rp sf sis sk sn sound ste syscons sysvipc ti tl twe tx \
+	rl rp sf sis sk sn sound ste syscons ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
 	uscanner \
 	vinum vn vpo vr vx wb wx xl
