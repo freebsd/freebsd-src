@@ -1151,18 +1151,6 @@ thread_user_enter(struct proc *p, struct thread *td)
 	struct kse_thr_mailbox *tmbx;
 	uint32_t flags;
 
-	/*
-	 * First check that we shouldn't just abort.
-	 * But check if we are the single thread first!
-	 */
-	if (__predict_false(p->p_flag & P_SINGLE_EXIT)) {
-		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
-		thread_stopped(p);
-		thread_exit();
-		/* NOTREACHED */
-	}
-
 	if (!(td->td_pflags & TDP_SA))
 		return;
 
