@@ -249,6 +249,7 @@ sonewconn(head, connstatus)
 		sodealloc(so);
 		return ((struct socket *)0);
 	}
+	so->so_state |= connstatus;
 	ACCEPT_LOCK();
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
@@ -279,7 +280,6 @@ sonewconn(head, connstatus)
 	}
 	ACCEPT_UNLOCK();
 	if (connstatus) {
-		so->so_state |= connstatus;
 		sorwakeup(head);
 		wakeup_one(&head->so_timeo);
 	}
