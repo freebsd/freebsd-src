@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)portmap.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: portmap.c,v 1.6 1997/10/09 07:17:15 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -85,6 +85,7 @@ static char sccsid[] = "@(#)portmap.c 1.32 87/08/06 Copyr 1984 Sun Micro";
  */
 
 #include <err.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -604,5 +605,9 @@ callit(rqstp, xprt)
 void
 reap()
 {
+	int save_errno;
+
+	save_errno = errno;
 	while (wait3((int *)NULL, WNOHANG, (struct rusage *)NULL) > 0);
+	errno = save_errno;
 }
