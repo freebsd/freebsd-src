@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.102 1999/06/01 18:19:42 jlemon Exp $
+ *	$Id: mp_machdep.c,v 1.103 1999/06/22 20:54:25 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -300,7 +300,7 @@ u_int	all_cpus;
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
-int boot_cpuid;
+static int bootAP;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
@@ -454,7 +454,7 @@ void
 init_secondary(void)
 {
 	int	gsel_tss;
-	int	x, myid = boot_cpuid;
+	int	x, myid = bootAP;
 
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
 	gdt_segs[GPROC0_SEL].ssd_base =
@@ -487,9 +487,7 @@ init_secondary(void)
 
 	load_cr0(0x8005003b);		/* XXX! */
 
-	pmap_set_opt((unsigned *)PTD);
-
-	invltlb();
+	pmap_set_opt();
 }
 
 
@@ -1827,7 +1825,7 @@ start_all_aps(u_int boot_addr)
 #endif
 
 		bootSTK = &SMP_prvspace[x].idlestack[UPAGES*PAGE_SIZE];
-		boot_cpuid = x;
+		bootAP = x;
 
 		/* attempt to start the Application Processor */
 		CHECK_INIT(99);	/* setup checkpoints */
@@ -1874,7 +1872,7 @@ start_all_aps(u_int boot_addr)
 		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
 	*(int *)PTD = 0;
-	pmap_set_opt_bsp();
+	pmap_set_opt();
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;
@@ -2171,6 +2169,9 @@ void
 ap_init()
 {
 	u_int	apic_id;
+
+	/* BSP may have changed PTD while we're waiting for the lock */
+	cpu_invltlb();
 
 	smp_cpus++;
 
