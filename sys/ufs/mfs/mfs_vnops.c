@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.39 1999/01/21 08:29:08 dillon Exp $
+ * $Id: mfs_vnops.c,v 1.40 1999/01/21 09:27:03 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -175,7 +175,7 @@ mfs_strategy(ap)
 
 	/*
 	 * splbio required for queueing/dequeueing, in case of forwarded
-	 * BPs from bio interrupts (??).  It may not be necessary.
+	 * BPs from bio interrupts (?).  It may not be necessary.
 	 */
 
 	s = splbio();
