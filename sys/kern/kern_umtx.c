@@ -46,6 +46,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 	struct umtx *umtx;
 	struct thread *blocked;
 	intptr_t owner;
+	intptr_t old;
 	int error;
 
 	error = 0;
@@ -66,7 +67,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		    UMTX_UNOWNED, (intptr_t)td);
 
 		/* The acquire succeeded. */
-		if (owner == (intptr_t)td) {
+		if (owner == UMTX_UNOWNED) {
 			error = 0;
 			goto out;
 		}
@@ -86,14 +87,15 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * either some one else has acquired the lock or it has been
 		 * released.
 		 */
-		owner = casuptr((intptr_t *)&umtx->u_owner, owner, owner | UMTX_CONTESTED);
+		old = casuptr((intptr_t *)&umtx->u_owner, owner,
+		    owner | UMTX_CONTESTED);
 
-		/* The contested bit was set. */
-		if (owner & UMTX_CONTESTED)
+		/* We set the contested bit. */
+		if (old == owner)
 			break;
 
 		/* The address was invalid. */
-		if (owner == -1) {
+		if (old == -1) {
 			error = EFAULT;
 			goto out;
 		}
@@ -182,6 +184,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	struct umtx *umtx;
 	intptr_t owner;
 	intptr_t blocked;
+	intptr_t old;
 	int error;
 
 	error = 0;
@@ -217,7 +220,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 		 * If this failed someone modified the memory without going
 		 * through this api.
 		 */
-		else if (owner != UMTX_UNOWNED)
+		else if (owner != (intptr_t)td)
 			error = EINVAL;
 		else
 			error = 0;
@@ -231,7 +234,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	 * CONTESTED bit was set.
 	 */
 	blocked = fuword(&umtx->u_blocked);
-	if (blocked == -1){ 
+	if (blocked == -1) { 
 		error = EFAULT;
 		goto out;
 	}
@@ -278,17 +281,17 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	 * Now directly assign this mutex to the first thread that was
 	 * blocked on it.
 	 */
-	owner = casuptr((intptr_t *)&umtx->u_owner, owner, blocked);
+	old = casuptr((intptr_t *)&umtx->u_owner, owner, blocked);
 
 	/*
 	 * This will only happen if someone modifies the lock without going
 	 * through this api.
 	 */
-	if (owner != blocked) {
+	if (old != owner) {
 		error = EINVAL;
 		goto out;
 	}
-	if (owner == -1) {
+	if (old == -1) {
 		error = EFAULT;
 		goto out;
 	}
