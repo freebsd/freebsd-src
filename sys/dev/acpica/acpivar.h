@@ -66,11 +66,31 @@ struct acpi_device {
 
     /* resources */
     struct resource_list	ad_rl;
+
 };
 
 /*
+ * The ACPI subsystem lives under a single mutex.  You *must*
+ * acquire this mutex before calling any of the acpi_ or Acpi* functions.
+ *
+ * XXX the ACPI_MSLEEP macro should go away once locking is resolved
+ */
+extern struct mtx	acpi_mutex;
+#if 0
+# define ACPI_LOCK			mtx_lock(&acpi_mutex)
+# define ACPI_UNLOCK			mtx_unlock(&acpi_mutex)
+# define ACPI_ASSERTLOCK		mtx_assert(&acpi_mutex, MA_OWNED)
+# define ACPI_MSLEEP(a, b, c, d, e)	msleep(a, b, c, d, e)
+#else
+# define ACPI_LOCK
+# define ACPI_UNLOCK
+# define ACPI_ASSERTLOCK
+# define ACPI_MSLEEP(a, b, c, d, e)	tsleep(a, c, d, e)
+#endif
+
+/*
  * This is a cheap and nasty way to get around the horrid counted list
- * argument format that AcpiEvalateMethod uses.
+ * argument format that AcpiEvalateObject uses.
  */
 #define ACPI_OBJECTLIST_MAX	16
 struct acpi_object_list {
