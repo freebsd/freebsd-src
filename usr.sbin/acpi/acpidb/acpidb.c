@@ -159,8 +159,8 @@ aml_simulate_prompt(char *msg, ACPI_INTEGER def_val)
 	if (msg != NULL) {
 		printf("%s", msg);
 	}
-	printf("(default: 0x%x ", (uint32_t)val);
-	printf(" / %u) >>", (uint32_t)val);
+	printf("(default: 0x%jx ", val);
+	printf(" / %ju) >>", val);
 	fflush(stdout);
 
 	bzero(buf, sizeof buf);
