@@ -68,6 +68,9 @@ Winbond W89C840F chip.
 Added driver support for fast ethernet adapters based on the
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" chips.
 
+Added driver support for pocket ethernet adapters based on the
+RealTek RTL 8002 chip.
+
 1.2. SECURITY FIXES
 -------------------
 
