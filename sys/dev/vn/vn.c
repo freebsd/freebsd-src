@@ -78,6 +78,7 @@
 #ifdef TEST_LABELLING
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/stat.h>
 #endif
 
 #include <miscfs/specfs/specdev.h>
@@ -125,7 +126,7 @@ int numvnd;
 /*
  * XXX these decls should be static (without __P(())) or elsewhere.
  */
-void	vnattach __P((int num));
+int	vnclose __P((dev_t dev, int flags, int mode, struct proc *p));
 int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
 void	vnstrategy __P((struct buf *bp));
 void	vnstart __P((struct vn_softc *vn));
@@ -191,10 +192,9 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	}
 #ifdef TEST_LABELLING
 	if (vn->sc_flags & VNF_INITED) {
-		int error;
 		struct disklabel label;
 
-		/* Build label for whole disk.  */
+		/* Build label for whole disk. */
 		bzero(&label, sizeof label);
 		label.d_secsize = DEV_BSIZE;
 		label.d_nsectors = vn->sc_size;
@@ -204,13 +204,12 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		label.d_secperunit = label.d_partitions[RAW_PART].p_size
 				   = label.d_nsectors;
 
-		error = dsopen("vn", dev, mode, &vn->sc_slices, &label,
-			       vnstrategy, (ds_setgeom_t *)NULL);
-#if 0
-		/* XXX temporary */
-		return (error);
-#endif
+		return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
+			       vnstrategy, (ds_setgeom_t *)NULL));
 	}
+	if (dkslice(dev) != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART ||
+	    mode != S_IFCHR)
+		return (ENXIO);
 #endif /* TEST_LABELLING */
 	return(0);
 }
@@ -460,12 +459,14 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (unit >= numvnd)
 		return (ENXIO);
 	vn = vn_softc[unit];
-	if (vn->sc_slices) {
-		error = dsioctl(dev, cmd, data, flag, vn->sc_slices, vnstrategy,
-				(ds_setgeom_t *)NULL);
+	if (vn->sc_slices != NULL) {
+		error = dsioctl(dev, cmd, data, flag, vn->sc_slices,
+				vnstrategy, (ds_setgeom_t *)NULL);
 		if (error != -1)
 			return (error);
 	}
+	if (dkslice(dev) != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART)
+		return (ENOTTY);
 #endif
 
 	error = suser(p->p_ucred, &p->p_acflag);
@@ -508,6 +509,18 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		vnthrottle(vn, vn->sc_vp);
 		vio->vn_size = dbtob(vn->sc_size);
 		vn->sc_flags |= VNF_INITED;
+#ifdef TEST_LABELLING
+		/*
+		 * Reopen so that `ds' knows which devices are open.  If
+		 * this is the first VNIOCSET, then we've guaranteed that
+		 * the device is the cdev and that no other slices or
+		 * labels are open.  Otherwise, we rely on VNIOCCLR not
+		 * being abused.
+		 */
+		error = vnopen(dev, flag, S_IFCHR, p);
+		if (error)
+			vnclear(vn);
+#endif
 #ifdef DEBUG
 		if (vndebug & VDB_INIT)
 			printf("vnioctl: SET vp %x size %x\n",
@@ -518,6 +531,14 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case VNIOCCLR:
 		if ((vn->sc_flags & VNF_INITED) == 0)
 			return(ENXIO);
+		/*
+		 * XXX handle i/o in progress.  Return EBUSY, or wait, or
+		 * flush the i/o.
+		 * XXX handle multiple opens of the device.  Return EBUSY,
+		 * or revoke the fd's.
+		 * How are these problems handled for removable and failing
+		 * hardware devices?
+		 */
 		vnclear(vn);
 #ifdef DEBUG
 		if (vndebug & VDB_INIT)
@@ -526,7 +547,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 
 	default:
-		return(ENXIO);
+		return (ENOTTY);
 	}
 	return(0);
 }
@@ -606,14 +627,15 @@ vnclear(struct vn_softc *vn)
 #endif
 	vn->sc_flags &= ~VNF_INITED;
 	if (vp == (struct vnode *)0)
-		panic("vnioctl: null vp");
+		panic("vnclear: null vp");
 	(void) vn_close(vp, FREAD|FWRITE, vn->sc_cred, p);
 	crfree(vn->sc_cred);
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
 #ifdef TEST_LABELLING
-	vn->sc_slices = NULL;	/* XXX temportary; leaks memory, maybe worse */
+	if (vn->sc_slices != NULL)
+		dsgone(&vn->sc_slices);
 #endif
 }
 
@@ -632,6 +654,6 @@ vnsize(dev_t dev)
 int
 vndump(dev_t dev)
 {
-	return(ENXIO);
+	return (ENODEV);
 }
 #endif
