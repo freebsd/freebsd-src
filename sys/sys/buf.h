@@ -60,7 +60,6 @@ LIST_HEAD(workhead, worklist);
  * to each buffer.
  */
 extern struct bio_ops {
-	int	(*io_prewrite)(struct vnode *, struct buf *);
 	void	(*io_start)(struct buf *);
 	void	(*io_complete)(struct buf *);
 	void	(*io_deallocate)(struct buf *);
@@ -414,15 +413,6 @@ bstrategy(struct buf *bp)
 	KASSERT(bp->b_bufobj->bo_ops->bop_strategy != NULL,
 	    ("bwrite: no bop_strategy bp=%p", bp));
 	bp->b_bufobj->bo_ops->bop_strategy(bp->b_bufobj, bp);
-}
-
-static __inline int
-buf_prewrite(struct vnode *vp, struct buf *bp)
-{
-	if (bioops.io_prewrite)
-		return (*bioops.io_prewrite)(vp, bp);
-	else
-		return (0);
 }
 
 static __inline void
