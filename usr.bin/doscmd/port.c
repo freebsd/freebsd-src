@@ -29,7 +29,7 @@
  *
  *	BSDI port.c,v 2.2 1996/04/08 19:33:03 bostic Exp
  *
- * $Id: port.c,v 1.2 1996/09/22 05:53:08 miff Exp $
+ * $Id: port.c,v 1.1 1997/08/09 01:42:54 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -59,15 +59,30 @@ u_long ioports[MAXPORT/32];
 static void
 iomap(int port, int cnt)
 {
-    fatal("iomap not supported");
+    if (port + cnt >= MAXPORT) {
+	errno = ERANGE;
+	goto bad;
+    }
+    if (i386_set_ioperm(port, cnt, 1) < 0) {
+    bad:
+	perror("iomap");
+	quit(1);
+    }
 }
 
 static void
 iounmap(int port, int cnt)
 {
-    fatal("iomap not supported");
+    if (port + cnt >= MAXPORT) {
+	errno = ERANGE;
+	goto bad;
+    }
+    if (i386_set_ioperm(port, cnt, 0) < 0) {
+    bad:
+	perror("iounmap");
+	quit(1);
+    }
 }
-    
 #else
 static void
 iomap(int port, int cnt)
