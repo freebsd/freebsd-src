@@ -93,7 +93,7 @@ case ${rc_ng} in
 		if [ $? -eq 2 ]; then
 			unset _rc_conf_loaded
 			load_rc_config 'XXX'
-			echo "Reloading rc.conf"
+			echo "Reloading rc.conf."
 		fi
 	done
 
