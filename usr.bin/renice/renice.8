@@ -40,7 +40,10 @@
 .Nd alter priority of running processes
 .Sh SYNOPSIS
 .Nm
-.Ar priority
+.Oo
+.Ar priority |
+.Op Fl n Ar increment
+.Oc
 .Oo
 .Op Fl p
 .Ar pid ...
@@ -77,6 +80,10 @@ Options supported by
 Force
 .Ar who
 parameters to be interpreted as process group ID's.
+.It Fl n
+Instead of changing the specified processes to the given priority,
+interpret the following argument as an increment to be applied to
+the current priority of each process.
 .It Fl u
 Force the
 .Ar who
