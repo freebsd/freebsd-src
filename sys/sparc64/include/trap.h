@@ -64,8 +64,9 @@
 #define	T_FILL_RET	0x1e
 #define	T_BREAKPOINT	0x1f
 #define	T_SYSCALL	0x20
-#define	T_RESTOREWP	0x21
-#define	T_SOFT		0x22
+#define	T_RSTRWP_PHYS	0x21
+#define	T_RSTRWP_VIRT	0x22
+#define	T_SOFT		0x23
 #define	T_KERNEL	0x40
 
 #ifndef LOCORE
