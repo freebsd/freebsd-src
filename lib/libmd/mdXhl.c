@@ -6,18 +6,19 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mdXhl.c,v 1.6 1995/07/12 09:13:47 phk Exp $
+ * $Id: mdXhl.c,v 1.7 1996/07/24 20:55:38 phk Exp $
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include "mdX.h"
-#include <sys/file.h>
 #include <sys/types.h>
-#include <sys/uio.h>
+#include <fcntl.h>
 #include <unistd.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "mdX.h"
 
 char *
 MDXEnd(MDX_CTX *ctx, char *buf)
