@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.27 2002/04/21 17:43:21 ue Exp $
-  basiert auf: 1.327
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.38 2002/05/09 12:06:03 ue Exp $
+  basiert auf: 1.340
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -172,6 +172,10 @@
       mu&szlig; daher nicht l&auml;nger SGID
       <groupname>kmem</groupname> sein. &merged;</para>
 
+    <para>Die Umgebungsvariablen des Kernels k&ouml;nnen jetzt zur
+      Laufzeit mit dem System-Call &man.kenv.2; ge&auml;ndert
+      werden.</para>
+
     <para>Das Interface &man.kqueue.2; zur Benachrichtigung bei
       Ereignissen wurde dem &os; Kernel hinzugef&uuml;gt.  Dieses neue
       Interface kann &man.poll.2;/&man.select.2; ersetzen, und bietet
@@ -303,6 +307,10 @@
 
     <para arch="sparc64">SBus-Ger&auml;te werden jetzt
       unterst&uuml;tzt.</para>
+
+    <para arch="sparc64">Der neue Treiber se unterst&uuml;tzt serielle
+      Schnittstellen auf Basis des Siemens SAB82532 Chips, den man in
+      vielen neueren Sparc Ultra System findet.</para>
 
     <para>Der Treiber &man.snp.4; ist nicht mehr statisch und kann
       jetzt als Modul verwendet werden.  &merged;</para>
@@ -559,7 +567,7 @@
       <para arch="i386">Mit der neuen Kernel-Option
         <literal>CPU_ATHLON_SSE_HACK</literal> versucht der Kernel,
         da&szlig; SSE Feature Bit auf neueren Athlon CPUs zu
-        aktivieren, wenn das vom BIOS vergessen wurde.</para>
+        aktivieren, wenn das vom BIOS vergessen wurde.  &merged;</para>
 
       <para arch="sparc64">UltraSPARC Systeme werden jetzt von &os;
 	unters&uuml;tzt.  Zur Zeit l&auml;uft &os; auf den folgenden
@@ -567,6 +575,12 @@
 	AC200/DC200, Netra T 105 und Blade 100.  SMP wird ebenfalls
 	unterst&uuml;tzt und wurde auf Ultra 2, Ultra 60, Enterprise
 	220R und Enterprise 440R getestet.</para>
+
+      <para arch="i386">Bei einigen Rechnern aktiviert das BIOS die
+	I/O-Ports und den Speicher der PCI-Karten nicht, die Karten
+	waren daher nicht benutzbar.  Mit der Kernel-Option
+	<literal>PCI_ENABLE_IO_MODES</literal> aktiviert &os; diese
+	Karten und macht sie dadurch nutzbar.  &merged;</para>
     </sect3>
 
     <sect3>
@@ -835,6 +849,19 @@
         Netzwerkkarten mit dem Prism II und Prism 2.5.  104/128-bit
         WEP funktioniert jetzt auf Prism Karten. &merged;</para>
 
+      <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt auch die
+	Nutzung eines &os; Systems als Wireless Access Point.  Diese
+	Funktion kann mit der &man.ifconfig.8;-Option
+	<literal>mediaopt hostap</literal> aktiviert werden und
+	funktioniert nur mit Wave-LAN Karten mit Prism II Chipsatz.
+	&merged;</para>
+
+      <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt die
+	<application>bsd-airtools</application>.  &merged;</para>
+
+      <para>Der Treiber xe kann jetzt auch als Modul verwendet werden.
+	&merged;</para>
+
       <para>Der Treiber &man.xl.4; unterst&uuml;tzt jetzt auch die
         3Com 3C556 und 3C556B MiniPCI Karten, die in manchen Laptops
         verwendet werden.  &merged;</para>
@@ -887,13 +914,13 @@
 options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Danach kann Polling mit der Sysctl-Variable
-        <varname>kern.polling.enable</varname> aktiviert; mit der
-        Sysctl-Variable <varname>kern.polling.user_frac</varname> wird
-        der f&uuml;r Benutzerprozesse zur Verf&uuml;gung stehende
-        Anteil der CPU-Zeit eingestellt.  Die ersten Ger&auml;te, die
-        Polling unterst&uuml;tzen, sind &man.dc.4;, &man.fxp.4; und
-        &man.sis.4;.  Weitere Informationen finden Sie in der
-        Onlinehilfe zu &man.polling.4;. &merged;</para>
+	<varname>kern.polling.enable</varname> aktiviert; mit der
+	Sysctl-Variable <varname>kern.polling.user_frac</varname> wird
+	der f&uuml;r Benutzerprozesse zur Verf&uuml;gung stehende
+	Anteil der CPU-Zeit eingestellt.  Die ersten Ger&auml;te, die
+	Polling unterst&uuml;tzen, sind &man.dc.4;, &man.fxp.4;,
+	&man.rl.4; und &man.sis.4;.  Weitere Informationen finden Sie
+	in der Onlinehilfe zu &man.polling.4;. &merged;</para>
 
       <para arch="i386">Bei den Treibern &man.dc.4; und &man.sis.4;
         wurden unn&ouml;tige Kopieraktionen eingespart, dadurch steigt
@@ -958,6 +985,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Wenn bei einem TCP Segment das ECN Bit gesetzt ist,
         filtert &man.ipfw.4; jetzt richtig.  &merged;</para>
+
+      <para>Die neue Netgraph Node ng_eiface wird wie ein
+	Ethernet-Interface behandelt, liefert die Ethernet Rahmen aber
+	an einen Netgraph-Anshclu&szlig;.  &merged;</para>
 
       <para>Die neue Netgraph Node &man.ng.etf.4; erlaubt es,
         Ethernet-Pakete nach Typ zu sortieren.  &merged;</para>
@@ -1067,11 +1098,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       </note>
 
       <para>Der TCP-Stack unterst&uuml;tzt jetzt RFC 1948 (Defending
-        Against Sequence Number Attacks).  Diese Funktionalit&auml;t
-        kann &uuml;ber die Sysctl-Variablen
-        <varname>net.inet.tcp.strict_rfc1948</varname> und
-        <varname>net.inet.tcp.isn_reseed_interval</varname> gesteuert
-        werden. &merged;</para>
+	Against Sequence Number Attacks).  Die Sysctl-Variable
+	<varname>net.inet.tcp.isn_reseed_interval</varname> steuert,
+	wie oft der nicht-&ouml;ffentliche Faktor f&uuml;r die
+	Berechnung der initialen Sequenznummer nach RFC 1948 neu
+	erzeugt wird.  &merged;</para>
 
       <para>Der TCP-Stack von &os; verwendet jetzt einen Cache
         f&uuml;r SYN Segmente.  Wird ein SYN Segment empfangen, wird
@@ -1100,7 +1131,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	UDP liegt jetzt bei 49152&ndash;65535 (der alte Standardwert
 	war 1024&ndash;5000).  Dadurch erh&ouml;ht sich die Anzahl der
 	gleichzeitig m&ouml;glichen ausgehenden
-	Verbindungen.  &merged;</para>
+	Verbindungen.</para>
     </sect3>
 
     <sect3>
@@ -1240,6 +1271,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         / TMC 18C30, 18C50 based PC-Card/ISA SCSI Controller
         unterst&uuml;tzen zu k&ouml;nnen, Alle drei Treiber
         k&ouml;nnen als Modul geladen werden..  &merged;</para>
+
+      <para arch="powerpc">Der neue Treiber unterst&uuml;tzt die
+	Grundfunktionen zur Ansteuerung von Festplatten &uuml;ber
+	OpenFirmware.</para>
 
       <para>Diverse Fehler in &man.sa.4; wurden behoben, u.a. der
         <quote>tape drive spinning indefinitely upon &man.mt.1;
@@ -1497,6 +1532,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para arch="i386">Der Audio-Treiber ich unterst&uuml;tzt jetzt
         auch den SiS 7012 Chipsatz.  &merged;</para>
+
+      <para arch="i386">Die Direct Rendering Infrastructure wird von
+	neuen Treiber unterst&uuml;tzt, dadurch kann
+	<application>XFree86</application> die 3D-Beschleuningung
+	nutzen.  Zur Zeit werden die folgenden Grafikkarten
+	unterst&uuml;tzt:  3Dlabs Oxygen GMX 2000 (gammadrm), AGP
+	Matrox G200/G400/G450/G550 (mgadrm), 3dfx Voodoo 3/4/5/Banshee
+	(tdfxdrm), AGI ATI Rage 128 (r128drm) und AGP ATI Radeon
+	(radeondrm).</para>
     </sect3>
 
     <sect3>
@@ -1504,7 +1548,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Die vom Boot Loader genutzte Forth Inspired Command
         Language (<application>FICL</application>) wurde auf Version
-        2.05 aktualisiert.</para>
+        3.02 aktualisiert.</para>
 
       <para>Der von vielen Herstellern unterst&uuml;tzte Standard
         Advanced Configuration and Power Interface wird jetzt
@@ -1519,24 +1563,22 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <title>IPFilter</title>
 
         <para><application>IPFilter</application> wurde auf Version
-          3.4.25 aktualisiert.</para>
+          3.4.27 aktualisiert.  &merged;</para>
 
         <para><application>IPFilter</application> unterst&uuml;tzt
-          jetzt IPv6. &merged;</para>
+          jetzt IPv6.  &merged;</para>
       </sect4>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
 
         <para><application>isdn4bsd</application> wurde auf Version
-          1.0.1 aktualisiert.  Alle Anwender des Treibers
-          &man.i4bisppp.4; (kernel PPP &uuml;ber ISDN)
-          <emphasis>m&uuml;ssen</emphasis> nach dem Update
-          &man.ispppcontrol.8; statt des alten &man.spppcontrol.8;
-          benutzen, um diese Netzwerkverbindung zu konfigurieren und
-          zu steuern.  &merged;</para>
+          1.0.2 aktualisiert.</para>
 
         <para>Der neue Treiber &man.ifpi.4; unterst&uuml;tzt die AVM
+          Fritz!Card PCI.  &merged;</para>
+
+        <para>Der neue Treiber &man.ifpi2.4; unterst&uuml;tzt die AVM
           Fritz!Card PCI, Version 2.  &merged;</para>
 
         <para>Der neue Treiber &man.ihfc.4; unterst&uuml;tzt die
@@ -1568,6 +1610,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
           <option>-k</option>, um &uuml;ber die keypad facility
           Nachrichten an eine Telefonanlage oder Vermittlung zu
           schicken.  &merged;</para>
+
+	<para>Subadressen nach Q.931 werden jetzt von
+	  <application>isdn4bsd</application>
+	  unterst&uuml;tzt.</para>
       </sect4>
 
       <sect4 id="kame-kernel">
@@ -1900,7 +1946,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Fehler in <application>zlib</application> wurde mittlerweile
       beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
       beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.
       &merged;</para>
 
     <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
@@ -1919,6 +1965,25 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
       &merged;</para>
+
+    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
+      beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+      &merged;</para>
+
+    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
+      File-Descriptoren dazu gebracht werden, die falschen Dateien zu
+      lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
+      Informatione finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      &merged;</para>
+
+    <para>Ein Fehler in der Implementation des TCP SYN Cache
+      (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
+      Denial-of-Service Angriff durchzuf&uuml;hren, wenn
+      &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
+      beseitigt. &merged;</para>
   </sect2>
 
   <sect2 id="userland">
@@ -1942,6 +2007,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.arp.8; kennzeichnet FDDI- bzw. ATM-Interfaces jetzt mit
       <literal>[fddi]</literal> bzw.
       <literal>[atm]</literal>.</para>
+
+    <para>&man.at.1; unterst&uuml;tzt jetzt die Optionen
+      <option>-r</option> zum Entfernen von Auftr&auml;gen und
+      <option>-t</option> f&uuml;r Zeitangaben im
+      POSIX-Format.</para>
 
     <para>Das neue Programm &man.atacontrol.8; kann zur Konfiguration
       diversen Einstellungen des Treibers &man.ata.4; genutzt werden.
@@ -2046,6 +2116,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>In &man.config.8; wurde eine Reihe von Buffer Overflows
       beseitigt.  &merged;</para>
 
+    <para>Das neue Programm &man.csplit.1; kann Dateien nach ihrem
+      Inhalt aufteilen.</para>
+
     <para>&man.ctags.1; erzeugt keine defektes Tag-Datei mehr, wenn in
       der Quelldatei Kommentare mit <literal>//</literal> (C++-Stil)
       eingeleitet wurden. &merged;</para>
@@ -2128,6 +2201,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wird es leichter, diese Scripte auf das eigene System anzupassen
       und diese &Auml;nderungen zu warten.  &merged;</para>
 
+    <para>Das Programm &man.expr.1; entspricht jetzt den
+      POSIX-Standard f&uuml;r Benutzerprogramme (POSIX Utility Syntax
+      Guidelines).  Einige Programme sind auf die alte Syntax
+      angewiesen; das auff&auml;lligste Beispiel war/ist der Port bzw.
+      das Package <filename role="package">devel/libtool</filename>.
+      F&uuml;r diese Programme kann die Umgebungsvariable
+      <envar>EXPR_COMPAT</envar> gesetzt werden, dadurch verh&auml;lt
+      sich &man.expr.1;  wieder wie die &auml;lteren
+      Versionen.</para>
+
     <para>In &man.fbtab.5; k&ouml;nnen die Zielger&auml;te jetzt auch
       mit Wildcards angegeben werden, nicht nur als einzelene
       Ger&auml;te und Verzeichnisse.  </para>
@@ -2180,6 +2263,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Mit der neuen Funktion &man.fmtcheck.3; kann die Korrektheit
       von Formatierungsanweisung gepr&uuml;ft werden.
       &merged;</para>
+
+    <para>Das Programm &man.fold.1; unterst&uuml;tzt die Optionen 
+      <option>-b</option> und <option>-s</option> zum Umbruch an
+      Byte- bzw. Wortgrenzen.</para>
 
     <para>Bei &man.fsck.8; wurde ein &uuml;bergeordnetes Programm
       importiert, dadurch wurde die n&ouml;tige Infrastruktur
@@ -2362,8 +2449,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       und unterst&uuml;tzt die Option <option>-q</option> (keine
       Ausgabe), wenn es aus einer Datei liest.  &merged;</para>
 
+    <para>Das Programm &man.ispppcontrol.8; wurde entfernt, seine
+      Funktionen wurden von &man.spppcontrol.8; &uuml;bernommen.
+      &merged;</para>
+
     <para>Mit dem neuen Programm &man.kenv.1; kann das Environment des
       Kernels angezeigt werden.  &merged;</para>
+
+    <para>Mit &man.kenv.1; k&ouml;nnen jetzt Umgebungsvariablen des
+      Kernels hinzugef&uuml;gt und gel&ouml;scht werden.</para>
 
     <para>&man.keyinfo.1; ist jetzt ein C-Programm und kein
       Perl-Skript mehr.  &merged;</para>
@@ -2383,6 +2477,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       die von Ihnen gestarteten Prozesse mit SUID root beenden, wie es
       schon bei der Perl Version m&ouml;glich war.  &merged;</para>
 
+    <para>Das Programm &man.killall.1; versucht nicht mehr,
+      Zombie-Prozesse zu beenden, so lange die Option
+      <option>-z</option> nicht angegeben wird.</para>
+
     <para>Mit dem neuen Programm &man.kldconfig.8; wird es einfacher,
       den Suchpfad f&uuml;r Kernel-Module zu &auml;ndern.
       &merged;</para>
@@ -2396,7 +2494,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Bei Verwendung der neuen Option <option>-y</option> gibt
       &man.last.1;  die Anfangszeit der Sitzungen inkl. der Jahreszahl
-      aus.</para>
+      aus.  &merged;</para>
 
     <para>Das Programm &man.lastlogin.8; zeigt an, wann sich ein
       Benutzer zuletzt eingeloggt hat, es wurde von NetBSD
@@ -2506,6 +2604,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <application>MacOS</application> 10.1 erzeugt wurden.
       &merged;</para>
 
+    <para>Bei &man.lpd.8; kann mit der Optionen <option>-s</option>
+      das gleiche Verahlten wie mit <option>-p</option> erreicht
+      werden, in Zukunft sollte bevorzugt die neue Variante verwendet
+      werden.  Beide Varianten f&uuml;hren dazu, da&szlig; &man.lpd.8;
+      keinen Socket &ouml;ffnet, um Druckauftr&auml;ge aus dem
+      Netzwerk anzunehmen.  &merged;</para>
+
     <para>&man.lpr.1;, &man.lpq.1; und &man.lpd.8; wurden in einigen
       Punkten etwas verbessert.  &merged;</para>
 
@@ -2521,6 +2626,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       unterst&uuml;tzt.  Wenn die Environment Variable
       <envar>CLICOLOR</envar> gesetzt ist, werden
       standardm&auml;&szlig;ig Farben genutzt.  &merged;</para>
+
+    <para>Wird bei &man.ls.1; die neue Option <option>-h</option>
+      zusammen mit <option>-l</option> verwendet, werden bei den
+      Dateigr&ouml;&szlig;en maximal drei Ziffern und ein Pr&auml;fix
+      verwendet.  &merged;</para>
+
+    <para>Das Programm &man.m4.1; kann jetzt <literal>#line</literal>
+      Anweisungen f&uuml;r &man.cpp.1; erzeugen, dieses Verhalten wird
+      mit der neuen Option <option>-s</option> aktiviert.
+      &merged;</para>
 
     <para>&man.mail.1; sendet keine leeren Mails mehr, wenn die neue
       Option <option>-E</option> verwendet wird.  &merged;</para>
@@ -2586,6 +2701,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <filename>/etc/defaults/rc.conf</filename> zu vergleichen.
       &merged;</para>
 
+    <para>&man.mk.cmds.1; und die dazugeh&ouml;rige
+      <filename>libss</filename> wurden entfernt, da sie schon seit
+      einiger Zeit nicht mehr genutzt wurden.  &merged;</para>
+
     <para>Bei &man.moused.8; kann jetzt mit <option>-a</option> die
       Beschleunigung der Mausbewegung eingestellt werden.
       &merged;</para>
@@ -2594,6 +2713,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       von Prototypen auch eine Datei mit zu ignorierenden Dateien
       verwenden.  Dadurch wird es einfacher, &man.mtree.8; als Teil
       eines Intrusion Detection Systems zu verwenden. &merged;</para>
+
+    <para>Wird &man.mv.1; mit der neuen (nicht standardisierten)
+      Option <option>-n</option> aufgerufen, wird bei jede Frage, ob
+      eine Datei &uuml;berschrieben werden soll, immer die Antwort
+      <quote>no</quote> angenommen.</para>
 
     <para>&man.natd.8; unterst&uuml;tzt jetzt die Option
       <option>-log_ipfw_denied</option>, um Pakete loggen zu lassen,
@@ -2684,16 +2808,61 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Weitere Informationen finden Sie in
       <filename>/etc/pam.d/README</filename>.</para>
 
-    <para>Es gibt mehrere neue <application>PAM</application>
-      Module.</para>
+    <para>Das neue PAM-Modul &man.pam.ftp.8; kann zur
+      Authentifizierung von anonymen FTP-Zugriffen verwendet
+      werden.</para>
 
-<!-- XXX List new PAM modules -->
+    <para>Das neue PAM-Modul &man.pam.lastlog.8; tr&auml;gt die
+      Login-Zeiten in die Datenbanken &man.utmp.5;, &man.wtmp.5;, and
+      &man.lastlog.5;  ein.</para>
+
+    <para>Das neue PAM-Modul &man.pam.login.access.8; dient zur
+      &Uuml;berpr&uuml;fung mit Hilfe vpn
+      <filename>/etc/login.access</filename>.</para>
+
+    <para>Mit dem neuen PAM-Modul &man.pam.nologin.8; k&ouml;nnen
+      Anmeldungen gesperrt werden, dabei wird &man.nologin.5;,
+      genutzt.</para>
+
+    <para>Die neuen PAM-Modul &man.pam.opie.8; und
+      &man.pam.opieaccess.8; k&ouml;nnen f&uuml;r die
+      Zugriffssteuerung via &man.opie.4; genutzt werden.</para>
+
+    <para>Das neue PAM-Modul &man.pam.passwdqc.8; &uuml;berpr&uuml;ft
+      beim Wechsel des Pa&szlig;wortes dessen Qualit&auml;t.</para>
+
+    <para>Das neue PAM-Modul &man.pam.rhosts.8; unterst&uuml;tzt
+      Authentifizierung via &man.rhosts.5;.</para>
+
+    <para>Mit dem neuen PAM-Modul &man.pam.rootok.8; ist es
+      m&ouml;glich, nur den Super-User zu authentifizieren.</para>
+
+    <para>Das neue PAM-Modul &man.pam.securetty.8; &uuml;berpr&uuml;ft
+      das <quote>security</quote>-Flag (aus &man.ttys.5;) eines
+      Terminals.</para>
+
+    <para>Das neue PAM-Modul &man.pam.self.8; kann zum
+      Identit&auml;tsnachweis eines Benutzers genutzt werden.</para>
+
+    <para>Das neue PAM-Modul &man.pam.ssh.8; erlaubt die
+      Authentifizierung durch SSH Kenns&auml;tze und
+      Schl&uuml;sselpaare.  Das Modul erledigt auch die Verwaltung der
+      Sitzungen via &man.ssh-agent.1;.  &merged;</para>
+
+    <para>Das neue PAM-Modul &man.pam.wheel.8; dient dazu, die
+      Mitglieder einer Gruppe zu authentifizieren,
+      standardm&auml;&szlig;ig ist dies
+      <groupname>wheel</groupname>.</para>
 
     <para>&man.passwd.1; und &man.pw.8; w&auml;hlen jetzt den zur
       Verschl&uuml;sselung der Pa&szlig;w&ouml;rter verwendeten
       Algorithmus zur Laufzeit aus.  Dazu dient das Attribut
       <literal>passwd_format</literal> in der Datei
       <filename>/etc/login.conf</filename>. &merged;</para>
+
+    <para>Bei &man.patch.1; kann jetzt die neue Option <option>-i</option>
+      verwendet werden, um einen Patch aus einer Datei und nicht von
+      der Standardeingabe zu lesen.  &merged;</para>
 
     <para>&man.pax.1; wurden in vielen Punkten verbessert.  Dazu
       geh&ouml;ren &man.cpio.1; Unterst&uuml;tzung, verbesserte
@@ -2743,6 +2912,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       &man.pppd.8; m&uuml;ssen ggfs. ihre Gruppen anpassen.
       &merged;</para>
 
+    <para>Bei &man.pr.1; k&ouml;nnen jetzt die Optionen
+      <option>-f</option> und <option>-p</option> genutzt werden, um
+      Ausgaben auf einem Terminal anzuhalten.  &merged;</para>
+
     <para>Bei &man.ps.1; war die Option <option>-W</option> (zur
       Abfrage von Informationen aus dem angegebenen Swap) schon seit
       einer Zeit nutzlos, sie wurde daher entfernt.  &merged;</para>
@@ -2750,6 +2923,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.pwd.1; kann jetzt auch als &man.realpath.1;  aufgerufen
       werden und zeigt dann den echten (physischen) Pfadnamen an.
       &merged;</para>
+
+    <para>Bei &man.pwd.1; kann jetzt mit der Option
+      <option>-L</option> das logische Arbeitsverzeichnis ausgegeben
+      werden.</para>
 
     <para>Der von &man.rand.3; zur Verf&uuml;gung gestellte Generator
       f&uuml;r Pseudo-Zufallszahlen wurde verbessert, um bessere
@@ -2767,7 +2944,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.rcmd.3; nutzt jetzt die Environment-Variable
       <envar>RSH</envar>, um ein anderes Programme als &man.rsh.1;
       f&uuml;r die Ausf&uuml;hrung von Programmen auf anderen Systemen
-      nutzen k&ouml;nnen.  Dadurch k&ouml;nnen Programme wie
+      nutzen zu k&ouml;nnen.  Dadurch k&ouml;nnen Programme wie
       &man.dump.8; jetzt &man.ssh.1; als Transportmedium
       nutzen.</para>
 
@@ -2776,8 +2953,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       role="package">net/44bsd-rdist</filename>
       verf&uuml;gbar.</para>
 
+    <para>Bei &man.reboot.8; kann jetzt mit <option>-k</option>
+      angegeben werden, welcher Kernel beim Neustart geladen werden
+      soll.  &merged;</para>
+
+    <para>Bei &man.renice.8; kann jetzt mit der Option
+      <option>-n</option> angegeben werden, wie stark die
+      Priorit&auml;t eines Prozesses angehoben werden soll.</para>
+
     <para>Die von &os; verwendete Version der Bibliothek
-      &man.resolver.3; unterst&uuml;tzt jetzt EDNS0.  ENNS0 wird in
+      &man.resolver.3; unterst&uuml;tzt jetzt EDNS0.  EDNS0 wird in
       Zukunft f&uuml;r Resolver und DNS Server ben&ouml;tigt, die IPv6
       als Transportmedium nutzen.  &merged;</para>
 
@@ -2882,6 +3067,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.split.1; kann jetzt auch Dateien aufteilen, die
       gr&ouml;&szlig;er als 2 GByte sind.  &merged;</para>
 
+    <para>Bei &man.split.1; kann mit der neuen Option
+      <option>-a</option> festgelegt werden, wie viele Zeichen
+      f&uuml;r die Extension der Teile verwendet werden
+      sollen.</para>
+
     <para>Um die in SUSv2/POSIX festgelegten Standards f&uuml;r
       <filename>&lt;sys/select.h&gt;</filename> in Zukunft
       erf&uuml;llen zu k&ouml;nnen, wurde <literal>struct
@@ -2906,7 +3096,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Authentifizierung von Benutzern.</para>
 
     <para>Die beim Systemstart genutzte Konfiguration von
-      &man.syscons.4;  steht jetzt in der Plattform-unabh&auml;ngigen
+      &man.syscons.4; steht jetzt in der Plattform-unabh&auml;ngigen
       Datei <filename>/etc/rc.syscons</filename>. &merged;</para>
 
     <para>Bei &man.sysctl.8; kann die Ausgabe jetzt mit
@@ -2926,6 +3116,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       ist es m&ouml;glich, Ausgaben zu erzeugen, die als Eingabe
       f&uuml;r &man.sysctl.8;  verwendet werden k&ouml;nnen.
       &merged;</para>
+
+    <para>&man.sysctl.8; zeigt jetzt die Beschreibungen der Variablen
+      an, wenn die neue Option <option>-d</option> verwendet
+      wird.</para>
 
     <para>&man.sysinstall.8; erh&auml;lt jetzt den Inhalt von
       <filename>/etc/mail</filename> bei der Aktualisierung de
@@ -2966,6 +3160,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       den Platz nutzen, der bei der Entfernung anderer Partitionen
       frei wird.  &merged;</para>
 
+    <para>Bei neu installierten Systeme aktiviert &man.sysinstall.8;
+      das &man.procfs.5; Dateisystemen standardm&auml;&szlig;ig nicht
+      mehr.</para>
+
+    <para>&man.sysinstall.8; verf&uuml;gt jetzt &uuml;ber minimale
+      Unterst&uuml;tzung f&uuml;r die Behandlung mehrerer Medien bei
+      der Installation von Packages (z.B. f&uuml;r Distributionen auf
+      mehreren CDs).  &merged;</para>
+
     <para>Bei &man.syslogd.8; k&ouml;nnen DNS-Anfragen jetzt mit
       <option>-n</option> komplett abgeschaltet werden.
       &merged;</para>
@@ -3001,6 +3204,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       jetzt auch Verbindungen zu UNIX-domain
       (<literal>AF_UNIX</literal>) Sockets aufnehmen.
       &merged;</para>
+
+    <para>&man.tftp.1; und &man.tftpd.8; unterst&uuml;tzen jetzt
+      IPv6.  &merged;</para>
 
     <para>Bei &man.tftpd.8; kann der Server mit den neuen Optionen
       <option>-c</option> und <option>-C</option> angewiesen werden,
@@ -3048,6 +3254,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       entfernt und steht jetzt nur noch als <filename
       role="package">net/freebsd-uucp</filename> in der
       Ports-Collection zur Verf&uuml;gung.</para>
+
+    <para>Bei &man.unexpand.1; k&ouml;nnen die Tabulatorpositionen mit
+      der neuen Option <option>-t</option> angegeben werden,
+      &auml;hnlich wie bei &man.expand.1;.</para>
 
     <para>Bei &man.units.1; wurden Verbesserungen vorgenommen und
       Fehler entfernt.  &merged;</para>
@@ -3234,8 +3444,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Einschr&auml;nken der Vorg&auml;ngerversion entfallen.
         &merged;</para>
 
-      <para><application>Heimdal</application> wurde auf Version
-        0.3f aktualisiert.</para>
+      <para><application>Heimdal Kerberos</application> wurde auf
+	Version 0.4e aktualisiert.</para>
 
       <para>Die von &os; genutzte Version von
         <application>IPFilter</application> enth&auml;lt jetzt auch
@@ -3283,6 +3493,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <application>lukemftpd</application> steht jetzt als
         &man.lukemftpd.8; zur Verf&uuml;gung.</para>
 
+      <para>Die von OpenBSD am 26. April 2002 genutzte Version von
+	&man.m4.1; wurde importiert.</para>
+
       <para><application>ncurses</application> wurde auf Version
         5.2-20010512 aktualisiert.</para>
 
@@ -3290,7 +3503,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wurden auf Version 4.1.0 aktualisiert. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Cineraria</quote> Release) wird jetzt statt
+        (<quote>Cinnamon</quote> Release) wird jetzt statt
         <application>Linux-PAM</application> verwendet.</para>
 
       <para>Die Programmsammlung <application>OPIE</application>
@@ -3304,9 +3517,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>&man.routed.8; wurde auf Version 2.22 aktualisiert.
         &merged;</para>
 
-      <para arch="i386">Die Version 1.4.3 der
+      <para arch="i386">Die Version 1.4.4 der
         <application>smbfs</application> Benutzerprogramme wurde
-        importiert.  &merged;</para>
+        importiert.</para>
 
       <para><application>tcpdump</application> 
         wurde auf Version
@@ -3752,7 +3965,50 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <quote>origin</quote>, dadurch ist es f&uuml;r Programme wie
         &man.pkg.version.1; einfacher, das Verzeichnis zu bestimmen,
         in dem ein Paket erzeugt wurde.  &merged;</para>
+
+      <para>Die Infrastruktur f&uuml;r die Ports Collection benutzt
+	jetzt standardm&auml;&szlig;ig
+	<application>XFree86</application> 4.X, um Abh&auml;ngigkeiten
+	zu erf&uuml;llen.  Wenn Sie weiterhin
+	<application>XFree86</application> 3.X verwenden wollen,
+	m&uuml;ssen die folgende Zeile in die Datei
+	<filename>/etc/make.conf</filename> eintragen:
+	&merged;</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+
     </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Erzeugung von Releases und Integration</title>
+
+    <para>Die Distribution <filename>bin</filename> wurde in
+      <filename>base</filename> umbenannt, dadurch wird es einfach,
+      kombinierte Installations- und Reparaturmedien zu erzeugen.</para>
+
+    <para arch="i386">ISO Images und CDs benutzt jetzt
+    standardm&auml;&szlig;ig den Boot Loader
+      <filename>cdboot</filename>.  Dadurch ist es nicht mehr
+      notwendig, auf einer bootf&auml;higen CD eine Diskette zu
+      emulieren; au&szlig;erdem ist es m&ouml;glich, bei der
+      Installation von CD einen vollst&auml;ndigen Standardkernel zu
+      benutzen.  Der Nachteil ist der Verlust der Kompatibilit&auml;t
+      mit einigen sehr alten BIOS-Versionen.</para>
+
+    <para arch="i386,alpha">Die von &man.sysinstall.8;
+      standardm&auml;&szlig;ig installierte Version des X Window
+      System ist jetzt <application>XFree86</application> 4.2.0.
+      Au&szlig;erdem wird <application>XFree86</application> jetzt als
+      ganz normales Paket installiert und kann daher mit den
+      &uuml;blichen Programmen wie &man.pkg.info.1; manipuliert
+      werden.  &merged;</para>
+
+    <para>Es ist jetzt m&ouml;glich, eine Release von &os;
+      &release.current; auf einem &os; 4-STABLE System zu erzeugen.
+      Es ist auch m&ouml;glich, Releases f&uuml;r eine andere
+      Architektur als die des Host-Systems zu erzeugen.  Details
+      finden Sie in &man.release.7;.</para>
   </sect2>
 </sect1>
 
