@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.fonts,v 1.6 1997/02/22 13:56:36 peter Exp $
+# $Id: INDEX.fonts,v 1.7 1997/09/22 21:44:36 wosch Exp $
 #
 # database for vidfont(8) 
 #
@@ -43,6 +43,7 @@
 # 8859-8  Hebrew
 # 8859-9  Latin5, same as 8859-1 except for Turkish instead of Icelandic
 # 8859-10 Latin6, for Eskimo/Scandinavian languages
+# 8859-15 Latin9, same as 8859-1 except for new haracters incl. Euro/OE/oe.
 #
 ################################
 # Language support: MENU, FONT
@@ -153,6 +154,10 @@ iso-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16
 iso-thin-8x16.fnt:en:ISO-8859-1 West European, 8x16 (thin)
 iso-thin-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16 (dünn)
 iso-thin-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16 (fine)
+
+iso15-thin-8x16.fnt:en:ISO-8859-15 West European, 8x16 (thin)
+iso15-thin-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16 (dünn)
+iso15-thin-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16 (fine)
 
 iso-8x8.fnt:en:ISO-8859-1 West European, 8x8
 iso-8x8.fnt:de:ISO-8859-1 Westeuropa, 8x8
