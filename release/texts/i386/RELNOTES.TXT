@@ -104,9 +104,11 @@ sound drivers.
 Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
 replace an older, unified driver.
 
-A driver for the ESS Maestro-3/Allegro has
-been added, however due to the amount of GPL firmware included, it
-will only be built as a module.
+A driver for the ESS Maestro-3/Allegro has been added, however due to
+licensing restrictions, it cannot compiled into the kernel.  To use
+this driver, add the following line to /boot/loader.conf:
+
+	maestreo3_load="YES"
 
 The isp(4) driver has been updated.
 
@@ -488,6 +490,8 @@ it should bind.  This option may be specified multiple times and is
 typically necessary for multi-homed hosts.
 
 GNATS has been updated to 3.113.
+
+gcc has been updated to 2.95.3.
 
 
 2. Supported Configurations
