@@ -914,6 +914,7 @@ pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
+pccard/pcic_pci.c	optional pcic pci
 pci/agp.c		optional agp
 pci/agp_intel.c		optional agp
 pci/agp_via.c		optional agp
@@ -936,7 +937,6 @@ agp_if.h		optional agp					\
 	no-obj no-implicit-rule before-depend				\
 	clean		"agp_if.h"
 pci/amd.c		optional amd
-pci/pcic_p.c		optional pcic pci
 dev/awi/am79c930.c	optional awi
 dev/awi/awi.c		optional awi
 dev/awi/awi_wep.c	optional awi

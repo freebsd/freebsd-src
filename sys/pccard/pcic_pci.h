@@ -33,10 +33,20 @@
 #include <dev/pccbb/pccbbdevid.h>
 
 /* CL-PD6832 CardBus defines */
-#define	CLPD6832_SOCKET			0x004c
+#define	CLPD6832_IO_BASE0		0x002c
+#define	CLPD6832_IO_LIMIT0		0x0030
+#define	CLPD6832_IO_BASE1		0x0034
+#define	CLPD6832_IO_LIMIT1		0x0038
+#define	CLPD6832_BRIDGE_CONTROL		0x003c
+#define	CLPD6832_LEGACY_16BIT_IOADDR	0x0044
+#define	CLPD6832_LEGACY_16BIT_IOENABLE	0x0001
+#define	CLPD6832_SOCKET	 		0x004c
 
 /* Configuration constants */
-#define	CLPD6832_BCR_MGMT_IRQ_ENA	0x0800
+#define	CLPD6832_BCR_MGMT_IRQ_ENA	0x08000000
+#define	CLPD6832_BCR_ISA_IRQ		0x00800000
+#define	CLPD6832_COMMAND_DEFAULTS	0x00000045
+#define	CLPD6832_NUM_REGS		2
 
 /* End of CL-PD6832 defines */
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
@@ -127,36 +137,3 @@
 #define	CB_PCI_SUBSYS_ID	0x42	/* Subsystem ID */
 #define	CB_PCI_LEGACY16_IOADDR	0x44	/* Legacy 16bit I/O address */
 #define	CB_PCI_LEGACY16_IOENABLE 0x01	/* Enable Legacy 16bit I/O address */
-
-/* PCI Memory register offsets for YENTA devices */
-#define CB_SOCKET_EVENT		0x00
-#define CB_SOCKET_MASK		0x04
-#define CB_SOCKET_STATE		0x08
-#define CB_SOCKET_FORCE		0x0c
-#define CB_SOCKET_CONTROL	0x10
-#define CB_SOCKET_POWER		0x14
-#define CB_EXCA_OFFSET		0x800	/* Offset for ExCA registers */
-
-#define CB_SM_CD		0x6
-
-#define CB_SE_CD		0x6
-
-#define CB_SS_CARDSTS		0x00000001 /* Card Status Change */
-#define CB_SS_CD1		0x00000002 /* Card Detect 1 */
-#define CB_SS_CD2		0x00000004 /* Card Detect 2 */
-#define CB_SS_CD		0x00000006 /* Card Detect all */
-#define CB_SS_PWRCYCLE		0x00000008 /* Power Cycle */
-#define CB_SS_16BIT		0x00000010 /* 16-bit Card */
-#define CB_SS_CB		0x00000020 /* Cardbus Card */
-#define CB_SS_IREQ		0x00000040 /* Ready */
-#define CB_SS_NOTCARD		0x00000080 /* Unrecognized Card */
-#define CB_SS_DATALOST		0x00000100 /* Data Lost */
-#define CB_SS_BADVCC		0x00000200 /* Bad VccRequest */
-#define CB_SS_5VCARD		0x00000400 /* 5 V Card */
-#define CB_SS_3VCARD		0x00000800 /* 3.3 V Card */
-#define CB_SS_XVCARD		0x00001000 /* X.X V Card */
-#define CB_SS_YVCARD		0x00002000 /* Y.Y V Card */
-#define CB_SS_5VSOCK		0x10000000 /* 5 V Socket */
-#define CB_SS_3VSOCK		0x20000000 /* 3.3 V Socket */
-#define CB_SS_XVSOCK		0x40000000 /* X.X V Socket */
-#define CB_SS_YVSOCK		0x80000000 /* Y.Y V Socket */
