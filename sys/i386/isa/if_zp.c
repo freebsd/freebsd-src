@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.52 1999/07/06 19:22:55 des Exp $
+ *	$Id: if_zp.c,v 1.53 1999/08/18 06:12:00 mdodd Exp $
  */
 /*-
  * TODO:
@@ -128,7 +128,11 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1007,7 +1011,7 @@ zpioctl(ifp, cmd, data)
         case SIOCSIFADDR:
         case SIOCGIFADDR:
         case SIOCSIFMTU:
-                error = ether_ioctl(ifp, command, data);
+                error = ether_ioctl(ifp, cmd, data);
                 break;
 
 	case SIOCSIFFLAGS:

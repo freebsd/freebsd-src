@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.41 1999/07/06 19:22:45 des Exp $
+ * $Id: if_el.c,v 1.42 1999/08/18 06:11:58 mdodd Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -31,7 +31,11 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -636,8 +640,6 @@ el_ioctl(ifp, command, data)
 	u_long command;
 	caddr_t data;
 {
-	struct el_softc *sc = ifp->if_softc;
-	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
 	s = splimp();
