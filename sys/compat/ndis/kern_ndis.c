@@ -1682,7 +1682,8 @@ ndis_unload_driver(arg)
 
 	sc = arg;
 
-	free(sc->ndis_block->nmb_rlist, M_DEVBUF);
+	if (sc->ndis_block->nmb_rlist != NULL)
+		free(sc->ndis_block->nmb_rlist, M_DEVBUF);
 
 	ndis_flush_sysctls(sc);
 
