@@ -124,6 +124,8 @@
 	/* syscall number, passed in v0, is first arg, frame pointer second */
 	mov	v0,a0
 	mov	sp,a1			; .loc 1 __LINE__
+	br	pv,XentSys1
+XentSys1: LDGP(pv)	
 	CALL(syscall)
 
 	jmp	zero, exception_return
@@ -147,6 +149,8 @@ LEAF(XentUna, 3)				/* XXX should be NESTED */
 	/* a0, a1, & a2 already set up */
 	ldiq	a3, ALPHA_KENTRY_UNA
 	mov	sp, a4			; .loc 1 __LINE__
+	br	pv, XentUna1
+XentUna1: LDGP(pv)	
 	CALL(trap)
 
 	jmp	zero, exception_return
