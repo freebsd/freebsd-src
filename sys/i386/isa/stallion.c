@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 /*****************************************************************************/
@@ -53,10 +55,10 @@
 #include <machine/cpu.h>
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/comstats.h>
 #include <i386/isa/ic/scd1400.h>
+#include <machine/comstats.h>
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -69,7 +71,7 @@
  *	appropriate bits of code. By default this will compile for a 2.1
  *	level kernel.
  */
-#define	VFREEBSD	210
+#define	VFREEBSD	220
 
 #if VFREEBSD >= 220
 #define	STATIC		static
@@ -494,7 +496,7 @@ static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
 #if NPCI > 0
 static char	*stlpciprobe(pcici_t tag, pcidi_t type);
 static void	stlpciattach(pcici_t tag, int unit);
-static int	stlpciintr(void * arg);
+static void	stlpciintr(void * arg);
 #endif
 
 /*****************************************************************************/
@@ -1894,10 +1896,9 @@ void stlintr(int unit)
 
 #if NPCI > 0
 
-static int stlpciintr(void *arg)
+static void stlpciintr(void *arg)
 {
 	stlintr(0);
-	return(1);
 }
 
 #endif
