@@ -61,7 +61,7 @@
 #
 # The easiest way to get the main source tree is to use the "src-all"
 # mega-collection.  It includes all of the individual "src-*" collections,
-# except "src-crypto" and "src-secure".
+# except the export-restricted collections.
 src-all
 
 # These are the individual collections that make up "src-all".  If you
@@ -89,5 +89,13 @@ src-all
 # Only people in the USA and Canada may fetch these collections.  If
 # you are not in the USA or Canada, please use the collections in the
 # "secure-supfile" instead.
+#
+# The easiest way to get the export-restricted code is to use the
+# "cvs-crypto" mega-collection.
+#cvs-crypto
+#
+# These are the individual collections that make up "cvs-crypto".  If
+# you use these, be sure to comment out "cvs-crypto" above.
 #src-crypto
 #src-secure
+#src-sys-crypto
