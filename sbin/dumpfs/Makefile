@@ -4,7 +4,6 @@
 PROG=	dumpfs
 DPADD=	${LIBUFS}
 LDADD=	-lufs
-WARNS=	0
 MAN=	dumpfs.8
 
 .include <bsd.prog.mk>
