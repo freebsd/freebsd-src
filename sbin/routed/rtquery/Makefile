@@ -1,8 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/5/93
+#	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
+#	$Id$
 
 PROG=	rtquery
-MAN8=	rtquery.0
+MAN8=	rtquery.8
 #COPTS=	-g -DDEBUG -Wall
 
-.include "../../Makefile.inc"
 .include <bsd.prog.mk>
