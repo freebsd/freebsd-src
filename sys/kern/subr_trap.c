@@ -241,9 +241,10 @@ ast(struct trapframe *framep)
 			killproc(p, "exceeded maximum CPU limit");
 		else {
 			psignal(p, SIGXCPU);
-			if (rlim->rlim_cur < rlim->rlim_max)
-				/* XXX: we should make a private copy. */
-				rlim->rlim_cur += 5;
+			mtx_lock_spin(&sched_lock);
+			if (p->p_cpulimit < rlim->rlim_max)
+				p->p_cpulimit += 5;
+			mtx_unlock_spin(&sched_lock);
 		}
 		PROC_UNLOCK(p);
 	}

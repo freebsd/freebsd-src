@@ -82,7 +82,6 @@ struct plimit {
 #define	PL_SHAREMOD	0x01		/* modifications are shared */
 	int	p_lflags;
 	int	p_refcnt;		/* number of references */
-	rlim_t	p_cpulimit;		/* current cpu limit in sec */
 };
 
 #ifdef _KERNEL
