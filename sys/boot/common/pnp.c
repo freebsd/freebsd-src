@@ -41,6 +41,7 @@ pnp_scan(int argc, char *argv[])
 
     verbose = 0;
     optind = 1;
+    optreset = 1;
     while ((ch = getopt(argc, argv, "v")) != -1) {
 	switch(ch) {
 	case 'v':
