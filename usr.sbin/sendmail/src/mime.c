@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.51 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)mime.c	8.54 (Berkeley) 1/14/97";
 #endif /* not lint */
 
 /*
@@ -958,10 +958,8 @@ mime7to8(mci, header, e)
 	register char *p;
 	char *cte;
 	char **pvp;
-	u_char *obp;
 	u_char *fbufp;
 	char buf[MAXLINE];
-	u_char obuf[MAXLINE + 1];
 	u_char fbuf[MAXLINE + 1];
 	char pvpbuf[MAXLINE];
 	extern u_char MimeTokenTab[256];
@@ -1045,9 +1043,10 @@ mime7to8(mci, header, e)
 			c2 = CHAR64(c2);
 
 			*fbufp = (c1 << 2) | ((c2 & 0x30) >> 4);
-			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
 			{
-				if (*--fbufp != '\n' || *--fbufp != '\r')
+				if (*--fbufp != '\n' ||
+				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
 				*fbufp = '\0';
 				putline((char *) fbuf, mci);
@@ -1057,9 +1056,10 @@ mime7to8(mci, header, e)
 				continue;
 			c3 = CHAR64(c3);
 			*fbufp = ((c2 & 0x0f) << 4) | ((c3 & 0x3c) >> 2);
-			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
 			{
-				if (*--fbufp != '\n' || *--fbufp != '\r')
+				if (*--fbufp != '\n' ||
+				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
 				*fbufp = '\0';
 				putline((char *) fbuf, mci);
@@ -1069,35 +1069,37 @@ mime7to8(mci, header, e)
 				continue;
 			c4 = CHAR64(c4);
 			*fbufp = ((c3 & 0x03) << 6) | c4;
-			if (*fbufp++ == '\n' || fbuf >= &fbuf[MAXLINE])
+			if (*fbufp++ == '\n' || fbufp >= &fbuf[MAXLINE])
 			{
-				if (*--fbufp != '\n' || *--fbufp != '\r')
+				if (*--fbufp != '\n' ||
+				    (fbufp > fbuf && *--fbufp != '\r'))
 					fbufp++;
 				*fbufp = '\0';
 				putline((char *) fbuf, mci);
 				fbufp = fbuf;
 			}
 		}
-
-		/* force out partial last line */
-		if (fbufp > fbuf)
-		{
-			*fbufp = '\0';
-			putline((char *) fbuf, mci);
-		}
 	}
 	else
 	{
 		/* quoted-printable */
-		obp = obuf;
+		fbufp = fbuf;
 		while (fgets(buf, sizeof buf, e->e_dfp) != NULL)
 		{
-			if (mime_fromqp((u_char *) buf, &obp, 0, &obuf[MAXLINE] - obp) == 0)
+			if (mime_fromqp((u_char *) buf, &fbufp, 0,
+					&fbuf[MAXLINE] - fbufp) == 0)
 				continue;
 
-			putline((char *) obuf, mci);
-			obp = obuf;
+			putline((char *) fbuf, mci);
+			fbufp = fbuf;
 		}
+	}
+
+	/* force out partial last line */
+	if (fbufp > fbuf)
+	{
+		*fbufp = '\0';
+		putline((char *) fbuf, mci);
 	}
 	if (tTd(43, 3))
 		printf("\t\t\tmime7to8 => %s to 8bit done\n", cte);

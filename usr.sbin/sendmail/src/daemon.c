@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.156 (Berkeley) 12/1/96 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.159 (Berkeley) 1/14/97 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.156 (Berkeley) 12/1/96 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.159 (Berkeley) 1/14/97 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -165,7 +165,8 @@ getrequests(e)
 	(void) setsignal(SIGCHLD, reapchild);
 
 	/* write the pid to the log file for posterity */
-	pidf = fopen(PidFile, "w");
+	pidf = safefopen(PidFile, O_WRONLY|O_CREAT|O_TRUNC, 0644,
+			 SFF_NOSLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT);
 	if (pidf != NULL)
 	{
 		extern char *CommandLineArgs;
@@ -316,7 +317,7 @@ getrequests(e)
 		if (pid == 0)
 		{
 			char *p;
-			extern void intsig();
+			extern SIGFUNC_DECL intsig __P((int));
 			FILE *inchannel, *outchannel;
 			bool nullconn;
 
