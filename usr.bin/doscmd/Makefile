@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.16 1999/02/16 14:57:58 luoqi Exp $
+# $Id: Makefile,v 1.17 1999/02/17 13:48:07 bde Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -17,7 +17,7 @@ CLEANFILES=     redir.com emsdriv.sys
 
 BINGRP=	kmem
 EXEGRP=	bin
-BINMODE=2555
+# BINMODE=2555
 EXEMODE=444
 
 .if ${OBJFORMAT} == "aout"
