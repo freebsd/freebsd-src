@@ -78,19 +78,19 @@
 .Fc
 .Ft int
 .Fo res_send
-.Fa "const char *msg"
+.Fa "const u_char *msg"
 .Fa "int msglen"
-.Fa "char *answer"
+.Fa "u_char *answer"
 .Fa "int anslen"
 .Fc
 .Ft int
 .Fn res_init 
 .Fo dn_comp
 .Fa "const char *exp_dn"
-.Fa "char *comp_dn"
+.Fa "u_char *comp_dn"
 .Fa "int length"
-.Fa "char **dnptrs"
-.Fa "char **lastdnptr"
+.Fa "u_char **dnptrs"
+.Fa "u_char **lastdnptr"
 .Fc
 .Ft int
 .Fo dn_expand
