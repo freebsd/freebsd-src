@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.107 1999/01/02 07:23:37 jkh Exp $
+ * $Id: disks.c,v 1.108 1999/01/08 00:14:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -290,7 +290,7 @@ diskPartition(Device *dev)
 	    }
 #endif
 	    All_FreeBSD(d, rv);
-	    variable_set2(DISK_PARTITIONED, "yes");
+	    variable_set2(DISK_PARTITIONED, "yes", 0);
 	    record_chunks(d);
 	    clear();
 	    break;
@@ -347,7 +347,7 @@ diskPartition(Device *dev)
 #endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
-			variable_set2(DISK_PARTITIONED, "yes");
+			variable_set2(DISK_PARTITIONED, "yes", 0);
 			record_chunks(d);
 		    }
 		}
@@ -361,7 +361,7 @@ diskPartition(Device *dev)
 		msg = "Slice is already unused!";
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
-		variable_set2(DISK_PARTITIONED, "yes");
+		variable_set2(DISK_PARTITIONED, "yes", 0);
 		record_chunks(d);
 	    }
 	    break;
@@ -449,7 +449,7 @@ diskPartition(Device *dev)
 			       "these questions.  If you're adding a disk, you should NOT write\n"
 			       "from this screen, you should do it from the label editor.\n\n"
 			       "Are you absolutely sure you want to do this now?")) {
-		variable_set2(DISK_PARTITIONED, "yes");
+		variable_set2(DISK_PARTITIONED, "yes", 0);
 		
 		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
@@ -483,7 +483,7 @@ diskPartition(Device *dev)
 		clear();
 		refresh();
 		slice_wizard(d);
-		variable_set2(DISK_PARTITIONED, "yes");
+		variable_set2(DISK_PARTITIONED, "yes", 0);
 		record_chunks(d);
 	    }
 	    else
@@ -717,7 +717,7 @@ diskPartitionWrite(dialogMenuItem *self)
 	}
     }
     /* Now it's not "yes", but "written" */
-    variable_set2(DISK_PARTITIONED, "written");
+    variable_set2(DISK_PARTITIONED, "written", 0);
     return DITEM_SUCCESS;
 }
 
@@ -748,7 +748,7 @@ diskPartitionNonInteractive(Device *dev)
 		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
 		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size, freebsd, 3,
 				 (chunk_info[i]->flags & CHUNK_ALIGN));
-		    variable_set2(DISK_PARTITIONED, "yes");
+		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}
 	    }
@@ -778,7 +778,7 @@ diskPartitionNonInteractive(Device *dev)
 		/* If a chunk is at least sz MB, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
 		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3, (chunk_info[i]->flags & CHUNK_ALIGN));
-		    variable_set2(DISK_PARTITIONED, "yes");
+		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}
 	    }
@@ -809,6 +809,6 @@ diskPartitionNonInteractive(Device *dev)
 	    mbrContents = getBootMgr(d->name);
 	    Set_Boot_Mgr(d, mbrContents);
 	}
-	variable_set2(DISK_PARTITIONED, "yes");
+	variable_set2(DISK_PARTITIONED, "yes", 0);
     }
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.25 1998/07/18 09:41:58 jkh Exp $
+ * $Id: dispatch.c,v 1.26 1998/11/15 09:06:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -237,7 +237,7 @@ dispatchCommand(char *str)
     if (index(str, '=')) {
 	if (isDebug())
 	    msgDebug("dispatch: setting variable `%s'\n", str);
-	variable_set(str);
+	variable_set(str, 0);
 	i = DITEM_SUCCESS;
     }
     else {
@@ -302,7 +302,7 @@ dispatch_execute(qelement *head)
 	 old_interactive = strdup(old_interactive);	/* save copy */
 
     /* Hint to others that we're running from a script, should they care */
-    variable_set2(VAR_NONINTERACTIVE, "yes");
+    variable_set2(VAR_NONINTERACTIVE, "yes", 0);
 
     while (!EMPTYQUE(*head)) {
 	item = (command_buffer *) head->q_forw;
@@ -329,7 +329,7 @@ dispatch_execute(qelement *head)
     if (!old_interactive)
 	variable_unset(VAR_NONINTERACTIVE);
     else {
-	variable_set2(VAR_NONINTERACTIVE, old_interactive);
+	variable_set2(VAR_NONINTERACTIVE, old_interactive, 0);
 	free(old_interactive);
     }
 
@@ -392,7 +392,7 @@ dispatch_load_floppy(dialogMenuItem *self)
 
     cp = variable_get_value(VAR_INSTALL_CFG,
 			    "Specify the name of a configuration file\n"
-			    "residing on a MSDOS or UFS floppy.");
+			    "residing on a MSDOS or UFS floppy.", 0);
     if (!cp || !*cp) {
 	variable_unset(VAR_INSTALL_CFG);
 	what |= DITEM_FAILURE;

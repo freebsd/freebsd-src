@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.32 1998/10/01 19:26:02 msmith Exp $
+ * $Id: network.c,v 1.33 1998/11/15 09:06:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,13 +200,13 @@ startPPP(Device *devp)
 
     dialog_clear_norefresh();
     if (!variable_get(VAR_SERIAL_SPEED))
-	variable_set2(VAR_SERIAL_SPEED, "115200");
+	variable_set2(VAR_SERIAL_SPEED, "115200", 0);
     /* Get any important user values */
     val = variable_get_value(VAR_SERIAL_SPEED,
 		      "Enter the baud rate for your modem - this can be higher than the actual\n"
 		      "maximum data rate since most modems can talk at one speed to the\n"
 		      "computer and at another speed to the remote end.\n\n"
-		      "If you're not sure what to put here, just select the default.");
+		      "If you're not sure what to put here, just select the default.", 0);
     SAFE_STRCPY(speed, (val && *val) ? val : "115200");
 
     val = variable_get(VAR_GATEWAY);

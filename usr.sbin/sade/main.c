@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.49 1998/03/10 13:42:02 jkh Exp $
+ * $Id: main.c,v 1.50 1999/01/08 00:14:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	installEnvironment();
 
     if (argc > 1 && !strcmp(argv[1], "-fake")) {
-	variable_set2(VAR_DEBUG, "YES");
+	variable_set2(VAR_DEBUG, "YES", 0);
 	Fake = TRUE;
 	msgConfirm("I'll be just faking it from here on out, OK?");
     }

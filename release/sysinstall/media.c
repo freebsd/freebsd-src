@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.93 1998/12/02 03:27:37 jkh Exp $
+ * $Id: media.c,v 1.94 1998/12/22 12:31:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -333,7 +333,7 @@ mediaSetFTP(dialogMenuItem *self)
     if (!cp)
 	return DITEM_FAILURE | what;
     else if (!strcmp(cp, "other")) {
-	variable_set2(VAR_FTP_PATH, "ftp://");
+	variable_set2(VAR_FTP_PATH, "ftp://", 0);
 	dialog_clear_norefresh();
 	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
 				"remote ftp site.  This site must accept either anonymous\n"
@@ -341,7 +341,7 @@ mediaSetFTP(dialogMenuItem *self)
 				"in the Options screen.\n\n"
 				"A URL looks like this:  ftp://<hostname>/<path>\n"
 				"Where <path> is relative to the anonymous ftp directory or the\n"
-				"home directory of the user being logged in as.");
+				"home directory of the user being logged in as.", 0);
 	if (!cp || !*cp || !strcmp(cp, "ftp://")) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
@@ -408,9 +408,9 @@ mediaSetFTP(dialogMenuItem *self)
 	}
 	msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
-    variable_set2(VAR_FTP_HOST, hostname);
-    variable_set2(VAR_FTP_DIR, dir ? dir : "/");
-    variable_set2(VAR_FTP_PORT, itoa(FtpPort));
+    variable_set2(VAR_FTP_HOST, hostname, 0);
+    variable_set2(VAR_FTP_DIR, dir ? dir : "/", 0);
+    variable_set2(VAR_FTP_PORT, itoa(FtpPort), 0);
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
@@ -423,14 +423,14 @@ mediaSetFTP(dialogMenuItem *self)
 int
 mediaSetFTPActive(dialogMenuItem *self)
 {
-    variable_set2(VAR_FTP_STATE, "active");
+    variable_set2(VAR_FTP_STATE, "active", 0);
     return mediaSetFTP(self);
 }
 
 int
 mediaSetFTPPassive(dialogMenuItem *self)
 {
-    variable_set2(VAR_FTP_STATE, "passive");
+    variable_set2(VAR_FTP_STATE, "passive", 0);
     return mediaSetFTP(self);
 }
 
@@ -443,7 +443,7 @@ mediaSetUFS(dialogMenuItem *self)
     mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
-			    "containing the FreeBSD distribution files:");
+			    "containing the FreeBSD distribution files:", 0);
     if (!cp)
 	return DITEM_FAILURE;
     strcpy(ufsDevice.name, "ufs");
@@ -467,7 +467,7 @@ mediaSetNFS(dialogMenuItem *self)
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
-			    "This should be in the format:  hostname:/some/freebsd/dir");
+			    "This should be in the format:  hostname:/some/freebsd/dir", 0);
     if (!cp)
 	return DITEM_FAILURE;
     SAFE_STRCPY(hostname, cp);
@@ -503,7 +503,7 @@ mediaSetNFS(dialogMenuItem *self)
 	else
 	    msgDebug("Found DNS entry for %s successfully..", hostname);
     }
-    variable_set2(VAR_NFS_HOST, hostname);
+    variable_set2(VAR_NFS_HOST, hostname, 0);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
@@ -731,10 +731,10 @@ mediaSetFTPUserPass(dialogMenuItem *self)
     char *pass;
 
     dialog_clear_norefresh();
-    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:")) {
+    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:", 0)) {
 	dialog_clear_norefresh();
 	DialogInputAttrs |= DITEM_NO_ECHO;
-	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:", 0);
 	DialogInputAttrs &= ~DITEM_NO_ECHO;
     }
     else
@@ -754,11 +754,11 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     }
     else {
 	if (!strcmp(cp, "low"))
-	    variable_set2(VAR_CPIO_VERBOSITY, "medium");
+	    variable_set2(VAR_CPIO_VERBOSITY, "medium", 0);
 	else if (!strcmp(cp, "medium"))
-	    variable_set2(VAR_CPIO_VERBOSITY, "high");
+	    variable_set2(VAR_CPIO_VERBOSITY, "high", 0);
 	else /* must be "high" - wrap around */
-	    variable_set2(VAR_CPIO_VERBOSITY, "low");
+	    variable_set2(VAR_CPIO_VERBOSITY, "low", 0);
     }
     return DITEM_SUCCESS;
 }
