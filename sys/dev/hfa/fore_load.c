@@ -70,41 +70,36 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
+static int fore_probe(device_t);
+static int fore_attach(device_t);
+static int fore_detach(device_t);
+static int fore_shutdown(device_t);
 
-/*
- * Local functions
- */
-static int	fore_start(void);
-static const char *	fore_pci_probe(pcici_t, pcidi_t);
-static void	fore_pci_attach(pcici_t, int);
-static void	fore_pci_shutdown(void *, int);
-static void	fore_unattach(Fore_unit *);
-static void	fore_reset(Fore_unit *);
-
-#ifndef COMPAT_OLDPCI
-#error "The fore device requires the old pci compatibility shims"
+#ifndef	COMPAT_OLDPCI
+#error	"The fore device requires the old pci compatibility shims"
 #endif
 
-/*
- * Local variables
- */
 static int	fore_inited = 0;
-
-/*
- * Driver entry points
- */
 
 static	u_long	fore_pci_count = 0;
 
-static struct pci_device fore_pci_device = {
-	FORE_DEV_NAME,
-	fore_pci_probe,
-	fore_pci_attach,
-	&fore_pci_count,
-	NULL
+static device_method_t fore_methods[] = {
+	DEVMETHOD(device_probe,		fore_probe),
+	DEVMETHOD(device_attach,	fore_attach),
+	DEVMETHOD(device_detach,	fore_detach),
+	DEVMETHOD(device_shutdown,	fore_shutdown),
+	{ 0, 0 }
 };
 
-COMPAT_PCI_DRIVER(fore_pci, fore_pci_device);
+static struct fore_ident fore_ident_table[] = {
+    { 0x0200,		"FORE Systems PCA-200 ATM ForeRunner" },
+    { 0x0210,		"FORE Systems PCA-200PC" },
+    { 0x0250,		"FORE Systems ATM" },
+    { 0x0300,		"FORE Systems PCA-200E" },
+    { 0x0310,		"FORE Systems ATM" },
+    { 0x0400,		"FORE Systems PCA-200HE ATM ForeRunner" },
+    { 0,		NULL },
+};
 
 
 /*
@@ -135,7 +130,6 @@ fore_start()
 			ATM_VERS_MAJ(atm_version), ATM_VERS_MIN(atm_version));
 		return (EINVAL);
 	}
-
 	/*
 	 * Initialize DMA mapping
 	 */
@@ -145,9 +139,7 @@ fore_start()
 	 * Start up watchdog timer
 	 */
 	atm_timeout(&fore_timer, ATM_HZ * FORE_TIME_TICK, fore_timeout);
-
 	fore_inited = 1;
-
 	return (0);
 }
 
@@ -160,39 +152,23 @@ fore_start()
  * Determine if this driver will support the identified device.  If we claim
  * to support the device, our attach routine will (later) be called for the
  * device.
- *
- * Arguments:
- *	config_id	device's PCI configuration ID
- *	device_id	device's PCI Vendor/Device ID
- *
- * Returns:
- *	name 	device identification string
- *	NULL	device not claimed by this driver
- *
  */
-static const char *
-fore_pci_probe(config_id, device_id)
-	pcici_t	config_id;
-	pcidi_t	device_id;
+static int
+fore_probe(device_t dev)
 {
+	struct fore_ident *ident;
+	u_int16_t devid;
 
-	/*
-	 * Initialize driver stuff
-	 */
-	if (fore_inited == 0) {
-		if (fore_start())
-			return (NULL);
+	if (pci_get_vendor(dev) == FORE_VENDOR_ID) {
+		devid = pci_get_device(dev);
+		for (ident = fore_ident_table; ident->name != NULL; ident++)
+			if (ident->devid == devid) {
+				device_set_desc(dev, ident->name);
+				return (0);
+			}
 	}
-
-	if ((device_id & 0xffff) != FORE_VENDOR_ID)
-		return (NULL);
-
-	if (((device_id >> 16) & 0xffff) == FORE_PCA200E_ID)
-                return ("FORE Systems PCA-200E ATM");
-
-	return (NULL);
+	return (ENXIO);
 }
-
 
 /*
  * Device attach routine
@@ -213,8 +189,8 @@ fore_pci_probe(config_id, device_id)
  */
 static void
 fore_pci_attach(config_id, unit)
-	pcici_t	config_id;
-	int	unit;
+	pcici_t config_id;
+	int     unit;
 {
 	Fore_unit	*fup;
 	vm_offset_t	va;
@@ -223,20 +199,18 @@ fore_pci_attach(config_id, unit)
 	long		val;
 	int		err_count = BOOT_LOOPS;
 
+
 	/*
-	 * Just checking...
-	 */
-	if (unit >= FORE_MAX_UNITS) {
-		log(LOG_ERR, "%s%d: too many devices\n", 
-			FORE_DEV_NAME, unit);
-		return;
-	}
+ 	 * Check that unit is not >= FORE_MAX_UNITS
+ 	 */
+	
 
 	/*
 	 * Make sure this isn't a duplicate unit
 	 */
 	if (fore_units[unit] != NULL)
 		return;
+
 
 	/*
 	 * Allocate a new unit structure
