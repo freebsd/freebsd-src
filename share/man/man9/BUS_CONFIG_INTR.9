@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2003
+.Dd January 6, 2005
 .Dt BUS_CONFIG_INTR 9
 .Os
 .\"
@@ -66,7 +66,7 @@ The interrupt is edge triggered.
 This means that the interrupt is raised by the rising edge of the signal on
 the interrupt line.
 The signal typically reverts to the original state so as to cause a spike.
-.Dv INTR_TRIGGER_LEVEL
+.It Dv INTR_TRIGGER_LEVEL
 The interrupt is level triggered.
 This means that the interrupt is raised when the signal on the interrupt line
 transitions and remains unchanged after that until the interrupt has been
