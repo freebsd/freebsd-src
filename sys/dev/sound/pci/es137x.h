@@ -129,6 +129,56 @@
 #define CODEC_ADSEL	0x18
 #define CODEC_MGAIN	0x19
 
-#define ES_BUFFSIZE 0x20000		/* We're PCI! Use a large buffer */
+/* ES1371 specific */
+
+#define CODEC_ID_SESHIFT	10
+#define CODEC_ID_SEMASK		0x1f
+
+#define CODEC_PIRD		0x00800000  /* 0 = write AC97 register */
+#define CODEC_PIADD_MASK	0x007f0000
+#define CODEC_PIADD_SHIFT	16
+#define CODEC_PIDAT_MASK	0x0000ffff
+#define CODEC_PIDAT_SHIFT	0
+
+#define CODEC_PORD		0x00800000  /* 0 = write AC97 register */
+#define CODEC_POADD_MASK	0x007f0000
+#define CODEC_POADD_SHIFT	16
+#define CODEC_PODAT_MASK	0x0000ffff
+#define CODEC_PODAT_SHIFT	0
+
+#define CODEC_RDY		0x80000000  /* AC97 read data valid */
+#define CODEC_WIP		0x40000000  /* AC97 write in progress */
+
+#define ES1370_REG_CONTROL	0x00
+#define ES1370_REG_SERIAL_CONTROL	0x20
+#define ES1371_REG_CODEC	0x14
+#define ES1371_REG_LEGACY	0x18	     /* W/R: Legacy control/status register */
+#define ES1371_REG_SMPRATE	0x10	     /* W/R: Codec rate converter interface register */
+
+#define ES1371_SYNC_RES		(1<<14)	 /* Warm AC97 reset */
+#define ES1371_DIS_R1		(1<<19)	 /* record channel accumulator update disable */
+#define ES1371_DIS_P2		(1<<20)	 /* playback channel 2 accumulator update disable */
+#define ES1371_DIS_P1		(1<<21)	 /* playback channel 1 accumulator update disable */
+#define ES1371_DIS_SRC		(1<<22)	 /* sample rate converter disable */
+#define ES1371_SRC_RAM_BUSY	(1<<23)	 /* R/O: sample rate memory is busy */
+#define ES1371_SRC_RAM_WE	(1<<24)	 /* R/W: read/write control for sample rate converter */
+#define ES1371_SRC_RAM_ADDRO(o) (((o)&0x7f)<<25)	/* address of the sample rate converter */
+#define ES1371_SRC_RAM_DATAO(o) (((o)&0xffff)<<0)	/* current value of the sample rate converter */
+#define ES1371_SRC_RAM_DATAI(i) (((i)>>0)&0xffff)	/* current value of the sample rate converter */
+
+/*
+ *  Sample rate converter addresses
+ */
+
+#define ES_SMPREG_DAC1		0x70
+#define ES_SMPREG_DAC2		0x74
+#define ES_SMPREG_ADC		0x78
+#define ES_SMPREG_TRUNC_N	0x00
+#define ES_SMPREG_INT_REGS	0x01
+#define ES_SMPREG_VFREQ_FRAC	0x03
+#define ES_SMPREG_VOL_ADC	0x6c
+#define ES_SMPREG_VOL_DAC1	0x7c
+#define ES_SMPREG_VOL_DAC2	0x7e
+#define ES_BUFFSIZE 0x10000		/* We're PCI! Use a large buffer */
 
 #endif
