@@ -748,7 +748,7 @@ mem1:				saved_errno = errno;
 	 * state.
 	 */
 	if (ISSET(FTS_NOCHDIR)) {
-		if (len == sp->fts_pathlen)
+		if (cp - 1 > sp->fts_path)
 			--cp;
 		*cp = '\0';
 	}
