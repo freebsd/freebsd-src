@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1992-1997 Darren Reed.
+ * (C)opyright 1992-1998 Darren Reed.
  * (C)opyright 1997 Marc Boucher.
  *
  * Redistribution and use in source and binary forms are permitted

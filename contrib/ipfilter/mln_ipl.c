@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -66,7 +66,11 @@ extern	int	lkmenodev __P((void));
 #if NetBSD >= 199706
 int	if_ipl_lkmentry __P((struct lkm_table *, int, int));
 #else
+#if defined(OpenBSD)
+int	if_ipl __P((struct lkm_table *, int, int));
+#else
 int	xxxinit __P((struct lkm_table *, int, int));
+#endif
 #endif
 static	int	ipl_unload __P((void));
 static	int	ipl_load __P((void));
@@ -100,7 +104,9 @@ struct	cdevsw	ipldevsw =
 	(void *)nullop,		/* write */
 	iplioctl,		/* ioctl */
 	(void *)nullop,		/* stop */
+#ifndef OpenBSD
 	(void *)nullop,		/* reset */
+#endif
 	(void *)NULL,		/* tty */
 	(void *)nullop,		/* select */
 	(void *)nullop,		/* mmap */
@@ -119,7 +125,11 @@ extern int nchrdev;
 #if NetBSD >= 199706
 int if_ipl_lkmentry(lkmtp, cmd, ver)
 #else
+#if defined(OpenBSD)
+int if_ipl(lkmtp, cmd, ver)
+#else
 int xxxinit(lkmtp, cmd, ver)
+#endif
 #endif
 struct lkm_table *lkmtp;
 int cmd, ver;
@@ -127,6 +137,9 @@ int cmd, ver;
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
 
+#ifdef OpenBSD
+int lkmexists __P((struct lkm_table *)); /* defined in /sys/kern/kern_lkm.c */
+#endif
 
 static int iplaction(lkmtp, cmd)
 struct lkm_table *lkmtp;
@@ -182,7 +195,11 @@ static int ipl_remove()
 		if ((error = namei(&nd)))
 			return (error);
 		VOP_LEASE(nd.ni_vp, curproc, curproc->p_ucred, LEASE_WRITE);
+#ifdef OpenBSD
+		VOP_LOCK(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+#else
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
+#endif
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	}

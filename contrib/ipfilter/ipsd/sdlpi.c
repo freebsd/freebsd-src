@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1992-1997 Darren Reed. (from tcplog)
+ * (C)opyright 1992-1998 Darren Reed. (from tcplog)
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given

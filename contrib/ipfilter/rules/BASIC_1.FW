@@ -2,7 +2,7 @@
 #
 # SAMPLE: RESTRICTIVE FILTER RULES
 #
-# THIS EXAMPLE IS WRITTEN FOR IP FILTER 3.2
+# THIS EXAMPLE IS WRITTEN FOR IP FILTER 3.3
 #
 # ppp0 - (external) PPP connection to ISP, address a.b.c.d/32
 #

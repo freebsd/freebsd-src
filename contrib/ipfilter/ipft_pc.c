@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -29,11 +29,11 @@
 #include "ip_compat.h"
 #include <netinet/tcpip.h>
 #include "ipf.h"
-#include "ipt.h"
 #include "pcap.h"
+#include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.0.2.6.2.1 1997/11/12 10:56:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.1 1999/08/04 17:30:03 darrenr Exp $";
 #endif
 
 struct	llc	{
