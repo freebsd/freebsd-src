@@ -1,4 +1,4 @@
-#	$Id: inst2.rc,v 1.1 1994/02/21 21:51:58 rgrimes Exp $
+#	$Id: inst2.rc,v 1.2 1994/02/25 23:34:12 alm Exp $
 #
 
 stty status '^T'
@@ -379,7 +379,7 @@ configure()
 	*)
 		intf=
 		while [ "$intf" = "" ]; do
-			echo -n "What is the primary interface name (i.e. we0, etc.)? "
+			echo -n "What is the primary interface name (i.e. ed0, etc.)? "
 			read intf
 		done
 		echo -n "What is the hostname for this interface? [$hname] "
