@@ -151,6 +151,7 @@
 #	kbd	keyboard devices
 #	3dfx*	3dfx voodoo device for glide (tdfx) (/dev/3dfx,3dfxN,voodoo)
 #	agpgart	AGP interface
+#	cfs*	Coda Distributed Filesystem
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -1754,6 +1755,11 @@ twe*)
 tw*)
 	unit=`expr $i : 'tw\(.*\)'`
 	mknod tw$unit c 19 `unit2minor $unit` root:operator
+	;;
+
+cfs*)
+	unit=`expr $i : 'cfs\(.*\)'`
+	mknod cfs$unit c 93 $unit root:operator
 	;;
 
 local)
