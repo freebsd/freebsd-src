@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.10 1995/08/25 19:40:32 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.11 1995/09/06 05:39:28 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -370,6 +370,8 @@ ffs_getpages(ap)
 		if (reqblkno == -1) {
 			if ((ap->a_m[ap->a_reqpage]->flags & PG_ZERO) == 0)
 				vm_page_zero_fill(ap->a_m[ap->a_reqpage]);
+			ap->a_m[ap->a_reqpage]->dirty = 0;
+			ap->a_m[ap->a_reqpage]->valid = VM_PAGE_BITS_ALL;
 			return VM_PAGER_OK;
 		} else {
 			return VM_PAGER_ERROR;
