@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.181 1996/12/28 03:10:50 obrien Exp $ -->
+<!-- $Id: contrib.sgml,v 1.182 1996/12/30 10:59:35 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -105,7 +105,6 @@
         <item>&a.graichen;
         <item>&a.rgrimes;
 	<item>&a.jhay;
-	<item>&a.jvh;
         <item>&a.hsu;
         <item>&a.ugen;
         <item>&a.gj;
@@ -130,7 +129,6 @@
         <item>&a.jdp;
         <item>&a.steve; 
         <item>&a.mpp;
-	<item>&a.proven;
         <item>&a.dfr;  
         <item>&a.jraynard;
         <item>&a.csgr;
