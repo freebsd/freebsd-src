@@ -24,7 +24,12 @@ or modify.
 
   Using UFS Extended Attributes
 
-Support for UFS extended attributes may be enabled by adding:
+Support for UFS extended attributes is natively available in UFS2, and
+requires no special configuration.  For reliability, administrative,
+and performance reasons, if you plan to use extended attributes, it
+is recommended that you use UFS2 in preference to UFS1.
+
+Support for UFS extended attributes may be enabled for UFS1 by adding:
 
 	options UFS_EXTATTR
 
