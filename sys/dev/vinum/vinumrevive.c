@@ -37,12 +37,12 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.18 2003/04/28 02:54:43 grog Exp $
+ * $Id: vinumrevive.c,v 1.19 2003/05/08 04:34:47 grog Exp grog $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
+__FBSDID("$FreeBSD$");
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
@@ -161,9 +161,9 @@ revive_block(int sdno)
 	       * First, read the data from the volume.  We
 	       * don't care which plex, that's bre's job.
 	     */
-	    bp->b_dev = VINUM_VOL(plex->volno);		    /* create the device number */
+	    bp->b_dev = VOL[plex->volno].dev;		    /* create the device number */
 	else						    /* it's an unattached plex */
-	    bp->b_dev = VINUM_PLEX(sd->plexno);		    /* create the device number */
+	    bp->b_dev = PLEX[sd->plexno].dev;		    /* create the device number */
 
 	bp->b_iocmd = BIO_READ;				    /* either way, read it */
 	bp->b_flags = 0;
@@ -178,7 +178,7 @@ revive_block(int sdno)
     } else
 	/* Now write to the subdisk */
     {
-	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
+	bp->b_dev = SD[sdno].dev;			    /* create the device number */
 	bp->b_flags &= ~B_DONE;				    /* no longer done */
 	bp->b_ioflags = 0;
 	bp->b_iocmd = BIO_WRITE;
@@ -212,7 +212,7 @@ revive_block(int sdno)
 		    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
-		    (intmax_t)rq->bp->b_blkno,
+		    (intmax_t) rq->bp->b_blkno,
 		    rq->bp->b_bcount);
 #endif
 	    launch_requests(sd->waitlist, 1);		    /* do them now */
@@ -309,7 +309,7 @@ parityops(struct vinum_ioctl_msg *data)
 		reply->error = EIO;
 	    sprintf(reply->msg,
 		"Parity incorrect at offset 0x%jx\n",
-		(intmax_t)errorloc);
+		(intmax_t) errorloc);
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    plex->checkblock = pstripe + (pbp->b_bcount >> DEV_BSHIFT);	/* moved this much further down */
@@ -413,9 +413,9 @@ parityrebuild(struct plex *plex,
 	    if (sdno == psd)
 		parity_buf = (int *) bpp[sdno]->b_data;
 	    if (sdno == newpsd)				    /* the new one? */
-		bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[psd]); /* write back to the parity SD */
+		bpp[sdno]->b_dev = SD[plex->sdnos[psd]].dev; /* write back to the parity SD */
 	    else
-		bpp[sdno]->b_dev = VINUM_SD(plex->sdnos[sdno]);	/* device number */
+		bpp[sdno]->b_dev = SD[plex->sdnos[sdno]].dev; /* device number */
 	    bpp[sdno]->b_iocmd = BIO_READ;		    /* either way, read it */
 	    bpp[sdno]->b_flags = 0;
 	    bpp[sdno]->b_bcount = mysize;
@@ -557,7 +557,7 @@ initsd(int sdno, int verify)
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->initialized;			    /* write it to here */
 	bzero(bp->b_data, bp->b_bcount);
-	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
+	bp->b_dev = SD[sdno].dev;			    /* create the device number */
 	bp->b_iocmd = BIO_WRITE;
 	sdio(bp);					    /* perform the I/O */
 	bufwait(bp);
@@ -578,7 +578,7 @@ initsd(int sdno, int verify)
 		bp->b_bcount = size;
 		bp->b_resid = bp->b_bcount;
 		bp->b_blkno = sd->initialized;		    /* read from here */
-		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
+		bp->b_dev = SD[sdno].dev;		    /* create the device number */
 		bp->b_iocmd = BIO_READ;			    /* read it back */
 		splx(s);
 		sdio(bp);
