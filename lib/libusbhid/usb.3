@@ -1,4 +1,4 @@
-.\"	$NetBSD: usb.3,v 1.10 2000/02/22 12:39:22 augustss Exp $
+.\"	$NetBSD: usb.3,v 1.13 2000/09/24 02:17:52 augustss Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
@@ -31,6 +31,7 @@
 .Sh NAME
 .Nm usb ,
 .Nm hid_get_report_desc ,
+.Nm hid_use_report_desc ,
 .Nm hid_dispose_report_desc ,
 .Nm hid_start_parse ,
 .Nm hid_end_parse ,
@@ -49,6 +50,8 @@
 .Fd #include <libusb.h>
 .Ft report_desc_t
 .Fn hid_get_report_desc "int file"
+.Ft report_desc_t
+.Fn hid_use_report_desc "unsigned char *data" "unsigned int size"
 .Ft void
 .Fn hid_dispose_report_desc "report_desc_t d"
 .Ft hid_data_t
@@ -58,13 +61,17 @@
 .Ft int
 .Fn hid_get_item "hid_data_t s" "hid_item_t *h"
 .Ft int
-.Fn hid_report_size "report_desc_t d" "hid_kind_t k" "int *idp"
+.Fn hid_report_size "report_desc_t d" "unsigned int id" "hid_kind_t k"
 .Ft int
 .Fn hid_locate "report_desc_t d" "u_int usage" "hid_kind_t k" "hid_item_t *h"
 .Ft char *
 .Fn hid_usage_page "int i"
 .Ft char *
 .Fn hid_usage_in_page "u_int u"
+.Ft int
+.Fn hid_parse_usage_page "const char *"
+.Ft char *
+.Fn hid_parse_usage_in_page "const char *"
 .Ft void
 .Fn hid_init "char *file"
 .Ft int
@@ -91,13 +98,19 @@ A report descriptor can be obtained by calling
 .Fn hid_get_report_desc
 with a file descriptor obtained by opening a
 .Xr uhid 4
-device.
-When the report descriptor is no longer needed it should be freed
-by calling
+device. Alternatively a data buffer containing the report descriptor can be
+passed into
+.Fn hid_use_report_desc .
+The data is copied into an internal structure. When the report descriptor
+is no longer needed it should be freed by calling
 .Fn hid_dispose_report_desc .
 The type
 .Fa report_desc_t
 is opaque and should be used when calling the parsing functions.
+If
+.Fn hid_dispose_report_desc
+fails it will return
+.Fa NULL .
 .Ss DESCRIPTOR PARSING FUNCTIONS
 To parse the report descriptor the
 .Fn hid_start_parse
@@ -136,10 +149,7 @@ Data should be read/written to the device in the size of
 the report.  The size of a report (of a certain kind) can be
 computed by the
 .Fn hid_report_size
-function.  If the report is prefixed by an ID byte it is
-stored at
-.Fa idp ,
-otherwise it will contain 0.
+function.
 .Pp
 To locate a single item the
 .Fn hid_locate
@@ -154,7 +164,19 @@ will return the symbolic name of a usage page, and the function
 .Fn hid_usage_in_page
 will return the symbolic name of the usage within the page.
 Both these functions may return a pointer to static data.
-Before either of these functions can be called the usage table
+.Pp
+The functions
+.Fn hid_parse_usage_page
+and
+.Fn hid_parse_usage_in_page
+are the inverses of
+.Fn hid_usage_page
+and
+.Fn hid_usage_in_page .
+They take a usage string and return the number of the usage, or -1
+if it cannot be found.
+.Pp
+Before any of these functions can be called the usage table
 must be parsed, this is done by calling
 .Fn hid_init
 with the name of the table.  Passing

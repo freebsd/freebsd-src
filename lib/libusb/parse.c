@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.9 2000/03/17 18:09:17 augustss Exp $	*/
+/*	$NetBSD: parse.c,v 1.11 2000/09/24 02:19:54 augustss Exp $	*/
 
 /*
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
@@ -52,6 +52,11 @@ struct hid_data {
 	int multi;
 	int multimax;
 	int kindset;
+
+	/* Absolute data position (bits) for input/output/feature.
+           Assumes that hid_input, hid_output and hid_feature have
+           values 0, 1 and 2. */
+        unsigned int kindpos[3];
 };
 
 static int min(int x, int y) { return x < y ? x : y; }
@@ -99,12 +104,13 @@ int
 hid_get_item(hid_data_t s, hid_item_t *h)
 {
 	hid_item_t *c;
-	unsigned int bTag = 0, bType = 0, bSize, oldpos;
+	unsigned int bTag = 0, bType = 0, bSize;
 	unsigned char *data;
 	int dval;
 	unsigned char *p;
 	hid_item_t *hi;
 	int i;
+	hid_kind_t retkind;
 
 	c = &s->cur;
 
@@ -114,7 +120,11 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 			c->usage = s->usages[min(s->multi, s->nusage-1)];
 			s->multi++;
 			*h = *c;
-			c->pos += c->report_size;
+
+			/* 'multimax' is only non-zero if the current
+                           item kind is input/output/feature */
+			h->pos = s->kindpos[c->kind];
+			s->kindpos[c->kind] += c->report_size;
 			h->next = 0;
 			return (1);
 		} else {
@@ -176,11 +186,15 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 		case 0:			/* Main */
 			switch (bTag) {
 			case 8:		/* Input */
-				if (!(s->kindset & (1 << hid_input)))
-					continue;
-				c->kind = hid_input;
-				c->flags = dval;
+				retkind = hid_input;
 			ret:
+				if (!(s->kindset & (1 << retkind))) {
+					/* Drop the items of this kind */
+					s->nusage = 0;
+					continue;
+				}
+				c->kind = retkind;
+				c->flags = dval;
 				if (c->flags & HIO_VARIABLE) {
 					s->multimax = c->report_count;
 					s->multi = 0;
@@ -201,16 +215,14 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 						c->usage = c->usage_minimum;
 					*h = *c;
 					h->next = 0;
-					c->pos += c->report_size * c->report_count;
+					h->pos = s->kindpos[c->kind];
+					s->kindpos[c->kind] += c->report_size * c->report_count;
 					hid_clear_local(c);
 					s->minset = 0;
 					return (1);
 				}
 			case 9:		/* Output */
-				if (!(s->kindset & (1 << hid_output)))
-					continue;
-				c->kind = hid_output;
-				c->flags = dval;
+				retkind = hid_output;
 				goto ret;
 			case 10:	/* Collection */
 				c->kind = hid_collection;
@@ -222,10 +234,7 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 				s->nusage = 0;
 				return (1);
 			case 11:	/* Feature */
-				if (!(s->kindset & (1 << hid_feature)))
-					continue;
-				c->kind = hid_feature;
-				c->flags = dval;
+				retkind = hid_feature;
 				goto ret;
 			case 12:	/* End collection */
 				c->kind = hid_endcollection;
@@ -277,9 +286,7 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 				break;
 			case 11: /* Pop */
 				hi = c->next;
-				oldpos = c->pos;
 				s->cur = *hi;
-				c->pos = oldpos;
 				free(hi);
 				break;
 			default:
@@ -345,34 +352,31 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 }
 
 int
-hid_report_size(report_desc_t r, enum hid_kind k, int *idp)
+hid_report_size(report_desc_t r, unsigned int id, enum hid_kind k)
 {
 	struct hid_data *d;
 	hid_item_t h;
-	int size, id;
+	unsigned int size = 0;
 
-	id = 0;
-	if (idp)
-		*idp = 0;
 	memset(&h, 0, sizeof h);
-	for (d = hid_start_parse(r, 1<<k); hid_get_item(d, &h); ) {
-		if (h.report_ID != NO_REPORT_ID) {
-			if (idp)
-				*idp = h.report_ID;
-			id = 8;
+	d = hid_start_parse(r, 1<<k);
+	while (hid_get_item(d, &h)) {
+		if (h.report_ID == id && h.kind == k) {
+			unsigned int newsize = h.pos + h.report_size;
+			if (newsize > size)
+			    size = newsize;
 		}
 	}
 	hid_end_parse(d);
-	size = h.pos + id;
-	return ((size + 7) / 8);
+
+	if (id != NO_REPORT_ID)
+		size += 8;		/* add 8 bits for the report ID */
+
+	return ((size + 7) / 8);	/* return size in bytes */
 }
 
 int
-hid_locate(desc, u, k, h)
-	report_desc_t desc;
-	unsigned int u;
-	enum hid_kind k;
-	hid_item_t *h;
+hid_locate(report_desc_t desc, unsigned int u, enum hid_kind k, hid_item_t *h)
 {
 	hid_data_t d;
 
