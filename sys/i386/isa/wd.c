@@ -400,11 +400,17 @@ wdattach(struct isa_device *dvp)
 	struct disk *du;
 	struct wdparams *wp;
 	static char buf[] = "wdcXXX";
+	static int once;
 
 	dvp->id_intr = wdintr;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
+
+	if (!once) {
+		cdevsw_add(&wd_cdevsw);
+		once++;
+	}
 
 	if (eide_quirks & Q_CMD640B) {
 		if (dvp->id_unit == PRIMARY) {
@@ -1187,6 +1193,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (du == NULL)
 		return (ENXIO);
 
+	dev->si_iosize_max = 248 * 512;
 	/* Finish flushing IRQs left over from wdattach(). */
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 2)
 		wdtab[du->dk_ctrlr_cmd640].b_active = 0;
@@ -2289,17 +2296,5 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	} while (--timeout != 0);
 	return (-1);
 }
-
-static void 	wd_drvinit(void *unused)
-{
-
-	if (wd_cdevsw.d_maxio == 0)
-		wd_cdevsw.d_maxio = 248 * 512;
-	cdevsw_add(&wd_cdevsw);
-}
-
-SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)
-
-
 
 #endif /* NWDC > 0 */
