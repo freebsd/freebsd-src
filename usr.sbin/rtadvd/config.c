@@ -113,6 +113,11 @@ getconfig(intface)
 	}
 
 	tmp = (struct rainfo *)malloc(sizeof(*ralist));
+	if (tmp == NULL) {
+		syslog(LOG_INFO, "<%s> %s: can't allocate enough memory",
+		    __func__, intface);
+		exit(1);
+	}
 	memset(tmp, 0, sizeof(*tmp));
 	tmp->prefix.next = tmp->prefix.prev = &tmp->prefix;
 	tmp->route.next = tmp->route.prev = &tmp->route;
