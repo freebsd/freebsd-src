@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.26 1998/06/09 20:19:59 ache Exp $";
+	"$Id: pwd_mkdb.c,v 1.27 1998/09/29 20:01:21 dt Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -287,6 +287,10 @@ main(argc, argv)
 		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
+#ifdef PASSWD_IGNORE_COMMENTS
+           if(is_comment)
+                --cnt;
+#endif
 		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			/* Create insecure data. */
