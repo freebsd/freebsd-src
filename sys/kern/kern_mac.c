@@ -188,6 +188,9 @@ mac_policy_grab_exclusive(void)
 {
 
 #ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
  	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
 	mtx_lock(&mac_policy_mtx);
@@ -201,6 +204,9 @@ mac_policy_assert_exclusive(void)
 {
 
 #ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
 	mtx_assert(&mac_policy_mtx, MA_OWNED);
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_assert_exclusive(): not exclusive"));
@@ -212,6 +218,9 @@ mac_policy_release_exclusive(void)
 {
 
 #ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_release_exclusive(): not exclusive"));
 	mtx_unlock(&mac_policy_mtx);
@@ -224,6 +233,9 @@ mac_policy_list_busy(void)
 {
 
 #ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count++;
 	mtx_unlock(&mac_policy_mtx);
@@ -236,6 +248,9 @@ mac_policy_list_conditional_busy(void)
 #ifndef MAC_STATIC
 	int ret;
 
+	if (!mac_late)
+		return (1);
+
 	mtx_lock(&mac_policy_mtx);
 	if (!LIST_EMPTY(&mac_policy_list)) {
 		mac_policy_count++;
@@ -245,6 +260,9 @@ mac_policy_list_conditional_busy(void)
 	mtx_unlock(&mac_policy_mtx);
 	return (ret);
 #else
+	if (!mac_late)
+		return (1);
+
 	return (1);
 #endif
 }
@@ -254,6 +272,9 @@ mac_policy_list_unbusy(void)
 {
 
 #ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count--;
 	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
