@@ -32,6 +32,7 @@ SUBDIR=	apply \
 	comm \
 	compile_et \
 	compress \
+	csplit \
 	ctags \
 	cut \
 	dirname \
