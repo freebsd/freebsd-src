@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.16 1997/12/18 09:13:34 davidg Exp $
+ *	$Id: ip_divert.c,v 1.17 1998/01/08 23:41:50 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -115,6 +115,7 @@ div_init(void)
 	 * over the place for hashbase == NULL.
 	 */
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
+	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
 }
 
 /*

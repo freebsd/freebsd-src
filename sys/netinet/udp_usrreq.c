@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.42 1997/12/19 23:46:21 bde Exp $
+ *	$Id: udp_usrreq.c,v 1.43 1998/01/25 17:25:41 steve Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ static struct	inpcbhead udb;		/* from udp_var.h */
 static struct	inpcbinfo udbinfo;
 
 #ifndef UDBHASHSIZE
-#define UDBHASHSIZE 64
+#define UDBHASHSIZE 16
 #endif
 
 static struct	udpstat udpstat;	/* from udp_var.h */
@@ -97,6 +97,7 @@ udp_init()
 	LIST_INIT(&udb);
 	udbinfo.listhead = &udb;
 	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
+	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.porthashmask);
 }
 
 void
@@ -274,7 +275,7 @@ udp_input(m, iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	inp = in_pcblookuphash(&udbinfo, ip->ip_src, uh->uh_sport,
+	inp = in_pcblookup_hash(&udbinfo, ip->ip_src, uh->uh_sport,
 	    ip->ip_dst, uh->uh_dport, 1);
 	if (inp == NULL) {
 		if (log_in_vain) {
