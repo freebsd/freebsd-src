@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.16 1998/11/10 08:49:28 peter Exp $
+ *	$Id: kern_linker.c,v 1.17 1998/11/11 13:04:39 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -596,7 +596,7 @@ linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval)
 int
 kldload(struct proc* p, struct kldload_args* uap)
 {
-    char* filename = NULL;
+    char* filename = NULL, *modulename;
     linker_file_t lf;
     int error = 0;
 
@@ -611,6 +611,15 @@ kldload(struct proc* p, struct kldload_args* uap)
     filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
 	goto out;
+
+    /* Can't load more than one module with the same name */
+    modulename = rindex(filename, '/');
+    if (modulename == NULL)
+	modulename = filename;
+    if (linker_find_file_by_name(modulename)) {
+	error = EEXIST;
+	goto out;
+    }
 
     if (error = linker_load_file(filename, &lf))
 	goto out;
@@ -656,7 +665,7 @@ out:
 int
 kldfind(struct proc* p, struct kldfind_args* uap)
 {
-    char* filename = NULL;
+    char* filename = NULL, *modulename;
     linker_file_t lf;
     int error = 0;
 
@@ -666,7 +675,11 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
 	goto out;
 
-    lf = linker_find_file_by_name(filename);
+    modulename = rindex(filename, '/');
+    if (modulename == NULL)
+	modulename = filename;
+
+    lf = linker_find_file_by_name(modulename);
     if (lf)
 	p->p_retval[0] = lf->id;
     else
