@@ -2039,8 +2039,9 @@ options 	BOOTP_WIRED_TO=fxp0 # Use interface fxp0 for BOOTP
 options 	HW_WDOG
 
 #
-# Disable swapping. This option removes all code which actually performs
-# swapping, so it's not possible to turn it back on at run-time.
+# Disable swapping of upages and stack pages.  This option removes all
+# code which actually performs swapping, so it's not possible to turn
+# it back on at run-time.
 #
 # This is sometimes usable for systems which don't have any swap space
 # (see also sysctls "vm.defer_swapspace_pageouts" and
