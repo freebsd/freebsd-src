@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.20 1997/08/02 14:33:21 bde Exp $
+ * $Id: lfs_vfsops.c,v 1.21 1997/08/16 19:16:23 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -99,12 +99,8 @@ lfs_mountroot()
 	struct proc *p = curproc;	/* XXX */
 	int error;
 	
-	/*
-	 * Get vnodes for swapdev and rootdev.
-	 */
-	if ((error = bdevvp(swapdev, &swapdev_vp)) ||
-	    (error = bdevvp(rootdev, &rootvp))) {
-		printf("lfs_mountroot: can't setup bdevvp's");
+	if ((error = bdevvp(rootdev, &rootvp))) {
+		printf("lfs_mountroot: can't find rootvp");
 		return (error);
 	}
 	if (error = vfs_rootmountalloc("lfs", "root_device", &mp))
@@ -189,7 +185,7 @@ lfs_mount(mp, path, data, ndp, p)
 		 */
 
 		/* XXX -- implement*/
-		panic("lfs_mountroot: can't setup bdevvp for root");
+		panic("lfs_mount: NULL path not implemented");
 	}
 
 	/*

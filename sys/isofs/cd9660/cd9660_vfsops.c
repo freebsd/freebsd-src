@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.26 1997/08/02 14:31:20 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.27 1997/08/16 19:15:00 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -148,15 +148,10 @@ iso_mountroot(mp, p)
 	struct iso_args args;
 	int error;
 
-	/*
-	 * Get vnode for rootdev.
-	 */
-	if ((error = bdevvp(swapdev, &swapdev_vp)) ||
-	    (error = bdevvp(rootdev, &rootvp))) {
-		printf("iso_mountroot: can't setup bdevvp's");
+	if ((error = bdevvp(rootdev, &rootvp))) {
+		printf("iso_mountroot: can't find rootvp");
 		return (error);
 	}
-
 	args.flags = ISOFSMNT_ROOT;
 	args.ssector = iso_get_ssector(rootdev, p);
 	if (bootverbose)
