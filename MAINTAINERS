@@ -78,3 +78,107 @@ fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
 libc		nectar	Opportuntity for pre-commit review appreciated for
 			nsdispatch(3) and its consumers.
+
+Following are the entries from the Makefiles, and a few other sources.
+Please remove stale entries from both their origin, and this file.
+
+Please also consider removing the lines from the files listed below and
+stating your preferences here instead.
+
+bin/dd/Makefile:MAINTAINER=	green@FreeBSD.org
+bin/rmail/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+contrib/cvs/FREEBSD-upgrade:MAINTAINER=	peter@FreeBSD.org
+games/fortune/datfiles/Makefile:MAINTAINER=	jkh@FreeBSD.org
+gnu/usr.bin/binutils/Makefile:MAINTAINER=	obrien@FreeBSD.org
+gnu/usr.bin/cvs/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/contrib/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/cvs/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/cvsbug/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/doc/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/lib/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/cvs/libdiff/Makefile:MAINTAINER=	peter@FreeBSD.org
+gnu/usr.bin/man/apropos/Makefile:MAINTAINER=	wosch@FreeBSD.org
+lib/libbz2/Makefile:MAINTAINER=	obrien@FreeBSD.org
+lib/libc/posix1e/Makefile.inc:MAINTAINER=	rwatson@FreeBSD.org
+lib/libcam/Makefile:MAINTAINER=	ken@FreeBSD.ORG
+lib/libdevstat/Makefile:MAINTAINER=	ken@FreeBSD.ORG
+lib/libmilter/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+lib/libsm/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+lib/libsmdb/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+lib/libsmutil/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+lib/libusbhid/Makefile:MAINTAINER=	n_hibma@FreeBSD.ORG
+lib/libwrap/Makefile:MAINTAINER=	markm@FreeBSD.org
+lib/libz/Makefile:MAINTAINER=	peter@FreeBSD.org
+libexec/lukemftpd/Makefile:MAINTAINER=	obrien@FreeBSD.org
+libexec/mail.local/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+libexec/smrsh/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+libexec/tcpd/Makefile:MAINTAINER=	markm@FreeBSD.org
+sbin/camcontrol/Makefile:MAINTAINER=	ken@FreeBSD.org
+sbin/dhclient/Makefile.inc:MAINTAINER=	murray@FreeBSD.org
+sbin/ffsinfo/Makefile:MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
+sbin/growfs/Makefile:MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
+sbin/ipf/Makefile:MAINTAINER=	guido@freebsd.org
+sbin/ipfs/Makefile:MAINTAINER=	darrenr@freebsd.org
+sbin/ipfstat/Makefile:MAINTAINER=	guido@freebsd.org
+sbin/ipmon/Makefile:MAINTAINER=	guido@freebsd.org
+sbin/ipnat/Makefile:MAINTAINER=	guido@freebsd.org
+secure/Makefile:MAINTAINER=	markm@FreeBSD.org
+share/doc/smm/08.sendmailop/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+share/sendmail/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+sys/boot/i386/cdboot/Makefile:MAINTAINER=	jhb@FreeBSD.org
+sys/boot/i386/pxeldr/Makefile:MAINTAINER=	jhb@FreeBSD.org
+sys/compat/svr4/Makefile:MAINTAINER=	newton@freebsd.org
+sys/dev/asr/MAINTAINER:MAINTAINER=	obrien@freebsd.org, scott_long@btc.adaptec.com, mark_salyzyn@adaptec.com
+sys/dev/bktr/CHANGELOG.TXT:MAINTAINER=	Roger Hardiman <roger@freebsd.org>
+sys/dev/ep/if_ep.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
+sys/dev/ex/if_ex.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
+sys/dev/ie/if_ie.c:MAINTAINER=	Matthew N. Dodd <winter@jurai.net>
+sys/dev/sound/pcm/feeder_rate.c:MAINTAINER=	Orion Hodson <orion@freebsd.org>
+sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
+sys/modules/bktr/bktr_mem/Makefile:MAINTAINER=	roger@freebsd.org
+sys/modules/cam/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/linux/Makefile:MAINTAINER=	emulation@FreeBSD.org
+sys/modules/osf1/Makefile:MAINTAINER=	gallatin@FreeBSD.org
+sys/modules/pecoff/Makefile:MAINTAINER=	takawata@FreeBSD.org
+sys/modules/streams/Makefile:MAINTAINER=	newton@atdot.dotat.org
+sys/modules/svr4/Makefile:MAINTAINER=	newton@FreeBSD.org
+sys/modules/udbp/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/ugen/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/uhid/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/ukbd/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/ulpt/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/umass/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/umodem/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/ums/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
+sys/modules/usb/Makefile:MAINTAINER=	n_hibma@freebsd.org
+sys/modules/uscanner/Makefile:MAINTAINER=	n_hibma@freebsd.org
+usr.bin/brandelf/Makefile:MAINTAINER=	obrien@FreeBSD.org
+usr.bin/bzip2/Makefile:MAINTAINER=	obrien@FreeBSD.org
+usr.bin/bzip2recover/Makefile:MAINTAINER=	obrien@FreeBSD.org
+usr.bin/chat/Makefile:MAINTAINER=	peter@freebsd.org
+usr.bin/locate/Makefile:MAINTAINER=	wosch@FreeBSD.org
+usr.bin/unifdef/Makefile:MAINTAINER=	fanf@FreeBSD.org
+usr.bin/vacation/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.bin/whois/Makefile:MAINTAINER=	mike@FreeBSD.org
+usr.sbin/editmap/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.sbin/inetd/Makefile:MAINTAINER=	dwmalone@FreeBSD.org
+usr.sbin/iostat/Makefile:MAINTAINER=	ken@FreeBSD.ORG
+usr.sbin/ipftest/Makefile:MAINTAINER=	guido@freebsd.org
+usr.sbin/ipresend/Makefile:MAINTAINER=	guido@freebsd.org
+usr.sbin/ipsend/Makefile:MAINTAINER=	guido@freebsd.org
+usr.sbin/iptest/Makefile:MAINTAINER=	guido@freebsd.org
+usr.sbin/lpr/Makefile:MAINTAINER=	wollman@FreeBSD.org
+usr.sbin/lpr/Makefile:MAINTAINER+=	gad@FreeBSD.org
+usr.sbin/mailstats/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.sbin/makemap/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.sbin/ntp/Makefile:MAINTAINER=	roberto@FreeBSD.org
+usr.sbin/ntp/Makefile.inc:MAINTAINER=	roberto@FreeBSD.org
+usr.sbin/ntp/doc/Makefile:MAINTAINER=	sheldonh@FreeBSD.org
+usr.sbin/pppd/Makefile:MAINTAINER=	peter@freebsd.org
+usr.sbin/pppstats/Makefile:MAINTAINER=	peter@freebsd.org
+usr.sbin/praliases/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.sbin/sendmail/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
+usr.sbin/tcpdchk/Makefile:MAINTAINER=	markm@FreeBSD.org
+usr.sbin/tcpdmatch/Makefile:MAINTAINER=	markm@FreeBSD.org
+usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org
