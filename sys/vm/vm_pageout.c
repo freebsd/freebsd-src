@@ -228,11 +228,12 @@ vm_pageout_clean(m)
 {
 	vm_object_t object;
 	vm_page_t mc[2*vm_pageout_page_count];
-	int numpagedout, pageout_count;
+	int pageout_count;
 	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 
 	/*
 	 * It doesn't cost us anything to pageout OBJT_DEFAULT or OBJT_SWAP
@@ -247,8 +248,7 @@ vm_pageout_clean(m)
 	 * Don't mess with the page if it's busy, held, or special
 	 */
 	if ((m->hold_count != 0) ||
-	    ((m->busy != 0) || (m->flags & (PG_BUSY|PG_UNMANAGED))) ||
-	    !VM_OBJECT_TRYLOCK(m->object)) {
+	    ((m->busy != 0) || (m->flags & (PG_BUSY|PG_UNMANAGED)))) {
 		return 0;
 	}
 
@@ -348,9 +348,7 @@ more:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	numpagedout = vm_pageout_flush(&mc[page_base], pageout_count, 0, TRUE);
-	VM_OBJECT_UNLOCK(object);
-	return (numpagedout);
+	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, TRUE));
 }
 
 /*
@@ -689,8 +687,6 @@ vm_pageout_scan(int pass)
 {
 	vm_page_t m, next;
 	struct vm_page marker;
-	int save_page_shortage;
-	int save_inactive_count;
 	int page_shortage, maxscan, pcount;
 	int addl_page_shortage, addl_page_shortage_init;
 	struct proc *p, *bigproc;
@@ -723,8 +719,6 @@ vm_pageout_scan(int pass)
 	 * to the cache.
 	 */
 	page_shortage = vm_paging_target() + addl_page_shortage_init;
-	save_page_shortage = page_shortage;
-	save_inactive_count = cnt.v_inactive_count;
 
 	/*
 	 * Initialize our marker
@@ -886,7 +880,8 @@ rescan0:
 			struct mount *mp;
 
 			object = m->object;
-
+			if (!VM_OBJECT_TRYLOCK(object))
+				continue;
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
 			} else {
@@ -901,6 +896,7 @@ rescan0:
 			 * Those objects are in a "rundown" state.
 			 */
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
+				VM_OBJECT_UNLOCK(object);
 				vm_pageq_requeue(m);
 				continue;
 			}
@@ -935,14 +931,18 @@ rescan0:
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
 				if (vget(vp, LK_EXCLUSIVE|LK_TIMELOCK, curthread)) {
+					VM_OBJECT_LOCK(object);
 					vm_page_lock_queues();
 					++pageout_lock_miss;
 					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
+					VM_OBJECT_UNLOCK(object);
 					continue;
 				}
+				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				/*
 				 * The page might have been moved to another
@@ -956,9 +956,7 @@ rescan0:
 				    object->handle != vp) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					vput(vp);
-					vn_finished_write(mp);
-					continue;
+					goto unlock_and_continue;
 				}
 	
 				/*
@@ -968,9 +966,7 @@ rescan0:
 				 * statistics are more correct if we don't.
 				 */
 				if (m->busy || (m->flags & PG_BUSY)) {
-					vput(vp);
-					vn_finished_write(mp);
-					continue;
+					goto unlock_and_continue;
 				}
 
 				/*
@@ -981,9 +977,7 @@ rescan0:
 					vm_pageq_requeue(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					vput(vp);
-					vn_finished_write(mp);
-					continue;
+					goto unlock_and_continue;
 				}
 			}
 
@@ -1012,10 +1006,12 @@ rescan0:
 			next = TAILQ_NEXT(&marker, pageq);
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 			splx(s);
+unlock_and_continue:
 			if (vp) {
 				vput(vp);
 				vn_finished_write(mp);
 			}
+			VM_OBJECT_UNLOCK(object);
 		}
 	}
 
