@@ -221,11 +221,10 @@ struct promise_raid_conf {
     u_int32_t		checksum;
 } __packed;
 
-int ata_raiddisk_probe(struct ad_softc *);
 int ata_raiddisk_attach(struct ad_softc *);
 int ata_raiddisk_detach(struct ad_softc *);
 void ata_raid_attach(void);
 int ata_raid_create(struct raid_setup *);
 int ata_raid_delete(int);
-int ata_raid_status(int array, struct raid_status *);
+int ata_raid_status(int, struct raid_status *);
 int ata_raid_rebuild(int);
