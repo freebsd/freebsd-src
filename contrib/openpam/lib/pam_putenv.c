@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_putenv.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_putenv.c#9 $
  */
 
 #include <stdlib.h>
@@ -55,20 +55,21 @@ pam_putenv(pam_handle_t *pamh,
 	char **env, *p;
 	int i;
 
+	ENTER();
 	if (pamh == NULL)
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 
 	/* sanity checks */
 	if (namevalue == NULL || (p = strchr(namevalue, '=')) == NULL)
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 
 	/* see if the variable is already in the environment */
 	if ((i = openpam_findenv(pamh, namevalue, p - namevalue)) != -1) {
 		if ((p = strdup(namevalue)) == NULL)
-			return (PAM_BUF_ERR);
+			RETURNC(PAM_BUF_ERR);
 		free(pamh->env[i]);
 		pamh->env[i] = p;
-		return (PAM_SUCCESS);
+		RETURNC(PAM_SUCCESS);
 	}
 
 	/* grow the environment list if necessary */
@@ -76,16 +77,16 @@ pam_putenv(pam_handle_t *pamh,
 		env = realloc(pamh->env,
 		    sizeof(char *) * (pamh->env_size * 2 + 1));
 		if (env == NULL)
-			return (PAM_BUF_ERR);
+			RETURNC(PAM_BUF_ERR);
 		pamh->env = env;
 		pamh->env_size = pamh->env_size * 2 + 1;
 	}
 
 	/* add the variable at the end */
 	if ((pamh->env[pamh->env_count] = strdup(namevalue)) == NULL)
-		return (PAM_BUF_ERR);
+		RETURNC(PAM_BUF_ERR);
 	++pamh->env_count;
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 }
 
 /*

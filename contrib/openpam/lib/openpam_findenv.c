@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_findenv.c#8 $
+ * $P4: //depot/projects/openpam/lib/openpam_findenv.c#9 $
  */
 
 #include <string.h>
@@ -53,14 +53,14 @@ openpam_findenv(pam_handle_t *pamh,
 {
 	int i;
 
+	ENTER();
 	if (pamh == NULL)
-		return (-1);
-
+		RETURNI(-1);
 	for (i = 0; i < pamh->env_count; ++i)
 		if (strncmp(pamh->env[i], name, len) == 0 &&
 		    pamh->env[i][len] == '=')
-			return (i);
-	return (-1);
+			RETURNI(i);
+	RETURNI(-1);
 }
 
 /*

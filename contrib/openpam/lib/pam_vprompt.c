@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vprompt.c#7 $
+ * $P4: //depot/projects/openpam/lib/pam_vprompt.c#8 $
  */
 
 #include <stdarg.h>
@@ -39,7 +39,8 @@
 #include <stdlib.h>
 
 #include <security/pam_appl.h>
-#include <security/openpam.h>
+
+#include "openpam_impl.h"
 
 /*
  * OpenPAM extension
@@ -61,12 +62,13 @@ pam_vprompt(pam_handle_t *pamh,
 	struct pam_conv *conv;
 	int r;
 
+	ENTER();
 	r = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
 	if (r != PAM_SUCCESS)
-		return (r);
+		RETURNC(r);
 	if (conv == NULL) {
 		openpam_log(PAM_LOG_ERROR, "no conversation function");
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 	}
 	vsnprintf(msgbuf, PAM_MAX_MSG_SIZE, fmt, ap);
 	msg.msg_style = style;
@@ -76,7 +78,7 @@ pam_vprompt(pam_handle_t *pamh,
 	r = (conv->conv)(1, &msgp, &rsp, conv->appdata_ptr);
 	*resp = rsp == NULL ? NULL : rsp->resp;
 	free(rsp);
-	return (r);
+	RETURNC(r);
 }
 
 /*

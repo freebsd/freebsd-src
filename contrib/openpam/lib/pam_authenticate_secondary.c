@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_authenticate_secondary.c#6 $
+ * $P4: //depot/projects/openpam/lib/pam_authenticate_secondary.c#7 $
  */
 
 #include <security/pam_appl.h>
@@ -53,7 +53,8 @@ pam_authenticate_secondary(pam_handle_t *pamh,
 	int flags)
 {
 
-	return (PAM_SYSTEM_ERR);
+	ENTER();
+	RETURNC(PAM_SYSTEM_ERR);
 }
 
 /*

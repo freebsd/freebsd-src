@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_set_option.c#5 $
+ * $P4: //depot/projects/openpam/lib/openpam_set_option.c#6 $
  */
 
 #include <sys/param.h>
@@ -61,8 +61,9 @@ openpam_set_option(pam_handle_t *pamh,
 	size_t len;
 	int i;
 
+	ENTER();
 	if (pamh == NULL || pamh->current == NULL || option == NULL)
-		return (PAM_SYSTEM_ERR);
+		RETURNC(PAM_SYSTEM_ERR);
 	cur = pamh->current;
 	for (len = 0; option[len] != '\0'; ++len)
 		if (option[len] == '=')
@@ -75,21 +76,21 @@ openpam_set_option(pam_handle_t *pamh,
 	if (value == NULL) {
 		/* remove */
 		if (i == cur->optc)
-			return (PAM_SUCCESS);
+			RETURNC(PAM_SUCCESS);
 		for (free(cur->optv[i]); i < cur->optc; ++i)
 			cur->optv[i] = cur->optv[i + 1];
 		cur->optv[i] = NULL;
-		return (PAM_SUCCESS);
+		RETURNC(PAM_SUCCESS);
 	}
 	if ((opt = malloc(len + strlen(value) + 2)) == NULL)
-		return (PAM_BUF_ERR);
+		RETURNC(PAM_BUF_ERR);
 	sprintf(opt, "%.*s=%s", (int)len, option, value);
 	if (i == cur->optc) {
 		/* add */
 		optv = realloc(cur->optv, sizeof(char *) * (cur->optc + 2));
 		if (optv == NULL) {
 			free(opt);
-			return (PAM_BUF_ERR);
+			RETURNC(PAM_BUF_ERR);
 		}
 		optv[i] = opt;
 		optv[i + 1] = NULL;
@@ -100,7 +101,7 @@ openpam_set_option(pam_handle_t *pamh,
 		free(cur->optv[i]);
 		cur->optv[i] = opt;
 	}
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
 }
 
 /*

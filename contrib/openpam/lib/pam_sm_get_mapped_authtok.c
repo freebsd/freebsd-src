@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_sm_get_mapped_authtok.c#4 $
+ * $P4: //depot/projects/openpam/lib/pam_sm_get_mapped_authtok.c#5 $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,8 @@ pam_sm_get_mapped_authtok(pam_handle_t *pamh,
 	char *argv)
 {
 
-	return (PAM_SYSTEM_ERR);
+	ENTER();
+	RETURNC(PAM_SYSTEM_ERR);
 }
 
 /*

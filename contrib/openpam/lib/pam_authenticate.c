@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_authenticate.c#11 $
+ * $P4: //depot/projects/openpam/lib/pam_authenticate.c#12 $
  */
 
 #include <sys/param.h>
@@ -53,11 +53,12 @@ pam_authenticate(pam_handle_t *pamh,
 {
 	int pam_err;
 
+	ENTER();
 	if (flags & ~(PAM_SILENT|PAM_DISALLOW_NULL_AUTHTOK))
-		return (PAM_SYMBOL_ERR);
+		RETURNC(PAM_SYMBOL_ERR);
 	pam_err = openpam_dispatch(pamh, PAM_SM_AUTHENTICATE, flags);
 	pam_set_item(pamh, PAM_AUTHTOK, NULL);
-	return (pam_err);
+	RETURNC(pam_err);
 }
 
 /*
