@@ -58,7 +58,8 @@ struct filedesc {
 	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
-	u_short	fd_refcnt;		/* reference count */
+	u_short	fd_refcnt;		/* thread reference count */
+	u_short	fd_holdcnt;		/* hold count on structure + mutex */
 
 	struct	mtx fd_mtx;		/* protects members of this struct */
 	int	fd_locked;		/* long lock flag */
