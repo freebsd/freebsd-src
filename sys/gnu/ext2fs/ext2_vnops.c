@@ -52,15 +52,11 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-
-#include <miscfs/specfs/specdev.h>
-#include <miscfs/fifofs/fifo.h>
 
 #if !defined(__FreeBSD__)
 #include <ufs/ufs/lockf.h>
@@ -71,7 +67,6 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
-#include <ufs/ffs/ffs_extern.h>
 
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>

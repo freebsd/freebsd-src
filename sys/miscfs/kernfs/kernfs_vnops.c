@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.26 1997/10/16 22:00:19 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.27 1997/10/26 20:55:18 phk Exp $
  */
 
 /*
@@ -46,7 +46,6 @@
 #include <sys/kernel.h>
 #include <sys/vmmeter.h>
 #include <sys/time.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
