@@ -644,3 +644,11 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
+
+# options for the Atheros HAL (only useful with source code)
+AH_SUPPORT_AR5210	opt_ah.h
+AH_SUPPORT_AR5211	opt_ah.h
+AH_SUPPORT_AR5212	opt_ah.h
+AH_DEBUG		opt_ah.h
+AH_DEBUG_ALQ		opt_ah.h
+AH_ASSERT		opt_ah.h
