@@ -10,12 +10,11 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRBOBJDIR} \
 		-I${KADMOBJDIR}
 SRCS=		kadm_cli_wrap.c kadm_stream.c kadm_supp.c \
-		${KADMOBJDIR}/kadm_err.c 
+		${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.h \
+		${KRBOBJDIR}/krb_err.h
 
 INCLUDES=	${KRB4DIR}/lib/kadm/kadm.h ${KADMOBJDIR}/kadm_err.h
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB4DIR}/lib/kadm
-
-beforedepend all: ${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
