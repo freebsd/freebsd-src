@@ -50,11 +50,21 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <ctype.h>
 
-static int	gettype(char *, char **);
+static int
+gettype(char *t, const char **names)
+{
+	const char **nm;
+
+	for (nm = names; *nm; nm++)
+		if (strcasecmp(t, *nm) == 0)
+			return (nm - names);
+	if (isdigit((unsigned char)*t))
+		return (atoi(t));
+	return (0);
+}
 
 struct disklabel *
-getdiskbyname(name)
-	const char *name;
+getdiskbyname(const char *name)
 {
 	static struct	disklabel disk;
 	struct	disklabel *dp = &disk;
@@ -151,19 +161,4 @@ getdiskbyname(name)
 	dp->d_magic2 = DISKMAGIC;
 	free(buf);
 	return (dp);
-}
-
-static int
-gettype(t, names)
-	char *t;
-	char **names;
-{
-	char **nm;
-
-	for (nm = names; *nm; nm++)
-		if (strcasecmp(t, *nm) == 0)
-			return (nm - names);
-	if (isdigit((unsigned char)*t))
-		return (atoi(t));
-	return (0);
 }
