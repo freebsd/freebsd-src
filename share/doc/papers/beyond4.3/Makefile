@@ -5,6 +5,5 @@ VOLUME=	papers
 SRCS=	beyond43.ms
 DOC=	beyond43
 MACROS=	-ms
-USE_TBL=	yes
 
 .include <bsd.doc.mk>
