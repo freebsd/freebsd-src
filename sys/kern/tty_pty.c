@@ -178,7 +178,7 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		ttychars(tp);		/* Set up default chars */
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
+		tp->t_lflag = TTYDEF_LFLAG_ECHO;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	} else if (tp->t_state & TS_XCLUDE && suser(td))
