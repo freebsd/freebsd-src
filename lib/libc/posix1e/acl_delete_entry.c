@@ -63,7 +63,7 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 			/* ...shift the remaining entries... */
 			for (; i < acl->ats_acl.acl_cnt - 1; ++i)
 				acl->ats_acl.acl_entry[i] =
-				    acl->ats_acl.acl_entry[i];
+				    acl->ats_acl.acl_entry[i+1];
 			/* ...drop the count and zero the unused entry... */
 			acl->ats_acl.acl_cnt--;
 			bzero(&acl->ats_acl.acl_entry[i],
