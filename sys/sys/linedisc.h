@@ -81,10 +81,10 @@ l_read_t	l_noread;
 l_write_t	l_nowrite;
 
 static __inline int
-ttyld_open(struct tty *tp)
+ttyld_open(struct tty *tp, dev_t dev)
 {
 
-	return ((*linesw[tp->t_line].l_open)(tp->t_dev, tp));
+	return ((*linesw[tp->t_line].l_open)(dev, tp));
 }
 
 static __inline int
