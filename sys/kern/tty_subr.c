@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.29 1998/04/15 17:46:27 bde Exp $
+ * $Id: tty_subr.c,v 1.30 1998/07/15 02:32:12 bde Exp $
  */
 
 /*
@@ -61,10 +61,12 @@ static void cblock_free_cblocks __P((int number));
 
 DB_SHOW_COMMAND(cbstat, cbstat)
 {
+	int cbsize = CBSIZE;
+
 	printf(
 	"tot = %d (active = %d, free = %d (reserved = %d, slush = %d))\n",
-	       ctotcount * CBSIZE, ctotcount * CBSIZE - cfreecount, cfreecount,
-	       cfreecount - cslushcount * CBSIZE, cslushcount * CBSIZE);
+	       ctotcount * cbsize, ctotcount * cbsize - cfreecount, cfreecount,
+	       cfreecount - cslushcount * cbsize, cslushcount * cbsize);
 }
 #endif /* DDB */
 
