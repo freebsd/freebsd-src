@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $Id: warnings.c,v 1.15 1997/02/22 15:46:27 peter Exp $
+ * $Id: warnings.c,v 1.16 1998/06/30 20:48:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -231,6 +231,7 @@ static int list_multiple_defs;		/* List multiple definitions */
 
 static struct line_debug_entry *init_debug_scan __P((int, struct file_entry *));
 static int	next_debug_entry __P((int, struct line_debug_entry *));
+static int	address_to_line __P((unsigned long, struct line_debug_entry *));
 
 /*
  * Structure for communication between do_file_warnings and it's
