@@ -668,7 +668,6 @@ FICL_DICT  *dictCreate(unsigned nCELLS);
 FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash);
 void        dictDelete(FICL_DICT *pDict);
 void        dictEmpty(FICL_DICT *pDict, unsigned nHash);
-void        dictHashSummary(FICL_VM *pVM);
 int         dictIncludes(FICL_DICT *pDict, void *p);
 FICL_WORD  *dictLookup(FICL_DICT *pDict, STRINGINFO si);
 #if FICL_WANT_LOCALS
