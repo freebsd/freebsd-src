@@ -775,21 +775,36 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_adp->va_buffer = BIOS_PADDRTOVADDR(info.vi_buffer);
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
 	}
-	bcopy(&info, &adp->va_info, sizeof(adp->va_info));
 	len = vesa_bios_get_line_length();
-	if (len > 0)
-		adp->va_line_width = len;
-	else if (info.vi_flags & V_INFO_GRAPHICS)
-		adp->va_line_width = info.vi_width/8;
-	else
-		adp->va_line_width = info.vi_width;
+	if (len > 0) {
+		vesa_adp->va_line_width = len;
+	} else if (info.vi_flags & V_INFO_GRAPHICS) {
+		switch (info.vi_depth/info.vi_planes) {
+		case 1:
+			vesa_adp->va_line_width = info.vi_width/8;
+			break;
+		case 2:
+			vesa_adp->va_line_width = info.vi_width/4;
+			break;
+		case 4:
+			vesa_adp->va_line_width = info.vi_width/2;
+			break;
+		case 8:
+		default: /* shouldn't happen */
+			vesa_adp->va_line_width = info.vi_width;
+			break;
+		}
+	} else {
+		vesa_adp->va_line_width = info.vi_width;
+	}
 #if VESA_DEBUG > 0
 	printf("vesa_set_mode(): vi_width:%d, len:%d, line_width:%d\n",
-	       info.vi_width, len, adp->va_line_width);
+	       info.vi_width, len, vesa_adp->va_line_width);
 #endif
+	bcopy(&info, &vesa_adp->va_info, sizeof(vesa_adp->va_info));
 
 	/* move hardware cursor out of the way */
-	(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
+	(*vidsw[vesa_adp->va_index]->set_hw_cursor)(vesa_adp, -1, -1);
 
 	return 0;
 }
