@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.52 1999/05/12 22:30:46 peter Exp $
+ * $Id: kern_shutdown.c,v 1.53 1999/06/26 02:46:02 mckusick Exp $
  */
 
 #include "opt_ddb.h"
@@ -478,6 +478,7 @@ at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
 {
 	sle_p op, ep, ip;
 
+	op = NULL;		/* shut up gcc */
 	if (queue < SHUTDOWN_PRE_SYNC
 	 || queue > SHUTDOWN_FINAL) {
 		printf("at_shutdown: bad exit callout queue %d specified\n",
