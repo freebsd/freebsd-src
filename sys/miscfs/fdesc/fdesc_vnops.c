@@ -198,6 +198,11 @@ fdesc_lookup(ap)
 	}
 
 	fd = 0;
+	/* the only time a leading 0 is acceptable is if it's "0" */
+	if (*pname == '0' && nlen != 1) {
+		error = ENOENT;
+		goto bad;
+	}
 	while (nlen--) {
 		if (*pname < '0' || *pname > '9') {
 			error = ENOENT;
