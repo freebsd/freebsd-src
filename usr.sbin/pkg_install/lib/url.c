@@ -39,7 +39,7 @@ fileGetURL(const char *base, const char *spec)
     char buf[8192];
     FILE *ftp;
     pid_t tpid;
-    int pfd[2], pstat, r, w;
+    int pfd[2], pstat, r, w = 0;
     char *hint;
     int fd;
 
@@ -69,8 +69,11 @@ fileGetURL(const char *base, const char *spec)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
-		/* XXX: need to handle .tgz also */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 		strcat(cp, ".tbz");
+#else
+		strcat(cp, ".tgz");
+#endif
 	    }
 	    else
 		return NULL;
@@ -82,8 +85,11 @@ fileGetURL(const char *base, const char *spec)
 	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
-	    /* XXX: need to handle .tgz also */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 	    strcat(fname, ".tbz");
+#else
+	    strcat(fname, ".tgz");
+#endif
 	}
     }
     else
@@ -117,9 +123,13 @@ fileGetURL(const char *base, const char *spec)
 	dup2(pfd[0], 0);
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
-	/* XXX: need to handle .tgz also */
-	execl("/usr/bin/tar", "tar", Verbose ? "-xjvf" : "-xjf", "-",
-	    (char *)0);
+	execl("/usr/bin/tar", "tar",
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
+	    Verbose ? "-xjvf" : "-xjf",
+#else
+	    Verbose ? "-xzvf" : "-xzf",
+#endif
+	    "-", (char *)0);
 	_exit(2);
     }
     close(pfd[0]);

@@ -156,7 +156,7 @@ leave_playpen()
 	Previous[0] = '\0';
     }
     if (PenLocation[0]) {
-	if (PenLocation[0] == '/' && vsystem("rm -rf %s", PenLocation))
+	if (PenLocation[0] == '/' && vsystem("/bin/rm -rf %s", PenLocation))
 	    warnx("couldn't remove temporary dir '%s'", PenLocation);
 	popPen(PenLocation);
     }
