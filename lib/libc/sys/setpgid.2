@@ -32,7 +32,7 @@
 .\"     @(#)setpgid.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 8, 2004
 .Dt SETPGID 2
 .Os
 .Sh NAME
@@ -59,9 +59,12 @@ If
 .Fa pid
 is zero, then the call applies to the current process.
 .Pp
-If the invoker is not the super-user, then the affected process
-must have the same effective user-id as the invoker or be a descendant
-of the invoking process.
+If the affected process is not the invoking process, then it must be a
+child of the invoking process, it must not have performed an
+.Xr exec 3
+operation, and both processes must be in the same session.
+The requested process group ID must already exist in the session of
+the caller, or it must be equal to the target process ID.
 .Sh RETURN VALUES
 .Rv -std setpgid
 .Sh ERRORS
@@ -70,12 +73,23 @@ The
 system call
 will fail and the process group will not be altered if:
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The requested process group ID is not legal.
 .It Bq Er ESRCH
 The requested process does not exist.
+.It Bq Er ESRCH
+The target process is not the calling process or
+a child of the calling process.
+.It Bq Er EACCES
+The requested process is a child of the calling process,
+but it has performed an
+.Xr exec 3
+operation.
 .It Bq Er EPERM
-The effective user ID of the requested process is different
-from that of the caller and the process is not a descendent
-of the calling process.
+The target process is a session leader.
+.It Bq Er EPERM
+The requested process group ID is not in the session of the caller,
+and it is not equal to the process ID of the target process.
 .El
 .Sh SEE ALSO
 .Xr getpgrp 2
