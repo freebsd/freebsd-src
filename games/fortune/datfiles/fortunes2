@@ -36596,6 +36596,9 @@ A:	He sat on an acorn and waited for spring.
 Q:	But how did he get back down?
 A:	He crawled out on a leaf and waited for autumn.
 %
+Q:	How did the regular expression cross the road?
+A:	^.*$
+%
 Q:	How do you catch a unique rabbit?
 A:	Unique up on it!
 
@@ -36847,7 +36850,7 @@ A:	Post the correct answer at once!  We can't have people go on
 	whole net right away!
 		-- Emily Postnews Answers Your Questions on Netiquette
 %
-Q:	What did one regex say to the other?
+Q:	What did one regular expression say to the other?
 A:	.+
 %
 Q:	What did Tarzan say when he saw the elephants coming over the hill?
