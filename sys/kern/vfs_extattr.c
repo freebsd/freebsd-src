@@ -434,7 +434,6 @@ vfs_nmount(td, fsflags, fsoptions)
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, td);
-		mp->mnt_optnew = optlist;
 		goto update;
 	}
 	/*
@@ -528,8 +527,8 @@ vfs_nmount(td, fsflags, fsoptions)
 	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, td);
 
-	mp->mnt_opt = optlist;
 update:
+	mp->mnt_optnew = optlist;
 	/*
 	 * Check if the fs implements the new VFS_NMOUNT()
 	 * function, since the new system call was used.
@@ -567,6 +566,17 @@ update:
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_NMOUNT(mp, &nd, td);
+	if (!error) {
+		if (mp->mnt_opt != NULL)
+			vfs_freeopts(mp->mnt_opt);
+		mp->mnt_opt = mp->mnt_optnew;
+	} else
+		vfs_freeopts(mp->mnt_optnew);
+	/*
+	 * Prevent external consumers of mount
+	 * options to read mnt_optnew.
+	 */
+	mp->mnt_optnew = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
@@ -576,10 +586,6 @@ update:
 		if (error) {
 			mp->mnt_flag = flag;
 			mp->mnt_kern_flag = kern_flag;
-			vfs_freeopts(mp->mnt_optnew);
-		} else {
-			vfs_freeopts(mp->mnt_opt);
-			mp->mnt_opt = mp->mnt_optnew;
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
