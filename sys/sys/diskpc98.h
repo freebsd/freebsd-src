@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.38 1999/04/03 07:21:14 bde Exp $
+ * $Id: disklabel.h,v 1.39 1999/05/08 07:02:41 phk Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -459,6 +459,9 @@ int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
 int	writedisklabel __P((dev_t dev, void (*strat)(struct buf *bp),
 			    struct disklabel *lp));
+#ifdef __alpha__
+void	alpha_fix_srm_checksum __P((struct buf *bp));
+#endif
 
 #endif /* KERNEL */
 
