@@ -66,7 +66,7 @@ int
 ata_legacy(device_t dev)
 {
     return ((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV) &&
-            ((pci_read_config(dev, PCIR_PROGIF, 1) &
+	    ((pci_read_config(dev, PCIR_PROGIF, 1) &
 	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
 	     (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)));
 }
@@ -79,61 +79,61 @@ ata_pci_probe(device_t dev)
 
     switch (pci_get_vendor(dev)) {
     case ATA_ACARD_ID: 
- 	if (!ata_acard_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_acard_ident(dev))
+	    return 0;
+	break;
     case ATA_ACER_LABS_ID:
- 	if (!ata_ali_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_ali_ident(dev))
+	    return 0;
+	break;
     case ATA_AMD_ID:
- 	if (!ata_amd_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_amd_ident(dev))
+	    return 0;
+	break;
     case ATA_CYRIX_ID:
- 	if (!ata_cyrix_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_cyrix_ident(dev))
+	    return 0;
+	break;
     case ATA_CYPRESS_ID:
- 	if (!ata_cypress_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_cypress_ident(dev))
+	    return 0;
+	break;
     case ATA_HIGHPOINT_ID: 
- 	if (!ata_highpoint_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_highpoint_ident(dev))
+	    return 0;
+	break;
     case ATA_INTEL_ID:
- 	if (!ata_intel_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_intel_ident(dev))
+	    return 0;
+	break;
     case ATA_NATIONAL_ID:
-        if (!ata_national_ident(dev))
+	if (!ata_national_ident(dev))
 	    return 0;
 	break;
     case ATA_NVIDIA_ID:
- 	if (!ata_nvidia_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_nvidia_ident(dev))
+	    return 0;
+	break;
     case ATA_PROMISE_ID:
- 	if (!ata_promise_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_promise_ident(dev))
+	    return 0;
+	break;
     case ATA_SERVERWORKS_ID: 
- 	if (!ata_serverworks_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_serverworks_ident(dev))
+	    return 0;
+	break;
     case ATA_SILICON_IMAGE_ID:
- 	if (!ata_sii_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_sii_ident(dev))
+	    return 0;
+	break;
     case ATA_SIS_ID:
- 	if (!ata_sis_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_sis_ident(dev))
+	    return 0;
+	break;
     case ATA_VIA_ID: 
- 	if (!ata_via_ident(dev))
- 	    return 0;
- 	break;
+	if (!ata_via_ident(dev))
+	    return 0;
+	break;
     case 0x16ca:
 	if (pci_get_devid(dev) == 0x000116ca) {
 	    ata_generic_ident(dev);
@@ -282,7 +282,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    }
 	    myrid = PCIR_BAR(1) + (unit << 3);
 	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-	                             SYS_RES_IOPORT, &myrid,
+				     SYS_RES_IOPORT, &myrid,
 				     start, end, count, flags);
 	    break;
 	}
@@ -341,7 +341,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 					SYS_RES_IRQ, rid, r);
 #endif
-        }
+	}
 	else  
 	    return 0;
     }
@@ -533,12 +533,14 @@ ata_pcisub_probe(device_t dev)
     }
     free(children, M_TEMP);
 
-    if ((error = ctlr->allocate(dev, ch)))
-	return error;
-
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
+    ch->reset = ctlr->reset;
+
+    if ((error = ctlr->allocate(dev, ch)))
+	return error;
+
     return ata_probe(dev);
 }
 
