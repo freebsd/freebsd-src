@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.22 1995/03/07 13:54:44 roberto Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.23 1995/03/11 16:48:17 roberto Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -1292,11 +1292,11 @@ feedback, and cannot make this a better FAQ without your help!
 
 ACKNOWLEDGMENTS:
 
-Gary Clark II           - FreeBSD FAQ maintenance man (For one last time:)) 
+Ollivier Robert		- FreeBSD FAQ maintenance man 
+Gary Clark II           - Ex-FreeBSD FAQ maintenance man  
 Jordan Hubbard          - Janitorial services (I don't do windows)
 Garrett Wollman         - Networking and formatting
 Robert Oliver, Jr.      - Ideas and dumb questions (That made me think)
-Ollivier Robert         - Invaluable feedback and contributions
 Jim Lowe                - Multicast information 
 The FreeBSD Team        - Kvetching, moaning, submitting data
 
