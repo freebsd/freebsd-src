@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.5 1997/03/21 04:49:52 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.6 1998/02/09 10:36:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,22 +51,9 @@
 #include <sys/mount.h>
 #undef MSDOSFS
 
-static Device *floppyDev;
 static Boolean floppyMounted;
 
 char *distWanted;
-
-/* For finding floppies */
-static int
-floppyChoiceHook(dialogMenuItem *self)
-{
-    Device **devs;
-
-    devs = deviceFind(self->prompt, DEVICE_TYPE_FLOPPY);
-    if (devs)
-	floppyDev = devs[0];
-    return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
-}
 
 Boolean
 mediaInitFloppy(Device *dev)
