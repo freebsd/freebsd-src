@@ -1,25 +1,206 @@
-.Dd November 16, 1994
+.Dd February 24, 1996
 .Dt IPFW 8 SMM
 .Os FreeBSD
 .Sh NAME
 .Nm ipfw
-.Nd controlling utility for IP firewall / IP accounting facilities. 
+.Nd controlling utility for IP firewall
 .Sh SYNOPSIS
-.Nm
-.Oo
-.Fl n
-.Oc
-.Ar entry_action chain_entry_pattern
+.Nm ipfw
+.Ar file
+.Nm ipfw
+flush
+.Nm ipfw
+zero
+.Nm ipfw
+delete
+.Ar number
 .Nm ipfw
 .Oo
-.Fl ans
+.Fl aN
 .Oc
-.Ar chain_action chain[s]_type
-.\" ipfw [-n]   <entry-action>  <chain entry pattern>
-.\" ipfw [-ans] <chain-action>  <chain[s] type>
-.Sh WARNING
-This manual page is out of date!
+list
+.Nm ipfw
+add
+.Oo
+.Ar number
+.Oc
+.Ar action 
+.Oo
+log
+.Oc
+.Ar proto
+from
+.Ar src
+to
+.Ar dst
+.Oo 
+via
+.Ar name|ipno
+.Oc
+.Oo 
+.Ar options
+.Oc
 .Sh DESCRIPTION
+If used as shown in the first synopsis line, the
+.Ar file
+will be read line by line and applied as arguments to the 
+.Nm ipfw
+command.
+.Pp
+The ipfw code works by going through the rule-list for each packet,
+until a match is found.
+All rules have two counters associated with them, a packet count and
+a byte count.
+These counters are updated when a packet matches the rule.
+.Pp
+The rules are ordered by a ``line-number'' that is used to order and
+delete rules.
+If a rule is added without a number, it is put at the end, just before
+the terminal ``policy-rule'', and numbered 100 higher than the previous
+rule.
+.Pp
+One rule is always present:
+.Bd -literal -offset center
+65535 deny all from any to any
+.Ed
+
+this is rule is the default policy, ie. don't allow anything at all.
+Your job in setting up rules is to modify this policy to match your
+needs.
+.Pp
+The following options are available:
+.Bl -tag -width flag
+.It Fl a
+While listing, show counter values. This option is the only way to see
+accounting records.
+.It Fl N
+Try to resolve addresses.
+.El
+.Pp
+.Ar action :
+.Bl -hang -offset flag -width 1234567890123456
+.It Nm accept
+Accept packets that match rule.
+The search terminates.
+.It Nm pass
+same as accept.
+.It Nm count
+update counters for all packets that match rule.
+The search continues with next rule.
+.It Nm deny
+Discard packets that match this rule.
+The search terminates.
+.It Nm reject
+Discard packets that match this rule, try to send ICMP notice.
+The search terminates.
+.El
+.Pp
+When a packet matches a rule with the
+.Nm log
+keyword, a message will be printed on the console.
+.Pp
+.Ar proto :
+.Bl -hang -offset flag -width 1234567890123456
+.It Nm ip
+All packets match.
+.It Nm all
+All packets match.
+.It Nm tcp
+Only TCP packets match.
+.It Nm udp
+Only UDP packets match.
+.It Nm icmp
+Only ICMP packets match.
+.El
+.Pp
+.Ar src 
+and
+.Ar dst :
+.Bl -hang -offset flag -width 1234567890123456
+.It Ar ipno
+An ipnumber of the form 1.2.3.4.
+Only this exact ip number match the rule.
+.It Ar ipno/bits
+An ipnumber with a mask width of the form 1.2.3.4/24.
+In this case all ip numbers from 1.2.3.0 to 1.2.3.255 will match.
+.It Ar ipno:mask
+An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0
+In this case all ip numbers from 1.2.0.0 to 1.2.15.255 will match.
+.El
+.Pp
+If ``via''
+.Ar name
+is specified, only packets received via or on their way out of an interface
+matching
+.Ar name
+will match this rule.
+.Pp
+If ``via''
+.Ar ipno
+is specified, only packets received via or on their way out of an interface
+having the address
+.Ar ipno
+will match this rule.
+.Pp
+.Ar options :
+.Bl -hang -offset flag -width 1234567890123456
+.It frag
+Matches is the packet is a fragment and this is not the first fragment
+of the datagram.
+.It in
+Matches if this packet was on the way in.
+.It out
+Matches if this packet was on the way out.
+.It ipoptions Ar spec
+Not yet documented.  Look in the source: src/sys/netnet/ipfw.c.
+.It established
+Matches packets that do not have the SYN bit set.
+TCP packets only.
+.It setup
+Matches packets that have the SYN bit set but no ACK bit.
+TCP packets only.
+.It tcpflags Ar spec
+Not yet documented.  Look in the source: src/sys/netnet/ipfw.c.
+TCP packets only.
+.El
+.Sh CHECKLIST
+Here are some important points to consider when designing your
+rules:
+.Bl -bullet -hang -offset flag -width 1234567890123456
+.It 
+Remember that you filter both packets going in and out.
+Most connections needs packets going in both directions.
+.It
+Remember to test very carefully.
+It is a good idea to be near the console when doint this.
+.It
+Don't forget the loopback interface.
+.El
+.Sh FINE POINTS
+There is one kind of packet that the firewall will always discard,
+that is an IP fragment with a fragment offset of one.
+This is a valid packet, but it only has one use, to try to circumvent
+firewalls.
+.Pp
+If you are logged in over a network, loading the LKM version of
+.Nm
+is probably not as straightforward as you would think.
+I recommend this command line:
+.Bd -literal -offset center
+modload /lkm/ipfw_mod.o && \e
+ipfw add 32000 allow all from any to any
+.Ed
+
+Along the same lines, doing a
+.Bd -literal -offset center
+ipfw flush
+.Ed
+
+in similar surroundings is also a bad idea.
+.Sh WARNING
+This manual page is out of date beyond this point!
+It is left here until some new text can be written.
+.Sh OLD 
 In the first synopsis form, 
 .Nm
 controls the firewall and accounting chains. In the second
@@ -28,24 +209,6 @@ synopsis form,
 sets the global firewall / accounting properties and
 show the chain list's contents.
 .Pp
-The following options are available:
-.Bl -tag -width flag
-.It Fl a
-While listing, show counter values. This option is the only way to see
-accounting records. Works only with
-.Fl s
-.It Fl n
-Do not resolve anything. When setting entries, do not try to resolve a
-given address. When listing, display addresses in numeric form.
-.It Fl s
-Short listing form. By default, the listing format is compatible with
-.Nm
-input string format, so you can save listings to file and then reuse
-them. With this option list format is much more short but incompatible
-with the
-.Nm
-syntax.
-.El
 .Pp
 These are the valid
 .Ar entry_actions :
@@ -323,3 +486,5 @@ The FreeBSD version is written completely by:
 .Dl Ugen J.S.Antsilevich <ugen@FreeBSD.ORG>
 .Pp
 while the synopsis is partially compatible with the old one.
+.Pp
+This has all been extensively rearranged by Poul-Henning Kamp.
