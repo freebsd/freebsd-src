@@ -1,7 +1,7 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
-.\" $Id: pam_setcred.3,v 1.2 1997/02/15 18:50:49 morgan Exp morgan $
+.\" $Id: pam_setcred.3,v 1.1.1.1 1998/07/09 22:10:18 jdp Exp $
 .\" Copyright (c) Andrew G. Morgan 1996,1997 <morgan@parc.power.net>
-.TH PAM_SETCRED 3 "1997 July 6" "Linux-PAM 0.58" "App. Programmers' Manual"
+.TH PAM_SETCRED 3 "1997 July 6" "PAM 0.58" "App. Programmers' Manual"
 .SH NAME
 
 pam_setcred \- set the credentials for the user
@@ -20,11 +20,11 @@ authenticated and before a session is opened for the user (with
 .BR pam_open_session "(3))."
 
 It should be noted that credentials come in many forms. Examples
-include: group memberships; ticket-files; and Linux-PAM environment
+include: group memberships; ticket-files; and PAM environment
 variables.  For this reason, it is important that the basic identity
 of the user is established, by the application, prior to a call to
 this function.  For example, the default
-.BR Linux-PAM
+.BR PAM
 environment variables should be set and also
 .BR initgroups "(2) "
 (or equivalent) should have been performed.

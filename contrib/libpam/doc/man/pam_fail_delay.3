@@ -1,7 +1,7 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\" $Id: pam_fail_delay.3,v 1.2 1997/02/15 18:47:46 morgan Exp morgan $
 .\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
-.TH PAM_FAIL_DELAY 3 "1997 Jan 12" "Linux-PAM 0.56" "Programmers' Manual"
+.TH PAM_FAIL_DELAY 3 "1997 Jan 12" "PAM 0.56" "Programmers' Manual"
 .SH NAME
 
 pam_fail_delay \- request a delay on failure
@@ -35,7 +35,7 @@ of useful information.
 .br
 To minimize the effectiveness of such attacks, it is desirable to
 introduce a random delay in a failed authentication process.
-.B Linux-PAM
+.B PAM
 provides such a facility.  The delay occurs upon failure of the
 .BR pam_authenticate "(3) "
 and
