@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pen.c,v 1.26 1998/01/09 14:52:18 jkh Exp $";
+	"$Id: pen.c,v 1.27 1998/02/16 17:16:51 jkh Exp $";
 #endif
 
 /*
@@ -69,6 +69,29 @@ find_play_pen(char *pen, size_t sz)
     return pen;
 }
 
+#define MAX_STACK	20
+static char *pstack[MAX_STACK];
+static int pdepth = -1;
+
+static void
+pushPen(char *pen)
+{
+    if (++pdepth == MAX_STACK)
+	errx(2, "stack overflow in pushPen().\n");
+    pstack[pdepth] = strdup(pen);
+}
+
+static void
+popPen(char *pen)
+{
+    if (pdepth == -1) {
+	pen[0] = '\0';
+	return;
+    }
+    strcpy(pen, pstack[pdepth]);
+    free(pstack[pdepth--]);
+}
+    
 /*
  * Make a temporary directory to play in and chdir() to it, returning
  * pathname of previous working directory.
@@ -76,10 +99,6 @@ find_play_pen(char *pen, size_t sz)
 char *
 make_playpen(char *pen, size_t sz)
 {
-    if (PenLocation[0]) {
-	errx(2, "make_playpen() called before closing previous pen: %s", pen);
-	return NULL;
-    }
     if (!find_play_pen(pen, sz))
 	return NULL;
 
@@ -87,14 +106,17 @@ make_playpen(char *pen, size_t sz)
 	cleanup(0);
 	errx(2, "can't mktemp '%s'", pen);
     }
+
     if (mkdir(pen, 0755) == FAIL) {
 	cleanup(0);
 	errx(2, "can't mkdir '%s'", pen);
     }
+
     if (Verbose) {
 	if (sz)
 	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, min_free(pen), pen);
     }
+
     if (min_free(pen) < sz) {
 	rmdir(pen);
 	cleanup(0);
@@ -102,12 +124,18 @@ make_playpen(char *pen, size_t sz)
 	     "Please set your PKG_TMPDIR environment variable to a location\n"
 	     "with more space and\ntry the command again", pen);
     }
+
     if (!getcwd(Previous, FILENAME_MAX)) {
 	upchuck("getcwd");
 	return NULL;
     }
+
     if (chdir(pen) == FAIL)
 	cleanup(0), errx(2, "can't chdir to '%s'", pen);
+
+    if (PenLocation[0])
+	pushPen(PenLocation);
+
     strcpy(PenLocation, pen);
     return Previous;
 }
@@ -120,13 +148,16 @@ leave_playpen()
 
     /* Don't interrupt while we're cleaning up */
     oldsig = signal(SIGINT, SIG_IGN);
-    if (Previous[0] && chdir(Previous) == FAIL)
-	cleanup(0), errx(2, "can't chdir back to '%s'", Previous);
-    else if (PenLocation[0]) {
+    if (Previous[0]) {
+	if (chdir(Previous) == FAIL)
+	    cleanup(0), errx(2, "can't chdir back to '%s'", Previous);
+	Previous[0] = '\0';
+    }
+    if (PenLocation[0]) {
 	if (PenLocation[0] == '/' && vsystem("rm -rf %s", PenLocation))
 	    warnx("couldn't remove temporary dir '%s'", PenLocation);
+	popPen(PenLocation);
     }
-    Previous[0] = PenLocation[0] = '\0';
     signal(SIGINT, oldsig);
 }
 
