@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.3 1995/10/03 23:36:56 jkh Exp $
+ * $Id: tape.c,v 1.6.2.4 1995/10/04 10:34:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ static Boolean tapeInitted;
 char *
 mediaTapeBlocksize(void)
 {
-    char *cp = getenv(TAPE_BLOCKSIZE);
+    char *cp = variable_get(TAPE_BLOCKSIZE);
 
     return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
 }

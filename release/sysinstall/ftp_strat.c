@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.2 1995/10/03 23:36:43 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.3 1995/10/04 07:54:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,21 +61,19 @@ get_new_host(Device *dev)
 {
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
-    Device *netDev = dev->private;
 
     MenuMediaFTP.title = "Connection timed out - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
-	char *cp = getenv(FTP_USER);
+	char *cp = variable_get(FTP_USER);
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
-	netDev->flags |= OPT_LEAVE_NETWORK_UP;
-	(*dev->shutdown)(dev);
-	i = (*dev->init)(dev);
-	netDev->flags &= ~OPT_LEAVE_NETWORK_UP;
     }
+    /* Bounce the link */
+    dev->shutdown(dev);
+    i = dev->init(dev);
     return i;
 }
 
@@ -102,12 +100,12 @@ mediaInitFTP(Device *dev)
     if (isDebug())
 	msgDebug("Initialized FTP library.\n");
 
-    cp = getenv("ftp");
+    cp = variable_get("ftp");
     if (!cp)
 	goto punt;
     if (isDebug())
 	msgDebug("Attempting to open connection for: %s\n", cp);
-    hostname = getenv(VAR_HOSTNAME);
+    hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	goto punt;
@@ -134,14 +132,14 @@ mediaInitFTP(Device *dev)
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\nname server, gateway and network interface are configured?", hostname);
 	goto punt;
     }
-    user = getenv(FTP_USER);
+    user = variable_get(FTP_USER);
     if (!user || !*user) {
-	snprintf(password, BUFSIZ, "installer@%s", getenv(VAR_HOSTNAME));
+	snprintf(password, BUFSIZ, "installer@%s", variable_get(VAR_HOSTNAME));
 	login_name = "anonymous";
     }
     else {
 	login_name = user;
-	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
+	strcpy(password, variable_get(FTP_PASS) ? variable_get(FTP_PASS) : login_name);
     }
     retries = i = 0;
     if (optionIsSet(OPT_FTP_RESELECT | OPT_FTP_ABORT))
@@ -169,10 +167,10 @@ retry:
 	    goto retry;
     }
 
-    if (!FtpChdir(ftp, getenv(RELNAME))) {
+    if (!FtpChdir(ftp, variable_get(RELNAME))) {
 	msgConfirm("Unable to CD to release %s directory.\n"
 		   "Perhaps a different FTP site for this release?",
-		   getenv(RELNAME));
+		   variable_get(RELNAME));
 	goto punt;
     }
 

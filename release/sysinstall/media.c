@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.4 1995/09/30 19:13:30 jkh Exp $
+ * $Id: media.c,v 1.25.2.5 1995/10/03 23:36:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -243,7 +243,7 @@ mediaSetFTP(char *str)
 
     if (!dmenuOpenSimple(&MenuMediaFTP))
 	return 0;
-    cp = getenv("ftp");
+    cp = variable_get("ftp");
     if (!cp)
 	return 0;
     if (!strcmp(cp, "other")) {
@@ -492,9 +492,9 @@ mediaSetFtpUserPass(char *str)
     char *user, *pass;
 
     dialog_clear();
-    if ((user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as")) != NULL)
+    if ((user = msgGetInput(variable_get(FTP_USER), "Please enter the username you wish to login as")) != NULL)
 	variable_set2(FTP_USER, user);
-    if ((pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
+    if ((pass = msgGetInput(variable_get(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
 	variable_set2(FTP_PASS, pass);
     dialog_clear();
     return 0;
@@ -507,8 +507,27 @@ mediaSetTapeBlocksize(char *str)
     char *bsize;
 
     dialog_clear();
-    if ((bsize = msgGetInput(getenv(TAPE_BLOCKSIZE), "Please enter the tape block size in 512 byte blocks")) != NULL)
+    if ((bsize = msgGetInput(variable_get(TAPE_BLOCKSIZE), "Please enter the tape block size in 512 byte blocks")) != NULL)
 	variable_set2(TAPE_BLOCKSIZE, bsize);
     dialog_clear();
+    return 0;
+}
+
+/* Set CPIO verbosity level */
+int
+mediaSetCPIOVerbosity(char *str)
+{
+    char *cp = variable_get(CPIO_VERBOSITY_LEVEL);
+
+    if (!cp)
+	msgFatal("CPIO Verbosity is not set to anything!");
+    else {
+	if (!strcmp(cp, "low"))
+	    variable_set2(CPIO_VERBOSITY_LEVEL, "medium");
+	else if (!strcmp(cp, "medium"))
+	    variable_set2(CPIO_VERBOSITY_LEVEL, "high");
+	else /* must be "high" - wrap around */
+	    variable_set2(CPIO_VERBOSITY_LEVEL, "low");
+    }
     return 0;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.14 1995/10/04 07:54:47 jkh Exp $
+ * $Id: install.c,v 1.71.2.15 1995/10/04 10:33:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -142,11 +142,11 @@ installInitial(void)
     if (alreadyDone)
 	return TRUE;
 
-    if (!getenv(DISK_PARTITIONED)) {
+    if (!variable_get(DISK_PARTITIONED)) {
 	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
 	return FALSE;
     }
-    if (!getenv(DISK_LABELLED)) {
+    if (!variable_get(DISK_LABELLED)) {
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return FALSE;
     }
@@ -627,7 +627,7 @@ installSelectRelease(char *str)
     char *cp;
 
     dialog_clear();
-    if ((cp = msgGetInput(getenv(RELNAME), "Please specify the release you wish to load")) != NULL)
+    if ((cp = msgGetInput(variable_get(RELNAME), "Please specify the release you wish to load")) != NULL)
 	variable_set2(RELNAME, cp);
     dialog_clear();
     return 0;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.3 1995/10/04 07:54:39 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.4 1995/10/04 10:33:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ mediaInitCDROM(Device *dev)
      * Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
      * sure way of telling the disc version :-(
      */
-    snprintf(specialrel, 80, "/cdrom/%s/dists", getenv(RELNAME));
+    snprintf(specialrel, 80, "/cdrom/%s/dists", variable_get(RELNAME));
     if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
 	    msgConfirm("Couldn't locate the directory `dists' on the CD.\nIs this a FreeBSD CDROM?\n");
@@ -113,10 +113,10 @@ mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
     snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/%s/%s", getenv(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/cdrom/%s/%s", variable_get(RELNAME), file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/%s/dists/%s", getenv(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/cdrom/%s/dists/%s", variable_get(RELNAME), file);
     return open(buf, O_RDONLY);
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.13 1995/10/04 07:54:53 jkh Exp $
+ * $Id: menus.c,v 1.42.2.14 1995/10/04 10:33:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -660,13 +660,13 @@ software not provided in the base distributions.",
 static char *
 menuCheckNTP(DMenuItem *item)
 {
-    return getenv("ntpdate") ? "ON" : "OFF";
+    return variable_get("ntpdate") ? "ON" : "OFF";
 }
 
 static char *
 menuCheckRouted(DMenuItem *item)
 {
-    return getenv("routedflags") ? "ON" : "OFF";
+    return variable_get("routedflags") ? "ON" : "OFF";
 }
 
 DMenu MenuNetworking = {
@@ -825,7 +825,7 @@ when held down.",
 static char *
 menuSaverTimeoutCheck(DMenuItem *item)
 {
-    return getenv("blanktime") ? "ON" : "OFF";
+    return variable_get("blanktime") ? "ON" : "OFF";
 }
 
 DMenu MenuSysconsSaver = {

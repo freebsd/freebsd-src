@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.3 1995/09/18 17:00:24 peter Exp $
+ * $Id: network.c,v 1.7.2.4 1995/09/25 00:52:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,7 +60,7 @@ mediaInitNetwork(Device *dev)
     char *cp, ifconfig[64];
     char ifname[64];
 
-    if (!RunningAsInit || networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
+    if (!RunningAsInit || networkInitialized)
 	return TRUE;
 
     configResolv();
@@ -97,7 +97,7 @@ mediaInitNetwork(Device *dev)
 	strcpy(ifname, dev->name);
 
     snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, ifname);
-    cp = getenv(ifconfig);
+    cp = variable_get(ifconfig);
     if (!cp) {
 	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.", ifname);
 	return FALSE;
@@ -108,7 +108,7 @@ mediaInitNetwork(Device *dev)
 	return FALSE;
     }
 
-    rp = getenv(VAR_GATEWAY);
+    rp = variable_get(VAR_GATEWAY);
     if (!rp || *rp == '0')
 	msgConfirm("No gateway has been set. You may be unable to access hosts\nnot on your local network\n");
     else
@@ -122,7 +122,7 @@ mediaShutdownNetwork(Device *dev)
 {
     char *cp;
 
-    if (!RunningAsInit || !networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
+    if (!RunningAsInit || !networkInitialized)
 	return;
 
     if (strncmp("cuaa", dev->name, 4)) {
@@ -130,13 +130,13 @@ mediaShutdownNetwork(Device *dev)
 	char ifconfig[64];
 
 	snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
-	cp = getenv(ifconfig);
+	cp = variable_get(ifconfig);
 	if (!cp)
 	    return;
 	i = vsystem("ifconfig %s down", dev->name);
 	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
-	cp = getenv(VAR_GATEWAY);
+	cp = variable_get(VAR_GATEWAY);
 	if (cp)
 	    vsystem("route delete default");
 	networkInitialized = FALSE;
@@ -172,7 +172,7 @@ startPPP(Device *devp)
 "Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
     strcpy(speed, val ? val : "115200");
 
-    strcpy(provider, getenv(VAR_GATEWAY) ? getenv(VAR_GATEWAY) : "0");
+    strcpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0");
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
     strcpy(provider, val ? val : "0");
 
