@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.447 1999/01/05 17:03:49 jkh Exp $
+#	$Id: Makefile,v 1.448 1999/01/06 13:55:04 peter Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -149,6 +149,7 @@ rerelease release:
 	-mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
+	[ -f /etc/resolv.conf ] && cp -p /etc/resolv.conf ${CHROOTDIR}/etc
 	cd ${.CURDIR}/.. && ${MAKE} installworld DESTDIR=${CHROOTDIR} NOMAN=1
 	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
 	for i in ${BOOTSTRAPUTILS} ; do \
