@@ -68,6 +68,7 @@
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
+int atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src);
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
@@ -81,7 +82,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * For userland, assume the SMP case and use lock prefixes so that
  * the binaries will run on both types of systems.
  */
-#if defined(SMP) || !defined(_KERNEL)
+#if !defined(_KERNEL)
 #define MPLOCKED	lock ;
 #else
 #define MPLOCKED
@@ -117,34 +118,6 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #if defined(__GNUC__)
 
-#if defined(I386_CPU) || defined(CPU_DISABLE_CMPXCHG)
-
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
-{
-	int res = exp;
-
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	cmpl	%0,%2 ;		"
-	"	jne	1f ;		"
-	"	movl	%1,%2 ;		"
-	"1:				"
-	"       sete	%%al;		"
-	"	movzbl	%%al,%0 ;	"
-	"	popfl ;			"
-	"# atomic_cmpset_int"
-	: "+a" (res)			/* 0 (result) */
-	: "r" (src),			/* 1 */
-	  "m" (*(dst))			/* 2 */
-	: "memory");
-
-	return (res);
-}
-
-#else /* defined(I386_CPU) */
-
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 {
@@ -165,35 +138,28 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	return (res);
 }
 
-#endif /* defined(I386_CPU) */
+static __inline int
+atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+	long res = exp;
 
+	__asm __volatile (
+	"	" __XSTRING(MPLOCKED) "	"
+	"	cmpxchgq %1,%2 ;	"
+	"       setz	%%al ;		"
+	"	movzbq	%%al,%0 ;	"
+	"1:				"
+	"# atomic_cmpset_long"
+	: "+a" (res)			/* 0 (result) %rax, XXX check */
+	: "r" (src),			/* 1 */
+	  "m" (*(dst))			/* 2 */
+	: "memory");				 
+
+	return (res);
+}
 #endif /* defined(__GNUC__) */
 
 #if defined(__GNUC__)
-
-#if defined(I386_CPU)
-
-/*
- * We assume that a = b will do atomic loads and stores.
- *
- * XXX: This is _NOT_ safe on a P6 or higher because it does not guarantee
- * memory ordering.  These should only be used on a 386.
- */
-#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
-static __inline u_##TYPE				\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
-{							\
-	return (*p);					\
-}							\
-							\
-static __inline void					\
-atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	*p = v;						\
-	__asm __volatile("" : : : "memory");		\
-}
-
-#else /* !defined(I386_CPU) */
 
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -221,11 +187,10 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: : "memory");				 	\
 }
 
-#endif	/* defined(I386_CPU) */
-
 #else /* !defined(__GNUC__) */
 
 extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
+extern int atomic_cmpset_long(volatile u_long *, u_long, u_long);
 
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)				\
 extern u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p);		\
@@ -250,15 +215,15 @@ ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v);
 ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v);
 ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v);
 
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   "ir",  v);
-ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v);
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v);
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v);
+ATOMIC_ASM(set,	     long,  "orq %1,%0",   "ir",  v);
+ATOMIC_ASM(clear,    long,  "andq %1,%0",  "ir", ~v);
+ATOMIC_ASM(add,	     long,  "addq %1,%0",  "ir",  v);
+ATOMIC_ASM(subtract, long,  "subq %1,%0",  "ir",  v);
 
 ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0");
 ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0");
 ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0");
-ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
+ATOMIC_STORE_LOAD(long,	"cmpxchgq %0,%1",  "xchgq %1,%0");
 
 #undef ATOMIC_ASM
 #undef ATOMIC_STORE_LOAD
@@ -300,9 +265,6 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 #define	atomic_add_rel_long		atomic_add_long
 #define	atomic_subtract_acq_long	atomic_subtract_long
 #define	atomic_subtract_rel_long	atomic_subtract_long
-#define	atomic_cmpset_long		atomic_cmpset_int
-#define	atomic_cmpset_acq_long		atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_long		atomic_cmpset_rel_int
 
 #define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
 #define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
@@ -361,39 +323,39 @@ static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
 
-	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)exp,
-	    (u_int)src));
+	return (atomic_cmpset_long((volatile u_long *)dst,
+	    (u_long)exp, (u_long)src));
 }
 
 static __inline void *
 atomic_load_acq_ptr(volatile void *p)
 {
-	return (void *)atomic_load_acq_int((volatile u_int *)p);
+	return (void *)atomic_load_acq_long((volatile u_long *)p);
 }
 
 static __inline void
 atomic_store_rel_ptr(volatile void *p, void *v)
 {
-	atomic_store_rel_int((volatile u_int *)p, (u_int)v);
+	atomic_store_rel_long((volatile u_long *)p, (u_long)v);
 }
 
 #define ATOMIC_PTR(NAME)				\
 static __inline void					\
 atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
 {							\
-	atomic_##NAME##_int((volatile u_int *)p, v);	\
+	atomic_##NAME##_long((volatile u_long *)p, v);	\
 }							\
 							\
 static __inline void					\
 atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
 {							\
-	atomic_##NAME##_acq_int((volatile u_int *)p, v);\
+	atomic_##NAME##_acq_long((volatile u_long *)p, v);\
 }							\
 							\
 static __inline void					\
 atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
 {							\
-	atomic_##NAME##_rel_int((volatile u_int *)p, v);\
+	atomic_##NAME##_rel_long((volatile u_long *)p, v);\
 }
 
 ATOMIC_PTR(set)
@@ -426,8 +388,8 @@ atomic_readandclear_long(volatile u_long *addr)
 	u_long result;
 
 	__asm __volatile (
-	"	xorl	%0,%0 ;		"
-	"	xchgl	%1,%0 ;		"
+	"	xorq	%0,%0 ;		"
+	"	xchgq	%1,%0 ;		"
 	"# atomic_readandclear_int"
 	: "=&r" (result)		/* 0 (result) */
 	: "m" (*addr));			/* 1 (addr) */

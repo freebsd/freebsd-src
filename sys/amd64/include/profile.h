@@ -65,14 +65,14 @@
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
 extern int	mcount_lock;
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); \
+#define	MCOUNT_ENTER(s)	{ s = read_rflags(); disable_intr(); \
  			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1)) \
 			  	/* nothing */ ; }
 #define	MCOUNT_EXIT(s)	{ atomic_store_rel_int(&mcount_lock, 0); \
-			  write_eflags(s); }
+			  write_rflags(s); }
 #else
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
-#define	MCOUNT_EXIT(s)	(write_eflags(s))
+#define	MCOUNT_ENTER(s)	{ s = read_rflags(); disable_intr(); }
+#define	MCOUNT_EXIT(s)	(write_rflags(s))
 #endif
 #endif /* GUPROF */
 
@@ -94,14 +94,14 @@ mcount()								\
 	 *								\
 	 * selfpc = pc pushed by call to mcount				\
 	 */								\
-	asm("movl 4(%%ebp),%0" : "=r" (selfpc));			\
+	asm("movq 8(%%rbp),%0" : "=r" (selfpc));			\
 	/*								\
 	 * frompc = pc pushed by call to mcount's caller.		\
 	 * The caller's stack frame has already been built, so %ebp is	\
 	 * the caller's frame pointer.  The caller's raddr is in the	\
 	 * caller's frame following the caller's caller's frame pointer.\
 	 */								\
-	asm("movl (%%ebp),%0" : "=r" (frompc));				\
+	asm("movq (%%rbp),%0" : "=r" (frompc));				\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
 }
@@ -113,7 +113,7 @@ mcount()		\
 }
 #endif	/* __GNUC__ */
 
-typedef	unsigned int	uintfptr_t;
+typedef	unsigned long	uintfptr_t;
 
 #endif /* _KERNEL */
 

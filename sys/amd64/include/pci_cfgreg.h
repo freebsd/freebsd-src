@@ -38,12 +38,7 @@
 #define CONF1_ENABLE_RES1  0x80000000ul
 
 #define CONF2_ENABLE_PORT  0x0cf8
-#ifdef PC98
-#define CONF2_FORWARD_PORT 0x0cf9
-#else
 #define CONF2_FORWARD_PORT 0x0cfa
-#endif
-
 #define CONF2_ENABLE_CHK   0x0e
 #define CONF2_ENABLE_RES   0x0e
 
@@ -51,4 +46,3 @@ int		pci_cfgregopen(void);
 u_int32_t	pci_cfgregread(int bus, int slot, int func, int reg, int bytes);
 void		pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes);
 int		pci_cfgintr(int bus, int device, int pin, int oldirq);
-int		pci_probe_route_table(int bus);

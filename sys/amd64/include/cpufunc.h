@@ -52,10 +52,12 @@ __BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
 #define readl(va)	(*(volatile u_int32_t *) (va))
+#define readq(va)	(*(volatile u_int64_t *) (va))
 
 #define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
 #define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
+#define writeq(va, d)	(*(volatile u_int64_t *) (va) = (d))
 
 #ifdef	__GNUC__
 
@@ -310,40 +312,40 @@ ia32_pause(void)
 	__asm __volatile("pause");
 }
 
-static __inline u_int
-read_eflags(void)
+static __inline u_long
+read_rflags(void)
 {
-	u_int	ef;
+	u_long	rf;
 
-	__asm __volatile("pushfl; popl %0" : "=r" (ef));
-	return (ef);
+	__asm __volatile("pushfq; popq %0" : "=r" (rf));
+	return (rf);
 }
 
 static __inline u_int64_t
 rdmsr(u_int msr)
 {
-	u_int64_t rv;
+	u_int32_t low, high;
 
-	__asm __volatile("rdmsr" : "=A" (rv) : "c" (msr));
-	return (rv);
+	__asm __volatile("rdmsr" : "=a" (low), "=d" (high) : "c" (msr));
+	return (low | ((u_int64_t)high << 32));
 }
 
 static __inline u_int64_t
 rdpmc(u_int pmc)
 {
-	u_int64_t rv;
+	u_int32_t low, high;
 
-	__asm __volatile("rdpmc" : "=A" (rv) : "c" (pmc));
-	return (rv);
+	__asm __volatile("rdpmc" : "=a" (low), "=d" (high) : "c" (pmc));
+	return (low | ((u_int64_t)high << 32));
 }
 
 static __inline u_int64_t
 rdtsc(void)
 {
-	u_int64_t rv;
+	u_int32_t low, high;
 
-	__asm __volatile("rdtsc" : "=A" (rv));
-	return (rv);
+	__asm __volatile("rdtsc" : "=a" (low), "=d" (high));
+	return (low | ((u_int64_t)high << 32));
 }
 
 static __inline void
@@ -353,70 +355,74 @@ wbinvd(void)
 }
 
 static __inline void
-write_eflags(u_int ef)
+write_rflags(u_long rf)
 {
-	__asm __volatile("pushl %0; popfl" : : "r" (ef));
+	__asm __volatile("pushq %0;  popfq" : : "r" (rf));
 }
 
 static __inline void
 wrmsr(u_int msr, u_int64_t newval)
 {
-	__asm __volatile("wrmsr" : : "A" (newval), "c" (msr));
+	u_int32_t low, high;
+
+	low = newval;
+	high = newval >> 32;
+	__asm __volatile("wrmsr" : : "a" (low), "d" (high), "c" (msr));
 }
 
 static __inline void
-load_cr0(u_int data)
+load_cr0(u_long data)
 {
 
-	__asm __volatile("movl %0,%%cr0" : : "r" (data));
+	__asm __volatile("movq %0,%%cr0" : : "r" (data));
 }
 
-static __inline u_int
+static __inline u_long
 rcr0(void)
 {
-	u_int	data;
+	u_long	data;
 
-	__asm __volatile("movl %%cr0,%0" : "=r" (data));
+	__asm __volatile("movq %%cr0,%0" : "=r" (data));
 	return (data);
 }
 
-static __inline u_int
+static __inline u_long
 rcr2(void)
 {
-	u_int	data;
+	u_long	data;
 
-	__asm __volatile("movl %%cr2,%0" : "=r" (data));
+	__asm __volatile("movq %%cr2,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_cr3(u_int data)
+load_cr3(u_long data)
 {
 
-	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
+	__asm __volatile("movq %0,%%cr3" : : "r" (data) : "memory");
 }
 
-static __inline u_int
+static __inline u_long
 rcr3(void)
 {
-	u_int	data;
+	u_long	data;
 
-	__asm __volatile("movl %%cr3,%0" : "=r" (data));
+	__asm __volatile("movq %%cr3,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_cr4(u_int data)
+load_cr4(u_long data)
 {
-	__asm __volatile("movl %0,%%cr4" : : "r" (data));
+	__asm __volatile("movq %0,%%cr4" : : "r" (data));
 }
 
-static __inline u_int
+static __inline u_long
 rcr4(void)
 {
-	u_int	data;
+	u_long	data;
 
-	__asm __volatile("movl %%cr4,%0" : "=r" (data));
+	__asm __volatile("movq %%cr4,%0" : "=r" (data));
 	return (data);
 }
 
@@ -435,12 +441,13 @@ invltlb(void)
  * Only works on 486+ CPUs (i386 does not have PG_G).
  */
 static __inline void
-invlpg(u_int addr)
+invlpg(u_long addr)
 {
 
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
+/* XXX these are replaced with rdmsr/wrmsr */
 static __inline u_int
 rfs(void)
 {
@@ -490,132 +497,20 @@ ltr(u_short sel)
 	__asm __volatile("ltr %0" : : "r" (sel));
 }
 
-static __inline u_int
-rdr0(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr0,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr0(u_int dr0)
-{
-	__asm __volatile("movl %0,%%dr0" : : "r" (dr0));
-}
-
-static __inline u_int
-rdr1(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr1,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr1(u_int dr1)
-{
-	__asm __volatile("movl %0,%%dr1" : : "r" (dr1));
-}
-
-static __inline u_int
-rdr2(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr2,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr2(u_int dr2)
-{
-	__asm __volatile("movl %0,%%dr2" : : "r" (dr2));
-}
-
-static __inline u_int
-rdr3(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr3,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr3(u_int dr3)
-{
-	__asm __volatile("movl %0,%%dr3" : : "r" (dr3));
-}
-
-static __inline u_int
-rdr4(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr4,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr4(u_int dr4)
-{
-	__asm __volatile("movl %0,%%dr4" : : "r" (dr4));
-}
-
-static __inline u_int
-rdr5(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr5,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr5(u_int dr5)
-{
-	__asm __volatile("movl %0,%%dr5" : : "r" (dr5));
-}
-
-static __inline u_int
-rdr6(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr6,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr6(u_int dr6)
-{
-	__asm __volatile("movl %0,%%dr6" : : "r" (dr6));
-}
-
-static __inline u_int
-rdr7(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr7,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr7(u_int dr7)
-{
-	__asm __volatile("movl %0,%%dr7" : : "r" (dr7));
-}
-
 static __inline register_t
 intr_disable(void)
 {
-	register_t eflags;
+	register_t rflags;
 
-	eflags = read_eflags();
+	rflags = read_rflags();
 	disable_intr();
-	return (eflags);
+	return (rflags);
 }
 
 static __inline void
-intr_restore(register_t eflags)
+intr_restore(register_t rflags)
 {
-	write_eflags(eflags);
+	write_rflags(rflags);
 }
 
 #else /* !__GNUC__ */
@@ -623,8 +518,8 @@ intr_restore(register_t eflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
-void	cpu_invlpg(u_int addr);
-void	cpu_invlpg_range(u_int start, u_int end);
+void	cpu_invlpg(u_long addr);
+void	cpu_invlpg_range(u_long start, u_long end);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);
@@ -664,28 +559,13 @@ u_int	rgs(void);
 u_int64_t rdmsr(u_int msr);
 u_int64_t rdpmc(u_int pmc);
 u_int64_t rdtsc(void);
-u_int	read_eflags(void);
+u_int	read_rflags(void);
 void	wbinvd(void);
-void	write_eflags(u_int ef);
+void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, u_int64_t newval);
-u_int	rdr0(void);
-void	load_dr0(u_int dr0);
-u_int	rdr1(void);
-void	load_dr1(u_int dr1);
-u_int	rdr2(void);
-void	load_dr2(u_int dr2);
-u_int	rdr3(void);
-void	load_dr3(u_int dr3);
-u_int	rdr4(void);
-void	load_dr4(u_int dr4);
-u_int	rdr5(void);
-void	load_dr5(u_int dr5);
-u_int	rdr6(void);
-void	load_dr6(u_int dr6);
-u_int	rdr7(void);
 void	load_dr7(u_int dr7);
 register_t	intr_disable(void);
-void	intr_restore(register_t ef);
+void	intr_restore(register_t rf);
 
 #endif	/* __GNUC__ */
 

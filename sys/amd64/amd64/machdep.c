@@ -47,9 +47,7 @@
 #include "opt_isa.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
-#include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_swtch.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -100,103 +98,48 @@
 #include <machine/reg.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
-#include <machine/bootinfo.h>
 #include <machine/md_var.h>
-#include <machine/pc/bios.h>
-#include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/proc.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
-#ifdef SMP
-#include <machine/privatespace.h>
-#include <machine/smp.h>
-#endif
+#include <machine/tss.h>
 
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
+#include <amd64/isa/icu.h>
+#include <amd64/isa/intr_machdep.h>
 #include <isa/rtc.h>
-#include <machine/vm86.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
-extern void init386(int first);
+extern void hammer_time(void);
 extern void dblfault_handler(void);
 
 extern void printcpuinfo(void);	/* XXX header file */
-extern void finishidentcpu(void);
+extern void identify_cpu(void);
 extern void panicifcpuunsupported(void);
 extern void initializecpu(void);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
-#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-#if defined(CPU_DISABLE_SSE)
-#undef CPU_ENABLE_SSE
-#endif
-
 static void cpu_startup(void *);
 static void fpstate_drop(struct thread *td);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
-#ifdef CPU_ENABLE_SSE
-static void set_fpregs_xmm(struct save87 *, struct savexmm *);
-static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
-#endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 int	_udatasel, _ucodesel;
 u_int	atdevbase;
 
-#if defined(SWTCH_OPTIM_STATS)
-int stupid_switch;
-SYSCTL_INT(_debug, OID_AUTO, stupid_switch,
-	CTLFLAG_RW, &stupid_switch, 0, "");
-int swtch_optim_stats;
-SYSCTL_INT(_debug, OID_AUTO, swtch_optim_stats,
-	CTLFLAG_RW, &swtch_optim_stats, 0, "");
-int tlb_flush_count;
-SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
-	CTLFLAG_RW, &tlb_flush_count, 0, "");
-int lazy_flush_count;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_count,
-	CTLFLAG_RW, &lazy_flush_count, 0, "");
-int lazy_flush_fixup;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_fixup,
-	CTLFLAG_RW, &lazy_flush_fixup, 0, "");
-#ifdef SMP
-int lazy_flush_smpfixup;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpfixup,
-	CTLFLAG_RW, &lazy_flush_smpfixup, 0, "");
-int lazy_flush_smpipi;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpipi,
-	CTLFLAG_RW, &lazy_flush_smpipi, 0, "");
-int lazy_flush_smpbadcr3;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpbadcr3,
-	CTLFLAG_RW, &lazy_flush_smpbadcr3, 0, "");
-int lazy_flush_smpmiss;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_smpmiss,
-	CTLFLAG_RW, &lazy_flush_smpmiss, 0, "");
-#endif
-#endif
-#ifdef LAZY_SWITCH
-int lazy_flush_enable = 1;
-SYSCTL_INT(_debug, OID_AUTO, lazy_flush_enable,
-	CTLFLAG_RW, &lazy_flush_enable, 0, "");
-#endif
+u_int64_t	modulep;	/* phys addr of metadata table */
+u_int64_t	physfree;	/* first free page after kernel */
+u_int64_t	IdlePTD;	/* phys addr of kernel PTD */
+u_int64_t	IdlePDP;	/* phys addr of kernel level 3 */
+u_int64_t	IdlePML4;	/* phys addr of kernel level 4 */
+struct user	*proc0uarea;	/* address of proc 0 uarea space */
+vm_offset_t	proc0kstack;	/* address of proc 0 kstack space */
 
 int cold = 1;
-
-#ifdef COMPAT_43
-static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
-#endif
-#ifdef COMPAT_FREEBSD4
-static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
-    u_long code);
-#endif
 
 long Maxmem = 0;
 
@@ -208,9 +151,7 @@ vm_paddr_t phys_avail[10];
 struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
-#ifndef SMP
 static struct pcpu __pcpu;
-#endif
 
 struct mtx icu_lock;
 
@@ -260,10 +201,8 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-#ifndef SMP
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
-#endif
 }
 
 /*
@@ -276,256 +215,6 @@ cpu_startup(dummy)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
-#ifdef COMPAT_43
-static void
-osendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
-{
-	struct osigframe sf, *fp;
-	struct proc *p;
-	struct thread *td;
-	struct sigacts *psp;
-	struct trapframe *regs;
-	int oonstack;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	psp = p->p_sigacts;
-	regs = td->td_frame;
-	oonstack = sigonstack(regs->tf_esp);
-
-	/* Allocate space for the signal handler context. */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct osigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct osigframe));
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-#endif
-	} else
-		fp = (struct osigframe *)regs->tf_esp - 1;
-	PROC_UNLOCK(p);
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
-	/* Build the argument list for the signal handler. */
-	sf.sf_signum = sig;
-	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
-		/* Signal handler installed with SA_SIGINFO. */
-		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
-		sf.sf_siginfo.si_signo = sig;
-		sf.sf_siginfo.si_code = code;
-		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
-	} else {
-		/* Old FreeBSD-style arguments. */
-		sf.sf_arg2 = code;
-		sf.sf_addr = regs->tf_err;
-		sf.sf_ahu.sf_handler = catcher;
-	}
-	PROC_UNLOCK(p);
-
-	/* Save most if not all of trap frame. */
-	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
-	sf.sf_siginfo.si_sc.sc_ebx = regs->tf_ebx;
-	sf.sf_siginfo.si_sc.sc_ecx = regs->tf_ecx;
-	sf.sf_siginfo.si_sc.sc_edx = regs->tf_edx;
-	sf.sf_siginfo.si_sc.sc_esi = regs->tf_esi;
-	sf.sf_siginfo.si_sc.sc_edi = regs->tf_edi;
-	sf.sf_siginfo.si_sc.sc_cs = regs->tf_cs;
-	sf.sf_siginfo.si_sc.sc_ds = regs->tf_ds;
-	sf.sf_siginfo.si_sc.sc_ss = regs->tf_ss;
-	sf.sf_siginfo.si_sc.sc_es = regs->tf_es;
-	sf.sf_siginfo.si_sc.sc_fs = regs->tf_fs;
-	sf.sf_siginfo.si_sc.sc_gs = rgs();
-	sf.sf_siginfo.si_sc.sc_isp = regs->tf_isp;
-
-	/* Build the signal context to be used by osigreturn(). */
-	sf.sf_siginfo.si_sc.sc_onstack = (oonstack) ? 1 : 0;
-	SIG2OSIG(*mask, sf.sf_siginfo.si_sc.sc_mask);
-	sf.sf_siginfo.si_sc.sc_sp = regs->tf_esp;
-	sf.sf_siginfo.si_sc.sc_fp = regs->tf_ebp;
-	sf.sf_siginfo.si_sc.sc_pc = regs->tf_eip;
-	sf.sf_siginfo.si_sc.sc_ps = regs->tf_eflags;
-	sf.sf_siginfo.si_sc.sc_trapno = regs->tf_trapno;
-	sf.sf_siginfo.si_sc.sc_err = regs->tf_err;
-
-	/*
-	 * If we're a vm86 process, we want to save the segment registers.
-	 * We also change eflags to be our emulated eflags, not the actual
-	 * eflags.
-	 */
-	if (regs->tf_eflags & PSL_VM) {
-		/* XXX confusing names: `tf' isn't a trapframe; `regs' is. */
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-
-		sf.sf_siginfo.si_sc.sc_gs = tf->tf_vm86_gs;
-		sf.sf_siginfo.si_sc.sc_fs = tf->tf_vm86_fs;
-		sf.sf_siginfo.si_sc.sc_es = tf->tf_vm86_es;
-		sf.sf_siginfo.si_sc.sc_ds = tf->tf_vm86_ds;
-
-		if (vm86->vm86_has_vme == 0)
-			sf.sf_siginfo.si_sc.sc_ps =
-			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP)) |
-			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
-
-		/* See sendsig() for comments. */
-		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
-	}
-
-	/*
-	 * Copy the sigframe out to the user's stack.
-	 */
-	if (copyout(&sf, fp, sizeof(*fp)) != 0) {
-#ifdef DEBUG
-		printf("process %ld has trashed its stack\n", (long)p->p_pid);
-#endif
-		PROC_LOCK(p);
-		sigexit(td, SIGILL);
-	}
-
-	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - szosigcode;
-	regs->tf_eflags &= ~PSL_T;
-	regs->tf_cs = _ucodesel;
-	regs->tf_ds = _udatasel;
-	regs->tf_es = _udatasel;
-	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
-	regs->tf_ss = _udatasel;
-	PROC_LOCK(p);
-}
-#endif /* COMPAT_43 */
-
-#ifdef COMPAT_FREEBSD4
-static void
-freebsd4_sendsig(catcher, sig, mask, code)
-	sig_t catcher;
-	int sig;
-	sigset_t *mask;
-	u_long code;
-{
-	struct sigframe4 sf, *sfp;
-	struct proc *p;
-	struct thread *td;
-	struct sigacts *psp;
-	struct trapframe *regs;
-	int oonstack;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	psp = p->p_sigacts;
-	regs = td->td_frame;
-	oonstack = sigonstack(regs->tf_esp);
-
-	/* Save user context. */
-	bzero(&sf, sizeof(sf));
-	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
-	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
-
-	/* Allocate space for the signal handler context. */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe4 *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct sigframe4));
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-#endif
-	} else
-		sfp = (struct sigframe4 *)regs->tf_esp - 1;
-	PROC_UNLOCK(p);
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
-	/* Build the argument list for the signal handler. */
-	sf.sf_signum = sig;
-	sf.sf_ucontext = (register_t)&sfp->sf_uc;
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
-		/* Signal handler installed with SA_SIGINFO. */
-		sf.sf_siginfo = (register_t)&sfp->sf_si;
-		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
-
-		/* Fill in POSIX parts */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
-	} else {
-		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
-		sf.sf_ahu.sf_handler = catcher;
-	}
-	PROC_UNLOCK(p);
-
-	/*
-	 * If we're a vm86 process, we want to save the segment registers.
-	 * We also change eflags to be our emulated eflags, not the actual
-	 * eflags.
-	 */
-	if (regs->tf_eflags & PSL_VM) {
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-
-		sf.sf_uc.uc_mcontext.mc_gs = tf->tf_vm86_gs;
-		sf.sf_uc.uc_mcontext.mc_fs = tf->tf_vm86_fs;
-		sf.sf_uc.uc_mcontext.mc_es = tf->tf_vm86_es;
-		sf.sf_uc.uc_mcontext.mc_ds = tf->tf_vm86_ds;
-
-		if (vm86->vm86_has_vme == 0)
-			sf.sf_uc.uc_mcontext.mc_eflags =
-			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP)) |
-			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
-
-		/*
-		 * Clear PSL_NT to inhibit T_TSSFLT faults on return from
-		 * syscalls made by the signal handler.  This just avoids
-		 * wasting time for our lazy fixup of such faults.  PSL_NT
-		 * does nothing in vm86 mode, but vm86 programs can set it
-		 * almost legitimately in probes for old cpu types.
-		 */
-		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
-	}
-
-	/*
-	 * Copy the sigframe out to the user's stack.
-	 */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
-#ifdef DEBUG
-		printf("process %ld has trashed its stack\n", (long)p->p_pid);
-#endif
-		PROC_LOCK(p);
-		sigexit(td, SIGILL);
-	}
-
-	regs->tf_esp = (int)sfp;
-	regs->tf_eip = PS_STRINGS - szfreebsd4_sigcode;
-	regs->tf_eflags &= ~PSL_T;
-	regs->tf_cs = _ucodesel;
-	regs->tf_ds = _udatasel;
-	regs->tf_es = _udatasel;
-	regs->tf_fs = _udatasel;
-	regs->tf_ss = _udatasel;
-	PROC_LOCK(p);
-}
-#endif	/* COMPAT_FREEBSD4 */
-
 void
 sendsig(catcher, sig, mask, code)
 	sig_t catcher;
@@ -545,20 +234,8 @@ sendsig(catcher, sig, mask, code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
-#ifdef COMPAT_FREEBSD4
-	if (SIGISMEMBER(psp->ps_freebsd4, sig)) {
-		freebsd4_sendsig(catcher, sig, mask, code);
-		return;
-	}
-#endif
-#ifdef COMPAT_43
-	if (SIGISMEMBER(psp->ps_osigset, sig)) {
-		osendsig(catcher, sig, mask, code);
-		return;
-	}
-#endif
 	regs = td->td_frame;
-	oonstack = sigonstack(regs->tf_esp);
+	oonstack = sigonstack(regs->tf_rsp);
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
@@ -567,8 +244,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
+	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_r15, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
@@ -582,9 +258,9 @@ sendsig(catcher, sig, mask, code)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sp = (char *)regs->tf_esp - sizeof(struct sigframe);
+		sp = (char *)regs->tf_rsp - sizeof(struct sigframe);
 	/* Align to 16 bytes. */
-	sfp = (struct sigframe *)((unsigned int)sp & ~0xF);
+	sfp = (struct sigframe *)((unsigned long)sp & ~0xF);
 	PROC_UNLOCK(p);
 
 	/* Translate the signal if appropriate. */
@@ -592,54 +268,25 @@ sendsig(catcher, sig, mask, code)
 		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
-	sf.sf_signum = sig;
-	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	regs->tf_rdi = sig;			/* arg 1 in %rdi */
+	regs->tf_rdx = (register_t)&sfp->sf_uc;	/* arg 3 in %rdx */
 	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
-		sf.sf_siginfo = (register_t)&sfp->sf_si;
+		regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
 
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
+		regs->tf_rcx = regs->tf_err;	/* arg 4 in %rcx */
 	} else {
 		/* Old FreeBSD-style arguments. */
-		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		regs->tf_rsi = code;		/* arg 2 in %rsi */
+		regs->tf_rcx = regs->tf_err;	/* arg 4 in %rcx */
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	PROC_UNLOCK(p);
-
-	/*
-	 * If we're a vm86 process, we want to save the segment registers.
-	 * We also change eflags to be our emulated eflags, not the actual
-	 * eflags.
-	 */
-	if (regs->tf_eflags & PSL_VM) {
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-
-		sf.sf_uc.uc_mcontext.mc_gs = tf->tf_vm86_gs;
-		sf.sf_uc.uc_mcontext.mc_fs = tf->tf_vm86_fs;
-		sf.sf_uc.uc_mcontext.mc_es = tf->tf_vm86_es;
-		sf.sf_uc.uc_mcontext.mc_ds = tf->tf_vm86_ds;
-
-		if (vm86->vm86_has_vme == 0)
-			sf.sf_uc.uc_mcontext.mc_eflags =
-			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP)) |
-			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
-
-		/*
-		 * Clear PSL_NT to inhibit T_TSSFLT faults on return from
-		 * syscalls made by the signal handler.  This just avoids
-		 * wasting time for our lazy fixup of such faults.  PSL_NT
-		 * does nothing in vm86 mode, but vm86 programs can set it
-		 * almost legitimately in probes for old cpu types.
-		 */
-		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
-	}
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -652,14 +299,10 @@ sendsig(catcher, sig, mask, code)
 		sigexit(td, SIGILL);
 	}
 
-	regs->tf_esp = (int)sfp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_eflags &= ~PSL_T;
+	regs->tf_rsp = (long)sfp;
+	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucodesel;
-	regs->tf_ds = _udatasel;
-	regs->tf_es = _udatasel;
-	regs->tf_fs = _udatasel;
-	regs->tf_ss = _udatasel;
 	PROC_LOCK(p);
 }
 
@@ -674,232 +317,6 @@ sendsig(catcher, sig, mask, code)
  *
  * MPSAFE
  */
-#ifdef COMPAT_43
-int
-osigreturn(td, uap)
-	struct thread *td;
-	struct osigreturn_args /* {
-		struct osigcontext *sigcntxp;
-	} */ *uap;
-{
-	struct osigcontext sc;
-	struct trapframe *regs;
-	struct osigcontext *scp;
-	struct proc *p = td->td_proc;
-	int eflags, error;
-
-	regs = td->td_frame;
-	error = copyin(uap->sigcntxp, &sc, sizeof(sc));
-	if (error != 0)
-		return (error);
-	scp = &sc;
-	eflags = scp->sc_ps;
-	if (eflags & PSL_VM) {
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86;
-
-		/*
-		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
-		 * set up the vm86 area, and we can't enter vm86 mode.
-		 */
-		if (td->td_pcb->pcb_ext == 0)
-			return (EINVAL);
-		vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-		if (vm86->vm86_inited == 0)
-			return (EINVAL);
-
-		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
-
-		if (vm86->vm86_has_vme) {
-			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
-			    (eflags & VME_USERCHANGE) | PSL_VM;
-		} else {
-			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
-			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |
-			    (eflags & VM_USERCHANGE) | PSL_VM;
-		}
-		tf->tf_vm86_ds = scp->sc_ds;
-		tf->tf_vm86_es = scp->sc_es;
-		tf->tf_vm86_fs = scp->sc_fs;
-		tf->tf_vm86_gs = scp->sc_gs;
-		tf->tf_ds = _udatasel;
-		tf->tf_es = _udatasel;
-		tf->tf_fs = _udatasel;
-	} else {
-		/*
-		 * Don't allow users to change privileged or reserved flags.
-		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-	    		return (EINVAL);
-		}
-
-		/*
-		 * Don't allow users to load a valid privileged %cs.  Let the
-		 * hardware check for invalid selectors, excess privilege in
-		 * other selectors, invalid %eip's and invalid %esp's.
-		 */
-		if (!CS_SECURE(scp->sc_cs)) {
-			trapsignal(td, SIGBUS, T_PROTFLT);
-			return (EINVAL);
-		}
-		regs->tf_ds = scp->sc_ds;
-		regs->tf_es = scp->sc_es;
-		regs->tf_fs = scp->sc_fs;
-	}
-
-	/* Restore remaining registers. */
-	regs->tf_eax = scp->sc_eax;
-	regs->tf_ebx = scp->sc_ebx;
-	regs->tf_ecx = scp->sc_ecx;
-	regs->tf_edx = scp->sc_edx;
-	regs->tf_esi = scp->sc_esi;
-	regs->tf_edi = scp->sc_edi;
-	regs->tf_cs = scp->sc_cs;
-	regs->tf_ss = scp->sc_ss;
-	regs->tf_isp = scp->sc_isp;
-	regs->tf_ebp = scp->sc_fp;
-	regs->tf_esp = scp->sc_sp;
-	regs->tf_eip = scp->sc_pc;
-	regs->tf_eflags = eflags;
-
-	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	if (scp->sc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-#endif
-	SIGSETOLD(td->td_sigmask, scp->sc_mask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
-	return (EJUSTRETURN);
-}
-#endif /* COMPAT_43 */
-
-#ifdef COMPAT_FREEBSD4
-/*
- * MPSAFE
- */
-int
-freebsd4_sigreturn(td, uap)
-	struct thread *td;
-	struct freebsd4_sigreturn_args /* {
-		const ucontext4 *sigcntxp;
-	} */ *uap;
-{
-	struct ucontext4 uc;
-	struct proc *p = td->td_proc;
-	struct trapframe *regs;
-	const struct ucontext4 *ucp;
-	int cs, eflags, error;
-
-	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
-	if (error != 0)
-		return (error);
-	ucp = &uc;
-	regs = td->td_frame;
-	eflags = ucp->uc_mcontext.mc_eflags;
-	if (eflags & PSL_VM) {
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86;
-
-		/*
-		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
-		 * set up the vm86 area, and we can't enter vm86 mode.
-		 */
-		if (td->td_pcb->pcb_ext == 0)
-			return (EINVAL);
-		vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-		if (vm86->vm86_inited == 0)
-			return (EINVAL);
-
-		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
-
-		if (vm86->vm86_has_vme) {
-			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
-			    (eflags & VME_USERCHANGE) | PSL_VM;
-		} else {
-			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
-			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |
-			    (eflags & VM_USERCHANGE) | PSL_VM;
-		}
-		bcopy(&ucp->uc_mcontext.mc_fs, tf, sizeof(struct trapframe));
-		tf->tf_eflags = eflags;
-		tf->tf_vm86_ds = tf->tf_ds;
-		tf->tf_vm86_es = tf->tf_es;
-		tf->tf_vm86_fs = tf->tf_fs;
-		tf->tf_vm86_gs = ucp->uc_mcontext.mc_gs;
-		tf->tf_ds = _udatasel;
-		tf->tf_es = _udatasel;
-		tf->tf_fs = _udatasel;
-	} else {
-		/*
-		 * Don't allow users to change privileged or reserved flags.
-		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("freebsd4_sigreturn: eflags = 0x%x\n", eflags);
-	    		return (EINVAL);
-		}
-
-		/*
-		 * Don't allow users to load a valid privileged %cs.  Let the
-		 * hardware check for invalid selectors, excess privilege in
-		 * other selectors, invalid %eip's and invalid %esp's.
-		 */
-		cs = ucp->uc_mcontext.mc_cs;
-		if (!CS_SECURE(cs)) {
-			printf("freebsd4_sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
-			return (EINVAL);
-		}
-
-		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
-	}
-
-	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	if (ucp->uc_mcontext.mc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-#endif
-
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
-	return (EJUSTRETURN);
-}
-#endif	/* COMPAT_FREEBSD4 */
-
-/*
- * MPSAFE
- */
 int
 sigreturn(td, uap)
 	struct thread *td;
@@ -911,85 +328,49 @@ sigreturn(td, uap)
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
 	const ucontext_t *ucp;
-	int cs, eflags, error, ret;
+	long rflags;
+	int cs, error, ret;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
 		return (error);
 	ucp = &uc;
 	regs = td->td_frame;
-	eflags = ucp->uc_mcontext.mc_eflags;
-	if (eflags & PSL_VM) {
-		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
-		struct vm86_kernel *vm86;
-
-		/*
-		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
-		 * set up the vm86 area, and we can't enter vm86 mode.
-		 */
-		if (td->td_pcb->pcb_ext == 0)
-			return (EINVAL);
-		vm86 = &td->td_pcb->pcb_ext->ext_vm86;
-		if (vm86->vm86_inited == 0)
-			return (EINVAL);
-
-		/* Go back to user mode if both flags are set. */
-		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
-			trapsignal(td, SIGBUS, 0);
-
-		if (vm86->vm86_has_vme) {
-			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
-			    (eflags & VME_USERCHANGE) | PSL_VM;
-		} else {
-			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
-			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |
-			    (eflags & VM_USERCHANGE) | PSL_VM;
-		}
-		bcopy(&ucp->uc_mcontext.mc_fs, tf, sizeof(struct trapframe));
-		tf->tf_eflags = eflags;
-		tf->tf_vm86_ds = tf->tf_ds;
-		tf->tf_vm86_es = tf->tf_es;
-		tf->tf_vm86_fs = tf->tf_fs;
-		tf->tf_vm86_gs = ucp->uc_mcontext.mc_gs;
-		tf->tf_ds = _udatasel;
-		tf->tf_es = _udatasel;
-		tf->tf_fs = _udatasel;
-	} else {
-		/*
-		 * Don't allow users to change privileged or reserved flags.
-		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-			printf("sigreturn: eflags = 0x%x\n", eflags);
-	    		return (EINVAL);
-		}
-
-		/*
-		 * Don't allow users to load a valid privileged %cs.  Let the
-		 * hardware check for invalid selectors, excess privilege in
-		 * other selectors, invalid %eip's and invalid %esp's.
-		 */
-		cs = ucp->uc_mcontext.mc_cs;
-		if (!CS_SECURE(cs)) {
-			printf("sigreturn: cs = 0x%x\n", cs);
-			trapsignal(td, SIGBUS, T_PROTFLT);
-			return (EINVAL);
-		}
-
-		ret = set_fpcontext(td, &ucp->uc_mcontext);
-		if (ret != 0)
-			return (ret);
-		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
+	rflags = ucp->uc_mcontext.mc_rflags;
+	/*
+	 * Don't allow users to change privileged or reserved flags.
+	 */
+	/*
+	 * XXX do allow users to change the privileged flag PSL_RF.
+	 * The cpu sets PSL_RF in tf_rflags for faults.  Debuggers
+	 * should sometimes set it there too.  tf_rflags is kept in
+	 * the signal context during signal handling and there is no
+	 * other place to remember it, so the PSL_RF bit may be
+	 * corrupted by the signal handler without us knowing.
+	 * Corruption of the PSL_RF bit at worst causes one more or
+	 * one less debugger trap, so allowing it is fairly harmless.
+	 */
+	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+		printf("sigreturn: rflags = 0x%x\n", rflags);
+		return (EINVAL);
 	}
+
+	/*
+	 * Don't allow users to load a valid privileged %cs.  Let the
+	 * hardware check for invalid selectors, excess privilege in
+	 * other selectors, invalid %eip's and invalid %esp's.
+	 */
+	cs = ucp->uc_mcontext.mc_cs;
+	if (!CS_SECURE(cs)) {
+		printf("sigreturn: cs = 0x%x\n", cs);
+		trapsignal(td, SIGBUS, T_PROTFLT);
+		return (EINVAL);
+	}
+
+	ret = set_fpcontext(td, &ucp->uc_mcontext);
+	if (ret != 0)
+		return (ret);
+	bcopy(&ucp->uc_mcontext.mc_r15, regs, sizeof(*regs));
 
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -1003,6 +384,7 @@ sigreturn(td, uap)
 	SIG_CANTMASK(td->td_sigmask);
 	signotify(td);
 	PROC_UNLOCK(p);
+	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (EJUSTRETURN);
 }
 
@@ -1056,11 +438,6 @@ void
 cpu_idle(void)
 {
 
-#ifdef SMP
-	if (mp_grab_cpu_hlt())
-		return;
-#endif
-
 	if (cpu_idle_hlt) {
 		disable_intr();
   		if (sched_runnable()) {
@@ -1087,58 +464,15 @@ exec_setregs(td, entry, stack, ps_strings)
 	u_long ps_strings;
 {
 	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
 
-	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
-	pcb->pcb_gs = _udatasel;
-	load_gs(_udatasel);
-
-	if (td->td_proc->p_md.md_ldt)
-		user_ldt_free(td);
-  
 	bzero((char *)regs, sizeof(struct trapframe));
-	regs->tf_eip = entry;
-	regs->tf_esp = stack;
-	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
+	regs->tf_rip = entry;
+	/* This strangeness is to ensure alignment after the implied return address */
+	regs->tf_rsp = ((stack - 8) & ~0xF) + 8;
+	regs->tf_rdi = stack;		/* argv */
+	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_ss = _udatasel;
-	regs->tf_ds = _udatasel;
-	regs->tf_es = _udatasel;
-	regs->tf_fs = _udatasel;
 	regs->tf_cs = _ucodesel;
-
-	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	regs->tf_ebx = ps_strings;
-
-        /*
-         * Reset the hardware debug registers if they were in use.
-         * They won't have any meaning for the newly exec'd process.  
-         */
-        if (pcb->pcb_flags & PCB_DBREGS) {
-                pcb->pcb_dr0 = 0;
-                pcb->pcb_dr1 = 0;
-                pcb->pcb_dr2 = 0;
-                pcb->pcb_dr3 = 0;
-                pcb->pcb_dr6 = 0;
-                pcb->pcb_dr7 = 0;
-                if (pcb == PCPU_GET(curpcb)) {
-		        /*
-			 * Clear the debug registers on the running
-			 * CPU, otherwise they will end up affecting
-			 * the next process we switch to.
-			 */
-		        reset_dbregs();
-                }
-                pcb->pcb_flags &= ~PCB_DBREGS;
-        }
-
-	/*
-	 * Initialize the math emulator (if any) for the current process.
-	 * Actually, just clear the bit that says that the emulator has
-	 * been initialized.  Initialization is delayed until the process
-	 * traps to the emulator (if it is done at all) mainly because
-	 * emulators don't provide an entry point for initialization.
-	 */
-	td->td_pcb->pcb_flags &= ~FP_SOFTFP;
 
 	/*
 	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
@@ -1164,30 +498,18 @@ exec_setregs(td, entry, stack, ps_strings)
 	 * soon.
 	 */
 	fpstate_drop(td);
-
-	/*
-	 * XXX - Linux emulator
-	 * Make sure sure edx is 0x0 on entry. Linux binaries depend
-	 * on it.
-	 */
-	td->td_retval[1] = 0;
 }
 
 void
 cpu_setregs(void)
 {
-	unsigned int cr0;
+	register_t cr0;
 
 	cr0 = rcr0();
-#ifdef SMP
 	cr0 |= CR0_NE;			/* Done by npxinit() */
-#endif
 	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
-#ifndef I386_CPU
 	cr0 |= CR0_WP | CR0_AM;
-#endif
 	load_cr0(cr0);
-	load_gs(_udatasel);
 }
 
 static int
@@ -1207,15 +529,8 @@ SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
 
-SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, 
-	CTLFLAG_RD, &bootinfo, bootinfo, "");
-
 SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
-
-u_long bootdev;		/* not a dev_t - encoding is different */
-SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
-	CTLFLAG_RD, &bootdev, 0, "Maybe the Boot device (not in dev_t format)");
 
 /*
  * Initialize 386 and configure to run kernel
@@ -1225,28 +540,13 @@ SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
  * Initialize segments & interrupt table
  */
 
-int _default_ldt;
-union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
+struct user_segment_descriptor gdt[NGDT];/* global descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
-union descriptor ldt[NLDT];		/* local descriptor table */
-#ifdef SMP
-/* table descriptors - used to load tables by microp */
-struct region_descriptor r_gdt, r_idt;
-#endif
 
-int private_tss;			/* flag indicating private tss */
+static char dblfault_stack[PAGE_SIZE] __aligned(16);
 
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-extern int has_f00f_bug;
-#endif
-
-static struct i386tss dblfault_tss;
-static char dblfault_stack[PAGE_SIZE];
-
-extern  struct user	*proc0uarea;
-extern  vm_offset_t	proc0kstack;
-
+struct amd64tss common_tss;
 
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[] = {
@@ -1256,214 +556,94 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* segment type */
 	0,			/* segment descriptor priority level */
 	0,			/* segment descriptor present */
-	0, 0,
+	0,			/* long */
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
 /* GCODE_SEL	1 Code Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMERA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
+	1,			/* long */
+	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
 /* GDATA_SEL	2 Data Descriptor for kernel */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
-	0, 0,
+	1,			/* long */
+	0,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GUCODE32_SEL	3 32 bit Code Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMERA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0,			/* long */
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GPRIV_SEL	3 SMP Per-Processor Private Data Descriptor */
+/* GUDATA_SEL	4 32/64 bit Data Descriptor for user */
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_UPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
-	0, 0,
+	0,			/* long */
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GPROC0_SEL	4 Proc 0 Tss Descriptor */
+/* GUCODE_SEL	5 64 bit Code Descriptor for user */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMERA,		/* segment type */
+	SEL_UPL,		/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	1,			/* long */
+	0,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GPROC0_SEL	6 Proc 0 Tss Descriptor */
 {
 	0x0,			/* segment base address */
-	sizeof(struct i386tss)-1,/* length - all address space */
-	SDT_SYS386TSS,		/* segment type */
-	0,			/* segment descriptor priority level */
+	sizeof(struct amd64tss)-1,/* length - all address space */
+	SDT_SYSTSS,		/* segment type */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
-	0, 0,
+	0,			/* long */
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GLDT_SEL	5 LDT Descriptor */
-{	(int) ldt,		/* segment base address  */
-	sizeof(ldt)-1,		/* length - all address space */
-	SDT_SYSLDT,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GUSERLDT_SEL	6 User LDT Descriptor per process */
-{	(int) ldt,		/* segment base address  */
-	(512 * sizeof(union descriptor)-1),		/* length */
-	SDT_SYSLDT,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GTGATE_SEL	7 Null Descriptor - Placeholder */
+/* Actually, the TSS is a system descriptor which is double size */
 {	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
+	0x0,			/* length */
 	0,			/* segment type */
 	0,			/* segment descriptor priority level */
 	0,			/* segment descriptor present */
-	0, 0,
+	0,			/* long */
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GBIOSLOWMEM_SEL 8 BIOS access to realmode segment 0x40, must be #8 in GDT */
-{	0x400,			/* segment base address */
-	0xfffff,		/* length */
-	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GPANIC_SEL	9 Panic Tss Descriptor */
-{	(int) &dblfault_tss,	/* segment base address  */
-	sizeof(struct i386tss)-1,/* length - all address space */
-	SDT_SYS386TSS,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GBIOSCODE32_SEL 10 BIOS 32-bit interface (32bit Code) */
-{	0,			/* segment base address (overwritten)  */
-	0xfffff,		/* length */
-	SDT_MEMERA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSCODE16_SEL 11 BIOS 32-bit interface (16bit Code) */
-{	0,			/* segment base address (overwritten)  */
-	0xfffff,		/* length */
-	SDT_MEMERA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSDATA_SEL 12 BIOS 32-bit interface (Data) */
-{	0,			/* segment base address (overwritten) */
-	0xfffff,		/* length */
-	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSUTIL_SEL 13 BIOS 16-bit interface (Utility) */
-{	0,			/* segment base address (overwritten) */
-	0xfffff,		/* length */
-	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-/* GBIOSARGS_SEL 14 BIOS 16-bit interface (Arguments) */
-{	0,			/* segment base address (overwritten) */
-	0xfffff,		/* length */
-	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-};
-
-static struct soft_segment_descriptor ldt_segs[] = {
-	/* Null Descriptor - overwritten by call gate */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* Null Descriptor - overwritten by call gate */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* Null Descriptor - overwritten by call gate */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* Code Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMERA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-	/* Null Descriptor - overwritten by call gate */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-	/* Data Descriptor for user */
-{	0x0,			/* segment base address  */
-	0xfffff,		/* length - all address space */
-	SDT_MEMRWA,		/* segment type */
-	SEL_UPL,		/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
 };
 
 void
-setidt(idx, func, typ, dpl, selec)
+setidt(idx, func, typ, dpl, ist)
 	int idx;
 	inthand_t *func;
 	int typ;
 	int dpl;
-	int selec;
+	int ist;
 {
 	struct gate_descriptor *ip;
 
 	ip = idt + idx;
-	ip->gd_looffset = (int)func;
-	ip->gd_selector = selec;
-	ip->gd_stkcpy = 0;
+	ip->gd_looffset = (uintptr_t)func;
+	ip->gd_selector = GSEL(GCODE_SEL, SEL_KPL);
+	ip->gd_ist = ist;
 	ip->gd_xx = 0;
 	ip->gd_type = typ;
 	ip->gd_dpl = dpl;
 	ip->gd_p = 1;
-	ip->gd_hioffset = ((int)func)>>16 ;
+	ip->gd_hioffset = ((uintptr_t)func)>>16 ;
 }
 
 #define	IDTVEC(name)	__CONCAT(X,name)
@@ -1473,23 +653,67 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm), IDTVEC(int0x80_syscall),
+	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 void
 sdtossd(sd, ssd)
-	struct segment_descriptor *sd;
+	struct user_segment_descriptor *sd;
 	struct soft_segment_descriptor *ssd;
 {
+
 	ssd->ssd_base  = (sd->sd_hibase << 24) | sd->sd_lobase;
 	ssd->ssd_limit = (sd->sd_hilimit << 16) | sd->sd_lolimit;
 	ssd->ssd_type  = sd->sd_type;
 	ssd->ssd_dpl   = sd->sd_dpl;
 	ssd->ssd_p     = sd->sd_p;
+	ssd->ssd_long  = sd->sd_long;
 	ssd->ssd_def32 = sd->sd_def32;
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
+void
+ssdtosd(ssd, sd)
+	struct soft_segment_descriptor *ssd;
+	struct user_segment_descriptor *sd;
+{
+
+	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
+	sd->sd_hibase = (ssd->ssd_base >> 24) & 0xff;
+	sd->sd_lolimit = (ssd->ssd_limit) & 0xffff;
+	sd->sd_hilimit = (ssd->ssd_limit >> 16) & 0xf;
+	sd->sd_type  = ssd->ssd_type;
+	sd->sd_dpl   = ssd->ssd_dpl;
+	sd->sd_p     = ssd->ssd_p;
+	sd->sd_long  = ssd->ssd_long;
+	sd->sd_def32 = ssd->ssd_def32;
+	sd->sd_gran  = ssd->ssd_gran;
+}
+
+void
+ssdtosyssd(ssd, sd)
+	struct soft_segment_descriptor *ssd;
+	struct system_segment_descriptor *sd;
+{
+
+	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
+	sd->sd_hibase = (ssd->ssd_base >> 24) & 0xffffff;
+	sd->sd_lolimit = (ssd->ssd_limit) & 0xffff;
+	sd->sd_hilimit = (ssd->ssd_limit >> 16) & 0xf;
+	sd->sd_type  = ssd->ssd_type;
+	sd->sd_dpl   = ssd->ssd_dpl;
+	sd->sd_p     = ssd->ssd_p;
+	sd->sd_gran  = ssd->ssd_gran;
+}
+
+
 #define PHYSMAP_SIZE	(2 * 8)
+
+struct bios_smap {
+	u_int64_t	base;
+	u_int64_t	length;
+	u_int32_t	type;
+} __packed;
 
 /*
  * Populate the (physmap) array with base/bound pairs describing the
@@ -1505,116 +729,48 @@ sdtossd(sd, ssd)
  * XXX first should be vm_paddr_t.
  */
 static void
-getmemsize(int first)
+getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx;
-	int hasbrokenint12;
 	u_int basemem, extmem;
-	struct vm86frame vmf;
-	struct vm86context vmc;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	char *cp;
-	struct bios_smap *smap;
+	struct bios_smap *smapbase, *smap, *smapend;
+	u_int32_t smapsize;
 
-	hasbrokenint12 = 0;
-	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
-	bzero(&vmf, sizeof(struct vm86frame));
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
-
-	/*
-	 * Some newer BIOSes has broken INT 12H implementation which cause
-	 * kernel panic immediately. In this case, we need to scan SMAP
-	 * with INT 15:E820 first, then determine base memory size.
-	 */
-	if (hasbrokenint12) {
-		goto int15e820;
-	}
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	vm86_intcall(0x12, &vmf);
-	basemem = vmf.vmf_ax;
-	if (basemem > 640) {
-		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
-			basemem);
-		basemem = 640;
-	}
-
-	/*
-	 * XXX if biosbasemem is now < 640, there is a `hole'
-	 * between the end of base memory and the start of
-	 * ISA memory.  The hole may be empty or it may
-	 * contain BIOS code or data.  Map it read/write so
-	 * that the BIOS can write to it.  (Memory from 0 to
-	 * the physical end of the kernel is mapped read-only
-	 * to begin with and then parts of it are remapped.
-	 * The parts that aren't remapped form holes that
-	 * remain read-only and are unused by the kernel.
-	 * The base memory area is below the physical end of
-	 * the kernel and right now forms a read-only hole.
-	 * The part of it from PAGE_SIZE to
-	 * (trunc_page(biosbasemem * 1024) - 1) will be
-	 * remapped and used by the kernel later.)
-	 *
-	 * This code is similar to the code used in
-	 * pmap_mapdev, but since no memory needs to be
-	 * allocated we simply change the mapping.
-	 */
-	for (pa = trunc_page(basemem * 1024);
-	     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-		pmap_kenter(KERNBASE + pa, pa);
-
-	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so 
-	 * that the bios can scribble on it.
-	 */
-	pte = (pt_entry_t *)vm86paddr;
-	for (i = basemem / 4; i < 160; i++)
-		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
-
-int15e820:
-	/*
-	 * map page 1 R/W into the kernel page table so we can use it
-	 * as a buffer.  The kernel will unmap this page later.
-	 */
-	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
-
-	/*
-	 * get memory map with INT 15:E820
-	 */
-	vmc.npages = 0;
-	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
-	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
 	physmap_idx = 0;
-	vmf.vmf_ebx = 0;
-	do {
-		vmf.vmf_eax = 0xE820;
-		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = sizeof(struct bios_smap);
-		i = vm86_datacall(0x15, &vmf, &vmc);
-		if (i || vmf.vmf_eax != SMAP_SIG)
-			break;
+
+	/*
+	 * get memory map from INT 15:E820, kindly supplied by the loader.
+	 *
+	 * subr_module.c says:
+	 * "Consumer may safely assume that size value precedes data."
+	 * ie: an int32_t immediately precedes smap.
+	 */
+	smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
+	if (smapbase == 0) {
+		panic("No BIOS smap info from loader!");
+		goto deep_shit;
+	}
+	smapsize = *((u_int32_t *)smapbase - 1);
+	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+
+	for (smap = smapbase; smap < smapend; smap++) {
 		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%016llx len=%016llx\n",
+			printf("SMAP type=%02x base=%016lx len=%016lx\n",
 			    smap->type, smap->base, smap->length);
 
-		if (smap->type != 0x01)
-			goto next_run;
-
-		if (smap->length == 0)
-			goto next_run;
-
-#ifndef PAE
-		if (smap->base >= 0xffffffff) {
-			printf("%uK of memory above 4GB ignored\n",
-			    (u_int)(smap->length / 1024));
-			goto next_run;
+		if (smap->type != 0x01) {
+			continue;
 		}
-#endif
+
+		if (smap->length == 0) {
+next_run:
+			continue;
+		}
 
 		for (i = 0; i <= physmap_idx; i += 2) {
 			if (smap->base < physmap[i + 1]) {
@@ -1627,7 +783,7 @@ int15e820:
 
 		if (smap->base == physmap[physmap_idx + 1]) {
 			physmap[physmap_idx + 1] += smap->length;
-			goto next_run;
+			continue;
 		}
 
 		physmap_idx += 2;
@@ -1638,18 +794,22 @@ int15e820:
 		}
 		physmap[physmap_idx] = smap->base;
 		physmap[physmap_idx + 1] = smap->base + smap->length;
-next_run: ;
-	} while (vmf.vmf_ebx != 0);
+	}
 
 	/*
 	 * Perform "base memory" related probes & setup based on SMAP
 	 */
+deep_shit:
 	if (basemem == 0) {
 		for (i = 0; i <= physmap_idx; i += 2) {
 			if (physmap[i] == 0x00000000) {
 				basemem = physmap[i + 1] / 1024;
 				break;
 			}
+		}
+
+		if (basemem == 0) {
+			basemem = rtcin(RTC_BASELO) + (rtcin(RTC_BASEHI) << 8);
 		}
 
 		if (basemem == 0) {
@@ -1662,36 +822,20 @@ next_run: ;
 			basemem = 640;
 		}
 
+#if 0
 		for (pa = trunc_page(basemem * 1024);
 		     pa < ISA_HOLE_START; pa += PAGE_SIZE)
 			pmap_kenter(KERNBASE + pa, pa);
-
-		pte = (pt_entry_t *)vm86paddr;
-		for (i = basemem / 4; i < 160; i++)
-			pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+#endif
 	}
 
 	if (physmap[1] != 0)
 		goto physmap_done;
 
 	/*
-	 * If we failed above, try memory map with INT 15:E801
+	 * Prefer the RTC value for extended memory.
 	 */
-	vmf.vmf_ax = 0xE801;
-	if (vm86_intcall(0x15, &vmf) == 0) {
-		extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
-	} else {
-#if 0
-		vmf.vmf_ah = 0x88;
-		vm86_intcall(0x15, &vmf);
-		extmem = vmf.vmf_ax;
-#else
-		/*
-		 * Prefer the RTC value for extended memory.
-		 */
-		extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
-#endif
-	}
+	extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
 
 	/*
 	 * Special hack for chipsets that still remap the 384k hole when
@@ -1716,19 +860,10 @@ physmap_done:
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
-
-#ifdef SMP
-	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1] / 1024);
-
-	/* look for the MP hardware - needed for apic addresses */
-	i386_mp_probe();
-#endif
-
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".  We may adjust this 
+	 * called something like "Maxphyspage".  We may adjust this
 	 * based on ``hw.physmem'' and the results of the memory test.
 	 */
 	Maxmem = atop(physmap[physmap_idx + 1]);
@@ -1778,7 +913,7 @@ physmap_done:
 	/*
 	 * If Maxmem has been increased beyond what the system has detected,
 	 * extend the last memory segment to the new limit.
-	 */ 
+	 */
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
@@ -1813,7 +948,7 @@ physmap_done:
 			 */
 			if (pa >= 0x100000 && pa < first)
 				continue;
-	
+
 			page_bad = FALSE;
 
 			/*
@@ -1913,17 +1048,97 @@ physmap_done:
 	avail_end = phys_avail[pa_indx];
 }
 
-void
-init386(first)
-	int first;
+static u_int64_t
+allocpages(int n)
 {
-	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, off, x;
-#ifndef SMP
-	/* table descriptors - used to load tables by microp */
+	u_int64_t ret;
+
+	ret = physfree;
+	bzero((void *)ret, n * PAGE_SIZE);
+	physfree += n * PAGE_SIZE;
+	return (ret);
+}
+
+static void
+create_pagetables(void)
+{
+	u_int64_t p0kpa;
+	u_int64_t p0upa;
+	u_int64_t KPTphys;
+	int i;
+
+	/* Allocate pages */
+	KPTphys = allocpages(NKPT);
+	IdlePML4 = allocpages(NKPML4E);
+	IdlePDP = allocpages(NKPDPE);
+	IdlePTD = allocpages(NPGPTD);
+	p0upa = allocpages(UAREA_PAGES);
+	p0kpa = allocpages(KSTACK_PAGES);
+
+	proc0uarea = (struct user *)(p0upa + KERNBASE);
+	proc0kstack = p0kpa + KERNBASE;
+
+	/* Fill in the underlying page table pages */
+	/* Read-only from zero to physfree */
+	/* XXX not fully used, underneath 2M pages */
+	for (i = 0; (i << PAGE_SHIFT) < physfree; i++) {
+		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
+		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V;
+	}
+
+	/* Now map the page tables at their location within PTmap */
+	for (i = 0; i < NKPT; i++) {
+		((pd_entry_t *)IdlePTD)[i + KPTDI] = KPTphys + (i << PAGE_SHIFT);
+		((pd_entry_t *)IdlePTD)[i + KPTDI] |= PG_RW | PG_V;
+	}
+
+	/* Map from zero to end of allocations under 2M pages */
+	/* This replaces some of the PTD entries above */
+	for (i = 0; (i << PDRSHIFT) < physfree; i++) {
+		((pd_entry_t *)IdlePTD)[i] = i << PDRSHIFT;
+		((pd_entry_t *)IdlePTD)[i] |= PG_RW | PG_V | PG_PS;
+	}
+
+	/* Now map the page tables at their location within PTmap */
+	for (i = 0; i < NKPT; i++) {
+		((pd_entry_t *)IdlePTD)[i] = KPTphys + (i << PAGE_SHIFT);
+		((pd_entry_t *)IdlePTD)[i] |= PG_RW | PG_V;
+	}
+
+	/* Now map the PTD at the top of the PTmap (ie: PTD[]) */
+	for (i = 0; i < NPGPTD; i++) {
+		((pd_entry_t *)IdlePTD)[i + PTDPTDI] = IdlePTD + (i << PAGE_SHIFT);
+		((pd_entry_t *)IdlePTD)[i + PTDPTDI] |= PG_RW | PG_V;
+	}
+
+	/* And connect up the PTD to the PDP */
+	for (i = 0; i < NPGPTD; i++) {
+		((pdp_entry_t *)IdlePDP)[i] = IdlePTD + (i << PAGE_SHIFT);
+		((pdp_entry_t *)IdlePDP)[i] |= PG_RW | PG_V | PG_U;
+	}
+
+	/* And connect up the PDP to the PML4 */
+	((pdp_entry_t *)IdlePML4)[0] = IdlePDP;
+	((pdp_entry_t *)IdlePML4)[0] |= PG_RW | PG_V | PG_U;
+}
+
+void
+hammer_time(void)
+{
+	caddr_t kmdp;
+	int gsel_tss, off, x;
 	struct region_descriptor r_gdt, r_idt;
-#endif
 	struct pcpu *pc;
+	u_int64_t msr;
+
+	/* Turn on PTE NX (no execute) bit */
+	msr = rdmsr(MSR_EFER) | EFER_NXE;
+	wrmsr(MSR_EFER, msr);
+	create_pagetables();
+
+	/* XXX do %cr0 as well */
+	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
+	load_cr3(IdlePML4);
 
 	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
@@ -1937,50 +1152,36 @@ init386(first)
 	 */
 	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 
-	metadata_missing = 0;
-	if (bootinfo.bi_modulep) {
-		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
-		preload_bootstrap_relocate(KERNBASE);
-	} else {
-		metadata_missing = 1;
-	}
-	if (envmode == 1)
-		kern_envp = static_env;
-	else if (bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
+	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
+	preload_bootstrap_relocate(KERNBASE);
+	kmdp = preload_search_by_type("elf64 kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf kernel");
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
 
 	/* Init basic tunables, hz etc */
 	init_param1();
 
 	/*
-	 * make gdt memory segments, the code segment goes up to end of the
-	 * page with etext in it, the data segment goes to the end of
-	 * the address space
+	 * make gdt memory segments
 	 */
-	/*
-	 * XXX text protection is temporarily (?) disabled.  The limit was
-	 * i386_btop(round_page(etext)) - 1.
-	 */
-	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
-#ifdef SMP
-	pc = &SMP_prvspace[0].pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct privatespace) - 1);
-#else
-	pc = &__pcpu;
-	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct pcpu) - 1);
-#endif
-	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
-	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
+	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss;
 
-	for (x = 0; x < NGDT; x++)
-		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+	for (x = 0; x < NGDT; x++) {
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+			ssdtosd(&gdt_segs[x], &gdt[x]);
+	}
+	ssdtosyssd(&gdt_segs[GPROC0_SEL], (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
-	r_gdt.rd_base =  (int) gdt;
+	r_gdt.rd_base =  (long) gdt;
 	lgdt(&r_gdt);
+	pc = &__pcpu;
+
+	wrmsr(MSR_FSBASE, (u_int64_t)pc);
+	wrmsr(MSR_GSBASE, (u_int64_t)pc);
+	wrmsr(MSR_KGSBASE, (u_int64_t)pc);
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
@@ -1998,77 +1199,39 @@ init386(first)
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
 
-	/* make ldt memory segments */
-	/*
-	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  And it
-	 * should be spelled ...MAX_USER...
-	 */
-	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
-	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
-	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
-		ssdtosd(&ldt_segs[x], &ldt[x].sd);
-
-	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
-	lldt(_default_ldt);
-	PCPU_SET(currentldt, _default_ldt);
-
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYS386TGT, SEL_KPL,
-		    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(1, &IDTVEC(dbg),  SDT_SYS386IGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(2, &IDTVEC(nmi),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
- 	setidt(3, &IDTVEC(bpt),  SDT_SYS386IGT, SEL_UPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(4, &IDTVEC(ofl),  SDT_SYS386TGT, SEL_UPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(5, &IDTVEC(bnd),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(7, &IDTVEC(dna),  SDT_SYS386TGT, SEL_KPL
-	    , GSEL(GCODE_SEL, SEL_KPL));
-	setidt(8, 0,  SDT_SYSTASKGT, SEL_KPL, GSEL(GPANIC_SEL, SEL_KPL));
-	setidt(9, &IDTVEC(fpusegm),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(10, &IDTVEC(tss),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(11, &IDTVEC(missing),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(12, &IDTVEC(stk),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(14, &IDTVEC(page),  SDT_SYS386IGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(18, &IDTVEC(mchk),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(19, &IDTVEC(xmm), SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
- 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
+		setidt(x, &IDTVEC(rsvd), SDT_SYSTGT, SEL_KPL, 0);
+	setidt(0, &IDTVEC(div),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(1, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(2, &IDTVEC(nmi),  SDT_SYSTGT, SEL_KPL, 0);
+ 	setidt(3, &IDTVEC(bpt),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(4, &IDTVEC(ofl),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(5, &IDTVEC(bnd),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(6, &IDTVEC(ill),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(7, &IDTVEC(dna),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(8, (inthand_t *)dblfault_handler, SDT_SYSIGT, SEL_KPL, 1);
+	setidt(9, &IDTVEC(fpusegm),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(10, &IDTVEC(tss),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(11, &IDTVEC(missing),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(12, &IDTVEC(stk),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(13, &IDTVEC(prot),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(14, &IDTVEC(page),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(15, &IDTVEC(rsvd),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(16, &IDTVEC(fpu),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(17, &IDTVEC(align), SDT_SYSTGT, SEL_KPL, 0);
+	setidt(18, &IDTVEC(mchk),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(19, &IDTVEC(xmm), SDT_SYSTGT, SEL_KPL, 0);
+ 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYSTGT, SEL_UPL, 0);
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
-	r_idt.rd_base = (int) idt;
+	r_idt.rd_base = (long) idt;
 	lidt(&r_idt);
 
 	/*
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
-
-	if (metadata_missing)
-		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DEV_ISA
 	isa_defaultirq();
@@ -2080,44 +1243,31 @@ init386(first)
 		Debugger("Boot flags requested debugger");
 #endif
 
-	finishidentcpu();	/* Final stage of CPU initialization */
-	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
+	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
-	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
-	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
+	common_tss.tss_rsp0 = thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
+	/* XXX we need to update tss_rsp0 in cpu_switch */
+	/* XXX maybe not yet, everything is still running in supervisor mode */
+
+	/* doublefault stack space, runs on ist1 */
+	common_tss.tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
+
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	private_tss = 0;
-	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
-	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
-	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
 	ltr(gsel_tss);
 
-	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
-	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
-	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
-	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-#ifdef PAE
-	dblfault_tss.tss_cr3 = (int)IdlePDPT;
-#else
-	dblfault_tss.tss_cr3 = (int)IdlePTD;
-#endif
-	dblfault_tss.tss_eip = (int)dblfault_handler;
-	dblfault_tss.tss_eflags = PSL_KERNEL;
-	dblfault_tss.tss_ds = dblfault_tss.tss_es =
-	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
-	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
-	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
-	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
+	/* Set up the fast syscall stuff */
+	msr = rdmsr(MSR_EFER) | EFER_SCE;
+	wrmsr(MSR_EFER, msr);
+	wrmsr(MSR_LSTAR, (u_int64_t)IDTVEC(fast_syscall));
+	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
+	      ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
+	wrmsr(MSR_STAR, msr);
+	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	vm86_initialize();
-	getmemsize(first);
+	getmemsize(kmdp, physfree);
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
@@ -2128,35 +1278,14 @@ init386(first)
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
-	/* make a call gate to reenter kernel with */
-	gdp = &ldt[LSYS5CALLS_SEL].gd;
-
-	x = (int) &IDTVEC(lcall_syscall);
-	gdp->gd_looffset = x;
-	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
-	gdp->gd_stkcpy = 1;
-	gdp->gd_type = SDT_SYS386CGT;
-	gdp->gd_dpl = SEL_UPL;
-	gdp->gd_p = 1;
-	gdp->gd_hioffset = x >> 16;
-
-	/* XXX does this work? */
-	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
-	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
-
 	/* transfer to user mode */
 
-	_ucodesel = LSEL(LUCODE_SEL, SEL_UPL);
-	_udatasel = LSEL(LUDATA_SEL, SEL_UPL);
+	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
+	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
-#ifdef PAE
-	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
-#else
-	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
-#endif
-	thread0.td_pcb->pcb_ext = 0;
+	thread0.td_pcb->pcb_cr3 = IdlePML4;
 	thread0.td_frame = &proc0_tf;
 }
 
@@ -2165,56 +1294,17 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 }
 
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-static void f00f_hack(void *unused);
-SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
-
-static void
-f00f_hack(void *unused) {
-	struct gate_descriptor *new_idt;
-#ifndef SMP
-	struct region_descriptor r_idt;
-#endif
-	vm_offset_t tmp;
-
-	if (!has_f00f_bug)
-		return;
-
-	GIANT_REQUIRED;
-
-	printf("Intel Pentium detected, installing workaround for F00F bug\n");
-
-	r_idt.rd_limit = sizeof(idt0) - 1;
-
-	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
-	if (tmp == 0)
-		panic("kmem_alloc returned 0");
-	if (((unsigned int)tmp & (PAGE_SIZE-1)) != 0)
-		panic("kmem_alloc returned non-page-aligned memory");
-	/* Put the first seven entries in the lower page */
-	new_idt = (struct gate_descriptor*)(tmp + PAGE_SIZE - (7*8));
-	bcopy(idt, new_idt, sizeof(idt0));
-	r_idt.rd_base = (int)new_idt;
-	lidt(&r_idt);
-	idt = new_idt;
-	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
-			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
-		panic("vm_map_protect failed");
-	return;
-}
-#endif /* defined(I586_CPU) && !NO_F00F_HACK */
-
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
-	td->td_frame->tf_eip = addr;
+	td->td_frame->tf_rip = addr;
 	return (0);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
-	td->td_frame->tf_eflags |= PSL_T;
+	td->td_frame->tf_rflags |= PSL_T;
 	return (0);
 }
 
@@ -2225,23 +1315,27 @@ fill_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
-	regs->r_fs = tp->tf_fs;
-	regs->r_es = tp->tf_es;
-	regs->r_ds = tp->tf_ds;
-	regs->r_edi = tp->tf_edi;
-	regs->r_esi = tp->tf_esi;
-	regs->r_ebp = tp->tf_ebp;
-	regs->r_ebx = tp->tf_ebx;
-	regs->r_edx = tp->tf_edx;
-	regs->r_ecx = tp->tf_ecx;
-	regs->r_eax = tp->tf_eax;
-	regs->r_eip = tp->tf_eip;
+	regs->r_r15 = tp->tf_r15;
+	regs->r_r14 = tp->tf_r14;
+	regs->r_r13 = tp->tf_r13;
+	regs->r_r12 = tp->tf_r12;
+	regs->r_r11 = tp->tf_r11;
+	regs->r_r10 = tp->tf_r10;
+	regs->r_r9  = tp->tf_r9;
+	regs->r_r8  = tp->tf_r8;
+	regs->r_rdi = tp->tf_rdi;
+	regs->r_rsi = tp->tf_rsi;
+	regs->r_rbp = tp->tf_rbp;
+	regs->r_rbx = tp->tf_rbx;
+	regs->r_rdx = tp->tf_rdx;
+	regs->r_rcx = tp->tf_rcx;
+	regs->r_rax = tp->tf_rax;
+	regs->r_rip = tp->tf_rip;
 	regs->r_cs = tp->tf_cs;
-	regs->r_eflags = tp->tf_eflags;
-	regs->r_esp = tp->tf_esp;
+	regs->r_rflags = tp->tf_rflags;
+	regs->r_rsp = tp->tf_rsp;
 	regs->r_ss = tp->tf_ss;
 	pcb = td->td_pcb;
-	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
@@ -2252,106 +1346,107 @@ set_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
-	if (!EFL_SECURE(regs->r_eflags, tp->tf_eflags) ||
+	if (!EFL_SECURE(regs->r_rflags, tp->tf_rflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);
-	tp->tf_fs = regs->r_fs;
-	tp->tf_es = regs->r_es;
-	tp->tf_ds = regs->r_ds;
-	tp->tf_edi = regs->r_edi;
-	tp->tf_esi = regs->r_esi;
-	tp->tf_ebp = regs->r_ebp;
-	tp->tf_ebx = regs->r_ebx;
-	tp->tf_edx = regs->r_edx;
-	tp->tf_ecx = regs->r_ecx;
-	tp->tf_eax = regs->r_eax;
-	tp->tf_eip = regs->r_eip;
+	tp->tf_r15 = regs->r_r15;
+	tp->tf_r14 = regs->r_r14;
+	tp->tf_r13 = regs->r_r13;
+	tp->tf_r12 = regs->r_r12;
+	tp->tf_r11 = regs->r_r11;
+	tp->tf_r10 = regs->r_r10;
+	tp->tf_r9  = regs->r_r9;
+	tp->tf_r8  = regs->r_r8;
+	tp->tf_rdi = regs->r_rdi;
+	tp->tf_rsi = regs->r_rsi;
+	tp->tf_rbp = regs->r_rbp;
+	tp->tf_rbx = regs->r_rbx;
+	tp->tf_rdx = regs->r_rdx;
+	tp->tf_rcx = regs->r_rcx;
+	tp->tf_rax = regs->r_rax;
+	tp->tf_rip = regs->r_rip;
 	tp->tf_cs = regs->r_cs;
-	tp->tf_eflags = regs->r_eflags;
-	tp->tf_esp = regs->r_esp;
+	tp->tf_rflags = regs->r_rflags;
+	tp->tf_rsp = regs->r_rsp;
 	tp->tf_ss = regs->r_ss;
 	pcb = td->td_pcb;
-	pcb->pcb_gs = regs->r_gs;
 	return (0);
 }
 
-#ifdef CPU_ENABLE_SSE
+/* XXX check all this stuff! */
+/* externalize from sv_xmm */
 static void
-fill_fpregs_xmm(sv_xmm, sv_87)
-	struct savexmm *sv_xmm;
-	struct save87 *sv_87;
+fill_fpregs_xmm(struct savefpu *sv_xmm, struct fpreg *fpregs)
 {
-	register struct env87 *penv_87 = &sv_87->sv_env;
-	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
+	struct envxmm *penv_fpreg = (struct envxmm *)&fpregs->fpr_env;
+	struct envxmm *penv_xmm = &sv_xmm->sv_env;
 	int i;
 
-	bzero(sv_87, sizeof(*sv_87));
+	/* pcb -> fpregs */
+	bzero(fpregs, sizeof(*fpregs));
 
 	/* FPU control/status */
-	penv_87->en_cw = penv_xmm->en_cw;
-	penv_87->en_sw = penv_xmm->en_sw;
-	penv_87->en_tw = penv_xmm->en_tw;
-	penv_87->en_fip = penv_xmm->en_fip;
-	penv_87->en_fcs = penv_xmm->en_fcs;
-	penv_87->en_opcode = penv_xmm->en_opcode;
-	penv_87->en_foo = penv_xmm->en_foo;
-	penv_87->en_fos = penv_xmm->en_fos;
+	penv_fpreg->en_cw = penv_xmm->en_cw;
+	penv_fpreg->en_sw = penv_xmm->en_sw;
+	penv_fpreg->en_tw = penv_xmm->en_tw;
+	penv_fpreg->en_opcode = penv_xmm->en_opcode;
+	penv_fpreg->en_rip = penv_xmm->en_rip;
+	penv_fpreg->en_rdp = penv_xmm->en_rdp;
+	penv_fpreg->en_mxcsr = penv_xmm->en_mxcsr;
+	penv_fpreg->en_mxcsr_mask = penv_xmm->en_mxcsr_mask;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
-		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
+		bcopy(sv_xmm->sv_fp[i].fp_acc.fp_bytes, fpregs->fpr_acc[i], 10);
+
+	/* SSE registers */
+	for (i = 0; i < 16; ++i)
+		bcopy(sv_xmm->sv_xmm[i].xmm_bytes, fpregs->fpr_xacc[i], 16);
 }
 
+/* internalize from fpregs into sv_xmm */
 static void
-set_fpregs_xmm(sv_87, sv_xmm)
-	struct save87 *sv_87;
-	struct savexmm *sv_xmm;
+set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 {
-	register struct env87 *penv_87 = &sv_87->sv_env;
-	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
+	struct envxmm *penv_xmm = &sv_xmm->sv_env;
+	struct envxmm *penv_fpreg = (struct envxmm *)&fpregs->fpr_env;
 	int i;
 
+	/* fpregs -> pcb */
 	/* FPU control/status */
-	penv_xmm->en_cw = penv_87->en_cw;
-	penv_xmm->en_sw = penv_87->en_sw;
-	penv_xmm->en_tw = penv_87->en_tw;
-	penv_xmm->en_fip = penv_87->en_fip;
-	penv_xmm->en_fcs = penv_87->en_fcs;
-	penv_xmm->en_opcode = penv_87->en_opcode;
-	penv_xmm->en_foo = penv_87->en_foo;
-	penv_xmm->en_fos = penv_87->en_fos;
+	penv_xmm->en_cw = penv_fpreg->en_cw;
+	penv_xmm->en_sw = penv_fpreg->en_sw;
+	penv_xmm->en_tw = penv_fpreg->en_tw;
+	penv_xmm->en_opcode = penv_fpreg->en_opcode;
+	penv_xmm->en_rip = penv_fpreg->en_rip;
+	penv_xmm->en_rdp = penv_fpreg->en_rdp;
+	penv_xmm->en_mxcsr = penv_fpreg->en_mxcsr;
+	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
-		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
-}
-#endif /* CPU_ENABLE_SSE */
+		bcopy(fpregs->fpr_acc[i], sv_xmm->sv_fp[i].fp_acc.fp_bytes, 10);
 
+	/* SSE registers */
+	for (i = 0; i < 16; ++i)
+		bcopy(fpregs->fpr_xacc[i], sv_xmm->sv_xmm[i].xmm_bytes, 16);
+}
+
+/* externalize from td->pcb */
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-#ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
-						(struct save87 *)fpregs);
-		return (0);
-	}
-#endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+
+	fill_fpregs_xmm(&td->td_pcb->pcb_save, fpregs);
 	return (0);
 }
 
+/* internalize to td->pcb */
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-#ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
-		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
-		return (0);
-	}
-#endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+
+	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_save);
 	return (0);
 }
 
@@ -2366,29 +1461,32 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	tp = td->td_frame;
 
 	PROC_LOCK(curthread->td_proc);
-	mcp->mc_onstack = sigonstack(tp->tf_esp);
+	mcp->mc_onstack = sigonstack(tp->tf_rsp);
 	PROC_UNLOCK(curthread->td_proc);
-	mcp->mc_gs = td->td_pcb->pcb_gs;
-	mcp->mc_fs = tp->tf_fs;
-	mcp->mc_es = tp->tf_es;
-	mcp->mc_ds = tp->tf_ds;
-	mcp->mc_edi = tp->tf_edi;
-	mcp->mc_esi = tp->tf_esi;
-	mcp->mc_ebp = tp->tf_ebp;
-	mcp->mc_isp = tp->tf_isp;
+	mcp->mc_r15 = tp->tf_r15;
+	mcp->mc_r14 = tp->tf_r14;
+	mcp->mc_r13 = tp->tf_r13;
+	mcp->mc_r12 = tp->tf_r12;
+	mcp->mc_r11 = tp->tf_r11;
+	mcp->mc_r10 = tp->tf_r10;
+	mcp->mc_r9  = tp->tf_r9;
+	mcp->mc_r8  = tp->tf_r8;
+	mcp->mc_rdi = tp->tf_rdi;
+	mcp->mc_rsi = tp->tf_rsi;
+	mcp->mc_rbp = tp->tf_rbp;
+	mcp->mc_rbx = tp->tf_rbx;
+	mcp->mc_rcx = tp->tf_rcx;
 	if (clear_ret != 0) {
-		mcp->mc_eax = 0;
-		mcp->mc_edx = 0;
+		mcp->mc_rax = 0;
+		mcp->mc_rdx = 0;
 	} else {
-		mcp->mc_eax = tp->tf_eax;
-		mcp->mc_edx = tp->tf_edx;
+		mcp->mc_rax = tp->tf_rax;
+		mcp->mc_rdx = tp->tf_rdx;
 	}
-	mcp->mc_ebx = tp->tf_ebx;
-	mcp->mc_ecx = tp->tf_ecx;
-	mcp->mc_eip = tp->tf_eip;
+	mcp->mc_rip = tp->tf_rip;
 	mcp->mc_cs = tp->tf_cs;
-	mcp->mc_eflags = tp->tf_eflags;
-	mcp->mc_esp = tp->tf_esp;
+	mcp->mc_rflags = tp->tf_rflags;
+	mcp->mc_rsp = tp->tf_rsp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
@@ -2405,29 +1503,34 @@ int
 set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 	struct trapframe *tp;
-	int eflags, ret;
+	long rflags;
+	int ret;
 
 	tp = td->td_frame;
 	if (mcp->mc_len != sizeof(*mcp))
 		return (EINVAL);
-	eflags = (mcp->mc_eflags & PSL_USERCHANGE) |
-	    (tp->tf_eflags & ~PSL_USERCHANGE);
+	rflags = (mcp->mc_rflags & PSL_USERCHANGE) |
+	    (tp->tf_rflags & ~PSL_USERCHANGE);
 	if ((ret = set_fpcontext(td, mcp)) == 0) {
-		tp->tf_fs = mcp->mc_fs;
-		tp->tf_es = mcp->mc_es;
-		tp->tf_ds = mcp->mc_ds;
-		tp->tf_edi = mcp->mc_edi;
-		tp->tf_esi = mcp->mc_esi;
-		tp->tf_ebp = mcp->mc_ebp;
-		tp->tf_ebx = mcp->mc_ebx;
-		tp->tf_edx = mcp->mc_edx;
-		tp->tf_ecx = mcp->mc_ecx;
-		tp->tf_eax = mcp->mc_eax;
-		tp->tf_eip = mcp->mc_eip;
-		tp->tf_eflags = eflags;
-		tp->tf_esp = mcp->mc_esp;
+		tp->tf_r15 = mcp->mc_r15;
+		tp->tf_r14 = mcp->mc_r14;
+		tp->tf_r13 = mcp->mc_r13;
+		tp->tf_r12 = mcp->mc_r12;
+		tp->tf_r11 = mcp->mc_r11;
+		tp->tf_r10 = mcp->mc_r10;
+		tp->tf_r9  = mcp->mc_r9;
+		tp->tf_r8  = mcp->mc_r8;
+		tp->tf_rdi = mcp->mc_rdi;
+		tp->tf_rsi = mcp->mc_rsi;
+		tp->tf_rbp = mcp->mc_rbp;
+		tp->tf_rbx = mcp->mc_rbx;
+		tp->tf_rdx = mcp->mc_rdx;
+		tp->tf_rcx = mcp->mc_rcx;
+		tp->tf_rax = mcp->mc_rax;
+		tp->tf_rip = mcp->mc_rip;
+		tp->tf_rflags = rflags;
+		tp->tf_rsp = mcp->mc_rsp;
 		tp->tf_ss = mcp->mc_ss;
-		td->td_pcb->pcb_gs = mcp->mc_gs;
 		ret = 0;
 	}
 	return (ret);
@@ -2436,11 +1539,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
-#ifndef DEV_NPX
-	mcp->mc_fpformat = _MC_FPFMT_NODEV;
-	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
-#else
-	union savefpu *addr;
+	struct savefpu *addr;
 
 	/*
 	 * XXX mc_fpstate might be misaligned, since its declaration is not
@@ -2454,34 +1553,28 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 * called, although this requires knowing too much about
 	 * npxgetregs()'s internals.
 	 */
-	addr = (union savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-	    cpu_fxsr &&
-#endif
-	    ((uintptr_t)(void *)addr & 0xF)) {
+	addr = (struct savefpu *)&mcp->mc_fpstate;
+	if (td == PCPU_GET(fpcurthread) && ((uintptr_t)(void *)addr & 0xF)) {
 		do
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
 	mcp->mc_ownedfp = npxgetregs(td, addr);
-	if (addr != (union savefpu *)&mcp->mc_fpstate) {
+	if (addr != (struct savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	}
 	mcp->mc_fpformat = npxformat();
-#endif
 }
 
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
-	union savefpu *addr;
+	struct savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
-	else if (mcp->mc_fpformat != _MC_FPFMT_387 &&
-	    mcp->mc_fpformat != _MC_FPFMT_XMM)
+	else if (mcp->mc_fpformat != _MC_FPFMT_XMM)
 		return (EINVAL);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
 		/* We don't care what state is left in the FPU or PCB. */
@@ -2489,24 +1582,19 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		/* XXX align as above. */
-		addr = (union savefpu *)&mcp->mc_fpstate;
+		addr = (struct savefpu *)&mcp->mc_fpstate;
 		if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-		    cpu_fxsr &&
-#endif
 		    ((uintptr_t)(void *)addr & 0xF)) {
 			do
 				addr = (void *)((char *)addr + 4);
 			while ((uintptr_t)(void *)addr & 0xF);
 			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
 		}
-#ifdef DEV_NPX
 		/*
 		 * XXX we violate the dubious requirement that npxsetregs()
 		 * be called with interrupts disabled.
 		 */
 		npxsetregs(td, addr);
-#endif
 		/*
 		 * Don't bother putting things back where they were in the
 		 * misaligned case, since we know that the caller won't use
@@ -2523,13 +1611,11 @@ fpstate_drop(struct thread *td)
 	register_t s;
 
 	s = intr_disable();
-#ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
-#endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.
 	 *
 	 * XXX I don't much like npxgetregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
@@ -2544,184 +1630,16 @@ fpstate_drop(struct thread *td)
 int
 fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-	struct pcb *pcb;
 
-	if (td == NULL) {
-		dbregs->dr[0] = rdr0();
-		dbregs->dr[1] = rdr1();
-		dbregs->dr[2] = rdr2();
-		dbregs->dr[3] = rdr3();
-		dbregs->dr[4] = rdr4();
-		dbregs->dr[5] = rdr5();
-		dbregs->dr[6] = rdr6();
-		dbregs->dr[7] = rdr7();
-	} else {
-		pcb = td->td_pcb;
-		dbregs->dr[0] = pcb->pcb_dr0;
-		dbregs->dr[1] = pcb->pcb_dr1;
-		dbregs->dr[2] = pcb->pcb_dr2;
-		dbregs->dr[3] = pcb->pcb_dr3;
-		dbregs->dr[4] = 0;
-		dbregs->dr[5] = 0;
-		dbregs->dr[6] = pcb->pcb_dr6;
-		dbregs->dr[7] = pcb->pcb_dr7;
-	}
 	return (0);
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
-	struct pcb *pcb;
-	int i;
-	u_int32_t mask1, mask2;
-
-	if (td == NULL) {
-		load_dr0(dbregs->dr[0]);
-		load_dr1(dbregs->dr[1]);
-		load_dr2(dbregs->dr[2]);
-		load_dr3(dbregs->dr[3]);
-		load_dr4(dbregs->dr[4]);
-		load_dr5(dbregs->dr[5]);
-		load_dr6(dbregs->dr[6]);
-		load_dr7(dbregs->dr[7]);
-	} else {
-		/*
-		 * Don't let an illegal value for dr7 get set.	Specifically,
-		 * check for undefined settings.  Setting these bit patterns
-		 * result in undefined behaviour and can lead to an unexpected
-		 * TRCTRAP.
-		 */
-		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
-		     i++, mask1 <<= 2, mask2 <<= 2)
-			if ((dbregs->dr[7] & mask1) == mask2)
-				return (EINVAL);
-		
-		pcb = td->td_pcb;
-		
-		/*
-		 * Don't let a process set a breakpoint that is not within the
-		 * process's address space.  If a process could do this, it
-		 * could halt the system by setting a breakpoint in the kernel
-		 * (if ddb was enabled).  Thus, we need to check to make sure
-		 * that no breakpoints are being enabled for addresses outside
-		 * process's address space, unless, perhaps, we were called by
-		 * uid 0.
-		 *
-		 * XXX - what about when the watched area of the user's
-		 * address space is written into from within the kernel
-		 * ... wouldn't that still cause a breakpoint to be generated
-		 * from within kernel mode?
-		 */
-
-		if (suser(td) != 0) {
-			if (dbregs->dr[7] & 0x3) {
-				/* dr0 is enabled */
-				if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			
-			if (dbregs->dr[7] & (0x3<<2)) {
-				/* dr1 is enabled */
-				if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			
-			if (dbregs->dr[7] & (0x3<<4)) {
-				/* dr2 is enabled */
-				if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-			
-			if (dbregs->dr[7] & (0x3<<6)) {
-				/* dr3 is enabled */
-				if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
-					return (EINVAL);
-			}
-		}
-
-		pcb->pcb_dr0 = dbregs->dr[0];
-		pcb->pcb_dr1 = dbregs->dr[1];
-		pcb->pcb_dr2 = dbregs->dr[2];
-		pcb->pcb_dr3 = dbregs->dr[3];
-		pcb->pcb_dr6 = dbregs->dr[6];
-		pcb->pcb_dr7 = dbregs->dr[7];
-
-		pcb->pcb_flags |= PCB_DBREGS;
-	}
 
 	return (0);
 }
-
-/*
- * Return > 0 if a hardware breakpoint has been hit, and the
- * breakpoint was in user space.  Return 0, otherwise.
- */
-int
-user_dbreg_trap(void)
-{
-        u_int32_t dr7, dr6; /* debug registers dr6 and dr7 */
-        u_int32_t bp;       /* breakpoint bits extracted from dr6 */
-        int nbp;            /* number of breakpoints that triggered */
-        caddr_t addr[4];    /* breakpoint addresses */
-        int i;
-        
-        dr7 = rdr7();
-        if ((dr7 & 0x000000ff) == 0) {
-                /*
-                 * all GE and LE bits in the dr7 register are zero,
-                 * thus the trap couldn't have been caused by the
-                 * hardware debug registers
-                 */
-                return 0;
-        }
-
-        nbp = 0;
-        dr6 = rdr6();
-        bp = dr6 & 0x0000000f;
-
-        if (!bp) {
-                /*
-                 * None of the breakpoint bits are set meaning this
-                 * trap was not caused by any of the debug registers
-                 */
-                return 0;
-        }
-
-        /*
-         * at least one of the breakpoints were hit, check to see
-         * which ones and if any of them are user space addresses
-         */
-
-        if (bp & 0x01) {
-                addr[nbp++] = (caddr_t)rdr0();
-        }
-        if (bp & 0x02) {
-                addr[nbp++] = (caddr_t)rdr1();
-        }
-        if (bp & 0x04) {
-                addr[nbp++] = (caddr_t)rdr2();
-        }
-        if (bp & 0x08) {
-                addr[nbp++] = (caddr_t)rdr3();
-        }
-
-        for (i=0; i<nbp; i++) {
-                if (addr[i] <
-                    (caddr_t)VM_MAXUSER_ADDRESS) {
-                        /*
-                         * addr[i] is in user space
-                         */
-                        return nbp;
-                }
-        }
-
-        /*
-         * None of the breakpoints are in user space.
-         */
-        return 0;
-}
-
 
 #ifndef DDB
 void
@@ -2776,3 +1694,64 @@ outb(u_int port, u_char data)
 }
 
 #endif /* DDB */
+
+void
+bcopy(const void *src, void *dest, size_t len)
+{
+	const char *csrc;
+	char *cdest;
+	size_t i;
+
+	csrc = (const char *)src;
+	cdest = (char *)dest;
+	if (src < dest) {
+		for (i = len - 1; i != (size_t)-1; i--)
+			cdest[i] = csrc[i];
+	} else {
+		for (i = 0; i < len; i++)
+			cdest[i] = csrc[i];
+	}
+}
+
+void *
+memcpy(void *dest, const void *src, size_t len)
+{
+
+	bcopy(src, dest, len);
+	return dest;
+}
+
+void
+bzero(void *buf, size_t len)
+{
+	char *cbuf;
+	size_t i;
+
+	cbuf = (char *)buf;
+	for (i = 0; i < len; i++)
+		cbuf[i] = 0;
+}
+
+void
+pagezero(void *buf)
+{
+
+	bzero(buf, PAGE_SIZE);
+}
+
+int
+bcmp(const void *s1, const void *s2, size_t len)
+{
+	const char *cs1, *cs2;
+	int diff;
+	size_t i;
+
+	cs1 = (const char *)s1;
+	cs2 = (const char *)s2;
+	for (i = 0; i < len; i++) {
+		diff = cs2[i] - cs1[i];
+		if (diff)
+			return diff;
+	}
+	return 0;
+}

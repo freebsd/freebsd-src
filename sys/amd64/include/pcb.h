@@ -46,34 +46,25 @@
 #include <machine/npx.h>
 
 struct pcb {
-	int	pcb_cr3;
-	int	pcb_edi;
-	int	pcb_esi;
-	int	pcb_ebp;
-	int	pcb_esp;
-	int	pcb_ebx;
-	int	pcb_eip;
+	register_t	padxx[8];
+	register_t	pcb_cr3;
+	register_t	pcb_r15;
+	register_t	pcb_r14;
+	register_t	pcb_r13;
+	register_t	pcb_r12;
+	register_t	pcb_rbp;
+	register_t	pcb_rsp;
+	register_t	pcb_rbx;
+	register_t	pcb_rip;
+	register_t	pcb_rflags;
 
-	int     pcb_dr0;
-	int     pcb_dr1;
-	int     pcb_dr2;
-	int     pcb_dr3;
-	int     pcb_dr6;
-	int     pcb_dr7;
-
-	union	savefpu	pcb_save;
-	u_int	pcb_flags;
-#define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
-#define	PCB_DBREGS	0x02	/* process using debug registers */
-#define	PCB_NPXTRAP	0x04	/* npx trap pending */
-#define	PCB_NPXINITDONE	0x08	/* fpu state is initialized */
-#define	PCB_VM86CALL	0x10	/* in vm86 call */
+	struct	savefpu	pcb_save;
+	u_long	pcb_flags;
+#define	PCB_NPXTRAP	0x01	/* npx trap pending */
+#define	PCB_NPXINITDONE	0x02	/* fpu state is initialized */
+#define	PCB_FULLCTX	0x04	/* full context restore on sysret */
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
-	int	pcb_gs;
-	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-	int	pcb_psl;	/* process status long */
-	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
 };
 
 #ifdef _KERNEL

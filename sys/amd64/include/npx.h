@@ -45,59 +45,9 @@
 #ifndef _MACHINE_NPX_H_
 #define	_MACHINE_NPX_H_
 
-/* Environment information of floating point unit */
-struct env87 {
-	long	en_cw;		/* control word (16bits) */
-	long	en_sw;		/* status word (16bits) */
-	long	en_tw;		/* tag word (16bits) */
-	long	en_fip;		/* floating point instruction pointer */
-	u_short	en_fcs;		/* floating code segment selector */
-	u_short	en_opcode;	/* opcode last executed (11 bits ) */
-	long	en_foo;		/* floating operand offset */
-	long	en_fos;		/* floating operand segment selector */
-};
-
-/* Contents of each floating point accumulator */
+/* Contents of each x87 floating point accumulator */
 struct fpacc87 {
-#ifdef dontdef /* too unportable */
-	u_long	fp_mantlo;	/* mantissa low (31:0) */
-	u_long	fp_manthi;	/* mantissa high (63:32) */
-	int	fp_exp:15;	/* exponent */
-	int	fp_sgn:1;	/* mantissa sign */
-#else
 	u_char	fp_bytes[10];
-#endif
-};
-
-/* Floating point context */
-struct save87 {
-	struct	env87 sv_env;	/* floating point control/status */
-	struct	fpacc87	sv_ac[8];	/* accumulator contents, 0-7 */
-	u_char	sv_pad0[4];	/* padding for (now unused) saved status word */
-	/*
-	 * Bogus padding for emulators.  Emulators should use their own
-	 * struct and arrange to store into this struct (ending here)
-	 * before it is inspected for ptracing or for core dumps.  Some
-	 * emulators overwrite the whole struct.  We have no good way of
-	 * knowing how much padding to leave.  Leave just enough for the
-	 * GPL emulator's i387_union (176 bytes total).
-	 */
-	u_char	sv_pad[64];	/* padding; used by emulators */
-};
-
-struct  envxmm {
-	u_int16_t	en_cw;		/* control word (16bits) */
-	u_int16_t	en_sw;		/* status word (16bits) */
-	u_int16_t	en_tw;		/* tag word (16bits) */
-	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
-	u_int32_t	en_fip;		/* floating point instruction pointer */
-	u_int16_t	en_fcs;		/* floating code segment selector */
-	u_int16_t	en_pad0;	/* padding */
-	u_int32_t	en_foo;		/* floating operand offset */
-	u_int16_t	en_fos;		/* floating operand segment selector */
-	u_int16_t	en_pad1;	/* padding */
-	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
-	u_int32_t	en_pad2;	/* padding */
 };
 
 /* Contents of each SSE extended accumulator */
@@ -105,20 +55,27 @@ struct  xmmacc {
 	u_char	xmm_bytes[16];
 };
 
-struct  savexmm {
+struct  envxmm {
+	u_int16_t	en_cw;		/* control word (16bits) */
+	u_int16_t	en_sw;		/* status word (16bits) */
+	u_int8_t	en_tw;		/* tag word (8bits) */
+	u_int8_t	en_zero;
+	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
+	u_int64_t	en_rip;		/* floating point instruction pointer */
+	u_int64_t	en_rdp;		/* floating operand pointer */
+	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
+	u_int32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
+};
+
+struct  savefpu {
 	struct	envxmm	sv_env;
 	struct {
 		struct fpacc87	fp_acc;
 		u_char		fp_pad[6];      /* padding */
 	} sv_fp[8];
-	struct xmmacc	sv_xmm[8];
-	u_char sv_pad[224];
+	struct xmmacc	sv_xmm[16];
+	u_char sv_pad[96];
 } __aligned(16);
-
-union	savefpu {
-	struct	save87	sv_87;
-	struct	savexmm	sv_xmm;
-};
 
 /*
  * The hardware default control word for i387's and later coprocessors is
@@ -144,10 +101,10 @@ int	npxdna(void);
 void	npxdrop(void);
 void	npxexit(struct thread *td);
 int	npxformat(void);
-int	npxgetregs(struct thread *td, union savefpu *addr);
+int	npxgetregs(struct thread *td, struct savefpu *addr);
 void	npxinit(u_short control);
-void	npxsave(union savefpu *addr);
-void	npxsetregs(struct thread *td, union savefpu *addr);
+void	npxsave(struct savefpu *addr);
+void	npxsetregs(struct thread *td, struct savefpu *addr);
 int	npxtrap(void);
 #endif
 

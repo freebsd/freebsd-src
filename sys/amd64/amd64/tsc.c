@@ -42,7 +42,7 @@
 
 uint64_t	tsc_freq;
 int		tsc_is_broken;
-u_int		tsc_present;
+u_int		tsc_present = 1;
 
 #ifdef SMP
 static int	smp_tsc;
@@ -66,14 +66,6 @@ init_TSC(void)
 {
 	u_int64_t tscval[2];
 
-	if (cpu_feature & CPUID_TSC)
-		tsc_present = 1;
-	else
-		tsc_present = 0;
-
-	if (!tsc_present) 
-		return;
-
 	if (bootverbose)
 	        printf("Calibrating TSC clock ... ");
 
@@ -83,38 +75,9 @@ init_TSC(void)
 
 	tsc_freq = tscval[1] - tscval[0];
 	if (bootverbose)
-		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+		printf("TSC clock: %lu Hz\n", tsc_freq);
 
-#ifdef SMP
-	/*
-	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
-	 * are somehow synchronized.  Some hardware configurations do
-	 * this, but we have no way of determining whether this is the
-	 * case, so we do not use the TSC in multi-processor systems
-	 * unless the user indicated (by setting kern.timecounter.smp_tsc
-	 * to 1) that he believes that his TSCs are synchronized.
-	 */
-	if (mp_ncpus > 1 && !smp_tsc)
-		return;
-#endif
-
-	/*
-	 * We can not use the TSC if we support APM. Precise timekeeping
-	 * on an APM'ed machine is at best a fools pursuit, since 
-	 * any and all of the time spent in various SMM code can't 
-	 * be reliably accounted for.  Reading the RTC is your only
-	 * source of reliable time info.  The i8254 looses too of course
-	 * but we need to have some kind of time...
-	 * We don't know at this point whether APM is going to be used
-	 * or not, nor when it might be activated.  Play it safe.
-	 */
-	if (power_pm_get_type() == POWER_PM_TYPE_APM) {
-		if (bootverbose)
-			printf("TSC timecounter disabled: APM enabled.\n");
-		return;
-	}
-
-	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
@@ -139,7 +102,7 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_QUAD | CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_LONG | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_tsc_freq, "IU", "");
 
 static unsigned

@@ -44,10 +44,8 @@
 #define _MACHINE_VMPARAM_H_ 1
 
 /*
- * Machine dependent constants for 386.
+ * Machine dependent constants for AMD64.
  */
-
-#define VM_PROT_READ_IS_EXEC	/* if you can read -- then you can exec */
 
 /*
  * Virtual memory related constants, all in bytes
@@ -69,8 +67,6 @@
 #define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
-#define USRTEXT		(1*PAGE_SIZE)		/* base of user text XXX bogus */
-
 /*
  * The time for a process to be blocked before being very swappable.
  * This is a number of seconds which the system takes as being a non-trivial
@@ -90,23 +86,20 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
-#define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
+#define VM_MAX_KERNEL_ADDRESS	VADDR(0, 0, KPTDI+NKPDE-1, NPTEPG-1)
+#define VM_MIN_KERNEL_ADDRESS	VADDR(0, 0, PTDPTDI, PTDPTDI)
 
-#define	KERNBASE		VADDR(KPTDI, 0)
+#define	KERNBASE		VADDR(0, 0, KPTDI, 0)
 
-#define KPT_MAX_ADDRESS		VADDR(PTDPTDI, KPTDI+NKPT)
-#define KPT_MIN_ADDRESS		VADDR(PTDPTDI, KPTDI)
+#define UPT_MAX_ADDRESS		VADDR(0, 0, PTDPTDI, PTDPTDI)
+#define UPT_MIN_ADDRESS		VADDR(0, 0, PTDPTDI, 0)
 
-#define UPT_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
-#define UPT_MIN_ADDRESS		VADDR(PTDPTDI, 0)
-
-#define VM_MAXUSER_ADDRESS	VADDR(PTDPTDI, 0)
+#define VM_MAXUSER_ADDRESS	UPT_MIN_ADDRESS
 
 #define USRSTACK		VM_MAXUSER_ADDRESS
 
-#define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
-#define VM_MIN_ADDRESS		((vm_offset_t)0)
+#define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
+#define VM_MIN_ADDRESS		(0)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE

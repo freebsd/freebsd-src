@@ -74,25 +74,26 @@ __extension__ ({ register __uint32_t __X = (x); \
    __asm ("rorl $16, %0" : "+r" (__X)); \
    __X; })
 
-#if defined(_KERNEL)
 #define __byte_swap_int(x) \
 __extension__ ({ register __uint32_t __X = (x); \
    __asm ("bswap %0" : "+r" (__X)); \
    __X; })
-#endif
+
+#define __byte_swap_long(x) \
+__extension__ ({ register __uint64_t __X = (x); \
+   __asm ("bswap %0" : "+r" (__X)); \
+   __X; })
 
 #define __byte_swap_word(x) \
 __extension__ ({ register __uint16_t __X = (x); \
-   __asm ("xchgb %h0, %b0" : "+q" (__X)); \
+   __asm ("xchgb %h0, %b0" : "+Q" (__X)); \
    __X; })
 
 static __inline __uint64_t
 __bswap64(__uint64_t _x)
 {
-	return ((_x >> 56) | ((_x >> 40) & 0xff00) | ((_x >> 24) & 0xff0000) |
-	    ((_x >> 8) & 0xff000000) | ((_x << 8) & ((__uint64_t)0xff << 32)) |
-	    ((_x << 24) & ((__uint64_t)0xff << 40)) |
-	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
+
+	return (__byte_swap_long(_x));
 }
 
 static __inline __uint32_t

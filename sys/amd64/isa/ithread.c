@@ -37,8 +37,9 @@
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
+#include <amd64/isa/icu.h>
+#include <amd64/isa/intr_machdep.h>
+#include <amd64/isa/isa.h>
 
 struct int_entropy {
 	struct proc *p;
@@ -46,6 +47,8 @@ struct int_entropy {
 };
 
 static u_int straycount[ICU_LEN];
+static u_int glitchcount7;
+static u_int glitchcount15;
 
 #define	MAX_STRAY_LOG	5
 
@@ -56,9 +59,9 @@ static u_int straycount[ICU_LEN];
 void
 sched_ithd(void *cookie)
 {
-	int irq = (int) cookie;		/* IRQ we're handling */
+	int irq = (uintptr_t) cookie;	/* IRQ we're handling */
 	struct ithd *ithd = ithds[irq];	/* and the process that does it */
-	int error;
+	int error, isr;
 
 	/* This used to be in icu_vector.s */
 	/*
@@ -79,7 +82,26 @@ sched_ithd(void *cookie)
 	/*
 	 * Log stray interrupts.
 	 */
-	if (error == EINVAL)
+	if (error == EINVAL) {
+		/* Determine if it is a stray interrupt or simply a glitch */
+		if (irq == 7) {
+			outb(IO_ICU1, OCW3_SEL);	/* select IS register */
+			isr = inb(IO_ICU1);
+			outb(IO_ICU1, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+			if ((isr & 0x80) == 0) {
+				glitchcount7++;
+				return;
+			}
+		}
+		if (irq == 15) {
+			outb(IO_ICU2, OCW3_SEL);	/* select IS register */
+			isr = inb(IO_ICU2);
+			outb(IO_ICU2, OCW3_SEL | OCW3_RIS); /* reselect IIR */
+			if ((isr & 0x80) == 0) {
+				glitchcount15++;
+				return;
+			}
+		}
 		if (straycount[irq] < MAX_STRAY_LOG) {
 			printf("stray irq %d\n", irq);
 			if (++straycount[irq] == MAX_STRAY_LOG)
@@ -87,4 +109,5 @@ sched_ithd(void *cookie)
 			    "got %d stray irq %d's: not logging anymore\n",
 				    MAX_STRAY_LOG, irq);
 		}
+	}
 }

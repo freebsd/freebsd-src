@@ -46,116 +46,93 @@
 
 /*
  * Exception/Trap Stack Frame
+ *
+ * The ordering of this is specifically so that we can take first 6
+ * the syscall arguments directly from the beginning of the frame.
  */
 
 struct trapframe {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
-	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	tf_esp;
-	int	tf_ss;
-};
-
-/* Superset of trap frame, for traps from virtual-8086 mode */
-
-struct trapframe_vm86 {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
-	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	tf_esp;
-	int	tf_ss;
-	/* below only when switching out of VM86 mode */
-	int	tf_vm86_es;
-	int	tf_vm86_ds;
-	int	tf_vm86_fs;
-	int	tf_vm86_gs;
+	register_t	tf_rdi;
+	register_t	tf_rsi;
+	register_t	tf_rdx;
+	register_t	tf_rcx;
+	register_t	tf_r8;
+	register_t	tf_r9;
+	register_t	tf_rax;
+	register_t	tf_rbx;
+	register_t	tf_rbp;
+	register_t	tf_r10;
+	register_t	tf_r11;
+	register_t	tf_r12;
+	register_t	tf_r13;
+	register_t	tf_r14;
+	register_t	tf_r15;
+	register_t	tf_trapno;
+	/* below portion defined in hardware */
+	register_t	tf_err;
+	register_t	tf_rip;
+	register_t	tf_cs;
+	register_t	tf_rflags;
+	register_t	tf_rsp;
+	register_t	tf_ss;
 };
 
 /* Interrupt stack frame */
 
 struct intrframe {
-	int	if_vec;
-	int	if_fs;
-	int	if_es;
-	int	if_ds;
-	int	if_edi;
-	int	if_esi;
-	int	if_ebp;
-	int	:32;
-	int	if_ebx;
-	int	if_edx;
-	int	if_ecx;
-	int	if_eax;
-	int	:32;		/* for compat with trap frame - trapno */
-	int	:32;		/* for compat with trap frame - err */
-	/* below portion defined in 386 hardware */
-	int	if_eip;
-	int	if_cs;
-	int	if_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	if_esp;
-	int	if_ss;
+	register_t	if_rdi;
+	register_t	if_rsi;
+	register_t	if_rdx;
+	register_t	if_rcx;
+	register_t	if_r8;
+	register_t	if_r9;
+	register_t	if_rax;
+	register_t	if_rbx;
+	register_t	if_rbp;
+	register_t	if_r10;
+	register_t	if_r11;
+	register_t	if_r12;
+	register_t	if_r13;
+	register_t	if_r14;
+	register_t	if_r15;
+	register_t	:64;		/* compat with trap frame - trapno */
+	register_t	:64;		/* compat with trap frame - err */
+	/* below portion defined in hardware */
+	register_t	if_rip;
+	register_t	if_cs;
+	register_t	if_rflags;
+	register_t	if_rsp;
+	register_t	if_ss;
 };
 
 /* frame of clock (same as interrupt frame) */
 
 struct clockframe {
-	int	cf_vec;
-	int	cf_fs;
-	int	cf_es;
-	int	cf_ds;
-	int	cf_edi;
-	int	cf_esi;
-	int	cf_ebp;
-	int	:32;
-	int	cf_ebx;
-	int	cf_edx;
-	int	cf_ecx;
-	int	cf_eax;
-	int	:32;		/* for compat with trap frame - trapno */
-	int	:32;		/* for compat with trap frame - err */
-	/* below portion defined in 386 hardware */
-	int	cf_eip;
-	int	cf_cs;
-	int	cf_eflags;
-	/* below only when crossing rings (e.g. user to kernel) */
-	int	cf_esp;
-	int	cf_ss;
+	register_t	cf_rdi;
+	register_t	cf_rsi;
+	register_t	cf_rdx;
+	register_t	cf_rcx;
+	register_t	cf_r8;
+	register_t	cf_r9;
+	register_t	cf_rax;
+	register_t	cf_rbx;
+	register_t	cf_rbp;
+	register_t	cf_r10;
+	register_t	cf_r11;
+	register_t	cf_r12;
+	register_t	cf_r13;
+	register_t	cf_r14;
+	register_t	cf_r15;
+	register_t	:64;		/* compat with trap frame - trapno */
+	register_t	:64;		/* compat with trap frame - err */
+	/* below portion defined in hardware */
+	register_t	cf_rip;
+	register_t	cf_cs;
+	register_t	cf_rflags;
+	register_t	cf_rsp;
+	register_t	cf_ss;
 };
 
 int	kdb_trap(int, int, struct trapframe *);
-extern  int (*pmath_emulate)(struct trapframe *);
-
-#define	INTR_TO_TRAPFRAME(frame) ((struct trapframe *)&(frame)->if_fs)
 
 #endif /* _MACHINE_FRAME_H_ */

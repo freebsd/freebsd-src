@@ -36,9 +36,6 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-#include "opt_swtch.h"
-
 #include <machine/asmacros.h>
 
 #include "assym.s"
@@ -57,37 +54,26 @@
  * about its state.  This is only a slight optimization and is probably
  * not worth it anymore.  Note that we need to clear the pm_active bits so
  * we do need the old proc if it still exists.
- * 0(%esp) = ret
- * 4(%esp) = oldtd
- * 8(%esp) = newtd
+ * %rdi = oldtd
+ * %rsi = newtd
  */
 ENTRY(cpu_throw)
-	movl	PCPU(CPUID), %esi
-	movl	4(%esp),%ecx			/* Old thread */
-	testl	%ecx,%ecx			/* no thread? */
+	xorq	%rax, %rax
+	movl	PCPU(CPUID), %eax
+	testq	%rdi,%rdi			/* no thread? */
 	jz	1f
 	/* release bit from old pm_active */
-	movl	TD_PROC(%ecx), %eax		/* thread->td_proc */
-	movl	P_VMSPACE(%eax), %ebx		/* proc->p_vmspace */
-#ifdef SMP
-	lock
-#endif
-	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
+	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
+	btrq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 1:
-	movl	8(%esp),%ecx			/* New thread */
-	movl	TD_PCB(%ecx),%edx
-#ifdef SWTCH_OPTIM_STATS
-	incl	tlb_flush_count
-#endif
-	movl	PCB_CR3(%edx),%eax
-	movl	%eax,%cr3			/* new address space */
+	movq	TD_PCB(%rsi),%rdx		/* newtd->td_proc */
+	movq	PCB_CR3(%rdx),%rdx
+	movq	%rdx,%cr3			/* new address space */
 	/* set bit in new pm_active */
-	movl	TD_PROC(%ecx),%eax
-	movl	P_VMSPACE(%eax), %ebx
-#ifdef SMP
-	lock
-#endif
-	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
+	movq	TD_PROC(%rsi),%rdx
+	movq	P_VMSPACE(%rdx), %rdx
+	btsq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 	jmp	sw1
 
 /*
@@ -95,278 +81,184 @@ ENTRY(cpu_throw)
  *
  * Save the current thread state, then select the next thread to run
  * and load its state.
- * 0(%esp) = ret
- * 4(%esp) = oldtd
- * 8(%esp) = newtd
+ * %rdi = oldtd
+ * %rsi = newtd
  */
 ENTRY(cpu_switch)
 
 	/* Switch to new thread.  First, save context. */
-	movl	4(%esp),%ecx
-
 #ifdef INVARIANTS
-	testl	%ecx,%ecx			/* no thread? */
+	testq	%rdi,%rdi			/* no thread? */
 	jz	badsw2				/* no, panic */
 #endif
 
-	movl	TD_PCB(%ecx),%edx
+	movq	TD_PCB(%rdi),%rdx
 
-	movl	(%esp),%eax			/* Hardware registers */
-	movl	%eax,PCB_EIP(%edx)
-	movl	%ebx,PCB_EBX(%edx)
-	movl	%esp,PCB_ESP(%edx)
-	movl	%ebp,PCB_EBP(%edx)
-	movl	%esi,PCB_ESI(%edx)
-	movl	%edi,PCB_EDI(%edx)
-	movl	%gs,PCB_GS(%edx)
-	pushfl					/* PSL */
-	popl	PCB_PSL(%edx)
+	movq	(%rsp),%rax			/* Hardware registers */
+	movq	%rax,PCB_RIP(%rdx)
+	movq	%rbx,PCB_RBX(%rdx)
+	movq	%rsp,PCB_RSP(%rdx)
+	movq	%rbp,PCB_RBP(%rdx)
+	movq	%r12,PCB_R12(%rdx)
+	movq	%r13,PCB_R13(%rdx)
+	movq	%r14,PCB_R14(%rdx)
+	movq	%r15,PCB_R15(%rdx)
+	pushfq					/* PSL */
+	popq	PCB_RFLAGS(%rdx)
 
-	/* Test if debug registers should be saved. */
-	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
-	jz      1f                              /* no, skip over */
-	movl    %dr7,%eax                       /* yes, do the save */
-	movl    %eax,PCB_DR7(%edx)
-	andl    $0x0000fc00, %eax               /* disable all watchpoints */
-	movl    %eax,%dr7
-	movl    %dr6,%eax
-	movl    %eax,PCB_DR6(%edx)
-	movl    %dr3,%eax
-	movl    %eax,PCB_DR3(%edx)
-	movl    %dr2,%eax
-	movl    %eax,PCB_DR2(%edx)
-	movl    %dr1,%eax
-	movl    %eax,PCB_DR1(%edx)
-	movl    %dr0,%eax
-	movl    %eax,PCB_DR0(%edx)
-1:
-
-#ifdef DEV_NPX
 	/* have we used fp, and need a save? */
-	cmpl	%ecx,PCPU(FPCURTHREAD)
+	cmpq	%rdi,PCPU(FPCURTHREAD)
 	jne	1f
-	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
-	pushl	%edx
+	pushq	%rdi
+	pushq	%rsi
+	addq	$PCB_SAVEFPU,%rdx		/* h/w bugs make saving complicated */
+	movq	%rdx, %rdi
 	call	npxsave				/* do it in a big C function */
-	popl	%eax
+	popq	%rsi
+	popq	%rdi
 1:
-#endif
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
-	movl	%ecx,%edi
-	movl	8(%esp),%ecx			/* New thread */
 #ifdef INVARIANTS
-	testl	%ecx,%ecx			/* no thread? */
+	testq	%rsi,%rsi			/* no thread? */
 	jz	badsw3				/* no, panic */
 #endif
-	movl	TD_PCB(%ecx),%edx
-	movl	PCPU(CPUID), %esi
+	movq	TD_PCB(%rsi),%rdx
+	xorq	%rax, %rax
+	movl	PCPU(CPUID), %eax
 
 	/* switch address space */
-	movl	PCB_CR3(%edx),%eax
-#ifdef LAZY_SWITCH
-	cmpl	$0,lazy_flush_enable
-	je	1f
-	cmpl	%eax,IdlePTD			/* Kernel address space? */
-#ifdef SWTCH_OPTIM_STATS
-	je	3f
-#else
-	je	sw1
-#endif
-1:
-#endif
-	movl	%cr3,%ebx			/* The same address space? */
-	cmpl	%ebx,%eax
-#ifdef SWTCH_OPTIM_STATS
-	je	2f				/* Yes, skip all that cruft */
-#else
-	je	sw1
-#endif
-#ifdef SWTCH_OPTIM_STATS
-	incl	tlb_flush_count
-#endif
-	movl	%eax,%cr3			/* new address space */
+	movq	PCB_CR3(%rdx),%rdx
+	movq	%rdx,%cr3			/* new address space */
 
 	/* Release bit from old pmap->pm_active */
-	movl	TD_PROC(%edi), %eax		/* oldproc */
-	movl	P_VMSPACE(%eax), %ebx
-#ifdef SMP
-	lock
-#endif
-	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+	movq	TD_PROC(%rdi), %rdx		/* oldproc */
+	movq	P_VMSPACE(%rdx), %rdx
+	btrq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 
 	/* Set bit in new pmap->pm_active */
-	movl	TD_PROC(%ecx),%eax		/* newproc */
-	movl	P_VMSPACE(%eax), %ebx
-#ifdef SMP
-	lock
-#endif
-	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
-
-#ifdef LAZY_SWITCH
-#ifdef SWTCH_OPTIM_STATS
-	jmp	sw1
-
-2:						/* same address space */
-	incl	swtch_optim_stats
-	jmp	sw1
-
-3:						/* kernel address space */
-	incl	lazy_flush_count
-#endif
-#endif
+	movq	TD_PROC(%rsi),%rdx		/* newproc */
+	movq	P_VMSPACE(%rdx), %rdx
+	btsq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 
 sw1:
 	/*
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
 	 */
-	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
-	je	1f				/* If not, use the default */
-	btsl	%esi, private_tss		/* mark use of private tss */
-	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
-	jmp	2f				/* Load it up */
+	movq	TD_PCB(%rsi),%rdx
 
-1:	/*
-	 * Use the common default TSS instead of our own.
-	 * Set our stack pointer into the TSS, it's set to just
-	 * below the PCB.  In C, common_tss.tss_esp0 = &pcb - 16;
-	 */
-	leal	-16(%edx), %ebx			/* leave space for vm86 */
-	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
-
-	/*
-	 * Test this CPU's  bit in the bitmap to see if this
-	 * CPU was using a private TSS.
-	 */
-	btrl	%esi, private_tss		/* Already using the common? */
-	jae	3f				/* if so, skip reloading */
-	PCPU_ADDR(COMMON_TSSD, %edi)
-2:
-	/* Move correct tss descriptor into GDT slot, then reload tr. */
-	movl	PCPU(TSS_GDT), %ebx		/* entry in GDT */
-	movl	0(%edi), %eax
-	movl	%eax, 0(%ebx)
-	movl	4(%edi), %eax
-	movl	%eax, 4(%ebx)
-	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
-	ltr	%si
-3:
+	/* Update the TSS_RSP0 pointer for the next interrupt */
+	leaq	-16(%rdx), %rbx
+	movq	%rbx, common_tss + COMMON_TSS_RSP0
 
 	/* Restore context. */
-	movl	PCB_EBX(%edx),%ebx
-	movl	PCB_ESP(%edx),%esp
-	movl	PCB_EBP(%edx),%ebp
-	movl	PCB_ESI(%edx),%esi
-	movl	PCB_EDI(%edx),%edi
-	movl	PCB_EIP(%edx),%eax
-	movl	%eax,(%esp)
-	pushl	PCB_PSL(%edx)
-	popfl
+	movq	PCB_RBX(%rdx),%rbx
+	movq	PCB_RSP(%rdx),%rsp
+	movq	PCB_RBP(%rdx),%rbp
+	movq	PCB_R12(%rdx),%r12
+	movq	PCB_R13(%rdx),%r13
+	movq	PCB_R14(%rdx),%r14
+	movq	PCB_R15(%rdx),%r15
+	movq	PCB_RIP(%rdx),%rax
+	movq	%rax,(%rsp)
+	pushq	PCB_RFLAGS(%rdx)
+	popfq
 
-	movl	%edx, PCPU(CURPCB)
-	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
+	movq	%rdx, PCPU(CURPCB)
+	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
 
-	/*
-	 * Determine the LDT to use and load it if is the default one and
-	 * that is not the current one.
-	 */
-	movl	TD_PROC(%ecx),%eax
-	cmpl    $0,P_MD+MD_LDT(%eax)
-	jnz	1f
-	movl	_default_ldt,%eax
-	cmpl	PCPU(CURRENTLDT),%eax
-	je	2f
-	lldt	_default_ldt
-	movl	%eax,PCPU(CURRENTLDT)
-	jmp	2f
-1:
-	/* Load the LDT when it is not the default one. */
-	pushl	%edx				/* Preserve pointer to pcb. */
-	addl	$P_MD,%eax			/* Pointer to mdproc is arg. */
-	pushl	%eax
-	call	set_user_ldt
-	addl	$4,%esp
-	popl	%edx
-2:
-
-	/* This must be done after loading the user LDT. */
-	.globl	cpu_switch_load_gs
-cpu_switch_load_gs:
-	movl	PCB_GS(%edx),%gs
-
-	/* Test if debug registers should be restored. */
-	testl	$PCB_DBREGS,PCB_FLAGS(%edx)
-	jz      1f
-
-	/*
-	 * Restore debug registers.  The special code for dr7 is to
-	 * preserve the current values of its reserved bits.
-	 */
-	movl    PCB_DR6(%edx),%eax
-	movl    %eax,%dr6
-	movl    PCB_DR3(%edx),%eax
-	movl    %eax,%dr3
-	movl    PCB_DR2(%edx),%eax
-	movl    %eax,%dr2
-	movl    PCB_DR1(%edx),%eax
-	movl    %eax,%dr1
-	movl    PCB_DR0(%edx),%eax
-	movl    %eax,%dr0
-	movl	%dr7,%eax
-	andl    $0x0000fc00,%eax
-	movl    PCB_DR7(%edx),%ecx
-	andl	$~0x0000fc00,%ecx
-	orl     %ecx,%eax
-	movl    %eax,%dr7
-1:
 	ret
 
 #ifdef INVARIANTS
 badsw1:
-	pushal
-	pushl	$sw0_1
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rbx
+	pushq	%rbp
+	pushq	%rsi
+	pushq	%rdi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+	pushq	$sw0_1
 	call	panic
 sw0_1:	.asciz	"cpu_throw: no newthread supplied"
 
 badsw2:
-	pushal
-	pushl	$sw0_2
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rbx
+	pushq	%rbp
+	pushq	%rsi
+	pushq	%rdi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+	pushq	$sw0_2
 	call	panic
 sw0_2:	.asciz	"cpu_switch: no curthread supplied"
 
 badsw3:
-	pushal
-	pushl	$sw0_3
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rbx
+	pushq	%rbp
+	pushq	%rsi
+	pushq	%rdi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+	pushq	$sw0_3
 	call	panic
 sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
 
+noswitch:	.asciz	"cpu_switch: called!"
+nothrow:	.asciz	"cpu_throw: called!"
 /*
  * savectx(pcb)
  * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
 	/* Fetch PCB. */
-	movl	4(%esp),%ecx
+	movq	%rdi,%rcx
 
-	/* Save caller's return address.  Child won't execute this routine. */
-	movl	(%esp),%eax
-	movl	%eax,PCB_EIP(%ecx)
+	/* Save caller's return address. */
+	movq	(%rsp),%rax
+	movq	%rax,PCB_RIP(%rcx)
 
-	movl	%cr3,%eax
-	movl	%eax,PCB_CR3(%ecx)
+	movq	%cr3,%rax
+	movq	%rax,PCB_CR3(%rcx)
 
-	movl	%ebx,PCB_EBX(%ecx)
-	movl	%esp,PCB_ESP(%ecx)
-	movl	%ebp,PCB_EBP(%ecx)
-	movl	%esi,PCB_ESI(%ecx)
-	movl	%edi,PCB_EDI(%ecx)
-	movl	%gs,PCB_GS(%ecx)
-	pushfl
-	popl	PCB_PSL(%ecx)
+	movq	%rbx,PCB_RBX(%rcx)
+	movq	%rsp,PCB_RSP(%rcx)
+	movq	%rbp,PCB_RBP(%rcx)
+	movq	%r12,PCB_R12(%rcx)
+	movq	%r13,PCB_R13(%rcx)
+	movq	%r14,PCB_R14(%rcx)
+	movq	%r15,PCB_R15(%rcx)
+	pushfq
+	popq	PCB_RFLAGS(%rcx)
 
-#ifdef DEV_NPX
 	/*
 	 * If fpcurthread == NULL, then the npx h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
@@ -379,30 +271,25 @@ ENTRY(savectx)
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
-	pushfl
+	pushfq
 	cli
-	movl	PCPU(FPCURTHREAD),%eax
-	testl	%eax,%eax
+	movq	PCPU(FPCURTHREAD),%rax
+	testq	%rax,%rax
 	je	1f
 
-	pushl	%ecx
-	movl	TD_PCB(%eax),%eax
-	leal	PCB_SAVEFPU(%eax),%eax
-	pushl	%eax
-	pushl	%eax
+	pushq	%rcx
+	pushq	%rax
+	movq	TD_PCB(%rax),%rdi
+	leaq	PCB_SAVEFPU(%rdi),%rdi
 	call	npxsave
-	addl	$4,%esp
-	popl	%eax
-	popl	%ecx
+	popq	%rax
+	popq	%rcx
 
-	pushl	$PCB_SAVEFPU_SIZE
-	leal	PCB_SAVEFPU(%ecx),%ecx
-	pushl	%ecx
-	pushl	%eax
+	movq	$PCB_SAVEFPU_SIZE,%rdx	/* arg 3 */
+	leaq	PCB_SAVEFPU(%rcx),%rsi	/* arg 2 */
+	movq	%rax,%rdi		/* arg 1 */
 	call	bcopy
-	addl	$12,%esp
 1:
-	popfl
-#endif	/* DEV_NPX */
+	popfq
 
 	ret

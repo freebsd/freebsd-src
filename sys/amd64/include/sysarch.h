@@ -39,46 +39,4 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
-#define I386_GET_LDT	0
-#define I386_SET_LDT	1
-				/* I386_IOPL */
-#define I386_GET_IOPERM	3
-#define I386_SET_IOPERM	4
-				/* xxxxx */
-#define I386_VM86	6
-
-struct i386_ldt_args {
-	unsigned int start;
-	union	descriptor *descs;
-	unsigned int num;
-}; 
-
-struct i386_ioperm_args {
-	unsigned int start;
-	unsigned int length;
-	int	enable;
-};
-
-struct i386_vm86_args {
-	int	sub_op;			/* sub-operation to perform */
-	char	*sub_args;		/* args */
-};
-
-#ifndef _KERNEL
-#include <sys/cdefs.h>
-
-union descriptor;
-struct dbreg;
-
-__BEGIN_DECLS
-int i386_get_ldt(int, union descriptor *, int);
-int i386_set_ldt(int, union descriptor *, int);
-int i386_get_ioperm(unsigned int, unsigned int *, int *);
-int i386_set_ioperm(unsigned int, unsigned int, int);
-int i386_vm86(int, void *);
-int i386_set_watch(int, unsigned int, int, int, struct dbreg *);
-int i386_clr_watch(int, struct dbreg *);
-__END_DECLS
-#endif
-
 #endif /* !_MACHINE_SYSARCH_H_ */
