@@ -56,6 +56,9 @@ struct specinfo {
 	u_int		si_flags;
 #define SI_STASHED	0x0001	/* created in stashed storage */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
+	struct timespec	si_atime;
+	struct timespec	si_ctime;
+	struct timespec	si_mtime;
 	udev_t		si_udev;
 	LIST_ENTRY(specinfo)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;

@@ -246,19 +246,22 @@ spec_read(ap)
 	struct proc *p;
 	struct uio *uio;
 	dev_t dev;
-	int error;
+	int error, resid;
 
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
 	uio = ap->a_uio;
 	p = uio->uio_procp;
+	resid = uio->uio_resid;
 
-	if (uio->uio_resid == 0)
+	if (resid == 0)
 		return (0);
 
 	VOP_UNLOCK(vp, 0, p);
 	error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0))
+		getnanotime(&dev->si_atime);
 	return (error);
 }
 
@@ -279,16 +282,21 @@ spec_write(ap)
 	struct proc *p;
 	struct uio *uio;
 	dev_t dev;
-	int error;
+	int error, resid;
 
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
 	uio = ap->a_uio;
 	p = uio->uio_procp;
+	resid = uio->uio_resid;
 
 	VOP_UNLOCK(vp, 0, p);
 	error = (*devsw(dev)->d_write) (dev, uio, ap->a_ioflag);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
+		getnanotime(&dev->si_ctime);
+		dev->si_mtime = dev->si_ctime;
+	}
 	return (error);
 }
 

@@ -93,18 +93,14 @@ loop:
 		vp->v_type = VCHR;
 		vp = addaliasu(vp, devfs_inot[de->de_inode]->si_udev);
 		vp->v_op = devfs_specop_p;
-		vp->v_data = de;
 	} else if (de->de_dirent->d_type == DT_DIR) {
 		vp->v_type = VDIR;
-		vp->v_data = de->de_dir;
-		TAILQ_FIRST(&de->de_dir->dd_list)->de_vnode = vp;
 	} else if (de->de_dirent->d_type == DT_LNK) {
 		vp->v_type = VLNK;
-		vp->v_data = de;
 	} else {
 		vp->v_type = VBAD;
-		vp->v_data = de;
 	}
+	vp->v_data = de;
 	de->de_vnode = vp;
 	vhold(vp);
 	*vpp = vp;
@@ -127,13 +123,20 @@ devfs_lookup(ap)
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
 	struct proc *p = cnp->cn_proc;
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
-	struct devfs_mount *fmp;
+	struct devfs_mount *dmp;
 	dev_t cdev;
-	int error, cloned;
+	int error, cloned, i;
+	char specname[SPECNAMELEN + 1];
 
 	*vpp = NULLVP;
+
+#if 0
+	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_proc);
+	if (error)
+		return (error);
+#endif
 
 	VOP_UNLOCK(dvp, 0, p);
 	if (cnp->cn_namelen == 1 && *pname == '.') {
@@ -145,12 +148,12 @@ devfs_lookup(ap)
 
 	cloned = 0;
 
-	fmp = (struct devfs_mount *)dvp->v_mount->mnt_data;
+	dmp = VFSTODEVFS(dvp->v_mount);
 again:
 
-	devfs_populate(fmp);
+	devfs_populate(dmp);
 	dd = dvp->v_data;
-	TAILQ_FOREACH(de, &dd->dd_list, de_list) {
+	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (cnp->cn_namelen != de->de_dirent->d_namlen)
 			continue;
 		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name, de->de_dirent->d_namlen) != 0)
@@ -159,11 +162,43 @@ again:
 	}
 
 	if (!cloned) {
-		/* OK, we didn't have that one, so lets try to create it on the fly... */
-		cdev = NODEV;
-		EVENTHANDLER_INVOKE(devfs_clone, cnp->cn_nameptr, cnp->cn_namelen, &cdev);
+		/*
+		 * OK, we didn't have an entry for the name we were asked for
+		 * so we try to see if anybody can create it on demand.
+		 * We need to construct the full "devname" for this device
+		 * relative to "basedir" or the clone functions would not
+		 * be able to tell "/dev/foo" from "/dev/bar/foo"
+		 */
+		i = SPECNAMELEN;
+		specname[i] = '\0';
+		i -= cnp->cn_namelen;
+		if (i < 0)
+			 goto noclone;
+		bcopy(cnp->cn_nameptr, specname + i, cnp->cn_namelen);
+		de = dd;
+		while (de != dmp->dm_basedir) {
+			i--;
+			if (i < 0)
+				 goto noclone;
+			specname[i] = '/';
+			i -= de->de_dirent->d_namlen;
+			if (i < 0)
+				 goto noclone;
+			bcopy(de->de_dirent->d_name, specname + i,
+			    de->de_dirent->d_namlen);
+			de = TAILQ_FIRST(&de->de_dlist);	/* "." */
+			de = TAILQ_NEXT(de, de_list);		/* ".." */
+			de = de->de_dir;
+		}
+
 #if 0
-		printf("cloned %s -> %p %s\n", cnp->cn_nameptr, cdev,
+		printf("Finished specname: %d \"%s\"\n", i, specname + i);
+#endif
+		cdev = NODEV;
+		EVENTHANDLER_INVOKE(devfs_clone, specname + i, 
+		    strlen(specname + i), &cdev);
+#if 0
+		printf("cloned %s -> %p %s\n", specname + i, cdev,
 		    cdev == NODEV ? "NODEV" : cdev->si_name);
 #endif
 		if (cdev != NODEV) {
@@ -172,6 +207,7 @@ again:
 		}
 	}
 
+noclone:
 	/* No luck, too bad. */
 
 	if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
@@ -221,14 +257,10 @@ devfs_access(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
-	struct devfs_dir *dd;
 
-	if (vp->v_type == VDIR) {
-		dd = vp->v_data;
-		de = TAILQ_FIRST(&dd->dd_list);
-	} else {
-		de = vp->v_data;
-	}
+	de = vp->v_data;
+	if (vp->v_type == VDIR)
+		de = de->de_dir;
 
 	return (vaccess(vp->v_type, de->de_mode, de->de_uid, de->de_gid,
 	    ap->a_mode, ap->a_cred));
@@ -247,14 +279,11 @@ devfs_getattr(ap)
 	struct vattr *vap = ap->a_vap;
 	int error = 0;
 	struct devfs_dirent *de;
-	struct devfs_dir *dd;
+	dev_t dev;
 
-	if (vp->v_type == VDIR) {
-		dd = vp->v_data;
-		de = TAILQ_FIRST(&dd->dd_list);
-	} else {
-		de = vp->v_data;
-	}
+	de = vp->v_data;
+	if (vp->v_type == VDIR) 
+		de = de->de_dir;
 	bzero((caddr_t) vap, sizeof(*vap));
 	vattr_null(vap);
 	vap->va_uid = de->de_uid;
@@ -262,27 +291,22 @@ devfs_getattr(ap)
 	vap->va_mode = de->de_mode;
 	vap->va_size = 0;
 	vap->va_blocksize = DEV_BSIZE;
-	vap->va_atime = de->de_atime;
-	vap->va_mtime = de->de_mtime;
-	vap->va_ctime = de->de_ctime;
+	if (vp->v_type != VCHR)  {
+		vap->va_atime = de->de_atime;
+		vap->va_mtime = de->de_mtime;
+		vap->va_ctime = de->de_ctime;
+	} else {
+		dev = vp->v_rdev;
+		vap->va_atime = dev->si_atime;
+		vap->va_mtime = dev->si_mtime;
+		vap->va_ctime = dev->si_ctime;
+	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
 	vap->va_rdev = 0;
 	vap->va_bytes = 0;
-	vap->va_nlink = 1;
+	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
-
-#if 0
-	if (vp->v_flag & VROOT) {
-#ifdef DEBUG
-		printf("devfs_getattr: stat rootdir\n");
-#endif
-		vap->va_type = VDIR;
-		vap->va_nlink = 2;
-		vap->va_fileid = 2;
-		vap->va_size = DEV_BSIZE;
-	} else
-#endif
 
 	if (de->de_dirent->d_type == DT_DIR) {
 		vap->va_type = VDIR;
@@ -309,35 +333,35 @@ devfs_setattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct devfs_dir *dd;
 	struct devfs_dirent *de;
+	int c;
 
-	if (ap->a_vp->v_type == VDIR) {
-		dd = ap->a_vp->v_data;
-		de = TAILQ_FIRST(&dd->dd_list);
-	} else {
-		de = ap->a_vp->v_data;
-	}
+	de = ap->a_vp->v_data;
+	if (ap->a_vp->v_type == VDIR) 
+		de = de->de_dir;
 
+	c = 0;
 	if (ap->a_vap->va_flags != VNOVAL)
 		return (EOPNOTSUPP);
-	if (ap->a_vap->va_uid != (uid_t)VNOVAL)
+	if (ap->a_vap->va_uid != (uid_t)VNOVAL) {
 		de->de_uid = ap->a_vap->va_uid;
-	if (ap->a_vap->va_gid != (gid_t)VNOVAL)
+		c = 1;
+	}
+	if (ap->a_vap->va_gid != (gid_t)VNOVAL) {
 		de->de_gid = ap->a_vap->va_gid;
-	if (ap->a_vap->va_mode != (mode_t)VNOVAL)
+		c = 1;
+	}
+	if (ap->a_vap->va_mode != (mode_t)VNOVAL) {
 		de->de_mode = ap->a_vap->va_mode;
+		c = 1;
+	}
 	if (ap->a_vap->va_atime.tv_sec != VNOVAL)
 		de->de_atime = ap->a_vap->va_atime;
 	if (ap->a_vap->va_mtime.tv_sec != VNOVAL)
 		de->de_mtime = ap->a_vap->va_mtime;
 
-	/*
-	 * Silently ignore attribute changes.
-	 * This allows for open with truncate to have no
-	 * effect until some data is written.  I want to
-	 * do it this way because all writes are atomic.
-	 */
+	if (c)
+		getnanotime(&de->de_ctime);
 	return (0);
 }
 
@@ -355,26 +379,33 @@ devfs_readdir(ap)
 	int error, i;
 	struct uio *uio = ap->a_uio;
 	struct dirent *dp;
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
+	struct devfs_mount *dmp;
 	off_t off;
 
 	if (ap->a_vp->v_type != VDIR)
 		return (ENOTDIR);
 
+	dmp = VFSTODEVFS(ap->a_vp->v_mount);
+	devfs_populate(dmp);
 	i = (u_int)off / UIO_MX;
 	error = 0;
-	dd = ap->a_vp->v_data;
-	de = TAILQ_FIRST(&dd->dd_list);
+	de = ap->a_vp->v_data;
+	dd = TAILQ_FIRST(&de->de_dlist);
 	off = 0;
-	while (uio->uio_resid >= UIO_MX && de != NULL) {
-		dp = de->de_dirent;
+	while (uio->uio_resid >= UIO_MX && dd != NULL) {
+		if (dd->de_dirent->d_type == DT_DIR) 
+			de = dd->de_dir;
+		else
+			de = dd;
+		dp = dd->de_dirent;
 		dp->d_fileno = de->de_inode;
 		if (off >= uio->uio_offset)
 			if ((error = uiomove((caddr_t)dp, dp->d_reclen, uio)) != 0)
 				break;
 		off += dp->d_reclen;
-		de = TAILQ_NEXT(de, de_list);
+		dd = TAILQ_NEXT(dd, de_list);
 	}
 
 	uio->uio_offset = off;
@@ -405,7 +436,14 @@ devfs_reclaim(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct devfs_dirent *de;
 
+	de = vp->v_data;
+	if (de != NULL && de->de_flags & DE_ORPHAN) {
+		if (de->de_symlink) 
+			FREE(de->de_symlink, M_DEVFS);
+		FREE(de, M_DEVFS);   
+	}
 	vp->v_data = NULL;
 	return (0);
 }
@@ -419,12 +457,17 @@ devfs_remove(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
+	struct devfs_mount *dm = VFSTODEVFS(vp->v_mount);
 
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
-	devfs_delete(dd, de);
+	de->de_flags |= DE_ORPHAN;
+	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+	if (de->de_inode < NDEVINO)
+		dm->dm_dirent[de->de_inode] = DE_DELETED;
+	vdrop(de->de_vnode);
 	return (0);
 }
 
@@ -444,7 +487,8 @@ devfs_revoke(ap)
 	struct devfs_dirent *de;
 
 	de = vp->v_data;
-	vdrop(de->de_vnode);
+	if (!(de->de_flags & DE_ORPHAN)) 
+		vdrop(de->de_vnode);
 	de->de_vnode = NULL;
 	vop_revoke(ap);
 	return (0);
@@ -461,22 +505,22 @@ devfs_symlink(ap)
 	} */ *ap;
 {
 	int i;
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
-	struct devfs_mount *fmp;
+	struct devfs_mount *dmp;
 
-	fmp = (struct devfs_mount *)ap->a_dvp->v_mount->mnt_data;
+	dmp = (struct devfs_mount *)ap->a_dvp->v_mount->mnt_data;
 	dd = ap->a_dvp->v_data;
 	de = devfs_newdirent(ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen);
 	de->de_uid = 0;
 	de->de_gid = 0;
 	de->de_mode = 0642;
-	de->de_inode = fmp->dm_inode++;
+	de->de_inode = dmp->dm_inode++;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
 	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
-	TAILQ_INSERT_TAIL(&dd->dd_list, de, de_list);
+	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
 	VREF(*(ap->a_vpp));
 	return (0);

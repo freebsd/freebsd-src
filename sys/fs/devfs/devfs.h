@@ -42,15 +42,17 @@
 
 MALLOC_DECLARE(M_DEVFS);
 
-struct devfs_dir {
-	TAILQ_HEAD(, devfs_dirent) dd_list;
-};
-
 struct devfs_dirent {
 	int	de_inode;
+	int	de_flags;
+#define	DE_ORPHAN	0x1
+#define	DE_DOT		0x2
+#define	DE_DOTDOT	0x4
 	struct dirent *de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
-	struct devfs_dir *de_dir;
+	TAILQ_HEAD(, devfs_dirent) de_dlist;
+	struct devfs_dirent *de_dir;
+	int	de_links;
 	mode_t	de_mode;
 	uid_t	de_uid;
 	gid_t	de_gid;
@@ -67,10 +69,11 @@ struct devfs_node {
 
 struct devfs_mount {
 	struct vnode	*dm_root;	/* Root node */
-	struct devfs_dir *dm_rootdir;
-	struct devfs_dir *dm_basedir;
+	struct devfs_dirent *dm_rootdir;
+	struct devfs_dirent *dm_basedir;
 	unsigned	dm_generation;
 	struct devfs_dirent *dm_dirent[NDEVINO];
+#define DE_DELETED ((struct devfs_dirent *)&devfs_inot[0])
 	int	dm_inode;
 };
 
@@ -79,15 +82,17 @@ extern dev_t devfs_inot[NDEVINO];
 extern int devfs_nino;
 extern unsigned devfs_generation;
 
+
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 extern vop_t **devfs_vnodeop_p;
 extern vop_t **devfs_specop_p;
+
 int devfs_populate __P((struct devfs_mount *dm));
-struct devfs_dir * devfs_vmkdir __P((void));
 struct devfs_dirent * devfs_newdirent __P((char *name, int namelen));
-void devfs_purge __P((struct devfs_dir *dd));
-void devfs_delete __P((struct devfs_dir *dd, struct devfs_dirent *de));
+void devfs_purge __P((struct devfs_dirent *dd));
+struct devfs_dirent * devfs_vmkdir __P((char *name, int namelen,
+    struct devfs_dirent *dotdot));
 #endif /* DEVFS_INTERN */
 
 typedef void (*devfs_clone_fn) __P((void *arg, char *name, int namelen, dev_t *result));
