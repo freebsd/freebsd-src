@@ -148,12 +148,16 @@ static void
 cmdscanner(void)
 {
 	register struct cmd *c;
-	static EditLine *el = NULL;
-	static History *hist = NULL;
-	int num = 0;
-	int len;
-	const char *bp = NULL;
+	static EditLine *el;
+	static History *hist;
+	size_t len;
+	int num;
+	const char *bp;
 
+	num = 0;
+	bp = NULL;
+	el = NULL;
+	hist = NULL;
 	for (;;) {
 		if (fromatty) {
 			if (!el) {
