@@ -40,11 +40,13 @@
 .Sh DESCRIPTION
 The function
 .Fn login_tty
-prepares a terminal for a new login session.  The file descriptor
+prepares a terminal for a new login session.
+The file descriptor
 .Ar fd
 passed to
 .Fn login_tty
-must be opened for reading and writing on a terminal device.  It will be
+must be opened for reading and writing on a terminal device.
+It will be
 made the controlling terminal for the calling process, after allocating
 a new session with
 .Xr setsid 2 .

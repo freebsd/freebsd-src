@@ -47,7 +47,8 @@ to the descriptor
 .Fa iocb->aio_fildes .
 The call returns immediately after the write request has been enqueued
 to the descriptor; the write may or may not have completed at the time
-the call returns.  If the request could not be enqueued, generally due
+the call returns.
+If the request could not be enqueued, generally due
 to invalid arguments, the call returns without having enqueued the
 request.
 .Pp
@@ -57,7 +58,8 @@ is set for
 .Fa iocb->aio_fildes ,
 .Fn aio_write
 operations append to the file in the same order as the calls were
-made.  If
+made.
+If
 .Dv O_APPEND
 is not set for the file descriptor, the write operation will occur at
 the absolute position from the beginning of the file plus
@@ -89,7 +91,8 @@ The Asynchronous I/O Control Block structure pointed to by
 and the buffer that the
 .Fa iocb->aio_buf
 member of that structure references must remain valid until the
-operation has completed.  For this reason, use of auto (stack) variables
+operation has completed.
+For this reason, use of auto (stack) variables
 for these objects is discouraged.
 .Pp
 The asynchronous I/O control buffer
@@ -124,7 +127,8 @@ system call is not supported.
 .Pp
 The following conditions may be synchronously detected when the
 .Fn aio_write
-system call is made, or asynchronously, at any time thereafter.  If they
+system call is made, or asynchronously, at any time thereafter.
+If they
 are detected at call time,
 .Fn aio_write
 returns -1 and sets

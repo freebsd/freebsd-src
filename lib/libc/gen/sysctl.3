@@ -83,7 +83,8 @@ length array of integers.
 The
 .Fn sysctlbyname
 function accepts an ASCII representation of the name and internally
-looks up the integer name vector.  Apart from that, it behaves the same
+looks up the integer name vector.
+Apart from that, it behaves the same
 as the standard
 .Fn sysctl
 function.
@@ -454,7 +455,7 @@ The third and fourth level names are as follows:
 .El
 .Pp
 If the third level name is KERN_PROC_ARGS then the command line argument
-array is returned in a flattened form, i.e. zero-terminated arguments
+array is returned in a flattened form, i.e., zero-terminated arguments
 follow each other.
 The total size of array is returned.
 It is also possible for a process to set its own process title this way.
@@ -752,12 +753,14 @@ The returned data consists of a
 0 if the statistics-based page management algorithm is in use
 or 1 if the near-LRU algorithm is in use.
 .It Li VM_SWAPPING_ENABLED
-1 if process swapping is enabled or 0 if disabled.  This variable is
+1 if process swapping is enabled or 0 if disabled.
+This variable is
 permanently set to 0 if the kernel was built with swapping disabled.
 .It Li VM_V_CACHE_MAX
 Maximum desired size of the cache queue.
 .It Li VM_V_CACHE_MIN
-Minimum desired size of the cache queue.  If the cache queue size
+Minimum desired size of the cache queue.
+If the cache queue size
 falls very far below this value, the pageout daemon is awakened.
 .It Li VM_V_FREE_MIN
 Minimum amount of memory (cache memory plus free memory)
@@ -771,7 +774,8 @@ The total amount of free memory (including cache memory) that the
 pageout daemon tries to maintain.
 .It Li VM_V_INACTIVE_TARGET
 The desired number of inactive pages that the pageout daemon should
-achieve when it runs.  Inactive pages can be quickly inserted into
+achieve when it runs.
+Inactive pages can be quickly inserted into
 process address space when needed.
 .It Li VM_V_PAGEOUT_FREE_MIN
 If the amount of free and cache memory falls below this value, the

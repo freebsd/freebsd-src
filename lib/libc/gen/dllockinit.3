@@ -40,22 +40,26 @@
 .Sh DESCRIPTION
 .Bf Sy
 Due to enhancements in the dynamic linker, this interface is no longer
-needed.  It is deprecated and will be removed from future releases.
+needed.
+It is deprecated and will be removed from future releases.
 In current releases it still exists, but only as a stub which does nothing.
 .Ef
 .Pp
 Threads packages can call
 .Fn dllockinit
 at initialization time to register locking functions for the dynamic
-linker to use.  This enables the dynamic linker to prevent multiple
+linker to use.
+This enables the dynamic linker to prevent multiple
 threads from entering its critical sections simultaneously.
 .Pp
 The
 .Fa context
-argument specifies an opaque context for creating locks.  The
+argument specifies an opaque context for creating locks.
+The
 dynamic linker will pass it to the
 .Fa lock_create
-function when creating the locks it needs.  When the dynamic linker
+function when creating the locks it needs.
+When the dynamic linker
 is permanently finished using the locking functions (e.g., if the
 program makes a subsequent call to
 .Fn dllockinit
@@ -65,7 +69,8 @@ to destroy the context.
 .Pp
 The
 .Fa lock_create
-argument specifies a function for creating a read/write lock.  It
+argument specifies a function for creating a read/write lock.
+It
 must return a pointer to the new lock.
 .Pp
 The
@@ -73,18 +78,23 @@ The
 and
 .Fa wlock_acquire
 arguments specify functions which lock a lock for reading or
-writing, respectively.  The
+writing, respectively.
+The
 .Fa lock_release
-argument specifies a function which unlocks a lock.  Each of these
+argument specifies a function which unlocks a lock.
+Each of these
 functions is passed a pointer to the lock.
 .Pp
 The
 .Fa lock_destroy
-argument specifies a function to destroy a lock.  It may be
+argument specifies a function to destroy a lock.
+It may be
 .Dv NULL
-if locks do not need to be destroyed.  The
+if locks do not need to be destroyed.
+The
 .Fa context_destroy
-argument specifies a function to destroy the context.  It may be
+argument specifies a function to destroy the context.
+It may be
 .Dv NULL
 if the context does not need to be destroyed.
 .Pp
@@ -96,9 +106,11 @@ a default locking mechanism which works by blocking the
 .Dv SIGPROF ,
 and
 .Dv SIGALRM
-signals.  This is sufficient for many application level threads
+signals.
+This is sufficient for many application level threads
 packages, which typically use one of these signals to implement
-preemption.  An application which has registered its own locking
+preemption.
+An application which has registered its own locking
 methods with
 .Fn dllockinit
 can restore the default locking by calling

@@ -39,7 +39,8 @@ library provides a set of supporting functions for standalone
 applications, mimicking where possible the standard
 .Bx
 programming
-environment.  The following sections group these functions by kind.
+environment.
+The following sections group these functions by kind.
 Unless specifically described here, see the corresponding section 3
 manpages for the given functions.
 .Sh STRING FUNCTIONS
@@ -69,9 +70,11 @@ Free the allocated object at
 .Fn setheap "void *start" "void *limit"
 .Xc
 .Pp
-Initialise the heap.  This function must be called before calling
+Initialise the heap.
+This function must be called before calling
 .Fn alloc
-for the first time.  The region between
+for the first time.
+The region between
 .Fa start
 and
 .Fa limit
@@ -84,14 +87,17 @@ in a panic.
 .Pp
 Provides the behaviour of
 .Fn sbrk 0 ,
-ie. returns the highest point that the heap has reached.  This value can
-be used during testing to determine the actual heap usage.  The
+i.e., returns the highest point that the heap has reached.
+This value can
+be used during testing to determine the actual heap usage.
+The
 .Fa junk
 argument is ignored.
 .El
 .Sh ENVIRONMENT
 A set of functions are provided for manipulating a flat variable space similar
-to the traditional shell-supported environment.  Major enhancements are support
+to the traditional shell-supported environment.
+Major enhancements are support
 for set/unset hook functions.
 .Bl -hang -width 10n
 .It Xo
@@ -133,18 +139,21 @@ and
 arguments may be specified.
 .Pp
 The set hook is invoked whenever an attempt
-is made to set the variable, unless the EV_NOHOOK flag is set.  Typically
+is made to set the variable, unless the EV_NOHOOK flag is set.
+Typically
 a set hook will validate the
 .Fa value
 argument, and then call
 .Fn env_setenv
-again with EV_NOHOOK set to actually save the value.  The predefined function
+again with EV_NOHOOK set to actually save the value.
+The predefined function
 .Fn env_noset
 may be specified to refuse all attempts to set a variable.
 .Pp
 The unset hook is invoked when an attempt is made to unset a variable.
 If it
-returns zero, the  variable will be unset.  The predefined function
+returns zero, the  variable will be unset.
+The predefined function
 .Fa env_nounset
 may be used to prevent a variable being unset.
 .El
@@ -190,7 +199,8 @@ Defined as
 .Fn _setjmp
 and
 .Fn _longjmp
-respectively as there is no signal state to manipulate.  Requires
+respectively as there is no signal state to manipulate.
+Requires
 .In setjmp.h .
 .El
 .Sh CHARACTER I/O
@@ -227,7 +237,8 @@ characters into
 .Fa buf .
 Line terminating characters are stripped, and the buffer is always
 .Dv NUL
-terminated.  Returns the number of characters in
+terminated.
+Returns the number of characters in
 .Fa buf
 if successful, or -1 if a read error occurs.
 .It Xo
@@ -249,13 +260,16 @@ if successful, or -1 if a read error occurs.
 .Pp
 The *printf functions implement a subset of the standard
 .Fn printf
-family functionality and some extensions.  The following standard conversions
-are supported: c,d,n,o,p,s,u,x.  The following modifiers are supported:
+family functionality and some extensions.
+The following standard conversions
+are supported: c,d,n,o,p,s,u,x.
+The following modifiers are supported:
 +,-,#,*,0,field width,precision,l.
 .Pp
 The
 .Li b
-conversion is provided to decode error registers.  Its usage is:
+conversion is provided to decode error registers.
+Its usage is:
 .Pp
 .Bd -ragged -offset indent
 printf(
@@ -265,8 +279,9 @@ regval,
 );
 .Ed
 .Pp
-where <base> is the output expressed as a control character, eg. \e10 gives
-octal, \e20 gives hex.  Each <arg> is a sequence of characters, the first of
+where <base> is the output expressed as a control character, e.g.\& \e10 gives
+octal, \e20 gives hex.
+Each <arg> is a sequence of characters, the first of
 which gives the bit number to be inspected (origin 1) and the next characters
 (up to a character less than 32) give the text to be displayed if the bit is set.
 Thus
@@ -287,7 +302,7 @@ reg=3<BITTWO,BITONE>
 .Pp
 The
 .Li D
-conversion provides a hexdump facility, eg.
+conversion provides a hexdump facility, e.g.
 .Pp
 .Bd -ragged -offset indent
 printf(
@@ -356,7 +371,8 @@ ptr,
 Similar to the behaviour as specified in
 .Xr open 2 ,
 except that file creation is not supported, so the mode parameter is not
-required.  The
+required.
+The
 .Fa flags
 argument may be one of O_RDONLY, O_WRONLY and O_RDWR (although no file systems
 currently support writing).
@@ -402,7 +418,8 @@ and
 .Fn fstat
 functions only fill out the following fields in the
 .Fa sb
-structure: st_mode,st_nlink,st_uid,st_gid,st_size.  The
+structure: st_mode,st_nlink,st_uid,st_gid,st_size.
+The
 .Nm tftp
 file system cannot provide meaningful values for this call, and the
 .Nm cd9660
@@ -420,7 +437,8 @@ commands.
 .Xc
 .Pp
 Initialises the pager and tells it that the next line output will be the top of the
-display.  The environment variable LINES is consulted to determine the number of
+display.
+The environment variable LINES is consulted to determine the number of
 lines to be displayed before pausing.
 .It Xo
 .Ft void
@@ -437,7 +455,8 @@ Sends the lines in the
 .Dv NUL Ns
 -terminated buffer at
 .Fa lines
-to the pager.  Newline characters are counted in order to determine the number
+to the pager.
+Newline characters are counted in order to determine the number
 of lines being output (wrapped lines are not accounted for).
 The
 .Fn pager_output
@@ -469,7 +488,8 @@ The following resources are consumed by
 .Pp
 The stack must be established before
 .Nm
-functions can be invoked.  Stack requirements vary depending on the functions
+functions can be invoked.
+Stack requirements vary depending on the functions
 and file systems used by the consumer and the support layer functions detailed
 below.
 .Pp
@@ -480,7 +500,8 @@ or
 by calling
 .Fn setheap .
 Heap usage will vary depending on the number of simultaneously open files,
-as well as client behaviour.  Automatic decompression will allocate more
+as well as client behaviour.
+Automatic decompression will allocate more
 than 64K of data per open file.
 .Pp
 Console access is performed via the
@@ -542,13 +563,15 @@ returning in
 .Fa file
 a pointer to the remaining body of
 .Fa name
-which does not refer to the device.  The
+which does not refer to the device.
+The
 .Va f_dev
 field in
 .Fa of
 will be set to point to the
 .Vt devsw
-structure for the opened device if successful.  Device identifiers must
+structure for the opened device if successful.
+Device identifiers must
 always precede the path component, but may otherwise be arbitrarily formatted.
 Used by
 .Fn open
@@ -566,7 +589,8 @@ should clean up any allocation made by devopen only.
 .Fn panic "const char *msg" "..."
 .Xc
 .Pp
-Signal a fatal and unrecoverable error condition.  The
+Signal a fatal and unrecoverable error condition.
+The
 .Fa msg ...
 arguments are as for
 .Fn printf .
@@ -577,7 +601,8 @@ Internal file systems are enabled by the consumer exporting the array
 which should be initialised with pointers
 to
 .Vt struct fs_ops
-structures.  The following file system handlers are supplied by
+structures.
+The following file system handlers are supplied by
 .Nm ,
 the consumer may supply other file systems of their own:
 .Bl -hang -width ".Va cd9660_fsops"
@@ -600,10 +625,12 @@ When trying the gzipfs file system,
 appends
 .Li .gz
 to the end of the filename, and then tries to locate the file using the other
-file systems.  Placement of this file system in the
+file systems.
+Placement of this file system in the
 .Va file_system[]
 array determines whether gzipped files will be opened in preference to non-gzipped
-files.  It is only possible to seek a gzipped file forwards, and
+files.
+It is only possible to seek a gzipped file forwards, and
 .Fn stat
 and
 .Fn fstat

@@ -78,9 +78,11 @@
 The
 .Nm
 library implements the client side of the TACACS+ network access
-control protocol.  TACACS+ allows clients to perform authentication,
+control protocol.
+TACACS+ allows clients to perform authentication,
 authorization, and accounting by means of network requests to remote
-servers.  This library currently supports only the authentication
+servers.
+This library currently supports only the authentication
 and authorization portion of the protocol.
 .Sh INITIALIZATION
 To use the library, an application must first call
@@ -90,14 +92,16 @@ to obtain a
 which provides context for subsequent operations.
 Calls to
 .Fn tac_open
-always succeed unless insufficient virtual memory is available.  If
+always succeed unless insufficient virtual memory is available.
+If
 the necessary memory cannot be allocated,
 .Fn tac_open
 returns
 .Dv NULL .
 .Pp
 Before issuing any TACACS+ requests, the library must be made aware
-of the servers it can contact.  The easiest way to configure the
+of the servers it can contact.
+The easiest way to configure the
 library is to call
 .Fn tac_config .
 .Fn tac_config
@@ -124,24 +128,28 @@ parameter specifies the server host, either as a fully qualified
 domain name or as a dotted-quad IP address in text form.
 The
 .Va port
-parameter specifies the TCP port to contact on the server.  If
+parameter specifies the TCP port to contact on the server.
+If
 .Va port
 is given as 0, the library uses port 49, the standard TACACS+ port.
 The shared secret for the server host is passed to the
 .Va secret
-parameter.  It may be any null-terminated string of bytes.
+parameter.
+It may be any null-terminated string of bytes.
 The timeout for receiving replies from the server is passed to the
 .Va timeout
 parameter, in units of seconds.
 The
 .Va flags
 parameter is a bit mask of flags to specify various characteristics of
-the server.  It may contain:
+the server.
+It may contain:
 .Pp
 .Bl -tag -width Fl
 .It Dv TAC_SRVR_SINGLE_CONNECT
 Causes the library to attempt to negotiate single connection mode
-when communicating with the server.  In single connection mode, the
+when communicating with the server.
+In single connection mode, the
 original TCP connection is held open for multiple TACACS+ sessions.
 Older servers do not support this mode, and some of them become
 confused if the client attempts to negotiate it.
@@ -155,7 +163,8 @@ may be called multiple times, and it may be used together with
 .Fn tac_config .
 At most 10 servers may be specified.
 When multiple servers are given, they are tried in round-robin
-fashion until a working, accessible server is found.  Once the
+fashion until a working, accessible server is found.
+Once the
 library finds such a server, it continues to use it as long as it
 works.
 .Sh CREATING A TACACS+ AUTHENTICATION REQUEST
@@ -167,7 +176,8 @@ The
 and
 .Va service
 arguments must be set to appropriate values as defined in the
-TACACS+ protocol specification.  The
+TACACS+ protocol specification.
+The
 .In taclib.h
 header file contains symbolic constants for these values.
 .Sh CREATING A TACACS+ AUTHORIZATION REQUEST
@@ -179,7 +189,8 @@ The
 and
 .Va service
 arguments must be set to appropriate values as defined in the
-TACACS+ protocol specification.  The
+TACACS+ protocol specification.
+The
 .In taclib.h
 header file contains symbolic constants for these values.
 .Sh SETTING OPTIONAL PARAMETERS ON A REQUEST
@@ -194,17 +205,21 @@ and
 .Fn tac_set_user .
 The library creates its own copies of any strings provided to these
 functions, so that it is not necessary for the caller to preserve
-them.  By default, each of these parameters is empty except for the
+them.
+By default, each of these parameters is empty except for the
 privilege level, which defaults to
 .Ql USER
 privilege.
 .Pp
 .Fn tac_set_av
-only applies to the context of an authorization request.  The format
+only applies to the context of an authorization request.
+The format
 for an attribute value pair is defined in the TACACS+ protocol
-specification.  The index specified can be any value between 0 and
+specification.
+The index specified can be any value between 0 and
 255 inclusive and indicates the position in the list to place the
-attribute value pair.  Calling
+attribute value pair.
+Calling
 .Fn tac_set_av
 with same index twice effectively replaces the value at that position.
 Use
@@ -215,10 +230,13 @@ After the TACACS+ authentication request has been constructed, it is
 sent by means of
 .Fn tac_send_authen .
 This function connects to a server if not already connected, sends
-the request, and waits for a reply.  On failure,
+the request, and waits for a reply.
+On failure,
 .Fn tac_send_authen
-returns \-1.  Otherwise, it returns the TACACS+ status code and flags,
-packed into an integer value.  The status can be extracted using the
+returns \-1.
+Otherwise, it returns the TACACS+ status code and flags,
+packed into an integer value.
+The status can be extracted using the
 macro
 .Fn TAC_AUTHEN_STATUS .
 Possible status codes, defined in
@@ -249,15 +267,18 @@ macro
 .Fn TAC_AUTHEN_NOECHO .
 .Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHENTICATION RESPONSE
 An authentication response packet from the server may contain a
-server message, a data string, or both.  After a successful call to
+server message, a data string, or both.
+After a successful call to
 .Fn tac_send_authen ,
 this information may be retrieved from the response by calling
 .Fn tac_get_msg
 and
 .Fn tac_get_data .
 These functions return dynamically-allocated copies of the
-information from the packet.  The caller is responsible for freeing
-the copies when it no longer needs them.  The data returned from
+information from the packet.
+The caller is responsible for freeing
+the copies when it no longer needs them.
+The data returned from
 these functions is guaranteed to be terminated by a null byte.
 .Pp
 In the case of
@@ -266,7 +287,8 @@ the
 .Va len
 argument points to a location into which the library will store the
 actual length of the received data, not including the null
-terminator.  This argument may be given as
+terminator.
+This argument may be given as
 .Dv NULL
 if the caller is not interested in the length.
 .Sh SENDING AUTHENTICATION CONTINUE PACKETS
@@ -278,7 +300,8 @@ returns a value containing one of the status codes
 or
 .Dv TAC_AUTHEN_STATUS_GETPASS ,
 then the client must provide additional information to the server by
-means of a TACACS+ CONTINUE packet.  To do so, the application must
+means of a TACACS+ CONTINUE packet.
+To do so, the application must
 first set the packet's user message and/or data fields using
 .Fn tac_set_msg
 and
@@ -305,11 +328,14 @@ After the TACACS+ authorization request has been constructed, it
 is sent by means of
 .Fn tac_send_author .
 This function connects to a server if not already connected, sends
-the request, and waits for a reply.  On failure,
+the request, and waits for a reply.
+On failure,
 .Fn tac_send_author
-returns \-1.  Otherwise, it returns the TACACS+ status code and
+returns \-1.
+Otherwise, it returns the TACACS+ status code and
 number of attribute value (AV) pairs received packed into an
-integer value.  The status can be extracted using the macro
+integer value.
+The status can be extracted using the macro
 .Fn TAC_AUTHOR_STATUS .
 Possible status codes, defined in
 .In taclib.h ,
@@ -331,12 +357,14 @@ The number of AV pairs received is obtained using
 .Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHORIZATION RESPONSE
 Like an authentication response packet, an authorization
 response packet from the
-server may contain a server message, a data string, or both.  Refer
+server may contain a server message, a data string, or both.
+Refer
 to EXTRACTING INFORMATION FROM THE SERVER'S AUTHENTICATION RESPONSE
 for instruction on extraction of those values.
 .Pp
 An authorization response packet from the server may also contain
-attribute value (AV) pairs.  To extract these, use
+attribute value (AV) pairs.
+To extract these, use
 .Fn tac_get_av
 or
 .Fn tac_get_av_value .
@@ -352,15 +380,18 @@ Alternatively,
 can be used.
 .Fn tac_get_av_value
 takes the attribute name and returns the
-corresponding value only, not the AV pair.  These functions return
+corresponding value only, not the AV pair.
+These functions return
 dynamically-allocated copies of the information from the packet.
 The caller is responsible for freeing the copies when it no longer
-needs them.  The data returned from these functions is guaranteed
+needs them.
+The data returned from these functions is guaranteed
 to be terminated by a null byte.
 .Sh OBTAINING ERROR MESSAGES
 Those functions which accept a
 .Va struct tac_handle *
-argument record an error message if they fail.  The error message
+argument record an error message if they fail.
+The error message
 can be retrieved by calling
 .Fn tac_strerror .
 The message text is overwritten on each new error for the given
@@ -371,7 +402,8 @@ subsequent library calls using the same handle.
 To free the resources used by the TACACS+ library, call
 .Fn tac_close .
 .Sh RETURN VALUES
-The following functions return a non-negative value on success.  If
+The following functions return a non-negative value on success.
+If
 they detect an error, they return \-1 and record an error message
 which can be retrieved using
 .Fn tac_strerror .
@@ -407,7 +439,8 @@ which can be retrieved using
 .Pp
 The following functions return a
 .No non- Ns Dv NULL
-pointer on success.  If they are unable to allocate sufficient
+pointer on success.
+If they are unable to allocate sufficient
 virtual memory, they return
 .Dv NULL
 and record an error message which can be retrieved using
@@ -426,7 +459,8 @@ and record an error message which can be retrieved using
 .Pp
 The following functions return a
 .No non- Ns Dv NULL
-pointer on success.  If they are unable to allocate sufficient
+pointer on success.
+If they are unable to allocate sufficient
 virtual memory, they return
 .Dv NULL ,
 without recording an error message.

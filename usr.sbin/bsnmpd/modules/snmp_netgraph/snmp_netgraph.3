@@ -135,15 +135,18 @@
 The
 .Nm snmp_netgraph
 module implements a number of tables and scalars that enable remote access to
-the netgraph subsystem. It also exports a number of global variables and
+the netgraph subsystem.
+It also exports a number of global variables and
 functions, that allow other modules to easily use the netgraph system.
 .Pp
 If upon start up of the module the variable
 .Va begemotNgControlNodeName
 is not empty the module opens a netgraph socket and names that socket node.
 If the variable is empty, the socket is created, as soon as the variable is
-written with a non-empty name. The socket can be closed by writing an empty
-string to the variable. The socket itself and its name are available in
+written with a non-empty name.
+The socket can be closed by writing an empty
+string to the variable.
+The socket itself and its name are available in
 .Va snmp_node
 and
 .Va snmp_nodename .
@@ -169,7 +172,8 @@ is the node specific command cookie,
 .It Fa opcode
 is the node specific code for the operation to performa,
 .It Fa arg
-is a pointer to the message itself. This message must start with a
+is a pointer to the message itself.
+This message must start with a
 .Vt struct ng_mesg .
 .It Fa arglen
 is the overall length of the message (header plus arguments).
@@ -178,8 +182,10 @@ The functions return the message id that can be used to match incoming responses
 or -1 if an error occurs.
 .Pp
 Another class of functions is used to send a control message and to wait for
-a matching response. Note, that this operation blocks the daemon, so use it
-only if you are sure that the response will happen. There is a maximum timeout
+a matching response.
+Note, that this operation blocks the daemon, so use it
+only if you are sure that the response will happen.
+There is a maximum timeout
 that is configurable in the MIB variable
 .Va begemotNgTimeout .
 Other messages arriving while the functions are waiting for the response are
@@ -201,9 +207,11 @@ and waits for a matching response.
 .Pp
 All three functions take the same arguments as the
 .Fn ng_output*
-functions. The functions return the reponse message in a buffer allocated by
+functions.
+The functions return the reponse message in a buffer allocated by
 .Xr malloc 3
-or NULL in case of an error. The maximum size of the response buffer can be
+or NULL in case of an error.
+The maximum size of the response buffer can be
 configured in the variable
 .Va begemotNgResBufSiz .
 .Pp
@@ -212,16 +220,19 @@ A data message can be send with the function
 This function takes the name of the
 .Va snmp_node Ns 's
 hook through which to send the data, a pointer to the message buffer and
-the size of the message. It returns -1 if an error happens.
+the size of the message.
+It returns -1 if an error happens.
 .Ss ASYNCHRONOUS CONTROL AND DATA MESSAGES
 A module can register functions to asynchronuosly receive control and data
 message.
 .Pp
 The function
 .Fn ng_register_cookie
-registers a control message receive function. If a control message is
+registers a control message receive function.
+If a control message is
 received, that is not consumed by the dialog functions, the list of registerred
-control message receive functions is scanned. If the cookie in the received
+control message receive functions is scanned.
+If the cookie in the received
 message is the same as the
 .Fa cookie
 argument to the
@@ -238,7 +249,8 @@ is called with a pointer to the received message, the hook on which the
 message was received (or NULL if it was received not on a hook), the id
 of the sender's node and the
 .Fa uarg
-argument of the registration call. The handler function should not modify
+argument of the registration call.
+The handler function should not modify
 the contents of the message, because more than one function may be registered
 to the same cookie and node id.
 .Pp
@@ -253,12 +265,14 @@ A module can call
 .Fn ng_register_hook
 to register a callback for data messages on one of the
 .Va snmp_node Ns 's
-hooks. If a data message is received on that hook, the callback function
+hooks.
+If a data message is received on that hook, the callback function
 .Fa func
 is called with the hook name, a pointer to the data message, the size of
 the message and the argument
 .Fa uarg
-to the registration function. The message should be treated as read-only.
+to the registration function.
+The message should be treated as read-only.
 A data message registration can be undone by calling
 .Fn ng_unregister_hook
 with the return value of the registration call.
@@ -291,7 +305,8 @@ and writes it to the buffer pointed to by
 .Fa name .
 This buffer should be at least
 .Li NG_NODESIZ
-bytes long. The function returns the node id or 0 if the
+bytes long.
+The function returns the node id or 0 if the
 node is not found
 .Pp
 The function
@@ -302,7 +317,8 @@ and writes it to the buffer pointed to by
 .Fa type .
 This buffer should be at least
 .Li NG_TYPESIZ
-bytes long. The function returns the node id or 0 if the
+bytes long.
+The function returns the node id or 0 if the
 node is not found.
 .Pp
 The function
@@ -315,8 +331,10 @@ to the buffer pointed to by
 .Fa peer_hook .
 The buffer should be at least
 .Li NG_HOOKSIZ
-bytes long. The function returns 0 if the node and the hook is found, -1
-otherwise. The function skips intermediate tee nodes (see
+bytes long.
+The function returns 0 if the node and the hook is found, -1
+otherwise.
+The function skips intermediate tee nodes (see
 .Xr ng_tee 4 ).
 .Pp
 The function
@@ -348,7 +366,8 @@ of node
 .Fa id .
 If
 .Fa name
-is not NULL the new node is named with this name. The function returns
+is not NULL the new node is named with this name.
+The function returns
 The node id of the new node or 0 if an error happens.
 .Pp
 The functions

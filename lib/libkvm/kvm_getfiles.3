@@ -63,14 +63,16 @@ The
 and
 .Fa arg
 arguments constitute a predicate which limits the set of files
-returned.  No predicates are currently defined.
+returned.
+No predicates are currently defined.
 .Pp
 The number of files found is returned in the reference parameter
 .Fa cnt .
 The files are returned as a contiguous array of file structures,
 preceded by the address of the first file entry in the kernel.
 This memory is owned by kvm and is not guaranteed to be persistent across
-subsequent kvm library calls.  Data should be copied out if it needs to be
+subsequent kvm library calls.
+Data should be copied out if it needs to be
 saved.
 .Sh RETURN VALUES
 The

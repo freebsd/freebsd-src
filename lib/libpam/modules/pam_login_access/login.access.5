@@ -18,7 +18,8 @@ When someone logs in, the
 .Nm
 is scanned for the first entry that
 matches the (user, host) combination, or, in case of non-networked
-logins, the first entry that matches the (user, tty) combination.  The
+logins, the first entry that matches the (user, tty) combination.
+The
 permissions field of that table entry determines whether the login will
 be accepted or refused.
 .Pp
@@ -30,11 +31,13 @@ character:
 The first field should be a "+" (access granted) or "-" (access denied)
 character.
 The second field should be a list of one or more login names,
-group names, or ALL (always matches).  The third field should be a list
+group names, or ALL (always matches).
+The third field should be a list
 of one or more tty names (for non-networked logins), host names, domain
 names (begin with "."), host addresses, internet network numbers (end
 with "."), ALL (always matches) or LOCAL (matches any string that does
-not contain a "." character). If you run NIS you can use @netgroupname
+not contain a "." character).
+If you run NIS you can use @netgroupname
 in host or user patterns.
 .Pp
 The EXCEPT operator makes it possible to write very compact rules.

@@ -84,16 +84,19 @@ denotes the current process, process group, or user.
 The
 .Fa prio
 argument
-is a value in the range -20 to 20.  The default priority is 0;
+is a value in the range -20 to 20.
+The default priority is 0;
 lower priorities cause more favorable scheduling.
 .Pp
 The
 .Fn getpriority
 system call returns the highest priority (lowest numerical value)
-enjoyed by any of the specified processes.  The
+enjoyed by any of the specified processes.
+The
 .Fn setpriority
 system call sets the priorities of all of the specified processes
-to the specified value.  Only the super-user may lower priorities.
+to the specified value.
+Only the super-user may lower priorities.
 .Sh RETURN VALUES
 Since
 .Fn getpriority

@@ -93,7 +93,8 @@ The
 function first appeared in the Solaris operating system.
 .Sh BUGS
 This implementation is bug-compatible with the Solaris
-implementation.  In particular, the following bugs are present:
+implementation.
+In particular, the following bugs are present:
 .Bl -bullet
 .It
 If
@@ -101,12 +102,15 @@ If
 lies in the main executable rather than in a shared library, the
 pathname returned in
 .Va dli_fname
-may not be correct.  The pathname is taken directly from
+may not be correct.
+The pathname is taken directly from
 .Va argv[0]
-of the calling process.  When executing a program specified by its
+of the calling process.
+When executing a program specified by its
 full pathname, most shells set
 .Va argv[0]
-to the pathname.  But this is not required of shells or guaranteed
+to the pathname.
+But this is not required of shells or guaranteed
 by the operating system.
 .It
 If
@@ -115,10 +119,12 @@ is of the form
 .Va &func ,
 where
 .Va func
-is a global function, its value may be an unpleasant surprise.  In
+is a global function, its value may be an unpleasant surprise.
+In
 dynamically linked programs, the address of a global function is
 considered to point to its program linkage table entry, rather than to
-the entry point of the function itself.  This causes most global
+the entry point of the function itself.
+This causes most global
 functions to appear to be defined within the main executable, rather
 than in the shared libraries where the actual code resides.
 .It

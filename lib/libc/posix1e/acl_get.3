@@ -78,7 +78,8 @@ is a non-portable variation on
 which does not follow a symlink if the target of the call is a
 symlink.
 .Pp
-These functions may cause memory to be allocated.  The caller should free
+These functions may cause memory to be allocated.
+The caller should free
 any releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
@@ -96,7 +97,8 @@ support for POSIX.1e interfaces and features is still under
 development at this time.
 .Sh RETURN VALUES
 Upon successful completion, the function shall return a pointer to the ACL
-that was retrieved.  Otherwise, a value of
+that was retrieved.
+Otherwise, a value of
 .Va (acl_t)NULL
 shall be returned, and
 .Va errno
@@ -138,9 +140,11 @@ The file system does not support ACL retrieval.
 .Xr acl_set 3 ,
 .Xr posix1e 3
 .Sh STANDARDS
-POSIX.1e is described in IEEE POSIX.1e draft 17.  Discussion
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion
 of the draft continues on the cross-platform POSIX.1e implementation
-mailing list.  To join this list, see the
+mailing list.
+To join this list, see the
 .Fx
 POSIX.1e implementation
 page for more information.

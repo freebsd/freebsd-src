@@ -96,7 +96,8 @@ search the group database for the given group name pointed to by
 .Fa name
 or the group id pointed to by
 .Fa gid ,
-respectively, returning the first one encountered.  Identical group
+respectively, returning the first one encountered.
+Identical group
 names or group gids may result in undefined behavior.
 .Pp
 The
@@ -139,12 +140,15 @@ These functions will open the group file for reading, if necessary.
 The
 .Fn setgroupent
 function
-opens the file, or rewinds it if it is already open.  If
+opens the file, or rewinds it if it is already open.
+If
 .Fa stayopen
 is non-zero, file descriptors are left open, significantly speeding
-functions subsequent calls.  This functionality is unnecessary for
+functions subsequent calls.
+This functionality is unnecessary for
 .Fn getgrent
-as it doesn't close its file descriptors by default.  It should also
+as it doesn't close its file descriptors by default.
+It should also
 be noted that it is dangerous for long-running programs to use this
 functionality as the group file may be updated.
 .Pp

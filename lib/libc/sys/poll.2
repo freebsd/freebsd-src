@@ -50,7 +50,8 @@ The
 .Fa fds
 argument is a pointer to an array of pollfd structures as defined in
 .In poll.h
-(shown below).  The
+(shown below).
+The
 .Fa nfds
 argument determines the size of the
 .Fa fds
@@ -68,13 +69,16 @@ The fields of
 are as follows:
 .Bl -tag -width XXXrevents
 .It fd
-File descriptor to poll.  If fd is equal to -1 then
+File descriptor to poll.
+If fd is equal to -1 then
 .Fa revents
 is cleared (set to zero), and that pollfd is not checked.
 .It events
-Events to poll for.  (See below.)
+Events to poll for.
+(See below.)
 .It revents
-Events which may occur.  (See below.)
+Events which may occur.
+(See below.)
 .El
 .Pp
 The event bitmasks in
@@ -97,15 +101,18 @@ Normal data may be written without blocking.
 .It POLLWRBAND
 Data with a non-zero priority may be written without blocking.
 .It POLLERR
-An exceptional condition has occurred on the device or socket.  This
+An exceptional condition has occurred on the device or socket.
+This
 flag is always checked, even if not present in the
 .Fa events
 bitmask.
 .It POLLHUP
-The device or socket has been disconnected.  This flag is always
+The device or socket has been disconnected.
+This flag is always
 checked, even if not present in the
 .Fa events
-bitmask.  Note that
+bitmask.
+Note that
 POLLHUP
 and
 POLLOUT
@@ -113,7 +120,8 @@ should never be present in the
 .Fa revents
 bitmask at the same time.
 .It POLLNVAL
-The file descriptor is not open.  This flag is always checked, even
+The file descriptor is not open.
+This flag is always checked, even
 if not present in the
 .Fa events
 bitmask.
@@ -122,9 +130,11 @@ bitmask.
 If
 .Fa timeout
 is neither zero nor INFTIM (-1), it specifies a maximum interval to
-wait for any file descriptor to become ready, in milliseconds.  If
+wait for any file descriptor to become ready, in milliseconds.
+If
 .Fa timeout
-is INFTIM (-1), the poll blocks indefinitely.  If
+is INFTIM (-1), the poll blocks indefinitely.
+If
 .Fa timeout
 is zero, then
 .Fn poll
@@ -134,7 +144,8 @@ The
 .Fn poll
 system call
 returns the number of descriptors that are ready for I/O, or -1 if an
-error occurred.  If the time limit expires,
+error occurred.
+If the time limit expires,
 .Fn poll
 returns 0.
 If
@@ -148,15 +159,18 @@ array will be unmodified.
 This implementation differs from the historical one in that a given
 file descriptor may not cause
 .Fn poll
-to return with an error.  In cases where this would have happened in
-the historical implementation (e.g. trying to poll a
+to return with an error.
+In cases where this would have happened in
+the historical implementation (e.g.\& trying to poll a
 .Xr revoke 2 Ns ed
 descriptor), this implementation instead copies the
 .Fa events
 bitmask to the
 .Fa revents
-bitmask.  Attempting to perform I/O on this descriptor will then
-return an error.  This behaviour is believed to be more useful.
+bitmask.
+Attempting to perform I/O on this descriptor will then
+return an error.
+This behaviour is believed to be more useful.
 .Sh ERRORS
 An error return from
 .Fn poll
@@ -187,7 +201,8 @@ The distinction between some of the fields in the
 .Fa events
 and
 .Fa revents
-bitmasks is really not useful without STREAMS.  The fields are
+bitmasks is really not useful without STREAMS.
+The fields are
 defined for compatibility with existing software.
 .Sh HISTORY
 The

@@ -83,7 +83,8 @@ all descriptors for the new child process reference the same
 objects as they did in the parent before the fork.
 If a new process is then to be run using
 .Xr execve 2 ,
-the process would normally inherit these descriptors.  Most
+the process would normally inherit these descriptors.
+Most
 of the descriptors can be rearranged with
 .Xr dup2 2
 or deleted with

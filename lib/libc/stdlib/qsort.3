@@ -149,11 +149,13 @@ The
 .Fn qsort
 and
 .Fn qsort_r
-functions are an implementation of C.A.R. Hoare's
+functions are an implementation of C.A.R.
+Hoare's
 .Dq quicksort
 algorithm,
-a variant of partition-exchange sorting; in particular, see D.E. Knuth's
-Algorithm Q.
+a variant of partition-exchange sorting; in particular, see
+.An D.E. Knuth Ns 's
+.%T "Algorithm Q" .
 .Sy Quicksort
 takes O N lg N average time.
 This implementation uses median selection to avoid its
@@ -161,10 +163,13 @@ O N**2 worst-case behavior.
 .Pp
 The
 .Fn heapsort
-function is an implementation of J.W.J. William's
+function is an implementation of
+.An "J.W.J. William" Ns 's
 .Dq heapsort
 algorithm,
-a variant of selection sorting; in particular, see D.E. Knuth's Algorithm H.
+a variant of selection sorting; in particular, see
+.An "D.E. Knuth" Ns 's
+.%T "Algorithm H" .
 .Sy Heapsort
 takes O N lg N worst-case time.
 Its

@@ -66,7 +66,8 @@ and there is no special handling for SIGALRM.
 If the
 .Fn sleep
 function returns because the requested time has elapsed, the value
-returned will be zero.  If the
+returned will be zero.
+If the
 .Fn sleep
 function returns due to the delivery of a signal, the value returned
 will be the unslept amount (the requested time minus the time actually

@@ -82,7 +82,8 @@ If the
 function successfully obtains an ACL entry, a value of 1 is returned.
 If the ACL has no ACL entries, the
 .Fn acl_get_entry
-returns a value of 0.  If the value of
+returns a value of 0.
+If the value of
 .Fa entry_id
 is
 .Dv ACL_NEXT_ENTRY
@@ -93,7 +94,8 @@ a value of 0 will be returned until a successful call with
 .Fa entry_id
 of
 .Dv ACL_FIRST_ENTRY
-is made.  Otherwise, a value of -1 will be returned and
+is made.
+Otherwise, a value of -1 will be returned and
 the global variable
 .Va errno
 will be set to indicate the error.
@@ -105,7 +107,8 @@ fails if:
 .It Bq Er EINVAL
 Argument
 .Fa acl
-does not point to a valid ACL.  Argument
+does not point to a valid ACL.
+Argument
 .Fa entry_id
 is neither
 .Dv ACL_FIRST_ENTRY

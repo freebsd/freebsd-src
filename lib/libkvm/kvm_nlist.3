@@ -60,12 +60,14 @@ an entry whose n_name field is
 (see
 .Xr nlist 3 ) .
 Each symbol is looked up using the n_name field, and if found, the
-corresponding n_type and n_value fields are filled in.  These fields are set
+corresponding n_type and n_value fields are filled in.
+These fields are set
 to 0 if the symbol is not found.
 .Pp
 The
 .Xr kldsym 2
-system call is used to locate the symbol.  This is a less than perfect
+system call is used to locate the symbol.
+This is a less than perfect
 emulation of the nlist values but has the advantage of being aware of kernel
 modules and is reasonably fast.
 .Sh RETURN VALUES

@@ -56,7 +56,8 @@ and
 system calls
 manipulate the
 .Em options
-associated with a socket.  Options may exist at multiple
+associated with a socket.
+Options may exist at multiple
 protocol levels; they are always present at the uppermost
 .Dq socket
 level.
@@ -69,7 +70,8 @@ is specified as
 .Dv SOL_SOCKET .
 To manipulate options at any
 other level the protocol number of the appropriate protocol
-controlling the option is supplied.  For example,
+controlling the option is supplied.
+For example,
 to indicate that an option is to be interpreted by the
 .Tn TCP
 protocol,
@@ -89,14 +91,16 @@ are used to access option values for
 For
 .Fn getsockopt
 they identify a buffer in which the value for the
-requested option(s) are to be returned.  For
+requested option(s) are to be returned.
+For
 .Fn getsockopt ,
 .Fa optlen
 is a value-result argument, initially containing the
 size of the buffer pointed to by
 .Fa optval ,
 and modified on return to indicate the actual size of
-the value returned.  If no option value is
+the value returned.
+If no option value is
 to be supplied or returned,
 .Fa optval
 may be NULL.
@@ -179,14 +183,16 @@ This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
 .Dv SO_KEEPALIVE
 enables the
-periodic transmission of messages on a connected socket.  Should the
+periodic transmission of messages on a connected socket.
+Should the
 connected party fail to respond to these messages, the connection is
 considered broken and processes using the socket are notified via a
 .Dv SIGPIPE
 signal when attempting to send data.
 .Dv SO_DONTROUTE
 indicates that outgoing messages should
-bypass the standard routing facilities.  Instead, messages are directed
+bypass the standard routing facilities.
+Instead, messages are directed
 to the appropriate network interface according to the network portion
 of the destination address.
 .Pp

@@ -50,7 +50,8 @@ The
 argument
 is an array of
 .Fa niocb
-pointers to asynchronous I/O requests.  Array members containing
+pointers to asynchronous I/O requests.
+Array members containing
 NULL will be silently ignored.
 .Pp
 If
@@ -58,7 +59,8 @@ If
 is a non-nil pointer, it specifies a maximum interval to suspend.
 If
 .Fa timeout
-is a nil pointer, the suspend blocks indefinitely.  To effect a
+is a nil pointer, the suspend blocks indefinitely.
+To effect a
 poll, the
 .Fa timeout
 should point to a zero-value timespec structure.
@@ -66,7 +68,8 @@ should point to a zero-value timespec structure.
 If one or more of the specified asynchronous I/O requests have
 completed,
 .Fn aio_suspend
-returns 0.  Otherwise it returns -1 and sets
+returns 0.
+Otherwise it returns -1 and sets
 .Va errno
 to indicate the error, as enumerated below.
 .Sh ERRORS
