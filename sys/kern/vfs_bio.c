@@ -3215,7 +3215,8 @@ vmapbuf(struct buf *bp)
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
-
+	if (bp->b_bufsize < 0)
+		return (-1);
 	for (v = bp->b_saveaddr,
 		     addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data),
 		     pidx = 0;
@@ -3229,7 +3230,6 @@ retry:
 		i = vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
 		if (i < 0) {
-			printf("vmapbuf: warning, bad user address during I/O\n");
 			for (i = 0; i < pidx; ++i) {
 			    vm_page_unhold(bp->b_pages[i]);
 			    bp->b_pages[i] = NULL;
@@ -3245,7 +3245,7 @@ retry:
 #ifdef __sparc64__
 #error "If MFCing sparc support use pmap_extract"
 #endif
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
+		pa = pmap_kextract((vm_offset_t)addr);
 		if (pa == 0) {
 			printf("vmapbuf: warning, race against user address during I/O");
 			goto retry;
