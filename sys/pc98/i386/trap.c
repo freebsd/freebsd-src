@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
+ *	$Id: trap.c,v 1.2 1996/07/23 07:45:59 asami Exp $
  */
 
 /*
@@ -109,7 +109,7 @@ void dblfault_handler __P((void));
 
 extern inthand_t IDTVEC(syscall);
 
-#define MAX_TRAP_MSG		27
+#define MAX_TRAP_MSG		28
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -139,6 +139,7 @@ static char *trap_msg[] = {
 	"invalid TSS fault",			/* 25 T_TSSFLT */
 	"segment not present fault",		/* 26 T_SEGNPFLT */
 	"stack fault",				/* 27 T_STKFLT */
+	"machine check trap",			/* 28 T_MCHK */
 };
 
 static void userret __P((struct proc *p, struct trapframe *frame,

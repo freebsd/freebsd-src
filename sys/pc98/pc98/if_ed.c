@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
+ *	$Id: if_ed.c,v 1.2 1996/07/23 07:46:15 asami Exp $
  */
 
 /*
@@ -137,6 +137,14 @@ struct ed_softc {
 	int     is790;		/* set by the probe code if the card is 790
 				 * based */
 
+/*
+ * HP PC LAN PLUS card support.
+ */
+
+	u_short	hpp_options;	/* flags controlling behaviour of the HP card */
+	u_short hpp_id;		/* software revision and other fields */
+	caddr_t hpp_mem_start;	/* Memory-mapped IO register address */
+
 	caddr_t mem_start;	/* NIC memory start address */
 	caddr_t mem_end;	/* NIC memory end address */
 	u_long  mem_size;	/* total NIC memory size */
@@ -169,7 +177,7 @@ static int ed_attach_isa	__P((struct pc98_device *));
 static int ed_attach_isa	__P((struct isa_device *));
 #endif
 
-static void ed_init		__P((struct ifnet *));
+static void ed_init		__P((struct ed_softc *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
 #ifdef PC98
 static int ed_probe		__P((struct pc98_device *));
@@ -193,6 +201,11 @@ static int ed_probe_3Com	__P((struct isa_device *));
 static int ed_probe_Novell	__P((struct isa_device *));
 #endif
 static int ed_probe_Novell_generic __P((struct ed_softc *, int, int, int));
+#ifdef PC98
+static int ed_probe_HP_pclanp	__P((struct pc98_device *));
+#else
+static int ed_probe_HP_pclanp	__P((struct isa_device *));
+#endif
 
 #include "pci.h"
 #if NPCI > 0
@@ -216,6 +229,11 @@ static void	ed_rint __P((struct ed_softc *));
 static void	ed_xmit __P((struct ed_softc *));
 static char *	ed_ring_copy __P((struct ed_softc *, char *, char *,
 				  /* u_short */ int));
+static void	ed_hpp_set_physical_link __P((struct ed_softc *));
+static void	ed_hpp_readmem __P((struct ed_softc *, int, unsigned char *,
+				    /* u_short */ int));
+static u_short	ed_hpp_write_mbufs __P((struct ed_softc *, struct mbuf *,
+					int));
 
 static void	ed_pio_readmem __P((struct ed_softc *, int, unsigned char *,
 				    /* u_short */ int));
@@ -223,8 +241,10 @@ static void	ed_pio_writemem __P((struct ed_softc *, char *,
 				     /* u_short */ int, /* u_short */ int));
 static u_short	ed_pio_write_mbufs __P((struct ed_softc *, struct mbuf *,
 					int));
+void edintr_sc			__P((struct ed_softc *));
 
 static void    ed_setrcr(struct ed_softc *);
+
 static u_long ds_crc(u_char *ep);
 
 #if NCRD > 0
@@ -240,8 +260,6 @@ static int card_intr(struct pccard_dev *);	/* Interrupt handler */
 static void edunload(struct pccard_dev *);	/* Disable driver */
 static void edsuspend(struct pccard_dev *);	/* Suspend driver */
 static int edinit(struct pccard_dev *, int);	/* init device */
-
-void edintr_sc			__P((struct ed_softc *));
 
 static struct pccard_drv ed_info = {
 	"ed",
@@ -380,10 +398,28 @@ static unsigned short ed_790_intr_mask[] = {
 	IRQ15
 };
 
-#define	ETHER_MIN_LEN	60
-#define ETHER_MAX_LEN	1514
-#define	ETHER_ADDR_LEN	6
-#define	ETHER_HDR_SIZE	14
+/*
+ * Interrupt conversion table for the HP PC LAN+
+ */
+
+static unsigned short ed_hpp_intr_mask[] = {
+	0,		/* 0 */
+	0,		/* 1 */
+	0,		/* 2 */
+	IRQ3,		/* 3 */
+	IRQ4,		/* 4 */
+	IRQ5,		/* 5 */
+	IRQ6,		/* 6 */
+	IRQ7,		/* 7 */
+	0,		/* 8 */
+	IRQ9,		/* 9 */
+	IRQ10,		/* 10 */
+	IRQ11,		/* 11 */
+	IRQ12,		/* 12 */
+	0,		/* 13 */
+	0,		/* 14 */
+	IRQ15		/* 15 */
+};
 
 static struct kern_devconf kdc_ed_template = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -583,6 +619,11 @@ ed_probe(isa_dev)
 		if (nports)
 			return (nports);
 	}
+#ifdef NCDR > 0
+	nports = ed_probe_HP_pclanp(isa_dev);
+	if (nports)
+		return (nports);
+#endif
 
 	return (0);
 }
@@ -1627,6 +1668,329 @@ ed_probe_Novell(isa_dev)
 
 #if NCRD > 0
 
+#define	ED_HPP_TEST_SIZE	16
+
+/*
+ * Probe and vendor specific initialization for the HP PC Lan+ Cards.
+ * (HP Part nos: 27247B and 27252A).
+ *
+ * The card has an asic wrapper around a DS8390 core.  The asic handles 
+ * host accesses and offers both standard register IO and memory mapped 
+ * IO.  Memory mapped I/O allows better performance at the expense of greater
+ * chance of an incompatibility with existing ISA cards.
+ *
+ * The card has a few caveats: it isn't tolerant of byte wide accesses, only
+ * short (16 bit) or word (32 bit) accesses are allowed.  Some card revisions
+ * don't allow 32 bit accesses; these are indicated by a bit in the software
+ * ID register (see if_edreg.h).
+ * 
+ * Other caveats are: we should read the MAC address only when the card
+ * is inactive.
+ *
+ * For more information; please consult the CRYNWR packet driver.
+ *
+ * The AUI port is turned on using the "link2" option on the ifconfig 
+ * command line.
+ */
+static int
+ed_probe_HP_pclanp(isa_dev)
+#ifdef PC98
+	struct isa_device *isa_dev;
+#else
+	struct isa_device *isa_dev;
+#endif
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int n;				/* temp var */
+	int memsize;			/* mem on board */
+	u_char checksum;		/* checksum of board address */
+	u_char irq;			/* board configured IRQ */
+	char test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
+	char test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
+
+
+	/* Fill in basic information */
+	sc->asic_addr = isa_dev->id_iobase + ED_HPP_ASIC_OFFSET;
+	sc->nic_addr = isa_dev->id_iobase + ED_HPP_NIC_OFFSET;
+	sc->is790 = 0;
+	sc->isa16bit = 0;	/* the 8390 core needs to be in byte mode */
+
+	/* 
+	 * Look for the HP PCLAN+ signature: "0x50,0x48,0x00,0x53" 
+	 */
+	
+	if ((inb(sc->asic_addr + ED_HPP_ID) != 0x50) || 
+	    (inb(sc->asic_addr + ED_HPP_ID + 1) != 0x48) ||
+	    ((inb(sc->asic_addr + ED_HPP_ID + 2) & 0xF0) != 0) ||
+	    (inb(sc->asic_addr + ED_HPP_ID + 3) != 0x53))
+		return 0;
+
+	/* 
+	 * Read the MAC address and verify checksum on the address.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_MAC);
+	for (n  = 0, checksum = 0; n < ETHER_ADDR_LEN; n++)
+		checksum += (sc->arpcom.ac_enaddr[n] = 
+			inb(sc->asic_addr + ED_HPP_MAC_ADDR + n));
+	
+	checksum += inb(sc->asic_addr + ED_HPP_MAC_ADDR + ETHER_ADDR_LEN);
+
+	if (checksum != 0xFF)
+		return 0;
+
+	/*
+	 * Verify that the software model number is 0.
+	 */
+	
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_ID);
+	if (((sc->hpp_id = inw(sc->asic_addr + ED_HPP_PAGE_4)) & 
+		ED_HPP_ID_SOFT_MODEL_MASK) != 0x0000)
+		return 0;
+
+	/*
+	 * Read in and save the current options configured on card.
+	 */
+
+	sc->hpp_options = inw(sc->asic_addr + ED_HPP_OPTION);
+
+	sc->hpp_options |= (ED_HPP_OPTION_NIC_RESET | 
+                        	ED_HPP_OPTION_CHIP_RESET |
+				ED_HPP_OPTION_ENABLE_IRQ);
+
+	/* 
+	 * Reset the chip.  This requires writing to the option register
+	 * so take care to preserve the other bits.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_OPTION, 
+		(sc->hpp_options & ~(ED_HPP_OPTION_NIC_RESET | 
+			ED_HPP_OPTION_CHIP_RESET)));
+
+	DELAY(5000);	/* wait for chip reset to complete */
+
+	outw(sc->asic_addr + ED_HPP_OPTION,
+		(sc->hpp_options | (ED_HPP_OPTION_NIC_RESET |
+			ED_HPP_OPTION_CHIP_RESET |
+			ED_HPP_OPTION_ENABLE_IRQ)));
+
+	DELAY(5000);
+
+	if (!(inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST))
+		return 0;	/* reset did not complete */
+
+	/*
+	 * Read out configuration information.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
+
+	irq = inb(sc->asic_addr + ED_HPP_HW_IRQ);
+
+	/*
+ 	 * Check for impossible IRQ.
+	 */
+
+	if (irq >= (sizeof(ed_hpp_intr_mask) / sizeof(ed_hpp_intr_mask[0])))
+		return 0;
+
+	/* 
+	 * If the kernel IRQ was specified with a '?' use the cards idea
+	 * of the IRQ.  If the kernel IRQ was explicitly specified, it
+ 	 * should match that of the hardware.
+	 */
+
+	if (isa_dev->id_irq <= 0)
+		isa_dev->id_irq = ed_hpp_intr_mask[irq];
+	else if (isa_dev->id_irq != ed_hpp_intr_mask[irq])
+		return 0;
+
+	/*
+	 * Fill in softconfig info.
+	 */
+
+	sc->vendor = ED_VENDOR_HP;
+	sc->type = ED_TYPE_HP_PCLANPLUS;
+	sc->type_str = "HP-PCLAN+";
+	sc->kdc.kdc_description = "Ethernet adapter: HP PCLAN+ (27247B/27252A)";
+
+	sc->mem_shared = 0;	/* we DON'T have dual ported RAM */
+	sc->mem_start = 0;	/* we use offsets inside the card RAM */
+
+	sc->hpp_mem_start = NULL;/* no memory mapped I/O by default */
+
+	/*
+	 * Check if memory mapping of the I/O registers possible.
+	 */
+
+	if (sc->hpp_options & ED_HPP_OPTION_MEM_ENABLE)
+	{
+		u_long mem_addr;
+
+		/*
+		 * determine the memory address from the board.
+		 */
+		
+		outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
+		mem_addr = (inw(sc->asic_addr + ED_HPP_HW_MEM_MAP) << 8);
+
+		/*
+		 * Check that the kernel specified start of memory and
+		 * hardware's idea of it match.
+		 */
+		
+		if (mem_addr != kvtop(isa_dev->id_maddr))
+			return 0;
+
+		sc->hpp_mem_start = isa_dev->id_maddr;
+	}
+
+	/*
+	 * The board has 32KB of memory.  Is there a way to determine
+	 * this programmatically?
+	 */
+	
+	memsize = 32768;
+
+	/*
+	 * Fill in the rest of the soft config structure.
+	 */
+
+	/*
+	 * The transmit page index.
+	 */
+
+	sc->tx_page_start = ED_HPP_TX_PAGE_OFFSET;
+
+	if (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)
+		sc->txb_cnt = 1;
+	else
+		sc->txb_cnt = 2;
+
+	/*
+	 * Memory description
+	 */
+
+	sc->mem_size = memsize;
+	sc->mem_ring = sc->mem_start + 
+		(sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE);
+	sc->mem_end = sc->mem_start + sc->mem_size;
+
+	/*
+	 * Receive area starts after the transmit area and 
+	 * continues till the end of memory.
+	 */
+
+	sc->rec_page_start = sc->tx_page_start + 
+				(sc->txb_cnt * ED_TXBUF_SIZE);
+	sc->rec_page_stop = (sc->mem_size / ED_PAGE_SIZE);
+
+
+	sc->cr_proto = 0;	/* value works */
+
+	/*
+	 * Set the wrap registers for string I/O reads.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_HW);
+	outw(sc->asic_addr + ED_HPP_HW_WRAP,
+		((sc->rec_page_start / ED_PAGE_SIZE) |
+		 (((sc->rec_page_stop / ED_PAGE_SIZE) - 1) << 8)));
+
+	/*
+	 * Reset the register page to normal operation.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_PERF);
+
+	/*
+	 * Verify that we can read/write from adapter memory.
+	 * Create test pattern.
+	 */
+
+	for (n = 0; n < ED_HPP_TEST_SIZE; n++)
+	{
+		test_pattern[n] = (n*n) ^ ~n;
+	}
+
+#undef	ED_HPP_TEST_SIZE
+
+	/*
+	 * Check that the memory is accessible thru the I/O ports.
+	 * Write out the contents of "test_pattern", read back
+	 * into "test_buffer" and compare the two for any
+	 * mismatch.
+	 */
+
+	for (n = 0; n < (32768 / ED_PAGE_SIZE); n ++) {
+
+		ed_pio_writemem(sc, test_pattern, (n * ED_PAGE_SIZE), 
+				sizeof(test_pattern));
+		ed_pio_readmem(sc, (n * ED_PAGE_SIZE), 
+			test_buffer, sizeof(test_pattern));
+
+		if (bcmp(test_pattern, test_buffer, 
+			sizeof(test_pattern)))
+			return 0;
+	}
+
+	return (ED_HPP_IO_PORTS);
+
+}
+
+/*
+ * HP PC Lan+ : Set the physical link to use AUI or TP/TL.
+ */
+
+void
+ed_hpp_set_physical_link(struct ed_softc *sc)
+{
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	int lan_page;
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+	lan_page = inw(sc->asic_addr + ED_HPP_PAGE_0);
+
+	if (ifp->if_flags & IFF_ALTPHYS) {
+
+		/*
+		 * Use the AUI port.
+		 */
+
+		lan_page |= ED_HPP_LAN_AUI;
+
+		outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+		outw(sc->asic_addr + ED_HPP_PAGE_0, lan_page);
+
+
+	} else {
+
+		/*
+		 * Use the ThinLan interface
+		 */
+
+		lan_page &= ~ED_HPP_LAN_AUI;
+
+		outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_LAN);
+		outw(sc->asic_addr + ED_HPP_PAGE_0, lan_page);
+
+	}
+
+	/*
+	 * Wait for the lan card to re-initialize itself
+	 */
+
+	DELAY(150000);	/* wait 150 ms */
+
+	/*
+	 * Restore normal pages.
+	 */
+
+	outw(sc->asic_addr + ED_HPP_PAGING, ED_HPP_PAGE_PERF);
+
+}
+
+
 /*
  * Probe and vendor-specific initialization routine for PCCARDs
  */
@@ -1857,6 +2221,7 @@ ed_attach(sc, unit, flags)
 		ifp->if_start = ed_start;
 		ifp->if_ioctl = ed_ioctl;
 		ifp->if_watchdog = ed_watchdog;
+		ifp->if_init = (if_init_f_t *)ed_init;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 		/*
@@ -1891,10 +2256,16 @@ ed_attach(sc, unit, flags)
 	else
 		printf("type unknown (0x%x) ", sc->type);
 
-	printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
+	if (sc->vendor == ED_VENDOR_HP)
+		printf("(%s %s IO)", (sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS) ?
+			"16-bit" : "32-bit",
+			sc->hpp_mem_start ? "memory mapped" : "regular");
+	else
+		printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
-	printf("%s\n", ((sc->vendor == ED_VENDOR_3COM) &&
-	       (ifp->if_flags & IFF_ALTPHYS)) ? " tranceiver disabled" : "");
+	printf("%s\n", (((sc->vendor == ED_VENDOR_3COM) ||
+			 (sc->vendor == ED_VENDOR_HP)) &&
+		(ifp->if_flags & IFF_ALTPHYS)) ? " tranceiver disabled" : "");
 
 	/*
 	 * If BPF is in the kernel, call the attach for it
@@ -1959,7 +2330,7 @@ ed_reset(ifp)
 	 * Stop interface and re-initialize.
 	 */
 	ed_stop(sc);
-	ed_init(ifp);
+	ed_init(sc);
 
 	(void) splx(s);
 }
@@ -2013,10 +2384,10 @@ ed_watchdog(ifp)
  * Initialize device.
  */
 static void
-ed_init(ifp)
-	struct ifnet *ifp;
+ed_init(sc)
+	struct ed_softc *sc;
 {
-	struct ed_softc *sc = ifp->if_softc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
 #ifdef PC98
 	int unit = sc->unit;
@@ -2355,7 +2726,7 @@ outloop:
 			goto outloop;
 	}
 
-	sc->txb_len[sc->txb_new] = max(len, ETHER_MIN_LEN);
+	sc->txb_len[sc->txb_new] = max(len, (ETHER_MIN_LEN-ETHER_CRC_LEN));
 
 	sc->txb_inuse++;
 
@@ -2434,8 +2805,8 @@ ed_rint(sc)
 			ed_pio_readmem(sc, (int)packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
-		if (len > (ETHER_MAX_LEN + sizeof(struct ed_ring)) ||
-		    len < (ETHER_HDR_SIZE + sizeof(struct ed_ring))) {
+		if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring)) ||
+		    len < (ETHER_MIN_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring))) {
 			/*
 			 * Length is a wild value. There's a good chance that
 			 * this was caused by the NIC being old and buggy.
@@ -2744,7 +3115,6 @@ ed_ioctl(ifp, command, data)
 	int     command;
 	caddr_t data;
 {
-	register struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ed_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
@@ -2758,79 +3128,8 @@ ed_ioctl(ifp, command, data)
 	switch (command) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-		/* netifs are BUSY when UP */
-		sc->kdc.kdc_state = DC_BUSY;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			ed_init(ifp);	/* before arpwhohas */
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX:
-			{
-				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina))
-					ina->x_host =
-					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				ed_init(ifp);
-				break;
-			}
-#endif
-#ifdef NS
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_NS:
-			{
-				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-				if (ns_nullhost(*ina))
-					ina->x_host =
-					    *(union ns_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				ed_init(ifp);
-				break;
-			}
-#endif
-		default:
-			ed_init(ifp);
-			break;
-		}
-		break;
-
 	case SIOCGIFADDR:
-		{
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy((caddr_t) sc->arpcom.ac_enaddr,
-			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
-		}
+		ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2841,7 +3140,7 @@ ed_ioctl(ifp, command, data)
 		 */
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_flags & IFF_RUNNING) == 0)
-				ed_init(ifp);
+				ed_init(ifp->if_softc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				ed_stop(sc);
@@ -2873,6 +3172,10 @@ ed_ioctl(ifp, command, data)
 				outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
 			}
 		}
+#if NCRD > 0
+		else if (sc->vendor == ED_VENDOR_HP) 
+			ed_hpp_set_physical_link(sc);
+#endif
 		break;
 
 	case SIOCADDMULTI:
@@ -3054,6 +3357,12 @@ ed_pio_readmem(sc, src, dst, amount)
 	int unit = sc->unit;
 #endif
 
+	/* HP cards need special handling */
+	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
+		ed_hpp_readmem(sc, src, dst, amount);
+		return;
+	}
+		
 	/* select page 0 registers */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
@@ -3102,43 +3411,94 @@ ed_pio_writemem(sc, src, dst, len)
 	int unit = sc->unit;
 #endif
 
-	/* select page 0 registers */
-	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
+	if (sc->vendor == ED_VENDOR_NOVELL) {
 
-	/* reset remote DMA complete flag */
-	outb(sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+		/* select page 0 registers */
+		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
-	/* set up DMA byte count */
-	outb(sc->nic_addr + ED_P0_RBCR0, len);
-	outb(sc->nic_addr + ED_P0_RBCR1, len >> 8);
+		/* reset remote DMA complete flag */
+		outb(sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
 
-	/* set up destination address in NIC mem */
-	outb(sc->nic_addr + ED_P0_RSAR0, dst);
-	outb(sc->nic_addr + ED_P0_RSAR1, dst >> 8);
+		/* set up DMA byte count */
+		outb(sc->nic_addr + ED_P0_RBCR0, len);
+		outb(sc->nic_addr + ED_P0_RBCR1, len >> 8);
 
-	/* set remote DMA write */
-	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
+		/* set up destination address in NIC mem */
+		outb(sc->nic_addr + ED_P0_RSAR0, dst);
+		outb(sc->nic_addr + ED_P0_RSAR1, dst >> 8);
+
+		/* set remote DMA write */
+		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD1 | ED_CR_STA);
+
 #ifdef PC98
 	if (sc->type == ED_TYPE98_LPC)
 		LPCT_1d0_ON();
 #endif
-	if (sc->isa16bit)
-		outsw(sc->asic_addr + ED_NOVELL_DATA, src, len / 2);
-	else
-		outsb(sc->asic_addr + ED_NOVELL_DATA, src, len);
+
+		if (sc->isa16bit)
+			outsw(sc->asic_addr + ED_NOVELL_DATA, src, len / 2);
+		else
+			outsb(sc->asic_addr + ED_NOVELL_DATA, src, len);
+
 #ifdef PC98
 	if (sc->type == ED_TYPE98_LPC)
 		LPCT_1d0_OFF();
 #endif
 
-	/*
-	 * Wait for remote DMA complete. This is necessary because on the
-	 * transmit side, data is handled internally by the NIC in bursts and
-	 * we can't start another remote DMA until this one completes. Not
-	 * waiting causes really bad things to happen - like the NIC
-	 * irrecoverably jamming the ISA bus.
-	 */
-	while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
+		/*
+		 * Wait for remote DMA complete. This is necessary because on the
+		 * transmit side, data is handled internally by the NIC in bursts and
+		 * we can't start another remote DMA until this one completes. Not
+		 * waiting causes really bad things to happen - like the NIC
+		 * irrecoverably jamming the ISA bus.
+		 */
+		while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RDC) != ED_ISR_RDC) && --maxwait);
+
+	} else if ((sc->vendor == ED_VENDOR_HP) && 
+		   (sc->type == ED_TYPE_HP_PCLANPLUS)) { 
+
+		/* HP PCLAN+ */
+
+		/* reset remote DMA complete flag */
+		outb(sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+
+		/* program the write address in RAM */
+		outw(sc->asic_addr + ED_HPP_PAGE_0, dst);
+
+		if (sc->hpp_mem_start) {
+			u_short *s = (u_short *) src;
+			volatile u_short *d = (u_short *) sc->hpp_mem_start;
+			u_short *const fence = s + (len >> 1);
+
+			/*
+			 * Enable memory mapped access.
+			 */
+
+			outw(sc->asic_addr + ED_HPP_OPTION, 
+			     sc->hpp_options & 
+				~(ED_HPP_OPTION_MEM_DISABLE | 
+				  ED_HPP_OPTION_BOOT_ROM_ENB));
+
+			/*
+			 * Copy to NIC memory.
+			 */
+
+			while (s < fence)
+				*d = *s++;
+
+			/*
+			 * Restore Boot ROM access.
+			 */
+
+			outw(sc->asic_addr + ED_HPP_OPTION,
+			     sc->hpp_options);
+
+		} else {
+			/* write data using I/O writes */
+			outsw(sc->asic_addr + ED_HPP_PAGE_4, src, len / 2);
+		}
+
+	}
 }
 
 /*
@@ -3158,6 +3518,12 @@ ed_pio_write_mbufs(sc, m, dst)
 #ifdef PC98
 	int unit = sc->unit;
 #endif
+
+	/*  HP PC Lan+ cards need special handling */
+	if ((sc->vendor == ED_VENDOR_HP) && 
+	    (sc->type == ED_TYPE_HP_PCLANPLUS)) {
+		return ed_hpp_write_mbufs(sc, m, dst);
+	}
 
 	/* First, count up the total number of bytes to copy */
 	for (total_len = 0, mp = m; mp; mp = mp->m_next)
@@ -3287,6 +3653,243 @@ ed_pio_write_mbufs(sc, m, dst)
 		ed_reset(ifp);
 		return(0);
 	}
+	return (total_len);
+}
+
+/*
+ * Support routines to handle the HP PC Lan+ card.
+ */
+
+/*
+ * HP PC Lan+: Read from NIC memory, using either PIO or memory mapped
+ * IO.
+ */
+
+static void
+ed_hpp_readmem(sc, src, dst, amount)
+	struct ed_softc *sc; 
+	unsigned short src;
+	unsigned char *dst;
+	unsigned short amount;
+{
+
+	int use_32bit_access = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
+
+
+	/* Program the source address in RAM */
+	outw(sc->asic_addr + ED_HPP_PAGE_2, src);
+
+	/*
+	 * The HP PC Lan+ card supports word reads as well as
+	 * a memory mapped i/o port that is aliased to every 
+	 * even address on the board.
+	 */
+
+	if (sc->hpp_mem_start) {
+
+		/* Enable memory mapped access.  */
+		outw(sc->asic_addr + ED_HPP_OPTION, 
+		     sc->hpp_options & 
+			~(ED_HPP_OPTION_MEM_DISABLE | 
+			  ED_HPP_OPTION_BOOT_ROM_ENB));
+
+		if (use_32bit_access && (amount > 3)) {
+			u_long *dl = (u_long *) dst;	
+			volatile u_long *const sl = 
+				(u_long *) sc->hpp_mem_start;
+			u_long *const fence = dl + (amount >> 2);
+			
+			/* Copy out NIC data.  We could probably write this
+			   as a `movsl'. The currently generated code is lousy.
+			   */
+
+			while (dl < fence)
+				*dl++ = *sl;
+		
+			dst += (amount & ~3);
+			amount &= 3;
+
+		} 
+
+		/* Finish off any words left, as a series of short reads */
+		if (amount > 1) {
+			u_short *d = (u_short *) dst;	
+			volatile u_short *const s = 
+				(u_short *) sc->hpp_mem_start;
+			u_short *const fence = d + (amount >> 1);
+			
+			/* Copy out NIC data.  */
+
+			while (d < fence)
+				*d++ = *s;
+	
+			dst += (amount & ~1);
+			amount &= 1;
+		}
+
+		/*
+		 * read in a byte; however we need to always read 16 bits
+		 * at a time or the hardware gets into a funny state
+		 */
+
+		if (amount == 1) {
+			/* need to read in a short and copy LSB */
+			volatile u_short *const s = 
+				(volatile u_short *) sc->hpp_mem_start;
+			
+			*dst = (*s) & 0xFF;	
+		}
+
+		/* Restore Boot ROM access.  */
+
+		outw(sc->asic_addr + ED_HPP_OPTION,
+		     sc->hpp_options);
+
+
+	} else { 
+		/* Read in data using the I/O port */
+		if (use_32bit_access && (amount > 3)) {
+			insl(sc->asic_addr + ED_HPP_PAGE_4, dst, amount >> 2);
+			dst += (amount & ~3);
+			amount &= 3;
+		}
+		if (amount > 1) {
+			insw(sc->asic_addr + ED_HPP_PAGE_4, dst, amount >> 1);
+			dst += (amount & ~1);
+			amount &= 1;
+		}
+		if (amount == 1) { /* read in a short and keep the LSB */
+			*dst = inw(sc->asic_addr + ED_HPP_PAGE_4) & 0xFF;
+		}
+	}
+}
+
+/*
+ * Write to HP PC Lan+ NIC memory.  Access to the NIC can be by using 
+ * outsw() or via the memory mapped interface to the same register.
+ * Writes have to be in word units; byte accesses won't work and may cause
+ * the NIC to behave wierdly. Long word accesses are permitted if the ASIC
+ * allows it.
+ */
+
+static u_short
+ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
+{
+	int len, wantbyte;
+	unsigned short total_len;
+	unsigned char savebyte[2];
+	volatile u_short * const d = 
+		(volatile u_short *) sc->hpp_mem_start;
+	int use_32bit_accesses = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
+#ifdef PC98
+	int unit = sc->unit;
+#endif
+
+	/* select page 0 registers */
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+
+	/* reset remote DMA complete flag */
+	outb(sc->nic_addr + ED_P0_ISR, ED_ISR_RDC);
+
+	/* program the write address in RAM */
+	outw(sc->asic_addr + ED_HPP_PAGE_0, dst);
+
+	if (sc->hpp_mem_start) 	/* enable memory mapped I/O */
+		outw(sc->asic_addr + ED_HPP_OPTION, sc->hpp_options & 
+			~(ED_HPP_OPTION_MEM_DISABLE |
+			ED_HPP_OPTION_BOOT_ROM_ENB));
+
+	wantbyte = 0;
+	total_len = 0;
+
+	if (sc->hpp_mem_start) {	/* Memory mapped I/O port */
+		while (m) {
+			total_len += (len = m->m_len);
+			if (len) {
+				caddr_t data = mtod(m, caddr_t);
+				/* finish the last word of the previous mbuf */
+				if (wantbyte) {
+					savebyte[1] = *data;
+					*d = *((ushort *) savebyte);
+					data++; len--; wantbyte = 0;
+				}
+				/* output contiguous words */
+				if ((len > 3) && (use_32bit_accesses)) {
+					volatile u_long *const dl = 
+						(volatile u_long *) d;
+					u_long *sl = (u_long *) data;
+					u_long *fence = sl + (len >> 2);
+
+					while (sl < fence)
+						*dl = *sl++;
+
+					data += (len & ~3);
+					len &= 3;
+				}
+				/* finish off remain 16 bit writes */
+				if (len > 1) {
+					u_short *s = (u_short *) data;
+					u_short *fence = s + (len >> 1);
+
+					while (s < fence)
+						*d = *s++;
+
+					data += (len & ~1); 
+					len &= 1;
+				}
+				/* save last byte if needed */
+				if (wantbyte = (len == 1)) 
+					savebyte[0] = *data;
+			}
+			m = m->m_next;	/* to next mbuf */
+		}
+		if (wantbyte) /* write last byte */
+			*d = *((u_short *) savebyte);
+	} else {
+		/* use programmed I/O */
+		while (m) {
+			total_len += (len = m->m_len);
+			if (len) {
+				caddr_t data = mtod(m, caddr_t);
+				/* finish the last word of the previous mbuf */
+				if (wantbyte) {
+					savebyte[1] = *data;
+					outw(sc->asic_addr + ED_HPP_PAGE_4, 
+					     *((u_short *)savebyte));
+					data++; 
+					len--; 
+					wantbyte = 0;
+				}
+				/* output contiguous words */
+				if ((len > 3) && use_32bit_accesses) {
+					outsl(sc->asic_addr + ED_HPP_PAGE_4,
+						data, len >> 2);
+					data += (len & ~3);
+					len &= 3;
+				}
+				/* finish off remaining 16 bit accesses */
+				if (len > 1) {
+					outsw(sc->asic_addr + ED_HPP_PAGE_4,
+					      data, len >> 1);
+					data += (len & ~1);
+					len &= 1;
+				}
+				if (wantbyte = (len == 1)) 
+					savebyte[0] = *data;
+
+			} /* if len != 0 */
+			m = m->m_next;
+		}
+		if (wantbyte) /* spit last byte */
+			outw(sc->asic_addr + ED_HPP_PAGE_4, 
+				*(u_short *)savebyte);
+
+	}
+
+	if (sc->hpp_mem_start)	/* turn off memory mapped i/o */
+		outw(sc->asic_addr + ED_HPP_OPTION,
+		     sc->hpp_options);
+
 	return (total_len);
 }
 

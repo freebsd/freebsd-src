@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_zpreg.h,v 1.3 1996/01/30 22:55:55 mpp Exp $
+ *	$Id: if_zpreg.h,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  */
 /**************************************************************************
  *										  *
@@ -288,8 +288,6 @@
 #define EEPROM_BUSY			(1<<15)
 #define EEPROM_TST_MODE			(1<<14)
 #define READ_EEPROM			(1<<7)
-#define ETHER_ADDR_LEN			6
-#define ETHER_MAX			1536
 #define ENABLE_UTP			0xc0
 #define DISABLE_UTP			0x0
 #define RX_BYTES_MASK			(u_short) (0x07ff)
