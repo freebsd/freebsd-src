@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtbegin.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+ *      $Id: crtbegin.c,v 1.3 1998/03/11 20:48:56 jb Exp $
  */
 
 typedef void (*fptr)(void);
@@ -51,12 +51,21 @@ do_dtors(void)
 	(**fpp)();
 }
 
+/*
+ * On very large programs, it is possible to get a relocation overflow
+ * of the 21-bit BSR displacements.  It is particularly likely for the
+ * calls from _init() and _fini(), because they are in separate sections.
+ * Avoid the problem by forcing indirect calls.
+ */
+static void (*p_do_ctors)(void) = do_ctors;
+static void (*p_do_dtors)(void) = do_dtors;
+
 extern void _init(void) __attribute__((section(".init")));
 
 void
 _init(void)
 {
-	do_ctors();
+	(*p_do_ctors)();
 }
 
 extern void _fini(void) __attribute__((section(".fini")));
@@ -64,5 +73,5 @@ extern void _fini(void) __attribute__((section(".fini")));
 void
 _fini(void)
 {
-	do_dtors();
+	(*p_do_dtors)();
 }
