@@ -29,7 +29,7 @@ CLEANFILES+= y.tab.h
 CLEANFILES+= y.output	# comment file from bison
 
 install:
-	@echo "kbdio is not installed automatically ...."
+	@${ECHO} "kbdio is not installed automatically ...."
 
 .include <bsd.prog.mk>
 
