@@ -200,6 +200,34 @@ and
 set to
 .Dv SCM_RIGHTS .
 .Pp
+Process credentials can also be passed as ancillary data for
+.Dv AF_UNIX
+domain sockets using a
+.Fa cmsg_type
+of
+.Dv SCM_CREDS.
+In this case,
+.Fa cmsg_data
+should be a structure of type
+.Fa cmsgcred ,
+which is defined in
+.Ao Pa sys/socket.h Ac
+as follows:
+.Pp
+.Bd -literal
+struct cmsgcred {
+	pid_t	cmcred_pid;		/* PID of sending process */
+	uid_t	cmcred_uid;		/* real UID of sending process */
+	uid_t	cmcred_euid;		/* effective UID of sending process */
+	gid_t	cmcred_gid;		/* real GID of sending process */
+	short	cmcred_ngroups;		/* number or groups */
+	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
+};
+.Ed
+.Pp
+The kernel will fill in the credential information of the sending process
+and deliver it to the receiver.
+.Pp
 The
 .Fa msg_flags
 field is set on return according to the message received.
