@@ -660,7 +660,7 @@ st_status(struct mtget *bp)
 
 	if (bp->mt_dsreg != MTIO_DSREG_NIL) {
 		auto char foo[32];
-		const char *sfmt = "Current Driver State: %s.\n";
+		const char sfmt[] = "Current Driver State: %s.\n";
 		printf("---------------------------------\n");
 		switch (bp->mt_dsreg) {
 		case MTIO_DSREG_REST:
