@@ -331,10 +331,26 @@ global:
 	# Debugger needs these.
 	_libkse_debug;
 	_thread_activated;
-	_thread_list;
-	_thread_keytable;
 	_thread_active_threads;
-
+	_thread_keytable;
+	_thread_list;
+	_thread_max_keys;
+	_thread_off_attr_flags;
+	_thread_off_dtv;
+	_thread_off_linkmap;
+	_thread_off_next;
+	_thread_off_tcb;
+	_thread_off_tmbx;
+	_thread_off_key_allocated;
+	_thread_off_key_destructor;
+	_thread_off_kse;
+	_thread_off_kse_locklevel;
+	_thread_off_state;
+	_thread_off_thr_locklevel;
+	_thread_off_tlsindex;
+	_thread_size_key;
+	_thread_state_running;
+	_thread_state_zoombie;
 local:
 	*;
 };
