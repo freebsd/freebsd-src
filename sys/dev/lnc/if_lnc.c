@@ -156,6 +156,7 @@ write_csr(struct lnc_softc *sc, u_short port, u_short val)
 	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, sc->rdp, val);
 }
 
+#define inb(port) bus_space_read_1(sc->lnc_btag, sc->lnc_bhandle, port)
 #define inw(port) bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, port)
 #define outw(port, val) bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, port, val)
 
@@ -881,7 +882,7 @@ lnc_attach_common(device_t dev)
 
 	/* Extract MAC address from PROM */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = inb(sc->iobase + (i * skip));
+		sc->arpcom.ac_enaddr[i] = inb(i * skip);
 
 	/*
 	 * XXX -- should check return status of if_attach
