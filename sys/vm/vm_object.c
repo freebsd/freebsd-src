@@ -1675,10 +1675,12 @@ vm_object_collapse(vm_object_t object)
 }
 
 /*
- *	vm_object_page_remove: [internal]
+ *	vm_object_page_remove:
  *
- *	Removes all physical pages in the specified
- *	object range from the object's list of pages.
+ *	Removes all physical pages in the given range from the
+ *	object's list of pages.  If the range's end is zero, all
+ *	physical pages from the range's start to the end of the object
+ *	are deleted.
  *
  *	The object must be locked.
  */
@@ -1716,7 +1718,7 @@ again:
 	 * or (2) NULL.
 	 */
 	for (;
-	     p != NULL && p->pindex < end;
+	     p != NULL && (p->pindex < end || end == 0);
 	     p = next) {
 		next = TAILQ_NEXT(p, listq);
 
