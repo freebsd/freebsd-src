@@ -329,7 +329,7 @@ automatically set up.  Otherwise, the announcement is rejected.  The
 default value is 0.  To set "net.inet6.ip6.accept_rtadv" to 1, execute
 as follows:
 
-# sysctl -w net.inet6.ip6.accept_rtadv=1
+# sysctl net.inet6.ip6.accept_rtadv=1
 
 
 <<<gifconfig>>>
