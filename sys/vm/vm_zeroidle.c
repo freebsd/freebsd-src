@@ -10,78 +10,49 @@
  * $FreeBSD$
  */
 
-#ifdef	__i386__
-#include "opt_npx.h"
-#ifdef PC98
-#include "opt_pc98.h"
-#endif
-#include "opt_reset.h"
-#include "opt_isa.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
 #include <sys/kernel.h>
-#include <sys/ktr.h>
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/vmmeter.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/unistd.h>
-
-#include <machine/cpu.h>
-#include <machine/md_var.h>
-#include <machine/pcb.h>
-#ifdef	__i386__
-#include <machine/pcb_ext.h>
-#include <machine/vm86.h>
-#endif
+#include <sys/kthread.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-
-#include <sys/user.h>
-
-#ifdef	__i386__
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#endif
 
 SYSCTL_DECL(_vm_stats_misc);
 
 static int cnt_prezero;
-
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 
+static int idlezero_enable = 0;
+SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
+TUNABLE_INT("vm.idlezero_enable", &idlezero_enable);
+
+static int idlezero_maxrun = 16;
+SYSCTL_INT(_vm, OID_AUTO, idlezero_maxrun, CTLFLAG_RW, &idlezero_maxrun, 0, "");
+TUNABLE_INT("vm.idlezero_maxrun", &idlezero_maxrun);
+
 /*
  * Implement the pre-zeroed page mechanism.
- * This routine is called from the idle loop.
  */
 
 #define ZIDLE_LO(v)	((v) * 2 / 3)
 #define ZIDLE_HI(v)	((v) * 4 / 5)
 
-int
-vm_page_zero_idle(void)
-{
-	static int free_rover;
-	static int zero_state;
-	vm_page_t m;
+static int zero_state;
 
+static int
+vm_page_zero_check(void)
+{
+
+	if (!idlezero_enable)
+		return 0;
 	/*
 	 * Attempt to maintain approximately 1/2 of our free pages in a
 	 * PG_ZERO'd state.   Add some hysteresis to (attempt to) avoid
@@ -90,34 +61,89 @@ vm_page_zero_idle(void)
 	 * fast sleeps.  We also do not want to be continuously zeroing
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
-
 	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
-		return(0);
+		return 0;
 	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
-		return(0);
-
-	if (mtx_trylock(&Giant)) {
-		zero_state = 0;
-		m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
-		if (m != NULL && (m->flags & PG_ZERO) == 0) {
-			vm_page_queues[m->queue].lcnt--;
-			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
-			m->queue = PQ_NONE;
-			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-			vm_page_flag_set(m, PG_ZERO);
-			m->queue = PQ_FREE + m->pc;
-			vm_page_queues[m->queue].lcnt++;
-			TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m,
-			    pageq);
-			++vm_page_zero_count;
-			++cnt_prezero;
-			if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
-				zero_state = 1;
-		}
-		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
-		mtx_unlock(&Giant);
-		return (1);
-	}
-	return(0);
+		return 0;
+	return 1;
 }
 
+static int
+vm_page_zero_idle(void)
+{
+	static int free_rover;
+	vm_page_t m;
+
+	mtx_lock(&Giant);
+	zero_state = 0;
+	m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
+	if (m != NULL && (m->flags & PG_ZERO) == 0) {
+		vm_page_queues[m->queue].lcnt--;
+		TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
+		m->queue = PQ_NONE;
+		/* maybe drop out of Giant here */
+		pmap_zero_page(VM_PAGE_TO_PHYS(m));
+		/* and return here */
+		vm_page_flag_set(m, PG_ZERO);
+		m->queue = PQ_FREE + m->pc;
+		vm_page_queues[m->queue].lcnt++;
+		TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m,
+		    pageq);
+		++vm_page_zero_count;
+		++cnt_prezero;
+		if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
+			zero_state = 1;
+	}
+	free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
+	mtx_unlock(&Giant);
+	return 1;
+}
+
+
+/* Called by vm_page_free to hint that a new page is available */
+void
+vm_page_zero_idle_wakeup(void)
+{
+
+	if (vm_page_zero_check())
+		wakeup(&zero_state);
+}
+
+static void
+vm_pagezero(void)
+{
+	struct proc *p = curproc;
+	struct rtprio rtp;
+	int pages = 0;
+
+	rtp.prio = RTP_PRIO_MAX;
+	rtp.type = RTP_PRIO_IDLE;
+	PROC_LOCK(p);
+	rtp_to_pri(&rtp, &p->p_pri);
+	PROC_UNLOCK(p);
+
+	for (;;) {
+		if (vm_page_zero_check()) {
+			pages += vm_page_zero_idle();
+			if (pages > idlezero_maxrun) {
+				mtx_lock_spin(&sched_lock);
+				setrunqueue(p);
+				p->p_stats->p_ru.ru_nvcsw++;
+				mi_switch();
+				mtx_unlock_spin(&sched_lock);
+				pages = 0;
+			}
+		} else {
+			tsleep(&zero_state, PPAUSE, "pgzero", hz * 300);
+			pages = 0;
+		}
+	}
+}
+
+static struct proc *pagezero;
+static struct kproc_desc pagezero_kp = {
+	 "pagezero",
+	 vm_pagezero,
+	 &pagezero
+};
+SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &pagezero_kp)

@@ -477,6 +477,7 @@ vm_page_free(vm_page_t m)
 {
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_free_toq(m);
+	vm_page_zero_idle_wakeup();
 }
 
 /*
