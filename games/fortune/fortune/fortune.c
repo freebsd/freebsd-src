@@ -199,8 +199,7 @@ char	*av[];
 #endif
 
 	init_prob();
-	if (srandomdev() < 0)
-		srandom((unsigned long)(time((time_t *) NULL) ^ getpid()));
+	srandomdev();
 	do {
 		get_fort();
 	} while ((Short_only && fortlen() > SLEN) ||
