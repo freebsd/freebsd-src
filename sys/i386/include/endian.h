@@ -40,6 +40,10 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
@@ -67,7 +71,17 @@
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#ifdef __GNUC__
+#if defined(__INTEL_COMPILER)
+#if defined(__cplusplus)
+#if __INTEL_COMPILER >= 800
+#define __INTEL_COMPILER_with_FreeBSD_endian 1
+#endif
+#else
+#define __INTEL_COMPILER_with_FreeBSD_endian 1
+#endif
+#endif
+
+#if defined(__GNUC__) || defined(__INTEL_COMPILER_with_FreeBSD_endian)
 
 #define __word_swap_int_var(x) \
 __extension__ ({ register __uint32_t __X = (x); \
@@ -168,7 +182,7 @@ __bswap16(__uint16_t _x)
 #define	__ntohl(x)	__bswap32(x)
 #define	__ntohs(x)	__bswap16(x)
 
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER_with_FreeBSD_endian) */
 
 /*
  * No optimizations are available for this compiler.  Fall back to
@@ -177,6 +191,10 @@ __bswap16(__uint16_t _x)
  */
 #define	_BYTEORDER_FUNC_DEFINED
 
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER_with_FreeBSD_endian */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_MACHINE_ENDIAN_H_ */

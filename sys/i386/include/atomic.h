@@ -75,7 +75,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 /*
  * For userland, assume the SMP case and use lock prefixes so that
@@ -101,12 +101,12 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 
 #define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)				\
 extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 
 /*
  * Atomic compare and set, used by the mutex functions
@@ -116,7 +116,7 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * Returns 0 on failure, non-zero on success
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 #if defined(I386_CPU) || defined(CPU_DISABLE_CMPXCHG)
 
@@ -168,9 +168,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #endif /* defined(I386_CPU) */
 
-#endif /* defined(__GNUC__) */
+#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 #if defined(I386_CPU)
 
@@ -226,7 +226,7 @@ struct __hack
 
 #endif	/* defined(I386_CPU) */
 
-#else /* !defined(__GNUC__) */
+#else /* !(defined(__GNUC__) || defined(__INTEL_COMPILER)) */
 
 extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
 
@@ -234,7 +234,7 @@ extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
 extern u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p);		\
 extern void atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* defined(__GNUC__) */
+#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
 
 #endif /* KLD_MODULE */
 
@@ -410,7 +410,7 @@ ATOMIC_PTR(subtract)
 
 #undef ATOMIC_PTR
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
@@ -442,12 +442,12 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 
-#else /* !defined(__GNUC__) */
+#else /* !(defined(__GNUC__) || defined(__INTEL_COMPILER)) */
 
 extern u_long	atomic_readandclear_long(volatile u_long *);
 extern u_int	atomic_readandclear_int(volatile u_int *);
 
-#endif /* defined(__GNUC__) */
+#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */

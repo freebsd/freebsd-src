@@ -82,7 +82,7 @@ extern int	mcount_lock;
 
 #define	_MCOUNT_DECL static __inline void _mcount
 
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define	MCOUNT								\
 void									\
 mcount()								\
@@ -105,13 +105,13 @@ mcount()								\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
 }
-#else	/* __GNUC__ */
+#else	/* !(__GNUC__ || __INTEL_COMPILER) */
 #define	MCOUNT		\
 void			\
 mcount()		\
 {			\
 }
-#endif	/* __GNUC__ */
+#endif	/* __GNUC__ || __INTEL_COMPILER */
 
 typedef	unsigned int	uintfptr_t;
 
@@ -145,7 +145,7 @@ void	stopguprof(struct gmonparam *p);
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 void	mcount(void) __asm(".mcount");
 #endif
 __END_DECLS

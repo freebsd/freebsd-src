@@ -697,7 +697,7 @@ void    iir_free(struct gdt_softc *);
 void    iir_attach(struct gdt_softc *);
 void    iir_intr(void *arg);
 
-#ifdef __GNUC__
+#if defined( __GNUC__) || defined(__INTEL_COMPILER)
 /* These all require correctly aligned buffers */
 static __inline__ void gdt_enc16(u_int8_t *, u_int16_t);
 static __inline__ void gdt_enc32(u_int8_t *, u_int32_t);

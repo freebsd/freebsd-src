@@ -225,7 +225,7 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(__i386__) && __GNUC__ >= 2
+#if defined(__i386__) && (__GNUC__ >= 2 || defined(__INTEL_COMPILER))
 		__asm("pushl %0; call __mcount; popl %%ecx"
 		      :
 		      : "i" (profil)
@@ -238,7 +238,7 @@ kmstartup(dummy)
 
 	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
-#if defined(__i386__) && __GNUC__ >= 2
+#if defined(__i386__) && (__GNUC__ >= 2 || defined(__INTEL_COMPILER))
 		    __asm("call " __XSTRING(HIDENAME(mexitcount)) "; 1:"
 			  : : : "ax", "bx", "cx", "dx", "memory");
 	__asm("movl $1b,%0" : "=rm" (tmp_addr));
@@ -550,7 +550,7 @@ out:
 	PROC_UNLOCK(p);
 }
 
-#if defined(__i386__) && __GNUC__ >= 2
+#if defined(__i386__) && __GNUC__ >= 2 && !defined(__INTEL_COMPILER)
 /*
  * Support for "--test-coverage --profile-arcs" in GCC.
  *
