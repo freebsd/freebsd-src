@@ -237,9 +237,6 @@ struct sigaction {
 #define	SA_NOCLDWAIT	0x0020	/* don't keep zombies around */
 #define	SA_SIGINFO	0x0040	/* signal handler with SA_SIGINFO args */
 #endif
-#if __BSD_VISIBLE
-/* XXX dubious. */
-#endif
 
 #if __BSD_VISIBLE
 #define	NSIG		32	/* number of old signals (counting 0) */
