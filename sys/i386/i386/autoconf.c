@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.32 1995/05/29 04:08:13 davidg Exp $
+ *	$Id: autoconf.c,v 1.33 1995/05/30 07:59:14 rgrimes Exp $
  */
 
 /*
@@ -94,6 +94,11 @@ u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #include "pci.h"
 #if NPCI > 0
       #include <pci/pcivar.h>
+#endif
+
+#include "crd.h"
+#if NCRD > 0
+void	pccard_configure();
 #endif
 
 #ifdef CD9660
@@ -167,6 +172,10 @@ configure()
 
 #if NPCI > 0
 	pci_configure();
+#endif
+
+#if NCRD > 0
+	pccard_configure();
 #endif
 
 	configure_finish();
