@@ -414,7 +414,7 @@ ip_input(struct mbuf *m)
 	/*
 	 * Check for RFC3514 (EVIL) packets.
 	 */
-	if (ip->ip_off & IP_EVIL) {
+	if (ip->ip_off & IP_EF) {
 		ipstat.ips_evil++;
 		if (hear_no_evil)
 			goto bad;
