@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 1.2 1995/04/12 18:57:37 ache Exp $";
+static char rcsid[] = "$Id: do_command.c,v 1.3 1995/04/13 20:58:13 ache Exp $";
 #endif
 
 
@@ -94,35 +94,6 @@ child_process(e, u)
 	 */
 	usernm = env_get("LOGNAME", e->envp);
 	mailto = env_get("MAILTO", e->envp);
-	if (mailto != NULL && *mailto) {
-		char *head, *next;
-		int address_found = 0;
-
-		head = mailto;
-		while (isspace(*head))
-			head++;
-		for ( ; (next = strpbrk(head, " \t")) != NULL; head = next) {
-			next++;
-			while (isspace(*next))
-				next++;
-			address_found = 1;
-			if (*head == '-') {
-				mailto = NULL;
-				break;
-			}
-		}
-		if (mailto != NULL && *head) {
-			address_found = 1;
-			if (*head == '-')
-				mailto = NULL;
-		}
-		if (!address_found)
-			mailto = "";
-		if (mailto == NULL) {
-			log_it("CRON",getpid(), usernm, "attempts to crack");
-			exit(ERROR_EXIT);
-		}
-	}
 
 #ifdef USE_SIGCHLD
 	/* our parent is watching for our death by catching SIGCHLD.  we
@@ -396,7 +367,7 @@ child_process(e, u)
 
 				(void) gethostname(hostname, MAXHOSTNAMELEN);
 				(void) sprintf(mailcmd, MAILARGS,
-					       MAILCMD, mailto);
+					       MAILCMD);
 				if (!(mail = cron_popen(mailcmd, "w"))) {
 					perror(MAILCMD);
 					(void) _exit(ERROR_EXIT);
