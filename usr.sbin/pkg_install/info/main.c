@@ -1,5 +1,6 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.10 1995/10/25 15:38:29 jkh Exp $";
+static const char rcsid[] =
+	"$Id: main.c,v 1.10.2.1 1997/08/29 05:15:41 imp Exp $";
 #endif
 
 /*
@@ -23,6 +24,7 @@ static char *rcsid = "$Id: main.c,v 1.10 1995/10/25 15:38:29 jkh Exp $";
  *
  */
 
+#include <err.h>
 #include "lib.h"
 #include "info.h"
 
@@ -35,15 +37,16 @@ char *InfoPrefix	= "";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
 
+static void usage __P((void));
+
 int
 main(int argc, char **argv)
 {
     int ch;
     char **pkgs, **start;
-    char *prog_name = argv[0];
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) !=  -1)
+    while ((ch = getopt(argc, argv, Options)) != -1)
 	switch(ch) {
 	case 'a':
 	    AllInstalled = TRUE;
@@ -123,7 +126,7 @@ main(int argc, char **argv)
 	case 'h':
 	case '?':
 	default:
-	    usage(prog_name, NULL);
+	    usage();
 	    break;
 	}
 
@@ -140,42 +143,17 @@ main(int argc, char **argv)
 
     /* If no packages, yelp */
     if (pkgs == start && !AllInstalled && !CheckPkg)
-	usage(prog_name, "Missing package name(s)");
+	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
     return pkg_perform(start);
 }
 
-void
-usage(const char *name, const char *fmt, ...)
+static void
+usage()
 {
-    va_list args;
-
-    va_start(args, fmt);
-    if (fmt) {
-	fprintf(stderr, "%s: ", name);
-	vfprintf(stderr, fmt, args);
-	fprintf(stderr, "\n\n");
-    }
-    va_end(args);
-    fprintf(stderr, "Usage: %s [args] pkg [ .. pkg ]\n", name);
-    fprintf(stderr, "Where args are one or more of:\n\n");
-    fprintf(stderr, "-a         show all installed packages (if any)\n");
-    fprintf(stderr, "-I         print 'index' of packages\n");
-    fprintf(stderr, "-c         print `one line comment'\n");
-    fprintf(stderr, "-d         print description\n");
-    fprintf(stderr, "-D         print install notice\n");
-    fprintf(stderr, "-f         show packing list\n");
-    fprintf(stderr, "-i         show install script\n");
-    fprintf(stderr, "-k         show deinstall script\n");
-    fprintf(stderr, "-r         show requirements script\n");
-    fprintf(stderr, "-R         show packages depending on this package\n");
-    fprintf(stderr, "-p         show prefix\n");
-    fprintf(stderr, "-l <str>   Prefix each info catagory with <str>\n");
-    fprintf(stderr, "-L         show intalled files\n");
-    fprintf(stderr, "-q         minimal output (``quiet'' mode)\n");
-    fprintf(stderr, "-v         show all information\n");
-    fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
-    fprintf(stderr, "-e pkg     returns 0 if pkg is installed, 1 otherwise\n");
-    fprintf(stderr, "\n[no args = -c -d -R]\n");
+    fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: pkg_info [-cdDikrRpLqImv] [-e package] [-l prefix]",
+	"                pkg-name [pkg-name ...]",
+	"       pkg_info -a [flags]");
     exit(1);
 }
