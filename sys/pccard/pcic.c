@@ -686,27 +686,36 @@ pcic_reset(void *chan)
 	struct slot *slt = chan;
 	struct pcic_slot *sp = slt->cdata;
 
-	printf("reset %d\n", slt->insert_seq);
+	if (bootverbose)
+		device_printf(sp->sc->dev, "reset %d ", slt->insert_seq);
 	switch (slt->insert_seq) {
 	case 0: /* Something funny happended on the way to the pub... */
+		if (bootverbose)
+			printf("\n");
 		return;
 	case 1: /* Assert reset */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
-		printf("int is %x stat is %x\n", sp->getb(sp, PCIC_INT_GEN),
-		    sp->getb(sp, PCIC_STATUS));
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		slt->insert_seq = 2;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	case 2: /* Deassert it again */
 		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET | PCIC_IOCARD);
-		printf("int is %x stat is %x\n", sp->getb(sp, PCIC_INT_GEN),
-		    sp->getb(sp, PCIC_STATUS));
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		slt->insert_seq = 3;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	case 3: /* Wait if card needs more time */
-		printf("int is %x stat is %x\n", sp->getb(sp, PCIC_INT_GEN),
-		    sp->getb(sp, PCIC_STATUS));
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
 			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
