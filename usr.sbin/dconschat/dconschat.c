@@ -50,6 +50,7 @@
 #include <netdb.h>
 #include <err.h>
 #include <string.h>
+#include <sys/eui64.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <arpa/telnet.h>
@@ -809,11 +810,11 @@ main(int argc, char **argv)
 {
 	struct dcons_state *dc;
 	struct fw_eui64 eui;
+	struct eui64 target;
 	char devname[256], *core = NULL, *system = NULL;
 	int i, ch, error;
 	int unit=0, wildcard=0;
 	int port[DCONS_NPORT];
-	u_int64_t target = 0;
 
 	bzero(&sc, sizeof(sc));
 	dc = &sc;
@@ -841,9 +842,11 @@ main(int argc, char **argv)
 			dc->flags |= F_REPLAY;
 			break;
 		case 't':
-			target = strtoull(optarg, NULL, 0);
-			eui.hi = target >> 32;
-			eui.lo = target & (((u_int64_t)1 << 32) - 1);
+			if (eui64_hostton(optarg, &target) != 0 &&
+			    eui64_aton(optarg, &target) != 0)
+				errx(1, "invalid target: %s", optarg);
+			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
+			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
 			dc->type = TYPE_FW;
 			break;
 		case 'u':

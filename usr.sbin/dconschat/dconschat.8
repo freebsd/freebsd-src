@@ -157,9 +157,9 @@ bus follow.
 .Bd -literal -offset indent
 # fwcontrol
 2 devices (info_len=2)
-node        EUI64        status
-   1  0x7766554433221100      0
-   0  0x0011223344556677      1
+node           EUI64          status
+   1  77-66-55-44-33-22-11-00      0
+   0  00-11-22-33-44-55-66-77      1
 .Ed
 .Pp
 The EUI64 doesn't change unless you change the hardware
@@ -168,7 +168,7 @@ as the ethernet address.
 Now we can run the
 .Nm .
 .Bd -literal -offset indent
-# dconschat -br -G 12345 -t 0x00112233445566677
+# dconschat -br -G 12345 -t 00-11-22-33-44-55-66-77
 .Ed
 .Pp
 You'll get console output of the target and login prompt if a getty is
@@ -213,7 +213,7 @@ console local {
 console remote {
 	master localhost;
 	type exec;
-	exec /usr/sbin/dconschat -rh 25 -t 0x0011223344556677;
+	exec /usr/sbin/dconschat -rh 25 -t 00-11-22-33-44-55-66-77;
 }
 .Ed
 .Sh FILES
@@ -232,6 +232,7 @@ console remote {
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
 .Xr gdb 4 ,
+.Xr eui64 5 ,
 .Xr fwcontrol 8
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
