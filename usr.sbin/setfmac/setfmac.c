@@ -54,7 +54,7 @@ struct label_spec {
 		regex_t regex;	/* compiled regular expression to match */
 		char *regexstr;	/* uncompiled regular expression */
 		mode_t mode;	/* mode to possibly match */
-		char *modestr;	/* print-worthy ",-?" mode string */
+		const char *modestr;	/* print-worthy ",-?" mode string */
 		char *mactext;	/* MAC label to apply */
 		int flags;	/* miscellaneous flags */
 #define		F_DONTLABEL	0x01
@@ -195,13 +195,13 @@ usage(int is_setfmac)
 	exit(1);
 }
 
-int
+static int
 chomp_line(char **line, size_t *linesize)
 {
 	char *s;
 	int freeme = 0;
 	
-	for (s = *line; s - *line < *linesize; s++) {
+	for (s = *line; (unsigned)(s - *line) < *linesize; s++) {
 		if (!isspace(*s))
 			break;
 	}
