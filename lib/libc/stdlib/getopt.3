@@ -130,7 +130,7 @@ by the option
 .Ql --
 (double dash) which causes
 .Fn getopt
-to signal the end of argument processing and returns \-1.
+to signal the end of argument processing and return \-1.
 When all options have been processed (i.e., up to the first non-option
 argument),
 .Fn getopt
@@ -177,7 +177,7 @@ int bflag, ch, fd;
 
 bflag = 0;
 while ((ch = getopt(argc, argv, "bf:")) != -1)
-	switch(ch) {
+	switch (ch) {
 	case 'b':
 		bflag = 1;
 		break;
@@ -247,8 +247,8 @@ The following code fragment works in most cases.
 int length;
 char *p;
 
-while ((c = getopt(argc, argv, "0123456789")) != -1)
-	switch (c) {
+while ((ch = getopt(argc, argv, "0123456789")) != -1)
+	switch (ch) {
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
 		p = argv[optind - 1];
@@ -258,5 +258,4 @@ while ((c = getopt(argc, argv, "0123456789")) != -1)
 			length = atoi(argv[optind] + 1);
 		break;
 	}
-}
 .Ed
