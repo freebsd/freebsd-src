@@ -3028,7 +3028,6 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 	 * wary about trying to figure out the actual block location value
 	 * if data is in the tape drive buffer.
 	 */
-	ccb = cam_periph_getccb(periph, 1);
 
 	if (softc->flags & SA_FLAG_TAPE_WRITTEN) {
 		error = sawritefilemarks(periph, 0, 0);
@@ -3036,6 +3035,7 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 			return (error);
 	}
 
+	ccb = cam_periph_getccb(periph, 1);
 	scsi_read_position(&ccb->csio, 1, sadone, MSG_SIMPLE_Q_TAG,
 	    hard, &loc, SSD_FULL_SIZE, 5000);
 	softc->dsreg = MTIO_DSREG_RBSY;
