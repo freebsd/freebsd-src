@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/types.h>
 #include <rpc/rpc.h>
 #include "yp.h"
 #ifndef lint
@@ -9,6 +10,7 @@ static char rcsid[] = "yp.x,v 1.1 1994/08/04 19:01:55 wollman Exp";
 static void ypprog_2();
 static void yppush_xfrrespprog_1();
 static void ypbindprog_2();
+extern void Perror __P((const char *, ...));
 
 main()
 {
@@ -20,41 +22,41 @@ main()
 
 	transp = svcudp_create(RPC_ANYSOCK);
 	if (transp == NULL) {
-		(void)fprintf(stderr, "cannot create udp service.\n");
+		Perror("cannot create udp service.\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, IPPROTO_UDP)) {
-		(void)fprintf(stderr, "unable to register (YPPROG, YPVERS, udp).\n");
+		Perror("unable to register (YPPROG, YPVERS, udp).\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, yppush_xfrrespprog_1, IPPROTO_UDP)) {
-		(void)fprintf(stderr, "unable to register (YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, udp).\n");
+		Perror("unable to register (YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, udp).\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPBINDPROG, YPBINDVERS, ypbindprog_2, IPPROTO_UDP)) {
-		(void)fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, udp).\n");
+		Perror("unable to register (YPBINDPROG, YPBINDVERS, udp).\n");
 		exit(1);
 	}
 
 	transp = svctcp_create(RPC_ANYSOCK, 0, 0);
 	if (transp == NULL) {
-		(void)fprintf(stderr, "cannot create tcp service.\n");
+		Perror("cannot create tcp service.\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, IPPROTO_TCP)) {
-		(void)fprintf(stderr, "unable to register (YPPROG, YPVERS, tcp).\n");
+		Perror("unable to register (YPPROG, YPVERS, tcp).\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, yppush_xfrrespprog_1, IPPROTO_TCP)) {
-		(void)fprintf(stderr, "unable to register (YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, tcp).\n");
+		Perror("unable to register (YPPUSH_XFRRESPPROG, YPPUSH_XFRRESPVERS, tcp).\n");
 		exit(1);
 	}
 	if (!svc_register(transp, YPBINDPROG, YPBINDVERS, ypbindprog_2, IPPROTO_TCP)) {
-		(void)fprintf(stderr, "unable to register (YPBINDPROG, YPBINDVERS, tcp).\n");
+		Perror("unable to register (YPBINDPROG, YPBINDVERS, tcp).\n");
 		exit(1);
 	}
 	svc_run();
-	(void)fprintf(stderr, "svc_run returned\n");
+	Perror("svc_run returned\n");
 	exit(1);
 }
 
@@ -166,7 +168,7 @@ ypprog_2(rqstp, transp)
 		svcerr_systemerr(transp);
 	}
 	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
+		Perror("unable to free arguments\n");
 		exit(1);
 	}
 }
@@ -211,7 +213,7 @@ yppush_xfrrespprog_1(rqstp, transp)
 		svcerr_systemerr(transp);
 	}
 	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
+		Perror("unable to free arguments\n");
 		exit(1);
 	}
 }
@@ -263,7 +265,7 @@ ypbindprog_2(rqstp, transp)
 		svcerr_systemerr(transp);
 	}
 	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
+		Perror("unable to free arguments\n");
 		exit(1);
 	}
 }
