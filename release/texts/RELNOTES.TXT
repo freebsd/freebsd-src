@@ -85,6 +85,9 @@ the nlpt driver will be renamed to lpt.
 
 Support has been added for direct access to NTFS filesystems.
 
+Support has been added for Joliet extensions on ISO 9660 filesystems.
+Only iso8859-1 characters (latin-1) are supported at this time, though.
+
 1.2. SECURITY FIXES
 -------------------
 See ftp://ftp.freebsd.org/pub/FreeBSD/CERT/ for details:
@@ -495,7 +498,14 @@ been already been ported to other ELF environments (our older and
 somewhat crufty a.out format being largely unsupported by most other
 software projects).  Those who wish to retain access to the older
 a.out dynamic executables should be sure and install the compat22
-distribution.
+distribution. Notice that the a.out libraries won't be accessible
+until the system is rebooted, which may cause trouble with certain
+a.out packages.
+
+Also, do not use install disks or sysinstall from previous versions,
+as version 3.1 introduced a new bootstrapping procedure, requiring
+new boot blocks to be installed (because of elf kernels), and version
+3.2 has further modifications to the bootstrapping procedure.
 
 [ other important upgrading notes should go here]
 
