@@ -66,7 +66,12 @@ extern const union __nan_un {
 
 #define	MATH_ERRNO	1
 #define	MATH_ERREXCEPT	2
-#define	math_errhandling	0
+#define	math_errhandling	MATH_ERREXCEPT
+
+#ifdef	__ia64__
+#define	FP_FAST_FMA
+#endif
+#define	FP_FAST_FMAF
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
@@ -195,11 +200,9 @@ struct exception {
 #endif /* __BSD_VISIBLE */
 
 /*
- * Most of these functions have the side effect of setting errno, so they
- * are not declared as __pure2.  (XXX: this point needs to be revisited,
- * since C99 doesn't require the mistake of setting errno, and we mostly
- * don't set it anyway.  In C99, pragmas and functions for changing the
- * rounding mode affect the purity of these functions.)
+ * Most of these functions depend on the rounding mode and have the side
+ * effect of raising floating-point exceptions, so they are not declared
+ * as __pure2.  In C99, FENV_ACCESS affects the purity of these functions.
  */
 __BEGIN_DECLS
 /*
@@ -244,36 +247,36 @@ double	pow(double, double);
 double	sqrt(double);
 
 double	ceil(double);
-double	fabs(double);
+double	fabs(double) __pure2;
 double	floor(double);
 double	fmod(double, double);
 
 /*
- * These functions are not in C90 so they can be "right".  The ones that
- * never set errno in lib/msun are declared as __pure2.
+ * These functions are not in C90.
  */
 #if __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE
 double	acosh(double);
 double	asinh(double);
 double	atanh(double);
-double	cbrt(double) __pure2;
+double	cbrt(double);
 double	erf(double);
-double	erfc(double) __pure2;
-double	expm1(double) __pure2;
+double	erfc(double);
+double	expm1(double);
 double	hypot(double, double);
-int	ilogb(double);
+/* Our ilogb raises no exceptions; we side with IEEE-754R and C99, not POSIX */
+int	ilogb(double) __pure2;
 int	(isinf)(double) __pure2;
 int	(isnan)(double) __pure2;
 double	lgamma(double);
 long long llrint(double);
 long long llround(double);
-double	log1p(double) __pure2;
-double	logb(double) __pure2;
+double	log1p(double);
+double	logb(double);
 long	lrint(double);
 long	lround(double);
 double	nextafter(double, double);
 double	remainder(double, double);
-double	rint(double) __pure2;
+double	rint(double);
 #endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
 #if __BSD_VISIBLE || __XSI_VISIBLE
@@ -295,7 +298,7 @@ double	copysign(double, double) __pure2;
 double	fdim(double, double);
 double	fmax(double, double) __pure2;
 double	fmin(double, double) __pure2;
-double	nearbyint(double) __pure2;
+double	nearbyint(double);
 double	round(double);
 double	scalbln(double, long);
 double	scalbn(double, int);
@@ -343,12 +346,12 @@ float	sinhf(float);
 float	tanhf(float);
 
 float	expf(float);
-float	expm1f(float) __pure2;
+float	expm1f(float);
 float	frexpf(float, int *);	/* fundamentally !__pure2 */
-int	ilogbf(float);
+int	ilogbf(float) __pure2;
 float	ldexpf(float, int);
 float	log10f(float);
-float	log1pf(float) __pure2;
+float	log1pf(float);
 float	logf(float);
 float	modff(float, float *);	/* fundamentally !__pure2 */
 
@@ -356,27 +359,27 @@ float	powf(float, float);
 float	sqrtf(float);
 
 float	ceilf(float);
-float	fabsf(float);
+float	fabsf(float) __pure2;
 float	floorf(float);
 float	fmodf(float, float);
 float	roundf(float);
 
 float	erff(float);
-float	erfcf(float) __pure2;
-float	hypotf(float, float) __pure2;
+float	erfcf(float);
+float	hypotf(float, float);
 float	lgammaf(float);
 
 float	acoshf(float);
 float	asinhf(float);
 float	atanhf(float);
-float	cbrtf(float) __pure2;
-float	logbf(float) __pure2;
+float	cbrtf(float);
+float	logbf(float);
 float	copysignf(float, float) __pure2;
 long long llrintf(float);
 long long llroundf(float);
 long	lrintf(float);
 long	lroundf(float);
-float	nearbyintf(float) __pure2;
+float	nearbyintf(float);
 float	nextafterf(float, float);
 float	remainderf(float, float);
 float	rintf(float);
@@ -431,9 +434,9 @@ long double	atan2l(long double, long double);
 long double	atanhl(long double);
 long double	atanl(long double);
 long double	cbrtl(long double);
-long double	ceill(long double);
 #endif
-long double	copysignl(long double, long double);
+long double	ceill(long double);
+long double	copysignl(long double, long double) __pure2;
 #if 0
 long double	coshl(long double);
 long double	cosl(long double);
@@ -443,19 +446,21 @@ long double	exp2l(long double);
 long double	expl(long double);
 long double	expm1l(long double);
 #endif
-long double	fabsl(long double);
+long double	fabsl(long double) __pure2;
 long double	fdiml(long double, long double);
-#if 0
 long double	floorl(long double);
+#if 0
 long double	fmal(long double, long double, long double);
 #endif
 long double	fmaxl(long double, long double) __pure2;
 long double	fminl(long double, long double) __pure2;
 #if 0
 long double	fmodl(long double, long double);
-long double	frexpl(long double	value, int *);
+long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
 long double	hypotl(long double, long double);
-int		ilogbl(long double);
+#endif
+int		ilogbl(long double) __pure2;
+#if 0
 long double	ldexpl(long double, int);
 long double	lgammal(long double);
 long long	llrintl(long double);
@@ -467,8 +472,8 @@ long double	logbl(long double);
 long double	logl(long double);
 long		lrintl(long double);
 long		lroundl(long double);
-long double	modfl(long double, long double	*);
-long double	nanl(const char *);
+long double	modfl(long double, long double *); /* fundamentally !__pure2 */
+long double	nanl(const char *) __pure2;
 long double	nearbyintl(long double);
 long double	nextafterl(long double, long double);
 double		nexttoward(double, long double);
