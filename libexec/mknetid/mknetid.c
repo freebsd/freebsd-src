@@ -55,7 +55,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mknetid.c,v 1.8 1997/11/24 07:31:31 charnier Exp $";
 #endif /* not lint */
 
 #define LINSIZ 1024
@@ -91,7 +91,7 @@ usage()
 {
 	fprintf (stderr, "%s\n%s\n",
 	"usage: mknetid [-q] [-g group_file] [-p passwd_file] [-h hosts_file]",
-	"       [-d netid_file] [-d domain]");
+	"               [-d netid_file] [-d domain]");
 	exit(1);
 }
 
