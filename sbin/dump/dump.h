@@ -100,7 +100,6 @@ void	msg __P((const char *fmt, ...)) __printflike(1, 2);
 void	msgtail __P((const char *fmt, ...)) __printflike(1, 2);
 int	query __P((char *question));
 void	quit __P((const char *fmt, ...)) __printflike(1, 2);
-void	set_operators __P((void));
 void	timeest __P((void));
 time_t	unctime __P((char *str));
 
@@ -151,7 +150,6 @@ void	interrupt __P((int signo));	/* in case operator bangs on console */
 #define	X_ABORT		3	/* abort dump; don't attempt checkpointing */
 
 #define	OPGRENT	"operator"		/* group entry to notify */
-#define DIALUP	"ttyd"			/* prefix for dialups */
 
 struct	fstab *fstabsearch __P((char *key));	/* search fs_file and fs_spec */
 

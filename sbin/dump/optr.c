@@ -59,7 +59,6 @@ static const char rcsid[] =
 
 void	alarmcatch __P((/* int, int */));
 int	datesort __P((const void *, const void *));
-static	void sendmes __P((char *, char *));
 
 /*
  *	Query the operator; This previously-fascist piece of code
@@ -117,7 +116,7 @@ query(question)
 	return(back);
 }
 
-char lastmsg[100];
+char lastmsg[BUFSIZ];
 
 /*
  *	Alert the console operator, and enable the alarm clock to
@@ -159,130 +158,33 @@ interrupt(signo)
 }
 
 /*
- *	The following variables and routines manage alerting
- *	operators to the status of dump.
- *	This works much like wall(1) does.
- */
-struct	group *gp;
-
-/*
- *	Get the names from the group entry "operator" to notify.
- */
-void
-set_operators()
-{
-	if (!notify)		/*not going to notify*/
-		return;
-	gp = getgrnam(OPGRENT);
-	(void) endgrent();
-	if (gp == NULL) {
-		msg("No group entry for %s.\n", OPGRENT);
-		notify = 0;
-		return;
-	}
-}
-
-struct tm *localclock;
-
-/*
- *	We fork a child to do the actual broadcasting, so
- *	that the process control groups are not messed up
+ *	We now use wall(1) to do the actual broadcasting.
  */
 void
 broadcast(message)
 	char	*message;
 {
-	time_t		clock;
-	FILE	*f_utmp;
-	struct	utmp	utmp;
-	char	**np;
-	int	pid, s;
+	FILE *fp;
+	char buf[sizeof(_PATH_WALL) + sizeof(OPGRENT) + 3];
 
-	if (!notify || gp == NULL)
+	if (!notify)
 		return;
 
-	switch (pid = fork()) {
-	case -1:
+	snprintf(buf, sizeof(buf), "%s -g %s", _PATH_WALL, OPGRENT);
+	if ((fp = popen(buf, "w")) == NULL)
 		return;
-	case 0:
-		break;
-	default:
-		while (wait(&s) != pid)
-			continue;
-		return;
-	}
 
-	clock = time((time_t *)0);
-	localclock = localtime(&clock);
+	(void) fputs("\a\a\aMessage from the dump program to all operators\n\nDUMP: NEEDS ATTENTION: ", fp);
+	if (lastmsg[0])
+		(void) fputs(lastmsg, fp);
+	if (message[0])
+		(void) fputs(message, fp);
 
-	if ((f_utmp = fopen(_PATH_UTMP, "r")) == NULL) {
-		msg("Cannot open %s: %s\n", _PATH_UTMP, strerror(errno));
-		return;
-	}
-
-	while (!feof(f_utmp)) {
-		if (fread((char *) &utmp, sizeof (struct utmp), 1, f_utmp) != 1)
-			break;
-		if (utmp.ut_name[0] == 0)
-			continue;
-		for (np = gp->gr_mem; *np; np++) {
-			if (strncmp(*np, utmp.ut_name, sizeof(utmp.ut_name)) != 0)
-				continue;
-			/*
-			 *	Do not send messages to operators on dialups
-			 */
-			if (strncmp(utmp.ut_line, DIALUP, strlen(DIALUP)) == 0)
-				continue;
-#ifdef DEBUG
-			msg("Message to %s at %s\n", *np, utmp.ut_line);
-#endif
-			sendmes(utmp.ut_line, message);
-		}
-	}
-	(void) fclose(f_utmp);
-	Exit(0);	/* the wait in this same routine will catch this */
-	/* NOTREACHED */
-}
-
-static void
-sendmes(tty, message)
-	char *tty, *message;
-{
-	char t[MAXPATHLEN], buf[BUFSIZ];
-	register char *cp;
-	int lmsg = 1;
-	FILE *f_tty;
-
-	(void) strcpy(t, _PATH_DEV);
-	(void) strncat(t, tty, sizeof t - strlen(_PATH_DEV) - 1);
-
-	if ((f_tty = fopen(t, "w")) != NULL) {
-		setbuf(f_tty, buf);
-		(void) fprintf(f_tty,
-		    "\n\
-\a\a\aMessage from the dump program to all operators at %d:%02d ...\r\n\n\
-DUMP: NEEDS ATTENTION: ",
-		    localclock->tm_hour, localclock->tm_min);
-		for (cp = lastmsg; ; cp++) {
-			if (*cp == '\0') {
-				if (lmsg) {
-					cp = message;
-					if (*cp == '\0')
-						break;
-					lmsg = 0;
-				} else
-					break;
-			}
-			if (*cp == '\n')
-				(void) putc('\r', f_tty);
-			(void) putc(*cp, f_tty);
-		}
-		(void) fclose(f_tty);
-	}
+	(void) pclose(fp);
 }
 
 /*
- *	print out an estimate of the amount of time left to do the dump
+ *	Print out an estimate of the amount of time left to do the dump
  */
 
 time_t	tschedule = 0;
