@@ -58,6 +58,28 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  * --Copyright--
  */
 
@@ -70,7 +92,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 8.15 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 8.22 1996/12/02 09:17:21 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -347,8 +369,7 @@ main(argc, argv)
 	(void) signal(SIGFPE, SIG_IGN);
 #endif /* SIGUSR1&&SIGUSR2 */
 
-	dprintf(1, (ddt,
-		    "domain `%s'; file `%s'; serial %lu; closed %d\n",
+	dprintf(1, (ddt, "domain `%s'; file `%s'; serial %lu; closed %d\n",
 		    domain, dbfile, (u_long)serial_no, closed));
 
 	buildservicelist();
@@ -425,20 +446,16 @@ main(argc, argv)
 		(void) unlink(tmpname);
 		exit(XFER_UPTODATE);
 
-	case XFER_TIMEOUT:
-#ifdef DEBUG
-		if (!debug)
-#endif
-		    (void) unlink(tmpname);
-		exit(XFER_TIMEOUT);	/* servers not reachable exit */
-
-	case XFER_FAIL:
 	default:
+		result = XFER_FAIL;
+		/* fall through */
+	case XFER_TIMEOUT:
+	case XFER_FAIL:
 #ifdef DEBUG
 		if (!debug)
 #endif
 		    (void) unlink(tmpname);
-		exit(XFER_FAIL);	/* yuck exit */
+		exit(result);	/* error or timeout */
 	}
 	/*NOTREACHED*/
 }
@@ -663,6 +680,7 @@ getzone(zp, serial_no, port)
 				goto tryagain;
 			}
 #endif
+#ifndef ultrix
 			syslog(LOG_NOTICE,
        "[%s] %s for %s, SOA query got rcode %d, aa %d, ancount %d, aucount %d",
 			       inet_ntoa(sin.sin_addr),
@@ -671,6 +689,7 @@ getzone(zp, serial_no, port)
 				: "not authoritative"),
 			       zp->z_origin[0] != '\0' ? zp->z_origin : ".",
 			       hp->rcode, hp->aa, ancount, aucount);
+#endif
 			error++;
 			(void) my_close(s);
 			continue;
@@ -711,13 +730,40 @@ getzone(zp, serial_no, port)
 			(void) my_close(s);
 			continue;
 		}
-		/* ... Answer Section. */
-		n = dn_expand(buf, eom, tmp, name2, sizeof name2);
-		if (n < 0) {
-			badsoa_msg = "aname error";
-			goto badsoa;
-		}
-		tmp += n;
+		/* ... Answer Section.
+		 * We may have to loop a little, to bypass SIG SOA's in
+		 * the response.
+		 */
+		do {
+			u_char *cp4;
+			u_short type, class, dlen;
+			u_long ttl;
+
+			n = dn_expand(buf, eom, tmp, name2, sizeof name2);
+			if (n < 0) {
+				badsoa_msg = "aname error";
+				goto badsoa;
+			}
+			tmp += n;
+
+			/* Are type, class, and ttl OK? */
+			cp4 = tmp;	/* Leave tmp pointing to type field */
+			if (eom - cp4 < 3 * INT16SZ + INT32SZ) {
+				badsoa_msg = "zinfo too short";
+				goto badsoa;
+			}
+			GETSHORT(type, cp4);
+			GETSHORT(class, cp4);
+			GETLONG(ttl, cp4);
+			GETSHORT(dlen, cp4);
+			if (type == T_SOA)
+				break;
+			/* Skip to next record, if any.  */
+			dprintf (1, (ddt, "skipping %s %s RR in response\n",
+				     name2, p_type (type)));
+			tmp = cp4 + dlen;
+		} while (1);
+
 		if (strcasecmp(zp->z_origin, name2) != 0) {
 			syslog(LOG_INFO,
 		       "wrong answer in resp from [%s], zone %s: [%s %s %s]\n",
@@ -860,23 +906,33 @@ getzone(zp, serial_no, port)
 #ifdef STUBS
 			if (zp->z_type == Z_STUB) {
 				ancount = ntohs(hp->ancount);
-				for (cnt = 0 ; cnt < ancount ; cnt++) {
-
+				for (n = cnt = 0 ; cnt < ancount ; cnt++) {
 					n = print_output(buf, bufsize, cp);
+					if (n < 0)
+						break;
 					cp += n;
 				}
-				if (hp->nscount) {
+				if (n >= 0 && hp->nscount) {
 					/* we should not get here */
 					ancount = ntohs(hp->nscount);
 					for (cnt = 0 ; cnt < ancount ; cnt++) {
 					    n = print_output(buf, bufsize, cp);
-						cp += n;
+					    if (n < 0)
+						break;
+					    cp += n;
 					}
 				}
 				ancount = ntohs(hp->arcount);
-				for (cnt = 0 ; cnt < ancount ; cnt ++) {
+				for (cnt = 0 ; n >= 0 && cnt < ancount ; cnt++) {
 					n = print_output(buf, bufsize, cp);
 					cp += n;
+				}
+				if (n < 0) {
+					syslog(LOG_INFO,
+			"print_output: unparseable answer (%d), zone %s",
+						hp->rcode, zp->z_origin);
+					error++;
+					break;
 				}
 				if (cp != eom) {
 					syslog(LOG_INFO,
@@ -889,9 +945,18 @@ getzone(zp, serial_no, port)
 			} else {
 #endif /*STUBS*/
 				ancount = ntohs(hp->ancount);
-				for (cnt = 0; cnt < ancount; cnt++) {
+				for (n = cnt = 0; cnt < ancount; cnt++) {
 					n = print_output(buf, bufsize, cp);
+					if (n < 0)
+						break;
 					cp += n;
+				}
+				if (n < 0) {
+					syslog(LOG_INFO,
+			"print_output: unparseable answer (%d), zone %s",
+						hp->rcode, zp->z_origin);
+					error++;
+					break;
 				}
 				if (cp != eom) {
 					syslog(LOG_INFO,
@@ -1029,7 +1094,7 @@ getzone(zp, serial_no, port)
 #else
 	(void) sigvec(SIGALRM, &osv, (struct sigvec *)0);
 #endif
-	if (error)
+	if (!error)
 		return (XFER_TIMEOUT);
 	return (XFER_FAIL);
 }
@@ -1162,7 +1227,8 @@ print_output(msg, msglen, rrp)
 	int i, j, tab, result, class, type, dlen, n1, n;
 	char data[BUFSIZ];
 	u_char *cp1, *cp2, *temp_ptr;
-	char *cdata, *origin, *proto, dname[MAXDNAME];
+	u_char *cdata;
+	char *origin, *proto, dname[MAXDNAME];
 	char *ignore = "";
 
 	cp = rrp;
@@ -1187,6 +1253,11 @@ print_output(msg, msglen, rrp)
 		    dname, type, class, ttl));
 	/*
 	 * Convert the resource record data into the internal database format.
+	 * CP points to the raw resource record.
+	 * After this switch:
+	 *	CP has been updated to point past the RR.
+	 *	CP1 points to the internal database version.
+ 	 *	N is the length of the internal database version.
 	 */
 	switch (type) {
 	case T_A:
@@ -1201,6 +1272,7 @@ print_output(msg, msglen, rrp)
 	case T_AAAA:
 	case T_UID:
 	case T_GID:
+	case T_KEY:
 		cp1 = cp;
 		n = dlen;
 		cp += n;
@@ -1255,13 +1327,58 @@ print_output(msg, msglen, rrp)
 		cp1 = (u_char *)data;
 		break;
 
+	case T_NAPTR:
+		/* Grab weight and port. */
+		bcopy(cp, data, INT16SZ*2);
+		cp1 = (u_char *) (data + INT16SZ*2);
+		cp += INT16SZ*2;
+ 
+		/* Flags */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+ 
+		/* Service */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+ 
+		/* Regexp */
+		n = *cp++;
+		*cp1++ = n;
+		bcopy(cp, cp1, n);
+		cp += n; cp1 += n;
+ 
+		/* Replacement */
+		n = dn_expand(msg, msg + msglen, cp, (char *)cp1,
+			      sizeof data - ((char *)cp1 - data));
+		if (n < 0)
+			return (-1);
+		cp += n;
+ 
+		/* compute end of data */
+		cp1 += strlen((char *)cp1) + 1;
+		/* compute size of data */
+		n = cp1 - (u_char *)data;
+		cp1 = (u_char *)data;
+		break;
+
 	case T_MX:
 	case T_AFSDB:
 	case T_RT:
+	case T_SRV:
 		/* grab preference */
 		bcopy((char *)cp, data, INT16SZ);
 		cp1 = (u_char *)data + INT16SZ;
 		cp += INT16SZ;
+
+		if (type == T_SRV) {
+			bcopy((char *)cp, data, INT16SZ*2);
+			cp1 += INT16SZ*2;
+			cp += INT16SZ*2;
+		}
 
 		/* get name */
 		n = dn_expand(msg, msg + msglen, cp,
@@ -1302,12 +1419,46 @@ print_output(msg, msglen, rrp)
 		cp1 = (u_char *)data;
 		break;
 
+	case T_SIG:
+	 /* CP is the raw resource record as it arrived.
+	  * CP1, after this switch, points to the internal database version. */
+		cp1 = (u_char *)data;
+
+		/* first just copy over the type_covered, algorithm, */
+		/* labels, orig ttl, two timestamps, and the footprint */
+		bcopy( cp, cp1, 18 );
+		cp  += 18;
+		cp1 += 18;
+
+		/* then the signer's name */
+		n = dn_expand(msg, msg + msglen, cp,
+			      (char *)cp1, (sizeof data) - 18);
+		if (n < 0)
+			return (-1);
+		cp += n;
+		cp1 += strlen((char*)cp1)+1;
+
+		/* finally, we copy over the variable-length signature.
+		   Its size is the total data length, minus what we copied. */
+		n = dlen - (18 + n);
+		if (n > (sizeof data) - (cp1 - (u_char *)data))
+			return (-1);  /* out of room! */
+		bcopy(cp, cp1, n);
+		cp += n;
+		cp1 += n;
+		
+		/* compute size of data */
+		n = cp1 - (u_char *)data;
+		cp1 = (u_char *)data;
+		break;
+
 	default:
 		syslog(LOG_INFO, "\"%s %s %s\" - unknown type (%d)",
 		       dname, p_class(class), p_type(type), type);
 		hp->rcode = NOTIMP;
 		return (-1);
 	}
+
 	if (n > MAXDATA) {
 		dprintf(1, (ddt,
 			    "update type %d: %d bytes is too much data\n",
@@ -1315,7 +1466,7 @@ print_output(msg, msglen, rrp)
 		hp->rcode = FORMERR;
 		return (-1);
 	}
-	cdata = (char *) cp1;
+	cdata = cp1;
 	result = cp - rrp;
 
 	/*
@@ -1424,7 +1575,7 @@ print_output(msg, msglen, rrp)
 		(void) putc('\t', dbfp);
 
 	(void) fprintf(dbfp, "%s\t%s\t", p_class(class), p_type(type));
-	cp = (u_char *) cdata;
+	cp = cdata;
 
 	/*
 	 * Print type specific data
@@ -1455,7 +1606,7 @@ print_output(msg, msglen, rrp)
 		break;
 
 	case T_NS:
-		cp = (u_char *) cdata;
+		cp = cdata;
 		if (cp[0] == '\0')
 			(void) fprintf(dbfp, ".\t");
 		else
@@ -1528,8 +1679,8 @@ print_output(msg, msglen, rrp)
 	case T_TXT:
 	case T_X25:
 		cp1 = cp + n;
-		(void) putc('"', dbfp);
 		while (cp < cp1) {
+			(void) putc('"', dbfp);
 			if (i = *cp++) {
 				for (j = i; j > 0 && cp < cp1; j--) {
 					if (strchr("\n\"\\", *cp))
@@ -1537,8 +1688,11 @@ print_output(msg, msglen, rrp)
 					(void) putc(*cp++, dbfp);
 				}
 			}
+			(void) putc('"', dbfp);
+			if (cp < cp1)
+				(void) putc(' ', dbfp);
 		}
-		(void) fputs("\"\n", dbfp);
+		(void) putc('\n', dbfp);
 		break;
 
 	case T_NSAP:
@@ -1550,16 +1704,64 @@ print_output(msg, msglen, rrp)
 
 		fprintf(dbfp, "%s\n", inet_ntop(AF_INET6, cp, t, sizeof t));
 		break;
-	}
+	    }
 	case T_UINFO:
 		(void) fprintf(dbfp, "\"%s\"\n", cp);
 		break;
 
 #ifdef LOC_RR
-	case T_LOC:
-		(void) fprintf(dbfp, "%s\n", loc_ntoa(cp, NULL));
+	case T_LOC: {
+		char t[255];
+
+		(void) fprintf(dbfp, "%s\n", loc_ntoa(cp, t));
 		break;
+	    }
 #endif /* LOC_RR */
+
+	case T_NAPTR: {
+                u_int order, preference;
+
+		/* Order */
+		GETSHORT(order, cp);
+		fprintf(dbfp, "%lu", (u_long)order);
+ 
+		/* Preference */
+		GETSHORT(preference, cp);
+		fprintf(dbfp, " %lu", (u_long)preference);
+ 
+		/* Flags */
+		if (n = *cp++) {
+			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+			cp += n;
+		}
+
+		/* Service */
+		if (n = *cp++) {
+			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+			cp += n;
+		}
+
+		/* Regexp */
+		if (n = *cp++) {
+			fprintf(dbfp, " \"%.*s\"", (int)n, cp);
+			cp += n;
+		}
+
+		/* Replacement */
+		fprintf(dbfp, " %s.\n", cp);
+ 
+		break;
+	    }
+	case T_SRV: {
+		u_int priority, weight, port;
+
+		GETSHORT(priority, cp);
+		GETSHORT(weight, cp);
+		GETSHORT(port, cp);
+		fprintf(dbfp, "\t%u %u %u %s.\n",
+			priority, weight, port, cp);
+		break;
+	    }
 
 	case T_UID:
 	case T_GID:
@@ -1578,7 +1780,7 @@ print_output(msg, msglen, rrp)
 		cp += sizeof(char);
 		(void) fprintf(dbfp, "%s ", proto);
 		i = 0;
-		while (cp < (u_char *) cdata + n) {
+		while (cp < cdata + n) {
 			j = *cp++;
 			do {
 				if (j & 0200)
@@ -1597,7 +1799,76 @@ print_output(msg, msglen, rrp)
 		(void) fprintf(dbfp, " %s.\n", cp);
 		break;
 
+	case T_KEY: {
+		char databuf[16+MAX_KEY_BASE64];  /* 16 for slop */
+		u_int16_t keyflags;
+
+		/* get & format key flags */
+		keyflags = _getshort(cp);
+		(void) fprintf(dbfp, "0x%04x ", keyflags);
+		cp += INT16SZ;
+
+		/* protocol id */
+		(void) fprintf(dbfp, " %u", *cp++);
+
+		/* algorithm id */
+		(void) fprintf(dbfp, " %u ", *cp++);
+
+		/* key itself (which may have zero length) */
+		n = b64_ntop(cp, (cp1 + n) - cp, databuf, sizeof databuf);
+		if (n < 0)
+			fprintf(dbfp, "; BAD BASE64\n");
+		else
+			fprintf(dbfp, "%s\n", databuf);
+		break;
+	    }
+
+	case T_SIG: {
+		char databuf[16+MAX_KEY_BASE64];  /* 16 for slop */
+
+		/* get & format rr type which signature covers */
+		(void) fprintf(dbfp,"%s", p_type(_getshort((u_char*)cp)));
+		cp += INT16SZ;
+
+		/* algorithm id */
+		(void) fprintf(dbfp," %d",*cp++);
+
+		/* labels (# of labels in name) - skip in textual record */
+		cp++;
+
+		/* orig time to live (TTL)) */
+		(void) fprintf(dbfp," %d", _getlong((u_char*)cp));
+		cp += INT32SZ;
+
+		/* expiration time */
+		(void) fprintf(dbfp," %s", p_secstodate(_getlong((u_char*)cp)));
+		cp += INT32SZ;
+
+		/* time signed */
+		(void) fprintf(dbfp," %s", p_secstodate(_getlong((u_char*)cp)));
+		cp += INT32SZ;
+		
+		/* Key footprint */
+		(void) fprintf(dbfp," %d", _getshort((u_char*)cp));
+		cp += INT16SZ;
+		
+		/* signer's name */
+		(void) fprintf(dbfp, " %s. ", cp);
+		cp += strlen((char *) cp) + 1;
+
+		/* signature itself */
+		n = b64_ntop(cp, (cdata + n) - cp, databuf, sizeof databuf);
+		if (n < 0)
+			fprintf (dbfp, "; BAD BASE64\n");
+		else
+			fprintf (dbfp, "%s\n", databuf);
+		break;
+	   }
+
 	default:
+		cp1 = cp + n;
+		while (cp < cp1)
+			fprintf(dbfp, "0x%02.2X ", *cp++ & 0xFF);
 		(void) fprintf(dbfp, "???\n");
 	}
 	if (ferror(dbfp)) {

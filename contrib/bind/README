@@ -1,7 +1,4 @@
-The official way to get BIND is:	ftp ftp.vix.com
-					cd pub/bind/release
-					binary
-					get bind.tar.gz
+The official place to get BIND is <URL:ftp://ftp.vix.com/pub/bind/release>.
 
 The official mailing lists are:		bind-users@vix.com	- users/admins
   (use *-request@* for admin mail)	bind-workers@vix.com	- developers

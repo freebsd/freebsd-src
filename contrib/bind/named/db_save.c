@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_save.c,v 8.4 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: db_save.c,v 8.6 1996/09/22 00:13:10 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -84,12 +84,12 @@ savename(name, len)
 {
 	register struct namebuf *np;
 
-	assert(len >= 0 && len <= (MAXLABEL * 2));
+	assert(len >= 0 && len <= (MAXLABEL * 4));
 	np = (struct namebuf *) malloc(NAMESIZE(len));
 	if (np == NULL)
 		panic(errno, "savename: malloc");
 	bzero((char*)np, NAMESIZE(len));
-	NAMELEN(*np) = len;
+	NAMELEN(*np) = (unsigned)len;
 	bcopy(name, NAME(*np), len);
 	NAME(*np)[len] = '\0';
 	return (np);
@@ -99,28 +99,16 @@ savename(name, len)
  * Allocate a data buffer & save data.
  */
 struct databuf *
-#ifdef DMALLOC
-savedata_tagged(file, line, class, type, ttl, data, size)
-	char *file;
-	int line;
-#else
 savedata(class, type, ttl, data, size)
-#endif
 	int class, type;
 	u_int32_t ttl;
 	u_char *data;
 	int size;
 {
 	register struct databuf *dp;
-	int bytes = (type == T_NS) ? DATASIZE(size)+INT32SZ : DATASIZE(size);
+	int bytes = DATASIZE(size);
 
-	dp = (struct databuf *) 
-#ifdef DMALLOC
-		dmalloc(file, line, bytes)
-#else
-		malloc(bytes)
-#endif
-	;
+	dp = (struct databuf *)malloc(bytes);
 	if (dp == NULL)
 		panic(errno, "savedata: malloc");
 	bzero((char*)dp, bytes);
@@ -129,7 +117,6 @@ savedata(class, type, ttl, data, size)
 	dp->d_class = class;
 	dp->d_ttl = ttl;
 	dp->d_size = size;
-	dp->d_mark = 0;
 	dp->d_flags = 0;
 	dp->d_cred = 0;
 	dp->d_clev = 0;
