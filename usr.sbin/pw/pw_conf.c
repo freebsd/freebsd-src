@@ -115,7 +115,7 @@ static char const *comments[_UC_FIELDS] =
 	"\n# Log add/change/remove information in this file\n",
 	"\n# Root directory in which $HOME directory is created\n",
 	"\n# Colon separated list of directories containing valid shells\n",
-	"\n# Space separated list of available shells (without paths)\n",
+	"\n# Comma separated list of available shells (without paths)\n",
 	"\n# Default shell (without path)\n",
 	"\n# Default group (leave blank for new group per user)\n",
 	"\n# Extra groups for new users\n",
