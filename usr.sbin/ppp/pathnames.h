@@ -32,7 +32,7 @@
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  *
- *  $Id:$
+ *  $Id: pathnames.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
  */
 
 #include <paths.h>
@@ -48,3 +48,4 @@
 #endif
 #define	_PATH_PHONES		"/etc/phones"
 #define	_PATH_REMOTE		"/etc/remote"
+#define _PATH_PPP		"/etc/ppp"

@@ -17,13 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  * 
- * $Id:$
+ * $Id: systems.c,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
  *
  *  TODO:
  */
 #include "fsm.h"
 #include "vars.h"
 #include "ipcp.h"
+#include "pathnames.h"
 
 extern void DecodeCommand();
 
@@ -92,7 +93,7 @@ char *file;
   }
   if (fp == NULL) {
     SetPppId();
-    sprintf(line, "/etc/iijppp/%s", file);
+    sprintf(line, "%s/%s", _PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
@@ -131,7 +132,7 @@ char *file;
   }
   if (fp == NULL) {
     SetPppId();		/* fix from pdp@ark.jr3uom.iijnet.or.jp */
-    sprintf(line, "/etc/iijppp/%s", file);
+    sprintf(line, "%s/%s", _PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
