@@ -284,6 +284,21 @@ static struct _hostconf _hostconf[MAXHOSTCONF] = {
 static int	_hostconf_init_done;
 static void	_hostconf_init(void);
 
+/* Make getaddrinfo() thread-safe in libc for use with kernel threads. */
+#include "libc_private.h"
+#include "spinlock.h"
+/*
+ * XXX: Our res_*() is not thread-safe.  So, we share lock between
+ * getaddrinfo() and getipnodeby*().  Still, we cannot use
+ * getaddrinfo() and getipnodeby*() in conjunction with other
+ * functions which call res_*().
+ */
+spinlock_t __getaddrinfo_thread_lock = _SPINLOCK_INITIALIZER;
+#define THREAD_LOCK() \
+	if (__isthreaded) _SPINLOCK(&__getaddrinfo_thread_lock);
+#define THREAD_UNLOCK() \
+	if (__isthreaded) _SPINUNLOCK(&__getaddrinfo_thread_lock);
+
 /* XXX macros that make external reference is BAD. */
 
 #define	GET_AI(ai, afd, addr) \
@@ -680,11 +695,15 @@ explore_fqdn(pai, hostname, servname, res)
 	result = NULL;
 	*res = NULL;
 
+	THREAD_LOCK();
+
 	/*
 	 * if the servname does not match socktype/protocol, ignore it.
 	 */
-	if (get_portmatch(pai, servname) != 0)
+	if (get_portmatch(pai, servname) != 0) {
+		THREAD_UNLOCK();
 		return 0;
+	}
 
 	if (!_hostconf_init_done)
 		_hostconf_init();
@@ -699,11 +718,13 @@ explore_fqdn(pai, hostname, servname, res)
 			GET_PORT(cur, servname);
 			/* canonname should be filled already */
 		}
+		THREAD_UNLOCK();
 		*res = result;
 		return 0;
 	}
 
 free:
+	THREAD_UNLOCK();
 	if (result)
 		freeaddrinfo(result);
 	return error;
