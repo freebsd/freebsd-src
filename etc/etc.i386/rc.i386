@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.39 1999/01/30 07:22:29 newton Exp $
+#	$Id: rc.i386,v 1.40 1999/07/10 18:02:42 iwasaki Exp $
 #	Do i386 specific processing
 #
 
@@ -11,7 +11,7 @@ if [ "X$apm_enable" = X"YES" ] ; then
 fi
 
 if [ "X$apmd_enable" = X"YES" ] ; then
-	echo -n ' apmd';	apmd
+	echo -n ' apmd';	apmd ${apmd_flags}
 fi
 
 # Start the SCO binary emulation if requested.
