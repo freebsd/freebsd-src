@@ -359,9 +359,7 @@ USB_ATTACH(umodem)
 }
 
 void
-umodem_get_caps(dev, cm, acm)
-	usbd_device_handle dev;
-	int *cm, *acm;
+umodem_get_caps(usbd_device_handle dev, int *cm, int *acm)
 {
 	usb_cdc_cm_descriptor_t *cmd;
 	usb_cdc_acm_descriptor_t *cad;
@@ -384,8 +382,7 @@ umodem_get_caps(dev, cm, acm)
 } 
 
 void
-umodemstart(tp)
-	struct tty *tp;
+umodemstart(struct tty *tp)
 {
 	struct umodem_softc *sc;
 	struct cblock *cbp;
@@ -463,10 +460,8 @@ out:
 }
 
 void
-umodemwritecb(xfer, priv, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle priv;
-	usbd_status status;
+umodemwritecb(usbd_xfer_handle xfer, usbd_private_handle priv,
+	      usbd_status status)
 {
 	struct umodem_softc *sc = (struct umodem_softc *)priv;
 	struct tty *tp = sc->sc_tty;
@@ -499,9 +494,7 @@ umodemwritecb(xfer, priv, status)
 }
 
 int
-umodemparam(tp, t)
-	struct tty *tp;
-	struct termios *t;
+umodemparam(struct tty *tp, struct termios *t)
 {
 	struct umodem_softc *sc;
 	usb_cdc_line_state_t ls;
@@ -571,10 +564,7 @@ umodemparam(tp, t)
 }
 
 int
-umodemopen(dev, flag, mode, p)
-	dev_t dev;
-	int flag, mode;
-	struct proc *p;
+umodemopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	int unit = UMODEMUNIT(dev);
 	struct umodem_softc *sc;
@@ -717,8 +707,7 @@ bad:
 }
 
 usbd_status
-umodemstartread(sc)
-	struct umodem_softc *sc;
+umodemstartread(struct umodem_softc *sc)
 {
 	usbd_status err;
 
@@ -736,10 +725,7 @@ umodemstartread(sc)
 }
  
 void
-umodemreadcb(xfer, p, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle p;
-	usbd_status status;
+umodemreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 {
 	struct umodem_softc *sc = (struct umodem_softc *)p;
 	struct tty *tp = sc->sc_tty;
@@ -780,10 +766,7 @@ umodemreadcb(xfer, p, status)
 }
 
 int
-umodemclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag, mode;
-	struct proc *p;
+umodemclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -832,8 +815,7 @@ umodemclose(dev, flag, mode, p)
 }
  
 void
-umodem_cleanup(sc)
-	struct umodem_softc *sc;
+umodem_cleanup(struct umodem_softc *sc)
 {
 	umodem_shutdown(sc);
 
@@ -850,10 +832,7 @@ umodem_cleanup(sc)
 }
 
 int
-umodemread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+umodemread(dev_t dev, struct uio *uio, int flag)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -869,10 +848,7 @@ umodemread(dev, uio, flag)
 }
  
 int
-umodemwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+umodemwrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -888,9 +864,7 @@ umodemwrite(dev, uio, flag)
 }
 
 void
-umodemstop(tp, flag)
-	struct tty *tp;
-	int flag;
+umodemstop(struct tty *tp, int flag)
 {
 	struct umodem_softc *sc;
 	int s;
@@ -909,8 +883,7 @@ umodemstop(tp, flag)
 }
 
 struct tty *
-umodemtty(dev)
-	dev_t dev;
+umodemtty(dev_t dev)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -923,12 +896,7 @@ umodemtty(dev)
 }
 
 int
-umodemioctl(dev, cmd, data, flag, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	struct proc *p;
+umodemioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -1009,8 +977,7 @@ umodemioctl(dev, cmd, data, flag, p)
 }
 
 void
-umodem_shutdown(sc)
-	struct umodem_softc *sc;
+umodem_shutdown(struct umodem_softc *sc)
 {
 	struct tty *tp = sc->sc_tty;
 
@@ -1030,9 +997,7 @@ umodem_shutdown(sc)
 }
 
 void
-umodem_modem(sc, onoff)
-	struct umodem_softc *sc;
-	int onoff;
+umodem_modem(struct umodem_softc *sc, int onoff)
 {
 	usb_device_request_t req;
 
@@ -1053,9 +1018,7 @@ umodem_modem(sc, onoff)
 }
 
 void
-umodem_break(sc, onoff)
-	struct umodem_softc *sc;
-	int onoff;
+umodem_break(struct umodem_softc *sc, int onoff)
 {
 	usb_device_request_t req;
 
@@ -1074,10 +1037,7 @@ umodem_break(sc, onoff)
 }
 
 void *
-umodem_get_desc(dev, type, subtype)
-	usbd_device_handle dev;
-	int type;
-	int subtype;
+umodem_get_desc(usbd_device_handle dev, int type, int subtype)
 {
 	usb_descriptor_t *desc;
 	usb_config_descriptor_t *cd = usbd_get_config_descriptor(dev);
@@ -1096,10 +1056,7 @@ umodem_get_desc(dev, type, subtype)
 }
 
 usbd_status
-umodem_set_comm_feature(sc, feature, state)
-	struct umodem_softc *sc;
-	int feature;
-	int state;
+umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 {
 	usb_device_request_t req;
 	usbd_status err;
@@ -1123,9 +1080,7 @@ umodem_set_comm_feature(sc, feature, state)
 }
 
 usbd_status
-umodem_set_line_coding(sc, state)
-	struct umodem_softc *sc;
-	usb_cdc_line_state_t *state;
+umodem_set_line_coding(struct umodem_softc *sc, usb_cdc_line_state_t *state)
 {
 	usb_device_request_t req;
 	usbd_status err;
@@ -1160,9 +1115,7 @@ umodem_set_line_coding(sc, state)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-umodem_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+umodem_activate(device_ptr_t self, enum devact act)
 {
 	struct umodem_softc *sc = (struct umodem_softc *)self;
 

@@ -296,11 +296,7 @@ USB_ATTACH(urio)
 
 
 int
-urioopen(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+urioopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -340,11 +336,7 @@ urioopen(dev, flag, mode, p)
 }
 
 int
-urioclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag;
-	int mode;
-	struct proc *p;
+urioclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -367,10 +359,7 @@ urioclose(dev, flag, mode, p)
 }
 
 int
-urioread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+urioread(dev_t dev, struct uio *uio, int flag)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -444,10 +433,7 @@ urioread(dev, uio, flag)
 }
 
 int
-uriowrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+uriowrite(dev_t dev, struct uio *uio, int flag)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -514,12 +500,7 @@ uriowrite(dev, uio, flag)
 
 
 int
-urioioctl(dev, cmd, addr, flag, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t addr; 
-	int flag;
-	struct proc *p;
+urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -620,9 +601,7 @@ ret:
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-urio_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+urio_activate(device_ptr_t self, enum devact act)
 {
 	struct urio_softc *sc = (struct urio_softc *)self;
 

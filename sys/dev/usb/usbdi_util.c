@@ -65,11 +65,7 @@ extern int usbdebug;
 #endif
 
 usbd_status
-usbd_get_desc(dev, type, index, len, desc)
-	usbd_device_handle dev;
-	int type, index;
-	int len;
-	void *desc;
+usbd_get_desc(usbd_device_handle dev, int type, int index, int len, void *desc)
 {
 	usb_device_request_t req;
 
@@ -82,10 +78,8 @@ usbd_get_desc(dev, type, index, len, desc)
 }
 
 usbd_status
-usbd_get_config_desc(dev, conf, d)
-	usbd_device_handle dev;
-	int conf;
-	usb_config_descriptor_t *d;
+usbd_get_config_desc(usbd_device_handle dev, int conf,
+		     usb_config_descriptor_t *d)
 {
 	usbd_status err;
 
@@ -103,20 +97,14 @@ usbd_get_config_desc(dev, conf, d)
 }
 
 usbd_status
-usbd_get_config_desc_full(dev, conf, d, size)
-	usbd_device_handle dev;
-	int conf;
-	void *d;
-	int size;
+usbd_get_config_desc_full(usbd_device_handle dev, int conf, void *d, int size)
 {
 	DPRINTFN(3,("usbd_get_config_desc_full: conf=%d\n", conf));
 	return (usbd_get_desc(dev, UDESC_CONFIG, conf, size, d));
 }
 
 usbd_status
-usbd_get_device_desc(dev, d)
-	usbd_device_handle dev;
-	usb_device_descriptor_t *d;
+usbd_get_device_desc(usbd_device_handle dev, usb_device_descriptor_t *d)
 {
 	DPRINTFN(3,("usbd_get_device_desc:\n"));
 	return (usbd_get_desc(dev, UDESC_DEVICE, 
@@ -124,9 +112,7 @@ usbd_get_device_desc(dev, d)
 }
 
 usbd_status
-usbd_get_device_status(dev, st)
-	usbd_device_handle dev;
-	usb_status_t *st;
+usbd_get_device_status(usbd_device_handle dev, usb_status_t *st)
 {
 	usb_device_request_t req;
 
@@ -139,9 +125,7 @@ usbd_get_device_status(dev, st)
 }	
 
 usbd_status
-usbd_get_hub_status(dev, st)
-	usbd_device_handle dev;
-	usb_hub_status_t *st;
+usbd_get_hub_status(usbd_device_handle dev, usb_hub_status_t *st)
 {
 	usb_device_request_t req;
 
@@ -154,9 +138,7 @@ usbd_get_hub_status(dev, st)
 }	
 
 usbd_status
-usbd_set_address(dev, addr)
-	usbd_device_handle dev;
-	int addr;
+usbd_set_address(usbd_device_handle dev, int addr)
 {
 	usb_device_request_t req;
 
@@ -169,10 +151,7 @@ usbd_set_address(dev, addr)
 }
 
 usbd_status
-usbd_get_port_status(dev, port, ps)
-	usbd_device_handle dev;
-	int port;
-	usb_port_status_t *ps;
+usbd_get_port_status(usbd_device_handle dev, int port, usb_port_status_t *ps)
 {
 	usb_device_request_t req;
 
@@ -185,9 +164,7 @@ usbd_get_port_status(dev, port, ps)
 }
 
 usbd_status
-usbd_clear_hub_feature(dev, sel)
-	usbd_device_handle dev;
-	int sel;
+usbd_clear_hub_feature(usbd_device_handle dev, int sel)
 {
 	usb_device_request_t req;
 
@@ -200,9 +177,7 @@ usbd_clear_hub_feature(dev, sel)
 }
 
 usbd_status
-usbd_set_hub_feature(dev, sel)
-	usbd_device_handle dev;
-	int sel;
+usbd_set_hub_feature(usbd_device_handle dev, int sel)
 {
 	usb_device_request_t req;
 
@@ -215,9 +190,7 @@ usbd_set_hub_feature(dev, sel)
 }
 
 usbd_status
-usbd_clear_port_feature(dev, port, sel)
-	usbd_device_handle dev;
-	int port, sel;
+usbd_clear_port_feature(usbd_device_handle dev, int port, int sel)
 {
 	usb_device_request_t req;
 
@@ -230,9 +203,7 @@ usbd_clear_port_feature(dev, port, sel)
 }
 
 usbd_status
-usbd_set_port_feature(dev, port, sel)
-	usbd_device_handle dev;
-	int port, sel;
+usbd_set_port_feature(usbd_device_handle dev, int port, int sel)
 {
 	usb_device_request_t req;
 
@@ -246,9 +217,7 @@ usbd_set_port_feature(dev, port, sel)
 
 
 usbd_status
-usbd_set_protocol(iface, report)
-	usbd_interface_handle iface;
-	int report;
+usbd_set_protocol(usbd_interface_handle iface, int report)
 {
 	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
 	usbd_device_handle dev;
@@ -271,12 +240,8 @@ usbd_set_protocol(iface, report)
 }
 
 usbd_status
-usbd_set_report(iface, type, id, data, len)
-	usbd_interface_handle iface;
-	int type;
-	int id;
-	void *data;
-	int len;
+usbd_set_report(usbd_interface_handle iface, int type, int id, void *data,
+		int len)
 {
 	usb_interface_descriptor_t *ifd = usbd_get_interface_descriptor(iface);
 	usbd_device_handle dev;
@@ -298,12 +263,8 @@ usbd_set_report(iface, type, id, data, len)
 }
 
 usbd_status
-usbd_set_report_async(iface, type, id, data, len)
-	usbd_interface_handle iface;
-	int type;
-	int id;
-	void *data;
-	int len;
+usbd_set_report_async(usbd_interface_handle iface, int type, int id, void *data,
+		      int len)
 {
 	usb_interface_descriptor_t *ifd = usbd_get_interface_descriptor(iface);
 	usbd_device_handle dev;
@@ -325,12 +286,8 @@ usbd_set_report_async(iface, type, id, data, len)
 }
 
 usbd_status
-usbd_get_report(iface, type, id, data, len)
-	usbd_interface_handle iface;
-	int type;
-	int id;
-	void *data;
-	int len;
+usbd_get_report(usbd_interface_handle iface, int type, int id, void *data,
+		int len)
 {
 	usb_interface_descriptor_t *ifd = usbd_get_interface_descriptor(iface);
 	usbd_device_handle dev;
@@ -352,10 +309,7 @@ usbd_get_report(iface, type, id, data, len)
 }
 
 usbd_status
-usbd_set_idle(iface, duration, id)
-	usbd_interface_handle iface;
-	int duration;
-	int id;
+usbd_set_idle(usbd_interface_handle iface, int duration, int id)
 {
 	usb_interface_descriptor_t *ifd = usbd_get_interface_descriptor(iface);
 	usbd_device_handle dev;
@@ -377,12 +331,8 @@ usbd_set_idle(iface, duration, id)
 }
 
 usbd_status
-usbd_get_report_descriptor(dev, ifcno, repid, size, d)
-	usbd_device_handle dev;
-	int ifcno;
-	int repid;
-	int size;
-	void *d;
+usbd_get_report_descriptor(usbd_device_handle dev, int ifcno, int repid,
+			   int size, void *d)
 {
 	usb_device_request_t req;
 
@@ -395,8 +345,7 @@ usbd_get_report_descriptor(dev, ifcno, repid, size, d)
 }
 
 usb_hid_descriptor_t *
-usbd_get_hid_descriptor(ifc)
-	usbd_interface_handle ifc;
+usbd_get_hid_descriptor(usbd_interface_handle ifc)
 {
 	usb_interface_descriptor_t *idesc = usbd_get_interface_descriptor(ifc);
 	usbd_device_handle dev;
@@ -426,16 +375,8 @@ usbd_get_hid_descriptor(ifc)
 }
 
 usbd_status
-usbd_alloc_report_desc(ifc, descp, sizep, mem)
-	usbd_interface_handle ifc;
-	void **descp;
-	int *sizep;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int mem;
-#elif defined(__FreeBSD__)
-	struct malloc_type *mem;
-#endif
-	
+usbd_alloc_report_desc(usbd_interface_handle ifc, void **descp, int *sizep,
+		       struct malloc_type *mem)
 {
 	usb_interface_descriptor_t *id;
 	usb_hid_descriptor_t *hid;
@@ -467,9 +408,7 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 }
 
 usbd_status 
-usbd_get_config(dev, conf)
-	usbd_device_handle dev;
-	u_int8_t *conf;
+usbd_get_config(usbd_device_handle dev, u_int8_t *conf)
 {
 	usb_device_request_t req;
 
@@ -481,26 +420,20 @@ usbd_get_config(dev, conf)
 	return (usbd_do_request(dev, &req, conf));
 }
 
-Static void usbd_bulk_transfer_cb(usbd_xfer_handle xfer, 
-		usbd_private_handle priv, usbd_status status);
 Static void
-usbd_bulk_transfer_cb(xfer, priv, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle priv;
-	usbd_status status;
+usbd_bulk_transfer_cb(usbd_xfer_handle xfer, 
+		      usbd_private_handle priv, usbd_status status);
+Static void
+usbd_bulk_transfer_cb(usbd_xfer_handle xfer, usbd_private_handle priv,
+		      usbd_status status)
 {
 	wakeup(xfer);
 }
 
 usbd_status
-usbd_bulk_transfer(xfer, pipe, flags, timeout, buf, size, lbl)
-	usbd_xfer_handle xfer;
-	usbd_pipe_handle pipe;
-	u_int16_t flags;
-	u_int32_t timeout;
-	void *buf;
-	u_int32_t *size;
-	char *lbl;
+usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
+		   u_int16_t flags, u_int32_t timeout, void *buf,
+		   u_int32_t *size, char *lbl)
 {
 	usbd_status err;
 	int s, error;
@@ -531,8 +464,7 @@ usbd_bulk_transfer(xfer, pipe, flags, timeout, buf, size, lbl)
 }
 
 void
-usb_detach_wait(dv)
-	device_ptr_t dv;
+usb_detach_wait(device_ptr_t dv)
 {
 	DPRINTF(("usb_detach_wait: waiting for %s\n", USBDEVPTRNAME(dv)));
 	if (tsleep(dv, PZERO, "usbdet", hz * 60))
@@ -542,8 +474,7 @@ usb_detach_wait(dv)
 }       
 
 void
-usb_detach_wakeup(dv)
-	device_ptr_t dv;
+usb_detach_wakeup(device_ptr_t dv)
 {
 	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVPTRNAME(dv)));
 	wakeup(dv);
