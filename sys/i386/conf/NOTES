@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.441 1998/06/30 07:36:33 jmg Exp $
+#	$Id: LINT,v 1.442 1998/06/30 08:01:28 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1320,7 +1320,7 @@ options AHC_ALLOW_MEMIO
 options	"EISA_SLOTS=12"
 
 #
-# PCI devices:
+# PCI devices & PCI options:
 #
 # The main PCI bus device is `pci'.  It provides auto-detection and
 # configuration support for all devices on the PCI bus, using either
@@ -1394,6 +1394,11 @@ device		meteor0
 device		bktr0
 
 options         OVERRIDE_TUNER=NO_TUNER
+
+#
+# PCI options
+#
+#options	PCI_QUIET	#quiets PCI code on chipset settings
 
 #
 # PCCARD/PCMCIA
