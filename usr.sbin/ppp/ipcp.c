@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.21 1997/06/09 03:27:24 brian Exp $
+ * $Id: ipcp.c,v 1.22 1997/06/25 19:30:00 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -280,11 +280,11 @@ struct fsm *fp;
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
+  if (mode & MODE_ALIAS)
+    VarSetPacketAliasAddress(IpcpInfo.want_ipaddr);
   OsLinkup();
   IpcpStartReport();
   StartIdleTimer();
-  if (mode & MODE_ALIAS)
-    VarSetPacketAliasAddress(IpcpInfo.want_ipaddr);
 }
 
 void
