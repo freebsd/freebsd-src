@@ -24,7 +24,7 @@ thorough description of each item in more detail:
 1. The *.TXT files obviously contain documentation (this file is
    LAYOUT.TXT) and should be read before starting an installation.
 
-2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
+2. The XF86333 directory contains the XFree86 project's 3.3.3.1 release and
    consists of a series of gzip'd tar files which contain each component
    of the XFree86 distribution.
 
@@ -49,7 +49,7 @@ thorough description of each item in more detail:
    command.
 
    The ports collection may be installed like any other distribution
-   and requires about 30MB unpacked.  More information on the ports
+   and requires about 50MB unpacked.  More information on the ports
    collection may be obtained from http://www.freebsd.org/ports or
    locally from ``file:/usr/share/doc/handbook'' if you've installed
    the doc distribution.
