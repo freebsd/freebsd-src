@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: main.c,v 1.14 1997/08/15 12:32:59 sos Exp $
+ *  $Id: main.c,v 1.2 1997/10/01 20:53:39 sos Exp $
  */
 
 #include <stdio.h>
@@ -45,12 +45,15 @@ static byte *VGLBuf;
 static byte *VGLMem;
 static int VGLSwitchPending;
 static int VGLOnDisplay;
+static int VGLInitDone = 0;
 
 void
 VGLEnd()
 {
 struct vt_mode smode;
 
+  if (!VGLInitDone)
+    return;
 /*
   while (!VGLOnDisplay) pause(); 
   VGLCheckSwitch();;
@@ -65,6 +68,7 @@ struct vt_mode smode;
   ioctl(0, VT_SETMODE, &smode);
   free(VGLBuf);
   free(VGLDisplay);
+  VGLKeyboardEnd();
 }
 
 static void 
@@ -169,6 +173,7 @@ VGLInit(int mode)
     return 1;
   }
   VGLTextSetFontFile((byte*)0);
+  VGLInitDone = 1;
   return 0;
 }
 
