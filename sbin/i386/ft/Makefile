@@ -1,8 +1,7 @@
-#	$Id: Makefile,v 1.2 1994/02/07 08:40:16 rgrimes Exp $
+#	$Id: Makefile,v 1.5 1995/09/17 06:57:43 davidg Exp $
 
 PROG=	ft
 MAN8=	ft.8
 SRCS=	ft.c ftecc.c
-COPTS=	-O2 -finline-functions -funroll-loops -fexpensive-optimizations
 
 .include <bsd.prog.mk>
