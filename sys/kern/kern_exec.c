@@ -134,7 +134,7 @@ execve(td, uap)
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
-	struct pargs *oldargs, *newargs = NULL;
+	struct pargs *oldargs = NULL, *newargs = NULL;
 	struct procsig *oldprocsig, *newprocsig;
 #ifdef KTRACE
 	struct vnode *tracevp = NULL;
@@ -385,8 +385,10 @@ interpret:
 #endif
 		/* Make sure file descriptors 0..2 are in use.  */
 		error = fdcheckstd(td);
-		if (error != 0)
-			goto exec_fail_dealloc;
+		if (error != 0) {
+			oldcred = NULL;
+			goto done1;
+		}
 		/*
 		 * Set the new credentials.
 		 */
@@ -469,6 +471,7 @@ interpret:
 		p->p_args = newargs;
 		newargs = NULL;
 	}
+done1:
 	PROC_UNLOCK(p);
 
 	/*
@@ -479,7 +482,6 @@ interpret:
 		crfree(oldcred);
 	else
 		crfree(newcred);
-	KASSERT(newargs == NULL, ("leaking p_args"));
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
@@ -489,7 +491,10 @@ interpret:
 	if (tracevp != NULL)
 		vrele(tracevp);
 #endif
-	pargs_drop(oldargs);
+	if (oldargs != NULL)
+		pargs_drop(oldargs);
+	if (newargs != NULL)
+		pargs_drop(newargs);
 
 exec_fail_dealloc:
 
