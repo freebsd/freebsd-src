@@ -1,24 +1,23 @@
-/* obstack.h - object stack macros
-   Copyright (C) 1988,89,90,91,92,93,94,96,97, 98 Free Software Foundation, Inc.
+/* obstack.c - subroutines used implicitly by object stack macros
+   Copyright (C) 1988-1994,96,97,98,99 Free Software Foundation, Inc.
 
+   This file is part of the GNU C Library.  Its master source is NOT part of
    the C library, however.  The master source lives in /gd/gnu/lib.
 
-NOTE: The canonical source of this file is maintained with the
-GNU C Library.  Bugs can be reported to bug-glibc@prep.ai.mit.edu.
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public License as
+   published by the Free Software Foundation; either version 2 of the
+   License, or (at your option) any later version.
 
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; either version 2, or (at your option) any
-later version.
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation,
-Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU Library General Public
+   License along with the GNU C Library; see the file COPYING.LIB.  If not,
+   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -79,7 +78,9 @@ union fooround {long x; double d;};
 
 /* The functions allocating more room by calling `obstack_chunk_alloc'
    jump to the handler pointed to by `obstack_alloc_failed_handler'.
-   This variable by default points to the internal function
+   This can be set to a user defined function which should either
+   abort gracefully or use longjump - but shouldn't return.  This
+   variable by default points to the internal function
    `print_and_abort'.  */
 #if defined (__STDC__) && __STDC__
 static void print_and_abort (void);
@@ -143,9 +144,8 @@ struct obstack *_obstack;
    CHUNKFUN is the function to use to allocate chunks,
    and FREEFUN the function to free them.
 
-   Return nonzero if successful, zero if out of memory.
-   To recover from an out of memory error,
-   free up some memory, then call this again.  */
+   Return nonzero if successful, calls obstack_alloc_failed_handler if
+   allocation fails.  */
 
 int
 _obstack_begin (h, size, alignment, chunkfun, freefun)
@@ -460,11 +460,16 @@ _obstack_memory_used (h)
 #  define _(Str) (Str)
 # endif
 #endif
+#if defined _LIBC && defined USE_IN_LIBIO
+# include <libio/iolibio.h>
+# define fputs(s, f) _IO_fputs (s, f)
+#endif
 
 static void
 print_and_abort ()
 {
-  fputs (_("memory exhausted\n"), stderr);
+  fputs (_("memory exhausted"), stderr);
+  fputc ('\n', stderr);
   exit (obstack_exit_failure);
 }
 

@@ -1,9 +1,16 @@
+Version 2.4.1
+
+  - If the final byte of an input file is not a newline, grep now silently
+    supplies one.
+
   - The new option --binary-files=TYPE makes grep assume that a binary input
     file is of type TYPE.
     --binary-files='binary' (the default) outputs a 1-line summary of matches.
     --binary-files='without-match' assumes binary files do not match.
     --binary-files='text' treats binary files as text
-	(equivalent to -a or --text).
+	(equivalent to the -a or --text option).
+
+  - New option -I; equivalent to --binary-files='without-match'.
 
 Version 2.4:
 

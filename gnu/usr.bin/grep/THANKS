@@ -1,5 +1,6 @@
 Aharon Robbins        <arnold@gnu.org>
-Alain Magloire        <alainm@rcsm.ece.mcgill.ca>
+Akim Demaille         <akim@epita.fr>
+Alain Magloire        <alainm@gnu.org>
 Andreas Schwab        <schwab@suse.de>
 Andreas Ley           <andy@rz.uni-karlsruhe.de>
 Ben Elliston          <bje@cygnus.com>
@@ -34,6 +35,7 @@ Phillip C. Brisco     <phillip.craig.brisco@ccmail.census.gov>
 Philippe Defert       <Philippe.Defert@cern.ch>
 Philippe De Muyter    <phdm@info.ucl.ac.be>
 Roland Roberts        <rroberts@muller.com>
+Ruslan Ermilov        <ru@freebsd.org>
 Shannon Hill          <hill@synnet.com>
 Sotiris Vassilopoulos <Sotiris.Vassilopoulos@betatech.gr>
 Stewart Levin         <stew@sep.stanford.edu>

@@ -67,14 +67,13 @@ static kwset_t kwset;
 static int lastexact;
 
 void
-dfaerror(mesg)
-  const char *mesg;
+dfaerror (char const *mesg)
 {
   fatal(mesg, 0);
 }
 
 static void
-kwsinit()
+kwsinit (void)
 {
   static char trans[NCHAR];
   int i;
@@ -92,7 +91,7 @@ kwsinit()
    to find those strings, and thus quickly filter out impossible
    matches. */
 static void
-kwsmusts()
+kwsmusts (void)
 {
   struct dfamust *dm;
   char *err;
@@ -126,9 +125,7 @@ kwsmusts()
 }
 
 static void
-Gcompile(pattern, size)
-     char *pattern;
-     size_t size;
+Gcompile (char *pattern, size_t size)
 {
   const char *err;
 
@@ -180,9 +177,7 @@ Gcompile(pattern, size)
 }
 
 static void
-Ecompile(pattern, size)
-     char *pattern;
-     size_t size;
+Ecompile (char *pattern, size_t size)
 {
   const char *err;
 
@@ -242,10 +237,7 @@ Ecompile(pattern, size)
 }
 
 static char *
-EGexecute(buf, size, endp)
-     char *buf;
-     size_t size;
-     char **endp;
+EGexecute (char *buf, size_t size, char **endp)
 {
   register char *buflim, *beg, *end, save;
   char eol = eolbyte;
@@ -355,9 +347,7 @@ EGexecute(buf, size, endp)
 }
 
 static void
-Fcompile(pattern, size)
-     char *pattern;
-     size_t size;
+Fcompile (char *pattern, size_t size)
 {
   char *beg, *lim, *err;
 
@@ -380,10 +370,7 @@ Fcompile(pattern, size)
 }
 
 static char *
-Fexecute(buf, size, endp)
-     char *buf;
-     size_t size;
-     char **endp;
+Fexecute (char *buf, size_t size, char **endp)
 {
   register char *beg, *try, *end;
   register size_t len;
