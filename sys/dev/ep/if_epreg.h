@@ -42,21 +42,6 @@
 #define MAX_EEPROMBUSY  1000
 #define EP_LAST_TAG     0xd7
 #define EP_MAX_BOARDS   16
-/*
- * This `ID' port is a mere hack.  There's currently no chance to register
- * it with config's idea of the ports that are in use.
- *
- * "After the automatic configuration is completed, the IDS is in its initial
- * state (ID-WAIT), and it monitors all write access to I/O port 01x0h, where
- * 'x' is any hex digit.  If a zero is written to any one of these ports, then
- * that address is remembered and becomes the ID port.  A second zero written
- * to that port resets the ID sequence to its initial state.  The IDS watches
- * for the ID sequence to be written to the ID port."
- *
- * We prefer 0x110 over 0x100 so to not conflict with the Plaque&Pray
- * ports.
- */
-#define EP_ID_PORT      0x110
 #define EP_IOSIZE	16	/* 16 bytes of I/O space used. */
 
 /*
@@ -74,8 +59,8 @@
 /*
  * Some short functions, worth to let them be a macro
  */
-#define is_eeprom_busy(sc) (EP_READ_2(sc, EP_W0_EEPROM_COMMAND)&EEPROM_BUSY)
-#define GO_WINDOW(x)      EP_WRITE_2(sc, EP_COMMAND, WINDOW_SELECT|(x))
+#define is_eeprom_busy(sc) (CSR_READ_2(sc, EP_W0_EEPROM_COMMAND)&EEPROM_BUSY)
+#define GO_WINDOW(x)	CSR_WRITE_2(sc, EP_COMMAND, WINDOW_SELECT|(x))
 
 /**************************************************************************
  *									  *
@@ -149,7 +134,7 @@
 #define EP_W0_RESOURCE_CFG	0x08
 #define EP_W0_ADDRESS_CFG	0x06
 #define EP_W0_CONFIG_CTRL	0x04
-/* Read */
+	/* Read */
 #define EP_W0_PRODUCT_ID	0x02
 #define EP_W0_MFG_ID		0x00
 
@@ -265,33 +250,32 @@
 #define TX_DISABLE		(u_short) (0xa<<11)
 #define TX_RESET		(u_short) (0xb<<11)
 #define REQ_INTR		(u_short) (0xc<<11)
+/*
+ * The following C_* acknowledge the various interrupts. Some of them don't
+ * do anything.  See the manual.
+ */
+#define ACK_INTR		(u_short) (0x6800)
+#	define C_INTR_LATCH	(u_short) (ACK_INTR|0x1)
+#	define C_CARD_FAILURE	(u_short) (ACK_INTR|0x2)
+#	define C_TX_COMPLETE	(u_short) (ACK_INTR|0x4)
+#	define C_TX_AVAIL	(u_short) (ACK_INTR|0x8)
+#	define C_RX_COMPLETE	(u_short) (ACK_INTR|0x10)
+#	define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
+#	define C_INT_RQD		(u_short) (ACK_INTR|0x40)
+#	define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
 #define SET_INTR_MASK		(u_short) (0xe<<11)
 #define SET_RD_0_MASK		(u_short) (0xf<<11)
 #define SET_RX_FILTER		(u_short) (0x10<<11)
-#define FIL_INDIVIDUAL		(u_short) (0x1)
-#define FIL_GROUP		(u_short) (0x2)
-#define FIL_BRDCST		(u_short) (0x4)
-#define FIL_ALL			(u_short) (0x8)
+#	define FIL_INDIVIDUAL	(u_short) (0x1)
+#	define FIL_MULTICAST     (u_short) (0x02)
+#	define FIL_BRDCST        (u_short) (0x04)
+#	define FIL_PROMISC       (u_short) (0x08)
 #define SET_RX_EARLY_THRESH	(u_short) (0x11<<11)
 #define SET_TX_AVAIL_THRESH	(u_short) (0x12<<11)
 #define SET_TX_START_THRESH	(u_short) (0x13<<11)
 #define STATS_ENABLE		(u_short) (0x15<<11)
 #define STATS_DISABLE		(u_short) (0x16<<11)
 #define STOP_TRANSCEIVER	(u_short) (0x17<<11)
-/*
- * The following C_* acknowledge the various interrupts. Some of them don't
- * do anything.  See the manual.
- */
-#define ACK_INTR		(u_short) (0x6800)
-#define C_INTR_LATCH	(u_short) (ACK_INTR|0x1)
-#define C_CARD_FAILURE	(u_short) (ACK_INTR|0x2)
-#define C_TX_COMPLETE	(u_short) (ACK_INTR|0x4)
-#define C_TX_AVAIL	(u_short) (ACK_INTR|0x8)
-#define C_RX_COMPLETE	(u_short) (ACK_INTR|0x10)
-#define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
-#define C_INT_RQD		(u_short) (ACK_INTR|0x40)
-#define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
-#define C_MASK	(u_short) 0xFF	/* mask of C_* */
 
 /*
  * Status register. All windows.
@@ -324,6 +308,8 @@
 				 S_TX_AVAIL|S_RX_COMPLETE|S_RX_EARLY)
 #define S_COMMAND_IN_PROGRESS	(u_short) (0x1000)
 
+#define EP_BUSY_WAIT while (CSR_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS)
+
 /* Address Config. Register.
  * Window 0/Port 06
  */
@@ -338,9 +324,9 @@
  *
  */
 
-#define SET_IRQ(sc, irq)     EP_WRITE_2((sc), EP_W0_RESOURCE_CFG, \
-                              ((EP_READ_2((sc), EP_W0_RESOURCE_CFG) & 0x0fff) | \
-                              ((u_short)(irq)<<12))  )	/* set IRQ i */
+#define SET_IRQ(sc, irq) CSR_WRITE_2((sc), EP_W0_RESOURCE_CFG, \
+			((CSR_READ_2((sc), EP_W0_RESOURCE_CFG) & 0x0fff) | \
+			((u_short)(irq)<<12))  )	/* set IRQ i */
 
 /*
  * FIFO Registers.
@@ -405,12 +391,15 @@
 #define ENABLE_DRQ_IRQ			0x0001
 #define W0_P4_CMD_RESET_ADAPTER       0x4
 #define W0_P4_CMD_ENABLE_ADAPTER      0x1
+
 /*
  * Media type and status.
  * Window 4/Port 0A
  */
-#define ENABLE_UTP			0xc0
-#define DISABLE_UTP			0x0
+#define JABBER_GUARD_ENABLE	0x40
+#define LINKBEAT_ENABLE		0x80
+#define	ENABLE_UTP		(JABBER_GUARD_ENABLE | LINKBEAT_ENABLE)
+#define DISABLE_UTP		0x0
 
 /*
  * Misc defines for various things.
@@ -425,8 +414,3 @@
 #define UTP 				0x4
 
 #define RX_BYTES_MASK			(u_short) (0x07ff)
-
-/*
- * Config flags
- */
-#define EP_FLAGS_100TX			0x1

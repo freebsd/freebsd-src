@@ -90,10 +90,13 @@ static int ep_media2if_media[] =
 {IFM_10_T, IFM_10_5, IFM_NONE, IFM_10_2, IFM_NONE};
 
 /* if functions */
-static void ep_if_init(void *);
-static int ep_if_ioctl(struct ifnet *, u_long, caddr_t);
-static void ep_if_start(struct ifnet *);
-static void ep_if_watchdog(struct ifnet *);
+static void epinit(void *);
+static int epioctl(struct ifnet *, u_long, caddr_t);
+static void epstart(struct ifnet *);
+static void epwatchdog(struct ifnet *);
+
+static void epstart_body(struct ifnet *);
+static void epinit_body(struct ep_softc *);
 
 /* if_media functions */
 static int ep_ifmedia_upd(struct ifnet *);
@@ -134,13 +137,13 @@ get_e(struct ep_softc *sc, u_int16_t offset, u_int16_t *result)
 	if (eeprom_rdy(sc))
 		return (ENXIO);
 
-	EP_WRITE_2(sc, EP_W0_EEPROM_COMMAND,
+	CSR_WRITE_2(sc, EP_W0_EEPROM_COMMAND,
 	    (EEPROM_CMD_RD << sc->epb.cmd_off) | offset);
 
 	if (eeprom_rdy(sc))
 		return (ENXIO);
 
-	(*result) = EP_READ_2(sc, EP_W0_EEPROM_DATA);
+	(*result) = CSR_READ_2(sc, EP_W0_EEPROM_DATA);
 
 	return (0);
 }
@@ -223,7 +226,7 @@ ep_get_media(struct ep_softc *sc)
 	u_int16_t config;
 
 	GO_WINDOW(0);
-	config = EP_READ_2(sc, EP_W0_CONFIG_CTRL);
+	config = CSR_READ_2(sc, EP_W0_CONFIG_CTRL);
 	if (config & IS_AUI)
 		sc->ep_connectors |= AUI;
 	if (config & IS_BNC)
@@ -240,7 +243,7 @@ ep_get_media(struct ep_softc *sc)
 	 * The cards that require something different can override
 	 * this later on.
 	 */
-	sc->ep_connector = EP_READ_2(sc, EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
+	sc->ep_connector = CSR_READ_2(sc, EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 }
 
 void
@@ -267,10 +270,12 @@ ep_attach(struct ep_softc *sc)
 	int error;
 
 	sc->gone = 0;
-
+	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
 	if (error) {
 		device_printf(sc->dev, "Unable to get Ethernet address!\n");
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 	/*
@@ -279,7 +284,7 @@ ep_attach(struct ep_softc *sc)
 	p = (u_short *)&sc->arpcom.ac_enaddr;
 	GO_WINDOW(2);
 	for (i = 0; i < 3; i++)
-		EP_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
+		CSR_WRITE_2(sc, EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
 
 	device_printf(sc->dev, "Ethernet address %6D\n",
 	    sc->arpcom.ac_enaddr, ":");
@@ -293,10 +298,10 @@ ep_attach(struct ep_softc *sc)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_output = ether_output;
-	ifp->if_start = ep_if_start;
-	ifp->if_ioctl = ep_if_ioctl;
-	ifp->if_watchdog = ep_if_watchdog;
-	ifp->if_init = ep_if_init;
+	ifp->if_start = epstart;
+	ifp->if_ioctl = epioctl;
+	ifp->if_watchdog = epwatchdog;
+	ifp->if_init = epinit;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	if (!sc->epb.mii_trans) {
@@ -358,8 +363,18 @@ ep_detach(device_t dev)
 
 	sc->gone = 1;
 	ep_free(dev);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+static void
+epinit(void *xsc)
+{
+	struct ep_softc *sc = xsc;
+	EP_LOCK(sc);
+	epinit_body(sc);
+	EP_UNLOCK(sc);
 }
 
 /*
@@ -367,64 +382,62 @@ ep_detach(device_t dev)
  * interrupts. ?!
  */
 static void
-ep_if_init(void *xsc)
+epinit_body(struct ep_softc *sc)
 {
-	struct ep_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int s, i;
+	int i;
 
 	if (sc->gone)
 		return;
 
-	s = splimp();
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_BUSY_WAIT;
 
 	GO_WINDOW(0);
-	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
+	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	GO_WINDOW(4);
-	EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
 	GO_WINDOW(0);
 
 	/* Disable the card */
-	EP_WRITE_2(sc, EP_W0_CONFIG_CTRL, 0);
+	CSR_WRITE_2(sc, EP_W0_CONFIG_CTRL, 0);
 
 	/* Enable the card */
-	EP_WRITE_2(sc, EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
+	CSR_WRITE_2(sc, EP_W0_CONFIG_CTRL, ENABLE_DRQ_IRQ);
 
 	GO_WINDOW(2);
 
 	/* Reload the ether_addr. */
 	for (i = 0; i < 6; i++)
-		EP_WRITE_1(sc, EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+		CSR_WRITE_1(sc, EP_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
-	EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
-	EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
+	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
+	EP_BUSY_WAIT;
 
 	/* Window 1 is operating window */
 	GO_WINDOW(1);
 	for (i = 0; i < 31; i++)
-		EP_READ_1(sc, EP_W1_TX_STATUS);
+		CSR_READ_1(sc, EP_W1_TX_STATUS);
 
 	/* get rid of stray intr's */
-	EP_WRITE_2(sc, EP_COMMAND, ACK_INTR | 0xff);
+	CSR_WRITE_2(sc, EP_COMMAND, ACK_INTR | 0xff);
 
-	EP_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK | S_5_INTS);
 
-	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
 	if (ifp->if_flags & IFF_PROMISC)
-		EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-		    FIL_GROUP | FIL_BRDCST | FIL_ALL);
+		CSR_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		    FIL_MULTICAST | FIL_BRDCST | FIL_PROMISC);
 	else
-		EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-		    FIL_GROUP | FIL_BRDCST);
+		CSR_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		    FIL_MULTICAST | FIL_BRDCST);
 
 	if (!sc->epb.mii_trans)
 		ep_ifmedia_upd(ifp);
 
-	EP_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
-	EP_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
+	CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;	/* just in case */
@@ -438,8 +451,8 @@ ep_if_init(void *xsc)
 		m_freem(sc->top);
 		sc->top = sc->mcur = 0;
 	}
-	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
-	EP_WRITE_2(sc, EP_COMMAND, SET_TX_START_THRESH | 16);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_TX_START_THRESH | 16);
 
 	/*
 	 * Store up a bunch of mbuf's for use later. (MAX_MBS).
@@ -448,27 +461,34 @@ ep_if_init(void *xsc)
 	 */
 
 	GO_WINDOW(1);
-	ep_if_start(ifp);
-
-	splx(s);
+	epstart_body(ifp);
 }
 
 static void
-ep_if_start(struct ifnet *ifp)
+epstart(struct ifnet *ifp)
+{
+	struct ep_softc *sc;
+	sc = ifp->if_softc;
+	EP_LOCK(sc);
+	epstart_body(ifp);
+	EP_UNLOCK(sc);
+}
+	
+static void
+epstart_body(struct ifnet *ifp)
 {
 	struct ep_softc *sc;
 	u_int len;
 	struct mbuf *m, *m0;
-	int s, pad;
+	int pad;
 
 	sc = ifp->if_softc;
 	if (sc->gone)
 		return;
 
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	EP_BUSY_WAIT;
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
-
 startagain:
 	/* Sneak a peek at the next packet */
 	IF_DEQUEUE(&ifp->if_snd, m0);
@@ -490,50 +510,50 @@ startagain:
 		m_freem(m0);
 		goto readcheck;
 	}
-	if (EP_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
+	if (CSR_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
 		/* no room in FIFO */
-		EP_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
+		CSR_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | (len + pad + 4));
 		/* make sure */
-		if (EP_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
+		if (CSR_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m0);
-			return;
+			goto done;
 		}
 	} else
-		EP_WRITE_2(sc, EP_COMMAND,
+		CSR_WRITE_2(sc, EP_COMMAND,
 		    SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
 
-	s = splhigh();
+	/* XXX 4.x and earlier would splhigh here */
 
-	EP_WRITE_2(sc, EP_W1_TX_PIO_WR_1, len);
+	CSR_WRITE_2(sc, EP_W1_TX_PIO_WR_1, len);
 	/* Second dword meaningless */
-	EP_WRITE_2(sc, EP_W1_TX_PIO_WR_1, 0x0);
+	CSR_WRITE_2(sc, EP_W1_TX_PIO_WR_1, 0x0);
 
 	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 		for (m = m0; m != NULL; m = m->m_next) {
 			if (m->m_len > 3)
-				EP_WRITE_MULTI_4(sc, EP_W1_TX_PIO_WR_1,
+				CSR_WRITE_MULTI_4(sc, EP_W1_TX_PIO_WR_1,
 				    mtod(m, uint32_t *), m->m_len / 4);
 			if (m->m_len & 3)
-				EP_WRITE_MULTI_1(sc, EP_W1_TX_PIO_WR_1,
+				CSR_WRITE_MULTI_1(sc, EP_W1_TX_PIO_WR_1,
 				    mtod(m, uint8_t *)+(m->m_len & (~3)),
 				    m->m_len & 3);
 		}
 	} else {
 		for (m = m0; m != NULL; m = m->m_next) {
 			if (m->m_len > 1)
-				EP_WRITE_MULTI_2(sc, EP_W1_TX_PIO_WR_1,
+				CSR_WRITE_MULTI_2(sc, EP_W1_TX_PIO_WR_1,
 				    mtod(m, uint16_t *), m->m_len / 2);
 			if (m->m_len & 1)
-				EP_WRITE_1(sc, EP_W1_TX_PIO_WR_1,
+				CSR_WRITE_1(sc, EP_W1_TX_PIO_WR_1,
 				    *(mtod(m, uint8_t *)+m->m_len - 1));
 		}
 	}
 
 	while (pad--)
-		EP_WRITE_1(sc, EP_W1_TX_PIO_WR_1, 0);	/* Padding */
+		CSR_WRITE_1(sc, EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-	splx(s);
+	/* XXX and drop splhigh here */
 
 	BPF_MTAP(ifp, m0);
 
@@ -546,16 +566,18 @@ startagain:
 	 * the tiny RX fifo.
 	 */
 readcheck:
-	if (EP_READ_2(sc, EP_W1_RX_STATUS) & RX_BYTES_MASK) {
+	if (CSR_READ_2(sc, EP_W1_RX_STATUS) & RX_BYTES_MASK) {
 		/*
 		 * we check if we have packets left, in that case
 		 * we prepare to come back later
 		 */
 		if (ifp->if_snd.ifq_head)
-			EP_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
-		return;
+			CSR_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
+		goto done;
 	}
 	goto startagain;
+done:;
+	return;
 }
 
 void
@@ -564,29 +586,28 @@ ep_intr(void *arg)
 	struct ep_softc *sc;
 	int status;
 	struct ifnet *ifp;
-	int x;
-
-	x = splbio();
 
 	sc = (struct ep_softc *) arg;
+	EP_LOCK(sc);
+	/* XXX 4.x splbio'd here to reduce interruptability */
 
 	/*
 	 * quick fix: Try to detect an interrupt when the card goes away.
 	 */
-	if (sc->gone || EP_READ_2(sc, EP_STATUS) == 0xffff) {
-		splx(x);
+	if (sc->gone || CSR_READ_2(sc, EP_STATUS) == 0xffff) {
+		EP_UNLOCK(sc);
 		return;
 	}
 	ifp = &sc->arpcom.ac_if;
 
-	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
+	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
 rescan:
 
-	while ((status = EP_READ_2(sc, EP_STATUS)) & S_5_INTS) {
+	while ((status = CSR_READ_2(sc, EP_STATUS)) & S_5_INTS) {
 
 		/* first acknowledge all interrupt sources */
-		EP_WRITE_2(sc, EP_COMMAND, ACK_INTR | (status & S_MASK));
+		CSR_WRITE_2(sc, EP_COMMAND, ACK_INTR | (status & S_MASK));
 
 		if (status & (S_RX_COMPLETE | S_RX_EARLY))
 			epread(sc);
@@ -595,8 +616,8 @@ rescan:
 			ifp->if_timer = 0;
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
-			EP_READ_2(sc, EP_W1_FREE_TX);
-			ep_if_start(ifp);
+			CSR_READ_2(sc, EP_W1_FREE_TX);
+			epstart_body(ifp);
 		}
 		if (status & S_CARD_FAILURE) {
 			ifp->if_timer = 0;
@@ -604,7 +625,7 @@ rescan:
 			printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
 			GO_WINDOW(4);
 			printf("\tFIFO Diagnostic: %x\n",
-			    EP_READ_2(sc, EP_W4_FIFO_DIAG));
+			    CSR_READ_2(sc, EP_W4_FIFO_DIAG));
 			printf("\tStat: %x\n", sc->stat);
 			printf("\tIpackets=%d, Opackets=%d\n",
 			    ifp->if_ipackets, ifp->if_opackets);
@@ -621,8 +642,8 @@ rescan:
 #endif
 
 #endif
-			ep_if_init(sc);
-			splx(x);
+			epinit_body(sc);
+			EP_UNLOCK(sc);
 			return;
 		}
 		if (status & S_TX_COMPLETE) {
@@ -633,13 +654,13 @@ rescan:
 		         * We need to read TX_STATUS until we get a
 			 * 0 status in order to turn off the interrupt flag.
 		         */
-			while ((status = EP_READ_1(sc, EP_W1_TX_STATUS)) &
+			while ((status = CSR_READ_1(sc, EP_W1_TX_STATUS)) &
 			    TXS_COMPLETE) {
 				if (status & TXS_SUCCES_INTR_REQ);
 				else if (status &
 				    (TXS_UNDERRUN | TXS_JABBER |
 				    TXS_MAX_COLLISION)) {
-					EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
+					CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
 					if (status & TXS_UNDERRUN) {
 #ifdef EP_LOCAL_STATS
 						sc->tx_underrun++;
@@ -654,34 +675,33 @@ rescan:
 							 */
 					}
 					++ifp->if_oerrors;
-					EP_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
+					CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 					/*
 				         * To have a tx_avail_int but giving
 					 * the chance to the Reception
 				         */
 					if (ifp->if_snd.ifq_head)
-						EP_WRITE_2(sc, EP_COMMAND,
+						CSR_WRITE_2(sc, EP_COMMAND,
 						    SET_TX_AVAIL_THRESH | 8);
 				}
 				/* pops up the next status */
-				EP_WRITE_1(sc, EP_W1_TX_STATUS, 0x0);
+				CSR_WRITE_1(sc, EP_W1_TX_STATUS, 0x0);
 			}	/* while */
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
-			EP_READ_2(sc, EP_W1_FREE_TX);
-			ep_if_start(ifp);
+			CSR_READ_2(sc, EP_W1_FREE_TX);
+			epstart_body(ifp);
 		}	/* end TX_COMPLETE */
 	}
 
-	EP_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
+	CSR_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
 
-	if ((status = EP_READ_2(sc, EP_STATUS)) & S_5_INTS)
+	if ((status = CSR_READ_2(sc, EP_STATUS)) & S_5_INTS)
 		goto rescan;
 
 	/* re-enable Ints */
-	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
-
-	splx(x);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+	EP_UNLOCK(sc);
 }
 
 static void
@@ -690,12 +710,13 @@ epread(struct ep_softc *sc)
 	struct mbuf *top, *mcur, *m;
 	struct ifnet *ifp;
 	int lenthisone;
-
 	short rx_fifo2, status;
 	short rx_fifo;
 
+/* XXX Must be called with sc locked */
+
 	ifp = &sc->arpcom.ac_if;
-	status = EP_READ_2(sc, EP_W1_RX_STATUS);
+	status = CSR_READ_2(sc, EP_W1_RX_STATUS);
 
 read_again:
 
@@ -729,7 +750,7 @@ read_again:
 		top->m_data += EOFF;
 
 		/* Read what should be the header. */
-		EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
+		CSR_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
 		    mtod(top, uint16_t *), sizeof(struct ether_header) / 2);
 		top->m_len = sizeof(struct ether_header);
 		rx_fifo -= sizeof(struct ether_header);
@@ -757,22 +778,22 @@ read_again:
 		}
 		if (EP_FTST(sc, F_ACCESS_32_BITS)) {
 			/* default for EISA configured cards */
-			EP_READ_MULTI_4(sc, EP_W1_RX_PIO_RD_1,
+			CSR_READ_MULTI_4(sc, EP_W1_RX_PIO_RD_1,
 			    (uint32_t *)(mtod(m, caddr_t)+m->m_len),
 			    lenthisone / 4);
 			m->m_len += (lenthisone & ~3);
 			if (lenthisone & 3)
-				EP_READ_MULTI_1(sc, EP_W1_RX_PIO_RD_1,
+				CSR_READ_MULTI_1(sc, EP_W1_RX_PIO_RD_1,
 				    mtod(m, caddr_t)+m->m_len, lenthisone & 3);
 			m->m_len += (lenthisone & 3);
 		} else {
-			EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
+			CSR_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
 			    (uint16_t *)(mtod(m, caddr_t)+m->m_len),
 			    lenthisone / 2);
 			m->m_len += lenthisone;
 			if (lenthisone & 1)
 				*(mtod(m, caddr_t)+m->m_len - 1) =
-				    EP_READ_1(sc, EP_W1_RX_PIO_RD_1);
+				    CSR_READ_1(sc, EP_W1_RX_PIO_RD_1);
 		}
 		rx_fifo -= lenthisone;
 	}
@@ -785,7 +806,7 @@ read_again:
 		sc->rx_no_first++;
 #endif
 		EP_FRST(sc, F_RX_FIRST);
-		status = EP_READ_2(sc, EP_W1_RX_STATUS);
+		status = CSR_READ_2(sc, EP_W1_RX_STATUS);
 		if (!status & ERR_RX_INCOMPLETE) {
 			/*
 			 * We see if by now, the packet has completly
@@ -793,24 +814,33 @@ read_again:
 			 */
 			goto read_again;
 		}
-		EP_WRITE_2(sc, EP_COMMAND,
+		CSR_WRITE_2(sc, EP_COMMAND,
 		    SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
 		return;
 	}
-	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	++ifp->if_ipackets;
 	EP_FSET(sc, F_RX_FIRST);
 	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 	top->m_pkthdr.len = sc->cur_len;
 
+	/*
+	 * Drop locks before calling if_input() since it may re-enter
+	 * ep_start() in the netisr case.  This would result in a
+	 * lock reversal.  Better performance might be obtained by
+	 * chaining all packets received, dropping the lock, and then
+	 * calling if_input() on each one.
+	 */
+	EP_UNLOCK(sc);
 	(*ifp->if_input) (ifp, top);
+	EP_LOCK(sc);
 	sc->top = 0;
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	EP_BUSY_WAIT;
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 	return;
 
 out:
-	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	if (sc->top) {
 		m_freem(sc->top);
 		sc->top = 0;
@@ -819,8 +849,8 @@ out:
 #endif
 	}
 	EP_FSET(sc, F_RX_FIRST);
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	EP_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
+	EP_BUSY_WAIT;
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
 static int
@@ -830,9 +860,9 @@ ep_ifmedia_upd(struct ifnet *ifp)
 	int i = 0, j;
 
 	GO_WINDOW(0);
-	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
+	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	GO_WINDOW(4);
-	EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
+	CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, DISABLE_UTP);
 	GO_WINDOW(0);
 
 	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
@@ -840,13 +870,13 @@ ep_ifmedia_upd(struct ifnet *ifp)
 		if (sc->ep_connectors & UTP) {
 			i = ACF_CONNECTOR_UTP;
 			GO_WINDOW(4);
-			EP_WRITE_2(sc, EP_W4_MEDIA_TYPE, ENABLE_UTP);
+			CSR_WRITE_2(sc, EP_W4_MEDIA_TYPE, ENABLE_UTP);
 		}
 		break;
 	case IFM_10_2:
 		if (sc->ep_connectors & BNC) {
 			i = ACF_CONNECTOR_BNC;
-			EP_WRITE_2(sc, EP_COMMAND, START_TRANSCEIVER);
+			CSR_WRITE_2(sc, EP_COMMAND, START_TRANSCEIVER);
 			DELAY(DELAY_MULTIPLE * 1000);
 		}
 		break;
@@ -861,8 +891,8 @@ ep_ifmedia_upd(struct ifnet *ifp)
 	}
 
 	GO_WINDOW(0);
-	j = EP_READ_2(sc, EP_W0_ADDRESS_CFG) & 0x3fff;
-	EP_WRITE_2(sc, EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
+	j = CSR_READ_2(sc, EP_W0_ADDRESS_CFG) & 0x3fff;
+	CSR_WRITE_2(sc, EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
 
 	return (0);
 }
@@ -876,23 +906,23 @@ ep_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-ep_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ep_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, error = 0;
-
-	s = splimp();
+	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
+		EP_LOCK(sc);
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_flags & IFF_RUNNING)) {
 			ifp->if_flags &= ~IFF_RUNNING;
 			epstop(sc);
 		} else
 			/* reinitialize card on any parameter change */
-			ep_if_init(sc);
+			epinit_body(sc);
+		EP_UNLOCK(sc);
 		break;
 #ifdef notdef
 	case SIOCGHWADDR:
@@ -922,28 +952,18 @@ ep_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
-	(void)splx(s);
-
 	return (error);
 }
 
 static void
-ep_if_watchdog(struct ifnet *ifp)
+epwatchdog(struct ifnet *ifp)
 {
 	struct ep_softc *sc = ifp->if_softc;
-
-/*
-	printf("ep: watchdog\n");
-
-	log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
-	ifp->if_oerrors++;
-*/
 
 	if (sc->gone)
 		return;
 	ifp->if_flags &= ~IFF_OACTIVE;
-	ep_if_start(ifp);
+	epstart(ifp);
 	ep_intr(ifp->if_softc);
 }
 
@@ -952,21 +972,21 @@ epstop(struct ep_softc *sc)
 {
 	if (sc->gone)
 		return;
-	EP_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
-	EP_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
+	EP_BUSY_WAIT;
 
-	EP_WRITE_2(sc, EP_COMMAND, TX_DISABLE);
-	EP_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
+	CSR_WRITE_2(sc, EP_COMMAND, TX_DISABLE);
+	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	DELAY(800);
 
-	EP_WRITE_2(sc, EP_COMMAND, RX_RESET);
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
-	EP_WRITE_2(sc, EP_COMMAND, TX_RESET);
-	while (EP_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS);
+	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
+	EP_BUSY_WAIT;
+	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
+	EP_BUSY_WAIT;
 
-	EP_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);
-	EP_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
-	EP_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);
-	EP_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER);
+	CSR_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);
+	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER);
 }
