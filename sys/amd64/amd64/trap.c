@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.52.2.1 1995/06/05 00:22:04 davidg Exp $
+ *	$Id: trap.c,v 1.53 1995/06/11 19:31:14 rgrimes Exp $
  */
 
 /*
@@ -464,7 +464,8 @@ trap_pfault(frame, usermode)
 		v = (vm_offset_t) vtopte(va);
 
 		/* Fault the pte only if needed: */
-		*(volatile char *)v += 0;
+		if (*((int *)vtopte(v)) == 0)
+			(void) vm_fault(map, v, VM_PROT_WRITE, FALSE);
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
@@ -553,7 +554,7 @@ trap_pfault(frame, usermode)
 		ftype = VM_PROT_READ;
 
 	if (map != kernel_map) {
-		vm_offset_t v = (vm_offset_t) vtopte(va);
+		vm_offset_t v;
 		vm_page_t ptepg;
 
 		/*
@@ -578,9 +579,11 @@ trap_pfault(frame, usermode)
 		 * Check if page table is mapped, if not,
 		 *	fault it first
 		 */
+		v = (vm_offset_t) vtopte(va);
 
 		/* Fault the pte only if needed: */
-		*(volatile char *)v += 0;
+		if (*((int *)vtopte(v)) == 0)
+			(void) vm_fault(map, v, VM_PROT_WRITE, FALSE);
 
 		pmap_use_pt( vm_map_pmap(map), va);
 
