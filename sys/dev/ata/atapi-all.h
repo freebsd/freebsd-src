@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,10 +136,10 @@ struct atapi_reqsense {
     u_int8_t	asc;				/* additional sense code */
     u_int8_t	ascq;				/* additional sense code qual */
     u_int8_t	replaceable_unit_code;		/* replaceable unit code */
-    u_int8_t	sk_specific1	:7;		/* sense key specific */
+    u_int8_t	sk_specific	:7;		/* sense key specific */
     u_int8_t	sksv		:1;		/* sense key specific info OK */
+    u_int8_t	sk_specific1;			/* sense key specific */
     u_int8_t	sk_specific2;			/* sense key specific */
-    u_int8_t	sk_specific3;			/* sense key specific */
 };  
 
 struct atapi_softc {
@@ -171,6 +171,7 @@ struct atapi_request {
 #define		ATPR_F_READ		0x0001
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
+#define		ATPR_F_INTERNAL		0x0008
 
     caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */

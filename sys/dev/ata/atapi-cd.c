@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,13 +82,13 @@ static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_
 static void acd_select_slot(struct acd_softc *);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
 static int acd_close_track(struct acd_softc *);
-static int acd_close_disk(struct acd_softc *);
+static int acd_close_disk(struct acd_softc *, int);
 static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
 static int acd_eject(struct acd_softc *, int);
-static int acd_blank(struct acd_softc *);
+static int acd_blank(struct acd_softc *, int);
 static int acd_prevent_allow(struct acd_softc *, int);
 static int acd_start_stop(struct acd_softc *, int);
 static int acd_pause_resume(struct acd_softc *, int);
@@ -977,7 +977,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
 
     case CDRIOCBLANK:
-	error = acd_blank(cdp);
+	error = acd_blank(cdp, (*(int *)addr));
 	break;
 
     case CDRIOCNEXTWRITEABLEADDR:
@@ -1007,7 +1007,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
 
     case CDRIOCCLOSEDISK:
-	error = acd_close_disk(cdp);
+	error = acd_close_disk(cdp, (*(int *)addr));
 	break;
 
     case CDRIOCWRITESPEED:
@@ -1362,12 +1362,35 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int
-acd_close_disk(struct acd_softc *cdp)
+acd_close_disk(struct acd_softc *cdp, int multisession)
 {
-    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0, 0x02, 0, 0, 0, 0, 0, 
-		       0, 0, 0, 0, 0, 0, 0, 0 };
+    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
+	       	       0, 0, 0, 0, 0, 0, 0, 0 };
+    int timeout = 5*60*2;
+    int error;
+    struct write_param param;
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 5*60, NULL, NULL);
+    if ((error = acd_mode_sense(cdp, ATAPI_CDROM_WRITE_PARAMETERS_PAGE,
+				(caddr_t)&param, sizeof(param))))
+	return error;
+
+    if (multisession)
+	param.session_type = CDR_SESS_MULTI;
+    else
+	param.session_type = CDR_SESS_NONE;
+
+    if ((error = acd_mode_select(cdp, (caddr_t)&param, sizeof(param))))
+	return error;
+
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    if (error)
+        return error;
+    while (timeout-- > 0) {
+        if ((error = atapi_test_ready(cdp->atp)) != EBUSY)
+            return error;
+        tsleep(&error, PRIBIO, "acdcld", hz/2);
+    }
+    return EIO;
 }
 
 static int
@@ -1384,10 +1407,14 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
     param.page_length = 0x32;
     param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
+    param.session_type = CDR_SESS_MULTI;
+    param.fp = 0;
+    param.packet_size = 0;
+
     if (cdp->cap.burnproof) 
 	param.burnproof = 1;
 
-    switch (track->track_type) {
+    switch (track->datablock_type) {
 
     case CDR_DB_RAW:
 	if (track->preemp)
@@ -1395,60 +1422,53 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
 	else
 	    param.track_mode = CDR_TMODE_AUDIO;
 	cdp->block_size = 2352;
-	param.data_block_type = CDR_DB_RAW;
+	param.datablock_type = CDR_DB_RAW;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
     case CDR_DB_ROM_MODE1:
 	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_ROM_MODE1;
+	param.datablock_type = CDR_DB_ROM_MODE1;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
     case CDR_DB_ROM_MODE2:
 	cdp->block_size = 2336;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_ROM_MODE2;
+	param.datablock_type = CDR_DB_ROM_MODE2;
 	param.session_format = CDR_SESS_CDROM;
 	break;
 
     case CDR_DB_XA_MODE1:
 	cdp->block_size = 2048;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_XA_MODE1;
+	param.datablock_type = CDR_DB_XA_MODE1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
     case CDR_DB_XA_MODE2_F1:
 	cdp->block_size = 2056;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_XA_MODE2_F1;
+	param.datablock_type = CDR_DB_XA_MODE2_F1;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
     case CDR_DB_XA_MODE2_F2:
 	cdp->block_size = 2324;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_XA_MODE2_F2;
+	param.datablock_type = CDR_DB_XA_MODE2_F2;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
 
     case CDR_DB_XA_MODE2_MIX:
 	cdp->block_size = 2332;
 	param.track_mode = CDR_TMODE_DATA;
-	param.data_block_type = CDR_DB_XA_MODE2_MIX;
+	param.datablock_type = CDR_DB_XA_MODE2_MIX;
 	param.session_format = CDR_SESS_CDROM_XA;
 	break;
     }
 
-#if 1
-    param.multi_session = CDR_MSES_MULTI;
-#else
-    param.multi_session = CDR_MSES_NONE;
-#endif
-    param.fp = 0;
-    param.packet_size = 0;
     return acd_mode_select(cdp, (caddr_t)&param, sizeof(param));
 }
 
@@ -1750,9 +1770,9 @@ acd_eject(struct acd_softc *cdp, int close)
 }
 
 static int
-acd_blank(struct acd_softc *cdp)
+acd_blank(struct acd_softc *cdp, int blanktype)
 {
-    int8_t ccb[16] = { ATAPI_BLANK, 1, 0, 0, 0, 0, 0, 0, 
+    int8_t ccb[16] = { ATAPI_BLANK, (blanktype & 0x7), 0, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,7 @@ static int ast_erase(struct ast_softc *);
 /* internal vars */
 static u_int32_t ast_lun_map = 0;
 static u_int64_t ast_total = 0;
-MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
+static MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
 int 
 astattach(struct atapi_softc *atp)
@@ -96,12 +96,11 @@ astattach(struct atapi_softc *atp)
 	cdevsw_add(&ast_cdevsw);
 	ast_cdev_done = 1;
     }
-    stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT);
+    stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
 	printf("ast: out of memory\n");
 	return -1;
     }
-    bzero(stp, sizeof(struct ast_softc));
     bufq_init(&stp->bio_queue);
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
