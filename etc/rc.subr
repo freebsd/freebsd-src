@@ -1033,3 +1033,221 @@ backup_file()
 		esac
 	fi
 }
+
+# devfs_link dir src link
+#	Make a symbolic link 'link' to src in chroot/dev.
+#	Returns 0 on sucess.
+#
+devfs_link()
+{
+	local dir src link _me
+	dir="$1"
+	src="$2"
+	link="$3"
+	_me="devfs_link"
+
+	if [ -z "$dir" -o -z "$src" -o -z "$link" ]; then
+		warn "devfs_link(): requires three arguments."
+		return 1
+	fi
+	if [ -z "$dir" ]; then
+		warn "$_me: the directory ($dir) does not exist"
+		return 1
+	fi
+	cd ${chroot}/dev
+	if ! ln -sf $src $link ; then
+		warn "$_me: unable to link $link --> $src in $dir"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_rulesets_from_file file
+#	Reads a set of devfs commands from file, and creates
+#	the specified rulesets with their rules. Returns non-zero
+#	if there was an error.
+#
+devfs_rulesets_from_file()
+{
+	local file _err _me
+	file="$1"
+	_me="devfs_rulesets_from_file"
+	_err=0
+
+	if [ -z "$file" ]; then
+		warn "$_me: you must specify a file"
+		return 1
+	fi
+	if [ ! -e "$file" ]; then
+		debug "$_me: no such file ($file)"
+		return 0
+	fi
+	debug "reading rulesets from file ($file)"
+	{ while read line
+	do
+		case $line in
+		\#*)
+			continue
+			;;
+		\[*\]*)
+			rulenum=`expr "$line" : "\[.*=\([0-9]*\)\]"`
+			if [ -z "$rulenum" ]; then
+				warn "$_me: cannot extract rule number ($line)"
+				_err=1
+				break
+			fi
+			rulename=`expr "$line" : "\[\(.*\)=[0-9]*\]"`
+			if [ -z "$rulename" ]; then
+				warn "$_me: cannot extract rule name ($line)"
+				_err=1
+				break;
+			fi
+			eval $rulename=\$rulenum
+			debug "found ruleset: $rulename=$rulenum"
+			if ! /sbin/devfs rule -s $rulenum delset ; then
+				_err=1
+				break
+			fi
+			;;
+		*)
+			rulecmd="${line%%"\#*"}"
+			# evaluate the command incase it includes
+			# other rules
+			if [ -n "$rulecmd" ]; then
+				debug "adding rule ($rulecmd)"
+				if ! eval /sbin/devfs rule -s $rulenum $rulecmd
+				then
+					_err=1
+					break
+				fi
+			fi
+			;;
+		esac
+		if [ $_err -ne 0 ]; then
+			debug "error in $_me"
+			break
+		fi
+	done } < $file
+	return $_err
+}
+
+# devfs_init_rulesets
+#	Initializes rulesets from configuration files. Returns
+#	non-zero if there was an error.
+#
+devfs_init_rulesets()
+{
+	local file _me
+	_me="devfs_init_rulesets"
+
+	# Go through this only once
+	if [ -n "$devfs_rulesets_init" ]; then
+		debug "$_me: devfs rulesets already initialized"
+		return
+	fi
+	for file in $devfs_rulesets ; do
+		devfs_rulesets_from_file $file || return 1
+	done
+	devfs_rulesets_init=1
+	debug "$_me: devfs rulesets initialized"
+	return 0
+}
+
+# devfs_set_ruleset ruleset [dir]
+#	Sets the default ruleset of dir to ruleset. The ruleset arguement
+#	must be a ruleset name as specified in devfs.rules(5) file.
+#	Returns non-zero if it could not set it successfully.
+#
+devfs_set_ruleset()
+{
+	local devdir rs _me
+	[ -n "$1" ] && eval rs=\$$1 || rs=
+	[ -n "$2" ] && devdir="-m "$2"" || devdir=
+	_me="devfs_set_ruleset"
+
+	if [ -z "$rs" ]; then
+		warn "$_me: you must specify a ruleset number"
+		return 1
+	fi
+	debug "$_me: setting ruleset ($rs) on mount-point (${devdir#-m })"
+	if ! /sbin/devfs $devdir ruleset $rs ; then
+		warn "$_me: unable to set ruleset $rs to ${devdir#-m }"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_apply_ruleset ruleset [dir]
+#	Apply ruleset number $ruleset to the devfs mountpoint $dir.
+#	The ruleset argument must be a ruleset name as specified
+#	in a devfs.rules(5) file.  Returns 0 on success or non-zero
+#	if it could not apply the ruleset.
+#
+devfs_apply_ruleset()
+{
+	local devdir rs _me
+	[ -n "$1" ] && eval rs=\$$1 || rs=
+	[ -n "$2" ] && devdir="-m "$2"" || devdir=
+	_me="devfs_apply_ruleset"
+
+	if [ -z "$rs" ]; then
+		warn "$_me: you must specify a ruleset"
+		return 1
+	fi
+	debug "$_me: applying ruleset ($rs) to mount-point (${devdir#-m })"
+	if ! /sbin/devfs $devdir rule -s $rs applyset ; then
+		warn "$_me: unable to apply ruleset $rs to ${devdir#-m }"
+		return 1
+	fi
+	return 0
+}
+
+# devfs_domount dir [ruleset]
+#	Mount devfs on dir. If ruleset is specified it is set
+#	on the mount-point. It must also be a ruleset name as specified
+#	in a devfs.rules(5) file. Returns 0 on success.
+#
+devfs_domount()
+{
+	local devdir rs _me
+	devdir="$1"
+	[ -n "$2" ] && rs=$2 || rs=
+	_me="devfs_domount()"
+
+	if [ -z "$devdir" ]; then
+		warn "$_me: you must specify a mount-point"
+		return 1
+	fi
+	debug "$_me: mount-point is ($devdir), ruleset is ($rs)"
+	if ! mount -t devfs dev "$devdir" ; then
+		warn "$_me: Unable to mount devfs on $devdir"
+		return 1
+	fi
+	if [ -n "$rs" ]; then
+		devfs_init_rulesets
+		devfs_set_ruleset $rs $devdir
+	fi
+	return 0
+}
+
+# devfs_mount_jail dir [ruleset]
+#	Mounts a devfs file system appropriate for jails
+#	on the directory dir. If ruleset is specified, the ruleset
+#	it names will be used instead.  If present, ruleset must
+#	be the name of a ruleset as defined in a devfs.rules(5) file.
+#	This function returns non-zero if an error occurs.
+#
+devfs_mount_jail()
+{
+	local jdev rs _me
+	jdev="$1"
+	[ -n "$2" ] && rs=$2 || rs="devfsrules_jail"
+	_me="devfs_mount_jail"
+
+	devfs_init_rulesets
+	if ! devfs_domount "$jdev" $rs ; then
+		warn "$_me: devfs was not mounted on $jdev"
+		return 1
+	fi
+	return 0
+}
