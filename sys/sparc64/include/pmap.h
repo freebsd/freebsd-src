@@ -40,6 +40,8 @@
 #define	_MACHINE_PMAP_H_
 
 #include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <machine/cache.h>
 #include <machine/tte.h>
 
@@ -56,12 +58,24 @@ struct md_page {
 };
 
 struct pmap {
+	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
 	u_int	pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
+
+#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_ASSERT(pmap, type) \
+				mtx_assert(&(pmap)->pm_mtx, (type))
+#define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
+				    NULL, MTX_DEF)
+#define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
+#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
+#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
+#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 void	pmap_bootstrap(vm_offset_t ekva);
 vm_paddr_t pmap_kextract(vm_offset_t va);
