@@ -37,12 +37,13 @@
 
 #ifndef lint
 #if 0
-static char const sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: misc.c,v 1.13 1998/05/06 06:51:40 charnier Exp $";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <sys/time.h>
 
 #include <errno.h>
