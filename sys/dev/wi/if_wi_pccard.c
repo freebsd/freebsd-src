@@ -99,7 +99,7 @@ DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
 
 static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(3COM, 3CRWE737A, 0),
-	PCMCIA_CARD(3COM, 3CRWE62092A, 0),
+	PCMCIA_CARD(3COM, 3CRWE777A, 0),
 	PCMCIA_CARD(ADDTRON, AWP100, 0),
 	PCMCIA_CARD(BUFFALO, WLI_PCM_S11, 0),
 	PCMCIA_CARD(BUFFALO, WLI_CF_S11G, 0),
