@@ -807,7 +807,7 @@ elf_hash(const char *name)
  *   rpath in the referencing file
  *   LD_LIBRARY_PATH
  *   ldconfig hints
- *   /usr/lib
+ *   /lib:/usr/lib
  */
 static char *
 find_library(const char *xname, const Obj_Entry *refobj)
