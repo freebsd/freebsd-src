@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.10 1995/05/30 08:15:25 rgrimes Exp $
+ * $Id: lfs_syscalls.c,v 1.11 1995/07/29 11:43:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -189,7 +189,7 @@ lfs_markv(p, uap, retval)
 		/* If this BLOCK_INFO didn't contain a block, keep going. */
 		if (blkp->bi_lbn == LFS_UNUSED_LBN)
 			continue;
-		if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &b_daddr, NULL) ||
+		if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &b_daddr, NULL, NULL) ||
 		    b_daddr != blkp->bi_daddr)
 			continue;
 		/*
@@ -298,7 +298,7 @@ lfs_bmapv(p, uap, retval)
 		if (VFS_VGET(mntp, blkp->bi_inode, &vp))
 			daddr = LFS_UNUSED_DADDR;
 		else {
-			if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &daddr, NULL))
+			if (VOP_BMAP(vp, blkp->bi_lbn, NULL, &daddr, NULL, NULL))
 				daddr = LFS_UNUSED_DADDR;
 			vput(vp);
 		}

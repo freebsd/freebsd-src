@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.7 1995/03/28 07:58:16 bde Exp $
+ * $Id: ufs_bmap.c,v 1.8 1995/05/30 08:15:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,7 @@ ufs_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 	/*
@@ -79,7 +80,7 @@ ufs_bmap(ap)
 		return (0);
 
 	return (ufs_bmaparray(ap->a_vp, ap->a_bn, ap->a_bnp, NULL, NULL,
-	    ap->a_runp));
+	    ap->a_runp, ap->a_runb));
 }
 
 /*
@@ -97,13 +98,14 @@ ufs_bmap(ap)
  */
 
 int
-ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
+ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 	struct vnode *vp;
 	register daddr_t bn;
 	daddr_t *bnp;
 	struct indir *ap;
 	int *nump;
 	int *runp;
+	int *runb;
 {
 	register struct inode *ip;
 	struct buf *bp;
@@ -134,6 +136,10 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 		maxrun = MAXPHYS / mp->mnt_stat.f_iosize - 1;
 	}
 
+	if (runb) {
+		*runb = 0;
+	}
+
 	xap = ap == NULL ? a : ap;
 	if (!nump)
 		nump = &num;
@@ -146,10 +152,19 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 		*bnp = blkptrtodb(ump, ip->i_db[bn]);
 		if (*bnp == 0)
 			*bnp = -1;
-		else if (runp)
+		else if (runp) {
+			daddr_t bnb = bn;
 			for (++bn; bn < NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
+			bn = bnb;
+			if (runb && (bn > 0)) {
+				for (--bn; (bn >= 0) && (*runb < maxrun) &&
+					is_sequential(ump, ip->i_db[bn],
+						ip->i_db[bn+1]);
+						--bn, ++*runb);
+			}
+		}
 		return (0);
 	}
 
@@ -195,12 +210,20 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 		}
 
 		daddr = ((daddr_t *)bp->b_data)[xap->in_off];
-		if (num == 1 && daddr && runp)
+		if (num == 1 && daddr && runp) {
 			for (bn = xap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump, ((daddr_t *)bp->b_data)[bn - 1],
 			    ((daddr_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
+			bn = xap->in_off;
+			if (runb && bn) {
+				for(--bn; bn > 0 && *runb < maxrun &&
+			    		is_sequential(ump, ((daddr_t *)bp->b_data)[bn],
+					    ((daddr_t *)bp->b_data)[bn+1]);
+			    		--bn, ++*runb);
+			}
+		}
 	}
 	if (bp)
 		brelse(bp);

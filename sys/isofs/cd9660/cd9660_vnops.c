@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.14 1995/05/30 08:05:05 rgrimes Exp $
+ * $Id: cd9660_vnops.c,v 1.15 1995/08/02 13:00:40 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -830,7 +830,7 @@ cd9660_strategy(ap)
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
 		if ((error =
-		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL))) {
+		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL))) {
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);

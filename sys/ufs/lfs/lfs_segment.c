@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.12 1995/07/29 11:43:07 bde Exp $
+ * $Id: lfs_segment.c,v 1.13 1995/08/16 16:14:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -660,7 +660,7 @@ lfs_updatemeta(sp)
 		(*sp->start_bpp)->b_blkno = off = fs->lfs_offset;
 		fs->lfs_offset += db_per_fsb;
 
-		if (error = ufs_bmaparray(vp, lbn, &daddr, a, &num, NULL))
+		if (error = ufs_bmaparray(vp, lbn, &daddr, a, &num, NULL, NULL))
 			panic("lfs_updatemeta: ufs_bmaparray %d", error);
 		ip = VTOI(vp);
 		switch (num) {
