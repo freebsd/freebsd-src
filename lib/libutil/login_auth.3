@@ -34,6 +34,8 @@
 .\" .Nm auth_hostok 
 .\" .Nm auth_timesok
 .Nd authentication style support library for login class capabilities database.
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <login_cap.h>
@@ -57,12 +59,6 @@
 .\" .Fn auth_hostok "login_cap_t *lc" "const char *hostname" "char const *ip"
 .\" .Ft int
 .\" .Fn auth_timesok "login_cap_t *lc" "time_t now"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 This set of functions support the login class authorisation style interface provided
 by

@@ -27,6 +27,8 @@
 .Nm in_ltm ,
 .Nm in_ltms
 .Nd functions for parsing and checking login time periods
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <time.h>
@@ -37,12 +39,6 @@
 .Fn in_ltm "const login_time_t *lt" "struct tm *t" "time_t *ends"
 .Ft int
 .Fn in_ltms "const login_time_t *lt" "struct tm *t" "time_t *ends"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 This set of functions may be used for parsing and checking login and
 session times against a predefined list of allowed login times as

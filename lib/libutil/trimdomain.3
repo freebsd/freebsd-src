@@ -30,17 +30,13 @@
 .Sh NAME
 .Nm trimdomain
 .Nd "trim the current domain name from a host name"
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft void
 .Fn trimdomain "char *fullhost" "int hostsize"
-.Pp
-Link with
-.Va -lutil
-on the
-.Xr cc 1
-command line.
 .Sh DESCRIPTION
 The function
 .Fn trimdomain
