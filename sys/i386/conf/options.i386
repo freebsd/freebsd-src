@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.40 1997/04/26 11:44:59 peter Exp $
+#	$Id: options.i386,v 1.41 1997/04/27 20:01:47 peter Exp $
 XXXCreateMe		opt_global.h
 
 BOUNCEPAGES		opt_bounce.h
@@ -37,9 +37,6 @@ NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
 SMP_TIMER_NC		opt_smp.h
-
-# Should be working.  When one cpu flushes it's TLB, it's propagated to all.
-SMP_INVLTLB		opt_smp_invltlb.h
 
 # These three are known to be broken, don't enable them.
 SMP_PRIVPAGES		opt_smp_privpages.h
