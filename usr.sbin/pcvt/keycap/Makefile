@@ -1,13 +1,4 @@
-.if !exists(${.CURDIR}/../Makefile.inc)
-error:
-	@echo
-	@echo "                      You MUST link/copy"
-	@echo
-	@echo "       ../Makefile.inc.NetBSD    or   ../Makefile.inc.FreeBSD"
-	@echo
-	@echo "             to ../Makefile.inc before you can proceed !"
-	@echo
-.else
+# $FreeBSD$
 
 LIB	=	keycap
 CAPDIR	=	/usr/share/misc
@@ -28,5 +19,3 @@ beforeinstall:
 	    ${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
 
 .include <bsd.lib.mk>
-
-.endif

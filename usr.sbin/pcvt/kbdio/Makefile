@@ -1,13 +1,4 @@
-.if !exists(${.CURDIR}/../Makefile.inc)
-error:
-	@echo
-	@echo "                      You MUST link/copy"
-	@echo
-	@echo "       ../Makefile.inc.NetBSD    or   ../Makefile.inc.FreeBSD"
-	@echo
-	@echo "             to ../Makefile.inc before you can proceed !"
-	@echo
-.else
+# $FreeBSD$
 
 PROG=	kbdio
 SRCS=	kbdio.y lex.l y.tab.h
@@ -32,5 +23,3 @@ install:
 	@${ECHO} "kbdio is not installed automatically ...."
 
 .include <bsd.prog.mk>
-
-.endif
