@@ -40,6 +40,9 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
 #define readl(va)	(*(volatile u_int32_t *) (va))
@@ -544,5 +547,6 @@ u_int	rcr3		__P((void));
 u_int	rcr4		__P((void));
 void    load_dr6        __P((u_int dr6));
 void    reset_dbregs    __P((void));
+__END_DECLS
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
