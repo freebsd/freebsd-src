@@ -134,7 +134,7 @@ isa_init(device_t dev)
 		if (ino > 7)
 			panic("isa_init: XXX: ino too large");
 		isa_ino[ino] = ofw_bus_route_intr(node, ino,
-		    ofw_pci_orb_callback);
+		    ofw_pci_orb_callback, dev);
 	}
 
 	for (nbr -= 1; nbr >= 0; nbr--) {
