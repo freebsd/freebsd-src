@@ -33,13 +33,6 @@
  *
  * Priority propagation will not generally raise the priority of lock holders,
  * so should not be relied upon in combination with sx locks.
- *
- * The witness code can not detect lock cycles (yet).
- *
- * XXX: When witness is made to function with sx locks, it will need to
- * XXX: be taught to deal with these situations, as they are more involved:
- *   slock --> xlock (deadlock)
- *   slock --> slock (slock recursion, not fatal)
  */
 
 #include <sys/param.h>
@@ -50,10 +43,6 @@
 #include <sys/mutex.h>
 #include <sys/sx.h>
 
-/*
- * XXX: We don't implement the LO_RECURSED flag for this lock yet.
- * We could do this by walking p_sleeplocks if we really wanted to.
- */
 struct lock_class lock_class_sx = {
 	"sx",
 	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE
@@ -68,7 +57,7 @@ sx_init(struct sx *sx, const char *description)
 	lock = &sx->sx_object;
 	lock->lo_class = &lock_class_sx;
 	lock->lo_name = description;
-	lock->lo_flags = LO_WITNESS | LO_SLEEPABLE;
+	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE;
 	mtx_init(&sx->sx_lock, "sx backing lock",
 	    MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
 	sx->sx_cnt = 0;
@@ -121,9 +110,6 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	/* Acquire a shared lock. */
 	sx->sx_cnt++;
 
-#ifdef WITNESS
-	sx->sx_object.lo_flags |= LO_LOCKED;
-#endif
 	LOCK_LOG_LOCK("SLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, 0, file, line);
 
@@ -160,11 +146,8 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt--;
 	sx->sx_xholder = curproc;
 
-#ifdef WITNESS
-	sx->sx_object.lo_flags |= LO_LOCKED;
-#endif
 	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
-	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+	WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
 
 	mtx_unlock(&sx->sx_lock);
 }
@@ -176,10 +159,6 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	mtx_lock(&sx->sx_lock);
 	_SX_ASSERT_SLOCKED(sx);
 
-#ifdef WITNESS
-	if (sx->sx_cnt == 0)
-		sx->sx_object.lo_flags &= ~LO_LOCKED;
-#endif
 	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
 	/* Release. */
@@ -210,10 +189,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	_SX_ASSERT_XLOCKED(sx);
 	MPASS(sx->sx_cnt == -1);
 
-#ifdef WITNESS
-	sx->sx_object.lo_flags &= ~LO_LOCKED;
-#endif
-	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
+	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
 
 	/* Release. */
 	sx->sx_cnt++;

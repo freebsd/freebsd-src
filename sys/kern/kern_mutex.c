@@ -274,8 +274,8 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 		 */
 		KASSERT(!mtx_recursed(m),
 		    ("mtx_trylock() called on a recursed mutex"));
-		mtx_update_flags(m, 1);
-		WITNESS_LOCK(&m->mtx_object, opts | LOP_TRYLOCK, file, line);
+		WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
+		    file, line);
 	}
 
 	return (rval);
@@ -552,40 +552,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
  * See the _rel_spin_lock() macro for the details. 
  */
 
-#ifdef WITNESS
-/*
- * Update the lock object flags before calling witness.  Note that when we
- * lock a mutex, this is called after getting the lock, but when unlocking
- * a mutex, this function is called before releasing the lock.
- */
-void
-_mtx_update_flags(struct mtx *m, int locking)
-{
-
-	mtx_assert(m, MA_OWNED);
-	if (locking) {
-		m->mtx_object.lo_flags |= LO_LOCKED;
-		if (mtx_recursed(m))
-			m->mtx_object.lo_flags |= LO_RECURSED;
-		else
-			/* XXX: we shouldn't need this in theory. */
-			m->mtx_object.lo_flags &= ~LO_RECURSED;
-	} else {
-		switch (m->mtx_recurse) {
-		case 0:
-			/* XXX: we shouldn't need the LO_RECURSED in theory. */
-			m->mtx_object.lo_flags &= ~(LO_LOCKED | LO_RECURSED);
-			break;
-		case 1:
-			m->mtx_object.lo_flags &= ~(LO_RECURSED);
-			break;
-		default:
-			break;
-		}
-	}
-}
-#endif
-
 /*
  * The backing function for the INVARIANTS-enabled mtx_assert()
  */
@@ -704,9 +670,8 @@ mtx_destroy(struct mtx *m)
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Tell witness this isn't locked to make it happy. */
-		m->mtx_object.lo_flags &= ~LO_LOCKED;
-		WITNESS_UNLOCK(&m->mtx_object, MTX_NOSWITCH, __FILE__,
-		    __LINE__);
+		WITNESS_UNLOCK(&m->mtx_object, LOP_EXCLUSIVE | LOP_NOSWITCH,
+		    __FILE__, __LINE__);
 	}
 
 	WITNESS_DESTROY(&m->mtx_object);
