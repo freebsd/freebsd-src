@@ -89,7 +89,7 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 
 
 #ifndef	MAXHOSTNAMELEN
-#define	MAXHOSTNAMELEN 64
+#define	MAXHOSTNAMELEN 256
 #endif	MAXHOSTNAMELEN
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)

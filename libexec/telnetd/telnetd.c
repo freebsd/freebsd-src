@@ -775,7 +775,7 @@ terminaltypeok(s)
 }
 
 #ifndef	MAXHOSTNAMELEN
-#define	MAXHOSTNAMELEN 64
+#define	MAXHOSTNAMELEN 256
 #endif	/* MAXHOSTNAMELEN */
 
 char *hostname;
