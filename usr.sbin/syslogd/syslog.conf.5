@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
-.\"	$Id: syslog.conf.5,v 1.7 1997/09/14 06:55:15 joerg Exp $
+.\"	$Id: syslog.conf.5,v 1.8 1997/10/06 20:37:50 joerg Exp $
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -298,9 +298,8 @@ auth.*					|exec /usr/local/sbin/authfilter
 .Sh FILES
 .Bl -tag -width /etc/syslog.conf -compact
 .It Pa /etc/syslog.conf
-The
 .Xr syslogd 8
-configuration file.
+configuration file
 .El
 .Sh BUGS
 The effects of multiple selectors are sometimes not intuitive.
