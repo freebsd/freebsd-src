@@ -62,6 +62,10 @@ Statically linked binaries from older releases and other BSD platforms
 are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
 popen() implementation.
 
+fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
+This brings it in line with the numbers used in the device names
+in /dev.
+
 2. Supported Configurations
 ---------------------------
 
