@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: comsat.c,v 1.8 1997/02/22 14:21:23 peter Exp $
  */
 
 #ifndef lint
@@ -251,11 +251,11 @@ jkfprintf(tp, user, file, offset)
 	char file[];
 	off_t offset;
 {
-	register char *cp, ch;
+	register unsigned char *cp, ch;
 	register FILE *fi;
 	register int linecnt, charcnt, inheader;
 	register struct passwd *p;
-	char line[BUFSIZ];
+	unsigned char line[BUFSIZ];
 
 	/* Set effective uid to user in case mail drop is on nfs */
 	if ((p = getpwnam(user)) != NULL)
@@ -291,15 +291,19 @@ jkfprintf(tp, user, file, offset)
 		}
 		/* strip weird stuff so can't trojan horse stupid terminals */
 		for (cp = line; (ch = *cp) && ch != '\n'; ++cp, --charcnt) {
-			if (!isprint(ch)) {
-				if (ch & 0x80)
+			/* disable upper controls and enable all other
+			   8bit codes due to lack of locale knowledge
+			 */
+			if (((ch & 0x80) && ch < 0xA0) ||
+			    (!(ch & 0x80) && !isprint(ch) &&
+			     !isspace(ch) && ch != '\007')
+			   ) {
+				if (ch & 0x80) {
+					ch &= ~0x80;
 					(void)fputs("M-", tp);
-				ch &= 0177;
-				if (!isprint(ch)) {
-					if (ch == 0177)
-						ch = '?';
-					else
-				ch |= 0x40;
+				}
+				if (iscntrl(ch)) {
+					ch ^= 0x40;
 					(void)fputc('^', tp);
 				}
 			}
