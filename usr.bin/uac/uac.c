@@ -36,7 +36,6 @@
 #include <unistd.h>
 #include <err.h>
 
-extern int sysarch(int, char *);
 static void usage ();
 
 struct parms {
@@ -49,7 +48,7 @@ alpha_setuac(u_int64_t uac)
 	struct parms p;
 
 	p.uac = uac;
-	return (sysarch(ALPHA_SET_UAC, (char *)&p));
+	return (sysarch(ALPHA_SET_UAC, &p));
 }
 
 int
@@ -58,7 +57,7 @@ alpha_getuac(u_int64_t *uac)
 	struct parms p;
 	int error;
 
-	error = sysarch(ALPHA_GET_UAC, (char *)&p);
+	error = sysarch(ALPHA_GET_UAC, &p);
 	*uac = p.uac;
 	return (error);
 }
