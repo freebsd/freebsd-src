@@ -125,8 +125,6 @@ struct device {
 	int	d_disabled;		/* nonzero to skip probe/attach */
 	char	*d_port;		/* io port base manifest constant */
 	int	d_portn;	/* io port base (if number not manifest) */
-#define PORT_AUTO -1    /* automatically configured */
-#define PORT_NONE -2    /* no port */
 	char	*d_mask;		/* interrupt mask */
 	int	d_maddr;		/* io memory base */
 	int	d_msize;		/* io memory size */
