@@ -23,11 +23,14 @@ MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1
 
-CLEANFILES=	scan.c
+CLEANFILES=	scan.c skel.c
 
 .if !defined(NOLIB)
 SUBDIR=		lib
 .endif
+
+skel.c: mkskel.sh flex.skl
+	sh ${.CURDIR}/mkskel.sh ${.CURDIR}/flex.skl > skel.c
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 \
