@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.6 1995/05/01 04:05:24 phk Exp $
+ * $Id: create_chunk.c,v 1.7 1995/05/03 06:30:50 phk Exp $
  *
  */
 
@@ -30,8 +30,12 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 	if (!strcmp(c->name, "X")) return;
 
 	/* reset all names to "X" */
-	for (c1 = c->part; c1 ; c1 = c1->next)
+	for (c1 = c->part; c1 ; c1 = c1->next) {
+		c1->oname = c1->name;
+		c1->name = malloc(12);
+		if(!c1->name) err(1,"Malloc failed");
 		strcpy(c1->name,"X");
+	}
 
 	/* Allocate the first swap-partition we find */
 	for (c1 = c->part; c1 ; c1 = c1->next) { 
@@ -51,6 +55,15 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 		break;
 	}
 
+	/* Try to give them the same as they had before */
+	for (c1 = c->part; c1 ; c1 = c1->next) {
+		for(c3 = c->part; c3 ; c3 = c3->next) 
+			if (c1 != c3 && !strcmp(c3->name, c1->oname)) {
+				strcpy(c1->name,c1->oname);
+				break;
+			}
+	}
+
 	/* Allocate the rest sequentially */
 	for (c1 = c->part; c1 ; c1 = c1->next) {
 		const char order[] = "defghab";
@@ -68,6 +81,10 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 			strcpy(c1->name,"X");
 			continue;
 		}
+	}
+	for (c1 = c->part; c1 ; c1 = c1->next) {
+		free(c1->oname);
+		c1->oname = 0;
 	}
 }
 
