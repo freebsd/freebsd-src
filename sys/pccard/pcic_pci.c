@@ -247,10 +247,10 @@ pcic_pci_pd6832_init(device_t dev)
 static void
 pcic_pci_ti_init(device_t dev)
 {
-	u_long	syscntl,devcntl,cardcntl;
-	u_int32_t device_id = pci_get_devid(dev);
+	u_int32_t	syscntl, diagctl, devcntl, cardcntl;
+	u_int32_t	device_id = pci_get_devid(dev);
 	struct pcic_softc *sc = device_get_softc(dev);
-	int 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1031) ||
+	int	 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1031) ||
 	    (device_id == PCI_DEVICE_ID_PCIC_TI1130) ||
 	    (device_id == PCI_DEVICE_ID_PCIC_TI1131);
 
@@ -258,9 +258,12 @@ pcic_pci_ti_init(device_t dev)
 	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
 	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
 
-	switch(ti113x){
+	switch (ti113x) {
 	case 0 :
 		device_printf(dev, "TI12XX PCI Config Reg: ");
+		diagctl = pci_read_config(dev, TI12XX_PCI_DIAGNOSTIC, 1);
+		diagctl |= TI12XX_DIAG_CSC_INTR;
+		pci_write_config(dev, TI12XX_PCI_DIAGNOSTIC, diagctl, 1);
 		break;
 	case 1 :
 		device_printf(dev, "TI113X PCI Config Reg: ");
@@ -305,7 +308,7 @@ pcic_pci_ti_init(device_t dev)
 		printf("[speaker enable]");
 	if (syscntl & TI113X_SYSCNTL_PWRSAVINGS)
 		printf("[pwr save]");
-	switch (devcntl & TI113X_DEVCNTL_INTR_MASK) {
+	switch(devcntl & TI113X_DEVCNTL_INTR_MASK){
 		case TI113X_DEVCNTL_INTR_ISA :
 			printf("[CSC parallel isa irq]");
 			break;
@@ -436,10 +439,21 @@ pcic_pci_intr(void *arg)
 		bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
 	}
 
+	/*
+	 * TI chips also require us to read the old ExCA register for
+	 * card status change when we route CSC via PCI!  So, we go ahead
+	 * and read it to clear the bits.  Maybe we should check the status
+	 * ala the ISA interrupt handler, but those changes should be caught
+	 * in the CD change.
+	 */
+	sp->getb(sp, PCIC_STAT_CHG);
+
 	/* Now call children interrupts if any */
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	if (sp->intr && (stat & CB_SS_CD) == 0)
-		sp->intr(sp->argp);
+	if ((stat & CB_SS_CD) == 0) {
+		if (sp->intr != NULL)
+			sp->intr(sp->argp);
+	}
 }
 
 /*
