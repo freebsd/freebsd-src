@@ -54,6 +54,7 @@
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/mac.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -86,6 +87,13 @@
 #include <netinet/ip_var.h>
 
 #ifdef MAC
+
+/*
+ * Declare that the kernel provides MAC support, version 1.  This permits
+ * modules to refuse to be loaded if the necessary support isn't present,
+ * even if it's pre-boot.
+ */
+MODULE_VERSION(kernel_mac_support, 1);
 
 SYSCTL_DECL(_security);
 
