@@ -1,0 +1,72 @@
+# Commands covered:  none
+#
+# This file contains a collection of tests for the procedures in the
+# file tclGet.c.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) get.test 1.5 96/04/09 15:54:33
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test get-1.1 {Tcl_GetInt procedure} {
+    set x 44
+    incr x { 	  22}
+} {66}
+test get-1.2 {Tcl_GetInt procedure} {
+    set x 44
+    incr x -3
+} {41}
+test get-1.3 {Tcl_GetInt procedure} {
+    set x 44
+    incr x +8
+} {52}
+test get-1.4 {Tcl_GetInt procedure} {
+    set x 44
+    list [catch {incr x foo} msg] $msg
+} {1 {expected integer but got "foo"}}
+test get-1.5 {Tcl_GetInt procedure} {
+    set x 44
+    list [catch {incr x {16	 }} msg] $msg
+} {0 60}
+test get-1.6 {Tcl_GetInt procedure} {
+    set x 44
+    list [catch {incr x {16	 x}} msg] $msg
+} {1 {expected integer but got "16	 x"}}
+
+# The following tests are non-portable because they depend on
+# word size.  
+
+test get-1.7 {Tcl_GetInt procedure} {nonPortable unixOnly} {
+    set x 44
+    list [catch {incr x 4294967296} msg] $msg $errorCode
+} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
+    set x 0
+    list [catch {incr x 4294967294} msg] $msg
+} {0 -2}
+test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
+    set x 0
+    list [catch {incr x +4294967294} msg] $msg
+} {0 -2}
+test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
+    set x 0
+    list [catch {incr x -4294967294} msg] $msg
+} {0 2}
+
+test get-2.1 {Tcl_GetInt procedure} {
+    format %g 1.23
+} {1.23}
+test get-2.2 {Tcl_GetInt procedure} {
+    format %g { 	 1.23 	}
+} {1.23}
+test get-2.3 {Tcl_GetInt procedure} {
+    list [catch {format %g clip} msg] $msg
+} {1 {expected floating-point number but got "clip"}}
+test get-2.4 {Tcl_GetInt procedure} {nonPortable} {
+    list [catch {format %g .000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001} msg] $msg $errorCode
+} {1 {floating-point value too small to represent} {ARITH UNDERFLOW {floating-point value too small to represent}}}

@@ -1,0 +1,101 @@
+# Commands covered:  clock
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) clock.test 1.5 96/04/05 15:30:36
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test clock-1.1 {clock tests} {
+    list [catch {clock} msg] $msg
+} {1 {wrong # args: should be "clock option ?arg ...?"}}
+test clock-1.2 {clock tests} {
+    list [catch {clock foo} msg] $msg
+} {1 {unknown option "foo": must be clicks, format, scan, or seconds}}
+
+# clock clicks
+test clock-2.1 {clock clicks tests} {
+    expr [clock clicks]+1
+    concat {}
+} {}
+test clock-2.2 {clock clicks tests} {
+    list [catch {clock clicks foo} msg] $msg
+} {1 {wrong # arguments: must be "clock clicks"}}
+test clock-2.3 {clock clicks tests} {
+    set start [clock clicks]
+    after 10
+    set end [clock clicks]
+    expr "$end > $start"
+} {1}
+
+# clock format
+test clock-3.1 {clock format tests} {unixOnly} {
+    set clockval 657687766
+    clock format $clockval -format {%a %b %d %I:%M:%S %p %Y} -gmt true
+} {Sun Nov 04 03:02:46 AM 1990}
+test clock-3.2 {clock format tests} {
+    list [catch {clock format} msg] $msg
+} {1 {wrong # args: clock format clockval ?-format string? ?-gmt boolean?}}
+test clock-3.3 {clock format tests} {
+    list [catch {clock format foo} msg] $msg
+} {1 {expected unsigned time but got "foo"}}
+test clock-3.4 {clock format tests} {unixOnly} {
+    set clockval 657687766
+    clock format $clockval -format "%a %b %d %I:%M:%S %p %Y" -gmt true
+} "Sun Nov 04 03:02:46 AM 1990"
+
+# clock scan
+test clock-4.1 {clock scan tests} {
+    list [catch {clock scan} msg] $msg
+} {1 {wrong # args: clock scan dateString ?-base clockValue? ?-gmt boolean?}}
+test clock-4.2 {clock scan tests} {
+    list [catch {clock scan "bad-string"} msg] $msg
+} {1 {unable to convert date-time string "bad-string"}}
+test clock-4.3 {clock scan tests} {
+    clock format [clock scan "14 Feb 92" -gmt true] \
+      -format {%m/%d/%y %I:%M:%S %p} -gmt true
+} {02/14/92 12:00:00 AM}
+test clock-4.4 {clock scan tests} {
+    clock format [clock scan "Feb 14, 1992 12:20 PM" -gmt true] \
+      -format {%m/%d/%y %I:%M:%S %p} -gmt true
+} {02/14/92 12:20:00 PM}
+test clock-4.5 {clock scan tests} {
+    clock format \
+      [clock scan "Feb 14, 1992 12:20 PM" -base 319363200 -gmt true] \
+      -format {%m/%d/%y %I:%M:%S %p} -gmt true
+} {02/14/92 12:20:00 PM}
+test clock-4.6 {clock scan tests} {
+    set time [clock scan "Oct 23,1992 15:00"]
+    clock format $time -format {%b %d,%Y %H:%M}
+} {Oct 23,1992 15:00}
+test clock-4.7 {clock scan tests} {
+    set time [clock scan "Oct 23,1992 15:00 GMT"]
+    clock format $time -format {%b %d,%Y %H:%M GMT} -gmt true
+} {Oct 23,1992 15:00 GMT}
+test clock-4.8 {clock scan tests} {
+    set time [clock scan "Oct 23,1992 15:00" -gmt true]
+    clock format $time -format {%b %d,%Y %H:%M GMT} -gmt true
+} {Oct 23,1992 15:00 GMT}
+
+# clock seconds
+test clock-5.1 {clock seconds tests} {
+    expr [clock seconds]+1
+    concat {}
+} {}
+test clock-5.2 {clock seconds tests} {
+    list [catch {clock seconds foo} msg] $msg
+} {1 {wrong # arguments: must be "clock seconds"}}
+test clock-5.3 {clock seconds tests} {
+    set start [clock seconds]
+    after 2000
+    set end [clock seconds]
+    expr "$end > $start"
+} {1}
+

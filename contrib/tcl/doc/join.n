@@ -1,0 +1,29 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) join.n 1.5 96/03/25 20:17:46
+'\" 
+.so man.macros
+.TH join n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+join \- Create a string by joining together list elements
+.SH SYNOPSIS
+\fBjoin \fIlist \fR?\fIjoinString\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fIlist\fR argument must be a valid Tcl list.
+This command returns the string
+formed by joining all of the elements of \fIlist\fR together with
+\fIjoinString\fR separating each adjacent pair of elements.
+The \fIjoinString\fR argument defaults to a space character.
+
+.SH KEYWORDS
+element, join, list, separator

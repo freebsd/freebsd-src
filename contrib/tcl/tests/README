@@ -1,0 +1,96 @@
+Tcl Test Suite
+--------------
+
+SCCS: @(#) README 1.6 96/04/17 10:51:11
+
+This directory contains a set of validation tests for the Tcl
+commands.  Each of the files whose name ends in ".test" is
+intended to fully exercise one or a few Tcl commands.  The
+commands tested by a given file are listed in the first line
+of the file.
+
+You can run the tests in two ways:
+    (a) type "make test" in ../unix; this will run all of the tests.
+    (b) start up tcltest in this directory, then "source" the test
+        file (for example, type "source parse.test").  To run all
+	of the tests, type "source all".
+In either case no output will be generated if all goes well, except
+for a listing of the tests..  If there are errors then additional
+messages will appear in the format described below.  Note: don't
+run the tests as superuser, since this will cause several of the tests
+to fail.
+
+The rest of this file provides additional information on the
+features of the testing environment.
+
+This approach to testing was designed and initially implemented
+by Mary Ann May-Pumphrey of Sun Microsystems.  Many thanks to
+her for donating her work back to the public Tcl release.
+
+Definitions file:
+-----------------
+
+The file "defs" defines a collection of procedures and variables
+used to run the tests.  It is read in automatically by each of the
+.test files if needed, but once it has been read once it will not
+be read again by the .test files.  If you change defs while running
+tests you'll have to "source" it by hand to load its new contents.
+
+Test output:
+------------
+
+Normally, output only appears when there are errors.  However, if
+the variable VERBOSE is set to 1 then tests will be run in "verbose"
+mode and output will be generated for each test regardless of
+whether it succeeded or failed.  Test output consists of the
+following information:
+
+    - the test identifier (which can be used to locate the test code
+	    in the .test file)
+    - a brief description of the test
+    - the contents of the test code
+    - the actual results produced by the tests
+    - a "PASSED" or "FAILED" message
+    - the expected results (if the test failed)
+
+You can set VERBOSE either interactively (after the defs file has been
+read in), or you can change the default value in "defs".
+
+Selecting tests for execution:
+------------------------------
+
+Normally, all the tests in a file are run whenever the file is
+"source"d.  However, you can select a specific set of tests using
+the global variable TESTS.  This variable contains a pattern;  any
+test whose identifier matches TESTS will be run.  For example,
+the following interactive command causes all of the "for" tests in
+groups 2 and 4 to be executed:
+
+    set TESTS {for-[24]*}
+
+TESTS defaults to *, but you can change the default in "defs" if
+you wish.
+
+Saving keystrokes:
+------------------
+
+A convenience procedure named "dotests" is included in file
+"defs".  It takes two arguments--the name of the test file (such
+as "parse.test"), and a pattern selecting the tests you want to
+execute.  It sets TESTS to the second argument, calls "source" on
+the file specified in the first argument, and restores TESTS to
+its pre-call value at the end.
+
+Batch vs. interactive execution:
+--------------------------------
+
+The tests can be run in either batch or interactive mode.  Batch
+mode refers to using I/O redirection from a UNIX shell.  For example,
+the following command causes the tests in the file named "parse.test"
+to be executed:
+
+    tclTest < parse.test > parse.test.results
+
+Users who want to execute the tests in this fashion need to first
+ensure that the file "defs" has proper values for the global
+variables that control the testing environment (VERBOSE and TESTS).

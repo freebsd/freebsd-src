@@ -1,0 +1,1401 @@
+# This file tests the filename manipulation routines.
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) fileName.test 1.20 96/04/19 12:36:13
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+if {[info commands testsetplatform] == {}} {
+    puts "This application hasn't been compiled with the \"testsetplatform\""
+    puts "command, so I can't test the filename conversion procedures."
+    return 
+} 
+
+global env
+set platform [testgetplatform]
+
+test filename-1.1 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype /
+} absolute
+test filename-1.2 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype /foo
+} absolute
+test filename-1.3 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype foo
+} relative
+test filename-1.4 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype c:/foo
+} relative
+test filename-1.5 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype ~
+} absolute
+test filename-1.6 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype ~/foo
+} absolute
+test filename-1.7 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype ~foo
+} absolute
+test filename-1.8 {Tcl_GetPathType: unix} {
+    testsetplatform unix
+    file pathtype ./~foo
+} relative
+
+test filename-2.1 {Tcl_GetPathType: mac, denerate names} {
+    testsetplatform mac
+    file pathtype /
+} relative
+test filename-2.2 {Tcl_GetPathType: mac, denerate names} {
+    testsetplatform mac
+    file pathtype /.
+} relative
+test filename-2.3 {Tcl_GetPathType: mac, denerate names} {
+    testsetplatform mac
+    file pathtype /..
+} relative
+test filename-2.4 {Tcl_GetPathType: mac, denerate names} {
+    testsetplatform mac
+    file pathtype //.//
+} relative
+test filename-2.5 {Tcl_GetPathType: mac, denerate names} {
+    testsetplatform mac
+    file pathtype //.//../.
+} relative
+test filename-2.6 {Tcl_GetPathType: mac, tilde names} {
+    testsetplatform mac
+    file pathtype ~
+} absolute
+test filename-2.7 {Tcl_GetPathType: mac, tilde names} {
+    testsetplatform mac
+    file pathtype ~:
+} absolute
+test filename-2.8 {Tcl_GetPathType: mac, tilde names} {
+    testsetplatform mac
+    file pathtype ~:foo
+} absolute
+test filename-2.9 {Tcl_GetPathType: mac, tilde names} {
+    testsetplatform mac
+    file pathtype ~/
+} absolute
+test filename-2.10 {Tcl_GetPathType: mac, tilde names} {
+    testsetplatform mac
+    file pathtype ~/foo
+} absolute
+test filename-2.11 {Tcl_GetPathType: mac, unix-style names} {
+    testsetplatform mac
+    file pathtype /foo
+} absolute
+test filename-2.12 {Tcl_GetPathType: mac, unix-style names} {
+    testsetplatform mac
+    file pathtype /./foo
+} absolute
+test filename-2.13 {Tcl_GetPathType: mac, unix-style names} {
+    testsetplatform mac
+    file pathtype /..//./foo
+} absolute
+test filename-2.14 {Tcl_GetPathType: mac, unix-style names} {
+    testsetplatform mac
+    file pathtype /foo/bar
+} absolute
+test filename-2.15 {Tcl_GetPathType: mac, unix-style names} {
+    testsetplatform mac
+    file pathtype foo/bar
+} relative
+test filename-2.16 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype :
+} relative
+test filename-2.17 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype :foo
+} relative
+test filename-2.18 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype foo:
+} absolute
+test filename-2.19 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype foo:bar
+} absolute
+test filename-2.20 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype :foo:bar
+} relative
+test filename-2.21 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype ::foo:bar
+} relative
+test filename-2.22 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype ~foo
+} absolute
+test filename-2.23 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype :~foo
+} relative
+test filename-2.24 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype ~foo:
+} absolute
+test filename-2.25 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype foo/bar:
+} absolute
+test filename-2.26 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype /foo:
+} absolute
+test filename-2.27 {Tcl_GetPathType: mac, mac-style names} {
+    testsetplatform mac
+    file pathtype foo
+} relative
+
+test filename-3.1 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype /
+} volumerelative
+test filename-3.2 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype \\
+} volumerelative
+test filename-3.3 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype /foo
+} volumerelative
+test filename-3.4 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype \\foo
+} volumerelative
+test filename-3.5 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:/
+} absolute
+test filename-3.6 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:\\
+} absolute
+test filename-3.7 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:/foo
+} absolute
+test filename-3.8 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:\\foo
+} absolute
+test filename-3.9 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:
+} volumerelative
+test filename-3.10 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype c:foo
+} volumerelative
+test filename-3.11 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype foo
+} relative
+test filename-3.12 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype //foo/bar
+} absolute
+test filename-3.13 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype ~foo
+} absolute
+test filename-3.14 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype ~
+} absolute
+test filename-3.15 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype ~/foo
+} absolute
+test filename-3.16 {Tcl_GetPathType: windows} {
+    testsetplatform windows
+    file pathtype ./~foo
+} relative
+
+test filename-4.1 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split /
+} {/}
+test filename-4.2 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split /foo
+} {/ foo}
+test filename-4.3 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split /foo/bar
+} {/ foo bar}
+test filename-4.4 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split /foo/bar/baz
+} {/ foo bar baz}
+test filename-4.5 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split foo/bar
+} {foo bar}
+test filename-4.6 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ./foo/bar
+} {. foo bar}
+test filename-4.7 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split /foo/../././foo/bar
+} {/ foo .. . . foo bar}
+test filename-4.8 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ../foo/bar
+} {.. foo bar}
+test filename-4.9 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split {}
+} {}
+test filename-4.10 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split .
+} {.}
+test filename-4.11 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ../
+} {..}
+test filename-4.12 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ../..
+} {.. ..}
+test filename-4.13 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split //foo
+} {/ foo}
+test filename-4.14 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split foo//bar
+} {foo bar}
+test filename-4.15 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ~foo
+} {~foo}
+test filename-4.16 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ~foo/~bar
+} {~foo ./~bar}
+test filename-4.17 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split ~foo/~bar/~baz
+} {~foo ./~bar ./~baz}
+test filename-4.18 {Tcl_SplitPath: unix} {
+    testsetplatform unix
+    file split foo/bar~/baz
+} {foo bar~ baz}
+
+test filename-5.1 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:b
+} {a: b}
+test filename-5.2 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:b:c
+} {a: b c}
+test filename-5.3 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:b:c:
+} {a: b c}
+test filename-5.4 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:
+} {a:}
+test filename-5.5 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a::
+} {a: ::}
+test filename-5.6 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:::
+} {a: :: ::}
+test filename-5.7 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split :a
+} {a}
+test filename-5.8 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split :a::
+} {a ::}
+test filename-5.9 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split :
+} {:}
+test filename-5.10 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ::
+} {::}
+test filename-5.11 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split :::
+} {:: ::}
+test filename-5.12 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:::b
+} {a: :: :: b}
+test filename-5.13 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /a:b
+} {/a: b}
+test filename-5.14 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~:
+} {~:}
+test filename-5.15 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~/:
+} {~/:}
+test filename-5.16 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~:foo
+} {~: foo}
+test filename-5.17 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~/foo
+} {~: foo}
+test filename-5.18 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~foo:
+} {~foo:}
+test filename-5.19 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:~foo
+} {a: :~foo}
+test filename-5.20 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /
+} {:/}
+test filename-5.21 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a:b/c
+} {a: :b/c}
+test filename-5.22 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /foo
+} {foo:}
+test filename-5.23 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /a/b
+} {a: b}
+test filename-5.24 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /a/b/foo
+} {a: b foo}
+test filename-5.25 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a/b
+} {a b}
+test filename-5.26 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ./foo/bar
+} {: foo bar}
+test filename-5.27 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ../foo/bar
+} {:: foo bar}
+test filename-5.28 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split {}
+} {}
+test filename-5.29 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split .
+} {:}
+test filename-5.30 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ././
+} {: :}
+test filename-5.31 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ././.
+} {: : :}
+test filename-5.32 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ../
+} {::}
+test filename-5.33 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ..
+} {::}
+test filename-5.34 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ../..
+} {:: ::}
+test filename-5.35 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split //foo
+} {foo:}
+test filename-5.36 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split foo//bar
+} {foo bar}
+test filename-5.37 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~foo
+} {~foo:}
+test filename-5.38 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~
+} {~:}
+test filename-5.39 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split foo
+} {foo}
+test filename-5.40 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~/
+} {~:}
+test filename-5.41 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~foo/~bar
+} {~foo: :~bar}
+test filename-5.42 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split ~foo/~bar/~baz
+} {~foo: :~bar :~baz}
+test filename-5.43 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split foo/bar~/baz
+} {foo bar~ baz}
+test filename-5.44 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a/../b
+} {a :: b}
+test filename-5.45 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a/../../b
+} {a :: :: b}
+test filename-5.46 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split a/.././../b
+} {a :: : :: b}
+test filename-5.47 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /../bar
+} {bar:}
+test filename-5.48 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /./bar
+} {bar:}
+test filename-5.49 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split //.//.././bar
+} {bar:}
+test filename-5.50 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split /..
+} {:/..}
+test filename-5.51 {Tcl_SplitPath: mac} {
+    testsetplatform mac
+    file split //.//.././
+} {://.//.././}
+
+test filename-6.1 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /
+} {/}
+test filename-6.2 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /foo
+} {/ foo}
+test filename-6.3 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /foo/bar
+} {/ foo bar}
+test filename-6.4 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /foo/bar/baz
+} {/ foo bar baz}
+test filename-6.5 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split foo/bar
+} {foo bar}
+test filename-6.6 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ./foo/bar
+} {. foo bar}
+test filename-6.7 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /foo/../././foo/bar
+} {/ foo .. . . foo bar}
+test filename-6.8 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ../foo/bar
+} {.. foo bar}
+test filename-6.9 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split {}
+} {}
+test filename-6.10 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split .
+} {.}
+test filename-6.11 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ../
+} {..}
+test filename-6.12 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ../..
+} {.. ..}
+test filename-6.13 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split //foo
+} {/ foo}
+test filename-6.14 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split foo//bar
+} {foo bar}
+test filename-6.15 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /\\/foo//bar
+} {//foo/bar}
+test filename-6.16 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /\\/foo//bar
+} {//foo/bar}
+test filename-6.17 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split /\\/foo//bar
+} {//foo/bar}
+test filename-6.18 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split \\\\foo\\bar
+} {//foo/bar}
+test filename-6.19 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split \\\\foo\\bar/baz
+} {//foo/bar baz}
+test filename-6.20 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:/foo
+} {c:/ foo}
+test filename-6.21 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:foo
+} {c: foo}
+test filename-6.22 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:
+} {c:}
+test filename-6.23 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:\\
+} {c:/}
+test filename-6.24 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:/
+} {c:/}
+test filename-6.25 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:/./..
+} {c:/ . ..}
+test filename-6.26 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ~foo
+} {~foo}
+test filename-6.27 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ~foo/~bar
+} {~foo ./~bar}
+test filename-6.28 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split ~foo/~bar/~baz
+} {~foo ./~bar ./~baz}
+test filename-6.29 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split foo/bar~/baz
+} {foo bar~ baz}
+test filename-6.30 {Tcl_SplitPath: win} {
+    testsetplatform win
+    file split c:~foo
+} {c: ./~foo}
+
+test filename-7.1 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join / a
+} {/a}
+test filename-7.2 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join a b
+} {a/b}
+test filename-7.3 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /a c /b d
+} {/b/d}
+test filename-7.4 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /
+} {/}
+test filename-7.5 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join a
+} {a}
+test filename-7.6 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join {}
+} {}
+test filename-7.7 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /a/ b
+} {/a/b}
+test filename-7.8 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /a// b
+} {/a/b}
+test filename-7.9 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /a/./../. b
+} {/a/./.././b}
+test filename-7.10 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join ~ a
+} {~/a}
+test filename-7.11 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join ~a ~b
+} {~b}
+test filename-7.12 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join ./~a b
+} {./~a/b}
+test filename-7.13 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join ./~a ~b
+} {~b}
+test filename-7.14 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join ./~a ./~b
+} {./~a/~b}
+test filename-7.15 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join a . b
+} {a/./b}
+test filename-7.16 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join a . ./~b
+} {a/./~b}
+test filename-7.17 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join //a b
+} {/a/b}
+test filename-7.18 {Tcl_JoinPath: unix} {
+    testsetplatform unix
+    file join /// a b
+} {/a/b}
+
+test filename-8.1 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a b
+} {:a:b}
+test filename-8.2 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join :a b
+} {:a:b}
+test filename-8.3 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a b:
+} {b:}
+test filename-8.4 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a: :b
+} {a:b}
+test filename-8.5 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a: :b:
+} {a:b}
+test filename-8.6 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a :: b
+} {:a::b}
+test filename-8.7 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a :: :: b
+} {:a:::b}
+test filename-8.8 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a ::: b
+} {:a:::b}
+test filename-8.9 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a: b:
+} {b:}
+test filename-8.10 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join /a/b
+} {a:b}
+test filename-8.11 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join /a/b c/d
+} {a:b:c:d}
+test filename-8.12 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join /a/b :c:d
+} {a:b:c:d}
+test filename-8.13 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join ~ foo
+} {~:foo}
+test filename-8.14 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join :: ::
+} {:::}
+test filename-8.15 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a: ::
+} {a::}
+test filename-8.16 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a {} b
+} {:a:b}
+test filename-8.17 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a::: b
+} {a:::b}
+test filename-8.18 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a : : :
+} {:a}
+test filename-8.19 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join :
+} {:}
+test filename-8.20 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join : a
+} {:a}
+test filename-8.21 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join a: :b/c
+} {a:b/c}
+test filename-8.22 {Tcl_JoinPath: mac} {
+    testsetplatform mac
+    file join :a :b/c
+} {:a:b/c}
+
+test filename-9.1 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join a b
+} {a/b}
+test filename-9.2 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join /a b
+} {/a/b}
+test filename-9.3 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join /a /b
+} {/b}
+test filename-9.4 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join c: foo
+} {c:foo}
+test filename-9.5 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join c:/ foo
+} {c:/foo}
+test filename-9.6 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join c:\\bar foo
+} {c:/bar/foo}
+test filename-9.7 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join /foo c:bar
+} {c:bar}
+test filename-9.8 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ///host//share dir
+} {//host/share/dir}
+test filename-9.9 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ~ foo
+} {~/foo}
+test filename-9.10 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ~/~foo
+} {~/~foo}
+test filename-9.11 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ~ ./~foo
+} {~/~foo}
+test filename-9.12 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join / ~foo
+} {~foo}
+test filename-9.13 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ./a/ b c
+} {./a/b/c}
+test filename-9.14 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join ./~a/ b c
+} {./~a/b/c}
+test filename-9.15 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join // host share path
+} {/host/share/path}
+test filename-9.16 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join foo . bar
+} {foo/./bar}
+test filename-9.17 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join foo .. bar
+} {foo/../bar}
+test filename-9.18 {Tcl_JoinPath: win} {
+    testsetplatform win
+    file join foo/./bar
+} {foo/./bar}
+
+test filename-10.1 {Tcl_TranslateFileName} {
+    testsetplatform unix
+    list [catch {testtranslatefilename foo} msg] $msg
+} {0 foo}
+test filename-10.2 {Tcl_TranslateFileName} {
+    testsetplatform windows
+    list [catch {testtranslatefilename {c:/foo}} msg] $msg
+} {0 {c:\foo}}
+test filename-10.3 {Tcl_TranslateFileName} {
+    testsetplatform windows
+    list [catch {testtranslatefilename {c:/\\foo/}} msg] $msg
+} {0 {c:\foo}}
+test filename-10.4 {Tcl_TranslateFileName} {
+    testsetplatform mac
+    list [catch {testtranslatefilename foo} msg] $msg
+} {0 :foo}
+test filename-10.5 {Tcl_TranslateFileName} {
+    testsetplatform mac
+    list [catch {testtranslatefilename :~foo} msg] $msg
+} {0 :~foo}
+test filename-10.6 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "/home/test"
+    testsetplatform unix
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 /home/test/foo}
+test filename-10.7 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    unset env(HOME)
+    testsetplatform unix
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {1 {couldn't find HOME environment variable to expand path}}
+test filename-10.8 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "/home/test"
+    testsetplatform unix
+    set result [list [catch {testtranslatefilename ~} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 /home/test}
+test filename-10.9 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "/home/test/"
+    testsetplatform unix
+    set result [list [catch {testtranslatefilename ~} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 /home/test}
+test filename-10.10 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "/home/test/"
+    testsetplatform unix
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 /home/test/foo}
+test filename-10.11 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:foo}
+test filename-10.12 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:home"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:home:foo}
+test filename-10.13 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:home"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~::foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:home::foo}
+test filename-10.14 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:home"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:home}
+test filename-10.15 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:home:"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~::foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:home::foo}
+test filename-10.16 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "Root:home::"
+    testsetplatform mac
+    set result [list [catch {testtranslatefilename ~::foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 Root:home:::foo}
+test filename-10.17 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "\\home\\"
+    testsetplatform windows
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 {\home\foo}}
+test filename-10.18 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "\\home\\"
+    testsetplatform windows
+    set result [list [catch {testtranslatefilename ~/foo\\bar} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 {\home\foo\bar}}
+test filename-10.19 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "c:"
+    testsetplatform windows
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 c:foo}
+test filename-10.20 {Tcl_TranslateFileName} {
+    list [catch {testtranslatefilename ~blorp/foo} msg] $msg
+} {1 {user "blorp" doesn't exist}}
+test filename-10.21 {Tcl_TranslateFileName} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) "c:\\"
+    testsetplatform windows
+    set result [list [catch {testtranslatefilename ~/foo} msg] $msg]
+    set env(HOME) $temp
+    set result
+} {0 {c:\foo}}
+test filename-10.22 {Tcl_TranslateFileName} {
+    testsetplatform windows
+    list [catch {testtranslatefilename foo//bar} msg] $msg
+} {0 {foo\bar}}
+
+testsetplatform $platform
+
+test filename-10.23 {Tcl_TranslateFileName} {nonPortable unixOnly} {
+    # this test fails if ~ouster is not /home/ouster
+    list [catch {testtranslatefilename ~ouster} msg] $msg
+} {0 /home/ouster}
+test filename-10.24 {Tcl_TranslateFileName} {nonPortable unixOnly} {
+    # this test fails if ~ouster is not /home/ouster
+    list [catch {testtranslatefilename ~ouster/foo} msg] $msg
+} {0 /home/ouster/foo}
+
+
+test filename-11.1 {Tcl_GlobCmd} {
+    list [catch {glob} msg] $msg
+} {1 {wrong # args: should be "glob ?switches? name ?name ...?"}}
+test filename-11.2 {Tcl_GlobCmd} {
+    list [catch {glob -gorp} msg] $msg
+} {1 {bad switch "-gorp": must be -nocomplain or --}}
+test filename-11.3 {Tcl_GlobCmd} {
+    list [catch {glob -nocomplai} msg] $msg
+} {1 {bad switch "-nocomplai": must be -nocomplain or --}}
+test filename-11.4 {Tcl_GlobCmd} {
+    list [catch {glob -nocomplain} msg] $msg
+} {1 {wrong # args: should be "glob ?switches? name ?name ...?"}}
+test filename-11.5 {Tcl_GlobCmd} {
+    list [catch {glob -nocomplain ~xyqrszzz} msg] $msg
+} {0 {}}
+test filename-11.6 {Tcl_GlobCmd} {
+    list [catch {glob ~xyqrszzz} msg] $msg
+} {1 {user "xyqrszzz" doesn't exist}}
+test filename-11.7 {Tcl_GlobCmd} {
+    list [catch {glob -- -nocomplain} msg] $msg
+} {1 {no files matched glob patterns "-nocomplain"}}
+test filename-11.8 {Tcl_GlobCmd} {
+    list [catch {glob -nocomplain -- -nocomplain} msg] $msg
+} {0 {}}
+test filename-11.9 {Tcl_GlobCmd} {
+    testsetplatform unix
+    list [catch {glob ~\\xyqrszzz/bar} msg] $msg
+} {1 {globbing characters not supported in user names}}
+test filename-11.10 {Tcl_GlobCmd} {
+    testsetplatform unix
+    list [catch {glob -nocomplain ~\\xyqrszzz/bar} msg] $msg
+} {0 {}}
+test filename-11.11 {Tcl_GlobCmd} {
+    testsetplatform unix
+    list [catch {glob ~xyqrszzz\\/\\bar} msg] $msg
+} {1 {user "xyqrszzz" doesn't exist}}
+test filename-11.12 {Tcl_GlobCmd} {
+    testsetplatform unix
+    set home $env(HOME)
+    unset env(HOME)
+    set x [list [catch {glob ~/*} msg] $msg]
+    set env(HOME) $home
+    set x
+} {1 {couldn't find HOME environment variable to expand path}}
+
+testsetplatform $platform
+
+test filename-11.13 {Tcl_GlobCmd} {
+    list [catch {glob ~} msg] $msg
+} [list 0 [list $env(HOME)]]
+
+# The following tests will work on Windows platforms only if MKS
+# toolkit is installed.
+
+catch {
+    set oldhome $env(HOME)
+    set env(HOME) [pwd]
+    removeDirectory globTest
+    makeDirectory globTest
+    makeDirectory globTest/a1
+    makeDirectory globTest/a2
+    makeDirectory globTest/a3
+    makeDirectory globTest/a1/b1
+    makeDirectory globTest/a1/b2
+    makeDirectory globTest/a2/b3
+    close [open globTest/x1.c w]
+    close [open globTest/y1.c w]
+    close [open globTest/z1.c w]
+    close [open globTest/x,z1.c w]
+    close [open "globTest/weird name.c" w]
+    close [open globTest/.1 w]
+    close [open globTest/a1/b1/x2.c w]
+    close [open globTest/a1/b2/y2.c w]
+}
+
+test filename-11.14 {Tcl_GlobCmd} {unixExecs} {
+    list [catch {glob ~/globTest} msg] $msg
+} [list 0 [list [file join $env(HOME) globTest]]]
+test filename-11.15 {Tcl_GlobCmd} {unixExecs} {
+    list [catch {glob ~\\/globTest} msg] $msg
+} [list 0 [list [file join $env(HOME) globTest]]]
+test filename-11.16 {Tcl_GlobCmd} {unixExecs} {
+    list [catch {glob globTest} msg] $msg
+} {0 globTest}
+
+test filename-12.1 {simple globbing} {unixOrPc} {
+    list [catch {glob {}} msg] $msg
+} {0 .}
+test filename-12.2 {simple globbing} {macOnly} {
+    list [catch {glob {}} msg] $msg
+} {0 :}
+test filename-12.3 {simple globbing} {
+    list [catch {glob -nocomplain \{a1,a2\}} msg] $msg
+} {0 {}}
+
+if {$tcl_platform(platform) == "macintosh"} {
+  set globPreResult :globTest:
+} else {
+  set globPreResult globTest/
+}
+set x1 x1.c
+set y1 y1.c
+test filename-12.4 {simple globbing} {unixOrPC} {
+    lsort [glob globTest/x1.c globTest/y1.c globTest/foo]
+} "$globPreResult$x1 $globPreResult$y1"
+test filename-12.5 {simple globbing} {unixExecs} {
+    list [catch {glob globTest\\/x1.c} msg] $msg
+} "0 $globPreResult$x1"
+test filename-12.6 {simple globbing} {unixExecs} {
+    list [catch {glob globTest\\/\\x1.c} msg] $msg
+} "0 $globPreResult$x1"
+
+test filename-13.1 {globbing with brace substitution} {unixExecs} {
+    list [catch {glob globTest/\{\}} msg] $msg
+} "0 $globPreResult"
+test filename-13.2 {globbing with brace substitution} {
+    list [catch {glob globTest/\{} msg] $msg
+} {1 {unmatched open-brace in file name}}
+test filename-13.3 {globbing with brace substitution} {
+    list [catch {glob globTest/\{\\\}} msg] $msg
+} {1 {unmatched open-brace in file name}}
+test filename-13.4 {globbing with brace substitution} {
+    list [catch {glob globTest/\{\\} msg] $msg
+} {1 {unmatched open-brace in file name}}
+test filename-13.5 {globbing with brace substitution} {
+    list [catch {glob globTest/\}} msg] $msg
+} {1 {unmatched close-brace in file name}}
+test filename-13.6 {globbing with brace substitution} {unixExecs} {
+    list [catch {glob globTest/\{\}x1.c} msg] $msg
+} "0 $globPreResult$x1"
+test filename-13.7 {globbing with brace substitution} {unixExecs} {
+    list [catch {glob globTest/\{x\}1.c} msg] $msg
+} "0 $globPreResult$x1"
+test filename-13.8 {globbing with brace substitution} {unixExecs} {
+    list [catch {glob globTest/\{x\{\}\}1.c} msg] $msg
+} "0 $globPreResult$x1"
+test filename-13.9 {globbing with brace substitution} {unixExecs} {
+    list [lsort [catch {glob globTest/\{x,y\}1.c} msg]] $msg
+} [list 0 [list $globPreResult$x1 $globPreResult$y1]]
+test filename-13.10 {globbing with brace substitution} {unixExecs} {
+    list [lsort [catch {glob globTest/\{x,,y\}1.c} msg]] $msg
+} [list 0 [list $globPreResult$x1 $globPreResult$y1]]
+test filename-13.11 {globbing with brace substitution} {unixOrPc unixExecs} {
+    list [lsort [catch {glob globTest/\{x,x\\,z,z\}1.c} msg]] $msg
+} {0 {globTest/x1.c globTest/x,z1.c globTest/z1.c}}
+test filename-13.11 {globbing with brace substitution} {macOnly} {
+    list [lsort [catch {glob globTest/\{x,x\\,z,z\}1.c} msg]] $msg
+} {0 {:globTest:x1.c :globTest:x,z1.c :globTest:z1.c}}
+test filename-13.12 {globbing with brace substitution} {unixExecs} {
+    lsort [glob globTest/{a,b,x,y}1.c]
+} [list $globPreResult$x1 $globPreResult$y1]
+test filename-13.13 {globbing with brace substitution} {unixOrPc unixExecs} {
+    lsort [glob {globTest/{x1,y2,weird name}.c}]
+} {{globTest/weird name.c} globTest/x1.c}
+test filename-13.13 {globbing with brace substitution} {macOnly} {
+    lsort [glob {globTest/{x1,y2,weird name}.c}]
+} {{:globTest:weird name.c} :globTest:x1.c}
+test filename-13.14 {globbing with brace substitution} {unixOrPc unixExecs} {
+    lsort [glob globTest/{x1.c,a1/*}]
+} {globTest/a1/b1 globTest/a1/b2 globTest/x1.c}
+test filename-13.14 {globbing with brace substitution} {macOnly} {
+    lsort [glob globTest/{x1.c,a1/*}]
+} {:globTest:a1:b1 :globTest:a1:b2 :globTest:x1.c}
+test filename-13.15 {globbing with brace substitution} {unixOrPc unixExecs} {
+    lsort [glob globTest/{x1.c,{a},a1/*}]
+} {globTest/a1/b1 globTest/a1/b2 globTest/x1.c}
+test filename-13.15 {globbing with brace substitution} {macOnly} {
+    lsort [glob globTest/{x1.c,{a},a1/*}]
+} {:globTest:a1:b1 :globTest:a1:b2 :globTest:x1.c}
+test filename-13.16 {globbing with brace substitution} {unixOrPc unixExecs} {
+    lsort [glob globTest/{a,x}1/*/{x,y}*]
+} {globTest/a1/b1/x2.c globTest/a1/b2/y2.c}
+test filename-13.16 {globbing with brace substitution} {macOnly} {
+    lsort [glob globTest/{a,x}1/*/{x,y}*]
+} {:globTest:a1:b1:x2.c :globTest:a1:b2:y2.c}
+test filename-13.17 {globbing with brace substitution} {unixExecs} {
+    list [catch {glob globTest/\{a,x\}1/*/\{} msg] $msg
+} {1 {unmatched open-brace in file name}}
+
+test filename-14.1 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob g*/*.c]
+} {{globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}
+test filename-14.1 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob g*/*.c]
+} {{:globTest:weird name.c} :globTest:x,z1.c :globTest:x1.c :globTest:y1.c :globTest:z1.c}
+test filename-14.2 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob globTest/?1.c]
+} {globTest/x1.c globTest/y1.c globTest/z1.c}
+test filename-14.2 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob globTest/?1.c]
+} {:globTest:x1.c :globTest:y1.c :globTest:z1.c}
+test filename-14.3 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob */*/*/*.c]
+} {globTest/a1/b1/x2.c globTest/a1/b2/y2.c}
+test filename-14.3 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob */*/*/*.c]
+} {:globTest:a1:b1:x2.c :globTest:a1:b2:y2.c}
+test filename-14.4 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob globTest/*]
+} {globTest/a1 globTest/a2 globTest/a3 {globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}
+test filename-14.4 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob globTest/*]
+} {:globTest:.1 :globTest:a1 :globTest:a2 :globTest:a3 {:globTest:weird name.c} :globTest:x,z1.c :globTest:x1.c :globTest:y1.c :globTest:z1.c}
+test filename-14.5 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob globTest/.*]
+} {globTest/. globTest/.. globTest/.1}
+test filename-14.5 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob globTest/.*]
+} {:globTest:.1}
+test filename-14.6 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob globTest/*/*]
+} {globTest/a1/b1 globTest/a1/b2 globTest/a2/b3}
+test filename-14.6 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob globTest/*/*]
+} {:globTest:a1:b1 :globTest:a1:b2 :globTest:a2:b3}
+test filename-14.7 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob {globTest/[xyab]1.*}]
+} {globTest/x1.c globTest/y1.c}
+test filename-14.7 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob {globTest/[xyab]1.*}]
+} {:globTest:x1.c :globTest:y1.c}
+test filename-14.8 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    lsort [glob globTest/*/]
+} {globTest/a1/ globTest/a2/ globTest/a3/}
+test filename-14.8 {asterisks, question marks, and brackets} {macOnly} {
+    lsort [glob globTest/*/]
+} {:globTest:a1: :globTest:a2: :globTest:a3:}
+test filename-14.9 {asterisks, question marks, and brackets} {unixExecs} {
+    global env
+    set temp $env(HOME)
+    set env(HOME) [file join $env(HOME) globTest]
+    set result [list [catch {glob ~/z*} msg] $msg]
+    set env(HOME) $temp
+    set result
+} [list 0 [list [file join $env(HOME) globTest z1.c]]]
+test filename-14.10 {asterisks, question marks, and brackets} {unixExecs unixOrPc} {
+    list [catch {lsort [glob globTest/*.c goo/*]} msg] $msg
+} {0 {{globTest/weird name.c} globTest/x,z1.c globTest/x1.c globTest/y1.c globTest/z1.c}}
+test filename-14.10 {asterisks, question marks, and brackets} {macOnly} {
+    list [catch {lsort [glob globTest/*.c goo/*]} msg] $msg
+} {0 {{:globTest:weird name.c} :globTest:x,z1.c :globTest:x1.c :globTest:y1.c :globTest:z1.c}}
+test filename-14.11 {asterisks, question marks, and brackets} {
+    list [catch {glob -nocomplain goo/*} msg] $msg
+} {0 {}}
+test filename-14.12 {asterisks, question marks, and brackets} {
+    list [catch {glob globTest/*/gorp} msg] $msg
+} {1 {no files matched glob pattern "globTest/*/gorp"}}
+test filename-14.13 {asterisks, question marks, and brackets} {
+    list [catch {glob goo/* x*z foo?q} msg] $msg
+} {1 {no files matched glob patterns "goo/* x*z foo?q"}}
+test filename-14.14 {slash globbing} {unixOrPc} {
+    glob /
+} /
+test filename-14.15 {slash globbing} {pcOnly} {
+    glob {\\}
+} /
+
+# The following tests are only valid for Unix systems.
+
+if {$tcl_platform(platform) == "unix"} {
+    # On some systems, like AFS, "000" protection doesn't prevent
+    # access by owner, so the following test is not portable.
+
+    exec chmod 000 globTest
+    test filename-15.1 {unix specific globbing} {nonPortable} {
+	string tolower [list [catch {glob globTest/*} msg]  $msg $errorCode]
+    } {1 {couldn't read directory "globtest": permission denied} {posix eacces {permission denied}}}
+    exec chmod 755 globTest
+	
+	test filename-15.2 {unix specific globbing} {nonPortable} {
+	    glob ~ouster/.csh*
+	} "/home/ouster/.cshrc"
+    close [open globTest/odd\\\[\]*?\{\}name w]
+    test filename-15.3 {unix specific globbing} {
+	global env
+	set temp $env(HOME)
+	set env(HOME) $env(HOME)/globTest/odd\\\[\]*?\{\}name
+	set result [list [catch {glob ~} msg] $msg]
+	set env(HOME) $temp
+	set result
+    } [list 0 [list [glob ~]/globTest/odd\\\[\]*?\{\}name]]
+    exec rm -f globTest/odd\\\[\]*?\{\}name
+}
+
+# The following tests are only valid for Windows systems.
+
+if {$tcl_platform(platform) == "windows"} {
+    set temp [pwd]
+    cd c:/
+    exec rm -rf globTest
+    catch {
+	exec mkdir globTest
+	close [open globTest/x1.BAT w]
+	close [open globTest/y1.Bat w]
+	close [open globTest/z1.bat w]
+    }
+    
+    test filename-16.1 {windows specific globbing} {unixExecs} {
+	lsort [glob globTest/*.bat]
+    } {globTest/x1.BAT globTest/y1.Bat globTest/z1.bat}
+    test filename-16.2 {windows specific globbing} {
+	glob c:
+    } c:
+    test filename-16.3 {windows specific globbing} {unixExecs} {
+	glob c:\\\\
+	} c:/
+    test filename-16.4 {windows specific globbing} {
+	glob c:/
+    } c:/
+    test filename-16.5 {windows specific globbing} {unixExecs} {
+	glob c:*Test
+    } c:globTest
+    test filename-16.6 {windows specific globbing} {unixExecs} {
+	glob c:\\\\*Test
+    } c:/globTest
+    test filename-16.7 {windows specific globbing} {unixExecs} {
+	glob c:/*Test
+    } c:/globTest
+    test filename-16.8 {windows specific globbing} {unixExecs} {
+	lsort [glob c:globTest/*.bat]
+    } {c:globTest/x1.BAT c:globTest/y1.Bat c:globTest/z1.bat}
+    test filename-16.9 {windows specific globbing} {unixExecs} {
+	lsort [glob c:/globTest/*.bat]
+    } {c:/globTest/x1.BAT c:/globTest/y1.Bat c:/globTest/z1.bat}
+    test filename-16.10 {windows specific globbing} {unixExecs} {
+	lsort [glob c:globTest\\\\*.bat]
+    } {c:globTest/x1.BAT c:globTest/y1.Bat c:globTest/z1.bat}
+    test filename-16.11 {windows specific globbing} {unixExecs} {
+	lsort [glob c:\\\\globTest\\\\*.bat]
+    } {c:/globTest/x1.BAT c:/globTest/y1.Bat c:/globTest/z1.bat}
+
+    exec rm -rf globTest
+
+    if $testConfig(nonPortable) {
+	cd //gaspode/d
+	exec rm -rf globTest
+	exec mkdir globTest
+
+	close [open globTest/x1.BAT w]
+	close [open globTest/y1.Bat w]
+	close [open globTest/z1.bat w]
+
+	test filename-16.12 {windows specific globbing} {
+	    glob //gaspode/d/*Test
+	} //gaspode/d/globTest
+	test filename-16.13 {windows specific globbing} {
+	    glob {\\\\gaspode\\d\\*Test}
+	} //gaspode/d/globTest
+
+	exec rm -rf globTest
+    }	    
+
+    cd $temp
+}
+
+removeDirectory globTest
+set env(HOME) $oldhome
+
+testsetplatform $platform
+catch {unset oldhome platform temp result}
+concat ""

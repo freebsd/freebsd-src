@@ -1,0 +1,67 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) proc.n 1.5 96/03/25 20:21:12
+'\" 
+.so man.macros
+.TH proc n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+proc \- Create a Tcl procedure
+.SH SYNOPSIS
+\fBproc \fIname args body\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fBproc\fR command creates a new Tcl procedure named
+\fIname\fR, replacing
+any existing command or procedure there may have been by that name.
+Whenever the new command is invoked, the contents of \fIbody\fR will
+be executed by the Tcl interpreter.
+\fIArgs\fR specifies the formal arguments to the
+procedure.  It consists of a list, possibly empty, each of whose
+elements specifies
+one argument.  Each argument specifier is also a list with either
+one or two fields.  If there is only a single field in the specifier
+then it is the name of the argument; if there are two fields, then
+the first is the argument name and the second is its default value.
+.PP
+When \fIname\fR is invoked a local variable
+will be created for each of the formal arguments to the procedure; its
+value will be the value of corresponding argument in the invoking command
+or the argument's default value.
+Arguments with default values need not be
+specified in a procedure invocation.  However, there must be enough
+actual arguments for all the
+formal arguments that don't have defaults, and there must not be any extra
+actual arguments.  There is one special case to permit procedures with
+variable numbers of arguments.  If the last formal argument has the name
+\fBargs\fR, then a call to the procedure may contain more actual arguments
+than the procedure has formals.  In this case, all of the actual arguments
+starting at the one that would be assigned to \fBargs\fR are combined into
+a list (as if the \fBlist\fR command had been used); this combined value
+is assigned to the local variable \fBargs\fR.
+.PP
+When \fIbody\fR is being executed, variable names normally refer to
+local variables, which are created automatically when referenced and
+deleted when the procedure returns.  One local variable is automatically
+created for each of the procedure's arguments.
+Global variables can only be accessed by invoking
+the \fBglobal\fR command or the \fBupvar\fR command.
+.PP
+The \fBproc\fR command returns an empty string.  When a procedure is
+invoked, the procedure's return value is the value specified in a
+\fBreturn\fR command.  If the procedure doesn't execute an explicit
+\fBreturn\fR, then its return value is the value of the last command
+executed in the procedure's body.
+If an error occurs while executing the procedure
+body, then the procedure-as-a-whole will return that same error.
+
+.SH KEYWORDS
+argument, procedure

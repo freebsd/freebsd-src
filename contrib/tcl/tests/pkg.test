@@ -1,0 +1,549 @@
+# Commands covered:  pkg
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) pkg.test 1.6 96/03/20 10:50:27
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+eval package forget [package names]
+package unknown {}
+set oldPath auto_path
+set auto_path ""
+
+test pkg-1.1 {Tcl_PkgProvide procedure} {
+    package forget t
+    package provide t 2.3
+} {}
+test pkg-1.2 {Tcl_PkgProvide procedure} {
+    package forget t
+    package provide t 2.3
+    list [catch {package provide t 2.2} msg] $msg
+} {1 {conflicting versions provided for package "t": 2.3, then 2.2}}
+test pkg-1.3 {Tcl_PkgProvide procedure} {
+    package forget t
+    package provide t 2.3
+    list [catch {package provide t 2.4} msg] $msg
+} {1 {conflicting versions provided for package "t": 2.3, then 2.4}}
+test pkg-1.4 {Tcl_PkgProvide procedure} {
+    package forget t
+    package provide t 2.3
+    list [catch {package provide t 3.3} msg] $msg
+} {1 {conflicting versions provided for package "t": 2.3, then 3.3}}
+test pkg-1.5 {Tcl_PkgProvide procedure} {
+    package forget t
+    package provide t 2.3
+    package provide t 2.3
+} {}
+
+test pkg-2.1 {Tcl_PkgRequire procedure, picking best version} {
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i; package provide t $i"
+    }
+    set x xxx
+    package require t
+    set x
+} {3.4}
+test pkg-2.2 {Tcl_PkgRequire procedure, picking best version} {
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2 3.5 3.2} {
+	package ifneeded t $i "set x $i; package provide t $i"
+    }
+    set x xxx
+    package require t
+    set x
+} {3.5}
+test pkg-2.3 {Tcl_PkgRequire procedure, picking best version} {
+    package forget t
+    foreach i {3.5 2.1 2.3} {
+	package ifneeded t $i "set x $i; package provide t $i"
+    }
+    set x xxx
+    package require t 2.2
+    set x
+} {2.3}
+test pkg-2.4 {Tcl_PkgRequire procedure, picking best version} {
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i; package provide t $i"
+    }
+    set x xxx
+    package require -exact t 2.3
+    set x
+} {2.3}
+test pkg-2.5 {Tcl_PkgRequire procedure, picking best version} {
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i; package provide t $i"
+    }
+    set x xxx
+    package require t 2.1
+    set x
+} {2.4}
+test pkg-2.6 {Tcl_PkgRequire procedure, can't find suitable version} {
+    package forget t
+    package unknown {}
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i"
+    }
+    list [catch {package require t 2.5} msg] $msg
+} {1 {can't find package t 2.5}}
+test pkg-2.7 {Tcl_PkgRequire procedure, can't find suitable version} {
+    package forget t
+    package unknown {}
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i"
+    }
+    list [catch {package require t 4.1} msg] $msg
+} {1 {can't find package t 4.1}}
+test pkg-2.8 {Tcl_PkgRequire procedure, can't find suitable version} {
+    package forget t
+    package unknown {}
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i"
+    }
+    list [catch {package require -exact t 1.3} msg] $msg
+} {1 {can't find package t 1.3}}
+test pkg-2.9 {Tcl_PkgRequire procedure, can't find suitable version} {
+    package forget t
+    package unknown {}
+    list [catch {package require t} msg] $msg
+} {1 {can't find package t}}
+test pkg-2.10 {Tcl_PkgRequire procedure, error in ifneeded script} {
+    package forget t
+    package ifneeded t 2.1 {package provide t 2.1; error "ifneeded test"}
+    list [catch {package require t 2.1} msg] $msg $errorInfo
+} {1 {ifneeded test} {ifneeded test
+    while executing
+"error "ifneeded test""
+    ("package ifneeded" script)
+    invoked from within
+"package require t 2.1"}}
+test pkg-2.11 {Tcl_PkgRequire procedure, ifneeded script doesn't provide package} {
+    package forget t
+    package ifneeded t 2.1 "set x invoked"
+    set x xxx
+    list [catch {package require t 2.1} msg] $msg $x
+} {1 {can't find package t 2.1} invoked}
+test pkg-2.12 {Tcl_PkgRequire procedure, self-deleting script} {
+    package forget t
+    package ifneeded t 1.2 "package forget t; set x 1.2; package provide t 1.2"
+    set x xxx
+    package require t 1.2
+    set x
+} {1.2}
+test pkg-2.13 {Tcl_PkgRequire procedure, "package unknown" support} {
+    proc pkgUnknown args {
+	global x
+	set x $args
+	package provide [lindex $args 0] [lindex $args 1]
+    }
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i"
+    }
+    package unknown pkgUnknown
+    set x xxx
+    package require -exact t 1.5
+    package unknown {}
+    set x
+} {t 1.5 -exact}
+test pkg-2.14 {Tcl_PkgRequire procedure, "package unknown" support} {
+    proc pkgUnknown args {
+	package ifneeded t 1.2 "set x loaded; package provide t 1.2"
+    }
+    package forget t
+    package unknown pkgUnknown
+    set x xxx
+    set result [list [package require t] $x]
+    package unknown {}
+    set result
+} {1.2 loaded}
+test pkg-2.15 {Tcl_PkgRequire procedure, "package unknown" support} {
+    proc pkgUnknown args {
+	global x
+	set x $args
+	package provide [lindex $args 0] 2.0
+    }
+    package forget {a b}
+    package unknown pkgUnknown
+    set x xxx
+    package require {a b}
+    package unknown {}
+    set x
+} {{a b} {}}
+test pkg-2.16 {Tcl_PkgRequire procedure, "package unknown" error} {
+    proc pkgUnknown args {
+	error "testing package unknown"
+    }
+    package forget t 
+    package unknown pkgUnknown
+    set result [list [catch {package require t} msg] $msg $errorInfo]
+    package unknown {}
+    set result
+} {1 {testing package unknown} {testing package unknown
+    while executing
+"error "testing package unknown""
+    (procedure "pkgUnknown" line 2)
+    invoked from within
+"pkgUnknown t {}"
+    ("package unknown" script)
+    invoked from within
+"package require t"}}
+test pkg-2.17 {Tcl_PkgRequire procedure, "package unknown" doesn't load package} {
+    proc pkgUnknown args {
+	global x
+	set x $args
+    }
+    package forget t
+    foreach i {1.4 3.4 2.3 2.4 2.2} {
+	package ifneeded t $i "set x $i"
+    }
+    package unknown pkgUnknown
+    set x xxx
+    set result [list [catch {package require -exact t 1.5} msg] $msg $x]
+    package unknown {}
+    set result
+} {1 {can't find package t 1.5} {t 1.5 -exact}}
+test pkg-2.18 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    package require t
+} {2.3}
+test pkg-2.19 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    package require t 2.1
+} {2.3}
+test pkg-2.20 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    package require t 2.3
+} {2.3}
+test pkg-2.21 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    list [catch {package require t 2.4} msg] $msg
+} {1 {version conflict for package "t": have 2.3, need 2.4}}
+test pkg-2.22 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    list [catch {package require t 1.2} msg] $msg
+} {1 {version conflict for package "t": have 2.3, need 1.2}}
+test pkg-2.23 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    package require -exact t 2.3
+} {2.3}
+test pkg-2.24 {Tcl_PkgRequire procedure, version checks} {
+    package forget t
+    package provide t 2.3
+    list [catch {package require -exact t 2.2} msg] $msg
+} {1 {version conflict for package "t": have 2.3, need 2.2}}
+
+test pkg-3.1 {Tcl_PackageCmd procedure} {
+    list [catch {package} msg] $msg
+} {1 {wrong # args: should be "package option ?arg arg ...?"}}
+test pkg-3.2 {Tcl_PackageCmd procedure, "forget" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package names
+} {}
+test pkg-3.3 {Tcl_PackageCmd procedure, "forget" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package forget foo
+} {}
+test pkg-3.4 {Tcl_PackageCmd procedure, "forget" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package ifneeded t 1.1 {first script}
+    package ifneeded t 2.3 {second script}
+    package ifneeded x 1.4 {x's script}
+    set result {}
+    lappend result [lsort [package names]] [package versions t]
+    package forget t
+    lappend result [lsort [package names]] [package versions t]
+} {{t x} {1.1 2.3} x {}}
+test pkg-3.5 {Tcl_PackageCmd procedure, "forget" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package ifneeded a 1.1 {first script}
+    package ifneeded b 2.3 {second script}
+    package ifneeded c 1.4 {third script}
+    package forget
+    set result [list [lsort [package names]]]
+    package forget a c
+    lappend result [lsort [package names]]
+} {{a b c} b}
+test pkg-3.6 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    list [catch {package ifneeded a} msg] $msg
+} {1 {wrong # args: should be "package ifneeded package version ?script?"}}
+test pkg-3.7 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    list [catch {package ifneeded a b c d} msg] $msg
+} {1 {wrong # args: should be "package ifneeded package version ?script?"}}
+test pkg-3.8 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    list [catch {package ifneeded t xyz} msg] $msg
+} {1 {expected version number but got "xyz"}}
+test pkg-3.9 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    list [package ifneeded foo 1.1] [package names]
+} {{} {}}
+test pkg-3.10 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    package forget t
+    package ifneeded t 1.4 "script for t 1.4"
+    list [package names] [package ifneeded t 1.4] [package versions t]
+} {t {script for t 1.4} 1.4}
+test pkg-3.11 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    package forget t
+    package ifneeded t 1.4 "script for t 1.4"
+    list [package ifneeded t 1.5] [package names] [package versions t]
+} {{} t 1.4}
+test pkg-3.12 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    package forget t
+    package ifneeded t 1.4 "script for t 1.4"
+    package ifneeded t 1.4 "second script for t 1.4"
+    list [package ifneeded t 1.4] [package names] [package versions t]
+} {{second script for t 1.4} t 1.4}
+test pkg-3.13 {Tcl_PackageCmd procedure, "ifneeded" option} {
+    package forget t
+    package ifneeded t 1.4 "script for t 1.4"
+    package ifneeded t 1.2 "second script"
+    package ifneeded t 3.1 "last script"
+    list [package ifneeded t 1.2] [package versions t]
+} {{second script} {1.4 1.2 3.1}}
+test pkg-3.14 {Tcl_PackageCmd procedure, "names" option} {
+    list [catch {package names a} msg] $msg
+} {1 {wrong # args: should be "package names"}}
+test pkg-3.15 {Tcl_PackageCmd procedure, "names" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package names
+} {}
+test pkg-3.16 {Tcl_PackageCmd procedure, "names" option} {
+    foreach i [package names] {
+	package forget $i
+    }
+    package ifneeded x 1.2 {dummy}
+    package provide x 1.3
+    package provide y 2.4
+    catch {package require z 47.16}
+    lsort [package names]
+} {x y}
+test pkg-3.17 {Tcl_PackageCmd procedure, "provide" option} {
+    list [catch {package provide} msg] $msg
+} {1 {wrong # args: should be "package provide package ?version?"}}
+test pkg-3.18 {Tcl_PackageCmd procedure, "provide" option} {
+    list [catch {package provide a b c} msg] $msg
+} {1 {wrong # args: should be "package provide package ?version?"}}
+test pkg-3.19 {Tcl_PackageCmd procedure, "provide" option} {
+    package forget t
+    package provide t
+} {}
+test pkg-3.20 {Tcl_PackageCmd procedure, "provide" option} {
+    package forget t
+    package provide t 2.3
+    package provide t
+} {2.3}
+test pkg-3.21 {Tcl_PackageCmd procedure, "provide" option} {
+    package forget t
+    list [catch {package provide t a.b} msg] $msg
+} {1 {expected version number but got "a.b"}}
+test pkg-3.22 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.23 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require a b c} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.24 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require -exact a b c} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.25 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require -bs a b} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.26 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require x a.b} msg] $msg
+} {1 {expected version number but got "a.b"}}
+test pkg-3.27 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require -exact x a.b} msg] $msg
+} {1 {expected version number but got "a.b"}}
+test pkg-3.28 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require -exact x} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.29 {Tcl_PackageCmd procedure, "require" option} {
+    list [catch {package require -exact} msg] $msg
+} {1 {wrong # args: should be "package require ?-exact? package ?version?"}}
+test pkg-3.30 {Tcl_PackageCmd procedure, "require" option} {
+    package forget t
+    package provide t 2.3
+    package require t 2.1
+} {2.3}
+test pkg-3.31 {Tcl_PackageCmd procedure, "require" option} {
+    package forget t
+    list [catch {package require t} msg] $msg
+} {1 {can't find package t}}
+test pkg-3.32 {Tcl_PackageCmd procedure, "require" option} {
+    package forget t
+    package ifneeded t 2.3 "error {synthetic error}"
+    list [catch {package require t 2.3} msg] $msg
+} {1 {synthetic error}}
+test pkg-3.33 {Tcl_PackageCmd procedure, "unknown" option} {
+    list [catch {package unknown a b} msg] $msg
+} {1 {wrong # args: should be "package unknown ?command?"}}
+test pkg-3.34 {Tcl_PackageCmd procedure, "unknown" option} {
+    package unknown "test script"
+    package unknown
+} {test script}
+test pkg-3.35 {Tcl_PackageCmd procedure, "unknown" option} {
+    package unknown "test script"
+    package unknown {}
+    package unknown
+} {}
+test pkg-3.36 {Tcl_PackageCmd procedure, "vcompare" option} {
+    list [catch {package vcompare a} msg] $msg
+} {1 {wrong # args: should be "package vcompare version1 version2"}}
+test pkg-3.37 {Tcl_PackageCmd procedure, "vcompare" option} {
+    list [catch {package vcompare a b c} msg] $msg
+} {1 {wrong # args: should be "package vcompare version1 version2"}}
+test pkg-3.38 {Tcl_PackageCmd procedure, "vcompare" option} {
+    list [catch {package vcompare x.y 3.4} msg] $msg
+} {1 {expected version number but got "x.y"}}
+test pkg-3.39 {Tcl_PackageCmd procedure, "vcompare" option} {
+    list [catch {package vcompare 2.1 a.b} msg] $msg
+} {1 {expected version number but got "a.b"}}
+test pkg-3.40 {Tcl_PackageCmd procedure, "vcompare" option} {
+    package vc 2.1 2.3
+} {-1}
+test pkg-3.41 {Tcl_PackageCmd procedure, "vcompare" option} {
+    package vc 2.2.4 2.2.4
+} {0}
+test pkg-3.42 {Tcl_PackageCmd procedure, "versions" option} {
+    list [catch {package versions} msg] $msg
+} {1 {wrong # args: should be "package versions package"}}
+test pkg-3.43 {Tcl_PackageCmd procedure, "versions" option} {
+    list [catch {package versions a b} msg] $msg
+} {1 {wrong # args: should be "package versions package"}}
+test pkg-3.44 {Tcl_PackageCmd procedure, "versions" option} {
+    package forget t
+    package versions t
+} {}
+test pkg-3.45 {Tcl_PackageCmd procedure, "versions" option} {
+    package forget t
+    package provide t 2.3
+    package versions t
+} {}
+test pkg-3.46 {Tcl_PackageCmd procedure, "versions" option} {
+    package forget t
+    package ifneeded t 2.3 x
+    package ifneeded t 2.4 y
+    package versions t
+} {2.3 2.4}
+test pkg-3.47 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    list [catch {package vsatisfies a} msg] $msg
+} {1 {wrong # args: should be "package vsatisfies version1 version2"}}
+test pkg-3.48 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    list [catch {package vsatisfies a b c} msg] $msg
+} {1 {wrong # args: should be "package vsatisfies version1 version2"}}
+test pkg-3.49 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    list [catch {package vsatisfies x.y 3.4} msg] $msg
+} {1 {expected version number but got "x.y"}}
+test pkg-3.50 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    list [catch {package vcompare 2.1 a.b} msg] $msg
+} {1 {expected version number but got "a.b"}}
+test pkg-3.51 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    package vs 2.3 2.1
+} {1}
+test pkg-3.52 {Tcl_PackageCmd procedure, "vsatisfies" option} {
+    package vs 2.3 1.2
+} {0}
+test pkg-3.53 {Tcl_PackageCmd procedure, "versions" option} {
+    list [catch {package foo} msg] $msg
+} {1 {bad option "foo": should be forget, ifneeded, names, provide, require, unknown, vcompare, versions, or vsatisfies}}
+
+# No tests for FindPackage;  can't think up anything detectable
+# errors.
+
+test pkg-4.1 {TclFreePackageInfo procedure} {
+    interp create foo
+    foo eval {
+	package ifneeded t 2.3 x
+	package ifneeded t 2.4 y
+	package ifneeded x 3.1 z
+	package provide q 4.3
+	package unknown "will this get freed?"
+    }
+    interp delete foo
+} {}
+test pkg-4.2 {TclFreePackageInfo procedure} {
+    interp create foo
+    foo eval {
+	package ifneeded t 2.3 x
+	package ifneeded t 2.4 y
+	package ifneeded x 3.1 z
+	package provide q 4.3
+    }
+    foo alias z kill
+    proc kill {} {
+	interp delete foo
+    }
+    list [catch {foo eval package require x 3.1} msg] $msg
+} {1 {can't find package x 3.1}}
+
+test pkg-5.1 {CheckVersion procedure} {
+    list [catch {package vcompare 1 2.1} msg] $msg
+} {0 -1}
+test pkg-5.2 {CheckVersion procedure} {
+    list [catch {package vcompare .1 2.1} msg] $msg
+} {1 {expected version number but got ".1"}}
+test pkg-5.3 {CheckVersion procedure} {
+    list [catch {package vcompare 111.2a.3 2.1} msg] $msg
+} {1 {expected version number but got "111.2a.3"}}
+test pkg-5.4 {CheckVersion procedure} {
+    list [catch {package vcompare 1.2.3. 2.1} msg] $msg
+} {1 {expected version number but got "1.2.3."}}
+
+test pkg-6.1 {ComparePkgVersions procedure} {
+    package vcompare 1.23 1.22
+} {1}
+test pkg-6.2 {ComparePkgVersions procedure} {
+    package vcompare 1.22.1.2.3 1.22.1.2.3
+} {0}
+test pkg-6.3 {ComparePkgVersions procedure} {
+    package vcompare 1.21 1.22
+} {-1}
+test pkg-6.4 {ComparePkgVersions procedure} {
+    package vcompare 1.21 1.21.2
+} {-1}
+test pkg-6.5 {ComparePkgVersions procedure} {
+    package vcompare 1.21.1 1.21
+} {1}
+test pkg-6.6 {ComparePkgVersions procedure} {
+    package vsatisfies 1.21.1 1.21
+} {1}
+test pkg-6.7 {ComparePkgVersions procedure} {
+    package vsatisfies 2.22.3 1.21
+} {0}
+test pkg-6.8 {ComparePkgVersions procedure} {
+    package vsatisfies 1 1
+} {1}
+test pkg-6.9 {ComparePkgVersions procedure} {
+    package vsatisfies 2 1
+} {0}
+
+set auto_path oldPath
+concat

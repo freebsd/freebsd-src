@@ -1,0 +1,41 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) lrange.n 1.8 96/03/25 20:19:51
+'\" 
+.so man.macros
+.TH lrange n 7.4 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+lrange \- Return one or more adjacent elements from a list
+.SH SYNOPSIS
+\fBlrange \fIlist first last\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+\fIList\fR must be a valid Tcl list.  This command will
+return a new list consisting of elements
+\fIfirst\fR through \fIlast\fR, inclusive.
+.VS
+\fIFirst\fR or \fIlast\fR
+.VE
+may be \fBend\fR (or any abbreviation of it) to refer to the last
+element of the list.
+If \fIfirst\fR is less than zero, it is treated as if it were zero.
+If \fIlast\fR is greater than or equal to the number of elements
+in the list, then it is treated as if it were \fBend\fR.
+If \fIfirst\fR is greater than \fIlast\fR then an empty string
+is returned.
+Note: ``\fBlrange \fIlist first first\fR'' does not always produce the
+same result as ``\fBlindex \fIlist first\fR'' (although it often does
+for simple fields that aren't enclosed in braces); it does, however,
+produce exactly the same results as ``\fBlist [lindex \fIlist first\fB]\fR''
+
+.SH KEYWORDS
+element, list, range, sublist
