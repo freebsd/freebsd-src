@@ -138,7 +138,7 @@ awi_pccard_attach(device_t dev)
 	psc->sc_mem_res = 0;
 	psc->sc_intrhand = 0;
 
-	ifp->if_name = device_get_name(dev);
+	ifp->if_name = "awi";
 	ifp->if_unit = device_get_unit(dev);
 	if (ifp->if_name == NULL) {
 		printf("awi%d: awi_pccard_attach: cannot get device name\n",
