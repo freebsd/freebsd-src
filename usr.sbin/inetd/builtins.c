@@ -106,7 +106,7 @@ struct biltin biltins[] = {
  */
 
 void
-initring()
+initring(void)
 {
 	int i;
 
@@ -119,9 +119,9 @@ initring()
 
 /* ARGSUSED */
 void
-chargen_dg(s, sep)		/* Character generator */
-	int s;
-	struct servtab *sep;
+chargen_dg(int s, struct servtab *sep)		/* Character generator */
+	      
+	                    
 {
 	struct sockaddr_storage ss;
 	static char *rs;
@@ -157,9 +157,9 @@ chargen_dg(s, sep)		/* Character generator */
 
 /* ARGSUSED */
 void
-chargen_stream(s, sep)		/* Character generator */
-	int s;
-	struct servtab *sep;
+chargen_stream(int s, struct servtab *sep)		/* Character generator */
+	      
+	                    
 {
 	int len;
 	char *rs, text[LINESIZ+2];
@@ -195,9 +195,9 @@ chargen_stream(s, sep)		/* Character generator */
 
 /* ARGSUSED */
 void
-daytime_dg(s, sep)		/* Return human-readable time of day */
-	int s;
-	struct servtab *sep;
+daytime_dg(int s, struct servtab *sep)		/* Return human-readable time of day */
+	      
+	                    
 {
 	char buffer[256];
 	time_t now;
@@ -221,9 +221,9 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 
 /* ARGSUSED */
 void
-daytime_stream(s, sep)		/* Return human-readable time of day */
-	int s;
-	struct servtab *sep __unused;
+daytime_stream(int s, struct servtab *sep)		/* Return human-readable time of day */
+	      
+	                             
 {
 	char buffer[256];
 	time_t now;
@@ -241,9 +241,9 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 
 /* ARGSUSED */
 void
-discard_dg(s, sep)		/* Discard service -- ignore data */
-	int s;
-	struct servtab *sep __unused;
+discard_dg(int s, struct servtab *sep)		/* Discard service -- ignore data */
+	      
+	                             
 {
 	char buffer[BUFSIZE];
 
@@ -252,9 +252,9 @@ discard_dg(s, sep)		/* Discard service -- ignore data */
 
 /* ARGSUSED */
 void
-discard_stream(s, sep)		/* Discard service -- ignore data */
-	int s;
-	struct servtab *sep;
+discard_stream(int s, struct servtab *sep)		/* Discard service -- ignore data */
+	      
+	                    
 {
 	int ret;
 	char buffer[BUFSIZE];
@@ -276,9 +276,9 @@ discard_stream(s, sep)		/* Discard service -- ignore data */
 
 /* ARGSUSED */
 void
-echo_dg(s, sep)			/* Echo service -- echo data back */
-	int s;
-	struct servtab *sep;
+echo_dg(int s, struct servtab *sep)			/* Echo service -- echo data back */
+	      
+	                    
 {
 	char buffer[65536]; /* Should be sizeof(max datagram). */
 	int i;
@@ -298,9 +298,9 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 
 /* ARGSUSED */
 void
-echo_stream(s, sep)		/* Echo service -- echo data back */
-	int s;
-	struct servtab *sep;
+echo_stream(int s, struct servtab *sep)		/* Echo service -- echo data back */
+	      
+	                    
 {
 	char buffer[BUFSIZE];
 	int i;
@@ -327,9 +327,9 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 
 /* ARGSUSED */
 void
-iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
-	int lport, fport, s;
-	const char *er;
+iderror(int lport, int fport, int s, const char *er)	/* Generic ident_stream error-sending func */
+	                    
+	               
 {
 	char *p;
 
@@ -346,9 +346,9 @@ iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
 
 /* ARGSUSED */
 void
-ident_stream(s, sep)		/* Ident service (AKA "auth") */
-	int s;
-	struct servtab *sep;
+ident_stream(int s, struct servtab *sep)		/* Ident service (AKA "auth") */
+	      
+	                    
 {
 	struct utsname un;
 	struct stat sb;
@@ -696,7 +696,7 @@ printit:
  */
 
 unsigned long
-machtime()
+machtime(void)
 {
 	struct timeval tv;
 
@@ -712,9 +712,7 @@ machtime()
 
 /* ARGSUSED */
 void
-machtime_dg(s, sep)
-	int s;
-	struct servtab *sep;
+machtime_dg(int s, struct servtab *sep)
 {
 	unsigned long result;
 	struct sockaddr_storage ss;
@@ -735,9 +733,7 @@ machtime_dg(s, sep)
 
 /* ARGSUSED */
 void
-machtime_stream(s, sep)
-	int s;
-	struct servtab *sep __unused;
+machtime_stream(int s, struct servtab *sep)
 {
 	unsigned long result;
 
@@ -757,10 +753,7 @@ machtime_stream(s, sep)
 #define strwrite(fd, buf)	(void) write(fd, buf, sizeof(buf)-1)
 
 static int		/* # of characters upto \r,\n or \0 */
-getline(fd, buf, len)
-	int fd;
-	char *buf;
-	int len;
+getline(int fd, char *buf, int len)
 {
 	int count = 0, n;
 	struct sigaction sa;
@@ -788,8 +781,7 @@ getline(fd, buf, len)
 }
 
 struct servtab *
-tcpmux(s)
-	int s;
+tcpmux(int s)
 {
 	struct servtab *sep;
 	char service[MAX_SERV_LEN+1];
