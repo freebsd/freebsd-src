@@ -23,7 +23,6 @@
 5	*pts		pseudo tty "tty" half
 6	*ptc		pseudo tty "master" half
 7	*log		system log
-18	*nmdm		nullmodem back-to-back tty ports
 19	*tw		X-10 power interface
 22	*fd		(/dev/stdin etc)
 30	*snd		sound driver system
@@ -37,7 +36,6 @@
 42	*cx		Cronyx/Sigma serial adapter
 43	vn		vnode "disk" device (retired)
 46	-		-
-52	*tun		IP tunnel device
 54	OLDnic		ISDN system
 58	-		Was dgb: Digiboard PC/Xe
 62	worm		SCSI "worm type"
@@ -77,7 +75,6 @@
 139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
 141	pcdmx		PCDMX theatre lighting controller
 142	skip		SKIP port (security/skip) control device
-149	*tap		Ethernet tunneling device <myevmenkin@att.com>
 154	*asr		Adaptec SCSI RAID <msmith@freebsd.org>
 155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
 159	*ata		ATA control device

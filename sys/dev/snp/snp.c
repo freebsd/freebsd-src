@@ -38,7 +38,6 @@ static	d_write_t	snpwrite;
 static	d_ioctl_t	snpioctl;
 static	d_poll_t	snppoll;
 
-#define CDEV_MAJOR 53
 static struct cdevsw snp_cdevsw = {
 	.d_open =	snpopen,
 	.d_close =	snpclose,
@@ -47,7 +46,7 @@ static struct cdevsw snp_cdevsw = {
 	.d_ioctl =	snpioctl,
 	.d_poll =	snppoll,
 	.d_name =	"snp",
-	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_PSEUDO,
 };
 
 static struct linesw snpdisc = {
@@ -101,10 +100,9 @@ static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
  * module load time.
  */
 static int snooplinedisc;
-static udev_t snpbasedev = NOUDEV;
-
 
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
+static struct clonedevs	  *snpclones;
 
 static struct tty	*snpdevtotty(dev_t dev);
 static void		snp_clone(void *arg, char *name,
@@ -384,9 +382,7 @@ snpopen(dev, flag, mode, td)
 	struct snoop *snp;
 
 	if (dev->si_drv1 == NULL) {
-		if (!(dev->si_flags & SI_NAMED))
-			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
-			    0600, "snp%d", dev2unit(dev));
+		dev->si_flags &= ~SI_CHEAPCLONE;
 		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
 		    M_WAITOK | M_ZERO);
 		snp->snp_unit = dev2unit(dev);
@@ -466,6 +462,7 @@ snpclose(dev, flags, fmt, td)
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
+	destroy_dev(dev);
 
 	return (snp_detach(snp));
 }
@@ -608,20 +605,18 @@ snp_clone(arg, name, namelen, dev)
 	int namelen;
 	dev_t *dev;
 {
-	int u;
+	int u, i;
 
 	if (*dev != NODEV)
 		return;
 	if (dev_stdclone(name, NULL, "snp", &u) != 1)
 		return;
-	*dev = make_dev(&snp_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
-	    "snp%d", u);
-	if (snpbasedev == NOUDEV)
-		snpbasedev = (*dev)->si_udev;
-	else {
+	i = clone_create(&snpclones, &snp_cdevsw, &u, dev, 0);
+	if (i)
+		*dev = make_dev(&snp_cdevsw, unit2minor(u),
+		     UID_ROOT, GID_WHEEL, 0600, "snp%d", u);
+	if (*dev != NULL)
 		(*dev)->si_flags |= SI_CHEAPCLONE;
-		dev_depends(udev2dev(snpbasedev, 0), *dev);
-	}
 }
 
 static int
@@ -642,8 +637,7 @@ snp_modevent(mod, type, data)
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		if (snpbasedev != NOUDEV)
-			destroy_dev(udev2dev(snpbasedev, 0));
+		clone_cleanup(&snpclones);
 		ldisc_deregister(snooplinedisc);
 		break;
 	default:
@@ -657,4 +651,4 @@ static moduledata_t snp_mod = {
         snp_modevent,
         NULL
 };
-DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR);
+DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);

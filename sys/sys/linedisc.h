@@ -64,10 +64,12 @@ struct cdev {
 #define SI_CONSOPEN	0x0040	/* opened by console */
 #define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
 #define SI_CANDELETE	0x0100	/* can do BIO_DELETE */
+#define SI_CLONELIST	0x0200	/* on a clone list */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
 	udev_t		si_udev;
+	LIST_ENTRY(cdev)	si_clone;
 	LIST_ENTRY(cdev)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;
 	LIST_HEAD(, cdev)	si_children;
@@ -125,6 +127,7 @@ struct buf;
 struct thread;
 struct uio;
 struct knote;
+struct clonedevs;
 
 /*
  * Note: d_thread_t is provided as a transition aid for those drivers
@@ -198,6 +201,7 @@ typedef int dumper_t(
 #define	D_NAGGED	0x00020000	/* nagged about missing make_dev() */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
+#define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
 #define D_NOGIANT	0x00400000	/* Doesn't want Giant */
 
 /*
@@ -273,6 +277,11 @@ static moduledata_t name##_mod = {					\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
+
+void clone_cleanup(struct clonedevs **);
+#define CLONE_UNITMASK 0xfffff
+#define CLONE_FLAG0 (CLONE_UNITMASK + 1)
+int clone_create(struct clonedevs **, struct cdevsw *, int *unit, dev_t *dev, u_int extra);
 
 int	count_dev(dev_t _dev);
 void	destroy_dev(dev_t _dev);
