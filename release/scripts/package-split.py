@@ -28,18 +28,13 @@ else:
 def disc1_packages():
     # 5.x only
     pkgs = ['lang/perl5.8']
-    pkgs.append('x11/xorg')
-    pkgs.append('x11/xorg-manpages')
-    pkgs.append('devel/imake-6')
+    pkgs.extend(['x11/xorg',
+                 'x11/xorg-manpages',
+                 'devel/imake-6'])
     if arch == 'alpha':
         pkgs.append('emulators/osf1_base')
     elif arch == 'i386':
         pkgs.append('emulators/linux_base-8')
-    # 5.x only
-    if arch == 'i386':
-        pkgs.append('misc/compat22')
-        pkgs.append('misc/compat3x')
-        pkgs.append('misc/compat4x')
     return pkgs
 
 # List of packages for disc2.  This includes packages that the X desktop
@@ -104,9 +99,9 @@ def disc2_packages():
             'www/apache13-modssl',
             'www/apache2']
     if arch == 'i386':
-        pkgs.append('comms/ltmdm')
-        pkgs.append('print/acroread')
-        pkgs.append('www/opera')
+        pkgs.extend(['comms/ltmdm',
+                     'print/acroread',
+                     'www/opera'])
     return pkgs
 
 # The list of desired packages
