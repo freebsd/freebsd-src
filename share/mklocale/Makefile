@@ -24,6 +24,7 @@ LOCALES=	am_ET.UTF-8 \
 		uk_UA.KOI8-U \
 		zh_CN.eucCN \
 		zh_CN.GB18030 \
+		zh_CN.GB2312 \
 		zh_CN.GBK \
 		zh_TW.Big5
 
