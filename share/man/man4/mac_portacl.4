@@ -1,12 +1,12 @@
 .\" Copyright (c) 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris Costello
 .\" at Safeport Network Services and Network Associates Labs, the
 .\" Security Research Division of Network Associates, Inc. under
 .\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
 .\" DARPA CHATS research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -15,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,10 +27,12 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.Dd MARCH 11, 2003
+.\"
+.Dd March 11, 2003
 .Dt MAC_PORTACL 4
+.Os
 .Sh NAME
 .Nm mac_portacl
 .Nd network port access control policy
@@ -38,21 +40,30 @@
 To compile the port access control policy into your kernel,
 place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_PORTACL"
+.Ed
 .Pp
 Alternately, to load the port access control policy module at boot time,
 place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
-and in   
+and in
 .Xr loader.conf 5 :
-.Cd mac_portacl_load= Ns \&"YES"
+.Pp
+.Dl "mac_portacl_load=""YES"""
 .Sh DESCRIPTION
 The
 .Nm
 policy allows administrators to administratively limit binding to
-local UDP and TCP ports via the
+local
+.Tn UDP
+and
+.Tn TCP
+ports via the
 .Xr sysctl 8
 interface.
 .Pp
@@ -78,49 +89,52 @@ MIB in the following format:
 .Pp
 .Sm off
 .Bd -literal -offset indent
-.Sy idtype
+.Ar idtype
 .Li :
-.Sy id
+.Ar id
 .Li :
-.Sy protocol
+.Ar protocol
 .Li :
-.Sy port
-.Li [,
-.Sy idtype
+.Ar port
+.Oo
+.Li ,
+.Ar idtype
 .Li :
-.Sy id
+.Ar id
 .Li :
-.Sy protocol
+.Ar protocol
 .Li :
-.Sy port
-.Li ,...]
+.Ar port
+.Li ,
+.Ar ...
+.Oc
 .Ed
 .Sm on
 .Pp
-.Bl -tag -width protocol
-.It Sy idtype
+.Bl -tag -width ".Ar protocol"
+.It Ar idtype
 Describes the type of subject match to be performed.
 Either
 .Li uid
-for userid matching, or
+for user ID matching, or
 .Li gid
 for group ID matching.
-.It Sy id
+.It Ar id
 The user or group ID (depending on
-.Sy idtype )
+.Ar idtype )
 allowed to bind to the specified port.
 .Bf -emphasis
 NOTE: User and group names are not valid; only the actual ID numbers
 may be used.
 .Ef
-.It Sy protocol
+.It Ar protocol
 Describes which protocol this entry applies to.
 Either
 .Li tcp
 or
 .Li udp
 are supported.
-.It Sy port
+.It Ar port
 Describes which port this entry applies to.
 .Bf -emphasis
 NOTE: MAC security policies may not override other security system policies
@@ -131,7 +145,7 @@ by allowing accesses that they may deny, such as
 If the specified port falls within the range specified, the
 .Nm
 entry will not function
-(i.e. even the specified user/group may not be able to bind to the specified
+(i.e., even the specified user/group may not be able to bind to the specified
 port).
 .El
 .Sh SEE ALSO
@@ -152,5 +166,6 @@ MAC first appeared in
 This software was contributed to the
 .Fx
 Project by NAI Labs, the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

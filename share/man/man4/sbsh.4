@@ -1,5 +1,5 @@
 .\" Written by Denis I. Timofeev, 2003.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -8,7 +8,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,13 +34,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for an internal PCI modem SBNI16-SHDSL. A device
-is introduced to OS as common ethernet-like netcard which must be
-configured with
+driver provides support for an internal PCI modem SBNI16-SHDSL.
+A device is introduced to the OS as a common Ethernet-like network
+card which must be configured with
 .Xr ifconfig 8
-(all standard network interface parameters could be set). Modem-specific
-parameters (master/slave mode, line rate etc.) must be set with the
-sb16config utility before interface activation.
+(all standard network interface parameters could be set).
+Modem-specific
+parameters (master/slave mode, line rate, etc.) must be set with the
+.Nm sb16config
+utility before interface activation.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sbsh%d: couldn't map memory"
@@ -48,10 +50,13 @@ sb16config utility before interface activation.
 .It "sbsh%d: couldn't set up irq"
 A fatal initialization error has occurred.
 .It "sbsh%d: unable to load firmware"
-A fatal error has occurred while sb16config running.
+A fatal error has occurred while
+.Nm sb16config
+was running.
 .It "sbsh%d: firmware wasn't loaded"
-ifconfig...up has failed because device hadn't been configured with
-sb16config.
+.Dq Nm ifconfig Ar ... Cm up
+has failed because device has not been configured with
+.Nm sb16config .
 .It "sbsh%d: transmit timeout"
 .It "sbsh%d: interrupt posted but not delivered"
 Probably, a hardware error or incompatibility.
@@ -69,8 +74,9 @@ The sources for the driver reside in:
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
-.Xr ifconfig 8 ,
-.Xr /usr/ports/sysutils/sb16config
+.Xr ifconfig 8
+.Pp
+.Pa ports/sysutils/sb16config
 .Sh HISTORY
 The
 .Nm
