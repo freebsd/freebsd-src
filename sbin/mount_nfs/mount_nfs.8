@@ -54,16 +54,17 @@
 .Op Fl t Ar timeout
 .Op Fl w Ar writesize
 .Op Fl x Ar retrans
-.Ar rhost:path node
+.Ar rhost : Ns Ar path node
 .Sh DESCRIPTION
 The
 .Nm
 command
 calls the
 .Xr mount 2
-system call to prepare and graft a remote nfs file system (rhost:path)
+system call to prepare and graft a remote nfs file system
+.Pq Ar rhost : Ns Ar path
 on to the file system tree at the point
-.Ar node.
+.Ar node .
 This command is normally executed by
 .Xr mount 8 .
 It implements the mount protocol as described in RFC 1094, Appendix A and
@@ -253,7 +254,7 @@ Same as
 .Fl s .
 .It tcp
 Same as
-.Fl T.
+.Fl T .
 .El
 .It Fl q
 Use the leasing extensions to the NFS Version 3 protocol

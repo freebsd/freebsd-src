@@ -80,7 +80,7 @@ is read.  See
 .Sx CONFIGURATION FILE ,
 below, for file syntax.
 .Pp
-.Em WARNING Ns :
+.Em WARNING :
 when
 .Fl f
 is used, you are not asked if you really want to write the partition
@@ -173,15 +173,15 @@ is used to label the partition.
 .Fx
 reserves the
 magic number 165 decimal (A5 in hex).
-.It Em "start and size"
+.It Em start No and Em size
 fields provide the start address
 and size of a partition in sectors.
 .It Em "flag 80"
 specifies that this is the active partition.
-.It Em "cyl, sector and head"
+.It Em cyl , sector No and Em head
 fields are used to specify the beginning address
 and end address for the partition.
-.It Em "Note:"
+.It Em Note :
 these numbers are calculated using BIOS's understanding of the disk geometry
 and saved in the bootblock.
 .El
@@ -213,7 +213,7 @@ will display it and ask if it is correct.
 will then proceed to the next entry.
 .Pp
 Getting the
-.Em cyl, sector,
+.Em cyl , sector ,
 and
 .Em head
 fields correct is tricky.
@@ -279,30 +279,30 @@ a specification, and whitespace (except for newlines) are ignored:
 .Bl -tag -width Ds
 .It Xo
 .Ic #
-.No Ar comment ...
+.Ar comment ...
 .Xc
 Lines beginning with a "#" are comments and are ignored.
 .It Xo
 .Ic g
-.No Ar spec1
-.No Ar spec2
-.No Ar spec3
+.Ar spec1
+.Ar spec2
+.Ar spec3
 .Xc
 Set the BIOS geometry used in partition calculations.  There must be
 three values specified, with a letter preceding each number:
 .Bl -tag -width Ds
 .Sm off
-.It Cm c No Ar num
+.It Cm c Ar num
 .Sm on
 Set the number of cylinders to
 .Ar num .
 .Sm off
-.It Cm h No Ar num
+.It Cm h Ar num
 .Sm on
 Set the number of heads to
 .Ar num .
 .Sm off
-.It Cm s No Ar num
+.It Cm s Ar num
 .Sm on
 Set the number of sectors/track to
 .Ar num .
@@ -337,10 +337,10 @@ g       s63     h39     c1019
 .Ed
 .It Xo
 .Ic p
-.No Ar partition
-.No Ar type
-.No Ar start
-.No Ar length
+.Ar partition
+.Ar type
+.Ar start
+.Ar length
 .Xc
 Set the partition given by
 .Ar partition
@@ -396,7 +396,7 @@ p       1       165     1       2503871
 .Pp
 .It Xo
 .Ic a
-.No Ar partition
+.Ar partition
 .Xc
 Make
 .Ar partition

@@ -191,7 +191,7 @@ A
 .Sm on
 option can be used to specify a file whose handle will be returned if
 a directory is looked up using the public filehandle (
-.Tn WebNFS Ns ).
+.Tn WebNFS ) .
 This is to mimic the behavior of URLs.
 If no
 .Fl index
@@ -280,6 +280,25 @@ associated with ``root'';
 it is exported to all hosts on network ``cis-net'' allowing mounts at any
 directory within /u2 and mapping all uids to credentials for the principal
 that is authenticated by a Kerberos ticket.
+.Pp
+The
+.Xr mountd 8
+utility can be made to re-read the
+.Nm
+file by sending it a hangup signal as follows:
+.Bd -literal -offset indent
+kill -s HUP `cat /var/run/mountd.pid`
+.Ed
+.Pp
+After sending the
+.Dv SIGHUP ,
+check the
+.Xr syslogd 8
+output to see whether
+.Xr mountd 8
+logged any parsing errors in the
+.Nm
+file.
 .Sh FILES
 .Bl -tag -width /etc/exports -compact
 .It Pa /etc/exports
