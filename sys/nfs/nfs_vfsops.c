@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.5 1994/10/02 17:27:03 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.6 1994/10/17 17:47:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -90,6 +90,7 @@ VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, 0);
  * to ensure that it is allocated to initialized data (.data not .bss).
  */
 struct nfs_diskless nfs_diskless = { 0 };
+int nfs_diskless_valid = 0;
 
 extern u_long nfs_procids[NFS_NPROCS];
 extern u_long nfs_prog, nfs_vers;
@@ -180,6 +181,8 @@ nfs_mountroot()
 	struct vnode *vp;
 	struct proc *p = curproc;		/* XXX */
 	int error, i;
+	u_long l;
+	char buf[128];
 
 	/*
 	 * XXX time must be non-zero when we init the interface or else
@@ -187,6 +190,11 @@ nfs_mountroot()
 	 */
 	if (time.tv_sec == 0)
 		time.tv_sec = 1;
+
+	/* 
+	 * XXX splnet, so networks will receive...
+	 */
+	splnet();
 
 #ifdef notyet
 	/* Set up swap credentials. */
@@ -205,8 +213,23 @@ nfs_mountroot()
 	 */
 	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0);
 	if (error)
-		panic("nfs_mountroot: socreate: %d", error);
-	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p);
+		panic("nfs_mountroot: socreate(%04x): %d",
+			nd->myif.ifra_addr.sa_family, error);
+
+	/*
+	 * We might not have been told the right interface, so we pass
+	 * over the first ten interfaces of the same kind, until we get
+	 * one of them configured.
+	 */
+
+	for (i = strlen(nd->myif.ifra_name) - 1;
+		nd->myif.ifra_name[i] >= '0' && 
+		nd->myif.ifra_name[i] <= '9';
+		nd->myif.ifra_name[i] ++) {
+		error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, p);
+		if(!error) 
+			break;
+	}
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
 	soclose(so);
@@ -229,16 +252,22 @@ nfs_mountroot()
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
 
-	/*
-	 * If swapping to an nfs node (indicated by swdevt[0].sw_dev == NODEV):
-	 * Create a fake mount point just for the swap vnode so that the
-	 * swap file can be on a different server from the rootfs.
-	 */
-	if (swdevt[0].sw_dev == NODEV) {
+	if (nd->swap_nblks) {
+		/*
+		 * Create a fake mount point just for the swap vnode so that the
+		 * swap file can be on a different server from the rootfs.
+		 */
 		nd->swap_args.fh = (nfsv2fh_t *)nd->swap_fh;
-		(void) nfs_mountdiskless(nd->swap_hostnam, "/swap", 0,
+		l = ntohl(nd->swap_saddr.sin_addr.s_addr);
+		sprintf(buf,"%ld.%ld.%ld.%ld:%s",
+			(l >> 24) & 0xff, (l >> 16) & 0xff,
+			(l >>  8) & 0xff, (l >>  0) & 0xff,nd->swap_hostnam);
+		printf("NFS SWAP: %s\n",buf);
+		(void) nfs_mountdiskless(buf, "/swap", 0,
 		    &nd->swap_saddr, &nd->swap_args, &vp);
-	
+
+		for (i=0;swdevt[i].sw_dev != NODEV;i++) ;
+
 		/*
 		 * Since the swap file is not the root dir of a file system,
 		 * hack it to a regular file.
@@ -247,16 +276,27 @@ nfs_mountroot()
 		vp->v_flag = 0;
 		swapdev_vp = vp;
 		VREF(vp);
-		swdevt[0].sw_vp = vp;
-		swdevt[0].sw_nblks = ntohl(nd->swap_nblks);
-	} else if (bdevvp(swapdev, &swapdev_vp))
-		panic("nfs_mountroot: can't setup swapdev_vp");
+		swdevt[i].sw_vp = vp;
+		swdevt[i].sw_nblks = nd->swap_nblks*2;
+
+		if (!swdevt[i].sw_nblks) {
+			swdevt[i].sw_nblks = 2048;
+			printf("defaulting to %d kbyte.\n",
+				swdevt[i].sw_nblks/2);
+		} else
+			printf("using %d kbyte.\n",swdevt[i].sw_nblks/2);
+	}
 
 	/*
 	 * Create the rootfs mount point.
 	 */
 	nd->root_args.fh = (nfsv2fh_t *)nd->root_fh;
-	mp = nfs_mountdiskless(nd->root_hostnam, "/", MNT_RDONLY,
+	l = ntohl(nd->swap_saddr.sin_addr.s_addr);
+	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
+		(l >> 24) & 0xff, (l >> 16) & 0xff,
+		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
+	printf("NFS ROOT: %s\n",buf);
+	mp = nfs_mountdiskless(buf, "/", MNT_RDONLY,
 	    &nd->root_saddr, &nd->root_args, &vp);
 
 	if (vfs_lock(mp))
@@ -311,7 +351,6 @@ nfs_mountdiskless(path, which, mountflag, sin, args, vpp)
 		panic("nfs_mountroot: %s mount mbuf", which);
 	bcopy((caddr_t)sin, mtod(m, caddr_t), sin->sin_len);
 	m->m_len = sin->sin_len;
-	nfsargs_ntoh(args);
 	error = mountnfs(args, mp, m, which, path, vpp);
 	if (error)
 		panic("nfs_mountroot: mount %s on %s: %d", path, which, error);
@@ -319,27 +358,6 @@ nfs_mountdiskless(path, which, mountflag, sin, args, vpp)
 	return (mp);
 }
 
-/*
- * Convert the integer fields of the nfs_args structure from net byte order
- * to host byte order. Called by nfs_mountroot() above.
- */
-void
-nfsargs_ntoh(nfsp)
-	register struct nfs_args *nfsp;
-{
-
-	NTOHL(nfsp->sotype);
-	NTOHL(nfsp->proto);
-	NTOHL(nfsp->flags);
-	NTOHL(nfsp->wsize);
-	NTOHL(nfsp->rsize);
-	NTOHL(nfsp->timeo);
-	NTOHL(nfsp->retrans);
-	NTOHL(nfsp->maxgrouplist);
-	NTOHL(nfsp->readahead);
-	NTOHL(nfsp->leaseterm);
-	NTOHL(nfsp->deadthresh);
-}
 
 /*
  * VFS Operations.
