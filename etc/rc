@@ -384,7 +384,7 @@ if [ "$vibackup" != '/var/tmp/vi.recover/vi.*' ]; then
 fi
 
 # make a bounds file for msgs(1) if there isn't one already
-if [ ! -f /var/msgs/bounds ]; then
+if [ -d /var/msgs -a  ! -f /var/msgs/bounds ]; then
 	echo 0 > /var/msgs/bounds
 fi
 
