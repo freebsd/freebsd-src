@@ -82,6 +82,9 @@
 #ifdef	__i386__
 #define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
 #endif
+#ifdef  __powerpc__
+#define	KINFO_PROC_SIZE	656
+#endif
 #ifndef	KINFO_PROC_SIZE
 #error	"Unknown architecture"
 #endif
