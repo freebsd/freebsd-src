@@ -78,7 +78,7 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
 		return (FALSE);
 	}
 	c = *sizep;
-	if ((c > maxsize && UINT_MAX/elsize < c) &&
+	if ((c > maxsize || UINT_MAX/elsize < c) &&
 	    (xdrs->x_op != XDR_FREE)) {
 		return (FALSE);
 	}
