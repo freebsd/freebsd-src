@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm.c,v 1.2 1998/10/29 12:38:06 abial Exp $
+ *	$Id: vm.c,v 1.4 1999/08/22 21:45:23 dwhite Exp $
  */
 
 #include <stdio.h>
@@ -32,13 +32,17 @@
 #include <sys/vmmeter.h>
 #include <vm/vm_param.h>
 
-#define pgtok(a) ((a) * (u_int) DEFAULT_PAGE_SIZE >> 10)
+#define pgtok(a) ((a) * (u_int) pagesize >> 10)
 
 int
 main(int argc, char *argv[])
 {
 	int mib[2],i=0,len;
+	int pagesize, pagesize_len;
 	struct vmtotal v;
+
+	pagesize_len = sizeof(int);
+	sysctlbyname("vm.stats.vm.v_page_size",&pagesize,&pagesize_len,NULL,0);
 
 	len=sizeof(struct vmtotal);
 	mib[0]=CTL_VM;
