@@ -255,14 +255,17 @@ HelpCommand(struct cmdargs const *arg)
 static int
 IdentCommand(struct cmdargs const *arg)
 {
-  int f, pos;
+  int f, max, n, pos;
 
   *arg->cx->physical->link.lcp.cfg.ident = '\0';
+  max = sizeof arg->cx->physical->link.lcp.cfg.ident;
 
-  for (pos = 0, f = arg->argn; f < arg->argc; f++)
-    pos += snprintf(arg->cx->physical->link.lcp.cfg.ident + pos,
-                    sizeof arg->cx->physical->link.lcp.cfg.ident - pos, "%s%s",
-                    f == arg->argn ? "" : " ", arg->argv[f]);
+  for (pos = 0, f = arg->argn; f < arg->argc && pos < max; f++) {
+    n = snprintf(arg->cx->physical->link.lcp.cfg.ident + pos, max - pos,
+                 "%s%s", f == arg->argn ? "" : " ", arg->argv[f]);
+    if (n == -1 || (pos += n) >= max)
+      break;
+  }
 
   return 0;
 }
