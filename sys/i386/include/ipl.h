@@ -30,13 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.13 1998/01/15 07:32:56 gibbs Exp $
+ *	$Id: ipl.h,v 1.14 1998/08/11 15:08:12 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
-
-#if defined(KERNEL) && !defined(ACTUALLY_LKM_NOT_KERNEL)
 
 #ifdef APIC_IO
 #include <i386/isa/apic_ipl.h>
@@ -90,8 +88,6 @@
 #define	SWI_AST_MASK	SWI_AST_PENDING
 #define	SWI_MASK	(~HWI_MASK)
 
-#endif /* KERNEL && !ACTUALLY_LKM_NOT_KERNEL */
-
 #ifndef	LOCORE
 
 /*
@@ -108,7 +104,7 @@ extern	unsigned cil;		/* current INTerrupt level mask */
 #endif
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
-#ifdef notyet /* in <sys/interrupt.h> until pci drivers stop hacking on them */
+#ifdef notyet /* in <sys/systm.h> until pci drivers stop hacking on them */
 extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
