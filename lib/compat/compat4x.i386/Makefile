@@ -4,8 +4,10 @@ DISTRIBUTION=	compat4x
 
 LIBS=	\
 	libcrypto.so.1 \
+	libcrypto.so.2 \
 	libfetch.so.2 \
-	libssl.so.1
+	libssl.so.1 \
+	libssl.so.2
 
 CLEANFILES+=	${LIBS}
 
