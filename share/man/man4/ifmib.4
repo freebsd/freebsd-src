@@ -25,7 +25,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ifmib.4,v 1.1 1996/11/15 19:49:41 wollman Exp $
+.\"	$Id: ifmib.4,v 1.2 1996/12/09 07:45:17 mpp Exp $
 .\"
 .Dd November 15, 1996
 .Dt IFMIB 4
@@ -131,9 +131,8 @@ was full
 .Pq Li struct if_data
 more information from a structure defined in
 .Aq Pa net/if.h
+.Pq see Xr if_data 9
 .El
-.\" struct if_data will eventually be described in ifnet(9), but I
- \" haven't written that page yet.
 .Pp
 Class-specific information can be retrieved by examining the
 .Dv IFDATA_LINKSPECIFIC
@@ -159,8 +158,8 @@ the structure is a
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .\" .Xr ethermib 4 ,
-.Xr intro 4
-.\" .Xr ifnet 9
+.Xr intro 4 ,
+.Xr ifnet 9
 .Rs
 .%T "Definitions of Managed Objects for the Ethernet-like Interface Types Using SMIv2"
 .%A F. Kastenholz
