@@ -52,7 +52,7 @@ and
 .Tn ABP3950U2W .
 Both chips support, synchronous transfers
 (20MHz and 40MHz max respectively),
-16bit transfers, tagged queueing,
+16bit transfers, tagged queuing,
 and up to 253 concurrent SCSI transactions.
 .Pp
 Per target configuration performed in the
@@ -61,7 +61,7 @@ menu, which is accessible at boot,
 is honored by this driver.
 This includes synchronous/asynchronous transfers,
 maximum synchronous negotiation rate, wide transfers, disconnection,
-tagged queueing, and the host adapter's SCSI ID.
+tagged queuing, and the host adapter's SCSI ID.
 The global setting for the maximum number of tagged transactions allowed
 per target is not honored as the CAM SCSI system will automatically determine
 the maximum number of tags a device can receive as well as guarantee fair
