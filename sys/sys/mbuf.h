@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.21 1997/02/24 20:32:07 wollman Exp $
+ * $Id: mbuf.h,v 1.22 1997/08/16 19:16:11 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -395,7 +395,7 @@ extern int	max_linkhdr;		/* largest link-level header */
 extern int	max_protohdr;		/* largest protocol header */
 extern int	max_hdr;		/* largest link+protocol header */
 extern int	max_datalen;		/* MHLEN - max_hdr */
-extern int	mbtypes[];		/* XXX */
+extern struct kmemstats	*mbtypes[];		/* XXX */
 
 struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
 struct	mbuf *m_copypacket __P((struct mbuf *, int));
@@ -419,7 +419,7 @@ void	m_copydata __P((struct mbuf *,int,int,caddr_t));
 void	m_freem __P((struct mbuf *));
 
 #ifdef MBTYPES
-int mbtypes[] = {				/* XXX */
+struct kmemstats *mbtypes[] = {				/* XXX */
 	M_FREE,		/* MT_FREE	0	   should be on free list */
 	M_MBUF,		/* MT_DATA	1	   dynamic (data) allocation */
 	M_MBUF,		/* MT_HEADER	2	   packet header */
