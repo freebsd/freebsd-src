@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: err.c,v 1.2 1994/09/24 02:53:57 davidg Exp $
  */
 
 #ifndef lint
@@ -342,7 +342,7 @@ stderror(id, va_alist)
 #endif
 {
     va_list va;
-    register Char **v;
+    Char **v;
     int     flags = id & ERR_FLAGS;
 
     id &= ~ERR_FLAGS;

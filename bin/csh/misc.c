@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.2 1994/09/24 02:54:10 davidg Exp $
+ *	$Id: misc.c,v 1.3 1996/09/28 14:32:01 bde Exp $
  */
 
 #ifndef lint
@@ -53,8 +53,8 @@ static int	renum __P((int, int));
 
 int
 any(s, c)
-    register char *s;
-    register int c;
+    char *s;
+    int c;
 {
     if (!s)
 	return (0);		/* Check for nil pointer */
@@ -77,10 +77,10 @@ setzero(cp, i)
 
 char   *
 strsave(s)
-    register char *s;
+    char *s;
 {
     char   *n;
-    register char *p;
+    char *p;
 
     if (s == NULL)
 	s = "";
@@ -94,7 +94,7 @@ strsave(s)
 
 Char  **
 blkend(up)
-    register Char **up;
+    Char **up;
 {
 
     while (*up)
@@ -106,7 +106,7 @@ blkend(up)
 void
 blkpr(fp, av)
     FILE *fp;
-    register Char **av;
+    Char **av;
 {
 
     for (; *av; av++) {
@@ -118,9 +118,9 @@ blkpr(fp, av)
 
 int
 blklen(av)
-    register Char **av;
+    Char **av;
 {
-    register int i = 0;
+    int i = 0;
 
     while (*av++)
 	i++;
@@ -130,9 +130,9 @@ blklen(av)
 Char  **
 blkcpy(oav, bv)
     Char  **oav;
-    register Char **bv;
+    Char **bv;
 {
-    register Char **av = oav;
+    Char **av = oav;
 
     while ((*av++ = *bv++) != NULL)
 	continue;
@@ -152,7 +152,7 @@ void
 blkfree(av0)
     Char  **av0;
 {
-    register Char **av = av0;
+    Char **av = av0;
 
     if (!av0)
 	return;
@@ -163,9 +163,9 @@ blkfree(av0)
 
 Char  **
 saveblk(v)
-    register Char **v;
+    Char **v;
 {
-    register Char **newv =
+    Char **newv =
     (Char **) xcalloc((size_t) (blklen(v) + 1), sizeof(Char **));
     Char  **onewv = newv;
 
@@ -177,11 +177,11 @@ saveblk(v)
 #ifdef NOTUSED
 char   *
 strstr(s, t)
-    register char *s, *t;
+    char *s, *t;
 {
     do {
-	register char *ss = s;
-	register char *tt = t;
+	char *ss = s;
+	char *tt = t;
 
 	do
 	    if (*tt == '\0')
@@ -199,7 +199,7 @@ strspl(cp, dp)
     char   *cp, *dp;
 {
     char   *ep;
-    register char *p, *q;
+    char *p, *q;
 
     if (!cp)
 	cp = "";
@@ -221,9 +221,9 @@ strspl(cp, dp)
 
 Char  **
 blkspl(up, vp)
-    register Char **up, **vp;
+    Char **up, **vp;
 {
-    register Char **wp =
+    Char **wp =
     (Char **) xcalloc((size_t) (blklen(up) + blklen(vp) + 1),
 		      sizeof(Char **));
 
@@ -233,7 +233,7 @@ blkspl(up, vp)
 
 Char
 lastchr(cp)
-    register Char *cp;
+    Char *cp;
 {
 
     if (!cp)
@@ -252,7 +252,7 @@ lastchr(cp)
 void
 closem()
 {
-    register int f, flimit;
+    int f, flimit;
 
     for (f = 0, flimit = getdtablesize(); f < flimit; f++)
 	if (f != SHIN && f != SHOUT && f != SHERR && f != OLDSTD &&
@@ -277,7 +277,7 @@ donefds()
  */
 int
 dmove(i, j)
-    register int i, j;
+    int i, j;
 {
 
     if (i == j || i < 0)
@@ -296,7 +296,7 @@ dmove(i, j)
 
 int
 dcopy(i, j)
-    register int i, j;
+    int i, j;
 {
 
     if (i == j || i < 0 || (j < 0 && i > 2))
@@ -311,9 +311,9 @@ dcopy(i, j)
 
 static int
 renum(i, j)
-    register int i, j;
+    int i, j;
 {
-    register int k = dup(i);
+    int k = dup(i);
 
     if (k < 0)
 	return (-1);
@@ -334,10 +334,10 @@ renum(i, j)
  */
 void
 lshift(v, c)
-    register Char **v;
-    register int c;
+    Char **v;
+    int c;
 {
-    register Char **u;
+    Char **u;
 
     for (u = v; *u && --c >= 0; u++)
 	xfree((ptr_t) *u);
@@ -363,7 +363,7 @@ number(cp)
 
 Char  **
 copyblk(v)
-    register Char **v;
+    Char **v;
 {
     Char  **nv = (Char **) xcalloc((size_t) (blklen(v) + 1), sizeof(Char **));
 
@@ -373,7 +373,7 @@ copyblk(v)
 #ifndef SHORT_STRINGS
 char   *
 strend(cp)
-    register char *cp;
+    char *cp;
 {
     if (!cp)
 	return (cp);
@@ -388,7 +388,7 @@ Char   *
 strip(cp)
     Char   *cp;
 {
-    register Char *dp = cp;
+    Char *dp = cp;
 
     if (!cp)
 	return (cp);
@@ -408,7 +408,7 @@ udvar(name)
 
 int
 prefix(sub, str)
-    register Char *sub, *str;
+    Char *sub, *str;
 {
 
     for (;;) {

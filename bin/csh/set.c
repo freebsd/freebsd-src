@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: set.c,v 1.3 1995/05/30 00:06:38 rgrimes Exp $
+ *	$Id: set.c,v 1.4 1995/07/07 23:13:11 ache Exp $
  */
 
 #ifndef lint
@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)set.c	8.1 (Berkeley) 5/31/93";
 #else
 # include <varargs.h>
 #endif
+#include <unistd.h>
 
 #include "csh.h"
 #include "extern.h"
@@ -75,7 +76,7 @@ doset(v, t)
     Char **v;
     struct command *t;
 {
-    register Char *p;
+    Char *p;
     Char   *vp, op;
     Char  **vecp;
     bool    hadsub;
@@ -116,7 +117,7 @@ doset(v, t)
 	if (op && op != '=')
 	    stderror(ERR_NAME | ERR_SYNTAX);
 	if (eq(p, STRLparen)) {
-	    register Char **e = v;
+	    Char **e = v;
 
 	    if (hadsub)
 		stderror(ERR_NAME | ERR_SYNTAX);
@@ -143,7 +144,7 @@ doset(v, t)
 	    dohash(NULL, NULL);
 	}
 	else if (eq(vp, STRhistchars)) {
-	    register Char *pn = value(STRhistchars);
+	    Char *pn = value(STRhistchars);
 
 	    HIST = *pn++;
 	    HISTSUB = *pn;
@@ -158,7 +159,7 @@ doset(v, t)
 	else if (eq(vp, STRterm))
 	    Setenv(STRTERM, value(vp));
 	else if (eq(vp, STRhome)) {
-	    register Char *cp;
+	    Char *cp;
 
 	    cp = Strsave(value(vp));	/* get the old value back */
 
@@ -184,8 +185,8 @@ doset(v, t)
 
 static Char *
 getinx(cp, ip)
-    register Char *cp;
-    register int *ip;
+    Char *cp;
+    int *ip;
 {
 
     *ip = 0;
@@ -203,7 +204,7 @@ asx(vp, subscr, p)
     int     subscr;
     Char   *p;
 {
-    register struct varent *v = getvx(vp, subscr);
+    struct varent *v = getvx(vp, subscr);
 
     xfree((ptr_t) v->vec[subscr - 1]);
     v->vec[subscr - 1] = globone(p, G_APPEND);
@@ -214,7 +215,7 @@ getvx(vp, subscr)
     Char   *vp;
     int     subscr;
 {
-    register struct varent *v = adrof(vp);
+    struct varent *v = adrof(vp);
 
     if (v == 0)
 	udvar(vp);
@@ -229,7 +230,7 @@ dolet(v, t)
     Char **v;
     struct command *t;
 {
-    register Char *p;
+    Char *p;
     Char   *vp, c, op;
     bool    hadsub;
     int     subscr;
@@ -314,7 +315,7 @@ static Char *
 xset(cp, vp)
     Char   *cp, ***vp;
 {
-    register Char *dp;
+    Char *dp;
 
     if (*cp) {
 	dp = Strsave(cp);
@@ -332,9 +333,9 @@ operate(op, vp, p)
 {
     Char    opr[2];
     Char   *vec[5];
-    register Char **v = vec;
+    Char **v = vec;
     Char  **vecp = v;
-    register int i;
+    int i;
 
     if (op != '=') {
 	if (*vp)
@@ -357,7 +358,7 @@ static Char *putp;
 
 Char   *
 putn(n)
-    register int n;
+    int n;
 {
     int     num;
     static Char number[15];
@@ -390,7 +391,7 @@ putn(n)
 
 static void
 putn1(n)
-    register int n;
+    int n;
 {
     if (n > 9)
 	putn1(n / 10);
@@ -399,9 +400,9 @@ putn1(n)
 
 int
 getn(cp)
-    register Char *cp;
+    Char *cp;
 {
-    register int n;
+    int n;
     int     sign;
 
     sign = 0;
@@ -426,7 +427,7 @@ value1(var, head)
     Char   *var;
     struct varent *head;
 {
-    register struct varent *vp;
+    struct varent *vp;
 
     vp = adrof1(var, head);
     return (vp == 0 || vp->vec[0] == 0 ? STRNULL : vp->vec[0]);
@@ -435,9 +436,9 @@ value1(var, head)
 static struct varent *
 madrof(pat, vp)
     Char   *pat;
-    register struct varent *vp;
+    struct varent *vp;
 {
-    register struct varent *vp1;
+    struct varent *vp1;
 
     for (; vp; vp = vp->v_right) {
 	if (vp->v_left && (vp1 = madrof(pat, vp->v_left)))
@@ -450,10 +451,10 @@ madrof(pat, vp)
 
 struct varent *
 adrof1(name, v)
-    register Char *name;
-    register struct varent *v;
+    Char *name;
+    struct varent *v;
 {
-    register cmp;
+    int cmp;
 
     v = v->v_left;
     while (v && ((cmp = *name - *v->v_name) ||
@@ -472,7 +473,7 @@ void
 set(var, val)
     Char   *var, *val;
 {
-    register Char **vec = (Char **) xmalloc((size_t) (2 * sizeof(Char **)));
+    Char **vec = (Char **) xmalloc((size_t) (2 * sizeof(Char **)));
 
     vec[0] = val;
     vec[1] = 0;
@@ -484,7 +485,7 @@ set1(var, vec, head)
     Char   *var, **vec;
     struct varent *head;
 {
-    register Char **oldv = vec;
+    Char **oldv = vec;
 
     gflag = 0;
     tglob(oldv);
@@ -505,10 +506,10 @@ set1(var, vec, head)
 void
 setq(name, vec, p)
     Char   *name, **vec;
-    register struct varent *p;
+    struct varent *p;
 {
-    register struct varent *c;
-    register f;
+    struct varent *c;
+    int f;
 
     f = 0;			/* tree hangs off the header's left link */
     while ((c = p->v_link[f]) != NULL) {
@@ -551,11 +552,11 @@ unset(v, t)
 
 void
 unset1(v, head)
-    register Char *v[];
+    Char *v[];
     struct varent *head;
 {
-    register struct varent *vp;
-    register int cnt;
+    struct varent *vp;
+    int cnt;
 
     while (*++v) {
 	cnt = 0;
@@ -570,7 +571,7 @@ void
 unsetv(var)
     Char   *var;
 {
-    register struct varent *vp;
+    struct varent *vp;
 
     if ((vp = adrof1(var, &shvhed)) == 0)
 	udvar(var);
@@ -579,10 +580,10 @@ unsetv(var)
 
 static void
 unsetv1(p)
-    register struct varent *p;
+    struct varent *p;
 {
-    register struct varent *c, *pp;
-    register f;
+    struct varent *c, *pp;
+    int f;
 
     /*
      * Free associated memory first to avoid complications.
@@ -633,8 +634,8 @@ shift(v, t)
     Char **v;
     struct command *t;
 {
-    register struct varent *argv;
-    register Char *name;
+    struct varent *argv;
+    Char *name;
 
     v++;
     name = *v;
@@ -665,7 +666,7 @@ exportpath(val)
 		break;
 	    }
 	    if (**val != '/' && (euid == 0 || uid == 0) &&
-		    (intact || intty && isatty(SHOUT)))
+		    (intact || (intty && isatty(SHOUT))))
 		    (void) fprintf(csherr,
 		    "Warning: exported path contains relative components.\n");
 	    (void) Strcat(exppath, *val++);
@@ -717,16 +718,16 @@ rright(p)
  */
 static void
 balance(p, f, d)
-    register struct varent *p;
-    register int f, d;
+    struct varent *p;
+    int f, d;
 {
-    register struct varent *pp;
+    struct varent *pp;
 
 #ifndef lint
-    register struct varent *t;	/* used by the rotate macros */
+    struct varent *t;	/* used by the rotate macros */
 
 #endif
-    register ff;
+    int ff;
 
     /*
      * Ok, from here on, p is the node we're operating on; pp is it's parent; f
@@ -812,10 +813,10 @@ balance(p, f, d)
 
 void
 plist(p)
-    register struct varent *p;
+    struct varent *p;
 {
-    register struct varent *c;
-    register len;
+    struct varent *c;
+    int len;
 
     if (setintr)
 	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
