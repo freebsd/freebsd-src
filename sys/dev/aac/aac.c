@@ -180,15 +180,12 @@ static int		aac_getnext_aif(struct aac_softc *sc, caddr_t arg);
 static int		aac_return_aif(struct aac_softc *sc, caddr_t uptr);
 static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 
-#define AAC_CDEV_MAJOR	150
-
 static struct cdevsw aac_cdevsw = {
 	.d_open =	aac_open,
 	.d_close =	aac_close,
 	.d_ioctl =	aac_ioctl,
 	.d_poll =	aac_poll,
 	.d_name =	"aac",
-	.d_maj =	AAC_CDEV_MAJOR,
 };
 
 MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
