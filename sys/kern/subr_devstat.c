@@ -48,6 +48,11 @@ static int devstat_current_devnumber;
 static struct devstatlist device_statq;
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
+static void devstat_add_entry(struct devstat *ds, const char *dev_name, 
+		       int unit_number, u_int32_t block_size,
+		       devstat_support_flags flags,
+		       devstat_type_flags device_type,
+		       devstat_priority priority);
 
 /*
  * Allocate a devstat and initialize it
@@ -71,7 +76,7 @@ devstat_new_entry(const char *dev_name,
  * Take a malloced and zeroed devstat structure given to us, fill it in 
  * and add it to the queue of devices.  
  */
-void
+static void
 devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,

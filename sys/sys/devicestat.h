@@ -223,11 +223,6 @@ struct devstat *devstat_new_entry(const char *dev_name,
 		       devstat_type_flags device_type,
 		       devstat_priority priority);
 
-void devstat_add_entry(struct devstat *ds, const char *dev_name, 
-		       int unit_number, u_int32_t block_size,
-		       devstat_support_flags flags,
-		       devstat_type_flags device_type,
-		       devstat_priority priority);
 void devstat_remove_entry(struct devstat *ds);
 void devstat_start_transaction(struct devstat *ds);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
