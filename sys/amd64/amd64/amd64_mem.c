@@ -602,7 +602,7 @@ i686_mem_drvinit(void *unused)
 {
     /* Try for i686 MTRRs */
     if ((cpu_feature & CPUID_MTRR) &&
-	((cpu_id & 0xf00) == 0x600) &&
+	((cpu_id & 0xf00) == 0x600 || (cpu_id & 0xf00) == 0xf00) &&
 	((strcmp(cpu_vendor, "GenuineIntel") == 0) ||
 	(strcmp(cpu_vendor, "AuthenticAMD") == 0))) {
 	mem_range_softc.mr_op = &i686_mrops;
