@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/mtio.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <protocols/dumprestore.h>
@@ -57,6 +58,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "restore.h"

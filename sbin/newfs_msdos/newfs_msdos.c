@@ -31,10 +31,11 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -44,6 +45,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
