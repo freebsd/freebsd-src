@@ -42,7 +42,7 @@
 #define RC_VALIDIRQ(i)  ((i) < 16 && \
 			 "\0\0\0\1\1\1\0\1\0\0\1\1\1\0\0\1"[(i) & 0xF])
 
-/* Riscom/8 board I/O mapping */
+/* Riscom/8 board ISA I/O mapping */
 #define RC_IOMAP(r)     ((((r) & 07) << 1) | (((r) & ~07) << 7))
 
 /* I/O commands */
@@ -50,8 +50,8 @@
 #define RC_IN(p,i)              inb (RC_IOMAP(i) + (p))
 
 /* Riscom on-board registers (mapping assumed) */
-#define RC_RI           0x100   /* Ring Indicator Register (read-only)  */
-#define RC_DTR          0x100   /* DTR Register (write-only)            */
+#define RC_RIREG        0x100   /* Ring Indicator Register (read-only)  */
+#define RC_DTREG        0x100   /* DTR Register (write-only)            */
 #define RC_BSR          0x101   /* Board Status Register (read-only)    */
 #define RC_CTOUT        0x101   /* Clear Timeout (write-only)           */
 
@@ -63,10 +63,10 @@
 
 /* Interrupt groups */
 #define RC_MODEMGRP     0x01    /* Modem interrupt group                */
-#define RC_TXGRP        0x02    /* Transmitter interrupt group          */
-#define RC_RXGRP        0x04    /* Receiver interrupt group             */
+#define RC_RXGRP        0x02    /* Receiver interrupt group             */
+#define RC_TXGRP        0x04    /* Transmitter interrupt group          */
 
 /* Priority Interrupt Level definitions */
 #define RC_PILR_MODEM   (0x80 | RC_MODEMGRP)
-#define RC_PILR_TX      (0x80 | RC_TXGRP   )
 #define RC_PILR_RX      (0x80 | RC_RXGRP   )
+#define RC_PILR_TX      (0x80 | RC_TXGRP   )
