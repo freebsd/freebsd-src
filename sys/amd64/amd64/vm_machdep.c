@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.67 1996/07/12 04:11:10 bde Exp $
+ *	$Id: vm_machdep.c,v 1.68 1996/09/08 20:44:12 dyson Exp $
  */
 
 #include "npx.h"
@@ -760,7 +760,7 @@ cpu_reset() {
 	bzero((caddr_t) PTD, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
-	pmap_update();
+	invltlb();
 	/* NOTREACHED */
 	while(1);
 }
