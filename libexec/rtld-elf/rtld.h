@@ -177,8 +177,8 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
  */
 int do_copy_relocations(Obj_Entry *);
 unsigned long elf_hash(const char *);
-const Elf_Sym *find_symdef(unsigned long, Obj_Entry *, const Obj_Entry **,
-  bool);
+const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
+  const Obj_Entry **, bool);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(LockInfo *);
 void obj_free(Obj_Entry *);
