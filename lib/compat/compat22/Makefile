@@ -17,8 +17,13 @@ CLEANFILES+=	${LIBS} ld.so
 all:	${LIBS} ld.so
 
 .for lib in ${LIBS} ld.so
+.if exists(${.CURDIR}/${lib}.gz.uu)
 ${lib}:	${lib}.gz.uu
 	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
+.elif exists(${.CURDIR}/${lib}.bz2.uu)
+${lib}:	${.CURDIR}/${lib}.bz2.uu
+	uudecode -p ${.CURDIR}/${lib}.bz2.uu | bzip2 -d > ${lib}
+.endif
 .endfor
 
 beforeinstall:
