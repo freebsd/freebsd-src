@@ -1173,10 +1173,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>A bug in FFS that could cause superblock corruption on
 	very large filesystems has been corrected. &merged;</para>
 
-      <para>The Inode Filesystem (IFS) has been added; more
-	information can be found in
-	<filename>/usr/src/sys/ufs/ifs/README</filename>.</para>
-
       <para>The ISO-9660 filesystem now has a hook that supports a
 	loadable character conversion routine.  The
 	<filename role="package">sysutils/cd9660_unicode</filename>
@@ -2377,6 +2373,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       sizes to be printed with unit suffixes, such that the number of
       digits printed is less than three. &merged;</para>
 
+    <para>The &man.ls.1; program now supports a <option>-m</option>
+      flag to list files across a page, a <option>-p</option> flag to
+      force printing of a <literal>/</literal> after directories, and
+      a <option>-x</option> flag to sort filenames across a
+      page.</para>
+
     <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
       &man.cpp.1;. &merged;</para>
@@ -2757,6 +2759,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       of course, still available through the &man.printf.1;
       executable).</para>
 
+    <para>&man.sh.1; now supports a <option>-C</option> option to
+      prevent existing regular files from being overwritten by output
+      redirection, and a <option>-u</option> to give an error if an
+      unset variable is expanded.</para>
+
     <para>&man.sockstat.1; now has <option>-c</option> and
       <option>-l</option> flags for listing connected and listening
       sockets, respectively. &merged;</para>
@@ -2869,6 +2876,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
       disable repeated line compression. &merged;</para>
+
+    <para>&man.tabs.1;, a utility to set terminal tab stops, has been
+      added.</para>
 
     <para>&man.tail.1; now has the ability to work on files longer
       than 2GB. &merged;</para>
