@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkoptions.c,v 1.8 1998/07/12 08:10:33 bde Exp $";
+	"$Id: mkoptions.c,v 1.9 1999/04/17 14:41:40 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -89,7 +89,7 @@ options()
 
 	/* Initialize `maxusers'. */
 	if ((unsigned)machine > NUSERS) {
-		printf("maxusers config info isn't present, using vax\n");
+		printf("maxusers config info isn't present, using i386\n");
 		up = &users[MACHINE_I386 - 1];
 	} else
 		up = &users[machine - 1];

@@ -1,8 +1,9 @@
 # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.21 1999/04/13 18:22:57 peter Exp $
+#	$Id: Makefile,v 1.22 1999/04/17 14:41:40 peter Exp $
 
 PROG=	config
 CFLAGS+=-I. -I${.CURDIR}
+#CFLAGS+=-Wall -Wunused -Wmissing-prototypes -Wredundant-decls
 SRCS=	config.y main.c lang.l mkioconf.c mkmakefile.c mkheaders.c \
 	mkoptions.c mkswapconf.c y.tab.h
 MAN8=	config.8
