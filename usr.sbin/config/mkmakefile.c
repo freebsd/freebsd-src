@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.27 1998/02/19 00:51:49 eivind Exp $";
+	"$Id: mkmakefile.c,v 1.28 1998/03/16 11:15:45 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -149,6 +149,7 @@ static	struct users {
 	{ 8, 2, 512 },			/* MACHINE_PMAX */
 	{ 8, 2, 512 },			/* MACHINE_LUNA68K */
 	{ 8, 2, 512 },			/* MACHINE_NEWS3400 */
+	{ 8, 2, 512 },			/* MACHINE_PC98 */
 };
 #define	NUSERS	(sizeof (users) / sizeof (users[0]))
 

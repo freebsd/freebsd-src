@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1998/03/16 11:19:10 eivind Exp $";
+	"$Id: main.c,v 1.23 1998/04/23 16:37:06 bde Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -165,6 +165,7 @@ main(argc, argv)
 		break;
 
 	case MACHINE_I386:
+	case MACHINE_PC98:
 		i386_ioconf();		/* Print ioconf.c */
 		vector();		/* Create vector.s */
 		break;

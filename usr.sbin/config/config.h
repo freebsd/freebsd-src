@@ -159,6 +159,7 @@ char	*machinename;
 #define MACHINE_PMAX	6
 #define MACHINE_LUNA68K	7
 #define MACHINE_NEWS3400	8
+#define MACHINE_PC98	9
 
 /*
  * For each machine, a set of CPU's may be specified as supported.
