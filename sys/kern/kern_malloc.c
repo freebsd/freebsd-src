@@ -39,7 +39,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#define MALLOC_INSTANTIATE
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
@@ -51,6 +50,10 @@
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
+MALLOC_DEFINE(M_CACHE, "namecache", "Dynamically allocated cache entries");
+MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
+MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
 
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
