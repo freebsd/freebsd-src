@@ -47,14 +47,25 @@ sigvec(signo, sv, osv)
 	int signo;
 	struct sigvec *sv, *osv;
 {
+	struct sigaction sa, osa;
+	struct sigaction *sap, *osap;
 	int ret;
 
-	if (sv)
-		sv->sv_flags ^= SV_INTERRUPT;	/* !SA_INTERRUPT */
-	ret = osigaction(signo, (struct osigaction *)sv,
-	    (struct osigaction *)osv);
-	if (ret == 0 && osv)
-		osv->sv_flags ^= SV_INTERRUPT;	/* !SA_INTERRUPT */
+	if (sv != NULL) {
+		sa.sa_handler = sv->sv_handler;
+		sa.sa_flags = sv->sv_flags ^ SV_INTERRUPT;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_mask.__bits[0] = sv->sv_mask;
+		sap = &sa;
+	} else
+		sap = NULL;
+	osap = osv != NULL ? &osa : NULL;
+	ret = sigaction(signo, sap, osap);
+	if (ret == 0 && osv != NULL) {
+		osv->sv_handler = osa.sa_handler;
+		osv->sv_flags = osa.sa_flags ^ SV_INTERRUPT;
+		osv->sv_mask = osa.sa_mask.__bits[0];
+	}
 	return (ret);
 }
 
