@@ -30,27 +30,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <machine/uc_device.h>
 #if 0
 #include <isa/pnp.h>
 #endif
-
-/*
- * Per device structure.  This just happens to resemble the old isa_device
- * but that is by accident.  It is NOT the same.
- */
-struct	uc_device {
-	int	id_id;		/* device id */
-	char	*id_name;	/* device name */
-	int	id_iobase;	/* base i/o address */
-	u_int	id_irq;		/* interrupt request */
-	int	id_drq;		/* DMA request */
-	caddr_t	id_maddr;	/* physical i/o memory address on bus (if any)*/
-	int	id_msize;	/* size of i/o memory */
-	int	id_unit;	/* unit number */
-	int	id_flags;	/* flags */
-	int	id_enabled;	/* is device enabled */
-	struct	uc_device *id_next;	/* used in uc_devlist in userconfig() */
-};
 
 struct uc_device *id;
 struct pnp_cinfo *c;
