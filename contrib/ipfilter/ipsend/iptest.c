@@ -34,22 +34,15 @@ static	char	sccsid[] = "%W% %G% (C)1995 Darren Reed";
 #include <netinet/ip_icmp.h>
 #ifndef	linux
 #include <netinet/ip_var.h>
-#include <netinet/tcpip.h>
 #endif
-#include "ip_compat.h"
 #ifdef	linux
 #include <linux/sockios.h>
-#include "tcpip.h"
 #endif
-#include "ipt.h"
+#include "ipsend.h"
 
 
 extern	char	*optarg;
 extern	int	optind;
-
-extern	int	initdevice(), resolve();
-extern	int	ip_test1(), ip_test2(), ip_test3(), ip_test4(), ip_test5();
-extern	int	ip_test6(), ip_test7();
 
 char	options[68];
 #ifdef	linux
@@ -70,9 +63,12 @@ char	default_device[] = "lan0";
 # endif
 #endif
 
+static	void	usage __P((char *));
+int	main __P((int, char **));
 
-void	usage(prog)
-char	*prog;
+
+static void usage(prog)
+char *prog;
 {
 	fprintf(stderr, "Usage: %s [options] dest\n\
 \toptions:\n\
@@ -94,8 +90,8 @@ char	*prog;
 
 
 int main(argc, argv)
-int	argc;
-char	**argv;
+int argc;
+char **argv;
 {
 	struct	tcpiphdr *ti;
 	struct	in_addr	gwip;
@@ -191,19 +187,26 @@ char	**argv;
 	switch (tests)
 	{
 	case 1 :
-		return ip_test1(dev, mtu, ti, gwip, pointtest);
+		ip_test1(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 2 :
-		return ip_test2(dev, mtu, ti, gwip, pointtest);
+		ip_test2(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 3 :
-		return ip_test3(dev, mtu, ti, gwip, pointtest);
+		ip_test3(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 4 :
-		return ip_test4(dev, mtu, ti, gwip, pointtest);
+		ip_test4(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 5 :
-		return ip_test5(dev, mtu, ti, gwip, pointtest);
+		ip_test5(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 6 :
-		return ip_test6(dev, mtu, ti, gwip, pointtest);
+		ip_test6(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	case 7 :
-		return ip_test7(dev, mtu, ti, gwip, pointtest);
+		ip_test7(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		break;
 	default :
 		break;
 	}

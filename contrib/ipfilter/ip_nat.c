@@ -9,7 +9,11 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_nat.c,v 2.0.1.11 1997/02/16 06:26:47 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_nat.c,v 2.0.2.8 1997/04/02 12:23:23 darrenr Exp $";
+#endif
+
+#if defined(__FreeBSD__) && defined(KERNEL)
+#define _KERNEL
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -20,12 +24,13 @@ static	char	rcsid[] = "$Id: ip_nat.c,v 2.0.1.11 1997/02/16 06:26:47 darrenr Exp 
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#ifdef	_KERNEL
+#ifdef _KERNEL
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -57,8 +62,8 @@ extern struct ifnet vpnif;
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_fil.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 #include "ip_nat.h"
 #include "ip_state.h"
 #ifndef	MIN
@@ -80,10 +85,13 @@ extern	kmutex_t	ipf_nat;
 # endif
 #endif
 
-static	int	flush_nattable(), clear_natlist();
-static	void	nattable_sync();
+static	int	flush_nattable __P((void)), clear_natlist __P((void));
+static	void	nattable_sync __P((void)), nat_delete __P((struct nat *));
+static	nat_t	*nat_new __P((ipnat_t *, ip_t *, fr_info_t *, u_short, int));
+static	void	fix_outcksum __P((u_short *, u_long));
+static	void	fix_incksum __P((u_short *, u_long));
 
-void fix_outcksum(sp, n)
+static void fix_outcksum(sp, n)
 u_short *sp;
 u_long n;
 {
@@ -104,7 +112,7 @@ u_long n;
 }
 
 
-void fix_incksum(sp, n)
+static void fix_incksum(sp, n)
 u_short *sp;
 u_long n;
 {
@@ -182,7 +190,8 @@ int cmd, mode;
 			error = EEXIST;
 			break;
 		}
-		if (!(n = (ipnat_t *)KMALLOC(sizeof(*n)))) {
+		KMALLOC(n, ipnat_t *, sizeof(*n));
+		if (n == NULL) {
 			error = ENOMEM;
 			break;
 		}
@@ -365,7 +374,7 @@ static int clear_natlist()
 /*
  * Create a new NAT table entry.
  */
-nat_t *nat_new(np, ip, fin, flags, direction)
+static nat_t *nat_new(np, ip, fin, flags, direction)
 ipnat_t *np;
 ip_t *ip;
 fr_info_t *fin;
@@ -387,15 +396,22 @@ int direction;
 	}
 
 	/* Give me a new nat */
-	if (!(nat = (nat_t *)KMALLOC(sizeof(*nat))))
+	KMALLOC(nat, nat_t *, sizeof(*nat));
+	if (nat == NULL)
 		return NULL;
 
 	bzero((char *)nat, sizeof(*nat));
+	nat->nat_flags = flags;
 
 	/*
 	 * Search the current table for a match.
 	 */
 	if (direction == NAT_OUTBOUND) {
+#if SOLARIS
+		ill_t *ill = fin->fin_ifp;
+#else
+		struct ifnet *ifp = fin->fin_ifp;
+#endif
 		/*
 		 * If it's an outbound packet which doesn't match any existing
 		 * record, then create a new port
@@ -403,6 +419,34 @@ int direction;
 		do {
 			port = 0;
 			in.s_addr = np->in_nip;
+			if (!in.s_addr && (np->in_outmsk == 0xffffffff)) {
+#if SOLARIS
+				in.s_addr = ill->ill_ipif->ipif_local_addr;
+#else
+				struct ifaddr *ifa;
+				struct sockaddr_in *sin;
+
+				ifa = ifp->if_addrlist;
+# if	BSD < 199306
+				sin = (struct sockaddr_in *)&ifa->ifa_addr;
+# else
+				sin = (struct sockaddr_in *)ifa->ifa_addr;
+				while (sin && ifa &&
+				       sin->sin_family != AF_INET) {
+					ifa = ifa->ifa_next;
+					sin = (struct sockaddr_in *)ifa->ifa_addr;
+				}
+				if (!ifa)
+					sin = NULL;
+				if (!sin) {
+					KFREE(nat);
+					return NULL;
+				}
+# endif
+				in = sin->sin_addr;
+				in.s_addr = ntohl(in.s_addr);
+#endif
+			}
 			if (nflags & IPN_TCPUDP) {
 				port = htons(np->in_pnext++);
 				if (np->in_pnext >= ntohs(np->in_pmax)) {
@@ -555,8 +599,9 @@ u_short sport, mapdport;
 	for (; nat; nat = nat->nat_hnext[1])
 		if (nat->nat_oip.s_addr == src.s_addr &&
 		    nat->nat_outip.s_addr == mapdst.s_addr &&
-		    (!flags || (nat->nat_oport == sport &&
-		     nat->nat_outport == mapdport)))
+		    flags == nat->nat_flags && (!flags ||
+		     (nat->nat_oport == sport &&
+		      nat->nat_outport == mapdport)))
 			return nat;
 	return NULL;
 }
@@ -581,8 +626,8 @@ u_short sport, dport;
 	for (; nat; nat = nat->nat_hnext[0])
 		if (nat->nat_inip.s_addr == src.s_addr &&
 		    nat->nat_oip.s_addr == dst.s_addr &&
-		    (!flags || (nat->nat_inport == sport &&
-		     nat->nat_oport == dport)))
+		    flags == nat->nat_flags && (!flags ||
+		     (nat->nat_inport == sport && nat->nat_oport == dport)))
 			return nat;
 	return NULL;
 }
@@ -606,8 +651,9 @@ u_short mapsport, dport;
 	for (; nat; nat = nat->nat_hnext[0])
 		if (nat->nat_outip.s_addr == mapsrc.s_addr &&
 		    nat->nat_oip.s_addr == dst.s_addr &&
-		    (!flags || (nat->nat_outport == mapsport &&
-		     nat->nat_oport == dport)))
+		    flags == nat->nat_flags && (!flags ||
+		     (nat->nat_outport == mapsport &&
+		      nat->nat_oport == dport)))
 			return nat;
 	return NULL;
 }
@@ -684,17 +730,20 @@ fr_info_t *fin;
 			 */
 			if (!(nat = nat_outlookup(nflags, ip->ip_src, sport,
 						  ip->ip_dst, dport))) {
-				if (np->in_redir == NAT_REDIRECT)
-					continue;
 				/*
-				 * if it's a redirection, then we don't want
+				 * If it's a redirection, then we don't want
 				 * to create new outgoing port stuff.
 				 * Redirections are only for incoming
 				 * connections.
 				 */
+				if (np->in_redir == NAT_REDIRECT)
+					continue;
 				if (!(nat = nat_new(np, ip, fin, nflags,
 						    NAT_OUTBOUND)))
 					break;
+#ifdef	IPFILTER_LOG
+				nat_log(nat, (u_short)np->in_redir);
+#endif
 			}
 			ip->ip_src = nat->nat_outip;
 
@@ -719,8 +768,8 @@ fr_info_t *fin;
 
 				if (ip->ip_p == IPPROTO_TCP) {
 					csump = &tcp->th_sum;
-					set_tcp_age(&nat->nat_age,
-						    nat->nat_state, ip, fin,1);
+					fr_tcp_age(&nat->nat_age,
+						   nat->nat_state, ip, fin,1);
 				} else if (ip->ip_p == IPPROTO_UDP) {
 					udphdr_t *udp = (udphdr_t *)tcp;
 
@@ -787,20 +836,20 @@ fr_info_t *fin;
 		    (np->in_redir == NAT_MAP || np->in_pmin == dport)) {
 			if (!(nat = nat_inlookup(nflags, ip->ip_src, sport,
 						 ip->ip_dst, dport))) {
+				/*
+				 * If this rule (np) is a redirection, rather
+				 * than a mapping, then do a nat_new.
+				 * Otherwise, if it's just a mapping, do a
+				 * continue;
+				 */
 				if (np->in_redir == NAT_MAP)
 					continue;
-				else {
-					/*
-					 * If this rule (np) is a redirection,
-					 * rather than a mapping, then do a
-					 * nat_new. Otherwise, if it's just a
-					 * mapping, do a continue;
-					 */
-					if (!(nat = nat_new(np, ip, fin,
-							    nflags,
-							    NAT_INBOUND)))
-						break;
-				}
+				if (!(nat = nat_new(np, ip, fin, nflags,
+						    NAT_INBOUND)))
+					break;
+#ifdef	IPFILTER_LOG
+				nat_log(nat, (u_short)np->in_redir);
+#endif
 			}
 			ip->ip_dst = nat->nat_inip;
 
@@ -824,8 +873,8 @@ fr_info_t *fin;
 
 				if (ip->ip_p == IPPROTO_TCP) {
 					csump = &tcp->th_sum;
-					set_tcp_age(&nat->nat_age,
-						    nat->nat_state, ip, fin,0);
+					fr_tcp_age(&nat->nat_age,
+						   nat->nat_state, ip, fin,0);
 				} else if (ip->ip_p == IPPROTO_UDP) {
 					udphdr_t *udp = (udphdr_t *)tcp;
 
@@ -887,9 +936,61 @@ void ip_natexpire()
 			continue;
 		}
 		*natp = nat->nat_next;
+#ifdef	IPFILTER_LOG
+		nat_log(nat, NL_EXPIRE);
+#endif
 		nat_delete(nat);
 		nat_stats.ns_expire++;
 	}
 	SPLX(s);
 	MUTEX_EXIT(&ipf_nat);
 }
+
+
+#ifdef	IPFILTER_LOG
+void nat_log(nat, type)
+struct nat *nat;
+u_short type;
+{
+	struct	ipnat	*np;
+	struct	natlog	natl;
+	int	rulen;
+
+	if (iplused[IPL_LOGNAT] + sizeof(natl) > IPLLOGSIZE) {
+		nat_stats.ns_logfail++;
+		return;
+	}
+
+        if (iplh[IPL_LOGNAT] == iplbuf[IPL_LOGNAT] + IPLLOGSIZE)
+                iplh[IPL_LOGNAT] = iplbuf[IPL_LOGNAT];
+
+# ifdef	sun
+	uniqtime(&natl);
+# endif
+# if BSD >= 199306 || defined(__FreeBSD__)
+	microtime((struct timeval *)&natl);
+# endif
+	natl.nl_origport = nat->nat_oport;
+	natl.nl_outport = nat->nat_outport;
+	natl.nl_inport = nat->nat_inport;
+	natl.nl_origip = nat->nat_oip;
+	natl.nl_outip = nat->nat_outip;
+	natl.nl_inip = nat->nat_inip;
+	natl.nl_type = type;
+	natl.nl_rule = -1;
+	if (nat->nat_ptr) {
+		for (rulen = 0, np = nat_list; np; np = np->in_next, rulen++)
+			if (np == nat->nat_ptr) {
+				natl.nl_rule = rulen;
+				break;
+			}
+	}
+
+	if (!fr_copytolog(IPL_LOGNAT, (char *)&natl, sizeof(natl))) {
+		iplused[IPL_LOGNAT] += sizeof(natl);
+		nat_stats.ns_logged++;
+	} else
+		nat_stats.ns_logfail++;
+	wakeup(iplbuf[IPL_LOGNAT]);
+}
+#endif

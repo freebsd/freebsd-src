@@ -53,12 +53,10 @@ static	char	sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
+#include "ipsend.h"
 
 int	nproc;
 struct	proc	*proc;
-
-extern	int	initdevice(), send_tcp();
 
 #ifndef	KMEM
 # ifdef	_PATH_KMEM
@@ -77,9 +75,17 @@ extern	int	initdevice(), send_tcp();
 # define	KERNEL	"/vmunix"
 #endif
 
+
+#if BSD < 199103
+static	struct	proc	*getproc __P((void));
+#else
+static	struct	kinfo_proc	*getproc __P((void));
+#endif
+
+
 int	kmemcpy(buf, pos, n)
 char	*buf;
-off_t	pos;
+void	*pos;
 int	n;
 {
 	static	int	kfd = -1;
@@ -87,7 +93,7 @@ int	n;
 	if (kfd == -1)
 		kfd = open(KMEM, O_RDONLY);
 
-	if (lseek(kfd, pos, SEEK_SET) == -1)
+	if (lseek(kfd, (off_t)pos, SEEK_SET) == -1)
 	    {
 		perror("lseek");
 		return -1;
@@ -107,7 +113,7 @@ struct	nlist	names[3] = {
 	};
 
 #if BSD < 199103
-struct	proc	*getproc()
+static struct proc *getproc()
 {
 	struct	proc	*p;
 	pid_t	pid = getpid();
@@ -119,21 +125,20 @@ struct	proc	*getproc()
 		fprintf(stderr, "nlist(%#x) == %d\n", names, n);
 		return NULL;
 	    }
-	if (kmemcpy((char *)&nproc, (off_t)names[1].n_value,
-		    sizeof(nproc)) == -1)
+	if (KMCPY(&nproc, names[1].n_value, sizeof(nproc)) == -1)
 	    {
 		fprintf(stderr, "read nproc (%#x)\n", names[1].n_value);
 		return NULL;
 	    }
 	siz = nproc * sizeof(struct proc);
-	if (kmemcpy((char *)&p, (off_t)names[0].n_value, sizeof(p)) == -1)
+	if (KMCPY(&p, names[0].n_value, sizeof(p)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
 			names[0].n_value, &p, sizeof(p));
 		return NULL;
 	    }
 	proc = (struct proc *)malloc(siz);
-	if (kmemcpy((char *)proc, (off_t)p, siz) == -1)
+	if (KMCPY(proc, p, siz) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
 			p, proc, siz);
@@ -167,22 +172,21 @@ struct	tcpiphdr *ti;
 		return NULL;
 
 	up = (struct user *)malloc(sizeof(*up));
-	if (kmemcpy((char *)up, (off_t)p->p_uarea, sizeof(*up)) == -1)
+	if (KMCPY(up, p->p_uarea, sizeof(*up)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x) failed\n", p, p->p_uarea);
 		return NULL;
 	    }
 
 	o = (struct file **)calloc(1, sizeof(*o) * (up->u_lastfile + 1));
-	if (kmemcpy((char *)o, (off_t)up->u_ofile,
-		    (up->u_lastfile + 1) * sizeof(*o)) == -1)
+	if (KMCPY(o, up->u_ofile, (up->u_lastfile + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - u_ofile - failed\n",
 			up->u_ofile_arr, o, sizeof(*o));
 		return NULL;
 	    }
 	f = (struct file *)calloc(1, sizeof(*f));
-	if (kmemcpy((char *)f, (off_t)o[fd], sizeof(*f)) == -1)
+	if (KMCPY(f, o[fd], sizeof(*f)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - o[fd] - failed\n",
 			up->u_ofile_arr[fd], f, sizeof(*f));
@@ -190,7 +194,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	s = (struct socket *)calloc(1, sizeof(*s));
-	if (kmemcpy((char *)s, (off_t)f->f_data, sizeof(*s)) == -1)
+	if (KMCPY(s, f->f_data, sizeof(*s)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - f_data - failed\n",
 			o[fd], s, sizeof(*s));
@@ -198,7 +202,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	i = (struct inpcb *)calloc(1, sizeof(*i));
-	if (kmemcpy((char *)i, (off_t)s->so_pcb, sizeof(*i)) == -1)
+	if (KMCPY(i, s->so_pcb, sizeof(*i)) == -1)
 	    {
 		fprintf(stderr, "kvm_read(%#x,%#x,%d) - so_pcb - failed\n",
 			s->so_pcb, i, sizeof(*i));
@@ -206,7 +210,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	t = (struct tcpcb *)calloc(1, sizeof(*t));
-	if (kmemcpy((char *)t, (off_t)i->inp_ppcb, sizeof(*t)) == -1)
+	if (KMCPY(t, i->inp_ppcb, sizeof(*t)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - inp_ppcb - failed\n",
 			i->inp_ppcb, t, sizeof(*t));
@@ -215,7 +219,7 @@ struct	tcpiphdr *ti;
 	return (struct tcpcb *)i->inp_ppcb;
 }
 #else
-struct	kinfo_proc	*getproc()
+static struct kinfo_proc *getproc()
 {
 	static	struct	kinfo_proc kp;
 	pid_t	pid = getpid();
@@ -251,7 +255,7 @@ struct	tcpiphdr *ti;
 		return NULL;
 
 	fd = (struct filedesc *)malloc(sizeof(*fd));
-	if (kmemcpy((char *)fd, (void *)p->kp_proc.p_fd, sizeof(*fd)) == -1)
+	if (KMCPY(fd, p->kp_proc.p_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->kp_proc.p_fd);
@@ -259,15 +263,14 @@ struct	tcpiphdr *ti;
 	    }
 
 	o = (struct file **)calloc(1, sizeof(*o) * (fd->fd_lastfile + 1));
-	if (kmemcpy((char *)o, (void *)fd->fd_ofiles,
-		    (fd->fd_lastfile + 1) * sizeof(*o)) == -1)
+	if (KMCPY(o, fd->fd_ofiles, (fd->fd_lastfile + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%d) - u_ofile - failed\n",
 			(u_long)fd->fd_ofiles, (u_long)o, sizeof(*o));
 		return NULL;
 	    }
 	f = (struct file *)calloc(1, sizeof(*f));
-	if (kmemcpy((char *)f, (void *)o[tfd], sizeof(*f)) == -1)
+	if (KMCPY(f, o[tfd], sizeof(*f)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%d) - o[tfd] - failed\n",
 			(u_long)o[tfd], (u_long)f, sizeof(*f));
@@ -275,7 +278,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	s = (struct socket *)calloc(1, sizeof(*s));
-	if (kmemcpy((char *)s, (void *)f->f_data, sizeof(*s)) == -1)
+	if (KMCPY(s, f->f_data, sizeof(*s)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%d) - f_data - failed\n",
 			(u_long)f->f_data, (u_long)s, sizeof(*s));
@@ -283,7 +286,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	i = (struct inpcb *)calloc(1, sizeof(*i));
-	if (kmemcpy((char *)i, (void *)s->so_pcb, sizeof(*i)) == -1)
+	if (KMCPY(i, s->so_pcb, sizeof(*i)) == -1)
 	    {
 		fprintf(stderr, "kvm_read(%#lx,%#lx,%d) - so_pcb - failed\n",
 			(u_long)s->so_pcb, (u_long)i, sizeof(*i));
@@ -291,7 +294,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	t = (struct tcpcb *)calloc(1, sizeof(*t));
-	if (kmemcpy((char *)t, (void *)i->inp_ppcb, sizeof(*t)) == -1)
+	if (KMCPY(t, i->inp_ppcb, sizeof(*t)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%d) - inp_ppcb - failed\n",
 			(u_long)i->inp_ppcb, (u_long)t, sizeof(*t));
@@ -301,12 +304,11 @@ struct	tcpiphdr *ti;
 }
 #endif /* BSD < 199301 */
 
-int	do_socket(dev, mtu, ti, gwip, flags)
+int	do_socket(dev, mtu, ti, gwip)
 char	*dev;
 int	mtu;
 struct	tcpiphdr *ti;
 struct	in_addr	gwip;
-int	flags;
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	tcpcb	*t, tcb;
@@ -340,7 +342,7 @@ int	flags;
 	(void) getsockname(fd, (struct sockaddr *)&lsin, &len);
 	ti->ti_sport = lsin.sin_port;
 	printf("sport %d\n", ntohs(lsin.sin_port));
-	nfd = initdevice(dev, ntohs(lsin.sin_port));
+	nfd = initdevice(dev, ntohs(lsin.sin_port), 1);
 
 	if (!(t = find_tcp(fd, ti)))
 		return -1;
@@ -356,12 +358,12 @@ int	flags;
 		perror("connect");
 		return -1;
 	    }
-	kmemcpy((char*)&tcb, (void *)t, sizeof(tcb));
+	KMCPY(&tcb, t, sizeof(tcb));
 	ti->ti_win = tcb.rcv_adv;
 	ti->ti_seq = tcb.snd_nxt - 1;
 	ti->ti_ack = tcb.rcv_nxt;
 
-	if (send_tcp(nfd, mtu, ti, gwip, TH_SYN) == -1)
+	if (send_tcp(nfd, mtu, (ip_t *)ti, gwip) == -1)
 		return -1;
 	(void)write(fd, "Hello World\n", 12);
 	sleep(2);

@@ -7,7 +7,7 @@
  * responsibility and is not changed in any way.
  *
  * I hate legaleese, don't you ?
- * $Id: linux.h,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $
+ * $Id: linux.h,v 2.0.2.2 1997/02/23 10:38:08 darrenr Exp $
  */
 
 #include <linux/config.h>

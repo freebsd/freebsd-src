@@ -4,7 +4,7 @@ ipmon \- monitors /dev/ipl for logged packets
 .SH SYNOPSIS
 .B ipmon
 [
-.B \-sfN
+.B \-asfnSN
 ] [
 <filename>
 ]
@@ -38,13 +38,22 @@ than pass or block.
 \- packets which have been logged and which can be considered
 "short".
 .TP
+.B \-a
+Open all of the device logfiles for reading log entries from.
+.TP
 .B \-f
 Flush the current packet log buffer.  The number of bytes flushed is displayed,
 even should the result be zero.
 .TP
-.B \-N
+.B \-n
 IP addresses and port numbers will be mapped, where possible, back into
 hostnames and service names.
+.TP
+.B \-N
+Treat the logfile as being composed of NAT log records.
+.TP
+.B \-S
+Treat the logfile as being composed of state log records.
 .SH DIAGNOSTICS
 \fBipmon\fP expects data that it reads to be consistant with how it should be
 saved and will abort if it fails an assertion which detects an anomoly in the

@@ -47,10 +47,12 @@ etherfind -n -t
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static	char	rcsid[] = "$Id: ipft_ef.c,v 2.0.1.1 1997/01/09 15:14:43 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_ef.c,v 2.0.2.3 1997/03/10 08:10:24 darrenr Exp $";
 #endif
 
-static	int	etherf_open(), etherf_close(), etherf_readip();
+static	int	etherf_open __P((char *));
+static	int	etherf_close __P((void));
+static	int	etherf_readip __P((char *, int, char **, int *));
 
 struct	ipread	etherf = { etherf_open, etherf_close, etherf_readip };
 
