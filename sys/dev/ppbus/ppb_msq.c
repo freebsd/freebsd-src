@@ -154,14 +154,14 @@ ppb_MS_loop(struct ppb_device *dev, struct ppb_microseq *prolog,
 		int iter, int *ret)
 {
 	struct ppb_microseq loop_microseq[] = {
-		  MS_CALL(NULL),		/* execute prolog */
+		  MS_CALL(0),			/* execute prolog */
 
 		  MS_SET(MS_UNKNOWN),		/* set size of transfer */
 	/* loop: */
-		  MS_CALL(NULL),		/* execute body */
+		  MS_CALL(0),			/* execute body */
 		  MS_DBRA(-1 /* loop: */),
 
-		  MS_CALL(NULL),		/* execute epilog */
+		  MS_CALL(0),			/* execute epilog */
 		  MS_RET(0)
 	};
 
