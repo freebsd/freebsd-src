@@ -578,6 +578,7 @@ struct pci_ids {
 static struct pci_ids pci_ids[] = {
 	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
 	{ 0x048011c1, "ActionTec 56k FAX PCI Modem", 0x14 },
+	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
 	{ 0x00000000, NULL, 0 }
 };
 
