@@ -911,6 +911,8 @@ lookloop:
 
 	/* Did we have a match? */
 	if (id) {
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(dvp, 0, a->a_cnp->cn_thread);
 		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
 		if (!error) {
 			/*
@@ -921,17 +923,13 @@ lookloop:
 				node->diroff = ds->offset + ds->off;
 			if (numdirpasses == 2)
 				nchstats.ncs_pass2++;
-			if (!(flags & LOCKPARENT) || !(flags & ISLASTCN)) {
-				a->a_cnp->cn_flags |= PDIRUNLOCK;
-				VOP_UNLOCK(dvp, 0, td);
-			}
-
 			*vpp = tdp;
-
 			/* Put this entry in the cache */
 			if (flags & MAKEENTRY)
 				cache_enter(dvp, *vpp, a->a_cnp);
-		}
+		} else if (flags & ISDOTDOT)
+			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY,
+			    a->a_cnp->cn_thread);
 	} else {
 		/* Name wasn't found on this pass.  Do another pass? */
 		if (numdirpasses == 2) {
