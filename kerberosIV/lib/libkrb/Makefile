@@ -3,30 +3,32 @@
 LIB=		krb
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${INCLUDEOBJDIR} \
-		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/krb \
-		-I${KRBOBJDIR}
+		-I${KRB4DIR}/lib/roken \
+		-I${KRBOBJDIR} \
+		-I${.OBJDIR}
 DPADD+=		${LIBCRYPT}
 LDADD+=		-lcrypt
-SRCS=		cr_err_reply.c create_auth_reply.c create_ciph.c \
-         	create_death_packet.c create_ticket.c dest_tkt.c get_in_tkt.c \
-          	get_svc_in_tkt.c getrealm.c k_localtime.c krb_err_txt.c \
-          	krb_get_in_tkt.c kuserok.c parse_name.c kntoln.c mk_auth.c \
-	  	krb_check_auth.c mk_err.c mk_safe.c rd_err.c rd_safe.c \
-          	recvauth.c mk_priv.c rd_req.c decomp_ticket.c lifetime.c \
-          	month_sname.c stime.c read_service_key.c getst.c sendauth.c \
-          	netread.c netwrite.c rd_priv.c krb_equiv.c str2key.c \
-		get_ad_tkt.c mk_req.c get_cred.c get_tf_realm.c \
-		get_tf_fullname.c one.c save_credentials.c send_to_kdc.c \
-		get_host.c get_krbrlm.c k_gethostname.c tf_util.c \
-		debug_decl.c k_flock.c tkt_string.c getaddrs.c \
-		k_getsockinst.c k_getport.c lsb_addr_comp.c name2name.c \
-		get_default_principal.c realm_parse.c verify_user.c \
-	  	rw.c kdc_reply.c encrypt_ktext.c swab.c gettimeofday.c \
-	  	check_time.c krb_err.c et_list.c resolve.c unparse_name.c \
-	  	logging.c k_concat.c \
-		snprintf.c strdup.c strcasecmp.c \
-		${KRBOBJDIR}/krb_err.h
+SRCS=		check_time.c cr_err_reply.c create_auth_reply.c create_ciph.c \
+		create_death_packet.c create_ticket.c debug_decl.c \
+		decomp_ticket.c dest_tkt.c encrypt_ktext.c extra.c \
+		get_ad_tkt.c getfile.c get_cred.c get_default_principal.c \
+		get_host.c get_in_tkt.c get_krbrlm.c get_svc_in_tkt.c \
+		get_tf_fullname.c get_tf_realm.c getaddrs.c getrealm.c getst.c \
+		k_getport.c k_getsockinst.c k_localtime.c kdc_reply.c kntoln.c \
+		krb_check_auth.c krb_equiv.c krb_err_txt.c \
+		krb_get_in_tkt.c kuserok.c lifetime.c logging.c \
+		lsb_addr_comp.c mk_auth.c mk_err.c mk_priv.c mk_req.c \
+		mk_safe.c month_sname.c name2name.c krb_net_read.c \
+		krb_net_write.c one.c parse_name.c rd_err.c rd_priv.c rd_req.c \
+		rd_safe.c read_service_key.c realm_parse.c recvauth.c rw.c \
+		save_credentials.c send_to_kdc.c sendauth.c solaris_compat.c \
+		stime.c str2key.c tf_util.c time.c tkt_string.c unparse_name.c \
+		verify_user.c base64.c concat.c flock.c gethostname.c \
+		gettimeofday.c getuid.c net_read.c net_write.c resolve.c \
+		snprintf.c strcasecmp.c strcat_truncate.c strcpy_truncate.c \
+		strdup.c strncasecmp.c strnlen.c strtok_r.c swab.c \
+		${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.h protos.h
 MAN3=		${KRB4DIR}/man/kerberos.3 \
 		${KRB4DIR}/man/krb_realmofhost.3 \
 		${KRB4DIR}/man/krb_sendauth.3 \
@@ -59,6 +61,7 @@ MLINKS=		kerberos.3 krb_mk_req.3 \
 		tf_util.3 tf_close.3
 
 INCLUDES=	${KRB4DIR}/lib/krb/krb.h ${KRB4DIR}/lib/krb/klog.h \
+		${KRB4DIR}/lib/krb/krb-protos.h \
 		${KRB4DIR}/lib/krb/prot.h ${KRBOBJDIR}/krb_err.h
 
 .include <bsd.lib.mk>

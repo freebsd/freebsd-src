@@ -2,14 +2,15 @@
 
 PROG=		kprop
 MAN8=		${KRB4DIR}/man/kprop.8
-SRCS=		kprop.c
+SRCS=		kprop.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/kdb \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRB4DIR}/slave \
 		-I${INCLOBJDIR} \
-		-I${.CURDIR}/../include
+		-I${.CURDIR}/../include \
+		-I${.OBJDIR}
 LDADD=		-L${ROKENOBJDIR} -lroken -L${KRBOBJDIR} -lkrb -ldes -lcrypt \
 		-lcom_err
 DPADD=		${LIBROKEN} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}

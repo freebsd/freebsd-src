@@ -2,11 +2,12 @@
 
 LIB=		acl
 CFLAGS+=	-I${KRB4DIR}/include \
-		-I${INCLUDEOBJDIR} \
-		-I${KRB4DIR}/lib/roken \
+		-I${KRB4DIR}/lib/acl \
 		-I${KRB4DIR}/lib/krb \
-		-I${KRB4DIR}/lib/acl
-SRCS=		acl_files.c
+		-I${KRB4DIR}/lib/roken \
+		-I${INCLUDEOBJDIR} \
+		-I${.OBJDIR}
+SRCS=		acl_files.c protos.h
 MAN3=		${KRB4DIR}/man/acl_check.3
 MLINKS=		acl_check.3 acl_canonicalize_principal.3 \
 		acl_check.3 acl_exact_match.3 \

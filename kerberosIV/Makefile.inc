@@ -2,7 +2,7 @@
 
 .if !defined(DISTRIBUTION)
 
-DISTRIBUTION=	krb
+DISTRIBUTION=	krb4
 
 .if !defined(INCLUDEOBJDIR)
 
@@ -13,6 +13,12 @@ TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 INCLUDEOBJDIR=	${.OBJDIR}/../../include
 .else
 INCLUDEOBJDIR=	${.CURDIR}/../../include
+.endif
+
+.if exists(${.OBJDIR}/../../lib/libacl)
+ROKENOBJDIR=	${.OBJDIR}/../../../kerberosIV/lib/libroken
+.else
+ROKENOBJDIR=	${.CURDIR}/../../../kerberosIV/lib/libroken
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libacl)
@@ -66,8 +72,8 @@ TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
 CFLAGS+= -I${.CURDIR}/../../include -Wall -DHAVE_CONFIG_H \
 	-I${INCLUDEOBJDIR} -DBINDIR=\"/usr/bin\" -DSBINDIR=\"/usr/sbin\"
 
-#${INCLUDEOBJDIR}/protos.h: ${KRB4DIR}/include/protos.H
-#	cd ${INCLUDEOBJDIR} ; ln -sf ${.ALLSRC} ${.TARGET} 
+protos.h: ${KRB4DIR}/include/protos.H
+	ln -sf ${.ALLSRC} ${.TARGET} 
 
 COMPILE_ET=     compile_et
 
