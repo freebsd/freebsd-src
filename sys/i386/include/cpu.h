@@ -102,7 +102,7 @@ void	swi_vm(void *);
 static __inline u_int64_t
 get_cyclecount(void)
 {
-#if defined(I386_CPU) || defined(I486_CPU)
+#if defined(I386_CPU) || defined(I486_CPU) || defined(KLD_MODULE)
 	struct bintime bt;
 
 	if (!tsc_present) {
