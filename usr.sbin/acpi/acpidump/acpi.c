@@ -716,8 +716,41 @@ sdt_load_devmem(void)
 	return (rsdp);
 }
 
+static int
+write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
+{
+	struct ACPIsdt sdt;
+	struct ACPIsdt *ssdt;
+	uint8_t sum;
+
+	sdt = *dsdt;
+	if (rsdt != NULL) {
+		sdt.check = 0;
+		sum = acpi_checksum(dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
+		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
+		while (ssdt != NULL) {
+			sdt.len += ssdt->len - SIZEOF_SDT_HDR;
+			sum += acpi_checksum(ssdt->body,
+			    ssdt->len - SIZEOF_SDT_HDR);
+			ssdt = sdt_from_rsdt(rsdt, "SSDT", ssdt);
+		}
+		sum += acpi_checksum(&sdt, SIZEOF_SDT_HDR);
+		sdt.check -= sum;
+	}
+	write(fd, &sdt, SIZEOF_SDT_HDR);
+	write(fd, dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
+	if (rsdt != NULL) {
+		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
+		while (ssdt != NULL) {
+			write(fd, ssdt->body, ssdt->len - SIZEOF_SDT_HDR);
+			ssdt = sdt_from_rsdt(rsdt, "SSDT", ssdt);
+		}
+	}
+	return (0);
+}
+
 void
-dsdt_save_file(char *outfile, struct ACPIsdt *dsdp)
+dsdt_save_file(char *outfile, struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 {
 	int	fd;
 	mode_t	mode;
@@ -729,13 +762,12 @@ dsdt_save_file(char *outfile, struct ACPIsdt *dsdp)
 		perror("dsdt_save_file");
 		return;
 	}
-	write(fd, dsdp, SIZEOF_SDT_HDR);
-	write(fd, dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
+	write_dsdt(fd, rsdt, dsdp);
 	close(fd);
 }
 
 void
-aml_disassemble(struct ACPIsdt *dsdp)
+aml_disassemble(struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 {
 	char tmpstr[32], buf[256];
 	FILE *fp;
@@ -747,10 +779,7 @@ aml_disassemble(struct ACPIsdt *dsdp)
 		perror("iasl tmp file");
 		return;
 	}
-
-	/* Dump DSDT to the temp file */
-	write(fd, dsdp, SIZEOF_SDT_HDR);
-	write(fd, dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
+	write_dsdt(fd, rsdt, dsdp);
 	close(fd);
 
 	/* Run iasl -d on the temp file */
@@ -783,9 +812,9 @@ sdt_print_all(struct ACPIsdt *rsdp)
 	acpi_handle_rsdt(rsdp);
 }
 
-/* Fetch a table matching the given signature via the RSDT */
+/* Fetch a table matching the given signature via the RSDT. */
 struct ACPIsdt *
-sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
+sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig, struct ACPIsdt *last)
 {
 	struct ACPIsdt *sdt;
 	vm_offset_t addr;
@@ -804,6 +833,11 @@ sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
 			assert((addr = 0));
 		}
 		sdt = (struct ACPIsdt *)acpi_map_sdt(addr);
+		if (last != NULL) {
+			if (sdt == last)
+				last = NULL;
+			continue;
+		}
 		if (memcmp(sdt->signature, sig, strlen(sig)))
 			continue;
 		if (acpi_checksum(sdt, sdt->len))
