@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_open_session.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_open_session.c#11 $
  */
 
 #include <sys/param.h>
@@ -51,11 +51,13 @@ int
 pam_open_session(pam_handle_t *pamh,
 	int flags)
 {
+	int r;
 
 	ENTER();
 	if (flags & ~(PAM_SILENT))
 		RETURNC(PAM_SYMBOL_ERR);
-	RETURNC(openpam_dispatch(pamh, PAM_SM_OPEN_SESSION, flags));
+	r = openpam_dispatch(pamh, PAM_SM_OPEN_SESSION, flags);
+	RETURNC(r);
 }
 
 /*
