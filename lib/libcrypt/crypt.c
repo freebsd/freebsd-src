@@ -39,8 +39,6 @@ crypt(char *passwd, char *salt)
 {
 	if (!strncmp(salt, "$1$", 3))
 		return crypt_md5(passwd, salt);
-	if (!strncmp(salt, "$3$", 3))
-		return crypt_sha(passwd, salt);
 #ifdef NONEXPORTABLE_CRYPT
 	return crypt_des(passwd, salt);
 #else
