@@ -1702,6 +1702,7 @@ controller	pci0
 controller	ahc1
 controller	amd0
 controller	ncr0
+controller	sym0
 controller	isp0
 #
 # Options for ISP
