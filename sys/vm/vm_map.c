@@ -2482,8 +2482,6 @@ vmspace_fork(struct vmspace *vm1)
 	vm_map_entry_t new_entry;
 	vm_object_t object;
 
-	GIANT_REQUIRED;
-
 	vm_map_lock(old_map);
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
@@ -2942,7 +2940,6 @@ vmspace_unshare(struct proc *p)
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
-	GIANT_REQUIRED;
 	if (oldvmspace->vm_refcnt == 1)
 		return;
 	newvmspace = vmspace_fork(oldvmspace);

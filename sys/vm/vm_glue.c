@@ -619,8 +619,6 @@ vm_forkproc(td, p2, td2, flags)
 {
 	struct proc *p1 = td->td_proc;
 
-	GIANT_REQUIRED;
-
 	if ((flags & RFPROC) == 0) {
 		/*
 		 * Divorce the memory, if it is shared, essentially
