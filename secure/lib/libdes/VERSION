@@ -1,4 +1,6 @@
 Version 3.25 17/07/96
+	Modified read_pwd.c so that stdin can be read if not a tty.
+	Thanks to Jeff Barber <jeffb@issl.atl.hp.com> for the patches.
 	des_init_random_number_generator() shortened due to VMS linker
 	limits.
 	Added RSA's DESX cbc mode.  It is a form of cbc encryption, with 2
