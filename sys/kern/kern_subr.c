@@ -104,7 +104,7 @@ uiomove(cp, n, uio)
 			else
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error)
-				break;
+				goto out;
 			break;
 
 		case UIO_SYSSPACE:
@@ -123,6 +123,7 @@ uiomove(cp, n, uio)
 		cp += cnt;
 		n -= cnt;
 	}
+out:
 	if (td != curthread) printf("uiomove: IT CHANGED!");
 	td = curthread;	/* Might things have changed in copyin/copyout? */
 	if (td) {
