@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pred.c,v 1.19 1997/12/21 12:11:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -279,6 +279,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
       wp->cnt -= 2;
       *proto = (*proto << 8) | *pp++;
     }
+    pfree(bp);
     return wp;
   } else {
     LogDumpBp(LogHDLC, "Bad FCS", wp);
