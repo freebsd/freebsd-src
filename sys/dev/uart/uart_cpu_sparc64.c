@@ -54,6 +54,14 @@ bus_space_tag_t uart_bus_space_mem;
 
 static struct bus_space_tag bst_store[3];
 
+/*
+ * Determine which channel of a SCC a device referenced by an alias is.
+ * The information present in the OF device tree only allows to do this
+ * for "ttyX" aliases. If a device is a channel of a SCC its property
+ * in the /aliases node looks like one of these:
+ * ttya:  '/central/fhc/zs@0,902000:a'
+ * ttyc:  '/pci@1f,0/pci@1,1/ebus@1/se@14,400000:a'
+ */
 static int
 uart_cpu_channel(char *dev)
 {
@@ -79,9 +87,9 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 }
 
 /*
- * Get the address of the UART that is selected as the console, if the
- * console is an UART of course. Note that we enforce that both stdin and
- * stdout are selected.
+ * Get the package handle of the UART that is selected as the console, if
+ * the console is an UART of course. Note that we enforce that both stdin
+ * and stdout are selected.
  * Note that the currently active console (i.e. /chosen/stdout and
  * /chosen/stdin) may not be the same as the device selected in the
  * environment (ie /options/output-device and /options/input-device) because
@@ -125,8 +133,8 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 }
 
 /*
- * Get the address of the UART that's selected as the debug port. Since
- * there's no place for this in the OF, we use the kernel environment
+ * Get the package handle of the UART that's selected as the debug port.
+ * Since there's no place for this in the OF, we use the kernel environment
  * variable "hw.uart.dbgport". Note however that the variable is not a
  * list of attributes. It's single device name or alias, as known by
  * the OF.
@@ -148,6 +156,12 @@ uart_cpu_getdev_dbgport(phandle_t options, char *dev, size_t devsz)
 	return (input);
 }
 
+/*
+ * Get the package handle of the device that is selected as the keyboard
+ * port.
+ * XXX this also matches PS/2 keyboard controllers and most likely also
+ * USB keyboards.
+ */
 static phandle_t
 uart_cpu_getdev_keyboard(phandle_t root, char *dev, size_t devsz)
 {
@@ -209,11 +223,23 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.rclk = 0;
 	if (!strcmp(buf, "se")) {
 		di->ops = uart_sab82532_ops;
-		di->bas.chan = uart_cpu_channel(dev);
+		/* SAB82532 are only known to be used for TTYs. */
+		if ((di->bas.chan = uart_cpu_channel(dev)) == 0)
+			return (ENXIO);
 		addr += 64 * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "zs")) {
 		di->ops = uart_z8530_ops;
-		di->bas.chan = uart_cpu_channel(dev);
+		if ((di->bas.chan = uart_cpu_channel(dev)) == 0) {
+			/*
+			 * There's no way to determine from OF which
+			 * channel has the keyboard. Should always be
+			 * on channel 1 however.
+			 */
+			if (devtype == UART_DEV_KEYBOARD)
+				di->bas.chan = 1;
+			else
+				return (ENXIO);
+		}
 		di->bas.regshft = 1;
 		addr += 4 - 4 * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "su") || !strcmp(buf, "su_pnp") ||
