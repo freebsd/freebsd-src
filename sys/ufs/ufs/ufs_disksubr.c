@@ -355,36 +355,31 @@ hp0g: hard error reading fsbn 12345 of 12344-12347 (hp0 bn %d cn %d tn %d sn %d)
  */
 void
 diskerr(bp, what, pri, blkdone, lp)
-	register struct buf *bp;
+	struct buf *bp;
 	char *what;
 	int pri, blkdone;
-	register struct disklabel *lp;
+	struct disklabel *lp;
 {
 	int unit = dkunit(bp->b_dev);
 	int slice = dkslice(bp->b_dev);
 	int part = dkpart(bp->b_dev);
-	register int (*pr) __P((const char *, ...));
+	int (*pr) __P((const char *, ...));
 	char partname[2];
 	char *sname;
 	daddr_t sn;
 
-	if (pri != LOG_PRINTF) {
-		log(pri, "%s", "");
-		pr = addlog;
-	} else
-		pr = printf;
 	sname = dsname(bp->b_dev, unit, slice, part, partname);
-	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
+	printf("%s%s: %s %sing fsbn ", sname, partname, what,
 	      bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;
 	if (bp->b_bcount <= DEV_BSIZE)
-		(*pr)("%ld", (long)sn);
+		printf("%ld", (long)sn);
 	else {
 		if (blkdone >= 0) {
 			sn += blkdone;
-			(*pr)("%ld of ", (long)sn);
+			printf("%ld of ", (long)sn);
 		}
-		(*pr)("%ld-%ld", (long)bp->b_blkno,
+		printf("%ld-%ld", (long)bp->b_blkno,
 		    (long)(bp->b_blkno + (bp->b_bcount - 1) / DEV_BSIZE));
 	}
 	if (lp && (blkdone >= 0 || bp->b_bcount <= lp->d_secsize)) {
@@ -399,10 +394,10 @@ diskerr(bp, what, pri, blkdone, lp)
 		 * independent of slices, labels and bad sector remapping,
 		 * but some drivers don't set bp->b_pblkno.
 		 */
-		(*pr)(" (%s bn %ld; cn %ld", sname, (long)sn,
+		printf(" (%s bn %ld; cn %ld", sname, (long)sn,
 		    (long)(sn / lp->d_secpercyl));
 		sn %= (long)lp->d_secpercyl;
-		(*pr)(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
+		printf(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
 		    (long)(sn % lp->d_nsectors));
 	}
 }
