@@ -56,6 +56,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
 
 #include <machine/cpu.h>
 #include <machine/frame.h>
@@ -88,6 +89,11 @@ cpu_exit(struct proc *p)
 	panic("cpu_exit");
 }
 
+/*
+ * Finish a fork operation, with process p2 nearly set up.
+ * Copy and update the pcb, set up the stack so that the child
+ * ready to run and return to user mode.
+ */
 void
 cpu_fork(struct proc *p1, struct proc *p2, int flags)
 {
@@ -95,31 +101,54 @@ cpu_fork(struct proc *p1, struct proc *p2, int flags)
 	struct frame *fp;
 	struct pcb *pcb;
 
+	KASSERT(p1 == curproc || p1 == &proc0,
+	    ("cpu_fork: p1 not curproc and not proc0"));
+
 	if ((flags & RFPROC) == 0)
 		return;
 
+	/*
+	 * Ensure that p1's pcb is up to date.
+	 */
 	pcb = &p2->p_addr->u_pcb;
 	p1->p_addr->u_pcb.pcb_y = rd(y);
 	p1->p_addr->u_pcb.pcb_fpstate.fp_fprs = rd(fprs);
 	if ((p1->p_frame->tf_tstate & TSTATE_PEF) != 0) {
 		mtx_lock_spin(&sched_lock);
-		savefpctx(&p1->p_addr->u_pcb.pcb_fpstate);
+		savefpctx(&pcb->pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
 	}
 	/* Make sure the copied windows are spilled. */
 	__asm __volatile("flushw");
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
+	pcb = &p2->p_addr->u_pcb;
 	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
+	pcb->pcb_cwp = 2;
 
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies most of the user mode register values.
+	 */
 	tf = (struct trapframe *)((caddr_t)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
 	bcopy(p1->p_frame, tf, sizeof(*tf));
+
+	tf->tf_out[0] = 0;			/* Child returns zero */
+	tf->tf_out[1] = 1;			/* XXX i386 returns 1 in %edx */
+	tf->tf_tstate &= ~(TSTATE_XCC_C | TSTATE_CWP_MASK);	/* success */
+
 	p2->p_frame = tf;
 	fp = (struct frame *)tf - 1;
 	fp->f_local[0] = (u_long)fork_return;
 	fp->f_local[1] = (u_long)p2;
 	fp->f_local[2] = (u_long)tf;
+	pcb->pcb_cwp = 2;
 	pcb->pcb_fp = (u_long)fp - SPOFF;
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
+
+	/*
+	 * Now, cpu_switch() can schedule the new process.
+	 */
 }
 
 void
@@ -128,6 +157,12 @@ cpu_reset(void)
 	OF_exit();
 }
 
+/*
+ * Intercept the return address from a freshly forked process that has NOT
+ * been scheduled yet.
+ *
+ * This is needed to make kernel threads stay in kernel mode.
+ */
 void
 cpu_set_fork_handler(struct proc *p, void (*func)(void *), void *arg)
 {
