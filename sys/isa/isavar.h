@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.5 1999/05/08 18:11:04 peter Exp $
+ *	$Id: isavar.h,v 1.6 1999/05/14 11:22:35 dfr Exp $
  */
+
+#include "isa_if.h"
 
 #define	ISA_NPORT_IVARS	2
 #define	ISA_NMEM_IVARS	2
@@ -84,4 +86,3 @@ ISA_ACCESSOR(drq, DRQ, int)
 ISA_ACCESSOR(maddr, MADDR, int)
 ISA_ACCESSOR(msize, MSIZE, int)
 ISA_ACCESSOR(flags, FLAGS, int)
-
