@@ -13,11 +13,9 @@
 .\"
 .\" Jordan K. Hubbard
 .\"
-.\"
-.\"     @(#)pkg_add.1
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1994
+.Dd March 1, 2004
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -72,7 +70,9 @@ The following command line arguments are supported:
 .Bl -tag -width indent
 .It Ar pkg-name Op Ar pkg-name ...
 The named packages are installed.
-A package name of - will cause
+A package name of
+.Fl
+will cause
 .Nm
 to read from stdin.
 If the packages are not found in the current
@@ -190,7 +190,7 @@ from stdin.
 The complete packing list is also read from stdin,
 and the contents then acted on as normal.
 .It Fl C Ar chrootdir
-Before doing any operations
+Before doing any operations,
 .Xr chroot 2
 to the
 .Ar chrootdir
@@ -201,19 +201,19 @@ Note that
 .Ar chrootdir
 needs to be a fairly complete file system, including everything normally
 needed by
-.Xr pkg_add 8
+.Nm
 to run.
 This flag was added to help support operations done by
 .Xr sysinstall 8
 and is not expected to be useful for much else.
 Be careful that
 .Ar chrootdir
-is properly configured and can not be modified by normal users,
+is properly configured and cannot be modified by normal users,
 versions of commands like
 .Xr fetch 1
 may be run inside
 .Ar chrootdir
-as a side-effect.
+as a side effect.
 .El
 .Pp
 One or more
