@@ -77,6 +77,10 @@ ftello(fp)
 {
 	register off_t rv;
 
+	/* make sure stdio is set up */
+	if (!__sdidinit)
+		__sinit();
+
 	FLOCKFILE(fp);
 	rv = _ftello(fp);
 	FUNLOCKFILE(fp);
