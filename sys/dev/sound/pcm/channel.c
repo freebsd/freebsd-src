@@ -36,7 +36,6 @@
 #define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
 
-static void chn_stintr(pcm_channel *c);
 static void chn_clearbuf(pcm_channel *c, int length);
 /*
  * SOUND OUTPUT
@@ -621,17 +620,7 @@ chn_read(pcm_channel *c, struct uio *buf)
 void
 chn_intr(pcm_channel *c)
 {
-/*	if (!c->buffer.dl) chn_reinit(c);
-*/	if (c->direction == PCMDIR_PLAY) chn_wrintr(c); else chn_rdintr(c);
-}
-
-static void
-chn_stintr(pcm_channel *c)
-{
-	u_long s;
-	s = spltty();
-	chn_intr(c);
-	splx(s);
+	if (c->direction == PCMDIR_PLAY) chn_wrintr(c); else chn_rdintr(c);
 }
 
 static void
