@@ -279,8 +279,8 @@ nfs_reclaim(ap)
 	/*
 	 * For nqnfs, take it off the timer queue as required.
 	 */
-	if ((nmp->nm_flag & NFSMNT_NQNFS) && np->n_timer.cqe_next != 0) {
-		CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
+	if ((nmp->nm_flag & NFSMNT_NQNFS) && TAILQ_NEXT(np, n_timer) != 0) {
+		TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
 	}
 
 	/*

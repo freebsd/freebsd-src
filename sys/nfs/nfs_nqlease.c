@@ -414,25 +414,25 @@ nqsrv_instimeq(lp, duration)
 	newexpiry = time_second + duration + nqsrv_clockskew;
 	if (lp->lc_expiry == newexpiry)
 		return;
-	if (lp->lc_timer.cqe_next != 0) {
-		CIRCLEQ_REMOVE(&nqtimerhead, lp, lc_timer);
+	if (TAILQ_NEXT(lp, lc_timer) != 0) {
+		TAILQ_REMOVE(&nqtimerhead, lp, lc_timer);
 	}
 	lp->lc_expiry = newexpiry;
 
 	/*
 	 * Find where in the queue it should be.
 	 */
-	tlp = nqtimerhead.cqh_last;
-	while (tlp != (void *)&nqtimerhead && tlp->lc_expiry > newexpiry)
-		tlp = tlp->lc_timer.cqe_prev;
+	TAILQ_FOREACH_REVERSE(tlp, &nqtimerhead, nqtimerhead, lc_timer)
+		if (tlp->lc_expiry <= newexpiry)
+			break;
 #ifdef HASNVRAM
-	if (tlp == nqtimerhead.cqh_last)
+	if (tlp == TAILQ_LAST(&nqtimerhead))
 		NQSTORENOVRAM(newexpiry);
 #endif /* HASNVRAM */
-	if (tlp == (void *)&nqtimerhead) {
-		CIRCLEQ_INSERT_HEAD(&nqtimerhead, lp, lc_timer);
+	if (tlp == NULL) {
+		TAILQ_INSERT_HEAD(&nqtimerhead, lp, lc_timer);
 	} else {
-		CIRCLEQ_INSERT_AFTER(&nqtimerhead, tlp, lp, lc_timer);
+		TAILQ_INSERT_AFTER(&nqtimerhead, tlp, lp, lc_timer);
 	}
 }
 
@@ -647,11 +647,10 @@ nqnfs_serverd()
 	struct nqm *lphnext, *olphnext;
 	int i, len, ok;
 
-	for (lp = nqtimerhead.cqh_first; lp != (void *)&nqtimerhead;
-	    lp = nextlp) {
+	for (lp = TAILQ_FIRST(&nqtimerhead); lp; lp = nextlp) {
 		if (lp->lc_expiry >= time_second)
 			break;
-		nextlp = lp->lc_timer.cqe_next;
+		nextlp = TAILQ_NEXT(lp, lc_timer);
 		if (lp->lc_flag & LC_EXPIREDWANTED) {
 			lp->lc_flag &= ~LC_EXPIREDWANTED;
 			wakeup((caddr_t)&lp->lc_flag);
@@ -672,7 +671,7 @@ nqnfs_serverd()
 			lp->lc_flag &= ~LC_WRITTEN;
 			nqsrv_instimeq(lp, nqsrv_writeslack);
 		    } else {
-			CIRCLEQ_REMOVE(&nqtimerhead, lp, lc_timer);
+			TAILQ_REMOVE(&nqtimerhead, lp, lc_timer);
 			LIST_REMOVE(lp, lc_hash);
 			/*
 			 * This soft reference may no longer be valid, but
@@ -995,12 +994,12 @@ nqnfs_callback(nmp, mrep, md, dpos)
 	if (error)
 		return (error);
 	vp = NFSTOV(np);
-	if (np->n_timer.cqe_next != 0) {
+	if (TAILQ_NEXT(np, n_timer) != 0) {
 		np->n_expiry = 0;
 		np->n_flag |= NQNFSEVICTED;
-		if (nmp->nm_timerhead.cqh_first != np) {
-			CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
-			CIRCLEQ_INSERT_HEAD(&nmp->nm_timerhead, np, n_timer);
+		if (TAILQ_FIRST(&nmp->nm_timerhead) != np) {
+			TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
+			TAILQ_INSERT_HEAD(&nmp->nm_timerhead, np, n_timer);
 		}
 	}
 	vput(vp);
@@ -1083,17 +1082,17 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		/*
 		 * Loop through the leases, updating as required.
 		 */
-		np = nmp->nm_timerhead.cqh_first;
-		while (np != (void *)&nmp->nm_timerhead &&
-		       (nmp->nm_state & NFSSTA_DISMINPROG) == 0) {
+		while ((np = TAILQ_FIRST(&nmp->nm_timerhead)) != NULL) {
+			if (nmp->nm_state & NFSSTA_DISMINPROG)
+				break;
 			vp = NFSTOV(np);
 			vpid = vp->v_id;
 			if (np->n_expiry < time_second) {
 			   if (vget(vp, LK_EXCLUSIVE, p) == 0) {
 			     nmp->nm_inprog = vp;
 			     if (vpid == vp->v_id) {
-				CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
-				np->n_timer.cqe_next = 0;
+				TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
+				TAILQ_NEXT(np, n_timer) = 0;
 				if (np->n_flag & (NMODIFIED | NQNFSEVICTED)) {
 					if (np->n_flag & NQNFSEVICTED) {
 						if (vp->v_type == VDIR)
@@ -1127,9 +1126,6 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			    }
 			} else
 				break;
-			if (np == nmp->nm_timerhead.cqh_first)
-				break;
-			np = nmp->nm_timerhead.cqh_first;
 		}
 	    }
 
@@ -1191,8 +1187,7 @@ nqnfs_lease_updatetime(deltat)
 	if (nqnfsstarttime != 0)
 		nqnfsstarttime += deltat;
 	s = splsoftclock();
-	for (lp = nqtimerhead.cqh_first; lp != (void *)&nqtimerhead;
-	    lp = lp->lc_timer.cqe_next)
+	TAILQ_FOREACH(lp, &nqtimerhead, lc_timer)
 		lp->lc_expiry += deltat;
 	splx(s);
 
@@ -1209,9 +1204,7 @@ nqnfs_lease_updatetime(deltat)
 		if (mp->mnt_stat.f_type == nfs_mount_type) {
 			nmp = VFSTONFS(mp);
 			if (nmp->nm_flag & NFSMNT_NQNFS) {
-				for (np = nmp->nm_timerhead.cqh_first;
-				    np != (void *)&nmp->nm_timerhead;
-				    np = np->n_timer.cqe_next) {
+				TAILQ_FOREACH(np, &nmp->nm_timerhead, n_timer) {
 					np->n_expiry += deltat;
 				}
 			}
@@ -1267,8 +1260,8 @@ nqnfs_clientlease(nmp, np, rwflag, cachable, expiry, frev)
 {
 	register struct nfsnode *tp;
 
-	if (np->n_timer.cqe_next != 0) {
-		CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
+	if (TAILQ_NEXT(np, n_timer) != 0) {
+		TAILQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
 		if (rwflag == ND_WRITE)
 			np->n_flag |= NQNFSWRITE;
 	} else if (rwflag == ND_READ)
@@ -1281,12 +1274,12 @@ nqnfs_clientlease(nmp, np, rwflag, cachable, expiry, frev)
 		np->n_flag |= NQNFSNONCACHE;
 	np->n_expiry = expiry;
 	np->n_lrev = frev;
-	tp = nmp->nm_timerhead.cqh_last;
-	while (tp != (void *)&nmp->nm_timerhead && tp->n_expiry > np->n_expiry)
-		tp = tp->n_timer.cqe_prev;
-	if (tp == (void *)&nmp->nm_timerhead) {
-		CIRCLEQ_INSERT_HEAD(&nmp->nm_timerhead, np, n_timer);
+	TAILQ_FOREACH_REVERSE(tp, &nmp->nm_timerhead, timhd, n_timer)
+		if (tp->n_expiry <= np->n_expiry)
+			break;
+	if (tp == NULL) {
+		TAILQ_INSERT_HEAD(&nmp->nm_timerhead, np, n_timer);
 	} else {
-		CIRCLEQ_INSERT_AFTER(&nmp->nm_timerhead, tp, np, n_timer);
+		TAILQ_INSERT_AFTER(&nmp->nm_timerhead, tp, np, n_timer);
 	}
 }
