@@ -25,7 +25,7 @@ Revision History
 // Basic int types of various widths
 //
 
-#include <sys/inttypes.h>
+#include <sys/stdint.h>
 
 //
 // Basic EFI types of various widths
