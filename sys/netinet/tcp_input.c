@@ -1454,12 +1454,9 @@ trimthenstep6:
 			tcpstat.tcps_rcvduppack++;
 			tcpstat.tcps_rcvdupbyte += tlen;
 			tcpstat.tcps_pawsdrop++;
-			if (tlen) {
+			if (tlen)
 				goto dropafterack;
-			} else {
-				printf("PAWS ack-on-ack loop avoided\n");
-				goto drop;
-			}
+			goto drop;
 		}
 	}
 
