@@ -1,4 +1,4 @@
-.Dd June 30, 1995
+.Dd August 28, 1995
 .Os FreeBSD 2.0.5
 .Dt SGMLFMT 1
 .Sh NAME
@@ -34,9 +34,9 @@ contains the title, author, date, abstract and brief table of
 contents for the document.  A file
 .Pa file_toc.html
 contains a complete table of contents.  A series of files named
-.Pa file-1.html ,
-.Pa file-2.html ...
-.Pa file-n.html
+.Pa file1.html ,
+.Pa file2.html ...
+.Pa filen.html
 contain the actual text of the document.
 .It Fl latex
 Generates a single output file with the extension
@@ -124,3 +124,8 @@ which is used to generate ASCII output.
 .Pp
 The divison of the sources file into separate HTML files is
 currently fixed. 
+.Pp
+Although legal according to the DTD, it the ascii formatting gets botched if
+the <heading>...</heading> tags are omitted following a
+sectioning tag such as <sect>.  Furthermore, all text between
+<heading> and </heading> must be on one line.

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.3 1995/06/30 15:19:12 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.4 1995/08/25 23:26:49 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -23,7 +23,14 @@
 # Text lines that start with a period (.) confuse the conversions that
 # use groff.  The workaround is to make sure the SGML source doesn't
 # have any periods at the beginning of a line.
-
+#
+# Although legal by the DTD, it the ascii formatting gets botched if
+# the <heading></heading> tags are omitted following a <sect?>.
+#
+# The whole approach of using sgmlsasp and passing a few things
+# through for processing by this script is doomed.  This whole thing
+# needs to be re-thought and a better DTD should be used anyway.
+#
 #######################################################################
 
 # Look in a couple places for the SGML DTD and replacement files
@@ -195,8 +202,28 @@ $num_depth = 4;			# depth of numbering
 $m_depth = 2;			# depth of menus
 
 
-$sc = 0;			# number of sections
-$filecount = 0;			# number of files
+$sc = 0;			# section counter
+$filecount = 0;			# file counter
+
+# Other variables:
+#
+#  st_xxxx  - Section Table.  Arrays containing information about a
+#             given section.  To be accesssed via the section counter $sc.
+#             
+#  st_ol    - The output level of the given section.  I.E. how many
+#             levels from the table of contents does it lie in terms
+#             of HTML files which is distinct from <sect1>, <sect2> etc.
+#             levels. 
+#
+#  st_sl    - The absolute depth of a section.  Contrast st_ol.
+# 
+#  st_num   - The section number in the form X.Y.Z....
+#
+#  st_file  - The HTML file the section belongs to.
+#
+#  st_header - The text of the section title.
+# 
+#  st_parent - The section number of the given sections parent.
 
 sub gen_html {
     local($i, $sl);
@@ -208,22 +235,26 @@ sub gen_html {
     while (<foo>) {
 	print bar;
 	# count up the number of files to be generated
+	# and gather assorted info about the document structure
 	if (/^<@@sect>/) {
-	    $sl++;
-	    $sc++;
+	    $sl++;		# current section level
+	    $sc++;		# current section number
 	    $st_sl[$sc] = $sl;
+
+	    # In case this section has subsections, set the parent
+	    # pointer for this level to point at this section.
+	    $parent_pointer[$sl] = $sc;
+
+	    # Figure out who is the parent if this section.
+	    $st_parent[$sc] = $parent_pointer[$sl - 1];
 
 	    # Per level counters
 	    $counter[$sl]++;
 	    $counter[$sl + 1] = 0;
 
 	    # calculate the section number in the form x.y.z.
-	    $st_num[$sc] = "";
 	    if ($sl <= $num_depth) {
-		for ($i = 1; $i <= $sl; $i++) {
-		    $st_num[$sc] .= "$counter[$i].";
-		}
-		$st_num[$sc] .= " ";
+		$st_num[$sc] = $st_num[$st_parent[$sc]] . "$counter[$sl].";
 	    }
 
 	    # calculate the file number and output level
@@ -251,6 +282,13 @@ sub gen_html {
 	    $sl--;
 	}
 
+	# record section titles
+	if (/^<@@head>/) {
+	    chop;
+	    s/^<@@head>//;
+	    $st_header[$sc] = $_;
+	}
+
 	# record the section number that a label occurs in
 	if (/^<@@label>/) {
 	    chop;
@@ -258,7 +296,7 @@ sub gen_html {
 	    if ($references{$_} eq "") {
 		$references{$_} = "$filecount";
 		if ($genlinks) {
-		    &extlink($_, "${fileroot}-${filecount}.html");
+		    &extlink($_, "${fileroot}${filecount}.html");
 		}
 	    }
 	    else {
@@ -306,11 +344,13 @@ sub html2html {
 	  # titles and headings
 	  if (s/^<@@title>//) {
 	      chop;
-	      print tocfile "<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n";
-	      print tocfile "<H1>$_</H1>\n";
+	      $st_header[0] = $_;
+	      $st_parent[0] = -1;
+	      print tocfile "<HEAD>\n<TITLE>$st_header[0]</TITLE>\n</HEAD>\n";
+	      print tocfile "<H1>$st_header[0]</H1>\n";
 	      $header[$st_ol[$sc]] = 
-		  "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n" . 
-		      "</HEAD>\n<BODY>\n<H1>$_</H1>\n"; 
+		  "<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
+		      "</HEAD>\n<BODY>\n<H1>$st_header[0]</H1>\n"; 
 	      $footer[$st_ol[$sc]] = "</BODY>\n</HTML>\n";
 	      last tagsw;
 	  }
@@ -326,7 +366,7 @@ sub html2html {
 		  last tagsw;
 	      }
 
-	      $href = "\"$fileroot-$st_file[$sc].html#$sc\"";
+	      $href = "\"${fileroot}$st_file[$sc].html#$sc\"";
 
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
@@ -338,7 +378,7 @@ sub html2html {
 	      }
 
 	      # Add this to the master table of contents
-	      print tocfile "<DD>$st_num[$sc]" . 
+	      print tocfile "<DD>$st_num[$sc] " . 
 		  "<A HREF=$href>$_";
 
 	      # Calculate the <H?> level to use in the HTML file
@@ -348,12 +388,12 @@ sub html2html {
 	      $i = $st_ol[$sc];
 
 	      # Add the section header
-	      $text[$i] .= "<H$hlevel><A NAME=\"$sc\"></A>$st_num[$sc]$_";
+	      $text[$i] .= "<H$hlevel><A NAME=\"$sc\"></A>$st_num[$sc] $_";
 	      $i--;
 	      
 	      # And also to the parent 
 	      if ($st_sl[$sc] == $st_ol[$sc] && $i >= 0) {
-		  $text[$i] .= "<H$shlevel>$st_num[$sc]" . 
+		  $text[$i] .= "<H$shlevel>$st_num[$sc] " . 
 			  "<A HREF=$href>$_";
 		  $i--;
 	      }
@@ -401,7 +441,6 @@ sub html2html {
 	  if (s/^<@@part>//) {
 	      $part = 1;
 	      $partnum++;
-	      # not yet implemented in the DTD
 	      last tagsw;
 	  }
 
@@ -452,7 +491,7 @@ sub html2html {
 
 	      # If this section is below $maxlevel, write it now.
 	      if ($st_sl[$lsc] <= $maxlevel) {
-		  open(SECOUT, ">${fileroot}-$st_file[$lsc].html");
+		  open(SECOUT, ">${fileroot}$st_file[$lsc].html");
 		  print SECOUT "$header[$st_ol[$lsc]]  $text[$st_ol[$lsc]] " . 
 		      "$footer[$st_ol[$lsc]]";
 		  $text[$st_ol[$lsc]] = "";
@@ -475,7 +514,7 @@ sub html2html {
 	      }
 	      else {
 		  $text[$st_ol[$sc]] .= 
-		      "<A HREF=\"${fileroot}-$references{$_}.html#$_\">";
+		      "<A HREF=\"${fileroot}$references{$_}.html#$_\">";
 	      }
 	      last tagsw;
 	  }
@@ -522,30 +561,52 @@ sub html2html {
 
 sub navbar {
     local ($fnum, $fmax, $sc) = @_;
+    local ($i, $itext, $prv, $nxt);
 
-    $prevf = $fnum - 1;
-    $nextf = $fnum + 1;
+    # Generate the section hierarchy
 
-    $navbar[$st_ol[$sc]] = "<B>\n";
+    $navbar[$st_ol[$sc]] =
+	"<B><A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
+    $i = $st_parent[$sc];
+    while ($i > 0) {
+	$itext = " : <A HREF=\"${fileroot}$st_file[$i].html\"><EM>$st_header[$i]</EM></A>\n$itext";
+	$i = $st_parent[$i];
+    }
+    $navbar[$st_ol[$sc]] .= "$itext : <EM>$st_header[$sc]</EM><BR>\n";
+
+    # Generate previous and next pointers
+
+    # Previous pointer must be in a different file AND must be at the
+    # same or higher section level.  If the current node is the
+    # beginning of a chapter, then previous will go to the beginning
+    # of the previous chapter, not the end of the previous chapter.
+
+    $prv = $sc;
+    while ($prv >= 0 && $st_file[$prv] >= $st_file[$sc] - 1) { 
+	$prv--; 
+    }
+    $prv++;
     $navbar[$st_ol[$sc]] .=
-	"<A HREF=\"${fileroot}.html\">Table of Contents</A>\n";
-    if ($prevf <= 0) {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}.html\">Previous</A>\n";
+	"Previous: <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
+
+    # Then next pointer must be in a higher numbered file OR the home
+    # page of the document.
+
+    $nxt = $sc;
+    if ($st_file[$nxt] == $filecount) { 
+	$nxt = 0; 
     }
     else {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}-${prevf}.html\">Previous</A>\n";
+	while ($st_file[$nxt] == $st_file[$sc]) {
+	    $nxt++;
+	}
     }
-    if ($nextf <= $fmax) {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}-${nextf}.html\">Next</A>\n";
-    }
-    else {
-	$navbar[$st_ol[$sc]] .=
-	    "| <A HREF=\"${fileroot}.html\">Next</A>\n";
-    }
+
+    $navbar[$st_ol[$sc]] .=
+	"Next: <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
+
     $navbar[$st_ol[$sc]] .= "</B>\n";
+
 }
 
 
