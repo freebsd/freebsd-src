@@ -58,7 +58,7 @@ struct private_data {
 
 static int	archive_compressor_gzip_finish(struct archive *);
 static int	archive_compressor_gzip_init(struct archive *);
-static ssize_t	archive_compressor_gzip_write(struct archive *, const void *,
+static int	archive_compressor_gzip_write(struct archive *, const void *,
 		    size_t);
 static int	drive_compressor(struct archive *, struct private_data *,
 		    int finishing);
