@@ -3,11 +3,17 @@
 
 prog="$0"
 # Default device.
-if test "X$LC_CTYPE" = "Xiso_8859_1" || test "X$LESSCHARSET" = "Xlatin1"
+if test `expr "$LC_CTYPE" : ".*\.ISO_8859-1"` -gt 0 || \
+   test `expr "$LANG" : ".*\.ISO_8859-1"` -gt 0
 then
 	T=-Tlatin1
 else
+if test "X$LC_CTYPE" = "Xru_SU.KOI8-R" || test "X$LANG" = "Xru_SU.KOI8-R"
+then
+	T=-Tkoi8-r
+else
 	T=-Tascii
+fi
 fi
 opts=
 
