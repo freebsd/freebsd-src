@@ -382,7 +382,7 @@ main(argc, argv)
 	free(buf);
 
 	if (all == 0)
-		errx(1, "interface %s does not exist..", name);
+		errx(1, "interface %s does not exist", name);
 	
 
 	exit (0);
