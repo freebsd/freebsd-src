@@ -129,8 +129,8 @@ struct stat {
 #else
 	time_t	  st_birthtime;		/* time of file creation */
 	long	  st_birthtimensec;	/* nsec of file creation */
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
-	u_int	:(8 / 2) * (16 - (int)sizeof(struct __timespec));
+	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
+	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
 #endif
 };
 
