@@ -1836,39 +1836,85 @@ acpi_wake_sleep_prep(device_t dev, int sstate)
 {
     struct acpi_prw_data prw;
     ACPI_HANDLE handle;
+    int flags;
 
     /* Check that this is an ACPI device and get its GPE. */
+    flags = device_get_flags(dev);
     handle = acpi_get_handle(dev);
-    if (handle == NULL)
+    if ((flags & ACPI_FLAG_WAKE_CAPABLE) == 0 || handle == NULL)
 	return (ENXIO);
+
+    /* Evaluate _PRW to find the GPE. */
     if (acpi_parse_prw(handle, &prw) != 0)
 	return (ENXIO);
 
     /*
-     * The sleeping state being entered must be less than (i.e., higher power)
-     * or equal to the value specified by _PRW.  If not, disable this GPE.
+     * TBD: All Power Resources referenced by elements 2 through N
+     *      of the _PRW object are put into the ON state.
      */
-    if (sstate > prw.lowest_wake) {
+
+    /*
+     * If the user requested that this device wake the system and the next
+     * sleep state is valid for this GPE, enable it and the device's wake
+     * capability.  The sleep state must be less than (i.e., higher power)
+     * or equal to the value specified by _PRW.  Return early, leaving
+     * the appropriate power resources enabled.
+     */
+    if ((flags & ACPI_FLAG_WAKE_ENABLED) != 0 &&
+	sstate <= prw.lowest_wake) {
 	if (bootverbose)
-	    device_printf(dev, "wake_prep disabled gpe %#x for state %d\n",
+	    device_printf(dev, "wake_prep enabled gpe %#x for state %d\n",
 		prw.gpe_bit, sstate);
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
-	acpi_SetInteger(handle, "_PSW", 0);
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	acpi_SetInteger(handle, "_PSW", 1);
 	return (0);
     }
 
     /*
-     * If requested, enable the device's wake capability.
-     *
-     * TBD: All Power Resources referenced by elements 2 through N
-     *      of the _PRW object are put into the ON state.
-     */   
-    if ((device_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) != 0) {
-	if (bootverbose)
-	    device_printf(dev, "wake_prep enabled _PSW for state %d\n", sstate);
-	acpi_SetInteger(handle, "_PSW", 1);
-    }
+     * If the device wake was disabled or this sleep state is too low for
+     * this device, disable its wake capability and GPE.
+     */
+    AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+    acpi_SetInteger(handle, "_PSW", 0);
+    if (bootverbose)
+	device_printf(dev, "wake_prep disabled gpe %#x for state %d\n",
+	    prw.gpe_bit, sstate);
 
+    /*
+     * TBD: All Power Resources referenced by elements 2 through N
+     *      of the _PRW object are put into the OFF state.
+     */
+
+    return (0);
+}
+
+/* Re-enable GPEs after wake. */
+int
+acpi_wake_run_prep(device_t dev)
+{
+    struct acpi_prw_data prw;
+    ACPI_HANDLE handle;
+    int flags;
+
+    /* Check that this is an ACPI device and get its GPE. */
+    flags = device_get_flags(dev);
+    handle = acpi_get_handle(dev);
+    if ((flags & ACPI_FLAG_WAKE_CAPABLE) == 0 || handle == NULL)
+	return (ENXIO);
+
+    /* Evaluate _PRW to find the GPE. */
+    if (acpi_parse_prw(handle, &prw) != 0)
+	return (ENXIO);
+
+    /*
+     * TBD: Be sure all Power Resources referenced by elements 2 through N
+     *      of the _PRW object are in the ON state.
+     */
+
+    /* Disable wake capability and if the user requested, enable the GPE. */
+    acpi_SetInteger(handle, "_PSW", 0);
+    if ((flags & ACPI_FLAG_WAKE_ENABLED) != 0)
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
     return (0);
 }
 
