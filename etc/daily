@@ -81,7 +81,8 @@ if [ ! -f $bak/master.passwd.bak ] ; then
 fi
 if cmp -s $bak/master.passwd.bak /etc/master.passwd; then :; else
 	echo "$host passwd diffs:"
-	diff $bak/master.passwd.bak /etc/master.passwd
+	diff $bak/master.passwd.bak /etc/master.passwd |\
+		sed 's/^\([<>] [^:]*\):[^:]*:/\1:(password):/'
 	mv $bak/master.passwd.bak $bak/master.passwd.bak2
 	cp -p /etc/master.passwd $bak/master.passwd.bak
 fi
