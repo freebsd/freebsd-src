@@ -818,6 +818,8 @@ JobFinish(job, status)
 	     * output file as well.
 	     */
 	    out = fdopen(job->outFd, "w");
+	    if (out == NULL)
+		Punt("Cannot fdopen");
 	} else {
 	    out = stdout;
 	}
