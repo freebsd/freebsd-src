@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$FreeBSD$
+ * $FreeBSD$
  *
  */
 
@@ -34,12 +34,12 @@
 #define _NG_SPLIT_H
 
 /* Node type name and magic cookie */
-#define NG_SPLIT_NODE_TYPE		"ng_split"
-#define NGM_NG_SPLIT_COOKIE		949409402
+#define NG_SPLIT_NODE_TYPE	"split"
+#define NGM_NG_SPLIT_COOKIE	949409402
 
 /* My hook names */
-#define NG_SPLIT_HOOK_MIXED       	"mixed"		/* Mixed stream (in/out) */
-#define NG_SPLIT_HOOK_OUTHOOK     	"out"		/* Output to outhook (sending out) */
-#define NG_SPLIT_HOOK_INHOOK	     	"in"		/* Input from inhook (recieving) */
+#define NG_SPLIT_HOOK_MIXED	"mixed"	/* Mixed stream (in/out) */
+#define NG_SPLIT_HOOK_OUT	"out"	/* Output to outhook (sending out) */
+#define NG_SPLIT_HOOK_IN	"in"	/* Input from inhook (recieving) */
 
 #endif /* _NG_SPLIT_H */
