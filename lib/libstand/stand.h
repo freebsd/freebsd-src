@@ -402,7 +402,7 @@ void Free(void *, const char *, int);
 #define free(x)		Free(x, __FILE__, __LINE__)
 #define realloc(x, y)	Realloc(x, y, __FILE__, __LINE__)
 #else
-#define malloc(x)	Malloc(x, NULL 0)
+#define malloc(x)	Malloc(x, NULL, 0)
 #define calloc(x, y)	Calloc(x, y, NULL, 0)
 #define free(x)		Free(x, NULL, 0)
 #define realloc(x, y)	Realloc(x, y, NULL, 0)
