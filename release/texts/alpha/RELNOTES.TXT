@@ -65,10 +65,11 @@ changes in sockets, pipes, fifos, and files are present, as well as
 for signals and processes. [MERGED]
 
 Support for named extended attributes was added to the FreeBSD kernel.
-This allows the kernel, and appropriately privileged userland processes,
-to tag files and directories with attribute data.  Extended attributes
-were added to support the TrustedBSD Project, in particular ACLs,
-capability data, and mandatory access control labels.
+This allows the kernel, and appropriately privileged userland
+processes, to tag files and directories with attribute data.  Extended
+attributes were added to support the TrustedBSD Project, in particular
+ACLs, capability data, and mandatory access control labels (see
+/usr/src/sys/ufs/ufs/README.extattr for details).
 
 POSIX.1b Shared Memory Objects are now supported.  The implementation
 uses regular files, but automatically enables the MAP_NOSYNC flag
@@ -322,7 +323,8 @@ default bound to Shift-Insert.
 Support for file system Access Control Lists (ACLs) has been
 introduced, allowing more fine-grained control of discretionary access
 control on files and directories.  This support was integrated from
-the TrustedBSD Project.
+the TrustedBSD Project.  More details can be found in
+/usr/src/sys/ufs/ufs/README.acls.
 
 The CAM error recovery code has been updated.
 
@@ -623,9 +625,11 @@ FreeBSD-specific updates, which aren't reflected in the original,
 third-party software distributions.  pkg_version(1) can now compare
 these new-style version numbers.  [MERGED]
 
-cvs(1) has been updated to 1.11. [MERGED]
+CVS has been updated to 1.11. [MERGED]
 
-tcpdump(1) has received some updates and bug fixes. [MERGED]
+libpcap has been updated to 0.6.2.
+
+tcpdump has been updated to 3.6.2.
 
 User-land ppp(8) has received a number of updates and bug fixes. [MERGED]
 
@@ -701,6 +705,8 @@ newfs(8) now implements write combining, which can make creation of
 new filesystems up to seven times faster. [MERGED]
 
 newfs(8) now takes a -U option to enable softupdates on a new filesystem.
+
+The default number of cylinders per group in newfs(8) is now 22, up from 16.
 
 A number of buffer overflows in config(8) have been fixed. [MERGED]
 
@@ -836,6 +842,10 @@ package against its recorded checksums (to see if it's been modified
 post-installation).  Naturally, this mechanism is only as secure as
 the contents of /var/db/pkg if it's to be used for auditing
 purposes. [MERGED]
+
+pkg_version(1) now has a version number comparison routine that
+corresponds to the Porters Handbook.  It also has a -t option for
+testing address comparisons.
 
 libc is now thread-safe by default; libc_r contains only thread functions.
 
