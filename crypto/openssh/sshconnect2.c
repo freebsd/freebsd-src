@@ -23,6 +23,7 @@
  */
 
 #include "includes.h"
+RCSID("$FreeBSD$");
 RCSID("$OpenBSD: sshconnect2.c,v 1.27 2000/10/19 16:45:16 provos Exp $");
 
 #include <openssl/bn.h>
@@ -635,7 +636,7 @@ userauth_passwd(Authctxt *authctxt)
 	packet_put_cstring(authctxt->service);
 	packet_put_cstring(authctxt->method->name);
 	packet_put_char(0);
-	packet_put_cstring(password);
+	ssh_put_password(password);
 	memset(password, 0, strlen(password));
 	xfree(password);
 	packet_send();
@@ -892,7 +893,7 @@ input_userauth_info_req(int type, int plen, void *ctxt)
 
 		response = cli_prompt(prompt, echo);
 
-		packet_put_cstring(response);
+		ssh_put_password(response);
 		memset(response, 0, strlen(response));
 		xfree(response);
 		xfree(prompt);
