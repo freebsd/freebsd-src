@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.17 1996/03/24 18:55:39 joerg Exp $
+ * $Id: tst01.c,v 1.18 1996/07/09 12:17:46 jkh Exp $
  *
  */
 
@@ -196,6 +196,10 @@ main(int argc, char **argv)
 			All_FreeBSD(d, 1);
 			continue;
 		}
+		if (!strcasecmp(*cmds,"sanitize")) {
+			Sanitize_Bios_Geom(d);
+			continue;
+		}
 		if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
 			Set_Bios_Geom(d,
 				strtol(cmds[1],0,0),
@@ -203,26 +207,6 @@ main(int argc, char **argv)
 				strtol(cmds[3],0,0));
 			continue;
 		}
-#if 0
-		if (!strcasecmp(*cmds,"phys") && ncmd == 4) {
-			d = Set_Phys_Geom(d,
-				strtol(cmds[1],0,0),
-				strtol(cmds[2],0,0),
-				strtol(cmds[3],0,0));
-			continue;
-		}
-#endif
-#if 0
-		if (!strcasecmp(*cmds,"collapse")) {
-			if (cmds[1])
-				while (Collapse_Chunk(d,
-				    (struct chunk *)strtol(cmds[1],0,0)))
-					;
-			else
-				Collapse_Disk(d);
-			continue;
-		}
-#endif
 		if (!strcasecmp(*cmds,"list")) {
 			cp = Disk_Names();
 			printf("Disks:");

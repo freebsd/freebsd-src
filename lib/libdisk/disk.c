@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.21 1996/03/24 18:55:37 joerg Exp $
+ * $Id: disk.c,v 1.22 1996/04/29 05:03:02 jkh Exp $
  *
  */
 
@@ -231,7 +231,9 @@ Debug_Disk(struct disk *d)
 #if 0
 	printf("  real_geom=%lu/%lu/%lu",d->real_cyl,d->real_hd,d->real_sect);
 #endif
-	printf("  bios_geom=%lu/%lu/%lu\n",d->bios_cyl,d->bios_hd,d->bios_sect);
+	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
+		d->bios_cyl,d->bios_hd,d->bios_sect,
+		d->bios_cyl*d->bios_hd*d->bios_sect);
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1,d->boot2,d->bootmgr);
 	Debug_Chunk(d->chunks);

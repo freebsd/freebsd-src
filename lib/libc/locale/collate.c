@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.7 1996/10/15 21:53:22 ache Exp $
+ * $Id: collate.c,v 1.8 1996/10/23 15:35:43 ache Exp $
  */
 
 #include <rune.h>
@@ -67,10 +67,12 @@ __collate_load_tables(encoding)
 		__collate_load_error = save_load_error;
 		return -1;
 	}
-	if (!*encoding || !strcmp(encoding, "C") || !strcmp(encoding, "POSIX"))
+	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX"))
 		return 0;
-	if (!_PathLocale && !(_PathLocale = getenv("PATH_LOCALE")))
-		_PathLocale = _PATH_LOCALE;
+	if (!_PathLocale) {
+		__collate_load_error = save_load_error;
+		return -1;
+	}
 	strcpy(buf, _PathLocale);
 	strcat(buf, "/");
 	strcat(buf, encoding);

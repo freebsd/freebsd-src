@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.16 1995/12/07 10:33:27 peter Exp $
+ * $Id: write_disk.c,v 1.17 1996/04/29 05:03:02 jkh Exp $
  *
  */
 
@@ -80,15 +80,9 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	dl->d_secsize = 512;
 	dl->d_secperunit = new->chunks->size;
-#if 0
-	dl->d_ncylinders = new->real_cyl ? new->real_cyl : new->bios_cyl;
-	dl->d_ntracks = new->real_hd ? new->real_hd : new->bios_hd;
-	dl->d_nsectors = new->real_sect ? new->real_sect : new->bios_sect;
-#else
 	dl->d_ncylinders =  new->bios_cyl;
 	dl->d_ntracks =  new->bios_hd;
 	dl->d_nsectors =  new->bios_sect;
-#endif
 	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors;
 
 	dl->d_npartitions = MAXPARTITIONS;

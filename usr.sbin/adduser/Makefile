@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.8 1996/11/04 17:21:08 wosch Exp $
+#	$Id: Makefile,v 1.9 1996/11/17 03:51:26 wosch Exp $
 
-SCRIPTS= adduser.perl #rmuser.perl addgroup.tcl rmgroup.sh
-MAN8=	 adduser.8    #rmuser.8    addgroup.8   rmgroup.8
+SCRIPTS= adduser.perl rmuser.perl addgroup.tcl rmgroup.sh
+MAN8=	 adduser.8    rmuser.8    addgroup.8   rmgroup.8
 
 beforeinstall:
 .for script in ${SCRIPTS}

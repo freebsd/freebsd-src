@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.21 1996/03/24 18:55:39 joerg Exp $
+* $Id: libdisk.h,v 1.22 1996/04/29 06:45:33 jkh Exp $
 *
 */
 
@@ -28,11 +28,6 @@ struct disk {
 	char		*name;
 	u_long		flags;
 #		define DISK_ON_TRACK	1
-#if 0
-	u_long		real_cyl;
-	u_long		real_hd;
-	u_long		real_sect;
-#endif
 	u_long		bios_cyl;
 	u_long		bios_hd;
 	u_long		bios_sect;
@@ -111,17 +106,14 @@ Debug_Disk(struct disk *disk);
 /* Print the content of the tree to stdout
  */
 
-#if 0
-struct disk *
-Set_Phys_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
-/* Use a different physical geometry.  Makes sense for ST506 disks only.
- * The tree returned is read from the disk, using this geometry.
- */
-#endif
-
 void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 /* Set the geometry the bios uses.
+ */
+
+void
+Sanitize_Bios_Geom(struct disk *disk);
+/* Set the bios geometry to something sane
  */
 
 int
@@ -278,7 +270,7 @@ __END_DECLS
  *
  *Sample output from tst01:
  *
- * Debug_Disk(wd0)  flags=0  real_geom=0/0/0  bios_geom=0/0/0
+ * Debug_Disk(wd0)  flags=0  bios_geom=0/0/0
  * >>        0x3d040          0    1411200    1411199 wd0      0 whole    0 0
  * >>>>      0x3d080          0     960120     960119 wd0s1    3 freebsd  0 8
  * >>>>>>    0x3d100          0      40960      40959 wd0s1a   5 part     0 0

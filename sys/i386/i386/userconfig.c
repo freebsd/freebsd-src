@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.5 1996/11/13 20:13:24 phk Exp $
+ **      $Id: userconfig.c,v 1.63.2.6 1996/11/16 21:14:46 phk Exp $
  **/
 
 /**
@@ -2219,7 +2219,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.5 1996/11/13 20:13:24 phk Exp $
+ *      $Id: userconfig.c,v 1.63.2.6 1996/11/16 21:14:46 phk Exp $
  */
 
 #include "scbus.h"
@@ -2273,7 +2273,7 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
 static int introfunc(CmdParm *);
 #endif
 
@@ -2304,7 +2304,7 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
     { "intro", 	introfunc, 		NULL },		/* intro screen	*/
 #endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
@@ -2565,17 +2565,20 @@ helpfunc(CmdParm *parms)
     return 0;
 }
 
-#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+#if defined(USERCONFIG_BOOT) 
 
+#if defined (VISUAL_USERCONFIG)
 static void
 center(int y, char *str)
 {
     putxy((80 - strlen(str)) / 2, y, str);
 }
+#endif
 
 static int
 introfunc(CmdParm *parms)
 {
+#if defined (VISUAL_USERCONFIG)
     int curr_item, first_time;
     static char *choices[] = {
 	" Skip kernel configuration and continue with installation ",
@@ -2669,6 +2672,7 @@ introfunc(CmdParm *parms)
 	    }
 	}
     }
+#endif
 }
 #endif
 
