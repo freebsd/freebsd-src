@@ -10,7 +10,9 @@ MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 atkbdc.4 \
 	inet.4 inet6.4 intpm.4 intro.4 ip.4 ip6.4 ipfirewall.4 ipsec.4 isp.4 \
 	ispfw.4 joy.4 kame.4 keyboard.4 kld.4 \
 	kue.4 lo.4 lp.4 lpbb.4 lpt.4 md.4 mem.4 mlx.4 mouse.4 mtio.4 natm.4 \
-	ncr.4 netintro.4 ng_ether.4 null.4 ohci.4 pass.4 pci.4 pcm.4 pcvt.4 \
+	ncr.4 netintro.4 \
+	ng_bridge.4 ng_ether.4 \
+	null.4 ohci.4 pass.4 pci.4 pcm.4 pcvt.4 \
 	ppbus.4 ppc.4 ppi.4 ppp.4 psm.4 pt.4 pty.4 rl.4 \
 	route.4 sa.4 sbc.4 screen.4 scsi.4 \
 	sd.4 ses.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \

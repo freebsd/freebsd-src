@@ -376,8 +376,8 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_bridge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr, hook_p lasthook)
+ng_bridge_rcvmsg(node_p node, struct ng_mesg *msg,
+	const char *retaddr, struct ng_mesg **rptr)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
@@ -513,8 +513,7 @@ ng_bridge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Receive data on a hook
  */
 static int
-ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+ng_bridge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

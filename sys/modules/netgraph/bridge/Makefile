@@ -2,6 +2,6 @@
 
 KMOD=		ng_bridge
 SRCS= 		ng_bridge.c
-NOMAN=
+KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
