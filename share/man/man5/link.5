@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: link.5,v 1.4 1996/01/30 13:51:35 mpp Exp $
+.\"	$Id: link.5,v 1.5 1996/04/08 04:18:14 mpp Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -35,6 +35,8 @@
 .Nm link
 .Nd dynamic loader and link editor interface
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <nlist.h>
 .Fd #include <link.h>
 .Sh DESCRIPTION
 The include file
