@@ -35,23 +35,34 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/file.h>
-#include <time.h>
-#include <pwd.h>
-#include <utmp.h>
-#include <stdio.h>
+#include <err.h>
 #include <locale.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <utmp.h>
 
+static void usage __P((void));
+void output __P((struct utmp *));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -60,7 +71,7 @@ main(argc, argv)
 	struct utmp usr;
 	struct passwd *pw;
 	FILE *ufp, *file();
-	char *t, *rindex(), *strcpy(), *strncpy(), *ttyname();
+	char *t;
 
 	(void) setlocale(LC_TIME, "");
 
@@ -82,9 +93,9 @@ main(argc, argv)
 		ufp = file(_PATH_UTMP);
 
 		/* search through the utmp and find an entry for this tty */
-		if (p = ttyname(0)) {
+		if ((p = ttyname(0))) {
 			/* strip any directory component */
-			if (t = rindex(p, '/'))
+			if ((t = rindex(p, '/')))
 				p = t + 1;
 			while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1)
 				if (*usr.ut_name && !strcmp(usr.ut_line, p)) {
@@ -102,12 +113,21 @@ main(argc, argv)
 		output(&usr);
 		break;
 	default:
-		(void)fprintf(stderr, "usage: who [ file ]\n       who am i\n");
-		exit(1);
+		usage();
 	}
 	exit(0);
 }
 
+static void
+usage()
+{
+	(void)fprintf(stderr, "%s\n%s\n",
+		"usage: who [file]",
+		"       who am i");
+	exit(1);
+}
+
+void
 output(up)
 	struct utmp *up;
 {
@@ -127,13 +147,9 @@ FILE *
 file(name)
 	char *name;
 {
-	extern int errno;
 	FILE *ufp;
-	char *strerror();
 
-	if (!(ufp = fopen(name, "r"))) {
-		(void)fprintf(stderr, "who: %s: %s.\n", name, strerror(errno));
-		exit(1);
-	}
+	if (!(ufp = fopen(name, "r")))
+		err(1, "%s", name);
 	return(ufp);
 }
