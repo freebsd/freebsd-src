@@ -17,6 +17,8 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "system.h"
 #include "rmt.h"
 #include "common.h"
@@ -549,10 +551,8 @@ void
 chmod_error_details (char const *name, mode_t mode)
 {
   int e = errno;
-  char buf[10];
-  decode_mode (mode, buf);
-  ERROR ((0, e, _("%s: Cannot change mode to %s"),
-	  quotearg_colon (name), buf));
+  ERROR ((0, e, _("%s: Cannot change mode to 0%o"),
+	  quotearg_colon (name), mode));
 }
 
 void
