@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.88 1996/06/28 05:36:00 phk Exp $
+#	$Id: Makefile,v 1.89 1996/07/01 06:13:31 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -312,7 +312,7 @@ libraries:
 	cd ${.CURDIR}/lib && \
 		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(usr.sbin/lex/lib)
+.if exists(usr.bin/lex/lib)
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
