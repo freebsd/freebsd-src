@@ -4378,8 +4378,10 @@ ahc_qinfifo_requeue_tail(struct ahc_softc *ahc, struct scb *scb)
 	prev_scb = NULL;
 	if (ahc_qinfifo_count(ahc) != 0) {
 		u_int prev_tag;
+		uint8_t prev_pos;
 
-		prev_tag = ahc->qinfifo[ahc->qinfifonext - 1];
+		prev_pos = ahc->qinfifonext - 1;
+		prev_tag = ahc->qinfifo[prev_pos];
 		prev_scb = ahc_lookup_scb(ahc, prev_tag);
 	}
 	ahc_qinfifo_requeue(ahc, prev_scb, scb);
@@ -4406,13 +4408,15 @@ static int
 ahc_qinfifo_count(struct ahc_softc *ahc)
 {
 	u_int8_t qinpos;
+	u_int8_t diff;
 
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
 		qinpos = ahc_inb(ahc, SNSCB_QOFF);
 		ahc_outb(ahc, SNSCB_QOFF, qinpos);
 	} else
 		qinpos = ahc_inb(ahc, QINPOS);
-	return (ahc->qinfifonext - qinpos);
+	diff = ahc->qinfifonext - qinpos;
+	return (diff);
 }
 
 int
