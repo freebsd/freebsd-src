@@ -218,8 +218,8 @@ ata_completed(void *context, int pending)
     untimeout((timeout_t *)ata_timeout, request, request->timeout_handle);
 
     /* do the all the magic for completition evt retry etc etc */
-    if (request->status & ATA_S_CORR)
-	ata_prtdev(request->device, "WARNING - %s soft error (ECC corrected)",
+    if (request->status & (ATA_S_CORR | ATA_S_ERROR) == ATA_S_CORR)
+	ata_prtdev(request->device, "WARNING - %s soft error (ECC corrected)\n",
 		   ata_cmd2str(request));
 
     /* if this is a UDMA CRC error, retry request */
