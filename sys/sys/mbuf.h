@@ -103,7 +103,7 @@ struct pkthdr {
 struct m_ext {
 	caddr_t	ext_buf;		/* start of buffer */
 	void	(*ext_free)		/* free routine if not the usual */
-		__P((caddr_t, void *));
+		    (caddr_t, void *);
 	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
 	union	mext_refcnt *ref_cnt;	/* pointer to ref count info */
@@ -300,7 +300,7 @@ struct mcntfree_lst {
 #define _MEXT_ALLOC_CNT(m_cnt, how) do {				\
 	union mext_refcnt *__mcnt;					\
 									\
-	mtx_lock(&mcntfree.m_mtx);				\
+	mtx_lock(&mcntfree.m_mtx);					\
 	if (mcntfree.m_head == NULL)					\
 		m_alloc_ref(1, (how));					\
 	__mcnt = mcntfree.m_head;					\
@@ -309,18 +309,18 @@ struct mcntfree_lst {
 		mbstat.m_refree--;					\
 		__mcnt->refcnt = 0;					\
 	}								\
-	mtx_unlock(&mcntfree.m_mtx);				\
+	mtx_unlock(&mcntfree.m_mtx);					\
 	(m_cnt) = __mcnt;						\
 } while (0)
 
 #define _MEXT_DEALLOC_CNT(m_cnt) do {					\
 	union mext_refcnt *__mcnt = (m_cnt);				\
 									\
-	mtx_lock(&mcntfree.m_mtx);				\
+	mtx_lock(&mcntfree.m_mtx);					\
 	__mcnt->next_ref = mcntfree.m_head;				\
 	mcntfree.m_head = __mcnt;					\
 	mbstat.m_refree++;						\
-	mtx_unlock(&mcntfree.m_mtx);				\
+	mtx_unlock(&mcntfree.m_mtx);					\
 } while (0)
 
 #define MEXT_INIT_REF(m, how) do {					\
@@ -371,14 +371,14 @@ struct mcntfree_lst {
 	int _mhow = (how);						\
 	int _mtype = (type);						\
 									\
-	mtx_lock(&mmbfree.m_mtx);				\
+	mtx_lock(&mmbfree.m_mtx);					\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
 		mbtypes[_mtype]++;					\
-		mtx_unlock(&mmbfree.m_mtx);			\
+		mtx_unlock(&mmbfree.m_mtx);				\
 		_MGET_SETUP(_mm, _mtype);				\
 	} else								\
-		mtx_unlock(&mmbfree.m_mtx);			\
+		mtx_unlock(&mmbfree.m_mtx);				\
 	(m) = _mm;							\
 } while (0)
 
@@ -398,14 +398,14 @@ struct mcntfree_lst {
 	int _mhow = (how);						\
 	int _mtype = (type);						\
 									\
-	mtx_lock(&mmbfree.m_mtx);				\
+	mtx_lock(&mmbfree.m_mtx);					\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
 		mbtypes[_mtype]++;					\
-		mtx_unlock(&mmbfree.m_mtx);			\
+		mtx_unlock(&mmbfree.m_mtx);				\
 		_MGETHDR_SETUP(_mm, _mtype);				\
 	} else								\
-		mtx_unlock(&mmbfree.m_mtx);			\
+		mtx_unlock(&mmbfree.m_mtx);				\
 	(m) = _mm;							\
 } while (0)
 
@@ -437,9 +437,9 @@ struct mcntfree_lst {
 #define	MCLGET(m, how) do {						\
 	struct mbuf *_mm = (m);						\
 									\
-	mtx_lock(&mclfree.m_mtx);				\
+	mtx_lock(&mclfree.m_mtx);					\
 	_MCLALLOC(_mm->m_ext.ext_buf, (how));				\
-	mtx_unlock(&mclfree.m_mtx);				\
+	mtx_unlock(&mclfree.m_mtx);					\
 	if (_mm->m_ext.ext_buf != NULL) {				\
 		MEXT_INIT_REF(_mm, (how));				\
 		if (_mm->m_ext.ref_cnt == NULL) {			\
@@ -474,12 +474,12 @@ struct mcntfree_lst {
 #define	_MCLFREE(p) do {						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
-	mtx_lock(&mclfree.m_mtx);				\
+	mtx_lock(&mclfree.m_mtx);					\
 	_mp->mcl_next = mclfree.m_head;					\
 	mclfree.m_head = _mp;						\
 	mbstat.m_clfree++;						\
 	MBWAKEUP(m_clalloc_wid);					\
-	mtx_unlock(&mclfree.m_mtx); 				\
+	mtx_unlock(&mclfree.m_mtx); 					\
 } while (0)
 
 /* MEXTFREE:
@@ -514,7 +514,7 @@ struct mcntfree_lst {
 	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
 	if (_mm->m_flags & M_EXT)					\
 		MEXTFREE(_mm);						\
-	mtx_lock(&mmbfree.m_mtx);				\
+	mtx_lock(&mmbfree.m_mtx);					\
 	mbtypes[_mm->m_type]--;						\
 	_mm->m_type = MT_FREE;						\
 	mbtypes[MT_FREE]++;						\
@@ -522,7 +522,7 @@ struct mcntfree_lst {
 	_mm->m_next = mmbfree.m_head;					\
 	mmbfree.m_head = _mm;						\
 	MBWAKEUP(m_mballoc_wid);					\
-	mtx_unlock(&mmbfree.m_mtx); 				\
+	mtx_unlock(&mmbfree.m_mtx); 					\
 } while (0)
 
 /*
@@ -546,7 +546,7 @@ struct mcntfree_lst {
 	_mto->m_data = _mto->m_pktdat;					\
 	_mto->m_flags = _mfrom->m_flags & M_COPYFLAGS;			\
 	_mto->m_pkthdr = _mfrom->m_pkthdr;				\
-	_mfrom->m_pkthdr.aux = (struct mbuf *)NULL;			\
+	_mfrom->m_pkthdr.aux = NULL;					\
 } while (0)
 
 /*
@@ -650,33 +650,33 @@ extern	int		 nmbclusters;
 extern	int		 nmbufs;
 extern	int		 nsfbufs;
 
-void	m_adj __P((struct mbuf *, int));
-int	m_alloc_ref __P((u_int, int));
-void	m_cat __P((struct mbuf *,struct mbuf *));
-int	m_clalloc __P((int, int));
-caddr_t	m_clalloc_wait __P((void));
-void	m_copyback __P((struct mbuf *, int, int, caddr_t));
-void	m_copydata __P((struct mbuf *,int,int,caddr_t));
-struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
-struct	mbuf *m_copypacket __P((struct mbuf *, int));
-struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
-    void (*copy)(char *, caddr_t, u_int)));
-struct	mbuf *m_dup __P((struct mbuf *, int));
-struct	mbuf *m_free __P((struct mbuf *));
-void	m_freem __P((struct mbuf *));
-struct	mbuf *m_get __P((int, int));
-struct	mbuf *m_getclr __P((int, int));
-struct	mbuf *m_gethdr __P((int, int));
-int	m_mballoc __P((int, int));
-struct	mbuf *m_mballoc_wait __P((void));
-struct	mbuf *m_prepend __P((struct mbuf *,int,int));
-struct	mbuf *m_pulldown __P((struct mbuf *, int, int, int *));
-void	m_print __P((const struct mbuf *m));
-struct	mbuf *m_pullup __P((struct mbuf *, int));
-struct	mbuf *m_split __P((struct mbuf *,int,int));
-struct	mbuf *m_aux_add __P((struct mbuf *, int, int));
-struct	mbuf *m_aux_find __P((struct mbuf *, int, int));
-void	m_aux_delete __P((struct mbuf *, struct mbuf *));
+void	m_adj(struct mbuf *, int);
+int	m_alloc_ref(u_int, int);
+void	m_cat(struct mbuf *,struct mbuf *);
+int	m_clalloc(int, int);
+caddr_t	m_clalloc_wait(void);
+void	m_copyback(struct mbuf *, int, int, caddr_t);
+void	m_copydata(struct mbuf *,int,int,caddr_t);
+struct	mbuf *m_copym(struct mbuf *, int, int, int);
+struct	mbuf *m_copypacket(struct mbuf *, int);
+struct	mbuf *m_devget(char *, int, int, struct ifnet *,
+    void (*copy)(char *, caddr_t, u_int));
+struct	mbuf *m_dup(struct mbuf *, int);
+struct	mbuf *m_free(struct mbuf *);
+void	m_freem(struct mbuf *);
+struct	mbuf *m_get(int, int);
+struct	mbuf *m_getclr(int, int);
+struct	mbuf *m_gethdr(int, int);
+int	m_mballoc(int, int);
+struct	mbuf *m_mballoc_wait(void);
+struct	mbuf *m_prepend(struct mbuf *,int,int);
+struct	mbuf *m_pulldown(struct mbuf *, int, int, int *);
+void	m_print(const struct mbuf *m);
+struct	mbuf *m_pullup(struct mbuf *, int);
+struct	mbuf *m_split(struct mbuf *,int,int);
+struct	mbuf *m_aux_add(struct mbuf *, int, int);
+struct	mbuf *m_aux_find(struct mbuf *, int, int);
+void	m_aux_delete(struct mbuf *, struct mbuf *);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
