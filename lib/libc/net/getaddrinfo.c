@@ -1943,12 +1943,12 @@ _dns_getaddrinfo(rv, cb_data, ap)
 {
 	struct addrinfo *ai;
 	querybuf *buf, *buf2;
-	const char *name;
+	const char *hostname;
 	const struct addrinfo *pai;
 	struct addrinfo sentinel, *cur;
 	struct res_target q, q2;
 
-	name = va_arg(ap, char *);
+	hostname = va_arg(ap, char *);
 	pai = va_arg(ap, const struct addrinfo *);
 
 	memset(&q, 0, sizeof(q2));
@@ -1971,27 +1971,27 @@ _dns_getaddrinfo(rv, cb_data, ap)
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		q.next = &q2;
-		q2.name = name;
+		q2.name = hostname;
 		q2.qclass = C_IN;
 		q2.qtype = T_A;
 		q2.answer = buf2->buf;
 		q2.anslen = sizeof(buf2->buf);
 		break;
 	case AF_INET:
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_A;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		break;
 	case AF_INET6:
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
@@ -2002,7 +2002,7 @@ _dns_getaddrinfo(rv, cb_data, ap)
 		free(buf2);
 		return NS_UNAVAIL;
 	}
-	if (res_searchN(name, &q) < 0) {
+	if (res_searchN(hostname, &q) < 0) {
 		free(buf);
 		free(buf2);
 		return NS_NOTFOUND;
