@@ -45,6 +45,7 @@
 		.set _MNUOPT,0xc		# Menu options
 
 		.globl start			# Entry point
+		.code16				# This runs in real mode
 
 #
 # Initialise segments and registers to known values.
@@ -52,49 +53,59 @@
 # The stack is immediatly below the address we were loaded to.
 #
 start:		cld				# String ops inc
-		xorl %eax,%eax			# Zero
-		movl %eax,%es			# Address
-		movl %eax,%ds			#  data
-		movl %eax,%ss			# Set up
-		movwir(LOAD,_sp)		#  stack
+		xorw %ax,%ax			# Zero
+		movw %ax,%es			# Address
+		movw %ax,%ds			#  data
+		movw %ax,%ss			# Set up
+		movw $LOAD,%sp			#  stack
+	
 #
 # Copy this code to the address it was linked for
 #
-		movl %esp,%esi			# Source
-		movwir(start,_di)		# Destination
-		movwir(0x100,_cx)		# Word count
+		movw %sp,%si			# Source
+		movw $start,%di			# Destination
+		movw $0x100,%cx			# Word count
 		rep				# Relocate
-		movsl				#  code
+		movsw				#  code
 #
 # Set address for variable space beyond code, and clear it.
 # Notice that this is also used to point to the values embedded in in the block,
 # by using negative offsets.
 #
-		movl %edi,%ebp			# Address variables
+		movw %di,%bp			# Address variables
 		movb $0x8,%cl			# Words to clear
 		rep				# Zero
-		stosl				#  them
+		stosw				#  them
 #
 # Relocate to the new copy of the code.
 #
 		incb1(-0xe,_di_)		# Sector number
+		/* incb $-0xe(%di) */
 		jmpnwi(main-LOAD+ORIGIN)	# To relocated code
+		/* jmp main-LOAD+ORIGIN */
 #
 # Check what flags were loaded with us, specifically, Use a predefined Drive.
 # If what the bios gives us is bad, use the '0' in the block instead, as well.
 #
 main:		tstbi1(0x20,_FLAGS,_bp_)	# Set number drive?
+		/* testb $(0x20+_FLAGS)(%bp) */
+		.code32
 		jnz main.1			# Yes
+		.code16
 		testb %dl,%dl			# Drive number valid?
+		.code32
 		js main.2			# Possibly (0x80 set)
+		.code16
 main.1: 	movb1r(_SETDRV,_bp_,_dl)	# Drive number to use
+		/* movb $_SETDRV(%bp),%dl */
 #
 # Whatever we decided to use, now store it into the fake
 # partition entry that lives in the data space above us.
 #
 main.2: 	movbr1(_dl,_FAKE,_bp_)		# Save drive number
+		/* movb %dl,$_FAKE(%bp) */
 		callwi(putn)			# To new line
-		pushl %edx			# Save drive number
+		pushw %dx			# Save drive number
 #
 # Start out with a pointer to the 4th byte of the first table entry
 # so that after 4 iterations it's beyond the end of the sector.
@@ -102,59 +113,75 @@ main.2: 	movbr1(_dl,_FAKE,_bp_)		# Save drive number
 # (remember that the table starts 2 bytes earlier than you would expect
 # as the bootable flag is after it in the block)
 #
-		movwir(partbl+0x4,_bx)		# Partition table (+4)
-		xorl %edx,%edx			# Item number
+		movw $(partbl+0x4),%bx		# Partition table (+4)
+		xorw %dx,%dx			# Item number
 #
 # Loop around on the partition table, printing values until we
 # pass a 256 byte boundary. The end of loop test is at main.5.
 #
 main.3: 	movbr1(_ch,-0x4,_bx_)		# Zero active flag (ch == 0)
+	 	/* movb %ch,$-0x4(%bx) */
 		btwr1(_dx,_FLAGS,_bp_)		# Entry enabled?
+		/* bt %dx,$_FLAGS(%bp) */
+		.code32
 		jnc main.5			# No
+		.code16
 #
 # If any of the entries in the table are
 # the same as the 'type' in the slice table entry,
 # then this is an empty or non bootable partition. Skip it.
 #
 		movb0r(_bx_,_al)		# Load type
-		movwir(tables,_di)		# Lookup tables
+		/* movb (%bx),%al */
+		movw $tables,%di		# Lookup tables
 		movb $TBL0SZ,%cl		# Number of entries
 		repne				# Exclude
 		scasb				#  partition?
+		.code32
 		je main.5			# Yes
+		.code16
 #
 # Now scan the table of known types
 #
 		movb $TBL1SZ,%cl		# Number of entries
 		repne				# Known
 		scasb				#  type?
+		.code32
 		jne main.4			# No
+		.code16
 #
 # If it matches get the matching element in the
 # next array. if it doesn't, we are already
 # pointing at its first element which points to a "?".
 #
-		addwir(TBL1SZ,_di)		# Adjust
-main.4: 	movb0r(_di_,_cl)		# Partition  
-		addl %ecx,%edi			#  description
+		addw $TBL1SZ,%di		# Adjust
+main.4: 	movb0r(_di_,_cl)		# Partition
+		/* movb (%di),%cl */
+		addw %cx,%di			#  description
 		callwi(putx)			# Display it
-main.5: 	incl %edx			# Next item 
+main.5: 	incw %dx			# Next item 
 		addb $0x10,%bl			# Next entry
+		.code32
 		jnc main.3			# Till done
+		.code16
 #
 # Passed a 256 byte boundary..
 # table is finished.
 # Add one to the drive number and check it is valid, 
 #
-		popl %eax			# Drive number
+		popw %ax			# Drive number
 		subb $0x80-0x1,%al		# Does next
-		cmpbmr(NHRDRV,_al)		#  drive exist? (from BIOS?)
+		cmpb NHRDRV,%al			#  drive exist? (from BIOS?)
+		.code32
 		jb main.6			# Yes
+		.code16
 # If not then if there is only one drive,
 # Don't display drive as an option.
 #
-		decl %eax			# Already drive 0?
+		decw %ax			# Already drive 0?
+		.code32
 		jz main.7			# Yes
+		.code16
 # If it was illegal or we cycled through them,
 # then go back to drive 0.
 #
@@ -168,37 +195,47 @@ main.5: 	incl %edx			# Next item
 #
 main.6: 	addb $'0'|0x80,%al		# Save next
 		movbr1(_al,_NXTDRV,_bp_)	#  drive number
-		movwir(drive,_di)		# Display
+		/* movb %al,$NXTDRV(%bp) */
+		movw $drive,%di			# Display
 		callwi(putx)			#  item
 #
 # Now that we've printed the drive (if we needed to), display a prompt.
 # Get ready for the input byt noting the time.
 #
-main.7: 	movwir(prompt,_si)		# Display
+main.7: 	movw $prompt,%si		# Display
 		callwi(putstr)			#  prompt
 		movb1r(_OPT,_bp_,_dl)		# Display
-		decl %esi			#  default
+		/* movb $_OPT(%bp),%dl */
+		decw %si			#  default
 		callwi(putkey)			#  key
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
-		movl %edx,%edi			# Ticks when
+		movw %dx,%di			# Ticks when
 		addw1r(_TICKS,_bp_,_di) 	#  timeout
+		/* addw $_TICKS(%bp),%di */
 # 
 # Busy loop, looking for keystrokes but
 # keeping one eye on the time.
 #
 main.8: 	movb $0x1,%ah			# BIOS: Check
 		int $0x16			#  for keypress
+		.code32
 		jnz main.11			# Have one
+		.code16
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
-		cmpl %edi,%edx			# Timeout?
+		cmpw %di,%dx			# Timeout?
+		.code32
 		jb main.8			# No
+		.code16
 #
 # If timed out or defaulting, come here.
 #
 main.9: 	movb1r(_OPT,_bp_,_al)		# Load default
+		/* movb $_OPT(%bp),%al */
+		.code32
 		jmp main.12			# Join common code
+		.code16
 #
 # User's last try was bad, beep in displeasure.
 # Since nothing was printed, just continue on as if the user
@@ -218,74 +255,99 @@ main.11:	xorb %ah,%ah			# BIOS: Get
 # If it's CR act as if timed out.
 #
 		cmpb $KEY_ENTER,%al		# Enter pressed?
+		.code32
 		je main.9			# Yes
+		.code16
 #
 # Otherwise check if legal
 # If not ask again.
 #
 		subb $KEY_F1,%al		# Less F1 scan code
 		cmpb $0x4,%al			# F1..F5?
+		.code32
 		ja main.10			# No
+		.code16
 #
 # We have a selection.
 # but if it's a bad selection go back to complain.
 # The bits in MNUOPT were set when the options were printed.
 # Anything not printed is not an option.
 #
-main.12:	cwtl				# Option
+main.12:	cbtw				# Option
 		btwr1(_ax,_MNUOPT,_bp_) 	#  enabled?
+		/* btw %ax,$_MNUOPT(%bp) */
+		.code32
 		jnc main.10			# No
+		.code16
 #
 # Save the info in the original tables
 # for rewriting to the disk.
 #
 		movbr1(_al,_OPT,_bp_)		# Save option
-		movwir(FAKE,_si)		# Partition for write
+		/* movb %al,$OPT(%bp) */
+		movw $FAKE,%si			# Partition for write
 		movb0r(_si_,_dl)		# Drive number
-		movl %esi,%ebx			# Partition for read
+		/* movb (%si),%dl */
+		movw %si,%bx			# Partition for read
 		cmpb $0x4,%al			# F5 pressed?
-		pushfl				# Save
+		pushf				# Save
+		.code32
 		je main.13			# Yes
+		.code16
 		shlb $0x4,%al			# Point to
-		addwia(partbl)			#  selected
-		xchgl %ebx,%eax 		#  partition
+		addw $partbl,%ax		#  selected
+		xchgw %bx,%ax	 		#  partition
 		movbi0(0x80,_bx_)		# Flag active
+		/* movb $0x80,(%bx) */
 #
 # If not asked to do a write-back (flags 0x40) don't do one.
 #
-main.13:	pushl %ebx			# Save
+main.13:	pushw %bx			# Save
 		tstbi1(0x40,_FLAGS,_bp_)	# No updates?
+		/* testb $0x40,$_FLAGS(%bp) */
+		.code32
 		jnz main.14			# Yes
-		movwir(start,_bx)		# Data to write
+		.code16
+		movw $start,%bx			# Data to write
 		movb $0x3,%ah			# Write sector
 		callwi(intx13)			#  to disk
-main.14:	popl %esi			# Restore
-		popfl				# Restore
+main.14:	popw %si			# Restore
+		popf				# Restore
 #
 # If going to next drive, replace drive with selected one.
 # Remember to un-ascii it. Hey 0x80 is already set, cool!
 #
+		.code32
 		jne main.15			# If not F5
+		.code16
 		movb1r(_NXTDRV,_bp_,_dl)	# Next drive
+		/* movb $_NXTDRV(%bp),%dl */
 		subb $'0',%dl			#  number
 # 
 # load  selected bootsector to the LOAD location in RAM.
 # If it fails to read or isn't marked bootable, treat it
 # as a bad selection.
-# XXX what does %esi carry?
+# XXX what does %si carry?
 #
-main.15:	movwir(LOAD,_bx)		# Address for read
+main.15:	movw $LOAD,%bx			# Address for read
 		movb $0x2,%ah			# Read sector
 		callwi(intx13)			#  from disk
+		.code32
 		jc main.10			# If error
+		.code16
 		cmpwi2(MAGIC,0x1fe,_bx_)	# Bootable?
+		/* cmpw $MAGIC,$0x1fe(%bx) */
+		.code32
 		jne main.10			# No
-		pushl %esi			# Save
-		movwir(crlf,_si)		# Leave some
+		.code16
+		pushw %si			# Save
+		movw $crlf,%si			# Leave some
 		callwi(puts)			#  space
-		popl %esi			# Restore
+		popw %si			# Restore
+		.code32
 		jmp *%ebx			# Invoke bootstrap
-
+		/* jmp *%bx */
+		.code16
 #
 # Display routines
 #
@@ -294,59 +356,71 @@ putkey: 	movb $'F',%al			# Display
 		callwi(putchr)			#  'F'
 		movb $'1',%al			# Prepare
 		addb %dl,%al			#  digit
+		.code32
 		jmp putstr.1			# Display the rest
+		.code16
 
 #
 # Display the option and note that it is a valid option.
 # That last point is a bit tricky..
 #
 putx:		btswr1(_dx,_MNUOPT,_bp_)	# Enable menu option
-		movwir(item,_si)		# Display
+		/* btsw %dx,$_MNUOPT(%bp) */
+		movw $item,%si			# Display
 		callwi(putkey)			#  key
-		movl %edi,%esi			# Display the rest
+		movw %di,%si			# Display the rest
 
 puts:		callwi(putstr)			# Display string
 
-putn:		movwir(crlf,_si)		# To next line
+putn:		movw $crlf,%si			# To next line
 
 putstr: 	lodsb				# Get byte
 		testb $0x80,%al 		# End of string?
+		.code32
 		jnz putstr.2			# Yes
+		.code16
 putstr.1:	callwi(putchr)			# Display char
+		.code32
 		jmp putstr			# Continue
+		.code16
 putstr.2:	andb $~0x80,%al 		# Clear MSB
 
-putchr: 	pushl %ebx			# Save
-		movwir(0x7,_bx) 		# Page:attribute
+putchr: 	pushw %bx			# Save
+		movw $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
-		popl %ebx			# Restore
-		ret				# To caller
+		popw %bx			# Restore
+		retn				# To caller
 
 # One-sector disk I/O routine
 
 intx13: 	movb1r(0x1,_si_,_dh)		# Load head
+		/* movb $0x1(%si),%dh */
 		movw1r(0x2,_si_,_cx)		# Load cylinder:sector
+		/* movw $0x2(%si),%cx */
 		movb $0x1,%al			# Sector count
-		pushl %esi			# Save
-		movl %esp,%edi			# Save
+		pushw %si			# Save
+		movw %sp,%di			# Save
 		tstbi1(0x80,_FLAGS,_bp_)	# Use packet interface?
+		/* testb $0x80,$_FLAGS(%bp) */
+		.code32
 		jz intx13.1			# No
-		o16				# Set
-		pushb $0x0			#  the
+		.code16
+		pushl $0x0			# Set the
 		o16				#  LBA
 		pushw1(0x8,_si_)		#  address
-		pushl %es			# Set the transfer
-		pushl %ebx			#  buffer address
-		pushb $0x1			# Block count
-		pushb $0x10			# Packet size
-		movl %esp,%esi			# Packet pointer
-		decl %eax			# Verify off
+		/* pushl $0x8(%si) */
+		pushw %es			# Set the transfer
+		pushw %bx			#  buffer address
+		push  $0x1			# Block count
+		push  $0x10			# Packet size
+		movw %sp,%si			# Packet pointer
+		decw %ax			# Verify off
 		orb $0x40,%ah			# Use disk packet
 intx13.1:	int $0x13			# BIOS: Disk I/O
-		movl %edi,%esp			# Restore
-		popl %esi			# Restore
-		ret				# To caller
+		movw %di,%sp			# Restore
+		popw %si			# Restore
+		retn				# To caller
 
 # Menu strings
 
