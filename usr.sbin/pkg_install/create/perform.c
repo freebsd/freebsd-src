@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.8 1994/05/19 18:27:41 alm Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.9 1994/05/25 06:24:41 jkh Exp $";
 #endif
 
 /*
@@ -55,7 +55,7 @@ pkg_perform(char **pkgs)
     plist.head = plist.tail = NULL;
 
     /* Break the package name into base and desired suffix (if any) */
-    if ((cp = index(pkg, '.')) != NULL) {
+    if ((cp = rindex(pkg, '.')) != NULL) {
 	suffix = cp + 1;
 	*cp = '\0';
     }
@@ -142,7 +142,10 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     int ret;
 
     args[0] = '\0';
-    sprintf(tball, "%s/%s.%s", home, pkg, suffix);
+    if (*pkg == '/')
+	sprintf(tball, "%s.%s", pkg, suffix);
+    else
+	sprintf(tball, "%s/%s.%s", home, pkg, suffix);
     if (index(suffix, 'z'))	/* Compress/gzip? */
 	strcat(args, "z");
     if (Dereference)
