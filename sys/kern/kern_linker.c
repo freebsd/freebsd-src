@@ -242,11 +242,10 @@ extern struct linker_set modmetadata_set;
 static int
 linker_file_register_modules(linker_file_t lf)
 {
-    int error, mcount;
+    int error;
     struct linker_set *modules;
     struct mod_metadata **mdpp;
     const moduledata_t *moddata;
-    struct sysinit **sipp;
 
     KLD_DPF(FILE, ("linker_file_register_modules: registering modules in %s\n",
 		   lf->filename));
@@ -257,39 +256,23 @@ linker_file_register_modules(linker_file_t lf)
     if (!modules && lf == linker_kernel_file)
 	modules = &modmetadata_set;
 
-    mcount = 0;
-    if (modules) {
-	for (mdpp = (struct mod_metadata**)modules->ls_items; *mdpp; mdpp++) {
-	    if ((*mdpp)->md_type != MDT_MODULE)
-		continue;
-	    mcount++;
-	    moddata = (*mdpp)->md_data;
-	    KLD_DPF(FILE, ("Registering module %s in %s\n",
-                 moddata->name, lf->filename));
-	    error = module_register(moddata, lf);
-	    if (error)
-		printf("Module %s failed to register: %d\n", moddata->name, error);
+    if (modules == NULL)
+	return 0;
+    for (mdpp = (struct mod_metadata**)modules->ls_items; *mdpp; mdpp++) {
+	if ((*mdpp)->md_type != MDT_MODULE)
+	    continue;
+	moddata = (*mdpp)->md_data;
+	KLD_DPF(FILE, ("Registering module %s in %s\n",
+             moddata->name, lf->filename));
+	if (module_lookupbyname(moddata->name) != NULL) {
+	    printf("Warning: module %s already exists\n", moddata->name);
+	    continue;	/* or return a error ? */
 	}
+	error = module_register(moddata, lf);
+	if (error)
+	    printf("Module %s failed to register: %d\n", moddata->name, error);
     }
-    if (mcount)
-	return mcount;	/* Do not mix old and new style */
-
-    /* Hack - handle old kld's without metadata */
-    modules = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysinit_set", 0);
-    if (modules) {
-	for (sipp = (struct sysinit **)modules->ls_items; *sipp; sipp++) {
-	    if ((*sipp)->func != module_register_init)
-		continue;
-	    mcount++;
-	    moddata = (*sipp)->udata;
-	    printf("Old-style KLD file %s found\n", moddata->name);
-	    error = module_register(moddata, lf);
-	    if (error)
-		printf("Old-style KLD file %s failed to register: %d\n", moddata->name, error);
-	}
-    }
-    return mcount;
+    return 0;
 }
 
 static void
@@ -962,7 +945,7 @@ linker_preload(void* arg)
     char		*modtype;
     linker_file_t	lf;
     linker_class_t	lc;
-    int			error, mcount;
+    int			error;
     struct linker_set	*sysinits;
     linker_file_list_t	loaded_files;
     linker_file_list_t	depended_files;
@@ -1142,7 +1125,7 @@ restart:
 	    continue;
 	}
 
-	mcount = linker_file_register_modules(lf);
+	linker_file_register_modules(lf);
 	sysinits = (struct linker_set*)
 	    linker_file_lookup_symbol(lf, "sysinit_set", 0);
 	if (sysinits)
