@@ -997,7 +997,7 @@ check_type:
 		    if (buf_ptr >= buf_end)
 			fill_buffer();
 		}
-		while (*buf_ptr != '\n' || in_comment) {
+		while (*buf_ptr != '\n' || (in_comment && !had_eof)) {
 		    CHECK_SIZE_LAB;
 		    *e_lab = *buf_ptr++;
 		    if (buf_ptr >= buf_end)
