@@ -612,7 +612,8 @@ linux_sigaltstack(p, uap)
 
 	ss = stackgap_alloc(&sg, sizeof(stack_t));
 	ss->ss_sp = lss.ss_sp;
-	ss->ss_size = lss.ss_size;
+	ss->ss_size = (lss.ss_size >= LINUX_MINSIGSTKSZ &&
+	    lss.ss_size < MINSIGSTKSZ) ? MINSIGSTKSZ : lss.ss_size;
 	ss->ss_flags = lss.ss_flags;
 
 	oss = (uap->uoss != NULL)
