@@ -8,7 +8,8 @@ to input a string as the answer. You can \n\
 input strings of length longer than the \n\
 width of the input box, in that case, the \n\
 input field will be automatically scrolled. \n\
-You can use BACKSPACE to correct errors. \n\n\
+You can use BACKSPACE, LEFT, RIGHT, HOME, END \n\
+to correct errors. \n\n\
 Try inputing your name below:" 16 51 2> /tmp/inputbox.tmp.$$
 
 retval=$?
