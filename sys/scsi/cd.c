@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.73.2.2 1997/01/12 22:08:57 joerg Exp $
+ *      $Id: cd.c,v 1.73.2.3 1997/05/24 22:19:15 jmg Exp $
  */
 
 #include "opt_bounce.h"
@@ -831,6 +831,51 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			}
 
 			error = copyout(data.entries, te->data, len);
+		}
+		break;
+	case CDIOREADTOCENTRY:
+		{
+			struct {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entry;
+			} data;
+			struct ioc_read_toc_single_entry *te =
+			(struct ioc_read_toc_single_entry *) addr;
+			struct ioc_toc_header *th;
+			u_int32_t track;
+
+			if (te->address_format != CD_MSF_FORMAT
+			    && te->address_format != CD_LBA_FORMAT) {
+				error = EINVAL;
+				break;
+			}
+
+			th = &data.header;
+			error = cd_read_toc(unit, 0, 0,
+					(struct cd_toc_entry *)th, sizeof (*th));
+			if (error)
+				break;
+
+			track = te->track;
+			if (track == 0)
+				track = th->starting_track;
+			else if (track == LEADOUT)
+				/* OK */;
+			else if (track < th->starting_track ||
+				 track > th->ending_track + 1) {
+				error = EINVAL;
+				break;
+			}
+
+			error = cd_read_toc(unit, te->address_format,
+					    track,
+					    (struct cd_toc_entry *)&data,
+					    sizeof data);
+			if (error)
+				break;
+
+			bcopy(&data.entry, &te->entry,
+			      sizeof(struct cd_toc_entry));
 		}
 		break;
 	case CDIOCSETPATCH:

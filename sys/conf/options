@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18.2.4 1997/02/28 09:10:26 bde Exp $
+#	$Id: options,v 1.18.2.5 1997/02/28 15:41:25 bde Exp $
 
 # Format:
 # Option name	filename
@@ -28,6 +28,18 @@ NULLFS		opt_dontuse.h
 PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
+
+# The cd9660 static filesystem has one slightly bogus static dependency
+# in sys/i386/i386/autoconf.c.  If this filesystem is statically
+# compiled into the kernel, code for mounting a CD-ROM root filesystem
+# will be enabled.  This is purposely unavailable for the LKM-based
+# version.
+CD9660
+
+# In particular multi-session CD-Rs might require a huge amount of
+# time in order to "settle".  If we are about mounting them as the
+# root f/s, we gotta wait a little.
+CD9660_ROOTDELAY	opt_cd9660.h
 
 # The union static file system has bogus static dependencies, so it isn't
 # hidden yet.

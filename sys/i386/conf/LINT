@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.24 1997/06/28 07:56:05 kato Exp $
+#	$Id: LINT,v 1.286.2.25 1997/06/28 09:32:15 jhay Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -399,6 +399,13 @@ options		QUOTA			#enable disk quotas
 #options		KERNFS_DIAGNOSTIC
 #options		UMAPFS_DIAGNOSTIC
 #options		UNION_DIAGNOSTIC
+
+# In particular multi-session CD-Rs might require a huge amount of
+# time in order to "settle".  If we are about mounting them as the
+# root f/s, we gotta wait a little.
+#
+# The number is supposed to be in seconds.
+options			"CD9660_ROOTDELAY=20"
 
 # Add some error checking code to the null_bypass routine
 # in the NULL filesystem
