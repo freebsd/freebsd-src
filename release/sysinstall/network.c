@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.37 1999/07/18 10:18:05 jkh Exp $
+ * $Id: network.c,v 1.38 1999/07/26 10:49:35 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -330,9 +330,9 @@ startPPP(Device *devp)
 	dialog_clear_norefresh();
 	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
            "interact with it, ALT-F1 to switch back here). If you are using\n"
-           "a PAP or CHAP login simply enter \"dial\" otherwise you'll need\n"
-           "need to use is the \"term\" command which starts a terminal\n"
-           "emulator you can use to talk to your modem and dial the service\n"
+           "a PAP or CHAP login simply enter \"dial\", otherwise you'll need\n"
+           "to use the \"term\" command which starts a terminal emulator\n"
+           "which you can use to talk to your modem and dial the service\n"
            "provider.  Once you're connected, come back to this screen and\n"
            "press return.\n\n"
            "DO NOT PRESS [ENTER] HERE UNTIL THE CONNECTION IS FULLY\n"
