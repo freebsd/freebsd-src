@@ -101,6 +101,14 @@ MAN=	accept_filter.9 \
 	g_provider_by_name.9 \
 	g_wither_geom.9 \
 	hexdump.9 \
+	ieee80211.9 \
+	ieee80211_crypto.9 \
+	ieee80211_input.9 \
+	ieee80211_ioctl.9 \
+	ieee80211_node.9 \
+	ieee80211_output.9 \
+	ieee80211_proto.9 \
+	ieee80211_radiotap.9 \
 	ifnet.9 \
 	inittodr.9 \
 	intro.9 \
@@ -471,8 +479,7 @@ MLINKS+=ieee80211_input.9 ieee80211_decap.9 \
 	ieee80211_input.9 ieee80211_input.9 \
 	ieee80211_input.9 ieee80211_recv_mgmt.9
 MLINKS+=ieee80211_ioctl.9 ieee80211_cfgget.9 \
-	ieee80211_ioctl.9 ieee80211_cfgset.9 \
-	ieee80211_ioctl.9 ieee80211_ioctl.9 \
+	ieee80211_ioctl.9 ieee80211_cfgset.9
 MLINKS+=ieee80211_node.9 ieee80211_alloc_node.9 \
 	ieee80211_node.9 ieee80211_begin_scan.9 \
 	ieee80211_node.9 ieee80211_create_ibss.9 \
