@@ -37,6 +37,7 @@
 #ifndef _MACHINE_ENDIAN_H_
 #define	_MACHINE_ENDIAN_H_
 
+#include <sys/cdefs.h>
 #include <machine/ansi.h>
 
 /*
