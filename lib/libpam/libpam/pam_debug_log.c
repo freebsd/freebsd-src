@@ -53,8 +53,8 @@ _pam_verbose_error(pam_handle_t *pamh, int flags,
 		if (period == NULL)
 			period = strchr(modname, '\0');
 		va_start(ap, format);
-		asprintf(&fmtbuf, "%.*s: %s: %s\n", period - modname, modname,
-		    function, format);
+		asprintf(&fmtbuf, "%.*s: %s: %s\n", (int)(period - modname),
+		    modname, function, format);
 		pam_verror(pamh, fmtbuf, ap);
 		free(fmtbuf);
 		va_end(ap);
