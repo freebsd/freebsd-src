@@ -151,6 +151,34 @@ to the version of the operating system.  Failure to do so will cause
 .Nm
 to issue an error message and terminate.
 .Pp
+It is possible to configure
+.Nm
+in the kernel, but this is not recommended.  To do so, add this line to the
+kernel configuration file:
+.Bd -literal -offset indent
+pseudo-device	vinum
+.Ed
+.Pp
+If you do configure it in this manner, be sure to either:
+.Bl -bullet
+.It
+Specify the line
+.Bd -literal -offset indent
+options		VINUMDEBUG
+.Ed
+.Pp
+in the kernel configuration file.
+.It
+Modify the file
+.Pa /usr/src/sbin/vinum/Makefile
+and change the CFLAGS variable to remove the -DVINUMDEBUG option.
+.El
+.Pp
+If you do not do one of these, vinum(8) will fail with the message
+.Bd -literal -offset indent
+Can't get vinum config: Invalid argument
+.Ed
+.Pp
 .Nm
 is currently available in two versions: a freely available version which does
 not contain RAID-5 functionality, and a full version including RAID-5
@@ -197,7 +225,7 @@ also automatically loads the kld module if it is not yet loaded.
 .Pp
 After loading
 .Nm vinum ,
-it must be confiugred.  In an existing installation, the following command reads
+it must be configured.  In an existing installation, the following command reads
 the configuration an existing set of disks:
 .Bd -unfilled -offset indent
 # vinum read /dev/da1 /dev/da2 /dev/da3 /dev/da4 /dev/da5 /dev/da6
@@ -679,12 +707,11 @@ not yet fully functional.  If you have difficulties, please look at
 http://www.lemis.com/vinum_beta.html and
 http://www.lemis.com/vinum_debugging.html before reporting problems.
 .It
-It is possible to configure
+Kernels with the
 .Nm
-statically, but it has never been tested in this form.  Don't even bother to
-report the problem if you have trouble with a static
-.Nm
-pseudo-device, unless you can also repeat it with the kld module.
+pseudo-device appear to work, but are not supported.  If you have trouble with
+this configuration, please first replace the kernel with a non-Vinum
+kernel and test with the kld module.
 .It
 It is necessary to initialize RAID-5 plexes.  Failure to do so will not impede
 normal operation, but it will cause complete corruption if one of the disks
@@ -817,31 +844,6 @@ module with debugging information.  This is the normal situation with the
 standard
 .Pa Makefile.
 .It
-After starting 
-.Nm
-issue the following commands:
-.if t .ps -3
-.if t .vs -3
-.Bd -literal
-echo add-symbol-file /modules/vinum.ko \e
-  0x`objdump --section-headers /modules/vinum.ko \e
-  | grep ' .text' \e
-  | awk '{print $4}'`\+`kldstat \e
-  | grep vinum | awk '{print $3}'`
-.Ed
-.if t .vs
-.if t .ps
-.Pp
-It's easiest to store this in a file, make it executable, and run it.  The
-output will be something like:
-.if t .ps -3
-.if t .vs -3
-.Bd -literal
-add-symbol-file /modules/vinum.ko 0x00005e24+0xf0f4e000
-.Ed
-.if t .vs
-.if t .ps
-.It
 Copy the file
 .Pa /usr/src/sys/modules/vinum/.gdbinit.crash
 to the directory in which you will be performing the analysis, typically
@@ -875,7 +877,9 @@ or
 .Pa /usr/src/sys/modules/vinum/vinum.ko
 (if you have built
 .Nm
-in this directory).
+in this directory).  Modify the
+.Pa .gdbinit
+file accordingly.
 .It
 If you have not named your debug kernel
 .Pa /var/crash/kernel.gdb,
@@ -888,7 +892,7 @@ If you are remote debugging via a serial connection, copy the file
 as
 .Pa .gdbinit
 to the directory in which you perform the debugging, and start it with
-.Bd -literal -indent
+.Bd -literal -offset indent
 gdb -k
 .Ed
 .Pp
@@ -913,9 +917,13 @@ command of
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
-(kgdb) add-symbol-file /usr/src/sys/modules/vinum/vinum.ko 0x00005e24+0xf0f4e000
-add symbol table from file "/usr/src/sys/modules/vinum/vinum.ko" at text_addr = 0xf0f53e24?
-(y or n) y
+GDB 4.16 (i386-unknown-freebsd), Copyright 1996 Free Software Foundation, Inc.
+Debugger (msg=0xf1093174 "vinum debug") at ../../i386/i386/db_interface.c:318
+318                 in_Debugger = 0;
+#1  0xf108d9bc in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6dedee0 "",
+    flag=0x3, p=0xf68b7940) at 
+    /usr/src/sys/modules/Vinum/../../dev/Vinum/vinumioctl.c:102
+102             Debugger ("vinum debug");
 (kgdb) bt
 #0  Debugger (msg=0xf0f661ac "vinum debug") at ../../i386/i386/db_interface.c:318
 #1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "", 
@@ -936,18 +944,14 @@ add symbol table from file "/usr/src/sys/modules/vinum/vinum.ko" at text_addr = 
 #9  0x804832d in ?? ()
 #10 0x80482ad in ?? ()
 #11 0x80480e9 in ?? ()
-(kgdb) f 1
-#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "",
-    flag=0x3, p=0xf688e6c0) at
-    /usr/src/sys/modules/vinum/../../dev/vinum/vinumioctl.c:109
-Source file is more recent than executable.
-109             Debugger ("vinum debug");
 .Ed
 .if t .vs
 .if t .ps
 .Pp
-When entering from the debugger, it's important that the source of frame 1 (the
-bottom of the example) contains the text
+When entering from the debugger, it's important that the source of frame 1
+(listed by the
+.Pa .gdbinit
+file at the top of the example) contains the text
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
