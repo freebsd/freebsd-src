@@ -250,10 +250,9 @@ struct		vm_object pmap_mpvo_zone_obj;
 static vm_object_t	pmap_pvo_obj;
 static u_int		pmap_pvo_count;
 
-#define	PMAP_PVO_SIZE	1024
+#define	BPVO_POOL_SIZE	32768
 static struct	pvo_entry *pmap_bpvo_pool;
-static int	pmap_bpvo_pool_index;
-static int	pmap_bpvo_pool_count;
+static int	pmap_bpvo_pool_index = 0;
 
 #define	VSID_NBPW	(sizeof(u_int32_t) * 8)
 static u_int	pmap_vsid_bitmap[NPMAPS / VSID_NBPW];
@@ -541,6 +540,33 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	vm_offset_t	pa, va, off;
 	u_int		batl, batu;
 
+        /*
+         * Set up BAT0 to only map the lowest 256 MB area
+         */
+        battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
+        battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
+
+        /*
+         * Map PCI memory space.
+         */
+        battable[0x8].batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
+        battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
+
+        battable[0x9].batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
+        battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
+
+        battable[0xa].batl = BATL(0xa0000000, BAT_I|BAT_G, BAT_PP_RW);
+        battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
+
+        battable[0xb].batl = BATL(0xb0000000, BAT_I|BAT_G, BAT_PP_RW);
+        battable[0xb].batu = BATU(0xb0000000, BAT_BL_256M, BAT_Vs);
+
+        /*
+         * Map obio devices.
+         */
+        battable[0xf].batl = BATL(0xf0000000, BAT_I|BAT_G, BAT_PP_RW);
+        battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
+
 	/*
 	 * Use an IBAT and a DBAT to map the bottom segment of memory
 	 * where we are.
@@ -549,10 +575,20 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
 	__asm ("mtibatu 0,%0; mtibatl 0,%1; mtdbatu 0,%0; mtdbatl 0,%1"
 	    :: "r"(batu), "r"(batl));
+
 #if 0
+	/* map frame buffer */
+	batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
+	batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
+	__asm ("mtdbatu 1,%0; mtdbatl 1,%1"
+	    :: "r"(batu), "r"(batl));
+#endif
+
+#if 1
+	/* map pci space */
 	batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
-	batl = BATL(0x80000000, BAT_M, BAT_PP_RW);
-	__asm ("mtibatu 1,%0; mtibatl 1,%1; mtdbatu 1,%0; mtdbatl 1,%1"
+	batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
+	__asm ("mtdbatu 1,%0; mtdbatl 1,%1"
 	    :: "r"(batu), "r"(batl));
 #endif
 
@@ -629,9 +665,9 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
-	pmap_bpvo_pool = (struct pvo_entry *)pmap_bootstrap_alloc(PAGE_SIZE, 0);
+	pmap_bpvo_pool = (struct pvo_entry *)pmap_bootstrap_alloc(
+		BPVO_POOL_SIZE*sizeof(struct pvo_entry), 0);
 	pmap_bpvo_pool_index = 0;
-	pmap_bpvo_pool_count = (int)PAGE_SIZE / sizeof(struct pvo_entry);
 
 	/*
 	 * Make sure kernel vsid is allocated as well as VSID 0.
@@ -984,6 +1020,16 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 {
 
 	CTR0(KTR_PMAP, "pmap_init");
+
+	pmap_pvo_obj = vm_object_allocate(OBJT_PHYS, 16);
+	pmap_pvo_count = 0;
+	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
+	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
+	pmap_initialized = TRUE;
 }
 
 void
@@ -991,16 +1037,6 @@ pmap_init2(void)
 {
 
 	CTR0(KTR_PMAP, "pmap_init2");
-
-	pmap_pvo_obj = vm_object_allocate(OBJT_PHYS, 16);
-	pmap_pvo_count = 0;
-	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
-	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
-	pmap_initialized = TRUE;
 }
 
 boolean_t
@@ -1778,10 +1814,10 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	if (pmap_initialized) {
 		pvo = uma_zalloc(zone, M_NOWAIT);
 	} else {
-		if (pmap_bpvo_pool_index >= pmap_bpvo_pool_count) {
-			pmap_bpvo_pool = (struct pvo_entry *)
-			    pmap_bootstrap_alloc(PAGE_SIZE, 0);
-			pmap_bpvo_pool_index = 0;
+		if (pmap_bpvo_pool_index >= BPVO_POOL_SIZE) {
+			panic("pmap_enter: bpvo pool exhausted, %d, %d, %d",
+			      pmap_bpvo_pool_index, BPVO_POOL_SIZE, 
+			      BPVO_POOL_SIZE * sizeof(struct pvo_entry));
 		}
 		pvo = &pmap_bpvo_pool[pmap_bpvo_pool_index];
 		pmap_bpvo_pool_index++;
