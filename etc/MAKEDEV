@@ -75,8 +75,9 @@
 #	joy	pc joystick
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
+#	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.67 1995/02/10 20:08:25 bde Exp $
+#	$Id: MAKEDEV,v 1.68 1995/02/14 21:13:14 ugen Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -728,6 +729,61 @@ snp?)
 	mknod snp$unit c 53 $unit
 	chown root.wheel snp$unit
 	chmod 600 snp$unit
+	;;
+
+# Valid arguments to isdn:
+#	none	makes all the node but nic0
+#	5000	makes nic0 for Niccy 5000
+#	3008	makes nic0 for Niccy 3008
+#       3009    makes nic0 for Niccy 3009
+#       1000    makes nodes for Niccy 1000
+#       tel*    makes nodes for TELES S0
+#
+isdn*)
+	type=`expr $i : 'isdn\(.*\)'`
+	if [ "X${type}" = "X" ]; then
+		type=none
+	fi
+	unit=54
+	rm -f nic0 snic0 n?ic0 isdn isdn? ity?? itel?? ispy
+	mknod /dev/n8ic0 c $unit 0
+	mknod /dev/snic0 c `expr $unit + 4` 0
+	mknod /dev/n9ic0 c `expr $unit + 6` 0
+	mknod /dev/isdn c `expr $unit + 1` 0
+	mknod /dev/isdn1 c `expr $unit + 1` 1
+	mknod /dev/isdn2 c `expr $unit + 1` 2
+	mknod /dev/ity00 c `expr $unit + 2` 0
+	mknod /dev/ity01 c `expr $unit + 2` 1
+	mknod /dev/ityo0 c `expr $unit + 2` 130
+	mknod /dev/ityo1 c `expr $unit + 2` 131
+	mknod /dev/itel00 c `expr $unit + 3` 0
+	mknod /dev/itel01 c `expr $unit + 3` 1
+	mknod /dev/ispy c `expr $unit + 5` 0
+	chmod 600 n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
+	chown root n8ic0 n9ic0 snic0 isdn isdn? ity?? itel?? ispy
+	chown uucp ityo[01]
+	case $type in
+	5000)
+		ln /dev/snic0 /dev/nic0
+		chmod 600 /dev/nic0
+		chown root /dev/nic0
+		;;
+	3008)
+		ln /dev/n8ic0 /dev/nic0
+		chmod 600 /dev/nic0
+		chown root /dev/nic0
+		;;
+	3009)
+		ln /dev/n9ic0 /dev/nic0
+		chmod 600 /dev/nic0
+		chown root /dev/nic0
+		;;
+	1000|tel*|TEL*|none)
+		;;
+	*)
+		echo "No such ISDN device subtype: $type"
+		;;
+	esac
 	;;
 
 local)
