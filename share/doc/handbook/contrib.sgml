@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.238 1997/04/30 09:08:49 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.239 1997/05/08 15:30:29 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -340,8 +340,8 @@ groups of people:
 	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
-	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
 	  <item>Oliver Laumann &lt;net@informatik.uni-bremen.de&gt;
+	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
