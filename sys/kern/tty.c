@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.53 1995/07/21 17:30:12 bde Exp $
+ * $Id: tty.c,v 1.54 1995/07/21 20:52:38 bde Exp $
  */
 
 /*-
@@ -1157,11 +1157,22 @@ ttyflush(tp, rw)
  * Copy in the default termios characters.
  */
 void
+termioschars(t)
+	struct termios *t;
+{
+
+	bcopy(ttydefchars, t->c_cc, sizeof t->c_cc);
+}
+
+/*
+ * Old interface.
+ */
+void
 ttychars(tp)
 	struct tty *tp;
 {
 
-	bcopy(ttydefchars, tp->t_cc, sizeof(ttydefchars));
+	termioschars(&tp->t_termios);
 }
 
 /*
