@@ -614,7 +614,8 @@ static int sf_probe(dev)
 				    "Adaptec ANA-62022 10/100BaseTX");
 				return(0);
 				break;
-			case AD_SUBSYSID_62044:
+			case AD_SUBSYSID_62044_REV0:
+			case AD_SUBSYSID_62044_REV1:
 				device_set_desc(dev,
 				    "Adaptec ANA-62044 10/100BaseTX");
 				return(0);
