@@ -35,6 +35,8 @@
 #ifndef _MACHINE_SETJMP_H_
 #define	_MACHINE_SETJMP_H_
 
+#include <sys/cdefs.h>
+
 #define	_JBLEN	11		/* Size of the jmp_buf on x86. */
 
 /*
@@ -42,7 +44,7 @@
  * compile-time diagnostics for mismatches.  The structs are the same
  * internally to avoid some run-time errors for mismatches.
  */
-#ifndef _ANSI_SOURCE
+#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
 typedef	struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
 
