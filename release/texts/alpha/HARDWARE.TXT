@@ -380,7 +380,8 @@ just like before. The same applies to the FreeBSD kernel by the way.
 EIDE:
 The Miata SRM can boot from IDE CDROM drives. Harddisk boot is known to work for
 both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
-on MX5 are around 14 Mb/sec assuming a suitable drive.
+on MX5 are around 14 Mb/sec assuming a suitable drive. The CMD646 chip will
+support up to WDMA2 mode as the silicon is too buggy for use with UDMA.
 
 PCI-PCI bridge:
 The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than 
