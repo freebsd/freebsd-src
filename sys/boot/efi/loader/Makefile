@@ -60,11 +60,13 @@ CLEANFILES+=	machine
 
 CRT=	start.o
 
-all: ${PROG}
+all: ${BASE}
 
 vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
+
+${BASE}:	${BASE}.efi ${BASE}.help
 
 ${BASE}.efi: ${BASE}.sym
 	${OBJCOPY} -j .text \
@@ -79,15 +81,29 @@ ${BASE}.efi: ${BASE}.sym
 		--target=efi-app-${MACHINE_ARCH} \
 		${BASE}.sym ${BASE}.efi
 
-${BASE}.help:	help.common help.efi
+${BASE}.help:	help.common
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
 	    > ${.TARGET}
 
 beforeinstall:
-.if exists(${.OBJDIR}/${BASE}.help)
+.if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+.else
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
+.if !exists(${DESTDIR}/boot/loader.rc)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+.endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
+
 
 # Other fragments still to be brought in from ../Makfile.booters?
 start.o: ${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
