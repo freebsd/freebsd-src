@@ -87,7 +87,6 @@ struct vnode {
 	int	v_usecount;			/* reference count of users */
 	int	v_writecount;			/* reference count of writers */
 	int	v_holdcnt;			/* page & buffer references */
-	daddr_t	v_lastr;			/* last read (read-ahead) */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
 	vop_t	**v_op;				/* vnode operations vector */
