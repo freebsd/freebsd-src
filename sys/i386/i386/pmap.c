@@ -2245,6 +2245,17 @@ retry:
 	return mpte;
 }
 
+/*
+ * Make a temporary mapping for a physical address.  This is only intended
+ * to be used for panic dumps.
+ */
+void *
+pmap_kenter_temporary(vm_offset_t pa)
+{
+	pmap_kenter((vm_offset_t)CADDR1, pa);
+	return ((void *)CADDR1);
+}
+
 #define MAX_INIT_PT (96)
 /*
  * pmap_object_init_pt preloads the ptes for a given object
