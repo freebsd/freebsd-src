@@ -677,8 +677,8 @@ includes:
 # libg++: libm
 # libkrb: libcrypt
 # libopie: libmd
-# libpam: libcom_err libcrypt libcrypto libgcc_pic libkrb libradius libskey \
-#	  libtacplus libutil libz libssh
+# libpam: libcom_err libcrypt libcrypto libgcc_pic libkrb libopie libradius \
+#	  libskey libtacplus libutil libz libssh
 # libradius: libmd
 # libreadline: libncurses
 # libskey: libcrypt libmd
@@ -731,7 +731,8 @@ _libkeycap=	usr.sbin/pcvt/keycap
 libraries:
 .for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses \
-    lib/libradius lib/libskey lib/libtacplus lib/libutil lib/libz lib gnu/lib \
+    lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
+    lib/libz lib gnu/lib \
     ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
