@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.4 1995/05/30 03:50:29 rgrimes Exp $
+ * $Id: chat.c,v 1.5 1995/09/02 17:20:50 amurai Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -113,7 +113,7 @@ char **pvect;
  *  \r	Carrige return character
  *  \s  Space character
  *  \n  Line feed character
- *  \T  Telephone number (defined via `set phone'
+ *  \T  Telephone number(s) (defined via `set phone')
  *  \t  Tab character
  */
 char *
@@ -123,6 +123,7 @@ char *result;
 int sendmode;
 {
   int addcr = 0;
+  char *phone;
 
   if (sendmode)
     addcr = 1;
@@ -152,8 +153,13 @@ int sendmode;
 	result += strlen(VarAuthKey);
 	break;
       case 'T':
-	bcopy(VarPhone, result, strlen(VarPhone));
-	result += strlen(VarPhone);
+	if (VarNextPhone == NULL)
+	  VarNextPhone = VarPhoneList;
+	phone = strsep(&VarNextPhone, ":");
+	bcopy(phone, result, strlen(phone));
+	result += strlen(phone);
+	if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
+	  fprintf(stderr, "Phone: %s\n", phone);
 	break;
       case 'U':
 	bcopy(VarAuthName, result, strlen(VarAuthName));

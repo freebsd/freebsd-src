@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.4 1995/04/29 13:38:14 ache Exp $
+ * $Id: systems.c,v 1.5 1995/05/30 03:50:58 rgrimes Exp $
  *
  *  TODO:
  */
@@ -124,7 +124,9 @@ char *file;
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
+#ifdef DEBUG
     fprintf(stderr, "can't open %s.\n", line);
+#endif
     SetPppId();
     return(-1);
   }
