@@ -11,11 +11,9 @@ Workaround for this implemented via TIOCGWINSZ/TIOCSWINSZ
 with same winsize structure: it does nothing expect polling
 process from background. Look tcsh_hack.readme for details.
 
-Here is megred version with readline comes from gdb4.11
-and with readline 2.0 comes from bash1.13.1.CWRU
-
 If you want 8-bit clean version, put
 	set convert-meta off
+	set output-meta on
 in your ~/.inputrc file
 
 ache@astral.msk.su

@@ -25,12 +25,16 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
+#include "rlconf.h"
 #include "keymaps.h"
 #include "emacs_keymap.c"
 
 #ifdef VI_MODE
 #include "vi_keymap.c"
 #endif
+
+extern int rl_do_lowercase_version ();
+extern int rl_rubout (), rl_insert ();
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
@@ -90,7 +94,6 @@ rl_copy_keymap (map)
 Keymap
 rl_make_keymap ()
 {
-  extern int rl_insert (), rl_rubout ();
   register int i;
   Keymap newmap;
 
@@ -118,6 +121,7 @@ rl_make_keymap ()
 }
 
 /* Free the storage associated with MAP. */
+void
 rl_discard_keymap (map)
      Keymap (map);
 {

@@ -57,19 +57,22 @@ extern int errno;
 extern char *strchr (), *strrchr ();
 #endif /* !strchr && !__STDC__ */
 
-extern char *tilde_expand ();
-
 extern int _rl_horizontal_scroll_mode;
 extern int _rl_mark_modified_lines;
-extern int _rl_prefer_visible_bell;
+extern int _rl_bell_preference;
 extern int _rl_meta_flag;
 extern int rl_blink_matching_paren;
 extern int _rl_convert_meta_chars_to_ascii;
+extern int _rl_output_meta_chars;
+extern int _rl_complete_show_all;
 #if defined (VISIBLE_STATS)
 extern int rl_visible_stats;
 #endif /* VISIBLE_STATS */
 extern int rl_complete_with_tilde_expansion;
 extern int rl_completion_query_items;
+#if defined (VI_MODE)
+extern char *rl_vi_comment_begin;
+#endif
 
 extern int rl_explicit_arg;
 extern int rl_editing_mode;
@@ -79,6 +82,9 @@ extern Keymap _rl_keymap;
 extern char *possible_control_prefixes[], *possible_meta_prefixes[];
 
 extern char **rl_funmap_names ();
+
+/* Forward declarations */
+void rl_set_keymap_from_edit_mode ();
 
 static int glean_key_from_name ();
 
@@ -105,6 +111,7 @@ rl_add_defun (name, function, key)
   if (key != -1)
     rl_bind_key (key, function);
   rl_add_funmap_entry (name, function);
+  return 0;
 }
 
 /* Bind KEY to FUNCTION.  Returns non-zero if KEY is out of range. */
@@ -120,12 +127,9 @@ rl_bind_key (key, function)
     {
       if (_rl_keymap[ESC].type == ISKMAP)
 	{
-#if defined (CRAY)
-	  Keymap escmap = (Keymap)((int)_rl_keymap[ESC].function);
-#else
-	  Keymap escmap = (Keymap)_rl_keymap[ESC].function;
-#endif
+	  Keymap escmap;
 
+	  escmap = FUNCTION_TO_KEYMAP (_rl_keymap, ESC);
 	  key = UNMETA (key);
 	  escmap[key].type = ISFUNC;
 	  escmap[key].function = function;
@@ -183,7 +187,7 @@ rl_set_key (keyseq, function, map)
      Function *function;
      Keymap map;
 {
-  rl_generic_bind (ISFUNC, keyseq, function, map);
+  return (rl_generic_bind (ISFUNC, keyseq, function, map));
 }
 
 /* Bind the key sequence represented by the string KEYSEQ to
@@ -249,7 +253,7 @@ rl_generic_bind (type, keyseq, data, map)
 	{
 	  ic = UNMETA (ic);
 	  if (map[ESC].type == ISKMAP)
-	    map = (Keymap) map[ESC].function;
+	    map = FUNCTION_TO_KEYMAP (map, ESC);
 	}
 
       if ((i + 1) < keys_len)
@@ -260,16 +264,16 @@ rl_generic_bind (type, keyseq, data, map)
 		free ((char *)map[ic].function);
 
 	      map[ic].type = ISKMAP;
-	      map[ic].function = (Function *)rl_make_bare_keymap ();
+	      map[ic].function = KEYMAP_TO_FUNCTION (rl_make_bare_keymap());
 	    }
-	  map = (Keymap)map[ic].function;
+	  map = FUNCTION_TO_KEYMAP (map, ic);
 	}
       else
 	{
 	  if (map[ic].type == ISMACR)
 	    free ((char *)map[ic].function);
 
-	  map[ic].function = (Function *)data;
+	  map[ic].function = KEYMAP_TO_FUNCTION (data);
 	  map[ic].type = type;
 	}
     }
@@ -388,7 +392,7 @@ rl_function_of_keyseq (keyseq, map, type)
 	    }
 	  else
 	    {
-	      map = (Keymap)map[ESC].function;
+	      map = FUNCTION_TO_KEYMAP (map, ESC);
 	      ic = UNMETA (ic);
 	    }
 	}
@@ -405,7 +409,7 @@ rl_function_of_keyseq (keyseq, map, type)
 	      return (map[ic].function);
 	    }
 	  else
-	    map = (Keymap)map[ic].function;
+	    map = FUNCTION_TO_KEYMAP (map, ic);
 	}
       else
 	{
@@ -415,6 +419,7 @@ rl_function_of_keyseq (keyseq, map, type)
 	  return (map[ic].function);
 	}
     }
+  return ((Function *) NULL);
 }
 
 /* The last key bindings file read. */
@@ -424,15 +429,19 @@ static char *last_readline_init_file = (char *)NULL;
 rl_re_read_init_file (count, ignore)
      int count, ignore;
 {
-  return (rl_read_init_file ((char *)NULL));
+  int r;
+  r = rl_read_init_file ((char *)NULL);
+  rl_set_keymap_from_edit_mode ();
+  return r;
 }
 
-/* The final, last-ditch effort file name for an init file. */
-#define DEFAULT_INPUTRC "~/.inputrc"
-
 /* Do key bindings from a file.  If FILENAME is NULL it defaults
-   to `~/.inputrc'.  If the file existed and could be opened and
-   read, 0 is returned, otherwise errno is returned. */
+   to the first non-null filename from this list:
+     1. the filename used for the previous call
+     2. the value of the shell variable `INPUTRC'
+     3. ~/.inputrc
+   If the file existed and could be opened and read, 0 is returned,
+   otherwise errno is returned. */
 int
 rl_read_init_file (filename)
      char *filename;
@@ -445,9 +454,10 @@ rl_read_init_file (filename)
   /* Default the filename. */
   if (!filename)
     {
-      if (last_readline_init_file)
-	filename = last_readline_init_file;
-      else
+      filename = last_readline_init_file;
+      if (!filename)
+        filename = getenv ("INPUTRC");
+      if (!filename)
 	filename = DEFAULT_INPUTRC;
     }
 
@@ -462,10 +472,13 @@ rl_read_init_file (filename)
   else
     free (openname);
 
-  if (last_readline_init_file)
-    free (last_readline_init_file);
+  if (filename != last_readline_init_file)
+    {
+      if (last_readline_init_file)
+	free (last_readline_init_file);
 
-  last_readline_init_file = savestring (filename);
+      last_readline_init_file = savestring (filename);
+    }
 
   /* Read the file into BUFFER. */
   buffer = (char *)xmalloc ((int)finfo.st_size + 1);
@@ -486,6 +499,10 @@ rl_read_init_file (filename)
 
       /* Mark end of line. */
       line[i] = '\0';
+
+      /* Skip leading whitespace. */
+      while (*line && whitespace (*line))
+	line++;
 
       /* If the line is not a comment, then parse it. */
       if (*line && *line != '#')
@@ -552,7 +569,7 @@ parser_if (args)
 
       /* Terminals like "aaa-60" are equivalent to "aaa". */
       tname = savestring (rl_terminal_name);
-      tem = strrchr (tname, '-');
+      tem = strchr (tname, '-');
       if (tem)
 	*tem = '\0';
 
@@ -681,9 +698,6 @@ handle_parser_directive (statement)
   /* *** Should an error message be output? */
   return (1);
 }
-
-/* Ugly but working hack for binding prefix meta. */
-#define PREFIX_META_HACK
 
 static int substring_member_of_array ();
 
@@ -928,10 +942,11 @@ static struct {
 } boolean_varlist [] = {
   { "horizontal-scroll-mode",	&_rl_horizontal_scroll_mode },
   { "mark-modified-lines",	&_rl_mark_modified_lines },
-  { "prefer-visible-bell",	&_rl_prefer_visible_bell },
   { "meta-flag",		&_rl_meta_flag },
   { "blink-matching-paren",	&rl_blink_matching_paren },
   { "convert-meta",		&_rl_convert_meta_chars_to_ascii },
+  { "show-all-if-ambiguous",	&_rl_complete_show_all },
+  { "output-meta",		&_rl_output_meta_chars },
 #if defined (VISIBLE_STATS)
   { "visible-stats",		&rl_visible_stats },
 #endif /* VISIBLE_STATS */
@@ -970,10 +985,6 @@ rl_variable_bind (name, value)
 #if defined (VI_MODE)
 	  _rl_keymap = vi_insertion_keymap;
 	  rl_editing_mode = vi_mode;
-#else
-#if defined (NOTDEF)
-	  ding ();
-#endif /* NOTDEF */
 #endif /* VI_MODE */
 	}
       else if (strnicmp (value, "emacs", 5) == 0)
@@ -987,8 +998,6 @@ rl_variable_bind (name, value)
   else if (stricmp (name, "comment-begin") == 0)
     {
 #if defined (VI_MODE)
-      extern char *rl_vi_comment_begin;
-
       if (*value)
 	{
 	  if (rl_vi_comment_begin)
@@ -1009,6 +1018,37 @@ rl_variable_bind (name, value)
 	}
       rl_completion_query_items = nval;
     }
+  else if (stricmp (name, "keymap") == 0)
+    {
+      Keymap kmap;
+      kmap = rl_get_keymap_by_name (value);
+      if (kmap)
+        rl_set_keymap (kmap);
+    }
+  else if (stricmp (name, "bell-style") == 0)
+    {
+      if (!*value)
+        _rl_bell_preference = AUDIBLE_BELL;
+      else
+        {
+          if (stricmp (value, "none") == 0 || stricmp (value, "off") == 0)
+            _rl_bell_preference = NO_BELL;
+          else if (stricmp (value, "audible") == 0 || stricmp (value, "on") == 0)
+            _rl_bell_preference = AUDIBLE_BELL;
+          else if (stricmp (value, "visible") == 0)
+            _rl_bell_preference = VISIBLE_BELL;
+        }
+    }
+  else if (stricmp (name, "prefer-visible-bell") == 0)
+    {
+      /* Backwards compatibility. */
+      if (*value && (stricmp (value, "on") == 0 ||
+		     (*value == '1' && !value[1])))
+        _rl_bell_preference = VISIBLE_BELL;
+      else
+        _rl_bell_preference = AUDIBLE_BELL;
+    }
+
   return 0;
 }
 
@@ -1135,8 +1175,8 @@ rl_list_funmap_names (ignore)
 
 /* Return a NULL terminated array of strings which represent the key
    sequences that are used to invoke FUNCTION in MAP. */
-static char **
-invoking_keyseqs_in_map (function, map)
+char **
+rl_invoking_keyseqs_in_map (function, map)
      Function *function;
      Keymap map;
 {
@@ -1194,11 +1234,7 @@ invoking_keyseqs_in_map (function, map)
 	       their target.  Add the key sequences found to RESULT. */
 	    if (map[key].function)
 	      seqs =
-#if defined (CRAY)
-		invoking_keyseqs_in_map (function, (Keymap)((int)map[key].function));
-#else
-		invoking_keyseqs_in_map (function, (Keymap)map[key].function);
-#endif
+	        rl_invoking_keyseqs_in_map (function, FUNCTION_TO_KEYMAP (map, key));
 
 	    if (seqs)
 	      {
@@ -1252,18 +1288,16 @@ char **
 rl_invoking_keyseqs (function)
      Function *function;
 {
-  return (invoking_keyseqs_in_map (function, _rl_keymap));
+  return (rl_invoking_keyseqs_in_map (function, _rl_keymap));
 }
 
 /* Print all of the current functions and their bindings to
    rl_outstream.  If an explicit argument is given, then print
    the output in such a way that it can be read back in. */
 int
-rl_dump_functions (count)
-     int count;
+rl_dump_functions (count, key)
+     int count, key;
 {
-  void rl_function_dumper ();
-
   rl_function_dumper (rl_explicit_arg);
   rl_on_new_line ();
   return (0);
@@ -1290,7 +1324,7 @@ rl_function_dumper (print_readably)
       char **invokers;
 
       function = rl_named_function (name);
-      invokers = invoking_keyseqs_in_map (function, _rl_keymap);
+      invokers = rl_invoking_keyseqs_in_map (function, _rl_keymap);
 
       if (print_readably)
 	{
@@ -1339,7 +1373,22 @@ rl_function_dumper (print_readably)
     }
 }
 
-
+/* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound. */
+void
+_rl_bind_if_unbound (keyseq, default_func)
+     char *keyseq;
+     Function *default_func;
+{
+  Function *func;
+
+  if (keyseq)
+    {
+      func = rl_function_of_keyseq (keyseq, _rl_keymap, (int *)NULL);
+      if (!func || func == rl_do_lowercase_version)
+	rl_set_key (keyseq, default_func, _rl_keymap);
+    }
+}
+
 /* **************************************************************** */
 /*								    */
 /*			String Utility Functions		    */

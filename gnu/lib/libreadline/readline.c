@@ -30,10 +30,10 @@
 #include <signal.h>
 
 /* This is needed to include support for TIOCGWINSZ and window resizing. */
-#if defined (OSF1) || defined (BSD386) || defined (_386BSD) || \
-    defined (FreeBSD) || defined (NetBSD) || defined (AIX)
+#if defined (OSF1) || defined (BSD386) || defined (NetBSD) || \
+    defined (FreeBSD) || defined (_386BSD) || defined (AIX)
 #  include <sys/ioctl.h>
-#endif /* OSF1 */
+#endif /* OSF1 || BSD386 */
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
@@ -53,8 +53,6 @@ extern int errno;
 
 #include <setjmp.h>
 
-/* #define HACK_TERMCAP_MOTION */
-
 #include "posixstat.h"
 
 /* System-specific feature definitions and include files. */
@@ -72,12 +70,10 @@ extern int errno;
 /* Functions imported from other files in the library. */
 extern char *tgetstr ();
 extern void rl_prep_terminal (), rl_deprep_terminal ();
-extern void rl_vi_set_last ();
-extern Function *rl_function_of_keyseq ();
-extern char *tilde_expand ();
+
+extern void _rl_bind_if_unbound ();
 
 /* External redisplay functions and variables from display.c */
-extern void rl_redisplay ();
 extern void _rl_move_vert ();
 
 extern void _rl_erase_at_end_of_line ();
@@ -86,29 +82,40 @@ extern void _rl_move_cursor_relative ();
 extern int _rl_vis_botlin;
 extern int _rl_last_c_pos;
 extern int rl_display_fixed;
+extern char *rl_display_prompt;
 
 /* Variables imported from complete.c. */
 extern char *rl_completer_word_break_characters;
 extern char *rl_basic_word_break_characters;
-extern Function *rl_symbolic_link_hook;
 extern int rl_completion_query_items;
 extern int rl_complete_with_tilde_expansion;
 
+#if defined (VI_MODE)
+extern void _rl_vi_set_last ();
+extern void _rl_vi_reset_last ();
+extern void _rl_vi_done_inserting ();
+#endif /* VI_MODE */
+
 /* Forward declarations used in this file. */
-void rl_dispatch ();
-void free_history_entry ();
-void _rl_output_character_function ();
+void _rl_free_history_entry ();
+
+int _rl_dispatch ();
 void _rl_set_screen_size ();
-void free_undo_list (), rl_add_undo ();
+int _rl_output_character_function ();
 
-#if !defined (_GO32_)
+static char *readline_internal ();
+static void readline_initialize_everything ();
+static int init_terminal_io ();
+static void start_using_history ();
+
+#if !defined (__GO32__)
 static void readline_default_bindings ();
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 
-#if defined (_GO32_)
+#if defined (__GO32__)
 #  include <sys/pc.h>
 #  undef HANDLE_SIGNALS
-#endif /* _GO32_ */
+#endif /* __GO32__ */
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
@@ -180,6 +187,7 @@ int readline_echoing_p = 1;
 
 /* Current prompt. */
 char *rl_prompt;
+int rl_visible_prompt_length = 0;
 
 /* The number of characters read in order to type this complete command. */
 int rl_key_sequence_length = 0;
@@ -207,10 +215,10 @@ int _rl_horizontal_scroll_mode = 0;
 /* Non-zero means to display an asterisk at the starts of history lines
    which have been modified. */
 int _rl_mark_modified_lines = 0;  
-   
-/* Non-zero means to use a visible bell if one is available rather than
-   simply ringing the terminal bell. */
-int _rl_prefer_visible_bell = 0;
+
+/* The style of `bell' notification preferred.  This can be set to NO_BELL,
+   AUDIBLE_BELL, or VISIBLE_BELL. */
+int _rl_bell_preference = AUDIBLE_BELL;
      
 /* Line buffer and maintenence. */
 char *rl_line_buffer = (char *)NULL;
@@ -236,6 +244,10 @@ static int defining_kbd_macro = 0;
    emacs_meta_keymap or vi_escape_keymap. */
 int _rl_convert_meta_chars_to_ascii = 1;
 
+/* Non-zero means to output characters with the meta bit set directly
+   rather than as a meta-prefixed escape sequence. */
+int _rl_output_meta_chars = 0;
+
 /* Non-zero tells rl_delete_text and rl_insert_text to not add to
    the undo list. */
 static int doing_an_undo = 0;
@@ -255,7 +267,6 @@ char *
 readline (prompt)
      char *prompt;
 {
-  char *readline_internal ();
   char *value;
 
   rl_prompt = prompt;
@@ -266,6 +277,8 @@ readline (prompt)
       rl_pending_input = 0;
       return ((char *)NULL);
     }
+
+  rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
 
   rl_initialize ();
   rl_prep_terminal (_rl_meta_flag);
@@ -287,7 +300,7 @@ readline (prompt)
 /* Read a line of input from the global rl_instream, doing output on
    the global rl_outstream.
    If rl_prompt is non-null, then that is our prompt. */
-char *
+static char *
 readline_internal ()
 {
   int lastc, c, eof_found;
@@ -351,7 +364,7 @@ readline_internal ()
 	}
 
       lastc = c;
-      rl_dispatch (c, _rl_keymap);
+      _rl_dispatch (c, _rl_keymap);
 
       /* If there was no change in last_command_was_kill, then no kill
 	 has taken place.  Note that if input is pending we are reading
@@ -384,7 +397,7 @@ readline_internal ()
 	rl_revert_line ();
 	entry = replace_history_entry (where_history (), the_line,
 				       (HIST_ENTRY *)NULL);
-	free_history_entry (entry);
+	_rl_free_history_entry (entry);
 
 	strcpy (the_line, temp);
 	free (temp);
@@ -429,6 +442,7 @@ rl_stuff_char (key)
   ibuffer[push_index++] = key;
   if (push_index >= ibuffer_len)
     push_index = 0;
+  return push_index;
 }
 
 /* Return the amount of space available in the
@@ -483,7 +497,7 @@ rl_unget_char (key)
 void
 rl_gather_tyi ()
 {
-#if defined (_GO32_)
+#if defined (__GO32__)
   char input;
 
   if (isatty (0))
@@ -495,7 +509,7 @@ rl_gather_tyi ()
     }
   else if (kbhit () && ibuffer_space ())
     rl_stuff_char (getkey ());
-#else /* !_GO32_ */
+#else /* !__GO32__ */
 
   int tty = fileno (in_stream);
   register int tem, result = -1;
@@ -549,7 +563,7 @@ rl_gather_tyi ()
       if (chars_avail)
 	rl_stuff_char (input);
     }
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 }
 
 static int next_macro_key ();
@@ -597,14 +611,12 @@ static void add_macro_char (), with_macro_input ();
 /* Do the command associated with KEY in MAP.
    If the associated command is really a keymap, then read
    another key, and dispatch into that map. */
-void
-rl_dispatch (key, map)
+int
+_rl_dispatch (key, map)
      register int key;
      Keymap map;
 {
-#if defined (VI_MODE)
-  extern int _rl_vi_last_command, _rl_vi_last_repeat, _rl_vi_last_arg_sign;
-#endif
+  int r = 0;
 
   if (defining_kbd_macro)
     add_macro_char (key);
@@ -613,18 +625,14 @@ rl_dispatch (key, map)
     {
       if (map[ESC].type == ISKMAP)
 	{
-#if defined (CRAY)
-	  map = (Keymap)((int)map[ESC].function);
-#else
-	  map = (Keymap)map[ESC].function;
-#endif
+	  map = FUNCTION_TO_KEYMAP (map, ESC);
 	  key = UNMETA (key);
 	  rl_key_sequence_length += 2;
-	  rl_dispatch (key, map);
+	  return (_rl_dispatch (key, map));
 	}
       else
 	ding ();
-      return;
+      return 0;
     }
 
   switch (map[key].type)
@@ -637,12 +645,9 @@ rl_dispatch (key, map)
 	  {
 	    /* Special case rl_do_lowercase_version (). */
 	    if (func == rl_do_lowercase_version)
-	      {
-		rl_dispatch (to_lower (key), map);
-		return;
-	      }
+	      return (_rl_dispatch (to_lower (key), map));
 
-	    (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
+	    r = (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
 
 	    /* If we have input pending, then the last command was a prefix
 	       command.  Don't change the state of rl_last_func.  Otherwise,
@@ -653,7 +658,7 @@ rl_dispatch (key, map)
 	else
 	  {
 	    rl_abort ();
-	    return;
+	    return -1;
 	  }
       }
       break;
@@ -665,21 +670,12 @@ rl_dispatch (key, map)
 
 	  rl_key_sequence_length++;
 	  newkey = rl_read_key ();
-#if defined (CRAY)
-	  /* If you cast map[key].function to type (Keymap) on a Cray,
-	     the compiler takes the value of may[key].function and
-	     divides it by 4 to convert between pointer types (pointers
-	     to functions and pointers to structs are different sizes).
-	     This is not what is wanted. */
-	  rl_dispatch (newkey, (Keymap)((int)map[key].function));
-#else
-	  rl_dispatch (newkey, (Keymap)map[key].function);
-#endif /* !CRAY */
+	  r = _rl_dispatch (newkey, FUNCTION_TO_KEYMAP (map, key));
 	}
       else
 	{
 	  rl_abort ();
-	  return;
+	  return -1;
 	}
       break;
 
@@ -690,19 +686,16 @@ rl_dispatch (key, map)
 
 	  macro = savestring ((char *)map[key].function);
 	  with_macro_input (macro);
-	  return;
+	  return 0;
 	}
       break;
     }
 #if defined (VI_MODE)
   if (rl_editing_mode == vi_mode && _rl_keymap == vi_movement_keymap &&
       rl_vi_textmod_command (key))
-    {
-      _rl_vi_last_command = key;
-      _rl_vi_last_repeat = rl_numeric_arg;
-      _rl_vi_last_arg_sign = rl_arg_sign;
-    }
+    _rl_vi_set_last (key, rl_numeric_arg, rl_arg_sign);
 #endif
+  return (r);
 }
 
 
@@ -734,7 +727,7 @@ static int current_macro_index = 0;
 struct saved_macro {
   struct saved_macro *next;
   char *string;
-  int index;
+  int sindex;
 };
 
 /* The list of saved macros. */
@@ -782,7 +775,7 @@ push_executing_macro ()
 
   saver = (struct saved_macro *)xmalloc (sizeof (struct saved_macro));
   saver->next = macro_list;
-  saver->index = executing_macro_index;
+  saver->sindex = executing_macro_index;
   saver->string = executing_macro;
 
   macro_list = saver;
@@ -803,7 +796,7 @@ pop_executing_macro ()
     {
       struct saved_macro *disposer = macro_list;
       executing_macro = macro_list->string;
-      executing_macro_index = macro_list->index;
+      executing_macro_index = macro_list->sindex;
       macro_list = macro_list->next;
       free (disposer);
     }
@@ -837,7 +830,10 @@ rl_start_kbd_macro (ignore1, ignore2)
      int ignore1, ignore2;
 {
   if (defining_kbd_macro)
-    rl_abort ();
+    {
+      rl_abort ();
+      return -1;
+    }
 
   if (rl_explicit_arg)
     {
@@ -848,6 +844,7 @@ rl_start_kbd_macro (ignore1, ignore2)
     current_macro_index = 0;
 
   defining_kbd_macro = 1;
+  return 0;
 }
 
 /* Stop defining a keyboard macro.
@@ -857,14 +854,17 @@ rl_end_kbd_macro (count, ignore)
      int count, ignore;
 {
   if (!defining_kbd_macro)
-    rl_abort ();
+    {
+      rl_abort ();
+      return -1;
+    }
 
   current_macro_index -= (rl_key_sequence_length - 1);
   current_macro[current_macro_index] = '\0';
 
   defining_kbd_macro = 0;
 
-  rl_call_last_kbd_macro (--count, 0);
+  return (rl_call_last_kbd_macro (--count, 0));
 }
 
 /* Execute the most recently defined keyboard macro.
@@ -884,6 +884,7 @@ rl_call_last_kbd_macro (count, ignore)
 
   while (count--)
     with_macro_input (savestring (current_macro));
+  return 0;
 }
 
 void
@@ -905,7 +906,6 @@ _rl_kill_kbd_macro ()
 
   defining_kbd_macro = 0;
 }
-
 
 /* **************************************************************** */
 /*								    */
@@ -943,9 +943,12 @@ rl_initialize ()
 
   /* Parsing of key-bindings begins in an enabled state. */
   _rl_parsing_conditionalized_out = 0;
+
+  return 0;
 }
 
 /* Initialize the entire state of the world. */
+static void
 readline_initialize_everything ()
 {
   /* Find out if we are running in Emacs. */
@@ -971,10 +974,10 @@ readline_initialize_everything ()
   /* Initialize the terminal interface. */
   init_terminal_io ((char *)NULL);
 
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   /* Bind tty characters to readline functions. */
   readline_default_bindings ();
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 
   /* Initialize the function names. */
   rl_initialize_funmap ();
@@ -982,12 +985,14 @@ readline_initialize_everything ()
   /* Read in the init file. */
   rl_read_init_file ((char *)NULL);
 
+  /* Override the effect of any `set keymap' assignments in the
+     inputrc file. */
+  rl_set_keymap_from_edit_mode ();
+
   /* If the completion parser's default word break characters haven't
      been set yet, then do so now. */
-  {
-    if (rl_completer_word_break_characters == (char *)NULL)
-      rl_completer_word_break_characters = rl_basic_word_break_characters;
-  }
+  if (rl_completer_word_break_characters == (char *)NULL)
+    rl_completer_word_break_characters = rl_basic_word_break_characters;
 }
 
 /* If this system allows us to look at the values of the regular
@@ -1007,42 +1012,11 @@ readline_default_bindings ()
 /* **************************************************************** */
 
 /* Handle C-u style numeric args, as well as M--, and M-digits. */
-
-/* Add the current digit to the argument in progress. */
-rl_digit_argument (ignore, key)
-     int ignore, key;
-{
-  rl_pending_input = key;
-  rl_digit_loop ();
-}
-
-/* What to do when you abort reading an argument. */
-rl_discard_argument ()
-{
-  ding ();
-  rl_clear_message ();
-  rl_init_argument ();
-}
-
-/* Create a default argument. */
-rl_init_argument ()
-{
-  rl_numeric_arg = rl_arg_sign = 1;
-  rl_explicit_arg = 0;
-}
-
-/* C-u, universal argument.  Multiply the current argument by 4.
-   Read a key.  If the key has nothing to do with arguments, then
-   dispatch on it.  If the key is the abort character then abort. */
-rl_universal_argument ()
-{
-  rl_numeric_arg *= 4;
-  rl_digit_loop ();
-}
-
+static int
 rl_digit_loop ()
 {
   int key, c;
+
   while (1)
     {
       rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
@@ -1073,11 +1047,45 @@ rl_digit_loop ()
 	  else
 	    {
 	      rl_clear_message ();
-	      rl_dispatch (key, _rl_keymap);
-	      return;
+	      return (_rl_dispatch (key, _rl_keymap));
 	    }
 	}
     }
+  return 0;
+}
+
+/* Add the current digit to the argument in progress. */
+rl_digit_argument (ignore, key)
+     int ignore, key;
+{
+  rl_pending_input = key;
+  return (rl_digit_loop ());
+}
+
+/* What to do when you abort reading an argument. */
+rl_discard_argument ()
+{
+  ding ();
+  rl_clear_message ();
+  rl_init_argument ();
+  return 0;
+}
+
+/* Create a default argument. */
+rl_init_argument ()
+{
+  rl_numeric_arg = rl_arg_sign = 1;
+  rl_explicit_arg = 0;
+  return 0;
+}
+
+/* C-u, universal argument.  Multiply the current argument by 4.
+   Read a key.  If the key has nothing to do with arguments, then
+   dispatch on it.  If the key is the abort character then abort. */
+rl_universal_argument ()
+{
+  rl_numeric_arg *= 4;
+  return (rl_digit_loop ());
 }
 
 /* **************************************************************** */
@@ -1088,6 +1096,8 @@ rl_digit_loop ()
 
 static char *term_buffer = (char *)NULL;
 static char *term_string_buffer = (char *)NULL;
+
+static int tcap_initialized = 0;
 
 /* Non-zero means this terminal can't really do anything. */
 int dumb_term = 0;
@@ -1102,8 +1112,9 @@ char *BC, *UP;
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
 char *term_goto, *term_clreol, *term_cr, *term_clrpag, *term_backspace;
+char *term_pc;
 
-int screenwidth, screenheight;
+int screenwidth, screenheight, screenchars;
 
 /* Non-zero if we determine that the terminal can do character insertion. */
 int terminal_can_insert = 0;
@@ -1136,12 +1147,16 @@ char *term_mo;
 /* The key sequences output by the arrow keys, if this terminal has any. */
 char *term_ku, *term_kd, *term_kr, *term_kl;
 
+/* How to initialize and reset the arrow keys, if this terminal has any. */
+char *term_ks, *term_ke;
+
 /* Re-initialize the terminal considering that the TERM/TERMCAP variable
    has changed. */
 rl_reset_terminal (terminal_name)
      char *terminal_name;
 {
   init_terminal_io (terminal_name);
+  return 0;
 }
 
 /* Set readline's idea of the screen size.  TTY is a file descriptor open
@@ -1191,7 +1206,7 @@ _rl_set_screen_size (tty, ignore_env)
     }
 
   /* If all else fails, default to 80x24 terminal. */
-  if (screenwidth <= 0)
+  if (screenwidth <= 1)
     screenwidth = 80;
 
   if (screenheight <= 0)
@@ -1204,19 +1219,73 @@ _rl_set_screen_size (tty, ignore_env)
 #endif
 
   screenwidth--;
+
+  screenchars = screenwidth * screenheight;
 }
 
+struct _tc_string {
+     char *tc_var;
+     char **tc_value;
+};
+
+/* This should be kept sorted, just in case we decide to change the
+   search algorithm to something smarter. */
+static struct _tc_string tc_strings[] =
+{
+  "DC", &term_DC,
+  "IC", &term_IC,
+  "ce", &term_clreol,
+  "cl", &term_clrpag,
+  "cr", &term_cr,
+  "dc", &term_dc,
+  "ei", &term_ei,
+  "ic", &term_ic,
+  "im", &term_im,
+  "kd", &term_kd,
+  "kl", &term_kl,
+  "kr", &term_kr,
+  "ku", &term_ku,
+  "ks", &term_ks,
+  "ke", &term_ke,
+  "le", &term_backspace,
+  "mm", &term_mm,
+  "mo", &term_mo,
+#if defined (HACK_TERMCAP_MOTION)
+  "nd", &term_forward_char,
+#endif
+  "pc", &term_pc,
+  "up", &term_up,
+  "vb", &visible_bell,
+};
+
+#define NUM_TC_STRINGS (sizeof (tc_strings) / sizeof (struct _tc_string))
+
+/* Read the desired terminal capability strings into BP.  The capabilities
+   are described in the TC_STRINGS table. */
+static void
+get_term_capabilities (bp)
+     char **bp;
+{
+  register int i;
+
+  for (i = 0; i < NUM_TC_STRINGS; i++)
+    *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
+  tcap_initialized = 1;
+}
+
+static int
 init_terminal_io (terminal_name)
      char *terminal_name;
 {
-#if defined (_GO32_)
+#if defined (__GO32__)
   screenwidth = ScreenCols ();
   screenheight = ScreenRows ();
+  screenchars = screenwidth * screenheight;
   term_cr = "\r";
   term_im = term_ei = term_ic = term_IC = (char *)NULL;
   term_up = term_dc = term_DC = visible_bell = (char *)NULL;
 
-  /* Does the _GO32_ have a meta key?  I don't know. */
+  /* Does the __GO32__ have a meta key?  I don't know. */
   term_has_meta = 0;
   term_mm = term_mo = (char *)NULL;
 
@@ -1228,7 +1297,7 @@ init_terminal_io (terminal_name)
 #endif /* HACK_TERMCAP_MOTION */
   terminal_can_insert = 0;
   return;
-#else /* !_GO32_ */
+#else /* !__GO32__ */
 
   char *term, *buffer;
   int tty;
@@ -1253,6 +1322,7 @@ init_terminal_io (terminal_name)
       dumb_term = 1;
       screenwidth = 79;
       screenheight = 24;
+      screenchars = 79 * 24;
       term_cr = "\r";
       term_im = term_ei = term_ic = term_IC = (char *)NULL;
       term_up = term_dc = term_DC = visible_bell = (char *)NULL;
@@ -1264,21 +1334,16 @@ init_terminal_io (terminal_name)
       return 0;
     }
 
-  BC = tgetstr ("pc", &buffer);
-  PC = buffer ? *buffer : 0;
+  get_term_capabilities (&buffer);
 
-  term_backspace = tgetstr ("le", &buffer);
-
-  term_cr = tgetstr ("cr", &buffer);
-  term_clreol = tgetstr ("ce", &buffer);
-  term_clrpag = tgetstr ("cl", &buffer);
+  /* Set up the variables that the termcap library expects the application
+     to provide. */
+  PC = term_pc ? *term_pc : 0;
+  BC = term_backspace;
+  UP = term_up;
 
   if (!term_cr)
     term_cr =  "\r";
-
-#if defined (HACK_TERMCAP_MOTION)
-  term_forward_char = tgetstr ("nd", &buffer);
-#endif  /* HACK_TERMCAP_MOTION */
 
   if (rl_instream)
     tty = fileno (rl_instream);
@@ -1289,31 +1354,16 @@ init_terminal_io (terminal_name)
 
   _rl_set_screen_size (tty, 0);
 
-  term_im = tgetstr ("im", &buffer);
-  term_ei = tgetstr ("ei", &buffer);
-  term_IC = tgetstr ("IC", &buffer);
-  term_ic = tgetstr ("ic", &buffer);
-
   /* "An application program can assume that the terminal can do
       character insertion if *any one of* the capabilities `IC',
       `im', `ic' or `ip' is provided."  But we can't do anything if
       only `ip' is provided, so... */
   terminal_can_insert = (term_IC || term_im || term_ic);
 
-  term_up = tgetstr ("up", &buffer);
-  term_dc = tgetstr ("dc", &buffer);
-  term_DC = tgetstr ("DC", &buffer);
-
-  visible_bell = tgetstr ("vb", &buffer);
-
-  /* Check to see if this terminal has a meta key. */
+  /* Check to see if this terminal has a meta key and clear the capability
+     variables if there is none. */
   term_has_meta = (tgetflag ("km") || tgetflag ("MT"));
-  if (term_has_meta)
-    {
-      term_mm = tgetstr ("mm", &buffer);
-      term_mo = tgetstr ("mo", &buffer);
-    }
-  else
+  if (!term_has_meta)
     {
       term_mm = (char *)NULL;
       term_mo = (char *)NULL;
@@ -1321,60 +1371,37 @@ init_terminal_io (terminal_name)
 
   /* Attempt to find and bind the arrow keys.  Do not override already
      bound keys in an overzealous attempt, however. */
-  term_ku = tgetstr ("ku", &buffer);
-  term_kd = tgetstr ("kd", &buffer);
-  term_kr = tgetstr ("kr", &buffer);
-  term_kl = tgetstr ("kl", &buffer);
+  _rl_bind_if_unbound (term_ku, rl_get_previous_history);
+  _rl_bind_if_unbound (term_kd, rl_get_next_history);
+  _rl_bind_if_unbound (term_kr, rl_forward);
+  _rl_bind_if_unbound (term_kl, rl_backward);
 
-  if (term_ku)
-    {
-      Function *func;
-
-      func = rl_function_of_keyseq (term_ku, _rl_keymap, (int *)NULL);
-
-      if (!func || func == rl_do_lowercase_version)
-	rl_set_key (term_ku, rl_get_previous_history, _rl_keymap);
-    }
-
-  if (term_kd)
-    {
-      Function *func;
-
-      func = rl_function_of_keyseq (term_kd, _rl_keymap, (int *)NULL);
-
-      if (!func || func == rl_do_lowercase_version)
-	rl_set_key (term_kd, rl_get_next_history, _rl_keymap);
-    }
-
-  if (term_kr)
-    {
-      Function *func;
-
-      func = rl_function_of_keyseq (term_kr, _rl_keymap, (int *)NULL);
-
-      if (!func || func == rl_do_lowercase_version)
-	rl_set_key (term_kr, rl_forward, _rl_keymap);
-    }
-
-  if (term_kl)
-    {
-      Function *func;
-
-      func = rl_function_of_keyseq (term_kl, _rl_keymap, (int *)NULL);
-
-      if (!func || func == rl_do_lowercase_version)
-	rl_set_key (term_kl, rl_backward, _rl_keymap);
-    }
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
   return 0;
 }
 
+char *
+rl_get_termcap (cap)
+     char *cap;
+{
+  register int i;
+
+  if (tcap_initialized == 0)
+    return ((char *)NULL);
+  for (i = 0; i < NUM_TC_STRINGS; i++)
+    {
+      if (tc_strings[i].tc_var[0] == cap[0] && strcmp (tc_strings[i].tc_var, cap) == 0)
+        return *(tc_strings[i].tc_value);
+    }
+  return ((char *)NULL);
+}
+
 /* A function for the use of tputs () */
-void
+int
 _rl_output_character_function (c)
      int c;
 {
-  putc (c, out_stream);
+  return putc (c, out_stream);
 }
 
 /* Write COUNT characters from STRING to the output stream. */
@@ -1392,14 +1419,15 @@ backspace (count)
 {
   register int i;
 
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   if (term_backspace)
     for (i = 0; i < count; i++)
       tputs (term_backspace, 1, _rl_output_character_function);
   else
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
     for (i = 0; i < count; i++)
       putc ('\b', out_stream);
+  return 0;
 }
 
 /* Move to the start of the next line. */
@@ -1409,6 +1437,7 @@ crlf ()
   tputs (term_cr, 1, _rl_output_character_function);
 #endif /* NEW_TTY_DRIVER */
   putc ('\n', out_stream);
+  return 0;
 }
 
 
@@ -1451,15 +1480,29 @@ ding ()
 {
   if (readline_echoing_p)
     {
-#if !defined (_GO32_)
-      if (_rl_prefer_visible_bell && visible_bell)
-	tputs (visible_bell, 1, _rl_output_character_function);
-      else
-#endif /* !_GO32_ */
-	{
+#if !defined (__GO32__)
+      switch (_rl_bell_preference)
+        {
+	case NO_BELL:
+	default:
+	  break;
+	case VISIBLE_BELL:
+	  if (visible_bell)
+	    {
+	      tputs (visible_bell, 1, _rl_output_character_function);
+	      break;
+	    }
+	  /* FALLTHROUGH */
+	case AUDIBLE_BELL:
 	  fprintf (stderr, "\007");
 	  fflush (stderr);
-	}
+	  break;
+        }
+#else /* __GO32__ */
+      fprintf (stderr, "\007");
+      fflush (stderr);
+#endif /* __GO32__ */
+      return (0);
     }
   return (-1);
 }
@@ -1544,7 +1587,7 @@ rl_insert_text (string)
   if (!doing_an_undo)
     {
       /* If possible and desirable, concatenate the undos. */
-      if ((strlen (string) == 1) &&
+      if ((l == 1) &&
 	  rl_undo_list &&
 	  (rl_undo_list->what == UNDO_INSERT) &&
 	  (rl_undo_list->end == rl_point) &&
@@ -1556,6 +1599,7 @@ rl_insert_text (string)
   rl_point += l;
   rl_end += l;
   the_line[rl_end] = '\0';
+  return l;
 }
 
 /* Delete the string between FROM and TO.  FROM is
@@ -1564,6 +1608,7 @@ rl_delete_text (from, to)
      int from, to;
 {
   register char *text;
+  register int diff, i;
 
   /* Fix it if the caller is confused. */
   if (from > to)
@@ -1573,7 +1618,11 @@ rl_delete_text (from, to)
       to = t;
     }
   text = rl_copy_text (from, to);
-  strncpy (the_line + from, the_line + to, rl_end - to);
+
+  /* Some versions of strncpy() can't handle overlapping arguments. */
+  diff = to - from;
+  for (i = from; i < rl_end - diff; i++)
+    the_line[i] = the_line[i + diff];
 
   /* Remember how to undo this delete. */
   if (!doing_an_undo)
@@ -1581,8 +1630,9 @@ rl_delete_text (from, to)
   else
     free (text);
 
-  rl_end -= (to - from);
+  rl_end -= diff;
   the_line[rl_end] = '\0';
+  return (diff);
 }
 
 
@@ -1626,22 +1676,23 @@ rl_forward (count)
 {
   if (count < 0)
     rl_backward (-count);
-  else
-    while (count)
-      {
+  else if (count > 0)
+    {
+      int end = rl_point + count;
 #if defined (VI_MODE)
-	if (rl_point >= (rl_end - (rl_editing_mode == vi_mode)))
+      int lend = rl_end - (rl_editing_mode == vi_mode);
 #else
-	if (rl_point == rl_end)
-#endif /* VI_MODE */
-	  {
-	    ding ();
-	    return 0;
-	  }
-	else
-	  rl_point++;
-	--count;
-      }
+      int lend = rl_end;
+#endif
+
+      if (end > lend)
+	{
+	  rl_point = lend;
+	  ding ();
+	}
+      else
+	rl_point = end;
+    }
   return 0;
 }
 
@@ -1651,18 +1702,16 @@ rl_backward (count)
 {
   if (count < 0)
     rl_forward (-count);
-  else
-    while (count)
-      {
-	if (!rl_point)
-	  {
-	    ding ();
-	    return 0;
-	  }
-	else
-	  --rl_point;
-	--count;
-      }
+  else if (count > 0)
+    {
+      if (rl_point < count)
+	{
+	  rl_point = 0;
+	  ding ();
+	}
+      else
+        rl_point -= count;
+    }
   return 0;
 }
 
@@ -1705,14 +1754,17 @@ rl_forward_word (count)
 	  while (++rl_point < rl_end)
 	    {
 	      c = the_line[rl_point];
-	      if (alphabetic (c)) break;
+	      if (alphabetic (c))
+		break;
 	    }
 	}
-      if (rl_point == rl_end) return;
+      if (rl_point == rl_end)
+	return 0;
       while (++rl_point < rl_end)
 	{
 	  c = the_line[rl_point];
-	  if (!alphabetic (c)) break;
+	  if (!alphabetic (c))
+	    break;
 	}
       --count;
     }
@@ -1745,7 +1797,8 @@ rl_backward_word (count)
 	  while (--rl_point)
 	    {
 	      c = the_line[rl_point - 1];
-	      if (alphabetic (c)) break;
+	      if (alphabetic (c))
+		break;
 	    }
 	}
 
@@ -1754,7 +1807,8 @@ rl_backward_word (count)
 	  c = the_line[rl_point - 1];
 	  if (!alphabetic (c))
 	    break;
-	  else --rl_point;
+	  else
+	    --rl_point;
 	}
       --count;
     }
@@ -1764,12 +1818,24 @@ rl_backward_word (count)
 /* Clear the current line.  Numeric argument to C-l does this. */
 rl_refresh_line ()
 {
-  int curr_line = _rl_last_c_pos / screenwidth;
+  int curr_line, nleft;
+
+  /* Find out whether or not there might be invisible characters in the
+     editing buffer. */
+  if (rl_display_prompt == rl_prompt)
+    nleft = _rl_last_c_pos - screenwidth - rl_visible_prompt_length;
+  else
+    nleft = _rl_last_c_pos - screenwidth;
+
+  if (nleft > 0)
+    curr_line = 1 + nleft / screenwidth;
+  else
+    curr_line = 0;
 
   _rl_move_vert (curr_line);
   _rl_move_cursor_relative (0, the_line);   /* XXX is this right */
 
-#if defined (_GO32_)
+#if defined (__GO32__)
   {
     int row, col, width, row_start;
 
@@ -1778,10 +1844,10 @@ rl_refresh_line ()
     row_start = ScreenPrimary + (row * width);
     memset (row_start + col, 0, (width - col) * 2);
   }
-#else /* !_GO32_ */
+#else /* !__GO32__ */
   if (term_clreol)
     tputs (term_clreol, 1, _rl_output_character_function);
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 
   rl_forced_update_display ();
   rl_display_fixed = 1;
@@ -1800,11 +1866,11 @@ rl_clear_screen ()
       return 0;
     }
 
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   if (term_clrpag)
     tputs (term_clrpag, 1, _rl_output_character_function);
   else
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
     crlf ();
 
   rl_forced_update_display ();
@@ -1865,32 +1931,34 @@ rl_insert (count, c)
      readline because of extra large arguments. */
   if (count > 1 && count < 1024)
     {
-      string = (char *)alloca (1 + count);
+      string = xmalloc (1 + count);
 
       for (i = 0; i < count; i++)
 	string[i] = c;
 
       string[i] = '\0';
       rl_insert_text (string);
+      free (string);
+
       return 0;
     }
 
   if (count > 1024)
     {
       int decreaser;
-
-      string = (char *)alloca (1024 + 1);
+      char str[1024+1];
 
       for (i = 0; i < 1024; i++)
-	string[i] = c;
+	str[i] = c;
 
       while (count)
 	{
 	  decreaser = (count > 1024 ? 1024 : count);
-	  string[decreaser] = '\0';
-	  rl_insert_text (string);
+	  str[decreaser] = '\0';
+	  rl_insert_text (str);
 	  count -= decreaser;
 	}
+
       return 0;
     }
 
@@ -1903,7 +1971,7 @@ rl_insert (count, c)
       int key = 0, t;
 
       i = 0;
-      string = (char *)alloca (ibuffer_len + 1);
+      string = xmalloc (ibuffer_len + 1);
       string[i++] = c;
 
       while ((t = rl_get_char (&key)) &&
@@ -1916,15 +1984,16 @@ rl_insert (count, c)
 
       string[i] = '\0';
       rl_insert_text (string);
+      free (string);
     }
   else
     {
       /* Inserting a single character. */
-      string = (char *)alloca (2);
+      char str[2];
 
-      string[1] = '\0';
-      string[0] = c;
-      rl_insert_text (string);
+      str[1] = '\0';
+      str[0] = c;
+      rl_insert_text (str);
     }
   return 0;
 }
@@ -1956,15 +2025,8 @@ rl_newline (count, key)
   rl_done = 1;
 
 #if defined (VI_MODE)
-  {
-    extern int _rl_vi_doing_insert;
-    if (_rl_vi_doing_insert)
-      {
-	rl_end_undo_group ();
-	_rl_vi_doing_insert = 0;
-      }
-  }
-  rl_vi_set_last ();
+  _rl_vi_done_inserting ();
+  _rl_vi_reset_last ();
 
 #endif /* VI_MODE */
 
@@ -1993,7 +2055,7 @@ rl_clean_up_for_exit ()
 
 /* What to do for some uppercase characters, like meta characters,
    and some characters appearing in emacs_ctlx_keymap.  This function
-   is just a stub, you bind keys to it and the code in rl_dispatch ()
+   is just a stub, you bind keys to it and the code in _rl_dispatch ()
    is special cased. */
 rl_do_lowercase_version (ignore1, ignore2)
      int ignore1, ignore2;
@@ -2116,7 +2178,7 @@ rl_unix_word_rubout ()
       while (rl_point && !whitespace (the_line[rl_point - 1]))
 	rl_point--;
 
-      rl_kill_text (rl_point, orig_point);
+      rl_kill_text (orig_point, rl_point);
     }
   return 0;
 }
@@ -2431,11 +2493,7 @@ undo_thing:
     if (waiting_for_begin)
       waiting_for_begin--;
     else
-#if 0
-      abort ();
-#else
       ding ();
-#endif
     break;
   }
 
@@ -2535,19 +2593,19 @@ rl_undo_command (count)
 HIST_ENTRY *saved_line_for_history = (HIST_ENTRY *)NULL;
 
 /* Set the history pointer back to the last entry in the history. */
+static void
 start_using_history ()
 {
   using_history ();
   if (saved_line_for_history)
-    free_history_entry (saved_line_for_history);
+    _rl_free_history_entry (saved_line_for_history);
 
   saved_line_for_history = (HIST_ENTRY *)NULL;
-  return 0;
 }
 
 /* Free the contents (and containing structure) of a HIST_ENTRY. */
 void
-free_history_entry (entry)
+_rl_free_history_entry (entry)
      HIST_ENTRY *entry;
 {
   if (!entry)
@@ -2586,7 +2644,7 @@ maybe_unsave_line ()
 
       strcpy (the_line, saved_line_for_history->line);
       rl_undo_list = (UNDO_LIST *)saved_line_for_history->data;
-      free_history_entry (saved_line_for_history);
+      _rl_free_history_entry (saved_line_for_history);
       saved_line_for_history = (HIST_ENTRY *)NULL;
       rl_end = rl_point = strlen (the_line);
     }
@@ -2927,8 +2985,8 @@ rl_kill_word (count)
 }
 
 /* Rubout the word before point, placing it on the kill ring. */
-rl_backward_kill_word (count)
-     int count;
+rl_backward_kill_word (count, ignore)
+     int count, ignore;
 {
   int orig_point = rl_point;
 
@@ -2941,6 +2999,7 @@ rl_backward_kill_word (count)
       if (rl_point != orig_point)
 	rl_kill_text (orig_point, rl_point);
     }
+  return 0;
 }
 
 /* Kill from here to the end of the line.  If DIRECTION is negative, kill
@@ -2984,8 +3043,20 @@ rl_backward_kill_line (direction)
   return 0;
 }
 
+/* Kill the whole line, no matter where point is. */
+rl_kill_full_line (count, ignore)
+     int count, ignore;
+{
+  rl_begin_undo_group ();
+  rl_point = 0;
+  rl_kill_text (rl_point, rl_end);
+  rl_end_undo_group ();
+  return 0;
+}
+
 /* Yank back the last killed text.  This ignores arguments. */
-rl_yank ()
+rl_yank (count, ignore)
+     int count, ignore;
 {
   if (!rl_kill_ring)
     {
@@ -3002,7 +3073,8 @@ rl_yank ()
    before point is identical to the current kill item, then
    delete that text from the line, rotate the index down, and
    yank back some other text. */
-rl_yank_pop ()
+rl_yank_pop (count, key)
+     int count, key;
 {
   int l;
 
@@ -3023,7 +3095,7 @@ rl_yank_pop ()
       rl_kill_index--;
       if (rl_kill_index < 0)
 	rl_kill_index = rl_kill_ring_length - 1;
-      rl_yank ();
+      rl_yank (1, 0);
       return 0;
     }
   else
@@ -3035,7 +3107,7 @@ rl_yank_pop ()
 
 /* Yank the COUNTth argument from the previous history line. */
 rl_yank_nth_arg (count, ignore)
-     int count;
+     int count, ignore;
 {
   register HIST_ENTRY *entry = previous_history ();
   char *arg;
@@ -3061,13 +3133,11 @@ rl_yank_nth_arg (count, ignore)
   /* Vi mode always inserts a space before yanking the argument, and it
      inserts it right *after* rl_point. */
   if (rl_editing_mode == vi_mode)
-    rl_point++;
+    {
+      rl_vi_append_mode ();
+      rl_insert_text (" ");
+    }
 #endif /* VI_MODE */
-
-#if 0
-  if (rl_point && the_line[rl_point - 1] != ' ')
-    rl_insert_text (" ");
-#endif
 
   rl_insert_text (arg);
   free (arg);
@@ -3077,7 +3147,8 @@ rl_yank_nth_arg (count, ignore)
 }
 
 /* How to toggle back and forth between editing modes. */
-rl_vi_editing_mode ()
+rl_vi_editing_mode (count, key)
+     int count, key;
 {
 #if defined (VI_MODE)
   rl_editing_mode = vi_mode;
@@ -3086,7 +3157,8 @@ rl_vi_editing_mode ()
 #endif /* VI_MODE */
 }
 
-rl_emacs_editing_mode ()
+rl_emacs_editing_mode (count, key)
+     int count, key;
 {
   rl_editing_mode = emacs_mode;
   _rl_keymap = emacs_standard_keymap;
@@ -3107,10 +3179,10 @@ rl_getc (stream)
   int result;
   unsigned char c;
 
-#if defined (_GO32_)
+#if defined (__GO32__)
   if (isatty (0))
     return (getkey ());
-#endif /* _GO32_ */
+#endif /* __GO32__ */
 
   while (1)
     {
@@ -3157,13 +3229,13 @@ rl_getc (stream)
 	}
 #endif /* _POSIX_VERSION && EAGAIN && O_NONBLOCK */
 
-#if !defined (_GO32_)
+#if !defined (__GO32__)
       /* If the error that we received was SIGINT, then try again,
 	 this is simply an interrupted system call to read ().
 	 Otherwise, some error ocurred, also signifying EOF. */
       if (errno != EINTR)
 	return (EOF);
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
     }
 }
 

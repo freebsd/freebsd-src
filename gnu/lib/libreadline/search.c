@@ -23,16 +23,14 @@
 
 #include <stdio.h>
 
-#if defined (__GNUC__)
-#  define alloca __builtin_alloca
-#else
-#  if defined (sparc) || defined (HAVE_ALLOCA_H)
-#    include <alloca.h>
-#  endif
-#endif
-
+#include "memalloc.h"
 #include "readline.h"
 #include "history.h"
+
+#define STREQ(a, b)	(((a)[0] == (b)[0]) && (strcmp ((a), (b)) == 0))
+#define STREQN(a, b, n)	(((a)[0] == (b)[0]) && (strncmp ((a), (b), (n)) == 0))
+
+#define abs(x)		(((x) > 0) ? (x) : -(x))
 
 extern char *xmalloc (), *xrealloc ();
 
@@ -42,9 +40,14 @@ extern Keymap _rl_keymap;
 extern char *rl_prompt;
 extern char *rl_line_buffer;
 extern HIST_ENTRY *saved_line_for_history;
+extern Function *rl_last_func;
+
+/* Functions imported from the rest of the library. */
+extern int _rl_free_history_entry ();
 
 static char *noninc_search_string = (char *) NULL;
 static int noninc_history_pos = 0;
+static char *prev_line_found = (char *) NULL;
 
 /* Search the history list for STRING starting at absolute history position
    POS.  If STRING begins with `^', the search must match STRING at the
@@ -123,7 +126,7 @@ noninc_dosearch (string, dir)
   rl_clear_message ();
 
   if (saved_line_for_history)
-    free_history_entry (saved_line_for_history);
+    _rl_free_history_entry (saved_line_for_history);
   saved_line_for_history = (HIST_ENTRY *)NULL;
 }
 
@@ -147,14 +150,16 @@ noninc_search (dir, pchar)
   rl_line_buffer[0] = 0;
   rl_end = rl_point = 0;
 
+  /* XXX - this needs fixing to work with the prompt expansion stuff - XXX */
   pmtlen = (rl_prompt && *rl_prompt) ? strlen (rl_prompt) : 0;
-  p = (char *)alloca (2 + pmtlen);
+  p = xmalloc (2 + pmtlen);
   if (pmtlen)
     strcpy (p, rl_prompt);
   p[pmtlen] = pchar ? pchar : ':';
   p[pmtlen + 1]  = '\0';
 
   rl_message (p, 0, 0);
+  free (p);
 
   /* Read the search string. */
   while (c = rl_read_key ())
@@ -170,11 +175,15 @@ noninc_search (dir, pchar)
 	      rl_point = saved_point;
 	      return;
 	    }
-	  /* FALLTHROUGH */
+	  rl_rubout (1);
+	  break;
 
 	case CTRL('W'):
+	  rl_unix_word_rubout ();
+	  break;
+
 	case CTRL('U'):
-	  rl_dispatch (c, _rl_keymap);
+	  rl_unix_line_discard ();
 	  break;
 
 	case RETURN:
@@ -272,4 +281,80 @@ rl_noninc_reverse_search_again (count, key)
     }
   noninc_dosearch (noninc_search_string, -1);
   return 0;
+}
+
+static int
+rl_history_search_internal (count, direction)
+     int count, direction;
+{
+  HIST_ENTRY *temp, *old_temp;
+  int line_len;
+
+  maybe_save_line ();
+
+  temp = old_temp = (HIST_ENTRY *)NULL;
+  while (count)
+    {
+      temp = (direction < 0) ? previous_history () : next_history ();
+      if (!temp)
+        break;
+      if (STREQN (rl_line_buffer, temp->line, rl_point))
+	{
+	  /* Don't find multiple instances of the same line. */
+	  if (prev_line_found && STREQ (prev_line_found, temp->line))
+	    continue;
+          if (direction < 0)
+            old_temp = temp;
+          prev_line_found = temp->line;
+          count--;
+	}
+    }
+
+  if (!temp)
+    {
+      if (direction < 0 && old_temp)
+	temp = old_temp;
+      else
+	{
+	  maybe_unsave_line ();
+	  ding ();
+	  return 1;
+	}
+    }
+
+  line_len = strlen (temp->line);
+  if (line_len >= rl_line_buffer_len)
+    rl_extend_line_buffer (line_len);
+  strcpy (rl_line_buffer, temp->line);
+  rl_undo_list = (UNDO_LIST *)temp->data;
+  rl_end = line_len;
+  return 0;
+}
+
+/* Search forward in the history for the string of characters
+   from the start of the line to rl_point.  This is a non-incremental
+   search. */
+int
+rl_history_search_forward (count, ignore)
+     int count, ignore;
+{
+  if (count == 0)
+    return (0);
+  if (rl_last_func != rl_history_search_forward)
+    prev_line_found = (char *)NULL;
+  return (rl_history_search_internal (abs (count), (count > 0) ? 1 : -1));
+}
+
+/* Search backward through the history for the string of characters
+   from the start of the line to rl_point.  This is a non-incremental
+   search. */
+int
+rl_history_search_backward (count, ignore)
+     int count, ignore;
+{
+  if (count == 0)
+    return (0);
+  if (rl_last_func != rl_history_search_backward)
+    prev_line_found = (char *)NULL;
+  return (rl_history_search_internal (abs (count), (count > 0) ? -1 : 1));
 }
