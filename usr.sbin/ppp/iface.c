@@ -380,6 +380,8 @@ iface_Clear(struct iface *iface, struct ncp *ncp, int family, int how)
           s = &s6;
           break;
 #endif
+        default:
+          continue;
         }
 
         if (*s == -1 && (*s = ID0socket(af, SOCK_DGRAM, 0)) == -1)
