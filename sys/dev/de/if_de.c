@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.35 1995/10/26 07:40:11 davidg Exp $
+ * $Id: if_de.c,v 1.36 1995/11/14 10:03:56 phk Exp $
  *
  */
 
@@ -414,7 +414,8 @@ static void
 tulip_dc21040_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT|TULIP_CMD_THRSHLD160;
+    sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT|TULIP_CMD_THRSHLD160
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_sia_connectivity, TULIP_SIACONN_RESET);
     if (sc->tulip_if.if_flags & IFF_ALTPHYS) {
 	if ((sc->tulip_flags & TULIP_ALTPHYS) == 0)
@@ -452,7 +453,8 @@ static void
 tulip_zx314_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT|TULIP_CMD_THRSHLD160;
+    sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT|TULIP_CMD_THRSHLD160
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_sia_connectivity, TULIP_SIACONN_RESET);
     if (sc->tulip_flags & TULIP_ALTPHYS)
 	printf("%s%d: enabling 10baseT/UTP port\n",
@@ -496,7 +498,8 @@ static void
 tulip_dc21140_evalboard_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE;
+    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_EB_PINS);
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_EB_INIT);
     if (sc->tulip_if.if_flags & IFF_ALTPHYS) {
@@ -545,7 +548,8 @@ static void
 tulip_dc21140_cogent_em100_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE;
+    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_EM100_PINS);
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_EM100_INIT);
     if ((sc->tulip_flags & TULIP_ALTPHYS) == 0)
@@ -586,7 +590,8 @@ static void
 tulip_dc21140_znyx_zx34x_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE;
+    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_ZX34X_PINS);
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_ZX34X_INIT);
     if (sc->tulip_if.if_flags & IFF_ALTPHYS) {
@@ -643,7 +648,8 @@ static void
 tulip_dc21140_de500_media_select(
     tulip_softc_t * const sc)
 {
-    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE;
+    sc->tulip_cmdmode |= TULIP_CMD_STOREFWD|TULIP_CMD_MUSTBEONE
+	|TULIP_CMD_BACKOFFCTR;
     TULIP_WRITE_CSR(sc, csr_gp, TULIP_GP_DE500_PINS);
     if (sc->tulip_if.if_flags & IFF_ALTPHYS) {
 	if ((sc->tulip_flags & TULIP_ALTPHYS) == 0)
@@ -687,7 +693,7 @@ tulip_dc21041_media_select(
     tulip_softc_t * const sc)
 {
     sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT|TULIP_CMD_ENHCAPTEFFCT
-	/* |TULIP_CMD_FULLDUPLEX */ |TULIP_CMD_THRSHLD160;
+	/* |TULIP_CMD_FULLDUPLEX */ |TULIP_CMD_THRSHLD160|TULIP_CMD_BACKOFFCTR;
     sc->tulip_intrmask |= TULIP_STS_NORMALINTR|TULIP_STS_GPTIMEOUT
 	|TULIP_STS_ABNRMLINTR|TULIP_STS_LINKPASS|TULIP_STS_LINKFAIL;
     if (sc->tulip_if.if_flags & IFF_ALTPHYS) {
