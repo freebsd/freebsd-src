@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.11 1999/04/15 00:13:20 alex Exp $
+ *	$Id: cy_pci.c,v 1.12 1999/04/24 20:13:58 peter Exp $
  */
 
 /*
@@ -38,7 +38,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -46,6 +45,10 @@
 #include <pci/pcivar.h>
 
 #include <pci/cy_pcireg.h>
+
+#ifdef CY_PCI_FASTINTR
+#include <i386/isa/intr_machdep.h>
+#endif
 
 static const char *cy_probe		__P((pcici_t, pcidi_t));
 static void cy_attach		__P((pcici_t, int));
