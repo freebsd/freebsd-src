@@ -125,6 +125,10 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
+dev/if_ndis/if_ndis.c		optional	ndis
+dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
+dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus
+dev/if_ndis/if_ndis_pci.c	optional	ndis pci
 dev/io/iodev.c			optional	io
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
@@ -196,3 +200,13 @@ compat/linux/linux_stats.c	optional	compat_linux32
 compat/linux/linux_sysctl.c	optional	compat_linux32
 compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
+#
+# Windows NDIS driver support
+#
+compat/ndis/kern_ndis.c		optional	ndisapi pci
+compat/ndis/kern_windrv.c	optional	ndisapi pci
+compat/ndis/subr_hal.c		optional	ndisapi pci
+compat/ndis/subr_ndis.c		optional	ndisapi pci
+compat/ndis/subr_ntoskrnl.c	optional	ndisapi pci
+compat/ndis/subr_pe.c		optional	ndisapi pci
+compat/ndis/winx64_wrap.S	optional	ndisapi pci

@@ -82,6 +82,35 @@ __stdcall static void dummy (void);
 
 extern struct mtx_pool *ndis_mtxpool;
 
+int
+hal_libinit()
+{
+	image_patch_table	*patch;
+
+	patch = hal_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_wrap((funcptr)patch->ipt_func,
+		    (funcptr *)&patch->ipt_wrap);
+		patch++;
+	}
+
+	return(0);
+}
+
+int
+hal_libfini()
+{
+	image_patch_table	*patch;
+
+	patch = hal_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_unwrap(patch->ipt_wrap);
+		patch++;
+	}
+
+	return(0);
+}
+
 __stdcall static void
 KeStallExecutionProcessor(usecs)
 	uint32_t		usecs;
@@ -375,9 +404,9 @@ image_patch_table hal_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy },
+	{ NULL, (FUNC)dummy, NULL },
 
 	/* End of list. */
 
-	{ NULL, NULL },
+	{ NULL, NULL, NULL }
 };

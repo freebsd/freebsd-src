@@ -1068,6 +1068,7 @@ typedef struct driver_object driver_object;
 #define NDIS_KSTACK_PAGES	8
 
 extern image_patch_table ntoskrnl_functbl[];
+typedef void (*funcptr)(void);
 
 __BEGIN_DECLS
 extern int windrv_libinit(void);
@@ -1079,6 +1080,8 @@ extern int windrv_create_pdo(driver_object *, device_t);
 extern void windrv_destroy_pdo(driver_object *, device_t);
 extern device_object *windrv_find_pdo(driver_object *, device_t);
 extern int windrv_bus_attach(driver_object *, char *);
+extern int windrv_wrap(funcptr, funcptr *);
+extern int windrv_unwrap(funcptr);
 
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
@@ -1100,6 +1103,8 @@ __stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
 __stdcall extern uint32_t KeResetEvent(nt_kevent *);
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
+__stdcall extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
+__stdcall extern void KeReleaseSpinLock(kspin_lock *, uint8_t);
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
 __stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
 __stdcall extern void ExFreePool(void *);
@@ -1115,6 +1120,8 @@ __fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
 __stdcall extern void IoDetachDevice(device_object *);
 __stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 	device_object *);
+__stdcall mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
+__stdcall void IoFreeMdl(mdl *);
 
 #define IoCallDriver(a, b)		FASTCALL2(IofCallDriver, a, b)
 #define IoCompleteRequest(a, b)		FASTCALL2(IofCompleteRequest, a, b)
@@ -1129,6 +1136,18 @@ __stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 #define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
 #define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
 #endif /* __i386__ */
+
+#ifdef __amd64__
+#define KeAcquireSpinLock(a, b)	*(b) = KeAcquireSpinLockRaiseToDpc(a)
+
+/*
+ * These may need to be redefined later;
+ * not sure where they live on amd64 yet.
+ */
+#define KeRaiseIrql(a)		KfRaiseIrql(a)
+#define KeLowerIrql(a)		KfLowerIrql(a)
+#endif /* __amd64__ */
+
 __END_DECLS
 
 #endif /* _NTOSKRNL_VAR_H_ */

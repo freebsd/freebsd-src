@@ -143,8 +143,6 @@ __fastcall static uint32_t
 	InterlockedDecrement(REGARGS1(volatile uint32_t *addend));
 __fastcall static void
 	ExInterlockedAddLargeStatistic(REGARGS2(uint64_t *addend, uint32_t));
-__stdcall static mdl *IoAllocateMdl(void *, uint32_t, uint8_t, uint8_t, irp *);
-__stdcall static void IoFreeMdl(mdl *);
 __stdcall static uint32_t MmSizeOfMdl(void *, size_t);
 __stdcall static void MmBuildMdlForNonPagedPool(mdl *);
 __stdcall static void *MmMapLockedPages(mdl *, uint8_t);
@@ -178,6 +176,7 @@ __stdcall static ndis_status ObReferenceObjectByHandle(ndis_handle,
 	uint32_t, void *, uint8_t, void **, void **);
 __fastcall static void ObfDereferenceObject(REGARGS1(void *object));
 __stdcall static uint32_t ZwClose(ndis_handle);
+static void *ntoskrnl_memset(void *, int, size_t);
 static uint32_t DbgPrint(char *, ...);
 __stdcall static void DbgBreakPoint(void);
 __stdcall static void dummy(void);
@@ -190,18 +189,49 @@ static struct nt_objref_head ntoskrnl_reflist;
 int
 ntoskrnl_libinit()
 {
+	image_patch_table	*patch;
+
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
 	KeInitializeSpinLock(&ntoskrnl_global);
 	TAILQ_INIT(&ntoskrnl_reflist);
+
+	patch = ntoskrnl_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_wrap((funcptr)patch->ipt_func,
+		    (funcptr *)&patch->ipt_wrap);
+		patch++;
+	}
+
 	return(0);
 }
 
 int
 ntoskrnl_libfini()
 {
+	image_patch_table	*patch;
 	mtx_destroy(&ntoskrnl_dispatchlock);
+
+	patch = ntoskrnl_functbl;
+	while (patch->ipt_func != NULL) {
+		windrv_unwrap(patch->ipt_wrap);
+		patch++;
+	}
+
 	return(0);
+}
+
+/*
+ * We need to be able to reference this externally from the wrapper;
+ * GCC only generates a local implementation of memset.
+ */
+static void *
+ntoskrnl_memset(buf, ch, size)
+	void			*buf;
+	int			ch;
+	size_t			size;
+{
+	return(memset(buf, ch, size));
 }
 
 __stdcall static uint8_t 
@@ -680,7 +710,7 @@ IofCompleteRequest(REGARGS2(irp *ip, uint8_t prioboost))
 
 		masterirp = ip->irp_assoc.irp_master;
 		masterirpcnt = FASTCALL1(InterlockedDecrement,
-		    masterirp->irp_assoc.irp_irpcnt);
+		    &masterirp->irp_assoc.irp_irpcnt);
 
 		while ((m = ip->irp_mdl) != NULL) {
 			ip->irp_mdl = m->mdl_next;
@@ -1323,7 +1353,7 @@ ExDeletePagedLookasideList(lookaside)
 
 	freefunc = lookaside->nll_l.gl_freefunc;
 	while((buf = ntoskrnl_popsl(&lookaside->nll_l.gl_listhead)) != NULL)
-		freefunc(buf);
+		MSCALL1(freefunc, buf);
 
 	return;
 }
@@ -1373,7 +1403,7 @@ ExDeleteNPagedLookasideList(lookaside)
 
 	freefunc = lookaside->nll_l.gl_freefunc;
 	while((buf = ntoskrnl_popsl(&lookaside->nll_l.gl_listhead)) != NULL)
-		freefunc(buf);
+		MSCALL1(freefunc, buf);
 
 	return;
 }
@@ -1435,6 +1465,22 @@ ExInterlockedPopEntrySList(REGARGS2(slist_header *head, kspin_lock *lock))
 	return(first);
 }
 
+/*
+ * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
+ * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
+ * to splnet()/splx() in their use. We can't create a new mutex
+ * lock here because there is no complimentary KeFreeSpinLock()
+ * function. Instead, we grab a mutex from the mutex pool.
+ */
+__stdcall void
+KeInitializeSpinLock(lock)
+	kspin_lock		*lock;
+{
+	*lock = 0;
+
+	return;
+}
+
 __fastcall void
 KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *lock))
 {
@@ -1451,6 +1497,27 @@ KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 
 	return;
 }
+
+__stdcall uint8_t
+KeAcquireSpinLockRaiseToDpc(lock)
+	kspin_lock		*lock;
+{
+	uint8_t			oldirql;
+
+	oldirql = FASTCALL1(KfAcquireSpinLock, lock);
+	return(oldirql);
+}
+
+#ifndef __i386__
+__stdcall void
+KeReleaseSpinLock(lock, irql)
+	kspin_lock		*lock;
+	uint8_t			irql;
+{
+	FASTCALL2(KfReleaseSpinLock, lock, irql);
+	return;
+}
+#endif
 
 __fastcall static uint32_t
 InterlockedIncrement(REGARGS1(volatile uint32_t *addend))
@@ -1478,7 +1545,7 @@ ExInterlockedAddLargeStatistic(REGARGS2(uint64_t *addend, uint32_t inc))
 	return;
 };
 
-__stdcall static mdl *
+__stdcall mdl *
 IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
 	void			*vaddr;
 	uint32_t		len;
@@ -1510,10 +1577,10 @@ IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
 		}
 	}
 
-	return (NULL);
+	return (m);
 }
 
-__stdcall static void
+__stdcall void
 IoFreeMdl(m)
 	mdl			*m;
 {
@@ -1596,22 +1663,6 @@ MmUnmapLockedPages(vaddr, buf)
 	mdl			*buf;
 {
 	buf->mdl_flags &= ~MDL_MAPPED_TO_SYSTEM_VA;
-	return;
-}
-
-/*
- * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
- * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
- * to splnet()/splx() in their use. We can't create a new mutex
- * lock here because there is no complimentary KeFreeSpinLock()
- * function. Instead, we grab a mutex from the mutex pool.
- */
-__stdcall void
-KeInitializeSpinLock(lock)
-	kspin_lock		*lock;
-{
-	*lock = 0;
-
 	return;
 }
 
@@ -1987,7 +2038,7 @@ ntoskrnl_thrfunc(arg)
 	tctx = thrctx->tc_thrctx;
 	free(thrctx, M_TEMP);
 
-	rval = tfunc(tctx);
+	rval = MSCALL1(tfunc, tctx);
 
 	PsTerminateSystemThread(rval);
 	return; /* notreached */
@@ -2167,7 +2218,8 @@ ntoskrnl_run_dpc(arg)
 	dpc = arg;
 	dpcfunc = dpc->k_deferedfunc;
 	irql = KeRaiseIrql(DISPATCH_LEVEL);
-	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
+	MSCALL4(dpcfunc, dpc, dpc->k_deferredctx,
+	    dpc->k_sysarg1, dpc->k_sysarg2);
 	KeLowerIrql(irql);
 
 	return;
@@ -2322,6 +2374,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(RtlUnicodeStringToAnsiString),
 	IMPORT_FUNC(RtlAnsiStringToUnicodeString),
 	IMPORT_FUNC(RtlInitAnsiString),
+	IMPORT_FUNC_MAP(RtlInitString, RtlInitAnsiString),
 	IMPORT_FUNC(RtlInitUnicodeString),
 	IMPORT_FUNC(RtlFreeAnsiString),
 	IMPORT_FUNC(RtlFreeUnicodeString),
@@ -2338,8 +2391,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(strcpy),
 	IMPORT_FUNC(strlen),
 	IMPORT_FUNC(memcpy),
-	IMPORT_FUNC_MAP(memmove, memset),
-	IMPORT_FUNC(memset),
+	IMPORT_FUNC_MAP(memmove, ntoskrnl_memset),
+	IMPORT_FUNC(ntoskrnl_memset),
 	IMPORT_FUNC(IoAllocateDriverObjectExtension),
 	IMPORT_FUNC(IoGetDriverObjectExtension),
 	IMPORT_FUNC(IofCallDriver),
@@ -2389,6 +2442,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
 	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
 	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
+	IMPORT_FUNC(KeAcquireSpinLockRaiseToDpc),
+	IMPORT_FUNC(KeReleaseSpinLock),
 	IMPORT_FUNC(InterlockedIncrement),
 	IMPORT_FUNC(InterlockedDecrement),
 	IMPORT_FUNC(ExInterlockedAddLargeStatistic),
@@ -2432,9 +2487,9 @@ image_patch_table ntoskrnl_functbl[] = {
 	 * in this table.
 	 */
 
-	{ NULL, (FUNC)dummy },
+	{ NULL, (FUNC)dummy, NULL },
 
 	/* End of list. */
 
-	{ NULL, NULL },
+	{ NULL, NULL, NULL }
 };

@@ -94,7 +94,6 @@ struct ndis_softc {
 	struct resource_list	ndis_rl;
 	int			ndis_rescnt;
 	struct mtx		ndis_mtx;
-	struct mtx		ndis_intrmtx;
 	device_t		ndis_dev;
 	int			ndis_unit;
 	ndis_miniport_block	*ndis_block;
@@ -107,6 +106,7 @@ struct ndis_softc {
 	int			ndis_txidx;
 	int			ndis_txpending;
 	ndis_packet		**ndis_txarray;
+	ndis_handle		ndis_txpool;
 	int			ndis_sc;
 	ndis_cfg		*ndis_regvals;
 	struct nch		ndis_cfglist_head;
@@ -130,7 +130,6 @@ struct ndis_softc {
 	bus_dmamap_t		*ndis_mmaps;
 	bus_dmamap_t		*ndis_tmaps;
 	int			ndis_mmapcnt;
-	device_object		*ndis_pdo;
 };
 
 #define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
