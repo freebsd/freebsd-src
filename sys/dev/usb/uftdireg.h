@@ -104,7 +104,9 @@ enum {
 	ftdi_8u232am_b115200 = 0x001a,
 	ftdi_8u232am_b230400 = 0x000d,
 	ftdi_8u232am_b460800 = 0x4006,
-	ftdi_8u232am_b921600 = 0x8003
+	ftdi_8u232am_b921600 = 0x8003,
+	ftdi_8u232am_b2000000 = 0x0001,	/* special case for 2M baud */
+	ftdi_8u232am_b3000000 = 0x0000,	/* special case for 3M baud */
 };
 
 /*

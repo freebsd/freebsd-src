@@ -316,6 +316,7 @@ vendor GOHUBS		0x0921	GoHubs
 vendor BIOMETRIC	0x0929	American Biometric Company
 vendor TOSHIBA		0x0930	Toshiba Corporation
 vendor PLEXTOR		0x093b  Plextor Corp.
+vendor INTREPIDCS	0x093c	Intrepid Control Systems
 vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
 vendor BLUEWATER	0x0956	BlueWater Systems
@@ -802,6 +803,10 @@ product INTEL TESTBOARD		0x9890	82930 test board
 
 /* Intersil products */
 product INTERSIL PRISM_2X	0x3642	Prism2.x or Atmel WLAN
+
+/* Interpid Control Systems products */
+product INTREPIDCS VALUECAN	0x0601	ValueCAN CAN bus interface
+product INTREPIDCS NEOVI	0x0701	NeoVI Blue vehicle bus interface
 
 /* I/O DATA products */
 product IODATA USBETT		0x0901	USB ETT
