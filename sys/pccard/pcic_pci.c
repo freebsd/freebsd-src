@@ -644,8 +644,11 @@ pcic_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
 	struct pcic_slot *sp = &sc->slots[0];
 	
-	if (sp->intr)
-		panic("Interrupt already established");
+	if (sp->intr) {
+		device_printf(dev,
+"Interrupt already established, possible multiple attach bug.\n");
+		return (EINVAL);
+	}
 	sp->intr = intr;
 	sp->argp = arg;
 	*cookiep = sc;
