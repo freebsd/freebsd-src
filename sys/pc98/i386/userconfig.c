@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.16 1996/12/15 09:37:43 kato Exp $
+ **      $Id: userconfig.c,v 1.17 1996/12/15 10:07:09 kato Exp $
  **/
 
 /**
@@ -227,7 +227,7 @@ static DEV_INFO device_info[] = {
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
-{"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
+{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
@@ -243,7 +243,7 @@ static DEV_INFO device_info[] = {
 {"nca",         "ProAudio Spectrum SCSI and compatibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
 {"wds",         "Western Digitial WD7000 SCSI controller",	0,	CLS_STORAGE},
-{"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
+{"ncr",         "NCR/Symbios 53C810/15/25/60/75 SCSI controller",FLG_FIXED,CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
@@ -2257,7 +2257,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.16 1996/12/15 09:37:43 kato Exp $
+ *      $Id: userconfig.c,v 1.17 1996/12/15 10:07:09 kato Exp $
  */
 
 #include "scbus.h"
