@@ -1,6 +1,9 @@
+/*ATTENTION*/These changes are by no means comprehensive, but they flag areas
+/*ATTENTION*/I am certain need an update of some sort.
+/*ATTENTION*/Frank Durda IV	25-May-95
                                  RELEASE NOTES
                                     FreeBSD
-                                 Release 2.0
+                                 Release 2.0.5
 
 1. Technical overview
 ---------------------
@@ -10,17 +13,17 @@ for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our first release of FreeBSD 1.0 some 18 months ago, FreeBSD
+Since our first release of FreeBSD 1.0 nearly two years ago, FreeBSD
 has changed almost entirely.  A new port from the Berkeley 4.4 code
 base was done, which brought the legal status of the system out of the
-shadows with the blessing of Novell (new owners of USL and UNIX).  The
+shadows with the blessing of Novell (the new owners of USL and UNIX).  The
 port to 4.4 has also brought in a host of new features, filesystems
 and enhanced driver support.  With our new unencumbered code base, we
 have every reason to hope that we'll be able to release quality
 operating systems without further legal encumbrance for some time to
 come!
 
-FreeBSD 2.0 represents the culmination of almost 2 years of work and
+FreeBSD 2.0.5 represents the culmination of over two years of work and
 many thousands of man hours put in by an international development team.
 We hope you enjoy it!
 
@@ -41,9 +44,9 @@ yourself with it.
 The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
 to the core distribution, for use only in the United States, that
-contains the programs that normally use DES.  The auxilliary packages
+contains the programs that normally use DES.  The auxiliary packages
 provided separately can be used by anyone.   A freely (from outside the
-U.S.) exportable European distribution of DES for our non U.S. users also
+U.S.) exportable European distribution of DES for our non-U.S. users also
 exists and is described in the FreeBSD FAQ.
 
 If password security for FreeBSD is all you need, and you have no
@@ -54,8 +57,11 @@ model is more than a match for DES, and without any messy export issues
 to deal with.  If you're outside (or even inside) the U.S., give it a try!
 
 
-1.1 What's new in 2.0?
+1.1 What's new in 2.0.5?
 ----------------------
+/*ATTENTION*/Some things here might want to be deleted, or you might want to
+/*ATTENTION*/mention when things are new, eg  4.4 Lite (new for 2.0)
+/*ATTENTION*/Disk slicing, Sony CD-ROM support, AHA2940, NCR SCSI, etc.
 
 4.4 Lite
 --------
@@ -88,6 +94,7 @@ from Steve D. and Ajit.  The non-forwarding code is known to work (for
 some limited test cases).  The multicast forwarder and user-mode
 multicast routing process are known to compile, but have not been
 significantly tested (hopefully this will happen before 2.0 release).
+/*ATTENTION*/Above statement should be out of date.
 
 Owner:			wollman
 Sources involved:	sys/netinet, usr.sbin/mrouted
@@ -130,6 +137,7 @@ S/Key
 Since version 1.1.5, FreeBSD has supported the S/Key one time password
 scheme.  The version used is derived from the logdaemon package of Wietse
 Venema.
+/*ATTENTION*/The following statement may need updating.
 Some of the features new in 2.0 are:
 	- New access control table format to impose the use of S/Keys
 	  based on: hostname, ip address, port, username, group id.
@@ -157,6 +165,17 @@ kbyte/sec being the norm.
 Owner:			phk
 Sources involved:	isa/lpt.c
 
+/*ATTENTION*/This seemed like a valid item for the "new" list:
+/*ATTENTION*/
+Matsushita/Panasonic (Creative) CD-ROM driver  (new with 2.0.5)
+---------------------------------------------
+The Matsushita/Panasonic CR-562 and CR-563 drives are now supported
+when connected to a Sound Blaster or 100% compatible host adapter.
+Up to four host adapters are supported for a total of 16 CD-ROM drives.
+The audio functions are supported with the Karoke variable speed playback.
+
+Owner:			Frank Durda IV   bsdmail@nemesis.lonestar.org
+Sources involved:	isa/matcd
 
 ProAudioSpectrum SCSI driver
 ----------------------------
@@ -169,7 +188,8 @@ use, this is generally more than enough.
 Owner:			phk
 Sources involved:	isa/pas.c
 
-
+/*ATTENTION*/You might want to rephrase the "non-cooperation" statement
+/*ATTENTION*/below.
 Adaptec 2742/2842 SCSI driver
 -----------------------------
 Despite the non-cooperation of Adaptec in providing technical
@@ -200,6 +220,7 @@ Sources involved:	kern/imgact_gzip.c kern/inflate.c
 Diskless booting
 ----------------
 
+/*ATTENTION*/This statement may need updating.
 Diskless booting in 2.0 is much improved since 1.1.5.  The
 boot-program is in src/sys/i386/boot/netboot, and can be run from an
 MSDOS system or burned into an EPROM.  Local swapping is also
@@ -254,6 +275,7 @@ INFORMIX-2.10 for SCO. Further testing is nessesary to complete this
 project. There is also work under way for ELF & XOUT loaders, and
 most of the svr4 syscall wrappers have been written.
 
+/*ATTENTION*/One of many inconsistent spellings of Sorens name.
 Owner:			Soren Schmidt (sos) & Sean Eric Fagan (sef)
 Sources involved:	sys/i386/ibcs2/* + misc kernel changes.
 
@@ -287,7 +309,7 @@ Adaptec 2742/2842 series ISA/EISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes
 the AHA-152x and SoundBlaster SCSI cards.
 
-** Note: You cannot boot from the Soundblaster cards
+** Note: You cannot boot from the SoundBlaster cards
 as they have no on-board BIOS, which is necessary for mapping
 the boot device into the system BIOS I/O vectors.
 They're perfectly usable for external tapes, CDROMs, etc,
@@ -313,14 +335,19 @@ Seagate ST01/02 SCSI controllers.
 
 Future Domain 8xx/950 series SCSI controllers.
 
+/*ATTENTION*/I reworked the following statement to reflect the
+/*ATTENTION*/Matsushita and Sony support:
+
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT) and CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM
-interface card) are the only way a CD ROM drive may be currently
-attached to a FreeBSD system; we do not support SoundBlaster
-(non-SCSI) CDROM interface, or other "non-SCSI" adapters.  The
-ProAudio Spectrum SCSI and SoundBlaster SCSI controllers are
-supported.
+DAT) and CD ROM drives.
+The following CD-ROM type systems are supported at this time:
+(cd)	SCSI (also includes ProAudio Spectrum and SoundBlaster SCSI)
+(mcd)	Mitsumi proprietary interface 
+(matcd)	Matsushita/Panasonic (Creative) proprietary interface
+(scd)	Sony proprietary interface
+
+Note: Drives with IDE interfaces are not supported at this time.
 
 Some controllers have limitations with the way they deal with >16MB of
 memory, due to the fact that the ISA bus only has a DMA address space of
@@ -375,9 +402,13 @@ STB 4 port card using shared IRQ.
 
 Mitsumi (all models) CDROM interface and drive.
 
-Soundblaster SCSI and ProAudio Spectrum SCSI CDROM interface and drive.
+SoundBlaster SCSI and ProAudio Spectrum SCSI CDROM interface and drive.
 
-Adlib, Soundblaster, Soundblaster Pro, ProAudioSpectrum, Gravis UltraSound
+/*ATTENTION*/Since we list mitsumi here too, I've included Matsushita
+/*ATTENTION*/here also.
+Matsushita/Panasonic (Creative SoundBlaster) CDROM interface and drive.
+
+Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus, but
@@ -410,7 +441,7 @@ resort!
 
 2. CDROM
 
-FreeBSD 2.0 may be ordered on CDROM from:
+FreeBSD 2.0.5 may be ordered on CDROM from:
 
 	Walnut Creek CDROM
 	4041 Pike Lane, Suite D
@@ -420,6 +451,7 @@ FreeBSD 2.0 may be ordered on CDROM from:
 Or via the internet from orders@cdrom.com.  Their current catalog can
 be obtained via ftp as ftp.cdrom.com:/cdrom/catalog.
 
+/*ATTENTION*/Verify pricing, phone numbers and addressing.
 Cost is $39.95.  Shipping (per order not per disc) is $5 in the US, Canada,
 or Mexico and $10.00 overseas.  They accept Visa, Mastercard, American
 Express, and ship COD to the United States.  California residents please
@@ -442,6 +474,7 @@ If you must install from floppy disks, either due to space contraints
 on your hard disk or just because you enjoy doing things the hard
 way, you must first prepare some floppies for the install.
 
+/*ATTENTION*/Verify floppy and file counts listed below:
 You will need either 10 1.44MB floppies or 12 1.2MB floppies to
 store just the bindist (binary distribution).  These *must* be
 formatted using MS-DOS, using either the FORMAT command in MS-DOS
@@ -525,29 +558,31 @@ possible.
 If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
-		bugs@FreeBSD.org
+/*ATTENTION*/These addresses have changed (ie freebsd-bugs, etc)
+/*ATTENTION*/according to MajorDomo on 1-Mar-95
+		freebsd-bugs@FreeBSD.org
 
 
 Otherwise, for any questions or suggestions, please send mail to:
 
-		questions@FreeBSD.org
+		freebsd-questions@FreeBSD.org
 
 Additionally, being a volunteer effort, we are always happy to have
 extra hands willing to help - there are already far more enhancements
 to be done than we can ever manage to do by ourselves!  To contact us
 on technical matters, or with offers of help, you may send mail to:
 
-		hackers@FreeBSD.org
+		freebsd-hackers@FreeBSD.org
 
 Since these mailing lists can experience significant amounts of
-traffic, if you've got slow or expensive mail access and you're
+traffic, if you have slow or expensive mail access and you are
 only interested in keeping up with significant FreeBSD events, you may
 find it preferable to subscribe to:
 
-		announce@FreeBSD.org
+		freebsd-announce@FreeBSD.org
 
 
-All but the FreeBSD-bugs groups can be freely joined by anyone wishing
+All but the freebsd-bugs groups can be freely joined by anyone wishing
 to do so.  Send mail to MajorDomo@FreeBSD.org and include the keyword
 `help' on a line by itself somewhere in the body of the message.  This
 will give you more information on joining the various lists, accessing
@@ -572,6 +607,8 @@ The Computer Systems Research Group (CSRG), U.C. Berkeley.
 
 Bill Jolitz, for his extensive work with 386BSD.
 
+/*ATTENTION*/The Core list here doesn't match the Core list in 
+/*ATTENTION*/CONTRIB.FreeBSD
 The FreeBSD "core" team:
 
 	Andrey A. Chernov
@@ -604,6 +641,7 @@ Special mention to:
 
 	Additional FreeBSD helpers and beta testers:
 
+/*ATTENTION*/This list may need updating or may not match CONTRIB.FreeBSD
 	J.T. Conklin				Julian Elischer
 	Sean Eric Fagan				Jeffrey Hsu
 	Terry Lambert				L Jonas Olsson
@@ -621,4 +659,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.23 1995/03/21 00:37:07 ache Exp $
+$Id: RELNOTES.FreeBSD,v 1.1 1995/03/21 20:19:19 jkh Exp $
