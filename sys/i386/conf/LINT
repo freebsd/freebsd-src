@@ -2035,7 +2035,7 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # Supported SMB interfaces:
 # iicsmb	I2C to SMB bridge with any iicbus interface
 # bktr		brooktree848 I2C hardware interface
-# intpm		Intel PIIX4 Power Management Unit
+# intpm		Intel PIIX4 (82371AB, 82443MX) Power Management Unit
 # alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 #

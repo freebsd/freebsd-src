@@ -890,6 +890,8 @@ isab_match(device_t dev)
 		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
+	case 0x71988086:
+		return ("Intel 82443MX PCI to ISA bridge");
 	case 0x24108086:
 		return ("Intel 82801AA (ICH) PCI to LPC bridge");
 	case 0x24208086:
@@ -1204,6 +1206,8 @@ chip_match(device_t dev)
 		return ("Intel 82439TX System controller (MTXC)");
 	case 0x71138086:
 		return ("Intel 82371AB Power management controller");
+	case 0x719b8086:
+		return ("Intel 82443MX Power management controller");
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
@@ -1520,6 +1524,8 @@ const char* pci_vga_match(device_t dev)
 			chip = "Mach64-GX"; break;
 		case 0x4c4d:
 			chip = "Mobility-1"; break;
+		case 0x4c52:
+			chip = "RageMobility-P/M"; break;
 		case 0x475a:
 			chip = "Mach64-GZ"; break;
 		case 0x5245:
