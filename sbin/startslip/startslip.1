@@ -41,29 +41,60 @@
 .Nm startslip
 .Op Fl d
 .Op Fl b Ar speed
-.Op Fl s Ar string
+[
+.Fl s Ar string1
+.Op Fl s Ar string2 Op Ar ...
+]
+.Op Fl h
+.Op Fl l
+.Op Fl L
 .Op Fl A Ar annexname
-.Op Fl F Ar flowcontrol
 .Op Fl U Ar upscript
 .Op Fl D Ar downscript
+.Op Fl t Ar script_timeout
+.Op Fl W Ar maxtries
+.Op Fl w Ar retry_pause
+.Op Fl K Ar keepalive
+.Op Fl O Ar outfill
+.Op Fl S Ar unit
 .Ar device user passwd
 .Sh DESCRIPTION
+.Pp
 .Nm Startslip
 opens the specified
 .Ar device .
-.Pp
-Once carrier is asserted
+Once carrier is asserted (if modem control is enabled)
 .Nm startslip
 attempts to login as the specified
 .Ar user
 with the given
 .Ar password .
-If successful, it puts the device into the slip line discipline.
-If carrier drops and a
+Standard login: & Password: scheme assumed unless Annex option
+specified (see
+.Fl A ) .
+If successful, it puts the device into the slip line discipline,
+calls
+.Ar upscript
+and goes to wait mode.
+If carrier drops (modem control enabled) or a
 .Dv SIGHUP
 is sent to
 .Nm startslip ,
-it closes the device and attempts to repeat the dialup and login sequence.
+it closes the device, calls
+.Ar downscript
+and attempts to repeat the dialup and login sequence.
+If a
+.Dv SIGTERM
+is send to
+.Nm startslip ,
+it closes the device, calls
+.Ar downscript
+and exits.
+When
+.Nm startslip
+called twice on the same device, previous copy killed by a
+.Dv SIGTERM
+before any operation.
 .Pp
 Available options:
 .Bl -tag -width Ar
@@ -73,13 +104,28 @@ prints out debugging information about what it is trying to do.
 .It Fl b Ar speed
 Determines the baud rate used for
 .Ar device .
-.It Fl s Ar string
+Default value is 9600.
+.It Fl t Ar script_timeout
+Set login script timeout in seconds, default value is 90.
+.It Fl w Ar retry_pause
+Set connecting retry pause in seconds (increased from one retry to another),
+default value is 60.
+.It Fl W Ar maxtries
+Set maximum number of connection retries for one session,
+default value is 6.
+Value 0 means infinite count.
+.It Fl s Ar stringN
 The optional
-.Ar string
+.Ar stringN
 is written to
 .Ar device .
+Return character is added automatically.
 For a dialup modem,
 the string is used to specify a dial sequence.
+No string written by default.
+You can specify several
+.Fl s Ar stringN
+arguments to use with each try, f.e. several host phone numbers.
 .It Fl A Ar annexname
 .Nm Startslip
 assumes it is connecting to a Xylogics Annex box and engages in an
@@ -92,25 +138,61 @@ The
 .Ar annexname
 argument is a string that is used to match against the Annex prompt
 to determine when a connection has been established.
-.It Fl F Ar flowcontrol
-Determines the type of flow control used on
+.It Fl h
+Use hardware (CTS/RTS) flow control for
 .Ar device .
-Choices for
-.Ar flowcontrol
-are
-``none'' for no flow control (the default),
-``hw'' for hardware RTS/CTS flow control and
-``sw'' for software XON/XOFF flow control.
+Default value is no flow control.
+.It Fl l
+Disable modem control (waiting for carrier and carrier drop sense) for
+.Ar device .
+Modem control is enabled by default.
 .It Fl U Ar upscript
 Specifies a script to run when a SLIP interface becomes connected.  This may
 contain ifconfig, route, and other appropriate commands.  The arguments that
 are passed to the script are "slX up".
+Default value is "/sbin/ifconfig".
+Dial sequence number (see
+.Fl s )
+passed via
+.Dv LINE
+environment variable.
 .It Fl D Ar downscript
 Specifies a script to run when a SLIP connection goes away.  The arguments that
-are passed to the script are "slX down".
+are passed to the script are "slX down". Default value is "/sbin/ifconfig".
+Dial sequence number (see
+.Fl s )
+passed via
+.Dv LINE
+environment variable.
+.It Fl K Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END not received in this
+timeout, reconnect occurse. Active "out fill" timeout expected from other
+side.
+Default value is no timeout.
+.It Fl O Ar outfill
+Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
+will be sended during this timeout.
+Needed for "keep alive" timeout on other side.
+Default value is no timeout.
+.It Fl S Ar unit
+Set SLIP unit number directly. Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
+.It Fl L
+Use uucp-style device locking. You need it unless you start
+.Nm startslip
+from external program which already does uucp locking.
+Default case is no uucp locking to satisfy such programs.
 .El
+.Sh FILES
+.Bl -tag -width /var/run/startslip.<device>.pid -compact
+.It Pa /var/run/startslip.<device>.pid
+pid stored here
 .Sh SEE ALSO
-.Xr sliplogin 8
+.Xr sliplogin 8 ,
+.Xr slattach 8 ,
+.Xr uustat 1 ,
+/usr/share/examples/startslip
 .Sh HISTORY
 The
 .Nm startslip

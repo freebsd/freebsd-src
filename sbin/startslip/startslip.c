@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id: startslip.c,v 1.18 1995/09/27 17:15:37 ache Exp $
  */
 
 #ifndef lint
@@ -42,20 +43,12 @@ static char copyright[] =
 static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
-#include <sys/param.h>
-#if BSD >= 199006
-#define POSIX
-#endif
-#ifdef POSIX
-#include <sys/termios.h>
+#include <termios.h>
+#include <time.h>
 #include <sys/ioctl.h>
-#else
-#include <sgtty.h>
-#endif
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
+#include <syslog.h>
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_slvar.h>
@@ -64,22 +57,40 @@ static char sccsid[] = "@(#)startslip.c	8.1 (Berkeley) 6/5/93";
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <paths.h>
 
 #define DEFAULT_BAUD    B9600
 int     speed = DEFAULT_BAUD;
 #define	FC_NONE		0	/* flow control: none */
-#define	FC_SW		1	/* flow control: software (XON/XOFF) */
-#define	FC_HW		2	/* flow control: hardware (RTS/CTS) */
+#define FC_HW           1       /* flow control: hardware (RTS/CTS) */
 int	flowcontrol = FC_NONE;
+int     modem_control = 1;      /* !CLOCAL+HUPCL iff we watch carrier. */
+int     sl_unit = -1;
+int     uucp_lock = 0;          /* uucp locking */
 char	*annex;
+char    *username;
 int	hup;
+int     terminate;
+int     locked = 0;             /* uucp lock active */
 int	logged_in = 0;
 int	wait_time = 60;		/* then back off */
-#define	MAXTRIES	6	/* w/60 sec and doubling, takes an hour */
-#define	PIDFILE		"/var/run/startslip.pid"
+int     script_timeout = 90;    /* connect script default timeout */
+time_t  conn_time, start_time;
+int     MAXTRIES = 6;           /* w/60 sec and doubling, takes an hour */
+#define PIDFILE         "%sstartslip.%s.pid"
+
+#define MAXDIALS 20
+char *dials[MAXDIALS];
+int diali, dialc;
+
+int fd = -1;
+FILE *pfd;
+char *dvname, *devicename;
+char pidfile[80];
 
 #ifdef DEBUG
 int	debug = 1;
@@ -101,38 +112,42 @@ main(argc, argv)
 	extern int optind;
 	char *cp, **ap;
 	int ch, disc;
-	int fd = -1;
-	void sighup();
-	FILE *wfd = NULL, *pfd;
+	void sighup(), sigterm(), sigurg();
+	FILE *wfd = NULL;
 	char *dialerstring = 0, buf[BUFSIZ];
-	int unitnum;
+	int unitnum, keepal = 0, outfill = 0;
 	char unitname[32];
-	char *devicename, *username, *password;
+	char *password;
 	char *upscript = NULL, *downscript = NULL;
 	int first = 1, tries = 0;
-	int pausefirst = 0;
-	int pid;
-#ifdef POSIX
+	time_t fintimeout;
+	pid_t pid;
 	struct termios t;
-#else
-	struct sgttyb sgtty;
-#endif
 
-	while ((ch = getopt(argc, argv, "db:s:p:A:F:U:D:")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:L")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
 			break;
-#ifdef POSIX
 		case 'b':
 			speed = atoi(optarg);
 			break;
-#endif
-		case 'p':
-			pausefirst = atoi(optarg);
-			break;
 		case 's':
-			dialerstring = strdup(optarg);
+			if (diali >= MAXDIALS) {
+				(void)fprintf(stderr,
+					"max dial strings number (%d) exceeded\n", MAXDIALS);
+				exit(1);
+			}
+			dials[diali++] = strdup(optarg);
+			break;
+		case 't':
+			script_timeout = atoi(optarg);
+			break;
+		case 'w':
+			wait_time = atoi(optarg);
+			break;
+		case 'W':
+			MAXTRIES = atoi(optarg);
 			break;
 		case 'A':
 			annex = strdup(optarg);
@@ -143,24 +158,24 @@ main(argc, argv)
 		case 'D':
 			downscript = strdup(optarg);
 			break;
-		case 'F':
-#ifdef POSIX
-			if (strcmp(optarg, "none") == 0)
-				flowcontrol = FC_NONE;
-			else if (strcmp(optarg, "sw") == 0)
-				flowcontrol = FC_SW;
-			else if (strcmp(optarg, "hw") == 0)
-				flowcontrol = FC_HW;
-			else {
-				(void)fprintf(stderr,
-					"flow control: none, sw, hw\n");
-				exit(1);
-			}
+		case 'L':
+			uucp_lock = 1;
 			break;
-#else
-			(void)fprintf(stderr, "flow control not supported\n");
-			exit(1);
-#endif
+		case 'l':
+			modem_control = 0;
+			break;
+		case 'h':
+			flowcontrol = FC_HW;
+			break;
+		case 'K':
+			keepal = atoi(optarg);
+			break;
+		case 'O':
+			outfill = atoi(optarg);
+			break;
+		case 'S':
+			sl_unit = atoi(optarg);
+			break;
 		case '?':
 		default:
 			usage();
@@ -187,186 +202,185 @@ main(argc, argv)
 		for (cp = *ap; *cp != 0; cp++)
 			*cp = '\0';
 
-	openlog("startslip", LOG_PID, LOG_DAEMON);
-
-#if BSD <= 43
-	if (debug == 0 && (fd = open("/dev/tty", 0)) >= 0) {
-		ioctl(fd, TIOCNOTTY, 0);
-		close(fd);
-		fd = -1;
-	}
-#endif
+	openlog("startslip", LOG_PID|LOG_PERROR, LOG_DAEMON);
 
 	if (debug)
 		setbuf(stdout, NULL);
 
-	if (pfd = fopen(PIDFILE, "r")) {
+	signal(SIGTERM, sigterm);
+	if ((dvname = strrchr(devicename, '/')) == NULL)
+		dvname = devicename;
+	else
+		dvname++;
+	sprintf(pidfile, PIDFILE, _PATH_VARRUN, dvname);
+	if ((pfd = fopen(pidfile, "r")) != NULL) {
 		pid = 0;
-		fscanf(pfd, "%d", &pid);
+		fscanf(pfd, "%ld\n", &pid);
 		if (pid > 0)
-			kill(pid, SIGUSR1);
+			kill(pid, SIGTERM);
 		fclose(pfd);
-	}
+		pfd = NULL;     /* not remove pidfile yet */
+		sleep(5);       /* allow down script to be completed */
+	} else
 restart:
-	if (logged_in) {
-		sprintf(buf, "%s %s down", downscript ? downscript : "ifconfig" , unitname);
-		(void) system(buf);
-	}
-	logged_in = 0;
-	if (++tries > MAXTRIES) {
-		syslog(LOG_ERR, "exiting after %d tries\n", tries);
-		/* ???
-		if (first)
-		*/
-			exit(1);
-	}
-
-	/*
-	 * We may get a HUP below, when the parent (session leader/
-	 * controlling process) exits; ignore HUP until into new session.
-	 */
 	signal(SIGHUP, SIG_IGN);
+	signal(SIGURG, SIG_IGN);
 	hup = 0;
-	if (fork() > 0) {
-		if (pausefirst)
-			sleep(pausefirst);
-		if (first)
-			printd("parent exit\n");
-		exit(0);
-	}
-	pausefirst = 0;
-#ifdef POSIX
-	if (setsid() == -1)
-		perror("setsid");
-#endif
-	pid = getpid();
-	printd("restart: pid %d: ", pid);
-	if (pfd = fopen(PIDFILE, "w")) {
-		fprintf(pfd, "%d\n", pid);
-		fclose(pfd);
-	}
 	if (wfd) {
 		printd("fclose, ");
 		fclose(wfd);
-		wfd == NULL;
-	}
-	if (fd >= 0) {
+		conn_time = time(NULL) - start_time;
+		if (uucp_lock)
+			uu_unlock(dvname);
+		locked = 0;
+		wfd = NULL;
+		fd = -1;
+		sleep(5);
+	} else if (fd >= 0) {
 		printd("close, ");
 		close(fd);
+		conn_time = time(NULL) - start_time;
+		if (uucp_lock)
+			uu_unlock(dvname);
+		locked = 0;
+		fd = -1;
 		sleep(5);
 	}
-	printd("open");
-	if ((fd = open(devicename, O_RDWR)) < 0) {
-		perror(devicename);
-		syslog(LOG_ERR, "open %s: %m\n", devicename);
+	if (logged_in) {
+		syslog(LOG_INFO, "%s: connection time elapsed: %ld secs", username, conn_time);
+		sprintf(buf, "LINE=%d %s %s down",
+		diali ? (dialc - 1) % diali : 0,
+		downscript ? downscript : "/sbin/ifconfig" , unitname);
+		(void) system(buf);
+		logged_in = 0;
+	}
+	if (terminate)
+		down(0);
+	tries++;
+	if (MAXTRIES > 0 && tries > MAXTRIES) {
+		syslog(LOG_ERR, "%s: exiting login after %d tries", username, tries);
+		/* ???
 		if (first)
-			exit(1);
+		*/
+			down(3);
+	}
+	if (tries > 1) {
+		syslog(LOG_INFO, "%s: sleeping %d seconds (%d tries)",
+			username, wait_time * (tries - 1), tries);
+		sleep(wait_time * (tries - 1));
+		if (terminate)
+			goto restart;
+	}
+
+	if (daemon(1, debug) < 0) {
+		syslog(LOG_ERR, "%s: daemon: %m", username);
+		down(2);
+	}
+
+	pid = getpid();
+	printd("restart: pid %ld: ", pid);
+	if ((pfd = fopen(pidfile, "w")) != NULL) {
+		fprintf(pfd, "%ld\n", pid);
+		fclose(pfd);
+	}
+	printd("open");
+	if (uucp_lock) {
+		if (uu_lock(dvname)) {
+			syslog(LOG_ERR, "%s: can't lock %s", username, devicename);
+			goto restart;
+		}
+		locked = 1;
+	}
+	if ((fd = open(devicename, O_RDWR | O_NONBLOCK)) < 0) {
+		syslog(LOG_ERR, "%s: open %s: %m", username, devicename);
+		if (first)
+			down(1);
 		else {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
+			if (uucp_lock)
+				uu_unlock(dvname);
+			locked = 0;
 			goto restart;
 		}
 	}
 	printd(" %d", fd);
-#ifdef TIOCSCTTY
-	if (ioctl(fd, TIOCSCTTY, 0) < 0)
-		perror("ioctl (TIOCSCTTY)");
-#endif
 	signal(SIGHUP, sighup);
-	if (debug) {
-		if (ioctl(fd, TIOCGETD, &disc) < 0)
-			perror("ioctl(TIOCSETD)");
-		printf(" (disc was %d)", disc);
+	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
+		syslog(LOG_ERR, "%s: ioctl (TIOCSCTTY): %m", username);
+		down(2);
 	}
-	disc = TTYDISC;
-	if (ioctl(fd, TIOCSETD, &disc) < 0) {
-	        perror("ioctl(TIOCSETD)");
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETD 0): %m\n",
-		    devicename);
+	if (tcsetpgrp(fd, getpid()) < 0) {
+		syslog(LOG_ERR, "%s: tcsetpgrp failed: %m", username);
+		down(2);
 	}
-	printd(", ioctl");
-#ifdef POSIX
+	printd(", ioctl\n");
 	if (tcgetattr(fd, &t) < 0) {
-		perror("tcgetattr");
-		syslog(LOG_ERR, "%s: tcgetattr: %m\n", devicename);
-	        exit(2);
+		syslog(LOG_ERR, "%s: tcgetattr(%s): %m", username, devicename);
+		down(2);
 	}
 	cfmakeraw(&t);
-	t.c_iflag &= ~IMAXBEL;
 	switch (flowcontrol) {
 	case FC_HW:
 		t.c_cflag |= (CRTS_IFLOW|CCTS_OFLOW);
 		break;
-	case FC_SW:
-		t.c_iflag |= (IXON|IXOFF);
-		break;
 	case FC_NONE:
 		t.c_cflag &= ~(CRTS_IFLOW|CCTS_OFLOW);
-		t.c_iflag &= ~(IXON|IXOFF);
 		break;
 	}
-	cfsetspeed(&t, speed);
+	if (modem_control)
+		t.c_cflag |= HUPCL;
+	else
+		t.c_cflag &= ~(HUPCL);
+	t.c_cflag |= CLOCAL;    /* until modem commands passes */
+	cfsetispeed(&t, speed);
+	cfsetospeed(&t, speed);
 	if (tcsetattr(fd, TCSAFLUSH, &t) < 0) {
-		perror("tcsetattr");
-		syslog(LOG_ERR, "%s: tcsetattr: %m\n", devicename);
-	        if (first)
-			exit(2);
-		else {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
-			goto restart;
-		}
+		syslog(LOG_ERR, "%s: tcsetattr(%s): %m", username, devicename);
+		down(2);
 	}
-#else
-	if (ioctl(fd, TIOCGETP, &sgtty) < 0) {
-	        perror("ioctl (TIOCGETP)");
-		syslog(LOG_ERR, "%s: ioctl (TIOCGETP): %m\n",
-		    devicename);
-	        exit(2);
-	}
-	sgtty.sg_flags = RAW | ANYP;
-	sgtty.sg_erase = sgtty.sg_kill = 0377;
-	sgtty.sg_ispeed = sgtty.sg_ospeed = speed;
-	if (ioctl(fd, TIOCSETP, &sgtty) < 0) {
-	        perror("ioctl (TIOCSETP)");
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETP): %m\n",
-		    devicename);
-	        if (first)
-			exit(2);
-		else {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
-			goto restart;
-		}
-	}
-#endif
 	sleep(2);		/* wait for flakey line to settle */
-	if (hup)
+	if (hup || terminate)
 		goto restart;
 
 	wfd = fdopen(fd, "w+");
 	if (wfd == NULL) {
-		syslog(LOG_ERR, "can't fdopen slip line\n");
-		exit(10);
+		syslog(LOG_ERR, "%s: can't fdopen %s: %m", username, devicename);
+		down(2);
 	}
-	setbuf(wfd, (char *)0);
+	setbuf(wfd, NULL);
+
+	if (diali > 0)
+		dialerstring = dials[dialc++ % diali];
 	if (dialerstring) {
-		printd(", send dialstring");
+		syslog(LOG_INFO, "%s: dialer string: %s\\r", username, dialerstring);
 		fprintf(wfd, "%s\r", dialerstring);
-	} else
-		putc('\r', wfd);
+	}
 	printd("\n");
+
+	fintimeout = time(NULL) + script_timeout;
+	if (modem_control) {
+		printd("waiting for carrier\n");
+		while (time(NULL) < fintimeout && !carrier()) {
+			sleep(1);
+			if (hup || terminate)
+				goto restart;
+		}
+		if (!carrier())
+			goto restart;
+		t.c_cflag &= ~(CLOCAL);
+		if (tcsetattr(fd, TCSANOW, &t) < 0) {
+			syslog(LOG_ERR, "%s: tcsetattr(%s): %m", username, devicename);
+			down(2);
+		}
+		/* Only now we able to receive HUP on carier drop! */
+	}
 
 	/*
 	 * Log in
 	 */
 	printd("look for login: ");
 	for (;;) {
-		if (getline(buf, BUFSIZ, fd, 90) == 0 || hup) {
-			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
-			sleep(wait_time * tries);
+		if (getline(buf, BUFSIZ, fd, fintimeout) == 0 || hup || terminate)
 			goto restart;
-		}
 		if (annex) {
 			if (bcmp(buf, annex, strlen(annex)) == 0) {
 				fprintf(wfd, "slip\r");
@@ -384,12 +398,12 @@ restart:
 				break;
 			}
 		} else {
-			if (bcmp(&buf[1], "ogin:", 5) == 0) {
+			if (strstr(&buf[1], "ogin:") != NULL) {
 				fprintf(wfd, "%s\r", username);
 				printd("Sent login: %s\n", username);
 				continue;
 			}
-			if (bcmp(&buf[1], "assword:", 8) == 0) {
+			if (strstr(&buf[1], "assword:") != NULL) {
 				fprintf(wfd, "%s\r", password);
 				printd("Sent password: %s\n", password);
 				break;
@@ -397,42 +411,56 @@ restart:
 		}
 	}
 
+	sleep(5);       /* Wait until login completed */
+	if (hup || terminate)
+		goto restart;
+	start_time = time(NULL);
 	/*
 	 * Attach
 	 */
 	printd("setd");
 	disc = SLIPDISC;
 	if (ioctl(fd, TIOCSETD, &disc) < 0) {
-	        perror("ioctl(TIOCSETD)");
-		syslog(LOG_ERR, "%s: ioctl (TIOCSETD SLIP): %m\n",
-		    devicename);
-	        exit(1);
+		syslog(LOG_ERR, "%s: ioctl (%s, TIOCSETD): %m",
+		    username, devicename);
+		down(2);
 	}
-	if (ioctl(fd, SLIOCGUNIT, (caddr_t)&unitnum) < 0) {
-	        perror("ioctl(SLIOCGUNIT)");
-		syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
-		exit(1);
+	if (sl_unit >= 0 && ioctl(fd, SLIOCSUNIT, &sl_unit) < 0) {
+		syslog(LOG_ERR, "%s: ioctl(SLIOCSUNIT): %m", username);
+		down(2);
+	}
+	if (ioctl(fd, SLIOCGUNIT, &unitnum) < 0) {
+		syslog(LOG_ERR, "%s: ioctl(SLIOCGUNIT): %m", username);
+		down(2);
 	}
 	sprintf(unitname, "sl%d", unitnum);
-	if (first && debug == 0) {
-		close(0);
-		close(1);
-		close(2);
-		(void) open("/dev/null", O_RDWR);
-		(void) dup2(0, 1);
-		(void) dup2(0, 2);
+
+	if (keepal > 0) {
+		signal(SIGURG, sigurg);
+		if (ioctl(fd, SLIOCSKEEPAL, &keepal) < 0) {
+			syslog(LOG_ERR, "%s: ioctl(SLIOCSKEEPAL): %m", username);
+			down(2);
+		}
+	}
+	if (outfill > 0 && ioctl(fd, SLIOCSOUTFILL, &outfill) < 0) {
+		syslog(LOG_ERR, "%s: ioctl(SLIOCSOUTFILL): %m", username);
+		down(2);
 	}
 
-	sprintf(buf, "%s %s up", upscript ? upscript : "ifconfig" , unitname);
+	sprintf(buf, "LINE=%d %s %s up",
+		diali ? (dialc - 1) % diali : 0,
+		upscript ? upscript : "/sbin/ifconfig" , unitname);
 	(void) system(buf);
 
 	printd(", ready\n");
 	if (!first)
-		syslog(LOG_INFO, "reconnected on %s (%d tries).\n", unitname, tries);
+		syslog(LOG_INFO, "%s: reconnected on %s (%d tries)", username, unitname, tries);
+	else
+		syslog(LOG_INFO, "%s: connected on %s", username, unitname);
 	first = 0;
 	tries = 0;
 	logged_in = 1;
-	while (hup == 0) {
+	while (hup == 0 && terminate == 0) {
 		sigpause(0L);
 		printd("sigpause return\n");
 	}
@@ -445,52 +473,79 @@ sighup()
 
 	printd("hup\n");
 	if (hup == 0 && logged_in)
-		syslog(LOG_INFO, "hangup signal\n");
+		syslog(LOG_INFO, "%s: got hangup signal", username);
 	hup = 1;
 }
 
-getline(buf, size, fd, timeout)
+void
+sigurg()
+{
+
+	printd("urg\n");
+	if (hup == 0 && logged_in)
+		syslog(LOG_INFO, "%s: got dead line signal", username);
+	hup = 1;
+}
+
+void
+sigterm()
+{
+
+	printd("terminate\n");
+	if (terminate == 0 && logged_in)
+		syslog(LOG_INFO, "%s: got terminate signal", username);
+	terminate = 1;
+}
+
+getline(buf, size, fd, fintimeout)
 	char *buf;
-	int size, fd, timeout;
+	int size, fd;
+	time_t fintimeout;
 {
 	register int i;
 	int ret;
 	fd_set readfds;
 	struct timeval tv;
+	time_t timeout;
 
 	size--;
 	for (i = 0; i < size; i++) {
-		if (hup)
+		if (hup || terminate)
 			return (0);
+		if ((timeout = fintimeout - time(NULL)) <= 0)
+			goto tout;
 		FD_ZERO(&readfds);
 		FD_SET(fd, &readfds);
 		tv.tv_sec = timeout;
 		tv.tv_usec = 0;
 		if ((ret = select(fd + 1, &readfds, NULL, NULL, &tv)) < 0) {
 			if (errno != EINTR)
-				perror("getline: select");
+				syslog(LOG_ERR, "%s: getline: select: %m", username);
 		} else {
 			if (! ret) {
+			tout:
 				printd("getline: timed out\n");
 				return (0);
 			}
 			if ((ret = read(fd, &buf[i], 1)) == 1) {
 				buf[i] &= 0177;
-				if (buf[i] == '\r' || buf[i] == '\0')
-					buf[i] = '\n';
+				if (buf[i] == '\r' || buf[i] == '\0') {
+					i--;
+					continue;
+				}
 				if (buf[i] != '\n' && buf[i] != ':')
 					continue;
 				buf[i + 1] = '\0';
-				printd("Got %d: \"%s\"\n", i + 1, buf);
+				printd("Got %d: %s", i + 1, buf);
 				return (i+1);
 			}
 			if (ret <= 0) {
 				if (ret < 0) {
-					perror("getline: read");
+					syslog(LOG_ERR, "%s: getline: read: %m", username);
 				} else
-					fprintf(stderr, "read returned 0\n");
+					syslog(LOG_ERR, "%s: read returned 0", username);
 				buf[i] = '\0';
-				printd("returning 0 after %d: \"%s\"\n", i, buf);
+				printd("returning %d after %d: %s\n", ret, i, buf);
 				return (0);
 			}
 		}
@@ -498,9 +553,35 @@ getline(buf, size, fd, timeout)
 	return (0);
 }
 
+carrier()
+{
+	int comstate;
+
+	if (ioctl(fd, TIOCMGET, &comstate) < 0) {
+		syslog(LOG_ERR, "%s: ioctl (%s, TIOCMGET): %m",
+		    username, devicename);
+		down(2);
+	}
+	return !!(comstate & TIOCM_CD);
+}
+
+down(code)
+{
+	if (fd > -1)
+		close(fd);
+	if (pfd)
+		unlink(pidfile);
+	if (uucp_lock && locked)
+		uu_unlock(dvname);
+	exit(code);
+}
+
 usage()
 {
-	(void)fprintf(stderr,
-	    "usage: startslip [-d] [-b speed] [-s string] [-A annexname] [-F flowcontrol] [-U upscript] [-D downscript] dev user passwd\n");
+	(void)fprintf(stderr, "\
+usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname] \\\n\
+	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout] [-L]\\\n\
+	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill] [-S unit] \\\n\
+	device user passwd\n");
 	exit(1);
 }
