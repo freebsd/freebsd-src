@@ -635,7 +635,7 @@ bad:
 		struct ng_pptpgre_ackp *const a = &priv->ackp;
 		const u_int32_t	ack = ntohl(gre->data[gre->hasSeq]);
 		const int index = ack - priv->recvAck - 1;
-		const long sample = ng_pptpgre_time(node) - a->timeSent[index];
+		long sample;
 		long diff;
 
 		/* Sanity check ack value */
@@ -648,6 +648,7 @@ bad:
 		priv->recvAck = ack;
 
 		/* Update adaptive timeout stuff */
+		sample = ng_pptpgre_time(node) - a->timeSent[index];
 		diff = sample - a->rtt;
 		a->rtt += PPTP_ACK_ALPHA(diff);
 		if (diff < 0)
