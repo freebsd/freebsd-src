@@ -35,7 +35,7 @@
 .Dt PASSWD 1
 .Os BSD 4
 .Sh NAME
-.Nm passwd
+.Nm passwd, yppasswd
 .Nd modify a user's password
 .Sh SYNOPSIS
 .Nm passwd
@@ -77,6 +77,54 @@ followed by
 .Xr passwd 1 .
 The super-user is not required to provide a user's current password
 if only the local password is modified.
+.Sh NIS INTERACTION
+.Nm Passwd
+has built-in support for NIS. If a user exists in the NIS password
+database but does not exist locally,
+.Nm passwd
+automatically switches into ``yppasswd'' mode. If the specified
+user does not exist in either the local password database of the
+NIS password maps,
+.Nm passwd
+returns an error.
+The following additional options are supported for use with NIS:
+.Bl -tag -width flag
+.It Fl y
+The
+.Fl y
+flag overrides
+.Nm passwd 's
+checking heuristics and forces
+it into NIS mode.
+.It Fl l
+When NIS is enabled, the
+.Fl l
+flag can be used to force
+.Nm passwd
+into ``local only'' mode. This flag can be used to change the entry
+for a local user when an NIS user exists when the same login name.
+For example, you will sometimes find entries for system ``placeholder''
+users such as
+.Pa bin
+or
+.Pa daemon
+in both the NIS password maps and the local user database. By
+default,
+.Nm passwd
+will try to change the NIS password. The
+.Fl l
+flag can be used to change the local password instead.
+.El
+.Pp
+When changing an NIS password, the user is required to provide
+the old password for authentication (the
+.Xr yppasswdd 8
+daemon requires the original password before
+it will allow any changes to the NIS password maps).
+This restriction applies even to the
+super-user: the only way for an administrator to override a
+user's NIS password is by modifying the NIS password maps on
+the master NIS server.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
@@ -100,6 +148,11 @@ Temporary copy of the password file
 .%A Ken Thompson
 .%T "UNIX password security"
 .Re
+.Sh NOTES
+The
+.Xr yppasswd 1
+command is really only a link to
+.Nm passwd .
 .Sh HISTORY
 A
 .Nm passwd

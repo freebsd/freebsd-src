@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.3 1995/01/31 08:34:05 wpaul Exp $";
+	"$Id: passwd.c,v 1.4 1995/06/16 03:33:10 wpaul Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -72,7 +72,7 @@ int use_local_passwd = 0;
 
 #ifdef YP
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
-int use_yp_passwd = 0, opt_shell = 0, opt_fullname = 0;
+int _use_yp = 0;
 char *prog_name;
 HASHINFO openinfo = {
         4096,           /* bsize */
@@ -114,11 +114,7 @@ main(argc, argv)
 	DBT key,data;
 	char bf[UT_NAMESIZE + 2];
 
-	if (strstr(argv[0], (prog_name = "ypchpass")))
-		use_yp_passwd = opt_shell = opt_fullname = 1;
-	if (strstr(argv[0], (prog_name = "ypchsh"))) opt_shell = 1;
-	if (strstr(argv[0], (prog_name = "ypchfn"))) opt_fullname = 1;
-	if (strstr(argv[0], (prog_name = "yppasswd"))) use_yp_passwd = 1;
+	if (strstr(argv[0], (prog_name = "yppasswd"))) _use_yp = 1;
 #endif
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
@@ -139,13 +135,7 @@ main(argc, argv)
 #endif /* KERBEROS */
 #ifdef	YP
 		case 'y':			/* Change NIS password */
-			use_yp_passwd = 1;
-			break;
-		case 's':			/* Change NIS shell field */
-			opt_shell = 1;
-			break;
-		case 'f':			/* Change NIS GECOS field */
-			opt_fullname = 1;
+			_use_yp = 1;
 			break;
 #endif
 		default:
@@ -231,9 +221,9 @@ usage()
 	fprintf(stderr,
 	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname]\n");
 	fprintf(stderr,
-	"        [-l] [-y] [-f] [-s] [user]\n");
+	"        [-l] [-y] [user]\n");
 #else
-	(void)fprintf(stderr, "usage: passwd [-l] [-y] [-f] [-s] [user] \n");
+	(void)fprintf(stderr, "usage: passwd [-l] [-y] [user] \n");
 #endif
 #else
 #ifdef	KERBEROS
