@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.7 1994/10/02 17:35:23 phk Exp $
+ * $Id: subr_prf.c,v 1.8 1994/12/28 06:28:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -371,11 +371,9 @@ kprintf(fmt, flags, tp, ap)
 	u_long ul;
 	int base, lflag, tmp, width;
 	char padc;
-	char nulstr[] = "<null>";
 
 	if (fmt == NULL)
-		return;
-
+		fmt = "(fmt null)\n";
 	for (;;) {
 		padc = ' ';
 		width = 0;
@@ -434,7 +432,7 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 's':
 			p = va_arg(ap, char *);
 			if (p == NULL)
-				p = nulstr;
+				p = "(null)";
 			while (*p)
 				putchar(*p++, flags, tp);
 			break;
