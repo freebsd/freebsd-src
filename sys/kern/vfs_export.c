@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.205 1999/07/02 16:29:14 phk Exp $
+ * $Id: vfs_subr.c,v 1.206 1999/07/04 00:25:29 mckusick Exp $
  */
 
 /*
@@ -115,8 +115,8 @@ SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 
-int vfs_ioopt = 0;
 #ifdef ENABLE_VFS_IOOPT
+int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
