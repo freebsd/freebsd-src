@@ -198,6 +198,8 @@
 
 #endif /* _P1003_1B_VISIBLE */
 
+#define	_SC_IOV_MAX		56
+
 #ifndef _POSIX_SOURCE
 /*
  * rfork() options.

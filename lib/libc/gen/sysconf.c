@@ -38,6 +38,11 @@
 static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
 
+#if defined(LIBC_RCS) && !defined(lint)
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* LIBC_RCS and not lint */
+
 #include <sys/_posix.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -284,6 +289,13 @@ sysconf(name)
 		mib[1] = CTL_P1003_1B_TIMER_MAX;
 		goto yesno;
 #endif /* _P1003_1B_VISIBLE */
+
+#ifdef _SC_IOV_MAX
+	case _SC_IOV_MAX:
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_IOV_MAX;
+		break;
+#endif
 
 yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 			return (-1);

@@ -62,6 +62,7 @@
 #define	_POSIX2_LINE_MAX	2048
 #define	_POSIX2_RE_DUP_MAX	255
 
+#define	_XOPEN_IOV_MAX		16
 
 #ifdef _P1003_1B_VISIBLE
 
