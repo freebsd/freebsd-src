@@ -776,12 +776,8 @@ msdosfs_unmount(mp, mntflags, td)
 		struct vnode *vp = pmp->pm_devvp;
 
 		VI_LOCK(vp);
-		printf("msdosfs_umount(): just before calling VOP_CLOSE()\n");
-		printf("iflag %08lx, usecount %d, writecount %d, holdcnt %ld\n",
-		    vp->vi_flag, vp->v_usecount, vp->v_writecount,
-		    vp->v_holdcnt);
-		printf("id %lu, mount %p, op %p\n",
-		    vp->v_id, vp->v_mount, vp->v_op);
+		vn_printf(vp,
+		    "msdosfs_umount(): just before calling VOP_CLOSE()\n");
 		printf("freef %p, freeb %p, mount %p\n",
 		    TAILQ_NEXT(vp, v_freelist), vp->v_freelist.tqe_prev,
 		    vp->v_mount);
@@ -789,10 +785,6 @@ msdosfs_unmount(mp, mntflags, td)
 		    TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd),
 		    TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
 		    vp->v_bufobj.bo_numoutput, vp->v_type);
-		printf("union %p, tag %s, data[0] %08x, data[1] %08x\n",
-		    vp->v_socket, vp->v_tag,
-		    ((u_int *)vp->v_data)[0],
-		    ((u_int *)vp->v_data)[1]);
 		VI_UNLOCK(vp);
 	}
 #endif
