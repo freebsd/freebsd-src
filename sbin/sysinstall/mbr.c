@@ -131,7 +131,6 @@ show_mbr(struct mbr *mbr)
 
 	delwin(window);
 	dialog_clear();
-	dialog_update();
 }
 
 int
