@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.27 1998/05/28 09:29:43 phk Exp $";
+	"$Id: print.c,v 1.28 1998/05/31 12:09:50 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -341,6 +341,7 @@ started(k, ve)
 {
 	VAR *v;
 	static time_t now;
+	time_t then;
 	struct tm *tp;
 	char buf[100];
 
@@ -350,7 +351,8 @@ started(k, ve)
 		return;
 	}
 
-	tp = localtime(&k->ki_u.u_start.tv_sec);
+	then = k->ki_u.u_start.tv_sec;
+	tp = localtime(&then);
 	if (!now)
 		(void)time(&now);
 	if (now - k->ki_u.u_start.tv_sec < 24 * 3600) {
@@ -372,6 +374,7 @@ lstarted(k, ve)
 	VARENT *ve;
 {
 	VAR *v;
+	time_t then;
 	char buf[100];
 
 	v = ve->var;
@@ -379,8 +382,8 @@ lstarted(k, ve)
 		(void)printf("%-*s", v->width, "-");
 		return;
 	}
-	(void)strftime(buf, sizeof(buf) -1, "%c",
-	    localtime(&k->ki_u.u_start.tv_sec));
+	then = k->ki_u.u_start.tv_sec;
+	(void)strftime(buf, sizeof(buf) -1, "%c", localtime(&then));
 	(void)printf("%-*s", v->width, buf);
 }
 
