@@ -29,10 +29,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /* directory where lint1 and lint2 reside */
 #define	PATH_LIBEXEC		"/usr/libexec"
+
+/* directory where cc(1) resides */
+#define PATH_USRBIN		"/usr/bin"
 
 /* default library search path */
 #define PATH_LINTLIB		"/usr/libdata/lint"
