@@ -155,13 +155,6 @@ linux_olduname(struct proc *p, struct linux_olduname_args *args)
 }
 
 int
-linux_ustat(struct proc *p, struct linux_ustat_args *args)
-{
-    printf("Linux-emul(%d): ustat() not supported\n", p->p_pid);
-    return ENOSYS;
-}
-
-int
 linux_ioperm(struct proc *p, struct linux_ioperm_args *args)
 {
     printf("Linux-emul(%d): ioperm() not supported\n", p->p_pid);

@@ -461,3 +461,46 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
     tmp.signum = linux_to_bsd_signal[args->signum];
     return kill(p, &tmp);
 }
+
+int
+linux_sigaltstack(p, uap)
+	struct proc *p;
+	struct linux_sigaltstack_args *uap;
+{
+	struct sigaltstack_args bsd;
+	struct sigaltstack *ss, *oss;
+	linux_stack_t lss;
+	int error;
+	caddr_t sg = stackgap_init();
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
+	    (long)p->p_pid, uap->uss, uap->uoss);
+#endif
+
+	error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
+	if (error)
+		return (error);
+
+	ss = stackgap_alloc(&sg, sizeof(struct sigaltstack));
+	ss->ss_sp = lss.ss_sp;
+	ss->ss_size = lss.ss_size;
+	ss->ss_flags = lss.ss_flags;
+
+	oss = (uap->uoss != NULL)
+	    ? stackgap_alloc(&sg, sizeof(struct sigaltstack))
+	    : NULL;
+
+	bsd.nss = ss;
+	bsd.oss = oss;
+	error = sigaltstack(p, &bsd);
+
+	if (!error && oss != NULL) {
+		lss.ss_sp = oss->ss_sp;
+		lss.ss_size = oss->ss_size;
+		lss.ss_flags = oss->ss_flags;
+		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
+	}
+
+	return (error);
+}
