@@ -2220,9 +2220,8 @@ vrele(vp)
 			KASSERT(vp->v_iflag & VI_DOINGINACT,
 			    ("vrele: lost VI_DOINGINACT"));
 			vp->v_iflag &= ~VI_DOINGINACT;
-			VI_UNLOCK(vp);
-		}
-		VI_LOCK(vp);
+		} else
+			VI_LOCK(vp);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		else
