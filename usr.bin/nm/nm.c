@@ -258,8 +258,7 @@ show_archive(fname, fp)
 		else
 		{
 			p = ar_head.ar_name;
-			for (i = 0; i < sizeof(ar_head.ar_name); i++)
-				if (*p && *p != ' ')
+			for (i = 0; i < sizeof(ar_head.ar_name) && p[i] && p[i] != ' '; i++)
 					ar_name[i] = p[i];
 			ar_name[i] = 0;
 		}
