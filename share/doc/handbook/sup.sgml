@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: sup.sgml,v 1.25 1997/02/22 12:59:30 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -124,6 +124,7 @@ ports-emulators:  /usr/ports/emulators	emulators for other OSes
 ports-games:	  /usr/ports/games	games
 ports-graphics:	  /usr/ports/graphics	various graphics utilities
 ports-japanese:	  /usr/ports/japanese	Japanese support
+ports-korean:	  /usr/ports/korean	Korean support
 ports-lang:	  /usr/ports/lang	programming languages
 ports-mail:	  /usr/ports/mail	mail software
 ports-math:	  /usr/ports/math	numerical computation software
