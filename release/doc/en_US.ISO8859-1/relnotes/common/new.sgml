@@ -164,6 +164,16 @@
       More details can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>.
       &merged;</para>
+
+    <para>A programming error in the handling of some IPv6
+      socket options within the &man.setsockopt.2; system call
+      has been fixed.  This allows a local attacker to cause a
+      system panic, and may allow to gain unauthorized access to
+      parts of kernel memory, possibly resulting in disclosure
+      of sensitive information, bypass of access control
+      mechanisms, or privilege escalation.
+      More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:06.ipv6.asc">FreeBSD-SA-04:06</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
