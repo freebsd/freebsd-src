@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.42 1998/02/22 06:28:47 julian Exp $
+#	$Id: services,v 1.43 1998/03/09 02:16:58 jkh Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -485,7 +485,7 @@ hp-alarm-mgr	383/udp	   #hp performance data alarm manager
 arns		384/tcp	   #A Remote Network Server System
 arns		384/udp	   #A Remote Network Server System
 ibm-app		385/tcp	   #IBM Application
-ibm-app		385/tcp	   #IBM Application
+ibm-app		385/udp	   #IBM Application
 asa		386/tcp	   #ASA Message Router Object Def.
 asa		386/udp	   #ASA Message Router Object Def.
 aurp		387/tcp	   #Appletalk Update-Based Routing Pro.
@@ -1055,7 +1055,7 @@ dbstar		1415/udp
 novell-lu6.2	1416/tcp   #Novell LU6.2	 
 novell-lu6.2	1416/udp   #Novell LU6.2	 
 timbuktu-srv1	1417/tcp   #Timbuktu Service 1 Port	       
-timbuktu-srv1	1417/tcp   #Timbuktu Service 1 Port	       
+timbuktu-srv1	1417/udp   #Timbuktu Service 1 Port	       
 timbuktu-srv2	1418/tcp   #Timbuktu Service 2 Port	       
 timbuktu-srv2	1418/udp   #Timbuktu Service 2 Port	       
 timbuktu-srv3	1419/tcp   #Timbuktu Service 3 Port	       
@@ -1129,7 +1129,7 @@ gtegsc-lm	1452/udp   #GTE Government Systems License Man
 genie-lm	1453/tcp   #Genie License Manager		 
 genie-lm	1453/udp   #Genie License Manager		 
 interhdl_elmd	1454/tcp   #interHDL License Manager	  
-interhdl_elmd	1454/tcp   #interHDL License Manager	  
+interhdl_elmd	1454/udp   #interHDL License Manager	  
 esl-lm		1455/tcp   #ESL License Manager		  
 esl-lm		1455/udp   #ESL License Manager		  
 dca		1456/tcp
