@@ -294,14 +294,14 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 	md = nd->nd_md;
 	dpos = nd->nd_dpos;
 	if (has_header) {
-		nfsm_dissect(tl, u_int32_t *, 10 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 10 * NFSX_UNSIGNED);
 		nd->nd_retxid = fxdr_unsigned(u_int32_t, *tl++);
 		if (*tl++ != rpc_call) {
 			m_freem(mrep);
 			return (EBADRPC);
 		}
 	} else
-		nfsm_dissect(tl, u_int32_t *, 8 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 8 * NFSX_UNSIGNED);
 	nd->nd_repstat = 0;
 	nd->nd_flag = 0;
 	if (*tl++ != rpc_vers) {
@@ -357,7 +357,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			return (EBADRPC);
 		}
 		nfsm_adv(nfsm_rndup(len));
-		nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 		bzero((caddr_t)&nd->nd_cr, sizeof (struct ucred));
 		nd->nd_cr.cr_ref = 1;
 		nd->nd_cr.cr_uid = fxdr_unsigned(uid_t, *tl++);
@@ -367,7 +367,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 			m_freem(mrep);
 			return (EBADRPC);
 		}
-		nfsm_dissect(tl, u_int32_t *, (len + 2) * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
 		for (i = 1; i <= len; i++)
 		    if (i < NGROUPS)
 			nd->nd_cr.cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
