@@ -1,0 +1,71 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 21, 2001
+.Dt VGONE 9
+.Os
+.Sh NAME
+.Nm vgone
+.Nm vgonel
+.Nd "prepare a vnode for reuse"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft void
+.Fn vgone "struct vnode *vp"
+.Ft void
+.Fn vgonel "struct vnod *vp" "struct thread *td"
+.Sh DESCRIPTION
+.Fn vgone
+and
+.Fn vgonel
+prepare a vnode for reuse by another filesystem.
+The preparation includes the cleaning of all filesystem specific data and
+the removal from its mount point vnode list.
+.Pp
+If the vnode has a usecount of zero, and its
+.Dv VDOOMED
+flag is not set it is moved to the head of the free list as in most cases the vnode
+is about to be reused, or its filesystem being unmounted.
+.Pp
+The difference between
+.Fn vgone
+and
+.Fn vgonel
+is that
+.Fn vgone
+locks the vnode interlock and then calls
+.Fn vgonel
+while
+.Fn vgonel
+expects the interlock to already be locked.
+.Sh SEE ALSO
+.Xr vclean 9
+.Sh AUTHORS
+This man page was written by
+.An Chad David Aq davidc@acns.ab.ca .
