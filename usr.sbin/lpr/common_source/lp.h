@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	From: @(#)lp.h	8.2 (Berkeley) 4/28/95
- *	$Id$
+ *	$Id: lp.h,v 1.7 1997/12/02 20:45:21 wollman Exp $
  */
 
 #include <sys/queue.h>
@@ -50,6 +50,7 @@ enum	lpd_filters { LPF_CIFPLOT, LPF_DVI, LPF_GRAPH, LPF_INPUT,
 struct	printer {
 	char	*printer;	/* printer name */
 	int	 remote;	/* true if RM points to a remote host */
+	int	 rp_matches_local; /* true if rp has same name as us */
 	int	 tof;		/* true if we are at top-of-form */
 	/* ------------------------------------------------------ */
 	char	*acct_file;	/* AF: accounting file */
