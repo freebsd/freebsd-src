@@ -364,12 +364,6 @@ acpi_ec_attach(device_t dev)
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
 
-    /*
-     * Evaluate resources
-     */
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "parsing EC resources\n"));
-    acpi_parse_resources(sc->ec_dev, sc->ec_handle, &acpi_res_parse_set);
-
     /* 
      * Attach bus resources
      */
