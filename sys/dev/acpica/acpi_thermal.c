@@ -681,8 +681,9 @@ acpi_tz_powerprofile(void *arg)
 	args.Count = 1;
 	args.Pointer = &obj;
 	if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->tz_handle, "_SCP", &args, NULL))) {
-	    device_printf(sc->tz_dev, "can't evaluate %s._SCP - %s\n", acpi_name(sc->tz_handle),
-			  acpi_strerror(status));	/* XXX silence this at some point */
+	    if (status != AE_NOT_FOUND)
+		device_printf(sc->tz_dev, "can't evaluate %s._SCP - %s\n", acpi_name(sc->tz_handle),
+			      acpi_strerror(status));
 	    sc->tz_flags |= TZ_FLAG_NO_SCP;
 	} else {
 	    /* we have to re-evaluate the entire zone now */
