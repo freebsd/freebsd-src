@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.23 1994/11/07 09:54:23 jkh Exp $
+#	$Id: Makefile,v 1.24 1994/11/07 11:30:13 jkh Exp $
 #
 
-FDLABEL=	fd1200
+FDLABEL=	fd1440
 DDCOUNT=	80
 
 FLOPPY=		fd0
-DDBS=		15k
+DDBS=		18k
 MNT=		/mnt
 
 CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
@@ -14,9 +14,9 @@ CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
 CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
 CPIO1+= reboot restore slattach swapon umount route
 CPIO1+= rdump rrestore halt
-CPIO1+= ftp rsh sed telnet rlogin 
+CPIO1+= ftp rsh sed telnet rlogin grep
 
-CPIO2=  etc/services
+CPIO2=  etc/services etc/protocols
 
 CPIO3=	bininst
 # Somewhat on the rough side...
