@@ -970,20 +970,41 @@ ohci_intr1(sc)
 
         intrs = 0;
 	done = LE(sc->sc_hcca->hcca_done_head);
+
+	/* The LSb of done is used to inform the HC Driver that an interrupt
+	 * condition exists for both the Done list and for another event
+	 * recorded in HcInterruptStatus. On an interrupt from the HC, the HC
+	 * Driver checks the HccaDoneHead Value. If this value is 0, then the
+	 * interrupt was caused by other than the HccaDoneHead update and the
+	 * HcInterruptStatus register needs to be accessed to determine that
+	 * exact interrupt cause. If HccaDoneHead is nonzero, then a Done list
+	 * update interrupt is indicated and if the LSb of done is nonzero,
+	 * then an additional interrupt event is indicated and
+	 * HcInterruptStatus should be checked to determine its cause.
+	 */
 	if (done != 0) {
 		sc->sc_hcca->hcca_done_head = 0;
 		if (done & ~OHCI_DONE_INTRS)
 			intrs = OHCI_WDH;
-		if (done & OHCI_DONE_INTRS)
+		if (done & OHCI_DONE_INTRS) {
 			intrs |= OREAD4(sc, OHCI_INTERRUPT_STATUS);
-	} else
+			done &= ~OHCI_DONE_INTRS;
+		}
+	} else {
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS);
+	}
 
-	if (!intrs)
+	if (intrs == 0) {
+		/* nothing to be done ?! */
 		return (0);
+	}
 
-	intrs &= ~OHCI_MIE;
-	OWRITE4(sc, OHCI_INTERRUPT_STATUS, intrs); /* Acknowledge */
+	intrs &= ~OHCI_MIE;	/* mask out Master Interrupt Enable */
+
+	/* Acknowledge any interrupts that have happened */
+	OWRITE4(sc, OHCI_INTERRUPT_STATUS, intrs);
+
+	/* Any interrupts we had enabled? */
 	eintrs = intrs & sc->sc_eintrs;
 	if (!eintrs)
 		return (0);
@@ -1000,7 +1021,7 @@ ohci_intr1(sc)
 		intrs &= ~OHCI_SO;
 	}
 	if (eintrs & OHCI_WDH) {
-		ohci_process_done(sc, done &~ OHCI_DONE_INTRS);
+		ohci_process_done(sc, done);
 		intrs &= ~OHCI_WDH;
 	}
 	if (eintrs & OHCI_RD) {
