@@ -82,6 +82,26 @@
 
 #define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
 
+/*
+ * Some tlb operations must be atomical, so no interrupt or trap can be allowed
+ * while they are in progress. Traps should not happen, but interrupts need to
+ * be explicitely disabled. critical_enter() cannot be used here, since it only
+ * disables soft interrupts.
+ * XXX: is something like this needed elsewhere, too?
+ */
+#define	TLB_ATOMIC_START(s) do { \
+	(s) = rdpr(pstate); \
+	wrpr(pstate, (s) & ~PSTATE_IE, 0); \
+} while (0)
+#define	TLB_ATOMIC_END(s) wrpr(pstate, (s), 0)
+
+static __inline void
+tlb_dtlb_context_primary_demap(void)
+{
+	stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_DMMU_DEMAP, 0);
+	membar(Sync);
+}
+
 static __inline void
 tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
 {
@@ -94,6 +114,7 @@ tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
 		membar(Sync);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
+		membar(Sync);
 		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
 		membar(Sync);
 	}
@@ -102,17 +123,32 @@ tlb_dtlb_page_demap(u_long ctx, vm_offset_t va)
 static __inline void
 tlb_dtlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
+	u_long pst;
+
+	TLB_ATOMIC_START(pst);
 	stxa(AA_DMMU_TAR, ASI_DMMU,
 	    TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(0, ASI_DTLB_DATA_IN_REG, tte.tte_data);
 	membar(Sync);
+	TLB_ATOMIC_END(pst);
 }
 
 static __inline void
 tlb_dtlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
+	u_long pst;
+
+	TLB_ATOMIC_START(pst);
 	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, tte.tte_data);
+	membar(Sync);
+	TLB_ATOMIC_END(pst);
+}
+
+static __inline void
+tlb_itlb_context_primary_demap(void)
+{
+	stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_IMMU_DEMAP, 0);
 	membar(Sync);
 }
 
@@ -128,6 +164,7 @@ tlb_itlb_page_demap(u_long ctx, vm_offset_t va)
 		membar(Sync);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE,
 		    ASI_IMMU_DEMAP, 0);
+		membar(Sync);
 		stxa(AA_DMMU_SCXR, ASI_DMMU, 0);
 		/* flush probably not needed. */
 		membar(Sync);
@@ -137,6 +174,9 @@ tlb_itlb_page_demap(u_long ctx, vm_offset_t va)
 static __inline void
 tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 {
+	u_long pst;
+
+	TLB_ATOMIC_START(pst);
 	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(0, ASI_ITLB_DATA_IN_REG, tte.tte_data);
 	if (ctx == TLB_CTX_KERNEL)
@@ -148,14 +188,28 @@ tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
 		 */
 		membar(Sync);
 	}
+	TLB_ATOMIC_END(pst);
+}
+
+static __inline void
+tlb_context_primary_demap(u_int tlb)
+{
+	if (tlb & TLB_DTLB)
+		tlb_dtlb_context_primary_demap();
+	if (tlb & TLB_ITLB)
+		tlb_itlb_context_primary_demap();
 }
 
 static __inline void
 tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
 {
+	u_long pst;
+
+	TLB_ATOMIC_START(pst);
 	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
 	stxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG, tte.tte_data);
 	flush(va);
+	TLB_ATOMIC_END(pst);
 }
 
 static __inline void
