@@ -505,6 +505,25 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	mtx_lock(&psp->ps_mtx);
 }
 
+/*
+ * Build siginfo_t for SA thread
+ */
+void
+thread_siginfo(int sig, u_long code, siginfo_t *si)
+{
+	struct proc *p;
+	struct thread *td;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	bzero(si, sizeof(*si));
+	si->si_signo = sig;
+	si->si_code = code;
+	/* XXXKSE fill other fields */
+}
+
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
