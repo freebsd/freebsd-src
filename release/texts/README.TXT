@@ -25,15 +25,15 @@ This release is aimed primarily at early-adopters and the various
 other folks who want to get involved with the ongoing development
 of FreeBSD and are willing to deal with a few bumps in the road.
 We do our best to ensure that each snapshot works as advertised,
-but tracking -current is a process which frequently has its off
+but tracking -stable is a process which sometimes has its off
 days.
 
 If you're both technically proficient and know exactly what you're
-getting into here (e.g. you've been following -current) then this
+getting into here (e.g. you've been following -stable) then this
 snapshot is probably for you.  If you're more interested in doing
 business with FreeBSD than in playing with the cutting edge of
-technology, however, then 3.x is almost certainly your best bet.
-
+technology, however, then 3.x or one of the 4.x releases,  is almost 
+certainly your best bet.
 
 Most information here is also available from the Documentation menu
 during installation.
@@ -75,12 +75,17 @@ so much as simply keeping up to date on the latest FreeBSD technology,
 you can also install one of our "snapshot" releases.
 
 For the most up-to-date software along the RELENG_3 branch
-(also known as 3.4-stable), now proceeding towards the release
-of FreeBSD 3.5, please install your snapshots from from:
+(also known as 3.5-stable), please install your snapshots from from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
-For the latest 4.0-current (HEAD branch) snapshot releases,
+For the most up-to-date software along the RELENG_4 branch
+(also known as 4.0-stable), now proceeding towards the release
+of FreeBSD 4.1, please install your snapshots from from:
+
+        ftp://releng4.freebsd.org/pub/FreeBSD/
+
+For the latest 5.0-current (HEAD branch) snapshot releases,
 please install from:
 
         ftp://current.freebsd.org/pub/FreeBSD
