@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.14 1995/07/31 18:29:48 bde Exp $
+ *	$Id: cy.c,v 1.15 1995/10/11 02:41:13 davidg Exp $
  */
 
 #include "cy.h"
@@ -374,18 +374,7 @@ struct isa_driver	siodriver = {
 	sioprobe, sioattach, "cy"
 };
 
-#ifdef COMCONSOLE
-#undef COMCONSOLE
-#define	COMCONSOLE	1
-#else
-#define	COMCONSOLE	0
-#endif
-
-#ifndef CONUNIT
-#define	CONUNIT	(0)
-#endif
-
-static	int	comconsole = CONUNIT;
+static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
@@ -565,7 +554,7 @@ sioattach(isdp)
 	com->it_in.c_oflag = 0;
 	com->it_in.c_cflag = TTYDEF_CFLAG;
 	com->it_in.c_lflag = 0;
-	if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)) {
+	if (unit == comconsole) {
 		com->it_in.c_iflag = TTYDEF_IFLAG;
 		com->it_in.c_oflag = TTYDEF_OFLAG;
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
@@ -897,8 +886,7 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF)
-	    && !(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (!(com->state & CS_DTR_OFF) && unit != comconsole)
 		com->kdc.kdc_state = DC_IDLE;
 	splx(s);
 }
@@ -941,8 +929,7 @@ siowrite(dev, uio, flag)
 	 * is not the console.  In that situation we don't need/want the X
 	 * server taking over the console.
 	 */
-	if (constty && unit == comconsole
-	    && (COMCONSOLE || boothowto & RB_SERIAL))
+	if (constty != NULL && unit == comconsole)
 		constty = NULL;
 #ifdef Smarts
 	/* XXX duplicate ttwrite(), but without so much output processing on
@@ -962,7 +949,7 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	if (!(com->unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (com->unit != comconsole)
 		com->kdc.kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }

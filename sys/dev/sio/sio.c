@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.113 1995/09/24 04:59:16 davidg Exp $
+ *	$Id: sio.c,v 1.114 1995/10/21 00:55:25 phk Exp $
  */
 
 #include "sio.h"
@@ -298,14 +298,7 @@ struct isa_driver	siodriver = {
 	sioprobe, sioattach, "sio"
 };
 
-#ifdef COMCONSOLE
-#undef COMCONSOLE
-#define	COMCONSOLE	1
-#else
-#define	COMCONSOLE	0
-#endif
-
-static	int	comconsole = CONUNIT;
+static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
@@ -762,7 +755,7 @@ sioattach(isdp)
 	com->it_in.c_oflag = 0;
 	com->it_in.c_cflag = TTYDEF_CFLAG;
 	com->it_in.c_lflag = 0;
-	if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)) {
+	if (unit == comconsole) {
 		com->it_in.c_iflag = TTYDEF_IFLAG;
 		com->it_in.c_oflag = TTYDEF_OFLAG;
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
@@ -855,13 +848,11 @@ determined_type: ;
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
-	kdc_sio[unit].kdc_state =
-		(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
-		? DC_BUSY : DC_IDLE;
+	kdc_sio[unit].kdc_state = (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
-		if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
+		if (unit == comconsole)
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
 			int	divisor;
@@ -1161,8 +1152,7 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF)
-	    && !(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (!(com->state & CS_DTR_OFF) && unit != comconsole)
 		kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 }
@@ -1211,8 +1201,7 @@ siowrite(dev, uio, flag)
 	 * is not the console.  In that situation we don't need/want the X
 	 * server taking over the console.
 	 */
-	if (constty && unit == comconsole
-	    && (COMCONSOLE || boothowto & RB_SERIAL))
+	if (constty != NULL && unit == comconsole)
 		constty = NULL;
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -1225,7 +1214,7 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	if (!(com->unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (com->unit != comconsole)
 		kdc_sio[com->unit].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
@@ -1306,8 +1295,7 @@ siointr1(com)
 			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
 #ifdef DDB
 #ifdef BREAK_TO_DEBUGGER
-				if (   (line_status & LSR_BI)
-				    && (COMCONSOLE || boothowto	& RB_SERIAL)
+				if (line_status & LSR_BI
 				    && com->unit == comconsole)	{
 					Debugger("serial console break");
 					goto cont;
@@ -2056,7 +2044,6 @@ siostop(tp, rw)
 	}
 	enable_intr();
 	comstart(tp);
-	return;
 
 	/* XXX should clear h/w fifos too. */
 }
@@ -2279,7 +2266,7 @@ disc_optim(tp, t, com)
 /*
  * Following are all routines needed for SIO to act as console
  */
-#include <i386/i386/cons.h>
+#include <machine/cons.h>
 
 struct siocnstate {
 	u_char	dlbl;
@@ -2386,21 +2373,17 @@ siocnprobe(cp)
 
 	/* initialize required fields */
 	cp->cn_dev = makedev(commajor, unit);
-
-	if (COMCONSOLE || boothowto & RB_SERIAL)
-		cp->cn_pri = CN_REMOTE;	/* Force a serial port console */
-	else
-		cp->cn_pri = CN_NORMAL;
+#ifdef COMCONSOLE
+	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
+#else
+	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
+#endif
 }
 
 void
 siocninit(cp)
 	struct consdev	*cp;
 {
-	/*
-	 * XXX can delete more comconsole stuff now that i/o routines are
-	 * fairly reentrant.
-	 */
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
