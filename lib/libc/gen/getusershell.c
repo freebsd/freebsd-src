@@ -91,9 +91,10 @@ getusershell(void)
 void
 endusershell(void)
 {
-	if (sl)
+	if (sl) {
 		sl_free(sl, 1);
-	sl = NULL;
+		sl = NULL;
+	}
 	curshell = NULL;
 }
 
@@ -196,6 +197,10 @@ _nis_initshells(rv, cb_data, ap)
 	va_list	 ap;
 {
 	static char *ypdomain;
+	char	*key, *data;
+	char	*lastkey;
+	int	 keylen, datalen;
+	int	 r;
 
 	if (sl)
 		sl_free(sl, 1);
@@ -212,42 +217,32 @@ _nis_initshells(rv, cb_data, ap)
 		}
 	}
 
-	for (;;) {
-		char	*ypcur = NULL;
-		int	 ypcurlen = 0;	/* XXX: GCC */
-		char	*key, *data;
-		int	 keylen, datalen;
-		int	 r;
-
-		key = data = NULL;
-		if (ypcur) {
-			r = yp_next(ypdomain, "shells", ypcur, ypcurlen,
-					&key, &keylen, &data, &datalen);
-			free(ypcur);
-			switch (r) {
-			case 0:
-				break;
-			case YPERR_NOMORE:
-				free(key);
-				free(data);
-				return NS_SUCCESS;
-			default:
-				free(key);
-				free(data);
-				return NS_UNAVAIL;
-			}
-			ypcur = key;
-			ypcurlen = keylen;
-		} else {
-			if (yp_first(ypdomain, "shells", &ypcur,
-				    &ypcurlen, &data, &datalen)) {
-				free(data);
-				return NS_UNAVAIL;
-			}
-		}
+	/*
+	 * `key' and `data' point to strings dynamically allocated by
+	 * the yp_... functions.
+	 * `data' is directly put into the stringlist of shells.
+	 */
+	key = data = NULL;
+	if (yp_first(ypdomain, "shells", &key, &keylen, &data, &datalen))
+		return NS_UNAVAIL;
+	do {
 		data[datalen] = '\0';		/* clear trailing \n */
 		sl_add(sl, data);
+
+		lastkey = key;
+		r = yp_next(ypdomain, "shells", lastkey, keylen,
+		    &key, &keylen, &data, &datalen);
+		free(lastkey);
+	} while (r == 0);
+	
+	if (r == YPERR_NOMORE) {
+		/*
+		 * `data' and `key' ought to be NULL - do not try to free them.
+		 */
+		return NS_SUCCESS;
 	}
+
+	return NS_UNAVAIL;
 }
 #endif /* YP */
 
