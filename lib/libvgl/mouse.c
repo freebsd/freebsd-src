@@ -35,9 +35,6 @@
 #include <machine/console.h>
 #include "vgl.h"
 
-/* prototype for internal function */
-int __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, int dsty, int width, int hight); 
-
 #define X 0xff
 static byte StdAndMask[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE] = {
 	X,X,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -77,12 +74,13 @@ static byte StdOrMask[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE] = {
 };
 #undef X
 static VGLBitmap VGLMouseStdAndMask = 
-	{ MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdAndMask };
+    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdAndMask);
 static VGLBitmap VGLMouseStdOrMask = 
-	{ MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask };
+    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, StdOrMask);
 static VGLBitmap *VGLMouseAndMask, *VGLMouseOrMask;
 static byte map[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE];
-static VGLBitmap VGLMouseSave = { MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, map};
+static VGLBitmap VGLMouseSave = 
+    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, map);
 static int VGLMouseVisible = 0;
 static int VGLMouseFrozen = 0;
 static int VGLMouseShown = 0;
@@ -94,7 +92,8 @@ void
 VGLMousePointerShow()
 {
   byte buf[MOUSE_IMG_SIZE*MOUSE_IMG_SIZE];
-  VGLBitmap buffer = { MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf };
+  VGLBitmap buffer =
+    VGLBITMAP_INITIALIZER(MEMBUF, MOUSE_IMG_SIZE, MOUSE_IMG_SIZE, buf);
   byte crtcidx, crtcval, gdcidx, gdcval;
   int pos;
 

@@ -29,6 +29,7 @@
  */
 
 #include <stdio.h>
+#include <machine/console.h>
 #include "vgl.h"
 
 static VGLText		*VGLTextFont = 0;
