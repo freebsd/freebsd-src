@@ -108,6 +108,7 @@ update_mp(mp, argp)
 	pmp->pm_gid = argp->gid;
 	pmp->pm_uid = argp->uid;
 	pmp->pm_mask = argp->mask & ALLPERMS;
+	pmp->pm_dirmask = argp->dirmask & ALLPERMS;
 	pmp->pm_flags |= argp->flags & MSDOSFSMNT_MNTOPT;
 	if (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) {
 		bcopy(argp->u2w, pmp->pm_u2w, sizeof(pmp->pm_u2w));
