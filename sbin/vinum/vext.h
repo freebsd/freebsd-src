@@ -165,10 +165,6 @@ void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
 void parityops(int argc, char *argv[], enum parityop op);
 void start_daemon(void);
 void vinum_debug(int argc, char *argv[], char *arg0[]);
-void make_devices(void);
-void make_vol_dev(int, int);
-void make_plex_dev(int, int);
-void make_sd_dev(int);
 void list_defective_objects(void);
 void vinum_dumpconfig(int argc, char *argv[], char *argv0[]);
 void dumpconfig(char *part);
@@ -213,7 +209,6 @@ extern struct _drive drive;
 
 extern jmp_buf command_fail;				    /* return on a failed command */
 extern int superdev;					    /* vinum super device */
-extern int no_devfs;					    /* set if we don't have DEVFS */
 
 extern int line;					    /* stdin line number for error messages */
 extern int file_line;					    /* and line in input file (yes, this is tacky) */
