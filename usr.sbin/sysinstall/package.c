@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.45 1996/08/03 10:11:41 jkh Exp $
+ * $Id: package.c,v 1.46 1996/10/05 12:28:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,11 +104,10 @@ package_extract(Device *dev, char *name, Boolean depended)
     ret = DITEM_SUCCESS | DITEM_RESTORE;
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get("PKG_TMPDIR")) {
-	Mkdir("/usr/tmp");
-	Mkdir("/var/tmp");
 	/* Set it to a location with as much space as possible */
 	variable_set2("PKG_TMPDIR", "/usr/tmp");
     }
+    Mkdir(variable_get("PKG_TMPDIR"));
 
     if (!index(name, '/'))
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
