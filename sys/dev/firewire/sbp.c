@@ -526,14 +526,16 @@ END_DEBUG
 	target->fwdev = fwdev;
 	target->target_id = i;
 	/* XXX we may want to reload mgm port after each bus reset */
-	if((target->mgm_lo = getcsrdata(fwdev, 0x54)) == 0 ){
-		/* bad target */
+	/* XXX there might be multiple management agents */
+	crom_init_context(&cc, target->fwdev->csrrom);
+	reg = crom_search_key(&cc, CROM_MGM);
+	if (reg == NULL || reg->val == 0) {
 		printf("NULL management address\n");
 		target->fwdev = NULL;
 		return NULL;
 	}
 	target->mgm_hi = 0xffff;
-	target->mgm_lo = 0xf0000000 | target->mgm_lo << 2;
+	target->mgm_lo = 0xf0000000 | (reg->val << 2);
 	target->mgm_ocb_cur = NULL;
 SBP_DEBUG(1)
 	printf("target:%d mgm_port: %x\n", i, target->mgm_lo);
@@ -619,59 +621,36 @@ END_DEBUG
 			sbp_free_ocb(sdev, ocb);
 		}
 		crom_next(&cc);
-	    }
-	    return target;
-    }
-
-static void
-sbp_get_text_leaf(struct fw_device *fwdev, int key, char *buf, int len)
-{
-	static char *nullstr = "(null)";
-	int i, clen, found=0;
-	struct csrhdr *chdr;
-	struct csrreg *creg;
-	u_int32_t *src, *dst;
-
-	chdr = (struct csrhdr *)&fwdev->csrrom[0];
-	/* skip crom header, bus info and root directory */
-	creg = (struct csrreg *)chdr + chdr->info_len + 2;
-	/* search unitl the one before the last. */
-	for (i = chdr->info_len + 2; i < fwdev->rommax / 4; i++) {
-		if((creg++)->key == key){
-			found = 1;
-			break;
-		}
 	}
-	if (!found || creg->key != CROM_TEXTLEAF) {
-		strncpy(buf, nullstr, len);
-		return;
-	}
-	src = (u_int32_t *) creg + creg->val;
-	clen = ((*src >> 16) - 2) * 4;
-	src += 3;
-	dst = (u_int32_t *) buf;
-	if (len < clen)
-		clen = len;
-	for (i = 0; i < clen/4; i++)
-		*dst++ = htonl(*src++);
-	buf[clen] = 0;
+	return target;
 }
 
 static void
 sbp_probe_lun(struct sbp_dev *sdev)
 {
 	struct fw_device *fwdev;
-	int rev;
+	struct crom_context c, *cc = &c;
+	struct csrreg *reg;
 
-	fwdev = sdev->target->fwdev;
 	bzero(sdev->vendor, sizeof(sdev->vendor));
 	bzero(sdev->product, sizeof(sdev->product));
-	sbp_get_text_leaf(fwdev, 0x03, sdev->vendor, sizeof(sdev->vendor));
-	sbp_get_text_leaf(fwdev, 0x17, sdev->product, sizeof(sdev->product));
-	rev = getcsrdata(sdev->target->fwdev, 0x3c);
-	snprintf(sdev->revision, sizeof(sdev->revision), "%06x", rev);
-}
 
+	fwdev = sdev->target->fwdev;
+	crom_init_context(cc, fwdev->csrrom);
+	/* get vendor string */
+	crom_search_key(cc, CSRKEY_VENDOR);
+	crom_next(cc);
+	crom_parse_text(cc, sdev->vendor, sizeof(sdev->vendor));
+	/* get firmware revision */
+	reg = crom_search_key(cc, CSRKEY_FIRM_VER);
+	if (reg != NULL)
+		snprintf(sdev->revision, sizeof(sdev->revision),
+						"%06x", reg->val);
+	/* get product string */
+	crom_search_key(cc, CSRKEY_MODEL);
+	crom_next(cc);
+	crom_parse_text(cc, sdev->product, sizeof(sdev->product));
+}
 
 static void
 sbp_login_callout(void *arg)
@@ -680,10 +659,8 @@ sbp_login_callout(void *arg)
 	sbp_mgm_orb(sdev, ORB_FUN_LGI, NULL);
 }
 
-#define SBP_FWDEV_ALIVE(fwdev) \
-	((fwdev->status == FWDEVATTACHED) \
-		&& (getcsrdata(fwdev, CSRKEY_SPEC) == CSRVAL_ANSIT10) \
-		&& (getcsrdata(fwdev, CSRKEY_VER) == CSRVAL_T10SBP2))
+#define SBP_FWDEV_ALIVE(fwdev) (((fwdev)->status == FWDEVATTACHED) \
+	&& crom_has_specver((fwdev)->csrrom, CSRVAL_ANSIT10, CSRVAL_T10SBP2))
 
 static void
 sbp_probe_target(void *arg)
@@ -812,13 +789,10 @@ END_DEBUG
 SBP_DEBUG(0)
 		printf("sbp_post_explore: EUI:%08x%08x ",
 				fwdev->eui.hi, fwdev->eui.lo);
-		if (fwdev->status == FWDEVATTACHED) {
-			printf("spec=%d key=%d.\n",
-			getcsrdata(fwdev, CSRKEY_SPEC) == CSRVAL_ANSIT10,
-			getcsrdata(fwdev, CSRKEY_VER) == CSRVAL_T10SBP2);
-		} else {
+		if (fwdev->status != FWDEVATTACHED)
 			printf("not attached, state=%d.\n", fwdev->status);
-		}
+		else
+			printf("attached\n");
 END_DEBUG
 		alive = SBP_FWDEV_ALIVE(fwdev);
 		for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
