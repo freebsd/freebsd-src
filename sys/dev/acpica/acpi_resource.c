@@ -56,7 +56,7 @@ ACPI_MODULE_NAME("RESOURCE")
  */
 ACPI_STATUS
 acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
-		     struct acpi_parse_resource_set *set)
+		     struct acpi_parse_resource_set *set, void *arg)
 {
     ACPI_BUFFER		buf;
     ACPI_RESOURCE	*res;
@@ -86,7 +86,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
     }
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s - got %ld bytes of resources\n",
 		     acpi_name(handle), (long)buf.Length));
-    set->set_init(dev, &context);
+    set->set_init(dev, arg, &context);
 
     /* Iterate through the resources */
     curr = buf.Pointer;
@@ -373,7 +373,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
  * Resource-set vectors used to attach _CRS-derived resources 
  * to an ACPI device.
  */
-static void	acpi_res_set_init(device_t dev, void **context);
+static void	acpi_res_set_init(device_t dev, void *arg, void **context);
 static void	acpi_res_set_done(device_t dev, void *context);
 static void	acpi_res_set_ioport(device_t dev, void *context,
 				    u_int32_t base, u_int32_t length);
@@ -411,15 +411,17 @@ struct acpi_res_context {
     int		ar_nmem;
     int		ar_nirq;
     int		ar_ndrq;
+    void 	*ar_parent;
 };
 
 static void
-acpi_res_set_init(device_t dev, void **context)
+acpi_res_set_init(device_t dev, void *arg, void **context)
 {
     struct acpi_res_context	*cp;
 
     if ((cp = AcpiOsAllocate(sizeof(*cp))) != NULL) {
 	bzero(cp, sizeof(*cp));
+	cp->ar_parent = arg;
 	*context = cp;
     }
 }
