@@ -541,7 +541,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
           const struct fsm_parent *parent)
 {
   struct hostent *hp;
-  char name[MAXHOSTNAMELEN];
+  char name[MAXHOSTNAMELEN + 1];
   static const char * const timer_names[] =
     {"IPCP restart", "IPCP openmode", "IPCP stopped"};
 

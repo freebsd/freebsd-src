@@ -645,7 +645,7 @@ void
 bundle_LockTun(struct bundle *bundle)
 {
   FILE *lockfile;
-  char pidfile[MAXPATHLEN];
+  char pidfile[PATH_MAX];
 
   snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
   lockfile = ID0fopen(pidfile, "w");
@@ -663,7 +663,7 @@ bundle_LockTun(struct bundle *bundle)
 static void
 bundle_UnlockTun(struct bundle *bundle)
 {
-  char pidfile[MAXPATHLEN];
+  char pidfile[PATH_MAX];
 
   snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
   ID0unlink(pidfile);

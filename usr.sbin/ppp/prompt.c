@@ -79,7 +79,7 @@ static void
 prompt_Display(struct prompt *p)
 {
   /* XXX: See Index2Nam() - should we only figure this out once ? */
-  static char shostname[MAXHOSTNAMELEN];
+  static char shostname[MAXHOSTNAMELEN + 1];
   const char *pconnect, *pauth;
 
   if (p->TermMode || !p->needprompt)
@@ -109,7 +109,7 @@ prompt_Display(struct prompt *p)
   if (*shostname == '\0') {
     char *dot;
 
-    if (gethostname(shostname, sizeof shostname))
+    if (gethostname(shostname, sizeof shostname) || *shostname == '\0')
       strcpy(shostname, "localhost");
     else if ((dot = strchr(shostname, '.')))
       *dot = '\0';
