@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.26 1997/10/16 20:32:38 phk Exp $
+ * $Id: mfs_vnops.c,v 1.27 1997/10/16 22:01:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
  */
 vop_t **mfs_vnodeop_p;
 static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) mfs_badop },
+	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
 	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
