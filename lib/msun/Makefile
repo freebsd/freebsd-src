@@ -107,7 +107,7 @@ MLINKS+=cos.3 cosf.3
 MLINKS+=cosh.3 coshf.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
 MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3 \
-	exp.3 expf.3 exp.3 exp10.3 exp.3 exp10f.3 \
+	exp.3 expf.3 \
 	exp.3 expm1f.3 exp.3 logf.3 exp.3 powf.3 \
 	exp.3 log10f.3 exp.3 log1pf.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
