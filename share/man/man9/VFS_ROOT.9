@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_ROOT "struct mount *mp" "struct vnode **vpp"
+.Fn VFS_ROOT "struct mount *mp" "struct vnode **vpp" "struct thread *td"
 .Sh DESCRIPTION
 Return a locked vnode for the root directory of the file system.
 .Pp
@@ -49,6 +49,8 @@ Its arguments are:
 The file system.
 .It Fa vpp
 Return parameter for the root vnode.
+.It Fa td
+The calling thread.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,
