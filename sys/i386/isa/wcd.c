@@ -722,7 +722,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 
 	case CDIOREADTOCHEADER:
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 		bcopy (&t->toc.hdr, addr, sizeof t->toc.hdr);
 		break;
 
@@ -734,7 +734,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		u_long len;
 
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 		if (te->starting_track < toc->hdr.starting_track ||
 		    te->starting_track > toc->hdr.ending_track)
 			return (EINVAL);
@@ -827,7 +827,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		int t1, t2;
 
 		if (! t->toc.hdr.ending_track)
-			return (ENODEV);
+			return (EIO);
 
 		/* Ignore index fields,
 		 * play from start_track to end_track inclusive. */
@@ -887,6 +887,9 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 			return (error);
 		if (t->flags & F_DEBUG)
 			wcd_dump (t->lun, "mask", &t->aumask, sizeof t->aumask);
+
+		/* Sony-55E requires the data length field to be zeroed. */
+		t->au.data_length = 0;
 
 		t->au.port[0].channels = CHANNEL_0;
 		t->au.port[1].channels = CHANNEL_1;
@@ -972,6 +975,9 @@ static int wcd_setchan (struct wcd *t,
 		wcd_dump (t->lun, "au", &t->au, sizeof t->au);
 	if (t->au.page_code != AUDIO_PAGE)
 		return (EIO);
+
+	/* Sony-55E requires the data length field to be zeroed. */
+	t->au.data_length = 0;
 
 	t->au.port[0].channels = c0;
 	t->au.port[1].channels = c1;
