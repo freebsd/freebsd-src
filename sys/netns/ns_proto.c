@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ns_proto.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ *	From: @(#)ns_proto.c	8.1 (Berkeley) 6/10/93
+ *	$Id: ns_proto.c,v 1.2 1994/08/02 07:51:54 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
@@ -95,3 +96,4 @@ struct domain nsdomain =
       nssw, &nssw[sizeof(nssw)/sizeof(nssw[0])], 0,
       rn_inithead, 16, sizeof(struct sockaddr_ns)};
 
+DOMAIN_SET(ns);

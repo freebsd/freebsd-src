@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.14 1995/04/26 18:10:52 pst Exp $
+ * $Id: if_ether.c,v 1.15 1995/05/09 13:35:44 davidg Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/netisr.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -367,7 +368,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
  * then the protocol-specific routine is called.
  */
 void
-arpintr()
+arpintr(void)
 {
 	register struct mbuf *m;
 	register struct arphdr *ar;
@@ -395,6 +396,8 @@ arpintr()
 		m_freem(m);
 	}
 }
+
+NETISR_SET(NETISR_ARP, arpintr);
 
 /*
  * ARP for Internet protocols on 10 Mb/s Ethernet.

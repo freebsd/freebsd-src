@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: in_proto.c,v 1.12 1995/02/16 00:55:38 wollman Exp $
+ *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
+ *	$Id: in_proto.c,v 1.13 1995/04/09 01:29:20 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
@@ -164,6 +165,8 @@ struct domain inetdomain =
       in_inithead, 32, sizeof(struct sockaddr_in)
     };
 
+DOMAIN_SET(inet);
+
 #include "imp.h"
 #if NIMP > 0
 extern	struct domain impdomain;
@@ -180,6 +183,9 @@ struct protosw impsw[] = {
 struct domain impdomain =
     { AF_IMPLINK, "imp", 0, 0, 0,
       impsw, &impsw[sizeof (impsw)/sizeof(impsw[0])] };
+
+DOMAIN_SET(imp);
+
 #endif
 
 #if 0
@@ -201,5 +207,7 @@ struct protosw hysw[] = {
 
 struct domain hydomain =
     { AF_HYLINK, "hy", 0, 0, 0, hysw, &hysw[sizeof (hysw)/sizeof(hysw[0])] };
+
+DOMAIN_SET(hy);
 #endif
 #endif
