@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1997/04/18 23:44:54 jkh Exp $
+# $Id: Makefile,v 1.18 1997/08/17 21:33:39 andreas Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -15,7 +15,7 @@ APISTUFF=	ex_notcl.c ex_noperl.c
 .else
 
 .if !defined(NOTCL)
-TCLINTERP=	yes	#we have it in the base tree, little cost to vi
+#TCLINTERP=	yes	#we have it in the base tree, little cost to vi
 .endif
 #TKNVI=		yes	#not ready, needs X11, tk, doesn't quite work yet
 #PERLINTERP=	yes	#needs the perl5 v5.003 port
