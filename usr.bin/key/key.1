@@ -1,24 +1,26 @@
-.ll 6i
-.pl 10.5i
-.\"	@(#)key.1	1.0 (Bellcore) 12/2/91
+.\"	from: @(#)key.1	1.0 (Bellcore) 12/2/91
+.\" $Id$
 .\"
-.lt 6.0i
-.TH KEY 1 "2 December 1991"
-.AT 3
-.SH NAME
-key \-  Stand\-alone program for computing responses to S/Key challenges.
-.SH SYNOPSIS
-.B key [\-n <count>] <Sequence> <key> 
-.SH DESCRIPTION
-.I key
-Takes the optional count  of the number of one time access 
+.Dd December 2, 1991
+.Dt KEY 1
+.Os
+.Sh NAME
+.Nm key
+.Nd stand\-alone program for computing responses to S/Key challenges
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar count
+.Ar sequence
+.Ar key 
+.Sh DESCRIPTION
+.Nm Key
+takes the optional count  of the number of one time access 
 passwords to print
 along with a (maximum) sequence number and key as command line args, 
 it prompts for the user's secret password, and produces both word 
 and hex format responses.
-.SH EXAMPLE
-.sh
-  Usage example:
+.Sh EXAMPLE
+Usage example:
 .sp 0
  	>key \-n 5 99 th91334
 .sp 0
@@ -29,21 +31,18 @@ and hex format responses.
 	.... 4 more passwords.
 .sp 0
  	>
-.LP
-.SH OPTIONS
-.LP
-.B \-n <count>
-the number of one time access passwords to print.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl n Ar count
+The number of one time access passwords to print.
 The default is one.
-.SH DIAGNOSTICS
-.SH BUGS
-.LP
-.SH SEE ALSO
-.BR skey(1),
-.BR keyinit(1),
+.El
+.Sh SEE ALSO
+.Xr keyinfo 1 ,
+.Xr keyinit 1 ,
+.Xr skey 1
 .\" .BR keysu(1),
-.BR keyinfo(1)
-.SH AUTHOR
+.Sh AUTHOR
 Command by Phil Karn, Neil M. Haller, John S. Walden
-.SH CONTACT
+.Sh CONTACT
 staff@thumper.bellcore.com
