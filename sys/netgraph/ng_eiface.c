@@ -40,6 +40,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 
@@ -52,20 +53,12 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-static const struct ng_parse_struct_field ng_eiface_par_fields[]
-	= NG_EIFACE_PAR_FIELDS;
-
-static const struct ng_parse_type ng_eiface_par_type = {
-	&ng_parse_struct_type,
-	&ng_eiface_par_fields
-};
-
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{
 	  NGM_EIFACE_COOKIE,
 	  NGM_EIFACE_SET,
 	  "set",
-	  &ng_eiface_par_type,
+	  &ng_parse_enaddr_type,
 	  NULL
 	},
 	{ 0 }
@@ -77,7 +70,6 @@ struct ng_eiface_private {
 	struct ifnet	*ifp;		/* This interface */
 	node_p		node;		/* Our netgraph node */
 	hook_p		ether;		/* Hook for ethernet stream */
-	struct private	*next;		/* When hung on the free list */
 };
 typedef struct ng_eiface_private *priv_p;
 
@@ -398,21 +390,27 @@ ng_eiface_rcvmsg(node_p node, struct ng_mesg *msg,
 
 		case NGM_EIFACE_SET:
 		    {
-			struct ng_eiface_par *eaddr;
+			struct ether_addr *eaddr;
+			struct ifaddr *ifa;
+			struct sockaddr_dl *sdl;
 
-			if (msg->header.arglen != sizeof(struct ng_eiface_par)) {
+			if (msg->header.arglen != sizeof(struct ether_addr)) {
 				error = EINVAL;
 				break;
 			}
-			eaddr = (struct ng_eiface_par *)(msg->data);
+			eaddr = (struct ether_addr *)(msg->data);
+			bcopy(eaddr, priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-			priv->arpcom.ac_enaddr[0] = eaddr->oct0;
-			priv->arpcom.ac_enaddr[1] = eaddr->oct1;
-			priv->arpcom.ac_enaddr[2] = eaddr->oct2;
-			priv->arpcom.ac_enaddr[3] = eaddr->oct3;
-			priv->arpcom.ac_enaddr[4] = eaddr->oct4;
-			priv->arpcom.ac_enaddr[5] = eaddr->oct5;
-
+			/* And put it in the ifaddr list */
+#define	IFP2AC(ifp) ((struct arpcom *)(ifp))
+			TAILQ_FOREACH(ifa, &(ifp->if_addrhead), ifa_link) {
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+				if (sdl->sdl_type == IFT_ETHER) {
+					bcopy((IFP2AC(ifp))->ac_enaddr,
+						LLADDR(sdl), ifp->if_addrlen);
+					break;
+				}
+			}
 			break;
 		    }
 
@@ -500,8 +498,11 @@ ng_eiface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		return (EINVAL);
 	}
 
-	if (!(ifp->if_flags & IFF_UP))
+	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) !=
+	    (IFF_UP | IFF_RUNNING)) {
+		NG_FREE_M(m);
 		return (ENETDOWN);
+	}
 
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;

@@ -61,24 +61,4 @@ struct ng_eiface_ifname {
 	char    ngif_name[NG_EIFACE_EIFACE_NAME_MAX + 1];
 };
 
-struct ng_eiface_par {
-    u_char oct0;
-    u_char oct1;
-    u_char oct2;
-    u_char oct3;
-    u_char oct4;
-    u_char oct5;
-};
-
-/* Keep this in sync with the above structure definition */
-#define NG_EIFACE_PAR_FIELDS	{				\
-    { "oct0",		&ng_parse_int8_type	},		\
-    { "oct1",		&ng_parse_int8_type	},		\
-    { "oct2",		&ng_parse_int8_type	},		\
-    { "oct3",		&ng_parse_int8_type	},		\
-    { "oct4",		&ng_parse_int8_type	},		\
-    { "oct5",		&ng_parse_int8_type	},		\
-    { NULL }							\
-}
-
 #endif /* _NETGRAPH_NG_EIFACE_H_ */
