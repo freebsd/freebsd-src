@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.39 1998/04/17 22:04:25 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.40 1998/04/18 01:01:19 brian Exp $
  */
 
 #include <sys/types.h>
@@ -268,6 +268,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       switch (dl->chat.state) {
         case CHAT_DONE:
           /* script succeeded */
+          chat_Destroy(&dl->chat);
           switch(dl->state) {
             case DATALINK_HANGUP:
               datalink_HangupDone(dl);
@@ -285,6 +286,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         case CHAT_FAILED:
           /* Going down - script failed */
           LogPrintf(LogWARN, "Chat script failed\n");
+          chat_Destroy(&dl->chat);
           switch(dl->state) {
             case DATALINK_HANGUP:
               datalink_HangupDone(dl);
@@ -620,12 +622,19 @@ datalink_Destroy(struct datalink *dl)
 {
   struct datalink *result;
 
-  if (dl->state != DATALINK_CLOSED)
+  if (dl->state != DATALINK_CLOSED) {
     LogPrintf(LogERROR, "Oops, destroying a datalink in state %s\n",
               datalink_State(dl));
+    switch (dl->state) {
+      case DATALINK_HANGUP:
+      case DATALINK_DIAL:
+      case DATALINK_LOGIN:
+        chat_Destroy(&dl->chat);	/* Gotta blat the timers ! */
+        break;
+    }
+  }
 
   result = dl->next;
-  chat_Destroy(&dl->chat);
   modem_Destroy(dl->physical);
   free(dl->name);
   free(dl);

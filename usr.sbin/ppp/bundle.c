@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.51 1998/04/17 22:04:18 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.52 1998/04/17 22:05:03 brian Exp $
  */
 
 #include <sys/types.h>
@@ -889,7 +889,7 @@ bundle_IdleTimeout(void *v)
   struct bundle *bundle = (struct bundle *)v;
 
   bundle->idle.done = 0;
-  LogPrintf(LogPHASE, "IPCP Idle timer expired.\n");
+  LogPrintf(LogPHASE, "Idle timer expired.\n");
   bundle_Close(bundle, NULL, 1);
 }
 

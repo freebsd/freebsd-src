@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.22 1998/04/10 23:51:24 brian Exp $
+ *	$Id: chat.c,v 1.44.2.23 1998/04/18 01:01:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -545,18 +545,18 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
   c->phone = phone;
   c->abort.num = 0;
 
-  StopTimer(&c->pause);
-  c->pause.state = TIMER_STOPPED;
-
-  StopTimer(&c->timeout);
-  c->timeout.state = TIMER_STOPPED;
+  memset(&c->pause, '\0', sizeof c->pause);
+  memset(&c->timeout, '\0', sizeof c->timeout);
 }
 
 void
 chat_Destroy(struct chat *c)
 {
+  StopTimer(&c->pause);
+  StopTimer(&c->timeout);
   while (c->abort.num)
     free(c->abort.string[--c->abort.num].data);
+  c->abort.num = 0;
 }
 
 static char *
