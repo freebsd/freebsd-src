@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <errno.h>
+#include <locale.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
@@ -63,6 +64,8 @@ static const char rcsid[] =
 static int getstathz __P((void));
 static void humantime __P((FILE *, long, long));
 static void usage __P((void));
+
+static char decimal_point;
 
 int
 main(argc, argv)
@@ -76,6 +79,9 @@ main(argc, argv)
 	FILE *out = stderr;
 	char *ofn = NULL;
 	int exitonsig = 0; /* Die with same signal as child */
+
+	(void) setlocale(LC_NUMERIC, "");
+	decimal_point = localeconv()->decimal_point[0];
 
 	aflag = hflag = lflag = pflag = 0;
 	while ((ch = getopt(argc, argv, "ahlo:p")) != -1)
@@ -142,12 +148,15 @@ main(argc, argv)
 		/* POSIX wants output that must look like
 		"real %f\nuser %f\nsys %f\n" and requires
 		at least two digits after the radix. */
-		fprintf(out, "real %ld.%02ld\n", 
-			after.tv_sec, after.tv_usec/10000);
-		fprintf(out, "user %ld.%02ld\n",
-			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
-		fprintf(out, "sys %ld.%02ld\n",
-			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+		fprintf(out, "real %ld%c%02ld\n",
+			after.tv_sec, decimal_point,
+			after.tv_usec/10000);
+		fprintf(out, "user %ld%c%02ld\n",
+			ru.ru_utime.tv_sec, decimal_point,
+			ru.ru_utime.tv_usec/10000);
+		fprintf(out, "sys %ld%c%02ld\n",
+			ru.ru_stime.tv_sec, decimal_point,
+			ru.ru_stime.tv_usec/10000);
 	} else if (hflag) {
 		humantime(out, after.tv_sec, after.tv_usec/10000);
 		fprintf(out, " real\t");
@@ -156,12 +165,15 @@ main(argc, argv)
 		humantime(out, ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 		fprintf(out, " sys\n");
 	} else {
-		fprintf(out, "%9ld.%02ld real ",
-			after.tv_sec, after.tv_usec/10000);
-		fprintf(out, "%9ld.%02ld user ",
-			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
-		fprintf(out, "%9ld.%02ld sys\n",
-			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+		fprintf(out, "%9ld%c%02ld real ",
+			after.tv_sec, decimal_point,
+			after.tv_usec/10000);
+		fprintf(out, "%9ld%c%02ld user ",
+			ru.ru_utime.tv_sec, decimal_point,
+			ru.ru_utime.tv_usec/10000);
+		fprintf(out, "%9ld%c%02ld sys\n",
+			ru.ru_stime.tv_sec, decimal_point,
+			ru.ru_stime.tv_usec/10000);
 	}
 	if (lflag) {
 		int hz = getstathz();
@@ -262,5 +274,5 @@ humantime(out, sec, usec)
 		fprintf(out, "%ldh", hrs);
 	if (mins)
 		fprintf(out, "%ldm", mins);
-	fprintf(out, "%ld.%02lds", sec, usec);
+	fprintf(out, "%ld%c%02lds", sec, decimal_point, usec);
 }
