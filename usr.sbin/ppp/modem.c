@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.81 1998/05/21 21:46:56 brian Exp $
+ * $Id: modem.c,v 1.82 1998/05/21 22:55:08 brian Exp $
  *
  *  TODO:
  */
@@ -754,7 +754,7 @@ modem_PhysicalClose(struct physical *modem)
   close(modem->fd);
   modem->fd = -1;
   timer_Stop(&modem->Timer);
-  bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
+  log_SetTtyCommandMode(modem->dl);
   throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, modem->link.name);
 }
@@ -951,12 +951,12 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
         /* LCP packet is detected. Turn ourselves into packet mode */
         if (cp != rbuff) {
           /* Get rid of the bit before the HDLC header */
-          bundle_WriteTermPrompt(p->dl->bundle, p->dl, rbuff, cp - rbuff);
-          bundle_WriteTermPrompt(p->dl->bundle, p->dl, "\r\n", 2);
+          log_WritePrompts(p->dl, rbuff, cp - rbuff);
+          log_WritePrompts(p->dl, "\r\n", 2);
         }
         datalink_Up(p->dl, 0, 1);
       } else
-        bundle_WriteTermPrompt(p->dl->bundle, p->dl, rbuff, n);
+        log_WritePrompts(p->dl, rbuff, n);
     }
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);
@@ -984,7 +984,6 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   p->desc.IsSet = physical_IsSet;
   p->desc.Read = modem_DescriptorRead;
   p->desc.Write = modem_DescriptorWrite;
-  p->desc.next = NULL;
   p->type = PHYS_DIRECT;
   p->dl = dl;
   len = strlen(_PATH_DEV);

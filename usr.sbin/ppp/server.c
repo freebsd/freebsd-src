@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.19 1998/05/10 22:20:20 brian Exp $
+ *	$Id: server.c,v 1.18 1998/05/21 21:48:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -67,22 +67,38 @@ static int
 server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct server *s = descriptor2server(d);
+  struct prompt *p;
+  int sets;
 
+  sets = 0;
   if (r && s->fd >= 0) {
     if (*n < s->fd + 1)
       *n = s->fd + 1;
     FD_SET(s->fd, r);
     log_Printf(LogTIMER, "server: fdset(r) %d\n", s->fd);
-    return 1;
+    sets++;
   }
-  return 0;
+
+  for (p = log_PromptList(); p; p = p->next)
+    sets += descriptor_UpdateSet(&p->desc, r, w, e, n);
+
+  return sets;
 }
 
 static int
 server_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct server *s = descriptor2server(d);
-  return s->fd >= 0 && FD_ISSET(s->fd, fdset);
+  struct prompt *p;
+
+  if (s->fd >= 0 && FD_ISSET(s->fd, fdset))
+    return 1;
+
+  for (p = log_PromptList(); p; p = p->next)
+    if (descriptor_IsSet(&p->desc, fdset))
+      return 1;
+
+  return 0;
 }
 
 #define IN_SIZE sizeof(struct sockaddr_in)
@@ -99,54 +115,64 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   int ssize = ADDRSZ, wfd;
   struct prompt *p;
 
-  wfd = accept(s->fd, sa, &ssize);
-  if (wfd < 0) {
-    log_Printf(LogERROR, "server_Read: accept(): %s\n", strerror(errno));
-    return;
-  }
+  if (s->fd >= 0 && FD_ISSET(s->fd, fdset)) {
+    wfd = accept(s->fd, sa, &ssize);
+    if (wfd < 0)
+      log_Printf(LogERROR, "server_Read: accept(): %s\n", strerror(errno));
+  } else
+    wfd = -1;
 
-  switch (sa->sa_family) {
-    case AF_LOCAL:
-      log_Printf(LogPHASE, "Connected to local client.\n");
-      break;
-
-    case AF_INET:
-      if (ntohs(in->sin_port) < 1024) {
-        log_Printf(LogALERT, "Rejected client connection from %s:%u"
-                  "(invalid port number) !\n",
-                  inet_ntoa(in->sin_addr), ntohs(in->sin_port));
-        close(wfd);
-        return;
-      }
-      log_Printf(LogPHASE, "Connected to client from %s:%u\n",
-                inet_ntoa(in->sin_addr), in->sin_port);
-      break;
-
-    default:
-      write(wfd, "Unrecognised access !\n", 22);
-      close(wfd);
-      return;
-  }
-
-  if ((p = prompt_Create(s, bundle, wfd)) == NULL) {
-    write(wfd, "Connection refused.\n", 20);
-    close(wfd);
-  } else {
+  if (wfd >= 0)
     switch (sa->sa_family) {
       case AF_LOCAL:
-        p->src.type = "local";
-        strncpy(p->src.from, s->rm, sizeof p->src.from - 1);
-        p->src.from[sizeof p->src.from - 1] = '\0';
+        log_Printf(LogPHASE, "Connected to local client.\n");
         break;
+
       case AF_INET:
-        p->src.type = "tcp";
-        snprintf(p->src.from, sizeof p->src.from, "%s:%u",
-                 inet_ntoa(in->sin_addr), in->sin_port);
+        if (ntohs(in->sin_port) < 1024) {
+          log_Printf(LogALERT, "Rejected client connection from %s:%u"
+                    "(invalid port number) !\n",
+                    inet_ntoa(in->sin_addr), ntohs(in->sin_port));
+          close(wfd);
+          wfd = -1;
+          break;
+        }
+        log_Printf(LogPHASE, "Connected to client from %s:%u\n",
+                  inet_ntoa(in->sin_addr), in->sin_port);
+        break;
+
+      default:
+        write(wfd, "Unrecognised access !\n", 22);
+        close(wfd);
+        wfd = -1;
         break;
     }
-    prompt_TtyCommandMode(p);
-    prompt_Required(p);
+
+  if (wfd >= 0) {
+    if ((p = prompt_Create(s, bundle, wfd)) == NULL) {
+      write(wfd, "Connection refused.\n", 20);
+      close(wfd);
+    } else {
+      switch (sa->sa_family) {
+        case AF_LOCAL:
+          p->src.type = "local";
+          strncpy(p->src.from, s->rm, sizeof p->src.from - 1);
+          p->src.from[sizeof p->src.from - 1] = '\0';
+          break;
+        case AF_INET:
+          p->src.type = "tcp";
+          snprintf(p->src.from, sizeof p->src.from, "%s:%u",
+                   inet_ntoa(in->sin_addr), in->sin_port);
+          break;
+      }
+      prompt_TtyCommandMode(p);
+      prompt_Required(p);
+    }
   }
+
+  for (p = log_PromptList(); p; p = p->next)
+    if (descriptor_IsSet(&p->desc, fdset))
+      descriptor_Read(&p->desc, bundle, fdset);
 }
 
 static void
@@ -159,7 +185,6 @@ server_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 struct server server = {
   {
     SERVER_DESCRIPTOR,
-    NULL,
     server_UpdateSet,
     server_IsSet,
     server_Read,
@@ -266,7 +291,7 @@ server_Close(struct bundle *bundle)
     server.fd = -1;
     server.port = 0;
     /* Drop associated prompts */
-    bundle_DelPromptDescriptors(bundle, &server);
+    log_DestroyPrompts(&server);
     return 1;
   }
   return 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.10 1998/04/28 01:25:13 brian Exp $
+ *	$Id: descriptor.h,v 1.2 1998/05/21 21:45:08 brian Exp $
  */
 
 #define PHYSICAL_DESCRIPTOR (1)
@@ -38,7 +38,6 @@ struct bundle;
 
 struct descriptor {
   int type;
-  struct descriptor *next;
 
   int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
   int (*IsSet)(struct descriptor *, const fd_set *);

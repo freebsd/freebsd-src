@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.60 1998/05/15 18:21:38 brian Exp $
+ * $Id: main.c,v 1.123 1998/05/21 21:46:40 brian Exp $
  *
  *	TODO:
  */
@@ -330,9 +330,13 @@ main(int argc, char **argv)
     return 1;
   }
 
-  if ((bundle = bundle_Create(TUN_PREFIX, prompt, mode)) == NULL) {
+  if ((bundle = bundle_Create(TUN_PREFIX, mode)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
+  }
+  if (prompt) {
+    prompt->bundle = bundle;	/* couldn't do it earlier */
+    prompt_Printf(prompt, "Using interface: %s\n", bundle->ifp.Name);
   }
   SignalBundle = bundle;
 
@@ -474,8 +478,11 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     sig_Handle();
 
+    /* All our datalinks, the tun device and the MP socket */
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
-    descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
+
+    /* All our prompts and the diagnostic socket */
+    descriptor_UpdateSet(&server.desc, &rfds, NULL, NULL, &nfds);
 
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18.2.8 1998/05/01 22:39:37 brian Exp $
+ *	$Id: log.h,v 1.19 1998/05/21 21:46:30 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -51,6 +51,8 @@
 struct mbuf;
 struct cmdargs;
 struct prompt;
+struct server;
+struct datalink;
 
 /* The first int arg for all of the following is one of the above values */
 extern const char *log_Name(int);
@@ -75,8 +77,16 @@ extern void log_Printf(int, const char *,...);
 #endif
 extern void log_DumpBp(int, const char *, const struct mbuf *);
 extern void log_DumpBuff(int, const char *, const u_char *, int);
-extern void log_RegisterPrompt(struct prompt *);
-extern void log_UnRegisterPrompt(struct prompt *);
 extern int log_ShowLevel(struct cmdargs const *);
 extern int log_SetLevel(struct cmdargs const *);
 extern int log_ShowWho(struct cmdargs const *);
+
+extern void log_RegisterPrompt(struct prompt *);
+extern void log_UnRegisterPrompt(struct prompt *);
+extern void log_DestroyPrompts(struct server *);
+extern void log_DisplayPrompts(void);
+extern void log_WritePrompts(struct datalink *, const char *, int);
+extern void log_ActivatePrompt(struct prompt *);
+extern void log_DeactivatePrompt(struct prompt *);
+extern void log_SetTtyCommandMode(struct datalink *);
+extern struct prompt *log_PromptList(void);

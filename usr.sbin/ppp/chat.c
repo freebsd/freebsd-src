@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.29 1998/05/01 19:24:11 brian Exp $
+ *	$Id: chat.c,v 1.45 1998/05/21 21:44:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -514,7 +514,6 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
           const char *phone)
 {
   c->desc.type = CHAT_DESCRIPTOR;
-  c->desc.next = NULL;
   c->desc.UpdateSet = chat_UpdateSet;
   c->desc.IsSet = chat_IsSet;
   c->desc.Read = chat_Read;
