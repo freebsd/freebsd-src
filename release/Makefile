@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.24 1994/11/07 11:30:13 jkh Exp $
+#	$Id: Makefile,v 1.25 1994/11/08 11:14:43 jkh Exp $
 #
 
 FDLABEL=	fd1440
@@ -109,8 +109,10 @@ release20:
 	( cd ${.CURDIR}/../etc ; \
 		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
 			NOCRYPT=yes SHARED=copies)
-	( cd ${.CURDIR}/../etc ; \
-		${MAKE} bin-tarball DESTDIR=${RELEASEDIR}/filesys )
+	(cd ${DESTDIR}; \
+		tar cf - . | \
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
+	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
 
