@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.71 1998/05/11 03:55:16 dyson Exp $
+ * $Id: vnode.h,v 1.72 1998/08/27 02:34:30 jkh Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -158,6 +158,7 @@ struct vnode {
 #define	VFREE		0x80000	/* This vnode is on the freelist */
 #define	VTBFREE		0x100000 /* This vnode is on the to-be-freelist */
 #define	VONWORKLST	0x200000 /* On syncer work-list */
+#define	VMOUNT		0x400000 /* Mount in progress */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.104 1998/07/03 03:47:24 dg Exp $
+ * $Id: vfs_syscalls.c,v 1.105 1998/07/15 02:32:13 bde Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -236,10 +236,15 @@ mount(p, uap)
 		vput(vp);
 		return (ENODEV);
 	}
-	if (vp->v_mountedhere != NULL) {
+	simple_lock(&vp->v_interlock);
+	if ((vp->v_flag & VMOUNT) != 0 ||
+	    vp->v_mountedhere != NULL) {
+		simple_unlock(&vp->v_interlock);
 		vput(vp);
 		return (EBUSY);
 	}
+	vp->v_flag |= VMOUNT;
+	simple_unlock(&vp->v_interlock);
 
 	/*
 	 * Allocate and initialize the filesystem.
@@ -255,9 +260,9 @@ mount(p, uap)
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
-	vp->v_mountedhere = mp;
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_stat.f_owner = p->p_ucred->cr_uid;
+	VOP_UNLOCK(vp, 0, p);
 update:
 	/*
 	 * Set the mount level flags.
@@ -299,11 +304,16 @@ update:
 		vfs_unbusy(mp, p);
 		return (error);
 	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	/*
 	 * Put the new filesystem on the mount list after root.
 	 */
 	cache_purge(vp);
 	if (!error) {
+		simple_lock(&vp->v_interlock);
+		vp->v_flag &= ~VMOUNT;
+		vp->v_mountedhere = mp;
+		simple_unlock(&vp->v_interlock);
 		simple_lock(&mountlist_slock);
 		CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		simple_unlock(&mountlist_slock);
@@ -315,7 +325,9 @@ update:
 		if (error = VFS_START(mp, 0, p))
 			vrele(vp);
 	} else {
-		mp->mnt_vnodecovered->v_mountedhere = (struct mount *)0;
+		simple_lock(&vp->v_interlock);
+		vp->v_flag &= ~VMOUNT;
+		simple_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, p);
 		free((caddr_t)mp, M_MOUNT);
