@@ -143,6 +143,12 @@
 #endif
 #endif
 
+#if __GNUC__ == 3 && __GNUC_MINOR__ >= 3
+#define __nonnull(x)	__attribute__((__nonnull__(x)))
+#else
+#define __nonnull(x)
+#endif
+
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3)
 #define	__func__	NULL
