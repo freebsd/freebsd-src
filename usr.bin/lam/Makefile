@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	lam
-WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -3,7 +3,6 @@
 
 PROG=	hexdump
 SRCS=	conv.c display.c hexdump.c hexsyntax.c odsyntax.c parse.c
-WARNS?=	2
 MAN=	hexdump.1 od.1
 MLINKS=	hexdump.1 hd.1
 LINKS=	${BINDIR}/hexdump ${BINDIR}/od

@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	expand
-WARNS?=	2
 MLINKS=	expand.1 unexpand.1
 
 .include <bsd.prog.mk>

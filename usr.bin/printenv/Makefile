@@ -3,6 +3,5 @@
 
 PROG=	printenv
 MLINKS=	printenv.1 env.1
-WARNS?=	2
 
 .include <bsd.prog.mk>

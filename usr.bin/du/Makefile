@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	du
-WARNS?=	2
 DPADD=	${LIBM}
 LDADD=	-lm
 
