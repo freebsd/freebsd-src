@@ -512,9 +512,9 @@ sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 
 	error = suser(req->td);
 	if (error)
-		return error;
+		return (error);
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
-	return ENOENT;
+	return (ENOENT);
 }
 
 SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
@@ -592,14 +592,14 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 
 		if (!namelen) {
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
-				return 0;
+				return (0);
 			if (oidp->oid_handler) 
 				/* We really should call the handler here...*/
-				return 0;
+				return (0);
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
 			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
-				return 0;
+				return (0);
 			goto emptynode;
 		}
 
@@ -608,9 +608,9 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 
 		if (oidp->oid_number > *name) {
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
-				return 0;
+				return (0);
 			if (oidp->oid_handler)
-				return 0;
+				return (0);
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
 			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidpp))
@@ -632,7 +632,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 	emptynode:
 		*len = level;
 	}
-	return 1;
+	return (1);
 }
 
 static int
@@ -647,7 +647,7 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 
 	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
 	if (i)
-		return ENOENT;
+		return (ENOENT);
 	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
 	return (error);
 }
@@ -663,7 +663,7 @@ name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 	char *p;
 
 	if (!*name)
-		return ENOENT;
+		return (ENOENT);
 
 	p = name + strlen(name) - 1 ;
 	if (*p == '.')
@@ -708,7 +708,7 @@ name2oid (char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 		if (i == '.')
 			*p = '\0';
 	}
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
@@ -719,7 +719,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *op = 0;
 
 	if (!req->newlen) 
-		return ENOENT;
+		return (ENOENT);
 	if (req->newlen >= MAXPATHLEN)	/* XXX arbitrary, undocumented */
 		return (ENAMETOOLONG);
 
@@ -972,7 +972,7 @@ static int
 sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 {
 	if (!req->newptr)
-		return 0;
+		return (0);
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
 	bcopy((char *)req->newptr + req->newidx, p, l);
@@ -1091,7 +1091,7 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 	int error;
 
 	if (!req->newptr)
-		return 0;
+		return (0);
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
 	error = copyin((char *)req->newptr + req->newidx, p, l);
@@ -1223,7 +1223,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (!oid->oid_handler)
-		return EINVAL;
+		return (EINVAL);
 
 	if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		arg1 = (int *)arg1 + indx;
