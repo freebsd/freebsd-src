@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.27 1998/05/31 18:37:22 peter Exp $
+ *	$Id: socketvar.h,v 1.28 1998/06/07 17:13:03 dfr Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -102,9 +102,10 @@ struct socket {
 #define	SB_UPCALL	0x20		/* someone wants an upcall */
 #define	SB_NOINTR	0x40		/* operations not interruptible */
 
-	void	(*so_upcall) __P((struct socket *so, caddr_t arg, int waitf));
-	caddr_t	so_upcallarg;		/* Arg for above */
+	void	(*so_upcall) __P((struct socket *, void *, int));
+	void	*so_upcallarg;
 	uid_t	so_uid;			/* who opened the socket */
+	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 };
 
@@ -119,7 +120,6 @@ struct socket {
 #define	SS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
 #define	SS_RCVATMARK		0x0040	/* at mark on input */
 
-/*efine	SS_PRIV			0x0080	   privileged for broadcast, raw... */
 #define	SS_NBIO			0x0100	/* non-blocking ops */
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
@@ -242,6 +242,20 @@ struct	xsocket {
 
 #ifdef KERNEL
 
+/*
+ * Argument structure for sosetopt et seq.  This is in the KERNEL
+ * section because it will never be visible to user code.
+ */
+enum sopt_dir { SOPT_GET, SOPT_SET };
+struct sockopt {
+	enum	sopt_dir sopt_dir; /* is this a get or a set? */
+	int	sopt_level;	/* second arg of [gs]etsockopt */
+	int	sopt_name;	/* third arg of [gs]etsockopt */
+	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
+	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
+	struct	proc *sopt_p;	/* calling process or null if kernel */
+};
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PCB);
 MALLOC_DECLARE(M_SONAME);
@@ -309,8 +323,7 @@ int	socreate __P((int dom, struct socket **aso, int type, int proto,
 void	sodealloc __P((struct socket *so));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
-int	sogetopt __P((struct socket *so, int level, int optname,
-	    struct mbuf **mp, struct proc *p));
+int	sogetopt __P((struct socket *so, struct sockopt *sopt));
 void	sohasoutofband __P((struct socket *so));
 void	soisconnected __P((struct socket *so));
 void	soisconnecting __P((struct socket *so));
@@ -321,6 +334,9 @@ struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
 	sonewconn __P((struct socket *head, int connstatus));
+int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
+			 size_t minlen));
+int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
 int	sopoll __P((struct socket *so, int events, struct ucred *cred,
 		    struct proc *p));
 int	soreceive __P((struct socket *so, struct sockaddr **paddr,
@@ -331,8 +347,7 @@ void	sorflush __P((struct socket *so));
 int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
 		    struct mbuf *top, struct mbuf *control, int flags,
 		    struct proc *p));
-int	sosetopt __P((struct socket *so, int level, int optname,
-	    struct mbuf *m0, struct proc *p));
+int	sosetopt __P((struct socket *so, struct sockopt *sopt));
 int	soshutdown __P((struct socket *so, int how));
 void	sotoxsocket __P((struct socket *so, struct xsocket *xso));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));

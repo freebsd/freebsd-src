@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.12 1997/05/10 09:58:56 jhay Exp $
+ * $Id: spx.h,v 1.13 1997/06/26 19:36:00 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -173,8 +173,7 @@ extern struct pr_usrreqs spx_usrreqs;
 extern struct pr_usrreqs spx_usrreq_sps;
 
 void	spx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
-int	spx_ctloutput __P((int req, struct socket *so, int level, int name,
-			   struct mbuf **value, struct proc *p));
+int	spx_ctloutput __P((struct socket *so, struct sockopt *sopt));
 void	spx_fasttimo __P((void));
 void	spx_init __P((void));
 void	spx_input __P((struct mbuf *m, struct ipxpcb *ipxp));

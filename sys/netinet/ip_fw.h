@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.32 1998/02/03 22:15:03 bde Exp $
+ *	$Id: ip_fw.h,v 1.33 1998/07/06 03:20:15 julian Exp $
  */
 
 #ifndef _IP_FW_H
@@ -183,6 +183,23 @@ struct ip_fw_chain {
  * Function definitions.
  */
 void ip_fw_init __P((void));
+
+/* Firewall hooks */
+struct ip;
+struct sockopt;
+typedef	int ip_fw_chk_t __P((struct ip **, int, struct ifnet *, u_int16_t *,
+			     struct mbuf **, struct sockaddr_in **));
+typedef	int ip_fw_ctl_t __P((struct sockopt *));
+extern	ip_fw_chk_t *ip_fw_chk_ptr;
+extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
+
+/* IP NAT hooks */
+typedef	int ip_nat_t __P((struct ip **, struct mbuf **, struct ifnet *, int));
+typedef	int ip_nat_ctl_t __P((struct sockopt *));
+extern	ip_nat_t *ip_nat_ptr;
+extern	ip_nat_ctl_t *ip_nat_ctl_ptr;
+#define	IP_NAT_IN	0x00000001
+#define	IP_NAT_OUT	0x00000002
 
 #endif /* KERNEL */
 

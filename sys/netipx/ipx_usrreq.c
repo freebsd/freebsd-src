@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.18 1997/12/15 20:31:15 eivind Exp $
+ * $Id: ipx_usrreq.c,v 1.19 1998/02/09 06:10:25 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -310,30 +310,23 @@ ipx_output(ipxp, m0)
 }
 
 int
-ipx_ctloutput(req, so, level, name, value, p)
-	int req, level;
+ipx_ctloutput(so, sopt)
 	struct socket *so;
-	int name;
-	struct mbuf **value;
-	struct proc *p;
+	struct sockopt *sopt;
 {
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
-	int mask, error = 0;
+	int mask, error, optval;
+	short soptval;
+	struct ipx ioptval;
 
+	error = 0;
 	if (ipxp == NULL)
 		return (EINVAL);
 
-	switch (req) {
-
-	case PRCO_GETOPT:
-		if (value == NULL)
-			return (EINVAL);
-		m = m_get(M_DONTWAIT, MT_DATA);
-		if (m == NULL)
-			return (ENOBUFS);
-		switch (name) {
-
+	switch (sopt->sopt_dir) {
+	case SOPT_GET:
+		switch (sopt->sopt_name) {
 		case SO_ALL_PACKETS:
 			mask = IPXP_ALL_PACKETS;
 			goto get_flags;
@@ -345,38 +338,33 @@ ipx_ctloutput(req, so, level, name, value, p)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
 		get_flags:
-			m->m_len = sizeof(short);
-			*mtod(m, short *) = ipxp->ipxp_flags & mask;
+			soptval = ipxp->ipxp_flags & mask;
+			error = sooptcopyout(sopt, &soptval, sizeof soptval);
 			break;
 
 		case SO_DEFAULT_HEADERS:
-			m->m_len = sizeof(struct ipx);
-			{
-				register struct ipx *ipx = mtod(m, struct ipx *);
-				ipx->ipx_len = 0;
-				ipx->ipx_sum = 0;
-				ipx->ipx_tc = 0;
-				ipx->ipx_pt = ipxp->ipxp_dpt;
-				ipx->ipx_dna = ipxp->ipxp_faddr;
-				ipx->ipx_sna = ipxp->ipxp_laddr;
-			}
+			ioptval.ipx_len = 0;
+			ioptval.ipx_sum = 0;
+			ioptval.ipx_tc = 0;
+			ioptval.ipx_pt = ipxp->ipxp_dpt;
+			ioptval.ipx_dna = ipxp->ipxp_faddr;
+			ioptval.ipx_sna = ipxp->ipxp_laddr;
+			error = sooptcopyout(sopt, &soptval, sizeof soptval);
 			break;
 
 		case SO_SEQNO:
-			m->m_len = sizeof(long);
-			*mtod(m, long *) = ipx_pexseq++;
+			error = sooptcopyout(sopt, &ipx_pexseq, 
+					     sizeof ipx_pexseq);
+			ipx_pexseq++;
 			break;
 
 		default:
 			error = EINVAL;
 		}
-		*value = m;
 		break;
 
-	case PRCO_SETOPT:
-		switch (name) {
-			int *ok;
-
+	case SOPT_SET:
+		switch (sopt->sopt_name) {
 		case SO_ALL_PACKETS:
 			mask = IPXP_ALL_PACKETS;
 			goto set_head;
@@ -388,39 +376,38 @@ ipx_ctloutput(req, so, level, name, value, p)
 		case SO_HEADERS_ON_OUTPUT:
 			mask = IPXP_RAWOUT;
 		set_head:
-			if (value && *value) {
-				ok = mtod(*value, int *);
-				if (*ok)
-					ipxp->ipxp_flags |= mask;
-				else
-					ipxp->ipxp_flags &= ~mask;
-			} else error = EINVAL;
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+			if (optval)
+				ipxp->ipxp_flags |= mask;
+			else
+				ipxp->ipxp_flags &= ~mask;
 			break;
 
 		case SO_DEFAULT_HEADERS:
-			{
-				register struct ipx *ipx
-				    = mtod(*value, struct ipx *);
-				ipxp->ipxp_dpt = ipx->ipx_pt;
-			}
+			error = sooptcopyin(sopt, &ioptval, sizeof ioptval,
+					    sizeof ioptval);
+			if (error)
+				break;
+			ipxp->ipxp_dpt = ioptval.ipx_pt;
 			break;
 #ifdef IPXIP
 		case SO_IPXIP_ROUTE:
-			error = ipxip_route(so, *value, p);
+			error = ipxip_route(so, sopt);
 			break;
 #endif /* IPXIP */
 #ifdef IPTUNNEL
 #if 0
 		case SO_IPXTUNNEL_ROUTE:
-			error = ipxtun_route(so, *value, p);
+			error = ipxtun_route(so, sopt);
 			break;
 #endif
 #endif
 		default:
 			error = EINVAL;
 		}
-		if (value && *value)
-			m_freem(*value);
 		break;
 	}
 	return (error);

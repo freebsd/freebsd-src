@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.1 1998/03/18 01:40:12 wollman Exp $
+ *	$Id: if_vlan.c,v 1.2 1998/05/15 20:02:47 wollman Exp $
  */
 
 /*
@@ -80,7 +80,7 @@ static	struct ifvlan ifv_softc[NVLAN];
 
 static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
-static	int vlan_ioctl(struct ifnet *ifp, int cmd, caddr_t addr);
+static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 
 static void
 vlaninit(void *dummy)
@@ -262,7 +262,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 }
 
 static int
-vlan_ioctl(struct ifnet *ifp, int cmd, caddr_t data)
+vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifaddr *ifa;
 	struct ifnet *p;

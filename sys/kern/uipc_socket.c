@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.41 1998/07/06 19:27:14 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.42 1998/07/18 18:48:45 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -898,31 +898,69 @@ sorflush(so)
 	sbrelease(&asb);
 }
 
+/*
+ * Perhaps this routine, and sooptcopyout(), below, ought to come in
+ * an additional variant to handle the case where the option value needs
+ * to be some kind of integer, but not a specific size.
+ * In addition to their use here, these functions are also called by the
+ * protocol-level pr_ctloutput() routines.
+ */
 int
-sosetopt(so, level, optname, m0, p)
-	register struct socket *so;
-	int level, optname;
-	struct mbuf *m0;
-	struct proc *p;
+sooptcopyin(sopt, buf, len, minlen)
+	struct	sockopt *sopt;
+	void	*buf;
+	size_t	len;
+	size_t	minlen;
 {
-	int error = 0;
-	register struct mbuf *m = m0;
+	size_t	valsize;
 
-	if (level != SOL_SOCKET) {
+	/*
+	 * If the user gives us more than we wanted, we ignore it,
+	 * but if we don't get the minimum length the caller
+	 * wants, we return EINVAL.  On success, sopt->sopt_valsize
+	 * is set to however much we actually retrieved.
+	 */
+	if ((valsize = sopt->sopt_valsize) < minlen)
+		return EINVAL;
+	if (valsize > len)
+		sopt->sopt_valsize = valsize = len;
+
+	if (sopt->sopt_p != 0)
+		return (copyin(sopt->sopt_val, buf, valsize));
+
+	bcopy(sopt->sopt_val, buf, valsize);
+	return 0;
+}
+
+int
+sosetopt(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
+{
+	int	error, optval;
+	struct	linger l;
+	struct	timeval tv;
+	short	val;
+
+	error = 0;
+	if (sopt->sopt_level != SOL_SOCKET) {
 		if (so->so_proto && so->so_proto->pr_ctloutput)
 			return ((*so->so_proto->pr_ctloutput)
-				  (PRCO_SETOPT, so, level, optname, &m0, p));
+				  (so, sopt));
 		error = ENOPROTOOPT;
 	} else {
-		switch (optname) {
-
+		switch (sopt->sopt_name) {
 		case SO_LINGER:
-			if (m == NULL || m->m_len != sizeof (struct linger)) {
-				error = EINVAL;
+			error = sooptcopyin(sopt, &l, sizeof l, sizeof l);
+			if (error)
 				goto bad;
-			}
-			so->so_linger = mtod(m, struct linger *)->l_linger;
-			/* fall thru... */
+
+			so->so_linger = l.l_linger;
+			if (l.l_onoff)
+				so->so_options |= SO_LINGER;
+			else
+				so->so_options &= ~SO_LINGER;
+			break;
 
 		case SO_DEBUG:
 		case SO_KEEPALIVE:
@@ -933,45 +971,40 @@ sosetopt(so, level, optname, m0, p)
 		case SO_REUSEPORT:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
-			if (m == NULL || m->m_len < sizeof (int)) {
-				error = EINVAL;
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
 				goto bad;
-			}
-			if (*mtod(m, int *))
-				so->so_options |= optname;
+			if (optval)
+				so->so_options |= sopt->sopt_name;
 			else
-				so->so_options &= ~optname;
+				so->so_options &= ~sopt->sopt_name;
 			break;
 
 		case SO_SNDBUF:
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:
 		case SO_RCVLOWAT:
-		    {
-			int optval;
-
-			if (m == NULL || m->m_len < sizeof (int)) {
-				error = EINVAL;
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
 				goto bad;
-			}
 
 			/*
 			 * Values < 1 make no sense for any of these
 			 * options, so disallow them.
 			 */
-			optval = *mtod(m, int *);
 			if (optval < 1) {
 				error = EINVAL;
 				goto bad;
 			}
 
-			switch (optname) {
-
+			switch (sopt->sopt_name) {
 			case SO_SNDBUF:
 			case SO_RCVBUF:
-				if (sbreserve(optname == SO_SNDBUF ?
-				    &so->so_snd : &so->so_rcv,
-				    (u_long) optval) == 0) {
+				if (sbreserve(sopt->sopt_name == SO_SNDBUF ?
+					      &so->so_snd : &so->so_rcv,
+					      (u_long) optval) == 0) {
 					error = ENOBUFS;
 					goto bad;
 				}
@@ -993,27 +1026,21 @@ sosetopt(so, level, optname, m0, p)
 				break;
 			}
 			break;
-		    }
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-		    {
-			struct timeval *tv;
-			short val;
-
-			if (m == NULL || m->m_len < sizeof (*tv)) {
-				error = EINVAL;
+			error = sooptcopyin(sopt, &tv, sizeof tv,
+					    sizeof tv);
+			if (error)
 				goto bad;
-			}
-			tv = mtod(m, struct timeval *);
-			if (tv->tv_sec > SHRT_MAX / hz - hz) {
+
+			if (tv.tv_sec > SHRT_MAX / hz - hz) {
 				error = EDOM;
 				goto bad;
 			}
-			val = tv->tv_sec * hz + tv->tv_usec / tick;
+			val = tv.tv_sec * hz + tv.tv_usec / tick;
 
-			switch (optname) {
-
+			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
 				so->so_snd.sb_timeo = val;
 				break;
@@ -1022,7 +1049,6 @@ sosetopt(so, level, optname, m0, p)
 				break;
 			}
 			break;
-		    }
 
 		default:
 			error = ENOPROTOOPT;
@@ -1030,42 +1056,69 @@ sosetopt(so, level, optname, m0, p)
 		}
 		if (error == 0 && so->so_proto && so->so_proto->pr_ctloutput) {
 			(void) ((*so->so_proto->pr_ctloutput)
-				  (PRCO_SETOPT, so, level, optname, &m0, p));
-			m = NULL;	/* freed by protocol */
+				  (so, sopt));
 		}
 	}
 bad:
-	if (m)
-		(void) m_free(m);
 	return (error);
 }
 
+/* Helper routine for getsockopt */
 int
-sogetopt(so, level, optname, mp, p)
-	register struct socket *so;
-	int level, optname;
-	struct mbuf **mp;
-	struct proc *p;
+sooptcopyout(sopt, buf, len)
+	struct	sockopt *sopt;
+	void	*buf;
+	size_t	len;
 {
-	register struct mbuf *m;
+	int	error;
+	size_t	valsize;
 
-	if (level != SOL_SOCKET) {
+	error = 0;
+
+	/*
+	 * Documented get behavior is that we always return a value,
+	 * possibly truncated to fit in the user's buffer.
+	 * We leave the correct length in sopt->sopt_valsize,
+	 * to be copied out in getsockopt().  Note that this
+	 * interface is not idempotent; the entire answer must
+	 * generated ahead of time.
+	 */
+	valsize = len;
+	if (sopt->sopt_valsize < valsize) {
+		valsize = sopt->sopt_valsize;
+		sopt->sopt_valsize = len;
+	}
+	if (sopt->sopt_val != 0) {
+		if (sopt->sopt_p != 0)
+			error = copyout(buf, sopt->sopt_val, valsize);
+		else
+			bcopy(buf, sopt->sopt_val, valsize);
+	}
+	return error;
+}
+
+int
+sogetopt(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
+{
+	int	error, optval;
+	struct	linger l;
+	struct	timeval tv;
+
+	error = 0;
+	if (sopt->sopt_level != SOL_SOCKET) {
 		if (so->so_proto && so->so_proto->pr_ctloutput) {
 			return ((*so->so_proto->pr_ctloutput)
-				  (PRCO_GETOPT, so, level, optname, mp, p));
+				  (so, sopt));
 		} else
 			return (ENOPROTOOPT);
 	} else {
-		m = m_get(M_WAIT, MT_SOOPTS);
-		m->m_len = sizeof (int);
-
-		switch (optname) {
-
+		switch (sopt->sopt_name) {
 		case SO_LINGER:
-			m->m_len = sizeof (struct linger);
-			mtod(m, struct linger *)->l_onoff =
-				so->so_options & SO_LINGER;
-			mtod(m, struct linger *)->l_linger = so->so_linger;
+			l.l_onoff = so->so_options & SO_LINGER;
+			l.l_linger = so->so_linger;
+			error = sooptcopyout(sopt, &l, sizeof l);
 			break;
 
 		case SO_USELOOPBACK:
@@ -1077,53 +1130,51 @@ sogetopt(so, level, optname, mp, p)
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
-			*mtod(m, int *) = so->so_options & optname;
+			optval = so->so_options & sopt->sopt_name;
+integer:
+			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
 		case SO_TYPE:
-			*mtod(m, int *) = so->so_type;
-			break;
+			optval = so->so_type;
+			goto integer;
 
 		case SO_ERROR:
-			*mtod(m, int *) = so->so_error;
+			optval = so->so_error;
 			so->so_error = 0;
-			break;
+			goto integer;
 
 		case SO_SNDBUF:
-			*mtod(m, int *) = so->so_snd.sb_hiwat;
-			break;
+			optval = so->so_snd.sb_hiwat;
+			goto integer;
 
 		case SO_RCVBUF:
-			*mtod(m, int *) = so->so_rcv.sb_hiwat;
-			break;
+			optval = so->so_rcv.sb_hiwat;
+			goto integer;
 
 		case SO_SNDLOWAT:
-			*mtod(m, int *) = so->so_snd.sb_lowat;
-			break;
+			optval = so->so_snd.sb_lowat;
+			goto integer;
 
 		case SO_RCVLOWAT:
-			*mtod(m, int *) = so->so_rcv.sb_lowat;
-			break;
+			optval = so->so_rcv.sb_lowat;
+			goto integer;
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-		    {
-			int val = (optname == SO_SNDTIMEO ?
-			     so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
+			optval = (sopt->sopt_name == SO_SNDTIMEO ?
+				  so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
 
-			m->m_len = sizeof(struct timeval);
-			mtod(m, struct timeval *)->tv_sec = val / hz;
-			mtod(m, struct timeval *)->tv_usec =
-			    (val % hz) * tick;
-			break;
-		    }
+			tv.tv_sec = optval / hz;
+			tv.tv_usec = (optval % hz) * tick;
+			error = sooptcopyout(sopt, &tv, sizeof tv);
+			break;			
 
 		default:
-			(void)m_free(m);
-			return (ENOPROTOOPT);
+			error = ENOPROTOOPT;
+			break;
 		}
-		*mp = m;
-		return (0);
+		return (error);
 	}
 }
 

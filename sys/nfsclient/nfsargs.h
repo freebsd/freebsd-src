@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.41 1998/06/30 03:01:37 jmg Exp $
+ * $Id: nfs.h,v 1.42 1998/06/30 11:19:22 jmg Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -722,7 +722,7 @@ int	nfsrv_symlink __P((struct nfsrv_descript *nfsd,
 			   struct proc *procp, struct mbuf **mrq));
 int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
-void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
+void	nfsrv_rcv __P((struct socket *so, void *arg, int waitflag));
 void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
 #endif	/* KERNEL */
 
