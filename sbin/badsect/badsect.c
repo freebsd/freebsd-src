@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1981, 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)badsect.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 /*
@@ -123,7 +123,7 @@ main(argc, argv)
 	}
 	closedir(dirp);
 	if (dp == NULL) {
-		printf("Cannot find dev 0%o corresponding to %s\n",
+		printf("Cannot find dev 0%lo corresponding to %s\n",
 			stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
@@ -152,7 +152,7 @@ main(argc, argv)
 		 */
 		diskbn = dbtofsb(fs, number);
 		if ((dev_t)diskbn != diskbn) {
-			printf("sector %d cannot be represented as a dev_t\n",
+			printf("sector %ld cannot be represented as a dev_t\n",
 			       number);
 			errs++;
 		}
@@ -175,19 +175,19 @@ chkuse(blkno, cnt)
 
 	fsbn = dbtofsb(fs, blkno);
 	if ((unsigned)(fsbn+cnt) > fs->fs_size) {
-		printf("block %d out of range of file system\n", blkno);
+		printf("block %ld out of range of file system\n", blkno);
 		return (1);
 	}
 	cg = dtog(fs, fsbn);
 	if (fsbn < cgdmin(fs, cg)) {
 		if (cg == 0 || (fsbn+cnt) > cgsblock(fs, cg)) {
-			printf("block %d in non-data area: cannot attach\n",
+			printf("block %ld in non-data area: cannot attach\n",
 				blkno);
 			return (1);
 		}
 	} else {
 		if ((fsbn+cnt) > cgbase(fs, cg+1)) {
-			printf("block %d in non-data area: cannot attach\n",
+			printf("block %ld in non-data area: cannot attach\n",
 				blkno);
 			return (1);
 		}
@@ -201,7 +201,7 @@ chkuse(blkno, cnt)
 	}
 	bn = dtogd(fs, fsbn);
 	if (isclr(cg_blksfree(&acg), bn))
-		printf("Warning: sector %d is in use\n", blkno);
+		printf("Warning: sector %ld is in use\n", blkno);
 	return (0);
 }
 
