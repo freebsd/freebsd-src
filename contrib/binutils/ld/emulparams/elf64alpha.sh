@@ -13,7 +13,8 @@ ARCH=alpha
 MACHINE=
 GENERATE_SHLIB_SCRIPT=yes
 DATA_PLT=
-NOP=0x2ffe0000		# unop
+# Note that the string of digits is little-endian.
+NOP=0x0000fe2f		# unop
 
 OTHER_READONLY_SECTIONS="
   .reginfo      ${RELOCATING-0} : { *(.reginfo) }"
