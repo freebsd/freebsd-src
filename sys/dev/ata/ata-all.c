@@ -572,7 +572,7 @@ ata_intr(void *data)
 
     case ATA_IDLE:
 	if (ch->flags & ATA_QUEUED) {
-	    ch->active = ATA_ACTIVE; /* XXX */
+	    ch->active = ATA_ACTIVE;
 	    if (ata_service(ch) == ATA_OP_CONTINUES)
 		return;
 	}

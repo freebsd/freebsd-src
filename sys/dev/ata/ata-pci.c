@@ -399,7 +399,16 @@ ata_pci_attach(device_t dev)
 			     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
 	    break;
 	}
-	/* FALLTHROUGH */
+	/* turn off interrupt prediction */
+	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
+	pci_write_config(dev, 0x55, (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
+
+	/* turn on interrupts */
+	pci_write_config(dev, 0x5a, (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+
+	/* set clocks etc */
+	pci_write_config(dev, 0x5b, 0x22, 1);
+	break;
 
     case 0x00051103:	/* HighPoint HPT372 */
     case 0x00081103:	/* HighPoint HPT374 */
@@ -409,6 +418,10 @@ ata_pci_attach(device_t dev)
 
 	/* turn on interrupts */
 	pci_write_config(dev, 0x5a, (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+
+	/* set clocks etc */
+	pci_write_config(dev, 0x5b,
+			 (pci_read_config(dev, 0x5b, 1) & 0x01) | 0x20, 1);
 	break;
 
     case 0x05711106: /* VIA 82C586, '596, '686 default setup */
