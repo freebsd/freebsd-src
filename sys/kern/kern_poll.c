@@ -34,6 +34,10 @@
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 
+#include <sys/proc.h>
+#include <sys/resourcevar.h>
+#include <sys/kthread.h>
+
 #ifdef SMP
 #error DEVICE_POLLING is not compatible with SMP
 #endif
@@ -131,6 +135,14 @@ SYSCTL_ULONG(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
 static u_int32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
+
+static u_int32_t poll_in_idle=1;	/* boolean */
+SYSCTL_ULONG(_kern_polling, OID_AUTO, poll_in_idle, CTLFLAG_RW,
+	&poll_in_idle, 0, "Poll during idle loop");
+
+static u_int32_t idlepoll_sleeping; /* idlepoll is sleeping */
+SYSCTL_ULONG(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
+	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
 static int polling = 0;		/* global polling enable */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
@@ -382,6 +394,8 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 	poll_handlers++;
 	ifp->if_ipending |= IFF_POLLING;
 	splx(s);
+	if (idlepoll_sleeping)
+		wakeup(&idlepoll_sleeping);
 	return 1; /* polling enabled in next call */
 }
 
@@ -420,3 +434,44 @@ ether_poll_deregister(struct ifnet *ifp)
 	mtx_unlock(&Giant);
 	return 1;
 }
+
+static void
+poll_idle(void)
+{
+	struct thread *td = curthread;
+	struct rtprio rtp;
+	int pri;
+
+	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
+	rtp.type = RTP_PRIO_IDLE;
+	mtx_lock_spin(&sched_lock);
+	rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
+	pri = td->td_ksegrp->kg_pri.pri_level;
+	mtx_unlock_spin(&sched_lock);
+
+	for (;;) {
+		if (poll_in_idle && poll_handlers > 0) {
+			idlepoll_sleeping = 0;
+			mtx_lock(&Giant);
+			ether_poll(poll_each_burst);
+			mtx_unlock(&Giant);
+			mtx_assert(&Giant, MA_NOTOWNED);
+			mtx_lock_spin(&sched_lock);
+			setrunqueue(td);
+			td->td_proc->p_stats->p_ru.ru_nvcsw++;
+			mi_switch();
+			mtx_unlock_spin(&sched_lock);
+		} else {
+			idlepoll_sleeping = 1;
+			tsleep(&idlepoll_sleeping, pri, "pollid", hz * 3);
+		}
+	}
+}
+
+static struct proc *idlepoll;
+static struct kproc_desc idlepoll_kp = {
+	 "idlepoll",
+	 poll_idle,
+	 &idlepoll
+};
+SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &idlepoll_kp)
