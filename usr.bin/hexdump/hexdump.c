@@ -65,7 +65,7 @@ main(argc, argv)
 	register FS *tfs;
 	char *p;
 
-	(void)setlocale(LC_CTYPE, "");
+	(void)setlocale(LC_ALL, "");
 
 	if (!(p = rindex(argv[0], 'o')) || strcmp(p, "od"))
 		newsyntax(argc, &argv);
