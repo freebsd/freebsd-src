@@ -338,7 +338,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	struct sockaddr_in6 sin6[2];
 #endif
 	struct sockaddr_storage ss[2];
-	struct ucred uc;
+	struct xucred uc;
 	struct timeval tv = {
 		10,
 		0

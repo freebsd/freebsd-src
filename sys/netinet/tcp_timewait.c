@@ -900,6 +900,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 static int
 tcp_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
 	int error, s;
@@ -917,19 +918,25 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->inp_socket->so_cred, sizeof(struct ucred));
+	bzero(&xuc, sizeof(xuc));
+	xuc.cr_uid = inp->inp_socket->so_cred->cr_uid;
+	xuc.cr_ngroups = inp->inp_socket->so_cred->cr_ngroups;
+	bcopy(inp->inp_socket->so_cred->cr_groups, xuc.cr_groups,
+	    sizeof(xuc.cr_groups));
+	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	splx(s);
 	return (error);
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
-    0, 0, tcp_getcred, "S,ucred", "Get the ucred of a TCP connection");
+    0, 0, tcp_getcred, "S,xucred", "Get the xucred of a TCP connection");
 
 #ifdef INET6
 static int
 tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
 	int error, s, mapped = 0;
@@ -963,8 +970,12 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->inp_socket->so_cred, 
-			   sizeof(struct ucred));
+	bzero(&xuc, sizeof(xuc));
+	xuc.cr_uid = inp->inp_socket->so_cred->cr_uid;
+	xuc.cr_ngroups = inp->inp_socket->so_cred->cr_ngroups;
+	bcopy(inp->inp_socket->so_cred->cr_groups, xuc.cr_groups,
+	    sizeof(xuc.cr_groups));
+	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	splx(s);
 	return (error);
@@ -972,7 +983,7 @@ out:
 
 SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 	    0, 0,
-	    tcp6_getcred, "S,ucred", "Get the ucred of a TCP6 connection");
+	    tcp6_getcred, "S,xucred", "Get the xucred of a TCP6 connection");
 #endif
 
 

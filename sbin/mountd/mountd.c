@@ -161,9 +161,9 @@ int	chk_host __P((struct dirlist *, u_int32_t, int *, int *));
 void	del_mlist __P((char *, char *));
 struct dirlist *dirp_search __P((struct dirlist *, char *));
 int	do_mount __P((struct exportlist *, struct grouplist *, int,
-		struct ucred *, char *, int, struct statfs *));
+		struct xucred *, char *, int, struct statfs *));
 int	do_opt __P((char **, char **, struct exportlist *, struct grouplist *,
-				int *, int *, struct ucred *));
+				int *, int *, struct xucred *));
 struct	exportlist *ex_search __P((fsid_t *));
 struct	exportlist *get_exp __P((void));
 void	free_dir __P((struct dirlist *));
@@ -184,7 +184,7 @@ void	hang_dirp __P((struct dirlist *, struct grouplist *,
 void	mntsrv __P((struct svc_req *, SVCXPRT *));
 void	nextfield __P((char **, char **));
 void	out_of_mem __P((void));
-void	parsecred __P((char *, struct ucred *));
+void	parsecred __P((char *, struct xucred *));
 int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
 int	scan_tree __P((struct dirlist *, u_int32_t));
 static void usage __P((void));
@@ -202,11 +202,12 @@ struct exportlist *exphead;
 struct mountlist *mlhead;
 struct grouplist *grphead;
 char exname[MAXPATHLEN];
-struct ucred def_anon = {
+struct xucred def_anon = {
+	0,
+	(uid_t)-2,
 	1,
-	(uid_t) -2,
-	1,
-	{ (gid_t) -2 }
+	{ (gid_t)-2 },
+	NULL
 };
 int force_v2 = 0;
 int resvport_only = 1;
@@ -732,7 +733,7 @@ get_exportlist()
 	struct dirlist *dirhead;
 	struct statfs fsb, *fsp;
 	struct hostent *hpe;
-	struct ucred anon;
+	struct xucred anon;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
 
@@ -1332,7 +1333,7 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 	struct grouplist *grp;
 	int *has_hostp;
 	int *exflagsp;
-	struct ucred *cr;
+	struct xucred *cr;
 {
 	char *cpoptarg, *cpoptend;
 	char *cp, *endcp, *cpopt, savedc, savedc2;
@@ -1591,7 +1592,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	struct exportlist *ep;
 	struct grouplist *grp;
 	int exflags;
-	struct ucred *anoncrp;
+	struct xucred *anoncrp;
 	char *dirp;
 	int dirplen;
 	struct statfs *fsb;
@@ -1842,7 +1843,7 @@ get_line()
 void
 parsecred(namelist, cr)
 	char *namelist;
-	struct ucred *cr;
+	struct xucred *cr;
 {
 	char *name;
 	int cnt;
@@ -1854,7 +1855,6 @@ parsecred(namelist, cr)
 	/*
 	 * Set up the unprivileged user.
 	 */
-	cr->cr_ref = 1;
 	cr->cr_uid = -2;
 	cr->cr_groups[0] = -2;
 	cr->cr_ngroups = 1;

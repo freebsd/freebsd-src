@@ -260,7 +260,13 @@ nfssvc(p, uap)
 					FREE(nuidp->nu_nam, M_SONAME);
 			        }
 				nuidp->nu_flag = 0;
-				nuidp->nu_cr = nsd->nsd_cr;
+				bzero(&nuidp->nu_cr, sizeof(nuidp->nu_cr));
+				nuidp->nu_cr.cr_uid = nsd->nsd_cr.cr_uid;
+				nuidp->nu_cr.cr_ngroups =
+				  nsd->nsd_cr.cr_ngroups;
+				bcopy(nsd->nsd_cr.cr_groups,
+				  nuidp->nu_cr.cr_groups,
+				  sizeof(nuidp->nu_cr.cr_groups));
 				if (nuidp->nu_cr.cr_ngroups > NGROUPS)
 				    nuidp->nu_cr.cr_ngroups = NGROUPS;
 				nuidp->nu_cr.cr_ref = 1;

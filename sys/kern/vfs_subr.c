@@ -2319,7 +2319,11 @@ vfs_hang_addrlist(mp, nep, argp)
 			return (EPERM);
 		np = &nep->ne_defexported;
 		np->netc_exflags = argp->ex_flags;
-		np->netc_anon = argp->ex_anon;
+		bzero(&np->netc_anon, sizeof(np->netc_anon));
+		np->netc_anon.cr_uid = argp->ex_anon.cr_uid;
+		np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
+		bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
+		    sizeof(np->netc_anon.cr_groups));
 		np->netc_anon.cr_ref = 1;
 		mp->mnt_flag |= MNT_DEFEXPORTED;
 		return (0);
@@ -2363,7 +2367,11 @@ vfs_hang_addrlist(mp, nep, argp)
 		goto out;
 	}
 	np->netc_exflags = argp->ex_flags;
-	np->netc_anon = argp->ex_anon;
+	bzero(&np->netc_anon, sizeof(np->netc_anon));
+	np->netc_anon.cr_uid = argp->ex_anon.cr_uid;
+	np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
+	bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
+	    sizeof(np->netc_anon.cr_groups));
 	np->netc_anon.cr_ref = 1;
 	return (0);
 out:
