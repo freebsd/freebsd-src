@@ -45,7 +45,7 @@ static char  *license_msg[] = {
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: gzip.c,v 1.6 1997/02/22 15:45:57 peter Exp $";
+static char rcsid[] = "$Id: gzip.c,v 1.7 1997/03/15 22:43:58 guido Exp $";
 #endif
 
 #include <ctype.h>
@@ -1005,6 +1005,13 @@ local int get_istat(iname, sbuf)
 #ifdef NO_MULTIPLE_DOTS
     char *dot; /* pointer to ifname extension, or NULL */
 #endif
+
+    if (strlen(iname) >= sizeof(ifname) - 3) {
+	errno = ENAMETOOLONG;
+	perror(iname);
+	exit_code = ERROR;
+	return ERROR;
+    }
 
     strcpy(ifname, iname);
 
