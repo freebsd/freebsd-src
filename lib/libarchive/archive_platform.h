@@ -79,6 +79,7 @@
 
 /* Linux */
 #ifdef LINUX
+#define _FILE_OFFSET_BITS	64
 #include <inttypes.h>
 #define ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
 #define ARCHIVE_ERRNO_PROGRAMMER EINVAL
