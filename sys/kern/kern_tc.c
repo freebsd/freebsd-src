@@ -360,8 +360,9 @@ tc_setclock(struct timespec *ts)
 	tc_windup();
 	if (timestepwarnings) {
 		bintime2timespec(&bt2, &ts2);
-		log(LOG_INFO, "Time stepped from %d.%09ld to %d.%09ld\n",
-		    ts2.tv_sec, ts2.tv_nsec, ts->tv_sec, ts->tv_nsec);
+		log(LOG_INFO, "Time stepped from %jd.%09ld to %jd.%09ld\n",
+		    (intmax_t)ts2.tv_sec, ts2.tv_nsec,
+		    (intmax_t)ts->tv_sec, ts->tv_nsec);
 	}
 }
 
