@@ -1283,7 +1283,7 @@ JobExec(job, argv)
 	    Rmt_Exec(shellPath, argv, FALSE);
 	} else
 #endif /* REMOTE */
-	   (void) execv(shellPath, argv);
+	   (void) execvp(shellPath, argv);
 
 	(void) write(STDERR_FILENO, "Could not execute shell\n",
 		     sizeof("Could not execute shell"));
@@ -2449,7 +2449,11 @@ Job_Init(maxproc, maxlocal)
 	 * All default shells are located in _PATH_DEFSHELLDIR.
 	 */
 	shellName = commandShell->name;
+#ifndef _PATH_DEFSHELLDIR
+	shellPath = shellName;
+#else /* _PATH_DEFSHELLDIR */
 	shellPath = str_concat(_PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
+#endif /* _PATH_DEFSHELLDIR */
     }
 
     if (commandShell->exit == NULL) {
