@@ -512,8 +512,8 @@ vm_pager_chain_iodone(struct buf *nbp)
 			bp->b_flags &= ~B_WANT;
 			wakeup(bp);
 		}
-		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
-			bp->b_flags &= ~B_AUTOCHAINDONE;
+		if (!bp->b_chain.count && (bp->b_xflags & BX_AUTOCHAINDONE)) {
+			bp->b_xflags &= ~BX_AUTOCHAINDONE;
 			if (bp->b_resid != 0 && !(bp->b_flags & B_ERROR)) {
 				bp->b_flags |= B_ERROR;
 				bp->b_error = EINVAL;
@@ -603,7 +603,7 @@ autochaindone(struct buf *bp)
 	if (bp->b_chain.count == 0)
 		biodone(bp);
 	else
-		bp->b_flags |= B_AUTOCHAINDONE;
+		bp->b_xflags |= BX_AUTOCHAINDONE;
 	splx(s);
 }
 

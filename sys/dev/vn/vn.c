@@ -389,7 +389,7 @@ vnstrategy(struct buf *bp)
 		if (bp->b_flags & B_READ)
 			error = VOP_READ(vn->sc_vp, &auio, IO_DIRECT, vn->sc_cred);
 		else
-			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
+			error = VOP_WRITE(vn->sc_vp, &auio, IO_NOWDRAIN, vn->sc_cred);
 		VOP_UNLOCK(vn->sc_vp, 0, curproc);
 		bp->b_resid = auio.uio_resid;
 
