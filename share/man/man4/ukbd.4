@@ -1,5 +1,5 @@
 .\" Copyright (c) 1997, 1998
-.\"	Nick Hibma <n_hibma@FreeBSD.ORG>. All rights reserved.
+.\"	Nick Hibma <n_hibma@FreeBSD.org>. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -50,8 +50,8 @@ or
 must be configured in the kernel as well.
 .Sh CONFIGURATION
 By default the keyboard subsystem does not create the appropriate devices yet.
-Make sure you configure compile the kernel with the following option in the
-kernel config file:
+Make sure you reconfigure your kernel with the following option in the kernel
+config file:
 .Bd -literal -offset indent
 options "KBD_INSTALL_CDEV"
 .Ed
@@ -91,7 +91,7 @@ If you want to use a USB keyboard as your default and not use an AT keyboard at
 all, you will have to remove the
 .Nm atkbd
 from the kernel configuration file.
-Because of the order of the device
+Because of the order of the device 
 initialisation, the USB keyboard will be detected AFTER the console driver
 initialises itself and you have to explicitly tellthe console
 driver to use the existence of the USB keyboard.  This can be done in
@@ -167,6 +167,6 @@ by
 .An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq n_hibma@FreeBSD.ORG
+.An Nick Hibma Aq n_hibma@FreeBSD.org
 with a large amount of input from
 .An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .

@@ -129,7 +129,9 @@ do not know of tools which produce a graymap from a halftone bitmap.
 The ioctl requests that are served by
 .Nm
 are listed below.
-There is a utility, called sgsc(1), that provides access to these
+There is a utility, called
+.Xr sgsc 1 ,
+that provides access to these
 requests from within shell.
 .Bl -tag -width Ds
 .It GSC_SRES int
@@ -240,7 +242,8 @@ Note that
 the timeout timer starts anew for each buffer to be read and thus does
 not cause you to scan faster for longer images.
 BLEN/BTIME is similar
-as MIN/TIME in termios(4).
+as MIN/TIME in
+.Xr termios 4 .
 .It GSC_GBTIME int
 Get the current buffer timeout.
 .El
@@ -334,5 +337,7 @@ Even though the scanner device has a little switch by which you should
 be able to select one of the four resolution modes, I could not yet
 determine how to read its status.
 Unless this is not fixed the driver
-depends on the value passed by means of ioctl(2) which need not match
+depends on the value passed by means of
+.Xr ioctl 2
+which need not match
 what is selected by the hardware.

@@ -71,7 +71,8 @@ to supply the loader flag
 .Fl l Ns Ar c
 for these functions.
 There are several `libraries' or groups of functions included inside of
-.Xr libc : the standard
+.Xr libc :
+the standard
 .Tn I/O
 routines,
 database routines,
@@ -80,11 +81,10 @@ string operators,
 character tests and character operators,
 des encryption routines,
 storage allocation, time functions, signal handling and more.
-.It Xo
-.Xr libcurses
-.Pf ( Fl l Ns Ar curses
-.Fl l Ns Ar termcap )
-.Xc
+.It Xr libcurses Po
+.Fl l Ns Ar curses
+.Fl l Ns Ar termcap
+.Pc
 Terminal independent screen management routines
 for two dimensional non-bitmap display terminals.
 (See

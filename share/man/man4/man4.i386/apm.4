@@ -48,7 +48,7 @@ exports an application interface as a character device.  Applications
 can control APM, or retrieve APM status information via this interface.
 .Nm
 exports the following interfaces.  These symbols are defined in
-.Dq Pa /usr/include/machine/apm_bios.h.
+.Dq Pa /usr/include/machine/apm_bios.h .
 .Bl -tag -width 4n -offset indent
 .It Sy APMIO_SUSPEND
 Suspend system.
@@ -66,17 +66,17 @@ Get per battery information.
 Some APM implementations execute the HLT 
 .Pq Halt CPU until an interrupt occurs
 instruction in the
-.Dq Pa Idle CPU
+.Dq Em Idle CPU
 call, while others do not.  Thus enabling this may result in
 redundant HLT executions because
-.Dq Pa Idle CPU
+.Dq Em Idle CPU
 is called from the kernel context switch routine that inherently executes 
 HLT. This may reduce peak system performance.  
 .Pp
 Also the system hangs up if HLT instruction is disabled in the kernel 
 context switch routine, and if the APM implementation of the machine 
 does not execute HLT in
-.Dq Pa Idle CPU.
+.Dq Em Idle CPU .
 On some implementations that do not support CPU clock slowdown, APM 
 might not execute HLT.
 .Nm
@@ -87,7 +87,7 @@ operation on such machines.
 The current version of
 .Nm
 does not call
-.Dq Pa Idle CPU
+.Dq Em Idle CPU
 from the kernel context switch routine if clock slowdown is not supported, 
 and it executes HLT instruction by default.  Therefore, there is 
 no need to use these two operations in most cases.

@@ -81,7 +81,7 @@ Declarations and data types are to be found in
 .Pp
 The specific attributes, and number of programmable ranges may vary between
 architectures.  The full set of supported attributes is:
-.Bl -tag -width 10
+.Bl -tag -width indent
 .It MDF_UNCACHEABLE
 The region is not cached.
 .It MDF_WRITECOMBINE
@@ -107,7 +107,7 @@ In addition to the region attributes listed above, the following flags
 may also be set in the
 .Fa mr_flags
 field:
-.Bl -tag -width 10
+.Bl -tag -width indent
 .It MDF_FIXBASE
 The region's base address cannot be changed.
 .It MDF_FIXLEN
@@ -178,7 +178,7 @@ enabled.
 .Sh BUGS
 Busy range attributes are not yet managed correctly.
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width /dev/kmem -compact
 .It Pa /dev/mem
 .It Pa /dev/kmem
 .El

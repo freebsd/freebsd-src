@@ -100,7 +100,9 @@ Start sending BREAK.
 Stop sending BREAK.
 .It Dv TIOCSDTR
 Set DTR signal (DTR := 1).  The DTR signal is always set
-on the first open(2) and could be changed by
+on the first
+.Xr open 2
+and could be changed by
 .Dv TIOCCDTR ,
 .Dv TIOCSDTR , 
 .Dv TIOCMSET , 

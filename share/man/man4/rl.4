@@ -93,7 +93,8 @@ The
 option can also be used to select either
 .Ar full-duplex
 or
-.Ar half-duplex modes.
+.Ar half-duplex
+modes.
 .It 100baseTX
 Set 100Mbps (fast ethernet) operation.
 The
@@ -206,7 +207,7 @@ the next frame in the buffer before the chip has had a chance to finish
 DMAing all of it.
 .Pp
 The driver can check for an incomplete frame by inspecting the frame
-length in the header preceeding the actual packet data: an incomplete
+length in the header preceding the actual packet data: an incomplete
 frame will have the magic length of 0xFFF0.
 When the driver encounters
 this value, it knows that it has finished processing all currently

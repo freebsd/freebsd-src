@@ -28,7 +28,7 @@
 .\"
 .\"
 .\" If you integrate this manpage in another OS, I'd appreciate a note 
-.\"	- eivind@freebsd.org
+.\"	- eivind@FreeBSD.org
 .\"
 .\" $FreeBSD$
 .\"
@@ -191,9 +191,9 @@ To free only the ni_cnd.cn_pnbuf, there is a special flags NDF_ONLY_PNBUF.
 To not free the cnd, use the flag ND_NO_FREE_PNBUF.
 .El
 .Sh BUGS
-LOCKPARENT do not always result in parent vp being locked (see details in
+LOCKPARENT does not always result in parent vp being locked (see details in
 description).
-This result in complications everywhere LOCKPARENT is used.
+This results in complications everywhere LOCKPARENT is used.
 In order to solve this for the cases that include both LOCKPARENT and LOCKLEAF,
 it will be necessary to go to recursive locking.
 .Sh SEE ALSO
