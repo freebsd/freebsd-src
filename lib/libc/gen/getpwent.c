@@ -691,12 +691,12 @@ _pw_breakout_yp(struct passwd *pw, char *res, int resultlen, int master)
 }
 
 static int
-_havemaster(char *_pw_yp_domain)
+_havemaster(char *_yp_domain)
 {
 	int order;
 	int rval;
 
-	if (!(rval = yp_order(_pw_yp_domain, "master.passwd.byname", &order)))
+	if (!(rval = yp_order(_yp_domain, "master.passwd.byname", &order)))
 		return(YP_HAVE_MASTER);
 
 	/*
@@ -708,7 +708,7 @@ _havemaster(char *_pw_yp_domain)
 
 	/* master.passwd doesn't exist -- try passwd.adjunct */
 	if (rval == YPERR_MAP) {
-		rval = yp_order(_pw_yp_domain, "passwd.adjunct.byname", &order);
+		rval = yp_order(_yp_domain, "passwd.adjunct.byname", &order);
 		if (!rval)
 			return(YP_HAVE_ADJUNCT);
 	}
