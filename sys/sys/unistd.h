@@ -145,9 +145,6 @@
 #define	_SC_STREAM_MAX		26
 #define	_SC_TZNAME_MAX		27
 
-/* configurable system strings */
-#define	_CS_PATH		 1
-
 #ifdef _P1003_1B_VISIBLE
 
 #define _POSIX_PRIORITY_SCHEDULING
