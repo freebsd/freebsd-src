@@ -16,6 +16,7 @@ MAN=	accept_filter.9 \
 	BUF_TIMELOCK.9 \
 	BUF_UNLOCK.9 \
 	bus_activate_resource.9 \
+	BUS_ADD_CHILD.9 \
 	bus_alloc_resource.9 \
 	bus_child_present.9 \
 	BUS_CONFIG_INTR.9 \
