@@ -32,7 +32,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 1, 1995
+.Dd November 15, 2004
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -115,6 +115,24 @@ struct stat {
 };
 .Ed
 .Pp
+The fields of
+.Vt "struct stat"
+related to the file system are as follows:
+.Bl -tag -width ".Va st_nlink"
+.It Va st_dev
+The numeric ID of the device containing the file.
+.It Va st_ino
+The file's inode number.
+.It Va st_nlink
+The number of hard links to the file.
+.El
+.Pp
+The
+.Va st_dev
+and
+.Va st_ino
+fields together identify the file uniquely within the system.
+.Pp
 The time-related fields of
 .Fa struct stat
 are as follows:
@@ -165,12 +183,26 @@ The size-related fields of the
 .Fa struct stat
 are as follows:
 .Bl -tag -width XXXst_blksize
-.It st_blksize
+.It Va st_size
+The file size in bytes.
+.It Va st_blksize
 The optimal I/O block size for the file.
-.It st_blocks
+.It Va st_blocks
 The actual number of blocks allocated for the file in 512-byte units.
 As short symbolic links are stored in the inode, this number may
 be zero.
+.El
+.Pp
+The access-related fields of
+.Vt "struct stat"
+are as follows:
+.Bl -tag -width ".Va st_mode"
+.It Va st_uid
+The user ID of the file's owner.
+.It Va st_gid
+The group ID of the file.
+.It Va st_mode
+Status of the file (see below).
 .El
 .Pp
 The status information word
@@ -199,6 +231,32 @@ For a list of access modes, see
 .Xr access 2
 and
 .Xr chmod 2 .
+The following macros are available to test whether a
+.Va st_mode
+value passed in the
+.Ar m
+argument corresponds to a file of the specified type:
+.Bl -tag -width ".Fn S_ISFIFO m"
+.It Fn S_ISBLK m
+Test for a block special file.
+.It Fn S_ISCHR m
+Test for a character special file.
+.It Fn S_ISDIR m
+Test for a directory.
+.It Fn S_ISFIFO m
+Test for a pipe or FIFO special file.
+.It Fn S_ISLNK m
+Test for a symbolic link.
+.It Fn S_ISREG m
+Test for a regular file.
+.It Fn S_ISSOCK m
+Test for a socket.
+.It Fn S_ISWHT m
+Test for a whiteout.
+.El
+.Pp
+The macros evaluate to a non-zero value if the test is true
+or to the value 0 if the test is false.
 .Sh RETURN VALUES
 .Rv -std
 .Sh COMPATIBILITY
