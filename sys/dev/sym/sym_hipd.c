@@ -5228,7 +5228,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		target = (INB (nc_sdid) & 0xf);
 		tp = &np->target[target];
 
-		np->abrt_tbl.addr = vtobus(np->abrt_msg);
+		np->abrt_tbl.addr = cpu_to_scr(vtobus(np->abrt_msg));
 
 		/*
 		 *  If the target is to be reset, prepare a 
@@ -5899,6 +5899,15 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	};
 
 	/*
+	 *  get requested values.
+	 */
+	chg  = 0;
+	per  = np->msgin[3];
+	ofs  = np->msgin[5];
+	wide = np->msgin[6];
+	dt   = np->msgin[7] & PPR_OPT_DT;
+
+	/*
 	 * request or answer ?
 	 */
 	if (INB (HS_PRT) == HS_NEGOTIATE) {
@@ -5907,15 +5916,6 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 			goto reject_it;
 		req = 0;
 	}
-
-	/*
-	 *  get requested values.
-	 */
-	chg  = 0;
-	per  = np->msgin[3];
-	ofs  = np->msgin[5];
-	wide = np->msgin[6];
-	dt   = np->msgin[7] & PPR_OPT_DT;
 
 	/*
 	 *  check values against our limits.
@@ -6010,6 +6010,17 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 reject_it:
 	sym_setpprot (np, cp, 0, 0, 0, 0, 0, 0);
 	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
+	/*
+	 *  If it was a device response that should result in  
+	 *  ST, we may want to try a legacy negotiation later.
+	 */
+	if (!req && !dt) {
+		tp->tinfo.goal.options = 0;
+		tp->tinfo.goal.width   = wide;
+		tp->tinfo.goal.period  = per;
+		tp->tinfo.goal.offset  = ofs;
+	}
+	return;
 }
 
 /*
@@ -6122,6 +6133,9 @@ reject_it:
  *
  *  Called when a negotiation does not succeed either 
  *  on rejection or on protocol error.
+ *
+ *  If it was a PPR that made problems, we may want to 
+ *  try a legacy negotiation later.
  */
 static void sym_nego_default(hcb_p np, tcb_p tp, ccb_p cp)
 {
@@ -6131,7 +6145,15 @@ static void sym_nego_default(hcb_p np, tcb_p tp, ccb_p cp)
 	 */
 	switch (cp->nego_status) {
 	case NS_PPR:
+#if 0
 		sym_setpprot (np, cp, 0, 0, 0, 0, 0, 0);
+#else
+		tp->tinfo.goal.options = 0;
+		if (tp->tinfo.goal.period < np->minsync)
+			tp->tinfo.goal.period = np->minsync;
+		if (tp->tinfo.goal.offset > np->maxoffs)
+			tp->tinfo.goal.offset = np->maxoffs;
+#endif
 		break;
 	case NS_SYNC:
 		sym_setsync (np, cp, 0, 0, 0, 0);
