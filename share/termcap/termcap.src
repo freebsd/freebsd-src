@@ -2249,17 +2249,24 @@ cons50r|cons50-koi8-r:\
 	:li#50:tc=cons25r:
 cons50r-m|cons50-koi8-r-mono:\
 	:li#50:tc=cons25r-m:
+cons60r|cons60-koi8-r:\
+	:li#60:tc=cons25r:
+cons60r-m|cons60-koi8-r-mono:\
+	:li#60:tc=cons25r-m:
 # 80x25 ISO 8859-1 FreeBSD console
 cons25l1|cons25-iso8859-1:\
 	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273I\247y\232z\233:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
-# 80x50 ISO 8859-1 FreeBSD console
 cons50l1|cons50-iso8859-1:\
 	:li#50:tc=cons25l1:
 cons50l1-m|cons50-iso8859-1-mono:\
 	:li#50:tc=cons25l1-m:
+cons60l1|cons60-iso8859-1:\
+	:li#60:tc=cons25l1:
+cons60l1-m|cons60-iso8859-1-mono:\
+	:li#60:tc=cons25l1-m:
 dosansi|ANSI.SYS standard crt:\
 	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
 	:do=\E[B:li#25:mi:nd=\E[C:\
