@@ -1,6 +1,4 @@
 /* $FreeBSD$ */
-
-#include "ansidecl.h"
 #include "version.h"
 
 /* This is the string reported as the version number by all components
@@ -8,7 +6,7 @@
    please modify this string to indicate that, e.g. by putting your
    organization's name in parentheses at the end of the string.  */
 
-const char version_string[] = "3.3.3 [FreeBSD] 20031106";
+const char version_string[] = "3.4.2 [FreeBSD] 20040728";
 
 /* This is the location of the online document giving instructions for
    reporting bugs.  If you distribute a modified version of GCC,
