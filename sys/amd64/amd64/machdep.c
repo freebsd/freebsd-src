@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.57 1994/08/27 16:14:12 davidg Exp $
+ *	$Id: machdep.c,v 1.58 1994/08/31 06:17:31 davidg Exp $
  */
 
 #include "npx.h"
@@ -117,15 +117,19 @@ int	bufpages = BUFPAGES;
 #else
 int	bufpages = 0;
 #endif
+
+#ifdef BOUNCE_BUFFERS
+extern char *bouncememory;
+extern int maxbkva;
 #ifdef BOUNCEPAGES
 int	bouncepages = BOUNCEPAGES;
 #else
 int	bouncepages = 0;
 #endif
-int	msgbufmapped = 0;		/* set when safe to use msgbuf */
-extern int freebufspace;
-extern char *bouncememory;
+#endif	/* BOUNCE_BUFFERS */
 
+extern int freebufspace;
+int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 
 /*
@@ -146,7 +150,7 @@ void dumpsys __P((void));
 vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 vm_offset_t pager_sva, pager_eva;
-int maxbkva, pager_map_size;
+extern int pager_map_size;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -284,22 +288,19 @@ again:
 	if ((vm_size_t)(v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
+#ifdef BOUNCE_BUFFERS
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
 			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) +
 				maxbkva + pager_map_size, TRUE);
+	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
+#else
+	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
+			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
+#endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
 				(nbuf*MAXBSIZE), TRUE);
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
-	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
-
-#if 0
-	/*
-	 * Allocate a submap for physio
-	 */
-	phys_map = kmem_suballoc(clean_map, &minaddr, &maxaddr,
-				 VM_PHYS_SIZE, TRUE);
-#endif
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
