@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
+ * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	11
-
+#define	ISP_PLATFORM_VERSION_MINOR	13
 
 #include <sys/param.h>
 #include <sys/param.h>
@@ -59,6 +58,8 @@
 #include "opt_ddb.h"
 #include "opt_isp.h"
 
+#define	HANDLE_LOOPSTATE_IN_OUTER_LAYERS	1
+
 typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
@@ -68,19 +69,15 @@ typedef struct tstate {
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	lun_id_t lun;
+	int bus;
 	u_int32_t hold;
 } tstate_t;
 
-/*
- * This should work very well for 100% of parallel SCSI cases, 100%
- * of non-SCCLUN FC cases, and hopefully some larger fraction of the
- * SCCLUN FC cases. Basically, we index by the low 5 bits of lun and
- * then linear search. This has to be reasonably zippy, but not crucially
- * so.
- */
-#define	LUN_HASH_SIZE		32
-#define	LUN_HASH_FUNC(lun)	((lun) & 0x1f)
-
+#define	LUN_HASH_SIZE			32
+#define	LUN_HASH_FUNC(isp, port, lun)					\
+	((IS_DUALBUS(isp)) ?						\
+		(((lun) & ((LUN_HASH_SIZE >> 1) - 1)) << (port)) :	\
+		((lun) & (LUN_HASH_SIZE - 1)))
 #endif
 
 struct isposinfo {
@@ -97,36 +94,31 @@ struct isposinfo {
 	u_int8_t		simqfrozen;
 	u_int8_t		drain;
 	u_int8_t		intsok;
-#ifdef	ISP_SMPLOCK
-	struct mtx		lock;
-#else
-	volatile u_int32_t	islocked;
+	int			islocked;
 	int			splsaved;
-#endif
+	struct proc		*kproc;
 #ifdef	ISP_TARGET_MODE
-#define	TM_WANTED		0x01
-#define	TM_BUSY			0x02
-#define	TM_TMODE_ENABLED	0x80
+#define	TM_WANTED		0x80
+#define	TM_BUSY			0x40
+#define	TM_TMODE_ENABLED	0x03
 	u_int8_t		tmflags;
 	u_int8_t		rstatus;
 	u_int16_t		rollinfo;
-	tstate_t		tsdflt;
+	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
 #endif
 };
+
+#define	isp_lock	isp_osinfo.lock
 
 /*
  * Locking macros...
  */
 
-#ifdef	ISP_SMPLOCK
-#define	ISP_LOCK(x)		mtx_enter(&(x)->isp_osinfo.lock, MTX_DEF)
-#define	ISP_UNLOCK(x)		mtx_exit(&(x)->isp_osinfo.lock, MTX_DEF)
-#else
-#define	ISP_LOCK		isp_lock
-#define	ISP_UNLOCK		isp_unlock
-#endif
-
+#define	ISP_LOCK		isp_lockspl
+#define	ISP_UNLOCK		isp_unlockspl
+#define	ISPLOCK_2_CAMLOCK(x)
+#define	CAMLOCK_2_ISPLOCK(x)
 
 /*
  * Required Macros/Defines
@@ -312,30 +304,28 @@ extern void isp_uninit(struct ispsoftc *);
 /*
  * Platform specific inline functions
  */
-#ifndef	ISP_SMPLOCK
-static INLINE void isp_lock(struct ispsoftc *);
+static INLINE void isp_lockspl(struct ispsoftc *);
 static INLINE void
-isp_lock(struct ispsoftc *isp)
+isp_lockspl(struct ispsoftc *isp)
 {
-	int s = splcam();
-	if (isp->isp_osinfo.islocked++ == 0) {
-		isp->isp_osinfo.splsaved = s;
-	} else {
-		splx(s);
-	}
+       int s = splcam();
+       if (isp->isp_osinfo.islocked++ == 0) {  
+               isp->isp_osinfo.splsaved = s;
+       } else {
+               splx(s);
+       }
 }
 
-static INLINE void isp_unlock(struct ispsoftc *);
+static INLINE void isp_unlockspl(struct ispsoftc *);
 static INLINE void
-isp_unlock(struct ispsoftc *isp)
+isp_unlockspl(struct ispsoftc *isp)
 {
-	if (isp->isp_osinfo.islocked) {
-		if (--isp->isp_osinfo.islocked == 0) {
-			splx(isp->isp_osinfo.splsaved);
-		}
-	}
+       if (isp->isp_osinfo.islocked) {
+               if (--isp->isp_osinfo.islocked == 0) {
+                       splx(isp->isp_osinfo.splsaved);
+               }
+       }
 }
-#endif
 
 static INLINE void isp_mbox_wait_complete(struct ispsoftc *);
 static INLINE void
@@ -343,13 +333,8 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 {
 	if (isp->isp_osinfo.intsok) {
 		isp->isp_osinfo.mboxwaiting = 1;
-#ifdef	ISP_SMPLOCK
-		(void) msleep(&isp->isp_osinfo.mboxwaiting,
-		    &isp->isp_osinfo.lock, PRIBIO, "isp_mboxwaiting", 10 * hz);
-#else
 		(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO,
 		    "isp_mboxwaiting", 10 * hz);
-#endif
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Interrupting Mailbox Command (0x%x) Timeout",
