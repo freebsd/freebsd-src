@@ -99,6 +99,8 @@
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -115,6 +117,8 @@
 #include <sys/user.h>
 
 #include <machine/md_var.h>
+
+MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
@@ -313,7 +317,7 @@ pmap_bootstrap()
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
-
+			 
 	/*
 	 * We need some PVs to cope with pmap_kenter() calls prior to
 	 * pmap_init(). This is all a bit flaky and needs to be
@@ -520,51 +524,23 @@ pmap_track_modified(vm_offset_t va)
 void
 pmap_new_proc(struct proc *p)
 {
-	int i;
-	vm_object_t upobj;
-	vm_page_t m;
 	struct user *up;
 
 	/*
-	 * allocate object for the upages
+	 * Use contigmalloc for user area so that we can use a region
+	 * 7 address for it which makes it impossible to accidentally
+	 * lose when recording a trapframe.
 	 */
-	if ((upobj = p->p_upages_obj) == NULL) {
-		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
-		p->p_upages_obj = upobj;
-	}
+	up = contigmalloc(UPAGES * PAGE_SIZE, M_PMAP,
+			  M_WAITOK,
+			  0ul,
+			  256*1024*1024 - 1,
+			  PAGE_SIZE,
+			  256*1024*1024);
 
-	/* get a kernel virtual address for the UPAGES for this proc */
-	if ((up = p->p_addr) == NULL) {
-		up = (struct user *) kmem_alloc_nofault(kernel_map,
-				UPAGES * PAGE_SIZE);
-		if (up == NULL)
-			panic("pmap_new_proc: u_map allocation failed");
-		p->p_addr = up;
-	}
-
-	for(i=0;i<UPAGES;i++) {
-		/*
-		 * Get a kernel stack page
-		 */
-		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-		/*
-		 * Wire the page
-		 */
-		m->wire_count++;
-		cnt.v_wire_count++;
-
-		pmap_kenter(((vm_offset_t) p->p_addr) + i * PAGE_SIZE,
-			VM_PAGE_TO_PHYS(m));
-
-		pmap_invalidate_page(kernel_pmap,
-				     (vm_offset_t)up + i * PAGE_SIZE);
-
-		vm_page_wakeup(m);
-		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
-		m->valid = VM_PAGE_BITS_ALL;
-	}
+	p->p_md.md_uservirt = up;
+	p->p_addr = (struct user *)
+		IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t) up));
 }
 
 /*
@@ -575,24 +551,9 @@ void
 pmap_dispose_proc(p)
 	struct proc *p;
 {
-	int i;
-	vm_object_t upobj;
-	vm_page_t m;
-
-	upobj = p->p_upages_obj;
-
-	for(i=0;i<UPAGES;i++) {
-
-		if ((m = vm_page_lookup(upobj, i)) == NULL)
-			panic("pmap_dispose_proc: upage already missing???");
-
-		vm_page_busy(m);
-
-		pmap_kremove((vm_offset_t)p->p_addr + PAGE_SIZE * i);
-
-		vm_page_unwire(m, 0);
-		vm_page_free(m);
-	}
+	contigfree(p->p_md.md_uservirt, UPAGES * PAGE_SIZE, M_PMAP);
+	p->p_md.md_uservirt = 0;
+	p->p_addr = 0;
 }
 
 /*
@@ -602,6 +563,7 @@ void
 pmap_swapout_proc(p)
 	struct proc *p;
 {
+#if 0
 	int i;
 	vm_object_t upobj;
 	vm_page_t m;
@@ -622,6 +584,7 @@ pmap_swapout_proc(p)
 		vm_page_unwire(m, 0);
 		pmap_kremove((vm_offset_t)p->p_addr + PAGE_SIZE * i);
 	}
+#endif
 }
 
 /*
@@ -631,6 +594,7 @@ void
 pmap_swapin_proc(p)
 	struct proc *p;
 {
+#if 0
 	int i,rv;
 	vm_object_t upobj;
 	vm_page_t m;
@@ -655,6 +619,7 @@ pmap_swapin_proc(p)
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+#endif
 }
 
 /***************************************************
@@ -797,7 +762,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return zalloci(pvzone);
+	return (pv_entry_t) IA64_PHYS_TO_RR7(vtophys(zalloci(pvzone)));
 }
 
 /*
@@ -850,8 +815,10 @@ pmap_remove_vhpt(pv_entry_t pv)
 	/*
 	 * If the VHPTE is invalid, there can't be a collision chain.
 	 */
-	if (!vhpte->pte_p)
-		return 1;
+	if (!vhpte->pte_p) {
+		KASSERT(!vhpte->pte_chain, ("bad vhpte"));
+		return 0;
+	}
 
 	lpte = vhpte;
 	pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(vhpte->pte_chain);
@@ -862,7 +829,7 @@ pmap_remove_vhpt(pv_entry_t pv)
 		if (pte->pte_chain)
 			pte = (struct ia64_lpte *) IA64_PHYS_TO_RR7(pte->pte_chain);
 		else
-			return 1; /* error here? */
+			return 0; /* error here? */
 	}
 
 	/*
@@ -885,7 +852,7 @@ pmap_remove_vhpt(pv_entry_t pv)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 /*
@@ -1248,7 +1215,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	if (atop(eva - sva) > pmap->pm_stats.resident_count) {
+	if (atop(eva - sva) < pmap->pm_stats.resident_count) {
 		for (va = sva; va < eva; va = nva) {
 			pmap_remove_page(pmap, va);
 			nva = va + PAGE_SIZE;
@@ -1463,10 +1430,9 @@ validate:
 	 * if the mapping or permission bits are different, we need
 	 * to invalidate the page.
 	 */
-	if (pmap_equal_pte(&origpte, &pv->pv_pte)) {
+	if (!pmap_equal_pte(&origpte, &pv->pv_pte)) {
 		PMAP_DEBUG_VA(va);
-		if (origpte.pte_p)
-			pmap_invalidate_page(pmap, va);
+		pmap_invalidate_page(pmap, va);
 	}
 
 	pmap_install(oldpmap);
