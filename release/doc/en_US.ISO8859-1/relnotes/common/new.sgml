@@ -120,7 +120,16 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="i386">The <literal>CPU_ATHLON_SSE_HACK</literal>
+	kernel option has been added, which attempts to enable the SSE
+	feature bit on newer Athlon CPUs if the BIOS has forgotten to
+	enable it.</para>
+
+      <para arch="i386">On some systems, the BIOS does not activate
+	the I/O ports and memory of PC devices, thus making them
+	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
+	option forces &os; to enable these devices so that they can be
+	used.</para>
     </sect3>
 
     <sect3>
@@ -210,11 +219,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The TCP implementation now properly ignores packets
 	addressed to IP-layer broadcast addresses.</para>
-
-      <para>The ephemeral port range used for TCP and UDP has been
-	changed to 49152&ndash;65535 (the old default was
-	1024&ndash;5000).  This increases the number of concurrent
-	outgoing connections/streams.</para>
     </sect3>
 
     <sect3>
@@ -424,6 +428,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       who do not have S/Key enabled.  The prior behavior created
       confusing, useless one-time-password prompts when using some
       newer SSH clients to connect to a &os; system.</para>
+
+    <para>&man.sysinstall.8; now has rudimentary support for
+      retrieving packages from the correct volume of a multiple-volume
+      installation (such as a multi-CD distribution).</para>
 
     <para>&man.tftp.1; and &man.tftpd.8; now support IPv6.</para>
 
