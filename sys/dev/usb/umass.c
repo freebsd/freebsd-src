@@ -1160,7 +1160,8 @@ umass_bbb_reset(struct umass_softc *sc, int status)
 	usbd_device_handle udev;
 
 	KASSERT(sc->proto & UMASS_PROTO_BBB,
-		("sc->proto == 0x%02x wrong for umass_bbb_reset\n", sc->proto));
+		("%s: umass_bbb_reset: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * Reset recovery (5.3.4 in Universal Serial Bus Mass Storage Class)
@@ -1202,8 +1203,8 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 		    transfer_cb_f cb, void *priv)
 {
 	KASSERT(sc->proto & UMASS_PROTO_BBB,
-		("sc->proto == 0x%02x wrong for umass_bbb_transfer\n",
-		sc->proto));
+		("%s: umass_bbb_transfer: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * Do a Bulk-Only transfer with cmdlen bytes from cmd, possibly
@@ -1310,7 +1311,8 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	usbd_xfer_handle next_xfer;
 
 	KASSERT(sc->proto & UMASS_PROTO_BBB,
-		("sc->proto == 0x%02x wrong for umass_bbb_state\n",sc->proto));
+		("%s: umass_bbb_state: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * State handling for BBB transfers.
@@ -1463,9 +1465,9 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 			 */
 			if (sc->transfer_state == TSTATE_BBB_STATUS1) {
 				umass_clear_endpoint_stall(sc,
-						sc->bulkin, sc->bulkin_pipe,
-						TSTATE_BBB_SCLEAR,
-						sc->transfer_xfer[XFER_BBB_SCLEAR]);
+					    sc->bulkin, sc->bulkin_pipe,
+					    TSTATE_BBB_SCLEAR,
+					    sc->transfer_xfer[XFER_BBB_SCLEAR]);
 				return;
 			} else {
 				umass_bbb_reset(sc, STATUS_WIRE_FAILED);
@@ -1652,8 +1654,9 @@ umass_cbi_adsc(struct umass_softc *sc, char *buffer, int buflen,
 	usbd_device_handle udev;
 
 	KASSERT(sc->proto & (UMASS_PROTO_CBI|UMASS_PROTO_CBI_I),
-		("sc->proto == 0x%02x wrong for umass_cbi_adsc\n",sc->proto));
-
+		("%s: umass_cbi_adsc: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
+	
 	usbd_interface2device_handle(sc->iface, &udev);
 
 	sc->request.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -1673,7 +1676,8 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 #	define SEND_DIAGNOSTIC_CMDLEN	12
 
 	KASSERT(sc->proto & (UMASS_PROTO_CBI|UMASS_PROTO_CBI_I),
-		("sc->proto == 0x%02x wrong for umass_cbi_reset\n",sc->proto));
+		("%s: umass_cbi_reset: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * Command Block Reset Protocol
@@ -1720,8 +1724,8 @@ umass_cbi_transfer(struct umass_softc *sc, int lun,
 		transfer_cb_f cb, void *priv)
 {
 	KASSERT(sc->proto & (UMASS_PROTO_CBI|UMASS_PROTO_CBI_I),
-		("sc->proto == 0x%02x wrong for umass_cbi_transfer\n",
-		sc->proto));
+		("%s: umass_cbi_transfer: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * Do a CBI transfer with cmdlen bytes from cmd, possibly
@@ -1773,7 +1777,8 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	struct umass_softc *sc = (struct umass_softc *) priv;
 
 	KASSERT(sc->proto & (UMASS_PROTO_CBI|UMASS_PROTO_CBI_I),
-		("sc->proto == 0x%02x wrong for umass_cbi_state\n", sc->proto));
+		("%s: umass_cbi_state: wrong sc->proto 0x%02x\n",
+			USBDEVNAME(sc->sc_dev), sc->proto));
 
 	/*
 	 * State handling for CBI transfers.
