@@ -222,6 +222,7 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
+#include "opt_devfs.h"
 #include "pci.h"
 #endif /* __FreeBSD__ */
 
@@ -656,8 +657,6 @@ static u_long	status_sum = 0;
 /*
  * misc. support routines.
  */
-static const struct CARDTYPE	cards[];
-static const struct TUNER	tuners[];
 static int			signCard( bktr_ptr_t bktr, int offset,
 					  int count, u_char* sig );
 static void			probeCard( bktr_ptr_t bktr, int verbose );
@@ -3748,7 +3747,7 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
  * Note:
  *   these entried MUST be kept in the order defined by the CARD_XXX defines!
  */
-const struct CARDTYPE cards[] = {
+static const struct CARDTYPE cards[] = {
 
 	/* CARD_UNKNOWN */
 	{ "Unknown",				/* the 'name' */
@@ -3841,7 +3840,7 @@ struct TUNER {
 	u_char		bandAddrs[ 3 ];
 };
  */
-const struct TUNER tuners[] = {
+static const struct TUNER tuners[] = {
 /* XXX FIXME: fill in the band-switch crosspoints */
 	/* NO_TUNER */
 	{ "<none>",				/* the 'name' */
