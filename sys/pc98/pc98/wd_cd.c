@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998, 1999 Sen Schmidt
+ * Copyright (c) 1998, 1999 Sen Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,6 @@ static int acdnlun = 0;     	/* Number of configured drives */
 
 int acdattach(struct atapi *, int, struct atapi_params *, int);
 static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int);
-struct devstat *);
 static void acd_start(struct acd *);
 static void acd_done(struct acd *, struct bio *, int, struct atapires);
 static int acd_read_toc(struct acd *);
@@ -141,7 +140,7 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
         printf("wcd: configuration error, ATAPI code not present!\n");
         return 0;
     }
-    if ((cdp = acd_init_lun(ata, unit, ap, acdnlun, NULL)) == NULL) {
+    if ((cdp = acd_init_lun(ata, unit, ap, acdnlun)) == NULL) {
         printf("wcd: out of memory\n");
         return 0;
     }
@@ -497,7 +496,7 @@ acd_start(struct acd *cdp)
         count = bp->bio_bcount;
     }
 
-    devstat_start_transaction(cdp->device_stats);
+    devstat_start_transaction_bio(cdp->device_stats, bp);
 
     atapi_request_callback(cdp->ata, cdp->unit, cmd, 0,
         		   lba>>24, lba>>16, lba>>8, lba, 0, 

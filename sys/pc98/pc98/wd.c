@@ -66,6 +66,7 @@
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/disk.h>
+#include <geom/geom_disk.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <machine/bootinfo.h>
