@@ -214,7 +214,7 @@ g_gate_start(struct bio *bp)
 
 	mtx_lock(&sc->sc_queue_mtx);
 	if (sc->sc_queue_count > sc->sc_queue_size) {
-		mtx_lock(&sc->sc_queue_mtx);
+		mtx_unlock(&sc->sc_queue_mtx);
 		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
 		g_io_deliver(bp, EIO);
 		return;
