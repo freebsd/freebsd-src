@@ -62,7 +62,6 @@
 #include <i4b/layer1/ihfc/i4b_ihfc_drv.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/rman.h>
 
 

@@ -42,7 +42,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <machine/stdarg.h>
 
 
 #include <sys/socket.h>
@@ -55,7 +54,6 @@
 #include <i4b/layer1/i4b_l1.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
 #include <i4b/include/i4b_mbuf.h>

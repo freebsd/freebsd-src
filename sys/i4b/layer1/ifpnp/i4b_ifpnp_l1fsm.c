@@ -45,7 +45,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 
-#include <machine/stdarg.h>
 
 #include <net/if.h>
 
@@ -54,8 +53,6 @@
 #include <machine/i4b_trace.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
-#include <i4b/layer1/isic/i4b_hscx.h>
 
 #include <i4b/layer1/i4b_l1.h>
 

@@ -94,7 +94,6 @@
 
 /* minor number: lower 6 bits = unit number */
 
-#include <i4b/layer4/i4b_l4.h>
 
 #define UNITBITS	6
 #define UNITMASK	0x3f
