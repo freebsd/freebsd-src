@@ -15,9 +15,11 @@ stop_cmd="gbde_swap_detach"
 
 gbde_swap_attach()
 {
-	cat /etc/fstab |
 	while read device mountpoint type options rest ; do
-		case "${device}:${type}:${options}" in
+		case ":${device}:${type}:${options}" in
+		:#*)
+			continue
+			;;
 		*.bde:swap:sw)
 			;;
 		*)
@@ -28,14 +30,16 @@ gbde_swap_attach()
 		device="${device%.bde}"
 		gbde init "${device}" -P "${passphrase}" || return 1
 		gbde attach "${device}" -p "${passphrase}" || return 1
-	done
+	done < /etc/fstab
 }
 
 gbde_swap_detach()
 {
-	cat /etc/fstab |
 	while read device mountpoint type options rest ; do
-		case "${device}:${type}:${options}" in
+		case ":${device}:${type}:${options}" in
+		:#*)
+			continue
+			;;
 		*.bde:swap:sw)
 			;;
 		*)
@@ -44,7 +48,7 @@ gbde_swap_detach()
 		esac
 		device="${device%.bde}"
 		gbde detach "${device}"
-	done
+	done < /etc/fstab
 }
 
 load_rc_config $name
