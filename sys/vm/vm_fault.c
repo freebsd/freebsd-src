@@ -932,12 +932,6 @@ vm_fault_wire(map, start, end, user_wire)
 	int rv;
 
 	/*
-	 * Inform the physical mapping system that the range of addresses may
-	 * not fault, so that page tables and such can be locked down as well.
-	 */
-	pmap_pageable(map->pmap, start, end, FALSE);
-
-	/*
 	 * We simulate a fault to get the page and enter it in the physical
 	 * map.  For user wiring, we only ask for read access on currently
 	 * read-only sections.
@@ -985,12 +979,6 @@ vm_fault_unwire(map, start, end)
 		}
 	}
 	mtx_unlock(&Giant);
-
-	/*
-	 * Inform the physical mapping system that the range of addresses may
-	 * fault, so that page tables and such may be unwired themselves.
-	 */
-	pmap_pageable(pmap, start, end, TRUE);
 }
 
 /*
