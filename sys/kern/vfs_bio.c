@@ -724,9 +724,9 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			vfs_busy_pages(rabp, 0);
 			BUF_KERNPROC(rabp);
 			if (vp->v_type == VCHR)
-				VOP_SPECSTRATEGY(vp, bp);
+				VOP_SPECSTRATEGY(vp, rabp);
 			else
-				VOP_STRATEGY(vp, bp);
+				VOP_STRATEGY(vp, rabp);
 		} else {
 			brelse(rabp);
 		}
