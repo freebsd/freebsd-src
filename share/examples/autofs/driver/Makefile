@@ -5,7 +5,6 @@ PROG=autodriver
 
 SRCS=		autodriver.c
 NOMAN=		YES
-WERROR=		YES
 WARNS=		4
 CFLAGS+=	-g
 BINDIR?=	/sbin
