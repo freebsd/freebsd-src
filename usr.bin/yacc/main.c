@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$Id: main.c,v 1.5 1997/01/12 21:29:47 steve Exp $
  */
 
 #ifndef lint
@@ -156,7 +156,7 @@ set_signals()
 static void
 usage()
 {
-    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n", myname);
+    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file_name] [-p symbol_prefix] filename\n", myname);
     exit(1);
 }
 
@@ -201,6 +201,15 @@ char *argv[];
 	case 'l':
 	    lflag = 1;
 	    break;
+
+	case 'o':
+	    if (*++s)
+		output_file_name = s;
+	    else if (++i < argc)
+		output_file_name = argv[i];
+	    else
+		usage();
+	    continue;
 
 	case 'p':
 	    if (*++s)
@@ -328,13 +337,20 @@ create_file_names()
     mktemp(text_file_name);
     mktemp(union_file_name);
 
-    len = strlen(file_prefix);
-
-    output_file_name = MALLOC(len + 7);
-    if (output_file_name == 0)
-	no_space();
-    strcpy(output_file_name, file_prefix);
-    strcpy(output_file_name + len, OUTPUT_SUFFIX);
+    if (output_file_name != 0)
+    {
+	file_prefix = output_file_name;
+	len = strlen(file_prefix);
+    }
+    else
+    {
+	len = strlen(file_prefix);
+	output_file_name = MALLOC(len + 7);
+	if (output_file_name == 0)
+	    no_space();
+	strcpy(output_file_name, file_prefix);
+	strcpy(output_file_name + len, OUTPUT_SUFFIX);
+    }
 
     if (rflag)
     {
@@ -342,7 +358,21 @@ create_file_names()
 	if (code_file_name == 0)
 	    no_space();
 	strcpy(code_file_name, file_prefix);
-	strcpy(code_file_name + len, CODE_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+	    /*
+	     * XXX ".tab.c" here is OUTPUT_SUFFIX, but since its length is
+	     * in various magic numbers, don't bother using the macro.
+	     */
+	    if (len >= 6 && strcmp(code_file_name + len - 6, ".tab.c") == 0)
+		strcpy(code_file_name + len - 6, CODE_SUFFIX);
+	    else if (len >= 2 && strcmp(code_file_name + len - 2, ".c") == 0)
+		strcpy(code_file_name + len - 2, CODE_SUFFIX);
+	    else
+		strcpy(code_file_name + len, CODE_SUFFIX);
+	}
+	else
+	    strcpy(code_file_name + len, CODE_SUFFIX);
     }
     else
 	code_file_name = output_file_name;
@@ -353,7 +383,16 @@ create_file_names()
 	if (defines_file_name == 0)
 	    no_space();
 	strcpy(defines_file_name, file_prefix);
-	strcpy(defines_file_name + len, DEFINES_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+#define BISON_DEFINES_SUFFIX  ".h"
+	    if (len >= 2 && strcmp(defines_file_name + len - 2, ".c") == 0)
+		strcpy(defines_file_name + len - 2, BISON_DEFINES_SUFFIX);
+	    else
+		strcpy(defines_file_name + len, BISON_DEFINES_SUFFIX);
+	}
+	else
+	    strcpy(defines_file_name + len, DEFINES_SUFFIX);
     }
 
     if (vflag)
@@ -362,7 +401,17 @@ create_file_names()
 	if (verbose_file_name == 0)
 	    no_space();
 	strcpy(verbose_file_name, file_prefix);
-	strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+	    if (len >= 6 && strcmp(verbose_file_name + len - 6, ".tab.c") == 0)
+		strcpy(verbose_file_name + len - 6, VERBOSE_SUFFIX);
+	    else if (len >= 2 && strcmp(verbose_file_name + len - 2, ".c") == 0)
+		strcpy(verbose_file_name + len - 2, VERBOSE_SUFFIX);
+	    else
+		strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
+	}
+	else
+	    strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
     }
 }
 
