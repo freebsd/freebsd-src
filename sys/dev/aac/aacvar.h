@@ -85,7 +85,7 @@
  * Rate at which we periodically check for timed out commands and kick the
  * controller.
  */
-#define AAC_PERIODIC_INTERVAL	10		/* seconds */
+#define AAC_PERIODIC_INTERVAL	20		/* seconds */
 
 /*
  * Character device major numbers.
@@ -98,8 +98,6 @@
  ******************************************************************************
  ******************************************************************************/
 
-#include "opt_aac.h"
-
 #if __FreeBSD_version >= 500005
 # include <sys/taskqueue.h>
 #endif
@@ -109,8 +107,10 @@
  */
 struct aac_container
 {
-    struct aac_mntobj	co_mntobj;
-    device_t		co_disk;
+    struct aac_mntobj		co_mntobj;
+    device_t			co_disk;
+    int				co_found;
+    TAILQ_ENTRY(aac_container)	co_link;
 };
 
 /*
@@ -131,6 +131,7 @@ struct aac_disk
     int				ad_heads;
     int				ad_sectors;
     u_int32_t			ad_size;
+    int				unit;
 };
 
 /*
@@ -170,6 +171,7 @@ struct aac_command
     void			(* cm_complete)(struct aac_command *cm);
     void			*cm_private;
     time_t			cm_timestamp;	/* command creation time */
+    int				cm_queue;
 };
 
 /*
@@ -246,6 +248,23 @@ extern struct aac_interface	aac_sa_interface;
 #define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
 					sc->aac_bhandle, reg)
 
+TAILQ_HEAD(aac_container_tq, aac_container);
+
+/* Define the OS version specific locks */
+#if __FreeBSD_version >= 500005
+#include <sys/lock.h>
+#include <sys/mutex.h>
+typedef struct mtx aac_lock_t;
+#define AAC_LOCK_INIT(l)	mtx_init(l, "AAC Container Mutex", MTX_DEF)
+#define AAC_LOCK_AQUIRE(l)	mtx_lock(l)
+#define AAC_LOCK_RELEASE(l)	mtx_unlock(l)
+#else
+typedef struct simplelock aac_lock_t;
+#define AAC_LOCK_INIT(l)	simple_lock_init(l)
+#define AAC_LOCK_AQUIRE(l)	simple_lock(l)
+#define AAC_LOCK_RELEASE(l)	simple_unlock(l)
+#endif
+
 /*
  * Per-controller structure.
  */
@@ -308,7 +327,8 @@ struct aac_softc
     struct aac_qstat		aac_qstat[AACQ_COUNT];	/* queue statistics */
 
     /* connected containters */
-    struct aac_container	aac_container[AAC_MAX_CONTAINERS];
+    struct aac_container_tq	aac_container_tqh;
+    aac_lock_t			aac_container_lock;
 
     /* delayed activity infrastructure */
 #if __FreeBSD_version >= 500005
@@ -322,6 +342,12 @@ struct aac_softc
     struct aac_aif_command	aac_aifq[AAC_AIFQ_LENGTH];
     int				aac_aifq_head;
     int				aac_aifq_tail;
+    struct proc			*aifthread;
+    int				aifflags;
+#define AAC_AIFFLAGS_RUNNING	(1 << 0)
+#define AAC_AIFFLAGS_PENDING	(1 << 1)
+#define	AAC_AIFFLAGS_EXIT	(1 << 2)
+#define AAC_AIFFLAGS_EXITED	(1 << 3)
 };
 
 
@@ -338,6 +364,9 @@ extern void		aac_intr(void *arg);
 extern devclass_t	aac_devclass;
 extern void		aac_submit_bio(struct bio *bp);
 extern void		aac_biodone(struct bio *bp);
+extern int		aac_dump_enqueue(struct aac_disk *ad, u_int32_t lba,
+					 void *data, int nblks);
+extern void		aac_dump_complete(struct aac_softc *sc);
 
 /*
  * Debugging levels:
@@ -370,9 +399,9 @@ extern void	aac_print_aif(struct aac_softc *sc,
 
 # define aac_print_queues(sc)
 # define aac_panic(sc, reason)
-# define aac_print_aif(sc, aif)
 
 # define AAC_PRINT_FIB(sc, fib)
+# define aac_print_aif(sc, aac_aif_command)
 #endif
 
 struct aac_code_lookup {
@@ -516,4 +545,15 @@ aac_dequeue_bio(struct aac_softc *sc)
     }
     splx(s);
     return(bp);
+}
+
+static __inline void
+aac_print_printf(struct aac_softc *sc)
+{
+    if (sc->aac_common->ac_printf[0]) {
+	device_printf(sc->aac_dev, "**Monitor** %.*s", AAC_PRINTF_BUFSIZE,
+		      sc->aac_common->ac_printf);
+	sc->aac_common->ac_printf[0] = 0;
+	AAC_QNOTIFY(sc, AAC_DB_PRINTF);
+    }
 }

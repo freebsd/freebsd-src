@@ -65,7 +65,6 @@ static device_method_t aac_methods[] = {
     DEVMETHOD(device_probe,	aac_pci_probe),
     DEVMETHOD(device_attach,	aac_pci_attach),
     DEVMETHOD(device_detach,	aac_detach),
-    DEVMETHOD(device_shutdown,	aac_shutdown),
     DEVMETHOD(device_suspend,	aac_suspend),
     DEVMETHOD(device_resume,	aac_resume),
 
@@ -99,12 +98,10 @@ struct aac_ident
     {0x1028, 0x0002, 0x1028, 0x00d9, AAC_HWIF_I960RX,    "Dell PERC 3/Di"},
     {0x1028, 0x0008, 0x1028, 0x00cf, AAC_HWIF_I960RX,    "Dell PERC 3/Di"},
     {0x1028, 0x000a, 0x1028, 0x0106, AAC_HWIF_I960RX,    "Dell PERC 3/Di"},
-    {0x9005, 0x0282, 0x9005, 0x0282, AAC_HWIF_I960RX,    "Adaptec AAC-2622"},
     {0x1011, 0x0046, 0x9005, 0x0364, AAC_HWIF_STRONGARM, "Adaptec AAC-364"},
     {0x1011, 0x0046, 0x9005, 0x0365, AAC_HWIF_STRONGARM,
      "Adaptec SCSI RAID 5400S"},
     {0x1011, 0x0046, 0x9005, 0x1364, AAC_HWIF_STRONGARM, "Dell PERC 2/QC"},
-    {0x1011, 0x0046, 0x9005, 0x1365, AAC_HWIF_STRONGARM, "Dell PERC 3/QC"},	/* XXX guess */
     {0x1011, 0x0046, 0x103c, 0x10c2, AAC_HWIF_STRONGARM, "HP NetRaid-4M"},
     {0, 0, 0, 0, 0, 0}
 };
@@ -193,7 +190,10 @@ aac_pci_attach(device_t dev)
 	device_printf(sc->aac_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,
+#if __FreeBSD_version < 500005
+#define INTR_ENTROPY 0
+#endif
+    if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY, 
 		       aac_intr, sc, &sc->aac_intr)) {
 	device_printf(sc->aac_dev, "can't set up interrupt\n");
 	goto out;

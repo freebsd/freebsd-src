@@ -48,7 +48,7 @@ Supported controllers include:
 .It
 AAC-364
 .It
-AAC-3642
+Adaptec SCSI RAID 5400S
 .It
 HP NetRAID 4M
 .It
@@ -86,12 +86,6 @@ Compiling the driver with the
 option enables the Linux-compatible
 .Xr ioctl 2
 interface for the management device.
-The
-.Xr ioctl 2
-command set is heavily tailored to existing Linux applications.
-Native
-.Xr ioctl 2
-support is not present at this time.
 .Ss Tuning
 The read-only sysctl
 .Va hw.aac.iosize_max
@@ -148,13 +142,9 @@ and is
 .An Scott Long
 .Aq scottl@FreeBSD.org
 .Sh BUGS
-This driver has not been tested on Alpha, though it should work.
+This driver will not work on systems with more than 4GB of memory.
 .Pp
 The controller is not actually paused on suspend/resume.
 .Pp
-Adapter-initiated messages are not returned back to the controller,
-possibly causing a resource leak on the controller.
-.Pp
-Unloading and reloading the driver as a kernel loadable module
-without rebooting the system is strongly discouraged.
+Unloading driver is not supported at this time.
 .Pp
