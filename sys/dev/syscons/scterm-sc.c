@@ -145,8 +145,10 @@ scterm_init(scr_stat *scp, void **softc, int code)
 		tcp->esc = 0;
 		tcp->saved_xpos = -1;
 		tcp->saved_ypos = -1;
+#if 0
 		tcp->std_color = tcp->dflt_std_color;
 		tcp->rev_color = tcp->dflt_rev_color;
+#endif
 		tcp->cur_color = tcp->std_color;
 		tcp->cur_attr = mask2attr(tcp);
 		break;
