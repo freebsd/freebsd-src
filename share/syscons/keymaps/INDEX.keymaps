@@ -236,6 +236,10 @@ ru.cp866.kbd:pt:Russo Codepage 866 (alternativo)
 ru.cp866.kbd:es:Ruso Codepage 866 (alternativo)
 ru.cp866.kbd:uk:Рос╕йська CP-866 (альтернативна)
 
+ru.iso5.kbd:en:Russian ISO-8859-5
+ru.iso5.kbd:ru:Русский ISO-8859-5
+ru.iso5.kbd:uk:Рос╕йський ISO-8859-5
+
 ru.koi8-r.kbd:en:Russian koi8-r
 ru.koi8-r.kbd:de:Russisch koi8-r
 ru.koi8-r.kbd:ru:Русский koi8-r
@@ -375,6 +379,10 @@ us.unix.kbd:de:US-amerikanisch traditionelles Unix Layout
 us.unix.kbd:fr:иtats Unis  d'AmИrique unix
 us.unix.kbd:pt:Estados Unidos da AmИrica unix
 us.unix.kbd:es:Estadounidense Unix tradicional
+
+ua.iso5.kbd:en:Ukrainian ISO-8859-5
+ua.iso5.kbd:ru:Украинский ISO-8859-5
+ua.iso5.kbd:uk:Укра╖нська ISO-8859-5
 
 ua.koi8-u.kbd:en:Ukrainian koi8-u
 ua.koi8-u.kbd:uk:Укра╖нська koi8-u
