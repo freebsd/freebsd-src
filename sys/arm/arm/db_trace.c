@@ -138,7 +138,7 @@ db_stack_trace_cmd(db_expr_t addr, int have_addr, db_expr_t count, char *modif)
 	scp_offset = -(get_pc_str_offset() >> 2);
 
 	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	while (count-- && frame != NULL && !quit) {
 		db_addr_t	scp;
 		u_int32_t	savecode;

@@ -238,7 +238,7 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	user = 0;
 	npc = 0;
 	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	while (count-- && !user && !quit) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
 		    sizeof(fp->fr_pc), FALSE);

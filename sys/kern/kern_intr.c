@@ -815,7 +815,7 @@ DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
 	int quit;
 
 	cp = intrnames;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (i = intrcnt, quit = 0; i != eintrcnt && !quit; i++) {
 		if (*cp == '\0')
 			break;
