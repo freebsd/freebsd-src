@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.6 1995/09/07 06:01:35 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.7 1995/12/14 09:52:55 phk Exp $
  *
  *
  */
@@ -20,6 +20,7 @@
 #include "devfsdefs.h"
 
 static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
+static int mountdevfs( struct mount *mp, struct proc *p);
 
 static int
 devfs_init(void)
