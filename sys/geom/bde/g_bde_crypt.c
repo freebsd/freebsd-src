@@ -53,6 +53,8 @@
 #include <geom/bde/g_bde.h>
 
 
+#define MD5_KEY
+
 /*
  * Derive kkey from mkey + sector offset.
  *
@@ -128,8 +130,30 @@ g_bde_crypt_read(struct g_bde_work *wp)
 		g_bde_kkey(sc, &ki, DIR_DECRYPT, wp->offset + o);
 		AES_decrypt(&ci, &ki, d, skey, sizeof skey);
 		d = (u_char *)wp->data + o;
+#ifdef MD5_KEY
+		{
+		MD5_CTX ct;
+		u_char rkey[16];
+		int i;
+
+		MD5Init(&ct);
+		MD5Update(&ct, d, sc->sectorsize);
+		MD5Final(rkey, &ct);
+		if (bcmp(rkey, skey, 16) != 0) {
+#if 0
+			printf("MD5_KEY failed at %jd (t=%d)\n",
+			    (intmax_t)(wp->offset + o), time_second);
+#endif
+			for (i = 0; i < sc->sectorsize; i++)
+				d[i] = 'A' + i % 26;
+			sprintf(d, "MD5_KEY failed at %jd (t=%d)", 
+			    (intmax_t)(wp->offset + o), time_second);
+		}
+		}
+#else
 		AES_makekey(&ki, DIR_DECRYPT, G_BDE_SKEYBITS, skey);
 		AES_decrypt(&ci, &ki, d, d, sc->sectorsize);
+#endif
 	}
 	bzero(skey, sizeof skey);
 	bzero(&ci, sizeof ci);
@@ -161,9 +185,20 @@ g_bde_crypt_write(struct g_bde_work *wp)
 
 		s = (u_char *)wp->data + o;
 		d = (u_char *)wp->sp->data + o;
+#ifdef MD5_KEY
+		{
+		MD5_CTX ct;
+
+		MD5Init(&ct);
+		MD5Update(&ct, s, sc->sectorsize);
+		MD5Final(skey, &ct);
+		bcopy(s, d, sc->sectorsize);
+		}
+#else
 		arc4rand(&skey, sizeof skey, 0);
 		AES_makekey(&ki, DIR_ENCRYPT, G_BDE_SKEYBITS, skey);
 		AES_encrypt(&ci, &ki, s, d, sc->sectorsize);
+#endif
 
 		d = (u_char *)wp->ksp->data + wp->ko + n * G_BDE_SKEYLEN;
 		g_bde_kkey(sc, &ki, DIR_ENCRYPT, wp->offset + o);

@@ -77,7 +77,7 @@
 static void g_bde_delete_sector(struct g_bde_softc *wp, struct g_bde_sector *sp);
 static struct g_bde_sector * g_bde_new_sector(struct g_bde_work *wp, u_int len);
 static void g_bde_release_keysector(struct g_bde_work *wp);
-static struct g_bde_sector *g_bde_get_sector(struct g_bde_work *wp, off_t offset);
+static struct g_bde_sector *g_bde_get_keysector(struct g_bde_work *wp);
 static int g_bde_start_read(struct g_bde_sector *sp);
 static void g_bde_purge_sector(struct g_bde_softc *sc, int fraction);
 
@@ -195,12 +195,14 @@ g_bde_purge_one_sector(struct g_bde_softc *sc, struct g_bde_sector *sp)
 }
 
 static struct g_bde_sector *
-g_bde_get_sector(struct g_bde_work *wp, off_t offset)
+g_bde_get_keysector(struct g_bde_work *wp)
 {
 	struct g_bde_sector *sp;
 	struct g_bde_softc *sc;
+	off_t offset;
 
-	g_trace(G_T_TOPOLOGY, "g_bde_get_sector(%p, %jd)", wp, (intmax_t)offset);
+	offset = wp->kso;
+	g_trace(G_T_TOPOLOGY, "g_bde_get_keysector(%p, %jd)", wp, (intmax_t)offset);
 	sc = wp->softc;
 
 	if (malloc_last_fail() < g_bde_ncache)
@@ -329,10 +331,10 @@ g_bde_read_keysector(struct g_bde_softc *sc, struct g_bde_work *wp)
 	struct g_bde_sector *sp;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_read_keysector(%p)", wp);
-	sp = g_bde_get_sector(wp, wp->kso);
+	sp = g_bde_get_keysector(wp);
 	if (sp == NULL) {
 		g_bde_purge_sector(sc, -1);
-		sp = g_bde_get_sector(wp, wp->kso);
+		sp = g_bde_get_keysector(wp);
 	}
 	if (sp == NULL)
 		return (sp);
