@@ -1179,7 +1179,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 			case O_XMIT:
 			case O_RECV:
-			case O_VIA: {
+			case O_VIA:
+			    {
 				char const *s;
 				ipfw_insn_if *cmdif = (ipfw_insn_if *)cmd;
 
@@ -1192,10 +1193,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				if (cmdif->name[0] == '\0')
 					printf(" %s %s", s,
 					    inet_ntoa(cmdif->p.ip));
-				printf(" %s %s", s, cmdif->name);
-				}
-				break;
+				else
+					printf(" %s %s", s, cmdif->name);
 
+				break;
+			    }
 			case O_IPID:
 				if (F_LEN(cmd) == 1)
 				    printf(" ipid %u", cmd->arg1 );
