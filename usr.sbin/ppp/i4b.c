@@ -122,17 +122,17 @@ i4b_Timeout(void *data)
     /* First time looking for carrier */
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
-    else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
+    else if (++dev->carrier_seconds >= dev->dev.cd.delay) {
       log_Printf(LogPHASE, "%s: %s: No carrier"
                  " (increase ``set cd'' from %d ?)\n",
-                 p->link.name, p->name.full, p->cfg.cd.delay);
+                 p->link.name, p->name.full, dev->dev.cd.delay);
       timer_Stop(&dev->Timer);
       /* i4b_AwaitCarrier() will notice */
     } else {
       /* Keep waiting */
       log_Printf(LogDEBUG, "%s: %s: Still no carrier (%d/%d)\n",
                  p->link.name, p->name.full, dev->carrier_seconds,
-                 p->cfg.cd.delay);
+                 dev->dev.cd.delay);
       dev->mbits = -1;
     }
   } else {
@@ -269,7 +269,7 @@ i4b_OpenInfo(struct physical *p)
 
 static void
 i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   struct i4bdevice *dev = device2i4b(d);
   int sz = physical_MaxDeviceSize();
@@ -291,6 +291,7 @@ i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
 static struct device basei4bdevice = {
   I4B_DEVICE,
   "i4b",
+  { CD_REQUIRED, DEF_I4BCDDELAY },
   i4b_AwaitCarrier,
   NULL,
   i4b_Raw,
@@ -338,7 +339,7 @@ struct device *
 i4b_Create(struct physical *p)
 {
   struct i4bdevice *dev;
-  int oldflag;
+  int oldflag, dial;
   msg_vr_req_t req;
   telno_t number;
 
@@ -356,9 +357,12 @@ i4b_Create(struct physical *p)
     log_Printf(LogDEBUG, "%s: Input is an i4b version %d.%d.%d isdn "
                "device (%s)\n", p->link.name, req.version, req.release,
                req.step, p->name.full);
-  } else
+    dial = 0;
+  } else {
     log_Printf(LogDEBUG, "%s: Opened %s (i4b version %d.%d.%d)\n",
                p->link.name, p->name.full, req.version, req.release, req.step);
+    dial = 1;
+  }
 
   /* We're gonna return an i4bdevice (unless something goes horribly wrong) */
 
@@ -372,6 +376,20 @@ i4b_Create(struct physical *p)
   memcpy(&dev->dev, &basei4bdevice, sizeof dev->dev);
   memset(&dev->Timer, '\0', sizeof dev->Timer);
   dev->mbits = -1;
+
+  switch (p->cfg.cd.necessity) {
+    case CD_VARIABLE:
+      dev->dev.cd.delay = p->cfg.cd.delay;
+      break;
+    case CD_REQUIRED:
+      dev->dev.cd = p->cfg.cd;
+      break;
+    case CD_NOTREQUIRED:
+      log_Printf(LogWARN, "%s: Carrier must be set, using ``set cd %d!''\n",
+                 p->link.name, dev->dev.cd.delay);
+    case CD_DEFAULT:
+      break;
+  }
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0) {
@@ -387,9 +405,13 @@ i4b_Create(struct physical *p)
   } else
     fcntl(p->fd, F_SETFL, oldflag & ~O_NONBLOCK);
 
-  strncpy(number, datalink_ChoosePhoneNumber(p->dl), sizeof number - 1);
-  number[sizeof number - 1] = '\0';
-  if (ioctl(p->fd, I4B_RBCH_DIALOUT, number) == -1) {
+  if (dial) {
+    strncpy(number, datalink_ChoosePhoneNumber(p->dl), sizeof number - 1);
+    number[sizeof number - 1] = '\0';
+    if (number[0] == '\0')
+      dial = 0;
+  }
+  if (dial && ioctl(p->fd, I4B_RBCH_DIALOUT, number) == -1) {
     /* Complete failure - parent doesn't continue trying to ``create'' */
 
     log_Printf(LogWARN, "%s: ioctl(I4B_RBCH_DIALOUT): %s\n",

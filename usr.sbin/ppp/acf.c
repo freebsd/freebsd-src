@@ -62,8 +62,8 @@ acf_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
   const u_char cp[2] = { HDLC_ADDR, HDLC_UI };
 
   if (*proto == PROTO_LCP || l->lcp.his_acfcomp == 0) {
-    bp = mbuf_Prepend(bp, cp, 2, 0);
-    mbuf_SetType(bp, MB_ACFOUT);
+    bp = m_prepend(bp, cp, 2, 0);
+    m_settype(bp, MB_ACFOUT);
   }
 
   return bp;
@@ -88,24 +88,24 @@ acf_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
         p->hdlc.lqm.SaveInErrors++;
         p->hdlc.stats.badaddr++;
         log_Printf(LogDEBUG, "acf_LayerPull: addr 0x%02x\n", cp[0]);
-        mbuf_Free(bp);
+        m_freem(bp);
         return NULL;
       }
       if (cp[1] != HDLC_UI) {
         p->hdlc.lqm.SaveInErrors++;
         p->hdlc.stats.badcommand++;
         log_Printf(LogDEBUG, "acf_LayerPull: control 0x%02x\n", cp[1]);
-        mbuf_Free(bp);
+        m_freem(bp);
         return NULL;
       }
-      mbuf_SetType(bp, MB_ACFIN);
+      m_settype(bp, MB_ACFIN);
     } else if (cp[0] == HDLC_ADDR && cp[1] == HDLC_UI) {
       /*
        * We can receive compressed packets, but the peer still sends
        * uncompressed packets (or maybe this is a PROTO_LCP packet) !
        */
       bp = mbuf_Read(bp, cp, 2);
-      mbuf_SetType(bp, MB_ACFIN);
+      m_settype(bp, MB_ACFIN);
     }
   }
 

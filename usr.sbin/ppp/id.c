@@ -38,6 +38,7 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>     /* setproctitle() under OpenBSD (+NetBSD ?)*/
 #include <string.h>
 #include <sysexits.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)

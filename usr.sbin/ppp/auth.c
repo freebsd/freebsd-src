@@ -104,18 +104,21 @@ int
 auth_SetPhoneList(const char *name, char *phone, int phonelen)
 {
   FILE *fp;
-  int n;
+  int n, lineno;
   char *vector[6];
   char buff[LINE_LEN];
 
   fp = OpenSecret(SECRETFILE);
+  lineno = 0;
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
+      lineno++;
       if (buff[0] == '#')
         continue;
       buff[strlen(buff) - 1] = '\0';
       memset(vector, '\0', sizeof vector);
-      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
+        log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 5)
         continue;
       if (strcmp(vector[0], name) == 0) {
@@ -137,7 +140,7 @@ int
 auth_Select(struct bundle *bundle, const char *name)
 {
   FILE *fp;
-  int n;
+  int n, lineno;
   char *vector[5];
   char buff[LINE_LEN];
 
@@ -157,13 +160,16 @@ auth_Select(struct bundle *bundle, const char *name)
 #endif
 
   fp = OpenSecret(SECRETFILE);
+  lineno = 0;
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
+      lineno++;
       if (buff[0] == '#')
         continue;
       buff[strlen(buff) - 1] = '\0';
       memset(vector, '\0', sizeof vector);
-      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
+        log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 2)
         continue;
       if (strcmp(vector[0], name) == 0) {
@@ -208,18 +214,21 @@ auth_Validate(struct bundle *bundle, const char *name,
   /* Used by PAP routines */
 
   FILE *fp;
-  int n;
+  int n, lineno;
   char *vector[5];
   char buff[LINE_LEN];
 
   fp = OpenSecret(SECRETFILE);
+  lineno = 0;
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
+      lineno++;
       if (buff[0] == '#')
         continue;
       buff[strlen(buff) - 1] = 0;
       memset(vector, '\0', sizeof vector);
-      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
+        log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 2)
         continue;
       if (strcmp(vector[0], name) == 0) {
@@ -245,7 +254,7 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   /* Used by CHAP routines */
 
   FILE *fp;
-  int n;
+  int n, lineno;
   char *vector[5];
   static char buff[LINE_LEN];	/* vector[] will point here when returned */
 
@@ -253,14 +262,17 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   if (fp == NULL)
     return (NULL);
 
+  lineno = 0;
   while (fgets(buff, sizeof buff, fp)) {
+    lineno++;
     if (buff[0] == '#')
       continue;
     n = strlen(buff) - 1;
     if (buff[n] == '\n')
       buff[n] = '\0';	/* Trim the '\n' */
     memset(vector, '\0', sizeof vector);
-    n = MakeArgs(buff, vector, VECSIZE(vector));
+    if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
+      log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], name, len) == 0) {
@@ -327,7 +339,7 @@ auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
 {
   int len;
 
-  len = mbuf_Length(bp);
+  len = m_length(bp);
   if (len >= sizeof authp->in.hdr) {
     bp = mbuf_Read(bp, (u_char *)&authp->in.hdr, sizeof authp->in.hdr);
     if (len >= ntohs(authp->in.hdr.length))
@@ -341,7 +353,7 @@ auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
                (int)(sizeof authp->in.hdr), len);
   }
 
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }
 
@@ -351,7 +363,7 @@ auth_ReadName(struct authinfo *authp, struct mbuf *bp, int len)
   if (len > sizeof authp->in.name - 1)
     log_Printf(LogWARN, "auth_ReadName: Name too long (%d) !\n", len);
   else {
-    int mlen = mbuf_Length(bp);
+    int mlen = m_length(bp);
 
     if (len > mlen)
       log_Printf(LogWARN, "auth_ReadName: Short packet (%d > %d) !\n",
@@ -364,6 +376,6 @@ auth_ReadName(struct authinfo *authp, struct mbuf *bp, int len)
   }
 
   *authp->in.name = '\0';
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }

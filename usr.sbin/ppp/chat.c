@@ -72,6 +72,7 @@
 #include "radius.h"
 #endif
 #include "bundle.h"
+#include "id.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
 
@@ -132,7 +133,7 @@ chat_NextChar(char *ptr, char ch)
 }
 
 static int
-chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+chat_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct chat *c = descriptor2chat(d);
   int special, gotabort, gottimeout, needcr;
@@ -315,7 +316,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-chat_IsSet(struct descriptor *d, const fd_set *fdset)
+chat_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
   return c->argptr && physical_IsSet(&c->physical->desc, fdset);
@@ -364,7 +365,7 @@ chat_UpdateLog(struct chat *c, int in)
 }
 
 static void
-chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chat_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
 
@@ -478,7 +479,7 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chat_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
   int result = 0;
@@ -550,7 +551,7 @@ chat_Init(struct chat *c, struct physical *p)
   memset(&c->timeout, '\0', sizeof c->timeout);
 }
 
-void
+int
 chat_Setup(struct chat *c, const char *data, const char *phone)
 {
   c->state = CHAT_EXPECT;
@@ -561,7 +562,7 @@ chat_Setup(struct chat *c, const char *data, const char *phone)
   } else {
     strncpy(c->script, data, sizeof c->script - 1);
     c->script[sizeof c->script - 1] = '\0';
-    c->argc =  MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+    c->argc = MakeArgs(c->script, c->argv, VECSIZE(c->argv), PARSE_NOHASH);
   }
 
   c->arg = -1;
@@ -575,6 +576,8 @@ chat_Setup(struct chat *c, const char *data, const char *phone)
 
   timer_Stop(&c->pause);
   timer_Stop(&c->timeout);
+
+  return c->argc >= 0;
 }
 
 void
@@ -700,7 +703,13 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   int stat, nb, argc, i;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
-  argc = MakeArgs(command, vector, VECSIZE(vector));
+  if ((argc = MakeArgs(command, vector, VECSIZE(vector),
+                       PARSE_REDUCE|PARSE_NOHASH)) <= 0) {
+    if (argc < 0)
+      log_Printf(LogWARN, "Syntax error in exec command\n");
+    *out = '\0';
+    return;
+  }
   command_Expand(argv, argc, (char const *const *)vector,
                  physical->dl->bundle, 0, getpid());
 
@@ -723,7 +732,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
       open(_PATH_DEVNULL, O_RDWR);	/* Leave it closed if it fails... */
     for (i = getdtablesize(); i > 3; i--)
       fcntl(i, F_SETFD, 1);
-    setuid(geteuid());
+    setuid(ID0realuid());
     execvp(argv[0], argv);
     fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
     _exit(127);

@@ -19,7 +19,7 @@
  *
  * $FreeBSD$
  *
- *	TODO: Shoud send ICMP error message when we discard packets.
+ *	TODO: Should send ICMP error message when we discard packets.
  */
 
 #include <sys/param.h>
@@ -102,13 +102,18 @@ ParseAddr(struct ipcp *ipcp, const char *data,
     *paddr = ipcp->peer_ip;
   else if (ipcp && strncasecmp(data, "MYADDR", len) == 0)
     *paddr = ipcp->my_ip;
-  else if (len > 15)
-    log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", data);
+  else if (ipcp && strncasecmp(data, "DNS0", len) == 0)
+    *paddr = ipcp->ns.dns[0];
+  else if (ipcp && strncasecmp(data, "DNS1", len) == 0)
+    *paddr = ipcp->ns.dns[1];
   else {
-    char s[16];
+    char *s;
+
+    s = (char *)alloca(len + 1);
     strncpy(s, data, len);
     s[len] = '\0';
-    if (inet_aton(s, paddr) == 0) {
+    *paddr = GetIpAddr(s);
+    if (paddr->s_addr == INADDR_NONE) {
       log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
       return 0;
     }
@@ -320,6 +325,10 @@ addrtype(const char *addr)
     return T_MYADDR;
   if (!strncasecmp(addr, "HISADDR", 7) && (addr[7] == '\0' || addr[7] == '/'))
     return T_HISADDR;
+  if (!strncasecmp(addr, "DNS0", 4) && (addr[4] == '\0' || addr[4] == '/'))
+    return T_DNS0;
+  if (!strncasecmp(addr, "DNS1", 4) && (addr[4] == '\0' || addr[4] == '/'))
+    return T_DNS1;
 
   return T_ADDR;
 }
@@ -332,6 +341,10 @@ addrstr(struct in_addr addr, unsigned type)
       return "MYADDR";
     case T_HISADDR:
       return "HISADDR";
+    case T_DNS0:
+      return "DNS0";
+    case T_DNS1:
+      return "DNS1";
   }
   return inet_ntoa(addr);
 }
@@ -533,7 +546,7 @@ filter_Set(struct cmdargs const *arg)
 const char *
 filter_Action2Nam(int act)
 {
-  static const char *actname[] = { "  none ", "permit ", "  deny " };
+  static const char * const actname[] = { "  none ", "permit ", "  deny " };
   static char	buf[8];
 
   if (act >= 0 && act < MAXFILTERS) {
@@ -618,7 +631,7 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = {
+static const char * const protoname[] = {
   "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre"
 };
 
@@ -645,7 +658,7 @@ filter_Nam2Proto(int argc, char const *const *argv)
   return proto;
 }
 
-static const char *opname[] = {"none", "eq", "gt", "lt"};
+static const char * const opname[] = {"none", "eq", "gt", "lt"};
 
 const char *
 filter_Op2Nam(int op)
@@ -670,7 +683,7 @@ filter_Nam2Op(const char *cp)
 
 void
 filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
-                  struct in_addr *peer_ip)
+                  struct in_addr *peer_ip, struct in_addr dns[2])
 {
   struct filterent *fp;
   int n;
@@ -688,6 +701,16 @@ filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
           fp->f_src.ipaddr = *peer_ip;
         if (fp->f_dsttype == T_HISADDR)
           fp->f_dst.ipaddr = *peer_ip;
+      }
+      if (dns) {
+        if (fp->f_srctype == T_DNS0)
+          fp->f_src.ipaddr = dns[0];
+        if (fp->f_dsttype == T_DNS0)
+          fp->f_dst.ipaddr = dns[0];
+        if (fp->f_srctype == T_DNS1)
+          fp->f_src.ipaddr = dns[1];
+        if (fp->f_dsttype == T_DNS1)
+          fp->f_dst.ipaddr = dns[1];
       }
     }
 }

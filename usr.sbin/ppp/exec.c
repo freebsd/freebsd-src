@@ -62,11 +62,13 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
+#include "id.h"
 #include "exec.h"
 
 static struct device execdevice = {
   EXEC_DEVICE,
   "exec",
+  { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,
   NULL,
@@ -106,7 +108,8 @@ exec_Create(struct physical *p)
       log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
 	         strerror(errno));
     else {
-      int stat, argc, i;
+      static int child_status;
+      int stat, argc, i, ret, wret;
       pid_t pid, realpid;
       char *argv[MAXARGS];
 
@@ -120,25 +123,40 @@ exec_Create(struct physical *p)
         case -1:
           log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
 	             strerror(errno));
+          close(fids[1]);
           break;
 
         case  0:
           close(fids[0]);
           timer_TermService();
-          setuid(geteuid());
+          setuid(ID0realuid());
 
-          switch (fork()) {
+          child_status = 0;
+          switch (vfork()) {
             case 0:
               break;
 
             case -1:
+              ret = errno;
               log_Printf(LogPHASE, "Unable to fork to drop parent: %s\n",
 	                 strerror(errno));
+              _exit(ret);
+              break;
+
             default:
-              _exit(127);
+              _exit(child_status);	/* The error from exec() ! */
           }
 
           log_Printf(LogDEBUG, "Exec'ing ``%s''\n", p->name.base);
+
+          if ((argc = MakeArgs(p->name.base, argv, VECSIZE(argv),
+                               PARSE_REDUCE|PARSE_NOHASH)) < 0) {
+            log_Printf(LogWARN, "Syntax error in exec command\n");
+            _exit(ESRCH);
+          }
+
+          command_Expand(argv, argc, (char const *const *)argv,
+                         p->dl->bundle, 0, realpid);
 
           dup2(fids[1], STDIN_FILENO);
           dup2(fids[1], STDOUT_FILENO);
@@ -146,22 +164,44 @@ exec_Create(struct physical *p)
           for (i = getdtablesize(); i > STDERR_FILENO; i--)
             fcntl(i, F_SETFD, 1);
 
-          argc = MakeArgs(p->name.base, argv, VECSIZE(argv));
-          command_Expand(argv, argc, (char const *const *)argv,
-                         p->dl->bundle, 0, realpid);
           execvp(*argv, argv);
-          printf("execvp failed: %s: %s\r\n", *argv, strerror(errno));
-          _exit(127);
+          child_status = errno;		/* Only works for vfork() */
+          printf("execvp failed: %s: %s\r\n", *argv, strerror(child_status));
+          _exit(child_status);
           break;
 
         default:
           close(fids[1]);
+          while ((wret = waitpid(pid, &stat, 0)) == -1 && errno == EINTR)
+            ;
+          if (wret == -1) {
+            log_Printf(LogWARN, "Waiting for child process: %s\n",
+                       strerror(errno));
+            close(fids[0]);
+            break;
+          } else if (WIFSIGNALED(stat)) {
+            log_Printf(LogWARN, "Child process received sig %d !\n",
+                       WTERMSIG(stat));
+            close(fids[0]);
+            break;
+          } else if (WIFSTOPPED(stat)) {
+            log_Printf(LogWARN, "Child process received stop sig %d !\n",
+                       WSTOPSIG(stat));
+            /* I guess that's ok.... */
+          } else if ((ret = WEXITSTATUS(stat))) {
+            log_Printf(LogWARN, "Cannot exec \"%s\": %s\n", p->name.base,
+                       strerror(ret));
+            close(fids[0]);
+            break;
+          }
           p->fd = fids[0];
-          waitpid(pid, &stat, 0);
           log_Printf(LogDEBUG, "Using descriptor %d for child\n", p->fd);
           physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
+          if (p->cfg.cd.necessity != CD_DEFAULT)
+            log_Printf(LogWARN, "Carrier settings ignored\n");
           return &execdevice;
       }
+      close(fids[0]);
     }
   }
 

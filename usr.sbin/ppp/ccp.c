@@ -90,43 +90,43 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpRecvResetAck
 };
 
-static const char *ccp_TimerNames[] =
+static const char * const ccp_TimerNames[] =
   {"CCP restart", "CCP openmode", "CCP stopped"};
-
-static char const *cftypes[] = {
-  /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
-  "OUI",		/* 0: OUI */
-  "PRED1",		/* 1: Predictor type 1 */
-  "PRED2",		/* 2: Predictor type 2 */
-  "PUDDLE",		/* 3: Puddle Jumber */
-  "???", "???", "???", "???", "???", "???",
-  "???", "???", "???", "???", "???", "???",
-  "HWPPC",		/* 16: Hewlett-Packard PPC */
-  "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
-  "MPPC",		/* 18: Microsoft PPC (rfc2118) */
-  "GAND",		/* 19: Gandalf FZA (rfc1993) */
-  "V42BIS",		/* 20: ARG->DATA.42bis compression */
-  "BSD",		/* 21: BSD LZW Compress */
-  "???",
-  "LZS-DCP",		/* 23: LZS-DCP Compression Protocol (rfc1967) */
-  "MAGNALINK/DEFLATE",	/* 24: Magnalink Variable Resource (rfc1975) */
-			/* 24: Deflate (according to pppd-2.3.*) */
-  "DCE",		/* 25: Data Circuit-Terminating Equip (rfc1976) */
-  "DEFLATE",		/* 26: Deflate (rfc1979) */
-};
-
-#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
 static const char *
 protoname(int proto)
 {
-  if (proto < 0 || proto > NCFTYPES)
-    return "none";
+  static char const * const cftypes[] = {
+    /* Check out the latest ``Compression Control Protocol'' rfc (1962) */
+    "OUI",		/* 0: OUI */
+    "PRED1",		/* 1: Predictor type 1 */
+    "PRED2",		/* 2: Predictor type 2 */
+    "PUDDLE",		/* 3: Puddle Jumber */
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    "HWPPC",		/* 16: Hewlett-Packard PPC */
+    "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
+    "MPPC",		/* 18: Microsoft PPC (rfc2118) */
+    "GAND",		/* 19: Gandalf FZA (rfc1993) */
+    "V42BIS",		/* 20: ARG->DATA.42bis compression */
+    "BSD",		/* 21: BSD LZW Compress */
+    NULL,
+    "LZS-DCP",		/* 23: LZS-DCP Compression Protocol (rfc1967) */
+    "MAGNALINK/DEFLATE",/* 24: Magnalink Variable Resource (rfc1975) */
+			/* 24: Deflate (according to pppd-2.3.*) */
+    "DCE",		/* 25: Data Circuit-Terminating Equip (rfc1976) */
+    "DEFLATE",		/* 26: Deflate (rfc1979) */
+  };
+
+  if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
+      cftypes[proto] == NULL)
+    return HexStr(proto, NULL, 0);
+
   return cftypes[proto];
 }
 
 /* We support these algorithms, and Req them in the given order */
-static const struct ccp_algorithm *algorithm[] = {
+static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm
@@ -441,10 +441,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     if (end == NULL)
       end = "";
 
-    if (type < NCFTYPES)
-      log_Printf(LogCCP, " %s[%d] %s\n", cftypes[type], length, end);
-    else
-      log_Printf(LogCCP, " ???[%d] %s\n", length, end);
+    log_Printf(LogCCP, " %s[%d] %s\n", protoname(type), length, end);
 
     if (f == -1) {
       /* Don't understand that :-( */
@@ -534,14 +531,14 @@ extern struct mbuf *
 ccp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
-  mbuf_SetType(bp, MB_CCPIN);
+  m_settype(bp, MB_CCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&l->ccp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
                  l->ccp.fsm.link->name, bundle_PhaseName(bundle));
-    mbuf_Free(bp);
+    m_freem(bp);
   }
   return NULL;
 }
@@ -584,10 +581,10 @@ ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
            (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
     switch (*proto) {
       case PROTO_ICOMPD:
-        mbuf_SetType(bp, MB_ICOMPDOUT);
+        m_settype(bp, MB_ICOMPDOUT);
         break;
       case PROTO_COMPD:
-        mbuf_SetType(bp, MB_COMPDOUT);
+        m_settype(bp, MB_COMPDOUT);
         break;
     }
   }
@@ -616,15 +613,15 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
                (l->ccp.in.state, &l->ccp, proto, bp);
         switch (*proto) {
           case PROTO_ICOMPD:
-            mbuf_SetType(bp, MB_ICOMPDIN);
+            m_settype(bp, MB_ICOMPDIN);
             break;
           case PROTO_COMPD:
-            mbuf_SetType(bp, MB_COMPDIN);
+            m_settype(bp, MB_COMPDIN);
             break;
         }
         return bp;
       }
-      mbuf_Free(bp);
+      m_freem(bp);
       bp = NULL;
     } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL) {
       log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet (dict only)\n");

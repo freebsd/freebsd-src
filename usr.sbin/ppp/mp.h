@@ -56,11 +56,11 @@ struct enddisc {
 
 struct peerid {
   struct enddisc enddisc;	/* Peers endpoint discriminator */
-  char authname[50];		/* Peers name (authenticated) */
+  char authname[AUTHLEN];	/* Peers name (authenticated) */
 };
 
 struct mpserver {
-  struct descriptor desc;
+  struct fdescriptor desc;
   int fd;			/* listen()ing or connect()ing here */
   struct sockaddr_un socket;	/* On this socket */
 

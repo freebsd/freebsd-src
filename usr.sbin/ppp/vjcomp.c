@@ -66,7 +66,7 @@ vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
   struct ip *pip;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
 
-  bp = mbuf_Contiguous(bp);
+  bp = m_pullup(bp);
   pip = (struct ip *)MBUF_CTOP(bp);
   if (*proto == PROTO_IP && pip->ip_p == IPPROTO_TCP &&
       cproto == PROTO_VJCOMP) {
@@ -81,18 +81,18 @@ vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
     case TYPE_UNCOMPRESSED_TCP:
       *proto = PROTO_VJUNCOMP;
       log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
-      mbuf_SetType(bp, MB_VJOUT);
+      m_settype(bp, MB_VJOUT);
       break;
 
     case TYPE_COMPRESSED_TCP:
       *proto = PROTO_VJCOMP;
       log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
-      mbuf_SetType(bp, MB_VJOUT);
+      m_settype(bp, MB_VJOUT);
       break;
 
     default:
       log_Printf(LogERROR, "vj_LayerPush: Unknown frame type %x\n", type);
-      mbuf_Free(bp);
+      m_freem(bp);
       return NULL;
     }
   }
@@ -105,11 +105,10 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
 {
   u_char *bufp;
   int len, olen, rlen;
-  struct mbuf *nbp;
   u_char work[MAX_HDR + MAX_VJHEADER];	/* enough to hold TCP/IP header */
 
-  bp = mbuf_Contiguous(bp);
-  olen = len = mbuf_Length(bp);
+  bp = m_pullup(bp);
+  olen = len = m_length(bp);
   if (type == TYPE_UNCOMPRESSED_TCP) {
     /*
      * Uncompressed packet does NOT change its size, so that we can use mbuf
@@ -119,10 +118,10 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
     len = sl_uncompress_tcp(&bufp, len, type, &ipcp->vj.cslc, &ipcp->vj.slstat,
                             (ipcp->my_compproto >> 8) & 255);
     if (len <= 0) {
-      mbuf_Free(bp);
+      m_freem(bp);
       bp = NULL;
     } else
-      mbuf_SetType(bp, MB_VJIN);
+      m_settype(bp, MB_VJIN);
     return bp;
   }
 
@@ -139,16 +138,16 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
   len = sl_uncompress_tcp(&bufp, olen, type, &ipcp->vj.cslc, &ipcp->vj.slstat,
                           (ipcp->my_compproto >> 8) & 255);
   if (len <= 0) {
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
   len -= olen;
   len += rlen;
-  nbp = mbuf_Alloc(len, MB_VJIN);
-  memcpy(MBUF_CTOP(nbp), bufp, len);
-  mbuf_SetType(bp, MB_VJIN);
-  nbp->next = bp;
-  return nbp;
+
+  bp = m_prepend(bp, bufp, len, 0);
+  m_settype(bp, MB_VJIN);
+
+  return bp;
 }
 
 static struct mbuf *

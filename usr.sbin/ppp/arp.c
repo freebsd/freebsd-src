@@ -68,6 +68,7 @@
 #include "radius.h"
 #endif
 #include "bundle.h"
+#include "iface.h"
 #include "arp.h"
 
 /*
@@ -225,14 +226,13 @@ arp_ClearProxy(struct bundle *bundle, struct in_addr addr, int s)
 int
 get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 {
-  int mib[6], sa_len, skip, b;
+  int mib[6], skip;
   size_t needed;
   char *buf, *ptr, *end;
   struct if_msghdr *ifm;
   struct ifa_msghdr *ifam;
-  struct sockaddr *sa;
   struct sockaddr_dl *dl;
-  struct sockaddr_in *ifa, *mask;
+  struct sockaddr *sa[RTAX_MAX];
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
@@ -269,7 +269,6 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
       ifam = (struct ifa_msghdr *)ptr;	/* Next ifa_msghdr (alias) */
       if (ifam->ifam_type != RTM_NEWADDR)	/* finished ? */
         break;
-      sa = (struct sockaddr *)(ifam+1);	/* pile of sa's at end */
       ptr += ifam->ifam_msglen;
       if (skip || (ifam->ifam_addrs & (RTA_NETMASK|RTA_IFA)) !=
           (RTA_NETMASK|RTA_IFA))
@@ -279,43 +278,32 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
           ptr == (char *)ifm + ifm->ifm_msglen + ifam->ifam_msglen)
         log_Printf(LogDEBUG, "%.*s interface is a candidate for proxy\n",
                   dl->sdl_nlen, dl->sdl_data);
-      b = 1;
-      ifa = mask = NULL;
-      while (b < (RTA_NETMASK|RTA_IFA) && sa < (struct sockaddr *)ptr) {
-        switch (b) {
-        case RTA_IFA:
-          ifa = (struct sockaddr_in *)sa;
-          break;
-        case RTA_NETMASK:
-          /*
-           * Careful here !  this sockaddr doesn't have sa_family set to 
-           * AF_INET, and is only 8 bytes big !  I have no idea why !
-           */
-          mask = (struct sockaddr_in *)sa;
-          break;
+
+      iface_ParseHdr(ifam, sa);
+
+      if (sa[RTAX_IFA]->sa_family == AF_INET) {
+        struct sockaddr_in *ifa, *netmask;
+
+        ifa = (struct sockaddr_in *)sa[RTAX_IFA];
+        netmask = (struct sockaddr_in *)sa[RTAX_NETMASK];
+
+        if (log_IsKept(LogDEBUG)) {
+          char a[16];
+
+          strncpy(a, inet_ntoa(netmask->sin_addr), sizeof a - 1);
+          a[sizeof a - 1] = '\0';
+          log_Printf(LogDEBUG, "Check addr %s, mask %s\n",
+                     inet_ntoa(ifa->sin_addr), a);
         }
-        if (ifam->ifam_addrs & b) {
-#define ALN sizeof(ifa->sin_addr.s_addr)
-          sa_len = sa->sa_len > 0 ? ((sa->sa_len-1)|(ALN-1))+1 : ALN;
-          sa = (struct sockaddr *)((char *)sa + sa_len);
+
+        if ((ifa->sin_addr.s_addr & netmask->sin_addr.s_addr) ==
+            (ipaddr.s_addr & netmask->sin_addr.s_addr)) {
+          log_Printf(LogPHASE, "Found interface %.*s for %s\n",
+                    dl->sdl_alen, dl->sdl_data, inet_ntoa(ipaddr));
+          memcpy(hwaddr, dl, dl->sdl_len);
+          free(buf);
+          return 1;
         }
-        b <<= 1;
-      }
-      if (log_IsKept(LogDEBUG)) {
-        char a[16];
-        strncpy(a, inet_ntoa(mask->sin_addr), sizeof a - 1);
-        a[sizeof a - 1] = '\0';
-        log_Printf(LogDEBUG, "Check addr %s, mask %s\n",
-                  inet_ntoa(ifa->sin_addr), a);
-      }
-      if (ifa->sin_family == AF_INET &&
-          (ifa->sin_addr.s_addr & mask->sin_addr.s_addr) ==
-          (ipaddr.s_addr & mask->sin_addr.s_addr)) {
-        log_Printf(LogPHASE, "Found interface %.*s for %s\n",
-                  dl->sdl_alen, dl->sdl_data, inet_ntoa(ipaddr));
-        memcpy(hwaddr, dl, dl->sdl_len);
-        free(buf);
-        return 1;
       }
     }
   }

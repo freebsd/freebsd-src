@@ -38,16 +38,18 @@
 #include <resolv.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 
 #ifndef NONAT
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
 #endif
+
 #include "layer.h"
 #include "ua.h"
 #include "defs.h"
@@ -208,26 +210,30 @@ static struct fsm_callbacks ipcp_Callbacks = {
   fsm_NullRecvResetAck
 };
 
-static const char *cftypes[] = {
-  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
-  "???",
-  "IPADDRS",	/* 1: IP-Addresses */	/* deprecated */
-  "COMPPROTO",	/* 2: IP-Compression-Protocol */
-  "IPADDR",	/* 3: IP-Address */
-};
+static const char *
+protoname(int proto)
+{
+  static struct {
+    int id;
+    const char *txt;
+  } cftypes[] = {
+    /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+    { 1, "IPADDRS" },		/* IP-Addresses */	/* deprecated */
+    { 2, "COMPPROTO" },		/* IP-Compression-Protocol */
+    { 3, "IPADDR" },		/* IP-Address */
+    { 129, "PRIDNS" },		/* 129: Primary DNS Server Address */
+    { 130, "PRINBNS" },		/* 130: Primary NBNS Server Address */
+    { 131, "SECDNS" },		/* 131: Secondary DNS Server Address */
+    { 132, "SECNBNS" }		/* 132: Secondary NBNS Server Address */
+  };
+  int f;
 
-#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
+  for (f = 0; f < sizeof cftypes / sizeof *cftypes; f++)
+    if (cftypes[f].id == proto)
+      return cftypes[f].txt;
 
-static const char *cftypes128[] = {
-  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
-  "???",
-  "PRIDNS",	/* 129: Primary DNS Server Address */
-  "PRINBNS",	/* 130: Primary NBNS Server Address */
-  "SECDNS",	/* 131: Secondary DNS Server Address */
-  "SECNBNS",	/* 132: Secondary NBNS Server Address */
-};
-
-#define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
+  return NumStr(proto, NULL, 0);
+}
 
 void
 ipcp_AddInOctets(struct ipcp *ipcp, int n)
@@ -241,116 +247,177 @@ ipcp_AddOutOctets(struct ipcp *ipcp, int n)
   throughput_addout(&ipcp->throughput, n);
 }
 
-static void
-getdns(struct ipcp *ipcp, struct in_addr addr[2])
+void
+ipcp_LoadDNS(struct ipcp *ipcp)
 {
-  FILE *fp;
+  int fd;
 
-  addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
-  if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
-    char buf[LINE_LEN], *cp, *end;
-    int n;
+  ipcp->ns.dns[0].s_addr = ipcp->ns.dns[1].s_addr = INADDR_NONE;
 
-    n = 0;
-    buf[sizeof buf - 1] = '\0';
-    while (fgets(buf, sizeof buf - 1, fp)) {
-      if (!strncmp(buf, "nameserver", 10) && issep(buf[10])) {
-        for (cp = buf + 11; issep(*cp); cp++)
-          ;
-        for (end = cp; isip(*end); end++)
-          ;
-        *end = '\0';
-        if (inet_aton(cp, addr+n) && ++n == 2)
-          break;
+  if (ipcp->ns.resolv != NULL) {
+    free(ipcp->ns.resolv);
+    ipcp->ns.resolv = NULL;
+  }
+  if (ipcp->ns.resolv_nons != NULL) {
+    free(ipcp->ns.resolv_nons);
+    ipcp->ns.resolv_nons = NULL;
+  }
+  ipcp->ns.resolver = 0;
+
+  if ((fd = open(_PATH_RESCONF, O_RDONLY)) != -1) {
+    struct stat st;
+
+    if (fstat(fd, &st) == 0) {
+      ssize_t got;
+
+      if ((ipcp->ns.resolv_nons = (char *)malloc(st.st_size + 1)) == NULL)
+        log_Printf(LogERROR, "Failed to malloc %lu for %s: %s\n",
+                   (unsigned long)st.st_size, _PATH_RESCONF, strerror(errno));
+      else if ((ipcp->ns.resolv = (char *)malloc(st.st_size + 1)) == NULL) {
+        log_Printf(LogERROR, "Failed(2) to malloc %lu for %s: %s\n",
+                   (unsigned long)st.st_size, _PATH_RESCONF, strerror(errno));
+        free(ipcp->ns.resolv_nons);
+        ipcp->ns.resolv_nons = NULL;
+      } else if ((got = read(fd, ipcp->ns.resolv, st.st_size)) != st.st_size) {
+        if (got == -1)
+          log_Printf(LogERROR, "Failed to read %s: %s\n",
+                     _PATH_RESCONF, strerror(errno));
+        else
+          log_Printf(LogERROR, "Failed to read %s, got %lu not %lu\n",
+                     _PATH_RESCONF, (unsigned long)got,
+                     (unsigned long)st.st_size);
+        free(ipcp->ns.resolv_nons);
+        ipcp->ns.resolv_nons = NULL;
+        free(ipcp->ns.resolv);
+        ipcp->ns.resolv = NULL;
+      } else {
+        char *cp, *cp_nons, *ncp, ch;
+        int n;
+
+        ipcp->ns.resolv[st.st_size] = '\0';
+        ipcp->ns.resolver = 1;
+
+        cp_nons = ipcp->ns.resolv_nons;
+        cp = ipcp->ns.resolv;
+        n = 0;
+
+        while ((ncp = strstr(cp, "nameserver")) != NULL) {
+          if (ncp != cp) {
+            memcpy(cp_nons, cp, ncp - cp);
+            cp_nons += ncp - cp;
+          }
+          if ((ncp != cp && ncp[-1] != '\n') || !issep(ncp[10])) {
+            memcpy(cp_nons, ncp, 9);
+            cp_nons += 9;
+            cp = ncp + 9;	/* Can't match "nameserver" at cp... */
+            continue;
+          }
+
+          for (cp = ncp + 11; issep(*cp); cp++)	/* Skip whitespace */
+            ;
+
+          for (ncp = cp; isip(*ncp); ncp++)		/* Jump over IP */
+            ;
+
+          ch = *ncp;
+          *ncp = '\0';
+          if (n < 2 && inet_aton(cp, ipcp->ns.dns + n))
+            n++;
+          *ncp = ch;
+
+          if ((cp = strchr(ncp, '\n')) == NULL)	/* Point at next line */
+            cp = ncp + strlen(ncp);
+          else
+            cp++;
+        }
+        strcpy(cp_nons, cp);	/* Copy the end - including the NUL */
+        cp_nons += strlen(cp_nons) - 1;
+        while (cp_nons >= ipcp->ns.resolv_nons && *cp_nons == '\n')
+          *cp_nons-- = '\0';
+        if (n == 2 && ipcp->ns.dns[0].s_addr == INADDR_ANY) {
+          ipcp->ns.dns[0].s_addr = ipcp->ns.dns[1].s_addr;
+          ipcp->ns.dns[1].s_addr = INADDR_ANY;
+        }
+        bundle_AdjustDNS(ipcp->fsm.bundle, ipcp->ns.dns);
       }
-    }
-    if (n == 1)
-      addr[1] = addr[0];
-    fclose(fp);
+    } else
+      log_Printf(LogERROR, "Failed to stat opened %s: %s\n",
+                 _PATH_RESCONF, strerror(errno));
+
+    close(fd);
   }
 }
 
-static int
-setdns(struct ipcp *ipcp, struct in_addr addr[2])
+int
+ipcp_WriteDNS(struct ipcp *ipcp)
 {
+  const char *paddr;
+  mode_t mask;
   FILE *fp;
-  char wbuf[LINE_LEN + 54];
-  int wlen;
 
-  if (addr[0].s_addr == INADDR_ANY || addr[1].s_addr == INADDR_ANY) {
-    struct in_addr old[2];
-
-    getdns(ipcp, old);
-    if (addr[0].s_addr == INADDR_ANY)
-      addr[0] = old[0];
-    if (addr[1].s_addr == INADDR_ANY)
-      addr[1] = old[1];
-  }
-
-  if (addr[0].s_addr == INADDR_ANY && addr[1].s_addr == INADDR_ANY) {
-    log_Printf(LogWARN, "%s not modified: All nameservers NAKd\n",
+  if (ipcp->ns.dns[0].s_addr == INADDR_ANY &&
+      ipcp->ns.dns[1].s_addr == INADDR_ANY) {
+    log_Printf(LogIPCP, "%s not modified: All nameservers NAKd\n",
               _PATH_RESCONF);
     return 0;
   }
 
-  wlen = 0;
-  if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
-    char buf[LINE_LEN];
-    int len;
+  if (ipcp->ns.dns[0].s_addr == INADDR_ANY) {
+    ipcp->ns.dns[0].s_addr = ipcp->ns.dns[1].s_addr;
+    ipcp->ns.dns[1].s_addr = INADDR_ANY;
+  }
 
-    buf[sizeof buf - 1] = '\0';
-    while (fgets(buf, sizeof buf - 1, fp)) {
-      if (strncmp(buf, "nameserver", 10) || !issep(buf[10])) {
-        len = strlen(buf);
-        if (len > sizeof wbuf - wlen) {
-          log_Printf(LogWARN, "%s: Can only cope with max file size %d\n",
-                    _PATH_RESCONF, LINE_LEN);
-          fclose(fp);
-          return 0;
-        }
-        memcpy(wbuf + wlen, buf, len);
-        wlen += len;
-      }
+  mask = umask(0644);
+  if ((fp = ID0fopen(_PATH_RESCONF, "w")) != NULL) {
+    umask(mask);
+    fputs(ipcp->ns.resolv_nons, fp);
+    paddr = inet_ntoa(ipcp->ns.dns[0]);
+    log_Printf(LogIPCP, "Primary nameserver set to %s\n", paddr);
+    fprintf(fp, "\nnameserver %s\n", paddr);
+    if (ipcp->ns.dns[1].s_addr != INADDR_ANY &&
+        ipcp->ns.dns[1].s_addr != INADDR_NONE &&
+        ipcp->ns.dns[1].s_addr != ipcp->ns.dns[0].s_addr) {
+      paddr = inet_ntoa(ipcp->ns.dns[1]);
+      log_Printf(LogIPCP, "Secondary nameserver set to %s\n", paddr);
+      fprintf(fp, "nameserver %s\n", paddr);
     }
-    fclose(fp);
-  }
-
-  if (addr[0].s_addr != INADDR_ANY) {
-    snprintf(wbuf + wlen, sizeof wbuf - wlen, "nameserver %s\n",
-             inet_ntoa(addr[0]));
-    log_Printf(LogIPCP, "Primary nameserver set to %s", wbuf + wlen + 11);
-    wlen += strlen(wbuf + wlen);
-  }
-
-  if (addr[1].s_addr != INADDR_ANY && addr[1].s_addr != addr[0].s_addr) {
-    snprintf(wbuf + wlen, sizeof wbuf - wlen, "nameserver %s\n",
-             inet_ntoa(addr[1]));
-    log_Printf(LogIPCP, "Secondary nameserver set to %s", wbuf + wlen + 11);
-    wlen += strlen(wbuf + wlen);
-  }
-
-  if (wlen) {
-    int fd;
-
-    if ((fd = ID0open(_PATH_RESCONF, O_WRONLY|O_CREAT, 0644)) != -1) {
-      if (write(fd, wbuf, wlen) != wlen) {
-        log_Printf(LogERROR, "setdns: write(): %s\n", strerror(errno));
-        close(fd);
-        return 0;
-      }
-      if (ftruncate(fd, wlen) == -1) {
-        log_Printf(LogERROR, "setdns: truncate(): %s\n", strerror(errno));
-        close(fd);
-        return 0;
-      }
-      close(fd);
-    } else {
-      log_Printf(LogERROR, "setdns: open(): %s\n", strerror(errno));
+    if (fclose(fp) == EOF) {
+      log_Printf(LogERROR, "write(): Failed updating %s: %s\n", _PATH_RESCONF,
+                 strerror(errno));
       return 0;
     }
-  }
+  } else
+    umask(mask);
 
   return 1;
+}
+
+void
+ipcp_RestoreDNS(struct ipcp *ipcp)
+{
+  if (ipcp->ns.resolver) {
+    ssize_t got;
+    size_t len;
+    int fd;
+
+    if ((fd = ID0open(_PATH_RESCONF, O_WRONLY|O_TRUNC, 0644)) != -1) {
+      len = strlen(ipcp->ns.resolv);
+      if ((got = write(fd, ipcp->ns.resolv, len)) != len) {
+        if (got == -1)
+          log_Printf(LogERROR, "Failed rewriting %s: write: %s\n",
+                     _PATH_RESCONF, strerror(errno));
+        else
+          log_Printf(LogERROR, "Failed rewriting %s: wrote %lu of %lu\n",
+                     _PATH_RESCONF, (unsigned long)got, (unsigned long)len);
+      }
+      close(fd);
+    } else
+      log_Printf(LogERROR, "Failed rewriting %s: open: %s\n", _PATH_RESCONF,
+                 strerror(errno));
+  } else if (remove(_PATH_RESCONF) == -1)
+    log_Printf(LogERROR, "Failed removing %s: %s\n", _PATH_RESCONF,
+               strerror(errno));
+  
 }
 
 int
@@ -366,7 +433,8 @@ ipcp_Show(struct cmdargs const *arg)
 	          inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
     prompt_Printf(arg->prompt, " My side:         %s, %s\n",
 	          inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
-    prompt_Printf(arg->prompt, " Queued packets:  %d\n", ip_QueueLen(ipcp));
+    prompt_Printf(arg->prompt, " Queued packets:  %lu\n",
+                  (unsigned long)ip_QueueLen(ipcp));
   }
 
   if (ipcp->route) {
@@ -398,11 +466,20 @@ ipcp_Show(struct cmdargs const *arg)
 	          inet_ntoa(ipcp->cfg.peer_range.ipaddr),
                   ipcp->cfg.peer_range.width);
 
-  prompt_Printf(arg->prompt, " DNS:             %s, ",
-                inet_ntoa(ipcp->cfg.ns.dns[0]));
-  prompt_Printf(arg->prompt, "%s, %s\n", inet_ntoa(ipcp->cfg.ns.dns[1]),
+  prompt_Printf(arg->prompt, " DNS:             %s",
+                ipcp->cfg.ns.dns[0].s_addr == INADDR_NONE ?
+                "none" : inet_ntoa(ipcp->cfg.ns.dns[0]));
+  if (ipcp->cfg.ns.dns[1].s_addr != INADDR_NONE)
+    prompt_Printf(arg->prompt, ", %s", inet_ntoa(ipcp->cfg.ns.dns[1]));
+  prompt_Printf(arg->prompt, ", %s\n",
                 command_ShowNegval(ipcp->cfg.ns.dns_neg));
-  prompt_Printf(arg->prompt, " NetBIOS NS:      %s, ",
+  prompt_Printf(arg->prompt, " Resolver DNS:    %s",
+                ipcp->ns.dns[0].s_addr == INADDR_NONE ?
+                "none" : inet_ntoa(ipcp->ns.dns[0]));
+  if (ipcp->ns.dns[1].s_addr != INADDR_NONE &&
+      ipcp->ns.dns[1].s_addr != ipcp->ns.dns[0].s_addr)
+    prompt_Printf(arg->prompt, ", %s", inet_ntoa(ipcp->ns.dns[1]));
+  prompt_Printf(arg->prompt, "\n NetBIOS NS:      %s, ",
 	        inet_ntoa(ipcp->cfg.ns.nbns[0]));
   prompt_Printf(arg->prompt, "%s\n", inet_ntoa(ipcp->cfg.ns.nbns[1]));
 
@@ -463,7 +540,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 {
   struct hostent *hp;
   char name[MAXHOSTNAMELEN];
-  static const char *timer_names[] =
+  static const char * const timer_names[] =
     {"IPCP restart", "IPCP openmode", "IPCP stopped"};
 
   fsm_Init(&ipcp->fsm, "IPCP", PROTO_IPCP, 1, IPCP_MAXCODE, LogIPCP,
@@ -483,8 +560,8 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   iplist_setsrc(&ipcp->cfg.peer_list, "");
   ipcp->cfg.HaveTriggerAddress = 0;
 
-  ipcp->cfg.ns.dns[0].s_addr = INADDR_ANY;
-  ipcp->cfg.ns.dns[1].s_addr = INADDR_ANY;
+  ipcp->cfg.ns.dns[0].s_addr = INADDR_NONE;
+  ipcp->cfg.ns.dns[1].s_addr = INADDR_NONE;
   ipcp->cfg.ns.dns_neg = 0;
   ipcp->cfg.ns.nbns[0].s_addr = INADDR_ANY;
   ipcp->cfg.ns.nbns[1].s_addr = INADDR_ANY;
@@ -506,6 +583,11 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
 
   memset(&ipcp->vj, '\0', sizeof ipcp->vj);
 
+  ipcp->ns.resolv = NULL;
+  ipcp->ns.resolv_nons = NULL;
+  ipcp->ns.writable = 1;
+  ipcp_LoadDNS(ipcp);
+
   throughput_init(&ipcp->throughput, SAMPLE_PERIOD);
   memset(ipcp->Queue, '\0', sizeof ipcp->Queue);
   ipcp_Setup(ipcp, INADDR_NONE);
@@ -523,6 +605,14 @@ ipcp_Destroy(struct ipcp *ipcp)
     ipcp->cfg.urgent.udp.nports = ipcp->cfg.urgent.udp.maxports = 0;
     free(ipcp->cfg.urgent.udp.port);
     ipcp->cfg.urgent.udp.port = NULL;
+  }
+  if (ipcp->ns.resolv != NULL) {
+    free(ipcp->ns.resolv);
+    ipcp->ns.resolv = NULL;
+  }
+  if (ipcp->ns.resolv_nons != NULL) {
+    free(ipcp->ns.resolv_nons);
+    ipcp->ns.resolv_nons = NULL;
   }
 }
 
@@ -605,6 +695,17 @@ ipcp_Setup(struct ipcp *ipcp, u_int32_t mask)
 
   ipcp->peer_reject = 0;
   ipcp->my_reject = 0;
+
+  /* Copy startup values into ipcp->dns? */
+  if (ipcp->cfg.ns.dns[0].s_addr != INADDR_NONE)
+    memcpy(ipcp->dns, ipcp->cfg.ns.dns, sizeof ipcp->dns);
+  else if (ipcp->ns.dns[0].s_addr != INADDR_NONE)
+    memcpy(ipcp->dns, ipcp->ns.dns, sizeof ipcp->dns);
+  else
+    ipcp->dns[0].s_addr = ipcp->dns[1].s_addr = INADDR_ANY;
+
+  if (ipcp->dns[1].s_addr == INADDR_NONE)
+    ipcp->dns[1] = ipcp->dns[0];
 }
 
 static int
@@ -663,11 +764,13 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
     bundle_SetRoute(bundle, RTM_CHANGE, hisaddr, myaddr, none, 0, 0);
 
   if (Enabled(bundle, OPT_SROUTES))
-    route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr);
+    route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr,
+                 bundle->ncp.ipcp.ns.dns);
 
 #ifndef NORADIUS
   if (bundle->radius.valid)
-    route_Change(bundle, bundle->radius.routes, myaddr, hisaddr);
+    route_Change(bundle, bundle->radius.routes, myaddr, hisaddr,
+                 bundle->ncp.ipcp.ns.dns);
 #endif
 
   if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL)) {
@@ -767,11 +870,9 @@ IpcpSendConfigReq(struct fsm *fp)
   if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
       !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS) &&
       !REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
-    struct in_addr dns[2];
-    getdns(ipcp, dns);
-    memcpy(o->data, &dns[0].s_addr, 4);
+    memcpy(o->data, &ipcp->dns[0].s_addr, 4);
     INC_LCP_OPT(TY_PRIMARY_DNS, 6, o);
-    memcpy(o->data, &dns[1].s_addr, 4);
+    memcpy(o->data, &ipcp->dns[1].s_addr, 4);
     INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
   }
 
@@ -941,15 +1042,13 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   /* Deal with incoming PROTO_IPCP */
   struct iface *iface = fp->bundle->iface;
   struct ipcp *ipcp = fsm2ipcp(fp);
-  int type, length, gotdns, gotdnsnak, n;
+  int type, length, gotdnsnak, n;
   u_int32_t compproto;
   struct compreq *pcomp;
-  struct in_addr ipaddr, dstipaddr, have_ip, dns[2], dnsnak[2];
+  struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
 
-  gotdns = 0;
   gotdnsnak = 0;
-  dnsnak[0].s_addr = dnsnak[1].s_addr = INADDR_ANY;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -960,12 +1059,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
     }
 
-    if (type < NCFTYPES)
-      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes[type], length);
-    else if (type > 128 && type < 128 + NCFTYPES128)
-      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes128[type-128], length);
-    else
-      snprintf(tbuff, sizeof tbuff, " <%d>[%d] ", type, length);
+    snprintf(tbuff, sizeof tbuff, " %s[%d] ", protoname(type), length);
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
@@ -1173,14 +1267,15 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  dec->rejend += length;
 	  break;
         }
-        if (!gotdns) {
-          dns[0] = ipcp->cfg.ns.dns[0];
-          dns[1] = ipcp->cfg.ns.dns[1];
-          if (dns[0].s_addr == INADDR_ANY && dns[1].s_addr == INADDR_ANY)
-            getdns(ipcp, dns);
-          gotdns = 1;
+        have_ip = ipcp->dns[type == TY_PRIMARY_DNS ? 0 : 1];
+
+        if (type == TY_PRIMARY_DNS && ipaddr.s_addr != have_ip.s_addr &&
+            ipaddr.s_addr == ipcp->dns[1].s_addr) {
+          /* Swap 'em 'round */
+          ipcp->dns[0] = ipcp->dns[1];
+          ipcp->dns[1] = have_ip;
+          have_ip = ipcp->dns[0];
         }
-        have_ip = dns[type == TY_PRIMARY_DNS ? 0 : 1];
 
 	if (ipaddr.s_addr != have_ip.s_addr) {
 	  /*
@@ -1200,10 +1295,10 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
 	break;
 
-      case MODE_NAK:		/* what does this mean?? */
+      case MODE_NAK:
         if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
           gotdnsnak = 1;
-          memcpy(&dnsnak[type == TY_PRIMARY_DNS ? 0 : 1].s_addr, cp + 2, 4);
+          memcpy(&ipcp->dns[type == TY_PRIMARY_DNS ? 0 : 1].s_addr, cp + 2, 4);
 	}
 	break;
 
@@ -1263,11 +1358,20 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     cp += length;
   }
 
-  if (gotdnsnak)
-    if (!setdns(ipcp, dnsnak)) {
-      ipcp->peer_reject |= (1 << (TY_PRIMARY_DNS - TY_ADJUST_NS));
-      ipcp->peer_reject |= (1 << (TY_SECONDARY_DNS - TY_ADJUST_NS));
+  if (gotdnsnak) {
+    memcpy(ipcp->ns.dns, ipcp->dns, sizeof ipcp->ns.dns);
+    if (ipcp->ns.writable) {
+      log_Printf(LogDEBUG, "Updating resolver\n");
+      if (!ipcp_WriteDNS(ipcp)) {
+        ipcp->peer_reject |= (1 << (TY_PRIMARY_DNS - TY_ADJUST_NS));
+        ipcp->peer_reject |= (1 << (TY_SECONDARY_DNS - TY_ADJUST_NS));
+      } else
+        bundle_AdjustDNS(fp->bundle, ipcp->dns);
+    } else {
+      log_Printf(LogDEBUG, "Not updating resolver (readonly)\n");
+      bundle_AdjustDNS(fp->bundle, ipcp->dns);
     }
+  }
 
   if (mode_type != MODE_NOP) {
     if (dec->rejend != dec->rej) {
@@ -1284,14 +1388,14 @@ extern struct mbuf *
 ipcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
-  mbuf_SetType(bp, MB_IPCPIN);
+  m_settype(bp, MB_IPCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&bundle->ncp.ipcp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogIPCP, "%s: Error: Unexpected IPCP in phase %s (ignored)\n",
                  l->name, bundle_PhaseName(bundle));
-    mbuf_Free(bp);
+    m_freem(bp);
   }
   return NULL;
 }

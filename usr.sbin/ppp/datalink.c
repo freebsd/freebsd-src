@@ -83,7 +83,7 @@ datalink_OpenTimeout(void *v)
 
   timer_Stop(&dl->dial.timer);
   if (dl->state == DATALINK_OPENING)
-    log_Printf(LogPHASE, "%s: Redial timer expired.\n", dl->name);
+    log_Printf(LogCHAT, "%s: Redial timer expired.\n", dl->name);
 }
 
 static int
@@ -157,7 +157,8 @@ datalink_HangupDone(struct datalink *dl)
     dl->dial.incs = 0;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
-    if (!dl->bundle->CleaningUp)
+    if (!dl->bundle->CleaningUp &&
+        !(dl->physical->type & (PHYS_DIRECT|PHYS_BACKGROUND|PHYS_FOREGROUND)))
       datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
   } else {
     datalink_NewState(dl, DATALINK_OPENING);
@@ -169,11 +170,16 @@ datalink_HangupDone(struct datalink *dl)
       dl->dial.tries = dl->cfg.dial.max;
       dl->dial.incs = 0;
       dl->reconnect_tries--;
+      log_Printf(LogCHAT, "%s: Reconnect try %d of %d\n",
+                 dl->name, dl->cfg.reconnect.max - dl->reconnect_tries,
+                 dl->cfg.reconnect.max);
+      bundle_Notify(dl->bundle, EX_RECONNECT);
     } else {
       if (dl->phone.next == NULL)
         datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
       else
         datalink_StartDialTimer(dl, dl->cfg.dial.next_timeout);
+      bundle_Notify(dl->bundle, EX_REDIAL);
     }
   }
 }
@@ -196,7 +202,7 @@ datalink_ChoosePhoneNumber(struct datalink *dl)
   phone = strsep(&dl->phone.alt, "|");
   dl->phone.chosen = *phone ? phone : "[NONE]";
   if (*phone)
-    log_Printf(LogPHASE, "Phone: %s\n", phone);
+    log_Printf(LogCHAT, "Phone: %s\n", phone);
   return phone;
 }
 
@@ -214,7 +220,8 @@ datalink_LoginDone(struct datalink *dl)
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
       datalink_NewState(dl, DATALINK_LOGOUT);
-      chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
+      if (!chat_Setup(&dl->chat, dl->cfg.script.logout, NULL))
+        log_Printf(LogWARN, "Invalid logout script\n");
     } else {
       physical_StopDeviceTimer(dl->physical);
       if (dl->physical->type == PHYS_DEDICATED)
@@ -240,7 +247,7 @@ datalink_LoginDone(struct datalink *dl)
 }
 
 static int
-datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   struct datalink *dl = descriptor2datalink(d);
@@ -249,13 +256,14 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
   result = 0;
   switch (dl->state) {
     case DATALINK_CLOSED:
-      if ((dl->physical->type &
-           (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|PHYS_DDIAL)) &&
+      if ((dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED|PHYS_BACKGROUND|
+                                 PHYS_FOREGROUND|PHYS_DDIAL)) &&
           !dl->bundle->CleaningUp)
         /*
          * Our first time in - DEDICATED & DDIAL never come down, and
-         * DIRECT & BACKGROUND get deleted when they enter DATALINK_CLOSED.
-         * Go to DATALINK_OPENING via datalink_Up() and fall through.
+         * DIRECT, FOREGROUND & BACKGROUND get deleted when they enter
+         * DATALINK_CLOSED.  Go to DATALINK_OPENING via datalink_Up()
+         * and fall through.
          */
         datalink_Up(dl, 1, 1);
       else
@@ -272,8 +280,10 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                            dl->physical->name.full);
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_DIAL);
-            chat_Setup(&dl->chat, dl->cfg.script.dial, *dl->cfg.script.dial ?
-                       datalink_ChoosePhoneNumber(dl) : "");
+            if (!chat_Setup(&dl->chat, dl->cfg.script.dial,
+                            *dl->cfg.script.dial ?
+                            datalink_ChoosePhoneNumber(dl) : ""))
+              log_Printf(LogWARN, "Invalid dial script\n");
             if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
@@ -304,6 +314,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             int timeout;
 
             timeout = datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
+            bundle_Notify(dl->bundle, EX_REDIAL);
             log_WritePrompts(dl, "Failed to open %s, pause %d seconds\n",
                              dl->physical->name.full, timeout);
           }
@@ -321,7 +332,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         case CARRIER_OK:
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_LOGIN);
-            chat_Setup(&dl->chat, dl->cfg.script.login, NULL);
+            if (!chat_Setup(&dl->chat, dl->cfg.script.login, NULL))
+              log_Printf(LogWARN, "Invalid login script\n");
           } else
             datalink_LoginDone(dl);
           return datalink_UpdateSet(d, r, w, e, n);
@@ -330,7 +342,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           physical_Offline(dl->physical);	/* Is this required ? */
           if (dl->script.run) { 
             datalink_NewState(dl, DATALINK_HANGUP);
-            chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+            if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+              log_Printf(LogWARN, "Invalid hangup script\n");
             return datalink_UpdateSet(d, r, w, e, n);
           } else {
             datalink_HangupDone(dl);
@@ -356,7 +369,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGOUT:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+              if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+                log_Printf(LogWARN, "Invalid hangup script\n");
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
               dl->phone.alt = NULL;
@@ -376,7 +390,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+              if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+                log_Printf(LogWARN, "Invalid hangup script\n");
               return datalink_UpdateSet(d, r, w, e, n);
           }
           break;
@@ -402,7 +417,7 @@ datalink_RemoveFromSet(struct datalink *dl, fd_set *r, fd_set *w, fd_set *e)
 }
 
 static int
-datalink_IsSet(struct descriptor *d, const fd_set *fdset)
+datalink_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 
@@ -429,7 +444,7 @@ datalink_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+datalink_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 
@@ -459,7 +474,7 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+datalink_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
   int result = 0;
@@ -510,10 +525,12 @@ datalink_ComeDown(struct datalink *dl, int how)
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       if (dl->state == DATALINK_LOGOUT) {
         datalink_NewState(dl, DATALINK_HANGUP);
-        chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
+        if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
+          log_Printf(LogWARN, "Invalid hangup script\n");
       } else {
         datalink_NewState(dl, DATALINK_LOGOUT);
-        chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
+        if (!chat_Setup(&dl->chat, dl->cfg.script.logout, NULL))
+          log_Printf(LogWARN, "Invalid logout script\n");
       }
     } else
       datalink_HangupDone(dl);
@@ -1001,6 +1018,8 @@ datalink_Down(struct datalink *dl, int how)
     case DATALINK_AUTH:
     case DATALINK_LCP:
       fsm2initial(&dl->physical->link.lcp.fsm);
+      if (dl->state == DATALINK_OPENING)
+        return;			/* we're doing a callback... */
       /* fall through */
 
     default:
@@ -1209,7 +1228,7 @@ datalink_SetRedial(struct cmdargs const *arg)
   return -1;
 }
 
-static const char *states[] = {
+static const char * const states[] = {
   "closed",
   "opening",
   "hangup",
@@ -1337,7 +1356,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
 
 int
 datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
-             int *auxfd, int *nauxfd, pid_t newpid)
+             int *auxfd, int *nauxfd)
 {
   /* If `dl' is NULL, we're allocating before a Fromiov() */
   int link_fd;
@@ -1359,14 +1378,13 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     return -1;
   }
 
-  iov[*niov].iov_base = dl ? dl : malloc(sizeof *dl);
+  iov[*niov].iov_base = (void *)dl;
   iov[(*niov)++].iov_len = sizeof *dl;
-  iov[*niov].iov_base =
-    dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
+  iov[*niov].iov_base = dl ? realloc(dl->name, DATALINK_MAXNAME) : NULL;
   iov[(*niov)++].iov_len = DATALINK_MAXNAME;
 
   link_fd = physical2iov(dl ? dl->physical : NULL, iov, niov, maxiov, auxfd,
-                         nauxfd, newpid);
+                         nauxfd);
 
   if (link_fd == -1 && dl) {
     free(dl->name);
@@ -1411,7 +1429,8 @@ datalink_SetMode(struct datalink *dl, int mode)
     dl->script.run = 0;
   if (dl->physical->type == PHYS_DIRECT)
     dl->reconnect_tries = 0;
-  if (mode & (PHYS_DDIAL|PHYS_BACKGROUND) && dl->state <= DATALINK_READY)
+  if (mode & (PHYS_DDIAL|PHYS_BACKGROUND|PHYS_FOREGROUND) &&
+      dl->state <= DATALINK_READY)
     datalink_Up(dl, 1, 1);
   return 1;
 }

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=brian@FreeBSD.org
-
 PROG=	ppp
 SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	command.c datalink.c deflate.c defs.c exec.c filter.c fsm.c hdlc.c \
@@ -23,6 +21,11 @@ CFLAGS+=-DRELEASE_CRUNCH
 
 .if defined(NOKLDLOAD)
 CFLAGS+=-DNOKLDLOAD
+.endif
+
+NOINET6=true
+.if defined(NOINET6)
+CFLAGS+=-DNOINET6
 .endif
 
 .if defined(NOALIAS) || defined(NONAT)
@@ -59,7 +62,7 @@ CFLAGS+=-DNOI4B
 SRCS+=	i4b.c
 .endif
 
-.if defined(NONETGRAPH) || defined(RELEASE_CRUNCH)
+.if defined(NONETGRAPH)
 CFLAGS+=-DNONETGRAPH
 .else
 SRCS+=	ether.c
@@ -70,9 +73,9 @@ DPADD+= ${LIBNETGRAPH}
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNONAT -DNORADIUS -DNOI4B -DNONETGRAPH
-OBJS+=	chap_ms.o ether.o nat_cmd.o radius.o
-chap_ms.o ether.o nat_cmd.o radius.o:
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
+OBJS+=	chap_ms.o nat_cmd.o radius.o
+chap_ms.o nat_cmd.o radius.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif

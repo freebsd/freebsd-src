@@ -64,7 +64,9 @@
 #include "cbcp.h"
 #include "datalink.h"
 
-static const char *papcodes[] = { "???", "REQUEST", "SUCCESS", "FAILURE" };
+static const char * const papcodes[] = {
+  "???", "REQUEST", "SUCCESS", "FAILURE"
+};
 #define MAXPAPCODE (sizeof papcodes / sizeof papcodes[0] - 1)
 
 static void
@@ -86,7 +88,7 @@ pap_Req(struct authinfo *authp)
   lh.code = PAP_REQUEST;
   lh.id = authp->id;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
+  bp = m_get(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
@@ -111,10 +113,15 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   mlen = strlen(message);
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_PAPOUT);
+  bp = m_get(plen + sizeof(struct fsmheader), MB_PAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
-  *cp++ = mlen;
+  /*
+   * If our message is longer than 255 bytes, truncate the length to
+   * 255 and send the entire message anyway.  Maybe the other end will
+   * display it... (see pap_Input() !)
+   */
+  *cp++ = mlen > 255 ? 255 : mlen;
   memcpy(cp, message, mlen);
   log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
 
@@ -158,17 +165,19 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   struct physical *p = link2physical(l);
   struct authinfo *authp = &p->dl->pap;
   u_char nlen, klen, *key;
+  const char *txt;
+  int txtlen;
 
   if (p == NULL) {
     log_Printf(LogERROR, "pap_Input: Not a physical link - dropped\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
   if (bundle_Phase(bundle) != PHASE_NETWORK &&
       bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected pap input - dropped !\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
@@ -180,7 +189,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (authp->in.hdr.code == 0 || authp->in.hdr.code > MAXPAPCODE) {
     log_Printf(LogPHASE, "Pap Input: %d: Bad PAP code !\n", authp->in.hdr.code);
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
@@ -189,19 +198,35 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     /* Wrong conversation dude ! */
     log_Printf(LogPHASE, "Pap Input: %s dropped (got id %d, not %d)\n",
                papcodes[authp->in.hdr.code], authp->in.hdr.id, authp->id);
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
-  mbuf_SetType(bp, MB_PAPIN);
+  m_settype(bp, MB_PAPIN);
   authp->id = authp->in.hdr.id;		/* We respond with this id */
 
   if (bp) {
     bp = mbuf_Read(bp, &nlen, 1);
-    bp = auth_ReadName(authp, bp, nlen);
+    if (authp->in.hdr.code == PAP_ACK) {
+      /*
+       * Don't restrict the length of our acknowledgement freetext to
+       * nlen (a one-byte length).  Show the rest of the ack packet
+       * instead.  This isn't really part of the protocol.....
+       */
+      bp = m_pullup(bp);
+      txt = MBUF_CTOP(bp);
+      txtlen = m_length(bp);
+    } else {
+      bp = auth_ReadName(authp, bp, nlen);
+      txt = authp->in.name;
+      txtlen = strlen(authp->in.name);
+    }
+  } else {
+    txt = "";
+    txtlen = 0;
   }
 
-  log_Printf(LogPHASE, "Pap Input: %s (%s)\n",
-             papcodes[authp->in.hdr.code], authp->in.name);
+  log_Printf(LogPHASE, "Pap Input: %s (%.*s)\n",
+             papcodes[authp->in.hdr.code], txtlen, txt);
 
   switch (authp->in.hdr.code) {
     case PAP_REQUEST:
@@ -210,7 +235,7 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         break;
       }
       bp = mbuf_Read(bp, &klen, 1);
-      if (mbuf_Length(bp) < klen) {
+      if (m_length(bp) < klen) {
         log_Printf(LogERROR, "Pap Input: Truncated key !\n");
         break;
       }
@@ -255,6 +280,6 @@ pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       break;
   }
 
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }

@@ -59,81 +59,103 @@ CloseSecret(FILE *fp)
 }
 
 /* Move string from ``from'' to ``to'', interpreting ``~'' and $.... */
-static void
-InterpretArg(char *from, char *to)
+const char *
+InterpretArg(const char *from, char *to)
 {
-  const char *env;
   char *ptr, *startto, *endto;
-  int len;
+  struct passwd *pwd;
+  int len, instring;
+  const char *env;
 
+  instring = 0;
   startto = to;
   endto = to + LINE_LEN - 1;
 
   while(issep(*from))
     from++;
-  if (*from == '~') {
-    ptr = strchr(++from, '/');
-    len = ptr ? ptr - from : strlen(from);
-    if (len == 0) {
-      if ((env = getenv("HOME")) == NULL)
-        env = _PATH_PPP;
-      strncpy(to, env, endto - to);
-    } else {
-      struct passwd *pwd;
 
-      strncpy(to, from, len);
-      to[len] = '\0';
-      pwd = getpwnam(to);
-      if (pwd)
-        strncpy(to, pwd->pw_dir, endto-to);
-      else
-        strncpy(to, _PATH_PPP, endto - to);
-      endpwent();
-    }
-    *endto = '\0';
-    to += strlen(to);
-    from += len;
-  }
+  while (*from != '\0') {
+    switch (*from) {
+      case '"':
+        instring = !instring;
+        *to++ = *from++;
+        break;
+      case '\\':
+        switch (*++from) {
+          case '$':
+          case '~':
+            break;		/* Swallow the escapes */
 
-  while (to < endto && *from != '\0') {
-    if (*from == '$') {
-      if (from[1] == '$') {
-        *to = '\0';	/* For an empty var name below */
-        from += 2;
-      } else if (from[1] == '{') {
-        ptr = strchr(from+2, '}');
-        if (ptr) {
-          len = ptr - from - 2;
-          if (endto - to < len )
-            len = endto - to;
-          if (len) {
-            strncpy(to, from+2, len);
-            to[len] = '\0';
-            from = ptr+1;
+          default:
+            *to++ = '\\';	/* Pass the escapes on, maybe skipping \# */
+            break;
+        }
+        *to++ = *from++;
+        break;
+      case '$':
+        if (from[1] == '$') {
+          *to = '\0';	/* For an empty var name below */
+          from += 2;
+        } else if (from[1] == '{') {
+          ptr = strchr(from+2, '}');
+          if (ptr) {
+            len = ptr - from - 2;
+            if (endto - to < len )
+              len = endto - to;
+            if (len) {
+              strncpy(to, from+2, len);
+              to[len] = '\0';
+              from = ptr+1;
+            } else {
+              *to++ = *from++;
+              continue;
+            }
           } else {
             *to++ = *from++;
             continue;
           }
         } else {
-          *to++ = *from++;
-          continue;
+          ptr = to;
+          for (from++; (isalnum(*from) || *from == '_') && ptr < endto; from++)
+            *ptr++ = *from;
+          *ptr = '\0';
         }
-      } else {
-        ptr = to;
-        for (from++; (isalnum(*from) || *from == '_') && ptr < endto; from++)
-          *ptr++ = *from;
-        *ptr = '\0';
-      }
-      if (*to == '\0')
-        *to++ = '$';
-      else if ((env = getenv(to)) != NULL) {
-        strncpy(to, env, endto - to);
-        *endto = '\0';
-        to += strlen(to);
-      }
-    } else
-      *to++ = *from++;
+        if (*to == '\0')
+          *to++ = '$';
+        else if ((env = getenv(to)) != NULL) {
+          strncpy(to, env, endto - to);
+          *endto = '\0';
+          to += strlen(to);
+        }
+        break;
+
+      case '~':
+        ptr = strchr(++from, '/');
+        len = ptr ? ptr - from : strlen(from);
+        if (len == 0)
+          pwd = getpwuid(ID0realuid());
+        else {
+          strncpy(to, from, len);
+          to[len] = '\0';
+          pwd = getpwnam(to);
+        }
+        if (pwd == NULL)
+          *to++ = '~';
+        else {
+          strncpy(to, pwd->pw_dir, endto - to);
+          *endto = '\0';
+          to += strlen(to);
+          from += len;
+        }
+        endpwent();
+        break;
+
+      default:
+        *to++ = *from++;
+        break;
+    }
   }
+
   while (to > startto) {
     to--;
     if (!issep(*to)) {
@@ -142,6 +164,8 @@ InterpretArg(char *from, char *to)
     }
   }
   *to = '\0';
+
+  return from;
 }
 
 #define CTRL_UNKNOWN (0)
@@ -150,9 +174,14 @@ InterpretArg(char *from, char *to)
 static int
 DecodeCtrlCommand(char *line, char *arg)
 {
+  const char *end;
+
   if (!strncasecmp(line, "include", 7) && issep(line[7])) {
-    InterpretArg(line+8, arg);
-    return CTRL_INCLUDE;
+    end = InterpretArg(line+8, arg);
+    if (*end && *end != '#')
+      log_Printf(LogWARN, "Usage: !include filename\n");
+    else
+      return CTRL_INCLUDE;
   }
   return CTRL_UNKNOWN;
 }
@@ -170,16 +199,17 @@ AllowUsers(struct cmdargs const *arg)
 {
   /* arg->bundle may be NULL (see system_IsValid()) ! */
   int f;
-  char *user;
+  struct passwd *pwd;
 
   userok = 0;
-  user = getlogin();
-  if (user && *user)
+  pwd = getpwuid(ID0realuid());
+  if (pwd != NULL)
     for (f = arg->argn; f < arg->argc; f++)
-      if (!strcmp("*", arg->argv[f]) || !strcmp(user, arg->argv[f])) {
+      if (!strcmp("*", arg->argv[f]) || !strcmp(pwd->pw_name, arg->argv[f])) {
         userok = 1;
         break;
       }
+  endpwent();
 
   return 0;
 }
@@ -250,6 +280,27 @@ xgets(char *buf, int buflen, FILE *fp)
 #define SYSTEM_VALIDATE	2
 #define SYSTEM_EXEC	3
 
+static char *
+GetLabel(char *line, const char *filename, int linenum)
+{
+  char *argv[MAXARGS];
+  int argc, len;
+
+  argc = MakeArgs(line, argv, MAXARGS, PARSE_REDUCE);
+
+  if (argc == 2 && !strcmp(argv[1], ":"))
+    return argv[0];
+
+  if (argc != 1 || (len = strlen(argv[0])) < 2 || argv[0][len-1] != ':') {
+      log_Printf(LogWARN, "Bad label in %s (line %d) - missing colon\n",
+                 filename, linenum);
+      return NULL;
+  }
+  argv[0][len-1] = '\0';	/* Lose the ':' */
+
+  return argv[0];
+}
+
 /* Returns -2 for ``file not found'' and -1 for ``label not found'' */
 
 static int
@@ -257,7 +308,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
            struct prompt *prompt, struct datalink *cx, int how)
 {
   FILE *fp;
-  char *cp, *wp;
+  char *cp;
   int n, len;
   char line[LINE_LEN];
   char filename[MAXPATHLEN];
@@ -310,14 +361,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
-      wp = strchr(cp, ':');
-      if (wp == NULL || wp[1] != '\0') {
-	log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
-		  filename, linenum);
-	continue;
-      }
-      *wp = '\0';
-      cp = strip(cp);  /* lose any spaces between the label and the ':' */
+      if ((cp = GetLabel(cp, filename, linenum)) == NULL)
+        continue;
 
       if (strcmp(cp, name) == 0) {
         /* We're in business */
@@ -330,33 +375,32 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           indent = issep(*line);
           cp = strip(line);
 
-          if (*cp == '\0')  /* empty / comment */
+          if (*cp == '\0')			/* empty / comment */
             continue;
 
-          if (!indent) {    /* start of next section */
-            if (*cp != '!') {
-              wp = strchr(cp, ':');
-              if ((how == SYSTEM_EXEC) && (wp == NULL || wp[1] != '\0'))
-	        log_Printf(LogWARN, "Unindented command (%s line %d) -"
-                           " ignored\n", filename, linenum);
-            }
+          if (!indent) {			/* start of next section */
+            if (*cp != '!' && how == SYSTEM_EXEC)
+              cp = GetLabel(cp, filename, linenum);
             break;
           }
 
           len = strlen(cp);
-          argc = command_Interpret(cp, len, argv);
-          allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
-          if ((!(how == SYSTEM_EXEC) && allowcmd) ||
-              ((how == SYSTEM_EXEC) && !allowcmd)) {
-            /*
-             * Disable any context so that warnings are given to everyone,
-             * including syslog.
-             */
-            op = log_PromptContext;
-            log_PromptContext = NULL;
-	    command_Run(bundle, argc, (char const *const *)argv, prompt,
-                        name, cx);
-            log_PromptContext = op;
+          if ((argc = command_Expand_Interpret(cp, len, argv, cp - line)) < 0)
+            log_Printf(LogWARN, "%s: %d: Syntax error\n", filename, linenum);
+          else {
+            allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
+            if ((how != SYSTEM_EXEC && allowcmd) ||
+                (how == SYSTEM_EXEC && !allowcmd)) {
+              /*
+               * Disable any context so that warnings are given to everyone,
+               * including syslog.
+               */
+              op = log_PromptContext;
+              log_PromptContext = NULL;
+	      command_Run(bundle, argc, (char const *const *)argv, prompt,
+                          name, cx);
+              log_PromptContext = op;
+            }
           }
         }
 

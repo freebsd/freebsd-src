@@ -101,38 +101,46 @@ static struct fsm_callbacks lcp_Callbacks = {
   fsm_NullRecvResetAck
 };
 
-static const char *lcp_TimerNames[] =
+static const char * const lcp_TimerNames[] =
   {"LCP restart", "LCP openmode", "LCP stopped"};
 
-static const char *cftypes[] = {
-  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
-  "???",
-  "MRU",	/* 1: Maximum-Receive-Unit */
-  "ACCMAP",	/* 2: Async-Control-Character-Map */
-  "AUTHPROTO",	/* 3: Authentication-Protocol */
-  "QUALPROTO",	/* 4: Quality-Protocol */
-  "MAGICNUM",	/* 5: Magic-Number */
-  "RESERVED",	/* 6: RESERVED */
-  "PROTOCOMP",	/* 7: Protocol-Field-Compression */
-  "ACFCOMP",	/* 8: Address-and-Control-Field-Compression */
-  "FCSALT",	/* 9: FCS-Alternatives */
-  "SDP",	/* 10: Self-Describing-Pad */
-  "NUMMODE",	/* 11: Numbered-Mode */
-  "MULTIPROC",	/* 12: Multi-Link-Procedure */
-  "CALLBACK",	/* 13: Callback */
-  "CONTIME",	/* 14: Connect-Time */
-  "COMPFRAME",	/* 15: Compound-Frames */
-  "NDE",	/* 16: Nominal-Data-Encapsulation */
-  "MRRU",	/* 17: Multilink-MRRU */
-  "SHORTSEQ",	/* 18: Multilink-Short-Sequence-Number-Header */
-  "ENDDISC",	/* 19: Multilink-Endpoint-Discriminator */
-  "PROPRIETRY",	/* 20: Proprietary */
-  "DCEID",	/* 21: DCE-Identifier */
-  "MULTIPP",	/* 22: Multi-Link-Plus-Procedure */
-  "LDBACP",	/* 23: Link Discriminator for BACP */
-};
+static const char *
+protoname(int proto)
+{
+  static const char * const cftypes[] = {
+    /* Check out the latest ``Assigned numbers'' rfc (1700) */
+    NULL,
+    "MRU",		/* 1: Maximum-Receive-Unit */
+    "ACCMAP",		/* 2: Async-Control-Character-Map */
+    "AUTHPROTO",	/* 3: Authentication-Protocol */
+    "QUALPROTO",	/* 4: Quality-Protocol */
+    "MAGICNUM",		/* 5: Magic-Number */
+    "RESERVED",		/* 6: RESERVED */
+    "PROTOCOMP",	/* 7: Protocol-Field-Compression */
+    "ACFCOMP",		/* 8: Address-and-Control-Field-Compression */
+    "FCSALT",		/* 9: FCS-Alternatives */
+    "SDP",		/* 10: Self-Describing-Pad */
+    "NUMMODE",		/* 11: Numbered-Mode */
+    "MULTIPROC",	/* 12: Multi-Link-Procedure */
+    "CALLBACK",		/* 13: Callback */
+    "CONTIME",		/* 14: Connect-Time */
+    "COMPFRAME",	/* 15: Compound-Frames */
+    "NDE",		/* 16: Nominal-Data-Encapsulation */
+    "MRRU",		/* 17: Multilink-MRRU */
+    "SHORTSEQ",		/* 18: Multilink-Short-Sequence-Number-Header */
+    "ENDDISC",		/* 19: Multilink-Endpoint-Discriminator */
+    "PROPRIETRY",	/* 20: Proprietary */
+    "DCEID",		/* 21: DCE-Identifier */
+    "MULTIPP",		/* 22: Multi-Link-Plus-Procedure */
+    "LDBACP",		/* 23: Link Discriminator for BACP */
+  };
 
-#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
+  if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
+      cftypes[proto] == NULL)
+    return HexStr(proto, NULL, 0);
+
+  return cftypes[proto];
+}
 
 int
 lcp_ReportStatus(struct cmdargs const *arg)
@@ -546,10 +554,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     type = *cp;
     length = cp[1];
 
-    if (type < 0 || type >= NCFTYPES)
-      snprintf(request, sizeof request, " <%d>[%d]", type, length);
-    else
-      snprintf(request, sizeof request, " %s[%d]", cftypes[type], length);
+    snprintf(request, sizeof request, " %s[%d]", protoname(type), length);
 
     if (length < 2) {
       log_Printf(LogLCP, "%s:%s: Bad LCP length\n", fp->link->name, request);
@@ -1154,7 +1159,7 @@ extern struct mbuf *
 lcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
-  mbuf_SetType(bp, MB_LCPIN);
+  m_settype(bp, MB_LCPIN);
   fsm_Input(&l->lcp.fsm, bp);
   return NULL;
 }

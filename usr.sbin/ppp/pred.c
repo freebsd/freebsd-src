@@ -179,8 +179,8 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   u_char bufp[MAX_MTU + 2];
   u_short fcs;
 
-  orglen = mbuf_Length(bp) + 2;	/* add count of proto */
-  mwp = mbuf_Alloc((orglen + 2) / 8 * 9 + 12, MB_CCPOUT);
+  orglen = m_length(bp) + 2;	/* add count of proto */
+  mwp = m_get((orglen + 2) / 8 * 9 + 12, MB_CCPOUT);
   hp = wp = MBUF_CTOP(mwp);
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
@@ -206,7 +206,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
 
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
-  mwp->cnt = wp - MBUF_CTOP(mwp);
+  mwp->m_len = wp - MBUF_CTOP(mwp);
   *proto = ccp_Proto(ccp);
   return mwp;
 }
@@ -221,9 +221,9 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   u_char *bufp;
   u_short fcs;
 
-  wp = mbuf_Alloc(MAX_MRU + 2, MB_CCPIN);
+  wp = m_get(MAX_MRU + 2, MB_CCPIN);
   cp = MBUF_CTOP(bp);
-  olen = mbuf_Length(bp);
+  olen = m_length(bp);
   pp = bufp = MBUF_CTOP(wp);
   *pp++ = *cp & 0177;
   len = *cp++ << 8;
@@ -237,8 +237,8 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     if (len != len1) {		/* Error is detected. Send reset request */
       log_Printf(LogCCP, "Pred1: Length error (got %d, not %d)\n", len1, len);
       fsm_Reopen(&ccp->fsm);
-      mbuf_Free(bp);
-      mbuf_Free(wp);
+      m_freem(bp);
+      m_freem(wp);
       return NULL;
     }
     cp += olen - 4;
@@ -246,8 +246,8 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   } else if (len + 4 != olen) {
     log_Printf(LogCCP, "Pred1: Length error (got %d, not %d)\n", len + 4, olen);
     fsm_Reopen(&ccp->fsm);
-    mbuf_Free(wp);
-    mbuf_Free(bp);
+    m_freem(wp);
+    m_freem(bp);
     return NULL;
   } else {
     ccp->compin += len;
@@ -257,21 +257,21 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   }
   *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
-  fcs = hdlc_Fcs(bufp, wp->cnt = pp - bufp);
+  fcs = hdlc_Fcs(bufp, wp->m_len = pp - bufp);
   if (fcs == GOODFCS) {
-    wp->offset += 2;		/* skip length */
-    wp->cnt -= 4;		/* skip length & CRC */
+    wp->m_offset += 2;		/* skip length */
+    wp->m_len -= 4;		/* skip length & CRC */
     pp = MBUF_CTOP(wp);
     *proto = *pp++;
     if (*proto & 1) {
-      wp->offset++;
-      wp->cnt--;
+      wp->m_offset++;
+      wp->m_len--;
     } else {
-      wp->offset += 2;
-      wp->cnt -= 2;
+      wp->m_offset += 2;
+      wp->m_len -= 2;
       *proto = (*proto << 8) | *pp++;
     }
-    mbuf_Free(bp);
+    m_freem(bp);
     return wp;
   } else {
     const char *pre = *MBUF_CTOP(bp) & 0x80 ? "" : "un";
@@ -280,9 +280,9 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     log_Printf(LogCCP, "%s: Bad %scompressed CRC-16\n",
                ccp->fsm.link->name, pre);
     fsm_Reopen(&ccp->fsm);
-    mbuf_Free(wp);
+    m_freem(wp);
   }
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }
 

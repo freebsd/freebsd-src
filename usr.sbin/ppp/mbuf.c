@@ -36,60 +36,121 @@
 #include "prompt.h"
 #include "main.h"
 
+#define BUCKET_CHUNK	20
+#define BUCKET_HASH	256
+
+struct mbucket;
+
+struct mfree {
+  struct mbucket *next;
+  size_t count;
+};
+
+static struct mbucket {
+  union {
+    struct mbuf m;
+    struct mfree f;
+  } u;
+} *bucket[(M_MAXLEN + sizeof(struct mbuf)) / BUCKET_HASH];
+
+#define M_BINDEX(sz)	(((sz) + sizeof(struct mbuf) - 1) / BUCKET_HASH)
+#define M_BUCKET(sz)	(bucket + M_BINDEX(sz))
+#define M_ROUNDUP(sz)	((M_BINDEX(sz) + 1) * BUCKET_HASH)
+
 static struct memmap {
   struct mbuf *queue;
-  int fragments, octets;
+  size_t fragments;
+  size_t octets;
 } MemMap[MB_MAX + 1];
 
-static int totalalloced;
 static unsigned long long mbuf_Mallocs, mbuf_Frees;
 
 int
-mbuf_Length(struct mbuf *bp)
+m_length(struct mbuf *bp)
 {
   int len;
 
-  for (len = 0; bp; bp = bp->next)
-    len += bp->cnt;
+  for (len = 0; bp; bp = bp->m_next)
+    len += bp->m_len;
   return len;
 }
 
 struct mbuf *
-mbuf_Alloc(int cnt, int type)
+m_get(size_t m_len, int type)
 {
+  struct mbucket **mb;
   struct mbuf *bp;
+  size_t size;
 
   if (type > MB_MAX) {
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
     type = MB_UNKNOWN;
   }
-  bp = malloc(sizeof(struct mbuf) + cnt);
-  if (bp == NULL) {
-    log_Printf(LogALERT, "failed to allocate memory: %ld\n",
-               (long)sizeof(struct mbuf));
+  
+  if (m_len > M_MAXLEN || m_len == 0) {
+    log_Printf(LogERROR, "Request for mbuf size %lu denied\n", (u_long)m_len);
     AbortProgram(EX_OSERR);
   }
+
+  mb = M_BUCKET(m_len);
+  size = M_ROUNDUP(m_len);
+
+  if (*mb) {
+    /* We've got some free blocks of the right size */
+    bp = &(*mb)->u.m;
+    if (--(*mb)->u.f.count == 0)
+      *mb = (*mb)->u.f.next;
+    else {
+      ((struct mbucket *)((char *)*mb + size))->u.f.count = (*mb)->u.f.count;
+      *mb = (struct mbucket *)((char *)*mb + size);
+      (*mb)->u.f.next = NULL;
+    }
+  } else {
+    /*
+     * Allocate another chunk of mbufs, use the first and put the rest on
+     * the free list
+     */
+    *mb = (struct mbucket *)malloc(BUCKET_CHUNK * size);
+    if (*mb == NULL) {
+      log_Printf(LogALERT, "Failed to allocate memory (%lu)\n",
+                 (unsigned long)BUCKET_CHUNK * size);
+      AbortProgram(EX_OSERR);
+    }
+    bp = &(*mb)->u.m;
+    *mb = (struct mbucket *)((char *)*mb + size);
+    (*mb)->u.f.count = BUCKET_CHUNK - 1;
+    (*mb)->u.f.next = NULL;
+  }
+
   mbuf_Mallocs++;
+
   memset(bp, '\0', sizeof(struct mbuf));
+  bp->m_size = size - sizeof *bp;
+  bp->m_len = m_len;
+  bp->m_type = type;
+
   MemMap[type].fragments++;
-  MemMap[type].octets += cnt;
-  totalalloced += cnt;
-  bp->size = bp->cnt = cnt;
-  bp->type = type;
+  MemMap[type].octets += bp->m_size;
+
   return bp;
 }
 
 struct mbuf *
-mbuf_FreeSeg(struct mbuf *bp)
+m_free(struct mbuf *bp)
 {
+  struct mbucket **mb, *f;
   struct mbuf *nbp;
 
-  if (bp) {
-    nbp = bp->next;
-    MemMap[bp->type].fragments--;
-    MemMap[bp->type].octets -= bp->size;
-    totalalloced -= bp->size;
-    free(bp);
+  if ((f = (struct mbucket *)bp) != NULL) {
+    MemMap[bp->m_type].fragments--;
+    MemMap[bp->m_type].octets -= bp->m_size;
+
+    nbp = bp->m_next;
+    mb = M_BUCKET(bp->m_size);
+    f->u.f.next = *mb;
+    f->u.f.count = 1;
+    *mb = f;
+
     mbuf_Frees++;
     bp = nbp;
   }
@@ -98,10 +159,10 @@ mbuf_FreeSeg(struct mbuf *bp)
 }
 
 void
-mbuf_Free(struct mbuf *bp)
+m_freem(struct mbuf *bp)
 {
   while (bp)
-    bp = mbuf_FreeSeg(bp);
+    bp = m_free(bp);
 }
 
 struct mbuf *
@@ -111,23 +172,23 @@ mbuf_Read(struct mbuf *bp, void *v, size_t len)
   u_char *ptr = v;
 
   while (bp && len > 0) {
-    if (len > bp->cnt)
-      nb = bp->cnt;
+    if (len > bp->m_len)
+      nb = bp->m_len;
     else
       nb = len;
     if (nb) {
       memcpy(ptr, MBUF_CTOP(bp), nb);
       ptr += nb;
-      bp->cnt -= nb;
+      bp->m_len -= nb;
       len -= nb;
-      bp->offset += nb;
+      bp->m_offset += nb;
     }
-    if (bp->cnt == 0)
-      bp = mbuf_FreeSeg(bp);
+    if (bp->m_len == 0)
+      bp = m_free(bp);
   }
 
-  while (bp && bp->cnt == 0)
-    bp = mbuf_FreeSeg(bp);
+  while (bp && bp->m_len == 0)
+    bp = m_free(bp);
 
   return bp;
 }
@@ -139,80 +200,92 @@ mbuf_View(struct mbuf *bp, void *v, size_t len)
   u_char *ptr = v;
 
   while (bp && l > 0) {
-    if (l > bp->cnt)
-      nb = bp->cnt;
+    if (l > bp->m_len)
+      nb = bp->m_len;
     else
       nb = l;
     memcpy(ptr, MBUF_CTOP(bp), nb);
     ptr += nb;
     l -= nb;
-    bp = bp->next;
+    bp = bp->m_next;
   }
 
   return len - l;
 }
 
 struct mbuf *
-mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
+m_prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
 {
   struct mbuf *head;
 
-  if (bp && bp->offset) {
-    if (bp->offset >= len) {
-      bp->offset -= len;
-      bp->cnt += len;
+  if (bp && bp->m_offset) {
+    if (bp->m_offset >= len) {
+      bp->m_offset -= len;
+      bp->m_len += len;
       memcpy(MBUF_CTOP(bp), ptr, len);
       return bp;
     }
-    len -= bp->offset;
-    memcpy(bp + sizeof *bp, (const char *)ptr + len, bp->offset);
-    bp->cnt += bp->offset;
-    bp->offset = 0;
+    len -= bp->m_offset;
+    memcpy(bp + 1, (const char *)ptr + len, bp->m_offset);
+    bp->m_len += bp->m_offset;
+    bp->m_offset = 0;
   }
 
-  head = mbuf_Alloc(len + extra, bp ? bp->type : MB_UNKNOWN);
-  head->offset = extra;
-  head->cnt -= extra;
-  memcpy(MBUF_CTOP(head), ptr, len);
-  head->next = bp;
+  head = m_get(len + extra, bp ? bp->m_type : MB_UNKNOWN);
+  head->m_offset = extra;
+  head->m_len -= extra;
+  if (ptr)
+    memcpy(MBUF_CTOP(head), ptr, len);
+  head->m_next = bp;
 
   return head;
 }
 
 struct mbuf *
-mbuf_Truncate(struct mbuf *bp, size_t n)
+m_adj(struct mbuf *bp, ssize_t n)
 {
-  if (n == 0) {
-    mbuf_Free(bp);
-    return NULL;
-  }
-
-  for (; bp; bp = bp->next, n -= bp->cnt)
-    if (n < bp->cnt) {
-      bp->cnt = n;
-      mbuf_Free(bp->next);
-      bp->next = NULL;
-      break;
+  if (n > 0) {
+    while (bp) {
+      if (n < bp->m_len) {
+        bp->m_len = n;
+        bp->m_offset += n;
+        return bp;
+      }
+      n -= bp->m_len;
+      bp = m_free(bp);
     }
+  } else {
+    if ((n = m_length(bp) + n) <= 0) {
+      m_freem(bp);
+      return NULL;
+    }
+    for (; bp; bp = bp->m_next, n -= bp->m_len)
+      if (n < bp->m_len) {
+        bp->m_len = n;
+        m_freem(bp->m_next);
+        bp->m_next = NULL;
+        break;
+      }
+  }
 
   return bp;
 }
 
 void
-mbuf_Write(struct mbuf *bp, const void *ptr, size_t cnt)
+mbuf_Write(struct mbuf *bp, const void *ptr, size_t m_len)
 {
   int plen;
   int nb;
 
-  plen = mbuf_Length(bp);
-  if (plen < cnt)
-    cnt = plen;
+  plen = m_length(bp);
+  if (plen < m_len)
+    m_len = plen;
 
-  while (cnt > 0) {
-    nb = (cnt < bp->cnt) ? cnt : bp->cnt;
+  while (m_len > 0) {
+    nb = (m_len < bp->m_len) ? m_len : bp->m_len;
     memcpy(MBUF_CTOP(bp), ptr, nb);
-    cnt -= bp->cnt;
-    bp = bp->next;
+    m_len -= bp->m_len;
+    bp = bp->m_next;
   }
 }
 
@@ -220,7 +293,7 @@ int
 mbuf_Show(struct cmdargs const *arg)
 {
   int i;
-  static const char *mbuftype[] = { 
+  static const char * const mbuftype[] = { 
     "ip in", "ip out", "nat in", "nat out", "mp in", "mp out",
     "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
     "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",
@@ -232,13 +305,16 @@ mbuf_Show(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "Fragments (octets) in use:\n");
   for (i = 0; i < MB_MAX; i += 2)
-    prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\t%10.10s: %04d (%06d)\n",
-	    mbuftype[i], MemMap[i].fragments, MemMap[i].octets,
-            mbuftype[i+1], MemMap[i+1].fragments, MemMap[i+1].octets);
+    prompt_Printf(arg->prompt, "%10.10s: %04lu (%06lu)\t"
+                  "%10.10s: %04lu (%06lu)\n",
+	          mbuftype[i], (u_long)MemMap[i].fragments,
+                  (u_long)MemMap[i].octets, mbuftype[i+1],
+                  (u_long)MemMap[i+1].fragments, (u_long)MemMap[i+1].octets);
 
   if (i == MB_MAX)
-    prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\n",
-                  mbuftype[i], MemMap[i].fragments, MemMap[i].octets);
+    prompt_Printf(arg->prompt, "%10.10s: %04lu (%06lu)\n",
+                  mbuftype[i], (u_long)MemMap[i].fragments,
+                  (u_long)MemMap[i].octets);
 
   prompt_Printf(arg->prompt, "Mallocs: %llu,   Frees: %llu\n",
                 mbuf_Mallocs, mbuf_Frees);
@@ -247,62 +323,63 @@ mbuf_Show(struct cmdargs const *arg)
 }
 
 struct mbuf *
-mbuf_Dequeue(struct mqueue *q)
+m_dequeue(struct mqueue *q)
 {
   struct mbuf *bp;
   
-  log_Printf(LogDEBUG, "mbuf_Dequeue: queue len = %d\n", q->qlen);
+  log_Printf(LogDEBUG, "m_dequeue: queue len = %lu\n", (u_long)q->len);
   bp = q->top;
   if (bp) {
-    q->top = q->top->pnext;
-    q->qlen--;
+    q->top = q->top->m_nextpkt;
+    q->len--;
     if (q->top == NULL) {
       q->last = q->top;
-      if (q->qlen)
-	log_Printf(LogERROR, "mbuf_Dequeue: Not zero (%d)!!!\n", q->qlen);
+      if (q->len)
+	log_Printf(LogERROR, "m_dequeue: Not zero (%lu)!!!\n",
+                   (u_long)q->len);
     }
-    bp->pnext = NULL;
+    bp->m_nextpkt = NULL;
   }
 
   return bp;
 }
 
 void
-mbuf_Enqueue(struct mqueue *queue, struct mbuf *bp)
+m_enqueue(struct mqueue *queue, struct mbuf *bp)
 {
   if (bp != NULL) {
     if (queue->last) {
-      queue->last->pnext = bp;
+      queue->last->m_nextpkt = bp;
       queue->last = bp;
     } else
       queue->last = queue->top = bp;
-    queue->qlen++;
-    log_Printf(LogDEBUG, "mbuf_Enqueue: len = %d\n", queue->qlen);
+    queue->len++;
+    log_Printf(LogDEBUG, "m_enqueue: len = %lu\n", (unsigned long)queue->len);
   }
 }
 
 struct mbuf *
-mbuf_Contiguous(struct mbuf *bp)
+m_pullup(struct mbuf *bp)
 {
   /* Put it all in one contigous (aligned) mbuf */
 
   if (bp != NULL) {
-    if (bp->next != NULL) {
+    if (bp->m_next != NULL) {
       struct mbuf *nbp;
       u_char *cp;
 
-      nbp = mbuf_Alloc(mbuf_Length(bp), bp->type);
+      nbp = m_get(m_length(bp), bp->m_type);
 
-      for (cp = MBUF_CTOP(nbp); bp; bp = mbuf_FreeSeg(bp)) {
-        memcpy(cp, MBUF_CTOP(bp), bp->cnt);
-        cp += bp->cnt;
+      for (cp = MBUF_CTOP(nbp); bp; bp = m_free(bp)) {
+        memcpy(cp, MBUF_CTOP(bp), bp->m_len);
+        cp += bp->m_len;
       }
       bp = nbp;
     }
 #ifndef __i386__	/* Do any other archs not care about alignment ? */
-    else if ((bp->offset & (sizeof(long) - 1)) != 0) {
-      bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
-      bp->offset = 0;
+    else if ((bp->m_offset & (sizeof(long) - 1)) != 0) {
+      bcopy(MBUF_CTOP(bp), bp + 1, bp->m_len);
+      bp->m_offset = 0;
     }
 #endif
   }
@@ -311,14 +388,32 @@ mbuf_Contiguous(struct mbuf *bp)
 }
 
 void
-mbuf_SetType(struct mbuf *bp, int type)
+m_settype(struct mbuf *bp, int type)
 {
-  for (; bp; bp = bp->next)
-    if (type != bp->type) {
-      MemMap[bp->type].fragments--;
-      MemMap[bp->type].octets -= bp->size;
-      bp->type = type;
+  for (; bp; bp = bp->m_next)
+    if (type != bp->m_type) {
+      MemMap[bp->m_type].fragments--;
+      MemMap[bp->m_type].octets -= bp->m_size;
+      bp->m_type = type;
       MemMap[type].fragments++;
-      MemMap[type].octets += bp->size;
+      MemMap[type].octets += bp->m_size;
     }
+}
+
+struct mbuf *
+m_append(struct mbuf *bp, const void *v, size_t sz)
+{
+  struct mbuf *m = bp;
+
+  if (m) {
+    while (m->m_next)
+      m = m->m_next;
+    if (m->m_size - m->m_len > sz)
+      m->m_len += sz;
+    else
+      m->m_next = m_prepend(NULL, v, sz, 0);
+  } else
+    bp = m_prepend(NULL, v, sz, 0);
+
+  return bp;
 }

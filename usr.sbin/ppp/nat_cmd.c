@@ -19,11 +19,12 @@
 #include <string.h>
 #include <termios.h>
 
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
+
 #include "layer.h"
 #include "proto.h"
 #include "defs.h"
@@ -49,8 +50,11 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ip.h"
 #include "bundle.h"
 
+
+#define NAT_EXTRABUF (13)
 
 static int StrToAddr(const char *, struct in_addr *);
 static int StrToPortRange(const char *, u_short *, u_short *, const char *);
@@ -335,20 +339,34 @@ nat_Pptp(struct cmdargs const *arg)
   return 0;
 }
 
-static struct mbuf *
-nat_PadMbuf(struct mbuf *bp, int type)
+int
+nat_SetTarget(struct cmdargs const *arg)
 {
-  struct mbuf **last;
-  int len;
+  struct in_addr addr;
 
-  mbuf_SetType(bp, type);
-  for (last = &bp, len = 0; *last != NULL; last = &(*last)->next)
-    len += (*last)->cnt;
+  if (arg->argc == arg->argn) {
+    addr.s_addr = INADDR_ANY;
+    PacketAliasSetTarget(addr);
+    return 0;
+  }
 
-  len = MAX_MRU - len;
-  *last = mbuf_Alloc(len, type);
+  if (arg->argc != arg->argn + 1)
+    return -1;
 
-  return bp;
+  if (!strcasecmp(arg->argv[arg->argn], "MYADDR")) {
+    addr.s_addr = INADDR_ANY;
+    PacketAliasSetTarget(addr);
+    return 0;
+  }
+
+  addr = GetIpAddr(arg->argv[arg->argn]);
+  if (addr.s_addr == INADDR_NONE) {
+    log_Printf(LogWARN, "%s: invalid address\n", arg->argv[arg->argn]);
+    return 1;
+  }
+
+  PacketAliasSetTarget(addr);
+  return 0;
 }
 
 static struct mbuf *
@@ -359,9 +377,11 @@ nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "nat_LayerPush: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATOUT));
-  PacketAliasOut(MBUF_CTOP(bp), bp->cnt);
-  bp->cnt = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
+  m_settype(bp, MB_NATOUT);
+  /* Ensure there's a bit of extra buffer for the NAT code... */
+  bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
+  PacketAliasOut(MBUF_CTOP(bp), bp->m_len);
+  bp->m_len = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
 
   return bp;
 }
@@ -370,8 +390,9 @@ static struct mbuf *
 nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 u_short *proto)
 {
+  static int gfrags;
   struct ip *pip, *piip;
-  int ret, len;
+  int ret, len, nfrags;
   struct mbuf **last;
   char *fptr;
 
@@ -379,7 +400,8 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "nat_LayerPull: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATIN));
+  m_settype(bp, MB_NATIN);
+  bp = m_pullup(bp);
   pip = (struct ip *)MBUF_CTOP(bp);
   piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
 
@@ -387,13 +409,16 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
     return bp;
 
-  ret = PacketAliasIn(MBUF_CTOP(bp), bp->cnt);
+  /* Ensure there's a bit of extra buffer for the NAT code... */
+  bp = m_pullup(m_append(bp, NULL, NAT_EXTRABUF));
+  ret = PacketAliasIn(MBUF_CTOP(bp), bp->m_len);
+  pip = (struct ip *)MBUF_CTOP(bp);
 
-  bp->cnt = ntohs(pip->ip_len);
-  if (bp->cnt > MAX_MRU) {
-    log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%d)\n",
-               bp->cnt);
-    mbuf_Free(bp);
+  bp->m_len = ntohs(pip->ip_len);
+  if (bp->m_len > MAX_MRU) {
+    log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length (%lu)\n",
+               (unsigned long)bp->m_len);
+    m_freem(bp);
     return NULL;
   }
 
@@ -403,26 +428,44 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
 
     case PKT_ALIAS_UNRESOLVED_FRAGMENT:
       /* Save the data for later */
-      fptr = malloc(bp->cnt);
-      bp = mbuf_Read(bp, fptr, bp->cnt);
+      fptr = malloc(bp->m_len);
+      bp = mbuf_Read(bp, fptr, bp->m_len);
       PacketAliasSaveFragment(fptr);
+      log_Printf(LogDEBUG, "Store another frag (%lu) - now %d\n",
+                 (unsigned long)((struct ip *)fptr)->ip_id, ++gfrags);
       break;
 
     case PKT_ALIAS_FOUND_HEADER_FRAGMENT:
       /* Fetch all the saved fragments and chain them on the end of `bp' */
-      last = &bp->pnext;
+      last = &bp->m_nextpkt;
+      nfrags = 0;
       while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
-	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
+        nfrags++;
+        PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
         len = ntohs(((struct ip *)fptr)->ip_len);
-        *last = mbuf_Alloc(len, MB_NATIN);
+        *last = m_get(len, MB_NATIN);
         memcpy(MBUF_CTOP(*last), fptr, len);
         free(fptr);
-        last = &(*last)->pnext;
+        last = &(*last)->m_nextpkt;
       }
+      gfrags -= nfrags;
+      log_Printf(LogDEBUG, "Found a frag header (%lu) - plus %d more frags (no"
+                 "w %d)\n", (unsigned long)((struct ip *)MBUF_CTOP(bp))->ip_id,
+                 nfrags, gfrags);
+      break;
+
+    case PKT_ALIAS_IGNORED:
+      if (log_IsKept(LogTCPIP)) {
+        log_Printf(LogTCPIP, "NAT engine ignored data:\n");
+        PacketCheck(bundle, (char *)pip, ntohs(pip->ip_len), NULL);
+      }
+      m_freem(bp);
+      bp = NULL;
       break;
 
     default:
-      mbuf_Free(bp);
+      log_Printf(LogWARN, "nat_LayerPull: Dropped a packet (%d)....\n", ret);
+      m_freem(bp);
       bp = NULL;
       break;
   }

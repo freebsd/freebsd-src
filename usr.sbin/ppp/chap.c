@@ -76,8 +76,9 @@
 #ifdef HAVE_DES
 #include "chap_ms.h"
 #endif
+#include "id.h"
 
-static const char *chapcodes[] = {
+static const char * const chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 #define MAXCHAPCODE (sizeof chapcodes / sizeof chapcodes[0] - 1)
@@ -94,7 +95,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
-  bp = mbuf_Alloc(plen, MB_CHAPOUT);
+  bp = m_get(plen, MB_CHAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
@@ -230,6 +231,15 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
 
     case 0:
       timer_TermService();
+
+      if ((argc = command_Interpret(prog, strlen(prog), argv)) <= 0) {
+        if (argc < 0) {
+          log_Printf(LogWARN, "CHAP: Invalid command syntax\n");
+          _exit(255);
+        }
+        _exit(0);
+      }
+
       close(in[1]);
       close(out[0]);
       if (out[1] == STDIN_FILENO)
@@ -244,8 +254,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       }
       for (fd = getdtablesize(); fd > STDERR_FILENO; fd--)
         fcntl(fd, F_SETFD, 1);
-      setuid(geteuid());
-      argc = command_Interpret(prog, strlen(prog), argv);
+      setuid(ID0realuid());
       command_Expand(nargv, argc, (char const *const *)argv,
                      chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);
@@ -322,7 +331,7 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
 }
 
 static int
-chap_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+chap_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct chap *chap = descriptor2chap(d);
 
@@ -338,7 +347,7 @@ chap_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-chap_IsSet(struct descriptor *d, const fd_set *fdset)
+chap_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct chap *chap = descriptor2chap(d);
 
@@ -346,7 +355,7 @@ chap_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chap *chap = descriptor2chap(d);
   int got;
@@ -402,7 +411,7 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-chap_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "chap_Write: Internal error: Bad call !\n");
@@ -546,18 +555,18 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   if (p == NULL) {
     log_Printf(LogERROR, "chap_Input: Not a physical link - dropped\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
   if (bundle_Phase(bundle) != PHASE_NETWORK &&
       bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected chap input - dropped !\n");
-    mbuf_Free(bp);
+    m_freem(bp);
     return NULL;
   }
 
-  mbuf_SetType(bp, MB_CHAPIN);
+  m_settype(bp, MB_CHAPIN);
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL &&
       ntohs(chap->auth.in.hdr.length) == 0)
     log_Printf(LogWARN, "Chap Input: Truncated header !\n");
@@ -565,7 +574,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     log_Printf(LogPHASE, "Chap Input: %d: Bad CHAP code !\n",
                chap->auth.in.hdr.code);
   else {
-    len = mbuf_Length(bp);
+    len = m_length(bp);
     ans = NULL;
 
     if (chap->auth.in.hdr.code != CHAP_CHALLENGE &&
@@ -575,7 +584,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
       log_Printf(LogPHASE, "Chap Input: %s dropped (got id %d, not %d)\n",
                  chapcodes[chap->auth.in.hdr.code], chap->auth.in.hdr.id,
                  chap->auth.id);
-      mbuf_Free(bp);
+      m_freem(bp);
       return NULL;
     }
     chap->auth.id = chap->auth.in.hdr.id;	/* We respond with this id */
@@ -589,7 +598,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         len -= alen + 1;
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated challenge !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         *chap->challenge.peer = alen;
@@ -608,12 +617,12 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         len -= alen + 1;
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated response !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         if ((ans = malloc(alen + 2)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         *ans = chap->auth.id;
@@ -630,7 +639,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         /* chap->auth.in.name is already set up at CHALLENGE time */
         if ((ans = malloc(len + 1)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
-          mbuf_Free(bp);
+          m_freem(bp);
           return NULL;
         }
         bp = mbuf_Read(bp, ans, len);
@@ -769,6 +778,6 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     free(ans);
   }
 
-  mbuf_Free(bp);
+  m_freem(bp);
   return NULL;
 }

@@ -116,7 +116,7 @@ udp_Free(struct physical *p)
 
 static void
 udp_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   int sz = physical_MaxDeviceSize();
 
@@ -132,6 +132,7 @@ udp_device2iov(struct device *d, struct iovec *iov, int *niov,
 static const struct device baseudpdevice = {
   UDP_DEVICE,
   "udp",
+  { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,
   NULL,
@@ -282,6 +283,8 @@ udp_Create(struct physical *p)
   if (dev) {
     memcpy(&dev->dev, &baseudpdevice, sizeof dev->dev);
     physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNC);
+    if (p->cfg.cd.necessity != CD_DEFAULT)
+      log_Printf(LogWARN, "Carrier settings ignored\n");
     return &dev->dev;
   }
 

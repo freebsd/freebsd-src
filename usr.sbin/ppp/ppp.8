@@ -34,9 +34,9 @@ flag (or
 flag for backwards compatability) does the equivalent of a
 .Dq nat enable yes ,
 enabling
-.Nm ppp Ns No s
+.Nm Ns No 's
 network address translation features.  This allows
-.Nm ppp
+.Nm
 to act as a NAT or masquerading engine for all machines on an internal 
 LAN.  Refer to
 .Xr libalias 3
@@ -113,7 +113,7 @@ In foreground mode,
 attempts to establish a connection with the peer immediately, but never
 becomes a daemon.  The link is created in background mode.  This is useful
 if you wish to control
-.Nm ppp Ns No s
+.Nm Ns No 's
 invocation from another process.
 .It Fl direct
 This is used for receiving incoming connections.
@@ -327,7 +327,7 @@ minimum.
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
-stack (ie. Win95, WinNT)
+stack (i.e., Win95, WinNT)
 .It Supports Multi-link PPP (rfc 1990)
 It is possible to configure
 .Nm
@@ -394,7 +394,7 @@ Make sure that your system has a group named
 .Dq network
 in the
 .Pa /etc/group
-file and that that group contains the names of all users expected to use
+file and that the group contains the names of all users expected to use
 .Nm ppp .
 Refer to the
 .Xr group 5
@@ -443,7 +443,7 @@ after altering
 .Pa /etc/syslog.conf .
 .It
 Although not strictly relevant to
-.Nm ppp Ns No s
+.Nm Ns No 's
 operation, you should configure your resolver so that it works correctly.
 This can be done by configuring a local DNS
 .Pq using Xr named 8
@@ -462,7 +462,9 @@ update
 .Pa /etc/resolv.conf
 automatically.  Refer to the
 .Dq enable dns
-command below for details.
+and
+.Dq resolv
+commands below for details.
 .El
 .Sh MANUAL DIALING
 In the following examples, we assume that your machine name is
@@ -508,7 +510,7 @@ description below too - you'll probably need to
 Usually, parity is set to
 .Dq none ,
 and this is
-.Nm ppp Ns No s
+.Nm Ns No 's
 default.  Parity is a rather archaic error checking mechanism that is no
 longer used because modern modems do their own error checking, and most
 link-layer protocols (that's what
@@ -1134,7 +1136,7 @@ commands.  Refer to their descriptions below.
 .Pp
 .Sh RECEIVING INCOMING PPP CONNECTIONS (Method 2)
 This method differs in that we use
-.Nm ppp
+.Nm
 to authenticate the connection rather than
 .Xr login 1 :
 .Bl -enum
@@ -1260,7 +1262,7 @@ may also contain a list of numbers or a
 as if passed to the
 .Dq set cbcp
 command.  The value will be used in
-.Nm ppp Ns No s
+.Nm Ns No 's
 subsequent CBCP phase.
 .Sh PPP OVER TCP and UDP (a.k.a Tunnelling)
 Instead of running
@@ -1558,7 +1560,7 @@ and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
 .It
 Each filter can hold up to 40 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined,
-ie. the default is to allow everything through.
+i.e., the default is to allow everything through.
 .It
 If no rule is matched to a packet, that packet will be discarded
 (blocked).
@@ -1978,9 +1980,16 @@ Ask your ISP to authenticate your nameserver address(es) with the line
 .Bd -literal -offset indent
 enable dns
 .Ed
+.Pp
 Do
 .Em NOT
-do this if you are running an local DNS, as
+do this if you are running a local DNS unless you also either use
+.Dq resolv readonly
+or have
+.Dq resolv restore
+in
+.Pa /etc/ppp/ppp.linkdown ,
+as
 .Nm
 will simply circumvent its use by entering some nameserver lines in
 .Pa /etc/resolv.conf .
@@ -2020,6 +2029,8 @@ files.
 Log Chat lines containing the string "CONNECT".
 .It Li Debug
 Log debug information.
+.It Li DNS
+Log DNS QUERY packets.
 .It Li HDLC
 Dump HDLC packet in hex.
 .It Li ID0
@@ -2068,7 +2079,7 @@ should immediately follow
 .Dq set log .
 The default is
 .Dq set log local
-(ie. only the un-maskable warning, error and alert output).
+(i.e., only the un-maskable warning, error and alert output).
 .Pp
 If The first argument to
 .Dq set log Op local
@@ -2267,7 +2278,7 @@ directory.  This socket is used to pass link information (including
 the actual link file descriptor) between different
 .Nm
 invocations.  This facilitates
-.Nm ppp Ns No s
+.Nm Ns No 's
 ability to be run from a
 .Xr getty 8
 or directly from
@@ -2584,7 +2595,7 @@ and wait for the controlling
 .Nm
 to finish with the link and deliver a signal back to the idle process.
 This prevents the confusion that results from
-.Nm ppp Ns No 's
+.Nm Ns No 's
 parent considering the link resource available again.
 .Pp
 For tty devices that have entries in
@@ -2773,17 +2784,21 @@ command (see
 for further details).
 .Pp
 Routes that contain the
-.Dq HISADDR
+.Dq HISADDR ,
+.Dq MYADDR ,
+.Dq DNS0 ,
 or
-.Dq MYADDR
+.Dq DNS1
 constants are considered
 .Sq sticky .
 They are stored in a list (use
 .Dq show ipcp
 to see the list), and each time the value of
-.Dv HISADDR
+.Dv HISADDR ,
+.Dv MYADDR ,
+.Dv DNS0 ,
 or
-.Dv MYADDR
+.Dv DNS1
 changes, the appropriate routing table entries are updated.  This facility
 may be disabled using
 .Dq disable sroutes .
@@ -2977,6 +2992,17 @@ When enabled, this command will tell the network address translation engine to
  attempt to avoid changing the port number on outgoing packets.  This is useful
 if you want to support protocols such as RPC and LPD which require
 connections to come from a well known port.
+.It nat target Op Ar address
+Set the given target address or clear it if no address is given.  The target
+address is used by libalias to specify how to NAT incoming packets by default.
+If a target address is not set or if
+.Dq default
+is given, packets are not altered and are allowed to route to the internal
+network.
+.Pp
+The target address may be set to
+.Dq MYADDR ,
+in which case libalias will redirect all packets to the interface address.
 .It nat use_sockets yes|no
 When enabled, this option tells the network address translation engine to
 create a socket so that it can guarantee a correct incoming ftp data or
@@ -3033,6 +3059,9 @@ This is replaced with the current process id.
 This is replaced with the username that has been authenticated with PAP or
 CHAP.  Normally, this variable is assigned only in -direct mode.  This value
 is available irrespective of whether utmp logging is enabled.
+.It Li DNS0 No " & " Li DNS1
+These are replaced with the primary and secondary nameserver IP numbers.  If
+nameservers are negotiated by IPCP, the values of these macros will change.
 .El
 .Pp
 These substitutions are also done by the
@@ -3354,6 +3383,69 @@ Renaming it to
 or
 .Sq USR
 may make the log file more readable.
+.It resolv Ar command
+This command controls
+.Nm Ns No 's
+manipulation of the
+.Xr resolv.conf 5
+file.  When
+.Nm
+starts up, it loads the contents of this file into memory and retains this
+image for future use.
+.Ar command
+is one of the following:
+.Bl -tag -width readonly
+.It Em readonly
+Treat
+.Pa /etc/resolv.conf
+as read only.  If
+.Dq dns
+is enabled,
+.Nm
+will still attempt to negotiate nameservers with the peer, making the results
+available via the
+.Dv DNS0
+and
+.Dv DNS1
+macros.  This is the opposite of the
+.Dq resolv writable
+command.
+.It Em reload
+Reload
+.Pa /etc/resolv.conf
+into memory.  This may be necessary if for example a DHCP client overwrote
+.Pa /etc/resolv.conf .
+.It Em restore
+Replace
+.Pa /etc/resolv.conf
+with the version originally read at startup or with the last
+.Dq resolv reload
+command.  This is sometimes a useful command to put in the
+.Pa /etc/ppp/ppp.linkdown
+file.
+.It Em rewrite
+Rewrite the
+.Pa /etc/resolv.conf
+file.  This command will work even if the
+.Dq resolv readonly
+command has been used.  It may be useful as a command in the
+.Pa /etc/ppp/ppp.linkup
+file if you wish to defer updating
+.Pa /etc/resolv.conf
+until after other commands have finished.
+.It Em writable
+Allow
+.Nm
+to update
+.Pa /etc/resolv.conf
+if
+.Dq dns
+is enabled and
+.Nm
+successfully negotiates a DNS.  This is the opposite of the
+.Dq resolv readonly
+command.
+.El
 .It save
 This option is not (yet) implemented.
 .It set Ns Xo
@@ -3518,7 +3610,7 @@ The
 .Ar option Ns No s
 are as follows (in this order of preference):
 .Pp
-.Bl -tag
+.Bl -tag -width Ds
 .It auth
 The callee is expected to decide the callback number based on
 authentication.  If
@@ -3527,7 +3619,7 @@ is the callee, the number should be specified as the fifth field of
 the peers entry in
 .Pa /etc/ppp/ppp.secret .
 .It cbcp
-Microsofts callback control protocol is used.  See
+Microsoft's callback control protocol is used.  See
 .Dq set cbcp
 below.
 .Pp
@@ -3578,7 +3670,7 @@ options) if you wish callback to be optional.
 .Op Ar delay Op Ar retry
 .Oc
 .Xc
-If no arguments are given, CBCP (Microsofts CallBack Control Protocol)
+If no arguments are given, CBCP (Microsoft's CallBack Control Protocol)
 is disabled - ie, configuring CBCP in the
 .Dq set callback
 command will result in
@@ -3604,22 +3696,51 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
-.It "set cd off|" Ns Ar seconds Ns Op \&!
+.It set cd Oo
+.No off| Ns Ar seconds Ns Op \&!
+.Oc
 Normally,
 .Nm
-checks for the existence of carrier one second after the login script is
-complete.  If it's not set,
+checks for the existence of carrier depending on the type of device
+that has been opened:
+.Bl -tag -width XXX -offset XXX
+.It Terminal Devices
+Carrier is checked one second after the login script is complete.  If it's
+not set,
 .Nm
 assumes that this is because the device doesn't support carrier (which
 is true for most
 .Dq laplink
 NULL-modem cables), logs the fact and stops checking
-for carrier.  However, some modems take some time to assert the carrier
-signal, resulting in
-.Nm ppp Ns No s
-inability to detect when the link is dropped.
+for carrier.
+.Pp
+As ptys don't support the TIOCMGET ioctl, the tty device will switch all
+carrier detection off when it detects that the device is a pty.
+.It ISDN (i4b) Devices
+Carrier is checked once per second for 6 seconds.  If it's not set after
+the sixth second, the connection attempt is considered to have failed and
+the device is closed.  Carrier is always required for i4b devices.
+.It PPPoE (netgraph) Devices
+Carrier is checked once per second for 5 seconds.  If it's not set after
+the fifth second, the connection attempt is considered to have failed and
+the device is closed.  Carrier is always required for PPPoE devices.
+.El
+.Pp
+All other device types don't support carrier.  Setting a carrier value will
+result in a warning when the device is opened.
+.Pp
+Some modems take more than one second after connecting to assert the carrier
+signal.  If this delay isn't increased, this will result in
+.Nm Ns No 's
+inability to detect when the link is dropped, as
+.Nm
+assumes that the device isn't asserting carrier.
+.Pp
+The
+.Dq set cd
+command overrides the default carrier behaviour.
 .Ar seconds
-specifies the number of seconds that
+specifies the maximum number of seconds that
 .Nm
 should wait after the dial script has finished before deciding if
 carrier is available or not.
@@ -3633,7 +3754,12 @@ will not check for carrier on the device, otherwise
 will not proceed to the login script until either carrier is detected
 or until
 .Ar seconds
-has elapsed.
+has elapsed, at which point
+.Nm
+assumes that the device will not set carrier.
+.Pp
+If no arguments are given, carrier settings will go back to their default
+values.
 .Pp
 If
 .Ar seconds
@@ -3645,21 +3771,6 @@ will
 carrier.  If carrier is not detected after
 .Ar seconds
 seconds, the link will be disconnected.
-.Pp
-For ISDN devices,
-.Nm
-will always insist on carrier (the value
-.Dq off
-is invalid).  Carrier is raised by the i4brbchX device driver only after
-the call has connected.  It is therefore wise to set a reasonable value
-such as
-.Ar 6
-seconds.
-.Pp
-Carrier
-.Em require Ns No ment
-is ignored for all other device types - as if set to
-.Dq off .
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm
@@ -3731,7 +3842,7 @@ All ISDN and serial device names are expected to begin with
 ISDN devices are usually called
 .Pa i4brbchX
 and serial devices are usually called
-.Pa cuaaX .
+.Pa cuaXX .
 .Pp
 If
 .Dq value
@@ -3873,7 +3984,7 @@ is running in interactive mode, file descriptor 3 is attached to
 For example (wrapped for readability);
 .Bd -literal -offset indent
 set login "TIMEOUT 5 \\"\\" \\"\\" login:--login: ppp \e
-word: ppp \\"!sh \\\\\\\\-c \\\\\\"echo \\\\\\\\-n label: >&2\\\\\\"\\" \e
+word: ppp \\"!sh \\\\-c \\\\\\"echo \\\\-n label: >&2\\\\\\"\\" \e
 \\"!/bin/echo in\\" HELLO"
 .Ed
 .Pp

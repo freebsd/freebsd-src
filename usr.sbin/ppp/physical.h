@@ -28,7 +28,7 @@ struct bundle;
 struct ccp;
 struct cmdargs;
 
-/* Device types */
+/* Device types (don't use zero, it'll be confused with NULL in physical2iov */
 #define I4B_DEVICE	1
 #define TTY_DEVICE	2
 #define TCP_DEVICE	3
@@ -42,13 +42,20 @@ struct cmdargs;
 #define CARRIER_LOST	3
 
 /* A cd ``necessity'' value */
-#define CD_VARIABLE	1
-#define CD_REQUIRED	2
-#define CD_NOTREQUIRED	3
+#define CD_VARIABLE	0
+#define CD_REQUIRED	1
+#define CD_NOTREQUIRED	2
+#define CD_DEFAULT	3
+
+struct cd {
+  unsigned necessity : 2;  /* A CD_ value */
+  int delay;               /* Wait this many seconds after login script */
+};
 
 struct device {
   int type;
   const char *name;
+  struct cd cd;
 
   int (*awaitcarrier)(struct physical *);
   int (*removefromset)(struct physical *, fd_set *, fd_set *, fd_set *);
@@ -59,15 +66,14 @@ struct device {
   void (*destroy)(struct physical *);
   ssize_t (*read)(struct physical *, void *, size_t);
   ssize_t (*write)(struct physical *, const void *, size_t);
-  void (*device2iov)(struct device *, struct iovec *, int *, int, int *,
-                     int *, pid_t);
+  void (*device2iov)(struct device *, struct iovec *, int *, int, int *, int *);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
 };
 
 struct physical {
   struct link link;
-  struct descriptor desc;
+  struct fdescriptor desc;
   int type;                    /* What sort of PHYS_* link are we ? */
   struct async async;          /* Our async state */
   struct hdlc hdlc;            /* Our hdlc state */
@@ -98,10 +104,7 @@ struct physical {
 
     char devlist[LINE_LEN];    /* NUL separated list of devices */
     int ndev;                  /* number of devices in list */
-    struct {
-      unsigned necessity : 2;  /* A CD_ value */
-      int delay;               /* Wait this many seconds after login script */
-    } cd;
+    struct cd cd;
   } cfg;
 };
 
@@ -134,7 +137,8 @@ extern void physical_Destroy(struct physical *);
 extern struct physical *iov2physical(struct datalink *, struct iovec *, int *,
                                      int, int, int *, int *);
 extern int physical2iov(struct physical *, struct iovec *, int *, int, int *,
-                        int *, pid_t);
+                        int *);
+extern const char *physical_LockedDevice(struct physical *);
 extern void physical_ChangedPid(struct physical *, pid_t);
 
 extern int physical_IsSync(struct physical *);
@@ -144,10 +148,10 @@ extern void physical_SetDevice(struct physical *, const char *);
 
 extern ssize_t physical_Read(struct physical *, void *, size_t);
 extern ssize_t physical_Write(struct physical *, const void *, size_t);
-extern int physical_doUpdateSet(struct descriptor *, fd_set *, fd_set *,
+extern int physical_doUpdateSet(struct fdescriptor *, fd_set *, fd_set *,
                                 fd_set *, int *, int);
-extern int physical_IsSet(struct descriptor *, const fd_set *);
-extern void physical_DescriptorRead(struct descriptor *, struct bundle *,
+extern int physical_IsSet(struct fdescriptor *, const fd_set *);
+extern void physical_DescriptorRead(struct fdescriptor *, struct bundle *,
                                     const fd_set *);
 extern void physical_Login(struct physical *, const char *);
 extern int physical_RemoveFromSet(struct physical *, fd_set *, fd_set *,

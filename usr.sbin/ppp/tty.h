@@ -29,6 +29,8 @@
 struct physical;
 struct device;
 
+#define DEF_TTYCDDELAY	1		/* Default ``set cd'' value */
+
 extern struct device *tty_Create(struct physical *);
 extern struct device *tty_iov2device(int, struct physical *,
                                      struct iovec *, int *, int, int *, int *);

@@ -94,13 +94,13 @@ bitsinmask(struct in_addr mask)
 struct iface *
 iface_Create(const char *name)
 {
-  int mib[6], i, s;
+  int mib[6], s;
   size_t needed;
-  char *buf, *ptr, *end, *cp, *lim;
+  char *buf, *ptr, *end;
   struct if_msghdr *ifm;
   struct ifa_msghdr *ifam;
   struct sockaddr_dl *dl;
-  struct rt_addrinfo rti;
+  struct sockaddr *sa[RTAX_MAX];
   struct iface *iface;
   struct iface_addr *addr;
 
@@ -165,29 +165,12 @@ iface_Create(const char *name)
       if (ifam->ifam_type != RTM_NEWADDR)		/* finished this if */
         break;
 
-      if (iface == NULL)				/* Keep wading */
-        continue;
+      if (iface != NULL && ifam->ifam_addrs & RTA_IFA) {
+        /* Found a configured interface ! */
+        iface_ParseHdr(ifam, sa);
 
-      /* Found an address ! */
-
-      if (ifam->ifam_addrs & (1 << RTAX_IFA)) {
-        /* *And* it's configured ! */
-        rti.rti_addrs = ifam->ifam_addrs;
-        lim = (char *)ifam + ifam->ifam_msglen;
-        cp = (char *)(ifam + 1);
-        memset(rti.rti_info, '\0', sizeof(rti.rti_info));
-        for (i = 0; i < RTAX_MAX && cp < lim; i++) {
-          if ((rti.rti_addrs & (1 << i)) == 0)
-            continue;
-          rti.rti_info[i] = (struct sockaddr *)cp;
-#define ROUNDUP(x) \
-          ((x) > 0 ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
-          cp += ROUNDUP(rti.rti_info[i]->sa_len);
-        }
-
-        if (rti.rti_info[RTAX_IFA] &&
-            rti.rti_info[RTAX_IFA]->sa_family == AF_INET) {
-          /* Record the iface address rti */
+        if (sa[RTAX_IFA] && sa[RTAX_IFA]->sa_family == AF_INET) {
+          /* Record the address */
 
           addr = (struct iface_addr *)realloc
             (iface->in_addr, (iface->in_addrs + 1) * sizeof iface->in_addr[0]);
@@ -198,14 +181,17 @@ iface_Create(const char *name)
           addr += iface->in_addrs;
           iface->in_addrs++;
 
-          addr->ifa.s_addr = ((struct sockaddr_in *)rti.rti_info[RTAX_IFA])->
-            sin_addr.s_addr;
-          addr->brd.s_addr = rti.rti_info[RTAX_BRD] ?
-            ((struct sockaddr_in *)rti.rti_info[RTAX_BRD])->sin_addr.s_addr :
-            INADDR_ANY;
-          addr->mask.s_addr = rti.rti_info[RTAX_NETMASK] ?
-            ((struct sockaddr_in *)rti.rti_info[RTAX_NETMASK])->sin_addr.s_addr:
-            INADDR_ANY;
+          addr->ifa = ((struct sockaddr_in *)sa[RTAX_IFA])->sin_addr;
+
+          if (sa[RTAX_BRD])
+            addr->brd = ((struct sockaddr_in *)sa[RTAX_BRD])->sin_addr;
+          else
+            addr->brd.s_addr = INADDR_ANY;
+
+          if (sa[RTAX_NETMASK])
+            addr->mask = ((struct sockaddr_in *)sa[RTAX_NETMASK])->sin_addr;
+          else
+            addr->mask.s_addr = INADDR_ANY;
 
           addr->bits = bitsinmask(addr->mask);
         }
@@ -251,12 +237,14 @@ iface_inClear(struct iface *iface, int how)
 {
   int n, addrs;
 
-  addrs = n = how == IFACE_CLEAR_ALL ? 0 : 1;
-  for (; n < iface->in_addrs; n++)
-    iface_addr_Zap(iface->name, iface->in_addr + n);
+  if (iface->in_addrs) {
+    addrs = n = how == IFACE_CLEAR_ALL ? 0 : 1;
+    for (; n < iface->in_addrs; n++)
+      iface_addr_Zap(iface->name, iface->in_addr + n);
 
-  iface->in_addrs = addrs;
-  /* Don't bother realloc()ing - we have little to gain */
+    iface->in_addrs = addrs;
+    /* Don't bother realloc()ing - we have little to gain */
+  }
 }
 
 int
@@ -537,4 +525,20 @@ iface_Show(struct cmdargs const *arg)
   }
 
   return 0;
+}
+
+void
+iface_ParseHdr(struct ifa_msghdr *ifam, struct sockaddr *sa[RTAX_MAX])
+{
+  char *wp;
+  int rtax;
+
+  wp = (char *)(ifam + 1);
+
+  for (rtax = 0; rtax < RTAX_MAX; rtax++)
+    if (ifam->ifam_addrs & (1 << rtax)) {
+      sa[rtax] = (struct sockaddr *)wp;
+      wp += ROUNDUP(sa[rtax]->sa_len);
+    } else
+      sa[rtax] = NULL;
 }

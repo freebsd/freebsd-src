@@ -53,7 +53,7 @@ sync_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 int pri, u_short *proto)
 {
   log_DumpBp(LogSYNC, "Write", bp);
-  mbuf_SetType(bp, MB_SYNCOUT);
+  m_settype(bp, MB_SYNCOUT);
   return bp;
 }
 
@@ -69,9 +69,9 @@ sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
     log_DumpBp(LogSYNC, "Read", bp);
 
     /* Either done here or by the HDLC layer */
-    p->hdlc.lqm.SaveInOctets += mbuf_Length(bp) + 1;
+    p->hdlc.lqm.SaveInOctets += m_length(bp) + 1;
     p->hdlc.lqm.SaveInPackets++;
-    mbuf_SetType(bp, MB_SYNCIN);
+    m_settype(bp, MB_SYNCIN);
   }
 
   return bp;

@@ -58,8 +58,7 @@
 #define MIN_FSMRETRY 3		/* Minimum FSM retry frequency */
 #define DEF_FSMRETRY 3		/* FSM retry frequency */
 #define DEF_FSMTRIES 5		/* Default max retries */
-#define DEF_FSMAUTHTRIES 3		/* Default max auth retries */
-#define DEF_CDDELAY  1		/* Delay before checking for carrier */
+#define DEF_FSMAUTHTRIES 3	/* Default max auth retries */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"
@@ -76,10 +75,13 @@
 #define	EX_DONE		6
 #define	EX_REBOOT	7
 #define	EX_ERRDEAD	8
-#define	EX_HANGUP	10
-#define	EX_TERM		11
-#define EX_NODIAL	12
-#define EX_NOLOGIN	13
+#define	EX_HANGUP	9
+#define	EX_TERM		10
+#define EX_NODIAL	11
+#define EX_NOLOGIN	12
+/* return values for -background mode, not really exits */
+#define EX_REDIAL	13
+#define EX_RECONNECT	14
 
 /* physical::type values (OR'd in bundle::phys_type) */
 #define PHYS_NONE		0
@@ -89,7 +91,15 @@
 #define	PHYS_DEDICATED		8  /* Dedicated link */
 #define	PHYS_DDIAL		16 /* Dial immediately, stay connected */
 #define PHYS_BACKGROUND		32 /* Dial immediately, deleted when closed */
-#define PHYS_ALL		63
+#define PHYS_FOREGROUND		64 /* Pseudo mode, same as background */
+#define PHYS_ALL		127
+
+/* flags passed to findblank() and MakeArgs() */
+#define PARSE_NORMAL	0
+#define PARSE_REDUCE	1
+#define PARSE_NOHASH	2
+
+#define ROUNDUP(x) ((x) ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
@@ -98,4 +108,8 @@ extern int Nam2mode(const char *);
 extern struct in_addr GetIpAddr(const char *);
 extern int SpeedToInt(speed_t);
 extern speed_t IntToSpeed(int);
-extern int MakeArgs(char *, char **, int);
+extern char *findblank(char *, int);
+extern int MakeArgs(char *, char **, int, int);
+extern const char *NumStr(long, char *, size_t);
+extern const char *HexStr(long, char *, size_t);
+extern const char *ex_desc(int);

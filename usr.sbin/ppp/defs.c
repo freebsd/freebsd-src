@@ -35,6 +35,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -90,6 +91,7 @@ static struct {
   { PHYS_DEDICATED, "dedicated" },
   { PHYS_DDIAL, "ddial" },
   { PHYS_BACKGROUND, "background" },
+  { PHYS_FOREGROUND, "foreground" },
   { PHYS_ALL, "*" },
   { 0, 0 }
 };
@@ -262,58 +264,97 @@ IntToSpeed(int nspeed)
   return B0;
 }
 
-static char *
-findblank(char *p, int instring)
+char *
+findblank(char *p, int flags)
 {
-  if (instring) {
-    while (*p) {
-      if (*p == '\\') {
-	memmove(p, p + 1, strlen(p));
-	if (!*p)
-	  break;
-      } else if (*p == '"')
-	return (p);
-      p++;
-    }
-  } else {
-    while (*p) {
-      if (issep(*p))
-	return (p);
-      p++;
-    }
+  int instring;
+
+  instring = 0;
+  while (*p) {
+    if (*p == '\\') {
+      if (flags & PARSE_REDUCE) {
+        memmove(p, p + 1, strlen(p));
+        if (!*p)
+          break;
+      } else
+        p++;
+    } else if (*p == '"') {
+      memmove(p, p + 1, strlen(p));
+      instring = !instring;
+      continue;
+    } else if (!instring && (issep(*p) ||
+                             (*p == '#' && !(flags & PARSE_NOHASH))))
+      return p;
+    p++;
   }
 
-  return p;
+  return instring ? NULL : p;
 }
 
 int
-MakeArgs(char *script, char **pvect, int maxargs)
+MakeArgs(char *script, char **pvect, int maxargs, int flags)
 {
-  int nargs, nb;
-  int instring;
+  int nargs;
 
   nargs = 0;
-  while (*script) {
-    nb = strspn(script, " \t");
-    script += nb;
+  while (*script && (*script != '#' || (flags & PARSE_NOHASH))) {
+    script += strspn(script, " \t");
     if (*script) {
-      if (*script == '"') {
-	instring = 1;
-	script++;
-	if (*script == '\0')
-	  break;		/* Shouldn't return here. Need to NULL
-				 * terminate below */
-      } else
-	instring = 0;
       if (nargs >= maxargs - 1)
 	break;
       *pvect++ = script;
       nargs++;
-      script = findblank(script, instring);
-      if (*script)
+      script = findblank(script, flags);
+      if (script == NULL)
+        return -1;
+      else if (!(flags & PARSE_NOHASH) && *script == '#')
+	*script = '\0';
+      else if (*script)
 	*script++ = '\0';
     }
   }
   *pvect = NULL;
   return nargs;
+}
+
+const char *
+NumStr(long val, char *buf, size_t sz)
+{
+  static char result[23];		/* handles 64 bit numbers */
+
+  if (buf == NULL || sz == 0) {
+    buf = result;
+    sz = sizeof result;
+  }
+  snprintf(buf, sz, "<%ld>", val);
+  return buf;
+}
+
+const char *
+HexStr(long val, char *buf, size_t sz)
+{
+  static char result[21];		/* handles 64 bit numbers */
+
+  if (buf == NULL || sz == 0) {
+    buf = result;
+    sz = sizeof result;
+  }
+  snprintf(buf, sz, "<0x%lx>", val);
+  return buf;
+}
+
+const char *
+ex_desc(int ex)
+{
+  static char num[12];		/* Used immediately if returned */
+  static const char * const desc[] = {
+    "normal", "start", "sock", "modem", "dial", "dead", "done",
+    "reboot", "errdead", "hangup", "term", "nodial", "nologin",
+    "redial", "reconnect"
+  };
+
+  if (ex >= 0 && ex < sizeof desc / sizeof *desc)
+    return desc[ex];
+  snprintf(num, sizeof num, "%d", ex);
+  return num;
 }

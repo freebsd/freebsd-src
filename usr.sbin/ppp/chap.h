@@ -29,7 +29,7 @@ struct physical;
 #define	CHAP_FAILURE	4
 
 struct chap {
-  struct descriptor desc;
+  struct fdescriptor desc;
   struct {
     pid_t pid;
     int fd;
