@@ -3,6 +3,8 @@
 
 NOOBJ=  noobj
 
+.include <bsd.prog.mk>
+
 beforeinstall:
 .if !exists(${DESTDIR}${INFODIR})
 	@echo "Warning: the directory ${DESTDIR}${INFODIR} does not exist!"
@@ -18,5 +20,3 @@ beforeinstall:
 	${INSTALL} -c -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		 dir-tmpl ${DESTDIR}${INFODIR}/dir
 .endif
-
-.include <bsd.prog.mk>
