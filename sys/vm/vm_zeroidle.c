@@ -137,13 +137,11 @@ vm_page_zero_idle_wakeup(void)
 static void
 vm_pagezero(void __unused *arg)
 {
-	struct proc *p;
 	struct rtprio rtp;
 	struct thread *td;
 	int pages, pri;
 
 	td = curthread;
-	p = td->td_proc;
 	rtp.prio = RTP_PRIO_MAX;
 	rtp.type = RTP_PRIO_IDLE;
 	pages = 0;
