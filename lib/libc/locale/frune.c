@@ -34,10 +34,13 @@
  * SUCH DAMAGE.
  */
 
+/* f*rune() are obsolete in FreeBSD 6 -- use ANSI functions instead. */
+#define	OBSOLETE_IN_6
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)frune.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
