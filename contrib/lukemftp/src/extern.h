@@ -1,7 +1,7 @@
-/*	$NetBSD: extern.h,v 1.60 2000/10/11 14:46:03 is Exp $	*/
+/*	$NetBSD: extern.h,v 1.61 2003/01/21 16:08:07 jhawk Exp $	*/
 
 /*-
- * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -110,7 +110,6 @@ void	abortpt(int);
 void	abortxfer(int);
 void	account(int, char **);
 void	ai_unmapped(struct addrinfo *);
-void	alarmtimer(int);
 int	another(int *, char ***, const char *);
 int	auto_fetch(int, char **);
 int	auto_put(int, char **, const char *);
@@ -123,7 +122,7 @@ void	cmdabort(int);
 void	cmdtimeout(int);
 void	cmdscanner(void);
 int	command(const char *, ...)
-     ;
+     __attribute__((__format__(__printf__, 1, 2)));
 #ifndef NO_EDITCOMPLETE
 unsigned char complete(EditLine *, int);
 void	controlediting(void);
@@ -183,14 +182,11 @@ void	newer(int, char **);
 void	page(int, char **);
 int	parseport(const char *, int);
 int	parserate(int, char **, int);
-void	progressmeter(int);
 char   *prompt(void);
 void	proxabort(int);
 void	proxtrans(const char *, const char *, const char *);
 void	psabort(int);
-void	psummary(int);
 void	pswitch(int);
-void	ptransfer(int);
 void	put(int, char **);
 void	pwd(int, char **);
 void	quit(int, char **);
@@ -263,5 +259,3 @@ void   *xmalloc(size_t);
 StringList *xsl_init(void);
 void	xsl_add(StringList *, char *);
 char   *xstrdup(const char *);
-sigfunc	xsignal(int, sigfunc);
-sigfunc	xsignal_restart(int, sigfunc, int);

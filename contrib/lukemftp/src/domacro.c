@@ -33,7 +33,18 @@
  * SUCH DAMAGE.
  */
 
-#include "lukemftp.h"
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)domacro.c	8.3 (Berkeley) 4/2/94";
+#else
+__RCSID("$NetBSD: domacro.c,v 1.19 2002/02/01 05:04:43 itojun Exp $");
+#endif
+#endif /* not lint */
+
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "ftp_var.h"
 
