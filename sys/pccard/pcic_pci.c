@@ -89,8 +89,9 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, init_routing, CTLFLAG_RD,
     "Force the interrupt routing to be initialized on those bridges where\n\
 doing so will cause probelms.  This is very rare and generally is not\n\
 needed.  The default of 0 is almost always appropriate.  Only set to 1 if\n\
-instructed to do so for debugging.  This option is obsolete and will be\n\
-deleted before FreeBSD 4.8.");
+instructed to do so for debugging.  Only TI bridges are affected by this\n\
+option, and what the code does is of dubious value.  This option is obsolete\n\
+and will be deleted before FreeBSD 4.8.");
 
 static int pcic_ignore_pci = 0;
 TUNABLE_INT("hw.pcic.ignore_pci", &pcic_ignore_pci);
@@ -104,10 +105,11 @@ static int pcic_pd6729_intr_path = (int)pcic_iw_isa;
 TUNABLE_INT("hw.pcic.pd6729_intr_path", &pcic_pd6729_intr_path);
 SYSCTL_INT(_hw_pcic, OID_AUTO, pd6729_intr_path, CTLFLAG_RD,
     &pcic_pd6729_intr_path, 0,
-  "For Cirrus Logic PD6729 and similar I/O space based pcmcia bridges, this\n\
-tells the code if it is wired onto a PCI expansion card (2), or if it is\n\
-installed in a laptop (1).  This is similar to hw.pcic.intr_path, but\n\
-separate so that it can default to ISA when intr_path defaults to PCI.");
+  "Determine the interrupt path or method for Cirrus Logic PD6729 and\n\
+similar I/O space based pcmcia bridge.  Chips on a PCI expansion card need\n\
+a value of 2, while chips installed in a laptop need a value of 1 (which is\n\
+also the default).  This is similar to hw.pcic.intr_path, but separate so\n\
+that it can default to ISA when intr_path defaults to PCI.");
 
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_way_t pcic_pci_gen_func;
@@ -1228,10 +1230,6 @@ pcic_pci_attach(device_t dev)
 			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}
-		/*
-		 * While one could specify PCI interrupts, that's not
-		 * yet supported other places in the code.
-		 */
 		sc->csc_route = sc->func_route = pcic_pd6729_intr_path;
 		if (itm)
 			sc->flags = itm->flags;
