@@ -50,7 +50,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mtrace.c,v 1.9 1996/11/11 03:50:05 fenner Exp $";
+    "@(#) $Id: mtrace.c,v 1.4.4.2 1996/11/12 18:18:32 jkh Exp $";
 #endif
 
 #include <netdb.h>
@@ -218,7 +218,8 @@ host_addr(name)
     *op = '\0';
 
     if (dots <= 0) e = gethostbyname(name);
-    if (e) memcpy((char *)&addr, e->h_addr_list[0], e->h_length);
+    if (e && e->h_length == sizeof(addr))
+	memcpy((char *)&addr, e->h_addr_list[0], e->h_length);
     else {
 	addr = inet_addr(buf);
 	if (addr == -1 || (IN_MULTICAST(addr) && dots)) {

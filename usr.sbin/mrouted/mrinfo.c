@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.9 1996/10/01 23:14:35 fenner Exp $";
+    "@(#) $Id: mrinfo.c,v 1.4.4.2 1996/11/12 18:18:03 jkh Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -383,7 +383,7 @@ main(argc, argv)
 	} else
 		hp = gethostbyname(host);
 
-	if (hp == NULL) {
+	if (hp == NULL || hp->h_length != sizeof(target_addr)) {
 		fprintf(stderr, "mrinfo: %s: no such host\n", argv[0]);
 		exit(1);
 	}
