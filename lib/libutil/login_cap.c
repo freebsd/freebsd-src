@@ -129,6 +129,7 @@ freearraystr(char ** array)
    */
   if (array) {
     free(array[0]);
+    array[0] = NULL;
     free(array);
   }
 }
@@ -287,7 +288,7 @@ login_getcaplist(login_cap_t *lc, const char * cap, const char * chars)
   char * lstring;
 
   if (chars == NULL)
-    chars = ". \t";
+    chars = ", \t";
   if ((lstring = login_getcapstr(lc, (char*)cap, NULL, NULL)) != NULL)
     return arrayize(lstring, chars, NULL);
   return NULL;
