@@ -64,7 +64,12 @@ Special variables (i.e.,
 etc.) are listed in order of
 .Dq product ,
 then building and installing a binary.
-The general order is:
+It is also allowable to list special variables in
+.Dq build
+order: i.e., ones for the primary program (or library) first.
+The general
+.Dq product
+order is:
 .Va PROG Ns / Ns Va LIB Ns / Ns Va SCRIPT
 .Va FILES
 .Va LINKS
@@ -76,6 +81,20 @@ The general order is:
 .Va CFLAGS
 .Va DPADD
 .Va LDADD .
+The general
+.Dq build
+order is:
+.Va PROG Ns / Ns Va LIB Ns / Ns Va SCRIPT
+.Va SRCS
+.Va WARNS
+.Va CFLAGS
+.Va DPADD
+.Va LDADD
+.Va INCS
+.Va FILES
+.Va LINKS
+.Oo Va NO Oc Ns Va MAN
+.Va MLINKS.
 .It
 Omit
 .Va SRCS
