@@ -49,12 +49,10 @@ __FBSDID("$FreeBSD$");
 #include    "lstInt.h"
 
 LstNode
-Lst_Member (l, d)
-    Lst	    	  	l;
-    void *	  	d;
+Lst_Member(Lst l, void *d)
 {
-    List    	  	list = (List) l;
-    register ListNode	lNode;
+    List    	list = (List) l;
+    ListNode	lNode;
 
     lNode = list->firstPtr;
     if (lNode == NULL) {

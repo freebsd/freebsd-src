@@ -58,19 +58,20 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	The new Lst structure or NULL if failure.
  *
+ * Arguments:
+ *	l	the list to duplicate
+ *	copyProc A function to duplicate each void
+ *
  * Side Effects:
  *	A new list is created.
  *-----------------------------------------------------------------------
  */
 Lst
-Lst_Duplicate (l, copyProc)
-    Lst     	  l;	    	 /* the list to duplicate */
-    /* A function to duplicate each void * */
-    void *	  (*copyProc)(void *);
+Lst_Duplicate(Lst l, void *(*copyProc)(void *))
 {
-    register Lst 	nl;
-    register ListNode  	ln;
-    register List 	list = (List)l;
+    Lst 	nl;
+    ListNode  	ln;
+    List 	list = (List)l;
 
     if (!LstValid (l)) {
 	return (NULL);

@@ -62,13 +62,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_First (l)
-    Lst	l;
+Lst_First(Lst l)
 {
+
     if (!LstValid (l) || LstIsEmpty (l)) {
 	return (NULL);
     } else {
 	return ((LstNode)((List)l)->firstPtr);
     }
 }
-

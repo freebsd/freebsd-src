@@ -64,19 +64,14 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-/*VARARGS2*/
 void
-Lst_ForEachFrom (l, ln, proc, d)
-    Lst	    	    	l;
-    LstNode    	  	ln;
-    register int	(*proc)(void *, void *);
-    register void *	d;
+Lst_ForEachFrom(Lst l, LstNode ln, int (*proc)(void *, void *), void *d)
 {
-    register ListNode	tln = (ListNode)ln;
-    register List 	list = (List)l;
-    register ListNode	next;
-    Boolean 	    	done;
-    int     	    	result;
+    ListNode	tln = (ListNode)ln;
+    List 	list = (List)l;
+    ListNode	next;
+    Boolean 	done;
+    int     	result;
 
     if (!LstValid (list) || LstIsEmpty (list)) {
 	return;
@@ -110,6 +105,4 @@ Lst_ForEachFrom (l, ln, proc, d)
 	}
 	tln = next;
     } while (!result && !LstIsEmpty(list) && !done);
-
 }
-

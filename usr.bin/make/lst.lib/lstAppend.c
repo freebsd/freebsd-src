@@ -56,6 +56,11 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	SUCCESS if all went well.
  *
+ * Arguments:
+ *	l	affected list
+ *	ln	node after which to append the datum
+ *	d	said datum
+ *
  * Side Effects:
  *	A new ListNode is created and linked in to the List. The lastPtr
  *	field of the List will be altered if ln is the last node in the
@@ -65,14 +70,11 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Append (l, ln, d)
-    Lst	  	l;	/* affected list */
-    LstNode	ln;	/* node after which to append the datum */
-    void *	d;	/* said datum */
+Lst_Append (Lst l, LstNode ln, void *d)
 {
-    register List 	list;
-    register ListNode	lNode;
-    register ListNode	nLNode;
+    List 	list;
+    ListNode	lNode;
+    ListNode	nLNode;
 
     if (LstValid (l) && (ln == NULL && LstIsEmpty (l))) {
 	goto ok;
@@ -113,4 +115,3 @@ Lst_Append (l, ln, d)
 
     return (SUCCESS);
 }
-

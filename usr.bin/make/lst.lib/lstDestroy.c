@@ -64,13 +64,11 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_Destroy (l, freeProc)
-    Lst	    	  	l;
-    register void	(*freeProc)(void *);
+Lst_Destroy(Lst l, void (*freeProc)(void *))
 {
-    register ListNode	ln;
-    register ListNode	tln = NULL;
-    register List 	list = (List)l;
+    ListNode	ln;
+    ListNode	tln = NULL;
+    List 	list = (List)l;
 
     if (l == NULL || ! l) {
 	/*

@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	SUCCESS or FAILURE.
  *
+ *	l	list to manipulate
+ *	ln	node before which to insert d
+ *	d	datum to be inserted
+ *
  * Side Effects:
  *	the firstPtr field will be changed if ln is the first node in the
  *	list.
@@ -64,15 +68,11 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Insert (l, ln, d)
-    Lst	    	  	l;	/* list to manipulate */
-    LstNode	  	ln;	/* node before which to insert d */
-    void *	  	d;	/* datum to be inserted */
+Lst_Insert(Lst l, LstNode ln, void *d)
 {
-    register ListNode	nLNode;	/* new lnode for d */
-    register ListNode	lNode = (ListNode)ln;
-    register List 	list = (List)l;
-
+    ListNode	nLNode;	/* new lnode for d */
+    ListNode	lNode = (ListNode)ln;
+    List 	list = (List)l;
 
     /*
      * check validity of arguments
@@ -113,4 +113,3 @@ Lst_Insert (l, ln, d)
 
     return (SUCCESS);
 }
-
