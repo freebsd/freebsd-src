@@ -33,6 +33,12 @@
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
+# Handle diskless boots, and other situations where syscons is not present
+#
+if [ ! -c "${kbddev}" ]; then
+	exit 0
+fi
+
 echo -n 'Configuring syscons:'
 
 # keymap
