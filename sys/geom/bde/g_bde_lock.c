@@ -454,7 +454,7 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta, off_t m
 
 	/* If passed-in metadata is non-zero, use it */
 	bzero(buf1, sizeof buf1);
-	if (bcmp(buf1, meta, sizeof buf1))
+	if (meta != NULL && bcmp(buf1, meta, sizeof buf1))
 		return (g_bde_decrypt_lockx(sc, meta, mediasize,
 		    sectorsize, nkey));
 
