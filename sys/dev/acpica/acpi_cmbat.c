@@ -57,45 +57,6 @@ ACPI_MODULE_NAME("BATTERY")
 #define	ACPI_BATTERY_BST_CHANGE 0x80
 #define	ACPI_BATTERY_BIF_CHANGE 0x81
 
-#define	PKG_GETINT(res, tmp, idx, dest, label) do {		\
-    tmp = &res->Package.Elements[idx];				\
-    if (tmp == NULL) {						\
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
-		    "%s: PKG_GETINT error, idx = %d\n.", __func__, idx); \
-	goto label;						\
-    }								\
-    if (tmp->Type != ACPI_TYPE_INTEGER)				\
-	goto label;						\
-    dest = tmp->Integer.Value;					\
-} while (0)
-
-#define	PKG_GETSTR(res, tmp, idx, dest, size, label) do {	\
-    size_t length;						\
-    length = size;						\
-    tmp = &res->Package.Elements[idx]; 				\
-    if (tmp == NULL) {						\
-	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
-		    "%s: PKG_GETSTR error, idx = %d\n.", __func__, idx); \
-	goto label;						\
-    }								\
-    bzero(dest, sizeof(dest));					\
-    switch (tmp->Type) {					\
-    case ACPI_TYPE_STRING:					\
-    if (tmp->String.Length < length)				\
-	length = tmp->String.Length;				\
-    strncpy(dest, tmp->String.Pointer, length);			\
-    break;							\
-    case ACPI_TYPE_BUFFER:					\
-	if (tmp->Buffer.Length < length)			\
-	    length = tmp->Buffer.Length;			\
-	strncpy(dest, tmp->Buffer.Pointer, length);		\
-	break;							\
-    default:							\
-	goto label;						\
-    }								\
-    dest[sizeof(dest)-1] = '\0';				\
-} while (0)
-
 struct acpi_cmbat_softc {
     device_t	    dev;
 
@@ -180,14 +141,13 @@ acpi_cmbat_get_bst(void *context)
     device_t	dev;
     struct acpi_cmbat_softc *sc;
     ACPI_STATUS	as;
-    ACPI_OBJECT	*res, *tmp;
+    ACPI_OBJECT	*res;
     ACPI_HANDLE	h;
     ACPI_BUFFER	bst_buffer;
 
     dev = context;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
-    bst_buffer.Pointer = NULL;
 
     if (!acpi_cmbat_info_expired(&sc->bst_lastupdated))
 	return;
@@ -195,6 +155,7 @@ acpi_cmbat_get_bst(void *context)
 	return;
     sc->bst_updating = 1;
 
+    bst_buffer.Pointer = NULL;
     bst_buffer.Length = ACPI_ALLOCATE_BUFFER;
     as = AcpiEvaluateObject(h, "_BST", NULL, &bst_buffer);
     if (ACPI_FAILURE(as)) {
@@ -205,18 +166,20 @@ acpi_cmbat_get_bst(void *context)
     }
 
     res = (ACPI_OBJECT *)bst_buffer.Pointer;
-    if (res == NULL || res->Type != ACPI_TYPE_PACKAGE ||
-	res->Package.Count != 4) {
-
+    if (!ACPI_PKG_VALID(res, 4)) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery status corrupted\n");
 	goto end;
     }
 
-    PKG_GETINT(res, tmp, 0, sc->bst.state, end);
-    PKG_GETINT(res, tmp, 1, sc->bst.rate, end);
-    PKG_GETINT(res, tmp, 2, sc->bst.cap, end);
-    PKG_GETINT(res, tmp, 3, sc->bst.volt, end);
+    if (acpi_PkgInt32(res, 0, &sc->bst.state) != 0)
+	goto end;
+    if (acpi_PkgInt32(res, 1, &sc->bst.rate) != 0)
+	goto end;
+    if (acpi_PkgInt32(res, 2, &sc->bst.cap) != 0)
+	goto end;
+    if (acpi_PkgInt32(res, 3, &sc->bst.volt) != 0)
+	goto end;
     acpi_cmbat_info_updated(&sc->bst_lastupdated);
 
 end:
@@ -231,14 +194,13 @@ acpi_cmbat_get_bif(void *context)
     device_t	dev;
     struct acpi_cmbat_softc *sc;
     ACPI_STATUS	as;
-    ACPI_OBJECT	*res, *tmp;
+    ACPI_OBJECT	*res;
     ACPI_HANDLE	h;
     ACPI_BUFFER	bif_buffer;
 
     dev = context;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
-    bif_buffer.Pointer = NULL;
 
     if (!acpi_cmbat_info_expired(&sc->bif_lastupdated))
 	return;
@@ -246,6 +208,7 @@ acpi_cmbat_get_bif(void *context)
 	return;
     sc->bif_updating = 1;
 
+    bif_buffer.Pointer = NULL;
     bif_buffer.Length = ACPI_ALLOCATE_BUFFER;
     as = AcpiEvaluateObject(h, "_BIF", NULL, &bif_buffer);
     if (ACPI_FAILURE(as)) {
@@ -256,27 +219,38 @@ acpi_cmbat_get_bif(void *context)
     }
 
     res = (ACPI_OBJECT *)bif_buffer.Pointer;
-    if (res == NULL || res->Type != ACPI_TYPE_PACKAGE ||
-	res->Package.Count != 13) {
-
+    if (!ACPI_PKG_VALID(res, 13)) {
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery info corrupted\n");
 	goto end;
     }
 
-    PKG_GETINT(res, tmp,  0, sc->bif.units, end);
-    PKG_GETINT(res, tmp,  1, sc->bif.dcap, end);
-    PKG_GETINT(res, tmp,  2, sc->bif.lfcap, end);
-    PKG_GETINT(res, tmp,  3, sc->bif.btech, end);
-    PKG_GETINT(res, tmp,  4, sc->bif.dvol, end);
-    PKG_GETINT(res, tmp,  5, sc->bif.wcap, end);
-    PKG_GETINT(res, tmp,  6, sc->bif.lcap, end);
-    PKG_GETINT(res, tmp,  7, sc->bif.gra1, end);
-    PKG_GETINT(res, tmp,  8, sc->bif.gra2, end);
-    PKG_GETSTR(res, tmp,  9, sc->bif.model, ACPI_CMBAT_MAXSTRLEN, end);
-    PKG_GETSTR(res, tmp, 10, sc->bif.serial, ACPI_CMBAT_MAXSTRLEN, end);
-    PKG_GETSTR(res, tmp, 11, sc->bif.type, ACPI_CMBAT_MAXSTRLEN, end);
-    PKG_GETSTR(res, tmp, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN, end);
+    if (acpi_PkgInt32(res,  0, &sc->bif.units) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  1, &sc->bif.dcap) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  2, &sc->bif.lfcap) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  3, &sc->bif.btech) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  4, &sc->bif.dvol) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  5, &sc->bif.wcap) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  6, &sc->bif.lcap) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  7, &sc->bif.gra1) != 0)
+	goto end;
+    if (acpi_PkgInt32(res,  8, &sc->bif.gra2) != 0)
+	goto end;
+    if (acpi_PkgStr(res,  9, sc->bif.model, ACPI_CMBAT_MAXSTRLEN) != 0)
+	goto end;
+    if (acpi_PkgStr(res, 10, sc->bif.serial, ACPI_CMBAT_MAXSTRLEN) != 0)
+	goto end;
+    if (acpi_PkgStr(res, 11, sc->bif.type, ACPI_CMBAT_MAXSTRLEN) != 0)
+	goto end;
+    if (acpi_PkgStr(res, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN) != 0)
+	goto end;
     acpi_cmbat_info_updated(&sc->bif_lastupdated);
 
 end:
