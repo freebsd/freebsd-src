@@ -81,6 +81,7 @@ struct file_lock {
 	fhandle_t filehandle; /* NFS filehandle */
 	struct sockaddr *addr;
 	struct nlm4_holder client; /* lock holder */
+	/* XXX: client_cookie used *only* in send_granted */ 
 	netobj client_cookie; /* cookie sent by the client */
 	char client_name[SM_MAXSTRLEN];
 	int nsm_status; /* status from the remote lock manager */
@@ -144,12 +145,14 @@ enum hwlock_status { HW_GRANTED = 0, HW_GRANTED_DUPLICATE,
 		     HW_DENIED, HW_DENIED_NOLOCK, 
 		     HW_STALEFH, HW_READONLY, HW_RESERR };
 
-enum split_status {SPL_DISJOINT, SPL_LOCK_CONTAINED, SPL_LOCK_LEFT,
-		   SPL_LOCK_RIGHT, SPL_UNLOCK_CONTAINED};
-
 enum partialfilelock_status { PFL_GRANTED=0, PFL_GRANTED_DUPLICATE, PFL_DENIED,
 			      PFL_NFSDENIED, PFL_NFSBLOCKED, PFL_NFSDENIED_NOLOCK, PFL_NFSRESERR, 
 			      PFL_HWDENIED,  PFL_HWBLOCKED,  PFL_HWDENIED_NOLOCK, PFL_HWRESERR};
+
+enum LFLAGS {LEDGE_LEFT, LEDGE_LBOUNDARY, LEDGE_INSIDE, LEDGE_RBOUNDARY, LEDGE_RIGHT};
+enum RFLAGS {REDGE_LEFT, REDGE_LBOUNDARY, REDGE_INSIDE, REDGE_RBOUNDARY, REDGE_RIGHT};
+/* XXX: WARNING! I HAVE OVERLOADED THIS STATUS ENUM!  SPLIT IT APART INTO TWO */
+enum split_status {SPL_DISJOINT=0, SPL_LOCK1=1, SPL_LOCK2=2, SPL_CONTAINED=4, SPL_RESERR=8};
 
 enum partialfilelock_status lock_partialfilelock(struct file_lock *fl);
 
@@ -164,6 +167,9 @@ void	copy_nlm4_lock_to_nlm4_holder(const struct nlm4_lock *src,
 void	deallocate_file_lock(struct file_lock *fl);
 int	regions_overlap(const u_int64_t start1, const u_int64_t len1,
     const u_int64_t start2, const u_int64_t len2);;
+enum split_status  region_compare(const u_int64_t starte, const u_int64_t lene,
+    const u_int64_t startu, const u_int64_t lenu,
+    u_int64_t *start1, u_int64_t *len1, u_int64_t *start2, u_int64_t *len2);
 int	same_netobj(const netobj *n0, const netobj *n1);
 int	same_filelock_identity(const struct file_lock *fl0,
     const struct file_lock *fl2);
@@ -174,18 +180,18 @@ void dump_static_object(const unsigned char* object, const int sizeof_object,
                         unsigned char* cbuff, const int sizeof_cbuff);
 void dump_netobj(const struct netobj *nobj);
 void dump_filelock(const struct file_lock *fl);
-struct file_lock *	malloccopy_filelock(struct file_lock *fl);
 struct file_lock *	get_lock_matching_unlock(const struct file_lock *fl);
 enum nfslock_status	test_nfslock(const struct file_lock *fl,
     struct file_lock **conflicting_fl);
 enum nfslock_status	lock_nfslock(struct file_lock *fl);
 enum nfslock_status	delete_nfslock(struct file_lock *fl);
 enum nfslock_status	unlock_nfslock(const struct file_lock *fl,
-    struct file_lock **released_lock, struct file_lock *left_lock,
-    struct file_lock *right_lock);
+    struct file_lock **released_lock, struct file_lock **left_lock,
+    struct file_lock **right_lock);
 enum hwlock_status lock_hwlock(struct file_lock *fl);
-enum split_status	split_nfslock(const struct file_lock *exist_lock,
-    const struct file_lock *unlock_lock, const struct file_lock *right_lock);
+enum split_status split_nfslock(const struct file_lock *exist_lock,
+    const struct file_lock *unlock_lock, struct file_lock **left_lock,
+    struct file_lock **right_lock);
 void	add_blockingfilelock(struct file_lock *fl);
 enum hwlock_status	unlock_hwlock(const struct file_lock *fl);
 enum hwlock_status	test_hwlock(const struct file_lock *fl,
@@ -311,18 +317,21 @@ dump_filelock(const struct file_lock *fl)
 	}
 
 	if (fl != NULL) {
-		debuglog("Dumping file lock structure\n");
+		debuglog("Dumping file lock structure @ %p\n", fl);
 
+		/*
 		dump_static_object((unsigned char *)&fl->filehandle,
 		    sizeof(fl->filehandle), hbuff, sizeof(hbuff),
 		    cbuff, sizeof(cbuff));
 		debuglog("Filehandle: %8s  :::  %8s\n", hbuff, cbuff);
+		*/
 		
 		debuglog("Dumping nlm4_holder:\n"
 		    "exc: %x  svid: %x  offset:len %llx:%llx\n",
 		    fl->client.exclusive, fl->client.svid,
 		    fl->client.l_offset, fl->client.l_len);
-		
+
+		/*
 		debuglog("Dumping client identity:\n");
 		dump_netobj(&fl->client.oh);
 		
@@ -332,15 +341,10 @@ dump_filelock(const struct file_lock *fl)
 		debuglog("nsm: %d  status: %d  flags: %d  locker: %d"
 		    "  fd:  %d\n", fl->nsm_status, fl->status,
 		    fl->flags, fl->locker, fl->fd);
+		*/
 	} else {
 		debuglog("NULL file lock structure\n");
 	}
-}
-
-struct file_lock *
-malloccopy_filelock(struct file_lock *fl)
-{
-
 }
 
 void
@@ -358,10 +362,68 @@ copy_nlm4_lock_to_nlm4_holder(src, exclusive, dest)
 	dest->l_len = src->l_len;
 }
 
+
+/*
+ * allocate_file_lock: Create a lock with the given parameters
+ */
+
+struct file_lock *
+allocate_file_lock(const netobj *lockowner, const netobj *matchcookie)
+{
+	struct file_lock *newfl;
+
+	newfl = malloc(sizeof(struct file_lock));
+	if (newfl == NULL) {
+		return NULL;
+	}
+	bzero(newfl, sizeof(newfl));
+
+	newfl->client.oh.n_bytes = malloc(lockowner->n_len);
+	if (newfl->client.oh.n_bytes == NULL) {
+		free(newfl);
+		return NULL;
+	}
+	newfl->client.oh.n_len = lockowner->n_len;
+	bcopy(lockowner->n_bytes, newfl->client.oh.n_bytes, lockowner->n_len);
+
+	newfl->client_cookie.n_bytes = malloc(matchcookie->n_len);
+	if (newfl->client_cookie.n_bytes == NULL) {
+		free(newfl->client.oh.n_bytes);
+		free(newfl);
+		return NULL;
+	}
+	newfl->client_cookie.n_len = matchcookie->n_len;
+	bcopy(matchcookie->n_bytes, newfl->client_cookie.n_bytes, matchcookie->n_len);
+
+	return newfl;
+}
+
+/*
+ * file_file_lock: Force creation of a valid file lock
+ */
+void
+fill_file_lock(struct file_lock *fl, const fhandle_t *fh, struct sockaddr *addr,
+    const bool_t exclusive, const int32_t svid, const u_int64_t offset, const u_int64_t len, 
+    const char* caller_name, const int state, const int status, const int flags, const int blocking) 
+{
+	bcopy(fh, &fl->filehandle, sizeof(fhandle_t));
+	fl->addr = addr;
+
+	fl->client.exclusive = exclusive;
+	fl->client.svid = svid;
+	fl->client.l_offset = offset;
+	fl->client.l_len = len;
+
+	strncpy(fl->client_name, caller_name, SM_MAXSTRLEN);
+
+	fl->nsm_status = state;
+	fl->status = status;
+	fl->flags = flags;
+	fl->blocking = blocking;
+}
+
 /*
  * deallocate_file_lock: Free all storage associated with a file lock
- * XXX: Check to see if this gets *all* the dynamic structures.
- * XXX: It should be placed closer to the file_lock definition.
  */
 void
 deallocate_file_lock(struct file_lock *fl)
@@ -373,43 +435,201 @@ deallocate_file_lock(struct file_lock *fl)
 
 /*
  * regions_overlap(): This function examines the two provided regions for
- * overlap.  It is non-trivial because start+len *CAN* overflow a 64-bit
- * unsigned integer and NFS semantics are unspecified on this account.
- * XXX: Check to make sure I got *ALL* the cases. 
- * XXX: This DESPERATELY needs a regression test.
+ * overlap.
  */
 int
 regions_overlap(start1, len1, start2, len2)
 	const u_int64_t start1, len1, start2, len2;
 {
-	int result;
+	u_int64_t d1,d2,d3,d4;
+	enum split_status result;
 
 	debuglog("Entering region overlap with vals: %llu:%llu--%llu:%llu\n",
 		 start1, len1, start2, len2);
 
-	/* XXX: Look for a way to collapse the region checks */
-
-	/* XXX: Need to adjust checks to account for integer overflow */
-	if (len1 == 0 && len2 == 0) {
-		/* Regions *must* overlap if they both extend to the end */
-		result = 1;
-	} else if (len1 == 0) {
-		/* Region 2 is completely left of region 1 */
-		result = (start2 + len2 > start1);
-	} else if (len2 == 0) {
-		/* Region 1 is completely left of region 2 */
-		result = (start1 + len1 > start2);
-	} else {
-		/*
-		 * 1 is completely left of 2 or
-		 * 2 is completely left of 1
-		 */
-		result = !(start1+len1 <= start2 || start2+len2 <= start1);
-	}
+	result = region_compare(start1, len1, start2, len2,
+	    &d1, &d2, &d3, &d4);
 
 	debuglog("Exiting region overlap with val: %d\n",result);
 
+	if (result == SPL_DISJOINT) {
+		return 0;
+	} else {
+		return 1;
+	}
+
 	return (result);
+}
+
+/*
+ * region_compare(): Examine lock regions and split appropriately
+ *
+ * XXX: Fix 64 bit overflow problems
+ * XXX: Check to make sure I got *ALL* the cases. 
+ * XXX: This DESPERATELY needs a regression test.
+ */
+enum split_status
+region_compare(starte, lene, startu, lenu,
+    start1, len1, start2, len2)
+	const u_int64_t starte, lene, startu, lenu;
+	u_int64_t *start1, *len1, *start2, *len2;
+{
+	/*
+	 * Please pay attention to the sequential exclusions
+	 * of the if statements!!!
+	 */
+	enum LFLAGS lflags;
+	enum RFLAGS rflags;
+	enum split_status retval;
+
+	retval = SPL_DISJOINT;
+
+	if (lene == 0 && lenu == 0) {
+		/* Examine left edge of locker */
+		if (startu < starte) {
+			lflags = LEDGE_LEFT;
+		} else if (startu == starte) {
+			lflags = LEDGE_LBOUNDARY;
+		} else {
+			lflags = LEDGE_INSIDE;
+		}
+
+		rflags = REDGE_RBOUNDARY; /* Both are infiinite */
+
+		if (lflags == LEDGE_INSIDE) {
+			*start1 = starte;
+			*len1 = startu - starte;
+		}
+
+		if (lflags == LEDGE_LEFT || lflags == LEDGE_LBOUNDARY) {
+			retval = SPL_CONTAINED;
+		} else {
+			retval = SPL_LOCK1;
+		}
+	} else if (lene == 0 && lenu != 0) {
+		/* Established lock is infinite */
+		/* Examine left edge of unlocker */
+		if (startu < starte) {
+			lflags = LEDGE_LEFT;
+		} else if (startu == starte) {
+			lflags = LEDGE_LBOUNDARY;
+		} else if (startu > starte) {
+			lflags = LEDGE_INSIDE;
+		}
+
+		/* Examine right edge of unlocker */
+		if (startu + lenu < starte) {
+			/* Right edge of unlocker left of established lock */
+			rflags = REDGE_LEFT;
+			return SPL_DISJOINT;
+		} else if (startu + lenu == starte) {
+			/* Right edge of unlocker on start of established lock */
+			rflags = REDGE_LBOUNDARY;
+			return SPL_DISJOINT;
+		} else { /* Infinifty is right of finity */
+			/* Right edge of unlocker inside established lock */
+			rflags = REDGE_INSIDE;
+		}
+
+		if (lflags == LEDGE_INSIDE) {
+			*start1 = starte;
+			*len1 = startu - starte;
+			retval |= SPL_LOCK1;
+		}
+
+		if (rflags == REDGE_INSIDE) {
+			/* Create right lock */
+			*start2 = startu+lenu;
+			*len2 = 0;
+			retval |= SPL_LOCK2;
+		}
+	} else if (lene != 0 && lenu == 0) {
+		/* Unlocker is infinite */
+		/* Examine left edge of unlocker */
+		if (startu < starte) {
+			lflags = LEDGE_LEFT;
+			retval = SPL_CONTAINED;
+			return retval;
+		} else if (startu == starte) {
+			lflags = LEDGE_LBOUNDARY;
+			retval = SPL_CONTAINED;
+			return retval;
+		} else if ((startu > starte) && (startu < starte + lene - 1)) {
+			lflags = LEDGE_INSIDE;
+		} else if (startu == starte + lene - 1) {
+			lflags = LEDGE_RBOUNDARY;
+		} else { /* startu > starte + lene -1 */
+			lflags = LEDGE_RIGHT;
+			return SPL_DISJOINT;
+		}
+
+		rflags = REDGE_RIGHT; /* Infinity is right of finity */
+
+		if (lflags == LEDGE_INSIDE || lflags == LEDGE_RBOUNDARY) {
+			*start1 = starte;
+			*len1 = startu - starte;
+			retval |= SPL_LOCK1;
+			return retval;
+		}
+
+	} else {
+		/* Both locks are finite */
+
+		/* Examine left edge of unlocker */
+		if (startu < starte) {
+			lflags = LEDGE_LEFT;
+		} else if (startu == starte) {
+			lflags = LEDGE_LBOUNDARY;
+		} else if ((startu > starte) && (startu < starte + lene - 1)) {
+			lflags = LEDGE_INSIDE;
+		} else if (startu == starte + lene - 1) {
+			lflags = LEDGE_RBOUNDARY;
+		} else { /* startu > starte + lene -1 */
+			lflags = LEDGE_RIGHT;
+			return SPL_DISJOINT;
+		}
+
+		/* Examine right edge of unlocker */
+		if (startu + lenu < starte) {
+			/* Right edge of unlocker left of established lock */
+			rflags = REDGE_LEFT;
+			return SPL_DISJOINT;
+		} else if (startu + lenu == starte) {
+			/* Right edge of unlocker on start of established lock */
+			rflags = REDGE_LBOUNDARY;
+			return SPL_DISJOINT;
+		} else if (startu + lenu < starte + lene) {
+			/* Right edge of unlocker inside established lock */
+			rflags = REDGE_INSIDE;
+		} else if (startu + lenu == starte + lene) {
+			/* Right edge of unlocker on right edge of established lock */
+			rflags = REDGE_RBOUNDARY;
+		} else { /* startu + lenu > starte + lene */
+			/* Right edge of unlocker is right of established lock */
+			rflags = REDGE_RIGHT;
+		}
+
+		if (lflags == LEDGE_INSIDE || lflags == LEDGE_RBOUNDARY) {
+			/* Create left lock */
+			*start1 = starte;
+			*len1 = (startu - starte);
+			retval |= SPL_LOCK1;
+		}
+
+		if (rflags == REDGE_INSIDE) {
+			/* Create right lock */
+			*start2 = startu+lenu;
+			*len2 = starte+lene-(startu+lenu);
+			retval |= SPL_LOCK2;
+		}
+
+		if ((lflags == LEDGE_LEFT || lflags == LEDGE_LBOUNDARY) &&
+		    (rflags == REDGE_RBOUNDARY || rflags == REDGE_RIGHT)) {
+			retval = SPL_CONTAINED;
+		}
+	}
+
+	return retval;
 }
 
 /*
@@ -676,27 +896,67 @@ delete_nfslock(struct file_lock *fl)
 }
 
 enum split_status
-split_nfslock(exist_lock, unlock_lock, right_lock)
-	const struct file_lock *exist_lock, *unlock_lock, *right_lock;
+split_nfslock(exist_lock, unlock_lock, left_lock, right_lock)
+	const struct file_lock *exist_lock, *unlock_lock;
+	struct file_lock **left_lock, **right_lock;
 {
+	u_int64_t start1, len1, start2, len2;
+	enum split_status spstatus;
 
+	spstatus = region_compare(exist_lock->client.l_offset, exist_lock->client.l_len,
+	    unlock_lock->client.l_offset, unlock_lock->client.l_len,
+	    &start1, &len1, &start2, &len2);
+
+	if ((spstatus & SPL_LOCK1) != 0) {
+		*left_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie);
+		if (*left_lock == NULL) {
+			debuglog("Unable to allocate resource for split 1\n");
+			return SPL_RESERR;
+		}
+
+		fill_file_lock(*left_lock, &exist_lock->filehandle, exist_lock->addr,
+		    exist_lock->client.exclusive, exist_lock->client.svid,
+		    start1, len1,
+		    exist_lock->client_name, exist_lock->nsm_status,
+		    exist_lock->status, exist_lock->flags, exist_lock->blocking);
+	}
+
+	if ((spstatus & SPL_LOCK2) != 0) {
+		*right_lock = allocate_file_lock(&exist_lock->client.oh, &exist_lock->client_cookie);
+		if (*right_lock == NULL) {
+			debuglog("Unable to allocate resource for split 1\n");
+			if (*left_lock != NULL) {
+				deallocate_file_lock(*left_lock);
+			}
+			return SPL_RESERR;
+		}
+
+		fill_file_lock(*right_lock, &exist_lock->filehandle, exist_lock->addr,
+		    exist_lock->client.exclusive, exist_lock->client.svid,
+		    start2, len2,
+		    exist_lock->client_name, exist_lock->nsm_status,
+		    exist_lock->status, exist_lock->flags, exist_lock->blocking);
+	}
+
+	return spstatus;
 }
 
 enum nfslock_status
 unlock_nfslock(fl, released_lock, left_lock, right_lock)
 	const struct file_lock *fl;
 	struct file_lock **released_lock;
-	struct file_lock *left_lock;
-	struct file_lock *right_lock;
+	struct file_lock **left_lock;
+	struct file_lock **right_lock;
 {
 	struct file_lock *mfl; /* Matching file lock */
 	enum nfslock_status retval;
+	enum split_status spstatus;
 
 	debuglog("Entering unlock_nfslock\n");
 
 	*released_lock = NULL;
-	left_lock = NULL;
-	right_lock = NULL;
+	*left_lock = NULL;
+	*right_lock = NULL;
 
 	retval = NFS_DENIED_NOLOCK;
 
@@ -704,28 +964,48 @@ unlock_nfslock(fl, released_lock, left_lock, right_lock)
 	mfl = get_lock_matching_unlock(fl);
 
 	if (mfl != NULL) {
-		debuglog("Unlock matched\n");
+		debuglog("Unlock matched.  Querying for split\n");
+
+		spstatus = split_nfslock(mfl, fl, left_lock, right_lock);
+
+		debuglog("Split returned %d %p %p %p %p\n",spstatus,mfl,fl,*left_lock,*right_lock);
+		debuglog("********Split dumps********");
+		dump_filelock(mfl);
+		dump_filelock(fl);
+		dump_filelock(*left_lock);
+		dump_filelock(*right_lock);
+		debuglog("********End Split dumps********");
+
+		if (spstatus == SPL_RESERR) {
+			if (*left_lock != NULL) {
+				deallocate_file_lock(*left_lock);
+				*left_lock = NULL;
+			}
+
+			if (*right_lock != NULL) {
+				deallocate_file_lock(*right_lock);
+				*right_lock = NULL;
+			}
+
+			return NFS_RESERR;
+		}
+
+		/* Insert new locks from split if required */
+		if (*left_lock != NULL) {
+			debuglog("Split left activated\n");
+			LIST_INSERT_HEAD(&nfslocklist_head, *left_lock, nfslocklist);
+		}
+
+		if (*right_lock != NULL) {
+			debuglog("Split right activated\n");
+			LIST_INSERT_HEAD(&nfslocklist_head, *right_lock, nfslocklist);
+		}
+
 		/* Unlock the lock since it matches identity */
 		LIST_REMOVE(mfl, nfslocklist);
 		*released_lock = mfl;
 		retval = NFS_GRANTED;
 	}
-
-#if 0
-	split_status = split_nfslock(mfl,fl,lfl,rfl);
-
-	if (split_status == SPL_DISJOINT) {
-		/* Shouldn't happen, throw error */
-	} else if (split_status == SPL_LOCK_CONTAINED) {
-		/* Delete entire lock */
-	} else if (split_status == SPL_LOCK_LEFT) {
-		/* Create new lock for left lock and delete old one */
-	} else if (split_status == SPL_LOCK_RIGHT) {
-		/* Create new lock for right lock and delete old one */
-	} else if (split_status == SPL_UNLOCK_CONTAINED) {
-		/* Create new locks for both and then delete old one */
-	}
-#endif
 
 	debuglog("Exiting unlock_nfslock\n");
 
@@ -1129,13 +1409,27 @@ unlock_partialfilelock(const struct file_lock *fl)
 	struct file_lock *lfl,*rfl,*releasedfl,*selffl;
 	enum partialfilelock_status retval;
 	enum nfslock_status unlstatus;
-	enum hwlock_status unlhwstatus;
+	enum hwlock_status unlhwstatus, lhwstatus;
 
 	debuglog("Entering unlock_partialfilelock\n");
 
 	selffl = NULL;
+	lfl = NULL;
+	rfl = NULL;
 	releasedfl = NULL;
 	retval = PFL_DENIED;
+
+	/*
+	 * There are significant overlap and atomicity issues
+	 * with partially releasing a lock.  For example, releasing
+	 * part of an NFS shared lock does *not* always release the
+	 * corresponding part of the file since there is only one
+	 * rpc.lockd UID but multiple users could be requesting it
+	 * from NFS.  Also, an unlock request should never allow
+	 * another process to gain a lock on the remaining parts.
+	 * ie. Always apply the new locks before releasing the
+	 * old one
+	 */
 
 	/*
 	 * Loop is required since multiple little locks
@@ -1149,14 +1443,36 @@ unlock_partialfilelock(const struct file_lock *fl)
 
 	do {
 		debuglog("Value of releasedfl: %p\n",releasedfl);
-		unlstatus = unlock_nfslock(fl, &releasedfl, lfl, rfl);
+		/* lfl&rfl are created *AND* placed into the NFS lock list if required */
+		unlstatus = unlock_nfslock(fl, &releasedfl, &lfl, &rfl);
 		debuglog("Value of releasedfl: %p\n",releasedfl);
+
+
+		/* XXX: This is grungy.  It should be refactored to be cleaner */
+		if (lfl != NULL) {
+			lhwstatus = lock_hwlock(lfl);
+			if (lhwstatus != HW_GRANTED &&
+			    lhwstatus != HW_GRANTED_DUPLICATE) {
+				debuglog("HW duplicate lock failure for left split\n");
+			}
+			monitor_lock_host(lfl->client_name);
+		}
+
+		if (rfl != NULL) {
+			lhwstatus = lock_hwlock(rfl);
+			if (lhwstatus != HW_GRANTED &&
+			    lhwstatus != HW_GRANTED_DUPLICATE) {
+				debuglog("HW duplicate lock failure for right split\n");
+			}
+			monitor_lock_host(rfl->client_name);
+		}
 
 		switch (unlstatus) {
 		case NFS_GRANTED:
 			/* Attempt to unlock on the hardware */
 			debuglog("NFS unlock granted.  Attempting hardware unlock\n");
-			
+
+			/* This call *MUST NOT* unlock the two newly allocated locks */
 			unlhwstatus = unlock_hwlock(fl);
 			debuglog("HW unlock returned with code %d\n",unlhwstatus);
 			
@@ -1183,13 +1499,6 @@ unlock_partialfilelock(const struct file_lock *fl)
 			
 			debuglog("Exiting with status retval: %d\n",retval);
 			
-			/*
-			 * XXX: this deallocation *still* needs to migrate closer
-			 * to the allocation code way up in get_lock or the allocation
-			 * code needs to migrate down (violation of "When you write
-			 * malloc you must write free")
-			 */
-			
 			retry_blockingfilelocklist();
 			break;
 		case NFS_DENIED_NOLOCK:
@@ -1213,6 +1522,13 @@ unlock_partialfilelock(const struct file_lock *fl)
 				debuglog("Attempt to unlock self\n");
 				selffl = releasedfl;
 			} else {
+				/*
+				 * XXX: this deallocation *still* needs to migrate closer
+				 * to the allocation code way up in get_lock or the allocation
+				 * code needs to migrate down (violation of "When you write
+				 * malloc you must write free")
+				 */
+			
 				deallocate_file_lock(releasedfl);
 			}
 		}
@@ -1535,6 +1851,7 @@ testlock(struct nlm4_lock *lock, bool_t exclusive, int flags)
  * Otherwise try to lock. If we're allowed to block, fork a child which
  * will do the blocking lock.
  */
+
 enum nlm_stats
 getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 {
@@ -1546,11 +1863,11 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 	if (grace_expired == 0 && lckarg->reclaim == 0)
 		return (flags & LOCK_V4) ?
 		    nlm4_denied_grace_period : nlm_denied_grace_period;
-			
+
 	/* allocate new file_lock for this request */
-	newfl = malloc(sizeof(struct file_lock));
+	newfl = allocate_file_lock(&lckarg->alock.oh, &lckarg->cookie);
 	if (newfl == NULL) {
-		syslog(LOG_NOTICE, "malloc failed: %s", strerror(errno));
+		syslog(LOG_NOTICE, "lock allocate failed: %s", strerror(errno));
 		/* failed */
 		return (flags & LOCK_V4) ?
 		    nlm4_denied_nolocks : nlm_denied_nolocks;
@@ -1561,46 +1878,14 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 		    lckarg->alock.fh.n_len, (int)sizeof(fhandle_t));
 	}
 
-	bcopy(lckarg->alock.fh.n_bytes,&newfl->filehandle, sizeof(fhandle_t));
-	newfl->addr = (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf;
-	newfl->client.exclusive = lckarg->exclusive;
-	newfl->client.svid = lckarg->alock.svid;
-	newfl->client.oh.n_bytes = malloc(lckarg->alock.oh.n_len);
-	if (newfl->client.oh.n_bytes == NULL) {
-		syslog(LOG_NOTICE, "malloc failed: %s", strerror(errno));
-		free(newfl);
-		return (flags & LOCK_V4) ?
-		    nlm4_denied_nolocks : nlm_denied_nolocks;
-	}
-
-	newfl->client.oh.n_len = lckarg->alock.oh.n_len;
-	bcopy(lckarg->alock.oh.n_bytes, newfl->client.oh.n_bytes,
-	    lckarg->alock.oh.n_len);
-	newfl->client.l_offset = lckarg->alock.l_offset;
-	newfl->client.l_len = lckarg->alock.l_len;
-	newfl->client_cookie.n_len = lckarg->cookie.n_len;
-	newfl->client_cookie.n_bytes = malloc(lckarg->cookie.n_len);
-	if (newfl->client_cookie.n_bytes == NULL) {
-		syslog(LOG_NOTICE, "malloc failed: %s", strerror(errno));
-		free(newfl->client.oh.n_bytes);
-		free(newfl);
-		return (flags & LOCK_V4) ? 
-		    nlm4_denied_nolocks : nlm_denied_nolocks;
-	}
-
-	bcopy(lckarg->cookie.n_bytes, newfl->client_cookie.n_bytes,
-	    lckarg->cookie.n_len);
-	strncpy(newfl->client_name, lckarg->alock.caller_name, SM_MAXSTRLEN);
-	newfl->nsm_status = lckarg->state;
-	newfl->status = 0;
-	newfl->flags = flags;
-	newfl->blocking = lckarg->block;
+	fill_file_lock(newfl, (fhandle_t *)lckarg->alock.fh.n_bytes,
+	    (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf,
+	    lckarg->exclusive, lckarg->alock.svid, lckarg->alock.l_offset, lckarg->alock.l_len,
+	    lckarg->alock.caller_name, lckarg->state, 0, flags, lckarg->block);
 	
 	/*
 	 * newfl is now fully constructed and deallocate_file_lock
 	 * can now be used to delete it
-	 * The *only* place which should deallocate a file_lock is
-	 * either here (error condition) or the unlock code.
 	 */
 	
 	siglock();
