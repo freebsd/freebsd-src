@@ -45,17 +45,17 @@ asynchronous I/O server
 .Op Fl n Ar num_servers
 .Sh DESCRIPTION
 .Nm Nfsiod
-runs on an
+kernel processes runs on an
 .Tn NFS
 client machine to service asynchronous I/O requests to its server.
 It improves performance but is not required for correct operation.
 .Pp
-Unless otherwise specified, a single server is started.
+This program controls the maximum number of processes that the kernel runs.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl n
-Specify how many servers are to be started.
+Specify how many servers are permitted to be started.
 .El
 .Pp
 A client should run enough daemons to handle its maximum
