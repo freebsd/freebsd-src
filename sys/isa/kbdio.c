@@ -26,10 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbdio.c,v 1.8 1997/02/22 09:36:46 peter Exp $
  */
 
 #include "sc.h"
+#include "vt.h"
 #include "psm.h"
 #include "opt_kbdio.h"
 
@@ -81,7 +82,7 @@
 
 /* constants */
 
-#define NKBDC		max(NSC, NPSM)
+#define NKBDC		max(max(NSC, NVT), NPSM)
 #define KBDQ_BUFSIZE	32
 
 /* macros */
