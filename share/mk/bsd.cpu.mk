@@ -44,7 +44,10 @@ CPUTYPE = athlon
 #	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
+.  if ${CPUTYPE} == "crusoe"
+_ICC_CPUCFLAGS = -tpp6 -xiM
+_CPUCFLAGS = -march=i686 -falign-functions=0 -falign-jumps=0 -falign-loops=0
+.  elif ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
     ${CPUTYPE} == "athlon-4"
 _ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=${CPUTYPE}
