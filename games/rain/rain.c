@@ -80,10 +80,6 @@ main(argc, argv)
 	int xpos[5], ypos[5];
 	static void onsig();
 
-	/* revoke */
-	setegid(getgid());
-	setgid(getgid());
-
 	if (!(term = getenv("TERM"))) {
 		fprintf(stderr, "%s: TERM: parameter not set\n", *argv);
 		exit(1);
