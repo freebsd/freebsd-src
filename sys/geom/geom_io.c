@@ -315,10 +315,12 @@ g_io_schedule_down(struct thread *tp __unused)
 	struct bio *bp;
 	off_t excess;
 	int error;
+#ifdef WITNESS
 	struct mtx mymutex;
  
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_xdown", NULL, MTX_DEF);
+#endif
 
 	for(;;) {
 		g_bioq_lock(&g_bio_run_down);
@@ -357,9 +359,13 @@ g_io_schedule_down(struct thread *tp __unused)
 		default:
 			break;
 		}
+#ifdef WITNESS
 		mtx_lock(&mymutex);
+#endif
 		bp->bio_to->geom->start(bp);
+#ifdef WITNESS
 		mtx_unlock(&mymutex);
+#endif
 	}
 }
 
@@ -384,26 +390,36 @@ void
 g_io_schedule_up(struct thread *tp __unused)
 {
 	struct bio *bp;
+#ifdef WITNESS
 	struct mtx mymutex;
  
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_xup", NULL, MTX_DEF);
+#endif
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
 		bp = g_bioq_first(&g_bio_run_task);
 		if (bp != NULL) {
 			g_bioq_unlock(&g_bio_run_up);
+#ifdef WITNESS
 			mtx_lock(&mymutex);
+#endif
 			bp->bio_task(bp->bio_task_arg);
+#ifdef WITNESS
 			mtx_unlock(&mymutex);
+#endif
 			continue;
 		}
 		bp = g_bioq_first(&g_bio_run_up);
 		if (bp != NULL) {
 			g_bioq_unlock(&g_bio_run_up);
+#ifdef WITNESS
 			mtx_lock(&mymutex);
+#endif
 			biodone(bp);
+#ifdef WITNESS
 			mtx_unlock(&mymutex);
+#endif
 			continue;
 		}
 		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
