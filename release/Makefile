@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.112 1995/02/28 04:38:21 phk Exp $
+#	$Id: Makefile,v 1.113 1995/02/28 20:32:29 phk Exp $
 #
 # How to roll a release:
 #
@@ -59,7 +59,7 @@ release:
 	chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf cpio_crunch boot_crunch release.[1-9]
+	rm -rf cpio_crunch boot_crunch release.[0-9] release.1[0]
 
 # Clean out ${RELEASEDIR} and make the directory structure.
 release.1:
@@ -74,6 +74,10 @@ release.1:
 	mkdir ${RD}/bootfd/stand
 	mkdir ${RD}/cpiofd
 	mkdir ${RD}/cpiofd/stand
+	mkdir ${RD}/fixitfd
+	mkdir ${RD}/fixitfd/stand
+	mkdir ${RD}/fixitfd/sbin
+	mkdir ${RD}/fixitfd/mnt
 	mkdir ${RD}/floppies
 	mkdir ${RD}/dists
 	mkdir ${RD}/dists/bin
@@ -108,19 +112,19 @@ release.3:
 		make depend ; \
 		make kernel ; \
 		install -c kernel ${RD}/dists/bin/kernel.GENERIC
-	ln  -f ${RD}/dists/bin/kernel.GENERIC \
-		${RD}/cpiofd/kernel
+	ln -f ${RD}/dists/bin/kernel.GENERIC ${RD}/cpiofd/kernel
 	cd ${.CURDIR}/../sys/compile/BOOTFLP ; \
 		make depend ; \
 		make kernel ; \
 		install -s -c kernel ${RD}/bootfd/kernel
+	ln -f ${RD}/bootfd/kernel ${RD}/fixitfd/kernel
 	touch release.3
 
 # Make and install the two crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	for j in boot cpio ; do \
+	for j in boot cpio fixit; do \
 		rm -rf $${j}_crunch ; \
 		mkdir $${j}_crunch ; \
 		( cd $${j}_crunch ; \
@@ -197,26 +201,7 @@ release.6:
 		install -c TROUBLESHOOTING ${RD}/bootfd ;\
 		install -c README-2.0 ${RD}/bootfd/README
 	touch ${RD}/bootfd/this_is_boot_flp
-.if !defined(VNDEVICE)
-	-umount /dev/${FDDEVICE}
-	-umount ${MNT}
-	echo y | fdformat /dev/r${FDDEVICE}
-	disklabel -w -r -B \
-		-b ${RD}/dists/bin/usr/mdec/fdboot \
-		-s ${RD}/dists/bin/usr/mdec/bootfd \
-		/dev/r${FDDEVICE} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -t 0 -u 0 \
-		-o space -T ${FDLABEL} /dev/r${FDDEVICE}
-	mount -o async /dev/${FDDEVICE} ${MNT}
-	cd ${RD}/bootfd ; find . -print | cpio -dumpv ${MNT}
-	sync
-	umount ${MNT}
-	fsck /dev/r${FDDEVICE}
-	dd if=/dev/r${FDDEVICE} of=${RD}/floppies/boot.tmp \
-		bs=${FDCYLSIZE} count=${FDCYLS}
-	mv ${RD}/floppies/boot.tmp ${RD}/floppies/boot.flp
-	gzip -9 -c < ${RD}/floppies/boot.flp > ${RD}/floppies/boot.flp.gz
-.endif
+	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.6
 
 # Complete the cpiofd directory
@@ -274,6 +259,19 @@ release.9:
 	echo "src distribution is finished."; \
 	touch release.9
 
+# Complete the fixitfd
+release.10:
+	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	( cd ${RD}/dists/bin/dev ; \
+		ls console tty ttyv1 null zero \
+		sd[0123][a-h] wd[0123][a-h] fd[01] \
+		rsd[0123][a-h] rwd[0123][a-h] rfd[01] | \
+	cpio -dump ${RD}/fixitfd/dev )
+	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
+	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=fixit
+	touch release.10
+
+
 # Various "subroutine" and other supporting targets.
 
 doTARBALL:
@@ -284,7 +282,7 @@ doTARBALL:
 	@echo "TB undefined in doTARBALL" ; exit 1
 .endif               
 .if !defined(ARG)
-	@echo "ARGundefined in doTARBALL" ; exit 1
+	@echo "ARG undefined in doTARBALL" ; exit 1
 .endif               
 	rm -rf ${RD}/tarballs/${TD}
 	mkdir -p ${RD}/tarballs/${TD}
@@ -294,12 +292,38 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/tarballs/${TD}/`basename ${TD}`. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
+		release.7 release.8 release.9 release.10
 	@echo "Release done"
 
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
 	@echo "To make a release RELEASEDIR must be defined" && false
 .endif               
+
+doFLOPPY:
+.if !defined(FLOPPY)
+	@echo "FLOPPY undefined in doFLOPPY" ; exit 1
+.endif
+.if !defined(VNDEVICE)
+	-umount /dev/${FDDEVICE}
+	-umount ${MNT}
+	echo y | fdformat /dev/r${FDDEVICE}
+	disklabel -w -r -B \
+		-b ${RD}/dists/bin/usr/mdec/fdboot \
+		-s ${RD}/dists/bin/usr/mdec/bootfd \
+		/dev/r${FDDEVICE} ${FDLABEL}
+	newfs -c 80 -b 4096 -f 512 -i 4096 -m 0 -t 0 -u 0 \
+		-o space -T ${FDLABEL} /dev/r${FDDEVICE}
+	mount -o async /dev/${FDDEVICE} ${MNT}
+	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dumpv ${MNT}
+	sync
+	umount ${MNT}
+	fsck /dev/r${FDDEVICE}
+	dd if=/dev/r${FDDEVICE} of=${RD}/floppies/${FLOPPY}.tmp \
+		bs=${FDCYLSIZE} count=${FDCYLS}
+	mv ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
+	gzip -9 -c < ${RD}/floppies/${FLOPPY}.flp \
+		> ${RD}/floppies/${FLOPPY}.flp.gz
+.endif
 
 .include <bsd.prog.mk>
