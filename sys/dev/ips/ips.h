@@ -71,12 +71,13 @@ MALLOC_DECLARE(M_IPSBUF);
 #define IPS_MAX_SG_LEN			(sizeof(ips_sg_element_t) * IPS_MAX_SG_ELEMENTS)
 #define IPS_NVRAM_PAGE_SIZE		128
 /* various flags */
-#define IPS_NOWAIT_FLAG			1
+#define IPS_STATIC_FLAG			0x01
 
 /* states for the card to be in */
 #define IPS_DEV_OPEN			0x01
 #define IPS_TIMEOUT			0x02 /* command time out, need reset */
 #define IPS_OFFLINE			0x04 /* can't reset card/card failure */
+#define IPS_STATIC_BUSY			0x08
 
 /* max number of commands set to something low for now */
 #define IPS_MAX_CMD_NUM			128	
@@ -379,24 +380,17 @@ typedef struct ips_command{
 	u_int8_t 		id;
 	u_int8_t		timeout;
 	struct ips_softc *	sc;
+	bus_dma_tag_t		data_dmatag;
+	bus_dmamap_t		data_dmamap;
 	bus_dmamap_t		command_dmamap;
 	void *			command_buffer;
 	u_int32_t		command_phys_addr;/*WARNING! must be changed if 64bit addressing ever used*/	
-	struct sema		cmd_sema;
 	ips_cmd_status_t	status;
 	SLIST_ENTRY(ips_command)	next;
-	bus_dma_tag_t		data_dmatag;
-	bus_dmamap_t		data_dmamap;
 	void *			data_buffer;
-	void * 			arg;
+	void *			arg;
 	void			(* callback)(struct ips_command *command);
 }ips_command_t;
-
-typedef struct ips_wait_list{
-	STAILQ_ENTRY(ips_wait_list) next;
-	void 			*data;
-	int			(* callback)(ips_command_t *command);
-}ips_wait_list_t;
 
 typedef struct ips_softc{
         struct resource *       iores;
@@ -426,9 +420,9 @@ typedef struct ips_softc{
 	u_int8_t		next_drive;
 	u_int8_t		max_cmds;
 	volatile u_int8_t	used_commands;
-	ips_command_t		commandarray[IPS_MAX_CMD_NUM];
+	ips_command_t		*commandarray;
+	ips_command_t		*staticcmd;
 	SLIST_HEAD(command_list, ips_command) free_cmd_list;
-	STAILQ_HEAD(command_wait_list,ips_wait_list)  cmd_wait_list;
 	int			(* ips_adapter_reinit)(struct ips_softc *sc, 
 						       int force);
         void                    (* ips_adapter_intr)(void *sc);
@@ -436,6 +430,7 @@ typedef struct ips_softc{
 	ips_copper_queue_t *	copper_queue;
 	struct mtx		queue_mtx;
 	struct bio_queue_head	queue;
+	struct sema		cmd_sema;
 
 }ips_softc_t;
 
@@ -455,8 +450,7 @@ extern int ips_update_nvram(ips_softc_t *sc);
 extern int ips_clear_adapter(ips_softc_t *sc);
 
 /* function defines from ips.c */
-extern int ips_get_free_cmd(ips_softc_t *sc, int (*callback)(ips_command_t *), 
-				void *data, unsigned long flags);
+extern int ips_get_free_cmd(ips_softc_t *sc, ips_command_t **command, unsigned long flags);
 extern void ips_insert_free_cmd(ips_softc_t *sc, ips_command_t *command);
 extern int ips_adapter_init(ips_softc_t *sc);
 extern int ips_morpheus_reinit(ips_softc_t *sc, int force);
