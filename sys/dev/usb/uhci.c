@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.22 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.24 1999/02/20 23:26:16 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -45,7 +45,8 @@
  * Data sheets: ftp://download.intel.com/design/intarch/datashts/29055002.pdf
  *              ftp://download.intel.com/design/intarch/datashts/29056201.pdf
  * UHCI spec: http://www.intel.com/design/usb/uhci11d.pdf
- * USB spec: http://www.teleport.com/cgi-bin/mailmerge.cgi/~usb/cgiform.tpl
+ * USB spec: http://www.usb.org/cgi-usb/mailmerge.cgi/home/usb/docs/developers/
+cgiform.tpl
  */
 
 #include <sys/param.h>
@@ -791,9 +792,9 @@ uhci_ii_done(ii, timo)
 			len += UHCI_TD_GET_ACTLEN(tst);
 	}
 	status &= UHCI_TD_ERROR;
-	DPRINTFN(10, ("uhci_check_intr: len=%d, status=0x%x\n", len, status));
+	DPRINTFN(10, ("uhci_ii_done: len=%d, status=0x%x\n", len, status));
 	if (status != 0) {
-		DPRINTFN(-1+(status==UHCI_TD_STALLED),
+		DPRINTFN(-1+(status & UHCI_TD_STALLED),
 			 ("uhci_ii_done: error, addr=%d, endpt=0x%02x, "
 			  "status 0x%b\n",
 			  reqh->pipe->device->address,
@@ -801,7 +802,7 @@ uhci_ii_done(ii, timo)
 			  (int)status, 
 			  "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27"
 			  "STALLED\30ACTIVE"));
-		if (status == UHCI_TD_STALLED)
+		if (status & UHCI_TD_STALLED)
 			reqh->status = USBD_STALLED;
 		else
 			reqh->status = USBD_IOERROR; /* more info XXX */
