@@ -7,16 +7,8 @@
  * Copyright as found in /usr/src/COPYRIGHT in the FreeBSD source tree.
  */
 
-#ifndef lint
-static const char copyright[] =
-    "@(#) Copyright (c) 1999\n"
-    "Matthew Dillon.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
