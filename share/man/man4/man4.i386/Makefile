@@ -7,6 +7,7 @@ MAN4=   aha.4 ahb.4 ahc.4 apm.4 bt.4 cx.4 ed.4 fdc.4 fe.4 ie.4 is.4 joy.4 \
 MLINKS=		aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	ahc.4 ../ahc.4
+MLINKS+=	apm.4 ../apm.4
 MLINKS+=	bt.4 ../bt.4
 MLINKS+=	cx.4 ../cx.4
 MLINKS+=	ed.4 ../ed.4
