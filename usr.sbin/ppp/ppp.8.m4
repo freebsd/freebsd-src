@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.2 1995/02/26 12:17:54 amurai Exp $
+.\" $Id: ppp.8,v 1.4 1995/03/12 12:03:48 amurai Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -125,7 +125,7 @@ ppp on tama> pass <password>
 ppp ON tama>
  -- You can specify modem and device name using following commands.
 
-ppp ON tama> set line /dev/cua01
+ppp ON tama> set line /dev/cuaa0
 
 ppp ON tama> set speed 38400
 
