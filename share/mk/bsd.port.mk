@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.63 1994/11/03 19:14:08 jkh Exp $
+# $Id: bsd.port.mk,v 1.64 1994/11/03 19:53:46 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -113,6 +113,7 @@ EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
 CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 INSTALL_COOKIE?=	${WRKDIR}/.install_done
 BUILD_COOKIE?=		${WRKDIR}/.build_done
+PATCH_COOKIE?=		${WRKDIR}/.patch_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
@@ -227,6 +228,10 @@ package:
 install:
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
+.if defined(NO_PATCH) && !target(patch)
+patch:
+	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
+.endif
 
 # More standard targets start here.
 
@@ -314,23 +319,33 @@ ${BUILD_COOKIE}:
 	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
 
+.if !target(pre-patch)
+pre-patch:
+	@${DO_NADA}
+.endif
+
+.if !target(patch)
+patch: pre-patch ${PATCH_COOKIE}
+
+${PATCH_COOKIE}:
+	@if [ -d ${PATCHDIR} ]; then \
+		echo "===>  Applying patches for ${DISTNAME}" ; \
+		for i in ${PATCHDIR}/patch-*; do ${PATCH} ${PATCH_ARGS} < $$i; done; \
+	fi
+	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
+.endif
+
 .if !target(pre-configure)
 pre-configure:
 	@${DO_NADA}
 .endif
 
 .if !target(configure)
-configure: extract ${CONFIGURE_COOKIE}
+configure: extract patch ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-configure
-	@if [ -d ${PATCHDIR} ]; then \
-		echo "===>  Applying patches for ${DISTNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do \
-			${PATCH} ${PATCH_ARGS} < $$i; \
-	done; \
-	fi
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
@@ -425,7 +440,7 @@ pre-clean:
 clean: pre-clean
 	@echo "===>  Cleaning for ${DISTNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
-		${BUILD_COOKIE}
+		${BUILD_COOKIE} ${PATCH_COOKIE}
 	@rm -rf ${WRKDIR}
 .endif
 
