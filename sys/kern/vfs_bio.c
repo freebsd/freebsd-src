@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.118 1997/06/03 09:42:43 dfr Exp $
+ * $Id: vfs_bio.c,v 1.119 1997/06/06 09:04:28 dfr Exp $
  */
 
 /*
@@ -891,8 +891,10 @@ trytofreespace:
 	if (!bp) {
 		/* wait for a free buffer of any kind */
 		needsbuffer = 1;
-		tsleep(&needsbuffer,
-			(PRIBIO + 1) | slpflag, "newbuf", slptimeo);
+		do
+			tsleep(&needsbuffer, (PRIBIO + 1) | slpflag, "newbuf",
+			    slptimeo);
+		while (needsbuffer);
 		return (0);
 	}
 
