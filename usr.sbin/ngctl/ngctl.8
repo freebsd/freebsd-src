@@ -60,6 +60,12 @@ will enter interactive mode. Otherwise
 .Nm ngctl
 will execute the supplied command(s) and exit immediately.
 .Pp
+If the
+.Dv ng_socket.ko
+module is not installed in the kernel,
+.Nm ngctl
+will attempt to install it.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl f Ar nodeinfo
