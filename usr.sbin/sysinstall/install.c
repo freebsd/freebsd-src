@@ -109,11 +109,14 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-#ifndef __ia64__
-	    if (c1->type == freebsd) {
+#ifdef __ia64__
+	    c2 = c1;
+#elif defined(__powerpc__)
+	    if (c1->type == apple) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 #else
-	    c2 = c1;
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/")) {
@@ -196,11 +199,15 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-#ifndef __ia64__
-	    if (c1->type == freebsd) {
+
+#ifdef __ia64__
+	    c2 = c1;
+#elif defined(__powerpc__)
+	    if (c1->type == apple) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 #else
-	    c2 = c1;
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
 		    if (c2->type == part && c2->subtype == FS_SWAP && !swapdev) {
 			swapdev = c2;
@@ -1036,13 +1043,16 @@ installFilesystems(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-#ifndef __ia64__
-	    if (c1->type == freebsd) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
-#else
+#ifdef __ia64__
 	if (c1->type == part) {
 		c2 = c1;
 		{
+#elif defined(__powerpc__)
+	    if (c1->type == apple) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
+#else
+	    if (c1->type == freebsd) {
+		for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			PartInfo *tmp = (PartInfo *)c2->private_data;
