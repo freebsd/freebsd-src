@@ -656,9 +656,9 @@ unp_detach(unp)
 		sorflush(unp->unp_socket);
 		unp_gc();
 	}
+	UNP_UNLOCK();
 	if (unp->unp_addr != NULL)
 		FREE(unp->unp_addr, M_SONAME);
-	UNP_UNLOCK();
 	uma_zfree(unp_zone, unp);
 	if (vp) {
 		mtx_lock(&Giant);
