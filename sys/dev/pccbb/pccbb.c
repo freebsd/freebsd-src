@@ -738,7 +738,7 @@ cbb_attach(device_t brdev)
 	pribus = pcib_get_bus(parent);
 	DEVPRINTF((brdev, "Secondary bus is %d\n", bus));
 	if (bus == 0) {
-		if (curr_bus_number < pribus)
+		if (curr_bus_number <= pribus)
 			curr_bus_number = pribus + 1;
 		if (pci_read_config(brdev, PCIR_PRIBUS_2, 1) != pribus) {
 			DEVPRINTF((brdev, "Setting primary bus to %d\n", pribus));
