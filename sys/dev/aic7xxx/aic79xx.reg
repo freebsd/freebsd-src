@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#75 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#76 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -3968,6 +3968,7 @@ const SG_PREFETCH_ADDR_MASK download
 const SG_SIZEOF download
 const PKT_OVERRUN_BUFOFFSET download
 const SCB_TRANSFER_SIZE	download
+const CACHELINE_MASK download
 
 /*
  * BIOS SCB offsets
