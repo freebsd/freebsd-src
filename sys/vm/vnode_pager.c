@@ -58,6 +58,7 @@
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
+#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -196,6 +197,10 @@ vnode_pager_haspage(object, pindex, before, after)
 	int bsize;
 	int pagesperblock, blocksperpage;
 
+	/*
+	 * If no vp or vp is doomed or marked transparent to VM, we do not
+	 * have the page.
+	 */
 	if ((vp == NULL) || (vp->v_flag & VDOOMED))
 		return FALSE;
 
@@ -708,10 +713,13 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		size = object->un_pager.vnp.vnp_size - foff;
 
 	/*
-	 * round up physical size for real devices
+	 * round up physical size for real devices.
 	 */
-	if (dp->v_type == VBLK || dp->v_type == VCHR)
-		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+	if (dp->v_type == VBLK || dp->v_type == VCHR) {
+		int secmask = dp->v_rdev->si_bsize_phys - 1;
+		KASSERT(secmask < PAGE_SIZE, ("vnode_pager_generic_getpages: sector size %d too large\n", secmask + 1));
+		size = (size + secmask) & ~secmask;
+	}
 
 	bp = getpbuf(&vnode_pbuf_freecnt);
 	kva = (vm_offset_t) bp->b_data;
