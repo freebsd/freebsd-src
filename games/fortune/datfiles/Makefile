@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
 
-SRCS=	fortunes fortunes2 startrek zippy
+FILES=	fortunes fortunes2 startrek zippy
 BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
 	fortunes-o fortunes-o.dat
 
@@ -8,7 +8,7 @@ BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
 # LINES AND COMMENT OUT THE FOURTH LINE.
 
 # THE THREE LINES
-SRCS+=	fortunes2-o limerick
+FILES+=	fortunes2-o limerick
 BLDS+=	fortunes2-o.dat limerick.dat
 TYPE=	real
 
@@ -33,11 +33,11 @@ STRFILE=/usr/games/strfile
 
 CLEANFILES+=${BLDS}
 
-all: ${SRCS} ${BLDS}
+all: ${FILES} ${BLDS}
 
 install:
 	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SRCS} ${DESTDIR}/usr/share/games/fortune)
+	    ${FILES} ${DESTDIR}/usr/share/games/fortune)
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
 	    ${DESTDIR}/usr/share/games/fortune
 
