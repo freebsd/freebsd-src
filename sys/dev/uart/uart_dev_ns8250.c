@@ -700,11 +700,19 @@ ns8250_bus_probe(struct uart_softc *sc)
 	 */
 	sc->sc_txfifosz = 16;
 
+#if 0
+	/*
+	 * XXX there are some issues related to hardware flow control and
+	 * it's likely that uart(4) is the cause. This basicly needs more
+	 * investigation, but we avoid using for hardware flow control
+	 * until then.
+	 */
 	/* 16650s or higher have automatic flow control. */
 	if (sc->sc_rxfifosz > 16) {
 		sc->sc_hwiflow = 1;
 		sc->sc_hwoflow = 1;
 	}
+#endif
 
 	return (0);
 }
