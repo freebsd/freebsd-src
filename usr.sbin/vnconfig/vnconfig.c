@@ -317,7 +317,7 @@ config(vnp)
 	rdev = rawdevice(dev);
 	f = fopen(rdev, "rw");
 	if (f == NULL) {
-		warn("open");
+		warn(dev);
 		return(1);
 	}
 	vnio.vn_file = file;
