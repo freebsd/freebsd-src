@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mtree.c,v 1.6 1997/10/01 06:30:02 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ static const char rcsid[] =
 
 extern long int crc_total;
 
-int ftsoptions = FTS_PHYSICAL;
+int ftsoptions = FTS_LOGICAL;
 int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
 u_short keys;
 char fullpath[MAXPATHLEN];
@@ -75,7 +75,7 @@ main(argc, argv)
 
 	dir = NULL;
 	keys = KEYDEFAULT;
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) !=  -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:Uux")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
