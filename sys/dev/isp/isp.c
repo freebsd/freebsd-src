@@ -4308,52 +4308,52 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 	case RQCS_TRANSPORT_ERROR:
 	{
 		char buf[172];
-		SNPRINTF(buf, sizeof (buf) - 1, "states=>");
+		SNPRINTF(buf, sizeof (buf), "states=>");
 		if (sp->req_state_flags & RQSF_GOT_BUS) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_BUS", buf);
+			SNPRINTF(buf, sizeof (buf), "%s GOT_BUS", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_TARGET) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_TGT", buf);
+			SNPRINTF(buf, sizeof (buf), "%s GOT_TGT", buf);
 		}
 		if (sp->req_state_flags & RQSF_SENT_CDB) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s SENT_CDB", buf);
+			SNPRINTF(buf, sizeof (buf), "%s SENT_CDB", buf);
 		}
 		if (sp->req_state_flags & RQSF_XFRD_DATA) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s XFRD_DATA", buf);
+			SNPRINTF(buf, sizeof (buf), "%s XFRD_DATA", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_STATUS) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_STS", buf);
+			SNPRINTF(buf, sizeof (buf), "%s GOT_STS", buf);
 		}
 		if (sp->req_state_flags & RQSF_GOT_SENSE) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s GOT_SNS", buf);
+			SNPRINTF(buf, sizeof (buf), "%s GOT_SNS", buf);
 		}
 		if (sp->req_state_flags & RQSF_XFER_COMPLETE) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s XFR_CMPLT", buf);
+			SNPRINTF(buf, sizeof (buf), "%s XFR_CMPLT", buf);
 		}
-		SNPRINTF(buf, sizeof (buf) - 1, "%s\nstatus=>", buf);
+		SNPRINTF(buf, sizeof (buf), "%s\nstatus=>", buf);
 		if (sp->req_status_flags & RQSTF_DISCONNECT) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Disconnect", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Disconnect", buf);
 		}
 		if (sp->req_status_flags & RQSTF_SYNCHRONOUS) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Sync_xfr", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Sync_xfr", buf);
 		}
 		if (sp->req_status_flags & RQSTF_PARITY_ERROR) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Parity", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Parity", buf);
 		}
 		if (sp->req_status_flags & RQSTF_BUS_RESET) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Bus_Reset", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Bus_Reset", buf);
 		}
 		if (sp->req_status_flags & RQSTF_DEVICE_RESET) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Device_Reset", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Device_Reset", buf);
 		}
 		if (sp->req_status_flags & RQSTF_ABORTED) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Aborted", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Aborted", buf);
 		}
 		if (sp->req_status_flags & RQSTF_TIMEOUT) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Timeout", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Timeout", buf);
 		}
 		if (sp->req_status_flags & RQSTF_NEGOTIATION) {
-			SNPRINTF(buf, sizeof (buf) - 1, "%s Negotiation", buf);
+			SNPRINTF(buf, sizeof (buf), "%s Negotiation", buf);
 		}
 		isp_prt(isp, ISP_LOGERR, "%s", buf);
 		isp_prt(isp, ISP_LOGERR, "transport error for %d.%d.%d:\n%s",
