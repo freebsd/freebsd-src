@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.12 1996/06/27 21:39:55 joerg Exp $
+ *  $Id: syscons.c,v 1.117.4.13 1996/11/10 16:57:38 nate Exp $
  */
 
 #include "sc.h"
@@ -148,6 +148,7 @@ scprobe(struct isa_device *dev)
 {
     int i, j, retries = 5;
     unsigned char val;
+    int xt_keyboard = 0;
 
     /* Enable interrupts and keyboard controller */
     kbd_wait();
