@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id$
+.\" $Id: pppd.8,v 1.9 1997/02/22 16:11:54 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -497,8 +497,11 @@ directions if desired.
 A secrets file is parsed into words as for a options file.  A secret
 is specified by a line containing at least 3 words, in the order
 client name, server name, secret.  Any following words on the same line are
-taken to be a list of acceptable IP addresses for that client.  If
-there are only 3 words on the line, it is assumed that any IP address
+taken to be a list of acceptable IP addresses for that client, or an
+override for "local:remote" addresses (the same format used on the
+command line or in the options file) when on a line that contains a
+specific client name (not a wildcard nor empty).
+If there are only 3 words on the line, it is assumed that any IP address
 is OK; to disallow all IP addresses, use "-".  If the secret starts
 with an `@', what follows is assumed to be the name of a file from
 which to read the secret.  A "*" as the client or server name matches
