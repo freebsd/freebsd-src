@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.5 1996/01/30 22:34:53 asami Exp $ */
+/* $Id: ccd.c,v 1.6 1996/01/31 03:28:21 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -372,8 +372,10 @@ ccdinit(ccd, cpaths, p)
 		 * Calculate the size, truncating to an interleave
 		 * boundary if necessary.
 		 */
+#ifndef __FreeBSD__
 		if (size < 0)
 			size = 0;
+#endif
 
 		if (cs->sc_ileave > 1)
 			size -= size % cs->sc_ileave;
@@ -1087,6 +1089,12 @@ ccdioctl(dev, cmd, data, flag, p)
 		/* Fill in some important bits. */
 		ccd.ccd_unit = unit;
 		ccd.ccd_interleave = ccio->ccio_ileave;
+		if (ccd.ccd_interleave == 0 &&
+		    ((ccio->ccio_flags & CCDF_MIRROR) ||
+		     (ccio->ccio_flags & CCDF_PARITY))) {
+			printf("ccd%d: disabling mirror/parity, interleave is 0\n", unit);
+			ccio->ccio_flags &= ~(CCDF_MIRROR | CCDF_PARITY);
+		}
 		if ((ccio->ccio_flags & CCDF_MIRROR) &&
 		    (ccio->ccio_flags & CCDF_PARITY)) {
 			printf("ccd%d: can't specify both mirror and parity, using mirror\n", unit);
