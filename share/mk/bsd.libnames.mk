@@ -92,7 +92,6 @@ LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a	# XXX in secure dist, not base
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
-LIBSS?=		${DESTDIR}${LIBDIR}/libss.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
