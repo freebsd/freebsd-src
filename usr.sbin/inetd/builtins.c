@@ -57,7 +57,7 @@ extern struct servtab *servtab;
 char ring[128];
 char *endring;
 
-int check_loop __P((struct sockaddr_in *, struct servtab *sep));
+int check_loop __P((struct sockaddr *, struct servtab *sep));
 void inetd_setproctitle __P((char *, int));
 
 struct biltin biltins[] = {
@@ -111,7 +111,7 @@ chargen_dg(s, sep)		/* Character generator */
 	int s;
 	struct servtab *sep;
 {
-	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
 	static char *rs;
 	int len, size;
 	char text[LINESIZ+2];
@@ -121,12 +121,12 @@ chargen_dg(s, sep)		/* Character generator */
 		rs = ring;
 	}
 
-	size = sizeof(sin);
+	size = sizeof(ss);
 	if (recvfrom(s, text, sizeof(text), 0,
-		     (struct sockaddr *)&sin, &size) < 0)
+		     (struct sockaddr *)&ss, &size) < 0)
 		return;
 
-	if (check_loop(&sin, sep))
+	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
 	if ((len = endring - rs) >= LINESIZ)
@@ -140,7 +140,7 @@ chargen_dg(s, sep)		/* Character generator */
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';
 	(void) sendto(s, text, sizeof(text), 0,
-		      (struct sockaddr *)&sin, sizeof(sin));
+		      (struct sockaddr *)&ss, sizeof(ss));
 }
 
 /* ARGSUSED */
@@ -189,22 +189,22 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 {
 	char buffer[256];
 	time_t clock;
-	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
 	int size;
 
 	clock = time((time_t *) 0);
 
-	size = sizeof(sin);
+	size = sizeof(ss);
 	if (recvfrom(s, buffer, sizeof(buffer), 0,
-		     (struct sockaddr *)&sin, &size) < 0)
+		     (struct sockaddr *)&ss, &size) < 0)
 		return;
 
-	if (check_loop(&sin, sep))
+	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
 	(void) sendto(s, buffer, strlen(buffer), 0,
-		      (struct sockaddr *)&sin, sizeof(sin));
+		      (struct sockaddr *)&ss, sizeof(ss));
 }
 
 /* ARGSUSED */
@@ -270,18 +270,18 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 {
 	char buffer[BUFSIZE];
 	int i, size;
-	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
 
-	size = sizeof(sin);
+	size = sizeof(ss);
 	if ((i = recvfrom(s, buffer, sizeof(buffer), 0,
-			  (struct sockaddr *)&sin, &size)) < 0)
+			  (struct sockaddr *)&ss, &size)) < 0)
 		return;
 
-	if (check_loop(&sin, sep))
+	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
-	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&sin,
-		      sizeof(sin));
+	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&ss,
+		      sizeof(ss));
 }
 
 /* ARGSUSED */
@@ -335,6 +335,8 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	struct utsname un;
 	struct stat sb;
 	struct sockaddr_in sin[2];
+	struct sockaddr_in6 sin6[2];
+	struct sockaddr_storage ss[2];
 	struct ucred uc;
 	struct timeval tv = {
 		10,
@@ -345,7 +347,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
 	char *fallback = NULL;
 	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
-	int gflag = 0, Rflag = 0;
+	int gflag = 0, Rflag = 0, getcredfail = 0;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -434,11 +436,11 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			iderror(0, 0, s, errno);
 		osname = un.sysname;
 	}
-	len = sizeof(sin[0]);
-	if (getsockname(s, (struct sockaddr *)&sin[0], &len) == -1)
+	len = sizeof(ss[0]);
+	if (getsockname(s, (struct sockaddr *)&ss[0], &len) == -1)
 		iderror(0, 0, s, errno);
-	len = sizeof(sin[1]);
-	if (getpeername(s, (struct sockaddr *)&sin[1], &len) == -1)
+	len = sizeof(ss[1]);
+	if (getpeername(s, (struct sockaddr *)&ss[1], &len) == -1)
 		iderror(0, 0, s, errno);
 	/*
 	 * We're going to prepare for and execute reception of a
@@ -476,11 +478,35 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 * arrays have been filled in above via get{peer,sock}name(),
 	 * so right here we are only setting the ports.
 	 */
-	sin[0].sin_port = htons(lport);
-	sin[1].sin_port = htons(fport);
+	if (ss[0].ss_family != ss[1].ss_family)
+		iderror(lport, fport, s, errno);
 	len = sizeof(uc);
-	if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
-	    sizeof(sin)) == -1) {
+	switch (ss[0].ss_family) {
+	case AF_INET:
+		sin[0] = *(struct sockaddr_in *)&ss[0];
+		sin[0].sin_port = htons(lport);
+		sin[1] = *(struct sockaddr_in *)&ss[1];
+		sin[1].sin_port = htons(fport);
+		if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
+				 sizeof(sin)) == -1)
+			getcredfail = 1;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		sin6[0] = *(struct sockaddr_in6 *)&ss[0];
+		sin6[0].sin6_port = htons(lport);
+		sin6[1] = *(struct sockaddr_in6 *)&ss[1];
+		sin6[1].sin6_port = htons(fport);
+		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &len, sin6,
+				 sizeof(sin6)) == -1)
+			getcredfail = 1;
+		break;
+#endif
+	default: /* should not reach here */
+		getcredfail = 1;
+		break;
+	}
+	if (getcredfail != 0) {
 		if (fallback == NULL)		/* Use a default, if asked to */
 			iderror(lport, fport, s, errno);
 		usedfallback = 1;
@@ -611,20 +637,20 @@ machtime_dg(s, sep)
 	struct servtab *sep;
 {
 	unsigned long result;
-	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
 	int size;
 
-	size = sizeof(sin);
+	size = sizeof(ss);
 	if (recvfrom(s, (char *)&result, sizeof(result), 0,
-		     (struct sockaddr *)&sin, &size) < 0)
+		     (struct sockaddr *)&ss, &size) < 0)
 		return;
 
-	if (check_loop(&sin, sep))
+	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
 	result = machtime();
 	(void) sendto(s, (char *) &result, sizeof(result), 0,
-		      (struct sockaddr *)&sin, sizeof(sin));
+		      (struct sockaddr *)&ss, sizeof(ss));
 }
 
 /* ARGSUSED */

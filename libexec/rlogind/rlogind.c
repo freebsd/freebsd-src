@@ -91,6 +91,11 @@ static const char rcsid[] =
 
 #define		ARGSTR			"Dalnx"
 
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
+
 char	*env[2];
 #define	NMAX 30
 char	lusername[NMAX+1], rusername[NMAX+1];
@@ -102,12 +107,25 @@ int	no_delay;
 
 struct	passwd *pwd;
 
-void	doit __P((int, struct sockaddr_in *));
+union sockunion {
+	struct sockinet {
+		u_char si_len;
+		u_char si_family;
+		u_short si_port;
+	} su_si;
+	struct sockaddr_in  su_sin;
+	struct sockaddr_in6 su_sin6;
+};
+#define su_len		su_si.si_len
+#define su_family	su_si.si_family
+#define su_port		su_si.si_port
+
+void	doit __P((int, union sockunion *));
 int	control __P((int, char *, int));
 void	protocol __P((int, int));
 void	cleanup __P((int));
 void	fatal __P((int, char *, int));
-int	do_rlogin __P((struct sockaddr_in *));
+int	do_rlogin __P((union sockunion *));
 void	getstr __P((char *, int, char *));
 void	setup_term __P((int));
 int	do_krb_login __P((struct sockaddr_in *));
@@ -123,7 +141,7 @@ main(argc, argv)
 	char *argv[];
 {
 	extern int __check_rhosts_file;
-	struct sockaddr_in from;
+	union sockunion from;
 	int ch, fromlen, on;
 
 	openlog("rlogind", LOG_PID | LOG_CONS, LOG_AUTH);
@@ -168,9 +186,12 @@ main(argc, argv)
 	if (no_delay &&
 	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
+        if (from.su_family == AF_INET)
+      {
 	on = IPTOS_LOWDELAY;
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&on, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
+      }
 
 	doit(0, &from);
 	return 0;
@@ -187,11 +208,12 @@ struct winsize win = { 0, 0, 0, 0 };
 void
 doit(f, fromp)
 	int f;
-	struct sockaddr_in *fromp;
+	union sockunion *fromp;
 {
 	int master, pid, on = 1;
 	int authenticated = 0;
-	char hostname[MAXHOSTNAMELEN];
+	char hostname[2 * MAXHOSTNAMELEN + 1];
+	char nameinfo[2 * INET6_ADDRSTRLEN + 1];
 	char c;
 
 	alarm(60);
@@ -201,20 +223,33 @@ doit(f, fromp)
 		exit(1);
 
 	alarm(0);
-	fromp->sin_port = ntohs((u_short)fromp->sin_port);
-	realhostname(hostname, sizeof(hostname) - 1, &fromp->sin_addr);
+
+	realhostname_sa(hostname, sizeof(hostname) - 1,
+			    (struct sockaddr *)fromp, fromp->su_len);
+	/* error check ? */
+	fromp->su_port = ntohs((u_short)fromp->su_port);
 	hostname[sizeof(hostname) - 1] = '\0';
 
 	{
-		if (fromp->sin_family != AF_INET ||
-		    fromp->sin_port >= IPPORT_RESERVED ||
-		    fromp->sin_port < IPPORT_RESERVED/2) {
+		if ((fromp->su_family != AF_INET &&
+#ifdef INET6
+		     fromp->su_family != AF_INET6
+#endif
+		     ) ||
+		    fromp->su_port >= IPPORT_RESERVED ||
+		    fromp->su_port < IPPORT_RESERVED/2) {
+			getnameinfo((struct sockaddr *)fromp,
+				    fromp->su_len,
+				    nameinfo, sizeof(nameinfo), NULL, 0,
+				    NI_NUMERICHOST|NI_WITHSCOPEID);
+			/* error check ? */
 			syslog(LOG_NOTICE, "Connection from %s on illegal port",
-				inet_ntoa(fromp->sin_addr));
+			       nameinfo);
 			fatal(f, "Permission denied", 0);
 		}
 #ifdef IP_OPTIONS
-		{
+		if (fromp->su_family == AF_INET)
+              {
 		u_char optbuf[BUFSIZ/3];
 		int optsize = sizeof(optbuf), ipproto, i;
 		struct protoent *ip;
@@ -230,7 +265,7 @@ doit(f, fromp)
 				if (c == IPOPT_LSRR || c == IPOPT_SSRR) {
 					syslog(LOG_NOTICE,
 						"Connection refused from %s with IP option %s",
-						inet_ntoa(fromp->sin_addr),
+						inet_ntoa(fromp->su_sin.sin_addr),
 						c == IPOPT_LSRR ? "LSRR" : "SSRR");
 					exit(1);
 				}
@@ -239,7 +274,7 @@ doit(f, fromp)
 				i += (c == IPOPT_NOP) ? 1 : optbuf[i+1];
 			}
 		}
-		}
+	      }
 #endif
 		if (do_rlogin(fromp) == 0)
 			authenticated++;
@@ -533,9 +568,11 @@ fatal(f, msg, syserr)
 
 int
 do_rlogin(dest)
-	struct sockaddr_in *dest;
+	union sockunion *dest;
 {
 	int retval;
+	int af;
+	char *addr;
 
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
@@ -559,8 +596,22 @@ do_rlogin(dest)
 	if (pwd == NULL)
 		return (-1);
 	/* XXX why don't we syslog() failure? */
-	return (iruserok(dest->sin_addr.s_addr, pwd->pw_uid == 0,
-		rusername, lusername));
+
+	af = dest->su_family;
+	switch (af) {
+	case AF_INET:
+		addr = (char *)&dest->su_sin.sin_addr;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		addr = (char *)&dest->su_sin6.sin6_addr;
+		break;
+#endif
+	default:
+		return -1;	/*EAFNOSUPPORT*/
+	}
+	
+	return (iruserok_af(addr, pwd->pw_uid == 0, rusername, lusername, af));
 }
 
 void

@@ -47,6 +47,7 @@
 #define MUX_TYPE	1
 #define MUXPLUS_TYPE	2
 #define TTCP_TYPE	3
+#define FAITH_TYPE	4
 #define ISMUX(sep)	(((sep)->se_type == MUX_TYPE) || \
 			 ((sep)->se_type == MUXPLUS_TYPE))
 #define ISMUXPLUS(sep)	((sep)->se_type == MUXPLUS_TYPE)
@@ -55,6 +56,7 @@
 struct	servtab {
 	char	*se_service;		/* name of service */
 	int	se_socktype;		/* type of socket to use */
+	int	se_family;		/* address family */
 	char	*se_proto;		/* protocol used */
 	int	se_maxchild;		/* max number of children */
 	int	se_maxcpm;		/* max connects per IP per minute */
@@ -70,8 +72,19 @@ struct	servtab {
 	char	*se_server_name;	/* server program without path */
 #define	MAXARGV 20
 	char	*se_argv[MAXARGV+1];	/* program arguments */
+#ifdef IPSEC
+	char	*se_policy;		/* IPsec poilcy string */
+#endif
 	int	se_fd;			/* open descriptor */
-	struct	sockaddr_in se_ctrladdr;/* bound address */
+	union {				/* bound address */
+		struct	sockaddr se_un_ctrladdr;
+		struct	sockaddr_in se_un_ctrladdr4;
+		struct	sockaddr_in6 se_un_ctrladdr6;
+	} se_un;
+#define se_ctrladdr	se_un.se_un_ctrladdr
+#define se_ctrladdr4	se_un.se_un_ctrladdr4
+#define se_ctrladdr6	se_un.se_un_ctrladdr6
+  	int	se_ctrladdr_size;
 	u_char	se_type;		/* type: normal, mux, or mux+ */
 	u_char	se_checked;		/* looked at during merge */
 	u_char	se_accept;		/* i.e., wait/nowait mode */
@@ -82,7 +95,16 @@ struct	servtab {
 	int	se_count;		/* number started since se_time */
 	struct	timeval se_time;	/* start of se_count */
 	struct	servtab *se_next;
+	struct se_flags {
+		u_int se_nomapped : 1;
+		u_int se_ctladdrinitok : 1;
+		u_int se_reset : 1;
+	} se_flags;
 };
+
+#define	se_nomapped		se_flags.se_nomapped
+#define	se_ctladdrinitok	se_flags.se_ctladdrinitok
+#define	se_reset		se_flags.se_reset
 
 void		chargen_dg __P((int, struct servtab *));
 void		chargen_stream __P((int, struct servtab *));
@@ -117,6 +139,9 @@ void		flag_retry __P((int));
 void		retry __P((void));
 int		setconfig __P((void));
 void		setup __P((struct servtab *));
+#ifdef IPSEC
+void		ipsecsetup __P((struct servtab *));
+#endif
 char	       *sskip __P((char **));
 char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
