@@ -33,7 +33,6 @@ LIB=		pam
 CFLAGS+=	-I${PAMDIR}/libpam/include -I.
 CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
 NOPROFILE=	yes
-CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
@@ -105,10 +104,6 @@ pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
-all:		security
-
-beforedepend:	security
-
 beforeinstall:
 	cd ${PAMDIR}/libpam/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -119,8 +114,5 @@ beforeinstall:
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS3} ${DESTDIR}/usr/include/security
-
-security:
-	ln -sf ${PAMDIR}/libpam_misc security
 
 .include <bsd.lib.mk>
