@@ -118,6 +118,8 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
 .endif # @
 
+CFLAGS+=	${DEBUG_FLAGS}
+
 .if ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.c setdef1.c setdefs.h
 CLEANFILES+=	setdef0.o setdef1.o
