@@ -1502,7 +1502,7 @@ sis_list_rx_init(sc)
 	bus_dmamap_sync(sc->sis_rx_tag,
 	    sc->sis_rx_dmamap, BUS_DMASYNC_PREWRITE);
 
-	sc->sis_rx_prod = 0;
+	sc->sis_rx_pdsc = &sc->sis_rx_list[0];
 
 	return(0);
 }
@@ -1550,15 +1550,15 @@ sis_rxeof(sc)
         struct mbuf		*m;
         struct ifnet		*ifp;
 	struct sis_desc		*cur_rx;
-	int			i, total_len = 0;
+	int			total_len = 0;
 	u_int32_t		rxstat;
 
 	SIS_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
-	i = sc->sis_rx_prod;
 
-	while(SIS_OWNDESC(&sc->sis_rx_list[i])) {
+	for(cur_rx = sc->sis_rx_pdsc; SIS_OWNDESC(cur_rx);
+	    cur_rx = cur_rx->sis_nextdesc) {
 
 #ifdef DEVICE_POLLING
 		if (ifp->if_flags & IFF_POLLING) {
@@ -1567,7 +1567,6 @@ sis_rxeof(sc)
 			sc->rxcycles--;
 		}
 #endif /* DEVICE_POLLING */
-		cur_rx = &sc->sis_rx_list[i];
 		rxstat = cur_rx->sis_rxstat;
 		bus_dmamap_sync(sc->sis_tag,
 		    cur_rx->sis_map, BUS_DMASYNC_POSTWRITE);
@@ -1576,7 +1575,6 @@ sis_rxeof(sc)
 		m = cur_rx->sis_mbuf;
 		cur_rx->sis_mbuf = NULL;
 		total_len = SIS_RXBYTES(cur_rx);
-		SIS_INC(i, SIS_RX_LIST_CNT);
 
 		/*
 		 * If an error occurs, update stats, clear the
@@ -1627,7 +1625,7 @@ sis_rxeof(sc)
 		SIS_LOCK(sc);
 	}
 
-	sc->sis_rx_prod = i;
+	sc->sis_rx_pdsc = cur_rx;
 
 	return;
 }

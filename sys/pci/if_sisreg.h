@@ -450,7 +450,7 @@ struct sis_softc {
 	bus_dmamap_t		sis_tx_dmamap;
 	bus_dma_tag_t		sis_parent_tag;
 	bus_dma_tag_t		sis_tag;
-	int			sis_rx_prod;
+	struct sis_desc		*sis_rx_pdsc;
 	int			sis_tx_prod;
 	int			sis_tx_cons;
 	int			sis_tx_cnt;
