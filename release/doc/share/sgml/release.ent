@@ -14,7 +14,7 @@
 <!ENTITY release.prev "4.9-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "4.9.1-RELEASE">
+<!ENTITY release.next "4.10-RELEASE">
 
 <!-- The name of this branch. -->
 <!ENTITY release.branch "4-STABLE">
