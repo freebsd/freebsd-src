@@ -14,9 +14,8 @@
 #include <err.h>
 #include <sysexits.h>
 
-/* XXX should be in <machine/> */
-#include "ppbconf.h"
-#include "ppi.h"
+#include <dev/ppbus/ppbconf.h>
+#include <dev/ppbus/ppi.h>
 
 #define debug(lev, fmt, args...)	if (debuglevel >= lev) fprintf(stderr, fmt "\n" , ## args);
 
@@ -89,7 +88,7 @@ static void	do_char(struct lcd_driver *driver, char ch);
 int	debuglevel = 0;
 int	vflag = 0;
 
-void
+int
 main(int argc, char *argv[]) 
 {
     extern char		*optarg;
