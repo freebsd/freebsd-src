@@ -1,8 +1,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 1996
-.Dt IP6FW 8 SMM
+.Dd March 13, 2000
+.Dt IP6FW 8
 .Os FreeBSD
 .Sh NAME
 .Nm ip6fw
@@ -11,16 +11,10 @@
 .Nm
 .Ar file
 .Nm ip6fw
-.Oo
-.Fl f
-|
-.Fl q
-.Oc
+.Op Fl f | Fl q
 flush
 .Nm ip6fw
-.Oo
-.Fl q
-.Oc
+.Op Fl q
 zero
 .Op Ar number ...
 .Nm ip6fw
@@ -31,15 +25,11 @@ delete
 list
 .Op Ar number ...
 .Nm ip6fw
-.Oo
-.Fl ftN
-.Oc
+.Op Fl ftN
 show
 .Op Ar number ...
 .Nm ip6fw
-.Oo
-.Fl q
-.Oc
+.Op Fl q
 add
 .Op Ar number
 .Ar action
@@ -66,7 +56,9 @@ All rules have two associated counters, a packet count and
 a byte count.
 These counters are updated when a packet matches the rule.
 .Pp
-The rules are ordered by a ``line-number'' from 1 to 65534 that is used
+The rules are ordered by a
+.Dq line-number
+from 1 to 65534 that is used
 to order and delete rules.
 Rules are tried in increasing order, and the
 first rule that matches a packet applies.
@@ -91,7 +83,9 @@ The zero operation zeroes the counters associated with rule number
 .Pp
 The flush operation removes all rules.
 .Pp
-Any command beginning with a '#', or being all blank, is ignored.
+Any command beginning with a
+.Sq # ,
+or being all blank, is ignored.
 .Pp
 One rule is always present:
 .Bd -literal -offset center
@@ -105,7 +99,9 @@ needs.
 The following options are available:
 .Bl -tag -width flag
 .It Fl a
-While listing, show counter values.  See also ``show'' command.
+While listing, show counter values.  See also
+.Dq show
+command.
 .It Fl f
 Don't ask for confirmation for commands that can cause problems if misused
 (ie; flush).
@@ -165,7 +161,7 @@ TCP packets only.
 Discard packets that match this rule,
 and try to send a TCP reset (RST) notice.
 The search terminates
-.Em (not working yet).
+.Em (not working yet) .
 .It Ar count
 Update counters for all packets that match rule.
 The search continues with the next rule.
@@ -179,7 +175,8 @@ or higher.
 .Pp
 If the kernel was compiled with
 .Dv IP6FIREWALL_VERBOSE ,
-then when a packet matches a rule with the ``log''
+then when a packet matches a rule with the
+.Dq log
 keyword a message will be printed on the console.
 If the kernel was compiled with the
 .Dv IP6FIREWALL_VERBOSE_LIMIT
@@ -225,13 +222,16 @@ The
 may be specified as:
 .Bl -hang -offset flag -width 1234567890123456
 .It Ar ipv6no
-An ipv6number of the form fec0::1:2:3:4.
+An ipv6number of the form
+.Li fec0::1:2:3:4.
 .It Ar ipv6no/prefixlen
-An ipv6number with a prefix length of the form fec0::1:2:3:4/112.
+An ipv6number with a prefix length of the form
+.Li fec0::1:2:3:4/112.
 .El
 .Pp
 The sense of the match can be inverted by preceding an address with the
-``not'' modifier, causing all other addresses to be matched instead.
+.Dq not
+modifier, causing all other addresses to be matched instead.
 This
 does not affect the selection of port numbers.
 .Pp
@@ -360,7 +360,8 @@ The supported IPv6 options are:
 .Ar opts
 (destination options header).
 The absence of a particular option may be denoted
-with a ``!''
+with a
+.Dq !
 .Em (not working yet).
 .It established
 Matches packets that have the RST or ACK bits set.
@@ -381,7 +382,8 @@ The supported TCP flags are:
 and
 .Ar urg .
 The absence of a particular flag may be denoted
-with a ``!''.
+with a
+.Dq ! .
 A rule which contains a
 .Ar tcpflags
 specification can never match a fragmented packet which has
@@ -413,13 +415,13 @@ that is an IPv6 fragment with a fragment offset of one.
 This is a valid packet, but it only has one use, to try to circumvent
 firewalls.
 .Pp
-If you are logged in over a network, loading the LKM version of
+If you are logged in over a network, loading the KLD version of
 .Nm
 is probably not as straightforward as you would think
 .Em (not supported).
 I recommend this command line:
 .Bd -literal -offset center
-modload /lkm/ip6fw_mod.o && \e
+kldload /modules/ip6fw_mod.o && \e
 ip6fw add 32000 allow all from any to any
 .Ed
 .Pp
@@ -460,8 +462,8 @@ or in short form without timestamps:
 .Xr protocols 5 ,
 .Xr services 5 ,
 .Xr reboot 8 ,
-.Xr syslogd 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr syslogd 8
 .Sh BUGS
 .Pp
 .Em WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!WARNING!!
@@ -476,11 +478,13 @@ do anything you don't understand.
 When manipulating/adding chain entries, service and protocol names are
 not accepted.
 .Sh AUTHORS
-Ugen J. S. Antsilevich,
-Poul-Henning Kamp,
-Alex Nash,
-Archie Cobbs.
-API based upon code written by Daniel Boulet for BSDI.
+.An Ugen J. S. Antsilevich ,
+.An Poul-Henning Kamp ,
+.An Alex Nash ,
+.An Archie Cobbs .
+API based upon code written by
+.An Daniel Boulet
+for BSDI.
 .Sh HISTORY
 .Nm
 first appeared in
