@@ -169,8 +169,7 @@ loop:
 		break;
 
 	case Pmem:
-		pfs->pfs_mode = (VREAD|VWRITE) |
-				(VREAD) >> 3;;
+		pfs->pfs_mode = (VREAD|VWRITE);
 		vp->v_type = VREG;
 		break;
 
