@@ -41,7 +41,8 @@
 #include <net/if_arp.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
-#include <net/if_ieee80211.h>
+
+#include <net80211/ieee80211.h>
 
 #include <dev/awi/am79c930reg.h>
 #include <dev/awi/am79c930var.h>
