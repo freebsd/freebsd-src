@@ -2902,9 +2902,48 @@ ipsec6_output_tunnel(state, sp, flags)
 			break;
 	}
 
-	for (/*already initialized*/; isr; isr = isr->next) {
-		/* When tunnel mode, SA peers must be specified. */
-		bcopy(&isr->saidx, &saidx, sizeof(saidx));
+	for (/* already initialized */; isr; isr = isr->next) {
+		if (isr->saidx.mode == IPSEC_MODE_TUNNEL) {
+			/* When tunnel mode, SA peers must be specified. */
+			bcopy(&isr->saidx, &saidx, sizeof(saidx));
+		} else {
+			/* make SA index to look for a proper SA */
+			struct sockaddr_in6 *sin6;
+
+			bzero(&saidx, sizeof(saidx));
+			saidx.proto = isr->saidx.proto;
+			saidx.mode = isr->saidx.mode;
+			saidx.reqid = isr->saidx.reqid;
+
+			ip6 = mtod(state->m, struct ip6_hdr *);
+			sin6 = (struct sockaddr_in6 *)&saidx.src;
+			if (sin6->sin6_len == 0) {
+				sin6->sin6_len = sizeof(*sin6);
+				sin6->sin6_family = AF_INET6;
+				sin6->sin6_port = IPSEC_PORT_ANY;
+				bcopy(&ip6->ip6_src, &sin6->sin6_addr,
+				    sizeof(ip6->ip6_src));
+				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+					/* fix scope id for comparing SPD */
+					sin6->sin6_addr.s6_addr16[1] = 0;
+					sin6->sin6_scope_id = ntohs(ip6->ip6_src.s6_addr16[1]);
+				}
+			}
+			sin6 = (struct sockaddr_in6 *)&saidx.dst;
+			if (sin6->sin6_len == 0) {
+				sin6->sin6_len = sizeof(*sin6);
+				sin6->sin6_family = AF_INET6;
+				sin6->sin6_port = IPSEC_PORT_ANY;
+				bcopy(&ip6->ip6_dst, &sin6->sin6_addr,
+				    sizeof(ip6->ip6_dst));
+				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+					/* fix scope id for comparing SPD */
+					sin6->sin6_addr.s6_addr16[1] = 0;
+					sin6->sin6_scope_id = ntohs(ip6->ip6_dst.s6_addr16[1]);
+				}
+			}
+		}
+
 		if (key_checkrequest(isr, &saidx) == ENOENT) {
 			/*
 			 * IPsec processing is required, but no SA found.
