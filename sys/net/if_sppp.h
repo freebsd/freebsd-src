@@ -1,7 +1,8 @@
 /*
- * Defines for synchronous PPP/Cisco link level subroutines.
- *
- * Copyright (C) 1994 Cronyx Ltd.
+ * Defines for synchronous PPP/Cisco/Frame Relay link level subroutines.
+ */
+/*-
+ * Copyright (C) 1994-2000 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
  * Heavily revamped to conform to RFC 1661.
@@ -156,14 +157,17 @@ struct sppp {
 #define CONF_ENABLE_IPV6  0x02	/* IPv6 administratively enabled */
 	time_t	pp_last_recv;	/* time last packet has been received */
 	time_t	pp_last_sent;	/* time last packet has been sent */
-	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
-	struct callout_handle pap_my_to_ch; /* PAP needs one more... */
+	struct callout ch[IDX_COUNT];	/* per-proto and if callouts */
+	struct callout pap_my_to_ch;	/* PAP needs one more... */
+	struct callout keepalive_callout; /* keepalive callout */
 	struct slcp lcp;		/* LCP params */
 	struct sipcp ipcp;		/* IPCP params */
 	struct sipcp ipv6cp;		/* IPv6CP params */
 	struct sauth myauth;		/* auth params, i'm peer */
 	struct sauth hisauth;		/* auth params, i'm authenticator */
 	struct slcompress *pp_comp;	/* for VJ compression */
+	u_short fr_dlci;		/* Frame Relay DLCI number, 16..1023 */
+	u_char fr_status;		/* PVC status, active/new/delete */
 	/*
 	 * These functions are filled in by sppp_attach(), and are
 	 * expected to be used by the lower layer (hardware) drivers
@@ -194,10 +198,16 @@ struct sppp {
 	/* These two fields are for use by the lower layer */
 	void    *pp_lowerp;
 	int     pp_loweri;
+	/* Lock */
+	struct mtx	mtx;
+	/* if_start () wrapper */
+	void	(*if_start) (struct ifnet *);
+	struct callout ifstart_callout; /* if_start () scheduler */
 };
 
 /* bits for pp_flags */
 #define PP_KEEPALIVE    0x01    /* use keepalive protocol */
+#define PP_FR		0x04	/* use Frame Relay protocol instead of PPP */
 				/* 0x04 was PP_TIMO */
 #define PP_CALLIN	0x08	/* we are being called */
 #define PP_NEEDAUTH	0x10	/* remote requested authentication */
@@ -210,6 +220,14 @@ struct mbuf *sppp_dequeue (struct ifnet *ifp);
 struct mbuf *sppp_pick(struct ifnet *ifp);
 int sppp_isempty (struct ifnet *ifp);
 void sppp_flush (struct ifnet *ifp);
+
+/* Internal functions */
+void sppp_fr_input (struct sppp *sp, struct mbuf *m);
+struct mbuf *sppp_fr_header (struct sppp *sp, struct mbuf *m, int fam);
+void sppp_fr_keepalive (struct sppp *sp);
+void sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst,
+		       u_long *srcmask);
+
 #endif
 
 #endif /* _NET_IF_SPPP_H_ */
