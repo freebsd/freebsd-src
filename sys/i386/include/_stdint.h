@@ -160,11 +160,11 @@
 /* Limits of wchar_t. */
 #define	WCHAR_MIN	INT32_MIN
 #define	WCHAR_MAX	INT32_MAX
+#endif
 
 /* Limits of wint_t. */
 #define	WINT_MIN	INT32_MIN
 #define	WINT_MAX	INT32_MAX
-#endif
 
 #endif /* !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) */
 
