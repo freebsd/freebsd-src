@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.10 1997/03/09 15:50:58 wosch Exp $
+.\"	$Id: make.1,v 1.11 1997/07/24 06:58:07 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -551,35 +551,40 @@ is the substring of
 to be replaced in
 .Ar new_string
 .El
-.Sh INCLUDE STATEMENTS, CONDITIONALS AND FOR LOOPS
-Makefile inclusion, conditional structures and for loops  reminiscent
+.Sh DIRECTIVES, CONDITIONALS AND FOR LOOPS
+Directives, conditionals and for loops reminiscent
 of the C programming language are provided in
 .Nm make .
 All such structures are identified by a line beginning with a single
 dot
 .Pq Ql \&.
-character.
-Files are included with either
-.Ql .include <file>
-or
-.Ql .include \*qfile\*q .
-Variables between the angle brackets or double quotes are expanded
-to form the file name.
-If angle brackets are used, the included makefile is expected to be in
-the system makefile directory.
-If double quotes are used, the including makefile's directory and any
-directories specified using the
+character.  The following directives are supported:
+.Bl -tag -width Ds
+.It Ic \&.include Ar <file>
+.It Ic \&.include Ar \*qfile\*q
+Include the specified makefile.  Variables between the angle brackets
+or double quotes are expanded to form the file name.  If angle brackets
+are used, the included makefile is expected to be in the system
+makefile directory.  If double quotes are used, the including
+makefile's directory and any directories specified using the
 .Fl I
 option are searched before the system
 makefile directory.
-.Pp
-Conditional expressions are also preceded by a single dot as the first
-character of a line.
-The possible conditionals are as follows:
-.Bl -tag -width Ds
-.It Ic .undef Ar variable
+.It Ic \&.undef Ar variable
 Un-define the specified global variable.
 Only global variables may be un-defined.
+.It Ic \&.error Ar message
+Terminate processing of the makefile immediately. The filename of the
+makefile, the line on which the error was encountered and the specified
+message are printed to standard output and
+.Nm make
+terminates with exit code 1.  Variables in the message are expanded.
+.El
+.Pp
+Conditionals are used to determine which parts of the Makefile
+to process.  They are used similarly to the conditionals supported
+by the C pre-processor.  The following conditionals are supported:
+.Bl -tag -width Ds
 .It Xo
 .Ic \&.if
 .Oo \&! Oc Ns Ar expression
