@@ -1,8 +1,8 @@
                                  RELEASE NOTES
-                           FreeBSD Release 3.2-STABLE
+                           FreeBSD Release 3.3-RELEASE
 
-Welcome to this 3.2-STABLE snapshot, a follow-on to 3.2-RELEASE released
-June 1999.  In the months since 3.2 was released, many bug fixes and
+Welcome to 3.3-RELEASE, a full follow-on to 3.2-RELEASE released
+May 1999.  In the months since 3.2 was released, many bug fixes and
 general enhancements have been made to the system.  Please see relevant
 details below.
 
@@ -17,7 +17,7 @@ HARDWARE.TXT files.
 
 Table of contents:
 ------------------
-1. What's new since 3.2-RELEASE
+1. What's new since 3.3-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -43,6 +43,9 @@ Table of contents:
 
 1.1. KERNEL CHANGES
 -------------------
+
+The Berkeley Packet Filter (bpf) is enabled by default.  This is to allow
+DHCP supported installs.
 
 Alpha timecounter code has been improved.
 
@@ -87,10 +90,19 @@ based on the Adaptec AIC-6915 fast ethernet controller.
 1.3. USERLAND CHANGES
 ---------------------
 
+Sysinstall now contains DHCP client support.
+
 TCP Wrapper support in inetd(8) is now controlled with command-line
 options and dgram services may be wrapped in addition to previously
 wrapped service types. Please see the manpage for details, since inetd
 run without command-line options will do no wrapping.
+
+ISC's DHCP client has been upgraded to version 2.0.
+
+Bison, the GNU parser generator, has been upgraded to version 1.28.
+
+A Gcc optimiser bug has been fixed that prevented compiling the XFree86
+client libraries on the Alpha.
 
 2. Supported Configurations
 ---------------------------
@@ -455,7 +467,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.2-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 3.3-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite F
@@ -498,12 +510,12 @@ FreeBSD distributions:
 
 In the case of using sources, there are simply two targets you need to
 be aware of: The standard ``upgrade'' target, which will upgrade a 2.x
-or 3.0 system to 3.2 and the ``world'' target, which will take an
+or 3.0 system to 3.3 and the ``world'' target, which will take an
 already upgraded system and keep it in sync with whatever changes have
 happened since the initial upgrade.
 
 In the case of using the binary upgrade option, the system will go
-straight to 3.2/ELF but also populate the /<basepath>/lib/aout
+straight to 3.3/ELF but also populate the /<basepath>/lib/aout
 directories for backwards compatibility with older binaries.
 
 In either case, going to ELF will mean that you'll have somewhat
