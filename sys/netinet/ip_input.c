@@ -343,7 +343,7 @@ ip_input(struct mbuf *m)
 		goto tooshort;
 
 	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
+	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
 		ipstat.ips_toosmall++;
 		return;
 	}
@@ -360,7 +360,7 @@ ip_input(struct mbuf *m)
 		goto bad;
 	}
 	if (hlen > m->m_len) {
-		if ((m = m_pullup(m, hlen)) == 0) {
+		if ((m = m_pullup(m, hlen)) == NULL) {
 			ipstat.ips_badhlen++;
 			return;
 		}
@@ -1366,7 +1366,7 @@ ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
 			ipaddr.sin_addr = ip->ip_dst;
 			ia = (struct in_ifaddr *)
 				ifa_ifwithaddr((struct sockaddr *)&ipaddr);
-			if (ia == 0) {
+			if (ia == NULL) {
 				if (opt == IPOPT_SSRR) {
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
@@ -1430,11 +1430,11 @@ dropit:
 			if (opt == IPOPT_SSRR) {
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
-			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == 0)
+			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == NULL)
 				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
 			} else
 				ia = ip_rtaddr(ipaddr.sin_addr);
-			if (ia == 0) {
+			if (ia == NULL) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_SRCFAIL;
 				goto bad;
@@ -1474,8 +1474,8 @@ dropit:
 			 * locate outgoing interface; if we're the destination,
 			 * use the incoming interface (should be same).
 			 */
-			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == 0 &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr)) == 0) {
+			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
+			    (ia = ip_rtaddr(ipaddr.sin_addr)) == NULL) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
@@ -1523,7 +1523,7 @@ dropit:
 				ipaddr.sin_addr = dst;
 				ia = (INA)ifaof_ifpforaddr((SA)&ipaddr,
 							    m->m_pkthdr.rcvif);
-				if (ia == 0)
+				if (ia == NULL)
 					continue;
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
 				    sizeof(struct in_addr));
@@ -1539,7 +1539,7 @@ dropit:
 				}
 				(void)memcpy(&ipaddr.sin_addr, sin,
 				    sizeof(struct in_addr));
-				if (ifa_ifwithaddr((SA)&ipaddr) == 0)
+				if (ifa_ifwithaddr((SA)&ipaddr) == NULL)
 					continue;
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				off += sizeof(struct in_addr);
@@ -1629,7 +1629,7 @@ ip_srcroute()
 	if (ip_nhops == 0)
 		return ((struct mbuf *)0);
 	m = m_get(M_DONTWAIT, MT_HEADER);
-	if (m == 0)
+	if (m == NULL)
 		return ((struct mbuf *)0);
 
 #define OPTSIZ	(sizeof(ip_srcrt.nop) + sizeof(ip_srcrt.srcopt))
@@ -1780,7 +1780,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	}
 #endif
 
-	if ((ia = ip_rtaddr(pkt_dst)) == 0) {
+	if ((ia = ip_rtaddr(pkt_dst)) == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
 	}
