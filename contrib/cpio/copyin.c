@@ -13,7 +13,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+$FreeBSD$
+*/
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -34,6 +37,9 @@
 #include "rmt.h"
 #ifndef	FNM_PATHNAME
 #include <fnmatch.h>
+#endif
+#if defined(HAVE_STRFTIME) && defined(__FreeBSD__)
+#include <langinfo.h>
 #endif
 
 #ifndef HAVE_LCHOWN
@@ -1055,6 +1061,10 @@ long_format (file_hdr, link_name)
   char mbuf[11];
   char tbuf[40];
   time_t when;
+  char *ptbuf;
+#ifdef HAVE_STRFTIME
+  static int d_first = -1;
+#endif
 
   mode_string (file_hdr->c_mode, mbuf);
   mbuf[10] = '\0';
@@ -1062,10 +1072,21 @@ long_format (file_hdr, link_name)
   /* Get time values ready to print.  */
   when = file_hdr->c_mtime;
 #ifdef HAVE_STRFTIME
-  strftime(tbuf, sizeof(tbuf), "%c", localtime(&when));
+#ifdef __FreeBSD__
+  if (d_first < 0)
+	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+#else
+  d_first = 0;
+#endif
+  if (current_time - when > 6L * 30L * 24L * 60L * 60L
+      || current_time - when < 0L)
+	ptbuf = d_first ? "%e %b  %Y" : "%b %e  %Y";
+  else
+	ptbuf = d_first ? "%e %b %R" : "%b %e %R";
+  strftime(tbuf, sizeof(tbuf), ptbuf, localtime(&when));
+  ptbuf = tbuf;
 #else
   strcpy (tbuf, ctime (&when));
-#endif
   if (current_time - when > 6L * 30L * 24L * 60L * 60L
       || current_time - when < 0L)
     {
@@ -1074,6 +1095,8 @@ long_format (file_hdr, link_name)
       strcpy (tbuf + 11, tbuf + 19);
     }
   tbuf[16] = '\0';
+  ptbuf = tbuf + 4;
+#endif
 
   printf ("%s %3lu ", mbuf, file_hdr->c_nlink);
 
@@ -1094,7 +1117,7 @@ long_format (file_hdr, link_name)
 #endif
     printf ("%8lu ", file_hdr->c_filesize);
 
-  printf ("%s ", tbuf + 4);
+  printf ("%s ", ptbuf);
 
   print_name_with_quoting (file_hdr->c_name);
   if (link_name)
