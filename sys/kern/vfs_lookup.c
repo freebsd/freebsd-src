@@ -360,11 +360,20 @@ lookup(ndp)
 	     cnp->cn_nameiop != LOOKUP))
 		docache = 0;
 	rdonly = cnp->cn_flags & RDONLY;
-	ndp->ni_dvp = NULL;
 	cnp->cn_flags &= ~ISSYMLINK;
+	ndp->ni_dvp = NULL;
+#ifdef LOOKUP_SHARED
+	/*
+	 * We use shared locks until we hit the parent of the last cn then
+	 * we adjust based on the requesting flags.
+	 */
+	cnp->cn_lkflags = LK_SHARED;
+#else
+	cnp->cn_lkflags = LK_EXCLUSIVE;
+#endif
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
-	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
 
 dirloop:
 	/*
@@ -487,7 +496,7 @@ dirloop:
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
-			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
 		}
 	}
 
@@ -505,6 +514,20 @@ unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
 	ASSERT_VOP_LOCKED(dp, "lookup");
+	/*
+	 * If we have a shared lock we may need to upgrade the lock for the
+	 * last operation.
+	 */
+	if (VOP_ISLOCKED(dp, td) == LK_SHARED &&
+	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
+		vn_lock(dp, LK_UPGRADE|LK_RETRY, td);
+	/*
+	 * If we're looking up the last component and we need an exclusive
+	 * lock, adjust our lkflags.
+	 */
+	if ((cnp->cn_flags & (ISLASTCN|LOCKSHARED|LOCKLEAF)) ==
+	    (ISLASTCN|LOCKLEAF))
+		cnp->cn_lkflags = LK_EXCLUSIVE;
 #ifdef NAMEI_DIAGNOSTIC
 	vprint("lookup in", dp);
 #endif
@@ -523,7 +546,7 @@ unionlookup:
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
-			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
 			goto unionlookup;
 		}
 
@@ -604,7 +627,7 @@ unionlookup:
 			continue;
 		VOP_UNLOCK(dp, 0, td);
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
+		error = VFS_ROOT(mp, cnp->cn_lkflags, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
@@ -725,6 +748,7 @@ relookup(dvp, vpp, cnp)
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = dvp;
+	cnp->cn_lkflags = LK_EXCLUSIVE;
 	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/*
