@@ -310,6 +310,8 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 		}
 		sysctl_unregister_oid(oidp);
 		if (del) {
+			if (oidp->descr)
+				free(oidp->descr, M_SYSCTLOID);
 			free((void *)(uintptr_t)(const void *)oidp->oid_name,
 			     M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
@@ -370,6 +372,12 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 		oidp->oid_arg2 = arg2;
 	}
 	oidp->oid_fmt = fmt;
+	if (descr) {
+		int len = strlen(descr) + 1;
+		oidp->descr = malloc(len, M_SYSCTLOID, M_WAITOK);
+		if (oidp->descr)
+			strcpy(oidp->descr, descr);
+	}
 	/* Update the context, if used */
 	if (clist != NULL)
 		sysctl_ctx_entry_add(clist, oidp);
@@ -409,6 +417,7 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_register_all, 0);
  * {0,2,...}	return the next OID.
  * {0,3}	return the OID of the name in "new"
  * {0,4,...}	return the kind & format info for the "..." OID.
+ * {0,5,...}	return the description the "..." OID.
  */
 
 static void
@@ -707,6 +716,24 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 
 
 SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
+
+static int
+sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
+{
+	struct sysctl_oid *oid;
+	int error;
+
+	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
+	if (error)
+		return (error);
+
+	if (!oid->descr)
+		return (ENOENT);
+	error = SYSCTL_OUT(req, oid->descr, strlen(oid->descr) + 1);
+	return (error);
+}
+
+SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD, sysctl_sysctl_oiddescr, "");
 
 /*
  * Default "handler" functions.
