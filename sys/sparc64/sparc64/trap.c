@@ -101,6 +101,10 @@ extern char fs_nofault_end[];
 extern char fs_nofault_intr_begin[];
 extern char fs_nofault_intr_end[];
 
+extern char fas_fault[];
+extern char fas_nofault_begin[];
+extern char fas_nofault_end[];
+
 extern char *syscallnames[];
 
 const char *trap_msg[] = {
@@ -328,6 +332,27 @@ trap(struct trapframe *tf)
 				}
 			}
 			error = 1;	
+			break;
+		case T_DATA_ERROR:
+			/*
+			 * handle PCI poke/peek as per UltraSPARC IIi
+			 * User's Manual 16.2.1.
+			 *
+			 * XXX - We really should make sure that tpc is
+			 * pointing to the membar #Sync we are expecting.
+			 */
+#define MEMBARSYNC_INST	((u_int32_t)0x8143e040)
+			if (tf->tf_tpc > (u_long)fas_nofault_begin &&
+			    tf->tf_tpc < (u_long)fas_nofault_end &&
+			    *(u_int32_t *)tf->tf_tpc == MEMBARSYNC_INST &&
+			    ((u_int32_t *)tf->tf_tpc)[-2] == MEMBARSYNC_INST) {
+				tf->tf_tpc = (u_long)fas_fault;
+				tf->tf_tnpc = tf->tf_tpc + 4;
+				error = 0;
+				break;
+			}
+#undef MEMBARSYNC_INST
+			error = 1;
 			break;
 		default:
 			error = 1;

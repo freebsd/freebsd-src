@@ -527,6 +527,58 @@ ENTRY(fs_fault)
 	 mov	-1, %o0
 END(fsfault)
 
+	.globl	fas_nofault_begin
+fas_nofault_begin:
+
+/*
+ * int fasword8(u_long asi, uint64_t addr, uint8_t *val)
+ */
+ENTRY(fasword8)
+	wr	%o0, 0, %asi
+	membar	#Sync
+	lduba	[%o1] %asi, %o3
+	membar	#Sync
+	stb	%o3, [%o2]
+	retl
+	 clr	%o0
+END(fasword8)
+
+/*
+ * int fasword16(u_long asi, uint64_t addr, uint16_t *val)
+ */
+ENTRY(fasword16)
+	wr	%o0, 0, %asi
+	membar	#Sync
+	lduha	[%o1] %asi, %o3
+	membar	#Sync
+	sth	%o3, [%o2]
+	retl
+	 clr	%o0
+END(fasword16)
+
+/*
+ * int fasword32(u_long asi, uint64_t addr, uint32_t *val)
+ */
+ENTRY(fasword32)
+	wr	%o0, 0, %asi
+	membar	#Sync
+	lduwa	[%o1] %asi, %o3
+	membar	#Sync
+	stw	%o3, [%o2]
+	retl
+	 clr	%o0
+END(fasword32)
+
+	.globl	fas_nofault_end
+fas_nofault_end:
+	nop
+
+	.globl	fas_fault
+ENTRY(fas_fault)
+	retl
+	 mov	-1, %o0
+END(fas_fault)
+
 	.globl	fpu_fault_begin
 fpu_fault_begin:
 	nop
