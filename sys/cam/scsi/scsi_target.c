@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.10 1999/05/04 19:24:21 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.11 1999/05/07 07:03:03 phk Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -778,6 +778,8 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			if (ccbh != NULL) {
 				TAILQ_REMOVE(&softc->unknown_atio_queue,
 					     ccbh, periph_links.tqe);
+				/* Requeue the ATIO back to the controller */
+				xpt_action((union ccb *)ccbh);
 				ccbh = TAILQ_FIRST(&softc->unknown_atio_queue);
 			}
 			if (ccbh != NULL)

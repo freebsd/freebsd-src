@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.19 1999/05/07 07:02:57 phk Exp $
+ *      $Id: scsi_cd.c,v 1.20 1999/05/09 01:25:24 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -531,9 +531,6 @@ cdasync(void *callback_arg, u_int32_t code,
 
 		break;
 	}
-	case AC_LOST_DEVICE:
-		cam_periph_invalidate(periph);
-		break;
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
@@ -552,12 +549,10 @@ cdasync(void *callback_arg, u_int32_t code,
 		     ccbh != NULL; ccbh = LIST_NEXT(ccbh, periph_links.le))
 			ccbh->ccb_state |= CD_CCB_RETRY_UA;
 		splx(s);
-		break;
+		/* FALLTHROUGH */
 	}
-	case AC_TRANSFER_NEG:
-	case AC_SCSI_AEN:
-	case AC_UNSOL_RESEL:
 	default:
+		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 }
