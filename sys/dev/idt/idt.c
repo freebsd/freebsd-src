@@ -671,8 +671,8 @@ nicstar_init(nicstar_reg_t * const idt)
 					 * bits) */
 
 	/* allocate space for TSQ, RSQ, SCD for VBR,ABR, UBR */
-	idt->fixbuf = vm_page_alloc_contig(NICSTAR_FIXPAGES * PAGE_SIZE,
-					   0x100000, 0xffffffff, 0x2000);
+	idt->fixbuf = (vm_offset_t)contigmalloc(NICSTAR_FIXPAGES * PAGE_SIZE,
+	    M_DEVBUF, M_NOWAIT | M_ZERO, 0x100000, 0xffffffff, 0x2000, 0);
 	if (idt->fixbuf == 0)
 		return;		/* no space card disabled */
 
@@ -691,8 +691,6 @@ nicstar_init(nicstar_reg_t * const idt)
 	idt_slots_init(idt);	/* initialize CBR table slots */
 
 	/* initialize variable rate mbuf queues */
-
-	bzero((caddr_t)idt->fixbuf, NICSTAR_FIXPAGES * PAGE_SIZE);
 
 	/* TSQ initialization */
 	for (p = (u_long *)idt->fixbuf; p < (u_long *)(idt->fixbuf + 0x2000);) {
@@ -1376,8 +1374,8 @@ idt_mcheck_init(IDT * idt)
 	int x;
 
 	size = round_page(sizeof(struct mbuf *) * 1024);
-	idt->mcheck = (struct mbuf **) vm_page_alloc_contig(size,
-	    0x100000, 0xffffffff, 0x2000);
+	idt->mcheck = contigmalloc(size, M_DEVBUF, M_NOWAIT,
+	    0x100000, 0xffffffff, 0x2000, 0);
 	if (idt->mcheck == NULL)
 		return (1);
 
@@ -1402,8 +1400,8 @@ idt_malloc_contig(int pages)
 {
 	vm_offset_t retval;
 
-	retval = vm_page_alloc_contig(pages * PAGE_SIZE,
-				      0x100000, 0xffffffff, 0x2000);
+	retval = (vm_offset_t)contigmalloc(pages * PAGE_SIZE,
+	    M_DEVBUF, M_NOWAIT, 0x100000, 0xffffffff, 0x2000, 0);
 #ifdef UNDEF
 	printf("idt: vm_offset_t allocated %d pages at %x\n", pages, retval);
 #endif
@@ -2061,8 +2059,8 @@ idt_connect_init(IDT * idt, int vpibits)
 
 	pages = (sizeof(CONNECTION) * MAX_CONNECTION) + PAGE_SIZE - 1;
 	pages /= PAGE_SIZE;
-	idt->connection = (CONNECTION *) vm_page_alloc_contig(pages * PAGE_SIZE,
-	    0x100000, 0xffffffff, 0x2000);
+	idt->connection = contigmalloc(pages * PAGE_SIZE, M_DEVBUF, M_NOWAIT,
+	    0x100000, 0xffffffff, 0x2000, 0);
 	if (idt->connection == NULL)
 		return (1);
 
