@@ -590,6 +590,7 @@ vm_object_terminate(vm_object_t object)
 	 * remove them from the object. 
 	 */
 	s = splvm();
+	vm_page_lock_queues();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		KASSERT(!p->busy && (p->flags & PG_BUSY) == 0,
 			("vm_object_terminate: freeing busy page %p "
@@ -603,6 +604,7 @@ vm_object_terminate(vm_object_t object)
 			vm_page_remove(p);
 		}
 	}
+	vm_page_unlock_queues();
 	splx(s);
 
 	/*
@@ -1240,7 +1242,7 @@ vm_object_split(vm_map_entry_t entry)
 				  new_object, shadow_list);
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		new_object->backing_object_offset = 
-			orig_object->backing_object_offset + IDX_TO_OFF(offidxstart);
+			orig_object->backing_object_offset + offset;
 		new_object->backing_object = source;
 		source->shadow_count++;
 		source->generation++;
