@@ -78,10 +78,9 @@ kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
 	int op, arg, nfiles;
 	long filehead_o;
 {
-	int buflen = kd->arglen, needed = buflen, error, n = 0;
-	struct file *fp, file, *filehead;
+	int buflen = kd->arglen, n = 0;
+	struct file *fp, *filehead;
 	register char *where = kd->argspc;
-	char *start = where;
 
 	/*
 	 * first copyout filehead
