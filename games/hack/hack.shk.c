@@ -122,7 +122,7 @@ struct monst *mtmp;
 static
 addupbill(){	/* delivers result in total */
 		/* caller has checked that shopkeeper exists */
-ct = ESHK(shopkeeper)->billct;
+int ct = ESHK(shopkeeper)->billct;
 struct bill_x *bp = bill;
 	total = 0;
 	while(ct--){
@@ -132,7 +132,7 @@ struct bill_x *bp = bill;
 }
 
 inshop(){
-roomno = inroom(u.ux,u.uy);
+int roomno = inroom(u.ux,u.uy);
 
 	static void findshk();
 
@@ -230,7 +230,7 @@ roomno = inroom(u.ux,u.uy);
 
 static void
 findshk(roomno)
-roomno;
+int roomno;
 {
 struct monst *mtmp;
 	for(mtmp = fmon; mtmp; mtmp = mtmp->nmon)
@@ -753,7 +753,7 @@ int tmp, ac;
 
 static
 realhunger(){	/* not completely foolproof */
-tmp = u.uhunger;
+int tmp = u.uhunger;
 struct obj *otmp = invent;
 	while(otmp){
 		if(otmp->olet == FOOD_SYM && !otmp->unpaid)

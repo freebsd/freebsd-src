@@ -8,7 +8,7 @@ extern char plname[];
 
 coord
 getpos(force,goal) int force; char *goal; {
-cx,cy,i,c;
+int cx,cy,i,c;
 extern char sdir[];		/* defined in hack.c */
 extern schar xdir[], ydir[];	/* idem */
 extern char *visctrl();		/* see below */
@@ -99,7 +99,7 @@ extern char *lmonnam();
  */
 do_oname(obj) struct obj *obj; {
 struct obj *otmp, *otmp2;
-lth;
+int lth;
 char buf[BUFSZ];
 	pline("What do you want to name %s? ", doname(obj));
 	getlin(buf);

@@ -242,7 +242,7 @@ static boolean dig_down;
 static
 dig() {
 	struct rm *lev;
-	dpx = dig_pos.x, dpy = dig_pos.y;
+	int dpx = dig_pos.x, dpy = dig_pos.y;
 
 	/* perhaps a nymph stole his pick-axe while he was busy digging */
 	/* or perhaps he teleported away */

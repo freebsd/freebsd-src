@@ -386,7 +386,7 @@ boomhit(dx,dy) {
 }
 
 char
-dirlet(dx,dy) dx,dy; {
+dirlet(dx,dy) int dx,dy; {
 	return
 		(dx == dy) ? '\\' : (dx && dy) ? '/' : dx ? '-' : '|';
 }
@@ -543,7 +543,7 @@ int dx,dy;
 
 zhit(mon,type)			/* returns damage to mon */
 struct monst *mon;
-type;
+int type;
 {
 	int tmp = 0;
 
@@ -595,7 +595,7 @@ struct obj *obj;
 rloco(obj)
 struct obj *obj;
 {
-	tx,ty,otx,oty;
+	int tx,ty,otx,oty;
 
 	otx = obj->ox;
 	oty = obj->oy;

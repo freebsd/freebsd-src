@@ -28,7 +28,7 @@ xchar lev;
 {
 #ifndef NOWORM
 	struct wseg *wtmp, *wtmp2;
-	tmp;
+	int tmp;
 #endif NOWORM
 
 	if(fd < 0) panic("Save on bad file!");	/* impossible */
@@ -72,7 +72,7 @@ xchar lev;
 }
 
 bwrite(fd,loc,num)
-fd;
+int fd;
 char *loc;
 unsigned num;
 {
@@ -82,7 +82,7 @@ unsigned num;
 }
 
 saveobjchn(fd,otmp)
-fd;
+int fd;
 struct obj *otmp;
 {
 	struct obj *otmp2;
@@ -101,7 +101,7 @@ struct obj *otmp;
 }
 
 savemonchn(fd,mtmp)
-fd;
+int fd;
 struct monst *mtmp;
 {
 	struct monst *mtmp2;
@@ -124,7 +124,7 @@ struct monst *mtmp;
 }
 
 savegoldchn(fd,gold)
-fd;
+int fd;
 struct gold *gold;
 {
 	struct gold *gold2;
@@ -138,7 +138,7 @@ struct gold *gold;
 }
 
 savetrapchn(fd,trap)
-fd;
+int fd;
 struct trap *trap;
 {
 	struct trap *trap2;
@@ -160,7 +160,7 @@ xchar lev;
 #ifndef NOWORM
 	struct wseg *wtmp;
 #endif NOWORM
-	tmp;
+	int tmp;
 	long omoves;
 	int hpid;
 	xchar dlvl;
@@ -256,7 +256,7 @@ xchar lev;
 }
 
 mread(fd, buf, len)
-fd;
+int fd;
 char *buf;
 unsigned len;
 {

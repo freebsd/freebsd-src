@@ -281,7 +281,7 @@ char *
 parse()
 {
 	static char inputline[COLNO];
-	foo;
+	int foo;
 
 	flags.move = 1;
 	if(!Invisible) curs_on_u(); else home();

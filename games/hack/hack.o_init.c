@@ -99,7 +99,7 @@ oinit()			/* level dependent initialization */
 
 extern long *alloc();
 
-savenames(fd) fd; {
+savenames(fd) int fd; {
 int i;
 unsigned len;
 	bwrite(fd, (char *) bases, sizeof bases);
@@ -116,7 +116,7 @@ unsigned len;
 	}
 }
 
-restnames(fd) fd; {
+restnames(fd) int fd; {
 int i;
 unsigned len;
 	mread(fd, (char *) bases, sizeof bases);
