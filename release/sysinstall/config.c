@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.14 1995/05/29 13:37:41 jkh Exp $
+ * $Id: config.c,v 1.15 1995/05/30 08:28:22 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,7 +159,7 @@ configFstab(void)
 			chunk_list[nchunks++] = c2;
 		}
 	    }
-	    else if (c1->type == fat)
+	    else if (c1->type == fat && c1->private)
 		chunk_list[nchunks++] = c1;
 	}
     }
