@@ -299,6 +299,7 @@ SUBDIR+=hme
 .endif
 
 .if defined(ALL_MODULES)
+SUBDIR+=null
 SUBDIR+=ufs
 .endif
 
