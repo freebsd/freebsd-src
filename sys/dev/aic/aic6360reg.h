@@ -320,8 +320,10 @@
 #define PORTA_PARITY(a)	((a) & 0x80)
 
 /* PORTB */
+#define PORTB_EXTTRAN(b)((b) & 1)
 #define PORTB_DISC(b)	((b) & 4)
 #define PORTB_SYNC(b)	((b) & 8)
+#define PORTB_FSYNC(b)	((b) & 0x10)
 #define PORTB_BOOT(b)	((b) & 0x40)
 #define PORTB_DMA(b)	((b) & 0x80)
 

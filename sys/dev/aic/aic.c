@@ -196,15 +196,25 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 
 		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
 			ti->goal.period = cts->sync_period;
-			if (ti->goal.period != ti->current.period)
-				ti->flags |= TINFO_SDTR_NEGO;
+
+			if (ti->goal.period > aic->min_period) {
+				ti->goal.period = 0;
+				ti->goal.offset = 0;
+			} else if (ti->goal.period < aic->max_period)
+				ti->goal.period = aic->max_period;
 		}
 
 		if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
 			ti->goal.offset = cts->sync_offset;
-			if (ti->goal.offset != ti->current.offset)
-				ti->flags |= TINFO_SDTR_NEGO;
+			if (ti->goal.offset == 0)
+				ti->goal.period = 0;
+			else if (ti->goal.offset > AIC_SYNC_OFFSET)
+				ti->goal.offset = AIC_SYNC_OFFSET;
 		}
+
+		if ((ti->goal.period != ti->current.period)
+		 || (ti->goal.offset != ti->current.offset))
+			ti->flags |= TINFO_SDTR_NEGO;
 
 		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -1427,9 +1437,25 @@ aic_init(struct aic_softc *aic)
 		aic->flags |= AIC_DISC_ENABLE;
 	if (PORTB_DMA(portb))
 		aic->flags |= AIC_DMA_ENABLE;
-	if (aic_inb(aic, REV))
-		aic->flags |= AIC_DWIO_ENABLE;
 
+	/*
+	 * We can do fast SCSI (10MHz clock rate) if bit 4 of portb
+	 * is set and we've got a 6360.  The 6260 can only do standard
+	 * 5MHz SCSI.
+	 */
+	if (aic_inb(aic, REV)) {
+		if (PORTB_FSYNC(portb)) {
+			aic->max_period = AIC_FAST_SYNC_PERIOD;
+			aic->flags |= AIC_FAST_ENABLE;
+		} else
+			aic->max_period = AIC_SYNC_PERIOD;
+
+		aic->flags |= AIC_DWIO_ENABLE;
+	} else
+		aic->max_period = AIC_SYNC_PERIOD;
+
+	aic->min_period = AIC_MIN_SYNC_PERIOD;
+	
 	free_scbs = NULL;
 	for (i = 255; i >= 0; i--) {
 		scb = &aic->scbs[i];
@@ -1445,7 +1471,7 @@ aic_init(struct aic_softc *aic)
 		ti->flags = TINFO_TAG_ENB;
 		if (aic->flags & AIC_DISC_ENABLE)
 			ti->flags |= TINFO_DISC_ENB;
-		ti->user.period = AIC_SYNC_PERIOD;
+		ti->user.period = aic->max_period;
 		ti->user.offset = AIC_SYNC_OFFSET;
 		ti->scsirate = 0;
 	}
@@ -1513,6 +1539,8 @@ aic_attach(struct aic_softc *aic)
 		printf(", disconnection");
 	if (aic->flags & AIC_PARITY_ENABLE)
 		printf(", parity check");
+	if (aic->flags & AIC_FAST_ENABLE)
+		printf(", fast SCSI");
 	printf("\n");
 
 	aic_cam_rescan(aic);	/* have CAM rescan the bus */
