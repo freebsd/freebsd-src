@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.23 1995/10/22 01:32:57 jkh Exp $
+ * $Id: options.c,v 1.25 1995/10/26 08:56:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -100,11 +100,11 @@ mediaCheck(Option opt)
     return "<unset>";
 }
 
-#define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks"
-#define RELNAME_PROMPT	"Please specify the release you wish to load"
+#define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
+#define RELNAME_PROMPT	"Please specify the release you wish to load:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
-#define CONFIG_PROMPT	"Please specify the name of a configuration file"
+#define RETRY_PROMPT	"Please specify the number of times to retry an FTP request:"
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
@@ -118,7 +118,7 @@ static Option Options[] = {
 { "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
       OPT_IS_FUNC,	mediaSetFtpOnError,	VAR_FTP_ONERROR,	varCheck	},
 { "FTP Retries",	"If FTP OnError == retry, this is the number of times to try.",
-      OPT_IS_VAR,	NULL,			VAR_FTP_RETRIES,	varCheck	},
+      OPT_IS_VAR,	RETRY_PROMPT,		VAR_FTP_RETRIES,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
@@ -127,12 +127,10 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	VAR_CPIO_VERBOSITY,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
       OPT_IS_VAR,	RELNAME_PROMPT,		VAR_RELNAME,		varCheck	},
-{ "Browser Pkg",	"This is the browser package that will be used for viewing HTML",
+{ "Browser Pkg",	"This is the browser package that will be used for viewing HTML docs",
       OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
 { "Browser Exec",	"This is the path to the main binary of the browser package",
       OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
-{ "Config File",	"Name of default configuration file for Load command (top menu)",
-      OPT_IS_VAR,	CONFIG_PROMPT,		VAR_CONFIG_FILE,	varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
