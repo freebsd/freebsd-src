@@ -48,23 +48,22 @@ error "Can only have 1 spigot configured."
 
 #include	<sys/param.h>
 #include	<sys/systm.h>
+#include	<sys/kernel.h>
 #include	<sys/ioctl.h>
 #include	<sys/proc.h>
 #include	<sys/user.h>
 #include	<sys/file.h>
 #include	<sys/uio.h>
-#include	<sys/kernel.h>
 #include	<sys/malloc.h>
 #include	<sys/devconf.h>
 #include	<sys/errno.h>
 #include	<sys/mman.h>
 
+#include	<machine/spigot.h>
+#include	<machine/psl.h>
+
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
-
-#include	<i386/include/spigot.h>
-#include	<i386/include/psl.h>
-
 
 struct spigot_softc {
 	int		flags;

@@ -31,13 +31,15 @@
 #if NJOY > 0
 
 #include <errno.h>
-#include <sys/types.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/timerreg.h>
-#include <i386/isa/isa_device.h>
-#include <machine/cpufunc.h>
 
-#include <i386/include/joystick.h>
+#include <sys/types.h>
+
+#include <machine/cpufunc.h>
+#include <machine/joystick.h>
+
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/timerreg.h>
 
 /* The game port can manage 4 buttons and 4 variable resistors (usually 2 
  * joysticks, each with 2 buttons and 2 pots.) via the port at address 0x201.
