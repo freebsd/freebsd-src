@@ -116,7 +116,7 @@ jail_start()
 				mount -t procfs proc "${jail_procdir}"
 			fi
 		fi
-		jail 1>/dev/null 2>&1 \
+		jail 1>${jail_rootdir}/var/log/console.log 2>&1 \
 		    ${jail_rootdir} ${jail_hostname} ${jail_ip} ${jail_exec}
 		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
 	done
