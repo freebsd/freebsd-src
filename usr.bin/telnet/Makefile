@@ -40,14 +40,20 @@ CFLAGS+=-DKLUDGELINEMODE -DUSE_TERMIO #-DAUTHENTICATION -DENCRYPTION
 CFLAGS+=-DENV_HACK
 CFLAGS+=-DSKEY
 CFLAGS+=-I${.CURDIR}/../../lib
-CFLAGS+=-DIPSEC -DINET6
+CFLAGS+=-DINET6
 
 #CFLAGS+= -DKRB4
 
-DPADD=	${LIBTERMCAP} ${LIBTELNET} ${LIBIPSEC}
-LDADD=	-ltermcap -ltelnet -lipsec
+DPADD=	${LIBTERMCAP} ${LIBTELNET}
+LDADD=	-ltermcap -ltelnet
 #DPADD+=	${LIBKRB} ${LIBDES}
 #LDADD+=	-lkrb -ldes
+
+.if !defined(RELEASE_CRUNCH)
+CFLAGS+=-DIPSEC
+DPADDA+=${LIBIPSEC}
+LDADD+=	-lipsec
+.endif
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 	terminal.c tn3270.c utilities.c
@@ -61,3 +67,4 @@ NOCRYPT_DIR=${.CURDIR}/Nocrypt
 
 nocrypt:
 	@echo "Encryption code already removed."
+
