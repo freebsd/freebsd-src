@@ -120,25 +120,17 @@ bt_mca_alloc_resources(device_t dev)
 	if (io == NULL)
 		return (ENOMEM);
 
-	if (mca_get_irq(dev) != -1) {
-		rid = 0;
-		irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					 0, ~0, 1, RF_ACTIVE);
-		if (irq == NULL)
-			goto bad;
-	} else {
-		irq = 0;
-	}
+	rid = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (irq == NULL)
+		goto bad;
 
-	if (mca_get_drq(dev) != -1) {
-		rid = 0;
-		drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
+	rid = 0;
+	drq = bus_alloc_resource(dev, SYS_RES_DRQ, &rid,
 					 0, ~0, 1, RF_ACTIVE);
-		if (drq == NULL)
-			goto bad;
-	} else {
-		drq = 0;
-	}
+	if (drq == NULL)
+		goto bad;
 
 	bt_init_softc(dev, io, irq, drq);
 
