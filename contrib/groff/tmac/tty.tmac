@@ -79,9 +79,10 @@
 .
 .ie '\*(.T'cp1047' \
 .  do mso cp1047.tmac
-.el \
-.  if !'\*(.T'ascii' \
-.    do mso latin1.tmac
+.el .ie '\*(.T'koi8-r' \
+.  do mso koi8-r.tmac
+.el .if !'\*(.T'ascii' \
+.  do mso latin1.tmac
 .
 .\" If you want the character definitions in tty-char.tmac to be loaded
 .\" automatically, remove the `\"' from the next line.
