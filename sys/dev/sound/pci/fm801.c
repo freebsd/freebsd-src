@@ -334,7 +334,8 @@ fm801ch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, fm801->parent_dmat, fm801->bufsz) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, fm801->parent_dmat, fm801->bufsz) != 0)
+		return NULL;
 	return (void *)ch;
 }
 
