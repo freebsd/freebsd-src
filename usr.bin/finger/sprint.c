@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)sprint.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
-#include <tzfile.h>
 #include <db.h>
 #include <pwd.h>
 #include <errno.h>
@@ -61,7 +60,7 @@ sflag_print()
 	register PERSON *pn;
 	register WHERE *w;
 	register int sflag, r;
-	register char *p;
+	char p[80];
 	DBT data, key;
 
 	/*
@@ -116,7 +115,10 @@ sflag_print()
 				(void)printf("  ");
 			} else
 				(void)printf("    *  ");
-			p = ctime(&w->loginat);
+			strftime(p, sizeof(p), "%c", localtime(&w->loginat));
+#define SECSPERDAY 86400
+#define DAYSPERWEEK 7
+#define DAYSPERNYEAR 365
 			if (now - w->loginat < SECSPERDAY * (DAYSPERWEEK - 1))
 				(void)printf("%.3s   ", p);
 			else
