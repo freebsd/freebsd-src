@@ -50,5 +50,5 @@ df ${TMPMNT}
 umount ${TMPMNT}
 dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 dd if=/dev/${MD} of=${IMG} bs=64k
-dd if=/dev/${MD}s1 of=${6}.s1 bs=64k
+dd if=/dev/${MD}s1 of=${IMG}.s1 bs=64k
 mdconfig -d -u ${MD}
