@@ -110,6 +110,7 @@ main(argc, argv)
 			 * Next argument is person to pretend to be.
 			 */
 			myname = optarg;
+                        unsetenv("MAIL");
 			break;
 		case 'i':
 			/*
