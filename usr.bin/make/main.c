@@ -1309,8 +1309,8 @@ usage()
 int
 PrintAddr(a, b)
     void * a;
-    void * b;
+    void * b __unused;
 {
     printf("%lx ", (unsigned long) a);
-    return b ? 0 : 0;
+    return 0;
 }
