@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.15 1995/01/08 13:38:33 dufault Exp $
+ *	$Id: scsiconf.h,v 1.16 1995/01/31 11:41:45 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -322,6 +322,7 @@ errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
 			struct scsi_inquiry_data *inqbuf, u_int32 flags);
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
+errval scsi_probe_busses __P(( int, int, int));
 errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
 void scsi_done(struct scsi_xfer *xs);
 errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
