@@ -342,6 +342,8 @@ struct t_atm_bearer {
 		/* traffic_type */
 #define	T_ATM_CBR		0x01	/* Constant bit rate              */
 #define	T_ATM_VBR		0x02	/* Variable bit rate              */
+#define	T_ATM_ABR		0x03	/* Available bit rate		  */
+#define	T_ATM_UBR		0x04	/* Unspecified bit rate		  */
 
 		/* timing_requirements */
 #define	T_ATM_END_TO_END	0x01	/* End-to-end timing required     */
