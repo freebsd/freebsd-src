@@ -70,7 +70,7 @@ CFLAGS+=-DNOSUID
 SRCS+=	id.c
 .endif
 
-.if defined(NOCRYPT) || defined(NO_OPENSSL)
+.if defined(RELEASE_CRUNCH) || defined(NOCRYPT) || defined(NO_OPENSSL)
 CFLAGS+=-DNODES
 .else
 DISTRIBUTION=crypto
