@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.11 1994/11/16 10:17:08 jkh Exp $
+ * $Id: ip_input.c,v 1.12 1994/12/12 17:20:53 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -880,7 +880,7 @@ ip_rtaddr(dst)
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = dst;
 
-		rtalloc(&ipforward_rt);
+		rtalloc_ign(&ipforward_rt, RTF_PRCLONING);
 	}
 	if (ipforward_rt.ro_rt == 0)
 		return ((struct in_ifaddr *)0);
@@ -1051,7 +1051,7 @@ ip_forward(m, srcrt)
 
 #ifdef IPFIREWALL
 	if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-	&& !ip_fw_chk(ip,m->m_pkthdr.rcvif,ip_fw_fwd_chain) ) {
+	    && !ip_fw_chk(ip, m->m_pkthdr.rcvif, ip_fw_fwd_chain) ) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
@@ -1081,7 +1081,7 @@ ip_forward(m, srcrt)
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = ip->ip_dst;
 
-		rtalloc(&ipforward_rt);
+		rtalloc_ign(&ipforward_rt, RTF_PRCLONING);
 		if (ipforward_rt.ro_rt == 0) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
 			return;
@@ -1095,9 +1095,11 @@ ip_forward(m, srcrt)
 	 */
 	mcopy = m_copy(m, 0, imin((int)ip->ip_len, 64));
 
+#ifdef bogus
 #ifdef GATEWAY
 	ip_ifmatrix[rt->rt_ifp->if_index +
 	     if_index * m->m_pkthdr.rcvif->if_index]++;
+#endif
 #endif
 	/*
 	 * If forwarding packet using same interface that it came in on,
