@@ -322,5 +322,7 @@ struct acd_softc {
     int				block_size;	/* blocksize currently used */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev;		/* device place holders */
+#ifndef BURN_BRIDGES
     eventhandler_tag		clone_evh;
+#endif
 };
