@@ -40,7 +40,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm mtree
-.Op Fl LUcdeinqrux
+.Op Fl LPUcdeinqrux
 .Bk -words
 .Op Fl f Ar spec
 .Ek
@@ -71,9 +71,10 @@ missing from either the file hierarchy or the specification.
 The options are as follows:
 .Bl -tag -width flag
 .It Fl L
-Follow all symbolic links in the file hierarchy (by default
-.Nm
-considers the symbolic link itself).
+Follow all symbolic links in the file hierarchy.
+.It Fl P
+Don't follow symbolic links in the file hierarchy, instead consider
+the symbolic link itself in any comparisons. This is the default.
 .It Fl U
 Modify the owner, group and permissions of existing files to match
 the specification and create any missing directories or symbolic links.
