@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.7 1995/09/08 11:06:46 bde Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.8 1995/11/18 04:19:44 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.8 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.7 1995/09/08 11:06:46 bde E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.8  1995/11/18  04:19:44  bde
+ * Fixed the type of nic_listen().  A trailing arg was missing.
+ *
+ * Fixed calls to s_intr().  There was sometimes an extra trailing arg.
+ *
  * Revision 1.7  1995/09/08  11:06:46  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.
@@ -58,6 +63,7 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.7 1995/09/08 11:06:46 bde E
 #include "ioctl.h"
 #include "kernel.h"
 #include "systm.h"
+#include "conf.h"
 #include <sys/proc.h>
 
 #include "i386/isa/isa_device.h"
@@ -91,13 +97,17 @@ extern int Isdn_Appl, Isdn_Ctrl, Isdn_Typ;
 
 static old_spy= 0;
 
-int             nicprobe(), nicattach();
-int             nic_connect(), nic_listen(), nic_disconnect(), nic_accept();
-int             nic_output();
-extern void isdn_start_out();
-
-static void     s_intr(), reset_req(), reset_card();
-static int      cstrcmp(), discon_req(), reset_plci(), sel_b2_prot_req();
+extern int	nicattach __P((struct isa_device *is));
+extern int	nicprobe __P((struct isa_device *is));
+extern int	nic_accept __P((int cn, int an, int rea));
+extern int	nic_connect __P((int cn, int ap, int b_channel, int inf_mask,
+				 int out_serv, int out_serv_add,
+				 int src_subadr, unsigned ad_len,
+				 char *dest_addr, int spv));
+extern int	nic_disconnect __P((int cn, int rea));
+extern int	nic_listen __P((int cn, int ap, int inf_mask, int subadr_mask,
+				int si_mask, int spv));
+extern int	nic_output __P((int cn));
 
 static short    bsintr;
 
@@ -134,6 +144,29 @@ struct nic_softc
 	chan_t          sc_chan[2];
 }               nic_sc[NNIC];
 
+static void	badstate __P((mbx_type *mbx, int n, int mb, dpr_type *dpr));
+static void	b_intr __P((int mb, int c, struct nic_softc *sc));
+static void	bs_intr __P((int mb, int c, struct nic_softc *sc));
+static void	con_b3_resp __P((struct nic_softc *sc, int mb, u_short ncci,
+				 u_char reject));
+static void	con_resp __P((struct nic_softc *sc, int pl, int rea));
+static void	d_intr __P((struct nic_softc *sc));
+static int	discon_req __P((int w, struct nic_softc *sc, int pl, int rea,
+				int err));
+static int	en_q_b __P((struct nic_softc *sc, int mb, int t, int pl, int l,
+			    u_char *b));
+static int	en_q_d __P((struct nic_softc *sc, int t, int pl, int l,
+			    u_char *b));
+static int	cstrcmp __P((char *str1, char *str2));
+static void	make_intr __P((int box, struct nic_softc *sc));
+static void	reset_card __P((struct nic_softc *sc));
+static int	reset_plci __P((int w_is_defined_bletch, chan_t *chan, int p));
+static void	reset_req __P((struct nic_softc *sc, unsigned box, int w));
+static void	s_intr __P((struct nic_softc *sc));
+static int	sel_b2_prot_req __P((struct nic_softc *sc, int c, int pl,
+				     dlpd_t *dlpd));
+static void	sel_b3_prot_req __P((struct nic_softc *sc, int mb, u_short pl,
+				     ncpd_t *ncpd));
 
 int
 nicprobe(struct isa_device * is)
