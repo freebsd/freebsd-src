@@ -41,5 +41,7 @@ options 	DDB			#Enable the kernel debugger
 # Pseudo devices - the number indicates how many units to allocate.
 device		md
 
+device		ofw_console
+
 # Tempary things until things are farther along.
 makeoptions	NO_MODULES=does_not_compile_yet
