@@ -82,7 +82,19 @@ static const char rcs_id[] =
  * of reachable host and 4-packet otherwise.
  */
 #define	SMALL(fle)	(fle->f.packets <= 4)
-	
+
+/*
+ * Cisco uses milliseconds for uptime. Bad idea, since it overflows
+ * every 48+ days. But we will do same to keep compatibility. This macro
+ * does overflowable multiplication to 1000.
+ */
+#define	MILLIUPTIME(t)	(((t) << 9) +	/* 512 */	\
+			 ((t) << 8) +	/* 256 */	\
+			 ((t) << 7) +	/* 128 */	\
+			 ((t) << 6) +	/* 64  */	\
+			 ((t) << 5) +	/* 32  */	\
+			 ((t) << 3))	/* 8   */
+
 MALLOC_DECLARE(M_NETFLOW);
 MALLOC_DEFINE(M_NETFLOW, "NetFlow", "flow cache");
 
@@ -578,7 +590,7 @@ export_send(priv_p priv)
 	int error = 0;
 	int mlen;
 
-	header->sys_uptime = htonl(time_uptime);
+	header->sys_uptime = htonl(MILLIUPTIME(time_uptime));
 
 	getnanotime(&ts);
 	header->unix_secs  = htonl(ts.tv_sec);
@@ -635,8 +647,8 @@ export_add(priv_p priv, struct flow_entry *fle)
 	rec->o_ifx    = htons(fle->f.fle_o_ifx);
 	rec->packets  = htonl(fle->f.packets);
 	rec->octets   = htonl(fle->f.bytes);
-	rec->first    = htonl(fle->f.first);
-	rec->last     = htonl(fle->f.last);
+	rec->first    = htonl(MILLIUPTIME(fle->f.first));
+	rec->last     = htonl(MILLIUPTIME(fle->f.last));
 	rec->s_port   = fle->f.r.r_sport;
 	rec->d_port   = fle->f.r.r_dport;
 	rec->flags    = fle->f.tcp_flags;
