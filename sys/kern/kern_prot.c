@@ -84,16 +84,13 @@ int
 getpid(struct thread *td, struct getpid_args *uap)
 {
 	struct proc *p = td->td_proc;
-	int s;
 
-	s = mtx_lock_giant(kern_giant_proc);
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	PROC_LOCK(p);
 	td->td_retval[1] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 #endif
-	mtx_unlock_giant(s);
 	return (0);
 }
 
@@ -110,13 +107,10 @@ int
 getppid(struct thread *td, struct getppid_args *uap)
 {
 	struct proc *p = td->td_proc;
-	int s;
 
-	s = mtx_lock_giant(kern_giant_proc);
 	PROC_LOCK(p);
 	td->td_retval[0] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
-	mtx_unlock_giant(s);
 	return (0);
 }
 
@@ -135,13 +129,10 @@ int
 getpgrp(struct thread *td, struct getpgrp_args *uap)
 {
 	struct proc *p = td->td_proc;
-	int s;
 
-	s = mtx_lock_giant(kern_giant_proc);
 	PROC_LOCK(p);
 	td->td_retval[0] = p->p_pgrp->pg_id;
 	PROC_UNLOCK(p);
-	mtx_unlock_giant(s);
 	return (0);
 }
 
