@@ -72,11 +72,11 @@ set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.atapi_dma
 set to 1 for DMA access, 0 for PIO (default is PIO).
 .It Va hw.ata.wc
-set to 1 to enable Write Caching, 0 to disable (default is enabled)
-(WARNING might cause data loss on power failures)
+set to 1 to enable Write Caching, 0 to disable (default is disabled).
+(WARNING: might cause data loss on power failures.)
 .It Va hw.ata.tags
-set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled)
-(only IBM DPTA and DTLA drives support that)
+set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
+(Only IBM DPTA and DTLA drives support that.)
 .El
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
@@ -86,9 +86,9 @@ These devices are also commonly known as IDE or EIDE devices.
 .Pp
 The currently supported controllers with their maximum speed include:
 .Pp
-.Bl -tag -width "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -compact
+.Bl -tag -width "Promise Ultra/Fasttrak-100 TX2/TX4" -compact
 .It Acerlabs Aladdin
-Ultra DMA 33 (UDMA2), 33 MB/sec
+Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
 .It AMD 756
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It AMD 766
@@ -101,10 +101,14 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .It Cypress 82C693
 DMA 2 (WDMA2), 16 MB/sec
+.It Cyrix 5530
+Ultra DMA 33 (UDMA2), 33 MB/sec
 .It HighPoint HPT366
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It HighPoint HPT370
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It HighPoint HPT372
+Ultra DMA 133 (UDMA6), 133 MB/sec
 .It Intel PIIX
 DMA 2 (WDMA2), 16 MB/sec
 .It Intel PIIX3
@@ -125,57 +129,41 @@ Ultra DMA 33 (UDMA2), 33 MB/sec
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It Promise Ultra/Fasttrak-100
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Promise Ultra/Fasttrak-100 TX2/TX4
+Ultra DMA 100 (UDMA5), 100 MB/sec
 .It ServerWorks ROSB4
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It SiS 5591
 Ultra DMA 33 (UDMA2), 33 MB/sec
-.It Cyrix 5530
-Ultra DMA 33 (UDMA2), 33 MB/sec
 .It VIA 82C586
 Ultra DMA 33 (UDMA2), 33 MB/sec
+.It VIA 82C596
+Ultra DMA 66 (UDMA4), 66 MB/sec (depending on model, max stated at boot)
 .It VIA 82C686a
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It VIA 82C686b
 Ultra DMA 100 (UDMA5), 100 MB/sec
 .El
 .Pp
-All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
+All unknown chipsets are supported at the maximum speed of 16 MB/sec.
 .Pp
 The
 .Nm
 driver also allows for changes to the transfer mode of the devices
-at a later time when the system is up and running.
+at a later time when the system is up and running, see
+.Xr atacontrol 8 .
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
 drives by selecting the highest possible DMA mode.
 ATAPI devices are left in PIO mode because DMA problems are common despite the
 device specifications.
-You can always try to set DMA mode on an ATAPI device using the sysctl
-method described here,
+You can always try to set DMA mode on an ATAPI device using
+.Xr atacontrol 8 ,
 but be aware that your hardware might
 .Em not
 support it and can
 .Em hang
 the system.
-.Pp
-To see the devices' current access modes, use the command line:
-.Pp
-.Dl sysctl hw.atamodes
-.Pp
-which results in the modes of the devices being displayed as a string
-like this:
-.Pp
-.Dl hw.atamodes: dma,pio,---,pio,dma,---,dma,---,   (--- = no device)
-.Pp
-This means that ata0-master is in DMA mode,
-ata0-slave is in PIO mode,
-and so forth.
-You can set the mode with sysctl and a string like the above,
-for example:
-.Pp
-.Dl sysctl hw.atamodes=pio,pio,---,dma,pio,---,dma,---,
-.Pp
-The new modes are set as soon as the sysctl command returns.
 .Sh FILES
 .Bl -tag -width "/sys/i386/conf/GENERIC " -compact
 .It Pa /dev/ad*
@@ -219,6 +207,9 @@ the same ATA channel is not recommended,
 unless they are run at the non-UDMA4 device's lower speed.
 The driver has been designed to handle that kind of setup but lots of
 older devices do not like this.
+.Sh SEE ALSO
+.Xr atacontrol 8 ,
+.Xr burncd 8
 .Sh HISTORY
 The
 .Nm
