@@ -98,6 +98,12 @@ struct bpf_d {
 #define BPF_WAITING	1		/* waiting for read timeout in select */
 #define BPF_TIMED_OUT	2		/* read timeout has expired in select */
 
+/* Test whether a BPF is ready for read(). */
+#define	bpf_ready(bd)							\
+	((bd)->bd_hlen != 0 ||						\
+	 (((bd)->bd_immediate || (bd)->bd_state == BPF_TIMED_OUT) &&	\
+	 (bd)->bd_slen != 0))
+                           
 /*
  * Descriptor associated with each attached hardware interface.
  */

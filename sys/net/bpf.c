@@ -51,6 +51,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -135,6 +136,7 @@ static	d_read_t	bpfread;
 static	d_write_t	bpfwrite;
 static	d_ioctl_t	bpfioctl;
 static	d_poll_t	bpfpoll;
+static	d_kqfilter_t	bpfkqfilter;
 
 #define CDEV_MAJOR 23
 static struct cdevsw bpf_cdevsw = {
@@ -150,10 +152,16 @@ static struct cdevsw bpf_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	0,
-	/* bmaj */	-1
+	/* flags */	D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	bpfkqfilter,
 };
 
+static void	filt_bpfdetach(struct knote *kn);
+static int	filt_bpfread(struct knote *kn, long hint);
+
+static struct filterops bpfread_filtops =
+	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
 static int
 bpf_movein(uio, linktype, mp, sockp, datlen)
@@ -574,6 +582,7 @@ bpf_wakeup(d)
 	selwakeup(&d->bd_sel);
 	/* XXX */
 	d->bd_sel.si_pid = 0;
+	KNOTE(&d->bd_sel.si_note, 0);
 #else
 	if (d->bd_selproc) {
 		selwakeup(d->bd_selproc, (int)d->bd_selcoll);
@@ -1088,15 +1097,7 @@ bpfpoll(dev, events, p)
 	revents = events & (POLLOUT | POLLWRNORM);
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
-		/*
-		 * An imitation of the FIONREAD ioctl code.
-		 * XXX not quite.  An exact imitation:
-		 *	if (d->b_slen != 0 ||
-		 *	    (d->bd_hbuf != NULL && d->bd_hlen != 0)
-		 */
-		if (d->bd_hlen != 0 ||
-		    ((d->bd_immediate || d->bd_state == BPF_TIMED_OUT) &&
-		    d->bd_slen != 0))
+		if (bpf_ready(d))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else {
 			selrecord(p, &d->bd_sel);
@@ -1110,6 +1111,66 @@ bpfpoll(dev, events, p)
 	}
 	splx(s);
 	return (revents);
+}
+
+/*
+ * Support for kqueue(2).
+ */
+int
+bpfkqfilter(dev, kn)
+	dev_t dev;
+	struct knote *kn;
+{
+	struct bpf_d *d = (struct bpf_d *)dev->si_drv1;
+	int s;
+
+	if (kn->kn_filter != EVFILT_READ)
+		return (1);
+
+	kn->kn_fop = &bpfread_filtops;
+	kn->kn_hook = (caddr_t)d;	
+	s = splimp();
+	SLIST_INSERT_HEAD(&d->bd_sel.si_note, kn, kn_selnext);
+	splx(s);
+
+	return (0);
+}
+
+static void
+filt_bpfdetach(kn)
+	struct knote *kn;
+{
+	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+	int s;
+
+	s = splimp();
+	SLIST_REMOVE(&d->bd_sel.si_note, kn, knote, kn_selnext);
+	splx(s);
+}
+
+static int
+filt_bpfread(kn, hint)
+	struct knote *kn;
+	long hint;
+{
+	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
+	int s, ready;
+
+	s = splimp();
+	ready = bpf_ready(d);
+	if (ready) {
+		kn->kn_data = d->bd_slen;
+		if (d->bd_hbuf)
+			kn->kn_data += d->bd_hlen;
+	}
+	else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
+		callout_reset(&d->bd_callout, d->bd_rtout,
+		    bpf_timed_out, d);
+		d->bd_state = BPF_WAITING;
+	}
+	splx(s);
+	
+	return (ready);
 }
 
 /*

@@ -250,6 +250,13 @@ When the last writer disconnects, the filter will set EV_EOF in
 This may be cleared by passing in EV_CLEAR, at which point the
 filter will resume waiting for data to become available before
 returning.
+.It "BPF devices"
+Returns when the BPF buffer is full, the BPF timeout has expired, or
+when the BPF has
+.Dq immediate mode
+enabled and there is any data to read;
+.Va data
+contains the number of bytes available.
 .El
 .It EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
@@ -259,7 +266,7 @@ and fifos,
 will contain the amount of space remaining in the write buffer.
 The filter will set EV_EOF when the reader disconnects, and for
 the fifo case, this may be cleared by use of EV_CLEAR.
-Note that this filter is not supported for vnodes.
+Note that this filter is not supported for vnodes or BPF devices.
 .Pp
 For sockets, the low water mark and socket error handling is
 identical to the EVFILT_READ case.
