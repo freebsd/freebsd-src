@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.12 1995/02/03 06:46:24 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.13 1995/03/16 18:15:41 bde Exp $
  */
 
 /*
@@ -2200,9 +2200,6 @@ loop:
 			}
 		}
 		if (vp->v_dirtyblkhd.lh_first) {
-#ifdef DIAGNOSTIC
-			vprint("nfs_fsync: dirty", vp);
-#endif
 			goto loop;
 		}
 	}
