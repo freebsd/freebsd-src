@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.132 1998/09/22 04:56:08 gibbs Exp $
+**  $Id: ncr.c,v 1.133 1998/09/22 21:42:46 ken Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.132 1998/09/22 04:56:08 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.133 1998/09/22 21:42:46 ken Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3661,7 +3661,11 @@ ncr_attach (pcici_t config_id, int unit)
 	**	Allocate structure for script relocation.
 	*/
 	if (np->vaddr2 != NULL) {
+#ifdef __alpha__
+		np->script = NULL;
+#else
 		np->script = (struct script *) np->vaddr2;
+#endif
 		np->p_script = np->paddr2;
 	} else if (sizeof (struct script) > PAGE_SIZE) {
 		np->script  = (struct script*) vm_page_alloc_contig 
