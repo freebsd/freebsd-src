@@ -130,7 +130,7 @@ struct dn_pkt {
 #define DN_TO_ETH_DEMUX	4
 #define DN_TO_ETH_OUT	5
 
-    dn_key output_time;	/* when the pkt is due for delivery	*/
+    dn_key output_time;		/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/
     struct sockaddr_in *dn_dst ;
     struct route ro;		/* route, for ip_output. MUST COPY	*/
