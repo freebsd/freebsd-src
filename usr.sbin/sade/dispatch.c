@@ -59,8 +59,6 @@ static struct _word {
     { "configPCNFSD",		configPCNFSD		},
     { "configPackages",		configPackages		},
     { "configUsers",		configUsers		},
-    { "configXSetup",		configXSetup	},
-    { "configXDesktop",		configXDesktop	},
 #ifdef WITH_SLICES
     { "diskPartitionEditor",	diskPartitionEditor	},
 #endif
