@@ -1,4 +1,4 @@
-<!-- $Id: kerberos.sgml,v 1.6 1996/01/03 13:13:16 gclarkii Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.7 1996/05/16 23:18:02 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
@@ -15,7 +15,7 @@
     set up Kerberos as distributed for FreeBSD. However, you should refer
     to the relevant manual pages for a complete description.
 
-    In FreeBSD, the Kerberos is not that from the original 4.4 BSD,
+    In FreeBSD, the Kerberos is not that from the original 4.4BSD-Lite,
     distribution, but eBones, which had been previously ported to
     FreeBSD 1.1.5.1, and was sourced from outside the USA/Canada,
     and is thus available to system owners outside those countries.

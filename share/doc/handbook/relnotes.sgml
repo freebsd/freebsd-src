@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.11 1996/05/16 23:18:14 mpp Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.12 1996/05/16 23:25:18 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -7,8 +7,8 @@
 -->
       <sect><heading>About the current release<label id="relnotes"></heading>
 
-	<p>FreeBSD is a freely available, full source 4.4 BSD
-	  Lite based release for Intel i386/i486/Pentium (or
+	<p>FreeBSD is a freely available, full source 4.4BSD-Lite
+	  based release for Intel i386/i486/Pentium (or
 	  compatible) based PC's.  It is based primarily on
 	  software from U.C. Berkeley's CSRG group, with some
 	  enhancements from NetBSD, 386BSD, and the Free Software
@@ -99,8 +99,8 @@
 <![ IGNORE [
 	<p>Since our first release of FreeBSD 1.0 nearly two
 	  years ago, FreeBSD has changed dramatically.  Since
-	  release 2.0, FreeBSD has been based on the Berkeley BSD
-	  4.4-lite code rather than the Net2 code used for
+	  release 2.0, FreeBSD has been based on the Berkeley
+	  4.4BSD-Lite code rather than the Net2 code used for
 	  previous versions.  In addition to clearing the legal
 	  issues that surrounded the Net2 code, the port to 4.4
 	  has also brought in numerous new features, filesystems
