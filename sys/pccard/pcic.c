@@ -1,6 +1,5 @@
 /*
  *  Intel PCIC or compatible Controller driver
- *  May be built to make a loadable module.
  *-------------------------------------------------------------------------
  *
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
@@ -50,11 +49,11 @@
  *	Prototypes for interrupt handler.
  */
 static driver_intr_t	pcicintr;
-static int		pcic_ioctl __P((struct slot *, int, caddr_t));
-static int		pcic_power __P((struct slot *));
+static int		pcic_ioctl(struct slot *, int, caddr_t);
+static int		pcic_power(struct slot *);
 static timeout_t 	pcic_reset;
 static void		pcic_resume(struct slot *);
-static void		pcic_disable __P((struct slot *));
+static void		pcic_disable(struct slot *);
 static timeout_t 	pcictimeout;
 static struct callout_handle pcictimeout_ch
     = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
