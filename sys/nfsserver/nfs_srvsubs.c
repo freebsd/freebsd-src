@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.12 1995/03/16 18:15:39 bde Exp $
+ * $Id: nfs_subs.c,v 1.13 1995/04/21 02:58:49 dyson Exp $
  */
 
 /*
@@ -990,12 +990,14 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 		error = EINVAL;
 		goto out;
 	}
+
+	nfsrv_vmio(ndp->ni_vp);
+
 	/*
 	 * Check for saved name request
 	 */
 	if (cnp->cn_flags & (SAVENAME | SAVESTART)) {
 		cnp->cn_flags |= HASBUF;
-		nfsrv_vmio( ndp->ni_vp);
 		return (0);
 	}
 out:
