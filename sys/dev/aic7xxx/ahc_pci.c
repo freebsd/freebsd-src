@@ -549,11 +549,11 @@ static void configure_termination(struct ahc_softc *ahc,
 	 			  u_int *sxfrctl1);
 
 static void ahc_new_term_detect(struct ahc_softc *ahc,
-				   int *enableSEC_low,
-				   int *enableSEC_high,
-				   int *enablePRI_low,
-				   int *enablePRI_high,
-				   int *eeprom_present);
+				int *enableSEC_low,
+				int *enableSEC_high,
+				int *enablePRI_low,
+				int *enablePRI_high,
+				int *eeprom_present);
 static void aic787X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 				 int *internal68_present,
 				 int *externalcable_present,
@@ -956,6 +956,15 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 	}
 	enable = TRUE;
 
+	/*
+	 * Clear any outstanding parity error
+	 * and ensure that parity error reporting
+	 * is enabled.
+	 */
+	ahc_outb(ahc, SEQCTL, 0);
+	ahc_outb(ahc, CLRINT, CLRPARERR);
+	ahc_outb(ahc, CLRINT, CLRBRKADRINT);
+
 	/* Now see if we can do parity */
 	ahc_ext_scbram_config(ahc, enable, /*pcheck*/TRUE, fast);
 	num_scbs = ahc_probe_scbs(ahc);
@@ -976,12 +985,17 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 		fast = TRUE;
 
 done:
-	/* Clear any resulting parity error */
+	/*
+	 * Disable parity error reporting until we
+	 * can load instruction ram.
+	 */
+	ahc_outb(ahc, SEQCTL, PERRORDIS|FAILDIS);
+	/* Clear any latched parity error */
 	ahc_outb(ahc, CLRINT, CLRPARERR);
 	ahc_outb(ahc, CLRINT, CLRBRKADRINT);
 	if (bootverbose && enable) {
-		printf("%s: External SRAM, %dns access%s\n",
-		       ahc_name(ahc), fast ? 10 : 20,
+		printf("%s: External SRAM, %s access%s\n",
+		       ahc_name(ahc), fast ? "fast" : "slow", 
 		       pcheck ? ", parity checking enabled" : "");
 		       
 	}
