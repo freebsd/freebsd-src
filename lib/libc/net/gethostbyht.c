@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbyht.c,v 1.4 1996/07/12 18:54:34 jkh Exp $";
+static char rcsid[] = "$Id: gethostbyht.c,v 1.5 1996/08/29 20:07:51 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -171,8 +171,8 @@ gethostent()
 }
 
 struct hostent *
-_gethostbyhtname2(name, af)
-	char *name;
+_gethostbyhtname(name, af)
+	const char *name;
 	int af;
 {
 	register struct hostent *p;
