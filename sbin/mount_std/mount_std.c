@@ -127,7 +127,7 @@ main(argc, argv)
 	iov[1].iov_base = fsname;
 	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
-	iov[2].iov_len = sizeof("fstype");
+	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = mntpath;
 	iov[3].iov_len = strlen(mntpath) + 1;
 
