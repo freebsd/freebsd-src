@@ -55,7 +55,7 @@ static int	internal_initialized;
  *
  * XXXMAC: Not thread-safe.
  */
-LIST_HEAD(, label_default) label_default_head;
+static LIST_HEAD(, label_default) label_default_head;
 struct label_default {
 	char				*ld_name;
 	char				*ld_labels;
