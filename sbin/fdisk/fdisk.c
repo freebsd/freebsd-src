@@ -118,11 +118,12 @@ typedef struct cmd {
 
 
 static int B_flag  = 0;		/* replace boot code */
+static int I_flag  = 0;		/* use entire disk for FreeBSD */
 static int a_flag  = 0;		/* set active partition */
 static char *b_flag = NULL;	/* path to boot code */
-static int e_flag  = 0;		/* use entire disk for FreeBSD */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
+static int s_flag  = 0;		/* Print a summary and exit */
 static int t_flag  = 0;		/* test only, if f_flag is given */
 static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
@@ -216,10 +217,13 @@ main(int argc, char *argv[])
 {
 	int	c, i;
 
-	while ((c = getopt(argc, argv, "Bab:ef:ituv1234")) != -1)
+	while ((c = getopt(argc, argv, "BIab:f:istuv1234")) != -1)
 		switch (c) {
 		case 'B':
 			B_flag = 1;
+			break;
+		case 'I':
+			I_flag = 1;
 			break;
 		case 'a':
 			a_flag = 1;
@@ -227,14 +231,14 @@ main(int argc, char *argv[])
 		case 'b':
 			b_flag = optarg;
 			break;
-		case 'e':
-			e_flag = 1;
-			break;
 		case 'f':
 			f_flag = optarg;
 			break;
 		case 'i':
 			i_flag = 1;
+			break;
+		case 's':
+			s_flag = 1;
 			break;
 		case 't':
 			t_flag = 1;
@@ -289,10 +293,31 @@ main(int argc, char *argv[])
 		if(rv < 0)
 			err(1, "cannot open any disk");
 	}
+	if (s_flag)
+	{
+		int i;
+		struct dos_partition *partp;
+
+		if (read_s0())
+			err(1, "read_s0");
+		printf("%s: %d cyl %d hd %d sec\n", disk, dos_cyls, dos_heads,
+		    dos_sectors);
+		printf("Part  %11s %11s Type Flags\n", "Start", "Size");
+		for (i = 0; i < NDOSPART; i++) {
+			partp = ((struct dos_partition *) &mboot.parts) + i;
+			if (partp->dp_start == 0 && partp->dp_size == 0)
+				continue;
+			printf("%4d: %11lu %11lu 0x%02x 0x%02x\n", i + 1,
+			    (u_long) partp->dp_start,
+			    (u_long) partp->dp_size, partp->dp_typ,
+			    partp->dp_flag);
+		}
+		exit(0);
+	}
 
 	printf("******* Working on device %s *******\n",disk);
 
-	if (e_flag)
+	if (I_flag)
 	{
 		struct dos_partition *partp;
 
@@ -648,7 +673,7 @@ struct stat 	st;
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
 	if ((fd = open(disk,
-	    a_flag || e_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+	    a_flag || I_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
 		warnx("can't open device %s", disk);

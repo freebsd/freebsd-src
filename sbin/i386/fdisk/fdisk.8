@@ -8,7 +8,7 @@
 .Nd PC partition table maintenance program
 .Sh SYNOPSIS
 .Nm fdisk
-.Op Fl Baeitu
+.Op Fl BIaistu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -62,7 +62,7 @@ Reinitialize the boot code contained in sector 0 of the disk.  Ignored
 if
 .Fl f
 is given.
-.It Fl e
+.It Fl I
 Initialize the contents of sector 0 with one FreeBSD slice covering the entire disk.
 .It Fl f Ar configfile
 Set partition values using the file
@@ -93,6 +93,8 @@ Initialize sector 0 of the disk.  This implies
 unless
 .Fl f
 is given.
+.It Fl s
+Print summary information and exit.
 .It Fl t
 Test mode; do not write partition values.  Generally used with the
 .Fl f
