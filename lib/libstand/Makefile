@@ -181,7 +181,6 @@ SRCS+=	bootp.c rarp.c bootparam.c
 
 # boot filesystems
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
-SRCS+=	netif.c nfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
