@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.21 1998/03/11 15:29:02 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.22 1998/03/15 02:38:03 kato Exp $
  */
 
 #include "npx.h"
@@ -1473,13 +1473,13 @@ init386(first)
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-void f00f_hack(void);
+static void f00f_hack(void *unused);
 SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
 
-void
-f00f_hack(void) {
+static void
+f00f_hack(void *unused) {
 	struct region_descriptor r_idt;
-	unsigned char *tmp;
+	vm_offset_t tmp;
 
 	if (!has_f00f_bug)
 		return;
