@@ -790,7 +790,7 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_CATPAGES },
       { " proflibs",	"Profiled versions of the libraries",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PROFLIBS },
-      { " src",		"Sources for everything but encryption",
+      { " src",		"Sources for everything",
 	srcFlagCheck,	distSetSrc },
       { " ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
