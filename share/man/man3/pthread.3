@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pthread.3,v 1.4 1997/12/25 09:36:40 hoek Exp $
+.\"	$Id: pthread.3,v 1.5 1998/01/02 19:19:50 alex Exp $
 .\"
 .Dd April 4, 1996
 .Dt PTHREAD 3
@@ -182,6 +182,14 @@ is built as part of a 'make world'.  To disable the build of
 .Fa libc_r
 you must supply the '-DNOLIBC_R' option to
 .Xr make 1 .
+.Pp
+A FreeBSD specific option has been added to gcc to make linking
+threaded processes simple.
+.Fa gcc -pthread
+links a threaded process against
+.Fa libc_r
+instead of
+.Fa libc.
 .Sh STANDARDS
 The functions in
 .Fa libc_r
@@ -189,9 +197,9 @@ with the
 .Fa pthread_
 prefix and not
 .Fa _np
-suffix are expected to conform to IEEE
+suffix conform to IEEE
 .Pq Dq Tn POSIX
-Std 1003.1c.
+Std 1003.1 Second Edition 1996-07-12
 .Pp
 The functions in libc_r with the
 .Fa pthread_
