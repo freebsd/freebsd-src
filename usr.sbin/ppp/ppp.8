@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.136 1998/11/08 13:06:19 brian Exp $
+.\" $Id: ppp.8,v 1.137 1998/12/04 19:39:05 billf Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1320,7 +1320,7 @@ ppp ON awfulhak> set timeout 0
 In
 .Fl ddial
 and
-.Fl direct
+.Fl dedicated
 modes, the idle timeout is ignored.  In
 .Fl auto
 mode, when the idle timeout causes the
