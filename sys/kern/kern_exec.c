@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.77 1998/02/06 12:13:23 eivind Exp $
+ *	$Id: kern_exec.c,v 1.78 1998/02/25 13:08:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -65,10 +65,6 @@
 
 static int *exec_copyout_strings __P((struct image_params *));
 
-static int exec_check_permissions __P((struct image_params *));
-static int exec_map_first_page __P((struct image_params *));
-static void exec_unmap_first_page __P((struct image_params *));
-
 /*
  * XXX trouble here if sizeof(caddr_t) != sizeof(int), other parts
  * of the sysctl code also assumes this, and sizeof(int) == sizeof(long).
@@ -107,7 +103,6 @@ execve(p, uap)
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
-	struct buf *bp = NULL;
 
 	imgp = &image_params;
 
@@ -645,7 +640,7 @@ exec_copyout_strings(imgp)
  * Check permissions of file to execute.
  *	Return 0 for success or error code on failure.
  */
-static int
+int
 exec_check_permissions(imgp)
 	struct image_params *imgp;
 {
