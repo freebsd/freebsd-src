@@ -58,27 +58,27 @@ __FBSDID("$FreeBSD$");
  */
 
 ENTRY(sigsetjmp)
-	movl	%esi,88(%rdi)
+	movl	%esi,88(%rdi)		/* 11; savemask */
 	testl	%esi,%esi
 	jz	2f
 	pushq	%rdi
 	movq	%rdi,%rcx
 	movq	$1,%rdi			/* SIG_BLOCK       */
 	movq	$0,%rsi			/* (sigset_t*)set  */
-	leaq	72(%rcx),%rdx		/* (sigset_t*)oset */
+	leaq	72(%rcx),%rdx		/* 9,10 (sigset_t*)oset */
 	call	PIC_PLT(CNAME(_sigprocmask))
 	popq	%rdi
 2:	movq	%rdi,%rcx
 	movq	0(%rsp),%rdx		/* retval */
-	movq	%rdx, 0(%rcx)		/* retval */
-	movq	%rbx, 8(%rcx)
-	movq	%rsp,16(%rcx)
-	movq	%rbp,24(%rcx)
-	movq	%r12,32(%rcx)
-	movq	%r13,40(%rcx)
-	movq	%r14,48(%rcx)
-	movq	%r15,56(%rcx)
-	fnstcw	64(%rcx)
+	movq	%rdx, 0(%rcx)		/* 0; retval */
+	movq	%rbx, 8(%rcx)		/* 1; rbx */
+	movq	%rsp,16(%rcx)		/* 2; rsp */
+	movq	%rbp,24(%rcx)		/* 3; rbp */
+	movq	%r12,32(%rcx)		/* 4; r12 */
+	movq	%r13,40(%rcx)		/* 5; r13 */
+	movq	%r14,48(%rcx)		/* 6; r14 */
+	movq	%r15,56(%rcx)		/* 7; r15 */
+	fnstcw	64(%rcx)		/* 8; fpu cw */
 	xorq	%rax,%rax
 	ret
 
