@@ -330,13 +330,14 @@ script to taste.  If you're not interested in having a firewall, the
 following lines will do:
 
   /sbin/ipfw -f flush
-  /sbin/ipfw add divert 6668 all from any to any via ed0
+  /sbin/ipfw add divert natd all from any to any via ed0
   /sbin/ipfw add pass all from any to any
 
-The second line depends on your interface and assumes that you've updated
+The second line depends on your interface (change ed0 as appropriate)
+and assumes that you've updated
 .Pa /etc/services
-as above.  If you specify real firewall rules, it's best to specify
-line 2 at the start of the script so that
+with the natd entry as above.  If you specify real firewall rules, it's
+best to specify line 2 at the start of the script so that
 .Nm natd
 sees all packets before they are dropped by the firewall.  The firewall
 rules will be run again on each packet after translation by
