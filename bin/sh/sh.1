@@ -43,7 +43,7 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnpsTuVvx
+.Op Fl /+abCEefIimnPpsTuVvx
 .Op Fl /+o Ar longname
 .Op Fl c Ar string
 .Op Ar arg ...
@@ -225,6 +225,17 @@ Turn on job control (set automatically when interactive).
 If not interactive, read commands but do not
 execute them.  This is useful for checking the
 syntax of shell scripts.
+.It Fl P Li physical
+Change the default for the
+.Ic cd
+and
+.Ic pwd
+commands from
+.Fl L
+(logical directory layout)
+to
+.Fl P
+(physical directory layout).
 .It Fl p Li privileged
 Turn on privileged mode.  This mode is enabled on startup
 if either the effective user or group id is not equal to the
