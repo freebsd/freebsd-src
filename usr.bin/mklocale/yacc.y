@@ -116,7 +116,17 @@ table	:	entry
 	;
 
 entry	:	ENCODING STRING
-		{ strncpy(new_locale.encoding, $2, sizeof(new_locale.encoding)); }
+		{ if (strcmp($2, "NONE") &&
+		      strcmp($2, "UTF2") &&
+		      strcmp($2, "UTF-8") &&
+		      strcmp($2, "EUC") &&
+		      strcmp($2, "GBK") &&
+		      strcmp($2, "BIG5") &&
+		      strcmp($2, "MSKanji")) {
+			fprintf(stderr, "ENCODING %s is not supported by libc\n", $2);
+			exit(1);
+		  }
+		strncpy(new_locale.encoding, $2, sizeof(new_locale.encoding)); }
 	|	VARIABLE
 		{ new_locale.variable_len = strlen($1) + 1;
 		  new_locale.variable = malloc(new_locale.variable_len);
