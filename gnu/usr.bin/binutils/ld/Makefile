@@ -19,7 +19,7 @@ elf-hints.h:
 .endif
 
 CFLAGS+= -DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
-CFLAGS+= -DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
+CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 NOSHARED?= yes
 DPADD=	${RELTOP}/libbfd/libbfd.a

@@ -9,7 +9,7 @@ SRCS+=	arlex.l arparse.y arsup.c bucomm.c debug.c filemode.c \
 	ieee.c rdcoff.c rddbg.c rename.c stabs.c unwind-ia64.c \
 	wrstabs.c version.c
 CFLAGS+= -DTARGET=\"${TARGET_ARCH}-unknown-freebsd\"
-CFLAGS+= -DVERSION=\"${VERSION}\"
+CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -I${SRCDIR}/bfd
 NOPROFILE=	true

@@ -14,7 +14,8 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	output-file.c read.c sb.c stabs.c \
 	subsegs.c symbols.c write.c depend.c ehopt.c
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR} -I${.CURDIR}/..
-CFLAGS+= -DVERSION=\"${VERSION}\" -DBFD_VERSION=\"${VERSION}\"
+CFLAGS+= -DVERSION=\"${VERSION:C/[ ]?${VERSION_DATE}[ ]?//g}\" 
+CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 NOSHARED?=	yes
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a
