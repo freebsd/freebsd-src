@@ -141,7 +141,7 @@ static          MALLOC_DEFINE(M_RPC, "rpcclnt", "rpc state");
  */
 #define	RPC_CWNDSCALE	256
 #define	RPC_MAXCWND	(RPC_CWNDSCALE * 32)
-static int      rpcclnt_backoff[8] = {2, 4, 8, 16, 32, 64, 128, 256,};
+static const int      rpcclnt_backoff[8] = {2, 4, 8, 16, 32, 64, 128, 256,};
 
 /* XXX ugly debug strings */
 #define RPC_ERRSTR_ACCEPTED_SIZE 6
