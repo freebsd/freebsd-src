@@ -5,6 +5,6 @@
 KMOD=	fire_saver
 SRCS=	fire_saver.c
 
-CWARNFLAGS= -Wall -pedantic
+CWARNFLAGS= -Wall -Wno-long-long -pedantic
 
 .include <bsd.kmod.mk>
