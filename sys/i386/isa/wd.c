@@ -674,7 +674,7 @@ wdstart(int ctrlr)
 	/* is there a drive for the controller to do a transfer with? */
 	bp = bufq_first(&wdtab[ctrlr].controller_queue);
 	if (bp == NULL) {
-		if (atapi_start && atapi_start (ctrlr_atapi))
+		if (atapi_strt && atapi_strt (ctrlr_atapi))
 			/* mark controller active in ATAPI mode */
 			wdtab[ctrlr].b_active = 3;
 		return;
