@@ -260,7 +260,6 @@ i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
 i386/isa/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli nowerror
-i386/isa/loran.c		optional	loran
 i386/isa/mse.c			optional	mse
 i386/isa/nmi.c			standard
 i386/isa/npx.c			optional	npx

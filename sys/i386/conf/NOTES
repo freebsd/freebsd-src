@@ -736,10 +736,6 @@ hint.stli.0.port="0x2a0"
 hint.stli.0.maddr="0xcc000"
 hint.stli.0.flags="23"
 hint.stli.0.msize="0x1000"
-# You are unlikely to have the hardware for loran <phk@FreeBSD.org>
-device		loran
-hint.loran.0.at="isa"
-hint.loran.0.irq="5"
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
 
