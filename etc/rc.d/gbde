@@ -81,7 +81,8 @@ gbde_start()
 	for device in $gbde_devices; do
 		parent=${device%.bde}
 		parent=${parent#/dev/}
-		eval "lock=\${gbde_lock_${parent}-\"${gbde_lockdir}/${parent}.lock\"}"
+		parent_=`echo ${parent} | sed "s/\//_/g"`
+		eval "lock=\${gbde_lock_${parent_}-\"${gbde_lockdir}/${parent_}.lock\"}"
 		if [ -e "/dev/${parent}" -a ! -e "/dev/${parent}.bde" ]; then
 			echo "Configuring Disk Encryption for ${parent}."
 
