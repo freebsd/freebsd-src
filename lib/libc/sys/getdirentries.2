@@ -35,16 +35,22 @@
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
-.Nm getdirentries
+.Nm getdirentries ,
+.Nm getdents
 .Nd "get directory entries in a filesystem independent format"
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <dirent.h>
 .Ft int
 .Fn getdirentries "int fd" "char *buf" "int nbytes" "long *basep"
+.Ft int
+.Fn getdents "int fd" "char *buf" "int nbytes"
 .Sh DESCRIPTION
-.Fn Getdirentries
-reads directory entries from the directory
+The
+.Fn getdirentries
+and
+.Fn getdents
+functions read directory entries from the directory
 referenced by the file descriptor
 .Fa fd
 into the buffer pointed to by
@@ -53,13 +59,13 @@ in a filesystem independent format.
 Up to
 .Fa nbytes
 of data will be transferred.
-.Fa Nbytes
-must be greater than or equal to the
+The
+.Fa nbytes
+argument must be greater than or equal to the
 block size associated with the file,
 see
 .Xr stat 2 .
-Some filesystems may not support
-.Fn getdirentries
+Some filesystems may not support these functions
 with buffers smaller than this size.
 .Pp
 The data in the buffer is a series of
@@ -113,19 +119,23 @@ The current position pointer associated with
 .Fa fd
 is set to point to the next block of entries.
 The pointer may not advance by the number of bytes returned by
-.Fn getdirentries .
+.Fn getdirentries 
+or
+.Fn getdents .
 A value of zero is returned when
 the end of the directory has been reached.
 .Pp
-.Fn Getdirentries
-writes the position of the block read into the location pointed to by
+The
+.Fn getdirentries
+function writes the position of the block read into the location pointed to by
 .Fa basep .
 Alternatively, the current position pointer may be set and retrieved by
 .Xr lseek 2 .
 The current position pointer should only be set to a value returned by
 .Xr lseek 2 ,
 a value returned in the location pointed to by
-.Fa basep ,
+.Fa basep ( Ns Fn getdirentries
+only)
 or zero.
 .Sh IMPLEMENTATION NOTES
 .Pp
@@ -157,7 +167,7 @@ is set to indicate the error.
 .Sh ERRORS
 .Fn Getdirentries
 will fail if:
-.Bl -tag -width [EFAULT]
+.Bl -tag -width Er
 .It Bq Er EBADF
 .Fa fd
 is not a valid file descriptor open for reading.
@@ -187,3 +197,7 @@ The
 .Fn getdirentries
 function first appeared in
 .Bx 4.4 .
+The
+.Fn getdents
+function first appeared in
+.Fx 3.0 .
