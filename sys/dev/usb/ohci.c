@@ -9,6 +9,7 @@
  *	$NetBSD: ohci.c,v 1.131 2002/09/30 16:36:19 augustss Exp $
  *	$NetBSD: ohci.c,v 1.132 2002/12/07 06:52:11 toshii Exp $
  *	$NetBSD: ohci.c,v 1.133 2002/12/07 07:14:28 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.134 2002/12/07 07:33:20 toshii Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -682,6 +683,8 @@ ohci_free_sitd(ohci_softc_t *sc, ohci_soft_itd_t *sitd)
 		panic("ohci_free_sitd: sitd=%p not done", sitd);
 		return;
 	}
+	/* Warn double free */
+	sitd->isdone = 0;
 #endif
 
 	s = splusb();
@@ -1335,7 +1338,9 @@ ohci_softintr(void *v)
 	ohci_soft_itd_t *sitd, *sidone, *sitdnext;
 	ohci_soft_td_t  *std,  *sdone,  *stdnext;
 	usbd_xfer_handle xfer;
+	struct ohci_pipe *opipe;
 	int len, cc, s;
+	int i, j, actlen, iframes, uedir;
 
 	DPRINTFN(10,("ohci_softintr: enter\n"));
 
@@ -1405,8 +1410,7 @@ ohci_softintr(void *v)
 			 * the endpoint.
 			 */
 			ohci_soft_td_t *p, *n;
-			struct ohci_pipe *opipe =
-				(struct ohci_pipe *)xfer->pipe;
+			opipe = (struct ohci_pipe *)xfer->pipe;
 
 			DPRINTFN(15,("ohci_process_done: error cc=%d (%s)\n",
 			  OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
@@ -1467,22 +1471,50 @@ ohci_softintr(void *v)
 			printf("ohci_softintr: sitd=%p is done\n", sitd);
 		sitd->isdone = 1;
 #endif
-		cc = OHCI_ITD_GET_CC(le32toh(sitd->itd.itd_flags));
-		if (cc == OHCI_CC_NO_ERROR) {
-			/* XXX compute length for input */
-			struct ohci_pipe *opipe =
-				(struct ohci_pipe *)xfer->pipe;
-			if (sitd->flags & OHCI_CALL_DONE) {
-				opipe->u.iso.inuse -= xfer->nframes;
-				/* XXX update frlengths with actual length */
-				/* XXX xfer->actlen = actlen; */
-				xfer->status = USBD_NORMAL_COMPLETION;
-				usb_transfer_complete(xfer);
+		if (sitd->flags & OHCI_CALL_DONE) {
+			ohci_soft_itd_t *next;
+
+			opipe = (struct ohci_pipe *)xfer->pipe;
+			opipe->u.iso.inuse -= xfer->nframes;
+			uedir = UE_GET_DIR(xfer->pipe->endpoint->edesc->
+			    bEndpointAddress);
+			xfer->status = USBD_NORMAL_COMPLETION;
+			actlen = 0;
+			for (i = 0, sitd = xfer->hcpriv;;
+			    sitd = next) {
+				next = sitd->nextitd;
+				if (OHCI_ITD_GET_CC(sitd->itd.itd_flags)
+				    != OHCI_CC_NO_ERROR)
+					xfer->status = USBD_IOERROR;
+				/* For input, update frlengths with actual */
+				/* XXX anything necessary for output? */
+				if (uedir == UE_DIR_IN &&
+				    xfer->status == USBD_NORMAL_COMPLETION) {
+					iframes = OHCI_ITD_GET_FC(sitd->
+					    itd.itd_flags);
+					for (j = 0; j < iframes; i++, j++) {
+						len = le16toh(sitd->
+						    itd.itd_offset[j]);
+						len =
+						    (OHCI_ITD_PSW_GET_CC(len) ==
+						    OHCI_CC_NOT_ACCESSED) ? 0 :
+						    OHCI_ITD_PSW_LENGTH(len);
+						xfer->frlengths[i] = len;
+						actlen += len;
+					}
+				}
+				if (sitd->flags & OHCI_CALL_DONE)
+					break;
+				ohci_free_sitd(sc, sitd);
 			}
-		} else {
-			/* XXX Do more */
-			xfer->status = USBD_IOERROR;
+			ohci_free_sitd(sc, sitd);
+			if (uedir == UE_DIR_IN &&
+			    xfer->status == USBD_NORMAL_COMPLETION)
+				xfer->actlen = actlen;
+
+			s = splusb();
 			usb_transfer_complete(xfer);
+			splx(s);
 		}
 	}
 
@@ -3338,6 +3370,7 @@ ohci_device_isoc_enter(usbd_xfer_handle xfer)
 
 	s = splusb();
 	opipe->tail.itd = nsitd;
+	sed->ed.ed_flags &= htole32(~OHCI_ED_SKIP);
 	sed->ed.ed_tailp = htole32(nsitd->physaddr);
 	splx(s);
 
@@ -3433,20 +3466,9 @@ ohci_device_isoc_abort(usbd_xfer_handle xfer)
 void
 ohci_device_isoc_done(usbd_xfer_handle xfer)
 {
-	struct ohci_pipe *opipe = (struct ohci_pipe *)xfer->pipe;
-	ohci_softc_t *sc = (ohci_softc_t *)opipe->pipe.device->bus;
-	ohci_soft_itd_t *sitd, *nsitd;
 
 	DPRINTFN(1,("ohci_device_isoc_done: xfer=%p\n", xfer));
 
-	for (sitd = xfer->hcpriv;
-	     !(sitd->flags & OHCI_CALL_DONE);
-	     sitd = nsitd) {
-		nsitd = sitd->nextitd;
-		DPRINTFN(1,("ohci_device_isoc_done: free sitd=%p\n", sitd));
-		ohci_free_sitd(sc, sitd);
-	}
-	ohci_free_sitd(sc, sitd);
 	xfer->hcpriv = NULL;
 }
 
