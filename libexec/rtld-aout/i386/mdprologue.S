@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mdprologue.S,v 1.1 1993/10/16 21:53:16 pk Exp $
+ *	$Id: mdprologue.S,v 1.2 1993/11/09 04:19:18 paul Exp $
  */
 
 /*
@@ -70,7 +70,7 @@ _rtl:					# crt0 calls us here
 
 	movl	(-FRAME-4)(%ebp), %ebx	# restore %ebx
 	leave				# remove stack frame,
-	ret				# let's rock
+	ret				# lets rock
 
  # First call to a procedure generally comes through here for
  # binding.
@@ -96,7 +96,7 @@ _binder_entry:
 	ret
 
  # Special system call stubs which return real and effective user and group
- # id's.  Saves overhead of making separate calls for each.
+ # ids.  Saves overhead of making separate calls for each.
  # !! Relies on compatability option in BSD 4.three-and-a-half
 
 	.globl	_getreuid, _getregid
