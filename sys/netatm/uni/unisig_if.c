@@ -68,6 +68,8 @@
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -76,27 +78,9 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Global variables
  */
-struct sp_info	unisig_vcpool = {
-	"unisig vcc pool",		/* si_name */
-	sizeof(struct unisig_vccb),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
-
-struct sp_info	unisig_msgpool = {
-	"unisig message pool",		/* si_name */
-	sizeof(struct unisig_msg),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
-
-struct sp_info	unisig_iepool = {
-	"unisig ie pool",		/* si_name */
-	sizeof(struct ie_generic),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
-
+uma_zone_t	unisig_vc_zone;
+uma_zone_t	unisig_msg_zone;
+uma_zone_t	unisig_ie_zone;
 
 /*
  * Local functions
@@ -176,6 +160,27 @@ unisig_start()
 	}
 
 	/*
+	 * Atleast ensure the versioning prior to creating our
+	 * UMA zone.
+	 */
+	unisig_vc_zone = uma_zcreate("unisig vcc", sizeof(struct unisig_vccb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (unisig_vc_zone == NULL)
+		panic("unisig_start: uma_zcreate failed to create vcc zone");
+	unisig_msg_zone = uma_zcreate("unisig msg", sizeof(struct unisig_msg),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (unisig_msg_zone == NULL)
+		panic("unisig_start: uma_zcreate failed to create msg zone");
+	unisig_ie_zone = uma_zcreate("unisig ie", sizeof(struct ie_generic),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (unisig_ie_zone == NULL)
+		panic("unisig_start: uma_zcreate failed to create ie zone");
+	
+	uma_zone_set_max(unisig_vc_zone, 50);
+	uma_zone_set_max(unisig_msg_zone, 50);
+	uma_zone_set_max(unisig_ie_zone, 50);
+
+	/*
 	 * Register ourselves with system
 	 */
 	err = atm_sigmgr_register(&unisig_mgr30);
@@ -231,12 +236,11 @@ unisig_stop()
 	/*
 	 * Free up our storage pools
 	 */
-	atm_release_pool(&unisig_vcpool);
-	atm_release_pool(&unisig_msgpool);
-	atm_release_pool(&unisig_iepool);
-
+	uma_zdestroy(unisig_vc_zone);
+	uma_zdestroy(unisig_msg_zone);
+	uma_zdestroy(unisig_ie_zone);
 done:
-	(void) splx(s);
+	(void)splx(s);
 	return (err);
 }
 
@@ -775,7 +779,7 @@ unisig_free(vcp)
 	 */
 	vcp->vc_ustate = VCCU_NULL;
 	vcp->vc_sstate = UNI_NULL;
-	atm_free((caddr_t)vcp);
+	uma_zfree(unisig_vc_zone, vcp);
 
 	/*
 	 * If we're detaching and this was the last VCC queued,

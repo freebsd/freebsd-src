@@ -357,7 +357,7 @@ sscop_term_all(sop, arg1, arg2)
 	 * Unlink and free the connection block
 	 */
 	UNLINK(sop, struct sscop, sscop_head, so_next);
-	atm_free((caddr_t)sop);
+	uma_zfree(sscop_zone, sop);
 	sscop_vccnt--;
 	return;
 }
