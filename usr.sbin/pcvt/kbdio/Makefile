@@ -10,7 +10,7 @@ error:
 .else
 
 PROG=	kbdio
-SRCS=	kbdio.y lex.l
+SRCS=	kbdio.y lex.l y.tab.h
 
 #YACC=	bison
 #YFLAGS+= -yd	# Bison only
