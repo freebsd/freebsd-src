@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)brk.2	8.2 (Berkeley) 12/11/93
+.\"     @(#)brk.2	8.4 (Berkeley) 5/1/95
 .\"
-.Dd December 11, 1993
+.Dd May 1, 1995
 .Dt BRK 2
 .Os BSD 4
 .Sh NAME
@@ -39,11 +39,11 @@
 .Nm sbrk
 .Nd change data segment size
 .Sh SYNOPSIS
-.Fd #include <sys/unistd.h>
-.Ft int
+.Fd #include <unistd.h>
+.Ft char *
 .Fn brk "const char *addr"
 .Ft char *
-.Fn *sbrk "int incr"
+.Fn sbrk "int incr"
 .Sh DESCRIPTION
 .Bf -symbolic
 The brk and sbrk functions are historical curiosities
@@ -96,7 +96,7 @@ beyond the
 value returned from a call to
 .Xr getrlimit 2 ,
 e.g.
-.Dq qetext + rlp\(->rlim_max.
+.Dq etext + rlp\(->rlim_max.
 (see
 .Xr end 3
 for the definition of
@@ -114,7 +114,9 @@ otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
 .Sh ERRORS
-.Fn Sbrk
+.Fn Brk
+or
+.Fn sbrk
 will fail and no additional memory will be allocated if
 one of the following are true:
 .Bl -tag -width [ENOMEM]
