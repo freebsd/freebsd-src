@@ -1,4 +1,4 @@
-/* $RCSfile: doio.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:32 $
+/* $RCSfile: doio.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:03:00 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: doio.c,v $
+ * Revision 1.3  1995/05/30 05:03:00  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/09/11  03:17:32  gclarkii
  * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
  * Added casts to shutup warnings in doio.c
@@ -1221,7 +1224,24 @@ STR *str;
 	    len = stio->ifp->_cnt + (stio->ifp->_ptr - stio->ifp->_base);
 	    s = stio->ifp->_base;
 #else
+#if (defined(BSD) && (BSD >= 199103))
+	    fstat(fileno(stio->ifp),&statcache);
+	    if (S_ISDIR(statcache.st_mode))	/* handle NFS glitch */
+		return arg->arg_type == O_FTTEXT ? &str_no : &str_yes;
+
+	    if (stio->ifp->_bf._size  <=  0) {
+		i = getc(stio->ifp);
+		if (i != EOF)
+		    (void)ungetc(i,stio->ifp);
+	    }
+
+	    if (stio->ifp->_bf._size  <=  0)
+		return &str_yes;
+	    len = stio->ifp->_bf._size+(stio->ifp->_p - stio->ifp->_bf._base);
+	    s = stio->ifp->_bf._base;
+#else
 	    fatal("-T and -B not implemented on filehandles");
+#endif
 #endif
 	}
 	else {
