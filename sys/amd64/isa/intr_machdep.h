@@ -139,7 +139,6 @@ extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern driver_intr_t *intr_handler[];	/* C entry points of intr handlers */
 extern struct ithd *ithds[];
 extern void *intr_unit[];	/* cookies to pass to intr handlers */
-extern struct ithd softinterrupt;	/* soft interrupt thread */
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),
