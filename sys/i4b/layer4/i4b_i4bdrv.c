@@ -27,7 +27,7 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.37 1999/02/15 09:55:47 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.3 1999/03/07 16:08:20 hm Exp $ 
  *
  *      last edit-date: [Mon Feb 15 10:36:25 1999]
  *
@@ -920,7 +920,7 @@ i4bputqueue_hipri(struct mbuf *m)
 }
 
 #if BSD > 199306 && defined(__FreeBSD__)
-static i4b_devsw_installed = 0;
+static int i4b_devsw_installed = 0;
 
 static void
 i4b_drvinit(void *unused)
