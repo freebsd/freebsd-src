@@ -515,10 +515,28 @@ bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
     return result;
 } /* bquioctl() */
 
+
+static struct kern_devconf kdc_bqu[NBQU] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"bqu", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+bqu_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_bqu[id->id_unit] = kdc_bqu[0];
+	kdc_bqu[id->id_unit].kdc_unit = id->id_unit;
+	kdc_bqu[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_bqu[id->id_unit]);
+}
+
 int
 bquattach(struct isa_device *idp)
 {
-    return 1;
+	bqu_registerdev(idp);
+	return 1;
 }
 
 /*

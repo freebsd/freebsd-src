@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.50 1994/10/14 11:56:36 davidg Exp $
+ * $Id: if_ed.c,v 1.51 1994/10/17 21:16:37 phk Exp $
  */
 
 #include "ed.h"
@@ -26,6 +26,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -165,6 +166,22 @@ static unsigned short ed_790_intr_mask[] = {
 #define ETHER_MAX_LEN	1518
 #define	ETHER_ADDR_LEN	6
 #define	ETHER_HDR_SIZE	14
+
+static struct kern_devconf kdc_ed[NED] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"ed", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+ed_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_ed[id->id_unit] = kdc_ed[0];
+	kdc_ed[id->id_unit].kdc_unit = id->id_unit;
+	kdc_ed[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_ed[id->id_unit]);
+}
 
 /*
  * Determine if the device is present
@@ -1097,6 +1114,7 @@ ed_attach(isa_dev)
 	 * Attach the interface
 	 */
 	if_attach(ifp);
+	ed_registerdev(isa_dev);
 
 	/*
 	 * Print additional info when attached
