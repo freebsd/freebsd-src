@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.15 1998/10/06 08:40:18 dfr Exp $
+ *	$Id: machdep.c,v 1.16 1998/10/14 09:53:24 peter Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -701,7 +701,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.kernend)
 		kernend = (vm_offset_t)round_page(kernend);
-	preload_metadata = bootinfo.modptr;
+	preload_metadata = (caddr_t)bootinfo.modptr;
 	kern_envp = bootinfo.envp;
 
 	kernstartpfn = atop(ALPHA_K0SEG_TO_PHYS(kernstart));
