@@ -28,15 +28,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 #include <netncp/ncp_lib.h>
 
@@ -52,8 +56,9 @@ static void list_volumes(char *server);
 static void str_trim_right(char *s, char c);
 
 
-int
-ncp_get_connid(char *server, int justattach) {
+static int
+ncp_get_connid(char *server, int justattach)
+{
 	int connid, error;
 	struct ncp_conn_loginfo li;
 
@@ -103,15 +108,17 @@ static struct ncp_bitname conn_statenames [] = {
 };
 
 static void
-str_trim_right(char *s, char c) {
+str_trim_right(char *s, char c)
+{
 	int len;
 
-	for(len = strlen(s) - 1; len > 0 && s[len] == c; len--)
+	for (len = strlen(s) - 1; len > 0 && s[len] == c; len--)
 		s[len] = '\0';
 }
 
 void
-show_connlist(void) {
+show_connlist(void)
+{
 	void *p;
 	int cnt;
 	char buf[200];
@@ -126,7 +133,7 @@ show_connlist(void) {
 	printf(" refid server:user(connid), owner:group(mode), refs, <state>\n");
 	cnt = *(int*)p;
 	ncsp = (struct ncp_conn_stat*)(((int*)p)+1);
-	while(cnt--) {
+	while (cnt--) {
 		printf("%6d %s:%s(%d), %s:%s(%o), %d, %s",
 		    ncsp->connRef, ncsp->li.server,ncsp->user,ncsp->connid,
 		    user_from_uid(ncsp->owner, 0), 
@@ -142,7 +149,8 @@ show_connlist(void) {
 }
 
 void
-show_serverlist(char *server) {
+show_serverlist(char *server)
+{
 	int found = 0, connid;
 	struct ncp_bindery_object obj;
 	char *pattern = "*";
@@ -179,7 +187,8 @@ show_serverlist(char *server) {
 
 
 void
-show_userlist(char *server) {
+show_userlist(char *server)
+{
 	int connid, error, i;
 	struct ncp_file_server_info info;
 	struct ncp_bindery_object user;
@@ -221,7 +230,8 @@ show_userlist(char *server) {
 }
 
 void
-show_queuelist(char *server, char *patt) {
+show_queuelist(char *server, char *patt)
+{
 	struct ncp_bindery_object q;
 	int found = 0, connid;
 	char default_pattern[] = "*";
@@ -256,7 +266,8 @@ show_queuelist(char *server, char *patt) {
 }
 
 void
-list_volumes(char *server) {
+list_volumes(char *server)
+{
 	int found = 0, connid, i, error;
 	struct ncp_file_server_info si;
 	char volname[NCP_VOLNAME_LEN+1];
@@ -300,7 +311,8 @@ static struct ncp_bind_type btypes[] = {
 };
 
 void
-list_bindery(char *server, char *type, char *patt) {
+list_bindery(char *server, char *type, char *patt)
+{
 	struct ncp_bindery_object q;
 	int i, found = 0, connid;
 	char default_pattern[] = "*";
@@ -359,7 +371,8 @@ enum listop {
 #define MAX_ARGS	10
 
 int
-main(int argc, char *argv[]) {
+main(int argc, char *argv[])
+{
 	int opt, wdone = 0, nargs = 0, i;
 	enum listop what;
 	char *args[MAX_ARGS];
@@ -448,7 +461,8 @@ main(int argc, char *argv[]) {
 }
 
 static void
-help(void) {
+help(void)
+{
 	printf("\n");
 	printf("usage: %s command [args]\n", __progname);
 	printf("where commands are:\n"
