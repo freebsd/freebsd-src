@@ -64,6 +64,7 @@ int		s,			/* main RAW socket */
 		do_sort,		/* field to sort results (0 = no) */
 		do_dynamic,		/* display dynamic rules */
 		do_expired,		/* display expired dynamic rules */
+		do_compact,		/* show rules in compact mode */
 		show_sets,		/* display rule sets */
 		verbose;
 
@@ -220,6 +221,8 @@ enum tokens {
 	TOK_TCPACK,
 	TOK_TCPWIN,
 	TOK_ICMPTYPES,
+	TOK_MAC,
+	TOK_MACTYPE,
 
 	TOK_PLR,
 	TOK_NOERROR,
@@ -321,6 +324,14 @@ struct _s_x rule_options[] = {
 	{ "tcpwin",		TOK_TCPWIN },
 	{ "icmptype",		TOK_ICMPTYPES },
 	{ "icmptypes",		TOK_ICMPTYPES },
+	{ "dst-ip",		TOK_DSTIP },
+	{ "src-ip",		TOK_SRCIP },
+	{ "dst-port",		TOK_DSTPORT },
+	{ "src-port",		TOK_SRCPORT },
+	{ "proto",		TOK_PROTO },
+	{ "MAC",		TOK_MAC },
+	{ "mac",		TOK_MAC },
+	{ "mac-type",		TOK_MACTYPE },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
 	{ "!", /* escape ? */	TOK_NOT },		/* pseudo option */
@@ -392,7 +403,7 @@ print_port(int proto, u_int16_t port)
  * XXX todo: add support for mask.
  */
 static void
-print_newports(ipfw_insn_u16 *cmd, int proto)
+print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 {
 	u_int16_t *p = cmd->ports;
 	int i;
@@ -400,6 +411,9 @@ print_newports(ipfw_insn_u16 *cmd, int proto)
 
 	if (cmd->o.len & F_NOT)
 		printf(" not");
+	if (opcode != 0)
+		printf ("%s", opcode == O_MAC_TYPE ? " mac-type" :
+		    (opcode == O_IP_DSTPORT ? " dst-port" : " src-port"));
 	for (i = F_LEN((ipfw_insn *)cmd) - 1; i > 0; i--, p += 2) {
 		printf(sep);
 		print_port(proto, p[0]);
@@ -486,10 +500,10 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 {
 	u_int16_t *p = cmd->ports;
 	int i = 0;
+	char *s = av;
 
-	for (; *av ; i++, p +=2 ) {
+	while (*s) {
 		u_int16_t a, b;
-		char *s;
 
 		a = strtoport(av, &s, 0, proto);
 		if (s == av) /* no parameter */
@@ -507,11 +521,13 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 			errx(EX_DATAERR, "invalid separator <%c> in <%s>\n",
 				*s, av);
 		}
+		i++;
+		p += 2;
 		av = s+1;
 	}
 	if (i > 0) {
 		if (i+1 > F_LEN_MASK)
-			errx(EX_DATAERR, "too many port range\n");
+			errx(EX_DATAERR, "too many ports/ranges\n");
 		cmd->o.len |= i+1; /* leave F_NOT and F_OR untouched */
 	}
 	return i;
@@ -546,7 +562,7 @@ fill_reject_code(u_short *codep, char *str)
 	val = strtoul(str, &s, 0);
 	if (s == str || *s != '\0' || val >= 0x100)
 		val = match_token(icmpcodes, str);
-	if (val <= 0)
+	if (val < 0)
 		errx(EX_DATAERR, "unknown ICMP unreachable code ``%s''", str);
 	*codep = val;
 	return;
@@ -623,12 +639,12 @@ print_flags(char *name, ipfw_insn *cmd, struct _s_x *list)
  * Print the ip address contained in a command.
  */
 static void
-print_ip(ipfw_insn_ip *cmd)
+print_ip(ipfw_insn_ip *cmd, char *s)
 {
 	struct hostent *he = NULL;
 	int mb;
 
-	printf("%s ", cmd->o.len & F_NOT ? " not": "");
+	printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
 		printf("me");
@@ -740,33 +756,47 @@ print_icmptypes(ipfw_insn_u32 *cmd)
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
  * a helper function to produce these entries if not provided explicitly.
+ * The first argument is the list of fields we have, the second is
+ * the list of fields we want to be printed.
  *
- * Special case: if we have provided a MAC header, and no IP specs,
- * just leave it alone.
- * Also, if we have providea a MAC header and no IP protocol, print it
- * as "all" instead of "ip".
+ * Special cases if we have provided a MAC header:
+ *   + if the rule does not contain IP addresses/ports, do not print them;
+ *   + if the rule does not contain an IP proto, print "all" instead of "ip";
+ *
+ * Once we have 'have_options', IP header fields are printed as options.
  */
 #define	HAVE_PROTO	0x0001
 #define	HAVE_SRCIP	0x0002
 #define	HAVE_DSTIP	0x0004
 #define	HAVE_MAC	0x0008
 #define	HAVE_MACTYPE	0x0010
+#define	HAVE_OPTIONS	0x8000
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
-show_prerequisites(int *flags, int want)
+show_prerequisites(int *flags, int want, int cmd)
 {
-	if ( (*flags & (HAVE_MAC | HAVE_MACTYPE))  == HAVE_MAC) {
-	     printf(" any");	/* MAC type */
-	     *flags |= HAVE_MACTYPE;
+	if ( (*flags & HAVE_IP) == HAVE_IP)
+		*flags |= HAVE_OPTIONS;
+
+	if ( (*flags & (HAVE_MAC|HAVE_MACTYPE|HAVE_OPTIONS)) == HAVE_MAC &&
+	     cmd != O_MAC_TYPE) {
+		/*
+		 * mac-type was optimized out by the compiler,
+		 * restore it
+		 */
+		printf(" any");
+		*flags |= HAVE_MACTYPE | HAVE_OPTIONS;
+		return;
 	}
-		
-	if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
-		printf( (*flags & HAVE_MAC) ? " all" : " ip");
-	if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
-		printf(" from any");
-	if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
-		printf(" to any");
+	if ( !(*flags & HAVE_OPTIONS)) {
+		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
+			printf(" ip");
+		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
+			printf(" from any");
+		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
+			printf(" to any");
+	}
 	*flags |= want;
 }
 
@@ -820,8 +850,7 @@ show_ipfw(struct ip_fw *rule)
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
 			printf("check-state");
-			/* avoid printing anything else */
-			flags = HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP;
+			flags = HAVE_IP; /* avoid printing anything else */
 			break;
 
 		case O_PROB:
@@ -900,13 +929,22 @@ show_ipfw(struct ip_fw *rule)
 		else
 			printf(" log");
 	}
+
 	/*
-	 * then print the body
+	 * then print the body.
 	 */
+	if (rule->_pad & 1) {	/* empty rules before options */
+		if (!do_compact)
+			printf(" ip from any to any");
+		flags |= HAVE_IP | HAVE_OPTIONS;
+	}
+
         for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
+
+		show_prerequisites(&flags, 0, cmd->opcode);
 
 		switch(cmd->opcode) {
 		case O_PROBE_STATE:
@@ -914,33 +952,37 @@ show_ipfw(struct ip_fw *rule)
 
 		case O_MACADDR2: {
 			ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
-			if ( (flags & HAVE_MAC) == 0)
-				printf(" MAC");
-			flags |= HAVE_MAC;
+
+			if ((cmd->len & F_OR) && !or_block)
+				printf(" {");
 			if (cmd->len & F_NOT)
 				printf(" not");
+			printf(" MAC");
+			flags |= HAVE_MAC;
 			print_mac( m->addr, m->mask);
 			print_mac( m->addr + 6, m->mask + 6);
 			}
 			break;
 
 		case O_MAC_TYPE:
-			if ( (flags & HAVE_MAC) == 0)
-				printf(" MAC");
-			flags |= (HAVE_MAC | HAVE_MACTYPE);
-			print_newports((ipfw_insn_u16 *)cmd, IPPROTO_ETHERTYPE);
+			if ((cmd->len & F_OR) && !or_block)
+				printf(" {");
+			print_newports((ipfw_insn_u16 *)cmd, IPPROTO_ETHERTYPE,
+				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
+			flags |= HAVE_MAC | HAVE_MACTYPE | HAVE_OPTIONS;
 			break;
 
 		case O_IP_SRC:
 		case O_IP_SRC_MASK:
 		case O_IP_SRC_ME:
 		case O_IP_SRC_SET:
-			show_prerequisites(&flags, HAVE_PROTO);
+			show_prerequisites(&flags, HAVE_PROTO, 0);
 			if (!(flags & HAVE_SRCIP))
 				printf(" from");
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
-			print_ip((ipfw_insn_ip *)cmd);
+			print_ip((ipfw_insn_ip *)cmd,
+				(flags & HAVE_OPTIONS) ? " src-ip" : "");
 			flags |= HAVE_SRCIP;
 			break;
 
@@ -948,23 +990,24 @@ show_ipfw(struct ip_fw *rule)
 		case O_IP_DST_MASK:
 		case O_IP_DST_ME:
 		case O_IP_DST_SET:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP);
+			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
 			if (!(flags & HAVE_DSTIP))
 				printf(" to");
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
-			print_ip((ipfw_insn_ip *)cmd);
+			print_ip((ipfw_insn_ip *)cmd,
+				(flags & HAVE_OPTIONS) ? " dst-ip" : "");
 			flags |= HAVE_DSTIP;
 			break;
 
 		case O_IP_DSTPORT:
-			show_prerequisites(&flags,
-				HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP);
+			show_prerequisites(&flags, HAVE_IP, 0);
 		case O_IP_SRCPORT:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP);
+			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
-			print_newports((ipfw_insn_u16 *)cmd, proto);
+			print_newports((ipfw_insn_u16 *)cmd, proto,
+				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
 			break;
 
 		case O_PROTO: {
@@ -976,6 +1019,8 @@ show_ipfw(struct ip_fw *rule)
 				printf(" not");
 			proto = cmd->arg1;
 			pe = getprotobynumber(cmd->arg1);
+			if (flags & HAVE_OPTIONS)
+				printf(" proto");
 			if (pe)
 				printf(" %s", pe->p_name);
 			else
@@ -985,8 +1030,7 @@ show_ipfw(struct ip_fw *rule)
 			break;
 		
 		default: /*options ... */
-			show_prerequisites(&flags,
-			    HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP);
+			show_prerequisites(&flags, HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
@@ -1139,7 +1183,7 @@ show_ipfw(struct ip_fw *rule)
 			or_block = 0;
 		}
 	}
-	show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP|HAVE_DSTIP);
+	show_prerequisites(&flags, HAVE_IP, 0);
 
 	printf("\n");
 }
@@ -2282,10 +2326,10 @@ fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, u_int16_t arg)
 static ipfw_insn *
 add_mac(ipfw_insn *cmd, int ac, char *av[])
 {
-	ipfw_insn_mac *mac; /* also *src */
+	ipfw_insn_mac *mac;
 
-	if (ac <2)
-		errx(EX_DATAERR, "MAC dst src [type]");
+	if (ac < 2)
+		errx(EX_DATAERR, "MAC dst src");
 
 	cmd->opcode = O_MACADDR2;
 	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_mac);
@@ -2293,15 +2337,82 @@ add_mac(ipfw_insn *cmd, int ac, char *av[])
 	mac = (ipfw_insn_mac *)cmd;
 	get_mac_addr_mask(av[0], mac->addr, mac->mask);	/* dst */
 	get_mac_addr_mask(av[1], &(mac->addr[6]), &(mac->mask[6])); /* src */
-	
-	if (ac>2 && strcmp(av[2], "any") != 0) { /* we have a non-null type */
-		cmd += F_LEN(cmd);
-
-		fill_newports((ipfw_insn_u16 *)cmd, av[2], IPPROTO_ETHERTYPE);
-		cmd->opcode = O_MAC_TYPE;
-	}
-
 	return cmd;
+}
+
+static ipfw_insn *
+add_mactype(ipfw_insn *cmd, int ac, char *av)
+{
+	if (ac < 1)
+		errx(EX_DATAERR, "missing MAC type");
+	if (strcmp(av, "any") != 0) { /* we have a non-null type */
+		fill_newports((ipfw_insn_u16 *)cmd, av, IPPROTO_ETHERTYPE);
+		cmd->opcode = O_MAC_TYPE;
+		return cmd;
+	} else
+		return NULL;
+}
+
+static ipfw_insn *
+add_proto(ipfw_insn *cmd, char *av)
+{
+	struct protoent *pe;
+	u_char proto = 0;
+
+	if (!strncmp(av, "all", strlen(av)))
+		; /* same as "ip" */
+	else if ((proto = atoi(av)) > 0)
+		; /* all done! */
+	else if ((pe = getprotobyname(av)) != NULL)
+		proto = pe->p_proto;
+	else
+		return NULL;
+	if (proto != IPPROTO_IP)
+		fill_cmd(cmd, O_PROTO, 0, proto);
+	return cmd;
+}
+
+static ipfw_insn *
+add_srcip(ipfw_insn *cmd, char *av)
+{
+	fill_ip((ipfw_insn_ip *)cmd, av);
+	if (cmd->opcode == O_IP_DST_SET)			/* set */
+		cmd->opcode = O_IP_SRC_SET;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
+		cmd->opcode = O_IP_SRC_ME;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
+		cmd->opcode = O_IP_SRC;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
+		cmd->opcode = O_IP_SRC_MASK;
+	return cmd;
+}
+
+static ipfw_insn *
+add_dstip(ipfw_insn *cmd, char *av)
+{
+	fill_ip((ipfw_insn_ip *)cmd, av);
+	if (cmd->opcode == O_IP_DST_SET)			/* set */
+		;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
+		cmd->opcode = O_IP_DST_ME;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
+		cmd->opcode = O_IP_DST;
+	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
+		cmd->opcode = O_IP_DST_MASK;
+	return cmd;
+}
+
+static ipfw_insn *
+add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
+{
+	if (!strncmp(av, "any", strlen(av))) {
+		return NULL;
+	} else if (fill_newports((ipfw_insn_u16 *)cmd, av, proto)) {
+		/* XXX todo: check that we have a protocol with ports */
+		cmd->opcode = opcode;
+		return cmd;
+	}
+	return NULL;
 }
 
 /*
@@ -2328,13 +2439,13 @@ add(int ac, char *av[])
 	static u_int32_t rulebuf[255], actbuf[255], cmdbuf[255];
 
 	ipfw_insn *src, *dst, *cmd, *action, *prev;
+	ipfw_insn *first_cmd;	/* first match pattern */
 
 	struct ip_fw *rule;
 
 	/*
 	 * various flags used to record that we entered some fields.
 	 */
-	int have_mac = 0;	/* set if we have a MAC address */
 	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
 
 	int i;
@@ -2491,7 +2602,7 @@ add(int ac, char *av[])
 		break;
 
 	default:
-		errx(EX_DATAERR, "invalid action %s\n", *av);
+		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
 	action = next_cmd(action);
 
@@ -2565,43 +2676,57 @@ add(int ac, char *av[])
 	}							\
 	CLOSE_PAR;
 
+	first_cmd = cmd;
+
+#if 0
+	/*
+	 * MAC addresses, optional.
+	 * If we have this, we skip the part "proto from src to dst"
+	 * and jump straight to the option parsing.
+	 */
+	NOT_BLOCK;
+	NEED1("missing protocol");
+	if (!strncmp(*av, "MAC", strlen(*av)) ||
+	    !strncmp(*av, "mac", strlen(*av))) {
+		ac--; av++;	/* the "MAC" keyword */
+		add_mac(cmd, ac, av); /* exits in case of errors */
+		cmd = next_cmd(cmd);
+		ac -= 2; av += 2;	/* dst-mac and src-mac */
+		NOT_BLOCK;
+		NEED1("missing mac type");
+		if (add_mactype(cmd, ac, av[0]))
+			cmd = next_cmd(cmd);
+		ac--; av++;	/* any or mac-type */
+		goto read_options;
+	}
+#endif
+
 	/*
 	 * protocol, mandatory
 	 */
     OR_START(get_proto);
 	NOT_BLOCK;
 	NEED1("missing protocol");
-	{
-	struct protoent *pe;
-
-	if (!strncmp(*av, "all", strlen(*av)))
-		; /* same as "ip" */
-	else if (!strncmp(*av, "MAC", strlen(*av))) {
-		cmd = add_mac(cmd, ac-1, av+1); /* exits in case of errors */
-		av += 3;
-		ac -= 3;
-		have_mac = 1;
-	} else if ((proto = atoi(*av)) > 0)
-		; /* all done! */
-	else if ((pe = getprotobyname(*av)) != NULL)
-		proto = pe->p_proto;
-	else
-		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
-	av++; ac--;
-	if (proto != IPPROTO_IP)
-		fill_cmd(cmd, O_PROTO, 0, proto);
-	}
-	cmd = next_cmd(cmd);
+	if (add_proto(cmd, *av)) {
+		av++; ac--;
+		if (F_LEN(cmd) == 0)	/* plain IP */
+			proto = 0;
+		else {
+			proto = cmd->arg1;
+			prev = cmd;
+			cmd = next_cmd(cmd);
+		}
+	} else if (first_cmd != cmd) {
+		errx(EX_DATAERR, "invalid protocol ``%s''", av);
+	} else
+		goto read_options;
     OR_BLOCK(get_proto);
 
 	/*
-	 * "from", mandatory (unless we have a MAC address)
+	 * "from", mandatory
 	 */
-	if (!ac || strncmp(*av, "from", strlen(*av))) {
-		if (have_mac)	/* we do not need a "to" address */
-			goto read_to;
+	if (!ac || strncmp(*av, "from", strlen(*av)))
 		errx(EX_USAGE, "missing ``from''");
-	}
 	ac--; av++;
 
 	/*
@@ -2610,51 +2735,33 @@ add(int ac, char *av[])
     OR_START(source_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing source address");
-
-	/* source	-- mandatory */
-	fill_ip((ipfw_insn_ip *)cmd, *av);
-	if (cmd->opcode == O_IP_DST_SET)			/* set */
-		cmd->opcode = O_IP_SRC_SET;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
-		cmd->opcode = O_IP_SRC_ME;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
-		cmd->opcode = O_IP_SRC;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
-		cmd->opcode = O_IP_SRC_MASK;
-	/* otherwise len will be zero and the command skipped */
-	ac--; av++;
-	prev = cmd; /* in case we need to backtrack */
-	cmd = next_cmd(cmd);
+	if (add_srcip(cmd, *av)) {
+		ac--; av++;
+		if (F_LEN(cmd) != 0) {	/* ! any */
+			prev = cmd;
+			cmd = next_cmd(cmd);
+		}
+	}
     OR_BLOCK(source_ip);
 
-    OR_START(source_port);
 	/*
 	 * source ports, optional
 	 */
 	NOT_BLOCK;	/* optional "not" */
 	if (ac) {
-		if (!strncmp(*av, "any", strlen(*av))) {
-			ac--;
-			av++;
-		} else if (fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
-			/* XXX todo: check that we have a protocol with ports */
-			cmd->opcode = O_IP_SRCPORT;
-			ac--;
-			av++;
-			cmd = next_cmd(cmd);
+		if (!strncmp(*av, "any", strlen(*av)) ||
+		    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
+			ac--; av++;
+			if (F_LEN(cmd) != 0)
+				cmd = next_cmd(cmd);
 		}
 	}
-    OR_BLOCK(source_port);
 
-read_to:
 	/*
-	 * "to", mandatory (unless we have a MAC address
+	 * "to", mandatory
 	 */
-	if (!ac || strncmp(*av, "to", strlen(*av))) {
-		if (have_mac)
-			goto read_options;
+	if (!ac || strncmp(*av, "to", strlen(*av)))
 		errx(EX_USAGE, "missing ``to''");
-	}
 	av++; ac--;
 
 	/*
@@ -2663,41 +2770,36 @@ read_to:
     OR_START(dest_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing dst address");
-	fill_ip((ipfw_insn_ip *)cmd, *av);
-	if (cmd->opcode == O_IP_DST_SET)			/* set */
-		;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
-		cmd->opcode = O_IP_DST_ME;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
-		cmd->opcode = O_IP_DST;
-	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_ip))	/* addr/mask */
-		cmd->opcode = O_IP_DST_MASK;
-	ac--;
-	av++;
-	prev = cmd;
-	cmd = next_cmd(cmd);
+	if (add_dstip(cmd, *av)) {
+		ac--; av++;
+		if (F_LEN(cmd) != 0) {	/* ! any */
+			prev = cmd;
+			cmd = next_cmd(cmd);
+		}
+	}
     OR_BLOCK(dest_ip);
 
-    OR_START(dest_port);
 	/*
 	 * dest. ports, optional
 	 */
 	NOT_BLOCK;	/* optional "not" */
 	if (ac) {
-		if (!strncmp(*av, "any", strlen(*av))) {
-			ac--;
-			av++;
-		} else if (fill_newports((ipfw_insn_u16 *)cmd, *av, proto)) {
-			/* XXX todo: check that we have a protocol with ports */
-			cmd->opcode = O_IP_DSTPORT;
-			ac--;
-			av++;
-			cmd += F_LEN(cmd);
+		if (!strncmp(*av, "any", strlen(*av)) ||
+		    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
+			ac--; av++;
+			if (F_LEN(cmd) != 0)
+				cmd = next_cmd(cmd);
 		}
 	}
-    OR_BLOCK(dest_port);
 
 read_options:
+	if (ac && first_cmd == cmd) {
+		/*
+		 * nothing specified so far, store in the rule to ease
+		 * printout later.
+		 */
+		 rule->_pad = 1;
+	}
 	prev = NULL;
 	while (ac) {
 		char *s;
@@ -2737,6 +2839,7 @@ read_options:
 			if (!open_par)
 				errx(EX_USAGE, "+missing \")\"\n");
 			open_par = 0;
+			prev = NULL;
         		break;
 
 		case TOK_IN:
@@ -2942,6 +3045,63 @@ read_options:
 		    }
 			break;
 
+		case TOK_PROTO:
+			NEED1("missing protocol");
+			if (add_proto(cmd, *av)) {
+				proto = cmd->arg1;
+				ac--; av++;
+			} else
+				errx(EX_DATAERR, "invalid protocol ``%s''", av);
+			break;
+				
+		case TOK_SRCIP:
+			NEED1("missing source IP");
+			if (add_srcip(cmd, *av)) {
+				ac--; av++;
+			}
+			break;
+
+		case TOK_DSTIP:
+			NEED1("missing destination IP");
+			if (add_dstip(cmd, *av)) {
+				ac--; av++;
+			}
+			break;
+
+		case TOK_SRCPORT:
+			NEED1("missing source port");
+			if (!strncmp(*av, "any", strlen(*av)) ||
+			    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
+				ac--; av++;
+			} else
+				errx(EX_DATAERR, "invalid source port %s", *av);
+			break;
+
+		case TOK_DSTPORT:
+			NEED1("missing destination port");
+			if (!strncmp(*av, "any", strlen(*av)) ||
+			    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
+				ac--; av++;
+			} else
+				errx(EX_DATAERR, "invalid destination port %s",
+				    *av);
+			break;
+
+		case TOK_MAC:
+			if (ac < 2)
+				errx(EX_USAGE, "MAC dst-mac src-mac");
+			if (add_mac(cmd, ac, av)) {
+				ac -= 2; av += 2;
+			}
+			break;
+
+		case TOK_MACTYPE:
+			NEED1("missing mac type");
+			if (!add_mactype(cmd, ac, *av))
+				errx(EX_DATAERR, "invalid mac type %s", av);
+			ac--; av++;
+			break;
+
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
@@ -3142,7 +3302,7 @@ ipfw_main(int ac, char **av)
 	do_force = !isatty(STDIN_FILENO);
 
 	optind = optreset = 1;
-	while ((ch = getopt(ac, av, "hs:adefNqStv")) != -1)
+	while ((ch = getopt(ac, av, "hs:acdefNqStv")) != -1)
 		switch (ch) {
 		case 'h': /* help */
 			help();
@@ -3153,6 +3313,9 @@ ipfw_main(int ac, char **av)
 			break;
 		case 'a':
 			do_acct = 1;
+			break;
+		case 'c':
+			do_compact = 1;
 			break;
 		case 'd':
 			do_dynamic = 1;
