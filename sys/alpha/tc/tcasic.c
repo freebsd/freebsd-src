@@ -1,4 +1,4 @@
-/* $Id: tcasic.c,v 1.2 1999/04/16 21:21:41 peter Exp $ */
+/* $Id: tcasic.c,v 1.3 1999/05/08 21:58:49 dfr Exp $ */
 /* from $NetBSD: tcasic.c,v 1.23 1998/05/14 00:01:31 thorpej Exp $ */
 
 /*
@@ -90,9 +90,6 @@ tcasic_probe(device_t dev)
 static int
 tcasic_attach(device_t dev)
 {
-	struct tcasic_softc* sc = TCASIC_SOFTC(dev);
-	device_t parent = device_get_parent(dev);
-	vm_offset_t regs;
 	tcasic0 = dev;
 
 /*	chipset = tcasic_chipset;*/
