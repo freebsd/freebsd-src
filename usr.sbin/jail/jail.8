@@ -1,4 +1,29 @@
 .\"
+.\"Copyright (c) 2000 Robert N. M. Watson
+.\"All rights reserved.
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
+.\"
 .\"----------------------------------------------------------------------------
 .\""THE BEER-WARE LICENSE" (Revision 42):
 .\"<phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -37,6 +62,7 @@ D=/here/is/the/jail
 cd /usr/src
 make hierarchy DESTDIR=$D
 make obj
+make depend
 make all
 make install DESTDIR=$D
 cd etc
@@ -141,6 +167,10 @@ Create an empty /etc/fstab to quell startup warnings about missing fstab
 .It
 Disable the port mapper (rc.conf: portmap_enable="NO")
 .It
+Run
+.Xr newaliases 1
+to quell sendmail warnings.
+.It
 Disable interface configuration to quell startup warnings about ifconfig
 (network_interfaces="")
 .It
@@ -168,7 +198,7 @@ virtual host interface, and then start the jail's
 script from within the jail.
 .Pp
 NOTE: If you plan to allow untrusted users to have root access inside the
-jail, you may wish to consider setting the kern.jail.set_hostname_allowed to
+jail, you may wish to consider setting the jail.set_hostname_allowed to
 0.  Please see the management reasons why this is a good idea.  If you
 do decide to set this variable, it must be set before starting any jails,
 and once each boot.
@@ -236,13 +266,34 @@ default, modified from within the jail, so the
 .Pa /proc
 status entry is unreliably by default.  To disable the setting of the hostname
 from within a jail, set the
-.Dq Va kern.jail.set_hostname_allowed
-sysctl variable in the host environment to 0, which will affect all jails.  In
-a future version of FreeBSD, the mechanisms for managing jails will be more
-refined.
+.Dq Va jail.set_hostname_allowed
+sysctl variable in the host environment to 0, which will affect all jails.
+You can have this sysctl set each boot using
+.Xr sysctl.conf 5 .
+Just add the following line to sysctl.conf:
+.Bd -literal -offset indent
+jail.set_hostname_allowed=0
+.Ed
+.Pp
+In a future version of FreeBSD, the mechanisms for managing jails will be
+more refined.
 .Sh SEE ALSO
+.Xr newaliases 1 ,
+.Xr ps 1 ,
 .Xr chroot 2 ,
-.Xr jail 2
+.Xr jail 2 ,
+.Xr procfs 5 ,
+.Xr rc.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr halt 8 ,
+.Xr inetd 8 ,
+.Xr named 8 ,
+.Xr portmap 8 ,
+.Xr reboot 8 ,
+.Xr sendmail 8 ,
+.Xr shutdown 8 ,
+.Xr sysctl 8 ,
+.Xr syslogd 8
 .Sh HISTORY
 The
 .Fn jail
@@ -253,7 +304,7 @@ The jail feature was written by Poul-Henning Kamp for
 R&D Associates
 .Dq Li http://www.rndassociates.com/
 who contributed it to FreeBSD.
-
+.Pp
 Robert Watson wrote the extended documentation, found a few bugs, added
 a few new features, and cleaned up the userland jail environment.
 .Sh BUGS
