@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.124 1999/05/31 11:25:39 phk Exp $
+ *	$Id: autoconf.c,v 1.125 1999/06/01 18:56:10 phk Exp $
  */
 
 /*
@@ -431,18 +431,27 @@ setroot()
 #endif
 		return;
 	}
-	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC)
+	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC) {
+		printf("No B_DEVMAGIC\n");
+		setconf();
 		return;
+	}
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
-	if (bdevsw(dev) == NULL)
+	if (bdevsw(dev) == NULL) {
+		printf("No bdevsw (majdev=%d bootdev=%08x)\n", majdev, bootdev);
+		setconf();
 		return;
+	}
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
 	if (slice == WHOLE_DISK_SLICE)
 		slice = COMPATIBILITY_SLICE;
-	if (slice < 0 || slice >= MAX_SLICES)
+	if (slice < 0 || slice >= MAX_SLICES) {
+		printf("bad slice\n");
+		setconf();
 		return;
+	}
 
 	/*
 	 * XXX kludge for inconsistent unit numbering and lack of slice
@@ -508,6 +517,7 @@ setrootbyname(char *name)
 	int bd, unit, slice, part;
 	dev_t dev;
 
+	printf("setrootbyname(\"%s\")\n", name);
 	slice = 0;
 	part = 0;
 	cp = name;
@@ -545,9 +555,9 @@ gotit:
 		printf("junk after name\n");
 		return (1);
 	}
-	printf("driver=%s, unit=%d, slice=%d, part=%d\n",
-		name, unit, slice, part);
 	rootdev = makebdev(bd, dkmakeminor(unit, slice, part));
+	printf("driver=%s, unit=%d, slice=%d, part=%d -> rootdev=%08x\n",
+		name, unit, slice, part, rootdev);
 	return 0;
 }
 
@@ -569,9 +579,9 @@ setconf()
 		for (i = 0; i < NUMCDEVSW; i++) {
 			dev = makebdev(i, 0);
 			if (bdevsw(dev) != NULL)
-			    printf(" %s", bdevsw(dev)->d_name);
+			    printf(" \"%s\"", bdevsw(dev)->d_name);
 		}
-		printf(" followed by a unit number...\n");
+		printf("\nfollowed by a unit number...\n");
 	}
 }
 
