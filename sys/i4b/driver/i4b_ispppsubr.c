@@ -43,14 +43,6 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
-#if defined(__FreeBSD__)
-#if defined (__FreeBSD_version) && __FreeBSD_version <= 400000
-#include <machine/random.h>
-#else
-#include <sys/random.h>
-#endif
-#endif
-
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 

@@ -41,9 +41,7 @@
 #if NISIC > 0
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -61,7 +59,6 @@
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
 static char *ISACversion[] = {

@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Sep  1 16:04:58 2000]
+ *      last edit-date: [Fri Oct 13 15:56:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,7 +43,6 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
@@ -52,14 +51,6 @@
 
 #if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
 #include <sys/callout.h>
-#endif
-
-#if defined(__FreeBSD__)
-#if defined (__FreeBSD_version) && __FreeBSD_version <= 400000
-#include <machine/random.h>
-#else
-#include <sys/random.h>
-#endif
 #endif
 
 #ifdef __FreeBSD__
@@ -73,7 +64,6 @@
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>

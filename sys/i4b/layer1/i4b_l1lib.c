@@ -36,12 +36,8 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>

@@ -42,9 +42,7 @@
 #if (NIWIC > 0) && (NPCI > 0)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -52,11 +50,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
@@ -64,7 +58,6 @@
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
-#include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer1/i4b_l1.h>
 

@@ -38,15 +38,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/tty.h>
-#include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
 #include <i4b/include/i4b_mbuf.h>
-#include <i4b/include/i4b_global.h>
 
 #define I4B_MBUF_DEBUG
 #undef I4B_MBUF_TYPE_DEBUG

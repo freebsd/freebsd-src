@@ -42,12 +42,8 @@
 #include "ihfc.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
@@ -56,7 +52,6 @@
 #include <i4b/layer1/i4b_l1.h>
 
 #include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
 /*

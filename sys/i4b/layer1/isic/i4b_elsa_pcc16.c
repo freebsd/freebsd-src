@@ -33,7 +33,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jul 19 09:53:35 2000]
+ *      last edit-date: [Fri Oct 13 16:00:01 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,9 +43,7 @@
 #if (NISIC > 0) && defined(ELSA_PCC16)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -53,10 +51,6 @@
 
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-
-#include <i4b/include/i4b_global.h>
-/* #include <i4b/include/i4b_l1l2.h> */
-#include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_isac.h>

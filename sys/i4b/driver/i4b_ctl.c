@@ -47,7 +47,6 @@
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#include <i386/isa/isa_device.h>
 #else
 #include <sys/ioctl.h>
 #endif
@@ -55,9 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -87,7 +83,6 @@
 #endif
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer2/i4b_l2.h>

@@ -43,12 +43,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
-#include <sys/socket.h>
-#include <net/if.h>
 
 #ifdef __NetBSD__
 #include <sys/types.h>
@@ -85,7 +80,6 @@
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
 #include <i4b/include/i4b_mbuf.h>
-#include <i4b/layer3/i4b_l3.h>
 #include <i4b/layer4/i4b_l4.h>
 
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
