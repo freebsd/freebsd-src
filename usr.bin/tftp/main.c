@@ -87,6 +87,7 @@ char	line[MAXLINE];
 int	margc;
 char	*margv[20];
 jmp_buf	toplevel;
+volatile int txrx_error;
 
 void	get(int, char **);
 void	help(int, char **);
@@ -164,7 +165,7 @@ main(argc, argv)
 	signal(SIGINT, intr);
 	if (argc > 1) {
 		if (setjmp(toplevel) != 0)
-			exit(0);
+			exit(txrx_error);
 		setpeer(argc, argv);
 	}
 	if (setjmp(toplevel) != 0)
@@ -651,7 +652,7 @@ command()
 		} else {
 			if (fgets(line, sizeof line , stdin) == 0) {
 				if (feof(stdin)) {
-					exit(0);
+					exit(txrx_error);
 				} else {
 					continue;
 				}
@@ -739,8 +740,7 @@ quit(argc, argv)
 	int argc __unused;
 	char *argv[] __unused;
 {
-
-	exit(0);
+	exit(txrx_error);
 }
 
 /*
