@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mkinit.c,v 1.2 1994/09/24 02:57:54 davidg Exp $
  */
 
 #ifndef lint
@@ -352,7 +352,7 @@ dodecl(line1, fp)
 		if (! amiddecls)
 			addchar('\n', &decls);
 		q = NULL;
-		for (p = line1 + 6 ; *p != '=' && *p != '/' ; p++);
+		for (p = line1 + 6 ; *p != '=' && *p != '/' && *p != '\n'; p++);
 		if (*p == '=') {		/* eliminate initialization */
 			for (q = p ; *q && *q != ';' ; q++);
 			if (*q == '\0')
