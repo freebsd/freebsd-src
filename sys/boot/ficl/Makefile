@@ -13,6 +13,9 @@ CFLAGS+=	-mno-fp-regs
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mpreferred-stack-boundary=2
 .endif
+.if ${MACHINE} == "pc98"
+CFLAGS+=	-DPC98
+.endif
 .if HAVE_PNP
 CFLAGS+=	-DHAVE_PNP
 .endif
