@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <vm/vm.h>
 
 #include <err.h>
+#include <locale.h>
 #include <math.h>
 #include <nlist.h>
 #include <stddef.h>
@@ -478,7 +479,10 @@ cputime(k, ve)
 	long secs;
 	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
+	static char decimal_point = 0;
 
+	if (!decimal_point)
+		decimal_point = localeconv()->decimal_point[0];
 	v = ve->var;
 	if (k->ki_p->ki_stat == SZOMB || !k->ki_valid) {
 		secs = 0;
@@ -503,7 +507,7 @@ cputime(k, ve)
 		psecs = psecs % 100;
 	}
 	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
+	    "%3ld:%02ld%c%02ld", secs/60, secs%60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
 }
 
