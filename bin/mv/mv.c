@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mv.c,v 1.18 1998/05/15 06:25:17 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -115,8 +115,10 @@ main(argc, argv)
 	(void)strcpy(path, argv[argc - 1]);
 	baselen = strlen(path);
 	endp = &path[baselen];
-	*endp++ = '/';
-	++baselen;
+	if (!baselen || *(endp - 1) != '/') {
+		*endp++ = '/';
+		++baselen;
+	}
 	for (rval = 0; --argc; ++argv) {
 		/*
 		 * Find the last component of the source pathname.  It
