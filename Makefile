@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.184 1998/05/27 16:33:43 peter Exp $
+#	$Id: Makefile,v 1.185 1998/05/27 18:50:01 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -470,12 +470,14 @@ bootstrap:
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
 	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
+.for d in net netinet posix4 sys vm machine
+	if [ -h ${DESTDIR}/usr/include/$d ]; then \
+		rm -f ${DESTDIR}/usr/include/$d ; \
+	fi
+.endfor
 	cd ${.CURDIR}/sys; \
 		find -dx net netinet posix4 sys vm -name '*.h' -o -type d | \
 		cpio -dump ${DESTDIR}/usr/include
-	if [ -h ${DESTDIR}/usr/include/machine ]; then \
-		rm -f ${DESTDIR}/usr/include/machine; \
-	fi
 	mkdir -p ${DESTDIR}/usr/include/machine
 	cd ${.CURDIR}/sys/i386/include; find -dx . -name '*.h' -o -type d | \
 		cpio -dump ${DESTDIR}/usr/include/machine
