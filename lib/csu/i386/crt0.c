@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.12 1994/01/29 01:58:44 jtc Exp $
+ *	$Id: crt0.c,v 1.8 1994/02/13 20:53:11 jkh Exp $
  */
 
 
@@ -197,7 +197,7 @@ __do_dynamic_link ()
 	if (read(crt.crt_ldfd, &hdr, sizeof hdr) < sizeof hdr) {
 		_FATAL("Failure reading ld.so\n");
 	}
-	if (N_GETMAGIC(hdr) != ZMAGIC && N_GETMAGIC(hdr) != QMAGIC) {
+	if ((N_GETMAGIC_NET(hdr) != ZMAGIC) && (N_GETMAGIC(hdr) != QMAGIC)) {
 		_FATAL("Bad magic: ld.so\n");
 	}
 
