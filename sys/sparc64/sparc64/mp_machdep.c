@@ -159,14 +159,14 @@ cpu_mp_setmaxid(void)
 		    strcmp(buf, "cpu") == 0)
 			cpus++;
 	}
-	mp_maxid = cpus;
+	mp_maxid = cpus - 1;
 }
 
 int
 cpu_mp_probe(void)
 {
 
-	return (mp_maxid > 1);
+	return (mp_maxid > 0);
 }
 
 static void

@@ -258,7 +258,7 @@ void
 cpu_mp_setmaxid(void)
 {
 
-	mp_maxid = MAXCPU;
+	mp_maxid = MAXCPU - 1;
 }
 
 int

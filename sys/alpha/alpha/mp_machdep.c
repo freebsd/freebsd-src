@@ -339,7 +339,6 @@ cpu_mp_setmaxid(void)
 			continue;
 		mp_maxid = i;
 	}
-	mp_maxid++;
 }
 
 int
