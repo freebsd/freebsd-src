@@ -1,5 +1,8 @@
+/* $FreeBSD$ */
+
 #define PROG_PREFIX ""
 #define DEVICE "ps"
+#define BINPATH "/usr/bin"
 #define FONTPATH "/usr/share/groff_font"
 #define MACROPATH "/usr/share/tmac"
 #define INDEX_SUFFIX ".i"
