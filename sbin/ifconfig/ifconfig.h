@@ -64,3 +64,5 @@ extern void set80211weptxkey(const char *, int, int, const struct afswtch *rafp)
 extern void set80211wepkey(const char *, int, int, const struct afswtch *rafp);
 extern void set80211nwkey(const char *, int, int, const struct afswtch *rafp);
 extern void ieee80211_status(int s, struct rt_addrinfo *);
+extern void mac_status(int s, struct rt_addrinfo *);
+extern void setifmac(const char *, int, int, const struct afswtch *rafp);
