@@ -50,12 +50,13 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "extern.h"
 #include "vary.h"
@@ -71,15 +72,14 @@ static void setthetime(const char *, const char *, int, int);
 static void badformat(void);
 static void usage(void);
 
-int logwtmp(char *, char *, char *);
-
 int
 main(int argc, char *argv[])
 {
 	struct timezone tz;
 	int ch, rflag;
 	int jflag, nflag;
-	char *format, buf[1024];
+	const char *format;
+	char buf[1024];
 	char *endptr, *fmt;
 	char *tmp;
 	int set_timezone;

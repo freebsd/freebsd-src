@@ -371,6 +371,7 @@ get_num(const char *val)
 	case 'w':
 		mult = sizeof(int);
 		break;
+	default:
 	}
 
 	if (mult != 0) {
