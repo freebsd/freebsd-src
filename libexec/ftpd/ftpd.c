@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.53 1999/04/06 23:05:57 brian Exp $";
+	"$Id: ftpd.c,v 1.54 1999/04/07 08:27:40 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -423,11 +423,12 @@ main(argc, argv, envp)
 
 			fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC
 				| O_NONBLOCK | O_EXLOCK, 0644);
-			if (fd < 0)
+			if (fd < 0) {
 				if (errno == EAGAIN)
 					errx(1, "%s: file locked", pid_file);
 				else
 					err(1, "%s", pid_file);
+			}
 			snprintf(buf, sizeof(buf),
 				"%lu\n", (unsigned long) getpid());
 			if (write(fd, buf, strlen(buf)) < 0)

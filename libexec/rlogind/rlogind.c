@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: rlogind.c,v 1.21 1999/04/06 23:05:58 brian Exp $";
+	"$Id: rlogind.c,v 1.22 1999/04/07 08:27:42 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -382,7 +382,7 @@ protocol(f, p)
 	register int f, p;
 {
 	char pibuf[1024+1], fibuf[1024], *pbp, *fbp;
-	register pcc = 0, fcc = 0;
+	int pcc = 0, fcc = 0;
 	int cc, nfd, n;
 	char cntl;
 
@@ -413,12 +413,13 @@ protocol(f, p)
 			omask = &obits;
 		} else
 			FD_SET(f, &ibits);
-		if (pcc >= 0)
+		if (pcc >= 0) {
 			if (pcc) {
 				FD_SET(f, &obits);
 				omask = &obits;
 			} else
 				FD_SET(p, &ibits);
+		}
 		FD_SET(p, &ebits);
 		if ((n = select(nfd, &ibits, omask, &ebits, 0)) < 0) {
 			if (errno == EINTR)

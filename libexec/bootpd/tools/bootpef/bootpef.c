@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id$
+	$Id: bootpef.c,v 1.4 1997/02/22 14:21:18 peter Exp $
 
 ************************************************************************/
 
@@ -136,7 +136,7 @@ usage()
  * Initialization such as command-line processing is done and then the
  * main server loop is started.
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -272,6 +272,7 @@ main(argc, argv)
 		mktagfile(hp);
 		hp = (struct host *) hash_NextEntry(nmhashtable);
 	}
+	return (0);
 }
 
 

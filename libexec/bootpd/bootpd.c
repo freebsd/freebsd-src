@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.10 1998/12/13 21:02:28 eivind Exp $
+	$Id: bootpd.c,v 1.11 1999/04/07 08:27:39 brian Exp $
 
 ************************************************************************/
 
@@ -183,7 +183,7 @@ char *bootpd_dump = DUMPTAB_FILE;
  * main server loop is started.
  */
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -573,6 +573,7 @@ main(argc, argv)
 			break;
 		}
 	}
+	return 0;
 }
 
 
