@@ -69,7 +69,6 @@ alpha/alpha/interrupt.c		standard
 # alpha/alpha/locore.s		standard
 alpha/alpha/machdep.c		standard
 alpha/alpha/mem.c		standard
-alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
 alpha/alpha/perfmon.c		optional	perfmon
 alpha/alpha/pmap.c		standard
