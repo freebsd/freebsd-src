@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.44 1998/06/16 19:40:37 brian Exp $
+ * $Id: ip.c,v 1.45 1998/06/27 12:03:36 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -398,13 +398,13 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
   }
 
 #ifndef NOALIAS
-  if (alias_IsEnabled() && pip->ip_p != IPPROTO_IGMP &&
+  if (bundle->AliasEnabled && pip->ip_p != IPPROTO_IGMP &&
       (pip->ip_p != IPPROTO_IPIP || !IN_CLASSD(ntohl(piip->ip_dst.s_addr)))) {
     struct tun_data *frag;
     int iresult;
     char *fptr;
 
-    iresult = (*PacketAlias.In)(tun.data, sizeof tun.data);
+    iresult = PacketAliasIn(tun.data, sizeof tun.data);
     nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
@@ -436,8 +436,8 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
       }
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = (*PacketAlias.GetFragment)(tun.data)) != NULL) {
-	  (*PacketAlias.FragmentIn)(tun.data, fptr);
+	while ((fptr = PacketAliasGetFragment(tun.data)) != NULL) {
+	  PacketAliasFragmentIn(tun.data, fptr);
 	  nb = ntohs(((struct ip *) fptr)->ip_len);
           frag = (struct tun_data *)
 	    ((char *)fptr - sizeof tun + sizeof tun.data);
@@ -462,7 +462,7 @@ ip_Input(struct bundle *bundle, struct mbuf * bp)
       else {
         tun_fill_header(*frag, AF_INET);
 	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
-	(*PacketAlias.SaveFragment)(frag->data);
+	PacketAliasSaveFragment(frag->data);
       }
     }
   } else

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.42 1998/06/24 19:33:30 brian Exp $
+#	$Id: Makefile,v 1.43 1998/06/26 18:50:29 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -26,10 +26,14 @@ DPADD+= ${LIBMD} ${LIBCRYPT}
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
-.if defined(NOALIAS) || defined(RELEASE_CRUNCH)
+.if defined(NOALIAS)
 CFLAGS+=-DNOALIAS
 .else
-SRCS+=	alias_cmd.c loadalias.c
+.if !defined(RELEASE_CRUNCH)
+SRCS+=	alias_cmd.c
+LDADD+=	-lalias
+DPADD+= ${LIBALIAS}
+.endif
 .endif
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
@@ -43,8 +47,9 @@ DPADD+= ${LIBDES}
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because the crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-SRCS+=	alias_cmd.c loadalias.c chap_ms.c
-chap_ms.o alias_cmd.o loadalias.o:
+CFLAGS+=-DNOALIAS
+SRCS+=	alias_cmd.c chap_ms.c
+chap_ms.o alias_cmd.o:
 	>null_${.PREFIX}.c
 	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
