@@ -273,7 +273,7 @@ g_confxml(void *p)
 }
 
 void
-g_trace(int level, char *fmt, ...)
+g_trace(int level, const char *fmt, ...)
 {
 	va_list ap;
 

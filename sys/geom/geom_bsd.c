@@ -316,7 +316,7 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 	struct partition *ppp;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
-	u_int secsize;
+	u_int secsize, u;
 	off_t mediasize;
 
 	/* Basic check that this is indeed a disklabel. */
@@ -385,13 +385,13 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 	}
 
 	/* Look good, go for it... */
-	for (i = 0; i < gsp->nslice; i++) {
-		ppp = &dl->d_partitions[i];
-		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+	for (u = 0; u < gsp->nslice; u++) {
+		ppp = &dl->d_partitions[u];
+		g_slice_config(gp, u, G_SLICE_CONFIG_SET,
 		    (off_t)ppp->p_offset * dl->d_secsize,
 		    (off_t)ppp->p_size * dl->d_secsize,
 		     dl->d_secsize,
-		    "%s%c", gp->name, 'a' + i);
+		    "%s%c", gp->name, 'a' + u);
 	}
 	return (0);
 }
@@ -566,7 +566,7 @@ g_bsd_hotwrite(void *arg)
 	gsp = gp->softc;
 	ms = gsp->softc;
 	gsl = &gsp->slices[bp->bio_to->index];
-	p = bp->bio_data + ms->labeloffset 
+	p = (u_char*)bp->bio_data + ms->labeloffset 
 	    - (bp->bio_offset + gsl->offset);
 	g_bsd_ledec_disklabel(p, &fake.ondisk);
 	
@@ -675,7 +675,7 @@ g_bsd_start(struct bio *bp)
  * consumer and provider.  We let g_slice_dumpconf() do most of the work.
  */
 static void
-g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
+g_bsd_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;

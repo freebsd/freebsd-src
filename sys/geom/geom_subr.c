@@ -88,7 +88,7 @@ g_add_class(struct g_class *mp)
 }
 
 struct g_geom *
-g_new_geomf(struct g_class *mp, char *fmt, ...)
+g_new_geomf(struct g_class *mp, const char *fmt, ...)
 {
 	struct g_geom *gp;
 	va_list ap;
@@ -167,7 +167,7 @@ g_destroy_consumer(struct g_consumer *cp)
 }
 
 struct g_provider *
-g_new_providerf(struct g_geom *gp, char *fmt, ...)
+g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 {
 	struct g_provider *pp;
 	struct sbuf *sb;
@@ -451,14 +451,14 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 }
 
 int
-g_handleattr_int(struct bio *bp, char *attribute, int val)
+g_handleattr_int(struct bio *bp, const char *attribute, int val)
 {
 
 	return (g_handleattr(bp, attribute, &val, sizeof val));
 }
 
 int
-g_handleattr_off_t(struct bio *bp, char *attribute, off_t val)
+g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val)
 {
 
 	return (g_handleattr(bp, attribute, &val, sizeof val));
@@ -466,7 +466,7 @@ g_handleattr_off_t(struct bio *bp, char *attribute, off_t val)
 
 
 int
-g_handleattr(struct bio *bp, char *attribute, void *val, int len)
+g_handleattr(struct bio *bp, const char *attribute, void *val, int len)
 {
 	int error;
 
@@ -563,7 +563,7 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 }
 
 static struct g_class *
-g_class_by_name(char *name)
+g_class_by_name(const char *name)
 {
 	struct g_class *mp;
 
@@ -576,7 +576,7 @@ g_class_by_name(char *name)
 }
 
 struct g_geom *
-g_insert_geom(char *class, struct g_consumer *cp)
+g_insert_geom(const char *class, struct g_consumer *cp)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
