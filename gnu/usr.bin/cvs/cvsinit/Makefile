@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/07/25 00:31:51 bde Exp $
+#	$Id: Makefile,v 1.3 1995/12/10 23:06:37 peter Exp $
 
 MAN8=	cvsinit.8
 
@@ -18,7 +18,7 @@ all:	cvsinit
 	sed -e 's,xLIBDIRx,$(EXAMPDIR),g' \
 	    -e "s,xVERSIONx,`cat ver`,g" ${.CURDIR}/$@.sh > $@
 
-afterinstall:
+beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		cvsinit ${DESTDIR}${BINDIR}/cvsinit
 
