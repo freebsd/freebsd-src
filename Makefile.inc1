@@ -375,7 +375,7 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} install
+		${IMAKEENV} MACHINE=${MACHINE} ${MAKE} install
 
 #
 # update
