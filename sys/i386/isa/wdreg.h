@@ -229,13 +229,6 @@ struct wdparams {
 };
 
 /*
- * wd driver entry points
- */
-#ifdef	B_FORMAT
-int wdformat(struct buf *bp);
-#endif
-
-/*
  * IDE DMA support.
  * This is based on what is needed for the IDE DMA function of the Intel
  * Triton chipset; hopefully it's general enough to be used for other
