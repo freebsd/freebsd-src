@@ -324,6 +324,80 @@ _prot_to_real:
 	ret
 
 /**************************************************************************
+GET DISK GEOMETRY INFO
+**************************************************************************/
+
+/*
+ *
+ * get_diskinfo():  return a word that represents the
+ *	max number of sectors and heads and drives for this device
+ *
+ */
+
+	.globl	_get_diskinfo
+_get_diskinfo:
+	push	%ebp
+	mov	%esp, %ebp
+	push	%es
+	push	%ebx
+	push	%ecx
+	push	%edx
+
+	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
+	call	_prot_to_real		/* enter real mode */
+
+	movb	$0x8, %ah		/* ask for disk info */
+
+	sti
+	int	$0x13
+	cli
+
+	jnc	ok
+	/*
+	 * Urk.  Call failed.  It is not supported for floppies by old BIOS's.
+	 * Guess it's a 15-sector floppy.
+	 */
+	subb	%ah, %ah		/* %ax = 0 */
+	movb	%al, %al
+	movb	%ah, %bh		/* %bh = 0 */
+	movb	$2, %bl			/* %bl	bits 0-3 = drive type,
+						bit    2 = 1.2M */
+	movb	$79, %ch		/* max track */
+	movb	$15, %cl		/* max sector */
+	movb	$1, %dh			/* max head */
+	movb	$1, %dl			/* # floppy drives installed */
+	/* es:di = parameter table */
+	/* carry = 0 */
+ok:
+
+	opsize
+	call	_real_to_prot		/* back to protected mode */
+
+	/* 
+	 * form a longword representing all this gunk:
+	 *       6 bit zero
+	 *	10 bit max cylinder (0 based)
+	 *	 8 bit max head (0 based)
+	 *	 8 bit zero
+	 *	 6 bit max sector (1 based) = # sectors
+	 */
+	movb	%cl, %al		/* Upper two bits of cylinder count */
+	andl	$192,%eax	
+	leal	0(,%eax,4),%eax		/* << 2 */
+	movb	%ch, %al		/* Lower 8 bits */
+	sall	$16,%eax		/* << 16 */
+	movb	%dh, %ah		/* max head */
+	andb	$0x3f, %cl		/* mask of cylinder gunk */
+	movb	%cl, %al		/* max sector (and # sectors) */
+
+	pop	%edx
+	pop	%ecx
+	pop	%ebx
+	pop	%es
+	pop	%ebp
+	ret
+
+/**************************************************************************
 GLOBAL DESCRIPTOR TABLE
 **************************************************************************/
 	.align	4
