@@ -533,6 +533,8 @@ ata_reset(struct ata_channel *ch)
 	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 	    if (!(stat0 & ATA_S_BUSY)) {
 		if (bootverbose)
 		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
@@ -548,6 +550,8 @@ ata_reset(struct ata_channel *ch)
 	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
+	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
+	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 	    if (!(stat1 & ATA_S_BUSY)) {
 		if (bootverbose)
 		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
