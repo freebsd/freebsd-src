@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *	$Id: sd.c,v 1.10 93/08/26 21:09:44 julian Exp Locker: julian $
+ *	$Id: sd.c,v 1.6 1993/08/28 03:08:56 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -1638,7 +1638,7 @@ sddump(dev_t dev)			/* dump core after a system crash */
 sddump()
 {
 	printf("\nsddump()        -- not implemented\n");
-	DELAY(100000000);	/* 100 seconds */
+	DELAY(20000000);	/* 20 seconds */
 	return(-1);
 }
 #endif SCSIDUMP
