@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.139 1999/01/06 23:05:41 julian Exp $
+ * $Id: vm_map.c,v 1.139.2.1 1999/01/22 05:53:39 dillon Exp $
  */
 
 /*
@@ -2205,6 +2205,12 @@ vm_map_split(entry)
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
+		/*
+		 * Cannot leave dirty page in PQ_CACHE,
+		 * deactivate it if necessary.
+		 */
+		if (m->queue - m->pc == PQ_CACHE)
+			vm_page_deactivate(m);
 		m->dirty = VM_PAGE_BITS_ALL;
 		vm_page_busy(m);
 	}
