@@ -1,7 +1,7 @@
 /* vi_mode.c -- A vi emulation mode for Bash.
    Derived from code written by Jeff Sparkes (jsparkes@bnr.ca).  */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -63,6 +63,8 @@
 #define member(c, s) ((c) ? (char *)strchr ((s), (c)) != (char *)NULL : 0)
 #endif
 
+int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
+
 /* Non-zero means enter insertion mode. */
 static int _rl_vi_doing_insert;
 
@@ -83,7 +85,6 @@ static int vi_continued_command;
 static char *vi_insert_buffer;
 static int vi_insert_buffer_size;
 
-static int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
 static int _rl_vi_last_repeat = 1;
 static int _rl_vi_last_arg_sign = 1;
 static int _rl_vi_last_motion;
@@ -133,6 +134,16 @@ _rl_vi_set_last (key, repeat, sign)
   _rl_vi_last_command = key;
   _rl_vi_last_repeat = repeat;
   _rl_vi_last_arg_sign = sign;
+}
+
+/* A convenience function that calls _rl_vi_set_last to save the last command
+   information and enters insertion mode. */
+void
+rl_vi_start_inserting (key, repeat, sign)
+     int key, repeat, sign;
+{
+  _rl_vi_set_last (key, repeat, sign);
+  rl_vi_insertion_mode (1, key);
 }
 
 /* Is the command C a VI mode text modification command? */
@@ -297,10 +308,8 @@ rl_vi_complete (ignore, key)
     rl_complete (0, key);
 
   if (key == '*' || key == '\\')
-    {
-      _rl_vi_set_last (key, 1, rl_arg_sign);
-      rl_vi_insertion_mode (1, key);
-    }
+    rl_vi_start_inserting (key, 1, rl_arg_sign);
+
   return (0);
 }
 
@@ -310,8 +319,7 @@ rl_vi_tilde_expand (ignore, key)
      int ignore, key;
 {
   rl_tilde_expand (0, key);
-  _rl_vi_set_last (key, 1, rl_arg_sign);	/* XXX */
-  rl_vi_insertion_mode (1, key);
+  rl_vi_start_inserting (key, 1, rl_arg_sign);
   return (0);
 }
 
@@ -429,7 +437,8 @@ rl_vi_eWord (count, ignore)
 
       /* Move to the next non-whitespace character (to the start of the
 	 next word). */
-      while (++rl_point < rl_end && whitespace (rl_line_buffer[rl_point]));
+      while (rl_point < rl_end && whitespace (rl_line_buffer[rl_point]))
+	rl_point++;
 
       if (rl_point && rl_point < rl_end)
 	{
@@ -640,7 +649,7 @@ _rl_vi_done_inserting ()
     }
   else
     {
-      if (_rl_vi_last_key_before_insert == 'i' && rl_undo_list)
+      if ((_rl_vi_last_key_before_insert == 'i' || _rl_vi_last_key_before_insert == 'a') && rl_undo_list)
         _rl_vi_save_insert (rl_undo_list);
       /* XXX - Other keys probably need to be checked. */
       else if (_rl_vi_last_key_before_insert == 'C')
@@ -704,7 +713,7 @@ _rl_vi_change_mbchar_case (count)
       /* Vi is kind of strange here. */
       if (wc)
 	{
-	  mblen = wctomb (mb, wc);
+	  mblen = wcrtomb (mb, wc, &ps);
 	  if (mblen >= 0)
 	    mb[mblen] = '\0';
 	  rl_begin_undo_group ();
@@ -725,12 +734,13 @@ int
 rl_vi_change_case (count, ignore)
      int count, ignore;
 {
-  char c = 0;
+  int c, p;
 
   /* Don't try this on an empty line. */
   if (rl_point >= rl_end)
     return (0);
 
+  c = 0;
 #if defined (HANDLE_MULTIBYTE)
   if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
     return (_rl_vi_change_mbchar_case (count));
@@ -752,8 +762,11 @@ rl_vi_change_case (count, ignore)
       /* Vi is kind of strange here. */
       if (c)
 	{
+	  p = rl_point;
 	  rl_begin_undo_group ();
-	  rl_delete (1, c);
+	  rl_vi_delete (1, c);
+	  if (rl_point < p)	/* Did we retreat at EOL? */
+	    rl_point++;
 	  _rl_insert_char (1, c);
 	  rl_end_undo_group ();
 	  rl_vi_check ();
@@ -771,7 +784,9 @@ rl_vi_put (count, key)
   if (!_rl_uppercase_p (key) && (rl_point + 1 <= rl_end))
     rl_point = _rl_find_next_mbchar (rl_line_buffer, rl_point, 1, MB_FIND_NONZERO);
 
-  rl_yank (1, key);
+  while (count--)
+    rl_yank (1, key);
+
   rl_backward_char (1, key);
   return (0);
 }
@@ -819,6 +834,7 @@ rl_vi_domove (key, nextkey)
 	{
 	  save = rl_numeric_arg;
 	  rl_numeric_arg = _rl_digit_value (c);
+	  rl_explicit_arg = 1;
 	  rl_digit_loop1 ();
 	  rl_numeric_arg *= save;
 	  RL_SETSTATE(RL_STATE_MOREINPUT);
@@ -1017,8 +1033,7 @@ rl_vi_change_to (count, key)
       /* `C' does not save the text inserted for undoing or redoing. */
       if (_rl_uppercase_p (key) == 0)
         _rl_vi_doing_insert = 1;
-      _rl_vi_set_last (key, count, rl_arg_sign);
-      rl_vi_insertion_mode (1, key);
+      rl_vi_start_inserting (key, rl_numeric_arg, rl_arg_sign);
     }
 
   return (0);
@@ -1267,14 +1282,14 @@ rl_vi_bracktype (c)
 
 /* XXX - think about reading an entire mbchar with _rl_read_mbchar and
    inserting it in one bunch instead of the loop below (like in
-   rl_vi_char_search or _rl_vi_change_mbchar_case.  Set c to mbchar[0]
+   rl_vi_char_search or _rl_vi_change_mbchar_case).  Set c to mbchar[0]
    for test against 033 or ^C.  Make sure that _rl_read_mbchar does
    this right. */
 int
 rl_vi_change_char (count, key)
      int count, key;
 {
-  int c;
+  int c, p;
 
   if (vi_redoing)
     c = _rl_vi_last_replacement;
@@ -1288,11 +1303,11 @@ rl_vi_change_char (count, key)
   if (c == '\033' || c == CTRL ('C'))
     return -1;
 
+  rl_begin_undo_group ();
   while (count-- && rl_point < rl_end)
     {
-      rl_begin_undo_group ();
-
-      rl_delete (1, c);
+      p = rl_point;
+      rl_vi_delete (1, c);
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	while (_rl_insert_char (1, c))
@@ -1303,12 +1318,14 @@ rl_vi_change_char (count, key)
 	  }
       else
 #endif
-	_rl_insert_char (1, c);
-      if (count == 0)
-	rl_backward_char (1, c);
-
-      rl_end_undo_group ();
+	{
+	  if (rl_point < p)		/* Did we retreat at EOL? */
+	    rl_point++;
+	  _rl_insert_char (1, c);
+	}
     }
+  rl_end_undo_group ();
+
   return (0);
 }
 
@@ -1318,7 +1335,7 @@ rl_vi_subst (count, key)
 {
   /* If we are redoing, rl_vi_change_to will stuff the last motion char */
   if (vi_redoing == 0)
-    rl_stuff_char ((key == 'S') ? 'c' : ' ');	/* `S' == `cc', `s' == `c ' */
+    rl_stuff_char ((key == 'S') ? 'c' : 'l');	/* `S' == `cc', `s' == `cl' */
 
   return (rl_vi_change_to (count, 'c'));
 }

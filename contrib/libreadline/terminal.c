@@ -347,11 +347,7 @@ get_term_capabilities (bp)
   register int i;
 
   for (i = 0; i < NUM_TC_STRINGS; i++)
-#  ifdef __LCC__
     *(tc_strings[i].tc_value) = tgetstr ((char *)tc_strings[i].tc_var, bp);
-#  else
-    *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
-#  endif
 #endif
   tcap_initialized = 1;
 }
@@ -489,13 +485,13 @@ bind_termcap_arrow_keys (map)
   xkeymap = _rl_keymap;
   _rl_keymap = map;
 
-  _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
-  _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
-  _rl_bind_if_unbound (_rl_term_kr, rl_forward);
-  _rl_bind_if_unbound (_rl_term_kl, rl_backward);
+  rl_bind_keyseq_if_unbound (_rl_term_ku, rl_get_previous_history);
+  rl_bind_keyseq_if_unbound (_rl_term_kd, rl_get_next_history);
+  rl_bind_keyseq_if_unbound (_rl_term_kr, rl_forward_char);
+  rl_bind_keyseq_if_unbound (_rl_term_kl, rl_backward_char);
 
-  _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
+  rl_bind_keyseq_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
+  rl_bind_keyseq_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
 
   _rl_keymap = xkeymap;
 }

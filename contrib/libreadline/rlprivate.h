@@ -1,7 +1,7 @@
 /* rlprivate.h -- functions and variables global to the readline library,
 		  but not intended for use by applications. */
 
-/* Copyright (C) 1999 Free Software Foundation, Inc.
+/* Copyright (C) 1999-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -103,7 +103,6 @@ extern int readline_internal_char PARAMS((void));
 #endif /* READLINE_CALLBACKS */
 
 /* bind.c */
-extern void _rl_bind_if_unbound PARAMS((const char *, rl_command_func_t *));
 
 /* complete.c */
 extern char _rl_find_completion_word PARAMS((int *, int *));
@@ -131,6 +130,7 @@ extern int _rl_input_available PARAMS((void));
 extern int _rl_input_queued PARAMS((int));
 extern void _rl_insert_typein PARAMS((int));
 extern int _rl_unget_char PARAMS((int));
+extern int _rl_pushed_input_available PARAMS((void));
 
 /* macro.c */
 extern void _rl_with_macro_input PARAMS((char *));
@@ -219,6 +219,7 @@ extern const char *_rl_possible_meta_prefixes[];
 
 /* complete.c */
 extern int _rl_complete_show_all;
+extern int _rl_complete_show_unmodified;
 extern int _rl_complete_mark_directories;
 extern int _rl_complete_mark_symlink_dirs;
 extern int _rl_print_completions_horizontally;
@@ -280,5 +281,8 @@ extern int _rl_term_autowrap;
 /* undo.c */
 extern int _rl_doing_an_undo;
 extern int _rl_undo_group_level;
+
+/* vi_mode.c */
+extern int _rl_vi_last_command;
 
 #endif /* _RL_PRIVATE_H_ */
