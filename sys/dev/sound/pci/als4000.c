@@ -50,6 +50,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define DEB(x)  /* x */
 #endif /* DEB */
 
+#define ALS_DEFAULT_BUFSZ 16384
+
 /* ------------------------------------------------------------------------- */
 /* Structures */
 
@@ -73,6 +75,8 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void			*ih;
+
+	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
 };
 
@@ -209,7 +213,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->format = AFMT_U8;
 	ch->speed = DSP_DEFAULT_SPEED;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ALS_BUFFER_SIZE) != 0) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		return NULL;
 	}
 	return ch;
@@ -246,9 +250,10 @@ static int
 alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct	sc_chinfo *ch = data;
+	struct	sc_info *sc = ch->parent;
 
-	if (blocksize > ALS_BUFFER_SIZE / 2) {
-		blocksize = ALS_BUFFER_SIZE / 2;
+	if (blocksize > sc->bufsz / 2) {
+		blocksize = sc->bufsz / 2;
 	}
 	sndbuf_resize(ch->buffer, 2, blocksize);
 	return blocksize;
@@ -731,12 +736,14 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 		goto bad;
 	}
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, ALS_DEFAULT_BUFSZ, 65536);
+
 	if (bus_dma_tag_create(/*parent*/NULL,
 			       /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/ALS_BUFFER_SIZE,
+			       /*maxsize*/sc->bufsz,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
 			       /*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
