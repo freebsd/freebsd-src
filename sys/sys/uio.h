@@ -84,21 +84,21 @@ struct uio {
 
 struct vm_object;
 
-void	uio_yield __P((void));
-int	uiomove __P((caddr_t, int, struct uio *));
-int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
-int	uioread __P((int, struct uio *, struct vm_object *, int *));
-int	copyinfrom __P((const void *src, void *dst, size_t len, int seg));
-int	copyinstrfrom __P((const void *src, void *dst, size_t len,
-	    size_t *copied, int seg));
+void	uio_yield(void);
+int	uiomove(caddr_t, int, struct uio *);
+int	uiomoveco(caddr_t, int, struct uio *, struct vm_object *);
+int	uioread(int, struct uio *, struct vm_object *, int *);
+int	copyinfrom(const void *src, void *dst, size_t len, int seg);
+int	copyinstrfrom(const void *src, void *dst, size_t len,
+	    size_t *copied, int seg);
 
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-ssize_t	readv __P((int, const struct iovec *, int));
-ssize_t	writev __P((int, const struct iovec *, int));
+ssize_t	readv(int, const struct iovec *, int);
+ssize_t	writev(int, const struct iovec *, int);
 __END_DECLS
 
 #endif /* _KERNEL */

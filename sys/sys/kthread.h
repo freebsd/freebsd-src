@@ -38,17 +38,17 @@
  */
 struct kproc_desc {
 	char		*arg0;			/* arg 0 (for 'ps' listing) */
-	void		(*func) __P((void));	/* "main" for kernel process */
+	void		(*func)(void);	/* "main" for kernel process */
 	struct proc	**global_procpp;	/* ptr to proc ptr save area */
 };
 
-void	kproc_shutdown __P((void *, int));
-void	kproc_start __P((const void *));
-int     kthread_create __P((void (*)(void *), void *, struct proc **,
-	    int flags, const char *, ...)) __printflike(5, 6);
-void    kthread_exit __P((int)) __dead2;
-int	kthread_resume __P((struct proc *)); /* XXXKSE */
-int	kthread_suspend __P((struct proc *, int)); /* XXXKSE */
-void	kthread_suspend_check __P((struct proc *)); /* XXXKSE */
+void	kproc_shutdown(void *, int);
+void	kproc_start(const void *);
+int     kthread_create(void (*)(void *), void *, struct proc **,
+	    int flags, const char *, ...) __printflike(5, 6);
+void    kthread_exit(int) __dead2;
+int	kthread_resume(struct proc *); /* XXXKSE */
+int	kthread_suspend(struct proc *, int); /* XXXKSE */
+void	kthread_suspend_check(struct proc *); /* XXXKSE */
 
 #endif /* !_SYS_KTHREAD_H_ */

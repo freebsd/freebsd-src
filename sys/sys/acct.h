@@ -87,7 +87,7 @@ struct acct {
 #ifdef _KERNEL
 struct thread;
 
-int	acct_process __P((struct thread *td));
+int	acct_process(struct thread *td);
 #endif
 
 #endif /* !_SYS_ACCT_H_ */

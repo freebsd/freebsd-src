@@ -62,10 +62,10 @@ struct image_params {
 };
 
 #ifdef _KERNEL
-int	exec_check_permissions __P((struct image_params *));
-int	exec_extract_strings __P((struct image_params *));
-int	exec_new_vmspace __P((struct image_params *));
-int	exec_shell_imgact __P((struct image_params *));
+int	exec_check_permissions(struct image_params *);
+int	exec_extract_strings(struct image_params *);
+int	exec_new_vmspace(struct image_params *);
+int	exec_shell_imgact(struct image_params *);
 #endif
 
 #endif /* !_SYS_IMGACT_H_ */

@@ -150,7 +150,7 @@ struct exec {
 #ifdef _KERNEL
 struct thread;
 
-int	aout_coredump __P((struct thread *td, struct vnode *vp, off_t limit));
+int	aout_coredump(struct thread *td, struct vnode *vp, off_t limit);
 #endif
 
 #endif /* !_IMGACT_AOUT_H_ */

@@ -138,25 +138,25 @@ SLIST_HEAD(sigiolst, sigio);
 #define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
 
-int	closef __P((struct file *fp, struct thread *p));
-int	dupfdopen __P((struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode,
-		       int error));
-int	falloc __P((struct thread *p, struct file **resultfp, int *resultfd));
-int	fdalloc __P((struct thread *p, int want, int *result));
-int	fdavail __P((struct thread *td, int n));
-void	fdcloseexec __P((struct thread *td));
-struct	filedesc *fdcopy __P((struct thread *td));
-void	fdfree __P((struct thread *td));
-struct	filedesc *fdinit __P((struct thread *td));
-struct	filedesc *fdshare __P((struct proc *p));
-void	ffree __P((struct file *fp));
-static __inline struct file *	fget_locked __P((struct filedesc *fdp, int fd));
-pid_t	fgetown __P((struct sigio *sigio));
-int	fsetown __P((pid_t pgid, struct sigio **sigiop));
-void	funsetown __P((struct sigio *sigio));
-void	funsetownlst __P((struct sigiolst *sigiolst));
-int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
-void	setugidsafety __P((struct thread *td));
+int	closef(struct file *fp, struct thread *p);
+int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx,
+		       int dfd, int mode, int error);
+int	falloc(struct thread *p, struct file **resultfp, int *resultfd);
+int	fdalloc(struct thread *p, int want, int *result);
+int	fdavail(struct thread *td, int n);
+void	fdcloseexec(struct thread *td);
+struct	filedesc *fdcopy(struct thread *td);
+void	fdfree(struct thread *td);
+struct	filedesc *fdinit(struct thread *td);
+struct	filedesc *fdshare(struct proc *p);
+void	ffree(struct file *fp);
+static __inline struct file *	fget_locked(struct filedesc *fdp, int fd);
+pid_t	fgetown(struct sigio *sigio);
+int	fsetown(pid_t pgid, struct sigio **sigiop);
+void	funsetown(struct sigio *sigio);
+void	funsetownlst(struct sigiolst *sigiolst);
+int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
+void	setugidsafety(struct thread *td);
 
 static __inline struct file *
 fget_locked(fdp, fd)

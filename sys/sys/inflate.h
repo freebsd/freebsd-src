@@ -29,10 +29,10 @@ struct inflate {
 	void           *gz_private;
 
 	/* Fetch next character to be uncompressed */
-	int             (*gz_input) __P((void *));
+	int             (*gz_input)(void *);
 
 	/* Dispose of uncompressed characters */
-	int             (*gz_output) __P((void *, u_char *, u_long));
+	int             (*gz_output)(void *, u_char *, u_long);
 
 	/* Private part */
 	u_long          gz_bb;	/* bit buffer */
@@ -46,7 +46,7 @@ struct inflate {
 	unsigned        gz_wp;
 };
 
-int inflate     __P((struct inflate *));
+int inflate(struct inflate *);
 
 #endif	/* _KERNEL || KZIP */
 

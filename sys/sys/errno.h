@@ -45,7 +45,7 @@
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 __BEGIN_DECLS
-int *	__error __P((void));
+int *	__error(void);
 __END_DECLS
 #define	errno		(* __error())
 #endif

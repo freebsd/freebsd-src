@@ -85,7 +85,7 @@ void	pri_to_rtp(struct ksegrp *, struct rtprio *);
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	rtprio __P((int, pid_t, struct rtprio *));
+int	rtprio(int, pid_t, struct rtprio *);
 __END_DECLS
 #endif	/* !_KERNEL */
 #endif	/* !_SYS_RTPRIO_H_ */

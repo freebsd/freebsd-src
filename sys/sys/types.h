@@ -204,19 +204,19 @@ typedef	struct fd_set {
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
-int	 ftruncate __P((int, off_t));
+int	 ftruncate(int, off_t);
 #endif
 #ifndef _LSEEK_DECLARED
 #define	_LSEEK_DECLARED
-off_t	 lseek __P((int, off_t, int));
+off_t	 lseek(int, off_t, int);
 #endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
-void *	 mmap __P((void *, size_t, int, int, int, off_t));
+void *	 mmap(void *, size_t, int, int, int, off_t);
 #endif
 #ifndef _TRUNCATE_DECLARED
 #define	_TRUNCATE_DECLARED
-int	 truncate __P((const char *, off_t));
+int	 truncate(const char *, off_t);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */

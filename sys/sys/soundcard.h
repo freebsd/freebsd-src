@@ -1127,7 +1127,7 @@ typedef struct copr_msg {
  */
 
 #ifndef USE_SIMPLE_MACROS
-void seqbuf_dump __P((void));	/* This function must be provided by programs */
+void seqbuf_dump(void);	/* This function must be provided by programs */
 
 /* Sample seqbuf_dump() implementation:
  *

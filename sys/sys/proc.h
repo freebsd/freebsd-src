@@ -725,8 +725,8 @@ struct	proc *zpfind(pid_t);	/* Find zombie process by id. */
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
 int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
-int	enterpgrp __P((struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess));
-int	enterthispgrp __P((struct proc *p, struct pgrp *pgrp));
+int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess);
+int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
 int	fork1(struct thread *, int, struct proc **);

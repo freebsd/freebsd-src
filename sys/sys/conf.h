@@ -134,31 +134,29 @@ struct knote;
 
 typedef struct thread d_thread_t;
 
-typedef int d_open_t __P((dev_t dev, int oflags, int devtype,
-			  struct thread *td));
-typedef int d_close_t __P((dev_t dev, int fflag, int devtype,
-			   struct thread *td));
-typedef void d_strategy_t __P((struct bio *bp));
-typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
-			   int fflag, struct thread *td));
-typedef int d_dump_t __P((dev_t dev));
-typedef int d_psize_t __P((dev_t dev));
+typedef int d_open_t(dev_t dev, int oflags, int devtype, struct thread *td);
+typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
+typedef void d_strategy_t(struct bio *bp);
+typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
+			   int fflag, struct thread *td);
+typedef int d_dump_t(dev_t dev);
+typedef int d_psize_t(dev_t dev);
 
-typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
-typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
-typedef int d_poll_t __P((dev_t dev, int events, struct thread *td));
-typedef int d_kqfilter_t __P((dev_t dev, struct knote *kn));
-typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
+typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
+typedef int d_write_t(dev_t dev, struct uio *uio, int ioflag);
+typedef int d_poll_t(dev_t dev, int events, struct thread *td);
+typedef int d_kqfilter_t(dev_t dev, struct knote *kn);
+typedef int d_mmap_t(dev_t dev, vm_offset_t offset, int nprot);
 
-typedef int l_open_t __P((dev_t dev, struct tty *tp));
-typedef int l_close_t __P((struct tty *tp, int flag));
-typedef int l_read_t __P((struct tty *tp, struct uio *uio, int flag));
-typedef int l_write_t __P((struct tty *tp, struct uio *uio, int flag));
-typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
-			   int flag, struct thread*td));
-typedef int l_rint_t __P((int c, struct tty *tp));
-typedef int l_start_t __P((struct tty *tp));
-typedef int l_modem_t __P((struct tty *tp, int flag));
+typedef int l_open_t(dev_t dev, struct tty *tp);
+typedef int l_close_t(struct tty *tp, int flag);
+typedef int l_read_t(struct tty *tp, struct uio *uio, int flag);
+typedef int l_write_t(struct tty *tp, struct uio *uio, int flag);
+typedef int l_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
+			   int flag, struct thread *td);
+typedef int l_rint_t(int c, struct tty *tp);
+typedef int l_start_t(struct tty *tp);
+typedef int l_modem_t(struct tty *tp, int flag);
 
 /*
  * XXX: The dummy argument can be used to do what strategy1() never
@@ -249,8 +247,8 @@ struct linesw {
 extern struct linesw linesw[];
 extern int nlinesw;
 
-int ldisc_register __P((int , struct linesw *));
-void ldisc_deregister __P((int));
+int ldisc_register(int , struct linesw *);
+void ldisc_deregister(int);
 #define LDISC_LOAD 	-1		/* Loadable line discipline */
 #endif /* _KERNEL */
 
@@ -313,28 +311,28 @@ static moduledata_t name##_mod = {					\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 
-int	cdevsw_add __P((struct cdevsw *new));
-int	cdevsw_remove __P((struct cdevsw *old));
-int	count_dev __P((dev_t dev));
-void	destroy_dev __P((dev_t dev));
-void	revoke_and_destroy_dev __P((dev_t dev));
-struct cdevsw *devsw __P((dev_t dev));
-const char *devtoname __P((dev_t dev));
-int	dev_named __P((dev_t pdev, const char *name));
-void	dev_depends __P((dev_t pdev, dev_t cdev));
-void	freedev __P((dev_t dev));
-int	iszerodev __P((dev_t dev));
-dev_t	makebdev __P((int maj, int min));
-dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)) __printflike(6, 7);
-dev_t	make_dev_alias __P((dev_t pdev, const char *fmt, ...)) __printflike(2, 3);
-int	dev2unit __P((dev_t dev));
-int	unit2minor __P((int unit));
-void	setconf __P((void));
+int	cdevsw_add(struct cdevsw *new);
+int	cdevsw_remove(struct cdevsw *old);
+int	count_dev(dev_t dev);
+void	destroy_dev(dev_t dev);
+void	revoke_and_destroy_dev(dev_t dev);
+struct cdevsw *devsw(dev_t dev);
+const char *devtoname(dev_t dev);
+int	dev_named(dev_t pdev, const char *name);
+void	dev_depends(dev_t pdev, dev_t cdev);
+void	freedev(dev_t dev);
+int	iszerodev(dev_t dev);
+dev_t	makebdev(int maj, int min);
+dev_t	make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...) __printflike(6, 7);
+dev_t	make_dev_alias(dev_t pdev, const char *fmt, ...) __printflike(2, 3);
+int	dev2unit(dev_t dev);
+int	unit2minor(int unit);
+void	setconf(void);
 dev_t	getdiskbyname(char *name);
 
 /* This is type of the function DEVFS uses to hook into the kernel with */
-typedef void devfs_create_t __P((dev_t dev));
-typedef void devfs_destroy_t __P((dev_t dev));
+typedef void devfs_create_t(dev_t dev);
+typedef void devfs_destroy_t(dev_t dev);
 
 extern devfs_create_t *devfs_create_hook;
 extern devfs_destroy_t *devfs_destroy_hook;
@@ -351,9 +349,9 @@ extern int devfs_present;
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
-typedef void (*dev_clone_fn) __P((void *arg, char *name, int namelen, dev_t *result));
+typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, dev_t *result);
 
-int dev_stdclone __P((char *name, char **namep, const char *stem, int *unit));
+int dev_stdclone(char *name, char **namep, const char *stem, int *unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 #endif /* _KERNEL */
 

@@ -54,7 +54,7 @@ struct timeb {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int ftime __P((struct timeb *));
+int ftime(struct timeb *);
 __END_DECLS
 #endif /* _KERNEL */
 

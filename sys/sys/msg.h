@@ -95,11 +95,11 @@ extern struct msginfo	msginfo;
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int msgsys __P((int, ...));
-int msgctl __P((int, int, struct msqid_ds *));
-int msgget __P((key_t, int));
-int msgsnd __P((int, void *, size_t, int));
-int msgrcv __P((int, void*, size_t, long, int));
+int msgsys(int, ...);
+int msgctl(int, int, struct msqid_ds *);
+int msgget(key_t, int);
+int msgsnd(int, void *, size_t, int);
+int msgrcv(int, void*, size_t, long, int);
 __END_DECLS
 #endif
 
