@@ -69,7 +69,4 @@ typedef	register_t	critical_t;
 /* Interrupt mask (spl, xxx_imask, etc) */
 typedef	__uint64_t	intrmask_t;
 
-/* Interrupt handler function type */
-typedef	void		inthand2_t(void *);
-
 #endif	/* _MACHTYPES_H_ */

@@ -66,7 +66,4 @@ typedef	register_t	critical_t;
 /* Interrupt mask (spl, xxx_imask, etc) */
 typedef	__uint32_t	intrmask_t;
 
-/* Interrupt handler function type. */
-typedef	void		ointhand2_t(int _device_id);
-
 #endif /* !_MACHINE_TYPES_H_ */
