@@ -374,11 +374,6 @@ agp_i810_attach(device_t dev)
 		gatt->ag_physical = pgtblctl & ~1;
 	}
 
-	/*
-	 * Make sure the chipset can see everything.
-	 */
-	agp_flush_cache();
-
 	return 0;
 }
 
