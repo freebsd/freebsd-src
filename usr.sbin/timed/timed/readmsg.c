@@ -230,6 +230,13 @@ again:
 			continue;
 		}
 
+		if (memchr(msgin.tsp_name,
+		    '\0', sizeof msgin.tsp_name) == NULL) {
+			syslog(LOG_NOTICE, "hostname field not NUL terminated "
+			    "in packet from %s", inet_ntoa(from.sin_addr));
+			continue;
+		}
+
 		fromnet = NULL;
 		for (ntp = nettab; ntp != NULL; ntp = ntp->next)
 			if ((ntp->mask & from.sin_addr.s_addr) ==
