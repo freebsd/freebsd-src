@@ -310,7 +310,7 @@ struct mbstat {
 
 /*
  * MEXTFREE(m): disassociate (and possibly free) an external object from (m).
- * 
+ *
  * If the atomic_cmpset_int() returns 0, then we effectively do nothing
  * in terms of "cleaning up" (freeing the ext buf and ref. counter) as
  * this means that either there are still references, or another thread
@@ -525,7 +525,6 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 #define	PACKET_TAG_NONE				0  /* Nadda */
 
 /* Packet tags for use with PACKET_ABI_COMPAT. */
-/* XXX excessive indentation for most of these (was: all). */
 #define	PACKET_TAG_IPSEC_IN_DONE		1  /* IPsec applied, in */
 #define	PACKET_TAG_IPSEC_OUT_DONE		2  /* IPsec applied, out */
 #define	PACKET_TAG_IPSEC_IN_CRYPTO_DONE		3  /* NIC IPsec crypto done */
@@ -551,7 +550,6 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 #define	PACKET_TAG_PF_TAG			24 /* PF tagged */
 
 /* Packet tag routines. */
-/* XXX totally disordered declarations. */
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
@@ -559,8 +557,6 @@ struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct	m_tag	*m_tag_copy(struct m_tag *, int);
 int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
-
-/* XXX sigh, we had uninlined everything. */
 
 /*
  * Initialize the list of tags associated with an mbuf.
@@ -648,7 +644,6 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 }
 
 /*
- * XXX gross style bugs in this function.
  * Obtain next_hop information associated with the mbuf, if any.
  * If a tag is present devalidate it also.
  */
