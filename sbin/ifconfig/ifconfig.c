@@ -207,13 +207,17 @@ main(argc, argv)
 		perror("ifconfig: socket");
 		exit(1);
 	}
-	if (!strcmp(name, "-a")) {
+	if (strstr(name, "-a")) {
 		struct ifconf ifc;
 #define MAX_INTERFACES 50	/* Yeah right. */
 		char buffer[MAX_INTERFACES * sizeof(struct ifreq)];
 		struct ifreq *ifptr, *end;
-		int ifflags;
+		int ifflags, selectflag = -1;
 
+		if (strstr(name, "-au"))
+			selectflag = 1;
+		if (strstr(name, "-ad"))
+			selectflag = 0;
 		ifc.ifc_len = sizeof(buffer);
 		ifc.ifc_buf = buffer;
 		if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
@@ -227,13 +231,12 @@ main(argc, argv)
 			sprintf(ifr.ifr_name,"%s",ifptr->ifr_name);
 			sprintf(name,"%s",ifptr->ifr_name);
 			close(s);
-			s = socket(af, SOCK_DGRAM, 0);
-			if (s < 0) {
+			if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
 				perror("ifconfig: socket");
 				exit(1);
 			}
 			if (ifptr->ifr_flags == ifflags)
-				ifconfig(argc,argv,af,rafp);
+				ifconfig(argc,argv,af,rafp,selectflag);
 			if(ifptr->ifr_addr.sa_len)	/* Dohw! */
 				ifptr = (struct ifreq *) ((caddr_t) ifptr +
 				ifptr->ifr_addr.sa_len -
@@ -241,23 +244,39 @@ main(argc, argv)
 			ifptr++;
 		}
 	} else
-		ifconfig(argc,argv,af,rafp);
+		ifconfig(argc,argv,af,rafp, -1);
 
 	exit (0);
 }
 
 
 
-ifconfig(argc,argv,af,rafp)
+ifconfig(argc,argv,af,rafp,flag)
 	int argc;
 	char *argv[];
 	int af;
 	struct afswtch *rafp;
+	int flag;
 {
 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
 		Perror("ioctl (SIOCGIFFLAGS)");
 		exit(1);
 	}
+
+	switch(flag) {
+	case 0:
+		if (ifr.ifr_flags & IFF_UP)
+			return(0);
+		break;
+	case 1:
+		if (!(ifr.ifr_flags & IFF_UP))
+			return(0);
+		break;
+	case -1:
+	default:
+		break;
+	}
+
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 	flags = ifr.ifr_flags;
 	if (ioctl(s, SIOCGIFMETRIC, (caddr_t)&ifr) < 0)
