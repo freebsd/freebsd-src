@@ -35,8 +35,8 @@
 .Nm VOP_LINK
 .Nd create a new name for a file
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_LINK "struct vnode *dvp" "struct vnode *vp" "struct componentname *cnp"
 .Sh DESCRIPTION

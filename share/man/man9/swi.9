@@ -32,9 +32,9 @@
 .Nm swi_sched
 .Nd register and schedule software interrupt handlers
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
-.Fd #include <sys/interrupt.h>
+.In sys/param.h
+.In sys/bus.h
+.In sys/interrupt.h
 .Vt "extern	struct ithd *tty_ithd" ;
 .Vt "extern	struct ithd *clk_ithd" ;
 .Vt "extern	void *net_ih" ;

@@ -50,8 +50,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <rune.h>
-.Fd #include <errno.h>
+.In rune.h
+.In errno.h
 .Ft int
 .Fn setrunelocale "char *locale"
 .Ft void
@@ -61,7 +61,7 @@
 .Ft int
 .Fn sputrune "rune_t rune" "char *string" "size_t n" "char **result"
 .Pp
-.Fd #include <stdio.h>
+.In stdio.h
 .Ft long
 .Fn fgetrune "FILE *stream"
 .Ft int

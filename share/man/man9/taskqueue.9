@@ -35,9 +35,9 @@
 .Nm taskqueue
 .Nd asynchronous task execution
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/queue.h>
-.Fd #include <sys/taskqueue.h>
+.In sys/param.h
+.In sys/queue.h
+.In sys/taskqueue.h
 .Bd -literal
 
 typedef void (*task_fn)(void *context, int pending);

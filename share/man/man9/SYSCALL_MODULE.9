@@ -35,9 +35,9 @@
 .Nm SYSCALL_MODULE
 .Nd syscall kernel module declaration macro
 .Sh SYNOPSIS
-.Fd #include <sys/proc.h>
-.Fd #include <sys/module.h>
-.Fd #include <sys/sysent.h>
+.In sys/proc.h
+.In sys/module.h
+.In sys/sysent.h
 .Fn SYSCALL_MODULE name "int *offset" "struct sysent new_sysent" "modeventhand_t evh" "void *arg"
 .Sh DESCRIPTION
 The

@@ -31,7 +31,7 @@
 .Nm libstand
 .Nd support library for standalone executables
 .Sh SYNOPSIS
-.Fd #include <stand.h>
+.In stand.h
 .Sh DESCRIPTION
 .Nm
 provides a set of supporting functions for standalone
@@ -175,7 +175,7 @@ Returns error messages for the subset of errno values supported by
 .It Fn assert expression
 .Pp
 Requires
-.Fd #include <assert.h>
+.In assert.h
 .It Xo
 .Ft int
 .Fn setjmp "jmp_buf env"
@@ -190,7 +190,7 @@ Defined as
 and
 .Fn _lonjmp
 respectively as there is no signal state to manipulate.  Requires
-.Fd #include <setjmp.h>
+.In setjmp.h
 .El
 .Sh CHARACTER I/O
 .Bl -hang -width 10n

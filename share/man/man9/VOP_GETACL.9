@@ -32,9 +32,9 @@
 .Nm VOP_GETACL
 .Nd retrieve access control list for a vnode
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/acl.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/acl.h
 .Ft int
 .Fn VOP_GETACL "struct vnode *vp" "acl_type_t type" "struct acl *aclp" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION

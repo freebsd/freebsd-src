@@ -35,8 +35,8 @@
 .Nm lockstatus
 .Nd kernel process locking
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/lock.h>
+.In sys/types.h
+.In sys/lock.h
 .Ft void
 .Fn lockinit "struct lock *lkp" "int prio" "char *wmesg" "int timo" "int flags"
 .Ft int

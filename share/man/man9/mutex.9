@@ -51,9 +51,9 @@
 .Nm mtx_assert
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/lock.h>
-.Fd #include <sys/mutex.h>
+.In sys/param.h
+.In sys/lock.h
+.In sys/mutex.h
 .Ft void
 .Fn mtx_init "struct mtx *mutex" "const char *description" "int opts"
 .Ft void
