@@ -54,7 +54,7 @@ regardless of the list of IPv6 interface addresses assigned to the router.
 The packet will be captured by an IPv6 TCP socket if it has the
 .Dv IN6P_FAITH
 flag turned on and it has matching address/port pairs.
-In result,
+As a result,
 .Nm
 will let you divert IPv6 TCP traffic to some specific destination addresses.
 Userland programs, such as
@@ -108,6 +108,7 @@ no packets will be captured by the
 .Nm
 interface.
 .Pp
+The
 .Nm
 interface is intended to be used on routers, not on hosts.
 .\"
