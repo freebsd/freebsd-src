@@ -598,7 +598,7 @@ umodemopen(dev, flag, mode, p)
 
 	if (ISSET(tp->t_state, TS_ISOPEN) &&
 	    ISSET(tp->t_state, TS_XCLUDE) &&
-	    p->p_ucred->cr_uid != 0)
+	    suser(p))
 		return (EBUSY);
 
 	/*
