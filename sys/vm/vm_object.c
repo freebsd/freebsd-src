@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.164 1999/08/12 08:22:57 alc Exp $
+ * $Id: vm_object.c,v 1.165 1999/08/15 21:55:20 alc Exp $
  */
 
 /*
@@ -1603,8 +1603,6 @@ vm_object_in_map( object)
 	if( _vm_object_in_map( pager_map, object, 0))
 		return 1;
 	if( _vm_object_in_map( buffer_map, object, 0))
-		return 1;
-	if( _vm_object_in_map( io_map, object, 0))
 		return 1;
 	if( _vm_object_in_map( phys_map, object, 0))
 		return 1;
