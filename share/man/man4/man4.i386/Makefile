@@ -21,6 +21,7 @@ MLINKS+=	fdc.4 ../fdc.4
 MLINKS+=	fe.4 ../fe.4
 MLINKS+=	ie.4 ../ie.4
 MLINKS+=	is.4 ../is.4
+MLINKS+=	io.4 ../io.4
 MLINKS+=	joy.4 ../joy.4
 MLINKS+=	keyboard.4 ../keyboard.4
 MLINKS+=	labpc.4 ../labpc.4
