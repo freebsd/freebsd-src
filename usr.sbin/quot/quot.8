@@ -67,7 +67,8 @@ in the standard input, for each file print out the owner (plus
 the remainder of the input line). This is traditionally used
 in the pipe:
 .Bd -literal -offset indent
-ncheck filesystem | sort +0n | quot -n filesystem
+.\" ncheck filesystem | sort +0n | quot -n filesystem
+ls -i | sed -e 's,^  *,,' | sort +0n | quot -n filesystem
 .Ed
 .Pp
 to get a report of files and their owners.
@@ -87,6 +88,7 @@ size block.
 .El
 .Sh BUGS
 .Xr ncheck
+(which would be a lot more useful than ls -i in the example above)
 does not exist in
 .Fx .
 .Sh SEE ALSO
