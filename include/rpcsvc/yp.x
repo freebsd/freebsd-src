@@ -1,3 +1,5 @@
+/* @(#)yp.x	2.1 88/08/01 4.0 RPCSRC */
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -34,7 +36,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %static const char rcsid[] =
-%	"$Id: yp.x,v 1.9 1997/10/31 12:26:52 charnier Exp $";
+%	"$Id: yp.x,v 1.10 1997/11/20 07:18:07 charnier Exp $";
 %#endif /* not lint */
 #endif
 
