@@ -31,6 +31,11 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcskeys.c,v $
+ * Revision 1.2  1994/05/14  07:00:23  rgrimes
+ * Add new option -K from David Dawes that allows you to turn on and off
+ * specific keyword substitution during a rcs co command.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
  *
@@ -63,14 +68,15 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
+libId(keysId, "$Id: rcskeys.c,v 1.2 1994/05/14 07:00:23 rgrimes Exp $")
 
 
 char const *const Keyword[] = {
     /* This must be in the same order as rcsbase.h's enum markers type. */
 	nil,
 	AUTHOR, DATE, HEADER, IDH,
-	LOCKER, LOG, RCSFILE, REVISION, SOURCE, STATE, FREEBSD
+	LOCKER, LOG, RCSFILE, REVISION, SOURCE, STATE,
+	FREEBSD
 };
 
 
@@ -79,7 +85,8 @@ char const *const Keyword[] = {
 static int ExpandKeyword[] = {
 	nil,
 	true, true, true, true,
-	true, true, true, true, true, true, true, true
+	true, true, true, true, true, true, true,
+	false
 };
 
 	enum markers
