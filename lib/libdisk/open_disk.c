@@ -45,9 +45,9 @@ Int_Open_Disk(const char *name, char *conftxt)
 	struct disk *d;
 	int i;
 	char *p, *q, *r, *a, *b, *n, *t, *sn;
-	off_t o, len, off;
+	daddr_t o, len, off;
 	u_int l, s, ty, sc, hd, alt;
-	off_t lo[10];
+	daddr_t lo[10];
 
 	for (p = conftxt; p != NULL && *p; p = strchr(p, '\n')) {
 		if (*p == '\n')
@@ -103,7 +103,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 		if (a == NULL)
 			break;
 		b = strsep(&p, " ");
-		o = strtoul(b, &r, 0);
+		o = strtoimax(b, &r, 0);
 		if (*r) {
 			printf("BARF %d <%d>\n", __LINE__, *r);
 			exit (0);
