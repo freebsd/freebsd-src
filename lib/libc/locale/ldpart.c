@@ -47,7 +47,7 @@ static int split_lines(char *, const char *);
 int
 __part_load_locale(const char *name,
 		int *using_locale,
-		char *locale_buf,
+		char **locale_buf,
 		const char *category_filename,
 		int locale_buf_size_max,
 		int locale_buf_size_min,
@@ -69,7 +69,7 @@ __part_load_locale(const char *name,
 	/*
 	 * If the locale name is the same as our cache, use the cache.
 	 */
-	if (locale_buf != NULL && strcmp(name, locale_buf) == 0) {
+	if (*locale_buf != NULL && strcmp(name, *locale_buf) == 0) {
 		*using_locale = 1;
 		return (_LDP_CACHE);
 	}
@@ -124,10 +124,10 @@ __part_load_locale(const char *name,
 	/*
 	 * Record the successful parse in the cache.
 	 */
-	if (locale_buf != NULL)
-		free(locale_buf);
-	locale_buf = lbuf;
-	for (p = locale_buf, i = 0; i < num_lines; i++)
+	if (*locale_buf != NULL)
+		free(*locale_buf);
+	*locale_buf = lbuf;
+	for (p = *locale_buf, i = 0; i < num_lines; i++)
 		dst_localebuf[i] = (p += strlen(p) + 1);
 	for (i = num_lines; i < locale_buf_size_max; i++)
 		dst_localebuf[i] = NULL;

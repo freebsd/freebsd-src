@@ -54,7 +54,7 @@ __numeric_load_locale(const char *name)
 	int ret;
 
 	ret = __part_load_locale(name, &_numeric_using_locale,
-		_numeric_locale_buf, "LC_NUMERIC",
+		&_numeric_locale_buf, "LC_NUMERIC",
 		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
 		(const char **)&_numeric_locale);
 	if (ret != _LDP_ERROR)
