@@ -174,7 +174,7 @@ Supported devices include:
 	Ethernet controllers
 		SMC/WD 8003, 8013, and equivalents
 			(including the SMC "Elite" series)
-		Novell NE1000, NE2000
+		Novell NE1000, NE2000, NE2100
 		3COM 3c503
 		ISOLAN ISOLink
 
@@ -234,6 +234,7 @@ replaced with an ed0 device.  The default settings of 9/300 have
 been changed to 5/280.
 
 ISOLAN ISOLink	is0	0x280	10	7
+Novell NE2100	is0	0x280	10	7
 
 QIC-02 Tape	wt0	0x300	5	1
 
@@ -1052,4 +1053,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.11 1993/10/19 17:33:38 rgrimes Exp $
+This is $Id: install_notes,v 1.12 1994/02/09 05:26:16 rgrimes Exp $
