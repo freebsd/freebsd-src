@@ -3744,7 +3744,7 @@ All ISDN and serial device names are expected to begin with
 ISDN devices are usually called
 .Pa i4brbchX
 and serial devices are usually called
-.Pa cuaaX .
+.Pa cuaXX .
 .Pp
 If
 .Dq value
