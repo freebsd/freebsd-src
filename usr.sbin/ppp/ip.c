@@ -651,9 +651,8 @@ PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "ESP: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
-      snprintf(logbuf + loglen, sizeof logbuf - loglen,
-               "%s, spi %08x", inet_ntoa(pip->ip_dst),
-               (u_int32_t) ptop);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s, spi %p",
+               inet_ntoa(pip->ip_dst), ptop);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -663,9 +662,8 @@ PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "AH: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
-      snprintf(logbuf + loglen, sizeof logbuf - loglen,
-               "%s, spi %08x", inet_ntoa(pip->ip_dst),
-               (u_int32_t) (ptop + sizeof(u_int32_t)));
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s, spi %p",
+               inet_ntoa(pip->ip_dst), ptop + sizeof(u_int32_t));
       loglen += strlen(logbuf + loglen);
     }
     break;
