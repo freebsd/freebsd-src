@@ -568,20 +568,14 @@ in_arpinput(m)
 	}
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
-#ifdef BRIDGE 
-		if (!do_bridge) { /* the following is not an error when doing bridging */
-#else
-		{
-#endif
-			if (rt->rt_ifp != &ac->ac_if) {
-				if (log_arp_wrong_iface)
-				log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
-				    inet_ntoa(isaddr),
-				    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
-				    ea->arp_sha, ":",
-				    ac->ac_if.if_name, ac->ac_if.if_unit);
-				goto reply;
-			}
+		/* the following is not an error when doing bridging */
+		if (!BRIDGE_TEST && rt->rt_ifp != &ac->ac_if) {
+			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
+			    inet_ntoa(isaddr),
+			    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
+			    ea->arp_sha, ":",
+			    ac->ac_if.if_name, ac->ac_if.if_unit);
+			goto reply;
 		}
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen)) {

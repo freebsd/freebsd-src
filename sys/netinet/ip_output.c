@@ -449,11 +449,10 @@ sendit:
 		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
                 /*
                  * On return we must do the following:
-                 * m == NULL         -> drop the pkt
-                 * (off & 0x40000)   -> drop the pkt (XXX new)
+                 * IP_FW_PORT_DENY_FLAG		-> drop the pkt (XXX new)
                  * 1<=off<= 0xffff   -> DIVERT
-                 * (off & 0x10000)   -> send to a DUMMYNET pipe
-                 * (off & 0x20000)   -> TEE the packet
+                 * (off & IP_FW_PORT_DYNT_FLAG)	-> send to a DUMMYNET pipe
+                 * (off & IP_FW_PORT_TEE_FLAG)	-> TEE the packet
                  * dst != old        -> IPFIREWALL_FORWARD
                  * off==0, dst==old  -> accept
                  * If some of the above modules is not compiled in, then
@@ -462,16 +461,13 @@ sendit:
                  * unsupported rules), but better play safe and drop
                  * packets in case of doubt.
                  */
-		if (off & 0x40000) {
+		if ( (off & IP_FW_PORT_DENY_FLAG) || m == NULL) {
 			if (m)
 				m_freem(m);
 			error = EACCES ;
 			goto done ;
 		}
-		if (!m) { /* firewall said to reject */
-			error = EACCES;
-			goto done;
-		}
+		ip = mtod(m, struct ip *);
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
 #ifdef DUMMYNET

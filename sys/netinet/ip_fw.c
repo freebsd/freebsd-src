@@ -900,6 +900,7 @@ lookup_next_rule(struct ip_fw_chain *me)
  *
  * Return value:
  *
+ *	IP_FW_PORT_DENY_FLAG	the packet must be dropped.
  *	0	The packet is to be accepted and routed normally OR
  *      	the packet was denied/rejected and has been dropped;
  *		in the latter case, *m is equal to NULL upon return.
@@ -1404,10 +1405,7 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
-	if (*m) {
-		return(0x40000);
-	} else
-	return(0);
+	return(IP_FW_PORT_DENY_FLAG);
 #undef BRIDGED
 }
 
