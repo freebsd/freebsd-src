@@ -39,7 +39,7 @@ options 	UFS_DIRHASH		#Improve performance on big directories
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
-options 	NFS_ROOT		#NFS usable as root device, requires NFSCLIENT
+options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
