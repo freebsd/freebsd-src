@@ -41,17 +41,8 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/poll.h>
-#if __FreeBSD_version >= 500005
-#include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
-
-#include <dev/aac/aac_compat.h>
 
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -204,9 +195,6 @@ static struct cdevsw aac_cdevsw = {
 	nodump,			/* dump */
 	nopsize,		/* psize */
 	0,			/* flags */
-#if __FreeBSD_version < 500005
-	-1,			/* bmaj */
-#endif
 };
 
 MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
@@ -236,12 +224,10 @@ aac_attach(struct aac_softc *sc)
 	aac_initq_busy(sc);
 	aac_initq_bio(sc);
 
-#if __FreeBSD_version >= 500005
 	/*
 	 * Initialise command-completion task.
 	 */
 	TASK_INIT(&sc->aac_task_complete, 0, aac_complete, sc);
-#endif
 
 	/* disable interrupts before we enable anything */
 	AAC_MASK_INTERRUPTS(sc);
@@ -294,20 +280,13 @@ aac_attach(struct aac_softc *sc)
 	unit = device_get_unit(sc->aac_dev);
 	sc->aac_dev_t = make_dev(&aac_cdevsw, unit, UID_ROOT, GID_OPERATOR,
 				 0640, "aac%d", unit);
-#if __FreeBSD_version > 500005
 	(void)make_dev_alias(sc->aac_dev_t, "afa%d", unit);
 	(void)make_dev_alias(sc->aac_dev_t, "hpn%d", unit);
-#endif
 	sc->aac_dev_t->si_drv1 = sc;
 
 	/* Create the AIF thread */
-#if __FreeBSD_version > 500005
 	if (kthread_create((void(*)(void *))aac_command_thread, sc,
 			   &sc->aifthread, 0, 0, "aac%daif", unit))
-#else
-	if (kthread_create((void(*)(void *))aac_command_thread, sc,
-			   &sc->aifthread, "aac%daif", unit))
-#endif
 		panic("Could not create AIF thread\n");
 
 	/* Register the shutdown method to only be called post-dump */
@@ -538,13 +517,10 @@ aac_shutdown(device_t dev)
 	struct aac_softc *sc;
 	struct aac_fib *fib;
 	struct aac_close_command *cc;
-	int s;
 
 	debug_called(1);
 
 	sc = device_get_softc(dev);
-
-	s = splbio();
 
 	sc->aac_state |= AAC_STATE_SUSPEND;
 
@@ -586,7 +562,6 @@ aac_shutdown(device_t dev)
 
 	AAC_MASK_INTERRUPTS(sc);
 
-	splx(s);
 	return(0);
 }
 
@@ -597,18 +572,14 @@ int
 aac_suspend(device_t dev)
 {
 	struct aac_softc *sc;
-	int s;
 
 	debug_called(1);
 
 	sc = device_get_softc(dev);
 
-	s = splbio();
-
 	sc->aac_state |= AAC_STATE_SUSPEND;
 	
 	AAC_MASK_INTERRUPTS(sc);
-	splx(s);
 	return(0);
 }
 
@@ -845,9 +816,7 @@ aac_command_thread(struct aac_softc *sc)
 	sc->aifflags &= ~AAC_AIFFLAGS_RUNNING;
 	wakeup(sc->aac_dev);
 
-#if __FreeBSD_version > 500005
 	mtx_lock(&Giant);
-#endif
 	kthread_exit(0);
 }
 
@@ -966,7 +935,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 
 	/* build the read/write request */
 	ad = (struct aac_disk *)bp->bio_disk->d_drv1;
-	if (BIO_IS_READ(bp)) {
+	if (bp->bio_cmd == BIO_READ) {
 		br = (struct aac_blockread *)&fib->data[0];
 		br->Command = VM_CtBlockRead;
 		br->ContainerId = ad->ad_container->co_mntobj.ObjectId;
@@ -1011,7 +980,7 @@ aac_bio_complete(struct aac_command *cm)
 
 	/* fetch relevant status and then release the command */
 	bp = (struct bio *)cm->cm_private;
-	if (BIO_IS_READ(bp)) {
+	if (bp->bio_cmd == BIO_READ) {
 		brr = (struct aac_blockread_response *)&cm->cm_fib->data[0];
 		status = brr->Status;
 	} else {
@@ -1710,7 +1679,7 @@ static int
 aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 {
 	u_int32_t pi, ci;
-	int s, error;
+	int error;
 	u_int32_t fib_size;
 	u_int32_t fib_addr;
 
@@ -1718,8 +1687,6 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 
 	fib_size = cm->cm_fib->Header.Size; 
 	fib_addr = cm->cm_fib->Header.ReceiverFibAddress;
-
-	s = splbio();
 
 	/* get the producer/consumer indices */
 	pi = sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX];
@@ -1755,7 +1722,6 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 	error = 0;
 
 out:
-	splx(s);
 	return(error);
 }
 
@@ -1768,12 +1734,10 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 		struct aac_fib **fib_addr)
 {
 	u_int32_t pi, ci;
-	int s, error;
+	int error;
 	int notify;
 
 	debug_called(3);
-
-	s = splbio();
 
 	/* get the producer/consumer indices */
 	pi = sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX];
@@ -1816,7 +1780,6 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 	error = 0;
 
 out:
-	splx(s);
 	return(error);
 }
 
@@ -1827,7 +1790,7 @@ static int
 aac_enqueue_response(struct aac_softc *sc, int queue, struct aac_fib *fib)
 {
 	u_int32_t pi, ci;
-	int s, error;
+	int error;
 	u_int32_t fib_size;
 	u_int32_t fib_addr;
 
@@ -1837,8 +1800,6 @@ aac_enqueue_response(struct aac_softc *sc, int queue, struct aac_fib *fib)
 	fib_size = fib->Header.Size; 
 	fib_addr = fib->Header.SenderFibAddress;
 	fib->Header.ReceiverFibAddress = fib_addr;
-
-	s = splbio();
 
 	/* get the producer/consumer indices */
 	pi = sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX];
@@ -1868,7 +1829,6 @@ aac_enqueue_response(struct aac_softc *sc, int queue, struct aac_fib *fib)
 	error = 0;
 
 out:
-	splx(s);
 	return(error);
 }
 
@@ -1879,7 +1839,6 @@ out:
 static void
 aac_timeout(struct aac_softc *sc)
 {
-	int s;
 	struct aac_command *cm;
 	time_t deadline;
 
@@ -1888,7 +1847,6 @@ aac_timeout(struct aac_softc *sc)
 	 * only.
 	 */
 	deadline = time_second - AAC_CMD_TIMEOUT;
-	s = splbio();
 	TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
 		if ((cm->cm_timestamp  < deadline)
 			/* && !(cm->cm_flags & AAC_CMD_TIMEDOUT) */) {
@@ -1899,7 +1857,6 @@ aac_timeout(struct aac_softc *sc)
 			AAC_PRINT_FIB(sc, cm->cm_fib);
 		}
 	}
-	splx(s);
 
 	return;
 }
@@ -2627,7 +2584,7 @@ static int
 aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 {
 	struct get_adapter_fib_ioctl agf;
-	int error, s;
+	int error;
 
 	debug_called(2);
 
@@ -2639,10 +2596,7 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 		if (agf.AdapterFibContext != (int)sc->aifthread) {
 			error = EFAULT;
 		} else {
-	
-			s = splbio();
 			error = aac_return_aif(sc, agf.AifFib);
-	
 			if ((error == EAGAIN) && (agf.Wait)) {
 				sc->aac_state |= AAC_STATE_AIF_SLEEPER;
 				while (error == EAGAIN) {
@@ -2654,7 +2608,6 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 				}
 				sc->aac_state &= ~AAC_STATE_AIF_SLEEPER;
 			}
-		splx(s);
 		}
 	}
 	return(error);

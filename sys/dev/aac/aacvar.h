@@ -29,6 +29,12 @@
  *	$FreeBSD$
  */
 
+#include <sys/bio.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/taskqueue.h>
+#include <sys/selinfo.h>
+
 /*
  * Driver Parameter Definitions
  */
@@ -84,19 +90,6 @@
  * controller.
  */
 #define AAC_PERIODIC_INTERVAL	20		/* seconds */
-
-/*
- * Character device major numbers.
- */
-#define AAC_DISK_MAJOR	200
-
-/*
- * Driver Variable Definitions
- */
-
-#if __FreeBSD_version >= 500005
-# include <sys/taskqueue.h>
-#endif
 
 /*
  * Per-container data structure
@@ -267,25 +260,11 @@ extern struct aac_interface	aac_fa_interface;
 					sc->aac_bhandle, reg)
 
 /* Define the OS version specific locks */
-#if __FreeBSD_version >= 500005
-#include <sys/lock.h>
-#include <sys/mutex.h>
 typedef struct mtx aac_lock_t;
 #define AAC_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF)
 #define AAC_LOCK_ACQUIRE(l)	mtx_lock(l)
 #define AAC_LOCK_RELEASE(l)	mtx_unlock(l)
-#else
-typedef struct simplelock aac_lock_t;
-#define AAC_LOCK_INIT(l, s)	simple_lock_init(l)
-#define AAC_LOCK_ACQUIRE(l)	simple_lock(l)
-#define AAC_LOCK_RELEASE(l)	simple_unlock(l)
-#endif
 
-#if __FreeBSD_version >= 500005
-#include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 
 /*
  * Per-controller structure.
@@ -358,10 +337,8 @@ struct aac_softc
 	aac_lock_t		aac_io_lock;
 
 	/* delayed activity infrastructure */
-#if __FreeBSD_version >= 500005
 	struct task		aac_task_complete;	/* deferred-completion
 							 * task */
-#endif
 	struct intr_config_hook	aac_ich;
 
 	/* management interface */
@@ -488,9 +465,6 @@ aac_initq_ ## name (struct aac_softc *sc)				\
 static __inline void							\
 aac_enqueue_ ## name (struct aac_command *cm)				\
 {									\
-	int s;								\
-									\
-	s = splbio();							\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
 		printf("command %p is on another queue, flags = %#x\n",	\
 		       cm, cm->cm_flags);				\
@@ -499,14 +473,10 @@ aac_enqueue_ ## name (struct aac_command *cm)				\
 	TAILQ_INSERT_TAIL(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
 	AACQ_ADD(cm->cm_sc, index);					\
-	splx(s);							\
 }									\
 static __inline void							\
 aac_requeue_ ## name (struct aac_command *cm)				\
 {									\
-	int s;								\
-									\
-	s = splbio();							\
 	if ((cm->cm_flags & AAC_ON_AACQ_MASK) != 0) {			\
 		printf("command %p is on another queue, flags = %#x\n",	\
 		       cm, cm->cm_flags);				\
@@ -515,15 +485,12 @@ aac_requeue_ ## name (struct aac_command *cm)				\
 	TAILQ_INSERT_HEAD(&cm->cm_sc->aac_ ## name, cm, cm_link);	\
 	cm->cm_flags |= AAC_ON_ ## index;				\
 	AACQ_ADD(cm->cm_sc, index);					\
-	splx(s);							\
 }									\
 static __inline struct aac_command *					\
 aac_dequeue_ ## name (struct aac_softc *sc)				\
 {									\
 	struct aac_command *cm;						\
-	int s;								\
 									\
-	s = splbio();							\
 	if ((cm = TAILQ_FIRST(&sc->aac_ ## name)) != NULL) {		\
 		if ((cm->cm_flags & AAC_ON_ ## index) == 0) {		\
 			printf("command %p not in queue, flags = %#x, "	\
@@ -535,15 +502,11 @@ aac_dequeue_ ## name (struct aac_softc *sc)				\
 		cm->cm_flags &= ~AAC_ON_ ## index;			\
 		AACQ_REMOVE(sc, index);					\
 	}								\
-	splx(s);							\
 	return(cm);							\
 }									\
 static __inline void							\
 aac_remove_ ## name (struct aac_command *cm)				\
 {									\
-	int s;								\
-									\
-	s = splbio();							\
 	if ((cm->cm_flags & AAC_ON_ ## index) == 0) {			\
 		printf("command %p not in queue, flags = %#x, "		\
 		       "bit = %#x\n", cm, cm->cm_flags, 		\
@@ -553,7 +516,6 @@ aac_remove_ ## name (struct aac_command *cm)				\
 	TAILQ_REMOVE(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
 	cm->cm_flags &= ~AAC_ON_ ## index;				\
 	AACQ_REMOVE(cm->cm_sc, index);					\
-	splx(s);							\
 }									\
 struct hack
 
@@ -574,26 +536,19 @@ aac_initq_bio(struct aac_softc *sc)
 static __inline void
 aac_enqueue_bio(struct aac_softc *sc, struct bio *bp)
 {
-	int s;
-
-	s = splbio();
 	bioq_insert_tail(&sc->aac_bioq, bp);
 	AACQ_ADD(sc, AACQ_BIO);
-	splx(s);
 }
 
 static __inline struct bio *
 aac_dequeue_bio(struct aac_softc *sc)
 {
-	int s;
 	struct bio *bp;
 
-	s = splbio();
 	if ((bp = bioq_first(&sc->aac_bioq)) != NULL) {
 		bioq_remove(&sc->aac_bioq, bp);
 		AACQ_REMOVE(sc, AACQ_BIO);
 	}
-	splx(s);
 	return(bp);
 }
 

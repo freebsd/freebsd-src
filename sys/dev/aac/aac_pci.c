@@ -39,7 +39,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 
-#include <dev/aac/aac_compat.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
