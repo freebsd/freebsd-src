@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.41 1998/04/30 23:53:23 brian Exp $
+ * $Id: ccp.c,v 1.30.2.42 1998/05/01 19:23:57 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -540,9 +540,11 @@ int
 ccp_Compress(struct ccp *ccp, struct link *l, int pri, u_short proto,
              struct mbuf *m)
 {
-  /* Compress outgoing Network Layer data */
-  if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED &&
-      ccp->out.state != NULL)
+  /*
+   * Compress outgoing data.  It's already deemed to be suitable Network
+   * Layer data.
+   */
+  if (ccp->fsm.state == ST_OPENED && ccp->out.state != NULL)
     return (*algorithm[ccp->out.algorithm]->o.Write)
              (ccp->out.state, ccp, l, pri, proto, m);
   return 0;
@@ -566,7 +568,7 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
                  (ccp->in.state, ccp, proto, bp);
       mbuf_Free(bp);
       bp = NULL;
-    } else if ((*proto & 0xfff1) == 0x21 && ccp->in.state != NULL)
+    } else if (PROTO_COMPRESSIBLE(*proto) && ccp->in.state != NULL)
       /* Add incoming Network Layer traffic to our dictionary */
       (*algorithm[ccp->in.algorithm]->i.DictSetup)
         (ccp->in.state, ccp, *proto, bp);

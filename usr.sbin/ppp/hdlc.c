@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.34 1998/05/08 01:15:07 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.35 1998/05/11 23:39:30 brian Exp $
  *
  *	TODO:
  */
@@ -454,11 +454,23 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
   }
 }
 
+static int
+hdlc_GetProto(const u_char *cp, u_short *proto)
+{
+  *proto = *cp;
+  if (!(*proto & 1)) {
+    *proto = (*proto << 8) | cp[1];
+    return 2;
+  }
+  return 1;
+}
+
 void
 hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
 {
   u_short fcs, proto;
   u_char *cp, addr, ctrl;
+  int n;
 
   log_DumpBp(LogHDLC, "hdlc_Input:", bp);
   if (physical_IsSync(physical))
@@ -485,9 +497,7 @@ hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   cp = MBUF_CTOP(bp);
 
   if (!physical->link.lcp.want_acfcomp) {
-    /*
-     * We expect that packet is not compressed.
-     */
+    /* We expect the packet not to be compressed */
     addr = *cp++;
     if (addr != HDLC_ADDR) {
       physical->hdlc.lqm.SaveInErrors++;
@@ -507,31 +517,21 @@ hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     bp->offset += 2;
     bp->cnt -= 2;
   } else if (cp[0] == HDLC_ADDR && cp[1] == HDLC_UI) {
-
     /*
-     * We can receive compressed packet, but peer still send uncompressed
-     * packet to me.
+     * We can receive compressed packets, but the peer still sends
+     * uncompressed packets !
      */
     cp += 2;
     bp->offset += 2;
     bp->cnt -= 2;
   }
-  if (physical->link.lcp.want_protocomp) {
-    proto = 0;
-    cp--;
-    do {
-      cp++;
-      bp->offset++;
-      bp->cnt--;
-      proto = proto << 8;
-      proto += *cp;
-    } while (!(proto & 1));
-  } else {
-    proto = *cp++ << 8;
-    proto |= *cp++;
-    bp->offset += 2;
-    bp->cnt -= 2;
-  }
+
+  n = hdlc_GetProto(cp, &proto);
+  bp->offset += n;
+  bp->cnt -= n;
+  if (!physical->link.lcp.want_protocomp && n == 1)
+    log_Printf(LogHDLC, "%s: Warning: received a proto-compressed packet !\n",
+               physical->link.name);
 
   link_ProtocolRecord(&physical->link, proto, PROTO_IN);
   physical->hdlc.lqm.SaveInPackets++;

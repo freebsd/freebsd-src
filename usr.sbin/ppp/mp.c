@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.26 1998/05/08 01:15:16 brian Exp $
+ *	$Id: mp.c,v 1.1.2.27 1998/05/10 22:20:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -167,6 +167,8 @@ static void
 mp_LayerFinish(void *v, struct fsm *fp)
 {
   /* The given fsm (ccp) is now down */
+  if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
+    fsm_Open(fp);		/* CCP goes to ST_STOPPED */
 }
 
 void
@@ -526,7 +528,8 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, u_int32_t begin,
               mp->out.seq, mbuf_Length(mo), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
-  hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
+  if (!ccp_Compress(&l->ccp, l, PRI_NORMAL, PROTO_MP, mo))
+    hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
 }
 
 int

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcpproto.h,v 1.10 1997/10/26 12:42:12 brian Exp $
+ * $Id: lcpproto.h,v 1.10.2.1 1998/04/03 19:21:31 brian Exp $
  *
  *	TODO:
  */
@@ -29,6 +29,8 @@
 #define	PROTO_MP	0x003d	/* Multilink fragment */
 #define	PROTO_ICOMPD	0x00fb	/* Individual link compressed */
 #define	PROTO_COMPD	0x00fd	/* Compressed datagram */
+
+#define PROTO_COMPRESSIBLE(p) (((p) & 0xffe1) == 0x21)
 
 #define	PROTO_IPCP	0x8021
 #define	PROTO_ICCP	0x80fb

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.14 1998/04/25 10:48:56 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.15 1998/05/01 19:24:25 brian Exp $
  */
 
 #include <sys/types.h>
@@ -147,8 +147,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
 
   /*
    * If the output packet (including seqno and excluding the EMPTY_BLOCK)
-   * got bigger, send the original - returning 0 to hdlc_Output() will
-   * continue to send ``mp''.
+   * got bigger, send the original.
    */
   if (olen >= ilen) {
     mbuf_Free(mo_head);

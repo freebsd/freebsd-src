@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.31 1998/05/10 09:26:21 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.32 1998/05/13 19:06:27 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2130,13 +2130,21 @@ command below.
 .Pp
 The default link name is
 .Dq deflink .
-.It close Op lcp|ccp
+.It close Op lcp|ccp[!]
 If no arguments are given, or if
 .Dq lcp
 is specified, the link will be closed.  If
 .Dq ccp
-is specified, only the relevent compression layer is closed.  Either way,
-this command does not disconnect the user from ppp or exit ppp.  See the
+is specified, only the relevent compression layer is closed.  If the
+.Dq \&!
+is used, the compression layer will remain in the closed state, otherwise
+it will re-enter the STOPPED state, waiting for the peer to initiate
+further CCP negotiation.  In any event, this command does not disconnect
+the user from
+.Nm
+or exit
+.Nm ppp .
+See the
 .Dq quit
 command below.
 .It delete[!] Ar dest
@@ -2172,9 +2180,13 @@ scripts for the given
 .Ar label .
 Otherwise, the current settings are used to establish
 the connection.
-.It down
-Bring the link down ungracefully, as if the physical layer had become
-unavailable.  It's not considered polite to use this command.
+.It down Op Ar lcp|ccp
+Bring the relevent layer down ungracefully, as if the underlying layer
+had become unavailable.  It's not considered polite to use this command on
+a Finite State Machine that's in the OPEN state.  If no arguments are
+supplied,
+.Sq lcp
+is assumed.
 .It help|? Op Ar command
 Show a list of available commands.  If
 .Ar command

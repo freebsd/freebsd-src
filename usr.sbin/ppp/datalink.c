@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.58 1998/05/09 13:52:12 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.59 1998/05/11 23:39:29 brian Exp $
  */
 
 #include <sys/types.h>
@@ -456,10 +456,12 @@ datalink_AuthOk(struct datalink *dl)
         /* We've handed the link off to another ppp ! */
         return;
       case MP_UP:
+        /* First link in the bundle */
         auth_Select(dl->bundle, dl->peer.authname, dl->physical);
-        break;
+        /* fall through */
       case MP_ADDED:
-        /* We were already in multilink mode ! */
+        /* We're in multilink mode ! */
+        dl->physical->link.ccp.fsm.open_mode = OPEN_PASSIVE;
         break;
       case MP_FAILED:
         datalink_AuthNotOk(dl);
@@ -522,7 +524,8 @@ datalink_LayerFinish(void *v, struct fsm *fp)
     fsm_Down(fp);	/* Bring us to INITIAL or STARTING */
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, 0);
-  }
+  } else if (fp->state == ST_CLOSED && fp->open_mode == OPEN_PASSIVE)
+    fsm_Open(fp);		/* CCP goes to ST_STOPPED */
 }
 
 struct datalink *

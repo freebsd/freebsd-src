@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.81 1998/05/08 18:50:14 brian Exp $
+ * $Id: command.c,v 1.131.2.82 1998/05/10 09:26:17 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/08 18:50:14 $";
+const char VersionDate[] = "$Date: 1998/05/10 09:26:17 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -431,7 +431,7 @@ static struct cmdtab const Commands[] = {
   "Dial and login", "dial|call [remote]"},
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
-  {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX,
+  {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Generate a down event", "down"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
@@ -810,8 +810,14 @@ OpenCommand(struct cmdargs const *arg)
     if (fp->link->lcp.fsm.state != ST_OPENED)
       log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
     else if (fp->state != ST_OPENED) {
-      fsm_Up(fp);
-      fsm_Open(fp);
+      fp->open_mode = 0;	/* Not passive any more */
+      if (fp->state == ST_STOPPED) {
+        fsm_Down(fp);
+        fsm_Up(fp);
+      } else {
+        fsm_Up(fp);
+        fsm_Open(fp);
+      }
     }
   } else
     return -1;
@@ -826,11 +832,17 @@ CloseCommand(struct cmdargs const *arg)
       (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp")))
     bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
   else if (arg->argc == arg->argn+1 &&
-           !strcasecmp(arg->argv[arg->argn], "ccp")) {
+           (!strcasecmp(arg->argv[arg->argn], "ccp") ||
+            !strcasecmp(arg->argv[arg->argn], "ccp!"))) {
     struct fsm *fp = &command_ChooseLink(arg)->ccp.fsm;
 
-    if (fp->state == ST_OPENED)
+    if (fp->state == ST_OPENED) {
       fsm_Close(fp);
+      if (arg->argv[arg->argn][3] == '!')
+        fp->open_mode = 0;		/* Stay ST_CLOSED */
+      else
+        fp->open_mode = OPEN_PASSIVE;	/* Wait for the peer to start */
+    }
   } else
     return -1;
 
@@ -840,7 +852,21 @@ CloseCommand(struct cmdargs const *arg)
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  datalink_Down(arg->cx, 1);
+  if (arg->argc == arg->argn ||
+      (arg->argc == arg->argn+1 && !strcasecmp(arg->argv[arg->argn], "lcp"))) {
+    if (arg->cx)
+      datalink_Down(arg->cx, 1);
+    else
+      bundle_Down(arg->bundle);
+  } else if (arg->argc == arg->argn+1 &&
+           !strcasecmp(arg->argv[arg->argn], "ccp")) {
+    struct fsm *fp = arg->cx ? &arg->cx->physical->link.ccp.fsm :
+                               &arg->bundle->ncp.mp.link.ccp.fsm;
+    fsm_Down(fp);
+    fsm_Close(fp);
+  } else
+    return -1;
+
   return 0;
 }
 
