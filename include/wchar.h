@@ -69,6 +69,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <machine/_limits.h>
 
 #ifndef NULL
 #define	NULL	0
@@ -94,6 +95,11 @@ typedef	__wchar_t	wchar_t;
 #ifndef _WINT_T_DECLARED
 typedef	__wint_t	wint_t;
 #define	_WINT_T_DECLARED
+#endif
+
+#ifndef	WCHAR_MIN 
+#define	WCHAR_MIN	__INT_MIN
+#define	WCHAR_MAX	__INT_MAX
 #endif
 
 #ifndef WEOF
