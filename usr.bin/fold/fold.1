@@ -32,7 +32,7 @@
 .\"	@(#)fold.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2002
+.Dd August 2, 2004
 .Dt FOLD 1
 .Os
 .Sh NAME
@@ -69,8 +69,18 @@ be expanded using
 before using
 .Nm .
 .El
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh SEE ALSO
-.Xr expand 1
+.Xr expand 1 ,
+.Xr fmt 1
 .Sh STANDARDS
 The
 .Nm
