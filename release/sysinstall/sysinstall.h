@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.76 1996/07/31 06:20:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.77 1996/07/31 09:29:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -295,6 +295,7 @@ extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
+extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/

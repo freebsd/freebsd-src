@@ -23,11 +23,15 @@
 
 #include "sysinstall.h"
 
+#define VTY_STATUS_LINE    24
+#define TTY_STATUS_LINE    23
+
 int
 set_termcap(void)
 {
     char           *term;
     int		   stat;
+    struct ttysize ts;
 
     OnVTY = FALSE;
     term = getenv("TERM");
@@ -76,5 +80,10 @@ set_termcap(void)
 	}
 	OnVTY = TRUE;
     }
+    if (ioctl(0, TIOCGSIZE, &ts) == -1) {
+	msgDebug("Unable to get terminal size - errno %d\n", errno);
+	ts.ts_lines = OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE;
+    }
+    StatusLine = ts.ts_lines;
     return 0;
 }
