@@ -28,6 +28,8 @@
 
 #include <locale.h>
 #include <langinfo.h>
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include "../stdtime/timelocal.h"
 #include "lnumeric.h"
@@ -40,6 +42,7 @@ char *
 nl_langinfo(nl_item item) {
 
    char *ret, *s, *cs;
+   static char *csym = NULL;
 
    switch (item) {
 	case CODESET:
@@ -127,10 +130,24 @@ nl_langinfo(nl_item item) {
 		ret = (char*) __get_current_messages_locale()->nostr;
 		break;
 	case CRNCYSTR:          /* deprecated */
-		/* XXX: need to be implemented */
-		/* __get_current_monetary_locale()->currency_symbol    */
-		/* but requare special +-. prefixes according to SUSV2 */
 		ret = "";
+		cs = (char*) __get_current_monetary_locale()->currency_symbol;
+		if (*cs != '\0') {
+			char psn = '\0';
+			char pos = localeconv()->p_cs_precedes;
+
+			if (pos < CHAR_MAX && pos == localeconv()->n_cs_precedes)
+				psn = pos ? '-' : '+';   /* can't sense '.' */
+			if (psn != '\0') {
+				int clen = strlen(cs);
+
+				if ((csym = reallocf(csym, clen + 2)) != NULL) {
+					*csym = psn;
+					strcpy(csym + 1, cs);
+					ret = csym;
+				}
+			}
+		}
 		break;
 	default:
 		ret = "";
