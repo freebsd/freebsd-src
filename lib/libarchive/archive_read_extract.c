@@ -340,10 +340,6 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 
 /*
  * Keep trying until we either open the file or run out of tricks.
- *
- * Note: the GNU tar 'unlink first' option seems redundant
- * with this strategy, since we never actually write over an
- * existing file.  (If it already exists, we remove it.)
  */
 static int
 archive_read_extract_regular_open(struct archive *a,
@@ -351,7 +347,14 @@ archive_read_extract_regular_open(struct archive *a,
 {
 	int fd;
 
-	fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
+	/*
+	 * If we're not supposed to overwrite pre-existing files,
+	 * use O_EXCL.  Otherwise, use O_TRUNC.
+	 */
+	if (flags & (ARCHIVE_EXTRACT_UNLINK | ARCHIVE_EXTRACT_NO_OVERWRITE))
+		fd = open(name, O_WRONLY | O_CREAT | O_EXCL, mode);
+	else
+		fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, mode);
 	if (fd >= 0)
 		return (fd);
 
@@ -434,7 +437,7 @@ archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
 	if (errno != EEXIST)
 		return (ARCHIVE_WARN);
 	if ((flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
-		archive_set_error(a, EEXIST, "Directory already exists");
+		archive_set_error(a, EEXIST, "Can't create directory");
 		return (ARCHIVE_WARN);
 	}
 
@@ -442,6 +445,14 @@ archive_read_extract_dir_create(struct archive *a, const char *name, int mode,
 	if (unlink(name) == 0 &&
 	    mkdir(name, mode) == 0)
 		return (ARCHIVE_OK);
+
+	/*
+	 * XXX TODO: If we get here, just stat() the file on disk and
+	 * figure out what's really going on, rather than depending on
+	 * such platform vagaries as the precise return value from
+	 * unlink().  That would make the following a lot more
+	 * straightforward. XXX
+	 */
 
 	/* Unlink failed. It's okay if it failed because it's already a dir. */
 	/*
@@ -476,6 +487,14 @@ static int
 archive_read_extract_hard_link(struct archive *a, struct archive_entry *entry,
     int flags)
 {
+	/*
+	 * XXX Should we suppress the unlink here unless
+	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
+	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
+	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for hard
+	 * links.) XXX
+	 */
+
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(archive_entry_pathname(entry));
@@ -499,6 +518,14 @@ static int
 archive_read_extract_symbolic_link(struct archive *a,
     struct archive_entry *entry, int flags)
 {
+	/*
+	 * XXX Should we suppress the unlink here unless
+	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
+	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
+	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for hard
+	 * links.) XXX
+	 */
+
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
 		unlink(archive_entry_pathname(entry));
@@ -525,6 +552,14 @@ archive_read_extract_device(struct archive *a, struct archive_entry *entry,
     int flags, mode_t mode)
 {
 	int r;
+
+	/*
+	 * XXX Should we suppress the unlink here unless
+	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
+	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
+	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for device
+	 * nodes) XXX
+	 */
 
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
@@ -579,6 +614,13 @@ archive_read_extract_fifo(struct archive *a,
     struct archive_entry *entry, int flags)
 {
 	int r;
+
+	/*
+	 * XXX Should we suppress the unlink here unless
+	 * ARCHIVE_EXTRACT_UNLINK?  That would make the
+	 * !ARCHIVE_EXTRACT_UNLINK case the same as the
+	 * ARCHIVE_EXTRACT_NO_OVERWRITE case (at least for fifos.) XXX
+	 */
 
 	/* Just remove any pre-existing file with this name. */
 	if (!(flags & ARCHIVE_EXTRACT_NO_OVERWRITE))
@@ -747,7 +789,7 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 	 * So, any restoration of ctime will necessarily be OS-specific.
 	 */
 
-	/* TODO: Can FreeBSD restore ctime? */
+	/* XXX TODO: Can FreeBSD restore ctime? XXX */
 
 	return (ARCHIVE_OK);
 }
