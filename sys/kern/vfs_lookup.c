@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -54,6 +55,19 @@
 #endif
 
 #include <vm/vm_zone.h>
+
+/*
+ * Allocation zone for namei
+ */
+struct vm_zone *namei_zone;
+
+static void
+nameiinit(void *dummy __unused)
+{
+
+	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
+}
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
 
 /*
  * Convert a pathname into a pointer to a locked inode.
