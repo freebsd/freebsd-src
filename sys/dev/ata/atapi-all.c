@@ -199,15 +199,17 @@ atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data,
 	TAILQ_INSERT_HEAD(&atadev->channel->atapi_queue, request, chain);
     else
 	TAILQ_INSERT_TAIL(&atadev->channel->atapi_queue, request, chain);
-    splx(s);
     ata_start(atadev->channel);
 
     /* if callback used, then just return, gets called from interrupt context */
-    if (callback)
+    if (callback) {
+	splx(s);
 	return 0;
+    }
 
     /* wait for request to complete */
     tsleep((caddr_t)request, PRIBIO, "atprq", 0);
+    splx(s);
     error = request->error;
     if (error)
 	 bcopy(&request->sense, atadev->result, sizeof(struct atapi_reqsense));
@@ -660,6 +662,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0x1a: return ("MODE_SENSE");
     case 0x1b: return ("START_STOP");
     case 0x1e: return ("PREVENT_ALLOW");
+    case 0x23: return ("ATAPI_READ_FORMAT_CAPACITIES");
     case 0x25: return ("READ_CAPACITY");
     case 0x28: return ("READ_BIG");
     case 0x2a: return ("WRITE_BIG");

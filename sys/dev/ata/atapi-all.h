@@ -82,6 +82,7 @@
 #define	    SS_RETENSION			0x02
 #define	    SS_EJECT				0x04
 #define ATAPI_PREVENT_ALLOW		0x1e	/* media removal */
+#define ATAPI_READ_FORMAT_CAPACITIES	0x23	/* get format capacities */
 #define ATAPI_READ_CAPACITY		0x25	/* get volume capacity */
 #define ATAPI_READ_BIG			0x28	/* read data */
 #define ATAPI_WRITE_BIG			0x2a	/* write data */
