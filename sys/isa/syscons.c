@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.16 1993/10/28 06:15:14 rgrimes Exp $
+ *	$Id: syscons.c,v 1.17 1993/10/31 00:09:02 jkh Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -1126,7 +1126,7 @@ static rand()
 	return ((rand_next = rand_next * 1103515245 + 12345) & 0x7FFFFFFF);
 }
 #endif
-#ifdef STAR_SAVER
+#if defined(STAR_SAVER) && !defined(SNAKE_SAVER)
 /*
  * Alternate saver that got its inspiration from a well known utility
  * package for an unfamous OS.
@@ -1181,7 +1181,7 @@ static void scrn_saver(int test)
 	}
 }
 #endif
-#ifdef SNAKE_SAVER
+#if defined(SNAKE_SAVER) && !defined(STAR_SAVER)
 /*
  * alternative screen saver for cards that do not like blanking
  */
