@@ -195,6 +195,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
+	object->root = NULL;
 	object->type = type;
 	object->size = size;
 	object->ref_count = 1;

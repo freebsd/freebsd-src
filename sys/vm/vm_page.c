@@ -319,25 +319,6 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	return (vaddr);
 }
 
-/*
- *	vm_page_hash:
- *
- *	Distributes the object/offset key pair among hash buckets.
- *
- *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
- *	This routine may not block.
- *
- *	We try to randomize the hash based on the object to spread the pages
- *	out in the hash table without it costing us too much.
- */
-static __inline int
-vm_page_hash(vm_object_t object, vm_pindex_t pindex)
-{
-	int i = ((uintptr_t)object + pindex) ^ object->hash_rand;
-
-	return (i & vm_page_hash_mask);
-}
-
 void
 vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
@@ -576,6 +557,63 @@ vm_page_undirty(vm_page_t m)
 }
 
 /*
+ *	vm_page_splay:
+ *
+ *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
+ *	the vm_page containing the given pindex.  If, however, that
+ *	pindex is not found in the vm_object, returns a vm_page that is
+ *	adjacent to the pindex, coming before or after it.
+ */
+static vm_page_t
+vm_page_splay(vm_pindex_t pindex, vm_page_t root)
+{
+	struct vm_page dummy;
+	vm_page_t lefttreemax, righttreemin, y;
+
+	if (root == NULL)
+		return (root);
+	lefttreemax = righttreemin = &dummy;
+	for (;; root = y) {
+		if (pindex < root->pindex) {
+			if ((y = root->left) == NULL)
+				break;
+			if (pindex < y->pindex) {
+				/* Rotate right. */
+				root->left = y->right;
+				y->right = root;
+				root = y;
+				if ((y = root->left) == NULL)
+					break;
+			}
+			/* Link into the new root's right tree. */
+			righttreemin->left = root;
+			righttreemin = root;
+		} else if (pindex > root->pindex) {
+			if ((y = root->right) == NULL)
+				break;
+			if (pindex > y->pindex) {
+				/* Rotate left. */
+				root->right = y->left;
+				y->left = root;
+				root = y;
+				if ((y = root->right) == NULL)
+					break;
+			}
+			/* Link into the new root's left tree. */
+			lefttreemax->right = root;
+			lefttreemax = root;
+		} else
+			break;
+	}
+	/* Assemble the new root. */
+	lefttreemax->right = root->left;
+	righttreemin->left = root->right;
+	root->left = dummy.right;
+	root->right = dummy.left;
+	return (root);
+}
+
+/*
  *	vm_page_insert:		[ internal use only ]
  *
  *	Inserts the given mem entry into the object and object list.
@@ -591,7 +629,7 @@ vm_page_undirty(vm_page_t m)
 void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	struct vm_page **bucket;
+	vm_page_t root;
 
 	GIANT_REQUIRED;
 
@@ -605,18 +643,25 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	m->pindex = pindex;
 
 	/*
-	 * Insert it into the object_object/offset hash table
+	 * Now link into the object's ordered list of backed pages.
 	 */
-	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	mtx_lock_spin(&vm_page_buckets_mtx);
-	m->hnext = *bucket;
-	*bucket = m;
-	mtx_unlock_spin(&vm_page_buckets_mtx);
-
-	/*
-	 * Now link into the object's list of backed pages.
-	 */
-	TAILQ_INSERT_TAIL(&object->memq, m, listq);
+	root = vm_page_splay(pindex, object->root);
+	if (root == NULL) {
+		m->left = NULL;
+		m->right = NULL;
+		TAILQ_INSERT_TAIL(&object->memq, m, listq);
+	} else if (pindex < root->pindex) {
+		m->left = root->left;
+		m->right = root;
+		root->left = NULL;
+		TAILQ_INSERT_BEFORE(root, m, listq);
+	} else {
+		m->right = root->right;
+		m->left = root;
+		root->right = NULL;
+		TAILQ_INSERT_AFTER(&object->memq, root, m, listq);
+	}
+	object->root = m;
 	object->generation++;
 
 	/*
@@ -648,7 +693,7 @@ void
 vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t *bucket;
+	vm_page_t root;
 
 	GIANT_REQUIRED;
 
@@ -667,23 +712,17 @@ vm_page_remove(vm_page_t m)
 	object = m->object;
 
 	/*
-	 * Remove from the object_object/offset hash table.  The object
-	 * must be on the hash queue, we will panic if it isn't
-	 */
-	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
-	mtx_lock_spin(&vm_page_buckets_mtx);
-	while (*bucket != m) {
-		if (*bucket == NULL)
-			panic("vm_page_remove(): page not found in hash");
-		bucket = &(*bucket)->hnext;
-	}
-	*bucket = m->hnext;
-	m->hnext = NULL;
-	mtx_unlock_spin(&vm_page_buckets_mtx);
-
-	/*
 	 * Now remove from the object's list of backed pages.
 	 */
+	if (m != object->root)
+		vm_page_splay(m->pindex, object->root);
+	if (m->left == NULL)
+		root = m->right;
+	else {
+		root = vm_page_splay(m->pindex, m->left);
+		root->right = m->right;
+	}
+	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
@@ -701,7 +740,7 @@ vm_page_remove(vm_page_t m)
  *	Returns the page associated with the object/offset
  *	pair specified; if none is found, NULL is returned.
  *
- *	The object must be locked.  No side effects.
+ *	The object must be locked.
  *	This routine may not block.
  *	This is a critical path routine
  */
@@ -709,17 +748,12 @@ vm_page_t
 vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
-	struct vm_page **bucket;
 
-	/*
-	 * Search the hash table for this object/offset pair
-	 */
-	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	mtx_lock_spin(&vm_page_buckets_mtx);
-	for (m = *bucket; m != NULL; m = m->hnext)
-		if (m->object == object && m->pindex == pindex)
-			break;
-	mtx_unlock_spin(&vm_page_buckets_mtx);
+	GIANT_REQUIRED;
+
+	m = vm_page_splay(pindex, object->root);
+	if ((object->root = m) != NULL && m->pindex != pindex)
+		m = NULL;
 	return (m);
 }
 
