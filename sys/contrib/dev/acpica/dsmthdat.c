@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 78 $
+ *              $Revision: 80 $
  *
  ******************************************************************************/
 
@@ -398,7 +398,7 @@ AcpiDsMethodDataSetValue (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-        "obj %p op %X, ref count = %d [%s]\n", Object,
+        "NewObj %p Opcode %X, Refs=%d [%s]\n", Object,
         Opcode, Object->Common.ReferenceCount,
         AcpiUtGetTypeName (Object->Common.Type)));
 
@@ -540,7 +540,24 @@ AcpiDsMethodDataGetValue (
          * was referenced by the method (via the ASL)
          * before it was initialized.  Either case is an error.
          */
-        switch (Opcode)
+
+        /* If slack enabled, init the LocalX/ArgX to an Integer of value zero */
+
+        if (AcpiGbl_EnableInterpreterSlack)
+        {
+            Object = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            if (!Object)
+            {
+                return_ACPI_STATUS (AE_NO_MEMORY);
+            }
+
+            Object->Integer.Value = 0;
+            Node->Object = Object;
+        }
+
+        /* Otherwise, return the error */
+
+        else switch (Opcode)
         {
         case AML_ARG_OP:
 
@@ -667,7 +684,7 @@ AcpiDsStoreObjectToLocal (
 
 
     ACPI_FUNCTION_TRACE ("DsStoreObjectToLocal");
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%d Idx=%d Obj=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Opcode=%X Index=%d Obj=%p\n",
         Opcode, Index, ObjDesc));
 
     /* Parameter validation */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -262,21 +262,22 @@ AcpiDsLoad1BeginOp (
          */
         Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
                         ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
+#ifdef _ACPI_ASL_COMPILER
+        if (Status == AE_NOT_FOUND)
+        {
+            /*
+             * Table disassembly:
+             * Target of Scope() not found.  Generate an External for it, and
+             * insert the name into the namespace.
+             */
+            AcpiDmAddToExternalList (Path);
+            Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
+                       ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT, WalkState, &(Node));
+        }
+#endif
         if (ACPI_FAILURE (Status))
         {
-#ifdef _ACPI_ASL_COMPILER
-            if (Status == AE_NOT_FOUND)
-            {
-                AcpiDmAddToExternalList (Path);
-                Status = AE_OK;
-            }
-            else
-            {
-                ACPI_REPORT_NSERROR (Path, Status);
-            }
-#else
             ACPI_REPORT_NSERROR (Path, Status);
-#endif
             return (Status);
         }
 

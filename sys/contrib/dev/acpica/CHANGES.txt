@@ -1,4 +1,549 @@
 ----------------------------------------
+19 November 2004.  Summary of changes for version 20041119:
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem in the internal ConvertToInteger routine where new
+integers were not truncated to 32 bits for 32-bit ACPI tables. This
+routine converts buffers and strings to integers.
+
+Implemented support to store a value to an Index() on a String object.
+This is an ACPI 2.0 feature that had not yet been implemented.
+
+Implemented new behavior for storing objects to individual package
+elements (via the Index() operator). The previous behavior was to invoke
+the implicit conversion rules if an object was already present at the
+index.  The new behavior is to simply delete any existing object and
+directly store the new object. Although the ACPI specification seems
+unclear on this subject, other ACPI implementations behave in this
+manner.  (This is the root of the AE_BAD_HEX_CONSTANT issue.)
+
+Modified the RSDP memory scan mechanism to support the extended checksum
+for ACPI 2.0 (and above) RSDPs. Note that the search continues until a
+valid RSDP signature is found with a valid checksum.
+
+Code and Data Size: Current and previous core subsystem library sizes
+are shown below. These are the code and data sizes for the acpica.lib
+produced by the Microsoft Visual C++ 6.0 compiler, and these values do
+not include any ACPI driver or OSPM code. The debug version of the code
+includes the debug output trace mechanism and has a much larger code and
+data size. Note that these values will vary depending on the efficiency
+of the compiler and the compiler options used during generation.
+
+   Previous Release:
+     Non-Debug Version:  78.5K Code,  11.5K Data,   90.0K Total
+     Debug Version:     165.2K Code,  68.6K Data,  233.8K Total
+   Current Release:
+     Non-Debug Version:  78.5K Code,  11.5K Data,   90.0K Total
+     Debug Version:     165.2K Code,  68.6K Data,  233.8K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Fixed a missing semicolon in the aslcompiler.y file.
+
+----------------------------------------
+05 November 2004.  Summary of changes for version 20041105:
+
+1) ACPI CA Core Subsystem:
+
+Implemented support for FADT revision 2.  This was an interim
+table (between ACPI 1.0 and ACPI 2.0) that adds support for the
+FADT reset register.
+
+Implemented optional support to allow uninitialized LocalX and
+ArgX variables in a control method.  The variables are
+initialized to an Integer object with a value of zero.  This
+support is enabled by setting the AcpiGbl_EnableInterpreterSlack
+flag to TRUE.
+
+Implemented support for Integer objects for the SizeOf operator.
+Either 4 or 8 is returned, depending on the current integer size
+(32-bit or 64-bit, depending on the parent table revision).
+
+Fixed a problem in the implementation of the SizeOf and
+ObjectType operators where the operand was resolved to a value
+too early, causing incorrect return values for some objects.
+
+Fixed some possible memory leaks during exceptional conditions.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below. These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code. The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size. Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  78.0K Code,  11.5K Data,   89.5K Total
+    Debug Version:     164.8K Code,  68.6K Data,  233.4K Total
+  Current Release:
+    Non-Debug Version:  78.5K Code,  11.5K Data,   90.0K Total
+    Debug Version:     165.2K Code,  68.6K Data,  233.8K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Implemented support for all ACPI 3.0 reserved names and methods.
+
+Implemented all ACPI 3.0 grammar elements in the front-end,
+including support for semicolons.
+
+Implemented the ACPI 3.0 Function() and ToUUID() macros
+
+Fixed a problem in the disassembler where a Scope() operator
+would not be emitted properly if the target of the scope was in
+another table.
+
+----------------------------------------
+15 October 2004.  Summary of changes for version 20041015:
+
+Note:  ACPI CA is currently undergoing an in-depth and complete
+formal evaluation to test/verify the following areas. Other
+suggestions are welcome. This will result in an increase in the
+frequency of releases and the number of bug fixes in the next few
+months.
+  - Functional tests for all ASL/AML operators
+  - All implicit/explicit type conversions
+  - Bit fields and operation regions
+  - 64-bit math support and 32-bit-only "truncated" math support
+  - Exceptional conditions, both compiler and interpreter
+  - Dynamic object deletion and memory leaks
+  - ACPI 3.0 support when implemented
+  - External interfaces to the ACPI subsystem
+
+
+1) ACPI CA Core Subsystem:
+
+Fixed two alignment issues on 64-bit platforms - within debug
+statements in AcpiEvGpeDetect and AcpiEvCreateGpeBlock. Removed
+references to the Address field within the non-aligned ACPI
+generic address structure.
+
+Fixed a problem in the Increment and Decrement operators where
+incorrect operand resolution could result in the inadvertent
+modification of the original integer when the integer is passed
+into another method as an argument and the arg is then
+incremented/decremented.
+
+Fixed a problem in the FromBCD operator where the upper 32-bits
+of a 64-bit BCD number were truncated during conversion.
+
+Fixed a problem in the ToDecimal operator where the length of the
+resulting string could be set incorrectly too long if the input
+operand was a Buffer object.
+
+Fixed a problem in the Logical operators (LLess, etc.) where a
+NULL byte (0) within a buffer would prematurely terminate a
+compare between buffer objects.
+
+Added a check for string overflow (>200 characters as per the
+ACPI specification) during the Concatenate operator with two
+string operands.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below. These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code. The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size. Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.8K Code,  11.5K Data,   89.3K Total
+    Debug Version:     164.6K Code,  68.5K Data,  233.1K Total
+  Current Release:
+    Non-Debug Version:  78.0K Code,  11.5K Data,   89.5K Total
+    Debug Version:     164.8K Code,  68.6K Data,  233.4K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Allow the use of the ObjectType operator on uninitialized Locals
+and Args (returns 0 as per the ACPI specification).
+
+Fixed a problem where the compiler would fault if there was a
+syntax error in the FieldName of all of the various
+CreateXXXField operators.
+
+Disallow the use of lower case letters within the EISAID macro,
+as per the ACPI specification.  All EISAID strings must be of the
+form "UUUNNNN" Where U is an uppercase letter and N is a hex
+digit.
+
+
+----------------------------------------
+06 October 2004.  Summary of changes for version 20041006:
+
+1) ACPI CA Core Subsystem:
+
+Implemented support for the ACPI 3.0 Timer operator. This ASL
+function implements a 64-bit timer with 100 nanosecond
+granularity.
+
+Defined a new OSL interface, AcpiOsGetTimer. This interface is
+used to implement the ACPI 3.0 Timer operator.  This allows the
+host OS to implement the timer with the best clock available.
+Also, it keeps the core subsystem out of the clock handling
+business, since the host OS (usually) performs this function.
+
+Fixed an alignment issue on 64-bit platforms. The
+HwLowLevelRead(Write) functions use a 64-bit address which is
+part of the packed ACPI Generic Address Structure. Since the
+structure is non-aligned, the alignment macros are now used to
+extract the address to a local variable before use.
+
+Fixed a problem where the ToInteger operator assumed all input
+strings were hexadecimal. The operator now handles both decimal
+strings and hex strings (prefixed with "0x").
+
+Fixed a problem where the string length in the string object
+created as a result of the internal ConvertToString procedure
+could be incorrect. This potentially affected all implicit
+conversions and also the ToDecimalString and ToHexString
+operators.
+
+Fixed two problems in the ToString operator. If the length
+parameter was zero, an incorrect string object was created and
+the value of the input length parameter was inadvertently changed
+from zero to Ones.
+
+Fixed a problem where the optional ResourceSource string in the
+ExtendedIRQ resource macro was ignored.
+
+Simplified the interfaces to the internal division functions,
+reducing code size and complexity.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below. These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code. The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size. Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.9K Code,  11.4K Data,   89.3K Total
+    Debug Version:     164.5K Code,  68.3K Data,  232.8K Total
+  Current Release:
+    Non-Debug Version:  77.8K Code,  11.5K Data,   89.3K Total
+    Debug Version:     164.6K Code,  68.5K Data,  233.1K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Implemented support for the ACPI 3.0 Timer operator.
+
+Fixed a problem where the Default() operator was inadvertently
+ignored in a Switch/Case block.  This was a problem in the
+translation of the Switch statement to If...Else pairs.
+
+Added support to allow a standalone Return operator, with no
+parentheses (or operands).
+
+Fixed a problem with code generation for the ElseIf operator
+where the translated Else...If parse tree was improperly
+constructed leading to the loss of some code.
+
+----------------------------------------
+22 September 2004.  Summary of changes for version 20040922:
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem with the implementation of the LNot() operator
+where "Ones" was not returned for the TRUE case. Changed the code
+to return Ones instead of (!Arg) which was usually 1. This change
+affects iASL constant folding for this operator also.
+
+Fixed a problem in AcpiUtInitializeBuffer where an existing
+buffer was not initialized properly -- Now zero the entire buffer
+in this case where the buffer already exists.
+
+Changed the interface to AcpiOsSleep from (UINT32 Seconds, UINT32
+Milliseconds) to simply (ACPI_INTEGER Milliseconds). This
+simplifies all related code considerably. This will require
+changes/updates to all OS interface layers (OSLs.)
+
+Implemented a new external interface,
+AcpiInstallExceptionHandler, to allow a system exception handler
+to be installed. This handler is invoked upon any run-time
+exception that occurs during control method execution.
+
+Added support for the DSDT in AcpiTbFindTable. This allows the
+DataTableRegion() operator to access the local copy of the DSDT.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below. These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code. The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size. Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.8K Code,  11.4K Data,   89.2K Total
+    Debug Version:     164.2K Code,  68.2K Data,  232.4K Total
+  Current Release:
+    Non-Debug Version:  77.9K Code,  11.4K Data,   89.3K Total
+    Debug Version:     164.5K Code,  68.3K Data,  232.8K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Fixed a problem with constant folding and the LNot operator. LNot
+was returning 1 in the TRUE case, not Ones as per the ACPI
+specification. This could result in the generation of an
+incorrect folded/reduced constant.
+
+End-Of-File is now allowed within a "//"-style comment.  A parse
+error no longer occurs if such a comment is at the very end of
+the input ASL source file.
+
+Implemented the "-r" option to override the Revision in the table
+header. The initial use of this option will be to simplify the
+evaluation of the AML interpreter by allowing a single ASL source
+module to be compiled for either 32-bit or 64-bit integers.
+
+
+----------------------------------------
+27 August 2004.  Summary of changes for version 20040827:
+
+1) ACPI CA Core Subsystem:
+
+- Implemented support for implicit object conversion in the non-
+numeric logical operators (LEqual, LGreater, LGreaterEqual,
+LLess, LLessEqual, and LNotEqual.)  Any combination of
+Integers/Strings/Buffers may now be used; the second operand is
+implicitly converted on the fly to match the type of the first
+operand.  For example:
+
+    LEqual (Source1, Source2)
+
+Source1 and Source2 must each evaluate to an integer, a string,
+or a buffer. The data type of Source1 dictates the required type
+of Source2. Source2 is implicitly converted if necessary to match
+the type of Source1.
+
+- Updated and corrected the behavior of the string conversion
+support.  The rules concerning conversion of buffers to strings
+(according to the ACPI specification) are as follows:
+
+ToDecimalString - explicit byte-wise conversion of buffer to
+string of decimal values (0-255) separated by commas. ToHexString
+- explicit byte-wise conversion of buffer to string of hex values
+(0-FF) separated by commas. ToString - explicit byte-wise
+conversion of buffer to string.  Byte-by-byte copy with no
+transform except NULL terminated. Any other implicit buffer-to-
+string conversion - byte-wise conversion of buffer to string of
+hex values (0-FF) separated by spaces.
+
+- Fixed typo in definition of AcpiGbl_EnableInterpreterSlack.
+
+- Fixed a problem in AcpiNsGetPathnameLength where the returned
+length was one byte too short in the case of a node in the root
+scope.  This could cause a fault during debug output.
+
+- Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.9K Code,  11.5K Data,   89.4K Total
+    Debug Version:     164.1K Code,  68.3K Data,  232.4K Total
+  Current Release:
+    Non-Debug Version:  77.8K Code,  11.4K Data,   89.2K Total
+    Debug Version:     164.2K Code,  68.2K Data,  232.4K Total
+
+
+2) iASL Compiler/Disassembler:
+
+- Fixed a Linux generation error.
+
+
+----------------------------------------
+16 August 2004.  Summary of changes for version 20040816:
+
+1) ACPI CA Core Subsystem:
+
+Designed and implemented support within the AML interpreter for
+the so-called "implicit return".  This support returns the result
+of the last ASL operation within a control method, in the absence
+of an explicit Return() operator.  A few machines depend on this
+behavior, even though it is not explicitly supported by the ASL
+language.  It is optional support that can be enabled at runtime
+via the AcpiGbl_EnableInterpeterSlack flag.
+
+Removed support for the PCI_Config address space from the
+internal low level hardware interfaces (AcpiHwLowLevelRead and
+AcpiHwLowLevelWrite).  This support was not used internally, and
+would not work correctly anyway because the PCI bus number and
+segment number were not supported.  There are separate interfaces
+for PCI configuration space access because of the unique
+interface.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  78.0K Code,  11.5K Data,   89.5K Total
+    Debug Version:     164.1K Code,  68.2K Data,  232.3K Total
+  Current Release:
+    Non-Debug Version:  77.9K Code,  11.5K Data,   89.4K Total
+    Debug Version:     164.1K Code,  68.3K Data,  232.4K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Fixed a problem where constants in ASL expressions at the root
+level (not within a control method) could be inadvertently
+truncated during code generation.  This problem was introduced in
+the 20040715 release.
+
+
+----------------------------------------
+15 July 2004.  Summary of changes for version 20040715:
+
+1) ACPI CA Core Subsystem:
+
+Restructured the internal HW GPE interfaces to pass/track the
+current state of interrupts (enabled/disabled) in order to avoid
+possible deadlock and increase flexibility of the interfaces.
+
+Implemented a "lexicographical compare" for String and Buffer
+objects within the logical operators -- LGreater, LLess,
+LGreaterEqual, and LLessEqual -- as per further clarification to
+the ACPI specification.  Behavior is similar to C library
+"strcmp".
+
+Completed a major reduction in CPU stack use for the
+AcpiGetFirmwareTable external function.  In the 32-bit non-debug
+case, the stack use has been reduced from 168 bytes to 32 bytes.
+
+Deployed a new run-time configuration flag,
+AcpiGbl_EnableInterpreterSlack, whose purpose is to allow the AML
+interpreter to forgive certain bad AML constructs.  Default
+setting is FALSE.
+
+Implemented the first use of AcpiGbl_EnableInterpreterSlack in
+the Field IO support code.  If enabled, it allows field access to
+go beyond the end of a region definition if the field is within
+the region length rounded up to the next access width boundary (a
+common coding error.)
+
+Renamed OSD_HANDLER to ACPI_OSD_HANDLER, and
+OSD_EXECUTION_CALLBACK to ACPI_OSD_EXEC_CALLBACK for consistency
+with other ACPI symbols.  Also, these symbols are lowercased by
+the latest version of the AcpiSrc tool.
+
+The prototypes for the PCI interfaces in acpiosxf.h have been
+updated to rename "Register" to simply "Reg" to prevent certain
+compilers from complaining.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.8K Code,  11.5K Data,   89.3K Total
+    Debug Version:     163.8K Code,  68.2K Data,  232.0K Total
+  Current Release:
+    Non-Debug Version:  78.0K Code,  11.5K Data,   89.5K Total
+    Debug Version:     164.1K Code,  68.2K Data,  232.3K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Implemented full support for Package objects within the Case()
+operator.  Note: The Break() operator is currently not supported
+within Case blocks (TermLists) as there is some question about
+backward compatibility with ACPI 1.0 interpreters.
+
+Fixed a problem where complex terms were not supported properly
+within the Switch() operator.
+
+Eliminated extraneous warning for compiler-emitted reserved names
+of the form "_T_x".  (Used in Switch/Case operators.)
+
+Eliminated optimization messages for "_T_x" objects and small
+constants within the DefinitionBlock operator.
+
+
+----------------------------------------
+15 June 2004.  Summary of changes for version 20040615:
+
+1) ACPI CA Core Subsystem:
+
+Implemented support for Buffer and String objects (as per ACPI
+2.0) for the following ASL operators:  LEqual, LGreater, LLess,
+LGreaterEqual, and LLessEqual.
+
+All directory names in the entire source package are lower case,
+as they were in earlier releases.
+
+Implemented "Disassemble" command in the AML debugger that will
+disassemble a single control method.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.7K Code,  11.5K Data,   89.2K Total
+    Debug Version:     163.3K Code,  67.2K Data,  230.5K Total
+  Current Release:
+    Non-Debug Version:  77.8K Code,  11.5K Data,   89.3K Total
+    Debug Version:     163.8K Code,  68.2K Data,  232.0K Total
+
+
+2) iASL Compiler/Disassembler:
+
+Implemented support for Buffer and String objects (as per ACPI
+2.0) for the following ASL operators:  LEqual, LGreater, LLess,
+LGreaterEqual, and LLessEqual.
+
+All directory names in the entire source package are lower case,
+as they were in earlier releases.
+
+Fixed a fault when using the -g or -d<nofilename> options if the
+FADT was not found.
+
+Fixed an issue with the Windows version of the compiler where
+later versions of Windows place the FADT in the registry under
+the name "FADT" and not "FACP" as earlier versions did.  This
+applies when using the -g or -d<nofilename> options.  The
+compiler now looks for both strings as necessary.
+
+Fixed a problem with compiler namepath optimization where a
+namepath within the Scope() operator could not be optimized if
+the namepath was a subpath of the current scope path.
+
+----------------------------------------
 27 May 2004.  Summary of changes for version 20040527:
 
 1) ACPI CA Core Subsystem:

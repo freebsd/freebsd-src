@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file
- *              $Revision: 129 $
+ *              $Revision: 130 $
  *
  *****************************************************************************/
 
@@ -580,11 +580,6 @@ TrDoSwitch (
 void
 TrDoDefinitionBlock (
     ACPI_PARSE_OBJECT       *Op);
-
-void
-TrDoElseif (
-    ACPI_PARSE_OBJECT       *Op);
-
 
 /*
  * asltree - parse tree support

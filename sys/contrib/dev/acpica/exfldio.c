@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 106 $
+ *              $Revision: 111 $
  *
  *****************************************************************************/
 
@@ -212,6 +212,23 @@ AcpiExSetupRegion (
                                     + FieldDatumByteOffset
                                     + ObjDesc->CommonField.AccessByteWidth))
     {
+        if (AcpiGbl_EnableInterpreterSlack)
+        {
+            /*
+             * Slack mode only:  We will go ahead and allow access to this
+             * field if it is within the region length rounded up to the next
+             * access width boundary.
+             */
+            if (ACPI_ROUND_UP (RgnDesc->Region.Length,
+                                ObjDesc->CommonField.AccessByteWidth) >=
+                (ObjDesc->CommonField.BaseByteOffset +
+                 (ACPI_NATIVE_UINT) ObjDesc->CommonField.AccessByteWidth +
+                 FieldDatumByteOffset))
+            {
+                return_ACPI_STATUS (AE_OK);
+            }
+        }
+
         if (RgnDesc->Region.Length < ObjDesc->CommonField.AccessByteWidth)
         {
             /*
@@ -891,7 +908,7 @@ AcpiExCommonBufferSetup (
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
     }
 
-    /* 
+    /*
      * Create "actual" field byte count (minimum number of bytes that
      * must be read), then convert to datum count (minimum number
      * of datum-sized units that must be read)

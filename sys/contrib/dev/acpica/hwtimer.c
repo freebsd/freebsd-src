@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
- *              $Revision: 26 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -125,11 +125,11 @@
  *
  * FUNCTION:    AcpiGetTimerResolution
  *
- * PARAMETERS:  none
+ * PARAMETERS:  Resolution          - Where the resolution is returned
  *
- * RETURN:      Number of bits of resolution in the PM Timer (24 or 32).
+ * RETURN:      Status and timer resolution
  *
- * DESCRIPTION: Obtains resolution of the ACPI PM Timer.
+ * DESCRIPTION: Obtains resolution of the ACPI PM Timer (24 or 32 bits).
  *
  ******************************************************************************/
 
@@ -162,11 +162,11 @@ AcpiGetTimerResolution (
  *
  * FUNCTION:    AcpiGetTimer
  *
- * PARAMETERS:  none
+ * PARAMETERS:  Ticks               - Where the timer value is returned
  *
- * RETURN:      Current value of the ACPI PM Timer (in ticks).
+ * RETURN:      Status and current ticks
  *
- * DESCRIPTION: Obtains current value of ACPI PM Timer.
+ * DESCRIPTION: Obtains current value of ACPI PM Timer (in ticks).
  *
  ******************************************************************************/
 
@@ -195,11 +195,11 @@ AcpiGetTimer (
  *
  * FUNCTION:    AcpiGetTimerDuration
  *
- * PARAMETERS:  StartTicks
- *              EndTicks
- *              TimeElapsed
+ * PARAMETERS:  StartTicks          - Starting timestamp
+ *              EndTicks            - End timestamp
+ *              TimeElapsed         - Where the elapsed time is returned
  *
- * RETURN:      TimeElapsed
+ * RETURN:      Status and TimeElapsed
  *
  * DESCRIPTION: Computes the time elapsed (in microseconds) between two
  *              PM Timer time stamps, taking into account the possibility of
@@ -213,7 +213,7 @@ AcpiGetTimer (
  *              Note that this function accommodates only a single timer
  *              rollover.  Thus for 24-bit timers, this function should only
  *              be used for calculating durations less than ~4.6 seconds
- *              (~20 minutes for 32-bit timers) -- calculations below
+ *              (~20 minutes for 32-bit timers) -- calculations below:
  *
  *              2**24 Ticks / 3,600,000 Ticks/Sec = 4.66 sec
  *              2**32 Ticks / 3,600,000 Ticks/Sec = 1193 sec or 19.88 minutes
@@ -226,10 +226,9 @@ AcpiGetTimerDuration (
     UINT32                  EndTicks,
     UINT32                  *TimeElapsed)
 {
-    UINT32                  DeltaTicks = 0;
-    UINT64_OVERLAY          NormalizedTicks;
     ACPI_STATUS             Status;
-    ACPI_INTEGER            OutQuotient;
+    UINT32                  DeltaTicks;
+    ACPI_INTEGER            Quotient;
 
 
     ACPI_FUNCTION_TRACE ("AcpiGetTimerDuration");
@@ -242,8 +241,7 @@ AcpiGetTimerDuration (
 
     /*
      * Compute Tick Delta:
-     * -------------------
-     * Handle (max one) timer rollovers on 24- versus 32-bit timers.
+     * Handle (max one) timer rollovers on 24-bit versus 32-bit timers.
      */
     if (StartTicks < EndTicks)
     {
@@ -264,26 +262,21 @@ AcpiGetTimerDuration (
             DeltaTicks = (0xFFFFFFFF - StartTicks) + EndTicks;
         }
     }
-    else
+    else /* StartTicks == EndTicks */
     {
         *TimeElapsed = 0;
         return_ACPI_STATUS (AE_OK);
     }
 
     /*
-     * Compute Duration:
-     * -----------------
-     *
-     * Requires a 64-bit divide:
+     * Compute Duration (Requires a 64-bit multiply and divide):
      *
      * TimeElapsed = (DeltaTicks * 1000000) / PM_TIMER_FREQUENCY;
      */
-    NormalizedTicks.Full = ((UINT64) DeltaTicks) * 1000000;
+    Status = AcpiUtShortDivide (((UINT64) DeltaTicks) * 1000000,
+                PM_TIMER_FREQUENCY, &Quotient, NULL);
 
-    Status = AcpiUtShortDivide (&NormalizedTicks.Full, PM_TIMER_FREQUENCY,
-                                    &OutQuotient, NULL);
-
-    *TimeElapsed = (UINT32) OutQuotient;
+    *TimeElapsed = (UINT32) Quotient;
     return_ACPI_STATUS (Status);
 }
 

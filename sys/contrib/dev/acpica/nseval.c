@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 127 $
+ *              $Revision: 129 $
  *
  ******************************************************************************/
 
@@ -132,14 +132,9 @@
  *
  * FUNCTION:    AcpiNsEvaluateRelative
  *
- * PARAMETERS:  Handle              - The relative containing object
- *              Pathname            - Name of method to execute, If NULL, the
+ * PARAMETERS:  Pathname            - Name of method to execute, If NULL, the
  *                                    handle is the object to execute
- *              Params              - List of parameters to pass to the method,
- *                                    terminated by NULL.  Params itself may be
- *                                    NULL if no parameters are being passed.
- *              ReturnObject        - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *              Info                - Method info block
  *
  * RETURN:      Status
  *
@@ -219,8 +214,7 @@ AcpiNsEvaluateRelative (
     }
 
     /*
-     * Now that we have a handle to the object, we can attempt
-     * to evaluate it.
+     * Now that we have a handle to the object, we can attempt to evaluate it.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n",
         Pathname, Node, AcpiNsGetAttachedObject (Node)));
@@ -246,9 +240,9 @@ Cleanup1:
  *
  * PARAMETERS:  Pathname            - Fully qualified pathname to the object
  *              Info                - Contains:
- *              ReturnObject        - Where to put method's return value (if
+ *                  ReturnObject    - Where to put method's return value (if
  *                                    any).  If NULL, no value is returned.
- *              Params              - List of parameters to pass to the method,
+ *                  Params          - List of parameters to pass to the method,
  *                                    terminated by NULL.  Params itself may be
  *                                    NULL if no parameters are being passed.
  *
@@ -297,14 +291,14 @@ AcpiNsEvaluateByName (
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Object at [%s] was not found, status=%.4X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
+            "Object at [%s] was not found, status=%.4X\n",
             Pathname, Status));
         goto Cleanup;
     }
 
     /*
-     * Now that we have a handle to the object, we can attempt
-     * to evaluate it.
+     * Now that we have a handle to the object, we can attempt to evaluate it.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n",
         Pathname, Info->Node, AcpiNsGetAttachedObject (Info->Node)));
@@ -392,9 +386,8 @@ AcpiNsEvaluateByHandle (
     }
 
     /*
-     * For a method alias, we must grab the actual method node
-     * so that proper scoping context will be established
-     * before execution.
+     * For a method alias, we must grab the actual method node so that proper
+     * scoping context will be established before execution.
      */
     if (AcpiNsGetType (Info->Node) == ACPI_TYPE_LOCAL_METHOD_ALIAS)
     {
@@ -404,11 +397,9 @@ AcpiNsEvaluateByHandle (
     /*
      * Two major cases here:
      * 1) The object is an actual control method -- execute it.
-     * 2) The object is not a method -- just return it's current
-     *      value
+     * 2) The object is not a method -- just return it's current value
      *
-     * In both cases, the namespace is unlocked by the
-     *  AcpiNs* procedure
+     * In both cases, the namespace is unlocked by the AcpiNs* procedure
      */
     if (AcpiNsGetType (Info->Node) == ACPI_TYPE_METHOD)
     {
@@ -420,15 +411,13 @@ AcpiNsEvaluateByHandle (
     else
     {
         /*
-         * Case 2) Object is NOT a method, just return its
-         * current value
+         * Case 2) Object is NOT a method, just return its current value
          */
         Status = AcpiNsGetObjectValue (Info);
     }
 
     /*
-     * Check if there is a return value on the stack that must
-     * be dealt with
+     * Check if there is a return value on the stack that must be dealt with
      */
     if (Status == AE_CTRL_RETURN_VALUE)
     {
@@ -438,8 +427,8 @@ AcpiNsEvaluateByHandle (
     }
 
     /*
-     * Namespace was unlocked by the handling AcpiNs* function,
-     * so we just return
+     * Namespace was unlocked by the handling AcpiNs* function, so we
+     * just return
      */
     return_ACPI_STATUS (Status);
 }
@@ -449,12 +438,7 @@ AcpiNsEvaluateByHandle (
  *
  * FUNCTION:    AcpiNsExecuteControlMethod
  *
- * PARAMETERS:  MethodNode          - The method to execute
- *              Params              - List of parameters to pass to the method,
- *                                    terminated by NULL.  Params itself may be
- *                                    NULL if no parameters are being passed.
- *              ReturnObjDesc       - List of result objects to be returned
- *                                    from the method.
+ * PARAMETERS:  Info            - Method info block (w/params)
  *
  * RETURN:      Status
  *
@@ -526,8 +510,7 @@ AcpiNsExecuteControlMethod (
  *
  * FUNCTION:    AcpiNsGetObjectValue
  *
- * PARAMETERS:  Node                - The object
- *              ReturnObjDesc       - Where the objects value is returned
+ * PARAMETERS:  Info            - Method info block (w/params)
  *
  * RETURN:      Status
  *
@@ -549,28 +532,25 @@ AcpiNsGetObjectValue (
 
 
     /*
-     * Objects require additional resolution steps (e.g., the
-     * Node may be a field that must be read, etc.) -- we can't just grab
-     * the object out of the node.
+     * Objects require additional resolution steps (e.g., the Node may be a
+     * field that must be read, etc.) -- we can't just grab the object out of
+     * the node.
      */
 
     /*
-     * Use ResolveNodeToValue() to get the associated value.  This call
-     * always deletes ObjDesc (allocated above).
+     * Use ResolveNodeToValue() to get the associated value.  This call always
+     * deletes ObjDesc (allocated above).
      *
-     * NOTE: we can get away with passing in NULL for a walk state
-     * because ObjDesc is guaranteed to not be a reference to either
-     * a method local or a method argument (because this interface can only be
-     * called from the AcpiEvaluate external interface, never called from
-     * a running control method.)
+     * NOTE: we can get away with passing in NULL for a walk state because
+     * ObjDesc is guaranteed to not be a reference to either a method local or
+     * a method argument (because this interface can only be called from the
+     * AcpiEvaluate external interface, never called from a running method.)
      *
-     * Even though we do not directly invoke the interpreter
-     * for this, we must enter it because we could access an opregion.
-     * The opregion access code assumes that the interpreter
-     * is locked.
+     * Even though we do not directly invoke the interpreter for this, we must
+     * enter it because we could access an opregion. The opregion access code
+     * assumes that the interpreter is locked.
      *
-     * We must release the namespace lock before entering the
-     * intepreter.
+     * We must release the namespace lock before entering the intepreter.
      */
     Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
@@ -583,17 +563,19 @@ AcpiNsGetObjectValue (
     {
         Status = AcpiExResolveNodeToValue (&ResolvedNode, NULL);
         /*
-         * If AcpiExResolveNodeToValue() succeeded, the return value was
-         * placed in ResolvedNode.
+         * If AcpiExResolveNodeToValue() succeeded, the return value was placed
+         * in ResolvedNode.
          */
         AcpiExExitInterpreter ();
 
         if (ACPI_SUCCESS (Status))
         {
             Status = AE_CTRL_RETURN_VALUE;
-            Info->ReturnObject = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, ResolvedNode);
+            Info->ReturnObject = ACPI_CAST_PTR
+                                    (ACPI_OPERAND_OBJECT, ResolvedNode);
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Returning object %p [%s]\n",
-                Info->ReturnObject, AcpiUtGetObjectTypeName (Info->ReturnObject)));
+                Info->ReturnObject,
+                AcpiUtGetObjectTypeName (Info->ReturnObject)));
         }
     }
 

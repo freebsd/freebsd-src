@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslmap - parser to AML opcode mapping table
- *              $Revision: 71 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -209,7 +209,12 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_AL7",     0,      ASL_RSVD_RETURN_VALUE},
     {"_AL8",     0,      ASL_RSVD_RETURN_VALUE},
     {"_AL9",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_ALC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_ALI",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ALN",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_ALP",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_ALR",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_ALT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_ASI",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BAS",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_BBN",     0,      ASL_RSVD_RETURN_VALUE},
@@ -218,12 +223,19 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_BDN",     0,      ASL_RSVD_RETURN_VALUE},
     {"_BFS",     1,      0},
     {"_BIF",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_BLT",     3,      0},                        /* Acpi 3.0 */
     {"_BM_",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_BMC",     1,      0},                        /* Acpi 3.0 */
+    {"_BMD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_BQC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_BST",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_BTM",     1,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_BTP",     1,      0},
+    {"_CBA",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_CID",     0,      ASL_RSVD_RETURN_VALUE},
     {"_CRS",     0,      ASL_RSVD_RETURN_VALUE},
     {"_CRT",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_CSD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_CST",     0,      ASL_RSVD_RETURN_VALUE},
     {"_DCK",     1,      ASL_RSVD_RETURN_VALUE},
     {"_DCS",     0,      ASL_RSVD_RETURN_VALUE},
@@ -235,7 +247,9 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_DMA",     0,      ASL_RSVD_RETURN_VALUE},
     {"_DOD",     0,      ASL_RSVD_RETURN_VALUE},
     {"_DOS",     1,      0},
+    {"_DSM",     4,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_DSS",     1,      0},
+    {"_DSW",     3,      0},                        /* Acpi 3.0 */
     {"_EC_",     0,      ASL_RSVD_RETURN_VALUE},
     {"_EDL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_EJ0",     1,      0},
@@ -244,6 +258,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_EJ3",     1,      0},
     {"_EJ4",     1,      0},
     {"_EJD",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_ERR",     2,      ASL_RSVD_RETURN_VALUE},
     {"_FDE",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDI",     0,      ASL_RSVD_RETURN_VALUE},
     {"_FDM",     1,      0},
@@ -253,6 +268,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_GPD",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GPE",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GRA",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_GSB",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_GTF",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GTM",     0,      ASL_RSVD_RETURN_VALUE},
     {"_GTS",     1,      0},
@@ -260,6 +276,8 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_HID",     0,      ASL_RSVD_RETURN_VALUE},
     {"_HOT",     0,      ASL_RSVD_RETURN_VALUE},
     {"_HPP",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_HPX",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_IFT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_INI",     0,      0},
     {"_INT",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_IRC",     0,      0},
@@ -273,16 +291,21 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_MEM",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MIF",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_MIN",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_MLS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_MSG",     1,      0},
     {"_OFF",     0,      0},
     {"_ON_",     0,      0},
     {"_OS_",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_OSC",     4,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_OSI",     1,      ASL_RSVD_RETURN_VALUE},
+    {"_OST",     3,      0},                        /* Acpi 3.0 */
     {"_PCL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PCT",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PDC",     1,      0},
     {"_PIC",     1,      0},
+    {"_PLD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_PPC",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_PPE",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_PR0",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PR1",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PR2",     0,      ASL_RSVD_RETURN_VALUE},
@@ -294,6 +317,7 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_PS2",     0,      0},
     {"_PS3",     0,      0},
     {"_PSC",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_PSD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_PSL",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PSR",     0,      ASL_RSVD_RETURN_VALUE},
     {"_PSS",     0,      ASL_RSVD_RETURN_VALUE},
@@ -309,6 +333,8 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_RMV",     0,      ASL_RSVD_RETURN_VALUE},
     {"_RNG",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_ROM",     2,      ASL_RSVD_RETURN_VALUE},
+    {"_RT_",     0,      ASL_RSVD_RESOURCE_NAME},   /* Acpi 3.0 */
+    {"_RTV",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_RW_",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_S0_",     0,      ASL_RSVD_RETURN_VALUE},
     {"_S1_",     0,      ASL_RSVD_RETURN_VALUE},
@@ -320,32 +346,53 @@ const ASL_RESERVED_INFO         ReservedMethods[] = {
     {"_S2D",     0,      ASL_RSVD_RETURN_VALUE},
     {"_S3D",     0,      ASL_RSVD_RETURN_VALUE},
     {"_S4D",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_S0W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_S1W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_S2W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_S3W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_S4W",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_SB_",     0,      ASL_RSVD_SCOPE},
     {"_SBS",     0,      ASL_RSVD_RETURN_VALUE},
     {"_SCP",     1,      0},
+    {"_SDD",     1,      0},                        /* Acpi 3.0 */
     {"_SEG",     0,      ASL_RSVD_RETURN_VALUE},
     {"_SHR",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_SI_",     0,      ASL_RSVD_SCOPE},
     {"_SIZ",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_SLI",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_SPD",     1,      ASL_RSVD_RETURN_VALUE},
     {"_SRS",     1,      0},
+    {"_SRV",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_SST",     1,      0},
     {"_STA",     0,      ASL_RSVD_RETURN_VALUE},
     {"_STM",     3,      0},
     {"_STR",     0,      ASL_RSVD_RETURN_VALUE},
     {"_SUN",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_SWS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TC1",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TC2",     0,      ASL_RSVD_RETURN_VALUE},
     {"_TMP",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_TPC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_TPT",     1,      0},                        /* Acpi 3.0 */
     {"_TRA",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_TRS",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_TRT",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_TSD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_TSF",     0,      ASL_RSVD_RESOURCE_NAME},   /* Acpi 3.0 */
     {"_TSP",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_TSS",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_TST",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TTP",     0,      ASL_RSVD_RESOURCE_NAME},
+    {"_TTS",     1,      0},                        /* Acpi 3.0 */
     {"_TYP",     0,      ASL_RSVD_RESOURCE_NAME},
     {"_TZ_",     0,      ASL_RSVD_SCOPE},
     {"_TZD",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_TZM",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_TZP",     0,      ASL_RSVD_RETURN_VALUE},
     {"_UID",     0,      ASL_RSVD_RETURN_VALUE},
+    {"_UPC",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_UPD",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
+    {"_UPP",     0,      ASL_RSVD_RETURN_VALUE},    /* Acpi 3.0 */
     {"_VPO",     0,      ASL_RSVD_RETURN_VALUE},
     {"_WAK",     1,      ASL_RSVD_RETURN_VALUE},
     {NULL,       0,      0},
@@ -497,12 +544,16 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* DWORDCONST */                OP_TABLE_ENTRY (AML_RAW_DATA_DWORD,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* DWORDIO */                   OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* DWORDMEMORY */               OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
+/* DWORDSPACE */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* EISAID */                    OP_TABLE_ENTRY (AML_DWORD_OP,               0,                              0,                  ACPI_BTYPE_INTEGER),
 /* ELSE */                      OP_TABLE_ENTRY (AML_ELSE_OP,                0,                              NODE_AML_PACKAGE,   0),
 /* ELSEIF */                    OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              NODE_AML_PACKAGE,   0),
 /* ENDDEPENDENTFN */            OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* ERRORNODE */                 OP_TABLE_ENTRY (AML_NOOP_OP,                0,                              0,                  0),
 /* EVENT */                     OP_TABLE_ENTRY (AML_EVENT_OP,               0,                              0,                  0),
+/* EXTENDEDIO */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* EXTENDEDMEMORY */            OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* EXTENDEDSPACE */             OP_TABLE_ENTRY (AML_RAW_DATA_QWORD,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* EXTERNAL */                  OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* FATAL */                     OP_TABLE_ENTRY (AML_FATAL_OP,               0,                              0,                  0),
 /* FIELD */                     OP_TABLE_ENTRY (AML_FIELD_OP,               0,                              NODE_AML_PACKAGE,   0),
@@ -510,6 +561,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* FINDSETRIGHTBIT */           OP_TABLE_ENTRY (AML_FIND_SET_RIGHT_BIT_OP,  0,                              0,                  ACPI_BTYPE_INTEGER),
 /* FIXEDIO */                   OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* FROMBCD */                   OP_TABLE_ENTRY (AML_FROM_BCD_OP,            0,                              0,                  ACPI_BTYPE_INTEGER),
+/* FUNCTION */                  OP_TABLE_ENTRY (AML_METHOD_OP,              0,                              NODE_AML_PACKAGE,   0),
 /* IF */                        OP_TABLE_ENTRY (AML_IF_OP,                  0,                              NODE_AML_PACKAGE,   0),
 /* INCLUDE */                   OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* INCLUDE_CSTYLE */            OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
@@ -610,6 +662,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* QWORDCONST */                OP_TABLE_ENTRY (AML_RAW_DATA_QWORD,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* QWORDIO */                   OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* QWORDMEMORY */               OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* QWORDSPACE */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* RANGE_TYPE_ENTIRE */         OP_TABLE_ENTRY (AML_BYTE_OP,                3,                              0,                  0),
 /* RANGE_TYPE_ISAONLY */        OP_TABLE_ENTRY (AML_BYTE_OP,                2,                              0,                  0),
 /* RANGE_TYPE_NONISAONLY */     OP_TABLE_ENTRY (AML_BYTE_OP,                1,                              0,                  0),
@@ -651,12 +704,14 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* SUBTRACT */                  OP_TABLE_ENTRY (AML_SUBTRACT_OP,            0,                              0,                  ACPI_BTYPE_INTEGER),
 /* SWITCH */                    OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* THERMALZONE */               OP_TABLE_ENTRY (AML_THERMAL_ZONE_OP,        0,                              NODE_AML_PACKAGE,   0),
+/* TIMER */                     OP_TABLE_ENTRY (AML_TIMER_OP,               0,                              0,                  ACPI_BTYPE_INTEGER),
 /* TOBCD */                     OP_TABLE_ENTRY (AML_TO_BCD_OP,              0,                              0,                  ACPI_BTYPE_INTEGER),
 /* TOBUFFER */                  OP_TABLE_ENTRY (AML_TO_BUFFER_OP,           0,                              0,                  ACPI_BTYPE_COMPUTE_DATA),
 /* TODECIMALSTRING */           OP_TABLE_ENTRY (AML_TO_DECSTRING_OP,        0,                              0,                  ACPI_BTYPE_STRING),
 /* TOHEXSTRING */               OP_TABLE_ENTRY (AML_TO_HEXSTRING_OP,        0,                              0,                  ACPI_BTYPE_STRING),
 /* TOINTEGER */                 OP_TABLE_ENTRY (AML_TO_INTEGER_OP,          0,                              0,                  ACPI_BTYPE_INTEGER),
 /* TOSTRING */                  OP_TABLE_ENTRY (AML_TO_STRING_OP,           0,                              0,                  ACPI_BTYPE_STRING),
+/* TOUUID */                    OP_TABLE_ENTRY (AML_DWORD_OP,               0,                              NODE_AML_PACKAGE,   ACPI_BTYPE_INTEGER),
 /* TRANSLATIONTYPE_DENSE */     OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* TRANSLATIONTYPE_SPARSE */    OP_TABLE_ENTRY (AML_BYTE_OP,                1,                              0,                  0),
 /* TYPE_STATIC */               OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
@@ -674,6 +729,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* WORDBUSNUMBER */             OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* WORDCONST */                 OP_TABLE_ENTRY (AML_RAW_DATA_WORD,          0,                              0,                  ACPI_BTYPE_INTEGER),
 /* WORDIO */                    OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* WORDSPACE */                 OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* XFERTYPE_8 */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* XFERTYPE_8_16 */             OP_TABLE_ENTRY (AML_BYTE_OP,                1,                              0,                  0),
 /* XFERTYPE_16 */               OP_TABLE_ENTRY (AML_BYTE_OP,                2,                              0,                  0),

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 99 $
+ *              $Revision: 100 $
  *
  ******************************************************************************/
 
@@ -692,6 +692,10 @@ AcpiUtAddReference (
         return_VOID;
     }
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+        "Obj %p Current Refs=%X [To Be Incremented]\n",
+        Object, Object->Common.ReferenceCount));
+
     /* Increment the reference count */
 
     (void) AcpiUtUpdateObjectReference  (Object, REF_INCREMENT);
@@ -738,8 +742,9 @@ AcpiUtRemoveReference (
         return_VOID;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Obj %p Refs=%X\n",
-            Object, Object->Common.ReferenceCount));
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+        "Obj %p Current Refs=%X [To Be Decremented]\n",
+        Object, Object->Common.ReferenceCount));
 
     /*
      * Decrement the reference count, and only actually delete the object

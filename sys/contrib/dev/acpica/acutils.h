@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 161 $
+ *       $Revision: 164 $
  *
  *****************************************************************************/
 
@@ -249,6 +249,12 @@ char *
 AcpiUtStrncpy (
     char                    *DstString,
     const char              *SrcString,
+    ACPI_SIZE               Count);
+
+int
+AcpiUtMemcmp (
+    const char              *Buffer1,
+    const char              *Buffer2,
     ACPI_SIZE               Count);
 
 int
@@ -651,6 +657,10 @@ ACPI_OPERAND_OBJECT *
 AcpiUtCreateBufferObject (
     ACPI_SIZE               BufferSize);
 
+ACPI_OPERAND_OBJECT *
+AcpiUtCreateStringObject (
+    ACPI_SIZE               StringSize);
+
 
 /*
  * UtRefCnt - Object reference count management
@@ -764,14 +774,14 @@ AcpiUtPrintString (
 
 ACPI_STATUS
 AcpiUtDivide (
-    ACPI_INTEGER            *InDividend,
-    ACPI_INTEGER            *InDivisor,
+    ACPI_INTEGER            InDividend,
+    ACPI_INTEGER            InDivisor,
     ACPI_INTEGER            *OutQuotient,
     ACPI_INTEGER            *OutRemainder);
 
 ACPI_STATUS
 AcpiUtShortDivide (
-    ACPI_INTEGER            *InDividend,
+    ACPI_INTEGER            InDividend,
     UINT32                  Divisor,
     ACPI_INTEGER            *OutQuotient,
     UINT32                  *OutRemainder);
@@ -789,6 +799,10 @@ AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
     ACPI_INTEGER            *RetInteger);
+
+/* Values for Base above (16=Hex, 10=Decimal) */
+
+#define ACPI_ANY_BASE        0
 
 char *
 AcpiUtStrupr (
