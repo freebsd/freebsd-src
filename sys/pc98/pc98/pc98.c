@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.35 1997/07/24 14:10:54 kato Exp $
+ *	$Id: pc98.c,v 1.36 1997/07/31 13:11:50 kato Exp $
  */
 
 /*
@@ -684,7 +684,7 @@ isa_dma_release(chan)
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dma_release: channel out of range");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dma_release: channel %d not in use\n", chan);
 #endif
 
@@ -743,7 +743,7 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmastart: channel %d not acquired\n", chan);
 #endif
 
@@ -865,7 +865,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmadone: channel out of range");
 
-	if (dma_inuse & (1 << chan) == 0)
+	if ((dma_inuse & (1 << chan)) == 0)
 		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
@@ -875,7 +875,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 	 * isa_dmastart() once because they use Auto DMA mode.  If we
 	 * leave this in, drivers that do this will print this continuously.
 	 */
-	if (dma_busy & (1 << chan) == 0)
+	if ((dma_busy & (1 << chan)) == 0)
 		printf("isa_dmadone: channel %d not busy\n", chan);
 #endif
 
@@ -966,13 +966,13 @@ isa_dmastatus(int chan)
 	u_long	ef;
 
 	/* channel active? */
-	if (dma_inuse & (1 << chan) == 0) {
+	if ((dma_inuse & (1 << chan)) == 0) {
 		printf("isa_dmastatus: channel %d not active\n", chan);
 		return(-1);
 	}
 
 	/* still busy? */
-	if (dma_busy & (1 << chan) == 0) {
+	if ((dma_busy & (1 << chan)) == 0) {
 		return(0);
 	}
 	
