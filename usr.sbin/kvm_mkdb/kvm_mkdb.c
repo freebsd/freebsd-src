@@ -65,6 +65,7 @@ main(argc, argv)
 	DB *db;
 	int ch;
 	char *p, *nlistpath, *nlistname, dbtemp[MAXPATHLEN], dbname[MAXPATHLEN];
+	HASHINFO hdefault;
 
 	while ((ch = getopt(argc, argv, "")) != EOF)
 		switch (ch) {
@@ -91,8 +92,15 @@ main(argc, argv)
 	(void)snprintf(dbname, sizeof(dbname), "%skvm_%s.db",
 	    _PATH_VARDB, nlistname);
 	(void)umask(0);
+
+	/* don't handicap db/hash by using the defaults... */
+	memset(&hdefault,0,sizeof hdefault);
+	hdefault.bsize = NBPG;
+	hdefault.cachesize = 50*NBPG;
+	hdefault.nelem = 1000;
+
 	db = dbopen(dbtemp, O_CREAT | O_EXLOCK | O_TRUNC | O_RDWR,
-	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, DB_HASH, NULL);
+	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, DB_HASH, &hdefault);
 	if (db == NULL)
 		err(1, "%s", dbtemp);
 	create_knlist(nlistpath, db);
