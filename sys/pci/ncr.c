@@ -3295,7 +3295,7 @@ static	int ncr_probe (device_t dev)
 	i = ncr_chip_lookup(pci_get_devid(dev), pci_get_revid(dev));
 	if (i >= 0) {
 		device_set_desc(dev, ncr_chip_table[i].name);
-		return (0);
+		return (-1000);	/* Allows to use both ncr and sym */
 	}
 
 	return (ENXIO);
