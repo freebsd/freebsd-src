@@ -1,5 +1,5 @@
 /*	$OpenBSD: p4tcc.c,v 1.1 2003/12/20 18:23:18 tedu Exp $ */
-/*
+/*-
  * Copyright (c) 2003 Ted Unangst
  * Copyright (c) 2004 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
