@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24 1996/10/13 15:05:14 sos Exp $
+ * $Id: command.c,v 1.25 1996/12/03 21:38:39 nate Exp $
  *
  */
 #include <sys/types.h>
@@ -949,6 +949,23 @@ int param;
   return(1);
 }
 
+static int SetCtsRts(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc > 0) {
+    if (strcmp(*argv, "on") == 0)
+      VarCtsRts = TRUE;
+    else if (strcmp(*argv, "off") == 0)
+      VarCtsRts = FALSE;
+    else
+      printf("usage: set ctsrts [on|off].\n");
+  }
+  return(1);
+}
+
+
 static int SetOpenMode(list, argc, argv)
 struct cmdtab *list;
 int argc;
@@ -979,6 +996,8 @@ struct cmdtab const SetCommands[] = {
 	"Set authentication key", "key", (void *)VAR_AUTHKEY},
   { "authname", NULL,     SetVariable,		LOCAL_AUTH,
 	"Set authentication name", "name", (void *)VAR_AUTHNAME},
+  { "ctsrts", NULL,	  SetCtsRts,		LOCAL_AUTH,
+	"Use CTS/RTS modem signalling", "[on|off]"},
   { "debug",    NULL,	  SetDebugLevel,	LOCAL_AUTH,
 	"Set debug level", StrValue},
   { "device",     "line", SetVariable, 		LOCAL_AUTH,
