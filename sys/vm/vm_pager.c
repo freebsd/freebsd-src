@@ -341,8 +341,9 @@ initpbuf(struct buf *bp)
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = 0;	/* On no queue (QUEUE_NONE) */
-	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
-	bp->b_kvabase = bp->b_data;
+	bp->b_saveaddr = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
+	bp->b_data = bp->b_saveaddr;
+	bp->b_kvabase = bp->b_saveaddr;
 	bp->b_kvasize = MAXPHYS;
 	bp->b_xflags = 0;
 	bp->b_flags = 0;
