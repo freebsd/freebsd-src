@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.28 1997/09/16 23:15:16 brian Exp $
+ * $Id: vars.c,v 1.29 1997/09/21 13:08:00 brian Exp $
  *
  */
 #include "fsm.h"
@@ -30,7 +30,7 @@
 #include "defs.h"
 
 char VarVersion[] = "PPP Version 1.2";
-char VarLocalVersion[] = "$Date: 1997/09/16 23:15:16 $";
+char VarLocalVersion[] = "$Date: 1997/09/21 13:08:00 $";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -43,9 +43,10 @@ struct confdesc pppConfs[] = {
   {"acfcomp", CONF_ENABLE, CONF_ACCEPT},
   {"protocomp", CONF_ENABLE, CONF_ACCEPT},
   {"pred1", CONF_ENABLE, CONF_ACCEPT},
-  {"proxy", CONF_DISABLE, CONF_DENY},
-  {"msext", CONF_DISABLE, CONF_ACCEPT},
-  {"passwdauth", CONF_DISABLE, CONF_DENY},
+  {"proxy", CONF_DISABLE, CONF_NONE},
+  {"msext", CONF_DISABLE, CONF_NONE},
+  {"passwdauth", CONF_DISABLE, CONF_NONE},
+  {"utmp", CONF_ENABLE, CONF_NONE},
   {NULL},
 };
 
@@ -69,8 +70,10 @@ DisplayCommand()
   fprintf(VarTerm, "----------------------------------------\n");
   for (vp = pppConfs; vp->name; vp++)
     fprintf(VarTerm, "%-10s\t%s\t\t%s\n", vp->name,
-	    (vp->myside == CONF_ENABLE) ? "enable" : "disable",
-	    (vp->hisside == CONF_ACCEPT) ? "accept" : "deny");
+	    (vp->myside == CONF_ENABLE) ? "enable" :
+             (vp->myside == CONF_DISABLE ? "disable" : "N/A"),
+	    (vp->hisside == CONF_ACCEPT) ? "accept" :
+             (vp->hisside == CONF_DENY ? "deny" : "N/A"));
 
   return 0;
 }
@@ -88,10 +91,21 @@ ConfigCommand(struct cmdtab * list, int argc, char **argv, int mine, int val)
   do {
     for (vp = pppConfs; vp->name; vp++)
       if (strcasecmp(vp->name, *argv) == 0) {
-	if (mine)
-	  vp->myside = val;
-	else
-	  vp->hisside = val;
+	if (mine) {
+          if (vp->myside == CONF_NONE) {
+            LogPrintf(LogWARN, "Config: %s cannot be enabled or disabled\n",
+                      vp->name);
+            err++;
+          } else
+	    vp->myside = val;
+	} else {
+          if (vp->hisside == CONF_NONE) {
+            LogPrintf(LogWARN, "Config: %s cannot be accepted or denied\n",
+                      vp->name);
+            err++;
+          } else
+	    vp->hisside = val;
+        }
 	break;
       }
     if (!vp->name) {
