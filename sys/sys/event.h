@@ -177,6 +177,8 @@ extern void	knote_remove(struct thread *p, struct klist *list);
 extern void	knote_fdclose(struct thread *p, int fd);
 extern int 	kqueue_register(struct kqueue *kq,
 		    struct kevent *kev, struct thread *p);
+extern int	kqueue_add_filteropts(int filt, struct filterops *filtops);
+extern int	kqueue_del_filteropts(int filt);
 
 #else 	/* !_KERNEL */
 

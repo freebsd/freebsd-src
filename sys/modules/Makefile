@@ -9,6 +9,7 @@ SUBDIR=	3dfx \
 	accf_http \
 	agp \
 	aha \
+	aio \
 	amr \
 	an \
 	aue \

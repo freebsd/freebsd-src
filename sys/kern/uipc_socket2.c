@@ -57,6 +57,8 @@
 
 int	maxsockets;
 
+void (*aio_swake)(struct socket *, struct sockbuf *);
+
 /*
  * Primitive routines for operating on sockets and socket buffers
  */

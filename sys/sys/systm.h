@@ -266,6 +266,12 @@ typedef void (*forklist_fn) __P((struct proc *parent, struct proc *child,
 int	at_fork __P((forklist_fn function));
 int	rm_at_fork __P((forklist_fn function));
 
+/* Exec callout list declarations. */
+typedef void (*execlist_fn) __P((struct proc *procp));
+
+int	at_exec __P((execlist_fn function));
+int	rm_at_exec __P((execlist_fn function));
+
 /*
  * Not exactly a callout LIST, but a callout entry.
  * Allow an external module to define a hardware watchdog tickler.
