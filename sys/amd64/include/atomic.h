@@ -120,18 +120,17 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	cmpl	%1,%3 ;		"
+	"	cmpl	%0,%2 ;		"
 	"	jne	1f ;		"
-	"	movl	%2,%3 ;		"
+	"	movl	%1,%2 ;		"
 	"1:				"
 	"       sete	%%al;		"
 	"	movzbl	%%al,%0 ;	"
 	"	popfl ;			"
 	"# atomic_cmpset_int"
-	: "=a" (res)			/* 0 (result) */
-	: "0" (exp),			/* 1 */
-	  "r" (src),			/* 2 */
-	  "m" (*(dst))			/* 3 */
+	: "+a" (res)			/* 0 (result) */
+	: "r" (src),			/* 1 */
+	  "m" (*(dst))			/* 2 */
 	: "memory");
 
 	return (res);
@@ -144,15 +143,14 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 	__asm __volatile (
 	"	" MPLOCKED "		"
-	"	cmpxchgl %2,%3 ;	"
+	"	cmpxchgl %1,%2 ;	"
 	"       setz	%%al ;		"
 	"	movzbl	%%al,%0 ;	"
 	"1:				"
 	"# atomic_cmpset_int"
-	: "=a" (res)			/* 0 (result) */
-	: "0" (exp),			/* 1 */
-	  "r" (src),			/* 2 */
-	  "m" (*(dst))			/* 3 */
+	: "+a" (res)			/* 0 (result) */
+	: "r" (src),			/* 1 */
+	  "m" (*(dst))			/* 2 */
 	: "memory");				 
 
 	return (res);
