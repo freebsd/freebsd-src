@@ -1943,7 +1943,6 @@ isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
 	bus_dmamap_unload(pci->parent_dmat, *dp);
 }
 
-
 static void
 isp_pci_reset1(struct ispsoftc *isp)
 {
