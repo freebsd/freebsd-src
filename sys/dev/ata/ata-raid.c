@@ -1308,10 +1308,12 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 		      sizeof(struct highpoint_raid_conf),
 		      (caddr_t)config, AR_WRITE)) {
 		printf("ar%d: Highpoint write conf failed\n", rdp->lun);
+		free(config, M_AR);
 		return -1;
 	    }
 	}
     }
+    free(config, M_AR);
     return 0;
 }
 
@@ -1603,10 +1605,12 @@ ar_promise_write_conf(struct ar_softc *rdp)
 		      (caddr_t)config, AR_WRITE)) {
 		printf("ar%d: %s write conf failed\n",
 		       rdp->lun, local ? "FreeBSD" : "Promise");
+		free(config, M_AR);
 		return -1;
 	    }
 	}
     }
+    free(config, M_AR);
     return 0;
 }
 
