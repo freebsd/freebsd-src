@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -402,6 +403,62 @@ atm_ifdetach(struct ifnet *ifp)
 	if(ng_atm_detach_p)
 		(*ng_atm_detach_p)(ifp);
 	if_detach(ifp);
+}
+
+/*
+ * Support routine for the SIOCATMGVCCS ioctl().
+ *
+ * This routine assumes, that the private VCC structures used by the driver
+ * begin with a struct atmio_vcc.
+ *
+ * Return a table of VCCs in a freshly allocated memory area.
+ * Here we have a problem: we first count, how many vccs we need
+ * to return. The we allocate the memory and finally fill it in.
+ * Because we cannot lock while calling malloc, the number of active
+ * vccs may change while we're in malloc. So we allocate a couple of
+ * vccs more and if space anyway is not enough re-iterate.
+ *
+ * We could use an sx lock for the vcc tables.
+ */
+struct atmio_vcctable *
+atm_getvccs(struct atmio_vcc **table, u_int size, u_int start,
+    struct mtx *lock, int waitok)
+{
+	u_int cid, alloc;
+	size_t len;
+	struct atmio_vcctable *vccs;
+	struct atmio_vcc *v;
+
+	alloc = start + 10;
+	vccs = NULL;
+
+	for (;;) {
+		len = sizeof(*vccs) + alloc * sizeof(vccs->vccs[0]);
+		vccs = reallocf(vccs, len, M_TEMP,
+		    waitok ? M_WAITOK : M_NOWAIT);
+		if (vccs == NULL)
+			return (NULL);
+		bzero(vccs, len);
+
+		vccs->count = 0;
+		v = vccs->vccs;
+
+		mtx_lock(lock);
+		for (cid = 0; cid < size; cid++)
+			if (table[cid] != NULL) {
+				if (++vccs->count == alloc)
+					/* too many - try again */
+					break;
+				*v++ = *table[cid];
+			}
+		mtx_unlock(lock);
+
+		if (cid == size)
+			break;
+
+		alloc *= 2;
+	}
+	return (vccs);
 }
 
 static moduledata_t atm_mod = {
