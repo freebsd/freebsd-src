@@ -32,12 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,10 +61,10 @@ addfile(name)
 	char buf[2048 + 1];
 
 	if ((fp = fopen(name, "r")) == NULL)
-		err("%s: %s\n", name, strerror(errno));
+		err(1, "%s", name);
 	while (fgets(buf, sizeof(buf), fp)) {
 		if (!(p = index(buf, '\n'))) {
-			(void)fprintf(stderr, "hexdump: line too long.\n");
+			warnx("line too long");
 			while ((ch = getchar()) != '\n' && ch != EOF);
 			continue;
 		}
@@ -391,7 +395,7 @@ isint2:					switch(fu->bcnt) {
 
 			/* Only one conversion character if byte count. */
 			if (!(pr->flags&F_ADDRESS) && fu->bcnt && nconv++)
-	    err("byte count with multiple conversion characters");
+	    errx(1, "byte count with multiple conversion characters");
 		}
 		/*
 		 * If format unit byte count not specified, figure it out
@@ -483,25 +487,25 @@ void
 badcnt(s)
 	char *s;
 {
-	err("%s: bad byte count", s);
+	errx(1, "%s: bad byte count", s);
 }
 
 void
 badsfmt()
 {
-	err("%%s: requires a precision or a byte count\n");
+	errx(1, "%%s: requires a precision or a byte count");
 }
 
 void
 badfmt(fmt)
 	char *fmt;
 {
-	err("\"%s\": bad format\n", fmt);
+	errx(1, "\"%s\": bad format", fmt);
 }
 
 void
 badconv(ch)
 	char *ch;
 {
-	err("%%%s: bad conversion character\n", ch);
+	errx(1, "%%%s: bad conversion character", ch);
 }

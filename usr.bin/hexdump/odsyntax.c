@@ -32,12 +32,17 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -131,12 +136,10 @@ oldsyntax(argc, argvp)
 		case 'w':
 		case '?':
 		default:
-			(void)fprintf(stderr,
-			    "od: od(1) has been deprecated for hexdump(1).\n");
+			warnx("od(1) has been deprecated for hexdump(1)");
 			if (ch != '?')
-				(void)fprintf(stderr,
-"od: hexdump(1) compatibility doesn't support the -%c option%s\n",
-				    ch, ch == 's' ? "; see strings(1)." : ".");
+				warnx("hexdump(1) compatibility doesn't support the -%c option%s",
+				    ch, ch == 's' ? "; see strings(1)" : "");
 			usage();
 		}
 
