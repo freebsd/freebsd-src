@@ -58,6 +58,10 @@ ALLLANG?=	yes
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by ${DOCPORTS} live.
 DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
+# Set this to 1 if you want -P to be used for automatic keyboard detection
+# on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
+AUTO_KEYBOARD_DETECT?= 0
+
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
@@ -771,7 +775,7 @@ doMFSKERN:
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
 .if defined(BIGBOOT)
