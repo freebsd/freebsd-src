@@ -28,15 +28,15 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: trap.h,v 1.3 2000/05/25 21:10:14 is Exp $
- * $FreeBSD$
+ * $NetBSD: trap.h,v 1.7 2002/02/22 13:51:40 kleink Exp $
+ * $FreeBSD$ 
  */
 
 #ifndef	_POWERPC_TRAP_H_
 #define	_POWERPC_TRAP_H_
 
 #define	EXC_RSVD	0x0000		/* Reserved */
-#define	EXC_RST		0x0100		/* Reset */
+#define	EXC_RST		0x0100		/* Reset; all but IBM4xx */
 #define	EXC_MCHK	0x0200		/* Machine Check */
 #define	EXC_DSI		0x0300		/* Data Storage Interrupt */
 #define	EXC_ISI		0x0400		/* Instruction Storage Interrupt */
@@ -49,17 +49,38 @@
 #define	EXC_TRC		0x0d00		/* Trace */
 #define	EXC_FPA		0x0e00		/* Floating-point Assist */
 
-/* The following are only available on 604: */
+/* The following is only available on the 601: */
+#define	EXC_RUNMODETRC	0x2000		/* Run Mode/Trace Exception */
+
+/* The following are only available on 7400(G4): */
+#define	EXC_VEC		0x0f20		/* AltiVec Unavailable */
+#define	EXC_VECAST	0x1600		/* AltiVec Assist */
+
+/* The following are only available on 604/750/7400: */
 #define	EXC_PERF	0x0f00		/* Performance Monitoring */
 #define	EXC_BPT		0x1300		/* Instruction Breakpoint */
-#define	EXC_SMI		0x1400		/* System Management Interrupt */
+#define	EXC_SMI		0x1400		/* System Managment Interrupt */
+
+/* The following are only available on 750/7400: */
+#define	EXC_THRM	0x1700		/* Thermal Management Interrupt */
 
 /* And these are only on the 603: */
 #define	EXC_IMISS	0x1000		/* Instruction translation miss */
 #define	EXC_DLMISS	0x1100		/* Data load translation miss */
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
+/* The following are only available on 405 (and 403?) */
+#define	EXC_CII		0x0100		/* Critical Input Interrupt */
+#define	EXC_PIT		0x1000		/* Programmable Interval Timer */
+#define	EXC_FIT		0x1010		/* Fixed Interval Timer */
+#define	EXC_WDOG	0x1020		/* Watchdog Timer */
+#define	EXC_DTMISS	0x1100		/* Data TLB Miss */
+#define	EXC_ITMISS	0x1200		/* Instruction TLB Miss */
+#define	EXC_DEBUG	0x2000		/* Debug trap */
+
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
+
+#define	EXC_AST		0x3000		/* Fake AST vector */
 
 /* Trap was in user mode */
 #define	EXC_USER	0x10000
@@ -74,19 +95,12 @@
  * PowerPC Architecture".
  */
 
-#define	EXC_ALI_OPCODE_INDICATOR(dsisr) ((dsisr >> 10) & 0x7f)
-#define	EXC_ALI_LFD	0x09
-#define	EXC_ALI_STFD	0x0b
+#define EXC_ALI_OPCODE_INDICATOR(dsisr) ((dsisr >> 10) & 0x7f)
+#define EXC_ALI_LFD	0x09
+#define EXC_ALI_STFD	0x0b
 
 /* Macros to extract register information */
-#define	EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
-#define	EXC_ALI_RA(dsisr) (dsisr & 0x1f)
-
-#ifndef	LOCORE
-
-void	trap(struct trapframe *);
-void	syscall(struct trapframe *);
-
-#endif /* !LOCORE */
+#define EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
+#define EXC_ALI_RA(dsisr) (dsisr & 0x1f)
 
 #endif	/* _POWERPC_TRAP_H_ */
