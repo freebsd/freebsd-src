@@ -268,7 +268,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if (mainthread && mainthread.td_wmesg)	/* XXXKSE */
+		if ((proc.p_state != PRS_ZOMBIE) && mainthread.td_wmesg)	/* XXXKSE */
 			(void)kvm_read(kd, (u_long)mainthread.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
@@ -307,10 +307,12 @@ nopgrp:
 			strncpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
-		if (mainthread && mainthread.td_blocked != 0) {	/* XXXKSE */
+		if ((proc.p_state != PRS_ZOMBIE) &&
+		    mainthread.td_blocked != 0) {
 			kp->ki_kiflag |= KI_MTXBLOCK;
-			if (mainthread.td_mtxname)	/* XXXKSE */
-				(void)kvm_read(kd, (u_long)mainthread.td_mtxname,
+			if (mainthread.td_mtxname)
+				(void)kvm_read(kd,
+				    (u_long)mainthread.td_mtxname,
 				    kp->ki_mtxname, MTXNAMELEN);
 			kp->ki_mtxname[MTXNAMELEN] = 0;
 		}
@@ -321,7 +323,7 @@ nopgrp:
 		kp->ki_sigmask = proc.p_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
-		if (mainthread) {
+		if (proc.p_state != PRS_ZOMBIE) {
 			kp->ki_pctcpu = proc.p_kse.ke_pctcpu;
 			kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;
 			kp->ki_slptime = proc.p_kse.ke_slptime;
