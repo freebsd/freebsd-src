@@ -414,10 +414,10 @@ trap(int vector, int imm, struct trapframe *framep)
 
 		if (framep->tf_cr_isr & IA64_ISR_X)
 			ftype = VM_PROT_EXECUTE;
-		else if (framep->tf_cr_isr & IA64_ISR_R)
-			ftype = VM_PROT_READ;
-		else
+		else if (framep->tf_cr_isr & IA64_ISR_W)
 			ftype = VM_PROT_WRITE;
+		else
+			ftype = VM_PROT_READ;
 	
 		va = trunc_page((vm_offset_t)va);
 
