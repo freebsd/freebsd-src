@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.23 1998/11/18 23:51:40 dfr Exp $
+ *	$Id: machdep.c,v 1.24 1998/11/25 09:45:27 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -124,6 +124,7 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>
+#include <machine/fpu.h>
 #include <machine/pal.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
@@ -1281,7 +1282,7 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	ksc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
 	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksc.sc_fpregs,
 	    sizeof(struct fpreg));
-	ksc.sc_fp_control = 0;					/* XXX ? */
+	ksc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
 	bzero(ksc.sc_reserved, sizeof ksc.sc_reserved);		/* XXX */
 	ksc.sc_xxx1[0] = 0;					/* XXX */
 	ksc.sc_xxx1[1] = 0;					/* XXX */
@@ -1393,7 +1394,7 @@ sigreturn(struct proc *p,
 		fpcurproc = NULL;
 	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
 	    sizeof(struct fpreg));
-	/* XXX ksc.sc_fp_control ? */
+	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1433,8 +1434,12 @@ setregs(struct proc *p, u_long entry, u_long stack)
 
 	bzero(tfp->tf_regs, FRAME_SIZE * sizeof tfp->tf_regs[0]);
 	bzero(&p->p_addr->u_pcb.pcb_fp, sizeof p->p_addr->u_pcb.pcb_fp);
-#define FP_RN 2 /* XXX */
-	p->p_addr->u_pcb.pcb_fp.fpr_cr = (long)FP_RN << 58;
+	p->p_addr->u_pcb.pcb_fp_control = (IEEE_TRAP_ENABLE_INV
+					   | IEEE_TRAP_ENABLE_DZE
+					   | IEEE_TRAP_ENABLE_OVF);
+	p->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
+					  | FPCR_INED | FPCR_UNFD);
+
 	alpha_pal_wrusp(stack);
 	tfp->tf_regs[FRAME_PS] = ALPHA_PSL_USERSET;
 	tfp->tf_regs[FRAME_PC] = entry & ~3;

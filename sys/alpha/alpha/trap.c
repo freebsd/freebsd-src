@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.5 1998/07/15 20:16:27 dfr Exp $ */
+/* $Id: trap.c,v 1.6 1998/11/18 23:51:40 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -57,6 +57,7 @@
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/pal.h>
+#include <machine/fpu.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -242,11 +243,13 @@ trap(a0, a1, a2, entry, framep)
 
 	case ALPHA_KENTRY_ARITH:
 		/* 
-		 * If user-land, just give a SIGFPE.  Should do
-		 * software completion and IEEE handling, if the
-		 * user has requested that.
+		 * If user-land, give a SIGFPE if software completion
+		 * is not requested or if the completion fails.
 		 */
 		if (user) {
+			if (a0 & EXCSUM_SWC)
+				if (fp_software_completion(a1, p))
+					goto out;
 			i = SIGFPE;
 			ucode =  a0;		/* exception summary */
 			break;
@@ -546,7 +549,7 @@ syscall(code, framep)
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A2] = 0;
 #if notdef				/* can't happen, ever. */
-	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0) {
+	if ((framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) == 0)
 		panic("syscall");
 #endif
 

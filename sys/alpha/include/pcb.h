@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: pcb.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: pcb.h,v 1.6 1997/04/06 08:47:33 cgd Exp */
 
 /*
@@ -50,6 +50,7 @@ struct pcb {
 	struct alpha_pcb pcb_hw;		/* PALcode defined */
 	unsigned long	pcb_context[9];		/* s[0-6], ra, ps	[SW] */
 	struct fpreg	pcb_fp;			/* FP registers		[SW] */
+	u_int64_t	pcb_fp_control;		/* IEEE control word	[SW] */
 	unsigned long	pcb_onfault;		/* for copy faults	[SW] */
 	unsigned long	pcb_accessaddr;		/* for [fs]uswintr	[SW] */
 };
