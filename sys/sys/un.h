@@ -59,7 +59,7 @@ int	uipc_usrreq __P((struct socket *so, int req, struct mbuf *m,
 		struct mbuf *nam, struct mbuf *control));
 int	unp_connect2 __P((struct socket *so, struct socket *so2));
 void	unp_dispose __P((struct mbuf *m));
-int	unp_externalize __P((struct mbuf *rights));
+int	unp_externalize __P((struct mbuf *mbuf, struct mbuf **controlp));
 void	unp_init __P((void));
 extern	struct pr_usrreqs uipc_usrreqs;
 #else /* !_KERNEL */
