@@ -780,14 +780,14 @@ ttioctl(tp, cmd, data, flag)
 			}
 			PROC_UNLOCK(p);
 			PGRP_LOCK(p->p_pgrp);
+			PGRPSESS_SUNLOCK();
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
 			PGRP_UNLOCK(p->p_pgrp);
 			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
 					 0);
-			if (error) {
-				PGRPSESS_SUNLOCK();
+			if (error)
 				return (error);
-			}
+			PGRPSESS_SLOCK();
 			PROC_LOCK(p);
 		}
 		PROC_UNLOCK(p);
