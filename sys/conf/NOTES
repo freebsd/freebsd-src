@@ -77,6 +77,7 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	MODULES_OVERRIDE="linux sound/sound sound/driver/maestro3"
 makeoptions	DESTDIR=/tmp
 
+#
 # FreeBSD processes are subject to certain limits to their consumption
 # of system resources.  See getrlimit(2) for more details.  Each
 # resource limit has two values, a "soft" limit and a "hard" limit.
@@ -87,14 +88,7 @@ makeoptions	DESTDIR=/tmp
 # 1.  Set the values at kernel build time.  The options below are one
 #     way to allow that limit to grow to 1GB.  They can be increased
 #     further by changing the parameters:
-
-# Hard limit for data segment size (default currently 512 MB).
-options		MAXDSIZ=(1024UL*1024*1024)
-# Hard limit for stack size (default currently 64 MB)
-options 	MAXSSIZ=(128UL*1024*1024)
-# Soft limit for data segment size (default currently 128 MB)
-options 	DFLDSIZ=(1024UL*1024*1024)
-
+#	
 # 2.  In /boot/loader.conf, set the tunables kern.maxswzone,
 #     kern.maxbcache, kern.maxtsiz, kern.dfldsiz, kern.maxdsiz,
 #     kern.dflssiz, kern.maxssiz and kern.sgrowsiz.
@@ -102,7 +96,13 @@ options 	DFLDSIZ=(1024UL*1024*1024)
 # The options in /boot/loader.conf override anything in the kernel
 # configuration file.  See the function init_param1 in
 # sys/kern/subr_param.c for more details.
+#
 
+options 	MAXDSIZ=(1024UL*1024*1024)
+options 	MAXSSIZ=(128UL*1024*1024)
+options 	DFLDSIZ=(1024UL*1024*1024)
+
+#
 # BLKDEV_IOSIZE sets the default block size used in user block
 # device I/O.  Note that this value will be overridden by the label
 # when specifying a block device from a label with a non-0
@@ -140,7 +140,7 @@ options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PC98		# NEC PC9800 partitioning
 options 	GEOM_RAID3		# RAID3 functionality.
-options		GEOM_SHSEC		# Shared secret.
+options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks
@@ -322,7 +322,7 @@ options 	SYSCTL_DEBUG
 # for the kernel used to detect modify-after-free scenarios.  See the
 # memguard(9) man page for more information on usage.
 #
-options		DEBUG_MEMGUARD
+options 	DEBUG_MEMGUARD
 
 #
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
@@ -502,14 +502,14 @@ options 	NETGRAPH_GIF_DEMUX
 options 	NETGRAPH_HOLE
 options 	NETGRAPH_IFACE
 options 	NETGRAPH_IP_INPUT
-options		NETGRAPH_IPFW
+options 	NETGRAPH_IPFW
 options 	NETGRAPH_KSOCKET
 options 	NETGRAPH_L2TP
 options 	NETGRAPH_LMI
 # MPPC compression requires proprietary files (not included)
 #options 	NETGRAPH_MPPC_COMPRESSION
 options 	NETGRAPH_MPPC_ENCRYPTION
-options		NETGRAPH_NETFLOW
+options 	NETGRAPH_NETFLOW
 options 	NETGRAPH_ONE2MANY
 options 	NETGRAPH_PPP
 options 	NETGRAPH_PPPOE
@@ -690,7 +690,7 @@ options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPFIREWALL_FORWARD	#packet destination changes
-options		IPFIREWALL_FORWARD_EXTENDED	#all packet dest changes
+options 	IPFIREWALL_FORWARD_EXTENDED	#all packet dest changes
 options 	IPV6FIREWALL		#firewall for IPv6
 options 	IPV6FIREWALL_VERBOSE
 options 	IPV6FIREWALL_VERBOSE_LIMIT=100
@@ -2082,7 +2082,7 @@ device		nmdm
 # mono sound.
 
 #
-# options	BKTR_USE_FREEBSD_SMBUS
+# options 	BKTR_USE_FREEBSD_SMBUS
 # Compile with FreeBSD SMBus implementation
 #
 # Brooktree driver has been ported to the new I2C framework. Thus,
