@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.2 1998/08/31 21:10:40 msmith Exp $ */
+/* $Id: elf_freebsd.c,v 1.3 1998/09/14 18:27:00 msmith Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -80,6 +80,7 @@
 #include <string.h>
 
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <machine/elf.h>
 #include <machine/prom.h>
 #include <machine/rpb.h>
