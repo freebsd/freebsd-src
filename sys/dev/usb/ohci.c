@@ -1555,6 +1555,10 @@ ohci_hash_find_td(sc, a)
 	int h = HASH(a);
 	ohci_soft_td_t *std;
 
+	KASSERT(a&LE(TAILMASK) == 0, ("%s: 0x%b has lower bits set\n",
+				      USBDEVNAME(sc->sc_bus.bdev),
+				      (int) a, "\20\1HALT\2TOGGLE"));
+
 	for (std = LIST_FIRST(&sc->sc_hash_tds[h]); 
 	     std != NULL;
 	     std = LIST_NEXT(std, hnext))
