@@ -879,7 +879,7 @@ performNewfs(PartInfo *pi, char *dname, int queue)
 			snprintf(buffer, LINE_MAX, "%s %s %s %s %s",
 			    NEWFS_UFS_CMD,
 			    pi->newfs_data.newfs_ufs.softupdates ?  "-U" : "",
-			    pi->newfs_data.newfs_ufs.ufs2 ? "-O2" : "-O1",
+			    pi->newfs_data.newfs_ufs.ufs1 ? "-O1" : "-O2",
 			    pi->newfs_data.newfs_ufs.user_options,
 			    dname);
 			break;
