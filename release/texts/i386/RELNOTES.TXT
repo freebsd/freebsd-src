@@ -63,6 +63,9 @@ SIGFPE signal handlers (both SA_SIGINFO and traditional BSD handlers)
 now get meaningful error codes describing the kind of error. See
 sigaction(2).
 
+IA32 hardware debug registers are now supported.  See ptrace(2) and
+procfs(5).
+
 Jail(8) aware sysctl(8) variables have been added for Linux mode.
 
 A large number of bug fixes and performance improvements have been
