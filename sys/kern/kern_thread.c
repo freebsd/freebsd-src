@@ -1425,44 +1425,50 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	return (td2);	/* bogus.. should be a void function */
 }
 
-/*
- * Schedule an upcall to notify a KSE process recieved signals.
- *
- * XXX - Modifying a sigset_t like this is totally bogus.
- */
-struct thread *
-signal_upcall(struct proc *p, int sig)
+void
+thread_signal_add(struct thread *td, int sig)
 {
-#if 0
-	struct thread *td, *td2;
-	struct kse *ke;
+	struct kse_upcall *ku;
+	struct proc *p;
 	sigset_t ss;
 	int error;
 
-#endif
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-return (NULL);
-#if 0
-	td = FIRST_THREAD_IN_PROC(p);
-	ke = td->td_kse;
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	td = curthread;
+	ku = td->td_upcall;
+	p = td->td_proc;
+
 	PROC_UNLOCK(p);
-	error = copyin(&ke->ke_mailbox->km_sigscaught, &ss, sizeof(sigset_t));
-	PROC_LOCK(p);
+	error = copyin(&ku->ku_mailbox->km_sigscaught, &ss, sizeof(sigset_t));
 	if (error)
-		return (NULL);
+		goto error;
+
 	SIGADDSET(ss, sig);
-	PROC_UNLOCK(p);
-	error = copyout(&ss, &ke->ke_mailbox->km_sigscaught, sizeof(sigset_t));
-	PROC_LOCK(p);
+
+	error = copyout(&ss, &ku->ku_mailbox->km_sigscaught, sizeof(sigset_t));
 	if (error)
-		return (NULL);
-	if (td->td_standin == NULL)
-		thread_alloc_spare(td, NULL);
+		goto error;
+
+	PROC_LOCK(p);
+	return;
+error:
+	PROC_LOCK(p);
+	sigexit(td, SIGILL);
+}
+
+
+/*
+ * Schedule an upcall to notify a KSE process recieved signals.
+ *
+ */
+void
+thread_signal_upcall(struct thread *td)
+{
 	mtx_lock_spin(&sched_lock);
-	td2 = thread_schedule_upcall(td, ke); /* Bogus JRE */
+	td->td_flags |= TDF_UPCALLING;
 	mtx_unlock_spin(&sched_lock);
-	return (td2);
-#endif
+
+	return;
 }
 
 /*
