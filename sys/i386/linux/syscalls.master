@@ -32,7 +32,7 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	STD	LINUX	{ int linux_setup(void); }
-1	NOPROTO	LINUX	{ void exit(int rval); } exit rexit_args void
+1	NOPROTO	LINUX	{ void sys_exit(int rval); } exit sys_exit_args void
 2	STD	LINUX	{ int linux_fork(void); }
 3	NOPROTO	LINUX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	LINUX	{ int write(int fd, char *buf, u_int nbyte); }

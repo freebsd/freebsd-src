@@ -32,7 +32,7 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	NOPROTO	NOHIDE	{ int nosys(void); } syscall nosys_args int
-1	NOPROTO	NOHIDE	{ void exit(int rval); } exit rexit_args void
+1	NOPROTO	NOHIDE	{ void sys_exit(int rval); } exit sys_exit_args void
 2	NOPROTO	POSIX	{ int fork(void); }
 3	STD	POSIX	{ int ibcs2_read(int fd, char *buf, u_int nbytes); }
 4	NOPROTO	POSIX	{ int write(int fd, char *buf, u_int nbytes); }
