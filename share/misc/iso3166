@@ -479,8 +479,6 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-5 2002-05-20
 #  EAST TIMOR changed alpha-2 code from TP to TL and alpha-3 from TMP to TLS.
 #  Numeric remains 626.
-<<<<<<< iso3166
-=======
 #
 # Newsletter V-6 2002-11-15
 #  EAST TIMOR (TL) changed short name to TIMOR-LESTE.  Codes unchanged.
@@ -491,4 +489,3 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-8 2003-07-23
 #  YUGOSLAVIA (YU) changed official name, short name, alpha-2, and alpha-3.
 #
->>>>>>> 1.12
