@@ -330,7 +330,7 @@ everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} all
+	cd ${.CURDIR}; ${WMAKE} par-all
 
 
 WMAKE_TGTS=
@@ -786,7 +786,7 @@ _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
 
-.for __target in clean cleandepend cleandir depend includes obj
+.for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
 	@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
