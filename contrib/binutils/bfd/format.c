@@ -132,7 +132,7 @@ bfd_check_format_matches (abfd, format, matching)
     }
 
   if (abfd->format != bfd_unknown)
-    return abfd->format == format;
+    return (boolean) (abfd->format == format);
 
   /* Since the target type was defaulted, check them
      all in the hope that one will be uniquely recognized.  */
@@ -355,7 +355,7 @@ bfd_set_format (abfd, format)
     }
 
   if (abfd->format != bfd_unknown)
-    return abfd->format == format;
+    return (boolean) (abfd->format == format);
 
   /* Presume the answer is yes.  */
   abfd->format = format;

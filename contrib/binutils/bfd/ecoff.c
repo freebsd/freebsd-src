@@ -3837,7 +3837,7 @@ ecoff_link_add_externals (abfd, info, external_ext, ssext)
     = backend->debug_swap.swap_ext_in;
   bfd_size_type external_ext_size = backend->debug_swap.external_ext_size;
   unsigned long ext_count;
-  struct ecoff_link_hash_entry **sym_hash;
+  struct bfd_link_hash_entry **sym_hash;
   char *ext_ptr;
   char *ext_end;
   bfd_size_type amt;
@@ -3846,10 +3846,10 @@ ecoff_link_add_externals (abfd, info, external_ext, ssext)
 
   amt = ext_count;
   amt *= sizeof (struct bfd_link_hash_entry *);
-  sym_hash = (struct ecoff_link_hash_entry **) bfd_alloc (abfd, amt);
+  sym_hash = (struct bfd_link_hash_entry **) bfd_alloc (abfd, amt);
   if (!sym_hash)
     return false;
-  ecoff_data (abfd)->sym_hashes = sym_hash;
+  ecoff_data (abfd)->sym_hashes = (struct ecoff_link_hash_entry **) sym_hash;
 
   ext_ptr = (char *) external_ext;
   ext_end = ext_ptr + ext_count * external_ext_size;
@@ -3980,15 +3980,13 @@ ecoff_link_add_externals (abfd, info, external_ext, ssext)
 
       name = ssext + esym.asym.iss;
 
-      h = NULL;
       if (! (_bfd_generic_link_add_one_symbol
 	     (info, abfd, name,
 	      (flagword) (esym.weakext ? BSF_WEAK : BSF_GLOBAL),
-	      section, value, (const char *) NULL, true, true,
-	      (struct bfd_link_hash_entry **) &h)))
+	      section, value, (const char *) NULL, true, true, sym_hash)))
 	return false;
 
-      *sym_hash = h;
+      h = (struct ecoff_link_hash_entry *) *sym_hash;
 
       /* If we are building an ECOFF hash table, save the external
 	 symbol information.  */

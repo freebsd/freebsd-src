@@ -31,7 +31,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldlang.h"
 #include "ldfile.h"
 #include "ldmain.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "ldlex.h"
 #include "ldemul.h"
 #include "libiberty.h"
@@ -131,7 +131,99 @@ ldfile_try_open_bfd (attempt, entry)
       if (check != NULL)
 	{
 	  if (! bfd_check_format (check, bfd_object))
-	    return true;
+	    {
+	      if (check == entry->the_bfd
+		  && bfd_get_error () == bfd_error_file_not_recognized
+		  && ! ldemul_unrecognized_file (entry))
+		{
+		  int token, skip = 0;
+		  char *arg, *arg1, *arg2, *arg3;
+		  extern FILE *yyin;
+
+		  /* Try to interpret the file as a linker script.  */
+		  ldfile_open_command_file (attempt);
+		              
+		  ldfile_assumed_script = true;
+		  parser_input = input_selected;
+		  ldlex_both ();
+		  token = INPUT_SCRIPT;
+		  while (token != 0)
+		    {
+		      switch (token)
+			{
+			case OUTPUT_FORMAT:
+			  if ((token = yylex ()) != '(')
+			    continue;
+			  if ((token = yylex ()) != NAME)
+			    continue;
+			  arg1 = yylval.name;
+			  arg2 = NULL;
+			  arg3 = NULL;
+			  token = yylex ();
+			  if (token == ',')
+			    {
+			      if ((token = yylex ()) != NAME)
+				{
+				  free (arg1);
+				  continue;
+				}
+			      arg2 = yylval.name;
+			      if ((token = yylex ()) != ','
+				  || (token = yylex ()) != NAME)
+				{
+				  free (arg1);
+				  free (arg2);
+				  continue;
+				}
+			      arg3 = yylval.name;
+			      token = yylex ();
+			    }
+			  if (token == ')')
+			    {
+			      switch (command_line.endian)
+				{
+				default:
+				case ENDIAN_UNSET:
+				  arg = arg1; break;
+				case ENDIAN_BIG:
+				  arg = arg2 ? arg2 : arg1; break;
+				case ENDIAN_LITTLE:
+				  arg = arg3 ? arg3 : arg1; break;
+				}
+			      if (strcmp (arg, lang_get_output_target ()) != 0)
+				skip = 1;
+			    }
+			  free (arg1);
+			  if (arg2) free (arg2);
+			  if (arg3) free (arg3);
+			  break;
+			case NAME:
+			case LNAME:
+			case VERS_IDENTIFIER:
+			case VERS_TAG:
+			  free (yylval.name);
+			  break;
+			case INT:
+			  if (yylval.bigint.str)
+			    free (yylval.bigint.str);
+			  break;
+		        }
+		      token = yylex ();
+		    }
+		  ldfile_assumed_script = false;
+		  fclose (yyin);
+		  yyin = NULL;
+		  if (skip)
+		    {
+		      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
+			     attempt, entry->local_sym_name);
+		      bfd_close (entry->the_bfd);
+		      entry->the_bfd = NULL;
+		      return false;
+		    }
+		}
+	      return true;
+	    }
 
 	  if ((bfd_arch_get_compatible (check, output_bfd) == NULL)
 	      /* XCOFF archives can have 32 and 64 bit objects */

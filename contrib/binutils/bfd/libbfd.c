@@ -186,9 +186,9 @@ bfd_realloc (ptr, size)
     }
 
   if (ptr == NULL)
-    ret = malloc ((size_t) size);
+    ret = (PTR) malloc ((size_t) size);
   else
-    ret = realloc (ptr, (size_t) size);
+    ret = (PTR) realloc (ptr, (size_t) size);
 
   if (ret == NULL && (size_t) size != 0)
     bfd_set_error (bfd_error_no_memory);
@@ -562,7 +562,7 @@ bfd_bwrite (ptr, size, abfd)
 	  newsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	  if (newsize > oldsize)
 	    {
-	      bim->buffer = bfd_realloc (bim->buffer, newsize);
+	      bim->buffer = (bfd_byte *) bfd_realloc (bim->buffer, newsize);
 	      if (bim->buffer == 0)
 		{
 		  bim->size = 0;
@@ -608,7 +608,7 @@ bfd_write_bigendian_4byte_int (abfd, i)
 {
   bfd_byte buffer[4];
   bfd_putb32 ((bfd_vma) i, buffer);
-  return bfd_bwrite ((PTR) buffer, (bfd_size_type) 4, abfd) == 4;
+  return (boolean) (bfd_bwrite ((PTR) buffer, (bfd_size_type) 4, abfd) == 4);
 }
 
 bfd_vma
@@ -706,7 +706,7 @@ bfd_seek (abfd, position, direction)
 	      newsize = (bim->size + 127) & ~(bfd_size_type) 127;
 	      if (newsize > oldsize)
 	        {
-		  bim->buffer = bfd_realloc (bim->buffer, newsize);
+		  bim->buffer = (bfd_byte *) bfd_realloc (bim->buffer, newsize);
 		  if (bim->buffer == 0)
 		    {
 		      bim->size = 0;
@@ -1414,7 +1414,7 @@ bfd_generic_is_local_label_name (abfd, name)
 {
   char locals_prefix = (bfd_get_symbol_leading_char (abfd) == '_') ? 'L' : '.';
 
-  return (name[0] == locals_prefix);
+  return (boolean) (name[0] == locals_prefix);
 }
 
 /*  Can be used from / for bfd_merge_private_bfd_data to check that

@@ -159,7 +159,7 @@ const pseudo_typeS md_pseudo_table[] =
   {"uaword", s_uacons, 4},
   {"uaxword", s_uacons, 8},
 #ifdef OBJ_ELF
-  {"file", dwarf2_directive_file, 0},
+  {"file", (void (*) PARAMS ((int))) dwarf2_directive_file, 0},
   {"loc", dwarf2_directive_loc, 0},
   /* These are specific to sparc/svr4.  */
   {"2byte", s_uacons, 2},

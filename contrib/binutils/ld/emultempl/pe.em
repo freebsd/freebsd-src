@@ -56,7 +56,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldlang.h"
 #include "ldfile.h"
 #include "ldemul.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "ldlex.h"
 #include "ldmisc.h"
 #include "ldctor.h"

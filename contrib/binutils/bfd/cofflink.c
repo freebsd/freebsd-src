@@ -1322,6 +1322,9 @@ mark_relocs (finfo, input_bfd)
 
       if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1)
 	continue;
+      /* Don't mark relocs in excluded sections.  */
+      if (a->output_section == bfd_abs_section_ptr)
+	continue;
 
       /* Read in the relocs.  */
       internal_relocs = _bfd_coff_read_internal_relocs

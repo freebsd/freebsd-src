@@ -36,7 +36,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldwrite.h"
 #include "ldexp.h"
 #include "ldlang.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "ldlex.h"
 #include "ldfile.h"
 #include "ldemul.h"

@@ -68,14 +68,14 @@ static int set_target_endian = 0;
 #define PPC_HA(v) PPC_HI ((v) + 0x8000)
 
 /* #higher(value) denotes bits 32 through 47 of the indicated value.  */
-#define PPC_HIGHER(v) (((v) >> 32) & 0xffff)
+#define PPC_HIGHER(v) (((v) >> 16 >> 16) & 0xffff)
 
 /* #highera(value) denotes bits 32 through 47 of the indicated value,
    compensating for #lo() being treated as a signed number.  */
 #define PPC_HIGHERA(v) PPC_HIGHER ((v) + 0x8000)
 
 /* #highest(value) denotes bits 48 through 63 of the indicated value.  */
-#define PPC_HIGHEST(v) (((v) >> 48) & 0xffff)
+#define PPC_HIGHEST(v) (((v) >> 24 >> 24) & 0xffff)
 
 /* #highesta(value) denotes bits 48 through 63 of the indicated value,
    compensating for #lo being treated as a signed number.  */
@@ -852,7 +852,13 @@ md_parse_option (c, arg)
       /* a64 and a32 determine whether to use XCOFF64 or XCOFF32.  */
     case 'a':
       if (strcmp (arg, "64") == 0)
-	ppc_obj64 = 1;
+	{
+#ifdef BFD64
+	  ppc_obj64 = 1;
+#else
+	  as_fatal (_("%s unsupported"), "-a64");
+#endif
+	}
       else if (strcmp (arg, "32") == 0)
 	ppc_obj64 = 0;
       else
@@ -1062,8 +1068,10 @@ ppc_set_cpu ()
 
   if (ppc_cpu == 0)
     {
-      if (strncmp (default_os, "aix", 3) == 0
-	  && default_os[3] >= '4' && default_os[3] <= '9')
+      if (ppc_obj64)
+	ppc_cpu = PPC_OPCODE_PPC | PPC_OPCODE_64;
+      else if (strncmp (default_os, "aix", 3) == 0
+	       && default_os[3] >= '4' && default_os[3] <= '9')
 	ppc_cpu = PPC_OPCODE_COMMON | PPC_OPCODE_32;
       else if (strncmp (default_os, "aix3", 4) == 0)
 	ppc_cpu = PPC_OPCODE_POWER | PPC_OPCODE_32;
@@ -1109,7 +1117,12 @@ ppc_arch ()
 unsigned long
 ppc_mach ()
 {
-  return ppc_obj64 ? bfd_mach_ppc64 : bfd_mach_ppc;
+  if (ppc_obj64)
+    return bfd_mach_ppc64;
+  else if (ppc_arch () == bfd_arch_rs6000)
+    return bfd_mach_rs6k;
+  else
+    return bfd_mach_ppc;
 }
 
 extern char*
