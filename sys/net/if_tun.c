@@ -15,9 +15,7 @@
  */
 
 #include "tun.h"
-#if NTUN > 0
 
-#include "opt_devfs.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -33,12 +31,10 @@
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -62,19 +58,21 @@
 #include <net/if_tunvar.h>
 #include <net/if_tun.h>
 
+static MALLOC_DEFINE(M_TUN, "tun", "Tunnel Interface");
+
 static void tunattach __P((void *));
 PSEUDO_SET(tunattach, if_tun);
+
+static void tuncreate __P((dev_t dev));
 
 #define TUNDEBUG	if (tundebug) printf
 static int tundebug = 0;
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
-static struct tun_softc tunctl[NTUN];
-
 static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
 static int tunifioctl __P((struct ifnet *, u_long, caddr_t));
-static int tuninit __P((int));
+static int tuninit __P((struct ifnet *));
 
 static	d_open_t	tunopen;
 static	d_close_t	tunclose;
@@ -106,48 +104,42 @@ static struct cdevsw tun_cdevsw = {
 	/* bmaj */	-1
 };
 
-
-static	int	tun_devsw_installed;
-#ifdef	DEVFS
-static	void	*tun_devfs_token[NTUN];
-#endif
-
-#define minor_val(n) ((((n) & ~0xff) << 8) | ((n) & 0xff))
-#define dev_val(n) (((n) >> 8) | ((n) & 0xff))
-
 static void
 tunattach(dummy)
 	void *dummy;
 {
-	register int i;
+
+	cdevsw_add(&tun_cdevsw);
+}
+
+static void
+tuncreate(dev)
+	dev_t dev;
+{
+	struct tun_softc *sc;
 	struct ifnet *ifp;
 
-	if ( tun_devsw_installed )
-		return;
-	cdevsw_add(&tun_cdevsw);
-	tun_devsw_installed = 1;
-	for ( i = 0; i < NTUN; i++ ) {
-#ifdef DEVFS
-		tun_devfs_token[i] = devfs_add_devswf(&tun_cdevsw, minor_val(i),
-						      DV_CHR, UID_UUCP,
-						      GID_DIALER, 0600,
-						      "tun%d", i);
-#endif
-		tunctl[i].tun_flags = TUN_INITED;
+	dev = make_dev(&tun_cdevsw, minor(dev),
+	    UID_UUCP, GID_DIALER, 0600, "tun%d", lminor(dev));
 
-		ifp = &tunctl[i].tun_if;
-		ifp->if_unit = i;
-		ifp->if_name = "tun";
-		ifp->if_mtu = TUNMTU;
-		ifp->if_ioctl = tunifioctl;
-		ifp->if_output = tunoutput;
-		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-		if_attach(ifp);
+	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK);
+	bzero(sc, sizeof *sc);
+	sc->tun_flags = TUN_INITED;
+
+	ifp = &sc->tun_if;
+	ifp->if_unit = lminor(dev);
+	ifp->if_name = "tun";
+	ifp->if_mtu = TUNMTU;
+	ifp->if_ioctl = tunifioctl;
+	ifp->if_output = tunoutput;
+	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_softc = sc;
+	if_attach(ifp);
 #if NBPF > 0
-		bpfattach(ifp, DLT_NULL, sizeof(u_int));
+	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 #endif
-	}
+	dev->si_drv1 = sc;
 }
 
 /*
@@ -162,15 +154,17 @@ tunopen(dev, flag, mode, p)
 {
 	struct ifnet	*ifp;
 	struct tun_softc *tp;
-	register int	unit, error;
+	register int	error;
 
 	error = suser(p);
 	if (error)
 		return (error);
 
-	if ((unit = dev_val(minor(dev))) >= NTUN)
-		return (ENXIO);
-	tp = &tunctl[unit];
+	tp = dev->si_drv1;
+	if (!tp) {
+		tuncreate(dev);
+		tp = dev->si_drv1;
+	}
 	if (tp->tun_flags & TUN_OPEN)
 		return EBUSY;
 	tp->tun_pid = p->p_pid;
@@ -191,10 +185,13 @@ tunclose(dev, foo, bar, p)
 	int bar;
 	struct proc *p;
 {
-	register int	unit = dev_val(minor(dev)), s;
-	struct tun_softc *tp = &tunctl[unit];
-	struct ifnet	*ifp = &tp->tun_if;
+	register int	s;
+	struct tun_softc *tp;
+	struct ifnet	*ifp;
 	struct mbuf	*m;
+
+	tp = dev->si_drv1;
+	ifp = &tp->tun_if;
 
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
@@ -238,11 +235,10 @@ tunclose(dev, foo, bar, p)
 }
 
 static int
-tuninit(unit)
-	int	unit;
+tuninit(ifp)
+	struct ifnet *ifp;
 {
-	struct tun_softc *tp = &tunctl[unit];
-	struct ifnet	*ifp = &tp->tun_if;
+	struct tun_softc *tp = ifp->if_softc;
 	register struct ifaddr *ifa;
 
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
@@ -279,7 +275,7 @@ tunifioctl(ifp, cmd, data)
 	caddr_t	data;
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct tun_softc *tp = &tunctl[ifp->if_unit];
+	struct tun_softc *tp = ifp->if_softc;
 	struct ifstat *ifs;
 	int		error = 0, s;
 
@@ -292,12 +288,12 @@ tunifioctl(ifp, cmd, data)
 			    "\tOpened by PID %d\n", tp->tun_pid);
 		return(0);
 	case SIOCSIFADDR:
-		tuninit(ifp->if_unit);
+		tuninit(ifp);
 		TUNDEBUG("%s%d: address set\n",
 			 ifp->if_name, ifp->if_unit);
 		break;
 	case SIOCSIFDSTADDR:
-		tuninit(ifp->if_unit);
+		tuninit(ifp);
 		TUNDEBUG("%s%d: destination address set\n",
 			 ifp->if_name, ifp->if_unit);
 		break;
@@ -328,7 +324,7 @@ tunoutput(ifp, m0, dst, rt)
 	struct sockaddr *dst;
 	struct rtentry *rt;
 {
-	struct tun_softc *tp = &tunctl[ifp->if_unit];
+	struct tun_softc *tp = ifp->if_softc;
 	int		s;
 
 	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);
@@ -428,8 +424,8 @@ tunioctl(dev, cmd, data, flag, p)
 	int		flag;
 	struct proc	*p;
 {
-	int		unit = dev_val(minor(dev)), s;
-	struct tun_softc *tp = &tunctl[unit];
+	int		s;
+	struct tun_softc *tp = dev->si_drv1;
  	struct tuninfo *tunp;
 
 	switch (cmd) {
@@ -527,8 +523,7 @@ tunread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	int		unit = dev_val(minor(dev));
-	struct tun_softc *tp = &tunctl[unit];
+	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*m, *m0;
 	int		error=0, len, s;
@@ -585,8 +580,8 @@ tunwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	int		unit = dev_val(minor(dev));
-	struct ifnet	*ifp = &tunctl[unit].tun_if;
+	struct tun_softc *tp = dev->si_drv1;
+	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*top, **mp, *m;
 	int		error=0, s, tlen, mlen;
 
@@ -682,8 +677,8 @@ tunpoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	int		unit = dev_val(minor(dev)), s;
-	struct tun_softc *tp = &tunctl[unit];
+	int		s;
+	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
 	int		revents = 0;
 
@@ -707,6 +702,3 @@ tunpoll(dev, events, p)
 	splx(s);
 	return (revents);
 }
-
-
-#endif  /* NTUN */
