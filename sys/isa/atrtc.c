@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.12 1997/09/01 07:37:01 smp Exp smp $
+ *	$Id: clock.c,v 1.102 1997/09/01 07:45:23 fsmp Exp $
  */
 
 /*
@@ -61,10 +61,13 @@
 #ifdef CLK_CALIBRATION_LOOP
 #include <machine/cons.h>
 #endif
-#include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
 #include <machine/limits.h>
+#ifdef APIC_IO
+#include <machine/segments.h>
+#endif
 #if defined(SMP) || defined(APIC_IO)
 #include <machine/smp.h>
 #endif /* SMP || APIC_IO */

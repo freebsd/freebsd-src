@@ -24,26 +24,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cputypes.h,v 1.8 1997/03/22 18:53:03 kato Exp $
+ *	$Id: cputypes.h,v 1.9 1997/04/26 04:08:54 kato Exp $
  */
 
 #ifndef _MACHINE_CPUTYPES_H_
-#define _MACHINE_CPUTYPES_H_ 1
+#define	_MACHINE_CPUTYPES_H_
 
 /*
- *	Classes of Processor
+ * Classes of processor.
  */
-
 #define	CPUCLASS_286	0
 #define	CPUCLASS_386	1
 #define	CPUCLASS_486	2
 #define	CPUCLASS_586	3
-#define CPUCLASS_686	4
+#define	CPUCLASS_686	4
 
 /*
- *	Kinds of Processor
+ * Kinds of processor.
  */
-
 #define	CPU_286		0	/* Intel 80286 */
 #define	CPU_386SX	1	/* Intel 80386SX */
 #define	CPU_386		2	/* Intel 80386DX */
@@ -51,11 +49,22 @@
 #define	CPU_486		4	/* Intel 80486DX */
 #define	CPU_586		5	/* Intel P.....m (I hate lawyers; it's TM) */
 #define	CPU_486DLC	6	/* Cyrix 486DLC */
-#define CPU_686		7	/* Pentium Pro */
+#define	CPU_686		7	/* Pentium Pro */
 #define	CPU_M1SC	8	/* Cyrix M1sc (aka 5x86) */
 #define	CPU_M1		9	/* Cyrix M1 (aka 6x86) */
 #define	CPU_BLUE	10	/* IBM BlueLighting CPU */
 #define	CPU_M2		11	/* Cyrix M2 (aka enhanced 6x86 with MMX */
-#define CPU_NX586	12	/* NexGen (now AMD) 586 */
+#define	CPU_NX586	12	/* NexGen (now AMD) 586 */
 #define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
-#endif /* _MACHINE_CPUTYPES_H_ */
+
+#ifndef LOCORE
+struct cpu_nameclass {
+	char	*cpu_name;
+	int	cpu_class;
+};
+
+extern int	cpu;
+extern int	cpu_class;
+#endif
+
+#endif /* !_MACHINE_CPUTYPES_H_ */

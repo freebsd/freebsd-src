@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.28 1997/09/20 13:18:48 phk Exp $
+ *	$Id: identcpu.c,v 1.29 1997/10/03 14:23:47 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -47,8 +47,9 @@
 #include <sys/sysctl.h>
 
 #include <machine/asmacros.h>
-#include <machine/cpu.h>
 #include <machine/clock.h>
+#include <machine/cputypes.h>
+#include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
