@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.76.2.4 1999/04/18 14:59:09 kato Exp $
+ *	$Id$
  */
 
 #include "opt_comconsole.h"
@@ -3549,7 +3549,7 @@ siostop(tp, rw)
 	if (com->gone)
 		return;
 #ifdef PC98
-	if (IS_8251(com->pc98_if_type))
+	if (!IS_8251(com->pc98_if_type))
 	    port_shift = if_16550a_type[com->pc98_if_type & 0x0f].port_shift;
 #endif
 	disable_intr();
