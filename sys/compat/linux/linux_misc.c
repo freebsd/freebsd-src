@@ -41,6 +41,7 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/blist.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -49,6 +50,7 @@
 #include <sys/sysproto.h>
 #include <sys/time.h>
 #include <sys/unistd.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
 
@@ -57,6 +59,9 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_zone.h>
+#include <vm/swap_pager.h>
 
 #include <machine/frame.h>
 #include <machine/limits.h>
@@ -91,6 +96,77 @@ static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] =
   RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
   RLIMIT_MEMLOCK, -1
 };
+#endif /*!__alpha__*/
+
+struct linux_sysinfo {
+     long uptime;              /* Seconds since boot */
+     unsigned long loads[3];   /* 1, 5, and 15 minute load averages */
+     unsigned long totalram;   /* Total usable main memory size */
+     unsigned long freeram;    /* Available memory size */
+     unsigned long sharedram;  /* Amount of shared memory */
+     unsigned long bufferram;  /* Memory used by buffers */
+     unsigned long totalswap;  /* Total swap space size */
+     unsigned long freeswap;   /* swap space still available */
+     unsigned short procs;     /* Number of current processes */
+     char _f[22];              /* Pads structure to 64 bytes */
+};
+
+#ifndef __alpha__
+int
+linux_sysinfo(struct proc *p, struct linux_sysinfo_args *args)
+{
+     struct linux_sysinfo sysinfo;
+     vm_object_t object;
+     int i;
+     struct timespec ts;
+
+     /* Uptime is copied out of print_uptime() procedure in kern_shutdown.c */
+     getnanouptime(&ts);
+     i = 0;
+     if (ts.tv_sec >= 86400) {
+          ts.tv_sec %= 86400;
+          i = 1;
+     }
+     if (i || ts.tv_sec >= 3600) {
+          ts.tv_sec %= 3600;
+          i = 1;
+     }
+     if (i || ts.tv_sec >= 60) {
+          ts.tv_sec %= 60;
+          i = 1;
+     }
+     sysinfo.uptime=ts.tv_sec;
+
+     /* Use the information from the mib to get our load averages */
+     for (i = 0; i < 3; i++)
+          sysinfo.loads[i] = averunnable.ldavg[i];
+
+     sysinfo.totalram = physmem * PAGE_SIZE;
+     sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
+
+     sysinfo.sharedram = 0;
+     for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
+          object = TAILQ_NEXT(object, object_list))
+               if (object->shadow_count > 1)
+                    sysinfo.sharedram += object->resident_page_count;
+
+     sysinfo.sharedram *= PAGE_SIZE;
+
+     sysinfo.bufferram = 0;
+
+     if (swapblist == NULL) {
+          sysinfo.totalswap= 0;
+          sysinfo.freeswap = 0;
+     } else {
+          sysinfo.totalswap = swapblist->bl_blocks * 1024;
+          sysinfo.freeswap = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+     }
+
+     sysinfo.procs = 20; /* Hack */
+
+     return copyout((caddr_t)&sysinfo, (caddr_t)args->info,
+               sizeof(struct linux_sysinfo));
+}
 #endif /*!__alpha__*/
 
 #ifndef __alpha__
