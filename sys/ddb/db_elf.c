@@ -1,4 +1,4 @@
-/* $Id: db_elf.c,v 1.3 1998/08/17 08:06:31 dfr Exp $ */
+/* $Id: db_elf.c,v 1.4 1998/10/09 23:32:03 peter Exp $ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
 
 /*-
@@ -218,7 +218,7 @@ db_elf_find_strtab(stab)
 db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t *stab;
-	char *symstr;
+	const char *symstr;
 {
 	Elf_Sym *symp, *symtab_start, *symtab_end;
 	char *strtab;
@@ -310,7 +310,7 @@ void
 X_db_symbol_values(symtab, sym, namep, valuep)
 	db_symtab_t *symtab;
 	db_sym_t sym;
-	char **namep;
+	const char **namep;
 	db_expr_t *valuep;
 {
 	Elf_Sym *symp = (Elf_Sym *)sym;

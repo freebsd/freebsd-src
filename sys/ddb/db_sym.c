@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.26 1998/07/08 10:53:51 bde Exp $
+ *	$Id: db_sym.c,v 1.27 1998/12/04 22:54:43 archie Exp $
  */
 
 /*
@@ -48,7 +48,7 @@ static int db_nsymtab = 0;
 
 static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
-static db_sym_t		db_lookup __P(( char *symstr));
+static db_sym_t		db_lookup __P(( const char *symstr));
 static char		*db_qualify __P((db_sym_t sym, char *symtabname));
 static boolean_t	db_symbol_is_ambiguous __P((db_sym_t sym));
 static boolean_t	db_line_at_pc __P((db_sym_t, char **, int *, 
@@ -87,7 +87,7 @@ db_qualify(sym, symtabname)
 	db_sym_t	sym;
 	register char	*symtabname;
 {
-	char		*symname;
+	const char	*symname;
 	static char     tmp[256];
 
 	db_symbol_values(sym, &symname, 0);
@@ -111,7 +111,7 @@ db_eqname(src, dst, c)
 
 boolean_t
 db_value_of_name(name, valuep)
-	char		*name;
+	const char	*name;
 	db_expr_t	*valuep;
 {
 	db_sym_t	sym;
@@ -132,28 +132,31 @@ db_value_of_name(name, valuep)
  */
 static db_sym_t
 db_lookup(symstr)
-	char *symstr;
+	const char *symstr;
 {
 	db_sym_t sp;
 	register int i;
 	int symtab_start = 0;
 	int symtab_end = db_nsymtab;
-	register char *cp;
+	register const char *cp;
 
 	/*
 	 * Look for, remove, and remember any symbol table specifier.
 	 */
 	for (cp = symstr; *cp; cp++) {
 		if (*cp == ':') {
-			*cp = '\0';
 			for (i = 0; i < db_nsymtab; i++) {
-				if (! strcmp(symstr, db_symtabs[i].name)) {
+				int n = strlen(db_symtabs[i].name);
+
+				if (
+				    n == (cp - symstr) &&
+				    strncmp(symstr, db_symtabs[i].name, n) == 0
+				) {
 					symtab_start = i;
 					symtab_end = i + 1;
 					break;
 				}
 			}
-			*cp = ':';
 			if (i == db_nsymtab) {
 				db_error("invalid symbol table name");
 			}
@@ -189,7 +192,7 @@ static boolean_t
 db_symbol_is_ambiguous(sym)
 	db_sym_t	sym;
 {
-	char		*sym_name;
+	const char	*sym_name;
 	register int	i;
 	register
 	boolean_t	found_once = FALSE;
@@ -244,7 +247,7 @@ db_search_symbol( val, strategy, offp)
 void
 db_symbol_values(sym, namep, valuep)
 	db_sym_t	sym;
-	char		**namep;
+	const char	**namep;
 	db_expr_t	*valuep;
 {
 	db_expr_t	value;
@@ -288,7 +291,7 @@ db_printsym(off, strategy)
 {
 	db_expr_t	d;
 	char 		*filename;
-	char		*name;
+	const char	*name;
 	db_expr_t	value;
 	int 		linenum;
 	db_sym_t	cursym;
