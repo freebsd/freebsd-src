@@ -152,10 +152,10 @@ printjob(pp)
 	register struct jobqueue *q, **qp;
 	struct jobqueue **queue;
 	register int i, nitems;
-	off_t	 pidoff;
-	int	 errcnt, count = 0;
-	int	 tempfd;
+	off_t pidoff;
+	int errcnt, jobcount, tempfd;
 
+	jobcount = 0;
 	init(pp); /* set up capabilities */
 	(void) write(1, "", 1);	/* ack that daemon is started */
 	(void) close(2);			/* set up log file */
@@ -275,8 +275,8 @@ again:
 				break;
 			}
 		}
-		if (i == OK)		/* file ok and printed */
-			count++;
+		if (i == OK)		/* all files of this job printed */
+			jobcount++;
 		else if (i == REPRINT && ++errcnt < 5) {
 			/* try reprinting the job */
 			syslog(LOG_INFO, "restarting %s", pp->printer);
@@ -319,7 +319,7 @@ again:
 	}
 	if (nitems == 0) {		/* no more work to do */
 	done:
-		if (count > 0) {	/* Files actually printed */
+		if (jobcount > 0) {	/* jobs actually printed */
 			if (!pp->no_formfeed && !pp->tof)
 				(void) write(ofd, pp->form_feed,
 					     strlen(pp->form_feed));
