@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxldr.s,v 1.3 1998/10/06 07:15:35 rnordier Exp $
+#	$Id: btxldr.s,v 1.4 1998/10/30 00:11:35 msmith Exp $
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The
@@ -351,7 +351,7 @@ gdtdesc:	.word gdt.1-gdt-1		# Limit
 #
 # Messages.
 #
-m_logo: 	.asciz "\nBTX loader 0.01  "
+m_logo: 	.asciz "\nBTX loader 1.00  "
 m_vers: 	.asciz "BTX version is \0\n"
 e_fmt:		.asciz "Error: Client format not supported\n"
 #ifdef BTXLDR_VERBOSE
