@@ -70,8 +70,6 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#include <stdio.h>
-
 #ifndef NULL
 #define NULL	0
 #endif
@@ -102,15 +100,17 @@ typedef	__wint_t	wint_t;
 #define	WEOF 	((wint_t)-1)
 #endif
 
+struct __sFILE;
+
 __BEGIN_DECLS
 wint_t	btowc(int);
-wint_t	fgetwc(FILE *);
+wint_t	fgetwc(struct __sFILE *);
 wchar_t	*
-	fgetws(wchar_t * __restrict, int, FILE * __restrict);
-wint_t	fputwc(wchar_t, FILE *);
-int	fputws(const wchar_t * __restrict, FILE * __restrict);
-int	fwide(FILE *, int);
-wint_t	getwc(FILE *);
+	fgetws(wchar_t * __restrict, int, struct __sFILE * __restrict);
+wint_t	fputwc(wchar_t, struct __sFILE *);
+int	fputws(const wchar_t * __restrict, struct __sFILE * __restrict);
+int	fwide(struct __sFILE *, int);
+wint_t	getwc(struct __sFILE *);
 wint_t	getwchar(void);
 size_t	mbrlen(const char * __restrict, size_t, mbstate_t * __restrict);
 size_t	mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
@@ -118,9 +118,9 @@ size_t	mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 int	mbsinit(const mbstate_t *);
 size_t	mbsrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    mbstate_t * __restrict);
-wint_t	putwc(wchar_t, FILE *);
+wint_t	putwc(wchar_t, struct __sFILE *);
 wint_t	putwchar(wchar_t);
-wint_t	ungetwc(wint_t, FILE *);
+wint_t	ungetwc(wint_t, struct __sFILE *);
 size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
 wchar_t	*wcschr(const wchar_t *, wchar_t);
