@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.6 1997/08/26 10:25:19 eivind Exp $";
+	"$Id: tip.c,v 1.7 1997/09/18 14:07:17 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -153,13 +153,13 @@ main(argc, argv)
 	 * Copy the number then stomp on the original (in case the number
 	 *	is private, we don't want 'ps' or 'w' to find it).
 	 */
-	if (strlen(system) > sizeof PNbuf - 1)
+	if (strlen(system) > sizeof(PNbuf - 1))
 		errx(1, "phone number too long (max = %d bytes)", sizeof PNbuf - 1);
-	strncpy( PNbuf, system, sizeof PNbuf - 1 );
+	strncpy(PNbuf, system, sizeof(PNbuf - 1));
 	for (p = system; *p; p++)
 		*p = '\0';
 	PN = PNbuf;
-	(void)sprintf(sbuf, "tip%ld", BR);
+	(void)snprintf(sbuf, sizeof(sbuf), "tip%ld", BR);
 	system = sbuf;
 
 notnumber:
@@ -333,6 +333,7 @@ daemon_uid()
 void
 shell_uid()
 {
+	setegid(gid);
 	seteuid(uid);
 }
 

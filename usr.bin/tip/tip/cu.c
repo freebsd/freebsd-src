@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cu.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cu.c,v 1.2 1997/08/18 07:16:02 charnier Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -110,7 +110,7 @@ cumain(argc, argv)
 	 * The "cu" host name is used to define the
 	 * attributes of the generic dialer.
 	 */
-	(void)sprintf(sbuf, "cu%d", BR);
+	(void)snprintf(sbuf, sizeof(sbuf), "cu%d", BR);
 	if ((i = hunt(sbuf)) == 0) {
 		printf("all ports busy\n");
 		exit(3);
