@@ -142,7 +142,7 @@ struct td_sched *thread0_sched = &td_sched;
  * INTERACT_HALF:	Convenience define, half of the interactivity range.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz * 30) << 10)
+#define	SCHED_SLP_RUN_MAX	((hz * 2) << 10)
 #define	SCHED_SLP_RUN_THROTTLE	(10)
 #define	SCHED_INTERACT_RANGE	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_RANGE / 2)
@@ -180,7 +180,7 @@ struct td_sched *thread0_sched = &td_sched;
  * SCHED_CPU_TICKS:	Number of hz ticks to average the cpu usage across.
  */
 
-#define	SCHED_CPU_TIME	60
+#define	SCHED_CPU_TIME	10
 #define	SCHED_CPU_TICKS	(hz * SCHED_CPU_TIME)
 
 /*
