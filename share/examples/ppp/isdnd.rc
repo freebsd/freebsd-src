@@ -10,7 +10,7 @@
 #
 #	then ppp will not work over ISDN !
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ppp/isdnd.rc,v 1.2.2.3 1999/09/24 12:23:00 brian Exp $
 #
 #------------------------------------------------------------------------------
 

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/modules/splash/pcx/splash_pcx.c,v 1.1.2.1 1999/08/29 16:27:40 peter Exp $
  */
 
 #include <sys/param.h>

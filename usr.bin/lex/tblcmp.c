@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/tblcmp.c,v 1.3.4.1 1999/08/29 15:29:35 peter Exp $ */
 
 #include "flexdef.h"
 

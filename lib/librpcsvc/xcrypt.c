@@ -40,7 +40,7 @@
 
 #ifndef lint
 /*from: static char sccsid[] = "@(#)xcrypt.c	2.2 88/08/10 4.0 RPCSRC"; */
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/librpcsvc/xcrypt.c,v 1.1.1.1.2.1 1999/08/29 14:57:26 peter Exp $";
 #endif
 
 static char hex[];	/* forward */

@@ -28,7 +28,7 @@
  *
  *	from: @(#)types.h 1.18 87/07/24 SMI
  *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/types.h,v 1.8.2.1 1999/08/29 14:39:08 peter Exp $
  */
 
 /*

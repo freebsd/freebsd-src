@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.include.dist,v 1.24.2.2 1999/11/22 07:08:03 julian Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755

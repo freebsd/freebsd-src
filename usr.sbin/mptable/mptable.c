@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mptable/mptable.c,v 1.10.2.1 1999/08/29 15:43:47 peter Exp $";
 #endif /* not lint */
 
 #define VMAJOR			2

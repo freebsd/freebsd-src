@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/port/freebsd/include/port_after.h,v 1.3.2.1 1999/12/13 15:08:00 peter Exp $ */
 #ifndef	PORT_AFTER_H
 #define	PORT_AFTER_H
 #define CAN_RECONNECT

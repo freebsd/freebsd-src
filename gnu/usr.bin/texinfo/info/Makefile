@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/info/Makefile,v 1.7.2.1 1999/08/29 14:35:25 peter Exp $
 
 PROG=	info
 NOMAN=  yes

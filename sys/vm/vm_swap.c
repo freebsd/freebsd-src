@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_swap.c,v 1.57.2.1 1999/08/29 16:33:40 peter Exp $
  */
 
 #include "opt_devfs.h"

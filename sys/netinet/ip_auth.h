@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_auth.h,v 1.2.2.1 1999/08/29 16:29:39 peter Exp $
  *
  */
 #ifndef	__IP_AUTH_H__

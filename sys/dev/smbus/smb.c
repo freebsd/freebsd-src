@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/smbus/smb.c,v 1.6.2.2 1999/11/01 22:48:29 nsouch Exp $
  *
  */
 #include <sys/param.h>

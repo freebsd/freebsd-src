@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/320.whatis,v 1.2.2.1 1999/08/29 14:19:51 peter Exp $
 #
 
 if [ -x /usr/libexec/makewhatis.local -a -x /usr/bin/manpath ] ; then

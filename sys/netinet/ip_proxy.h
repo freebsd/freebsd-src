@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_proxy.h,v 1.1.1.3.2.1 1999/08/29 16:29:50 peter Exp $
  */
 
 #ifndef	__IP_PROXY_H__

@@ -191,7 +191,7 @@ static struct hshentries *gendeltas;	/* deltas to be generated	*/
 static struct hshentry *targetdelta;	/* final delta to be generated	*/
 static struct stat workstat;
 
-mainProg(coId, "co", "$FreeBSD$")
+mainProg(coId, "co", "$FreeBSD: src/gnu/usr.bin/rcs/co/co.c,v 1.9.2.1 1999/08/29 14:34:47 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nco usage: co -{fIlMpqru}[rev] -ddate -jjoins -ksubst -sstate -T -w[who] -Vn -xsuff -zzone file ...";

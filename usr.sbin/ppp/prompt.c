@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/prompt.c,v 1.12.4.6 1999/11/19 23:48:02 brian Exp $
  */
 
 #include <sys/param.h>

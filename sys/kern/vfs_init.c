@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_init.c,v 1.41.2.1 1999/08/29 16:26:14 peter Exp $
  */
 
 

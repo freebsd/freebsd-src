@@ -25,7 +25,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/si3_t225.c,v 1.1.4.1 1999/03/31 23:57:10 nsayer Exp $
  */
 
 /* SI3_T225.C Version, Bootstrap and Download Code Arrays... */

@@ -1,7 +1,7 @@
 #
 #	pccardc Makefile
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pccard/pccardc/Makefile,v 1.7.2.3 1999/08/29 15:44:36 peter Exp $
 #
 PROG=	pccardc
 SRCS=	beep.c dumpcis.c enabler.c pccardc.c pccardmem.c printcis.c \

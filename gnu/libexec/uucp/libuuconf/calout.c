@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_calout_rcsid[] = "$FreeBSD$";
+const char _uuconf_calout_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/calout.c,v 1.6.2.1 1999/08/29 14:29:36 peter Exp $";
 #endif
 
 #include <errno.h>

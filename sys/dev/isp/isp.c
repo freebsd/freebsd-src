@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/isp.c,v 1.11.2.11 1999/12/03 07:40:31 mjacob Exp $ */
 
 /*
  * Machine and OS Independent (well, as best as possible)

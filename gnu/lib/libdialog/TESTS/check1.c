@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/check1.c,v 1.5.2.1 1999/08/29 14:28:37 peter Exp $
  */
 
 #include <stdio.h>

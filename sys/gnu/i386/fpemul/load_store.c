@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/load_store.c,v 1.12.2.1 1999/08/29 16:24:37 peter Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/scsiio.h,v 1.10.2.1 1999/08/29 16:32:41 peter Exp $
  */
 #ifndef	_SYS_SCSIIO_H_
 #define	_SYS_SCSIIO_H_

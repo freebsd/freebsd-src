@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)pr.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/pr/pr.h,v 1.1.1.1.10.1 1999/12/06 04:43:22 kris Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libmp/Makefile,v 1.17.2.1 1999/08/29 14:28:53 peter Exp $
 #
 
 LIB=	mp

@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/pcvt/vgaio/lex.l,v 1.3.2.1 1999/08/29 15:45:01 peter Exp $"
 
 /*
  * $Log: lex.l,v $

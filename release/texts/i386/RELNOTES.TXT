@@ -620,4 +620,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Project
 
-# $FreeBSD$
+# $FreeBSD: src/release/texts/i386/RELNOTES.TXT,v 1.28.2.23 1999/12/16 23:34:09 jkh Exp $

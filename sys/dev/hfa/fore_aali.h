@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_aali.h,v 1.1.2.1 1999/08/29 16:23:01 peter Exp $
  *
  */
 

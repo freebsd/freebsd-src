@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 # From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/makedevops.sh,v 1.2.2.1 1999/08/29 16:26:04 peter Exp $
 #
 
 # Script to produce device front-end sugar.

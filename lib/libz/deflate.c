@@ -47,7 +47,7 @@
  *
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/deflate.c,v 1.4.2.1 1999/08/29 14:58:18 peter Exp $ */
 
 #include "deflate.h"
 

@@ -59,7 +59,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/poly_mul64.s,v 1.7.4.1 1999/08/29 16:24:40 peter Exp $
  *
  */
 

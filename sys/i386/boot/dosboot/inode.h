@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)inode.h	7.17 (Berkeley) 5/8/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/inode.h,v 1.5.2.1 1999/08/29 16:05:05 peter Exp $
  */
 
 #ifndef _UFS_INODE_H_

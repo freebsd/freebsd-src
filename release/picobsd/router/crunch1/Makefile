@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/crunch1/Makefile,v 1.2.2.3 1999/08/29 15:53:21 peter Exp $
 #
 SRC?=/usr/src
 

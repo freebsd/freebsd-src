@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/printf.c,v 1.2.2.1 1999/08/29 14:57:34 peter Exp $
  */
 
 /*

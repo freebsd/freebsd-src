@@ -7,4 +7,4 @@ consequently it is not displayed in stock version of sysctl(8).
 
 <abial@freebsd.org>
 
-$FreeBSD$
+$FreeBSD: src/release/picobsd/tinyware/vm/README,v 1.2.2.1 1999/08/29 15:53:47 peter Exp $

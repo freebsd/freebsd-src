@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_vnops.c,v 1.116.2.8 1999/12/12 06:52:34 dillon Exp $
  */
 
 

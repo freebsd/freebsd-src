@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdump/tcpdump/Makefile,v 1.20.2.2 1999/08/29 15:48:38 peter Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \

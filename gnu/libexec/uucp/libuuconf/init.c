@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_init_rcsid[] = "$FreeBSD$";
+const char _uuconf_init_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/init.c,v 1.5.2.1 1999/08/29 14:29:51 peter Exp $";
 #endif
 
 /* Initialize the UUCP configuration file reading routines.  This is

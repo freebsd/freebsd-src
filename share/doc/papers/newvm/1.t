@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	5.1 (Berkeley) 4/16/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/newvm/1.t,v 1.5.2.1 1999/08/29 16:43:42 peter Exp $
 .\"
 .NH
 Motivations for a New Virtual Memory System

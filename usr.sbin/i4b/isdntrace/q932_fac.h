@@ -27,7 +27,7 @@
  *	q932_fac.h - facility header file
  *	---------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q932_fac.h,v 1.1.2.2 1999/11/15 22:41:17 joe Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:23:22 1999]
  *

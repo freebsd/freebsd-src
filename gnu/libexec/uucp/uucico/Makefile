@@ -1,5 +1,5 @@
 # Makefile for uucico
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uucico/Makefile,v 1.11.2.1 1999/08/29 14:30:26 peter Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

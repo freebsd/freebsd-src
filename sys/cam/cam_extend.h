@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_extend.h,v 1.1.2.1 1999/08/29 16:21:36 peter Exp $
  */
 
 #ifndef _CAM_CAM_EXTEND_H

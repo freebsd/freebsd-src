@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.36 (McKusick) 5/6/99
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/softupdates/ffs_softdep.c,v 1.34.2.3 1999/08/29 16:22:08 peter Exp $
  */
 
 /*

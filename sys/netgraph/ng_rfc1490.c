@@ -36,7 +36,7 @@
  *
  * Author: Julian Elischer <julian@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_rfc1490.c,v 1.3.2.3 1999/12/08 19:44:07 julian Exp $
  * $Whistle: ng_rfc1490.c,v 1.22 1999/11/01 09:24:52 julian Exp $
  */
 

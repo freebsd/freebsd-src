@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/setlocale.c,v 1.23.2.2 1999/11/09 11:11:10 ache Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/locale/setlocale.c,v 1.23.2.2 1999/11/09 11:11:10 ache Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)

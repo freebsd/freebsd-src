@@ -31,7 +31,7 @@
 
 /*
  * symbol table routines
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/ld/symbol.c,v 1.9.2.1 1999/08/29 14:33:44 peter Exp $
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/dpt/dpt_ctlinfo/Makefile,v 1.4.2.1 1999/08/29 15:41:14 peter Exp $
 
 PROG=	dpt_ctlinfo
 SRCS=	dpt_ctlinfo.c

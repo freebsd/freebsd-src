@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/release/sysinstall/dev2c.sh,v 1.3.2.1 1999/08/29 15:53:55 peter Exp $
 #
 # During installation, we suffer badly of we have to run MAKEDEV.  MAKEDEV
 # need sh, ln, chown, mknod, awk, rm, test and probably emacs too when

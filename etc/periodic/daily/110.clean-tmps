@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/110.clean-tmps,v 1.3.2.3 1999/08/29 14:19:35 peter Exp $
 #
 # Use at your own risk, but for a long-living system, this might come
 # more useful than the boot-time cleaning of /tmp.  If /var/tmp and

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_tun.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_tun.c,v 1.8.4.1 1999/08/29 16:30:07 peter Exp $
  */
 
 /*

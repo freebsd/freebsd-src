@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_readwrite.c,v 1.55.2.2 1999/08/31 03:11:12 bde Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/interp_forth.c,v 1.9.2.3 1999/08/29 16:20:28 peter Exp $
  */
 
 #include <sys/param.h>		/* to pick up __FreeBSD_version */

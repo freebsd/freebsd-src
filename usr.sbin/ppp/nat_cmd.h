@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/nat_cmd.h,v 1.13.2.1 1999/11/19 23:48:00 brian Exp $
  */
 
 struct cmdargs;

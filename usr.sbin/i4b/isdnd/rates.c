@@ -35,7 +35,7 @@
  *	i4b daemon - charging rates description file handling
  *	-----------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rates.c,v 1.1.2.2 1999/11/15 22:40:59 joe Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:12:01 1999]
  *

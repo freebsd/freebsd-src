@@ -3,7 +3,7 @@
 # Search /etc/skeykeys for the skey string for this user OR user specified
 # in 1st parameter.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/keyinfo/keyinfo.pl,v 1.3.2.1 1999/08/29 15:29:05 peter Exp $
 #
 
 die "usage: keyinfo [user]\n" unless $#ARGV < 1;

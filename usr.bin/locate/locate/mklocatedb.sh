@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/locate/locate/mklocatedb.sh,v 1.8.2.1 1999/08/29 15:29:52 peter Exp $
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR

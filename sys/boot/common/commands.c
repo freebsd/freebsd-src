@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/commands.c,v 1.9.2.3 1999/08/29 16:20:25 peter Exp $
  */
 
 #include <stand.h>

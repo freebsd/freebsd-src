@@ -35,7 +35,7 @@
  *
  *	@(#)portal.h	8.4 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/portal/portal.h,v 1.5.2.1 1999/08/29 16:26:48 peter Exp $
  */
 
 struct portal_args {

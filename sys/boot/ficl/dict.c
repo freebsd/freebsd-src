@@ -17,7 +17,7 @@
 ** 29 jun 1998 (sadler) added variable sized hash table support
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/dict.c,v 1.3.2.2 1999/11/27 18:35:49 dcs Exp $ */
 
 #ifdef TESTMAIN
 #include <stdio.h>

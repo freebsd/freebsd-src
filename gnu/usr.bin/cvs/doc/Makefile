@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/doc/Makefile,v 1.9.2.2 1999/12/13 20:57:28 peter Exp $
 
 MAINAINER=	peter@FreeBSD.org
 

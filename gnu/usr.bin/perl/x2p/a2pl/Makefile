@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/x2p/a2pl/Makefile,v 1.6.2.1 1999/08/29 14:34:38 peter Exp $
 #
 
 PROG=	a2p

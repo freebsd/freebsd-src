@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_kld.c,v 1.4.2.1 1999/08/29 16:22:16 peter Exp $
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
 

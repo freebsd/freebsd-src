@@ -1,5 +1,5 @@
 # Makefile for uuconv
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uuconv/Makefile,v 1.8.2.1 1999/08/29 14:30:35 peter Exp $
 
 BINDIR=		$(sbindir)
 

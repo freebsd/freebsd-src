@@ -38,7 +38,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[]=
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/lockf.c,v 1.2.2.1 1999/08/29 14:46:15 peter Exp $";
 #endif
 
 #include <errno.h>

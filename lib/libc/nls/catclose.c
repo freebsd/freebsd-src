@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/nls/catclose.c,v 1.3.2.1 1999/08/29 14:47:43 peter Exp $ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

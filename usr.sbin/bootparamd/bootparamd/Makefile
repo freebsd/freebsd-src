@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bootparamd/bootparamd/Makefile,v 1.10.2.1 1999/08/29 15:40:01 peter Exp $
 
 PROG=	bootparamd
 SRCS=	bootparamd.c main.c ${GENSRCS}

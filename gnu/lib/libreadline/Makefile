@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libreadline/Makefile,v 1.30.2.3 1999/08/29 14:28:55 peter Exp $
 
 SUBDIR = history readline
 

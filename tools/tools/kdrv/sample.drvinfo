@@ -2,7 +2,7 @@
 # Sample driver information file for KernelDriver.  See the top of
 # the KernelDriver script for a more exact definition of the syntax.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/kdrv/sample.drvinfo,v 1.3.2.1 1999/08/29 15:18:26 peter Exp $
 
 # Device driver name
 #

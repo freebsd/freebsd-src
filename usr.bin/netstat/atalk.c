@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)atalk.c	1.1 (Whistle) 6/6/96";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/netstat/atalk.c,v 1.11.2.1 1999/08/29 15:31:27 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 \ Example of the file which is automatically loaded by /boot/loader
 \ on startup.
-\ $FreeBSD$
+\ $FreeBSD: src/share/examples/bootforth/loader.rc,v 1.2.2.2 1999/08/29 16:44:54 peter Exp $
 
 cr .( Loading Forth extensions:)
 

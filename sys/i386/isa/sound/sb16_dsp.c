@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/sb16_dsp.c,v 1.31.2.1 1999/12/14 06:36:51 tanimura Exp $
  *
  */
 

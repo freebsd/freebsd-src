@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.115.2.1 1999/08/29 16:05:58 peter Exp $
  */
 
 #include "npx.h"

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  * from: @(#)nfsswapvmunix.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/conf/nfsswapkernel.c,v 1.5.2.1 1999/08/29 16:22:03 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/dec_axppci_33.c,v 1.1.2.1 1999/08/29 15:56:24 peter Exp $ */
 /* $NetBSD: dec_axppci_33.c,v 1.38 1998/07/07 08:49:12 ross Exp $ */
 
 /*

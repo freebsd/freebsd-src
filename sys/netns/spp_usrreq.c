@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/spp_usrreq.c,v 1.10.4.1 1999/08/29 16:30:22 peter Exp $
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/slcompress.c,v 1.12.2.1 1999/08/29 16:28:34 peter Exp $
  */
 
 /*

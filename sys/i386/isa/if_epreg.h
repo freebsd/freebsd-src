@@ -31,7 +31,7 @@
 
  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_epreg.h,v 1.23.2.2 1999/08/29 16:07:20 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

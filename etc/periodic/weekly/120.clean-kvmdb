@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/120.clean-kvmdb,v 1.2.2.2 1999/08/29 14:19:49 peter Exp $
 #
 
 if [ -d /var/db ] ; then

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm.h,v 1.13.4.1 1999/08/29 16:33:29 peter Exp $
  */
 
 #ifndef VM_H

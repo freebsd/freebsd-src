@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/probe.c,v 1.2.4.1 1999/08/29 15:46:23 peter Exp $
  */
 
 #include <sys/time.h>

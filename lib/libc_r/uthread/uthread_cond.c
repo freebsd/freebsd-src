@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_cond.c,v 1.12.2.5 1999/08/30 00:20:00 deischen Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

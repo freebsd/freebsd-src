@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/bc/Makefile,v 1.14.2.2 1999/08/29 14:31:48 peter Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bc/bc \
 	${.CURDIR}/../../../contrib/bc/lib \

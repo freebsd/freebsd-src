@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fwalk.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdio/fwalk.c,v 1.5.2.1 1999/08/29 14:48:13 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>

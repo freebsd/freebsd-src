@@ -25,7 +25,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/si2_z280.c,v 1.1 1998/03/23 16:12:53 peter Exp $
  */
 
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */

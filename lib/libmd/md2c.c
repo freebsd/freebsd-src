@@ -1,5 +1,5 @@
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/md2c.c,v 1.6.2.1 1999/08/29 14:57:10 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

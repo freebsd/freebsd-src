@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  * All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adwvar.h,v 1.1.2.1 1999/08/29 16:22:30 peter Exp $
  */
 
 #ifndef _ADWVAR_H_

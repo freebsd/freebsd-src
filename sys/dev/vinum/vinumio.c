@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumio.c,v 1.7.2.11 1999/10/13 08:39:08 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

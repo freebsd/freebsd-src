@@ -4,7 +4,7 @@ static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";
 static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rpc.lockd/test.c,v 1.3.2.1 1999/08/29 15:47:48 peter Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>

@@ -1,6 +1,6 @@
 /*	$NecBSD: bs.c,v 1.1 1997/07/18 09:18:59 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/bs/bs.c,v 1.6.2.2 1999/12/03 12:00:26 nyan Exp $ */
 /*
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/spp_debug.c,v 1.9.2.1 1999/08/29 16:30:21 peter Exp $
  */
 
 #include "opt_inet.h"

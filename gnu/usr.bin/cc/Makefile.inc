@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/Makefile.inc,v 1.25.2.1 1999/08/29 14:32:28 peter Exp $
 #
 
 # Sometimes this is .include'd several times...

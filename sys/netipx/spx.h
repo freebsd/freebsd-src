@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/spx.h,v 1.14.2.1 1999/08/29 16:30:08 peter Exp $
  */
 
 #ifndef _NETIPX_SPX_H_

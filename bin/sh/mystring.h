@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mystring.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/mystring.h,v 1.5.2.1 1999/08/29 14:13:55 peter Exp $
  */
 
 #include <string.h>

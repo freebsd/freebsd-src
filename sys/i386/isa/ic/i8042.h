@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/i8042.h,v 1.4.4.1 1999/08/29 16:07:44 peter Exp $
  */
 
 #define	KBSTATP		0x64	/* kbd controller status port (I) */

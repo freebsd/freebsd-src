@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libcompat/4.1/gtty.c,v 1.4.2.1 1999/08/29 14:56:27 peter Exp $";
 #endif /* not lint */
 
 #include <sgtty.h>

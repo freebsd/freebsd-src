@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/btx/Makefile,v 1.1.2.3 1999/11/14 01:51:15 nyan Exp $
 
 M4?=	m4
 

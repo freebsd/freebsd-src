@@ -33,7 +33,7 @@
  *	Fritz!Card pcmcia specific routines for isic driver
  *	---------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/i4b_avm_fritz_pcmcia.c,v 1.1.2.2 1999/11/15 22:40:22 joe Exp $ 
  *
  *      last edit-date: [Sun May  2 12:01:16 1999]
  *

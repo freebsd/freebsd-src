@@ -38,7 +38,7 @@ static const char rcsid[] =
 	"Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/systat/ip.c,v 1.2.2.1 1999/08/29 15:33:05 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

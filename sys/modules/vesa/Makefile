@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/vesa/Makefile,v 1.5.2.1 1999/08/29 16:28:00 peter Exp $
 
 .PATH:	${.CURDIR}/../../dev/syscons ${.CURDIR}/../../i386/isa
 KMOD	=	vesa

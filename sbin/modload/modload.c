@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/modload/modload.c,v 1.23.2.1 1999/08/29 15:14:10 peter Exp $";
 #endif /* not lint */
 
 #include <a.out.h>

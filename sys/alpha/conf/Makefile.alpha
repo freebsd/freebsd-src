@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/Makefile.alpha,v 1.16.2.6 1999/08/29 15:56:41 peter Exp $
 #
 # Makefile for FreeBSD
 #

@@ -617,4 +617,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Project
 
-# $FreeBSD$
+# $FreeBSD: src/release/texts/alpha/RELNOTES.TXT,v 1.1.2.17 1999/12/12 21:06:54 jkh Exp $

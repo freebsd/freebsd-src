@@ -37,7 +37,7 @@
  *	Siemens I-Surf 2.0 PnP specific routines for isic driver
  *	--------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_siemens_isurf.c,v 1.2.2.1 1999/11/15 22:40:29 joe Exp $
  *
  *      last edit-date: [Mon 14 Jun 16:46:27 CEST 1999]
  *

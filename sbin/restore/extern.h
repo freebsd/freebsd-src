@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 1/7/94
- * $FreeBSD$
+ * $FreeBSD: src/sbin/restore/extern.h,v 1.4.2.1 1999/08/29 15:15:16 peter Exp $
  */
 
 struct entry	*addentry __P((char *, ino_t, int));

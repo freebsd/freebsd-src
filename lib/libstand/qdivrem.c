@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/qdivrem.c,v 1.1.2.1 1999/08/29 14:57:34 peter Exp $
  * 	From: Id: qdivrem.c,v 1.7 1997/11/07 09:20:40 phk Exp
  */
 

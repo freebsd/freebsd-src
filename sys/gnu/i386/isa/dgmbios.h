@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/isa/dgmbios.h,v 1.2.2.1 1999/08/29 16:24:54 peter Exp $
  *
  * This file is an ascii copy of the file sxbios.bin included in the
  * Digiboard PC/Xem driver for Linux.  It is copyright 1992, DIGI 

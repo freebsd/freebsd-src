@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/types.h,v 1.9.2.1 1999/08/29 15:57:09 peter Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-

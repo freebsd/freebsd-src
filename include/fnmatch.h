@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/fnmatch.h,v 1.8.2.1 1999/11/22 21:46:12 ache Exp $
  *	@(#)fnmatch.h	8.1 (Berkeley) 6/2/93
  */
 

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/dial/crunch1/Makefile,v 1.3.2.3 1999/08/29 15:52:28 peter Exp $
 #
 NOCRYPT?=	yes
 SRC?=/usr/src

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/bootpd/Problems,v 1.4.2.1 1999/08/29 15:02:46 peter Exp $
 
 Common problems and ways to work around them:
 

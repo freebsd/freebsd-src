@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* @(#) $FreeBSD$ */
+/* @(#) $FreeBSD: src/lib/libz/crc32.c,v 1.4.2.1 1999/08/29 14:58:17 peter Exp $ */
 
 #include "zlib.h"
 

@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: fsinfo.c,v 1.4 1999/02/04 07:24:44 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/fsinfo/fsinfo.c,v 1.3.2.1 1999/11/27 04:46:55 obrien Exp $
  *
  */
 

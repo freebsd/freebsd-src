@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc1plus/Makefile,v 1.13.2.1 1999/08/29 14:32:36 peter Exp $
 #
 
 #First, so that we get cp/tree.c and cp/expr.c instead of the C version

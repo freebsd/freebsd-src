@@ -74,7 +74,7 @@ description	:	QUOTED_STRING
 
 #ifndef	lint
 static char const rcsid_error_table_y[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/compile_et/error_table.y,v 1.4.4.1 1999/08/29 15:26:37 peter Exp $";
 #endif
 
 void *malloc(), *realloc();

@@ -25,7 +25,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/input-file.c,v 1.5.2.1 1999/08/29 14:31:13 peter Exp $";
 #endif
 
 #ifdef USG

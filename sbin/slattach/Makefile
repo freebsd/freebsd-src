@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/11/90
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/slattach/Makefile,v 1.7.2.1 1999/08/29 15:15:44 peter Exp $
 
 PROG=	slattach
 SRCS=   slattach.c

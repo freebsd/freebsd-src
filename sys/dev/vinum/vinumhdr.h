@@ -35,7 +35,7 @@
  */
 
 /* Header files used by all modules */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/vinum/vinumhdr.h,v 1.6.2.5 1999/08/29 16:24:16 peter Exp $ */
 
 #include <sys/param.h>
 #ifdef KERNEL

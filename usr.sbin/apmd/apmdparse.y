@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/apmd/apmdparse.y,v 1.1.1.1.2.2 1999/08/29 15:39:31 peter Exp $
  */
 
 #include <stdio.h>

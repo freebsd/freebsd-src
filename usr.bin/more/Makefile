@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/more/Makefile,v 1.6.2.1 1999/08/29 15:31:12 peter Exp $
 
 PROG=	more
 CFLAGS+=-I${.CURDIR} -DTERMIOS

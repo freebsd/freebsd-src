@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstFirst.c,v 1.4.2.1 1999/08/29 15:30:44 peter Exp $
  */
 
 #ifndef lint

@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/if_txvar.h,v 1.1.4.3 1999/08/29 16:31:48 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko

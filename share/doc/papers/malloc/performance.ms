@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/malloc/performance.ms,v 1.5.2.1 1999/08/29 16:43:39 peter Exp $
 .\"
 .ds RH Performance
 .NH

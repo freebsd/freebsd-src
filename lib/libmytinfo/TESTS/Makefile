@@ -1,5 +1,5 @@
 # Makefile for libmytinfo tests
-# $FreeBSD$
+# $FreeBSD: src/lib/libmytinfo/TESTS/Makefile,v 1.3.2.1 1999/08/29 14:57:17 peter Exp $
 
 LIB=    mytinfo
 

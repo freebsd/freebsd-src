@@ -38,7 +38,7 @@
 #
 # First written May 16, 1992 by Van Jacobson, Lawrence Berkeley Laboratory.
 #
-# from: $FreeBSD$
+# from: $FreeBSD: src/sys/conf/systags.sh,v 1.4.4.2 1999/08/29 16:22:05 peter Exp $
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 MACHINE=`uname -m`

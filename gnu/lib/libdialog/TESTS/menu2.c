@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/menu2.c,v 1.6.2.1 1999/08/29 14:28:42 peter Exp $
  */
 
 #include <stdio.h>

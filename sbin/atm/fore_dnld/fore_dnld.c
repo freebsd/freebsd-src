@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/fore_dnld/fore_dnld.c,v 1.2.2.1 1999/08/29 15:12:27 peter Exp $
  *
  */
 
@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $FreeBSD$";
+static char *RCSid = "@(#) $FreeBSD: src/sbin/atm/fore_dnld/fore_dnld.c,v 1.2.2.1 1999/08/29 15:12:27 peter Exp $";
 #endif
 
 #include <sys/types.h>

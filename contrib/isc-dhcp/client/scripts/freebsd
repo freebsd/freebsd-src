@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/contrib/isc-dhcp/client/scripts/freebsd,v 1.1.1.2.2.7 1999/12/12 01:17:30 obrien Exp $
 
 if [ -x /usr/bin/logger ]; then
 	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"

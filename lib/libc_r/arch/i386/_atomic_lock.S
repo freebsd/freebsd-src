@@ -19,13 +19,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.    
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/arch/i386/_atomic_lock.S,v 1.2.2.1 1999/08/29 14:55:23 peter Exp $
  *
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libc_r/arch/i386/_atomic_lock.S,v 1.2.2.1 1999/08/29 14:55:23 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

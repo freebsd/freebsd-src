@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/am7990var.h,v 1.1.2.1 1999/08/29 15:57:25 peter Exp $ */
 /*	$NetBSD: am7990var.h,v 1.18 1998/01/12 09:23:16 thorpej Exp $	*/
 
 /*-

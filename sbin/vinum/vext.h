@@ -35,7 +35,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/vinum/vext.h,v 1.3.2.4 1999/08/29 15:16:07 peter Exp $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */

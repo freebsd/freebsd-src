@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/biosboot/boot.c,v 1.74.2.1 1999/08/29 16:04:46 peter Exp $
  */
 
 

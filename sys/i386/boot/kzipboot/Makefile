@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/boot/kzipboot/Makefile,v 1.10.2.1 1999/08/29 16:05:12 peter Exp $
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object

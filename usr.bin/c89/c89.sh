@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/c89/c89.sh,v 1.3.4.1 1999/08/29 15:25:36 peter Exp $
 #
 # This is the Posix.2 mandated C compiler.  Basically, a hook to the
 # cc(1) command.

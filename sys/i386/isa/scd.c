@@ -41,7 +41,7 @@
  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/scd.c,v 1.41.2.1 1999/08/29 16:07:31 peter Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 

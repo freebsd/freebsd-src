@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ppp/Makefile,v 1.50.2.11 1999/11/30 23:59:40 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 

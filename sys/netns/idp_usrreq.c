@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/idp_usrreq.c,v 1.8.4.1 1999/08/29 16:30:13 peter Exp $
  */
 
 #include <sys/param.h>

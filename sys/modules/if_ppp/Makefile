@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_ppp/Makefile,v 1.16.2.1 1999/08/29 16:27:16 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp

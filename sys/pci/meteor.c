@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/meteor.c,v 1.35.2.2 1999/08/29 16:31:52 peter Exp $ */
 
 /*		Change History:
 	8/21/95		Release

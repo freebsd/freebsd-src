@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)quota.h	7.9 (Berkeley) 2/22/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/quota.h,v 1.4.4.1 1999/08/29 16:05:07 peter Exp $
  */
 
 #ifndef _QUOTA_

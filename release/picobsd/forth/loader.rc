@@ -1,5 +1,5 @@
 \ Simple loader.rc for picobsd floppies
-\ $FreeBSD$
+\ $FreeBSD: src/release/picobsd/forth/loader.rc,v 1.1.2.2 1999/08/29 15:52:54 peter Exp $
 
 include /boot/loader.4th
 

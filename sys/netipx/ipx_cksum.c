@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_cksum.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_cksum.c,v 1.7.4.2 1999/08/30 16:52:10 jhay Exp $
  */
 
 #include <sys/param.h>

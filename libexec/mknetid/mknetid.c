@@ -55,7 +55,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/mknetid/mknetid.c,v 1.10.2.1 1999/08/29 15:03:30 peter Exp $";
 #endif /* not lint */
 
 #define LINSIZ 1024

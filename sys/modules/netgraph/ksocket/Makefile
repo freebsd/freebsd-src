@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/ksocket/Makefile,v 1.1.2.1 1999/11/17 07:23:47 julian Exp $
 
 KMOD=		ng_ksocket
 SRCS= 		ng_ksocket.c

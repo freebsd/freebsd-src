@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcom_err/init_et.c,v 1.2.2.1 1999/08/29 14:56:21 peter Exp $
  * $Source: /home/ncvs/src/lib/libcom_err/init_et.c,v $
  * $Locker:  $
  *
@@ -20,7 +20,7 @@
 
 #ifndef	lint
 static const char rcsid_init_et_c[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libcom_err/init_et.c,v 1.2.2.1 1999/08/29 14:56:21 peter Exp $";
 #endif
 
 struct foobar {

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/200.backup-passwd,v 1.2.2.1 1999/08/29 14:19:37 peter Exp $
 #
 bak=/var/backups
 

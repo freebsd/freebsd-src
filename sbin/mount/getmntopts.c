@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/mount/getmntopts.c,v 1.7.2.2 1999/11/22 23:03:47 green Exp $";
 #endif
 #endif /* not lint */
 

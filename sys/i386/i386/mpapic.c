@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mpapic.c,v 1.33.2.1 1999/08/29 16:05:47 peter Exp $
  */
 
 #include "opt_smp.h"

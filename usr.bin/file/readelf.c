@@ -1,7 +1,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/file/readelf.c,v 1.5.2.1 1999/08/29 15:27:43 peter Exp $";
 #endif /* not lint */
 
 #ifdef BUILTIN_ELF

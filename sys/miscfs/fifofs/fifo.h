@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.6 (Berkeley) 5/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/fifofs/fifo.h,v 1.15.2.1 1999/08/29 16:26:43 peter Exp $
  */
 
 extern vop_t **fifo_vnodeop_p;

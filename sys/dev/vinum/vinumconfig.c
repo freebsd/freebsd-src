@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumconfig.c,v 1.8.2.7 1999/08/29 16:24:14 peter Exp $
  */
 
 #define STATIC static

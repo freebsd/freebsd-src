@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/if_le_dec.c,v 1.1.2.1 1999/08/29 15:57:28 peter Exp $ */
 /*	$NetBSD: if_le_dec.c,v 1.8 1997/07/22 04:32:21 jonathan Exp $	*/
 
 /*-

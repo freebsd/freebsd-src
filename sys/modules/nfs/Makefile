@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nfs/Makefile,v 1.11.2.1 1999/08/29 16:27:30 peter Exp $
 
 .PATH: ${.CURDIR}/../../nfs
 KMOD=	nfs

@@ -36,7 +36,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$FreeBSD$"
+# \$FreeBSD: src/share/examples/drivers/make_pci_drive.sh,v 1.1.2.2 1999/08/29 16:45:01 peter Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -52,7 +52,7 @@ cat >../../pci/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$FreeBSD$
+ * \$FreeBSD: src/share/examples/drivers/make_pci_drive.sh,v 1.1.2.2 1999/08/29 16:45:01 peter Exp $
  */
 
 
@@ -434,7 +434,7 @@ DONE
 if [ -d /usr/src/sys/modules/${1} ]
 then
 	cat >/usr/src/sys/modules/${1}/Makefile <<DONE
-# $FreeBSD$
+# $FreeBSD: src/share/examples/drivers/make_pci_drive.sh,v 1.1.2.2 1999/08/29 16:45:01 peter Exp $
 #	${UPPER} KLD Module
 #
 #	This happens not to work, pci devices can't be modules

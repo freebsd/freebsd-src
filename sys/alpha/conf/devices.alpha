@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/devices.alpha,v 1.2.2.1 1999/08/29 15:56:42 peter Exp $
 #
 wd	0
 wfd	1

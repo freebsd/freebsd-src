@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/as/as_i386/Makefile,v 1.3.2.1 1999/08/29 14:31:58 peter Exp $
 #
 
 .include "${.CURDIR}/../Makefile.inc0"

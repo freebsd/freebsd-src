@@ -25,7 +25,7 @@
 #include "dialog.priv.h"
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/gnu/lib/libdialog/checklist.c,v 1.33.2.2 1999/12/17 02:44:40 jkh Exp $";
 #endif
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int status, int choice, int selected, dialogMenuItem *me, int list_width, int item_x, int check_x);

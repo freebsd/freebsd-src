@@ -1,6 +1,6 @@
 #!/bin/sh
 # ad hoc debug tool
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/dotest,v 1.3.2.1 1999/08/29 14:31:43 peter Exp $
 
 x=$1
 y=$2

@@ -3,7 +3,7 @@
   version of cron.  it is presented here for its entertainment value.
   --vix ]
 
-$FreeBSD$
+$FreeBSD: src/usr.sbin/cron/doc/MAIL,v 1.3.2.1 1999/08/29 15:40:46 peter Exp $
 
 From ptsfa!lll-crg!ames!acornrc!bob Wed Dec 31 10:07:08 1986
 Date: Wed, 31 Dec 86 08:59:31 pst

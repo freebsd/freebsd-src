@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sio.c,v 1.224.2.8 1999/10/11 15:07:18 steve Exp $
  */
 
 #include "opt_comconsole.h"

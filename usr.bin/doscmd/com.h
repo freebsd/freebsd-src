@@ -29,7 +29,7 @@
  *
  *	BSDI com.h,v 2.2 1996/04/08 19:32:21 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/com.h,v 1.1.2.1 1999/08/29 15:26:53 peter Exp $
  */
 
 /* com.h for doscmd int14.c */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/doc/Makefile,v 1.7.2.1 1999/08/29 14:32:43 peter Exp $
 
 INFO = gcc cpp reno gxxint
 

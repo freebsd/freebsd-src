@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/devs.c,v 1.3.2.1 1999/08/29 15:33:02 peter Exp $
  */
 /*
  * Some code and ideas taken from the old disks.c.

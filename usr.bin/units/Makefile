@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/units/Makefile,v 1.4.2.1 1999/08/29 15:34:15 peter Exp $
 
 PROG=	units
 

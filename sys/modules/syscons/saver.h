@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/modules/syscons/saver.h,v 1.16.2.2 1999/08/29 16:27:41 peter Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>

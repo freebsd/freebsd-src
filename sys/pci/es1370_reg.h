@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/es1370_reg.h,v 1.1.2.2 1999/11/16 19:17:51 roger Exp $
  */
 
 #ifndef _ES1370_REG_H

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/tunefs/tunefs.c,v 1.7.2.1 1999/08/29 15:15:59 peter Exp $";
 #endif /* not lint */
 
 /*

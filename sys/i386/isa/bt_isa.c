@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/bt_isa.c,v 1.5.2.5 1999/09/15 03:12:17 jkh Exp $
  */
 
 #include <sys/param.h>

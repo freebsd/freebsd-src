@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/librpcsvc/yp_update.c,v 1.1.1.1.2.1 1999/08/29 14:57:27 peter Exp $
  */
 
 #include <stdlib.h>
@@ -46,7 +46,7 @@
 #include <rpc/key_prot.h>
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/librpcsvc/yp_update.c,v 1.1.1.1.2.1 1999/08/29 14:57:27 peter Exp $";
 #endif
 
 #ifndef WINDOW

@@ -63,7 +63,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$FreeBSD$")
+libId(keysId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcskeys.c,v 1.11.2.1 1999/08/29 14:34:58 peter Exp $")
 
 
 char const *Keyword[] = {

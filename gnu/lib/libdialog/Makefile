@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libdialog/Makefile,v 1.24.2.1 1999/08/29 14:28:34 peter Exp $
 
 LIB=    dialog
 MAN3=	dialog.3

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/430.status-rwho,v 1.2.2.1 1999/08/29 14:19:42 peter Exp $
 #
 
 if [ -d /var/rwho -a -x /usr/bin/rwho -a $(ls -l /var/rwho | wc -l) -ne 0 ]

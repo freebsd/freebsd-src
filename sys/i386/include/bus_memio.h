@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/bus_memio.h,v 1.1.4.1 1999/08/29 16:06:21 peter Exp $
  */
 
 #ifndef _I386_BUS_MEMIO_H_

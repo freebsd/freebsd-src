@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/mkpeer.c,v 1.1.2.1 1999/11/17 07:23:15 julian Exp $
  */
 
 #include "ngctl.h"

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ctype.h,v 1.1.2.1 1999/12/06 21:03:31 archie Exp $
  */
 
 #ifndef _SYS_CTYPE_H_

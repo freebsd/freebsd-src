@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/cfparse.y,v 1.9.2.1 1999/08/29 15:43:50 peter Exp $
  * cfparse.y,v 3.8.4.30 1998/03/01 01:48:58 fenner Exp
  */
 #include <stdio.h>

@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $FreeBSD$
+# $FreeBSD: src/lib/libncurses/Makefile,v 1.25.2.1 1999/08/29 14:57:18 peter Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3

@@ -45,7 +45,7 @@ static char  *license_msg[] = {
  */
 
 #ifdef RCSID
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/gzip/gzip.c,v 1.8.2.2 1999/08/29 14:33:26 peter Exp $";
 #endif
 
 #include <ctype.h>

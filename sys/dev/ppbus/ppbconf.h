@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/ppbconf.h,v 1.11.2.2 1999/08/29 16:23:55 peter Exp $
  *
  */
 #ifndef __PPBCONF_H

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/monthly/200.accounting,v 1.2.2.1 1999/08/29 14:19:47 peter Exp $
 #
 
 W=/var/log/wtmp

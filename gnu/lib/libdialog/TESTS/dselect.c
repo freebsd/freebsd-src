@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/dselect.c,v 1.3.2.1 1999/08/29 14:28:38 peter Exp $
  */
 
 #include <stdio.h>

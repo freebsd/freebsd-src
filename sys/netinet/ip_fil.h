@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fil.h,v 1.6.2.1 1999/08/29 16:29:42 peter Exp $
  */
 
 #ifndef	__IP_FIL_H__

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/apmd/apmd.h,v 1.1.1.1.2.2 1999/08/29 15:39:29 peter Exp $
  */
 
 #define APMD_CONFIGFILE		"/etc/apmd.conf"

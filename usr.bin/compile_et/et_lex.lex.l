@@ -22,5 +22,5 @@ end		return END;
 .		{ return (*yytext); }
 %%
 #ifndef lint
-static char rcsid_et_lex_lex_l[] = "$FreeBSD$";
+static char rcsid_et_lex_lex_l[] = "$FreeBSD: src/usr.bin/compile_et/et_lex.lex.l,v 1.3.4.1 1999/08/29 15:26:38 peter Exp $";
 #endif

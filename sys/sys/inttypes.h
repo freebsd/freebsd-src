@@ -1,6 +1,6 @@
 /*
  * This file is in the public domain.
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/inttypes.h,v 1.1.2.1 1999/08/29 16:32:25 peter Exp $
  */
 
 #ifndef _SYS_INTTYPES_H_

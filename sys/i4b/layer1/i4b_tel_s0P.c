@@ -38,7 +38,7 @@
  *		EXPERIMENTAL !!!
  *		================
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/i4b_tel_s0P.c,v 1.1.2.2 1999/11/15 22:40:32 joe Exp $ 
  *
  *      last edit-date: [Tue Mar 16 10:39:14 1999]
  *

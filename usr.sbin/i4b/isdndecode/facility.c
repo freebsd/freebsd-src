@@ -27,7 +27,7 @@
  *	facility.c - decode Q.932 facilities
  *	------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/facility.c,v 1.1.2.2 1999/11/15 22:41:05 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:16:11 1999]
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns16550.h	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/i8251.h,v 1.1.6.1 1999/12/06 03:28:54 nyan Exp $
  */
 
 /*

@@ -27,7 +27,7 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/main.c,v 1.1.2.2 1999/11/15 22:41:06 joe Exp $
  *
  *      last edit-date: [Fri Jul 30 08:14:58 1999]
  *

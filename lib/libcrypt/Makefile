@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libcrypt/Makefile,v 1.14.2.1 1999/08/29 14:56:33 peter Exp $
 #
 
 LCRYPTBASE= 	libcrypt

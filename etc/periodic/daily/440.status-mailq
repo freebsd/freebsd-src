@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/440.status-mailq,v 1.3.2.1 1999/08/29 14:19:42 peter Exp $
 #
 if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ] ; then
     echo ""

@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/mem.c,v 1.4.2.1 1999/08/29 15:56:32 peter Exp $
  */
 
 /*

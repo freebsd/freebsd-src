@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/xntpd/parse/Makefile,v 1.3.2.1 1999/08/29 15:49:28 peter Exp $
 #
 
 PARSEFLAGS= -DCLOCK_SCHMID -DCLOCK_DCF7000 -DCLOCK_MEINBERG \

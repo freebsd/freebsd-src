@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ficl/Makefile,v 1.7.2.2 1999/08/29 16:20:35 peter Exp $
 #
 LIB=			ficl
 NOPROFILE=		yes

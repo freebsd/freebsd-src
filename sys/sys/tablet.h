@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tablet.h	8.4 (Berkeley) 7/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/tablet.h,v 1.7.4.1 1999/08/29 16:32:49 peter Exp $
  */
 
 #ifndef	_SYS_TABLET_H_

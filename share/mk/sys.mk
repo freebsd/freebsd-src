@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-# $FreeBSD$
+# $FreeBSD: src/share/mk/sys.mk,v 1.43.2.1 1999/08/29 16:47:48 peter Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/Makefile.inc,v 1.9.2.1 1999/08/29 14:35:22 peter Exp $
 
 TXIDIR=		${.CURDIR}/../../../../contrib/texinfo
 

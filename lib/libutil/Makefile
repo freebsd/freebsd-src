@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libutil/Makefile,v 1.21.2.5 1999/11/22 10:43:33 jkoshy Exp $
 
 LIB=	util
 SHLIB_MAJOR= 2

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumstate.h,v 1.4.2.4 1999/08/29 16:24:25 peter Exp $
  */
 
 /*

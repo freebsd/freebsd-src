@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	7.3 (Berkeley) 6/9/91
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/Makefile,v 1.5.2.1 1999/08/29 16:04:30 peter Exp $
 
 # Makefile for i386 tags file
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_info.c,v 1.9.2.3 1999/08/29 14:55:55 peter Exp $
  */
 #include <stdio.h>
 #include <fcntl.h>

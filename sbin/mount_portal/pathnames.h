@@ -36,7 +36,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount_portal/pathnames.h,v 1.3.2.1 1999/08/29 15:14:33 peter Exp $
  */
 
 #include <paths.h>

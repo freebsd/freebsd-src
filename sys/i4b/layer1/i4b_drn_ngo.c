@@ -27,7 +27,7 @@
  *	i4b_drn_ngo.c - Dr. Neuhaus Niccy GO@ and SAGEM Cybermod
  *	--------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_drn_ngo.c,v 1.1.2.2 1999/11/15 22:40:24 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:25:39 1999]
  *

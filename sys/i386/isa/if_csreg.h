@@ -27,7 +27,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_csreg.h,v 1.1.4.1 1999/08/29 16:07:19 peter Exp $
  */
 
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */

@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/DEFS.h,v 1.7.2.1 1999/08/29 14:46:31 peter Exp $
  */
 
 #include <machine/asm.h>

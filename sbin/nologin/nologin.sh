@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)nologin.sh	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/nologin/nologin.sh,v 1.3.2.1 1999/08/29 15:15:03 peter Exp $
 #
 
 echo 'This account is currently not available.'

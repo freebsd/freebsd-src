@@ -38,7 +38,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sbin/vinum/v.c,v 1.4.2.5 1999/08/29 15:16:06 peter Exp $ */
 
 #include <ctype.h>
 #include <errno.h>

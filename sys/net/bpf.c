@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bpf.c,v 1.46.2.1 1999/08/29 16:28:09 peter Exp $
  */
 
 #include "bpfilter.h"

@@ -26,7 +26,7 @@ static const char copyright[] =
     "Copyright 1987,1988 by MIT Student Information Processing Board";
 
 static const char rcsid_compile_et_c[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/compile_et/compile_et.c,v 1.6.2.1 1999/08/29 15:26:36 peter Exp $";
 #endif
 
 extern char *gensym();

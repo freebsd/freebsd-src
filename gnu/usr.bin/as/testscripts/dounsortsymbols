@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/dounsortsymbols,v 1.3.2.1 1999/08/29 14:31:45 peter Exp $
 # objdump the symbol table, but strip off the headings and symbol
 # numbers and sort the result.  Intended for use in comparing symbol
 # tables that may not be in the same order.

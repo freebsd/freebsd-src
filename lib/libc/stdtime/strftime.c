@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdtime/strftime.c,v 1.20.2.2 1999/12/10 11:00:47 sheldonh Exp $";
 #endif
 
 #ifndef lint

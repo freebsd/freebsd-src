@@ -27,7 +27,7 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro PCI
  *	=====================================================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_elsa_qs1p.c,v 1.1.2.2 1999/11/15 22:40:25 joe Exp $
  *
  *      last edit-date: [Wed Mar 10 07:24:32 1999]
  *

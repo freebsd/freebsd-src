@@ -1,6 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.version.c - version 1.0.3 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/games/hack/hack.version.c,v 1.2.2.1 1999/08/29 14:22:56 peter Exp $ */
 
 #include	"date.h"
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_cd.c,v 1.14.2.9 1999/12/11 23:03:03 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.

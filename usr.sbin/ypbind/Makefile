@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ypbind/Makefile,v 1.5.2.1 1999/08/29 15:49:43 peter Exp $
 
 SRCS=	ypbind.c yp_ping.c
 PROG=	ypbind

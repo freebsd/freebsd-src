@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/yacc/skeleton.c,v 1.14.2.1 1999/08/29 15:35:09 peter Exp $
  */
 
 #ifndef lint

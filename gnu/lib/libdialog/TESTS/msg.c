@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/msg.c,v 1.3.2.1 1999/08/29 14:28:43 peter Exp $
  */
 
 #include <stdio.h>

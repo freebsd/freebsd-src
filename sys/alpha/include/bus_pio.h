@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/bus_pio.h,v 1.1.2.1 1999/08/29 15:56:48 peter Exp $
  */
 
 #ifndef _ALPHA_BUS_PIO_H_

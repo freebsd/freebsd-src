@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $FreeBSD$
+\ $FreeBSD: src/release/picobsd/forth/menu.4th,v 1.1.2.2 1999/08/29 15:52:55 peter Exp $
 
 : title
 	f_single

@@ -33,7 +33,7 @@
  *	pcmcia_isic.c - pcmcia bus frontend for i4b_isic driver
  *	-------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/pcmcia_isic.c,v 1.1.2.2 1999/11/15 22:40:34 joe Exp $ 
  *
  *      last edit-date: [Tue Apr 20 14:09:16 1999]
  *

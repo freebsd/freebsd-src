@@ -23,7 +23,7 @@
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.bin/doscmd/register.h,v 1.1.2.1 1999/08/29 15:27:10 peter Exp $
 */
 
 /******************************************************************************

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc/Makefile,v 1.13.2.1 1999/08/29 14:32:31 peter Exp $
 #
 
 PROG =	cc

@@ -1,5 +1,5 @@
 /* config.h.  Generated automatically by configure.  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/config.h,v 1.2.4.1 1999/08/29 15:29:26 peter Exp $ */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */

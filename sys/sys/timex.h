@@ -17,7 +17,7 @@
  **********************************************************************/
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/timex.h,v 1.7.2.3 1999/10/10 18:29:51 jhay Exp $
  *
  * Modification history timex.h
  *

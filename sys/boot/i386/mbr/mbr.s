@@ -13,7 +13,7 @@
 # purpose.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/mbr/mbr.s,v 1.2.2.2 1999/08/29 16:21:09 peter Exp $
 
 # Master boot record
 

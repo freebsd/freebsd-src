@@ -1,6 +1,6 @@
 # latin1 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/colldef/data/lt_LN.ISO_8859-1.src,v 1.8.2.1 1999/08/29 15:26:28 peter Exp $
 #
 charmap map.ISO_8859-1
 order \

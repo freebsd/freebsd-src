@@ -1,5 +1,5 @@
 /*	$NetBSD: uhci.c,v 1.24 1999/02/20 23:26:16 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uhci.c,v 1.7.2.4 1999/07/24 18:23:03 gehenna Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

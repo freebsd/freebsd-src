@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot2/Makefile,v 1.11.2.2 1999/08/29 16:20:43 peter Exp $
 
 PROG=		boot2
 NOMAN=

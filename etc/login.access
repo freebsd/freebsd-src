@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/login.access,v 1.2.2.1 1999/08/29 14:18:47 peter Exp $
 #
 # Login access control table.
 # 

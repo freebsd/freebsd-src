@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/ppp/ppp.shells.sample,v 1.2.2.1 1999/08/29 14:19:57 peter Exp $
 #
 # List of acceptable shells for pppd(8).
 # Pppd will not accept a system password login

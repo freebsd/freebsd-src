@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/floppy.tree/etc/rc,v 1.4.2.2 1999/08/29 15:53:24 peter Exp $
 ### Special setup for one floppy PICOBSD ###
 ifconfig lo0 inet 127.0.0.1 netmask 0xffffff00
 hostname pico

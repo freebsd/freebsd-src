@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)generic.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/newkey/generic.c,v 1.2.2.1 1999/08/29 15:31:35 peter Exp $";
 #endif
 
 /*

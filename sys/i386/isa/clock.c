@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/clock.c,v 1.129.2.5 1999/10/31 06:04:52 iwasaki Exp $
  */
 
 /*

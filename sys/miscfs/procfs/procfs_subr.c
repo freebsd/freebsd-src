@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_subr.c,v 1.22.2.1 1999/08/29 16:26:54 peter Exp $
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_freblk_rcsid[] = "$FreeBSD$";
+const char _uuconf_freblk_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/freblk.c,v 1.5.2.1 1999/08/29 14:29:42 peter Exp $";
 #endif
 
 #include "alloc.h"

@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/nlpt.c,v 1.12.2.2 1999/08/29 16:23:50 peter Exp $
  */
 
 /*

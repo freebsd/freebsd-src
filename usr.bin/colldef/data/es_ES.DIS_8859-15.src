@@ -1,6 +1,6 @@
 # Espan~ol (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/colldef/data/es_ES.DIS_8859-15.src,v 1.1.2.2 1999/08/29 15:26:24 peter Exp $
 #
 charmap map.DIS_8859-15
 order \

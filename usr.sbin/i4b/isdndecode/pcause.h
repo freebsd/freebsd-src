@@ -27,7 +27,7 @@
  *	pcause.h - Q.850 causes definitions
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/pcause.h,v 1.1.2.2 1999/11/15 22:41:07 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:17:15 1999]
  *

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/unisig_sigmgr_state.c,v 1.4.2.1 1999/08/29 16:29:25 peter Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #include <netatm/uni/sscf_uni.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/unisig_sigmgr_state.c,v 1.4.2.1 1999/08/29 16:29:25 peter Exp $");
 #endif
 
 

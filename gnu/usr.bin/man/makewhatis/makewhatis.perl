@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/makewhatis/makewhatis.perl,v 1.18.2.2 1999/09/06 05:41:49 phantom Exp $
 
 
 sub usage {

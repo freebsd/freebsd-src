@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/csh/dir.h,v 1.4.2.1 1999/08/29 14:11:42 peter Exp $
  */
 
 /*

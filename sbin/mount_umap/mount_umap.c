@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/mount_umap/mount_umap.c,v 1.13.2.2 1999/11/22 23:03:56 green Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

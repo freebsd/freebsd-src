@@ -2,7 +2,7 @@
  *
  * Real bummers unite !
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/xntpd/lib/machines.c,v 1.3.2.1 1999/08/29 15:49:22 peter Exp $
  */
 
 #include "ntp_stdlib.h"

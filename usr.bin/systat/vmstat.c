@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/systat/vmstat.c,v 1.32.2.2 1999/09/07 08:39:34 des Exp $";
 #endif /* not lint */
 
 /*

@@ -2,7 +2,7 @@
  * Downloadable microcode for Second Generation
  * Advanced Systems Inc. SCSI controllers
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adwmcode.c,v 1.1.2.1 1999/08/29 16:22:29 peter Exp $
  *
  * Obtained from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters

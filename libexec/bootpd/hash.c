@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
- $FreeBSD$
+ $FreeBSD: src/libexec/bootpd/hash.c,v 1.4.2.1 1999/08/29 15:02:53 peter Exp $
 
 ************************************************************************/
 

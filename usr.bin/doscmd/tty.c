@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/tty.c,v 1.4.2.1 1999/08/29 15:27:12 peter Exp $
  */
 
 #ifndef NO_X

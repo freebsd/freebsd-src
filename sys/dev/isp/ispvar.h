@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/ispvar.h,v 1.8.2.9 1999/12/03 07:36:55 mjacob Exp $ */
 
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.

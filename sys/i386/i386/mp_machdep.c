@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mp_machdep.c,v 1.88.2.5 1999/10/30 20:14:26 tegge Exp $
  */
 
 #include "opt_smp.h"

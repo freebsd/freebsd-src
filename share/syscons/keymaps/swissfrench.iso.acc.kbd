@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/swissfrench.iso.acc.kbd,v 1.1.2.1 1999/11/29 01:25:16 yokota Exp $
 #
 # swissfrench ISO 8859-1 keymap, accent keys
 # created 14.11.1999 by Martin Blapp <mb@imp.ch>

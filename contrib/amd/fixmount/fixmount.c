@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: fixmount.c,v 1.4 1999/02/04 07:24:42 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/fixmount/fixmount.c,v 1.4.2.1 1999/11/27 04:46:52 obrien Exp $
  *
  */
 

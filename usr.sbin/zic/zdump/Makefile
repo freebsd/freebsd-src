@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/zic/zdump/Makefile,v 1.3.2.1 1999/08/29 15:50:08 peter Exp $
 
 .PATH:	${.CURDIR}/..
 

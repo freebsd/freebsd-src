@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 4/20/94
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/nqnfs/Makefile,v 1.4.2.1 1999/08/29 16:43:44 peter Exp $
 
 VOLUME=	papers
 DOC=	nqnfs

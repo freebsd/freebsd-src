@@ -125,5 +125,5 @@ o The Parameter Data parameter is not supported for the following primitives:
 	AAL-RELEASE indication
 
 
-	@(#) $FreeBSD$
+	@(#) $FreeBSD: src/share/examples/atm/sscf-design.txt,v 1.1.2.1 1999/08/29 16:44:51 peter Exp $
 

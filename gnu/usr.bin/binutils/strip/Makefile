@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/strip/Makefile,v 1.5.2.1 1999/08/29 14:32:23 peter Exp $
 #
 
 .include "../Makefile.inc0"

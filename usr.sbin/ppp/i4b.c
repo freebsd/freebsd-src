@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/i4b.c,v 1.1.2.3 1999/11/19 23:47:54 brian Exp $
  */
 
 #include <sys/param.h>

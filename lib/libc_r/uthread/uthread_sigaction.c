@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_sigaction.c,v 1.4.2.3 1999/08/29 14:56:04 peter Exp $
  */
 #include <signal.h>
 #include <errno.h>

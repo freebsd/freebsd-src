@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_arith.c,v 1.8.4.1 1999/08/29 16:24:32 peter Exp $
  *
  */
 

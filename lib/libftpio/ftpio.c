@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libftpio/ftpio.c,v 1.30.2.3 1999/08/29 14:56:57 peter Exp $
  *
  */
 

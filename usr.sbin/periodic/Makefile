@@ -1,6 +1,6 @@
 # Makefile for periodic(8)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/periodic/Makefile,v 1.1.1.1.2.1 1999/08/29 15:45:04 peter Exp $
 
 MAN8=	periodic.8
 

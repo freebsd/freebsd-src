@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/ls/ls.c,v 1.23.2.2 1999/08/29 14:12:48 peter Exp $";
 #endif
 #endif /* not lint */
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/dwlpxreg.h,v 1.2.2.1 1999/08/29 15:57:40 peter Exp $ */
 /* $NetBSD: dwlpxreg.h,v 1.9 1998/03/21 22:02:42 mjacob Exp $ */
 
 /*

@@ -27,7 +27,7 @@
    String Matching:  An Aid to Bibliographic Search," CACM June 1975,
    Vol. 18, No. 6, which describes the failure function used below. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/grep/kwset.c,v 1.2.8.1 1999/10/16 10:25:13 ache Exp $ */
 
 
 #ifdef STDC_HEADERS

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/poll.h,v 1.4.2.1 1999/08/29 16:32:36 peter Exp $
  */
 
 #ifndef _SYS_POLL_H_

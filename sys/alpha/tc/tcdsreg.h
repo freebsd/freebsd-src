@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcdsreg.h,v 1.1.2.1 1999/08/29 15:57:34 peter Exp $ */
 /*	$NetBSD: tcdsreg.h,v 1.1 1995/12/20 00:40:36 cgd Exp $	*/
 
 /*

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/pathnames.h,v 1.6.2.1 1999/08/29 15:43:58 peter Exp $
  * pathnames.h,v 3.8 1995/11/29 22:36:57 fenner Rel
  */
 

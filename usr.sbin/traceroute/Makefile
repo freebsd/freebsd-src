@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/traceroute/Makefile,v 1.10.2.1 1999/08/29 15:48:47 peter Exp $
 
 PROG=	traceroute
 MAN8=	traceroute.8

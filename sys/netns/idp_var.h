@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_var.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/idp_var.h,v 1.8.4.1 1999/08/29 16:30:14 peter Exp $
  */
 
 #ifndef _NETNS_IDP_VAR_H_

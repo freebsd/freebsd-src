@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_lnc.h,v 1.9.2.2 1999/08/29 16:07:23 peter Exp $
  */
 
 #include <i386/isa/ic/Am7990.h>

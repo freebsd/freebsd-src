@@ -47,7 +47,7 @@
  * Modified: Riccardo Facchetti  24 Mar 1995 - Added the Audio Excel DSP 16
  * initialization routine.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/ad1848.c,v 1.28.2.1 1999/12/01 14:18:12 nyan Exp $
  */
 
 #define DEB(x)

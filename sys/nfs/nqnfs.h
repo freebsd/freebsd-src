@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.3 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nqnfs.h,v 1.18.2.1 1999/08/29 16:30:36 peter Exp $
  */
 
 

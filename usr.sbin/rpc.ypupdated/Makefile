@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.ypupdated/Makefile,v 1.5.2.1 1999/08/29 15:47:59 peter Exp $
 
 PROG=	rpc.ypupdated
 SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \

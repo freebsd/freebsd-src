@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/mail.local/Makefile,v 1.9.2.1 1999/08/29 15:03:25 peter Exp $
 
 .PATH:	${.CURDIR}/../../contrib/sendmail/mail.local \
 	${.CURDIR}/../../contrib/sendmail/src

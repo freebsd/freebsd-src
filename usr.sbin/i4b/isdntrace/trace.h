@@ -35,7 +35,7 @@
  *	trace.h - header file for isdn trace
  *	------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/trace.h,v 1.1.2.2 1999/11/15 22:41:18 joe Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:23:35 1999]
  *

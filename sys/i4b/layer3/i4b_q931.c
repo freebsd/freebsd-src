@@ -27,7 +27,7 @@
  *	i4b_q931.c - Q931 received messages handling
  *	--------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer3/i4b_q931.c,v 1.1.2.2 1999/11/15 22:40:42 joe Exp $ 
  *
  *      last edit-date: [Tue Apr 27 12:04:35 1999]
  *

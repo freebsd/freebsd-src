@@ -2,7 +2,7 @@
 # LKM - verification kernel for LKMs.  This is not intended to be run
 # on any real hardware, only to make it possible to test-link LKMs.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/LKM,v 1.3.2.1 1999/08/29 16:05:22 peter Exp $
 #
 
 ##

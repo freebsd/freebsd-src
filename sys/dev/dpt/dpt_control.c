@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt_control.c,v 1.10.2.3 1999/08/29 16:22:47 peter Exp $"
 
 #include "opt_dpt.h"
 

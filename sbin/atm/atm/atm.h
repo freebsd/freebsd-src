@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/atm/atm.h,v 1.2.2.1 1999/08/29 15:12:21 peter Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.24.2.2 1999/08/29 16:27:25 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux
 KMOD=	linux

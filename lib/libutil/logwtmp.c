@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libutil/logwtmp.c,v 1.8.2.2 1999/08/29 14:57:58 peter Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 

@@ -4,7 +4,7 @@
  * Copyright (C) 1997-1999 Whistle Communications Inc.
  * All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_ar.h,v 1.1.2.1 1999/11/19 07:35:42 julian Exp $
  */
 
 #ifndef _I386_ISA_IF_AR_H_

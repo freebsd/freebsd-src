@@ -21,7 +21,7 @@
 #
 # usage: xrs manpages ...
 #
-# $FreeBSD$
+# $FreeBSD: src/share/man/man0/xrs.pl,v 1.4.2.1 1999/08/29 16:45:32 peter Exp $
 
 sub mysort {
 

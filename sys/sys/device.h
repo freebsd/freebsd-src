@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/device.h,v 1.8.2.1 1999/08/29 16:32:14 peter Exp $
  */
 
 #ifndef _SYS_DEVICE_H_

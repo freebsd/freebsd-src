@@ -1,5 +1,5 @@
 ** README for file(1) Command **
-@(#) $FreeBSD$
+@(#) $FreeBSD: src/usr.bin/file/README,v 1.4.2.1 1999/08/29 15:27:40 peter Exp $
 
 This is Release 3.x of Ian Darwin's (copyright but distributable)
 file(1) command. This version is the standard "file" command for Linux,

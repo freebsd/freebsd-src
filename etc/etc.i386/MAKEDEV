@@ -129,7 +129,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.i386/MAKEDEV,v 1.183.2.16 1999/11/15 22:14:50 joe Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/compile_et/Makefile,v 1.9.2.1 1999/08/29 15:26:35 peter Exp $
 
 PROG=	compile_et
 SRCS=	compile_et.c error_table.y

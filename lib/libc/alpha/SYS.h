@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/alpha/SYS.h,v 1.5.2.1 1999/08/29 14:45:37 peter Exp $ */
 /*	From: NetBSD: SYS.h,v 1.5 1997/05/02 18:15:15 kleink Exp */
 
 /*

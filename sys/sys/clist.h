@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clist.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/clist.h,v 1.8.2.1 1999/08/29 16:32:12 peter Exp $
  */
 
 #ifndef _SYS_CLIST_H_

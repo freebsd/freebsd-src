@@ -33,7 +33,7 @@
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/more/less.h,v 1.2.10.3 1999/08/29 15:31:15 peter Exp $
  */
 
 #define	NULL_POSITION	((off_t)(-1))

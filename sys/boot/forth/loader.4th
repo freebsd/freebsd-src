@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/loader.4th,v 1.2.2.4 1999/11/24 18:04:45 dcs Exp $
 
 include /boot/support.4th
 

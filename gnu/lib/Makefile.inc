@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/Makefile.inc,v 1.6.2.1 1999/08/29 14:28:32 peter Exp $
 
 SHLIB_MAJOR?= 2
 SHLIB_MINOR?= 0

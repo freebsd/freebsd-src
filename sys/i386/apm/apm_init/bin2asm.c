@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/apm/apm_init/bin2asm.c,v 1.7.2.1 1999/08/29 16:04:37 peter Exp $
  */
 
 #include <stdio.h>

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/init_main.c,v 1.103.2.5 1999/08/29 16:25:56 peter Exp $
  */
 
 #include "opt_devfs.h"

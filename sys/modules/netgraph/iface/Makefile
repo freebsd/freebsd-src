@@ -1,5 +1,5 @@
 # $Whistle: Makefile,v 1.2 1999/01/19 19:39:21 archie Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/netgraph/iface/Makefile,v 1.2.2.2 1999/11/17 07:46:40 julian Exp $
 
 KMOD=		ng_iface
 SRCS= 		ng_iface.c bpfilter.h opt_inet.h opt_atalk.h opt_ipx.h

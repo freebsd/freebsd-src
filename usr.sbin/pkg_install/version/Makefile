@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/version/Makefile,v 1.3.2.3 1999/12/03 06:18:03 billf Exp $
 
 MAINTAINER=	billf@FreeBSD.org
 MAINTAINER+=	bmah@CA.Sandia.GOV

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/if_de.c,v 1.93.2.3 1999/08/29 16:31:35 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)

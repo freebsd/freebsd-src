@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/interrupt.h,v 1.7.2.1 1999/08/29 16:32:25 peter Exp $
  */
 
 /* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */

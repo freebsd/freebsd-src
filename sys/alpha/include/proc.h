@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/proc.h,v 1.5.2.1 1999/08/29 15:57:03 peter Exp $ */
 /* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)lstInt.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstInt.h,v 1.5.2.1 1999/08/29 15:30:46 peter Exp $
  */
 
 /*-

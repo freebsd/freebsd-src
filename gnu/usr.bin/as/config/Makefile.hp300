@@ -1,5 +1,5 @@
 #	from: @(#)Makefile.hp300	6.1 (Berkeley) 3/3/91
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/config/Makefile.hp300,v 1.3.2.1 1999/08/29 14:31:30 peter Exp $
 
 CFLAGS+=	-Dm68851
 SRCS+=		tc-m68k.c atof-ieee.c

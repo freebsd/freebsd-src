@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_fxpreg.h,v 1.13.2.3 1999/12/06 20:11:53 peter Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086

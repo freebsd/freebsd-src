@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTSIP)
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.3.2.1 1999/08/29 15:49:29 peter Exp $
  *
  * Trimble TSIP support - CURRENTLY VERY MUCH UNDER CONSTRUCTION
  */

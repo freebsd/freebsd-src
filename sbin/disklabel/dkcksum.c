@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dkcksum.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/disklabel/dkcksum.c,v 1.3.2.1 1999/08/29 15:12:47 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/dostriptest,v 1.3.2.1 1999/08/29 14:31:43 peter Exp $
 
 x=striptest.xx.$$
 y=striptest.yy.$$

@@ -22,7 +22,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/freebsd.h,v 1.21.2.4 1999/12/05 20:57:57 obrien Exp $ */
 
 /* A lie, I guess, but the general idea behind FreeBSD/ELF is that we are
    supposed to be outputting something that will assemble under SVr4.

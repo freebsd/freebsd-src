@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/vnconfig/vnconfig.c,v 1.7.2.1 1999/08/29 15:48:58 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>

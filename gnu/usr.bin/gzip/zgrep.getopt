@@ -26,7 +26,7 @@
 #
 # zgrep - search possibly compressed files for a regular expression
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gzip/zgrep.getopt,v 1.6.2.1 1999/08/29 14:33:34 peter Exp $
 
 
 PATH=/bin:/usr/bin:$PATH; export PATH

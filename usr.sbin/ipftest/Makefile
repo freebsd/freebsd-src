@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ipftest/Makefile,v 1.1 1998/03/21 13:52:59 peter Exp $
 
 .PATH:	${.CURDIR}/../../sys/netinet \
 	${.CURDIR}/../../contrib/ipfilter ${.CURDIR}/../../contrib/ipfilter/man

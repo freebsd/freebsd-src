@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gmon/mcount.c,v 1.14.2.1 1999/08/29 14:46:30 peter Exp $";
 #endif
 
 #ifndef __alpha__

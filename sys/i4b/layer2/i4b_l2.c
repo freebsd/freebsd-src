@@ -27,7 +27,7 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer2/i4b_l2.c,v 1.1.2.2 1999/11/15 22:40:36 joe Exp $ 
  *
  *      last edit-date: [Fri May 28 16:15:39 1999]
  *

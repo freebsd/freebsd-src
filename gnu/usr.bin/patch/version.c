@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/version.c,v 1.4.2.1 1999/08/29 14:34:05 peter Exp $
  *
  * $Log: version.c,v $
  * Revision 1.4  1998/01/21 14:37:26  ache

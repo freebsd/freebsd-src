@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/esp.c,v 1.1.2.1 1999/08/29 15:57:26 peter Exp $ */
 /*	$NetBSD: esp.c,v 1.8.4.2 1996/09/10 17:28:16 cgd Exp $	*/
 
 /*

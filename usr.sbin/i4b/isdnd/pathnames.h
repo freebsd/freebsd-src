@@ -27,7 +27,7 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/pathnames.h,v 1.1.2.2 1999/11/15 22:40:58 joe Exp $ 
  *
  *      last edit-date: [Thu Apr 29 09:07:29 1999]
  *

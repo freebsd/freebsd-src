@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/common.h,v 1.1.1.1.2.1 1999/08/29 16:20:14 peter Exp $
  * From: $NetBSD: common.h,v 1.2 1998/01/05 07:02:48 perry Exp $	
  */
 

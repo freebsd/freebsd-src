@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/cbcp.h,v 1.1.4.2 1999/08/29 15:45:47 peter Exp $
  */
 
 struct mbuf;

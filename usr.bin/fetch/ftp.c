@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/fetch/ftp.c,v 1.11.2.3 1999/08/29 15:27:36 peter Exp $
  */
 
 #include <sys/types.h>

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/999.local,v 1.2.2.1 1999/08/29 14:19:53 peter Exp $
 #
 
 if [ -f /etc/weekly.local ]; then

@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/i386/ft/ftecc.c,v 1.5.2.1 1999/08/29 15:13:32 peter Exp $";
 #endif /* not lint */
 
 #include <sys/ftape.h>

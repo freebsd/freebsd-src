@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/tcreg.h,v 1.1.2.1 1999/08/29 15:57:36 peter Exp $ */
 /*	$NetBSD: tcreg.h,v 1.1 1995/12/20 00:48:36 cgd Exp $	*/
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_aal5.c,v 1.4.2.1 1999/08/29 16:28:40 peter Exp $
  *
  */
 
@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_aal5.c,v 1.4.2.1 1999/08/29 16:28:40 peter Exp $");
 #endif
 
 

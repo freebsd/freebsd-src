@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/snd/sound.c,v 1.26.2.2 1999/11/30 01:16:51 alfred Exp $ */
 /*
  * snd/sound.c
  * 

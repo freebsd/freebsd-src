@@ -27,7 +27,7 @@
  *	i4b_q931.h - Q931 handling header file
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer3/i4b_q931.h,v 1.1.2.2 1999/11/15 22:40:42 joe Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:33:56 1999]
  *

@@ -31,7 +31,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)nfs_prot.x 1.2 87/10/12 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)nfs_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static const char rcsid[] = "$FreeBSD$";
+%static const char rcsid[] = "$FreeBSD: src/include/rpcsvc/nfs_prot.x,v 1.6.2.1 1999/08/29 14:39:13 peter Exp $";
 %#endif /* not lint */
 #endif
 

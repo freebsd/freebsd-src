@@ -27,7 +27,7 @@
  *	isdn4bsd common alias file handling header
  *      ==========================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/alias.h,v 1.1.2.2 1999/11/15 22:41:10 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:19:20 1999]
  *

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/ide_pci.c,v 1.28.2.4 1999/08/29 16:31:32 peter Exp $
  */
 
 #include "pci.h"

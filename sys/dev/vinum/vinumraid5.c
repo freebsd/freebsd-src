@@ -38,7 +38,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumraid5.c,v 1.3.2.2 1999/08/29 16:24:22 peter Exp $
  */
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>

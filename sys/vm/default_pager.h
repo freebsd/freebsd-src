@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/default_pager.h,v 1.7.4.1 1999/08/29 16:33:26 peter Exp $
  */
 
 #ifndef _DEFAULT_PAGER_H_

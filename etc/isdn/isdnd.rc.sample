@@ -3,7 +3,7 @@
 #	example of a configuration file for the isdn daemon
 #	---------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/isdnd.rc.sample,v 1.1.2.1 1999/08/29 14:19:16 peter Exp $
 #
 #	last edit-date: [Tue Jan 19 16:30:12 1999]
 #

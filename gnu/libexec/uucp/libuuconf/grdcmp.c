@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_grdcmp_rcsid[] = "$FreeBSD$";
+const char _uuconf_grdcmp_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/grdcmp.c,v 1.5.2.1 1999/08/29 14:29:45 peter Exp $";
 #endif
 
 #include <ctype.h>

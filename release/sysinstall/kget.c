@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/kget.c,v 1.1.2.10 1999/09/02 00:55:25 jkh Exp $
  */
 
 #ifdef __alpha__

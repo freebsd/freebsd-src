@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/nghook/main.c,v 1.3.2.2 1999/12/01 19:41:42 julian Exp $
  * $Whistle: main.c,v 1.9 1999/01/20 00:26:26 archie Exp $
  */
 

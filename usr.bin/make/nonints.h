@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/nonints.h,v 1.6.2.1 1999/08/29 15:30:28 peter Exp $
  */
 
 /* arch.c */

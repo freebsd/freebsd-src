@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$FreeBSD$"
+# \$FreeBSD: src/share/examples/drivers/make_pseudo_driver.sh,v 1.3.2.2 1999/08/29 16:45:02 peter Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../../dev/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$FreeBSD$
+ * \$FreeBSD: src/share/examples/drivers/make_pseudo_driver.sh,v 1.3.2.2 1999/08/29 16:45:02 peter Exp $
  */
 
 

@@ -108,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.alpha/MAKEDEV,v 1.3.2.8 1999/10/12 15:58:07 gibbs Exp $
 #	from etc.i386 MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp
 #
 

@@ -2,7 +2,7 @@
  * hwaddr.c - routines that deal with hardware addresses.
  * (i.e. Ethernet)
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/hwaddr.c,v 1.6.2.1 1999/08/29 15:02:53 peter Exp $
  */
 
 #include <sys/types.h>

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/sap_tables.c,v 1.5.2.2 1999/08/29 15:38:51 peter Exp $
  */
 
 #include "defs.h"

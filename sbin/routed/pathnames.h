@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/pathnames.h,v 1.3.2.1 1999/08/29 15:15:29 peter Exp $
  *	$NetBSD$
  */
 

@@ -27,7 +27,7 @@
  *	facility.h - Q.932 facility header file
  *	---------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/facility.h,v 1.1.2.2 1999/11/15 22:41:05 joe Exp $
  *
  *      last edit-date: [Sun Feb 14 10:16:17 1999]
  *

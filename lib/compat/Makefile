@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/Makefile,v 1.3.4.2 1999/08/29 14:55:02 peter Exp $
 
 SUBDIR=
 

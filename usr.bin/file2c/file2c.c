@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/file2c/file2c.c,v 1.3.2.1 1999/08/29 15:27:50 peter Exp $
  *
  */
 

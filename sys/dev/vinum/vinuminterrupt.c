@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinuminterrupt.c,v 1.7.2.4 1999/08/29 16:24:16 peter Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

@@ -7,7 +7,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/ioctl_ctx.h,v 1.5.4.1 1999/08/29 16:06:35 peter Exp $
  */
 
 /*

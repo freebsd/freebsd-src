@@ -36,7 +36,7 @@ static char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-        "$FreeBSD$";
+        "$FreeBSD: src/usr.bin/mail/main.c,v 1.5.2.1 1999/11/19 00:47:19 jmz Exp $";
 #endif /* not lint */
 
 #ifndef lint

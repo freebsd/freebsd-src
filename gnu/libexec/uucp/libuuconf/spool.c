@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_spool_rcsid[] = "$FreeBSD$";
+const char _uuconf_spool_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/spool.c,v 1.5.2.1 1999/08/29 14:30:02 peter Exp $";
 #endif
 
 /* Get the name of the UUCP spool directory.  */

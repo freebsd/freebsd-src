@@ -1,5 +1,5 @@
 /*	$NetBSD: ugen.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ugen.c,v 1.8.2.1 1999/05/08 23:04:46 n_hibma Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

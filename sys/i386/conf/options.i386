@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/options.i386,v 1.103.2.7 1999/11/16 18:26:31 joe Exp $
 
 DISABLE_PSE
 IDE_DELAY

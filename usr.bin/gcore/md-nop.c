@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)md-nop.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/gcore/md-nop.c,v 1.2.2.1 1999/08/29 15:28:18 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

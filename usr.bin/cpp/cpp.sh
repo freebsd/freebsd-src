@@ -36,7 +36,7 @@
 # SUCH DAMAGE.
 #
 #	From: @(#)cpp.sh	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/cpp/cpp.sh,v 1.6.2.1 1999/08/29 15:26:43 peter Exp $
 #
 # Transitional front end to CCCP to make it behave like (Reiser) CCP:
 #	specifies -traditional

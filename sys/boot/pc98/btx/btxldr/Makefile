@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/btxldr/Makefile,v 1.1.2.2 1999/08/29 16:21:23 peter Exp $
 
 ORG=0x100000
 #AFLAGS+=	-x assembler-with-cpp

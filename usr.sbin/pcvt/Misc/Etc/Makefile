@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/Misc/Etc/Makefile,v 1.4.2.1 1999/08/29 15:44:53 peter Exp $
 
 FILES=	Termcap Terminfo pcvt.el rc.local uemacs.tar.Z.uu xmodmap-german
 

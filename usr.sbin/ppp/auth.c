@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/auth.c,v 1.34.2.7 1999/08/29 15:45:43 peter Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.

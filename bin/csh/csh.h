@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)csh.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/csh/csh.h,v 1.6.2.2 1999/08/29 14:11:40 peter Exp $
  */
 
 /*

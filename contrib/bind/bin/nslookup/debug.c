@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bind/bin/nslookup/debug.c,v 1.2.2.1 1999/12/13 15:05:24 peter Exp $ */
 /*
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbd.c,v 1.2 1998/07/23 18:39:53 augustss Exp $	*/
-/*	FreeBSD $FreeBSD$ */
+/*	FreeBSD $FreeBSD: src/usr.sbin/usbd/usbd.c,v 1.2.2.1 1999/08/29 15:48:51 peter Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/bus_private.h,v 1.4.2.1 1999/08/29 16:32:09 peter Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_

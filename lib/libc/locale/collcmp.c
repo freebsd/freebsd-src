@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/collcmp.c,v 1.11.2.1 1999/08/29 14:47:13 peter Exp $
  */
 
 #define ASCII_COMPATIBLE_COLLATE        /* see usr.bin/colldef/data */

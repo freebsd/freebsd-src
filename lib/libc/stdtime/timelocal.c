@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdtime/timelocal.c,v 1.2.2.2 1999/12/10 11:00:49 sheldonh Exp $
  */
 
 #include <sys/types.h>

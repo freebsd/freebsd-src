@@ -1,4 +1,0 @@
-LIBRARY roken
-EXPORTS
-	gettimeofday
-	strcasecmp

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/skel/dot.login,v 1.11.2.2 1999/12/13 05:47:28 dcs Exp $
 #
 # .login - csh login script, read by login shell, 
 #	   after `.cshrc' at login.

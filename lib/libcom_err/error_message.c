@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcom_err/error_message.c,v 1.2.4.1 1999/08/29 14:56:20 peter Exp $
  * $Source: /home/ncvs/src/lib/libcom_err/error_message.c,v $
  * $Locker:  $
  *
@@ -16,7 +16,7 @@
 #include "internal.h"
 
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libcom_err/error_message.c,v 1.2.4.1 1999/08/29 14:56:20 peter Exp $";
 static const char copyright[] =
     "Copyright 1986, 1987, 1988 by the Student Information Processing Board\nand the department of Information Systems\nof the Massachusetts Institute of Technology";
 

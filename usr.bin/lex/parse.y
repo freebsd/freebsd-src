@@ -33,7 +33,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/lex/parse.y,v 1.1.1.2.4.1 1999/08/29 15:29:32 peter Exp $ */
 
 
 /* Some versions of bison are broken in that they use alloca() but don't

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/intpmreg.h,v 1.2.2.1 1999/11/01 22:48:34 nsouch Exp $
  */
 
 /*Register Difinition for Intel Chipset with ACPI Support*/

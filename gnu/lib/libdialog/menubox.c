@@ -26,7 +26,7 @@
 #include <ncurses.h>
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/gnu/lib/libdialog/menubox.c,v 1.32.2.2 1999/12/17 02:44:40 jkh Exp $";
 #endif
 
 static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int choice, int selected, dialogMenuItem *me, int menu_width, int tag_x, int item_x);

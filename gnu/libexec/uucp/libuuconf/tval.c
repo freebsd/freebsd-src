@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tval_rcsid[] = "$FreeBSD$";
+const char _uuconf_tval_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/tval.c,v 1.5.2.1 1999/08/29 14:30:09 peter Exp $";
 #endif
 
 /* Validate a login name for a system using Taylor UUCP configuration

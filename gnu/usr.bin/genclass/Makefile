@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/genclass/Makefile,v 1.5.2.1 1999/08/29 14:33:03 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/libalpha/Makefile,v 1.6.2.1 1999/08/29 16:20:12 peter Exp $
 
 LIB=		alpha
 NOPIC=		true

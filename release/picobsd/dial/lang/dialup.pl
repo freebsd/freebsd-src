@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/dial/lang/dialup.pl,v 1.2.2.2 1999/08/29 15:52:37 peter Exp $
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Domy¶lna Nazwa Domeny[m"

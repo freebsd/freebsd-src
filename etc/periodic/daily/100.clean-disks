@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/100.clean-disks,v 1.1.1.1.2.2 1999/08/29 14:19:34 peter Exp $
 #
 
 exit 0		# do not run by default

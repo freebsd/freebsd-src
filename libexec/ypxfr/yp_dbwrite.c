@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/ypxfr/yp_dbwrite.c,v 1.7.2.1 1999/08/29 15:04:28 peter Exp $";
 #endif /* not lint */
 
 #include <db.h>

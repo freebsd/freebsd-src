@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dmap.h	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dmap.h,v 1.5.4.1 1999/08/29 16:32:18 peter Exp $
  */
 
 #ifndef _SYS_DMAP_H_

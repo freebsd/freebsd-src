@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdchk/Makefile,v 1.1.2.2 1999/08/29 15:48:33 peter Exp $
 #
 
 MAINTAINER=markm@FreeBSD.org

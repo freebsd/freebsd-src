@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.x11.dist,v 1.4.2.1 1999/08/29 14:19:27 peter Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755

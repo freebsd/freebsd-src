@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/options.pc98,v 1.78.2.7 1999/11/17 12:14:36 nyan Exp $
 
 DISABLE_PSE
 IDE_DELAY

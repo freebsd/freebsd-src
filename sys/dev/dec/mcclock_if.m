@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/dec/mcclock_if.m,v 1.2.2.1 1999/08/29 16:22:45 peter Exp $
 #
 
 INTERFACE mcclock;

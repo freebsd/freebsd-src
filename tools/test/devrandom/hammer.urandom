@@ -5,7 +5,7 @@
 # Read and display random numbers.
 # This also reads /dev/zero to make sure there is no brokenness there.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/test/devrandom/hammer.urandom,v 1.3.2.1 1999/08/29 15:18:14 peter Exp $
 #
 
 open(ZERO, "/dev/zero") || die "Cannot open /dev/zero - $!\n";

@@ -40,7 +40,7 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/isc-dhcp/common/tables.c,v 1.1.1.2.2.3 1999/12/08 06:43:26 obrien Exp $ */
 
 #ifndef lint
 static char copyright[] =

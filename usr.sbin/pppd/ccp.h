@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pppd/ccp.h,v 1.7.2.1 1999/08/29 15:46:56 peter Exp $
  */
 
 typedef struct ccp_options {

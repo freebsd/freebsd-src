@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/throughput.c,v 1.8.2.2 1999/08/29 15:46:35 peter Exp $
  */
 
 #include <sys/types.h>

@@ -27,7 +27,7 @@
  *	i4b_uframe.c - routines for handling U-frames
  *	-----------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer2/i4b_uframe.c,v 1.1.2.2 1999/11/15 22:40:39 joe Exp $ 
  *
  *      last edit-date: [Fri May 28 16:14:32 1999]
  *

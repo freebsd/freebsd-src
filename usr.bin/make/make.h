@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/make.h,v 1.8.2.2 1999/08/29 15:30:28 peter Exp $
  */
 
 /*-
