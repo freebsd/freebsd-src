@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rlog.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:17  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.9  1991/09/17  19:07:40  eggert
  * Getscript() didn't uncache partial lines.
  *
@@ -191,7 +194,7 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 5.9 1991/09/17 19:07:40 eggert Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLRt} -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";
@@ -402,6 +405,7 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 5.9 1991/09/17 19:07:40 eggert Exp $")
 		putrunk();
 		putree(Head);
 	    }
+	    aputs("----------------------------\n", out);
 	    aputs("=============================================================================\n",out);
 	} while (cleanup(),
 		 ++argv, --argc >= 1);
