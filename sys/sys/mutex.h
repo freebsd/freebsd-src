@@ -34,11 +34,15 @@
 
 #ifndef LOCORE
 #include <sys/queue.h>
+
+#ifdef _KERNEL
+#include <sys/ktr.h>
+#endif	/* _KERNEL_ */
+
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
 #ifdef _KERNEL
-#include <sys/ktr.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
