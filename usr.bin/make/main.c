@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.18 1997/07/24 06:58:06 charnier Exp $";
 #endif /* not lint */
 
 /*-
@@ -315,13 +315,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		}
 	}
 
-	/*
-	 * Be compatible if user did not specify -j and did not explicitly
-	 * turned compatibility on
-	 */
-	if (!compatMake && !forceJobs)
-		compatMake = TRUE;
-
 	oldVars = TRUE;
 
 	/*
@@ -344,6 +337,13 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			}
 			(void)Lst_AtEnd(create, (ClientData)estrdup(*argv));
 		}
+
+	/*
+	 * Be compatible if user did not specify -j and did not explicitly
+	 * turned compatibility on
+	 */
+	if (!compatMake && !forceJobs)
+		compatMake = TRUE;
 }
 
 /*-
