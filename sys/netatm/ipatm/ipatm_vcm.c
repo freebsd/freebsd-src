@@ -34,16 +34,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/time.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+
 #include <net/if.h>
+
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 
+#include <vm/uma.h>
 
 Atm_attributes	ipatm_aal5llc = {
 	NULL,			/* nif */
