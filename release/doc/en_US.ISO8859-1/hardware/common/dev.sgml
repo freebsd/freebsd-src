@@ -490,73 +490,10 @@
     </para>
 
     <para arch="i386,pc98">TMC 18C30, 18C50 and 36C70 (AIC-6820) based ISA/PC-Card SCSI host
-    adapters (stg driver)
-      <itemizedlist>
-        <listitem>
-          <para>Adaptec 2920/A</para>
-        </listitem>
-        <listitem>
-          <para>Future Domain SCSI2GO</para>
-        </listitem>
-        <listitem>
-          <para>Future Domain TMC-18XX/3260</para>
-        </listitem>
-	<listitem>
-	  <para>IBM SCSI PCMCIA Card</para>
-        </listitem>
-	<listitem>
-	  <para>ICM PSC-2401 SCSI</para>
-        </listitem>
-	<listitem>
-	  <para>MELCO IFC-SC</para>
-        </listitem>
-	<listitem>
-	  <para>RATOC REX-5536, REX-5536AM, REX-5536M,
-	  REX-9836A</para>
-        </listitem>
-      </itemizedlist>
+    adapters (&man.stg.4; driver)
     </para>
 
     <para arch="i386,pc98,alpha,ia64,sparc64">Qlogic controllers and variants (&man.isp.4; driver)
-      <itemizedlist>
-        <listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1020, 1040 SCSI and Ultra SCSI host
-	  adapters</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1240 dual Ultra SCSI controllers</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
-	  controllers</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 12160 Ultra3 LVD controllers</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
-	  controllers</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Qlogic 2300 and Qlogic 2312 2-Gigabit Fibre Channel SCSI
-	  controllers</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS440 ISP1000 variants</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS450 ISP1040 variants</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Performance Technology SBS470 ISP2100 variants</para>
-	</listitem>
-	<listitem arch="i386,alpha,ia64,sparc64">
-	  <para>Antares Microsystems P-0033 ISP2100 variants</para>
-	</listitem>
-        <listitem arch="pc98">
-           <para>Qlogic SCSI interface</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
@@ -1496,17 +1433,6 @@
     </para>
 
     <para arch="i386,pc98">3Com 3C59X series NICs (&man.vx.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3C590 Etherlink III (PCI)</para>
-	</listitem>
-        <listitem>
-	  <para>3C595 Fast Etherlink III (PCI)</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>3C592/3C597 (EISA)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Crystal Semiconductor CS89x0-based NICs 
