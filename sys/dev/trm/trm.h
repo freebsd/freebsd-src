@@ -155,8 +155,6 @@ struct	_SRB {
 	 *	          CAM ccb
 	 */
 	union  ccb      *pccb; 
-	bus_dma_tag_t	parent_dmat;
-	bus_dma_tag_t	sg_dmat;
 	bus_dmamap_t	sg_dmamap;
 	bus_dmamap_t	 dmamap;
 	u_int16_t	SRBState;
@@ -235,6 +233,7 @@ struct	_ACB
 	bus_dma_tag_t		buffer_dmat;   /* dmat for buffer I/O */  
 	bus_dma_tag_t		srb_dmat;
 	bus_dma_tag_t		sense_dmat; /* dmat for sense buffer */
+	bus_dma_tag_t		sg_dmat;
 	bus_dmamap_t		sense_dmamap;
 	bus_dmamap_t		srb_dmamap;
 	bus_addr_t		sense_busaddr;
