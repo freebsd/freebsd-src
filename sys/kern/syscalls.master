@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.45 1998/01/01 17:07:46 alex Exp $
+	$Id: syscalls.master,v 1.46 1998/01/24 02:54:35 eivind Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -23,8 +23,6 @@
 ;	UNIMPL	not implemented, placeholder only
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
-
-#include "opt_lfs.h"
 
 #include <sys/param.h>
 #include <sys/sysent.h>
@@ -280,21 +278,10 @@
 181	STD	POSIX	{ int setgid(gid_t gid); }
 182	STD	BSD	{ int setegid(gid_t egid); }
 183	STD	BSD	{ int seteuid(uid_t euid); }
-#ifdef LFS
-184	STD	BSD	{ int lfs_bmapv(struct fsid **fsidp, \
-			    struct block_info *blkiov, int blkcnt); }
-185	STD	BSD	{ int lfs_markv(struct fsid **fsidp, \
-			    struct block_info *blkiov, int blkcnt); }
-186	STD	BSD	{ int lfs_segclean(struct fsid **fsidp, \
-			    u_long segment); }
-187	STD	BSD	{ int lfs_segwait(struct fsid **fsidp, \
-			    struct timeval *tv); }
-#else
-184	UNIMPL	BSD	nosys
-185	UNIMPL	BSD	nosys
-186	UNIMPL	BSD	nosys
-187	UNIMPL	BSD	nosys
-#endif
+184	UNIMPL	BSD	lfs_bmapv
+185	UNIMPL	BSD	lfs_markv
+186	UNIMPL	BSD	lfs_segclean
+187	UNIMPL	BSD	lfs_segwait
 188	STD	POSIX	{ int stat(char *path, struct stat *ub); }
 189	STD	POSIX	{ int fstat(int fd, struct stat *sb); }
 190	STD	POSIX	{ int lstat(char *path, struct stat *ub); }

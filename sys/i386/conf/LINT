@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.395 1998/01/25 03:55:47 eivind Exp $
+#	$Id: LINT,v 1.396 1998/01/26 06:33:48 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -424,11 +424,11 @@ options		TCPDEBUG
 #
 # Only the root, /usr, and /tmp filesystems need be statically
 # compiled; everything else will be automatically loaded at mount
-# time.  (Exception: the UFS family---FFS, MFS, and LFS---cannot
+# time.  (Exception: the UFS family---FFS, and MFS --- cannot
 # currently be demand-loaded.)  Some people still prefer to statically
 # compile other filesystems as well.
 #
-# NB: The LFS, PORTAL, and UNION filesystems are known to be buggy,
+# NB: The PORTAL, and UNION filesystems are known to be buggy,
 # and WILL panic your system if you attempt to do anything with them.
 # They are included here as an incentive for some enterprising soul to
 # sit down and fix them.
@@ -443,7 +443,6 @@ options		NFS			#Network File System
 options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
-#options	LFS			#Log filesystem
 options		MFS			#Memory File System
 options		MSDOSFS			#MS DOS File System
 options		NULLFS			#NULL filesystem
@@ -453,7 +452,6 @@ options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
 options		"CD9660_ROOT"		#CD-ROM usable as root device
 options		FFS_ROOT		#FFS usable as root device
-#options	LFS_ROOT		#LFS usable as root device
 options		NFS_ROOT		#NFS usable as root device
 # This DEVFS is experimental but seems to work
 options		DEVFS			#devices filesystem

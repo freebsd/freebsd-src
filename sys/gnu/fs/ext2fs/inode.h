@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.18 1997/10/17 12:36:19 phk Exp $
+ * $Id: inode.h,v 1.19 1997/12/05 13:43:47 jkh Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -70,11 +70,9 @@ struct inode {
 
 	union {			/* Associated filesystem. */
 		struct	fs *fs;		/* FFS */
-		struct	lfs *lfs;	/* LFS */
 		struct	ext2_sb_info *e2fs;	/* EXT2FS */
 	} inode_u;
 #define	i_fs	inode_u.fs
-#define	i_lfs	inode_u.lfs
 #define	i_e2fs	inode_u.e2fs
 	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
 	u_quad_t i_modrev;	/* Revision level for NFS lease. */

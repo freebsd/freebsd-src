@@ -1,4 +1,4 @@
-#	$Id: options,v 1.49 1998/01/25 04:23:29 eivind Exp $
+#	$Id: options,v 1.50 1998/01/26 18:31:18 julian Exp $
 
 # Format:
 # Option name	filename
@@ -48,7 +48,6 @@ UMAPFS		opt_dontuse.h
 # unavailable for the LKM-based versions.
 CD9660
 FFS
-LFS
 NFS
 
 # The above static dependencies are planned removed, with a
@@ -57,7 +56,6 @@ NFS
 # they won't make any difference yet).
 CD9660_ROOT	opt_cd9660.h
 FFS_ROOT	opt_ffs.h
-LFS_ROOT	opt_lfs.h
 NFS_ROOT	opt_nfs.h
 
 # Multi-session CD-Rs might require a huge amount of time in order to
