@@ -245,6 +245,7 @@ struct atapi {                          /* ATAPI controller data */
 	u_char           cmd16 : 1;     /* 16-byte command flag */
 	u_char           intrcmd : 1;   /* interrupt before cmd flag */
 	u_char           slow : 1;      /* slow reaction device */
+	u_char           accel : 1;     /* accelerated reaction device */
 	u_char           use_dsc : 1;	/* use DSC completition handeling */
 	u_char		 wait_for_dsc : 1;
 	u_int		 dsc_timeout;
