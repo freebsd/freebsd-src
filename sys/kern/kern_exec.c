@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.47.2.1 1996/11/09 10:42:28 joerg Exp $
+ *	$Id: kern_exec.c,v 1.47.2.2 1997/02/19 03:53:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -102,6 +103,7 @@ execve(p, uap, retval)
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
+	struct buf *bp = NULL;
 
 	imgp = &image_params;
 
@@ -158,29 +160,32 @@ interpret:
 	 */
 	error = exec_check_permissions(imgp);
 
-	/*
-	 * Lose the lock on the vnode. It's no longer needed, and must not
-	 * exist for the pagefault paging to work below.
-	 */
-	VOP_UNLOCK(imgp->vp);
-
 	if (error)
 		goto exec_fail_dealloc;
 
 	/*
-	 * Map the image header (first page) of the file into
-	 *	kernel address space
+	 * Get the image header, which we define here as meaning the first
+	 * page of the executable.
 	 */
-	error = vm_mmap(exech_map,			/* map */
-			(vm_offset_t *)&imgp->image_header, /* address */
-			PAGE_SIZE,			/* size */
-			VM_PROT_READ, 			/* protection */
-			VM_PROT_READ, 			/* max protection */
-			0,	 			/* flags */
-			(caddr_t)imgp->vp,		/* vnode */
-			0);				/* offset */
+	if (imgp->vp->v_mount && imgp->vp->v_mount->mnt_stat.f_iosize >= PAGE_SIZE) {
+		/*
+		 * Get a buffer with (at least) the first page.
+		 */
+		error = bread(imgp->vp, 0, imgp->vp->v_mount->mnt_stat.f_iosize,
+		     p->p_ucred, &bp);
+		imgp->image_header = bp->b_data;
+	} else {
+		/*
+		 * The filesystem block size is too small, so do this the hard
+		 * way. Malloc some space and read PAGE_SIZE worth of the image
+		 * header into it.
+		 */
+		imgp->image_header = malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+		error = vn_rdwr(UIO_READ, imgp->vp, (void *)imgp->image_header, PAGE_SIZE, 0,
+		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, NULL, p);
+	}
+	VOP_UNLOCK(imgp->vp);
 	if (error) {
-		uprintf("mmap failed: %d\n",error);
 		goto exec_fail_dealloc;
 	}
 
@@ -203,13 +208,16 @@ interpret:
 		if (error)
 			goto exec_fail_dealloc;
 		if (imgp->interpreted) {
+			/* free old bp/image_header */
+			if (bp != NULL) {
+				brelse(bp);
+				bp = NULL;
+			} else {
+				free((void *)imgp->image_header, M_TEMP);
+			}
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
 			FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
-			if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
-			    (vm_offset_t)imgp->image_header + PAGE_SIZE))
-				panic("execve: header dealloc failed (1)");
-
 			/* set new name to that of the interpreter */
 			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 			    UIO_SYSSPACE, imgp->interpreter_name, p);
@@ -321,9 +329,10 @@ interpret:
 	 * free various allocated resources
 	 */
 	kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
-	if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
-	    (vm_offset_t)imgp->image_header + PAGE_SIZE))
-		panic("execve: header dealloc failed (2)");
+	if (bp != NULL)
+		brelse(bp);
+	else if (imgp->image_header != NULL)
+		free((void *)imgp->image_header, M_TEMP);
 	vrele(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
 
@@ -332,10 +341,10 @@ interpret:
 exec_fail_dealloc:
 	if (imgp->stringbase != NULL)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
-	if (imgp->image_header && imgp->image_header != (char *)-1)
-		if (vm_map_remove(exech_map, (vm_offset_t)imgp->image_header,
-		    (vm_offset_t)imgp->image_header + PAGE_SIZE))
-			panic("execve: header dealloc failed (3)");
+	if (bp != NULL)
+		brelse(bp);
+	else if (imgp->image_header != NULL)
+		free((void *)imgp->image_header, M_TEMP);
 	if (ndp->ni_vp)
 		vrele(ndp->ni_vp);
 	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
