@@ -1017,7 +1017,6 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	unsigned short *family;
 	struct m_tag *tag;
 
 	/*
@@ -1032,8 +1031,7 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 			m_freem(m);
 			return;
 		}
-		family = (unsigned short *)(tag + 1);
-		*family = sa ? sa->sa_family : 0;
+		*(unsigned short *)(tag + 1) = sa->sa_family;
 		m_tag_prepend(m, tag);
 	}
 	netisr_queue(NETISR_ROUTE, m);	/* mbuf is free'd on failure. */
