@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.2.5 1997/06/06 13:01:09 jkh Exp $
+ * $Id: variable_load.c,v 1.1.2.6 1997/06/13 07:11:22 jkh Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -104,8 +104,6 @@ variableLoad(dialogMenuItem *self)
 
     fp = mediaDevice->get(mediaDevice, cp, TRUE);
     if (fp) {
-	msgNotify("Loading %s pre-configuration file", cp);
-
 	/* Hint to others that we're running from a script, should they care */
 	variable_set2(VAR_NONINTERACTIVE, "YES");
 
