@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: wlconfig.c,v 1.1.1.1 1997/05/22 08:58:18 msmith Exp $
  *
  */
 /*
@@ -60,9 +60,11 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <machine/if_wl_wavelan.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 extern struct ether_addr *ether_aton(char *a);
