@@ -17,7 +17,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/diskmbr.h>
@@ -93,8 +92,6 @@ Write_Disk(const struct disk *d1)
 	struct dos_partition *dp,work[NDOSPART];
 	int s[4];
 	int need_edd = 0;	/* Need EDD (packet interface) */
-	int one = 1;
-	int zero = 0;
 
 	strcpy(device,_PATH_DEV);
         strcat(device,d1->name);
@@ -107,7 +104,6 @@ Write_Disk(const struct disk *d1)
 #endif
                 return 1;
         }
-	ioctl(fd, DIOCWLABEL, &one);
 
 	memset(s,0,sizeof s);
 	mbr = read_block(fd, 0, d1->sector_size);
@@ -200,13 +196,6 @@ Write_Disk(const struct disk *d1)
 	  for(i = 1; i * d1->sector_size <= d1->bootmgr_size; i++)
 	    write_block(fd, i, &d1->bootmgr[i * d1->sector_size], d1->sector_size);
 
-	i = 1;
-	i = ioctl(fd, DIOCSYNCSLICEINFO, &i);
-#ifdef DEBUG
-	if (i != 0)
-		warn("ioctl(DIOCSYNCSLICEINFO)");
-#endif
-	ioctl(fd, DIOCWLABEL, &zero);
 	close(fd);
 	return 0;
 }
