@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.112 1996/07/23 21:51:46 phk Exp $
+ *	$Id: wd.c,v 1.113 1996/07/27 19:01:10 dyson Exp $
  */
 
 /* TODO:
@@ -410,8 +410,12 @@ reset_ok:
 			/* Get status for drive 1 */
 			du->dk_error = inb(du->dk_port + wd_error);
 			/* printf("Error (drv 1) : %x\n", du->dk_error); */
-
-			if(du->dk_error != 0x01)
+			/*
+			 * Sometimes (apparently mostly with ATAPI
+			 * drives involved) 0x81 really means 0x81
+			 * (drive 0 OK, drive 1 failed).
+			 */
+			if(du->dk_error != 0x01 && du->dk_error != 0x81)
 				goto nodevice;
 		} else	/* drive 0 fail */
 			goto nodevice;
@@ -1520,6 +1524,10 @@ again:
 			return (1);
 		outb(du->dk_port + wd_sdh, WDSD_IBM | (du->dk_unit << 4));
 		DELAY(5000);	/* usually unnecessary; drive select is fast */
+		/*
+		 * Do this twice: may get a false WDCS_READY the first time.
+		 */
+		inb(du->dk_port + wd_status);
 		if ((inb(du->dk_port + wd_status) & (WDCS_BUSY | WDCS_READY))
 		    != WDCS_READY
 		    || wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
