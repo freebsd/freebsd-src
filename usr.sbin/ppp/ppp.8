@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.156 1999/03/07 15:02:38 brian Exp $
+.\" $Id: ppp.8,v 1.157 1999/03/07 18:13:44 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -184,7 +184,7 @@ is installed as user
 and group
 .Dv network ,
 with permissions
-.Dv 4554 .
+.Dv 04554 .
 By default, 
 .Nm
 will not run if the invoking user id is not zero.  This may be overridden
