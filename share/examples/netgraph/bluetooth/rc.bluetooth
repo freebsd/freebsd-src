@@ -182,7 +182,7 @@ case ${startstop} in
 				exit 1
 			fi
 
-			${hcseriald} -f /dev/cuaa${unit} -n ${dev}
+			${hcseriald} -f /dev/cuad${unit} -n ${dev}
 			sleep 1 # wait a little bit
 
 			if [ ! -f "/var/run/hcseriald.${dev}.pid" ]; then
