@@ -1,33 +1,10 @@
 $FreeBSD$
 
-Download sites for isdn4bsd
-===========================
-
-        ftp://i4b.consol.de/pub/
-
 
 Bugfixes, improvements and patches for i4b
 ==========================================
 
 	http://www.freebsd-support.de/i4b/	(in the "errata" section)
-
-
-Bob's ISDN BRI/PRI Signaling Guide
-==================================
-
-	http://veda-home.com/Blackshaw/
-
-
-Anwahl von T-Offline mittels i4b und FreeBSD (german)
-=====================================================
-
-	http://www.de.freebsd.org/de/i4b-t-error.html
-
-
-ISDN Information:
-=================
-
-	http://www.alumni.caltech.edu/~dank/isdn/
 
 
 Standards:
@@ -62,10 +39,6 @@ ISDN Chips
 	Winbond
 	-------
 		http://www.winbond.com/
-
-	Motorola
-	--------
-		http://mot-sps.com/solutions/isdn/index.html
 
 
 SunShine Project - Implementation of the ISDN recommendations Q.921 & Q.931

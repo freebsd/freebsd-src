@@ -6,7 +6,7 @@ $FreeBSD$
                                   isdn4bsd
                                   ========
 
-                         Version 1.01.00 / October 2001
+                         Version 1.02.00 / March 2002
 
                                  written by:
 
@@ -22,7 +22,7 @@ $FreeBSD$
 
                           The isdn4bsd package is:
 
-     Copyright (c) 1997, 2001 by Hellmuth Michaelis. All rights reserved. 
+     Copyright (c) 1997, 2002 by Hellmuth Michaelis. All rights reserved. 
 
         The standard FreeBSD license applies, for details see the file 
                    /usr/share/examples/etc/bsd-style-copyright
