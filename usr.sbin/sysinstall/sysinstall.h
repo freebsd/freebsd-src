@@ -112,6 +112,7 @@
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_FTP_HOST			"ftpHost"
 #define VAR_HTTP_PATH			"_httpPath"
+#define VAR_HTTP_PROXY			"httpProxy"
 #define VAR_HTTP_PORT			"httpPort"
 #define VAR_HTTP_HOST			"httpHost"
 #define VAR_HTTP_FTP_MODE		"httpFtpMode"

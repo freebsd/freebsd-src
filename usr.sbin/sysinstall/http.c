@@ -18,8 +18,8 @@ mediaInitHTTP(Device *dev)
  */
 
     int rv, s, af;
-    bool el;		    /* end of header line */
-    char *cp, buf[PATH_MAX], req[BUFSIZ];
+    bool el, found=FALSE;		    /* end of header line */
+    char *cp, *rel, buf[PATH_MAX], req[BUFSIZ];
     struct addrinfo hints, *res, *res0;
 
     af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
@@ -48,8 +48,23 @@ mediaInitHTTP(Device *dev)
 		    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
 	return FALSE;
     }
+    /* If the release is specified as "__RELEASE" or "any", then just
+     * assume that the path the user gave is ok.
+     */
+    rel = variable_get(VAR_RELNAME);
+    /*
+    msgConfirm("rel: -%s-", rel);
+    */
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "any"))  {
+    	sprintf(req, "%s/pub/FreeBSD/releases/"MACHINE"/%s",
+	  variable_get(VAR_FTP_PATH), rel);
+	variable_set2(VAR_HTTP_PATH, req, 0);
+    } else {
+	variable_set2(VAR_HTTP_PATH, variable_get(VAR_FTP_PATH), 0);
+    }
 
-    sprintf(req,"GET / HTTP/1.0\r\n\r\n");
+    msgNotify("Checking access to\n %s", variable_get(VAR_HTTP_PATH));
+    sprintf(req,"HEAD %s/ HTTP/1.0\r\n\r\n", variable_get(VAR_HTTP_PATH));
     write(s,req,strlen(req));
 /*
  *  scan the headers of the response
@@ -63,6 +78,12 @@ mediaInitHTTP(Device *dev)
     while (rv>0) {
 	if ((*cp == '\012') && el) { 
 	    /* reached end of a header line */
+	    if (!strncmp(buf,"HTTP",4)) {
+		if (strtol((char *)(buf+9),0,0) == 200) {
+		    found = TRUE;
+		}
+	    }
+
 	    if (!strncmp(buf,"Server: ",8)) {
 		if (!strncmp(buf,"Server: Squid",13)) {
 		    variable_set2(VAR_HTTP_FTP_MODE,";type=i",0);
@@ -85,7 +106,10 @@ mediaInitHTTP(Device *dev)
 	}
     }
     close(s);
-    return TRUE;
+    if (!found) 
+    	msgConfirm("No such directory: %s\n"
+		   "please check the URL and try again.", variable_get(VAR_HTTP_PATH));
+    return found;
 } 
 
 
@@ -125,9 +149,8 @@ mediaGetHTTP(Device *dev, char *file, Boolean probe)
 	return NULL;
     }
 						   
-    sprintf(req,"GET %s/%s/%s%s HTTP/1.0\r\n\r\n",
-	    variable_get(VAR_FTP_PATH), variable_get(VAR_RELNAME),
-	    file, variable_get(VAR_HTTP_FTP_MODE));
+    sprintf(req,"GET %s/%s%s HTTP/1.0\r\n\r\n",
+	    variable_get(VAR_HTTP_PATH), file, variable_get(VAR_HTTP_FTP_MODE));
 
     if (isDebug()) {
 	msgDebug("sending http request: %s",req);
