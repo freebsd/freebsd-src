@@ -29,6 +29,7 @@ SRCS=	\
 	get_s.c					\
 	init_s.c				\
 	kadm5_err.c				\
+	kadm5_err.h				\
 	kadm5_locl.h				\
 	keys.c					\
 	log.c					\
