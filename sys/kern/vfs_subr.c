@@ -247,6 +247,9 @@ SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
 static int minvnodes; 
 SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &minvnodes, 0, "Minimum number of vnodes");
+static int vnlru_nowhere = 0;
+SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
+    "Number of times the vnlru process ran without success");
 
 /*
  * Initialize the vnode management data structures.
@@ -594,7 +597,7 @@ vnlru_proc(void)
 		kthread_suspend_check(p);
 		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
 			vnlruproc_sig = 0;
-			tsleep(&vnlruproc, PVFS, "vlruwt", hz);
+			tsleep(vnlruproc, PVFS, "vlruwt", 0);
 			continue;
 		}
 		done = 0;
@@ -611,8 +614,15 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&mountlist_mtx);
 		if (done == 0) {
-			printf("vnlru process getting nowhere, pausing..\n");
-			tsleep(&vnlru_proc, PPAUSE, "vlrup", hz * 3);
+#if 0
+			/* These messages are temporary debugging aids */
+			if (vnlru_nowhere < 5)
+				printf("vnlru process getting nowhere..\n");
+			else if (vnlru_nowhere == 5)
+				printf("vnlru process messages stopped.\n");
+#endif
+			vnlru_nowhere++;
+			tsleep(vnlru_proc, PPAUSE, "vlrup", hz * 3);
 		}
 	}
 	splx(s);
@@ -655,7 +665,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 	if (vnlruproc_sig == 0 && numvnodes - freevnodes > desiredvnodes) {
 		vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
-		wakeup(&vnlruproc);
+		wakeup(vnlruproc);
 	}
 
 	/*
