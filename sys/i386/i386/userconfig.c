@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.118 1998/12/14 06:13:41 dillon Exp $
+ **      $Id: userconfig.c,v 1.119 1999/01/06 09:09:22 abial Exp $
  **/
 
 /**
@@ -231,15 +231,21 @@ getchar(void)
 
     } else if (assize == 0) {
 	
-	/* Finished parsing script/no script */
-	userconfig_boot_parsing = 0;
 #ifdef INTRO_USERCONFIG
 	if (intro == 0) 
 	{
-	    intro = 1;
-	    c = 'i';
-	    asp = "ntro\n";
-	    assize = strlen(asp);
+	    /* 
+	     * We don't want intro if we just executed a
+	     * script (userconfig_boot_parsing==1), otherwise
+	     * we would always block here waiting for user input.
+	     */
+	    if (userconfig_boot_parsing == 0)
+	    {
+		intro = 1;
+	        c = 'i';
+	        asp = "ntro\n";
+	        assize = strlen(asp);
+	    }
 #else
 	if (!(boothowto & RB_CONFIG)) 
 	{
@@ -248,6 +254,7 @@ getchar(void)
 	    asp = "uit\n";
 	    assize = strlen(asp);
 #endif
+	    userconfig_boot_parsing = 0;
 	} else {
 	    /* Only display signon banner if we are about to go interactive */
 	    if (!intro)
@@ -2500,7 +2507,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.118 1998/12/14 06:13:41 dillon Exp $
+ *      $Id: userconfig.c,v 1.119 1999/01/06 09:09:22 abial Exp $
  */
 
 #include "scbus.h"
