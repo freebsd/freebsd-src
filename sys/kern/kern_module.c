@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.6 1997/11/07 08:52:56 phk Exp $
+ *	$Id: kern_module.c,v 1.7 1998/07/11 07:45:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -81,10 +81,9 @@ module_register_init(void *arg)
     moduledata_t* data = (moduledata_t*) arg;
     int error;
 
-#define	fptrint_t	unsigned	/* XXX */
     if (error = module_register(data->name, data->evhand, data->priv))
 	printf("module_register_init: module_register(%s, %lx, %p) returned %d",
-	       data->name, (u_long)(fptrint_t)data->evhand, data->priv, error);
+	       data->name, (u_long)(uintfptr_t)data->evhand, data->priv, error);
 }
 
 int
