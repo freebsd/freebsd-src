@@ -29,15 +29,19 @@
 #ifndef _MACHINE_UNWIND_H_
 #define	_MACHINE_UNWIND_H_
 
+struct pcb;
+struct trapframe;
 struct uwx_env;
 
 struct unw_regstate {
+	struct pcb	*pcb;
 	struct trapframe *frame;
 	struct uwx_env	*env;
 	uint64_t	keyval[8];
 };
 
-int unw_create(struct unw_regstate *s, struct trapframe *tf);
+int unw_create_from_pcb(struct unw_regstate *s, struct pcb *pcb);
+int unw_create_from_frame(struct unw_regstate *s, struct trapframe *tf);
 void unw_delete(struct unw_regstate *s);
 int unw_step(struct unw_regstate *s);
 

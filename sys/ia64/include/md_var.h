@@ -33,6 +33,33 @@
  * Miscellaneous machine-dependent declarations.
  */
 
+struct ia64_fdesc {
+	uint64_t	func;
+	uint64_t	gp;
+};
+
+#define FDESC_FUNC(fn)  (((struct ia64_fdesc *) fn)->func)
+#define FDESC_GP(fn)    (((struct ia64_fdesc *) fn)->gp)
+
+/* Convenience macros to decompose CFM & ar.pfs. */
+#define	IA64_CFM_SOF(x)		((x) & 0x7f)
+#define	IA64_CFM_SOL(x)		(((x) >> 7) & 0x7f)
+#define	IA64_CFM_SOR(x)		(((x) >> 14) & 0x0f)
+#define	IA64_CFM_RRB_GR(x)	(((x) >> 18) & 0x7f)
+#define	IA64_CFM_RRB_FR(x)	(((x) >> 25) & 0x7f)
+#define	IA64_CFM_RRB_PR(x)	(((x) >> 32) & 0x3f)
+
+/* Concenience function (inline) to adjust backingstore pointers. */
+static __inline uint64_t
+ia64_bsp_adjust(uint64_t bsp, int nslots)
+{
+	int bias = ((unsigned int)bsp & 0x1f8) >> 3;
+	nslots += (nslots + bias + 63*8) / 63 - 8;
+	return bsp + (nslots << 3);
+}
+
+#ifdef _KERNEL
+
 extern	char	sigcode[];
 extern	char	esigcode[];
 extern	int	szsigcode;
@@ -42,14 +69,6 @@ struct fpreg;
 struct reg;
 struct thread;
 struct trapframe;
-
-struct ia64_fdesc {
-	u_int64_t	func;
-	u_int64_t	gp;
-};
-
-#define FDESC_FUNC(fn)  (((struct ia64_fdesc *) fn)->func)
-#define FDESC_GP(fn)    (((struct ia64_fdesc *) fn)->gp)
 
 void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
@@ -69,5 +88,7 @@ void	spillfd(void *src, void *dst);
 int	syscall(struct trapframe *);
 void	trap(int, struct trapframe *);
 int	unaligned_fixup(struct trapframe *, struct thread *);
+
+#endif	/* _KERNEL */
 
 #endif /* !_MACHINE_MD_VAR_H_ */
