@@ -39,9 +39,9 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
 .Ft int
-.Fn device_add_child "device_t dev" "const char *name" "int unit" "void *ivars"
+.Fn device_add_child "device_t dev" "const char *name" "int unit"
 .Ft int
-.Fn device_add_child_ordered "device_t dev" "int order" "const char *name" "int unit" "void *ivars"
+.Fn device_add_child_ordered "device_t dev" "int order" "const char *name" "int unit"
 .Sh DESCRIPTION
 .Pp
 Create a new child device of
@@ -56,11 +56,6 @@ If the name is unknown then the caller should pass
 If the unit is unknown then the caller should pass 
 .Dv -1
 and the system will choose the next available unit number.
-If there is any bus-specific data associated with the new child device 
-(i.e. port numbers, irq settings etc.) then this should be supplied as 
-the
-.Fa ivars
-argument.
 .Pp
 The name of the device is used to determine which drivers might be
 appropriate for the device.  If a name is specified then only drivers
