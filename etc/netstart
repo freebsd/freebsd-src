@@ -1,13 +1,15 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.19 1995/02/07 20:52:35 ats Exp $
+#	$Id: netstart,v 1.20 1995/02/08 16:42:12 wpaul Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
 routedflags=-q
 timedflags=NO
 xntpdflags="NO"
+tickadj="-Aq"	# this is inoperative unless xntpd is enabled; NO to disable
 ntpdate="NO"
+#ntpdate="-b -s ntp-0 ntp-1 ntp-2"
 rwhod=NO
 sendmail_flags="-bd -q30m"
 amdflags="NO"
