@@ -185,9 +185,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIuo";
+    static char command_chars[] = "\f qh?en#sdkriIuto";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIu";
+    static char command_chars[] = "\f qh?en#sdkriIut";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -206,8 +206,9 @@ char *argv[];
 #define CMD_idletog     12
 #define CMD_idletog2    13
 #define CMD_user	14
+#define CMD_selftog	15
 #ifdef ORDER
-#define CMD_order       15
+#define CMD_order       16
 #endif
 
     /* set the buffer for stdout */
@@ -232,6 +233,7 @@ char *argv[];
 
     /* initialize some selection options */
     ps.idle    = Yes;
+    ps.self    = -1;
     ps.system  = No;
     ps.uid     = -1;
     ps.command = NULL;
@@ -259,7 +261,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "SIbinqus:d:U:o:")) != EOF)
+	while ((i = getopt(ac, av, "SIbinqus:d:U:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -344,10 +346,14 @@ char *argv[];
 #endif
 		break;
 
+	      case 't':
+		ps.self = (ps.self == -1) ? getpid() : -1;
+		break;
+		
 	      default:
 		fprintf(stderr, "\
 Top version %s\n\
-Usage: %s [-ISbinqu] [-d x] [-s x] [-o field] [-U username] [number]\n",
+Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
 	    }
@@ -834,6 +840,14 @@ Usage: %s [-ISbinqu] [-d x] [-s x] [-o field] [-U username] [number]\n",
 				new_message(MT_standout | MT_delayed,
 				    " %sisplaying idle processes.",
 				    ps.idle ? "D" : "Not d");
+				putchar('\r');
+				break;
+
+			    case CMD_selftog:
+				ps.self = (ps.self == -1) ? getpid() : -1;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying self.",
+				    (ps.self == -1) ? "D" : "Not d");
 				putchar('\r');
 				break;
 

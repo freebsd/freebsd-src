@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.11 1998/06/21 18:00:34 dt Exp $
+ * $Id: machine.c,v 1.12 1998/07/27 12:21:58 wosch Exp $
  */
 
 
@@ -458,6 +458,7 @@ int (*compare)();
 
     /* these are copied out of sel for speed */
     int show_idle;
+    int show_self;
     int show_system;
     int show_uid;
     int show_command;
@@ -476,6 +477,7 @@ int (*compare)();
 
     /* set up flags which define what we are going to select */
     show_idle = sel->idle;
+    show_self = sel->self;
     show_system = sel->system;
     show_uid = sel->uid != -1;
     show_command = sel->command != NULL;
@@ -494,6 +496,7 @@ int (*compare)();
 	 *  processes---these get ignored unless show_sysprocs is set.
 	 */
 	if (PP(pp, p_stat) != 0 &&
+	    (show_self != PP(pp, p_pid)) &&
 	    (show_system || ((PP(pp, p_flag) & P_SYSTEM) == 0)))
 	{
 	    total_procs++;
