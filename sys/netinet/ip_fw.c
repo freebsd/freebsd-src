@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.66 1997/12/19 03:36:15 julian Exp $
+ *	$Id: ip_fw.c,v 1.67 1997/12/27 18:44:56 alex Exp $
  */
 
 /*
@@ -690,24 +690,30 @@ static int
 del_entry(struct ip_fw_head *chainptr, u_short number)
 {
 	struct ip_fw_chain *fcp;
-	int s;
-
-	s = splnet();
 
 	fcp = chainptr->lh_first; 
 	if (number != (u_short)-1) {
 		for (; fcp; fcp = fcp->chain.le_next) {
 			if (fcp->rule->fw_number == number) {
-				LIST_REMOVE(fcp, chain);
+				int s;
+
+				/* prevent access to rules while removing them */
+				s = splnet();
+				while (fcp && fcp->rule->fw_number == number) {
+					struct ip_fw_chain *next;
+
+					next = LIST_NEXT(fcp, chain);
+					LIST_REMOVE(fcp, chain);
+					free(fcp->rule, M_IPFW);
+					free(fcp, M_IPFW);
+					fcp = next;
+				}
 				splx(s);
-				free(fcp->rule, M_IPFW);
-				free(fcp, M_IPFW);
 				return 0;
 			}
 		}
 	}
 
-	splx(s);
 	return (EINVAL);
 }
 
@@ -726,18 +732,37 @@ zero_entry(struct mbuf *m)
 	else
 		frwl = NULL;
 
-	/*
-	 *	It's possible to insert multiple chain entries with the
-	 *	same number, so we don't stop after finding the first
-	 *	match if zeroing a specific entry.
-	 */
-	s = splnet();
-	for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
-		if (!frwl || frwl->fw_number == fcp->rule->fw_number) {
+	if (!frwl) {
+		s = splnet();
+		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next) {
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
 			fcp->rule->timestamp = 0;
 		}
-	splx(s);
+		splx(s);
+	}
+	else {
+		int cleared = 0;
+
+		/*
+		 *	It's possible to insert multiple chain entries with the
+		 *	same number, so we don't stop after finding the first
+		 *	match if zeroing a specific entry.
+		 */
+		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
+			if (frwl->fw_number == fcp->rule->fw_number) {
+				s = splnet();
+				while (fcp && frwl->fw_number == fcp->rule->fw_number) {
+					fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+					fcp->rule->timestamp = 0;
+					fcp = LIST_NEXT(fcp, chain);
+				}
+				splx(s);
+				cleared = 1;
+				break;
+			}
+		if (!cleared)
+			return(EINVAL);	/* we didn't find any matching rules */
+	}
 
 	if (fw_verbose) {
 		if (frwl)
