@@ -88,7 +88,6 @@ initdumptimes()
 			msg("WARNING: cannot read %s: %s\n", dumpdates,
 			    strerror(errno));
 			return;
-			/* NOTREACHED */
 		}
 		/*
 		 * Dumpdates does not exist, make an empty one.
@@ -98,7 +97,6 @@ initdumptimes()
 			msg("WARNING: cannot create %s: %s\n", dumpdates,
 			    strerror(errno));
 			return;
-			/* NOTREACHED */
 		}
 		(void) fclose(df);
 		if ((df = fopen(dumpdates, "r")) == NULL) {
