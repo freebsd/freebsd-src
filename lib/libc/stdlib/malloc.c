@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.28 1997/07/02 19:33:23 phk Exp $
+ * $Id: malloc.c,v 1.29 1997/07/26 03:43:14 jdp Exp $
  *
  */
 
@@ -206,7 +206,7 @@ static int suicide;
 static int malloc_realloc;
 
 /* pass the kernel a hint on free pages ?  */
-static int malloc_hint;
+static int malloc_hint = 1;
 
 /* xmalloc behaviour ?  */
 static int malloc_xmalloc;
