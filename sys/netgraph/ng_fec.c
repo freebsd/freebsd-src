@@ -257,6 +257,9 @@ static int	ng_units_in_use = 0;
 
 #define UNITS_BITSPERWORD	(sizeof(*ng_fec_units) * NBBY)
 
+static struct mtx	ng_fec_mtx;
+MTX_SYSINIT(ng_fec, &ng_fec_mtx, "ng_fec", MTX_DEF);
+
 /*
  * Find the first free unit number for a new interface.
  * Increase the size of the unit bitmap as necessary.
@@ -266,6 +269,7 @@ ng_fec_get_unit(int *unit)
 {
 	int index, bit;
 
+	mtx_lock(&ng_fec_mtx);
 	for (index = 0; index < ng_fec_units_len
 	    && ng_fec_units[index] == 0; index++);
 	if (index == ng_fec_units_len) {		/* extend array */
@@ -274,8 +278,10 @@ ng_fec_get_unit(int *unit)
 		newlen = (2 * ng_fec_units_len) + 4;
 		MALLOC(newarray, int *, newlen * sizeof(*ng_fec_units),
 		    M_NETGRAPH, M_NOWAIT);
-		if (newarray == NULL)
+		if (newarray == NULL) {
+			mtx_unlock(&ng_fec_mtx);
 			return (ENOMEM);
+		}
 		bcopy(ng_fec_units, newarray,
 		    ng_fec_units_len * sizeof(*ng_fec_units));
 		for (i = ng_fec_units_len; i < newlen; i++)
@@ -291,6 +297,7 @@ ng_fec_get_unit(int *unit)
 	ng_fec_units[index] &= ~(1 << bit);
 	*unit = (index * UNITS_BITSPERWORD) + bit;
 	ng_units_in_use++;
+	mtx_unlock(&ng_fec_mtx);
 	return (0);
 }
 
@@ -304,6 +311,7 @@ ng_fec_free_unit(int unit)
 
 	index = unit / UNITS_BITSPERWORD;
 	bit = unit % UNITS_BITSPERWORD;
+	mtx_lock(&ng_fec_mtx);
 	KASSERT(index < ng_fec_units_len,
 	    ("%s: unit=%d len=%d", __FUNCTION__, unit, ng_fec_units_len));
 	KASSERT((ng_fec_units[index] & (1 << bit)) == 0,
@@ -321,6 +329,7 @@ ng_fec_free_unit(int unit)
 		ng_fec_units_len = 0;
 		ng_fec_units = NULL;
 	}
+	mtx_unlock(&ng_fec_mtx);
 }
 
 /************************************************************************
