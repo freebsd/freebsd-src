@@ -69,8 +69,8 @@ amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/mptable.c		optional	mptable
 amd64/amd64/mptable_pci.c	optional	mptable pci
 amd64/amd64/nexus.c		standard
-amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/pmap.c		standard
+amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/sigtramp.S		standard
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
@@ -88,11 +88,11 @@ amd64/isa/isa_dma.c		standard
 amd64/isa/nmi.c			standard
 amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
-crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
-crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/blowfish/bf_enc.c	optional	crypto
-crypto/des/des_enc.c		optional	crypto
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_ecb.c		optional	netsmbcrypto
+crypto/des/des_enc.c		optional	crypto
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	netsmbcrypto
 crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/fb/fb.c			optional	fb
