@@ -1512,7 +1512,6 @@ utopia_daemon(void *arg __unused)
 	}
 	wakeup_one(&utopia_list);
 	UTP_RUNLOCK_LIST();
-	mtx_lock(&Giant);
 	kthread_exit(0);
 }
 
