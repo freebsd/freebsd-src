@@ -1,8 +1,18 @@
-KEYMAPS=danish.cp865.kbd danish.iso.kbd german.cp850.kbd german.iso.kbd \
-	it.iso.kbd spanish.iso.kbd swedish.cp850.kbd swedish.iso.kbd \
-	uk.cp850.kbd uk.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.iso.kbd \
-	fr.iso.kbd norwegian.iso.kbd ru.koi8-r.kbd ru.koi8-r.shift.kbd \
-	ru.cp866.kbd jp.106.kbd jp.106x.kbd INDEX.keymaps
+# $Id: $
+
+KEYMAPS=  INDEX.keymaps
+KEYMAPS+= br275.iso.kbd br275.cp850.kbd
+KEYMAPS+= danish.iso.kbd danish.cp865.kbd
+KEYMAPS+= fr.iso.kbd
+KEYMAPS+= german.iso.kbd german.cp850.kbd
+KEYMAPS+= it.iso.kbd
+KEYMAPS+= jp.106.kbd jp.106x.kbd
+KEYMAPS+= norwegian.iso.kbd
+KEYMAPS+= ru.koi8-r.kbd ru.koi8-r.shift.kbd ru.cp866.kbd
+KEYMAPS+= spanish.iso.kbd
+KEYMAPS+= swedish.iso.kbd swedish.cp850.kbd
+KEYMAPS+= uk.iso.kbd uk.cp850.kbd
+KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd
 
 MAPSDIR = /usr/share/syscons/keymaps
 NOMAN = noman
