@@ -460,9 +460,9 @@ KERNCONF?=	GENERIC
 .endif
 INSTKERNNAME?=	kernel
 
-KRNLSRCDIR=	${.CURDIR}/sys
-KRNLCONFDIR=	${KRNLSRCDIR}/${TARGET}/conf
-KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
+KERNSRCDIR?=	${.CURDIR}/sys
+KRNLCONFDIR=	${KERNSRCDIR}/${TARGET}/conf
+KRNLOBJDIR=	${OBJTREE}${KERNSRCDIR}
 KERNCONFDIR?=	${KRNLCONFDIR}
 
 BUILDKERNELS=
@@ -510,12 +510,12 @@ buildkernel:
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} ${CLEANDIR}
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} -DNO_CPU_CFLAGS -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
+	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
+	    ${MAKE} -DNO_CPU_CFLAGS -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} obj
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${.CURDIR}/sys/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
@@ -676,7 +676,7 @@ bootstrap-tools:
 #
 # build-tools: Build special purpose build tools
 #
-.if defined(MODULES_WITH_WORLD) && exists(${KRNLSRCDIR}/modules)
+.if defined(MODULES_WITH_WORLD) && exists(${KERNSRCDIR}/modules)
 _aicasm= sys/modules/aic7xxx/aicasm
 .endif
 
