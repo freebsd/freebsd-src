@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.4 1994/09/12 11:38:28 davidg Exp $
+ * $Id: mfs_vnops.c,v 1.5 1994/09/21 03:47:43 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -349,9 +349,5 @@ mfs_badop()
 int
 mfs_init()
 {
-
-#if !defined(hp300) && !defined(i386) && !defined(mips) && !defined(sparc) && !defined(luna68k)
-	rminit(mfsmap, (long)MFS_MAPREG, (long)1, "mfs mapreg", MFS_MAPSIZE);
-#endif
 	return (0);
 }
