@@ -21,7 +21,7 @@ to him.  See end of file for further details.
 
 	cpp is broken in make world:  There was a window where cpp
 	would be built incorrectly.  The fix for this is
-		cd src/sys/gnu/usr.bin/cc
+		cd src/gnu/usr.bin/cc
 		make clean
 		make all
 		make install
@@ -189,4 +189,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.25 1999/04/09 06:31:00 imp Exp $
+$Id: UPDATING,v 1.26 1999/04/09 06:34:00 imp Exp $
