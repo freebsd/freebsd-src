@@ -327,7 +327,7 @@ acpi_print_rsd_ptr(struct ACPIrsdp *rp)
 	printf(BEGIN_COMMENT);
 	printf("RSD PTR: Checksum=%d, OEMID=", rp->sum);
 	acpi_print_string(rp->oem, 6);
-	printf(", RsdtAddress=0x%08x\n", rp->addr);
+	printf(", RsdtAddress=0x%08x\n", rp->rsdt_addr);
 	printf(END_COMMENT);
 }
 
