@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
