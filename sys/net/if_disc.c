@@ -66,7 +66,7 @@ static void discattach(void);
 static struct ifnet	discif;
 static int		discoutput(struct ifnet *, struct mbuf *,
 			    struct sockaddr *, struct rtentry *);
-static void		discrtrequest(int, struct rtentry *, struct sockaddr *);
+static void		discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int		discioctl(struct ifnet *, u_long, caddr_t);
 
 static void
@@ -151,7 +151,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 /* ARGSUSED */
 static void
-discrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa)
+discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	if (rt)
 		rt->rt_rmx.rmx_mtu = DSMTU;

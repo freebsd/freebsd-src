@@ -116,7 +116,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	   &arp_proxyall, 0, "");
 
 static void	arp_init __P((void));
-static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
+static void	arp_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 static void	arprequest __P((struct ifnet *,
 			struct in_addr *, struct in_addr *, u_char *));
 static void	arpintr __P((void));
@@ -154,10 +154,10 @@ arptimer(ignored_arg)
  * Parallel to llc_rtrequest.
  */
 static void
-arp_rtrequest(req, rt, sa)
+arp_rtrequest(req, rt, info)
 	int req;
 	register struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 	register struct sockaddr *gate = rt->rt_gateway;
 	register struct llinfo_arp *la = (struct llinfo_arp *)rt->rt_llinfo;

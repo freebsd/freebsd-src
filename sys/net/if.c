@@ -79,7 +79,7 @@ static void	if_check(void *);
 static int	if_findindex(struct ifnet *);
 static void	if_qflush(struct ifqueue *);
 static void	if_slowtimo(void *);
-static void	link_rtrequest(int, struct rtentry *, struct sockaddr *);
+static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static struct	if_clone *if_clone_lookup(const char *, int *);
 static int	if_clone_list(struct if_clonereq *);
@@ -943,10 +943,10 @@ done:
  * This should be moved to /sys/net/link.c eventually.
  */
 static void
-link_rtrequest(cmd, rt, sa)
+link_rtrequest(cmd, rt, info)
 	int cmd;
 	register struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 	register struct ifaddr *ifa;
 	struct sockaddr *dst;
@@ -961,7 +961,7 @@ link_rtrequest(cmd, rt, sa)
 		rt->rt_ifa = ifa;
 		ifa->ifa_refcnt++;
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
-			ifa->ifa_rtrequest(cmd, rt, sa);
+			ifa->ifa_rtrequest(cmd, rt, info);
 	}
 }
 

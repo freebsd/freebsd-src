@@ -980,15 +980,13 @@ in6_losing(in6p)
 
 	if ((rt = in6p->in6p_route.ro_rt) != NULL) {
 		bzero((caddr_t)&info, sizeof(info));
-		info.rti_info[RTAX_DST] =
-			(struct sockaddr *)&in6p->in6p_route.ro_dst;
+		info.rti_flags = rt->rt_flags;
+		info.rti_info[RTAX_DST] = rt_key(rt);
 		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
 		if (rt->rt_flags & RTF_DYNAMIC)
-			(void)rtrequest(RTM_DELETE, rt_key(rt),
-					rt->rt_gateway, rt_mask(rt), rt->rt_flags,
-					(struct rtentry **)0);
+			(void)rtrequest1(RTM_DELETE, &info, NULL);
 		in6p->in6p_route.ro_rt = NULL;
 		rtfree(rt);
 		/*
