@@ -41,9 +41,14 @@
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
+#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/interrupt.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -58,6 +63,7 @@
 #include <pccard/driver.h>
 #include <pccard/pcic.h>
 #include <pccard/slot.h>
+#include <pccard/pccard_nbk.h>
 
 #include <machine/md_var.h>
 
@@ -178,9 +184,11 @@ pccard_configure(dummy)
 	struct pccard_device *drv;
 
 	/* This isn't strictly correct, but works because of initialize order */
-	printf("Initializing PC-card drivers:");
-	for (drv = drivers;  drv != NULL;  drv = drv->next)
+	printf("pccard: initalizing drivers:");
+	for (drv = drivers;  drv != NULL;  drv = drv->next) {
+		pccnbk_wrap_old_driver(drv);
 		printf(" %s", drv->name);
+	}
 	cdevsw_add(&crd_cdevsw);
 	printf("\n");
 }
@@ -214,7 +222,7 @@ pccard_add_driver(struct pccard_device *drv)
 	 *	If already loaded, then reject the driver.
 	 */
 	if (find_driver(drv->name)) {
-		printf("Driver %s already loaded\n", drv->name);
+		printf("pccard: driver %s already loaded\n", drv->name);
 		return;
 	}
 	drv->next = drivers;
@@ -350,7 +358,6 @@ unregister_device_interrupt(struct pccard_devinfo *devi)
 		devi->drv->disable(devi);
 		devi->running = 0;
 		if (devi->isahd.id_irq && --slt->irqref <= 0) {
-			printf("Return IRQ=%d\n",slt->irq);
 			slt->ctrl->mapirq(slt, 0);
 			INTRDIS(1<<slt->irq);
 			unregister_pcic_intr(slt->irq, slot_irq_handler);
@@ -372,8 +379,10 @@ unregister_device_interrupt(struct pccard_devinfo *devi)
 static void
 disable_slot(struct slot *slt)
 {
+	device_t pccarddev;
 	struct pccard_devinfo *devi;
 	int i;
+
 	/*
 	 * Unload all the drivers on this slot. Note we can't
 	 * remove the device structures themselves, because this
@@ -385,8 +394,15 @@ disable_slot(struct slot *slt)
 	 * driver is accessing the device and it is removed, then
 	 * all bets are off...
 	 */
-	for (devi = slt->devices; devi; devi = devi->next)
+	pccarddev = devclass_get_device(pccard_devclass, 0);
+	for (devi = slt->devices; devi; devi = devi->next) {
 		unregister_device_interrupt(devi);
+		if (devi->isahd.id_device != 0) {
+			pccnbk_release_resources(devi->isahd.id_device);
+			device_delete_child(pccarddev, devi->isahd.id_device);
+			devi->isahd.id_device = 0;
+		}
+	}
 
 	/* Power off the slot 1/2 second after removal of the card */
 	slt->poff_ch = timeout(power_off_slot, (caddr_t)slt, hz / 2);
@@ -421,7 +437,7 @@ slot_suspend(void *arg)
 		slt->laststate = filled;
 		slt->state = suspend;
 		splx(s);
-		printf("Card disabled, slot %d\n", slt->slotnum);
+		printf("pccard: card disabled, slot %d\n", slt->slotnum);
 	}
 	/*
 	 * Disable any pending timeouts for this slot since we're
@@ -494,7 +510,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 			ctrl->maxmem = NUM_MEM_WINDOWS;
 		if (ctrl->maxio > NUM_IO_WINDOWS)
 			ctrl->maxio = NUM_IO_WINDOWS;
-		printf("PC-Card %s (%d mem & %d I/O windows)\n",
+		printf("pcic: pccard bridge %s (%d mem & %d I/O windows)\n",
 			ctrl->name, ctrl->maxmem, ctrl->maxio);
 	}
 	callout_handle_init(&slt->insert_ch);
@@ -561,8 +577,12 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 {
 	struct pccard_devinfo *devi;
 	struct pccard_device *drv;
+	device_t pccarddev;
+	char devnam[128];
 	int err, irq = 0, s;
 
+	pccarddev = devclass_get_device(pccard_devclass, 0);
+	snprintf(devnam, sizeof(devnam), "pccard-%s", desc->name);
 	drv = find_driver(desc->name);
 	if (drv == 0)
 		return(ENXIO);
@@ -574,7 +594,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	for (devi = slt->devices; devi; devi = devi->next) {
 		if (devi->drv == drv && devi->isahd.id_unit == desc->unit) {
 			if (devi->running) {
-				printf("pccard %s%d: still running\n", 
+				printf("pccard: %s%d still running\n", 
 				    devi->drv->name, desc->unit);
 				return(EBUSY);
 			}
@@ -612,7 +632,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 				slot_irq_handler, (int)slt,
 				drv->imask, slt->ctrl->imask);
 			if (irq < 0) {
-				printf("pccard_alloc_intr failed for irq %d\n",
+				printf("pccard: alloc intr failed irq %d\n",
 				    irq);
 				return(EINVAL);
 			}
@@ -633,6 +653,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	devi->isahd.id_unit = desc->unit;
 	devi->isahd.id_msize = desc->memsize;
 	devi->isahd.id_iobase = desc->iobase;
+	devi->isahd.id_iosize = desc->iosize;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	if (irq)
 		devi->isahd.id_irq = 1 << irq;
@@ -641,11 +662,27 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	Convert the memory to kernel space.
 	 */
 	if (desc->mem)
-		devi->isahd.id_maddr = 
-		    (caddr_t)(void *)(uintptr_t)
+		devi->isahd.id_maddr = (caddr_t)(void *)(uintptr_t)
 		    (desc->mem + atdevbase - IOM_BEGIN);
 	else
 		devi->isahd.id_maddr = 0;
+	/*
+	 * XXX I think the following should be done in an attach
+	 * routine, but can't seem to slip the knot to get it working
+	 * right.  This is one reason I call this a kludge
+	 */
+	devi->isahd.id_device = device_add_child(pccarddev, devnam,
+	    devi->isahd.id_unit, devi);
+	if ((err = pccnbk_alloc_resources(devi->isahd.id_device)) != 0) {
+		device_delete_child(pccarddev, devi->isahd.id_device);
+		devi->isahd.id_device = 0;
+		free(devi, M_DEVBUF);
+		return(err);
+	}
+	snprintf(devnam, sizeof(devnam), "compat %s", desc->name);
+	device_set_desc(devi->isahd.id_device, devnam);
+	BUS_PRINT_CHILD(pccarddev, devi->isahd.id_device);
+
 	devi->next = slt->devices;
 	slt->devices = devi;
 	s = splhigh();
@@ -659,7 +696,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 *	it will also set 'running' to off.
 	 */
 	if (err) {
-		printf("pccard %s%d: Enable failed %d\n", devi->drv->name,
+		printf("pccard: %s%d Enable failed %d\n", devi->drv->name,
 		    devi->isahd.id_unit, err);
 		remove_device(devi);
 	}
@@ -677,6 +714,10 @@ remove_device(struct pccard_devinfo *devi)
 	 *	then unregister it if no-one else is using it.
 	 */
 	unregister_device_interrupt(devi);
+	if (devi->isahd.id_device)
+		pccnbk_release_resources(devi->isahd.id_device);
+	devi->isahd.id_device = NULL;
+
 	/*
 	 *	Remove from device list on this slot.
 	 */
@@ -718,7 +759,7 @@ inserted(void *arg)
 	power_off_slot(slt);
 	slt->ctrl->power(slt);
 
-	printf("Card inserted, slot %d\n", slt->slotnum);
+	printf("pccard: card inserted, slot %d\n", slt->slotnum);
 	/*
 	 *	Now start resetting the card.
 	 */
@@ -748,7 +789,7 @@ pccard_event(struct slot *slt, enum card_event event)
 			disable_slot(slt);
 			slt->state = empty;
 			splx(s);
-			printf("Card removed, slot %d\n", slt->slotnum);
+			printf("pccard: card removed, slot %d\n", slt->slotnum);
 			pccard_remove_beep();
 			selwakeup(&slt->selp);
 		}
@@ -783,7 +824,8 @@ slot_irq_handler(void *arg)
 	 * XXX - Should 'debounce' these for drivers that have recently
 	 * been removed.
 	 */
-	printf("Slot %d, unfielded interrupt (%d)\n", slt->slotnum, slt->irq);
+	printf("pccard: slot %d, unfielded interrupt (%d)\n", slt->slotnum,
+	    slt->irq);
 }
 
 /*
