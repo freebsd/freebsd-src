@@ -670,6 +670,7 @@ release.8:
 
 release.9:
 .if ${TARGET_ARCH} != "ia64" || ${TARGET_ARCH} == ${MACHINE_ARCH}
+	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
