@@ -224,7 +224,7 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg > MPT_NSGL_FIRST(mpt)) {
 		int i, nleft = nseg;
 		u_int32_t flags;
-		bus_dmamap_sync_t op;
+		bus_dmasync_op_t op;
 		SGE_CHAIN32 *ce;
 
 		mpt_req->DataLength = ccb->csio.dxfer_len;
@@ -305,7 +305,7 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	} else if (nseg > 0) {
 		int i;
 		u_int32_t flags;
-		bus_dmamap_sync_t op;
+		bus_dmasync_op_t op;
 
 		mpt_req->DataLength = ccb->csio.dxfer_len;
 		flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
@@ -878,7 +878,7 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 	untimeout(mpttimeout, ccb, ccb->ccb_h.timeout_ch);
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		bus_dmamap_sync_t op;
+		bus_dmasync_op_t op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 			op = BUS_DMASYNC_POSTREAD;
