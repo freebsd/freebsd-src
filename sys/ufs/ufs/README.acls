@@ -1,0 +1,51 @@
+$FreeBSD$
+
+  UFS Access Control Lists Copyright
+
+The UFS Access Control Lists implementation is copyright Robert Watson,
+and is made available under a Berkeley-style license.
+
+About UFS Access Control Lists (ACLs)
+
+Access control lists allow the association of fine-grained discretionary
+access control information with files and directories, extending the
+base UNIX permission model in a (mostly) compatible way.  This
+implementation largely follows the POSIX.1e model, and relies on the
+availability of extended attributes to store extended components of
+the ACL, while maintaining the base permission information in the inode.
+
+Using UFS Access Control Lists (ACLs)
+
+Support for UFS access control lists may be enabled by adding:
+
+	options UFS_ACL
+
+to your kernel configuration.  As ACLs rely on the availability of extended
+attributes, you must also enable support for extended attributes on the
+underlying file system.  Currently, this requires the use of UFS EAs, which
+may be enabled by adding:
+
+	options UFS_EXTATTR
+
+to your kernel.  Because of file system mount atomicity requirements,
+it is also recommended that:
+
+	options UFS_EXTATTR_AUTOSTART
+
+be added to the kernel so as to support the atomic enabling of the
+required extended attributes with the file system mount operation.  To
+enable ACLs, two extended attributes must be available in the
+EXTATTR_NAMESPACE_SYSTEM namespace: "posix1e.acl_access", which holds
+the access ACL, and "posix1e.acl_default" which holds the default ACL
+for directories.  If you're using UFS Extended Attributes, the following
+commands may be used to create the necessary EA backing files for
+ACLs in the file system root of each file system.  In these examples,
+the root file system is used; see README.extattr for more details.
+
+  mkdir /.attribute /.attribute/system
+  cd /.attribute/system
+  extattrctl initattr -p / 388 posix1e.acl_access
+  extattrctl initattr -p / 388 posix1e.acl_default
+
+On the next mount of the root file system, the attributes will be
+automatically started, and ACLs will be enabled.
