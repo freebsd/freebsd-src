@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.2 1998/12/14 18:09:13 luigi Exp $
+ *	$Id: ip_dummynet.h,v 1.3 1999/01/23 23:59:50 archie Exp $
  */
 
 #ifndef _IP_DUMMYNET_H
@@ -105,7 +105,6 @@ MALLOC_DECLARE(M_IPFW);
 typedef int ip_dn_ctl_t __P((struct sockopt *)) ;
 extern ip_dn_ctl_t *ip_dn_ctl_ptr;
 
-void ip_dn_init(void);	/* called in ip_input.c */
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
 	struct mbuf *m, struct ifnet *ifp, struct route *ro, int hlen,

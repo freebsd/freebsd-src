@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_input.c,v 1.115 1999/02/22 18:19:57 des Exp $
+ *	$Id: ip_input.c,v 1.116 1999/03/12 01:15:57 julian Exp $
  */
 
 #define	_IP_VHL
@@ -73,9 +73,7 @@
 
 #include <sys/socketvar.h>
 
-#ifdef IPFIREWALL
 #include <netinet/ip_fw.h>
-#endif
 
 #ifdef DUMMYNET
 #include <netinet/ip_dummynet.h>
@@ -145,16 +143,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     &ipstealth, 0, "");
 #endif
 
-#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
-#undef COMPAT_IPFW
-#define COMPAT_IPFW 1
-#else
-#undef COMPAT_IPFW
-#endif
-
-#ifdef COMPAT_IPFW
-
-#include <netinet/ip_fw.h>
 
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
@@ -162,11 +150,6 @@ ip_fw_ctl_t *ip_fw_ctl_ptr;
 
 #ifdef DUMMYNET
 ip_dn_ctl_t *ip_dn_ctl_ptr;
-#endif
-
-/* IP Network Address Translation (NAT) hooks */ 
-ip_nat_t *ip_nat_ptr;
-ip_nat_ctl_t *ip_nat_ctl_ptr;
 #endif
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
@@ -239,12 +222,6 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
-#ifdef DUMMYNET
-	ip_dn_init();
-#endif
-#ifdef IPNAT
-        ip_nat_init(); 
-#endif
 #ifdef IPFILTER
         iplattach(); 
 #endif
@@ -269,9 +246,7 @@ ip_input(struct mbuf *m)
 #ifndef IPDIVERT /* dummy variable for the firewall code to play with */
         u_short ip_divert_cookie = 0 ;
 #endif
-#ifdef COMPAT_IPFW
 	struct ip_fw_chain *rule = NULL ;
-#endif
 
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*
@@ -391,7 +366,6 @@ iphack:
 		ip = mtod(m = m1, struct ip *);
 	}
 #endif
-#ifdef COMPAT_IPFW
 	if (ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
 		/*
@@ -436,14 +410,6 @@ iphack:
 			return;
 	}
 pass:
-
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN)) {
-#ifdef IPFIREWALL_FORWARD
-		ip_fw_fwd_addr = NULL;
-#endif
-		return;
-	}
-#endif	/* !COMPAT_IPFW */
 
 	/*
 	 * Process options and, if not destined for us,

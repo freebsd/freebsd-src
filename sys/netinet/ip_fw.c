@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.105 1999/03/30 23:45:34 nsayer Exp $
+ *	$Id: ip_fw.c,v 1.106 1999/04/17 08:56:38 peter Exp $
  */
 
 /*
@@ -1276,7 +1276,6 @@ ip_fw_init(void)
 static ip_fw_chk_t *old_chk_ptr;
 static ip_fw_ctl_t *old_ctl_ptr;
 
-#if defined(IPFIREWALL_MODULE)
 static int
 ipfw_modevent(module_t mod, int type, void *unused)
 {
@@ -1306,7 +1305,6 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		}
 	
 		splx(s);
-		printf("IP firewall unloaded\n");
 		return 0;
 	default:
 		break;
@@ -1320,4 +1318,3 @@ static moduledata_t ipfwmod = {
 	0
 };
 DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-#endif
