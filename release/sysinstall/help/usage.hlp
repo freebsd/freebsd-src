@@ -62,7 +62,7 @@ the screen.
 FreeBSD also supports multiple "virtual consoles" which you can use to
 in order to have several active sessions at once.  Use ALT-F<n> to
 switch between screens, where `F<n>' is the function key corresponding
-to the screen you wish to see.  By default, the system comes with 3
+to the screen you wish to see.  By default, the system comes with 8
 virtual consoles enabled - you can enable more by editing the
 /etc/ttys file and turning the "off" field to "on" in the relevant vty
 entries (up to 12).
