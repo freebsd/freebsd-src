@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,13 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isic.4,v 1.28 2000/03/16 15:25:05 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Thu Mar 16 16:21:45 2000]
+.\"	last edit-date: [Fri Jan 26 14:32:33 2001]
 .\"
-.Dd March 16, 2000
+.Dd January 26, 2001
 .Dt ISIC 4
 .Os
 .Sh NAME
@@ -88,6 +86,10 @@ Creatix ISDN-S0 P&P card (PnP):
 USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
 .Cd options \&"USR_STI\&"
 .Cd "device isic0 at isa? port 0x268 irq 5 flags 7"
+.Pp
+Eicon.Diehl DIVA 2.0 and 2.02 ISA PnP card:
+.Cd options \&"EICON_DIVA\&"
+.Cd "device isic0"
 .Pp
 .Sh NetBSD SYNOPSIS
 On the ISA bus:
