@@ -610,3 +610,12 @@
 442	MNOPROTO { int thr_suspend(const struct timespec *timeout); }
 443	MNOPROTO { int thr_wake(long id); }
 444	MNOPROTO { int kldunloadf(int fileid, int flags); }
+445	UNIMPL	audit
+446	UNIMPL	auditon
+447	UNIMPL	getauid
+448	UNIMPL	setauid
+449	UNIMPL	getaudit
+450	UNIMPL	setaudit
+451	UNIMPL	getaudit_addr
+452	UNIMPL	setaudit_addr
+453	UNIMPL	auditctl
