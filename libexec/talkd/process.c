@@ -190,6 +190,7 @@ find_user(name, tty)
 	int status;
 	FILE *fd;
 	struct stat statb;
+	time_t best = 0;
 	char line[sizeof(ubuf.ut_line) + 1];
 	char ftty[sizeof(_PATH_DEV) - 1 + sizeof(line)];
 
@@ -204,17 +205,21 @@ find_user(name, tty)
 		if (SCMPN(ubuf.ut_name, name) == 0) {
 			strncpy(line, ubuf.ut_line, sizeof(ubuf.ut_line));
 			line[sizeof(ubuf.ut_line)] = '\0';
-			if (*tty == '\0') {
-				status = PERMISSION_DENIED;
+			if (*tty == '\0' || best != 0) {
+				if (best == 0)
+					status = PERMISSION_DENIED;
 				/* no particular tty was requested */
 				(void) strcpy(ftty + sizeof(_PATH_DEV) - 1,
 				    line);
 				if (stat(ftty, &statb) == 0) {
 					if (!(statb.st_mode & 020))
 						continue;
-					(void) strcpy(tty, line);
-					status = SUCCESS;
-					break;
+					if (statb.st_atime > best) {
+						best = statb.st_atime;
+						(void) strcpy(tty, line);
+						status = SUCCESS;
+						continue;
+					}
 				}
 			}
 			if (strcmp(line, tty) == 0) {
