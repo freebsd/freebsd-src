@@ -52,13 +52,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#if 0
-#include <vm/vm_pager.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
-#include <vm/swap_pager.h>
-#endif
 
 
 struct netsend_cow_stats {
@@ -111,7 +104,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	vm_offset_t uva;
 	int s;
 
-	vmspace = curproc->p_vmspace;;
+	vmspace = curproc->p_vmspace;
 	map = &vmspace->vm_map;
 	uva = (vm_offset_t) uio->uio_iov->iov_base;
 
