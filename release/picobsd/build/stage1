@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.3 1998/09/11 13:14:25 abial Exp $
+#	$Id: stage1,v 1.4 1998/09/20 00:46:07 abial Exp $
 #
 
 set -e
@@ -50,7 +50,12 @@ if [ "${TYPE}" != "router" ]
 then
 	disklabel -rw vn0 auto
 else
-	disklabel -rw /dev/rvn0 fd820
+	if [ ${SIZE} -lt 1024 ]
+	then
+		disklabel -rw /dev/rvn0 fd${SIZE}
+	else
+		disklabel -rw vn0 auto
+	fi
 fi
 if [ "X$?" != "X0" ]
 then
