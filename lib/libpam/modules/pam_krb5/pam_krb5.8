@@ -60,7 +60,7 @@ The credentials cache should be destroyed by the user at logout with
 .Xr kdestroy 1 .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -width ".Cm use_first_pass"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -147,7 +147,7 @@ to determine how to contact the Kerberos password server.
 .Pp
 The following options may be passed to the password management
 module:
-.Bl -tag -xwidth ".Cm use_first_pass"
+.Bl -tag -width ".Cm use_first_pass"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -188,7 +188,7 @@ only because of the naming conventions for PAM modules.
 Location of the credentials cache.
 .El
 .Sh FILES
-.Bl -tag -xwidth ".Pa /tmp/krb5cc_ Ns Ar uid" -compact
+.Bl -tag -width ".Pa /tmp/krb5cc_ Ns Ar uid" -compact
 .It Pa /tmp/krb5cc_ Ns Ar uid
 default credentials cache
 .Ar ( uid

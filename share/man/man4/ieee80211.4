@@ -44,7 +44,7 @@ The interface is via one
 of the following
 .Xr ioctl 2
 calls on a socket:
-.Bl -tag -xwidth ".Dv SIOCG80211"
+.Bl -tag -width ".Dv SIOCG80211"
 .It Dv SIOCG80211
 Get configuration or status information.
 .It Dv SIOCS80211
@@ -70,7 +70,7 @@ For
 the following values of
 .Va i_type
 are valid:
-.Bl -tag -xwidth ".Dv IEEE80211_IOC_POWERSAVESLEEP"
+.Bl -tag -width ".Dv IEEE80211_IOC_POWERSAVESLEEP"
 .It Dv IEEE80211_IOC_SSID
 Returns the requested SSID by copying it into the buffer pointed to by
 .Va i_data
@@ -161,7 +161,7 @@ For
 the following values of
 .Va i_type
 are valid:
-.Bl -tag -xwidth ".Dv IEEE80211_IOC_POWERSAVESLEEP"
+.Bl -tag -width ".Dv IEEE80211_IOC_POWERSAVESLEEP"
 .It Dv IEEE80211_IOC_SSID
 Set the desired SSID for infrastructure and ad-hoc modes to value given
 by
