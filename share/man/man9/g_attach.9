@@ -42,7 +42,7 @@ The
 .Fn g_attach
 function attaches given consumer to given provider.
 For real provider access (ie. I/O operations), one still need to call the
-.Fn g_access_rel
+.Fn g_access
 function on consumer to gain access to attached provider.
 .Pp
 The
@@ -101,7 +101,7 @@ some_function(struct g_geom *mygeom, struct g_provider *pp)
 		return;
 	}
 	/* Open provider for reading through our consumer. */
-	if (g_access_rel(cp, 1, 0, 0) != 0) {
+	if (g_access(cp, 1, 0, 0) != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
 		return;
@@ -114,7 +114,7 @@ some_function(struct g_geom *mygeom, struct g_provider *pp)
 	g_topology_lock();
 
 	/* Disconnect from provider (release access count). */
-	g_access_rel(cp, -1, 0, 0);
+	g_access(cp, -1, 0, 0);
 	/* Detach from provider. */
 	g_detach(cp);
 	/* Destroy consumer. */
