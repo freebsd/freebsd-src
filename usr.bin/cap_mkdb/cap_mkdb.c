@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)cap_mkdb.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static char sccsid[] = "@(#)cap_mkdb.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,9 +50,7 @@ static const char sccsid[] = "@(#)cap_mkdb.c	8.1 (Berkeley) 6/6/93";
 
 #include <db.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,7 +104,7 @@ main(argc, argv)
 	 */
 	(void)snprintf(buf, sizeof(buf), "%s.db", capname ? capname : *argv);
 	if ((capname = strdup(buf)) == NULL)
-		err(1, (char *)NULL);
+		errx(1, "strdup failed");
 	if ((capdbp = dbopen(capname,
 	    O_CREAT | O_TRUNC | O_RDWR, DEFFILEMODE, DB_HASH, NULL)) == NULL)
 		err(1, "%s", buf);
@@ -159,7 +161,7 @@ db_build(ifiles)
 		if (bplen <= len + 2) {
 			bplen += MAX(256, len + 2);
 			if ((data.data = realloc(data.data, bplen)) == NULL)
-				err(1, (char *)NULL);
+				errx(1, "malloc failed");
 		}
 
 		/* Find the end of the name field. */
@@ -175,7 +177,7 @@ db_build(ifiles)
 			break;
 		case 2:
 			((char *)(data.data))[0] = TCERR;
-			warnx("Record not tc expanded: %.*s", p - bp, bp);
+			warnx("record not tc expanded: %.*s", p - bp, bp);
 			break;
 		}
 
@@ -245,6 +247,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: cap_mkdb [-v] [-f outfile] file1 [file2 ...]\n");
+	    "usage: cap_mkdb [-v] [-f outfile] file [file ...]\n");
 	exit(1);
 }
