@@ -114,9 +114,9 @@ g_dev_register_cloner(void *foo __unused)
 {
 	static int once;
 
+	/* XXX: why would this happen more than once ?? */
 	if (!once) {
-		if (!once)
-			EVENTHANDLER_REGISTER(dev_clone, g_dev_clone, 0, 1000);
+		EVENTHANDLER_REGISTER(dev_clone, g_dev_clone, 0, 1000);
 		once++;
 	}
 }
@@ -129,9 +129,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	static int unit;
-	u_int secsize;
-	off_t mediasize;
-	int error, j;
+	int error;
 	dev_t dev;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
@@ -142,45 +140,23 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	gp = g_new_geomf(mp, pp->name);
 	gp->orphan = g_dev_orphan;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = g_access_rel(cp, 1, 0, 0);
+	error = g_attach(cp, pp);
+	KASSERT(error == 0,
+	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
+	/*
+	 * XXX: I'm not 100% sure we can call make_dev(9) without Giant
+	 * yet.  Once we can, we don't need to drop topology here either.
+	 */
 	g_topology_unlock();
-	if (!error) {
-		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
-		if (error) {
-			secsize = 512;
-			printf("g_dev_taste: error %d Sectors are %d bytes\n",
-			    error, secsize);
-		}
-		j = sizeof mediasize;
-		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
-		if (error) {
-			mediasize = 0;
-			printf("g_dev_taste: error %d Mediasize is %lld bytes\n",
-			    error, (long long)mediasize);
-		}
-		g_topology_lock();
-		g_access_rel(cp, -1, 0, 0);
-		g_topology_unlock();
-	} else {
-		secsize = 512;
-		mediasize = 0;
-	}
 	mtx_lock(&Giant);
-	if (mediasize != 0)
-		printf("GEOM: \"%s\" %lld bytes in %lld sectors of %u bytes\n",
-		    pp->name, (long long)mediasize, 
-		    (long long)mediasize / secsize, secsize);
-	else
-		printf("GEOM: \"%s\" (size unavailable)\n", pp->name);
-	dev = make_dev(&g_dev_cdevsw, unit++,
+	dev = make_dev(&g_dev_cdevsw, unit2minor(unit++),
 	    UID_ROOT, GID_WHEEL, 0600, gp->name);
+	mtx_unlock(&Giant);
+	g_topology_lock();
+
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
-	mtx_unlock(&Giant);
-	g_topology_lock();
 	return (gp);
 }
 
@@ -398,6 +374,16 @@ g_dev_strategy(struct bio *bp)
 	g_io_request(bp2, cp);
 }
 
+/*
+ * g_dev_orphan()
+ *
+ * Called from below when the provider orphaned us.  It is our responsibility
+ * to get the access counts back to zero, until we do so the stack below will
+ * not unravel.  We must clear the kernel-dump settings, if this is the
+ * current dumpdev.  We call destroy_dev(9) to send our dev_t the way of
+ * punched cards and if we have non-zero access counts, we call down with
+ * them negated before we detattch and selfdestruct.
+ */
 
 static void
 g_dev_orphan(struct g_consumer *cp)
@@ -413,6 +399,7 @@ g_dev_orphan(struct g_consumer *cp)
 	dev = gp->softc;
 	if (dev->si_flags & SI_DUMPDEV)
 		set_dumper(NULL);
+	/* XXX: we may need Giant for now */
 	destroy_dev(dev);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
@@ -421,5 +408,4 @@ g_dev_orphan(struct g_consumer *cp)
 	g_destroy_geom(gp);
 }
 
-DECLARE_GEOM_CLASS(g_dev_class, g_dev)
-
+DECLARE_GEOM_CLASS(g_dev_class, g_dev);

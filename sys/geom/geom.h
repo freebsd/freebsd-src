@@ -251,9 +251,7 @@ g_malloc(int size, int flags)
 {
 	void *p;
 
-	mtx_lock(&Giant);
 	p = malloc(size, M_GEOM, flags);
-	mtx_unlock(&Giant);
 	g_sanity(p);
 	/* printf("malloc(%d, %x) -> %p\n", size, flags, p); */
 	return (p);
@@ -264,15 +262,28 @@ g_free(void *ptr)
 {
 	g_sanity(ptr);
 	/* printf("free(%p)\n", ptr); */
-	mtx_lock(&Giant);
 	free(ptr, M_GEOM);
-	mtx_unlock(&Giant);
 }
 
 extern struct sx topology_lock;
-#define g_topology_lock() do { mtx_assert(&Giant, MA_NOTOWNED); sx_xlock(&topology_lock); } while (0)
-#define g_topology_unlock() do { g_sanity(NULL); sx_xunlock(&topology_lock); } while (0)
-#define g_topology_assert() do { g_sanity(NULL); sx_assert(&topology_lock, SX_XLOCKED); } while (0)
+
+#define g_topology_lock() 					\
+	do {							\
+		mtx_assert(&Giant, MA_NOTOWNED);		\
+		sx_xlock(&topology_lock);			\
+	} while (0)
+
+#define g_topology_unlock()					\
+	do {							\
+		g_sanity(NULL);					\
+		sx_xunlock(&topology_lock);			\
+	} while (0)
+
+#define g_topology_assert()					\
+	do {							\
+		g_sanity(NULL);					\
+		sx_assert(&topology_lock, SX_XLOCKED);		\
+	} while (0)
 
 #define DECLARE_GEOM_CLASS(class, name) 	\
 	static void				\
