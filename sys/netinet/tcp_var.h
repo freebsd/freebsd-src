@@ -432,6 +432,7 @@ struct	tcpstat {
 	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */
 	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
 	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
+	u_long  tcps_sack_sboverflow; 	    /* times scoreboard overflowed */
 };
 
 /*
