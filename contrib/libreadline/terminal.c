@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* terminal.c -- controlling the terminal with termcap. */
 
 /* Copyright (C) 1996 Free Software Foundation, Inc.
@@ -20,6 +19,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+/* $FreeBSD$ */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -65,6 +65,10 @@
 
 #include "rlprivate.h"
 #include "rlshell.h"
+#include "xmalloc.h"
+
+#define CUSTOM_REDISPLAY_FUNC() (rl_redisplay_function != rl_redisplay)
+#define CUSTOM_INPUT_FUNC() (rl_getc_function != rl_getc)
 
 /* **************************************************************** */
 /*								    */
@@ -140,6 +144,16 @@ static char *_rl_term_ke;
 /* The key sequences sent by the Home and End keys, if any. */
 static char *_rl_term_kh;
 static char *_rl_term_kH;
+static char *_rl_term_at7;	/* @7 */
+
+/* Insert key */
+static char *_rl_term_kI;
+
+/* Cursor control */
+static char *_rl_term_vs;	/* very visible */
+static char *_rl_term_ve;	/* normal */
+
+static void bind_termcap_arrow_keys PARAMS((Keymap));
 
 /* Variables that hold the screen dimensions, used by the display code. */
 int _rl_screenwidth, _rl_screenheight, _rl_screenchars;
@@ -274,7 +288,10 @@ rl_resize_terminal ()
   if (readline_echoing_p)
     {
       _rl_get_screen_size (fileno (rl_instream), 1);
-      _rl_redisplay_after_sigwinch ();
+      if (CUSTOM_REDISPLAY_FUNC ())
+	rl_forced_update_display ();
+      else
+	_rl_redisplay_after_sigwinch ();
     }
 }
 
@@ -287,6 +304,7 @@ struct _tc_string {
    search algorithm to something smarter. */
 static struct _tc_string tc_strings[] =
 {
+  { "@7", &_rl_term_at7 },
   { "DC", &_rl_term_DC },
   { "IC", &_rl_term_IC },
   { "ce", &_rl_term_clreol },
@@ -296,14 +314,15 @@ static struct _tc_string tc_strings[] =
   { "ei", &_rl_term_ei },
   { "ic", &_rl_term_ic },
   { "im", &_rl_term_im },
+  { "kH", &_rl_term_kH },	/* home down ?? */
+  { "kI", &_rl_term_kI },	/* insert */
   { "kd", &_rl_term_kd },
+  { "ke", &_rl_term_ke },	/* end keypad mode */
   { "kh", &_rl_term_kh },	/* home */
-  { "@7", &_rl_term_kH },	/* end */
   { "kl", &_rl_term_kl },
   { "kr", &_rl_term_kr },
+  { "ks", &_rl_term_ks },	/* start keypad mode */
   { "ku", &_rl_term_ku },
-  { "ks", &_rl_term_ks },
-  { "ke", &_rl_term_ke },
   { "le", &_rl_term_backspace },
   { "mm", &_rl_term_mm },
   { "mo", &_rl_term_mo },
@@ -313,6 +332,8 @@ static struct _tc_string tc_strings[] =
   { "pc", &_rl_term_pc },
   { "up", &_rl_term_up },
   { "vb", &_rl_visible_bell },
+  { "vs", &_rl_term_vs },
+  { "ve", &_rl_term_ve },
 };
 
 #define NUM_TC_STRINGS (sizeof (tc_strings) / sizeof (struct _tc_string))
@@ -327,13 +348,14 @@ get_term_capabilities (bp)
   register int i;
 
   for (i = 0; i < NUM_TC_STRINGS; i++)
+#  ifdef __LCC__
+    *(tc_strings[i].tc_value) = tgetstr ((char *)tc_strings[i].tc_var, bp);
+#  else
     *(tc_strings[i].tc_value) = tgetstr (tc_strings[i].tc_var, bp);
+#  endif
 #endif
   tcap_initialized = 1;
 }
-
-#define CUSTOM_REDISPLAY_FUNC() (rl_redisplay_function != rl_redisplay)
-#define CUSTOM_INPUT_FUNC() (rl_getc_function != rl_getc)
 
 int
 _rl_init_terminal_io (terminal_name)
@@ -342,7 +364,6 @@ _rl_init_terminal_io (terminal_name)
   const char *term;
   char *buffer;
   int tty, tgetent_ret;
-  Keymap xkeymap;
 
   term = terminal_name ? terminal_name : sh_get_env_value ("TERM");
   _rl_term_clrpag = _rl_term_cr = _rl_term_clreol = (char *)NULL;
@@ -362,10 +383,10 @@ _rl_init_terminal_io (terminal_name)
   else
     {
       if (term_string_buffer == 0)
-	term_string_buffer = xmalloc(2032);
+	term_string_buffer = (char *)xmalloc(2032);
 
       if (term_buffer == 0)
-	term_buffer = xmalloc(4080);
+	term_buffer = (char *)xmalloc(4080);
 
       buffer = term_string_buffer;
 
@@ -400,7 +421,10 @@ _rl_init_terminal_io (terminal_name)
       _rl_term_im = _rl_term_ei = _rl_term_ic = _rl_term_IC = (char *)NULL;
       _rl_term_up = _rl_term_dc = _rl_term_DC = _rl_visible_bell = (char *)NULL;
       _rl_term_ku = _rl_term_kd = _rl_term_kl = _rl_term_kr = (char *)NULL;
+      _rl_term_kh = _rl_term_kH = _rl_term_kI = (char *)NULL;
+      _rl_term_ks = _rl_term_ke = _rl_term_at7 = (char *)NULL;
       _rl_term_mm = _rl_term_mo = (char *)NULL;
+      _rl_term_ve = _rl_term_vs = (char *)NULL;
 #if defined (HACK_TERMCAP_MOTION)
       term_forward_char = (char *)NULL;
 #endif
@@ -445,31 +469,36 @@ _rl_init_terminal_io (terminal_name)
 
   /* Attempt to find and bind the arrow keys.  Do not override already
      bound keys in an overzealous attempt, however. */
-  xkeymap = _rl_keymap;
 
-  _rl_keymap = emacs_standard_keymap;
-  _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
-  _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
-  _rl_bind_if_unbound (_rl_term_kr, rl_forward);
-  _rl_bind_if_unbound (_rl_term_kl, rl_backward);
-
-  _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (_rl_term_kH, rl_end_of_line);	/* End */
+  bind_termcap_arrow_keys (emacs_standard_keymap);
 
 #if defined (VI_MODE)
-  _rl_keymap = vi_movement_keymap;
+  bind_termcap_arrow_keys (vi_movement_keymap);
+  bind_termcap_arrow_keys (vi_insertion_keymap);
+#endif /* VI_MODE */
+
+  return 0;
+}
+
+/* Bind the arrow key sequences from the termcap description in MAP. */
+static void
+bind_termcap_arrow_keys (map)
+     Keymap map;
+{
+  Keymap xkeymap;
+
+  xkeymap = _rl_keymap;
+  _rl_keymap = map;
+
   _rl_bind_if_unbound (_rl_term_ku, rl_get_previous_history);
   _rl_bind_if_unbound (_rl_term_kd, rl_get_next_history);
   _rl_bind_if_unbound (_rl_term_kr, rl_forward);
   _rl_bind_if_unbound (_rl_term_kl, rl_backward);
 
   _rl_bind_if_unbound (_rl_term_kh, rl_beg_of_line);	/* Home */
-  _rl_bind_if_unbound (_rl_term_kH, rl_end_of_line);	/* End */
-#endif /* VI_MODE */
+  _rl_bind_if_unbound (_rl_term_at7, rl_end_of_line);	/* End */
 
   _rl_keymap = xkeymap;
-
-  return 0;
 }
 
 char *
@@ -605,4 +634,30 @@ _rl_control_keypad (on)
   else if (!on && _rl_term_ke)
     tputs (_rl_term_ke, 1, _rl_output_character_function);
 #endif
+}
+
+/* **************************************************************** */
+/*								    */
+/*	 		Controlling the Cursor			    */
+/*								    */
+/* **************************************************************** */
+
+/* Set the cursor appropriately depending on IM, which is one of the
+   insert modes (insert or overwrite).  Insert mode gets the normal
+   cursor.  Overwrite mode gets a very visible cursor.  Only does
+   anything if we have both capabilities. */
+void
+_rl_set_cursor (im, force)
+     int im, force;
+{
+  if (_rl_term_ve && _rl_term_vs)
+    {
+      if (force || im != rl_insert_mode)
+	{
+	  if (im == RL_IM_OVERWRITE)
+	    tputs (_rl_term_vs, 1, _rl_output_character_function);
+	  else
+	    tputs (_rl_term_ve, 1, _rl_output_character_function);
+	}
+    }
 }

@@ -2,3 +2,7 @@
 
 rm doc/*.dvi doc/*.html doc/*.ps doc/*.0 doc/*.info doc/*.tex doc/texi2*
 rm savestring.c
+
+cvs import \
+	-m "Virgin import of GNU Readline 4.3" \
+	 src/contrib/libreadline FSF v4_3
