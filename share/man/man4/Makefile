@@ -141,6 +141,7 @@ MAN=	aac.4 \
 	natm.4 \
 	natmip.4 \
 	ncr.4 \
+	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
 	ng_atm.4 \
